@@ -1,6 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { AutoThrustMode } from '@shared/autopilot';
+
 /*
  * The oil indications of the ENGINE SD page (A380 FCOM DSC-70-90 P 22-23/28, a380_fcom.txt l.113334-113390; the
  * figures of the FCOM PDF pages 4110-4111).
@@ -40,14 +42,30 @@ export function oilPressureIsRed(pressurePsi: number): boolean {
 }
 
 /**
- * The oil quantity pulses below the 1.2 qt advisory (l.113339-113349). "The advisory is inhibited: At takeoff or
- * go-around, or When the thrust reversers are selected, or When the alpha floor protection is active."
- * Design choice: takeoff or go-around is the thrust lever of the engine at TOGA, and alpha floor is not modelled (it only
- * comes with the levers at idle to CLB, in flight). No hysteresis is given: the pulsing stops at 1.2 qt.
- * @param thrustLeverAngle L:A32NX_AUTOTHRUST_TLA:n in degrees: 45 at TOGA, negative in reverse
+ * The A/THR modes of a takeoff or a go-around (TOGA, FLEX, derated takeoff, soft go-around) and of the alpha floor
+ * protection (A.FLOOR, then TOGA LK), L:A32NX_AUTOTHRUST_MODE
  */
-export function oilQuantityPulses(quantityQt: number, thrustLeverAngle: number): boolean {
-  const inhibited = thrustLeverAngle >= 45 || thrustLeverAngle < 0;
+const OIL_ADVISORY_INHIBITING_ATHR_MODES: readonly number[] = [
+  AutoThrustMode.MAN_TOGA,
+  AutoThrustMode.MAN_GA_SOFT,
+  AutoThrustMode.MAN_FLEX,
+  AutoThrustMode.MAN_DTO,
+  AutoThrustMode.A_FLOOR,
+  AutoThrustMode.TOGA_LK,
+];
+
+/**
+ * The oil quantity pulses below the 1.2 qt advisory (l.113339-113349). l.113345-113348: "The advisory is inhibited: At
+ * takeoff or go-around, or When the thrust reversers are selected, or When the alpha floor protection is active."
+ * Design choices: takeoff or go-around is the thrust lever of the engine at TOGA or a takeoff / go-around A/THR mode
+ * (FLEX and derated takeoffs included), alpha floor is the A.FLOOR / TOGA LK A/THR mode. No hysteresis is given: the
+ * pulsing stops at 1.2 qt.
+ * @param thrustLeverAngle L:A32NX_AUTOTHRUST_TLA:n in degrees: 45 at TOGA, negative in reverse
+ * @param autothrustMode L:A32NX_AUTOTHRUST_MODE (AutoThrustMode)
+ */
+export function oilQuantityPulses(quantityQt: number, thrustLeverAngle: number, autothrustMode: number): boolean {
+  const inhibited =
+    thrustLeverAngle >= 45 || thrustLeverAngle < 0 || OIL_ADVISORY_INHIBITING_ATHR_MODES.indexOf(autothrustMode) !== -1;
   return !inhibited && quantityQt < OIL_QTY_ADVISORY_QT;
 }
 

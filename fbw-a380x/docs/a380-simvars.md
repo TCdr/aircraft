@@ -267,6 +267,18 @@
       | 12  | Unused                                               |
       | 13  | Pack 1 operating                                     |
       | 14  | Pack 2 operating                                     |
+      | 15  | Pack flow valve 1 (pack 1) failed open               |
+      | 16  | Pack flow valve 2 (pack 1) failed open               |
+      | 17  | Pack flow valve 3 (pack 2) failed open               |
+      | 18  | Pack flow valve 4 (pack 2) failed open               |
+      | 19  | Pack flow valve 1 (pack 1) failed closed             |
+      | 20  | Pack flow valve 2 (pack 1) failed closed             |
+      | 21  | Pack flow valve 3 (pack 2) failed closed             |
+      | 22  | Pack flow valve 4 (pack 2) failed closed             |
+      | 23  | Pack 1 overheat (outlet above 95 deg C)              |
+      | 24  | Pack 2 overheat (outlet above 95 deg C)              |
+      | 25  | Pack 1 in bypass mode (regulation fault)             |
+      | 26  | Pack 2 in bypass mode (regulation fault)             |
 
 - A32NX_COND_CPIOM_B{id}_TCS_DISCRETE_WORD
     - Arinc429<Discrete>
@@ -308,6 +320,8 @@
       | 22  | Bulk Heater Fault                                    |
       | 23  | FWD isolation valve Fault                            |
       | 24  | Bulk isolation valve Fault                           |
+      | 25  | Bulk cargo duct overheat (above 70 deg C)            |
+      | 26  | Cabin air extract valve Fault                        |
 
 - A32NX_COND_CPIOM_B{id}_CPCS_DISCRETE_WORD
     - Arinc429<Discrete>
@@ -475,6 +489,13 @@
     - {id}
         - 1 to 4
 
+- A32NX_PRESS_OCSM_{id}_MAN_CTL_FAILURE
+    - Bool
+    - True if the manual pressurization mode of the outflow valve controller is failed (CAB PRESS MAN CTL FAULT);
+      false while the controller has both channels failed
+    - {id}
+        - 1 to 4
+
 - A32NX_OVHD_COND_{id}_SELECTOR_KNOB
     - Number (0 to 300)
     - Rotation amount of the overhead temperature selectors for the cockpit and the cabin
@@ -562,6 +583,12 @@
 - A380X_FMS_DEST_EFOB_BELOW_MIN
     - Bool
     - Indicates if the FMS predicted fuel at destination is below minimum.
+
+- A32NX_PFD_MSG_CHECK_APPR_SELECTION
+    - Bool
+    - Indicates if the CHECK APPR SEL message is shown on the PFD FMA (FMS: an ILS manually tuned on the
+      POSITION/NAVAIDS page that does not correspond with the approach of the flight plan, in cruise less than 100 NM
+      from the T/D, in descent, or in approach above 800 ft)
 
 - A380X_FM_APPROACH_HEADWIND_COMPONENT
     - Arinc429<Knots>
@@ -1085,6 +1112,12 @@ The PRIMs perform the flight guidance and flight envelope functions.
         | Data       | 1      |
         | Emergency  | 2      |
 
+- `L:A380X_LOUDSPEAKER_{side}_VOLUME`
+    - Percent
+    - The glareshield loudspeaker volume control knob, `{side}` 1 = CAPT, 2 = F/O: 0 = OFF (fully anticlockwise), 100 =
+      fully clockwise. The knob of the active AMU side scales the COM receive volumes set by the RMP (not the FWS and
+      SURV sounds). Set to 100 at each flight load by the systems host.
+
 ## Electrical ATA 24
 
 - A32NX_ELEC_CONTACTOR_{name}_IS_CLOSED
@@ -1433,9 +1466,10 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - 3
         - 4
 
-- A32NX_OVHD_FIRE_SQUIB_{bottle}_{zone}_{number}_IS_ARMED
+- A32NX_FIRE_SQUIB_{bottle}_{zone}_{number}_IS_ARMED
     - Bool
-    - True when the the corresponding fire extinguishing bottle squibs are armed.
+    - The SQUIB light of the AGENT pb: true when the corresponding fire extinguishing bottle squibs are armed and the
+      bottle is not discharged yet, or during the fire test.
     - {bottle}
         - 1
         - 2
@@ -1448,7 +1482,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - 3
         - 4
 
-- A32NX_OVHD_FIRE_SQUIB_{bottle}_{zone}_{number}_IS_DISCHARGED
+- A32NX_FIRE_SQUIB_{bottle}_{zone}_{number}_IS_DISCHARGED
     - Bool
     - True when the the corresponding fire extinguishing bottle has been discharged into the engine.
     - {bottle}
@@ -1483,7 +1517,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_FIRE_TEST_ACTIVE
     - Bool
     - True while the fire test is requested: the fire test pushbutton is pressed, or was released less than 7 seconds
-      ago when A32NX_FIRE_TEST_EXTEND is true
+      ago when A32NX_FIRE_TEST_EXTEND is true. The test itself starts once the request has lasted 3 seconds.
 
 - A32NX_CONFIG_SITUATION_FX
     - Bool
@@ -1927,6 +1961,53 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - TRIMTK (TRIM TK XFR pb-sw)
   - True when the transfer pb-sw is in AUTO (released, no light); false in MAN (FWD for the trim tank: pressed in, MAN / FWD light). Set to true (AUTO) at every flight load by the systems host (CpiomF/LegacyFuel, FuelManualTransfer). While any of them is in MAN / FWD the automatic transfers stop and the systems host runs the manual transfers on the MSFS fuel system (FCOM DSC-28-40 MANUAL TRANSFERS): outer tank pumps via the forward gallery into the four feed tanks (with an outer tank pump pb-sw OFF, the emergency outer tank transfer valves open instead, by gravity into feed tanks 1 and 4), inner and mid tank aft pumps via the aft gallery into the feed tanks, trim tank pumps via the trim line isolation valve and the aft gallery into the inner tanks (into the feed tanks when an inner or mid tank manual transfer is also selected). Back to AUTO, the transfer pumps stop, the transfer valves close and the automatic transfers start again
 
+- A380X_OVHD_FUEL_AUTO_GND_XFR_PB_IS_ON
+  - Bool
+  - The AUTO GND XFR pb-sw is pressed: the FQMS runs the automatic ground transfer (CpiomF/FuelGroundTransfer, FCOM DSC-28-50-20): with all the transfer pump pb-sws ON, on ground, fewer than two engines running and the FQMS CG computed (ZFW / ZFCG entered in the FMS), the fuel moves out of (into) the trim tank into (out of) the inner tanks, then the mid tanks, until the GW CG reaches the ground CG target of 39.5 %, at 44 100 lb/h
+
+- A380X_OVHD_FUEL_AUTO_GND_XFR_PB_LIGHT_ON
+  - Bool
+  - The light of the AUTO GND XFR pb-sw: on while the pb-sw is pressed (in progress or completed), flashing when the FQMS aborted the ground transfer
+  - Written by the systems host (CpiomF/FuelAutomaticTransfers)
+
+- A380X_FUEL_AUTO_GND_XFR_IN_PROGRESS
+  - Bool
+  - The automatic ground transfer is in progress (GND XFR IN PROGRESS memo)
+
+- A380X_FUEL_AUTO_GND_XFR_COMPLETED
+  - Bool
+  - The automatic ground transfer has completed (the CG reached 39.5 %, or no more fuel can move), until the AUTO GND XFR pb-sw is released (FUEL AUTO GND XFR COMPLETED)
+
+- A380X_FUEL_AUTO_GND_XFR_FAULT
+  - Bool
+  - The automatic ground transfer could not start (a transfer pump pb-sw OFF, no FQMS CG, in flight, a refuel, jettison or manual transfer in progress) or was aborted (two engines running), until the AUTO GND XFR pb-sw is released (FUEL AUTO GND XFR FAULT)
+
+- A380X_OVHD_FUEL_TRIM_TK_FEED_SELECTOR
+  - Number
+  - The TRIM TK FEED selector: 0 AUTO (the value at flight load), 1 OPEN, 2 ISOL. The cockpit model has no such selector: the L:var is set from outside the cockpit (e.g. the developer mode). ISOL stops the transfers out of the trim tank (main and CG transfers of CpiomF/LegacyFuel, load alleviation, TRIM TK XFR FWD): trim tank pumps stopped, trim line valves closed. OPEN lets the trim tank fuel flow by gravity into the inner tanks (1 000 gal/h, pitch attitude below 3°)
+
+- A380X_FUEL_TRIM_TK_GRAVITY_XFR_IN_PROGRESS
+  - Bool
+  - The trim tank fuel flows by gravity into the inner tanks (TRIM TK FEED OPEN)
+
+- A380X_FUEL_LOAD_ALLEVIATION_XFR_{transfer}
+  - Bool
+  - {transfer}
+    - TO_OUTR_TKS: in flight, FOB above 110 200 lb, the outer tanks not full: inner (then mid) tanks to the outer tanks, 44 100 lb/h per outer tank
+    - FROM_TRIM_TK: before landing (remaining time to destination below 80 min for 3 min, or below FL 245 after FL 255; stops above 80 min, resumes below 78 min): trim tank to the feed (then mid, then inner) tanks, 44 100 lb/h
+    - FROM_OUTR_TKS: before landing (the same with 30 and 28 min): outer tanks above 8 800 lb to the feed (then mid, then inner) tanks of their side, 33 050 lb/h per outer tank
+  - The load alleviation transfer is in progress (CpiomF/FuelLoadAlleviation, FCOM DSC-28-30). The remaining time to destination is read from A32NX_FM{number}_REMAINING_FLIGHT_TIME; below 90 min the main transfer thresholds of the feed tanks are also reduced (36 500 lb / 39 350 lb instead of 43 100 lb / 45 950 lb)
+
+- A380X_FUEL_ALTN_OUTR_TK_GRAVITY_XFR_IN_PROGRESS
+  - Bool
+  - The alternate gravity transfer from an outer tank with a failed pump runs (FCOM DSC-28-40 CASE 5: from the lowest feed tank below 28 660 lb, into FEED TK 2 (3), 500 gal/h); the FWS raises FUEL NORM XFR FAULT from it
+
+- A32NX_FM{number}_REMAINING_FLIGHT_TIME
+  - Arinc429<Seconds>
+  - {number} 1 or 2
+  - The predicted time to the destination, no computed data without a prediction
+  - Written by the FMS, read by the FQMS (CpiomF/LegacyFuel, FuelAutomaticTransfers)
+
 ## Indicating-Recording ATA 31
 
 - A32NX_CDS_CAN_BUS_1_1_AVAIL
@@ -2244,6 +2325,11 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - Number
     - Brightness of the ambient lights (0-100)
 
+- `L:A32NX_NO_SMOKING_MEMO`
+    - Bool
+    - True when the cabin NO SMOKING signs are on: NO SMOKING sw ON; at AUTO with the slats or the main landing gear
+      extended; or with an excessive cabin altitude, regardless of the switch (systems host Misc/CabinSigns.ts)
+
 ## Surveillance ATA 34
 
 - `L:A380X_WXR_OFF`
@@ -2373,6 +2459,12 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
 - A380X_VD_AIRPORT_{index}_ELEVATION_FT
     - Number (feet)
     - The highest runway threshold of airport {index}: the elevation of its flat ground on the VD
+
+- A380X_VD_{side}_RA_ZONE_SHOWN
+    - Bool
+    - The VD of side {side} (1 = captain, 2 = first officer) shows the amber radio altitude zone under the aircraft
+      symbol (below 5 000 ft RA, FCOM DSC-31-20-40-10), written by VerticalDisplay.tsx: the ndwxr gauge then leaves the
+      plot column under the zone clear of its terrain and weather picture
 
 - `L:A32NX_EGPWC_ND_{L,R}_TERRAIN_{MIN,MAX}_ELEVATION` and `..._ELEVATION_MODE`
     - The TERR ON ND peaks box figures, written by the ndwxr gauge; same variables and values as on the A32NX, see
@@ -2630,7 +2722,9 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
 
 ## Engines ATA 70
   - L:A32NX_OVHD_FADEC_{ENG}
-  - The powered status of the associated engine's FADEC dependant on the button on the OVHD
+  - The FADEC GND PWR pb of the engine is ON (latched). Setting it ON on the ground supplies the FADEC from the aircraft
+    network for 10 min (the ENG SD page shows the engine parameters); the FADEC is also supplied 15 min after the
+    aircraft power-up (A380 FCOM DSC-70-20-10)
   - {ENG} = 1, 2, 3, 4
 
 - A32NX_ENGINE_{number}_FUEL_CUT
@@ -2927,7 +3021,7 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 2
     - 3
     - 4
-  - Added by the FADEC to the EGT of the running engine: stall EGT rise (150 °C) and EGT overtemperature failure (flyPad 72110-72113, 120 °C at 100 % N1), design choices. The EWD shows the EEC-trimmed EGT of the healthy engine plus this offset. Written by the systems WASM
+  - Added by the FADEC to the EGT of the running engine: stall EGT rise (150 °C) and EGT overtemperature failure (flyPad 72110-72113, 350 °C at 100 % N1: amber in climb, red at takeoff thrust against the FCOM 970 °C limit and 1 002 °C red line), design choices. The EWD shows the EEC-trimmed EGT of the healthy engine plus this offset. Written by the systems WASM
 
 - A32NX_ENGINE_{number}_N1_OFFSET
   - Number (% N1)

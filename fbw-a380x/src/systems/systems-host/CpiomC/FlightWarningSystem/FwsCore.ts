@@ -138,8 +138,14 @@ import {
   isN1N2OverLimit,
   isStallAlertShown,
 } from './EngineParameterAlerts';
-import { displayedEgt } from '../../../instruments/src/EWD/elements/EgtLimits';
+import { displayedEgt, EgtRedLineTimer } from '../../../instruments/src/EWD/elements/EgtLimits';
 import { isReverserInoperative, isReverserSelectedInFlight, thrLeverFaultInfo } from './FadecReverserAlerts';
+import {
+  DualRetardCallout,
+  THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION,
+  ThrustLeverAboveIdleMonitor,
+} from './EngineThrustLeverAlerts';
+import { selectSfccPositionWord } from './SfccWordSelection';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
 import { EngineStartFault, EngineStartPhase, isIgnitionMemoShown, StartValveFault } from './EngineStartAlerts';
 import {
@@ -152,6 +158,13 @@ import {
   TransferPumpsFlags,
 } from './FuelPumpValveFlags';
 import { HotAirValveFlags, PackPbsOn, readTrimAirMonitoringFlags, TrimAirMonitoringFlags } from './CondTrimAirFlags';
+import {
+  isCabPressManCtlFault,
+  packValveFaults,
+  readPackMonitoringFlags,
+  VCS_BULK_DUCT_OVHT_BIT,
+  VCS_CABIN_AIR_EXTRACT_VLV_FAULT_BIT,
+} from './FwsAirCondAlerts';
 import { ElecSystemAlerts, readElecSystemInputs } from './FwsElecSystemAlerts';
 import { ElecDriveOilAlerts, readDriveOilInputs } from './FwsElecDriveOilAlerts';
 import {
@@ -210,7 +223,7 @@ import {
 import { ApuFaultInputs, isApuFault } from './ApuFaultAlerts';
 import { SMOKE_ZONES, smokeWarnings } from './SmokeAlerts';
 import { fuelTransferMemos, TankOutflowMonitor } from './FuelTransferMemos';
-import { enginePumpPressLoStatus } from './HydPumpStatus';
+import { ElecPumpRedundancyLoss, enginePumpPressLoStatus } from './HydPumpStatus';
 import { AbnormBleedConfigInputs, isAbnormBleedConfig } from './AbnormBleedConfig';
 import { BleedMonitoringInputs, isBleedLeak, isEngineBleedFault } from './BleedMonitoringAlerts';
 
@@ -559,7 +572,11 @@ export class FwsCore {
 
   public readonly highLandingFieldElevation = Subject.create(false);
 
-  public readonly noMobileSwitchPosition = Subject.create(0);
+  /** The SEAT BELTS sw is ON (A380 FCOM DSC-33-50-10 MEMO, l.84112) */
+  public readonly seatBeltsSwitchOn = Subject.create(false);
+
+  /** The NO SMOKING sw is ON (A380 FCOM DSC-33-50-10 MEMO, l.84116) */
+  public readonly noSmokingSwitchOn = Subject.create(false);
 
   public readonly predWSOn = Subject.create(false);
 
@@ -670,6 +687,31 @@ export class FwsCore {
   public readonly allCabinFansFault = Subject.create(false);
 
   public readonly bulkCargoHeaterFault = Subject.create(false);
+
+  /** AIR PACK 1 VLV 1, PACK 1 VLV 2, PACK 2 VLV 1, PACK 2 VLV 2 FAULT conditions (FwsAirCondAlerts packValveFaults) */
+  public readonly packVlvFault = [
+    Subject.create(false),
+    Subject.create(false),
+    Subject.create(false),
+    Subject.create(false),
+  ];
+
+  /** AIR PACK 1(2) OVHT conditions */
+  public readonly packOvht = [Subject.create(false), Subject.create(false)];
+
+  /** AIR PACK 1(2) REGUL FAULT conditions (the pack in bypass mode) */
+  public readonly packRegulFault = [Subject.create(false), Subject.create(false)];
+
+  /** COND BULK CARGO DUCT OVHT condition (VCS discrete word bit 25) */
+  public readonly bulkCargoDuctOvht = Subject.create(false);
+
+  public readonly bulkCargoHeaterPbOn = Subject.create(false);
+
+  /** COND CABIN AIR EXTRACT VLV FAULT condition (VCS discrete word bit 26) */
+  public readonly cabinAirExtractVlvFault = Subject.create(false);
+
+  /** CAB PRESS MAN CTL FAULT condition: the manual pressurization mode is failed */
+  public readonly cabPressManCtlFault = Subject.create(false);
 
   public readonly fwdIsolValveOpen = Subject.create(false);
 
@@ -1735,6 +1777,9 @@ export class FwsCore {
   /** TRIM TK XFRD memo: the trim tank is empty (FuelTransferMemos) */
   public readonly trimTankXfrd = Subject.create(false);
 
+  /** GND XFR IN PROGRESS memo: the automatic ground transfer of the FQMS is in progress (FuelTransferMemos) */
+  public readonly gndXfrInProgress = Subject.create(false);
+
   /** The left (right) inner tank holds fuel */
   public readonly innerTankNotEmpty = [0, 1].map(() => Subject.create(false));
 
@@ -1889,6 +1934,10 @@ export class FwsCore {
 
   /** ENG PMP PRESS LO MORE INFO REDUND LOSS per engine pump, one pump of the system failed (HydPumpStatus) */
   public readonly enginePumpRedundLoss = Array.from({ length: 8 }, () => Subject.create(false));
+
+  /** ELEC PMP FAULT MORE INFO REDUND LOSS: G ELEC PMP A, G B, Y A, Y B (HydPumpStatus ElecPumpRedundancyLoss) */
+  private readonly elecPumpRedundancyLoss = Array.from({ length: 4 }, () => new ElecPumpRedundancyLoss());
+  public readonly elecPumpRedundLoss = Array.from({ length: 4 }, () => Subject.create(false));
 
   public readonly eng4PumpDisc = Subject.create(false);
 
@@ -2620,6 +2669,8 @@ export class FwsCore {
   /** ENG STALL, ENG EGT OVER LIMIT, ENG N1/N2 OVER LIMIT of the engines 1 to 4 (EngineParameterAlerts.ts) */
   public readonly engStall = [1, 2, 3, 4].map(() => Subject.create(false));
   public readonly engEgtOverLimit = [1, 2, 3, 4].map(() => Subject.create(false));
+  /** The time the shown EGT of the engines 1 to 4 has been at or above the red line (takeoff rule, EgtLimits isEgtRed) */
+  private readonly egtRedLineTimers = [1, 2, 3, 4].map(() => new EgtRedLineTimer());
   public readonly engN1N2OverLimit = [1, 2, 3, 4].map(() => Subject.create(false));
 
   /** ENG FAIL AUTO RELIGHT IN PROGRESS: the FADEC auto relight of the engines 1 to 4 is running (EngineFailAlerts.ts) */
@@ -2786,6 +2837,11 @@ export class FwsCore {
   public readonly reverserEnergized = [2, 3].map(() => Subject.create(false));
   /** ENG REVERSER SELECTED: the reverser of the engine 2 (3) is selected in flight */
   public readonly reverserSelected = [2, 3].map(() => Subject.create(false));
+
+  /** ENG 1(2)(3)(4) THR LEVER ABOVE IDLE and its dual RETARD callout (EngineThrustLeverAlerts) */
+  private readonly thrustLeverAboveIdleMonitor = new ThrustLeverAboveIdleMonitor();
+  private readonly dualRetardCallout = new DualRetardCallout();
+  public readonly thrLeverAboveIdle = [1, 2, 3, 4].map(() => Subject.create(false));
   public readonly anyReverserSelected = MappedSubject.create(
     SubscribableMapFunctions.or(),
     this.reverserSelected[0],
@@ -3680,7 +3736,6 @@ export class FwsCore {
   }
 
   healthInjector(): void {
-    SimVar.SetSimVarValue('L:A32NX_NO_SMOKING_MEMO', SimVarValueType.Bool, true);
     SimVar.SetSimVarValue('L:A32NX_CABIN_READY', SimVarValueType.Bool, true);
   }
 
@@ -4154,6 +4209,24 @@ export class FwsCore {
         this.engineIdleOnly[engine - 1].set(true);
       }
     }
+
+    // ENG 1(2)(3)(4) THR LEVER ABOVE IDLE (A380 FCOM l.173271-173292, EngineThrustLeverAlerts) and its dual RETARD
+    this.thrustLeverAboveIdleMonitor.update({
+      tlaDegrees: throttlePositions,
+      fadecAutoIdle: [1, 2, 3, 4].map(
+        (engine) => SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_FADEC_AUTO_IDLE`, 'bool') > 0,
+      ),
+      thrLeverFault: this.thrLeverFault.map((fault) => fault.get()),
+    });
+    this.thrLeverAboveIdle.forEach((active, engineIndex) =>
+      active.set(this.thrustLeverAboveIdleMonitor.isActive(engineIndex)),
+    );
+    const thrLeverAboveIdleShown =
+      this.thrustLeverAboveIdleMonitor.isAnyActive() &&
+      !THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION.includes(this.flightPhase.get());
+    if (this.dualRetardCallout.update(thrLeverAboveIdleShown, deltaTime / 1000)) {
+      this.soundManager.enqueueSound('retard');
+    }
     this.athrOff.set(this.autoThrustStatus.get() === 0);
     this.athrOn.set(this.autoThrustStatus.get() === 1);
     this.autoThrustMode.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_MODE', 'enum'));
@@ -4285,6 +4358,19 @@ export class FwsCore {
     this.yellowBPumpLoPressConfNode.write(yellowBPumpLoPress, deltaTime);
     this.yellowBPumpFault.set(
       this.ac4BusPowered.get() && (this.yellowBPumpLoPressConfNode.read() || yellowBPumpOverheat),
+    );
+
+    // ELEC PMP FAULT STATUS: MORE INFO REDUND LOSS of the pump (A380 FCOM l.155025-155028, HydPumpStatus)
+    const elecPumps = [
+      { fault: this.greenAPumpFault, auto: this.greenAPumpAuto, hydSysInop: this.greenHydSysInop },
+      { fault: this.greenBPumpFault, auto: this.greenBPumpAuto, hydSysInop: this.greenHydSysInop },
+      { fault: this.yellowAPumpFault, auto: this.yellowAPumpAuto, hydSysInop: this.yellowHydSysInop },
+      { fault: this.yellowBPumpFault, auto: this.yellowBPumpAuto, hydSysInop: this.yellowHydSysInop },
+    ];
+    elecPumps.forEach((pump, index) =>
+      this.elecPumpRedundLoss[index].set(
+        this.elecPumpRedundancyLoss[index].update(pump.fault.get(), !!pump.auto.get(), pump.hydSysInop.get()),
+      ),
     );
 
     this.yellowElecAandBPumpOff.set(
@@ -5440,6 +5526,33 @@ export class FwsCore {
         this.phase8ConfirmationNode180.read(),
     );
 
+    // Pack and pack valve monitoring of the FDACs, from the AGS word of the CPIOM B pair of each pack (B1/B3 pack 1,
+    // B2/B4 pack 2), FwsAirCondAlerts
+    const packMonitoring = readPackMonitoringFlags(
+      this.cpiomBAgsAppDiscreteWord1.isNormalOperation()
+        ? this.cpiomBAgsAppDiscreteWord1
+        : this.cpiomBAgsAppDiscreteWord3,
+      this.cpiomBAgsAppDiscreteWord2.isNormalOperation()
+        ? this.cpiomBAgsAppDiscreteWord2
+        : this.cpiomBAgsAppDiscreteWord4,
+    );
+    const packValveFaultConditions = packValveFaults(packMonitoring, [
+      this.fdac1Channel1Failure.get() && this.fdac1Channel2Failure.get(),
+      this.fdac2Channel1Failure.get() && this.fdac2Channel2Failure.get(),
+    ]);
+    this.packVlvFault.forEach((fault, valveIndex) => fault.set(packValveFaultConditions[valveIndex]));
+    this.packOvht.forEach((ovht, packIndex) => ovht.set(packMonitoring.overheat[packIndex]));
+    this.packRegulFault.forEach((regulFault, packIndex) => regulFault.set(packMonitoring.bypassMode[packIndex]));
+
+    this.bulkCargoDuctOvht.set(vcsDiscreteWordToUse.bitValueOr(VCS_BULK_DUCT_OVHT_BIT, false));
+    this.bulkCargoHeaterPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_CARGO_AIR_HEATER_PB_IS_ON', 'bool') > 0);
+    this.cabinAirExtractVlvFault.set(vcsDiscreteWordToUse.bitValueOr(VCS_CABIN_AIR_EXTRACT_VLV_FAULT_BIT, false));
+    this.cabPressManCtlFault.set(
+      isCabPressManCtlFault(
+        [1, 2, 3, 4].map((ocsm) => SimVar.GetSimVarValue(`L:A32NX_PRESS_OCSM_${ocsm}_MAN_CTL_FAILURE`, 'bool') > 0),
+      ),
+    );
+
     this.ramAirOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_COND_RAM_AIR_PB_IS_ON', 'bool'));
 
     this.cabinAirExtractOn.set(SimVar.GetSimVarValue('L:A32NX_VENT_OVERPRESSURE_RELIEF_VALVE_IS_OPEN', 'bool'));
@@ -5861,7 +5974,9 @@ export class FwsCore {
     this.fmsSwitchingKnob.set(SimVar.GetSimVarValue('L:A32NX_FMS_SWITCHING_KNOB', 'enum'));
     this.seatBelt.set(SimVar.GetSimVarValue('A:CABIN SEATBELTS ALERT SWITCH', 'bool'));
     this.ndXfrKnob.set(SimVar.GetSimVarValue('L:A32NX_ECAM_ND_XFR_SWITCHING_KNOB', 'enum'));
-    this.noMobileSwitchPosition.set(SimVar.GetSimVarValue('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', 'number'));
+    // SIGNS panel switches at ON (position 0; 1 AUTO, 2 OFF), for the SEAT BELTS / NO SMOKING / SIGNS ON memos (FwsMemos)
+    this.seatBeltsSwitchOn.set(SimVar.GetSimVarValue('L:XMLVAR_SWITCH_OVHD_INTLT_SEATBELT_Position', 'number') === 0);
+    this.noSmokingSwitchOn.set(SimVar.GetSimVarValue('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', 'number') === 0);
     this.strobeLightsOn.set(SimVar.GetSimVarValue('L:LIGHTING_STROBE_0', 'Bool'));
 
     this.voiceVhf3.set(this.rmp3ActiveMode.get() !== FrequencyMode.Data);
@@ -6034,9 +6149,20 @@ export class FwsCore {
     this.spoilersArmed.set(fcdc1DiscreteWord4.bitValueOr(27, false) || fcdc2DiscreteWord4.bitValueOr(27, false));
     this.speedBrakeCommand.set(fcdc1DiscreteWord4.bitValueOr(28, false) || fcdc2DiscreteWord4.bitValueOr(28, false));
 
-    // TODO: add switching between SFCC_1 and SFCC_2
-    const flapsPos = Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_FLAP_ACTUAL_POSITION_WORD');
-    const slatsPos = Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_ACTUAL_POSITION_WORD');
+    // SFCC 1, or SFCC 2 when SFCC 1 cannot give the position (A380 FCOM l.54523, SfccWordSelection). Status word bit 12
+    // flap fault, bit 11 slat fault.
+    const flapsPos = selectSfccPositionWord(
+      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_FLAP_ACTUAL_POSITION_WORD'),
+      this.slatFlapsSystem1StatusWord.bitValueOr(12, false),
+      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_FLAP_ACTUAL_POSITION_WORD'),
+      this.slatFlapsSystem2StatusWord.bitValueOr(12, false),
+    );
+    const slatsPos = selectSfccPositionWord(
+      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_ACTUAL_POSITION_WORD'),
+      this.slatFlapsSystem1StatusWord.bitValueOr(11, false),
+      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_ACTUAL_POSITION_WORD'),
+      this.slatFlapsSystem2StatusWord.bitValueOr(11, false),
+    );
 
     // flap/slat internal signals
     this.flapsInferiorTo8Deg.set(flapsPos.isNormalOperation() && flapsPos.value < 205);
@@ -6662,11 +6788,14 @@ export class FwsCore {
       outerTanksKg,
       jettisonInProgress: this.fuelJettisonInProgress.get(),
       fuelingInProgress,
+      groundTransferInProgress:
+        SimVar.GetSimVarValue('L:A380X_FUEL_AUTO_GND_XFR_IN_PROGRESS', SimVarValueType.Bool) > 0,
     });
     this.fwdXfrInProgress.set(transferMemos.fwdXfrInProgress);
     this.outerTankXfrInProgress.set(transferMemos.outerTankXfrInProgress);
     this.outerTanksXfrd.set(transferMemos.outerTanksXfrd);
     this.trimTankXfrd.set(transferMemos.trimTankXfrd);
+    this.gndXfrInProgress.set(transferMemos.gndXfrInProgress);
     this.innerTankNotEmpty[0].set(tankHasFuel(4));
     this.innerTankNotEmpty[1].set(tankHasFuel(7));
     this.midTankNotEmpty[0].set(tankHasFuel(3));
@@ -7142,12 +7271,15 @@ export class FwsCore {
       const engineNumber = index + 1;
       const egt = SimVar.GetSimVarValue(`L:A32NX_ENGINE_EGT:${engineNumber}`, 'number');
       const egtOffset = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_EGT_OFFSET`, 'number');
+      const displayedEgtDegrees = displayedEgt(egt, egtOffset, thrustLimitType);
+      this.egtRedLineTimers[index].update(displayedEgtDegrees, deltaTime / 1000);
       const overLimitInputs = {
-        displayedEgtDegrees: displayedEgt(egt, egtOffset, thrustLimitType),
+        displayedEgtDegrees,
         n1Percent: engineN1[index].get(),
         n3Percent: engineN3[index].get(),
         thrustLimitType,
         alphaFloor,
+        secondsAtOrAboveRedLine: this.egtRedLineTimers[index].secondsAtOrAboveRedLine,
       };
       this.engStall[index].set(isStallAlertShown(engineStalls[index], stalledEngineCount, this.flightPhase.get()));
       egtExceeded[index] = engineRunning[index] && isEgtOverLimit(overLimitInputs);

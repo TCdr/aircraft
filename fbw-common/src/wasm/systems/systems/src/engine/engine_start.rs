@@ -36,6 +36,7 @@
 use crate::{
     failures::{Failure, FailureType},
     pneumatic::{EngineModeSelector, EngineState},
+    shared::InternationalStandardAtmosphere,
     simulation::{
         InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
         SimulatorWriter, UpdateContext, VariableIdentifier, Write,
@@ -43,7 +44,7 @@ use crate::{
 };
 use std::time::Duration;
 use uom::si::{
-    f64::{Ratio, ThermodynamicTemperature},
+    f64::{Length, Ratio, ThermodynamicTemperature},
     ratio::percent,
 };
 
@@ -94,6 +95,10 @@ pub struct EngineStartSchedule {
     /// ignition) of a hot engine (bow rotor protection), for
     /// [`EngineStartInputs::engine_thermal_state`] 1. Zero: no pre-start motoring.
     pub max_pre_start_motoring_time: Duration,
+    /// First automatic start attempt on the ground of a cold engine (no residual heat,
+    /// [`EngineStartInputs::engine_thermal_state`] 0) or above this pressure altitude: the FADEC
+    /// adds the second igniter once the engine has lit up. None: the single igniter stays alone.
+    pub second_igniter_at_light_up_cold_or_above: Option<Length>,
 }
 
 /// The phase of the start sequence, written as ENGINE_n_START_PHASE.
@@ -300,6 +305,10 @@ pub struct EngineStartSequence {
     /// The FADEC alternates the igniter of the first automatic start attempt on the ground.
     ground_start_uses_igniter_b: bool,
     single_igniter_used: bool,
+    /// The current automatic start is one of a cold engine or above the altitude of
+    /// [`EngineStartSchedule::second_igniter_at_light_up_cold_or_above`], decided when the start
+    /// begins (the engine heats up once it has lit).
+    second_igniter_at_light_up: bool,
     continuous_ignition_armed: bool,
     continuous_ignition: bool,
     igniters: Igniters,
@@ -378,6 +387,7 @@ impl EngineStartSequence {
             attempt_fuel_on: false,
             ground_start_uses_igniter_b: false,
             single_igniter_used: false,
+            second_igniter_at_light_up: false,
             continuous_ignition_armed: false,
             continuous_ignition: false,
             igniters: Igniters::NONE,
@@ -428,6 +438,8 @@ impl EngineStartSequence {
             self.phase = Self::phase_with_master_off(inputs);
         } else if master_turned_on {
             self.begin_start(schedule, inputs);
+            self.second_igniter_at_light_up =
+                Self::second_igniter_at_light_up(context, schedule, inputs);
         } else {
             self.continue_phase(context, schedule, inputs);
         }
@@ -572,6 +584,26 @@ impl EngineStartSequence {
         schedule
             .max_pre_start_motoring_time
             .mul_f64(inputs.engine_thermal_state.clamp(0., 1.))
+    }
+
+    /// A320 FCOM DSC-70-80-30 IGNITION (a320_fcom.txt l.63468-63471): "During automatic ground
+    /// start, when engine is cold or above 10 000 ft: 1. One igniter is supplied, and 2. When the
+    /// ignition is detected, the second igniter is supplied." Design choice: the engine is cold
+    /// when it has no residual heat (thermal state 0, the one of a cold and dark aircraft), and
+    /// the altitude is the ISA pressure altitude of the static pressure, as in `engine_failure`.
+    fn second_igniter_at_light_up(
+        context: &UpdateContext,
+        schedule: &EngineStartSchedule,
+        inputs: &EngineStartInputs,
+    ) -> bool {
+        schedule
+            .second_igniter_at_light_up_cold_or_above
+            .is_some_and(|altitude| {
+                let pressure_altitude = InternationalStandardAtmosphere::altitude_from_pressure(
+                    context.ambient_pressure(),
+                );
+                inputs.engine_thermal_state <= 0. || pressure_altitude > altitude
+            })
     }
 
     fn begin_attempt(&mut self, attempt: u8) {
@@ -969,7 +1001,9 @@ impl EngineStartSequence {
             && inputs.core_speed < schedule.automatic_start_ignition_off_n2;
         if !ignition_window {
             Igniters::NONE
-        } else if self.attempt <= 1 {
+        } else if self.attempt <= 1 && !(self.lit && self.second_igniter_at_light_up) {
+            // A cold engine or a start above 10 000 ft gets the second igniter once lit up (see
+            // second_igniter_at_light_up).
             Igniters::single(self.ground_start_uses_igniter_b)
         } else {
             Igniters::BOTH
@@ -1252,7 +1286,7 @@ mod tests {
         test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
         Aircraft,
     };
-    use uom::si::thermodynamic_temperature::degree_celsius;
+    use uom::si::{length::foot, thermodynamic_temperature::degree_celsius};
 
     /// An A320-like schedule (A320 FCOM numbers).
     fn schedule() -> EngineStartSchedule {
@@ -1275,6 +1309,7 @@ mod tests {
             stall_or_egt_restart_before_crank: false,
             starter_fault_detected_in_flight: false,
             max_pre_start_motoring_time: Duration::from_secs(60),
+            second_igniter_at_light_up_cold_or_above: None,
         }
     }
 
@@ -1500,6 +1535,95 @@ mod tests {
         assert!(!test_bed.fuel_is_cut());
         assert!(!test_bed.motoring());
         assert_eq!(test_bed.fault(), EngineStartFault::None);
+    }
+
+    /// The A320 rule of the second igniter (FCOM DSC-70-80-30 l.63468-63471), no pre-start motoring.
+    fn with_second_igniter_rule(test_bed: StartTestBed) -> StartTestBed {
+        test_bed.with_schedule(|schedule| {
+            schedule.second_igniter_at_light_up_cold_or_above = Some(Length::new::<foot>(10_000.));
+            schedule.max_pre_start_motoring_time = Duration::ZERO;
+        })
+    }
+
+    #[test]
+    fn a_cold_engine_gets_the_second_igniter_once_it_has_lit_up() {
+        let mut test_bed = with_second_igniter_rule(StartTestBed::new())
+            .with(|inputs| inputs.engine_thermal_state = 0.)
+            .automatic_start()
+            .n2(18.)
+            .and_run();
+        // "1. One igniter is supplied"
+        assert_eq!(test_bed.igniters(), IGNITER_A);
+
+        // "2. When the ignition is detected, the second igniter is supplied"
+        test_bed = test_bed.core_at_light_up_speed();
+        assert!(!test_bed.fuel_is_cut());
+        assert_eq!(test_bed.igniters(), Igniters::BOTH);
+        assert_eq!(test_bed.number("IGNITERS"), 3.);
+
+        // The engine heats up once lit: the second igniter stays until the end of the ignition.
+        test_bed = test_bed
+            .with(|inputs| inputs.engine_thermal_state = 1.)
+            .n2(40.)
+            .and_run();
+        assert_eq!(test_bed.igniters(), Igniters::BOTH);
+        test_bed = test_bed.n2(52.).and_run();
+        assert_eq!(test_bed.igniters(), Igniters::NONE);
+    }
+
+    #[test]
+    fn a_warm_engine_at_a_low_airfield_keeps_a_single_igniter() {
+        let test_bed = with_second_igniter_rule(StartTestBed::new())
+            .with(|inputs| inputs.engine_thermal_state = 0.5)
+            .automatic_start()
+            .core_at_light_up_speed()
+            .n2(30.)
+            .and_run();
+        assert!(!test_bed.fuel_is_cut());
+        assert_eq!(test_bed.igniters(), IGNITER_A);
+    }
+
+    #[test]
+    fn a_warm_engine_above_10000_ft_gets_the_second_igniter_once_it_has_lit_up() {
+        let mut test_bed = with_second_igniter_rule(StartTestBed::new());
+        test_bed.set_pressure_altitude(Length::new::<foot>(11_000.));
+        let mut test_bed = test_bed
+            .with(|inputs| inputs.engine_thermal_state = 0.5)
+            .automatic_start()
+            .n2(18.)
+            .and_run();
+        assert_eq!(test_bed.igniters(), IGNITER_A);
+
+        test_bed = test_bed.core_at_light_up_speed();
+        assert_eq!(test_bed.igniters(), Igniters::BOTH);
+    }
+
+    #[test]
+    fn a_cold_engine_that_does_not_light_up_keeps_its_single_igniter() {
+        // The second igniter comes with the detected ignition only: a failed igniter gives no
+        // light-up, and the first attempt stays on that igniter until its NO LIGHT UP.
+        let test_bed = with_second_igniter_rule(StartTestBed::new())
+            .failing(FailureType::EngineIgniterA(1))
+            .with(|inputs| inputs.engine_thermal_state = 0.)
+            .automatic_start()
+            .core_at_light_up_speed()
+            .and_run_for(Duration::from_secs(5));
+        assert!(test_bed.fuel_is_cut());
+        assert_eq!(test_bed.igniters(), IGNITER_A);
+    }
+
+    #[test]
+    fn without_the_second_igniter_rule_a_cold_engine_keeps_a_single_igniter() {
+        // The A380 (FCOM DSC-70-80-20 l.112328): "Only one igniter operates for an automatic start".
+        let test_bed = StartTestBed::new()
+            .with_schedule(|schedule| schedule.max_pre_start_motoring_time = Duration::ZERO)
+            .with(|inputs| inputs.engine_thermal_state = 0.)
+            .automatic_start()
+            .core_at_light_up_speed()
+            .n2(30.)
+            .and_run();
+        assert!(!test_bed.fuel_is_cut());
+        assert_eq!(test_bed.igniters(), IGNITER_A);
     }
 
     #[test]

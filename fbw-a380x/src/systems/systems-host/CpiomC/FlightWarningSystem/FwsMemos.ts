@@ -27,6 +27,11 @@ export interface EwdMemoDict {
   [key: keyof typeof EcamMemos]: EwdMemoItem;
 }
 
+/** "During take-off (flight phase 2) or landing (flight phases 9 or 10)" (A380 FCOM l.84113, 84117) */
+export const SIGNS_ON_MEMO_FLIGHT_PHASES = [2, 9, 10];
+/** The SIGNS ON memo is shown in those phases only */
+export const SIGNS_ON_MEMO_INHIBITED_FLIGHT_PHASES = [1, 3, 4, 5, 6, 7, 8, 11, 12];
+
 export class FwsMemos {
   public readonly subscriptions: Subscription[] = [];
 
@@ -103,6 +108,15 @@ export class FwsMemos {
       simVarIsActive: this.fws.trimTankXfrd,
       whichCodeToReturn: () => [0],
       codesToReturn: ['280000012'],
+      memoInhibit: () => false,
+    },
+    280000005: {
+      // GND XFR IN PROGRESS (A380 FCOM DSC-28-20 MEMO, a380_fcom.txt l.59149-59151; the FCOM figure of its flight phase
+      // inhibition is not in the text, design choice: as REFUEL IN PROGRESS, a ground function)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
+      simVarIsActive: this.fws.gndXfrInProgress,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280000005'],
       memoInhibit: () => false,
     },
     280000006: {
@@ -485,20 +499,37 @@ export class FwsMemos {
       codesToReturn: ['333000001'],
       memoInhibit: () => false,
     },
+    /*
+     * SIGNS memos, A380 FCOM DSC-33-50-10 MEMO (a380_fcom.txt l.84110-84118): "The flight crew sets the SEAT BELTS sw to
+     * ON. During take-off (flight phase 2) or landing (flight phases 9 or 10), the SIGNS ON MEMO replaces the SEAT BELTS
+     * MEMO." The same for the NO SMOKING sw and memo. The FCOM switch is NO SMOKING (no NO MOBILE memo in this FCOM).
+     */
     '335000001': {
       // SEAT BELTS
-      flightPhaseInhib: [],
-      simVarIsActive: this.fws.seatBelt.map((v) => !!v),
+      flightPhaseInhib: SIGNS_ON_MEMO_FLIGHT_PHASES,
+      simVarIsActive: this.fws.seatBeltsSwitchOn,
       whichCodeToReturn: () => [0],
       codesToReturn: ['335000001'],
-      memoInhibit: () => this.fws.toMemo.get() === 1 || this.fws.ldgMemo.get() === 1,
+      memoInhibit: () => false,
     },
-    '335000003': {
-      // NO MOBILE
-      flightPhaseInhib: [],
-      simVarIsActive: this.fws.noMobileSwitchPosition.map((pos) => pos === 0),
+    '335000002': {
+      // NO SMOKING
+      flightPhaseInhib: SIGNS_ON_MEMO_FLIGHT_PHASES,
+      simVarIsActive: this.fws.noSmokingSwitchOn,
       whichCodeToReturn: () => [0],
-      codesToReturn: ['335000003'],
+      codesToReturn: ['335000002'],
+      memoInhibit: () => false,
+    },
+    '335000004': {
+      // SIGNS ON: replaces the SEAT BELTS and NO SMOKING memos in the flight phases 2, 9 and 10
+      flightPhaseInhib: SIGNS_ON_MEMO_INHIBITED_FLIGHT_PHASES,
+      simVarIsActive: MappedSubject.create(
+        ([seatBeltsOn, noSmokingOn]) => seatBeltsOn || noSmokingOn,
+        this.fws.seatBeltsSwitchOn,
+        this.fws.noSmokingSwitchOn,
+      ),
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['335000004'],
       memoInhibit: () => false,
     },
     '340000001': {

@@ -154,8 +154,9 @@
                  <POTENTIOMETER>7</POTENTIOMETER>
                 <EMISSIVE_CODE type="rnp" return="number">
                     let indicatorsPowered = #INDICATORS_POWERED, bool#;
-                    let id = #ID, number#;
                     alias toggleSwitch = (L:A32NX_RMP_#SIDE#_TOGGLE_SWITCH, bool);
+                    alias rmpLeftOn = (L:A32NX_RMP_L_TOGGLE_SWITCH, bool);
+                    alias rmpRightOn = (L:A32NX_RMP_R_TOGGLE_SWITCH, bool);
                     alias selectedModeLeft = (L:A32NX_RMP_L_SELECTED_MODE, number);
                     alias selectedModeRight = (L:A32NX_RMP_R_SELECTED_MODE, number);
                     alias annunciatorLight = (L:A32NX_OVHD_INTLT_ANN, number);
@@ -167,10 +168,14 @@
                     let emissiveDim = if annunciatorLight == 2 { 0.05 } else { 1 };
                     // @todo abnormal defined differently with NAV modes available.
 
-                    let rmpLeftAbnormal = id == 1 and (selectedModeLeft == 2 or selectedModeLeft == 3 or (selectedModeRight == 1 and !rmpRightFailed));
-                    let rmpRightAbnormal = id == 2 and (selectedModeRight == 1 or selectedModeRight == 3 or (selectedModeLeft == 2 and !rmpLeftFailed));
+                    // A320 FCOM DSC-23-10-20 SEL indicator (a320_fcom.txt l.35101-35107): "The SEL indicator on both
+                    // RMPs comes on amber when a transceiver, normally associated with one RMP, is tuned by another:
+                    // If 2 RMP installed: VHF1 (VHF3, HF1), tuned by RMP2, VHF2 (HF2), tuned by RMP1." Modes: 1 VHF1,
+                    // 2 VHF2, 3 VHF3, 4 HF1, 5 HF2. One flag for both RMPs; an RMP that is off or failed tunes nothing.
+                    let rmp1TunesOffSideRadio = rmpLeftOn and !rmpLeftFailed and (selectedModeLeft == 2 or selectedModeLeft == 5);
+                    let rmp2TunesOffSideRadio = rmpRightOn and !rmpRightFailed and (selectedModeRight == 1 or selectedModeRight == 3 or selectedModeRight == 4);
 
-                    (if (toggleSwitch and !rmpFailed and (rmpLeftAbnormal or rmpRightAbnormal) or ((annunciatorLight == 0) and dc2Powered)) and indicatorsPowered {
+                    (if (toggleSwitch and !rmpFailed and (rmp1TunesOffSideRadio or rmp2TunesOffSideRadio) or ((annunciatorLight == 0) and dc2Powered)) and indicatorsPowered {
                         1 * emissiveDim
                     } else {
                         0
@@ -185,8 +190,9 @@
                  <POTENTIOMETER>7</POTENTIOMETER>
                 <EMISSIVE_CODE type="rnp" return="number">
                     let indicatorsPowered = #INDICATORS_POWERED, bool#;
-                    let id = #ID, number#;
                     alias toggleSwitch = (L:A32NX_RMP_#SIDE#_TOGGLE_SWITCH, bool);
+                    alias rmpLeftOn = (L:A32NX_RMP_L_TOGGLE_SWITCH, bool);
+                    alias rmpRightOn = (L:A32NX_RMP_R_TOGGLE_SWITCH, bool);
                     alias selectedModeLeft = (L:A32NX_RMP_L_SELECTED_MODE, number);
                     alias selectedModeRight = (L:A32NX_RMP_R_SELECTED_MODE, number);
                     alias annunciatorLight = (L:A32NX_OVHD_INTLT_ANN, number);
@@ -198,10 +204,14 @@
                     let emissiveDim = if annunciatorLight == 2 { 0.05 } else { 1 };
                     // @todo abnormal defined differently with NAV modes available.
 
-                    let rmpLeftAbnormal = id == 1 and (selectedModeLeft == 2 or selectedModeLeft == 3 or (selectedModeRight == 1 and !rmpRightFailed));
-                    let rmpRightAbnormal = id == 2 and (selectedModeRight == 1 or selectedModeRight == 3 or (selectedModeLeft == 2 and !rmpLeftFailed));
+                    // A320 FCOM DSC-23-10-20 SEL indicator (a320_fcom.txt l.35101-35107): "The SEL indicator on both
+                    // RMPs comes on amber when a transceiver, normally associated with one RMP, is tuned by another:
+                    // If 2 RMP installed: VHF1 (VHF3, HF1), tuned by RMP2, VHF2 (HF2), tuned by RMP1." Modes: 1 VHF1,
+                    // 2 VHF2, 3 VHF3, 4 HF1, 5 HF2. One flag for both RMPs; an RMP that is off or failed tunes nothing.
+                    let rmp1TunesOffSideRadio = rmpLeftOn and !rmpLeftFailed and (selectedModeLeft == 2 or selectedModeLeft == 5);
+                    let rmp2TunesOffSideRadio = rmpRightOn and !rmpRightFailed and (selectedModeRight == 1 or selectedModeRight == 3 or selectedModeRight == 4);
 
-                    (if (toggleSwitch and !rmpFailed and (rmpLeftAbnormal or rmpRightAbnormal) or ((annunciatorLight == 0) and dc2Powered)) and indicatorsPowered {
+                    (if (toggleSwitch and !rmpFailed and (rmp1TunesOffSideRadio or rmp2TunesOffSideRadio) or ((annunciatorLight == 0) and dc2Powered)) and indicatorsPowered {
                         1 * emissiveDim
                     } else {
                         0

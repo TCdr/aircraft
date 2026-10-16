@@ -17,6 +17,7 @@ import {
   wingPumpIndication,
 } from './FuelPumpValveIndications';
 import { wingImbalancePulse } from './FuelImbalanceIndication';
+import { FuelCell, FuelTemperatureIndication, fuelTemperatureIndication } from '@shared/FuelTemperature';
 
 import './Fuel.scss';
 
@@ -57,6 +58,13 @@ export const FuelPage = () => {
   );
   const leftWingQuantityClass = `TankQuantity${imbalancePulse.left ? ' TankQuantityPulse' : ''}`;
   const rightWingQuantityClass = `TankQuantity${imbalancePulse.right ? ' TankQuantityPulse' : ''}`;
+  // FUEL QUANTITY - OVERFLOW INDICATION (FCOM DSC-28-20, a320_fcom.txt l.43239-43241): "In the case of wing overflow,
+  // the associated inner tank quantity indication turns amber" (systems host Fuel/FuelLevelSensing)
+  const [leftWingOverflow] = useSimVar('L:A32NX_FUEL_L_WING_TK_OVERFLOW', 'bool', 500);
+  const [rightWingOverflow] = useSimVar('L:A32NX_FUEL_R_WING_TK_OVERFLOW', 'bool', 500);
+  const leftInnerQuantityClass = leftWingOverflow > 0 ? 'TankQuantity TankQuantityAmber' : leftWingQuantityClass;
+  const rightInnerQuantityClass = rightWingOverflow > 0 ? 'TankQuantity TankQuantityAmber' : rightWingQuantityClass;
+  const temperatureProps = { fuelWeightPerGallon, onGround: !!onGround, fwcFlightPhase };
 
   return (
     // This is already in an svg so we should remove the containing one - TODO remove style once we are not in the Asobo ECAM
@@ -114,7 +122,7 @@ export const FuelPage = () => {
         <text className={leftWingQuantityClass} x={80} y={285}>
           {fuelInTanksForDisplay(tankLeftOuter, useMetric, fuelWeightPerGallon)}
         </text>
-        <text className={leftWingQuantityClass} x={190} y={285}>
+        <text className={leftInnerQuantityClass} x={190} y={285}>
           {fuelInTanksForDisplay(tankLeftInner, useMetric, fuelWeightPerGallon)}
         </text>
 
@@ -123,6 +131,8 @@ export const FuelPage = () => {
         <text className="UnitTemp" x="70" y="355">
           °C
         </text>
+        <CellTemperature x={128} side="LEFT" cell="outer" tankGallons={tankLeftOuter} {...temperatureProps} />
+        <CellTemperature x={180} side="LEFT" cell="inner" tankGallons={tankLeftInner} {...temperatureProps} />
       </>
 
       {/* Center */}
@@ -185,7 +195,7 @@ export const FuelPage = () => {
         <Pump x={425} y={215} onBus="DC_2" pumpNumber={6} />
 
         {/* Quantities */}
-        <text className={rightWingQuantityClass} x={472} y={285}>
+        <text className={rightInnerQuantityClass} x={472} y={285}>
           {fuelInTanksForDisplay(tankRightInner, useMetric, fuelWeightPerGallon)}
         </text>
         <text className={rightWingQuantityClass} x={580} y={285}>
@@ -196,6 +206,8 @@ export const FuelPage = () => {
         <text className="UnitTemp" x="510" y="355">
           °C
         </text>
+        <CellTemperature x={552} side="RIGHT" cell="inner" tankGallons={tankRightInner} {...temperatureProps} />
+        <CellTemperature x={594} side="RIGHT" cell="outer" tankGallons={tankRightOuter} {...temperatureProps} />
       </>
 
       {/* F. FLOW */}
@@ -204,6 +216,54 @@ export const FuelPage = () => {
       {/* FOB */}
       <FOB useMetric={useMetric} />
     </EcamPage>
+  );
+};
+
+type CellTemperatureProps = {
+  x: number;
+  side: 'LEFT' | 'RIGHT';
+  cell: FuelCell;
+  tankGallons: number;
+  fuelWeightPerGallon: number;
+  onGround: boolean;
+  fwcFlightPhase: number;
+};
+
+/**
+ * The fuel temperature of a wing tank cell (systems WASM fuel/fuel_temperature.rs), FCOM DSC-28-20 FUEL TEMPERATURE
+ * INDICATION (a320_fcom.txt l.43178-43187): shown while its sensor is wet, green, pulsing for the advisory, amber with
+ * the caution (shared/src/FuelTemperature.ts).
+ */
+const CellTemperature: FC<CellTemperatureProps> = ({
+  x,
+  side,
+  cell,
+  tankGallons,
+  fuelWeightPerGallon,
+  onGround,
+  fwcFlightPhase,
+}) => {
+  const [temperature] = useSimVar(`L:A32NX_FUEL_${side}_${cell.toUpperCase()}_TANK_TEMPERATURE`, 'number', 1000);
+  const indication = fuelTemperatureIndication(
+    cell,
+    temperature,
+    tankGallons * fuelWeightPerGallon,
+    onGround,
+    fwcFlightPhase,
+  );
+  if (indication === FuelTemperatureIndication.Hidden) {
+    return null;
+  }
+  let className = 'TankTemperature';
+  if (indication === FuelTemperatureIndication.Amber) {
+    className += ' TankTemperatureAmber';
+  } else if (indication === FuelTemperatureIndication.Advisory) {
+    className += ' TankQuantityPulse';
+  }
+  return (
+    <text className={className} x={x} y={355}>
+      {Math.round(temperature)}
+    </text>
   );
 };
 

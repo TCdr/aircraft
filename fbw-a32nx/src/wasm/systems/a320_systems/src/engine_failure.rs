@@ -251,6 +251,9 @@ pub fn a320_engine_start_schedule() -> EngineStartSchedule {
         // DSC-70-80-40 DRY CRANKING (l.63612-63613): "Depending on the engine thermal state, the
         // FADEC can initiate a pre-start motoring (dry cranking) up to 60 s."
         max_pre_start_motoring_time: Duration::from_secs(60),
+        // DSC-70-80-30 (l.63468-63471): "During automatic ground start, when engine is cold or above
+        // 10 000 ft ... When the ignition is detected, the second igniter is supplied."
+        second_igniter_at_light_up_cold_or_above: Some(Length::new::<foot>(10_000.)),
     }
 }
 
@@ -682,7 +685,7 @@ mod tests {
     mod aircraft {
         use super::super::*;
         use systems::{
-            engine::EngineFireOverheadPanel,
+            engine::{leap_engine::LeapEngine, EngineFireOverheadPanel},
             failures::FailureType,
             simulation::{
                 test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
@@ -693,6 +696,8 @@ mod tests {
         struct TestAircraft {
             engine_fire_overhead: EngineFireOverheadPanel<2>,
             fuel: A320Fuel,
+            // The fuel temperature model reads the engines (fuel/fuel_temperature.rs)
+            engines: [LeapEngine; 2],
             engine_failures: A320EngineFailures,
             thrust_control_malfunctions: [bool; 2],
         }
@@ -701,6 +706,7 @@ mod tests {
                 Self {
                     engine_fire_overhead: EngineFireOverheadPanel::new(context),
                     fuel: A320Fuel::new(context),
+                    engines: [1, 2].map(|number| LeapEngine::new(context, number)),
                     engine_failures: A320EngineFailures::new(context),
                     thrust_control_malfunctions: [false; 2],
                 }
@@ -708,7 +714,11 @@ mod tests {
         }
         impl Aircraft for TestAircraft {
             fn update_after_power_distribution(&mut self, context: &UpdateContext) {
-                self.fuel.update(context, &self.engine_fire_overhead);
+                self.fuel.update(
+                    context,
+                    &self.engine_fire_overhead,
+                    [&self.engines[0], &self.engines[1]],
+                );
                 self.engine_failures
                     .update(context, &self.fuel, self.thrust_control_malfunctions);
             }
@@ -717,6 +727,9 @@ mod tests {
             fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
                 self.engine_fire_overhead.accept(visitor);
                 self.fuel.accept(visitor);
+                for engine in &mut self.engines {
+                    engine.accept(visitor);
+                }
                 self.engine_failures.accept(visitor);
                 visitor.visit(self);
             }
@@ -905,15 +918,29 @@ mod tests {
         }
 
         #[test]
-        fn a_ground_start_lights_up_with_one_igniter_shown_on_the_sd() {
+        fn a_cold_ground_start_lights_up_with_one_igniter_then_adds_the_second_shown_on_the_sd() {
+            // DSC-70-80-30 (l.63468-63471): "During automatic ground start, when engine is cold ...: 1. One
+            // igniter is supplied, and 2. When the ignition is detected, the second igniter is supplied." The
+            // engine of this test bed is at the ambient temperature (cold).
             let mut test_bed = ground_test_bed();
-            engine_1_automatic_start(&mut test_bed);
-
-            assert!(!fuel_is_cut(&mut test_bed, 1));
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+            run(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:1", 2.);
+            test_bed.write_by_name("PNEU_ENG_1_STARTER_VALVE_OPEN", true);
+            test_bed.write_by_name("ENGINE_N2:1", 18.);
+            run(&mut test_bed);
             let igniter_a: bool = test_bed.read_by_name("FADEC_IGNITER_A_ACTIVE_ENG1");
             let igniter_b: bool = test_bed.read_by_name("FADEC_IGNITER_B_ACTIVE_ENG1");
             assert!(igniter_a);
             assert!(!igniter_b);
+
+            test_bed.write_by_name("ENGINE_N2:1", 25.);
+            run(&mut test_bed);
+            assert!(!fuel_is_cut(&mut test_bed, 1));
+            let igniter_a: bool = test_bed.read_by_name("FADEC_IGNITER_A_ACTIVE_ENG1");
+            let igniter_b: bool = test_bed.read_by_name("FADEC_IGNITER_B_ACTIVE_ENG1");
+            assert!(igniter_a);
+            assert!(igniter_b);
         }
 
         #[test]
@@ -976,6 +1003,12 @@ mod tests {
             assert_eq!(schedule.manual_start_fuel_on_n2.get::<percent>(), 20.);
             assert!(schedule.stall_or_egt_restart_before_crank);
             assert!(schedule.starter_fault_detected_in_flight);
+            // DSC-70-80-30 (l.63468-63471): the second igniter of a cold or above 10 000 ft start
+            let second_igniter_altitude_feet = schedule
+                .second_igniter_at_light_up_cold_or_above
+                .map(|altitude| altitude.get::<foot>())
+                .unwrap_or_default();
+            assert!((second_igniter_altitude_feet - 10_000.).abs() < 1e-6);
         }
 
         #[test]

@@ -66,6 +66,39 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700300091', { part: StatusPart.InopSys, text: 'L/G RETRACT' }],
   ['700300092', { part: StatusPart.InopSys, text: 'CAB PR 1+2' }],
   ['700300093', { part: StatusPart.InopSys, text: 'PACK 1+2' }],
+  // 24 ELECTRICAL: the STATUS of ELEC EMER CONFIG (FCOM PRO-ABN-ELEC, a320_fcom.txt l.77641-77675, see
+  // FWC/Logic/ElecBusAlerts elecEmerConfigStatus), in the FCOM order; after the ENG ALL ENGINES FAILURE lines above,
+  // which an all engines failure (with ELEC EMER CONFIG) shows first
+  ['240400301', { part: StatusPart.Limitation, text: 'MIN RAT SPEED....140 KT' }],
+  ['240400302', { part: StatusPart.Limitation, text: 'MAX SPEED........320 KT' }],
+  ['240400303', { part: StatusPart.Limitation, text: 'MAX BRK PR.....1000 PSI' }],
+  ['240400304', { part: StatusPart.Limitation, text: 'FUEL GRVTY FEED' }],
+  ['240400305', { part: StatusPart.Limitation, text: 'AVOID NEGATIVE G FACTOR' }],
+  ['240500301', { part: StatusPart.Condition, text: 'APPR PROC:' }],
+  ['240400306', { part: StatusPart.Limitation, text: 'FOR LDG......USE FLAP 3' }],
+  ['240400307', { part: StatusPart.Limitation, text: 'APPR SPD.VREF+10/140 KT' }],
+  ['240400308', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
+  ['240400309', { part: StatusPart.Limitation, text: 'FUEL CONSUMPT INCRSD' }],
+  ['240400310', { part: StatusPart.Limitation, text: 'FMS PRED UNRELIABLE' }],
+  ['240200301', { part: StatusPart.Information, text: 'ALTN LAW: PROT LOST' }],
+  ['240200302', { part: StatusPart.Information, text: 'WHEN L/G DN: DIRECT LAW' }],
+  ['240200303', { part: StatusPart.Information, text: 'SLATS/FLAPS SLOW' }],
+  ['240200304', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
+  ['240300301', { part: StatusPart.InopSys, text: 'F/CTL PROT' }],
+  ['240300302', { part: StatusPart.InopSys, text: 'REVERSER 1+2' }],
+  ['240300303', { part: StatusPart.InopSys, text: 'ADR 2+3' }],
+  ['240300304', { part: StatusPart.InopSys, text: 'IR 2' }],
+  ['240300305', { part: StatusPart.InopSys, text: 'RA 1+2' }],
+  ['240300306', { part: StatusPart.InopSys, text: 'SPLR 1+2+5' }],
+  ['240300307', { part: StatusPart.InopSys, text: 'ELAC 2' }],
+  ['240300308', { part: StatusPart.InopSys, text: 'SEC 2+3' }],
+  ['240300309', { part: StatusPart.InopSys, text: 'A/CALL OUT' }],
+  ['240300310', { part: StatusPart.InopSys, text: 'AP 1+2' }],
+  ['240300311', { part: StatusPart.InopSys, text: 'A/THR' }],
+  ['240300312', { part: StatusPart.InopSys, text: 'FUEL PUMPS' }],
+  ['240300313', { part: StatusPart.InopSys, text: 'ANTI SKID' }],
+  ['240300314', { part: StatusPart.InopSys, text: 'N/W STRG' }],
+  ['240300315', { part: StatusPart.InopSys, text: 'CAT 2' }],
   // 21 AIR CONDITIONING (FCOM PRO-ABN-AIR, PRO-ABN-COND)
   ['210400001', { part: StatusPart.Limitation, text: 'MAX FL.....100/MEA-MORA' }],
   // CAB PR SAFETY VALVE OPEN and SYS 1+2 FAULT (FCOM PRO-ABN-CAB_PR l.73330-73346, l.73443-73459), see
@@ -253,6 +286,10 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['280200002', { part: StatusPart.Information, text: '2T (4400LBS) UNUSABLE' }],
   // 28 FUEL (FCOM PRO-ABN-FUEL FUEL L (R) WING TK LO LVL STATUS, a320_fcom.txt l.86477-86484, if center tank not empty)
   ['280200003', { part: StatusPart.Information, text: 'CTR TK FEED: MAN ONLY' }],
+  // 28 FUEL (FCOM PRO-ABN-FUEL FUEL L (R) OUTER XFR CLOSED STATUS, a320_fcom.txt l.86118-86120), see
+  // FWC/Logic/FuelSystemFaultAlerts
+  ['280200004', { part: StatusPart.Information, text: 'L OUTER TK UNUSABLE' }],
+  ['280200005', { part: StatusPart.Information, text: 'R OUTER TK UNUSABLE' }],
   // 36 PNEUMATIC (FCOM PRO-ABN-AIR X BLEED FAULT STATUS, a320_fcom.txt l.71070), see FWC/Logic/BleedAlerts
   ['360200001', { part: StatusPart.Information, text: 'X BLEED MAN CTL' }],
   // 24 ELECTRICAL (FCOM PRO-ABN-ELEC BAT 1(2) FAULT and BCL 1(2) FAULT STATUS, l.76175, l.76252)
@@ -452,6 +489,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['280300008', { part: StatusPart.InopSys, text: 'CTR TK L XFR' }],
   ['280300009', { part: StatusPart.InopSys, text: 'CTR TK R XFR' }],
   ['280300010', { part: StatusPart.InopSys, text: 'CTR TK XFR' }],
+  // FUEL L (R) OUTER XFR OPEN (l.86152-86156), see FWC/Logic/FuelSystemFaultAlerts
+  ['280300011', { part: StatusPart.InopSys, text: 'L CELL VALVE' }],
+  ['280300012', { part: StatusPart.InopSys, text: 'R CELL VALVE' }],
   // 34 NAVIGATION
   // NAV ADR, IR and RA alerts INOP SYS (FCOM PRO-ABN-NAV), see FWC/Logic/AdirsAlerts; ADR 1(2)(3), RA 1(2) and the
   // lines of other chapters keep their codes
@@ -470,6 +510,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['340300032', { part: StatusPart.InopSys, text: 'RUD TRV LIM' }],
   ['340300033', { part: StatusPart.InopSys, text: 'CAB PR 1+2' }],
   ['340300034', { part: StatusPart.InopSys, text: 'A/CALL OUT' }],
+  // NAV PRED W/S DET FAULT (A320 FCOM l.93736-93740), see FWC/Logic/PredictiveWindshearAlerts
+  ['340300035', { part: StatusPart.InopSys, text: 'PRED W/S DET' }],
   ['340300001', { part: StatusPart.InopSys, text: 'GPS 1' }],
   ['340300002', { part: StatusPart.InopSys, text: 'GPS 2' }],
   ['340300003', { part: StatusPart.InopSys, text: 'GPS 1+2' }],

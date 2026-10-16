@@ -3,7 +3,8 @@ import { MathUtils, useArinc429Var } from '@flybywiresim/fbw-sdk-react';
 import { GaugeComponent, GaugeMarkerComponent, ThrottlePositionDonutComponent } from '@instruments/common/gauges';
 import { useSimVar } from '@instruments/common/simVars';
 import { Position, ValidRedundantSystem } from '@instruments/common/types';
-import React from 'react';
+import React, { useRef } from 'react';
+import { cabinAltitudePulses } from '@shared/CabinPressureIndications';
 import { cabinAltitudeNeedleClass } from './CabinAltitudeIndication';
 
 export const CabAlt: React.FC<Position & ValidRedundantSystem> = ({ x, y, system }) => {
@@ -12,6 +13,12 @@ export const CabAlt: React.FC<Position & ValidRedundantSystem> = ({ x, y, system
   const cabinAlt = cabinAltArinc.isNormalOperation() ? cabinAltArinc.value : manCabinAlt;
 
   const cabAlt50 = Math.round(cabinAlt / 50) * 50;
+
+  // FCOM DSC-21-30-20 CAB ALT INDICATIONS: the needle pulses above 8 300 ft, stops below 8 100 ft
+  // (CabinPressureIndications)
+  const wasPulsing = useRef(false);
+  const pulsing = cabinAltitudePulses(cabAlt50, wasPulsing.current);
+  wasPulsing.current = pulsing;
 
   const cabinAltTargetArinc = useArinc429Var(`L:A32NX_PRESS_CABIN_ALTITUDE_TARGET_B${system}`, 500);
   const cabinAltTarget = cabinAltTargetArinc.isNormalOperation() ? cabinAltTargetArinc.value : null;
@@ -141,7 +148,7 @@ export const CabAlt: React.FC<Position & ValidRedundantSystem> = ({ x, y, system
           radius={radius}
           startAngle={startAngle}
           endAngle={endAngle}
-          className={`${cabinAltitudeNeedleClass(cabAlt50)} SW4`}
+          className={`${cabinAltitudeNeedleClass(cabAlt50)} SW4 ${pulsing ? 'LinePulse' : ''}`}
           indicator
           multiplierOuter={1.01}
         />

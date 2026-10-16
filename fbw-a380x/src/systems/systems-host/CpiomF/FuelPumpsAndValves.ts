@@ -321,8 +321,10 @@ export type FailureStates = Pick<FailuresConsumer, 'isActive'>;
  *   which is copied to the MSFS valve switch unless the valve is jammed. The valve is abnormal once its position
  *   disagrees with its CROSSFEED pb-sw longer than its travel time.
  * - A failed transfer pump (outer, mid fwd, inner fwd, trim tank) stops: its MSFS pump switch is held off whatever the
- *   FQMS commands, so the fuel of its tank stays there (the other pumps of the same transfer still run: the FQMS
- *   shut-off of the symmetric pump is not simulated). Its FAULT light and alerts follow isTransferPumpFaulty: they show
+ *   FQMS commands, so the fuel of its tank stays there (the other pumps of the same transfer still run). The alternate
+ *   transfers of CpiomF/FuelAlternateTransfers take over for the failed inner and mid tank fwd pumps (CASE 4, from what
+ *   the FQMS commands, isTransferPumpCommandedOn) and outer tank pumps (CASE 5). Its FAULT light and alerts follow
+ *   isTransferPumpFaulty: they show
  *   as soon as it fails, with or without a transfer. While it is failed, the FQMS commands (the trigger edges of
  *   A380_FQMS_PUMP_EFFECTS) are followed, so that the repaired pump returns to what the FQMS wants now.
  */
@@ -387,6 +389,16 @@ export class FuelPumpsAndValves implements Instrument {
 
   public init(): void {
     // nothing to initialise: the CROSSFEED selections are taken from the MSFS valve switches on the first update
+  }
+
+  /**
+   * Whether the FQMS commands a transfer pump of A380_TRANSFER_PUMPS on: the MSFS triggers started it and did not stop it,
+   * whether it runs or a failure holds it off
+   * @param pump the MSFS pump (Pump.N)
+   */
+  public isTransferPumpCommandedOn(pump: number): boolean {
+    const index = A380_TRANSFER_PUMPS.findIndex((transferPump) => transferPump.pump === pump);
+    return index >= 0 && this.transferPumps.getSelection(index);
   }
 
   public onUpdate(): void {

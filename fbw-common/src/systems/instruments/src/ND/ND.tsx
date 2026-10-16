@@ -87,6 +87,9 @@ export interface NDProps<T extends number> {
   onMapClick?: (click: NdMapClick) => void;
 
   fmMessages: FMMessage[];
+
+  /** The weather radar rows of the A32NX radar panel (WxrA320Indications.ts) instead of the A380X ones */
+  a320WxrIndications?: boolean;
 }
 
 export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> {
@@ -504,7 +507,12 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
             </Flag>
 
             <TerrainMapThresholds bus={this.props.bus} paddingText={this.props.terrainThresholdPaddingText} />
-            <WxrModeLabel bus={this.props.bus} side={this.props.side} mode={this.currentPageMode} />
+            <WxrModeLabel
+              bus={this.props.bus}
+              side={this.props.side}
+              mode={this.currentPageMode}
+              a320Indications={this.props.a320WxrIndications}
+            />
 
             <RadioNavInfo bus={this.props.bus} index={1} mode={this.currentPageMode} />
             <RadioNavInfo bus={this.props.bus} index={2} mode={this.currentPageMode} />
@@ -517,6 +525,7 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
             y={Subject.create(384)}
             options={this.props.mapOptions}
             onClick={this.props.onMapClick}
+            rangeValues={this.props.rangeValues}
           />
 
           {/* ND Vector graphics - top layer */}

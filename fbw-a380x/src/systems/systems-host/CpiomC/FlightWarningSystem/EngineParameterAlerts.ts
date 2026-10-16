@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import {
-  egtAlertLimit,
   egtExceedanceShown,
+  EGT_LIMIT_C,
+  egtLimitMarkVisible,
+  isEgtRed,
   n1Exceeds,
   n3Exceeds,
+  ThrustLimitType,
 } from '../../../instruments/src/EWD/elements/EgtLimits';
 
 /*
@@ -38,15 +41,25 @@ export interface EngineOverLimitInputs {
   /** The FADEC thrust limit type (L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE) */
   thrustLimitType: number;
   alphaFloor: boolean;
+  /** How long the shown EGT has been at or above the red line (EgtLimits EgtRedLineTimer), for the takeoff rule */
+  secondsAtOrAboveRedLine: number;
 }
 
 /**
- * ENG EGT OVER LIMIT, l.171487-171494: the EGT is above the red line during takeoff and go-around, with the thrust
- * reversers selected or in alpha floor, or above the EGT limit when the thrust lever is at or below MCT. The limits are
- * those of the EWD gauge (EgtLimits.ts).
+ * ENG EGT OVER LIMIT, l.171487-171494: the EGT is above the red line (1 002 °C) during takeoff and go-around, with the
+ * thrust reversers selected or in alpha floor, or above the EGT limit (970 °C) when the thrust lever is at or below MCT.
+ * The red line case is the red EGT indication the alert is "Associated with" (DSC-70-90 EGT INDICATIONS,
+ * l.113170-113178): during takeoff (FLEX/TOGA) at or above 1 022 °C, or at or above 1 002 °C for more than 20 s.
+ * Alpha floor has no takeoff tolerance (the FCOM gives it for the takeoff only). The limits are those of the EWD gauge
+ * (EgtLimits.ts).
  */
 export function isEgtOverLimit(inputs: EngineOverLimitInputs): boolean {
-  return egtExceedanceShown(inputs.displayedEgtDegrees, egtAlertLimit(inputs.thrustLimitType, inputs.alphaFloor));
+  if (egtLimitMarkVisible(inputs.thrustLimitType) && !inputs.alphaFloor) {
+    return egtExceedanceShown(inputs.displayedEgtDegrees, EGT_LIMIT_C);
+  }
+  // In alpha floor the red line applies at once, whatever the thrust limit type.
+  const redLineLimitType = inputs.alphaFloor ? ThrustLimitType.None : inputs.thrustLimitType;
+  return isEgtRed(inputs.displayedEgtDegrees, redLineLimitType, inputs.secondsAtOrAboveRedLine);
 }
 
 /**

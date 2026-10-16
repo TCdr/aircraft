@@ -10,6 +10,7 @@ use systems::{
         OverheadFlowSelector, PackFlow, PackFlowControllers, PressurizationConstants,
         PressurizationOverheadShared, TrimAirSystem, VcmId, VcmShared, ZoneType,
     },
+    failures::{Failure, FailureType},
     integrated_modular_avionics::{
         core_processing_input_output_module::CpiomId, AvionicsDataCommunicationNetwork,
     },
@@ -386,6 +387,9 @@ pub(super) struct A380AirConditioningSystem {
 
     cabin_fans: [CabinFan; 4],
     cargo_air_heater: AirHeater,
+    // flyPad failure: the bulk cargo heater keeps heating whenever it is allowed on (COND BULK CARGO DUCT OVHT)
+    bulk_cargo_duct_overheat_failure: Failure,
+    bulk_cargo_duct_temperature: ThermodynamicTemperature,
     mixer_unit: MixerUnit<18>,
     // Temporary structure until packs are simulated
     packs: [AirConditioningPack; 2],
@@ -396,6 +400,9 @@ pub(super) struct A380AirConditioningSystem {
 
 impl A380AirConditioningSystem {
     const CAB_FAN_DESIGN_FLOW_RATE_L_S: f64 = 1250.; // litres/sec
+    /// Air temperature in the bulk cargo duct with the heater overheating. Design choice: above the 70 deg C bulk
+    /// cargo duct overheat limit (A380 FCOM PRO-ABN COND BULK CARGO DUCT OVHT, a380_fcom.txt l.132368).
+    const BULK_CARGO_DUCT_OVERHEAT_TEMPERATURE_DEG_C: f64 = 90.;
 
     fn new(context: &mut InitContext, cabin_zones: &[ZoneType; 18]) -> Self {
         Self {
@@ -463,10 +470,14 @@ impl A380AirConditioningSystem {
             }),
 
             cargo_air_heater: AirHeater::new(ElectricalBusType::AlternatingCurrent(2)), // 200XP4
+            bulk_cargo_duct_overheat_failure: Failure::new(FailureType::BulkCargoDuctOverheat),
+            bulk_cargo_duct_temperature: ThermodynamicTemperature::new::<degree_celsius>(24.),
             mixer_unit: MixerUnit::new(cabin_zones),
             packs: [
-                AirConditioningPack::new(context, Pack(1)),
-                AirConditioningPack::new(context, Pack(2)),
+                AirConditioningPack::new(context, Pack(1))
+                    .with_overheat_failure(FailureType::PackOverheat(1)),
+                AirConditioningPack::new(context, Pack(2))
+                    .with_overheat_failure(FailureType::PackOverheat(2)),
             ],
             trim_air_system: TrimAirSystem::new(
                 context,
@@ -576,7 +587,9 @@ impl A380AirConditioningSystem {
 
         self.vcm.iter_mut().for_each(|module| {
             module.update(
+                context,
                 &self.air_conditioning_overhead,
+                self.bulk_cargo_duct_temperature,
                 ocsm,
                 pressurization_overhead,
             )
@@ -588,19 +601,16 @@ impl A380AirConditioningSystem {
         context: &UpdateContext,
         cpiom_b: &[CoreProcessingInputOutputModuleB; 4],
     ) {
-        for (id, (pack, pack_flow)) in self
-            .packs
-            .iter_mut()
-            .zip(self.fdac.iter().map(|fdac| fdac.pack_flow()))
-            .enumerate()
-        {
+        for (id, (pack, fdac)) in self.packs.iter_mut().zip(self.fdac.iter_mut()).enumerate() {
             let duct_demand = if !cpiom_b[id].tcs_has_fault() {
                 cpiom_b[id].duct_demand_temperature()
             } else {
                 cpiom_b[id + 2].duct_demand_temperature()
             };
             // TODO: Failures
-            pack.update(context, pack_flow, &duct_demand, false)
+            pack.update(context, fdac.pack_flow(), &duct_demand, false);
+            // The FDAC monitors the outlet temperature of its pack (AIR PACK 1(2) OVHT)
+            fdac.update_pack_overheat_monitoring(pack.outlet_air().temperature());
         }
     }
 
@@ -640,6 +650,18 @@ impl A380AirConditioningSystem {
                 cpiom_b[2].bulk_heater_on_signal()
             },
         );
+
+        // An overheating heater heats whenever the aft VCM allows it on (HEATER pb ON), whatever the bulk cargo
+        // temperature: COND BULK CARGO DUCT OVHT asks for BULK HEATER OFF (a380_fcom.txt l.132360-132404)
+        self.bulk_cargo_duct_temperature = if self.bulk_cargo_duct_overheat_failure.is_active()
+            && self.vcm[1].bulk_duct_heater_on_allowed()
+        {
+            ThermodynamicTemperature::new::<degree_celsius>(
+                Self::BULK_CARGO_DUCT_OVERHEAT_TEMPERATURE_DEG_C,
+            )
+        } else {
+            self.cargo_air_heater.outlet_air().temperature()
+        };
     }
 
     fn update_overhead(&mut self) {
@@ -651,8 +673,10 @@ impl A380AirConditioningSystem {
             self.vcm[1].bulk_isolation_valve_has_failed(),
         ]);
 
-        self.air_conditioning_overhead
-            .set_cargo_heater_fault(self.vcm[1].cargo_heater_has_failed());
+        // The HEATER pb FAULT light: heater failed, or bulk cargo duct overheat (a380_fcom.txt l.5752-5756)
+        self.air_conditioning_overhead.set_cargo_heater_fault(
+            self.vcm[1].cargo_heater_has_failed() || self.vcm[1].bulk_cargo_duct_overheat(),
+        );
 
         self.air_conditioning_overhead
             .set_hot_air_pushbutton_fault([
@@ -734,6 +758,34 @@ impl A380AirConditioningSystem {
     fn bulk_isol_valve_has_fault(&self) -> bool {
         self.vcm[1].bulk_isolation_valve_has_failed()
     }
+
+    /// The air in the bulk cargo duct is above 70 deg C (the aft VCM controls the bulk ventilation and heating)
+    fn bulk_cargo_duct_overheat(&self) -> bool {
+        self.vcm[1].bulk_cargo_duct_overheat()
+    }
+
+    /// The cabin air extract valve is failed (the aft VCM controls it)
+    fn cabin_air_extract_valve_has_failed(&self) -> bool {
+        self.vcm[1].cabin_air_extract_valve_has_failed()
+    }
+
+    /// Pack flow valve fcv_id (1 and 2 on pack 1, 3 and 4 on pack 2) is failed open
+    fn pack_flow_valve_failed_open(&self, fcv_id: usize) -> bool {
+        self.fdac[(fcv_id > 2) as usize].fcv_failed_open(fcv_id)
+    }
+
+    /// Pack flow valve fcv_id (1 and 2 on pack 1, 3 and 4 on pack 2) is failed closed
+    fn pack_flow_valve_failed_closed(&self, fcv_id: usize) -> bool {
+        self.fdac[(fcv_id > 2) as usize].fcv_failed_closed(fcv_id)
+    }
+
+    fn pack_overheat(&self, pack_id: usize) -> bool {
+        self.fdac[pack_id - 1].pack_overheat()
+    }
+
+    fn pack_in_bypass_mode(&self, pack_id: usize) -> bool {
+        self.fdac[pack_id - 1].pack_in_bypass_mode()
+    }
 }
 
 impl PackFlowControllers for A380AirConditioningSystem {
@@ -749,7 +801,7 @@ impl DuctTemperature for A380AirConditioningSystem {
     fn duct_temperature(&self) -> Vec<ThermodynamicTemperature> {
         // The bulk cargo zone of the A380 is fed with recirculated air from the cabin flowing through the heater
         let mut duct_temp_vec = self.trim_air_system.duct_temperature();
-        duct_temp_vec[ZoneType::Cargo(2).id()] = self.cargo_air_heater.outlet_air().temperature();
+        duct_temp_vec[ZoneType::Cargo(2).id()] = self.bulk_cargo_duct_temperature;
         duct_temp_vec
     }
 }
@@ -816,6 +868,7 @@ impl SimulationElement for A380AirConditioningSystem {
         accept_iterable!(self.cabin_fans, visitor);
         accept_iterable!(self.packs, visitor);
         self.cargo_air_heater.accept(visitor);
+        self.bulk_cargo_duct_overheat_failure.accept(visitor);
 
         self.air_conditioning_overhead.accept(visitor);
 
@@ -1736,6 +1789,9 @@ mod tests {
         right_pack_flow_valve: ElectroPneumaticValve,
         left_inlet_pressure_sensor: PressureTransducer,
         right_inlet_pressure_sensor: PressureTransducer,
+        // As pneumatic::PackComplex: a jammed pack flow valve no longer follows its controller
+        left_pack_flow_valve_jam: Failure,
+        right_pack_flow_valve_jam: Failure,
     }
     impl TestPneumaticPackComplex {
         fn new(pack_number: usize) -> Self {
@@ -1759,6 +1815,12 @@ mod tests {
                 right_inlet_pressure_sensor: PressureTransducer::new(
                     ElectricalBusType::DirectCurrentEssentialShed,
                 ),
+                left_pack_flow_valve_jam: Failure::new(FailureType::PackFlowValveJammed(
+                    1 + ((pack_number == 2) as usize * 2),
+                )),
+                right_pack_flow_valve_jam: Failure::new(FailureType::PackFlowValveJammed(
+                    2 + ((pack_number == 2) as usize * 2),
+                )),
             }
         }
         fn update(
@@ -1771,15 +1833,19 @@ mod tests {
             self.left_inlet_pressure_sensor.update(context, from);
             self.right_inlet_pressure_sensor.update(context, from);
 
-            self.left_pack_flow_valve.update_open_amount(
-                pack_flow_valve_signals
-                    .pack_flow_controller(1 + ((self.pack_number == 2) as usize * 2)),
-            );
+            if !self.left_pack_flow_valve_jam.is_active() {
+                self.left_pack_flow_valve.update_open_amount(
+                    pack_flow_valve_signals
+                        .pack_flow_controller(1 + ((self.pack_number == 2) as usize * 2)),
+                );
+            }
 
-            self.right_pack_flow_valve.update_open_amount(
-                pack_flow_valve_signals
-                    .pack_flow_controller(2 + ((self.pack_number == 2) as usize * 2)),
-            );
+            if !self.right_pack_flow_valve_jam.is_active() {
+                self.right_pack_flow_valve.update_open_amount(
+                    pack_flow_valve_signals
+                        .pack_flow_controller(2 + ((self.pack_number == 2) as usize * 2)),
+                );
+            }
 
             self.left_pack_flow_valve
                 .update_move_fluid(context, from, &mut self.pack_container);
@@ -1846,6 +1912,8 @@ mod tests {
             self.right_pack_flow_valve.accept(visitor);
             self.left_inlet_pressure_sensor.accept(visitor);
             self.right_inlet_pressure_sensor.accept(visitor);
+            self.left_pack_flow_valve_jam.accept(visitor);
+            self.right_pack_flow_valve_jam.accept(visitor);
 
             visitor.visit(self);
         }
@@ -2981,6 +3049,32 @@ mod tests {
             word.get_bit(bit)
         }
 
+        fn ags_discrete_word_bit(&mut self, bit: u8) -> bool {
+            let word: Arinc429Word<u32> = self.read_by_name("COND_CPIOM_B1_AGS_DISCRETE_WORD");
+            word.get_bit(bit)
+        }
+
+        fn vcs_discrete_word_bit(&mut self, bit: u8) -> bool {
+            let word: Arinc429Word<u32> = self.read_by_name("COND_CPIOM_B1_VCS_DISCRETE_WORD");
+            word.get_bit(bit)
+        }
+
+        fn pack_outlet_temperature(&mut self, pack_id: usize) -> f64 {
+            self.read_by_name(&format!("COND_PACK_{}_OUTLET_TEMPERATURE", pack_id))
+        }
+
+        fn bulk_cargo_heater_pb_has_fault(&mut self) -> bool {
+            self.read_by_name("OVHD_CARGO_AIR_HEATER_PB_HAS_FAULT")
+        }
+
+        fn cabin_air_extract_valve_is_open(&mut self) -> bool {
+            self.read_by_name("VENT_OVERPRESSURE_RELIEF_VALVE_IS_OPEN")
+        }
+
+        fn ocsm_manual_control_failure(&mut self, ocsm_id: usize) -> bool {
+            self.read_by_name(&format!("PRESS_OCSM_{}_MAN_CTL_FAILURE", ocsm_id))
+        }
+
         fn hot_air_is_enabled(&self) -> bool {
             self.query(|a| {
                 a.a380_cabin_air
@@ -3339,6 +3433,36 @@ mod tests {
                 (test_bed.cabin_altitude() - Length::new::<foot>(7000.)).abs()
                     < Length::new::<foot>(50.)
             );
+        }
+
+        #[test]
+        fn manual_control_failure_keeps_the_automatic_mode_and_is_reported() {
+            let mut test_bed = test_bed()
+                .ambient_pressure_of(InternationalStandardAtmosphere::pressure_at_altitude(
+                    Length::new::<foot>(20000.),
+                ))
+                .iterate(10);
+            assert!(!test_bed.ocsm_manual_control_failure(1));
+
+            test_bed.fail(FailureType::CabinPressureManualControl);
+            test_bed = test_bed
+                .command_alt_mode_sel_pb_man()
+                .command_alt_sel_knob_value(7000.)
+                .iterate(100);
+
+            // In MAN mode the cabin would climb at 500 ft/min towards 7000 ft (cabin_targets_knob_altitude_when_in_man_mode)
+            assert!(
+                (test_bed.cabin_target_vertical_speed() - Velocity::new::<foot_per_minute>(500.))
+                    .abs()
+                    > Velocity::new::<foot_per_minute>(5.)
+            );
+            assert!(
+                (test_bed.cabin_target_altitude() - Length::new::<foot>(7000.)).abs()
+                    > Length::new::<foot>(10.)
+            );
+            for ocsm_id in 1..=4 {
+                assert!(test_bed.ocsm_manual_control_failure(ocsm_id));
+            }
         }
 
         #[test]
@@ -6195,6 +6319,209 @@ mod tests {
                         .get::<degree_celsius>()
                         < 15.
                 );
+            }
+        }
+
+        mod pack_and_cargo_failure_tests {
+            use super::*;
+
+            // CPIOM B AGS discrete word bits of the FDAC pack monitoring (docs/a380-simvars.md)
+            const AGS_BIT_FCV_1_FAILED_OPEN: u8 = 15;
+            const AGS_BIT_FCV_4_FAILED_CLOSED: u8 = 22;
+            const AGS_BIT_PACK_1_OVHT: u8 = 23;
+            const AGS_BIT_PACK_2_OVHT: u8 = 24;
+            const AGS_BIT_PACK_1_BYPASS_MODE: u8 = 25;
+            const AGS_BIT_PACK_2_BYPASS_MODE: u8 = 26;
+            // CPIOM B VCS discrete word bits
+            const VCS_BIT_BULK_CARGO_DUCT_OVHT: u8 = 25;
+            const VCS_BIT_CABIN_AIR_EXTRACT_VLV_FAULT: u8 = 26;
+
+            // A380 FCOM PRO-ABN AIR PACK 1(2) OVHT: "The pack outlet temperature is above 95 deg C."
+            const FCOM_PACK_OVERHEAT_LIMIT_DEG_C: f64 = 95.;
+            // A380 FCOM PRO-ABN COND BULK CARGO DUCT OVHT: above 70 deg C in the duct
+            const FCOM_DUCT_OVERHEAT_LIMIT_DEG_C: f64 = 70.;
+            const BULK_CARGO: usize = 17;
+
+            fn test_bed_with_packs_on() -> CabinAirTestBed {
+                test_bed()
+                    .with()
+                    .engines_idle()
+                    .and()
+                    .command_packs_on_off(true)
+                    .iterate(30)
+            }
+
+            fn ags_monitoring_bits(test_bed: &mut CabinAirTestBed) -> Vec<bool> {
+                (AGS_BIT_FCV_1_FAILED_OPEN..=AGS_BIT_PACK_2_BYPASS_MODE)
+                    .map(|bit| test_bed.ags_discrete_word_bit(bit))
+                    .collect()
+            }
+
+            #[test]
+            fn no_pack_monitoring_bit_in_normal_operation() {
+                let mut test_bed = test_bed_with_packs_on();
+                assert!(test_bed.pack_flow_valve_is_open(1));
+                assert!(ags_monitoring_bits(&mut test_bed).iter().all(|bit| !bit));
+
+                test_bed = test_bed.command_packs_on_off(false).iterate(30);
+                assert!(!test_bed.pack_flow_valve_is_open(1));
+                assert!(ags_monitoring_bits(&mut test_bed).iter().all(|bit| !bit));
+
+                test_bed = test_bed.command_packs_on_off(true).iterate(30);
+                assert!(ags_monitoring_bits(&mut test_bed).iter().all(|bit| !bit));
+            }
+
+            #[test]
+            fn valve_jammed_open_is_failed_open_once_its_pack_pb_is_off() {
+                let mut test_bed = test_bed_with_packs_on();
+                test_bed.fail(FailureType::PackFlowValveJammed(1));
+                test_bed = test_bed.iterate(30);
+                // Still commanded open: the FDAC cannot see the jam
+                assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_FCV_1_FAILED_OPEN));
+
+                test_bed = test_bed.command_one_pack_on(2).iterate(5);
+                assert!(test_bed.pack_flow_valve_is_open(1));
+                // Not yet: a valve has some seconds to follow its command
+                assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_FCV_1_FAILED_OPEN));
+
+                test_bed = test_bed.iterate(10);
+                let bits = ags_monitoring_bits(&mut test_bed);
+                // Only fcv 1 failed open (bit 15)
+                assert_eq!(
+                    bits.iter()
+                        .enumerate()
+                        .filter(|(_, bit)| **bit)
+                        .map(|(i, _)| i)
+                        .collect::<Vec<_>>(),
+                    vec![0]
+                );
+            }
+
+            #[test]
+            fn valve_jammed_closed_is_failed_closed_once_commanded_open() {
+                let mut test_bed = test_bed_with_packs_on()
+                    .command_packs_on_off(false)
+                    .iterate(30);
+                test_bed.fail(FailureType::PackFlowValveJammed(4));
+                test_bed = test_bed.command_packs_on_off(true).iterate(30);
+
+                assert!(test_bed.pack_flow_valve_is_open(3));
+                assert!(!test_bed.pack_flow_valve_is_open(4));
+                assert!(test_bed.ags_discrete_word_bit(AGS_BIT_FCV_4_FAILED_CLOSED));
+                assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_FCV_4_FAILED_CLOSED - 1));
+                assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_FCV_1_FAILED_OPEN + 3));
+            }
+
+            #[test]
+            fn pack_overheat_is_reported_above_95_c_until_the_pack_is_off() {
+                let mut test_bed = test_bed_with_packs_on();
+                assert_lt!(
+                    test_bed.pack_outlet_temperature(1),
+                    FCOM_PACK_OVERHEAT_LIMIT_DEG_C
+                );
+
+                test_bed.fail(FailureType::PackOverheat(1));
+                test_bed = test_bed.iterate(30);
+
+                assert_gt!(
+                    test_bed.pack_outlet_temperature(1),
+                    FCOM_PACK_OVERHEAT_LIMIT_DEG_C
+                );
+                assert_lt!(
+                    test_bed.pack_outlet_temperature(2),
+                    FCOM_PACK_OVERHEAT_LIMIT_DEG_C
+                );
+                assert!(test_bed.ags_discrete_word_bit(AGS_BIT_PACK_1_OVHT));
+                assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_PACK_2_OVHT));
+
+                // FCOM procedure PACK 1 OFF: no more air flow, the pack cools down
+                test_bed = test_bed.command_one_pack_on(2).iterate(30);
+                assert_lt!(
+                    test_bed.pack_outlet_temperature(1),
+                    FCOM_PACK_OVERHEAT_LIMIT_DEG_C
+                );
+                assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_PACK_1_OVHT));
+            }
+
+            #[test]
+            fn pack_regulation_fault_is_reported_as_bypass_mode() {
+                let mut test_bed = test_bed_with_packs_on();
+                test_bed.fail(FailureType::PackRegulation(2));
+                test_bed = test_bed.iterate(2);
+
+                assert!(test_bed.ags_discrete_word_bit(AGS_BIT_PACK_2_BYPASS_MODE));
+                assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_PACK_1_BYPASS_MODE));
+            }
+
+            #[test]
+            fn fdac_with_both_channels_failed_does_not_monitor_its_pack() {
+                let mut test_bed = test_bed_with_packs_on();
+                test_bed.fail(FailureType::PackRegulation(1));
+                test_bed.fail(FailureType::Fdac(FdacId::One, Channel::ChannelOne));
+                test_bed.fail(FailureType::Fdac(FdacId::One, Channel::ChannelTwo));
+                test_bed = test_bed.iterate(2);
+
+                assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_PACK_1_BYPASS_MODE));
+            }
+
+            fn test_bed_with_bulk_heater_on() -> CabinAirTestBed {
+                test_bed()
+                    .and_run()
+                    .command_measured_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        10.,
+                    ))
+                    .iterate(5)
+            }
+
+            #[test]
+            fn bulk_cargo_duct_overheat_is_reported_until_the_heater_is_off() {
+                let mut test_bed = test_bed_with_bulk_heater_on();
+                assert!(test_bed.bulk_duct_heater_is_on());
+                assert!(!test_bed.vcs_discrete_word_bit(VCS_BIT_BULK_CARGO_DUCT_OVHT));
+                assert!(!test_bed.bulk_cargo_heater_pb_has_fault());
+
+                test_bed.fail(FailureType::BulkCargoDuctOverheat);
+                test_bed = test_bed.iterate(5);
+
+                assert_gt!(
+                    test_bed.duct_temperature()[BULK_CARGO].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+                assert!(test_bed.vcs_discrete_word_bit(VCS_BIT_BULK_CARGO_DUCT_OVHT));
+                // The HEATER pb FAULT light
+                assert!(test_bed.bulk_cargo_heater_pb_has_fault());
+
+                // FCOM procedure BULK HEATER OFF
+                test_bed = test_bed.command_bulk_heater_pb_on(false).iterate(5);
+                assert_lt!(
+                    test_bed.duct_temperature()[BULK_CARGO].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+                assert!(!test_bed.vcs_discrete_word_bit(VCS_BIT_BULK_CARGO_DUCT_OVHT));
+                assert!(!test_bed.bulk_cargo_heater_pb_has_fault());
+            }
+
+            #[test]
+            fn failed_cabin_air_extract_valve_stays_closed_and_is_reported() {
+                let mut test_bed = test_bed().iterate(2);
+                assert!(!test_bed.vcs_discrete_word_bit(VCS_BIT_CABIN_AIR_EXTRACT_VLV_FAULT));
+
+                test_bed.fail(FailureType::CabinAirExtractValve);
+                test_bed = test_bed.command_air_extract_pb_on_normal(true).iterate(5);
+
+                assert!(!test_bed.cabin_air_extract_valve_is_open());
+                assert!(test_bed.vcs_discrete_word_bit(VCS_BIT_CABIN_AIR_EXTRACT_VLV_FAULT));
+            }
+
+            #[test]
+            fn healthy_cabin_air_extract_valve_opens_with_its_pb() {
+                let mut test_bed = test_bed()
+                    .iterate(2)
+                    .command_air_extract_pb_on_normal(true)
+                    .iterate(5);
+
+                assert!(test_bed.cabin_air_extract_valve_is_open());
+                assert!(!test_bed.vcs_discrete_word_bit(VCS_BIT_CABIN_AIR_EXTRACT_VLV_FAULT));
             }
         }
 

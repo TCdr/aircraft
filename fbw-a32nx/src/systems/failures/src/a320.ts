@@ -129,6 +129,19 @@ export const A320Failure = Object.freeze({
   // A failed channel of the fuel quantity indicating computer (systems-host Fuel/FuelPumpsAndValves): FQI CH 1(2) FAULT
   FqiChannel1: 28009,
   FqiChannel2: 28010,
+  // The APU LP fuel valve jam holds the valve where it is (systems fuel/apu_lp_valve.rs, FailureType ApuLpValveJammed):
+  // FUEL APU LP VALVE FAULT; jammed closed it starves the APU
+  ApuLpValveJammed: 28011,
+  // The jam of the two outer tank transfer valves of a wing (systems-host Fuel/FuelPumpsAndValves): FUEL L(R) OUTER XFR
+  // CLOSED once the inner tank low level opens them, OUTER XFR OPEN when they should close
+  LeftOuterTankTransferValvesJammed: 28012,
+  RightOuterTankTransferValvesJammed: 28013,
+  // A failed wing tank low level sensor: no L(R) WING TK LO LVL warning; both failed: FUEL LO LVL DET FAULT
+  LeftWingTankLowLevelSensor: 28014,
+  RightWingTankLowLevelSensor: 28015,
+  // A leaking wing tank loses fuel (FADEC CrossFeedBurn_A32NX.hpp wingTankLeakPounds): FUEL F. USED/FOB DISAGREE
+  LeftWingTankLeak: 28016,
+  RightWingTankLeak: 28017,
 
   GreenReservoirLeak: 29000,
   BlueReservoirLeak: 29001,
@@ -190,6 +203,7 @@ export const A320Failure = Object.freeze({
   NormalBraking: 32203,
   Autobrake: 32204,
   NoseWheelSteering: 32205,
+  BrakeNormalSelectorValve: 32210,
 
   // ATA 30 (systems ice_rain_protection, in a320_systems pneumatic.rs)
   Eng1AntiIceValveStuckClosed: 30000,
@@ -248,6 +262,8 @@ export const A320Failure = Object.freeze({
   Ir1HeadingErroneous: 34110,
   Ir2HeadingErroneous: 34111,
   Ir3HeadingErroneous: 34112,
+  // TS only: the predictive windshear function of the weather radar (FWC/Logic/PredictiveWindshearAlerts.ts)
+  WxrPredictiveWindshear: 34120,
   // ATA 36 (a320_systems pneumatic.rs)
   Eng1BleedValveStuckClosed: 36000,
   Eng2BleedValveStuckClosed: 36001,
@@ -471,6 +487,13 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [28, A320Failure.Eng2LpValveJammed, 'ENG 2 LP fuel valve jammed in place'],
   [28, A320Failure.FqiChannel1, 'FQI channel 1'],
   [28, A320Failure.FqiChannel2, 'FQI channel 2'],
+  [28, A320Failure.ApuLpValveJammed, 'APU LP fuel valve jammed in place'],
+  [28, A320Failure.LeftOuterTankTransferValvesJammed, 'L outer tank transfer valves jammed in place'],
+  [28, A320Failure.RightOuterTankTransferValvesJammed, 'R outer tank transfer valves jammed in place'],
+  [28, A320Failure.LeftWingTankLowLevelSensor, 'L wing tank low level sensor'],
+  [28, A320Failure.RightWingTankLowLevelSensor, 'R wing tank low level sensor'],
+  [28, A320Failure.LeftWingTankLeak, 'L wing tank leak'],
+  [28, A320Failure.RightWingTankLeak, 'R wing tank leak'],
 
   [29, A320Failure.GreenReservoirLeak, 'Green reservoir leak'],
   [29, A320Failure.BlueReservoirLeak, 'Blue reservoir leak'],
@@ -530,6 +553,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [32, A320Failure.NormalBraking, 'Normal braking (servo valves)'],
   [32, A320Failure.Autobrake, 'Autobrake'],
   [32, A320Failure.NoseWheelSteering, 'Nose wheel steering'],
+  [32, A320Failure.BrakeNormalSelectorValve, 'Brake normal selector valve failed open'],
 
   // The engine anti-ice valve stays closed (ANTI ICE ENG 1(2) VALVE CLSD) / open (ANTI ICE ENG 1(2) VALVE OPEN)
   [30, A320Failure.Eng1AntiIceValveStuckClosed, 'Engine 1 anti-ice valve stuck closed'],
@@ -588,6 +612,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Ir1HeadingErroneous, 'IR 1 heading erroneous'],
   [34, A320Failure.Ir2HeadingErroneous, 'IR 2 heading erroneous'],
   [34, A320Failure.Ir3HeadingErroneous, 'IR 3 heading erroneous'],
+  [34, A320Failure.WxrPredictiveWindshear, 'Weather radar predictive windshear (PWS)'],
 
   // The valve stays closed / fully open whatever the BMC commands (a stuck open bleed valve no longer regulates: ENG
   // BLEED FAULT by overpressure at climb power, ENG BLEED NOT CLSD at engine start, with APU BLEED ON or engine stopped)

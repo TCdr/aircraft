@@ -22,6 +22,7 @@ pub(super) struct A320BrakeControlUnits {
     norm_brk_fault_id: VariableIdentifier,
     nw_strg_fault_id: VariableIdentifier,
     auto_brk_fault_id: VariableIdentifier,
+    hyd_sel_fault_id: VariableIdentifier,
 
     bscu_channel_failures: [Failure; 2],
     bscu_channel_powered: [bool; 2],
@@ -32,6 +33,10 @@ pub(super) struct A320BrakeControlUnits {
     nose_wheel_steering_failure: Failure,
     /// The autobrake function of the BSCU
     autobrake_failure: Failure,
+    /// The brake normal selector valve failed open (WHEEL HYD SEL FAULT). The model feeds the normal servovalves with
+    /// the green pressure at all times, so the failure has no other effect: "As long as antiskid is operative, brake
+    /// pressure is regulated by normal servovalves" (A320 FCOM PRO-ABN-WHEEL, a320_fcom.txt l.96325-96338).
+    normal_selector_valve_failure: Failure,
 
     /// The BSCU channel in control (1 or 2), None with both channels lost
     active_bscu_channel: Option<usize>,
@@ -69,6 +74,7 @@ impl A320BrakeControlUnits {
             norm_brk_fault_id: context.get_identifier("BRAKES_NORM_BRK_FAULT".to_owned()),
             nw_strg_fault_id: context.get_identifier("BRAKES_NW_STRG_FAULT".to_owned()),
             auto_brk_fault_id: context.get_identifier("BRAKES_AUTO_BRK_FAULT".to_owned()),
+            hyd_sel_fault_id: context.get_identifier("BRAKES_HYD_SEL_FAULT".to_owned()),
 
             bscu_channel_failures: [1, 2]
                 .map(|channel| Failure::new(FailureType::BrakeSteeringControlUnitChannel(channel))),
@@ -78,6 +84,7 @@ impl A320BrakeControlUnits {
             normal_braking_failure: Failure::new(FailureType::BrakeNormalBraking),
             nose_wheel_steering_failure: Failure::new(FailureType::NoseWheelSteeringNormal),
             autobrake_failure: Failure::new(FailureType::Autobrake),
+            normal_selector_valve_failure: Failure::new(FailureType::BrakeNormalSelectorValve),
 
             active_bscu_channel: Some(1),
             gear_handle_was_down: true,
@@ -170,6 +177,13 @@ impl A320BrakeControlUnits {
         self.bscu_operative() && !self.nose_wheel_steering_failure.is_active()
     }
 
+    /// WHEEL HYD SEL FAULT "triggers when the brake normal selector valve is failed" (A320 FCOM l.96304-96305).
+    /// Design choice: the BSCU monitors the valve, so the fault is reported while a BSCU channel works (without both
+    /// channels, BRAKES A/SKID N/WS FAULT shows the loss).
+    fn normal_selector_valve_fault_detected(&self) -> bool {
+        self.bscu_operative() && self.normal_selector_valve_failure.is_active()
+    }
+
     fn autobrake_function_failed(&self) -> bool {
         self.autobrake_failure.is_active() || !self.any_adiru_available
     }
@@ -189,6 +203,7 @@ impl SimulationElement for A320BrakeControlUnits {
         self.normal_braking_failure.accept(visitor);
         self.nose_wheel_steering_failure.accept(visitor);
         self.autobrake_failure.accept(visitor);
+        self.normal_selector_valve_failure.accept(visitor);
         visitor.visit(self);
     }
 
@@ -221,5 +236,9 @@ impl SimulationElement for A320BrakeControlUnits {
             self.nose_wheel_steering_failure.is_active(),
         );
         writer.write(&self.auto_brk_fault_id, self.autobrake_failed_after_armed);
+        writer.write(
+            &self.hyd_sel_fault_id,
+            self.normal_selector_valve_fault_detected(),
+        );
     }
 }

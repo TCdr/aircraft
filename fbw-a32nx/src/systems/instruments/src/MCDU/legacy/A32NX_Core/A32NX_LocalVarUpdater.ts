@@ -6,6 +6,7 @@
 // and then updates the local simvar if it changed.
 
 import { UpdateThrottler } from '@flybywiresim/fbw-sdk';
+import { areNoSmokingSignsOn } from './CabinSigns';
 
 const FLAPS_IN_MOTION_MIN_DELTA = 0.1;
 
@@ -67,21 +68,21 @@ export class A32NX_LocalVarUpdater {
     }
   }
 
+  /** The NO SMOKING (NO PED) signs are on: FCOM rules in CabinSigns */
   _noSmokingMemoSelector() {
-    const gearPercent = SimVar.GetSimVarValue('L:A32NX_GEAR_CENTER_POSITION', 'Percent');
-    const noSmokingSwitch = SimVar.GetSimVarValue('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', 'Position');
-
-    // Switch is ON
-    if (noSmokingSwitch === 0) {
-      return true;
-    }
-
-    // Switch is AUTO and gear more than 50% down
-    if (noSmokingSwitch === 1 && gearPercent > 50) {
-      return true;
-    }
-
-    return false;
+    return areNoSmokingSignsOn({
+      switchPosition: SimVar.GetSimVarValue('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', 'Position'),
+      gearPositionsPercent: [
+        SimVar.GetSimVarValue('L:A32NX_GEAR_LEFT_POSITION', 'Percent'),
+        SimVar.GetSimVarValue('L:A32NX_GEAR_RIGHT_POSITION', 'Percent'),
+        SimVar.GetSimVarValue('L:A32NX_GEAR_CENTER_POSITION', 'Percent'),
+      ],
+      flapsLeverIndex: SimVar.GetSimVarValue('L:A32NX_FLAPS_HANDLE_INDEX', 'Number'),
+      // The cabin pressure sensor of the manual partition of CPC 1, as the passenger oxygen mask release uses
+      // (systems-host Oxygen/PaxOxygenMasks.ts)
+      cabinAltitudeFt: SimVar.GetSimVarValue('L:A32NX_PRESS_MAN_CABIN_ALTITUDE', 'Feet'),
+      portableDevicesSigns: SimVar.GetSimVarValue('L:A32NX_CONFIG_USING_PORTABLE_DEVICES', 'Bool') > 0,
+    });
   }
 
   _flapsInMotionSelector() {

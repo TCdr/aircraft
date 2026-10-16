@@ -10,11 +10,16 @@ import {
   ALTN_BRK_FAULT_STATUS,
   antiSkidNwsStatus,
   AUTO_BRK_FAULT_STATUS,
+  AUTO_BRK_MEMO_CODES,
+  autoBrakeMemoLine,
   BrakeSystemAlertInputs,
   brakeSystemAlerts,
   NORM_AND_ALTN_FAULT_STATUS,
   NORM_BRK_FAULT_STATUS,
   NW_STRG_FAULT_STATUS,
+  HYD_SEL_FAULT_CODES,
+  HYD_SEL_FAULT_PHASE_INHIBITION,
+  hydSelFaultLines,
   SYS_1_FAULT_STATUS,
   SYS_2_FAULT_STATUS,
 } from './BrakeSystemAlerts';
@@ -29,6 +34,7 @@ const healthy: BrakeSystemAlertInputs = {
   normalBrakingFailed: false,
   autobrakeFailedAfterArmed: false,
   noseWheelSteeringFailed: false,
+  normalSelectorValveFailed: false,
   antiSkidSwitchOff: false,
   yellowLowPressure: false,
 };
@@ -106,6 +112,13 @@ describe('BRAKES and WHEEL cautions of the brake control units (A320 FCOM PRO-AB
     expect(active({ noseWheelSteeringFailed: true })).toEqual(['nwStrgFault']);
     expect(active({ noseWheelSteeringFailed: true, antiSkidSwitchOff: true })).toEqual(['antiSkidNwsOff']);
   });
+
+  it('WHEEL HYD SEL FAULT when the BSCU reports the brake normal selector valve failed (l.96304-96305)', () => {
+    expect(active({ normalSelectorValveFailed: true })).toEqual(['hydSelFault']);
+    // A/SKID & N/W STRG KEEP ON stays (l.96336), phases of the FCOM PDF figure (page 5834)
+    expect(hydSelFaultLines()).toEqual([0, 1]);
+    expect(HYD_SEL_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
+  });
 });
 
 /** The visible texts of formatted lines, without the colour codes */
@@ -157,6 +170,7 @@ describe('BRAKES and WHEEL wiring', () => {
     expect(lines(['320045001'])).toEqual(['BRAKES SYS 1 FAULT']);
     expect(lines(['320046001'])).toEqual(['BRAKES SYS 2 FAULT']);
     expect(lines(['320047001'])).toEqual(['WHEEL N/W STRG FAULT']);
+    expect(lines(HYD_SEL_FAULT_CODES)).toEqual(['WHEEL HYD SEL FAULT', '-A/SKID N/WS....KEEP ON']);
   });
 
   it('PseudoFWC reads the brake model outputs and raises the alerts', () => {
@@ -168,6 +182,7 @@ describe('BRAKES and WHEEL wiring', () => {
       'NORM_BRK_FAULT',
       'AUTO_BRK_FAULT',
       'NW_STRG_FAULT',
+      'HYD_SEL_FAULT',
     ]) {
       expect(fwc).toContain(`'L:A32NX_BRAKES_${simvar}'`);
     }
@@ -181,6 +196,7 @@ describe('BRAKES and WHEEL wiring', () => {
       '3200450:',
       '3200460:',
       '3200470:',
+      '3200480:',
     ]) {
       expect(fwc).toContain(code);
     }
@@ -192,8 +208,52 @@ describe('BRAKES and WHEEL wiring', () => {
       'utf-8',
     );
     expect(model).toContain('format!("BRAKES_BSCU_{channel}_FAULT")');
-    for (const simvar of ['ALTN_BRK_FAULT', 'NORM_BRK_FAULT', 'AUTO_BRK_FAULT', 'NW_STRG_FAULT']) {
+    for (const simvar of ['ALTN_BRK_FAULT', 'NORM_BRK_FAULT', 'AUTO_BRK_FAULT', 'NW_STRG_FAULT', 'HYD_SEL_FAULT']) {
       expect(model).toContain(`"BRAKES_${simvar}"`);
     }
+  });
+});
+
+/* A320 FCOM DSC-32-30-20 MEMO DISPLAY (l.51657-51662): "AUTO BRK LO/MED/MAX : This memo appears in green, depending on
+   the selection of the AUTO BRK pb"; "AUTO BRK OFF : This memo appears in green if the auto brake is failed". */
+describe('AUTO BRK memo (A320 FCOM DSC-32-30-20)', () => {
+  const memo = (phase: number, mode: number, failed: boolean) => {
+    const line = autoBrakeMemoLine(phase, mode, failed);
+    return line === null ? null : formatEwdMessages([AUTO_BRK_MEMO_CODES[line]])[0];
+  };
+
+  it('shows the green AUTO BRK LO/MED/MAX selection in flight phases 7 and 8', () => {
+    expect(memo(7, 1, false)).toBe('\x1b<3mAUTO BRK LO');
+    expect(memo(8, 2, false)).toBe('\x1b<3mAUTO BRK MED');
+    expect(memo(7, 3, false)).toBe('\x1b<3mAUTO BRK MAX');
+    expect(memo(6, 2, false)).toBeNull();
+  });
+
+  it('shows no memo when nothing is selected (no undefined code)', () => {
+    expect(autoBrakeMemoLine(7, 0, false)).toBeNull();
+    expect(autoBrakeMemoLine(8, 0, false)).toBeNull();
+  });
+
+  it('shows the green AUTO BRK OFF when the autobrake is failed, in every flight phase', () => {
+    for (const phase of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      expect(memo(phase, 0, true)).toBe('\x1b<3mAUTO BRK OFF');
+    }
+  });
+
+  it('gives no amber AUTO BRK OFF memo, aural or MASTER CAUT at an autobrake disarm (not in this FCOM)', () => {
+    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
+    expect(fwc).not.toContain("'320000001'");
+    expect(fwc).not.toContain("enqueueSound('autoBrakeOff')");
+    expect(fwc).not.toContain('requestMasterCautionFromABrkOff');
+    expect(formatEwdMessages(['320000001'])).toEqual(['']);
+    const sounds = readFileSync(resolve(__dirname, '../FwsSoundManager.ts'), 'utf-8');
+    expect(sounds).not.toContain('A32NX_AUDIO_AUTOBRAKE_OFF');
+  });
+
+  it('is the PseudoFWC AUTO BRK memo, from the BSCU autobrake fault', () => {
+    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
+    expect(fwc).toContain('whichCodeToReturn: () => [this.autoBrakeMemoLineIndex]');
+    expect(fwc).toContain('codesToReturn: Brakes.AUTO_BRK_MEMO_CODES');
+    expect(fwc).toContain("SimVar.GetSimVarValue('L:A32NX_BRAKES_AUTO_BRK_FAULT', 'bool') > 0");
   });
 });

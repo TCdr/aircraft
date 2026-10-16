@@ -32,7 +32,12 @@ import {
   RaBusPublisher,
 } from '@flybywiresim/fbw-sdk';
 import { NDComponent } from '@flybywiresim/navigation-display';
-import { a380EfisZoomRangeSettings, A380EfisZoomRangeValue, Oanc } from '@flybywiresim/oanc';
+import {
+  A380_OANS_DESTINATION_ARROW_RANGE_NM,
+  a380EfisZoomRangeSettings,
+  A380EfisZoomRangeValue,
+  Oanc,
+} from '@flybywiresim/oanc';
 
 import { ContextMenu, ContextMenuElement } from '../MsfsAvionicsCommon/UiWidgets/ContextMenu';
 import { MouseCursor, MouseCursorColor } from '../MsfsAvionicsCommon/UiWidgets/MouseCursor';
@@ -277,6 +282,7 @@ class NDInstrument implements FsInstrument {
                 contextMenuX={this.contextMenuX}
                 contextMenuY={this.contextMenuY}
                 zoomValues={a380EfisZoomRangeSettings}
+                destinationArrowRangeNm={A380_OANS_DESTINATION_ARROW_RANGE_NM}
               />
             </div>
           </div>

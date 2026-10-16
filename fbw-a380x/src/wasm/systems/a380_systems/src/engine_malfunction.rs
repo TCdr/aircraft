@@ -12,11 +12,29 @@
 //! choice; the FCOM gives the symptoms and the limits (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt):
 //! - ENG STALL (l.172812-172821): fluctuating performance parameters, sluggish thrust lever
 //!   response, high EGT. The engine stalls when the N1 command is at or above 60 % (above the
-//!   approach thrust) and recovers below 57 % ("THR LEVER ... IDLE", l.172842).
-//! - ENG EGT OVER LIMIT (l.171488-171494) triggers above the EGT limit at or below MCT and above
-//!   the red line at takeoff thrust. FBW shows its own Trent EGT limits on the EWD (850 / 900 degC,
-//!   EWD EgtLimits.ts) instead of the GP7270 970 / 1002 degC: the EGT overtemperature (120 degC at
-//!   100 % N1) takes a climb EGT above that EGT limit.
+//!   approach thrust) and recovers below 57 % ("THR LEVER ... IDLE", l.172842). The stall EGT
+//!   rise (150 degC) is a high EGT that stays below the EGT limits: the stalled engine runs at a
+//!   lower N1 than the healthy one, whose EGT is at most about 720 degC in climb and 850 degC at
+//!   takeoff (recorded values below), so at most 870 degC in climb (EGT limit 970 degC) and
+//!   1 000 degC at takeoff (red line 1 002 degC). The stall gives ENG STALL, not EGT OVER LIMIT.
+//! - ENG EGT OVER LIMIT (l.171488-171494) triggers above the EGT limit (970 degC) at or below MCT
+//!   and above the red line (1 002 degC) at takeoff thrust; during takeoff the red indication is at
+//!   or above 1 022 degC, or 1 002 degC for more than 20 s (DSC-70-90, l.113170-113192; EWD
+//!   EgtLimits.ts). The EGT overtemperature failure is tuned on the raw FADEC EGT recorded on a
+//!   healthy A380X engine: about 720 degC at N1 76 % (climb), about 820-850 degC at N1 85-88 %
+//!   (takeoff); with the previous 120 degC at 100 % N1 the failed engine showed 900-940 degC, below
+//!   the FCOM limits. Design choice (2026-10-13), as for the A32NX overspeed: 350 degC at 100 % N1,
+//!   proportional to the N1, so that
+//!   - in climb (N1 76 %) the EGT is about 720 + 266 = 986 degC: amber, above the 970 degC limit
+//!     (ENG EGT OVER LIMIT), below the 1 002 degC red line;
+//!   - at takeoff (N1 85-88 %) it is about 820 + 298 = 1 118 degC to 850 + 308 = 1 158 degC: red at
+//!     once, above the 1 022 degC of the takeoff rule;
+//!   - with the thrust reduced to N1 70 % (THR LEVER ... REDUCE BELOW EGT LIMIT, l.171515) the
+//!     offset is 245 degC and the EGT below 720 + 245 = 965 degC (the healthy EGT at N1 70 % is
+//!     lower than the 720 degC at N1 76 %): back below the EGT limit.
+//!   - the amber band at climb thrust is narrow (about 1 % N1 each side of N1 76 %, the EGT grows
+//!     by about 14 degC per % N1 with the failure): a higher climb or MCT N1 may show red, which
+//!     is still above the limit and gives the same alert.
 //! - ENG HI VIBRATIONS (l.174816): the vibration advisory is N1, N2 above 5 units (also
 //!   DSC-70-90, l.113396). The high vibration failure (N1 7 units at 100 % N1, N3 6 units
 //!   at 100 % N3, with the square of the rotor speed) is above the advisory at climb and cruise
@@ -54,7 +72,8 @@ pub const A380_ENGINE_MALFUNCTION_PARAMETERS: EngineMalfunctionParameters =
         stall_n1_fluctuation_percent: 3.,
         stall_core_fluctuation_percent: 1.5,
         stall_n1_vibration_units: 2.,
-        overtemperature_egt_rise_at_full_n1_degrees_celsius: 120.,
+        // Tuned on the FCOM EGT limits and the recorded EGT (see the module comment).
+        overtemperature_egt_rise_at_full_n1_degrees_celsius: 350.,
         // No overspeed failure on the A380 (see the module comment).
         overspeed_n1_fraction: 0.,
         overspeed_core_fraction: 0.,
@@ -263,6 +282,61 @@ mod tests {
 
         let n1_offset: f64 = test_bed.read_by_name("ENGINE_1_N1_OFFSET");
         assert!(n1_offset.abs() < 1e-9);
+    }
+
+    /// The raw FADEC EGT of a healthy A380X engine (recorded): about 720 degC at N1 76 % in
+    /// climb, about 820-850 degC at N1 85-88 % at takeoff.
+    const CLIMB_N1_PERCENT: f64 = 76.;
+    const CLIMB_HEALTHY_EGT: f64 = 720.;
+    const TAKEOFF_N1_AND_HEALTHY_EGT: [(f64, f64); 2] = [(85., 820.), (88., 850.)];
+    /// The FCOM EGT limits (DSC-70-90, a380_fcom.txt l.113170-113201, EWD EgtLimits.ts).
+    const EGT_LIMIT: f64 = 970.;
+    const EGT_RED_LINE: f64 = 1002.;
+    const EGT_TAKEOFF_RED: f64 = 1022.;
+
+    /// The EGT offset of engine 1 with a failure, after 40 s at the given N1 (N1 command alike).
+    fn egt_offset_with(failure: FailureType, n1: f64) -> f64 {
+        let mut test_bed = engines_at_climb_thrust();
+        test_bed.write_by_name("TURB ENG N1:1", n1);
+        test_bed.write_by_name("AUTOTHRUST_N1_COMMANDED:1", n1);
+        test_bed.fail(failure);
+        run_for(&mut test_bed, Duration::from_secs(40));
+        test_bed.read_by_name("ENGINE_1_EGT_OFFSET")
+    }
+
+    #[test]
+    fn the_egt_overtemperature_is_amber_at_climb_thrust() {
+        let egt = CLIMB_HEALTHY_EGT
+            + egt_offset_with(FailureType::EngineEgtOvertemperature(1), CLIMB_N1_PERCENT);
+        assert!(egt > EGT_LIMIT && egt < EGT_RED_LINE, "climb EGT {}", egt);
+    }
+
+    #[test]
+    fn the_egt_overtemperature_is_red_at_once_at_takeoff_thrust() {
+        for (n1, healthy_egt) in TAKEOFF_N1_AND_HEALTHY_EGT {
+            let egt = healthy_egt + egt_offset_with(FailureType::EngineEgtOvertemperature(1), n1);
+            assert!(egt >= EGT_TAKEOFF_RED, "takeoff EGT {} at N1 {}", egt, n1);
+        }
+    }
+
+    #[test]
+    fn reducing_the_thrust_brings_the_egt_overtemperature_below_the_limit() {
+        // The healthy EGT at N1 70 % is below the 720 degC of N1 76 %: an upper bound.
+        let egt =
+            CLIMB_HEALTHY_EGT + egt_offset_with(FailureType::EngineEgtOvertemperature(1), 70.);
+        assert!(egt < EGT_LIMIT, "EGT {} at N1 70 %", egt);
+    }
+
+    /// The stalled engine loses N1, so the healthy EGT at the N1 before the stall is an upper
+    /// bound: the stall gives a high EGT, below the limits (ENG STALL, not EGT OVER LIMIT).
+    #[test]
+    fn the_stall_egt_stays_below_the_limits() {
+        let climb_egt =
+            CLIMB_HEALTHY_EGT + egt_offset_with(FailureType::EngineCompressorStall(1), 76.);
+        assert!(climb_egt < EGT_LIMIT, "climb EGT {}", climb_egt);
+        let (n1, healthy_egt) = TAKEOFF_N1_AND_HEALTHY_EGT[1];
+        let takeoff_egt = healthy_egt + egt_offset_with(FailureType::EngineCompressorStall(1), n1);
+        assert!(takeoff_egt < EGT_RED_LINE, "takeoff EGT {}", takeoff_egt);
     }
 
     #[test]

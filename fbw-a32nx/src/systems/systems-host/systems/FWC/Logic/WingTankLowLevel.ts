@@ -1,6 +1,19 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+/**
+ * A320 FCOM DSC-28-10-80 FLSCU (a320_fcom.txt l.42612-42614): "When fuel quantity in one wing tank goes below 750 kg
+ * (1 650 lb), the low-level sensor triggers the LO LVL warning on ECAM. The LO LVL warning is totally independent from
+ * the displayed fuel quantity indication of the tank." A failed low level sensor (flyPad failures 28014/28015,
+ * systems-host Fuel/FuelLevelSensing) no longer gives it.
+ */
+export const WING_TANK_LOW_LEVEL_KG = 750;
+
+/** Whether the low level sensor of a wing tank senses the low level */
+export function isWingTankLowLevelSensed(innerTankKg: number, sensorFailed: boolean): boolean {
+  return innerTankKg < WING_TANK_LOW_LEVEL_KG && !sensorFailed;
+}
+
 export interface WingTankLowLevelInputs {
   /** The FUEL MODE SEL pb is at MAN */
   readonly modeSelMan: boolean;

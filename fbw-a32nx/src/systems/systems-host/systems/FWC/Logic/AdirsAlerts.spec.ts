@@ -375,3 +375,28 @@ describe('NAV ADR and IR alert inputs', () => {
     expect(inputs.irData[2].failed).toBe(true);
   });
 });
+
+/* A320 FCOM PRO-ABN-NAV NAV ALTI DISCREPANCY (l.92693); DSC-34-NAV-10-20 MEMO DISPLAY (l.52686-52697): "IRS IN ALIGN X MN"
+   (green, pulsing green when one IRS alignment is faulty, amber once an engine is started). */
+describe('NAV titles and IRS memo texts', () => {
+  // eslint-disable-next-line no-control-regex
+  const plain = (texts: string[]) => texts.map((text) => text.replace(/\x1b<\dm|\x1b\)m|\x1bm|\x1b4m/g, ''));
+
+  it('NAV ALTI DISCREPANCY', () => {
+    expect(plain(formatEwdMessages(['340010501']))).toEqual(['NAV ALTI DISCREPANCY']);
+  });
+
+  it('IRS IN ALIGN X MN, green, pulsing green and amber', () => {
+    expect(formatEwdMessages(['000003001', '000003002', '000003003'])).toEqual([
+      '\x1b<3mIRS IN ALIGN > 7 MN',
+      '\x1b<3m\x1b)mIRS IN ALIGN > 7 MN\x1bm',
+      '\x1b<4mIRS IN ALIGN > 7 MN',
+    ]);
+    expect(plain(formatEwdMessages(['000003010', '000003101', '000003107', '000003110']))).toEqual([
+      'IRS IN ALIGN 4 MN',
+      'IRS IN ALIGN 3 MN',
+      'IRS IN ALIGN 1 MN',
+      'IRS IN ALIGN',
+    ]);
+  });
+});

@@ -560,6 +560,72 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FIRE] Cargo and avionics smoke detection with new flyPad failures: SMOKE FWD and AFT CARGO SMOKE, FWD and AFT CRG DET FAULT, FWD and AFT CRG BTL 1 FAULT and AVIONICS SMOKE alerts, the SMOKE, GEN 1 LINE SMOKE and BLOWER/EXTRACT FAULT lights; the cargo DISCH pbs now discharge the cargo fire bottle and light the DISCH lights - @TCdr
 1. [A380X/FIRE] Smoke Detection Function for the cargo compartments, the avionics bays and the IFE bay with new flyPad failures: their SMOKE warnings and SMOKE DET FAULT cautions, and the FWD+AFT CARGO BTL 1(2) FAULT cautions; the AGENT TO FWD/AFT pbs now discharge the two cargo fire bottles (SMOKE, DISCH and BTL lights) - @TCdr
 1. [A32NX/FIRE] The amber cargo DISCH lights now also come on while the CARGO SMOKE TEST pb is held, as in the FCOM - @TCdr
+1. [A32NX/EWD] The amber EGT limit line is hidden in TOGA/FLX, reverse and alpha floor, the N1 limit value is hidden in MREV, cyan dashes replace the FLX temperature when the SAT is above it, and IDLE shows in flight without the autothrust - @TCdr
+1. [A32NX/SD] APU page AVAIL from APU N above 95 % and amber XX APU bleed valve without ECB data; ELEC GEN 1(2) number white with GEN OFF and the engine running; HYD and BLEED engine numbers amber with N2 below idle; BLEED page APU valve amber only with the APU master ON and the APU BLEED pb ON for 10 s - @TCdr
+1. [A380X/EWD] IDLE now shows in flight with at least three engines at idle also with the A/THR off - @TCdr
+1. [A380X/SD] CAB PRESS and CRUISE pages: the cabin V/S, cabin altitude and delta P pulse as in the FCOM (hysteresis, 5 s on the CRUISE page, delta P in final approach), CRUISE delta P amber or red out of range, CRUISE V/S arrow from 25 ft/min - @TCdr
+1. [A380X/SD] ELEC DC page: APU BAT voltage and current amber when out of range except while starting the APU, discharge arrow amber, green while starting the APU - @TCdr
+1. [A380X/SD] BLEED page: WING A-ICE indication per wing (on, failed closed, failed open or abnormal pressure) - @TCdr
+1. [A380X/SD] ENG page: the FADEC is supplied for 15 min after aircraft power-up and for 10 min after the FADEC GND PWR pb, then the engine parameters show XX - @TCdr
+1. [A380X/FWS] SIGNS memos as in the FCOM: SEAT BELTS and NO SMOKING memos with the switch ON (the NO MOBILE memo is gone), replaced by a SIGNS ON memo during take-off and landing; the cabin NO SMOKING signs now follow the AUTO position (slats or main gear extended, excessive cabin altitude) - @TCdr
+1. [A380X/FWS] New ENG 1(2)(3)(4) THR LEVER ABOVE IDLE warning (a thrust lever above idle with a reverser selected, during the reversers de-selection, or with the auto-idle protection) with its dual RETARD callout - @TCdr
+1. [A380X/FWS] ENG SHUT DOWN asks for the ABNORM BLEED CONFIG procedure instead of FOR GA: TOGA ONLY, HYD SYS TEMP EXCESS HI has the FCOM title and pump lines, ELEC PMP FAULT gives a REDUND LOSS instead of an INOP SYS, and the flap/slat CONFIG logic reads SFCC 2 when SFCC 1 cannot give the position - @TCdr
+1. [A380X/PFD] The radio height is the same on both PFDs: median of the three RAs, the average of two, the remaining one; the height callouts and the GPWS use it too (RA 3 was ignored) - @TCdr
+1. [A380X/GPWS] Mode 5 (GLIDE SLOPE) is active only with the landing gear down - @TCdr
+1. [A380X/PFD] FMA approach capability in the FCOM words: CAT1, CAT2, CAT3 SINGLE and CAT3 DUAL instead of APPR1, LAND2 and LAND3 - @TCdr
+1. [A380X/VD] Amber radio altitude zone under the aircraft symbol below 5 000 ft RA - @TCdr
+1. [A380X/VD] VD messages as in the FCOM: NO TERR AND WX DATA AVAILABLE with TERR SYS OFF, new WX NOT SEL (WX ON VD or WXR OFF), the invented NO TERR DATA AVAILABLE and NO WX DATA AVAILABLE are gone - @TCdr
+1. [A380X/EFIS] The WX pbs are deselected automatically 60 s after touchdown (the weather radar turns off) - @TCdr
+1. [A380X/OANS] The destination arrow also shows in ROSE NAV mode, and only at the 5 NM range - @TCdr
+1. [A32NX/FWC] AUTO BRK memo as in the FCOM: green AUTO BRK OFF when the autobrake has failed; no more amber AUTO BRK OFF memo, voice and MASTER CAUT at a normal autobrake disarm - @TCdr
+1. [A32NX/FWC] FCOM titles IRS IN ALIGN X MN (was IR IN ALIGN) and NAV ALTI DISCREPANCY (was ALT DISCREPANCY) - @TCdr
+1. [A32NX/FWC] New AUTO FLT REAC W/S DET FAULT caution (STATUS INOP SYS REAC W/S DET) when the reactive windshear detection is lost - @TCdr
+1. [A32NX/FWC] New red CONFIG L(R) SIDESTICK FAULT warning at the TO CONFIG test or at takeoff power when a sidestick was deactivated by the takeover pb - @TCdr
+1. [A32NX/FWC] STATUS after an involuntary AP OFF (INOP SYS of the lost AP, CAT 2 when both are lost) and ELEC EMER CONFIG STATUS; ELEC EMER CONFIG shows FUEL CONSUMPT INCRSD and FMS PRED UNRELIABLE in flight - @TCdr
+1. [A32NX/FWC] CAB PR SAFETY VALVE OPEN branches at the FCOM values (DIFF PR above 8 PSI, below 0 PSI); the flap and slat configuration warnings use SFCC 2 when SFCC 1 sends no position - @TCdr
+1. [A380X/FIRE] The ENG FIRE panel TEST pb must be held for 3 s before the fire test starts, as in the FCOM (was 0.5 s) - @TCdr
+1. [A380X/FIRE] The SQUIB light of an AGENT pb goes off once its bottle is discharged - @TCdr
+1. [A380X/APU] The APU AVAIL light comes on as soon as the APU reaches 95 % (the 2 s delay is A320 only) - @TCdr
+1. [A380X/LIGHTS] SEAT BELTS sw AUTO: the cabin signs come on with the slats or the main gear extended (no engine N1 condition), and come on regardless of the switch at an excessive cabin altitude - @TCdr
+1. [A380X/COMMS] The glareshield loudspeaker volume knobs turn and set the radio receive volume (fully anticlockwise = OFF); the warning sounds are not affected - @TCdr
+1. [A380X/BTV] ROW protected runway as in the FCOM: the detected runway replaces the selected one from 500 ft except in BTV mode, where the selected runway is kept down to 300 ft - @TCdr
+1. [A380X/SD] DOOR/OXY page: amber half-frame on ground below the dispatch pressure (cabin 1 600 PSI), cabin pressure amber below the emergency descent minimum of the passengers or 800 PSI before engine start - @TCdr
+1. [A380X/SD] BLEED page: the APU bleed valve shows amber when it is abnormally open or closed with the APU BLEED pb-sw ON - @TCdr
+1. [A380X/ENG] EWD EGT limits from the FCOM: amber above 970 °C, red line 1 002 °C (red at takeoff from 1 022 °C or after 20 s at or above 1 002 °C), with the ENG EGT OVER LIMIT alert and the EGT overtemperature failure retuned to them - @TCdr
+1. [A32NX/FUEL] Fuel temperature of each wing tank cell (design model: TAT, refuelling and transfer mixing, IDG cooling fuel return): shown on the SD FUEL page with the FCOM advisory and amber limits, new FUEL L (R) OUTER (INNER) TK HI TEMP and LO TEMP cautions - @TCdr
+1. [A32NX/FUEL] Wing tank overflow (MODE SEL MAN or a CTR TK XFR valve jammed open with a full inner tank): CTR TK L (R) XFR FAULT light, amber inner tank quantity and new FUEL L (R) WING TK OVERFLOW caution - @TCdr
+1. [A32NX/FUEL] New flyPad failures: APU LP fuel valve jammed, L (R) outer tank transfer valves jammed, L (R) wing tank low level sensor, L (R) wing tank leak - @TCdr
+1. [A32NX/FWC] New FUEL APU LP VALVE FAULT, F. USED/FOB DISAGREE, L (R) OUTER XFR CLOSED / OPEN and LO LVL DET FAULT cautions; a failed low level sensor gives no WING TK LO LVL warning - @TCdr
+1. [A32NX/SD] WHEEL page: N/W STEERING, ANTI SKID (with the failed BSCU channel numbers), NORM BRK and ALTN BRK legends shown and coloured as in the FCOM from the brake system failures and hydraulic pressures, AUTO BRK amber on an autobrake failure - @TCdr
+1. [A32NX/SD] DOOR/OXY page: every cabin door, both emergency exits and the aft cargo door turn amber when not locked, crew oxygen pressure pulses below 600 PSI and is amber below 300 PSI with an amber half frame on ground below 1000 PSI, cabin V/S shown in flight - @TCdr
+1. [A32NX/Lights] NO SMOKING signs in AUTO also come on with the flaps/slats lever out of 0 or any landing gear extended, and all positions come on above 11 300 ft cabin altitude - @TCdr
+1. [A32NX/Brakes] BRAKES HOT caution and BRK FAN HOT light come on above 300 C and go off only below 290 C - @TCdr
+1. [A380X/FWS] AIR PACK 1(2) VLV 1(2) FAULT, PACK 1(2) OVHT and PACK 1(2) REGUL FAULT from the pack controllers, with pack valve jam, pack overheat and pack bypass mode flyPad failures - @TCdr
+1. [A380X/FWS] COND BULK CARGO DUCT OVHT, COND CABIN AIR EXTRACT VLV FAULT and CAB PRESS MAN CTL FAULT, with their flyPad failures; the bulk cargo HEATER pb FAULT light comes on with the duct overheat - @TCdr
+1. [A380X/FWS] CAB PRESS INHIBITED BY DOORS is no longer inhibited in flight phase 12, as in the FCOM - @TCdr
+1. [A32NX/RMP] The SEL light comes on on both RMPs when an RMP tunes the other side's radio (RMP2 on VHF1 or VHF3, RMP1 on VHF2), as in the FCOM - @TCdr
+1. [A32NX/COMMS] The glareshield loudspeaker volume knobs turn and set the radio receive volume (fully anticlockwise = OFF); the warning sounds are not affected - @TCdr
+1. [A32NX/ND] TCAS traffic is shown at the 10, 20 and 40 NM ranges only, as in the FCOM (TCAS: REDUCE RANGE above them) - @TCdr
+1. [A32NX/WXR] The weather radar GAIN knob works (CAL in the middle, MAN GAIN on the ND out of CAL) and the ND shows the radar mode in cyan with MULTISCAN at MAN, the MAN tilt from the TILT knob, and PWS SCAN while the predictive windshear scans with the radar off - @TCdr
+1. [A32NX/ENG] Automatic ground start of a cold engine or above 10 000 ft: the FADEC adds the second igniter once the engine has lit up - @TCdr
+1. [A32NX/FWC] New AIR ENG 1(2) BLEED FAULT / BLEED NOT CLOSED caution when a failed bleed valve stays open, and LEFT LEAK, RIGHT LEAK, LEFT LEAK AND RIGHT LEAK versions of AIR ENG 1+2 BLEED FAULT when a wing or pylon leak is one of the losses - @TCdr
+1. [A32NX/FWC] New WHEEL HYD SEL FAULT caution with a new flyPad failure of the brake normal selector valve - @TCdr
+1. [A32NX/FWC] New NAV PRED W/S DET FAULT alert and STATUS INOP SYS PRED W/S DET with a new flyPad failure of the weather radar predictive windshear function - @TCdr
+1. [A32NX/EGPWS] New green TERR STBY memo when an input of the predictive terrain functions is missing or invalid; the terrain leaves the NDs and the TERR ON ND pushbuttons go off meanwhile - @TCdr
+1. [A380X/SD] WHEEL page: the ECP MORE key shows the WHEEL MORE page, BRK CTL and STEER CTL lines show a failed BCS, EBCU or SCS, AUTO BRAKE only on an autobrake failure, green or amber arc on the hottest brake, gear triangles and doors from LGCIS 1 and 2 - @TCdr
+1. [A380X/SD] FUEL page: the ECP MORE key shows the FUEL MORE page - @TCdr
+1. [A380X/PFD] FMA line 3: EXTEND SPD BRK, RETRACT SPD BRK and CHECK APPR SEL now show; CHECK APPR SEL also on the MFD - @TCdr
+1. [A380X/FUEL] Load alleviation transfers: to the outer tanks after takeoff (FOB above 110 200 lb), from the trim tank and from the outer tanks (down to half) before landing, from the FMS remaining time to destination or the descent below FL 245 - @TCdr
+1. [A380X/FUEL] Reduced main transfer thresholds of the feed tanks when the remaining time to destination is below 90 min - @TCdr
+1. [A380X/FUEL] AUTO GND XFR pushbutton: automatic ground transfer to the ground CG target of 39.5 % (trim tank to or from the inner, then mid tanks), GND XFR IN PROGRESS memo, light flashing when the FQMS aborts - @TCdr
+1. [A380X/FUEL] TRIM TK FEED logic (ISOL stops the trim tank transfers, OPEN gravity transfer to the inner tanks), from an L:var as the cockpit has no selector - @TCdr
+1. [A380X/FUEL] Alternate transfers after a transfer pump failure: an inner or mid tank with a failed fwd pump keeps feeding with its aft pump, an outer tank with a failed pump empties by gravity into feed tank 2 or 3 - @TCdr
+1. [A32NX/MCDU] HOLD page: LAST EXIT UTC and FUEL predicted (the EXTRA fuel burnt in the hold), and a database hold of the waypoint is used again (its inbound course was lost) - @TCdr
+1. [A32NX/MCDU] ATSU DATALINK page: AOC MENU on 1R as in the FCOM - @TCdr
+1. [A32NX/MCDU] New messages CHECK FLT NBR (the uplinked flight number differs from the INIT REQUEST one) and CSTR DEL ABOVE CRZ FL (a new CRZ FL deletes the altitude constraints at or above it, a window keeps its lower limit) - @TCdr
+1. [A380X/MFD] HOLD page: the DATABASE button selects the database hold of the waypoint, LAST EXIT time and EFOB are predicted, and the hold stays COMPUTED or DATABASE until the flight crew changes a parameter - @TCdr
+1. [A380X/MFD] CLOSEST AIRPORTS: time and EFOB with a cruise at the CRZ FL then an idle descent to the airport elevation - @TCdr
+1. [A380X/MFD] New FMS messages CONSTRAINTS ABOVE CRZ FL: DELETED (a new CRZ FL deletes the constraints at or above it), CHECK EO SPD SETTING, NO NAV INTERCEPTION, INSERT OR ERASE TMPY F-PLN FIRST (KCCU DIR key with a pending temporary flight plan) and RECEIVED FLT NUMBER NOT VALID - @TCdr
 
 ## 2024.1.0
 

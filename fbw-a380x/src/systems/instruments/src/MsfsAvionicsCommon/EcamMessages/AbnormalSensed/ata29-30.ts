@@ -541,7 +541,9 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
     ],
   },
   290800037: {
-    title: '\x1b<4m\x1b4mHYD\x1bm G SYS TEMP HI',
+    // A380 FCOM PRO-ABN-ECAM-10-29 HYD G(Y) SYS TEMP EXCESS HI (a380_fcom.txt l.155786-155824, PDF p.5322-5323):
+    // the four engine pumps OFF and DISC, then on ground with all engines off the ELEC PMPs OFF
+    title: '\x1b<4m\x1b4mHYD\x1bm G SYS TEMP EXCESS HI',
     sensed: true,
     items: [
       {
@@ -554,14 +556,6 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
         sensed: true,
         labelNotCompleted: 'OFF',
       },
-      // if on ground and all engines off
-      {
-        name: 'G ELEC PMP A AND B',
-        sensed: true,
-        labelNotCompleted: 'OFF',
-      },
-
-      // if not succesfull
       {
         name: 'G ENG 1 PMP A+B',
         sensed: true,
@@ -572,10 +566,16 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
         sensed: true,
         labelNotCompleted: 'DISC',
       },
+      // if on ground and all engines are off
+      {
+        name: 'G ELEC PMP A AND B',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
     ],
   },
   290800038: {
-    title: '\x1b<4m\x1b4mHYD\x1bm Y SYS TEMP HI',
+    title: '\x1b<4m\x1b4mHYD\x1bm Y SYS TEMP EXCESS HI',
     sensed: true,
     items: [
       {
@@ -588,22 +588,21 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
         sensed: true,
         labelNotCompleted: 'OFF',
       },
-      // if on ground and all engines off
+      {
+        name: 'Y ENG 3 PMP A+B',
+        sensed: true,
+        labelNotCompleted: 'DISC',
+      },
+      {
+        name: 'Y ENG 4 PMP A+B',
+        sensed: true,
+        labelNotCompleted: 'DISC',
+      },
+      // if on ground and all engines are off
       {
         name: 'Y ELEC PMP A AND B',
         sensed: true,
         labelNotCompleted: 'OFF',
-      },
-      // if not succesfull
-      {
-        name: 'Y ENG 1 PMP A+B',
-        sensed: true,
-        labelNotCompleted: 'DISC',
-      },
-      {
-        name: 'Y ENG 2 PMP A+B',
-        sensed: true,
-        labelNotCompleted: 'DISC',
       },
     ],
   },

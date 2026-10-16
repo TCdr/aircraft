@@ -33,6 +33,10 @@ export type NDSimvars = AdirsSimVars &
     kccuOnR: boolean;
     kccuCcdOnL: boolean;
     kccuCcdOnR: boolean;
+    /** The three radio altimeters (ARINC 429 words), for the amber radio altitude zone of the VD */
+    radioAltitude1: number;
+    radioAltitude2: number;
+    radioAltitude3: number;
   };
 
 export enum NDVars {
@@ -57,6 +61,9 @@ export enum NDVars {
   kccuOnR = 'L:A32NX_KCCU_R_KBD_ON_OFF',
   kccuCcdOnL = 'L:A32NX_KCCU_L_CCD_ON_OFF',
   kccuCcdOnR = 'L:A32NX_KCCU_R_CCD_ON_OFF',
+  radioAltitude1 = 'L:A32NX_RA_1_RADIO_ALTITUDE',
+  radioAltitude2 = 'L:A32NX_RA_2_RADIO_ALTITUDE',
+  radioAltitude3 = 'L:A32NX_RA_3_RADIO_ALTITUDE',
 }
 
 /** A publisher to poll and publish nav/com simvars. */
@@ -85,6 +92,9 @@ export class NDSimvarPublisher extends UpdatableSimVarPublisher<NDSimvars> {
     ['kccuOnR', { name: NDVars.kccuOnR, type: SimVarValueType.Bool }],
     ['kccuCcdOnL', { name: NDVars.kccuCcdOnL, type: SimVarValueType.Bool }],
     ['kccuCcdOnR', { name: NDVars.kccuCcdOnR, type: SimVarValueType.Bool }],
+    ['radioAltitude1', { name: NDVars.radioAltitude1, type: SimVarValueType.Number }],
+    ['radioAltitude2', { name: NDVars.radioAltitude2, type: SimVarValueType.Number }],
+    ['radioAltitude3', { name: NDVars.radioAltitude3, type: SimVarValueType.Number }],
   ]);
 
   public constructor(bus: EventBus) {

@@ -39,6 +39,7 @@ import { PseudoWaypointLayer } from './PseudoWaypointLayer';
 import { GenericFcuEvents } from '../../types/GenericFcuEvents';
 import { MapOptions } from '../../types/MapOptions';
 import { GenericTawsEvents } from '../../types/GenericTawsEvents';
+import { isTrafficShownAtRange } from '../../TcasSettingMessage';
 
 // TODO move this somewhere better, need to move TCAS stuff into fbw-sdk
 enum TaRaIntrusion {
@@ -85,6 +86,8 @@ export interface CanvasMapProps {
   options?: Partial<MapOptions>;
   /** Interactive ND: a click on the map in ARC, PLAN or ROSE-NAV mode */
   onClick?: (click: NdMapClick) => void;
+  /** ND range in NM of each range selector position, for {@link MapOptions.trafficMaxRangeNm} */
+  rangeValues?: readonly number[];
 }
 
 /** The aircraft mock-up is under the cursor within this distance of its centre, in pixels */
@@ -111,6 +114,9 @@ export class CanvasMap extends DisplayComponent<CanvasMapProps> {
   private readonly mapRangeRadius = Subject.create<number>(-1);
 
   private readonly mapMode = Subject.create<EfisNdMode | -1>(-1);
+
+  /** The position of the ND range selector */
+  private readonly rangeSetting = Subject.create(0);
 
   private readonly mapVisible = Subject.create<boolean>(false);
 
@@ -177,6 +183,11 @@ export class CanvasMap extends DisplayComponent<CanvasMapProps> {
       .on('ndMode')
       .whenChanged()
       .handle((v) => this.mapMode.set(v));
+
+    sub
+      .on('ndRangeSetting')
+      .whenChanged()
+      .handle((v) => this.rangeSetting.set(v));
 
     sub.on('set_show_plane').handle((show) => (this.planeShown = show));
     sub.on('set_plane_x').handle((x) => (this.planeX = x));
@@ -401,7 +412,11 @@ export class CanvasMap extends DisplayComponent<CanvasMapProps> {
 
   private handleNewTraffic(newTraffic: NdTraffic[]) {
     this.traffic.length = 0; // Reset traffic display
-    if (this.mapMode.get() !== EfisNdMode.PLAN) {
+    // A320: no traffic above the 40 NM range, in ARC and ROSE (see isTrafficShownAtRange); the TCAS: REDUCE RANGE
+    // message then asks for a lower range when there is a TA or RA.
+    const rangeNm = this.props.rangeValues?.[this.rangeSetting.get()] ?? 0;
+    const trafficShownAtRange = isTrafficShownAtRange(rangeNm, this.props.options?.trafficMaxRangeNm);
+    if (this.mapMode.get() !== EfisNdMode.PLAN && trafficShownAtRange) {
       newTraffic.forEach((intruder: NdTraffic) => {
         const latLong: Coordinates = { lat: intruder.lat, long: intruder.lon };
         let [x, y] = this.mapParams.coordinatesToXYy(latLong);

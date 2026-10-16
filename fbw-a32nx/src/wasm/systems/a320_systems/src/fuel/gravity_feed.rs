@@ -68,6 +68,8 @@ pub struct GravityFeed {
     /// Feet (pressure altitude).
     ceiling_ft: f64,
     starved: [bool; 2],
+    /// Each engine is fed by gravity (no wing tank pump pushes fuel to it), as of the last update.
+    gravity_fed: [bool; 2],
     /// How long each engine has been fed by gravity above the ceiling without a break.
     time_gravity_fed_above_ceiling: [Duration; 2],
 }
@@ -103,6 +105,7 @@ impl GravityFeed {
             takeoff_airport_elevation_ft: 0.,
             ceiling_ft: Self::FL300_NEVER_EXCEEDED_CEILING_FT,
             starved: [false; 2],
+            gravity_fed: [false; 2],
             time_gravity_fed_above_ceiling: [Duration::ZERO; 2],
         }
     }
@@ -130,6 +133,7 @@ impl GravityFeed {
             Self::engine_is_gravity_fed(right_pumps_off, left_pumps_off, self.x_feed_valve_open),
         ];
         let above_ceiling = !context.is_on_ground() && pressure_altitude_ft > self.ceiling_ft;
+        self.gravity_fed = gravity_fed;
 
         for (engine_index, &engine_is_gravity_fed) in gravity_fed.iter().enumerate() {
             self.time_gravity_fed_above_ceiling[engine_index] =
@@ -169,6 +173,11 @@ impl GravityFeed {
             Self::FL300_NEVER_EXCEEDED_CEILING_FT
                 .max(self.takeoff_airport_elevation_ft + Self::ABOVE_TAKEOFF_AIRPORT_CEILING_FT)
         }
+    }
+
+    /// No wing tank pump pushes fuel to the engine (1 or 2).
+    pub fn is_gravity_fed(&self, engine_number: usize) -> bool {
+        self.gravity_fed[engine_number - 1]
     }
 
     /// The engine (1 or 2) was fed by gravity above the gravity feed ceiling: it has no fuel until

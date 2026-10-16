@@ -20,9 +20,12 @@ import { FuelPumpsAndValves } from './CpiomF/FuelPumpsAndValves';
 import { FuelJettison } from './CpiomF/FuelJettison';
 import { FuelEmerOuterTransfer } from './CpiomF/FuelEmerOuterTransfer';
 import { FuelLeak } from './CpiomF/FuelLeak';
+import { FuelAutomaticTransfers } from './CpiomF/FuelAutomaticTransfers';
 import { AutolandLights } from './Misc/AutolandLights';
+import { WxPbAutoDeselect } from './Misc/WxPbAutoDeselect';
 import { AtcMsgLights } from './Misc/AtcMsgLights';
 import { CabinOxygenMasks } from './Misc/CabinOxygenMasks';
+import { CabinSigns } from './Misc/CabinSigns';
 import { CdsReconfiguration } from './Misc/CdsReconfiguration';
 import { LegacySoundManager } from './Misc/LegacySoundManager';
 import { LegacyTcasComputer } from './Misc/tcas/components/LegacyTcasComputer';
@@ -204,9 +207,13 @@ class SystemsHost extends BaseInstrument {
 
   private readonly autolandLights = new AutolandLights();
 
+  private readonly wxPbAutoDeselect = new WxPbAutoDeselect();
+
   private readonly atcMsgLights = new AtcMsgLights();
 
   private readonly cabinOxygenMasks = new CabinOxygenMasks();
+
+  private readonly cabinSigns = new CabinSigns();
 
   private readonly cdsReconfiguration = new CdsReconfiguration(this.bus, this.failuresConsumer);
   private readonly fuelPumpsAndValves = new FuelPumpsAndValves(this, this.failuresConsumer);
@@ -214,6 +221,12 @@ class SystemsHost extends BaseInstrument {
   private readonly fuelEmerOuterTransfer = new FuelEmerOuterTransfer(this);
 
   private readonly fuelLeak = new FuelLeak(this, this.failuresConsumer);
+
+  private readonly fuelAutomaticTransfers = new FuelAutomaticTransfers(
+    this,
+    this.failuresConsumer,
+    this.fuelPumpsAndValves,
+  );
 
   /**
    * "mainmenu" = 0
@@ -237,12 +250,15 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
     this.backplane.addInstrument('FuelJettison', this.fuelJettison);
     this.backplane.addInstrument('AutolandLights', this.autolandLights);
+    this.backplane.addInstrument('WxPbAutoDeselect', this.wxPbAutoDeselect);
     this.backplane.addInstrument('AtcMsgLights', this.atcMsgLights);
     this.backplane.addInstrument('CabinOxygenMasks', this.cabinOxygenMasks);
+    this.backplane.addInstrument('CabinSigns', this.cabinSigns);
     this.backplane.addInstrument('CdsReconfiguration', this.cdsReconfiguration);
     this.backplane.addInstrument('FuelPumpsAndValves', this.fuelPumpsAndValves);
     this.backplane.addInstrument('FuelEmerOuterTransfer', this.fuelEmerOuterTransfer);
     this.backplane.addInstrument('FuelLeak', this.fuelLeak);
+    this.backplane.addInstrument('FuelAutomaticTransfers', this.fuelAutomaticTransfers);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
     this.backplane.addInstrument('PrimReactiveWindshear', new PrimReactiveWindshear());

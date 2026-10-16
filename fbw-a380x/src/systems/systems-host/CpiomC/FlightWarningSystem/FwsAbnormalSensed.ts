@@ -17,6 +17,17 @@ import {
 import { SdPages } from '@shared/EcamSystemPages';
 import { accuPressLoItems } from './FwsBrakeAlerts';
 import { diffPressHiItemsToShow, ldgElevnFaultItemsToShow } from './CabPressAlerts';
+import {
+  BULK_CARGO_DUCT_OVHT_PHASE_INHIBITION,
+  CAB_PRESS_INHIBITED_BY_DOORS_PHASE_INHIBITION,
+  CAB_PRESS_MAN_CTL_FAULT_PHASE_INHIBITION,
+  CABIN_AIR_EXTRACT_VLV_FAULT_PHASE_INHIBITION,
+  PACK_OVHT_PHASE_INHIBITION,
+  PACK_REGUL_FAULT_PHASE_INHIBITION,
+  PACK_VLV_FAULT_PHASE_INHIBITION,
+  packRegulFaultInfo,
+  packRegulFaultItems,
+} from './FwsAirCondAlerts';
 import { isApproachCapabilityDowngradedByRa } from './AutoFlightAlerts';
 import { antiIceItemsChecked, ICE_DETECTED_PHASE_INHIBITION, isSevereIceDetected } from './AntiIceAlerts';
 import { abnormBleedConfigItems, abnormBleedConfigLimitations } from './AbnormBleedConfig';
@@ -201,6 +212,7 @@ import {
   wingValveOpenLines,
 } from './AntiIceValveAlerts';
 import { OXYGEN_ALERT_IDS } from './OxygenAlerts';
+import { THR_LEVER_ABOVE_IDLE_LEVEL, THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION } from './EngineThrustLeverAlerts';
 import {
   ENG_LP_VALVE_FAULT_INOP_SYS,
   engLpValveFaultLines,
@@ -1176,7 +1188,8 @@ export class FwsAbnormalSensed {
       // PACK 1 OFF
       flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
       simVarIsActive: this.fws.pack1OffConfirmTime,
-      notActiveWhenItemActive: ['211800009', '211800021'],
+      // Not while PACK 1 OVHT or REGUL FAULT asks for this pb OFF (design choice, as HOT AIR 1(2) OFF)
+      notActiveWhenItemActive: ['211800009', '211800021', '211800013', '211800015'],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
       failure: 2,
@@ -1187,12 +1200,105 @@ export class FwsAbnormalSensed {
       // PACK 2 OFF
       flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
       simVarIsActive: this.fws.pack2OffConfirmTime,
-      notActiveWhenItemActive: ['211800010', '211800021'],
+      // Not while PACK 2 OVHT or REGUL FAULT asks for this pb OFF (design choice, as HOT AIR 1(2) OFF)
+      notActiveWhenItemActive: ['211800010', '211800021', '211800014', '211800016'],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
       failure: 2,
       sysPage: SdPages.Bleed,
       inopSysAllPhases: () => ['210300010'],
+    },
+    211800013: {
+      // PACK 1 OVHT (A380 FCOM PRO-ABN-ECAM-10-21-10, a380_fcom.txt l.131791-131838): pack outlet above 95 deg C,
+      // FDAC monitoring (FwsAirCondAlerts). SC, master caution, PACK pb FAULT light, BLEED SD page.
+      flightPhaseInhib: PACK_OVHT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packOvht[0],
+      // PACK 1+2 FAULT holds the pack overheat case
+      notActiveWhenItemActive: ['211800021'],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.pack1On.get()],
+      failure: 2,
+      sysPage: SdPages.Bleed,
+      inopSysAllPhases: () => ['210300009'],
+    },
+    211800014: {
+      // PACK 2 OVHT (A380 FCOM PRO-ABN-ECAM-10-21-10, a380_fcom.txt l.131791-131838): pack outlet above 95 deg C,
+      // FDAC monitoring (FwsAirCondAlerts). SC, master caution, PACK pb FAULT light, BLEED SD page.
+      flightPhaseInhib: PACK_OVHT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packOvht[1],
+      // PACK 1+2 FAULT holds the pack overheat case
+      notActiveWhenItemActive: ['211800021'],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.pack2On.get()],
+      failure: 2,
+      sysPage: SdPages.Bleed,
+      inopSysAllPhases: () => ['210300010'],
+    },
+    211800015: {
+      // PACK 1 REGUL FAULT (a380_fcom.txt l.131851-131929): the pack in bypass mode, the only REGUL FAULT case the
+      // model simulates (FwsAirCondAlerts). SC, master caution, BLEED SD page.
+      flightPhaseInhib: PACK_REGUL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packRegulFault[0],
+      notActiveWhenItemActive: ['211800009', '211800021'],
+      whichItemsToShow: () => packRegulFaultItems(this.fws.flightLevel.get(), this.fws.pack1On.get()).show,
+      whichItemsChecked: () => packRegulFaultItems(this.fws.flightLevel.get(), this.fws.pack1On.get()).checked,
+      failure: 2,
+      sysPage: SdPages.Bleed,
+      info: () => packRegulFaultInfo(1),
+      inopSysAllPhases: () => ['210300009'],
+    },
+    211800016: {
+      // PACK 2 REGUL FAULT (a380_fcom.txt l.131851-131929): the pack in bypass mode, the only REGUL FAULT case the
+      // model simulates (FwsAirCondAlerts). SC, master caution, BLEED SD page.
+      flightPhaseInhib: PACK_REGUL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packRegulFault[1],
+      notActiveWhenItemActive: ['211800010', '211800021'],
+      whichItemsToShow: () => packRegulFaultItems(this.fws.flightLevel.get(), this.fws.pack2On.get()).show,
+      whichItemsChecked: () => packRegulFaultItems(this.fws.flightLevel.get(), this.fws.pack2On.get()).checked,
+      failure: 2,
+      sysPage: SdPages.Bleed,
+      info: () => packRegulFaultInfo(2),
+      inopSysAllPhases: () => ['210300010'],
+    },
+    211800017: {
+      // PACK 1 VLV 1 FAULT (a380_fcom.txt l.131940-131980): crew awareness, PACK pb FAULT light and BLEED SD page
+      flightPhaseInhib: PACK_VLV_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packVlvFault[0],
+      notActiveWhenItemActive: ['211800009', '211800021'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Bleed,
+    },
+    211800018: {
+      // PACK 1 VLV 2 FAULT (a380_fcom.txt l.131940-131980): crew awareness, PACK pb FAULT light and BLEED SD page
+      flightPhaseInhib: PACK_VLV_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packVlvFault[1],
+      notActiveWhenItemActive: ['211800009', '211800021'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Bleed,
+    },
+    211800019: {
+      // PACK 2 VLV 1 FAULT (a380_fcom.txt l.131940-131980): crew awareness, PACK pb FAULT light and BLEED SD page
+      flightPhaseInhib: PACK_VLV_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packVlvFault[2],
+      notActiveWhenItemActive: ['211800010', '211800021'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Bleed,
+    },
+    211800020: {
+      // PACK 2 VLV 2 FAULT (a380_fcom.txt l.131940-131980): crew awareness, PACK pb FAULT light and BLEED SD page
+      flightPhaseInhib: PACK_VLV_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packVlvFault[3],
+      notActiveWhenItemActive: ['211800010', '211800021'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Bleed,
     },
     211800021: {
       // PACK 1+2 FAULT
@@ -1250,6 +1356,18 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Cond,
       info: () => ['210200001'],
       inopSysAllPhases: () => ['210300012'],
+    },
+    211800024: {
+      // BULK CARGO DUCT OVHT (a380_fcom.txt l.132360-132410): above 70 deg C in the bulk cargo duct (VCS bit 25). SC,
+      // master caution, HEATER pb FAULT light, COND SD page.
+      flightPhaseInhib: BULK_CARGO_DUCT_OVHT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.bulkCargoDuctOvht,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.bulkCargoHeaterPbOn.get()],
+      failure: 2,
+      sysPage: SdPages.Cond,
+      inopSysAllPhases: () => ['210300013'],
     },
     211800025: {
       // BULK CARGO HEATER FAULT
@@ -1881,11 +1999,11 @@ export class FwsAbnormalSensed {
     },
     213800007: {
       // DIFF PRESS HI (a380_fcom.txt l.134890-134966): SC, master caution, active in flight phase 8 only (PDF p.4748).
-      // There is no MAN CTL FAULT model: the manual pressurization system is always available.
+      // The manual pressurization system is available without CAB PRESS MAN CTL FAULT.
       flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
       simVarIsActive: this.fws.diffPressHi,
       notActiveWhenItemActive: [],
-      whichItemsToShow: () => diffPressHiItemsToShow(true),
+      whichItemsToShow: () => diffPressHiItemsToShow(!this.fws.cabPressManCtlFault.get()),
       whichItemsChecked: () => [this.fws.manCabinAltMode.get(), false, false],
       failure: 2,
       sysPage: SdPages.Press,
@@ -1902,12 +2020,12 @@ export class FwsAbnormalSensed {
     },
     213800043: {
       // LDG ELEVN FAULT (a380_fcom.txt l.135431-135520): SC, master caution, active in flight phase 8 only (PDF p.4763).
-      // With the manual pressurization system (always available, no MAN CTL FAULT model) the procedure is the LDG
-      // ELEVN deferred procedure (221700001).
+      // With the manual pressurization system available (no CAB PRESS MAN CTL FAULT) the procedure is the LDG ELEVN
+      // deferred procedure (221700001).
       flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
       simVarIsActive: this.fws.ldgElevnFault,
       notActiveWhenItemActive: [],
-      whichItemsToShow: () => ldgElevnFaultItemsToShow(true),
+      whichItemsToShow: () => ldgElevnFaultItemsToShow(!this.fws.cabPressManCtlFault.get()),
       whichItemsChecked: () => [false, false, false],
       failure: 2,
       sysPage: SdPages.Press,
@@ -1975,8 +2093,8 @@ export class FwsAbnormalSensed {
       redundLoss: () => [],
     },
     213800009: {
-      // INHIBITED BY DOORS
-      flightPhaseInhib: [1, 4, 5, 6, 7, 9, 10, 11, 12],
+      // INHIBITED BY DOORS: active in flight phases 2, 3, 8 and 12 (FCOM figure PDF p.4761, FwsAirCondAlerts)
+      flightPhaseInhib: CAB_PRESS_INHIBITED_BY_DOORS_PHASE_INHIBITION,
       simVarIsActive: this.fws.inhibitedByDoors,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [true],
@@ -1985,6 +2103,30 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Press,
       limitationsAllPhases: () => ['210400001'],
       limitationsPfd: () => ['210400001'],
+    },
+    213800010: {
+      // MAN CTL FAULT (a380_fcom.txt l.135534-135580): the manual pressurization mode is failed. SC, master caution,
+      // CAB PRESS SD page; LIMITATIONS ON ECAM MAN PRESS : DO NOT USE, INOP SYS CAB PRESS MAN CTL.
+      flightPhaseInhib: CAB_PRESS_MAN_CTL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.cabPressManCtlFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [false],
+      failure: 2,
+      sysPage: SdPages.Press,
+      limitationsAllPhases: () => ['210400003'],
+      inopSysAllPhases: () => ['213300020'],
+    },
+    213800018: {
+      // COND CABIN AIR EXTRACT VLV FAULT (a380_fcom.txt l.136032-136067): crew awareness, no indication
+      flightPhaseInhib: CABIN_AIR_EXTRACT_VLV_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.cabinAirExtractVlvFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => ['212300004'],
     },
     213800011: {
       // PRESS OUTFLW VLV CTL 1 FAULT
@@ -5209,7 +5351,7 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Hyd,
       notActiveWhenItemActive: [],
-      inopSysAllPhases: () => ['290300001'],
+      // MORE INFO REDUND LOSS G ELEC PMP A (A380 FCOM l.155021-155025): FwsInopSys 290300001
     },
     290800002: {
       // G ELEC PMP B FAULT
@@ -5220,7 +5362,7 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Hyd,
       notActiveWhenItemActive: [],
-      inopSysAllPhases: () => ['290300002'],
+      // MORE INFO REDUND LOSS G ELEC PMP B (A380 FCOM l.155021-155025): FwsInopSys 290300002
     },
     290800003: {
       // Y ELEC PMP A FAULT
@@ -5231,7 +5373,7 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Hyd,
       notActiveWhenItemActive: [],
-      inopSysAllPhases: () => ['290300003'],
+      // MORE INFO REDUND LOSS Y ELEC PMP A (A380 FCOM l.155021-155025): FwsInopSys 290300003
     },
     290800004: {
       // Y ELEC PMP B FAULT
@@ -5242,7 +5384,7 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Hyd,
       notActiveWhenItemActive: [],
-      inopSysAllPhases: () => ['290300004'],
+      // MORE INFO REDUND LOSS Y ELEC PMP B (A380 FCOM l.155021-155025): FwsInopSys 290300004
     },
     290800005: {
       // G ENG 1 PMP A PRESS LO
@@ -7422,7 +7564,7 @@ export class FwsAbnormalSensed {
         this.fws.flightPhase.get() === 7,
         this.fws.fuelOnBoardBetween55And95T.get(),
         this.fws.fuelOnBoardBetween55And95T.get(),
-        true,
+        this.fws.abnormBleedConfig.get(), // ABNORM BLEED CONFIG PROC APPLY (l.172733-172735)
         true,
         true,
         true,
@@ -7433,9 +7575,9 @@ export class FwsAbnormalSensed {
         false,
         this.fws.crossFeedPbOn[0].get(),
         false,
+        false,
         this.fws.flowSelectorKnob.get() === 1,
         this.fws.fwdCargoTempRegulatorOff.get(),
-        false,
       ],
       failure: 2,
       sysPage: SdPages.None,
@@ -7570,11 +7712,11 @@ export class FwsAbnormalSensed {
         this.fws.flightPhase.get() === 7,
         this.fws.fuelOnBoardBetween55And95T.get(),
         this.fws.fuelOnBoardBetween55And95T.get(),
+        this.fws.abnormBleedConfig.get(), // ABNORM BLEED CONFIG PROC APPLY (l.172733-172735)
         true,
         true,
         true,
-        true,
-        true,
+        true, // LDG DIST IMPACT ON WET/CONTAM RWY ONLY (inner engine)
       ],
       whichItemsChecked: () => [
         this.fws.tcasTaOnly.get(),
@@ -7582,9 +7724,9 @@ export class FwsAbnormalSensed {
         false,
         this.fws.crossFeedPbOn[1].get(),
         false,
+        false,
         this.fws.flowSelectorKnob.get() === 1,
         this.fws.fwdCargoTempRegulatorOff.get(),
-        false,
         false,
       ],
       failure: 2,
@@ -7600,11 +7742,11 @@ export class FwsAbnormalSensed {
         this.fws.flightPhase.get() === 7,
         this.fws.fuelOnBoardBetween55And95T.get(),
         this.fws.fuelOnBoardBetween55And95T.get(),
+        this.fws.abnormBleedConfig.get(), // ABNORM BLEED CONFIG PROC APPLY (l.172733-172735)
         true,
         true,
         true,
-        true,
-        true,
+        true, // LDG DIST IMPACT ON WET/CONTAM RWY ONLY (inner engine)
       ],
       whichItemsChecked: () => [
         this.fws.tcasTaOnly.get(),
@@ -7612,9 +7754,9 @@ export class FwsAbnormalSensed {
         false,
         this.fws.crossFeedPbOn[2].get(),
         false,
+        false,
         this.fws.flowSelectorKnob.get() === 1,
         this.fws.fwdCargoTempRegulatorOff.get(),
-        false,
         false,
       ],
       failure: 2,
@@ -7630,7 +7772,7 @@ export class FwsAbnormalSensed {
         this.fws.flightPhase.get() === 7,
         this.fws.fuelOnBoardBetween55And95T.get(),
         this.fws.fuelOnBoardBetween55And95T.get(),
-        true,
+        this.fws.abnormBleedConfig.get(), // ABNORM BLEED CONFIG PROC APPLY (l.172733-172735)
         true,
         true,
         true,
@@ -7641,9 +7783,9 @@ export class FwsAbnormalSensed {
         false,
         this.fws.crossFeedPbOn[3].get(),
         false,
+        false,
         this.fws.flowSelectorKnob.get() === 1,
         this.fws.fwdCargoTempRegulatorOff.get(),
-        false,
       ],
       failure: 2,
       sysPage: SdPages.None,
@@ -8400,6 +8542,48 @@ export class FwsAbnormalSensed {
       info: () => ['220200017'],
       // LIMITATIONS l.175549-175551: FOR LDG : FLAP LVR 3, LDG PERF AFFECTED
       limitationsApprLdg: () => ['270400001', '800400003'],
+    },
+    701800162: {
+      // ENG 1(2)(3)(4) THR LEVER ABOVE IDLE (A380 FCOM l.173271-173292, EngineThrustLeverAlerts): red, MASTER WARN,
+      // inhibited in the phases 1, 6, 7 and 12 (PDF p.5819). The dual RETARD callout (FwsCore) replaces the CRC.
+      flightPhaseInhib: THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrLeverAboveIdle[0],
+      auralWarning: Subject.create(FwcAuralWarning.None),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.fws.thrustLever1Idle.get()],
+      failure: THR_LEVER_ABOVE_IDLE_LEVEL,
+      sysPage: SdPages.None,
+    },
+    701800163: {
+      flightPhaseInhib: THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrLeverAboveIdle[1],
+      auralWarning: Subject.create(FwcAuralWarning.None),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.fws.thrustLever2Idle.get()],
+      failure: THR_LEVER_ABOVE_IDLE_LEVEL,
+      sysPage: SdPages.None,
+    },
+    701800164: {
+      flightPhaseInhib: THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrLeverAboveIdle[2],
+      auralWarning: Subject.create(FwcAuralWarning.None),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.fws.thrustLever3Idle.get()],
+      failure: THR_LEVER_ABOVE_IDLE_LEVEL,
+      sysPage: SdPages.None,
+    },
+    701800165: {
+      flightPhaseInhib: THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrLeverAboveIdle[3],
+      auralWarning: Subject.create(FwcAuralWarning.None),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.fws.thrustLever4Idle.get()],
+      failure: THR_LEVER_ABOVE_IDLE_LEVEL,
+      sysPage: SdPages.None,
     },
     701800157: {
       // ENG THR LEVERS NOT SET (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): amber, phases 2 and 3. Design choice:

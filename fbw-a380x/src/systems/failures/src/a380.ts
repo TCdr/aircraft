@@ -65,6 +65,21 @@ export const A380Failure = Object.freeze({
   MainDeck1DuctOverheat: 21055,
   UpperDeck1DuctOverheat: 21056,
   FwdCargoDuctOverheat: 21057,
+  // Ids 21058-21068 are mapped in a380_systems_wasm/src/lib.rs. A jammed pack flow valve no longer follows its FDAC
+  // (AIR PACK 1(2) VLV 1(2) FAULT once its command changes); a pack overheat heats the pack outlet air above 95 deg C
+  // while the pack has an air flow; a pack regulation fault puts the pack in bypass mode (only the FDAC report is
+  // simulated).
+  Pack1FlowValve1Jammed: 21058,
+  Pack1FlowValve2Jammed: 21059,
+  Pack2FlowValve1Jammed: 21060,
+  Pack2FlowValve2Jammed: 21061,
+  Pack1Overheat: 21062,
+  Pack2Overheat: 21063,
+  Pack1RegulationFault: 21064,
+  Pack2RegulationFault: 21065,
+  BulkCargoDuctOverheat: 21066,
+  CabinAirExtractValve: 21067,
+  CabinPressureManualControl: 21068,
 
   // Not listed in A380FailureDefinitions: the C++ FCDC input it sets (nwsCommunicationAvailable) is read by nothing
   // until a steering control system exists. Kept so the id stays in sync with FailureList.h.
@@ -652,6 +667,17 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [21, A380Failure.MainDeck1DuctOverheat, 'Main deck zone 1 duct overheat (hot trim air)'],
   [21, A380Failure.UpperDeck1DuctOverheat, 'Upper deck zone 1 duct overheat (hot trim air)'],
   [21, A380Failure.FwdCargoDuctOverheat, 'Forward cargo duct overheat (hot trim air)'],
+  [21, A380Failure.Pack1FlowValve1Jammed, 'Pack 1 flow valve 1 jammed'],
+  [21, A380Failure.Pack1FlowValve2Jammed, 'Pack 1 flow valve 2 jammed'],
+  [21, A380Failure.Pack2FlowValve1Jammed, 'Pack 2 flow valve 1 jammed'],
+  [21, A380Failure.Pack2FlowValve2Jammed, 'Pack 2 flow valve 2 jammed'],
+  [21, A380Failure.Pack1Overheat, 'Pack 1 overheat'],
+  [21, A380Failure.Pack2Overheat, 'Pack 2 overheat'],
+  [21, A380Failure.Pack1RegulationFault, 'Pack 1 regulation fault (bypass mode)'],
+  [21, A380Failure.Pack2RegulationFault, 'Pack 2 regulation fault (bypass mode)'],
+  [21, A380Failure.BulkCargoDuctOverheat, 'Bulk cargo duct overheat (heater)'],
+  [21, A380Failure.CabinAirExtractValve, 'Cabin air extract valve failed'],
+  [21, A380Failure.CabinPressureManualControl, 'Cabin pressure manual control failed'],
 
   [22, A380Failure.FmcA, 'FMC-A'],
   [22, A380Failure.FmcB, 'FMC-B'],

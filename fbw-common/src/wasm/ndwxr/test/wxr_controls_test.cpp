@@ -1,7 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-// Native unit test of the A380X weather radar GAIN and ELEVN/TILT logic (src/wxr_controls.h): run test/run_tests.sh.
+// Native unit test of the A380X weather radar GAIN and ELEVN/TILT logic and of the A32NX GAIN knob (src/wxr_controls.h):
+// run test/run_tests.sh.
 
 #include <cmath>
 #include <cstdio>
@@ -47,6 +48,20 @@ static void testEffectiveGain() {
   expectNear("MAN gain 100 %", effectiveGainDb(true, 100.0), 10.0f, 1e-6f);
   // L:A380X_WXR_GAIN = -9999 while no value is entered (WxrManualSettings.ts): the default 50 %.
   expectNear("MAN gain without an entry = the default 50 %", effectiveGainDb(true, kWxrNoEntry), 0.0f, 1e-6f);
+}
+
+// A320 FCOM DSC-34-SURV-30-30 (a320_fcom.txt l.54368-54386): CAL is the calibrated gain, out of CAL the manual gain.
+// Before, the A32NX GAIN knob did nothing.
+static void testA320GainKnob() {
+  expectNear("A32NX knob at CAL (0) = calibrated", a320GainDbFromKnob(0.0), 0.0f, 1e-6f);
+  expectTrue("A32NX knob at CAL is not the manual gain", !a320GainKnobIsManual(0.0));
+  expectNear("A32NX knob CAL after rounding errors", a320GainDbFromKnob(1e-9), 0.0f, 1e-6f);
+  expectNear("A32NX knob at MIN", a320GainDbFromKnob(-1.0), -16.0f, 1e-5f);
+  expectNear("A32NX knob at MAX", a320GainDbFromKnob(1.0), 10.0f, 1e-5f);
+  expectNear("A32NX knob half way to MIN", a320GainDbFromKnob(-0.5), -8.0f, 1e-5f);
+  expectNear("A32NX knob half way to MAX", a320GainDbFromKnob(0.5), 5.0f, 1e-5f);
+  expectNear("A32NX knob beyond MAX clamps", a320GainDbFromKnob(3.0), 10.0f, 1e-5f);
+  expectTrue("A32NX knob one step out of CAL is the manual gain", a320GainKnobIsManual(-0.1));
 }
 
 static void testThresholdsForGain() {
@@ -143,6 +158,7 @@ static void testRangeFraction() {
 int main() {
   testGainPercentToDb();
   testEffectiveGain();
+  testA320GainKnob();
   testThresholdsForGain();
   testPrecipBands();
   testHotBands();

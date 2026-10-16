@@ -17,6 +17,8 @@ pub struct NavigationDisplay {
     terrain_on_nd_pb_id: VariableIdentifier,
     terrain_on_nd_pb_active: bool,
     terrain_on_nd_active: bool,
+    /// The EGPWC sets the TERR ON ND pb-sw back to OFF this update (terrain standby, see the EGPWC)
+    deselect_terrain_on_nd_pb: bool,
     potentiometer_id: VariableIdentifier,
     potentiometer: Ratio,
     // output variables of the display
@@ -35,6 +37,7 @@ impl NavigationDisplay {
             terrain_on_nd_pb_id: context.get_identifier(format!("EFIS_TERR_{}_ACTIVE", side)),
             terrain_on_nd_pb_active: false,
             terrain_on_nd_active: false,
+            deselect_terrain_on_nd_pb: false,
             potentiometer_id: context
                 .get_identifier(format!("ND_{}_TERR_ON_ND_POTENTIOMETER", side)),
             potentiometer: Ratio::new::<percent>(100.0),
@@ -44,9 +47,20 @@ impl NavigationDisplay {
         }
     }
 
-    pub fn update(&mut self, is_powered: bool, range_lookup: &[Length], adiru_data_valid: bool) {
+    /// ## Parameters
+    /// `predictive_inputs_valid` - the EGPWC has the position data of its predictive functions (no terrain standby)
+    /// `deselect_terrain_on_nd_pb` - the EGPWC sets a selected TERR ON ND pb-sw back to OFF (terrain standby)
+    pub fn update(
+        &mut self,
+        is_powered: bool,
+        range_lookup: &[Length],
+        predictive_inputs_valid: bool,
+        deselect_terrain_on_nd_pb: bool,
+    ) {
         self.range = range_lookup[self.range_knob_position];
-        self.terrain_on_nd_active = adiru_data_valid && self.terrain_on_nd_pb_active && is_powered;
+        self.terrain_on_nd_active =
+            predictive_inputs_valid && self.terrain_on_nd_pb_active && is_powered;
+        self.deselect_terrain_on_nd_pb = deselect_terrain_on_nd_pb && self.terrain_on_nd_pb_active;
     }
 }
 
@@ -61,5 +75,9 @@ impl SimulationElement for NavigationDisplay {
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.egpwc_nd_range_id, self.range.get::<nautical_mile>());
         writer.write(&self.egpwc_nd_terrain_active_id, self.terrain_on_nd_active);
+        // Only written to set the pb-sw OFF: the cockpit owns the variable otherwise
+        if self.deselect_terrain_on_nd_pb {
+            writer.write(&self.terrain_on_nd_pb_id, false);
+        }
     }
 }

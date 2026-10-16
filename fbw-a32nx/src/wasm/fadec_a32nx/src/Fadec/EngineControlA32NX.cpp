@@ -11,6 +11,7 @@
 #endif
 
 #include "CrossFeedBurn_A32NX.hpp"
+#include "WingTankLeak_A32NX.hpp"
 #include "EngineControlA32NX.h"
 #include "EngineRatios.hpp"
 #include "FanBlockedStart_A32NX.hpp"
@@ -1112,9 +1113,18 @@ void EngineControl_A32NX::updateFuel(double deltaTimeSeconds) {
       xfrCenterToRight = fuelCenterPre - centerQuantity;
 
     //--------------------------------------------
+    // Wing tank leaks (flyPad failures 28016/28017, WingTankLeak_A32NX.hpp): out of the inner tanks, not in the fuel used
+    const bool   leaksThisFrame = aircraftDevelopmentStateVar != 2 && msfsHandlerPtr->getPauseState() == 0;
+    const double leakLeft  = WingTankLeak_A32NX::leakedPounds(leaksThisFrame && simData.wingTankLeak[L]->getAsBool(), deltaTimeHours,
+                                                              fuelLeftPre);  // Pounds
+    const double leakRight = WingTankLeak_A32NX::leakedPounds(leaksThisFrame && simData.wingTankLeak[R]->getAsBool(), deltaTimeHours,
+                                                              fuelRightPre);  // Pounds
+
+    //--------------------------------------------
     // Final Fuel levels for left and right inner tanks
-    const double fuelLeft  = (fuelLeftPre - (fuelBurn1 * Fadec::KGS_TO_LBS)) + xfrAuxLeft + xfrCenterToLeft - apuBurn1;     // Pounds
-    const double fuelRight = (fuelRightPre - (fuelBurn2 * Fadec::KGS_TO_LBS)) + xfrAuxRight + xfrCenterToRight - apuBurn2;  // Pounds
+    const double fuelLeft = (fuelLeftPre - (fuelBurn1 * Fadec::KGS_TO_LBS)) + xfrAuxLeft + xfrCenterToLeft - apuBurn1 - leakLeft;  // Pounds
+    const double fuelRight =
+        (fuelRightPre - (fuelBurn2 * Fadec::KGS_TO_LBS)) + xfrAuxRight + xfrCenterToRight - apuBurn2 - leakRight;  // Pounds
 
     //--------------------------------------------
     // Setting new pre-cycle conditions

@@ -154,3 +154,60 @@ describe('ENG RELIGHT IN FLIGHT (A380 FCOM l.174864-175027)', () => {
     expect(procedure).not.toContain('MAX SPEED FOR WINDML RELIGHT');
   });
 });
+
+describe('ENG 1(2)(3)(4) SHUT DOWN (A380 FCOM PRO-ABN-ECAM-10-70, l.172693-172742, PDF p.5806)', () => {
+  const ata70 = readFileSync(
+    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
+    'utf-8',
+  );
+  const itemNames = (id: string) => {
+    const start = ata70.indexOf(`  ${id}: {`);
+    expect(start).toBeGreaterThan(0);
+    const procedure = ata70.slice(start, ata70.indexOf('\n  },', start));
+    return [...procedure.matchAll(/name: '([^']*)'/g)].map((match) => match[1]);
+  };
+  /** The entries of one array of an alert, one per line */
+  const arrayEntries = (id: string, field: 'whichItemsToShow' | 'whichItemsChecked') => {
+    const array = alertBlock(id).split(`${field}: () => [`)[1];
+    return array
+      .slice(0, array.indexOf('\n      ],'))
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+  };
+
+  it.each([
+    ['701800109', 1, false],
+    ['701800110', 2, true],
+    ['701800111', 3, true],
+    ['701800112', 4, false],
+  ])('%s ENG %i: the FCOM lines, ABNORM BLEED CONFIG PROC APPLY, no FOR GA: TOGA ONLY', (id, engine, inner) => {
+    expect(itemNames(id)).toEqual([
+      'TCAS MODE',
+      'L/G LEVER',
+      'NO FUEL LEAK',
+      `CROSSFEED ${engine}`,
+      'ABNORM BLEED CONFIG PROC',
+      'MAX THR RQRD',
+      'AIR FLOW',
+      'FWD CARGO TEMP REGUL',
+      ...(inner ? ['LDG DIST IMPACT ON WET/CONTAM RWY ONLY'] : []),
+    ]);
+  });
+
+  it.each(['701800109', '701800110', '701800111', '701800112'])(
+    '%s: one shown and one checked entry per line, the ABNORM BLEED CONFIG line with the AIR ABNORM BLEED CONFIG alert',
+    (id) => {
+      const count = itemNames(id).length;
+      const shown = arrayEntries(id, 'whichItemsToShow');
+      const checked = arrayEntries(id, 'whichItemsChecked');
+      expect(shown.length).toBe(count);
+      expect(checked.length).toBe(count);
+      // "In the case of an abnormal bleed configuration: ABNORM BLEED CONFIG procedure ... APPLY" (l.172733-172734)
+      expect(shown[4]).toMatch(/^this\.fws\.abnormBleedConfig\.get\(\),/);
+      // the AIR FLOW LO and FWD CARGO TEMP REGUL OFF lines keep their sensed checks
+      expect(checked[6]).toBe('this.fws.flowSelectorKnob.get() === 1,');
+      expect(checked[7]).toBe('this.fws.fwdCargoTempRegulatorOff.get(),');
+    },
+  );
+});

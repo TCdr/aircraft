@@ -40,6 +40,19 @@ pub enum FailureType {
     BulkIsolValve,
     BulkExtractFan,
     CargoHeater,
+    /// A380: pack flow valve n (1 and 2 on pack 1, 3 and 4 on pack 2) no longer follows its controller: it stays
+    /// where it is (a380_systems pneumatic::PackComplex)
+    PackFlowValveJammed(usize),
+    /// A380: the outlet air of pack n overheats while the pack has an air flow (pack outlet above 95 deg C)
+    PackOverheat(usize),
+    /// A380: pack n is in bypass mode, its performance is degraded (AIR PACK n REGUL FAULT)
+    PackRegulation(usize),
+    /// A380: the bulk cargo heater keeps heating whenever it is on: the bulk cargo duct air goes above 70 deg C
+    BulkCargoDuctOverheat,
+    /// A380: the cabin air extract valve is failed and stays where it is
+    CabinAirExtractValve,
+    /// A380: the manual cabin pressurization mode of the outflow valve controllers is failed
+    CabinPressureManualControl,
     // ATA24
     Generator(usize),
     ApuGenerator(usize),
@@ -102,6 +115,9 @@ pub enum FailureType {
     BrakeSteeringControlUnitChannel(usize),
     /// The A320 alternate braking control unit (ABCU): no alternate braking, parking brake only as back-up
     AlternateBrakingControlUnit,
+    /// The A320 brake normal selector valve is failed open: full green pressure at the entry of the normal servovalves
+    /// (WHEEL HYD SEL FAULT)
+    BrakeNormalSelectorValve,
     // ATA30 (ice_rain_protection)
     /// The engine anti-ice valve of engine n stays closed
     EngineAntiIceValveStuckClosed(usize),
@@ -270,6 +286,9 @@ pub enum FailureType {
     /// The LP fuel valve of engine n is jammed in its position: it no longer follows the ENG MASTER
     /// and the ENG FIRE pushbutton (fuel::engine_lp_valve)
     EngineLpValveJammed(usize),
+    /// The APU LP fuel valve is jammed in its position: it no longer follows the APU MASTER SW and
+    /// the APU FIRE pushbutton (A320 a320_systems fuel/apu_lp_valve.rs)
+    ApuLpValveJammed,
     // ATA78 thrust reversers (engine n)
     /// The thrust reverser of engine n is failed: it does not deploy
     ReverserFault(usize),

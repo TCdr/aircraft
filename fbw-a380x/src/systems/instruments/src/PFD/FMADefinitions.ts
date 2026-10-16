@@ -318,6 +318,84 @@ export function isCheckEoSpeedSetting(
   );
 }
 
+/** The speed brake message of the FMA line 3 */
+export enum SpeedBrakeMessage {
+  NONE,
+  EXTEND,
+  RETRACT,
+}
+
+/**
+ * A380 FCOM PRO-NOR-SOP-170 (a380_fcom.txt l.122395-122397): "The aircraft is considered to be on the vertical profile
+ * when the VERT DEV is less than 50 ft." Above (below) the path is a linear deviation of more than 50 ft.
+ */
+export const SPD_BRK_PATH_DEVIATION_FT = 50;
+/** Design choice: the speed is at the upper limit of the managed speed range within 2 kt (speed target noise) */
+export const SPD_BRK_UPPER_MARGIN_TOLERANCE_KT = 2;
+
+/** What the speed brake messages read */
+export interface SpeedBrakeMessageInputs {
+  /** DES is the active vertical mode (B1 DES) */
+  desActive: boolean;
+  /** ALT*, ALT (or their CST / CRZ variants) is the active vertical mode */
+  altOrAltStarActive: boolean;
+  /** the FMGC flight phase is DESCENT or APPROACH */
+  descentOrApproachPhase: boolean;
+  /** the A/THR mode is THR IDLE */
+  thrustIdle: boolean;
+  /** the flaps lever is at 3 or FULL (L:A32NX_FLAPS_HANDLE_INDEX 3 or 4) */
+  flapsConf3OrFull: boolean;
+  /** the speed brakes are extended (FCDC discrete word 4 bit 28, the speed brake command of the FWS) */
+  speedBrakesExtended: boolean;
+  /** the linear deviation (altitude - vertical path altitude) in feet, positive above the path, null when not shown */
+  linearDeviationFt: number | null;
+  /** the speed is at the upper limit of the managed speed range (speed margins shown) */
+  speedAtUpperMargin: boolean;
+}
+
+/**
+ * EXTEND SPD BRK and RETRACT SPD BRK (FMA line 3, A380 FCOM DSC-22-FG-80-80 l.19244-19245; conditions in
+ * DSC-22-FMS-20-110):
+ * - EXTEND SPD BRK (a380_fcom.txt l.45402-45403): "The DES mode is active, the thrust is IDLE, the flaps setting is not
+ *   3 or FULL, and the aircraft needs to decelerate to recover the vertical path, or to respect an altitude or speed
+ *   constraint, or speed limit."
+ *   Implemented: the vertical path part. In DES "the managed speed/Mach should not go beyond the high and low speed
+ *   margins" (DSC-22-FG-60-20, l.12620-12623): above the path at idle with the speed at the upper margin, the FMS can
+ *   no longer trade speed for height and only drag recovers the path (the same law as the A320 FCOM DSC-22_30-70-50,
+ *   a320_fcom.txt l.29939-29941: "If the speed reaches the upper limit, the aircraft will maintain the speed but will
+ *   deviate from the profile"). Design choice: not with the speed brakes already extended. Not implemented: the
+ *   altitude / speed constraint and speed limit parts, they need a VNAV prediction of the speed brake segments that the
+ *   FBW FMS does not publish.
+ * - RETRACT SPD BRK (l.46006-46009): "The DES mode is active, the speed brakes are extended, and: The ALT* or ALT mode
+ *   engages, or The aircraft is below the vertical path and needs to recover it, or The flaps setting becomes 3 or
+ *   FULL." Design choice: ALT* / ALT engaged in the DESCENT or APPROACH phase stands for the level off after DES.
+ * @param inputs the inputs
+ * @returns the message
+ */
+export function speedBrakeMessage(inputs: SpeedBrakeMessageInputs): SpeedBrakeMessage {
+  const deviation = inputs.linearDeviationFt;
+  if (inputs.speedBrakesExtended) {
+    const levelOffAfterDes = inputs.altOrAltStarActive && inputs.descentOrApproachPhase;
+    const belowPath = inputs.desActive && deviation !== null && deviation < -SPD_BRK_PATH_DEVIATION_FT;
+    const flapsInDes = inputs.desActive && inputs.flapsConf3OrFull;
+    return levelOffAfterDes || belowPath || flapsInDes ? SpeedBrakeMessage.RETRACT : SpeedBrakeMessage.NONE;
+  }
+  const abovePath = deviation !== null && deviation > SPD_BRK_PATH_DEVIATION_FT;
+  return inputs.desActive && inputs.thrustIdle && !inputs.flapsConf3OrFull && abovePath && inputs.speedAtUpperMargin
+    ? SpeedBrakeMessage.EXTEND
+    : SpeedBrakeMessage.NONE;
+}
+
+/**
+ * @param showSpeedMargins the FMS shows the managed speed range (L:A32NX_PFD_SHOW_SPEED_MARGINS)
+ * @param upperMarginKt the upper limit of the managed speed range in knots
+ * @param casKt the computed airspeed in knots, null when invalid
+ * @returns whether the speed is at the upper limit of the managed speed range
+ */
+export function isSpeedAtUpperMargin(showSpeedMargins: boolean, upperMarginKt: number, casKt: number | null): boolean {
+  return showSpeedMargins && casKt !== null && casKt >= upperMarginKt - SPD_BRK_UPPER_MARGIN_TOLERANCE_KT;
+}
+
 export function computeBC3Message(
   isAttExcessive: boolean,
   setHoldSpeed: boolean,
@@ -330,6 +408,8 @@ export function computeBC3Message(
   primFgDiscreteWord6: Arinc429WordData,
   checkSpeedMode = false,
   checkEoSpeedSetting = false,
+  spdBrkMessage = SpeedBrakeMessage.NONE,
+  checkApproachSelection = false,
 ): BC3Messages {
   const flightPhaseForWarning =
     fwcFlightPhase >= 2 && fwcFlightPhase <= 11 && !(fwcFlightPhase >= 4 && fwcFlightPhase <= 7);
@@ -359,15 +439,17 @@ export function computeBC3Message(
     return BC3Messages.CHECK_EO_SPD_SETTING;
   } else if (tdReached) {
     return BC3Messages.TD_REACHED;
-  } else if (false) {
+  } else if (spdBrkMessage === SpeedBrakeMessage.EXTEND) {
+    // speedBrakeMessage; placed as the A320 MORE DRAG (after T/D REACHED), the FCOM gives no priority
     return BC3Messages.EXTEND_SPD_BRK;
-  } else if (false) {
+  } else if (spdBrkMessage === SpeedBrakeMessage.RETRACT) {
     return BC3Messages.RETRACT_SPD_BRK;
   } else if (checkSpeedMode && !isAttExcessive) {
     // A380 FCOM DSC-22-FG-80-80 l.19243, SELECTED SPEED/MACH PRIORITY l.12816-12826 (FMS: FlightManagementComputer
     // triggerCheckSpeedModeMessage); placed as the A320 CHECK SPEED MODE (after MORE DRAG)
     return BC3Messages.CHECK_SPD_MODE;
-  } else if (false) {
+  } else if (checkApproachSelection) {
+    // FMS message (MFD FmsAdvisoryMessages, CheckApproachSelection.ts); placed as the A320 CHECK APPR SELECTION
     return BC3Messages.CHECK_APPR_SEL;
   } else if (setHoldSpeed) {
     return BC3Messages.SET_HOLD_SPD;
@@ -424,5 +506,35 @@ export function computeD1D2Message(
     return D1D2Messages.RAW_ONLY;
   } else {
     return D1D2Messages.NONE;
+  }
+}
+
+/**
+ * The two lines of the approach capability (FMA column 4, first and second lines), in the FCOM words
+ * (a380_fcom.txt l.19153-19184, DSC-22-FG FMA APPROACH CAPABILITY): RAW ONLY, F-APP +RAW, F-APP, CAT1, CAT2,
+ * CAT3 SINGLE, CAT3 DUAL. The newer-standard words APPR1 / LAND2 / LAND3 are not in this FCOM.
+ * @param message the capability message
+ * @returns the first and the second line, empty strings when nothing is shown
+ */
+export function getD1D2Lines(message: D1D2Messages): [string, string] {
+  switch (message) {
+    case D1D2Messages.APPR_1:
+      return ['CAT1', ''];
+    case D1D2Messages.LAND_2:
+      return ['CAT2', ''];
+    case D1D2Messages.LAND_3_SINGLE:
+      return ['CAT3', 'SINGLE'];
+    case D1D2Messages.LAND_3_DUAL:
+      return ['CAT3', 'DUAL'];
+    case D1D2Messages.F_APP:
+      return ['F-APP', ''];
+    case D1D2Messages.F_APP_RAW:
+      return ['F-APP', '+RAW'];
+    case D1D2Messages.RAW_ONLY:
+      return ['RAW', 'ONLY'];
+    case D1D2Messages.LAND_1:
+      return ['LAND1', ''];
+    default:
+      return ['', ''];
   }
 }

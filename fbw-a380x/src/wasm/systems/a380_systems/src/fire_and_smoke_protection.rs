@@ -196,7 +196,9 @@ struct FireProtectionSystem {
 }
 
 impl FireProtectionSystem {
-    const DELAY_FIRE_TEST_MILLIS: Duration = Duration::from_millis(500);
+    /// A380 FCOM DSC-26-20-20 TEST pb (a380_fcom.txt l.53104-53105): "When pressed for at least three seconds, and
+    /// until released, tests the operation of the engine fire detection and extinguishing system"
+    const FIRE_TEST_HOLD_TIME: Duration = Duration::from_secs(3);
     const FIRE_TEST_EXTENSION: Duration = Duration::from_secs(7);
     const DELAY_APU_FIRE_EXTINGUISHING: Duration = Duration::from_secs(10);
 
@@ -223,7 +225,7 @@ impl FireProtectionSystem {
             fire_test_pushbutton_id: context
                 .get_identifier("OVHD_FIRE_TEST_PB_IS_PRESSED".to_owned()),
             fire_test_pushbutton_is_pressed: false,
-            fire_test_pushbutton_signal: DelayedTrueLogicGate::new(Self::DELAY_FIRE_TEST_MILLIS),
+            fire_test_pushbutton_signal: DelayedTrueLogicGate::new(Self::FIRE_TEST_HOLD_TIME),
 
             fire_test_extend_id: context.get_identifier("FIRE_TEST_EXTEND".to_owned()),
             fire_test_extend: false,
@@ -247,7 +249,7 @@ impl FireProtectionSystem {
             self.fire_test_pushbutton_is_pressed
         };
 
-        // We add a delay between button press and response based on references
+        // The test starts once the pb has been held for FIRE_TEST_HOLD_TIME
         self.fire_test_pushbutton_signal
             .update(context, self.fire_test_active);
         self.fire_detection_unit
@@ -488,9 +490,12 @@ impl ExtinguishingAgentBottle {
 
 impl SimulationElement for ExtinguishingAgentBottle {
     fn write(&self, writer: &mut SimulatorWriter) {
+        // The SQUIB light of the AGENT pb. A380 FCOM DSC-26-20-20 AGENT 1(2) pb (a380_fcom.txt l.53088-53091): "The
+        // squibs of the fire extinguisher bottles are armed ... When pressed, the extinguisher bottles discharge and the
+        // SQUIB light goes off." The fire test lights it (l.53113).
         writer.write(
             &self.squib_armed_id,
-            self.squib_is_armed || self.system_test,
+            (self.squib_is_armed && !self.bottle_is_discharged) || self.system_test,
         );
         writer.write(
             &self.bottle_discharged_id,
@@ -982,11 +987,35 @@ mod a380_fire_and_smoke_protection_tests {
 
         #[test]
         fn all_zones_detect_fire_when_test_pressed() {
-            let mut test_bed = test_bed().with().set_test_pushbutton(true).and_run();
+            let mut test_bed = test_bed()
+                .with()
+                .set_test_pushbutton(true)
+                .run_with_delta_of(Duration::from_secs(3));
 
             assert!(test_bed.engine_on_fire_detected(1));
             assert!(test_bed.apu_on_fire_detected());
             assert!(test_bed.mlg_on_fire_detected());
+        }
+
+        /// A380 FCOM DSC-26-20-20 TEST pb (a380_fcom.txt l.53104-53105): "When pressed for at least three seconds"
+        #[test]
+        fn fire_test_starts_only_after_the_pushbutton_is_held_three_seconds() {
+            let mut test_bed = test_bed()
+                .with()
+                .set_test_pushbutton(true)
+                .run_with_delta_of(Duration::from_millis(2900));
+
+            assert!(!test_bed.engine_on_fire_detected(1));
+            assert!(!test_bed.apu_on_fire_detected());
+            assert!(!test_bed.mlg_on_fire_detected());
+            assert!(!test_bed.squib_engine_is_armed(1));
+
+            test_bed = test_bed.run_with_delta_of(Duration::from_millis(100));
+
+            assert!(test_bed.engine_on_fire_detected(1));
+            assert!(test_bed.apu_on_fire_detected());
+            assert!(test_bed.mlg_on_fire_detected());
+            assert!(test_bed.squib_engine_is_armed(1));
         }
 
         #[test]
@@ -1181,8 +1210,23 @@ mod a380_fire_and_smoke_protection_tests {
                 .set_agent_pb(1, true)
                 .and_double_run();
 
-            assert!(test_bed.squib_engine_is_armed(1));
             assert!(test_bed.squib_engine_is_discharged(1));
+        }
+
+        /// A380 FCOM DSC-26-20-20 AGENT 1(2) pb (a380_fcom.txt l.53090): "the extinguisher bottles discharge and the
+        /// SQUIB light goes off"
+        #[test]
+        fn squib_light_goes_off_when_the_bottle_is_discharged() {
+            let mut test_bed = test_bed()
+                .with()
+                .set_engine_fire_pb_released(1, true)
+                .and_run()
+                .then()
+                .set_agent_pb(1, true)
+                .and_double_run();
+
+            assert!(test_bed.squib_engine_is_discharged(1));
+            assert!(!test_bed.squib_engine_is_armed(1));
         }
 
         #[test]
@@ -1197,7 +1241,6 @@ mod a380_fire_and_smoke_protection_tests {
                 .set_agent_pb(1, false)
                 .and_run();
 
-            assert!(test_bed.squib_engine_is_armed(1));
             assert!(test_bed.squib_engine_is_discharged(1));
         }
 
@@ -1302,7 +1345,10 @@ mod a380_fire_and_smoke_protection_tests {
 
         #[test]
         fn squibs_show_armed_and_discharged_when_test() {
-            let mut test_bed = test_bed().with().set_test_pushbutton(true).and_run();
+            let mut test_bed = test_bed()
+                .with()
+                .set_test_pushbutton(true)
+                .run_with_delta_of(Duration::from_secs(3));
 
             assert!(test_bed.squib_engine_is_armed(1));
             assert!(test_bed.squib_engine_is_discharged(1));
@@ -1334,7 +1380,8 @@ mod a380_fire_and_smoke_protection_tests {
                 .and_double_run()
                 .and_double_run();
 
-            assert!(test_bed.squib_engine_is_armed(1));
+            // the SQUIB light goes off once the bottle is discharged
+            assert!(!test_bed.squib_engine_is_armed(1));
             assert!(test_bed.squib_engine_is_discharged(1));
             print!(
                 "Engine fire was put out: {}",

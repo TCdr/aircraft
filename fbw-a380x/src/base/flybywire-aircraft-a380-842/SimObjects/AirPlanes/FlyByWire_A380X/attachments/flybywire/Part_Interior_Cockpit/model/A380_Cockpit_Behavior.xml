@@ -2160,42 +2160,8 @@
                     </SYNC_TOGGLE_BUSES>
                 </UseTemplate>
 
-                <Update Once="True">
-                    (L:XMLVAR_SWITCH_OVHD_INTLT_SEATBELT_Position) 0 == (A:CABIN SEATBELTS ALERT SWITCH, bool) 0 == and if{
-                      (&gt;K:CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE)
-                    }
-                    (L:XMLVAR_SWITCH_OVHD_INTLT_SEATBELT_Position) 2 == (A:CABIN SEATBELTS ALERT SWITCH, bool) 1 == and if{
-                      (&gt;K:CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE)
-                    }
-                </Update>
-
-                <Update Frequency="500">
-                <!-- In the auto position, the seatbelt signs come on when engines are running and either slats are extended or main gear is downlocked -->
-                <!-- TODO: Move logic to responsible system -->
-                    (L:XMLVAR_SWITCH_OVHD_INTLT_SEATBELT_Position) 1 == if{
-                        (L:A32NX_ENGINE_N1:1) 10 &gt;
-                        (L:A32NX_ENGINE_N1:2) 10 &gt; or
-                        (L:A32NX_ENGINE_N1:3) 10 &gt; or
-                        (L:A32NX_ENGINE_N1:4) 10 &gt; or
-
-                        (L:A32NX_LEFT_SLATS_ANGLE, degree) 19 &gt;=
-                        (L:A32NX_RIGHT_SLATS_ANGLE, degree) 19 &gt;= or
-
-                        (L:A32NX_LGCIU_1_LEFT_GEAR_DOWNLOCKED, bool) 1 ==
-                        (L:A32NX_LGCIU_2_LEFT_GEAR_DOWNLOCKED, bool) 1 == or
-                        (L:A32NX_LGCIU_1_RIGHT_GEAR_DOWNLOCKED, bool) 1 == or
-                        (L:A32NX_LGCIU_2_RIGHT_GEAR_DOWNLOCKED, bool) 1 == or or and if{
-                            (A:CABIN SEATBELTS ALERT SWITCH, bool) 0 == if{
-                                (&gt;K:CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE)
-                            }
-                        } els{
-                            (A:CABIN SEATBELTS ALERT SWITCH, bool) 1 == if{
-                                (&gt;K:CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE)
-                            }
-                        }
-                    }
-                </Update>
-
+                <!-- The cabin FASTEN SEAT BELT signs (A:CABIN SEATBELTS ALERT SWITCH) are set by the systems host from the switch
+                     position: fbw-a380x/src/systems/systems-host/Misc/CabinSigns.ts (A380 FCOM DSC-33-50-10 SEAT BELTS sw) -->
                 <UseTemplate Name="A32NX_GT_Switch_Dummy">
                     <NODE_ID>SWITCH_OVHD_INTLT_SEATBELT</NODE_ID>
                     <PART_ID>Seatbelt_Switch</PART_ID>
@@ -2211,40 +2177,9 @@
                     <ANIMTIP_1>TT:COCKPIT.TOOLTIPS.LIGHTS_SEATBELT_AUTO</ANIMTIP_1>
                     <ANIMTIP_2>TT:COCKPIT.TOOLTIPS.LIGHTS_SEATBELT_OFF</ANIMTIP_2>
                     <WWISE_EVENT>lswitch</WWISE_EVENT>
-                    <CODE_POS_0>
-                        (A:CABIN SEATBELTS ALERT SWITCH, bool) 0 == if{
-                            (&gt;K:CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE)
-                        }
-                    </CODE_POS_0>
-                    <CODE_POS_1>
-                    <!-- In the auto position, the seatbelt signs come on when engines are running and either slats are extended or main gear is downlocked -->
-                    <!-- TODO: Move logic to responsible system -->
-                        (L:A32NX_ENGINE_N1:1) 10 &gt;
-                        (L:A32NX_ENGINE_N1:2) 10 &gt; or
-                        (L:A32NX_ENGINE_N1:3) 10 &gt; or
-                        (L:A32NX_ENGINE_N1:4) 10 &gt; or
-
-                        (L:A32NX_LEFT_SLATS_ANGLE, degree) 19 &gt;=
-                        (L:A32NX_RIGHT_SLATS_ANGLE, degree) 19 &gt;= or
-
-                        (L:A32NX_LGCIU_1_LEFT_GEAR_DOWNLOCKED, bool) 1 ==
-                        (L:A32NX_LGCIU_2_LEFT_GEAR_DOWNLOCKED, bool) 1 == or
-                        (L:A32NX_LGCIU_1_RIGHT_GEAR_DOWNLOCKED, bool) 1 == or
-                        (L:A32NX_LGCIU_2_RIGHT_GEAR_DOWNLOCKED, bool) 1 == or or and if{
-                            (A:CABIN SEATBELTS ALERT SWITCH, bool) 0 == if{
-                                (&gt;K:CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE)
-                            }
-                        } els{
-                            (A:CABIN SEATBELTS ALERT SWITCH, bool) 1 == if{
-                                (&gt;K:CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE)
-                            }
-                        }
-                    </CODE_POS_1>
-                    <CODE_POS_2>
-                        (A:CABIN SEATBELTS ALERT SWITCH, bool) 1 == if{
-                            (&gt;K:CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE)
-                        }
-                    </CODE_POS_2>
+                    <CODE_POS_0></CODE_POS_0>
+                    <CODE_POS_1></CODE_POS_1>
+                    <CODE_POS_2></CODE_POS_2>
                 </UseTemplate>
 
                 <UseTemplate Name="A32NX_GT_Switch_Dummy">
@@ -4946,9 +4881,17 @@
                         <NODE_ID>PUSH_OVHD_REFUEL</NODE_ID>
 						<INOP></INOP>
                     </UseTemplate>
+					<!-- AUTO GND XFR (A380 FCOM DSC-28-20, l.58187-58209): pressed, the FQMS starts the automatic ground transfer
+					     (CpiomF/FuelGroundTransfer). The light is on while the pb-sw is pressed and flashes when the FQMS aborts. -->
 					<UseTemplate Name="FBW_Push_Toggle">
                         <NODE_ID>PUSH_OVHD_AUTO_GND_XFR</NODE_ID>
-						<INOP></INOP>
+                        <TOGGLE_SIMVAR>L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_IS_ON</TOGGLE_SIMVAR>
+                        <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                        <DISABLE_SEQ1></DISABLE_SEQ1>
+                        <SEQ2_CODE>(L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_LIGHT_ON, Bool)</SEQ2_CODE>
+                        <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
+                        <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
+                        <TOOLTIPID>%((L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_IS_ON, Bool))%{if}Stop the automatic ground transfer%{else}Start the automatic ground transfer%{end}</TOOLTIPID>
                     </UseTemplate>
 
 					<!-- MISC -->

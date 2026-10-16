@@ -21,6 +21,7 @@ import {
 
 import { PFDSimvars } from './PFDSimvarPublisher';
 import { FcuEfisCpBusEvents } from '@shared/publishers/EfisCpBusPublisher';
+import { voteRadioAltitude } from '@shared/RadioAltimeterVoting';
 
 export interface Arinc429Values {
   pitchAr: Arinc429Word;
@@ -267,68 +268,12 @@ export class ArincValueProvider implements Instrument {
     this.altitude.setValueSsm(this.altitudeFilter.last() ?? 0, this.unfilteredAltitude.get().ssm);
   }
 
+  /**
+   * Both PFDs show the same radio height, voted from the three RAs (a380_fcom.txt l.86462-86466): see
+   * voteRadioAltitude in shared/src/RadioAltimeterVoting.ts.
+   */
   private determineAndPublishChosenRadioAltitude(publisher: Publisher<Arinc429Values>) {
-    const validRaMap = [this.radioAltitude1, this.radioAltitude2, this.radioAltitude3].map(
-      (ra) => !ra.isFailureWarning() && !ra.isNoComputedData(),
-    );
-    const validCount = validRaMap.filter((x) => !!x).length;
-
-    let chosenRas = [this.radioAltitude1, this.radioAltitude2]; // Default: 1 gets 1, 2 gets 2
-    if (validCount === 3) {
-      // pick the median
-      const heights = [this.radioAltitude1, this.radioAltitude2, this.radioAltitude3].sort((a, b) => a.value - b.value);
-      chosenRas = [heights[1], heights[1]];
-    } else if (validCount === 2) {
-      if (!validRaMap[0]) {
-        // fail PFD 1 to RA 3
-        chosenRas = [this.radioAltitude3, this.radioAltitude2];
-      } else if (!validRaMap[1]) {
-        // fail PFD 2 to RA 3
-        chosenRas = [this.radioAltitude1, this.radioAltitude3];
-      }
-      // otherwise stick with the default (PFD 1 to 1, PFD 2 to 2)
-    } else if (validCount === 1) {
-      if (validRaMap[0]) {
-        // both get RA 1
-        chosenRas = [this.radioAltitude1, this.radioAltitude1];
-      } else if (validRaMap[1]) {
-        // both get RA 2
-        chosenRas = [this.radioAltitude2, this.radioAltitude2];
-      } else {
-        // both get RA 3
-        chosenRas = [this.radioAltitude3, this.radioAltitude3];
-      }
-    } else {
-      // at this point all have either NCD or FW
-      // try to fail back a bit more intelligently around FWs to prioritize NCDs
-      const nonFailedMap = [this.radioAltitude1, this.radioAltitude2, this.radioAltitude3].map(
-        (ra) => !ra.isFailureWarning(),
-      );
-      const nonFailedCount = nonFailedMap.filter((x) => !!x).length;
-      if (nonFailedCount === 2) {
-        if (!nonFailedMap[0]) {
-          // fail PFD 1 to RA 3
-          chosenRas = [this.radioAltitude3, this.radioAltitude2];
-        } else if (!nonFailedMap[1]) {
-          // fail PFD 2 to RA 3
-          chosenRas = [this.radioAltitude1, this.radioAltitude3];
-        }
-      } else if (nonFailedCount === 1) {
-        if (nonFailedMap[0]) {
-          // both get RA 1
-          chosenRas = [this.radioAltitude1, this.radioAltitude1];
-        } else if (nonFailedMap[1]) {
-          // both get RA 2
-          chosenRas = [this.radioAltitude2, this.radioAltitude2];
-        } else {
-          // both get RA 3
-          chosenRas = [this.radioAltitude3, this.radioAltitude3];
-        }
-      }
-      // don't do anything in case of 3 FWs or 0 FWs and stick to the default
-    }
-
-    publisher.pub('chosenRa', getDisplayIndex() === 1 ? chosenRas[0] : chosenRas[1]);
+    publisher.pub('chosenRa', voteRadioAltitude([this.radioAltitude1, this.radioAltitude2, this.radioAltitude3]));
   }
 
   private determineAndPublishChosenLandingElevation(publisher: Publisher<Arinc429Values>) {

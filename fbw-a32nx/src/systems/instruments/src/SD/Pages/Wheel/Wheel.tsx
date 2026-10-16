@@ -11,6 +11,7 @@ import { ComponentPositionProps } from '../../Common/ComponentPositionProps';
 import { SvgGroup } from '../../Common/SvgGroup';
 import { Spoilers } from '../../Common/Spoilers';
 import { autoBrakeIndicationClass } from './AutoBrakeIndication';
+import { WheelBrakeIndications, WheelLegendColour, wheelBrakeIndications } from './WheelBrakeIndications';
 
 import '../../Common/CommonStyles.scss';
 import '../../Common/animations.scss';
@@ -53,17 +54,14 @@ export const WheelPage = () => {
       <HydraulicsProvider>
         <Spoilers x={133} y={64} />
 
-        <NoseWheelSteering x={271} y={235} />
         <LandingGearCtl
           x={326}
           y={320}
           lgciu1DiscreteWord1={lgciu1DiscreteWord1}
           lgciu2DiscreteWord1={lgciu2DiscreteWord1}
         />
-        <AntiSkid x={302} y={380} />
 
-        <NormalBraking x={276} y={393} />
-        <AlternateBraking x={276} y={433} />
+        <BrakeAndSteeringLegends />
       </HydraulicsProvider>
 
       <AutoBrake x={318} y={570} />
@@ -115,10 +113,50 @@ export const WheelPage = () => {
   );
 };
 
-const NoseWheelSteering = ({ x, y }: ComponentPositionProps) => {
-  const [antiSkidActive] = useSimVar('ANTISKID BRAKES ACTIVE', 'Bool', maxStaleness);
+/**
+ * The N/W STEERING, ANTI SKID, NORM BRK and ALTN BRK legends, from the brake fault L:vars of the a320_systems brake model
+ * and the hydraulic low pressures (FCOM rules in WheelBrakeIndications)
+ */
+const BrakeAndSteeringLegends = () => {
+  const hydraulics = useHydraulics();
+  const [bscu1Fault] = useSimVar('L:A32NX_BRAKES_BSCU_1_FAULT', 'Bool', maxStaleness);
+  const [bscu2Fault] = useSimVar('L:A32NX_BRAKES_BSCU_2_FAULT', 'Bool', maxStaleness);
+  const [altnBrkFault] = useSimVar('L:A32NX_BRAKES_ALTN_BRK_FAULT', 'Bool', maxStaleness);
+  const [normBrkFault] = useSimVar('L:A32NX_BRAKES_NORM_BRK_FAULT', 'Bool', maxStaleness);
+  const [autoBrkFault] = useSimVar('L:A32NX_BRAKES_AUTO_BRK_FAULT', 'Bool', maxStaleness);
+  const [nwStrgFault] = useSimVar('L:A32NX_BRAKES_NW_STRG_FAULT', 'Bool', maxStaleness);
+  // The A/SKID & N/W STRG sw (the sim antiskid switch)
+  const [antiSkidSwitchOn] = useSimVar('ANTISKID BRAKES ACTIVE', 'Bool', maxStaleness);
 
-  return !antiSkidActive ? (
+  const legends = wheelBrakeIndications({
+    bscu1Lost: bscu1Fault > 0,
+    bscu2Lost: bscu2Fault > 0,
+    alternateBrakingLost: altnBrkFault > 0,
+    normalBrakingFailed: normBrkFault > 0,
+    autobrakeFailed: autoBrkFault > 0,
+    noseWheelSteeringFailed: nwStrgFault > 0,
+    antiSkidSwitchOff: !(antiSkidSwitchOn > 0),
+    greenLowPressure: !hydraulics.G.available,
+    yellowLowPressure: !hydraulics.Y.available,
+  });
+
+  return (
+    <>
+      <NoseWheelSteering x={271} y={235} shown={legends.noseWheelSteering} />
+      <AntiSkid x={302} y={380} colour={legends.antiSkid} failedBscuChannels={legends.failedBscuChannels} />
+      <NormalBraking x={276} y={393} colour={legends.normalBraking} />
+      <AlternateBraking x={276} y={433} colour={legends.alternateBraking} accumulatorOnly={legends.accumulatorOnly} />
+    </>
+  );
+};
+
+interface LegendProps extends ComponentPositionProps {
+  colour: WheelLegendColour;
+}
+
+/** N/W STEERING in amber with its Y hydraulic supply indication (green, amber in yellow low pressure) */
+const NoseWheelSteering = ({ x, y, shown }: ComponentPositionProps & { shown: boolean }) =>
+  shown ? (
     <SvgGroup x={x} y={y}>
       <HydraulicIndicator x={0} y={0} type="Y" />
 
@@ -127,31 +165,41 @@ const NoseWheelSteering = ({ x, y }: ComponentPositionProps) => {
       </text>
     </SvgGroup>
   ) : null;
-};
 
-const AntiSkid = ({ x, y }: ComponentPositionProps) => {
-  const [antiSkidActive] = useSimVar('ANTISKID BRAKES ACTIVE', 'Bool', maxStaleness);
-
-  return !antiSkidActive ? (
+/** ANTI SKID with the numbers of the failed BSCU channels in amber */
+const AntiSkid = ({
+  x,
+  y,
+  colour,
+  failedBscuChannels,
+}: LegendProps & { failedBscuChannels: WheelBrakeIndications['failedBscuChannels'] }) =>
+  colour !== null ? (
     <SvgGroup x={x} y={y}>
       {/* <!-- Text --> */}
-      <text x={0} y={0} className="Large Amber">
+      <text x={0} y={0} className={`Large ${colour}`}>
         ANTI SKID
       </text>
 
-      {/* <!-- Brake and Steering Control Units --> */}
-      <path className="LightGreyLine" d="m 166 5 h 22 v -27" />
-      <text className="Large Green" x={171} y={0}>
-        1
-      </text>
+      {/* <!-- Brake and Steering Control Units: the failed channel numbers --> */}
+      {failedBscuChannels[0] && (
+        <>
+          <path className="LightGreyLine" d="m 166 5 h 22 v -27" />
+          <text className="Large Amber" x={171} y={0}>
+            1
+          </text>
+        </>
+      )}
 
-      <path className="LightGreyLine" d="m 196 5 h 22 v -27" />
-      <text className="Large Green" x={200} y={0}>
-        2
-      </text>
+      {failedBscuChannels[1] && (
+        <>
+          <path className="LightGreyLine" d="m 196 5 h 22 v -27" />
+          <text className="Large Amber" x={200} y={0}>
+            2
+          </text>
+        </>
+      )}
     </SvgGroup>
   ) : null;
-};
 
 interface LandingGearCtlProps extends ComponentPositionProps {
   lgciu1DiscreteWord1: Arinc429Word;
@@ -188,34 +236,30 @@ const LandingGearCtl = ({ x, y, lgciu1DiscreteWord1, lgciu2DiscreteWord1 }: Land
   ) : null;
 };
 
-const NormalBraking = ({ x, y }: ComponentPositionProps) => {
-  const hydraulics = useHydraulics();
-
-  return !hydraulics.G.available ? (
+/** NORM BRK with its G hydraulic supply indication (green, amber in green low pressure) */
+const NormalBraking = ({ x, y, colour }: LegendProps) =>
+  colour !== null ? (
     <SvgGroup x={x} y={y}>
       <HydraulicIndicator x={0} y={0} type="G" />
 
-      <text x={42} y={27} className="Large Amber">
+      <text x={42} y={27} className={`Large ${colour}`}>
         NORM BRK
       </text>
     </SvgGroup>
   ) : null;
-};
 
-const AlternateBraking = ({ x, y }: ComponentPositionProps) => {
-  const hydraulics = useHydraulics();
-
-  return !hydraulics.G.available ? (
+/** ALTN BRK with its Y hydraulic supply indication (green, amber in yellow low pressure) and ACCU ONLY */
+const AlternateBraking = ({ x, y, colour, accumulatorOnly }: LegendProps & { accumulatorOnly: boolean }) =>
+  colour !== null ? (
     <SvgGroup x={x} y={y}>
       <HydraulicIndicator x={0} y={0} type="Y" />
 
-      <text x={42} y={28} className="Large Green">
+      <text x={42} y={28} className={`Large ${colour}`}>
         ALTN BRK
       </text>
-      {!hydraulics.Y.available && <AccumulatorOnly x={53} y={45} />}
+      {accumulatorOnly && <AccumulatorOnly x={53} y={45} />}
     </SvgGroup>
   ) : null;
-};
 
 const AccumulatorOnly = ({ x, y }: ComponentPositionProps) => (
   <SvgGroup x={x} y={y}>
@@ -230,8 +274,10 @@ const AccumulatorOnly = ({ x, y }: ComponentPositionProps) => (
 );
 
 const AutoBrake = ({ x, y }: ComponentPositionProps) => {
-  // Amber only on an AUTO BRK failure (FCOM DSC-32-30-20), which is not modelled yet: not when an engine is off
-  const autoBrakeFailed = false;
+  // Amber only on an AUTO BRK failure, "along with an ECAM caution" (FCOM DSC-32-30-20, a320_fcom.txt l.51576-51581):
+  // the BSCU autobrake fault (BRAKES AUTO BRK FAULT), not when an engine is off
+  const [autoBrakeFault] = useSimVar('L:A32NX_BRAKES_AUTO_BRK_FAULT', 'Bool', maxStaleness);
+  const autoBrakeFailed = autoBrakeFault > 0;
   const available = !autoBrakeFailed;
 
   const [autoBrakeLevel] = useSimVar('L:A32NX_AUTOBRAKES_ARMED_MODE', 'Number', maxStaleness);
@@ -260,6 +306,15 @@ const AutoBrake = ({ x, y }: ComponentPositionProps) => {
           {autoBrakeLevel === 2 ? <AutoBrakeLevel text="MED" available={available} /> : null}
           {autoBrakeLevel === 3 ? <AutoBrakeLevel text="MAX" available={available} /> : null}
         </SvgGroup>
+      </SvgGroup>
+    );
+  }
+
+  // The failed autobrake disarms: the amber legend stays, without a rate
+  if (autoBrakeFailed) {
+    return (
+      <SvgGroup x={x} y={y}>
+        <text className={`Large ${autoBrakeIndicationClass(autoBrakeFailed)}`}>AUTO BRK</text>
       </SvgGroup>
     );
   }

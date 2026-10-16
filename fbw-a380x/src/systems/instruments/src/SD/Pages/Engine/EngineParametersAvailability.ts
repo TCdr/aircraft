@@ -5,7 +5,11 @@
 export interface EngineParametersInputs {
   ignition: boolean;
   anyEngineRunning: boolean;
-  fadecManuallyPowered: boolean;
+  /**
+   * The aircraft electrical network supplies the FADEC: 15 min at power-up, 10 min after the FADEC GND PWR pb
+   * (FadecGroundPower)
+   */
+  fadecSuppliedByAircraftNetwork: boolean;
   engineFirePbReleased: boolean;
   /**
    * The FADEC cannot communicate via the avionics networks (L:A32NX_ENGINE_n_FADEC_FAULT, flyPad "Engine n FADEC
@@ -21,6 +25,7 @@ export interface EngineParametersInputs {
  */
 export function areEngineParametersShown(inputs: EngineParametersInputs): boolean {
   const fadecPowered =
-    (inputs.ignition || inputs.anyEngineRunning || inputs.fadecManuallyPowered) && !inputs.engineFirePbReleased;
+    (inputs.ignition || inputs.anyEngineRunning || inputs.fadecSuppliedByAircraftNetwork) &&
+    !inputs.engineFirePbReleased;
   return fadecPowered && !inputs.fadecNetworkLost;
 }

@@ -64,6 +64,7 @@ static void registerInstanceVars(Instance& instance) {
 #ifdef A380X
   instance.vdRangeLowerVar = register_named_variable(instance.isRight ? "A32NX_VD_2_RANGE_LOWER" : "A32NX_VD_1_RANGE_LOWER");
   instance.vdRangeUpperVar = register_named_variable(instance.isRight ? "A32NX_VD_2_RANGE_UPPER" : "A32NX_VD_1_RANGE_UPPER");
+  instance.vdRaZoneShownVar = register_named_variable(instance.isRight ? "A380X_VD_2_RA_ZONE_SHOWN" : "A380X_VD_1_RA_ZONE_SHOWN");
   instance.overlayVar = register_named_variable(instance.isRight ? "A380X_EFIS_R_ACTIVE_OVERLAY" : "A380X_EFIS_L_ACTIVE_OVERLAY");
   instance.displayUnitFailedVar =
       register_named_variable(instance.isRight ? "A380X_CDS_FO_ND_DU_FAILED" : "A380X_CDS_CAPT_ND_DU_FAILED");
@@ -110,6 +111,8 @@ static void createInstanceViews(FsContext ctx, Instance& instance) {
   instance.mapViewHot = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
   instance.mapViewHotReady = configureHotView(ctx, instance.mapViewHot);
 #ifndef A380X
+  // the two radar views are made at the calibrated gain (see updateViewRoles)
+  instance.appliedGainDb = 0.0f;
   // (the A380X ND's two views double as the terrain and water views, see terrainViews)
   instance.mapViewTerrain = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
   instance.mapViewTerrainReady = configureTerrainView(ctx, instance.mapViewTerrain);
@@ -376,6 +379,12 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
   } else if (mapPage && !frame.showTerrain && g_wxrSys.read() == kWxrSysOff) {
     frame.labelMode = kWxrLabelOff;
   }
+  // The pedestal GAIN knob sets the receiver gain of the painted weather (a320GainDbFromKnob: 0 dB at CAL); a change
+  // redraws the picture at once.
+  if (frame.showPrecip || frame.showTurb) {
+    frame.gainDb = a320GainDbFromKnob(g_wxrGainKnob.read());
+    frame.wxControlsKey = std::lround(frame.gainDb * 10.0f);
+  }
 #endif
 #ifdef A380X
   // The VD shows the weather too when the WX ON VD button is not OFF, on the pages
@@ -492,9 +501,13 @@ static ViewReadiness updateViewRoles(FsContext ctx, Instance& instance, const Nd
   ready.hot = ready.precip;
   ready.terrain = settled && instance.ndRole == 1;
 #else
-  (void)ctx;
-  (void)instance;
-  (void)frame;
+  // A GAIN knob change while the radar paints: the colour tables of the two radar views are sent again
+  // (createInstanceViews made them at the calibrated gain).
+  const bool weatherWanted = frame.showPrecip || frame.showTurb;
+  if (weatherWanted && instance.mapViewReady && instance.mapViewHotReady && frame.gainDb != instance.appliedGainDb) {
+    setRadarThresholds(ctx, instance.mapView, instance.mapViewHot, radarThresholdsForGain(kCalibratedThresholds, frame.gainDb));
+    instance.appliedGainDb = frame.gainDb;
+  }
 #endif
   return ready;
 }
@@ -691,6 +704,11 @@ static void drawVdWeatherLayer(NVGcontext* vg, const Instance& instance, const N
     drawVdWeather(vg, instance.mapView, instance.mapViewHot, instance.mapViewHotReady && ready.hot, frame.rangeNmForMode, frame.vdRangeNm,
                   cut, cutCount, frame.vdHeadingDeg, frame.vdBaroAltFeet, frame.vdLowerFeet, frame.vdUpperFeet);
   }
+  // The column under the amber radio altitude zone of nd.html stays clear (see vd_ra_zone.h).
+  VdWipeRect wipe{};
+  if (vdRadioAltitudeZoneWipe(get_named_variable_value(instance.vdRaZoneShownVar), kVdLeft, kVdTop, kVdHeight, &wipe)) {
+    clearRect(vg, wipe.x, wipe.y, wipe.width, wipe.height);
+  }
 }
 #endif
 
@@ -721,6 +739,7 @@ static unsigned long long ndPictureKey(const Instance& instance, const NdFrame& 
   key = mixKey(key, std::lround(frame.vdRangeNm * 10.0f));
   key = mixKey(key, std::llround(frame.vdLowerFeet));
   key = mixKey(key, std::llround(frame.vdUpperFeet));
+  key = mixKey(key, get_named_variable_value(instance.vdRaZoneShownVar) > 0.5);
 #endif
   return key;
 }

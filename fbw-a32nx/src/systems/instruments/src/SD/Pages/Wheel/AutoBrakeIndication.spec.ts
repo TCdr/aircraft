@@ -22,4 +22,11 @@ describe('SD WHEEL AUTO BRK legend', () => {
     expect(autoBrake).not.toContain('ENG COMBUSTION');
     expect(autoBrake).toContain('autoBrakeIndicationClass(');
   });
+
+  it('turns amber from the BSCU autobrake fault, also once the failed autobrake has disarmed', () => {
+    const page = readFileSync(resolve(__dirname, 'Wheel.tsx'), 'utf-8');
+    const autoBrake = page.slice(page.indexOf('const AutoBrake = '), page.indexOf('const AutoBrakeLevel = '));
+    expect(autoBrake).toContain('L:A32NX_BRAKES_AUTO_BRK_FAULT');
+    expect(autoBrake).not.toContain('const autoBrakeFailed = false');
+  });
 });

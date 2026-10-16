@@ -174,6 +174,15 @@ describe('A380 fuel transfer pb-sws in the cockpit (A380_Cockpit_Behavior.xml)',
       expect(template).toContain(`<SEQ2_CODE>(${pbVar}, Bool) !</SEQ2_CODE>`);
     }
   });
+
+  it('AUTO GND XFR: toggles its L:var and shows the light computed by the FQMS (CpiomF/FuelGroundTransfer)', () => {
+    const start = cockpitBehavior.indexOf('<NODE_ID>PUSH_OVHD_AUTO_GND_XFR</NODE_ID>');
+    expect(start).toBeGreaterThan(0);
+    const template = cockpitBehavior.slice(start, cockpitBehavior.indexOf('</UseTemplate>', start));
+    expect(template).not.toContain('<INOP>');
+    expect(template).toContain('<TOGGLE_SIMVAR>L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_IS_ON</TOGGLE_SIMVAR>');
+    expect(template).toContain('<SEQ2_CODE>(L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_LIGHT_ON, Bool)</SEQ2_CODE>');
+  });
 });
 
 const ALL_PUMP_PBS_ON = () => true;
@@ -240,6 +249,19 @@ describe('A380 manual transfer lineups (FCOM DSC-28-20, DSC-28-40 MANUAL TRANSFE
       valves: [31, 34, 37, 40, 45],
       junctions: [[10, 1]],
     });
+  });
+
+  it('TRIM TK XFR FWD with TRIM TK FEED in ISOL: no trim tank pump, the trim line stays closed (l.58044-58053)', () => {
+    expect(sortedLineup(manualTransferLineup(select({ trimForward: true }), ALL_PUMP_PBS_ON, true))).toEqual({
+      pumps: [],
+      valves: [],
+      junctions: [],
+    });
+    // the other manual transfers are not isolated
+    expect(manualTransferLineup(select({ trimForward: true, inner: true }), ALL_PUMP_PBS_ON, true).pumps).toEqual([
+      L_INR_TK_AFT_PUMP.pump,
+      R_INR_TK_AFT_PUMP.pump,
+    ]);
   });
 
   it('TRIM TK XFR FWD with INR TK XFR MAN: the aft gallery goes to the feed tanks, for both', () => {

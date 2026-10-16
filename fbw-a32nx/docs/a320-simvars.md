@@ -74,6 +74,8 @@
 
 - A32NX_NO_SMOKING_MEMO
     - Boolean that determines whether the NO SMOKING memo should be visible on the upper ECAM
+    - The NO SMOKING (NO PED) signs are on: switch ON, or AUTO with a landing gear extended or the flaps/slats lever out
+      of 0, or (NO SMOKING signs only) cabin altitude above 11 300 ft
     - Also is used for knowing when to play the no smoking chime sound
 
 - A32NX_BRAKE_TEMPERATURE_{1,2,3,4}
@@ -106,7 +108,7 @@
 
 - A32NX_BRAKES_HOT
     - boolean
-    - whether one of the brakes are hot (>300°C)
+    - whether one of the brakes is hot: on above 300°C, off when the hottest brake is below 290°C
 
 - A32NX_KNOB_OVHD_AIRCOND_XBLEED_Position
     - Position (0-2)
@@ -582,6 +584,25 @@
 - A32NX_RADAR_GCS_AUTO
     - Bool
     - True if GCS switch is set to AUTO.
+
+- A32NX_WXR_GAIN_KNOB
+    - Number
+    - Weather radar GAIN knob: -1 (MIN) to +1 (MAX) in steps of 0.1, 0 = CAL (the normal position). Out of CAL the
+      native ND radar paints at the manual gain (-16 dB at MIN, +10 dB at MAX) and the ND shows MAN GAIN.
+
+- A32NX_WXR_TILT_KNOB
+    - Degrees
+    - Weather radar TILT knob, -15 to +15 in quarters of a degree. Shown on the ND with MULTISCAN set to MAN only; MSFS
+      cannot tilt the radar beam, the picture does not change.
+
+- A32NX_LOUDSPEAKER_{side}_VOLUME
+    - Percent
+    - Glareshield LOUDSPEAKER volume knob of the captain or the first officer, 0 (OFF) to 100. The COM receive volumes
+      are scaled by the louder of the two knobs (0 with both OFF); the aural alerts are not affected. Set to 100 when
+      the flight loads.
+    - {side}
+        - CAPT
+        - FO
 
 - A32NX_OXYGEN_MASKS_DEPLOYED
     - Bool
@@ -4397,6 +4418,59 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True when the channel of the fuel quantity indicating computer is failed (flyPad failures 28009/28010): FUEL FQI CH 1(2) FAULT. Written by systems-host Fuel/FuelPumpsAndValves
 
+- A32NX_FUEL_{side}_{cell}_TANK_TEMPERATURE
+  - Number in degrees Celsius
+  - {side}
+    - LEFT
+    - RIGHT
+  - {cell}
+    - INNER
+    - OUTER
+  - The fuel temperature of the wing tank cell (design model, the FCOM gives none): mixing of the transferred and refuelled fuel, heat exchange with the TAT, heating of the outer cell by the IDG cooling fuel return. Shown on the SD FUEL page while the cell holds more than 20 kg (sensor wet), with the advisory and amber limits of FCOM DSC-28-20; gives FUEL L (R) OUTER (INNER) TK HI TEMP / LO TEMP. Written by the systems WASM (fuel/fuel_temperature.rs)
+
+- A32NX_FUEL_APU_LP_VALVE_OPEN_PERCENTAGE
+  - Percent
+  - Position of the APU LP fuel valve, opened by the APU MASTER SW and closed by the APU FIRE pb (3 s travel). Written by the systems WASM (fuel/apu_lp_valve.rs)
+
+- A32NX_FUEL_APU_LP_VALVE_FAULT
+  - Bool
+  - True when the APU LP fuel valve position has disagreed with its command for more than 4 s (flyPad failure 28011 "APU LP fuel valve jammed in place"): FUEL APU LP VALVE FAULT. Jammed closed with the APU MASTER SW ON, no fuel reaches the APU. Written by the systems WASM (fuel/apu_lp_valve.rs)
+
+- A32NX_FUEL_{side}_OUTER_XFR_CLOSED
+  - Bool
+  - {side}
+    - L
+    - R
+  - True when both outer tank transfer valves of the wing (MSFS valves 6 and 4, 7 and 5) have stayed closed for more than 5 s while the inner tank low level commands them open (flyPad failure 28012/28013 "L (R) outer tank transfer valves jammed in place"): FUEL L (R) OUTER XFR CLOSED. Written by the systems host (Fuel/FuelPumpsAndValves)
+
+- A32NX_FUEL_{side}_OUTER_XFR_OPEN
+  - Bool
+  - {side}
+    - L
+    - R
+  - True when an outer tank transfer valve of the wing has stayed open for more than 5 s while the low level commands it closed (jammed valves): FUEL L (R) OUTER XFR OPEN. Written by the systems host (Fuel/FuelPumpsAndValves)
+
+- A32NX_FUEL_{side}_WING_TK_LO_LVL_SENSOR_FAULT
+  - Bool
+  - {side}
+    - L
+    - R
+  - True when the low level sensor of the wing tank is failed (flyPad failure 28014/28015): no L (R) WING TK LO LVL warning; both failed give FUEL LO LVL DET FAULT. Written by the systems host (Fuel/FuelPumpsAndValves)
+
+- A32NX_FUEL_{side}_WING_TK_OVERFLOW
+  - Bool
+  - {side}
+    - L
+    - R
+  - True when the wing tank overflows: the inner tank is full (1 815 gal) while the centre tank jet pump keeps transferring (CTR TK XFR valve open with MODE SEL MAN or jammed open, centre tank fuel, a wing tank pump running), for 10 s. Lights the CTR TK L (R) XFR pb-sw FAULT light, turns the SD inner tank quantity amber and gives FUEL L (R) WING TK OVERFLOW (FCOM DSC-28-20). Written by the systems host (Fuel/FuelPumpsAndValves)
+
+- A32NX_FUEL_{side}_WING_TK_LEAK
+  - Bool
+  - {side}
+    - L
+    - R
+  - True while the wing tank leaks (flyPad failure 28016/28017): the FADEC takes 3 000 kg/h out of the inner tank, not counted in the fuel used, which gives FUEL F. USED/FOB DISAGREE. Written by the systems host (Fuel/FuelPumpsAndValves)
+
 - A32NX_ENGINE_{number}_FUEL_CUT
   - Bool
   - {number}
@@ -5252,6 +5326,12 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - Bool
     - The autobrake failed (flyPad failure or no ADIRU) after being armed; resets when the autobrake function is back
 
+- A32NX_BRAKES_HYD_SEL_FAULT
+    - Bool
+    - The BSCU reports the brake normal selector valve failed (flyPad failure, WHEEL HYD SEL FAULT); false while both
+      BSCU channels are lost
+    - Read-Only
+
 ## Lighting (ATA 33)
 
 - `L:A32NX_LIGHTS_NAV_LOGO`
@@ -5455,6 +5535,13 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 - A32NX_GPWS_TERR_OFF
     - Boolean
     - Indicates whether the GPWS TERR pushbutton is OFF
+
+- A32NX_EGPWC_TERR_STBY
+    - Boolean
+    - The powered EGPWC lacks a valid input of its predictive functions (ADIRU 1 not aligned, or its present position,
+      altitude, true heading or vertical speed word not in normal operation): TERR STBY memo, no terrain on the NDs,
+      and the TERR ON ND pb-sws are set back to OFF
+    - Read-Only
 
 - A32NX_GPWS_SYS_OFF
     - Boolean

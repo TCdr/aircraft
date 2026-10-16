@@ -18,9 +18,15 @@ import {
   bleedAlertCodes,
   crossBleedFaultLines,
   crossBleedFaultStatus,
+  engine1And2BleedFaultLeakLines,
   engine1And2BleedFaultLines,
+  engine1And2BleedFaultStatus,
   engineBleedFaultLines,
+  engineBleedFaultNotClosedLines,
+  engineBleedFaultNotClosedStatus,
   engineBleedFaultStatus,
+  hasEngineBleedAlert,
+  isEngineBleedFaultValveNotClosed,
   engineBleedHiTempLines,
   engineBleedLoTempLines,
   engineBleedLoTempStatus,
@@ -46,6 +52,7 @@ const running: EngineBleedInputs = {
   starterValveOpen: false,
   firePbPushed: false,
   packOn: true,
+  wingOrPylonLeak: false,
 };
 
 /** Both engines running in flight, APU off, X BLEED AUTO and closed */
@@ -113,6 +120,154 @@ describe('AIR ENG 1(2) BLEED FAULT', () => {
     const shut = { ...cruise, crossBleedSelector: CrossBleedSelector.Shut, wingAntiIceOn: true, apuBleedPbOn: true };
     expect(engine1And2BleedFaultLines(shut, true)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(engine1And2BleedFaultLines(cruise, false)).toEqual([0, 3, 5, 6, 7, 8, 9, 10, 11]);
+  });
+});
+
+/* l.69942-70003: AIR ENG 1(2) BLEED FAULT with the BLEED NOT CLOSED subtitle */
+describe('AIR ENG 1(2) BLEED FAULT / BLEED NOT CLOSED', () => {
+  /** Engine 1 bleed overpressure with its valve stuck open (the BMC cannot close it) */
+  const stuckOpenFault = withEngine(cruise, 0, { overpressure: true, bleedValveOpen: true });
+
+  it('a BLEED FAULT whose bleed valve stays open (l.69953-69959)', () => {
+    expect(isEngineBleedFaultValveNotClosed(stuckOpenFault.engines[0])).toBe(true);
+    // the BMC closed the valve: the plain BLEED FAULT
+    expect(isEngineBleedFaultValveNotClosed({ ...stuckOpenFault.engines[0], bleedValveOpen: false })).toBe(false);
+    // no fault: no alert, whatever the valve
+    expect(isEngineBleedFaultValveNotClosed(running)).toBe(false);
+  });
+
+  it('replaces ENG 1 BLEED FAULT once confirmed for 10 s, the time the valve has to close', () => {
+    const alerts = new BleedAlerts();
+    const first = run(alerts, stuckOpenFault, 9.5);
+    expect(first.engineBleedFault).toEqual([true, false]);
+    expect(first.engineBleedFaultNotClosed).toEqual([false, false]);
+    const confirmed = run(alerts, stuckOpenFault, 0.6);
+    expect(confirmed.engineBleedFault).toEqual([false, false]);
+    expect(confirmed.engineBleedFaultNotClosed).toEqual([true, false]);
+    expect(activeKeys(alerts)).toEqual([BleedAlertKeys.eng1BleedFaultNotClosed]);
+  });
+
+  it('replaces the NOT CLSD alert of the same valve (its procedure sets the ENG BLEED OFF)', () => {
+    const alerts = new BleedAlerts();
+    // APU bleed ON: the engine 1 valve must close, NOT CLSD conditions too
+    const withApuBleed = { ...stuckOpenFault, apuBleedPbOn: true, apuBleedValveOpen: true };
+    const states = run(alerts, withApuBleed, 10.5);
+    expect(states.engineBleedFaultNotClosed).toEqual([true, false]);
+    expect(states.engineBleedNotClosed).toEqual([false, false]);
+  });
+
+  it('lines (l.69980-69991): ENG BLEED OFF, PACK FLOW LO if WAI off, PACK OFF, X BLEED SHUT, WAI OFF, AVOID ICING, APU BLEED OFF for engine 1', () => {
+    const apuBleedOn = { ...stuckOpenFault, apuBleedPbOn: true };
+    expect(engineBleedFaultNotClosedLines(apuBleedOn, 0)).toEqual([0, 1, 2, 3, 4, 5, 7, 8]);
+    // engine 2: no APU BLEED line
+    expect(engineBleedFaultNotClosedLines(apuBleedOn, 1)).toEqual([0, 1, 2, 3, 4, 5, 7]);
+    // wing anti-ice on: no PACK FLOW LO, WING ANTI ICE OFF
+    expect(engineBleedFaultNotClosedLines({ ...stuckOpenFault, wingAntiIceOn: true }, 0)).toEqual([
+      0, 1, 2, 4, 5, 6, 7,
+    ]);
+    // actions done: pb OFF, PACK FLOW LO, pack OFF, X BLEED SHUT
+    const done = {
+      ...withEngine(stuckOpenFault, 0, { bleedPbAuto: false, packOn: false }),
+      packFlowLo: true,
+      crossBleedSelector: CrossBleedSelector.Shut,
+    };
+    expect(engineBleedFaultNotClosedLines(done, 0)).toEqual([0, 1, 7]);
+  });
+
+  it('STATUS (l.69995-70003): the icing limitations; INOP SYS ENG 1 BLEED, PACK 1, WING A. ICE', () => {
+    expect(engineBleedFaultNotClosedStatus(0)).toEqual({
+      left: [S.avoidIcing, S.ifSevereIceAccretion, S.minSpeed, S.maneuverWithCare, S.ldgDistProc],
+      inopSys: [S.eng1Bleed, S.pack1, S.wingAntiIce],
+    });
+    expect(engineBleedFaultNotClosedStatus(1).inopSys).toEqual([S.eng2Bleed, S.pack2, S.wingAntiIce]);
+  });
+
+  it('E/WD: ENG 1 BLEED FAULT title with the amber BLEED NOT CLOSED subtitle', () => {
+    const texts = formatEwdMessages(bleedAlertCodes(BleedAlertKeys.eng1BleedFaultNotClosed, 2));
+    expect(texts[0]).toContain('ENG 1 BLEED FAULT');
+    expect(texts[1]).toContain('\x1b<4m BLEED NOT CLOSED');
+  });
+});
+
+/* l.70087-70277: AIR ENG 1+2 BLEED FAULT with the LEFT LEAK, RIGHT LEAK, LEFT LEAK AND RIGHT LEAK subtitles */
+describe('AIR ENG 1+2 BLEED FAULT / LEFT LEAK, RIGHT LEAK', () => {
+  const leftLeak = (inputs: BleedInputs) => withEngine(inputs, 0, { wingOrPylonLeak: true });
+  const rightLeak = (inputs: BleedInputs) => withEngine(inputs, 1, { wingOrPylonLeak: true });
+  const eng1Fault = withEngine(cruise, 0, { overheat: true });
+  const eng2Fault = withEngine(cruise, 1, { overpressure: true });
+
+  it('LEFT LEAK: both bleed supplies lost with a leak on side 1 (l.70098-70099)', () => {
+    const states = run(new BleedAlerts(), leftLeak(eng2Fault), 0.2);
+    expect(states.engine1And2BleedFaultLeftLeak).toBe(true);
+    expect(states.engine1And2BleedFault).toBe(false);
+    // the dual alert replaces ENG 2 BLEED FAULT
+    expect(states.engineBleedFault).toEqual([false, false]);
+  });
+
+  it('RIGHT LEAK: a leak on side 2 (l.70159-70160); LEFT LEAK AND RIGHT LEAK: on both sides (l.70232-70233)', () => {
+    expect(run(new BleedAlerts(), rightLeak(eng1Fault), 0.2).engine1And2BleedFaultRightLeak).toBe(true);
+    const both = run(new BleedAlerts(), leftLeak(rightLeak(cruise)), 0.2);
+    expect(both.engine1And2BleedFaultLeftAndRightLeak).toBe(true);
+    expect(both.engine1And2BleedFaultLeftLeak).toBe(false);
+    expect(both.engine1And2BleedFaultRightLeak).toBe(false);
+  });
+
+  it('no LEAK subtitle without a leak (l.70025-70026), no dual alert with one supply left', () => {
+    const plain = run(new BleedAlerts(), withEngine(eng1Fault, 1, { overpressure: true }), 0.2);
+    expect(plain.engine1And2BleedFault).toBe(true);
+    expect(plain.engine1And2BleedFaultLeftLeak).toBe(false);
+    // a left leak alone: the L WING LEAK alert only (BleedLeakMonitoringAlerts)
+    const oneSide = run(new BleedAlerts(), leftLeak(cruise), 0.2);
+    expect(oneSide.engine1And2BleedFaultLeftLeak).toBe(false);
+    expect(oneSide.engineBleedFault).toEqual([false, false]);
+    // a leak on the side of a stopped engine: no bleed supply to lose
+    const stopped = withEngine(rightLeak(eng1Fault), 1, { engineRunning: false, engineStopped: true });
+    expect(run(new BleedAlerts(), stopped, 0.2).engine1And2BleedFaultRightLeak).toBe(false);
+  });
+
+  it('LEFT LEAK lines (l.70105-70118): X BLEED SHUT, WAI OFF, AVOID ICING, APU BLEED OFF if ON, ENG 2 OFF THEN ON', () => {
+    const inputs = { ...leftLeak(eng2Fault), wingAntiIceOn: true, apuBleedPbOn: true };
+    expect(engine1And2BleedFaultLeakLines(inputs, 'left', false)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    const done = {
+      ...withEngine(withEngine(leftLeak(eng2Fault), 0, { bleedPbAuto: false }), 1, { bleedPbAuto: false }),
+      crossBleedSelector: CrossBleedSelector.Shut,
+    };
+    expect(engine1And2BleedFaultLeakLines(done, 'left', false)).toEqual([0, 1, 4, 6, 7, 10, 11]);
+  });
+
+  it('RIGHT LEAK asks APU BLEED OFF only for a failed APU bleed (l.70185-70188)', () => {
+    const inputs = { ...rightLeak(eng1Fault), apuBleedPbOn: true };
+    expect(engine1And2BleedFaultLeakLines(inputs, 'right', false)).toEqual([0, 1, 2, 4, 6, 7, 8, 9, 10, 11]);
+    expect(engine1And2BleedFaultLeakLines(inputs, 'right', true)).toEqual([0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11]);
+  });
+
+  it('LEFT LEAK AND RIGHT LEAK lines (l.70239-70250): no OFF THEN ON, ENG 1 and ENG 2 BLEED OFF', () => {
+    const inputs = { ...leftLeak(rightLeak(cruise)), apuBleedPbOn: true };
+    expect(engine1And2BleedFaultLeakLines(inputs, 'leftAndRight', false)).toEqual([0, 1, 2, 4, 5, 6, 7, 8, 9]);
+  });
+
+  it('the STATUS of ENG 1+2 BLEED FAULT (l.70140-70146, l.70203-70209, l.70271-70277)', () => {
+    const alerts = new BleedAlerts();
+    for (const key of [
+      BleedAlertKeys.eng1And2BleedFaultLeftLeak,
+      BleedAlertKeys.eng1And2BleedFaultRightLeak,
+      BleedAlertKeys.eng1And2BleedFaultLeftAndRightLeak,
+    ]) {
+      expect(alerts.ewdFailures[key].inopSys()).toEqual(engine1And2BleedFaultStatus().inopSys);
+      expect(alerts.ewdFailures[key].statusInfo()).toEqual(engine1And2BleedFaultStatus().left);
+    }
+  });
+
+  it('E/WD subtitles LEFT LEAK, RIGHT LEAK, LEFT LEAK AND RIGHT LEAK in amber', () => {
+    const subtitle = (key: string) => formatEwdMessages(bleedAlertCodes(key, 2))[1];
+    expect(subtitle(BleedAlertKeys.eng1And2BleedFaultLeftLeak)).toContain('\x1b<4m LEFT LEAK');
+    expect(subtitle(BleedAlertKeys.eng1And2BleedFaultRightLeak)).toContain('\x1b<4m RIGHT LEAK');
+    expect(subtitle(BleedAlertKeys.eng1And2BleedFaultLeftAndRightLeak)).toContain('\x1b<4m LEFT LEAK AND RIGHT LEAK');
+  });
+
+  it('a leak on its side inhibits BLEED 1(2) OFF, as the LEAK procedures ask for ENG BLEED OFF', () => {
+    expect(hasEngineBleedAlert(leftLeak(cruise), 0, false)).toBe(true);
+    expect(hasEngineBleedAlert(cruise, 0, false)).toBe(false);
   });
 });
 

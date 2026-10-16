@@ -155,6 +155,22 @@
     animation: tank-quantity-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
+  // Wing overflow (FCOM DSC-28-20 FUEL QUANTITY - OVERFLOW INDICATION): the inner tank quantity turns amber
+  .TankQuantityAmber {
+    fill: $display-amber;
+  }
+
+  // Wing cell fuel temperatures (FCOM DSC-28-20 FUEL TEMPERATURE INDICATION, Fuel.tsx CellTemperature)
+  .TankTemperature {
+    fill: $display-green;
+    font-size: $font-size-medium;
+    text-anchor: end;
+  }
+
+  .TankTemperatureAmber {
+    fill: $display-amber;
+  }
+
   .Unit {
     fill: $display-cyan;
     font-size: 16px;

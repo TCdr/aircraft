@@ -28,7 +28,8 @@ export interface OancMapOverlayProps {
 
   isMapPanned: Subscribable<boolean>;
 
-  airportWithinRange: Subscribable<boolean>;
+  /** The destination arrow is shown (see OancDestinationArrow) */
+  destinationArrowVisible: Subscribable<boolean>;
 
   airportBearing: Subscribable<number>;
 
@@ -83,6 +84,9 @@ export class OancMovingModeOverlay extends DisplayComponent<OancMapOverlayProps>
           rotation={this.rotationArinc429Word}
           oansRange={this.props.oansRange}
           doClip={false}
+          destinationArrowVisible={this.props.destinationArrowVisible}
+          airportBearing={this.props.airportBearing}
+          airportIcao={this.props.airportIcao}
         />
 
         <ArcModeUnderlay
@@ -92,7 +96,7 @@ export class OancMovingModeOverlay extends DisplayComponent<OancMapOverlayProps>
           oansRange={this.props.oansRange}
           doClip={false}
           yOffset={620 - 384}
-          airportWithinRange={this.props.airportWithinRange}
+          destinationArrowVisible={this.props.destinationArrowVisible}
           airportBearing={this.props.airportBearing}
           airportIcao={this.props.airportIcao}
         />
@@ -147,6 +151,9 @@ export class OancStaticModeOverlay extends DisplayComponent<OancMapOverlayProps>
           rotation={this.rotationArinc429Word}
           oansRange={this.props.oansRange}
           doClip
+          destinationArrowVisible={this.props.destinationArrowVisible}
+          airportBearing={this.props.airportBearing}
+          airportIcao={this.props.airportIcao}
         />
 
         <ArcModeUnderlay
@@ -156,7 +163,7 @@ export class OancStaticModeOverlay extends DisplayComponent<OancMapOverlayProps>
           oansRange={this.props.oansRange}
           doClip
           yOffset={0}
-          airportWithinRange={this.props.airportWithinRange}
+          destinationArrowVisible={this.props.destinationArrowVisible}
           airportBearing={this.props.airportBearing}
           airportIcao={this.props.airportIcao}
         />
