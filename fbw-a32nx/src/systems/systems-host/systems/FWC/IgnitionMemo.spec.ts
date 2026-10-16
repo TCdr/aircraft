@@ -109,8 +109,10 @@ function setHealthyCruise(bus: EventBus): void {
   simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_R_XFR_PB_IS_ON', 1);
   simvars.set('L:A32NX_FWD_DOOR_CARGO_LOCKED', 1);
   simvars.set('L:A32NX_AFT_DOOR_CARGO_LOCKED', 1);
-  // the FMGC sends the landing elevation (no CAB PR LDG ELEV FAULT)
+  // the FMGCs are healthy and send the landing elevation (no CAB PR LDG ELEV FAULT)
   simvars.set('L:A32NX_FM1_LANDING_ELEVATION', normalWord());
+  simvars.set('L:A32NX_FM1_HEALTHY_DISCRETE', 1);
+  simvars.set('L:A32NX_FM2_HEALTHY_DISCRETE', 1);
 }
 
 /** The real PseudoFWC, both FWCs powered and started */
@@ -179,5 +181,63 @@ describe('A32NX IGNITION memo in cruise (A320 FCOM DSC-70-90-50)', () => {
     run(fwc, 2);
     expect(ewdLines('RIGHT')).toContain(ENG_A_ICE);
     expect(ewdLines('RIGHT')).not.toContain(IGNITION);
+  });
+});
+
+/*
+ * CAB PR LDG ELEV FAULT through the real PseudoFWC (FCOM PRO-ABN-CAB_PR l.73186-73187; user decision 2026-10-15: only
+ * when no FMGC sends its landing elevation word, not before a destination is entered). Raw words recorded in the sim.
+ */
+describe('A32NX CAB PR LDG ELEV FAULT on the E/WD (A320 FCOM PRO-ABN-CAB_PR)', () => {
+  const LDG_ELEV_FAULT_LINE = '213123601';
+  const FMGC_NOT_STARTED = 0;
+  const NO_DESTINATION = 4294967296;
+  const DESTINATION_ENTERED = 13975420928;
+
+  function setFmgcWords(fm1RawWord: number, fm2RawWord: number): void {
+    simvars.set('L:A32NX_FM1_LANDING_ELEVATION', fm1RawWord);
+    simvars.set('L:A32NX_FM2_LANDING_ELEVATION', fm2RawWord);
+  }
+
+  it('is not shown while the FMGCs send NCD (no destination yet)', () => {
+    const { fwc, bus } = createFwc();
+    setHealthyCruise(bus);
+    setFmgcWords(NO_DESTINATION, NO_DESTINATION);
+    run(fwc, 30);
+    expect(ewdLines('LEFT')).not.toContain(LDG_ELEV_FAULT_LINE);
+  });
+
+  it('is shown once both FMGC words have been in failure for 15 s', () => {
+    const { fwc, bus } = createFwc();
+    setHealthyCruise(bus);
+    setFmgcWords(FMGC_NOT_STARTED, FMGC_NOT_STARTED);
+    run(fwc, 14);
+    expect(ewdLines('LEFT')).not.toContain(LDG_ELEV_FAULT_LINE);
+    run(fwc, 2);
+    expect(ewdLines('LEFT')).toContain(LDG_ELEV_FAULT_LINE);
+  });
+
+  it('is shown 15 s after both FMGCs lose their healthy discrete, their last normal word left on the bus', () => {
+    const { fwc, bus } = createFwc();
+    setHealthyCruise(bus);
+    setFmgcWords(DESTINATION_ENTERED, DESTINATION_ENTERED);
+    run(fwc, 5);
+    expect(ewdLines('LEFT')).not.toContain(LDG_ELEV_FAULT_LINE);
+    // AC ESS SHED lost: the FMS writes both discretes false and keeps its words (A320_Neo_CDU_MainDisplay)
+    simvars.set('L:A32NX_FM1_HEALTHY_DISCRETE', 0);
+    simvars.set('L:A32NX_FM2_HEALTHY_DISCRETE', 0);
+    run(fwc, 14);
+    expect(ewdLines('LEFT')).not.toContain(LDG_ELEV_FAULT_LINE);
+    run(fwc, 2);
+    expect(ewdLines('LEFT')).toContain(LDG_ELEV_FAULT_LINE);
+  });
+
+  it('is not shown while one FMGC stays healthy', () => {
+    const { fwc, bus } = createFwc();
+    setHealthyCruise(bus);
+    setFmgcWords(DESTINATION_ENTERED, DESTINATION_ENTERED);
+    simvars.set('L:A32NX_FM2_HEALTHY_DISCRETE', 0);
+    run(fwc, 30);
+    expect(ewdLines('LEFT')).not.toContain(LDG_ELEV_FAULT_LINE);
   });
 });
