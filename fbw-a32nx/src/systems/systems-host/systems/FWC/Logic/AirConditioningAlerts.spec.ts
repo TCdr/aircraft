@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
+import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import {
   CabinPressureAlerts,
+  LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS,
   LDG_ELEV_FAULT_KEY,
   LDG_ELEV_FAULT_PHASE_INHIBITION,
   LandingElevationFaultInputs,
@@ -11,6 +13,7 @@ import {
   cpc1And2FaultStatus,
   cpcFaultStatus,
   excessCabinAltitudeStatus,
+  isFmgcLandingElevationWordReceived,
   isLandingElevationFault,
   isRamAirOnMemoShown,
   safetyValveOpenStatus,
@@ -37,30 +40,105 @@ describe('RAM AIR ON memo', () => {
 });
 
 /* FCOM PRO-ABN-CAB_PR l.73186-73187: "This alert triggers when the LDG ELEV selector is set to AUTO and the landing field
-   elevation of the FMGS is not available." */
+   elevation of the FMGS is not available.", listed after FMGC failures only (DSC-22_20-90-10 l.26801, l.26904).
+   User decision 2026-10-15: not available = no FMGC sends the word at all, not "no destination yet" (SSM NCD). */
 describe('CAB PR LDG ELEV FAULT', () => {
+  // The raw L:A32NX_FM1(2)_LANDING_ELEVATION values recorded in the sim on 2026-10-15
+  const FMGC_NOT_STARTED = 0; // SSM failure warning, the first ~6 s after power-up
+  const NO_DESTINATION = 4294967296; // SSM no computed data
+  const DESTINATION_ENTERED = 13975420928; // SSM normal operation
+  const FAILURE_WARNING_WITH_VALUE = Arinc429Word.getRawWord(1200, Arinc429SignStatusMatrix.FailureWarning);
+
+  /** Both FMGCs as the FWC reads them: healthy unless said otherwise */
+  const received = (fm1RawWord: number, fm2RawWord: number, fm1Healthy = true, fm2Healthy = true) =>
+    isFmgcLandingElevationWordReceived(
+      { rawWord: fm1RawWord, healthy: fm1Healthy },
+      { rawWord: fm2RawWord, healthy: fm2Healthy },
+    );
+
   const inputs: LandingElevationFaultInputs = {
     ldgElevSelectorAuto: true,
     cpcOperative: true,
-    fmLandingElevationAvailable: false,
+    fmLandingElevationWordReceived: false,
   };
 
-  it('triggers with the selector at AUTO and no FMGS landing elevation', () => {
-    expect(isLandingElevationFault(inputs)).toBe(true);
+  /** Runs the alert for some seconds at the FwsManager rate (60 ms), returns whether it is active */
+  function run(alerts: CabinPressureAlerts, runInputs: LandingElevationFaultInputs, seconds: number): boolean {
+    for (let elapsed = 0; elapsed < seconds * 1000; elapsed += 60) {
+      alerts.update(runInputs, 0.06);
+    }
+    return alerts.ewdFailures[LDG_ELEV_FAULT_KEY].simVarIsActive.get();
+  }
+
+  it('reads the recorded words: NCD and normal operation are an FMGC that works, failure warning is none', () => {
+    expect(received(NO_DESTINATION, NO_DESTINATION)).toBe(true);
+    expect(received(DESTINATION_ENTERED, DESTINATION_ENTERED)).toBe(true);
+    expect(received(FMGC_NOT_STARTED, FMGC_NOT_STARTED)).toBe(false);
+    expect(received(FAILURE_WARNING_WITH_VALUE, FMGC_NOT_STARTED)).toBe(false);
+    // One FMGC is enough
+    expect(received(FMGC_NOT_STARTED, DESTINATION_ENTERED)).toBe(true);
+    expect(received(NO_DESTINATION, FMGC_NOT_STARTED)).toBe(true);
   });
 
-  it('does not trigger with an FMGS landing elevation or a manual landing elevation', () => {
-    expect(isLandingElevationFault({ ...inputs, fmLandingElevationAvailable: true })).toBe(false);
-    expect(isLandingElevationFault({ ...inputs, ldgElevSelectorAuto: false })).toBe(false);
+  it('counts an unhealthy FMGC as sending nothing, whatever its last word (FMGC lost in flight)', () => {
+    expect(received(DESTINATION_ENTERED, DESTINATION_ENTERED, false, false)).toBe(false);
+    expect(received(NO_DESTINATION, NO_DESTINATION, false, false)).toBe(false);
+    // One healthy FMGC is enough
+    expect(received(DESTINATION_ENTERED, DESTINATION_ENTERED, true, false)).toBe(true);
+    expect(received(DESTINATION_ENTERED, DESTINATION_ENTERED, false, true)).toBe(true);
+    // A healthy FMGC with a failed word still sends nothing
+    expect(received(FMGC_NOT_STARTED, DESTINATION_ENTERED, true, false)).toBe(false);
   });
 
-  it('gives way to CAB PR SYS 1+2 FAULT', () => {
-    expect(isLandingElevationFault({ ...inputs, cpcOperative: false })).toBe(false);
+  it('does not trigger before a destination is entered (FMGC words NCD)', () => {
+    const fmLandingElevationWordReceived = received(NO_DESTINATION, NO_DESTINATION);
+    expect(run(new CabinPressureAlerts(), { ...inputs, fmLandingElevationWordReceived }, 120)).toBe(false);
+  });
+
+  it('does not trigger with one FMGC in normal operation and the other failed', () => {
+    const fmLandingElevationWordReceived = received(DESTINATION_ENTERED, FMGC_NOT_STARTED);
+    expect(run(new CabinPressureAlerts(), { ...inputs, fmLandingElevationWordReceived }, 120)).toBe(false);
+  });
+
+  it(`triggers with both FMGCs unhealthy and a stale normal word, after ${LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS} s`, () => {
+    const alerts = new CabinPressureAlerts();
+    const fmLandingElevationWordReceived = received(DESTINATION_ENTERED, DESTINATION_ENTERED, false, false);
+    expect(run(alerts, { ...inputs, fmLandingElevationWordReceived }, LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS - 1)).toBe(
+      false,
+    );
+    expect(run(alerts, { ...inputs, fmLandingElevationWordReceived }, 1)).toBe(true);
+  });
+
+  it('does not trigger with one FMGC healthy (stale normal words)', () => {
+    const fmLandingElevationWordReceived = received(DESTINATION_ENTERED, DESTINATION_ENTERED, true, false);
+    expect(run(new CabinPressureAlerts(), { ...inputs, fmLandingElevationWordReceived }, 120)).toBe(false);
+  });
+
+  it(`triggers with both FMGC words in failure warning for ${LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS} s, ends at once`, () => {
+    const alerts = new CabinPressureAlerts();
+    expect(LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS).toBe(15);
+    expect(run(alerts, inputs, LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS - 1)).toBe(false);
+    expect(run(alerts, inputs, 1)).toBe(true);
+    // An FMGC back (NCD): the alert goes with the next update
+    expect(run(alerts, { ...inputs, fmLandingElevationWordReceived: true }, 0.06)).toBe(false);
+  });
+
+  it('rides through the FMGC start at power-up (6 s of failure warning, then NCD)', () => {
+    const alerts = new CabinPressureAlerts();
+    expect(run(alerts, inputs, 6)).toBe(false);
+    expect(run(alerts, { ...inputs, fmLandingElevationWordReceived: true }, 120)).toBe(false);
+  });
+
+  it('does not trigger with a manual landing elevation, and gives way to CAB PR SYS 1+2 FAULT', () => {
+    expect(isLandingElevationFault(inputs, true)).toBe(true);
+    expect(isLandingElevationFault(inputs, false)).toBe(false);
+    expect(isLandingElevationFault({ ...inputs, ldgElevSelectorAuto: false }, true)).toBe(false);
+    expect(isLandingElevationFault({ ...inputs, cpcOperative: false }, true)).toBe(false);
   });
 
   it('shows LDG ELEV ADJUST, is a caution on the PRESS page, shown in phases 1, 2 and 6 only (FCOM PDF p.4475)', () => {
     const alerts = new CabinPressureAlerts();
-    alerts.update(inputs);
+    alerts.update(inputs, LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS);
     const item = alerts.ewdFailures[LDG_ELEV_FAULT_KEY];
     expect(item.simVarIsActive.get()).toBe(true);
     expect(ewdLines(item)).toEqual(['CAB PR LDG ELEV FAULT', ' -LDG ELEV........ADJUST']);

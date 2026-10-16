@@ -264,7 +264,7 @@ import {
   cpcFaultStatus,
   excessCabinAltitudeStatus,
   isRamAirOnMemoShown,
-  readFmLandingElevationAvailable,
+  readFmLandingElevationWordReceived,
   safetyValveOpenStatus,
 } from './Logic/AirConditioningAlerts';
 import { THRUST_LOCKED_KEY, ThrustLockedAlert } from './Logic/ThrustLockedAlert';
@@ -5325,11 +5325,14 @@ export class PseudoFWC {
     this.bleedAlerts.update(readBleedInputs(), deltaTime / 1000);
 
     /* The alerts of the FCOM gap batch P4 (see their Logic modules) */
-    this.cabinPressureAlerts.update({
-      ldgElevSelectorAuto: !this.manLandingElevation.get(),
-      cpcOperative: !this.bothCpcFaultOutput.get(),
-      fmLandingElevationAvailable: readFmLandingElevationAvailable(),
-    });
+    this.cabinPressureAlerts.update(
+      {
+        ldgElevSelectorAuto: !this.manLandingElevation.get(),
+        cpcOperative: !this.bothCpcFaultOutput.get(),
+        fmLandingElevationWordReceived: readFmLandingElevationWordReceived(),
+      },
+      deltaTime / 1000,
+    );
     this.thrustLockedAlert.update(this.thrLocked.get(), deltaTime / 1000);
     this.fuelTransferAlerts.update(readFuelTransferInputs(this.fuelCtrTankModeSelMan.get()));
     this.wingAntiIceAlerts.update(readWingAntiIceInputs(), deltaTime / 1000);
