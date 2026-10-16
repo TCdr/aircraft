@@ -2212,6 +2212,12 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
 
 ## EFIS Control Panel ATA 31
 
+- A32NX_FCU_SWITCHED_OFF
+    - Boolean
+    - The FCU is switched off (A380 FCOM DSC-22-FG-80-40: the left FCU brightness knob turned to its end): the FCU model
+      shuts the EFIS CPs and the AFS CP down and the FWS raises CDS & AUTO FLT FCU SWITCHED OFF
+    - No cockpit control writes it yet
+
 - A380X_EFIS_{side}_LS_BUTTON_IS_ON
     - Boolean
     - Whether the LS button is activated
@@ -2278,6 +2284,8 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - The cursor control device ON/OFF switch of the KCCU: its ESC, KBD and navigation keys work only when ON
     - ON by default: set ON in every flight start (cold and dark included) and by the Powered aircraft preset
     - {side} = L or R
+    - A failed keyboard or cursor control device (flyPad failures CAPT/F/O KCCU keyboard, cursor control device or whole
+      KCCU, ATA 31) takes no key press either, as when OFF
 
 ## Landing Gear ATA 32
 
@@ -3191,6 +3199,19 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - Boolean
     - Disconnected pump feedback signal
     - {ENG} = 1, 2, 3, 4
+
+- A32NX_HYD_{SYSTEM}_{PUMP}_EDPUMP_OVHT
+    - Boolean
+    - The engine driven pump {PUMP} overheats. The FWS reads it as the "engine pump case drain temperature is above
+      120 C" term of HYD G (Y) SYS OVHT (FCOM PRO-ABN, a380_fcom.txt l.155436-155437)
+    - {SYSTEM}_{PUMP} = GREEN_1A, GREEN_1B, GREEN_2A, GREEN_2B, YELLOW_3A, YELLOW_3B, YELLOW_4A, YELLOW_4B
+
+- A32NX_HYD_{SYSTEM}_PUMP_{N}_SECTION_PRESSURE_SWITCH
+    - Boolean
+    - Pressure switch of the pump section {N}: 1 to 4 the engine pumps (not pressurised below 2 500 PSI, ENG PMP PRESS
+      LO, l.155038), 5 and 6 the electric pumps A and B (below 1 885 PSI, ELEC PMP FAULT, l.154993); both pressurised
+      again above 3 700 PSI
+    - {SYSTEM} = GREEN, YELLOW
 
 - A32NX_{DOOR}_DOOR_CARGO_POSITION
     - Percent

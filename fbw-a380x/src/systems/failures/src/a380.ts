@@ -360,6 +360,29 @@ export const A380Failure = Object.freeze({
   // The tail strike detector (TS only, read by the FWS, see FwsTailStrikeAlerts): no TAIL STRIKE alert, TAIL STRIKE DET
   // FAULT (a380_fcom.txt l.147371-147385)
   TailStrikeDetector: 31200,
+  // The EFIS control panels of the FCU and the EFIS CP pages of the MFD FCU backup (TS only, read by the FWS, see
+  // FwsCdsControlAlerts): CDS CAPT (F/O) EFIS CTL PNL FAULT, CAPT+F/O EFIS CTL PNLs FAULT, EFIS BKUP CTL FAULT
+  CaptEfisControlPanel: 31300,
+  FoEfisControlPanel: 31301,
+  CaptFcuBackupEfisPage: 31302,
+  FoFcuBackupEfisPage: 31303,
+  // The KCCUs (TS only): the failed part takes no key press (MsfsAvionicsCommon/Kccu.ts) and the FWS raises CDS CAPT
+  // (F/O) CURSOR CTL FAULT, KEYBOARD FAULT or CURSOR CTL+KEYBOARD FAULT (FwsCdsControlAlerts)
+  CaptKccuCursorControl: 31400,
+  CaptKccuKeyboard: 31401,
+  CaptKccu: 31402,
+  FoKccuCursorControl: 31403,
+  FoKccuKeyboard: 31404,
+  FoKccu: 31405,
+  // The recorders (TS only, read by the FWS, see FwsRecorderAlerts): RECORDER CVR / DFDR / ACCELMTR / SYS FAULT
+  CockpitVoiceRecorder: 31500,
+  FlightDataRecorder: 31501,
+  FlightDataRecorderAccelerometer: 31502,
+  FlightDataInterfaceUnit: 31503,
+
+  // The cabin emergency lighting system (TS only, read by the FWS, see FwsEmerExitLightAlerts): CABIN EMER EXIT LT
+  // FAULT
+  CabinEmergencyLighting: 33000,
 
   LgciuPowerSupply1: 32000,
   LgciuPowerSupply2: 32001,
@@ -941,6 +964,22 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [31, A380Failure.Fws2AudioFunction, 'FWS 2 Audio Function'],
   [31, A380Failure.FwsEcp, 'ECAM Control Panel'],
   [31, A380Failure.TailStrikeDetector, 'Tail strike detector'],
+  [31, A380Failure.CaptEfisControlPanel, 'CAPT EFIS control panel'],
+  [31, A380Failure.FoEfisControlPanel, 'F/O EFIS control panel'],
+  [31, A380Failure.CaptFcuBackupEfisPage, 'CAPT FCU backup EFIS page (MFD)'],
+  [31, A380Failure.FoFcuBackupEfisPage, 'F/O FCU backup EFIS page (MFD)'],
+  [31, A380Failure.CaptKccuCursorControl, 'CAPT KCCU cursor control device'],
+  [31, A380Failure.CaptKccuKeyboard, 'CAPT KCCU keyboard'],
+  [31, A380Failure.CaptKccu, 'CAPT KCCU (cursor control and keyboard)'],
+  [31, A380Failure.FoKccuCursorControl, 'F/O KCCU cursor control device'],
+  [31, A380Failure.FoKccuKeyboard, 'F/O KCCU keyboard'],
+  [31, A380Failure.FoKccu, 'F/O KCCU (cursor control and keyboard)'],
+  [31, A380Failure.CockpitVoiceRecorder, 'Cockpit voice recorder (CVR)'],
+  [31, A380Failure.FlightDataRecorder, 'Digital flight data recorder (DFDR)'],
+  [31, A380Failure.FlightDataRecorderAccelerometer, 'DFDR accelerometer'],
+  [31, A380Failure.FlightDataInterfaceUnit, 'Flight data interface unit (FDIU)'],
+
+  [33, A380Failure.CabinEmergencyLighting, 'Cabin emergency lighting system'],
 
   [32, A380Failure.LgciuPowerSupply1, 'LGCIS 1 power supply'],
   [32, A380Failure.LgciuPowerSupply2, 'LGCIS 2 power supply'],

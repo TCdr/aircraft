@@ -217,8 +217,17 @@ impl A380HydraulicReservoirFactory {
 
 pub struct A380HydraulicCircuitFactory {}
 impl A380HydraulicCircuitFactory {
-    const MIN_PRESS_EDP_SECTION_LO_HYST: f64 = 2900.0;
+    // Engine pump section pressure switch. A380 FCOM PRO-ABN HYD G (Y) ENG 1 OR 2 (3 OR 4) PMP A OR B PRESS LO
+    // (a380_fcom.txt l.155038): "Engine 1 or 2 (3 or 4) pump pressure is below 2 500 PSI". The FCOM gives no reset
+    // value: the high threshold stays the one of the system pressure switch.
+    const MIN_PRESS_EDP_SECTION_LO_HYST: f64 = 2500.0;
     const MIN_PRESS_EDP_SECTION_HI_HYST: f64 = 3700.0;
+    // Electric pump section pressure switch. A380 FCOM PRO-ABN HYD G (Y) ELEC PMP A OR (B) FAULT (a380_fcom.txt
+    // l.154993): "The electric pump pressure is below 1 885 PSI". Same high threshold as above.
+    const MIN_PRESS_ELEC_PUMP_SECTION_LO_HYST: f64 = 1885.0;
+    const MIN_PRESS_ELEC_PUMP_SECTION_HI_HYST: f64 = 3700.0;
+    // Pump sections of the electric pumps A and B in each circuit (A380ElectricPumpId::into_pump_section_index)
+    const ELEC_PUMP_SECTION_INDEXES: [usize; 2] = [4, 5];
     const MIN_PRESS_PRESSURISED_LO_HYST: f64 = 2900.0;
     const MIN_PRESS_PRESSURISED_HI_HYST: f64 = 3700.0;
     const HYDRAULIC_TARGET_PRESSURE_PSI: f64 = 5250.;
@@ -233,7 +242,7 @@ impl A380HydraulicCircuitFactory {
     pub fn new_green_circuit(context: &mut InitContext) -> HydraulicCircuit {
         let reservoir = A380HydraulicReservoirFactory::new_green_reservoir(context);
 
-        HydraulicCircuit::new(
+        let circuit = HydraulicCircuit::new(
             context,
             HydraulicColor::Green,
             6,
@@ -254,12 +263,27 @@ impl A380HydraulicCircuitFactory {
             ),
             Pressure::new::<psi>(Self::ACCUMULATOR_GAS_PRE_CHARGE_PSI),
             Volume::new::<gallon>(Self::ACCUMULATOR_MAX_VOLUME_GALLONS),
-        )
+        );
+        Self::with_electric_pump_pressure_switches(circuit)
+    }
+
+    /// The electric pump sections have their own pressure switch setting (1 885 PSI, l.154993), the engine pump
+    /// sections keep the circuit's one (2 500 PSI, l.155038).
+    fn with_electric_pump_pressure_switches(circuit: HydraulicCircuit) -> HydraulicCircuit {
+        Self::ELEC_PUMP_SECTION_INDEXES
+            .iter()
+            .fold(circuit, |circuit, &pump_index| {
+                circuit.with_pump_section_pressure_switch(
+                    pump_index,
+                    Pressure::new::<psi>(Self::MIN_PRESS_ELEC_PUMP_SECTION_LO_HYST),
+                    Pressure::new::<psi>(Self::MIN_PRESS_ELEC_PUMP_SECTION_HI_HYST),
+                )
+            })
     }
 
     pub fn new_yellow_circuit(context: &mut InitContext) -> HydraulicCircuit {
         let reservoir = A380HydraulicReservoirFactory::new_yellow_reservoir(context);
-        HydraulicCircuit::new(
+        let circuit = HydraulicCircuit::new(
             context,
             HydraulicColor::Yellow,
             6,
@@ -282,7 +306,8 @@ impl A380HydraulicCircuitFactory {
             ),
             Pressure::new::<psi>(Self::ACCUMULATOR_GAS_PRE_CHARGE_PSI),
             Volume::new::<gallon>(Self::ACCUMULATOR_MAX_VOLUME_GALLONS),
-        )
+        );
+        Self::with_electric_pump_pressure_switches(circuit)
     }
 }
 
@@ -10663,6 +10688,97 @@ mod tests {
                 .set_yellow_e_pump_a_off(true)
                 .run_waiting_for(Duration::from_millis(100));
             assert!(!test_bed.yellow_epump_a_has_fault());
+        }
+
+        /// Runs the test bed in 50 ms steps, at most `max_time`, until the pressure switch of the pump section
+        /// `section` (e.g. "HYD_GREEN_PUMP_1_SECTION") reads not pressurised. Gives the section pressure at that step,
+        /// or None if the switch never tripped.
+        fn pump_section_pressure_when_switch_trips(
+            mut test_bed: A380HydraulicsTestBed,
+            section: &str,
+            max_time: Duration,
+        ) -> Option<Pressure> {
+            let step = Duration::from_millis(50);
+            let mut elapsed = Duration::ZERO;
+            while elapsed < max_time {
+                test_bed = test_bed.run_waiting_for(step);
+                elapsed += step;
+                let pressurised: bool =
+                    test_bed.read_by_name(&format!("{}_PRESSURE_SWITCH", section));
+                if !pressurised {
+                    return Some(test_bed.read_by_name(&format!("{}_PRESSURE", section)));
+                }
+            }
+            None
+        }
+
+        /// A380 FCOM PRO-ABN HYD ENG 1 PMP A PRESS LO (a380_fcom.txt l.155038): the engine pump pressure is low below
+        /// 2 500 PSI. The pump pb-sw is set OFF and the pump section pressure decays: the switch must not trip before
+        /// the pressure is under 2 500 PSI (it tripped at 2 900 PSI before).
+        #[test]
+        fn engine_pump_section_pressure_switch_trips_below_2500_psi() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(15));
+            let pressurised: bool =
+                test_bed.read_by_name("HYD_GREEN_PUMP_1_SECTION_PRESSURE_SWITCH");
+            assert!(pressurised);
+
+            let trip_pressure = pump_section_pressure_when_switch_trips(
+                test_bed.set_green_ed_pump(false),
+                "HYD_GREEN_PUMP_1_SECTION",
+                Duration::from_secs(60),
+            )
+            .expect("the engine pump pressure switch never tripped");
+            assert_lt!(trip_pressure, Pressure::new::<psi>(2520.));
+        }
+
+        /// A380 FCOM PRO-ABN HYD ELEC PMP A FAULT (a380_fcom.txt l.154993): the electric pump pressure is low below
+        /// 1 885 PSI. The pump is stopped and its section pressure decays: the switch must not trip before the pressure
+        /// is under 1 885 PSI (it tripped at 2 900 PSI before).
+        #[test]
+        fn electric_pump_section_pressure_switch_trips_below_1885_psi() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .set_yellow_e_pump_a(true)
+                .run_waiting_for(Duration::from_secs(20));
+            let pressurised: bool =
+                test_bed.read_by_name("HYD_YELLOW_PUMP_5_SECTION_PRESSURE_SWITCH");
+            assert!(pressurised);
+
+            let trip_pressure = pump_section_pressure_when_switch_trips(
+                test_bed.set_yellow_e_pump_a(false),
+                "HYD_YELLOW_PUMP_5_SECTION",
+                Duration::from_secs(60),
+            )
+            .expect("the electric pump pressure switch never tripped");
+            assert_lt!(trip_pressure, Pressure::new::<psi>(1905.));
+        }
+
+        /// The engine pump overheat is written for the FWS (HYD SYS OVHT, a380_fcom.txt l.155436-155437: "an engine
+        /// pump case drain temperature is above 120 C")
+        #[test]
+        fn engine_pump_overheat_is_written() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(5));
+            let overheat: bool = test_bed.read_by_name("HYD_GREEN_1A_EDPUMP_OVHT");
+            assert!(!overheat);
+
+            test_bed.fail(FailureType::EnginePumpOverheat(
+                AirbusEngineDrivenPumpId::Edp1a,
+            ));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(60));
+            let overheat: bool = test_bed.read_by_name("HYD_GREEN_1A_EDPUMP_OVHT");
+            assert!(overheat);
         }
 
         #[test]

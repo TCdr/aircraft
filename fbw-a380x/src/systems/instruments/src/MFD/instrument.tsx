@@ -131,6 +131,7 @@ class MfdInstrument implements FsInstrument {
         bus={this.bus}
         fmcService={this.fmcService}
         atcService={this.atcService}
+        isFailureActive={(id) => this.failuresConsumer.isActive(id)}
       />,
       document.getElementById('MFD_LEFT_PARENT_DIV'),
     );
@@ -141,6 +142,7 @@ class MfdInstrument implements FsInstrument {
         bus={this.bus}
         fmcService={this.fmcService}
         atcService={this.atcService}
+        isFailureActive={(id) => this.failuresConsumer.isActive(id)}
       />,
       document.getElementById('MFD_RIGHT_PARENT_DIV'),
     );

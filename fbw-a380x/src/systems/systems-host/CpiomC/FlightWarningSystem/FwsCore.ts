@@ -210,7 +210,12 @@ import {
   isDisplayUnitPowered,
 } from '@shared/CdsDisplayUnits';
 import { DcElectricalBus } from '@shared/electrical';
-import { isEnginePumpsTurnOffUnsuccessful } from './HydOverheatFlags';
+import { isEnginePumpsTurnOffUnsuccessful, isHydSystemOverheat } from './HydOverheatFlags';
+import { efisControlAlerts, kccuAlerts } from './FwsCdsControlAlerts';
+import { kccuFailureState } from '../../../instruments/src/MsfsAvionicsCommon/Kccu';
+import { recorderAlerts } from './FwsRecorderAlerts';
+import { isCabinEmerExitLightFault } from './FwsEmerExitLightAlerts';
+import { NonSensedProcAutoDeactivation } from './FwsNonSensedAutoDeactivation';
 import { isToConfigNormal } from './ToConfigNormal';
 import { EcamClearHistory, FlightPhaseInhibitOverride, recallAll, RECALL_NORMAL_MEMO_MS } from './FwsRecall';
 import { FwsGearAlerts } from './FwsGearAlerts';
@@ -2617,6 +2622,41 @@ export class FwsCore {
 
   public readonly tailStrikeDetFault = Subject.create(false);
 
+  /** CDS & AUTO FLT FCU SWITCHED OFF, see FwsCdsControlAlerts */
+  public readonly fcuSwitchedOff = Subject.create(false);
+
+  /** CDS CAPT (F/O) EFIS CTL PNL FAULT, CAPT+F/O EFIS CTL PNLs FAULT, EFIS BKUP CTL FAULT, see FwsCdsControlAlerts */
+  public readonly efisCtlPnlFault = [Subject.create(false), Subject.create(false)];
+
+  public readonly efisCtlPnlsBothFault = Subject.create(false);
+
+  public readonly efisBkupCtlFault = [Subject.create(false), Subject.create(false)];
+
+  /** INOP SYS CAPT (F/O) EFIS CTL PNL */
+  public readonly efisCtlPnlInop = [Subject.create(false), Subject.create(false)];
+
+  /** CDS CAPT (F/O) CURSOR CTL FAULT, CURSOR CTL+KEYBOARD FAULT, KEYBOARD FAULT, see FwsCdsControlAlerts */
+  public readonly kccuCursorCtlFault = [Subject.create(false), Subject.create(false)];
+
+  public readonly kccuCursorCtlKeyboardFault = [Subject.create(false), Subject.create(false)];
+
+  public readonly kccuKeyboardFault = [Subject.create(false), Subject.create(false)];
+
+  /** RECORDER ACCELMTR, CVR, DFDR and SYS FAULT, see FwsRecorderAlerts */
+  public readonly recorderAccelmtrFault = Subject.create(false);
+
+  public readonly recorderCvrFault = Subject.create(false);
+
+  public readonly recorderDfdrFault = Subject.create(false);
+
+  public readonly recorderSysFault = Subject.create(false);
+
+  /** CABIN EMER EXIT LT FAULT, see FwsEmerExitLightAlerts */
+  public readonly cabinEmerExitLtFault = Subject.create(false);
+
+  /** Automatic deactivation of the not-sensed ABN PROCs, see FwsNonSensedAutoDeactivation */
+  private readonly nonSensedProcAutoDeactivation = new NonSensedProcAutoDeactivation();
+
   public readonly flapsIndex = Subject.create(0);
 
   private stallWarningRaw = ConsumerValue.create(this.sub.on('stall_warning_on'), false);
@@ -3592,6 +3632,7 @@ export class FwsCore {
           this.init();
           this.normalChecklists.reset(null);
           this.abnormalNonSensed.reset();
+          this.nonSensedProcAutoDeactivation.reset();
           this.activeDeferredProceduresList.clear();
           this.abnormalSensed.reset();
           this.presentedAbnormalProceduresList.clear();
@@ -4545,8 +4586,14 @@ export class FwsCore {
     this.yellowAbnormLoPressure.set(yellowAbnormLoPressure);
     this.greenYellowAbnormLoPressure.set(greenAbnormLoPressure && yellowAbnormLoPressure);
 
-    // fixme OVHT signal should come from HSMU
-    this.yellowRsvOverheat.set(SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_RESERVOIR_OVHT', 'bool'));
+    // HYD G (Y) SYS OVHT: reservoir or an engine pump case drain overheat (FCOM l.155436-155437, HydOverheatFlags)
+    const enginePumpOverheat = (pump: string) => SimVar.GetSimVarValue(`L:A32NX_HYD_${pump}_EDPUMP_OVHT`, 'bool') > 0;
+    this.yellowRsvOverheat.set(
+      isHydSystemOverheat(
+        SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_RESERVOIR_OVHT', 'bool') > 0,
+        ['YELLOW_3A', 'YELLOW_3B', 'YELLOW_4A', 'YELLOW_4B'].map(enginePumpOverheat),
+      ),
+    );
     const yellowHydralicRsvLoAirPressure = SimVar.GetSimVarValue(
       'L:A32NX_HYD_YELLOW_RESERVOIR_AIR_PRESSURE_IS_LOW',
       'bool',
@@ -4555,7 +4602,12 @@ export class FwsCore {
     this.yellowRsvLoLevel.set(SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_RESERVOIR_LEVEL_IS_LOW', 'bool'));
     this.greenRsvLoLevel.set(SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_RESERVOIR_LEVEL_IS_LOW', 'bool'));
 
-    this.greenRsvOverheat.set(SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_RESERVOIR_OVHT', 'bool'));
+    this.greenRsvOverheat.set(
+      isHydSystemOverheat(
+        SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_RESERVOIR_OVHT', 'bool') > 0,
+        ['GREEN_1A', 'GREEN_1B', 'GREEN_2A', 'GREEN_2B'].map(enginePumpOverheat),
+      ),
+    );
     this.greenRsvLoAirPressure.set(
       SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_RESERVOIR_AIR_PRESSURE_IS_LOW', 'bool') &&
         !this.greenYellowAbnormLoPressure.get(),
@@ -4572,7 +4624,10 @@ export class FwsCore {
     this.yellowAPumpAuto.set(yellowAPumpAuto);
     this.yellowBPumpAuto.set(yellowBPumpAuto);
 
-    // fixme add fault signal condition of elec pump fault when implemented
+    // HYD G (Y) ELEC PMP A (B) FAULT (A380 FCOM l.154989-154993): "The electric pump is failed, or the temperature of
+    // the electric pump motor is above 180 C, or the electric pump pressure is below 1 885 PSI". EPUMP_LOW_PRESS is the
+    // pump section pressure switch (1 885 PSI, a380 hydraulic mod.rs) while the pump should run, which a failed (stopped)
+    // pump also gives; EPUMP_OVHT is the motor overheat.
     const greenAPumpLoPress = SimVar.GetSimVarValue('L:A32NX_HYD_GA_EPUMP_LOW_PRESS', 'bool');
     const greenAPumpOverheat = SimVar.GetSimVarValue('L:A32NX_HYD_GA_EPUMP_OVHT', 'bool');
     this.greenAPumpLoPressConfNode.write(greenAPumpLoPress, deltaTime);
@@ -4632,11 +4687,11 @@ export class FwsCore {
         !this.eng1APumpAuto.get(),
       deltaTime,
     );
-    const eng1APumpBelow2900 = !SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_PUMP_1_SECTION_PRESSURE_SWITCH', 'bool');
+    const eng1APumpBelow2500 = !SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_PUMP_1_SECTION_PRESSURE_SWITCH', 'bool');
     this.eng1APumpFault.set(
       this.eng1APumpOffConfirmationNode.read() ||
         (this.engine1Running.get() &&
-          eng1APumpBelow2900 &&
+          eng1APumpBelow2500 &&
           !this.greenYellowAbnormLoPressure.get() &&
           !this.greenRsvOverheat.get()),
     );
@@ -4649,20 +4704,20 @@ export class FwsCore {
         !this.eng1BPumpAuto.get(),
       deltaTime,
     );
-    const eng1BPumpBelow2900 = !SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_PUMP_2_SECTION_PRESSURE_SWITCH', 'bool');
+    const eng1BPumpBelow2500 = !SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_PUMP_2_SECTION_PRESSURE_SWITCH', 'bool');
     this.eng1BPumpFault.set(
       this.eng1BPumpOffConfirmationNode.read() ||
         (this.engine1Running.get() &&
-          eng1BPumpBelow2900 &&
+          eng1BPumpBelow2500 &&
           !this.greenYellowAbnormLoPressure.get() &&
           !this.greenRsvOverheat.get()),
     );
     this.eng1PumpsOffUnsuccessful.set(
       isEnginePumpsTurnOffUnsuccessful(
         this.eng1APumpAuto.get(),
-        !eng1APumpBelow2900,
+        !eng1APumpBelow2500,
         this.eng1BPumpAuto.get(),
-        !eng1BPumpBelow2900,
+        !eng1BPumpBelow2500,
       ),
     );
 
@@ -4679,11 +4734,11 @@ export class FwsCore {
       deltaTime,
     );
 
-    const eng2APumpBelow2900 = !SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_PUMP_3_SECTION_PRESSURE_SWITCH', 'bool');
+    const eng2APumpBelow2500 = !SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_PUMP_3_SECTION_PRESSURE_SWITCH', 'bool');
     this.eng2APumpFault.set(
       this.eng2APumpOffConfirmationNode.read() ||
         (this.engine2Running.get() &&
-          eng2APumpBelow2900 &&
+          eng2APumpBelow2500 &&
           !this.greenYellowAbnormLoPressure.get() &&
           !this.greenRsvOverheat.get()),
     );
@@ -4697,20 +4752,20 @@ export class FwsCore {
       deltaTime,
     );
 
-    const eng2BPumpBelow2900 = !SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_PUMP_4_SECTION_PRESSURE_SWITCH', 'bool');
+    const eng2BPumpBelow2500 = !SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_PUMP_4_SECTION_PRESSURE_SWITCH', 'bool');
     this.eng2BPumpFault.set(
       this.eng2BPumpOffConfirmationNode.read() ||
         (this.engine2Running.get() &&
-          eng2BPumpBelow2900 &&
+          eng2BPumpBelow2500 &&
           !this.greenYellowAbnormLoPressure.get() &&
           !this.greenRsvOverheat.get()),
     );
     this.eng2PumpsOffUnsuccessful.set(
       isEnginePumpsTurnOffUnsuccessful(
         this.eng2APumpAuto.get(),
-        !eng2APumpBelow2900,
+        !eng2APumpBelow2500,
         this.eng2BPumpAuto.get(),
-        !eng2BPumpBelow2900,
+        !eng2BPumpBelow2500,
       ),
     );
 
@@ -4728,11 +4783,11 @@ export class FwsCore {
     this.eng3BPumpAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_3B_PUMP_PB_IS_AUTO', 'bool'));
     this.eng3PumpDisc.set(SimVar.GetSimVarValue('L:A32NX_HYD_ENG_3AB_PUMP_DISC', 'bool'));
 
-    const eng3APumpBelow2900 = !SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_PUMP_1_SECTION_PRESSURE_SWITCH', 'bool');
+    const eng3APumpBelow2500 = !SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_PUMP_1_SECTION_PRESSURE_SWITCH', 'bool');
     this.eng3APumpFault.set(
       this.eng3APumpOffConfirmationNode.read() ||
         (this.engine3Running.get() &&
-          eng3APumpBelow2900 &&
+          eng3APumpBelow2500 &&
           !this.greenYellowAbnormLoPressure.get() &&
           !this.yellowRsvOverheat.get()),
     );
@@ -4746,20 +4801,20 @@ export class FwsCore {
       deltaTime,
     );
 
-    const eng3BPumpBelow2900 = !SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_PUMP_2_SECTION_PRESSURE_SWITCH', 'bool');
+    const eng3BPumpBelow2500 = !SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_PUMP_2_SECTION_PRESSURE_SWITCH', 'bool');
     this.eng3BPumpFault.set(
       this.eng3BPumpOffConfirmationNode.read() ||
         (this.engine3Running.get() &&
-          eng3BPumpBelow2900 &&
+          eng3BPumpBelow2500 &&
           !this.greenYellowAbnormLoPressure.get() &&
           !this.yellowRsvOverheat.get()),
     );
     this.eng3PumpsOffUnsuccessful.set(
       isEnginePumpsTurnOffUnsuccessful(
         this.eng3APumpAuto.get(),
-        !eng3APumpBelow2900,
+        !eng3APumpBelow2500,
         this.eng3BPumpAuto.get(),
-        !eng3BPumpBelow2900,
+        !eng3BPumpBelow2500,
       ),
     );
 
@@ -4776,12 +4831,12 @@ export class FwsCore {
       deltaTime,
     );
 
-    const eng4APumpBelow2900 = !SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_PUMP_3_SECTION_PRESSURE_SWITCH', 'bool');
+    const eng4APumpBelow2500 = !SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_PUMP_3_SECTION_PRESSURE_SWITCH', 'bool');
 
     this.eng4APumpFault.set(
       this.eng4APumpOffConfirmationNode.read() ||
         (this.engine4Running &&
-          eng4APumpBelow2900 &&
+          eng4APumpBelow2500 &&
           !this.greenYellowAbnormLoPressure &&
           !this.yellowRsvOverheat.get()),
     );
@@ -4795,25 +4850,25 @@ export class FwsCore {
       deltaTime,
     );
 
-    const eng4BPumpBelow2900 = !SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_PUMP_4_SECTION_PRESSURE_SWITCH', 'bool');
+    const eng4BPumpBelow2500 = !SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_PUMP_4_SECTION_PRESSURE_SWITCH', 'bool');
     this.eng4BPumpFault.set(
       this.eng4BPumpOffConfirmationNode.read() ||
         (this.engine4Running.get() &&
-          eng4BPumpBelow2900 &&
+          eng4BPumpBelow2500 &&
           !this.greenYellowAbnormLoPressure.get() &&
           !this.yellowRsvOverheat.get()),
     );
     this.eng4PumpsOffUnsuccessful.set(
       isEnginePumpsTurnOffUnsuccessful(
         this.eng4APumpAuto.get(),
-        !eng4APumpBelow2900,
+        !eng4APumpBelow2500,
         this.eng4BPumpAuto.get(),
-        !eng4BPumpBelow2900,
+        !eng4BPumpBelow2500,
       ),
     );
 
     this.threeYellowPumpsFailed.set(
-      [eng3APumpBelow2900, eng3BPumpBelow2900, eng4APumpBelow2900, eng4BPumpBelow2900].filter((v) => v).length > 3,
+      [eng3APumpBelow2500, eng3BPumpBelow2500, eng4APumpBelow2500, eng4BPumpBelow2500].filter((v) => v).length > 3,
     );
 
     // ENG PMP PRESS LO STATUS: INOP SYS with two or more pumps of the system failed, REDUND LOSS with one (HydPumpStatus)
@@ -5073,6 +5128,58 @@ export class FwsCore {
     });
     this.tailStrike.set(tailStrikeState.tailStrike);
     this.tailStrikeDetFault.set(tailStrikeState.detectorFault);
+
+    // CDS control alerts: FCU switched off, EFIS CPs and FCU backup, KCCUs (FwsCdsControlAlerts)
+    const failureActive = (failure: number) => this.failuresConsumer.isActive(failure);
+    this.fcuSwitchedOff.set(SimVar.GetSimVarValue('L:A32NX_FCU_SWITCHED_OFF', SimVarValueType.Bool) > 0);
+    const efisControl = efisControlAlerts({
+      controlPanelFailed: [
+        failureActive(A380Failure.CaptEfisControlPanel),
+        failureActive(A380Failure.FoEfisControlPanel),
+      ],
+      backupPageFailed: [
+        failureActive(A380Failure.CaptFcuBackupEfisPage),
+        failureActive(A380Failure.FoFcuBackupEfisPage),
+      ],
+      backupPowered: [this.dcESSBusPowered.get(), this.dc2BusPowered.get()],
+    });
+    this.efisCtlPnlsBothFault.set(efisControl.bothControlPanelsFault);
+    (['L', 'R'] as const).forEach((side, index) => {
+      this.efisCtlPnlFault[index].set(efisControl.controlPanelFault[index]);
+      this.efisBkupCtlFault[index].set(efisControl.backupControlFault[index]);
+      this.efisCtlPnlInop[index].set(efisControl.inopControlPanel[index]);
+      const kccu = kccuAlerts(kccuFailureState(side, failureActive));
+      this.kccuCursorCtlFault[index].set(kccu.cursorControlFault);
+      this.kccuCursorCtlKeyboardFault[index].set(kccu.cursorControlAndKeyboardFault);
+      this.kccuKeyboardFault[index].set(kccu.keyboardFault);
+    });
+
+    // RECORDER alerts (FwsRecorderAlerts) and CABIN EMER EXIT LT FAULT (FwsEmerExitLightAlerts)
+    const recorders = recorderAlerts({
+      cockpitVoiceRecorder: failureActive(A380Failure.CockpitVoiceRecorder),
+      flightDataRecorder: failureActive(A380Failure.FlightDataRecorder),
+      accelerometer: failureActive(A380Failure.FlightDataRecorderAccelerometer),
+      flightDataInterfaceUnit: failureActive(A380Failure.FlightDataInterfaceUnit),
+    });
+    this.recorderAccelmtrFault.set(recorders.accelerometerFault);
+    this.recorderCvrFault.set(recorders.cvrFault);
+    this.recorderDfdrFault.set(recorders.dfdrFault);
+    this.recorderSysFault.set(recorders.systemFault);
+    this.cabinEmerExitLtFault.set(isCabinEmerExitLightFault(failureActive(A380Failure.CabinEmergencyLighting)));
+
+    // Automatic deactivation of the not-sensed ABN PROCs (FwsNonSensedAutoDeactivation)
+    if (
+      this.nonSensedProcAutoDeactivation.update(
+        deltaTime,
+        this.engine1Running.get() ||
+          this.engine2Running.get() ||
+          this.engine3Running.get() ||
+          this.engine4Running.get(),
+        this.aircraftOnGround.get(),
+      )
+    ) {
+      this.activeAbnormalNonSensedKeys.clear();
+    }
 
     // General logic
     const mainGearDownlocked =

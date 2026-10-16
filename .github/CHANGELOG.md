@@ -683,6 +683,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ELEC] The emergency generator couples to the network 3 s after its output is normal - @TCdr
 1. [A32NX/ECAM] With the ECAM control panel failed, the ALL, STS and CLR pushbuttons still select, page and clear the SD pages through their hardwired contacts, as in the FCOM - @TCdr
 1. [A32NX/FWC] ENG ALL ENGINES FAILURE always shows -FAC 1 OFF THEN ON, as in the FCOM, not only when FAC 1 has failed - @TCdr
+1. [A380X/HYD] The engine pump pressure switches read low below 2 500 PSI (ENG PMP PRESS LO) and the electric pump ones below 1 885 PSI (ELEC PMP FAULT), as in the FCOM, instead of 2 900 PSI - @TCdr
+1. [A380X/FWS] HYD G (Y) SYS OVHT is also raised by an overheating engine pump (case drain), not only by the reservoir - @TCdr
+1. [A380X/FWS] New CDS EFIS CTL PNL, CAPT+F/O EFIS CTL PNLs and EFIS BKUP CTL FAULT alerts from new flyPad failures of the EFIS control panels and of the FCU backup EFIS pages, CDS & AUTO FLT FCU SWITCHED OFF when the FCU is switched off, and the EWD, F/O PFD and F/O ND DU NOT MONITORED titles fixed - @TCdr
+1. [A380X/FWS] New flyPad failures of the KCCUs (cursor control device, keyboard or whole KCCU per side): the failed part takes no key press and the CDS CURSOR CTL, KEYBOARD or CURSOR CTL+KEYBOARD FAULT alert is raised - @TCdr
+1. [A380X/FWS] New RECORDER CVR, DFDR, ACCELMTR and SYS FAULT and CABIN EMER EXIT LT FAULT alerts from new flyPad failures - @TCdr
+1. [A380X/FWS] Activated not-sensed ABN PROCs are deactivated 15 min after the last engine shutdown and 10 min after power-up, on ground - @TCdr
 
 ## 2024.1.0
 
