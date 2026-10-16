@@ -655,6 +655,13 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (36_075, FailureType::WingBleedLeak(2)),
         (36_076, FailureType::WingBleedLeak(3)),
         (36_077, FailureType::WingBleedLeak(4)),
+        // The leaks of the APU duct, the pack bays, the hot-air ducts and the forward cargo duct (DSC-36-10-60)
+        (36_080, FailureType::ApuBleedLeak),
+        (36_081, FailureType::PackBayLeak(1)),
+        (36_082, FailureType::PackBayLeak(2)),
+        (36_083, FailureType::HotAirDuctLeak(1)),
+        (36_084, FailureType::HotAirDuctLeak(2)),
+        (36_085, FailureType::FwdCargoBleedDuctLeak),
         (34_070, FailureType::AdrFault(1)),
         (34_071, FailureType::AdrFault(2)),
         (34_072, FailureType::AdrFault(3)),

@@ -76,6 +76,8 @@ pub struct TrimAirDriveDevice<const ZONES: usize, const ENGINES: usize> {
     stand_by_channel: OperatingChannel,
     hot_air_is_enabled: [bool; 2],
     hot_air_is_open: [bool; 2],
+    /// The bleed leak detection closes the hot-air valve (PneumaticBleed::hot_air_valve_closed_by_leak)
+    hot_air_closed_by_leak: [bool; 2],
     taprv_open_disagrees: [bool; 2],
     taprv_open_timer: [Duration; 2],
     taprv_closed_disagrees: [bool; 2],
@@ -142,6 +144,7 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirDriveDevice<ZONES, ENGINES
             ),
             hot_air_is_enabled: [false; 2],
             hot_air_is_open: [false; 2],
+            hot_air_closed_by_leak: [false; 2],
             taprv_open_disagrees: [false; 2],
             taprv_open_timer: [Duration::ZERO; 2],
             taprv_closed_disagrees: [false; 2],
@@ -165,10 +168,15 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirDriveDevice<ZONES, ENGINES
     ) {
         self.fault_determination();
 
+        // A380 FCOM DSC-36-10-60 (a380_fcom.txt l.94127-94132, l.94220-94237): a leak in the hot-air
+        // ducts, or in the pack bay of pack 1(2), closes the hot-air valve 1(2)
+        self.hot_air_closed_by_leak = [1, 2].map(|id| pneumatic.hot_air_valve_closed_by_leak(id));
         self.hot_air_is_enabled = [1, 2].map(|id| {
             self.trim_air_pressure_regulating_valve_status_determination(
                 acs_overhead,
-                should_close_taprv[id - 1],
+                should_close_taprv[id - 1]
+                    || self.hot_air_closed_by_leak[id - 1]
+                    || pneumatic.pack_valves_closed_by_leak(id),
                 id,
                 pneumatic,
             )
@@ -289,11 +297,14 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirDriveDevice<ZONES, ENGINES
     }
 
     /// The HOT AIR 1(2) pb FAULT light: an overheat is detected in a duct fed by that hot-air valve
-    /// (A380 FCOM DSC-21-10-20 HOT AIR pb, a380_fcom.txt:5636-5645)
+    /// (A380 FCOM DSC-21-10-20 HOT AIR pb, a380_fcom.txt:5636-5645), or the bleed leak detection
+    /// closes that hot-air valve: the local light of AIR HOT AIR 1(2) LEAK and AIR FWD CARGO DUCT
+    /// LEAK (PRO-ABN, a380_fcom.txt:168341-168346, 168411-168416)
     pub fn hot_air_pushbutton_has_fault(&self, hot_air_id: usize) -> bool {
-        (0..ZONES).any(|id| {
-            self.duct_overheat[id] && hot_air_valve_feeding_zone(self.zones[id]) == hot_air_id
-        })
+        self.hot_air_closed_by_leak[hot_air_id - 1]
+            || (0..ZONES).any(|id| {
+                self.duct_overheat[id] && hot_air_valve_feeding_zone(self.zones[id]) == hot_air_id
+            })
     }
 
     fn fault_determination(&mut self) {
@@ -326,9 +337,11 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirDriveDevice<ZONES, ENGINES
         hot_air_id: usize,
         pneumatic: &impl PackFlowValveState,
     ) -> bool {
+        // Any pack flow valve open, as the A320 rule this comes from: the four valves of the two
+        // packs (only the two of pack 1 were read, so a pack 1 leak closed both hot-air valves)
         acs_overhead.hot_air_pushbutton_is_on(hot_air_id)
             && !self.active_channel.has_fault()
-            && (pneumatic.pack_flow_valve_is_open(1) || pneumatic.pack_flow_valve_is_open(2))
+            && (1..=4).any(|fcv_id| pneumatic.pack_flow_valve_is_open(fcv_id))
             && !should_close_taprv
         // No automatic closure on a duct overheat or a jammed trim air valve: the A380 FCOM has the crew set the HOT
         // AIR pb OFF in COND DUCT OVHT (a380_fcom.txt:132599-132623), and a jammed trim air valve leaves both

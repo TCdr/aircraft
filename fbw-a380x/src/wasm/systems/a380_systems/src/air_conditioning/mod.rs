@@ -219,6 +219,14 @@ impl A380AirConditioning {
             .for_each(|cpiom| cpiom.update_cpcs_ambient_conditions(context, adirs));
     }
 
+    /// The hot-air valve 1(2) (trim air pressure regulating valve) is open: its hot-air ducts are
+    /// pressurised (the hot-air duct leaks of the bleed leak detection, pneumatic.rs)
+    pub(crate) fn hot_air_valve_is_open(&self, hot_air_id: usize) -> bool {
+        self.a380_air_conditioning_system
+            .tadd
+            .trim_air_pressure_regulating_valve_is_open(hot_air_id)
+    }
+
     pub(crate) fn fcv_to_pack_id(fcv_id: usize) -> usize {
         match fcv_id {
             1 | 2 => 0,
@@ -394,6 +402,8 @@ pub(super) struct A380AirConditioningSystem {
     // Temporary structure until packs are simulated
     packs: [AirConditioningPack; 2],
     trim_air_system: TrimAirSystem<18, 4>,
+    /// A leak is detected in the bay of pack 1(2) (PneumaticBleed::pack_valves_closed_by_leak)
+    pack_bay_leak: [bool; 2],
 
     air_conditioning_overhead: A380AirConditioningSystemOverhead,
 }
@@ -487,6 +497,7 @@ impl A380AirConditioningSystem {
                 Volume::new::<cubic_meter>(0.2),
             )
             .with_hot_air_valve_per_zone(cabin_zones.map(hot_air_valve_feeding_zone)),
+            pack_bay_leak: [false; 2],
 
             air_conditioning_overhead: A380AirConditioningSystemOverhead::new(context),
         }
@@ -527,6 +538,7 @@ impl A380AirConditioningSystem {
 
         self.update_cargo_heater(cabin_simulation, cpiom_b);
 
+        self.pack_bay_leak = [1, 2].map(|pack| pneumatic.pack_valves_closed_by_leak(pack));
         self.update_overhead();
     }
 
@@ -685,10 +697,16 @@ impl A380AirConditioningSystem {
             ]);
     }
 
+    /// The PACK 1(2) pb FAULT light, also "when there is a bleed leak on one pack" (A380 FCOM
+    /// DSC-21-10-20, a380_fcom.txt l.5616-5627)
     fn pack_fault_determination(&self) -> [bool; 2] {
         [
-            self.fdac[0].fcv_status_determination(1) || self.fdac[0].fcv_status_determination(2),
-            self.fdac[1].fcv_status_determination(3) || self.fdac[1].fcv_status_determination(4),
+            self.fdac[0].fcv_status_determination(1)
+                || self.fdac[0].fcv_status_determination(2)
+                || self.pack_bay_leak[0],
+            self.fdac[1].fcv_status_determination(3)
+                || self.fdac[1].fcv_status_determination(4)
+                || self.pack_bay_leak[1],
         ]
     }
 

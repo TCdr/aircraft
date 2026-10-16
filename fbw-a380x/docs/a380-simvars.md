@@ -2738,6 +2738,59 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - A bleed leak in the wing zone is detected (above 124 °C, FCOM DSC-36-10-60). The zone goes with the engine 1, 2, 3
     or 4: its ENG BLEED pb-sw holds it, and it closes the bleed valve of that engine as the pylon leak does
 
+- A32NX_PNEU_APU_BLEED_LEAK
+  - Bool
+  - A leak of the APU bleed duct is detected (above 124 °C, FCOM DSC-36-10-60, AIR APU BLEED LEAK). Held while the APU
+    BLEED pb-sw is ON (its FAULT light); it closes the APU bleed valve and the APU isolation valve. Written by the systems
+    WASM (a380_systems pneumatic.rs)
+
+- A32NX_PNEU_PACK_{number}_LEAK
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - A leak in the pack bay is detected (above 124 °C, AIR PACK 1(2) LEAK). Held while the PACK pb-sw is ON (its FAULT
+    light); it closes the two pack valves of the pack and the hot-air valve of the same number
+
+- A32NX_PNEU_HOT_AIR_{number}_LEAK
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - A leak of the hot-air ducts of the hot-air valve is detected (above 124 °C, AIR HOT AIR 1(2) LEAK). Held while the
+    HOT AIR pb-sw is ON (its FAULT light); it closes that hot-air valve
+
+- A32NX_PNEU_FWD_CARGO_DUCT_LEAK
+  - Bool
+  - A leak of the forward cargo bleed duct is detected (above 124 °C, AIR FWD CARGO DUCT LEAK). Held while the HOT AIR 1
+    pb-sw is ON (its FAULT light); it closes the hot-air valve 1
+
+- A32NX_PNEU_ENG_{number}_OVERPRESSURE_VALVE_CLOSED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The overpressure valve downstream of the engine bleed valve is closed: it closes above 85 PSI and opens again below
+    55 PSI (FCOM DSC-36-10-20), e.g. with a bleed valve stuck open at high power
+
+- A32NX_PNEU_XBLEED_VALVE_{valve}_AUTO_CONTROL_LOST
+  - Bool
+  - {valve}
+    - L
+    - C
+    - R
+  - The crossbleed valve no longer gets the AUTO logic: both CPIOM-A of its pair are lost (CPIOM-A1/A2 for the left
+    valve, A3/A4 for the center and right valves). The XBLEED selector OPEN/CLOSE still moves it. For AIR XBLEED FAULT
+    ("Is no longer controlled automatically by the bleed controller")
+
+- A32NX_ASU_TURNED_ON
+  - Bool
+  - An HP ground air cart is connected and supplies air (flyPad Ground > Services, Air Starter Unit). Read by the systems
+    WASM: the air enters the bleed ducts on the engine 1 side through the non-return valve of the HP ground connector
+    (FCOM DSC-36-10-40)
+
 ## Integrated Modular Avionics ATA 42
 
 -A32NX_AFDX_<SOURCE_ID>_<DESTINATION_ID>_REACHABLE

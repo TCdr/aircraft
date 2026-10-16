@@ -612,6 +612,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New WHEEL HYD SEL FAULT caution with a new flyPad failure of the brake normal selector valve - @TCdr
 1. [A32NX/FWC] New NAV PRED W/S DET FAULT alert and STATUS INOP SYS PRED W/S DET with a new flyPad failure of the weather radar predictive windshear function - @TCdr
 1. [A32NX/EGPWS] New green TERR STBY memo when an input of the predictive terrain functions is missing or invalid; the terrain leaves the NDs and the TERR ON ND pushbuttons go off meanwhile - @TCdr
+1. [A380X/BLEED] HP ground air: the flyPad Air Starter Unit now supplies the bleed ducts, so the engines can be started without the APU - @TCdr
+1. [A380X/BLEED] New overpressure valve downstream of each engine bleed valve: it closes above 85 PSI and opens again below 55 PSI, e.g. with a bleed valve stuck open - @TCdr
+1. [A380X/BLEED] The two engine bleed valves of a side share the airflow equally while the crossbleed valve of that side is open - @TCdr
+1. [A380X/BLEED] The crossbleed valves follow their own CPIOM-A pair (A1/A2 left, A3/A4 center and right): with both CPIOMs of a pair failed, the valve no longer opens or closes at AUTO, the XBLEED selector still moves it - @TCdr
+1. [A380X/BLEED] New APU bleed, pack bay, hot-air duct and forward cargo duct leak detection, with flyPad failures: the APU bleed, the pack valves or the hot-air valve close, and the APU BLEED, PACK or HOT AIR FAULT light comes on - @TCdr
 1. [A380X/SD] WHEEL page: the ECP MORE key shows the WHEEL MORE page, BRK CTL and STEER CTL lines show a failed BCS, EBCU or SCS, AUTO BRAKE only on an autobrake failure, green or amber arc on the hottest brake, gear triangles and doors from LGCIS 1 and 2 - @TCdr
 1. [A380X/SD] FUEL page: the ECP MORE key shows the FUEL MORE page - @TCdr
 1. [A380X/PFD] FMA line 3: EXTEND SPD BRK, RETRACT SPD BRK and CHECK APPR SEL now show; CHECK APPR SEL also on the MFD - @TCdr

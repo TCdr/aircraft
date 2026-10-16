@@ -172,6 +172,12 @@ pub enum FailureType {
     WingBleedLeak(usize),
     /// Hot air leaks from the APU bleed duct
     ApuBleedLeak,
+    /// Hot air leaks from the bleed ducts in the bay of pack n, downstream of its pack valves (A380)
+    PackBayLeak(usize),
+    /// Hot air leaks from a hot-air duct of the hot-air valve n (A380)
+    HotAirDuctLeak(usize),
+    /// Hot air leaks from the forward cargo bleed duct (A380, on the hot-air valve 1)
+    FwdCargoBleedDuctLeak,
     /// The pylon leak detection loop of engine n is inoperative
     EngineLeakDetectionLoop(usize),
     /// Leak detection loop A (1) or B (2) of wing n (1 left, 2 right) is inoperative
