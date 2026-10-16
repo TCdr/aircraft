@@ -14,6 +14,7 @@ import { FcuBusProvider } from './shared/FcuBusProvider';
 import { FgBusProvider } from './shared/FgBusProvider';
 import { getDisplayIndex, PFDComponent } from './PFD';
 import { AdirsValueProvider } from '../MsfsAvionicsCommon/AdirsValueProvider';
+import { EfisSideDiscrepancyMonitor } from '../MsfsAvionicsCommon/EfisSideDiscrepancy';
 import { ArincValueProvider } from './shared/ArincValueProvider';
 import { PFDSimvarPublisher, PFDSimvars } from './shared/PFDSimvarPublisher';
 import { selectOnsideLandingSystemReceiver } from './shared/OnsideLandingSystemReceiver';
@@ -124,6 +125,12 @@ class A32NX_PFD extends BaseInstrument {
 
     const stateSubject = Subject.create<'L' | 'R'>(getDisplayIndex() === 1 ? 'L' : 'R');
     this.fmsDataPublisher = new FmsDataPublisher(this.bus, stateSubject);
+
+    // CHECK ATT / CHECK HDG: A320 FCOM DSC-31-05-60, a320_fcom.txt l.45410-45418
+    this.backplane.addInstrument(
+      'EfisSideDiscrepancy',
+      new EfisSideDiscrepancyMonitor(this.bus, getDisplayIndex() === 2 ? 'R' : 'L'),
+    );
 
     this.backplane.init();
 
