@@ -29,6 +29,18 @@ pub struct Pw980Constants;
 
 impl ApuConstants for Pw980Constants {
     const RUNNING_WARNING_EGT: f64 = 900.; // Deg C
+
+    // The values of the shared ECB before the APS3200 got its own (A380 FCOM rows not part of this change)
+    const STARTING_WARNING_EGT_LOW_ALTITUDE: f64 = 900.; // Deg C
+    const STARTING_WARNING_EGT_HIGH_ALTITUDE: f64 = 982.; // Deg C
+    /// ISA pressure at 25 000 ft
+    const STARTING_WARNING_EGT_SPLIT_PRESSURE_PSI: f64 = 5.45;
+    const START_MOTOR_POWERED_UNTIL_N: f64 = 55.;
+    // The A380 FCOM DSC-49-40 APU AUTOMATIC SHUTDOWN table (a380_fcom.txt l.108890-108902) has its own EGT limit
+    // (l.108898: 700 °C, on ground only) and no air intake flap condition: not modelled here.
+    const EGT_OVERTEMPERATURE_SHUTDOWN: bool = false;
+    const AIR_INTAKE_FLAP_CLOSED_SHUTDOWN: bool = false;
+    const AIR_INTAKE_FLAP_CLOSING_DELAY_AFTER_AUTO_SHUTDOWN: Option<Duration> = None;
     const BLEED_AIR_COOLDOWN_DURATION: Duration = Duration::ZERO;
     const COOLDOWN_DURATION: Duration = Duration::from_secs(60);
     const AIR_INTAKE_FLAP_CLOSURE_PERCENT: f64 = 8.;
@@ -59,6 +71,7 @@ impl Turbine for ShutdownPw980Turbine {
     fn update(
         mut self: Box<Self>,
         context: &UpdateContext,
+        _: bool,
         _: bool,
         _: bool,
         controller: &dyn ControllerSignal<TurbineSignal>,
@@ -289,6 +302,7 @@ impl Turbine for Starting {
     fn update(
         mut self: Box<Self>,
         context: &UpdateContext,
+        _: bool,
         _: bool,
         _: bool,
         controller: &dyn ControllerSignal<TurbineSignal>,
@@ -536,6 +550,7 @@ impl Turbine for Running {
         context: &UpdateContext,
         apu_bleed_is_used: bool,
         apu_gen_is_used: bool,
+        _: bool,
         controller: &dyn ControllerSignal<TurbineSignal>,
     ) -> Box<dyn Turbine> {
         self.egt = self.calculate_egt(context, apu_gen_is_used, apu_bleed_is_used);
@@ -752,6 +767,7 @@ impl Turbine for Stopping {
     fn update(
         mut self: Box<Self>,
         context: &UpdateContext,
+        _: bool,
         _: bool,
         _: bool,
         _: &dyn ControllerSignal<TurbineSignal>,

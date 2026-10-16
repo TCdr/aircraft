@@ -182,6 +182,10 @@ impl<const N: usize, const PUMP_COUNT: usize> FuelSystem<N, PUMP_COUNT> {
     pub fn is_fuel_pump_running(&self, i: usize) -> bool {
         self.fuel_pumps[i].is_running()
     }
+
+    pub fn is_fuel_pump_powered(&self, i: usize) -> bool {
+        self.fuel_pumps[i].is_powered()
+    }
 }
 impl<const N: usize, const PUMP_COUNT: usize> SimulationElement for FuelSystem<N, PUMP_COUNT> {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
@@ -223,6 +227,11 @@ impl FuelPump {
 
     pub fn is_running(&self) -> bool {
         self.running
+    }
+
+    /// The electrical supply of the pump is powered
+    pub fn is_powered(&self) -> bool {
+        self.available_potential > ElectricPotential::default()
     }
 }
 impl SimulationElement for FuelPump {

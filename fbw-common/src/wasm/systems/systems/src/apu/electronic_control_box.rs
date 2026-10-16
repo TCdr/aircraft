@@ -77,10 +77,14 @@ pub(super) struct ElectronicControlBox<C: ApuConstants> {
     dc_supply_loss: DelayedTrueLogicGate,
     sensed_failures: ApuSensedFailures,
 
+    /// The air intake flap is held open after an automatic shutdown (C::AIR_INTAKE_FLAP_CLOSING_DELAY_AFTER_AUTO_SHUTDOWN)
+    air_intake_flap_hold: AirIntakeFlapHold,
+    /// The automatic shutdown state of the previous update, to start the flap hold once per automatic shutdown
+    was_auto_shutdown: bool,
+
     constants: PhantomData<C>,
 }
 impl<C: ApuConstants> ElectronicControlBox<C> {
-    const START_MOTOR_POWERED_UNTIL_N: f64 = 55.;
     const JET_A_1_DENSITY: f64 = 0.804; // Kilograms per Liter
     /// Design choice (no FCOM value): the DC supply loss must last this long before the ECB shuts the APU down, so
     /// that a source transfer of the electrical network does not stop the APU.
@@ -136,6 +140,9 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
             dc_supply_is_powered: false,
             dc_supply_loss: DelayedTrueLogicGate::new(Self::DC_SUPPLY_LOSS_CONFIRMATION),
             sensed_failures: ApuSensedFailures::new(),
+
+            air_intake_flap_hold: AirIntakeFlapHold::Released,
+            was_auto_shutdown: false,
 
             constants: PhantomData,
         }
@@ -215,9 +222,17 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
 
         if !self.is_on() {
             self.fault = None;
+        } else if self.air_intake_flap_is_held_open()
+            && !self.master_is_on
+            && self.turbine_state == TurbineState::Shutdown
+        {
+            // The held open flap keeps the ECB on after an automatic shutdown: the MASTER SW OFF ends the fault once
+            // the APU has stopped, as the ECB going off does otherwise, so that the APU can be restarted.
+            self.fault = None;
         }
 
         self.update_automatic_shutdown_conditions(context);
+        self.update_air_intake_flap_hold(context);
 
         if !self.master_is_on {
             self.master_off_for += context.delta()
@@ -229,10 +244,11 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
     /// The automatic shutdowns of the ECB besides the fire, the fuel low pressure and the start motor supply loss
     /// (A320 FCOM DSC-49-20 FAULT lt, a320_fcom.txt l.60649-60673; A380 FCOM DSC-49-40 APU AUTOMATIC SHUTDOWN,
     /// a380_fcom.txt l.108880-108900). The first fault stays until the ECB goes off (MASTER SW OFF and air intake flap
-    /// closed). Not modelled (no model behind them): air inlet flap closed, no acceleration, slow start, EGT
-    /// overtemperature, no flame, reverse flow, overcurrent, sensor / IGV failures, underspeed, loss of overspeed
-    /// protection, inlet overheat, clogged oil filter, loss of EGT thermocouples (A320); N1 underspeed, generator oil,
-    /// fuel system failure, reverse flow, aircraft emergency stop (A380).
+    /// closed), or with the air intake flap held open after an automatic shutdown until the MASTER SW is OFF with the
+    /// APU stopped (update()). Not modelled (no model behind them): no acceleration, slow start, no flame, reverse flow, overcurrent,
+    /// sensor / IGV failures, underspeed, loss of overspeed protection, inlet overheat, clogged oil filter, loss of EGT
+    /// thermocouples (A320); EGT limit, N1 underspeed, generator oil, fuel system failure, reverse flow, aircraft
+    /// emergency stop (A380).
     fn update_automatic_shutdown_conditions(&mut self, context: &UpdateContext) {
         // A320 l.60663 "DC power lost (BAT OFF when aircraft on batteries only)", A380 l.108897 "No normal DC power:
         // Yes / Yes". Below N 70 % the ECB has no other supply and the APU stops without a FAULT (see is_on()); above
@@ -244,6 +260,7 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
         }
 
         let running = self.turbine_state == TurbineState::Running;
+        let starting_or_running = running || self.turbine_state == TurbineState::Starting;
         let failures = &self.sensed_failures;
         // A380 table: APU oil high temperature "On Ground: Yes, In Flight: No"; the A320 FCOM gives no such limit.
         let high_oil_temperature_shuts_down =
@@ -266,9 +283,69 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
         {
             // A320 l.60660 "High oil temperature", A380 l.108893 "APU oil high temperature: Yes / No"
             Some(ApuFault::HighOilTemperature)
+        } else if C::EGT_OVERTEMPERATURE_SHUTDOWN
+            && starting_or_running
+            && self.egt >= self.egt_warning_temperature
+        {
+            // A320 l.60657 "EGT overtemperature", l.60838 EGT "Becomes red when EGT ≥ EGT MAX (automatic shutdown
+            // begins)"
+            Some(ApuFault::EgtOvertemperature)
+        } else if C::AIR_INTAKE_FLAP_CLOSED_SHUTDOWN
+            && starting_or_running
+            && !self.air_intake_flap_is_fully_open()
+        {
+            // A320 l.60653 "Air inlet flap closed": the start needs a fully open flap (l.60428-60429), so a flap that
+            // leaves its open stop while the APU starts or runs (flyPad failure "APU air intake flap failed closed")
+            Some(ApuFault::AirIntakeFlapClosed)
         } else {
             None
         };
+    }
+
+    /// After an automatic non-emergency shutdown the air intake flap stays open: it closes once N has been below
+    /// C::AIR_INTAKE_FLAP_CLOSURE_PERCENT for C::AIR_INTAKE_FLAP_CLOSING_DELAY_AFTER_AUTO_SHUTDOWN in flight; after a
+    /// shutdown on the ground the countdown starts at liftoff (A320 FCOM DSC-49-20 FAULT lt note, l.60675-60677).
+    fn update_air_intake_flap_hold(&mut self, context: &UpdateContext) {
+        let is_auto_shutdown = self.is_auto_shutdown();
+        let new_auto_shutdown = is_auto_shutdown && !self.was_auto_shutdown;
+        self.was_auto_shutdown = is_auto_shutdown;
+
+        let Some(closing_delay) = C::AIR_INTAKE_FLAP_CLOSING_DELAY_AFTER_AUTO_SHUTDOWN else {
+            return;
+        };
+
+        // The hold ends with the ECB (no supply), on an emergency shutdown (the flap then closes as usual), on a new
+        // start, and with the Aircraft Presets quick mode.
+        let ends = !self.is_on()
+            || self.is_emergency_shutdown()
+            || (self.turbine_state == TurbineState::Starting && !self.has_fault())
+            || self.aircraft_preset_quick_mode;
+        let n_is_below_flap_closure = self.n.get::<percent>() < C::AIR_INTAKE_FLAP_CLOSURE_PERCENT;
+
+        self.air_intake_flap_hold = match self.air_intake_flap_hold {
+            _ if ends => AirIntakeFlapHold::Released,
+            AirIntakeFlapHold::Released if new_auto_shutdown => {
+                AirIntakeFlapHold::WaitingForCountdown
+            }
+            AirIntakeFlapHold::WaitingForCountdown
+                if n_is_below_flap_closure && !self.on_ground =>
+            {
+                AirIntakeFlapHold::CountingDown(Duration::ZERO)
+            }
+            AirIntakeFlapHold::CountingDown(elapsed) => {
+                let elapsed = elapsed + context.delta();
+                if elapsed >= closing_delay {
+                    AirIntakeFlapHold::Released
+                } else {
+                    AirIntakeFlapHold::CountingDown(elapsed)
+                }
+            }
+            unchanged => unchanged,
+        };
+    }
+
+    fn air_intake_flap_is_held_open(&self) -> bool {
+        self.air_intake_flap_hold != AirIntakeFlapHold::Released
     }
 
     pub fn update_bleed_air_valve_state(
@@ -334,19 +411,18 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
         match turbine_state {
             TurbineState::Shutdown => running_warning_temperature,
             TurbineState::Starting => {
-                const STARTING_WARNING_EGT_BELOW_25000_FEET: f64 = 900.;
-                const STARTING_WARNING_EGT_AT_OR_ABOVE_25000_FEET: f64 = 982.;
-                let fl250_isa_pressure = Pressure::new::<psi>(5.45);
+                // The ECB senses the altitude through the inlet pressure: a pressure above the ISA pressure of the
+                // split altitude is below that altitude.
+                let split_altitude_isa_pressure =
+                    Pressure::new::<psi>(C::STARTING_WARNING_EGT_SPLIT_PRESSURE_PSI);
 
-                if self.inlet_pressure > fl250_isa_pressure {
-                    ThermodynamicTemperature::new::<degree_celsius>(
-                        STARTING_WARNING_EGT_BELOW_25000_FEET,
-                    )
-                } else {
-                    ThermodynamicTemperature::new::<degree_celsius>(
-                        STARTING_WARNING_EGT_AT_OR_ABOVE_25000_FEET,
-                    )
-                }
+                ThermodynamicTemperature::new::<degree_celsius>(
+                    if self.inlet_pressure > split_altitude_isa_pressure {
+                        C::STARTING_WARNING_EGT_LOW_ALTITUDE
+                    } else {
+                        C::STARTING_WARNING_EGT_HIGH_ALTITUDE
+                    },
+                )
             }
             TurbineState::Running => running_warning_temperature,
             TurbineState::Stopping => running_warning_temperature,
@@ -476,7 +552,7 @@ impl<C: ApuConstants> ControllerSignal<ContactorSignal> for ElectronicControlBox
             TurbineState::Starting
                 if {
                     self.turbine_state == TurbineState::Starting
-                        && self.n.get::<percent>() < Self::START_MOTOR_POWERED_UNTIL_N
+                        && self.n.get::<percent>() < C::START_MOTOR_POWERED_UNTIL_N
                 } =>
             {
                 Some(ContactorSignal::Close)
@@ -490,13 +566,16 @@ impl<C: ApuConstants> ControllerSignal<AirIntakeFlapSignal> for ElectronicContro
         if !self.is_on() {
             None
         } else if match self.turbine_state {
-            TurbineState::Shutdown => self.master_is_on,
+            TurbineState::Shutdown => self.master_is_on || self.air_intake_flap_is_held_open(),
             TurbineState::Starting => true,
             // While running, the air intake flap remains open.
             TurbineState::Running => true,
             // Manual shutdown sequence: the air intake flap closes at N = 7% (APS3200) / 8% (PW980).
+            // After an automatic shutdown it is held open (update_air_intake_flap_hold).
             TurbineState::Stopping => {
-                self.master_is_on || C::AIR_INTAKE_FLAP_CLOSURE_PERCENT <= self.n.get::<percent>()
+                self.master_is_on
+                    || C::AIR_INTAKE_FLAP_CLOSURE_PERCENT <= self.n.get::<percent>()
+                    || self.air_intake_flap_is_held_open()
             }
         } {
             Some(AirIntakeFlapSignal::Open)
@@ -519,7 +598,7 @@ impl<C: ApuConstants> ControllerSignal<TurbineSignal> for ElectronicControlBox<C
         {
             Some(TurbineSignal::Stop)
         } else if self.start_motor_is_powered
-            || self.n.get::<percent>() >= Self::START_MOTOR_POWERED_UNTIL_N
+            || self.n.get::<percent>() >= C::START_MOTOR_POWERED_UNTIL_N
         {
             Some(TurbineSignal::StartOrContinue)
         } else {
@@ -622,6 +701,19 @@ enum ApuFault {
     Overspeed,
     LowOilPressure,
     HighOilTemperature,
+    EgtOvertemperature,
+    AirIntakeFlapClosed,
+}
+
+/// The air intake flap after an automatic non-emergency shutdown (ElectronicControlBox::update_air_intake_flap_hold)
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum AirIntakeFlapHold {
+    /// The flap opens and closes with the MASTER SW and N
+    Released,
+    /// Held open, the countdown has not started yet: N not yet below the flap closure N, or on the ground
+    WaitingForCountdown,
+    /// Held open, the countdown runs for this long
+    CountingDown(Duration),
 }
 
 /// The flyPad failures (ATA 49) of conditions that the ECB senses and that make it shut the APU down
