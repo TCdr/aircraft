@@ -11,14 +11,17 @@ import {
   Subscribable,
   VNode,
 } from '@microsoft/msfs-sdk';
-import { EfisNdMode, EfisSide } from '@flybywiresim/fbw-sdk';
+import { Arinc429Word, EfisNdMode, EfisSide } from '@flybywiresim/fbw-sdk';
 
-import { GenericWxrEvents, GenericWxrManualSettingsEvents } from './types/GenericWxrEvents';
+import { A320WxrPanelEvents, GenericWxrEvents, GenericWxrManualSettingsEvents } from './types/GenericWxrEvents';
+import { A320WxrRow, a320WxrIndications, isA320PwsScanningWithRadarOff } from './WxrA320Indications';
 
 export interface WxrModeLabelProps {
   bus: EventBus;
   side: EfisSide;
   mode: Subscribable<EfisNdMode>;
+  /** The A32NX radar rows (WxrA320Indications.ts) instead of the A380X ones */
+  a320Indications?: boolean;
 }
 
 /** The radar's ND indications by the mode value the gauge publishes (see A32NX_WXR_ND_{L,R}_MODE). */
@@ -34,6 +37,10 @@ const TILT_MODE = 2;
 const NO_ENTRY = -9999;
 /** Height between two lines of FontSmall text */
 const LINE_HEIGHT = 27;
+/** The y of the mode line (the A32NX 2nd row) */
+const MODE_LINE_Y = 590;
+/** L:A32NX_ENGINE_STATE of a running engine */
+const ENGINE_STATE_ON = 1;
 
 /**
  * The weather radar mode (WX, WX+T, TURB, MAP) on the right of the map pages (ROSE and ARC), in green (the
@@ -44,6 +51,9 @@ const LINE_HEIGHT = 27;
  * TILT or ELEVN, and WX only with the GAIN button and the ELEVN/TILT option list at AUTO. The manual settings are in
  * cyan, the colour of the manual modes (A320 FCOM DSC-34-SURV-30-30 P 10, same radar family; the A380 FCOM gives no
  * colour).
+ *
+ * The A32NX (a320Indications) shows the rows of its own radar panel instead: MAN GAIN, the mode in green (MULTISCAN
+ * AUTO) or cyan (MAN), PWS SCAN or WXR OFF, and the MAN tilt (see a320WxrIndications).
  */
 export class WxrModeLabel extends DisplayComponent<WxrModeLabelProps> {
   private readonly sub = this.props.bus.getSubscriber<GenericWxrEvents & GenericWxrManualSettingsEvents>();
@@ -125,7 +135,73 @@ export class WxrModeLabel extends DisplayComponent<WxrModeLabelProps> {
   /** The GAIN line sits above the mode line, or on it when the mode line is empty */
   private readonly gainY = this.modeText.map((text) => (text === '' ? 590 : 590 - LINE_HEIGHT));
 
+  private readonly a320Sub = this.props.bus.getSubscriber<A320WxrPanelEvents>();
+
+  /** A32NX: the radar is switched off and the PWS scans on its own (PWS SCAN instead of WXR OFF) */
+  private readonly a320PwsScanning = MappedSubject.create(
+    ([pwsAuto, ra1, ra2, engine1, engine2, groundSpeed]) => {
+      const ra1Word = new Arinc429Word(ra1);
+      const ra2Word = new Arinc429Word(ra2);
+      const radioHeight = ra1Word.isNormalOperation()
+        ? ra1Word.value
+        : ra2Word.isNormalOperation()
+          ? ra2Word.value
+          : null;
+      // (a Bool simvar reads 1, not true)
+      return isA320PwsScanningWithRadarOff(
+        !!pwsAuto,
+        radioHeight,
+        engine1 === ENGINE_STATE_ON || engine2 === ENGINE_STATE_ON,
+        groundSpeed,
+      );
+    },
+    ConsumerSubject.create(this.a320Sub.on('wxrA320PwsAuto'), false),
+    ConsumerSubject.create(this.a320Sub.on('wxrA320RadioAltitude1'), 0),
+    ConsumerSubject.create(this.a320Sub.on('wxrA320RadioAltitude2'), 0),
+    ConsumerSubject.create(this.a320Sub.on('wxrA320Engine1State'), 0),
+    ConsumerSubject.create(this.a320Sub.on('wxrA320Engine2State'), 0),
+    ConsumerSubject.create(this.a320Sub.on('wxrA320GroundSpeed'), 0),
+  );
+
+  /** A32NX: the three radar rows (A320 FCOM DSC-34-SURV-30-30, see a320WxrIndications) */
+  private readonly a320Rows = MappedSubject.create(
+    ([ndMode, gainKnob, multiscanAuto, tiltKnobDegrees, pwsScanning]) =>
+      a320WxrIndications({ ndMode, gainKnob, multiscanAuto: !!multiscanAuto, tiltKnobDegrees, pwsScanning }),
+    this.radarMode,
+    ConsumerSubject.create(this.a320Sub.on('wxrA320GainKnob'), 0),
+    ConsumerSubject.create(this.a320Sub.on('wxrA320MultiscanAuto'), true),
+    ConsumerSubject.create(this.a320Sub.on('wxrA320TiltKnob'), 0),
+    this.a320PwsScanning,
+  );
+
+  /** One A32NX row: its text and colour; y is fixed (1st row above the mode line, 3rd row below it) */
+  private renderA320Row(row: Subscribable<A320WxrRow | null>, y: number): VNode {
+    return (
+      <text x={744} y={y} class={row.map((it) => `${it?.colour ?? 'Green'} FontSmall`)} text-anchor="end">
+        {row.map((it) => it?.text ?? '')}
+      </text>
+    );
+  }
+
   render(): VNode | null {
+    if (this.props.a320Indications) {
+      return (
+        <g visibility={this.visible.map((v) => (v ? 'inherit' : 'hidden'))}>
+          {this.renderA320Row(
+            this.a320Rows.map((rows) => rows.gain),
+            MODE_LINE_Y - LINE_HEIGHT,
+          )}
+          {this.renderA320Row(
+            this.a320Rows.map((rows) => rows.mode),
+            MODE_LINE_Y,
+          )}
+          {this.renderA320Row(
+            this.a320Rows.map((rows) => rows.tilt),
+            MODE_LINE_Y + LINE_HEIGHT,
+          )}
+        </g>
+      );
+    }
     return (
       <g visibility={this.visible.map((v) => (v ? 'inherit' : 'hidden'))}>
         <text x={744} y={this.gainY} class="Cyan FontSmall" text-anchor="end">

@@ -602,6 +602,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] AIR PACK 1(2) VLV 1(2) FAULT, PACK 1(2) OVHT and PACK 1(2) REGUL FAULT from the pack controllers, with pack valve jam, pack overheat and pack bypass mode flyPad failures - @TCdr
 1. [A380X/FWS] COND BULK CARGO DUCT OVHT, COND CABIN AIR EXTRACT VLV FAULT and CAB PRESS MAN CTL FAULT, with their flyPad failures; the bulk cargo HEATER pb FAULT light comes on with the duct overheat - @TCdr
 1. [A380X/FWS] CAB PRESS INHIBITED BY DOORS is no longer inhibited in flight phase 12, as in the FCOM - @TCdr
+1. [A32NX/RMP] The SEL light comes on on both RMPs when an RMP tunes the other side's radio (RMP2 on VHF1 or VHF3, RMP1 on VHF2), as in the FCOM - @TCdr
+1. [A32NX/COMMS] The glareshield loudspeaker volume knobs turn and set the radio receive volume (fully anticlockwise = OFF); the warning sounds are not affected - @TCdr
+1. [A32NX/ND] TCAS traffic is shown at the 10, 20 and 40 NM ranges only, as in the FCOM (TCAS: REDUCE RANGE above them) - @TCdr
+1. [A32NX/WXR] The weather radar GAIN knob works (CAL in the middle, MAN GAIN on the ND out of CAL) and the ND shows the radar mode in cyan with MULTISCAN at MAN, the MAN tilt from the TILT knob, and PWS SCAN while the predictive windshear scans with the radar off - @TCdr
+1. [A32NX/ENG] Automatic ground start of a cold engine or above 10 000 ft: the FADEC adds the second igniter once the engine has lit up - @TCdr
 
 ## 2024.1.0
 

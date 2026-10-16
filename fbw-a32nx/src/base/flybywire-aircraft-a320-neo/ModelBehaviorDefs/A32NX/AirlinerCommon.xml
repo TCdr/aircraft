@@ -637,9 +637,43 @@
 
 
 
+    <!-- Loudspeaker volume knob of the glareshield, CAPT or F/O (A320 FCOM DSC-23-10-50 LOUDSPEAKER VOLUME KNOB,
+         a320_fcom.txt l.35457-35470): "This knob adjusts the volume of the loudspeaker for radio communication.
+         OFF: Loudspeaker does not respond to signals from the aircraft's radio equipment. Clockwise rotation:
+         Loudspeaker broadcasts signals from the aircraft's radio equipment at increasing volume. Note: This knob does
+         not control the loudness of aural alert and voice messages."
+         L:A32NX_LOUDSPEAKER_#SIDE#_VOLUME is the knob position in percent (0 = OFF, 100 = full clockwise).
+         FBW_AIRLINER_Audio_Panel_Updater scales the COM receive volumes by the louder of the two loudspeakers: the sim
+         plays the radios through one output. The aural alerts and voice messages are other sounds: not affected. -->
+    <Template Name="FBW_AIRLINER_Loudspeaker_Volume_Knob_Template">
+        <DefaultTemplateParameters>
+            <VOLUME_STEP_PERCENT>5</VOLUME_STEP_PERCENT>
+        </DefaultTemplateParameters>
+
+        <Component ID="#NODE_ID#_Volume" Node="#NODE_ID#">
+            <UseTemplate Name="ASOBO_GT_Knob_Finite_Code">
+                <ANIM_NAME>#NODE_ID#</ANIM_NAME>
+                <ANIM_CODE>(L:A32NX_LOUDSPEAKER_#SIDE#_VOLUME, number)</ANIM_CODE>
+                <CLOCKWISE_CODE>
+                    (L:A32NX_LOUDSPEAKER_#SIDE#_VOLUME, number) #VOLUME_STEP_PERCENT# + 100 min (&gt;L:A32NX_LOUDSPEAKER_#SIDE#_VOLUME, number)
+                </CLOCKWISE_CODE>
+                <ANTICLOCKWISE_CODE>
+                    (L:A32NX_LOUDSPEAKER_#SIDE#_VOLUME, number) #VOLUME_STEP_PERCENT# - 0 max (&gt;L:A32NX_LOUDSPEAKER_#SIDE#_VOLUME, number)
+                </ANTICLOCKWISE_CODE>
+                <ANIMTIP_0>Decrease loudspeaker volume (radio communication)</ANIMTIP_0>
+                <ANIMTIP_1>Increase loudspeaker volume (radio communication)</ANIMTIP_1>
+                <WWISE_EVENT>smallknob</WWISE_EVENT>
+                <NORMALIZED_TIME_1>0.1</NORMALIZED_TIME_1>
+                <NORMALIZED_TIME_2>0.5</NORMALIZED_TIME_2>
+            </UseTemplate>
+        </Component>
+    </Template>
+
     <Template Name="FBW_AIRLINER_Audio_Panel_Updater">
         <!-- This Panel takes input from the 3 audio panels and sets the simvars to the value it should have based on it -->
         <!-- Simvar is ON if any Panel sets it to ON, Volume is the Max of the 3 panels -->
+        <!-- The volume is then scaled by the louder loudspeaker knob (FBW_AIRLINER_Loudspeaker_Volume_Knob_Template):
+             the panel volume (0..1) times the knob (0..100 %) gives the COM VOLUME in percent, 0 with both knobs OFF. -->
 
         <UseTemplate Name="ASOBO_GT_Update">
             <FREQUENCY>15</FREQUENCY>
@@ -657,12 +691,12 @@
                 (A:COM RECEIVE EX1:1, Bool) if{
                     (L:XMLVAR_COM_1_VHF_L_Switch_Down) (L:XMLVAR_COM_2_VHF_L_Switch_Down) or if{
                         (L:XMLVAR_COM_1_VHF_L_Switch_Down) (L:XMLVAR_COM_2_VHF_L_Switch_Down) and if{
-                            (L:XMLVAR_COM_1_Volume_VHF_L) (L:XMLVAR_COM_2_Volume_VHF_L) max max 100 * (&gt;K:COM1_VOLUME_SET)
+                            (L:XMLVAR_COM_1_Volume_VHF_L) (L:XMLVAR_COM_2_Volume_VHF_L) max max (L:A32NX_LOUDSPEAKER_CAPT_VOLUME, number) (L:A32NX_LOUDSPEAKER_FO_VOLUME, number) max * (&gt;K:COM1_VOLUME_SET)
                         } els{
                             1 (L:XMLVAR_COM_1_VHF_L_Switch_Down) == if{
-                                (L:XMLVAR_COM_1_Volume_VHF_L) 100 * (&gt;K:COM1_VOLUME_SET)
+                                (L:XMLVAR_COM_1_Volume_VHF_L) (L:A32NX_LOUDSPEAKER_CAPT_VOLUME, number) (L:A32NX_LOUDSPEAKER_FO_VOLUME, number) max * (&gt;K:COM1_VOLUME_SET)
                             } els{
-                                (L:XMLVAR_COM_2_Volume_VHF_L) 100 * (&gt;K:COM1_VOLUME_SET)
+                                (L:XMLVAR_COM_2_Volume_VHF_L) (L:A32NX_LOUDSPEAKER_CAPT_VOLUME, number) (L:A32NX_LOUDSPEAKER_FO_VOLUME, number) max * (&gt;K:COM1_VOLUME_SET)
 
                             }
                         }
@@ -674,12 +708,12 @@
                 (A:COM RECEIVE EX1:2, Bool) if{
                     (L:XMLVAR_COM_1_VHF_C_Switch_Down) (L:XMLVAR_COM_2_VHF_C_Switch_Down) or if{
                         (L:XMLVAR_COM_1_VHF_C_Switch_Down) (L:XMLVAR_COM_2_VHF_C_Switch_Down) and if{
-                            (L:XMLVAR_COM_1_Volume_VHF_C) (L:XMLVAR_COM_2_Volume_VHF_C) max max 100 * (&gt;K:COM2_VOLUME_SET)
+                            (L:XMLVAR_COM_1_Volume_VHF_C) (L:XMLVAR_COM_2_Volume_VHF_C) max max (L:A32NX_LOUDSPEAKER_CAPT_VOLUME, number) (L:A32NX_LOUDSPEAKER_FO_VOLUME, number) max * (&gt;K:COM2_VOLUME_SET)
                         } els{
                             1 (L:XMLVAR_COM_1_VHF_C_Switch_Down) == if{
-                                (L:XMLVAR_COM_1_Volume_VHF_C) 100 * (&gt;K:COM2_VOLUME_SET)
+                                (L:XMLVAR_COM_1_Volume_VHF_C) (L:A32NX_LOUDSPEAKER_CAPT_VOLUME, number) (L:A32NX_LOUDSPEAKER_FO_VOLUME, number) max * (&gt;K:COM2_VOLUME_SET)
                             } els{
-                                (L:XMLVAR_COM_2_Volume_VHF_C) 100 * (&gt;K:COM2_VOLUME_SET)
+                                (L:XMLVAR_COM_2_Volume_VHF_C) (L:A32NX_LOUDSPEAKER_CAPT_VOLUME, number) (L:A32NX_LOUDSPEAKER_FO_VOLUME, number) max * (&gt;K:COM2_VOLUME_SET)
                             }
                         }
                     }
@@ -690,12 +724,12 @@
                 (A:COM RECEIVE EX1:3, Bool) if{
                     (L:XMLVAR_COM_1_VHF_R_Switch_Down) (L:XMLVAR_COM_2_VHF_R_Switch_Down) or if{
                         (L:XMLVAR_COM_1_VHF_R_Switch_Down) (L:XMLVAR_COM_2_VHF_R_Switch_Down) and if{
-                            (L:XMLVAR_COM_1_Volume_VHF_R) (L:XMLVAR_COM_2_Volume_VHF_R) max max 100 * (&gt;K:COM3_VOLUME_SET)
+                            (L:XMLVAR_COM_1_Volume_VHF_R) (L:XMLVAR_COM_2_Volume_VHF_R) max max (L:A32NX_LOUDSPEAKER_CAPT_VOLUME, number) (L:A32NX_LOUDSPEAKER_FO_VOLUME, number) max * (&gt;K:COM3_VOLUME_SET)
                         } els{
                             1 (L:XMLVAR_COM_1_VHF_R_Switch_Down) == if{
-                                (L:XMLVAR_COM_1_Volume_VHF_R) 100 * (&gt;K:COM3_VOLUME_SET)
+                                (L:XMLVAR_COM_1_Volume_VHF_R) (L:A32NX_LOUDSPEAKER_CAPT_VOLUME, number) (L:A32NX_LOUDSPEAKER_FO_VOLUME, number) max * (&gt;K:COM3_VOLUME_SET)
                             } els{
-                                (L:XMLVAR_COM_2_Volume_VHF_R) 100 * (&gt;K:COM3_VOLUME_SET)
+                                (L:XMLVAR_COM_2_Volume_VHF_R) (L:A32NX_LOUDSPEAKER_CAPT_VOLUME, number) (L:A32NX_LOUDSPEAKER_FO_VOLUME, number) max * (&gt;K:COM3_VOLUME_SET)
                             }
                         }
                     }

@@ -21,7 +21,7 @@ import {
   EfisSide,
   FailuresConsumer,
 } from '@flybywiresim/fbw-sdk';
-import { NDComponent } from '@flybywiresim/navigation-display';
+import { MAX_TRAFFIC_RANGE_NM, NDComponent } from '@flybywiresim/navigation-display';
 
 import { NDSimvarPublisher, NDSimvars } from './NDSimvarPublisher';
 import { AdirsValueProvider } from '../MsfsAvionicsCommon/AdirsValueProvider';
@@ -169,6 +169,10 @@ class NDInstrument implements FsInstrument {
           rangeChangeMessage={a320NdRangeChange}
           modeChangeMessage={a320NdModeChange}
           fmMessages={Object.values(FMMessageTypes)}
+          // A320 FCOM DSC-34-SURV-60-20 (a320_fcom.txt l.56198): traffic at the 10, 20 and 40 NM ranges only
+          mapOptions={{ trafficMaxRangeNm: MAX_TRAFFIC_RANGE_NM }}
+          // A320 FCOM DSC-34-SURV-30-30: the radar rows of the A32NX pedestal radar panel
+          a320WxrIndications
         />
       </DisplayUnit>,
       document.getElementById('ND_CONTENT'),

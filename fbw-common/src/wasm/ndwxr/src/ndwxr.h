@@ -272,9 +272,10 @@ struct Instance {
   int vdShowFrames = 0;
   // Whether this ND asked the radar to transmit last frame (see g_wxrTransmitting).
   bool wxrRequested = false;
-  // The receiver gain (dB, see wxr_controls.h) the weather pair's colour tables were last set for.
-  float appliedGainDb = 0.0f;
 #endif
+  // The receiver gain (dB, see wxr_controls.h) the weather pair's colour tables were last set for (the A380X's manual
+  // GAIN, the A32NX's GAIN knob).
+  float appliedGainDb = 0.0f;
 #ifdef A380X
   // The VD's altitude limits (see kVdLeft).
   ID vdRangeLowerVar = -1;
@@ -374,6 +375,7 @@ extern NamedVar g_adirsTrueTrack[3];
 #ifndef A380X
 extern NamedVar g_wxrSys;
 extern NamedVar g_wxrMode;
+extern NamedVar g_wxrGainKnob;
 #endif
 
 extern NamedVar g_egpwcPresentLat;
