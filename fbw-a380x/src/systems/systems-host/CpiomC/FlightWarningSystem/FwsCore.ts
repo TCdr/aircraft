@@ -1286,7 +1286,15 @@ export class FwsCore {
   public readonly mlgFireDetConfNode = new NXLogicConfirmNode(5);
   public readonly mlgFireDetFault = Subject.create(false);
 
+  /** Raw L:A32NX_EVAC_COMMAND_TOGGLE: true (1) while the EVAC COMMAND pb-sw is OFF, see evacCommandOn */
   public readonly evacCommand = Subject.create(false);
+
+  /**
+   * The EVAC COMMAND pb-sw is ON. The cockpit L:var is inverted: A380_Cockpit_Behavior.xml (EVAC component, l.3197-3213)
+   * lights the ON light and flashes the EVAC light on `(L:A32NX_EVAC_COMMAND_TOGGLE, Bool) !` and shows the "Turn ON"
+   * tooltip while it is 1, so 1 = OFF and 0 = ON (recorded in the sim 2026-10-15: 1 for a whole flight).
+   */
+  public readonly evacCommandOn = this.evacCommand.map((evacCommandToggle) => !evacCommandToggle);
 
   public readonly cargoFireAgentDisch = Subject.create(false);
 
