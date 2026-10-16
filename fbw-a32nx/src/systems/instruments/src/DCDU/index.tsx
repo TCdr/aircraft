@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { EventBus, Publisher, EventSubscriber } from '@microsoft/msfs-sdk';
-import { useSimVar, useInteractionEvents } from '@flybywiresim/fbw-sdk-react';
+import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 import {
   AtsuMessageComStatus,
   AtsuMessageDirection,
@@ -29,6 +29,8 @@ import { render } from '../Common';
 import { SelfTest } from './pages/SelfTest';
 import { AtsuStatusMessage } from './elements/AtsuStatusMessage';
 import { WaitingForData } from './pages/WaitingForData';
+import { InvalidData } from './pages/InvalidData';
+import { useDcduKeyEvent } from './useDcduKeyEvent';
 import { DcduLines } from './elements/DcduLines';
 import { DatalinkMessage } from './elements/DatalinkMessage';
 import { MessageStatus } from './elements/MessageStatus';
@@ -76,6 +78,8 @@ const DCDU: React.FC = () => {
   const [_subscriber, setSubscriber] = useState<EventSubscriber<AtsuMailboxMessages> | null>(null);
   const [electricityState] = useSimVar('L:A32NX_ELEC_DC_1_BUS_IS_POWERED', 'bool', 200);
   const [isColdAndDark] = useSimVar('L:A32NX_COLD_AND_DARK_SPAWN', 'Bool', 200);
+  // The ATSU does not run (not supplied, C/B pulled, failed): INVALID DATA, see DcduFailures
+  const [atsuOff] = useSimVar('L:A32NX_ATSU_OFF', 'Bool', 200);
   const [state, setState] = useState(isColdAndDark ? DcduState.Off : DcduState.On);
   const [systemStatusMessage, setSystemStatusMessage] = useState(MailboxStatusMessage.NoMessage);
   const [systemStatusTimer, setSystemStatusTimer] = useState<number | null>(null);
@@ -196,7 +200,7 @@ const DCDU: React.FC = () => {
   const stopMessageMonitoring = (uid: number) => publisherRef.current?.pub('stopMessageMonitoring', uid, true, false);
 
   // the message scroll button handling
-  useInteractionEvents(['A32NX_DCDU_BTN_MPL_MS0MINUS', 'A32NX_DCDU_BTN_MPR_MS0MINUS'], () => {
+  useDcduKeyEvent('MS0MINUS', () => {
     if (!messagesRef.current || messagesRef.current.size === 0) {
       return;
     }
@@ -221,7 +225,7 @@ const DCDU: React.FC = () => {
       }
     }
   });
-  useInteractionEvents(['A32NX_DCDU_BTN_MPL_MS0PLUS', 'A32NX_DCDU_BTN_MPR_MS0PLUS'], () => {
+  useDcduKeyEvent('MS0PLUS', () => {
     if (!messagesRef.current || messagesRef.current.size === 0) {
       return;
     }
@@ -246,7 +250,7 @@ const DCDU: React.FC = () => {
       }
     }
   });
-  useInteractionEvents(['A32NX_DCDU_BTN_MPL_PRINT', 'A32NX_DCDU_BTN_MPR_PRINT'], () => {
+  useDcduKeyEvent('PRINT', () => {
     if (!messagesRef.current || messagesRef.current.size === 0) {
       return;
     }
@@ -527,6 +531,12 @@ const DCDU: React.FC = () => {
     case DcduState.Off:
       return <></>;
     default:
+      // FCOM PRO-ABN-ABN-RESET (a320_fcom.txt l.67771): '"INVALID DATA" is displayed on the DCDU'; the DCDU keeps its
+      // power-up pages above and shows the messages again once the ATSU runs
+      if (atsuOff > 0) {
+        return <InvalidData />;
+      }
+
       return (
         <>
           <svg className="dcdu">

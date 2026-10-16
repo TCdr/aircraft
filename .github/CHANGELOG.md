@@ -709,6 +709,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New VENT AVNCS SYS FAULT, BLOWER FAULT, EXTRACT FAULT and SKIN VALVE FAULT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts with their FCOM procedures and STATUS, triggered by new flyPad ventilation failures - @TCdr
 1. [A32NX/AUTOFLIGHT] New flyPad failure of the FG TCAS mode: the AP/FD TCAS mode is no longer available and the FWC shows AUTO FLT TCAS MODE FAULT - @TCdr
 1. [A32NX/FWC] New COM CIDS 1+2 FAULT, SINGLE PTT STUCK, VHF 1(2)(3) EMITTING and VHF 3 DATA FAULT alerts with new flyPad failures (CIDS, stuck PTT, VHF transmitter stuck emitting), and the green AUDIO 3 XFRD memo when the AUDIO SWITCHING selector is not on NORM - @TCdr
+1. [A32NX/ATSU] New flyPad failures DCDU 1, DCDU 2 (blank screen, keys do nothing) and cockpit printer (nothing printed, PRINTER NOT AVAILABLE on the MCDU) - @TCdr
+1. [A32NX/ATSU] The ATSU stops while its C/B L15 or L16 on 121VU is pulled (the ATSU reset of the FCOM drops the CPDLC connection), and the DCDU shows INVALID DATA while the ATSU does not run - @TCdr
+1. [A32NX/ENG] The FADEC idle protection follows the reverser position: idle while a reverser commanded stowed is more than 15 % deployed, reverse idle when a deployed reverser stows below 78 %, as in the FCOM - @TCdr
+1. [A32NX/ENG] In-flight starter assisted relight: the starter turns the core and the HP fuel valve opens above 15 % N2, as in the FCOM - @TCdr
 
 ## 2024.1.0
 

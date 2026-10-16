@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { useState, memo } from 'react';
-import { useInteractionEvents } from '@flybywiresim/fbw-sdk-react';
 import { MailboxStatusMessage } from '@datalink/common';
 import { Checkerboard } from './Checkerboard';
+import { useDcduKeyEvent } from '../useDcduKeyEvent';
 
 interface MessageViewData {
   wordOffset: number;
@@ -195,7 +195,7 @@ export const MessageVisualization: React.FC<MessageVisualizationProps> = memo(
     const [pageCount, setPageCount] = useState(0);
     const maxLines = 5;
 
-    useInteractionEvents(['A32NX_DCDU_BTN_MPL_POEMINUS', 'A32NX_DCDU_BTN_MPR_POEMINUS'], () => {
+    useDcduKeyEvent('POEMINUS', () => {
       if (pageCount === 0) {
         return;
       }
@@ -208,7 +208,7 @@ export const MessageVisualization: React.FC<MessageVisualizationProps> = memo(
         updateSystemStatusMessage(MailboxStatusMessage.NoMorePages);
       }
     });
-    useInteractionEvents(['A32NX_DCDU_BTN_MPL_POEPLUS', 'A32NX_DCDU_BTN_MPR_POEPLUS'], () => {
+    useDcduKeyEvent('POEPLUS', () => {
       if (pageCount === 0) {
         return;
       }

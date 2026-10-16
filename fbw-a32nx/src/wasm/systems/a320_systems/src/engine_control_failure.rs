@@ -12,7 +12,8 @@
 //! - Thrust lever resolvers (ENG 1(2) THR LEVER FAULT, l.81792-81892) and resolver disagreement
 //!   (ENG 1(2) THR LEVER DISAGREE, l.81668-81786): [`A320ThrustLeverFailure`].
 //! - The reverse idle of a reverser deployment and the idle protection of an unlocked reverser
-//!   (DSC-70-70 l.63304-63321, ENG 1(2) REVERSE UNLOCKED l.80888-80889).
+//!   (DSC-70-70 l.63304-63321, ENG 1(2) REVERSE UNLOCKED l.80888-80889), and the idle protection
+//!   for the reverser feedback position (15 % / 78 %, [`ReverserIdleProtection`]).
 //!
 //! The result is the TLA the FADEC model uses (`ENGINE_n_FADEC_TLA_OVERRIDE*`, read by
 //! fbw_a320 FlyByWireInterface through FadecFailureInputs.h).
@@ -214,9 +215,86 @@ impl A320ThrustLeverFailure {
         }
     }
 }
+
+/// The idle protection of the FADEC for the thrust reverser position. A320 FCOM DSC-70-70 PROTECTION
+/// (a320_fcom.txt l.63311-63318): "The FADEC will automatically select the thrust to idle:
+/// - In case of inadvertent thrust reverser deployment (while thrust reversers are commanded stowed),
+///   as soon as the thrust reverser feedback position is above 15 % deployed (thrust decreasing
+///   toward idle, when the detected position is between 10 % and 15 %).
+/// - In case of inadvertent thrust reverser stowage (while thrust reversers are commanded deployed),
+///   as soon as the thrust reverser feedback position is below 78 % deployed (thrust decreasing toward
+///   idle between 90 % and 78 %)."
+///
+/// "Before deployment is completed, the FADEC sets reverse idle thrust" (l.63302-63303,
+/// `limit_reverse_thrust_until_deployed`): the stowage protection applies to a completed deployment
+/// (all doors deployed once under the deploy order), until the deploy order ends. Design choice: the
+/// thrust decreases linearly with the thrust lever angle between the two positions.
+#[derive(Default)]
+struct ReverserIdleProtection {
+    /// The reverser has been fully deployed since its deploy order.
+    deployment_completed: bool,
+}
+impl ReverserIdleProtection {
+    /// Commanded stowed: full thrust up to 10 % deployed, idle from 15 %.
+    const STOWED_FULL_THRUST_MAX_POSITION: f64 = 0.10;
+    const STOWED_IDLE_POSITION: f64 = 0.15;
+    /// Commanded deployed: full reverse thrust from 90 % deployed, reverse idle below 78 %.
+    const DEPLOYED_FULL_THRUST_MIN_POSITION: f64 = 0.90;
+    const DEPLOYED_IDLE_POSITION: f64 = 0.78;
+
+    fn update(&mut self, reverser: &A320ReverserMonitoring) {
+        self.deployment_completed =
+            reverser.deploy_commanded && (self.deployment_completed || reverser.fully_deployed);
+    }
+
+    fn deployment_completed(&self) -> bool {
+        self.deployment_completed
+    }
+
+    /// From 0 at `start` to 1 at `end`, clamped.
+    fn ramp(value: f64, start: f64, end: f64) -> f64 {
+        ((value - start) / (end - start)).clamp(0., 1.)
+    }
+
+    /// The share of the lever thrust the FADEC allows: 1 the full lever thrust, 0 (reverse) idle.
+    fn thrust_ratio(&self, reverser: &A320ReverserMonitoring) -> f64 {
+        if !reverser.deploy_commanded {
+            1. - Self::ramp(
+                reverser.position,
+                Self::STOWED_FULL_THRUST_MAX_POSITION,
+                Self::STOWED_IDLE_POSITION,
+            )
+        } else if self.deployment_completed {
+            Self::ramp(
+                reverser.position,
+                Self::DEPLOYED_IDLE_POSITION,
+                Self::DEPLOYED_FULL_THRUST_MIN_POSITION,
+            )
+        } else {
+            // the deployment is not completed: reverse idle, see limit_reverse_thrust_until_deployed
+            1.
+        }
+    }
+
+    /// The TLA the FADEC uses: forward thrust (commanded stowed) toward idle, reverse thrust
+    /// (commanded deployed) toward reverse idle.
+    fn limit_tla(&self, tla_deg: f64, reverser: &A320ReverserMonitoring) -> f64 {
+        let ratio = self.thrust_ratio(reverser);
+        if !reverser.deploy_commanded && tla_deg > IDLE_TLA_DEG {
+            IDLE_TLA_DEG + (tla_deg - IDLE_TLA_DEG) * ratio
+        } else if reverser.deploy_commanded && tla_deg < REVERSE_IDLE_TLA_DEG {
+            REVERSE_IDLE_TLA_DEG + (tla_deg - REVERSE_IDLE_TLA_DEG) * ratio
+        } else {
+            tla_deg
+        }
+    }
+}
+
 /// The FADEC of one engine: its channels, its thrust lever and the TLA it uses.
 struct A320EngineControl {
     fadec_channels: FadecChannels,
+    /// The idle protection for the reverser position
+    reverser_idle_protection: ReverserIdleProtection,
     /// flyPad "Thrust lever N resolvers (both)" and "Thrust lever N resolver disagree"
     thrust_lever_resolvers: Failure,
     thrust_lever_disagree: Failure,
@@ -234,6 +312,7 @@ impl A320EngineControl {
     fn new(context: &mut InitContext, engine_number: usize) -> Self {
         Self {
             fadec_channels: FadecChannels::new(context, engine_number),
+            reverser_idle_protection: ReverserIdleProtection::default(),
             thrust_lever_resolvers: Failure::new(FailureType::ThrustLeverResolvers(engine_number)),
             thrust_lever_disagree: Failure::new(FailureType::ThrustLeverResolverDisagree(
                 engine_number,
@@ -270,11 +349,16 @@ impl A320EngineControl {
         );
 
         let lever_rule_tla = self.thrust_lever.fadec_tla_deg(self.lever_tla_deg);
+        self.reverser_idle_protection.update(reverser);
+        // Reverse idle until the deployment is completed; afterwards the position protection.
         let reverse_limited_tla = limit_reverse_thrust_until_deployed(
             lever_rule_tla,
-            reverser.fully_deployed,
+            reverser.fully_deployed || self.reverser_idle_protection.deployment_completed(),
             REVERSE_IDLE_TLA_DEG,
         );
+        let reverse_limited_tla = self
+            .reverser_idle_protection
+            .limit_tla(reverse_limited_tla, reverser);
         // ENG 1(2) REVERSE UNLOCKED: "ENG 1(2) AT IDLE ... Only displayed, if the FADEC
         // automatically sets the engine at idle (i.e. when 4 reverser doors are not stowed ...)"
         // (l.80887-80889): the unlocked failure unlocks the four doors.
@@ -701,6 +785,108 @@ mod tests {
         assert_eq!(override_tla(&mut test_bed), None);
         let engine_2_override: bool = test_bed.read_by_name("ENGINE_2_FADEC_TLA_OVERRIDE_ACTIVE");
         assert!(!engine_2_override);
+    }
+
+    fn assert_override_tla(test_bed: &mut SimulationTestBed<TestAircraft>, expected_deg: f64) {
+        let tla = override_tla(test_bed).expect("the FADEC overrides the lever");
+        assert!(
+            (tla - expected_deg).abs() < 1e-6,
+            "FADEC TLA {} instead of {}",
+            tla,
+            expected_deg
+        );
+    }
+
+    /// FCOM DSC-70-70 IDLE PROTECTION (l.63313-63316): commanded stowed, idle above 15 % deployed, the
+    /// thrust decreasing toward idle between 10 % and 15 %.
+    #[test]
+    fn forward_thrust_goes_to_idle_while_a_stowed_reverser_is_more_than_15_percent_deployed() {
+        let mut test_bed = test_bed(false, 25.);
+        test_bed.command(|a| a.reversers[0].position = 0.05);
+        test_bed.run();
+        assert_eq!(override_tla(&mut test_bed), None);
+
+        test_bed.command(|a| a.reversers[0].position = 0.125);
+        test_bed.run();
+        assert_override_tla(&mut test_bed, 12.5);
+
+        test_bed.command(|a| a.reversers[0].position = 0.2);
+        test_bed.run();
+        assert_override_tla(&mut test_bed, IDLE_TLA_DEG);
+        let engine_2_override: bool = test_bed.read_by_name("ENGINE_2_FADEC_TLA_OVERRIDE_ACTIVE");
+        assert!(!engine_2_override, "engine 2 keeps its lever");
+    }
+
+    /// FCOM DSC-70-70 IDLE PROTECTION (l.63317-63318): commanded deployed, idle below 78 % deployed, the
+    /// thrust decreasing toward idle between 90 % and 78 %, once the deployment is completed (before it,
+    /// reverse idle, l.63302-63303).
+    #[test]
+    fn reverse_thrust_goes_to_reverse_idle_when_a_deployed_reverser_stows_below_78_percent() {
+        let mut test_bed = test_bed(true, -20.);
+        test_bed.command(|a| {
+            a.reversers[0].deploy_commanded = true;
+            a.reversers[0].position = 0.5;
+        });
+        test_bed.run();
+        assert_override_tla(&mut test_bed, REVERSE_IDLE_TLA_DEG);
+
+        test_bed.command(|a| {
+            a.reversers[0].fully_deployed = true;
+            a.reversers[0].position = 1.;
+        });
+        test_bed.run();
+        assert_eq!(override_tla(&mut test_bed), None);
+
+        // the deployed reverser moves toward stowed while still commanded deployed
+        test_bed.command(|a| {
+            a.reversers[0].fully_deployed = false;
+            a.reversers[0].position = 0.92;
+        });
+        test_bed.run();
+        assert_eq!(override_tla(&mut test_bed), None);
+
+        test_bed.command(|a| a.reversers[0].position = 0.84);
+        test_bed.run();
+        assert_override_tla(&mut test_bed, -13.);
+
+        test_bed.command(|a| a.reversers[0].position = 0.75);
+        test_bed.run();
+        assert_override_tla(&mut test_bed, REVERSE_IDLE_TLA_DEG);
+    }
+
+    /// A normal stow after the landing (commanded stowed, lever at idle) is not limited; a lever set
+    /// forward while the reverser is still stowing gets idle until it is almost stowed.
+    #[test]
+    fn a_new_deployment_waits_again_for_its_completion() {
+        let mut test_bed = test_bed(true, -20.);
+        test_bed.command(|a| {
+            a.reversers[0].deploy_commanded = true;
+            a.reversers[0].fully_deployed = true;
+            a.reversers[0].position = 1.;
+        });
+        test_bed.run();
+        // stow order: forward idle lever, the reverser stows
+        test_bed.write_by_name("AUTOTHRUST_TLA:1", IDLE_TLA_DEG);
+        test_bed.command(|a| {
+            a.reversers[0].deploy_commanded = false;
+            a.reversers[0].fully_deployed = false;
+            a.reversers[0].position = 0.6;
+        });
+        test_bed.run();
+        assert_eq!(override_tla(&mut test_bed), None);
+        test_bed.write_by_name("AUTOTHRUST_TLA:1", 25.);
+        test_bed.run();
+        assert_override_tla(&mut test_bed, IDLE_TLA_DEG);
+
+        // reverse again before the end of the stow, the reverser back at 92 %: reverse idle until the
+        // new deployment is completed (all doors deployed)
+        test_bed.write_by_name("AUTOTHRUST_TLA:1", -20.);
+        test_bed.command(|a| {
+            a.reversers[0].deploy_commanded = true;
+            a.reversers[0].position = 0.92;
+        });
+        test_bed.run();
+        assert_override_tla(&mut test_bed, REVERSE_IDLE_TLA_DEG);
     }
 
     #[test]

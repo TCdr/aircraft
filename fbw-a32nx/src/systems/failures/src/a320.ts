@@ -409,6 +409,9 @@ export const A320Failure = Object.freeze({
   EngineVibrationMonitoringUnit: 77010,
   Atsu: 46000,
   AtsuAoc: 46001,
+  Dcdu1: 46002,
+  Dcdu2: 46003,
+  Printer: 46004,
   Reverser1Fault: 78000,
   Reverser2Fault: 78001,
   Reverser1Unlocked: 78010,
@@ -863,4 +866,9 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // the company datalink only, DATALINK COMPANY FAULT (FWC Logic/DatalinkAlerts)
   [46, A320Failure.Atsu, 'ATSU'],
   [46, A320Failure.AtsuAoc, 'ATSU AOC function (company datalink)'],
+  // The cockpit datalink interface (FCOM DSC-46-10-10, a320_fcom.txt l.59032-59056), systems-host atsu.ts: a failed
+  // DCDU is blank and its keys do nothing; a failed printer prints nothing, PRINTER NOT AVAILABLE on the MCDU
+  [46, A320Failure.Dcdu1, 'DCDU 1 (captain)'],
+  [46, A320Failure.Dcdu2, 'DCDU 2 (first officer)'],
+  [46, A320Failure.Printer, 'Cockpit printer'],
 ];
