@@ -94,6 +94,9 @@ pub enum FailureType {
     Smoke(SmokeDetectionZone),
     /// Smoke detector n of a compartment is failed (fire_protection::smoke_detection)
     SmokeDetector(SmokeDetectionZone, usize),
+    /// The smoke detection unit of the aircraft is failed (A380 Smoke Detection Function of the CIDS): it reports
+    /// neither smoke nor a detector fault in any compartment (fire_protection::smoke_detection)
+    SmokeDetectionFunction,
     /// Cargo fire extinguisher bottle n loses its agent: low pressure (A320 SMOKE CRG BTL FAULT, A380 SMOKE CARGO
     /// BOTTLES FAULT)
     CargoFireBottleLowPressure(usize),
@@ -301,6 +304,12 @@ pub enum FailureType {
     /// The thrust reverser control system of engine n is failed: the reverser is inoperative (A380
     /// REVERSER CTL FAULT)
     ReverserControlFault(usize),
+    /// The FADEC of engine n detects a reverser failure that does not impair the reverser
+    /// operation (A380 REVERSER MINOR FAULT): alert only
+    ReverserMinorFault(usize),
+    /// The thrust reverser of engine n is inhibited by maintenance action: it does not deploy (A380
+    /// REVERSER INHIBITED)
+    ReverserInhibited(usize),
     // ATA49: the APU electronic control box (ECB) shuts the APU down (apu::electronic_control_box)
     /// The APU ECB is failed
     ApuElectronicControlBox,
@@ -310,6 +319,11 @@ pub enum FailureType {
     ApuOilLowPressure,
     /// The APU oil temperature is high
     ApuOilHighTemperature,
+    /// The APU air intake flap is failed closed: it closes whatever its command (apu::air_intake_flap)
+    ApuAirIntakeFlapFailedClosed,
+    /// The APU oil level is low: the ECB detects it on the ground with the APU not running (A320 SD APU page LOW OIL
+    /// LEVEL), the APU still runs
+    ApuOilLevelLow,
 }
 
 pub struct Failure {

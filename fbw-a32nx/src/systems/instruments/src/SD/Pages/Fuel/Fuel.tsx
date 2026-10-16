@@ -18,6 +18,7 @@ import {
 } from './FuelPumpValveIndications';
 import { wingImbalancePulse } from './FuelImbalanceIndication';
 import { FuelCell, FuelTemperatureIndication, fuelTemperatureIndication } from '@shared/FuelTemperature';
+import { isFuelOnBoardHalfBoxed, isOuterTankQuantityBoxed } from '@shared/FuelQuantityIndications';
 
 import './Fuel.scss';
 
@@ -33,9 +34,18 @@ export const FuelPage = () => {
   const [rightOuterInnerValve] = useSimVar('FUELSYSTEM VALVE OPEN:5', 'bool', 500);
   const [modelSelectManual] = useSimVar('L:A32NX_OVHD_FUEL_MODESEL_MANUAL', 'bool', 500);
   const [autoShutoffRequired] = useSimVar('FUELSYSTEM TRIGGER STATUS:9', 'bool', 500);
-  // Both centre tank transfer valves failed closed (systems host Fuel/FuelPumpsAndValves)
-  const [leftCtrXfrNotFullyOpen] = useSimVar('L:A32NX_FUEL_CTR_TK_L_XFR_VALVE_NOT_FULLY_OPEN', 'bool', 500);
-  const [rightCtrXfrNotFullyOpen] = useSimVar('L:A32NX_FUEL_CTR_TK_R_XFR_VALVE_NOT_FULLY_OPEN', 'bool', 500);
+  // The transfer valve failures of the boxed quantities and of the FOB half box (systems host Fuel/FuelPumpsAndValves,
+  // shared/src/FuelQuantityIndications.ts)
+  const [leftCtrXfrFailedClosed] = useSimVar('L:A32NX_FUEL_CTR_TK_L_XFR_VALVE_FAILED_CLOSED', 'bool', 500);
+  const [rightCtrXfrFailedClosed] = useSimVar('L:A32NX_FUEL_CTR_TK_R_XFR_VALVE_FAILED_CLOSED', 'bool', 500);
+  const [leftOuterXfrClosed] = useSimVar('L:A32NX_FUEL_L_OUTER_XFR_CLOSED', 'bool', 500);
+  const [rightOuterXfrClosed] = useSimVar('L:A32NX_FUEL_R_OUTER_XFR_CLOSED', 'bool', 500);
+  const fobHalfBoxed = isFuelOnBoardHalfBoxed({
+    leftOuterXfrClosed: leftOuterXfrClosed > 0,
+    rightOuterXfrClosed: rightOuterXfrClosed > 0,
+    leftCentreXfrFailedClosed: leftCtrXfrFailedClosed > 0,
+    rightCentreXfrFailedClosed: rightCtrXfrFailedClosed > 0,
+  });
 
   const [useMetric] = usePersistentSetting('CONFIG_USING_METRIC_UNIT');
 
@@ -118,7 +128,11 @@ export const FuelPage = () => {
         <Pump x={145} y={215} pumpNumber={2} />
         <Pump x={180} y={215} onBus="DC_2" pumpNumber={5} />
 
-        {/* Quantities */}
+        {/* Quantities; the outer one boxed amber when its transfer valves failed to open (FCOM l.43219-43220), the box
+            sized as the centre tank one around the right-aligned value */}
+        {isOuterTankQuantityBoxed(leftOuterXfrClosed > 0) && (
+          <rect className="AmberLine" x={6} y={268} width={80} height={34} fill="none" />
+        )}
         <text className={leftWingQuantityClass} x={80} y={285}>
           {fuelInTanksForDisplay(tankLeftOuter, useMetric, fuelWeightPerGallon)}
         </text>
@@ -169,7 +183,7 @@ export const FuelPage = () => {
         />
 
         {/* Quantities */}
-        {isCentreTankQuantityBoxed(leftCtrXfrNotFullyOpen > 0, rightCtrXfrNotFullyOpen > 0) && (
+        {isCentreTankQuantityBoxed(leftCtrXfrFailedClosed > 0, rightCtrXfrFailedClosed > 0) && (
           <rect className="AmberLine" x={236} y={298} width={100} height={34} fill="none" />
         )}
         <text className="TankQuantity" x={330} y={315}>
@@ -198,6 +212,9 @@ export const FuelPage = () => {
         <text className={rightInnerQuantityClass} x={472} y={285}>
           {fuelInTanksForDisplay(tankRightInner, useMetric, fuelWeightPerGallon)}
         </text>
+        {isOuterTankQuantityBoxed(rightOuterXfrClosed > 0) && (
+          <rect className="AmberLine" x={506} y={268} width={80} height={34} fill="none" />
+        )}
         <text className={rightWingQuantityClass} x={580} y={285}>
           {fuelInTanksForDisplay(tankRightOuter, useMetric, fuelWeightPerGallon)}
         </text>
@@ -214,7 +231,7 @@ export const FuelPage = () => {
       <FuelFlow useMetric={useMetric} />
 
       {/* FOB */}
-      <FOB useMetric={useMetric} />
+      <FOB useMetric={useMetric} halfBoxed={fobHalfBoxed} />
     </EcamPage>
   );
 };
@@ -329,14 +346,19 @@ const FuelFlow = ({ useMetric }: FuelFlowProps) => {
 
 type FOBProps = {
   useMetric: boolean;
+  /** Some displayed fuel is not usable (FCOM l.43275-43278, shared/src/FuelQuantityIndications.ts) */
+  halfBoxed: boolean;
 };
 
-const FOB = ({ useMetric }: FOBProps) => {
+const FOB = ({ useMetric, halfBoxed }: FOBProps) => {
   const [fob] = useSimVar('L:A32NX_TOTAL_FUEL_QUANTITY', 'number', 1000);
 
   return (
     <>
       <path className="ThickShape" d="m 5 499 v -30 h 250 v 30 z" />
+      {/* The amber half box: the lower half of a box around the value (as the DOOR/OXY crew oxygen half frame); the
+          FCOM text gives no figure */}
+      {halfBoxed && <path className="AmberLine" fill="none" d="m 112 485 v 10 h 96 v -10" />}
 
       <text id="FobLabel" x={18} y={491}>
         FOB

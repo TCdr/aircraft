@@ -4,7 +4,7 @@
 
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
-import { VerticalMode, LateralMode, isArmed, ArmedLateralMode } from '@shared/autopilot';
+import { VerticalMode, LateralMode, isArmed, ArmedLateralMode, AutoThrustMode } from '@shared/autopilot';
 import {
   VerticalProfileComputationParameters,
   VerticalProfileComputationParametersObserver,
@@ -35,6 +35,11 @@ import { FlightPlanIndex } from '../../flightplanning/FlightPlanManager';
 import { VnavConfig } from './VnavConfig';
 import { isLeg } from '../../flightplanning/legs/FlightPlanLeg';
 import { isStepDescentInitiation } from './StepDescentWindow';
+import {
+  interceptMarginToNextAltitudeConstraintNm,
+  isInSpeedbrakeDecelerationSegment,
+  isMoreDragMessageActive,
+} from './descent/MoreDragMessage';
 
 export class VnavDriver implements GuidanceComponent {
   version: number = 0;
@@ -72,6 +77,9 @@ export class VnavDriver implements GuidanceComponent {
   private requestDescentProfileRecomputation: boolean = false;
 
   private prevMcduPredReadyToDisplay = false;
+
+  /** The MORE DRAG FMA message (L:A32NX_PFD_MSG_MORE_DRAG), descent/MoreDragMessage.ts */
+  private moreDragMessageActive = false;
 
   constructor(
     private readonly bus: EventBus,
@@ -133,6 +141,7 @@ export class VnavDriver implements GuidanceComponent {
         this.updateHoldSpeed();
         this.updateDescentSpeedGuidance();
         this.descentGuidance.update(deltaTime, this.guidanceController.getAlongTrackDistanceToDestination());
+        this.updateMoreDragMessage();
       }
     } catch (e) {
       console.error('[FMS] Failed to calculate vertical profile. See exception below.');
@@ -208,6 +217,43 @@ export class VnavDriver implements GuidanceComponent {
 
       SimVar.SetSimVarValue('L:A32NX_FM_VERTICAL_PROFILE_AVAIL', 'Bool', false);
       this.prevMcduPredReadyToDisplay = false;
+    }
+  }
+
+  /**
+   * The MORE DRAG FMA message (A320 FCOM DSC-22_30-100 l.33617-33623, see descent/MoreDragMessage.ts): the intercept of
+   * the ND profile against the next ALT CSTR, and the speedbrake decelerations of the descent profile.
+   */
+  private updateMoreDragMessage(): void {
+    const { fcuVerticalMode, fcuSpeedManaged } = this.computationParametersObserver.get();
+    const linearDeviation = this.descentGuidance.getLinearDeviation();
+    const ndProfile = this.ndProfile;
+    const descentProfile = this.descentProfile;
+
+    const active = isMoreDragMessageActive({
+      desModeEngaged: fcuVerticalMode === VerticalMode.DES,
+      thrustIdle: SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_MODE', 'Enum') === AutoThrustMode.THR_IDLE,
+      aboveProfile: linearDeviation !== undefined && linearDeviation > 0,
+      interceptMarginToNextAltitudeConstraintNm: ndProfile
+        ? interceptMarginToNextAltitudeConstraintNm(
+            ndProfile.checkpoints,
+            ndProfile.descentAltitudeConstraints,
+            ndProfile.distanceToPresentPosition,
+          )
+        : null,
+      speedAuto: !!fcuSpeedManaged,
+      inSpeedbrakeDecelerationSegment:
+        !!descentProfile &&
+        this.aircraftToDescentProfileRelation.isValid &&
+        isInSpeedbrakeDecelerationSegment(
+          descentProfile.speedbrakeDecelerationSegments,
+          this.aircraftToDescentProfileRelation.distanceFromStart,
+        ),
+    });
+
+    if (active !== this.moreDragMessageActive) {
+      this.moreDragMessageActive = active;
+      SimVar.SetSimVarValue('L:A32NX_PFD_MSG_MORE_DRAG', 'Bool', active);
     }
   }
 

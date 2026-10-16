@@ -16,6 +16,19 @@
  *   l.57807-57808).
  */
 
+/**
+ * (10) LOW OIL LEVEL, l.60848-60850: "Advisory: Displayed if the ECB detects a low APU oil level when the aircraft is on
+ * the ground, and the APU is not running." The ECB applies the ground and not running conditions
+ * (L:A32NX_APU_LOW_OIL_LEVEL, systems apu/electronic_control_box.rs). An advisory pulses: PRO-ABN-ABN-ADV APU OIL QTY
+ * "(message LOW OIL LEVEL pulsing)" (l.66494-66497); the FCOM text gives no colour, it pulses green as the page's other
+ * advisory (FLAP OPEN).
+ * @param ecbDataValid the APU_LOW_OIL_LEVEL word is in normal operation (the ECB is on)
+ * @param lowOilLevel the word value
+ */
+export function isApuLowOilLevelShown(ecbDataValid: boolean, lowOilLevel: boolean): boolean {
+  return ecbDataValid && lowOilLevel;
+}
+
 /** l.60759: the APU N above which AVAIL shows, in percent */
 export const APU_AVAIL_N_PERCENT = 95;
 

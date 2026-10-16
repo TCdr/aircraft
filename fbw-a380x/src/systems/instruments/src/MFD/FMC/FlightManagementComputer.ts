@@ -62,6 +62,7 @@ import {
 } from '../shared/NXSystemMessages';
 import { DataManager, LatLonFormatType, PilotWaypoint } from '@fmgc/flightplanning/DataManager';
 import { bearingTo, Coordinates } from 'msfs-geo';
+import { isAlignReferenceLost } from './IrsAlignReference';
 import { FmsDisplayInterface } from '@fmgc/flightplanning/interface/FmsDisplayInterface';
 import { MfdDisplayInterface } from '../MFD';
 import { FmcIndex } from './FmcServiceInterface';
@@ -106,6 +107,7 @@ import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
 import { toCoRoute } from './StoredRouteUtils';
+import { alternateRouteFixes } from './AlternateCompanyRoute';
 import { CoRouteUplinkAdapter } from '@fmgc/flightplanning/uplink/CoRouteUplinkAdapter';
 import { AtsuStatusCodes } from '@datalink/common';
 import { AtsuToFmsEvents, FmsToAtsuEvents, WindUplinkResponse } from '@providers/FmsAtsuBusPublisher';
@@ -115,6 +117,7 @@ import { FmsToDatalinkSubsystemEvents } from '../../../../shared/src/publishers/
 import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvents';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
 import { engineFailureCreatesEngineOutSid } from './EngineOutSid';
+import { writeTakeoffDerate } from '../shared/TakeoffDerate';
 
 export interface FmsErrorMessage {
   message: McduMessage;
@@ -358,6 +361,22 @@ export class FlightManagementComputer implements FmcInterface {
     }
   }
 
+  /**
+   * Inserts an alternate company route (from the primary destination to its alternate destination): re-initializes the
+   * alternate flight plan with the en-route fixes of the route, without a temporary flight plan (INIT page ALTN RTE and
+   * ROUTE SELECTION page, AlternateCompanyRoute.ts).
+   */
+  async insertAlternateCompanyRoute(route: StoredRoute, intoPlan: FlightPlanIndex): Promise<void> {
+    const fixes = await alternateRouteFixes(route.navlog, (ident) =>
+      NavigationDatabaseService.activeDatabase.searchAllFix(ident),
+    );
+    await this.flightPlanInterface.insertAlternateCompanyRoute(route.destinationIcao, fixes, intoPlan);
+    this.fmgc.data.alternateCompanyRoute(intoPlan).set({ ident: route.ident, alternateIcao: route.destinationIcao });
+    if (intoPlan === FlightPlanIndex.Active) {
+      this.acInterface.updateFmsData();
+    }
+  }
+
   private efisSymbolsLeft!: EfisSymbols<number>;
   private efisSymbolsRight!: EfisSymbols<number>;
 
@@ -483,6 +502,12 @@ export class FlightManagementComputer implements FmcInterface {
   private readonly checkDestDataMessage = Subject.create(false);
 
   public readonly approachFlapsThreeSelected = Subject.create(false);
+
+  /**
+   * The IRS alignment reference position defined on the POSITION / IRS Align On Other Reference panel (IrsAlignReference.ts),
+   * null while the IRS align on the GPS position. Kept until all the IRS are switched off, or the FMS resets.
+   */
+  public readonly irsAlignReferencePosition = Subject.create<Coordinates | null>(null);
 
   private destDataCheckedInCruise = false;
 
@@ -1684,6 +1709,8 @@ export class FlightManagementComputer implements FmcInterface {
       this.addMessageToQueue(NXSystemMessages.checkToData);
       const flex = this.#flightPlanService.active?.performanceData.flexTakeoffTemperature.get();
       SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', flex === 0 ? 0.1 : flex ?? 0);
+      const performanceData = this.#flightPlanService.active?.performanceData;
+      writeTakeoffDerate(performanceData?.takeoffPowerSetting?.get(), performanceData?.takeoffDeratedSetting?.get());
     }
 
     if (zfwDiff !== null && zfwDiff > 5 && zfwCgDiff !== null && zfwCgDiff > 0.5) {
@@ -1980,6 +2007,8 @@ export class FlightManagementComputer implements FmcInterface {
       this.flightPlanInterface.setPerformanceData('takeoffPowerSetting', TakeoffPowerSetting.TOGA, plan);
       SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', 0);
     }
+    // the uplinked thrust is TOGA or FLEX: no DOx derate for the FADECs
+    writeTakeoffDerate(TakeoffPowerSetting.TOGA, null);
     this.flightPlanInterface.setPerformanceData('takeoffShift', uplink.shift, plan);
     if (uplink.thrustReductionAltitude !== null) {
       this.flightPlanInterface.setPerformanceData('pilotThrustReductionAltitude', uplink.thrustReductionAltitude, plan);
@@ -2452,6 +2481,14 @@ export class FlightManagementComputer implements FmcInterface {
     if (throttledDt !== -1) {
       this.navigation.update(throttledDt);
       this.#timeKeeper.update(throttledDt);
+      if (
+        this.irsAlignReferencePosition.get() !== null &&
+        isAlignReferenceLost(
+          [1, 2, 3].map((ir) => SimVar.GetSimVarValue(`L:A32NX_OVHD_ADIRS_IR_${ir}_MODE_SELECTOR_KNOB`, 'Enum')),
+        )
+      ) {
+        this.irsAlignReferencePosition.set(null);
+      }
       this.#sequencedWaypointRecorder?.update();
       if (this.instance === FmcIndex.FmcA) {
         this.#printer ??= new FmsPrinter(this, this.bus);
@@ -2772,6 +2809,7 @@ export class FlightManagementComputer implements FmcInterface {
     this.navigation.resetState();
     this.acInterface.resetDestinationPredictions();
     this.resetAtisAutoUpdate();
+    this.irsAlignReferencePosition.set(null);
   }
 
   public logTroubleshootingError(msg: any) {

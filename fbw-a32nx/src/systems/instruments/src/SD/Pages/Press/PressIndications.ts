@@ -65,3 +65,32 @@ export function cabinAltitudeNeedleClass(displayedCabinAltitudeFt: number): stri
 export function cabinVsPulses(displayedCabinVsFtMin: number, wasPulsing: boolean): boolean {
   return Math.abs(displayedCabinVsFtMin) > (wasPulsing ? CABIN_VS_PULSE_RESET_FT_MIN : CABIN_VS_PULSE_FT_MIN);
 }
+
+/** The VENT, BLOWER and EXTRACT legends of the CAB PRESS page */
+export interface VentilationIndication {
+  /** VENT in amber (white otherwise) */
+  readonly ventAmber: boolean;
+  /** BLOWER shown (in amber) */
+  readonly blowerShown: boolean;
+  /** EXTRACT shown (in amber) */
+  readonly extractShown: boolean;
+}
+
+/**
+ * The avionics ventilation legends of the CAB PRESS page, A320 FCOM DSC-21-30-60 ECAM CAB PRESS PAGE (a320_fcom.txt
+ * l.9587-9591): "VENT message normally appears in white. It becomes amber, if there is a BLOWER FAULT, EXTRACT FAULT, or
+ * AVNCS SYS FAULT. BLOWER message appears in amber if there is a BLOWER FAULT. EXTRACT message appears in amber if
+ * there is an EXTRACT FAULT."
+ * The BLOWER and EXTRACT FAULTs are the signals of the overhead FAULT lights, which also come on with the avionics smoke
+ * (DSC-21-30-20 l.9560-9566: "smoke warning is activated"). Not simulated: the avionics equipment ventilation computer,
+ * so no AVNCS SYS FAULT.
+ * @param blowerFault L:A32NX_VENTILATION_BLOWER_FAULT, or the avionics smoke
+ * @param extractFault L:A32NX_VENTILATION_EXTRACT_FAULT, or the avionics smoke
+ */
+export function ventilationIndication(blowerFault: boolean, extractFault: boolean): VentilationIndication {
+  return {
+    ventAmber: blowerFault || extractFault,
+    blowerShown: blowerFault,
+    extractShown: extractFault,
+  };
+}

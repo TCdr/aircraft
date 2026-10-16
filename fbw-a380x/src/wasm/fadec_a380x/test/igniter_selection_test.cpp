@@ -37,6 +37,9 @@ struct EngineConditions {
   int    startSequenceIgniters = 0;
   double n3                    = 62.0;
   double n1                    = 20.0;
+  // AMBIENT PRECIP RATE (mm/h) and the idle N1 of the FADEC (adverse weather protection)
+  double precipitationRate = 0.0;
+  double idleN1            = 19.0;
 };
 
 static constexpr double FRAME_SECONDS = 1.0 / 30.0;
@@ -53,7 +56,9 @@ static IgniterSelection_A380X::Inputs inputsOf(const EngineConditions& c) {
           c.startSequenceIgniters,
           c.n3,
           c.n1,
-          FRAME_SECONDS};
+          FRAME_SECONDS,
+          c.precipitationRate,
+          c.idleN1};
 }
 
 /// Runs the FADEC for this time with constant conditions; returns the igniters of the last frame.
@@ -244,7 +249,35 @@ static void testQuickRelight() {
   expect(is(run(lowN3, c, 1.0), false, false), "no quick relight below 45 % N2");
 }
 
+/// FCOM DSC-70-20-20 ADVERSE WEATHER (l.111476-111478): "if the FADEC detects a risk of engine flameout due to excessive
+/// rain or hail at low engine power (i.e. idle), the FADEC automatically switches on both igniters".
+static void testAdverseWeather() {
+  EngineConditions c;
+  c.simOnGround       = false;
+  c.n1                = 21.0;  // idle (19 %) descent
+  c.precipitationRate = 15.0;
+  IgniterSelection_A380X heavyRainAtIdle;
+  expect(is(run(heavyRainAtIdle, c, 1.0), true, true), "heavy rain at idle: both igniters");
+
+  c.precipitationRate = 5.0;
+  expect(is(run(heavyRainAtIdle, c, 1.0), false, false), "moderate rain at idle: no igniter");
+
+  c.precipitationRate = 15.0;
+  c.n1                = 60.0;
+  expect(is(run(heavyRainAtIdle, c, 1.0), false, false), "heavy rain above idle: no igniter");
+
+  c.n1       = 21.0;
+  c.masterOn = false;
+  expect(is(run(heavyRainAtIdle, c, 1.0), false, false), "heavy rain, ENG MASTER OFF: no igniter");
+
+  EngineConditions onGround;
+  onGround.precipitationRate = 20.0;
+  IgniterSelection_A380X groundIdle;
+  expect(is(run(groundIdle, onGround, 1.0), true, true), "heavy rain at ground idle: both igniters");
+}
+
 int main() {
+  testAdverseWeather();
   testGroundStartFollowsTheStartSequence();
   testGroundStartIgnitersInhibitionsAndAutoRelight();
   testInFlightIgnoresTheGroundStartSequence();

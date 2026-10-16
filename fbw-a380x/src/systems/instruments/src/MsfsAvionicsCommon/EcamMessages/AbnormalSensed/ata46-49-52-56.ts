@@ -18,6 +18,32 @@ import { AbnormalProcedure, ChecklistLineStyle } from '..';
 
 /** All abnormal sensed procedures (alerts, via ECL) should be here. */
 export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } = {
+  // ATA 46 INFORMATION SYSTEM (A380 FCOM PRO-ABN-ECAM-10-46, a380_fcom.txt l.169812-169959). The alert logic is in
+  // systems-host CpiomC/FlightWarningSystem/CommunicationAlerts.ts informationSystemAlerts.
+  460800001: {
+    // crew awareness (l.169814-169831)
+    title: '\x1b<4m\x1b4mCOM\x1bm ADS DATALINK FAULT',
+    sensed: true,
+    items: [],
+  },
+  460800002: {
+    // l.169842-169889
+    title: '\x1b<4m\x1b4mCOM\x1bm ATC DATALINK FAULT',
+    sensed: true,
+    items: [{ name: 'ATC COM VOICE ONLY', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  460800003: {
+    // crew awareness (l.169900-169925)
+    title: '\x1b<4m\x1b4mCOM\x1bm NSS DATA TO AVNCS XFR FAULT',
+    sensed: true,
+    items: [],
+  },
+  460800004: {
+    // crew awareness (l.169936-169959)
+    title: '\x1b<4m\x1b4mCOM\x1bm NSS/AVNCS DATA XFR FAULT',
+    sensed: true,
+    items: [],
+  },
   // ATA 49 APU
   490800001: {
     // A380 FCOM PRO-ABN-ECAM-10-49 APU FAULT, Impacted DU 00007683 version (a380_fcom.txt l.170161-170185). The lines
@@ -34,6 +60,21 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
       { name: 'IF APU NOT ABSOLUTELY RQRD', sensed: false, condition: true },
       { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
+  },
+  490800002: {
+    // A380 FCOM PRO-ABN-ECAM-10-49 APU MACH LIMIT EXCEEDED (a380_fcom.txt l.170204-170230), ApuFaultAlerts.ts
+    title: '\x1b<4m\x1b4mAPU\x1bm MACH LIMIT EXCEEDED',
+    sensed: true,
+    items: [
+      { name: 'IF APU NOT ABSOLUTELY RQRD', sensed: false, condition: true },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
+  },
+  490800003: {
+    // A380 FCOM PRO-ABN-ECAM-10-49 APU OIL FILTER CLOGGED (a380_fcom.txt l.170240-170258): crew awareness
+    title: '\x1b<4m\x1b4mAPU\x1bm OIL FILTER CLOGGED',
+    sensed: true,
+    items: [],
   },
   // ATA 52 DOOR
   520800008: {

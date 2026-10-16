@@ -5,6 +5,7 @@
 
 import {
   Clock,
+  ConsumerSubject,
   FsBaseInstrument,
   FSComponent,
   FsInstrument,
@@ -25,6 +26,7 @@ import { MAX_TRAFFIC_RANGE_NM, NDComponent } from '@flybywiresim/navigation-disp
 
 import { NDSimvarPublisher, NDSimvars } from './NDSimvarPublisher';
 import { AdirsValueProvider } from '../MsfsAvionicsCommon/AdirsValueProvider';
+import { EfisSideDiscrepancyEvents, EfisSideDiscrepancyMonitor } from '../MsfsAvionicsCommon/EfisSideDiscrepancy';
 import { FmsDataPublisher } from '../MsfsAvionicsCommon/providers/FmsDataPublisher';
 import { FmsSymbolsPublisher } from './FmsSymbolsPublisher';
 import { VorBusPublisher } from '../MsfsAvionicsCommon/providers/VorBusPublisher';
@@ -118,6 +120,8 @@ class NDInstrument implements FsInstrument {
     this.backplane.addPublisher('egpwc', this.egpwcBusPublisher);
 
     this.backplane.addInstrument('clock', this.clock);
+    // CHECK HDG: A320 FCOM DSC-31-05-60, a320_fcom.txt l.45417-45422
+    this.backplane.addInstrument('efisSideDiscrepancy', new EfisSideDiscrepancyMonitor(this.bus, side));
 
     this.doInit();
   }
@@ -173,6 +177,10 @@ class NDInstrument implements FsInstrument {
           mapOptions={{ trafficMaxRangeNm: MAX_TRAFFIC_RANGE_NM }}
           // A320 FCOM DSC-34-SURV-30-30: the radar rows of the A32NX pedestal radar panel
           a320WxrIndications
+          headingDiscrepancy={ConsumerSubject.create(
+            this.bus.getSubscriber<EfisSideDiscrepancyEvents>().on('efis_check_heading'),
+            false,
+          )}
         />
       </DisplayUnit>,
       document.getElementById('ND_CONTENT'),

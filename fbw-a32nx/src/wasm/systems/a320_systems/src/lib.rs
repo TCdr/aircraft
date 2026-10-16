@@ -73,20 +73,32 @@ use systems::{
         AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel,
     },
     pneumatic::EngineState,
-    shared::{ElectricalBusType, EngineStartState, LgciuWeightOnWheels},
+    shared::{ElectricalBusType, EngineStartState, LgciuWeightOnWheels, PackFlowValveState},
     simulation::{Aircraft, SimulationElement, SimulationElementVisitor, UpdateContext},
 };
 
 /// The FADEC faults of the A320 FCOM that have no engine model effect (PRO-ABN-ENG, a320_fcom.txt):
 /// ENG 1(2) FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH
-/// FAULT (see systems::engine::engine_monitoring_fault and the FWC Logic/EngineMonitoringAlerts.ts).
-const A320_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 6] = [
+/// FAULT (see systems::engine::engine_monitoring_fault and the FWC Logic/EngineMonitoringAlerts.ts),
+/// and FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE (ENG 1(2) and ENG 1+2),
+/// BLEED STATUS FAULT, REV INHIBITED, REV ISOL FAULT (FWC Logic/EngineFadecFaultAlerts.ts). REV
+/// INHIBITED also stops the reverser deployment (see `reversers_deployment_inhibited`).
+const A320_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 15] = [
     EngineMonitoringFaultKind::FadecAlternator,
     EngineMonitoringFaultKind::OverspeedProtection,
     EngineMonitoringFaultKind::InletProbes,
     EngineMonitoringFaultKind::Sensors,
     EngineMonitoringFaultKind::OneThrustLeverResolver,
     EngineMonitoringFaultKind::ReverserPermissionSwitch,
+    EngineMonitoringFaultKind::FuelMeteringValve,
+    EngineMonitoringFaultKind::FuelReturnValveFailedClosed,
+    EngineMonitoringFaultKind::FuelReturnValveFailedOpen,
+    EngineMonitoringFaultKind::ClearanceControlValves,
+    EngineMonitoringFaultKind::CompressorVanes,
+    EngineMonitoringFaultKind::CompressorVaneChannel,
+    EngineMonitoringFaultKind::BleedValveStatus,
+    EngineMonitoringFaultKind::ReverserInhibited,
+    EngineMonitoringFaultKind::ReverserShutoffValve,
 ];
 
 pub struct A320 {
@@ -132,7 +144,10 @@ pub struct A320 {
     egpwc: EnhancedGroundProximityWarningComputer,
     egpwc_2: EnhancedGroundProximityWarningComputer2,
     egpws_electrical_harness: A320EgpwsElectricalHarness,
-    mmr: MultiModeReceiverShim,
+    /// ILS 1 (NAV 3), for PFD 1 and the EGPWS
+    mmr_1: MultiModeReceiverShim,
+    /// ILS 2 (NAV 4), for PFD 2
+    mmr_2: MultiModeReceiverShim,
     gps_1: GpsReceiver,
     gps_2: GpsReceiver,
     gpirs: Gpirs,
@@ -222,9 +237,26 @@ impl A320 {
                 },
             ),
             egpws_electrical_harness: A320EgpwsElectricalHarness::new(context),
-            mmr: MultiModeReceiverShim::new(context),
+            mmr_1: MultiModeReceiverShim::new(context, 1),
+            mmr_2: MultiModeReceiverShim::new(context, 2),
             reverse_thrust: ReverserForce::new(context),
         }
+    }
+
+    /// Per engine, the reverser does not deploy: the FADEC no longer commands it (thrust lever
+    /// fault, FADEC fault) or it is inhibited by maintenance action (ENG 1(2) REV INHIBITED, A320
+    /// FCOM PRO-ABN-ENG l.80700 "the reverser is inhibited by maintenance action", STATUS INOP SYS
+    /// REVERSER 1(2) l.80711-80715).
+    fn reversers_deployment_inhibited(&self) -> [bool; 2] {
+        let fadec_inhibited = self
+            .engine_control_failures
+            .reversers_deployment_inhibited();
+        [1, 2].map(|engine_number| {
+            fadec_inhibited[engine_number - 1]
+                || self
+                    .engine_monitoring_faults
+                    .is_active(engine_number, EngineMonitoringFaultKind::ReverserInhibited)
+        })
     }
 }
 impl Aircraft for A320 {
@@ -233,6 +265,10 @@ impl Aircraft for A320 {
         context: &UpdateContext,
         electricity: &mut Electricity,
     ) {
+        // The APU speed governing (A320 FCOM l.60473-60476) knows the air conditioning demand: a pack takes air
+        self.apu.update_air_conditioning_demand(
+            (1..=2).any(|pack_id| self.pneumatic.pack_flow_valve_is_open(pack_id)),
+        );
         self.apu.update_before_electrical(
             context,
             &self.apu_overhead,
@@ -313,10 +349,9 @@ impl Aircraft for A320 {
         self.gpirs.update();
 
         // The FADECs' reverser inhibitions of the previous update (thrust lever fault, FADEC fault)
-        self.hydraulic.set_reversers_deployment_inhibited(
-            self.engine_control_failures
-                .reversers_deployment_inhibited(),
-        );
+        // and the maintenance inhibition (ENG 1(2) REV INHIBITED)
+        self.hydraulic
+            .set_reversers_deployment_inhibited(self.reversers_deployment_inhibited());
         self.hydraulic.update(
             context,
             &self.engine_1,
@@ -404,7 +439,7 @@ impl Aircraft for A320 {
             self.radio_altimeters.radio_altimeter_2(),
             self.adirs.adr_bus(1),
             self.adirs.ir_bus(1),
-            &self.mmr,
+            &self.mmr_1,
         );
     }
 }
@@ -452,7 +487,8 @@ impl SimulationElement for A320 {
         self.egpwc.accept(visitor);
         self.egpws_electrical_harness.accept(visitor);
         self.egpwc_2.accept(visitor);
-        self.mmr.accept(visitor);
+        self.mmr_1.accept(visitor);
+        self.mmr_2.accept(visitor);
         self.reverse_thrust.accept(visitor);
 
         visitor.visit(self);
@@ -565,6 +601,47 @@ mod tests {
         assert!(!test_bed.query(|a| a.fuel.apu_has_fuel()));
     }
 
+    /// A320 FCOM DSC-49-10-20 FUEL SYSTEM (a320_fcom.txt l.60437-60439): the left fuel feed line supplies the APU,
+    /// with the pressure of the tank pumps or else of the APU fuel pump (fuel/apu_fuel_feed.rs). Without electrical
+    /// power neither runs: tank content alone does not feed the APU.
+    #[test]
+    fn without_a_powered_pump_the_apu_has_no_fuel_pressure_despite_the_tank_content() {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A320::new(context));
+        test_bed.set_on_ground(true);
+        test_bed.write_by_name("FUEL TANK LEFT MAIN QUANTITY", 1500.);
+        test_bed.write_by_name("OVHD_APU_MASTER_SW_PB_IS_ON", true);
+        for _ in 0..(3 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+
+        assert!(test_bed.query(|a| a.fuel.left_inner_tank_has_fuel_remaining()));
+        assert!(!test_bed.query(|a| a.fuel.apu_fuel_pump_runs()));
+        assert!(!test_bed.query(|a| a.fuel.apu_has_fuel()));
+    }
+
+    /// The APU fuel pump starts with the APU MASTER SW ON when no tank pump runs (a320_fcom.txt l.60439, l.60560),
+    /// powered by the AC ESS SHED bus or the static inverter (electrical/alternating_current.rs)
+    #[test]
+    fn with_the_tank_pumps_off_the_apu_fuel_pump_feeds_the_apu() {
+        let mut test_bed = aircraft_with_engines_at_idle();
+        test_bed.write_by_name("FUEL TANK LEFT MAIN QUANTITY", 1500.);
+        test_bed.write_by_name("OVHD_APU_MASTER_SW_PB_IS_ON", true);
+        for _ in 0..(3 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+
+        assert!(test_bed.query(|a| a.fuel.apu_fuel_pump_runs()));
+        assert!(test_bed.query(|a| a.fuel.apu_has_fuel()));
+
+        // A running left tank pump takes over: the APU fuel pump stops
+        test_bed.write_by_name("FUELSYSTEM PUMP ACTIVE:2", true);
+        for _ in 0..(3 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+        assert!(!test_bed.query(|a| a.fuel.apu_fuel_pump_runs()));
+        assert!(test_bed.query(|a| a.fuel.apu_has_fuel()));
+    }
+
     /// The flyPad oil failures 79000-79031 (a320_systems_wasm) reach the FADEC through the oil
     /// failure variables of each engine (systems::engine::oil_failure).
     #[test]
@@ -584,6 +661,56 @@ mod tests {
         assert!(!read(&mut test_bed, "ENGINE_1_OIL_FILTER_CLOGGED"));
         assert!(read(&mut test_bed, "ENGINE_2_OIL_OVERHEAT"));
         assert!(!read(&mut test_bed, "ENGINE_1_OIL_OVERHEAT"));
+    }
+
+    /// The FADEC faults of the FCOM gap batch T2-37 (A320 FCOM PRO-ABN-ENG FUEL CTL FAULT, FUEL
+    /// RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED, REV ISOL
+    /// FAULT) are A320 faults: each flyPad failure writes the variable of its engine for the FWC.
+    #[test]
+    fn the_t2_37_fadec_faults_are_written_for_the_fwc() {
+        let kinds = [
+            EngineMonitoringFaultKind::FuelMeteringValve,
+            EngineMonitoringFaultKind::FuelReturnValveFailedClosed,
+            EngineMonitoringFaultKind::FuelReturnValveFailedOpen,
+            EngineMonitoringFaultKind::ClearanceControlValves,
+            EngineMonitoringFaultKind::CompressorVanes,
+            EngineMonitoringFaultKind::CompressorVaneChannel,
+            EngineMonitoringFaultKind::BleedValveStatus,
+            EngineMonitoringFaultKind::ReverserInhibited,
+            EngineMonitoringFaultKind::ReverserShutoffValve,
+        ];
+        for kind in kinds {
+            let mut test_bed = aircraft_with_engines_at_idle();
+            test_bed.fail(FailureType::EngineMonitoringFault(2, kind));
+            test_bed.run_with_delta(Duration::from_millis(50));
+
+            let failed: bool = test_bed.read_by_name(&format!("ENGINE_2_{}", kind.variable_name()));
+            let other: bool = test_bed.read_by_name(&format!("ENGINE_1_{}", kind.variable_name()));
+            assert!(failed, "{:?}", kind);
+            assert!(!other, "{:?}", kind);
+        }
+    }
+
+    /// ENG 1(2) REV INHIBITED (A320 FCOM PRO-ABN-ENG l.80700): the reverser inhibited by
+    /// maintenance action gets the deployment inhibition of the hydraulic A320ReverserController
+    /// (its deploy authorization, tested in hydraulic), the other reverser does not.
+    #[test]
+    fn the_reverser_inhibited_by_maintenance_gets_the_deployment_inhibition() {
+        let mut test_bed = aircraft_with_engines_at_idle();
+        assert_eq!(
+            test_bed.query(|a| a.reversers_deployment_inhibited()),
+            [false, false]
+        );
+
+        test_bed.fail(FailureType::EngineMonitoringFault(
+            1,
+            EngineMonitoringFaultKind::ReverserInhibited,
+        ));
+        test_bed.run_with_delta(Duration::from_millis(50));
+        assert_eq!(
+            test_bed.query(|a| a.reversers_deployment_inhibited()),
+            [true, false]
+        );
     }
 
     /// The flyPad fuel filter clog failures 73100-73101 (a320_systems_wasm) reach the SD ENGINE page
@@ -637,5 +764,25 @@ mod tests {
     fn the_egpwc_uses_the_airbus_lamp_format() {
         let test_bed = aircraft_with_engines_at_idle();
         assert!(test_bed.query(|a| a.egpwc_2.pin_programming().alternate_lamp_format));
+    }
+
+    /// PFD1 shows ILS1 (MMR 1, sim NAV 3), PFD2 shows ILS2 (MMR 2, sim NAV 4): A320 FCOM
+    /// DSC-34-NAV-30-20 (a320_fcom.txt l.53282-53289).
+    #[test]
+    fn each_mmr_writes_the_deviations_of_its_own_ils_receiver() {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A320::new(context));
+        test_bed.set_on_ground(true);
+        test_bed.write_by_name("NAV HAS GLIDE SLOPE:3", false);
+        test_bed.write_by_name("NAV GLIDE SLOPE ERROR:3", 0.);
+        test_bed.write_by_name("NAV HAS GLIDE SLOPE:4", true);
+        test_bed.write_by_name("NAV GLIDE SLOPE ERROR:4", 0.25);
+        test_bed.run_with_delta(Duration::from_millis(50));
+
+        let mmr_1_valid: bool = test_bed.read_by_name("MMR_1_GS_IS_VALID");
+        let mmr_2_valid: bool = test_bed.read_by_name("MMR_2_GS_IS_VALID");
+        let mmr_2_deviation: f64 = test_bed.read_by_name("MMR_2_GS_DEVIATION");
+        assert!(!mmr_1_valid);
+        assert!(mmr_2_valid);
+        assert!((mmr_2_deviation - 0.25).abs() < 1e-9);
     }
 }

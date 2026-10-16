@@ -281,6 +281,64 @@ describe('A320 flyPad failures', () => {
         'EngineMonitoringFault(2,EngineMonitoringFaultKind::ReverserPermissionSwitch)',
         'Reverser 2 permission switch',
       ],
+      // FCOM gap batch T2-37: ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, BLEED STATUS
+      // FAULT, REV INHIBITED, REV ISOL FAULT
+      ...[1, 2].flatMap((engine): [number, number, string, string][] => [
+        [
+          73,
+          engine === 1 ? A320Failure.Eng1FuelMeteringValve : A320Failure.Eng2FuelMeteringValve,
+          `EngineMonitoringFault(${engine},EngineMonitoringFaultKind::FuelMeteringValve)`,
+          `Engine ${engine} fuel metering valve control (FMV)`,
+        ],
+        [
+          73,
+          engine === 1 ? A320Failure.Eng1FuelReturnValveFailedClosed : A320Failure.Eng2FuelReturnValveFailedClosed,
+          `EngineMonitoringFault(${engine},EngineMonitoringFaultKind::FuelReturnValveFailedClosed)`,
+          `Engine ${engine} fuel return valve failed closed`,
+        ],
+        [
+          73,
+          engine === 1 ? A320Failure.Eng1FuelReturnValveFailedOpen : A320Failure.Eng2FuelReturnValveFailedOpen,
+          `EngineMonitoringFault(${engine},EngineMonitoringFaultKind::FuelReturnValveFailedOpen)`,
+          `Engine ${engine} fuel return valve failed open`,
+        ],
+        [
+          73,
+          engine === 1 ? A320Failure.Eng1ClearanceControlValves : A320Failure.Eng2ClearanceControlValves,
+          `EngineMonitoringFault(${engine},EngineMonitoringFaultKind::ClearanceControlValves)`,
+          `Engine ${engine} burner staging / clearance control valves`,
+        ],
+        [
+          73,
+          engine === 1 ? A320Failure.Eng1CompressorVanes : A320Failure.Eng2CompressorVanes,
+          `EngineMonitoringFault(${engine},EngineMonitoringFaultKind::CompressorVanes)`,
+          `Engine ${engine} compressor vanes (VBV or VSV)`,
+        ],
+        [
+          73,
+          engine === 1 ? A320Failure.Eng1CompressorVaneChannel : A320Failure.Eng2CompressorVaneChannel,
+          `EngineMonitoringFault(${engine},EngineMonitoringFaultKind::CompressorVaneChannel)`,
+          `Engine ${engine} compressor vane control, one channel`,
+        ],
+        [
+          73,
+          engine === 1 ? A320Failure.Eng1BleedValveStatus : A320Failure.Eng2BleedValveStatus,
+          `EngineMonitoringFault(${engine},EngineMonitoringFaultKind::BleedValveStatus)`,
+          `Engine ${engine} bleed valve status to FADEC`,
+        ],
+        [
+          78,
+          engine === 1 ? A320Failure.Reverser1InhibitedByMaintenance : A320Failure.Reverser2InhibitedByMaintenance,
+          `EngineMonitoringFault(${engine},EngineMonitoringFaultKind::ReverserInhibited)`,
+          `Reverser ${engine} inhibited by maintenance (does not deploy)`,
+        ],
+        [
+          78,
+          engine === 1 ? A320Failure.Reverser1ShutoffValveFailedOpen : A320Failure.Reverser2ShutoffValveFailedOpen,
+          `EngineMonitoringFault(${engine},EngineMonitoringFaultKind::ReverserShutoffValve)`,
+          `Reverser ${engine} HCU shutoff valve failed open`,
+        ],
+      ]),
     ];
     // rustfmt splits the long entries over several lines (with a trailing comma): compare without whitespace and
     // without that comma
@@ -291,6 +349,33 @@ describe('A320 flyPad failures', () => {
       expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, label]);
       const rustId = `${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')}`;
       expect(wasm).toContain(`(${rustId},FailureType::${rustFailure}),`);
+    }
+  });
+
+  // TS only failures of the FCOM gap batch T2-37: the systems-host reads them (FWC Logic/EngineFadecFaultAlerts,
+  // Logic/DatalinkAlerts and atsu.ts), the systems WASM does not know them
+  it('lists the vibration monitoring unit in ATA 77 and the ATSU failures in ATA 46, TS only', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.EngineVibrationMonitoringUnit)).toEqual([
+      77,
+      77010,
+      'Engine vibration monitoring unit (EVMU)',
+    ]);
+    expect(label(A320Failure.Atsu)).toEqual([46, 46000, 'ATSU']);
+    expect(label(A320Failure.AtsuAoc)).toEqual([46, 46001, 'ATSU AOC function (company datalink)']);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    for (const rustId of ['77_010', '46_000', '46_001']) {
+      expect(wasm).not.toContain(`(${rustId},`);
+    }
+    const host = resolve(__dirname, '../../systems-host/systems');
+    expect(readFileSync(resolve(host, 'FWC/Logic/EngineFadecFaultAlerts.ts'), 'utf8')).toContain(
+      'A320Failure.EngineVibrationMonitoringUnit',
+    );
+    const datalinkAlerts = readFileSync(resolve(host, 'FWC/Logic/DatalinkAlerts.ts'), 'utf8');
+    const atsu = readFileSync(resolve(host, 'atsu.ts'), 'utf8');
+    for (const source of [datalinkAlerts, atsu]) {
+      expect(source).toMatch(/A320Failure\.Atsu\b/);
+      expect(source).toContain('A320Failure.AtsuAoc');
     }
   });
 
@@ -353,6 +438,8 @@ describe('A320 flyPad failures', () => {
       [49001, 'ApuOverspeed', 'APU overspeed (automatic shutdown)', 49],
       [49002, 'ApuOilLowPressure', 'APU low oil pressure (automatic shutdown)', 49],
       [49003, 'ApuOilHighTemperature', 'APU high oil temperature (automatic shutdown)', 49],
+      [49004, 'ApuAirIntakeFlapFailedClosed', 'APU air intake flap failed closed (automatic shutdown)', 49],
+      [49005, 'ApuOilLevelLow', 'APU low oil level (advisory, APU keeps running)', 49],
     ];
     for (const [id, failureType, name, chapter] of expected) {
       expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, name]);

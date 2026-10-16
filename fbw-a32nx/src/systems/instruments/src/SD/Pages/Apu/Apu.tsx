@@ -8,7 +8,7 @@ import { GaugeComponent, GaugeMarkerComponent } from '@instruments/common/gauges
 import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
-import { apuBleedValveDisplay, isApuPageAvailVisible } from './ApuIndications';
+import { apuBleedValveDisplay, isApuLowOilLevelShown, isApuPageAvailVisible } from './ApuIndications';
 
 import './Apu.scss';
 
@@ -482,6 +482,7 @@ const EgtGauge = ({ x, y }: ComponentPositionProps) => {
 
 const ApuMemos = ({ x, y }: ComponentPositionProps) => {
   const lowFuelPressure = useArinc429Var('L:A32NX_APU_LOW_FUEL_PRESSURE_FAULT', 1000);
+  const lowOilLevel = useArinc429Var('L:A32NX_APU_LOW_OIL_LEVEL', 1000);
 
   const [apuFlapOpenPercentage] = useSimVar('L:A32NX_APU_FLAP_OPEN_PERCENTAGE', 'Percent', 1000);
   const [isIntakeIndicationFlashing, setIsIntakeIndicationFlashing] = useState(false);
@@ -510,6 +511,13 @@ const ApuMemos = ({ x, y }: ComponentPositionProps) => {
         {lowFuelPressure.value && (
           <text className="Amber FontNormal" x={0} y={0}>
             FUEL LO PR
+          </text>
+        )}
+
+        {/* LOW OIL LEVEL advisory (FCOM l.60848-60850), between FUEL LO PR and FLAP OPEN: the FCOM text gives no position */}
+        {isApuLowOilLevelShown(lowOilLevel.isNormalOperation(), !!lowOilLevel.value) && (
+          <text className="Green FontNormal FillPulse" x={0} y={30}>
+            LOW OIL LEVEL
           </text>
         )}
 

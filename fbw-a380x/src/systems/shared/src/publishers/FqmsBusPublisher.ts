@@ -28,6 +28,11 @@ interface FqmsBusBaseEvents {
    */
   fqms_center_of_gravity_mac: number;
   /**
+   * WBBC center of gravity in percent (CpiomF/WeightBalanceBackup), the FMS backup when the FQMS gives none.
+   * Raw ARINC word.
+   */
+  wbbc_center_of_gravity_mac: number;
+  /**
    * Discrete status word for the left fuel pump status, raw ARINC word.
    * | Bit |            Description            |
    * |:---:|:---------------------------------:|
@@ -80,6 +85,7 @@ export class FqmsBusPublisher extends SimVarPublisher<FqmsBusEvents> {
       ['fqms_total_fuel_on_board', { name: 'L:A32NX_FQMS_TOTAL_FUEL_ON_BOARD', type: SimVarValueType.Enum }],
       ['fqms_gross_weight', { name: 'L:A32NX_FQMS_GROSS_WEIGHT', type: SimVarValueType.Enum }],
       ['fqms_center_of_gravity_mac', { name: 'L:A32NX_FQMS_CENTER_OF_GRAVITY_MAC', type: SimVarValueType.Enum }],
+      ['wbbc_center_of_gravity_mac', { name: 'L:A380X_WBBC_CENTER_OF_GRAVITY_MAC', type: SimVarValueType.Enum }],
       [
         'fqms_fuel_pump_running_left_word',
         { name: 'L:A32NX_FQMS_LEFT_FUEL_PUMP_RUNNING_WORD', type: SimVarValueType.Number },

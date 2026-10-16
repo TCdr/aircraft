@@ -9,10 +9,20 @@ import {
   DisplayComponent,
   EventBus,
   FSComponent,
+  MappedSubject,
   Subject,
   VNode,
 } from '@microsoft/msfs-sdk';
 import { Arinc429Register, Arinc429RegisterSubject } from '@flybywiresim/fbw-sdk';
+import { FadecEngineState } from './AvailIndication';
+import {
+  isSlatFlapControlLost,
+  SFCC_STATUS_FLAP_FAULT_BIT,
+  SFCC_STATUS_FLAP_WTB_ENGAGED_BIT,
+  SFCC_STATUS_SLAT_FAULT_BIT,
+  SFCC_STATUS_SLAT_WTB_ENGAGED_BIT,
+  slatFlapIndication,
+} from './SlatFlapIndication';
 import { A32NXSfccBusEvents } from '../../../shared/src/publishers/A32NXSfccBusPublisher';
 import { Arinc429Values } from './shared/ArincValueProvider';
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
@@ -137,6 +147,71 @@ export class Slats extends DisplayComponent<SlatsProps> {
   private flapsOut: boolean = false;
 
   private sfccNotValid = Subject.create(true);
+
+  /** The S legend and the slat position in amber, the S LOCKED legend (SlatFlapIndication) */
+  private readonly slatsAmber = Subject.create(true);
+
+  private readonly slatsLocked = Subject.create(false);
+
+  /** The F legend and the flap position in amber, the F LOCKED legend (SlatFlapIndication) */
+  private readonly flapsAmber = Subject.create(true);
+
+  private readonly flapsLocked = Subject.create(false);
+
+  private greenHydPressurised = false;
+
+  private blueHydPressurised = false;
+
+  private yellowHydPressurised = false;
+
+  private engine1State = 0;
+
+  private engine2State = 0;
+
+  private leftGearCompressed = false;
+
+  private rightGearCompressed = false;
+
+  /**
+   * Computes the S and F colours and the S (F) LOCKED legends (FCOM l.41606-41627, see SlatFlapIndication) from the
+   * status word in use, both SFCC words, the hydraulic pressures and the engine and ground states.
+   */
+  private updateSlatFlapIndications(): void {
+    const status = this.sfccSlatsFlapsStatus.get();
+    const sfccInvalid = status.isFailureWarning();
+    const sfccFaulty = (word: number, faultBit: number) => {
+      const register = Slats.arinc429Cache.set(word);
+      return register.isFailureWarning() || register.bitValue(faultBit);
+    };
+    const enginesStopped = this.engine1State !== FadecEngineState.On && this.engine2State !== FadecEngineState.On;
+    const onGroundEnginesStopped = (this.leftGearCompressed || this.rightGearCompressed) && enginesStopped;
+
+    const slats = slatFlapIndication({
+      sfccInvalid,
+      wingtipBrakesOn: status.bitValue(SFCC_STATUS_SLAT_WTB_ENGAGED_BIT),
+      controlLost: isSlatFlapControlLost(
+        sfccFaulty(this.sfcc1SlatsFlapsStatus.get(), SFCC_STATUS_SLAT_FAULT_BIT),
+        sfccFaulty(this.sfcc2SlatsFlapsStatus.get(), SFCC_STATUS_SLAT_FAULT_BIT),
+      ),
+      bothHydraulicSystemsLost: !this.greenHydPressurised && !this.blueHydPressurised,
+      onGroundEnginesStopped,
+    });
+    const flaps = slatFlapIndication({
+      sfccInvalid,
+      wingtipBrakesOn: status.bitValue(SFCC_STATUS_FLAP_WTB_ENGAGED_BIT),
+      controlLost: isSlatFlapControlLost(
+        sfccFaulty(this.sfcc1SlatsFlapsStatus.get(), SFCC_STATUS_FLAP_FAULT_BIT),
+        sfccFaulty(this.sfcc2SlatsFlapsStatus.get(), SFCC_STATUS_FLAP_FAULT_BIT),
+      ),
+      bothHydraulicSystemsLost: !this.greenHydPressurised && !this.yellowHydPressurised,
+      onGroundEnginesStopped,
+    });
+
+    this.slatsAmber.set(slats.amber);
+    this.slatsLocked.set(slats.locked);
+    this.flapsAmber.set(flaps.amber);
+    this.flapsLocked.set(flaps.locked);
+  }
 
   private setSlatsPath(sfccSlatsPosition: Arinc429Register): void {
     const slats = sfccSlatsPosition.valueOr(0);
@@ -302,6 +377,63 @@ export class Slats extends DisplayComponent<SlatsProps> {
     }, true);
 
     this.sfccSlatsFlapsStatus.sub(this.setSfccStatus.bind(this), true);
+
+    // The slat / flap colours and LOCKED legends: the status word in use, both SFCC words (control lost), the
+    // hydraulic pressures and the engine and ground states
+    const updateIndications = () => this.updateSlatFlapIndications();
+    this.sfccSlatsFlapsStatus.sub(updateIndications);
+    this.sfcc1SlatsFlapsStatus.sub(updateIndications);
+    this.sfcc2SlatsFlapsStatus.sub(updateIndications);
+    sub
+      .on('greenHydPressurised')
+      .whenChanged()
+      .handle((pressurised) => {
+        this.greenHydPressurised = !!pressurised;
+        updateIndications();
+      });
+    sub
+      .on('blueHydPressurised')
+      .whenChanged()
+      .handle((pressurised) => {
+        this.blueHydPressurised = !!pressurised;
+        updateIndications();
+      });
+    sub
+      .on('yellowHydPressurised')
+      .whenChanged()
+      .handle((pressurised) => {
+        this.yellowHydPressurised = !!pressurised;
+        updateIndications();
+      });
+    sub
+      .on('engine1State')
+      .whenChanged()
+      .handle((state) => {
+        this.engine1State = state;
+        updateIndications();
+      });
+    sub
+      .on('engine2State')
+      .whenChanged()
+      .handle((state) => {
+        this.engine2State = state;
+        updateIndications();
+      });
+    sub
+      .on('left1LandingGear')
+      .whenChanged()
+      .handle((compressed) => {
+        this.leftGearCompressed = !!compressed;
+        updateIndications();
+      });
+    sub
+      .on('right1LandingGear')
+      .whenChanged()
+      .handle((compressed) => {
+        this.rightGearCompressed = !!compressed;
+        updateIndications();
+      });
+    updateIndications();
     this.sfccFlapsPosition.sub(this.setFlapsPath.bind(this), true);
     this.sfccSlatsPosition.sub(this.setSlatsPath.bind(this), true);
 
@@ -326,10 +458,10 @@ export class Slats extends DisplayComponent<SlatsProps> {
           <text class={this.targetClass} x={-3} y={59}>
             {this.targetText}
           </text>
-          <text class={{ Amber: this.sfccNotValid, Standard: true, Center: true }} x={-101} y={15}>
+          <text class={{ Amber: this.slatsAmber, Standard: true, Center: true }} x={-101} y={15}>
             S
           </text>
-          <text class={{ Amber: this.sfccNotValid, Standard: true, Center: true }} x={105} y={15}>
+          <text class={{ Amber: this.flapsAmber, Standard: true, Center: true }} x={105} y={15}>
             F
           </text>
 
@@ -348,14 +480,37 @@ export class Slats extends DisplayComponent<SlatsProps> {
           class="Medium Center GreenPulseNoFill"
           x={-95}
           y={-10}
-          visibility={this.alphaLockEngaged.map((v) => (v ? 'visible' : 'hidden'))}
+          visibility={MappedSubject.create(
+            ([alphaLock, slatsLocked]) => (alphaLock && !slatsLocked ? 'visible' : 'hidden'),
+            this.alphaLockEngaged,
+            this.slatsLocked,
+          )}
         >
           A LOCK
+        </text>
+        {/* S (F) LOCKED (FCOM l.41618-41620): the FCOM text gives no position. S LOCKED takes the place of A LOCK
+            above the slats (the amber failure legend before the green function legend), F LOCKED the same place
+            above the flaps */}
+        <text
+          class="Medium Center Amber"
+          x={-95}
+          y={-10}
+          visibility={this.slatsLocked.map((v) => (v ? 'visible' : 'hidden'))}
+        >
+          S LOCKED
+        </text>
+        <text
+          class="Medium Center Amber"
+          x={105}
+          y={-10}
+          visibility={this.flapsLocked.map((v) => (v ? 'visible' : 'hidden'))}
+        >
+          F LOCKED
         </text>
 
         <path
           class={{
-            AmberStroke: this.sfccNotValid,
+            AmberStroke: this.slatsAmber,
             GreenPulseNoFill: this.alphaLockEngaged,
             Path: true,
           }}
@@ -363,7 +518,7 @@ export class Slats extends DisplayComponent<SlatsProps> {
         />
         <line
           class={{
-            AmberStroke: this.sfccNotValid,
+            AmberStroke: this.slatsAmber,
             GreenPulse: this.alphaLockEngaged,
             Line: true,
           }}
@@ -373,9 +528,9 @@ export class Slats extends DisplayComponent<SlatsProps> {
           y2={this.slatsEndY}
         />
 
-        <path class={{ AmberStroke: this.sfccNotValid, Path: true }} d={this.flapsPath} />
+        <path class={{ AmberStroke: this.flapsAmber, Path: true }} d={this.flapsPath} />
         <line
-          class={{ AmberStroke: this.sfccNotValid, Line: true }}
+          class={{ AmberStroke: this.flapsAmber, Line: true }}
           x1={0}
           y1={0}
           x2={this.flapsEndX}

@@ -5,6 +5,13 @@ import '../../../../index.scss';
 
 const LITERS_PER_GALLON = 3.785411784;
 
+/**
+ * Low level limit, shown as the amber part at the bottom of the reservoir gauge (A380 FCOM DSC-29-20 RESERVOIR FLUID
+ * LEVEL, a380_fcom.txt l.61434-61438). PRO-ABN HYD G (Y) RSVR LEVEL LO (l.155270): "There are less than 2.6 US Gal of
+ * hydraulic fluid". Same threshold as the reservoir low level switch of the hydraulic system (a380_systems).
+ */
+const LOW_LEVEL_LIMIT_LITERS = 2.6 * LITERS_PER_GALLON;
+
 type ReservoirProps = {
   x: number;
   y: number;
@@ -13,7 +20,7 @@ type ReservoirProps = {
 export const Reservoir = ({ x, y, side }: ReservoirProps) => {
   const height = 166;
   const width = 19;
-  // Total reservoir capacity is 120L.
+  // Total reservoir capacity is 31.70 US gal, about 120L (A380 FCOM DSC-29-10, a380_fcom.txt l.60986).
   // Reservoir capacity is displayed up to 70L.
   const reservoirCapacityInLiters = 70;
   const litersToPixels = (liters: number) => (liters * height) / reservoirCapacityInLiters;
@@ -81,8 +88,20 @@ export const Reservoir = ({ x, y, side }: ReservoirProps) => {
         />
       )}
 
-      <rect x={width} y={height - 33} width={6} height={33} className="Background SW3" />
-      <rect x={width} y={height - 33} width={6} height={33} className="Amber Fill" />
+      <rect
+        x={width}
+        y={height - litersToPixels(LOW_LEVEL_LIMIT_LITERS)}
+        width={6}
+        height={litersToPixels(LOW_LEVEL_LIMIT_LITERS)}
+        className="Background SW3"
+      />
+      <rect
+        x={width}
+        y={height - litersToPixels(LOW_LEVEL_LIMIT_LITERS)}
+        width={6}
+        height={litersToPixels(LOW_LEVEL_LIMIT_LITERS)}
+        className="Amber Fill"
+      />
 
       <ReservoirFailIndications side={side} />
     </g>

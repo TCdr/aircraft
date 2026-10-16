@@ -66,6 +66,12 @@
             fill: $display-white;
         }
 
+        // REGUL LO PR: no pressure in the crew oxygen low-pressure circuit
+        .RegulLowPressure {
+            font-size: $font-size-larger;
+            fill: $display-amber;
+        }
+
         .Unit {
             font-size: $font-size-larger;
             fill: $display-cyan;

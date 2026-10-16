@@ -36,6 +36,7 @@ export type MfdSimvars = {
   fmsCaptFailed: boolean;
   fmsFoFailed: boolean;
   wxrTawsSysSelected: number;
+  tawsSysInUse: number;
   terr1Failed: boolean;
   terr2Failed: boolean;
   gpws1Failed: boolean;
@@ -101,6 +102,7 @@ export enum MfdVars {
   fmsCaptFailed = 'L:A32NX_FMS_L_FAILED',
   fmsFoFailed = 'L:A32NX_FMS_R_FAILED',
   wxrTawsSysSelected = 'L:A32NX_WXR_TAWS_SYS_SELECTED',
+  tawsSysInUse = 'L:A32NX_TAWS_SYS_IN_USE',
   terr1Failed = 'L:A32NX_TERR_1_FAILED',
   terr2Failed = 'L:A32NX_TERR_2_FAILED',
   gpws1Failed = 'L:A32NX_GPWS_1_FAILED',
@@ -162,6 +164,7 @@ export class MfdSimvarPublisher extends SimVarPublisher<MfdSimvars> {
     ['fmsCaptFailed', { name: MfdVars.fmsCaptFailed, type: SimVarValueType.Bool }],
     ['fmsFoFailed', { name: MfdVars.fmsFoFailed, type: SimVarValueType.Bool }],
     ['wxrTawsSysSelected', { name: MfdVars.wxrTawsSysSelected, type: SimVarValueType.Number }],
+    ['tawsSysInUse', { name: MfdVars.tawsSysInUse, type: SimVarValueType.Number }],
     ['terr1Failed', { name: MfdVars.terr1Failed, type: SimVarValueType.Bool }],
     ['terr2Failed', { name: MfdVars.terr2Failed, type: SimVarValueType.Bool }],
     ['gpws1Failed', { name: MfdVars.gpws1Failed, type: SimVarValueType.Bool }],

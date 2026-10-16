@@ -196,6 +196,29 @@ export function ctrTkXfrValveNotFullyOpenVar(side: 'L' | 'R'): string {
 }
 
 /**
+ * Whether a centre tank transfer valve is failed in the closed position, for the fuel quantity indications: the centre
+ * tank quantity "is boxed amber, if both center tank transfer valves fail in the closed position" and the FOB is
+ * half-boxed (A320 FCOM DSC-28-20, a320_fcom.txt l.43222-43223, l.43341-43345). The FLSCU opens and closes the valves
+ * as the inner tank level goes, so the confirmed "not fully open while commanded open" comes and goes: the failure is
+ * kept until the valve is seen open again (a jam that is gone).
+ * @param wasFailedClosed the previous state
+ * @param notFullyOpenConfirmed the confirmed NOT FULLY OPEN disagreement (ctrTkXfrValveNotFullyOpenVar)
+ * @param openRatio how far the valve is open, 0 to 1
+ */
+export function isCentreTransferValveFailedClosed(
+  wasFailedClosed: boolean,
+  notFullyOpenConfirmed: boolean,
+  openRatio: number,
+): boolean {
+  return notFullyOpenConfirmed || (wasFailedClosed && openRatio <= 0);
+}
+
+/** The L:var that tells the displays that a centre tank transfer valve is failed closed */
+export function ctrTkXfrValveFailedClosedVar(side: 'L' | 'R'): string {
+  return `L:A32NX_FUEL_CTR_TK_${side}_XFR_VALVE_FAILED_CLOSED`;
+}
+
+/**
  * The two channels of the fuel quantity indicating computer (FQI). A failed channel gives FUEL FQI CH 1(2) FAULT, "This
  * alert triggers when a FQI channel is failed" (A320 FCOM PRO-ABN-FUEL, a320_fcom.txt l.85886-85896): crew awareness.
  * The other channel keeps the fuel quantity indications. Not simulated: the loss of the fuel quantities when both
@@ -258,6 +281,9 @@ export class FuelPumpsAndValves implements Instrument {
     notFullyClosed: new NXLogicConfirmNode(FuelPumpsAndValves.CTR_TK_XFR_DISAGREE_CONFIRM_S, true),
     notFullyOpen: new NXLogicConfirmNode(FuelPumpsAndValves.CTR_TK_XFR_DISAGREE_CONFIRM_S, true),
   }));
+
+  /** Per side L, R: the transfer valve is failed closed (isCentreTransferValveFailedClosed) */
+  private readonly centreTransferFailedClosed = A320_CTR_TK_XFR_VALVES.map(() => false);
 
   /** The outer tank transfer valves: transfer valves 1 and 2 of the left wing, then of the right wing */
   private readonly outerTransferValves: FailableFuelSwitchesDriver;
@@ -486,17 +512,25 @@ export class FuelPumpsAndValves implements Instrument {
         // the auto valves are the switches after the inhibit valves in the driver
         this.centreTransferValves.getSelection(A320_CTR_TK_XFR_VALVES.length + index),
       );
-      const disagreement = centreTransferValveDisagreement(commandedOpen, this.centreTransferValveOpenRatio(valve));
+      const openRatio = this.centreTransferValveOpenRatio(valve);
+      const disagreement = centreTransferValveDisagreement(commandedOpen, openRatio);
       const confirms = this.centreTransferConfirms[index];
       SimVar.SetSimVarValue(
         ctrTkXfrValveNotFullyClosedVar(valve.side),
         SimVarValueType.Bool,
         confirms.notFullyClosed.write(disagreement.notFullyClosed, deltaTime),
       );
+      const notFullyOpen = confirms.notFullyOpen.write(disagreement.notFullyOpen, deltaTime);
+      SimVar.SetSimVarValue(ctrTkXfrValveNotFullyOpenVar(valve.side), SimVarValueType.Bool, notFullyOpen);
+      this.centreTransferFailedClosed[index] = isCentreTransferValveFailedClosed(
+        this.centreTransferFailedClosed[index],
+        notFullyOpen,
+        openRatio,
+      );
       SimVar.SetSimVarValue(
-        ctrTkXfrValveNotFullyOpenVar(valve.side),
+        ctrTkXfrValveFailedClosedVar(valve.side),
         SimVarValueType.Bool,
-        confirms.notFullyOpen.write(disagreement.notFullyOpen, deltaTime),
+        this.centreTransferFailedClosed[index],
       );
     });
   }

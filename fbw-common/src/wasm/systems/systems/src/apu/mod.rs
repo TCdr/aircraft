@@ -109,6 +109,7 @@ pub struct AuxiliaryPowerUnit<T: ApuGenerator, U: ApuStartMotor, C: ApuConstants
     start_motor: U,
     air_intake_flap: AirIntakeFlap,
     fuel_pressure_switch: FuelPressureSwitch,
+    air_conditioning_demand: bool,
 }
 impl<T: ApuGenerator, U: ApuStartMotor, C: ApuConstants, const N: usize>
     AuxiliaryPowerUnit<T, U, C, N>
@@ -131,7 +132,14 @@ impl<T: ApuGenerator, U: ApuStartMotor, C: ApuConstants, const N: usize>
             start_motor,
             air_intake_flap: AirIntakeFlap::new(air_intake_flap_powered_by),
             fuel_pressure_switch: FuelPressureSwitch::new(),
+            air_conditioning_demand: false,
         }
+    }
+
+    /// The air conditioning packs take air (a pack flow valve is open). With the APU bleed air valve open too, this is
+    /// the air conditioning demand of the APS3200 governed speed (aps3200.rs Running). Not set: no demand.
+    pub fn update_air_conditioning_demand(&mut self, packs_take_bleed_air: bool) {
+        self.air_conditioning_demand = packs_take_bleed_air;
     }
 
     pub fn update_before_electrical(
@@ -162,6 +170,7 @@ impl<T: ApuGenerator, U: ApuStartMotor, C: ApuConstants, const N: usize>
                 context,
                 bleed_air_valve.is_open(),
                 apu_gen_is_used,
+                self.air_conditioning_demand,
                 &self.ecb,
             );
 
@@ -285,6 +294,8 @@ pub trait Turbine {
         context: &UpdateContext,
         apu_bleed_is_used: bool,
         apu_gen_is_used: bool,
+        // The packs take air from the APU bleed (AuxiliaryPowerUnit::update_air_conditioning_demand)
+        air_conditioning_demand: bool,
         controller: &dyn ControllerSignal<TurbineSignal>,
     ) -> Box<dyn Turbine>;
     fn n(&self) -> Ratio;
@@ -317,7 +328,23 @@ pub trait ApuGenerator:
 }
 
 pub trait ApuConstants {
+    /// EGT MAX (°C) with the APU running
     const RUNNING_WARNING_EGT: f64;
+    /// EGT MAX (°C) during the start, below the altitude of STARTING_WARNING_EGT_SPLIT_PRESSURE_PSI
+    const STARTING_WARNING_EGT_LOW_ALTITUDE: f64;
+    /// EGT MAX (°C) during the start, at or above the altitude of STARTING_WARNING_EGT_SPLIT_PRESSURE_PSI
+    const STARTING_WARNING_EGT_HIGH_ALTITUDE: f64;
+    /// ISA pressure (psi) of the altitude where the starting EGT MAX changes. The ECB senses the inlet pressure.
+    const STARTING_WARNING_EGT_SPLIT_PRESSURE_PSI: f64;
+    /// The ECB de-energizes the start motor when N reaches this value (percent)
+    const START_MOTOR_POWERED_UNTIL_N: f64;
+    /// The ECB shuts the APU down when the EGT reaches EGT MAX
+    const EGT_OVERTEMPERATURE_SHUTDOWN: bool;
+    /// The ECB shuts the APU down when the air intake flap is not fully open while the APU starts or runs
+    const AIR_INTAKE_FLAP_CLOSED_SHUTDOWN: bool;
+    /// After an automatic non-emergency shutdown, the air intake flap stays open and closes this long after N is
+    /// below AIR_INTAKE_FLAP_CLOSURE_PERCENT in flight. None: the flap closes as after a manual shutdown.
+    const AIR_INTAKE_FLAP_CLOSING_DELAY_AFTER_AUTO_SHUTDOWN: Option<Duration>;
     const BLEED_AIR_COOLDOWN_DURATION: Duration;
     const COOLDOWN_DURATION: Duration;
     const AIR_INTAKE_FLAP_CLOSURE_PERCENT: f64;
@@ -418,6 +445,7 @@ mod tests {
 
     use super::*;
     use crate::failures::FailureType;
+    use crate::shared::PneumaticValve;
     use crate::simulation::test::{ReadByName, WriteByName};
     use crate::simulation::InitContext;
     use rstest::rstest;
@@ -466,6 +494,7 @@ mod tests {
             _: &UpdateContext,
             _: bool,
             _: bool,
+            _: bool,
             _: &dyn ControllerSignal<TurbineSignal>,
         ) -> Box<dyn Turbine> {
             self
@@ -481,6 +510,39 @@ mod tests {
 
         fn state(&self) -> TurbineState {
             TurbineState::Starting
+        }
+
+        fn bleed_air_pressure(&self) -> Pressure {
+            Pressure::new::<psi>(42.)
+        }
+    }
+
+    /// A running turbine at N 100 % and a given EGT, for the EGT limits of the ECB
+    struct RunningAtEgtTestTurbine {
+        egt: ThermodynamicTemperature,
+    }
+    impl Turbine for RunningAtEgtTestTurbine {
+        fn update(
+            self: Box<Self>,
+            _: &UpdateContext,
+            _: bool,
+            _: bool,
+            _: bool,
+            _: &dyn ControllerSignal<TurbineSignal>,
+        ) -> Box<dyn Turbine> {
+            self
+        }
+
+        fn n(&self) -> Ratio {
+            Ratio::new::<percent>(100.)
+        }
+
+        fn egt(&self) -> ThermodynamicTemperature {
+            self.egt
+        }
+
+        fn state(&self) -> TurbineState {
+            TurbineState::Running
         }
 
         fn bleed_air_pressure(&self) -> Pressure {
@@ -671,6 +733,15 @@ mod tests {
         fn set_turbine_infinitely_running_at(&mut self, n: Ratio) {
             self.apu
                 .set_turbine(Some(Box::new(InfinitelyAtNTestTurbine::new(n))));
+        }
+
+        fn set_turbine_running_at_egt(&mut self, egt: ThermodynamicTemperature) {
+            self.apu
+                .set_turbine(Some(Box::new(RunningAtEgtTestTurbine { egt })));
+        }
+
+        fn set_air_conditioning_demand(&mut self, demand: bool) {
+            self.apu.update_air_conditioning_demand(demand);
         }
 
         fn set_fire_on_ground(&mut self, fire_on_ground: bool) {
@@ -976,6 +1047,18 @@ mod tests {
             self
         }
 
+        fn turbine_running_at_egt(mut self, egt: f64) -> Self {
+            self.command(|a| {
+                a.set_turbine_running_at_egt(ThermodynamicTemperature::new::<degree_celsius>(egt))
+            });
+            self
+        }
+
+        fn air_conditioning_demand(mut self, demand: bool) -> Self {
+            self.command(|a| a.set_air_conditioning_demand(demand));
+            self
+        }
+
         fn cooling_down_apu(mut self) -> Self {
             self = self.running_apu();
             self = self.master_off();
@@ -1215,6 +1298,10 @@ mod tests {
             self.read_arinc429_by_name("APU_LOW_FUEL_PRESSURE_FAULT")
         }
 
+        fn has_low_oil_level(&mut self) -> Arinc429Word<bool> {
+            self.read_arinc429_by_name("APU_LOW_OIL_LEVEL")
+        }
+
         fn is_auto_shutdown(&mut self) -> bool {
             self.read_by_name("APU_IS_AUTO_SHUTDOWN")
         }
@@ -1227,8 +1314,9 @@ mod tests {
             self.read_by_name("ECAM_INOP_SYS_APU")
         }
 
+        /// The APU bleed air valve of the test pneumatic (the test aircraft writes no APU_BLEED_AIR_VALVE_OPEN)
         fn bleed_air_valve_is_open(&mut self) -> bool {
-            self.read_by_name("APU_BLEED_AIR_VALVE_OPEN")
+            self.query(|a| a.pneumatic.apu_bleed_air_valve.is_open())
         }
 
         fn apu_generator_output_within_normal_parameters(&self) -> bool {
@@ -2004,17 +2092,57 @@ mod tests {
         }
 
         #[rstest]
-        #[case::aps3200(test_bed_aps3200())]
-        #[case::pw980(test_bed_pw980())]
-        fn max_starting_egt_below_25000_feet_is_900_degrees<
-            T: ApuGenerator,
-            U: ApuStartMotor,
-            C: ApuConstants,
-            const N: usize,
-        >(
-            #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
+        // A320 FCOM DSC-49-20 EGT (a320_fcom.txt l.60842-60843): "Maximum EGT during start: 1 120 °C (above 35 000
+        // ft). Maximum EGT during start: 1 090 °C (below 35 000 ft)." ISA 35 000 ft: 3.458 psi.
+        #[case::sea_level(14.696, 1090.)]
+        #[case::just_below_35000_feet(3.47, 1090.)]
+        #[case::above_35000_feet(3.44, 1120.)]
+        fn aps3200_max_starting_egt_is_1090_degrees_below_35000_feet_and_1120_above(
+            #[case] ambient_pressure_psi: f64,
+            #[case] expected_egt_max: f64,
         ) {
-            let mut test_bed = bed_with
+            let mut test_bed = test_bed_aps3200()
+                .starting_apu()
+                .and()
+                .ambient_pressure(Pressure::new::<psi>(ambient_pressure_psi))
+                .run(Duration::from_secs(1));
+
+            assert_about_eq!(
+                test_bed
+                    .egt_warning_temperature()
+                    .normal_value()
+                    .unwrap()
+                    .get::<degree_celsius>(),
+                expected_egt_max
+            );
+        }
+
+        #[test]
+        fn aps3200_max_egt_with_the_apu_running_is_675_degrees() {
+            // A320 FCOM DSC-49-20 EGT (a320_fcom.txt l.60844): "Maximum EGT with APU running: 675 °C."
+            let mut test_bed = test_bed_aps3200().running_apu();
+
+            assert_about_eq!(
+                test_bed
+                    .egt_warning_temperature()
+                    .normal_value()
+                    .unwrap()
+                    .get::<degree_celsius>(),
+                675.
+            );
+            assert_about_eq!(
+                test_bed
+                    .egt_caution_temperature()
+                    .normal_value()
+                    .unwrap()
+                    .get::<degree_celsius>(),
+                675. - 33.
+            );
+        }
+
+        #[test]
+        fn pw980_max_starting_egt_below_25000_feet_is_900_degrees() {
+            let mut test_bed = test_bed_pw980()
                 .starting_apu()
                 .and()
                 .ambient_pressure(Pressure::new::<psi>(5.46))
@@ -2030,20 +2158,11 @@ mod tests {
             );
         }
 
-        #[rstest]
-        #[case::aps3200(test_bed_aps3200())]
-        #[case::pw980(test_bed_pw980())]
-        fn max_starting_egt_at_or_above_25000_feet_is_982_degrees<
-            T: ApuGenerator,
-            U: ApuStartMotor,
-            C: ApuConstants,
-            const N: usize,
-        >(
-            #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
-        ) {
+        #[test]
+        fn pw980_max_starting_egt_at_or_above_25000_feet_is_982_degrees() {
             // We test using some decimals above 25000 because foot conversion of 25000 feet
             // ends up being lower than 25000 feet in uom 0.32.0
-            let mut test_bed = bed_with
+            let mut test_bed = test_bed_pw980()
                 .starting_apu()
                 .and()
                 .ambient_pressure(Pressure::new::<psi>(5.44))
@@ -2139,7 +2258,7 @@ mod tests {
         #[rstest]
         #[case::aps3200(test_bed_aps3200())]
         #[case::pw980(test_bed_pw980())]
-        fn should_close_start_contactors_commanded_when_starting_until_n_55<
+        fn should_close_start_contactors_commanded_when_starting_until_the_starter_cut_out_n<
             T: ApuGenerator,
             U: ApuStartMotor,
             C: ApuConstants,
@@ -2154,12 +2273,12 @@ mod tests {
                 test_bed = test_bed.run(Duration::from_millis(50));
                 let n = test_bed.n().normal_value().unwrap().get::<percent>();
 
-                if n < 55. {
+                if n < C::START_MOTOR_POWERED_UNTIL_N {
                     assert!(test_bed.should_close_start_contactors_commanded());
                 } else {
                     // The start contactor state is set before the turbine is updated,
                     // thus this needs another run to update the start contactor after the
-                    // turbine reaches n >= 55.
+                    // turbine reaches the cut-out N.
                     test_bed = test_bed.run(Duration::from_millis(0));
                     assert!(!test_bed.should_close_start_contactors_commanded());
                 }
@@ -2173,7 +2292,7 @@ mod tests {
         #[rstest]
         #[case::aps3200(test_bed_aps3200())]
         #[case::pw980(test_bed_pw980())]
-        fn should_close_start_contactors_commanded_when_starting_until_n_55_even_if_master_sw_turned_off<
+        fn should_close_start_contactors_commanded_when_starting_until_the_starter_cut_out_n_even_if_master_sw_turned_off<
             T: ApuGenerator,
             U: ApuStartMotor,
             C: ApuConstants,
@@ -2191,12 +2310,12 @@ mod tests {
                     test_bed = test_bed.master_off();
                 }
 
-                if n < 55. {
+                if n < C::START_MOTOR_POWERED_UNTIL_N {
                     assert!(test_bed.should_close_start_contactors_commanded());
                 } else {
                     // The start contactor state is set before the turbine is updated,
                     // thus this needs another run to update the start contactor after the
-                    // turbine reaches n >= 55.
+                    // turbine reaches the cut-out N.
                     test_bed = test_bed.run(Duration::from_millis(0));
                     assert!(!test_bed.should_close_start_contactors_commanded());
                 }
@@ -2691,18 +2810,11 @@ mod tests {
             assert_about_eq!(test_bed.n().value().get::<percent>(), 0.);
         }
 
-        #[rstest]
-        #[case::aps3200(test_bed_aps3200())]
-        #[case::pw980(test_bed_pw980())]
-        fn the_fault_ends_with_the_master_sw_off_and_the_apu_restarts_without_the_failure<
-            T: ApuGenerator,
-            U: ApuStartMotor,
-            C: ApuConstants,
-            const N: usize,
-        >(
-            #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
-        ) {
-            let mut test_bed = bed_with
+        #[test]
+        fn pw980_fault_ends_with_the_master_sw_off_and_the_apu_restarts_without_the_failure() {
+            // The APS3200 holds its air intake flap open after an automatic shutdown: see
+            // aps3200_after_an_automatic_shutdown_the_master_sw_off_ends_the_fault_and_the_apu_restarts
+            let mut test_bed = test_bed_pw980()
                 .running_apu()
                 .and()
                 .with_failure(FailureType::ApuOilLowPressure)
@@ -2723,6 +2835,52 @@ mod tests {
                 .running_apu();
             assert!(test_bed.apu_is_available());
             assert!(!test_bed.master_has_fault());
+        }
+
+        #[test]
+        fn aps3200_ecb_detects_a_low_oil_level_on_the_ground_with_the_apu_not_running() {
+            // A320 FCOM DSC-49-20 (10) LOW OIL LEVEL (a320_fcom.txt l.60848-60850)
+            let mut test_bed = test_bed_aps3200()
+                .on_ground(true)
+                .with_failure(FailureType::ApuOilLevelLow)
+                .apu_ready_to_start()
+                .run(Duration::from_secs(1));
+
+            assert!(test_bed.has_low_oil_level().normal_value().unwrap());
+        }
+
+        #[test]
+        fn aps3200_ecb_does_not_detect_a_low_oil_level_with_the_apu_running() {
+            let mut test_bed = test_bed_aps3200()
+                .on_ground(true)
+                .with_failure(FailureType::ApuOilLevelLow)
+                .running_apu();
+
+            assert!(!test_bed.has_low_oil_level().normal_value().unwrap());
+            // An advisory: the APU keeps running
+            assert!(test_bed.apu_is_available());
+            assert!(!test_bed.master_has_fault());
+        }
+
+        #[test]
+        fn aps3200_ecb_does_not_detect_a_low_oil_level_in_flight() {
+            let mut test_bed = test_bed_aps3200()
+                .on_ground(false)
+                .with_failure(FailureType::ApuOilLevelLow)
+                .apu_ready_to_start()
+                .run(Duration::from_secs(1));
+
+            assert!(!test_bed.has_low_oil_level().normal_value().unwrap());
+        }
+
+        #[test]
+        fn aps3200_ecb_sends_no_low_oil_level_without_the_failure() {
+            let mut test_bed = test_bed_aps3200()
+                .on_ground(true)
+                .apu_ready_to_start()
+                .run(Duration::from_secs(1));
+
+            assert!(!test_bed.has_low_oil_level().normal_value().unwrap());
         }
 
         #[test]
@@ -2756,6 +2914,279 @@ mod tests {
 
             assert!(test_bed.master_has_fault());
             assert!(test_bed.is_auto_shutdown());
+        }
+
+        #[rstest]
+        #[case::below_egt_max(674., false)]
+        #[case::at_egt_max(675., true)]
+        #[case::above_egt_max(700., true)]
+        fn aps3200_shuts_down_automatically_when_the_egt_reaches_egt_max(
+            #[case] egt: f64,
+            #[case] shuts_down: bool,
+        ) {
+            // A320 FCOM DSC-49-20 (a320_fcom.txt l.60657 "EGT overtemperature", l.60838 EGT "Becomes red when EGT ≥
+            // EGT MAX (automatic shutdown begins)", l.60844 running EGT MAX 675 °C)
+            let mut test_bed = test_bed_aps3200()
+                .apu_ready_to_start()
+                .then_continue_with()
+                .turbine_running_at_egt(egt)
+                .run(Duration::from_secs(1));
+
+            assert_eq!(test_bed.master_has_fault(), shuts_down);
+            assert_eq!(test_bed.is_auto_shutdown(), shuts_down);
+            assert!(!test_bed.is_emergency_shutdown());
+        }
+
+        #[test]
+        fn pw980_does_not_shut_down_on_the_aps3200_egt_limits() {
+            // The A380X APU keeps its behaviour (its own EGT limit row is not modelled)
+            let mut test_bed = test_bed_pw980()
+                .apu_ready_to_start()
+                .then_continue_with()
+                .turbine_running_at_egt(950.)
+                .run(Duration::from_secs(1));
+
+            assert!(!test_bed.master_has_fault());
+        }
+
+        #[rstest]
+        #[case::starter_still_powered_at_n_57(57., true)]
+        #[case::starter_de_energized_at_n_60(60., false)]
+        fn aps3200_start_motor_is_de_energized_at_n_60(
+            #[case] n: f64,
+            #[case] start_motor_powered: bool,
+        ) {
+            // A320 FCOM DSC-49-20 START pb (a320_fcom.txt l.60700): "When N = 60 %. The APU starter is de-energized."
+            let test_bed = test_bed_aps3200()
+                .apu_ready_to_start()
+                .and()
+                .start_on()
+                .turbine_infinitely_running_at(Ratio::new::<percent>(n))
+                .run(Duration::from_millis(50));
+
+            assert_eq!(
+                test_bed.should_close_start_contactors_commanded(),
+                start_motor_powered
+            );
+        }
+
+        #[test]
+        fn pw980_start_motor_is_still_de_energized_at_n_55() {
+            let test_bed = test_bed_pw980()
+                .apu_ready_to_start()
+                .and()
+                .start_on()
+                .turbine_infinitely_running_at(Ratio::new::<percent>(56.))
+                .run(Duration::from_millis(50));
+
+            assert!(!test_bed.should_close_start_contactors_commanded());
+        }
+
+        #[test]
+        fn aps3200_shuts_down_automatically_when_the_air_intake_flap_fails_closed() {
+            // A320 FCOM DSC-49-20 FAULT lt (a320_fcom.txt l.60653): "Air inlet flap closed"
+            let mut test_bed = test_bed_aps3200()
+                .running_apu()
+                .and()
+                .with_failure(FailureType::ApuAirIntakeFlapFailedClosed)
+                .run(Duration::from_secs(1));
+
+            assert!(test_bed.master_has_fault());
+            assert!(test_bed.is_auto_shutdown());
+            assert!(!test_bed.is_emergency_shutdown());
+
+            test_bed = test_bed.run_until("turbine shutdown", |bed| bed.turbine_is_shutdown());
+            assert!(test_bed.is_air_intake_flap_fully_closed());
+            assert!(!test_bed.apu_is_available());
+        }
+
+        #[test]
+        fn aps3200_does_not_start_with_the_air_intake_flap_failed_closed() {
+            // The starter engages only with the air intake flap fully open (a320_fcom.txt l.60428-60429)
+            let mut test_bed = test_bed_aps3200()
+                .with_failure(FailureType::ApuAirIntakeFlapFailedClosed)
+                .master_on()
+                .and()
+                .start_on()
+                .run(Duration::from_secs(60));
+
+            assert!(test_bed.is_air_intake_flap_fully_closed());
+            assert_about_eq!(test_bed.n().value().get::<percent>(), 0.);
+            assert!(!test_bed.apu_is_available());
+        }
+
+        /// Runs `seconds` steps of 1 s: a bounded wait for the 15 min of the air intake flap after an automatic shutdown
+        fn run_for_seconds<T: ApuGenerator, U: ApuStartMotor, C: ApuConstants, const N: usize>(
+            mut test_bed: AuxiliaryPowerUnitTestBed<T, U, C, N>,
+            seconds: u64,
+        ) -> AuxiliaryPowerUnitTestBed<T, U, C, N> {
+            for _ in 0..seconds {
+                test_bed = test_bed.run(Duration::from_secs(1));
+            }
+            test_bed
+        }
+
+        #[test]
+        fn aps3200_after_an_automatic_shutdown_in_flight_the_air_intake_flap_closes_15_min_after_n_is_below_7_percent(
+        ) {
+            // A320 FCOM DSC-49-20 FAULT lt note (a320_fcom.txt l.60675-60676): "In the case of an automatic,
+            // non-emergency shutdown, the air inlet flap closes 15 min after the APU speed is lower than 7%."
+            // The crew sets the MASTER SW OFF (APU AUTO SHUT DOWN procedure): after a manual shutdown the flap would
+            // close at N 7 % (l.60647).
+            let mut test_bed = test_bed_aps3200()
+                .on_ground(false)
+                .running_apu()
+                .and()
+                .with_failure(FailureType::ApuOilLowPressure)
+                .run(Duration::from_secs(1))
+                .then_continue_with()
+                .master_off();
+            assert!(test_bed.is_auto_shutdown());
+
+            test_bed =
+                test_bed.run_until("N below 7 %", |bed| bed.n().value().get::<percent>() < 7.);
+            test_bed = run_for_seconds(test_bed, 14 * 60 + 50);
+            assert!(test_bed
+                .is_air_intake_flap_fully_open()
+                .normal_value()
+                .unwrap());
+
+            // 15 min and the flap travel (12 to 18 s)
+            test_bed = run_for_seconds(test_bed, 30);
+            assert!(test_bed.is_air_intake_flap_fully_closed());
+            assert!(!test_bed.master_has_fault());
+        }
+
+        #[test]
+        fn aps3200_after_an_automatic_shutdown_on_the_ground_the_air_intake_flap_countdown_starts_at_liftoff(
+        ) {
+            // A320 FCOM DSC-49-20 FAULT lt note (a320_fcom.txt l.60676-60677): "If an automatic, non-emergency
+            // shutdown happens on ground, the 15 min countdown starts after liftoff."
+            let mut test_bed = test_bed_aps3200()
+                .on_ground(true)
+                .running_apu()
+                .and()
+                .with_failure(FailureType::ApuOilLowPressure)
+                .run(Duration::from_secs(1))
+                .then_continue_with()
+                .master_off();
+            assert!(test_bed.is_auto_shutdown());
+
+            test_bed = run_for_seconds(test_bed, 30 * 60);
+            assert!(test_bed
+                .is_air_intake_flap_fully_open()
+                .normal_value()
+                .unwrap());
+
+            test_bed = test_bed.on_ground(false);
+            test_bed = run_for_seconds(test_bed, 14 * 60 + 50);
+            assert!(test_bed
+                .is_air_intake_flap_fully_open()
+                .normal_value()
+                .unwrap());
+
+            test_bed = run_for_seconds(test_bed, 30);
+            assert!(test_bed.is_air_intake_flap_fully_closed());
+        }
+
+        #[test]
+        fn aps3200_after_an_automatic_shutdown_the_master_sw_off_ends_the_fault_and_the_apu_restarts(
+        ) {
+            // The air intake flap stays open (a320_fcom.txt l.60675-60677), which keeps the ECB on: the MASTER SW OFF
+            // ends the FAULT once the APU has stopped, and a new start is possible.
+            let mut test_bed = test_bed_aps3200()
+                .running_apu()
+                .and()
+                .with_failure(FailureType::ApuOilLowPressure)
+                .run(Duration::from_secs(1))
+                .then_continue_with()
+                .master_off();
+
+            test_bed = test_bed.run_until("turbine shutdown", |bed| bed.turbine_is_shutdown());
+            test_bed = test_bed.run(Duration::from_secs(1));
+            assert!(!test_bed.master_has_fault());
+            assert!(!test_bed.is_auto_shutdown());
+            assert!(test_bed
+                .is_air_intake_flap_fully_open()
+                .normal_value()
+                .unwrap());
+
+            test_bed = test_bed
+                .without_failure(FailureType::ApuOilLowPressure)
+                .running_apu();
+            assert!(test_bed.apu_is_available());
+            assert!(!test_bed.master_has_fault());
+        }
+
+        #[test]
+        fn aps3200_after_an_emergency_shutdown_the_air_intake_flap_closes_at_n_7_percent() {
+            // The 15 min hold is for a non-emergency shutdown only (a320_fcom.txt l.60675)
+            let mut test_bed = test_bed_aps3200()
+                .running_apu()
+                .and()
+                .released_apu_fire_pb()
+                .master_off()
+                .run(Duration::from_secs(1));
+            assert!(test_bed.is_emergency_shutdown());
+
+            test_bed =
+                test_bed.run_until("N below 7 %", |bed| bed.n().value().get::<percent>() < 7.);
+            test_bed = run_for_seconds(test_bed, 20);
+            assert!(test_bed.is_air_intake_flap_fully_closed());
+        }
+
+        #[rstest]
+        // A320 FCOM DSC-49-10-20 AIR BLEED SYSTEM (a320_fcom.txt l.60473-60476): 100 % "except for air conditioning
+        // demand, if the ambient temperature is between -18 °C and 35 °C. In this case, the ECB sets the APU speed to
+        // 99 %."
+        #[case::air_conditioning_at_15_degrees(true, 15., 99.)]
+        #[case::air_conditioning_at_minus_18_degrees(true, -18., 99.)]
+        #[case::air_conditioning_at_35_degrees(true, 35., 99.)]
+        #[case::air_conditioning_below_minus_18_degrees(true, -20., 100.)]
+        #[case::air_conditioning_above_35_degrees(true, 40., 100.)]
+        #[case::no_air_conditioning_demand(false, 15., 100.)]
+        fn aps3200_governed_speed_is_99_percent_with_air_conditioning_demand_between_minus_18_and_35_degrees(
+            #[case] air_conditioning_demand: bool,
+            #[case] ambient_celsius: f64,
+            #[case] expected_n: f64,
+        ) {
+            let mut test_bed = test_bed_aps3200()
+                .ambient_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                    ambient_celsius,
+                ))
+                .air_conditioning_demand(air_conditioning_demand)
+                .running_apu_with_bleed_air()
+                .run(Duration::from_secs(10));
+
+            assert!(test_bed.bleed_air_valve_is_open());
+            assert_about_eq!(
+                test_bed.n().normal_value().unwrap().get::<percent>(),
+                expected_n
+            );
+            assert!(test_bed.apu_is_available());
+            assert!(test_bed.frequency_within_normal_range());
+        }
+
+        #[test]
+        fn aps3200_governed_speed_is_100_percent_without_apu_bleed_air() {
+            let mut test_bed = test_bed_aps3200()
+                .ambient_temperature(ThermodynamicTemperature::new::<degree_celsius>(15.))
+                .air_conditioning_demand(true)
+                .running_apu_without_bleed_air()
+                .run(Duration::from_secs(10));
+
+            assert_about_eq!(test_bed.n().normal_value().unwrap().get::<percent>(), 100.);
+        }
+
+        #[test]
+        fn pw980_governed_speed_does_not_change_with_air_conditioning_demand() {
+            let mut test_bed = test_bed_pw980()
+                .ambient_temperature(ThermodynamicTemperature::new::<degree_celsius>(15.))
+                .air_conditioning_demand(true)
+                .running_apu_with_bleed_air()
+                .run(Duration::from_secs(10));
+
+            assert_about_eq!(test_bed.n().normal_value().unwrap().get::<percent>(), 100.);
         }
 
         #[rstest]

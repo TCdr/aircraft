@@ -4,7 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { engineTakeoffPowerSignal, twoEnginesTakeoffPowerSignal } from './FwsTakeoffPower';
+import { engineTakeoffPowerSignal, reducedTakeoffThrustSet, twoEnginesTakeoffPowerSignal } from './FwsTakeoffPower';
 
 const IDLE = 0;
 const CL = 25;
@@ -19,6 +19,14 @@ describe('A380X FWS take-off power signal', () => {
     expect(engineTakeoffPowerSignal(FLX_MCT, false)).toBe(false);
     expect(engineTakeoffPowerSignal(CL, true)).toBe(false);
     expect(engineTakeoffPowerSignal(IDLE, true)).toBe(false);
+  });
+
+  // A380 FCOM DSC-22-FG-50-30 l.11406-11408: a derated takeoff is made at the FLX-MCT detent, as a FLEX takeoff
+  it('takes the FLX/MCT detent as take-off power with a FLEX TEMP or a derate', () => {
+    expect(reducedTakeoffThrustSet(60, 0)).toBe(true);
+    expect(reducedTakeoffThrustSet(0.1, 0)).toBe(true);
+    expect(reducedTakeoffThrustSet(0, 12)).toBe(true);
+    expect(reducedTakeoffThrustSet(0, 0)).toBe(false);
   });
 
   it('needs two levers at take-off power', () => {

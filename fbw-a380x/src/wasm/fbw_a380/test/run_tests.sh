@@ -27,6 +27,11 @@ fi
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src -I ../src/model fadec_thrust_failures_test.cpp \
   ../src/model/A380FadecComputer.cpp ../src/model/A380FadecComputer_data.cpp -o ../obj/fadec_thrust_failures_test
 ../obj/fadec_thrust_failures_test
+# DOx derated takeoff: the FADEC model takes its FLX path with the derated rating (TakeoffDerate.h). With WITHOUT_THE_FIX=1 the
+# PRIM word is passed as it is and the test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src -I ../src/model takeoff_derate_test.cpp \
+  ../src/model/A380FadecComputer.cpp ../src/model/A380FadecComputer_data.cpp -o ../obj/takeoff_derate_test
+../obj/takeoff_derate_test
 # NAV AIR DATA / ALL AIR DATA / AOA DISAGREE: the ADRs rejected by the PRIM air data monitoring go to the PRIM model as failed
 # (AirDataRejection.h). With WITHOUT_THE_FIX=1 the ADRs are sent as before and the test must fail.
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src -I ../src/model air_data_rejection_test.cpp \

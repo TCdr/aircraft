@@ -254,6 +254,12 @@ pub fn a320_engine_start_schedule() -> EngineStartSchedule {
         // DSC-70-80-30 (l.63468-63471): "During automatic ground start, when engine is cold or above
         // 10 000 ft ... When the ignition is detected, the second igniter is supplied."
         second_igniter_at_light_up_cold_or_above: Some(Length::new::<foot>(10_000.)),
+        // Unchanged A32NX behaviour: the A380 FCOM rules of the shared start sequence (starter
+        // engagement limit, ground quick relight, abort for the start valve and the starter time)
+        // are not applied to the A32NX.
+        starter_engagement_max_n2: None,
+        ground_quick_relight: None,
+        aborts_for_start_valve_and_starter_time: false,
     }
 }
 
@@ -373,6 +379,8 @@ impl A320EngineFailure {
             other_fault_light_conditions: self.hp_fuel_valve.position_is_abnormal()
                 || self.thrust_control_malfunction,
             engine_thermal_state: self.thermal_state,
+            // Not read on the A32NX (aborts_for_start_valve_and_starter_time is false)
+            start_valve_position_abnormal: false,
         }
     }
 

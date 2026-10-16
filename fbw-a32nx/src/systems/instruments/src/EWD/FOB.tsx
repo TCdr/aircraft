@@ -2,8 +2,17 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { EventBus, DisplayComponent, FSComponent, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
+import {
+  EventBus,
+  DisplayComponent,
+  FSComponent,
+  MappedSubject,
+  Subject,
+  Subscribable,
+  VNode,
+} from '@microsoft/msfs-sdk';
 import { fuelForDisplay } from '@instruments/common/fuel';
+import { isFuelOnBoardHalfBoxed } from '@shared/FuelQuantityIndications';
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
 
@@ -20,10 +29,38 @@ export class FOB extends DisplayComponent<FOBProps> {
 
   private fobDisplay = Subject.create(0);
 
+  private readonly leftOuterXfrClosed = Subject.create(false);
+
+  private readonly rightOuterXfrClosed = Subject.create(false);
+
+  private readonly leftCentreXfrFailedClosed = Subject.create(false);
+
+  private readonly rightCentreXfrFailedClosed = Subject.create(false);
+
+  /** The amber half box: the displayed quantity is not all usable (FCOM l.43341-43345, FuelQuantityIndications) */
+  private readonly halfBoxed = MappedSubject.create(
+    ([leftOuterXfrClosed, rightOuterXfrClosed, leftCentreXfrFailedClosed, rightCentreXfrFailedClosed]) =>
+      isFuelOnBoardHalfBoxed({
+        leftOuterXfrClosed,
+        rightOuterXfrClosed,
+        leftCentreXfrFailedClosed,
+        rightCentreXfrFailedClosed,
+      }),
+    this.leftOuterXfrClosed,
+    this.rightOuterXfrClosed,
+    this.leftCentreXfrFailedClosed,
+    this.rightCentreXfrFailedClosed,
+  );
+
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
     const sub = this.props.bus.getSubscriber<EwdSimvars>();
+
+    sub.on('leftOuterXfrClosed').handle((v) => this.leftOuterXfrClosed.set(!!v));
+    sub.on('rightOuterXfrClosed').handle((v) => this.rightOuterXfrClosed.set(!!v));
+    sub.on('leftCtrXfrFailedClosed').handle((v) => this.leftCentreXfrFailedClosed.set(!!v));
+    sub.on('rightCtrXfrFailedClosed').handle((v) => this.rightCentreXfrFailedClosed.set(!!v));
 
     sub
       .on('totalFuel')
@@ -53,6 +90,12 @@ export class FOB extends DisplayComponent<FOBProps> {
         <text class="Huge End Green" x={172} y={0}>
           {this.fobDisplay}
         </text>
+        {/* The amber half box: the lower half of a box around the digits; the FCOM text gives no figure */}
+        <path
+          class="AmberLine"
+          d="M 82 -10 v 16 h 96 v -16"
+          visibility={this.halfBoxed.map((boxed) => (boxed ? 'visible' : 'hidden'))}
+        />
         <text class="Standard Center Cyan" x={212} y={-1}>
           {this.props.metric.map((m) => (m ? 'KG' : 'LBS'))}
         </text>

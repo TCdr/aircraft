@@ -43,6 +43,7 @@ import { PlanformTag } from '../FuselagePlanform';
 import { doorRow, equipmentRow, SERVICE_LOOKS, ServiceLook, ServicesLayout } from '../ServicesLayout';
 import { useRatStowRow } from '../RatStowRow';
 import { equipmentStillThere, useReleasePending } from '../releasePending';
+import { useMaintBusRow } from '../MaintBusRow';
 
 enum ServiceButton {
   CabinLeftDoor,
@@ -158,6 +159,8 @@ export const A320Services: React.FC = () => {
 
   // Maintenance: RAT stow, on the ground only (the tug does not matter)
   const ratStowRow = useRatStowRow(!!simOnGround && !!aircraftIsStationary);
+  // Maintenance: the MAINT BUS switch of the forward entrance area (flyPad stand-in, FCOM DSC-24-20)
+  const maintBusRow = useMaintBusRow();
 
   // Ground Services
   const [cabinLeftDoorOpen] = useSimVar('A:INTERACTIVE POINT OPEN:0', 'Percent over 100', 100);
@@ -792,7 +795,7 @@ export const A320Services: React.FC = () => {
     ),
   ]
     .filter((row) => shownLook(ServiceButton.BaggageTruck, baggageButtonState) !== 'hidden' || row.key !== 'baggage')
-    .concat(ratStowRow ? [ratStowRow] : []);
+    .concat([maintBusRow], ratStowRow ? [ratStowRow] : []);
 
   const toneOf = (button: ServiceButton, state: ServiceButtonState): M3Tone => {
     const l = equipmentLook(button, state);

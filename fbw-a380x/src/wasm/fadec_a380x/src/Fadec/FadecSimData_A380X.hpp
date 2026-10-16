@@ -158,6 +158,7 @@ class FadecSimData_A380X {
     FLOAT64 simEngineN2[4];          // in Percent
     FLOAT64 simEngineThrust[4];      // in Pounds
     FLOAT64 simCommandedN1[4];       // in Percent (corrected)
+    FLOAT64 ambientPrecipRate;       // in Millimeters of water (per hour), rain (IgniterSelection_A380X adverse weather)
   };
   DataDefinitionVector simVarsDataDef = {
       {"ANIMATION DELTA TIME",         0, UNITS.Seconds  }, //
@@ -194,6 +195,7 @@ class FadecSimData_A380X {
       {"TURB ENG COMMANDED N1",       2, UNITS.Percent  }, //
       {"TURB ENG COMMANDED N1",       3, UNITS.Percent  }, //
       {"TURB ENG COMMANDED N1",       4, UNITS.Percent  }, //
+      {"AMBIENT PRECIP RATE",          0, UNITS.millimeters_of_water}, //
   };
   DataDefinitionVariablePtr<SimVarsData> simVarsDataPtr;
 
@@ -218,6 +220,7 @@ class FadecSimData_A380X {
 
   // LVars
   NamedVariablePtr airlinerToFlexTemp;  // Celsius
+  NamedVariablePtr airlinerToDerate;    // Percent of thrust reduction of the DOx derated takeoff, 0 none (MFD PERF T.O)
   NamedVariablePtr apuRpmPercent;       // Percent
   NamedVariablePtr engineEgt[4];        // Celsius
   NamedVariablePtr engineFF[4];         // kg/hour
@@ -548,7 +551,8 @@ class FadecSimData_A380X {
     refuelRate          = dm->make_named_var("A32NX_EFB_REFUEL_RATE_SETTING", UNITS.Number, AUTO_READ);
     refuelStartedByUser = dm->make_named_var("A32NX_REFUEL_STARTED_BY_USR", UNITS.Number, AUTO_READ);
     airlinerToFlexTemp  = dm->make_named_var("A32NX_AIRLINER_TO_FLEX_TEMP", UNITS.Number, AUTO_READ);
-    apuRpmPercent       = dm->make_named_var("A32NX_APU_N_RAW", UNITS.Number, AUTO_READ);
+    airlinerToDerate    = dm->make_named_var("A32NX_AIRLINER_TO_DERATE", UNITS.Number, AUTO_READ);
+    apuRpmPercent      = dm->make_named_var("A32NX_APU_N_RAW", UNITS.Number, AUTO_READ);
 
     fadecQuickMode = dm->make_named_var("A32NX_AIRCRAFT_PRESET_QUICK_MODE", UNITS.Number, AUTO_READ);
     fadecQuickMode->set(0);

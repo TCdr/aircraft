@@ -101,6 +101,18 @@ describe('GPWS mode 4A and 4B speeds', () => {
       vi.restoreAllMocks();
     }
   });
+
+  it('takes the TERR function of the TAWS system in use after an automatic reconfiguration', () => {
+    // SYS 1 selected with its TERR failed, the TAWS comes from SYS 2 (TawsSystemInUse.ts)
+    const simVars: Record<string, number> = {
+      'L:A32NX_WXR_TAWS_SYS_SELECTED': 1,
+      'L:A32NX_TAWS_SYS_IN_USE': 2,
+      'L:A32NX_TERR_1_FAILED': 1,
+    };
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars[name] ?? 0);
+    expect(LegacyGpws.isTerrainFunctionOperative()).toBe(true);
+    vi.restoreAllMocks();
+  });
 });
 
 /*

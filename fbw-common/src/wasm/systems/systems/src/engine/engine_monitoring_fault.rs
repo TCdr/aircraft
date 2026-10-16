@@ -6,11 +6,18 @@
 //! awareness (or a procedure without engine model effect):
 //! - A320 FCOM PRO-ABN-ENG (a320_fcom.txt): ENG 1(2) FADEC ALTERNATOR (l.79588-79615), OVSPD PROT
 //!   FAULT (l.80627-80659), PROBES FAULT (l.80660-80689), SENSOR FAULT (l.81012-81055), ONE TLA
-//!   FAULT (l.80603-80626), REV SWITCH FAULT (l.80820-80847).
+//!   FAULT (l.80603-80626), REV SWITCH FAULT (l.80820-80847), FUEL CTL FAULT (l.80112-80165), FUEL
+//!   RETURN VALVE (l.80197-80232), CTL VALVE FAULT (l.79445-79486), COMPRESSOR VANE
+//!   (l.79396-79444), ENG 1+2 COMPRESSOR VANE (l.79366-79395), BLEED STATUS FAULT
+//!   (l.79241-79365), REV INHIBITED (l.80690-80726, the aircraft also stops the reverser
+//!   deployment), REV ISOL FAULT (l.80727-80754).
 //! - A380 FCOM PRO-ABN-ECAM-10-70 (a380_fcom.txt): ENG 1(2)(3)(4) FUEL STRAINER CLOGGED
 //!   (l.172106-172132), FUEL FILTER MONITORING FAULT (l.172018-172043), OIL CHIP DETECTED
 //!   (l.172378-172406), MINOR FAULT (l.172307-172334), OVERTHRUST PROT LOST (l.172639-172666),
-//!   SENSOR FAULT (l.172667-172692).
+//!   SENSOR FAULT (l.172667-172692), CTL SYS FAULT (l.171310-171330), CTL VLV FAULT
+//!   (l.171454-171470), FADEC IDENT FAULT (l.171629-171637), FUEL SYS CONTAMINATION
+//!   (l.172133-172150), OIL SYS CONTAMINATION (l.172517-172530), ENG TYPE DISAGREE
+//!   (l.175642-175650).
 //!
 //! Written variable, per engine n and fault: `ENGINE_n_<fault>` (boolean, see
 //! [`EngineMonitoringFaultKind::variable_name`]).
@@ -44,6 +51,35 @@ pub enum EngineMonitoringFaultKind {
     OneThrustLeverResolver,
     /// A320 ENG 1(2) REV SWITCH FAULT: "the reverser permission switch is failed" (l.80830).
     ReverserPermissionSwitch,
+    /// A320 ENG 1(2) FUEL CTL FAULT: "The Fuel Metering Valve (FMV) position is failed, or The FMV
+    /// command is failed, or The FMV position feedback is failed" (l.80122-80126).
+    FuelMeteringValve,
+    /// A320 ENG 1(2) FUEL RETURN VALVE, VALVE NOT OPEN: "The valve is failed closed" (l.80213-80214).
+    FuelReturnValveFailedClosed,
+    /// A320 ENG 1(2) FUEL RETURN VALVE, VALVE NOT CLOSED: "The valve is failed open" (l.80217-80219).
+    FuelReturnValveFailedOpen,
+    /// A320 ENG 1(2) CTL VALVE FAULT: "The Burner Staging Valve (BSV) is failed, or The HP Turbine
+    /// Clearance (HPTC) system is failed, or The Rotor Active Clearance Control (RACC) system is
+    /// failed" (l.79455-79459).
+    ClearanceControlValves,
+    /// A320 ENG 1(2) COMPRESSOR VANE: "either Variable Bleed Valve (VBV) or Variable Stator Vane
+    /// (VSV) is failed" (l.79406-79407).
+    CompressorVanes,
+    /// A320 ENG 1+2 COMPRESSOR VANE: "loss of the redundancy (i.e. one channel is detected faulty)
+    /// of the compressor vane (i.e. VBV, VSV) control system on both engines" (l.79376-79378): one
+    /// channel of the vane control of this engine; the alert needs it on both engines.
+    CompressorVaneChannel,
+    /// A320 ENG 1(2) BLEED STATUS FAULT: "the status of one of the following valves is not received
+    /// by the FADEC active channel: Bleed valves, Pack valves, Wing and engine anti ice valves,
+    /// Cross-bleed valve" (l.79252-79257).
+    BleedValveStatus,
+    /// A320 ENG 1(2) REV INHIBITED: "the reverser is inhibited by maintenance action" (l.80700).
+    /// Unlike the other faults it has an effect, given by the aircraft: the reverser does not deploy.
+    ReverserInhibited,
+    /// A320 ENG 1(2) REV ISOL FAULT: "the thrust reverser shut off valve is failed in open
+    /// position" (l.80737). It is the valve that "allows hydraulic pressure to the HCU" (DSC-70-70
+    /// l.63289); the HCU still keeps the reverser actuators unpressurized, so no other effect.
+    ReverserShutoffValve,
     /// A380 ENG 1(2)(3)(4) FUEL STRAINER CLOGGED: "The pressure drop across the fuel strainer is
     /// higher than 12 PSI" (l.172113).
     FuelStrainerClog,
@@ -58,6 +94,26 @@ pub enum EngineMonitoringFaultKind {
     MinorFault,
     /// A380 ENG 1(2)(3)(4) OVERTHRUST PROT LOST: "The overthrust protection is lost" (l.172645).
     OverthrustProtection,
+    /// A380 ENG 1(2)(3)(4) CTL SYS FAULT: "A failure preventing the FADEC for satisfactorily
+    /// controlling the engine has occurred" (l.171316: P30, N1, N2 sensor or fuel regulation (HMU)
+    /// failure). Design choice: the engine model keeps its normal control (the FCOM procedure
+    /// covers the case "If engine control is degraded").
+    ControlSystem,
+    /// A380 ENG 1(2)(3)(4) CTL VLV FAULT: "One control valve of the applicable engine is failed"
+    /// (l.171460: cooling, HP turbine or compressor discharge valve not open).
+    ControlValve,
+    /// A380 ENG 1(2)(3)(4) FADEC IDENT FAULT: "The FADEC cannot identify the engine configuration"
+    /// (l.171637), crew awareness.
+    FadecIdent,
+    /// A380 ENG 1(2)(3)(4) FUEL SYS CONTAMINATION: "The bypass valve of the fuel filter is open"
+    /// (l.172139), crew awareness.
+    FuelSystemContamination,
+    /// A380 ENG 1(2)(3)(4) OIL SYS CONTAMINATION: "The oil filter in the return line is clogged and
+    /// the bypass valve is open" (l.172525).
+    OilSystemContamination,
+    /// A380 ENG TYPE DISAGREE: "The engine thrust ratings are not similar on all engines"
+    /// (l.175648), crew awareness: the failure gives this engine a thrust rating that differs.
+    ThrustRatingDisagree,
 }
 impl EngineMonitoringFaultKind {
     /// The end of the variable name `ENGINE_n_<name>` of the fault.
@@ -69,11 +125,28 @@ impl EngineMonitoringFaultKind {
             EngineMonitoringFaultKind::Sensors => "SENSOR_FAULT",
             EngineMonitoringFaultKind::OneThrustLeverResolver => "ONE_TLA_FAULT",
             EngineMonitoringFaultKind::ReverserPermissionSwitch => "REVERSER_SWITCH_FAULT",
+            EngineMonitoringFaultKind::FuelMeteringValve => "FUEL_CTL_FAULT",
+            EngineMonitoringFaultKind::FuelReturnValveFailedClosed => {
+                "FUEL_RETURN_VALVE_FAILED_CLOSED"
+            }
+            EngineMonitoringFaultKind::FuelReturnValveFailedOpen => "FUEL_RETURN_VALVE_FAILED_OPEN",
+            EngineMonitoringFaultKind::ClearanceControlValves => "CTL_VALVE_FAULT",
+            EngineMonitoringFaultKind::CompressorVanes => "COMPRESSOR_VANE_FAULT",
+            EngineMonitoringFaultKind::CompressorVaneChannel => "COMPRESSOR_VANE_CHANNEL_FAULT",
+            EngineMonitoringFaultKind::BleedValveStatus => "BLEED_STATUS_FAULT",
+            EngineMonitoringFaultKind::ReverserInhibited => "REVERSER_INHIBITED",
+            EngineMonitoringFaultKind::ReverserShutoffValve => "REVERSER_SHUTOFF_VALVE_FAULT",
             EngineMonitoringFaultKind::FuelStrainerClog => "FUEL_STRAINER_CLOGGED",
             EngineMonitoringFaultKind::FuelFilterMonitoring => "FUEL_FILTER_MONITORING_FAULT",
             EngineMonitoringFaultKind::OilChip => "OIL_CHIP_DETECTED",
             EngineMonitoringFaultKind::MinorFault => "MINOR_FAULT",
             EngineMonitoringFaultKind::OverthrustProtection => "OVERTHRUST_PROTECTION_LOST",
+            EngineMonitoringFaultKind::ControlSystem => "CTL_SYS_FAULT",
+            EngineMonitoringFaultKind::ControlValve => "CTL_VLV_FAULT",
+            EngineMonitoringFaultKind::FadecIdent => "FADEC_IDENT_FAULT",
+            EngineMonitoringFaultKind::FuelSystemContamination => "FUEL_SYS_CONTAMINATION",
+            EngineMonitoringFaultKind::OilSystemContamination => "OIL_SYS_CONTAMINATION",
+            EngineMonitoringFaultKind::ThrustRatingDisagree => "TYPE_DISAGREE",
         }
     }
 }
@@ -253,11 +326,26 @@ mod tests {
             EngineMonitoringFaultKind::Sensors,
             EngineMonitoringFaultKind::OneThrustLeverResolver,
             EngineMonitoringFaultKind::ReverserPermissionSwitch,
+            EngineMonitoringFaultKind::FuelMeteringValve,
+            EngineMonitoringFaultKind::FuelReturnValveFailedClosed,
+            EngineMonitoringFaultKind::FuelReturnValveFailedOpen,
+            EngineMonitoringFaultKind::ClearanceControlValves,
+            EngineMonitoringFaultKind::CompressorVanes,
+            EngineMonitoringFaultKind::CompressorVaneChannel,
+            EngineMonitoringFaultKind::BleedValveStatus,
+            EngineMonitoringFaultKind::ReverserInhibited,
+            EngineMonitoringFaultKind::ReverserShutoffValve,
             EngineMonitoringFaultKind::FuelStrainerClog,
             EngineMonitoringFaultKind::FuelFilterMonitoring,
             EngineMonitoringFaultKind::OilChip,
             EngineMonitoringFaultKind::MinorFault,
             EngineMonitoringFaultKind::OverthrustProtection,
+            EngineMonitoringFaultKind::ControlSystem,
+            EngineMonitoringFaultKind::ControlValve,
+            EngineMonitoringFaultKind::FadecIdent,
+            EngineMonitoringFaultKind::FuelSystemContamination,
+            EngineMonitoringFaultKind::OilSystemContamination,
+            EngineMonitoringFaultKind::ThrustRatingDisagree,
         ];
         let mut names: Vec<&str> = kinds.iter().map(|kind| kind.variable_name()).collect();
         names.sort_unstable();

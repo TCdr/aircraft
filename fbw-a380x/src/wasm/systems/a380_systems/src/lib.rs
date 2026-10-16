@@ -74,6 +74,7 @@ use systems::{
         adirs::{AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel},
         gnss::GpsReceiver,
         gpirs::Gpirs,
+        ils::MultiModeReceiverShim,
     },
     shared::{ElectricalBusType, LgciuWeightOnWheels},
     simulation::{
@@ -83,15 +84,22 @@ use systems::{
 
 /// The FADEC faults of the A380 FCOM that have no engine model effect (PRO-ABN-ECAM-10-70,
 /// a380_fcom.txt): ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP
-/// DETECTED, MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT (see
+/// DETECTED, MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT, CTL SYS FAULT, CTL VLV FAULT, FADEC
+/// IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE (see
 /// systems::engine::engine_monitoring_fault and the FWS EngineMonitoringAlerts.ts).
-const A380_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 6] = [
+const A380_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 12] = [
     EngineMonitoringFaultKind::FuelStrainerClog,
     EngineMonitoringFaultKind::FuelFilterMonitoring,
     EngineMonitoringFaultKind::OilChip,
     EngineMonitoringFaultKind::MinorFault,
     EngineMonitoringFaultKind::OverthrustProtection,
     EngineMonitoringFaultKind::Sensors,
+    EngineMonitoringFaultKind::ControlSystem,
+    EngineMonitoringFaultKind::ControlValve,
+    EngineMonitoringFaultKind::FadecIdent,
+    EngineMonitoringFaultKind::FuelSystemContamination,
+    EngineMonitoringFaultKind::OilSystemContamination,
+    EngineMonitoringFaultKind::ThrustRatingDisagree,
 ];
 
 pub struct A380 {
@@ -139,6 +147,10 @@ pub struct A380 {
     radio_altimeters: A380RadioAltimeters,
     gps_1: GpsReceiver,
     gps_2: GpsReceiver,
+    /// ILS 1 (NAV 3), for the CAPT PFD
+    mmr_1: MultiModeReceiverShim,
+    /// ILS 2 (NAV 4), for the F/O PFD
+    mmr_2: MultiModeReceiverShim,
     gpirs: Gpirs,
     cds: A380ControlDisplaySystem,
     egpwc: EnhancedGroundProximityWarningComputer,
@@ -223,6 +235,9 @@ impl A380 {
                 ElectricalBusType::AlternatingCurrent(2),
                 true,
             ),
+            // ILS 1 in MMR 1, ILS 2 in MMR 2 (A380 FCOM DSC-34-10-20, a380_fcom.txt:86580-86591)
+            mmr_1: MultiModeReceiverShim::new(context, 1),
+            mmr_2: MultiModeReceiverShim::new(context, 2),
             gpirs: Gpirs::new(context),
             cds: A380ControlDisplaySystem::new(context),
             // TAWS = SURV SYS 1 (WXR/TAWS) = 115 V AC ESS (A380 FCOM DSC-34-20-100, a380_fcom.txt:92742).
@@ -520,6 +535,8 @@ impl SimulationElement for A380 {
         self.radio_altimeters.accept(visitor);
         self.gps_1.accept(visitor);
         self.gps_2.accept(visitor);
+        self.mmr_1.accept(visitor);
+        self.mmr_2.accept(visitor);
         self.gpirs.accept(visitor);
         self.autobrake_panel.accept(visitor);
         self.hydraulic.accept(visitor);
@@ -547,7 +564,7 @@ mod tests {
     use std::time::Duration;
     use systems::failures::FailureType;
     use systems::simulation::{
-        test::{ReadByName, SimulationTestBed, TestBed},
+        test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
         InitContext,
     };
 
@@ -586,5 +603,27 @@ mod tests {
         let clogged_1: bool = test_bed.read_by_name("ENGINE_1_FUEL_FILTER_CLOGGED");
         assert!(clogged_4);
         assert!(!clogged_1);
+    }
+
+    /// Captain PFD shows ILS 1 (MMR 1, sim NAV 3), first officer PFD ILS 2 (MMR 2, sim NAV 4):
+    /// A380 FCOM DSC-34-10-20 (a380_fcom.txt:86590-86591).
+    #[test]
+    fn each_mmr_writes_the_deviations_of_its_own_ils_receiver() {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A380::new(context));
+        test_bed.set_on_ground(true);
+        test_bed.write_by_name("NAV HAS LOCALIZER:3", true);
+        test_bed.write_by_name("NAV RADIAL ERROR:3", 0.5);
+        test_bed.write_by_name("NAV HAS LOCALIZER:4", false);
+        test_bed.write_by_name("NAV RADIAL ERROR:4", -1.5);
+        test_bed.run_with_delta(Duration::from_millis(50));
+
+        let mmr_1_valid: bool = test_bed.read_by_name("MMR_1_LOC_IS_VALID");
+        let mmr_2_valid: bool = test_bed.read_by_name("MMR_2_LOC_IS_VALID");
+        let mmr_1_deviation: f64 = test_bed.read_by_name("MMR_1_LOC_DEVIATION");
+        let mmr_2_deviation: f64 = test_bed.read_by_name("MMR_2_LOC_DEVIATION");
+        assert!(mmr_1_valid);
+        assert!(!mmr_2_valid);
+        assert!((mmr_1_deviation - 0.5).abs() < 1e-9);
+        assert!((mmr_2_deviation + 1.5).abs() < 1e-9);
     }
 }

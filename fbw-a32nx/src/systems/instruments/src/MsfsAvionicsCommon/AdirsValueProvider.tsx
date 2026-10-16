@@ -125,7 +125,13 @@ export class AdirsValueProvider<T extends AdirsSimVars> {
   }
 }
 
-const getSupplier = (displaySide: EfisSide, knobValue: number) => {
+/**
+ * The ADIRU that supplies an EFIS side for a position of its switching selector (ATT HDG or AIR DATA).
+ * @param displaySide the EFIS side
+ * @param knobValue the selector position: 0 CAPT 3, 1 NORM, 2 F/O 3
+ * @returns 1 or 2 (onside) or 3
+ */
+export const getSupplier = (displaySide: EfisSide, knobValue: number) => {
   const adirs3ToCaptain = 0;
   const adirs3ToFO = 2;
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { EventBus, Subject, Subscription } from '@microsoft/msfs-sdk';
+import { ConsumerValue, EventBus, Subject, Subscription } from '@microsoft/msfs-sdk';
 import { A32NXFcdcBusEvents } from '../../../shared/src/publishers/A32NXFcdcBusPublisher';
 import {
   Arinc429LocalVarConsumerSubject,
@@ -43,6 +43,17 @@ export class DmcSdPageLogic {
   private readonly ecpWarningSwitchWord = Arinc429LocalVarConsumerSubject.create(
     this.sub.on('a32nx_ecp_warning_switch_word'),
   );
+
+  /*
+   * The hardwired discretes of the ALL, STS and CLR pbs. Their contacts are wired directly to the DMCs, so they still
+   * work with the ECAM control panel failed (A320 FCOM DSC-31-30, a320_fcom.txt l.46834-46836; ALL pb l.46788-46793).
+   * The DMC reads each pb from its discrete or from the ECP word.
+   */
+  private readonly ecpAllDiscrete = ConsumerValue.create(this.sub.on('a32nx_ecp_discrete_out_all'), false);
+
+  private readonly ecpStatusDiscrete = ConsumerValue.create(this.sub.on('a32nx_ecp_discrete_out_sts'), false);
+
+  private readonly ecpClearDiscrete = ConsumerValue.create(this.sub.on('a32nx_ecp_discrete_out_clr'), false);
 
   private readonly allPageConfirm = new NXLogicConfirmNode(3, true);
 
@@ -222,7 +233,7 @@ export class DmcSdPageLogic {
       return SdPages.DOOR;
     } else if (this.ecpSystemSwitchWord.get().bitValueOr(22, false)) {
       return SdPages.WHEEL;
-    } else if (this.ecpWarningSwitchWord.get().bitValueOr(13, false)) {
+    } else if (this.ecpWarningSwitchWord.get().bitValueOr(13, false) || !!this.ecpStatusDiscrete.get()) {
       return SdPages.STS;
     } else {
       return SdPages.NONE;
@@ -284,7 +295,7 @@ export class DmcSdPageLogic {
   updateSdSelection(dt: number) {
     const fwcSdPageRequest = SimVar.GetSimVarValue('L:A32NX_ECAM_SFAIL', 'number') as SdPages;
 
-    const allButtonPressed = this.ecpSystemSwitchWord.get().bitValueOr(23, false); // TODO should also have a hardwired discrete
+    const allButtonPressed = this.ecpSystemSwitchWord.get().bitValueOr(23, false) || !!this.ecpAllDiscrete.get();
     this.allPageConfirm.write(allButtonPressed && !this.allPagePulse.read(), dt);
     this.allPagePulse.write(this.allPageConfirm.read());
 
@@ -304,7 +315,9 @@ export class DmcSdPageLogic {
 
     // CLR removes the STATUS page called with the STS pb, once no alert is shown on the E/WD (A320 FCOM DSC-31-30)
     const clearPressed =
-      this.ecpWarningSwitchWord.get().bitValueOr(11, false) || this.ecpWarningSwitchWord.get().bitValueOr(16, false);
+      this.ecpWarningSwitchWord.get().bitValueOr(11, false) ||
+      this.ecpWarningSwitchWord.get().bitValueOr(16, false) ||
+      !!this.ecpClearDiscrete.get();
     this.clearPulseNode.write(clearPressed);
     // ... unless the push shows the next page of an overflowing STATUS page (FWC, see StatusPageSelection)
     const statusPageCleared = isStatusPageClearedByClr(

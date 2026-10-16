@@ -4,7 +4,13 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { idgLegendAmber, idgStatusLegend, idgTemperatureClass, idgTemperatureState } from './IdgIndications';
+import {
+  idgLegendAmber,
+  idgStatusLegend,
+  idgTemperatureClass,
+  idgTemperatureRise,
+  idgTemperatureState,
+} from './IdgIndications';
 
 /* A320 FCOM DSC-24-20 SD ELEC page (C) oil outlet temperature, a320_fcom.txt l.37623-37625 */
 describe('SD ELEC IDG oil outlet temperature', () => {
@@ -50,5 +56,20 @@ describe('SD ELEC IDG legends', () => {
     expect(page).toContain('idgTemperatureClass(temperature)');
     expect(page).toContain('idgStatusLegend(!!connected, !!lowPressure)');
     expect(readFileSync(resolve(__dirname, 'Elec.scss'), 'utf-8')).toContain('&.Pulse');
+  });
+});
+
+/* A320 FCOM DSC-24-20 SD ELEC page (13) RISE indication, a320_fcom.txt l.37650-37652 */
+describe('SD ELEC IDG RISE', () => {
+  it('is the outlet minus the inlet temperature, in whole degrees', () => {
+    expect(idgTemperatureRise(75.4, 55.2)).toBe(20);
+    expect(idgTemperatureRise(63.6, 55.1)).toBe(9);
+    expect(idgTemperatureRise(15, 15)).toBe(0);
+  });
+
+  it('is drawn in green from the IDG inlet and outlet temperatures', () => {
+    const page = readFileSync(resolve(__dirname, 'Elec.tsx'), 'utf-8');
+    expect(page).toContain('L:A32NX_ELEC_ENG_GEN_${number}_IDG_OIL_INLET_TEMPERATURE');
+    expect(page).toContain('idgTemperatureRise(temperature, inletTemperature)');
   });
 });

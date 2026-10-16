@@ -297,6 +297,9 @@ export const A320Failure = Object.freeze({
   ApuOverspeed: 49001,
   ApuOilLowPressure: 49002,
   ApuOilHighTemperature: 49003,
+  ApuAirIntakeFlapFailedClosed: 49004,
+  // The ECB senses a low APU oil level on the ground with the APU not running: LOW OIL LEVEL advisory on the SD APU page
+  ApuOilLevelLow: 49005,
   Eng1Flameout: 72000,
   Eng2Flameout: 72001,
   Eng1Seizure: 72010,
@@ -359,6 +362,27 @@ export const A320Failure = Object.freeze({
   Eng2Sensors: 73241,
   Reverser1PermissionSwitch: 78030,
   Reverser2PermissionSwitch: 78031,
+  Eng1FuelMeteringValve: 73250,
+  Eng2FuelMeteringValve: 73251,
+  Eng1FuelReturnValveFailedClosed: 73260,
+  Eng2FuelReturnValveFailedClosed: 73261,
+  Eng1FuelReturnValveFailedOpen: 73270,
+  Eng2FuelReturnValveFailedOpen: 73271,
+  Eng1ClearanceControlValves: 73280,
+  Eng2ClearanceControlValves: 73281,
+  Eng1CompressorVanes: 73290,
+  Eng2CompressorVanes: 73291,
+  Eng1CompressorVaneChannel: 73300,
+  Eng2CompressorVaneChannel: 73301,
+  Eng1BleedValveStatus: 73310,
+  Eng2BleedValveStatus: 73311,
+  Reverser1InhibitedByMaintenance: 78040,
+  Reverser2InhibitedByMaintenance: 78041,
+  Reverser1ShutoffValveFailedOpen: 78050,
+  Reverser2ShutoffValveFailedOpen: 78051,
+  EngineVibrationMonitoringUnit: 77010,
+  Atsu: 46000,
+  AtsuAoc: 46001,
   Reverser1Fault: 78000,
   Reverser2Fault: 78001,
   Reverser1Unlocked: 78010,
@@ -658,6 +682,10 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [49, A320Failure.ApuOverspeed, 'APU overspeed (automatic shutdown)'],
   [49, A320Failure.ApuOilLowPressure, 'APU low oil pressure (automatic shutdown)'],
   [49, A320Failure.ApuOilHighTemperature, 'APU high oil temperature (automatic shutdown)'],
+  // The flap closes whatever its command: a starting or running APU shuts down ("Air inlet flap closed"), a start
+  // cannot begin (the starter needs a fully open flap)
+  [49, A320Failure.ApuAirIntakeFlapFailedClosed, 'APU air intake flap failed closed (automatic shutdown)'],
+  [49, A320Failure.ApuOilLevelLow, 'APU low oil level (advisory, APU keeps running)'],
 
   // The flame goes out once (fuel cut); the crew relights it with ENG MASTER OFF then ON inside the relight envelope
   [72, A320Failure.Eng1Flameout, 'Engine 1 flameout (crew relight possible)'],
@@ -745,6 +773,23 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [73, A320Failure.Eng2Sensors, 'Engine 2 core sensors (PS3, T25, T3)'],
   [73, A320Failure.ThrustLever1OneResolver, 'Thrust lever 1 one resolver'],
   [73, A320Failure.ThrustLever2OneResolver, 'Thrust lever 2 one resolver'],
+  // FWC alerts only, the engine runs as before (systems engine/engine_monitoring_fault.rs): ENG FUEL CTL FAULT, FUEL
+  // RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2 COMPRESSOR VANE (one channel on both engines), BLEED STATUS
+  // FAULT
+  [73, A320Failure.Eng1FuelMeteringValve, 'Engine 1 fuel metering valve control (FMV)'],
+  [73, A320Failure.Eng2FuelMeteringValve, 'Engine 2 fuel metering valve control (FMV)'],
+  [73, A320Failure.Eng1FuelReturnValveFailedClosed, 'Engine 1 fuel return valve failed closed'],
+  [73, A320Failure.Eng2FuelReturnValveFailedClosed, 'Engine 2 fuel return valve failed closed'],
+  [73, A320Failure.Eng1FuelReturnValveFailedOpen, 'Engine 1 fuel return valve failed open'],
+  [73, A320Failure.Eng2FuelReturnValveFailedOpen, 'Engine 2 fuel return valve failed open'],
+  [73, A320Failure.Eng1ClearanceControlValves, 'Engine 1 burner staging / clearance control valves'],
+  [73, A320Failure.Eng2ClearanceControlValves, 'Engine 2 burner staging / clearance control valves'],
+  [73, A320Failure.Eng1CompressorVanes, 'Engine 1 compressor vanes (VBV or VSV)'],
+  [73, A320Failure.Eng2CompressorVanes, 'Engine 2 compressor vanes (VBV or VSV)'],
+  [73, A320Failure.Eng1CompressorVaneChannel, 'Engine 1 compressor vane control, one channel'],
+  [73, A320Failure.Eng2CompressorVaneChannel, 'Engine 2 compressor vane control, one channel'],
+  [73, A320Failure.Eng1BleedValveStatus, 'Engine 1 bleed valve status to FADEC'],
+  [73, A320Failure.Eng2BleedValveStatus, 'Engine 2 bleed valve status to FADEC'],
 
   // Thrust reversers (a320_systems hydraulic A320ReverserController / A320Reversers)
   [78, A320Failure.Reverser1Fault, 'Reverser 1 fault (does not deploy)'],
@@ -757,4 +802,18 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // ENG REV SWITCH FAULT only, the reverser still works (systems engine/engine_monitoring_fault.rs)
   [78, A320Failure.Reverser1PermissionSwitch, 'Reverser 1 permission switch'],
   [78, A320Failure.Reverser2PermissionSwitch, 'Reverser 2 permission switch'],
+  // ENG REV INHIBITED, the reverser does not deploy (a320_systems lib.rs reversers_deployment_inhibited)
+  [78, A320Failure.Reverser1InhibitedByMaintenance, 'Reverser 1 inhibited by maintenance (does not deploy)'],
+  [78, A320Failure.Reverser2InhibitedByMaintenance, 'Reverser 2 inhibited by maintenance (does not deploy)'],
+  // ENG REV ISOL FAULT only: the valve upstream of the HCU, the HCU still keeps the reverser unpressurized
+  [78, A320Failure.Reverser1ShutoffValveFailedOpen, 'Reverser 1 HCU shutoff valve failed open'],
+  [78, A320Failure.Reverser2ShutoffValveFailedOpen, 'Reverser 2 HCU shutoff valve failed open'],
+
+  // ENG VIB SYS FAULT only: the vibrations stay on the ENGINE SD page (FWC Logic/EngineFadecFaultAlerts, TS only)
+  [77, A320Failure.EngineVibrationMonitoringUnit, 'Engine vibration monitoring unit (EVMU)'],
+
+  // ATSU (systems-host atsu.ts): the failed ATSU stops (no datalink), DATALINK ATSU FAULT; the AOC function failure stops
+  // the company datalink only, DATALINK COMPANY FAULT (FWC Logic/DatalinkAlerts)
+  [46, A320Failure.Atsu, 'ATSU'],
+  [46, A320Failure.AtsuAoc, 'ATSU AOC function (company datalink)'],
 ];

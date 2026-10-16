@@ -365,6 +365,11 @@
 - A32NX_APU_LOW_FUEL_PRESSURE_FAULT
     - `Arinc429Word<Bool>`
 
+- A32NX_APU_LOW_OIL_LEVEL
+    - `Arinc429Word<Bool>`
+    - The ECB detects a low APU oil level: on the ground with the APU not running (flyPad failure 49005). Shows
+      LOW OIL LEVEL on the SD APU page (FCOM DSC-49-20)
+
 - A32NX_APU_IS_AUTO_SHUTDOWN
     - Bool
     - Indicates if the APU automatically shut down (for a reason other than fire): fuel low pressure, DC power lost
@@ -650,11 +655,12 @@
 
 - A32NX_ELT_TEST_RESET
     - Bool
-    - True if ELT is being tested/reset.
+    - True while the ELT TEST/RESET pushbutton is held: the ELT runs its autotest (ELT light on) and pressing it
+      stops a transmission (resets A32NX_ELT_ON).
 
 - A32NX_ELT_ON
     - Bool
-    - True if ELT is on.
+    - True when the ELT transmits (ELT ON pushbutton pressed), until TEST/RESET is pressed.
 
 - A32NX_DLS_ON
     - Bool
@@ -805,6 +811,13 @@
         - 6PB1: Battery 1 contactor
         - 6PB2: Battery 2 contactor
 
+- A32NX_ELEC_MAINT_BUS_SW_IS_ON
+    - Bool
+    - The MAINT BUS switch of the forward entrance area (flyPad Ground > Services stand-in). ON: external power
+      supplies the AC and DC GND/FLT buses without the rest of the network; OFF: they are on AC BUS 2 and DC BUS 2.
+      The systems write it back to 0 when it cannot latch (no external power available) or trips (external power
+      removed)
+
 - A32NX_ELEC_{name}_BUS_IS_POWERED
     - Bool
     - True when the given bus is powered
@@ -918,6 +931,14 @@
 - A32NX_ELEC_ENG_GEN_{number}_IDG_OIL_OUTLET_TEMPERATURE
     - Celsius
     - The integrated drive generator's oil outlet temperature
+    - {number}
+        - 1
+        - 2
+
+- A32NX_ELEC_ENG_GEN_{number}_IDG_OIL_INLET_TEMPERATURE
+    - Celsius
+    - The integrated drive generator's oil inlet temperature (back from the coolers). The SD ELEC page RISE is the
+      outlet minus the inlet temperature
     - {number}
         - 1
         - 2
@@ -1142,6 +1163,11 @@
     - Maintenance stow request of the RAT (flyPad Ground > Services). Accepted only on the ground and while no
       extension is commanded (emergency electrical configuration, RAT MAN ON, EMER ELEC PWR MAN ON); written back to 0
       by the systems once evaluated, so a request in flight is dropped
+
+- A32NX_RAT_STOWING
+    - Bool
+    - True while a maintenance stow moves the RAT in (the stowing pressure is applied): the SD HYD page shows the RAT
+      legend in amber
 
 - A32NX_RAT_RPM
     - Rpm
@@ -1724,6 +1750,12 @@ These variables are the interface between the 3D model and the systems/code.
     - Indicates if the CHECK APPR SELECTION message is shown on the PFD (FMGC: a non ILS approach in the F-PLN with an
       ILS manually tuned on the RAD NAV page, in cruise less than 100 NM from the T/D, in descent or in approach)
 
+- A32NX_PFD_MSG_MORE_DRAG
+    - Bool
+    - Indicates if the MORE DRAG message is shown on the PFD (FMGC VNAV: DES with THR IDLE, and either above the
+      profile with the predicted intercept less than 2 NM before the next ALT CSTR, or in managed speed inside a
+      speedbrake decelerating segment of the descent profile)
+
 - A32NX_PFD_LINEAR_DEVIATION_ACTIVE
     - Bool
     - Indicates if the linear deviation is shown on the PFD
@@ -2258,6 +2290,19 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Deviation from glide slope
     - If A32NX_RADIO_RECEIVER_USAGE_ENABLED == 0 it contains the deviation from the sim
     - If A32NX_RADIO_RECEIVER_USAGE_ENABLED == 1 it contains calculated LOC deviation
+
+- A32NX_MMR_{number}_LOC_IS_VALID, A32NX_MMR_{number}_GS_IS_VALID
+    - Bool
+    - number: 1 or 2
+    - The localizer (glide slope) signal of the ILS receiver of MMR {number} is valid. MMR 1 is the sim NAV 3, MMR 2
+      NAV 4. Written by systems.wasm (fbw-common navigation/ils.rs). The F/O PFD reads MMR 2; the CAPT PFD keeps the
+      A32NX_RADIO_RECEIVER_* variables (MMR 1)
+
+- A32NX_MMR_{number}_LOC_DEVIATION, A32NX_MMR_{number}_GS_DEVIATION
+    - Number in degrees
+    - The localizer (glide slope) deviation of the ILS receiver of MMR {number}, the sim signal (NAV RADIAL ERROR,
+      NAV GLIDE SLOPE ERROR), not corrected for the back beam: the contract of A32NX_RADIO_RECEIVER_LOC_DEVIATION
+      and A32NX_RADIO_RECEIVER_GS_DEVIATION without the calculated ILS signals option
 
 ## Flight Management System
 
@@ -4441,7 +4486,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {side}
     - L
     - R
-  - True when both outer tank transfer valves of the wing (MSFS valves 6 and 4, 7 and 5) have stayed closed for more than 5 s while the inner tank low level commands them open (flyPad failure 28012/28013 "L (R) outer tank transfer valves jammed in place"): FUEL L (R) OUTER XFR CLOSED. Written by the systems host (Fuel/FuelPumpsAndValves)
+  - True when both outer tank transfer valves of the wing (MSFS valves 6 and 4, 7 and 5) have stayed closed for more than 5 s while the inner tank low level commands them open (flyPad failure 28012/28013 "L (R) outer tank transfer valves jammed in place"): FUEL L (R) OUTER XFR CLOSED, the SD FUEL outer tank quantity boxed amber and the E/WD and SD FOB half-boxed amber (FCOM DSC-28-20). Written by the systems host (Fuel/FuelPumpsAndValves)
 
 - A32NX_FUEL_{side}_OUTER_XFR_OPEN
   - Bool
@@ -4548,6 +4593,13 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 1
     - 2
   - True while the FADEC fault failure of the engine is active (flyPad failures 73210/73211 FADEC alternator, 73220/73221 overspeed protection, 73230/73231 inlet probes, 73240/73241 core sensors, 73060/73061 thrust lever one resolver, 78030/78031 reverser permission switch): ENG 1(2) FADEC ALTERNATOR (engine running), OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT, no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+
+- A32NX_ENGINE_{number}_FUEL_CTL_FAULT, _FUEL_RETURN_VALVE_FAILED_CLOSED, _FUEL_RETURN_VALVE_FAILED_OPEN, _CTL_VALVE_FAULT, _COMPRESSOR_VANE_FAULT, _COMPRESSOR_VANE_CHANNEL_FAULT, _BLEED_STATUS_FAULT, _REVERSER_INHIBITED, _REVERSER_SHUTOFF_VALVE_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73250/73251 fuel metering valve control, 73260/73261 fuel return valve failed closed, 73270/73271 fuel return valve failed open, 73280/73281 burner staging / clearance control valves, 73290/73291 compressor vanes, 73300/73301 compressor vane control one channel, 73310/73311 bleed valve status to FADEC, 78040/78041 reverser inhibited by maintenance, 78050/78051 reverser HCU shutoff valve failed open): ENG 1(2) FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2 COMPRESSOR VANE (channel fault on both engines), BLEED STATUS FAULT, REV INHIBITED, REV ISOL FAULT (FWC Logic/EngineFadecFaultAlerts). No effect on the engine; REVERSER_INHIBITED also stops the deployment of the reverser. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
 
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool
@@ -4809,7 +4861,14 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {side}
     - L
     - R
-  - True when the CTR TK {side} XFR valve has stayed not fully open for more than 5 s while commanded open (CTR TK XFR pb-sw ON with MODE SEL MAN, or AUTO with the FLSCU opening it): the valve failed closed. Gives FUEL CTR {side} XFR FAULT (VALVE NOT FULLY OPEN) or FUEL CTR L + R XFR FAULT, and boxes the SD FUEL centre tank quantity in amber when both are true (FCOM DSC-28-20). Written by the systems host (Fuel/FuelPumpsAndValves)
+  - True when the CTR TK {side} XFR valve has stayed not fully open for more than 5 s while commanded open (CTR TK XFR pb-sw ON with MODE SEL MAN, or AUTO with the FLSCU opening it): the valve failed closed. Gives FUEL CTR {side} XFR FAULT (VALVE NOT FULLY OPEN) or FUEL CTR L + R XFR FAULT, Written by the systems host (Fuel/FuelPumpsAndValves)
+
+- A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_FAILED_CLOSED
+  - Bool
+  - {side}
+    - L
+    - R
+  - True from a confirmed A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_NOT_FULLY_OPEN until the valve is seen open again: it stays while the FLSCU commands the valve closed. Both true: the SD FUEL centre tank quantity is boxed amber and the E/WD and SD FOB are half-boxed amber (FCOM DSC-28-20). Written by the systems host (Fuel/FuelPumpsAndValves)
 
 - A32NX_FUEL_PUMP_{number}_LO_PR
   - Bool
@@ -5124,7 +5183,7 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 #### Hardwired Discretes
 
 - `L:A32NX_ECP_DISCRETE_OUT_STS`
-  - The hardwired discrete for STS button to each FWC.
+  - The hardwired discrete for STS button to each FWC and DMC (still works with the ECAM control panel failed).
   - Boolean
 
 - `L:A32NX_ECP_DISCRETE_OUT_RCL`
@@ -5132,7 +5191,7 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
   - Boolean
 
 - `L:A32NX_ECP_DISCRETE_OUT_CLR`
-  - The hardwired discrete for CLR button to each FWC.
+  - The hardwired discrete for CLR button to each FWC and DMC (still works with the ECAM control panel failed).
   - Boolean
 
 - `L:A32NX_ECP_DISCRETE_OUT_EMER_CANC`
@@ -5140,7 +5199,7 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
   - Boolean
 
 - `L:A32NX_ECP_DISCRETE_OUT_ALL`
-  - The hardwired discrete for emergency cancel/audio suppression to each DMC.
+  - The hardwired discrete for ALL button to each DMC (still works with the ECAM control panel failed).
   - Boolean
 
 ### FWC voices

@@ -76,6 +76,8 @@ const EwdGroups: Record<string, string> = {
   // CONFIG L(R) SIDESTICK FAULT, see FWC/Logic/ConfigSidestickFault (added last: the group title codes stay the same)
   'CONFIG$7': '\x1b<2m\x1b4mCONFIG\x1bm',
   'CONFIG$8': '\x1b<2m\x1b4mCONFIG\x1bm',
+  // DATALINK ATSU FAULT and COMPANY FAULT, see FWC/Logic/DatalinkAlerts (added last: the group title codes stay the same)
+  'DATALINK$1': '\x1b<4m\x1b4mDATALINK\x1bm',
 };
 /* eslint-enable prettier/prettier */
 
@@ -383,6 +385,48 @@ const EwdMessages = new Map<
   ['770736201', { group: 'ENG$5', text: ' 2 ONE TLA FAULT' }],
   ['770781101', { group: 'ENG$5', text: ' 1 REV SWITCH FAULT' }],
   ['770781201', { group: 'ENG$5', text: ' 2 REV SWITCH FAULT' }],
+  // ENG 1(2) FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2 COMPRESSOR VANE, BLEED STATUS
+  // FAULT, REV INHIBITED, REV ISOL FAULT, ENG VIB SYS FAULT (FCOM PRO-ABN-ENG), lines by FWC/Logic/EngineFadecFaultAlerts
+  ['770737101', { group: 'ENG$5', text: ' 1 FUEL CTL FAULT' }],
+  ['770737102', { text: '\x1b<5m -THR LEVER 1.......IDLE' }],
+  ['770737103', { text: '\x1b<5m -ENG MASTER 1.......OFF' }],
+  ['770737104', { text: '\x1b<5m AVOID RAPID THR CHANGES' }],
+  ['770737201', { group: 'ENG$5', text: ' 2 FUEL CTL FAULT' }],
+  ['770737202', { text: '\x1b<5m -THR LEVER 2.......IDLE' }],
+  ['770737203', { text: '\x1b<5m -ENG MASTER 2.......OFF' }],
+  ['770737204', { text: '\x1b<5m AVOID RAPID THR CHANGES' }],
+  ['770738101', { group: 'ENG$5', text: ' 1 FUEL RETURN VALVE' }],
+  ['770738102', { text: '\x1b<4m VALVE NOT OPEN' }],
+  ['770738103', { text: '\x1b<4m VALVE NOT CLOSED' }],
+  ['770738201', { group: 'ENG$5', text: ' 2 FUEL RETURN VALVE' }],
+  ['770738202', { text: '\x1b<4m VALVE NOT OPEN' }],
+  ['770738203', { text: '\x1b<4m VALVE NOT CLOSED' }],
+  ['770739101', { group: 'ENG$5', text: ' 1 CTL VALVE FAULT' }],
+  ['770739102', { text: '\x1b<5m MAX N2.............96 %' }],
+  ['770739201', { group: 'ENG$5', text: ' 2 CTL VALVE FAULT' }],
+  ['770739202', { text: '\x1b<5m MAX N2.............96 %' }],
+  ['770740001', { group: 'ENG$5', text: ' 1+2 COMPRESSOR VANE' }],
+  ['770740101', { group: 'ENG$5', text: ' 1 COMPRESSOR VANE' }],
+  ['770740102', { text: '\x1b<5m -THR LEVER 1.......IDLE' }],
+  ['770740103', { text: '\x1b<5m -ENG MASTER 1.......OFF' }],
+  ['770740104', { text: '\x1b<5m AVOID RAPID THR CHANGES' }],
+  ['770740201', { group: 'ENG$5', text: ' 2 COMPRESSOR VANE' }],
+  ['770740202', { text: '\x1b<5m -THR LEVER 2.......IDLE' }],
+  ['770740203', { text: '\x1b<5m -ENG MASTER 2.......OFF' }],
+  ['770740204', { text: '\x1b<5m AVOID RAPID THR CHANGES' }],
+  ['770741101', { group: 'ENG$5', text: ' 1 BLEED STATUS FAULT' }],
+  ['770741102', { text: '\x1b<5m HI GND IDLE' }],
+  ['770741103', { text: '\x1b<5m -ENG MODE SEL.......IGN' }],
+  ['770741104', { text: '\x1b<5m -PACK 1.............OFF' }],
+  ['770741201', { group: 'ENG$5', text: ' 2 BLEED STATUS FAULT' }],
+  ['770741202', { text: '\x1b<5m HI GND IDLE' }],
+  ['770741203', { text: '\x1b<5m -ENG MODE SEL.......IGN' }],
+  ['770741204', { text: '\x1b<5m -PACK 2.............OFF' }],
+  ['770782101', { group: 'ENG$5', text: ' 1 REV INHIBITED' }],
+  ['770782201', { group: 'ENG$5', text: ' 2 REV INHIBITED' }],
+  ['770783101', { group: 'ENG$5', text: ' 1 REV ISOL FAULT' }],
+  ['770783201', { group: 'ENG$5', text: ' 2 REV ISOL FAULT' }],
+  ['770770001', { group: 'ENG$5', text: ' VIB SYS FAULT' }],
   // ENG 1(2) THR LEVER ABV IDLE (FCOM PRO-ABN-ENG, a320_fcom.txt l.81632-81666): red warning
   ['770090101', { group: 'ENG$1', text: ' 1 THR LEVER ABV IDLE' }],
   ['770090102', { text: '\x1b<5m -THR LEVER 1.......IDLE' }],
@@ -855,6 +899,11 @@ const EwdMessages = new Map<
   ['340089001', { group: 'NAV$9', text: ' ATC/XPDR 1+2 FAULT' }],
   // NAV PRED W/S DET FAULT, crew awareness (A320 FCOM l.93716-93740), see FWC/Logic/PredictiveWindshearAlerts
   ['340090001', { group: 'NAV$9', text: ' PRED W/S DET FAULT' }],
+  // DATALINK ATSU FAULT (A320 FCOM l.74467-74495) and DATALINK COMPANY FAULT (l.74507-74531), crew awareness, see
+  // FWC/Logic/DatalinkAlerts
+  ['460001001', { group: 'DATALINK$1', text: ' ATSU FAULT' }],
+  ['460001002', { text: '\x1b<4m ATSU INIT FAULT' }],
+  ['460002001', { group: 'DATALINK$1', text: ' COMPANY FAULT' }],
   ['340050001', { group: 'NAV$9', text: ' TCAS FAULT' }],
   // NAV GPWS FAULT and GPWS TERR DET FAULT (A320 FCOM PRO-ABN-NAV l.93124-93192), see FWC/Logic/GpwsAlerts
   ['340068001', { group: 'NAV$9', text: ' GPWS FAULT' }],
@@ -1790,6 +1839,10 @@ const EwdMessages = new Map<
   ['000032001', { text: '\x1b<3mTCAS STBY' }],
   ['000032501', { text: '\x1b<4mTCAS STBY' }],
   ['000055201', { text: '\x1b<3mCOMPANY MSG' }],
+  // COMPANY DATALINK STBY (FCOM DSC-46-10-40-60 l.59467-59468), on two lines of the memo column, see
+  // FWC/Logic/DatalinkAlerts
+  ['000055301', { text: '\x1b<3mCOMPANY' }],
+  ['000055302', { text: '\x1b<3mDATALINK STBY' }],
   ['000026001', { text: '\x1b<3mENG A. ICE' }],
   ['000027001', { text: '\x1b<3mWING A. ICE' }],
   ['000027501', { text: '\x1b<3mICE NOT DET' }],

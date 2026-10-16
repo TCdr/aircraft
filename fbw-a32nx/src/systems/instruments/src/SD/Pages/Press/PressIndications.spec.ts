@@ -9,6 +9,7 @@ import {
   cabinAltitudePulses,
   cabinAltitudeTextClass,
   cabinVsPulses,
+  ventilationIndication,
 } from './PressIndications';
 
 /* A320 FCOM DSC-21-20-40 (5): CAB ALT digital value pulses at or above 8800 ft (resets at 8600 ft), red above
@@ -63,5 +64,29 @@ describe('CAB PRESS page wiring', () => {
 
   it('pulses no needle (FCOM: only the digital presentations pulse)', () => {
     expect(page).not.toContain('GreenIndicatorPulse');
+  });
+
+  it('colours VENT and shows BLOWER and EXTRACT from the fault lights signals and the avionics smoke', () => {
+    expect(page).toContain('ventilationIndication(');
+    expect(page).toContain('L:A32NX_VENTILATION_BLOWER_FAULT');
+    expect(page).toContain('L:A32NX_VENTILATION_EXTRACT_FAULT');
+    expect(page).toContain('L:A32NX_SMOKE_AVIONICS_DETECTED');
+    expect(page).toContain('BLOWER');
+    expect(page).toContain('EXTRACT');
+  });
+});
+
+/* A320 FCOM DSC-21-30-60 ECAM CAB PRESS PAGE (1) BLOWER, VENT and EXTRACT (a320_fcom.txt l.9587-9591) */
+describe('CAB PRESS page avionics ventilation', () => {
+  it('shows a white VENT alone without fault', () => {
+    expect(ventilationIndication(false, false)).toEqual({ ventAmber: false, blowerShown: false, extractShown: false });
+  });
+
+  it('shows an amber BLOWER and turns VENT amber on a BLOWER FAULT', () => {
+    expect(ventilationIndication(true, false)).toEqual({ ventAmber: true, blowerShown: true, extractShown: false });
+  });
+
+  it('shows an amber EXTRACT and turns VENT amber on an EXTRACT FAULT', () => {
+    expect(ventilationIndication(false, true)).toEqual({ ventAmber: true, blowerShown: false, extractShown: true });
   });
 });

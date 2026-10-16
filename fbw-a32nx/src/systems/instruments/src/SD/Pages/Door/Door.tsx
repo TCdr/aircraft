@@ -5,7 +5,13 @@
 import React, { useEffect, useState } from 'react';
 import { useArinc429Var, useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { cabinVsPulses } from '../Press/PressIndications';
-import { crewOxygenIndication, doorPageCabinVsClass, isCabinVsShown, isDoorNotLocked } from './DoorOxyIndications';
+import {
+  crewOxygenCircuitIndication,
+  crewOxygenIndication,
+  doorPageCabinVsClass,
+  isCabinVsShown,
+  isDoorNotLocked,
+} from './DoorOxyIndications';
 
 import './Door.scss';
 
@@ -98,7 +104,8 @@ export const DoorPage = () => {
   const [rightEmergencyExit] = useSimVar('INTERACTIVE POINT OPEN:7', 'percent', 1000);
   const [forwardCargoLocked] = useSimVar('L:A32NX_FWD_DOOR_CARGO_LOCKED', 'bool', 1000);
   const [aftCargoLocked] = useSimVar('L:A32NX_AFT_DOOR_CARGO_LOCKED', 'bool', 1000);
-  const [oxygen] = useSimVar('L:PUSH_OVHD_OXYGEN_CREW', 'bool', 1000);
+  // The CREW SUPPLY pb-sw: 1 when OFF
+  const [crewSupplyOff] = useSimVar('L:PUSH_OVHD_OXYGEN_CREW', 'bool', 1000);
   const [slides] = useSimVar('L:A32NX_SLIDES_ARMED', 'bool', 1000);
   const [crewOxygenPressure] = useSimVar('L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE', 'psi', 1000);
   const [leftGearCompressed] = useSimVar('L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', 'bool', 1000);
@@ -107,6 +114,7 @@ export const DoorPage = () => {
 
   const crewOxygenPressureRounded = Math.round(crewOxygenPressure / 50) * 50;
   const crewOxygen = crewOxygenIndication(crewOxygenPressureRounded, onGround);
+  const crewOxygenCircuit = crewOxygenCircuitIndication(crewOxygenPressureRounded, crewSupplyOff > 0);
 
   return (
     <>
@@ -276,7 +284,7 @@ export const DoorPage = () => {
 
           <text
             id="oxy"
-            className={oxygen ? 'OxyWarn' : 'Oxygen'}
+            className={crewOxygenCircuit.ckptOxyAmber ? 'OxyWarn' : 'Oxygen'}
             x="490"
             y="18"
             textAnchor="middle"
@@ -300,6 +308,19 @@ export const DoorPage = () => {
           <text id="psi_unit" className="Unit" x="486" y="43" textAnchor="middle" alignmentBaseline="central">
             PSI
           </text>
+          {/* REGUL LO PR (FCOM l.56822-56823), under the pressure: the FCOM text gives no position */}
+          {crewOxygenCircuit.regulatorLowPressure && (
+            <text
+              id="regul_lo_pr"
+              className="RegulLowPressure"
+              x="490"
+              y="68"
+              textAnchor="middle"
+              alignmentBaseline="central"
+            >
+              REGUL LO PR
+            </text>
+          )}
         </g>
       </svg>
     </>

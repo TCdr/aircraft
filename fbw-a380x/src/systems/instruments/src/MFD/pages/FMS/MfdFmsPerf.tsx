@@ -73,6 +73,7 @@ import {
 } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { fcomAt, fcomCentre, fcomLine, fcomRight, fcomTabBar } from '../common/FcomLayout';
 import { longRangeCruiseMach, maxTurbulenceMach, maxTurbulenceSpeedKnots } from '../../FMC/CruiseSpeeds';
+import { TAKEOFF_DERATE_LEVELS, writeTakeoffDerate } from '../../shared/TakeoffDerate';
 
 interface MfdFmsPerfProps extends AbstractMfdPageProps {}
 
@@ -371,7 +372,8 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
 
   private readonly toDeratedInputRef = FSComponent.createRef<HTMLDivElement>();
 
-  private readonly toDeratedThrustOptions = ArraySubject.create(['D01', 'D02', 'D03', 'D04', 'D05']);
+  /** DERATED T.O levels: the six DOx levels of the engine (FCOM DSC-70-20-40 l.111564, MFD/shared/TakeoffDerate.ts) */
+  private readonly toDeratedThrustOptions = ArraySubject.create([...TAKEOFF_DERATE_LEVELS]);
 
   /** T.O FLAPS lever positions (FCOM: 1, 2 or 3) */
   private readonly toFlapsLabels = ArraySubject.create(['1', '2', '3']);
@@ -396,6 +398,8 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
         // TOGA
         SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', 0); // 0 meaning no FLEX
       }
+      // the DOx derate for the FADECs: its level when DERATED, 0 otherwise
+      writeTakeoffDerate(newIndex, this.props.flightPlanInterface.active.performanceData.takeoffDeratedSetting?.get());
     }
   }
 
@@ -1735,6 +1739,9 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                           this.toDeratedThrustNext,
                           this.loadedFlightPlanIndex.get(),
                         );
+                        if (this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active) {
+                          writeTakeoffDerate(TakeoffPowerSetting.DERATED, this.toDeratedThrustNext);
+                        }
                       }}
                       contentContainerStyle="width: 325px; height: 165px; transform: translateX(-50%);"
                     >

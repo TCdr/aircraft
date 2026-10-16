@@ -23,6 +23,8 @@ import { minGw } from '@shared/PerformanceConstants';
 import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
 import { qnhToMillibar } from '../shared/QnhUtils';
+import { grossWeightCgFromFqmsOrWbbc } from './GrossWeightCgSource';
+import type { InsertedAlternateRoute } from './AlternateCompanyRoute';
 
 export enum TakeoffPowerSetting {
   TOGA = 0,
@@ -30,12 +32,14 @@ export enum TakeoffPowerSetting {
   DERATED = 2,
 }
 
+/** The derated takeoff levels (FCOM DSC-70-20-40 l.111564-111565), as the index of the MFD list */
 export enum TakeoffDerated {
-  D01 = 0,
-  D02 = 1,
-  D03 = 2,
-  D04 = 3,
-  D05 = 4,
+  D04 = 0,
+  D08 = 1,
+  D12 = 2,
+  D16 = 3,
+  D20 = 4,
+  D24 = 5,
 }
 
 export enum TakeoffPacks {
@@ -83,6 +87,18 @@ export class FmgcData {
       this.companyRouteIdents.set(planIndex, ident);
     }
     return ident;
+  }
+
+  private readonly alternateCompanyRoutes = new Map<FlightPlanIndex, Subject<InsertedAlternateRoute | null>>();
+
+  /** The alternate company route inserted into a flight plan, null when none (INIT page ALTN RTE field). */
+  public alternateCompanyRoute(planIndex: FlightPlanIndex): Subject<InsertedAlternateRoute | null> {
+    let route = this.alternateCompanyRoutes.get(planIndex);
+    if (!route) {
+      route = Subject.create<InsertedAlternateRoute | null>(null);
+      this.alternateCompanyRoutes.set(planIndex, route);
+    }
+    return route;
   }
 
   /**
@@ -208,12 +224,13 @@ export class FmgcDataService implements Fmgc {
   private readonly fqmsFob = Arinc429LocalVarConsumerSubject.create(this.sub.on('fqms_total_fuel_on_board'));
   private readonly fqmsGw = Arinc429LocalVarConsumerSubject.create(this.sub.on('fqms_gross_weight'));
   private readonly fqmsGwCg = Arinc429LocalVarConsumerSubject.create(this.sub.on('fqms_center_of_gravity_mac'));
+  private readonly wbbcGwCg = Arinc429LocalVarConsumerSubject.create(this.sub.on('wbbc_center_of_gravity_mac'));
 
   constructor(
     private readonly bus: EventBus,
     private flightPlanService: FlightPlanService,
   ) {
-    this.subs.push(this.fqmsFob, this.fqmsGw, this.fqmsGwCg);
+    this.subs.push(this.fqmsFob, this.fqmsGw, this.fqmsGwCg, this.wbbcGwCg);
   }
 
   public destroy() {
@@ -258,8 +275,8 @@ export class FmgcDataService implements Fmgc {
    * @returns the gross weight center of gravity in %
    */
   public getGrossWeightCg(): number | null {
-    // Value received from FQMS, or falls back to value from WBBC (TODO)
-    return this.fqmsGwCg.get().valueOr(null);
+    // Value received from FQMS, or falls back to value from WBBC (CpiomF/WeightBalanceBackup)
+    return grossWeightCgFromFqmsOrWbbc(this.fqmsGwCg.get(), this.wbbcGwCg.get());
   }
 
   /**

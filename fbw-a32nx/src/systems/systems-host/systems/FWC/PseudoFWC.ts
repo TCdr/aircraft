@@ -61,6 +61,11 @@ import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
 import { acscPackFaults } from './Logic/AcscPackFaults';
+import {
+  ALTI_DISCREPANCY_BARO_REFERENCE_FT,
+  ALTI_DISCREPANCY_STD_REFERENCE_FT,
+  isAltitudeDiscrepancy,
+} from './Logic/AltitudeDiscrepancy';
 import { isFireAuralActive, isFireWarningActive } from './Logic/FireWarning';
 import {
   ALL_ENGINES_FAILURE_CODES,
@@ -328,6 +333,8 @@ import {
 } from './Logic/LandingGearAlerts';
 import { GpwsAlerts, readGpwsInputs, TERR_STBY_MEMO_CODE } from './Logic/GpwsAlerts';
 import { PredictiveWindshearAlerts } from './Logic/PredictiveWindshearAlerts';
+import { EngineFadecFaultAlerts, readEngineFadecFaults } from './Logic/EngineFadecFaultAlerts';
+import { COMPANY_DATALINK_STBY_MEMO_CODES, DatalinkAlerts, DATALINK_PHASE_INHIBITION } from './Logic/DatalinkAlerts';
 import { autoPilotOffInvoluntaryStatus, autoThrustOffInvoluntaryStatus } from './Logic/AutoFlightStatus';
 import {
   alertStatus,
@@ -2145,6 +2152,13 @@ export class PseudoFWC {
   /** NAV PRED W/S DET FAULT, see Logic/PredictiveWindshearAlerts */
   private readonly predictiveWindshearAlerts = new PredictiveWindshearAlerts();
 
+  /** ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED, REV ISOL
+   * FAULT, VIB SYS FAULT, see Logic/EngineFadecFaultAlerts */
+  private readonly engineFadecFaultAlerts = new EngineFadecFaultAlerts();
+
+  /** DATALINK ATSU FAULT, DATALINK COMPANY FAULT, COMPANY DATALINK STBY memo, see Logic/DatalinkAlerts */
+  private readonly datalinkAlerts = new DatalinkAlerts();
+
   /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
   private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
 
@@ -2367,8 +2381,6 @@ export class PseudoFWC {
   public readonly radioHeight1 = Arinc429Register.empty();
 
   public readonly radioHeight2 = Arinc429Register.empty();
-
-  private readonly fac1Failed = Subject.create(0);
 
   private readonly toMemo = Subject.create(false);
   private readonly toMemoFlipFlop = new NXLogicMemoryNode(false);
@@ -2876,6 +2888,8 @@ export class PseudoFWC {
 
   init(): void {
     this.predictiveWindshearAlerts.init();
+    this.engineFadecFaultAlerts.init();
+    this.datalinkAlerts.init(this.bus);
 
     Promise.all([
       KeyEventManager.getManager(this.bus),
@@ -3881,8 +3895,6 @@ export class PseudoFWC {
     this.apuBleedPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON', 'bool'));
 
     this.radioAlt.set(SimVar.GetSimVarValue('PLANE ALT ABOVE GROUND MINUS CG', 'feet'));
-
-    this.fac1Failed.set(SimVar.GetSimVarValue('L:A32NX_FBW_FAC_FAILED:1', 'boost psi'));
 
     this.autoBrake.set(SimVar.GetSimVarValue('L:A32NX_AUTOBRAKES_ARMED_MODE', 'enum'));
 
@@ -5923,6 +5935,13 @@ export class PseudoFWC {
     this.landingGearAlerts.update(readLandingGearInputs(this.gearNotUplockedWarning.get()), deltaTime / 1000);
     this.gpwsAlerts.update(readGpwsInputs());
     this.predictiveWindshearAlerts.update();
+    this.engineFadecFaultAlerts.update({
+      faults: [readEngineFadecFaults(1), readEngineFadecFaults(2)],
+      onGround: this.aircraftOnGround.get(),
+      flightPhase: this.fwcFlightPhase.get(),
+      engineAntiIceOn: [this.eng1AntiIce.get(), this.eng2AntiIce.get()],
+    });
+    this.datalinkAlerts.update(this.ac1BusPoweredVar.get());
 
     /* ENG 1(2) OIL LO PR, OIL HI TEMP, OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts) */
     // The oil pressure and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
@@ -6512,23 +6531,26 @@ export class PseudoFWC {
       this.airKnob.get() === AirDataSwitchingKnob.Fo ? this.adr3PressureAlt.get() : this.adr2PressureAlt.get();
     const rightDmcAlt = this.dmcRightAltitude.get();
 
+    // NAV ALTI DISCREPANCY / CHECK ALT thresholds: 250 ft QNH or QFE, 500 ft STD (Logic/AltitudeDiscrepancy.ts)
     const baroAltDiscrepancy =
-      (((leftAdrCorrectedAlt.isNormalOperation() || leftAdrCorrectedAlt.isFunctionalTest()) &&
-        (rightDmcAlt.isNormalOperation() || rightDmcAlt.isFunctionalTest()) &&
-        Math.abs(leftAdrCorrectedAlt.value - rightDmcAlt.value) > 250) ||
-        ((rightAdrCorrectedAlt.isNormalOperation() || rightAdrCorrectedAlt.isFunctionalTest()) &&
-          (leftDmcAlt.isNormalOperation() || leftDmcAlt.isFunctionalTest()) &&
-          Math.abs(rightAdrCorrectedAlt.value - leftDmcAlt.value) > 250)) &&
+      isAltitudeDiscrepancy(
+        leftAdrCorrectedAlt,
+        rightDmcAlt,
+        rightAdrCorrectedAlt,
+        leftDmcAlt,
+        ALTI_DISCREPANCY_BARO_REFERENCE_FT,
+      ) &&
       ((dmcLIsQnh && dmcRIsQnh) || (dmcLIsQfe && dmcRIsQfe));
     this.altiDiscrepancyConf1.write(baroAltDiscrepancy, deltaTime);
 
     const pressureAltDiscrepancy =
-      (((leftAdrPressureAlt.isNormalOperation() || leftAdrPressureAlt.isFunctionalTest()) &&
-        (rightDmcAlt.isNormalOperation() || rightDmcAlt.isFunctionalTest()) &&
-        Math.abs(leftAdrPressureAlt.value - rightDmcAlt.value) > 250) ||
-        ((rightAdrPressureAlt.isNormalOperation() || rightAdrPressureAlt.isFunctionalTest()) &&
-          (leftDmcAlt.isNormalOperation() || leftDmcAlt.isFunctionalTest()) &&
-          Math.abs(rightAdrPressureAlt.value - leftDmcAlt.value) > 250)) &&
+      isAltitudeDiscrepancy(
+        leftAdrPressureAlt,
+        rightDmcAlt,
+        rightAdrPressureAlt,
+        leftDmcAlt,
+        ALTI_DISCREPANCY_STD_REFERENCE_FT,
+      ) &&
       dmcLIsStd &&
       dmcRIsStd;
     this.altiDiscrepancyConf2.write(pressureAltDiscrepancy, deltaTime);
@@ -8532,7 +8554,6 @@ export class PseudoFWC {
             this.pressureAltitudeFt,
           ),
           thrustLeverAboveIdle: this.thr1TLA.get() > 0 || this.thr2TLA.get() > 0,
-          fac1Failed: this.fac1Failed.get() === 1,
         }),
       codesToReturn: ALL_ENGINES_FAILURE_CODES,
       memoInhibit: () => false,
@@ -10359,6 +10380,8 @@ export class PseudoFWC {
     ...this.landingGearAlerts.ewdFailures,
     ...this.gpwsAlerts.ewdFailures,
     ...this.predictiveWindshearAlerts.ewdFailures,
+    ...this.engineFadecFaultAlerts.ewdFailures,
+    ...this.datalinkAlerts.ewdFailures,
     2161291: {
       // COND CTL 1-A FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9],
@@ -12714,6 +12737,15 @@ export class PseudoFWC {
       simVarIsActive: this.compMesgCount.map((v) => v > 0),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000055201'],
+      memoInhibit: () => false,
+      side: 'RIGHT',
+    },
+    '0000553': {
+      // COMPANY DATALINK STBY, green (FCOM DSC-46-10-40-60 l.59467-59468), see Logic/DatalinkAlerts
+      flightPhaseInhib: DATALINK_PHASE_INHIBITION.companyDatalinkStbyMemo,
+      simVarIsActive: this.datalinkAlerts.companyDatalinkStby,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: COMPANY_DATALINK_STBY_MEMO_CODES,
       memoInhibit: () => false,
       side: 'RIGHT',
     },

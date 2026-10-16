@@ -291,8 +291,12 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     return this.callFunctionViaRpc('newCityPair', fromIcao, toIcao, altnIcao, planIndex);
   }
 
-  setAlternate(altnIcao: string, planIndex: number): Promise<void> {
-    return this.callFunctionViaRpc('setAlternate', altnIcao, planIndex);
+  setAlternate(altnIcao: string, planIndex: number, asTemporaryRevision?: boolean): Promise<void> {
+    return this.callFunctionViaRpc('setAlternate', altnIcao, planIndex, asTemporaryRevision);
+  }
+
+  insertAlternateCompanyRoute(altnIcao: string, fixes: Fix[], planIndex: number): Promise<void> {
+    return this.callFunctionViaRpc('insertAlternateCompanyRoute', altnIcao, fixes, planIndex);
   }
 
   setOriginRunway(runwayIdent: string, planIndex?: number, alternate?: boolean): Promise<void> {

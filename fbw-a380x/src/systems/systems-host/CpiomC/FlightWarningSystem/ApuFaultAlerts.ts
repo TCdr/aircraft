@@ -57,3 +57,52 @@ export function apuFaultItemsToShow(inputs: ApuFaultInputs): boolean[] {
 export function apuFaultItemsChecked(masterSwOn: boolean): boolean[] {
   return [false, !masterSwOn, false, !masterSwOn, false, false, false, !masterSwOn];
 }
+
+/*
+ * APU MACH LIMIT EXCEEDED and APU OIL FILTER CLOGGED (A380 FCOM PRO-ABN-ECAM-10-49, a380_fcom.txt l.170204-170258,
+ * airbus-a380-fcom PDF p.5731-5732; DSC-49-40 ECAM ALERTS l.108938-108944).
+ */
+
+/** APU MACH LIMIT EXCEEDED: every flight phase but 8 (PDF p.5731) */
+export const APU_MACH_LIMIT_PHASE_INHIBITION = [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12];
+
+/** APU OIL FILTER CLOGGED: flight phases 2 to 11 (PDF p.5732) */
+export const APU_OIL_FILTER_CLOGGED_PHASE_INHIBITION = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
+/** "the aircraft speed is above M 0.5" (l.170210) */
+export const APU_MACH_LIMIT = 0.5;
+
+/**
+ * APU MACH LIMIT EXCEEDED: "The APU is running, and the aircraft speed is above M 0.5." (l.170210). SC, MASTER CAUT,
+ * APU SD page; STATUS INOP SYS ALL PHASES: APU (l.170224-170230).
+ * @param apuRunning the APU is running (its AVAIL indication)
+ * @param mach the Mach number of the ADR used by the FWS
+ * @returns whether the alert condition is true
+ */
+export function isApuMachLimitExceeded(apuRunning: boolean, mach: number): boolean {
+  return apuRunning && mach > APU_MACH_LIMIT;
+}
+
+/**
+ * The lines of APU MACH LIMIT EXCEEDED (ata46-49-52-56.ts 490800002, l.170219-170220): 0 IF APU NOT ABSOLUTELY RQRD,
+ * 1 APU MASTER SW OFF. "The APU must be switched off unless the ENG ALL ENGs FLAME OUT alert is triggered." (l.170222)
+ * is a crew note: both lines are always shown.
+ * @param masterSwOn the APU MASTER SW is ON
+ * @returns which lines are done
+ */
+export function apuMachLimitItemsChecked(masterSwOn: boolean): boolean[] {
+  return [false, !masterSwOn];
+}
+
+/**
+ * APU OIL FILTER CLOGGED: "An APU oil filter clogging is impending. The APU is still available." (l.170247), crew
+ * awareness, no audio and no master light (PDF p.5732). Fed by its flyPad failure (A380Failure.ApuOilFilterClogging).
+ * Design choice: the filter differential pressure exists only with oil flowing, so the alert shows while the APU runs.
+ * Not simulated: the automatic shutdown of a fully clogged filter (l.170248-170250).
+ * @param cloggingFailure the flyPad failure is active
+ * @param apuRunning the APU is running (its AVAIL indication)
+ * @returns whether the alert condition is true
+ */
+export function isApuOilFilterClogged(cloggingFailure: boolean, apuRunning: boolean): boolean {
+  return cloggingFailure && apuRunning;
+}

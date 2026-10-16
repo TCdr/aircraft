@@ -49,6 +49,16 @@ export type EwdSimvars = {
   flexTemp: number;
   satRaw: number;
   totalFuel: number;
+  /** Fuel quantity indications (FOB half box): the outer tank transfer valves of a wing failed closed */
+  leftOuterXfrClosed: boolean;
+  rightOuterXfrClosed: boolean;
+  /** Fuel quantity indications (FOB half box): a centre tank transfer valve failed closed (latched) */
+  leftCtrXfrFailedClosed: boolean;
+  rightCtrXfrFailedClosed: boolean;
+  /** The hydraulic system section pressure switches, for the slat / flap indications */
+  greenHydPressurised: boolean;
+  blueHydPressurised: boolean;
+  yellowHydPressurised: boolean;
   ewdLowerLeft1: number;
   ewdLowerLeft2: number;
   ewdLowerLeft3: number;
@@ -113,6 +123,13 @@ export enum EwdVars {
   flexTemp = 'L:A32NX_AIRLINER_TO_FLEX_TEMP',
   satRaw = 'L:A32NX_ADIRS_ADR_1_STATIC_AIR_TEMPERATURE',
   totalFuel = 'L:A32NX_TOTAL_FUEL_QUANTITY',
+  leftOuterXfrClosed = 'L:A32NX_FUEL_L_OUTER_XFR_CLOSED',
+  rightOuterXfrClosed = 'L:A32NX_FUEL_R_OUTER_XFR_CLOSED',
+  leftCtrXfrFailedClosed = 'L:A32NX_FUEL_CTR_TK_L_XFR_VALVE_FAILED_CLOSED',
+  rightCtrXfrFailedClosed = 'L:A32NX_FUEL_CTR_TK_R_XFR_VALVE_FAILED_CLOSED',
+  greenHydPressurised = 'L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE_SWITCH',
+  blueHydPressurised = 'L:A32NX_HYD_BLUE_SYSTEM_1_SECTION_PRESSURE_SWITCH',
+  yellowHydPressurised = 'L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE_SWITCH',
   ewdLowerLeft1 = 'L:A32NX_Ewd_LOWER_LEFT_LINE_1',
   ewdLowerLeft2 = 'L:A32NX_Ewd_LOWER_LEFT_LINE_2',
   ewdLowerLeft3 = 'L:A32NX_Ewd_LOWER_LEFT_LINE_3',
@@ -180,6 +197,13 @@ export class EwdSimvarPublisher extends SimVarPublisher<EwdSimvars> {
     ['flexTemp', { name: EwdVars.flexTemp, type: SimVarValueType.Number }],
     ['satRaw', { name: EwdVars.satRaw, type: SimVarValueType.Number }],
     ['totalFuel', { name: EwdVars.totalFuel, type: SimVarValueType.Number }],
+    ['leftOuterXfrClosed', { name: EwdVars.leftOuterXfrClosed, type: SimVarValueType.Bool }],
+    ['rightOuterXfrClosed', { name: EwdVars.rightOuterXfrClosed, type: SimVarValueType.Bool }],
+    ['leftCtrXfrFailedClosed', { name: EwdVars.leftCtrXfrFailedClosed, type: SimVarValueType.Bool }],
+    ['rightCtrXfrFailedClosed', { name: EwdVars.rightCtrXfrFailedClosed, type: SimVarValueType.Bool }],
+    ['greenHydPressurised', { name: EwdVars.greenHydPressurised, type: SimVarValueType.Bool }],
+    ['blueHydPressurised', { name: EwdVars.blueHydPressurised, type: SimVarValueType.Bool }],
+    ['yellowHydPressurised', { name: EwdVars.yellowHydPressurised, type: SimVarValueType.Bool }],
     ['ewdLowerLeft1', { name: EwdVars.ewdLowerLeft1, type: SimVarValueType.Number }],
     ['ewdLowerLeft2', { name: EwdVars.ewdLowerLeft2, type: SimVarValueType.Number }],
     ['ewdLowerLeft3', { name: EwdVars.ewdLowerLeft3, type: SimVarValueType.Number }],

@@ -876,7 +876,7 @@ export class A380FlightPlanPerformanceData implements FlightPlanPerformanceData 
 
   readonly takeoffPowerSetting = Subject.create<TakeoffPowerSetting>(TakeoffPowerSetting.TOGA);
 
-  readonly takeoffDeratedSetting = Subject.create<TakeoffDerated>(TakeoffDerated.D01);
+  readonly takeoffDeratedSetting = Subject.create<TakeoffDerated>(TakeoffDerated.D04);
 
   readonly takeoffThsFor = Subject.create<number | null>(null);
 
