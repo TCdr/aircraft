@@ -626,6 +626,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] HOLD page: the DATABASE button selects the database hold of the waypoint, LAST EXIT time and EFOB are predicted, and the hold stays COMPUTED or DATABASE until the flight crew changes a parameter - @TCdr
 1. [A380X/MFD] CLOSEST AIRPORTS: time and EFOB with a cruise at the CRZ FL then an idle descent to the airport elevation - @TCdr
 1. [A380X/MFD] New FMS messages CONSTRAINTS ABOVE CRZ FL: DELETED (a new CRZ FL deletes the constraints at or above it), CHECK EO SPD SETTING, NO NAV INTERCEPTION, INSERT OR ERASE TMPY F-PLN FIRST (KCCU DIR key with a pending temporary flight plan) and RECEIVED FLT NUMBER NOT VALID - @TCdr
+1. [A380X/FWS] New CAB COM CIDS 1+2+3 FAULT, CIDS CABIN COM FAULT and COM DEGRADED alerts with their flyPad failures (CIDS 1/2/3, upper/main/lower deck PA, cabin interphone, PA and interphone degraded) - @TCdr
+1. [A380X/FWS] New COM CAPT (F/O)(THIRD OCCUPANT) PTT STUCK and VHF 1(2)(3) EMITTING alerts from new flyPad failures of the PTT switches, VHF 3 DATALINK FAULT on the VHF 3 failure, COM DATALINK FAULT when VHF 3 is failed or in voice mode, PA IN USE memo while a PA transmission key is on - @TCdr
+1. [A380X/FWS] New APU MACH LIMIT EXCEEDED caution (APU running above M 0.5) and APU OIL FILTER CLOGGED alert with its flyPad failure - @TCdr
+1. [A380X/FWS] New SMOKE DET FAULT caution with the flyPad failure of the smoke detection function (no smoke is then detected anywhere); the cargo smoke TEST pb held 3 s shows the cargo and avionics SMOKE warnings and lights the VENT AVNCS SMOKE light - @TCdr
 
 ## 2024.1.0
 

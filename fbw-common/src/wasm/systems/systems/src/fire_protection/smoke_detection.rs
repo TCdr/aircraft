@@ -118,6 +118,17 @@ impl<const D: usize> SmokeDetection<D> {
     }
 
     pub fn update(&mut self, context: &UpdateContext) {
+        self.update_with_detection_unit(context, true);
+    }
+
+    /// Like [`Self::update`], for a compartment whose detectors report to a smoke detection unit that can fail (the
+    /// A380 Smoke Detection Function, [`FailureType::SmokeDetectionFunction`]): without the unit, the compartment
+    /// reports neither smoke nor a detector fault.
+    pub fn update_with_detection_unit(
+        &mut self,
+        context: &UpdateContext,
+        detection_unit_available: bool,
+    ) {
         let smoke_in_compartment = self.smoke.is_active();
         let detecting = self
             .detectors
@@ -131,16 +142,18 @@ impl<const D: usize> SmokeDetection<D> {
             .count();
 
         // Every detector either detects the smoke or is inoperative, and at least one detects it
-        let smoke_signal = detecting > 0 && detecting + inoperative == D;
+        let smoke_signal =
+            detection_unit_available && detecting > 0 && detecting + inoperative == D;
         self.smoke_confirmation.update(context, smoke_signal);
 
-        self.detection_fault = match self.fault_logic {
+        let detector_fault = match self.fault_logic {
             SmokeDetectionFaultLogic::AllDetectorsInoperative => inoperative == D,
             SmokeDetectionFaultLogic::AnyDetectorInoperativeOrDisagreeing => {
                 let only_some_detect = detecting > 0 && detecting + inoperative < D;
                 !smoke_signal && (inoperative > 0 || only_some_detect)
             }
         };
+        self.detection_fault = detection_unit_available && detector_fault;
     }
 
     /// The SMOKE warning of the compartment
@@ -188,6 +201,9 @@ mod tests {
         dc_2_source: TestElectricitySource,
         dc_1_bus: ElectricalBus,
         dc_2_bus: ElectricalBus,
+
+        /// The smoke detection unit of the dual detection compartment works
+        detection_unit_available: bool,
     }
     impl TestAircraft {
         fn new(context: &mut InitContext) -> Self {
@@ -226,6 +242,8 @@ mod tests {
                 ),
                 dc_1_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(1)),
                 dc_2_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(2)),
+
+                detection_unit_available: true,
             }
         }
     }
@@ -242,7 +260,8 @@ mod tests {
         }
 
         fn update_after_power_distribution(&mut self, context: &UpdateContext) {
-            self.dual_detection.update(context);
+            self.dual_detection
+                .update_with_detection_unit(context, self.detection_unit_available);
             self.single_detection.update(context);
         }
     }
@@ -380,6 +399,27 @@ mod tests {
         test_bed.run();
 
         assert!(!smoke_detected(&mut test_bed, "FWD_CARGO"));
+    }
+
+    #[test]
+    fn a_failed_detection_unit_reports_neither_smoke_nor_a_detector_fault() {
+        // A380 FCOM SMOKE DET FAULT (a380_fcom.txt l.143741, l.143758-143761): "Smoke detection is lost"
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::Smoke(SmokeDetectionZone::ForwardCargo));
+        test_bed.run();
+        assert!(smoke_detected(&mut test_bed, "FWD_CARGO"));
+
+        test_bed.command(|a| a.detection_unit_available = false);
+        test_bed.run();
+        assert!(!smoke_detected(&mut test_bed, "FWD_CARGO"));
+
+        test_bed.unfail(FailureType::Smoke(SmokeDetectionZone::ForwardCargo));
+        test_bed.fail(FailureType::SmokeDetector(
+            SmokeDetectionZone::ForwardCargo,
+            2,
+        ));
+        test_bed.run();
+        assert!(!detection_fault(&mut test_bed, "FWD_CARGO"));
     }
 
     #[test]
