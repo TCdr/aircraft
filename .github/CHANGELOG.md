@@ -706,6 +706,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ATC] The ATC RESET pb of the overhead RESET panel resets the ATC datalink (connections and mailbox messages lost, COM ATC DATALINK FAULT while pulled); the SD mailbox shows MAILBOX NOT AVAIL and the KCCU ATC COM key ATC COM NOT AVAIL while the ATC is lost - @TCdr
 1. [A380X/OIT] EXIT SESSION of the FLT OPS MENU page returns to the login page and clears the FLT OPS STS page (not while the FLT FOLDER is open) - @TCdr
 1. [A380X/AOC] The AOC runs on the NSS AVNCS ANSUs instead of AC 1, NSS DATA TO AVNCS OFF stops its downlinks (uplinks still received), and the OIT COMPANY COM inbox can print a message on the pedestal printer - @TCdr
+1. [A32NX/FWC] New VENT AVNCS SYS FAULT, BLOWER FAULT, EXTRACT FAULT and SKIN VALVE FAULT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts with their FCOM procedures and STATUS, triggered by new flyPad ventilation failures - @TCdr
+1. [A32NX/AUTOFLIGHT] New flyPad failure of the FG TCAS mode: the AP/FD TCAS mode is no longer available and the FWC shows AUTO FLT TCAS MODE FAULT - @TCdr
+1. [A32NX/FWC] New COM CIDS 1+2 FAULT, SINGLE PTT STUCK, VHF 1(2)(3) EMITTING and VHF 3 DATA FAULT alerts with new flyPad failures (CIDS, stuck PTT, VHF transmitter stuck emitting), and the green AUDIO 3 XFRD memo when the AUDIO SWITCHING selector is not on NORM - @TCdr
 
 ## 2024.1.0
 

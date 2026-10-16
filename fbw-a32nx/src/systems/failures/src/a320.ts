@@ -25,6 +25,14 @@ export const A320Failure = Object.freeze({
   OutflowValve: 21017,
   SafetyValve: 21018,
   RapidDecompression: 21019,
+  // Avionics and AFT cargo ventilation: TS only, the FWC reads them (FWC/Logic/VentilationAlerts.ts)
+  AvionicsVentilationController: 21020,
+  AvionicsBlowerFan: 21021,
+  AvionicsExtractFan: 21022,
+  AvionicsSkinExtractValveStuckOpen: 21023,
+  AvionicsSkinInletValveStuckOpen: 21024,
+  AftCargoExtractionFan: 21025,
+  AftCargoIsolationValvesStuckClosed: 21026,
 
   Fac1Failure: 22000,
   Fac2Failure: 22001,
@@ -38,6 +46,8 @@ export const A320Failure = Object.freeze({
   RudderTrimActuator2Failure: 22009,
   RudderTravelLimiterActuator1Failure: 22010,
   RudderTravelLimiterActuator2Failure: 22011,
+  // The FG TCAS mode of both FMGCs: the C++ fbw module blanks the TCAS bus the FMGCs read (fmgc/FmgcTcasBusInput.h)
+  TcasModeFailure: 22012,
 
   // Same ids as the A380X ATA 23 failures; 23000/23001 (AMU) and 23004 (RMP 3) are not simulated on the A32NX
   RadioManagementPanel1: 23002,
@@ -45,6 +55,15 @@ export const A320Failure = Object.freeze({
   Vhf1: 23005,
   Vhf2: 23006,
   Vhf3: 23007,
+  // CIDS directors and stuck PTT switches (same ids as the A380X), VHF transmitters stuck emitting: TS only, the FWC
+  // reads them (FWC/Logic/CommunicationAlerts.ts)
+  CidsDirector1: 23008,
+  CidsDirector2: 23009,
+  CaptPttStuck: 23017,
+  FoPttStuck: 23018,
+  Vhf1StuckEmitting: 23020,
+  Vhf2StuckEmitting: 23021,
+  Vhf3StuckEmitting: 23022,
 
   TransformerRectifier1: 24000,
   TransformerRectifier2: 24001,
@@ -419,6 +438,13 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [21, A320Failure.OutflowValve, 'Outflow Valve'],
   [21, A320Failure.SafetyValve, 'Safety Valve'],
   [21, A320Failure.RapidDecompression, 'Rapid Decompression'],
+  [21, A320Failure.AvionicsVentilationController, 'AEVC (avionics equipment ventilation controller)'],
+  [21, A320Failure.AvionicsBlowerFan, 'Avionics ventilation blower fan'],
+  [21, A320Failure.AvionicsExtractFan, 'Avionics ventilation extract fan'],
+  [21, A320Failure.AvionicsSkinExtractValveStuckOpen, 'Avionics ventilation skin extract valve stuck open'],
+  [21, A320Failure.AvionicsSkinInletValveStuckOpen, 'Avionics ventilation skin inlet valve stuck open'],
+  [21, A320Failure.AftCargoExtractionFan, 'AFT cargo ventilation extraction fan'],
+  [21, A320Failure.AftCargoIsolationValvesStuckClosed, 'AFT cargo ventilation isolation valves stuck closed'],
 
   [22, A320Failure.Fac1Failure, 'FAC 1'],
   [22, A320Failure.Fac2Failure, 'FAC 2'],
@@ -432,12 +458,20 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [22, A320Failure.RudderTrimActuator2Failure, 'Rudder trim actuator motor 2 (FAC 2)'],
   [22, A320Failure.RudderTravelLimiterActuator1Failure, 'Rudder travel limiter actuator motor 1 (FAC 1)'],
   [22, A320Failure.RudderTravelLimiterActuator2Failure, 'Rudder travel limiter actuator motor 2 (FAC 2)'],
+  [22, A320Failure.TcasModeFailure, 'FG TCAS mode (AP/FD TCAS, both FMGCs)'],
 
   [23, A320Failure.RadioManagementPanel1, 'RMP 1'],
   [23, A320Failure.RadioManagementPanel2, 'RMP 2'],
   [23, A320Failure.Vhf1, 'VHF 1'],
   [23, A320Failure.Vhf2, 'VHF 2'],
   [23, A320Failure.Vhf3, 'VHF 3'],
+  [23, A320Failure.CidsDirector1, 'CIDS 1 (cabin intercommunication data system)'],
+  [23, A320Failure.CidsDirector2, 'CIDS 2 (cabin intercommunication data system)'],
+  [23, A320Failure.CaptPttStuck, 'CAPT push-to-talk (PTT) switch stuck in transmit'],
+  [23, A320Failure.FoPttStuck, 'F/O push-to-talk (PTT) switch stuck in transmit'],
+  [23, A320Failure.Vhf1StuckEmitting, 'VHF 1 transmitter stuck emitting'],
+  [23, A320Failure.Vhf2StuckEmitting, 'VHF 2 transmitter stuck emitting'],
+  [23, A320Failure.Vhf3StuckEmitting, 'VHF 3 transmitter stuck emitting'],
 
   [24, A320Failure.TransformerRectifier1, 'TR 1'],
   [24, A320Failure.TransformerRectifier2, 'TR 2'],

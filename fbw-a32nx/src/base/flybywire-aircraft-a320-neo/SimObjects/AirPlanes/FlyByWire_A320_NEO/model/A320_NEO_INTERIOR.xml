@@ -3024,6 +3024,8 @@
                         <ARROW_TYPE>Curved</ARROW_TYPE>
                         <WWISE_EVENT>turnknob</WWISE_EVENT>
                         <INIT_VALUE>1</INIT_VALUE>
+                        <!-- an L:var: the FWC reads it for the AUDIO 3 XFRD memo (FWC/Logic/CommunicationAlerts.ts) -->
+                        <SWITCH_POSITION_TYPE>L</SWITCH_POSITION_TYPE>
                         <SWITCH_POSITION_VAR>KNOB_OVHD_AUDIOSWITCH_Position</SWITCH_POSITION_VAR>
                     </UseTemplate>
                 </Component>

@@ -28,3 +28,9 @@ clang++ -std=c++20 -Wall -Wextra -I ../src/model \
   ../src/utils/PulseNode.cpp ../src/utils/SRFlipFLop.cpp \
   -o ../obj/fac_actuator_failure_test
 ../obj/fac_actuator_failure_test
+# FG TCAS mode failure (flyPad 22012): the blanked TCAS bus makes the FMGC TCAS mode unavailable
+clang++ -std=c++20 -Wall -Wextra -I ../src/model \
+  fmgc_tcas_mode_failure_test.cpp ../src/fmgc/Fmgc.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp \
+  ../src/utils/PowerSupplyMonitor.cpp \
+  -o ../obj/fmgc_tcas_mode_failure_test
+../obj/fmgc_tcas_mode_failure_test
