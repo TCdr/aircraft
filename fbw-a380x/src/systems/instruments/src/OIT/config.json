@@ -1,5 +1,16 @@
 {
   "index": "./instrument.tsx",
   "name": "OIT",
-  "isInteractive": true
+  "isInteractive": true,
+  "extraDeps": [
+    "../MsfsAvionicsCommon",
+    "../MFD/pages/common/DataEntryFormats.tsx",
+    "../MFD/shared/A380FmsError.ts",
+    "../../../shared/src",
+    "/fbw-a380x/src/systems/failures",
+    "/fbw-a32nx/src/systems/fmgc/src/FmsError.ts",
+    "/fbw-a32nx/src/systems/fmgc/src/flightplanning",
+    "/fbw-common/src/systems/datalink/common",
+    "/fbw-common/src/systems/instruments/src/MsfsAvionicsCommon"
+  ]
 }
