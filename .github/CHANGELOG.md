@@ -316,6 +316,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X/APU] The APU shuts down automatically with a FAULT on an ECB failure, an overspeed, a low oil pressure or a high oil temperature (four new ATA 49 flyPad failures; A380X high oil temperature on the ground only), and when its DC supply is lost while it runs (BAT OFF on batteries only) - @TCdr
 1. [A32NX/FIRE] Cargo and avionics smoke detection with new flyPad failures: SMOKE FWD and AFT CARGO SMOKE, FWD and AFT CRG DET FAULT, FWD and AFT CRG BTL 1 FAULT and AVIONICS SMOKE alerts, the SMOKE, GEN 1 LINE SMOKE and BLOWER/EXTRACT FAULT lights; the cargo DISCH pbs now discharge the cargo fire bottle and light the DISCH lights - @TCdr
 1. [A380X/PRESS] Automatic pressurization keeps the cabin differential pressure in the normal range in cruise above the FMS cruise FL or after an FMS reset, instead of drifting to the 9 PSI pressure limiter - @TCdr
+1. [A32NX/FIRE] The amber cargo DISCH lights now also come on while the CARGO SMOKE TEST pb is held, as in the FCOM - @TCdr
 
 ## 2024.1.0
 

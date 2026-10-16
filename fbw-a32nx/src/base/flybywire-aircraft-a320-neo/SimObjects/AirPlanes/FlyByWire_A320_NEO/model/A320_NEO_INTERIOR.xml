@@ -3536,9 +3536,11 @@
                             <TOOLTIPID>%((L:A32NX_CARGOSMOKE_FWD_DISCHARGED, Bool))%{if}Fire-extinguisher discharged%{else}Discharge fire-extinguisher%{end}</TOOLTIPID>
                             <MOMENTARY/>
                             <!-- DISCH: the amber light comes on when the (single) cargo bottle is fully discharged (A320
-                                 FCOM DSC-26-50-20 DISCH LIGHT), systems.wasm cargo_fire_extinguishing.rs -->
-                            <SEQ1_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool)</SEQ1_CODE>
-                            <SEQ2_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool)</SEQ2_CODE>
+                                 FCOM DSC-26-50-20 DISCH LIGHT), systems.wasm cargo_fire_extinguishing.rs, and while the
+                                 CARGO SMOKE TEST pb is held, like the red SMOKE lights (DSC-26-50-20 TEST PB: "The DISCH
+                                 lights come on in amber"). Same for the AFT DISCH light below. -->
+                            <SEQ1_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool) (L:A32NX_FIRE_TEST_CARGO, Bool) or</SEQ1_CODE>
+                            <SEQ2_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool) (L:A32NX_FIRE_TEST_CARGO, Bool) or</SEQ2_CODE>
                         </UseTemplate>
                         <!-- CARGO SMOKE AFT DISCH -->
                         <UseTemplate Name="FBW_Anim_Interactions">
@@ -3558,8 +3560,8 @@
                             <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_CARGOSMOKE_AFT_DISCHARGED)</LEFT_SINGLE_CODE>
                             <TOOLTIPID>%((L:A32NX_CARGOSMOKE_AFT_DISCHARGED, Bool))%{if}Fire-extinguisher discharged%{else}Discharge fire-extinguisher%{end}</TOOLTIPID>
                             <MOMENTARY/>
-                            <SEQ1_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool)</SEQ1_CODE>
-                            <SEQ2_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool)</SEQ2_CODE>
+                            <SEQ1_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool) (L:A32NX_FIRE_TEST_CARGO, Bool) or</SEQ1_CODE>
+                            <SEQ2_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool) (L:A32NX_FIRE_TEST_CARGO, Bool) or</SEQ2_CODE>
                         </UseTemplate>
                     </Component>
                 </Component>
