@@ -1,8 +1,10 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { apuBleedValveDisplay, isApuPageAvailVisible } from './ApuIndications';
+import { apuBleedValveDisplay, isApuLowOilLevelShown, isApuPageAvailVisible } from './ApuIndications';
 
 /* A320 FCOM DSC-49-20-B ECAM APU PAGE (a320_fcom.txt l.60758-60770) */
 describe('SD APU page', () => {
@@ -30,5 +32,19 @@ describe('SD APU page', () => {
 
   it('shows the valve crossline amber when closed with the APU BLEED pb ON, l.60767', () => {
     expect(apuBleedValveDisplay(true, false, true)).toBe('crossline-amber');
+  });
+
+  it('shows LOW OIL LEVEL when the ECB detects a low oil level, l.60848-60850', () => {
+    expect(isApuLowOilLevelShown(true, true)).toBe(true);
+    expect(isApuLowOilLevelShown(true, false)).toBe(false);
+    // ECB off: no data, no advisory
+    expect(isApuLowOilLevelShown(false, true)).toBe(false);
+  });
+
+  it('draws LOW OIL LEVEL pulsing from the ECB word', () => {
+    const page = readFileSync(resolve(__dirname, 'Apu.tsx'), 'utf-8');
+    expect(page).toContain("useArinc429Var('L:A32NX_APU_LOW_OIL_LEVEL'");
+    expect(page).toContain('LOW OIL LEVEL');
+    expect(page).toContain('isApuLowOilLevelShown(');
   });
 });

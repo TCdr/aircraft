@@ -47,6 +47,17 @@ export function idgLegendAmber(connected: boolean, temperatureCelsius: number, l
   return !connected || lowPressure || idgTemperatureState(temperatureCelsius) === 'overheat';
 }
 
+/**
+ * The RISE value (FCOM DSC-24-20 (13), a320_fcom.txt l.37650-37652): "This number, displayed in green, is the difference
+ * between the temperature at the IDG inlet and that at the IDG outlet."
+ * @param outletCelsius L:A32NX_ELEC_ENG_GEN_n_IDG_OIL_OUTLET_TEMPERATURE
+ * @param inletCelsius L:A32NX_ELEC_ENG_GEN_n_IDG_OIL_INLET_TEMPERATURE
+ * @returns the displayed rise, whole °C
+ */
+export function idgTemperatureRise(outletCelsius: number, inletCelsius: number): number {
+  return Math.round(outletCelsius - inletCelsius);
+}
+
 /** The amber DISC or LO PR legend below the IDG legend, DISC first */
 export function idgStatusLegend(connected: boolean, lowPressure: boolean): 'DISC' | 'LO PR' | null {
   if (!connected) {

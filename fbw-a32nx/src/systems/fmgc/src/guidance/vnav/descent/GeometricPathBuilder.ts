@@ -20,7 +20,7 @@ import { AircraftConfig } from '@fmgc/flightplanning/AircraftConfigTypes';
 import { PlannedGeometricSegment } from '@fmgc/guidance/vnav/descent/GeometricPathPlanner';
 import { SpeedProfile } from '@fmgc/guidance/vnav/climb/SpeedProfile';
 import { DescentPathBuilder } from '@fmgc/guidance/vnav/descent/DescentPathBuilder';
-import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
+import { BaseGeometryProfile, SpeedbrakeDecelerationSegment } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 
 export class GeometricPathBuilder {
   private flightPathAngleStrategy: FlightPathAngleStrategy;
@@ -53,8 +53,18 @@ export class GeometricPathBuilder {
       if (
         !this.executeGeometricSegment(profile, currentSegmentSequence, segment, accelerationTargets, false, lastTarget)
       ) {
+        // The decelerations of the attempt with the speedbrakes, kept in the profile only if it succeeds
+        const speedbrakeSegments: SpeedbrakeDecelerationSegment[] = [];
         if (
-          !this.executeGeometricSegment(profile, currentSegmentSequence, segment, accelerationTargets, true, lastTarget)
+          !this.executeGeometricSegment(
+            profile,
+            currentSegmentSequence,
+            segment,
+            accelerationTargets,
+            true,
+            lastTarget,
+            speedbrakeSegments,
+          )
         ) {
           // If we cannot do meet the constraint with speedbrakes, build a new descent path to the constraint
           this.descentPathBuilder.computeManagedDescentPath(
@@ -90,6 +100,8 @@ export class GeometricPathBuilder {
 
           continue;
         }
+
+        profile.speedbrakeDecelerationSegments.push(...speedbrakeSegments);
       }
 
       sequence.push(...currentSegmentSequence.get());
@@ -103,6 +115,7 @@ export class GeometricPathBuilder {
     accelerationTargets: AccelerationTarget[],
     useSpeedbrakes: boolean,
     lastTarget: AccelerationTarget,
+    speedbrakeSegments: SpeedbrakeDecelerationSegment[] = [],
   ) {
     const { managedDescentSpeedMach } = this.observer.get();
 
@@ -139,6 +152,9 @@ export class GeometricPathBuilder {
         const scaling = maxDistance / decelerationStep.distanceTraveled;
 
         this.scaleStepBasedOnLastCheckpoint(sequence.lastCheckpoint, decelerationStep, scaling);
+        if (useSpeedbrakes) {
+          speedbrakeSegments.push(this.speedbrakeSegment(sequence.lastCheckpoint, decelerationStep));
+        }
         sequence.addCheckpointFromStep(
           decelerationStep,
           VerticalCheckpointReason.SpeedConstraint,
@@ -149,6 +165,9 @@ export class GeometricPathBuilder {
         sequence.lastCheckpoint.distanceFromStart + decelerationStep.distanceTraveled
       ) {
         if (decelerationStep.distanceTraveled < 0) {
+          if (useSpeedbrakes) {
+            speedbrakeSegments.push(this.speedbrakeSegment(sequence.lastCheckpoint, decelerationStep));
+          }
           const decelerationReason = lastTarget.isSpeedLimit
             ? VerticalCheckpointReason.StartDecelerationToLimit
             : VerticalCheckpointReason.StartDecelerationToConstraint;
@@ -210,6 +229,17 @@ export class GeometricPathBuilder {
     step.timeElapsed *= scaling;
     step.finalAltitude = (1 - scaling) * lastCheckpoint.altitude + scaling * step.finalAltitude;
     step.speed = (1 - scaling) * lastCheckpoint.speed + scaling * step.speed;
+  }
+
+  /**
+   * The part of the profile a deceleration step covers. The descent is computed backwards from the destination: the
+   * step goes from the last checkpoint back by its (negative) distance travelled.
+   */
+  private speedbrakeSegment(lastCheckpoint: VerticalCheckpoint, step: StepResults): SpeedbrakeDecelerationSegment {
+    return {
+      startDistanceFromStart: lastCheckpoint.distanceFromStart + step.distanceTraveled,
+      endDistanceFromStart: lastCheckpoint.distanceFromStart,
+    };
   }
 
   private buildAccelerationTargets(

@@ -62,6 +62,42 @@ export function crewOxygenIndication(displayedPressurePsi: number, onGround: boo
 }
 
 /**
+ * Low-pressure circuit pressure below which REGUL LO PR appears, PSI: "It is in amber, if oxygen pressure on the
+ * low-pressure circuit is low (50 PSI)" (A320 FCOM DSC-35-20-20, a320_fcom.txt l.56822-56823)
+ */
+const CREW_OXYGEN_LOW_CIRCUIT_PRESSURE_PSI = 50;
+
+export interface CrewOxygenCircuitIndication {
+  /** REGUL LO PR in amber below CKPT OXY */
+  readonly regulatorLowPressure: boolean;
+  /** The CKPT OXY legend in amber (white otherwise) */
+  readonly ckptOxyAmber: boolean;
+}
+
+/**
+ * The CKPT OXY legend and the REGUL LO PR indication of the DOOR/OXY page, A320 FCOM DSC-35-20-20
+ * (a320_fcom.txt l.56822-56831):
+ * - REGUL LO PR: "It is in amber, if oxygen pressure on the low-pressure circuit is low (50 PSI)".
+ * - CKPT OXY: "It is normally in white. It becomes amber, when: Pressure goes below 300 PSI, Low oxygen pressure is
+ *   detected, The OXYGEN CREW SUPPLY pb on the overhead panel is OFF."
+ * The low-pressure circuit (downstream of the bottle regulator and of the supply valve) is not simulated: it has no
+ * pressure when the CREW SUPPLY pb-sw is OFF (supply valve closed), or when the bottle itself is below 50 PSI (the
+ * regulator cannot deliver more than its inlet pressure).
+ * @param displayedBottlePressurePsi the displayed bottle pressure (rounded to 50 PSI), as the PSI value colour
+ * @param crewSupplyOff the CREW SUPPLY pb-sw is OFF (L:PUSH_OVHD_OXYGEN_CREW is 1 when OFF)
+ */
+export function crewOxygenCircuitIndication(
+  displayedBottlePressurePsi: number,
+  crewSupplyOff: boolean,
+): CrewOxygenCircuitIndication {
+  const regulatorLowPressure = crewSupplyOff || displayedBottlePressurePsi < CREW_OXYGEN_LOW_CIRCUIT_PRESSURE_PSI;
+  return {
+    regulatorLowPressure,
+    ckptOxyAmber: displayedBottlePressurePsi < CREW_OXYGEN_AMBER_PSI || regulatorLowPressure || crewSupplyOff,
+  };
+}
+
+/**
  * Whether the DOOR/OXY page shows the cabin V/S
  * @param fwcFlightPhase the FWC flight phase (L:A32NX_FWC_FLIGHT_PHASE)
  * @returns true in flight phases 5, 6 and 7

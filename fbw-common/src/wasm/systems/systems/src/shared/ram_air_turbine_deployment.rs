@@ -28,9 +28,13 @@ use std::time::Duration;
 ///
 /// Design choices (not in the FCOMs): the stow does not need hydraulic pressure (the ground crew powers it) and moves
 /// at the same speed as the extension.
+///
+/// L:A32NX_RAT_STOWING is true while a stow moves the strut in: the "Pressure for stowing the RAT has been applied" of
+/// the A320 SD HYD page, which shows the RAT in amber then (A320 FCOM DSC-29-10-30, a320_fcom.txt l.43983-43988).
 pub struct RamAirTurbineDeployment {
     position_id: VariableIdentifier,
     stow_request_id: VariableIdentifier,
+    stowing_id: VariableIdentifier,
 
     stow_requested: bool,
     deployment_commanded: bool,
@@ -45,6 +49,7 @@ impl RamAirTurbineDeployment {
         Self {
             position_id: context.get_identifier("RAT_STOW_POSITION".to_owned()),
             stow_request_id: context.get_identifier("RAT_STOW_REQUEST".to_owned()),
+            stowing_id: context.get_identifier("RAT_STOWING".to_owned()),
 
             stow_requested: false,
             deployment_commanded: false,
@@ -106,6 +111,7 @@ impl SimulationElement for RamAirTurbineDeployment {
         writer.write(&self.position_id, self.position);
         // Kept at 1 until evaluated (a frame without any update step must not lose it), then back to 0
         writer.write(&self.stow_request_id, self.stow_requested);
+        writer.write(&self.stowing_id, self.stowing);
     }
 }
 
@@ -204,6 +210,23 @@ mod tests {
         assert!(half_way > 0. && half_way < 1.);
         assert!(position(&mut test_bed) <= 0.);
         assert!(!test_bed.query(|a| a.deployment.is_deployment_commanded()));
+    }
+
+    #[test]
+    fn tells_the_stowing_only_while_the_strut_moves_in() {
+        let mut test_bed = deployed_in_flight();
+        let stowing_deployed: bool = test_bed.read_by_name("RAT_STOWING");
+        test_bed.set_on_ground(true);
+
+        request_stow(&mut test_bed);
+        test_bed.run_with_delta(Duration::from_millis(500));
+        let stowing_half_way: bool = test_bed.read_by_name("RAT_STOWING");
+        test_bed.run_with_delta(Duration::from_secs(1));
+        let stowing_stowed: bool = test_bed.read_by_name("RAT_STOWING");
+
+        assert!(!stowing_deployed);
+        assert!(stowing_half_way);
+        assert!(!stowing_stowed);
     }
 
     #[test]

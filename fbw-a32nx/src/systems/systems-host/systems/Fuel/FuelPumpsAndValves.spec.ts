@@ -11,11 +11,13 @@ import {
   centreTransferValveDisagreement,
   centreTransferValveOpenRatio,
   ctrTkXfrPbIsOnVar,
+  ctrTkXfrValveFailedClosedVar,
   ctrTkXfrValveNotFullyClosedVar,
   ctrTkXfrValveNotFullyOpenVar,
   fqiChannelFaultVar,
   FuelPumpsAndValves,
   isCentreTransferValveCommandedOpen,
+  isCentreTransferValveFailedClosed,
   isTankPumpLowPressure,
   tankPumpLowPressureVar,
   tankPumpPbIsOnVar,
@@ -314,5 +316,47 @@ describe('A320 centre tank transfer valve failures', () => {
     run(1000);
     expect(valves.position(10)).toBe(1);
     expect(simVars.get(ctrTkXfrValveNotFullyOpenVar('R'))).toBe(false);
+  });
+
+  it('keeps a valve jammed closed failed closed for the displays while the FLSCU closes it, until it opens again', () => {
+    loadTransferring();
+    flscu(12, false);
+    run(400);
+    activeFailures.add(A320Failure.CentreTankRightTransferValveJammed);
+    run(400);
+    // the right inner tank level drops: the FLSCU opens the auto valve, the jammed valve stays closed
+    flscu(12, true);
+    run(400 + FuelPumpsAndValves.CTR_TK_XFR_DISAGREE_CONFIRM_S * 1000);
+    expect(simVars.get(ctrTkXfrValveNotFullyOpenVar('R'))).toBe(true);
+    expect(simVars.get(ctrTkXfrValveFailedClosedVar('R'))).toBe(true);
+    expect(simVars.get(ctrTkXfrValveFailedClosedVar('L'))).toBe(false);
+
+    // the inner tank is full again: the FLSCU closes the auto valve, the disagreement goes, the failure stays
+    flscu(12, false);
+    run(1000);
+    expect(simVars.get(ctrTkXfrValveNotFullyOpenVar('R'))).toBe(false);
+    expect(simVars.get(ctrTkXfrValveFailedClosedVar('R'))).toBe(true);
+
+    // repaired: the valve opens with the next FLSCU opening
+    activeFailures.clear();
+    flscu(12, true);
+    run(1000);
+    expect(simVars.get(ctrTkXfrValveFailedClosedVar('R'))).toBe(false);
+  });
+});
+
+/* A320 FCOM DSC-28-20 BOXED INDICATIONS and TOTAL FUEL INDICATION (a320_fcom.txt l.43222, l.43341-43345) */
+describe('A320 centre tank transfer valve failed closed', () => {
+  it('is set by a confirmed NOT FULLY OPEN', () => {
+    expect(isCentreTransferValveFailedClosed(false, true, 0)).toBe(true);
+  });
+
+  it('stays set while the valve stays closed, also when it is no longer commanded open', () => {
+    expect(isCentreTransferValveFailedClosed(true, false, 0)).toBe(true);
+  });
+
+  it('resets once the valve is seen open', () => {
+    expect(isCentreTransferValveFailedClosed(true, false, 1)).toBe(false);
+    expect(isCentreTransferValveFailedClosed(false, false, 0)).toBe(false);
   });
 });

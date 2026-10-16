@@ -271,9 +271,14 @@ impl<Drive: EngineGeneratorDrive> SimulationElement for EngineGenerator<Drive> {
 /// IDG oil outlet overheats (above 180 °C), or IDG oil pressure is low (inhibited at low engine
 /// speed: N2 below 14 %). It extinguishes when the IDG is disconnected." and "An automatic thermal
 /// disconnection of the IDG will occur if the temperature reaches 200 °C."
+///
+/// The oil inlet temperature is written too: the SD ELEC page RISE "is the difference between the temperature at the
+/// IDG inlet and that at the IDG outlet" (FCOM DSC-24-20 l.37650-37652).
 pub struct ConstantSpeedDrive {
     oil_outlet_temperature_id: VariableIdentifier,
     oil_outlet_temperature: ThermodynamicTemperature,
+    oil_inlet_temperature_id: VariableIdentifier,
+    oil_inlet_temperature: ThermodynamicTemperature,
     is_connected_id: VariableIdentifier,
     connected: bool,
     output_speed: AngularVelocity,
@@ -333,6 +338,9 @@ impl ConstantSpeedDrive {
                 number
             )),
             oil_outlet_temperature: ThermodynamicTemperature::new::<degree_celsius>(0.),
+            oil_inlet_temperature_id: context
+                .get_identifier(format!("ELEC_ENG_GEN_{}_IDG_OIL_INLET_TEMPERATURE", number)),
+            oil_inlet_temperature: ThermodynamicTemperature::new::<degree_celsius>(0.),
             is_connected_id: context
                 .get_identifier(format!("ELEC_ENG_GEN_{}_IDG_IS_CONNECTED", number)),
             connected: true,
@@ -366,8 +374,9 @@ impl ConstantSpeedDrive {
             .max(Ratio::default());
         }
 
-        let target = self.get_target_temperature(context, corrected_n2, generator_load);
-        self.update_temperature(context, target);
+        let (inlet_target, outlet_target) =
+            self.get_target_temperatures(context, corrected_n2, generator_load);
+        self.update_temperatures(context, inlet_target, outlet_target);
 
         if self.oil_outlet_temperature
             >= ThermodynamicTemperature::new::<degree_celsius>(Self::THERMAL_DISCONNECT_CELSIUS)
@@ -387,29 +396,44 @@ impl ConstantSpeedDrive {
         self.oil_overheat.is_active() || self.oil_quantity < Ratio::new::<ratio>(1.)
     }
 
-    fn update_temperature(&mut self, context: &UpdateContext, target: ThermodynamicTemperature) {
+    /// Moves the inlet and outlet temperatures towards their targets. Design choice: both move at the rate chosen for
+    /// the outlet, so that the RISE (outlet minus inlet) follows the generator load without a transient of its own.
+    fn update_temperatures(
+        &mut self,
+        context: &UpdateContext,
+        inlet_target: ThermodynamicTemperature,
+        outlet_target: ThermodynamicTemperature,
+    ) {
+        let coefficient = if self.oil_outlet_temperature >= outlet_target {
+            Self::IDG_COOLING_COEFFICIENT
+        } else if self.abnormal_heating() {
+            Self::ABNORMAL_HEATING_COEFFICIENT
+        } else {
+            Self::IDG_HEATING_COEFFICIENT
+        };
         self.oil_outlet_temperature = calculate_towards_target_temperature(
             self.oil_outlet_temperature,
-            target,
-            if self.oil_outlet_temperature >= target {
-                Self::IDG_COOLING_COEFFICIENT
-            } else if self.abnormal_heating() {
-                Self::ABNORMAL_HEATING_COEFFICIENT
-            } else {
-                Self::IDG_HEATING_COEFFICIENT
-            },
+            outlet_target,
+            coefficient,
+            context.delta(),
+        );
+        self.oil_inlet_temperature = calculate_towards_target_temperature(
+            self.oil_inlet_temperature,
+            inlet_target,
+            coefficient,
             context.delta(),
         );
     }
 
-    fn get_target_temperature(
+    /// The temperatures the oil tends to at the drive inlet (back from the coolers) and outlet, in that order
+    fn get_target_temperatures(
         &self,
         context: &UpdateContext,
         corrected_n2: Ratio,
         generator_load: Ratio,
-    ) -> ThermodynamicTemperature {
+    ) -> (ThermodynamicTemperature, ThermodynamicTemperature) {
         if !self.connected {
-            return context.ambient_temperature();
+            return (context.ambient_temperature(), context.ambient_temperature());
         }
 
         let ambient_temperature = context.ambient_temperature().get::<degree_celsius>();
@@ -431,8 +455,13 @@ impl ConstantSpeedDrive {
 
         let heat = (corrected_n2.get::<percent>() / Self::FULL_HEAT_N2_PERCENT).clamp(0., 1.);
 
-        ThermodynamicTemperature::new::<degree_celsius>(
-            ambient_temperature + (inlet + rise - ambient_temperature) * heat,
+        (
+            ThermodynamicTemperature::new::<degree_celsius>(
+                ambient_temperature + (inlet - ambient_temperature) * heat,
+            ),
+            ThermodynamicTemperature::new::<degree_celsius>(
+                ambient_temperature + (inlet + rise - ambient_temperature) * heat,
+            ),
         )
     }
 }
@@ -480,6 +509,7 @@ impl SimulationElement for ConstantSpeedDrive {
 
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.oil_outlet_temperature_id, self.oil_outlet_temperature);
+        writer.write(&self.oil_inlet_temperature_id, self.oil_inlet_temperature);
         writer.write(&self.is_connected_id, self.connected);
         writer.write(&self.oil_low_pressure_id, self.oil_low_pressure);
     }
@@ -932,6 +962,14 @@ mod tests {
             fn idg_oil_is_overheating(&self) -> bool {
                 self.query(|a| a.engine_gen.drive_oil_is_overheating())
             }
+
+            /// The SD ELEC page RISE: outlet minus inlet temperature, in °C
+            fn idg_oil_temperature_rise(&mut self) -> f64 {
+                let inlet: ThermodynamicTemperature =
+                    self.read_by_name("ELEC_ENG_GEN_1_IDG_OIL_INLET_TEMPERATURE");
+                self.idg_oil_outlet_temperature().get::<degree_celsius>()
+                    - inlet.get::<degree_celsius>()
+            }
         }
         impl TestBed for EngineGeneratorTestBed {
             type Aircraft = TestAircraft;
@@ -1068,6 +1106,34 @@ mod tests {
             );
             assert!(!test_bed.idg_oil_is_overheating());
             assert!(!test_bed.idg_oil_low_pressure());
+        }
+
+        #[test]
+        fn idg_oil_temperature_rise_grows_with_the_generator_load() {
+            // FCOM DSC-24-20 l.37650-37652: the RISE is the inlet to outlet difference
+            let mut test_bed = EngineGeneratorTestBed::with_running_engine();
+            test_bed.set_ambient_temperature(ThermodynamicTemperature::new::<degree_celsius>(15.));
+            test_bed.run_for_seconds(900);
+            let no_load_rise = test_bed.idg_oil_temperature_rise();
+
+            // The generator load is the demand times the 0.8 power factor over its 90 kW
+            test_bed.command(|a| a.power_demand(Power::new::<kilowatt>(112.5)));
+            test_bed.run_for_seconds(900);
+            let full_load_rise = test_bed.idg_oil_temperature_rise();
+
+            assert_about_eq!(no_load_rise, 8., 0.5);
+            assert_about_eq!(full_load_rise, 20., 0.5);
+        }
+
+        #[test]
+        fn idg_oil_temperature_rise_is_zero_with_the_engine_stopped() {
+            let mut test_bed = EngineGeneratorTestBed::with_running_engine();
+            test_bed.run_for_seconds(300);
+            test_bed.command(|a| a.shutdown_engine());
+
+            test_bed.run_for_seconds(900);
+
+            assert_about_eq!(test_bed.idg_oil_temperature_rise(), 0., 0.5);
         }
 
         #[test]
