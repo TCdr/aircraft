@@ -1777,6 +1777,9 @@ export class FwsCore {
   /** TRIM TK XFRD memo: the trim tank is empty (FuelTransferMemos) */
   public readonly trimTankXfrd = Subject.create(false);
 
+  /** GND XFR IN PROGRESS memo: the automatic ground transfer of the FQMS is in progress (FuelTransferMemos) */
+  public readonly gndXfrInProgress = Subject.create(false);
+
   /** The left (right) inner tank holds fuel */
   public readonly innerTankNotEmpty = [0, 1].map(() => Subject.create(false));
 
@@ -6785,11 +6788,14 @@ export class FwsCore {
       outerTanksKg,
       jettisonInProgress: this.fuelJettisonInProgress.get(),
       fuelingInProgress,
+      groundTransferInProgress:
+        SimVar.GetSimVarValue('L:A380X_FUEL_AUTO_GND_XFR_IN_PROGRESS', SimVarValueType.Bool) > 0,
     });
     this.fwdXfrInProgress.set(transferMemos.fwdXfrInProgress);
     this.outerTankXfrInProgress.set(transferMemos.outerTankXfrInProgress);
     this.outerTanksXfrd.set(transferMemos.outerTanksXfrd);
     this.trimTankXfrd.set(transferMemos.trimTankXfrd);
+    this.gndXfrInProgress.set(transferMemos.gndXfrInProgress);
     this.innerTankNotEmpty[0].set(tankHasFuel(4));
     this.innerTankNotEmpty[1].set(tankHasFuel(7));
     this.midTankNotEmpty[0].set(tankHasFuel(3));

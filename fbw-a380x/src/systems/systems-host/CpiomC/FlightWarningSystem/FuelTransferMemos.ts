@@ -8,8 +8,10 @@
  * trim tank has been transferred".
  * The transfers are made by the fuel model (CpiomF/LegacyFuel.ts) with MSFS fuel system triggers, which tell no transfer
  * state to the FWS. The engines never burn from the outer or the trim tank, so their fuel leaving them is a transfer:
- * the FWS watches the tank weights. Not simulated: COLDFUEL OUTR TK XFR (no fuel temperature model) and GND XFR IN
- * PROGRESS (no ground transfer function).
+ * the FWS watches the tank weights. GND XFR IN PROGRESS "Ground transfer is in progress" (l.59149-59151) follows the
+ * automatic ground transfer of the FQMS (CpiomF/FuelGroundTransfer); the fuel then leaves the trim tank or the wing
+ * tanks for the ground transfer, not for a FWD XFR or an OUTR TK XFR. Not simulated: COLDFUEL OUTR TK XFR (no fuel
+ * temperature model).
  */
 
 /** Design choice (the FCOM gives no detection rule): the tank weight is compared over 10 s windows */
@@ -62,6 +64,8 @@ export interface FuelTransferMemoInputs {
   readonly jettisonInProgress: boolean;
   /** Refuel or defuel in progress, or the refuel panel open: their own memos */
   readonly fuelingInProgress: boolean;
+  /** The automatic ground transfer is in progress (L:A380X_FUEL_AUTO_GND_XFR_IN_PROGRESS): its own memo */
+  readonly groundTransferInProgress: boolean;
 }
 
 export interface FuelTransferMemos {
@@ -73,18 +77,21 @@ export interface FuelTransferMemos {
   readonly outerTanksXfrd: boolean;
   /** TRIM TK XFRD (280000012), shown in flight phase 8 only (PDF p.1994) */
   readonly trimTankXfrd: boolean;
+  /** GND XFR IN PROGRESS (280000005) */
+  readonly gndXfrInProgress: boolean;
 }
 
 /**
  * @param inputs the tank states
- * @returns the four fuel transfer memo conditions (before their flight phase inhibition)
+ * @returns the five fuel transfer memo conditions (before their flight phase inhibition)
  */
 export function fuelTransferMemos(inputs: FuelTransferMemoInputs): FuelTransferMemos {
-  const transferAllowed = !inputs.jettisonInProgress && !inputs.fuelingInProgress;
+  const transferAllowed = !inputs.jettisonInProgress && !inputs.fuelingInProgress && !inputs.groundTransferInProgress;
   return {
     fwdXfrInProgress: transferAllowed && inputs.trimTankOutflow,
     outerTankXfrInProgress: transferAllowed && inputs.outerTanksOutflow,
     outerTanksXfrd: inputs.outerTanksKg < FUEL_TANK_EMPTY_KG,
     trimTankXfrd: inputs.trimTankKg < FUEL_TANK_EMPTY_KG,
+    gndXfrInProgress: inputs.groundTransferInProgress && !inputs.jettisonInProgress && !inputs.fuelingInProgress,
   };
 }
