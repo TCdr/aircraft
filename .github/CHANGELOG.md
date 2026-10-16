@@ -566,6 +566,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] ELEC DC page: APU BAT voltage and current amber when out of range except while starting the APU, discharge arrow amber, green while starting the APU - @TCdr
 1. [A380X/SD] BLEED page: WING A-ICE indication per wing (on, failed closed, failed open or abnormal pressure) - @TCdr
 1. [A380X/SD] ENG page: the FADEC is supplied for 15 min after aircraft power-up and for 10 min after the FADEC GND PWR pb, then the engine parameters show XX - @TCdr
+1. [A380X/FWS] SIGNS memos as in the FCOM: SEAT BELTS and NO SMOKING memos with the switch ON (the NO MOBILE memo is gone), replaced by a SIGNS ON memo during take-off and landing; the cabin NO SMOKING signs now follow the AUTO position (slats or main gear extended, excessive cabin altitude) - @TCdr
+1. [A380X/FWS] New ENG 1(2)(3)(4) THR LEVER ABOVE IDLE warning (a thrust lever above idle with a reverser selected, during the reversers de-selection, or with the auto-idle protection) with its dual RETARD callout - @TCdr
+1. [A380X/FWS] ENG SHUT DOWN asks for the ABNORM BLEED CONFIG procedure instead of FOR GA: TOGA ONLY, HYD SYS TEMP EXCESS HI has the FCOM title and pump lines, ELEC PMP FAULT gives a REDUND LOSS instead of an INOP SYS, and the flap/slat CONFIG logic reads SFCC 2 when SFCC 1 cannot give the position - @TCdr
 
 ## 2024.1.0
 

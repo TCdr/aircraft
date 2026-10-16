@@ -84,9 +84,10 @@ export const IGN_FAULT_FLIGHT_PHASE_INHIBITION = [3, 4, 5, 6, 7, 8, 9, 10];
  * 7 THR LEVERS NOT AT IDLE, 8 XBLEED OPEN, 9 APU BLEED ON, 10 MIN SPEED FOR WINDML RELIGHT : 260 KT, 11 NEW START IN
  * PROGRESS, 12 ENG n MASTER OFF, 13 ENG START SEL CRANK, 14 AFTER 30S, 15 ENG START SEL NORM, 16 ENG n MAN START OFF,
  * 17 ALL THR LEVERS IDLE, 18 WINDMILL START INITIATED, 19 ENG PARAMETERS MONITOR, 20 IF ABNORMAL, 21 ENG n MAN START OFF,
- * 22 ENG n MASTER OFF (the in-flight lines of NO STARTER AIR PRESSURE, after the existing items so that the indices stay).
+ * 22 ENG n MASTER OFF (the in-flight lines of NO STARTER AIR PRESSURE, after the existing items so that the indices stay),
+ * 23 IF NOT SUCCESSFUL, 24 ENG n MAN START OFF, 25 ENG n MASTER OFF (NO STARTER AIR PRESSURE, l.172931-172933).
  */
-export const START_FAULT_ITEM_COUNT = 23;
+export const START_FAULT_ITEM_COUNT = 26;
 
 export interface StartFaultInputs {
   fault: EngineStartFault;
@@ -116,8 +117,9 @@ const START_FAULT_SUB_TITLE: Partial<Record<EngineStartFault, number>> = {
 /**
  * The items shown, l.172905-173026:
  * - NO STARTER AIR PRESSURE: XBLEED OPEN, APU BLEED ON; in flight (l.172919-172928) MIN SPEED FOR WINDML RELIGHT : 260 KT,
- *   WINDMILL START INITIATED, ENG PARAMETERS MONITOR, IF ABNORMAL: ENG MAN START OFF, ENG MASTER OFF. Design choice: the
- *   ground IF NOT SUCCESSFUL lines are left out (the crew supplies air and the start goes on).
+ *   WINDMILL START INITIATED, ENG PARAMETERS MONITOR, IF ABNORMAL: ENG MAN START OFF, ENG MASTER OFF; then, on ground and
+ *   in flight, IF NOT SUCCESSFUL: ENG MAN START OFF, ENG MASTER OFF (l.172931-172933: on the FCOM PDF page 5811 this
+ *   bullet is at the level of "In flight:", after it, so it closes the NO STARTER AIR PRESSURE case in both).
  * - EGT OVERLIMIT, NO LIGHT UP, ENG STALL (and HUNG START, design choice: the same procedure): in flight ENG MASTER OFF; on
  *   ground during an autostart NEW START IN PROGRESS, then ENG MASTER OFF once the start is aborted; on ground during a manual
  *   start ENG MASTER OFF, ENG START SEL CRANK, AFTER 30S: ENG START SEL NORM, ENG MAN START OFF.
@@ -147,6 +149,9 @@ export function startFaultItems(inputs: StartFaultInputs): { show: boolean[]; ch
         show[21] = true;
         show[22] = true;
       }
+      show[23] = true;
+      show[24] = true;
+      show[25] = true;
       break;
     case EngineStartFault.HungStart:
     case EngineStartFault.EgtOverlimit:
@@ -193,6 +198,8 @@ export function startFaultItems(inputs: StartFaultInputs): { show: boolean[]; ch
   checked[17] = inputs.allThrustLeversIdle;
   checked[21] = !inputs.manualStartPbOn;
   checked[22] = !inputs.masterOn;
+  checked[24] = !inputs.manualStartPbOn;
+  checked[25] = !inputs.masterOn;
   return { show, checked };
 }
 

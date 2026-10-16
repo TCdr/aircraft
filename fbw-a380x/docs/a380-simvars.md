@@ -2244,6 +2244,11 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - Number
     - Brightness of the ambient lights (0-100)
 
+- `L:A32NX_NO_SMOKING_MEMO`
+    - Bool
+    - True when the cabin NO SMOKING signs are on: NO SMOKING sw ON; at AUTO with the slats or the main landing gear
+      extended; or with an excessive cabin altitude, regardless of the switch (systems host Misc/CabinSigns.ts)
+
 ## Surveillance ATA 34
 
 - `L:A380X_WXR_OFF`
