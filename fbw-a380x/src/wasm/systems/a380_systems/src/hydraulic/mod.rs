@@ -168,6 +168,14 @@ impl A380TiltingGearsFactory {
 
 struct A380HydraulicReservoirFactory {}
 impl A380HydraulicReservoirFactory {
+    /// A380 FCOM DSC-29-10 HYDRAULIC FLUID RESERVOIR (a380_fcom.txt l.60986): "The total volume of the reservoir is
+    /// 31.70 US Gal." (about 120 l)
+    const RESERVOIR_TOTAL_VOLUME_GALLON: f64 = 31.70;
+
+    /// A380 FCOM PRO-ABN HYD G (Y) RSVR LEVEL LO (a380_fcom.txt l.155270): "There are less than 2.6 US Gal of hydraulic
+    /// fluid in the green (yellow) hydraulic reservoir."
+    const RESERVOIR_LOW_LEVEL_GALLON: f64 = 2.6;
+
     fn new_green_reservoir(context: &mut InitContext) -> Reservoir {
         let reservoir_offset_when_gear_up = if context.start_gear_down() {
             Volume::new::<gallon>(0.)
@@ -178,7 +186,7 @@ impl A380HydraulicReservoirFactory {
         Reservoir::new(
             context,
             HydraulicColor::Green,
-            Volume::new::<liter>(100.),
+            Volume::new::<gallon>(Self::RESERVOIR_TOTAL_VOLUME_GALLON),
             Volume::new::<liter>(90.),
             Volume::new::<gallon>(12.) + reservoir_offset_when_gear_up,
             vec![PressureSwitch::new(
@@ -186,7 +194,7 @@ impl A380HydraulicReservoirFactory {
                 Pressure::new::<psi>(21.76),
                 PressureSwitchType::Relative,
             )],
-            Volume::new::<liter>(5.),
+            Volume::new::<gallon>(Self::RESERVOIR_LOW_LEVEL_GALLON),
         )
     }
 
@@ -194,7 +202,7 @@ impl A380HydraulicReservoirFactory {
         Reservoir::new(
             context,
             HydraulicColor::Yellow,
-            Volume::new::<liter>(100.),
+            Volume::new::<gallon>(Self::RESERVOIR_TOTAL_VOLUME_GALLON),
             Volume::new::<liter>(90.),
             Volume::new::<gallon>(12.7),
             vec![PressureSwitch::new(
@@ -202,7 +210,7 @@ impl A380HydraulicReservoirFactory {
                 Pressure::new::<psi>(21.76),
                 PressureSwitchType::Relative,
             )],
-            Volume::new::<liter>(5.),
+            Volume::new::<gallon>(Self::RESERVOIR_LOW_LEVEL_GALLON),
         )
     }
 }
@@ -264,7 +272,9 @@ impl A380HydraulicCircuitFactory {
             Pressure::new::<psi>(Self::MIN_PRESS_EDP_SECTION_HI_HYST),
             false,
             false,
-            false,
+            // The yellow auxiliary section is the body wheel steering (BWS) supply of the yellow electric pumps in
+            // automatic mode (see A380HydraulicCircuitController::should_route_pump_to_auxiliary)
+            true,
             Pressure::new::<psi>(Self::HYDRAULIC_TARGET_PRESSURE_PSI),
             PriorityValve::new(
                 Pressure::new::<psi>(Self::PRIORITY_VALVE_PRESSURE_CUTOFF_PSI),
@@ -2492,6 +2502,48 @@ impl A380Hydraulic {
         );
     }
 
+    /// The body wheel steering takes the yellow auxiliary section while a yellow electric pump runs in automatic mode
+    /// (pushback or towing: "only ... (BWS) is pressurized", FCOM l.61045-61046), else the yellow system section
+    /// (engine pumps, or electric pumps in manual mode).
+    fn is_body_wheel_steering_on_yellow_auxiliary(&self) -> bool {
+        self.yellow_circuit_controller
+            .is_any_epump_routed_to_auxiliary()
+    }
+
+    fn update_body_wheel_steering(&mut self, context: &UpdateContext) {
+        if self.is_body_wheel_steering_on_yellow_auxiliary() {
+            self.body_wheel_steering_left.update(
+                context,
+                self.yellow_circuit.auxiliary_section(),
+                self.brake_steer_computer.left_body_steering_controller(),
+                &self.pushback_tug,
+                &self.bypass_pin,
+            );
+            self.body_wheel_steering_right.update(
+                context,
+                self.yellow_circuit.auxiliary_section(),
+                self.brake_steer_computer.right_body_steering_controller(),
+                &self.pushback_tug,
+                &self.bypass_pin,
+            );
+        } else {
+            self.body_wheel_steering_left.update(
+                context,
+                self.yellow_circuit.system_section(),
+                self.brake_steer_computer.left_body_steering_controller(),
+                &self.pushback_tug,
+                &self.bypass_pin,
+            );
+            self.body_wheel_steering_right.update(
+                context,
+                self.yellow_circuit.system_section(),
+                self.brake_steer_computer.right_body_steering_controller(),
+                &self.pushback_tug,
+                &self.bypass_pin,
+            );
+        }
+    }
+
     fn update_with_sim_rate(
         &mut self,
         context: &UpdateContext,
@@ -2536,20 +2588,7 @@ impl A380Hydraulic {
             &self.bypass_pin,
         );
 
-        self.body_wheel_steering_left.update(
-            context,
-            self.yellow_circuit.system_section(),
-            self.brake_steer_computer.left_body_steering_controller(),
-            &self.pushback_tug,
-            &self.bypass_pin,
-        );
-        self.body_wheel_steering_right.update(
-            context,
-            self.yellow_circuit.system_section(),
-            self.brake_steer_computer.right_body_steering_controller(),
-            &self.pushback_tug,
-            &self.bypass_pin,
-        );
+        self.update_body_wheel_steering(context);
 
         // Process brake logic (which circuit brakes) and send brake demands (how much)
         self.brake_steer_computer.update(
@@ -2861,11 +2900,17 @@ impl A380Hydraulic {
         self.yellow_circuit
             .update_system_actuator_volumes(self.flap_system.right_motor());
 
-        self.yellow_circuit
-            .update_system_actuator_volumes(&mut self.body_wheel_steering_left);
-
-        self.yellow_circuit
-            .update_system_actuator_volumes(&mut self.body_wheel_steering_right);
+        if self.is_body_wheel_steering_on_yellow_auxiliary() {
+            self.yellow_circuit
+                .update_auxiliary_actuator_volumes(&mut self.body_wheel_steering_left);
+            self.yellow_circuit
+                .update_auxiliary_actuator_volumes(&mut self.body_wheel_steering_right);
+        } else {
+            self.yellow_circuit
+                .update_system_actuator_volumes(&mut self.body_wheel_steering_left);
+            self.yellow_circuit
+                .update_system_actuator_volumes(&mut self.body_wheel_steering_right);
+        }
 
         self.yellow_circuit
             .update_system_actuator_volumes(self.right_elevator.actuator(
@@ -3489,28 +3534,40 @@ impl GearSystemController for A380GearHydraulicController {
     }
 }
 
+/// Hydraulic circuit valves of one A380 system: fire shutoff valves, leak measurement valve and the auxiliary selector
+/// valves of the electric pump sections.
+///
+/// A380 FCOM DSC-29-10 ELECTRIC PUMPS (a380_fcom.txt l.61045-61046): "When the green (yellow) electric pumps operate
+/// automatically, only cargo door actuation (BWS) is pressurized." l.61052-61057: "When the yellow electric pumps are
+/// started manually, the YELLOW hydraulic system powers all the systems", "When the green electric pumps are started
+/// manually, the GREEN hydraulic system powers all the systems, except the cargo door actuation."
+/// So an electric pump in automatic mode is routed to the auxiliary section (green: cargo doors, yellow: BWS), a pump
+/// in manual mode to the system section.
 struct A380HydraulicCircuitController {
     circuit_id: HydraulicColor,
     should_open_fire_shutoff_valve: [bool; 2],
     should_open_leak_measurement_valve: bool,
-    cargo_door_in_use: DelayedFalseLogicGate,
+    epumps_in_auto_mode: DelayedFalseLogicGate,
     routing_epump_sections_to_aux: DelayedTrueLogicGate,
+    /// Electric pump A, B runs in automatic mode (index 0 is pump section 4, index 1 is pump section 5)
+    epump_in_auto_mode: [bool; 2],
 }
 impl A380HydraulicCircuitController {
-    const DELAY_TO_REOPEN_LEAK_VALVE_AFTER_CARGO_DOOR_USE: Duration = Duration::from_secs(15);
-    const DELAY_TO_CLOSE_AUX_SELECTOR_ON_CARGO_DOOR_USE: Duration = Duration::from_millis(450);
+    const DELAY_TO_REOPEN_LEAK_VALVE_AFTER_AUTO_MODE_USE: Duration = Duration::from_secs(15);
+    const DELAY_TO_CLOSE_AUX_SELECTOR_ON_AUTO_MODE_USE: Duration = Duration::from_millis(450);
 
     fn new(circuit_id: HydraulicColor) -> Self {
         Self {
             circuit_id,
             should_open_fire_shutoff_valve: [true, true],
             should_open_leak_measurement_valve: true,
-            cargo_door_in_use: DelayedFalseLogicGate::new(
-                Self::DELAY_TO_REOPEN_LEAK_VALVE_AFTER_CARGO_DOOR_USE,
+            epumps_in_auto_mode: DelayedFalseLogicGate::new(
+                Self::DELAY_TO_REOPEN_LEAK_VALVE_AFTER_AUTO_MODE_USE,
             ),
             routing_epump_sections_to_aux: DelayedTrueLogicGate::new(
-                Self::DELAY_TO_CLOSE_AUX_SELECTOR_ON_CARGO_DOOR_USE,
+                Self::DELAY_TO_CLOSE_AUX_SELECTOR_ON_AUTO_MODE_USE,
             ),
+            epump_in_auto_mode: [false, false],
         }
     }
 
@@ -3520,17 +3577,18 @@ impl A380HydraulicCircuitController {
         engine_fire_push_buttons: &impl EngineFirePushButtons,
         epump_controllers: [&A380ElectricPumpController; 2],
     ) {
-        // No cargo doors on yellow side
-        if self.circuit_id == HydraulicColor::Green {
-            self.cargo_door_in_use.update(
-                context,
-                epump_controllers[0].should_pressurise_for_cargo_door_operation()
-                    || epump_controllers[1].should_pressurise_for_cargo_door_operation(),
-            );
+        self.epump_in_auto_mode = [
+            epump_controllers[0].is_pressurising_in_auto_mode(),
+            epump_controllers[1].is_pressurising_in_auto_mode(),
+        ];
 
-            self.routing_epump_sections_to_aux
-                .update(context, self.cargo_door_in_use.output());
-        }
+        self.epumps_in_auto_mode.update(
+            context,
+            self.epump_in_auto_mode[0] || self.epump_in_auto_mode[1],
+        );
+
+        self.routing_epump_sections_to_aux
+            .update(context, self.epumps_in_auto_mode.output());
 
         match self.circuit_id {
             HydraulicColor::Green => {
@@ -3557,7 +3615,7 @@ impl A380HydraulicCircuitController {
                 true
                 // TODO
                 // overhead_panel.green_leak_measurement_valve_is_on()
-                //     && !self.cargo_door_in_use.output()
+                //     && !self.epumps_in_auto_mode.output()
             }
             HydraulicColor::Yellow => {
                 // TODO
@@ -3573,6 +3631,12 @@ impl A380HydraulicCircuitController {
 
     fn plane_state_disables_leak_valve_closing(&self, context: &UpdateContext) -> bool {
         context.indicated_airspeed() >= Velocity::new::<knot>(100.)
+    }
+
+    /// An electric pump in automatic mode is routed to the auxiliary section (yellow: the BWS supply)
+    fn is_any_epump_routed_to_auxiliary(&self) -> bool {
+        // Electric pump sections are 4 (pump A) and 5 (pump B)
+        (4..6).any(|pump_index| self.should_route_pump_to_auxiliary(pump_index))
     }
 }
 impl HydraulicCircuitController for A380HydraulicCircuitController {
@@ -3593,14 +3657,12 @@ impl HydraulicCircuitController for A380HydraulicCircuitController {
     }
 
     fn should_route_pump_to_auxiliary(&self, pump_index: usize) -> bool {
-        // No auxiliary selection valve in yellow circuit
-        if self.circuit_id == HydraulicColor::Yellow {
-            return false;
-        }
-
         // If it's an engine section (<4) we can't route to aux. Else it's a pump elec section (>=4) so
-        //   we can route it if required to by the boolean
-        pump_index >= 4 && self.routing_epump_sections_to_aux.output()
+        //   we route it once the selector valve is set, only while that pump runs in automatic mode
+        //   (a pump in manual mode pressurises the system section, FCOM l.61052-61057).
+        pump_index >= 4
+            && self.routing_epump_sections_to_aux.output()
+            && self.epump_in_auto_mode[pump_index - 4]
     }
 }
 
@@ -3710,6 +3772,11 @@ struct A380EngineDrivenPumpController {
     is_pressure_low: bool,
     has_overheat_fault: bool,
 
+    /// Reservoir low level whatever the pb-sw position (ENG PMP A+B DISC FAULT light)
+    is_reservoir_level_low: bool,
+    /// The ENG PMP pb-sw is OFF but the pump section still has pressure: depressurisation failed
+    is_depressurisation_unsuccessful: bool,
+
     are_pumps_commanded_disconnected: bool,
 
     /// The FADEC is starting the engine by windmilling (a380_systems engine_failure.rs)
@@ -3741,6 +3808,9 @@ impl A380EngineDrivenPumpController {
 
             is_pressure_low: true,
             has_overheat_fault: false,
+
+            is_reservoir_level_low: false,
+            is_depressurisation_unsuccessful: false,
 
             are_pumps_commanded_disconnected: false,
 
@@ -3793,8 +3863,9 @@ impl A380EngineDrivenPumpController {
         reservoir: &Reservoir,
         overhead_panel: &A380HydraulicOverheadPanel,
     ) {
+        self.is_reservoir_level_low = reservoir.is_low_level();
         self.has_low_level_fault =
-            reservoir.is_low_level() && overhead_panel.edp_push_button_is_auto(self.pump_id);
+            self.is_reservoir_level_low && overhead_panel.edp_push_button_is_auto(self.pump_id);
     }
 
     fn update(
@@ -3844,15 +3915,33 @@ impl A380EngineDrivenPumpController {
         self.update_low_level(reservoir, overhead_panel);
 
         self.has_overheat_fault = reservoir.is_overheating() || pump_status.is_overheating();
+
+        // Same rule as the FWS (HydOverheatFlags.ts): "not successful" is read from the pump section pressure switch
+        self.is_depressurisation_unsuccessful = overhead_panel.edp_push_button_is_off(self.pump_id)
+            && hydraulic_circuit
+                .pump_section_switch_pressurised(self.pump_id.into_pump_section_index());
     }
 
+    /// ENG PMP pb-sw FAULT light. A380 FCOM DSC-29-20 (a380_fcom.txt l.61286-61299): pump failed or must be
+    /// depressurised, with HYD ENG PMP PRESS LO, SYS OVHT, SYS TEMP EXCESS HI, RSVR LEVEL LO or RSVR AIR PRESS LO.
+    /// "The FAULT light goes off, when the flight crew selects OFF. However, in case of an overheat, the FAULT light
+    /// will remain on, until the overheat disappears." The PRESS LO, LEVEL LO and AIR PRESS LO terms need the pb-sw at
+    /// AUTO, the overheat term does not.
     fn has_any_fault(&self) -> bool {
-        self.has_pressure_low_fault || self.has_air_pressure_low_fault || self.has_low_level_fault
+        self.has_pressure_low_fault
+            || self.has_air_pressure_low_fault
+            || self.has_low_level_fault
+            || self.has_overheat_fault
     }
 
+    /// ENG PMP A+B DISC pb FAULT light. A380 FCOM DSC-29-20 (a380_fcom.txt l.61319-61330): with HYD RSVR LEVEL LO,
+    /// "HYD G(Y) SYS OVHT (If pump depressurization failed)" or SYS TEMP EXCESS HI; "The FAULT light goes off, when the
+    /// crew selects DISC." PRO-ABN HYD SYS OVHT (l.155465-155470): "If turning off G (Y) ENG 1 (3) PMP A or B is not
+    /// successful: ... DISC". The low level lights it whatever the ENG PMP pb-sw position.
+    /// SYS TEMP EXCESS HI is not modelled (the reservoir has a single overheat state).
     fn has_disc_fault(&self) -> bool {
-        // Fault cleared when disconnect is selected according to fcom
-        (self.has_low_level_fault || self.has_overheat_fault)
+        (self.is_reservoir_level_low
+            || (self.has_overheat_fault && self.is_depressurisation_unsuccessful))
             && !self.are_pumps_commanded_disconnected
     }
 }
@@ -4117,10 +4206,17 @@ struct A380ElectricPumpController {
     has_pressure_low_fault: bool,
     has_air_pressure_low_fault: bool,
     has_low_level_fault: bool,
+    /// The pump motor itself overheats (a pump failure)
     has_overheat_fault: bool,
+    /// The system (reservoir) overheats: HYD SYS OVHT
+    has_system_overheat_fault: bool,
+    is_on_ground_with_all_engines_off: bool,
 
     is_pressure_low: bool,
-    should_pressurise_for_cargo_door_operation: bool,
+    /// Started by the auto logic (cargo doors, BWS), see update_operating_mode
+    is_in_auto_mode: bool,
+    /// Started by the ELEC PMP ON pb, see update_operating_mode
+    is_in_manual_mode: bool,
 }
 impl A380ElectricPumpController {
     fn new(
@@ -4142,10 +4238,13 @@ impl A380ElectricPumpController {
             has_air_pressure_low_fault: false,
             has_low_level_fault: false,
             has_overheat_fault: false,
+            has_system_overheat_fault: false,
+            is_on_ground_with_all_engines_off: false,
 
             is_pressure_low: true,
 
-            should_pressurise_for_cargo_door_operation: false,
+            is_in_auto_mode: false,
+            is_in_manual_mode: false,
         }
     }
 
@@ -4159,22 +4258,47 @@ impl A380ElectricPumpController {
         auto_logic: &A380ElectricPumpAutoLogic,
         pump_status: &impl HeatingElement,
     ) {
-        self.should_pressurise_for_cargo_door_operation =
-            auto_logic.should_auto_run_pump(self.pump_id);
+        self.update_operating_mode(overhead_panel, auto_logic);
 
-        self.should_pressurise = (overhead_panel.epump_button_on_is_on(self.pump_id)
-            || self.should_pressurise_for_cargo_door_operation)
+        // Overheat state of the previous update: it is what the HSMU monitors before commanding the pump
+        self.update_overheat(pump_status, reservoir);
+
+        // A380 FCOM DSC-29-10 (a380_fcom.txt l.61059): "In the case of an overheat, the HSMU automatically switches
+        // off the affected electric pump." Design choice: the pump is off while its overheat is detected, it can run
+        // again once cooled (the ECAM procedure then asks for the ELEC PMP pb-sw OFF).
+        self.should_pressurise = (self.is_in_manual_mode || self.is_in_auto_mode)
             && !overhead_panel.epump_button_off_is_off(self.pump_id)
             && !self.is_inhibited(engines, lgciu)
+            && !self.has_overheat_fault
             && self.is_powered;
+
+        self.is_on_ground_with_all_engines_off =
+            lgciu.left_and_right_gear_compressed(false) && !is_any_engine_running(engines);
 
         self.update_low_pressure(hydraulic_circuit);
 
         self.update_low_air_pressure(reservoir, overhead_panel);
 
         self.update_low_level(reservoir, overhead_panel);
+    }
 
-        self.update_overheat(pump_status)
+    /// A380 FCOM DSC-29-20 ELEC PMP ON pb (a380_fcom.txt l.61350-61354): "When the electric pumps operate in automatic
+    /// mode, any action on the ELEC PMP ON pb is disregarded", "When the electric pumps operate in manual mode, the
+    /// automatic mode is disregarded (e.g. cargo door actuation)."
+    /// So the mode that started first is kept: the ON pb starts the manual mode only while the pump does not run in
+    /// automatic mode, and the automatic request is ignored while the pump is in manual mode.
+    fn update_operating_mode(
+        &mut self,
+        overhead_panel: &A380HydraulicOverheadPanel,
+        auto_logic: &A380ElectricPumpAutoLogic,
+    ) {
+        // State of the previous update, before should_pressurise is computed again
+        let was_running_in_auto_mode = self.is_pressurising_in_auto_mode();
+
+        self.is_in_manual_mode = overhead_panel.epump_button_on_is_on(self.pump_id)
+            && (self.is_in_manual_mode || !was_running_in_auto_mode);
+        self.is_in_auto_mode =
+            auto_logic.should_auto_run_pump(self.pump_id) && !self.is_in_manual_mode;
     }
 
     /// A380 FCOM DSC-29-10 ELECTRIC PUMPS (a380_fcom.txt:61020-61026): "Two electric pumps can provide hydraulic power
@@ -4206,8 +4330,9 @@ impl A380ElectricPumpController {
         self.has_pressure_low_fault = self.is_pressure_low;
     }
 
-    fn update_overheat(&mut self, pump_status: &impl HeatingElement) {
+    fn update_overheat(&mut self, pump_status: &impl HeatingElement, reservoir: &Reservoir) {
         self.has_overheat_fault = pump_status.is_overheating();
+        self.has_system_overheat_fault = reservoir.is_overheating();
     }
 
     fn update_low_air_pressure(
@@ -4228,15 +4353,25 @@ impl A380ElectricPumpController {
             reservoir.is_low_level() && !overhead_panel.epump_button_off_is_off(self.pump_id);
     }
 
+    /// ELEC PMP pb-sw FAULT light. A380 FCOM DSC-29-20 (a380_fcom.txt l.61379-61398): "The pump is failed, or the pump
+    /// must be stopped because of a hydraulic system failure", with HYD ELEC PMP FAULT, and HYD SYS OVHT, SYS TEMP
+    /// EXCESS HI, RSVR LEVEL LO, RSVR AIR PRESS LO "(on ground, with engines OFF)"; "The FAULT light goes off, when the
+    /// flight crew selects OFF. However, in case of an overheat, the FAULT light will remain on, until the overheat
+    /// disappears." PRO-ABN HYD ELEC PMP FAULT (l.154989-154993): pump failed, motor above 180 C or pressure below
+    /// 1 885 PSI. "Engines OFF" is all engines off, as the procedures (l.155237, l.155462): "If on ground, and all
+    /// engines are off: G(Y) ELEC PMP A and B ... OFF".
     fn has_any_fault(&self) -> bool {
-        self.has_low_level_fault
+        let pump_failure = self.has_pressure_low_fault || self.has_overheat_fault;
+        let system_failure = self.has_low_level_fault
             || self.has_air_pressure_low_fault
-            || self.has_pressure_low_fault
-            || self.has_overheat_fault
+            || self.has_system_overheat_fault;
+
+        pump_failure || (system_failure && self.is_on_ground_with_all_engines_off)
     }
 
-    fn should_pressurise_for_cargo_door_operation(&self) -> bool {
-        self.should_pressurise_for_cargo_door_operation
+    /// The pump runs for the auto logic (cargo doors, BWS), so it is routed to the auxiliary section
+    fn is_pressurising_in_auto_mode(&self) -> bool {
+        self.is_in_auto_mode && self.should_pressurise
     }
 }
 impl PumpController for A380ElectricPumpController {
@@ -7376,6 +7511,7 @@ mod tests {
             failures::FailureType,
             hydraulic::cargo_doors::{DoorControlState, HydraulicDoorController},
             landing_gear::{GearSystemState, LandingGear, LandingGearControlInterfaceUnitSet},
+            pneumatic::PressurizeableReservoir,
             shared::{
                 arinc429::{Arinc429Word, SignStatus},
                 EmergencyElectricalState, LgciuId, PotentialOrigin,
@@ -7975,6 +8111,65 @@ mod tests {
                 self.read_by_name("HYD_GREEN_AUXILIARY_1_SECTION_PRESSURE")
             }
 
+            fn yellow_pressure_auxiliary(&mut self) -> Pressure {
+                self.read_by_name("HYD_YELLOW_AUXILIARY_1_SECTION_PRESSURE")
+            }
+
+            fn green_epump_a_has_fault(&mut self) -> bool {
+                self.read_by_name("OVHD_HYD_EPUMPGA_OFF_PB_HAS_FAULT")
+            }
+
+            fn green_epump_b_has_fault(&mut self) -> bool {
+                self.read_by_name("OVHD_HYD_EPUMPGB_OFF_PB_HAS_FAULT")
+            }
+
+            fn eng1_pumps_disc_has_fault(&mut self) -> bool {
+                self.read_by_name("OVHD_HYD_ENG_1AB_PUMP_DISC_PB_HAS_FAULT")
+            }
+
+            fn is_green_reservoir_level_low(&self) -> bool {
+                self.query(|a| a.hydraulics.green_reservoir().is_low_level())
+            }
+
+            fn is_green_reservoir_overheating(&self) -> bool {
+                self.query(|a| a.hydraulics.green_reservoir().is_overheating())
+            }
+
+            fn is_edp_1a_overheating(&self) -> bool {
+                self.query(|a| a.hydraulics.engine_driven_pump_1a.is_overheating())
+            }
+
+            fn is_green_epump_a_overheating(&self) -> bool {
+                self.query(|a| a.hydraulics.green_electric_pump_a.is_overheating())
+            }
+
+            fn green_reservoir_available_volume(&self) -> Volume {
+                self.query(|a| a.hydraulics.green_reservoir().available_volume())
+            }
+
+            /// Runs one second steps until the condition is true, then 500 ms more so that the controllers, which read
+            /// the state of the previous update, show it too; panics after max_seconds instead of hanging
+            fn run_until(
+                mut self,
+                max_seconds: u64,
+                description: &str,
+                condition: impl Fn(&mut Self) -> bool,
+            ) -> Self {
+                for _ in 0..max_seconds {
+                    if condition(&mut self) {
+                        return self.run_waiting_for(Duration::from_millis(500));
+                    }
+                    self = self.run_waiting_for(Duration::from_secs(1));
+                }
+                assert!(
+                    condition(&mut self),
+                    "Still not {} after {} s",
+                    description,
+                    max_seconds
+                );
+                self.run_waiting_for(Duration::from_millis(500))
+            }
+
             fn get_yellow_reservoir_volume(&mut self) -> Volume {
                 self.read_by_name("HYD_YELLOW_RESERVOIR_LEVEL")
             }
@@ -8406,6 +8601,16 @@ mod tests {
                 self
             }
 
+            fn set_green_ed_pump_1b(mut self, is_auto: bool) -> Self {
+                self.write_by_name("OVHD_HYD_ENG_1B_PUMP_PB_IS_AUTO", is_auto);
+                self
+            }
+
+            fn set_green_e_pump_a_off(mut self, is_off: bool) -> Self {
+                self.write_by_name("OVHD_HYD_EPUMPGA_OFF_PB_IS_AUTO", !is_off);
+                self
+            }
+
             fn set_yellow_ed_pump(mut self, is_auto: bool) -> Self {
                 self.write_by_name("OVHD_HYD_ENG_3A_PUMP_PB_IS_AUTO", is_auto);
                 self
@@ -8603,7 +8808,7 @@ mod tests {
                 self
             }
 
-            fn _dc_ess_lost(mut self) -> Self {
+            fn dc_ess_lost(mut self) -> Self {
                 self.command(|a| a._set_dc_ess_is_powered(false));
                 self
             }
@@ -12877,8 +13082,10 @@ mod tests {
             );
         }
 
+        /// A380 FCOM DSC-29-10 (a380_fcom.txt l.61042-61046): the yellow electric pumps start automatically when BWS
+        /// is required for pushback or towing, and then "only ... (BWS) is pressurized".
         #[test]
-        fn yellow_epump_buildup_system_section_when_pushback_turns_nose_more_than_20_degrees() {
+        fn yellow_epump_buildup_only_bws_section_when_pushback_turns_nose_more_than_20_degrees() {
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
                 .on_the_ground()
@@ -12897,9 +13104,16 @@ mod tests {
                 Pressure::new::<psi>(50.)
             );
 
-            // TODO dunno what to expect from leak measurement valve state there
-            //assert!(test_bed.is_yellow_pressure_switch_pressurised());
-            assert_ge!(test_bed.yellow_pressure(), Pressure::new::<psi>(2500.));
+            assert!(
+                test_bed.query(|a| a.is_yellow_a_epump_controller_pressurising()
+                    || a.is_yellow_b_epump_controller_pressurising())
+            );
+            assert_ge!(
+                test_bed.yellow_pressure_auxiliary(),
+                Pressure::new::<psi>(2500.)
+            );
+            assert!(!test_bed.is_yellow_pressure_switch_pressurised());
+            assert_le!(test_bed.yellow_pressure(), Pressure::new::<psi>(500.));
         }
 
         #[test]
@@ -13119,6 +13333,382 @@ mod tests {
 
             // Expecting around 6 degrees, so ratio with .5 margin should be 5./75
             assert_gt!(test_bed.get_nose_steering_ratio().get::<ratio>(), 5.5 / 75.);
+        }
+
+        fn test_bed_on_ground_with_engine_1_running() -> A380HydraulicsTestBed {
+            let test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(10));
+
+            assert!(test_bed.is_green_pressure_switch_pressurised());
+            test_bed
+        }
+
+        fn is_edp_1a_section_pressurised(test_bed: &A380HydraulicsTestBed) -> bool {
+            test_bed.query(|a| {
+                a.hydraulics.green_circuit.pump_section_switch_pressurised(
+                    A380EngineDrivenPumpId::Edp1a.into_pump_section_index(),
+                )
+            })
+        }
+
+        /// A380 FCOM DSC-29-10 (a380_fcom.txt l.60986): "The total volume of the reservoir is 31.70 US Gal."
+        #[test]
+        fn reservoir_total_volume_is_31_70_us_gallons() {
+            let test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_one_tick();
+
+            // The green reservoir starts with 12 US gal of fluid when the gear is down
+            let total_volume =
+                test_bed.green_reservoir_available_volume() + Volume::new::<gallon>(12.);
+
+            assert!(
+                (total_volume.get::<gallon>() - 31.70).abs() < 0.5,
+                "reservoir total volume {} US gal",
+                total_volume.get::<gallon>()
+            );
+        }
+
+        /// A380 FCOM PRO-ABN HYD G (Y) RSVR LEVEL LO (a380_fcom.txt l.155270): "less than 2.6 US Gal".
+        #[test]
+        fn reservoir_level_low_below_2_6_us_gallons() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_one_tick();
+
+            test_bed.fail(FailureType::ReservoirLeak(HydraulicColor::Green));
+
+            test_bed = test_bed.run_until(200, "below 3 US gal", |t| {
+                t.get_green_reservoir_volume() < Volume::new::<gallon>(3.)
+            });
+            assert!(!test_bed.is_green_reservoir_level_low());
+
+            test_bed = test_bed.run_until(200, "below 2.5 US gal", |t| {
+                t.get_green_reservoir_volume() < Volume::new::<gallon>(2.5)
+            });
+            assert!(test_bed.is_green_reservoir_level_low());
+        }
+
+        /// A380 FCOM DSC-29-20 ENG PMP pb-sw (a380_fcom.txt l.61286-61299): FAULT with HYD SYS OVHT; "in case of an
+        /// overheat, the FAULT light will remain on, until the overheat disappears" (also with the pb-sw OFF).
+        #[test]
+        fn eng_pump_fault_on_overheat_and_stays_on_when_off() {
+            let mut test_bed = test_bed_on_ground_with_engine_1_running();
+            assert!(!test_bed.green_edp_has_fault());
+
+            test_bed.fail(FailureType::EnginePumpOverheat(
+                AirbusEngineDrivenPumpId::Edp1a,
+            ));
+            test_bed = test_bed.run_until(200, "EDP 1A overheating", |t| t.is_edp_1a_overheating());
+            assert!(test_bed.green_edp_has_fault());
+
+            test_bed = test_bed
+                .set_green_ed_pump(false)
+                .run_waiting_for(Duration::from_secs(1));
+            assert!(test_bed.is_edp_1a_overheating());
+            assert!(test_bed.green_edp_has_fault());
+        }
+
+        /// A380 FCOM DSC-29-20 ENG PMP A+B DISC pb (a380_fcom.txt l.61319-61326): FAULT with HYD RSVR LEVEL LO, also
+        /// once the ENG PMP pb-sw are OFF (the PRO-ABN procedure turns them OFF first).
+        #[test]
+        fn eng_pumps_disc_fault_on_reservoir_low_level_with_pumps_off() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .set_green_ed_pump(false)
+                .set_green_ed_pump_1b(false)
+                .run_one_tick();
+            assert!(!test_bed.eng1_pumps_disc_has_fault());
+
+            test_bed.fail(FailureType::ReservoirLeak(HydraulicColor::Green));
+            test_bed = test_bed.run_until(200, "green reservoir level low", |t| {
+                t.is_green_reservoir_level_low()
+            });
+
+            assert!(test_bed.eng1_pumps_disc_has_fault());
+        }
+
+        /// A380 FCOM DSC-29-20 ENG PMP A+B DISC pb (a380_fcom.txt l.61326): "HYD G(Y) SYS OVHT (If pump
+        /// depressurization failed)". PRO-ABN HYD SYS OVHT (l.155460-155467): ENG PMP A and B OFF, "If turning off
+        /// G (Y) ENG 1 (3) PMP A or B is not successful: G(Y) ENG 1(3) PMP A+B ... DISC".
+        #[test]
+        fn eng_pumps_disc_fault_on_overheat_only_if_depressurisation_failed() {
+            let mut test_bed = test_bed_on_ground_with_engine_1_running();
+
+            test_bed.fail(FailureType::EnginePumpOverheat(
+                AirbusEngineDrivenPumpId::Edp1a,
+            ));
+            test_bed = test_bed.run_until(200, "EDP 1A overheating", |t| t.is_edp_1a_overheating());
+
+            // Pump at AUTO: the crew must first turn it OFF
+            assert!(!test_bed.eng1_pumps_disc_has_fault());
+
+            // Turning off is successful: the pump section loses its pressure
+            test_bed = test_bed.set_green_ed_pump(false).run_until(
+                60,
+                "EDP 1A section depressurised",
+                |t| !is_edp_1a_section_pressurised(t),
+            );
+            assert!(test_bed.is_edp_1a_overheating());
+            assert!(!test_bed.eng1_pumps_disc_has_fault());
+        }
+
+        #[test]
+        fn eng_pumps_disc_fault_on_overheat_when_depressurisation_failed() {
+            let mut test_bed = test_bed_on_ground_with_engine_1_running();
+
+            test_bed.fail(FailureType::EnginePumpOverheat(
+                AirbusEngineDrivenPumpId::Edp1a,
+            ));
+            test_bed = test_bed.run_until(200, "EDP 1A overheating", |t| t.is_edp_1a_overheating());
+
+            // No power on the pump solenoid: the pump stays pressurised with its pb-sw OFF
+            test_bed = test_bed
+                .dc_ess_lost()
+                .set_green_ed_pump(false)
+                .run_waiting_for(Duration::from_secs(5));
+            assert!(is_edp_1a_section_pressurised(&test_bed));
+            assert!(test_bed.is_edp_1a_overheating());
+            assert!(test_bed.eng1_pumps_disc_has_fault());
+
+            // The FAULT light goes off when DISC is selected (FCOM l.61330)
+            test_bed = test_bed
+                .set_disconnect_engine_edp(1)
+                .run_waiting_for(Duration::from_secs(1));
+            assert!(!test_bed.eng1_pumps_disc_has_fault());
+        }
+
+        /// A380 FCOM DSC-29-20 ELEC PMP pb-sw (a380_fcom.txt l.61390-61392): FAULT with "HYD G(Y) RSVR LEVEL LO (on
+        /// ground, with engines OFF)".
+        #[test]
+        fn elec_pump_fault_on_reservoir_low_level_only_on_ground_with_engines_off() {
+            let mut test_bed = test_bed_in_flight_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .run_one_tick();
+
+            test_bed.fail(FailureType::ReservoirLeak(HydraulicColor::Green));
+            test_bed = test_bed.run_until(200, "green reservoir level low", |t| {
+                t.is_green_reservoir_level_low()
+            });
+            assert!(!test_bed.green_epump_a_has_fault());
+
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_one_tick();
+
+            test_bed.fail(FailureType::ReservoirLeak(HydraulicColor::Green));
+            test_bed = test_bed.run_until(200, "green reservoir level low", |t| {
+                t.is_green_reservoir_level_low()
+            });
+            assert!(test_bed.green_epump_a_has_fault());
+        }
+
+        /// A380 FCOM DSC-29-20 ELEC PMP pb-sw (a380_fcom.txt l.61386, l.61397-61398): FAULT with "HYD G(Y) SYS OVHT
+        /// (on ground, with engines OFF)".
+        #[test]
+        fn elec_pump_fault_on_system_overheat_only_on_ground_with_engines_off() {
+            let mut test_bed = test_bed_on_ground_with_engine_1_running();
+
+            // The overheating engine pump heats the green fluid
+            test_bed.fail(FailureType::EnginePumpOverheat(
+                AirbusEngineDrivenPumpId::Edp1a,
+            ));
+            test_bed = test_bed.run_until(300, "green reservoir overheating", |t| {
+                t.is_green_reservoir_overheating()
+            });
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(30));
+
+            // Engine 1 running: no ELEC PMP FAULT
+            assert!(!test_bed.green_epump_b_has_fault());
+
+            test_bed = test_bed
+                .engines_off()
+                .run_waiting_for(Duration::from_secs(1));
+            assert!(test_bed.is_green_reservoir_overheating());
+            assert!(test_bed.green_epump_b_has_fault());
+        }
+
+        /// A380 FCOM DSC-29-10 (a380_fcom.txt l.61059): "In the case of an overheat, the HSMU automatically switches
+        /// off the affected electric pump."
+        #[test]
+        fn hsmu_switches_off_overheated_elec_pump() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .set_green_e_pump_a(true)
+                .run_waiting_for(Duration::from_secs(5));
+            assert!(test_bed.query(|a| a.is_green_epump_a_controller_pressurising()));
+
+            test_bed.fail(FailureType::ElecPumpOverheat(AirbusElectricPumpId::GreenA));
+            test_bed = test_bed.run_until(200, "green A elec pump overheating", |t| {
+                t.is_green_epump_a_overheating()
+            });
+            test_bed = test_bed.run_one_tick();
+
+            assert!(!test_bed.query(|a| a.is_green_epump_a_controller_pressurising()));
+            assert!(test_bed.green_epump_a_has_fault());
+
+            // The FAULT light stays on with the pb-sw OFF while the overheat lasts (FCOM l.61397-61398)
+            test_bed = test_bed
+                .set_green_e_pump_a_off(true)
+                .run_waiting_for(Duration::from_secs(1));
+            assert!(test_bed.is_green_epump_a_overheating());
+            assert!(test_bed.green_epump_a_has_fault());
+        }
+
+        /// A380 FCOM DSC-29-10 (a380_fcom.txt l.61055-61057): "When the green electric pumps are started manually, the
+        /// GREEN hydraulic system powers all the systems, except the cargo door actuation."
+        #[test]
+        fn green_elec_pumps_in_manual_mode_pressurise_system_not_cargo_doors() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .set_green_e_pump_a(true)
+                .set_green_e_pump_b(true)
+                .run_waiting_for(Duration::from_secs(5));
+
+            test_bed = test_bed.open_fwd_cargo_door().run_waiting_for(
+                HydraulicDoorController::DELAY_UNLOCK_TO_HYDRAULIC_CONTROL + Duration::from_secs(5),
+            );
+            test_bed = test_bed
+                .open_fwd_cargo_door()
+                .run_waiting_for(Duration::from_secs(10));
+
+            assert!(test_bed.is_green_pressure_switch_pressurised());
+            assert_gt!(test_bed.green_pressure(), Pressure::new::<psi>(2500.));
+            assert_lt!(
+                test_bed.green_pressure_auxiliary(),
+                Pressure::new::<psi>(1000.)
+            );
+            assert!(!test_bed.is_cargo_fwd_door_locked_up());
+        }
+
+        /// A380 FCOM DSC-29-20 ELEC PMP ON pb (a380_fcom.txt l.61350-61351): "When the electric pumps operate in
+        /// automatic mode, any action on the ELEC PMP ON pb is disregarded" (per pump). Once the automatic mode ends,
+        /// the manual mode pressurises the whole yellow system (l.61052-61054).
+        #[test]
+        fn yellow_elec_pump_on_pb_disregarded_while_running_in_auto_mode() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_one_tick();
+
+            test_bed = test_bed
+                .set_pushback_state(true)
+                .set_pushback_angle(AngularVelocity::new::<degree_per_second>(5.))
+                .run_waiting_for(Duration::from_secs(6));
+            assert_gt!(
+                test_bed.yellow_pressure_auxiliary(),
+                Pressure::new::<psi>(2500.)
+            );
+
+            // The auto logic runs one of the two pumps: ON pb pressed on that pump
+            let pump_a_runs_in_auto =
+                test_bed.query(|a| a.is_yellow_a_epump_controller_pressurising());
+            test_bed = if pump_a_runs_in_auto {
+                test_bed.set_yellow_e_pump_a(true)
+            } else {
+                test_bed.set_yellow_e_pump_b(true)
+            };
+            test_bed = test_bed
+                .set_pushback_state(true)
+                .set_pushback_angle(AngularVelocity::new::<degree_per_second>(5.))
+                .run_waiting_for(Duration::from_secs(5));
+            assert!(!test_bed.is_yellow_pressure_switch_pressurised());
+            assert_gt!(
+                test_bed.yellow_pressure_auxiliary(),
+                Pressure::new::<psi>(2500.)
+            );
+
+            // Tug centres the nose wheel (no more BWS demand below 20 degrees), then the pushback ends
+            test_bed = test_bed
+                .set_pushback_state(true)
+                .set_pushback_angle(AngularVelocity::new::<degree_per_second>(0.))
+                .run_until(60, "nose wheel centred", |t| {
+                    t.get_nose_steering_ratio().get::<ratio>().abs() < 0.15
+                });
+            test_bed = test_bed
+                .set_pushback_angle(AngularVelocity::new::<degree_per_second>(0.))
+                .set_pushback_state(false)
+                .run_one_tick();
+
+            // The automatic mode stops 30 s after the BWS demand, then the manual mode takes over
+            test_bed = test_bed.run_until(90, "yellow system pressurised", |t| {
+                t.is_yellow_pressure_switch_pressurised()
+            });
+            assert_gt!(test_bed.yellow_pressure(), Pressure::new::<psi>(2500.));
+        }
+
+        /// A380 FCOM DSC-29-10 (a380_fcom.txt l.61052-61054): "When the yellow electric pumps are started manually,
+        /// the YELLOW hydraulic system powers all the systems" (BWS included).
+        #[test]
+        fn yellow_elec_pumps_in_manual_mode_pressurise_system_and_bws_on_pushback() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .set_yellow_e_pump_a(true)
+                .set_yellow_e_pump_b(true)
+                .run_waiting_for(Duration::from_secs(5));
+
+            test_bed = test_bed
+                .set_pushback_state(true)
+                .set_pushback_angle(AngularVelocity::new::<degree_per_second>(5.))
+                .run_waiting_for(Duration::from_secs(15));
+
+            assert!(test_bed.is_yellow_pressure_switch_pressurised());
+            assert_gt!(test_bed.yellow_pressure(), Pressure::new::<psi>(2500.));
+            assert_ge!(
+                test_bed
+                    .get_left_body_steering_steering_ratio()
+                    .get::<ratio>(),
+                0.97
+            );
+        }
+
+        /// With engines 3 and 4 running the yellow electric pumps are inhibited (FCOM l.61025-61027): the BWS keeps
+        /// the yellow system section of the engine pumps when it steers in taxi.
+        #[test]
+        fn body_wheel_steering_on_yellow_system_with_engines_running() {
+            let mut test_bed = test_bed_on_ground_with()
+                .start_eng1(Ratio::new::<percent>(95.))
+                .start_eng2(Ratio::new::<percent>(95.))
+                .start_eng3(Ratio::new::<percent>(95.))
+                .start_eng4(Ratio::new::<percent>(95.))
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_waiting_for(Duration::from_secs(10));
+
+            test_bed = test_bed
+                .set_ground_speed(Velocity::new::<knot>(5.))
+                .set_tiller_demand(Ratio::new::<ratio>(1.))
+                .run_waiting_for(Duration::from_secs(15));
+
+            assert!(!test_bed.query(|a| a.hydraulics.is_body_wheel_steering_on_yellow_auxiliary()));
+            assert!(test_bed.is_yellow_pressure_switch_pressurised());
+            assert_gt!(
+                test_bed
+                    .get_left_body_steering_steering_ratio()
+                    .get::<ratio>()
+                    .abs(),
+                0.5
+            );
         }
     }
 }
