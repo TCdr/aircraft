@@ -639,6 +639,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FUEL] Weight and balance backup computer: FUEL WEIGHT DATA DISAGREE and FUEL CG DATA DISAGREE against a wrong FMS ZFW or ZFWCG, FUEL EXCESS AFT CG, and the FMS CG backup - @TCdr
 1. [A380X/FWS] FUEL CG AT FWD LIMIT and FUEL CG OUT OF RANGE from the FCOM CG envelope, and the FUEL INR/MID/OUTR/TRIM TK MAN XFR COMPLETED alerts - @TCdr
 1. [A380X/FWS] FUEL FEED TK LEVEL LO: the TRIM TK FEED and transfer pushbutton lines are now shown and ticked - @TCdr
+1. [A380X/FWS] New AVIONICS NETWORK alerts from the AFDX switch and IOM failures: ALL SWITCHES FAULT, DOUBLE / MULTIPLE SWITCH FAULT and DOUBLE / MULTIPLE IOM FAULT (NETWORK or REDUNDANCY DEGRADED) - @TCdr
+1. [A380X/FWS] New COM ATC DATALINK FAULT (CPIOM D1 lost, ATC COM VOICE ONLY), COM ADS DATALINK FAULT, COM NSS DATA TO AVNCS XFR FAULT (pb-sw OFF) and COM NSS/AVNCS DATA XFR FAULT alerts, with new flyPad failures of SCI 1, SCI 2 and the ADS function; both SCIs failed stop the AOC - @TCdr
+1. [A380X/DATALINK] A failed VHF 3 now stops the datalink (CPDLC, AOC) as COM VHF 3 DATALINK FAULT says - @TCdr
 
 ## 2024.1.0
 

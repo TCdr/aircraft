@@ -228,10 +228,18 @@ import {
   cidsAlerts,
   ComTransmissionMonitor,
   datalinkAlerts,
+  informationSystemAlerts,
   isPaInUse,
   readRmpTransmissionKeys,
   RmpTransmissionKeys,
 } from './CommunicationAlerts';
+import {
+  afdxSwitchFlyPadFailure,
+  avionicsNetworkAlerts,
+  isAfdxSwitchFailed,
+  iomFlyPadFailure,
+  isIomFailed,
+} from './AvionicsNetworkAlerts';
 import { fuelTransferMemos, TankOutflowMonitor } from './FuelTransferMemos';
 import {
   CgOutOfRangeMonitor,
@@ -1124,6 +1132,41 @@ export class FwsCore {
 
   /** The PA IN USE memo (CommunicationAlerts isPaInUse) */
   public readonly paInUse = Subject.create(false);
+
+  /* 42 - AVIONICS NETWORK and 46 - INFORMATION SYSTEM (AvionicsNetworkAlerts, CommunicationAlerts) */
+
+  /** AVIONICS NETWORK ALL SWITCHES FAULT */
+  public readonly avncsNetworkAllSwitchesFault = Subject.create(false);
+
+  /** AVIONICS NETWORK DOUBLE SWITCH FAULT */
+  public readonly avncsNetworkDoubleSwitchFault = Subject.create(false);
+
+  /** AVIONICS NETWORK MULTIPLE SWITCH FAULT (NETWORK DEGRADED) */
+  public readonly avncsNetworkMultipleSwitchFaultNetworkDegraded = Subject.create(false);
+
+  /** AVIONICS NETWORK MULTIPLE SWITCH FAULT (REDUNDANCY DEGRADED) */
+  public readonly avncsNetworkMultipleSwitchFaultRedundancyDegraded = Subject.create(false);
+
+  /** AVIONICS NETWORK DOUBLE IOM FAULT */
+  public readonly avncsNetworkDoubleIomFault = Subject.create(false);
+
+  /** AVIONICS NETWORK MULTIPLE IOM FAULT (NETWORK DEGRADED) */
+  public readonly avncsNetworkMultipleIomFaultNetworkDegraded = Subject.create(false);
+
+  /** AVIONICS NETWORK MULTIPLE IOM FAULT (REDUNDANCY DEGRADED) */
+  public readonly avncsNetworkMultipleIomFaultRedundancyDegraded = Subject.create(false);
+
+  /** COM ADS DATALINK FAULT */
+  public readonly comAdsDatalinkFault = Subject.create(false);
+
+  /** COM ATC DATALINK FAULT */
+  public readonly comAtcDatalinkFault = Subject.create(false);
+
+  /** COM NSS DATA TO AVNCS XFR FAULT */
+  public readonly comNssDataToAvncsXfrFault = Subject.create(false);
+
+  /** COM NSS/AVNCS DATA XFR FAULT */
+  public readonly comNssAvncsDataXfrFault = Subject.create(false);
 
   /* 24 - ELECTRICAL */
 
@@ -6197,6 +6240,30 @@ export class FwsCore {
     this.comDatalinkFault.set(datalink.datalinkFault);
     this.vhf3DatalinkFault.set(datalink.vhf3DatalinkFault);
     this.paInUse.set(isPaInUse(this.rmpTransmissionKeys));
+
+    // ATA 42 / 46: the AVIONICS NETWORK alerts and the information system COM alerts
+    const readBoolLvar = (name: string) => SimVar.GetSimVarValue(name, SimVarValueType.Bool) > 0;
+    const avncsNetwork = avionicsNetworkAlerts({
+      switchFailed: (id) => isAfdxSwitchFailed(id, comFailureActive(afdxSwitchFlyPadFailure(id)), readBoolLvar),
+      iomFailed: (name) => isIomFailed(name, comFailureActive(iomFlyPadFailure(name)), readBoolLvar),
+    });
+    this.avncsNetworkAllSwitchesFault.set(avncsNetwork.allSwitchesFault);
+    this.avncsNetworkDoubleSwitchFault.set(avncsNetwork.doubleSwitchFault);
+    this.avncsNetworkMultipleSwitchFaultNetworkDegraded.set(avncsNetwork.multipleSwitchFaultNetworkDegraded);
+    this.avncsNetworkMultipleSwitchFaultRedundancyDegraded.set(avncsNetwork.multipleSwitchFaultRedundancyDegraded);
+    this.avncsNetworkDoubleIomFault.set(avncsNetwork.doubleIomFault);
+    this.avncsNetworkMultipleIomFaultNetworkDegraded.set(avncsNetwork.multipleIomFaultNetworkDegraded);
+    this.avncsNetworkMultipleIomFaultRedundancyDegraded.set(avncsNetwork.multipleIomFaultRedundancyDegraded);
+    const infoSys = informationSystemAlerts({
+      cpiomD1Available: readBoolLvar('L:A32NX_CPIOM_D1_AVAIL'),
+      adsFunctionFailed: comFailureActive(A380Failure.AdsFunction),
+      nssDataToAvncsPbOff: !readBoolLvar('L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE'),
+      sciFailed: [comFailureActive(A380Failure.Sci1), comFailureActive(A380Failure.Sci2)],
+    });
+    this.comAdsDatalinkFault.set(infoSys.adsDatalinkFault);
+    this.comAtcDatalinkFault.set(infoSys.atcDatalinkFault);
+    this.comNssDataToAvncsXfrFault.set(infoSys.nssDataToAvncsXfrFault);
+    this.comNssAvncsDataXfrFault.set(infoSys.nssAvncsDataXfrFault);
 
     /* FUEL */
     // Feed tanks 1 to 4 = MSFS tanks 2, 5, 6 and 9, each with its own 30 s confirmation (FeedTankLevelLoMonitor)

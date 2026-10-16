@@ -19,6 +19,15 @@ import {
   readRmpTransmissionKeys,
   RmpTransmissionKeys,
   VHF3_DATALINK_FAULT_INOP_SYS,
+  ADS_DATALINK_FAULT_INOP_SYS,
+  ATC_DATALINK_FAULT_INOP_SYS,
+  ATC_DATALINK_FAULT_LIMITATIONS,
+  INFO_SYS_ALERT_IDS,
+  INFO_SYS_ALERT_PHASE_INHIBITION,
+  informationSystemAlerts,
+  InformationSystemInputs,
+  NSS_AVNCS_DATA_XFR_FAULT_INOP_SYS,
+  NSS_DATA_TO_AVNCS_XFR_FAULT_INOP_SYS,
 } from './CommunicationAlerts';
 
 /* The wiring is read from the source text, as FwsAbnormalSensedItems.spec.ts does (EcamMessages import cycle). */
@@ -247,6 +256,89 @@ describe('COM alerts wiring', () => {
     ]) {
       expect(failures, `${name}`).toContain(`  ${name}: ${id},`);
       expect(failures, `${name}`).toContain(`  [23, A380Failure.${name}, '`);
+    }
+  });
+});
+
+describe('ATA 46 information system COM alerts (PRO-ABN-ECAM-10-46 l.169812-169959)', () => {
+  const normal: InformationSystemInputs = {
+    cpiomD1Available: true,
+    adsFunctionFailed: false,
+    nssDataToAvncsPbOff: false,
+    sciFailed: [false, false],
+  };
+  const ata46 = readFileSync(resolve(__dirname, messagesDir, 'AbnormalSensed/ata46-49-52-56.ts'), 'utf-8');
+
+  it('no alert in the normal state', () => {
+    expect(informationSystemAlerts(normal)).toEqual({
+      adsDatalinkFault: false,
+      atcDatalinkFault: false,
+      nssDataToAvncsXfrFault: false,
+      nssAvncsDataXfrFault: false,
+    });
+  });
+
+  it('COM ATC DATALINK FAULT when CPIOM D1 (the ATC applications) is lost, the ADS stops with it (l.169848, 158377)', () => {
+    const alerts = informationSystemAlerts({ ...normal, cpiomD1Available: false });
+    expect(alerts.atcDatalinkFault).toBe(true);
+    expect(alerts.adsDatalinkFault).toBe(true);
+  });
+
+  it('COM ADS DATALINK FAULT alone when only the ADS function is stopped (l.169820)', () => {
+    const alerts = informationSystemAlerts({ ...normal, adsFunctionFailed: true });
+    expect(alerts.adsDatalinkFault).toBe(true);
+    expect(alerts.atcDatalinkFault).toBe(false);
+  });
+
+  it('COM NSS DATA TO AVNCS XFR FAULT with the pb-sw OFF (l.169906)', () => {
+    expect(informationSystemAlerts({ ...normal, nssDataToAvncsPbOff: true }).nssDataToAvncsXfrFault).toBe(true);
+  });
+
+  it('COM NSS/AVNCS DATA XFR FAULT only with both SCIs lost (l.169942)', () => {
+    expect(informationSystemAlerts({ ...normal, sciFailed: [true, false] }).nssAvncsDataXfrFault).toBe(false);
+    expect(informationSystemAlerts({ ...normal, sciFailed: [false, true] }).nssAvncsDataXfrFault).toBe(false);
+    expect(informationSystemAlerts({ ...normal, sciFailed: [true, true] }).nssAvncsDataXfrFault).toBe(true);
+  });
+
+  it('uses the flight phase inhibition of the FCOM figures (PDF p.5719, 5720, 5722, 5723)', () => {
+    expect(INFO_SYS_ALERT_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 9, 10]);
+  });
+
+  it('defines the alerts, INOP SYS and the ATC COM VOICE ONLY limitation', () => {
+    for (const id of Object.values(INFO_SYS_ALERT_IDS)) {
+      expect(ata46.indexOf(`  ${id}: {`), id).toBeGreaterThan(0);
+    }
+    expect(ata46).toContain("title: '\\x1b<4m\\x1b4mCOM\\x1bm ATC DATALINK FAULT',");
+    expect(messageIndex).toContain(`${ADS_DATALINK_FAULT_INOP_SYS[0]}: '\\x1b<4mADS DATALINK',`);
+    expect(messageIndex).toContain(`${ATC_DATALINK_FAULT_INOP_SYS[0]}: '\\x1b<4mATC DATALINK',`);
+    expect(messageIndex).toContain(`${NSS_DATA_TO_AVNCS_XFR_FAULT_INOP_SYS[0]}: '\\x1b<4mNSS DATA TO AVNCS',`);
+    expect(messageIndex).toContain(`${NSS_AVNCS_DATA_XFR_FAULT_INOP_SYS[0]}: '\\x1b<4mNSS/AVNCS DATA XFR',`);
+    expect(messageIndex).toContain(`${ATC_DATALINK_FAULT_LIMITATIONS[0]}: '\\x1b<5mATC COM VOICE ONLY',`);
+  });
+
+  it('is wired in FwsCore and FwsAbnormalSensed, the ADS and NSS alerts give way to the wider ones', () => {
+    const infoSysAlerts = abnormalSensed.slice(
+      abnormalSensed.indexOf('  private informationSystemAlerts(): EwdAbnormalDict {'),
+    );
+    expect(abnormalSensed).toContain('    ...this.informationSystemAlerts(),');
+    expect(infoSysAlerts).toContain('notActiveWhenItemActive: [ids.atcDatalinkFault],');
+    expect(infoSysAlerts).toContain('notActiveWhenItemActive: [ids.nssAvncsDataXfrFault],');
+    expect(infoSysAlerts).toContain('limitationsAllPhases: () => ATC_DATALINK_FAULT_LIMITATIONS,');
+    expect(fwsCore).toContain("cpiomD1Available: readBoolLvar('L:A32NX_CPIOM_D1_AVAIL'),");
+    expect(fwsCore).toContain("nssDataToAvncsPbOff: !readBoolLvar('L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE'),");
+    for (const failure of ['AdsFunction', 'Sci1', 'Sci2']) {
+      expect(fwsCore, failure).toContain(`A380Failure.${failure}`);
+    }
+  });
+
+  it('lists the SCI and ADS flyPad failures in ATA 46', () => {
+    for (const [name, id] of [
+      ['Sci1', 46008],
+      ['Sci2', 46009],
+      ['AdsFunction', 46010],
+    ]) {
+      expect(failures, `${name}`).toContain(`  ${name}: ${id},`);
+      expect(failures, `${name}`).toContain(`  [46, A380Failure.${name}, '`);
     }
   });
 });
