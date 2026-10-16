@@ -281,6 +281,11 @@ pub enum FailureType {
     FadecChannelB(usize),
     /// The FADEC of engine n detects a high temperature
     FadecOverheat(usize),
+    /// The FADEC of engine n overheats and shuts the engine down (A380 ENG FAIL "FADEC OVHT")
+    FadecOverheatShutdown(usize),
+    /// The FADEC of engine n detects an overthrust (A380 overthrust protection: ENG FAIL "THRUST
+    /// CTL LOST" on ground, CTL SYS FAULT fuel cutback in flight)
+    EngineOverthrust(usize),
     /// The FADEC of engine n cannot communicate via the avionics networks (A380 ENG FADEC FAULT)
     FadecNetworkLink(usize),
     /// A FADEC failure of engine n affects the engine control (A380 ENG FADEC SYS FAULT)

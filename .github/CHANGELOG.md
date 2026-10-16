@@ -726,6 +726,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] COND page: red cargo SMOKE (forward, aft/bulk) and avionics bay SMOKE from the smoke detection - @TCdr
 1. [A380X/SD] ELEC AC page: GALLEY SHED, GALLEY PARTIALLY SHED, COMMERCIAL OFF and COMMERCIAL PARTIALLY SHED legends, engine generator DISC (drive disconnected) and OVHT (above 185 C), generator loads amber only after 10 s above 108 % - @TCdr
 1. [A380X/SD] APU page: pulsing OIL LVL LO on ground with its flyPad failure (APU oil level low); the APU generator load is amber only after 10 s above 108 % and the voltage and frequency colours are no longer swapped - @TCdr
+1. [A380X/FWS] New FADEC alerts from the engine failures: ENG CTL SYS FAULT (with THR LEVER IDLE / ENG MASTER OFF on ground), CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS and OIL SYS CONTAMINATION, ENG TYPE DISAGREE, ENG 2(3) REVERSER INHIBITED (with its BTV and reverser INOP SYS) and REVERSER MINOR FAULT, with the FCOM flight phase inhibitions - @TCdr
+1. [A380X/ENG] New flyPad failures "Engine n FADEC overheat (engine shutdown)" and "Engine n overthrust (thrust control lost)": the FADEC shuts the engine down without automatic relight and ENG FAIL shows the FADEC OVHT or THRUST CTL LOST lines; in flight below 15 000 ft the overthrust protection gives ENG CTL SYS FAULT - @TCdr
+1. [A380X/FWS] AIR APU BLEED FAULT also triggers when the APU bleed valve is abnormally open or closed (new flyPad failures "APU bleed valve stuck closed / open") - @TCdr
+1. [A380X/FWS] The amber attention box of an engine also comes up with a red oil pressure, an amber oil temperature, an amber CLOGGED or an amber REV indication - @TCdr
+1. [A380X/FWS] L/G GRVTY EXTN memo after a gravity extension, and STATUS INOP SYS ENG n BLEED also for a bleed fault, a bleed leak or the ENG BLEED pb-sw OFF - @TCdr
+1. [A380X/FWS] WHEEL TIRE PRESS LO from the TPIS tire pressures (low tire, or two tires of an axle too different) - @TCdr
 
 ## 2024.1.0
 

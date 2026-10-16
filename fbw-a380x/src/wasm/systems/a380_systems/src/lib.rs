@@ -3,6 +3,7 @@ extern crate systems;
 mod air_conditioning;
 mod air_data_monitoring;
 mod airframe;
+mod apu_bleed_air_valve;
 mod avionics_data_communication_network;
 mod control_display_system;
 mod electrical;
@@ -11,6 +12,7 @@ mod engine_failure;
 mod engine_malfunction;
 #[cfg(test)]
 mod engine_out_aircraft_tests;
+mod fadec_automatic_shutdown;
 mod fire_and_smoke_protection;
 mod fuel;
 pub mod hydraulic;
