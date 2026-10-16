@@ -304,6 +304,12 @@ pub enum FailureType {
     /// The thrust reverser control system of engine n is failed: the reverser is inoperative (A380
     /// REVERSER CTL FAULT)
     ReverserControlFault(usize),
+    /// The FADEC of engine n detects a reverser failure that does not impair the reverser
+    /// operation (A380 REVERSER MINOR FAULT): alert only
+    ReverserMinorFault(usize),
+    /// The thrust reverser of engine n is inhibited by maintenance action: it does not deploy (A380
+    /// REVERSER INHIBITED)
+    ReverserInhibited(usize),
     // ATA49: the APU electronic control box (ECB) shuts the APU down (apu::electronic_control_box)
     /// The APU ECB is failed
     ApuElectronicControlBox,

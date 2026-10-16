@@ -650,6 +650,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SURV] With the selected TAWS failed and the other WXR failed, the TAWS (GPWS, terrain on ND and VD) comes from the other SURV system - @TCdr
 1. [A380X/MFD] POSITION / IRS: the ALIGN ON OTHER REF panel defines the IRS alignment reference position (PREFLIGHT and DONE phases) - @TCdr
 1. [A380X/MFD] Alternate company routes: ALTN RTE entry on the INIT page and INSERT on the ROUTE SELECTION page, with the DEST / ALTN CPNY RTE DISAGREE message; the ALTERNATE page selection creates a temporary flight plan - @TCdr
+1. [A380X/ENG] Derated takeoff: the MFD PERF T.O DERATED list has the six levels D04 to D24, the selected level reduces the takeoff thrust at the FLX/MCT detent by 4 to 24 % and shows on the E/WD in place of FLX - @TCdr
+1. [A380X/REV] The tertiary lock of the thrust reversers is only released on the ground - @TCdr
+1. [A380X/ENG] The start valve no longer opens for a start with the core above 25 % N2 (no running engagement of the starter) - @TCdr
+1. [A380X/ENG] Both igniters come on when the engine is at idle in heavy rain (SD ENGINE page) - @TCdr
+1. [A380X/ENG] New flyPad failures: engine control system fault, control valve, FADEC engine identification, fuel and oil filter bypass, thrust rating disagree, reverser minor fault and reverser inhibited by maintenance - @TCdr
 
 ## 2024.1.0
 

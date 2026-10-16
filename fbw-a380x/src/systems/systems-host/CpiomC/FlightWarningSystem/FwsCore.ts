@@ -2928,6 +2928,9 @@ export class FwsCore {
   /** The take-off thrust mode of the FADECs is FLEX, for the lines of ENG THR LEVERS NOT SET (EngineTakeoffAlerts.ts) */
   public readonly flexTakeoffMode = Subject.create(false);
 
+  /** A DOx derated takeoff is selected on the MFD (L:A32NX_AIRLINER_TO_DERATE), for ENG THR LEVERS NOT SET */
+  public readonly derateTakeoffMode = Subject.create(false);
+
   /** ENG 1(2)(3)(4) THRUST LOSS, by engine (EngineThrustAlerts.ts) */
   public readonly engineThrustLoss = [1, 2, 3, 4].map(() => Subject.create(false));
 
@@ -5406,6 +5409,7 @@ export class FwsCore {
         SimVar.GetSimVarValue('TOTAL AIR TEMPERATURE', 'celsius'),
       ),
     );
+    this.derateTakeoffMode.set(SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_DERATE', 'number') > 0);
     this.thrustLeverNotSet.set(
       isThrustLeversNotSet({
         tlaDegrees: [
@@ -5421,6 +5425,7 @@ export class FwsCore {
           this.engine4State.get(),
         ] as FadecEngineState[],
         flexTakeoffMode: this.flexTakeoffMode.get(),
+        derateTakeoffMode: this.derateTakeoffMode.get(),
       }),
     );
     // ENG THRUST LOSS and ENG T.O THRUST DISAGREE (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): the max THR and the

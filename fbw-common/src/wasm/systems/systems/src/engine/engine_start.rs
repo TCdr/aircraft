@@ -99,6 +99,27 @@ pub struct EngineStartSchedule {
     /// [`EngineStartInputs::engine_thermal_state`] 0) or above this pressure altitude: the FADEC
     /// adds the second igniter once the engine has lit up. None: the single igniter stays alone.
     pub second_igniter_at_light_up_cold_or_above: Option<Length>,
+    /// The starter can only engage while the core turns at or below this N2 (no "running
+    /// engagement" above it): a start valve that is not open yet stays closed above it. Once
+    /// engaged, the starter turns the core up to [`Self::start_valve_close_n2`]. None: no limit.
+    pub starter_engagement_max_n2: Option<Ratio>,
+    /// On the ground, the quick relight of the FADEC: the ENG MASTER set back to ON within a short
+    /// time of being set to OFF with the core still fast is no start sequence (the FADEC gives the
+    /// fuel at once). None: only a core above [`Self::automatic_start_ignition_off_n2`] skips the
+    /// start sequence.
+    pub ground_quick_relight: Option<QuickRelightSchedule>,
+    /// An automatic start on the ground is also aborted for an abnormal start valve position (dry
+    /// crank, then the new attempts) and for the starter time exceedance (no further attempt).
+    pub aborts_for_start_valve_and_starter_time: bool,
+}
+
+/// The quick relight function of a FADEC: the ENG MASTER cycled from ON to OFF and back to ON
+/// within [`Self::max_master_off_time`] while the engine was running, with the core above
+/// [`Self::min_core_speed`].
+#[derive(Clone, Copy, Debug)]
+pub struct QuickRelightSchedule {
+    pub max_master_off_time: Duration,
+    pub min_core_speed: Ratio,
 }
 
 /// The phase of the start sequence, written as ENGINE_n_START_PHASE.
@@ -205,6 +226,18 @@ impl Igniters {
     }
 }
 
+/// The starter may be engaged this update: it already is (it stays engaged up to the start valve
+/// closing), or the core turns at or below the engagement limit of the schedule
+/// ([`EngineStartSchedule::starter_engagement_max_n2`]). A380 FCOM LIM-70 STARTER (a380_fcom.txt
+/// l.189735): "If the N2 is above 25 %, no running engagement of the starter is possible."
+pub fn starter_can_engage(
+    already_engaged: bool,
+    core_speed: Ratio,
+    engagement_max_core_speed: Option<Ratio>,
+) -> bool {
+    already_engaged || engagement_max_core_speed.is_none_or(|max| core_speed <= max)
+}
+
 /// What the aircraft knows about one engine, read from its own variables.
 #[derive(Clone, Copy, Debug)]
 pub struct EngineStartInputs {
@@ -238,6 +271,9 @@ pub struct EngineStartInputs {
     /// The residual heat of the engine core, from 0 (cold) to 1 (just shut down): it sets the
     /// pre-start motoring time ([`EngineStartSchedule::max_pre_start_motoring_time`]).
     pub engine_thermal_state: f64,
+    /// The FADEC detects an abnormal start valve position: its position disagrees with its command
+    /// (`EngineStartValveSupervision`, START VLV FAULT).
+    pub start_valve_position_abnormal: bool,
 }
 
 pub struct EngineStartSequence {
@@ -265,6 +301,16 @@ pub struct EngineStartSequence {
 
     /// None until the first update, so that a flight loaded with the master ON is no transition.
     previous_master_switch_is_on: Option<bool>,
+    /// How long the ENG MASTER has been OFF (the quick relight of [`EngineStartSchedule::ground_quick_relight`]).
+    master_off_time: Duration,
+    /// The ENG MASTER was set to OFF while the engine was running (quick relight).
+    master_off_while_running: bool,
+    /// The engine was running (FBW engine state ON) in the previous update.
+    engine_was_running: bool,
+    /// The start sequence has engaged the starter (start valve commanded open): it stays engaged up
+    /// to the start valve closing N2 although the core passes the engagement limit
+    /// ([`EngineStartSchedule::starter_engagement_max_n2`]).
+    starter_engaged: bool,
     phase: EngineStartPhase,
     /// The attempt of the current start (1 for the first one).
     attempt: u8,
@@ -364,6 +410,10 @@ impl EngineStartSequence {
             start_valve_command_id: id(context, "START_VALVE_COMMAND"),
 
             previous_master_switch_is_on: None,
+            master_off_time: Duration::ZERO,
+            master_off_while_running: false,
+            engine_was_running: false,
+            starter_engaged: false,
             phase: EngineStartPhase::None,
             attempt: 0,
             manual_start: false,
@@ -413,6 +463,14 @@ impl EngineStartSequence {
         let master_turned_off =
             !inputs.master_switch_is_on && self.previous_master_switch_is_on == Some(true);
         self.previous_master_switch_is_on = Some(inputs.master_switch_is_on);
+        if master_turned_off {
+            self.master_off_time = Duration::ZERO;
+            self.master_off_while_running =
+                self.engine_was_running || inputs.engine_state == EngineState::On;
+        } else if !inputs.master_switch_is_on {
+            self.master_off_time += context.delta();
+        }
+        self.engine_was_running = inputs.engine_state == EngineState::On;
         let touched_down = on_ground && self.previous_on_ground == Some(false);
         self.previous_on_ground = Some(on_ground);
 
@@ -474,13 +532,18 @@ impl EngineStartSequence {
         // frame of its phase: the engine state of the FADEC (the schedule of the pneumatic system)
         // follows one frame later, and a start valve closed for a frame would release the starter.
         let below_start_valve_closing = inputs.core_speed < schedule.start_valve_close_n2;
+        let starter_can_engage = starter_can_engage(
+            self.starter_engaged,
+            inputs.core_speed,
+            schedule.starter_engagement_max_n2,
+        );
         self.start_valve_command = match self.phase {
             EngineStartPhase::None => StartValveCommand::FadecSchedule,
             EngineStartPhase::Motoring
             | EngineStartPhase::Starting
             | EngineStartPhase::WetCrank
             | EngineStartPhase::AutomaticCrank
-                if below_start_valve_closing =>
+                if below_start_valve_closing && starter_can_engage =>
             {
                 StartValveCommand::Open
             }
@@ -490,6 +553,7 @@ impl EngineStartSequence {
             | EngineStartPhase::AutomaticCrank
             | EngineStartPhase::Aborted => StartValveCommand::Closed,
         };
+        self.starter_engaged = self.start_valve_command == StartValveCommand::Open;
 
         // On the ground the continuous ignition needs the ENG MODE selector set to NORM then back to
         // IGN/START after the start (see continuous_ignition_is_on).
@@ -541,6 +605,7 @@ impl EngineStartSequence {
         // ignition of an automatic start.
         let no_start_sequence = inputs.engine_state == EngineState::On
             || inputs.core_speed >= schedule.automatic_start_ignition_off_n2
+            || self.is_quick_relight(schedule, inputs)
             || inputs.preset_quick_mode;
         self.phase = if no_start_sequence {
             EngineStartPhase::None
@@ -567,6 +632,22 @@ impl EngineStartSequence {
                 _ => EngineStartPhase::None,
             }
         };
+    }
+
+    /// The ENG MASTER is set back to ON for a quick relight of the FADEC: A380 FCOM DSC-70-80-30-20
+    /// QUICK RELIGHT FUNCTION (a380_fcom.txt l.112539-112545): "In the event of an inadvertent
+    /// cycling of the ENG MASTER lever with the engine running, from ON position to OFF, then back to
+    /// ON within 30 s, the FADEC automatically selects the continuous ignition with both igniters. The
+    /// quick relight function immediately opens the FMV. ... available provided that N2 is greater
+    /// than 45 %". The fuel comes at once (the HP fuel valve of the aircraft), with no start
+    /// sequence: before 2026-10-13 a quick relight from 45 % to 58 % N2 ran a normal automatic start
+    /// on the ground (one igniter, start valve opened at that N2).
+    fn is_quick_relight(&self, schedule: &EngineStartSchedule, inputs: &EngineStartInputs) -> bool {
+        schedule.ground_quick_relight.is_some_and(|quick_relight| {
+            self.master_off_while_running
+                && self.master_off_time <= quick_relight.max_master_off_time
+                && inputs.core_speed > quick_relight.min_core_speed
+        })
     }
 
     /// The pre-start motoring (dry crank) of an automatic start on the ground, from the residual
@@ -731,10 +812,20 @@ impl EngineStartSequence {
         }
 
         let fault = self.detect_start_fault(delta, schedule, inputs);
-        if fault == EngineStartFault::None {
+        // A380 FCOM DSC-70-80-30-20 (l.112476-112489): the FADEC monitors "Engine start valve
+        // abnormal position" with the other faults of the list and "interrupts the start sequence and
+        // initiates two further attempts of automatic start sequence after cranking". The START VLV
+        // FAULT alert has its own variable (EngineStartValveSupervision): no start fault is reported.
+        // A valve stuck closed stays abnormal through the crank, so the new attempts end at once and
+        // the third one aborts the start.
+        let start_valve_abnormal = schedule.aborts_for_start_valve_and_starter_time
+            && inputs.start_valve_position_abnormal;
+        if fault == EngineStartFault::None && !start_valve_abnormal {
             return;
         }
-        self.start_fault = fault;
+        if fault != EngineStartFault::None {
+            self.start_fault = fault;
+        }
 
         // On the ground, an automatic start is not aborted once the core is past the end of the
         // start (A380 FCOM l.112500: "On ground, automatic start is not aborted, when N2 is above
@@ -775,7 +866,7 @@ impl EngineStartSequence {
                 self.phase = EngineStartPhase::AutomaticCrank;
                 self.automatic_crank_time = Duration::ZERO;
             }
-        } else if fault.aborts_an_automatic_start() {
+        } else if fault.aborts_an_automatic_start() || start_valve_abnormal {
             // A320 FCOM PRO-ABN-ENG (l.81403-81404): "After any start attempt that is not
             // successful, a dry crank phase automatically occurs"; A380 FCOM l.112489: "initiates two
             // further attempts of automatic start sequence after cranking".
@@ -954,6 +1045,17 @@ impl EngineStartSequence {
             && self.start_fault == EngineStartFault::None
         {
             self.start_fault = EngineStartFault::StarterTimeExceeded;
+            // A380 FCOM DSC-70-80-30-20 (l.112476-112493): the FADEC aborts an automatic start for
+            // an "Engine starter engagement time exceedance". Design choice: without further attempt.
+            // The starter-on time only resets with the ENG MASTER OFF (LIM-70 l.189727-189728), so a
+            // new attempt would exceed it at once, and the ECAM procedure of STARTER TIME EXCEEDED
+            // (l.173005-173010) ends with the ENG MASTER OFF without NEW START IN PROGRESS.
+            let automatic_start_abortable = starting
+                && !self.manual_start
+                && inputs.core_speed < schedule.start_abort_inhibition_n2;
+            if schedule.aborts_for_start_valve_and_starter_time && automatic_start_abortable {
+                self.abort_start();
+            }
         }
 
         self.condition_fault =
@@ -1310,7 +1412,24 @@ mod tests {
             starter_fault_detected_in_flight: false,
             max_pre_start_motoring_time: Duration::from_secs(60),
             second_igniter_at_light_up_cold_or_above: None,
+            starter_engagement_max_n2: None,
+            ground_quick_relight: None,
+            aborts_for_start_valve_and_starter_time: false,
         }
+    }
+
+    /// The A380 FCOM rules of 2026-10-13 on top of the A320-like schedule: no running engagement of
+    /// the starter above 25 % N2 (LIM-70 l.189735), the ground quick relight (30 s, 45 % N2,
+    /// DSC-70-80-30-20 l.112539-112545), and the abort for the start valve and the starter time
+    /// (l.112476-112493), with the 5 min starter time limit (l.189725-189726).
+    fn with_a380_rules(schedule: &mut EngineStartSchedule) {
+        schedule.starter_engagement_max_n2 = Some(Ratio::new::<percent>(25.));
+        schedule.ground_quick_relight = Some(QuickRelightSchedule {
+            max_master_off_time: Duration::from_secs(30),
+            min_core_speed: Ratio::new::<percent>(45.),
+        });
+        schedule.aborts_for_start_valve_and_starter_time = true;
+        schedule.starter_time_limit = Some(Duration::from_secs(5 * 60));
     }
 
     struct TestAircraft {
@@ -1340,6 +1459,7 @@ mod tests {
                     hp_fuel_valve_stuck_closed: false,
                     other_fault_light_conditions: false,
                     engine_thermal_state: 0.,
+                    start_valve_position_abnormal: false,
                 },
             }
         }
@@ -1878,6 +1998,144 @@ mod tests {
 
         test_bed = test_bed.n2(49.).and_run_for(Duration::from_secs(3));
         assert_eq!(test_bed.fault(), EngineStartFault::StarterTimeExceeded);
+        assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
+    }
+
+    /// A380 FCOM DSC-70-80-30-20 (l.112476-112493): the starter engagement time exceedance aborts
+    /// an automatic start on the ground, without further attempt (see update_condition_faults).
+    #[test]
+    fn the_starter_time_exceedance_aborts_an_automatic_start_without_new_attempt() {
+        let mut test_bed = StartTestBed::new()
+            .with_schedule(with_a380_rules)
+            .automatic_start()
+            .core_at_light_up_speed();
+        // a slow start that keeps rising (no hung start) below the start valve closing, for 5 min
+        for step in 0..300 {
+            test_bed = test_bed
+                .n2(25. + step as f64 * 0.08)
+                .and_run_for(Duration::from_secs(1));
+        }
+        test_bed = test_bed.and_run_for(Duration::from_secs(3));
+
+        assert_eq!(test_bed.fault(), EngineStartFault::StarterTimeExceeded);
+        assert_eq!(test_bed.phase(), EngineStartPhase::Aborted);
+        assert_eq!(test_bed.valve_command(), StartValveCommand::Closed);
+        assert!(test_bed.fuel_is_cut());
+        assert!(test_bed.fault_light());
+        assert_eq!(test_bed.attempt(), 1);
+    }
+
+    /// A380 FCOM DSC-70-80-30-20 (l.112476-112489): an "Engine start valve abnormal position"
+    /// interrupts the start, which is cranked and attempted twice more, then aborted.
+    #[test]
+    fn an_abnormal_start_valve_position_cranks_then_aborts_after_the_new_attempts() {
+        let mut test_bed = StartTestBed::new()
+            .with_schedule(with_a380_rules)
+            .automatic_start()
+            // the valve stays closed although commanded open (START VLV FAULT NOT OPEN)
+            .valve_open(false)
+            .n2(0.)
+            .with(|inputs| inputs.start_valve_position_abnormal = true)
+            .and_run();
+        assert_eq!(test_bed.phase(), EngineStartPhase::AutomaticCrank);
+        assert!(!test_bed.fault_light());
+
+        test_bed = test_bed.and_run_for(Duration::from_secs(31));
+        assert_eq!(test_bed.attempt(), 2);
+        assert_eq!(test_bed.phase(), EngineStartPhase::AutomaticCrank);
+
+        test_bed = test_bed.and_run_for(Duration::from_secs(62));
+        assert_eq!(test_bed.phase(), EngineStartPhase::Aborted);
+        assert!(test_bed.fault_light());
+    }
+
+    #[test]
+    fn an_abnormal_start_valve_position_does_not_abort_without_the_a380_rule() {
+        let test_bed = StartTestBed::new()
+            .automatic_start()
+            .valve_open(false)
+            .n2(0.)
+            .with(|inputs| inputs.start_valve_position_abnormal = true)
+            .and_run_for(Duration::from_secs(5));
+        assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
+    }
+
+    /// A380 FCOM LIM-70 STARTER (l.189735): "If the N2 is above 25 %, no running engagement of the
+    /// starter is possible."
+    #[test]
+    fn the_starter_does_not_engage_while_the_core_turns_above_25_percent() {
+        let mut test_bed = StartTestBed::new()
+            .with_schedule(with_a380_rules)
+            .selector(EngineModeSelector::Ignition)
+            .n2(30.)
+            .master(true)
+            .engine_state(EngineState::Starting)
+            .and_run();
+        assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
+        assert_eq!(test_bed.valve_command(), StartValveCommand::Closed);
+
+        // the core runs down to 25 %: the starter engages, and stays engaged above 25 %
+        test_bed = test_bed.n2(25.).and_run();
+        assert_eq!(test_bed.valve_command(), StartValveCommand::Open);
+        test_bed = test_bed.n2(40.).and_run();
+        assert_eq!(test_bed.valve_command(), StartValveCommand::Open);
+    }
+
+    #[test]
+    fn a_start_from_a_stopped_core_engages_the_starter_with_the_engagement_limit() {
+        let test_bed = StartTestBed::new()
+            .with_schedule(with_a380_rules)
+            .automatic_start();
+        assert_eq!(test_bed.valve_command(), StartValveCommand::Open);
+    }
+
+    #[test]
+    fn the_engagement_limit_is_a_pure_rule() {
+        let limit = Some(Ratio::new::<percent>(25.));
+        assert!(starter_can_engage(false, Ratio::new::<percent>(25.), limit));
+        assert!(!starter_can_engage(
+            false,
+            Ratio::new::<percent>(25.1),
+            limit
+        ));
+        assert!(starter_can_engage(true, Ratio::new::<percent>(40.), limit));
+        assert!(starter_can_engage(false, Ratio::new::<percent>(40.), None));
+    }
+
+    /// Engine running at IGN START, the ENG MASTER set to OFF, the core spinning down to `n2`, then
+    /// the ENG MASTER set back to ON after `master_off`.
+    fn master_cycled(master_off: Duration, n2: f64) -> StartTestBed {
+        StartTestBed::new()
+            .with_schedule(with_a380_rules)
+            .selector(EngineModeSelector::Ignition)
+            .engine_state(EngineState::On)
+            .n2(70.)
+            .master(true)
+            .master(false)
+            .engine_state(EngineState::Shutting)
+            .n2(n2)
+            .and_run_for(master_off)
+            .master(true)
+    }
+
+    /// A380 FCOM DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112545): ENG MASTER ON to OFF then
+    /// back to ON within 30 s, N2 above 45 %: "The quick relight function immediately opens the FMV".
+    #[test]
+    fn a_quick_relight_on_the_ground_gives_the_fuel_at_once_without_start_sequence() {
+        // 48 %: above the 45 % of the quick relight, below the end of the ignition (50 % in this
+        // schedule), which alone skipped the start sequence before
+        let test_bed = master_cycled(Duration::from_secs(10), 48.);
+        assert_eq!(test_bed.phase(), EngineStartPhase::None);
+        assert!(!test_bed.fuel_is_cut());
+        assert_eq!(test_bed.valve_command(), StartValveCommand::FadecSchedule);
+    }
+
+    #[test]
+    fn no_quick_relight_after_30_s_or_below_45_percent_n2() {
+        let test_bed = master_cycled(Duration::from_secs(35), 48.);
+        assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
+
+        let test_bed = master_cycled(Duration::from_secs(10), 44.);
         assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
     }
 

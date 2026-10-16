@@ -84,15 +84,22 @@ use systems::{
 
 /// The FADEC faults of the A380 FCOM that have no engine model effect (PRO-ABN-ECAM-10-70,
 /// a380_fcom.txt): ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP
-/// DETECTED, MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT (see
+/// DETECTED, MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT, CTL SYS FAULT, CTL VLV FAULT, FADEC
+/// IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE (see
 /// systems::engine::engine_monitoring_fault and the FWS EngineMonitoringAlerts.ts).
-const A380_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 6] = [
+const A380_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 12] = [
     EngineMonitoringFaultKind::FuelStrainerClog,
     EngineMonitoringFaultKind::FuelFilterMonitoring,
     EngineMonitoringFaultKind::OilChip,
     EngineMonitoringFaultKind::MinorFault,
     EngineMonitoringFaultKind::OverthrustProtection,
     EngineMonitoringFaultKind::Sensors,
+    EngineMonitoringFaultKind::ControlSystem,
+    EngineMonitoringFaultKind::ControlValve,
+    EngineMonitoringFaultKind::FadecIdent,
+    EngineMonitoringFaultKind::FuelSystemContamination,
+    EngineMonitoringFaultKind::OilSystemContamination,
+    EngineMonitoringFaultKind::ThrustRatingDisagree,
 ];
 
 pub struct A380 {

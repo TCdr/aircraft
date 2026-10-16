@@ -26,6 +26,12 @@
  * 2. A + B when the FADEC selects both igniters by itself (EngineIgnition_A380X): the auto relight after a flameout
  *    (l.112533-112537 "continuous ignition with both igniters is automatically selected. The ignition is maintained for 60 s
  *    after engine relight") or an in-flight relight that lights up.
+ * 2b. A + B in ADVERSE WEATHER (DSC-70-20-20 l.111476-111478): "if the FADEC detects a risk of engine flameout due to
+ *    excessive rain or hail at low engine power (i.e. idle), the FADEC automatically switches on both igniters", for a
+ *    running engine. Design choices, the FCOM gives no number: excessive rain is a precipitation rate (AMBIENT PRECIP
+ *    RATE, MSFS has no hail) of HEAVY_PRECIPITATION_MM_PER_HOUR or more, the red level of the weather radar (ARINC 708,
+ *    fbw-common ndwxr constants.h kRedFromMmH); low power is an N1 within IDLE_POWER_N1_MARGIN of the idle N1 of the
+ *    FADEC.
  * 3. A + B for the QUICK RELIGHT: the ENG MASTER lever set back to ON within QUICK_RELIGHT_MAX_MASTER_OFF_SECONDS of being set
  *    to OFF with the engine running, with N2 above QUICK_RELIGHT_MIN_N3 (DSC-70-80-20 l.112384-112387 and DSC-70-90
  *    l.112541-112545), for QUICK_RELIGHT_HOLD_SECONDS (l.112397-112398: "The FADEC maintains both igniters for 60 s after
@@ -62,6 +68,9 @@ class IgniterSelection_A380X {
   static constexpr double QUICK_RELIGHT_MAX_MASTER_OFF_SECONDS = 30.0;
   static constexpr double QUICK_RELIGHT_MIN_N3                 = 45.0;
   static constexpr double QUICK_RELIGHT_HOLD_SECONDS           = 60.0;
+  /// Design choices of the adverse weather protection (see the class comment, 2b).
+  static constexpr double HEAVY_PRECIPITATION_MM_PER_HOUR = 12.0;
+  static constexpr double IDLE_POWER_N1_MARGIN            = 3.0;
 
   struct Igniters {
     bool a;
@@ -81,6 +90,8 @@ class IgniterSelection_A380X {
     double n3Percent;          // FBW N3 (A32NX_ENGINE_N3): the HP spool, the "N2" of the FCOM
     double n1Percent;          // FBW N1 (A32NX_ENGINE_N1)
     double deltaTime;          // seconds since the previous update
+    double precipitationRateMmPerHour;  // AMBIENT PRECIP RATE (rain; MSFS has no hail)
+    double idleN1Percent;               // the idle N1 of the FADEC (A32NX_ENGINE_IDLE_N1)
   };
 
   /**
@@ -115,6 +126,9 @@ class IgniterSelection_A380X {
     if (inputs.fadecBothIgniters || quickRelightRemainingSeconds > 0.0) {
       return BOTH;
     }
+    if (inputs.engineRunning && heavyPrecipitationAtLowPower(inputs)) {
+      return BOTH;
+    }
     if (inputs.simOnGround && (inputs.engineStarting || inputs.startSequenceActive)) {
       // the ground start shows the igniters of the start sequence of the systems WASM (see the class comment)
       return {(inputs.startSequenceIgniters & 1) != 0, (inputs.startSequenceIgniters & 2) != 0};
@@ -131,6 +145,12 @@ class IgniterSelection_A380X {
       return continuousIgnitionArmed && !lowPower ? BOTH : NONE;
     }
     return NONE;
+  }
+
+  /// The adverse weather protection: excessive rain at low engine power (see the class comment, 2b).
+  static bool heavyPrecipitationAtLowPower(const Inputs& inputs) {
+    return inputs.precipitationRateMmPerHour >= HEAVY_PRECIPITATION_MM_PER_HOUR &&
+           inputs.n1Percent <= inputs.idleN1Percent + IDLE_POWER_N1_MARGIN;
   }
 
   void updateQuickRelight(const Inputs& inputs) {

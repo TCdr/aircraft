@@ -56,6 +56,14 @@ pub struct A380ReverserController {
     /// not locked."). Design choice: the tertiary lock stays released, the two primary locks hold the
     /// cowls stowed.
     energized: Failure,
+    /// flyPad "Reverser N minor fault (alert only)": ENG 2(3) REVERSER MINOR FAULT (l.173676-173677,
+    /// "Displayed, after landing, when the FADEC detects a failure that does not impair thrust
+    /// reversers operation"): the reverser operates normally.
+    minor_fault: Failure,
+    /// flyPad "Reverser N inhibited (maintenance)": ENG 2(3) REVERSER INHIBITED (l.173579, "One
+    /// thrust reverser has been electrically and mechanically inhibited by maintenance action"): the
+    /// locks are not released, the reverser does not deploy.
+    inhibited: Failure,
     /// The FADEC no longer commands a deployment (thrust lever fault: INOP SYS ENG 2(3) REVERSER,
     /// l.173326-173328). Set by the engine control failures (engine_control_failure.rs).
     deployment_inhibited: bool,
@@ -86,6 +94,8 @@ impl A380ReverserController {
             control_fault: Failure::new(FailureType::ReverserControlFault(engine_number)),
             locked: Failure::new(FailureType::ReverserLocked(engine_number)),
             energized: Failure::new(FailureType::ReverserPressurized(engine_number)),
+            minor_fault: Failure::new(FailureType::ReverserMinorFault(engine_number)),
+            inhibited: Failure::new(FailureType::ReverserInhibited(engine_number)),
             deployment_inhibited: false,
         }
     }
@@ -121,6 +131,14 @@ impl A380ReverserController {
         self.energized.is_active()
     }
 
+    pub fn has_minor_fault(&self) -> bool {
+        self.minor_fault.is_active()
+    }
+
+    pub fn is_inhibited_by_maintenance(&self) -> bool {
+        self.inhibited.is_active()
+    }
+
     fn first_line_of_defense_condition_should_unlock(
         &self,
         lgciu: &impl LgciuWeightOnWheels,
@@ -138,9 +156,19 @@ impl A380ReverserController {
             && lgciu.left_and_right_gear_compressed(false)
     }
 
-    fn third_line_of_defense_condition_should_unlock(&self) -> bool {
-        // TODO This should come from PRIM independant data
+    /// A380 FCOM DSC-70-70 THIRD LINE OF DEFENSE (a380_fcom.txt l.112207-112218): "The third line of
+    /// defense is cleared when: - The Throttle is set to the reverse position ... - The aircraft is on
+    /// ground." Before 2026-10-13 the on-ground condition was missing: a lever in reverse in flight
+    /// released the tertiary lock.
+    fn third_line_of_defense_condition_should_unlock(
+        &self,
+        lgciu: &impl LgciuWeightOnWheels,
+    ) -> bool {
+        // TODO The PRIM uses "a throttle position independent of the throttle position that the
+        // FADEC uses" (l.112212-112213) and its own on-ground data: the TLA and this LGCIU are
+        // placeholders for them.
         self.throttle_lever_angle.get::<degree>() <= Self::THIRD_LINE_OF_DEFENCE_TLA_ANGLE_DEGREE
+            && lgciu.left_and_right_gear_compressed(false)
     }
 
     pub fn update(
@@ -159,19 +187,21 @@ impl A380ReverserController {
             && lgciu.left_and_right_gear_compressed(false)
             && !self.fault.is_active()
             && !self.control_fault.is_active()
+            && !self.inhibited.is_active()
             && !self.deployment_inhibited;
 
         let command_opening = self.throttle_lever_angle.get::<degree>()
             <= Self::OPENING_AUTHORIZATION_TLA_ANGLE_DEGREE;
 
-        // A failed locked reverser keeps its locks; an energized one keeps its tertiary lock released.
-        let locks_can_release = !self.locked.is_active();
+        // A failed locked or inhibited reverser keeps its locks; an energized one keeps its tertiary
+        // lock released.
+        let locks_can_release = !self.locked.is_active() && !self.inhibited.is_active();
         self.primary_lock_from_prim_should_unlock =
             self.first_line_of_defense_condition_should_unlock(lgciu) && locks_can_release;
         self.secondary_lock_from_prim_should_unlock =
             self.second_line_of_defense_condition_should_unlock(lgciu) && locks_can_release;
         self.tertiary_lock_from_prim_should_unlock =
-            (self.third_line_of_defense_condition_should_unlock() && locks_can_release)
+            (self.third_line_of_defense_condition_should_unlock(lgciu) && locks_can_release)
                 || self.energized.is_active();
 
         self.state = match self.state {
@@ -223,6 +253,8 @@ impl SimulationElement for A380ReverserController {
         self.control_fault.accept(visitor);
         self.locked.accept(visitor);
         self.energized.accept(visitor);
+        self.minor_fault.accept(visitor);
+        self.inhibited.accept(visitor);
 
         visitor.visit(self);
     }
@@ -286,6 +318,8 @@ pub struct A380Reversers {
     reverser_control_fault_ids: [VariableIdentifier; 2],
     reverser_locked_ids: [VariableIdentifier; 2],
     reverser_energized_ids: [VariableIdentifier; 2],
+    reverser_minor_fault_ids: [VariableIdentifier; 2],
+    reverser_inhibited_ids: [VariableIdentifier; 2],
 
     monitoring: [A380ReverserMonitoring; 2],
 }
@@ -340,6 +374,10 @@ impl A380Reversers {
                 .map(|number| context.get_identifier(format!("REVERSER_{}_LOCKED", number))),
             reverser_energized_ids: [2, 3]
                 .map(|number| context.get_identifier(format!("REVERSER_{}_ENERGIZED", number))),
+            reverser_minor_fault_ids: [2, 3]
+                .map(|number| context.get_identifier(format!("REVERSER_{}_MINOR_FAULT", number))),
+            reverser_inhibited_ids: [2, 3]
+                .map(|number| context.get_identifier(format!("REVERSER_{}_INHIBITED", number))),
 
             monitoring: [A380ReverserMonitoring::default(); 2],
         }
@@ -386,6 +424,8 @@ impl A380Reversers {
                 control_fault: controller.has_control_fault(),
                 locked: controller.is_failed_locked(),
                 energized: controller.is_energized_by_failure() && no_deploy_order,
+                minor_fault: controller.has_minor_fault(),
+                inhibited: controller.is_inhibited_by_maintenance(),
             };
         }
     }
@@ -442,6 +482,8 @@ impl SimulationElement for A380Reversers {
             );
             writer.write(&self.reverser_locked_ids[idx], monitoring.locked);
             writer.write(&self.reverser_energized_ids[idx], monitoring.energized);
+            writer.write(&self.reverser_minor_fault_ids[idx], monitoring.minor_fault);
+            writer.write(&self.reverser_inhibited_ids[idx], monitoring.inhibited);
         }
     }
 }
@@ -464,6 +506,10 @@ pub struct A380ReverserMonitoring {
     pub locked: bool,
     /// ENG 2(3) REVERSER ENERGIZED
     pub energized: bool,
+    /// ENG 2(3) REVERSER MINOR FAULT
+    pub minor_fault: bool,
+    /// ENG 2(3) REVERSER INHIBITED
+    pub inhibited: bool,
 }
 
 #[cfg(test)]
@@ -703,6 +749,53 @@ mod tests {
         let test_bed = test_bed.levers(-20.).run_for(4.);
         assert!(test_bed.position(0) > 0.99);
         assert!(test_bed.position(1) < 0.01);
+    }
+
+    /// FCOM DSC-70-70 THIRD LINE OF DEFENSE (l.112207-112218): the tertiary lock is released with
+    /// the throttle in reverse on the ground only.
+    #[test]
+    fn third_line_of_defense_is_cleared_on_ground_only() {
+        let test_bed = ReverserTestBed::new().levers(-20.).run_for(1.);
+        assert!(test_bed
+            .test_bed
+            .query(|a| a.controllers[0].should_unlock_third()));
+
+        let test_bed = ReverserTestBed::new().in_flight().levers(-20.).run_for(1.);
+        assert!(!test_bed
+            .test_bed
+            .query(|a| a.controllers[0].should_unlock_third()));
+        assert!(!test_bed
+            .test_bed
+            .query(|a| a.controllers[1].should_unlock_third()));
+    }
+
+    /// ENG 2(3) REVERSER MINOR FAULT (l.173676-173677): the reverser still operates.
+    #[test]
+    fn reverser_with_a_minor_fault_deploys_and_is_reported() {
+        let mut test_bed = ReverserTestBed::new()
+            .failed(FailureType::ReverserMinorFault(2))
+            .levers(-20.)
+            .run_for(4.);
+        assert!(test_bed.position(0) > 0.99);
+        assert!(test_bed.flag("REVERSER_2_MINOR_FAULT"));
+        assert!(!test_bed.flag("REVERSER_3_MINOR_FAULT"));
+    }
+
+    /// ENG 2(3) REVERSER INHIBITED (l.173579): inhibited by maintenance action, the reverser does
+    /// not deploy and its locks stay locked.
+    #[test]
+    fn reverser_inhibited_by_maintenance_does_not_deploy() {
+        let mut test_bed = ReverserTestBed::new()
+            .failed(FailureType::ReverserInhibited(3))
+            .levers(-20.)
+            .run_for(4.);
+        assert!(test_bed.position(0) > 0.99);
+        assert!(test_bed.position(1) < 0.01);
+        assert!(test_bed.flag("REVERSER_3_INHIBITED"));
+        assert!(!test_bed.flag("REVERSER_2_INHIBITED"));
+        assert!(!test_bed
+            .test_bed
+            .query(|a| a.controllers[1].should_unlock_third()));
     }
 
     #[test]
