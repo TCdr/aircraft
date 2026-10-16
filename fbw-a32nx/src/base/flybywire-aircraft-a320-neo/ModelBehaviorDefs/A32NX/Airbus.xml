@@ -443,7 +443,10 @@
         </DefaultTemplateParameters>
         <UseTemplate Name="ASOBO_GT_Push_Button_Airliner">
             <SEQ1_EMISSIVE_CODE>(L:A32NX_COCKPIT_DOOR_LOCKED, Bool) 0 == (L:A32NX_OVHD_INTLT_ANN) 0 == (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool) and or #SEQ1_POWERED# and #EMISSIVE_DIM# *</SEQ1_EMISSIVE_CODE>
-            <SEQ2_EMISSIVE_CODE>(L:A32NX_OVHD_INTLT_ANN) 0 == (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool) and #SEQ2_POWERED# and #EMISSIVE_DIM# *</SEQ2_EMISSIVE_CODE>
+            <!-- OPEN: the door is not closed; FAULT: a cockpit door locking system failure (latch, pressure sensor, control
+            unit), L:A32NX_CDLS_FAULT from the systems host Doors/DoorFailures.ts (FCOM DSC-52-40-20 a320_fcom.txt
+            l.61656, 61662-61663) -->
+            <SEQ2_EMISSIVE_CODE>(L:A32NX_CDLS_FAULT, Bool) (L:A32NX_OVHD_INTLT_ANN) 0 == (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool) and or #SEQ2_POWERED# and #EMISSIVE_DIM# *</SEQ2_EMISSIVE_CODE>
         </UseTemplate>
     </Template>
 

@@ -4178,29 +4178,32 @@
                     </Component>
 
                     <Component ID="CKPT_DOOR_CONT">
+                        <!-- Strike (TOP, MID, BOT latch) and CHAN 1, 2 (pressure sensor) status lights: "On: The corresponding
+                        ... is faulty" (FCOM DSC-52-40-20 a320_fcom.txt l.61673-61675, 61682-61684), from the systems host
+                        Doors/DoorFailures.ts -->
                         <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                             <NODE_ID>PUSH_OVHD_CKPTDOOR_TOP</NODE_ID>
-                            <EMISSIVE_CODE>(L:A32NX_OVHD_INTLT_ANN) 0 ==</EMISSIVE_CODE>
+                            <EMISSIVE_CODE>(L:A32NX_CDLS_UPPER_LATCH_FAULT, Bool) (L:A32NX_OVHD_INTLT_ANN) 0 == or</EMISSIVE_CODE>
                             <FAILURE>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</FAILURE>
                         </UseTemplate>
                         <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                             <NODE_ID>PUSH_OVHD_CKPTDOOR_MID</NODE_ID>
-                            <EMISSIVE_CODE>(L:A32NX_OVHD_INTLT_ANN) 0 ==</EMISSIVE_CODE>
+                            <EMISSIVE_CODE>(L:A32NX_CDLS_MID_LATCH_FAULT, Bool) (L:A32NX_OVHD_INTLT_ANN) 0 == or</EMISSIVE_CODE>
                             <FAILURE>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</FAILURE>
                         </UseTemplate>
                         <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                             <NODE_ID>PUSH_OVHD_CKPTDOOR_BOT</NODE_ID>
-                            <EMISSIVE_CODE>(L:A32NX_OVHD_INTLT_ANN) 0 ==</EMISSIVE_CODE>
+                            <EMISSIVE_CODE>(L:A32NX_CDLS_LOWER_LATCH_FAULT, Bool) (L:A32NX_OVHD_INTLT_ANN) 0 == or</EMISSIVE_CODE>
                             <FAILURE>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</FAILURE>
                         </UseTemplate>
                         <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                             <NODE_ID>PUSH_OVHD_CKPTDOOR_CHAN1</NODE_ID>
-                            <EMISSIVE_CODE>(L:A32NX_OVHD_INTLT_ANN) 0 ==</EMISSIVE_CODE>
+                            <EMISSIVE_CODE>(L:A32NX_CDLS_PRESSURE_SENSOR_1_FAULT, Bool) (L:A32NX_OVHD_INTLT_ANN) 0 == or</EMISSIVE_CODE>
                             <FAILURE>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</FAILURE>
                         </UseTemplate>
                         <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                             <NODE_ID>PUSH_OVHD_CKPTDOOR_CHAN2</NODE_ID>
-                            <EMISSIVE_CODE>(L:A32NX_OVHD_INTLT_ANN) 0 ==</EMISSIVE_CODE>
+                            <EMISSIVE_CODE>(L:A32NX_CDLS_PRESSURE_SENSOR_2_FAULT, Bool) (L:A32NX_OVHD_INTLT_ANN) 0 == or</EMISSIVE_CODE>
                             <FAILURE>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</FAILURE>
                         </UseTemplate>
                     </Component>
