@@ -1158,8 +1158,9 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
         const C: f64 = -3.3376e-9;
         const D: f64 = 4.5905e-4;
 
+        // The FMC writes -1 to the cruise altitude when it resets: only a positive value is a cruise FL
         let target_aircraft_altitude =
-            if self.fma_lateral_mode == 20 && self.cruise_altitude.get::<foot>() != 0. {
+            if self.fma_lateral_mode == 20 && self.cruise_altitude.get::<foot>() > 0. {
                 self.cruise_altitude
             } else {
                 self.exterior_flight_altitude
@@ -1173,9 +1174,20 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
                 + D * target_aircraft_altitude_foot,
         );
 
-        let target_cabin_pressure =
+        let scheduled_cabin_pressure =
             InternationalStandardAtmosphere::pressure_at_altitude(target_aircraft_altitude)
                 + target_cabin_delta_p_psi;
+
+        // The schedule is computed for the FMS cruise FL. When the aircraft flies above it (e.g. a
+        // step climb flown on the FCU without a new cruise FL), the scheduled cabin altitude would
+        // give a differential pressure above the normal range, up to the 9 PSI pressure limiter.
+        // A380 FCOM DSC-21-30-20: "The pressure is normal from -0.2 PSI to 8.92 PSI", DSC-21-30-30:
+        // in cruise the cabin altitude "corresponds to a differential pressure of approximately 8 PSI".
+        // The target cabin pressure is therefore capped at the current outside pressure plus the max
+        // scheduled differential pressure (the schedule itself peaks at 8.55 PSI near FL355).
+        let max_cabin_pressure =
+            self.exterior_pressure.output() + Pressure::new::<psi>(C::MAX_CLIMB_DELTA_P);
+        let target_cabin_pressure = scheduled_cabin_pressure.min(max_cabin_pressure);
 
         self.calculate_altitude(target_cabin_pressure, self.reference_pressure)
     }
