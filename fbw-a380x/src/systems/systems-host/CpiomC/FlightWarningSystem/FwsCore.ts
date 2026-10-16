@@ -138,7 +138,7 @@ import {
   isN1N2OverLimit,
   isStallAlertShown,
 } from './EngineParameterAlerts';
-import { displayedEgt } from '../../../instruments/src/EWD/elements/EgtLimits';
+import { displayedEgt, EgtRedLineTimer } from '../../../instruments/src/EWD/elements/EgtLimits';
 import { isReverserInoperative, isReverserSelectedInFlight, thrLeverFaultInfo } from './FadecReverserAlerts';
 import {
   DualRetardCallout,
@@ -2634,6 +2634,8 @@ export class FwsCore {
   /** ENG STALL, ENG EGT OVER LIMIT, ENG N1/N2 OVER LIMIT of the engines 1 to 4 (EngineParameterAlerts.ts) */
   public readonly engStall = [1, 2, 3, 4].map(() => Subject.create(false));
   public readonly engEgtOverLimit = [1, 2, 3, 4].map(() => Subject.create(false));
+  /** The time the shown EGT of the engines 1 to 4 has been at or above the red line (takeoff rule, EgtLimits isEgtRed) */
+  private readonly egtRedLineTimers = [1, 2, 3, 4].map(() => new EgtRedLineTimer());
   public readonly engN1N2OverLimit = [1, 2, 3, 4].map(() => Subject.create(false));
 
   /** ENG FAIL AUTO RELIGHT IN PROGRESS: the FADEC auto relight of the engines 1 to 4 is running (EngineFailAlerts.ts) */
@@ -7204,12 +7206,15 @@ export class FwsCore {
       const engineNumber = index + 1;
       const egt = SimVar.GetSimVarValue(`L:A32NX_ENGINE_EGT:${engineNumber}`, 'number');
       const egtOffset = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_EGT_OFFSET`, 'number');
+      const displayedEgtDegrees = displayedEgt(egt, egtOffset, thrustLimitType);
+      this.egtRedLineTimers[index].update(displayedEgtDegrees, deltaTime / 1000);
       const overLimitInputs = {
-        displayedEgtDegrees: displayedEgt(egt, egtOffset, thrustLimitType),
+        displayedEgtDegrees,
         n1Percent: engineN1[index].get(),
         n3Percent: engineN3[index].get(),
         thrustLimitType,
         alphaFloor,
+        secondsAtOrAboveRedLine: this.egtRedLineTimers[index].secondsAtOrAboveRedLine,
       };
       this.engStall[index].set(isStallAlertShown(engineStalls[index], stalledEngineCount, this.flightPhase.get()));
       egtExceeded[index] = engineRunning[index] && isEgtOverLimit(overLimitInputs);

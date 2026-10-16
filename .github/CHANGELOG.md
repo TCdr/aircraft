@@ -590,6 +590,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/BTV] ROW protected runway as in the FCOM: the detected runway replaces the selected one from 500 ft except in BTV mode, where the selected runway is kept down to 300 ft - @TCdr
 1. [A380X/SD] DOOR/OXY page: amber half-frame on ground below the dispatch pressure (cabin 1 600 PSI), cabin pressure amber below the emergency descent minimum of the passengers or 800 PSI before engine start - @TCdr
 1. [A380X/SD] BLEED page: the APU bleed valve shows amber when it is abnormally open or closed with the APU BLEED pb-sw ON - @TCdr
+1. [A380X/ENG] EWD EGT limits from the FCOM: amber above 970 °C, red line 1 002 °C (red at takeoff from 1 022 °C or after 20 s at or above 1 002 °C), with the ENG EGT OVER LIMIT alert and the EGT overtemperature failure retuned to them - @TCdr
 
 ## 2024.1.0
 
