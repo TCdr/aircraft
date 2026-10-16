@@ -4562,6 +4562,13 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True while the FADEC fault failure of the engine is active (flyPad failures 73210/73211 FADEC alternator, 73220/73221 overspeed protection, 73230/73231 inlet probes, 73240/73241 core sensors, 73060/73061 thrust lever one resolver, 78030/78031 reverser permission switch): ENG 1(2) FADEC ALTERNATOR (engine running), OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT, no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
 
+- A32NX_ENGINE_{number}_FUEL_CTL_FAULT, _FUEL_RETURN_VALVE_FAILED_CLOSED, _FUEL_RETURN_VALVE_FAILED_OPEN, _CTL_VALVE_FAULT, _COMPRESSOR_VANE_FAULT, _COMPRESSOR_VANE_CHANNEL_FAULT, _BLEED_STATUS_FAULT, _REVERSER_INHIBITED, _REVERSER_SHUTOFF_VALVE_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73250/73251 fuel metering valve control, 73260/73261 fuel return valve failed closed, 73270/73271 fuel return valve failed open, 73280/73281 burner staging / clearance control valves, 73290/73291 compressor vanes, 73300/73301 compressor vane control one channel, 73310/73311 bleed valve status to FADEC, 78040/78041 reverser inhibited by maintenance, 78050/78051 reverser HCU shutoff valve failed open): ENG 1(2) FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2 COMPRESSOR VANE (channel fault on both engines), BLEED STATUS FAULT, REV INHIBITED, REV ISOL FAULT (FWC Logic/EngineFadecFaultAlerts). No effect on the engine; REVERSER_INHIBITED also stops the deployment of the reverser. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool
   - {number}

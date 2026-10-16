@@ -328,6 +328,8 @@ import {
 } from './Logic/LandingGearAlerts';
 import { GpwsAlerts, readGpwsInputs, TERR_STBY_MEMO_CODE } from './Logic/GpwsAlerts';
 import { PredictiveWindshearAlerts } from './Logic/PredictiveWindshearAlerts';
+import { EngineFadecFaultAlerts, readEngineFadecFaults } from './Logic/EngineFadecFaultAlerts';
+import { COMPANY_DATALINK_STBY_MEMO_CODES, DatalinkAlerts, DATALINK_PHASE_INHIBITION } from './Logic/DatalinkAlerts';
 import { autoPilotOffInvoluntaryStatus, autoThrustOffInvoluntaryStatus } from './Logic/AutoFlightStatus';
 import {
   alertStatus,
@@ -2145,6 +2147,13 @@ export class PseudoFWC {
   /** NAV PRED W/S DET FAULT, see Logic/PredictiveWindshearAlerts */
   private readonly predictiveWindshearAlerts = new PredictiveWindshearAlerts();
 
+  /** ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED, REV ISOL
+   * FAULT, VIB SYS FAULT, see Logic/EngineFadecFaultAlerts */
+  private readonly engineFadecFaultAlerts = new EngineFadecFaultAlerts();
+
+  /** DATALINK ATSU FAULT, DATALINK COMPANY FAULT, COMPANY DATALINK STBY memo, see Logic/DatalinkAlerts */
+  private readonly datalinkAlerts = new DatalinkAlerts();
+
   /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
   private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
 
@@ -2876,6 +2885,8 @@ export class PseudoFWC {
 
   init(): void {
     this.predictiveWindshearAlerts.init();
+    this.engineFadecFaultAlerts.init();
+    this.datalinkAlerts.init(this.bus);
 
     Promise.all([
       KeyEventManager.getManager(this.bus),
@@ -5923,6 +5934,13 @@ export class PseudoFWC {
     this.landingGearAlerts.update(readLandingGearInputs(this.gearNotUplockedWarning.get()), deltaTime / 1000);
     this.gpwsAlerts.update(readGpwsInputs());
     this.predictiveWindshearAlerts.update();
+    this.engineFadecFaultAlerts.update({
+      faults: [readEngineFadecFaults(1), readEngineFadecFaults(2)],
+      onGround: this.aircraftOnGround.get(),
+      flightPhase: this.fwcFlightPhase.get(),
+      engineAntiIceOn: [this.eng1AntiIce.get(), this.eng2AntiIce.get()],
+    });
+    this.datalinkAlerts.update(this.ac1BusPoweredVar.get());
 
     /* ENG 1(2) OIL LO PR, OIL HI TEMP, OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts) */
     // The oil pressure and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
@@ -10359,6 +10377,8 @@ export class PseudoFWC {
     ...this.landingGearAlerts.ewdFailures,
     ...this.gpwsAlerts.ewdFailures,
     ...this.predictiveWindshearAlerts.ewdFailures,
+    ...this.engineFadecFaultAlerts.ewdFailures,
+    ...this.datalinkAlerts.ewdFailures,
     2161291: {
       // COND CTL 1-A FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9],
@@ -12714,6 +12734,15 @@ export class PseudoFWC {
       simVarIsActive: this.compMesgCount.map((v) => v > 0),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000055201'],
+      memoInhibit: () => false,
+      side: 'RIGHT',
+    },
+    '0000553': {
+      // COMPANY DATALINK STBY, green (FCOM DSC-46-10-40-60 l.59467-59468), see Logic/DatalinkAlerts
+      flightPhaseInhib: DATALINK_PHASE_INHIBITION.companyDatalinkStbyMemo,
+      simVarIsActive: this.datalinkAlerts.companyDatalinkStby,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: COMPANY_DATALINK_STBY_MEMO_CODES,
       memoInhibit: () => false,
       side: 'RIGHT',
     },
