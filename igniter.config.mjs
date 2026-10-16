@@ -179,6 +179,14 @@ export default new TaskOfTasks('all', [
                     'fbw-a380x/src/systems/extras-host',
                     'fbw-a380x/out/flybywire-aircraft-a380-842/html_ui/Pages/VCockpit/Instruments/A380X/ExtrasHost',
                     'fbw-common/src/systems/shared/src/extras',
+                    // Sources the extras host bundles from outside its folder (light sync flight phase, navigation
+                    // database), so that igniter's cache rebuilds it when they change
+                    'fbw-a380x/src/systems/shared/src',
+                    'fbw-a32nx/src/systems/fmgc/src/NavigationDatabase.ts',
+                    'fbw-a32nx/src/systems/fmgc/src/flightplanning',
+                    'fbw-a32nx/src/systems/fmgc/src/guidance/ControlLaws.ts',
+                    'fbw-common/src/systems/shared/src/popup',
+                    'fbw-common/src/systems/navdata/client/backends/Msfs',
                 ]),
                 new ExecTask('systems-host', 'npm run build-a380x:systems-host', [
                     'fbw-a380x/src/systems/systems-host',
