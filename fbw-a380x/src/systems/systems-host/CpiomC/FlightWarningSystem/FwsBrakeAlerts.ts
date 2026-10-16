@@ -76,14 +76,13 @@ export function readBrakeSteerInputs(read: (name: string) => number): BrakeSteer
 
 /**
  * BRAKES ACCU PRESS LO: "The pressure of, at least, one brake accumulator is below the minimum value" (l.159708).
- * Design choice: 3 000 psi. The FCOM amber arc of the accumulator pressure ends at 3 840 psi (triple pressure
- * indicator, l.81552) for A380 accumulators that give "at least 6 brake applications" (l.78946). The model has one
- * A320-sized accumulator that loses about 1 600 psi on the first park brake application (5 250 to 3 600 psi, then
- * 2 750 psi: Rust hydraulic test bed), so 3 840 psi would trigger after a single application without hydraulic
- * pressure. 3 000 psi triggers after the second application, when less than one park brake application is left above
- * the park brake pressure of the model (2 103 psi).
+ * The FCOM gives the minimum through the BODY ACCU indication of the triple pressure indicator: "The amber arc
+ * represents the low pressure zone. The amber arc ranges from 0 to 3840 PSI. When the indication is in the amber arc,
+ * the flight crew should press the ACCUS REINFLATE pb" (l.81549-81555), the action of this alert. The brake
+ * accumulator of the model (5 000 psi, Rust hydraulic/mod.rs) keeps about 4 100 psi after one park brake application
+ * at 3 600 psi without hydraulic pressure, and drops into the amber arc at the second one.
  */
-export const ACCU_PRESS_LO_PSI = 3000;
+export const ACCU_PRESS_LO_PSI = 3840;
 /**
  * Design choice: the accumulator pressure stays low for 10 s, so the short dip of a brake application refilled by a
  * running YELLOW pump, and the gauge filter at power-up, do not trigger it.
@@ -92,8 +91,8 @@ export const ACCU_PRESS_LO_CONFIRM_S = 10;
 /**
  * BRAKES PARK BRK PRESS LO: "Parking brake pressure is low on at least one body landing gear when the parking brake is
  * on" (l.160467). The FCOM gives no value. Design choice: 1 700 psi, the pressure that the EBCU applies with the
- * take-off brake law and to the wing gear brakes in ultimate braking (l.80043-80045, l.80154); the model applies
- * 2 103 psi with the park brake on, so the alert means that the accumulator can no longer hold that pressure.
+ * take-off brake law and to the wing gear brakes in ultimate braking (l.80043-80045, l.80154); the park brake applies
+ * about 3 600 psi (l.80262-80263), so the alert means that the accumulator can no longer hold half of it.
  */
 export const PARK_BRK_PRESS_LO_PSI = 1700;
 /** Design choice: 5 s, longer than the pressure build-up after the PARK BRK handle is set to ON (about 1 s) */

@@ -17,6 +17,7 @@ import {
   steeringControlIndication,
   tirePressureIndication,
   WheelControlInputs,
+  wingAccuIndication,
 } from './WheelIndications';
 
 const NO_FAULT: WheelControlInputs = {
@@ -150,8 +151,36 @@ describe('WHEEL page BRK CTL and STEER CTL lines', () => {
   });
 });
 
+describe('WING ACCU pressure indication (A380 FCOM DSC-32-20-50, l.81231-81253)', () => {
+  it('shows the live accumulator pressure in green outside the amber arc, with MORE only', () => {
+    expect(wingAccuIndication(5000, true)).toEqual({ visible: true, amber: false, needleKpsi: 5 });
+    expect(wingAccuIndication(4100, true)).toEqual({ visible: true, amber: false, needleKpsi: 4.1 });
+    expect(wingAccuIndication(5000, false).visible).toBe(false);
+    expect(wingAccuIndication(3500, false).visible).toBe(false);
+  });
+
+  it('shows the indication in amber, also without MORE, when the pressure is in the amber arc (0-3 480 psi)', () => {
+    expect(wingAccuIndication(3480, false)).toEqual({ visible: true, amber: true, needleKpsi: 3.48 });
+    expect(wingAccuIndication(0, true)).toEqual({ visible: true, amber: true, needleKpsi: 0 });
+  });
+
+  it('keeps the needle on the 0-5 000 psi scale', () => {
+    expect(wingAccuIndication(5250, true).needleKpsi).toBe(5);
+    expect(wingAccuIndication(-20, true).needleKpsi).toBe(0);
+    expect(wingAccuIndication(Number.NaN, false)).toEqual({ visible: true, amber: true, needleKpsi: 0 });
+  });
+});
+
 describe('WHEEL page wiring', () => {
   const source = readFileSync(resolve(__dirname, 'WheelPage.tsx'), 'utf-8');
+
+  it('feeds the WING ACCU gauge with the accumulator pressure instead of a fixed needle', () => {
+    expect(source).toContain("useSimVar('L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS', 'number'");
+    expect(source).toContain('indication={wingAccuIndication(');
+    const accumulator = readFileSync(resolve(__dirname, 'elements/Accumulator.tsx'), 'utf-8');
+    expect(accumulator).not.toContain('value={4.8}');
+    expect(accumulator).toContain('value={indication.needleKpsi}');
+  });
 
   it('drives the control lines and the AUTO BRAKE text from the indications, not from MORE alone', () => {
     expect(source).toContain("id=\"brk-control\" visibility={brakeControl.lineVisible ? 'visible' : 'hidden'}");

@@ -607,6 +607,7 @@ impl A380AutobrakeController {
             context,
             self.deceleration_governor.is_engaged(),
             &self.braking_distance_calculator,
+            self.target,
             lgciu1,
             lgciu2,
         )
@@ -644,6 +645,26 @@ impl SimulationElement for A380AutobrakeController {
             self.mode = readed_mode.into();
         }
     }
+}
+
+/// The inputs of the ROP maximum braking state (AutobrakeRunwayOverrunProtection::max_braking_after_update)
+#[derive(Clone, Copy, Debug)]
+struct RopBrakingInputs {
+    /// ROP applied the maximum braking before this update
+    was_braking: bool,
+    /// ROW/ROP available: not lost, runway end known, ground speed above the arming speed
+    rop_operative: bool,
+    /// The autobrake (basic mode, BTV or RTO) is braking
+    autobrake_engaged: bool,
+    /// The remaining runway length is known
+    runway_end_known: bool,
+    /// Stopping distance at the maximum braking deceleration, 0 when not decelerating
+    max_braking_distance: Length,
+    /// Stopping distance at the deceleration target of the selected autobrake mode, 0 without a deceleration target
+    selected_mode_distance: Length,
+    /// Stopping distance at the measured deceleration, 0 when not decelerating
+    measured_deceleration_distance: Length,
+    distance_to_runway_end: Length,
 }
 
 struct AutobrakeRunwayOverrunProtection {
@@ -716,40 +737,77 @@ impl AutobrakeRunwayOverrunProtection {
         }
     }
 
+    /// The ROP maximum braking after this update.
+    ///
+    /// A380 FCOM DSC-32-10-30-20 ROP (a380_fcom.txt l.79800-79813): "ROP applies maximum braking limited by A-SKID
+    /// (independently of BTV or basic autobrake mode)". "The detection of an overrun situation is reversible. If the
+    /// maximum braking application and the deceleration rate allow ROP to compute a landing distance shorter than the
+    /// remaining runway length, ROP deactivates. ROP returns to armed state. The previously selected autobrake mode is
+    /// active again." "When ROP is active, the flight crew can disconnect the maximum braking only by overriding the
+    /// braking with a brake pedal application. In this situation, the flight crew reverts to pedal braking."
+    ///
+    /// - The maximum braking stops with the autobrake (the pedal override disarms it) or when the runway end is lost,
+    ///   at any speed.
+    /// - Below the arming speed of ROW/ROP nothing new is computed: the state does not change.
+    /// - It starts when the stopping distance at the maximum braking deceleration reaches the runway end.
+    /// - It reverts when the stopping distance at the measured deceleration is shorter than the remaining runway.
+    ///   Design choice: the stopping distance at the deceleration target of the selected mode must be shorter too, so
+    ///   that the selected mode, active again, does not detect the overrun again at once (a stopping distance of 0 is
+    ///   "not decelerating" and keeps the maximum braking).
+    fn max_braking_after_update(inputs: RopBrakingInputs) -> bool {
+        if !inputs.autobrake_engaged || !inputs.runway_end_known {
+            false
+        } else if !inputs.rop_operative {
+            inputs.was_braking
+        } else if !inputs.was_braking {
+            inputs.max_braking_distance >= inputs.distance_to_runway_end
+        } else {
+            let fits_in_remaining_runway = |stopping_distance: Length| {
+                stopping_distance > Length::default()
+                    && stopping_distance < inputs.distance_to_runway_end
+            };
+            let overrun_no_longer_detected =
+                fits_in_remaining_runway(inputs.measured_deceleration_distance)
+                    && fits_in_remaining_runway(inputs.selected_mode_distance);
+
+            !overrun_no_longer_detected
+        }
+    }
+
     fn update(
         &mut self,
         context: &UpdateContext,
         is_any_autobrake_active: bool,
         braking_distances: &BrakingDistanceCalculator,
+        selected_mode_target: Acceleration,
         lgciu1: &impl LgciuInterface,
         lgciu2: &impl LgciuInterface,
     ) {
+        self.is_any_autobrake_active = is_any_autobrake_active;
+        let max_braking_prediction = braking_distances.max_braking();
+
+        self.is_actively_braking = Self::max_braking_after_update(RopBrakingInputs {
+            was_braking: self.is_actively_braking,
+            rop_operative: self.is_row_rop_operative(context),
+            autobrake_engaged: is_any_autobrake_active,
+            runway_end_known: self.distance_to_runway_end.is_normal_operation(),
+            max_braking_distance: max_braking_prediction,
+            selected_mode_distance: braking_distances.stopping_distance_estimation_for_decel(
+                context.ground_speed(),
+                selected_mode_target,
+            ),
+            measured_deceleration_distance: braking_distances.measured_deceleration_distance(),
+            distance_to_runway_end: self.distance_to_runway_end.value(),
+        });
+
         if self.is_row_rop_operative(context) {
             self.status_word.set_ssm(SignStatus::NormalOperation);
 
-            self.is_any_autobrake_active = is_any_autobrake_active;
             self.is_full_rev_selected =
                 self.throttle_percents[1] <= -20.0 && self.throttle_percents[2] <= -20.0;
 
             let is_on_ground = lgciu1.left_and_right_gear_compressed(false)
                 || lgciu2.left_and_right_gear_compressed(false);
-
-            let max_braking_prediction = braking_distances.max_braking();
-
-            // Can engage only above min speed
-            if self.is_row_rop_operative(context) && self.is_any_autobrake_active {
-                if max_braking_prediction >= self.distance_to_runway_end.value() {
-                    self.is_actively_braking = true;
-                }
-            } else {
-                // Can only disengage if autobrake or distance lost (not from speed)
-                // TODO ROP can revert if braking force is sufficient
-                if !self.distance_to_runway_end.is_normal_operation()
-                    || !self.is_any_autobrake_active
-                {
-                    self.is_actively_braking = false;
-                }
-            }
 
             let overrun_detected =
                 is_on_ground && max_braking_prediction >= self.distance_to_runway_end.value();
@@ -852,6 +910,9 @@ struct BrakingDistanceCalculator {
     wet_landing_estimated_distance: LowPassFilter<Length>,
     braking_estimated_distance_at_current_decel: LowPassFilter<Length>,
     braking_estimated_distance_at_max_decel: LowPassFilter<Length>,
+    /// Stopping distance at the measured deceleration (the one above uses the BTV planned deceleration in BTV mode),
+    /// for the ROP reversion
+    braking_estimated_distance_at_measured_decel: LowPassFilter<Length>,
     predicted_touchdown_speed: Velocity,
 }
 impl BrakingDistanceCalculator {
@@ -888,6 +949,9 @@ impl BrakingDistanceCalculator {
                 500,
             )),
             braking_estimated_distance_at_max_decel: LowPassFilter::new(Duration::from_millis(500)),
+            braking_estimated_distance_at_measured_decel: LowPassFilter::new(
+                Duration::from_millis(500),
+            ),
 
             predicted_touchdown_speed: Velocity::default(),
         }
@@ -937,12 +1001,25 @@ impl BrakingDistanceCalculator {
                     Acceleration::new::<meter_per_second_squared>(Self::MAX_DECEL_DRY_MS2),
                 ),
             );
+            self.braking_estimated_distance_at_measured_decel.update(
+                context.delta(),
+                self.stopping_distance_estimation_for_decel(
+                    context.ground_speed(),
+                    context.long_accel(),
+                ),
+            );
         } else {
             self.braking_estimated_distance_at_current_decel
                 .reset(Length::default());
             self.braking_estimated_distance_at_max_decel
                 .reset(Length::default());
+            self.braking_estimated_distance_at_measured_decel
+                .reset(Length::default());
         }
+    }
+
+    fn measured_deceleration_distance(&self) -> Length {
+        self.braking_estimated_distance_at_measured_decel.output()
     }
 
     fn stopping_distance_estimation_for_dry(&self, current_speed: Velocity) -> Length {
@@ -1529,5 +1606,107 @@ mod braking_distance_tests {
             test_bed.query_element(|e| e.wet_landing().get::<meter>() > 1700.
                 && test_bed.query_element(|e| e.wet_landing().get::<meter>() < 2300.))
         );
+    }
+}
+
+#[cfg(test)]
+mod runway_overrun_protection_tests {
+    use super::*;
+
+    fn metres(value: f64) -> Length {
+        Length::new::<meter>(value)
+    }
+
+    /// ROP applying the maximum braking with an autobrake mode engaged, 2 000 m of runway left. The stopping
+    /// distances fit in the remaining runway unless a test changes them.
+    fn braking_inputs() -> RopBrakingInputs {
+        RopBrakingInputs {
+            was_braking: true,
+            rop_operative: true,
+            autobrake_engaged: true,
+            runway_end_known: true,
+            max_braking_distance: metres(1500.),
+            selected_mode_distance: metres(1800.),
+            measured_deceleration_distance: metres(1400.),
+            distance_to_runway_end: metres(2000.),
+        }
+    }
+
+    fn max_braking(inputs: RopBrakingInputs) -> bool {
+        AutobrakeRunwayOverrunProtection::max_braking_after_update(inputs)
+    }
+
+    #[test]
+    // A380 FCOM l.79807-79810: "If the maximum braking application and the deceleration rate allow ROP to compute a
+    // landing distance shorter than the remaining runway length, ROP deactivates ... The previously selected autobrake
+    // mode is active again."
+    fn rop_reverts_when_the_stopping_distance_is_shorter_than_the_remaining_runway() {
+        assert!(!max_braking(braking_inputs()));
+    }
+
+    #[test]
+    // Design choice: no reversion while the selected mode would detect the overrun again
+    fn rop_keeps_the_maximum_braking_while_the_selected_mode_would_overrun() {
+        assert!(max_braking(RopBrakingInputs {
+            selected_mode_distance: metres(2100.),
+            ..braking_inputs()
+        }));
+    }
+
+    #[test]
+    fn rop_keeps_the_maximum_braking_while_the_measured_deceleration_would_overrun() {
+        assert!(max_braking(RopBrakingInputs {
+            measured_deceleration_distance: metres(2100.),
+            ..braking_inputs()
+        }));
+    }
+
+    #[test]
+    // A stopping distance of 0 means "not decelerating": no reversion
+    fn rop_keeps_the_maximum_braking_without_a_measured_deceleration() {
+        assert!(max_braking(RopBrakingInputs {
+            measured_deceleration_distance: Length::default(),
+            ..braking_inputs()
+        }));
+    }
+
+    #[test]
+    // A380 FCOM l.79811-79812: the pedal override (it disarms the autobrake) disconnects the maximum braking, also
+    // below the ROW/ROP arming speed (the maximum braking stayed latched there)
+    fn rop_releases_the_maximum_braking_when_the_autobrake_disengages_at_low_speed() {
+        assert!(!max_braking(RopBrakingInputs {
+            rop_operative: false,
+            autobrake_engaged: false,
+            max_braking_distance: metres(2100.),
+            ..braking_inputs()
+        }));
+    }
+
+    #[test]
+    // Below the arming speed nothing new is computed: the maximum braking goes on with the autobrake engaged
+    fn rop_keeps_the_maximum_braking_below_the_arming_speed() {
+        assert!(max_braking(RopBrakingInputs {
+            rop_operative: false,
+            ..braking_inputs()
+        }));
+    }
+
+    #[test]
+    // A380 FCOM l.79800-79803: ROP applies the maximum braking when an overrun is detected
+    fn rop_starts_the_maximum_braking_when_an_overrun_is_detected() {
+        let armed = RopBrakingInputs {
+            was_braking: false,
+            ..braking_inputs()
+        };
+        assert!(!max_braking(armed));
+        assert!(max_braking(RopBrakingInputs {
+            max_braking_distance: metres(2000.),
+            ..armed
+        }));
+        assert!(!max_braking(RopBrakingInputs {
+            max_braking_distance: metres(2000.),
+            autobrake_engaged: false,
+            ..armed
+        }));
     }
 }

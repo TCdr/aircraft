@@ -113,6 +113,9 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
   - The gravity extension takes about 70 s but releases all the gear uplocks together (FCOM: NLG and WLG, then BLG)
 - Braking simplified: one NORM circuit (GREEN) and one ALTN circuit (YELLOW and one accumulator) for all the wheel
   groups; no LEHGS and no 4 brake accumulators, no BCS 1/2 split, no A-SKID fault per wheel group
+  - The park brake applies its 3 600 psi on all the gears (FCOM: BLG only, plus 1 700 psi ultimate braking on the WLG
+    above 25 kt with the ground spoilers out), and the ACCUS REINFLATE pb is not modelled (no BLG LEHGS, no pb in the
+    cockpit model)
 - BTV simplified logic only
   - Basic braking distance calculations
   - No glide slope adaptation
