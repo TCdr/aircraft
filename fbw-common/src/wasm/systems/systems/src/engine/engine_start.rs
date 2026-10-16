@@ -305,6 +305,10 @@ pub struct EngineStartSequence {
     master_off_time: Duration,
     /// The ENG MASTER was set to OFF while the engine was running (quick relight).
     master_off_while_running: bool,
+    /// A quick relight of the FADEC on the ground is in progress (see [`Self::is_quick_relight`]):
+    /// from the ENG MASTER back ON until the engine runs again (FBW engine state ON), the ENG
+    /// MASTER OFF, the ENG FIRE pb released or the lift-off.
+    ground_quick_relight: bool,
     /// The engine was running (FBW engine state ON) in the previous update.
     engine_was_running: bool,
     /// The start sequence has engaged the starter (start valve commanded open): it stays engaged up
@@ -412,6 +416,7 @@ impl EngineStartSequence {
             previous_master_switch_is_on: None,
             master_off_time: Duration::ZERO,
             master_off_while_running: false,
+            ground_quick_relight: false,
             engine_was_running: false,
             starter_engaged: false,
             phase: EngineStartPhase::None,
@@ -501,6 +506,12 @@ impl EngineStartSequence {
         } else {
             self.continue_phase(context, schedule, inputs);
         }
+        self.ground_quick_relight = on_ground
+            && inputs.master_switch_is_on
+            && !inputs.fire_push_button_is_released
+            && inputs.engine_state != EngineState::On
+            && (self.ground_quick_relight
+                || (master_turned_on && self.is_quick_relight(schedule, inputs)));
 
         self.other_fault_light = inputs.other_fault_light_conditions;
         self.update_in_flight_light_up(context, inputs, on_ground);
@@ -1219,6 +1230,15 @@ impl EngineStartSequence {
         self.phase
     }
 
+    /// On the ground, the FADEC quick relight of [`EngineStartSchedule::ground_quick_relight`] is
+    /// in progress: the ENG MASTER is back ON and the engine does not run yet. A380 FCOM
+    /// DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112543): "the FADEC automatically selects
+    /// the continuous ignition with both igniters" (the FADEC relights the engine without a start
+    /// sequence).
+    pub fn ground_quick_relight_in_progress(&self) -> bool {
+        self.ground_quick_relight
+    }
+
     /// The start fault reported to the warning system.
     pub fn fault(&self) -> EngineStartFault {
         if self.start_fault != EngineStartFault::None {
@@ -1596,6 +1616,10 @@ mod tests {
 
         fn valve_command(&self) -> StartValveCommand {
             self.query(|a| a.sequence.start_valve_command())
+        }
+
+        fn ground_quick_relight(&self) -> bool {
+            self.query(|a| a.sequence.ground_quick_relight_in_progress())
         }
 
         fn flag(&mut self, name: &str) -> bool {
@@ -2137,6 +2161,47 @@ mod tests {
 
         let test_bed = master_cycled(Duration::from_secs(10), 44.);
         assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
+    }
+
+    /// FCOM DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112543): "the FADEC automatically
+    /// selects the continuous ignition with both igniters". Sim test F5 2026-10-16: without it the
+    /// FADEC kept a ground quick relight at NORM in its shutdown.
+    #[test]
+    fn a_ground_quick_relight_lasts_until_the_engine_runs_again() {
+        let test_bed = master_cycled(Duration::from_secs(2), 60.);
+        assert!(test_bed.ground_quick_relight());
+
+        let test_bed = test_bed.engine_state(EngineState::Restarting).and_run();
+        assert!(test_bed.ground_quick_relight());
+
+        let test_bed = test_bed.engine_state(EngineState::On).and_run();
+        assert!(!test_bed.ground_quick_relight());
+    }
+
+    #[test]
+    fn no_ground_quick_relight_after_30_s_below_45_percent_n2_in_flight_or_without_schedule() {
+        assert!(!master_cycled(Duration::from_secs(35), 60.).ground_quick_relight());
+        assert!(!master_cycled(Duration::from_secs(2), 44.).ground_quick_relight());
+
+        let test_bed = master_cycled(Duration::from_secs(2), 60.).master(false);
+        assert!(!test_bed.ground_quick_relight());
+
+        let test_bed = master_cycled(Duration::from_secs(2), 60.)
+            .in_flight()
+            .and_run();
+        assert!(!test_bed.ground_quick_relight());
+
+        // the A320 schedule has no ground quick relight
+        let test_bed = StartTestBed::new()
+            .engine_state(EngineState::On)
+            .n2(70.)
+            .master(true)
+            .master(false)
+            .engine_state(EngineState::Shutting)
+            .n2(60.)
+            .and_run_for(Duration::from_secs(2))
+            .master(true);
+        assert!(!test_bed.ground_quick_relight());
     }
 
     #[test]

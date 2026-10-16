@@ -16,11 +16,21 @@
  * flight of 2026-10-06 MSFS dropped the combustion of all four engines by itself at 7 900 ft, the engines windmilled at
  * 24.7 % N2 for 150 s and lit up in the 0.5 s sample in which the crew selected IGN START.
  *
- * Two FADEC functions select the igniters:
+ * Three FADEC functions select the igniters:
  *
  * 1. IN-FLIGHT RELIGHT (unchanged): while the systems WASM reports a relight lighting up (A32NX_ENGINE_n_RELIGHT_IGNITION),
  *    in flight, during the start sequence (STARTING, RESTARTING) or the shutdown that precedes it (SHUTTING).
  *    A380 FCOM DSC-70-30 IN FLIGHT (a380_fcom.txt l.113572): "Ignition starts (igniters A + B)".
+ *
+ * 3. GROUND QUICK RELIGHT: while the systems WASM reports a quick relight on the ground (A32NX_ENGINE_n_GROUND_QUICK_RELIGHT:
+ *    ENG MASTER back ON within 30 s with N3 above 45 %, engine not running yet), during the shutdown (SHUTTING) and the
+ *    relight (RESTARTING). A380 FCOM DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112545): "In the event of an
+ *    inadvertent cycling of the ENG MASTER lever with the engine running, from ON position to OFF, then back to ON within
+ *    30 s, the FADEC automatically selects the continuous ignition with both igniters." The IGN of the MSFS ignition switch
+ *    lets MSFS burn again and takes the FBW engine state from SHUTTING to RESTARTING (EngineControl_A380X::engineStateMachine).
+ *    Without it, at NORM, the shutdown only ended at an MSFS N2 above 50 %, and MSFS, without fuel since the MASTER OFF, does
+ *    not burn again at NORM (sim test F5 2026-10-16: MASTER 4 OFF then ON about 2 s later at about 60 % N3, the engine stayed
+ *    SHUTTING and ran down to 10 %).
  *
  * 2. AUTO RELIGHT. A380 FCOM DSC-70-80-30-20 QUICK AND AUTO RELIGHT (l.112533-112537): "If the FADEC detects an engine flame
  *    out, on ground or in flight, continuous ignition with both igniters is automatically selected. The ignition is
@@ -70,16 +80,17 @@ class EngineIgnition_A380X {
   };
 
   struct Inputs {
-    bool   simOnGround;               // SIM ON GROUND
-    bool   engineRunning;             // FBW engine state ON (A32NX_ENGINE_STATE)
-    bool   engineStartingOrShutting;  // FBW engine state STARTING, RESTARTING or SHUTTING
-    bool   masterOn;                  // ENG MASTER ON (GENERAL ENG STARTER, driven by the lever)
-    bool   fuelCut;                   // the systems WASM cuts the engine fuel (A32NX_ENGINE_n_FUEL_CUT)
-    bool   seized;                    // seizure failure (A32NX_ENGINE_n_SEIZED)
-    bool   firePbReleased;            // ENG FIRE pb released (A32NX_FIRE_BUTTON_ENGn): the FADEC is no longer supplied
-    bool   simCombustion;             // GENERAL ENG COMBUSTION
-    bool   systemsRelightIgnition;    // an in-flight relight is lighting up (A32NX_ENGINE_n_RELIGHT_IGNITION)
-    double deltaTime;                 // seconds since the previous update
+    bool   simOnGround;                // SIM ON GROUND
+    bool   engineRunning;              // FBW engine state ON (A32NX_ENGINE_STATE)
+    bool   engineStartingOrShutting;   // FBW engine state STARTING, RESTARTING or SHUTTING
+    bool   masterOn;                   // ENG MASTER ON (GENERAL ENG STARTER, driven by the lever)
+    bool   fuelCut;                    // the systems WASM cuts the engine fuel (A32NX_ENGINE_n_FUEL_CUT)
+    bool   seized;                     // seizure failure (A32NX_ENGINE_n_SEIZED)
+    bool   firePbReleased;             // ENG FIRE pb released (A32NX_FIRE_BUTTON_ENGn): the FADEC is no longer supplied
+    bool   simCombustion;              // GENERAL ENG COMBUSTION
+    bool   systemsRelightIgnition;     // an in-flight relight is lighting up (A32NX_ENGINE_n_RELIGHT_IGNITION)
+    bool   systemsGroundQuickRelight;  // a quick relight on the ground is in progress (A32NX_ENGINE_n_GROUND_QUICK_RELIGHT)
+    double deltaTime;                  // seconds since the previous update
   };
 
   /**
@@ -91,8 +102,10 @@ class EngineIgnition_A380X {
    */
   bool update(const Inputs& inputs) {
     const bool relightIgnition = inputs.systemsRelightIgnition && !inputs.simOnGround && inputs.engineStartingOrShutting;
+    const bool groundQuickRelightIgnition = inputs.systemsGroundQuickRelight && inputs.simOnGround && inputs.engineStartingOrShutting &&
+                                            inputs.masterOn && !inputs.firePbReleased;
     updateAutoRelight(inputs);
-    return relightIgnition || autoRelightIgnition();
+    return relightIgnition || groundQuickRelightIgnition || autoRelightIgnition();
   }
 
   /// The auto relight selects the igniters (flameout detected, or relit less than 60 s ago).

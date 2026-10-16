@@ -2856,6 +2856,15 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 4
   - True in flight while a relight is lighting up (fuel no longer cut, ENG MASTER ON, engine not running yet): the igniters are supplied whatever the ENG START selector position (FCOM DSC-70-30, DSC-70-80-30-20 quick relight). The FADEC sets the MSFS ignition switch of that engine to IGN meanwhile and gives it back to the selector afterwards. Written by the systems WASM
 
+- A32NX_ENGINE_{number}_GROUND_QUICK_RELIGHT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True on the ground while the FADEC quick relight is in progress: the ENG MASTER lever set back to ON within 30 s of being set to OFF with the engine running and N3 above 45 %, until the engine runs again (or the ENG MASTER OFF, the ENG FIRE pb released, the lift-off). No start sequence; the HP fuel valve opens at once and the FADEC sets the MSFS ignition switch of that engine to IGN during the shutdown and relight (FCOM DSC-70-80-30-20 QUICK RELIGHT FUNCTION). Written by the systems WASM (systems engine/engine_start.rs, a380_systems engine_failure.rs)
+
 - A32NX_ENGINE_{number}_RELIGHT_ATTEMPT
   - Bool
   - {number}
