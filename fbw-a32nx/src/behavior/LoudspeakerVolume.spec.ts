@@ -109,4 +109,16 @@ describe('A32NX loudspeaker volume knobs', () => {
       expect(interior).toContain(`100 (&gt;L:A32NX_LOUDSPEAKER_${side}_VOLUME, number)`);
     }
   });
+
+  // The sim runs only the code of an <Update> element before its first XML comment. Sim test 2026-10-16: the COM
+  // volumes written before a comment were set, the loudspeaker knobs written after it stayed at 0 and muted the radios.
+  it('the audio panel init sets both knobs full clockwise at each flight load', () => {
+    const interior = readFileSync(INTERIOR_XML, 'utf8');
+    const init = /<Component ID="Audio_Panel_Left">[\s\S]*?<Update Once="True">([\s\S]*?)<\/Update>/.exec(interior);
+    const codeTheSimRuns = (init?.[1] ?? '').split('<!--')[0];
+    const { writes } = runRpn(codeTheSimRuns);
+    for (const side of ['CAPT', 'FO']) {
+      expect(writes).toContainEqual({ target: `L:A32NX_LOUDSPEAKER_${side}_VOLUME`, value: 100 });
+    }
+  });
 });

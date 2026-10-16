@@ -4780,7 +4780,9 @@
             </Component>
             <Component ID="Audio_Panel_Left">
                 <!-- Init of volume and transmit channels in default operation state: Transmit VHF1 and listen VHF1 and VFH2
-                    PANEL2_Transmit_Channel set to 4 (none) to be able to switch between COM1 and COM2 in third parties -->
+                    PANEL2_Transmit_Channel set to 4 (none) to be able to switch between COM1 and COM2 in third parties.
+                    Loudspeaker knobs full clockwise: the radios sound as loud as without the knobs.
+                    No XML comment inside the Update code: the sim only runs the code before the first comment. -->
                 <Update Once="True">
                     0 (&gt;L:XMLVAR_COM_PANEL1_Transmit_Channel)
                     4 (&gt;L:XMLVAR_COM_PANEL2_Transmit_Channel)
@@ -4802,7 +4804,6 @@
                     0.8 (&gt;L:XMLVAR_COM_2_Volume_VHF_L)
                     0.4 (&gt;L:XMLVAR_COM_2_Volume_VHF_C)
 
-                    <!-- Loudspeaker knobs full clockwise: the radios sound as loud as without the knobs -->
                     100 (&gt;L:A32NX_LOUDSPEAKER_CAPT_VOLUME, number)
                     100 (&gt;L:A32NX_LOUDSPEAKER_FO_VOLUME, number)
                 </Update>
