@@ -6,7 +6,7 @@ import { SimVarValueType } from '@microsoft/msfs-sdk';
 import { SdPages } from '@shared/EcamSystemPages';
 import { oilQuantityPulses, oilTemperatureClass } from '../../../instruments/src/SD/Pages/Engine/OilIndications';
 import { vibrationClassName } from '../../../instruments/src/SD/Pages/Engine/elements/EngineVibration';
-import { cabinVsPulses } from '../../../instruments/src/SD/Pages/Press/CabinVsIndications';
+import { cabinVsPulses } from '@shared/CabinPressureIndications';
 
 /*
  * ECAM advisories (A380 FCOM DSC-31-40-10 ADVISORY, a380_fcom.txt l.72199-72342):
@@ -29,7 +29,8 @@ import { cabinVsPulses } from '../../../instruments/src/SD/Pages/Press/CabinVsIn
  *
  * The conditions are those for which the SD pages pulse (the same functions): ENGINE oil quantity, oil temperature and
  * rotor vibrations (l.72259-72278), CAB PRESS cabin vertical speed (l.72306-72312). Not done: the nacelle temperature,
- * the delta P and cabin altitude, and the APU OIL LVL LO advisories, which the SD pages do not pulse yet.
+ * the APU OIL LVL LO advisories, which the SD pages do not pulse yet, and the delta P and cabin altitude advisories, which
+ * the CAB PRESS and CRUISE pages pulse (CabinPressureIndications) but which need the flight phase and a state here.
  */
 
 /** The parameters of one engine for its advisories */
@@ -37,6 +38,8 @@ export interface EngineAdvisoryInputs {
   oilQuantityQt: number;
   /** L:A32NX_AUTOTHRUST_TLA:n, degrees (inhibits the oil quantity advisory at TOGA and in reverse) */
   thrustLeverAngle: number;
+  /** L:A32NX_AUTOTHRUST_MODE (inhibits the oil quantity advisory at a FLEX takeoff, a go-around and in alpha floor) */
+  autothrustMode: number;
   oilTemperatureCelsius: number;
   n1VibrationUnits: number;
   n2VibrationUnits: number;
@@ -50,7 +53,7 @@ export interface EngineAdvisoryInputs {
  */
 export function engineAdvisory(engine: EngineAdvisoryInputs): boolean {
   return (
-    oilQuantityPulses(engine.oilQuantityQt, engine.thrustLeverAngle) ||
+    oilQuantityPulses(engine.oilQuantityQt, engine.thrustLeverAngle, engine.autothrustMode) ||
     oilTemperatureClass(engine.oilTemperatureCelsius) === 'FillPulse' ||
     [engine.n1VibrationUnits, engine.n2VibrationUnits, engine.n3VibrationUnits].some(
       (vibration) => vibrationClassName(vibration) === 'FillPulse',
@@ -157,6 +160,7 @@ export class FwsAdvisoryInputsReader {
       engines.push({
         oilQuantityQt: SimVar.GetSimVarValue(`L:A32NX_ENGINE_OIL_QTY:${engine}`, SimVarValueType.Number),
         thrustLeverAngle: SimVar.GetSimVarValue(`L:A32NX_AUTOTHRUST_TLA:${engine}`, SimVarValueType.Number),
+        autothrustMode: SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_MODE', SimVarValueType.Enum),
         oilTemperatureCelsius: SimVar.GetSimVarValue(`GENERAL ENG OIL TEMPERATURE:${engine}`, 'celsius'),
         n1VibrationUnits: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_N1_VIBRATION`, SimVarValueType.Number),
         n2VibrationUnits: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_N2_VIBRATION`, SimVarValueType.Number),

@@ -1,5 +1,6 @@
 import { ConsumerSubject, DisplayComponent, EventBus, FSComponent, MappedSubject } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from '../shared/EwdSimvarPublisher';
+import { isIdleIndicationShown } from './IdleIndication';
 
 interface IdleProps {
   bus: EventBus;
@@ -19,22 +20,16 @@ export class Idle extends DisplayComponent<IdleProps> {
 
   private readonly fwcFlightPhase = ConsumerSubject.create(this.sub.on('fwc_flight_phase').whenChanged(), 0);
 
-  private readonly autothrustStatus = ConsumerSubject.create(this.sub.on('autothrustStatus').whenChanged(), 0);
-
   private readonly n1Idle = ConsumerSubject.create(this.sub.on('n1Idle').withPrecision(1).whenChanged(), 0);
 
+  // FCOM DSC-70-90 IDLE INDICATION: in flight, at least three engines at idle, whatever the A/THR (IdleIndication)
   private readonly visible = MappedSubject.create(
-    ([e1, e2, e3, e4, fp, as, idle]) => {
-      const idleBuf = idle + 2;
-      const enginesIdle = [e1 <= idleBuf, e2 <= idleBuf, e3 <= idleBuf, e4 <= idleBuf];
-      return enginesIdle.filter(Boolean).length >= 3 && fp >= 6 && fp <= 9 && as !== 0 ? 'inherit' : 'hidden';
-    },
+    ([e1, e2, e3, e4, fp, idle]) => (isIdleIndicationShown([e1, e2, e3, e4], idle, fp) ? 'inherit' : 'hidden'),
     this.n1[0],
     this.n1[1],
     this.n1[2],
     this.n1[3],
     this.fwcFlightPhase,
-    this.autothrustStatus,
     this.n1Idle,
   );
 

@@ -3,8 +3,8 @@ import { useArinc429Var } from '@flybywiresim/fbw-sdk-react';
 import { GaugeComponent, GaugeMarkerComponent, ThrottlePositionDonutComponent } from '@instruments/common/gauges';
 import { useSimVar } from '@instruments/common/simVars';
 import { Position, ValidRedundantSystem } from '@instruments/common/types';
-import React from 'react';
-import { cabinVsPulses } from '../CabinVsIndications';
+import React, { useRef } from 'react';
+import { cabinVsPulses } from '@shared/CabinPressureIndications';
 
 const CabinVerticalSpeed: React.FC<Position & ValidRedundantSystem> = ({ x, y, system }) => {
   const [mancabinVs] = useSimVar('L:A32NX_PRESS_MAN_CABIN_VS', 'feet per minute', 500);
@@ -14,6 +14,11 @@ const CabinVerticalSpeed: React.FC<Position & ValidRedundantSystem> = ({ x, y, s
   const cabinVsTargetArinc = useArinc429Var(`L:A32NX_PRESS_CABIN_VS_TARGET_B${system}`, 500);
   const cabinVsTarget = cabinVsTargetArinc.isNormalOperation() ? cabinVsTargetArinc.value : null;
   const [cabVsAutoMode] = useSimVar('L:A32NX_OVHD_PRESS_MAN_VS_CTL_PB_IS_AUTO', 'bool', 500);
+
+  // FCOM DSC-21-30-20 V/S INDICATIONS: pulses above 1 800 ft/min, stops below 1 600 ft/min (CabinPressureIndications)
+  const wasPulsing = useRef(false);
+  const pulsing = cabinVsPulses(cabinVs, wasPulsing.current);
+  wasPulsing.current = pulsing;
 
   const radius = 88;
   const min = -2;
@@ -33,7 +38,7 @@ const CabinVerticalSpeed: React.FC<Position & ValidRedundantSystem> = ({ x, y, s
         <text className="F24 Center Cyan" x={x - 43} y={y - 105}>
           FT/MIN
         </text>
-        <text className={`F35 EndAlign  ${cabinVsPulses(cabinVs) ? 'GreenTextPulse' : 'Green'}`} x={x + 128} y={y + 13}>
+        <text className={`F35 EndAlign Green ${pulsing ? 'FillPulse' : ''}`} x={x + 128} y={y + 13}>
           {Math.round(cabinVs / 50) * 50}
         </text>
 
@@ -123,7 +128,7 @@ const CabinVerticalSpeed: React.FC<Position & ValidRedundantSystem> = ({ x, y, s
             radius={radius}
             startAngle={startAngle}
             endAngle={endAngle}
-            className={`GaugeIndicator ${cabinVsPulses(cabinVs) ? 'GreenIndicatorPulse' : ''}`}
+            className={`GaugeIndicator ${pulsing ? 'LinePulse' : ''}`}
             indicator
             multiplierOuter={1.01}
           />

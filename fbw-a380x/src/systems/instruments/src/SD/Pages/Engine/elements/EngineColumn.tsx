@@ -12,6 +12,7 @@ import { oilQuantityPulses, oilTemperatureClass } from '../OilIndications';
 import { n3ClassName, n3RedCrossShown, vibrationClassName } from './EngineVibration';
 import { NXUnits } from '@flybywiresim/fbw-sdk-react';
 import { areEngineParametersShown } from '../EngineParametersAvailability';
+import { fadecGroundPowerSupplies } from '../FadecGroundPower';
 import { fuelFilterCloggedShown } from '../FuelFilterIndication';
 
 interface EngineColumnProps {
@@ -44,7 +45,16 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   const [onGround] = useSimVar('SIM ON GROUND', 'bool', 500);
   const groundStart = !!onGround && (engineState === 2 || engineState === 3);
   const [n3RedCross, setN3RedCross] = useState(false);
-  const [fadecManuallyPowered] = useSimVar(`L:A32NX_OVHD_FADEC_${engine}`, 'bool', 500);
+  // FCOM DSC-70-20-10: the aircraft network supplies the FADEC 15 min at power-up, 10 min after the FADEC GND PWR pb
+  const [fadecGroundPowerPbOn] = useSimVar(`L:A32NX_OVHD_FADEC_${engine}`, 'bool', 500);
+  const [engineAcBusPowered] = useSimVar(`L:A32NX_ELEC_AC_${engine}_BUS_IS_POWERED`, 'bool', 500);
+  const [absoluteTimeS] = useSimVar('E:ABSOLUTE TIME', 'seconds', 1000);
+  const fadecSuppliedByAircraftNetwork = fadecGroundPowerSupplies[engine - 1].update({
+    nowS: absoluteTimeS,
+    aircraftPowered: !!engineAcBusPowered,
+    groundPowerPbOn: !!fadecGroundPowerPbOn,
+    onGround: !!onGround,
+  });
   const [engineFirePbReleased] = useSimVar(`L:A32NX_FIRE_BUTTON_ENG${engine}`, 'bool', 500);
 
   const [fadecNetworkLost] = useSimVar(`L:A32NX_ENGINE_${engine}_FADEC_FAULT`, 'bool', 500);
@@ -52,7 +62,7 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   const fadecPowered = areEngineParametersShown({
     ignition: !!ignition,
     anyEngineRunning,
-    fadecManuallyPowered: !!fadecManuallyPowered,
+    fadecSuppliedByAircraftNetwork,
     engineFirePbReleased: !!engineFirePbReleased,
     fadecNetworkLost: !!fadecNetworkLost,
   });
@@ -71,9 +81,11 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   const [n3Vibration] = useSimVar(`L:A32NX_ENGINE_${engine}_N3_VIBRATION`, 'number', 250);
 
   const [oilQuantity] = useSimVar(`L:A32NX_ENGINE_OIL_QTY:${engine}`, 'number', 500); // TODO: Update with correct SimVars
-  // FCOM DSC-70-90 OIL QUANTITY: pulses below the 1.2 qt advisory, except at TOGA or in reverse (OilIndications)
+  // FCOM DSC-70-90 OIL QUANTITY: pulses below the 1.2 qt advisory, except at TOGA or in reverse (OilIndications),
   const [thrustLeverAngle] = useSimVar(`L:A32NX_AUTOTHRUST_TLA:${engine}`, 'number', 500);
-  const oilQuantityPulse = oilQuantityPulses(oilQuantity, thrustLeverAngle);
+  // and at a FLEX or derated takeoff, a go-around and in alpha floor (A/THR mode)
+  const [autothrustMode] = useSimVar('L:A32NX_AUTOTHRUST_MODE', 'enum', 500);
+  const oilQuantityPulse = oilQuantityPulses(oilQuantity, thrustLeverAngle, autothrustMode);
   const [engineOilTemperature] = useSimVar(`GENERAL ENG OIL TEMPERATURE:${engine}`, 'celsius', 100); // TODO: Update with correct SimVars
   // fbw-a380x\src\wasm\fadec_a380x\src\Fadec\EngineControl_A380X.cpp
   // has all the engine oil simvars in a large section commented out
