@@ -339,6 +339,8 @@ export class MfdComponent
                 break;
               case 'ATCCOM':
                 this.uiService.navigateTo('atccom/request');
+                // ATC COM NOT AVAIL for 5 s while the ATC is failed (FCOM DSC-46-10-20-30)
+                this.props.atcService.onAtcComPageSelectedWithKccu();
                 break;
               case 'ND': // Move cursor to ND
                 break;

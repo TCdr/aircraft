@@ -19,6 +19,8 @@ export type ResetPanelSimvars = {
   a380x_reset_panel_aesu2: boolean;
   a380x_reset_panel_nss_avncs: boolean;
   a380x_reset_panel_nss_flt_ops: boolean;
+  /** ATC RESET (the ATC datalink applications on CPIOM D1, CpiomD/AtcDatalink.ts) */
+  a380x_reset_panel_atc: boolean;
 };
 
 export class ResetPanelSimvarPublisher extends SimVarPublisher<ResetPanelSimvars> {
@@ -33,6 +35,7 @@ export class ResetPanelSimvarPublisher extends SimVarPublisher<ResetPanelSimvars
     ['a380x_reset_panel_aesu2', { name: 'L:A32NX_RESET_PANEL_AESU2', type: SimVarValueType.Bool }],
     ['a380x_reset_panel_nss_avncs', { name: 'L:A32NX_RESET_PANEL_NSS_AVNCS', type: SimVarValueType.Bool }],
     ['a380x_reset_panel_nss_flt_ops', { name: 'L:A32NX_RESET_PANEL_NSS_FLT_OPS', type: SimVarValueType.Bool }],
+    ['a380x_reset_panel_atc', { name: 'L:A32NX_RESET_PANEL_ATC', type: SimVarValueType.Bool }],
   ]);
 
   public constructor(bus: EventBus) {

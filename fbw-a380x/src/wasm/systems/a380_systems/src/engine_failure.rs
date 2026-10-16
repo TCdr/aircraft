@@ -254,6 +254,9 @@ pub fn a380_engine_start_schedule() -> EngineStartSchedule {
         monitors_in_flight_start_air: true,
         // DSC-70-90 (l.113191): EGT limit "745 °C, during the ground start sequence".
         start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(745.),
+        // DSC-70-90 (l.113192): "865 °C, during engine relight in flight"; ENG RELIGHT IN FLIGHT
+        // (l.174945): "MAX EGT : 865 °C".
+        relight_egt_limit: Some(ThermodynamicTemperature::new::<degree_celsius>(865.)),
         // DSC-70-80-30-20 (l.112489-112491): "initiates two further attempts of automatic start
         // sequence after cranking ... If the third start attempt fails, the start sequence is aborted".
         automatic_start_attempts: 3,
@@ -1173,6 +1176,11 @@ mod tests {
             assert_eq!(schedule.start_valve_close_n2.get::<percent>(), 58.4);
             assert_eq!(schedule.start_abort_inhibition_n2.get::<percent>(), 58.4);
             assert_eq!(schedule.start_egt_limit.get::<degree_celsius>(), 745.);
+            // DSC-70-90 (l.113192) and ENG RELIGHT IN FLIGHT (l.174945): 865 °C in a relight
+            let relight_egt_limit = schedule
+                .relight_egt_limit
+                .map_or(0., |limit| limit.get::<degree_celsius>());
+            assert!((relight_egt_limit - 865.).abs() < 1e-6);
             assert_eq!(schedule.automatic_start_attempts, 3);
             assert_eq!(schedule.starter_time_limit, Some(Duration::from_secs(300)));
             assert!(schedule.continuous_ignition_uses_both_igniters);

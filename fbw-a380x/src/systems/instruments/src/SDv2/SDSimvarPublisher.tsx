@@ -95,6 +95,8 @@ export type BaseSDSimvars = AdirsSimVars &
     flapsConfIndex: number;
     /** FWS flight phase, 1 to 12 */
     fwcFlightPhase: number;
+    /** The ATC function runs (systems host CpiomD/AtcDatalink.ts), for the mailbox MAILBOX NOT AVAIL */
+    atcFunctionAvailable: boolean;
   };
 
 type IndexedTopics =
@@ -155,6 +157,7 @@ export class SDSimvarPublisher extends UpdatableSimVarPublisher<SDSimvars> {
     ['fws1_is_healthy', { name: 'L:A32NX_FWS1_IS_HEALTHY', type: SimVarValueType.Bool }],
     ['fws2_is_healthy', { name: 'L:A32NX_FWS2_IS_HEALTHY', type: SimVarValueType.Bool }],
     ['afdx_4_4_reachable', { name: 'L:A32NX_AFDX_4_4_REACHABLE', type: SimVarValueType.Bool }],
+    ['atcFunctionAvailable', { name: 'L:A380X_ATC_FUNCTION_AVAIL', type: SimVarValueType.Bool }],
     ['afdx_14_14_reachable', { name: 'L:A32NX_AFDX_14_14_REACHABLE', type: SimVarValueType.Bool }],
     ['afdx_4_3_reachable', { name: 'L:A32NX_AFDX_4_3_REACHABLE', type: SimVarValueType.Bool }],
     ['afdx_14_13_reachable', { name: 'L:A32NX_AFDX_14_13_REACHABLE', type: SimVarValueType.Bool }],

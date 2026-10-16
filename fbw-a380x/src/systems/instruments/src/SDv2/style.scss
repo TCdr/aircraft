@@ -130,6 +130,17 @@ span.Amber {
   }
 
   // Connection indications: green, 16.7 px per character (the FBW display font: 0.627 em per character)
+  // MAILBOX NOT AVAIL (ATC function lost). Design choice: amber, in the middle of the mailbox (the FCOM has no figure)
+  .atc-mailbox-not-avail {
+    position: absolute;
+    left: 384px;
+    top: 128px;
+    transform: translate(-50%, -50%);
+    font-size: 26.6px;
+    color: $display-amber;
+    white-space: pre;
+  }
+
   .atc-mailbox-connection {
     position: absolute;
     transform: translateY(-50%);
