@@ -13,8 +13,13 @@
  * - Aircraft power-up is the AC bus of the engine becoming powered (L:A32NX_ELEC_AC_n_BUS_IS_POWERED).
  * - The FADEC GND PWR pb is a latched pb (L:A32NX_OVHD_FADEC_n): setting it ON starts the 10 min, setting it OFF ends
  *   them, pressing it OFF and ON again gives 10 more minutes.
- * - The times are absolute sim times (E:ABSOLUTE TIME), so that a timer keeps running while the ENG page is not shown
- *   (the React page is unmounted then). A power or pb change while the page is not shown is seen at the next update.
+ * - Each FADEC has its own power-up: the FCOM does not name the bus, and the FADECs have their own EIPMs ("There is
+ *   one EIPM for two engines", l.111399, ENG 1(2)(3)(4) EIPM 1(2) reset), so a bus powered later (AC 3 + AC 4 from the
+ *   APU GEN after AC 1 + AC 2 from EXT PWR 1) starts the 15 min of its FADECs later.
+ * - The timers follow the real power-up and pb times whatever SD page is shown: the SD instrument loop (SD/index.tsx)
+ *   samples the AC buses, the pbs and the sim time with updateFadecGroundPowerSupplies, also while the ENG page (a React
+ *   page, unmounted while another page is shown) is not shown. The ENG page only reads isSupplied. The times are
+ *   absolute sim times (E:ABSOLUTE TIME).
  */
 
 /** l.111401: 15 min at aircraft power-up */
@@ -44,11 +49,23 @@ export class FadecGroundPowerSupply {
   /** sim time the FADEC GND PWR pb was set ON on ground, null when OFF or set ON in flight */
   private pbOnTimeS: number | null = null;
 
+  private supplied = false;
+
+  /** Whether the aircraft electrical network supplies the FADEC, as of the last update */
+  public get isSupplied(): boolean {
+    return this.supplied;
+  }
+
   /**
    * @param i the inputs
    * @returns whether the aircraft electrical network supplies the FADEC
    */
   public update(i: FadecGroundPowerInputs): boolean {
+    this.supplied = this.computeSupply(i);
+    return this.supplied;
+  }
+
+  private computeSupply(i: FadecGroundPowerInputs): boolean {
     if (!(i.nowS > 0)) {
       // no sim time yet (instrument start): the power-up is taken at the first valid time
       return i.aircraftPowered;
@@ -88,3 +105,30 @@ export class FadecGroundPowerSupply {
  * (index 0 = engine 1)
  */
 export const fadecGroundPowerSupplies = [1, 2, 3, 4].map(() => new FadecGroundPowerSupply());
+
+/** How often the SD instrument loop samples the AC buses, the FADEC GND PWR pbs and the sim time (real time, ms) */
+export const FADEC_SUPPLY_SAMPLE_INTERVAL_MS = 500;
+
+/**
+ * Updates the timers of the four FADECs from the SimVars. Called by the SD instrument loop whatever page is shown, so
+ * that a power-up or a pb press while another page is shown counts from its real time.
+ * @param read reads one SimVar as a number (SimVar.GetSimVarValue(name, unit) in the sim); the Bool vars read 1,
+ *   compared with > 0
+ * @param supplies the timers to update, engine 1 first
+ */
+export function updateFadecGroundPowerSupplies(
+  read: (name: string, unit: string) => number,
+  supplies: FadecGroundPowerSupply[] = fadecGroundPowerSupplies,
+): void {
+  const nowS = read('E:ABSOLUTE TIME', 'seconds');
+  const onGround = read('SIM ON GROUND', 'bool') > 0;
+  supplies.forEach((supply, index) => {
+    const engine = index + 1;
+    supply.update({
+      nowS,
+      aircraftPowered: read(`L:A32NX_ELEC_AC_${engine}_BUS_IS_POWERED`, 'bool') > 0,
+      groundPowerPbOn: read(`L:A32NX_OVHD_FADEC_${engine}`, 'bool') > 0,
+      onGround,
+    });
+  });
+}
