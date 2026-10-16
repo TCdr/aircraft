@@ -355,7 +355,7 @@ export class FwsMemos {
       // a380_fcom.txt l.49145-49149: "When pressed: [...] Message EVAC ACTIVE is displayed on the ECAM"). The Chief
       // Purser order (CAPT & PURS, l.49131-49134) is not simulated.
       flightPhaseInhib: [],
-      simVarIsActive: this.fws.evacCommand,
+      simVarIsActive: this.fws.evacCommandOn,
       whichCodeToReturn: () => [0],
       codesToReturn: ['230000016'],
       memoInhibit: () => false,
