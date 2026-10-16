@@ -95,7 +95,12 @@ import {
   SidestickPriorityAurals,
   readSidestickPriorityInputs,
 } from './Logic/SidestickPriorityAurals';
-import { wingTankLowLevelLines, wingTankLowLevelStatus, wingTanksLowLevelLines } from './Logic/WingTankLowLevel';
+import {
+  isWingTankLowLevelSensed,
+  wingTankLowLevelLines,
+  wingTankLowLevelStatus,
+  wingTanksLowLevelLines,
+} from './Logic/WingTankLowLevel';
 import * as Brakes from './Logic/BrakeSystemAlerts';
 import {
   CONFIG_SIDESTICK_FAULT_PHASE_INHIBITION,
@@ -308,6 +313,8 @@ import {
 } from './Logic/AirConditioningAlerts';
 import { THRUST_LOCKED_KEY, ThrustLockedAlert } from './Logic/ThrustLockedAlert';
 import { FuelTransferAlerts, readFuelTransferInputs } from './Logic/FuelTransferAlerts';
+import { FuelTemperatureAlerts, readFuelTemperatureInputs } from './Logic/FuelTemperatureAlerts';
+import { FuelSystemFaultAlerts, readFuelSystemFaultInputs } from './Logic/FuelSystemFaultAlerts';
 import { WingAntiIceAlerts, readWingAntiIceInputs } from './Logic/WingAntiIceAlerts';
 import { DoorAlerts, readDoorsNotClosed } from './Logic/DoorAlerts';
 import {
@@ -2115,6 +2122,15 @@ export class PseudoFWC {
   private readonly thrustLockedAlert = new ThrustLockedAlert();
 
   private readonly fuelTransferAlerts = new FuelTransferAlerts();
+
+  /** FUEL L (R) OUTER (INNER) TK HI TEMP and LO TEMP, see Logic/FuelTemperatureAlerts */
+  private readonly fuelTemperatureAlerts = new FuelTemperatureAlerts();
+
+  /**
+   * FUEL APU LP VALVE FAULT, F. USED/FOB DISAGREE, L (R) OUTER XFR CLOSED / OPEN, L (R) WING TK OVERFLOW, LO LVL DET
+   * FAULT, see Logic/FuelSystemFaultAlerts
+   */
+  private readonly fuelSystemFaultAlerts = new FuelSystemFaultAlerts();
 
   private readonly wingAntiIceAlerts = new WingAntiIceAlerts();
 
@@ -5014,8 +5030,15 @@ export class PseudoFWC {
 
     const leftInnerFuelQuantity = SimVar.GetSimVarValue('FUEL TANK LEFT MAIN QUANTITY', 'gallons') * fuelGallonsToKg;
     const rightInnerFuelQuantity = SimVar.GetSimVarValue('FUEL TANK RIGHT MAIN QUANTITY', 'gallons') * fuelGallonsToKg;
-    const leftFuelLow = leftInnerFuelQuantity < 750;
-    const rightFuelLow = rightInnerFuelQuantity < 750;
+    // The low level sensors (FCOM DSC-28-10-80, see Logic/WingTankLowLevel); a failed one gives no warning
+    const leftFuelLow = isWingTankLowLevelSensed(
+      leftInnerFuelQuantity,
+      SimVar.GetSimVarValue('L:A32NX_FUEL_L_WING_TK_LO_LVL_SENSOR_FAULT', 'bool') > 0,
+    );
+    const rightFuelLow = isWingTankLowLevelSensed(
+      rightInnerFuelQuantity,
+      SimVar.GetSimVarValue('L:A32NX_FUEL_R_WING_TK_LO_LVL_SENSOR_FAULT', 'bool') > 0,
+    );
     this.lrTankLow.set(this.lrTankLowConfirm.write(leftFuelLow && rightFuelLow, deltaTime));
     this.leftFuelLow.set(this.leftFuelLowConfirm.write(leftFuelLow && !this.lrTankLow.get(), deltaTime));
     this.rightFuelLow.set(this.rightFuelLowConfirm.write(rightFuelLow && !this.lrTankLow.get(), deltaTime));
@@ -5865,6 +5888,28 @@ export class PseudoFWC {
     );
     this.thrustLockedAlert.update(this.thrLocked.get(), deltaTime / 1000);
     this.fuelTransferAlerts.update(readFuelTransferInputs(this.fuelCtrTankModeSelMan.get()));
+    this.fuelTemperatureAlerts.update(
+      readFuelTemperatureInputs(this.aircraftOnGround.get(), [!!this.engine1Master.get(), !!this.engine2Master.get()]),
+    );
+    this.fuelSystemFaultAlerts.update(
+      readFuelSystemFaultInputs(this.aircraftOnGround.get(), [
+        {
+          ctrTkXfrOn: this.centerFuelPump1Auto.get(),
+          crossFeedOn: this.fuelXFeedPBOn.get(),
+          pump1On: this.leftFuelPump1Auto.get(),
+          pump2On: this.leftFuelPump2Auto.get(),
+          centreTankEmpty: this.centerTankEmpty.get(),
+        },
+        {
+          ctrTkXfrOn: this.centerFuelPump2Auto.get(),
+          crossFeedOn: this.fuelXFeedPBOn.get(),
+          pump1On: this.rightFuelPump1Auto.get(),
+          pump2On: this.rightFuelPump2Auto.get(),
+          centreTankEmpty: this.centerTankEmpty.get(),
+        },
+      ]),
+      deltaTime,
+    );
     this.wingAntiIceAlerts.update(readWingAntiIceInputs(), deltaTime / 1000);
     this.doorAlerts.update(readDoorsNotClosed(), this.aircraftOnGround.get());
     this.landingGearAlerts.update(readLandingGearInputs(this.gearNotUplockedWarning.get()), deltaTime / 1000);
@@ -10298,6 +10343,8 @@ export class PseudoFWC {
     ...this.cabinPressureAlerts.ewdFailures,
     ...this.thrustLockedAlert.ewdFailures,
     ...this.fuelTransferAlerts.ewdFailures,
+    ...this.fuelTemperatureAlerts.ewdFailures,
+    ...this.fuelSystemFaultAlerts.ewdFailures,
     ...this.wingAntiIceAlerts.ewdFailures,
     ...this.doorAlerts.ewdFailures,
     ...this.landingGearAlerts.ewdFailures,

@@ -591,6 +591,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] DOOR/OXY page: amber half-frame on ground below the dispatch pressure (cabin 1 600 PSI), cabin pressure amber below the emergency descent minimum of the passengers or 800 PSI before engine start - @TCdr
 1. [A380X/SD] BLEED page: the APU bleed valve shows amber when it is abnormally open or closed with the APU BLEED pb-sw ON - @TCdr
 1. [A380X/ENG] EWD EGT limits from the FCOM: amber above 970 °C, red line 1 002 °C (red at takeoff from 1 022 °C or after 20 s at or above 1 002 °C), with the ENG EGT OVER LIMIT alert and the EGT overtemperature failure retuned to them - @TCdr
+1. [A32NX/FUEL] Fuel temperature of each wing tank cell (design model: TAT, refuelling and transfer mixing, IDG cooling fuel return): shown on the SD FUEL page with the FCOM advisory and amber limits, new FUEL L (R) OUTER (INNER) TK HI TEMP and LO TEMP cautions - @TCdr
+1. [A32NX/FUEL] Wing tank overflow (MODE SEL MAN or a CTR TK XFR valve jammed open with a full inner tank): CTR TK L (R) XFR FAULT light, amber inner tank quantity and new FUEL L (R) WING TK OVERFLOW caution - @TCdr
+1. [A32NX/FUEL] New flyPad failures: APU LP fuel valve jammed, L (R) outer tank transfer valves jammed, L (R) wing tank low level sensor, L (R) wing tank leak - @TCdr
+1. [A32NX/FWC] New FUEL APU LP VALVE FAULT, F. USED/FOB DISAGREE, L (R) OUTER XFR CLOSED / OPEN and LO LVL DET FAULT cautions; a failed low level sensor gives no WING TK LO LVL warning - @TCdr
 
 ## 2024.1.0
 
