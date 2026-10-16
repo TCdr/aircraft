@@ -178,6 +178,7 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   setIlsCourse(course: number | null, backcourse?: boolean): void;
   getAdfTuningData(index: 1 | 2): AdfRadioTuningStatus;
   setManualAdf(index: 1 | 2, facilityOrFrequency: number | NdbNavaid | null): void;
+  setAdfBfo(index: 1 | 2, bfo: boolean): void;
   getOrSelectILSsByIdent(ident: string, callback: (navaid: IlsNavaid) => void): void;
   getOrSelectVORsByIdent(ident: string, callback: (navaid: VhfNavaid) => void): void;
   getOrSelectNDBsByIdent(ident: string, callback: (navaid: NdbNavaid) => void): void;

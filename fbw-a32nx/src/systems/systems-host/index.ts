@@ -32,6 +32,7 @@ import { TawsStatusBridge } from './systems/TawsStatusBridge';
 import { RaasSystem } from './systems/Raas/RaasSystem';
 import { Transponder } from './systems/Transponder/Transponder';
 import { RadioCommunicationFailures } from './systems/Communications/RadioCommunicationFailures';
+import { NavigationReceiverFailures } from './systems/Navigation/NavigationReceiverFailures';
 import { FuelPumpsAndValves } from './systems/Fuel/FuelPumpsAndValves';
 import { PaxOxygenMasks } from './systems/Oxygen/PaxOxygenMasks';
 import { DoorFailures } from './systems/Doors/DoorFailures';
@@ -82,6 +83,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('Raas', new RaasSystem(this.bus));
     this.backplane.addInstrument('Transponder', new Transponder());
     this.backplane.addInstrument('RadioCommunicationFailures', new RadioCommunicationFailures());
+    this.backplane.addInstrument('NavigationReceiverFailures', new NavigationReceiverFailures());
     this.backplane.addInstrument('FuelPumpsAndValves', new FuelPumpsAndValves());
     this.backplane.addInstrument('PaxOxygenMasks', new PaxOxygenMasks());
     this.backplane.addInstrument('DoorFailures', new DoorFailures());

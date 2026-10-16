@@ -673,6 +673,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] STATUS INOP SYS shows STBY RAD NAV with RMPs 1+2 (or all RMPs) failed, and the GPWS, TERR SYS and TAWS lines of the SURV faults under APPR & LDG instead of ALL PHASES - @TCdr
 1. [A380X/FWS] New IR 1(2)(3)(1+2)(1+3)(2+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN memos while IRs align in ATT mode, and a new DATALINK STBY memo while the ACARS provider link is temporarily lost with VHF 3 in data mode - @TCdr
 1. [A380X/FWS] NAV ALL AIR DATA DISAGREE radome destruction line now reads FMS FUEL PRED DISREGARD, as in the FCOM - @TCdr
+1. [A32NX/ADIRS] An IR in ATT mode gives no heading until the crew enters one on the new MCDU IRS MONITOR SET HDG field, then runs from the entered heading; the IRS MONITOR page shows ENTER HEADING until then - @TCdr
+1. [A32NX/ADIRS] Ground alignment of the IRS is only possible up to 73° North and South, and the magnetic heading and track are only valid between 60° South and 73° North, as in the FCOM limitations - @TCdr
+1. [A32NX/NAV] New flyPad failures for the VOR 1/2, DME 1/2, ADF 1/2 and ILS 1/2 receivers: the NDs lose the bearing, distance or deviation of the failed receiver, a failed ILS receiver loses LOC and G/S on its PFD - @TCdr
+1. [A32NX/NAV] The RMP BFO key and the MCDU RADIO NAV ADF/BFO prompts now set the ADF BFO mode, with the BFO key light - @TCdr
 1. [A32NX/PFD] The FMA shows MORE DRAG in DES at idle when the descent profile intercept comes less than 2 NM before the next altitude constraint, or in a speedbrake deceleration of the descent profile - @TCdr
 1. [A32NX/SD] DOOR/OXY page: REGUL LO PR in amber and an amber CKPT OXY with the CREW SUPPLY pb-sw OFF or below 300 PSI - @TCdr
 1. [A32NX/SD] CAB PRESS page: amber VENT with amber BLOWER and EXTRACT legends on a blower or extract fault (also with the avionics smoke) - @TCdr

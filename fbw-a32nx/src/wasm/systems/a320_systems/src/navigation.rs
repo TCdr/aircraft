@@ -1,7 +1,8 @@
 use std::time::Duration;
 use systems::navigation::adirs::{
     AdiruElectricalSupply, AirDataInertialReferenceSystem, AirDataInertialReferenceUnitProgramming,
-    CompleteAlignmentTime, InertialReferenceBackupSupply, LowSpeedWarningThreshold,
+    AttitudeModeHeading, CompleteAlignmentTime, InertialReferenceBackupSupply,
+    LowSpeedWarningThreshold, MagneticReferenceArea,
 };
 use systems::navigation::ala52b::{
     Ala52BAircraftInstallationDelay, Ala52BRadioAltimeter, Ala52BTransceiverPair,
@@ -11,6 +12,7 @@ use systems::shared::{ElectricalBusType, MachNumber};
 use systems::simulation::{
     InitContext, SimulationElement, SimulationElementVisitor, UpdateContext,
 };
+use uom::si::angle::degree;
 use uom::si::f64::*;
 use uom::si::length::{foot, meter};
 use uom::si::velocity::knot;
@@ -23,6 +25,11 @@ impl A320AirDataInertialReferenceSystemBuilder {
     /// A380 FCOM, the A320 FCOM gives no latitude dependency (ground alignment only up to 73 deg,
     /// l.116718).
     const COMPLETE_ALIGNMENT_TIME: Duration = Duration::from_secs(10 * 60);
+
+    /// A320 FCOM LIM-NAV IR GROUND ALIGNMENT (a320_fcom.txt l.116716-116718): "Ground alignment of the IRS is
+    /// possible in latitudes between 73° North and 73° South." The magnetic heading and track are valid between
+    /// 60 S and 73 N (l.116720-116726, MagneticReferenceArea::SixtySouthToSeventyThreeNorth).
+    const MAX_ALIGNMENT_LATITUDE_DEGREES: f64 = 73.;
 
     /// A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG SYS REMAINING (a320_fcom.txt l.75317-75320, l.75390): IR "No 1 only (e)"
     /// and ADR "No 1 only" with the emergency generator, ADR "INOP" on batteries only; "(e) IR 2 and IR 3 are lost 5 min
@@ -83,7 +90,12 @@ impl A320AirDataInertialReferenceSystemBuilder {
             ],
             Self::electrical_supplies(),
         )
-        .with_complete_alignment_time(CompleteAlignmentTime::Fixed(Self::COMPLETE_ALIGNMENT_TIME));
+        .with_complete_alignment_time(CompleteAlignmentTime::Fixed(Self::COMPLETE_ALIGNMENT_TIME))
+        .with_latitude_limits(
+            Angle::new::<degree>(Self::MAX_ALIGNMENT_LATITUDE_DEGREES),
+            MagneticReferenceArea::SixtySouthToSeventyThreeNorth,
+        )
+        .with_attitude_mode_heading(AttitudeModeHeading::EnteredByCrew);
         AirDataInertialReferenceSystem::new(context, adirs_programming)
     }
 }
@@ -198,6 +210,7 @@ mod tests {
     use super::*;
     use systems::electrical::{test::TestElectricitySource, ElectricalBus, Electricity};
     use systems::navigation::adirs::AirDataInertialReferenceSystemOverheadPanel;
+    use systems::shared::arinc429::{Arinc429Word, SignStatus};
     use systems::shared::PotentialOrigin;
     use systems::simulation::{
         test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
@@ -284,5 +297,234 @@ mod tests {
 
         let remaining: Duration = test_bed.read_by_name("ADIRS_REMAINING_IR_ALIGNMENT_TIME");
         assert_eq!(remaining, Duration::from_secs(600));
+    }
+
+    /// IrMaintFlags of the IR maintenance word (docs/a320-simvars.md A32NX_ADIRS_IR_{number}_MAINT_WORD)
+    const MAINT_WORD_VALID_SET_HEADING: u32 = 1 << 3;
+    const MAINT_WORD_ALIGN_FAULT: u32 = 1 << 10;
+    const MAINT_WORD_EXTREME_LATITUDE: u32 = 1 << 14;
+
+    const IR_MODE_OFF: f64 = 0.;
+    const IR_MODE_NAV: f64 = 1.;
+    const IR_MODE_ATT: f64 = 2.;
+
+    fn ir_1_maint_word(test_bed: &mut SimulationTestBed<TestAircraft>) -> u32 {
+        let maint_word: Arinc429Word<u32> = test_bed.read_arinc429_by_name("ADIRS_IR_1_MAINT_WORD");
+        maint_word.value()
+    }
+
+    fn ir_1_heading(test_bed: &mut SimulationTestBed<TestAircraft>) -> Arinc429Word<Angle> {
+        test_bed.read_arinc429_by_name("ADIRS_IR_1_HEADING")
+    }
+
+    fn set_aircraft_heading(
+        test_bed: &mut SimulationTestBed<TestAircraft>,
+        true_heading: f64,
+        magnetic_heading: f64,
+    ) {
+        test_bed.write_by_name(
+            "PLANE HEADING DEGREES TRUE",
+            Angle::new::<degree>(true_heading),
+        );
+        test_bed.write_by_name(
+            "PLANE HEADING DEGREES MAGNETIC",
+            Angle::new::<degree>(magnetic_heading),
+        );
+    }
+
+    /// The FMGC sends a crew SET HDG entry: normal operation, as the MCDU does for a short time after the entry
+    fn send_set_heading(test_bed: &mut SimulationTestBed<TestAircraft>, heading: f64) {
+        test_bed.write_arinc429_by_name("FM_IRS_SET_HEADING", heading, SignStatus::NormalOperation);
+    }
+
+    fn end_set_heading(test_bed: &mut SimulationTestBed<TestAircraft>) {
+        test_bed.write_arinc429_by_name("FM_IRS_SET_HEADING", 0., SignStatus::NoComputedData);
+    }
+
+    /// The IRs aligned in NAV mode (they start aligned) past the power settling time of the ADIRS, at a latitude
+    fn aligned_test_bed_at(latitude: f64, longitude: f64) -> SimulationTestBed<TestAircraft> {
+        let mut test_bed = SimulationTestBed::new(TestAircraft::new);
+        test_bed.set_on_ground(true);
+        test_bed.write_by_name("PLANE LATITUDE", Angle::new::<degree>(latitude));
+        test_bed.write_by_name("PLANE LONGITUDE", Angle::new::<degree>(longitude));
+        set_aircraft_heading(&mut test_bed, 100., 95.);
+        set_all_ir_mode_selectors(&mut test_bed, IR_MODE_NAV);
+        test_bed.run_with_delta(Duration::from_secs(3));
+        test_bed.run_with_delta(Duration::from_secs(3));
+        test_bed
+    }
+
+    /// The aligned IRs, IR 1 then set to ATT (its attitude stays initialised)
+    fn ir_1_in_att_mode_test_bed() -> SimulationTestBed<TestAircraft> {
+        let mut test_bed = aligned_test_bed_at(45., 0.);
+        assert!(ir_1_heading(&mut test_bed).is_normal_operation());
+        test_bed.write_by_name("OVHD_ADIRS_IR_1_MODE_SELECTOR_KNOB", IR_MODE_ATT);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed
+    }
+
+    #[test]
+    fn in_att_mode_the_heading_is_no_computed_data_until_the_crew_enters_it() {
+        let mut test_bed = ir_1_in_att_mode_test_bed();
+
+        assert!(!ir_1_heading(&mut test_bed).is_normal_operation());
+        assert_eq!(
+            ir_1_maint_word(&mut test_bed) & MAINT_WORD_VALID_SET_HEADING,
+            0
+        );
+    }
+
+    #[test]
+    fn in_att_mode_the_ir_runs_from_the_heading_the_crew_entered() {
+        let mut test_bed = ir_1_in_att_mode_test_bed();
+
+        send_set_heading(&mut test_bed, 120.);
+        test_bed.run_with_delta(Duration::from_millis(500));
+        test_bed.run_with_delta(Duration::from_millis(500));
+        end_set_heading(&mut test_bed);
+        test_bed.run_with_delta(Duration::from_secs(1));
+
+        let heading = ir_1_heading(&mut test_bed);
+        assert!(heading.is_normal_operation());
+        assert!((heading.value().get::<degree>() - 120.).abs() < 1e-6);
+        assert_eq!(
+            ir_1_maint_word(&mut test_bed) & MAINT_WORD_VALID_SET_HEADING,
+            MAINT_WORD_VALID_SET_HEADING
+        );
+
+        // The aircraft turns right by 30 deg: the IR heading follows from the entered heading
+        set_aircraft_heading(&mut test_bed, 130., 125.);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed.run_with_delta(Duration::from_secs(1));
+        let heading = ir_1_heading(&mut test_bed);
+        assert!(heading.is_normal_operation());
+        assert!((heading.value().get::<degree>() - 150.).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_new_entry_of_the_same_heading_resets_the_att_mode_heading() {
+        let mut test_bed = ir_1_in_att_mode_test_bed();
+
+        send_set_heading(&mut test_bed, 120.);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        end_set_heading(&mut test_bed);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        set_aircraft_heading(&mut test_bed, 110., 105.);
+        test_bed.run_with_delta(Duration::from_secs(1));
+
+        // The crew enters 120 again: the IR heading is 120 again, not 130
+        send_set_heading(&mut test_bed, 120.);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        end_set_heading(&mut test_bed);
+        test_bed.run_with_delta(Duration::from_secs(1));
+
+        let heading = ir_1_heading(&mut test_bed);
+        assert!((heading.value().get::<degree>() - 120.).abs() < 1e-6);
+    }
+
+    #[test]
+    fn the_att_mode_heading_is_lost_when_the_ir_leaves_att_mode() {
+        let mut test_bed = ir_1_in_att_mode_test_bed();
+        send_set_heading(&mut test_bed, 120.);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        end_set_heading(&mut test_bed);
+        test_bed.run_with_delta(Duration::from_secs(1));
+
+        // OFF and back to ATT: the attitude initialises again, then the heading needs a new entry
+        test_bed.write_by_name("OVHD_ADIRS_IR_1_MODE_SELECTOR_KNOB", IR_MODE_OFF);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed.write_by_name("OVHD_ADIRS_IR_1_MODE_SELECTOR_KNOB", IR_MODE_ATT);
+        for _ in 0..3 {
+            test_bed.run_with_delta(Duration::from_secs(15));
+        }
+
+        let pitch: Arinc429Word<Angle> = test_bed.read_arinc429_by_name("ADIRS_IR_1_PITCH");
+        assert!(pitch.is_normal_operation());
+        assert!(!ir_1_heading(&mut test_bed).is_normal_operation());
+    }
+
+    #[test]
+    fn a_heading_entry_outside_att_mode_is_not_taken() {
+        let mut test_bed = aligned_test_bed_at(45., 0.);
+
+        // In NAV mode the IR gives the magnetic heading and ignores the entry
+        send_set_heading(&mut test_bed, 200.);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        let heading = ir_1_heading(&mut test_bed);
+        assert!(heading.is_normal_operation());
+        assert!((heading.value().get::<degree>() - 95.).abs() < 1e-6);
+
+        // ATT selected while the old entry is still sent: no new entry, so no heading
+        test_bed.write_by_name("OVHD_ADIRS_IR_1_MODE_SELECTOR_KNOB", IR_MODE_ATT);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed.run_with_delta(Duration::from_secs(1));
+        assert!(!ir_1_heading(&mut test_bed).is_normal_operation());
+    }
+
+    /// OFF long enough to need a complete alignment, then NAV, at a latitude
+    fn complete_alignment_started_at(latitude: f64) -> SimulationTestBed<TestAircraft> {
+        let mut test_bed = SimulationTestBed::new(TestAircraft::new);
+        test_bed.set_on_ground(true);
+        test_bed.write_by_name("PLANE LATITUDE", Angle::new::<degree>(latitude));
+        set_all_ir_mode_selectors(&mut test_bed, IR_MODE_OFF);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed.run_with_delta(Duration::from_secs(30));
+        set_all_ir_mode_selectors(&mut test_bed, IR_MODE_NAV);
+        test_bed.run_with_delta(Duration::ZERO);
+        test_bed
+    }
+
+    #[test]
+    fn ground_alignment_is_not_possible_north_of_73_degrees() {
+        let mut test_bed = complete_alignment_started_at(74.);
+        test_bed.run_with_delta(Duration::from_secs(30));
+        test_bed.run_with_delta(Duration::from_secs(30));
+
+        let remaining: Duration = test_bed.read_by_name("ADIRS_REMAINING_IR_ALIGNMENT_TIME");
+        assert_eq!(remaining, Duration::from_secs(600));
+        assert_eq!(
+            ir_1_maint_word(&mut test_bed) & MAINT_WORD_ALIGN_FAULT,
+            MAINT_WORD_ALIGN_FAULT
+        );
+    }
+
+    #[test]
+    fn ground_alignment_is_possible_up_to_73_degrees_south() {
+        let mut test_bed = complete_alignment_started_at(-72.9);
+        test_bed.run_with_delta(Duration::from_secs(30));
+        test_bed.run_with_delta(Duration::from_secs(30));
+
+        let remaining: Duration = test_bed.read_by_name("ADIRS_REMAINING_IR_ALIGNMENT_TIME");
+        assert_eq!(remaining, Duration::from_secs(540));
+        assert_eq!(ir_1_maint_word(&mut test_bed) & MAINT_WORD_ALIGN_FAULT, 0);
+    }
+
+    #[test]
+    fn the_magnetic_heading_is_not_valid_north_of_73_degrees_at_any_longitude() {
+        // Outside the 120 W - 90 W band around the magnetic pole
+        let mut test_bed = aligned_test_bed_at(78., 20.);
+
+        assert_eq!(
+            ir_1_maint_word(&mut test_bed) & MAINT_WORD_EXTREME_LATITUDE,
+            MAINT_WORD_EXTREME_LATITUDE
+        );
+        // The magnetic heading label then carries the true heading
+        let heading = ir_1_heading(&mut test_bed);
+        assert!(heading.is_normal_operation());
+        assert!((heading.value().get::<degree>() - 100.).abs() < 1e-6);
+    }
+
+    #[test]
+    fn the_magnetic_heading_is_valid_up_to_73_degrees_north() {
+        let mut test_bed = aligned_test_bed_at(72., 20.);
+
+        assert_eq!(
+            ir_1_maint_word(&mut test_bed) & MAINT_WORD_EXTREME_LATITUDE,
+            0
+        );
+        let heading = ir_1_heading(&mut test_bed);
+        assert!(heading.is_normal_operation());
+        assert!((heading.value().get::<degree>() - 95.).abs() < 1e-6);
     }
 }
