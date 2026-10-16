@@ -1,6 +1,18 @@
 @import "../../style";
 @import "../../../Common/definitions.scss";
 
+@mixin DoorPagePulsingFill($name, $color) {
+    @keyframes #{$name} {
+        0%, 100% {
+            fill: $color;
+        }
+        50% {
+            fill: scale-color($color, $lightness: -50%);
+        }
+    }
+    animation: $name 1s step-end infinite;
+}
+
 #door-page {
 
 
@@ -26,6 +38,12 @@
         stroke-width: 2;
     }
 
+    // Door legends (CABIN, EMER EXIT, CARGO) of a door not locked
+    .Warning {
+        font-size: $font-size-larger;
+        fill: $display-amber;
+    }
+
     #texts {
 
         .Title {
@@ -36,11 +54,6 @@
         .Slide {
             font-size: $font-size-medium;
             fill: $display-white;
-        }
-
-        .Warning {
-            font-size: $font-size-larger;
-            fill: $display-amber;
         }
 
         .OxyWarn {
@@ -66,6 +79,24 @@
         .ValueAmber {
             font-size: $font-size-xlarge;
             fill: $display-amber;
+        }
+
+        .ValuePulse {
+            font-size: $font-size-xlarge;
+            fill: $display-green;
+            @include DoorPagePulsingFill(door-page-green-pulse, $display-green);
+        }
+
+        .Label {
+            font-size: $font-size-xlarge;
+            fill: $display-white;
+        }
+
+        // Crew oxygen below 1000 PSI on ground
+        .HalfFrame {
+            fill: none;
+            stroke: $display-amber;
+            stroke-width: 2;
         }
     }
 }

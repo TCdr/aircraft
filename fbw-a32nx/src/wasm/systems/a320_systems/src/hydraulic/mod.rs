@@ -2486,6 +2486,8 @@ struct A320HydraulicBrakeSteerComputerUnit {
 
     brake_temperature_ids: [VariableIdentifier; 4],
     brake_temperatures: [Option<ThermodynamicTemperature>; 4],
+    /// BRAKES HOT, latched between 300 and 290 degrees C (see brakes_hot_with_hysteresis)
+    brakes_hot: bool,
 
     /// The green pressure is high enough for the normal brakes (pressure hysteresis below)
     green_pressure_available_for_brakes: bool,
@@ -2541,6 +2543,7 @@ impl A320HydraulicBrakeSteerComputerUnit {
     const PILOT_INPUT_DETECTION_TRESHOLD: f64 = 0.2;
 
     const BRAKES_HOT_THRESHOLD_CELSIUS: f64 = 300.;
+    const BRAKES_HOT_RESET_CELSIUS: f64 = 290.;
 
     /// Main wheel radius of the flight model (flight_model.cfg contact points 1 and 2: 1.9167 ft)
     const MAIN_WHEEL_RADIUS_METER: f64 = 1.9167 * 0.3048;
@@ -2579,6 +2582,7 @@ impl A320HydraulicBrakeSteerComputerUnit {
             brake_temperature_ids: [1, 2, 3, 4]
                 .map(|index| context.get_identifier(format!("REPORTED_BRAKE_TEMPERATURE_{index}"))),
             brake_temperatures: [None; 4],
+            brakes_hot: false,
             green_pressure_available_for_brakes: false,
             should_disable_auto_brake_when_retracting: DelayedTrueLogicGate::new(
                 Duration::from_secs_f64(Self::AUTOBRAKE_GEAR_RETRACTION_DURATION_S),
@@ -2712,6 +2716,8 @@ impl A320HydraulicBrakeSteerComputerUnit {
         ) {
             *brake_temperature = sensor.signal();
         }
+        self.brakes_hot =
+            Self::brakes_hot_with_hysteresis(self.brakes_hot, &self.brake_temperatures);
 
         self.brake_fan_running = brake_fan_panel.brake_fan_pb_is_pressed();
 
@@ -2866,9 +2872,28 @@ impl A320HydraulicBrakeSteerComputerUnit {
     }
 
     fn brakes_hot(&self) -> bool {
-        self.brake_temperatures.iter().any(|t| {
-            t.is_some_and(|t| t.get::<degree_celsius>() >= Self::BRAKES_HOT_THRESHOLD_CELSIUS)
-        })
+        self.brakes_hot
+    }
+
+    /// BRAKES HOT "triggers when one brake temperature is above 300 degrees C. The alert disappears when the highest
+    /// brake temperature is below 290 degrees C." (FCOM PRO-ABN-BRAKES, a320_fcom.txt l.72548-72549). The same signal
+    /// lights the HOT light of the BRK FAN pb, which "comes on when the brakes get too hot (A caution appears on ECAM,
+    /// also)" (l.51520-51522). Without any valid brake temperature it is off.
+    fn brakes_hot_with_hysteresis(
+        was_hot: bool,
+        brake_temperatures: &[Option<ThermodynamicTemperature>; 4],
+    ) -> bool {
+        let hottest_celsius = brake_temperatures
+            .iter()
+            .flatten()
+            .map(|t| t.get::<degree_celsius>())
+            .reduce(f64::max);
+
+        match hottest_celsius {
+            Some(hottest) if was_hot => hottest >= Self::BRAKES_HOT_RESET_CELSIUS,
+            Some(hottest) => hottest > Self::BRAKES_HOT_THRESHOLD_CELSIUS,
+            None => false,
+        }
     }
 }
 impl SimulationElement for A320HydraulicBrakeSteerComputerUnit {
@@ -5178,6 +5203,47 @@ pub struct A320ReverserMonitoring {
 mod tests {
     use super::*;
     use more_asserts::*;
+
+    /// BRAKES HOT on above 300 degrees C, off below 290 degrees C (FCOM l.72548-72549)
+    mod brakes_hot {
+        use super::*;
+
+        fn temperatures(celsius: [f64; 4]) -> [Option<ThermodynamicTemperature>; 4] {
+            celsius.map(|t| Some(ThermodynamicTemperature::new::<degree_celsius>(t)))
+        }
+
+        fn brakes_hot(was_hot: bool, celsius: [f64; 4]) -> bool {
+            A320HydraulicBrakeSteerComputerUnit::brakes_hot_with_hysteresis(
+                was_hot,
+                &temperatures(celsius),
+            )
+        }
+
+        #[test]
+        fn comes_on_when_one_brake_is_above_300_c() {
+            assert!(!brakes_hot(false, [300., 150., 150., 150.]));
+            assert!(brakes_hot(false, [150., 150., 301., 150.]));
+        }
+
+        #[test]
+        fn does_not_come_on_between_290_and_300_c() {
+            assert!(!brakes_hot(false, [295., 295., 295., 295.]));
+        }
+
+        #[test]
+        fn stays_on_until_the_hottest_brake_is_below_290_c() {
+            assert!(brakes_hot(true, [295., 150., 150., 150.]));
+            assert!(brakes_hot(true, [150., 290., 150., 150.]));
+            assert!(!brakes_hot(true, [289., 150., 150., 150.]));
+        }
+
+        #[test]
+        fn is_off_without_any_valid_brake_temperature() {
+            assert!(
+                !A320HydraulicBrakeSteerComputerUnit::brakes_hot_with_hysteresis(true, &[None; 4])
+            );
+        }
+    }
 
     mod a320_hydraulics {
         use super::*;

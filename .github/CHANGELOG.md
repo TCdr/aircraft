@@ -595,6 +595,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FUEL] Wing tank overflow (MODE SEL MAN or a CTR TK XFR valve jammed open with a full inner tank): CTR TK L (R) XFR FAULT light, amber inner tank quantity and new FUEL L (R) WING TK OVERFLOW caution - @TCdr
 1. [A32NX/FUEL] New flyPad failures: APU LP fuel valve jammed, L (R) outer tank transfer valves jammed, L (R) wing tank low level sensor, L (R) wing tank leak - @TCdr
 1. [A32NX/FWC] New FUEL APU LP VALVE FAULT, F. USED/FOB DISAGREE, L (R) OUTER XFR CLOSED / OPEN and LO LVL DET FAULT cautions; a failed low level sensor gives no WING TK LO LVL warning - @TCdr
+1. [A32NX/SD] WHEEL page: N/W STEERING, ANTI SKID (with the failed BSCU channel numbers), NORM BRK and ALTN BRK legends shown and coloured as in the FCOM from the brake system failures and hydraulic pressures, AUTO BRK amber on an autobrake failure - @TCdr
+1. [A32NX/SD] DOOR/OXY page: every cabin door, both emergency exits and the aft cargo door turn amber when not locked, crew oxygen pressure pulses below 600 PSI and is amber below 300 PSI with an amber half frame on ground below 1000 PSI, cabin V/S shown in flight - @TCdr
+1. [A32NX/Lights] NO SMOKING signs in AUTO also come on with the flaps/slats lever out of 0 or any landing gear extended, and all positions come on above 11 300 ft cabin altitude - @TCdr
+1. [A32NX/Brakes] BRAKES HOT caution and BRK FAN HOT light come on above 300 C and go off only below 290 C - @TCdr
 
 ## 2024.1.0
 
