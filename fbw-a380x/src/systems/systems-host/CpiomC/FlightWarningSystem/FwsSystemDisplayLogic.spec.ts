@@ -168,6 +168,43 @@ describe('FwsSystemDisplayLogic ECP MORE pb on the STATUS page', () => {
   });
 });
 
+describe('FwsSystemDisplayLogic ECP MORE pb on the FUEL and WHEEL pages', () => {
+  // A380 FCOM DSC-28-20 (a380_fcom.txt l.58352-58371) FUEL MORE, DSC-32-20-30 (l.81015-81024) WHEEL MORE
+  it.each([
+    ['FUEL', SdPages.Fuel],
+    ['WHEEL', SdPages.Wheel],
+  ])('shows and clears the %s MORE page with the MORE pb', (_name, page) => {
+    const { showPage, pressMore, moreShown } = setUp();
+    showPage(page);
+    pressMore();
+    expect(moreShown()).toBe(1);
+    // the MORE page stays on its page
+    showPage(page);
+    expect(moreShown()).toBe(1);
+    pressMore();
+    expect(moreShown()).toBe(0);
+  });
+
+  it('clears the WHEEL MORE page when the SD leaves the WHEEL page', () => {
+    const { showPage, pressMore, moreShown } = setUp();
+    showPage(SdPages.Wheel);
+    pressMore();
+    expect(moreShown()).toBe(1);
+    showPage(SdPages.Fuel);
+    expect(moreShown()).toBe(0);
+  });
+
+  it('the FUEL and WHEEL pages draw their MORE page from the FWS MORE state', () => {
+    const sdPages = resolve(__dirname, '../../../instruments/src/SD/Pages');
+    for (const file of ['FuelPage.tsx', 'Wheel/WheelPage.tsx']) {
+      const source = readFileSync(resolve(sdPages, file), 'utf-8');
+      expect(source, file).toContain("useSimVar('L:A32NX_ECAM_SD_MORE_SHOWN', 'number', 200)");
+      expect(source, file).not.toContain('const [showMore] = useState(false)');
+      expect(source, file).not.toContain('const moreActive = false');
+    }
+  });
+});
+
 describe('EcamSdMore rules', () => {
   it('has a STATUS MORE page with REDUND LOSS or CANCELLED CAUTION only', () => {
     expect(isStatusMoreAvailable([], [])).toBe(false);
@@ -178,7 +215,10 @@ describe('EcamSdMore rules', () => {
   it('has MORE only on the pages with a MORE page', () => {
     expect(isSdMoreAvailable(SdPages.Status, true)).toBe(true);
     expect(isSdMoreAvailable(SdPages.Status, false)).toBe(false);
-    expect(isSdMoreAvailable(SdPages.Fuel, true)).toBe(false);
+    expect(isSdMoreAvailable(SdPages.Eng, true)).toBe(false);
+    // FUEL MORE (a380_fcom.txt l.58352-58371) and WHEEL MORE (l.81015-81024) always exist
+    expect(isSdMoreAvailable(SdPages.Fuel, false)).toBe(true);
+    expect(isSdMoreAvailable(SdPages.Wheel, false)).toBe(true);
   });
 
   it('toggles the MORE page with the MORE pb, ignores the pb elsewhere', () => {
@@ -193,6 +233,9 @@ describe('EcamSdMore rules', () => {
     expect(sdMoreShownToKeep(SdPages.Status, true, false)).toBe(false);
     expect(sdMoreShownToKeep(SdPages.Eng, true, true)).toBe(false);
     expect(sdMoreShownToKeep(SdPages.Status, false, true)).toBe(false);
+    // the MORE page belongs to the page it was shown on
+    expect(sdMoreShownToKeep(SdPages.Fuel, true, false, SdPages.Wheel)).toBe(false);
+    expect(sdMoreShownToKeep(SdPages.Wheel, true, false, SdPages.Wheel)).toBe(true);
   });
 });
 
