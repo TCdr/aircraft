@@ -95,12 +95,10 @@ class OitInstrument implements FsInstrument {
       .getSubscriber<HEvent>()
       .on('hEvent')
       .handle((eventName) => {
-        if (
-          eventName.startsWith(
-            this.instrument.instrumentIndex === 1 ? 'A380X_LAPTOP_KEYBOARD_L' : 'A380X_LAPTOP_KEYBOARD_R',
-          )
-        ) {
-          const key = eventName.substring(23);
+        // H:A380X_LAPTOP_KEYBOARD_L(R)_<key> of the laptop keyboards (keyboard.xml), e.g. A380X_LAPTOP_KEYBOARD_L_OIS_MENU
+        const prefix = this.instrument.instrumentIndex === 1 ? 'A380X_LAPTOP_KEYBOARD_L_' : 'A380X_LAPTOP_KEYBOARD_R_';
+        if (eventName.startsWith(prefix)) {
+          const key = eventName.substring(prefix.length);
 
           this.bus
             .getPublisher<InternalKbdKeyEvent>()

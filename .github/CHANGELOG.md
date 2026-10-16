@@ -737,6 +737,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/RMP] RMP messages are now queued: MSG CLR clears them one by one and shows the previous one - @TCdr
 1. [A380X/COMM] Each CALLS panel pushbutton now calls its own station (a PILOT REST call no longer makes the cabin report CABIN READY), EMER ON and CALL lights steady - @TCdr
 1. [A380X/COMM] The ELT selector now works (ON, ARMED, TEST/RESET) - @TCdr
+1. [A380X/ATC] The ATC MSG lights and RING are inhibited in takeoff and landing; an uplink received then, or a sixth one while five wait for an answer, is rejected with an automatic ERROR downlink to the ATC center - @TCdr
+1. [A380X/FIRE] New flyPad failures for NSS smoke and its two smoke detectors; NSS smoke lights the SMOKE light of the NSS MASTER pb - @TCdr
+1. [A380X/OIS] The laptop shows STANDALONE and SYNCHRONIZATION NOT AVAIL when started before the ARU (2 min after power-up) or without the FLT OPS network - @TCdr
+1. [A380X/OIS] The OIS MENU key shows the FLT OPS menu and the OIS XFR key shows the other OIT's page (X-OIS) - @TCdr
+1. [A380X/OIS] COMPANY COM weather request (METAR/TAF) and free text pages, sent through the AOC - @TCdr
 
 ## 2024.1.0
 
