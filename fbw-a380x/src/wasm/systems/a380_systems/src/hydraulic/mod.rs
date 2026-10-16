@@ -3137,6 +3137,7 @@ impl A380Hydraulic {
         );
 
         self.green_electric_pump_a_controller.update(
+            context,
             overhead_panel,
             &self.green_circuit,
             self.green_circuit.reservoir(),
@@ -3154,6 +3155,7 @@ impl A380Hydraulic {
             &self.green_electric_pump_a_controller,
         );
         self.green_electric_pump_b_controller.update(
+            context,
             overhead_panel,
             &self.green_circuit,
             self.green_circuit.reservoir(),
@@ -3171,6 +3173,7 @@ impl A380Hydraulic {
         );
 
         self.yellow_electric_pump_a_controller.update(
+            context,
             overhead_panel,
             &self.yellow_circuit,
             self.yellow_circuit.reservoir(),
@@ -3188,6 +3191,7 @@ impl A380Hydraulic {
         );
 
         self.yellow_electric_pump_b_controller.update(
+            context,
             overhead_panel,
             &self.yellow_circuit,
             self.yellow_circuit.reservoir(),
@@ -4203,7 +4207,9 @@ struct A380ElectricPumpController {
     powered_by: ElectricalBusType,
 
     should_pressurise: bool,
+    /// The pump section pressure stays low while the pump is commanded, see update_low_pressure
     has_pressure_low_fault: bool,
+    pressure_low_confirmation: DelayedTrueLogicGate,
     has_air_pressure_low_fault: bool,
     has_low_level_fault: bool,
     /// The pump motor itself overheats (a pump failure)
@@ -4219,6 +4225,14 @@ struct A380ElectricPumpController {
     is_in_manual_mode: bool,
 }
 impl A380ElectricPumpController {
+    /// How long the pump section pressure must stay low, with the pump commanded, before it is a pump failure (ELEC
+    /// PMP pb-sw FAULT light). The FCOM gives no time (PRO-ABN HYD G (Y) ELEC PMP A OR (B) FAULT, a380_fcom.txt
+    /// l.154989-154993: "The electric pump pressure is below 1 885 PSI"). Design choice: the same 3 s as the FWS
+    /// confirmation of the HYD_*_EPUMP_LOW_PRESS signal for that ECAM alert (FwsCore.ts yellowAPumpLoPressConfNode),
+    /// which the FAULT light goes with (DSC-29-20 l.61383-61385). A pump that starts on ground takes about 2 s to
+    /// raise its section above the pressure switch, which must not light the FAULT.
+    const PRESSURE_LOW_FAULT_CONFIRMATION_TIME: Duration = Duration::from_secs(3);
+
     fn new(
         context: &mut InitContext,
         pump_id: A380ElectricPumpId,
@@ -4235,6 +4249,9 @@ impl A380ElectricPumpController {
             should_pressurise: false,
 
             has_pressure_low_fault: false,
+            pressure_low_confirmation: DelayedTrueLogicGate::new(
+                Self::PRESSURE_LOW_FAULT_CONFIRMATION_TIME,
+            ),
             has_air_pressure_low_fault: false,
             has_low_level_fault: false,
             has_overheat_fault: false,
@@ -4250,6 +4267,7 @@ impl A380ElectricPumpController {
 
     fn update(
         &mut self,
+        context: &UpdateContext,
         overhead_panel: &A380HydraulicOverheadPanel,
         hydraulic_circuit: &impl HydraulicPressureSensors,
         reservoir: &Reservoir,
@@ -4275,7 +4293,7 @@ impl A380ElectricPumpController {
         self.is_on_ground_with_all_engines_off =
             lgciu.left_and_right_gear_compressed(false) && !is_any_engine_running(engines);
 
-        self.update_low_pressure(hydraulic_circuit);
+        self.update_low_pressure(context, hydraulic_circuit);
 
         self.update_low_air_pressure(reservoir, overhead_panel);
 
@@ -4322,12 +4340,21 @@ impl A380ElectricPumpController {
         side_engine_running || !on_ground
     }
 
-    fn update_low_pressure(&mut self, hydraulic_circuit: &impl HydraulicPressureSensors) {
+    /// is_pressure_low (the LO PR indication, HYD_*_EPUMP_LOW_PRESS) follows the pressure switch at once; the FAULT
+    /// light term waits for PRESSURE_LOW_FAULT_CONFIRMATION_TIME, so the spin-up of a pump that has just started is
+    /// not a pump failure. It resets at once when the pump is no longer commanded (pb-sw OFF).
+    fn update_low_pressure(
+        &mut self,
+        context: &UpdateContext,
+        hydraulic_circuit: &impl HydraulicPressureSensors,
+    ) {
         self.is_pressure_low = self.should_pressurise()
             && !hydraulic_circuit
                 .pump_section_switch_pressurised(self.pump_id.into_pump_section_index());
 
-        self.has_pressure_low_fault = self.is_pressure_low;
+        self.pressure_low_confirmation
+            .update(context, self.is_pressure_low);
+        self.has_pressure_low_fault = self.pressure_low_confirmation.output();
     }
 
     fn update_overheat(&mut self, pump_status: &impl HeatingElement, reservoir: &Reservoir) {
@@ -8123,6 +8150,10 @@ mod tests {
                 self.read_by_name("OVHD_HYD_EPUMPGB_OFF_PB_HAS_FAULT")
             }
 
+            fn yellow_epump_a_has_fault(&mut self) -> bool {
+                self.read_by_name("OVHD_HYD_EPUMPYA_OFF_PB_HAS_FAULT")
+            }
+
             fn eng1_pumps_disc_has_fault(&mut self) -> bool {
                 self.read_by_name("OVHD_HYD_ENG_1AB_PUMP_DISC_PB_HAS_FAULT")
             }
@@ -8603,6 +8634,11 @@ mod tests {
 
             fn set_green_ed_pump_1b(mut self, is_auto: bool) -> Self {
                 self.write_by_name("OVHD_HYD_ENG_1B_PUMP_PB_IS_AUTO", is_auto);
+                self
+            }
+
+            fn set_yellow_e_pump_a_off(mut self, is_off: bool) -> Self {
+                self.write_by_name("OVHD_HYD_EPUMPYA_OFF_PB_IS_AUTO", !is_off);
                 self
             }
 
@@ -10555,6 +10591,78 @@ mod tests {
                 .set_yellow_e_pump_a(true)
                 .run_waiting_for(Duration::from_secs(1));
             assert!(!test_bed.is_yellow_epump_a_press_low());
+        }
+
+        /// A380 FCOM DSC-29-20 ELEC PMP pb-sw (a380_fcom.txt l.61379-61385): the FAULT light means "The pump is
+        /// failed", with HYD G(Y) ELEC PMP A(B) FAULT. The pressure of a pump that has just started is not a failure:
+        /// no FAULT light while the ELEC PMP ON pb builds up the pressure, on ground with the engines off.
+        #[test]
+        fn yellow_elec_pump_no_fault_light_while_pressure_builds_up_at_pump_start() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_waiting_for(Duration::from_secs(10));
+
+            // The reservoir air pressure switches have settled (they start low, a FAULT of its own): no FAULT yet
+            assert!(!test_bed.yellow_epump_a_has_fault());
+
+            test_bed = test_bed.set_yellow_e_pump_a(true);
+
+            // 50 ms steps over the spin-up: the pump section pressure switch is still low for about 2 s
+            let mut saw_pump_section_pressure_low = false;
+            for _ in 0..200 {
+                test_bed = test_bed.run_waiting_for(Duration::from_millis(50));
+                saw_pump_section_pressure_low |= test_bed.is_yellow_epump_a_press_low();
+                assert!(
+                    !test_bed.yellow_epump_a_has_fault(),
+                    "ELEC PMP FAULT light on during the normal pressure build-up"
+                );
+            }
+
+            // The start transient was there (the LO PR indication is not delayed) and the pump reached normal pressure
+            assert!(saw_pump_section_pressure_low);
+            assert!(!test_bed.is_yellow_epump_a_press_low());
+            assert_gt!(test_bed.yellow_pressure(), Pressure::new::<psi>(4500.));
+        }
+
+        /// A380 FCOM PRO-ABN HYD G (Y) ELEC PMP A OR (B) FAULT (a380_fcom.txt l.154989-154993): "The electric pump
+        /// pressure is below 1 885 PSI". A low pressure that persists still lights the FAULT, after the confirmation
+        /// time. Engine 1 runs so that the reservoir low level does not light it (DSC-29-20 l.61390-61392: "on ground,
+        /// with engines OFF"), only the pump low pressure does; engine 1 does not inhibit the yellow pumps.
+        #[test]
+        fn yellow_elec_pump_fault_light_when_pressure_stays_low() {
+            let mut test_bed = test_bed_on_ground_with_engine_1_running()
+                .set_yellow_e_pump_a(true)
+                .run_waiting_for(Duration::from_secs(10));
+            assert!(!test_bed.is_yellow_epump_a_press_low());
+            assert!(!test_bed.yellow_epump_a_has_fault());
+
+            // The yellow fluid leaks out until the pump cannot hold its pressure any more
+            test_bed.fail(FailureType::ReservoirLeak(HydraulicColor::Yellow));
+            for _ in 0..6000 {
+                if test_bed.is_yellow_epump_a_press_low() {
+                    break;
+                }
+                test_bed = test_bed.run_waiting_for(Duration::from_millis(50));
+            }
+            assert!(test_bed.is_yellow_epump_a_press_low());
+
+            // Not yet confirmed
+            test_bed = test_bed.run_waiting_for(Duration::from_millis(500));
+            assert!(test_bed.is_yellow_epump_a_press_low());
+            assert!(!test_bed.yellow_epump_a_has_fault());
+
+            // Confirmed
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(3));
+            assert!(test_bed.is_yellow_epump_a_press_low());
+            assert!(test_bed.yellow_epump_a_has_fault());
+
+            // "The FAULT light goes off, when the flight crew selects OFF" (a380_fcom.txt l.61397)
+            test_bed = test_bed
+                .set_yellow_e_pump_a_off(true)
+                .run_waiting_for(Duration::from_millis(100));
+            assert!(!test_bed.yellow_epump_a_has_fault());
         }
 
         #[test]
