@@ -634,6 +634,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
 1. [A32NX/FWC] New ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2 COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED, REV ISOL FAULT and VIB SYS FAULT alerts with their procedures, STATUS lines and new flyPad failures; an inhibited reverser no longer deploys - @TCdr
 1. [A32NX/FWC] New DATALINK ATSU FAULT and DATALINK COMPANY FAULT alerts with STATUS INOP SYS ATSU and DATA COMPANY, new flyPad failures of the ATSU (no datalink) and of its AOC function (no company datalink), and a green COMPANY DATALINK STBY memo while no air-ground datalink is available - @TCdr
+1. [A380X/FUEL] Fuel tank temperatures, shown on the FUEL SD page (outer and trim tanks, feed tanks when abnormal or with MORE), with the FUEL TEMP LO and FUEL FEED TK TEMP HI alerts - @TCdr
+1. [A380X/FUEL] Collector cell quantities from the feed tanks (they empty when the engine is fed by gravity) instead of a fixed value, with the FUEL COLLECTOR CELL NOT FULL alerts - @TCdr
+1. [A380X/FUEL] Weight and balance backup computer: FUEL WEIGHT DATA DISAGREE and FUEL CG DATA DISAGREE against a wrong FMS ZFW or ZFWCG, FUEL EXCESS AFT CG, and the FMS CG backup - @TCdr
+1. [A380X/FWS] FUEL CG AT FWD LIMIT and FUEL CG OUT OF RANGE from the FCOM CG envelope, and the FUEL INR/MID/OUTR/TRIM TK MAN XFR COMPLETED alerts - @TCdr
+1. [A380X/FWS] FUEL FEED TK LEVEL LO: the TRIM TK FEED and transfer pushbutton lines are now shown and ticked - @TCdr
 
 ## 2024.1.0
 

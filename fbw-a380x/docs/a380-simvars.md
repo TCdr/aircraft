@@ -2009,6 +2009,26 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
   - Bool
   - The alternate gravity transfer from an outer tank with a failed pump runs (FCOM DSC-28-40 CASE 5: from the lowest feed tank below 28 660 lb, into FEED TK 2 (3), 500 gal/h); the FWS raises FUEL NORM XFR FAULT from it
 
+- A380X_FUEL_{tank}_TANK_TEMPERATURE
+  - Number in degrees Celsius
+  - {tank}: LEFT_OUTER, FEED_1, LEFT_MID, LEFT_INNER, FEED_2, FEED_3, RIGHT_INNER, RIGHT_MID, FEED_4, RIGHT_OUTER, TRIM
+  - The fuel temperature of the tank (CpiomF/FuelTankTemperatures): a first order lag towards the outside air temperature on ground and the total air temperature in flight, faster for the thin outer and trim tanks and for tanks with less fuel. Shown on the FUEL SD page (outer and trim tanks while their sensor is immersed, feed tanks when abnormal or with MORE); FUEL TEMP LO below -40 °C, FUEL FEED TK 1(2)(3)(4) TEMP HI above 53 °C
+  - Written by the systems host
+
+- A380X_FUEL_COLLECTOR_CELL_{number}_QUANTITY
+  - Number in kilograms
+  - {number}: 1 to 4, the collector cell of the feed tank
+  - The fuel in the collector cell (CpiomF/FuelCollectorCells): full (2 866 lb, never more than the feed tank) while a feed tank pump runs or the engine is off; emptied by the engine when it is fed by gravity. FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL below 1 735 lb, until above 2 076 lb
+  - Written by the systems host
+
+- A380X_WBBC_GROSS_WEIGHT
+  - Arinc429<Kilogram>
+  - The gross weight of the Weight and Balance Backup Computer (CpiomF/WeightBalanceBackup): from the first slats and flaps retraction in flight, the simulator's aerodynamic weight, after a slats/flaps extension the takeoff GW minus the fuel used; no computed data on ground and before the retraction. The FWS compares it with the FQMS GW (FUEL WEIGHT DATA DISAGREE above 198 400 lb)
+
+- A380X_WBBC_CENTER_OF_GRAVITY_MAC
+  - Arinc429<Percent>
+  - The WBBC CG: the simulator's CG (A32NX_AIRFRAME_GW_CG_PERCENT_MAC) while the slats and flaps are retracted in flight, no computed data otherwise. FUEL EXCESS AFT CG above 50 % in automatic transfer mode, FUEL CG DATA DISAGREE above 8 % from the FQMS CG; the FMS uses it when the FQMS CG is not available
+
 - A32NX_FM{number}_REMAINING_FLIGHT_TIME
   - Arinc429<Seconds>
   - {number} 1 or 2
