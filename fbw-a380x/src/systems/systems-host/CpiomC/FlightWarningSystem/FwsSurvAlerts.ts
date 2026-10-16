@@ -123,3 +123,52 @@ export class XpdrTcasSwitchLine {
     return selectedSystem !== this.failedSystem;
   }
 }
+
+/** The TAWS functions lost on one SURV system, each reported by one alert only. */
+export interface TawsFunctionFaults {
+  /** SURV TAWS 1(2) FAULT: "The TAWS surveillance function (GPWS and TERR SYS) on SURV SYS 1(2) is failed" (l.166806) */
+  taws: boolean;
+  /** SURV GPWS 1(2) FAULT: "The GPWS function of the TAWS system 1(2) is failed" (l.166427), the TERR SYS still working */
+  gpws: boolean;
+  /** SURV TERR SYS 1(2) FAULT, the GPWS still working */
+  terr: boolean;
+}
+
+/**
+ * The fault conditions of the TAWS of one SURV system. GPWS and TERR SYS both failed is the TAWS fault (the FCOM
+ * definition), which replaces the GPWS and the TERR SYS faults. The L:A32NX_GPWS_n_FAILED and L:A32NX_TERR_n_FAILED
+ * (Misc/EfisTawsBridge.ts) include the AESU reset and the unpowered system, so the alerts need the busbar powered
+ * (ELEC AC ESS BUS FAULT lists TAWS 1 itself, a380_fcom.txt:139275).
+ * @param gpwsFailed L:A32NX_GPWS_n_FAILED
+ * @param terrFailed L:A32NX_TERR_n_FAILED
+ * @param powered the busbar of that SURV system (AC ESS for SYS 1, AC 4 for SYS 2) is powered
+ * @returns the TAWS, GPWS and TERR SYS fault conditions of that system
+ */
+export function tawsFunctionFaults(gpwsFailed: boolean, terrFailed: boolean, powered: boolean): TawsFunctionFaults {
+  const taws = gpwsFailed && terrFailed && powered;
+  return {
+    taws,
+    gpws: gpwsFailed && powered && !taws,
+    terr: terrFailed && powered && !taws,
+  };
+}
+
+/**
+ * The lines of SURV GPWS 1(2) FAULT (a380_fcom.txt l.166450-166455): WXR & TAWS ... SYS 2(1) "If the WXR/TAWS is
+ * selected on SYS 1(2), and if the WXR/TAWS on SYS 2(1) is operative"; [MFD SURV] STATUS & SWTG PAGE ... CHECK and
+ * WXR & TAWS ... AS RQRD "If the WXR or TAWS, on SYS 2(1) is failed".
+ * @param failedSystem the system of the alert
+ * @param selectedSystem the WXR/TAWS system in use (L:A32NX_WXR_TAWS_SYS_SELECTED)
+ * @param otherWxrFailed the WXR of the other system is failed
+ * @param otherTawsFailed a TAWS function (GPWS or TERR SYS) of the other system is failed
+ * @returns which of the 3 lines are shown
+ */
+export function gpwsFaultItemsToShow(
+  failedSystem: SurvSystem,
+  selectedSystem: number,
+  otherWxrFailed: boolean,
+  otherTawsFailed: boolean,
+): boolean[] {
+  const otherFailed = otherWxrFailed || otherTawsFailed;
+  return [selectedSystem === failedSystem && !otherFailed, otherFailed, otherFailed];
+}

@@ -289,6 +289,14 @@ impl A320EngineControl {
     fn reverser_deployment_inhibited(&self) -> bool {
         self.thrust_lever.lever_lost() || self.fadec_channels.both_channels_lost()
     }
+
+    /// A malfunction of the thrust control, for the ENG FAULT light (FCOM DSC-70-90-20,
+    /// l.63949-63950: "There is a malfunction of the thrust control"). Design choice: the loss of
+    /// both FADEC channels (ENG 1(2) FADEC FAULT) or of both thrust lever resolvers (ENG 1(2) THR
+    /// LEVER FAULT); a resolver disagree, which the FADEC manages, is none.
+    fn thrust_control_malfunction(&self) -> bool {
+        self.thrust_lever_resolvers.is_active() || self.fadec_channels.both_channels_lost()
+    }
 }
 impl SimulationElement for A320EngineControl {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
@@ -350,6 +358,14 @@ impl A320EngineControlFailures {
         for (engine, reverser) in self.engines.iter_mut().zip(reversers.iter()) {
             engine.update(on_ground, slats_extended, flex_active, reverser);
         }
+    }
+
+    /// Per engine, a malfunction of the thrust control (ENG FAULT light).
+    pub fn thrust_control_malfunctions(&self) -> [bool; 2] {
+        [
+            self.engines[0].thrust_control_malfunction(),
+            self.engines[1].thrust_control_malfunction(),
+        ]
     }
 
     /// Per engine, the FADEC no longer commands a reverser deployment.

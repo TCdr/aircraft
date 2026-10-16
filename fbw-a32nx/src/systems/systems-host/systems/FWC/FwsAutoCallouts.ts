@@ -14,6 +14,7 @@ import {
 import { SimVarValueType, Subject } from '@microsoft/msfs-sdk';
 import { A32NX_DEFAULT_RADIO_AUTO_CALL_OUTS, A32NXRadioAutoCallOutFlags } from '@shared/AutoCallOuts';
 import { PseudoFWC } from './PseudoFWC';
+import { IntermediateCalloutHeight, IntermediateHeightCallout } from './Logic/IntermediateHeightCallout';
 
 export class FwsAutoCallouts {
   private autoCalloutInhibit = false;
@@ -233,6 +234,12 @@ export class FwsAutoCallouts {
   private readonly minimumDhMemoryNode = new NXLogicMemoryNode(false);
   public readonly minimumAudio = Subject.create(false);
 
+  /** The intermediate callout (a320_fcom.txt l.53585-53594), see Logic/IntermediateHeightCallout */
+  private readonly intermediateCallout = new IntermediateHeightCallout();
+
+  /** The height said by the intermediate callout during one update, else null */
+  public readonly intermediateCalloutAudio = Subject.create<IntermediateCalloutHeight | null>(null);
+
   /** Auto Flight Callouts */
 
   // PITCH PITCH Auto Callout
@@ -248,6 +255,11 @@ export class FwsAutoCallouts {
   public readonly lowEnergyWarningActive = Subject.create(false);
 
   constructor(private readonly fws: PseudoFWC) {}
+
+  /** A GPWS or TCAS aural is active: the FWC voices wait (the height callouts and the sidestick priority voices) */
+  public get gpwsOrTcasAuralActive(): boolean {
+    return this.gpwsActive || this.tcasAudio;
+  }
 
   public update(deltaTime: number) {
     const flightPhase = this.fws.fwcFlightPhase.get();
@@ -795,7 +807,42 @@ export class FwsAutoCallouts {
     this.fiveThresholdAndNoAudioInhibitPreviousCycle = fiveThresholdAndNoAudioInhibit;
     this.fiveAudio.set(fiveThresholdAndNoInhibitRisingEdge);
     this.fiveMtrigPreviousCycle = this.fiveMtrigNode.write(fiveThresholdAndNoInhibitRisingEdge, deltaTime);
-    // TODO intermediate callouts
+
+    // Intermediate callout (a320_fcom.txt l.53585-53594): the present height when no predetermined callout came for
+    // 11 s (4 s below 50 ft), then every 4 s. It waits while the height callouts are inhibited.
+    const predeterminedCalloutNow =
+      this.twoThousandFiveHundredAudio.get() ||
+      this.twentyFiveHundredAudio.get() ||
+      twoThousandAudio ||
+      oneThousandAudio ||
+      fiveHundredAudio ||
+      fourHundredAudio ||
+      threeHundredAudio ||
+      twoHundredAudio ||
+      oneHundredAudio ||
+      fiftyAudio ||
+      fortyAudio ||
+      thirtyAudio ||
+      twentyAudio ||
+      playRetardAudio ||
+      this.tenAudio.get() ||
+      playTenRetardAudio ||
+      retardAudio ||
+      fiveThresholdAndNoInhibitRisingEdge ||
+      this.hundredAboveAudio.get() ||
+      this.minimumAudio.get();
+    const intermediateCalloutInhibited =
+      this.autoCalloutInhibit ||
+      this.minimumGenerated ||
+      this.gpwsActive ||
+      this.tcasAudio ||
+      this.inhibitCalloutDueToRetard ||
+      height <= 3 ||
+      this.heightNotDecreasingConfirmNode.read();
+    this.intermediateCalloutAudio.set(
+      this.intermediateCallout.update(raValue, predeterminedCalloutNow, intermediateCalloutInhibited, deltaTime / 1000),
+    );
+
     this.anyActiveHeightThresholdBelow400Met =
       fourHundredFeetThresholdAndActive ||
       threeHundredFeetThresholdAndActive ||

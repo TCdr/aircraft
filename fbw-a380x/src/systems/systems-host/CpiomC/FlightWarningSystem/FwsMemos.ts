@@ -39,6 +39,15 @@ export class FwsMemos {
       codesToReturn: ['210000001'],
       memoInhibit: () => false,
     },
+    '210000002': {
+      // RAM AIR (A380 FCOM DSC-21-10-20 MEMO, a380_fcom.txt l.6055-6058): the emergency RAM air inlets are open, green
+      // on ground with no engine running, amber in all other cases (CabPressAlerts ramAirMemoIndex)
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.ramAirInletsOpen,
+      whichCodeToReturn: () => [this.fws.ramAirMemoIndex.get()],
+      codesToReturn: ['210000002', '210000003'],
+      memoInhibit: () => false,
+    },
     271000001: {
       // GND SPLRs ARMED
       flightPhaseInhib: [],
@@ -61,6 +70,38 @@ export class FwsMemos {
       simVarIsActive: this.fws.defuelInProgress,
       whichCodeToReturn: () => [0],
       codesToReturn: ['280000003'],
+      memoInhibit: () => false,
+    },
+    280000004: {
+      // FWD XFR IN PROGRESS (A380 FCOM DSC-28-20 MEMO, a380_fcom.txt l.59140): no flight phase inhibition (PDF p.1990)
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.fwdXfrInProgress,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280000004'],
+      memoInhibit: () => false,
+    },
+    280000007: {
+      // OUTR TK XFR IN PROG (l.59157): no flight phase inhibition (PDF p.1992)
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.outerTankXfrInProgress,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280000007'],
+      memoInhibit: () => false,
+    },
+    280000008: {
+      // OUTR TKs XFRD (l.59169): flight phase 8 only (PDF p.1992)
+      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
+      simVarIsActive: this.fws.outerTanksXfrd,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280000008'],
+      memoInhibit: () => false,
+    },
+    280000012: {
+      // TRIM TK XFRD (l.59191): flight phase 8 only (PDF p.1994)
+      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
+      simVarIsActive: this.fws.trimTankXfrd,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280000012'],
       memoInhibit: () => false,
     },
     280000006: {
@@ -307,6 +348,16 @@ export class FwsMemos {
       simVarIsActive: this.fws.voiceVhf3,
       whichCodeToReturn: () => [0],
       codesToReturn: ['230000015'],
+      memoInhibit: () => false,
+    },
+    '230000016': {
+      // EVAC ACTIVE: the flight crew orders an evacuation with the EVAC COMMAND pb-sw (A380 FCOM DSC-23-20 EVAC panel,
+      // a380_fcom.txt l.49145-49149: "When pressed: [...] Message EVAC ACTIVE is displayed on the ECAM"). The Chief
+      // Purser order (CAPT & PURS, l.49131-49134) is not simulated.
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.evacCommand,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['230000016'],
       memoInhibit: () => false,
     },
 

@@ -155,6 +155,19 @@ text, tspan, span {
         @include Blink10SecondsFill($display-green);
     }
 
+    // AVAIL after a relight in flight: pulses for as long as it shows (EWD/elements/AvailIndication.ts)
+    &.AvailTextPulse {
+        @keyframes avail-pulsing {
+            0%, 49% {
+                fill: $display-green;
+            }
+            50%, 100% {
+                fill: scale-color($display-green, $lightness: -50%);
+            }
+        }
+        animation: avail-pulsing 1s infinite;
+    }
+
     &.Underline {
         text-decoration: underline;
         text-decoration-color: $display-amber;

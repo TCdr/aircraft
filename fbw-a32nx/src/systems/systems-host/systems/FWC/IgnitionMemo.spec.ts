@@ -104,6 +104,13 @@ function setHealthyCruise(bus: EventBus): void {
   simvars.set('L:A32NX_OVHD_PRESS_MODE_SEL_PB_IS_AUTO', 1);
   simvars.set('L:A32NX_SWITCH_TCAS_Position', 2);
   simvars.set('L:A32NX_TRANSPONDER_MODE', 1);
+  // centre tank transfer pb-sw ON (no FUEL CTR TK XFR OFF) and cargo doors locked (no DOOR FWD/AFT CARGO)
+  simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_L_XFR_PB_IS_ON', 1);
+  simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_R_XFR_PB_IS_ON', 1);
+  simvars.set('L:A32NX_FWD_DOOR_CARGO_LOCKED', 1);
+  simvars.set('L:A32NX_AFT_DOOR_CARGO_LOCKED', 1);
+  // the FMGC sends the landing elevation (no CAB PR LDG ELEV FAULT)
+  simvars.set('L:A32NX_FM1_LANDING_ELEVATION', normalWord());
 }
 
 /** The real PseudoFWC, both FWCs powered and started */

@@ -4,7 +4,14 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { wingTankLowLevelLines, WingTankLowLevelInputs, wingTankLowLevelStatus } from './WingTankLowLevel';
+import {
+  wingTankLowLevelLines,
+  WingTankLowLevelInputs,
+  wingTankLowLevelStatus,
+  wingTanksLowLevelLines,
+  WingTanksLowLevelInputs,
+} from './WingTankLowLevel';
+import { pseudoFwcItem } from './FwcAlertSpecHelpers';
 import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
 
@@ -77,5 +84,53 @@ describe('FUEL L(R) WING TK LO LVL STATUS', () => {
       expect(block).toContain(`inopSys: () => wingTankLowLevelStatus('${side}', this.centerTankEmpty.get()).inopSys`);
       expect(block).toContain(`statusInfo: () => wingTankLowLevelStatus('${side}', this.centerTankEmpty.get()).info`);
     }
+  });
+});
+
+/* A320 FCOM PRO-ABN-FUEL FUEL L + R WING TK LO LVL, jet pump variant (a320_fcom.txt l.86536-86569, FCOM PDF page 5316):
+   "LAND ASAP" (amber), "FUEL MODE SEL (IF CENTER TANK NOT EMPTY) ... MAN", "ALL TK PUMPS ... ON", "CTR TK L+R XFR ... ON",
+   "IF NO FUEL LEAK: FUEL X FEED ... ON", "IF GRVTY FEED: FUEL X FEED ... OFF". */
+describe('FUEL L+R WING TK LO LVL lines', () => {
+  const lrInputs: WingTanksLowLevelInputs = {
+    modeSelMan: false,
+    centreTankEmpty: false,
+    leftPump1On: true,
+    leftPump2On: true,
+    rightPump1On: true,
+    rightPump2On: true,
+    centreLeftTransferOn: false,
+    centreRightTransferOn: false,
+  };
+
+  it('asks for MODE SEL MAN and CTR TK L+R XFR ON, never for the CTR TK PUMPs of the other variant', () => {
+    const lines = text('2800145', wingTanksLowLevelLines(lrInputs));
+    expect(lines).toContain('-FUEL MODE SEL......MAN');
+    expect(lines).toContain('-CTR TK L XFR........ON');
+    expect(lines).toContain('-CTR TK R XFR........ON');
+    expect(lines).not.toContain('CTR TK PUMP');
+    expect(lines).toContain('-FUEL X FEED.........ON');
+    expect(lines).toContain('-FUEL X FEED........OFF');
+  });
+
+  it('no MODE SEL line with an empty centre tank or once at MAN', () => {
+    expect(text('2800145', wingTanksLowLevelLines({ ...lrInputs, centreTankEmpty: true }))).not.toContain('MODE SEL');
+    expect(text('2800145', wingTanksLowLevelLines({ ...lrInputs, modeSelMan: true }))).not.toContain('MODE SEL');
+  });
+
+  it('drives the L and R transfer lines on their own pb-sw', () => {
+    const lines = text('2800145', wingTanksLowLevelLines({ ...lrInputs, centreLeftTransferOn: true }));
+    expect(lines).not.toContain('CTR TK L XFR');
+    expect(lines).toContain('-CTR TK R XFR........ON');
+  });
+
+  it('asks for the wing tank pumps that are off only', () => {
+    const lines = text('2800145', wingTanksLowLevelLines({ ...lrInputs, leftPump2On: false }));
+    expect(lines).toContain('-L TK PUMP 2.........ON');
+    expect(lines).not.toContain('L TK PUMP 1');
+  });
+
+  it('PseudoFWC uses these lines, and the alert gives the amber LAND ASAP', () => {
+    expect(pseudoFwcItem('2800145')).toContain('wingTanksLowLevelLines(');
+    expect(pseudoFwcItem('0000360')).toContain('this.lrTankLow');
   });
 });

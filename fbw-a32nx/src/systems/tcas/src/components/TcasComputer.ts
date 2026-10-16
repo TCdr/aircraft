@@ -13,7 +13,9 @@ import {
   registerTrafficListener,
   Arinc429Register,
   Arinc429SignStatusMatrix,
+  FailuresConsumer,
 } from '@flybywiresim/fbw-sdk';
+import { A320Failure } from '@failures';
 import { Coordinates } from 'msfs-geo';
 import {
   TCAS_CONST as TCAS,
@@ -34,6 +36,8 @@ import {
 } from '../lib/TcasConstants';
 import { TcasSoundManager } from './TcasSoundManager';
 import { isGpwsAlertActive } from '../lib/TcasGpwsInhibit';
+import { isTcasFault } from '../lib/TcasFault';
+import { isIntruderShownForTrafficSelector } from '../lib/TcasTrafficSelector';
 import { isTcasStandbyWithoutXpdr } from '@shared/TransponderSystem';
 
 export class NDTcasTraffic {
@@ -194,6 +198,11 @@ export class TcasComputer {
 
   private tcasPower: boolean; // is TCAS computer powered?
 
+  private readonly failuresConsumer = new FailuresConsumer();
+
+  /** The TCAS computer has an internal failure (flyPad failure TCAS computer, 34060) */
+  private tcasInternalFailure = false;
+
   private tcasSwitchPos: number; // TCAS Switch position STBY/TA/TARA
 
   private altRptgSwitchPos: number; // ATC Alt Reporting Switch Position
@@ -279,6 +288,7 @@ export class TcasComputer {
   private init(): void {
     SimVar.SetSimVarValue('L:A32NX_TCAS_STATE', 'Enum', 0);
     this.tcasPower = false;
+    this.failuresConsumer.register(A320Failure.TcasComputer);
     this.tcasMode = new LocalSimVar('L:A32NX_TCAS_MODE', 'Enum');
     this.tcasState = new LocalSimVar('L:A32NX_TCAS_STATE', 'Enum');
     this.tcasFault = new LocalSimVar('L:A32NX_TCAS_FAULT', 'bool');
@@ -317,6 +327,8 @@ export class TcasComputer {
     this.planeAlt = SimVar.GetSimVarValue('PLANE ALTITUDE', 'feet');
 
     this.tcasPower = !!SimVar.GetSimVarValue('L:A32NX_ELEC_DC_1_BUS_IS_POWERED', 'boolean');
+    this.failuresConsumer.update();
+    this.tcasInternalFailure = this.failuresConsumer.isActive(A320Failure.TcasComputer);
     this.tcasSwitchPos = SimVar.GetSimVarValue('L:A32NX_SWITCH_TCAS_Position', 'number');
     this.altRptgSwitchPos = SimVar.GetSimVarValue('L:A32NX_SWITCH_ATC_ALT', 'number');
     this.tcasThreat = SimVar.GetSimVarValue('L:A32NX_SWITCH_TCAS_Traffic_Position', 'number');
@@ -443,16 +455,15 @@ export class TcasComputer {
     }
 
     // Amber TCAS warning on fault (and on PFD) - 34-43-00:A24/34-43-010
-    if (
-      !this.pressureAlt ||
-      (!this.pressureAlt.isNormalOperation() && !this.pressureAlt.isFunctionalTest()) ||
-      this.radioAlt.isFailureWarning() ||
-      !this.tcasPower
-    ) {
-      this.tcasFault.setVar(true);
-    } else {
-      this.tcasFault.setVar(false);
-    }
+    this.tcasFault.setVar(
+      isTcasFault({
+        pressureAltitudeValid:
+          !!this.pressureAlt && (this.pressureAlt.isNormalOperation() || this.pressureAlt.isFunctionalTest()),
+        radioAltitudeFailed: this.radioAlt.isFailureWarning(),
+        powered: this.tcasPower,
+        internalFailure: this.tcasInternalFailure,
+      }),
+    );
 
     // Update sensitivity
     if (this.activeRa.info === null) {
@@ -624,24 +635,16 @@ export class TcasComputer {
       const onGround = traffic.alt < groundAlt + 360 || traffic.groundSpeed < 30;
       let isDisplayed = false;
       if (!onGround) {
-        if (traffic.groundSpeed >= 30) {
-          // Workaround for MSFS live traffic, TODO: add option to disable
-          if (this.tcasThreat === TcasThreat.THREAT) {
-            if (
-              traffic.intrusionLevel >= TaRaIntrusion.TA &&
-              traffic.relativeAlt >= TCAS.THREAT[TcasThreat.THREAT][Limits.MIN] &&
-              traffic.relativeAlt <= TCAS.THREAT[TcasThreat.THREAT][Limits.MAX]
-            ) {
-              isDisplayed = true;
-            }
-          } else if (this.tcasThreat) {
-            if (
-              traffic.relativeAlt >= TCAS.THREAT[this.tcasThreat][Limits.MIN] &&
-              traffic.relativeAlt <= TCAS.THREAT[this.tcasThreat][Limits.MAX]
-            ) {
-              isDisplayed = true;
-            }
-          }
+        // Workaround for MSFS live traffic, TODO: add option to disable
+        if (traffic.groundSpeed >= 30 && TCAS.THREAT[this.tcasThreat] !== undefined) {
+          // THRT: the proximate and other intruders only while a TA or RA is present (FCOM DSC-34-SURV-60-20)
+          isDisplayed = isIntruderShownForTrafficSelector(
+            this.tcasThreat === TcasThreat.THREAT,
+            traffic.relativeAlt,
+            TCAS.THREAT[this.tcasThreat],
+            traffic.intrusionLevel >= TaRaIntrusion.TA,
+            this.advisoryState !== TcasState.NONE,
+          );
         }
       } else if (this.debug) {
         console.log(`traffic ${traffic.ID} on ground, not displayed`);
@@ -1444,7 +1447,8 @@ export class TcasComputer {
     this.updateVars();
     this.updateInhibitions();
     this.updateStatusFaults();
-    if (this.tcasMode.getVar() === TcasMode.STBY) {
+    // STBY, or a failed computer (TCAS fault shown, see updateStatusFaults): no advisory and no traffic
+    if (this.tcasMode.getVar() === TcasMode.STBY || this.tcasInternalFailure) {
       this.advisoryState = TcasState.NONE;
       this.tcasState.setVar(TcasState.NONE);
       this.correctiveRa.setVar(false);

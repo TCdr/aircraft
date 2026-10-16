@@ -553,11 +553,22 @@
 
 - A32NX_OXYGEN_MASKS_DEPLOYED
     - Bool
-    - True if cabin oxygen masks have been deployed.
+    - True if cabin oxygen masks have been deployed: MASK MAN ON pb, or automatically when the cabin altitude
+      (A32NX_PRESS_MAN_CABIN_ALTITUDE) goes above 14 000 ft (systems host, Oxygen/PaxOxygenMasks).
 
 - A32NX_RCDR_GROUND_CONTROL_ON
     - Bool
     - True if ground control is on.
+
+- A32NX_RCDR_CVR_ENERGIZED
+    - Bool
+    - True if the CVR runs: GND CTL ON, the first 5 min after the electrical network power-up, an engine running, in
+      flight, and the 5 min after the last engine shutdown (written by the systems host).
+
+- A32NX_RCDR_CVR_TEST_TONE
+    - Bool
+    - True while the CVR TEST pb gives the test signal: pb held, CVR running and parking brake on (plays the cvr_test
+      sound).
 
 - A32NX_EMERELECPWR_GEN_TEST
     - Bool
@@ -1648,6 +1659,11 @@ These variables are the interface between the 3D model and the systems/code.
     - Bool
     - Indicates if the CHECK SPEED MODE message is shown on the PFD
 
+- A32NX_PFD_MSG_CHECK_APPR_SELECTION
+    - Bool
+    - Indicates if the CHECK APPR SELECTION message is shown on the PFD (FMGC: a non ILS approach in the F-PLN with an
+      ILS manually tuned on the RAD NAV page, in cruise less than 100 NM from the T/D, in descent or in approach)
+
 - A32NX_PFD_LINEAR_DEVIATION_ACTIVE
     - Bool
     - Indicates if the linear deviation is shown on the PFD
@@ -2128,6 +2144,12 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Number
     - The GPS receiver the IR uses (1 or 2, 0 for none): GPS 1 for IR 1, GPS 2 for IR 2, IR 3 by the ATT HDG selector
       (GPS 2 on F/O 3); when one receiver is rejected, every IR uses the other
+
+- A32NX_FM_GPS_POS_DISAGREE
+    - Bool
+    - The FMS FM/GPS position disagree condition for the NAV FM/GPS POS DISAGREE caution: GPS PRIMARY active and an FM
+      position more than the FCOM latitude/longitude thresholds away from a GPS receiver position (FCOM
+      DSC-22_20-20-20). Written by the FMS (fmgc navigation/FmPosition.ts), read by the FWC
 
 - A32NX_GNSS_UTC_UNIX_SECONDS
     - Number (seconds)
@@ -3676,6 +3698,18 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - If the FAC {number} is healthy.
     - Boolean
 
+- A32NX_FAC_{number}_YAW_DAMPER_ACTUATOR_FAULT
+    - The healthy FAC {number} reports its yaw damper actuator failed (flyPad failure "Yaw damper actuator {number}"). Read by the FWC for AUTO FLT YAW DAMPER 1(2) / SYS.
+    - Boolean
+
+- A32NX_FAC_{number}_RUDDER_TRIM_ACTUATOR_FAULT
+    - The healthy FAC {number} reports its rudder trim actuator motor failed (flyPad failure "Rudder trim actuator motor {number}"). Read by the FWC for AUTO FLT RUD TRIM 1(2) FAULT / SYS.
+    - Boolean
+
+- A32NX_FAC_{number}_RUDDER_TRAVEL_LIM_ACTUATOR_FAULT
+    - The healthy FAC {number} reports its rudder travel limiter actuator motor failed (flyPad failure "Rudder travel limiter actuator motor {number}"). Read by the FWC for AUTO FLT RUD TRV LIM 1(2) / SYS.
+    - Boolean
+
 - A32NX_FAC_{number}_SIDESLIP_TARGET
     - The sideslip target in case of engine out.
     - Arinc429<Degrees>
@@ -4216,12 +4250,44 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the engine shuts down (FCOM PRO-ABN-ENG). Cuts the engine fuel (A32NX_ENGINE_{number}_FUEL_CUT)
 
+- A32NX_FUEL_ENG_{number}_LP_VALVE_ABNORMALLY_OPEN
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine LP fuel valve remains (partly) open while the ENG MASTER or the ENG FIRE pushbutton commands it closed, once its travel time plus 1 s is over: the valve is jammed (flyPad failure 28007/28008 "ENG n LP fuel valve jammed in place"). Written by the systems WASM (fuel/engine_lp_valve.rs)
+
+- A32NX_FUEL_ENG_{number}_LP_VALVE_ABNORMALLY_CLOSED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine LP fuel valve remains (partly) closed while it is commanded open, once its travel time plus 1 s is over (jammed valve). The engine is then starved (A32NX_FUEL_ENG_{number}_STARVED). Written by the systems WASM (fuel/engine_lp_valve.rs)
+
+- A32NX_FUEL_GRAVITY_FEED_CEILING
+  - Feet
+  - The gravity feed ceiling (pressure altitude) of this flight, FCOM PRO-ABN-FUEL [QRH] GRAVITY FUEL FEEDING: FL 360 after more than 30 min above FL 300, FL 260 after less, else the highest of FL 150 and 7 000 ft above the takeoff airport. Written by the systems WASM (fuel/gravity_feed.rs)
+
+- A32NX_FUEL_ENG_{number}_GRAVITY_FEED_STARVED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine has been fed by gravity (no wing tank pump pushes fuel to it) above the gravity feed ceiling for 3 min: the engine fuel is cut (A32NX_ENGINE_{number}_FUEL_CUT) until the ENG MASTER is set OFF with the engine no longer fed by gravity above the ceiling (relight procedure). Written by the systems WASM (fuel/gravity_feed.rs)
+
+- A32NX_FUEL_FQI_CHANNEL_{number}_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the channel of the fuel quantity indicating computer is failed (flyPad failures 28009/28010): FUEL FQI CH 1(2) FAULT. Written by systems-host Fuel/FuelPumpsAndValves
+
 - A32NX_ENGINE_{number}_FUEL_CUT
   - Bool
   - {number}
     - 1
     - 2
-  - True when the engine must not burn: its LP valve starvation (A32NX_FUEL_ENG_{number}_STARVED), a flameout or seizure failure (flyPad failures 72000/72001 and 72010/72011), or an in-flight relight that has not lit up inside the relight envelope (FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN FLIGHT). Closes the MSFS fuel valve 13 (engine 1) or 14 (engine 2); the FADEC handles the engine as one without fuel. Written by the systems WASM (a320_systems engine_failure.rs)
+  - True when the engine must not burn: its LP valve starvation (A32NX_FUEL_ENG_{number}_STARVED) or its gravity feeding above the ceiling (A32NX_FUEL_ENG_{number}_GRAVITY_FEED_STARVED), a flameout or seizure failure (flyPad failures 72000/72001 and 72010/72011), or an in-flight relight that has not lit up inside the relight envelope (FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN FLIGHT). Closes the MSFS fuel valve 13 (engine 1) or 14 (engine 2); the FADEC handles the engine as one without fuel. Written by the systems WASM (a320_systems engine_failure.rs)
 
 - A32NX_ENGINE_{number}_FLAMED_OUT
   - Bool
@@ -4280,6 +4346,20 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True while the fuel filter clog failure of the engine is active (flyPad failures 73100/73101): CLOG below the fuel used on the ENGINE SD page and ENG FUEL FILTER CLOG while the engine runs, no effect on the engine. Written by the systems WASM (systems engine/fuel_filter_failure.rs)
 
+- A32NX_ENGINE_{number}_HP_FUEL_VALVE_FAULT
+  - Number
+  - {number}
+    - 1
+    - 2
+  - The abnormal HP fuel valve position the FADEC detects (2 s) with the HP fuel valve stuck failure (flyPad failures 73200/73201): 0 none, 1 not open (closed while commanded open: no fuel, no start), 2 not closed (open while commanded closed). ENG 1(2) HP FUEL VALVE and the ENG FAULT light. Written by the systems WASM (systems engine/hp_fuel_valve_failure.rs)
+
+- A32NX_ENGINE_{number}_FADEC_ALTERNATOR_FAULT, _OVERSPEED_PROTECTION_FAULT, _PROBES_FAULT, _SENSOR_FAULT, _ONE_TLA_FAULT, _REVERSER_SWITCH_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73210/73211 FADEC alternator, 73220/73221 overspeed protection, 73230/73231 inlet probes, 73240/73241 core sensors, 73060/73061 thrust lever one resolver, 78030/78031 reverser permission switch): ENG 1(2) FADEC ALTERNATOR (engine running), OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT, no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool
   - {number}
@@ -4320,7 +4400,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True when the ENG MASTER panel FAULT light is on: the automatic start of the engine aborted (FCOM DSC-70-90-20), until the ENG MASTER OFF. Written by the systems WASM
+  - True when the ENG MASTER panel FAULT light is on (FCOM DSC-70-90-20): the automatic start of the engine aborted (until the ENG MASTER OFF), the HP fuel valve position is abnormal (A32NX_ENGINE_{number}_HP_FUEL_VALVE_FAULT), or the thrust control has a malfunction (both FADEC channels or both thrust lever resolvers lost). Written by the systems WASM
 
 - A32NX_ENGINE_{number}_STARTER_MOTORING
   - Bool
@@ -4874,6 +4954,17 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
   - The hardwired discrete for emergency cancel/audio suppression to each DMC.
   - Boolean
 
+### FWC voices
+
+- A32NX_FWS_AUDIO_{voice}
+  - Boolean
+  - True while the FWC says this synthetic voice, played from a WAV clip (sound/fws_<voice>.wav, tools/fws-voice)
+  - {voice}
+    - DUAL_INPUT: both sidesticks deflected, every 5 s
+    - PRIORITY_LEFT: the CAPT holds the sidestick priority
+    - PRIORITY_RIGHT: the F/O holds the sidestick priority
+    - WINDSHEAR: WINDSHEAR said three times, at the reactive windshear warning
+
 
 ## Landing Gear (ATA 32)
 
@@ -5237,6 +5328,18 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 - A32NX_GPWS_FLAPS3
     - Boolean
     - Indicates whether the GPWS LDG FLAP 3 pushbutton is ON
+
+- A32NX_GPWS_TERR_TEST_PATTERN
+    - Boolean
+    - True while the GPWS self-test (GPWS pushbutton pressed on the ground) shows the terrain test pattern, for the
+      TERR TST message of the ND (not displayed yet)
+    - Read-Only
+
+- A32NX_REACTIVE_WINDSHEAR_WARNING
+    - Boolean
+    - True while the reactive windshear detection of the FACs gives the WINDSHEAR warning (red WINDSHEAR on the PFDs),
+      written by the systems host (FacReactiveWindshear)
+    - Read-Only
 
 - A32NX_EGPWC_ND_{side}_TERRAIN_MIN_ELEVATION / A32NX_EGPWC_ND_{side}_TERRAIN_MAX_ELEVATION
     - Feet

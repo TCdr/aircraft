@@ -20,6 +20,41 @@ const EGT_RED_C = 900;
 const EGT_LIMIT_C = 850;
 
 /**
+ * A380 FCOM DSC-70-90 EGT LIMIT (a380_fcom.txt l.113189-113192): "The maximum EGT is: 745 °C, during the ground start
+ * sequence; 865 °C, during engine relight in flight; 970 °C, during all other phases." The start values are the FCOM
+ * ones: the FADEC start EGT model is built on them (fadec_a380x StartSequence_A380X.hpp, the hot start overshoot goes
+ * "above the 745 °C start limit"); the "all other phases" limit stays the FBW gauge value above.
+ */
+export const EGT_START_LIMIT_C = 745;
+export const EGT_RELIGHT_LIMIT_C = 865;
+
+/** L:A32NX_ENGINE_STATE values of a start sequence (fadec_a380x EngineControl_A380X.h: STARTING 2, RESTARTING 3) */
+const ENGINE_STATE_STARTING = 2;
+const ENGINE_STATE_RESTARTING = 3;
+
+/**
+ * @param engineState L:A32NX_ENGINE_STATE
+ * @returns whether the engine is in a start sequence (start on ground or relight in flight)
+ */
+export function isStartSequence(engineState: number): boolean {
+  return engineState === ENGINE_STATE_STARTING || engineState === ENGINE_STATE_RESTARTING;
+}
+
+/**
+ * The maximum EGT of the amber line (l.113189-113192).
+ * @param engineState L:A32NX_ENGINE_STATE
+ * @param onGround whether the aircraft is on ground
+ * @returns the EGT limit in degrees Celsius: the start limit on ground, the relight limit in flight, the normal one
+ * otherwise
+ */
+export function egtLimit(engineState: number, onGround: boolean): number {
+  if (isStartSequence(engineState)) {
+    return onGround ? EGT_START_LIMIT_C : EGT_RELIGHT_LIMIT_C;
+  }
+  return EGT_LIMIT_C;
+}
+
+/**
  * Whether the amber EGT limit applies. A380 FCOM DSC-70-90 EGT LIMIT: "The amber indication does not appear: During
  * takeoff, or When thrust reversers are selected [...]".
  * @param limitType the thrust limit type
@@ -36,13 +71,14 @@ export function egtLimitMarkVisible(limitType: number): boolean {
  * INDICATIONS).
  * @param egt the EGT in degrees Celsius
  * @param limitType the thrust limit type
+ * @param limit the EGT limit (egtLimit), the normal one by default
  * @returns 'Red', 'Amber' or 'Green'
  */
-export function egtColour(egt: number, limitType: number): 'Red' | 'Amber' | 'Green' {
+export function egtColour(egt: number, limitType: number, limit = EGT_LIMIT_C): 'Red' | 'Amber' | 'Green' {
   if (egt >= EGT_RED_C) {
     return 'Red';
   }
-  if (egt > EGT_LIMIT_C && egtLimitMarkVisible(limitType)) {
+  if (egt > limit && egtLimitMarkVisible(limitType)) {
     return 'Amber';
   }
   return 'Green';
@@ -71,12 +107,18 @@ export function trimmedEgt(egt: number, limitType: number): number {
 
 /**
  * The EGT that the EWD shows.
+ * Design choice: during a start sequence the EEC trim does not apply (the start fuel schedule sets the EGT), so a hot
+ * start or an overshooting relight shows above its start limit (egtLimit).
  * @param egt the FADEC EGT in degrees Celsius, failure offset included
  * @param egtOffset the failure EGT offset in degrees Celsius
  * @param limitType the thrust limit type
+ * @param startSequence the engine is in a start sequence (isStartSequence); false by default
  * @returns the trimmed EGT of the healthy engine plus the failure offset
  */
-export function displayedEgt(egt: number, egtOffset: number, limitType: number): number {
+export function displayedEgt(egt: number, egtOffset: number, limitType: number, startSequence = false): number {
+  if (startSequence) {
+    return egt;
+  }
   return trimmedEgt(egt - egtOffset, limitType) + egtOffset;
 }
 
