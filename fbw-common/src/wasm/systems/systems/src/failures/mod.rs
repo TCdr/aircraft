@@ -26,6 +26,8 @@ pub enum FailureType {
     OutflowValveFault,
     SafetyValveFault,
     RapidDecompression,
+    /// A320 aft cargo ventilation: both isolation valves stuck closed
+    AftCargoIsolationValvesStuckClosed,
     Fdac(FdacId, Channel),
     Tadd(Channel),
     Vcm(VcmId, Channel),

@@ -718,6 +718,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ATSU] The ATSU stops while its C/B L15 or L16 on 121VU is pulled (the ATSU reset of the FCOM drops the CPDLC connection), and the DCDU shows INVALID DATA while the ATSU does not run - @TCdr
 1. [A32NX/ENG] The FADEC idle protection follows the reverser position: idle while a reverser commanded stowed is more than 15 % deployed, reverse idle when a deployed reverser stows below 78 %, as in the FCOM - @TCdr
 1. [A32NX/ENG] In-flight starter assisted relight: the starter turns the core and the HP fuel valve opens above 15 % N2, as in the FCOM - @TCdr
+1. [A32NX/PRESS] The residual pressure control unit also opens the outflow valve on the ground when both CPCs are failed, and works below 100 kt on all ADIRS (or with all engines shut down), as in the FCOM - @TCdr
+1. [A32NX/COND] The DITCHING pb closes the emergency ram air inlet (RAM AIR valve on the SD BLEED page) - @TCdr
+1. [A32NX/COND] The AFT ISOL VALVE pb-sw of the CARGO VENT panel works: OFF closes the aft cargo isolation valves (also closed on aft cargo smoke), FAULT and COND AFT CRG ISOL VALVE when a valve disagrees (flyPad failure "AFT cargo ventilation isolation valves stuck closed") - @TCdr
+1. [A32NX/AP] The AUTOLAND light also flashes when both RAs differ by more than 15 ft, and on an untimely flare with one RA inoperative - @TCdr
+1. [A32NX/ATHR] Alpha floor also comes with the sidestick more than 14 degrees nose up with the angle-of-attack protection active, and is lost with an engine out and slats/flaps extended - @TCdr
 
 ## 2024.1.0
 

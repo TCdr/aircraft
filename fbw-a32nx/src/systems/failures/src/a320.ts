@@ -32,6 +32,7 @@ export const A320Failure = Object.freeze({
   AvionicsSkinExtractValveStuckOpen: 21023,
   AvionicsSkinInletValveStuckOpen: 21024,
   AftCargoExtractionFan: 21025,
+  // The Rust failure of a320_systems cargo_ventilation.rs: the valves model gives the FAULT light and the FWC alert
   AftCargoIsolationValvesStuckClosed: 21026,
 
   Fac1Failure: 22000,

@@ -3087,16 +3087,20 @@
                         <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
                         <TOOLTIPID>%((L:A32NX_AVIONICS_COMPLT_ON, Bool))%{if}Set avionics comp lt to AUTO (Inop.)%{else}Turn ON avionics comp lt (Inop.)%{end}</TOOLTIPID>
                     </UseTemplate>
-                    <!-- CARGO VENT ISOL VALVE -->
+                    <!-- CARGO VENT AFT ISOL VALVE: AUTO / OFF, FAULT when an isolation valve disagrees (systems.wasm
+                         cargo_ventilation.rs, A320 FCOM DSC-21-40-20) -->
                     <UseTemplate Name="FBW_Anim_Interactions">
                         <ANIM_TYPE>KORRY_BUTTON</ANIM_TYPE>
                         <ANIM_TEMPLATE>FBW_Push_Toggle</ANIM_TEMPLATE>
                         <NODE_ID>PUSH_OVHD_CARGOVENT_AFTISOL</NODE_ID>
+                        <TOGGLE_SIMVAR>L:A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_IS_AUTO</TOGGLE_SIMVAR>
                         <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                        <SEQ1_CODE>(L:A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_HAS_FAULT, Bool)</SEQ1_CODE>
+                        <SEQ2_CODE>(L:A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_IS_AUTO, Bool) !</SEQ2_CODE>
                         <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                         <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                         <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                        <DUMMY_BUTTON/>
+                        <TOOLTIPID>%((L:A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_IS_AUTO, Bool))%{if}Close aft cargo isolation valves%{else}Set aft cargo isolation valves to AUTO%{end}</TOOLTIPID>
                     </UseTemplate>
                     <!-- CARGO SMOKE FWD L -->
                     <UseTemplate Name="FBW_AIRBUS_Push_Dummy_Template">
@@ -5697,9 +5701,6 @@
             </UseTemplate>
             <UseTemplate Name="ASOBO_GT_Interaction_Tooltip">
                 <NODE_ID>HANDLE_RIGHT</NODE_ID>
-            </UseTemplate>
-            <UseTemplate Name="ASOBO_GT_Interaction_Tooltip">
-                <NODE_ID>PUSH_OVHD_CARGOVENT_AFTISOL</NODE_ID>
             </UseTemplate>
             <UseTemplate Name="ASOBO_GT_Interaction_Tooltip">
                 <NODE_ID>PUSH_OVHD_RADIO_VOR1</NODE_ID>

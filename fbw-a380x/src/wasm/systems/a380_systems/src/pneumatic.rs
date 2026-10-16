@@ -2894,6 +2894,9 @@ mod tests {
         fn ambient_static_pressure(&self, _adiru_number: usize) -> Arinc429Word<Pressure> {
             Arinc429Word::new(Pressure::default(), SignStatus::NoComputedData)
         }
+        fn computed_airspeed(&self, _adiru_number: usize) -> Arinc429Word<Velocity> {
+            Arinc429Word::new(Velocity::default(), SignStatus::NoComputedData)
+        }
     }
 
     struct TestDsms {}

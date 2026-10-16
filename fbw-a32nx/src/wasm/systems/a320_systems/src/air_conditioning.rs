@@ -47,6 +47,7 @@ pub(super) struct A320AirConditioning {
     a320_cabin: A320Cabin,
     a320_air_conditioning_system: A320AirConditioningSystem,
     a320_pressurization_system: A320PressurizationSystem,
+    emergency_ram_air_inlet: EmergencyRamAirInlet,
 
     pressurization_updater: MaxStepLoop,
 }
@@ -62,6 +63,7 @@ impl A320AirConditioning {
             a320_cabin: A320Cabin::new(context),
             a320_air_conditioning_system: A320AirConditioningSystem::new(context, &cabin_zones),
             a320_pressurization_system: A320PressurizationSystem::new(context),
+            emergency_ram_air_inlet: EmergencyRamAirInlet::new(context),
 
             pressurization_updater: MaxStepLoop::new(Self::PRESSURIZATION_SIM_MAX_TIME_STEP),
         }
@@ -111,6 +113,12 @@ impl A320AirConditioning {
                 &self.a320_cabin,
             );
         }
+
+        self.emergency_ram_air_inlet.update(
+            self.a320_pressurization_system
+                .pressurization_overhead()
+                .ditching_is_on(),
+        );
     }
 
     pub fn mix_packs_air_update(&mut self, pack_container: &mut [impl PneumaticContainer; 2]) {
@@ -143,8 +151,48 @@ impl SimulationElement for A320AirConditioning {
         self.a320_cabin.accept(visitor);
         self.a320_air_conditioning_system.accept(visitor);
         self.a320_pressurization_system.accept(visitor);
+        self.emergency_ram_air_inlet.accept(visitor);
 
         visitor.visit(self);
+    }
+}
+
+/// The emergency ram air inlet valve. FCOM DSC-21-10-20 EMERGENCY RAM AIR (a320_fcom.txt l.8109-8111): "The emergency
+/// ram air inlet valve is controlled by the RAM AIR pushbutton on the AIR COND panel. This pushbutton opens the ram air
+/// valve, provided that ditching is not selected." DSC-21-20-30 DITCHING (l.8955-8957): the DITCHING pb closes "the
+/// emergency ram air inlet". No travel time in the FCOM: the valve follows its command at once.
+struct EmergencyRamAirInlet {
+    /// The RAM AIR pb (guarded) of the AIR COND panel, a cockpit L:var of the interior model
+    ram_air_pb_is_on_id: VariableIdentifier,
+    is_open_id: VariableIdentifier,
+
+    ram_air_pb_is_on: bool,
+    is_open: bool,
+}
+
+impl EmergencyRamAirInlet {
+    fn new(context: &mut InitContext) -> Self {
+        Self {
+            ram_air_pb_is_on_id: context.get_identifier("AIRCOND_RAMAIR_TOGGLE".to_owned()),
+            is_open_id: context.get_identifier("AIRCOND_EMER_RAM_AIR_INLET_IS_OPEN".to_owned()),
+
+            ram_air_pb_is_on: false,
+            is_open: false,
+        }
+    }
+
+    fn update(&mut self, ditching_is_on: bool) {
+        self.is_open = self.ram_air_pb_is_on && !ditching_is_on;
+    }
+}
+
+impl SimulationElement for EmergencyRamAirInlet {
+    fn read(&mut self, reader: &mut SimulatorReader) {
+        self.ram_air_pb_is_on = reader.read(&self.ram_air_pb_is_on_id);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        writer.write(&self.is_open_id, self.is_open);
     }
 }
 
@@ -846,22 +894,22 @@ impl A320PressurizationSystem {
 
         self.residual_pressure_controller.update(
             context,
+            adirs,
             engines,
             self.outflow_valve[0].open_amount(),
             self.pressurization_overhead.is_in_man_mode(),
+            self.cpc.iter().all(|controller| controller.has_fault()),
             lgciu_gears_compressed,
             self.cpc[self.active_system - 1].cabin_delta_p(),
         );
 
-        // The outflow valve(s) is(are) controlled by either the CPC, the RCPU (both in auto) or the overhead (manual)
+        // The outflow valve(s) is(are) controlled by either the CPC (auto), the RPCU or the overhead (manual).
+        // The RPCU works when both CPCs are failed or MAN is selected: the automatic motors are the CPC ones, so it
+        // drives the manual motor (the FCOM DSC-21-20-20 does not name the motor, a320_fcom.txt l.8825-8830).
         if self.residual_pressure_controller.signal().is_some() {
-            self.outflow_valve.iter_mut().for_each(|valve| {
-                valve.update(
-                    context,
-                    &self.residual_pressure_controller,
-                    self.pressurization_overhead.is_in_man_mode(),
-                )
-            })
+            self.outflow_valve
+                .iter_mut()
+                .for_each(|valve| valve.update(context, &self.residual_pressure_controller, true))
         } else if self.pressurization_overhead.is_in_man_mode() {
             self.outflow_valve.iter_mut().for_each(|valve| {
                 valve.update(
@@ -870,7 +918,7 @@ impl A320PressurizationSystem {
                     self.pressurization_overhead.is_in_man_mode(),
                 )
             })
-        } else {
+        } else if !self.cpc[self.active_system - 1].has_fault() {
             self.outflow_valve.iter_mut().for_each(|valve| {
                 valve.update(
                     context,
@@ -879,6 +927,8 @@ impl A320PressurizationSystem {
                 )
             });
         }
+        // else both CPCs are failed (the active one is failed only then): the automatic motors have no controller and
+        // the outflow valve stays where it is, until the RPCU or MAN mode moves it
 
         self.safety_valve_signal.update(
             context,
@@ -1116,33 +1166,63 @@ impl PressurizationOverheadShared for A320PressurizationOverheadPanel {
     }
 }
 
+/// The Residual Pressure Control Unit. FCOM DSC-21-20-20 RPCU (a320_fcom.txt l.8820-8830): "The RPCU automatically
+/// depressurizes the aircraft in case of abnormal residual pressure on ground. It automatically opens the outflow
+/// valve, when:
+/// - The outflow valve is not fully open, and
+/// - Both CPCs are failed, or manual mode is selected, and
+/// - The aircraft is on ground, and
+/// - All engines are shutdown, or all ADIRS indicate an airspeed below 100 kt."
+///
+/// Not in the FCOM, kept from the earlier model: the 2.5 hPa threshold of an "abnormal residual pressure" (the same
+/// 2.5 hPa / 0.036 PSI as the CAB PR EXCES RESIDUAL PR warning, l.73154) and the 55 s delay before the opening (the
+/// CPC also fully opens the outflow valve "55 s after landing", l.8871).
 struct ResidualPressureController {
     timer: Duration,
 }
 
 impl ResidualPressureController {
+    /// An engine below this N1 counts as shut down (an engine at idle runs above it)
+    const ENGINE_SHUT_DOWN_N1_PERCENT: f64 = 15.;
+    /// FCOM l.8830: "all ADIRS indicate an airspeed below 100 kt"
+    const MAX_AIRSPEED_KNOTS: f64 = 100.;
+
     fn new() -> Self {
         Self {
             timer: Duration::from_secs(0),
         }
     }
 
+    /// Each ADIRS indicates an airspeed below 100 kt: its computed airspeed is below 100 kt, or it has no computed
+    /// data (the ADR sends no airspeed below 30 kt). An ADR that failed indicates no airspeed.
+    fn all_adirs_indicate_below_max_airspeed(adirs: &impl AdirsToAirCondInterface) -> bool {
+        (1..=3).all(|adiru_number| {
+            let airspeed = adirs.computed_airspeed(adiru_number);
+            airspeed.is_no_computed_data()
+                || (airspeed.is_normal_operation()
+                    && airspeed.value() < Velocity::new::<knot>(Self::MAX_AIRSPEED_KNOTS))
+        })
+    }
+
     fn update(
         &mut self,
         context: &UpdateContext,
+        adirs: &impl AdirsToAirCondInterface,
         engines: [&impl EngineCorrectedN1; 2],
         outflow_valve_open_amount: Ratio,
         is_in_man_mode: bool,
+        both_cpcs_failed: bool,
         lgciu_gears_compressed: bool,
         cabin_delta_p: Pressure,
     ) {
+        let all_engines_shut_down = engines.iter().all(|&engine| {
+            engine.corrected_n1() <= Ratio::new::<percent>(Self::ENGINE_SHUT_DOWN_N1_PERCENT)
+        });
+
         self.timer = if outflow_valve_open_amount < Ratio::new::<percent>(100.)
-            && is_in_man_mode
+            && (both_cpcs_failed || is_in_man_mode)
             && lgciu_gears_compressed
-            && (!(engines
-                .iter()
-                .any(|&x| x.corrected_n1() > Ratio::new::<percent>(15.)))
-                || context.indicated_airspeed() < Velocity::new::<knot>(70.))
+            && (all_engines_shut_down || Self::all_adirs_indicate_below_max_airspeed(adirs))
             && (cabin_delta_p > Pressure::new::<hectopascal>(2.5)
                 || self.timer != Duration::from_secs(0))
         {
@@ -1170,6 +1250,7 @@ mod tests {
     use ntest::assert_about_eq;
     use systems::{
         electrical::{test::TestElectricitySource, ElectricalBus, Electricity},
+        failures::FailureType,
         pneumatic::{
             valve::{DefaultValve, PneumaticExhaust},
             ControllablePneumaticValve, EngineModeSelector, EngineState, PneumaticPipe, Precooler,
@@ -1200,6 +1281,9 @@ mod tests {
         baro_correction: Pressure,
         baro_correction_ssm: SignStatus,
         ambient_pressure: Pressure,
+        computed_airspeed: Velocity,
+        /// The ADR failed (FailureWarning) per ADIRU
+        adr_failed: [bool; 3],
     }
     impl TestAdirs {
         fn new() -> Self {
@@ -1209,10 +1293,18 @@ mod tests {
                 baro_correction: Pressure::new::<hectopascal>(1013.25),
                 baro_correction_ssm: SignStatus::NormalOperation,
                 ambient_pressure: Pressure::new::<hectopascal>(1013.25),
+                computed_airspeed: Velocity::default(),
+                adr_failed: [false; 3],
             }
         }
         fn set_true_airspeed(&mut self, airspeed: Velocity) {
             self.true_airspeed = airspeed;
+        }
+        fn set_computed_airspeed(&mut self, airspeed: Velocity) {
+            self.computed_airspeed = airspeed;
+        }
+        fn set_adr_failed(&mut self, adiru_number: usize, failed: bool) {
+            self.adr_failed[adiru_number - 1] = failed;
         }
         fn set_baro_correction(&mut self, altimeter_setting: Pressure) {
             self.baro_correction = altimeter_setting;
@@ -1240,6 +1332,16 @@ mod tests {
         }
         fn ambient_static_pressure(&self, _adiru_number: usize) -> Arinc429Word<Pressure> {
             Arinc429Word::new(self.ambient_pressure, SignStatus::NormalOperation)
+        }
+        fn computed_airspeed(&self, adiru_number: usize) -> Arinc429Word<Velocity> {
+            // As the ADR: no computed data below 30 kt
+            if self.adr_failed[adiru_number - 1] {
+                Arinc429Word::new(Velocity::default(), SignStatus::FailureWarning)
+            } else if self.computed_airspeed < Velocity::new::<knot>(30.) {
+                Arinc429Word::new(Velocity::default(), SignStatus::NoComputedData)
+            } else {
+                Arinc429Word::new(self.computed_airspeed, SignStatus::NormalOperation)
+            }
         }
     }
 
@@ -1907,11 +2009,22 @@ mod tests {
         fn indicated_airspeed(&mut self, velocity: Velocity) {
             self.set_indicated_airspeed(velocity);
             self.command(|a| a.adirs.set_true_airspeed(velocity));
+            self.command(|a| a.adirs.set_computed_airspeed(velocity));
         }
 
         fn indicated_airspeed_of(mut self, velocity: Velocity) -> Self {
-            self.set_indicated_airspeed(velocity);
-            self.command(|a| a.adirs.set_true_airspeed(velocity));
+            self.indicated_airspeed(velocity);
+            self
+        }
+
+        fn adr_failed(mut self, adiru_number: usize) -> Self {
+            self.command(|a| a.adirs.set_adr_failed(adiru_number, true));
+            self
+        }
+
+        fn both_cpcs_failed(mut self) -> Self {
+            self.fail(FailureType::CpcFault(CpcId::Cpc1));
+            self.fail(FailureType::CpcFault(CpcId::Cpc2));
             self
         }
 
@@ -1956,6 +2069,15 @@ mod tests {
 
         fn command_destination_qnh(&mut self, value: Pressure) {
             self.write_by_name("DESTINATION_QNH", value);
+        }
+
+        fn command_ram_air_pb_on(mut self, is_on: bool) -> Self {
+            self.write_by_name("AIRCOND_RAMAIR_TOGGLE", is_on);
+            self
+        }
+
+        fn emergency_ram_air_inlet_is_open(&mut self) -> bool {
+            self.read_by_name("AIRCOND_EMER_RAM_AIR_INLET_IS_OPEN")
         }
 
         fn command_ditching_pb_on(mut self) -> Self {
@@ -2497,6 +2619,29 @@ mod tests {
             );
         }
 
+        // FCOM DSC-21-10-20 EMERGENCY RAM AIR (a320_fcom.txt l.8110-8111)
+        #[test]
+        fn ram_air_pb_on_opens_the_emergency_ram_air_inlet() {
+            let mut test_bed = test_bed().iterate(2);
+            assert!(!test_bed.emergency_ram_air_inlet_is_open());
+
+            test_bed = test_bed.command_ram_air_pb_on(true).iterate(2);
+            assert!(test_bed.emergency_ram_air_inlet_is_open());
+
+            test_bed = test_bed.command_ram_air_pb_on(false).iterate(2);
+            assert!(!test_bed.emergency_ram_air_inlet_is_open());
+        }
+
+        // FCOM DSC-21-20-30 DITCHING (l.8955-8957) and DSC-21-10-20 (l.8111): "provided that ditching is not selected"
+        #[test]
+        fn ditching_pb_on_closes_the_emergency_ram_air_inlet() {
+            let mut test_bed = test_bed().command_ram_air_pb_on(true).iterate(2);
+            assert!(test_bed.emergency_ram_air_inlet_is_open());
+
+            test_bed = test_bed.command_ditching_pb_on().iterate(2);
+            assert!(!test_bed.emergency_ram_air_inlet_is_open());
+        }
+
         #[test]
         fn fifty_five_seconds_after_landing_outflow_valve_doesnt_open_if_ditching_pb_is_on() {
             let mut test_bed = test_bed_in_descent()
@@ -2543,6 +2688,128 @@ mod tests {
             let test_bed = test_bed_in_descent()
                 .command_mode_sel_pb_man()
                 .indicated_airspeed_of(Velocity::new::<knot>(69.))
+                .then()
+                .set_on_ground()
+                .iterate(200);
+
+            assert_eq!(
+                test_bed.outflow_valve_open_amount(),
+                Ratio::new::<percent>(100.)
+            );
+        }
+
+        // FCOM DSC-21-20-20 RPCU (a320_fcom.txt l.8825-8830): "Both CPCs are failed, or manual mode is selected"
+        #[test]
+        fn rpcu_opens_ofv_when_both_cpcs_are_failed_in_auto_mode() {
+            let mut test_bed = test_bed_in_descent()
+                .both_cpcs_failed()
+                .indicated_airspeed_of(Velocity::new::<knot>(69.))
+                .then()
+                .set_on_ground()
+                .iterate(200);
+
+            assert_eq!(
+                test_bed.outflow_valve_open_amount(),
+                Ratio::new::<percent>(100.)
+            );
+
+            // Fully open, the RPCU stops: the outflow valve stays open (no operative CPC drives it back)
+            test_bed = test_bed.iterate(100);
+            assert_eq!(
+                test_bed.outflow_valve_open_amount(),
+                Ratio::new::<percent>(100.)
+            );
+        }
+
+        // With both CPCs failed the automatic motors have no controller: the outflow valve does not move
+        #[test]
+        fn outflow_valve_holds_its_position_in_flight_when_both_cpcs_are_failed() {
+            let mut test_bed = test_bed_in_cruise().memorize_outflow_valve_open_amount();
+            test_bed = test_bed
+                .both_cpcs_failed()
+                .vertical_speed_of(Velocity::new::<foot_per_minute>(-1000.))
+                .iterate(60);
+
+            assert_eq!(
+                test_bed.outflow_valve_open_amount(),
+                test_bed.initial_outflow_valve_open_amount()
+            );
+        }
+
+        // l.8830: "all ADIRS indicate an airspeed below 100 kt" (engines running)
+        #[test]
+        fn rpcu_opens_ofv_below_100_knots_with_engines_running() {
+            let test_bed = test_bed_in_descent()
+                .command_mode_sel_pb_man()
+                .indicated_airspeed_of(Velocity::new::<knot>(99.))
+                .then()
+                .set_on_ground()
+                .iterate(200);
+
+            assert_eq!(
+                test_bed.outflow_valve_open_amount(),
+                Ratio::new::<percent>(100.)
+            );
+        }
+
+        #[test]
+        fn rpcu_does_not_open_ofv_at_100_knots_with_engines_running() {
+            let test_bed = test_bed_in_descent()
+                .memorize_outflow_valve_open_amount()
+                .command_mode_sel_pb_man()
+                .indicated_airspeed_of(Velocity::new::<knot>(100.))
+                .then()
+                .set_on_ground()
+                .iterate(200);
+
+            assert_eq!(
+                test_bed.outflow_valve_open_amount(),
+                test_bed.initial_outflow_valve_open_amount()
+            );
+        }
+
+        // A failed ADR indicates no airspeed: not "all ADIRS indicate an airspeed below 100 kt"
+        #[test]
+        fn rpcu_does_not_open_ofv_with_engines_running_when_one_adr_is_failed() {
+            let test_bed = test_bed_in_descent()
+                .memorize_outflow_valve_open_amount()
+                .command_mode_sel_pb_man()
+                .adr_failed(3)
+                .indicated_airspeed_of(Velocity::new::<knot>(69.))
+                .then()
+                .set_on_ground()
+                .iterate(200);
+
+            assert_eq!(
+                test_bed.outflow_valve_open_amount(),
+                test_bed.initial_outflow_valve_open_amount()
+            );
+        }
+
+        // l.8830: "All engines are shutdown": the airspeed does not matter then
+        #[test]
+        fn rpcu_opens_ofv_with_all_engines_shut_down_and_one_adr_failed() {
+            let mut test_bed = test_bed_in_descent()
+                .command_mode_sel_pb_man()
+                .adr_failed(3)
+                .indicated_airspeed_of(Velocity::new::<knot>(69.))
+                .then()
+                .set_on_ground();
+            test_bed.command_engine_n1(Ratio::default());
+            test_bed = test_bed.iterate(200);
+
+            assert_eq!(
+                test_bed.outflow_valve_open_amount(),
+                Ratio::new::<percent>(100.)
+            );
+        }
+
+        // Below 30 kt the ADR sends no computed data: that is an airspeed below 100 kt
+        #[test]
+        fn rpcu_opens_ofv_with_engines_running_when_the_adrs_send_no_airspeed_below_30_knots() {
+            let test_bed = test_bed_in_descent()
+                .command_mode_sel_pb_man()
+                .indicated_airspeed_of(Velocity::new::<knot>(10.))
                 .then()
                 .set_on_ground()
                 .iterate(200);
