@@ -28,6 +28,7 @@ import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { DataManager } from '@fmgc/flightplanning/DataManager';
 import { EfisInterface } from '@fmgc/efis/EfisInterface';
 import { FuelPredictions } from '@fmgc/flightplanning/fuel/FuelPredictions';
+import { OverheadWaypointRecorder } from '../legacy_pages/ProgressReportFields';
 import { WindEntry } from '@fmgc/flightplanning/data/wind';
 import { Accessible } from '@microsoft/msfs-sdk';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
@@ -132,6 +133,12 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   getGrossWeight(): number | null;
   getCG(): number;
   getFOB(forPlan: FlightPlanIndex): number | undefined;
+  /** The FUEL PRED page FOB sensors text: FF+FQ, FF or FQ */
+  getFobSensorsText(): string;
+  /** The FUEL PRED page FOB [4R] entry: a FOB in flight and/or the fuel sensors */
+  trySetFuelOnBoard(s: string): boolean;
+  /** The PROG REPORT page OVHD waypoint, recorded at its sequencing */
+  readonly overheadWaypointRecorder: OverheadWaypointRecorder;
   trySetRouteFinalFuel(s: string, forPlan: FlightPlanIndex): boolean;
   trySetRouteAlternateFuel(altFuel: string, forPlan: FlightPlanIndex): Promise<boolean>;
   getDestEFOB(): number | null;
