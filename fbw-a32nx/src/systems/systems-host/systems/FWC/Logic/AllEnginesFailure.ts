@@ -46,12 +46,12 @@ export interface AllEnginesFailureLineInputs {
   readonly apuStartLineShown: boolean;
   /** A thrust lever is above IDLE */
   readonly thrustLeverAboveIdle: boolean;
-  /** FAC 1 has failed */
-  readonly fac1Failed: boolean;
 }
 
 /**
  * The lines of ENG ALL ENGINES FAILURE shown now, as indexes into ALL_ENGINES_FAILURE_CODES.
+ * "-FAC 1 OFF THEN ON" has no condition (A320 FCOM PRO-ABN-ENG, a320_fcom.txt l.79144-79146: the FAC 1 reset recovers
+ * the characteristic speeds on the PFD and the rudder trim): the reset cannot be seen done and the line stays.
  * @param inputs the conditions of the conditional lines
  * @returns the indexes of the lines shown, in display order
  */
@@ -62,7 +62,7 @@ export function allEnginesFailureLines(inputs: AllEnginesFailureLineInputs): num
     2,
     inputs.apuStartLineShown ? 3 : null,
     inputs.thrustLeverAboveIdle ? 4 : null,
-    inputs.fac1Failed ? 5 : null,
+    5,
     6,
     7,
     8,

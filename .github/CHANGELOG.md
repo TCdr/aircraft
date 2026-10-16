@@ -681,6 +681,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/RMP] The GLS and MLS keys (receivers not installed) no longer show a fake 808.080, and the ILS tune inhibit below 700 ft RA now works, freezes only the ILS and also applies with an FD alone - @TCdr
 1. [A32NX/ELEC] MAINT BUS switch (flyPad Ground > Services): external power alone feeds the GND/FLT buses only with the switch ON; it trips when the external power is removed - @TCdr
 1. [A32NX/ELEC] The emergency generator couples to the network 3 s after its output is normal - @TCdr
+1. [A32NX/ECAM] With the ECAM control panel failed, the ALL, STS and CLR pushbuttons still select, page and clear the SD pages through their hardwired contacts, as in the FCOM - @TCdr
+1. [A32NX/FWC] ENG ALL ENGINES FAILURE always shows -FAC 1 OFF THEN ON, as in the FCOM, not only when FAC 1 has failed - @TCdr
 
 ## 2024.1.0
 

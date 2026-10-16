@@ -51,7 +51,6 @@ describe('ALL ENGINES FAILURE: lines', () => {
     emerElecPwrManOnPushed: false,
     apuStartLineShown: true,
     thrustLeverAboveIdle: true,
-    fac1Failed: true,
   };
   const text = (indexes: number[]) => formatEwdMessages(indexes.map((index) => ALL_ENGINES_FAILURE_CODES[index]));
 
@@ -75,15 +74,32 @@ describe('ALL ENGINES FAILURE: lines', () => {
         emerElecPwrManOnPushed: true,
         apuStartLineShown: false,
         thrustLeverAboveIdle: false,
-        fac1Failed: false,
       }),
     ).join(' | ');
     expect(lines).not.toContain('EMER ELEC PWR');
     expect(lines).not.toContain('-APU');
     expect(lines).not.toContain('THR LEVERS');
-    expect(lines).not.toContain('FAC 1');
     expect(lines).toContain('OPT RELIGHT SPD');
     expect(lines).toContain('DIVERSION');
+  });
+
+  /* A320 FCOM PRO-ABN-ENG ALL ENGINES FAILURE (a320_fcom.txt l.79144-79146): "FAC 1 ..... OFF THEN ON", no condition. */
+  it('always shows -FAC 1 OFF THEN ON, also with FAC 1 healthy', () => {
+    const lines = text(
+      allEnginesFailureLines({
+        emerElecPwrManOnPushed: true,
+        apuStartLineShown: false,
+        thrustLeverAboveIdle: false,
+      }),
+    );
+    expect(lines.filter((line) => line.includes('-FAC 1') && line.includes('OFF THEN ON'))).toHaveLength(1);
+  });
+
+  it('the DUAL ENGINE FAILURE alert no longer reads the FAC 1 failure for the FAC 1 line', () => {
+    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
+    const start = fwc.indexOf('    7700027: {');
+    const block = fwc.slice(start, fwc.indexOf('\n    },', start));
+    expect(block).not.toContain('fac1Failed');
   });
 });
 
