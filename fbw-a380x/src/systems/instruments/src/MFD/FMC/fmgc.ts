@@ -24,6 +24,7 @@ import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
 import { qnhToMillibar } from '../shared/QnhUtils';
 import { grossWeightCgFromFqmsOrWbbc } from './GrossWeightCgSource';
+import type { InsertedAlternateRoute } from './AlternateCompanyRoute';
 
 export enum TakeoffPowerSetting {
   TOGA = 0,
@@ -84,6 +85,18 @@ export class FmgcData {
       this.companyRouteIdents.set(planIndex, ident);
     }
     return ident;
+  }
+
+  private readonly alternateCompanyRoutes = new Map<FlightPlanIndex, Subject<InsertedAlternateRoute | null>>();
+
+  /** The alternate company route inserted into a flight plan, null when none (INIT page ALTN RTE field). */
+  public alternateCompanyRoute(planIndex: FlightPlanIndex): Subject<InsertedAlternateRoute | null> {
+    let route = this.alternateCompanyRoutes.get(planIndex);
+    if (!route) {
+      route = Subject.create<InsertedAlternateRoute | null>(null);
+      this.alternateCompanyRoutes.set(planIndex, route);
+    }
+    return route;
   }
 
   /**

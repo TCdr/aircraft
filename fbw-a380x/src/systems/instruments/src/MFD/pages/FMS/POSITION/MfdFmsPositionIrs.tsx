@@ -9,8 +9,20 @@ import { FmsPage } from '../../common/FmsPage';
 import { fcomAt, fcomCentre, fcomLine, fcomRight } from '../../common/FcomLayout';
 import { MfdSimvars } from '../../../shared/MFDSimvarPublisher';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
-import { HeadingFormat } from '../../common/DataEntryFormats';
+import {
+  AlignReferenceLatitudeFormat,
+  AlignReferenceLongitudeFormat,
+  HeadingFormat,
+} from '../../common/DataEntryFormats';
 import { Arinc429Register, Arinc429RegisterSubject, Arinc429Word, coordinateToString } from '@flybywiresim/fbw-sdk';
+import { Coordinates } from 'msfs-geo';
+import {
+  alignReferenceOriginIdent,
+  alignReferenceToSend,
+  defaultAlignReference,
+  irsAlignmentLabel,
+  isAlignOnOtherReferenceAvailable,
+} from '../../../FMC/IrsAlignReference';
 
 interface MfdFmsPositionIrsProps extends AbstractMfdPageProps {}
 
@@ -34,7 +46,30 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
 
   private readonly alignmentPosition = Subject.create<string>('---');
 
-  private readonly alignOnOtherRefDisabled = Subject.create<boolean>(true);
+  /** ALIGN ON OTHER REF: PREFLIGHT or DONE phase only (IrsAlignReference.ts) */
+  private readonly alignOnOtherRefDisabled = this.props.fmcService.master.fmgc.data.flightPhase.map(
+    (phase) => !isAlignOnOtherReferenceAvailable(phase),
+  );
+
+  /** The Align On Other Reference panel is open (it closes when the button is no longer available) */
+  private readonly alignReferencePanelOpen = Subject.create(false);
+
+  private readonly alignReferencePanelHidden = MappedSubject.create(
+    ([open, disabled]) => !open || disabled,
+    this.alignReferencePanelOpen,
+    this.alignOnOtherRefDisabled,
+  );
+
+  private readonly alignReferenceLat = Subject.create<number | null>(null);
+
+  private readonly alignReferenceLong = Subject.create<number | null>(null);
+
+  /** ORIGIN AIRPORT IDENT: only while the fields hold the origin airport reference point */
+  private readonly alignReferenceOriginIdent = MappedSubject.create(
+    ([lat, long]) => alignReferenceOriginIdent({ lat, long }, this.activeOrigin()) ?? '',
+    this.alignReferenceLat,
+    this.alignReferenceLong,
+  );
 
   private readonly irs1Status = Subject.create<IrsStatus>('');
 
@@ -112,9 +147,31 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
     this.irs3Status,
   );
 
-  private readonly irsAreAlignedOnRefPos = Subject.create<boolean>(false);
-
   protected onNewData() {}
+
+  /** The origin airport of the active flight plan */
+  private activeOrigin(): { ident: string; location: Coordinates } | undefined {
+    const origin = this.props.fmcService.master.flightPlanInterface.active?.originAirport;
+    return origin ? { ident: origin.ident, location: origin.location } : undefined;
+  }
+
+  /** ALIGN ON OTHER REF: opens the panel with the origin airport as the default position (FCOM l.39444-39446) */
+  private openAlignReferencePanel(): void {
+    const reference = defaultAlignReference(this.activeOrigin()?.location);
+    this.alignReferenceLat.set(reference.lat);
+    this.alignReferenceLong.set(reference.long);
+    this.alignReferencePanelOpen.set(true);
+  }
+
+  /** ALIGN IRS: sends the reference position for the IRS alignment (FCOM l.39451-39452), and closes the panel */
+  private alignIrsOnReference(): void {
+    const reference = alignReferenceToSend({ lat: this.alignReferenceLat.get(), long: this.alignReferenceLong.get() });
+    if (reference === null) {
+      return;
+    }
+    this.props.fmcService.master.irsAlignReferencePosition.set(reference);
+    this.alignReferencePanelOpen.set(false);
+  }
 
   private changeIrsData(showDataFor: IrsDataFor) {
     this.irs1DataVisible.set(showDataFor === IrsDataFor.IRS_1);
@@ -135,28 +192,21 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
 
     this.subs.push(this.showIrsDataFor.sub((v) => this.changeIrsData(v), true));
 
+    // IRS ALIGNMENT LABEL and POSITION (FCOM l.39397-39413): on the reference position of the Align On Other Reference
+    // panel once the crew has sent one, else on the GPS position
+    const updateAlignment = () => {
+      const reference = this.props.fmcService.master.irsAlignReferencePosition.get();
+      this.alignmentLabel.set(irsAlignmentLabel(this.irsAreAligned.get(), reference !== null));
+      this.alignmentPosition.set(
+        coordinateToString(
+          reference ?? this.props.fmcService.master.navigation.getPpos() ?? { lat: 0, long: 0 },
+          false,
+        ),
+      );
+    };
     this.subs.push(
-      this.irsAreAligned.sub((v) => {
-        if (v) {
-          if (this.irsAreAlignedOnRefPos.get()) {
-            this.alignmentLabel.set('IRS ALIGNED ON REF POS:');
-          } else {
-            this.alignmentLabel.set('IRS ALIGNED ON GPS POS:');
-          }
-          this.alignmentPosition.set(
-            coordinateToString(this.props.fmcService.master.navigation.getPpos() ?? { lat: 0, long: 0 }, false),
-          );
-        } else {
-          if (this.irsAreAlignedOnRefPos.get()) {
-            this.alignmentLabel.set('IRS ALIGNING ON REF POS:');
-          } else {
-            this.alignmentLabel.set('IRS ALIGNING ON GPS POS:');
-          }
-          this.alignmentPosition.set(
-            coordinateToString(this.props.fmcService.master.navigation.getPpos() ?? { lat: 0, long: 0 }, false),
-          );
-        }
-      }, true),
+      this.irsAreAligned.sub(updateAlignment),
+      this.props.fmcService.master.irsAlignReferencePosition.sub(updateAlignment, true),
     );
 
     this.subs.push(
@@ -187,7 +237,14 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
         }),
     );
 
-    this.subs.push(this.irsAreAligned, this.irsDataFreezeButtonLabel, this.irsDataFrozenTime);
+    this.subs.push(
+      this.irsAreAligned,
+      this.irsDataFreezeButtonLabel,
+      this.irsDataFrozenTime,
+      this.alignOnOtherRefDisabled,
+      this.alignReferencePanelHidden,
+      this.alignReferenceOriginIdent,
+    );
 
     this.setHdgDivRef.instance.style.visibility = 'hidden';
   }
@@ -308,10 +365,59 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
               <Button
                 disabled={this.alignOnOtherRefDisabled}
                 label="ALIGN ON<br />OTHER REF"
-                onClick={() => {}}
+                onClick={() => this.openAlignReferencePanel()}
                 buttonStyle="min-width: 152px; min-height: 59px;"
               />,
             )}
+            {/* Align On Other Reference panel (FCOM P 281 figure), over the button row */}
+            <div class={{ hidden: this.alignReferencePanelHidden }}>
+              <div class="mfd-position-irs-align-ref-panel" />
+              {fcomAt(
+                89.5,
+                10,
+                <Button
+                  label="CLOSE"
+                  onClick={() => this.alignReferencePanelOpen.set(false)}
+                  buttonStyle="min-width: 90px; min-height: 58px;"
+                />,
+              )}
+              {fcomCentre(89.5, 228, <span class="mfd-value bigger">{this.alignReferenceOriginIdent}</span>)}
+              {fcomAt(
+                89.5,
+                305,
+                <InputField<number>
+                  dataEntryFormat={new AlignReferenceLatitudeFormat()}
+                  value={this.alignReferenceLat}
+                  containerStyle="width: 148px;"
+                  alignText="center"
+                  errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                  hEventConsumer={this.props.mfd.hEventConsumer}
+                  interactionMode={this.props.mfd.interactionMode}
+                />,
+              )}
+              {fcomAt(
+                89.5,
+                458,
+                <InputField<number>
+                  dataEntryFormat={new AlignReferenceLongitudeFormat()}
+                  value={this.alignReferenceLong}
+                  containerStyle="width: 168px;"
+                  alignText="center"
+                  errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                  hEventConsumer={this.props.mfd.hEventConsumer}
+                  interactionMode={this.props.mfd.interactionMode}
+                />,
+              )}
+              {fcomAt(
+                89.5,
+                637,
+                <Button
+                  label="ALIGN<br />IRS *"
+                  onClick={() => this.alignIrsOnReference()}
+                  buttonStyle="color: #e68000; min-width: 112px; min-height: 58px;"
+                />,
+              )}
+            </div>
             {fcomLine(140, 2, 756)}
 
             <div class="mfd-position-irs-table-column" style="left: 91px;" />

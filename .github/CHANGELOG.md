@@ -642,6 +642,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New AVIONICS NETWORK alerts from the AFDX switch and IOM failures: ALL SWITCHES FAULT, DOUBLE / MULTIPLE SWITCH FAULT and DOUBLE / MULTIPLE IOM FAULT (NETWORK or REDUNDANCY DEGRADED) - @TCdr
 1. [A380X/FWS] New COM ATC DATALINK FAULT (CPIOM D1 lost, ATC COM VOICE ONLY), COM ADS DATALINK FAULT, COM NSS DATA TO AVNCS XFR FAULT (pb-sw OFF) and COM NSS/AVNCS DATA XFR FAULT alerts, with new flyPad failures of SCI 1, SCI 2 and the ADS function; both SCIs failed stop the AOC - @TCdr
 1. [A380X/DATALINK] A failed VHF 3 now stops the datalink (CPDLC, AOC) as COM VHF 3 DATALINK FAULT says - @TCdr
+1. [A380X/MFD] SURV pages: the XPDR label shows a failed XPDR, TURB and PRED W/S fail with their WXR, and TAWS 1(2) IN USE when the TAWS comes from the other SURV system - @TCdr
+1. [A380X/SURV] With the selected TAWS failed and the other WXR failed, the TAWS (GPWS, terrain on ND and VD) comes from the other SURV system - @TCdr
+1. [A380X/MFD] POSITION / IRS: the ALIGN ON OTHER REF panel defines the IRS alignment reference position (PREFLIGHT and DONE phases) - @TCdr
+1. [A380X/MFD] Alternate company routes: ALTN RTE entry on the INIT page and INSERT on the ROUTE SELECTION page, with the DEST / ALTN CPNY RTE DISAGREE message; the ALTERNATE page selection creates a temporary flight plan - @TCdr
 
 ## 2024.1.0
 

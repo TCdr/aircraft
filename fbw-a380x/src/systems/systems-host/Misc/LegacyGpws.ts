@@ -12,6 +12,7 @@ import {
 import { EventBus, SimVarValueType } from '@microsoft/msfs-sdk';
 import { FwsSoundManagerControlEvents } from '../CpiomC/FlightWarningSystem/FwsSoundManager';
 import { GpwsMode2 } from './GpwsMode2';
+import { publishedTawsSystem } from './TawsSystemInUse';
 
 type ModesType = {
   current: number;
@@ -33,15 +34,26 @@ export class LegacyGpws {
   /**
    * Whether the crew can rely on the terrain awareness (TAD) function, for the mode 4 envelope. Design choice: the
    * FCOM names the aircraft position and the terrain database; the sim has neither failure, so the TERR SYS pb
-   * (MFD SURV CONTROLS, L:A32NX_GPWS_TERR_OFF) and the TERR failure of the selected AESU system
-   * (L:A32NX_TERR_n_FAILED, L:A32NX_WXR_TAWS_SYS_SELECTED) stand for it.
+   * (MFD SURV CONTROLS, L:A32NX_GPWS_TERR_OFF) and the TERR failure of the AESU system that provides the TAWS
+   * (L:A32NX_TERR_n_FAILED, see tawsSystem) stand for it.
    * @returns true when the TAD function is operative
    */
   static isTerrainFunctionOperative(): boolean {
-    const selected: number = SimVar.GetSimVarValue('L:A32NX_WXR_TAWS_SYS_SELECTED', SimVarValueType.Number);
-    const terrFailed =
-      selected === 1 || selected === 2 ? SimVar.GetSimVarValue(`L:A32NX_TERR_${selected}_FAILED`, 'Bool') > 0 : true;
+    const tawsSystem = LegacyGpws.tawsSystem();
+    const terrFailed = tawsSystem !== 0 ? SimVar.GetSimVarValue(`L:A32NX_TERR_${tawsSystem}_FAILED`, 'Bool') > 0 : true;
     return !(SimVar.GetSimVarValue('L:A32NX_GPWS_TERR_OFF', 'Bool') > 0) && !terrFailed;
+  }
+
+  /**
+   * The SURV system that provides the TAWS functions: the selected WXR/TAWS system, or the other one after an automatic
+   * reconfiguration (L:A32NX_TAWS_SYS_IN_USE, TawsSystemInUse.ts).
+   * @returns the TAWS system, 0 when none
+   */
+  static tawsSystem(): 0 | 1 | 2 {
+    return publishedTawsSystem(
+      SimVar.GetSimVarValue('L:A32NX_WXR_TAWS_SYS_SELECTED', SimVarValueType.Number),
+      SimVar.GetSimVarValue('L:A32NX_TAWS_SYS_IN_USE', SimVarValueType.Number),
+    );
   }
 
   /**
@@ -309,11 +321,9 @@ export class LegacyGpws {
       }
     }
 
-    const tawsSelected: number = SimVar.GetSimVarValue('L:A32NX_WXR_TAWS_SYS_SELECTED', SimVarValueType.Number);
-    const gpwsFailed =
-      tawsSelected === 1 || tawsSelected === 2
-        ? SimVar.GetSimVarValue(`L:A32NX_GPWS_${tawsSelected}_FAILED`, 'Bool')
-        : true;
+    // The GPWS of the TAWS system in use (TawsSystemInUse.ts: the other SYS after an automatic reconfiguration)
+    const tawsSystem = LegacyGpws.tawsSystem();
+    const gpwsFailed = tawsSystem !== 0 ? SimVar.GetSimVarValue(`L:A32NX_GPWS_${tawsSystem}_FAILED`, 'Bool') : true;
 
     if (
       radioAltValid &&

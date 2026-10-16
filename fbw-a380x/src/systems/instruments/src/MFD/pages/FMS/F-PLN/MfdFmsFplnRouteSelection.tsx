@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { ArraySubject, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
+import { ArraySubject, FSComponent, MappedSubject, Subject, VNode } from '@microsoft/msfs-sdk';
 import { CompanyRoute } from '@flybywiresim/fbw-sdk';
 
 import { AbstractMfdPageProps } from '../../../MFD';
@@ -29,10 +29,8 @@ const noTokens: RouteSummaryToken[] = [];
 /**
  * ROUTE SELECTION page (A380 FCOM DSC-22-FMS-20-30 "ROUTE SELECTION PAGE"): the company routes of the FROM/TO (or
  * TO/ALTN) city pair from the pilot stored elements database and the navigation database (SimBridge company routes),
- * with their summary; INSERT inserts the selected route into the flight plan and displays the INIT page.
- *
- * Not available yet: inserting an alternate company route into the alternate flight plan (the TO/ALTN routes are
- * listed, INSERT stays disabled).
+ * with their summary; INSERT inserts the selected route into the flight plan (a TO/ALTN route into the alternate
+ * flight plan) and displays the INIT page.
  */
 export class MfdFmsFplnRouteSelection extends FmsFlightPlanPage<MfdFmsFplnRouteSelectionProps> {
   private readonly isAlternateSelection =
@@ -54,7 +52,12 @@ export class MfdFmsFplnRouteSelection extends FmsFlightPlanPage<MfdFmsFplnRouteS
 
   private readonly nextDisabled = this.selectedRoute.map((i) => i === null || i >= this.routes.length - 1);
 
-  private readonly insertDisabled = this.selectedRoute.map((i) => i === null || this.isAlternateSelection);
+  /** An alternate route cannot be entered while a temporary flight plan is pending (FCOM l.36770-36773) */
+  private readonly insertDisabled = MappedSubject.create(
+    ([i, tmpy]) => i === null || (this.isAlternateSelection && tmpy),
+    this.selectedRoute,
+    this.tmpyActive,
+  );
 
   private loadedCityPair: string | null = null;
 
@@ -134,10 +137,14 @@ export class MfdFmsFplnRouteSelection extends FmsFlightPlanPage<MfdFmsFplnRouteS
   private async insertSelectedRoute(): Promise<void> {
     const index = this.selectedRoute.get();
     const route = index !== null ? this.routes[index] : undefined;
-    if (!route || this.isAlternateSelection) {
+    if (!route) {
       return;
     }
-    await this.props.fmcService.master.insertCompanyRoute(route, this.loadedFlightPlanIndex.get());
+    if (this.isAlternateSelection) {
+      await this.props.fmcService.master.insertAlternateCompanyRoute(route, this.loadedFlightPlanIndex.get());
+    } else {
+      await this.props.fmcService.master.insertCompanyRoute(route, this.loadedFlightPlanIndex.get());
+    }
     this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/${initPage}`);
   }
 

@@ -2,6 +2,7 @@ import {
   ConsumerSubject,
   DisplayComponent,
   FSComponent,
+  MappedSubject,
   SimVarValueType,
   Subject,
   Subscribable,
@@ -19,6 +20,7 @@ import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
 import { SurvStatusButton } from '../../../MsfsAvionicsCommon/UiWidgets/SurvStatusButton';
 import { SurvStatusItem } from '../../../MsfsAvionicsCommon/UiWidgets/SurvStatusItem';
 import { fcomAt, fcomCentre } from '../common/FcomLayout';
+import { tawsInUseText, tawsSystem, wxrFunctionsFailed } from './SurvStatus';
 
 interface MfdSurvStatusSwitchingProps extends AbstractMfdPageProps {}
 
@@ -43,9 +45,10 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
 
   private readonly wxr1Failed = ConsumerSubject.create(this.sub.on('wxr1Failed'), false);
 
-  private readonly turb1Failed = Subject.create<boolean>(false);
+  /** TURB and PRED W/S of SYS 1 fail with its WXR (SurvStatus.ts wxrFunctionsFailed) */
+  private readonly turb1Failed = this.wxr1Failed.map((failed) => wxrFunctionsFailed(failed).turb);
 
-  private readonly predWs1Failed = Subject.create<boolean>(false);
+  private readonly predWs1Failed = this.wxr1Failed.map((failed) => wxrFunctionsFailed(failed).predWs);
 
   /** XPDR 1 failed or unpowered (systems host Transponder.ts) */
   private readonly xpdr1Failed = ConsumerSubject.create(this.sub.on('xpdr1Failed'), false);
@@ -56,9 +59,9 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
 
   private readonly wxr2Failed = ConsumerSubject.create(this.sub.on('wxr2Failed'), false);
 
-  private readonly turb2Failed = Subject.create<boolean>(false);
+  private readonly turb2Failed = this.wxr2Failed.map((failed) => wxrFunctionsFailed(failed).turb);
 
-  private readonly predWs2Failed = Subject.create<boolean>(false);
+  private readonly predWs2Failed = this.wxr2Failed.map((failed) => wxrFunctionsFailed(failed).predWs);
 
   private readonly terr2Failed = ConsumerSubject.create(this.sub.on('terr2Failed'), false);
 
@@ -77,6 +80,25 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
   private readonly wxrTaws1Active = this.activeSystemGroupWxrTaws.map((s) => s === 1);
   private readonly wxrTaws2Active = this.activeSystemGroupWxrTaws.map((s) => s === 2);
 
+  /** The system that provides the TAWS: the other one than the selected after an automatic reconfiguration */
+  private readonly tawsSysInUse = ConsumerSubject.create(this.sub.on('tawsSysInUse'), 0);
+  private readonly tawsSystemNumber = MappedSubject.create(
+    ([selected, inUse]) => tawsSystem(selected, inUse),
+    this.activeSystemGroupWxrTaws,
+    this.tawsSysInUse,
+  );
+  private readonly taws1Active = this.tawsSystemNumber.map((s) => s === 1);
+  private readonly taws2Active = this.tawsSystemNumber.map((s) => s === 2);
+
+  /** TAWS 1(2) IN USE (FCOM DSC-34-20-60-50 P 6-7), shown with its frame only when the TAWS comes from the other SYS */
+  private readonly tawsInUseIndication = MappedSubject.create(
+    ([selected, inUse]) => tawsInUseText(selected, inUse),
+    this.activeSystemGroupWxrTaws,
+    this.tawsSysInUse,
+  );
+  private readonly tawsInUseHidden = this.tawsInUseIndication.map((text) => text === null);
+  private readonly tawsInUseLabel = this.tawsInUseIndication.map((text) => text ?? '');
+
   /** The transponder/TCAS system in use (L:A32NX_TRANSPONDER_SYSTEM: 0 = SYS 1, 1 = SYS 2), also switched on the pedestal. */
   private readonly xpdrSystem = ConsumerSubject.create(this.sub.on('xpdrSystem'), 0);
   private readonly activeSystemGroupXpdrTcas = this.xpdrSystem.map((s) => s + 1);
@@ -91,6 +113,10 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
       this.tcas2Failed,
       this.wxr1Failed,
       this.wxr2Failed,
+      this.turb1Failed,
+      this.turb2Failed,
+      this.predWs1Failed,
+      this.predWs2Failed,
       this.terr1Failed,
       this.gpws1Failed,
       this.terr2Failed,
@@ -100,6 +126,13 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
       this.activeSystemGroupWxrTaws,
       this.wxrTaws1Active,
       this.wxrTaws2Active,
+      this.tawsSysInUse,
+      this.tawsSystemNumber,
+      this.taws1Active,
+      this.taws2Active,
+      this.tawsInUseIndication,
+      this.tawsInUseHidden,
+      this.tawsInUseLabel,
       this.xpdrSystem,
       this.activeSystemGroupXpdrTcas,
       this.xpdrTcas1Active,
@@ -160,7 +193,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
   }
 
   render(): VNode {
-    const wxrTaws = (sys: '1' | '2', x: number, active: Subscribable<boolean>) => {
+    const wxrTaws = (sys: '1' | '2', x: number, active: Subscribable<boolean>, tawsActive: Subscribable<boolean>) => {
       const one = sys === '1';
       return this.sysBox(
         x,
@@ -184,12 +217,13 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
             ],
           },
           {
+            // The TAWS group of the SYS that provides the TAWS (the other SYS after an automatic reconfiguration)
             top: 247,
             height: 78,
-            active,
+            active: tawsActive,
             items: [
-              this.item(266, x, 'TERR SYS', sys, active, one ? this.terr1Failed : this.terr2Failed),
-              this.item(306, x, 'GPWS', sys, active, one ? this.gpws1Failed : this.gpws2Failed),
+              this.item(266, x, 'TERR SYS', sys, tawsActive, one ? this.terr1Failed : this.terr2Failed),
+              this.item(306, x, 'GPWS', sys, tawsActive, one ? this.gpws1Failed : this.gpws2Failed),
             ],
           },
         ],
@@ -230,10 +264,15 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
         {/* Positions from the FCOM figure (DSC-34-20-60-50 P 6), page container coordinates (display y - 143) */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-surv-status">
-            {wxrTaws('1', 57, this.wxrTaws1Active)}
+            {wxrTaws('1', 57, this.wxrTaws1Active, this.taws1Active)}
             {fcomCentre(137, 383, <span class="mfd-label bigger">WXR</span>)}
             {fcomCentre(266, 383, <span class="mfd-label bigger">TAWS</span>)}
-            {wxrTaws('2', 440, this.wxrTaws2Active)}
+            {wxrTaws('2', 440, this.wxrTaws2Active, this.taws2Active)}
+            {/* TAWS 1(2) IN USE indication across both SYS boxes (FCOM figure P 6), only in abnormal operation */}
+            <div class={{ 'mfd-surv-taws-in-use': true, hidden: this.tawsInUseHidden }}>
+              <div class="sys-box" style="left: 57px; top: 343px; width: 655px; height: 40px;" />
+              {fcomCentre(364, 381, <span class="mfd-surv-status-item active">{this.tawsInUseLabel}</span>)}
+            </div>
 
             {xpdrTcas('1', 57, this.xpdrTcas1Active)}
             {fcomCentre(585, 383, <span class="mfd-label bigger">XPDR</span>)}
