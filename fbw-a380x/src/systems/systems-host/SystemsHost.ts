@@ -21,6 +21,7 @@ import { FuelJettison } from './CpiomF/FuelJettison';
 import { FuelEmerOuterTransfer } from './CpiomF/FuelEmerOuterTransfer';
 import { FuelLeak } from './CpiomF/FuelLeak';
 import { AutolandLights } from './Misc/AutolandLights';
+import { WxPbAutoDeselect } from './Misc/WxPbAutoDeselect';
 import { AtcMsgLights } from './Misc/AtcMsgLights';
 import { CabinOxygenMasks } from './Misc/CabinOxygenMasks';
 import { CabinSigns } from './Misc/CabinSigns';
@@ -205,6 +206,8 @@ class SystemsHost extends BaseInstrument {
 
   private readonly autolandLights = new AutolandLights();
 
+  private readonly wxPbAutoDeselect = new WxPbAutoDeselect();
+
   private readonly atcMsgLights = new AtcMsgLights();
 
   private readonly cabinOxygenMasks = new CabinOxygenMasks();
@@ -240,6 +243,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
     this.backplane.addInstrument('FuelJettison', this.fuelJettison);
     this.backplane.addInstrument('AutolandLights', this.autolandLights);
+    this.backplane.addInstrument('WxPbAutoDeselect', this.wxPbAutoDeselect);
     this.backplane.addInstrument('AtcMsgLights', this.atcMsgLights);
     this.backplane.addInstrument('CabinOxygenMasks', this.cabinOxygenMasks);
     this.backplane.addInstrument('CabinSigns', this.cabinSigns);

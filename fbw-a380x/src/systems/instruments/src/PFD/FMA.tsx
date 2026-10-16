@@ -36,6 +36,7 @@ import {
   computeBC3Message,
   computeC1Message,
   computeD1D2Message,
+  getD1D2Lines,
   D1D2Messages,
   isCheckEoSpeedSetting,
 } from './FMADefinitions';
@@ -1422,49 +1423,12 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
   );
 
   private readonly text1Sub = this.D1D2Message.map((message) => {
-    this.isShown = true;
-
-    if (message == D1D2Messages.LAND_2) {
-      return 'LAND2';
-    } else if (message == D1D2Messages.LAND_3_DUAL || message == D1D2Messages.LAND_3_SINGLE) {
-      return 'LAND3';
-    } else if (message == D1D2Messages.APPR_1) {
-      return 'APPR1';
-    } else if (message == D1D2Messages.F_APP || message == D1D2Messages.F_APP_RAW) {
-      return 'F-APP';
-    } else if (message == D1D2Messages.RAW_ONLY) {
-      return 'RAW';
-    } else if (message == D1D2Messages.LAND_1) {
-      return 'LAND1';
-    } else {
-      this.isShown = false;
-
-      return '';
-    }
+    const [line1] = getD1D2Lines(message);
+    this.isShown = line1 !== '';
+    return line1;
   });
 
-  private readonly text2Sub = this.D1D2Message.map((message) => {
-    this.isShown = true;
-
-    if (
-      message == D1D2Messages.LAND_1 ||
-      message == D1D2Messages.APPR_1 ||
-      message == D1D2Messages.LAND_2 ||
-      message == D1D2Messages.F_APP
-    ) {
-      return '';
-    } else if (message == D1D2Messages.LAND_3_SINGLE) {
-      return 'SINGLE';
-    } else if (message == D1D2Messages.LAND_3_DUAL) {
-      return 'DUAL';
-    } else if (message == D1D2Messages.F_APP_RAW) {
-      return '+RAW';
-    } else if (message == D1D2Messages.RAW_ONLY) {
-      return 'ONLY';
-    } else {
-      return '';
-    }
-  });
+  private readonly text2Sub = this.D1D2Message.map((message) => getD1D2Lines(message)[1]);
 
   private readonly modeChangePath = this.D1D2Message.map((message) => {
     if (
