@@ -365,7 +365,9 @@
 
 - A32NX_APU_IS_AUTO_SHUTDOWN
     - Bool
-    - Indicates if the APU automatically shut down (for a reason other than fire)
+    - Indicates if the APU automatically shut down (for a reason other than fire): fuel low pressure, DC power lost
+      (start motor supply, or the ECB's DC supply above N 70 %), ECB failure, overspeed, low oil pressure, high oil
+      temperature (the last four from the ATA 49 flyPad failures)
 
 - A32NX_APU_IS_EMERGENCY_SHUTDOWN
     - Bool
@@ -413,6 +415,36 @@
     - True when the fire detection unit of the zone is failed (flyPad failure "Engine 1(2) / APU fire detection unit
       (FDU)"). The zone then gives no fire warning (A32NX_FIRE_DETECTED_* stays false)
     - Drives the ENG 1(2) / APU FIRE DET FAULT caution, which then replaces the LOOP A(B) FAULT cautions of the zone
+
+- A32NX_SMOKE_{FWD_CARGO | AFT_CARGO | AVIONICS}_DETECTED
+    - Bool
+    - True when the smoke detection of the compartment gives the SMOKE warning (systems fire_protection/smoke_detection.rs):
+      both detection loops sense the smoke, or one does and the other is inoperative (A320 FCOM DSC-26-50-10). The
+      avionics ventilation duct detector after 5 s of smoke (DSC-26-30-10). The smoke comes from the flyPad failures
+      "Forward cargo smoke", "Aft cargo smoke", "Avionics smoke (ventilation extract duct)"
+    - Read by the FWC (SMOKE FWD (AFT) CARGO SMOKE, AVIONICS SMOKE), the CARGO SMOKE panel SMOKE lights, and for
+      AVIONICS the GEN 1 LINE SMOKE light and the BLOWER and EXTRACT FAULT lights
+
+- A32NX_SMOKE_{FWD_CARGO | AFT_CARGO | AVIONICS}_DET_FAULT
+    - Bool
+    - True when every smoke detector of the compartment is inoperative: flyPad failure or no electrical supply (cargo
+      loop 1: DC ESS SHED bus, loop 2: DC 2 bus; avionics: DC ESS bus)
+    - Drives the SMOKE FWD (AFT) CRG DET FAULT cautions
+
+- A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED
+    - Bool
+    - True when the cargo fire bottle is fully discharged, 60 s after the first FWD or AFT DISCH pb press (A320 FCOM
+      DSC-26-50-20). Drives the amber DISCH lights of the CARGO SMOKE panel
+
+- A32NX_CARGOSMOKE_BOTTLE_1_LOW_PRESSURE
+    - Bool
+    - True when the cargo fire bottle lost its agent (flyPad failure "Cargo fire bottle low pressure"); drives the SMOKE
+      FWD and AFT CRG BTL 1 FAULT cautions
+
+- A32NX_CARGOSMOKE_{FWD | AFT}_AGENT_RELEASED
+    - Bool
+    - True once the cargo fire bottle discharges into that compartment (the first DISCH pb pressed while the bottle is
+      full)
 
 - A32NX_FIRE_APU_EXTERNAL_HORN
     - Bool
@@ -621,11 +653,12 @@
 
 - A32NX_CARGOSMOKE_FWD_DISCHARGED
     - Bool
-    - True if cargosmoke one bottle is discharged
+    - True once the FWD DISCH pb of the CARGO SMOKE panel was pressed (the cargo fire bottle then discharges into the
+      FWD compartment if it is still full, see A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED)
 
 - A32NX_CARGOSMOKE_AFT_DISCHARGED
     - Bool
-    - True if cargosmoke two bottle is discharged
+    - True once the AFT DISCH pb of the CARGO SMOKE panel was pressed
 
 - A32NX_AIDS_PRINT_ON
     - Bool
@@ -1524,6 +1557,12 @@ These variables are the interface between the 3D model and the systems/code.
     - Written by the DMC logic of the systems host: only one ECAM display is on, the SD is shown only while a system page
       pb is held (FCOM DSC-31-05-60). The STS pb then pages the STATUS page
 
+- A32NX_ECAM_SD_ADVISORY_PAGE
+    - Enum
+    - Written by the DMC logic of the systems host: the system page with an ECAM advisory (a parameter out of its normal
+      range, FCOM DSC-31-20), -1 for none. Same values as A32NX_ECAM_SD_CURRENT_PAGE_INDEX. With two ECAM displays the
+      DMC calls this page (advisory mode); with one ECAM display the ECP pb of this page flashes instead
+
 - A32NX_ECAM_STATUS_NORMAL
     - Bool
     - True when the ECAM STATUS page is empty (NORMAL)
@@ -1846,6 +1885,21 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_OVHD_ADIRS_ADR_{number}_PB_IS_ON
     - Bool
     - Whether the ADR push button is in the ON position.
+
+- A32NX_ADIRS_ADR_{number}_FAULT_WARN_DISCRETE
+    - Bool
+    - The ADR FAULT discrete of ADIRU {number}: a fault is detected in its air data reference part (ADR FAULT light,
+      FWC NAV ADR FAULT alerts). False while the ADIRU is not supplied or its mode selector is OFF.
+
+- A32NX_ADIRS_IR_{number}_FAULT_WARN_DISCRETE
+    - Bool
+    - The IR FAULT discrete of ADIRU {number}: a short flash at the start of an alignment, steady when its inertial
+      reference part has failed (IR FAULT light, FWC NAV IR FAULT alerts).
+
+- A32NX_ADIRS_EXTERNAL_HORN
+    - Bool
+    - The external horn in the nose gear bay sounds: the aircraft is on the ground and at least one IR is supplied by the
+      batteries (FCOM DSC-34-NAV-10-20 ON BAT light).
 
 - A32NX_ATT_HDG_SWITCHING_KNOB
     - ATT HDG
@@ -2732,7 +2786,8 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_PRESS_CPC_{number}_LANDING_ELEVATION
     - Arinc429Word<Feet>
     - Number 1 or 2
-    - Target landing elevation used by the pressurization system
+    - Target landing elevation used by the pressurization system. No computed data when the LDG ELEV selector is in
+      AUTO and the FMGS sends no landing elevation (CAB PR LDG ELEV FAULT condition)
 
 - A32NX_PRESS_EXCESS_CAB_ALT
     - Bool
@@ -2948,6 +3003,14 @@ In the variables below, {number} should be replaced with one item in the set: { 
         - 1
         - 2
 
+- A32NX_PNEU_ENG_{number}_PR_VALVE_DISAGREE:
+    - Indicates whether the BMC finds the engine bleed valve out of its commanded position for 5 s (amber valve of the
+      BLEED page, FCOM DSC-36-20)
+    - Bool
+    - {number}
+        - 1
+        - 2
+
 - A32NX_PNEU_ENG_{number}_BLEED_LEAK:
     - Indicates whether the pylon leak detection loop of the engine detects a leak (above 204 °C). Needs the BMC of the
       engine; held while the ENG BLEED pb-sw is ON
@@ -3067,6 +3130,58 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_BUTTON_OVHD_ANTI_ICE_ENG_2_POSITION:
     - Indicates whether the overhead ENG ANTI ICE button is illuminated for engine 2
     - Bool
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_VALVE_OPEN:
+    - Whether the engine anti-ice valve of the engine is not fully closed (systems ice_rain_protection). It opens with
+      the ENG ANTI ICE pb-sw ON, or without its electrical power, when the HP compressor supplies air; the MSFS
+      ENG ANTI ICE follows it
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_FAULT:
+    - The FAULT light of the ENG ANTI ICE pb-sw: the valve position disagrees with the pb-sw, also while it transits
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PHC_{number}_FAULT:
+    - The probe heat computer is failed (ANTI ICE CAPT(F/O)(STBY) PROBES)
+    - Bool
+    - {number}
+        - 1 (CAPT)
+        - 2 (F/O)
+        - 3 (STBY)
+
+- A32NX_PHC_{number}_{probe}_HEAT_FAULT:
+    - The probe heat computer detects the failure of the heater of the probe while it heats it
+    - Bool
+    - {number}
+        - 1 (CAPT)
+        - 2 (F/O)
+        - 3 (STBY, no TAT probe)
+    - {probe}
+        - PITOT
+        - L_STATIC
+        - R_STATIC
+        - AOA
+        - TAT
+
+- A32NX_WHC_{number}_WINDSHIELD_HEAT_FAULT:
+    - The window heat computer detects the failure of the windshield heating while it heats it
+    - Bool
+    - {number}
+        - 1 (left)
+        - 2 (right)
+
+- A32NX_WHC_{number}_WINDOW_HEAT_FAULT:
+    - The window heat computer detects the failure of the side window heating while it heats it
+    - Bool
+    - {number}
+        - 1 (left)
+        - 2 (right)
 ## Autoflight (ATA 22)
 
 ### Flight Management and Guidance Computer (FMGC, Flight Guidance Section)
@@ -3792,8 +3907,8 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Arinc429<Discrete>
     - | Bit |            Description            |
       |:---:|:---------------------------------:|
-      | 11  | Slat Fault                        |
-      | 12  | Flap Fault                        |
+      | 11  | Slat Fault (slat channel failure) |
+      | 12  | Flap Fault (flap channel failure) |
       | 13  | Slat Jam                          |
       | 14  | Flap Jam                          |
       | 15  | Slat WTB engaged                  |
@@ -5108,6 +5223,34 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 - A32NX_GEAR_HANDLE_HITS_LOCK_SOUND
     - Indicates that gear lever just hit the baulk lock mechanism
     - Boolean
+
+- A32NX_BRAKES_BSCU_{number}_FAULT
+    - Bool
+    - BSCU channel {number} is lost (failed, or its AC BUS / DC BUS {number} unpowered)
+    - {number}
+        - 1
+        - 2
+
+- A32NX_BRAKES_BSCU_ACTIVE_CHANNEL
+    - Number
+    - The BSCU channel in control: 1 or 2, 0 with both channels lost. It changes over at each gear lever DOWN selection
+      and when the active channel fails
+
+- A32NX_BRAKES_ALTN_BRK_FAULT
+    - Bool
+    - The ABCU is lost (failed or DC ESS BUS unpowered): no alternate braking, the parking brake still works
+
+- A32NX_BRAKES_NORM_BRK_FAULT
+    - Bool
+    - The normal braking equipment is failed (flyPad failure): braking on the alternate (yellow) system with antiskid
+
+- A32NX_BRAKES_NW_STRG_FAULT
+    - Bool
+    - The nose wheel steering system is failed (flyPad failure)
+
+- A32NX_BRAKES_AUTO_BRK_FAULT
+    - Bool
+    - The autobrake failed (flyPad failure or no ADIRU) after being armed; resets when the autobrake function is back
 
 ## Lighting (ATA 33)
 

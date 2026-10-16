@@ -2720,11 +2720,14 @@
                     <NODE_ID>PUSH_OVHD_FUEL_OUTRTK_XFR</NODE_ID>
                     <LOCK_NODE_ID>LOCK_OVHD_FUEL_OUTRTK_XFR</LOCK_NODE_ID>
                     <TOGGLE_SIMVAR>L:A380X_OVHD_FUEL_OUTRTK_XFR_PB_IS_AUTO</TOGGLE_SIMVAR>
+                    <!-- AUTO (L:var 1): released, no light; MAN (L:var 0): pressed in, MAN light -->
+                    <DOWN_CODE>(L:A380X_OVHD_FUEL_OUTRTK_XFR_PB_IS_AUTO, Bool) !</DOWN_CODE>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                    <SEQ2_CODE>(L:A380X_OVHD_FUEL_OUTRTK_XFR_PB_IS_AUTO, Bool) !</SEQ2_CODE>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                     <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_OUTRTK_XFR_PB_IS_AUTO, Bool) !)%{if}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_ON#%{else}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_OFF#%{end}</TOOLTIPID>
+                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_OUTRTK_XFR_PB_IS_AUTO, Bool))%{if}Set OUTR TK XFR to MAN%{else}Set OUTR TK XFR to AUTO%{end}</TOOLTIPID>
                 </UseTemplate>
 
                 <!-- MID TK XFR -->
@@ -2732,11 +2735,14 @@
                     <NODE_ID>PUSH_OVHD_FUEL_MIDTK_XFR</NODE_ID>
                     <LOCK_NODE_ID>LOCK_OVHD_FUEL_MIDTK_XFR</LOCK_NODE_ID>
                     <TOGGLE_SIMVAR>L:A380X_OVHD_FUEL_MIDTK_XFR_PB_IS_AUTO</TOGGLE_SIMVAR>
+                    <!-- AUTO (L:var 1): released, no light; MAN (L:var 0): pressed in, MAN light -->
+                    <DOWN_CODE>(L:A380X_OVHD_FUEL_MIDTK_XFR_PB_IS_AUTO, Bool) !</DOWN_CODE>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                    <SEQ2_CODE>(L:A380X_OVHD_FUEL_MIDTK_XFR_PB_IS_AUTO, Bool) !</SEQ2_CODE>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                     <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_MIDTK_XFR_PB_IS_AUTO, Bool) !)%{if}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_ON#%{else}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_OFF#%{end}</TOOLTIPID>
+                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_MIDTK_XFR_PB_IS_AUTO, Bool))%{if}Set MID TK XFR to MAN%{else}Set MID TK XFR to AUTO%{end}</TOOLTIPID>
                 </UseTemplate>
 
                 <!-- INR TK XFR -->
@@ -2744,11 +2750,14 @@
                     <NODE_ID>PUSH_OVHD_FUEL_INRTK_XFR</NODE_ID>
                     <LOCK_NODE_ID>LOCK_OVHD_FUEL_INRTK_XFR</LOCK_NODE_ID>
                     <TOGGLE_SIMVAR>L:A380X_OVHD_FUEL_INRTK_XFR_PB_IS_AUTO</TOGGLE_SIMVAR>
+                    <!-- AUTO (L:var 1): released, no light; MAN (L:var 0): pressed in, MAN light -->
+                    <DOWN_CODE>(L:A380X_OVHD_FUEL_INRTK_XFR_PB_IS_AUTO, Bool) !</DOWN_CODE>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                    <SEQ2_CODE>(L:A380X_OVHD_FUEL_INRTK_XFR_PB_IS_AUTO, Bool) !</SEQ2_CODE>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                     <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_INRTK_XFR_PB_IS_AUTO, Bool) !)%{if}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_ON#%{else}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_OFF#%{end}</TOOLTIPID>
+                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_INRTK_XFR_PB_IS_AUTO, Bool))%{if}Set INR TK XFR to MAN%{else}Set INR TK XFR to AUTO%{end}</TOOLTIPID>
                 </UseTemplate>
 
                 <!-- TRIM TK XFR -->
@@ -2756,11 +2765,14 @@
                     <NODE_ID>PUSH_OVHD_FUEL_TRIMTK_XFR</NODE_ID>
                     <LOCK_NODE_ID>LOCK_OVHD_FUEL_TRIMTK_XFR</LOCK_NODE_ID>
                     <TOGGLE_SIMVAR>L:A380X_OVHD_FUEL_TRIMTK_XFR_PB_IS_AUTO</TOGGLE_SIMVAR>
+                    <!-- AUTO (L:var 1): released, no light; FWD (L:var 0): pressed in, FWD light -->
+                    <DOWN_CODE>(L:A380X_OVHD_FUEL_TRIMTK_XFR_PB_IS_AUTO, Bool) !</DOWN_CODE>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                    <SEQ2_CODE>(L:A380X_OVHD_FUEL_TRIMTK_XFR_PB_IS_AUTO, Bool) !</SEQ2_CODE>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                     <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_TRIMTK_XFR_PB_IS_AUTO, Bool) !)%{if}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_ON#%{else}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_OFF#%{end}</TOOLTIPID>
+                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_TRIMTK_XFR_PB_IS_AUTO, Bool))%{if}Set TRIM TK XFR to FWD%{else}Set TRIM TK XFR to AUTO%{end}</TOOLTIPID>
                 </UseTemplate>
 
                 <!-- FEED TK1 -->
@@ -3732,13 +3744,19 @@
                             <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
                             <DUMMY_BUTTON />
                         </UseTemplate>
+                        <!-- CARGO SMOKE panel BTL 1 and BTL 2 lights: the fire extinguisher bottle has discharged, or
+                             the TEST pb (A380 FCOM DSC-26-60-20 BTL LIGHTS); systems.wasm cargo_fire_extinguishing.rs -->
                         <UseTemplate Name="FBW_AIRBUS_Push_Dummy_Template">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_FWD1</NODE_ID>
+                            <SEQ1_EMISSIVE_CODE>(L:A32NX_FIRE_TEST_CARGO, Bool) (L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool) or</SEQ1_EMISSIVE_CODE>
+                            <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                             <SEQ1_EMISSIVE_DRIVES_VISIBILITY>False</SEQ1_EMISSIVE_DRIVES_VISIBILITY>
                             <ONLY_SEQ1 />
                         </UseTemplate>
                         <UseTemplate Name="FBW_AIRBUS_Push_Dummy_Template">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_FWD2</NODE_ID>
+                            <SEQ1_EMISSIVE_CODE>(L:A32NX_FIRE_TEST_CARGO, Bool) (L:A32NX_CARGOSMOKE_BOTTLE_2_DISCHARGED, Bool) or</SEQ1_EMISSIVE_CODE>
+                            <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                             <SEQ1_EMISSIVE_DRIVES_VISIBILITY>False</SEQ1_EMISSIVE_DRIVES_VISIBILITY>
                             <ONLY_SEQ1 />
                         </UseTemplate>
@@ -4456,13 +4474,23 @@
                         <UseTemplate Name="FBW_Airbus_CARGOSMOKE_TEST_BUTTON">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_TEST</NODE_ID>
                         </UseTemplate>
-                        <UseTemplate Name="FBW_Airbus_FIRE_TEST_LIGHTS">
+                        <!-- AGENT TO AFT (FWD) pb: SMOKE light when smoke is detected in the compartment (AFT: aft or
+                             bulk), DISCH light when the bottles discharge into it (A380 FCOM DSC-26-60-20 CARGO SMOKE
+                             PANEL), both with the TEST pb; systems.wasm SDF (smoke_detection.rs,
+                             cargo_fire_extinguishing.rs) -->
+                        <UseTemplate Name="FBW_Push_Toggle">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_AFT</NODE_ID>
+                            <DUMMY_BUTTON>True</DUMMY_BUTTON>
                             <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                            <SEQ1_CODE>(L:A32NX_FIRE_TEST_CARGO, Bool) (L:A32NX_SMOKE_AFT_CARGO_DETECTED, Bool) or (L:A32NX_SMOKE_BULK_CARGO_DETECTED, Bool) or</SEQ1_CODE>
+                            <SEQ2_CODE>(L:A32NX_FIRE_TEST_CARGO, Bool) (L:A32NX_CARGOSMOKE_AFT_AGENT_RELEASED, Bool) or</SEQ2_CODE>
                         </UseTemplate>
-                        <UseTemplate Name="FBW_Airbus_FIRE_TEST_LIGHTS">
+                        <UseTemplate Name="FBW_Push_Toggle">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_FWD</NODE_ID>
+                            <DUMMY_BUTTON>True</DUMMY_BUTTON>
                             <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                            <SEQ1_CODE>(L:A32NX_FIRE_TEST_CARGO, Bool) (L:A32NX_SMOKE_FWD_CARGO_DETECTED, Bool) or</SEQ1_CODE>
+                            <SEQ2_CODE>(L:A32NX_FIRE_TEST_CARGO, Bool) (L:A32NX_CARGOSMOKE_FWD_AGENT_RELEASED, Bool) or</SEQ2_CODE>
                         </UseTemplate>
                         <UseTemplate Name="ASOBO_GT_Switch_Dummy">
                             <NODE_ID>LOCK_OVHD_CARGOSMOKE_FWD</NODE_ID>
@@ -4481,17 +4509,20 @@
                             <LOCK_NODE_ID>LOCK_OVHD_CARGOSMOKE_AFT</LOCK_NODE_ID>
                             <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_CARGOSMOKE_AFT_DISCHARGED)</LEFT_SINGLE_CODE>
                             <TOOLTIPID>%((L:A32NX_CARGOSMOKE_AFT_DISCHARGED,
-                                Bool))%{if}Fire-extinguisher discharged (Inop.)%{else}Discharge
-                                fire-extinguisher (Inop.)%{end}</TOOLTIPID>
+                                Bool))%{if}Fire-extinguisher discharged%{else}Discharge
+                                fire-extinguisher%{end}</TOOLTIPID>
                             <MOMENTARY />
+                            <!-- The lights are those of the FBW_Push_Toggle above, as for the FWD pb -->
+                            <NO_SEQ1 />
+                            <NO_SEQ2 />
                         </UseTemplate>
                         <UseTemplate Name="FBW_Covered_Push_Toggle">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_FWD</NODE_ID>
                             <LOCK_NODE_ID>LOCK_OVHD_CARGOSMOKE_FWD</LOCK_NODE_ID>
                             <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_CARGOSMOKE_FWD_DISCHARGED)</LEFT_SINGLE_CODE>
                             <TOOLTIPID>%((L:A32NX_CARGOSMOKE_FWD_DISCHARGED,
-                                Bool))%{if}Fire-extinguisher discharged (Inop.)%{else}Discharge
-                                fire-extinguisher (Inop.)%{end}</TOOLTIPID>
+                                Bool))%{if}Fire-extinguisher discharged%{else}Discharge
+                                fire-extinguisher%{end}</TOOLTIPID>
                             <MOMENTARY />
                             <NO_SEQ1 />
                             <NO_SEQ2 />

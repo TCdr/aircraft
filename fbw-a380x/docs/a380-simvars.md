@@ -17,6 +17,7 @@
     - [Flaps and Slats](#flaps-and-slats)
     - [Electronic Flight Control System EFCS](#electronic-flight-control-system-efcs)
   - [Fuel (ATA 28)](#fuel-ata-28)
+  - [Ice and Rain Protection ATA 30](#ice-and-rain-protection-ata-30)
   - [Indicating-Recording ATA 31](#indicating-recording-ata-31)
   - [ECAM Control Panel ATA 31](#ecam-control-panel-ata-31)
   - [EFIS Control Panel ATA 31](#efis-control-panel-ata-31)
@@ -26,6 +27,7 @@
   - [Surveillance ATA 34](#surveillance-ata-34)
   - [Navigation ATA 34](#navigation-ata-34)
   - [Standby Instruments ATA 34](#standby-instruments-ata-34)
+  - [Oxygen ATA 35](#oxygen-ata-35)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
@@ -321,6 +323,7 @@
       | 16  | High differential pressure - warn                    |
       | 17  | Low differential pressure - warn                     |
       | 18  | Excessive residual pressure - warn                   |
+      | 19  | Landing elevation from the FMS not received          |
 
 - A32NX_COND_{id}_TEMP
     - Degree Celsius
@@ -1066,6 +1069,12 @@ The PRIMs perform the flight guidance and flight envelope functions.
         | Data       | 1      |
         | Emergency  | 2      |
 
+- `L:A380X_GLARESHIELD_ATC_MSG_LIGHT`
+    - Bool
+    - Read only!
+    - The two ATC MSG pb lights of the glareshield: flashing at 2 Hz (written on and off by the systems host) while
+      `L:A32NX_DCDU_ATC_MSG_WAITING` is set (A380 FCOM DSC-46-10-20-70).
+
 - `L:FBW_RMP_MODE_STANDBY_{vhf_index}`
     - Enum
     - Read only!
@@ -1289,6 +1298,42 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - 3
         - 4
 
+- A32NX_ELEC_ENG_GEN_{number}_IDG_OIL_LEVEL_LOW
+    - Bool
+    - Read only
+    - True when the oil level of generator drive {number} is low (flyPad failure DRIVE {number} Oil Leak). Triggers
+      ELEC DRIVE {number} OIL LEVEL LO; after 5 min the GCU switches the generator off. False once the drive is
+      disconnected
+    - {number}
+        - 1
+        - 2
+        - 3
+        - 4
+
+- A32NX_ELEC_ENG_GEN_{number}_IDG_OIL_LOW_PRESSURE
+    - Bool
+    - Read only
+    - True when the oil pressure of generator drive {number} is below 35 PSI (oil leak), while the generator turns in
+      its 360-800 Hz band. Triggers ELEC DRIVE {number} OIL PRESS LO and the DRIVE pb FAULT light; after 5 min the drive
+      disconnects. False once the drive is disconnected
+    - {number}
+        - 1
+        - 2
+        - 3
+        - 4
+
+- A32NX_ELEC_ENG_GEN_{number}_IDG_OIL_OVERHEAT
+    - Bool
+    - Read only
+    - True when the oil of generator drive {number} is above 200 °C (flyPad failure DRIVE {number} Oil Cooling Lost, or
+      an oil leak). Triggers ELEC DRIVE {number} OIL OVHT and the DRIVE pb FAULT light; the drive disconnects above
+      250 °C. False once the drive is disconnected
+    - {number}
+        - 1
+        - 2
+        - 3
+        - 4
+
 - A32NX_ELEC_EXT_PWR_{number}_FAULT
     - Bool
     - Read only
@@ -1446,6 +1491,41 @@ The PRIMs perform the flight guidance and flight envelope functions.
       on), written by the flyPad. The engine and APU fire effects, the engine damage smoke and the engine oil leak
       smoke of the exterior model (ASOBO_GT_FX components ENGINE_FIRE_FX, ENGINE_DAMAGE_FX and ENGINE_OIL_LEAK_FX of
       A380_WINGS.xml, APU_FIRE_FX of A380_Fuselage_Behavior.xml) show only while it is true
+
+- A32NX_SMOKE_{zone}_DETECTED
+    - Bool
+    - {zone} = FWD_CARGO, AFT_CARGO, BULK_CARGO, L_MAIN_AVNCS, R_MAIN_AVNCS, L_UPPER_AVNCS, R_UPPER_AVNCS, AFT_AVNCS,
+      IFE_BAY
+    - True when the Smoke Detection Function (SDF) detects smoke in the compartment: both detectors sense it, or one does
+      and the other is failed (A380 FCOM DSC-26-50-10 / DSC-26-60-10 DETECTION LOGIC; systems
+      fire_protection/smoke_detection.rs). The smoke comes from the flyPad failures "<compartment> smoke"
+    - Read by the FWS for the SMOKE ... SMOKE warnings (the main / upper avionics bay logic is in the FWS), and by the
+      AGENT TO FWD (AFT) pb SMOKE lights for the cargo compartments
+
+- A32NX_SMOKE_{zone}_DET_FAULT
+    - Bool
+    - True when a detector of the compartment is failed (flyPad failure or no supply: detector 1 DC ESS bus, detector 2
+      DC 2 bus) or only one detector senses the smoke, and the SMOKE warning is not on. Drives the SMOKE ... DET FAULT
+      cautions
+
+- A32NX_CARGOSMOKE_{FWD | AFT}_DISCHARGED
+    - Bool
+    - True once the AGENT TO FWD (AFT) pb of the CARGO SMOKE panel was pressed
+
+- A32NX_CARGOSMOKE_{FWD | AFT}_AGENT_RELEASED
+    - Bool
+    - True once the cargo fire bottles discharge into that compartment (the first AGENT pb pressed while a bottle is
+      full; the AFT agent goes to the aft/bulk compartment). Drives the DISCH light of the AGENT pb
+
+- A32NX_CARGOSMOKE_BOTTLE_{1 | 2}_DISCHARGED
+    - Bool
+    - True when the cargo fire bottle is fully discharged: bottle 1 about one minute after the AGENT pb, then bottle 2
+      slowly, about four hours (A380 FCOM DSC-26-60-10 FIRE EXTINGUISHING). Drives the BTL 1(2) lights
+
+- A32NX_CARGOSMOKE_BOTTLE_{1 | 2}_LOW_PRESSURE
+    - Bool
+    - True when the cargo fire bottle lost its agent (flyPad failure "Cargo fire bottle 1(2) low pressure"); drives SMOKE
+      FWD+AFT CARGO BTL 1(2) FAULT
 
 ## Flight Controls (ATA 27)
 
@@ -1796,6 +1876,57 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 4
   - True when the CROSSFEED {number} pb-sw is ON (the flight crew selection, ON light and pb-sw animation). The systems host (CpiomF/FuelPumpsAndValves) commands the MSFS valve 46 (crossfeed 1) to 49 (crossfeed 4) (K:FUELSYSTEM_VALVE_OPEN/CLOSE) to follow it, except while the valve is jammed (failures 28020-28023), when the valve stays where it was. A valve switch change from outside (K:FUELSYSTEM_VALVE_* events, the refuel logic closing the valves) is taken as the new selection. The ECAM sensed CROSSFEED ... ON items read it (the crew action, done even if the valve is jammed closed); the green OPEN light of the pb-sw shows the valve fully open (FUELSYSTEM VALVE OPEN)
 
+## Ice and Rain Protection ATA 30
+
+The wing and engine anti-ice of the systems model (a380_systems ice_rain_protection.rs).
+
+- A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION
+    - Bool
+    - The WING ANTI ICE pb (ON light). Its valves drive the MSFS STRUCTURAL DEICE
+
+- A32NX_BUTTON_OVHD_ANTI_ICE_ENG_{number}_POSITION
+    - Bool
+    - The ENG {number} ANTI ICE pb (ON light), {number} 1 to 4. Its valve drives the MSFS ENG ANTI ICE
+
+- A32NX_PNEU_WING_ANTI_ICE_SYSTEM_SELECTED
+    - Bool
+    - The WING ANTI ICE pb is ON
+
+- A32NX_PNEU_WING_ANTI_ICE_SYSTEM_ON
+    - Bool
+    - At least one wing anti-ice valve is open: hot air on slat 4 (read by the flight controls and, through STRUCTURAL
+      DEICE, the FADEC). Closed for the ground test after 30 s, during the 10 min ground inhibition and during the
+      takeoff until the takeoff thrust reduction
+
+- A32NX_PNEU_WING_ANTI_ICE_FAULT
+    - Bool
+    - The FAULT light of the WING ANTI ICE pb: a valve position disagreement or a low pressure
+
+- A32NX_PNEU_WING_ANTI_ICE_{wing}_VALVE_CLOSED
+    - Bool
+    - Both wing anti-ice valves of the wing are closed, {wing} 1 left, 2 right
+
+- A32NX_PNEU_WING_ANTI_ICE_{wing}_ABNORMALLY_CLOSED / _ABNORMALLY_OPEN / _LOW_PRESSURE / _HIGH_PRESSURE
+    - Bool
+    - The AICU monitoring of the wing, {wing} 1 left, 2 right: A-ICE L(R) WING VLV CLOSED / OPEN / PRESS LO / PRESS HI
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_VALVE_OPEN
+    - Bool
+    - The engine anti-ice valve is not fully closed, {number} 1 to 4
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_FAULT
+    - Bool
+    - The FAULT light of the ENG ANTI ICE pb: the valve position disagrees with the pb
+
+- A380X_OVHD_FUEL_{tank}_XFR_PB_IS_AUTO
+  - Bool
+  - {tank}
+    - OUTRTK (OUTR TK XFR pb-sw)
+    - MIDTK (MID TK XFR pb-sw)
+    - INRTK (INR TK XFR pb-sw)
+    - TRIMTK (TRIM TK XFR pb-sw)
+  - True when the transfer pb-sw is in AUTO (released, no light); false in MAN (FWD for the trim tank: pressed in, MAN / FWD light). Set to true (AUTO) at every flight load by the systems host (CpiomF/LegacyFuel, FuelManualTransfer). While any of them is in MAN / FWD the automatic transfers stop and the systems host runs the manual transfers on the MSFS fuel system (FCOM DSC-28-40 MANUAL TRANSFERS): outer tank pumps via the forward gallery into the four feed tanks (with an outer tank pump pb-sw OFF, the emergency outer tank transfer valves open instead, by gravity into feed tanks 1 and 4), inner and mid tank aft pumps via the aft gallery into the feed tanks, trim tank pumps via the trim line isolation valve and the aft gallery into the inner tanks (into the feed tanks when an inner or mid tank manual transfer is also selected). Back to AUTO, the transfer pumps stop, the transfer valves close and the automatic transfers start again
+
 ## Indicating-Recording ATA 31
 
 - A32NX_CDS_CAN_BUS_1_1_AVAIL
@@ -1909,6 +2040,10 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - PRIORITY_LEFT: the CAPT holds the sidestick pb (CpiomC/FlightWarningSystem/FwsSidestickPriority.ts)
     - PRIORITY_RIGHT: the F/O holds the sidestick pb
     - WINDSHEAR: WINDSHEAR said three times, at the reactive windshear warning (FlightWarningSystem/FwsWindshearAural.ts)
+    - PITCH: PITCH PITCH, at the pitch attitude alert of a manual landing (FlightWarningSystem/FwsPitchAural.ts)
+    - COMPANY_MESSAGE: COMPANY MESSAGE, when a company message is received (FlightWarningSystem/FwsCompanyMessageAural.ts)
+    - HEIGHT_{feet}: one word of the intermediate radio height callout below 100 ft (shared/src/AutoCallOuts.ts):
+      {feet} 1 to 9 (but 5) and 11 to 19, e.g. HEIGHT_7 for the SEVEN of FORTY SEVEN
 
 ## ECAM Control Panel ATA 31
 
@@ -1953,6 +2088,12 @@ The PRIMs perform the flight guidance and flight envelope functions.
       | CRZ   | 13    |
       | STS   | 14    |
       | VIDEO | 15    |
+
+- A380X_ECAM_SD_ADVISORY_PB
+    - Number
+    - Read only!
+    - The ECAM CP page pb lit by an ECAM advisory (steady, or flashing while the crew has another page selected): the
+      page index of A32NX_ECAM_SD_CURRENT_PAGE_INDEX + 1, 0 when none (A380 FCOM DSC-31-40-10 ADVISORY)
 
 
 ## EFIS Control Panel ATA 31
@@ -2044,6 +2185,11 @@ The PRIMs perform the flight guidance and flight envelope functions.
       | Normal (NORM circuit, GREEN)            | 1     |
       | Alternate (ALTN circuit, A-SKID)        | 2     |
       | Emergency (ALTN circuit, EBCU, limited) | 3     |
+
+- A32NX_BRAKES_AUTO_BRK_FAULT
+    - Bool
+    - True when the autobrake is failed (flyPad failure 32113, Rust `hydraulic/autobrakes.rs`): the autobrake cannot be
+      armed; read by the FWS for BRAKES AUTO BRK FAULT
 
 - A32NX_STEERING_{fault}_FAULT
     - Bool
@@ -2317,6 +2463,17 @@ The PRIMs perform the flight guidance and flight envelope functions.
       | 7     | AIDED (coasting on the IR data, up to two minutes) |
       | 8     | DIFF (satellite based augmentation) |
 
+- A32NX_ADIRS_ADR_{number}_FAULT_WARN_DISCRETE
+    - Bool
+    - The ADR FAULT discrete of ADIRU {number}: a fault is detected in its air data reference part (ADR FAULT light).
+      False while the ADIRU is not supplied (AC and DC busbars, see a380_systems navigation.rs) or its mode selector is
+      OFF. The FWS reads the ADR fail bit of A32NX_ADIRS_ADR_{number}_DISCRETE_WORD_1 instead.
+
+- A32NX_ADIRS_EXTERNAL_HORN
+    - Bool
+    - Written by the common ADIRS overhead panel (A320 external horn of an ADIRU on batteries). Always false on the
+      A380X: its IRs have no battery supply.
+
 - A32NX_ADIRS_IR_{number}_GPIRS_LATITUDE, A32NX_ADIRS_IR_{number}_GPIRS_LONGITUDE
     - Arinc429<Degrees>
     - The GPIRS (hybrid GPS/IRS) position of IR {number}: valid when the IR is in NAV and has a GPS receiver in NAV
@@ -2348,11 +2505,78 @@ The PRIMs perform the flight guidance and flight envelope functions.
       | 1     | SND    | SFD    |
       | 2     | SFD    | Off    |
 
+## Oxygen ATA 35
+
+The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs).
+
+- A32NX_OXYGEN_CREW_BOTTLE_PRESSURE
+    - PSI
+    - The pressure of the cockpit oxygen bottle (DOOR/OXY SD, OXY CKPT BOTTLE PRESS LO)
+
+- A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE
+    - PSI
+    - The pressure of the cabin oxygen bottles (DOOR/OXY SD, OXY CABIN BOTTLE PRESS LO)
+
+- A32NX_OXYGEN_CABIN_VALVE_CLOSED
+    - Bool
+    - A cabin oxygen regulator supply valve is closed (OXY CABIN VLV CLOSED)
+
 ## Bleed Air ATA 36
 
 - A32NX_PNEU_ENG_{number}_INTERMEDIATE_TRANSDUCER_PRESSURE
   - Psi
   - Pressure measured at the intermediate pressure transducer at engine {number}, -1 if no output
+
+- A32NX_PNEU_ENG_{number}_OVERHEAT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The CPIOM-A bleed overtemperature: above 260 °C up to 45 PSI, above 245 °C over 45 PSI, for more than 55 s (FCOM
+    DSC-36-10-20). Held while the ENG BLEED pb-sw is in AUTO; it closes the bleed valve and the HP valve. Written by the
+    systems WASM (a380_systems pneumatic.rs)
+
+- A32NX_PNEU_ENG_{number}_OVERPRESSURE
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The CPIOM-A bleed overpressure: above 60 PSI up to 245 °C, above 45 PSI over 245 °C, for more than 15 s (FCOM
+    DSC-36-10-20). Held while the ENG BLEED pb-sw is in AUTO; it closes the bleed valve
+
+- A32NX_PNEU_ENG_{number}_PR_VALVE_DISAGREE
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The engine bleed valve is out of its commanded position for 10 s (ENG BLEED pb-sw FAULT light, FCOM DSC-36-20)
+
+- A32NX_PNEU_ENG_{number}_BLEED_LEAK
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - A leak of the engine bleed duct in the pylon is detected (above 180 °C, FCOM DSC-36-10-60). Held while the ENG BLEED
+    pb-sw is in AUTO; it closes the bleed valve and, at AUTO, the crossbleed valve of its side (and the center one for
+    engine 1 or 4)
+
+- A32NX_PNEU_{zone}_WING_LEAK
+  - Bool
+  - {zone}
+    - L_OUTR
+    - L_INR
+    - R_INR
+    - R_OUTR
+  - A bleed leak in the wing zone is detected (above 124 °C, FCOM DSC-36-10-60). The zone goes with the engine 1, 2, 3
+    or 4: its ENG BLEED pb-sw holds it, and it closes the bleed valve of that engine as the pylon leak does
 
 ## Integrated Modular Avionics ATA 42
 
@@ -2366,7 +2590,8 @@ The PRIMs perform the flight guidance and flight envelope functions.
 
 - A32NX_AFDX_SWITCH_<ID>_AVAIL
   - Bool
-  - Indicates if a specific AFDX switch is available
+  - Indicates if a specific AFDX switch is available: powered, and neither A32NX_AFDX_SWITCH_<ID>_FAILURE nor its flyPad
+    failure (ATA 42, ids 42001-42019) is set
 
 - A32NX_CPIOM_<NAME>_FAILURE
   - Bool
@@ -2374,7 +2599,8 @@ The PRIMs perform the flight guidance and flight envelope functions.
 
 - A32NX_CPIOM_<NAME>_AVAIL
   - Bool
-  - Indicates if a specific CPIOM system is available
+  - Indicates if a specific CPIOM system is available: powered, and neither A32NX_CPIOM_<NAME>_FAILURE nor its flyPad
+    failure (ATA 42, ids 42201-42264) is set
 
 - A32NX_IOM_<NAME>_FAILURE
   - Bool
@@ -2382,7 +2608,8 @@ The PRIMs perform the flight guidance and flight envelope functions.
 
 - A32NX_IOM_<NAME>_AVAIL
   - Bool
-  - Indicates if a specific IOM system is available
+  - Indicates if a specific IOM system is available: powered, and neither A32NX_IOM_<NAME>_FAILURE nor its flyPad failure
+    (ATA 42, ids 42101-42108) is set
 
 ## Auxiliary Power Unit ATA 49
 
@@ -2393,6 +2620,13 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_APU_FUEL_USED
   - `Arinc429Word<Mass>`
   - The APU fuel used, in kilograms
+
+- A32NX_APU_IS_AUTO_SHUTDOWN
+  - Bool
+  - True after an automatic shutdown of the APU electronic control box (ECB) for a reason other than a fire: fuel low
+    pressure, DC power lost (start motor supply, or the ECB's DC supply above N 70 %), ECB failure, overspeed, low oil
+    pressure, high oil temperature on the ground (A380 FCOM DSC-49-40; the last four from the ATA 49 flyPad failures).
+    Drives APU FAULT
 
 ## Engines ATA 70
   - L:A32NX_OVHD_FADEC_{ENG}

@@ -72,6 +72,8 @@ pub struct CabinPressureController<C: PressurizationConstants> {
 
     landing_elevation: Length,
     landing_elevation_is_auto: bool,
+    /// The FMGS sends a landing elevation (FM1_LANDING_ELEVATION in normal operation)
+    fm_landing_elevation_is_valid: bool,
     departure_elevation: Length,
     destination_qnh: Pressure,
     is_in_man_mode: bool,
@@ -149,6 +151,7 @@ impl<C: PressurizationConstants> CabinPressureController<C> {
 
             landing_elevation: Length::default(),
             landing_elevation_is_auto: false,
+            fm_landing_elevation_is_valid: false,
             departure_elevation: Length::default(),
             destination_qnh: Pressure::default(),
             is_in_man_mode: false,
@@ -549,6 +552,18 @@ impl<C: PressurizationConstants> CabinPressureController<C> {
         self.landing_elevation_is_auto
     }
 
+    /// Whether the controller has a landing elevation: the LDG ELEV selector, or in AUTO the FMGS landing elevation.
+    /// A320 FCOM DSC-21-20-30 (a320_fcom.txt:8862-8865): "The controller normally uses the landing elevation and
+    /// the QNH from the FMGC [...] If FMGC data are not available, the controller uses [...] the LDG ELEV
+    /// selection." In AUTO without FMGS data there is no landing elevation: the CPC sends its landing elevation word
+    /// with no computed data (the SD shows XX in amber) and CAB PR LDG ELEV FAULT triggers ("the LDG ELEV selector is
+    /// set to AUTO and the landing field elevation of the FMGS is not available", PRO-ABN-CAB_PR l.73185-73186).
+    /// The FCOM gives no landing elevation for the pressure schedule in this case: the controller keeps 0 ft until
+    /// the crew sets the LDG ELEV selector (procedure LDG ELEV ... ADJUST, l.73192-73196).
+    pub fn landing_elevation_is_available(&self) -> bool {
+        !self.landing_elevation_is_auto || self.fm_landing_elevation_is_valid
+    }
+
     pub fn cabin_vertical_speed(&self) -> Velocity {
         // When on the ground with outflow valve open, V/S is always zero
         // Vertical speed word range is from -6400 to +6400 fpm (AMM)
@@ -565,10 +580,23 @@ impl<C: PressurizationConstants> CabinPressureController<C> {
     }
 
     // FWC warning signals
+
+    /// CAB PR EXCESS CAB ALT, A320 FCOM PRO-ABN-CAB_PR (a320_fcom.txt:73012-73016): "In climb or descent, the cabin
+    /// altitude is above the higher of: 9 550 ft, or 1 000 ft above the airfield pressure altitude. In cruise, the
+    /// cabin altitude is above 9 550 ft." Design choice: outside cruise "the airfield" is both the departure and the
+    /// landing airfield (the higher of the two), as before.
     pub fn is_excessive_alt(&self) -> bool {
-        self.cabin_alt > Length::new::<foot>(C::EXCESSIVE_ALT_WARNING)
-            && self.cabin_alt > (self.departure_elevation + Length::new::<foot>(1000.))
-            && self.cabin_alt > (self.landing_elevation + Length::new::<foot>(1000.))
+        let above_warning_altitude = self.cabin_alt > Length::new::<foot>(C::EXCESSIVE_ALT_WARNING);
+        if matches!(
+            self.pressure_schedule_manager,
+            Some(PressureScheduleManager::Cruise(_))
+        ) {
+            above_warning_altitude
+        } else {
+            above_warning_altitude
+                && self.cabin_alt > (self.departure_elevation + Length::new::<foot>(1000.))
+                && self.cabin_alt > (self.landing_elevation + Length::new::<foot>(1000.))
+        }
     }
 
     pub fn is_low_diff_pressure(&self) -> bool {
@@ -682,16 +710,26 @@ impl<C: PressurizationConstants> SimulationElement for CabinPressureController<C
             self.cabin_vertical_speed_out().get::<foot_per_minute>(),
             ssm,
         );
+        // Without a landing elevation (AUTO, no FMGS data) the word has no computed data
+        let landing_elevation_ssm = if self.failure.is_active() {
+            SignStatus::FailureWarning
+        } else if !self.landing_elevation_is_available() {
+            SignStatus::NoComputedData
+        } else {
+            SignStatus::NormalOperation
+        };
         writer.write_arinc429(
             &self.landing_elevation_id,
             self.landing_elevation_out(),
-            ssm,
+            landing_elevation_ssm,
         );
     }
 
     fn read(&mut self, reader: &mut SimulatorReader) {
         let landing_elevation_word: Arinc429Word<Length> =
             reader.read_arinc429(&self.auto_landing_elevation_id);
+        self.fm_landing_elevation_is_valid = landing_elevation_word.is_normal_operation();
+        // See landing_elevation_is_available: 0 ft without FMGS data
         self.landing_elevation = landing_elevation_word.normal_value().unwrap_or_default();
         self.destination_qnh = Pressure::new::<hectopascal>(reader.read(&self.destination_qnh_id));
     }
@@ -1219,7 +1257,7 @@ mod tests {
         overhead::{AutoManFaultPushButton, NormalOnPushButton, SpringLoadedSwitch, ValueKnob},
         shared::{EngineCorrectedN1, LgciuWeightOnWheels},
         simulation::{
-            test::{SimulationTestBed, TestBed},
+            test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
             UpdateContext,
         },
     };
@@ -2083,5 +2121,106 @@ mod tests {
         test_bed.run_with_vertical_speed();
 
         assert!(test_bed.query(|a| a.is_climb()));
+    }
+
+    fn landing_elevation_output(
+        test_bed: &mut CabinPressureControllerTestBed,
+    ) -> Arinc429Word<f64> {
+        test_bed.read_arinc429_by_name("PRESS_CPC_1_LANDING_ELEVATION")
+    }
+
+    #[test]
+    fn landing_elevation_output_is_no_computed_data_in_auto_without_fm_landing_elevation() {
+        let mut test_bed = test_bed();
+        test_bed.write_arinc429_by_name(
+            "FM1_LANDING_ELEVATION",
+            Length::default(),
+            SignStatus::NoComputedData,
+        );
+        test_bed.run();
+
+        assert!(test_bed.query(|a| a.cpc.landing_elevation_is_auto()));
+        assert!(!test_bed.query(|a| a.cpc.landing_elevation_is_available()));
+        assert!(landing_elevation_output(&mut test_bed).is_no_computed_data());
+    }
+
+    #[test]
+    fn landing_elevation_output_is_normal_in_auto_with_fm_landing_elevation() {
+        let mut test_bed = test_bed();
+        test_bed.write_arinc429_by_name(
+            "FM1_LANDING_ELEVATION",
+            Length::new::<foot>(1024.),
+            SignStatus::NormalOperation,
+        );
+        test_bed.run();
+
+        assert!(test_bed.query(|a| a.cpc.landing_elevation_is_available()));
+        let output = landing_elevation_output(&mut test_bed);
+        assert!(output.is_normal_operation());
+        assert!((output.value() - 1024.).abs() < 1.);
+    }
+
+    #[test]
+    fn landing_elevation_output_is_normal_in_man_without_fm_landing_elevation() {
+        let mut test_bed = test_bed();
+        test_bed.write_arinc429_by_name(
+            "FM1_LANDING_ELEVATION",
+            Length::default(),
+            SignStatus::NoComputedData,
+        );
+        test_bed.write_by_name("OVHD_PRESS_LDG_ELEV_KNOB", 2048.);
+        test_bed.run();
+
+        assert!(!test_bed.query(|a| a.cpc.landing_elevation_is_auto()));
+        assert!(test_bed.query(|a| a.cpc.landing_elevation_is_available()));
+        let output = landing_elevation_output(&mut test_bed);
+        assert!(output.is_normal_operation());
+        assert!((output.value() - 2048.).abs() < 1.);
+    }
+
+    /// Puts the controller in the cruise schedule (same sequence as schedule_changes_from_climb_to_cruise).
+    fn test_bed_in_cruise() -> CabinPressureControllerTestBed {
+        let mut test_bed = test_bed();
+        test_bed.command(|a| a.set_true_airspeed(Velocity::new::<knot>(101.)));
+        test_bed.run();
+        test_bed.set_pressure_altitude(Length::new::<foot>(7900.));
+        test_bed.set_vertical_speed(Velocity::new::<foot_per_minute>(99.));
+        test_bed.run_with_delta_of(Duration::from_secs(31));
+        test_bed.run_with_vertical_speed();
+        assert!(test_bed.query(|a| a.is_cruise()));
+        test_bed
+    }
+
+    #[test]
+    fn excessive_cabin_altitude_in_cruise_ignores_the_airfield_elevations() {
+        let mut test_bed = test_bed_in_cruise();
+
+        // A high destination (10 000 ft) must not raise the cruise threshold above 9 550 ft
+        test_bed.command(|a| {
+            a.cpc.cabin_alt = Length::new::<foot>(9600.);
+            a.cpc.landing_elevation = Length::new::<foot>(10000.);
+            a.cpc.departure_elevation = Length::new::<foot>(10000.);
+        });
+        assert!(test_bed.query(|a| a.cpc.is_excessive_alt()));
+
+        test_bed.command(|a| a.cpc.cabin_alt = Length::new::<foot>(9500.));
+        assert!(!test_bed.query(|a| a.cpc.is_excessive_alt()));
+    }
+
+    #[test]
+    fn excessive_cabin_altitude_in_climb_uses_1000_ft_above_the_airfield() {
+        let mut test_bed = test_bed();
+        test_bed.command(|a| a.set_true_airspeed(Velocity::new::<knot>(101.)));
+        test_bed.run();
+        assert!(test_bed.query(|a| a.is_climb()));
+
+        test_bed.command(|a| {
+            a.cpc.cabin_alt = Length::new::<foot>(9600.);
+            a.cpc.landing_elevation = Length::new::<foot>(10000.);
+        });
+        assert!(!test_bed.query(|a| a.cpc.is_excessive_alt()));
+
+        test_bed.command(|a| a.cpc.cabin_alt = Length::new::<foot>(11100.));
+        assert!(test_bed.query(|a| a.cpc.is_excessive_alt()));
     }
 }

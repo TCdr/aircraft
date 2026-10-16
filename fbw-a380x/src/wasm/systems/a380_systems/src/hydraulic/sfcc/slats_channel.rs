@@ -1,6 +1,8 @@
 use systems::{
+    failures::{Failure, FailureType},
     hydraulic::flap_slat::{ChannelCommand, SolenoidStatus, ValveBlock},
     shared::PositionPickoffUnit,
+    simulation::{SimulationElement, SimulationElementVisitor},
 };
 use uom::si::{angle::degree, f64::*};
 
@@ -9,13 +11,26 @@ use super::{FlapsConf, SlatFlapControlComputerMisc};
 pub(super) struct SlatsChannel {
     demanded_angle: Angle,
     feedback_angle: Angle,
+
+    /// The flyPad failure of this slat channel: "the slat system 1(2) is failed", only one slat motor remains
+    /// available and the slats operate at half speed (F/CTL SLAT SYS 1(2) FAULT, a380_fcom.txt l.148380-148393)
+    motor_control_failure: Failure,
 }
 impl SlatsChannel {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(num: usize) -> Self {
         Self {
             demanded_angle: Angle::new::<degree>(0.),
             feedback_angle: Angle::new::<degree>(0.),
+            motor_control_failure: Failure::new(FailureType::SlatFlapControlComputerSlatChannel(
+                num,
+            )),
         }
+    }
+
+    /// The channel has lost the control of its slat motor (flyPad failure). It keeps sending its labels and reports the
+    /// fault in the slat/flap system status word (label 046 bit 11), read by the FWS (FwsCore slatSys1(2)Fault).
+    pub(super) fn is_failed(&self) -> bool {
+        self.motor_control_failure.is_active()
     }
 
     // Returns a slat demanded angle in FPPU reference degree (feedback sensor)
@@ -54,6 +69,10 @@ impl SlatsChannel {
 // are held in position and can't move.
 impl ValveBlock for SlatsChannel {
     fn get_pob_status(&self) -> SolenoidStatus {
+        if self.is_failed() {
+            return SolenoidStatus::DeEnergised;
+        }
+
         let demanded_angle = self.get_demanded_angle();
         let feedback_angle = self.get_feedback_angle();
         let in_target_position =
@@ -65,6 +84,10 @@ impl ValveBlock for SlatsChannel {
     }
 
     fn get_command_status(&self) -> Option<ChannelCommand> {
+        if self.is_failed() {
+            return None;
+        }
+
         let demanded_angle = self.get_demanded_angle();
         let feedback_angle = self.get_feedback_angle();
         let in_target_position = SlatFlapControlComputerMisc::in_positioning_threshold_range(
@@ -78,5 +101,11 @@ impl ValveBlock for SlatsChannel {
         } else {
             Some(ChannelCommand::Retract)
         }
+    }
+}
+impl SimulationElement for SlatsChannel {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.motor_control_failure.accept(visitor);
+        visitor.visit(self);
     }
 }

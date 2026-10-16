@@ -67,6 +67,11 @@ function setUp() {
       redundancyLoss,
       cancelledCaution,
     ),
+    // the EWD shows memos (advisory ADV indication)
+    ecamEwdShowAdvIndication: Subject.create(false),
+    abnormalSensed: { abnormalShown: Subject.create(false) },
+    normalChecklists: { checklistShown: Subject.create(false) },
+    abnormalNonSensed: { abnProcShown: Subject.create(false) },
   };
   const logic = new FwsSystemDisplayLogic(fws as unknown as FwsCore);
 
@@ -259,5 +264,81 @@ describe('FwsSystemDisplayLogic automatic page in flight (phases 8-11)', () => {
   it('WHEEL with the gear down, CRUISE with the gear up', () => {
     expect(automaticPageInFlight(true)).toBe(SdPages.Wheel);
     expect(automaticPageInFlight(false)).toBe(SdPages.Crz);
+  });
+});
+
+describe('FwsSystemDisplayLogic ECAM advisory (A380 FCOM DSC-31-40-10 ADVISORY, l.72215-72241)', () => {
+  /** The simvars the logic reads and writes (SimVar.GetSimVarValue / SetSimVarValue) */
+  let values: Record<string, number>;
+
+  beforeEach(() => {
+    values = { 'L:XMLVAR_ENG_MODE_SEL': 1 };
+    for (let engine = 1; engine <= 4; engine++) {
+      // four running engines in NORM mode, all parameters in range
+      values[`L:A32NX_ENGINE_STATE:${engine}`] = 1;
+      values[`L:A32NX_ENGINE_OIL_QTY:${engine}`] = 15;
+      values[`GENERAL ENG OIL TEMPERATURE:${engine}`] = 120;
+    }
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => values[name] ?? 0);
+    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number) => {
+      values[name] = value;
+      return Promise.resolve();
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const pageShown = () => values['L:A32NX_ECAM_SD_PAGE_TO_SHOW'];
+  // the ECP pb light: the SD page index + 1 (0: none)
+  const advisoryPb = () => values['L:A380X_ECAM_SD_ADVISORY_PB'];
+
+  it('shows the ENGINE page in flight phase mode on an engine advisory, its ECP pb lit and ADV on the EWD', () => {
+    const { logic, fws } = setUp();
+    fws.flightPhase.set(9); // cruise above 1 500 ft, gear up: the CRUISE page
+    simvars.set('L:A32NX_ECAM_SD_CURRENT_PAGE_INDEX', SdPages.None);
+    logic.update(50);
+    logic.update(50);
+    expect(pageShown()).toBe(SdPages.Crz);
+    expect(fws.ecamEwdShowAdvIndication.get()).toBe(false);
+
+    values['GENERAL ENG OIL TEMPERATURE:3'] = 170;
+    logic.update(50);
+    logic.update(50);
+    expect(pageShown()).toBe(SdPages.Eng);
+    expect(advisoryPb()).toBe(SdPages.Eng + 1);
+    expect(fws.ecamEwdShowAdvIndication.get()).toBe(true);
+
+    // back in range: the CRUISE page again, no light, no ADV
+    values['GENERAL ENG OIL TEMPERATURE:3'] = 120;
+    logic.update(50);
+    logic.update(50);
+    expect(pageShown()).toBe(SdPages.Crz);
+    expect(advisoryPb()).toBe(0);
+    expect(fws.ecamEwdShowAdvIndication.get()).toBe(false);
+  });
+
+  it('keeps a page selected by the crew, with ADV on the EWD', () => {
+    const { logic, fws } = setUp();
+    fws.flightPhase.set(9);
+    simvars.set('L:A32NX_ECAM_SD_CURRENT_PAGE_INDEX', SdPages.Fuel);
+    values['GENERAL ENG OIL TEMPERATURE:3'] = 170;
+    logic.update(50);
+    logic.update(50);
+    expect(pageShown()).toBe(SdPages.Fuel);
+    expect(fws.ecamEwdShowAdvIndication.get()).toBe(true);
+  });
+
+  it('gives no advisory indication while the SD shows the page of an ECAM alert', () => {
+    const { logic, fws } = setUp();
+    fws.flightPhase.set(9);
+    simvars.set('L:A32NX_ECAM_SD_CURRENT_PAGE_INDEX', SdPages.None);
+    simvars.set('L:A32NX_ECAM_SFAIL', SdPages.Hyd);
+    values['GENERAL ENG OIL TEMPERATURE:3'] = 170;
+    logic.update(50);
+    logic.update(50);
+    expect(pageShown()).toBe(SdPages.Hyd);
+    expect(fws.ecamEwdShowAdvIndication.get()).toBe(false);
   });
 });

@@ -7,6 +7,7 @@ use crate::integrated_modular_avionics::core_processing_input_output_module::Cpi
 use crate::shared::{
     AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType, FireDetectionLoopID,
     FireDetectionZone, GearActuatorId, HydraulicColor, LgciuId, ProximityDetectorId,
+    SmokeDetectionZone,
 };
 use crate::simulation::SimulationElement;
 use rustc_hash::FxHashSet;
@@ -69,6 +70,20 @@ pub enum FailureType {
     FireDetectionLoop(FireDetectionLoopID, FireDetectionZone),
     /// The fire detection unit (FDU) channel of one zone is inoperative: no fire warning from that zone
     FireDetectionUnit(FireDetectionZone),
+    // ATA27 slats and flaps (a320_systems / a380_systems hydraulic::sfcc)
+    /// The flap channel of SFCC n no longer controls its flap motor: the flaps move at half speed on the
+    /// other motor, and the SFCC reports a flap fault (F/CTL FLAP SYS n FAULT)
+    SlatFlapControlComputerFlapChannel(usize),
+    /// The slat channel of SFCC n no longer controls its slat motor: the slats move at half speed on the
+    /// other motor, and the SFCC reports a slat fault (F/CTL SLAT SYS n FAULT)
+    SlatFlapControlComputerSlatChannel(usize),
+    /// Smoke in a compartment: the smoke detectors of the compartment sense it (fire_protection::smoke_detection)
+    Smoke(SmokeDetectionZone),
+    /// Smoke detector n of a compartment is failed (fire_protection::smoke_detection)
+    SmokeDetector(SmokeDetectionZone, usize),
+    /// Cargo fire extinguisher bottle n loses its agent: low pressure (A320 SMOKE CRG BTL FAULT, A380 SMOKE CARGO
+    /// BOTTLES FAULT)
+    CargoFireBottleLowPressure(usize),
     // ATA29
     ReservoirLeak(HydraulicColor),
     ReservoirAirLeak(HydraulicColor),
@@ -82,6 +97,35 @@ pub enum FailureType {
     GearActuatorJammed(GearActuatorId),
     BrakeHydraulicLeak(HydraulicColor),
     BrakeAccumulatorGasLeak,
+    /// Channel n (1 or 2) of the A320 brake and steering control unit (BSCU). The A320 brake model also uses
+    /// BrakeNormalBraking (normal braking equipment) and NoseWheelSteeringNormal (nose wheel steering system).
+    BrakeSteeringControlUnitChannel(usize),
+    /// The A320 alternate braking control unit (ABCU): no alternate braking, parking brake only as back-up
+    AlternateBrakingControlUnit,
+    // ATA30 (ice_rain_protection)
+    /// The engine anti-ice valve of engine n stays closed
+    EngineAntiIceValveStuckClosed(usize),
+    /// The engine anti-ice valve of engine n stays open
+    EngineAntiIceValveStuckOpen(usize),
+    /// Both wing anti-ice valves of wing n (1 left, 2 right) stay closed (A380: a380_systems ice_rain_protection.rs)
+    WingAntiIceValvesStuckClosed(usize),
+    /// The outer wing anti-ice valve of wing n (1 left, 2 right) stays open and no longer regulates (A380)
+    WingAntiIceOuterValveStuckOpen(usize),
+    /// Probe heat computer n (1 CAPT, 2 F/O, 3 STBY) is failed (A320: a320_systems probe_window_heat.rs)
+    ProbeHeatComputer(usize),
+    /// The heater of probe p (1 pitot, 2 L static, 3 R static, 4 AOA, 5 TAT) of probe heat computer n is failed
+    ProbeHeater(usize, usize),
+    /// The heating of windshield n (1 left, 2 right) is failed
+    WindshieldHeat(usize),
+    /// The heating of cockpit side window n (1 left, 2 right) is failed
+    WindowHeat(usize),
+    // ATA35 (A380: a380_systems oxygen.rs)
+    /// The cockpit oxygen bottle leaks: its pressure falls
+    CockpitOxygenBottleLeak,
+    /// The cabin oxygen bottles leak: their pressure falls
+    CabinOxygenBottleLeak,
+    /// A cabin oxygen regulator supply valve stays closed
+    CabinOxygenValveStuckClosed,
     // ATA36 (A320: a320_systems pneumatic.rs)
     /// The bleed (pressure regulating) valve of engine n stays closed
     EngineBleedValveStuckClosed(usize),
@@ -121,6 +165,8 @@ pub enum FailureType {
     BrakeAlternateBraking,
     /// The emergency brake control unit (A380 EBCU): no emergency braking
     BrakeEmergencyBraking,
+    /// The autobrake function cannot be armed (A320 BSCU autobrake, A380 BRAKES AUTO BRK FAULT)
+    Autobrake,
     /// The normal mode of the nose wheel steering (A380 normal NWS)
     NoseWheelSteeringNormal,
     /// The alternate mode of the nose wheel steering (A380 steering LEHGS)
@@ -141,6 +187,23 @@ pub enum FailureType {
     AdrAirspeedErroneous(usize),
     /// The angle of attack probe of ADR n is erroneous: its angle of attack reads high, with a valid status
     AdrAngleOfAttackErroneous(usize),
+    /// The air data reference part of ADIRU n fails: its outputs are lost (failure warning) and its FAULT light comes
+    /// on (navigation::adirs)
+    AdrFault(usize),
+    /// The inertial reference part of ADIRU n fails: its outputs are lost (failure warning) and its FAULT light comes
+    /// on steady (navigation::adirs)
+    IrFault(usize),
+    /// The heading of IR n is erroneous: its magnetic and true headings are offset, with a valid status
+    IrHeadingErroneous(usize),
+    // ATA42 integrated modular avionics (systems::integrated_modular_avionics)
+    /// AFDX switch n (A380: 1 to 7 and 9 on network A, 11 to 17 and 19 on network B) is failed: it no
+    /// longer routes the network messages
+    AvionicsFullDuplexSwitch(u8),
+    /// The input/output module named by its letter and number (A380: A1 to A8) is failed
+    InputOutputModule(char, u8),
+    /// The core processing input/output module named by its letter and number (A380: A1 to G4) is
+    /// failed, with all its hosted applications
+    CoreProcessingInputOutputModule(char, u8),
     // ATA72
     /// The flame of engine n goes out once; the crew can relight it (engine::engine_failure)
     EngineFlameout(usize),
@@ -219,6 +282,15 @@ pub enum FailureType {
     /// The thrust reverser control system of engine n is failed: the reverser is inoperative (A380
     /// REVERSER CTL FAULT)
     ReverserControlFault(usize),
+    // ATA49: the APU electronic control box (ECB) shuts the APU down (apu::electronic_control_box)
+    /// The APU ECB is failed
+    ApuElectronicControlBox,
+    /// The APU overspeeds
+    ApuOverspeed,
+    /// The APU oil pressure is low
+    ApuOilLowPressure,
+    /// The APU oil temperature is high
+    ApuOilHighTemperature,
 }
 
 pub struct Failure {

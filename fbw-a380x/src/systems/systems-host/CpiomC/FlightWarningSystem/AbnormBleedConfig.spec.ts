@@ -22,6 +22,7 @@ const ata21 = readFileSync(
 const normal: AbnormBleedConfigInputs = {
   engineShutDown: [false, false, false, false],
   engineFire: [false, false, false, false],
+  bleedFault: [false, false, false, false],
   bleedPbAuto: [true, true, true, true],
   xbleedOpen: false,
   xbleedSelectorOpen: false,
@@ -77,6 +78,23 @@ describe('AIR ABNORM BLEED CONFIG (A380 FCOM PRO-ABN-ECAM-10-36, l.167558-167674
     expect(shownLines(eng4Fire)).toEqual([11, 12, 13]);
     const eng34Fire = { ...normal, engineFire: [false, false, true, true] };
     expect(shownLines(eng34Fire)).toEqual([12, 13, 15]);
+  });
+
+  // AIR ENG 1(2)(3)(4) BLEED FAULT is a trigger (l.167565); its lines are the ones after ENG SHUT DOWN, except the AIR
+  // FLOW lines of "one bleed is inoperative, and one engine is shut down" (l.167592)
+  it('after AIR ENG BLEED FAULT: XBLEED ... OPEN, and no AIR FLOW lines with its engine still running', () => {
+    const eng3BleedFault = { ...normal, bleedFault: [false, false, true, false] };
+    expect(isAbnormBleedConfig(eng3BleedFault)).toBe(true);
+    expect(inoperativeBleeds(eng3BleedFault)).toEqual([false, false, true, false]);
+    expect(shownLines(eng3BleedFault)).toEqual([0, 1]);
+    expect(shownLines({ ...eng3BleedFault, xbleedOpen: true })).toEqual([1]);
+    const eng1BleedFault = { ...normal, bleedFault: [true, false, false, false] };
+    expect(shownLines(eng1BleedFault)).toEqual([0, 1, 7, 8, 9, 10]);
+  });
+
+  it('the BLEED FAULT trigger is wired from the AIR ENG BLEED FAULT alerts', () => {
+    const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
+    expect(fwsCore).toContain('bleedFault: this.engineBleedFault.map((fault) => fault.get()),');
   });
 
   it('the message has the 16 lines and the alert is wired', () => {

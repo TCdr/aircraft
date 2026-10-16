@@ -14,8 +14,10 @@ mod engine_out_aircraft_tests;
 mod fire_and_smoke_protection;
 mod fuel;
 pub mod hydraulic;
+mod ice_rain_protection;
 mod icing;
 mod navigation;
+mod oxygen;
 mod payload;
 mod pneumatic;
 mod power_consumption;
@@ -42,8 +44,10 @@ use electrical::{
 };
 use fire_and_smoke_protection::A380FireAndSmokeProtection;
 use hydraulic::{autobrakes::A380AutobrakePanel, A380Hydraulic, A380HydraulicOverheadPanel};
+use ice_rain_protection::A380IceRainProtection;
 use icing::Icing;
 use navigation::{A380AirDataInertialReferenceSystemBuilder, A380RadioAltimeters};
+use oxygen::A380Oxygen;
 use payload::A380Payload;
 use power_consumption::A380PowerConsumption;
 use reverser::{A380ReverserController, A380Reversers};
@@ -139,6 +143,8 @@ pub struct A380 {
     cds: A380ControlDisplaySystem,
     egpwc: EnhancedGroundProximityWarningComputer,
     icing_simulation: Icing,
+    ice_rain_protection: A380IceRainProtection,
+    oxygen: A380Oxygen,
     structural_flex: A380StructuralFlex,
 
     engine_reverser_control: [A380ReverserController; 2],
@@ -238,6 +244,8 @@ impl A380 {
             ),
 
             icing_simulation: Icing::new(context),
+            ice_rain_protection: A380IceRainProtection::new(context),
+            oxygen: A380Oxygen::new(context),
             structural_flex: A380StructuralFlex::new(context),
             engine_reverser_control: [
                 A380ReverserController::new(context, 2),
@@ -290,7 +298,7 @@ impl Aircraft for A380 {
         );
 
         self.electrical_overhead
-            .update_after_electrical(&self.electrical, electricity);
+            .update_after_electrical(&self.electrical, electricity, &self.apu);
         self.emergency_electrical_overhead
             .update_after_electrical(context, &self.electrical);
         self.payload.update(context);
@@ -372,6 +380,7 @@ impl Aircraft for A380 {
             &self.apu,
             &self.air_conditioning,
         );
+        self.pneumatic_overhead.update_fault_lights(&self.pneumatic);
         self.air_conditioning
             .mix_packs_air_update(self.pneumatic.packs());
         self.air_conditioning.update(
@@ -410,6 +419,13 @@ impl Aircraft for A380 {
         self.cds.update();
 
         self.icing_simulation.update(context);
+        self.ice_rain_protection.update(
+            context,
+            [1, 2, 3, 4].map(|engine| self.pneumatic.bleed_duct_pressure(engine)),
+            [1, 2, 3, 4].map(|engine| self.pneumatic.high_pressure_compressor_pressure(engine)),
+            [self.lgcius.lgciu1(), self.lgcius.lgciu2()],
+        );
+        self.oxygen.update(context);
 
         self.egpwc.update(&self.adirs, self.lgcius.lgciu1());
         self.fuel.update(
@@ -513,6 +529,8 @@ impl SimulationElement for A380 {
         self.cds.accept(visitor);
         self.egpwc.accept(visitor);
         self.icing_simulation.accept(visitor);
+        self.ice_rain_protection.accept(visitor);
+        self.oxygen.accept(visitor);
         self.structural_flex.accept(visitor);
 
         accept_iterable!(self.engine_reverser_control, visitor);

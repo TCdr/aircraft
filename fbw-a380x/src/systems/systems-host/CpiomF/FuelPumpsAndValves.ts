@@ -94,8 +94,8 @@ export interface A380TransferPump {
 
 /**
  * The transfer pumps that the FBW fuel transfers run (flight_model.cfg Trigger.1-46 StartPump): outer, mid fwd, inner fwd
- * and trim tank pumps. The aft gallery pumps (MID/INR TK AFT) are never started in the simulation, so they have no
- * failure.
+ * and trim tank pumps. The aft gallery pumps (MID/INR TK AFT) only run for the manual inner and mid tank transfers
+ * (CpiomF/FuelManualTransfer) and have no failure.
  */
 export const A380_TRANSFER_PUMPS: readonly A380TransferPump[] = [
   // Pump.9 LeftOuterTankPump (Index 9), Tank.1 LeftOuter

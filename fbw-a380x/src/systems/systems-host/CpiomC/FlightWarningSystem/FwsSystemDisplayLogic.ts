@@ -6,6 +6,7 @@ import { SimVarValueType, Subject, Subscription } from '@microsoft/msfs-sdk';
 import { SdPages } from '@shared/EcamSystemPages';
 import { sdMoreShownAfterMorePb, sdMoreShownToKeep } from '@shared/EcamSdMore';
 import { FwsCore } from './FwsCore';
+import { advisoryPages, FwsAdvisoryDisplay, FwsAdvisoryInputsReader } from './FwsAdvisories';
 
 const ENG_CONDITION_TIMER_DURATION = 10;
 const APU_CONDITION_TIMER_DURATION = 10;
@@ -72,6 +73,12 @@ export class FwsSystemDisplayLogic {
     'L:A32NX_ECAM_SD_STS_MORE_AVAILABLE',
     SimVarValueType.Number,
   );
+
+  /** The ECAM advisories (FwsAdvisories) */
+  private readonly advisoryInputs = new FwsAdvisoryInputsReader();
+  private readonly advisoryDisplay = new FwsAdvisoryDisplay();
+  /** The ECP pb lit by an advisory: the SD page index + 1, 0 for none (ecam-cp.xml) */
+  private advisoryPbLit = -1;
 
   constructor(private fws: FwsCore) {}
 
@@ -224,6 +231,8 @@ export class FwsSystemDisplayLogic {
           break;
       }
 
+      this.updateAdvisories(failPage);
+
       this.checkStsPage(deltaTime);
 
       if (failPage !== SdPages.None) {
@@ -249,6 +258,33 @@ export class FwsSystemDisplayLogic {
     SimVar.SetSimVarValue('L:A32NX_ECAM_SD_PAGE_TO_SHOW', SimVarValueType.Enum, this.currentPage.get());
 
     this.prevEcamAllButtonState.set(ecamAllButtonPushed);
+  }
+
+  /**
+   * The ECAM advisories (A380 FCOM DSC-31-40-10 ADVISORY, l.72215-72241, see FwsAdvisories): the advisory page in flight
+   * phase mode, the ECP pb light and the ADV indication of the EWD
+   * @param failPage the page of the ECAM alerts (L:A32NX_ECAM_SFAIL), SdPages.None if none
+   */
+  private updateAdvisories(failPage: SdPages): void {
+    const ewdShowsMemos =
+      !this.fws.abnormalSensed.abnormalShown.get() &&
+      !this.fws.abnormalNonSensed.abnProcShown.get() &&
+      !this.fws.normalChecklists.checklistShown.get();
+    const advisory = this.advisoryDisplay.update(advisoryPages(this.advisoryInputs.read()), {
+      selectedPage: this.userSelectedPage.get(),
+      alertPageShown: failPage !== SdPages.None,
+      ewdShowsMemos,
+      timeMs: Date.now(),
+    });
+    if (advisory.automaticPage !== SdPages.None) {
+      this.pageWhenUnselected.set(advisory.automaticPage);
+    }
+    this.fws.ecamEwdShowAdvIndication.set(advisory.ewdAdvIndication);
+    const pbLit = advisory.litPushbutton === SdPages.None ? 0 : advisory.litPushbutton + 1;
+    if (pbLit !== this.advisoryPbLit) {
+      this.advisoryPbLit = pbLit;
+      SimVar.SetSimVarValue('L:A380X_ECAM_SD_ADVISORY_PB', SimVarValueType.Number, pbLit);
+    }
   }
 
   private checkEnginePage = (deltaTime: number) => {

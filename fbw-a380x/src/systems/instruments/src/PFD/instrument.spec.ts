@@ -16,14 +16,16 @@ import './instrument';
 
 vi.setConfig({ testTimeout: 60_000 });
 
-// The PFD itself is not under test: the mock tells whether the gauge started (rendered) the PFD
+// The PFD itself is not under test: the mock tells whether the gauge started (rendered) the PFD. Its getDisplayIndex
+// (read by the PFD's ARINC value provider when the gauge starts) is the real one.
 const renderedPfd = vi.hoisted(() => vi.fn());
 vi.mock('./PFD', async () => {
   const { DisplayComponent, FSComponent } =
     await vi.importActual<typeof import('@microsoft/msfs-sdk')>('@microsoft/msfs-sdk');
+  const { getDisplayIndex } =
+    await vi.importActual<typeof import('./shared/PfdDisplayIndex')>('./shared/PfdDisplayIndex');
   return {
-    // read by the PFD's ARINC value provider when the gauge starts: the CAPT PFD
-    getDisplayIndex: () => 1,
+    getDisplayIndex,
     PFDComponent: class extends DisplayComponent<unknown> {
       render() {
         renderedPfd();
@@ -35,6 +37,26 @@ vi.mock('./PFD', async () => {
 
 /** The PFD gauge element (A380X_PFD, a BaseInstrument) */
 type PfdGauge = HTMLElement & { Update(): void };
+
+/** The EFIS side whose FMS data (L:A32NX_EFIS_<side>_..., L:A32NX_FMGC_<side>_RNP) a PFD gauge reads */
+function fmsDataSideOf(pfd: PfdGauge): string {
+  return (
+    pfd as unknown as { fmsDataPublisher: { stateSubject: { get(): string } } }
+  ).fmsDataPublisher.stateSubject.get();
+}
+
+/** panel.cfg [VCockpit08]: the F/O ND and the two weather radar WASM gauges, before the hosted PFD */
+const FO_ND_DU_GAUGES: [string, string][] = [
+  ['a380x-nd', `${A380X_GAUGE_URL_PREFIX}ND/nd.html?Index=2?duID=4`],
+  [
+    'wasm-instrument',
+    'coui://html_ui/Pages/VCockpit/Instruments/WasmInstrument/WasmInstrument.html?wasm_module=ndwxr.wasm&wasm_gauge=ndwxr',
+  ],
+  [
+    'wasm-instrument',
+    'coui://html_ui/Pages/VCockpit/Instruments/WasmInstrument/WasmInstrument.html?wasm_module=ndwxr.wasm&wasm_gauge=ndwxr',
+  ],
+];
 
 describe('A380X PFD gauge', () => {
   beforeEach(() => {
@@ -90,5 +112,52 @@ describe('A380X PFD gauge', () => {
     expect(renderedPfd).toHaveBeenCalledTimes(1);
     expect(document.getElementById('PFD_CONTENT')!.style.display).toBe('');
     expect(pfd.classList.contains(HIDDEN_HOSTED_GAUGE_CLASS)).toBe(false);
+  });
+
+  // The PFD/ND DU pairs: the CAPT PFD (duID 0) reads the CAPT (L) EFIS side, the F/O PFD (duID 3) the F/O (R) side
+  it('reads the FMS data of the CAPT side on the CAPT PFD', () => {
+    const panel = createPanel([]);
+    addGaugeTemplate('A380X_PFD', 'PFD_CONTENT');
+    const pfd = addGauge<PfdGauge>(panel, 'a380x-pfd', `${A380X_GAUGE_URL_PREFIX}PFD/pfd.html?Index=1&duID=0`);
+
+    expect(fmsDataSideOf(pfd)).toBe('L');
+  });
+
+  it('reads the FMS data of the F/O side on the F/O PFD', () => {
+    const panel = createPanel([]);
+    addGaugeTemplate('A380X_PFD', 'PFD_CONTENT');
+    const pfd = addGauge<PfdGauge>(panel, 'a380x-pfd', `${A380X_GAUGE_URL_PREFIX}PFD/pfd.html?Index=2&duID=3`);
+
+    expect(fmsDataSideOf(pfd)).toBe('R');
+  });
+
+  it('reads the FMS data of the CAPT side on the CAPT PFD drawn on the CAPT ND DU', () => {
+    const panel = createPanel([
+      ['a380x-nd', `${A380X_GAUGE_URL_PREFIX}ND/nd.html?Index=1&duID=1`],
+      [
+        'wasm-instrument',
+        'coui://html_ui/Pages/VCockpit/Instruments/WasmInstrument/WasmInstrument.html?wasm_module=ndwxr.wasm&wasm_gauge=ndwxr',
+      ],
+    ]);
+    addGaugeTemplate('A380X_PFD', 'PFD_CONTENT');
+    const pfd = addGauge<PfdGauge>(
+      panel,
+      'a380x-pfd',
+      `${A380X_GAUGE_URL_PREFIX}PFD/pfd-hosted.html?Index=1&hostDu=1&duID=0`,
+    );
+
+    expect(fmsDataSideOf(pfd)).toBe('L');
+  });
+
+  it('reads the FMS data of the F/O side on the F/O PFD drawn on the F/O ND DU', () => {
+    const panel = createPanel(FO_ND_DU_GAUGES);
+    addGaugeTemplate('A380X_PFD', 'PFD_CONTENT');
+    const pfd = addGauge<PfdGauge>(
+      panel,
+      'a380x-pfd',
+      `${A380X_GAUGE_URL_PREFIX}PFD/pfd-hosted.html?Index=2&hostDu=4&duID=3`,
+    );
+
+    expect(fmsDataSideOf(pfd)).toBe('R');
   });
 });

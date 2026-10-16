@@ -468,6 +468,11 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,
     },
+    270300016: {
+      // TAIL STRIKE DET: TAIL STRIKE DET FAULT STATUS, INOP SYS APPR (FCOM PDF page 5097), see FwsTailStrikeAlerts
+      simVarIsActive: this.fws.tailStrikeDetFault,
+      phase: FwsInopSysPhases.ApprLdg,
+    },
     290100001: {
       // PART SPLRs
       simVarIsActive: this.partSplrs,

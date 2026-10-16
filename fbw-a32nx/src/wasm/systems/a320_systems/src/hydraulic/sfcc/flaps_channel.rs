@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use crate::systems::shared::arinc429::{Arinc429Word, SignStatus};
+use systems::failures::{Failure, FailureType};
 use systems::hydraulic::command_sensor_unit::{CSUMonitor, CSU};
 use systems::hydraulic::flap_slat::{ChannelCommand, SolenoidStatus, ValveBlock};
 use systems::shared::{
@@ -32,6 +33,10 @@ pub(super) struct FlapsChannel {
     recovered_power_pulse: DelayedPulseTrueLogicGate,
 
     csu_monitor: CSUMonitor,
+
+    /// The flyPad failure of this flap channel (F/CTL FLAP SYS 1(2) FAULT, A320 FCOM a320_fcom.txt l.83217-83247):
+    /// the channel no longer drives its flap motor, the other motor moves the flaps at half speed (l.41431)
+    motor_control_failure: Failure,
 
     conf1_flaps: Angle,
     conf1f_flaps: Angle,
@@ -72,6 +77,10 @@ impl FlapsChannel {
             recovered_power_pulse: DelayedPulseTrueLogicGate::new(Duration::ZERO),
 
             csu_monitor: CSUMonitor::new(context),
+
+            motor_control_failure: Failure::new(FailureType::SlatFlapControlComputerFlapChannel(
+                num as usize,
+            )),
 
             conf1_flaps: Angle::new::<degree>(Self::FLAP_CONF1_FPPU_ANGLE),
             conf1f_flaps: Angle::new::<degree>(Self::FLAP_CONF1F_FPPU_ANGLE),
@@ -462,6 +471,13 @@ impl FlapsChannel {
         self.flap_auto_command_engaged
     }
 
+    /// The channel has lost the control of its flap motor (flyPad failure). Design choice: it keeps computing and
+    /// sending its labels (the model sends one set of labels per SFCC, see `get_csu_monitor`, and several consumers
+    /// read the SFCC 1 labels only); it reports the fault in the slat/flap system status word (label 046 bit 12).
+    pub(super) fn is_failed(&self) -> bool {
+        self.motor_control_failure.is_active()
+    }
+
     #[cfg(test)]
     pub fn get_fap(&self, idx: usize) -> bool {
         self.fap[idx]
@@ -488,7 +504,7 @@ impl FlapsChannel {
 // are held in position and can't move.
 impl ValveBlock for FlapsChannel {
     fn get_pob_status(&self) -> SolenoidStatus {
-        if !self.is_powered_delayed.output() {
+        if !self.is_powered_delayed.output() || self.is_failed() {
             return SolenoidStatus::DeEnergised;
         }
 
@@ -503,7 +519,7 @@ impl ValveBlock for FlapsChannel {
     }
 
     fn get_command_status(&self) -> Option<ChannelCommand> {
-        if !self.is_powered_delayed.output() {
+        if !self.is_powered_delayed.output() || self.is_failed() {
             return None;
         }
 
@@ -525,6 +541,7 @@ impl ValveBlock for FlapsChannel {
 impl SimulationElement for FlapsChannel {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.csu_monitor.accept(visitor);
+        self.motor_control_failure.accept(visitor);
         visitor.visit(self);
     }
 

@@ -258,6 +258,11 @@ impl CoreProcessingInputOutputModuleB {
     pub(super) fn excessive_residual_pressure(&self) -> bool {
         self.cpcs_app.is_excessive_residual_pressure()
     }
+
+    /// The FMS landing elevation does not come (CAB PRESS LDG ELEVN FAULT)
+    fn landing_elevation_not_received(&self) -> bool {
+        self.cpcs_app.landing_elevation_not_received()
+    }
 }
 
 impl PackFlow for CoreProcessingInputOutputModuleB {
@@ -887,7 +892,10 @@ struct CabinPressureControlSystemApplication<C: PressurizationConstants> {
     cabin_target_vertical_speed_ocsm: Velocity,
     outflow_valve_open_amount: [Ratio; 4],
 
+    /// The landing elevation the schedule uses: the FMS one, or the backup value, see landing_elevation_for_control
     landing_elevation: Length,
+    /// The landing elevation of the FMS, None when it does not come (FM1_LANDING_ELEVATION not in normal operation)
+    fm_landing_elevation: Option<Length>,
     cruise_altitude: Length,
     departure_elevation: Length,
     destination_qnh: Pressure,
@@ -911,6 +919,9 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
     const FWC_DIFF_PRESS_HI_UPPER_LIMIT: f64 = 9.2;
     const FWC_EXCESSIVE_DIFF_PRESSURE: f64 = 9.65;
     const FWC_EXCESSIVE_NEGATIVE_DIFF_PRESSURE: f64 = -0.72;
+    /// Backup landing elevations, see landing_elevation_for_control
+    const BACKUP_LANDING_ELEVATION_FT: f64 = 7000.;
+    const BACKUP_LANDING_ELEVATION_WITHOUT_AMBIENT_PRESSURE_FT: f64 = 7500.;
 
     fn new(context: &mut InitContext, cpiom_id: CpiomId) -> Self {
         Self {
@@ -968,6 +979,7 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
             outflow_valve_open_amount: [Ratio::new::<percent>(100.); 4],
 
             landing_elevation: Length::default(),
+            fm_landing_elevation: None,
             cruise_altitude: Length::default(),
             departure_elevation: Length::default(),
             destination_qnh: Pressure::default(),
@@ -1002,6 +1014,10 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
         self.adirs_data_is_valid = [1, 2, 3]
             .iter()
             .any(|&adr| adirs.ambient_static_pressure(adr).is_normal_operation());
+        self.landing_elevation = Self::landing_elevation_for_control(
+            self.fm_landing_elevation,
+            self.adirs_data_is_valid,
+        );
 
         self.cabin_pressure = ocsm.cabin_pressure();
         self.cabin_delta_pressure = ocsm.cabin_delta_pressure();
@@ -1381,6 +1397,28 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
         }
     }
 
+    /// The landing elevation the controllers use. A380 FCOM CAB PRESS LDG ELEVN FAULT (a380_fcom.txt:135437, 135468):
+    /// "The outflow valve controllers do not receive the landing field elevation from the FMS." "IN DES : CAB ALT
+    /// REGULATED TO 7000 FT", and CAB PRESS AUTO CTL FAULT (l.134651-134659): "the landing field elevation is set by
+    /// default to 7 000 ft [...] (or 7 500 ft if, in addition, the ambient pressure is no longer available)".
+    /// Design choice: the ambient pressure is no longer available when no ADIRU sends it.
+    fn landing_elevation_for_control(
+        fm_landing_elevation: Option<Length>,
+        ambient_pressure_is_available: bool,
+    ) -> Length {
+        fm_landing_elevation.unwrap_or_else(|| {
+            Length::new::<foot>(if ambient_pressure_is_available {
+                Self::BACKUP_LANDING_ELEVATION_FT
+            } else {
+                Self::BACKUP_LANDING_ELEVATION_WITHOUT_AMBIENT_PRESSURE_FT
+            })
+        })
+    }
+
+    fn landing_elevation_not_received(&self) -> bool {
+        self.fm_landing_elevation.is_none()
+    }
+
     fn is_ground(&self) -> bool {
         matches!(
             self.pressure_schedule_manager,
@@ -1628,7 +1666,7 @@ impl<C: PressurizationConstants> SimulationElement for CabinPressureControlSyste
         let landing_elevation_word: Arinc429Word<Length> =
             reader.read_arinc429(&self.landing_elevation_id);
         self.cruise_altitude = reader.read(&self.cruise_altitude_id);
-        self.landing_elevation = landing_elevation_word.normal_value().unwrap_or_default();
+        self.fm_landing_elevation = landing_elevation_word.normal_value();
         self.destination_qnh = Pressure::new::<hectopascal>(reader.read(&self.destination_qnh_id));
         self.fma_lateral_mode = reader.read(&self.fma_lateral_mode_id);
     }
@@ -1772,6 +1810,10 @@ impl CpiomBInterfaceUnit {
             .set_bit(17, cpiom.low_differential_pressure());
         self.discrete_word_cpcs
             .set_bit(18, cpiom.excessive_residual_pressure());
+        // Assumed bit (the word itself is assumed): the FMS landing elevation does not come, for CAB PRESS LDG ELEVN
+        // FAULT
+        self.discrete_word_cpcs
+            .set_bit(19, cpiom.landing_elevation_not_received());
     }
 }
 

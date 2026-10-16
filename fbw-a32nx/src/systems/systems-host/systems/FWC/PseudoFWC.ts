@@ -80,6 +80,12 @@ import {
   spoilerFaultLines,
 } from './Logic/FlightControlSurfaceAlerts';
 import * as FctlStatus from './Logic/FlightControlStatus';
+import {
+  SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
+  flapSysFaultStatus,
+  slatFlapChannelFaults,
+  slatSysFaultStatus,
+} from './Logic/SlatFlapChannelAlerts';
 import { isApuAvailMemoShown, isApuBleedMemoShown } from './Logic/ApuMemos';
 import { isToConfigSystemStatusNormal } from './Logic/ToConfigNormal';
 import { isGearNotUplockedForVle } from './Logic/LandingGearOverspeed';
@@ -89,6 +95,7 @@ import {
   readSidestickPriorityInputs,
 } from './Logic/SidestickPriorityAurals';
 import { wingTankLowLevelLines, wingTankLowLevelStatus, wingTanksLowLevelLines } from './Logic/WingTankLowLevel';
+import * as Brakes from './Logic/BrakeSystemAlerts';
 import {
   CrossBleedSelector,
   EngineFailMonitor,
@@ -98,6 +105,18 @@ import {
   isEngineShutDown,
 } from './Logic/EngineFailAlerts';
 import { EngineOilMonitor, engineOilShutDownLines } from './Logic/EngineOilAlerts';
+import {
+  EngineAntiIceValveMonitor,
+  engineAntiIceValveClosedStatus,
+  engineAntiIceValveOpenStatus,
+} from './Logic/EngineAntiIceAlerts';
+import {
+  NO_PROBE_WINDOW_HEAT_FAULT,
+  PROBE_WINDOW_HEAT_ALERTS,
+  ProbeWindowHeatInputs,
+  probeWindowHeatAlerts,
+  readProbeWindowHeatInputs,
+} from './Logic/ProbeWindowHeatAlerts';
 import { FUEL_FILTER_CLOG_PHASE_INHIBITION, engineFuelFilterClog } from './Logic/EngineFuelFilterAlerts';
 import {
   EngineMonitoringAlertDefinition,
@@ -243,6 +262,12 @@ import {
 } from './Logic/HydraulicAlerts';
 import { APU_SHUTDOWN_INOP_SYS, apuShutdownAlerts, apuShutdownLines } from './Logic/ApuShutdownAlerts';
 import {
+  AFT_CRG_DET_FAULT_INOP_SYS,
+  cargoSmokeLines,
+  FWD_CRG_DET_FAULT_INOP_SYS,
+  smokeAlerts,
+} from './Logic/SmokeAlerts';
+import {
   FAC_SYSTEM_ALERT_CONFIRM_SECONDS,
   FacActuatorPhaseInhibition as FacPhases,
   FacDiscreteWord2Bits,
@@ -307,6 +332,30 @@ import {
   LS_TUNING_DISAGREE_PHASE_INHIBITION,
   LsTuningDisagreeMonitor,
 } from './Logic/NavPositionAlerts';
+import {
+  AdirsEwdCodes,
+  adirsFaultAlerts,
+  adrDisagreeStatus,
+  adrDisagreement,
+  adrDualFaultLines,
+  adrDualFaultStatus,
+  adrFaultLines,
+  adrFaultStatus,
+  adrTripleFaultLines,
+  adrTripleFaultStatus,
+  irDisagree,
+  irDisagreeStatus,
+  irDualFaultLines,
+  irDualFaultStatus,
+  irFaultLines,
+  irFaultStatus,
+  ra1And2FaultStatus,
+  raFaultAlerts,
+  raFaultStatus,
+  radioAltitudesDisagree,
+  readAdirsAlertInputs,
+  unit3AlertInhibitedInPhase3,
+} from './Logic/AdirsAlerts';
 import { orderStatusCodes } from '@shared/StatusMessages';
 import {
   STATUS_CLR_SCROLLS_VAR,
@@ -1325,6 +1374,15 @@ export class PseudoFWC {
 
   private readonly slatsAngle = Subject.create(0);
 
+  /** F/CTL FLAP SYS 1(2) FAULT and SLAT SYS 1(2) FAULT, see Logic/SlatFlapChannelAlerts */
+  private readonly flapSys1Fault = Subject.create(false);
+
+  private readonly flapSys2Fault = Subject.create(false);
+
+  private readonly slatSys1Fault = Subject.create(false);
+
+  private readonly slatSys2Fault = Subject.create(false);
+
   private readonly speedBrakeCommand = Subject.create(false);
 
   private readonly spoilersArmed = Subject.create(false);
@@ -1756,6 +1814,22 @@ export class PseudoFWC {
 
   private readonly antiSkidOffWarning = Subject.create(false);
 
+  /** The BRAKES and WHEEL cautions of the BSCU and ABCU, see Logic/BrakeSystemAlerts */
+  private readonly brakeSystemAlerts: Record<keyof Brakes.BrakeSystemAlerts, Subject<boolean>> = {
+    antiSkidNwsFault: Subject.create(false),
+    antiSkidNwsOff: Subject.create(false),
+    normAndAltnFault: Subject.create(false),
+    normBrkFault: Subject.create(false),
+    altnBrkFault: Subject.create(false),
+    autoBrkFault: Subject.create(false),
+    sys1Fault: Subject.create(false),
+    sys2Fault: Subject.create(false),
+    nwStrgFault: Subject.create(false),
+  };
+
+  /** The yellow hydraulic system is in low pressure (BRAKES A/SKID N/WS STATUS "If Y SYS LO PR") */
+  private brakeYellowLowPressure = false;
+
   private readonly parkBrakeMemo = Subject.create(false);
 
   private readonly parkBrakeOnConfirm = new NXLogicConfirmNode(2);
@@ -2042,6 +2116,18 @@ export class PseudoFWC {
 
   /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
   private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
+
+  /** ANTI ICE ENG 1(2) VALVE CLSD and VALVE OPEN, see Logic/EngineAntiIceAlerts */
+  private readonly engineAntiIceValveMonitors = [new EngineAntiIceValveMonitor(), new EngineAntiIceValveMonitor()];
+
+  private readonly engineAntiIceValveClosed = [Subject.create(false), Subject.create(false)];
+
+  private readonly engineAntiIceValveOpen = [Subject.create(false), Subject.create(false)];
+
+  /** ANTI ICE probe and window heat cautions, see Logic/ProbeWindowHeatAlerts */
+  private probeWindowHeatInputs: ProbeWindowHeatInputs = NO_PROBE_WINDOW_HEAT_FAULT;
+
+  private readonly probeWindowHeatActive = PROBE_WINDOW_HEAT_ALERTS.map(() => Subject.create(false));
 
   /** AIR bleed leak, leak detection, HP valve and BMC cautions, see Logic/BleedLeakMonitoringAlerts */
   private readonly bleedLeakMonitoringAlerts = new BleedLeakMonitoringAlerts();
@@ -2397,6 +2483,24 @@ export class PseudoFWC {
 
   private readonly cargoFireTest = Subject.create(false);
 
+  /** The AFT DISCH pb of the CARGO SMOKE panel was pressed */
+  private readonly aftCargoFireAgentDisch = Subject.create(false);
+
+  /** The cargo and avionics smoke alerts, see Logic/SmokeAlerts */
+  private readonly fwdCargoSmoke = Subject.create(false);
+
+  private readonly aftCargoSmoke = Subject.create(false);
+
+  private readonly fwdCrgDetFault = Subject.create(false);
+
+  private readonly aftCrgDetFault = Subject.create(false);
+
+  private readonly fwdCrgBtlFault = Subject.create(false);
+
+  private readonly aftCrgBtlFault = Subject.create(false);
+
+  private readonly avionicsSmoke = Subject.create(false);
+
   private readonly eng1Agent1PB = Subject.create(false);
 
   private readonly eng1Agent2PB = Subject.create(false);
@@ -2540,6 +2644,48 @@ export class PseudoFWC {
   private static readonly FWC_FAILED_WORD = Arinc429Register.empty();
 
   private readonly ra2Fault = Subject.create(false);
+
+  /** NAV RA 1 AND 2 FAULT, which replaces the two NAV RA 1(2) FAULT alerts (Logic/AdirsAlerts raFaultAlerts) */
+  private readonly ra1And2Fault = Subject.create(false);
+
+  private readonly raDegradedConfirmNode = new NXLogicConfirmNode(2, true);
+
+  /** NAV RA DEGRADED: the RA heights differ (Logic/AdirsAlerts radioAltitudesDisagree), confirmed 2 s (design choice) */
+  private readonly raDegraded = Subject.create(false);
+
+  /** The NAV ADR and IR fault alerts, from the ADR and IR FAULT discretes of the ADIRUs (Logic/AdirsAlerts) */
+  private adirsFaults = adirsFaultAlerts([false, false, false], [false, false, false]);
+
+  /** NAV ADR 1(2)(3) FAULT */
+  private readonly adrFaultAlert = [Subject.create(false), Subject.create(false), Subject.create(false)];
+
+  private readonly adrDualFaultAlert = Subject.create(false);
+
+  private readonly adrTripleFaultAlert = Subject.create(false);
+
+  /** NAV IR 1(2)(3) FAULT */
+  private readonly irFaultAlert = [Subject.create(false), Subject.create(false), Subject.create(false)];
+
+  private readonly irDualFaultAlert = Subject.create(false);
+
+  private readonly adrDisagreeConfirmNode = new NXLogicConfirmNode(1, true);
+
+  /** NAV ADR DISAGREE (Logic/AdirsAlerts adrDisagreement), confirmed 1 s as the A380 PRIM monitoring (design choice) */
+  private readonly adrDisagree = Subject.create(false);
+
+  private readonly irDisagreeConfirmNode = new NXLogicConfirmNode(1, true);
+
+  /** NAV IR DISAGREE (Logic/AdirsAlerts irDisagree), confirmed 1 s (design choice) */
+  private readonly irDisagree = Subject.create(false);
+
+  /** The ADR 1, 2, 3 pb-sw are ON */
+  private adrPbOn = [true, true, true];
+
+  /** An autopilot or a flight director is engaged (NAV ADR 1+2+3 FAULT AP+FD OFF line) */
+  private apOrFdEngaged = false;
+
+  /** The PROBE/WINDOW HEAT pb-sw is ON */
+  private probeWindowHeatOn = false;
 
   private readonly tcasFault = Subject.create(false);
 
@@ -3551,6 +3697,34 @@ export class PseudoFWC {
   /**
    * Periodic update
    */
+  /** The NAV ADR and IR alerts (A320 FCOM PRO-ABN-NAV), see Logic/AdirsAlerts */
+  private updateAdirsAlerts(deltaTime: number): void {
+    const inputs = readAdirsAlertInputs((name, unit) => SimVar.GetSimVarValue(name, unit));
+    this.adirsFaults = adirsFaultAlerts(inputs.adrFaulty, inputs.irFaulty);
+    const phase = this.fwcFlightPhase.get();
+    const adr3InUse = this.airKnob.get() !== AirDataSwitchingKnob.Norm;
+    // The ATT HDG selector has the same positions as the AIR DATA one (CAPT, NORM, F/O)
+    const ir3InUse = this.attKnob.get() !== AirDataSwitchingKnob.Norm;
+    this.adrFaultAlert.forEach((alert, index) =>
+      alert.set(this.adirsFaults.adrFault[index] && !(index === 2 && unit3AlertInhibitedInPhase3(phase, adr3InUse))),
+    );
+    this.adrDualFaultAlert.set(this.adirsFaults.adrDualFault !== null);
+    this.adrTripleFaultAlert.set(this.adirsFaults.adrTripleFault);
+    this.irFaultAlert.forEach((alert, index) =>
+      alert.set(this.adirsFaults.irFault[index] && !(index === 2 && unit3AlertInhibitedInPhase3(phase, ir3InUse))),
+    );
+    this.irDualFaultAlert.set(this.adirsFaults.irDualFault !== null);
+    this.adrPbOn = inputs.adrPbOn;
+    this.apOrFdEngaged = inputs.apOrFdEngaged;
+    this.probeWindowHeatOn = inputs.probeWindowHeatOn;
+
+    const remainingAdrsDisagree = adrDisagreement(inputs.adrData, this.aircraftOnGround.get());
+    this.adrDisagree.set(
+      this.adrDisagreeConfirmNode.write(remainingAdrsDisagree.speed || remainingAdrsDisagree.angleOfAttack, deltaTime),
+    );
+    this.irDisagree.set(this.irDisagreeConfirmNode.write(irDisagree(inputs.irData), deltaTime));
+  }
+
   update(deltaTime: number) {
     this.acquisitionBackplane.onUpdate();
 
@@ -3657,8 +3831,10 @@ export class PseudoFWC {
     this.fuel.set(SimVar.GetSimVarValue('A:INTERACTIVE POINT OPEN:9', 'percent'));
     this.usrStartRefueling.set(SimVar.GetSimVarValue('L:A32NX_REFUEL_STARTED_BY_USR', 'bool'));
     this.engSelectorPosition.set(SimVar.GetSimVarValue('L:XMLVAR_ENG_MODE_SEL', 'Enum'));
-    this.eng1AntiIce.set(SimVar.GetSimVarValue('ENG ANTI ICE:1', 'bool'));
-    this.eng2AntiIce.set(SimVar.GetSimVarValue('ENG ANTI ICE:2', 'bool'));
+    // The ENG ANTI ICE pb-sw: the ENG A.ICE memo "appears in green, if one or both ENG ANTI ICE pb-sw are ON" (FCOM
+    // DSC-30-30-20 l.44405). The MSFS ENG ANTI ICE follows the valve (systems ice_rain_protection engine_anti_ice.rs).
+    this.eng1AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_1_POSITION', 'bool') > 0);
+    this.eng2AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_2_POSITION', 'bool') > 0);
     this.thr1TLA.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:1', 'number'));
     this.thr2TLA.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:2', 'number'));
     this.autoThrustStatus.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_STATUS', 'enum'));
@@ -3769,11 +3945,31 @@ export class PseudoFWC {
     this.lgciu2DiscreteWord4.setFromSimVar('L:A32NX_LGCIU_2_DISCRETE_WORD_4');
     this.nwSteeringDisc.set(SimVar.GetSimVarValue('L:A32NX_HYD_NW_STRG_DISC_ECAM_MEMO', 'Bool'));
 
-    // TODO: Check !NORM+ALTN BRK FAULT when implemented
+    // BRAKES and WHEEL cautions of the brake control units (a320_systems hydraulic/brake_control_units.rs)
+    const isSet = (name: string) => SimVar.GetSimVarValue(name, 'bool') > 0;
+    this.brakeYellowLowPressure = !yellowSysPressurised;
+    const brakeAlerts = Brakes.brakeSystemAlerts({
+      bscu1Lost: isSet('L:A32NX_BRAKES_BSCU_1_FAULT'),
+      bscu2Lost: isSet('L:A32NX_BRAKES_BSCU_2_FAULT'),
+      bscu1PowerLost: !isSet('L:A32NX_ELEC_AC_1_BUS_IS_POWERED') || !isSet('L:A32NX_ELEC_DC_1_BUS_IS_POWERED'),
+      bscu2PowerLost: !isSet('L:A32NX_ELEC_AC_2_BUS_IS_POWERED') || !isSet('L:A32NX_ELEC_DC_2_BUS_IS_POWERED'),
+      abcuLost: isSet('L:A32NX_BRAKES_ALTN_BRK_FAULT'),
+      abcuPowerLost: !isSet('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED'),
+      normalBrakingFailed: isSet('L:A32NX_BRAKES_NORM_BRK_FAULT'),
+      autobrakeFailedAfterArmed: isSet('L:A32NX_BRAKES_AUTO_BRK_FAULT'),
+      noseWheelSteeringFailed: isSet('L:A32NX_BRAKES_NW_STRG_FAULT'),
+      antiSkidSwitchOff: this.sdac00200Word.bitValue(23),
+      yellowLowPressure: this.brakeYellowLowPressure,
+    });
+    for (const key of Object.keys(this.brakeSystemAlerts) as (keyof Brakes.BrakeSystemAlerts)[]) {
+      this.brakeSystemAlerts[key].set(brakeAlerts[key]);
+    }
+
+    // A/SKID N/WS OFF: not with A/SKID N/WS FAULT or BRAKES NORM + ALTN FAULT (brakeAlerts.antiSkidNwsOff)
     const phase2For60Seconds = this.antiSkidOffPhase2Confirm.write(this.fwcFlightPhase.get() === 2, deltaTime);
     const phase2For60SecondsPulse = this.antiSkidOffPhase2Pulse.write(phase2For60Seconds);
     this.antiSkidOffWarning.set(
-      this.sdac00200Word.bitValue(23) &&
+      brakeAlerts.antiSkidNwsOff &&
         !(this.sdac00201Word.bitValue(20) || this.sdac00210Word.bitValue(20)) &&
         !phase2For60SecondsPulse,
     );
@@ -4702,7 +4898,24 @@ export class PseudoFWC {
       toConfigTest && this.fwcFlightPhase.get() === 2,
       this.fwcFlightPhase.get() !== 2,
     );
-    this.ra1Fault.set(this.height1Failed.get() && !this.sdac00201Word.bitValue(20));
+    // NAV RA 1(2) FAULT, RA 1 AND 2 FAULT (Logic/AdirsAlerts raFaultAlerts): an RA failed with its AC bus powered
+    const raFaults = raFaultAlerts(
+      this.height1Failed.get() && !this.sdac00201Word.bitValue(20),
+      this.height2Failed.get() && !this.sdac00210Word.bitValue(20),
+    );
+    this.ra1Fault.set(raFaults.ra1Fault);
+    this.ra2Fault.set(raFaults.ra2Fault);
+    this.ra1And2Fault.set(raFaults.ra1And2Fault);
+    this.raDegraded.set(
+      this.raDegradedConfirmNode.write(
+        radioAltitudesDisagree(
+          radioHeight1.isNormalOperation() ? radioHeight1.value : null,
+          radioHeight2.isNormalOperation() ? radioHeight2.value : null,
+        ),
+        deltaTime,
+      ),
+    );
+    this.updateAdirsAlerts(deltaTime);
     // GPS receivers: GPS_n_MODE 4 is FAULT (A320 FCOM PRO-ABN-NAV: the alert triggers when the GPS 1(2) is failed)
     this.gps1Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_1_MODE', 'number') === 4);
     this.gps2Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_2_MODE', 'number') === 4);
@@ -4728,7 +4941,6 @@ export class PseudoFWC {
         deltaTime / 1000,
       ),
     );
-    this.ra2Fault.set(this.height2Failed.get() && !this.sdac00210Word.bitValue(20));
     this.tcasFault.set(SimVar.GetSimVarValue('L:A32NX_TCAS_FAULT', 'bool'));
     // ATC/XPDR 1(2) FAULT: the transponder failed with its bus powered (a bus loss is an ELEC alert)
     this.selectedXpdr.set(selectedXpdrSystem(SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number')));
@@ -5007,6 +5219,16 @@ export class PseudoFWC {
     this.flapsAngle.set(SimVar.GetSimVarValue('L:A32NX_FLAPS_IPPU_ANGLE', 'degrees'));
     this.flapsHandle.set(SimVar.GetSimVarValue('L:A32NX_FLAPS_HANDLE_INDEX', 'enum'));
     this.slatsAngle.set(SimVar.GetSimVarValue('L:A32NX_SLATS_IPPU_ANGLE', 'degrees'));
+
+    // F/CTL FLAP(SLAT) SYS 1(2) FAULT (FCOM PRO-ABN-F_CTL), see Logic/SlatFlapChannelAlerts
+    const slatFlapChannels = slatFlapChannelFaults(
+      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_FLAP_SYSTEM_STATUS_WORD'),
+      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_FLAP_SYSTEM_STATUS_WORD'),
+    );
+    this.flapSys1Fault.set(slatFlapChannels.flapSysFault[0]);
+    this.flapSys2Fault.set(slatFlapChannels.flapSysFault[1]);
+    this.slatSys1Fault.set(slatFlapChannels.slatSysFault[0]);
+    this.slatSys2Fault.set(slatFlapChannels.slatSysFault[1]);
 
     // TODO: add switching between SFCC_1 and SFCC_2
     const flapsPos = Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_FLAP_ACTUAL_POSITION_WORD');
@@ -5628,6 +5850,31 @@ export class PseudoFWC {
     this.engine1OilFilterClog.set(this.engineOilMonitors[0].isFilterClogged);
     this.engine2OilFilterClog.set(this.engineOilMonitors[1].isFilterClogged);
 
+    /* ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN (FCOM PRO-ABN-A-ICE, see Logic/EngineAntiIceAlerts) */
+    this.engineAntiIceValveMonitors.forEach((monitor, index) => {
+      const engineNumber = index + 1;
+      monitor.update(
+        {
+          pbOn: (engineNumber === 1 ? this.eng1AntiIce : this.eng2AntiIce).get(),
+          valveOpen: SimVar.GetSimVarValue(`L:A32NX_PNEU_ENG_${engineNumber}_ANTI_ICE_VALVE_OPEN`, 'bool') > 0,
+          engineRunning: (engineNumber === 1
+            ? this.engine1CoreAtOrAboveMinIdle
+            : this.engine2CoreAtOrAboveMinIdle
+          ).get(),
+        },
+        deltaTime / 1000,
+      );
+      this.engineAntiIceValveClosed[index].set(monitor.valveClosed);
+      this.engineAntiIceValveOpen[index].set(monitor.valveOpen);
+    });
+
+    /* ANTI ICE probe and window heat cautions (FCOM PRO-ABN-A-ICE, see Logic/ProbeWindowHeatAlerts) */
+    this.probeWindowHeatInputs = readProbeWindowHeatInputs();
+    const heatAlerts = probeWindowHeatAlerts(this.probeWindowHeatInputs);
+    PROBE_WINDOW_HEAT_ALERTS.forEach((alert, index) =>
+      this.probeWindowHeatActive[index].set(alert.isActive(heatAlerts)),
+    );
+
     /* AIR bleed leak, leak detection, HP valve and BMC cautions (FCOM PRO-ABN-AIR, PRO-ABN-BLEED), from the Rust BMCs */
     this.bleedLeakMonitoringAlerts.update(readBleedLeakMonitoringInputs());
 
@@ -5879,7 +6126,25 @@ export class PseudoFWC {
     this.eng2Agent2PB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_ENG2_AGENT2_Discharge', 'bool'));
     this.apuAgentPB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_APU_AGENT1_Discharge', 'bool'));
     this.cargoFireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_CARGO', 'bool'));
-    this.cargoFireAgentDisch.set(SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_FWD_DISCHARGED', 'bool'));
+    this.cargoFireAgentDisch.set(SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_FWD_DISCHARGED', 'bool') > 0);
+    this.aftCargoFireAgentDisch.set(SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_AFT_DISCHARGED', 'bool') > 0);
+    // The cargo and avionics smoke protection of systems.wasm (Logic/SmokeAlerts)
+    const smoke = smokeAlerts({
+      fwdCargoSmokeDetected: SimVar.GetSimVarValue('L:A32NX_SMOKE_FWD_CARGO_DETECTED', 'bool') > 0,
+      aftCargoSmokeDetected: SimVar.GetSimVarValue('L:A32NX_SMOKE_AFT_CARGO_DETECTED', 'bool') > 0,
+      avionicsSmokeDetected: SimVar.GetSimVarValue('L:A32NX_SMOKE_AVIONICS_DETECTED', 'bool') > 0,
+      cargoSmokeTest: this.cargoFireTest.get(),
+      fwdCargoDetectionFault: SimVar.GetSimVarValue('L:A32NX_SMOKE_FWD_CARGO_DET_FAULT', 'bool') > 0,
+      aftCargoDetectionFault: SimVar.GetSimVarValue('L:A32NX_SMOKE_AFT_CARGO_DET_FAULT', 'bool') > 0,
+      cargoBottleLowPressure: SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_BOTTLE_1_LOW_PRESSURE', 'bool') > 0,
+    });
+    this.fwdCargoSmoke.set(smoke.fwdCargoSmoke);
+    this.aftCargoSmoke.set(smoke.aftCargoSmoke);
+    this.fwdCrgDetFault.set(smoke.fwdCrgDetFault);
+    this.aftCrgDetFault.set(smoke.aftCrgDetFault);
+    this.fwdCrgBtlFault.set(smoke.fwdCrgBtlFault);
+    this.aftCrgBtlFault.set(smoke.aftCrgBtlFault);
+    this.avionicsSmoke.set(smoke.avionicsSmoke);
 
     this.agent1Eng1Discharge.set(this.agent1Eng1DischargeTimer.write(this.fireButton1.get(), deltaTime));
     this.agent2Eng1Discharge.set(
@@ -6974,6 +7239,26 @@ export class PseudoFWC {
       side: 'LEFT',
       inopSys: () => ignitionFaultInopSys(engine, this.engineIgniterAFault[index], this.engineIgniterBFault[index]),
     };
+  }
+
+  /** The ANTI ICE probe and window heat cautions (FCOM PRO-ABN-A-ICE), see Logic/ProbeWindowHeatAlerts */
+  private probeWindowHeatFailures(): EWDMessageDict<EWDFailureItem> {
+    const failures: EWDMessageDict<EWDFailureItem> = {};
+    PROBE_WINDOW_HEAT_ALERTS.forEach((alert, index) => {
+      failures[alert.key] = {
+        flightPhaseInhib: alert.phaseInhibition,
+        simVarIsActive: this.probeWindowHeatActive[index],
+        whichCodeToReturn: () => alert.lines(this.probeWindowHeatInputs),
+        codesToReturn: alert.codes,
+        memoInhibit: () => false,
+        failure: 2,
+        sysPage: EcamSysPage.NONE,
+        side: 'LEFT',
+        statusInfo: () => alert.status(this.probeWindowHeatInputs).info,
+        inopSys: () => alert.status(this.probeWindowHeatInputs).inopSys,
+      };
+    });
+    return failures;
   }
 
   ewdMessageFailures: EWDMessageDict<EWDFailureItem> = {
@@ -9454,6 +9739,59 @@ export class PseudoFWC {
       inopSys: () => FctlStatus.spoilerFaultStatus(this.fctlSurfaces.spoilerFaults).inopSys,
       statusInfo: () => FctlStatus.spoilerFaultStatus(this.fctlSurfaces.spoilerFaults).left,
     },
+    // F/CTL FLAP(SLAT) SYS 1(2) FAULT, crew awareness (level 1), see Logic/SlatFlapChannelAlerts
+    2701110: {
+      // FLAP SYS 1 FAULT
+      flightPhaseInhib: SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.flapSys1Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270111001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => flapSysFaultStatus(1).inopSys,
+      statusInfo: () => flapSysFaultStatus(1).left,
+    },
+    2701120: {
+      // FLAP SYS 2 FAULT
+      flightPhaseInhib: SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.flapSys2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270112001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => flapSysFaultStatus(2).inopSys,
+      statusInfo: () => flapSysFaultStatus(2).left,
+    },
+    2701130: {
+      // SLAT SYS 1 FAULT
+      flightPhaseInhib: SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.slatSys1Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270113001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => slatSysFaultStatus().inopSys,
+      statusInfo: () => slatSysFaultStatus().left,
+    },
+    2701140: {
+      // SLAT SYS 2 FAULT
+      flightPhaseInhib: SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.slatSys2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270114001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => slatSysFaultStatus().inopSys,
+      statusInfo: () => slatSysFaultStatus().left,
+    },
     3100110: {
       // TRIPPED REAR PNL J-M
       flightPhaseInhib: [],
@@ -10077,20 +10415,17 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2600150: {
-      // SMOKE FWD CARGO SMOKE
+      // SMOKE FWD CARGO SMOKE (FCOM PRO-ABN-SMOKE l.95244-95318, see Logic/SmokeAlerts): the cargo smoke detection or
+      // the CARGO SMOKE TEST pb. Flight phase inhibition 4, 5, 7, 8 (FCOM PDF "A320 Neo FCOM_1.pdf" page 5786)
       flightPhaseInhib: [4, 5, 7, 8],
-      simVarIsActive: this.cargoFireTest,
-      // TODO no separate slats indication
-      whichCodeToReturn: () => [
-        0,
-        SimVar.GetSimVarValue('L:A32NX_OVHD_VENT_CAB_FANS_PB_IS_ON', 'bool') === 1 ? 2 : null,
-        [1, 10].includes(this.fwcFlightPhase.get()) && !this.cargoFireAgentDisch.get() ? 3 : null,
-        !this.cargoFireAgentDisch.get() ? 4 : null,
-        !this.aircraftOnGround.get() ? 5 : null,
-        !this.aircraftOnGround.get() ? 6 : null,
-        this.aircraftOnGround.get() ? 7 : null,
-        this.aircraftOnGround.get() ? 8 : null,
-      ],
+      simVarIsActive: this.fwdCargoSmoke,
+      whichCodeToReturn: () =>
+        cargoSmokeLines({
+          cabFansOn: SimVar.GetSimVarValue('L:A32NX_OVHD_VENT_CAB_FANS_PB_IS_ON', 'bool') > 0,
+          flightPhase: this.fwcFlightPhase.get(),
+          agentDischarged: this.cargoFireAgentDisch.get(),
+          onGround: this.aircraftOnGround.get(),
+        }),
       codesToReturn: [
         '260015001',
         '260015002',
@@ -10104,6 +10439,95 @@ export class PseudoFWC {
       ],
       memoInhibit: () => false,
       failure: 3,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    2600160: {
+      // SMOKE AFT CARGO SMOKE (FCOM PRO-ABN-SMOKE l.95111-95170, see Logic/SmokeAlerts). Flight phase inhibition 4, 5,
+      // 7, 8 (FCOM PDF page 5781)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.aftCargoSmoke,
+      whichCodeToReturn: () =>
+        cargoSmokeLines({
+          cabFansOn: SimVar.GetSimVarValue('L:A32NX_OVHD_VENT_CAB_FANS_PB_IS_ON', 'bool') > 0,
+          flightPhase: this.fwcFlightPhase.get(),
+          agentDischarged: this.aftCargoFireAgentDisch.get(),
+          onGround: this.aircraftOnGround.get(),
+        }),
+      codesToReturn: [
+        '260016001',
+        '260016002',
+        '260016003',
+        '260016004',
+        '260016005',
+        '260016006',
+        '260016007',
+        '260016008',
+        '260016009',
+      ],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    2600170: {
+      // SMOKE FWD CRG DET FAULT (FCOM PRO-ABN-SMOKE l.95378-95392). Flight phase inhibition 3, 4, 5, 7, 8 (FCOM PDF page
+      // 5792). The "IF NO LIVE STOCK: FWD ISOL VALVE OFF" lines stay hidden: no cargo ventilation in this aircraft.
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.fwdCrgDetFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260017001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => FWD_CRG_DET_FAULT_INOP_SYS,
+    },
+    2600180: {
+      // SMOKE AFT CRG DET FAULT (FCOM PRO-ABN-SMOKE l.95203-95240). Flight phase inhibition 3, 4, 5, 7, 8 (FCOM PDF
+      // page 5785)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.aftCrgDetFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260018001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => AFT_CRG_DET_FAULT_INOP_SYS,
+    },
+    2600190: {
+      // SMOKE FWD CRG BTL 1 FAULT (FCOM PRO-ABN-SMOKE l.95345-95358: crew awareness). Flight phase inhibition 4, 5, 7,
+      // 8 (FCOM PDF page 5791)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.fwdCrgBtlFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260019001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    2600191: {
+      // SMOKE AFT CRG BTL 1 FAULT (the same single bottle, see Logic/SmokeAlerts)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.aftCrgBtlFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260019101'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    2600300: {
+      // AVIONICS SMOKE (FCOM PRO-ABN-AVNCS l.72100-72120, DSC-26-30-10 l.38775-38782: single chime and MASTER CAUTION).
+      // Flight phase inhibition 4, 5, 7, 8 (FCOM PDF page 4441)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.avionicsSmoke,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['260030001', '260030002'],
+      memoInhibit: () => false,
+      failure: 2,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
     },
@@ -10134,6 +10558,110 @@ export class PseudoFWC {
       sysPage: EcamSysPage.WHEEL,
       side: 'LEFT',
       ...alertStatus(() => antiSkidOffStatus(readYellowSystemLowPressure())),
+    },
+    // Brake control unit cautions, see Logic/BrakeSystemAlerts (A320 FCOM PRO-ABN-BRAKES, PRO-ABN-WHEEL). The FCOM
+    // phase inhibition figures are not in the text: design choice, the alerts with a procedure line use the phases of
+    // A/SKID N/WS OFF, the crew awareness ones those of BRK Y ACCU LO PR.
+    3200410: {
+      // BRAKES NORM + ALTN FAULT (l.72630-72674)
+      flightPhaseInhib: [4, 5],
+      simVarIsActive: this.brakeSystemAlerts.normAndAltnFault,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['320041001', '320041002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      statusInfo: () => Brakes.NORM_AND_ALTN_FAULT_STATUS.left,
+      inopSys: () => Brakes.NORM_AND_ALTN_FAULT_STATUS.inopSys,
+    },
+    3200400: {
+      // BRAKES A/SKID N/WS FAULT (l.72313-72375)
+      flightPhaseInhib: [4, 5],
+      simVarIsActive: this.brakeSystemAlerts.antiSkidNwsFault,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['320040001', '320040002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      statusInfo: () => Brakes.antiSkidNwsStatus(this.brakeYellowLowPressure).left,
+      inopSys: () => Brakes.antiSkidNwsStatus(this.brakeYellowLowPressure).inopSys,
+    },
+    3200420: {
+      // BRAKES NORM BRK FAULT (l.72676-72715)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakeSystemAlerts.normBrkFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320042001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      statusInfo: () => Brakes.NORM_BRK_FAULT_STATUS.left,
+      inopSys: () => Brakes.NORM_BRK_FAULT_STATUS.inopSys,
+    },
+    3200430: {
+      // BRAKES ALTN BRK FAULT (l.72385-72409)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakeSystemAlerts.altnBrkFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320043001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      inopSys: () => Brakes.ALTN_BRK_FAULT_STATUS.inopSys,
+    },
+    3200440: {
+      // BRAKES AUTO BRK FAULT (l.72463-72483)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakeSystemAlerts.autoBrkFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320044001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      statusInfo: () => Brakes.AUTO_BRK_FAULT_STATUS.left,
+      inopSys: () => Brakes.AUTO_BRK_FAULT_STATUS.inopSys,
+    },
+    3200450: {
+      // BRAKES SYS 1 FAULT (l.72874-72898)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakeSystemAlerts.sys1Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320045001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      inopSys: () => Brakes.SYS_1_FAULT_STATUS.inopSys,
+    },
+    3200460: {
+      // BRAKES SYS 2 FAULT (l.72874-72898)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakeSystemAlerts.sys2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320046001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      inopSys: () => Brakes.SYS_2_FAULT_STATUS.inopSys,
+    },
+    3200470: {
+      // WHEEL N/W STRG FAULT (PRO-ABN-WHEEL l.96340-96380)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakeSystemAlerts.nwStrgFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320047001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      statusInfo: () => Brakes.NW_STRG_FAULT_STATUS.left,
+      inopSys: () => Brakes.NW_STRG_FAULT_STATUS.inopSys,
     },
     3200081: {
       // BRAKES PARK BRK ON
@@ -10303,6 +10831,9 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      // STATUS (FCOM PRO-ABN-NAV NAV RA 1(2) FAULT, a320_fcom.txt l.93833-93840), see Logic/AdirsAlerts
+      inopSys: () => raFaultStatus(1).inopSys,
+      statusInfo: () => raFaultStatus(1).left,
     },
     3400165: {
       // GPS 1 FAULT: crew awareness (the flight phase inhibition is the one of the RA faults, design choice)
@@ -10395,6 +10926,198 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      inopSys: () => raFaultStatus(2).inopSys,
+      statusInfo: () => raFaultStatus(2).left,
+    },
+    // NAV RA, ADR and IR alerts (A320 FCOM PRO-ABN-NAV), see Logic/AdirsAlerts. The FCOM gives the flight phase
+    // inhibitions in figures: the RA alerts have the one of NAV RA 1(2) FAULT, the ADR and IR alerts the one of F/CTL ALTN
+    // LAW (phases 4, 5, 7, 8), with the exceptions that the FCOM text gives (design choice).
+    3400145: {
+      // NAV RA 1 AND 2 FAULT (a320_fcom.txt l.93752-93807): crew awareness, replaces the two RA 1(2) FAULT alerts
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.ra1And2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: [...AdirsEwdCodes.ra1And2Fault],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ra1And2FaultStatus().inopSys,
+      statusInfo: () => ra1And2FaultStatus().left,
+    },
+    3400155: {
+      // NAV RA DEGRADED (l.93852-93868): crew awareness
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.raDegraded,
+      whichCodeToReturn: () => [0],
+      codesToReturn: [...AdirsEwdCodes.raDegraded],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    3400300: {
+      // NAV ADR 1 FAULT (l.91927-91999): "Not inhibited in flight phases 3, 5, and 7 in the case of NAV ADR 1(2)
+      // FAULT" (l.91943)
+      flightPhaseInhib: [4, 8],
+      simVarIsActive: this.adrFaultAlert[0],
+      whichCodeToReturn: () => adrFaultLines(1, this.airKnob.get(), this.adrPbOn[0]),
+      codesToReturn: [...AdirsEwdCodes.adrFault[1]],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => adrFaultStatus(1).inopSys,
+      statusInfo: () => adrFaultStatus(1).left,
+    },
+    3400310: {
+      // NAV ADR 2 FAULT
+      flightPhaseInhib: [4, 8],
+      simVarIsActive: this.adrFaultAlert[1],
+      whichCodeToReturn: () => adrFaultLines(2, this.airKnob.get(), this.adrPbOn[1]),
+      codesToReturn: [...AdirsEwdCodes.adrFault[2]],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => adrFaultStatus(2).inopSys,
+      statusInfo: () => adrFaultStatus(2).left,
+    },
+    3400320: {
+      // NAV ADR 3 FAULT: in phase 3 only while the ADR 3 is in use (l.91941, see updateAdirsAlerts)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.adrFaultAlert[2],
+      whichCodeToReturn: () => adrFaultLines(3, this.airKnob.get(), this.adrPbOn[2]),
+      codesToReturn: [...AdirsEwdCodes.adrFault[3]],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => adrFaultStatus(3).inopSys,
+      statusInfo: () => adrFaultStatus(3).left,
+    },
+    3400330: {
+      // NAV ADR 1+2(1+3)(2+3) FAULT (l.92011-92183)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.adrDualFaultAlert,
+      whichCodeToReturn: () =>
+        this.adirsFaults.adrDualFault
+          ? adrDualFaultLines(
+              this.adirsFaults.adrDualFault,
+              this.airKnob.get(),
+              this.adrPbOn,
+              isXpdrSwitchLineShown(1, this.selectedXpdr.get(), !this.xpdr2Inop.get()),
+              isXpdrSwitchLineShown(2, this.selectedXpdr.get(), !this.xpdr1Inop.get()),
+            )
+          : [],
+      codesToReturn: [...AdirsEwdCodes.adrDualFault],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => (this.adirsFaults.adrDualFault ? adrDualFaultStatus(this.adirsFaults.adrDualFault).inopSys : []),
+      statusInfo: () => (this.adirsFaults.adrDualFault ? adrDualFaultStatus(this.adirsFaults.adrDualFault).left : []),
+    },
+    3400360: {
+      // NAV ADR 1+2+3 FAULT (l.92185-92297)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.adrTripleFaultAlert,
+      whichCodeToReturn: () =>
+        adrTripleFaultLines(
+          this.apOrFdEngaged,
+          this.autoThrustStatus.get() !== 0,
+          this.probeWindowHeatOn,
+          this.adrPbOn.some((on) => on),
+        ),
+      codesToReturn: [...AdirsEwdCodes.adrTripleFault],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => adrTripleFaultStatus().inopSys,
+      statusInfo: () => adrTripleFaultStatus().left,
+    },
+    3400370: {
+      // NAV ADR DISAGREE (l.92436-92527)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.adrDisagree,
+      whichCodeToReturn: () => [0, 1, 2, 3, 4],
+      codesToReturn: [...AdirsEwdCodes.adrDisagree],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => adrDisagreeStatus().inopSys,
+      statusInfo: () => adrDisagreeStatus().left,
+    },
+    3400400: {
+      // NAV IR 1 FAULT (l.93306-93399): "Alert not inhibited in flight phase 3 in the case of NAV IR 1(2) FAULT"
+      // (l.93322)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.irFaultAlert[0],
+      whichCodeToReturn: () =>
+        irFaultLines(1, this.attKnob.get(), isXpdrSwitchLineShown(1, this.selectedXpdr.get(), !this.xpdr2Inop.get())),
+      codesToReturn: [...AdirsEwdCodes.irFault[1]],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => irFaultStatus(1).inopSys,
+      statusInfo: () => irFaultStatus(1).left,
+    },
+    3400410: {
+      // NAV IR 2 FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.irFaultAlert[1],
+      whichCodeToReturn: () =>
+        irFaultLines(2, this.attKnob.get(), isXpdrSwitchLineShown(2, this.selectedXpdr.get(), !this.xpdr1Inop.get())),
+      codesToReturn: [...AdirsEwdCodes.irFault[2]],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => irFaultStatus(2).inopSys,
+      statusInfo: () => irFaultStatus(2).left,
+    },
+    3400420: {
+      // NAV IR 3 FAULT: in phase 3 only while the IR 3 is in use (l.93320-93321, see updateAdirsAlerts)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.irFaultAlert[2],
+      whichCodeToReturn: () => irFaultLines(3, this.attKnob.get(), false),
+      codesToReturn: [...AdirsEwdCodes.irFault[3]],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => irFaultStatus(3).inopSys,
+      statusInfo: () => irFaultStatus(3).left,
+    },
+    3400430: {
+      // NAV IR 1+2(1+3)(2+3) FAULT (l.93411-93521)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.irDualFaultAlert,
+      whichCodeToReturn: () =>
+        this.adirsFaults.irDualFault ? irDualFaultLines(this.adirsFaults.irDualFault, this.attKnob.get()) : [],
+      codesToReturn: [...AdirsEwdCodes.irDualFault],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => (this.adirsFaults.irDualFault ? irDualFaultStatus(this.adirsFaults.irDualFault).inopSys : []),
+      statusInfo: () => (this.adirsFaults.irDualFault ? irDualFaultStatus(this.adirsFaults.irDualFault).left : []),
+    },
+    3400460: {
+      // NAV IR DISAGREE (l.93533-93624)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.irDisagree,
+      whichCodeToReturn: () => [0, 1, 2, 3, 4],
+      codesToReturn: [...AdirsEwdCodes.irDisagree],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => irDisagreeStatus().inopSys,
+      statusInfo: () => irDisagreeStatus().left,
     },
     3400860: {
       // NAV ATC/XPDR 1 FAULT (FCOM PRO-ABN-NAV, a320_fcom.txt:92764-92790; the flight phase inhibition is the one of
@@ -10510,6 +11233,62 @@ export class PseudoFWC {
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
     },
+    // ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN (FCOM PRO-ABN-A-ICE l.68779-68857), see Logic/EngineAntiIceAlerts; flight
+    // phase inhibition from the FCOM figures (2019 PDF pages 1985-1986)
+    3001101: {
+      // ANTI ICE ENG 1 VALVE CLSD
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.engineAntiIceValveClosed[0],
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['300110101', '300110102'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      statusInfo: () => engineAntiIceValveClosedStatus(1).statusInfo,
+      inopSys: () => engineAntiIceValveClosedStatus(1).inopSys,
+    },
+    3001102: {
+      // ANTI ICE ENG 2 VALVE CLSD
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.engineAntiIceValveClosed[1],
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['300110201', '300110202'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      statusInfo: () => engineAntiIceValveClosedStatus(2).statusInfo,
+      inopSys: () => engineAntiIceValveClosedStatus(2).inopSys,
+    },
+    3001103: {
+      // ANTI ICE ENG 1 VALVE OPEN
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.engineAntiIceValveOpen[0],
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['300110301', '300110302'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      statusInfo: () => engineAntiIceValveOpenStatus().statusInfo,
+      inopSys: () => engineAntiIceValveOpenStatus().inopSys,
+    },
+    3001104: {
+      // ANTI ICE ENG 2 VALVE OPEN
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.engineAntiIceValveOpen[1],
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['300110401', '300110402'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      statusInfo: () => engineAntiIceValveOpenStatus().statusInfo,
+      inopSys: () => engineAntiIceValveOpenStatus().inopSys,
+    },
+    // ANTI ICE probe and window heat cautions (3001201-3001275), see probeWindowHeatFailures()
+    ...this.probeWindowHeatFailures(),
     // HYD alerts (FCOM PRO-ABN-HYD), see Logic/HydraulicAlerts for the triggers, priorities, lines and STATUS. Flight
     // phase inhibition: the FCOM figures are not in its text, design choice [3, 4, 5, 7, 8] as the RSVR OVHT alerts had
     // [GK], with the notes the text keeps (ELEC PUMP LO PR: phase 3 only for the OVHT, l.86992, l.87703; G(Y) RSVR LO LVL:

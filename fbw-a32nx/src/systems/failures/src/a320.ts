@@ -88,6 +88,15 @@ export const A320Failure = Object.freeze({
   Engine1FireDetectionUnit: 26009,
   Engine2FireDetectionUnit: 26010,
   ApuFireDetectionUnit: 26011,
+  FwdCargoSmoke: 26012,
+  AftCargoSmoke: 26013,
+  FwdCargoSmokeDetectionLoop1: 26014,
+  FwdCargoSmokeDetectionLoop2: 26015,
+  AftCargoSmokeDetectionLoop1: 26016,
+  AftCargoSmokeDetectionLoop2: 26017,
+  AvionicsSmoke: 26018,
+  AvionicsSmokeDetector: 26019,
+  CargoFireBottleLowPressure: 26020,
 
   Elac1Failure: 27000,
   Elac2Failure: 27001,
@@ -96,6 +105,12 @@ export const A320Failure = Object.freeze({
   Sec3Failure: 27004,
   Fcdc1Failure: 27005,
   Fcdc2Failure: 27006,
+  // Slat and flap channels of the SFCCs (a320_systems hydraulic/sfcc): the channel no longer drives its motor, the
+  // surfaces move at half speed (a320_fcom.txt l.41431); F/CTL FLAP(SLAT) SYS 1(2) FAULT (l.83217-83247, l.84321-84341)
+  Sfcc1FlapChannel: 27010,
+  Sfcc2FlapChannel: 27011,
+  Sfcc1SlatChannel: 27012,
+  Sfcc2SlatChannel: 27013,
 
   // ATA 28 (systems-host Fuel/FuelPumpsAndValves): a pump failure holds the MSFS pump switch off, the X FEED valve jam
   // holds the MSFS valve switch where the valve was, while the pb-sw selections still change
@@ -168,6 +183,41 @@ export const A320Failure = Object.freeze({
   GreenBrakeHydraulicLeak: 32100,
   YellowBrakeHydraulicLeak: 32101,
   YellowBrakeAccumulatorGasLeak: 32150,
+  // a320_systems hydraulic/brake_control_units.rs
+  BscuChannel1: 32200,
+  BscuChannel2: 32201,
+  AlternateBrakingControlUnit: 32202,
+  NormalBraking: 32203,
+  Autobrake: 32204,
+  NoseWheelSteering: 32205,
+
+  // ATA 30 (systems ice_rain_protection, in a320_systems pneumatic.rs)
+  Eng1AntiIceValveStuckClosed: 30000,
+  Eng2AntiIceValveStuckClosed: 30001,
+  Eng1AntiIceValveStuckOpen: 30010,
+  Eng2AntiIceValveStuckOpen: 30011,
+  // ATA 30 probe and window heat (a320_systems probe_window_heat.rs)
+  CaptProbeHeatComputer: 30100,
+  FoProbeHeatComputer: 30101,
+  StbyProbeHeatComputer: 30102,
+  CaptPitotHeat: 30110,
+  CaptLeftStaticHeat: 30111,
+  CaptRightStaticHeat: 30112,
+  CaptAoaHeat: 30113,
+  CaptTatHeat: 30114,
+  FoPitotHeat: 30120,
+  FoLeftStaticHeat: 30121,
+  FoRightStaticHeat: 30122,
+  FoAoaHeat: 30123,
+  FoTatHeat: 30124,
+  StbyPitotHeat: 30130,
+  StbyLeftStaticHeat: 30131,
+  StbyRightStaticHeat: 30132,
+  StbyAoaHeat: 30133,
+  LeftWindshieldHeat: 30200,
+  RightWindshieldHeat: 30201,
+  LeftWindowHeat: 30210,
+  RightWindowHeat: 30211,
 
   RadioAltimeter1: 34000,
   RadioAltimeter2: 34001,
@@ -182,6 +232,22 @@ export const A320Failure = Object.freeze({
   Transponder2: 34051,
   // TS only: the TCAS computer (tcas/src/components/TcasComputer.ts)
   TcasComputer: 34060,
+  // ADIRS (systems navigation/adirs.rs)
+  Adr1Fault: 34070,
+  Adr2Fault: 34071,
+  Adr3Fault: 34072,
+  Ir1Fault: 34080,
+  Ir2Fault: 34081,
+  Ir3Fault: 34082,
+  Adr1AirspeedErroneous: 34090,
+  Adr2AirspeedErroneous: 34091,
+  Adr3AirspeedErroneous: 34092,
+  Adr1AoaErroneous: 34100,
+  Adr2AoaErroneous: 34101,
+  Adr3AoaErroneous: 34102,
+  Ir1HeadingErroneous: 34110,
+  Ir2HeadingErroneous: 34111,
+  Ir3HeadingErroneous: 34112,
   // ATA 36 (a320_systems pneumatic.rs)
   Eng1BleedValveStuckClosed: 36000,
   Eng2BleedValveStuckClosed: 36001,
@@ -211,6 +277,10 @@ export const A320Failure = Object.freeze({
   ApuLeakDetectionLoop: 36086,
   Bmc1: 36090,
   Bmc2: 36091,
+  ApuEcb: 49000,
+  ApuOverspeed: 49001,
+  ApuOilLowPressure: 49002,
+  ApuOilHighTemperature: 49003,
   Eng1Flameout: 72000,
   Eng2Flameout: 72001,
   Eng1Seizure: 72010,
@@ -364,6 +434,19 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [26, A320Failure.Engine1FireDetectionUnit, 'Engine 1 fire detection unit (FDU)'],
   [26, A320Failure.Engine2FireDetectionUnit, 'Engine 2 fire detection unit (FDU)'],
   [26, A320Failure.ApuFireDetectionUnit, 'APU fire detection unit (FDU)'],
+  // Smoke sensed by the cargo smoke detectors (SDCU) and the avionics ventilation duct detector (systems
+  // fire_protection/smoke_detection.rs): SMOKE FWD (AFT) CARGO SMOKE, AVIONICS SMOKE after 5 s
+  [26, A320Failure.FwdCargoSmoke, 'Forward cargo smoke'],
+  [26, A320Failure.AftCargoSmoke, 'Aft cargo smoke'],
+  // One loop failed is tolerated (dual loop principle); both loops of a compartment failed: SMOKE FWD (AFT) CRG DET FAULT
+  [26, A320Failure.FwdCargoSmokeDetectionLoop1, 'Forward cargo smoke detection loop 1'],
+  [26, A320Failure.FwdCargoSmokeDetectionLoop2, 'Forward cargo smoke detection loop 2'],
+  [26, A320Failure.AftCargoSmokeDetectionLoop1, 'Aft cargo smoke detection loop 1'],
+  [26, A320Failure.AftCargoSmokeDetectionLoop2, 'Aft cargo smoke detection loop 2'],
+  [26, A320Failure.AvionicsSmoke, 'Avionics smoke (ventilation extract duct)'],
+  [26, A320Failure.AvionicsSmokeDetector, 'Avionics smoke detector'],
+  // The cargo fire bottle loses its agent: SMOKE FWD and AFT CRG BTL 1 FAULT, nothing left to discharge
+  [26, A320Failure.CargoFireBottleLowPressure, 'Cargo fire bottle low pressure'],
 
   [27, A320Failure.Elac1Failure, 'ELAC 1'],
   [27, A320Failure.Elac2Failure, 'ELAC 2'],
@@ -372,6 +455,10 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [27, A320Failure.Sec3Failure, 'SEC 3'],
   [27, A320Failure.Fcdc1Failure, 'FCDC 1'],
   [27, A320Failure.Fcdc2Failure, 'FCDC 2'],
+  [27, A320Failure.Sfcc1FlapChannel, 'SFCC 1 flap channel'],
+  [27, A320Failure.Sfcc2FlapChannel, 'SFCC 2 flap channel'],
+  [27, A320Failure.Sfcc1SlatChannel, 'SFCC 1 slat channel'],
+  [27, A320Failure.Sfcc2SlatChannel, 'SFCC 2 slat channel'],
 
   [28, A320Failure.LeftTankPump1, 'L TK pump 1'],
   [28, A320Failure.LeftTankPump2, 'L TK pump 2'],
@@ -437,6 +524,41 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [32, A320Failure.GreenBrakeHydraulicLeak, 'Green brakes circuit leak'],
   [32, A320Failure.YellowBrakeHydraulicLeak, 'Yellow brakes circuit leak'],
   [32, A320Failure.YellowBrakeAccumulatorGasLeak, 'Yellow brake accumulator gas leak'],
+  [32, A320Failure.BscuChannel1, 'BSCU channel 1'],
+  [32, A320Failure.BscuChannel2, 'BSCU channel 2'],
+  [32, A320Failure.AlternateBrakingControlUnit, 'ABCU (alternate braking)'],
+  [32, A320Failure.NormalBraking, 'Normal braking (servo valves)'],
+  [32, A320Failure.Autobrake, 'Autobrake'],
+  [32, A320Failure.NoseWheelSteering, 'Nose wheel steering'],
+
+  // The engine anti-ice valve stays closed (ANTI ICE ENG 1(2) VALVE CLSD) / open (ANTI ICE ENG 1(2) VALVE OPEN)
+  [30, A320Failure.Eng1AntiIceValveStuckClosed, 'Engine 1 anti-ice valve stuck closed'],
+  [30, A320Failure.Eng2AntiIceValveStuckClosed, 'Engine 2 anti-ice valve stuck closed'],
+  [30, A320Failure.Eng1AntiIceValveStuckOpen, 'Engine 1 anti-ice valve stuck open'],
+  [30, A320Failure.Eng2AntiIceValveStuckOpen, 'Engine 2 anti-ice valve stuck open'],
+  // ANTI ICE CAPT(F/O)(STBY) PROBES, ... PITOT OR L(R) STAT OR AOA, CAPT(F/O) TAT, the PITOT combinations,
+  // L(R) WINDSHIELD, L + R WINDSHIELD and L(R) WINDOW
+  [30, A320Failure.CaptProbeHeatComputer, 'CAPT probe heat computer'],
+  [30, A320Failure.FoProbeHeatComputer, 'F/O probe heat computer'],
+  [30, A320Failure.StbyProbeHeatComputer, 'STBY probe heat computer'],
+  [30, A320Failure.CaptPitotHeat, 'CAPT pitot heating'],
+  [30, A320Failure.CaptLeftStaticHeat, 'CAPT left static port heating'],
+  [30, A320Failure.CaptRightStaticHeat, 'CAPT right static port heating'],
+  [30, A320Failure.CaptAoaHeat, 'CAPT AOA probe heating'],
+  [30, A320Failure.CaptTatHeat, 'CAPT TAT probe heating'],
+  [30, A320Failure.FoPitotHeat, 'F/O pitot heating'],
+  [30, A320Failure.FoLeftStaticHeat, 'F/O left static port heating'],
+  [30, A320Failure.FoRightStaticHeat, 'F/O right static port heating'],
+  [30, A320Failure.FoAoaHeat, 'F/O AOA probe heating'],
+  [30, A320Failure.FoTatHeat, 'F/O TAT probe heating'],
+  [30, A320Failure.StbyPitotHeat, 'STBY pitot heating'],
+  [30, A320Failure.StbyLeftStaticHeat, 'STBY left static port heating'],
+  [30, A320Failure.StbyRightStaticHeat, 'STBY right static port heating'],
+  [30, A320Failure.StbyAoaHeat, 'STBY AOA probe heating'],
+  [30, A320Failure.LeftWindshieldHeat, 'Left windshield heating'],
+  [30, A320Failure.RightWindshieldHeat, 'Right windshield heating'],
+  [30, A320Failure.LeftWindowHeat, 'Left cockpit side window heating'],
+  [30, A320Failure.RightWindowHeat, 'Right cockpit side window heating'],
 
   [34, A320Failure.RadioAltimeter1, 'RA 1'],
   [34, A320Failure.RadioAltimeter2, 'RA 2'],
@@ -451,6 +573,21 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Transponder1, 'ATC/XPDR 1'],
   [34, A320Failure.Transponder2, 'ATC/XPDR 2'],
   [34, A320Failure.TcasComputer, 'TCAS computer'],
+  [34, A320Failure.Adr1Fault, 'ADR 1 (air data lost, FAULT light)'],
+  [34, A320Failure.Adr2Fault, 'ADR 2 (air data lost, FAULT light)'],
+  [34, A320Failure.Adr3Fault, 'ADR 3 (air data lost, FAULT light)'],
+  [34, A320Failure.Ir1Fault, 'IR 1 (inertial data lost, FAULT light)'],
+  [34, A320Failure.Ir2Fault, 'IR 2 (inertial data lost, FAULT light)'],
+  [34, A320Failure.Ir3Fault, 'IR 3 (inertial data lost, FAULT light)'],
+  [34, A320Failure.Adr1AirspeedErroneous, 'ADR 1 airspeed erroneous (pitot)'],
+  [34, A320Failure.Adr2AirspeedErroneous, 'ADR 2 airspeed erroneous (pitot)'],
+  [34, A320Failure.Adr3AirspeedErroneous, 'ADR 3 airspeed erroneous (pitot)'],
+  [34, A320Failure.Adr1AoaErroneous, 'ADR 1 angle of attack erroneous'],
+  [34, A320Failure.Adr2AoaErroneous, 'ADR 2 angle of attack erroneous'],
+  [34, A320Failure.Adr3AoaErroneous, 'ADR 3 angle of attack erroneous'],
+  [34, A320Failure.Ir1HeadingErroneous, 'IR 1 heading erroneous'],
+  [34, A320Failure.Ir2HeadingErroneous, 'IR 2 heading erroneous'],
+  [34, A320Failure.Ir3HeadingErroneous, 'IR 3 heading erroneous'],
 
   // The valve stays closed / fully open whatever the BMC commands (a stuck open bleed valve no longer regulates: ENG
   // BLEED FAULT by overpressure at climb power, ENG BLEED NOT CLSD at engine start, with APU BLEED ON or engine stopped)
@@ -489,6 +626,13 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // longer closes automatically and its FAULT light is lost
   [36, A320Failure.Bmc1, 'BMC 1 (bleed monitoring computer)'],
   [36, A320Failure.Bmc2, 'BMC 2 (bleed monitoring computer)'],
+
+  // The APU electronic control box (ECB) senses these and shuts the APU down: MASTER SW FAULT light, APU AUTO SHUT DOWN
+  // (systems apu/electronic_control_box.rs). The overspeed and oil failures act once the APU runs.
+  [49, A320Failure.ApuEcb, 'APU electronic control box (ECB)'],
+  [49, A320Failure.ApuOverspeed, 'APU overspeed (automatic shutdown)'],
+  [49, A320Failure.ApuOilLowPressure, 'APU low oil pressure (automatic shutdown)'],
+  [49, A320Failure.ApuOilHighTemperature, 'APU high oil temperature (automatic shutdown)'],
 
   // The flame goes out once (fuel cut); the crew relights it with ENG MASTER OFF then ON inside the relight envelope
   [72, A320Failure.Eng1Flameout, 'Engine 1 flameout (crew relight possible)'],

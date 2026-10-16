@@ -17,7 +17,7 @@ use crate::msfs::commbus::{CommBus, CommBusBroadcastFlags};
 #[cfg(target_arch = "wasm32")]
 use ::msfs::commbus::{CommBus, CommBusBroadcastFlags};
 
-use crate::anti_ice::{engine_anti_ice, wing_anti_ice};
+use crate::anti_ice::{engine_anti_ice_valves, wing_anti_ice};
 use crate::aspects::{Aspect, ExecuteOn, MsfsAspectBuilder};
 use crate::electrical::{auxiliary_power_unit, electrical_buses};
 use ::msfs::{
@@ -118,8 +118,9 @@ impl<'a, 'b> MsfsSimulationBuilder<'a, 'b> {
         ))
     }
 
-    pub fn with_engine_anti_ice(self, engine_count: usize) -> Result<Self, Box<dyn Error>> {
-        self.with_aspect(engine_anti_ice(engine_count))
+    /// The MSFS engine anti-ice follows the engine anti-ice valves of the systems model
+    pub fn with_engine_anti_ice_valves(self, engine_count: usize) -> Result<Self, Box<dyn Error>> {
+        self.with_aspect(engine_anti_ice_valves(engine_count))
     }
 
     pub fn with_wing_anti_ice(self) -> Result<Self, Box<dyn Error>> {

@@ -1,0 +1,225 @@
+//! The A320 brake control units: the two channels of the Brake and Steering Control Unit (BSCU) and the Alternate
+//! Braking Control Unit (ABCU), with their power supplies and failures, and the autobrake fault monitoring.
+//!
+//! A320 FCOM DSC-32-30-10 (a320_fcom.txt l.51081-51102): "In normal operation, a dual channel Brake and Steering
+//! Control Unit (BSCU) controls normal braking and antiskid." The alternate braking is controlled by the ABCU, with the
+//! antiskid from the BSCU, or fully by the ABCU without antiskid.
+
+use systems::{
+    failures::{Failure, FailureType},
+    shared::{AdirsMeasurementOutputs, ElectricalBusType, ElectricalBuses},
+    simulation::{
+        InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter,
+        VariableIdentifier, Write,
+    },
+};
+
+/// The BSCU channels, the ABCU and the brake system failures (flyPad failures 32200-32205).
+pub(super) struct A320BrakeControlUnits {
+    bscu_channel_fault_ids: [VariableIdentifier; 2],
+    bscu_active_channel_id: VariableIdentifier,
+    altn_brk_fault_id: VariableIdentifier,
+    norm_brk_fault_id: VariableIdentifier,
+    nw_strg_fault_id: VariableIdentifier,
+    auto_brk_fault_id: VariableIdentifier,
+
+    bscu_channel_failures: [Failure; 2],
+    bscu_channel_powered: [bool; 2],
+    abcu_failure: Failure,
+    abcu_powered: bool,
+    /// The normal braking equipment (normal servovalves, normal selector valve) of all the wheels
+    normal_braking_failure: Failure,
+    nose_wheel_steering_failure: Failure,
+    /// The autobrake function of the BSCU
+    autobrake_failure: Failure,
+
+    /// The BSCU channel in control (1 or 2), None with both channels lost
+    active_bscu_channel: Option<usize>,
+    gear_handle_was_down: bool,
+
+    any_adiru_available: bool,
+    autobrake_failed_after_armed: bool,
+}
+impl A320BrakeControlUnits {
+    /// Power supplies of the BSCU channels. A320 FCOM PRO-ABN-ELEC bus fault STATUS (see the FWC ElecBusAlerts):
+    /// BRK SYS 1 is lost with AC BUS 1 (l.75628-75654) or DC BUS 1 (l.76463-76476), BRK SYS 2 with AC BUS 2
+    /// (l.75872-75892) or DC BUS 2 (l.76714-76747).
+    const BSCU_CHANNEL_POWER_SUPPLIES: [[ElectricalBusType; 2]; 2] = [
+        [
+            ElectricalBusType::AlternatingCurrent(1),
+            ElectricalBusType::DirectCurrent(1),
+        ],
+        [
+            ElectricalBusType::AlternatingCurrent(2),
+            ElectricalBusType::DirectCurrent(2),
+        ],
+    ];
+
+    /// Power supply of the ABCU: ALTN BRK is lost with the DC ESS BUS (FCOM DC ESS BUS FAULT, l.77337-77369).
+    const ABCU_POWER_SUPPLY: ElectricalBusType = ElectricalBusType::DirectCurrentEssential;
+
+    const ADIRU_COUNT: usize = 3;
+
+    pub(super) fn new(context: &mut InitContext) -> Self {
+        Self {
+            bscu_channel_fault_ids: [1, 2]
+                .map(|channel| context.get_identifier(format!("BRAKES_BSCU_{channel}_FAULT"))),
+            bscu_active_channel_id: context.get_identifier("BRAKES_BSCU_ACTIVE_CHANNEL".to_owned()),
+            altn_brk_fault_id: context.get_identifier("BRAKES_ALTN_BRK_FAULT".to_owned()),
+            norm_brk_fault_id: context.get_identifier("BRAKES_NORM_BRK_FAULT".to_owned()),
+            nw_strg_fault_id: context.get_identifier("BRAKES_NW_STRG_FAULT".to_owned()),
+            auto_brk_fault_id: context.get_identifier("BRAKES_AUTO_BRK_FAULT".to_owned()),
+
+            bscu_channel_failures: [1, 2]
+                .map(|channel| Failure::new(FailureType::BrakeSteeringControlUnitChannel(channel))),
+            bscu_channel_powered: [false; 2],
+            abcu_failure: Failure::new(FailureType::AlternateBrakingControlUnit),
+            abcu_powered: false,
+            normal_braking_failure: Failure::new(FailureType::BrakeNormalBraking),
+            nose_wheel_steering_failure: Failure::new(FailureType::NoseWheelSteeringNormal),
+            autobrake_failure: Failure::new(FailureType::Autobrake),
+
+            active_bscu_channel: Some(1),
+            gear_handle_was_down: true,
+
+            any_adiru_available: false,
+            autobrake_failed_after_armed: false,
+        }
+    }
+
+    /// ## Parameters
+    /// `gear_handle_is_down` - the landing gear lever is DOWN
+    /// `autobrake_is_armed` - the autobrake is armed (state of the previous update, before this update disarms it)
+    /// `sim_is_ready` - the simulation runs (a flight being loaded can set an armed mode before the ADIRUs exist)
+    pub(super) fn update(
+        &mut self,
+        gear_handle_is_down: bool,
+        adirs: &impl AdirsMeasurementOutputs,
+        autobrake_is_armed: bool,
+        sim_is_ready: bool,
+    ) {
+        self.update_active_channel(gear_handle_is_down);
+
+        // The BSCU uses the horizontal acceleration of ADIRU 1, 2 or 3 (FCOM l.51141-51144). Autobrake arming needs
+        // "At least one ADIRU is available" (l.51169).
+        self.any_adiru_available = (1..=Self::ADIRU_COUNT)
+            .any(|adiru_number| adirs.heading(adiru_number).is_normal_operation());
+
+        // BRAKES AUTO BRK FAULT "triggers when the autobrake is failed, after being armed" (FCOM l.72473): latched
+        // when the autobrake function fails while armed, until the autobrake function is recovered.
+        if !self.autobrake_function_failed() {
+            self.autobrake_failed_after_armed = false;
+        } else if autobrake_is_armed && sim_is_ready {
+            self.autobrake_failed_after_armed = true;
+        }
+    }
+
+    /// "A changeover between the two BSCU channels takes place at each DOWN landing gear lever selection, or in case
+    /// one channel fails." (FCOM l.51101-51102)
+    fn update_active_channel(&mut self, gear_handle_is_down: bool) {
+        let gear_down_selected = gear_handle_is_down && !self.gear_handle_was_down;
+        self.gear_handle_was_down = gear_handle_is_down;
+
+        let other_channel = |channel: usize| 3 - channel;
+        self.active_bscu_channel = match self.active_bscu_channel {
+            Some(channel)
+                if self.bscu_channel_operative(channel)
+                    && !(gear_down_selected
+                        && self.bscu_channel_operative(other_channel(channel))) =>
+            {
+                Some(channel)
+            }
+            Some(channel) if self.bscu_channel_operative(other_channel(channel)) => {
+                Some(other_channel(channel))
+            }
+            _ => (1..=2).find(|&channel| self.bscu_channel_operative(channel)),
+        };
+    }
+
+    fn bscu_channel_operative(&self, channel: usize) -> bool {
+        self.bscu_channel_powered[channel - 1]
+            && !self.bscu_channel_failures[channel - 1].is_active()
+    }
+
+    /// At least one BSCU channel works
+    pub(super) fn bscu_operative(&self) -> bool {
+        self.active_bscu_channel.is_some()
+    }
+
+    /// The antiskid is electrically available: "deactivated ... Electrically (A/SKID & N/W STRG sw OFF, or power
+    /// supply failure, or BSCU failure)" (FCOM l.51309-51310)
+    pub(super) fn anti_skid_available(&self, anti_skid_switch_on: bool) -> bool {
+        anti_skid_switch_on && self.bscu_operative()
+    }
+
+    /// The normal braking can be used, hydraulic power apart: "Braking is electrically-controlled through the BSCU"
+    /// (FCOM l.51259), with the normal braking equipment working (BRAKES NORM BRK FAULT, l.72686).
+    pub(super) fn normal_braking_available(&self) -> bool {
+        self.bscu_operative() && !self.normal_braking_failure.is_active()
+    }
+
+    /// The ABCU works: alternate braking possible. Without it only the parking brake is left ("The parking brake is
+    /// still available", BRAKES NORM + ALTN FAULT l.72640-72641).
+    pub(super) fn alternate_braking_available(&self) -> bool {
+        self.abcu_powered && !self.abcu_failure.is_active()
+    }
+
+    /// The BSCU commands the nose wheel steering (FCOM DSC-32-20-10 l.50930-50937), lost with "failure of the
+    /// nosewheel steering system, or of both BSCU channels" (l.51038-51041)
+    pub(super) fn nose_wheel_steering_available(&self) -> bool {
+        self.bscu_operative() && !self.nose_wheel_steering_failure.is_active()
+    }
+
+    fn autobrake_function_failed(&self) -> bool {
+        self.autobrake_failure.is_active() || !self.any_adiru_available
+    }
+
+    /// The BSCU part of the autobrake arming conditions (FCOM l.51164-51169): "No failure in the braking system" and
+    /// "At least one ADIRU is available". The green pressure and the antiskid are checked by the caller.
+    pub(super) fn autobrake_arming_allowed(&self) -> bool {
+        self.normal_braking_available() && !self.autobrake_function_failed()
+    }
+}
+impl SimulationElement for A320BrakeControlUnits {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.bscu_channel_failures
+            .iter_mut()
+            .for_each(|failure| failure.accept(visitor));
+        self.abcu_failure.accept(visitor);
+        self.normal_braking_failure.accept(visitor);
+        self.nose_wheel_steering_failure.accept(visitor);
+        self.autobrake_failure.accept(visitor);
+        visitor.visit(self);
+    }
+
+    fn receive_power(&mut self, buses: &impl ElectricalBuses) {
+        for (powered, supplies) in self
+            .bscu_channel_powered
+            .iter_mut()
+            .zip(Self::BSCU_CHANNEL_POWER_SUPPLIES)
+        {
+            *powered = supplies.iter().all(|&bus| buses.is_powered(bus));
+        }
+        self.abcu_powered = buses.is_powered(Self::ABCU_POWER_SUPPLY);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        for (channel, id) in self.bscu_channel_fault_ids.iter().enumerate() {
+            writer.write(id, !self.bscu_channel_operative(channel + 1));
+        }
+        writer.write(
+            &self.bscu_active_channel_id,
+            self.active_bscu_channel.unwrap_or(0) as f64,
+        );
+        writer.write(&self.altn_brk_fault_id, !self.alternate_braking_available());
+        writer.write(
+            &self.norm_brk_fault_id,
+            self.normal_braking_failure.is_active(),
+        );
+        writer.write(
+            &self.nw_strg_fault_id,
+            self.nose_wheel_steering_failure.is_active(),
+        );
+        writer.write(&self.auto_brk_fault_id, self.autobrake_failed_after_armed);
+    }
+}

@@ -285,7 +285,8 @@ describe('Intermediate callout', () => {
       { sound: 'intermediate_70', at: 12.625 },
       { sound: 'intermediate_100', at: 23.625 }, // 144.4 ft
       { sound: 'intermediate_40', at: 23.625 },
-      { sound: 'intermediate_90', at: 27.625 }, // 97.7 ft
+      { sound: 'intermediate_90', at: 27.625 }, // 97.7 ft: NINETY SEVEN
+      { sound: 'intermediate_7', at: 27.625 },
     ]);
   });
 
