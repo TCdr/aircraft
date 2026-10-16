@@ -10,12 +10,13 @@ export class CDUAtsuMenu {
     mcdu.page.Current = mcdu.page.ATSUMenu;
     mcdu.activeSystem = 'ATSU';
 
+    // A320 FCOM DSC-46-10-40-30 ATSU DATALINK (a320_fcom.txt l.59174-59175): "[1R] AOC MENU", "[6R] COMM"
     const display = [
       ['ATSU DATALINK'],
       [''],
-      ['<ATC MENU'],
+      ['<ATC MENU', 'AOC MENU>'],
       [''],
-      ['', 'AOC MENU>'],
+      [''],
       [''],
       [''],
       [''],
@@ -34,10 +35,10 @@ export class CDUAtsuMenu {
       CDUAtcMenu.ShowPage(mcdu);
     };
 
-    mcdu.rightInputDelay[1] = () => {
+    mcdu.rightInputDelay[0] = () => {
       return mcdu.getDelaySwitchPage();
     };
-    mcdu.onRightInput[1] = () => {
+    mcdu.onRightInput[0] = () => {
       CDUAocMenu.ShowPage(mcdu);
     };
 

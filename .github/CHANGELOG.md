@@ -619,6 +619,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FUEL] AUTO GND XFR pushbutton: automatic ground transfer to the ground CG target of 39.5 % (trim tank to or from the inner, then mid tanks), GND XFR IN PROGRESS memo, light flashing when the FQMS aborts - @TCdr
 1. [A380X/FUEL] TRIM TK FEED logic (ISOL stops the trim tank transfers, OPEN gravity transfer to the inner tanks), from an L:var as the cockpit has no selector - @TCdr
 1. [A380X/FUEL] Alternate transfers after a transfer pump failure: an inner or mid tank with a failed fwd pump keeps feeding with its aft pump, an outer tank with a failed pump empties by gravity into feed tank 2 or 3 - @TCdr
+1. [A32NX/MCDU] HOLD page: LAST EXIT UTC and FUEL predicted (the EXTRA fuel burnt in the hold), and a database hold of the waypoint is used again (its inbound course was lost) - @TCdr
+1. [A32NX/MCDU] ATSU DATALINK page: AOC MENU on 1R as in the FCOM - @TCdr
+1. [A32NX/MCDU] New messages CHECK FLT NBR (the uplinked flight number differs from the INIT REQUEST one) and CSTR DEL ABOVE CRZ FL (a new CRZ FL deletes the altitude constraints at or above it, a window keeps its lower limit) - @TCdr
+1. [A380X/MFD] HOLD page: the DATABASE button selects the database hold of the waypoint, LAST EXIT time and EFOB are predicted, and the hold stays COMPUTED or DATABASE until the flight crew changes a parameter - @TCdr
+1. [A380X/MFD] CLOSEST AIRPORTS: time and EFOB with a cruise at the CRZ FL then an idle descent to the airport elevation - @TCdr
+1. [A380X/MFD] New FMS messages CONSTRAINTS ABOVE CRZ FL: DELETED (a new CRZ FL deletes the constraints at or above it), CHECK EO SPD SETTING, NO NAV INTERCEPTION, INSERT OR ERASE TMPY F-PLN FIRST (KCCU DIR key with a pending temporary flight plan) and RECEIVED FLT NUMBER NOT VALID - @TCdr
 
 ## 2024.1.0
 

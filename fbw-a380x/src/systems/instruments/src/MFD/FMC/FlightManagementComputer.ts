@@ -95,6 +95,8 @@ import { CompanyTakeoffData } from './CompanyTakeoffData';
 import { TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FmsPrinter } from './FmsPrinter';
 import { FmsAdvisoryMessages } from './FmsAdvisoryMessages';
+import { isValidA380FlightNumber } from '@fmgc/components/fms-messages/FmsMessageConditions';
+import { deleteConstraintsAboveCruiseLevel } from '@fmgc/flightplanning/plans/CruiseLevelConstraints';
 import { AtcRouteClearanceLoader } from './AtcRouteClearanceLoader';
 import { NdInteractiveRevisions } from './NdInteractiveRevisions';
 import { RejectedAtcElement } from './AtcRouteClearance';
@@ -1362,12 +1364,37 @@ export class FlightManagementComputer implements FmcInterface {
           doUplinkProcedures: false,
         },
       );
+      this.checkReceivedFlightNumber(intoPlan);
     } catch (e) {
       this.cpnyFplnRequestedForPlan.set(null);
       console.error(e);
       logTroubleshootingError(this.bus, e);
       this.addMessageToQueue(NXSystemMessages.receivedCpnyFplnNotValid, undefined, undefined);
       this.onUplinkDone(false);
+    }
+  }
+
+  /**
+   * RECEIVED FLT NUMBER NOT VALID (A380 FCOM l.45976-45982): "The received flight number, that is part of the up linked
+   * flight plan data, is not valid." (FLT NBR entry format l.43411-43417: maximum 10 alphanumeric characters). The flight
+   * number of the flight plan is kept. Design choice: without one, the received flight number stays (the flight crew
+   * sees the message and can overwrite it on the INIT page).
+   * @param intoPlan the flight plan the uplink is for
+   */
+  private checkReceivedFlightNumber(intoPlan: FlightPlanIndex): void {
+    if (!this.#flightPlanService.hasUplink) {
+      return;
+    }
+    const received = this.#flightPlanService.uplink.flightNumber.get();
+    if (isValidA380FlightNumber(received)) {
+      return;
+    }
+    this.addMessageToQueue(NXSystemMessages.receivedFltNumberNotValid, undefined, undefined);
+    const current = this.#flightPlanService.has(intoPlan)
+      ? this.#flightPlanService.get(intoPlan).flightNumber.get()
+      : null;
+    if (current !== null) {
+      this.#flightPlanService.uplink.setFlightNumber(current);
     }
   }
 
@@ -2850,6 +2877,11 @@ export class FlightManagementComputer implements FmcInterface {
       }
     }
     plan.setPerformanceData('cruiseFlightLevel', flightLevelToInsert);
+    // CONSTRAINTS ABOVE CRZ FL: DELETED (A380 FCOM l.27100-27104, l.45252, l.45260-45262): the climb and descent
+    // constraints at or above the new CRZ FL are deleted (see CruiseLevelConstraints.ts)
+    if (deleteConstraintsAboveCruiseLevel(plan, flightLevelToInsert) > 0) {
+      this.addMessageToQueue(NXSystemMessages.constraintsAboveCrzFlDeleted, undefined, undefined);
+    }
     if (flightLevelToInsert > (this.getRecMaxFlightLevel(intoPlan) ?? Infinity)) {
       this.addMessageToQueue(NXSystemMessages.crzFlAboveMaxFL, undefined, undefined);
     }
