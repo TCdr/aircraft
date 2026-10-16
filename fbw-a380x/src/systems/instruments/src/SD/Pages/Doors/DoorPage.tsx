@@ -19,7 +19,9 @@ export const DoorPage = () => {
   const [engine4State] = useSimVar('L:A32NX_ENGINE_STATE:4', 'enum', 1000);
   const engineRunning = engine1State === 1 || engine2State === 1 || engine3State === 1 || engine4State === 1;
   const sdacActive = true;
-  const onGround = true;
+  // the oxygen half-frames are "On ground only" (A380 FCOM DSC-35-20-20, DSC-35-30-20)
+  const [leftMainGearCompressed] = useSimVar('L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', 'bool', 1000);
+  const onGround = !!leftMainGearCompressed;
   const [fwdCargoClosed] = useSimVar('L:A32NX_FWD_DOOR_CARGO_LOCKED', 'bool', 1000);
   const [aftCargoClosed] = useSimVar('L:A32NX_AFT_DOOR_CARGO_LOCKED', 'bool', 1000);
 
@@ -31,7 +33,7 @@ export const DoorPage = () => {
       <text x="599" y="29" className="F36 White TextUnderline">
         OXYGEN
       </text>
-      <Oxygen x={634} y={108} active={sdacActive} onGround={onGround} />
+      <Oxygen x={634} y={108} active={sdacActive} onGround={onGround} oneEngineRunning={engineRunning} />
 
       <path className="White SW3 StrokeRound" d="M567,2 l 0,659" />
 

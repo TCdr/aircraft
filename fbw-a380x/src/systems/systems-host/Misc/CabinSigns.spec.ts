@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest';
 import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import {
   areNoSmokingSignsOn,
+  areSeatBeltsSignsOn,
   areSlatsExtended,
+  CabinSignsSwitchPosition,
   isCabinAltitudeExcessive,
   NoSmokingSignsInputs,
   NoSmokingSwitchPosition,
@@ -77,5 +79,46 @@ describe('A380X cabin NO SMOKING signs', () => {
     expect(systemsHost).toContain("this.backplane.addInstrument('CabinSigns', this.cabinSigns);");
     const fwsCore = readFileSync(resolve(__dirname, '../CpiomC/FlightWarningSystem/FwsCore.ts'), 'utf-8');
     expect(fwsCore).not.toContain("SimVar.SetSimVarValue('L:A32NX_NO_SMOKING_MEMO'");
+  });
+});
+
+/* A380 FCOM DSC-33-50-10 SIGNS, SEAT BELTS sw (a380_fcom.txt l.84053-84069) and Note l.84095-84098 */
+describe('A380X cabin FASTEN SEAT BELT signs', () => {
+  it('ON: the signs come on (l.84055); OFF: they go off (l.84067)', () => {
+    expect(areSeatBeltsSignsOn({ ...cruise, switchPosition: CabinSignsSwitchPosition.On })).toBe(true);
+    expect(
+      areSeatBeltsSignsOn({
+        ...cruise,
+        switchPosition: CabinSignsSwitchPosition.Off,
+        slatsExtended: true,
+        mainGearExtended: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('AUTO: on when "The slats are extended, or The main landing gear is extended." (l.84059-84063), no engine term', () => {
+    expect(areSeatBeltsSignsOn(cruise)).toBe(false);
+    expect(areSeatBeltsSignsOn({ ...cruise, slatsExtended: true })).toBe(true);
+    expect(areSeatBeltsSignsOn({ ...cruise, mainGearExtended: true })).toBe(true);
+  });
+
+  it('excessive cabin altitude: on regardless of the switch (l.84095-84098)', () => {
+    for (const switchPosition of [CabinSignsSwitchPosition.Off, CabinSignsSwitchPosition.Auto]) {
+      expect(areSeatBeltsSignsOn({ ...cruise, switchPosition, cabinAltitudeExcessive: true })).toBe(true);
+    }
+  });
+
+  it('is the source of A:CABIN SEATBELTS ALERT SWITCH (the cockpit XML N1 > 10 % / 19 deg slat rule is gone)', () => {
+    const cabinSigns = readFileSync(resolve(__dirname, './CabinSigns.ts'), 'utf-8');
+    expect(cabinSigns).toContain("'K:CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE'");
+    const cockpitBehavior = readFileSync(
+      resolve(
+        __dirname,
+        '../../../base/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/attachments/flybywire/Part_Interior_Cockpit/model/A380_Cockpit_Behavior.xml',
+      ),
+      'utf-8',
+    );
+    expect(cockpitBehavior).not.toContain('CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE');
+    expect(cockpitBehavior).not.toContain('(L:A32NX_ENGINE_N1:1) 10 &gt;');
   });
 });

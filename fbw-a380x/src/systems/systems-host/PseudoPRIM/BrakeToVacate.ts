@@ -27,6 +27,7 @@ import { Coordinates, placeBearingDistance } from 'msfs-geo';
 import { Position } from 'geojson';
 import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
 import { NavigationDatabase, NavigationDatabaseBackend } from '@fmgc/NavigationDatabase';
+import { ROW_ARMING_LOWER_RA_FT, ROW_ARMING_UPPER_RA_FT, shouldProtectDetectedRunway } from './RowProtectedRunway';
 
 /**
  * Utility class for brake to vacate (BTV) functions on the A380
@@ -340,8 +341,8 @@ export class BrakeToVacate implements Instrument {
   private async detectLandingRunway() {
     // Arming phase between 500ft and 300ft RA
     if (
-      this.radioAltitude.get() < 300 ||
-      this.radioAltitude.get() > 500 ||
+      this.radioAltitude.get() < ROW_ARMING_LOWER_RA_FT ||
+      this.radioAltitude.get() > ROW_ARMING_UPPER_RA_FT ||
       this.fwsFlightPhase.get() < 9 ||
       this.fwsFlightPhase.get() > 11 ||
       this.verticalSpeed1.get().valueOr(0) > 400 ||
@@ -369,12 +370,16 @@ export class BrakeToVacate implements Instrument {
       this.ppos,
     );
 
-    // Set as ROPS/BTV runway
+    // Set as ROPS/BTV runway: in BTV mode the selected runway is kept until 300 ft, in the other modes the detected
+    // runway is protected (see RowProtectedRunway.ts)
     if (landingRunway) {
-      // If BTV runway already set, prioritize until 350ft RA
       if (
-        !this.runwayIsSet() ||
-        (this.runwayIsSet() && this.radioAltitude.get() < 350 && this.oansRunwayIdent.get() !== landingRunway.runway)
+        shouldProtectDetectedRunway(
+          this.radioAltitude.get(),
+          this.autoBrakeMode.get() === 1,
+          this.runwayIsSet() ? this.oansRunwayIdent.get() : null,
+          landingRunway.runway,
+        )
       ) {
         await this.setBtvRunwayFromNavdata(landingRunway.runway);
         this.btvApprDifferentRunwaySimvar.set(true);

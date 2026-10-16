@@ -4,7 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { oxygenIndication } from './OxygenIndication';
+import { oxygenIndication, OxygenPressureInputs, oxygenPressureIndication } from './OxygenIndication';
 
 /* A380 FCOM DSC-35-20-20 (cockpit) and DSC-35-30-20 (cabin) oxygen indications of the DOOR/OXY page. */
 describe('SD DOOR/OXY oxygen indications', () => {
@@ -36,5 +36,77 @@ describe('SD DOOR/OXY oxygen indications', () => {
     const element = readFileSync(resolve(__dirname, 'Oxygen.tsx'), 'utf-8');
     expect(element).toMatch(/const \[crewSupplyOffVar\] = useSimVar\('L:PUSH_OVHD_OXYGEN_CREW'/);
     expect(element.match(/L:PUSH_OVHD_OXYGEN_CREW/g)).toHaveLength(1);
+  });
+});
+
+const fullBottles: OxygenPressureInputs = {
+  active: true,
+  onGround: true,
+  oneEngineRunning: false,
+  fmsPassengers: 500,
+  ckptBottlePressurePsi: 1800,
+  cabinBottlePressurePsi: 1850,
+};
+
+/* A380 FCOM DSC-35-30-20 cabin OXYGEN PRESSURE VALUE (a380_fcom.txt l.93477-93511) */
+describe('SD DOOR/OXY cabin oxygen pressure', () => {
+  it('green at or above 1 600 PSI (l.93478)', () => {
+    const indication = oxygenPressureIndication({ ...fullBottles, cabinBottlePressurePsi: 1600 });
+    expect(indication.cabinValueAmber).toBe(false);
+    expect(indication.cabinHalfFrame).toBe(false);
+  });
+
+  it('"On ground only, appears with the amber half-frame, if: The pressure is below 1 600 PSI" (l.93480-93481)', () => {
+    expect(oxygenPressureIndication({ ...fullBottles, cabinBottlePressurePsi: 1500 }).cabinHalfFrame).toBe(true);
+    expect(
+      oxygenPressureIndication({ ...fullBottles, onGround: false, cabinBottlePressurePsi: 1500 }).cabinHalfFrame,
+    ).toBe(false);
+    expect(oxygenPressureIndication({ ...fullBottles, cabinBottlePressurePsi: 1500 }).cabinValueAmber).toBe(false);
+  });
+
+  it('before one engine starts, low (amber) below 800 PSI (l.93508-93509)', () => {
+    expect(oxygenPressureIndication({ ...fullBottles, cabinBottlePressurePsi: 799 }).cabinValueAmber).toBe(true);
+    expect(oxygenPressureIndication({ ...fullBottles, cabinBottlePressurePsi: 801 }).cabinValueAmber).toBe(false);
+  });
+
+  it('engines running: low below the emergency descent minimum of the cabin occupants (l.93496-93505)', () => {
+    // 500 masks: 1 003 PSI (LIM-35 EMERGENCY DESCENT)
+    const running = { ...fullBottles, onGround: false, oneEngineRunning: true };
+    expect(oxygenPressureIndication({ ...running, cabinBottlePressurePsi: 1000 }).cabinValueAmber).toBe(true);
+    expect(oxygenPressureIndication({ ...running, cabinBottlePressurePsi: 1010 }).cabinValueAmber).toBe(false);
+  });
+});
+
+/* A380 FCOM DSC-35-20-20 cockpit OXYGEN PRESSURE VALUE (a380_fcom.txt l.93096-93111) */
+describe('SD DOOR/OXY cockpit oxygen pressure', () => {
+  it('below the 5-crew dispatch minimum on ground: amber half-frame, the value stays green (l.93101-93102)', () => {
+    const indication = oxygenPressureIndication({ ...fullBottles, ckptBottlePressurePsi: 900 });
+    expect(indication.ckptHalfFrame).toBe(true);
+    expect(indication.ckptValueAmber).toBe(false);
+    expect(
+      oxygenPressureIndication({ ...fullBottles, onGround: false, ckptBottlePressurePsi: 900 }).ckptHalfFrame,
+    ).toBe(false);
+  });
+
+  it('amber when "the pressure is below 350 PSI" (l.93108-93109)', () => {
+    expect(oxygenPressureIndication({ ...fullBottles, ckptBottlePressurePsi: 349 }).ckptValueAmber).toBe(true);
+  });
+
+  it('XX in amber without SDAC data, no half-frame', () => {
+    const indication = oxygenPressureIndication({ ...fullBottles, active: false, cabinBottlePressurePsi: 0 });
+    expect(indication).toEqual({
+      ckptValueAmber: true,
+      ckptHalfFrame: false,
+      cabinValueAmber: true,
+      cabinHalfFrame: false,
+    });
+  });
+
+  it('the page draws the half-frames and reads the real on-ground state', () => {
+    const element = readFileSync(resolve(__dirname, 'Oxygen.tsx'), 'utf-8');
+    expect(element).toContain('<HalfFrame y={0} visible={pressures.ckptHalfFrame} />');
+    expect(element).toContain('<HalfFrame y={124} visible={pressures.cabinHalfFrame} />');
+    const page = readFileSync(resolve(__dirname, '../DoorPage.tsx'), 'utf-8');
+    expect(page).not.toContain('const onGround = true;');
   });
 });

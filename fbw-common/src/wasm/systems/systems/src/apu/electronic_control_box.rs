@@ -390,7 +390,8 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
     pub fn is_available(&self) -> bool {
         !self.has_fault()
             && ((self.turbine_state == TurbineState::Starting
-                && (Duration::from_secs(2) <= self.n_above_95_duration
+                && ((self.n.get::<percent>() > 95.
+                    && C::START_AVAILABLE_CONFIRMATION_TIME <= self.n_above_95_duration)
                     || self.n.get::<percent>() > 99.5))
                 || (self.turbine_state != TurbineState::Starting && self.n.get::<percent>() > 95.))
             && !self.is_cooldown_period()
