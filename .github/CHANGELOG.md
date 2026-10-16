@@ -428,6 +428,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New F/CTL cautions from the flight control computers: L(R) ELEV FAULT, L(R) AIL FAULT, SPLR FAULT, ELEV SERVO FAULT, AIL SERVO FAULT and ELAC 1(2) PITCH FAULT, with the FCOM phase inhibitions; a loss caused by a hydraulic system or a failed computer stays with the HYD or ELAC/SEC alert - @TCdr
 1. [A32NX/FWC] F/CTL: both ELACs failed now show one ELAC 1+2 FAULT procedure instead of two ELAC FAULT alerts; ALTN LAW shows SPD BRK DO NOT USE for an L or R elevator fault (as the FCOM) instead of the spoiler 3+4 fault; FCDC 1+2 FAULT is no longer inhibited in phase 3 - @TCdr
 1. [A32NX/FWC] F/CTL STATUS page: ALTN LAW, DIRECT LAW, ELAC, SEC, FCDC, elevator, aileron and spoiler faults now show their FCOM limitations, approach procedure, information and INOP SYS lines - @TCdr
+1. [A380X/PRESS] Automatic pressurization keeps the cabin differential pressure in the normal range in cruise above the FMS cruise FL or after an FMS reset, instead of drifting to the 9 PSI pressure limiter - @TCdr
 
 ## 2024.1.0
 

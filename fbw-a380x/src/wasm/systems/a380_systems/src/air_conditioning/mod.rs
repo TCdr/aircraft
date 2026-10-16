@@ -3681,6 +3681,94 @@ mod tests {
             );
         }
 
+        // A380 FCOM DSC-21-30-20 (a380_fcom.txt l.7514-7522): the differential pressure is normal
+        // from -0.2 PSI to 8.92 PSI, abnormal (amber, DIFF PRESS HI) from 8.92 PSI to 9.2 PSI.
+        const MAX_NORMAL_DELTA_P_PSI: f64 = 8.92;
+
+        /// Climbs to `flight_level` with the FMS cruise altitude `fms_cruise_altitude` (NAV mode)
+        /// or in HDG mode (`None`), then holds a steady level for 30 min in AUTO and returns the
+        /// highest differential pressure seen during the cruise.
+        fn highest_delta_p_in_steady_cruise(
+            flight_level: Length,
+            fms_cruise_altitude: Option<Length>,
+        ) -> Pressure {
+            let mut test_bed = test_bed()
+                .and_run()
+                .with()
+                .vertical_speed_of(Velocity::new::<foot_per_minute>(1000.))
+                .iterate(5);
+            if let Some(cruise_altitude) = fms_cruise_altitude {
+                test_bed = test_bed.command_nav_cruise_altitude(cruise_altitude);
+            }
+            test_bed = test_bed
+                .command_aircraft_climb(Length::new::<foot>(1000.), flight_level)
+                .with()
+                .vertical_speed_of(Velocity::default());
+
+            let mut highest_delta_p = test_bed.cabin_delta_p();
+            for _ in 0..1800 {
+                test_bed = test_bed.iterate(1);
+                highest_delta_p = highest_delta_p.max(test_bed.cabin_delta_p());
+            }
+            highest_delta_p
+        }
+
+        #[test]
+        fn cabin_delta_p_stays_normal_in_steady_cruise_at_fms_cruise_level() {
+            for flight_level in [36000., 41000., 43000.] {
+                let highest_delta_p = highest_delta_p_in_steady_cruise(
+                    Length::new::<foot>(flight_level),
+                    Some(Length::new::<foot>(flight_level)),
+                );
+                assert_lt!(
+                    highest_delta_p,
+                    Pressure::new::<psi>(MAX_NORMAL_DELTA_P_PSI),
+                    "at {} ft",
+                    flight_level
+                );
+            }
+        }
+
+        #[test]
+        fn cabin_delta_p_stays_normal_in_steady_cruise_above_fms_cruise_level() {
+            // Step climb flown on the FCU while the FMS cruise FL stays at FL320
+            let highest_delta_p = highest_delta_p_in_steady_cruise(
+                Length::new::<foot>(36000.),
+                Some(Length::new::<foot>(32000.)),
+            );
+            assert_lt!(
+                highest_delta_p,
+                Pressure::new::<psi>(MAX_NORMAL_DELTA_P_PSI)
+            );
+        }
+
+        #[test]
+        fn cabin_delta_p_stays_normal_in_steady_cruise_with_reset_fms_cruise_altitude() {
+            // The FMC writes -1 to the cruise altitude when it resets
+            let highest_delta_p = highest_delta_p_in_steady_cruise(
+                Length::new::<foot>(36000.),
+                Some(Length::new::<foot>(-1.)),
+            );
+            assert_lt!(
+                highest_delta_p,
+                Pressure::new::<psi>(MAX_NORMAL_DELTA_P_PSI)
+            );
+        }
+
+        #[test]
+        fn cabin_delta_p_stays_normal_in_steady_cruise_in_hdg_mode() {
+            for flight_level in [36000., 43000.] {
+                let highest_delta_p =
+                    highest_delta_p_in_steady_cruise(Length::new::<foot>(flight_level), None);
+                assert_lt!(
+                    highest_delta_p,
+                    Pressure::new::<psi>(MAX_NORMAL_DELTA_P_PSI),
+                    "at {} ft",
+                    flight_level
+                );
+            }
+        }
+
         #[test]
         fn cabin_delta_p_does_not_exceed_8_6_psi_in_climb() {
             let test_bed = test_bed()
