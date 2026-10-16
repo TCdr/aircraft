@@ -5,7 +5,7 @@ import { Subject } from '@microsoft/msfs-sdk';
 import { Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { CondStatusCodes, StatusLines } from './CondStatus';
-import { FwcAlertItem, cautionItem } from './FwcAlertItem';
+import { ConfirmTimer, FwcAlertItem, cautionItem } from './FwcAlertItem';
 
 /*
  * Air conditioning and pressurization items of the A320 FWC (ATA 21) that the FCOM gap audit found missing:
@@ -30,23 +30,67 @@ export const LDG_ELEV_FAULT_KEY = '2131236';
 /** CAB PR LDG ELEV FAULT flight phase inhibition (FCOM PDF page 4475): shown in phases 1, 2 and 6 only */
 export const LDG_ELEV_FAULT_PHASE_INHIBITION = [3, 4, 5, 7, 8, 9, 10];
 
+/**
+ * How long both FMGC landing elevation words must stay in failure before CAB PR LDG ELEV FAULT, in seconds. Design
+ * choice, the FCOM gives none: at power-up and at flight load the words read 0 (SSM failure warning) until the FMGC
+ * software writes its first word; about 6 s was recorded in the sim on 2026-10-15. The FWC startup inhibit (FwsManager,
+ * 5 s) only stops the MASTER lights and aurals, not the E/WD line, and it does not wait for the FMGCs; 15 s leaves margin
+ * for a slower FMGC start.
+ */
+export const LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS = 15;
+
 export interface LandingElevationFaultInputs {
   /** The LDG ELEV selector is at AUTO (the active CPC does not report a manual landing elevation, discrete bit 17) */
   readonly ldgElevSelectorAuto: boolean;
   /** At least one CPC operates (not CAB PR SYS 1+2 FAULT): the CPC is the one that misses the FMGS elevation */
   readonly cpcOperative: boolean;
-  /** An FMGC sends the landing elevation (L:A32NX_FM1(2)_LANDING_ELEVATION in normal operation) */
-  readonly fmLandingElevationAvailable: boolean;
+  /**
+   * At least one healthy FMGC sends its landing elevation word, with or without a value (L:A32NX_FM1(2)_LANDING_ELEVATION
+   * in normal operation or no computed data), see isFmgcLandingElevationWordReceived
+   */
+  readonly fmLandingElevationWordReceived: boolean;
 }
 
 /**
  * CAB PR LDG ELEV FAULT: "This alert triggers when the LDG ELEV selector is set to AUTO and the landing field elevation
- * of the FMGS is not available." (PRO-ABN-CAB_PR, l.73186-73187). The FMGC sends no computed landing elevation as long
- * as the flight plan has no destination (A32NX_FMCMainDisplay: SSM NCD). With both CPCs failed, the FWC shows SYS 1+2
- * FAULT and its MAN pressurization procedure instead (design choice).
+ * of the FMGS is not available." (PRO-ABN-CAB_PR, l.73186-73187). The FCOM lists the alert only after FMGC failures:
+ * "DUAL RESET WITH LOSS OF DATA" (DSC-22_20-90-10, l.26801) and "DUAL LATCH" (both FMGCs inoperative, l.26904).
+ * User decision 2026-10-15: the elevation is "not available" when no FMGC sends it at all (each FMGC unhealthy or its
+ * word in failure), not when the FMGC has no destination yet (SSM NCD, A32NX_FMCMainDisplay), else the caution showed at every power-up until
+ * a destination was entered. The FMGC failure has to last LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS (CabinPressureAlerts).
+ * With both CPCs failed, the FWC shows SYS 1+2 FAULT and its MAN pressurization procedure instead (design choice).
+ *
+ * @param fmgcDataLossConfirmed both FMGC words have been in failure for the confirmation time
  */
-export function isLandingElevationFault(inputs: LandingElevationFaultInputs): boolean {
-  return inputs.ldgElevSelectorAuto && inputs.cpcOperative && !inputs.fmLandingElevationAvailable;
+export function isLandingElevationFault(
+  inputs: Pick<LandingElevationFaultInputs, 'ldgElevSelectorAuto' | 'cpcOperative'>,
+  fmgcDataLossConfirmed: boolean,
+): boolean {
+  return inputs.ldgElevSelectorAuto && inputs.cpcOperative && fmgcDataLossConfirmed;
+}
+
+/** What the FWC reads of one FMGC for the landing elevation */
+export interface FmgcLandingElevationOutput {
+  /** The raw ARINC 429 word L:A32NX_FM1(2)_LANDING_ELEVATION */
+  readonly rawWord: number;
+  /** L:A32NX_FM1(2)_HEALTHY_DISCRETE, 1 = healthy (the FM power state, A320_Neo_CDU_MainDisplay) */
+  readonly healthy: boolean;
+}
+
+/**
+ * Whether an FMGC sends its landing elevation: a healthy FMGC whose word is in normal operation (a destination is
+ * entered) or no computed data (no destination yet). A word in failure warning (SSM 0, also the raw 0 an FMGC that never
+ * wrote leaves) or an unhealthy FMGC means no data from it. The healthy discrete covers an FMGC lost in flight: the A32NX
+ * FMS keeps its last word on the bus when it loses power, only the discrete goes false.
+ */
+export function isFmgcLandingElevationWordReceived(
+  fm1: FmgcLandingElevationOutput,
+  fm2: FmgcLandingElevationOutput,
+): boolean {
+  return [fm1, fm2].some((fm) => {
+    const word = new Arinc429Word(fm.rawWord);
+    return fm.healthy && (word.isNormalOperation() || word.isNoComputedData());
+  });
 }
 
 /** The STATUS codes of the CAB PR alerts (StatusMessages) */
@@ -111,8 +155,12 @@ export function cpc1And2FaultStatus(): StatusLines {
 export class CabinPressureAlerts {
   private readonly ldgElevFault = Subject.create(false);
 
-  update(inputs: LandingElevationFaultInputs): void {
-    this.ldgElevFault.set(isLandingElevationFault(inputs));
+  /** Both FMGC words in failure for LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS: rides through the FMGC start at power-up */
+  private readonly fmgcDataLossConfirm = new ConfirmTimer(LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS);
+
+  update(inputs: LandingElevationFaultInputs, deltaSeconds: number): void {
+    const fmgcDataLossConfirmed = this.fmgcDataLossConfirm.update(!inputs.fmLandingElevationWordReceived, deltaSeconds);
+    this.ldgElevFault.set(isLandingElevationFault(inputs, fmgcDataLossConfirmed));
   }
 
   /** The alert items, by key, for the PseudoFWC ewdMessageFailures */
@@ -131,10 +179,11 @@ export class CabinPressureAlerts {
 
 /* Acquisition (not unit tested: SimVar reads only) */
 
-/** Whether FMGC 1 or 2 sends the landing elevation (the CPC takes it from the FMGS, A32NX_FMCMainDisplay) */
-export function readFmLandingElevationAvailable(): boolean {
-  return (
-    Arinc429Word.fromSimVarValue('L:A32NX_FM1_LANDING_ELEVATION').isNormalOperation() ||
-    Arinc429Word.fromSimVarValue('L:A32NX_FM2_LANDING_ELEVATION').isNormalOperation()
-  );
+/** Whether FMGC 1 or 2 sends its landing elevation word (the CPC takes the elevation from the FMGS, A32NX_FMCMainDisplay) */
+export function readFmLandingElevationWordReceived(): boolean {
+  const readFmgc = (fm: 1 | 2): FmgcLandingElevationOutput => ({
+    rawWord: SimVar.GetSimVarValue(`L:A32NX_FM${fm}_LANDING_ELEVATION`, 'number'),
+    healthy: SimVar.GetSimVarValue(`L:A32NX_FM${fm}_HEALTHY_DISCRETE`, 'bool') > 0,
+  });
+  return isFmgcLandingElevationWordReceived(readFmgc(1), readFmgc(2));
 }
