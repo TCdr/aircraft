@@ -157,6 +157,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/GPWS] Mode 4B: gear up with the flaps in landing configuration gives TOO LOW GEAR below 245 ft and never TOO LOW TERRAIN, and a mode 4 alert stops once the aircraft climbs back above its ceiling - @TCdr
 1. [A380X] The contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
 1. [A380X/OANS] ARPT NOT IN ACTIVE F/PLN now shows in PLAN mode only, as in the FCOM (it also showed in ROSE NAV) - @TCdr
+1. [A380X/PRESS] Automatic pressurization keeps the cabin differential pressure in the normal range in cruise above the FMS cruise FL or after an FMS reset, instead of drifting to the 9 PSI pressure limiter - @TCdr
 
 ## 2024.1.0
 
