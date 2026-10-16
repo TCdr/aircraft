@@ -23,6 +23,9 @@
  * - in flight the core already turns (windmilling, or a quick relight still fast): the start delay does not stop it;
  * - in flight, once the systems WASM lets the relight light up, MSFS is brought to the light-up speed until it burns, as the
  *   MSFS starter does with the APU bleed. MSFS then accelerates the engine to idle by itself.
+ * - a quick relight on the ground (A32NX_ENGINE_n_GROUND_QUICK_RELIGHT, FCOM DSC-70-80-30-20 l.112539-112545: "The quick
+ *   relight function immediately opens the FMV") is handled as the in-flight relight: the core still turns fast, the start
+ *   delay must not bring it to 0.
  */
 class RelightStart_A380X {
  public:
@@ -40,6 +43,7 @@ class RelightStart_A380X {
     bool   simCombustion;       // GENERAL ENG COMBUSTION
     double simN2;               // TURB ENG N2 in percent (the Trent N3)
     double ambientTemperature;  // Celsius
+    bool   groundQuickRelight;  // a quick relight on the ground is in progress (A32NX_ENGINE_n_GROUND_QUICK_RELIGHT)
   };
 
   /**
@@ -49,7 +53,7 @@ class RelightStart_A380X {
    * @return The TURB ENG CORRECTED N2 to write in percent, or nothing to leave MSFS alone.
    */
   static std::optional<double> correctedN2Command(const StartConditions& conditions) {
-    if (conditions.simOnGround) {
+    if (conditions.simOnGround && !conditions.groundQuickRelight) {
       if (conditions.engineTimer < START_DELAY_SECONDS) {
         return 0.0;
       }

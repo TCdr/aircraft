@@ -412,6 +412,8 @@ struct A380EngineFailure {
     relight_attempt_id: VariableIdentifier,
     windmill_start_id: VariableIdentifier,
     hp_fuel_valve_closed_id: VariableIdentifier,
+    /// The FADEC quick relight on the ground (`EngineStartSequence::ground_quick_relight_in_progress`)
+    ground_quick_relight_id: VariableIdentifier,
 
     hp_fuel_valve: HpFuelValve,
     /// The stuck failure of the HP fuel valve and the FADEC position monitoring (ENG 1(2)(3)(4) HP
@@ -467,6 +469,8 @@ impl A380EngineFailure {
                 .get_identifier(format!("ENGINE_{}_WINDMILL_START", engine_number)),
             hp_fuel_valve_closed_id: context
                 .get_identifier(format!("ENGINE_{}_HP_FUEL_VALVE_CLOSED", engine_number)),
+            ground_quick_relight_id: context
+                .get_identifier(format!("ENGINE_{}_GROUND_QUICK_RELIGHT", engine_number)),
             hp_fuel_valve: HpFuelValve::new(),
             hp_fuel_valve_failure: HpFuelValveFailure::new(context, engine_number),
             master_switch_is_on: false,
@@ -650,6 +654,14 @@ impl SimulationElement for A380EngineFailure {
         writer.write(
             &self.hp_fuel_valve_closed_id,
             self.hp_fuel_valve.is_closed() || self.hp_fuel_valve_failure.is_stuck_closed(),
+        );
+        // FCOM DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112543): on the ground the FADEC
+        // selects both igniters and relights the engine from its shutdown, without start sequence
+        // (fadec_a380x EngineIgnition_A380X, RelightStart_A380X). The HP fuel valve opens for it
+        // above (HpFuelValve).
+        writer.write(
+            &self.ground_quick_relight_id,
+            self.start.ground_quick_relight_in_progress(),
         );
     }
 }
@@ -1415,6 +1427,85 @@ mod tests {
             run(&mut test_bed);
 
             assert!(hp_fuel_valve_is_closed(&mut test_bed, 3));
+        }
+
+        fn ground_quick_relight(
+            test_bed: &mut SimulationTestBed<TestAircraft>,
+            engine: usize,
+        ) -> bool {
+            test_bed.read_by_name(&format!("ENGINE_{}_GROUND_QUICK_RELIGHT", engine))
+        }
+
+        /// Engine 4 at ground idle, ENG START selector NORM: ENG MASTER 4 OFF, the FADEC shuts the
+        /// engine down (SHUTTING) for this time while the core runs down to this N3, then MASTER ON.
+        fn engine_4_master_cycled_on_the_ground(
+            master_off: Duration,
+            n3_at_master_on: f64,
+        ) -> SimulationTestBed<TestAircraft> {
+            let mut test_bed = engines_at_ground_idle_test_bed();
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 1.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:4", false);
+            run(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:4", 4.);
+            for _ in 1..(master_off.as_millis() / 50) {
+                run(&mut test_bed);
+            }
+            test_bed.write_by_name("ENGINE_N3:4", n3_at_master_on);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:4", true);
+            run(&mut test_bed);
+            test_bed
+        }
+
+        #[test]
+        fn on_the_ground_the_quick_relight_tells_the_fadec_to_relight_until_the_engine_runs() {
+            // Sim test F5 2026-10-16 (rec_f5_s2.log): engine 4 at ground idle (N3 63 %), ENG START
+            // NORM, MASTER 4 OFF at 469.8 s and back ON about 2 s later (N3 about 60 %): the HP fuel
+            // valve opened, but the FADEC stayed SHUTTING (ENGINE_STATE 4) and the N3 ran down to
+            // 10 %. FCOM DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112545): "the FADEC
+            // automatically selects the continuous ignition with both igniters. The quick relight
+            // function immediately opens the FMV."
+            let mut test_bed = engine_4_master_cycled_on_the_ground(Duration::from_secs(2), 60.);
+
+            let start_phase: f64 = test_bed.read_by_name("ENGINE_4_START_PHASE");
+            assert_eq!(start_phase, 0., "no start sequence");
+            assert!(!hp_fuel_valve_is_closed(&mut test_bed, 4));
+            assert!(!fuel_is_cut(&mut test_bed, 4));
+            assert!(ground_quick_relight(&mut test_bed, 4));
+
+            // The FADEC relights the engine (RESTARTING), the core accelerates back to idle
+            test_bed.write_by_name("ENGINE_STATE:4", 3.);
+            test_bed.write_by_name("ENGINE_N3:4", 61.);
+            run(&mut test_bed);
+            assert!(ground_quick_relight(&mut test_bed, 4));
+
+            test_bed.write_by_name("ENGINE_STATE:4", 1.);
+            test_bed.write_by_name("ENGINE_N3:4", 63.);
+            run(&mut test_bed);
+            assert!(!ground_quick_relight(&mut test_bed, 4));
+            assert!(!hp_fuel_valve_is_closed(&mut test_bed, 4));
+            for engine_number in [1, 2, 3] {
+                assert!(!ground_quick_relight(&mut test_bed, engine_number));
+            }
+        }
+
+        #[test]
+        fn on_the_ground_no_quick_relight_below_45_percent_n3_or_after_30_s() {
+            let mut test_bed = engine_4_master_cycled_on_the_ground(Duration::from_secs(8), 44.);
+            assert!(!ground_quick_relight(&mut test_bed, 4));
+            assert!(hp_fuel_valve_is_closed(&mut test_bed, 4));
+
+            let mut test_bed = engine_4_master_cycled_on_the_ground(Duration::from_secs(31), 50.);
+            assert!(!ground_quick_relight(&mut test_bed, 4));
+            assert!(hp_fuel_valve_is_closed(&mut test_bed, 4));
+        }
+
+        #[test]
+        fn the_ground_quick_relight_ends_with_the_master_off() {
+            let mut test_bed = engine_4_master_cycled_on_the_ground(Duration::from_secs(2), 60.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:4", false);
+            run(&mut test_bed);
+
+            assert!(!ground_quick_relight(&mut test_bed, 4));
         }
 
         #[test]

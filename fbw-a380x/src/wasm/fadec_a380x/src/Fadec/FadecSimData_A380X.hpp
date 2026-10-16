@@ -231,6 +231,7 @@ class FadecSimData_A380X {
   NamedVariablePtr engineWindmillN3[4];      // Percent - core speed (N3) of the engine windmilling (systems WASM)
   NamedVariablePtr engineRelightIgnition[4];  // Bool - an in-flight relight is lighting up: igniters on (systems WASM)
   NamedVariablePtr engineRelightAttempt[4];   // Bool - a relight attempt is in progress (systems WASM)
+  NamedVariablePtr engineGroundQuickRelight[4];  // Bool - the quick relight on the ground is in progress (systems WASM)
   // The start sequence of the systems WASM (StartSequence_A380X.hpp, systems::engine::engine_start)
   NamedVariablePtr engineStartPhase[4];         // Enum - StartSequence_A380X::StartPhase
   NamedVariablePtr engineStarterMotoring[4];    // Bool - the starter turns the core while the fuel is cut
@@ -457,6 +458,10 @@ class FadecSimData_A380X {
     engineRelightIgnition[E2] = dm->make_named_var("A32NX_ENGINE_2_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
     engineRelightIgnition[E3] = dm->make_named_var("A32NX_ENGINE_3_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
     engineRelightIgnition[E4] = dm->make_named_var("A32NX_ENGINE_4_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
+    engineGroundQuickRelight[E1] = dm->make_named_var("A32NX_ENGINE_1_GROUND_QUICK_RELIGHT", UNITS.Number, AUTO_READ);
+    engineGroundQuickRelight[E2] = dm->make_named_var("A32NX_ENGINE_2_GROUND_QUICK_RELIGHT", UNITS.Number, AUTO_READ);
+    engineGroundQuickRelight[E3] = dm->make_named_var("A32NX_ENGINE_3_GROUND_QUICK_RELIGHT", UNITS.Number, AUTO_READ);
+    engineGroundQuickRelight[E4] = dm->make_named_var("A32NX_ENGINE_4_GROUND_QUICK_RELIGHT", UNITS.Number, AUTO_READ);
     engineRelightAttempt[E1]  = dm->make_named_var("A32NX_ENGINE_1_RELIGHT_ATTEMPT", UNITS.Number, AUTO_READ);
     engineRelightAttempt[E2]  = dm->make_named_var("A32NX_ENGINE_2_RELIGHT_ATTEMPT", UNITS.Number, AUTO_READ);
     engineRelightAttempt[E3]  = dm->make_named_var("A32NX_ENGINE_3_RELIGHT_ATTEMPT", UNITS.Number, AUTO_READ);

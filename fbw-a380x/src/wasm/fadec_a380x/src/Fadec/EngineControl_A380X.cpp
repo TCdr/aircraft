@@ -173,6 +173,7 @@ void EngineControl_A380X::update() {
         firePbReleased,                                                                    //
         simCombustion,                                                                     //
         simData.engineRelightIgnition[engineIdx]->getAsBool(),                             //
+        simData.engineGroundQuickRelight[engineIdx]->getAsBool(),                          //
         deltaTime,                                                                         //
     });
     if (engineIgnition[engineIdx].autoRelightIgnition() != autoRelightWasOn) {
@@ -628,18 +629,21 @@ void EngineControl_A380X::engineStartProcedure(int         engine,
     return;
   }
 
-  // The MSFS core speed during the start: held at 0 during the start delay on the ground, and in flight brought to the light-up
-  // speed once the systems WASM lets the relight light up (see RelightStart_A380X).
-  const bool simOnGround = msfsHandlerPtr->getSimOnGround();
-  // GENERAL ENG COMBUSTION is only needed (and read) in flight while the fuel is not cut
+  // The MSFS core speed during the start: held at 0 during the start delay on the ground, and in flight (or in a quick relight on
+  // the ground, FCOM DSC-70-80-30-20 l.112539-112545) brought to the light-up speed once the systems WASM lets the relight light
+  // up (see RelightStart_A380X).
+  const bool simOnGround        = msfsHandlerPtr->getSimOnGround();
+  const bool groundQuickRelight = simOnGround && simData.engineGroundQuickRelight[engineIdx]->getAsBool();
+  // GENERAL ENG COMBUSTION is only needed (and read) in flight or in a ground quick relight while the fuel is not cut
   bool simCombustion = false;
-  if (!simOnGround && !engineFuelCut) {
+  if ((!simOnGround || groundQuickRelight) && !engineFuelCut) {
     const FLOAT64 combustion = simData.engineCombustion[engineIdx]->updateFromSim(msfsHandlerPtr->getTimeStamp(),  //
                                                                                   msfsHandlerPtr->getTickCounter());
     simCombustion            = static_cast<bool>(combustion);
   }
   const std::optional<double> correctedN3Command =
-      RelightStart_A380X::correctedN2Command({simOnGround, engineTimer, engineFuelCut, simCombustion, simN3, ambientTemperature});
+      RelightStart_A380X::correctedN2Command({simOnGround, engineTimer, engineFuelCut, simCombustion, simN3, ambientTemperature,  //
+                                              groundQuickRelight});
   if (correctedN3Command) {
     simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3 = *correctedN3Command;
     simData.engineCorrectedN3DataPtr[engineIdx]->writeDataToSim();
@@ -647,7 +651,8 @@ void EngineControl_A380X::engineStartProcedure(int         engine,
 
   // delay to simulate the delay between master-switch setting and actual engine start
   if (engineTimer < RelightStart_A380X::START_DELAY_SECONDS) {
-    if (simOnGround) {
+    // a ground start begins a new fuel used count; a quick relight goes on with the one of the engine still turning
+    if (simOnGround && !groundQuickRelight) {
       simData.engineFuelUsed[engineIdx]->set(0);
     }
     simData.engineTimer[engineIdx]->set(engineTimer + deltaTime);

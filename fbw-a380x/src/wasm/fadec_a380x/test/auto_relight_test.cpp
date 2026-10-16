@@ -24,14 +24,15 @@ enum FbwEngineState { OFF = 0, ON = 1, STARTING = 2, RESTARTING = 3, SHUTTING = 
 
 /// One engine as the FADEC sees it each frame; defaults: a running engine in flight, master ON, MSFS burning.
 struct EngineConditions {
-  bool simOnGround            = false;
-  int  state                  = ON;
-  bool masterOn               = true;
-  bool fuelCut                = false;
-  bool seized                 = false;
-  bool firePbReleased         = false;
-  bool simCombustion          = true;
-  bool systemsRelightIgnition = false;
+  bool simOnGround               = false;
+  int  state                     = ON;
+  bool masterOn                  = true;
+  bool fuelCut                   = false;
+  bool seized                    = false;
+  bool firePbReleased            = false;
+  bool simCombustion             = true;
+  bool systemsRelightIgnition    = false;
+  bool systemsGroundQuickRelight = false;
 };
 
 static constexpr double FRAME_SECONDS = 1.0 / 30.0;
@@ -47,6 +48,7 @@ static EngineIgnition_A380X::Inputs inputsOf(const EngineConditions& conditions,
       conditions.firePbReleased,
       conditions.simCombustion,
       conditions.systemsRelightIgnition,
+      conditions.systemsGroundQuickRelight,
       deltaTime,
   };
 }
@@ -229,6 +231,49 @@ static void testInFlightRelightIgnition() {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Ground quick relight. A380 FCOM DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112545): "the FADEC automatically selects
+// the continuous ignition with both igniters". Sim test F5 2026-10-16 (rec_f5_s2.log): engine 4 at ground idle, ENG START
+// NORM, MASTER OFF then ON about 2 s later at about 60 % N3: no ignition, the FBW state stayed SHUTTING, the N3 ran down.
+// ---------------------------------------------------------------------------------------------------------------------
+
+static void testGroundQuickRelightIgnition() {
+  for (const int state : {SHUTTING, RESTARTING}) {
+    EngineIgnition_A380X ignition;
+    EngineConditions     quickRelight;
+    quickRelight.simOnGround               = true;
+    quickRelight.state                     = state;
+    quickRelight.simCombustion             = false;
+    quickRelight.systemsGroundQuickRelight = true;
+    expect(run(ignition, quickRelight, FRAME_SECONDS), "ground quick relight: igniters on at once at the MASTER ON (NORM)");
+
+    quickRelight.firePbReleased = true;
+    expect(!run(ignition, quickRelight, FRAME_SECONDS), "ground quick relight: no igniter with the ENG FIRE pb released");
+    quickRelight.firePbReleased = false;
+    quickRelight.masterOn       = false;
+    expect(!run(ignition, quickRelight, FRAME_SECONDS), "ground quick relight: no igniter with the ENG MASTER OFF");
+  }
+  {
+    // the engine runs again: the systems WASM ends the quick relight, the selector has the ignition switch back
+    EngineIgnition_A380X ignition;
+    EngineConditions     relit;
+    relit.simOnGround               = true;
+    relit.state                     = ON;
+    relit.systemsGroundQuickRelight = false;
+    expect(!run(ignition, relit, 1.0), "ground quick relight: igniters off once the engine runs");
+  }
+  {
+    // a normal shutdown on the ground (no quick relight) keeps the ignition off
+    EngineIgnition_A380X ignition;
+    EngineConditions     shutdown;
+    shutdown.simOnGround   = true;
+    shutdown.state         = SHUTTING;
+    shutdown.masterOn      = false;
+    shutdown.simCombustion = false;
+    expect(!run(ignition, shutdown, 5.0), "ground shutdown: no igniter");
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Replay of the flight of 2026-10-06: four engines lose their MSFS combustion at 703.8 s, ENG START NORM, nothing
 // relights them until the crew selects IGN START at 854.9 s
 // ---------------------------------------------------------------------------------------------------------------------
@@ -381,6 +426,7 @@ int main() {
   testDetectionAndRelease();
   testInhibitions();
   testInFlightRelightIgnition();
+  testGroundQuickRelightIgnition();
   for (int engine = 1; engine <= 4; engine++) {
     testReplayOpenLoop(engine);
     testReplayClosedLoop(engine);

@@ -36,27 +36,37 @@ static double correctedN2(double n2, double ambientTemperature) {
 
 int main() {
   // A ground start from rest: MSFS N2 held at 0 during the 1.7 s start delay, then left to the MSFS starter.
-  expectCommand("ground start, start delay", RelightStart_A380X::correctedN2Command({true, 0.5, false, false, 0.0, 15.0}), 0.0);
-  expectNone("ground start, after the start delay", RelightStart_A380X::correctedN2Command({true, 2.0, false, false, 20.0, 15.0}));
+  expectCommand("ground start, start delay", RelightStart_A380X::correctedN2Command({true, 0.5, false, false, 0.0, 15.0, false}), 0.0);
+  expectNone("ground start, after the start delay", RelightStart_A380X::correctedN2Command({true, 2.0, false, false, 20.0, 15.0, false}));
+
+  // A quick relight on the ground (FCOM DSC-70-80-30-20 l.112539-112545: MASTER back ON within 30 s above 45 % N2, "The quick
+  // relight function immediately opens the FMV"): the core still turns fast, the start delay must not stop it (sim test F5
+  // 2026-10-16: the FBW start behaviour would have held the MSFS core at 0 from about 60 % N3), and a core that MSFS no longer
+  // burns at its light-up speed is brought to it, as in flight.
+  expectNone("ground quick relight, start delay", RelightStart_A380X::correctedN2Command({true, 0.5, false, false, 55.0, 15.0, true}));
+  expectNone("ground quick relight, after the start delay",
+             RelightStart_A380X::correctedN2Command({true, 2.0, false, false, 50.0, 15.0, true}));
+  expectCommand("ground quick relight, MSFS core below the light-up speed",
+                RelightStart_A380X::correctedN2Command({true, 0.5, false, false, 18.0, 15.0, true}), correctedN2(25.0, 15.0));
 
   // In flight the core turns (windmilling or still fast): the start delay must not stop it (sim test 2026-10-05: the quick relight
   // at 50 % N3 and the windmilling relights never burned).
-  expectNone("in flight, start delay of a quick relight", RelightStart_A380X::correctedN2Command({false, 0.5, false, true, 50.0, -15.0}));
-  expectNone("in flight, start delay of a relight attempt", RelightStart_A380X::correctedN2Command({false, 0.5, true, false, 12.0, -15.0}));
+  expectNone("in flight, start delay of a quick relight", RelightStart_A380X::correctedN2Command({false, 0.5, false, true, 50.0, -15.0, false}));
+  expectNone("in flight, start delay of a relight attempt", RelightStart_A380X::correctedN2Command({false, 0.5, true, false, 12.0, -15.0, false}));
 
   // An in-flight relight that the systems WASM lets light up (fuel no longer cut) while MSFS windmills below its combustion speed
   // and has no starter air (no MSFS APU bleed): MSFS is brought to the light-up speed, 25 % N2.
-  expectCommand("in flight, windmilling relight lit up", RelightStart_A380X::correctedN2Command({false, 0.5, false, false, 12.0, -34.5}),
+  expectCommand("in flight, windmilling relight lit up", RelightStart_A380X::correctedN2Command({false, 0.5, false, false, 12.0, -34.5, false}),
                 correctedN2(25.0, -34.5));
   expectCommand("in flight, windmilling relight lit up after the start delay",
-                RelightStart_A380X::correctedN2Command({false, 5.0, false, false, 15.0, -15.0}), correctedN2(25.0, -15.0));
+                RelightStart_A380X::correctedN2Command({false, 5.0, false, false, 15.0, -15.0, false}), correctedN2(25.0, -15.0));
 
   // ...but not before the systems WASM lets it light up, nor once MSFS burns or turns fast enough by itself.
   expectNone("in flight, relight attempt not lit up (fuel cut)",
-             RelightStart_A380X::correctedN2Command({false, 5.0, true, false, 12.0, -15.0}));
-  expectNone("in flight, MSFS burns", RelightStart_A380X::correctedN2Command({false, 5.0, false, true, 22.0, -15.0}));
+             RelightStart_A380X::correctedN2Command({false, 5.0, true, false, 12.0, -15.0, false}));
+  expectNone("in flight, MSFS burns", RelightStart_A380X::correctedN2Command({false, 5.0, false, true, 22.0, -15.0, false}));
   expectNone("in flight, MSFS already above the light-up speed",
-             RelightStart_A380X::correctedN2Command({false, 5.0, false, false, 30.0, -15.0}));
+             RelightStart_A380X::correctedN2Command({false, 5.0, false, false, 30.0, -15.0, false}));
 
   if (failures == 0) {
     std::printf("relight_start_test: all passed\n");
