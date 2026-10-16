@@ -1,4 +1,5 @@
 import { useSimVar } from '@instruments/common/simVars';
+import { useUpdate } from '@instruments/common/hooks';
 import { EngineNumber, IgnitionActive, Position } from '@instruments/common/types';
 import React, { FC, useEffect, useState } from 'react';
 import DecimalValues from './DecimalValues';
@@ -45,16 +46,14 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   const [onGround] = useSimVar('SIM ON GROUND', 'bool', 500);
   const groundStart = !!onGround && (engineState === 2 || engineState === 3);
   const [n3RedCross, setN3RedCross] = useState(false);
-  // FCOM DSC-70-20-10: the aircraft network supplies the FADEC 15 min at power-up, 10 min after the FADEC GND PWR pb
-  const [fadecGroundPowerPbOn] = useSimVar(`L:A32NX_OVHD_FADEC_${engine}`, 'bool', 500);
-  const [engineAcBusPowered] = useSimVar(`L:A32NX_ELEC_AC_${engine}_BUS_IS_POWERED`, 'bool', 500);
-  const [absoluteTimeS] = useSimVar('E:ABSOLUTE TIME', 'seconds', 1000);
-  const fadecSuppliedByAircraftNetwork = fadecGroundPowerSupplies[engine - 1].update({
-    nowS: absoluteTimeS,
-    aircraftPowered: !!engineAcBusPowered,
-    groundPowerPbOn: !!fadecGroundPowerPbOn,
-    onGround: !!onGround,
-  });
+  // FCOM DSC-70-20-10: the aircraft network supplies the FADEC 15 min at power-up, 10 min after the FADEC GND PWR pb.
+  // The timers run in the SD instrument loop whatever page is shown (SD/index.tsx, FadecGroundPower); the page reads
+  // their result every frame and re-renders when it changes.
+  const fadecGroundPowerSupply = fadecGroundPowerSupplies[engine - 1];
+  const [fadecSuppliedByAircraftNetwork, setFadecSuppliedByAircraftNetwork] = useState(
+    fadecGroundPowerSupply.isSupplied,
+  );
+  useUpdate(() => setFadecSuppliedByAircraftNetwork(fadecGroundPowerSupply.isSupplied));
   const [engineFirePbReleased] = useSimVar(`L:A32NX_FIRE_BUTTON_ENG${engine}`, 'bool', 500);
 
   const [fadecNetworkLost] = useSimVar(`L:A32NX_ENGINE_${engine}_FADEC_FAULT`, 'bool', 500);
