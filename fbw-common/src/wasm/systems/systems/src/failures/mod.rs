@@ -115,6 +115,9 @@ pub enum FailureType {
     BrakeSteeringControlUnitChannel(usize),
     /// The A320 alternate braking control unit (ABCU): no alternate braking, parking brake only as back-up
     AlternateBrakingControlUnit,
+    /// The A320 brake normal selector valve is failed open: full green pressure at the entry of the normal servovalves
+    /// (WHEEL HYD SEL FAULT)
+    BrakeNormalSelectorValve,
     // ATA30 (ice_rain_protection)
     /// The engine anti-ice valve of engine n stays closed
     EngineAntiIceValveStuckClosed(usize),

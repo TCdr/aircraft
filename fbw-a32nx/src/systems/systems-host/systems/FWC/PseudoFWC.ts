@@ -326,7 +326,8 @@ import {
   readLandingGearInputs,
   readYellowSystemLowPressure,
 } from './Logic/LandingGearAlerts';
-import { GpwsAlerts, readGpwsInputs } from './Logic/GpwsAlerts';
+import { GpwsAlerts, readGpwsInputs, TERR_STBY_MEMO_CODE } from './Logic/GpwsAlerts';
+import { PredictiveWindshearAlerts } from './Logic/PredictiveWindshearAlerts';
 import { autoPilotOffInvoluntaryStatus, autoThrustOffInvoluntaryStatus } from './Logic/AutoFlightStatus';
 import {
   alertStatus,
@@ -1849,6 +1850,7 @@ export class PseudoFWC {
     sys1Fault: Subject.create(false),
     sys2Fault: Subject.create(false),
     nwStrgFault: Subject.create(false),
+    hydSelFault: Subject.create(false),
   };
 
   /** The yellow hydraulic system is in low pressure (BRAKES A/SKID N/WS STATUS "If Y SYS LO PR") */
@@ -2139,6 +2141,9 @@ export class PseudoFWC {
   private readonly landingGearAlerts = new LandingGearAlerts();
 
   private readonly gpwsAlerts = new GpwsAlerts();
+
+  /** NAV PRED W/S DET FAULT, see Logic/PredictiveWindshearAlerts */
+  private readonly predictiveWindshearAlerts = new PredictiveWindshearAlerts();
 
   /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
   private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
@@ -2870,6 +2875,8 @@ export class PseudoFWC {
   }
 
   init(): void {
+    this.predictiveWindshearAlerts.init();
+
     Promise.all([
       KeyEventManager.getManager(this.bus),
       Wait.awaitSubscribable(GameStateProvider.get(), (state) => state === GameState.ingame, true),
@@ -4009,6 +4016,7 @@ export class PseudoFWC {
       normalBrakingFailed: isSet('L:A32NX_BRAKES_NORM_BRK_FAULT'),
       autobrakeFailedAfterArmed: isSet('L:A32NX_BRAKES_AUTO_BRK_FAULT'),
       noseWheelSteeringFailed: isSet('L:A32NX_BRAKES_NW_STRG_FAULT'),
+      normalSelectorValveFailed: isSet('L:A32NX_BRAKES_HYD_SEL_FAULT'),
       antiSkidSwitchOff: this.sdac00200Word.bitValue(23),
       yellowLowPressure: this.brakeYellowLowPressure,
     });
@@ -5914,6 +5922,7 @@ export class PseudoFWC {
     this.doorAlerts.update(readDoorsNotClosed(), this.aircraftOnGround.get());
     this.landingGearAlerts.update(readLandingGearInputs(this.gearNotUplockedWarning.get()), deltaTime / 1000);
     this.gpwsAlerts.update(readGpwsInputs());
+    this.predictiveWindshearAlerts.update();
 
     /* ENG 1(2) OIL LO PR, OIL HI TEMP, OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts) */
     // The oil pressure and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
@@ -10337,7 +10346,7 @@ export class PseudoFWC {
       side: 'LEFT',
       ...alertStatus(() => packOffStatus(2)),
     },
-    // 36 - PNEUMATIC: the AIR bleed cautions (keys 3611001-3611014), see Logic/BleedAlerts
+    // 36 - PNEUMATIC: the AIR bleed cautions (keys 3611001-3611019), see Logic/BleedAlerts
     ...this.bleedAlerts.ewdFailures,
     // The alerts of the FCOM gap batch P4, see their Logic modules
     ...this.cabinPressureAlerts.ewdFailures,
@@ -10349,6 +10358,7 @@ export class PseudoFWC {
     ...this.doorAlerts.ewdFailures,
     ...this.landingGearAlerts.ewdFailures,
     ...this.gpwsAlerts.ewdFailures,
+    ...this.predictiveWindshearAlerts.ewdFailures,
     2161291: {
       // COND CTL 1-A FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9],
@@ -10788,6 +10798,17 @@ export class PseudoFWC {
       side: 'LEFT',
       statusInfo: () => Brakes.NW_STRG_FAULT_STATUS.left,
       inopSys: () => Brakes.NW_STRG_FAULT_STATUS.inopSys,
+    },
+    3200480: {
+      // WHEEL HYD SEL FAULT (PRO-ABN-WHEEL l.96294-96338), no STATUS
+      flightPhaseInhib: Brakes.HYD_SEL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.brakeSystemAlerts.hydSelFault,
+      whichCodeToReturn: Brakes.hydSelFaultLines,
+      codesToReturn: Brakes.HYD_SEL_FAULT_CODES,
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
     },
     3200081: {
       // BRAKES PARK BRK ON
@@ -12657,6 +12678,15 @@ export class PseudoFWC {
         [3, 4, 5, 7, 8, 9].includes(this.fwcFlightPhase.get()) || this.toConfigTestPhase2MemoryNode.read() ? 1 : 0,
       ],
       codesToReturn: ['000054501', '000054502'],
+      memoInhibit: () => false,
+      side: 'RIGHT',
+    },
+    '0000546': {
+      // TERR STBY, green (FCOM DSC-34-SURV-40-40 l.55563-55566), see Logic/GpwsAlerts
+      flightPhaseInhib: [],
+      simVarIsActive: this.gpwsAlerts.terrStbyMemo,
+      whichCodeToReturn: () => [0],
+      codesToReturn: [TERR_STBY_MEMO_CODE],
       memoInhibit: () => false,
       side: 'RIGHT',
     },

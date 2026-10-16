@@ -18,9 +18,9 @@ import { StatusLines } from './CondStatus';
  * All are amber cautions (level 2, amber titles on the PDF pages) that call the BLEED page. The flight phase
  * inhibitions are the figures of the PDF pages.
  *
- * Not modelled: AIR APU BLEED LEAK / APU LEAK FED BY ENG (l.69586-69635; the Rust APU duct leak only blows APU air) and
- * the LEFT/RIGHT LEAK variants of ENG 1+2 BLEED FAULT (l.70087-70277). The other bleed cautions (BLEED FAULT, LO TEMP,
- * HI TEMP, NOT CLSD, BLEED OFF, APU BLEED FAULT, X BLEED FAULT) are in FWC/Logic/BleedAlerts (other branch).
+ * Not modelled: AIR APU BLEED LEAK / APU LEAK FED BY ENG (l.69586-69635; the Rust APU duct leak only blows APU air).
+ * The other bleed cautions (BLEED FAULT and its BLEED NOT CLOSED subtitle, ENG 1+2 BLEED FAULT and its LEFT/RIGHT LEAK
+ * subtitles, LO TEMP, HI TEMP, NOT CLSD, BLEED OFF, APU BLEED FAULT, X BLEED FAULT) are in FWC/Logic/BleedAlerts.
  */
 
 /** Flight phase inhibition figures (FCOM PDF PRO-ABN-AIR / PRO-ABN-BLEED). The A320 FWC phases are 1 to 10. */
