@@ -35,8 +35,8 @@ import {
   UpDownAdvisoryStatus,
 } from '../lib/TcasConstants';
 import { TcasSoundManager } from './TcasSoundManager';
-import { isGpwsAlertActive } from '../lib/TcasGpwsInhibit';
-import { isTcasFault } from '../lib/TcasFault';
+import { isGpwsAlertActive, isWindshearOrStallWarningActive } from '../lib/TcasGpwsInhibit';
+import { isTcasFault, isTcasStandbyWithoutAltitudeSensors } from '../lib/TcasFault';
 import { isIntruderShownForTrafficSelector } from '../lib/TcasTrafficSelector';
 import { isTcasStandbyWithoutXpdr } from '@shared/TransponderSystem';
 
@@ -196,6 +196,9 @@ export class TcasComputer {
 
   private bothXpdrsFailed: boolean; // Both transponders failed or unpowered: no XPDR for the TCAS
 
+  /** Both radio altimeters failed or a triple ADR failure: TCAS STBY (isTcasStandbyWithoutAltitudeSensors) */
+  private altitudeSensorsLost = false;
+
   private tcasPower: boolean; // is TCAS computer powered?
 
   private readonly failuresConsumer = new FailuresConsumer();
@@ -262,6 +265,9 @@ export class TcasComputer {
   private soundManager: TcasSoundManager; // Sound manager singleton
 
   private gpwsWarning: boolean; // GPWS warning on/off
+
+  /** The windshear or the stall warning is on: automatic TA ONLY (isWindshearOrStallWarningActive) */
+  private windshearOrStallWarning = false;
 
   private raInhibitedLow = false; // RAs inhibited by the low-altitude hysteresis (see updateInhibitions)
 
@@ -359,12 +365,29 @@ export class TcasComputer {
     this.isSlewActive = !!SimVar.GetSimVarValue('IS SLEW ACTIVE', 'boolean');
     this.simRate = SimVar.GetGlobalVarValue('SIMULATION RATE', 'number');
     this.gpwsWarning = isGpwsAlertActive((name) => SimVar.GetSimVarValue(name, 'bool'));
+    this.windshearOrStallWarning = isWindshearOrStallWarningActive((name) => SimVar.GetSimVarValue(name, 'bool'));
 
+    const adrAltitudeValid = [1, 2, 3].map((adr) => {
+      const altitude = Arinc429Word.fromSimVarValue(`L:A32NX_ADIRS_ADR_${adr}_ALTITUDE`);
+      return altitude.isNormalOperation() || altitude.isFunctionalTest();
+    });
+    this.altitudeSensorsLost = isTcasStandbyWithoutAltitudeSensors(
+      radioAlt1.isFailureWarning(),
+      radioAlt2.isFailureWarning(),
+      adrAltitudeValid,
+    );
+
+    // 34-43-00:A32; both ATCs or both RAs failed, triple ADR failure: TCAS STBY (FCOM DSC-34-SURV-60-20 memo display,
+    // a320_fcom.txt:56377-56383)
     this.tcasMode.setVar(
-      this.xpdrStatus === XpdrMode.STBY || this.bothXpdrsFailed || !this.tcasPower || !this.altRptgSwitchPos
+      this.xpdrStatus === XpdrMode.STBY ||
+        this.bothXpdrsFailed ||
+        this.altitudeSensorsLost ||
+        !this.tcasPower ||
+        !this.altRptgSwitchPos
         ? TcasMode.STBY
         : this.tcasSwitchPos,
-    ); // 34-43-00:A32; both ATCs failed: TCAS STBY (FCOM DSC-34-SURV-60-20 memo display)
+    );
   }
 
   /**
@@ -374,7 +397,8 @@ export class TcasComputer {
    * Set inhibition level
    */
   private updateInhibitions(): void {
-    // TODO: Add more TA only conditions here (i.e Windshear warning active, stall)
+    // The automatic TA ONLY of the FCOM (a320_fcom.txt:56001-56006): windshear alert, stall warning, GPWS alerts and
+    // below 1 000 ft AGL. Those alerts also take the aural priority over the TCAS: the TA aural is inhibited with them.
     // TODO FIXME: Less magic numbers, Use constants defined in TcasConstants
     // The low-altitude inhibitions have a hysteresis (TcasConstants): RAs are inhibited below 900 ft AGL in
     // descent and 1 100 ft AGL in climb (the FCOM's "below 1 000 ft +-100 ft"), the TA aural below 400 ft in
@@ -402,6 +426,7 @@ export class TcasComputer {
       this.radioAlt.isFailureWarning() ||
       this.taAuralInhibitedLow ||
       this.gpwsWarning ||
+      this.windshearOrStallWarning ||
       this.tcasMode.getVar() === TcasMode.STBY
     ) {
       this.inhibitions = Inhibit.ALL_RA_AURAL_TA;

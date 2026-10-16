@@ -4,7 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { isTcasFault, TcasFaultInputs } from './TcasFault';
+import { isTcasFault, isTcasStandbyWithoutAltitudeSensors, TcasFaultInputs } from './TcasFault';
 import { A320Failure, A320FailureDefinitions } from '../../../failures/src/a320';
 
 /*
@@ -42,5 +42,31 @@ describe('TCAS fault', () => {
     expect(computer).toContain('this.tcasInternalFailure = this.failuresConsumer.isActive(A320Failure.TcasComputer);');
     expect(computer).toContain('internalFailure: this.tcasInternalFailure,');
     expect(computer).toContain('if (this.tcasMode.getVar() === TcasMode.STBY || this.tcasInternalFailure) {');
+  });
+});
+
+/*
+ * A320 FCOM DSC-34-SURV-60-20 MEMO DISPLAY (a320_fcom.txt:56377-56383): the green TCAS STBY memo also appears when
+ * "both ATCs or both RAs are failed" or "In the case of a triple ADR failure". Standby, not a TCAS fault.
+ */
+describe('TCAS standby without altitude sensors', () => {
+  it('stays operative with one radio altimeter and one ADR', () => {
+    expect(isTcasStandbyWithoutAltitudeSensors(true, false, [false, false, true])).toBe(false);
+    expect(isTcasStandbyWithoutAltitudeSensors(false, true, [true, false, false])).toBe(false);
+    expect(isTcasStandbyWithoutAltitudeSensors(false, false, [true, true, true])).toBe(false);
+  });
+
+  it('is in standby when both radio altimeters are failed', () => {
+    expect(isTcasStandbyWithoutAltitudeSensors(true, true, [true, true, true])).toBe(true);
+  });
+
+  it('is in standby on a triple ADR failure', () => {
+    expect(isTcasStandbyWithoutAltitudeSensors(false, false, [false, false, false])).toBe(true);
+  });
+
+  it('the TCAS computer goes to STBY with it, which also clears the TCAS fault', () => {
+    const computer = readFileSync(resolve(__dirname, '../components/TcasComputer.ts'), 'utf-8');
+    expect(computer).toContain('this.altitudeSensorsLost = isTcasStandbyWithoutAltitudeSensors(');
+    expect(computer).toMatch(/this\.bothXpdrsFailed \|\|\s+this\.altitudeSensorsLost \|\|/);
   });
 });

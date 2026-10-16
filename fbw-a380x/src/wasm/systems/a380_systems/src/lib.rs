@@ -340,6 +340,8 @@ impl Aircraft for A380 {
             &self.landing_gear,
             self.hydraulic.gear_system(),
             self.ext_pwrs[0].output_potential().is_powered(),
+            // The A380 baulk only uses the gear compression (A380 FCOM DSC-32-20-120, a380_fcom.txt:81619-81622)
+            true,
         );
 
         self.fire_and_smoke_protection.update(
