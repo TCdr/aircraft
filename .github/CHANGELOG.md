@@ -316,6 +316,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] STATUS MORE page: new ALERTS IMPACTING LDG PERF section, and the MORE INFO line of MISC OIS FAULT - @TCdr
 1. [A32NX/A380X/APU] The APU shuts down automatically with a FAULT on an ECB failure, an overspeed, a low oil pressure or a high oil temperature (four new ATA 49 flyPad failures; A380X high oil temperature on the ground only), and when its DC supply is lost while it runs (BAT OFF on batteries only) - @TCdr
 1. [A380X/FIRE] Smoke Detection Function for the cargo compartments, the avionics bays and the IFE bay with new flyPad failures: their SMOKE warnings and SMOKE DET FAULT cautions, and the FWD+AFT CARGO BTL 1(2) FAULT cautions; the AGENT TO FWD/AFT pbs now discharge the two cargo fire bottles (SMOKE, DISCH and BTL lights) - @TCdr
+1. [A380X/PRESS] Automatic pressurization keeps the cabin differential pressure in the normal range in cruise above the FMS cruise FL or after an FMS reset, instead of drifting to the 9 PSI pressure limiter - @TCdr
 
 ## 2024.1.0
 
