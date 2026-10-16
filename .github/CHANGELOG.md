@@ -732,6 +732,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] The amber attention box of an engine also comes up with a red oil pressure, an amber oil temperature, an amber CLOGGED or an amber REV indication - @TCdr
 1. [A380X/FWS] L/G GRVTY EXTN memo after a gravity extension, and STATUS INOP SYS ENG n BLEED also for a bleed fault, a bleed leak or the ENG BLEED pb-sw OFF - @TCdr
 1. [A380X/FWS] WHEEL TIRE PRESS LO from the TPIS tire pressures (low tire, or two tires of an axle too different) - @TCdr
+1. [A380X/RMP] The STBY RAD NAV guarded key now works on RMP 1 and 2: key light on, the FMS stops tuning the navaids, back to the VHF page when deselected - @TCdr
+1. [A380X/RMP] The PA key now transmits only while held, the radio selected before comes back at the release - @TCdr
+1. [A380X/RMP] RMP messages are now queued: MSG CLR clears them one by one and shows the previous one - @TCdr
+1. [A380X/COMM] Each CALLS panel pushbutton now calls its own station (a PILOT REST call no longer makes the cabin report CABIN READY), EMER ON and CALL lights steady - @TCdr
+1. [A380X/COMM] The ELT selector now works (ON, ARMED, TEST/RESET) - @TCdr
 
 ## 2024.1.0
 

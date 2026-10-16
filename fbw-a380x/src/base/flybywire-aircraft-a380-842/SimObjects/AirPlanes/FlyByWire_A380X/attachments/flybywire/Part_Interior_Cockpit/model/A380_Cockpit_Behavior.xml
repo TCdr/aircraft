@@ -3027,17 +3027,33 @@
 
             <Component ID="Overhead_Dummies">
                 <Component ID="Left_Column">
-                    <!-- ELT-->
-                    <UseTemplate Name="FBW_Push_Held">
-                        <NODE_ID>PUSH_OVHD_ELT_TEST</NODE_ID>
-                        <HOLD_SIMVAR>L:A32NX_ELT_TEST_RESET</HOLD_SIMVAR>
-                        <TOOLTIPID>Test/Reset ELT (Inop.)</TOOLTIPID>
-                    </UseTemplate>
-                    <UseTemplate Name="FBW_Push_Held">
-                        <NODE_ID>PUSH_OVHD_ELT_ON</NODE_ID>
-                        <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_ELT_ON)</LEFT_SINGLE_CODE>
-                        <TOOLTIPID>Turn ON ELT (Inop.)</TOOLTIPID>
-                    </UseTemplate>
+                    <!-- ELT. The cockpit model has one guarded 3-position selector (SWITCH_OVHD_ELT_SELECTOR), not the
+                         two pbs this block used to name (PUSH_OVHD_ELT_TEST/_ON do not exist in the model), and no ON
+                         light. A380 FCOM DSC-23-20 ELT panel (a380_fcom.txt l.49172-49200): ARMED/ON sw ("armed, and
+                         automatically transmits [...] when the aircraft sustains an abnormal load factor" / "on, and
+                         transmits the emergency radio signal"), TEST/RESET ("An ELT self-test starts, or The ELT stops
+                         transmitting"). The selector combines them as the later Airbus ELT selector does (A320 FCOM
+                         DSC-23-40-30, a320_fcom.txt l.36072-36082: ON / ARMED / TEST/RESET):
+                         up = ON, centre = ARMED, down = TEST/RESET. Same animation as the SEAT BELTS switch (position 0
+                         up with INVERT_ANIM). Same L:vars as the A32NX ELT. -->
+                    <Component ID="SWITCH_OVHD_ELT_SELECTOR" Node="SWITCH_OVHD_ELT_SELECTOR">
+                        <UseTemplate Name="ASOBO_GT_Switch_3States">
+                            <ANIM_NAME>SWITCH_OVHD_ELT_SELECTOR</ANIM_NAME>
+                            <PART_ID>SWITCH_OVHD_ELT_SELECTOR</PART_ID>
+                            <INVERT_ANIM>True</INVERT_ANIM>
+                            <SWITCH_DIRECTION>Vertical</SWITCH_DIRECTION>
+                            <WWISE_EVENT>lswitch</WWISE_EVENT>
+                            <ANIMTIP_0>Set ELT to ON (transmit)</ANIMTIP_0>
+                            <ANIMTIP_1>Set ELT to ARMED</ANIMTIP_1>
+                            <ANIMTIP_2>ELT TEST/RESET</ANIMTIP_2>
+                            <CODE_POS_0>1 (&gt;L:A32NX_ELT_ON) 0 (&gt;L:A32NX_ELT_TEST_RESET)</CODE_POS_0>
+                            <CODE_POS_1>0 (&gt;L:A32NX_ELT_ON) 0 (&gt;L:A32NX_ELT_TEST_RESET)</CODE_POS_1>
+                            <CODE_POS_2>0 (&gt;L:A32NX_ELT_ON) 1 (&gt;L:A32NX_ELT_TEST_RESET)</CODE_POS_2>
+                            <STATE0_TEST>(L:A32NX_ELT_ON, Bool)</STATE0_TEST>
+                            <STATE1_TEST>(L:A32NX_ELT_ON, Bool) ! (L:A32NX_ELT_TEST_RESET, Bool) ! and</STATE1_TEST>
+                            <STATE2_TEST>(L:A32NX_ELT_TEST_RESET, Bool)</STATE2_TEST>
+                        </UseTemplate>
+                    </Component>
 
                     <!-- PA -->
                     <UseTemplate Name="FBW_Airbus_PA_Button">
@@ -4577,36 +4593,49 @@
                             </UseTemplate>
                         </Component>
 
+                        <!-- CALLS panel, A380 FCOM DSC-23-20 (a380_fcom.txt l.49023-49096): each pb calls its own station
+                             with its own L:var (sound.xml plays the high/low chime, the MECH horn while held). The
+                             cabin calls (ALL, DECK, PURS) also make the cabin crew report CABIN READY
+                             (systems-host CpiomC/FlightWarningSystem/CommunicationAlerts.ts isCabinCalledFromCockpit). -->
                         <Component ID="CALLS">
                             <UseTemplate Name="FBW_Push_Held">
                                 <NODE_ID>PUSH_OVHD_CALLS_MECH</NODE_ID>
                                 <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_MECH</HOLD_SIMVAR>
+                                <TOOLTIPID>Call the ground crew (external horn while held)</TOOLTIPID>
                             </UseTemplate>
                             <UseTemplate Name="FBW_Push_Held">
                                 <NODE_ID>PUSH_OVHD_CALLS_ALL</NODE_ID>
                                 <PART_ID>PUSH_OVHD_CALLS_ALL</PART_ID>
                                 <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_ALL</HOLD_SIMVAR>
+                                <TOOLTIPID>Call all the cabin crew stations</TOOLTIPID>
                             </UseTemplate>
                             <UseTemplate Name="FBW_Push_Held">
                                 <NODE_ID>PUSH_OVHD_CALLS_DECK_UPPER</NODE_ID>
-                                <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_FWD</HOLD_SIMVAR>
+                                <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_DECK_UPPER</HOLD_SIMVAR>
+                                <TOOLTIPID>Call the upper deck cabin crew</TOOLTIPID>
                             </UseTemplate>
                             <UseTemplate Name="FBW_Push_Held">
                                 <NODE_ID>PUSH_OVHD_CALLS_DECK_MAIN</NODE_ID>
-                                <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_AFT</HOLD_SIMVAR>
+                                <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_DECK_MAIN</HOLD_SIMVAR>
+                                <TOOLTIPID>Call the main deck cabin crew</TOOLTIPID>
                             </UseTemplate>
                             <UseTemplate Name="FBW_Push_Held">
                                 <NODE_ID>PUSH_OVHD_CALLS_REST_FWD</NODE_ID>
-                                <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_FWD</HOLD_SIMVAR>
+                                <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_REST_FWD</HOLD_SIMVAR>
+                                <TOOLTIPID>Call the forward crew rest</TOOLTIPID>
                             </UseTemplate>
                             <UseTemplate Name="FBW_Push_Held">
                                 <NODE_ID>PUSH_OVHD_CALLS_REST_MAIN</NODE_ID>
-                                <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_AFT</HOLD_SIMVAR>
+                                <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_REST_MAIN</HOLD_SIMVAR>
+                                <TOOLTIPID>Call the main deck crew rest</TOOLTIPID>
                             </UseTemplate>
                             <UseTemplate Name="FBW_Push_Held">
                                 <NODE_ID>PUSH_OVHD_CALLS_PURS</NODE_ID>
-                                <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_AFT</HOLD_SIMVAR>
+                                <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_PURS</HOLD_SIMVAR>
+                                <TOOLTIPID>Call the purser</TOOLTIPID>
                             </UseTemplate>
+                            <!-- EMER pb-sw (l.49080-49096): "When pressed: The ON and the CALL lights come on" (steady).
+                                 Only an EMER call from the cabin flashes the CALL light (l.49084), not modelled. -->
                             <UseTemplate Name="FBW_Covered_Push_Toggle">
                                 <NODE_ID>PUSH_OVHD_CALLS_EMER</NODE_ID>
                                 <LOCK_NODE_ID>LOCK_OVHD_CALLS_EMER</LOCK_NODE_ID>
@@ -4614,10 +4643,8 @@
                                 <TOOLTIPID>%((L:A32NX_CALLS_EMER_ON, Bool))%{if}Turn OFF emergency
                                     call%{else}Turn ON emergency call%{end}</TOOLTIPID>
                                 <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
-                                <SEQ1_CODE>(L:A32NX_CALLS_EMER_ON, Bool) (E:ABSOLUTE TIME, seconds)
-                                    1 % 0.4 &gt; and</SEQ1_CODE>
-                                <SEQ2_CODE>(L:A32NX_CALLS_EMER_ON, Bool) (E:ABSOLUTE TIME, seconds)
-                                    1 % 0.4 &gt; and</SEQ2_CODE>
+                                <SEQ1_CODE>(L:A32NX_CALLS_EMER_ON, Bool)</SEQ1_CODE>
+                                <SEQ2_CODE>(L:A32NX_CALLS_EMER_ON, Bool)</SEQ2_CODE>
                                 <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                                 <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
                             </UseTemplate>

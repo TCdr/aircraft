@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -12,6 +12,12 @@ import {
 import { KeypadEvents, SystemKeys } from './KeypadController';
 import { AudioControlLocalVarEvents } from '../Data/AudioControlPublisher';
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
+import {
+  NO_TRANSMISSION,
+  TransmissionState,
+  transmissionAfterKeyPressed,
+  transmissionAfterKeyReleased,
+} from './TransmissionKeys';
 
 /** Manages the external interfaces to the AMUs. */
 export class AudioControlManager implements Instrument {
@@ -154,8 +160,12 @@ export class AudioControlManager implements Instrument {
 
   private isSyncEnabled = false;
 
+  /** The transmission key in transmission mode (and the one to restore after a PA announcement). */
+  private transmission: TransmissionState = NO_TRANSMISSION;
+
   private readonly subs = [
     this.sub.on(`keypad_system_key_pressed`).handle(this.onKeyPressed.bind(this), true),
+    this.sub.on(`keypad_system_key_released`).handle(this.onKeyReleased.bind(this), true),
     ...this.rxStates.map((s) => s.sub),
   ];
 
@@ -199,20 +209,35 @@ export class AudioControlManager implements Instrument {
 
   private onKeyPressed(key: SystemKeys): void {
     const keyEvent = this.keyEventMap[key];
-    if (keyEvent) {
-      const newState = !keyEvent.state.get();
+    if (!keyEvent) {
+      return;
+    }
 
-      if (newState && key !== SystemKeys.Voice) {
-        // clear all others as only one can be on
-        for (const k of Object.keys(this.keyEventMap)) {
-          if (k !== key) {
-            this.keyEventMap[k].state.set(false);
-          }
-        }
+    if (key === SystemKeys.Voice) {
+      // the VOICE key (radio nav ident filter) is not a transmission key: it toggles on its own
+      keyEvent.state.set(!keyEvent.state.get());
+      return;
+    }
+
+    this.setTransmission(transmissionAfterKeyPressed(this.transmission, key));
+  }
+
+  private onKeyReleased(key: SystemKeys): void {
+    if (key !== SystemKeys.Voice && this.keyEventMap[key]) {
+      this.setTransmission(transmissionAfterKeyReleased(this.transmission, key));
+    }
+  }
+
+  /**
+   * Sets the transmission key lights/outputs: only the active transmission key is on.
+   * @param transmission the new transmission state
+   */
+  private setTransmission(transmission: TransmissionState): void {
+    this.transmission = transmission;
+    for (const k of Object.keys(this.keyEventMap)) {
+      if (k !== SystemKeys.Voice) {
+        this.keyEventMap[k].state.set(k === transmission.active);
       }
-
-      // now set ours on
-      keyEvent.state.set(newState);
     }
   }
 }

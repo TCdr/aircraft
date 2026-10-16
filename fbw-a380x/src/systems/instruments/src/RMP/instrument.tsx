@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -25,6 +25,7 @@ import { AudioControlLocalVarPublisher } from './Data/AudioControlPublisher';
 import { VhfRadioPublisher } from './Data/VhfRadioPublisher';
 import { TransponderPublisher } from './Data/TransponderPublisher';
 import { TransmitMessageMonitor } from './Systems/TransmitMessageMonitor';
+import { StandbyRadioNavigationManager } from './Systems/StandbyRadioNavigation';
 
 import './style.scss';
 
@@ -63,6 +64,8 @@ class RmpInstrument implements FsInstrument {
 
   private readonly transmitMessageMonitor = new TransmitMessageMonitor(this.bus);
 
+  private readonly standbyRadioNavigationManager = new StandbyRadioNavigationManager(this.bus, this.rmpIndex);
+
   private readonly screenOff = Subject.create(true);
 
   constructor(public readonly instrument: BaseInstrument) {
@@ -83,6 +86,7 @@ class RmpInstrument implements FsInstrument {
     this.backplane.addPublisher('VhfRadioPublisher', this.vhfRadioPublisher);
     this.backplane.addPublisher('TransponderPublisher', this.transponderPublisher);
     this.backplane.addInstrument('TransmitMessageMonitor', this.transmitMessageMonitor);
+    this.backplane.addInstrument('StandbyRadioNavigationManager', this.standbyRadioNavigationManager);
 
     for (const vhf of this.vhfControllers) {
       this.backplane.addInstrument(`VhfController${vhf.index}`, vhf, true);
