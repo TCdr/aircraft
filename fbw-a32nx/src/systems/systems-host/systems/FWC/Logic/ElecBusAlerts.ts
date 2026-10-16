@@ -17,7 +17,8 @@ import { Subject } from '@microsoft/msfs-sdk';
  *
  * Not modelled (design choice): the "FUEL CONSUMPT INCRSD / FMS PRED UNRELIABLE" lines, which the FCOM shows "when the
  * failure (or combination of failures) affects the nominal aerodynamic characteristics of the aircraft" (l.75542-75543):
- * that condition is not computed (the ELEC EMER CONFIG procedure leaves them out for the same reason). The option lines
+ * that condition is not computed. ELEC EMER CONFIG gives them, its procedure lists them with no condition (see
+ * elecEmerConfigFuelLines). The option lines
  * (CRG HEAT/VENT, STEEP APPR, ROW/ROP, GLS AUTOLAND), the A321 ACT PUMP and the "Other INOP SYS" lists, which the ECAM
  * does not display, are left out too.
  */
@@ -751,4 +752,62 @@ export function engineGeneratorLostStatus(genNumber: 1 | 2, apuGenOnline: boolea
 /** APU GEN FAULT STATUS, l.76127-76134: INOP SYS MAIN GALLEY "(When only one GEN operating)", APU GEN */
 export function apuGenFaultStatus(onlyOneGenOperating: boolean): ElecAlertStatus {
   return { left: [], inopSys: [...(onlyOneGenOperating ? [S.mainGalley] : []), S.apuGen] };
+}
+
+/**
+ * ELEC EMER CONFIG lines 15 FUEL CONSUMPT INCRSD and 16 FMS PRED UNRELIABLE (codes 240003116, 240003117): the procedure
+ * lists them after BLOWER + EXTRACT OVRD with no condition (l.77606-77608). Shown in flight, as the other in-flight
+ * lines of the procedure (PseudoFWC 2400031).
+ * @param inFlight the aircraft is in flight
+ * @returns the line indexes 15 and 16, or null
+ */
+export function elecEmerConfigFuelLines(inFlight: boolean): (number | null)[] {
+  return [inFlight ? 15 : null, inFlight ? 16 : null];
+}
+
+/**
+ * ELEC EMER CONFIG STATUS, l.77641-77675, in the FCOM order: MIN RAT SPEED 140 KT, MAX SPEED 320 KT, MAX BRK PR 1000
+ * PSI, FUEL GRVTY FEED, AVOID NEGATIVE G FACTOR, APPR PROC: FOR LDG USE FLAP 3, APPR SPD VREF +10/140 KT, LDG DIST PROC
+ * APPLY, FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE, ALTN LAW: PROT LOST, WHEN L/G DN: DIRECT LAW, SLATS/FLAPS SLOW, FLS
+ * LIMITED TO F-APP + RAW; INOP SYS F/CTL PROT, REVERSER 1+2, ADR 2+3, IR 2, RA 1+2, SPLR 1+2+5, ELAC 2, SEC 2+3, A/CALL
+ * OUT, AP 1+2, A/THR, FUEL PUMPS, ANTI SKID, N/W STRG, CAT 2. Not shown: the STEEP APPR option, the "Note" about the
+ * STBY airspeed (a crew note) and the "FOR LDG : USE FLAP 3" reminder in CONF 3.
+ */
+export function elecEmerConfigStatus(): ElecAlertStatus {
+  return {
+    left: [
+      '240400301',
+      '240400302',
+      '240400303',
+      '240400304',
+      '240400305',
+      '240500301',
+      '240400306',
+      '240400307',
+      '240400308',
+      '240400309',
+      '240400310',
+      '240200301',
+      '240200302',
+      '240200303',
+      '240200304',
+    ],
+    inopSys: [
+      '240300301',
+      '240300302',
+      '240300303',
+      '240300304',
+      '240300305',
+      '240300306',
+      '240300307',
+      '240300308',
+      '240300309',
+      '240300310',
+      '240300311',
+      '240300312',
+      '240300313',
+      '240300314',
+      '240300315',
+    ],
+  };
 }

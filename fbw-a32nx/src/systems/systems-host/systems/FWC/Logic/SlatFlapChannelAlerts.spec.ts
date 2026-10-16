@@ -8,6 +8,7 @@ import {
   SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
   SfccStatusWord,
   flapSysFaultStatus,
+  selectSfccPositionWord,
   slatFlapChannelFaults,
   slatSysFaultStatus,
 } from './SlatFlapChannelAlerts';
@@ -108,5 +109,31 @@ describe('PseudoFWC F/CTL FLAP(SLAT) SYS 1(2) FAULT', () => {
     expect(fwc).toContain("Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_FLAP_SYSTEM_STATUS_WORD'),");
     expect(fwc).toContain('this.flapSys1Fault.set(slatFlapChannels.flapSysFault[0]);');
     expect(fwc).toContain('this.slatSys2Fault.set(slatFlapChannels.slatSysFault[1]);');
+  });
+});
+
+/* A320 FCOM DSC-27-30-10 (l.41397-41398): "Two slat flap control computers (SFCCs), each containing one slat channel and
+   one flap channel". */
+describe('FWC flap and slat position source', () => {
+  const word = (name: string, valid: boolean) => ({ name, isNormalOperation: () => valid });
+
+  it('uses SFCC 1 when it is valid', () => {
+    expect(selectSfccPositionWord(word('sfcc1', true), word('sfcc2', true)).name).toBe('sfcc1');
+    expect(selectSfccPositionWord(word('sfcc1', true), word('sfcc2', false)).name).toBe('sfcc1');
+  });
+
+  it('uses SFCC 2 when SFCC 1 sends no valid position', () => {
+    expect(selectSfccPositionWord(word('sfcc1', false), word('sfcc2', true)).name).toBe('sfcc2');
+  });
+
+  it('keeps SFCC 1 when neither is valid', () => {
+    expect(selectSfccPositionWord(word('sfcc1', false), word('sfcc2', false)).name).toBe('sfcc1');
+  });
+
+  it('PseudoFWC reads the SFCC 2 flap and slat position words too', () => {
+    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
+    expect(fwc).toContain("'L:A32NX_SFCC_2_FLAP_ACTUAL_POSITION_WORD'");
+    expect(fwc).toContain("'L:A32NX_SFCC_2_SLAT_ACTUAL_POSITION_WORD'");
+    expect(fwc).not.toContain('TODO: add switching between SFCC_1 and SFCC_2');
   });
 });

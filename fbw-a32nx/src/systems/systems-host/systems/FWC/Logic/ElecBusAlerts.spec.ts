@@ -35,6 +35,8 @@ import {
   dcEssBusShedLines,
   dcEssBusShedStatus,
   elecBusAlertConditions,
+  elecEmerConfigFuelLines,
+  elecEmerConfigStatus,
   engineGeneratorLostStatus,
   essBusesOnBatLines,
   trFaultStatus,
@@ -397,5 +399,73 @@ describe('ELEC bus alert monitor in the sim JS runtime', () => {
     } finally {
       objectWithFromEntries.fromEntries = fromEntries;
     }
+  });
+});
+
+/* A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG: the procedure lists FUEL CONSUMPT INCRSD and FMS PRED UNRELIABLE after
+   BLOWER + EXTRACT OVRD (l.77606-77608); STATUS l.77641-77675. */
+describe('ELEC EMER CONFIG', () => {
+  // eslint-disable-next-line no-control-regex
+  const plain = (text: string) => text.replace(/\x1b<\dm/g, '');
+
+  it('says FUEL CONSUMPT INCRSD and FMS PRED UNRELIABLE in flight', () => {
+    const lines = elecEmerConfigFuelLines(true);
+    expect(lines).toEqual([15, 16]);
+    const codes = lines.map((line) => `2400031${(line! + 1).toString().padStart(2, '0')}`);
+    expect(formatEwdMessages(codes).map(plain)).toEqual([' FUEL CONSUMPT INCRSD', ' FMS PRED UNRELIABLE']);
+  });
+
+  it('not on the ground', () => {
+    expect(elecEmerConfigFuelLines(false)).toEqual([null, null]);
+  });
+
+  it('PseudoFWC gives the two lines and the STATUS to ELEC EMER CONFIG', () => {
+    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
+    const item = fwc.slice(fwc.indexOf('    2400031: {'), fwc.indexOf('    2400600: {'));
+    expect(item).toContain('...elecEmerConfigFuelLines(!this.aircraftOnGround.get())');
+    expect(item).toContain('...alertStatus(elecEmerConfigStatus)');
+    expect(item).not.toContain('TODO: Check increased fuel consumpt');
+  });
+
+  it('STATUS in the FCOM order', () => {
+    const status = elecEmerConfigStatus();
+    const texts = formatStatusPage(status.left, status.inopSys);
+    // eslint-disable-next-line no-control-regex
+    const lines = (column: string) => column.split('\r').map((line) => plain(line).replace(/\x1b4m|\x1bm/g, ''));
+    expect(lines(texts.left)).toEqual([
+      'MIN RAT SPEED....140 KT',
+      'MAX SPEED........320 KT',
+      'MAX BRK PR.....1000 PSI',
+      'FUEL GRVTY FEED',
+      'AVOID NEGATIVE G FACTOR',
+      'APPR PROC:',
+      'FOR LDG......USE FLAP 3',
+      'APPR SPD.VREF+10/140 KT',
+      'LDG DIST PROC....APPLY',
+      'FUEL CONSUMPT INCRSD',
+      'FMS PRED UNRELIABLE',
+      'ALTN LAW: PROT LOST',
+      'WHEN L/G DN: DIRECT LAW',
+      'SLATS/FLAPS SLOW',
+      'FLS LIMITED TO F-APP + RAW',
+    ]);
+    expect(lines(texts.right)).toEqual([
+      'INOP SYS',
+      'F/CTL PROT',
+      'REVERSER 1+2',
+      'ADR 2+3',
+      'IR 2',
+      'RA 1+2',
+      'SPLR 1+2+5',
+      'ELAC 2',
+      'SEC 2+3',
+      'A/CALL OUT',
+      'AP 1+2',
+      'A/THR',
+      'FUEL PUMPS',
+      'ANTI SKID',
+      'N/W STRG',
+      'CAT 2',
+    ]);
   });
 });

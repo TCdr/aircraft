@@ -16,6 +16,7 @@ import {
   isFmgcLandingElevationWordReceived,
   isLandingElevationFault,
   isRamAirOnMemoShown,
+  safetyValveOpenLines,
   safetyValveOpenStatus,
 } from './AirConditioningAlerts';
 import { ewdLines, ewdTexts, pseudoFwcItem, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
@@ -205,5 +206,40 @@ describe('CAB PR STATUS', () => {
     ['2131233', 'safetyValveOpenStatus()'],
   ])('PseudoFWC gives %s its STATUS', (key, status) => {
     expect(pseudoFwcItem(key)).toContain(`...alertStatus(() => ${status})`);
+  });
+});
+
+/* A320 FCOM PRO-ABN-CAB_PR CAB PR SAFETY VALVE OPEN (l.73299-73313): "IF DIFF PR ABV 8 PSI: MODE SEL MAN, MAN V/S CTL AS
+   RQRD, IF UNSUCCESSFUL: A/C FL REDUCE"; "IF DIFF PR BELOW 0 PSI: EXPECT HI CAB RATE, A/C V/S REDUCE". */
+describe('CAB PR SAFETY VALVE OPEN lines', () => {
+  const shown = (deltaPressure: number, excessPressure = false, auto = true) =>
+    safetyValveOpenLines(deltaPressure, excessPressure, auto).filter((line) => line !== null);
+
+  it('only the title between 0 and 8 PSI', () => {
+    expect(shown(0.5)).toEqual([0]);
+    expect(shown(5)).toEqual([0]);
+    expect(shown(8)).toEqual([0]);
+    expect(shown(0)).toEqual([0]);
+  });
+
+  it('the BELOW 0 PSI branch under 0 PSI', () => {
+    expect(shown(-0.2)).toEqual([0, 1, 2, 3]);
+    expect(shown(-0.2, true)).toEqual([0, 1, 2]);
+  });
+
+  it('the ABV 8 PSI branch above 8 PSI, MODE SEL MAN until MAN is selected', () => {
+    expect(shown(8.2)).toEqual([0, 4, 5, 6, 7, 8]);
+    expect(shown(8.2, false, false)).toEqual([0, 4, 6, 7, 8]);
+  });
+
+  it('the branch titles say 0 and 8 PSI', () => {
+    expect(ewdTexts(['213123302', '213123305'])).toEqual([
+      '\x1b<7m .IF DIFF PR BELOW 0 PSI:',
+      '\x1b<7m .IF DIFF PR ABV 8 PSI:',
+    ]);
+  });
+
+  it('is the PseudoFWC SAFETY VALVE OPEN lines', () => {
+    expect(pseudoFwcItem('2131233')).toContain('safetyValveOpenLines(');
   });
 });
