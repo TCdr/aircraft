@@ -1,6 +1,7 @@
 import React, { FC } from 'react';
 import { Wheel } from './Wheel';
-import { HottestBrakeArc } from '../WheelIndications';
+import { HottestBrakeArc, tirePressureIndication } from '../WheelIndications';
+import { NOSE_LEFT_TIRE, NOSE_RIGHT_TIRE } from '@shared/TirePressures';
 import { BodyWheelSteering, NoseWheelSteering } from './Steering';
 
 export enum WheelBogeyPosition {
@@ -25,6 +26,10 @@ interface WheelBogeyProps {
   brakeTemperatures: readonly number[];
   /** The hottest brake arcs of brakes 1 to 16 (WheelIndications hottestBrakeArcs) */
   hottestBrakeArcs: readonly HottestBrakeArc[];
+  /** The TPIS pressures of tires 1 to 22 in PSI (shared/TirePressures numbering) */
+  tirePressures: readonly number[];
+  /** The FWS flight phase (L:A32NX_FWC_FLIGHT_PHASE) */
+  flightPhase: number;
 }
 
 export const WheelBogey: FC<WheelBogeyProps> = ({
@@ -35,6 +40,8 @@ export const WheelBogey: FC<WheelBogeyProps> = ({
   moreActive,
   brakeTemperatures,
   hottestBrakeArcs,
+  tirePressures,
+  flightPhase,
 }) => {
   let numberOfWheels;
   if (type === WheelBogeyType.Nose) {
@@ -60,6 +67,12 @@ export const WheelBogey: FC<WheelBogeyProps> = ({
     }
 
     const hasBrake = wheelNumber < 17 && type !== WheelBogeyType.Nose;
+    // The nose wheel 1 is drawn on the left, the nose wheel 0 on the right
+    let tire = wheelNumber;
+    if (type === WheelBogeyType.Nose) {
+      tire = i === 1 ? NOSE_LEFT_TIRE : NOSE_RIGHT_TIRE;
+    }
+    const tirePressure = tirePressureIndication(tirePressures, tire, flightPhase, moreActive);
     wheels.push(
       <Wheel
         x={xOffset}
@@ -67,9 +80,11 @@ export const WheelBogey: FC<WheelBogeyProps> = ({
         number={type !== WheelBogeyType.Nose ? wheelNumber : null}
         hasBrake={hasBrake}
         isLeftSide={wheelNumber % 2 !== 0}
-        moreActive={moreActive}
         brakeTemperature={hasBrake ? brakeTemperatures[wheelNumber - 1] ?? 0 : 0}
         hottestArc={hasBrake ? hottestBrakeArcs[wheelNumber - 1] ?? HottestBrakeArc.None : HottestBrakeArc.None}
+        tirePressure={tirePressures[tire - 1] ?? 0}
+        tirePressureVisible={tirePressure.visible}
+        tirePressureAmber={tirePressure.amber}
       />,
     );
   }

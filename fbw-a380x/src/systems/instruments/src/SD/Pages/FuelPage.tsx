@@ -6,6 +6,14 @@ import { useArinc429Var } from '@instruments/common/arinc429';
 import { NXUnits, useInterval } from '@flybywiresim/fbw-sdk-react';
 import { engineLpValveIndication } from './EngineLpValveIndication';
 import { jettisonValveIndication } from './JettisonValveIndication';
+import {
+  galleryFlowSpan,
+  GalleryFlowPoint,
+  insertOutletsByX,
+  isGallerySegmentActive,
+  isTransferPumpRunning,
+  jettisonGalleryFlow,
+} from './FuelGalleryFlow';
 import { WingImbalanceIndication } from './FuelImbalanceIndication';
 import {
   collectorCellQuantityVar,
@@ -304,12 +312,36 @@ export const FuelPage = () => {
 
   const isTrimLineIsolated = areTrimLineIsolationValvesClosed && areTrimTankInletValvesClosed;
 
+  // Jettison valves
+  const [leftJettisonValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:57', 'Percent over 100', 1000);
+  const isLeftJettisonValveOpen = leftJettisonValveOpen >= JETTISON_VALVE_CLOSED_THRESHOLD;
+  const [rightJettisonValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:58', 'Percent over 100', 1000);
+  const isRightJettisonValveOpen = rightJettisonValveOpen >= JETTISON_VALVE_CLOSED_THRESHOLD;
+  // Written by the FQMS (CpiomF/FuelJettison.ts) while both jettison pbs are pressed and the jettison runs
+  const [jettisonInProgress] = useSimVar('L:A380X_FUEL_JETTISON_IN_PROGRESS', 'Bool', 1000);
+  const isJettisonActive = jettisonInProgress > 0;
+  const leftJettisonIndication = jettisonValveIndication(isLeftJettisonValveOpen, isJettisonActive);
+  const rightJettisonIndication = jettisonValveIndication(isRightJettisonValveOpen, isJettisonActive);
+  // The jettison flow through the galleries: transfer pumps running, FWD gallery linked to the AFT gallery, jettison
+  // valves as AFT gallery outlets (FCOM DSC-28-40 l.60012-60031, FuelGalleryFlow.ts)
+  const jettisonFlow = jettisonGalleryFlow(
+    isJettisonActive,
+    isLeftJettisonValveOpen,
+    isRightJettisonValveOpen,
+    isAnyGalleryAuxRefuelValveOpen,
+  );
+
   const fwdGalleryPumps: PumpProps[] = [
     // Pump.9
     {
       x: 84,
       y: 384,
-      running: isLeftOuterTankPumpActive,
+      running: isTransferPumpRunning(
+        isLeftOuterTankPumpActive,
+        jettisonFlow,
+        isLeftOuterTankPumpSwitchOff,
+        leftOuterTankPumpFault > 0,
+      ),
       hasFault: isLeftOuterTankPumpSwitchOff || leftOuterTankPumpFault > 0,
       displayWhenInactive: showMore,
     },
@@ -317,7 +349,12 @@ export const FuelPage = () => {
     {
       x: 140,
       y: 384,
-      running: isLeftMidTankPumpFwdActive,
+      running: isTransferPumpRunning(
+        isLeftMidTankPumpFwdActive,
+        jettisonFlow,
+        isLeftMidTankPumpFwdSwitchOff,
+        leftMidTankFwdPumpFault > 0,
+      ),
       hasFault: isLeftMidTankPumpFwdSwitchOff || leftMidTankFwdPumpFault > 0,
       displayWhenInactive: showMore,
     },
@@ -325,7 +362,12 @@ export const FuelPage = () => {
     {
       x: 232,
       y: 384,
-      running: isLeftInnerTankPumpFwdActive,
+      running: isTransferPumpRunning(
+        isLeftInnerTankPumpFwdActive,
+        jettisonFlow,
+        isLeftInnerTankPumpFwdSwitchOff,
+        leftInnerTankFwdPumpFault > 0,
+      ),
       hasFault: isLeftInnerTankPumpFwdSwitchOff || leftInnerTankFwdPumpFault > 0,
       displayWhenInactive: showMore,
     },
@@ -333,7 +375,12 @@ export const FuelPage = () => {
     {
       x: 482,
       y: 384,
-      running: isRightInnerTankPumpFwdActive,
+      running: isTransferPumpRunning(
+        isRightInnerTankPumpFwdActive,
+        jettisonFlow,
+        isRightInnerTankPumpFwdSwitchOff,
+        rightInnerTankFwdPumpFault > 0,
+      ),
       hasFault: isRightInnerTankPumpFwdSwitchOff || rightInnerTankFwdPumpFault > 0,
       displayWhenInactive: showMore,
     },
@@ -341,7 +388,12 @@ export const FuelPage = () => {
     {
       x: 584,
       y: 384,
-      running: isRightMidTankPumpFwdActive,
+      running: isTransferPumpRunning(
+        isRightMidTankPumpFwdActive,
+        jettisonFlow,
+        isRightMidTankPumpFwdSwitchOff,
+        rightMidTankFwdPumpFault > 0,
+      ),
       hasFault: isRightMidTankPumpFwdSwitchOff || rightMidTankFwdPumpFault > 0,
       displayWhenInactive: showMore,
     },
@@ -349,18 +401,24 @@ export const FuelPage = () => {
     {
       x: 680,
       y: 384,
-      running: isRightOuterTankPumpActive,
+      running: isTransferPumpRunning(
+        isRightOuterTankPumpActive,
+        jettisonFlow,
+        isRightOuterTankPumpSwitchOff,
+        rightOuterTankPumpFault > 0,
+      ),
       hasFault: isRightOuterTankPumpSwitchOff || rightOuterTankPumpFault > 0,
       displayWhenInactive: showMore,
     },
   ];
 
+  // The AFT gallery pumps have no fault output in the fuel model
   const aftGalleryPumps: PumpProps[] = [
     // Pump.11
     {
       x: 182,
       y: 452,
-      running: isLeftMidTankPumpAftActive,
+      running: isTransferPumpRunning(isLeftMidTankPumpAftActive, jettisonFlow, isLeftMidTankPumpAftSwitchOff, false),
       hasFault: isLeftMidTankPumpAftSwitchOff,
       displayWhenInactive: showMore,
     },
@@ -368,7 +426,12 @@ export const FuelPage = () => {
     {
       x: 274,
       y: 452,
-      running: isLeftInnerTankPumpAftActive,
+      running: isTransferPumpRunning(
+        isLeftInnerTankPumpAftActive,
+        jettisonFlow,
+        isLeftInnerTankPumpAftSwitchOff,
+        false,
+      ),
       hasFault: isLeftInnerTankPumpAftSwitchOff,
       displayWhenInactive: showMore,
     },
@@ -376,7 +439,12 @@ export const FuelPage = () => {
     {
       x: 524,
       y: 452,
-      running: isRightInnerTankPumpAftActive,
+      running: isTransferPumpRunning(
+        isRightInnerTankPumpAftActive,
+        jettisonFlow,
+        isRightInnerTankPumpAftSwitchOff,
+        false,
+      ),
       hasFault: isRightInnerTankPumpAftSwitchOff,
       displayWhenInactive: showMore,
     },
@@ -384,10 +452,25 @@ export const FuelPage = () => {
     {
       x: 626,
       y: 452,
-      running: isRightMidTankPumpAftActive,
+      running: isTransferPumpRunning(isRightMidTankPumpAftActive, jettisonFlow, isRightMidTankPumpAftSwitchOff, false),
       hasFault: isRightMidTankPumpAftSwitchOff,
       displayWhenInactive: showMore,
     },
+  ];
+
+  // Abscissa of the FWD-to-AFT gallery link line and of the two jettison lines on the AFT gallery
+  const GALLERY_LINK_X = 438;
+  const LEFT_JETTISON_X = 190;
+  const RIGHT_JETTISON_X = 570;
+  // During a jettison the link takes the FWD gallery fuel to the AFT gallery (a way out of the FWD gallery, a source of
+  // the AFT gallery). Outside a jettison the link line keeps its own rule (aux refuel valves) and does not change the
+  // gallery lines.
+  const isLinkCarryingJettisonFuel = jettisonFlow.galleryLinkActive && jettisonFlow.transferPumpsRun;
+  const fwdGalleryOutlets: GalleryOutlet[] = [{ x: GALLERY_LINK_X, active: isLinkCarryingJettisonFuel }];
+  const aftGalleryOutlets: GalleryOutlet[] = [
+    { x: LEFT_JETTISON_X, active: jettisonFlow.leftOutletActive },
+    { x: GALLERY_LINK_X, active: isLinkCarryingJettisonFuel },
+    { x: RIGHT_JETTISON_X, active: jettisonFlow.rightOutletActive },
   ];
 
   const fwdGalleryTransferValves: FuelLineProps[] = [
@@ -733,17 +816,6 @@ export const FuelPage = () => {
     { x1: 164, y1: 362, x2: 174, y2: 346, active: true, displayWhenInactive: showMore },
     { x1: 592, y1: 346, x2: 602, y2: 362, active: true, displayWhenInactive: showMore },
   ];
-
-  // Jettison valves
-  const [leftJettisonValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:57', 'Percent over 100', 1000);
-  const isLeftJettisonValveOpen = leftJettisonValveOpen >= JETTISON_VALVE_CLOSED_THRESHOLD;
-  const [rightJettisonValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:58', 'Percent over 100', 1000);
-  const isRightJettisonValveOpen = rightJettisonValveOpen >= JETTISON_VALVE_CLOSED_THRESHOLD;
-  // Written by the FQMS (CpiomF/FuelJettison.ts) while both jettison pbs are pressed and the jettison runs
-  const [jettisonInProgress] = useSimVar('L:A380X_FUEL_JETTISON_IN_PROGRESS', 'Bool', 1000);
-  const isJettisonActive = jettisonInProgress > 0;
-  const leftJettisonIndication = jettisonValveIndication(isLeftJettisonValveOpen, isJettisonActive);
-  const rightJettisonIndication = jettisonValveIndication(isRightJettisonValveOpen, isJettisonActive);
 
   // Collector cells, from the feed tanks (CpiomF/FuelCollectorCells); amber when not full (FCOM DSC-28-20 l.58553-58580)
   const [collectorCell1Weight] = useSimVar(collectorCellQuantityVar(1), 'number', 1000);
@@ -1238,6 +1310,7 @@ export const FuelPage = () => {
         y={362}
         pumps={fwdGalleryPumps}
         transferValves={fwdGalleryTransferValves}
+        outlets={fwdGalleryOutlets}
         otherLines={fwdGalleyOtherLines}
         showMore={showMore}
       />
@@ -1253,11 +1326,11 @@ export const FuelPage = () => {
       />
       {/* Line connecting FWD gallery to AFT gallery */}
       <FuelLine
-        x1={438}
+        x1={GALLERY_LINK_X}
         y1={346}
-        x2={438}
+        x2={GALLERY_LINK_X}
         y2={472}
-        active={isAnyGalleryAuxRefuelValveOpen}
+        active={jettisonFlow.galleryLinkActive}
         displayWhenInactive={showMore}
       />
 
@@ -1266,6 +1339,7 @@ export const FuelPage = () => {
         y={472}
         pumps={aftGalleryPumps}
         transferValves={aftGalleryTransferValves}
+        outlets={aftGalleryOutlets}
         otherLines={[]}
         showMore={showMore}
       />
@@ -1273,9 +1347,9 @@ export const FuelPage = () => {
       {/* Jettison */}
       <g>
         <FuelLine
-          x1={190}
+          x1={LEFT_JETTISON_X}
           y1={500}
-          x2={190}
+          x2={LEFT_JETTISON_X}
           y2={522}
           active={isLeftJettisonValveOpen}
           displayWhenInactive={false}
@@ -1294,9 +1368,9 @@ export const FuelPage = () => {
         )}
 
         <FuelLine
-          x1={570}
+          x1={RIGHT_JETTISON_X}
           y1={500}
-          x2={570}
+          x2={RIGHT_JETTISON_X}
           y2={522}
           active={isRightJettisonValveOpen}
           displayWhenInactive={false}
@@ -1389,44 +1463,57 @@ interface GalleryProps {
   y: number;
   pumps: PumpProps[];
   transferValves: FuelLineProps[];
+  /** Other ways out of the gallery (jettison valves, FWD-to-AFT link), sorted by x; not drawn by the gallery */
+  outlets?: GalleryOutlet[];
   otherLines: FuelLineProps[];
   showMore: boolean;
 }
 
+/** A way out of a gallery that is drawn elsewhere (FuelGalleryFlow.ts) */
+type GalleryOutlet = GalleryFlowPoint;
+
 /**
- * Draws a gallery that connects active pumps and valves
+ * Draws a gallery that connects active pumps, valves and outlets (FuelGalleryFlow.ts)
  * @param param0
  * @returns
  */
-const Gallery: FC<GalleryProps> = ({ y, pumps, transferValves: intoTankTransferValves, otherLines, showMore }) => {
+const Gallery: FC<GalleryProps> = ({
+  y,
+  pumps,
+  transferValves: intoTankTransferValves,
+  outlets = [],
+  otherLines,
+  showMore,
+}) => {
   // TODO make this configurable
   const PUMP_SIZE = 28;
 
-  const lastActivePumpX = pumps
-    .filter((pump) => pump.running)
-    .reduce((maxX, pump) => Math.max(maxX, pump.x), -Infinity);
-  const lastActiveValveX = intoTankTransferValves
-    .filter((valve) => valve.active)
-    .reduce((maxX, valve) => Math.max(maxX, valve.x1), -Infinity);
-  const lastActiveX = Math.max(lastActivePumpX, lastActiveValveX);
+  const flow = galleryFlowSpan(
+    pumps.map((pump) => ({ x: pump.x, active: pump.running })),
+    intoTankTransferValves.map((valve) => ({ x: valve.x1, active: valve.active })),
+    outlets,
+  );
+  const isAnyValveOpen = flow.flowing;
 
-  const firstActivePumpX = pumps
-    .filter((pump) => pump.running)
-    .reduce((minX, pump) => Math.min(minX, pump.x), Infinity);
-  const firstActiveValveX = intoTankTransferValves
-    .filter((valve) => valve.active)
-    .reduce((minX, valve) => Math.min(minX, valve.x1), Infinity);
-  const firstActiveX = Math.min(firstActivePumpX, firstActiveValveX);
-
-  const isAnyValveOpen = Number.isFinite(firstActiveValveX);
+  // The outlets split the gallery line like valves do, as zero-length lines that are not drawn
+  const valvesAndOutlets = insertOutletsByX(
+    intoTankTransferValves,
+    outlets.map((outlet) => ({
+      x1: outlet.x,
+      y1: y,
+      x2: outlet.x,
+      y2: y,
+      active: outlet.active,
+      displayWhenInactive: false,
+    })),
+  );
 
   const prevLineEnd = { x: -Infinity, y };
   const fuelLineSegments = [];
-  for (let i = 0, j = 0, k = 0; i < pumps.length || j < intoTankTransferValves.length; ) {
+  for (let i = 0, j = 0, k = 0; i < pumps.length || j < valvesAndOutlets.length; ) {
     // Check if next element is a pump or valve
-    const nextElementIsPump =
-      j >= intoTankTransferValves.length || (i < pumps.length && pumps[i].x < intoTankTransferValves[j].x1);
-    const nextElement = nextElementIsPump ? pumps[i++] : intoTankTransferValves[j++];
+    const nextElementIsPump = j >= valvesAndOutlets.length || (i < pumps.length && pumps[i].x < valvesAndOutlets[j].x1);
+    const nextElement = nextElementIsPump ? pumps[i++] : valvesAndOutlets[j++];
     const nextElementX = 'x' in nextElement ? nextElement.x : nextElement.x1;
     const nextElementIsActive = 'running' in nextElement ? nextElement.running : nextElement.active;
 
@@ -1443,16 +1530,13 @@ const Gallery: FC<GalleryProps> = ({ y, pumps, transferValves: intoTankTransferV
             y1={prevLineEnd.y}
             x2={otherLine.x1}
             y2={prevLineEnd.y}
-            active={isAnyValveOpen && prevLineEnd.x >= firstActiveX && otherLine.x1 <= lastActiveX}
+            active={isGallerySegmentActive(flow, prevLineEnd.x, otherLine.x1)}
             displayWhenInactive={showMore}
           />,
         );
         // Draw line segment
         fuelLineSegments.push(
-          <FuelLine
-            {...otherLine}
-            active={isAnyValveOpen && otherLine.x1 >= firstActiveX && otherLine.x2 <= lastActiveX}
-          />,
+          <FuelLine {...otherLine} active={isGallerySegmentActive(flow, otherLine.x1, otherLine.x2)} />,
         );
       }
 
@@ -1468,7 +1552,7 @@ const Gallery: FC<GalleryProps> = ({ y, pumps, transferValves: intoTankTransferV
           y1={prevLineEnd.y}
           x2={nextElementX}
           y2={prevLineEnd.y}
-          active={isAnyValveOpen && prevLineEnd.x >= firstActiveX && nextElementX <= lastActiveX}
+          active={isGallerySegmentActive(flow, prevLineEnd.x, nextElementX)}
           displayWhenInactive={showMore}
         />,
       );

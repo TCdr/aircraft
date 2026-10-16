@@ -115,8 +115,10 @@ const ReservoirFailIndications = ({ side }: ReservoirFailIndicationsProps) => {
   const isLeftSide = side === 'GREEN';
 
   const [lowAirPress] = useSimVar(`L:A32NX_HYD_${side}_RESERVOIR_AIR_PRESSURE_IS_LOW`, 'boolean', 1000);
+  // A380 FCOM DSC-29-20 RESERVOIR OVHT (a380_fcom.txt l.61440-61447): one indication, OVHT, "The temperature in the
+  // reservoir is above normal", for both HYD G(Y) SYS OVHT (above 95 °C, l.155436) and HYD G(Y) SYS TEMP EXCESS HI (above
+  // 130 °C, l.155789). The FCOM has no separate TEMP HI indication on the HYD page.
   const [ovht] = useSimVar(`L:A32NX_HYD_${side}_RESERVOIR_OVHT`, 'boolean', 1000);
-  const tempHi = false;
 
   return (
     <g>
@@ -131,9 +133,6 @@ const ReservoirFailIndications = ({ side }: ReservoirFailIndicationsProps) => {
           LOW
         </text>
       </g>
-      <text x={isLeftSide ? 32 : -114} y={155} className={tempHi ? 'Amber F24 ' : 'Hide'}>
-        TEMP HI
-      </text>
       <text x={isLeftSide ? 32 : -70} y={155} className={ovht ? 'Amber F24' : 'Hide'}>
         OVHT
       </text>
