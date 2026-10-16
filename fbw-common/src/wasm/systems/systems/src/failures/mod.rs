@@ -40,6 +40,19 @@ pub enum FailureType {
     BulkIsolValve,
     BulkExtractFan,
     CargoHeater,
+    /// A380: pack flow valve n (1 and 2 on pack 1, 3 and 4 on pack 2) no longer follows its controller: it stays
+    /// where it is (a380_systems pneumatic::PackComplex)
+    PackFlowValveJammed(usize),
+    /// A380: the outlet air of pack n overheats while the pack has an air flow (pack outlet above 95 deg C)
+    PackOverheat(usize),
+    /// A380: pack n is in bypass mode, its performance is degraded (AIR PACK n REGUL FAULT)
+    PackRegulation(usize),
+    /// A380: the bulk cargo heater keeps heating whenever it is on: the bulk cargo duct air goes above 70 deg C
+    BulkCargoDuctOverheat,
+    /// A380: the cabin air extract valve is failed and stays where it is
+    CabinAirExtractValve,
+    /// A380: the manual cabin pressurization mode of the outflow valve controllers is failed
+    CabinPressureManualControl,
     // ATA24
     Generator(usize),
     ApuGenerator(usize),

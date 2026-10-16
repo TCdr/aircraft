@@ -267,6 +267,18 @@
       | 12  | Unused                                               |
       | 13  | Pack 1 operating                                     |
       | 14  | Pack 2 operating                                     |
+      | 15  | Pack flow valve 1 (pack 1) failed open               |
+      | 16  | Pack flow valve 2 (pack 1) failed open               |
+      | 17  | Pack flow valve 3 (pack 2) failed open               |
+      | 18  | Pack flow valve 4 (pack 2) failed open               |
+      | 19  | Pack flow valve 1 (pack 1) failed closed             |
+      | 20  | Pack flow valve 2 (pack 1) failed closed             |
+      | 21  | Pack flow valve 3 (pack 2) failed closed             |
+      | 22  | Pack flow valve 4 (pack 2) failed closed             |
+      | 23  | Pack 1 overheat (outlet above 95 deg C)              |
+      | 24  | Pack 2 overheat (outlet above 95 deg C)              |
+      | 25  | Pack 1 in bypass mode (regulation fault)             |
+      | 26  | Pack 2 in bypass mode (regulation fault)             |
 
 - A32NX_COND_CPIOM_B{id}_TCS_DISCRETE_WORD
     - Arinc429<Discrete>
@@ -308,6 +320,8 @@
       | 22  | Bulk Heater Fault                                    |
       | 23  | FWD isolation valve Fault                            |
       | 24  | Bulk isolation valve Fault                           |
+      | 25  | Bulk cargo duct overheat (above 70 deg C)            |
+      | 26  | Cabin air extract valve Fault                        |
 
 - A32NX_COND_CPIOM_B{id}_CPCS_DISCRETE_WORD
     - Arinc429<Discrete>
@@ -472,6 +486,13 @@
 - A32NX_PRESS_OCSM_{id}_AUTO_PARTITION_FAILURE
     - Bool
     - True if the the automatic outflow valve control is failed
+    - {id}
+        - 1 to 4
+
+- A32NX_PRESS_OCSM_{id}_MAN_CTL_FAILURE
+    - Bool
+    - True if the manual pressurization mode of the outflow valve controller is failed (CAB PRESS MAN CTL FAULT);
+      false while the controller has both channels failed
     - {id}
         - 1 to 4
 

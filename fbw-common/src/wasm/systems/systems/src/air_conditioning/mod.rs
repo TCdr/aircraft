@@ -687,10 +687,16 @@ pub struct AirConditioningPack {
     pack_id: Pack,
     outlet_temperature: LowPassFilter<f64>, // Degree Celsius
     outlet_air: Air,
+    overheat_failure: Option<Failure>,
 }
 
 impl AirConditioningPack {
     const PACK_REACTION_TIME: Duration = Duration::from_secs(10);
+    /// Outlet temperature a failed (overheating) pack heads for while it has an air flow. Design choice: well above
+    /// the 95 deg C A380 pack overheat limit (A380 FCOM PRO-ABN AIR PACK 1(2) OVHT, a380_fcom.txt l.131799), so the
+    /// overheat is reached in about 15 s with the pack reaction time.
+    const OVERHEAT_OUTLET_TEMPERATURE_DEG_C: f64 = 130.;
+
     pub fn new(context: &mut InitContext, pack_id: Pack) -> Self {
         Self {
             pack_outlet_temperature_id: context.get_identifier(format!(
@@ -701,7 +707,21 @@ impl AirConditioningPack {
             pack_id,
             outlet_temperature: LowPassFilter::new_with_init_value(Self::PACK_REACTION_TIME, 15.),
             outlet_air: Air::new(),
+            overheat_failure: None,
         }
+    }
+
+    /// Adds a pack overheat failure: while it is active and the pack has an air flow, the pack outlet air heats up
+    pub fn with_overheat_failure(mut self, failure_type: FailureType) -> Self {
+        self.overheat_failure = Some(Failure::new(failure_type));
+        self
+    }
+
+    fn is_overheating(&self, pack_flow: MassRate) -> bool {
+        self.overheat_failure
+            .as_ref()
+            .is_some_and(|failure| failure.is_active())
+            && pack_flow > MassRate::default()
     }
 
     /// Takes the minimum duct demand temperature as the pack outlet temperature. This is accurate to real world behaviour but
@@ -715,7 +735,9 @@ impl AirConditioningPack {
     ) {
         self.outlet_air.set_flow_rate(pack_flow);
 
-        let unfiltered_outlet_temperature = if acsc_failure {
+        let unfiltered_outlet_temperature = if self.is_overheating(pack_flow) {
+            Self::OVERHEAT_OUTLET_TEMPERATURE_DEG_C
+        } else if acsc_failure {
             if matches!(self.pack_id, Pack(1)) {
                 20.
             } else {
@@ -742,6 +764,14 @@ impl OutletAir for AirConditioningPack {
 }
 
 impl SimulationElement for AirConditioningPack {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        if let Some(failure) = self.overheat_failure.as_mut() {
+            failure.accept(visitor);
+        }
+
+        visitor.visit(self);
+    }
+
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(
             &self.pack_outlet_temperature_id,

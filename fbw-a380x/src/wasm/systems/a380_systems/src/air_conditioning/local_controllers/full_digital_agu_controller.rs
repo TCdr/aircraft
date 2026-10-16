@@ -3,7 +3,7 @@ use systems::{
         AirConditioningOverheadShared, Channel, FdacId, OperatingChannel, PackFlow,
         PackFlowControllers, PackFlowValveSignal, PressurizationOverheadShared,
     },
-    failures::FailureType,
+    failures::{Failure, FailureType},
     pneumatic::{EngineState, PneumaticValveSignal},
     shared::{
         pid::PidController, ControllerSignal, ElectricalBusType, EngineBleedPushbutton,
@@ -16,10 +16,12 @@ use systems::{
     },
 };
 
+use std::time::Duration;
 use uom::si::{
     f64::*,
     mass_rate::kilogram_per_second,
     ratio::{percent, ratio},
+    thermodynamic_temperature::degree_celsius,
 };
 
 #[derive(Debug)]
@@ -44,6 +46,11 @@ pub struct FullDigitalAGUController<const ENGINES: usize> {
     flow_control: FDACFlowControl<ENGINES>,
     // agu_control
     fault: Option<FdacFault>,
+
+    /// The pack outlet temperature is above the overheat limit (AIR PACK 1(2) OVHT)
+    pack_overheat: bool,
+    /// flyPad failure: the pack is in bypass mode, its performance is degraded (AIR PACK 1(2) REGUL FAULT)
+    pack_regulation_failure: Failure,
 }
 
 impl<const ENGINES: usize> FullDigitalAGUController<ENGINES> {
@@ -71,6 +78,10 @@ impl<const ENGINES: usize> FullDigitalAGUController<ENGINES> {
             flow_control: FDACFlowControl::new(fdac_id.into()),
             // agu_control
             fault: None,
+
+            pack_overheat: false,
+            // FDAC 1 controls pack 1 and FDAC 2 pack 2
+            pack_regulation_failure: Failure::new(FailureType::PackRegulation(fdac_id.into())),
         }
     }
 
@@ -128,6 +139,48 @@ impl<const ENGINES: usize> FullDigitalAGUController<ENGINES> {
     pub fn fcv_status_determination(&self, fcv_id: usize) -> bool {
         self.flow_control.fcv_has_fault(fcv_id)
     }
+
+    /// The FDAC monitors its pack and its valves while at least one of its channels operates
+    fn is_monitoring(&self) -> bool {
+        !matches!(self.fault, Some(FdacFault::BothChannelsFault))
+    }
+
+    /// Pack overheat monitoring, from the pack outlet temperature (AIR PACK 1(2) OVHT, a380_fcom.txt l.131799)
+    pub fn update_pack_overheat_monitoring(
+        &mut self,
+        pack_outlet_temperature: ThermodynamicTemperature,
+    ) {
+        self.pack_overheat = self.is_monitoring()
+            && pack_outlet_temperature
+                > ThermodynamicTemperature::new::<degree_celsius>(Self::PACK_OVERHEAT_LIMIT_DEG_C);
+    }
+
+    /// The pack outlet temperature is above 95 deg C
+    pub fn pack_overheat(&self) -> bool {
+        self.pack_overheat
+    }
+
+    /// The pack is in bypass mode (AIR PACK 1(2) REGUL FAULT, a380_fcom.txt l.131857-131859). Simplified: the pack
+    /// performance itself is not simulated, only the FDAC report.
+    pub fn pack_in_bypass_mode(&self) -> bool {
+        self.is_monitoring() && self.pack_regulation_failure.is_active()
+    }
+
+    /// Pack flow valve fcv_id is open against a close command (AIR PACK 1(2) VLV 1(2) FAULT)
+    pub fn fcv_failed_open(&self, fcv_id: usize) -> bool {
+        self.is_monitoring() && self.flow_control.fcv_failed_open(fcv_id)
+    }
+
+    /// Pack flow valve fcv_id is closed against an open command (AIR PACK 1(2) VLV 1(2) FAULT)
+    pub fn fcv_failed_closed(&self, fcv_id: usize) -> bool {
+        self.is_monitoring() && self.flow_control.fcv_failed_closed(fcv_id)
+    }
+}
+
+impl<const ENGINES: usize> FullDigitalAGUController<ENGINES> {
+    /// A380 FCOM PRO-ABN-ECAM-10-21-10 AIR PACK 1(2) OVHT (a380_fcom.txt l.131799): "The pack outlet temperature is
+    /// above 95 deg C."
+    const PACK_OVERHEAT_LIMIT_DEG_C: f64 = 95.;
 }
 
 impl<const ENGINES: usize> PackFlow for FullDigitalAGUController<ENGINES> {
@@ -161,6 +214,7 @@ impl<const ENGINES: usize> SimulationElement for FullDigitalAGUController<ENGINE
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.active_channel.accept(visitor);
         self.stand_by_channel.accept(visitor);
+        self.pack_regulation_failure.accept(visitor);
 
         visitor.visit(self);
     }
@@ -306,6 +360,16 @@ impl<const ENGINES: usize> FDACFlowControl<ENGINES> {
             .fault()
             .is_some()
     }
+
+    fn fcv_failed_open(&self, fcv_id: usize) -> bool {
+        self.flow_control_valves_controller[fcv_id - 1 - ((self.fdac_id == 2) as usize * 2)]
+            .failed_open()
+    }
+
+    fn fcv_failed_closed(&self, fcv_id: usize) -> bool {
+        self.flow_control_valves_controller[fcv_id - 1 - ((self.fdac_id == 2) as usize * 2)]
+            .failed_closed()
+    }
 }
 
 impl<const ENGINES: usize> PackFlow for FDACFlowControl<ENGINES> {
@@ -329,15 +393,32 @@ pub struct PackFlowController<const ENGINES: usize> {
     pack_flow: MassRate,
     pid: PidController,
     fault: Option<FcvFault>,
+
+    // Failed valve monitoring (AIR PACK 1(2) VLV 1(2) FAULT): how long the valve position has disagreed with the
+    // command, and the confirmed result
+    failed_open_timer: Duration,
+    failed_closed_timer: Duration,
+    failed_open: bool,
+    failed_closed: bool,
 }
 
 impl<const ENGINES: usize> PackFlowController<ENGINES> {
+    // Design choice (the FCOM gives no detection logic): a pack flow valve is failed when its position disagrees with
+    // its command for this long, as the trim air valves of the TADD (trim_air_drive_device.rs). A healthy valve
+    // follows its command in the next update.
+    const FAILED_VALVE_CONFIRMATION_TIME: Duration = Duration::from_secs(10);
+
     fn new() -> Self {
         Self {
             should_open_fcv: false,
             pack_flow: MassRate::default(),
             pid: PidController::new(0.01, 0.4, 0., 0., 1., 0., 1.),
             fault: None,
+
+            failed_open_timer: Duration::ZERO,
+            failed_closed_timer: Duration::ZERO,
+            failed_open: false,
+            failed_closed: false,
         }
     }
 
@@ -369,6 +450,47 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
                 Some(context.delta()),
             );
         }
+
+        self.failed_valve_monitoring(context, pneumatic.pack_flow_valve_is_open(fcv_id));
+    }
+
+    /// AIR PACK 1(2) VLV 1(2) FAULT (a380_fcom.txt l.131946-131949): a pack valve is failed open when it stays open
+    /// while commanded closed, failed closed when it stays closed while commanded open. A jammed valve is only found
+    /// when its command changes (l.131972-131974: the FAULT light of a valve failed open comes on with the PACK pb
+    /// set to OFF).
+    fn failed_valve_monitoring(&mut self, context: &UpdateContext, valve_is_open: bool) {
+        let commanded_open = self.commanded_open_amount() > Ratio::default();
+
+        if !commanded_open && valve_is_open {
+            self.failed_open_timer += context.delta();
+        } else {
+            self.failed_open_timer = Duration::ZERO;
+        }
+        if commanded_open && !valve_is_open {
+            self.failed_closed_timer += context.delta();
+        } else {
+            self.failed_closed_timer = Duration::ZERO;
+        }
+
+        self.failed_open = self.failed_open_timer > Self::FAILED_VALVE_CONFIRMATION_TIME;
+        self.failed_closed = self.failed_closed_timer > Self::FAILED_VALVE_CONFIRMATION_TIME;
+    }
+
+    /// The open amount this controller commands to its valve
+    fn commanded_open_amount(&self) -> Ratio {
+        Ratio::new::<ratio>(if self.should_open_fcv {
+            self.pid.output()
+        } else {
+            0.
+        })
+    }
+
+    fn failed_open(&self) -> bool {
+        self.failed_open
+    }
+
+    fn failed_closed(&self) -> bool {
+        self.failed_closed
     }
 
     fn fault_determination(
@@ -400,11 +522,6 @@ impl<const ENGINES: usize> PackFlow for PackFlowController<ENGINES> {
 
 impl<const ENGINES: usize> ControllerSignal<PackFlowValveSignal> for PackFlowController<ENGINES> {
     fn signal(&self) -> Option<PackFlowValveSignal> {
-        let target_open = Ratio::new::<ratio>(if self.should_open_fcv {
-            self.pid.output()
-        } else {
-            0.
-        });
-        Some(PackFlowValveSignal::new(target_open))
+        Some(PackFlowValveSignal::new(self.commanded_open_amount()))
     }
 }

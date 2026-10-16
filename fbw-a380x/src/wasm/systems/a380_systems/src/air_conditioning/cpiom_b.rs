@@ -1727,6 +1727,28 @@ impl CpiomBInterfaceUnit {
             .set_bit(13, cpiom.pack_operating(Pack(1)));
         self.discrete_word_ags
             .set_bit(14, cpiom.pack_operating(Pack(2)));
+        // The FDAC pack and pack valve monitoring (docs/a380-simvars.md): bits 15 to 18 pack flow valves 1 to 4 failed
+        // open, bits 19 to 22 failed closed, bits 23/24 pack 1/2 overheat, bits 25/26 pack 1/2 in bypass mode
+        for fcv_id in 1..=4 {
+            self.discrete_word_ags.set_bit(
+                14 + fcv_id as u8,
+                air_conditioning_system.pack_flow_valve_failed_open(fcv_id),
+            );
+            self.discrete_word_ags.set_bit(
+                18 + fcv_id as u8,
+                air_conditioning_system.pack_flow_valve_failed_closed(fcv_id),
+            );
+        }
+        for pack_id in 1..=2 {
+            self.discrete_word_ags.set_bit(
+                22 + pack_id as u8,
+                air_conditioning_system.pack_overheat(pack_id),
+            );
+            self.discrete_word_ags.set_bit(
+                24 + pack_id as u8,
+                air_conditioning_system.pack_in_bypass_mode(pack_id),
+            );
+        }
 
         if cpiom.tcs_has_fault() {
             self.discrete_word_tcs = Arinc429Word::new(0, SignStatus::FailureWarning);
@@ -1790,6 +1812,12 @@ impl CpiomBInterfaceUnit {
             .set_bit(23, air_conditioning_system.fwd_isol_valve_has_fault());
         self.discrete_word_vcs
             .set_bit(24, air_conditioning_system.bulk_isol_valve_has_fault());
+        self.discrete_word_vcs
+            .set_bit(25, air_conditioning_system.bulk_cargo_duct_overheat());
+        self.discrete_word_vcs.set_bit(
+            26,
+            air_conditioning_system.cabin_air_extract_valve_has_failed(),
+        );
 
         if cpiom.cpcs_has_fault() {
             self.discrete_word_cpcs = Arinc429Word::new(0, SignStatus::FailureWarning);

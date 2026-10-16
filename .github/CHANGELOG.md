@@ -599,6 +599,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] DOOR/OXY page: every cabin door, both emergency exits and the aft cargo door turn amber when not locked, crew oxygen pressure pulses below 600 PSI and is amber below 300 PSI with an amber half frame on ground below 1000 PSI, cabin V/S shown in flight - @TCdr
 1. [A32NX/Lights] NO SMOKING signs in AUTO also come on with the flaps/slats lever out of 0 or any landing gear extended, and all positions come on above 11 300 ft cabin altitude - @TCdr
 1. [A32NX/Brakes] BRAKES HOT caution and BRK FAN HOT light come on above 300 C and go off only below 290 C - @TCdr
+1. [A380X/FWS] AIR PACK 1(2) VLV 1(2) FAULT, PACK 1(2) OVHT and PACK 1(2) REGUL FAULT from the pack controllers, with pack valve jam, pack overheat and pack bypass mode flyPad failures - @TCdr
+1. [A380X/FWS] COND BULK CARGO DUCT OVHT, COND CABIN AIR EXTRACT VLV FAULT and CAB PRESS MAN CTL FAULT, with their flyPad failures; the bulk cargo HEATER pb FAULT light comes on with the duct overheat - @TCdr
+1. [A380X/FWS] CAB PRESS INHIBITED BY DOORS is no longer inhibited in flight phase 12, as in the FCOM - @TCdr
 
 ## 2024.1.0
 
