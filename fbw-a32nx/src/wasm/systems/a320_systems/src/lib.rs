@@ -132,7 +132,10 @@ pub struct A320 {
     egpwc: EnhancedGroundProximityWarningComputer,
     egpwc_2: EnhancedGroundProximityWarningComputer2,
     egpws_electrical_harness: A320EgpwsElectricalHarness,
-    mmr: MultiModeReceiverShim,
+    /// ILS 1 (NAV 3), for PFD 1 and the EGPWS
+    mmr_1: MultiModeReceiverShim,
+    /// ILS 2 (NAV 4), for PFD 2
+    mmr_2: MultiModeReceiverShim,
     gps_1: GpsReceiver,
     gps_2: GpsReceiver,
     gpirs: Gpirs,
@@ -222,7 +225,8 @@ impl A320 {
                 },
             ),
             egpws_electrical_harness: A320EgpwsElectricalHarness::new(context),
-            mmr: MultiModeReceiverShim::new(context),
+            mmr_1: MultiModeReceiverShim::new(context, 1),
+            mmr_2: MultiModeReceiverShim::new(context, 2),
             reverse_thrust: ReverserForce::new(context),
         }
     }
@@ -404,7 +408,7 @@ impl Aircraft for A320 {
             self.radio_altimeters.radio_altimeter_2(),
             self.adirs.adr_bus(1),
             self.adirs.ir_bus(1),
-            &self.mmr,
+            &self.mmr_1,
         );
     }
 }
@@ -452,7 +456,8 @@ impl SimulationElement for A320 {
         self.egpwc.accept(visitor);
         self.egpws_electrical_harness.accept(visitor);
         self.egpwc_2.accept(visitor);
-        self.mmr.accept(visitor);
+        self.mmr_1.accept(visitor);
+        self.mmr_2.accept(visitor);
         self.reverse_thrust.accept(visitor);
 
         visitor.visit(self);
@@ -637,5 +642,25 @@ mod tests {
     fn the_egpwc_uses_the_airbus_lamp_format() {
         let test_bed = aircraft_with_engines_at_idle();
         assert!(test_bed.query(|a| a.egpwc_2.pin_programming().alternate_lamp_format));
+    }
+
+    /// PFD1 shows ILS1 (MMR 1, sim NAV 3), PFD2 shows ILS2 (MMR 2, sim NAV 4): A320 FCOM
+    /// DSC-34-NAV-30-20 (a320_fcom.txt l.53282-53289).
+    #[test]
+    fn each_mmr_writes_the_deviations_of_its_own_ils_receiver() {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A320::new(context));
+        test_bed.set_on_ground(true);
+        test_bed.write_by_name("NAV HAS GLIDE SLOPE:3", false);
+        test_bed.write_by_name("NAV GLIDE SLOPE ERROR:3", 0.);
+        test_bed.write_by_name("NAV HAS GLIDE SLOPE:4", true);
+        test_bed.write_by_name("NAV GLIDE SLOPE ERROR:4", 0.25);
+        test_bed.run_with_delta(Duration::from_millis(50));
+
+        let mmr_1_valid: bool = test_bed.read_by_name("MMR_1_GS_IS_VALID");
+        let mmr_2_valid: bool = test_bed.read_by_name("MMR_2_GS_IS_VALID");
+        let mmr_2_deviation: f64 = test_bed.read_by_name("MMR_2_GS_DEVIATION");
+        assert!(!mmr_1_valid);
+        assert!(mmr_2_valid);
+        assert!((mmr_2_deviation - 0.25).abs() < 1e-9);
     }
 }
