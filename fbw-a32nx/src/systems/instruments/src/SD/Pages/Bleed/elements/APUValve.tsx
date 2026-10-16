@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { useSimVar } from '@flybywiresim/fbw-sdk-react';
-import React, { FC } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import Valve from './Valve';
+import { APU_BLEED_PB_CONFIRMATION_MS, apuBleedValveCss } from './ApuBleedValveIndication';
 
 interface APUValveProps {
   x: number;
@@ -17,7 +18,16 @@ const APUValve: FC<APUValveProps> = ({ x, y, sdacDatum }) => {
   const [apuMasterSwitchPbIsOn] = useSimVar('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON', 'bool', 500);
   const [apuAvail] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'Bool', 1000);
   const [apuBleedPbIsOn] = useSimVar('L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON', 'bool', 500);
-  // TODO Add 10s confirmation delay for push button
+  // The APU BLEED pb ON for more than 10 s (FCOM l.57807-57808, ApuBleedValveIndication.ts)
+  const [apuBleedPbOnConfirmed, setApuBleedPbOnConfirmed] = useState(false);
+  useEffect(() => {
+    if (apuBleedPbIsOn) {
+      const timeout = setTimeout(() => setApuBleedPbOnConfirmed(true), APU_BLEED_PB_CONFIRMATION_MS);
+      return () => clearTimeout(timeout);
+    }
+    setApuBleedPbOnConfirmed(false);
+    return () => {};
+  }, [apuBleedPbIsOn]);
   const visible = apuMasterSwitchPbIsOn === 1 || apuAvail === 1;
 
   return visible ? (
@@ -30,7 +40,7 @@ const APUValve: FC<APUValveProps> = ({ x, y, sdacDatum }) => {
         x={x}
         y={y}
         radius={15}
-        css={apuBleedPbIsOn === 1 && !apuBleedAirValveOpen ? 'AmberLine' : 'GreenLine'}
+        css={apuBleedValveCss(apuBleedAirValveOpen > 0, apuMasterSwitchPbIsOn > 0, apuBleedPbOnConfirmed)}
         position={apuBleedAirValveOpen === 1 ? 'V' : 'H'}
         sdacDatum={sdacDatum}
       />
