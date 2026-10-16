@@ -723,6 +723,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/COND] The AFT ISOL VALVE pb-sw of the CARGO VENT panel works: OFF closes the aft cargo isolation valves (also closed on aft cargo smoke), FAULT and COND AFT CRG ISOL VALVE when a valve disagrees (flyPad failure "AFT cargo ventilation isolation valves stuck closed") - @TCdr
 1. [A32NX/AP] The AUTOLAND light also flashes when both RAs differ by more than 15 ft, and on an untimely flare with one RA inoperative - @TCdr
 1. [A32NX/ATHR] Alpha floor also comes with the sidestick more than 14 degrees nose up with the angle-of-attack protection active, and is lost with an engine out and slats/flaps extended - @TCdr
+1. [A380X/SD] COND page: red cargo SMOKE (forward, aft/bulk) and avionics bay SMOKE from the smoke detection - @TCdr
+1. [A380X/SD] ELEC AC page: GALLEY SHED, GALLEY PARTIALLY SHED, COMMERCIAL OFF and COMMERCIAL PARTIALLY SHED legends, engine generator DISC (drive disconnected) and OVHT (above 185 C), generator loads amber only after 10 s above 108 % - @TCdr
+1. [A380X/SD] APU page: pulsing OIL LVL LO on ground with its flyPad failure (APU oil level low); the APU generator load is amber only after 10 s above 108 % and the voltage and frequency colours are no longer swapped - @TCdr
 
 ## 2024.1.0
 

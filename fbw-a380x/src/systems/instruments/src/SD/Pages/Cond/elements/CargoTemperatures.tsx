@@ -3,6 +3,7 @@ import { useSimVar } from '@instruments/common/simVars';
 import { Position } from '@instruments/common/types';
 import { useArinc429Var } from '@flybywiresim/fbw-sdk-react';
 import { Triangle } from '@instruments/common/Shapes';
+import { cargoSmokeIndications } from './CondSmokeIndications';
 
 const CargoTemperatures: React.FC<Position> = ({ x, y }) => {
   const [fwdCargoTemp] = useSimVar('L:A32NX_COND_CARGO_FWD_TEMP', 'celsius', 1000);
@@ -30,9 +31,18 @@ const CargoTemperatures: React.FC<Position> = ({ x, y }) => {
   // valve) of the forward cargo, written by the temperature controller (a380_systems trim_air_drive_device.rs)
   const [fwdCargoOverheat] = useSimVar('L:A32NX_COND_CARGO_FWD_DUCT_OVHT', 'bool', 1000);
   const [fwdCargoTrimAirValveFault] = useSimVar('L:A32NX_COND_CARGO_FWD_TRIM_AIR_VALVE_FAULT', 'bool', 1000);
-  // TODO: Replace with actual LVars when failures simulated
-  const fwdCargoSmoke = false;
-  const bulkCargoSmoke = false;
+  // A380 FCOM DSC-21-10-20 SMOKE INDICATION (l.6015-6016): red SMOKE in the forward and in the aft/bulk cargo area,
+  // from the Smoke Detection Function (L:A32NX_SMOKE_<zone>_DETECTED), see cargoSmokeIndications
+  const [fwdCargoSmokeDetected] = useSimVar('L:A32NX_SMOKE_FWD_CARGO_DETECTED', 'bool', 500);
+  const [aftCargoSmokeDetected] = useSimVar('L:A32NX_SMOKE_AFT_CARGO_DETECTED', 'bool', 500);
+  const [bulkCargoSmokeDetected] = useSimVar('L:A32NX_SMOKE_BULK_CARGO_DETECTED', 'bool', 500);
+  const cargoSmoke = cargoSmokeIndications(
+    fwdCargoSmokeDetected > 0,
+    aftCargoSmokeDetected > 0,
+    bulkCargoSmokeDetected > 0,
+  );
+  const fwdCargoSmoke = cargoSmoke.fwd;
+  const bulkCargoSmoke = cargoSmoke.aftBulk;
 
   return (
     <g id="CondCargo">
