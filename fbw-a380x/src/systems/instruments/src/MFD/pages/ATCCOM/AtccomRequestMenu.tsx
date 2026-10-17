@@ -33,7 +33,7 @@ interface AtccomRequestMenuProps extends ComponentProps {
 }
 
 /**
- * The menu of the REQUEST page (FCOM DSC-46-10-20-30 P 12): a column of buttons, each opening its sub-menu on its left
+ * The menu of the REQUEST page: a column of buttons, each opening its sub-menu on its left
  * (the arrow on the left of the label), or creating its frame directly (SPEED).
  */
 export class AtccomRequestMenu extends DisplayComponent<AtccomRequestMenuProps> {
@@ -85,7 +85,7 @@ export class AtccomRequestMenu extends DisplayComponent<AtccomRequestMenuProps> 
     const menuVisible = this.openMenu.map((open) => (open === index ? 'block' : 'none'));
     this.subs.push(menuVisible);
     const lines = button.label.split('\n');
-    // A frame already in the message: its button is grey (FCOM figure of the OTHER REPORTS page)
+    // A frame already in the message: its button is grey
     const disabled = this.props.frames.map((frames) =>
       button.frame !== undefined ? !this.props.isAvailable(button.frame, frames) : false,
     );

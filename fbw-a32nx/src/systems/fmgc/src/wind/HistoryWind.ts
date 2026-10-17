@@ -220,7 +220,7 @@ export class HistoryWind {
         const converted = legacyWinds.map((wind): WindEntry | null => {
           const vector = HistoryWind.windVectorFromStoredVec2(wind?.vector);
           // A recorded cruise wind without a level was stored with NaN, which JSON turns into null: drop it.
-          // Recorded winds have their level rounded to 100 ft; develop stored the measured cruise altitude unrounded.
+          // Recorded winds have their level rounded to 100 ft; the legacy keys hold the cruise altitude unrounded.
           return vector !== undefined && typeof wind.altitude === 'number'
             ? { altitude: Math.round(wind.altitude / 100) * 100, vector }
             : null;

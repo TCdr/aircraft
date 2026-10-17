@@ -23,12 +23,10 @@ const MAX_TRAFFIC_RANGE_NM = 40;
 
 /**
  * The TCAS ND setting message, shown while the TCAS has a TA or an RA that the ND cannot display.
- * - A320 FCOM DSC-34-SURV-60-20 TCAS MESSAGES (a320_fcom.txt 56266-56273): "TCAS : REDUCE RANGE" when a TA or RA is
- *   detected and the ND range is above 40 NM; "TCAS : CHANGE MODE" when a TA or RA is detected and the ND mode is
- *   PLAN; red or amber depending on the advisory level (RA or TA).
- * - A380 FCOM DSC-31-20-30-100 ND MESSAGES (a380_fcom.txt 68708-68761) and DSC-34-20-40-20 (90844-90919): the same two
- *   messages, plus "TCAS: INCREASE RANGE" in ROSE-VOR or ROSE-LS mode with the range selector on ZOOM, not on
- *   ground; with ZOOM the ND does not display TCAS: CHANGE MODE on ground.
+ * - A320: TCAS: REDUCE RANGE when a TA or RA is detected and the ND range is above 40 NM; TCAS: CHANGE MODE when a TA
+ *   or RA is detected and the ND mode is PLAN; red or amber depending on the advisory level (RA or TA).
+ * - A380: the same two messages, plus TCAS: INCREASE RANGE in ROSE-VOR or ROSE-LS mode with the range selector on ZOOM,
+ *   not on ground; with ZOOM the ND does not display TCAS: CHANGE MODE on ground.
  * @param advisory TCAS advisory state
  * @param isPlanMode the ND is in PLAN mode
  * @param isRoseVorOrLsMode the ND is in ROSE-VOR or ROSE-LS mode

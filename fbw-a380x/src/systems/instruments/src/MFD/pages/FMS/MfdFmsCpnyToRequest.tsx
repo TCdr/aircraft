@@ -30,7 +30,7 @@ import {
 export const cpnyToRequestPage = 'cpny-to-request';
 export const receivedCpnyToDataPage = 'received-cpny-to-data';
 
-/** FCOM P 37: runway conditions of the list */
+/** Runway conditions of the list */
 export const runwayConditions = ['DRY', 'WET', '1/4 WATER', '1/2 WATER', '1/4 SLUSH', '1/2 SLUSH', 'COMP SNOW'];
 
 /** The request data of one of the two requested runways */
@@ -57,8 +57,8 @@ class RunwayRequest {
 }
 
 /**
- * COMPANY T.O DATA REQUEST page (A380 FCOM DSC-22-FMS-20-30 P 32-41): takeoff data request for two runways, with the
- * takeoff parameters sent to the company ground station. Only for the active flight plan.
+ * COMPANY T.O DATA REQUEST page: takeoff data request for two runways, with the takeoff parameters sent to the
+ * company ground station. Only for the active flight plan.
  *
  * No company ground station computes takeoff data in the simulation: the page shows and keeps the request parameters,
  * but SEND T.O REQUEST is inactive.
@@ -97,7 +97,7 @@ export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps>
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
     this.subs.push(
-      // The FCOM page title has no flight plan prefix
+      // This page title has no flight plan prefix
       this.props.mfd.uiService.activeUri.sub(() => this.activePageTitle.set('COMPANY T.O DATA REQUEST'), true),
       this.runwayPageText,
       this.weightUnit,
@@ -113,7 +113,7 @@ export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps>
     }
     const pd = plan.performanceData;
     const first = this.runways[0];
-    // FCOM defaults: the departure runway of the active flight plan, the T.O panel flaps and shift, the EFIS CP QNH
+    // Defaults: the departure runway of the active flight plan, the T.O panel flaps and shift, the EFIS CP QNH
     if (first.runway.get() === null && plan.originRunway) {
       first.runway.set(plan.originRunway.ident.substring(4));
     }
@@ -140,10 +140,9 @@ export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps>
     const rwy = this.runways[index];
     const visibility = this.runwayPage.map((p) => (p === index ? 'inherit' : 'hidden'));
     this.subs.push(visibility);
-    const field = (y: number, x: number, el: VNode) => fcomAt(y, x, el);
     return (
       <div style={{ visibility }}>
-        {field(
+        {fcomAt(
           26,
           251,
           <InputField<string>
@@ -156,7 +155,7 @@ export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps>
             interactionMode={this.props.mfd.interactionMode}
           />,
         )}
-        {field(
+        {fcomAt(
           95,
           174,
           <InputField<number>
@@ -169,7 +168,7 @@ export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps>
             interactionMode={this.props.mfd.interactionMode}
           />,
         )}
-        {field(
+        {fcomAt(
           95,
           532,
           <InputField<number>
@@ -184,7 +183,7 @@ export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps>
             interactionMode={this.props.mfd.interactionMode}
           />,
         )}
-        {field(
+        {fcomAt(
           150,
           535,
           <InputField<number>
@@ -197,7 +196,7 @@ export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps>
             interactionMode={this.props.mfd.interactionMode}
           />,
         )}
-        {field(
+        {fcomAt(
           150,
           635,
           <InputField<number>
@@ -210,14 +209,14 @@ export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps>
             interactionMode={this.props.mfd.interactionMode}
           />,
         )}
-        {field(
+        {fcomAt(
           202,
           532,
           <DropdownMenu
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_cpnyToRwyCond${index}`}
             selectedIndex={rwy.condition}
             values={this.runwayConditionLabels}
-            freeTextAllowed={false} // FCOM RUNWAY CONDITION LIST: selected in the list only
+            freeTextAllowed={false} // The runway condition is selected in the list only
             containerStyle="width: 218px;"
             numberOfDigitsForInputField={9}
             alignLabels="center"
@@ -225,7 +224,7 @@ export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps>
             interactionMode={this.props.mfd.interactionMode}
           />,
         )}
-        {field(
+        {fcomAt(
           254,
           532,
           <InputField<number>
@@ -238,7 +237,7 @@ export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps>
             interactionMode={this.props.mfd.interactionMode}
           />,
         )}
-        {field(
+        {fcomAt(
           362,
           455,
           <RadioButtonGroup
@@ -248,14 +247,14 @@ export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps>
             additionalVerticalSpacing={15}
           />,
         )}
-        {field(
+        {fcomAt(
           471,
           98,
           <DropdownMenu
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_cpnyToFlaps${index}`}
             selectedIndex={rwy.flaps}
             values={this.flapsLabels}
-            keyboardEntryAllowed // FCOM FLAPS SETTING LIST: selected in the list or entered with the keyboard
+            keyboardEntryAllowed // The flaps setting is selected in the list or entered with the keyboard
             errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
             onModified={(i, text) => {
               const index = dropdownEntryIndex(this.flapsLabels, i, text);
@@ -279,7 +278,7 @@ export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps>
       <>
         {super.render()}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 32), page container coordinates */}
+          {/* Positions measured on the reference figure of the page, in page container coordinates */}
           <div class="mfd-fcom-canvas">
             {fcomAt(26, 16, <span class="mfd-label">REQUEST FOR RWY</span>)}
             {fcomAt(

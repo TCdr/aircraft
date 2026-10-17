@@ -325,7 +325,7 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
     this.onNewData();
   }
 
-  /** FCOM P 296: the BFO option of the tuned ADF */
+  /** The BFO option of the tuned ADF */
   private toggleBfo(): void {
     const adf = this.props.fmcService.master.navaidTuner.getAdfRadioTuningStatus(1);
     adf.bfo = !adf.bfo;
@@ -420,7 +420,7 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
       <>
         {super.render()}
         {/* begin page content */}
-        {/* Positions from the FCOM figures (DSC-22-FMS-20-30 P 64 and P 296): the TUNED FOR DISPLAY and SELECTED FOR
+        {/* Positions measured on the reference figures: the TUNED FOR DISPLAY and SELECTED FOR
             FMS NAV panels end at y = 650, the LS data and RETURN are below them */}
         <div class="mfd-page-container" style="position: relative;">
           <TopTabNavigator

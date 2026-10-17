@@ -54,15 +54,15 @@ const ADS_STATUS_VAR = 'L:A380X_ATCCOM_ADS_STATUS';
 /** The information of the system (e.g. PRINTING) is displayed for 5 s */
 const SYSTEM_STATUS_DURATION = 5000;
 
-/** The communication buttons, from the FCOM figure (mailbox coordinates, 768 x 256) */
+/** The communication buttons, from pictures of the aircraft display (mailbox coordinates, 768 x 256) */
 const BUTTON_TOPS = [3.3, 54.3, 105.2, 156.5, 207.2];
 
-/** The message lines: centres, below the time / origin line (FCOM figure) */
+/** The message lines: centres, below the time / origin line */
 const LINE_Y = [56.4, 92.9, 129.9, 167, 202.2];
 
 /**
- * The ATC mailbox on the lower part of the SD (A380 FCOM DSC-46-10-10-70, DSC-46-10-20-60), laid out on the FCOM
- * figures: the connection indications when no message is displayed; else the displayed message of the mailbox queue with
+ * The ATC mailbox on the lower part of the SD, laid out on pictures of the aircraft display: the connection
+ * indications when no message is displayed; else the displayed message of the mailbox queue with
  * its time, origin / destination and status, its pages, the previous / next message buttons and RECALL on the left, the
  * communication buttons on the right, and the Information Messages Area below. A client of the mailbox of the ATC
  * function (the same mailbox bus as the A32NX DCDU).
@@ -279,7 +279,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
             : null,
       };
       this.blocks.set([...this.blocks.get(), block]);
-      // A new message appears when the mailbox shows no message, or when it is urgent (FCOM PRO How to read)
+      // A new message appears when the mailbox shows no message, or when it is urgent
       if (this.visibleUid.get() === null || messages[0].Content[0]?.Urgent) {
         this.show(uid);
       }
@@ -552,7 +552,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
 
     return (
       <div ref={this.topRef} class="atc-mailbox-top-layout">
-        {/* The separators of the columns and of the Information Messages Area (FCOM figure) */}
+        {/* The separators of the columns and of the Information Messages Area (as on the reference figure) */}
         <div class="atc-mailbox-vline" style="left: 100px; top: 0; height: 256px;" />
         <div class="atc-mailbox-vline" style="left: 615px; top: 0; height: 256px;" />
         <div class="atc-mailbox-hline" style="left: 100px; top: 222px; width: 515px;" />

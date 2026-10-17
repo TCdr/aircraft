@@ -3,9 +3,9 @@
 
 @import "../../../MsfsAvionicsCommon/definitions";
 
-// ATIS/LIST and ATIS/RECEIVED pages, laid out on the FCOM figure (FcomLayout)
+// ATIS/LIST and ATIS/RECEIVED pages, laid out on the reference figure (FcomLayout)
 .mfd-atccom-atis {
-  // The ATIS text: 44 characters over 757 px (FCOM figure), 17.2 px per character (the FBW display font: 0.627 em per character)
+  // The ATIS text: 44 characters over 757 px = 17.2 px each; the FBW display font is 0.627 em per character
   .mfd-atccom-atis-line {
     font-size: 27.4px;
     white-space: pre;

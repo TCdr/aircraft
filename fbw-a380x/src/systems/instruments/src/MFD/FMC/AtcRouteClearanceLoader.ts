@@ -27,7 +27,7 @@ import {
   routeClearanceOf,
 } from './AtcRouteClearance';
 
-/** An ATC flight plan can only be uploaded in the third secondary flight plan (A380 FCOM DSC-22-FMS-20-30 P 333) */
+/** An ATC flight plan can only be uploaded in the third secondary flight plan */
 const ATC_SEC = 3;
 const ATC_PLAN_INDEX = FlightPlanIndex.FirstSecondary + ATC_SEC - 1;
 
@@ -47,7 +47,7 @@ export interface AtcRouteClearanceFms<P extends FlightPlanPerformanceData> {
 export interface AtcRouteClearanceAircraft {
   /** The aircraft position, null when unknown */
   presentPosition(): Coordinates | null;
-  /** Whether an RTA can be created (FCOM DSC-22-FMS-20-30 P 344: not with an engine out, not in go around) */
+  /** Whether an RTA can be created (not with an engine out, not in go around) */
   rtaAllowed(): boolean;
   /** Whether the aircraft has not reached the cruise yet (preflight to climb) */
   beforeCruise(): boolean;
@@ -60,10 +60,8 @@ interface UploadResult {
 }
 
 /**
- * Loads the loadable messages of the ATC mailbox in the third secondary flight plan (LOAD-SEC3 button, A380 FCOM
- * DSC-22-FMS-10-40-70 "ATC flight plan upload", DSC-22-FMS-10-40-100 "Received ATC F-PLN clearance" and DSC-46-10-40
- * "How to manage a loadable message"): SEC 3 is replaced by a copy of the active flight plan in which the FMS inserts
- * the message.
+ * Loads the loadable messages of the ATC mailbox in the third secondary flight plan (LOAD-SEC3 button): SEC 3 is
+ * replaced by a copy of the active flight plan in which the FMS inserts the message.
  * - A route clearance joins the flight plan at its first waypoint when the flight plan has it (UM83: at the AT
  *   position), otherwise after the departure or the FROM waypoint; it goes to the clearance limit (UM79), after which the
  *   flight plan continues, or to the destination (UM80, UM83).
@@ -92,8 +90,7 @@ export class AtcRouteClearanceLoader<P extends FlightPlanPerformanceData> {
   }
 
   /**
-   * Loads a route clearance or a crossing constraint in SEC 3, with the FMS message of the result (FCOM
-   * DSC-22-FMS-20-110)
+   * Loads a route clearance or a crossing constraint in SEC 3, with the FMS message of the result
    * @param message the uplink message
    * @returns the mailbox indication: LOAD OK, LOAD PARTIAL, LOAD FAILED, or LOAD NOT AVAIL without a loadable element or
    * a navigation database
@@ -407,12 +404,17 @@ export class AtcRouteClearanceLoader<P extends FlightPlanPerformanceData> {
     if (!this.aircraft.beforeCruise()) {
       return true;
     }
-    const firstEnroute =
+    return index - this.firstEnrouteIndex(plan) >= plan.enrouteSegment.allLegs.length / 2;
+  }
+
+  /** The index of the first en route leg: after the origin, departure and departure transition legs */
+  private firstEnrouteIndex(plan: FlightPlan<P>): number {
+    return (
       plan.originSegment.allLegs.length +
       plan.departureRunwayTransitionSegment.allLegs.length +
       plan.departureSegment.allLegs.length +
-      plan.departureEnrouteTransitionSegment.allLegs.length;
-    return index - firstEnroute >= plan.enrouteSegment.allLegs.length / 2;
+      plan.departureEnrouteTransitionSegment.allLegs.length
+    );
   }
 
   /** SEC INDEX: CREATED hh:mm (ATC F-PLN), REJECTED ATC INFO on the SEC 3 panel */
@@ -475,13 +477,7 @@ export class AtcRouteClearanceLoader<P extends FlightPlanPerformanceData> {
     // Bounded: each pass deletes one element
     for (let pass = 0; pass < 500; pass++) {
       const p = plan();
-      const lastEnrouteIndex =
-        p.originSegment.allLegs.length +
-        p.departureRunwayTransitionSegment.allLegs.length +
-        p.departureSegment.allLegs.length +
-        p.departureEnrouteTransitionSegment.allLegs.length +
-        p.enrouteSegment.allLegs.length -
-        1;
+      const lastEnrouteIndex = this.firstEnrouteIndex(p) + p.enrouteSegment.allLegs.length - 1;
       if (head + 1 > lastEnrouteIndex) {
         return;
       }

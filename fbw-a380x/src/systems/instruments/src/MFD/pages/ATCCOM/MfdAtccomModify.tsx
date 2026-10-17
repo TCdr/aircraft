@@ -14,14 +14,14 @@ import { AtccomFooter } from './MfdAtccomFooter';
 import { applyModification, modifyLines } from '../../ATCCOM/ModifyMessage';
 import { requestFieldFormat } from './AtccomEntryFormats';
 
-/** The frames of the page, as on the REQUEST page (FCOM figures: a fifth of the area above the buttons) */
+/** The frames of the page, as on the REQUEST page: a fifth of the area above the buttons) */
 const AREA_TOP = -7;
 const FRAME_HEIGHT = 152.4;
 const LINE_Y = [29, 77, 124];
 const TEXT_LEFT = 21;
 
 /**
- * REPORT/MODIFY page (A380 FCOM DSC-46-10-20-30 P 22-23), laid out on the FCOM figure: the downlink message of the
+ * REPORT/MODIFY page, laid out on the reference figure: the downlink message of the
  * mailbox (the response prepared by the FMS for a confirm message), a frame for each of its elements with its values;
  * ADD FREETEXT adds a freetext frame (RETURN TO REPORT goes back), CANCEL closes the page, XFR TO MAILBOX transfers the
  * modified message to the mailbox.
@@ -61,7 +61,6 @@ export class MfdAtccomModify extends DisplayComponent<AtccomMfdPageProps> {
     super.destroy();
   }
 
-  /** All the values of the message are completed */
   private updateCompleteness(): void {
     let complete = !!this.message;
     for (const line of this.lines) {
@@ -96,7 +95,6 @@ export class MfdAtccomModify extends DisplayComponent<AtccomMfdPageProps> {
     return (
       <>
         <ActivePageTitleBar activePage={Subject.create(this.props.pageTitle ?? '')} offset={Subject.create('')} />
-        {/* begin page content */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-atccom-request">
             {this.lines.map((line, index) => {
@@ -136,7 +134,6 @@ export class MfdAtccomModify extends DisplayComponent<AtccomMfdPageProps> {
                 </>
               );
             })}
-            {/* The freetext frame, after the frames of the message */}
             <div style={{ visibility: this.freetextVisibility }}>
               {this.freetext.map((line, i) =>
                 fcomAt(
@@ -183,7 +180,6 @@ export class MfdAtccomModify extends DisplayComponent<AtccomMfdPageProps> {
             )}
           </div>
         </div>
-        {/* end page content */}
         <AtccomFooter bus={this.props.bus} mfd={this.props.mfd} atcService={this.props.atcService} />
       </>
     );

@@ -4,8 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { NXSystemMessages } from './NXSystemMessages';
 
-// A380 FCOM message list: a380_fcom.txt l.21978-21980 (AH, AI, AJ), l.21987 (AQ) and l.22048 (CR)
-describe('company wind messages (FCOM wording)', () => {
+describe('company wind messages (aircraft wording)', () => {
   it('received, waiting for insertion in the active flight plan', () => {
     expect(NXSystemMessages.comWindRecievedPendingInsertionActive.text).toBe(
       'COMPANY WIND DATA RECEIVED\nWAITING FOR INSERTION IN ACTIVE',

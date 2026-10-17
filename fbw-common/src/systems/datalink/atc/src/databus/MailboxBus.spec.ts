@@ -58,7 +58,7 @@ function setup() {
   return { send, cancel, statuses, shown };
 }
 
-describe('MailboxBus downlink file (A380 FCOM DSC-46, FILE FULL)', () => {
+describe('MailboxBus downlink file (FILE FULL)', () => {
   it('holds a sixth open downlink back with FILE FULL', () => {
     const { send, statuses, shown } = setup();
     [1, 2, 3, 4, 5, 6].forEach(send);
@@ -74,7 +74,7 @@ describe('MailboxBus downlink file (A380 FCOM DSC-46, FILE FULL)', () => {
     expect(statuses[statuses.length - 1]).toBe(MailboxStatusMessage.NoMessage);
   });
 
-  it('never fills up from cancelled downlinks (in-sim 2026-10-02: FILE FULL for good after five cancels)', () => {
+  it('never fills up from cancelled downlinks (seen in the sim: FILE FULL for good after five cancels)', () => {
     const { send, cancel, statuses } = setup();
     for (let uid = 1; uid <= 10; uid++) {
       send(uid);
