@@ -4991,9 +4991,12 @@ mod tests {
             flag(test_bed, &format!("PNEU_XBLEED_VALVE_{}_OPEN", valve))
         }
 
+        /// Steps of 100 ms: at one second per step the valve regulation of the engines swings the
+        /// bleed pressure between ticks, and a neighbour engine spends enough time over the
+        /// overpressure limit to be flagged on some of the random start states
         fn run_seconds(test_bed: &mut PneumaticTestBed, seconds: u64) {
-            for _ in 0..seconds {
-                test_bed.run_with_delta(Duration::from_secs(1));
+            for _ in 0..seconds * 10 {
+                test_bed.run_with_delta(Duration::from_millis(100));
             }
         }
 
