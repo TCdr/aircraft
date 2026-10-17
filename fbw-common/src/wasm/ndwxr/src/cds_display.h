@@ -5,7 +5,7 @@
 // by test/cds_display_test.cpp.
 //
 // The systems host writes which display each DU shows into L:A380X_CDS_{DU}_DU_DISPLAY (fbw-a380x
-// shared/src/CdsReconfiguration.ts, A380 FCOM DSC-31-15-20): 0 = the DU's own display, else 1 PFD, 2 ND, 3 MFD,
+// shared/src/CdsReconfiguration.ts): 0 = the DU's own display, else 1 PFD, 2 ND, 3 MFD,
 // 4 EWD, 5 SD. When the ND DU shows the PFD (PFD DU lost, or PFD/ND pb), the PFD is a gauge stacked on the ND's
 // panel.cfg block; this gauge's MapView image is always drawn over the HTML gauges, so it must draw nothing then.
 

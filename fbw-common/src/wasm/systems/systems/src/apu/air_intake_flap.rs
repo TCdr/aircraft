@@ -18,8 +18,8 @@ pub(super) struct AirIntakeFlap {
     travel_time: Duration,
     is_moving: bool,
     /// The flyPad failure "APU air intake flap failed closed": the actuator drives the flap closed whatever its
-    /// command. The ECB then shuts a starting or running APU down (A320 FCOM DSC-49-20 FAULT lt, "Air inlet flap
-    /// closed", a320_fcom.txt l.60653).
+    /// command. The ECB then shuts a starting or running APU down (air inlet flap closed, a cause of the APU FAULT
+    /// light).
     failed_closed: Failure,
 }
 impl AirIntakeFlap {

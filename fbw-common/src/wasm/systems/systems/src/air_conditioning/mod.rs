@@ -695,8 +695,8 @@ pub struct AirConditioningPack {
 impl AirConditioningPack {
     const PACK_REACTION_TIME: Duration = Duration::from_secs(10);
     /// Outlet temperature a failed (overheating) pack heads for while it has an air flow. Design choice: well above
-    /// the 95 deg C A380 pack overheat limit (A380 FCOM PRO-ABN AIR PACK 1(2) OVHT, a380_fcom.txt l.131799), so the
-    /// overheat is reached in about 15 s with the pack reaction time.
+    /// the 95 deg C A380 pack overheat limit (AIR PACK 1(2) OVHT), so the overheat is reached in about 15 s with the
+    /// pack reaction time.
     const OVERHEAT_OUTLET_TEMPERATURE_DEG_C: f64 = 130.;
 
     pub fn new(context: &mut InitContext, pack_id: Pack) -> Self {

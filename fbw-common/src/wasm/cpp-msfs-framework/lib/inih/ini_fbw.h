@@ -142,8 +142,7 @@ inline bool createDirectory(std::string path) {
   }
 
   // An existing directory (the \work folder always is one) is fine. mkdir returns -1 for it and puts EEXIST in errno,
-  // not in its return value: checking only the return value made every write() fail, so lighting presets were never
-  // saved.
+  // not in its return value.
   struct stat info;
   if (stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode)) {
     return true;

@@ -87,7 +87,7 @@ pub(super) struct ElectronicControlBox<C: ApuConstants> {
 }
 impl<C: ApuConstants> ElectronicControlBox<C> {
     const JET_A_1_DENSITY: f64 = 0.804; // Kilograms per Liter
-    /// Design choice (no FCOM value): the DC supply loss must last this long before the ECB shuts the APU down, so
+    /// Design choice (no published value): the DC supply loss must last this long before the ECB shuts the APU down, so
     /// that a source transfer of the electrical network does not stop the APU.
     const DC_SUPPLY_LOSS_CONFIRMATION: Duration = Duration::from_secs(1);
 
@@ -243,18 +243,16 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
         }
     }
 
-    /// The automatic shutdowns of the ECB besides the fire, the fuel low pressure and the start motor supply loss
-    /// (A320 FCOM DSC-49-20 FAULT lt, a320_fcom.txt l.60649-60673; A380 FCOM DSC-49-40 APU AUTOMATIC SHUTDOWN,
-    /// a380_fcom.txt l.108880-108900). The first fault stays until the ECB goes off (MASTER SW OFF and air intake flap
-    /// closed), or with the air intake flap held open after an automatic shutdown until the MASTER SW is OFF with the
-    /// APU stopped (update()). Not modelled (no model behind them): no acceleration, slow start, no flame, reverse flow, overcurrent,
+    /// The automatic shutdowns of the ECB besides the fire, the fuel low pressure and the start motor supply loss.
+    /// The first fault stays until the ECB goes off (MASTER SW OFF and air intake flap closed), or with the air intake
+    /// flap held open after an automatic shutdown until the MASTER SW is OFF with the APU stopped (update()).
+    /// Not modelled (no model behind them): no acceleration, slow start, no flame, reverse flow, overcurrent,
     /// sensor / IGV failures, underspeed, loss of overspeed protection, inlet overheat, clogged oil filter, loss of EGT
     /// thermocouples (A320); EGT limit, N1 underspeed, generator oil, fuel system failure, reverse flow, aircraft
     /// emergency stop (A380).
     fn update_automatic_shutdown_conditions(&mut self, context: &UpdateContext) {
-        // A320 l.60663 "DC power lost (BAT OFF when aircraft on batteries only)", A380 l.108897 "No normal DC power:
-        // Yes / Yes". Below N 70 % the ECB has no other supply and the APU stops without a FAULT (see is_on()); above
-        // it, the ECB still runs and shuts the APU down with a FAULT.
+        // DC power lost (A320: also BAT OFF on batteries only). Below N 70 % the ECB has no other supply and the APU
+        // stops without a FAULT (see is_on()); above it, the ECB still runs and shuts the APU down with a FAULT.
         self.dc_supply_loss
             .update(context, self.is_on() && !self.dc_supply_is_powered);
         if !self.is_on() || self.fault.is_some() {
@@ -264,40 +262,34 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
         let running = self.turbine_state == TurbineState::Running;
         let starting_or_running = running || self.turbine_state == TurbineState::Starting;
         let failures = &self.sensed_failures;
-        // A380 table: APU oil high temperature "On Ground: Yes, In Flight: No"; the A320 FCOM gives no such limit.
+        // The A380 shuts down on a high oil temperature on the ground only; the A320 also in flight
         let high_oil_temperature_shuts_down =
             self.on_ground || C::HIGH_OIL_TEMPERATURE_SHUTDOWN_IN_FLIGHT;
 
         self.fault = if failures.ecb.is_active() {
-            // A320 l.60666 "ECB failure", A380 l.108895 "ECB failure: Yes / Yes"
             Some(ApuFault::EcbFailure)
         } else if self.dc_supply_loss.output() {
             Some(ApuFault::DcPowerLoss)
         } else if running && failures.overspeed.is_active() {
-            // A320 l.60654 "Overspeed", A380 l.108889-108890 "N1 / N2 overspeed: Yes / Yes"
             Some(ApuFault::Overspeed)
         } else if running && failures.oil_low_pressure.is_active() {
-            // A320 l.60659 "Low oil pressure", A380 l.108891 "APU oil low pressure: Yes / Yes"
             Some(ApuFault::LowOilPressure)
         } else if running
             && failures.oil_high_temperature.is_active()
             && high_oil_temperature_shuts_down
         {
-            // A320 l.60660 "High oil temperature", A380 l.108893 "APU oil high temperature: Yes / No"
             Some(ApuFault::HighOilTemperature)
         } else if C::EGT_OVERTEMPERATURE_SHUTDOWN
             && starting_or_running
             && self.egt >= self.egt_warning_temperature
         {
-            // A320 l.60657 "EGT overtemperature", l.60838 EGT "Becomes red when EGT ≥ EGT MAX (automatic shutdown
-            // begins)"
             Some(ApuFault::EgtOvertemperature)
         } else if C::AIR_INTAKE_FLAP_CLOSED_SHUTDOWN
             && starting_or_running
             && !self.air_intake_flap_is_fully_open()
         {
-            // A320 l.60653 "Air inlet flap closed": the start needs a fully open flap (l.60428-60429), so a flap that
-            // leaves its open stop while the APU starts or runs (flyPad failure "APU air intake flap failed closed")
+            // The start needs a fully open flap: a flap that leaves its open stop while the APU starts or runs
+            // (flyPad failure "APU air intake flap failed closed") shuts the APU down
             Some(ApuFault::AirIntakeFlapClosed)
         } else {
             None
@@ -306,7 +298,7 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
 
     /// After an automatic non-emergency shutdown the air intake flap stays open: it closes once N has been below
     /// C::AIR_INTAKE_FLAP_CLOSURE_PERCENT for C::AIR_INTAKE_FLAP_CLOSING_DELAY_AFTER_AUTO_SHUTDOWN in flight; after a
-    /// shutdown on the ground the countdown starts at liftoff (A320 FCOM DSC-49-20 FAULT lt note, l.60675-60677).
+    /// shutdown on the ground the countdown starts at liftoff.
     fn update_air_intake_flap_hold(&mut self, context: &UpdateContext) {
         let is_auto_shutdown = self.is_auto_shutdown();
         let new_auto_shutdown = is_auto_shutdown && !self.was_auto_shutdown;
@@ -457,8 +449,8 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
         }
     }
 
-    /// A320 FCOM DSC-49-20 APU page (10) LOW OIL LEVEL (a320_fcom.txt l.60848-60850): "Advisory: Displayed if the ECB
-    /// detects a low APU oil level when the aircraft is on the ground, and the APU is not running." The ECB senses it
+    /// APU page LOW OIL LEVEL advisory: shown when the ECB detects a low APU oil level on the ground with the APU not
+    /// running. The ECB senses it
     /// only while it is on (a powered ECB, MASTER SW ON or the APU still turning), as its other data.
     pub fn has_low_oil_level(&self) -> bool {
         self.is_on()

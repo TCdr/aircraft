@@ -1418,9 +1418,8 @@ impl LandingGearHandle for LandingGearControlInterfaceUnit {
     }
 
     fn gear_handle_baulk_locked(&self) -> bool {
-        // Unpowered lgciu will lock mechanism. A320 FCOM DSC-32-10-40 L/G LEVER (a320_fcom.txt:50811-50815): locked
-        // DOWN "when the shock absorber on either main gear is compressed (aircraft on ground) or the nose wheel
-        // steering is not centered".
+        // Unpowered lgciu will lock mechanism. The L/G lever is locked DOWN when either main gear shock absorber is
+        // compressed (aircraft on ground) or the nose wheel steering is not centered.
         !(self.is_powered
             && self.left_and_right_gear_extended(false)
             && self.nose_gear_extended(false)
@@ -1945,9 +1944,8 @@ mod tests {
         assert!(test_bed.is_gear_handle_down());
     }
 
-    /// A320 FCOM DSC-32-10-40 L/G LEVER (a320_fcom.txt:50811-50815): the interlock locks the lever in DOWN "when
-    /// the shock absorber on either main gear is compressed (aircraft on ground) or the nose wheel steering is not
-    /// centered"
+    /// The L/G lever interlock locks the lever in DOWN when either main gear shock absorber is compressed (aircraft on
+    /// ground) or the nose wheel steering is not centered
     #[test]
     fn gear_lever_locked_down_in_flight_while_nose_wheel_steering_not_centered() {
         let mut test_bed = test_bed_in_flight_with()

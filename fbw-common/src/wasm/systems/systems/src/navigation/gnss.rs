@@ -1,18 +1,17 @@
 //! GPS receivers: the GPS 1 receiver in MMR 1 and the GPS 2 receiver in MMR 2, and the satellites they track.
 //!
-//! A320 FCOM DSC-34 GPS: "Worldwide, 24 satellites broadcast accurate navigation data", the two independent receivers
-//! process them and send their data to the ADIRUs. A320 FCOM DSC-22_20 MCDU GPS MONITOR and A380 FCOM DSC-34-10-40-10:
-//! the receiver modes INIT (initialization at power up), ACQ (satellite acquisition, until at least four satellites are
-//! tracked), NAV (four or more satellites tracked, data sent to the ADIRS) and FAULT.
+//! 24 satellites broadcast navigation data worldwide; the two independent receivers process them and send their data
+//! to the ADIRUs. The receiver modes are INIT (initialization at power up), ACQ (satellite acquisition, until at least
+//! four satellites are tracked), NAV (four or more satellites tracked, data sent to the ADIRS) and FAULT.
 //!
 //! The simulator has no satellites: they are computed from the nominal 24-slot GPS constellation (six orbital planes,
 //! four slots each) at the simulator's UTC time, and the receiver's figures (number of satellites, figure of merit,
 //! integrity limit) follow from their geometry as seen from the aircraft. The antenna is on top of the fuselage: in a
 //! turn or a steep climb, the satellites low on the far side of the aircraft are masked.
 //!
-//! The FCOMs only name the other modes: TEST (system test), ALTAID and AIDED ("degraded modes, GPS uses aircraft inputs
-//! for computation purposes") and, on the A380, DIFF. What they do here is a design choice following ARINC 743A GNSS
-//! sensors:
+//! The aircraft documents only name the other modes: TEST (system test), ALTAID and AIDED (degraded modes that use
+//! aircraft inputs) and, on the A380, DIFF. What they do here is a design choice following the usual GNSS sensor
+//! behaviour:
 //! - TEST: the self test at power up, before INIT; the data words carry the functional test status.
 //! - ALTAID: with three satellites, the receiver uses the ADR barometric altitude as a fourth measurement.
 //! - AIDED: with fewer satellites, the receiver coasts on the IR velocities for up to two minutes; its accuracy degrades
@@ -349,7 +348,7 @@ pub fn antenna_normal(pitch: Angle, roll: Angle, true_heading: Angle) -> Vector3
     )
 }
 
-/// The mode of a GPS receiver (A320 FCOM DSC-22_20 MCDU GPS MONITOR, A380 FCOM DSC-34-10-40-10), as written to
+/// The mode of a GPS receiver (as on the MCDU GPS MONITOR page), as written to
 /// `GPS_n_MODE`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GpsReceiverMode {
@@ -494,10 +493,9 @@ impl GpsReceiver {
     const ROLL: &'static str = "PLANE BANK DEGREES";
     const TRUE_HEADING: &'static str = "PLANE HEADING DEGREES TRUE";
 
-    // The times below are design choices (the FCOMs give no duration): a few seconds of self test and initialization,
+    // The times below are design choices (no published duration): a few seconds of self test and initialization,
     // then the acquisition of the satellites; with the satellite data kept (powered again within WARM_START_MAX) it is
-    // quick, else the receiver starts from the ADIRS position and time (A380 FCOM DSC-34-10-40-10) and needs about two
-    // minutes.
+    // quick, else the receiver starts from the ADIRS position and time and needs about two minutes.
     const TEST_TIME_S: (f64, f64) = (1.5, 2.5);
     const INIT_TIME_S: (f64, f64) = (2.5, 4.5);
     const WARM_ACQUISITION_TIME_S: (f64, f64) = (15., 30.);
@@ -641,7 +639,7 @@ impl GpsReceiver {
                 }
             }
             GpsReceiverMode::Acquisition => {
-                // A380 FCOM DSC-34-10-40-10: in ACQ "until it is able to track at least four satellites"
+                // The receiver stays in ACQ until it tracks at least four satellites
                 if self.count_down(context) && self.geometry.tracked() >= 4 {
                     self.mode = self.full_navigation_mode();
                     self.restart_position_error();

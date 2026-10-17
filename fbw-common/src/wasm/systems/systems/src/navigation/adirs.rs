@@ -163,9 +163,8 @@ impl AirDataInertialReferenceSystemOverheadPanel {
             mode_selector.update(context);
         });
 
-        // A320 FCOM DSC-34-NAV-10-20 ON BAT light (a320_fcom.txt l.52646-52648): "The ON BAT light comes on in amber
-        // when the aircraft battery supplies at least one IRS. The ON BAT light also comes on for a few seconds at the
-        // beginning of a complete IRS alignment. The light does not come on in the case of a fast alignment."
+        // ON BAT light: on when the aircraft battery supplies at least one IRS, and for a few seconds at the start of a
+        // complete IRS alignment, not at the start of a fast alignment
         let complete_alignment_battery_test =
             self.mode_selectors
                 .iter()
@@ -181,16 +180,15 @@ impl AirDataInertialReferenceSystemOverheadPanel {
         let any_ir_on_battery = adirs.any_ir_on_battery();
         self.on_bat
             .set_illuminated(any_ir_on_battery || complete_alignment_battery_test);
-        // "When the aircraft is on ground and if at least one ADIRU is supplied by aircraft batteries: An external horn
-        // sounds" (l.52650-52652). The ADIRU and AVNCS light of the EXTERNAL POWER panel is not modelled.
+        // On ground, an ADIRU on the aircraft batteries sounds the external horn. The ADIRU and AVNCS light of the
+        // EXTERNAL POWER panel is not modelled.
         self.external_horn = any_ir_on_battery && context.is_on_ground();
 
         self.ir
             .iter_mut()
             .enumerate()
             .for_each(|(index, ir)| ir.set_fault(adirs.ir_has_fault(index + 1)));
-        // l.52605-52606: ADR FAULT light "comes on with an ECAM caution if a fault is detected in the air data
-        // reference part"
+        // The ADR FAULT light comes on with an ECAM caution when the air data reference part detects a fault
         self.adr
             .iter_mut()
             .enumerate()
@@ -540,8 +538,7 @@ impl LowSpeedWarningThreshold {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CompleteAlignmentTime {
     /// Depends on the latitude: 300 s / cos(latitude) up to 60 deg, 600 s up to 73 deg, 1 020 s
-    /// above. A380 FCOM DSC-34-10-30-30 (a380_fcom.txt l.86085): "It takes between 5 to 17 min
-    /// depending on the aircraft latitude."
+    /// above (the A380 alignment takes 5 to 17 min depending on the latitude).
     LatitudeDependent,
     /// The same time at any latitude.
     Fixed(Duration),
@@ -552,13 +549,11 @@ pub enum CompleteAlignmentTime {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MagneticReferenceArea {
     /// From 60 S to 82 N, except north of 73 N between 120 W and 90 W (around the north magnetic pole), with a
-    /// hysteresis of 0.5 deg of latitude and 2.5 deg of longitude. A380 FCOM DSC-22-FMS-10-30-30 (a380_fcom.txt
-    /// l.23422-23424): "The ADIRS are able to provide MAG heading (track) between latitudes 82°30' N and 60°30' S,
-    /// except in the vicinity of the magnetic pole".
+    /// hysteresis of 0.5 deg of latitude and 2.5 deg of longitude. A380: magnetic heading and track between 82°30' N
+    /// and 60°30' S, except near the magnetic pole.
     SixtySouthToEightyTwoNorthOutsideMagneticPole,
-    /// From 60 S to 73 N, with a hysteresis of 0.5 deg. A320 FCOM LIM-NAV (a320_fcom.txt l.116720-116726), all
-    /// ADIRUs with the same magnetic variation table: "In NAV mode, the IR will not provide valid magnetic heading
-    /// and magnetic track angle: North of 73° North, and South of 60° South."
+    /// From 60 S to 73 N, with a hysteresis of 0.5 deg. A320 (all ADIRUs with the same magnetic variation table): in
+    /// NAV mode the IR gives no valid magnetic heading and track north of 73° N and south of 60° S.
     SixtySouthToSeventyThreeNorth,
 }
 
@@ -568,10 +563,8 @@ pub enum AttitudeModeHeading {
     /// The IR gives the aircraft heading once its attitude is initialised (no crew entry modelled).
     AircraftHeading,
     /// The heading is no computed data until the crew enters it; the IR then gives the entered heading plus the
-    /// heading change since the entry (the IR drift is not modelled). A320 FCOM DSC-34-NAV-10-20 (a320_fcom.txt
-    /// l.52640-52643): ATT mode "supplying only attitude and heading information ... The heading must be entered
-    /// through the MCDU and has to be reset frequently (about every 10 min)"; QRH IR ALIGNMENT IN ATT MODE
-    /// (l.91909-91915): IRS MONITOR key, "[SET HDG key] A/C HDG ... ENTER".
+    /// heading change since the entry (the IR drift is not modelled). A320: in ATT mode the IR gives only attitude
+    /// and heading; the crew enters the heading on the MCDU IRS MONITOR page and resets it about every 10 min.
     EnteredByCrew,
 }
 
@@ -635,7 +628,7 @@ pub struct AirDataInertialReferenceUnitProgramming {
     electrical_supplies: [AdiruElectricalSupply; 3],
 }
 impl AirDataInertialReferenceUnitProgramming {
-    /// A380 FCOM DSC-22-FMS-10-30-30 (a380_fcom.txt l.23418): "Beyond 82 °N(S), no IRS alignment is possible."
+    /// A380: no IRS alignment beyond 82° N or S
     const DEFAULT_MAX_ALIGNMENT_LATITUDE_DEGREES: f64 = 82.;
 
     pub fn new(
@@ -922,7 +915,7 @@ struct AirDataInertialReferenceUnit {
     low_speed_warnings: [bool; 4],
 }
 impl AirDataInertialReferenceUnit {
-    /// A short power interruption, e.g. a bus transfer, does not stop the ADIRU (design choice: the FCOM gives no
+    /// A short power interruption, e.g. a bus transfer, does not stop the ADIRU (design choice: no published
     /// value; 200 ms covers the bus transfers of the electrical models).
     const POWER_INTERRUPTION_TOLERANCE: Duration = Duration::from_millis(200);
 
@@ -1027,7 +1020,7 @@ impl AirDataInertialReferenceUnit {
             self.ir_unpowered_duration + context.delta()
         };
 
-        // The mode selector OFF de-energises the ADIRU (FCOM l.52622), which then takes no battery power
+        // The mode selector OFF de-energises the ADIRU, which then takes no battery power
         self.ir_on_battery = ir_on_backup
             && self
                 .supply
@@ -1443,11 +1436,11 @@ impl AirDataReference {
     // 1 second filter
     const VERTICAL_SPEED_TIME_CONSTANT: Duration = Duration::from_secs(1);
 
-    /// Airspeed error of an erroneous pitot input (design choice: the FCOM gives no failure values; 40 kt is
-    /// well above the 16 kt CAS threshold of the PRIM air data monitoring, A380 FCOM DSC-34-10-30-10 l.85708).
+    /// Airspeed error of an erroneous pitot input (design choice: no published failure values; 40 kt is well above
+    /// the 16 kt CAS threshold of the A380 PRIM air data monitoring).
     const ERRONEOUS_AIRSPEED_ERROR_KNOTS: f64 = -40.;
     /// Angle of attack error of an erroneous AOA probe (design choice: above the 3.6 deg in-flight and the 8 deg
-    /// on-ground AOA thresholds of the PRIM monitoring, A380 FCOM DSC-34-10-30-10 l.85718-85725).
+    /// on-ground AOA thresholds of the A380 PRIM monitoring).
     const ERRONEOUS_ANGLE_OF_ATTACK_ERROR_DEGREES: f64 = 10.;
 
     fn new(context: &mut InitContext, number: usize, vmo: Velocity, mmo: MachNumber) -> Self {
@@ -1599,8 +1592,8 @@ impl AirDataReference {
         );
     }
 
-    /// A fault is detected in the air data reference part: the ADR FAULT light and discrete (A320 FCOM
-    /// l.52605-52606). An unsupplied or switched off ADIRU detects nothing.
+    /// A fault is detected in the air data reference part: the ADR FAULT light and discrete. An unsupplied or
+    /// switched off ADIRU detects nothing.
     fn has_fault(&self) -> bool {
         self.fault_failure.is_active() && self.is_energised
     }
@@ -2156,12 +2149,11 @@ impl InertialReference {
 
     const WIND_VELOCITY_TIME_CONSTANT: Duration = Duration::from_millis(100);
     const QUICK_REALIGN_AVAILABLE_TIME: Duration = Duration::from_secs(5);
-    // Fast alignment (mode selector OFF then NAV within 5 s): "A fast alignment takes 30 s"
-    // (A320 FCOM DSC-22_20-20-40, A380 FCOM DSC-34-10-30-30 "It takes about 30 s").
+    // A fast alignment (mode selector OFF then NAV within 5 s) takes about 30 s on both aircraft
     const QUICK_REALIGN_ALIGN_TIME: Duration = Duration::from_secs(30);
     const ALIGNMENT_VELOCITY_TIME_CONSTANT: Duration = Duration::from_millis(500);
     const MAX_ALIGNMENT_VELOCITY_FPS: f64 = 0.011;
-    /// Heading error of an erroneous IR (design choice: the FCOM gives no failure values; 10 deg is well above the
+    /// Heading error of an erroneous IR (design choice: no published failure values; 10 deg is well above the
     /// heading difference that the FWC IR DISAGREE monitoring of the A320 takes as a disagreement)
     const ERRONEOUS_HEADING_ERROR_DEGREES: f64 = 10.;
 
@@ -2276,8 +2268,8 @@ impl InertialReference {
         self.update_discrete_outputs();
     }
 
-    /// The IR part has failed (A320 FCOM l.52611-52615: IR FAULT light steady, "the respective IR is lost"). An
-    /// unsupplied or switched off ADIRU detects nothing.
+    /// The IR part has failed and is lost (IR FAULT light steady). An unsupplied or switched off ADIRU detects
+    /// nothing.
     fn has_failed(&self) -> bool {
         self.fault_failure.is_active() && self.selected_mode != InertialReferenceMode::Off
     }
@@ -2367,8 +2359,8 @@ impl InertialReference {
         );
     }
 
-    /// Ground alignment is possible up to the programmed latitude (A320 FCOM LIM-NAV, a320_fcom.txt l.116716-116718:
-    /// "between 73° North and 73° South"; A380 FCOM DSC-22-FMS-10-30-30, a380_fcom.txt l.23418: none beyond 82°)
+    /// Ground alignment is possible up to the programmed latitude (A320: between 73° N and 73° S; A380: none beyond
+    /// 82°)
     fn can_align(&self, simulator_data: AdirsSimulatorData) -> bool {
         simulator_data.latitude.abs() <= self.max_alignment_latitude
     }
@@ -2810,7 +2802,7 @@ impl InertialReference {
         }
 
         // In ATT mode, a heading entered by the crew is held (the MCDU IRS MONITOR page shows ENTER HEADING in ATT
-        // mode without it, A320 FCOM DSC-22_20-50-10-28, a320_fcom.txt l.19731-19743)
+        // mode without it)
         if self.selected_mode == InertialReferenceMode::Attitude
             && self.attitude_mode_set_heading.is_some()
         {
@@ -4483,7 +4475,7 @@ mod tests {
 
         let alignment_time = test_bed.remaining_alignment_time();
 
-        // FCOM: a fast alignment takes 30 s.
+        // A fast alignment takes 30 s.
         assert!(alignment_time <= Duration::from_secs(30));
     }
 
@@ -4527,7 +4519,7 @@ mod tests {
     fn ten_and_a_half_seconds_after_moving_the_mode_selector_the_on_bat_light_illuminates_for_5_and_a_half_seconds(
         #[case] mode: InertialReferenceMode,
     ) {
-        // A complete alignment: a fast alignment has no ON BAT light (FCOM l.52646-52648)
+        // A complete alignment: a fast alignment has no ON BAT light
         let mut test_bed = all_adirus_unaligned_test_bed_with().ir_mode_selector_set_to(1, mode);
         test_bed.run_without_delta();
 
@@ -4608,7 +4600,7 @@ mod tests {
 
     #[test]
     fn a_fast_alignment_does_not_illuminate_the_on_bat_light() {
-        // Aligned, then OFF and back to NAV within 5 s: a fast alignment (FCOM l.52646-52648)
+        // Aligned, then OFF and back to NAV within 5 s: a fast alignment
         let mut test_bed =
             test_bed_with().ir_mode_selector_set_to(1, InertialReferenceMode::Navigation);
         test_bed.run_without_delta();
@@ -4743,7 +4735,7 @@ mod tests {
         test_bed.assert_adr_data_valid(false, 2);
         test_bed.assert_ir_attitude_data_available(true, 2);
         assert!(test_bed.is_aligned(2));
-        // FCOM l.52645-52652: ON BAT light, and the external horn on the ground
+        // On batteries: ON BAT light, and the external horn on the ground
         assert!(test_bed.on_bat_light_illuminated());
         assert!(test_bed.external_horn_sounds());
         test_bed.assert_adr_data_valid(true, 1);
@@ -4785,7 +4777,7 @@ mod tests {
 
     #[test]
     fn the_battery_supplies_an_ir_with_a_time_limit_only_for_that_time() {
-        // A320 FCOM PRO-ABN-ELEC note (e) (l.75390): "IR 2 and IR 3 are lost 5 min after failure of main generators"
+        // A320: IR 2 and IR 3 are lost 5 min after the loss of the main generators
         let mut test_bed = all_adirus_aligned_test_bed_with()
             .after_the_power_settling_time()
             .bus_powered(ElectricalBusType::AlternatingCurrent(2), false);

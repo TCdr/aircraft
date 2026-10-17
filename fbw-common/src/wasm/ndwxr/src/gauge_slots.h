@@ -9,16 +9,16 @@
 // (and its MapViews) outlives its gauge when the old gauge's PRE_KILL comes after the new gauge's PRE_INSTALL, or never
 // comes. A MapView created while the module already has kMaxMapViews does not render (see the note in ndwxr.h), and
 // the gauge installed last gets it: the A380X F/O VD terrain gauge, last in panel.cfg, whose VD showed the runways
-// only after several flight reloads (2026-10-07 and 2026-10-10, both times gone after an MSFS restart). So:
+// only after several flight reloads (measured in the sim, twice, both times gone after an MSFS restart). So:
 // - a gauge installed again with the same context (no PRE_KILL in between) takes its old slot over: the old views are
 //   deleted (the context is alive, it is being installed) before the new ones are created;
 // - a gauge installed while a gauge of the same role holds a slot (the panel has one gauge per role) supersedes it:
 //   the old slot no longer draws, and is released at its own PRE_KILL (its context is alive until then);
 // - a gauge creates its views only while the module stays within kMaxMapViews; otherwise it waits (tried again every
 //   frame) until other views are deleted. When it has waited kSupersededGraceFrames, the superseded slot of its role
-//   (else another superseded slot) is abandoned: its views no longer count, without calling the sim (its PRE_KILL may never come, and its context
-//   may be gone); should the PRE_KILL come after all, the views are deleted then;
-// - a view id is a number within its gauge's context (each gauge's first view is 2, measured 2026-10-10): a slot
+//   (else another superseded slot) is abandoned: its views no longer count, without calling the sim (its PRE_KILL may
+//   never come, and its context may be gone); should the PRE_KILL come after all, the views are deleted then;
+// - a view id is a number within its gauge's context (each gauge's first view is 2, measured in the sim): a slot
 //   released late never deletes an id that another slot of the same context holds (the sim may have handed it on),
 //   while the same number in another context is another view and is deleted.
 

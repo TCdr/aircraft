@@ -31,8 +31,7 @@ pub trait InstrumentLandingSystemBus {
 /// rust systems. Currently, this implementation is done by MSFS.
 ///
 /// The aircraft has two ILS receivers, ILS 1 in MMR 1 and ILS 2 in MMR 2: PFD 1 shows ILS 1 and
-/// PFD 2 shows ILS 2 (A320 FCOM DSC-34-NAV-30-20, a320_fcom.txt l.53282-53289; A380 FCOM
-/// DSC-34-10-20, a380_fcom.txt l.86580-86591). In the sim, MMR 1 is NAV 3 and MMR 2 is NAV 4
+/// PFD 2 shows ILS 2 (both aircraft). In the sim, MMR 1 is NAV 3 and MMR 2 is NAV 4
 /// (systems.cfg [RADIOS]). Each shim writes the data of its own NAV radio to MMR_n_* variables,
 /// read by the PFD of its side.
 pub struct MultiModeReceiverShim {
@@ -43,8 +42,8 @@ pub struct MultiModeReceiverShim {
     localizer_deviation: Angle,
     glideslope_valid: bool,
     glideslope_deviation: Angle,
-    /// The ILS receiver of this MMR fails: no localiser and glideslope. A320 FCOM PRO-ABN-NAV NAV ILS 1(2)(1+2)
-    /// FAULT (a320_fcom.txt l.93273). The receiver of MMR 1 is also switched off in the sim by the systems host
+    /// The ILS receiver of this MMR fails: no localiser and glideslope (NAV ILS 1(2)(1+2) FAULT). The receiver of
+    /// MMR 1 is also switched off in the sim by the systems host
     /// (NavigationReceiverFailures), as the FBW module reads NAV 3 directly.
     failure: Failure,
 

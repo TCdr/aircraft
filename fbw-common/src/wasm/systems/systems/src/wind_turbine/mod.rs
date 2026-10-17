@@ -710,7 +710,7 @@ mod tests {
         assert_lt!(test_bed.query(|a| a.turbine_rpm()), 50.);
     }
 
-    // Real A320 RAT (Hamilton Sundstrand ERPS06M CMM): rated output 21.6 gpm at 2640 psi (about 25 kW)
+    // Real A320 RAT: rated output 21.6 gpm at 2640 psi (about 25 kW)
     // from 135.5 KEAS, governed speed 4800 / 6600 rpm.
     #[test]
     fn a320_turbine_gives_rated_output_from_135_5_keas_inside_governed_band() {
@@ -732,7 +732,7 @@ mod tests {
 
     #[test]
     fn a320_turbine_stays_in_governed_band_from_min_rat_speed_to_high_speed() {
-        // A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG: MIN RAT SPEED 140 kt
+        // A320 ELEC EMER CONFIG procedure: minimum RAT speed 140 kt
         for speed_kt in [140., 160., 200., 250., 300., 350.] {
             for load_kw in [2., hydraulic::RamAirTurbine::RATED_OUTPUT_KW] {
                 let rpm = a320_turbine_rpm_at_sea_level(speed_kt, load_kw);

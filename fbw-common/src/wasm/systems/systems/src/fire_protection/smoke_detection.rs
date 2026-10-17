@@ -2,11 +2,9 @@
 //! compartments and the smoke detector of the avionics ventilation duct, the A380 Smoke Detection Function (SDF) of the
 //! CIDS for the cargo compartments and the avionics bays.
 //!
-//! Each compartment has one or more smoke detectors; the detection logic is the dual loop principle:
-//! - A320 FCOM DSC-26-50-10 (a320_fcom.txt l.38923-38926): "Smoke in one cavity activates the cargo smoke warning if:
-//!   Both smoke detectors detect smoke, or One smoke detector detects smoke and the other is inoperative."
-//! - A380 FCOM DSC-26-50-10 / DSC-26-60-10 (a380_fcom.txt l.53624-53630, l.53815-53821): "The SMOKE warning triggers for
-//!   the applicable bay, when: One detector fails, and the other detects smoke, or Both detectors detect smoke."
+//! Each compartment has one or more smoke detectors; the detection logic is the dual loop principle, the same on both
+//! aircraft: the SMOKE warning triggers when both detectors detect smoke, or when one detects smoke and the other is
+//! inoperative.
 //!
 //! The detector fault differs between the aircraft, see [`SmokeDetectionFaultLogic`].
 //!
@@ -27,12 +25,10 @@ use crate::{
 /// When the smoke detection of a compartment reports a detector fault.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SmokeDetectionFaultLogic {
-    /// A320 (dual loop principle, a320_fcom.txt l.38923-38926): one inoperative detector is tolerated. The detection of
-    /// the compartment is failed when all its detectors are inoperative (A320 FCOM PRO-ABN-SMOKE FWD (AFT) CRG DET
-    /// FAULT, l.95203-95214 and l.95378-95386: "This alert triggers when the FWD (AFT) smoke detection is failed").
+    /// A320 (dual loop principle): one inoperative detector is tolerated. The detection of the compartment is failed
+    /// (SMOKE FWD (AFT) CRG DET FAULT) when all its detectors are inoperative.
     AllDetectorsInoperative,
-    /// A380 FCOM DSC-26-50-10 DETECTION LOGIC (a380_fcom.txt l.53621-53623, l.53812-53814): "The SMOKE DET FAULT caution
-    /// triggers for the applicable bay, when: One detector fails, or Only one detector detects smoke."
+    /// A380: the SMOKE DET FAULT caution triggers when one detector fails, or when only one detector detects smoke.
     /// Design choice: not while the SMOKE warning of the compartment is on (one detector failed and the other detects
     /// smoke), the warning already covers it.
     AnyDetectorInoperativeOrDisagreeing,
@@ -43,7 +39,7 @@ pub struct SmokeDetectionZoneConfig<const D: usize> {
     pub zone: SmokeDetectionZone,
     /// The electrical supply of each detector (its detection channel)
     pub detectors_powered_by: [ElectricalBusType; D],
-    /// How long the smoke must be detected before the warning (A320 avionics: 5 s, a320_fcom.txt l.38775)
+    /// How long the smoke must be detected before the warning (A320 avionics: 5 s)
     pub confirmation_time: Duration,
     pub fault_logic: SmokeDetectionFaultLogic,
 }
@@ -403,7 +399,7 @@ mod tests {
 
     #[test]
     fn a_failed_detection_unit_reports_neither_smoke_nor_a_detector_fault() {
-        // A380 FCOM SMOKE DET FAULT (a380_fcom.txt l.143741, l.143758-143761): "Smoke detection is lost"
+        // A380 SMOKE DET FAULT of a failed detection function: the smoke detection is lost
         let mut test_bed = test_bed();
         test_bed.fail(FailureType::Smoke(SmokeDetectionZone::ForwardCargo));
         test_bed.run();

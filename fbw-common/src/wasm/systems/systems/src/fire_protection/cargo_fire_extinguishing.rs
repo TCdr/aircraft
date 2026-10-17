@@ -1,26 +1,19 @@
 //! Cargo compartment fire extinguishing, shared by the aircraft: one or more fire extinguisher bottles, discharged by
 //! the crew into one cargo compartment.
 //!
-//! - A320 FCOM DSC-26-50-10 (a320_fcom.txt l.38932-38939): "One fire bottle with two discharge heads, one for each
-//!   compartment [...] When the flight crew presses the FWD(AFT) DISCH pb, the action ignites the corresponding squib on
-//!   the fire bottle, which then discharges the extinguisher agent into that cargo compartment. When the bottle is
-//!   empty, the DISCH light comes on amber." DSC-26-50-20 DISCH LIGHT (l.39017-39019): "Within 60 s after pressing the
-//!   discharge pushbutton, the amber DISCH light comes on when the associated bottle is fully discharged."
-//! - A380 FCOM DSC-26-60-10 FIRE EXTINGUISHING (a380_fcom.txt l.53846-53866): "two fire extinguisher bottles that can
-//!   discharge extinguisher agent in the forward or aft/bulk cargo compartment [...] A diverter valve directs
-//!   extinguisher agent to either the forward or aft/bulk cargo compartment. Bottle 1 first discharges extinguisher
-//!   agent in the affected cargo compartment. This takes approximately one minute. [...] Bottle 2 then slowly discharges
-//!   extinguisher agent, to provide sufficient extinguisher agent concentration in the affected cargo compartment for
-//!   approximately four hours."
+//! - A320: one bottle with a discharge head for each compartment. The FWD (AFT) DISCH pb fires the squib of that head
+//!   and the bottle empties into that compartment; the amber DISCH light comes on once the bottle is fully discharged,
+//!   within 60 s.
+//! - A380: two bottles and a diverter valve to the forward or the aft/bulk compartment. Bottle 1 discharges first, in
+//!   about one minute; bottle 2 then discharges slowly, to hold the agent concentration for about four hours.
 //!
 //! The bottles discharge in sequence into the compartment of the first DISCH (AGENT) pb pressed; a bottle already
 //! empty cannot discharge again, so the other compartment's pb does nothing afterwards. A bottle can lose its agent
 //! ([`FailureType::CargoFireBottleLowPressure`]): it is then at low pressure (the BTL FAULT cautions) and has nothing
 //! left to discharge.
 //!
-//! What the agent does to the smoke is not modelled: the A320 procedure says "Expect the SMOKE warning to remain after
-//! agent discharge, even if the smoke source is extinguished" (PRO-ABN-SMOKE FWD CARGO SMOKE, a320_fcom.txt
-//! l.95130-95132), so the smoke warning stays as long as the smoke failure.
+//! What the agent does to the smoke is not modelled: the crew must expect the SMOKE warning to stay after the agent
+//! discharge, even with the smoke source extinguished, so the smoke warning stays as long as the smoke failure.
 
 use std::time::Duration;
 
@@ -178,11 +171,6 @@ impl<const C: usize, const B: usize> CargoFireExtinguishing<C, B> {
     /// Bottle n (1-based) is fully discharged
     pub fn bottle_is_discharged(&self, number: usize) -> bool {
         self.bottles[number - 1].is_discharged()
-    }
-
-    /// Bottle n (1-based) has lost its agent
-    pub fn bottle_has_low_pressure(&self, number: usize) -> bool {
-        self.bottles[number - 1].has_low_pressure()
     }
 
     /// The bottles discharge (or discharged) into compartment `index` (0-based, in the order given to new())

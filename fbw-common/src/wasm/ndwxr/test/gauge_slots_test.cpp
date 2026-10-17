@@ -49,7 +49,7 @@ struct FakeSlot {
 using Table = GaugeSlots<FakeSlot, 8>;
 
 // The sim's side: the MapViews that exist, in creation order. A view id is a number within its context, as in the sim
-// (each gauge's first view is 2, measured 2026-10-10 with temporary L:vars).
+// (each gauge's first view is 2, measured in the sim).
 struct FakeEngine {
   struct View {
     unsigned long long ctx;
@@ -238,8 +238,8 @@ static void testReloadKillsFirst() {
   expectEqual("reloads, kills first: views", static_cast<int>(engine.existing.size()), kMaxMapViews);
 }
 
-// The new flight's gauges installed before the old flight's are killed: the old code created the new views next to
-// the old ones, so the gauges installed last (the F/O VD terrain gauge last of all) got views past the budget.
+// The new flight's gauges installed before the old flight's are killed: new views created next to the old ones would
+// put the gauges installed last (the F/O VD terrain gauge last of all) past the budget.
 static void testReloadNewBeforeOldKill() {
   Table table;
   FakeEngine engine;
@@ -257,8 +257,8 @@ static void testReloadNewBeforeOldKill() {
   expectEqual("new before old kill: every kill finds its slot", table.stats.killsWithoutSlot, 0);
 }
 
-// The sim drops the old flight's gauges and their views without a PRE_KILL: the old code kept their slots, and the
-// table ran full on the second reload.
+// The sim drops the old flight's gauges and their views without a PRE_KILL: keeping their slots would fill the table
+// on the second reload.
 static void testReloadWithoutKills() {
   Table table;
   FakeEngine engine;
@@ -276,8 +276,8 @@ static void testReloadWithoutKills() {
   expect("no kills: never more than kMaxMapViews views", engine.mostViewsAtOnce <= kMaxMapViews);
 }
 
-// Only the F/O VD terrain gauge misses its PRE_KILL (and the sim drops it): the old code drew the reinstalled gauge
-// from its stale slot when the sim gave it the same context, and ran out of slots after four reloads.
+// Only the F/O VD terrain gauge misses its PRE_KILL (and the sim drops it): the reinstalled gauge must not draw from
+// its stale slot when the sim gives it the same context, nor run out of slots after four reloads.
 static void testRvKillMissed() {
   Table table;
   FakeEngine engine;
@@ -330,7 +330,7 @@ static void testRecycledIdsNotDeleted() {
   FakeEngine engine;
   engine.recycleIds = true;
   installFlight(table, engine, 10);
-  // The old flight's CPT ND gauge loses its views (ids 1 and 2) without a PRE_KILL.
+  // The old flight's CPT ND gauge loses its views (ids 2 and 3) without a PRE_KILL.
   dropGauge(table, engine, 10);
   // The new flight's gauges, the F/O VD terrain gauge first; the old ones (but the CPT ND) are killed.
   install(table, engine, 23, kRV);
@@ -346,7 +346,7 @@ static void testRecycledIdsNotDeleted() {
   const FakeSlot* cptNd = table.find(20);
   expect("recycled ids: the new CPT ND got the dropped numbers", cptNd != nullptr && !cptNd->views.empty() && cptNd->views[0] == FakeEngine::kFirstId);
   expect("recycled ids: the F/O VD shows after the grace", gaugeShows(table, engine, 23));
-  // The old CPT ND gauge's PRE_KILL comes after all: ids 1 and 2 are the new CPT ND's now.
+  // The old CPT ND gauge's PRE_KILL comes after all: ids 2 and 3 are the new CPT ND's now.
   table.kill(10, engine);
   expect("recycled ids: every gauge shows", flightShows(table, engine, 20));
 }
