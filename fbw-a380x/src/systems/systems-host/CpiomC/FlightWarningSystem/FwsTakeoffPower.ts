@@ -4,7 +4,7 @@
 /**
  * The take-off power signal of the flight phases (FwsFlightPhases): a thrust lever at take-off power, from its TLA only
  * (the FADECs do not send the take-off power words yet). One function for every engine, so that each engine is judged
- * on its own thrust lever: engine 4 used to read the TLA of lever 3 for its full power check.
+ * on its own thrust lever.
  */
 
 /** TLA band of the FLX/MCT detent (35 degrees) */

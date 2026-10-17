@@ -3,14 +3,14 @@
 
 /*
  * Door alerts of the A380X FWS: DOOR MAIN 1(2)(3)(4)(5)L(R) / UPPER 1(2)(3)L(R) NOT CLOSED, DOOR FWD(AFT) CARGO NOT
- * CLOSED (A380 FCOM PRO-ABN-ECAM-10-52, DSC-52-60 ECAM ALERTS) and the door input of CAB PRESS INHIBITED BY DOORS
- * (PRO-ABN-ECAM-10-21).
+ * CLOSED and the door input of CAB PRESS INHIBITED BY DOORS.
  */
 
 /**
  * The 16 passenger doors, in sim interactive point order: the index of a door in this list is its
- * `INTERACTIVE POINT OPEN:<index>` (flight_model.cfg [INTERACTIVE POINTS]: 0-9 main deck, 10-15 upper deck, even = left,
- * odd = right; the DOOR/OXY SD page reads the same points). Points 16-19 are the cargo door requests, fuel and GPU.
+ * `INTERACTIVE POINT OPEN:<index>` (flight_model.cfg [INTERACTIVE POINTS]: 0-9 main deck, 10-15 upper deck, even =
+ * left, odd = right; the DOOR/OXY SD page reads the same points). Points 16-19 are the cargo door requests, fuel and
+ * GPU.
  */
 export const CABIN_DOORS = [
   'MAIN 1L',
@@ -58,8 +58,8 @@ export function cargoDoorLockedVariable(door: CargoDoor): string {
 }
 
 /**
- * Trigger of DOOR ... NOT CLOSED: "The door is not closed and is not locked." The sim passenger doors have no
- * separate latch or lock, so any opening counts (the Rust air conditioning reads the same points as open above 0).
+ * Trigger of DOOR ... NOT CLOSED: the door is not closed and not locked. The sim passenger doors have no separate latch
+ * or lock, so any opening counts (the Rust air conditioning reads the same points as open above 0).
  * @param openRatio INTERACTIVE POINT OPEN of the door, in percent over 100 (0 = closed, 1 = fully open)
  * @returns true if the door is not closed
  */
@@ -68,7 +68,6 @@ export function isCabinDoorNotClosed(openRatio: number): boolean {
 }
 
 /**
- * Trigger of DOOR FWD(AFT) CARGO NOT CLOSED: "The cargo door is not closed and is not locked."
  * @param lockedValue the cargo door's locked L:var (1 = closed and locked)
  * @returns true if the cargo door is not closed and locked
  */
@@ -78,8 +77,8 @@ export function isCargoDoorNotClosed(lockedValue: number): boolean {
 }
 
 /**
- * Door input of CAB PRESS INHIBITED BY DOORS: "At least one door is not closed, and locked, at takeoff power
- * application." Every door counts: the 10 main deck and 6 upper deck passenger doors and the cargo doors.
+ * Door input of CAB PRESS INHIBITED BY DOORS (at least one door not closed and locked when takeoff power is applied).
+ * Every door counts: the 10 main deck and 6 upper deck passenger doors and the cargo doors.
  * @param cabinDoorsNotClosed NOT CLOSED state of each passenger door, in CABIN_DOORS order
  * @param cargoDoorsNotClosed NOT CLOSED state of each cargo door, in CARGO_DOORS order
  * @returns true if at least one door is not closed and locked
@@ -92,11 +91,10 @@ export function isAnyDoorNotClosed(
 }
 
 /**
- * Door part of the takeoff configuration test (T.O CONFIG pb, T.O CONFIG NORMAL). A380 FCOM DSC-31-40-10 Takeoff
- * Configuration Test lists, among the alerts the test can trigger: "DOOR MAIN 1(2)(3)(4)(5) R(L) NOT CLOSED",
- * "DOOR UPPER 1(2)(3)(4) R(L) NOT CLOSED", "DOOR FWD(AFT)(MAIN)(UPPER)(BULK) CARGO NOT CLOSED" and
- * "DOOR CKPT SLIDING WINDOW NOT CLOSED". So every passenger door, every cargo door and both cockpit sliding windows
- * must be closed for T.O CONFIG NORMAL.
+ * Door part of the takeoff configuration test (T.O CONFIG pb, T.O CONFIG NORMAL). The test can trigger DOOR MAIN
+ * 1(2)(3)(4)(5) R(L) NOT CLOSED, DOOR UPPER 1(2)(3)(4) R(L) NOT CLOSED, DOOR FWD(AFT)(MAIN)(UPPER)(BULK) CARGO NOT
+ * CLOSED and DOOR CKPT SLIDING WINDOW NOT CLOSED. So every passenger door, every cargo door and both cockpit sliding
+ * windows must be closed for T.O CONFIG NORMAL.
  * @param cabinDoorsNotClosed NOT CLOSED state of each passenger door, in CABIN_DOORS order
  * @param cargoDoorsNotClosed NOT CLOSED state of each cargo door, in CARGO_DOORS order
  * @param cockpitSlidingWindowOpen true if the CAPT or F/O sliding window is open

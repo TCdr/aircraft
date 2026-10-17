@@ -2196,9 +2196,8 @@ impl A320Hydraulic {
         self.bypass_pin.update(&self.pushback_tug);
 
         // The relay turning on the brake fans is grounded via LGCIU 2 signal and powered by DC2 (206PP via 3GS).
-        // A320 FCOM DSC-32-30-20 BRK FAN pb-sw (a320_fcom.txt l.51514-51516): "The brake fans run if the lefthand
-        // main landing gear is down and locked" (LGCIU 2, L/G downlocked output, DSC-32-10-30 l.50664-50672), so they
-        // also run in flight with the gear down, to cool the brakes before landing.
+        // The brake fans run when the left main landing gear is down and locked (LGCIU 2, L/G downlocked output), so
+        // they also run in flight with the gear down, to cool the brakes before landing.
         let brake_fan_turned_on = self.dc2_powered
             && brake_fan_panel.brake_fan_pb_is_pressed()
             && lgciu2.left_down_and_locked();
@@ -3735,7 +3734,7 @@ impl A320HydraulicBrakeSteerComputerUnit {
 
     const MAX_STEERING_ANGLE_DEMAND_DEGREES: f64 = 74.;
 
-    /// ABCU brake pressure limit of the alternate braking without anti-skid (FCOM DSC-32-30-10: 1 000 PSI)
+    /// ABCU brake pressure limit of the alternate braking without anti-skid
     const ALTERNATE_BRAKING_WITHOUT_ANTI_SKID_MAX_PRESSURE_PSI: f64 = 1000.;
 
     // Minimum pressure hysteresis on green until main switched on ALTN brakes
@@ -3851,9 +3850,8 @@ impl A320HydraulicBrakeSteerComputerUnit {
                 2538.
             }
         } else if !self.anti_skid_activated {
-            // A320 FCOM DSC-32-30-10 ALTERNATE BRAKING (a320_fcom.txt l.51316-51318): "To avoid wheel locking and
-            // limit the risk of tire burst, brake pressure is automatically limited to 1 000 PSI." QRH LOSS OF
-            // BRAKING: "MAX BRK PR ... 1000 PSI" (l.72241).
+            // Alternate braking without antiskid: the brake pressure is automatically limited to 1 000 PSI to avoid
+            // wheel locking and limit the risk of tire burst
             Self::ALTERNATE_BRAKING_WITHOUT_ANTI_SKID_MAX_PRESSURE_PSI
         } else {
             // Else if any manual braking we use standard limit
@@ -9715,7 +9713,7 @@ mod tests {
         }
 
         #[test]
-        // A320 FCOM DSC-32-30-10 ALTERNATE BRAKING: without anti-skid the brake pressure is limited to 1 000 PSI
+        // Alternate braking without anti-skid: the brake pressure is limited to 1 000 PSI
         fn brakes_alternate_without_anti_skid_limited_to_1000_psi() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -9745,7 +9743,7 @@ mod tests {
         }
 
         #[test]
-        // A320 FCOM DSC-32-30-20 BRK FAN pb-sw: "The brake fans run if the lefthand main landing gear is down and locked"
+        // The brake fans run when the left main landing gear is down and locked
         fn brake_fans_run_in_flight_with_gear_down_and_locked() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()

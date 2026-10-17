@@ -23,7 +23,7 @@ const run = (indication: GLoadIndication, ms: number, phase: number, gLoad: numb
 };
 
 /*
- * A380 FCOM DSC-31-40-10 G LOAD DATA: airborne, G LOAD < 0.7 g or > 1.4 g for longer than 2 s; it remains visible
+ * G LOAD data: airborne, G LOAD < 0.7 g or > 1.4 g for longer than 2 s; it remains visible
  * 5 s after the G load returns to normal.
  */
 describe('SD G LOAD indication', () => {

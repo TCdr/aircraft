@@ -86,7 +86,7 @@ describe('ENG RELIGHT IN FLIGHT', () => {
 });
 
 describe('FwsAbnormalSensed item rules', () => {
-  it('ALTN LAW: MAX SPEED 310 KT is not shown in ALT 1A (A380 FCOM, as FwsLimitations.ts)', () => {
+  it('ALTN LAW: MAX SPEED 310 KT is not shown in ALT 1A (as FwsLimitations.ts)', () => {
     expect(alertBlock('271800008')).toMatch(/whichItemsToShow: \(\) => \[!this\.fws\.altn1ALawCondition\.get\(\)\]/);
   });
 
@@ -99,7 +99,7 @@ describe('FwsAbnormalSensed item rules', () => {
     expect(checked).not.toContain('yellowAPumpAuto');
   });
 
-  /* A380 FCOM PRO-ABN HYD G (Y) SYS OVHT: "If turning off G (Y) ENG 1 (3) PMP A or B is not successful: ... DISC". */
+  /* HYD G (Y) SYS OVHT: the pumps are disconnected only when turning off G (Y) ENG 1 (3) PMP A or B failed */
   it.each([
     ['290800031', 'G SYS OVHT', 1, 2],
     ['290800032', 'Y SYS OVHT', 3, 4],
@@ -110,7 +110,6 @@ describe('FwsAbnormalSensed item rules', () => {
     expect(shown).not.toMatch(/^\s+true,\s*$/m);
   });
 
-  /* A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO STATUS. */
   it('Y SYS PRESS LO INFO: TAXI WITH CARE, AVOID MAX TILLER ANGLE, NO BRAKED PIVOT TURN, CAT 3 SINGLE ONLY', () => {
     expect(alertBlock('290800036')).toContain("info: () => ['800200003', '800200004', '800200005', '220200016']");
   });
@@ -130,7 +129,7 @@ describe('FwsAbnormalSensed item rules', () => {
     expect(shown).not.toContain(`!this.fws.${prim},`);
   });
 
-  /* A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO: L/G GRVTY EXTN ONLY for both; "For gravity extension: MAX SPEED : 220 KT". */
+  /* HYD G (Y) SYS PRESS LO: L/G GRVTY EXTN ONLY for both, and a 220 kt max speed for the gravity extension */
   it('Y SYS PRESS LO: L/G GRVTY EXTN ONLY item and the MAX SPEED 220 KT limitation on the ECAM and the PFD', () => {
     const block = alertBlock('290800036');
     const shown = block.split('whichItemsToShow')[1].split('whichItemsChecked')[0];
@@ -148,7 +147,6 @@ describe('FwsAbnormalSensed item rules', () => {
     expect(yItems).toContain("name: 'L/G GRVTY EXTN ONLY'");
   });
 
-  /* A380 FCOM PRO-ABN CAB PRESS EXCESS DIFF PRESS: flight phase inhibition 2-7 and 10-12 (PDF p.4755). */
   it('EXCESS DIFF PRESS is active in flight phases 1, 8 and 9', () => {
     expect(alertBlock('213800002')).toContain('flightPhaseInhib: [2, 3, 4, 5, 6, 7, 10, 11, 12],');
   });

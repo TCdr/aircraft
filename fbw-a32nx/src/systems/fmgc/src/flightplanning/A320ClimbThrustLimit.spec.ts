@@ -10,8 +10,8 @@ import { FlightModel } from '@fmgc/guidance/vnav/FlightModel';
 import { Common, FlapConf } from '@fmgc/guidance/vnav/common';
 
 // The A32NX CLB N1 limit lives twice: in the FADEC (C++, drives the engines) and in the FMS (TS, drives the
-// predictions). These checks keep both tables identical and check that the climb they give matches the A320neo FCOM
-// climb tables (PER-CLB-CLT, CLIMB - 250KT/300KT/M.78 - ALL ENGINES).
+// predictions). These checks keep both tables identical and check that the climb they give matches the Airbus A320neo
+// climb tables (250KT/300KT/M.78, all engines).
 
 const FADEC_THRUST_LIMITS = 'fbw-a32nx/src/wasm/fadec_a32nx/src/Fadec/ThrustLimits_A32NX.hpp';
 
@@ -49,18 +49,16 @@ describe('A32NX CLB N1 limit table', () => {
   });
 });
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Climb check against the A320neo FCOM climb tables.
+// Climb check against the Airbus A320neo climb tables.
 //
-// Model of the sim (identified from a recorded A32NX climb, see reports/a32nx-climb-performance-2026-10-04.md):
+// Model of the sim (identified from a recorded A32NX climb):
 // - thrust = 2 x 27 120 lbf x n1_and_mach_on_thrust_table(corrected N1, Mach) x delta2 (engines.cfg, = FMS table1506);
 // - drag from the FMS clean drag polar plus its Mach correction;
 // - the A/THR holds the FADEC CLB N1 limit: CN1 from the table above, times sqrt(theta2), plus the packs bleed
 //   correction of ThrustLimits_A32NX::bleedTotal (-0.3 above 8 000 ft when the OAT is at or above the corner point);
 // - fuel flow from the FMS corrected fuel flow polynomial (only used to update the weight).
-// The FCOM tables are for the A320neo with PW1127G-JM engines; the FBW A32NX models the LEAP-1A26, for which no
+// The Airbus tables are for the A320neo with PW1127G-JM engines; the FBW A32NX models the LEAP-1A26, for which no
 // climb tables are available.
-// ---------------------------------------------------------------------------------------------------------------------
 
 const CLIMB_CAS = 300;
 const CLIMB_MACH = 0.78;
@@ -69,18 +67,15 @@ const G_FT_S2 = 32.174;
 const KNOTS_TO_FT_S = 1.68781;
 const KG_TO_LB = 2.20462;
 
-/** One FCOM climb table cell, from brake release: [distance NM, mean TAS kt, fuel kg]. */
+/** One Airbus climb table cell, from brake release: [distance NM, mean TAS kt, fuel kg]. */
 type FcomCell = [number, number, number];
 
 /**
- * A320neo FCOM (IGO fleet, 21 JAN 19, file "A320 Neo FCOM_1.pdf"), PER-CLB-CLT, CLIMB - 250KT/300KT/M.78 - ALL
- * ENGINES, MAX. CLIMB THRUST, NORMAL AIR CONDITIONING, ANTI ICE OFF, CG 33 %, from brake release, for the A320neo
- * MSN group 06720-08541, 08558-08586, 08627-08654, 08688-08702, 08737, 08771-09045 (320-271N, PW1127G-JM, PLP-AAT PDF
- * page 52). Per ISA deviation, per brake release weight (t): FL -> [distance NM, mean TAS kt, fuel kg].
- * - ISA+10: PDF pages 7248-7250 (P4/20-P6/20).
- * - ISA+20: PDF pages 7258-7260 (P14/20-P16/20).
- * The tables list FL100 twice: before and after the 250 kt -> 300 kt acceleration (PER-CLB-GEN, PDF page 7243). The
- * value used here is the row before the acceleration, because the model below starts at FL100 at 250 kt.
+ * The Airbus A320neo climb tables (320-271N, PW1127G-JM): 250KT/300KT/M.78, all engines, max climb thrust, normal air
+ * conditioning, anti ice off, CG 33 %, from brake release. Per ISA deviation, per brake release weight (t):
+ * FL -> [distance NM, mean TAS kt, fuel kg].
+ * The tables list FL100 twice: before and after the 250 kt -> 300 kt acceleration. The value used here is the row
+ * before the acceleration, because the model below starts at FL100 at 250 kt.
  * The time is distance / mean TAS, which is more precise than the whole-minute column.
  */
 const FCOM_CLIMB: Record<number, Record<number, Record<number, FcomCell>>> = {
@@ -98,7 +93,7 @@ const FCOM_CLIMB: Record<number, Record<number, Record<number, FcomCell>>> = {
   },
 };
 
-/** FCOM time (min) and fuel (kg) from brake release to a flight level; FL300 is the mean of the FL290 and FL310 cells. */
+/** Table time (min) and fuel (kg) from brake release to a flight level; FL300 is the mean of FL290 and FL310 */
 function fcomFromBrakeRelease(
   isaDeviation: number,
   weightTonnes: number,
@@ -159,7 +154,7 @@ function climbPoint(isaDeviation: number, pressureAltitude: number, cas: number,
 }
 
 /**
- * Integrates the energy equation along the FCOM profile from FL100: accelerate from 250 kt to 300 kt at FL100, then
+ * Integrates the energy equation along the table profile from FL100: accelerate from 250 kt to 300 kt at FL100, then
  * climb at 300 kt / M.78. Returns the minutes and kg of fuel to reach each requested flight level.
  */
 function simulateClimbFromFl100(isaDeviation: number, initialWeightKg: number, flightLevels: number[]) {
@@ -201,8 +196,8 @@ function simulateClimbFromFl100(isaDeviation: number, initialWeightKg: number, f
 }
 
 /**
- * FL100-FL300 must be within 5 % of the FCOM. The FL100-FL200 and FL200-FL300 parts get 8 %: the FCOM distances are
- * whole NM, which alone moves a 3-5 min part by up to 4 %.
+ * FL100-FL300 must be within 5 % of the tables. The FL100-FL200 and FL200-FL300 parts get 8 %: the table distances
+ * are whole NM, which alone moves a 3-5 min part by up to 4 %.
  */
 const TOTAL_TOLERANCE = 0.05;
 const PART_TOLERANCE = 0.08;
@@ -218,14 +213,14 @@ const CLIMB_CASES: { isaDeviation: number; weightTonnes: number }[] = [
   { isaDeviation: 20, weightTonnes: 70 },
 ];
 
-describe('A32NX CLB thrust climb against the A320neo FCOM climb tables (250 kt / 300 kt / M.78)', () => {
+describe('A32NX CLB thrust climb against the Airbus A320neo climb tables (250 kt / 300 kt / M.78)', () => {
   for (const { isaDeviation, weightTonnes } of CLIMB_CASES) {
-    it(`ISA+${isaDeviation}, ${weightTonnes} t: FL100-FL300 within 5 % of the FCOM, FL100-FL200 and FL200-FL300 within 8 %`, () => {
+    it(`ISA+${isaDeviation}, ${weightTonnes} t: FL100-FL300 within 5 % of the tables, each half within 8 %`, () => {
       const fcomFl100 = fcomFromBrakeRelease(isaDeviation, weightTonnes, 100);
       const fcomFl200 = fcomFromBrakeRelease(isaDeviation, weightTonnes, 200);
       const fcomFl300 = fcomFromBrakeRelease(isaDeviation, weightTonnes, 300);
 
-      // Weight at FL100 = brake release weight minus the FCOM fuel to FL100.
+      // Weight at FL100 = brake release weight minus the table fuel to FL100.
       const model = simulateClimbFromFl100(isaDeviation, weightTonnes * 1000 - fcomFl100.fuelKg, [200, 300]);
 
       const segments = [

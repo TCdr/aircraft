@@ -5,27 +5,25 @@ import { Arinc429WordData, NXLogicConfirmNode } from '@flybywiresim/fbw-sdk';
 import { Subject } from '@microsoft/msfs-sdk';
 
 /**
- * Trigger logic of the NAV CAPT AND F/O ALT, ATT, HDG and BARO REF DISAGREE alerts of the FWS (A380 FCOM
- * PRO-ABN-ECAM-10-34-10, a380_fcom.txt l.164494-164720). They compare what the CAPT and F/O PFDs display, so each side
- * reads the ADR and the IR of its AIR DATA and ATT HDG switching (ADR/IR 1 on the CAPT side, 2 on the F/O side, 3 when
- * the switching selects it, as the PFD AdirsValueProvider) and its own EFIS control panel baro reference.
+ * Trigger logic of the NAV CAPT AND F/O ALT, ATT, HDG and BARO REF DISAGREE alerts of the FWS. They compare what the
+ * CAPT and F/O PFDs display, so each side reads the ADR and the IR of its AIR DATA and ATT HDG switching (ADR/IR 1 on
+ * the CAPT side, 2 on the F/O side, 3 when the switching selects it, as the PFD AdirsValueProvider) and its own EFIS
+ * control panel baro reference.
  */
 
-/** ALT DISAGREE threshold with STD on both sides: "500 ft if baro ref STD is selected" (a380_fcom.txt l.164501) */
-export const ALT_DISAGREE_STD_FT = 500;
-/** ALT DISAGREE threshold with QNH on both sides: "250 ft if QNH is selected" (a380_fcom.txt l.164502) */
-export const ALT_DISAGREE_QNH_FT = 250;
-/** ATT DISAGREE threshold: "more than 5° in pitch or roll" (a380_fcom.txt l.164533) */
-export const ATT_DISAGREE_DEG = 5;
-/** HDG DISAGREE threshold in the TRUE reference: "more than 5° in TRUE reference" (a380_fcom.txt l.164641) */
-export const HDG_DISAGREE_TRUE_DEG = 5;
-/** HDG DISAGREE threshold in the MAGNETIC reference: "7° in MAGNETIC reference" (a380_fcom.txt l.164641-164643) */
-export const HDG_DISAGREE_MAGNETIC_DEG = 7;
+/** With STD on both sides */
+const ALT_DISAGREE_STD_FT = 500;
+/** With QNH on both sides */
+const ALT_DISAGREE_QNH_FT = 250;
+/** In pitch or roll */
+const ATT_DISAGREE_DEG = 5;
+const HDG_DISAGREE_TRUE_DEG = 5;
+const HDG_DISAGREE_MAGNETIC_DEG = 7;
 /**
- * The FCOM gives no confirm time for these alerts. Design choice: 10 s, so the two pilots selecting STD (or a new QNH)
- * one after the other, or a short sensor transient, do not trigger them.
+ * The aircraft documentation gives no confirm time for these alerts. Design choice: 10 s, so the two pilots selecting
+ * STD (or a new QNH) one after the other, or a short sensor transient, do not trigger them.
  */
-export const CAPT_FO_DISAGREE_CONFIRM_S = 10;
+const CAPT_FO_DISAGREE_CONFIRM_S = 10;
 
 /** Positions of the AIR DATA and ATT HDG switching knobs (L:A32NX_AIR_DATA_SWITCHING_KNOB, ATT_HDG_SWITCHING_KNOB) */
 const KNOB_CAPT_ON_3 = 0;
@@ -92,8 +90,7 @@ export function readSideDisplayData(
 }
 
 /**
- * BARO REF DISAGREE: "The Captain's barometric reference is QNH(STD), and the First Officer's barometric reference is
- * STD(QNH)" (a380_fcom.txt l.164615-164616).
+ * BARO REF DISAGREE: one side on QNH, the other on STD.
  * @param capt the CAPT side
  * @param fo the F/O side
  * @returns the alert condition before its confirm time
@@ -103,9 +100,9 @@ export function baroRefDisagree(capt: SideDisplayData, fo: SideDisplayData): boo
 }
 
 /**
- * ALT DISAGREE: the altitudes displayed on the CAPT and F/O PFDs differ by more than 500 ft in STD or 250 ft in QNH
- * (a380_fcom.txt l.164500-164502). Design choice: compared only when both sides use the same reference; with different
- * references BARO REF DISAGREE is the alert.
+ * ALT DISAGREE: the altitudes displayed on the CAPT and F/O PFDs differ by more than 500 ft in STD or 250 ft in QNH.
+ * Design choice: compared only when both sides use the same reference; with different references BARO REF DISAGREE is
+ * the alert.
  * @param capt the CAPT side
  * @param fo the F/O side
  * @returns the alert condition before its confirm time
@@ -119,7 +116,7 @@ export function altDisagree(capt: SideDisplayData, fo: SideDisplayData): boolean
 }
 
 /**
- * ATT DISAGREE: "more than 5° in pitch or roll" between the CAPT and F/O sides (a380_fcom.txt l.164533-164534).
+ * ATT DISAGREE: more than 5° in pitch or roll between the CAPT and F/O sides.
  * @param capt the CAPT side
  * @param fo the F/O side
  * @returns the alert condition before its confirm time
@@ -132,8 +129,8 @@ export function attDisagree(capt: SideDisplayData, fo: SideDisplayData): boolean
 }
 
 /**
- * HDG DISAGREE: "more than 5° in TRUE reference or 7° in MAGNETIC reference" between the CAPT and F/O sides
- * (a380_fcom.txt l.164641-164643), the shortest way round the compass.
+ * HDG DISAGREE: more than 5° in TRUE reference or 7° in MAGNETIC reference between the CAPT and F/O sides, the shortest
+ * way round the compass.
  * @param capt the CAPT side
  * @param fo the F/O side
  * @param trueRef whether the TRUE north reference is selected
@@ -170,16 +167,12 @@ export function adrFaultyForNavAlerts(
 
 /** The NAV CAPT AND F/O DISAGREE alert conditions of the FWS. One instance in FwsCore. */
 export class FwsNavAlerts {
-  /** NAV CAPT AND F/O ALT DISAGREE (a380_fcom.txt l.164494-164516) */
   public readonly altDisagree = Subject.create(false);
 
-  /** NAV CAPT AND F/O ATT DISAGREE (a380_fcom.txt l.164527-164598) */
   public readonly attDisagree = Subject.create(false);
 
-  /** NAV CAPT AND F/O BARO REF DISAGREE (a380_fcom.txt l.164609-164624) */
   public readonly baroRefDisagree = Subject.create(false);
 
-  /** NAV CAPT AND F/O HDG DISAGREE (a380_fcom.txt l.164635-164713) */
   public readonly hdgDisagree = Subject.create(false);
 
   private readonly altConfirm = new NXLogicConfirmNode(CAPT_FO_DISAGREE_CONFIRM_S);

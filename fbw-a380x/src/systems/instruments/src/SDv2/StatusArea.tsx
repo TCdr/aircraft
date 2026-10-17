@@ -81,7 +81,7 @@ export class PermanentData extends DisplayComponent<PermanentDataProps> {
 
   private readonly fwcFlightPhase = ConsumerSubject.create(this.sub.on('fwcFlightPhase').whenChanged(), 0);
 
-  /** Airborne, below 0.7 g or above 1.4 g for 2 s, kept 5 s (FCOM DSC-31-40-10, see GLoadIndication) */
+  /** Airborne, below 0.7 g or above 1.4 g for 2 s, kept 5 s (see GLoadIndication) */
   private readonly gLoadIndication = new GLoadIndication();
 
   private readonly gLoadShown = Subject.create(false);
@@ -90,7 +90,7 @@ export class PermanentData extends DisplayComponent<PermanentDataProps> {
 
   private readonly gLoadStyle = this.gLoadShown.map((shown) => (shown ? 'inherit' : 'hidden'));
 
-  // "XX" in amber: an abnormal G LOAD value has been measured, but the value is not available (FCOM)
+  // "XX" in amber: an abnormal G LOAD value has been measured, but the value is not available
   private readonly gLoadText = this.normalAcc.map((gLoad) =>
     gLoad.isNormalOperation() ? getValuePrefix(gLoad.value) + gLoad.value.toFixed(1) : 'XX',
   );

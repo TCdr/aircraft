@@ -2035,10 +2035,10 @@ export class FwsCore {
 
   public readonly lgciu2DiscreteWord3 = Arinc429Register.empty();
 
-  /** L/G CTL FAULT, GEAR NOT LOCKED DOWN/UP, DOORS NOT CLOSED, SYSTEM DISAGREE (A380 FCOM PRO-ABN-ECAM-10-32) */
+  /** L/G CTL FAULT, GEAR NOT LOCKED DOWN/UP, DOORS NOT CLOSED, SYSTEM DISAGREE */
   public readonly gearAlerts = new FwsGearAlerts();
 
-  /** NAV CAPT AND F/O ALT/ATT/HDG/BARO REF DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10) */
+  /** NAV CAPT AND F/O ALT/ATT/HDG/BARO REF DISAGREE */
   public readonly navAlerts = new FwsNavAlerts();
 
   /** NAV FM / GPS POS DISAGREE and NAV LS TUNING DISAGREE (see FwsNavPositionAlerts) */
@@ -4574,7 +4574,7 @@ export class FwsCore {
 
     this.antiSkidSwitchOff.set(!SimVar.GetSimVarValue('ANTISKID BRAKES ACTIVE', 'bool'));
 
-    // BRAKES HOT from the reported brake temperatures (A380 FCOM: at least one brake at or above 300 °C)
+    // BRAKES HOT from the reported brake temperatures (at least one brake at or above 300 °C)
     const brakesHot = isAnyBrakeHot(readReportedBrakeTemperaturesC((name) => SimVar.GetSimVarValue(name, 'celsius')));
     this.anyBrakeHot = brakesHot;
 

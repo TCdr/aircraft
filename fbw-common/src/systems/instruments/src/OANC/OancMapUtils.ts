@@ -104,9 +104,7 @@ export function pointToLineDistance(point: Position, lineStart: Position, lineEn
 
 /**
  * Whether a runway of the displayed airport is an FMS selected runway: the departure runway at the FMS origin, or the
- * landing runway at the FMS destination. A380 FCOM DSC-34-10-70-20: "If the flight crew selects an origin runway, or a
- * destination runway in the FMS flight plan, the OANS displays [...] The QFU of the selected runway on the runway label
- * in green."
+ * landing runway at the FMS destination, whose QFU the OANS shows in green on the runway label.
  * @param airportIcao ICAO code of the airport shown on the OANS
  * @param origin FMS origin ICAO code
  * @param destination FMS destination ICAO code
@@ -132,9 +130,8 @@ export function isFmsSelectedRunway(
 }
 
 /**
- * Whether the OANS shows ARPT NOT IN ACTIVE F-PLN. A380 FCOM DSC-34-10-70-20 OANS MESSAGES (a380_fcom.txt
- * l.87262-87264): "In PLAN mode, the flight crew has displayed an airport that is not the origin, destination, or
- * alternate airport."
+ * Whether the OANS shows ARPT NOT IN ACTIVE F-PLN: in PLAN mode, the crew displays an airport that is not the
+ * origin, destination or alternate airport.
  * @param ndMode the ND mode
  * @param airportIcao ICAO code of the airport shown on the OANS, null when none
  * @param origin FMS origin ICAO code

@@ -337,13 +337,11 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O ALT DISAGREE',
     sensed: true,
     items: [
-      // A380 FCOM l.164513
       {
         name: 'ALT',
         sensed: false,
         labelNotCompleted: 'X CHECK',
       },
-      // A380 FCOM l.164515
       {
         name: 'AIR DATA SWTG',
         sensed: false,
@@ -355,13 +353,11 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O ATT DISAGREE',
     sensed: true,
     items: [
-      // A380 FCOM l.164595 (TDU 00023230)
       {
         name: 'ATT',
         sensed: false,
         labelNotCompleted: 'X CHECK',
       },
-      // A380 FCOM l.164597
       {
         name: 'ATT HDG SWTG',
         sensed: false,
@@ -373,7 +369,6 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O BARO REF DISAGREE',
     sensed: true,
     items: [
-      // A380 FCOM l.164624
       {
         name: 'BARO REF',
         sensed: false,
@@ -390,13 +385,12 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O HDG DISAGREE',
     sensed: true,
     items: [
-      // A380 FCOM l.164710 (TDU 00023229), the FCOM text cuts the label
+      // The text cuts the labels of this line and the next one
       {
         name: 'HDG',
         sensed: false,
         labelNotCompleted: 'X CHECK',
       },
-      // A380 FCOM l.164714, the FCOM text cuts the label
       {
         name: 'ATT HDG SWTG',
         sensed: false,

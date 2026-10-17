@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { isEnginePumpsTurnOffUnsuccessful } from './HydOverheatFlags';
 
-/* A380 FCOM PRO-ABN HYD G (Y) SYS OVHT: "If turning off G (Y) ENG 1 (3) PMP A or B is not successful: ... DISC". */
+/* The DISC line shows only when turning off ENG PMP A or B did not depressurise it */
 describe('HYD SYS OVHT: ENG PMP A+B DISC line', () => {
   it('is hidden before the pumps are turned off', () => {
     expect(isEnginePumpsTurnOffUnsuccessful(true, true, true, true)).toBe(false);

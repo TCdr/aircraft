@@ -6,16 +6,16 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { directLawInfo, directLawInopSysAllPhases, lawInopSysApprLdg } from './FwsFctlAlerts';
 
-describe('F/CTL ALTN LAW (PROT LOST) and DIRECT LAW STATUS (A380 FCOM PRO-ABN-ECAM-10-27-10)', () => {
-  it('INOP SYS APPR & LDG: CAT 2 and GLS AUTOLAND (l.144870-144871, 144982-144983)', () => {
+describe('F/CTL ALTN LAW (PROT LOST) and DIRECT LAW STATUS', () => {
+  it('INOP SYS APPR & LDG: CAT 2 and GLS AUTOLAND', () => {
     expect(lawInopSysApprLdg()).toEqual(['220300027', '220300010']);
   });
 
-  it('DIRECT LAW INOP SYS ALL PHASES: LOAD ALLEVIATION, AP 1+2, FD 1+2 (l.144982-144985)', () => {
+  it('DIRECT LAW INOP SYS ALL PHASES: LOAD ALLEVIATION, AP 1+2, FD 1+2', () => {
     expect(directLawInopSysAllPhases()).toEqual(['340300014', '220300007', '220300024']);
   });
 
-  it('DIRECT LAW INFO: F/CTL BKUP CTL ACTIVE only with all flight control computers failed (l.144990-144992)', () => {
+  it('DIRECT LAW INFO: F/CTL BKUP CTL ACTIVE only with all flight control computers failed', () => {
     expect(directLawInfo(true)).toEqual(['270200003']);
     expect(directLawInfo(false)).toEqual([]);
   });

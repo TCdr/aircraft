@@ -1147,7 +1147,7 @@ impl PressurizationConstants for A380PressurizationConstants {
 
     const MAX_CLIMB_RATE: f64 = 1000.; // fpm
     const MAX_CLIMB_RATE_IN_DESCENT: f64 = 500.; // fpm
-                                                 // A380 FCOM DSC-21-30-30 (a380_fcom.txt l.7948): "The cabin descent rate is limited to 300 ft/min."
+                                                 // The cabin descent rate is limited to 300 ft/min.
     const MAX_DESCENT_RATE: f64 = -300.; // fpm
     const MAX_ABORT_DESCENT_RATE: f64 = -500.; //fpm
     const MAX_TAKEOFF_DELTA_P: f64 = 0.1; // PSI
@@ -3611,9 +3611,8 @@ mod tests {
             assert_gt!(test_bed.aft_outflow_valve_open_amount(), Ratio::default());
         }
 
-        /// A380 FCOM DSC-21-30-30: "On ground, if at least one door is not closed and locked at takeoff power
-        /// application: The four cabin pressure controllers will prevent cabin pressurization, by maintaining the
-        /// four outflow valves open."
+        /// On ground, with a door not closed and locked at takeoff power, the four cabin pressure controllers keep
+        /// the four outflow valves open: no cabin pressurization.
         fn assert_all_outflow_valves_open(test_bed: &CabinAirTestBed) {
             for ofv in 1..=4 {
                 assert_gt!(
@@ -3684,8 +3683,7 @@ mod tests {
 
         #[test]
         fn doors_do_not_hold_ofv_open_in_manual_mode() {
-            // DSC-21-30-40: "The manual pressurization system operates independently of the automatic
-            // pressurization system."
+            // The manual pressurization works independently of the automatic one.
             let test_bed = test_bed()
                 .set_on_ground()
                 .command_vs_mode_sel_pb_man()
@@ -3790,7 +3788,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-21-30-30: "The cabin descent rate is limited to 300 ft/min."
+        // The cabin descent rate is limited to 300 ft/min.
         fn cabin_descent_rate_is_limited_to_300_fpm() {
             // A fast aircraft descent: the target cabin rate ramps to the limit and stays there
             let mut test_bed = test_bed_in_cruise()
@@ -3817,8 +3815,8 @@ mod tests {
             );
         }
 
-        // A380 FCOM DSC-21-30-20 (a380_fcom.txt l.7514-7522): the differential pressure is normal
-        // from -0.2 PSI to 8.92 PSI, abnormal (amber, DIFF PRESS HI) from 8.92 PSI to 9.2 PSI.
+        // The differential pressure is normal from -0.2 PSI to 8.92 PSI, abnormal (amber, DIFF PRESS HI) from
+        // 8.92 PSI to 9.2 PSI.
         const MAX_NORMAL_DELTA_P_PSI: f64 = 8.92;
 
         /// Climbs to `flight_level` with the FMS cruise altitude `fms_cruise_altitude` (NAV mode)

@@ -40,7 +40,7 @@ interface AileronProps {
 }
 
 export class Aileron extends DisplayComponent<AileronProps> {
-  /** The white aileron droop circle, in CONF 1+F, 2, 3 and FULL only (FCOM DSC-27-10-20, see isAileronDroopSymbolShown) */
+  /** The white aileron droop circle, in CONF 1+F, 2, 3 and FULL only (see isAileronDroopSymbolShown) */
   private readonly showAileronDroopSymbol = ConsumerSubject.create(
     this.props.bus.getSubscriber<SDSimvars>().on('flapsConfIndex').whenChanged(),
     0,
