@@ -851,6 +851,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FADEC] After a flameout in flight the FADEC supplies the igniters for its own relight attempt, whatever the ENG MODE selector position, and the IGNITION memo shows - @TCdr
 1. [A380X/FADEC] The FADEC detects a jammed N1 rotor during an automatic start on the ground, aborts the start without a new attempt and the ECAM shows ENG 1(2)(3)(4) START FAULT LOW N1; a flyPad failure per engine jams the N1 rotor - @TCdr
 1. [A380X/PFD] FMA shows MAN DTO instead of MAN FLX +0 for a derated takeoff - @TCdr
+1. [A32NX/SD] BLEED and HYD pages: the engine numbers and the bleed ducts no longer turn amber with the engines at idle - @TCdr
 
 ## 2024.1.0
 

@@ -19,6 +19,14 @@
 /** How far below the idle N2 the engine core is below idle, in percent N2 */
 export const ENGINE_N2_BELOW_IDLE_MARGIN_PERCENT = 3;
 
+/**
+ * The unit to read the FADEC N1/N2 L:vars in (L:A32NX_ENGINE_N1:n, L:A32NX_ENGINE_N2:n, L:A32NX_ENGINE_IDLE_N1,
+ * L:A32NX_ENGINE_IDLE_N2). L:vars hold plain percent: read as number. The FADEC writes them with the unit "number"
+ * (fadec_a32nx FadecSimData_A32NX.hpp), and MSFS 2024 converts such an L:var read in 'percent' as a ratio: 68.2 % N2
+ * comes back as 6820, which shrinks the fixed margins (3 % N2, 2 % N1) to hundredths of a percent.
+ */
+export const FADEC_N_LVAR_UNIT = 'number';
+
 /** L:A32NX_ENGINE_STATE ON (fadec_a32nx EngineControlA32NX.h) */
 export const FADEC_ENGINE_STATE_ON = 1;
 
