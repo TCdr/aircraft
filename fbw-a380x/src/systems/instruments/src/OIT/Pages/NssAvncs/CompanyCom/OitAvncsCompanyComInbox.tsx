@@ -15,7 +15,7 @@ interface OitAvncsCompanyComInboxProps extends AbstractOitAvncsPageProps {}
  * @param messageCount the number of messages in the inbox
  * @returns the details texts
  */
-export function inboxDetailsTexts(
+function inboxDetailsTexts(
   entry: CompanyComInboxEntry | null,
   messageCount: number,
 ): { status: string; from: string; subject: string; text: string; receivedAt: number | null } {
@@ -38,9 +38,8 @@ export function inboxDetailsTexts(
 }
 
 /**
- * The COMPANY COM inbox: the AOC uplink messages, newest first (A380 FCOM DSC-46-40-20, a380_fcom.txt l.107994-107996).
- * Clicking a message displays it and marks it read; the COMPANY MSG memo goes when every message is read
- * (a380_fcom.txt l.108020-108023).
+ * The COMPANY COM inbox: the AOC uplink messages, newest first. Clicking a message displays it and marks it read; the
+ * COMPANY MSG memo goes when every message is read.
  */
 export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompanyComInboxProps> {
   private readonly sci = this.props.container.ansu.sci;
@@ -52,7 +51,6 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
   /** The AOC id of the displayed message */
   private readonly selectedUid = Subject.create<number | null>(null);
 
-  /** The rendered message lines, with the selection flag of each */
   private lines: { uid: number; line: OitAvncsCompanyComMessageLine; selected: Subject<boolean> }[] = [];
 
   private readonly toText = this.sci.fltNumber.map((fltNumber) => (fltNumber ? `To : ${fltNumber}` : 'To : <unknown>'));

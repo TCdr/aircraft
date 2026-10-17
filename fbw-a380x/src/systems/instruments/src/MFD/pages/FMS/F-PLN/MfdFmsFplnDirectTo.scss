@@ -1,7 +1,7 @@
 ﻿@import "../../../../MsfsAvionicsCommon/definitions";
 
 
-// FCOM DSC-22-FMS-20-30 P 125: DIRECT TO field at y = 172, UTC at y = 268 and DIST at y = 322
+// DIRECT TO field at y = 172, UTC at y = 268 and DIST at y = 322
 .mfd-fms-direct-to-wpt-row {
   display: flex;
   flex-direction: row;
@@ -39,7 +39,7 @@
   height: 54px;
 }
 
-// FCOM DSC-22-FMS-20-30 P 125: OPTIONS box from x = 393 to 755, y = 148 to 452 of the display, the four options in
+// OPTIONS box from x = 393 to 755, y = 148 to 452 of the display, the four options in
 // small font 49 px apart
 .mfd-fms-direct-to-options-box {
   display: flex;
@@ -52,7 +52,7 @@
   position: relative;
 }
 
-// FCOM DSC-22-FMS-20-30 P 131: the CRS field right of the CRS IN / CRS OUT option (top set by the page)
+// The CRS field right of the CRS IN / CRS OUT option (top set by the page)
 .mfd-fms-direct-to-course-field {
   position: absolute;
   left: 200px;

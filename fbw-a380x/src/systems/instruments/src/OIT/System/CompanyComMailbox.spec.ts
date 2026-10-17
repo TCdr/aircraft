@@ -71,9 +71,8 @@ afterEach(() => {
 });
 
 /*
- * A380 FCOM DSC-46-40 AOC (a380_fcom.txt l.107994-107996): "The flight crew uses the OIT display to: - Access the AOC
- * application - Display, edit, print, send, delete, and/or store AOC messages"; l.108020-108023 COMPANY MSG: "The flight
- * crew received a company message. No longer appears, when the flight crew read all the received messages."
+ * On the OIT the flight crew can display, edit, print, send, delete and store AOC messages; the COMPANY MSG memo goes
+ * once all the received messages are read.
  */
 describe('OIT COMPANY COM inbox', () => {
   it('lists the AOC uplinks, newest first, and not the downlinks', () => {

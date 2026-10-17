@@ -13,7 +13,7 @@ import { ConfirmationDialog } from '../../../MsfsAvionicsCommon/UiWidgets/Confir
 import { AtccomFooter } from './MfdAtccomFooter';
 
 /**
- * A two-state button of the ADS status area (FCOM DSC-46-10-20-30 P 7): the upper and lower labels, the active one
+ * A two-state button of the ADS status area: the upper and lower labels, the active one
  * large (green for the upper label, white for OFF), the other one small and grey.
  */
 function adsStateButton(
@@ -31,7 +31,7 @@ function adsStateButton(
 }
 
 /**
- * CONNECT/CONNECTION STATUS page (A380 FCOM DSC-46-10-20-30 P 5-8), laid out on the FCOM figure (page coordinates =
+ * CONNECT/CONNECTION STATUS page, laid out on the reference figure (page coordinates =
  * display y - 143): the active and next ATC centers and DISCONNECT, the ADS and ADS EMERGENCY status, and the ADS
  * connected ground stations. No ADS contract is available through the ATSU: the ADS status stays ARMED or OFF.
  */
@@ -151,7 +151,6 @@ export class MfdAtccomConnectionStatus extends DisplayComponent<AtccomMfdPagePro
     return (
       <>
         <ActivePageTitleBar activePage={Subject.create(this.props.pageTitle ?? '')} offset={Subject.create('')} />
-        {/* begin page content */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-atccom-connect">
             {fcomRight(66, 262, <span class="mfd-label">ACTIVE ATC :</span>)}
@@ -230,7 +229,6 @@ export class MfdAtccomConnectionStatus extends DisplayComponent<AtccomMfdPagePro
             </div>
           </div>
         </div>
-        {/* end page content */}
         <AtccomFooter bus={this.props.bus} mfd={this.props.mfd} atcService={this.props.atcService} />
       </>
     );

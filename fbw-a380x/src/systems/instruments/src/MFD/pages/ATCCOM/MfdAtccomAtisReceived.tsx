@@ -18,9 +18,9 @@ import { ATCCOMMessages } from '../../shared/NXSystemMessages';
 const RECEIVED_LINE_LENGTHS = Array.from({ length: 20 }, () => 44);
 
 /**
- * ATIS/RECEIVED page (A380 FCOM DSC-46-10-20-30 P 34): the whole ATIS message of a request area that the ATIS/LIST
+ * ATIS/RECEIVED page: the whole ATIS message of a request area that the ATIS/LIST
  * page cannot entirely display, and RETURN TO LIST. The request area row and the lines as on the ATIS/LIST page. A new
- * ATIS received while the page is displayed shows NEW ATIS RECEIVED (DSC-46-10-20-40 N).
+ * ATIS received while the page is displayed shows NEW ATIS RECEIVED.
  */
 export class MfdAtccomAtisReceived extends DisplayComponent<AtccomMfdPageProps> {
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
@@ -81,7 +81,6 @@ export class MfdAtccomAtisReceived extends DisplayComponent<AtccomMfdPageProps> 
     return (
       <>
         <ActivePageTitleBar activePage={Subject.create(this.props.pageTitle ?? '')} offset={Subject.create('')} />
-        {/* begin page content */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-atccom-atis">
             {fcomAt(29, 5, <span class="mfd-atccom-atis-line cyan">{this.header}</span>)}
@@ -103,7 +102,6 @@ export class MfdAtccomAtisReceived extends DisplayComponent<AtccomMfdPageProps> 
             )}
           </div>
         </div>
-        {/* end page content */}
         <AtccomFooter bus={this.props.bus} mfd={this.props.mfd} atcService={this.props.atcService} />
       </>
     );

@@ -20,7 +20,7 @@ import {
   requestFieldFormat,
 } from './AtccomEntryFormats';
 
-describe('ATC COM entry formats (FCOM DSC-46-10-20-50)', () => {
+describe('ATC COM entry formats', () => {
   it('parses the altitudes', () => {
     expect(parseAtcAltitude('FL340')).toBe('FL340');
     expect(parseAtcAltitude('90')).toBe('FL090');

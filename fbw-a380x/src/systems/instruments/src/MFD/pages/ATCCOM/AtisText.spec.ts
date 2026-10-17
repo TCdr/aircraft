@@ -16,7 +16,7 @@ describe('ATIS message area', () => {
     expect(lines).toEqual(['LFBO DEP ATIS R 1145Z EXP ARR RWY 32R', '', '', '', '']);
   });
 
-  it('puts dots instead of the last 9 characters of a long ATIS (FCOM DSC-46-10-20-30 P 34)', () => {
+  it('puts dots instead of the last 9 characters of a long ATIS', () => {
     const text = Array.from({ length: 60 }, (_, i) => `W${i.toString().padStart(2, '0')}`).join(' ');
     const { lines, truncated } = atisListLines(text);
     expect(truncated).toBe(true);
@@ -26,7 +26,7 @@ describe('ATIS message area', () => {
   });
 });
 
-describe('ATIS time indication (FCOM DSC-46-10-20-30 P 31)', () => {
+describe('ATIS time indication', () => {
   it('is the time written in the ATIS, not the time of reception', () => {
     expect(atisTime('JFK ATIS INFO O 1151Z. 05027G40KT 7SM -RA OVC014')).toBe('1151Z');
     expect(atisTime('lfbo dep atis r 1145z exp arr rwy 32r')).toBe('1145Z');

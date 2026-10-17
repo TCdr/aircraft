@@ -14,9 +14,9 @@ import { ConfirmationDialog } from '../../../MsfsAvionicsCommon/UiWidgets/Confir
 import { AtccomFooter } from './MfdAtccomFooter';
 import { MsgRecordEntry, msgRecordListLine } from '../../ATCCOM/MsgRecord';
 
-/** The messages displayed at a time (FCOM figure: 8 message areas) */
+/** The messages displayed at a time: the page has 8 message areas */
 const ROWS = 8;
-/** The top of the first message area and the height of a message area, from the FCOM figure */
+/** The top of the first message area and the height of a message area, from the reference figure */
 const ROW_TOP = 12.6;
 const ROW_HEIGHT = 91.5;
 /** The message line: 39 characters of 17.2 px from x = 9 to the scroll bar */
@@ -30,7 +30,7 @@ export function msgRecordZoomUri(entry: MsgRecordEntry): string {
 }
 
 /**
- * MSG RECORD/LIST page (A380 FCOM DSC-46-10-20-30 P 27-29), laid out on the FCOM figure (page coordinates = display
+ * MSG RECORD/LIST page, laid out on the reference figure (page coordinates = display
  * y - 143): the messages exchanged with the ATC centers, most recent first, each with its time, origin / destination,
  * status and first line; a click displays the whole message on the MSG RECORD/ZOOM page. NO STORED MSG when empty, the
  * scroll bar and buttons, ERASE ALL (after confirmation) and PRINT ALL.
@@ -153,7 +153,6 @@ export class MfdAtccomMsgRecordList extends DisplayComponent<AtccomMfdPageProps>
     return (
       <>
         <ActivePageTitleBar activePage={Subject.create(this.props.pageTitle ?? '')} offset={Subject.create('')} />
-        {/* begin page content */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-atccom-msg-record">
             {Array.from({ length: ROWS }, (_, i) => this.renderRow(i))}
@@ -249,7 +248,6 @@ export class MfdAtccomMsgRecordList extends DisplayComponent<AtccomMfdPageProps>
             </div>
           </div>
         </div>
-        {/* end page content */}
         <AtccomFooter bus={this.props.bus} mfd={this.props.mfd} atcService={this.props.atcService} />
       </>
     );

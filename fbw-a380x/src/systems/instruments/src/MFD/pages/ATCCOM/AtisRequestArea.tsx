@@ -36,7 +36,7 @@ interface AtisRequestAreaProps extends ComponentProps {
   top: number;
 }
 
-/** The two-line labels of the message status / FSM button (FCOM DSC-46-10-20-30 P 32) */
+/** The two-line labels of the message status / FSM button */
 const STATUS_LABELS: Record<AtisStatus, string> = {
   '': '',
   SENDING: 'SENDING',
@@ -48,7 +48,7 @@ const STATUS_LABELS: Record<AtisStatus, string> = {
 };
 
 /**
- * An ATIS request area of the ATIS/LIST page (A380 FCOM DSC-46-10-20-30 P 30-34), laid out on the FCOM figure: the
+ * An ATIS request area of the ATIS/LIST page, laid out on the reference figure: the
  * AIRPORT entry field, the ATIS TYPE list, the ATIS version and time, the NEW ATIS, AUTO UPDATE and AUTO PRINT symbols,
  * the message status / FSM button, OPTIONS (or SEND REQUEST and AUTO UPDATE after a change of the airport or the
  * type), and the 5-line message area.
@@ -136,7 +136,7 @@ export class AtisRequestArea extends DisplayComponent<AtisRequestAreaProps> {
         this.icao.set(area.icao);
         this.typeIndex.set(area.type);
       }),
-      // A new ATIS entirely displayed on the list is read: the NEW ATIS symbol goes out (FCOM P 31)
+      // A new ATIS entirely displayed on the list is read: the NEW ATIS symbol goes out
       this.text.sub((text) => {
         if (!text.truncated) {
           this.props.atcService.markAtisRead(this.props.index);
@@ -179,7 +179,7 @@ export class AtisRequestArea extends DisplayComponent<AtisRequestAreaProps> {
             idPrefix={`${captOrFo}_MFD_atisTypeList_${this.props.index}`}
             selectedIndex={this.typeIndex}
             values={ArraySubject.create(['DEP', 'ARR'])}
-            freeTextAllowed={false}
+            freeTextAllowed={false} // ATIS TYPE: selected in the list only
             onModified={(index) => {
               if (index === null || !this.props.atcService.setAtisType(this.props.index, index)) {
                 this.typeIndex.set(this.area.get().type);

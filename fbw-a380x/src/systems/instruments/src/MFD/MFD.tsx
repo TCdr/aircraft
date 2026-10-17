@@ -147,7 +147,7 @@ export class MfdComponent
 
   private readonly messageListOpened = Subject.create<boolean>(false);
 
-  /** The System Message Area of the header (A380 FCOM DSC-31-50 l.74416-74429) */
+  /** The System Message Area of the header */
   private readonly systemMessageArea = new MfdSystemMessageArea();
 
   public readonly systemMessage = this.systemMessageArea.text;
@@ -300,8 +300,7 @@ export class MfdComponent
               case 'ND': // Move cursor to ND
                 break;
               case 'CLRINFO':
-                // Clears the message of the displayed system: the ATC COM message area on an ATC COM page (FCOM
-                // DSC-46-10-20-60 KCCU CLR INFO key)
+                // Clears the message of the displayed system: the ATC COM message area on an ATC COM page
                 if (this.uiService.activeUri.get().sys === 'atccom') {
                   this.props.atcService.clearLatestAtcErrorMessage();
                 } else {
@@ -327,8 +326,8 @@ export class MfdComponent
 
     this.subscribeSystemMessageArea();
 
-    // MODIFY in the mailbox displays the REPORT/MODIFY page (FCOM PRO How to manage a confirm message): on the MFD that
-    // displays an ATC COM page, else on the captain MFD
+    // MODIFY on a confirm message in the mailbox displays the REPORT/MODIFY page: on the MFD that displays an ATC COM
+    // page, else on the captain MFD
     this.subs.push(
       this.props.atcService.modifyRequests.sub(() => {
         const otherSide = this.props.captOrFo === 'CAPT' ? 'R' : 'L';
@@ -346,7 +345,7 @@ export class MfdComponent
     const area = this.systemMessageArea;
     this.subs.push(this.uiService.activeUri.sub((uri) => area.onApplicationShown(uri.sys), true));
 
-    // "an amber FMS message is pending": in the FMS message queue and not cleared
+    // An amber FMS message is pending while it is in the FMS message queue and not cleared
     this.subs.push(
       this.props.fmcService.master.fmsErrors.sub((_, type, item, messages) => {
         const added = (Array.isArray(item) ? item : [item]) as readonly (
@@ -434,8 +433,7 @@ export class MfdComponent
       );
     }
 
-    // FMS pages use the display frame of the FCOM figures (A380 FCOM DSC-22-FMS-20-30), see common/style.scss
-    // The ATC COM pages have the same display frame as the FMS pages (FCOM DSC-46-10-20-20 P 1)
+    // FMS and ATC COM pages use the display frame of the reference figures, see common/style.scss
     this.activePageRef.getOrDefault()?.classList.toggle('sys-fms', uri.sys === 'fms' || uri.sys === 'atccom');
 
     FSComponent.render(this.activeHeader, this.activeHeaderRef.getOrDefault());

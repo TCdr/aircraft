@@ -160,7 +160,7 @@ describe('ATC mailbox', () => {
     expect(actions(block(confirm))).toEqual(['SEND', 'MODIFY', 'REFRESH', null, 'PRINT']);
   });
 
-  it('offers LOAD-SEC3 for a route clearance, before and after the reply (FCOM DSC-46-10-40 P 24-25)', () => {
+  it('offers LOAD-SEC3 for a route clearance, before and after the reply', () => {
     const clearance = message(AtsuMessageDirection.Uplink, 'UM79', 'AMB');
     clearance.Content[0].Content[1].Value = 'DIBAG UT210 TUDRA UT158 AMB';
     expect(actions(block(clearance))).toEqual(['WILCO', 'STANDBY', 'UNABLE', 'LOAD-SEC3', 'PRINT']);

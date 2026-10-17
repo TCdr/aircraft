@@ -1,6 +1,6 @@
 @import "../../../MsfsAvionicsCommon/definitions";
 
-// CONNECT pages (NOTIFICATION, CONNECTION STATUS, MAX UPLINK DELAY), laid out on the FCOM figures (FcomLayout)
+// CONNECT pages (NOTIFICATION, CONNECTION STATUS, MAX UPLINK DELAY), laid out on the reference figures (FcomLayout)
 
 .mfd-atccom-connect {
   .green {
@@ -42,7 +42,7 @@
   white-space: pre;
 }
 
-// ADS / ADS EMERGENCY buttons: the active state large, the other one small and grey (FCOM DSC-46-10-20-30 P 7)
+// ADS / ADS EMERGENCY buttons: the active state large, the other one small and grey
 .mfd-atccom-ads-slot {
   position: absolute;
 }

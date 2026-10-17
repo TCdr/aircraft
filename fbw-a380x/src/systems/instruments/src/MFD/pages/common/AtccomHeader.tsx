@@ -6,10 +6,9 @@ import { AbstractHeader } from './AbstractHeader';
 import { PageSelectorDropdownMenu } from '../../../MsfsAvionicsCommon/UiWidgets/PageSelectorDropdownMenu';
 
 /**
- * Header of the ATC COM pages: the general menu bar with its 6 menus (A380 FCOM DSC-46-10-20-20 P 3, DSC-46-10-20-30
- * P 1): CONNECT (NOTIFICATION, CONNECTION STATUS, MAX UPLINK DELAY), REQUEST, REPORT & MODIFY (POSITION, MODIFY,
- * OTHER REPORTS), MSG RECORD, ATIS and EMER. A box around the menu name shows the menu of the displayed page. The menu
- * widths are those of the FCOM figures.
+ * Header of the ATC COM pages: the general menu bar with its 6 menus: CONNECT (NOTIFICATION, CONNECTION STATUS, MAX
+ * UPLINK DELAY), REQUEST, REPORT & MODIFY (POSITION, MODIFY, OTHER REPORTS), MSG RECORD, ATIS and EMER. A box around
+ * the menu name shows the menu of the displayed page. The menu widths are measured on the reference figures.
  */
 export class AtccomHeader extends AbstractHeader {
   private readonly connectIsSelected = Subject.create(false);
@@ -47,7 +46,7 @@ export class AtccomHeader extends AbstractHeader {
   }
 
   render(): VNode {
-    // FCOM figure: the two-line menu names are in small font, in a row as high as the one-line menus
+    // The two-line menu names are in small font, in a row as high as the one-line menus
     const twoLines =
       'margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; white-space: nowrap; font-size: 20px; line-height: 22px';
     return (
