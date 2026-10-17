@@ -4,16 +4,15 @@
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
 
 /**
- * The CVR power logic and the CVR TEST of the A320 (FCOM DSC-23-10-40 COCKPIT VOICE RECORDER).
+ * The CVR power logic and the CVR TEST of the A320.
  *
- * a320_fcom.txt l.35299-35306: "It is energized automatically : - on the ground during the first 5 min after the
- * aircraft electrical network is energized - on the ground with one engine running - in flight. On the ground, it is
- * stopped automatically 5 min after the last engine shutdown provided the CVR jack is not used. On the ground, the crew
- * can energize the CVR manually by pressing the GND CTL pb-sw."
+ * The CVR is energized automatically on the ground during the first 5 min after the aircraft electrical network is
+ * energized, on the ground with one engine running, and in flight. On the ground, it stops 5 min after the last engine
+ * shutdown unless the CVR jack is used. On the ground, the crew can energize it with the GND CTL pb-sw.
  *
- * a320_fcom.txt l.35338-35342, CVR TEST pb: "When pressed and held: This activates the test, if the CVR is on (the GND
- * CTL pb-sw pressed, or during the first 5 min after energization of the aircraft electrical network), and the parking
- * brake is on." The SOP (l.98935-98943) also asks for the PARK BRK on before the test.
+ * CVR TEST pb, pressed and held: tests the CVR if it is on (GND CTL pb-sw pressed, or during the first 5 min after the
+ * network is energized) and the parking brake is on. The before-start checks also ask for the PARK BRK on before the
+ * test.
  *
  * The CVR jack is not simulated (its headset button is INOP), so the CVR stops 5 min after the last engine shutdown.
  */
@@ -87,7 +86,7 @@ export class CvrPowerLogic {
 }
 
 /** The CVR runs (L:var written by CockpitVoiceRecorder) */
-export const CVR_ENERGIZED_VAR = 'L:A32NX_RCDR_CVR_ENERGIZED';
+const CVR_ENERGIZED_VAR = 'L:A32NX_RCDR_CVR_ENERGIZED';
 /** The CVR test signal is heard (L:var written by CockpitVoiceRecorder, plays the cvr_test sound of sound.xml) */
 export const CVR_TEST_TONE_VAR = 'L:A32NX_RCDR_CVR_TEST_TONE';
 

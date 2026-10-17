@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * ENG 1(2) START FAULT, ENG 1(2) START VALVE FAULT and ENG 1(2) IGN FAULT (A320 FCOM PRO-ABN-ENG, a320_fcom.txt
- * l.81353-81634 and l.80271-80331). The FADEC start sequence of the systems WASM (systems::engine::engine_start) detects the
- * faults and writes them per engine:
+ * ENG 1(2) START FAULT, ENG 1(2) START VALVE FAULT and ENG 1(2) IGN FAULT. The FADEC start sequence of the systems WASM
+ * (systems::engine::engine_start) detects the faults and writes them per engine:
  * - L:A32NX_ENGINE_n_START_FAULT (EngineStartFault), L:A32NX_ENGINE_n_START_PHASE (EngineStartPhase),
  *   L:A32NX_ENGINE_n_START_MANUAL;
  * - L:A32NX_ENGINE_n_START_VALVE_FAULT (StartValveFault);
  * - L:A32NX_ENGINE_n_IGNITER_A_FAULT, L:A32NX_ENGINE_n_IGNITER_B_FAULT.
- * All three are amber cautions (the FCOM shows their title in amber). Their flight phase inhibition figures (2019 FCOM PDF
- * pages 2275, 2276, 2304 and 2307) inhibit phases 3, 4, 5, 7 and 8; IGN A OR B FAULT also phase 6; START FAULT also phase
- * 6, only for THR LEVER NOT AT IDLE.
+ * All three are amber cautions, inhibited in phases 3, 4, 5, 7 and 8; IGN A OR B FAULT also in phase 6; START FAULT also
+ * in phase 6, only for THR LEVER NOT AT IDLE.
  */
 
 /** L:A32NX_ENGINE_n_START_PHASE (systems::engine::engine_start::EngineStartPhase) */
@@ -51,11 +49,11 @@ export const IGN_A_PLUS_B_FAULT_FLIGHT_PHASE_INHIBITION = [3, 4, 5, 7, 8];
 
 /**
  * ENG 1(2) START FAULT is active while the FADEC reports a start fault, except THR LEVER NOT AT IDLE in flight phase 6
- * (l.81373: "Alert inhibited in the flight phase 6, only if it is due to thrust lever not at idle").
+ * (the alert is inhibited in phase 6 only for that cause).
  */
 export function isStartFaultActive(fault: EngineStartFault, flightPhase: number): boolean {
   if (fault === EngineStartFault.None || fault === EngineStartFault.StarterTimeExceeded) {
-    // the A320 FCOM gives no starter time limit: the FADEC does not report it
+    // the A320 has no starter time limit alert: the FADEC does not report it
     return false;
   }
   return !(fault === EngineStartFault.ThrustLeverNotAtIdle && flightPhase === 6);
@@ -88,18 +86,17 @@ const START_FAULT_SUB_TITLE: Partial<Record<EngineStartFault, number>> = {
 };
 
 /**
- * The procedure of each start fault (l.81384-81528), the lines of actions done removed:
- * - IGNITION FAULT (l.81391-81433), STALL and EGT OVERLIMIT (l.81437-81503); HUNG START from the A320neo FCOM (IGO
- *   A318/A319/A320/A321 FCOM 21 JAN 19, PRO-ABN-ENG P 322/368, which gives it the same procedure):
+ * The procedure of each start fault, the lines of actions done removed:
+ * - IGNITION FAULT, STALL and EGT OVERLIMIT; HUNG START (the A320neo gives it the same procedure):
  *   - in flight: ENG MASTER OFF;
  *   - on ground, automatic start: AUTO CRANK IN PROGRESS during the automatic dry crank, NEW START IN PROGRESS during the
  *     next attempt, and ENG MASTER OFF once the start is aborted (the final dry crank finished);
  *   - on ground, manual start: ENG MASTER OFF, MAN START OFF (the next lines, MODE SEL CRANK and MAN START ON for a dry
- *     crank, are not displayed: l.81425).
- * - STARTER SHAFT SHEAR, from the A320neo FCOM (PRO-ABN-ENG P 323/368): on ground ENG MASTER OFF, MAN START OFF; in flight
+ *     crank, are not displayed).
+ * - STARTER SHAFT SHEAR (A320neo): on ground ENG MASTER OFF, MAN START OFF; in flight
  *   WINDMILL START ONLY.
- * - LO START AIR PRESS (l.81510-81511): BLEED AIR SUPPLY CHECK.
- * - THR LEVER NOT AT IDLE (l.81527-81528): THR LEVER IDLE.
+ * - LO START AIR PRESS: BLEED AIR SUPPLY CHECK.
+ * - THR LEVER NOT AT IDLE: THR LEVER IDLE.
  */
 export function startFaultLines(inputs: StartFaultLineInputs): number[] {
   const subTitle = START_FAULT_SUB_TITLE[inputs.fault];
@@ -147,8 +144,8 @@ export function startFaultLines(inputs: StartFaultLineInputs): number[] {
 }
 
 /**
- * The STATUS of ENG 1(2) START FAULT. A320neo FCOM (PRO-ABN-ENG P 323/368): "STARTER SHAFT SHEAR: ENG (AFFECTED) WINDMILL
- * START ONLY". The other start faults have no STATUS.
+ * The STATUS of ENG 1(2) START FAULT: STARTER SHAFT SHEAR gives ENG (AFFECTED) WINDMILL START ONLY (A320neo). The other
+ * start faults have no STATUS.
  */
 export function startFaultStatus(engineNumber: 1 | 2, fault: EngineStartFault): string[] {
   return fault === EngineStartFault.StarterFault ? [engineNumber === 1 ? '800400001' : '800400002'] : [];
@@ -180,7 +177,7 @@ export interface StartValveFaultLineInputs {
 }
 
 /**
- * l.81559-81592:
+ * The lines of ENG 1(2) START VALVE FAULT:
  * - START VALVE NOT CLOSED: APU BLEED (IF ENG 1 AFFECTED) OFF, X BLEED SHUT; in flight ENG BLEED (AFFECTED) OFF, MAN START
  *   (IF MAN START PERFORMED) OFF, WING ANTI ICE OFF, AVOID ICING CONDITIONS; on ground MAN START (IF MAN START PERFORMED) OFF,
  *   ENG MASTER (AFFECTED) OFF.
@@ -188,7 +185,7 @@ export interface StartValveFaultLineInputs {
  *   MAN START (IF MAN START PERFORMED) OFF, ENG MASTER (AFFECTED) (IF AUTO START PERFORMED) OFF.
  * The lines of actions done go. Design choice: "MAN START PERFORMED" is the ENG MAN START pb ON; for NOT OPEN the IF
  * UNSUCCESSFUL lines show with the condition line.
- * Not modelled: the "EEC control of start valve failed (for IAE or PW engines)" lines (l.81594-81601).
+ * Not modelled: the "EEC control of start valve failed" lines (IAE or PW engines only).
  */
 export function startValveFaultLines(inputs: StartValveFaultLineInputs): number[] {
   if (inputs.fault === StartValveFault.NotClosed) {
@@ -246,7 +243,7 @@ export interface StartValveFaultStatus {
 }
 
 /**
- * The STATUS of ENG 1(2) START VALVE FAULT (l.81622-81634): AVOID ICING CONDITIONS; IF SEVERE ICE ACCRETION: MIN SPD VLS+10
+ * The STATUS of ENG 1(2) START VALVE FAULT: AVOID ICING CONDITIONS; IF SEVERE ICE ACCRETION: MIN SPD VLS+10
  * /G DOT, MANEUVER WITH CARE; in flight LDG DIST PROC APPLY; INOP SYS WING A. ICE (in flight). Design choice: they follow
  * the wing anti-ice that the NOT CLOSED procedure switches off in flight, so only for NOT CLOSED in flight.
  */
@@ -263,7 +260,7 @@ export function startValveFaultStatus(fault: StartValveFault, onGround: boolean)
 /**
  * The lines of ENG 1(2) IGN FAULT, by index in its codes (EwdMessages 7700741/7700742): 0 title IGN A FAULT, 1 title IGN B
  * FAULT, 2 title IGN A+B FAULT, 3 AVOID ADVERSE CONDITIONS.
- * l.80271-80331: IGN A OR B FAULT, "Crew awareness"; IGN A+B FAULT, AVOID ADVERSE CONDITIONS.
+ * IGN A OR B FAULT is crew awareness; IGN A+B FAULT gives AVOID ADVERSE CONDITIONS.
  */
 export function ignitionFaultLines(igniterAFault: boolean, igniterBFault: boolean): number[] {
   if (igniterAFault && igniterBFault) {
@@ -275,7 +272,7 @@ export function ignitionFaultLines(igniterAFault: boolean, igniterBFault: boolea
   return igniterBFault ? [1] : [];
 }
 
-/** INOP SYS of ENG 1(2) IGN FAULT (l.80295, 80331): ENG 1(2) IGN A (B), or ENG 1(2) IGN for A+B */
+/** INOP SYS of ENG 1(2) IGN FAULT: ENG 1(2) IGN A (B), or ENG 1(2) IGN for A+B */
 export function ignitionFaultInopSys(engineNumber: 1 | 2, igniterAFault: boolean, igniterBFault: boolean): string[] {
   const base = engineNumber === 1 ? 0 : 2;
   if (igniterAFault && igniterBFault) {

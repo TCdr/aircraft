@@ -20,8 +20,7 @@ function monitorAfter(inputs: EngineAntiIceValveInputs, seconds: number): Engine
   return monitor;
 }
 
-/* A320 FCOM PRO-ABN-A-ICE ANTI ICE ENG 1(2) VALVE CLSD, a320_fcom.txt l.68789: "This alert triggers when the valve is
- * abnormally closed." */
+/* ANTI ICE ENG 1(2) VALVE CLSD: the valve is abnormally closed */
 describe('ANTI ICE ENG 1(2) VALVE CLSD', () => {
   it('triggers when the valve stays closed with the pb-sw ON and the engine running', () => {
     const monitor = monitorAfter({ pbOn: true, valveOpen: false, engineRunning: true }, 6);
@@ -37,7 +36,7 @@ describe('ANTI ICE ENG 1(2) VALVE CLSD', () => {
     expect(monitor.valveClosed).toBe(false);
   });
 
-  it('does not trigger before the engine runs: the valve closes without engine air (DSC-30-30-10 l.44354)', () => {
+  it('does not trigger before the engine runs: the valve closes without engine air', () => {
     const monitor = monitorAfter({ pbOn: true, valveOpen: false, engineRunning: false }, 60);
     expect(monitor.valveClosed).toBe(false);
   });
@@ -48,12 +47,12 @@ describe('ANTI ICE ENG 1(2) VALVE CLSD', () => {
     expect(monitor.valveOpen).toBe(false);
   });
 
-  it('has the STATUS of the FCOM: AVOID ICING CONDITIONS, INOP SYS ENG 1(2) A. ICE (l.68815-68817)', () => {
+  it('has the STATUS AVOID ICING CONDITIONS, INOP SYS ENG 1(2) A. ICE', () => {
     expect(engineAntiIceValveClosedStatus(1)).toEqual({ statusInfo: ['700400001'], inopSys: ['300300002'] });
     expect(engineAntiIceValveClosedStatus(2)).toEqual({ statusInfo: ['700400001'], inopSys: ['300300003'] });
   });
 
-  it('shows ENG 1(2) A. ICE under INOP SYS on the STATUS page (l.68817)', () => {
+  it('shows ENG 1(2) A. ICE under INOP SYS on the STATUS page', () => {
     for (const engine of [1, 2] as const) {
       const status = engineAntiIceValveClosedStatus(engine);
       const page = statusLines({ left: status.statusInfo, inopSys: status.inopSys });
@@ -63,8 +62,7 @@ describe('ANTI ICE ENG 1(2) VALVE CLSD', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-A-ICE ANTI ICE ENG 1(2) VALVE OPEN, a320_fcom.txt l.68829: "This alert triggers when the valve is
- * abnormally open." */
+/* ANTI ICE ENG 1(2) VALVE OPEN: the valve is abnormally open */
 describe('ANTI ICE ENG 1(2) VALVE OPEN', () => {
   it('triggers when the valve stays open with the pb-sw OFF', () => {
     const monitor = monitorAfter({ pbOn: false, valveOpen: true, engineRunning: true }, 6);
@@ -86,7 +84,7 @@ describe('ANTI ICE ENG 1(2) VALVE OPEN', () => {
     expect(monitor.valveClosed).toBe(false);
   });
 
-  it('has the STATUS of the FCOM: THRUST LIM PENALTY (l.68855)', () => {
+  it('has the STATUS THRUST LIM PENALTY', () => {
     expect(engineAntiIceValveOpenStatus()).toEqual({ statusInfo: ['300400001'], inopSys: [] });
   });
 });

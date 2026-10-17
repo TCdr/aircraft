@@ -26,7 +26,6 @@ function activeKeys(alerts: FuelTemperatureAlerts): string[] {
   return Object.keys(alerts.ewdFailures).filter((key) => alerts.ewdFailures[key].simVarIsActive.get());
 }
 
-/* A320 FCOM PRO-ABN-FUEL FUEL L (R) OUTER (INNER) TK HI TEMP (a320_fcom.txt l.85994-86047) */
 describe('FUEL L (R) OUTER (INNER) TK HI TEMP', () => {
   it('triggers above 55 °C in an outer cell on the ground, 60 °C in flight', () => {
     const alerts = new FuelTemperatureAlerts();
@@ -89,7 +88,6 @@ describe('FUEL L (R) OUTER (INNER) TK HI TEMP', () => {
   });
 });
 
-/* FCOM PRO-ABN-FUEL FUEL L (R) OUTER (INNER) TK LO TEMP (l.86069-86081) */
 describe('FUEL L (R) OUTER (INNER) TK LO TEMP', () => {
   it('triggers below -43 °C, with DELAY T.O on the ground only', () => {
     const alerts = new FuelTemperatureAlerts();

@@ -35,13 +35,12 @@ const text = (prefix: string, lines: (number | null)[]) =>
 
 const INOP_SYS = '\x1b<7m\x1b4mINOP SYS\x1bm';
 
-/* A320 FCOM PRO-ABN-AUTO_FLT YAW DAMPER, RUD TRIM, RUD TRV LIM, a320_fcom.txt l.71741-72077 */
 describe('AUTO FLT yaw damper, rudder trim and rudder travel limiter alerts', () => {
   it('no alert with both FACs normal', () => {
     expect(facFunctionTriggers(NORMAL)).toEqual({ unit1: false, unit2: false, system: false });
   });
 
-  it('one actuator failed: the 1(2) alert (l.71751, l.71836, l.71990), FAC 2 takes the function over', () => {
+  it('one actuator failed: the 1(2) alert, FAC 2 takes the function over', () => {
     expect(
       facFunctionTriggers({ actuator1Fault: true, actuator2Fault: false, fac1Engaged: false, fac2Engaged: true }),
     ).toEqual({ unit1: true, unit2: false, system: false });
@@ -55,7 +54,7 @@ describe('AUTO FLT yaw damper, rudder trim and rudder travel limiter alerts', ()
     });
   });
 
-  it('both actuators failed: the SYS alert only (l.71792, l.71875, l.72022)', () => {
+  it('both actuators failed: the SYS alert only', () => {
     expect(
       facFunctionTriggers({ actuator1Fault: true, actuator2Fault: true, fac1Engaged: false, fac2Engaged: false }),
     ).toEqual({ unit1: false, unit2: false, system: true });
@@ -74,7 +73,7 @@ describe('AUTO FLT yaw damper, rudder trim and rudder travel limiter alerts', ()
     ).toEqual({ unit1: false, unit2: false, system: false });
   });
 
-  it('flight phase inhibitions of the FCOM PDF figures (pages 4422-4434)', () => {
+  it('flight phase inhibitions', () => {
     expect(FacActuatorPhaseInhibition).toEqual({
       rudderTrimFault: [3, 4, 5, 7, 8],
       rudderTrimSystem: [4, 5, 7, 8],
@@ -86,7 +85,7 @@ describe('AUTO FLT yaw damper, rudder trim and rudder travel limiter alerts', ()
     expect(FAC_SYSTEM_ALERT_CONFIRM_SECONDS).toBe(1);
   });
 
-  it('the crew awareness titles (l.71741, l.71826, l.71980)', () => {
+  it('the crew awareness titles', () => {
     // one code at a time: the E/WD shows the group title once for the alerts of a group that follow each other
     const titles = ['220023601', '220023701', '220023001', '220023101', '220023301', '220023401'].map(
       (code) => formatEwdMessages([code])[0],
@@ -101,7 +100,7 @@ describe('AUTO FLT yaw damper, rudder trim and rudder travel limiter alerts', ()
     ]);
   });
 
-  it('YAW DAMPER SYS and RUD TRIM SYS: FAC 1 and FAC 2 OFF THEN ON (l.72029-72031, l.71797-71798)', () => {
+  it('YAW DAMPER SYS and RUD TRIM SYS: FAC 1 and FAC 2 OFF THEN ON', () => {
     expect(text('2200238', yawDamperSystemLines())).toBe(
       '\x1b<4m\x1b4mAUTO FLT\x1bm YAW DAMPER SYS | \x1b<5m -FAC 1......OFF THEN ON | \x1b<5m -FAC 2......OFF THEN ON',
     );
@@ -110,7 +109,7 @@ describe('AUTO FLT yaw damper, rudder trim and rudder travel limiter alerts', ()
     );
   });
 
-  it('RUD TRV LIM SYS: the TLU lines only with the TLU locked at high speed after slat extension (l.71895-71912)', () => {
+  it('RUD TRV LIM SYS: the TLU lines only with the TLU locked at high speed after slat extension', () => {
     const procedure =
       '\x1b<4m\x1b4mAUTO FLT\x1bm RUD TRV LIM SYS | \x1b<5mRUD WITH CARE ABV 160 KT | \x1b<5m -FAC 1......OFF THEN ON' +
       ' | \x1b<5m -FAC 2......OFF THEN ON';
@@ -127,7 +126,7 @@ describe('AUTO FLT yaw damper, rudder trim and rudder travel limiter alerts', ()
     expect(tluLockedAtHighSpeed(false, 14.5)).toBe(false);
   });
 
-  it('STATUS of the 1(2) alerts (l.71775-71780, l.71859-71863, l.71994-72000)', () => {
+  it('STATUS of the 1(2) alerts', () => {
     const yawDamper1 = facActuatorStatus.yawDamperFault(1);
     expect(formatStatusPage(yawDamper1.left, yawDamper1.inopSys)).toEqual({
       normal: false,
@@ -146,7 +145,7 @@ describe('AUTO FLT yaw damper, rudder trim and rudder travel limiter alerts', ()
     });
   });
 
-  it('STATUS of YAW DAMPER SYS (l.72062-72077) and RUD TRIM SYS (l.71816-71822), in the FCOM order', () => {
+  it('STATUS of YAW DAMPER SYS and RUD TRIM SYS, in the aircraft order', () => {
     const yawDamperSystem = facActuatorStatus.yawDamperSystem();
     expect(formatStatusPage(yawDamperSystem.left, yawDamperSystem.inopSys)).toEqual({
       normal: false,
@@ -167,7 +166,7 @@ describe('AUTO FLT yaw damper, rudder trim and rudder travel limiter alerts', ()
     );
   });
 
-  it('STATUS of RUD TRV LIM SYS (l.71916-71930)', () => {
+  it('STATUS of RUD TRV LIM SYS', () => {
     const notLocked = facActuatorStatus.rudderTravelLimiterSystem(false);
     expect(formatStatusPage(notLocked.left, notLocked.inopSys)).toEqual({
       normal: false,

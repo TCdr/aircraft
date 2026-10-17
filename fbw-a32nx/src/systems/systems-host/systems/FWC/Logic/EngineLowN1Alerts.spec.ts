@@ -27,7 +27,7 @@ function runFor(monitor: EngineLowN1Monitor, inputs: EngineLowN1Inputs, seconds:
   }
 }
 
-/* A320 FCOM PRO-ABN-ENG ENG 1(2) LOW N1 (ON GROUND), a320_fcom.txt l.80353 */
+/* ENG 1(2) LOW N1 (ON GROUND): no N1 rotation during a start */
 describe('ENG 1(2) LOW N1', () => {
   it('triggers when the N1 has not rotated during a start once the core turns', () => {
     const monitor = new EngineLowN1Monitor();
@@ -69,11 +69,11 @@ describe('ENG 1(2) LOW N1', () => {
     expect(lowN1Lines(25)).toEqual([0, 1, 2, 3]);
   });
 
-  it('is inhibited in the flight phases of the FCOM figure (2019 PDF page 2277)', () => {
+  it('is inhibited in the aircraft flight phases', () => {
     expect(LOW_N1_PHASE_INHIBITION).toEqual([4, 5, 6, 7, 8, 9]);
   });
 
-  it('is wired in the FWC for both engines, amber, with the E/WD lines of the FCOM', () => {
+  it('is wired in the FWC for both engines, amber, with its E/WD lines', () => {
     const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf8');
     expect(fwc).toContain('7700921: this.engineLowN1Alert(1)');
     expect(fwc).toContain('7700922: this.engineLowN1Alert(2)');

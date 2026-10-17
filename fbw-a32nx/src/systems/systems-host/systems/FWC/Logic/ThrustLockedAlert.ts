@@ -6,15 +6,14 @@ import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { FwcAlertItem, cautionItem } from './FwcAlertItem';
 
 /*
- * ENG THRUST LOCKED (A320 FCOM PRO-ABN-ENG, a320_fcom.txt l.81958-81970, and DSC-22_30-90 l.32833-32848):
- * - "This alert triggers when thrust levers are not moved within 5 s, following an unvoluntary disconnection of the
- *   A/THR (or disconnection through the FCU pb)." (l.81966-81967). The thrust lock of the FADEC (ECU maintenance word 6,
- *   bit 12) is active from the disconnection until the levers leave the CL (MCT) detent (l.32835-32839).
- * - "ECAM "ENG THRUST LOCKED" flashes every 5 s", "A single chime sounds and the Master Caution light flashes every
- *   5 s." (l.32844-32846): the title flashes, and the FWC sounds the single chime and lights the MASTER CAUTION again
- *   every 5 s while the alert is shown.
- * - "THR LEVERS ... MOVE" (l.81970).
- * Flight phase inhibition (FCOM PDF page 5126): shown in phases 5, 6 and 7 only.
+ * ENG THRUST LOCKED:
+ * - Triggers when the thrust levers are not moved within 5 s of an involuntary A/THR disconnection (or a disconnection
+ *   with the FCU pb). The thrust lock of the FADEC (ECU maintenance word 6, bit 12) is active from the disconnection
+ *   until the levers leave the CL (MCT) detent.
+ * - The title flashes, and the FWC sounds the single chime and lights the MASTER CAUTION again every 5 s while the
+ *   alert is shown.
+ * - Procedure: THR LEVERS MOVE.
+ * Flight phase inhibition: shown in phases 5, 6 and 7 only.
  */
 
 /** The alert key of ENG THRUST LOCKED (EwdMessages 77003100x) */
@@ -23,8 +22,8 @@ export const THRUST_LOCKED_KEY = '7700310';
 export const THRUST_LOCKED_PHASE_INHIBITION = [1, 2, 3, 4, 8, 9, 10];
 
 /** The thrust lock time before the alert, and the period of its attention getters, in seconds */
-export const THRUST_LOCKED_DELAY_SECONDS = 5;
-export const THRUST_LOCKED_REPEAT_SECONDS = 5;
+const THRUST_LOCKED_DELAY_SECONDS = 5;
+const THRUST_LOCKED_REPEAT_SECONDS = 5;
 
 export class ThrustLockedAlert {
   private readonly active = Subject.create(false);

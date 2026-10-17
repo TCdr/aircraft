@@ -41,7 +41,7 @@ function run(
   return said;
 }
 
-describe('DUAL INPUT voice (a320_fcom.txt l.41070-41071, 45804)', () => {
+describe('DUAL INPUT voice', () => {
   it('is said at once when both sidesticks are moved, then every 5 s', () => {
     const said = run(new SidestickPriorityAurals(), DUAL_INPUT, 12);
     expect(said).toEqual([
@@ -78,7 +78,7 @@ describe('DUAL INPUT voice (a320_fcom.txt l.41070-41071, 45804)', () => {
   });
 });
 
-describe('PRIORITY LEFT / PRIORITY RIGHT voices (a320_fcom.txt l.45756-45760, 83909-83919)', () => {
+describe('PRIORITY LEFT / PRIORITY RIGHT voices', () => {
   it('PRIORITY LEFT once when the CAPT holds the priority for 1 s', () => {
     expect(run(new SidestickPriorityAurals(), CAPT_PRIORITY, 4)).toEqual([{ aural: 'priorityLeft', at: 1 }]);
   });

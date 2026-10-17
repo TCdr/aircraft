@@ -31,9 +31,9 @@ export const CondStatusCodes = {
 const C = CondStatusCodes;
 
 /**
- * AIR PACK 1(2) FAULT (A320 FCOM PRO-ABN-AIR): PACK 1(2) inoperative; with the ACSC of that side lost, its zones are at a
+ * AIR PACK 1(2) FAULT: PACK 1(2) inoperative; with the ACSC of that side lost, its zones are at a
  * fixed temperature (ACSC 1: the cockpit, ACSC 2: the cabin) and COND CTL 1(2) is inoperative. The FWD CRG HEAT line
- * of the FCOM is left out: the FBW A320 has no cargo heating.
+ * of the aircraft STATUS is left out: the FBW A320 has no cargo heating.
  */
 export function packFaultStatus(side: 1 | 2, acscFailed: boolean): StatusLines {
   return {
@@ -43,39 +43,39 @@ export function packFaultStatus(side: 1 | 2, acscFailed: boolean): StatusLines {
 }
 
 /**
- * AIR PACK 1+2 FAULT (FCOM PRO-ABN-AIR), packs not recovered: MAX FL 100/MEA-MORA, cockpit and cabin at a fixed
+ * AIR PACK 1+2 FAULT, packs not recovered: MAX FL 100/MEA-MORA, cockpit and cabin at a fixed
  * temperature; PACK 1+2, COND CTL 1 and COND CTL 2 inoperative.
  */
 export function pack1And2FaultStatus(): StatusLines {
   return { left: [C.maxFl100, C.ckptAtFixedTemp, C.cabAtFixedTemp], inopSys: [C.pack1And2, C.condCtl1, C.condCtl2] };
 }
 
-/** AIR PACK 1(2) OFF, i.e. the FWC's PACK 1(2) ABNORMALLY OFF (FCOM PRO-ABN-AIR): PACK 1(2) inoperative */
+/** AIR PACK 1(2) OFF, i.e. the FWC's PACK 1(2) ABNORMALLY OFF: PACK 1(2) inoperative */
 export function packOffStatus(side: 1 | 2): StatusLines {
   return { left: [], inopSys: [side === 1 ? C.pack1 : C.pack2] };
 }
 
-/** COND CTL 1(2)-A(B) FAULT (FCOM PRO-ABN-AIR): that lane inoperative */
+/** COND CTL 1(2)-A(B) FAULT: that lane inoperative */
 export function condCtlLaneFaultStatus(controller: 1 | 2, lane: 'A' | 'B'): StatusLines {
   const code = { '1A': C.condCtl1A, '1B': C.condCtl1B, '2A': C.condCtl2A, '2B': C.condCtl2B }[`${controller}${lane}`]!;
   return { left: [], inopSys: [code] };
 }
 
 /**
- * COND CKPT/FWD CAB/AFT CAB DUCT OVHT (FCOM PRO-ABN-COND), system not recovered: basic temperature regulation by the
+ * COND CKPT/FWD CAB/AFT CAB DUCT OVHT, system not recovered: basic temperature regulation by the
  * packs only, HOT AIR inoperative.
  */
 export function ductOvhtStatus(): StatusLines {
   return { left: [C.cabTempByPackOnly], inopSys: [C.hotAir] };
 }
 
-/** COND L+R CAB FAN FAULT (FCOM PRO-ABN-COND): L+R CAB FAN inoperative */
+/** COND L+R CAB FAN FAULT: L+R CAB FAN inoperative */
 export function cabFansFaultStatus(): StatusLines {
   return { left: [], inopSys: [C.cabFans] };
 }
 
 /**
- * COND LAV + GALLEY FAN FAULT (FCOM PRO-ABN-COND): with ACSC 2 operative only the cockpit temperature is controlled (the
+ * COND LAV + GALLEY FAN FAULT: with ACSC 2 operative only the cockpit temperature is controlled (the
  * FWD/AFT CABIN selectors set the cabin duct temperature directly); with ACSC 2 inoperative the cabin is at a fixed
  * temperature, PACK 2 and COND CTL 2 inoperative. GALLEY FAN inoperative in both cases.
  */
@@ -86,7 +86,7 @@ export function lavGalleyFanFaultStatus(acsc2Inoperative: boolean): StatusLines 
 }
 
 /**
- * COND HOT AIR FAULT (FCOM PRO-ABN-COND): with only the hot air closed (packs still on), basic temperature regulation by
+ * COND HOT AIR FAULT: with only the hot air closed (packs still on), basic temperature regulation by
  * the packs only; HOT AIR inoperative, and PACK 1+2 when the packs are off.
  */
 export function hotAirFaultStatus(hotAirClosed: boolean, packsOff: boolean): StatusLines {

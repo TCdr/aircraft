@@ -12,13 +12,11 @@ export interface VleGearPositionInputs {
 }
 
 /**
- * "L/G not uplocked or L/G doors not closed", the gear condition of OVER SPEED VLE. A320 FCOM PRO-ABN-OVERSPEED
- * (a320_fcom.txt l.94043): the alert triggers when "the aircraft speed is greater than VLE + 4 kt, with L/G not uplocked
- * or L/G doors not closed". The uplock position comes from the LGCIU proximity detector outputs, "One valid output is
- * sufficient" (DSC-32-10-30 PROXIMITY DETECTORS ON UPLOCKS, l.50572-50581). With no valid LGCIU output (both LGCIUs
- * unpowered, e.g. ELEC DC EMER CONFIG: LGCIU 1 on DC ESS, LGCIU 2 on DC 2; or L/G LGCIU 1+2 FAULT, l.89611-89620:
- * "Normal landing gear control and position indications are lost") the FWC has no gear position, so it cannot see the
- * gear not uplocked: a lost uplock word must not read as "not uplocked".
+ * "L/G not uplocked or L/G doors not closed", the gear condition of OVER SPEED VLE: the alert triggers above VLE + 4 kt
+ * with this condition. The uplock position comes from the LGCIU proximity detector outputs, one valid output is
+ * enough. With no valid LGCIU output (both LGCIUs unpowered, e.g. ELEC DC EMER CONFIG: LGCIU 1 on DC ESS, LGCIU 2 on
+ * DC 2; or L/G LGCIU 1+2 FAULT, which loses the normal landing gear control and position indications) the FWC has no
+ * gear position, so it cannot see the gear not uplocked: a lost uplock word must not read as "not uplocked".
  * @param inputs the gear position from the LGCIUs
  * @returns true when the gear is known not uplocked, or a gear door is known not closed
  */

@@ -19,30 +19,26 @@ import { deltaPPulses } from '../../../instruments/src/SD/Pages/Crz/DeltaPIndica
 import { cabinAltitudePulses, cabinVsPulses } from '../../../instruments/src/SD/Pages/Press/PressIndications';
 
 /*
- * The ECAM advisories of the A320 (FCOM a320_fcom.txt):
- * DSC-31-10 l.45558-45563 "INFORMATION ADVISORY: System parameters monitoring - Automatic call of the relevant system
- * page on the S/D. The affected parameter pulses green."
- * DSC-31-20 l.46122-46126 "Automatic, advisory: The relevant system page automatically appears, when a parameter drifts
- * out of its normal range. The value (shown in green) pulses, as long as it is outside its limits. The advisory mode is
- * inhibited in some flight phases."
- * PRO-ABN-ABN-ADV ECAM ADVISORY CONDITIONS l.66476-66780, in this order: APU (EGT > EGT MAX -33 C inhibited during the
- * APU start; FLAP OPEN; OIL QTY), CAB PR (V/S > 1 800 ft/min, CAB ALT >= 8 800 ft, delta P >= 1.5 PSI in phase 7), ELEC
- * (IDG OIL TEMP >= 147 C), ENG (oil pressure, oil temperature, oil quantity, nacelle temperature, vibrations), FUEL
- * (wing imbalance > 1 500 kg, fuel temperatures), OXY (CKPT OXY < 600 PSI).
+ * The ECAM advisories of the A320: when a system parameter drifts out of its normal range, the relevant system page is
+ * called on the SD and the value pulses green as long as it is out of its limits. Some advisories are inhibited in some
+ * flight phases. The advisory conditions, in this order: APU (EGT > EGT MAX -33 C inhibited during the APU start; FLAP
+ * OPEN; OIL QTY), CAB PR (V/S > 1 800 ft/min, CAB ALT >= 8 800 ft, delta P >= 1.5 PSI in phase 7), ELEC (IDG OIL TEMP
+ * >= 147 C), ENG (oil pressure, oil temperature, oil quantity, nacelle temperature, vibrations), FUEL (wing imbalance
+ * > 1 500 kg, fuel temperatures), OXY (CKPT OXY < 600 PSI).
  *
  * The conditions are those for which the SD pages pulse, with the same functions (EngOilIndications, EngVibration,
- * IdgIndications, DeltaPIndication, PressIndications), so that the page called shows the pulsing value. The FCOM gives no
- * flight phase list for the advisory mode as a whole: only the advisories that name their phases are inhibited.
+ * IdgIndications, DeltaPIndication, PressIndications), so that the page called shows the pulsing value. The aircraft has
+ * no flight phase list for the advisory mode as a whole: only the advisories that name their phases are inhibited.
  * Not done: APU OIL QTY (LOW OIL LEVEL) and the ENG nacelle temperature (no data), the fuel temperatures (no fuel
  * temperature model), CKPT OXY (the DOOR/OXY page does not pulse it).
  */
 
-/** l.60812: "Advisory if the flap is not fully closed 3 min after the MASTER sw has been turned OFF." */
+/** APU advisory: the flap is not fully closed 3 min after the MASTER sw has been turned OFF */
 export const APU_FLAP_OPEN_ADVISORY_SECONDS = 180;
 
-/** l.43246-43249 FUEL QUANTITY - ADVISORY: "in flight phases 2 and 6, when the difference between the fuel quantities in
- * the two wings is greater than 1 500 kg" (also PRO-ABN-ABN-ADV l.66592-66593) */
-export const FUEL_IMBALANCE_ADVISORY_KG = 1500;
+/** FUEL advisory: in flight phases 2 and 6, the difference between the fuel quantities in the two wings is above
+ * 1 500 kg */
+const FUEL_IMBALANCE_ADVISORY_KG = 1500;
 const FUEL_IMBALANCE_ADVISORY_PHASES = [2, 6];
 
 /** The parameters of one engine, as the ENGINE page reads them */
@@ -76,7 +72,7 @@ export interface SdAdvisoryInputs {
   apuMasterOn: boolean;
 }
 
-/** The order of the FCOM advisory list (PRO-ABN-ABN-ADV): the first page of a new advisory */
+/** The order of the advisory list: the first page of a new advisory */
 const PAGE_ORDER: readonly SdPages[] = [SdPages.APU, SdPages.PRESS, SdPages.ELEC, SdPages.ENG, SdPages.FUEL];
 
 /** The pulsing state of one engine's values (the SD page hystereses) */
@@ -137,7 +133,7 @@ export class SdAdvisoryMonitor {
    * @param inputs the monitored parameters
    * @param deltaSeconds the time since the previous update, s
    * @returns the advisory page, SdPages.NONE when no parameter is out of its normal range. The page called stays while
-   * its advisory lasts; else the first page of the FCOM list order.
+   * its advisory lasts; else the first page in the advisory list order.
    */
   update(inputs: SdAdvisoryInputs, deltaSeconds: number): SdPages {
     const pages = new Set<SdPages>();

@@ -4,17 +4,15 @@
 import { Arinc429WordData } from '@flybywiresim/fbw-sdk';
 
 /*
- * NAV ALTI DISCREPANCY (A320 FCOM PRO-ABN-NAV, a320_fcom.txt l.92693-92706) and the CHECK ALT message it sends to the
- * PFDs (FWC discrete word 124 bits 24/25; DSC-31-05-60 l.45413-45416): "the difference between the altitude displayed
- * on the CAPT and F/O PFDs is greater than:
- * - 500 ft, if STD BARO reference is selected
- * - 250 ft, if QNH or QFE BARO reference is selected."
+ * NAV ALTI DISCREPANCY and the CHECK ALT message it sends to the PFDs (FWC discrete word 124 bits 24/25): the altitudes
+ * displayed on the CAPT and F/O PFDs differ by more than 500 ft with the STD baro reference, or by more than 250 ft
+ * with the QNH or QFE baro reference.
  */
 
-/** l.92706: 250 ft with the QNH or QFE baro reference */
+/** With the QNH or QFE baro reference */
 export const ALTI_DISCREPANCY_BARO_REFERENCE_FT = 250;
 
-/** l.92705 (and DSC-31-05-60 l.45415-45416): 500 ft with the STD baro reference */
+/** With the STD baro reference */
 export const ALTI_DISCREPANCY_STD_REFERENCE_FT = 500;
 
 /** A word the FWC compares: normal operation or functional test */

@@ -33,7 +33,7 @@ describe('ENG 1(2) START FAULT', () => {
     expect(isStartFaultActive(EngineStartFault.NoLightUp, 6)).toBe(true);
     expect(isStartFaultActive(EngineStartFault.ThrustLeverNotAtIdle, 2)).toBe(true);
     expect(isStartFaultActive(EngineStartFault.ThrustLeverNotAtIdle, 6)).toBe(false);
-    // no starter time limit in the A320 FCOM
+    // the A320 has no starter time limit alert
     expect(isStartFaultActive(EngineStartFault.StarterTimeExceeded, 2)).toBe(false);
   });
 

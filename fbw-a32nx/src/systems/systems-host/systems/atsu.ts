@@ -48,7 +48,7 @@ export class AtsuSystem implements Instrument {
 
   private readonly powerSwitch: AtsuPowerSwitch;
 
-  /** The ATSU C/Bs L15 and L16 on 121VU (the ATSU reset of the FCOM, see AtsuFailureStates) */
+  /** The ATSU C/Bs L15 and L16 on 121VU (pulling them resets the ATSU, see AtsuFailureStates) */
   private readonly circuitBreakerVar = RegisteredSimVar.create<number>(ATSU_CIRCUIT_BREAKER_VAR, SimVarValueType.Enum);
 
   /** What the DCDU, its screens (model) and the MCDU read, see AtsuFailureStates.datalinkInterfaceStates */

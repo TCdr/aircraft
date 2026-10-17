@@ -12,13 +12,11 @@ import {
 import { FwcAlertItem, cautionItem } from './FwcAlertItem';
 
 /*
- * FUEL L (R) OUTER (INNER) TK HI TEMP and LO TEMP, A320 FCOM PRO-ABN-FUEL, on the fuel temperatures of the systems WASM
+ * FUEL L (R) OUTER (INNER) TK HI TEMP and LO TEMP, on the fuel temperatures of the systems WASM
  * (a320_systems fuel/fuel_temperature.rs) and the limits of shared/src/FuelTemperature.ts:
- * - HI TEMP (a320_fcom.txt l.85983-86047): the triggering conditions l.85994-85998, the procedure l.86023-86047. The
- *   procedure is applied "After 2 min, if the ECAM caution has not disappeared" (l.86020-86021): the lines are shown at
- *   once. Flight phase inhibition (FCOM PDF PRO-ABN-FUEL P 43/74, PDF page 5293): phases 3, 4, 5, 7 and 8.
- * - LO TEMP (l.86059-86082): "On the ground before takeoff: DELAY T.O", "In flight: Crew awareness". Flight phase
- *   inhibition (PDF P 47/74, PDF page 5297): phases 3, 4, 5, 7 and 8.
+ * - HI TEMP: the crew applies the procedure only if the caution is still there after 2 min; the lines are shown at
+ *   once. Inhibited in phases 3, 4, 5, 7 and 8.
+ * - LO TEMP: DELAY T.O on the ground before takeoff, crew awareness in flight. Inhibited in phases 3, 4, 5, 7 and 8.
  * Design choice: a dry sensor (a cell without fuel) gives no alert.
  */
 
@@ -59,23 +57,23 @@ export interface FuelTemperatureInputs {
 }
 
 /** The number of E/WD codes of HI TEMP (title included) */
-export const HI_TEMP_LINE_COUNT = 13;
+const HI_TEMP_LINE_COUNT = 13;
 
 /**
- * The lines of HI TEMP (l.86023-86047): 0 title, 1 -GALLEY OFF, 2 .ON GROUND:, 3 LIMITED TAXI TIME, 4 .IF TEMP ABV
+ * The lines of HI TEMP: 0 title, 1 -GALLEY OFF, 2 .ON GROUND:, 3 LIMITED TAXI TIME, 4 .IF TEMP ABV
  * 60 (54) DEG C:, 5 DELAY T.O., 6 -ENG n MASTER OFF, 7 .IN FLIGHT:, 8 -ENG n F.FLOW INCREASE, 9 .IF TEMP ABV 65 (57)
  * DEG C:, 10 -APU AS RQRD, 11 .IF GEN m AVAIL:, 12 -IDG n OFF. The part of the other flight condition is hidden, and
  * the ENG MASTER line once it is OFF.
  */
-export function highTemperatureLines(onGround: boolean, engineMasterOn: boolean): (number | null)[] {
+function highTemperatureLines(onGround: boolean, engineMasterOn: boolean): (number | null)[] {
   if (onGround) {
     return [0, 1, 2, 3, 4, 5, engineMasterOn ? 6 : null];
   }
   return [0, 1, 7, 8, 9, 10, 11, 12];
 }
 
-/** The lines of LO TEMP (l.86075-86081): 0 title, 1 DELAY T.O on the ground; the title alone in flight */
-export function lowTemperatureLines(onGround: boolean): (number | null)[] {
+/** The lines of LO TEMP: 0 title, 1 DELAY T.O on the ground; the title alone in flight */
+function lowTemperatureLines(onGround: boolean): (number | null)[] {
   return onGround ? [0, 1] : [0];
 }
 

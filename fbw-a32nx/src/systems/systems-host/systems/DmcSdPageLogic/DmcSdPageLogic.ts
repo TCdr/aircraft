@@ -46,7 +46,7 @@ export class DmcSdPageLogic {
 
   /*
    * The hardwired discretes of the ALL, STS and CLR pbs. Their contacts are wired directly to the DMCs, so they still
-   * work with the ECAM control panel failed (A320 FCOM DSC-31-30, a320_fcom.txt l.46834-46836; ALL pb l.46788-46793).
+   * work with the ECAM control panel failed.
    * The DMC reads each pb from its discrete or from the ECP word.
    */
   private readonly ecpAllDiscrete = ConsumerValue.create(this.sub.on('a32nx_ecp_discrete_out_all'), false);
@@ -89,7 +89,7 @@ export class DmcSdPageLogic {
 
   private readonly clearPulseNode = new NXLogicPulseNode(true);
 
-  /** The advisories: the system page with a parameter out of its normal range (FCOM DSC-31-20, see SdAdvisories) */
+  /** The advisories: the system page with a parameter out of its normal range (see SdAdvisories) */
   private readonly advisoryMonitor = new SdAdvisoryMonitor();
 
   /** The advisory page at the previous update (SdPages.NONE with one ECAM display), see sdAdvisoryAction */
@@ -308,12 +308,12 @@ export class DmcSdPageLogic {
 
     this.sdWarningOverridePulseNode.write(fwcSdPageRequest !== this.prevFwcRequestedSdPage);
 
-    // An empty STATUS page shows NORMAL for 3 s (A320 FCOM DSC-31-30 STS pb); the FWC says whether it is empty
+    // An empty STATUS page shows NORMAL for 3 s; the FWC says whether it is empty
     const stsNormal = SimVar.GetSimVarValue('L:A32NX_ECAM_STATUS_NORMAL', 'Bool') !== 0;
     this.stsPageNormalMtrig.write(systemPageButtonPressed === SdPages.STS && stsNormal, dt);
     this.stsPageNormalPulse.write(this.stsPageNormalMtrig.read());
 
-    // CLR removes the STATUS page called with the STS pb, once no alert is shown on the E/WD (A320 FCOM DSC-31-30)
+    // CLR removes the STATUS page called with the STS pb, once no alert is shown on the E/WD
     const clearPressed =
       this.ecpWarningSwitchWord.get().bitValueOr(11, false) ||
       this.ecpWarningSwitchWord.get().bitValueOr(16, false) ||
@@ -362,7 +362,7 @@ export class DmcSdPageLogic {
       this.selectedPage.set(fwcSdPageRequest);
       this.sdMode = SdMode.Warning;
     } else if (advisoryAction === SdAdvisoryAction.ShowAdvisoryPage) {
-      // DSC-31-20 l.46102-46103, l.46122-46123: the advisory page replaces the page shown
+      // the advisory page replaces the page shown, also a page the crew selected
       this.selectedPage.set(advisoryPage);
       this.sdMode = SdMode.Advisory;
     } else if (

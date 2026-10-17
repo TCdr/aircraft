@@ -24,9 +24,9 @@ const ewdLines = (side: 'LEFT' | 'RIGHT') => writtenEwdLines(writes, side);
 const IGNITION = '000007001';
 const ENG_A_ICE = '000026001';
 
-describe('A32NX IGNITION memo in cruise (A320 FCOM DSC-70-90-50)', () => {
-  // FCOM DSC-70-90-50: "IGNITION : This memo appears in green when continuous ignition is activated on any engine."
-  it('shows IGNITION on the right E/WD memo column while ENG 1 continuous ignition is on (sim test G3)', () => {
+describe('A32NX IGNITION memo in cruise', () => {
+  // The green IGNITION memo shows while continuous ignition is on for any engine
+  it('shows IGNITION on the right E/WD memo column while ENG 1 continuous ignition is on', () => {
     const { fwc, bus } = createFwc();
     setHealthyCruise(bus, simvars);
     run(fwc, 5);
@@ -71,10 +71,10 @@ describe('A32NX IGNITION memo in cruise (A320 FCOM DSC-70-90-50)', () => {
 });
 
 /*
- * CAB PR LDG ELEV FAULT through the real PseudoFWC (FCOM PRO-ABN-CAB_PR l.73186-73187; user decision 2026-10-15: only
- * when no FMGC sends its landing elevation word, not before a destination is entered). Raw words recorded in the sim.
+ * CAB PR LDG ELEV FAULT through the real PseudoFWC. Design choice: it shows only when no FMGC sends its landing
+ * elevation word, not while no destination is entered. Raw words recorded in the sim.
  */
-describe('A32NX CAB PR LDG ELEV FAULT on the E/WD (A320 FCOM PRO-ABN-CAB_PR)', () => {
+describe('A32NX CAB PR LDG ELEV FAULT on the E/WD', () => {
   const LDG_ELEV_FAULT_LINE = '213123601';
   const FMGC_NOT_STARTED = 0;
   const NO_DESTINATION = 4294967296;

@@ -38,7 +38,7 @@ function fly(segments: Segment[], callout = new IntermediateHeightCallout()) {
   return said;
 }
 
-describe('A320 intermediate callout (a320_fcom.txt l.53585-53594)', () => {
+describe('A320 intermediate callout', () => {
   it('above 50 ft: the present height 11 s after the last predetermined callout, then every 4 s', () => {
     const said = fly([
       { seconds: 0.125, height: 250, predetermined: true },

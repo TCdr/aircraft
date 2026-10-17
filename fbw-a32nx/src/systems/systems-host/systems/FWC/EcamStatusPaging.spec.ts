@@ -38,7 +38,7 @@ function pushStatus(paging: EcamStatusPaging, inputs: Partial<EcamStatusPagingIn
   return paging.update({ ...shown, ...inputs }, DT);
 }
 
-describe('A320 ECAM STATUS page overflow and paging (FCOM DSC-31-20 l.46196-46199, DSC-31-30 l.46772-46779)', () => {
+describe('A320 ECAM STATUS page overflow and paging', () => {
   it('scrolls to the next page on each CLR push, one page per push even though the FWC pulse lasts 0.5 s', () => {
     const paging = new EcamStatusPaging();
     expect(paging.update(shown, DT).pageIndex).toBe(0);

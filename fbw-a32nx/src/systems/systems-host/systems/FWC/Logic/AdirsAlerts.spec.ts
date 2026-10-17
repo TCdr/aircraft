@@ -60,7 +60,7 @@ function page(...alerts: StatusLines[]) {
 }
 
 describe('NAV ADR and IR fault alerts', () => {
-  it('gives one alert per number of faulty ADRs (FCOM l.91937, l.92021, l.92196)', () => {
+  it('gives one alert per number of faulty ADRs', () => {
     expect(adirsFaultAlerts([false, true, false], [false, false, false])).toEqual({
       adrFault: [false, true, false],
       adrDualFault: null,
@@ -75,7 +75,7 @@ describe('NAV ADR and IR fault alerts', () => {
     expect(triple.adrDualFault).toBeNull();
   });
 
-  it('gives one alert per number of faulty IRs and none for three (FCOM l.93316, l.93421)', () => {
+  it('gives one alert per number of faulty IRs and none for three', () => {
     expect(adirsFaultAlerts([false, false, false], [false, false, true]).irFault).toEqual([false, false, true]);
     expect(adirsFaultAlerts([false, false, false], [false, true, true]).irDualFault).toEqual([2, 3]);
     const allIrs = adirsFaultAlerts([false, false, false], [true, true, true]);
@@ -83,7 +83,7 @@ describe('NAV ADR and IR fault alerts', () => {
     expect(allIrs.irDualFault).toBeNull();
   });
 
-  it('shows the NAV ADR 1(2)(3) FAULT actions until they are done (FCOM l.91964-91990)', () => {
+  it('shows the NAV ADR 1(2)(3) FAULT actions until they are done', () => {
     const codes = AdirsEwdCodes.adrFault;
     expect(ewd(codes[1], adrFaultLines(1, AirDataSwitchingKnob.Norm, true))).toEqual([
       'NAV ADR 1 FAULT',
@@ -108,7 +108,7 @@ describe('NAV ADR and IR fault alerts', () => {
     ]);
   });
 
-  it('shows the NAV ADR 1+2(1+3)(2+3) FAULT actions of the faulty pair (FCOM l.92049-92080)', () => {
+  it('shows the NAV ADR 1+2(1+3)(2+3) FAULT actions of the faulty pair', () => {
     const codes = AdirsEwdCodes.adrDualFault;
     expect(ewd(codes, adrDualFaultLines([1, 2], AirDataSwitchingKnob.Norm, [true, true, true], true, true))).toEqual([
       'NAV ADR 1+2 FAULT',
@@ -127,7 +127,7 @@ describe('NAV ADR and IR fault alerts', () => {
     ).toEqual(['NAV ADR 2+3 FAULT', '-ATC/XPDR.........SYS 1']);
   });
 
-  it('shows the NAV ADR 1+2+3 FAULT procedure (FCOM l.92222-92240)', () => {
+  it('shows the NAV ADR 1+2+3 FAULT procedure', () => {
     expect(ewd(AdirsEwdCodes.adrTripleFault, adrTripleFaultLines(true, true, false, true))).toEqual([
       'NAV ADR 1+2+3 FAULT',
       '-AP+FD..............OFF',
@@ -146,7 +146,7 @@ describe('NAV ADR and IR fault alerts', () => {
     ]);
   });
 
-  it('shows the NAV IR 1(2)(3) FAULT actions, none for IR 3 (FCOM l.93343-93354)', () => {
+  it('shows the NAV IR 1(2)(3) FAULT actions, none for IR 3', () => {
     const codes = AdirsEwdCodes.irFault;
     expect(ewd(codes[1], irFaultLines(1, AttHdgSwitchingKnob.Norm, true))).toEqual([
       'NAV IR 1 FAULT',
@@ -157,7 +157,7 @@ describe('NAV ADR and IR fault alerts', () => {
     expect(ewd(codes[3], irFaultLines(3, AttHdgSwitchingKnob.Capt, true))).toEqual(['NAV IR 3 FAULT']);
   });
 
-  it('shows the NAV IR 1+2(1+3)(2+3) FAULT ATT HDG action (FCOM l.93444-93451)', () => {
+  it('shows the NAV IR 1+2(1+3)(2+3) FAULT ATT HDG action', () => {
     const codes = AdirsEwdCodes.irDualFault;
     expect(ewd(codes, irDualFaultLines([1, 2], AttHdgSwitchingKnob.Norm))).toEqual([
       'NAV IR 1+2 FAULT',
@@ -170,7 +170,7 @@ describe('NAV ADR and IR fault alerts', () => {
     expect(ewd(codes, irDualFaultLines([2, 3], AttHdgSwitchingKnob.Norm))).toEqual(['NAV IR 2+3 FAULT']);
   });
 
-  it('inhibits the alert of the unit 3 in phase 3 only while it is not in use (FCOM l.91941, l.93320)', () => {
+  it('inhibits the alert of the unit 3 in phase 3 only while it is not in use', () => {
     expect(unit3AlertInhibitedInPhase3(3, false)).toBe(true);
     expect(unit3AlertInhibitedInPhase3(3, true)).toBe(false);
     expect(unit3AlertInhibitedInPhase3(6, false)).toBe(false);
@@ -206,7 +206,7 @@ describe('NAV ADR and IR STATUS', () => {
     }
   });
 
-  it('gives the ADR 1 FAULT STATUS (FCOM l.91996-91999)', () => {
+  it('gives the ADR 1 FAULT STATUS', () => {
     expect(page(adrFaultStatus(1))).toEqual({
       left: ['CAT 3 SINGLE ONLY'],
       right: ['INOP SYS', 'CAT 3 DUAL', 'ADR 1', 'GPWS'],
@@ -214,7 +214,7 @@ describe('NAV ADR and IR STATUS', () => {
     expect(page(adrFaultStatus(3)).right).toEqual(['INOP SYS', 'CAT 3 DUAL', 'ADR 3']);
   });
 
-  it('gives the ADR 1+3 FAULT STATUS (FCOM l.92131-92183)', () => {
+  it('gives the ADR 1+3 FAULT STATUS', () => {
     const status = page(adrDualFaultStatus([1, 3]));
     expect(status.left).toEqual([
       'APPR PROC:',
@@ -233,7 +233,7 @@ describe('NAV ADR and IR STATUS', () => {
     expect(page(adrDualFaultStatus([1, 2])).left).not.toContain('BOTH PFD ON SAME FAC');
   });
 
-  it('gives the ADR 1+2+3 FAULT STATUS (FCOM l.92272-92297)', () => {
+  it('gives the ADR 1+2+3 FAULT STATUS', () => {
     const status = page(adrTripleFaultStatus());
     expect(status.left).toEqual([
       'STBY INST..MAY BE UNREL',
@@ -246,7 +246,7 @@ describe('NAV ADR and IR STATUS', () => {
     );
   });
 
-  it('gives the IR 1 FAULT and IR 2+3 FAULT STATUS (FCOM l.93374-93389, l.93487-93521)', () => {
+  it('gives the IR 1 FAULT and IR 2+3 FAULT STATUS', () => {
     const ir1 = page(irFaultStatus(1));
     expect(ir1.left).toEqual(['CAT 3 SINGLE ONLY', 'IR MAY BE AVAIL IN ATT']);
     expect(ir1.right).toEqual(expect.arrayContaining(['IR 1', 'CAT 3 DUAL', 'GPWS TERR', 'TCAS', 'ATC/XPDR 1']));
@@ -256,7 +256,7 @@ describe('NAV ADR and IR STATUS', () => {
     expect(ir23.right).not.toContain('GPWS TERR');
   });
 
-  it('gives the DISAGREE STATUS without the law lines of F/CTL ALTN LAW (FCOM l.92506-92527, l.93609-93624)', () => {
+  it('gives the DISAGREE STATUS without the law lines of F/CTL ALTN LAW', () => {
     expect(page(adrDisagreeStatus()).left).toEqual([
       'APPR PROC:',
       'FOR LDG......USE FLAP 3',
@@ -269,7 +269,7 @@ describe('NAV ADR and IR STATUS', () => {
     expect(page(irDisagreeStatus()).left).not.toContain('ALTN LAW: PROT LOST');
   });
 
-  it('gives the RA 1(2) FAULT and RA 1 AND 2 FAULT STATUS (FCOM l.93789-93840)', () => {
+  it('gives the RA 1(2) FAULT and RA 1 AND 2 FAULT STATUS', () => {
     expect(page(raFaultStatus(2))).toEqual({ left: ['CAT 2 ONLY'], right: ['INOP SYS', 'RA 2', 'CAT 3'] });
     const dual = page(ra1And2FaultStatus());
     expect(dual.left).toEqual(expect.arrayContaining(['WHEN L/G DN: DIRECT LAW', 'APPR SPD.....VREF+10 KT']));
@@ -280,12 +280,12 @@ describe('NAV ADR and IR STATUS', () => {
 });
 
 describe('NAV RA alerts', () => {
-  it('replaces the two RA 1(2) FAULT alerts with RA 1 AND 2 FAULT (FCOM l.93763, l.93829)', () => {
+  it('replaces the two RA 1(2) FAULT alerts with RA 1 AND 2 FAULT', () => {
     expect(raFaultAlerts(true, false)).toEqual({ ra1Fault: true, ra2Fault: false, ra1And2Fault: false });
     expect(raFaultAlerts(true, true)).toEqual({ ra1Fault: false, ra2Fault: false, ra1And2Fault: true });
   });
 
-  it('finds the RA heights significantly different (FCOM l.93862)', () => {
+  it('finds the RA heights significantly different', () => {
     // An RA with direct coupling reads about 0 ft (systems ala52b.rs)
     expect(radioAltitudesDisagree(1500, -6)).toBe(true);
     expect(radioAltitudesDisagree(1500, 1420)).toBe(false);
@@ -308,7 +308,7 @@ describe('NAV ADR DISAGREE and IR DISAGREE monitoring', () => {
     expect(remainingSourcesDisagree([250, null, null], 16)).toBe(false);
   });
 
-  it('triggers ADR DISAGREE when an ADR is faulty and the two others differ (FCOM l.92448-92450)', () => {
+  it('triggers ADR DISAGREE when an ADR is faulty and the two others differ', () => {
     // ADR 3 faulty, ADR 1 airspeed erroneous (40 kt low, systems adirs.rs)
     expect(adrDisagreement([adr(210, 4), adr(250, 4), adr(null, null)], false)).toEqual({
       speed: true,
@@ -327,7 +327,7 @@ describe('NAV ADR DISAGREE and IR DISAGREE monitoring', () => {
     });
   });
 
-  it('triggers IR DISAGREE when an IR is failed and the two others differ (FCOM l.93543-93544)', () => {
+  it('triggers IR DISAGREE when an IR is failed and the two others differ', () => {
     const ir = (failed: boolean, heading: number | null) => ({ failed, pitch: 2, roll: 0, heading });
     // IR 3 failed, IR 1 heading erroneous (10 deg, systems adirs.rs)
     expect(irDisagree([ir(false, 110), ir(false, 100), ir(true, null)])).toBe(true);
@@ -376,8 +376,8 @@ describe('NAV ADR and IR alert inputs', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-NAV NAV ALTI DISCREPANCY (l.92693); DSC-34-NAV-10-20 MEMO DISPLAY (l.52686-52697): "IRS IN ALIGN X MN"
-   (green, pulsing green when one IRS alignment is faulty, amber once an engine is started). */
+/* The IRS IN ALIGN X MN memo is green, pulsing green when one IRS alignment is faulty, amber once an engine is
+   started. */
 describe('NAV titles and IRS memo texts', () => {
   // eslint-disable-next-line no-control-regex
   const plain = (texts: string[]) => texts.map((text) => text.replace(/\x1b<\dm|\x1b\)m|\x1bm|\x1b4m/g, ''));

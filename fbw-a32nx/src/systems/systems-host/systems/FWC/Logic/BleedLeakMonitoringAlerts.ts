@@ -1,41 +1,35 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { Subject, Subscribable } from '@microsoft/msfs-sdk';
+import { Subject } from '@microsoft/msfs-sdk';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { StatusLines } from './CondStatus';
+import { FwcAlertItem, cautionItem, readBool } from './FwcAlertItem';
 
 /*
- * The bleed leak, leak detection, HP valve and bleed monitoring cautions of the A320 (FCOM PRO-ABN-AIR and
- * PRO-ABN-BLEED, a320_fcom.txt), from the detections of the Rust BMCs (a320_systems/src/pneumatic.rs,
- * docs/a320-simvars.md "Pneumatic"):
- * - AIR L(R) WING LEAK and AIR ENG 1(2) BLEED LEAK, l.70681-70736 (PDF page 4365)
- * - AIR APU BLEED LEAK, l.69546-69574 (page 4319)
- * - AIR ENG 1(2) LEAK DET FAULT l.70607-70631 (page 4362), AIR L(R) WNG LEAK DET FAULT l.70738-70775 (page 4368),
- *   AIR APU LEAK DET FAULT l.69637-69674 (page 4321)
- * - AIR ENG 1(2) HP VALVE FAULT, l.70575-70595 (page 4361)
- * - BLEED MONIT SYS 1(2) FAULT l.72180-72204 (page 4444), BLEED MONITORING FAULT l.72144-72168 (page 4443)
- * All are amber cautions (level 2, amber titles on the PDF pages) that call the BLEED page. The flight phase
- * inhibitions are the figures of the PDF pages.
+ * The bleed leak, leak detection, HP valve and bleed monitoring cautions of the A320, from the detections of the Rust
+ * BMCs (a320_systems/src/pneumatic.rs, docs/a320-simvars.md "Pneumatic"):
+ * - AIR L(R) WING LEAK and AIR ENG 1(2) BLEED LEAK
+ * - AIR APU BLEED LEAK
+ * - AIR ENG 1(2) LEAK DET FAULT, AIR L(R) WNG LEAK DET FAULT, AIR APU LEAK DET FAULT
+ * - AIR ENG 1(2) HP VALVE FAULT
+ * - BLEED MONIT SYS 1(2) FAULT, BLEED MONITORING FAULT
+ * All are amber cautions (level 2) that call the BLEED page.
  *
- * Not modelled: AIR APU BLEED LEAK / APU LEAK FED BY ENG (l.69586-69635; the Rust APU duct leak only blows APU air).
+ * Not modelled: AIR APU BLEED LEAK / APU LEAK FED BY ENG (the Rust APU duct leak only blows APU air).
  * The other bleed cautions (BLEED FAULT and its BLEED NOT CLOSED subtitle, ENG 1+2 BLEED FAULT and its LEFT/RIGHT LEAK
  * subtitles, LO TEMP, HI TEMP, NOT CLSD, BLEED OFF, APU BLEED FAULT, X BLEED FAULT) are in FWC/Logic/BleedAlerts.
  */
 
-/** Flight phase inhibition figures (FCOM PDF PRO-ABN-AIR / PRO-ABN-BLEED). The A320 FWC phases are 1 to 10. */
+/** Flight phase inhibitions. The A320 FWC phases are 1 to 10. */
 export const BleedLeakMonitoringPhaseInhibition = {
-  /** L(R) WING LEAK, ENG 1(2) BLEED LEAK (page 4365), APU BLEED LEAK (page 4319) */
+  /** L(R) WING LEAK, ENG 1(2) BLEED LEAK, APU BLEED LEAK */
   leak: [3, 4, 5, 7, 8],
-  /** ENG 1(2) LEAK DET FAULT (page 4362), L(R) WNG LEAK DET FAULT (page 4368) */
+  /** ENG 1(2) LEAK DET FAULT, L(R) WNG LEAK DET FAULT */
   engineOrWingLeakDetectionFault: [3, 4, 5, 6, 7, 8],
-  /** APU LEAK DET FAULT (page 4321) */
   apuLeakDetectionFault: [3, 4, 5, 7, 8],
-  /** ENG 1(2) HP VALVE FAULT (page 4361) */
   hpValveFault: [3, 4, 5, 7, 8],
-  /** BLEED MONIT SYS 1(2) FAULT (page 4444) */
   bleedMonitoringSystemFault: [3, 4, 5, 6, 7, 8],
-  /** BLEED MONITORING FAULT (page 4443) */
   bleedMonitoringFault: [3, 4, 5, 7, 8],
 };
 
@@ -93,13 +87,12 @@ export interface BleedLeakMonitoringStates {
 
 /**
  * The cautions from the inputs:
- * - "The AIR L(R) WING LEAK alert triggers when both wing bleed leak detection loops detect a temperature above
- *   124 °C. The AIR ENG 1(2) BLEED LEAK alert triggers when the pylon bleed leak detection loop detects a temperature
- *   above 204 °C and engine 1(2) is running" (l.70691-70694);
- * - "This alert triggers when the APU bleed leak detection loop detects a temperature above 124 °C" (l.69556-69557);
- * - the LEAK DET FAULT alerts, "loop is inoperative" (l.69647, l.70617, l.70748);
- * - "This alert triggers when the HP valve is abnormally closed" (l.70585);
- * - "This alert triggers when the BMC 1(2) is failed" (l.72190), "when both BMC are failed" (l.72154). Design choice:
+ * - L(R) WING LEAK: both wing bleed leak detection loops detect a temperature above 124 °C; ENG 1(2) BLEED LEAK: the
+ *   pylon bleed leak detection loop detects a temperature above 204 °C and engine 1(2) is running;
+ * - APU BLEED LEAK: the APU bleed leak detection loop detects a temperature above 124 °C;
+ * - the LEAK DET FAULT alerts: the loop is inoperative;
+ * - HP VALVE FAULT: the HP valve is abnormally closed;
+ * - BLEED MONIT SYS 1(2) FAULT: BMC 1(2) is failed; BLEED MONITORING FAULT: both BMCs are failed. Design choice:
  *   BLEED MONITORING FAULT replaces the two MONIT SYS FAULT cautions, as ENG 1+2 BLEED FAULT replaces the single ones.
  */
 export function bleedLeakMonitoringStates(inputs: BleedLeakMonitoringInputs): BleedLeakMonitoringStates {
@@ -118,12 +111,11 @@ export function bleedLeakMonitoringStates(inputs: BleedLeakMonitoringInputs): Bl
 }
 
 /**
- * L(R) WING LEAK and ENG 1(2) BLEED LEAK, l.70700-70710: 0 title, 1 -ENG n BLEED OFF, 2 -APU BLEED OFF, 3 -X BLEED SHUT,
+ * L(R) WING LEAK and ENG 1(2) BLEED LEAK: 0 title, 1 -ENG n BLEED OFF, 2 -APU BLEED OFF, 3 -X BLEED SHUT,
  * 4 -WING ANTI ICE OFF, 5 AVOID ICING CONDITIONS.
- * "ENG BLEED (AFFECTED, IF NOT AUTOMATICALLY CLOSED) OFF": shown while the pb-sw is ON and the bleed valve open;
- * "If AIR L WING LEAK or AIR ENG 1 BLEED LEAK: APU BLEED (IF NOT CLOSED) OFF": left side, while the pb-sw is ON and the
- * APU bleed valve open; "X BLEED (IF NOT CLOSED) SHUT": while the crossbleed valve is not closed; "WING ANTI-ICE OFF":
- * while the pb is ON. The lines of actions done go.
+ * ENG BLEED OFF: while the pb-sw is ON and the bleed valve open; APU BLEED OFF: left side only, while the pb-sw is ON
+ * and the APU bleed valve open; X BLEED SHUT: while the crossbleed valve is not closed; WING ANTI ICE OFF: while the pb
+ * is ON. The lines of actions done go.
  */
 export function leakLines(inputs: BleedLeakMonitoringInputs, side: BleedSide): number[] {
   const lines = [0];
@@ -143,7 +135,7 @@ export function leakLines(inputs: BleedLeakMonitoringInputs, side: BleedSide): n
   return lines;
 }
 
-/** APU BLEED LEAK, l.69563: 0 title, 1 -APU BLEED OFF ("APU BLEED (IF NOT CLOSED)": while the pb-sw is ON and the valve open) */
+/** APU BLEED LEAK: 0 title, 1 -APU BLEED OFF (while the pb-sw is ON and the valve open) */
 export function apuLeakLines(inputs: BleedLeakMonitoringInputs): number[] {
   return [0, ...(inputs.apuBleedPbOn && inputs.apuBleedValveOpen ? [1] : [])];
 }
@@ -177,7 +169,7 @@ const S = BleedLeakMonitoringStatusCodes;
 const bySide = <T>(side: BleedSide, left: T, right: T): T => (side === 0 ? left : right);
 
 /**
- * L(R) WING LEAK and ENG 1(2) BLEED LEAK STATUS, l.70728-70736: AVOID ICING CONDITIONS, IF SEVERE ICE ACCRETION: MIN SPD
+ * L(R) WING LEAK and ENG 1(2) BLEED LEAK STATUS: AVOID ICING CONDITIONS, IF SEVERE ICE ACCRETION: MIN SPD
  * VLS +10 / G DOT, MANEUVER WITH CARE, LDG DIST PROC APPLY; INOP SYS WING A.ICE, ENG 1(2) BLEED, PACK 1(2)
  */
 export function leakStatus(side: BleedSide): StatusLines {
@@ -187,13 +179,13 @@ export function leakStatus(side: BleedSide): StatusLines {
   };
 }
 
-/** APU BLEED LEAK STATUS, l.69574: INOP SYS APU BLEED */
-export function apuLeakStatus(): StatusLines {
+/** APU BLEED LEAK STATUS: INOP SYS APU BLEED */
+function apuLeakStatus(): StatusLines {
   return { left: [], inopSys: [S.apuBleed] };
 }
 
-/** ENG 1(2) LEAK DET FAULT (l.70631), L(R) WNG LEAK DET FAULT (l.70775), APU LEAK DET FAULT (l.69674): INOP SYS */
-export function leakDetectionFaultStatus(loop: 'eng1' | 'eng2' | 'leftWing' | 'rightWing' | 'apu'): StatusLines {
+/** ENG 1(2) LEAK DET FAULT, L(R) WNG LEAK DET FAULT, APU LEAK DET FAULT: INOP SYS */
+function leakDetectionFaultStatus(loop: 'eng1' | 'eng2' | 'leftWing' | 'rightWing' | 'apu'): StatusLines {
   const code = {
     eng1: S.eng1LeakDetection,
     eng2: S.eng2LeakDetection,
@@ -204,13 +196,13 @@ export function leakDetectionFaultStatus(loop: 'eng1' | 'eng2' | 'leftWing' | 'r
   return { left: [], inopSys: [code] };
 }
 
-/** ENG 1(2) HP VALVE FAULT STATUS, l.70595: AIR PRESS LOW AT IDLE (green on the PDF page 4361) */
-export function hpValveFaultStatus(): StatusLines {
+/** ENG 1(2) HP VALVE FAULT STATUS: AIR PRESS LOW AT IDLE (green) */
+function hpValveFaultStatus(): StatusLines {
   return { left: [S.airPressLowAtIdle], inopSys: [] };
 }
 
-/** BLEED MONIT SYS 1(2) FAULT (l.72204) and BLEED MONITORING FAULT (l.72168) STATUS: INOP SYS BMC 1(2), BMC 1 + 2 */
-export function bmcFaultStatus(bmc: 1 | 2 | 'both'): StatusLines {
+/** BLEED MONIT SYS 1(2) FAULT and BLEED MONITORING FAULT STATUS: INOP SYS BMC 1(2), BMC 1 + 2 */
+function bmcFaultStatus(bmc: 1 | 2 | 'both'): StatusLines {
   return { left: [], inopSys: [bmc === 'both' ? S.bmc1And2 : bmc === 1 ? S.bmc1 : S.bmc2] };
 }
 
@@ -253,28 +245,6 @@ export const BleedLeakMonitoringLineCounts: Record<string, number> = {
   [K.bleedMonitoringSystem2Fault]: 1,
   [K.bleedMonitoringFault]: 1,
 };
-
-/** The E/WD codes of an alert: its 7-digit key followed by the line number, 01 for the title */
-export function alertCodes(key: string): string[] {
-  return Array.from(
-    { length: BleedLeakMonitoringLineCounts[key] },
-    (_, i) => `${key}${(i + 1).toString().padStart(2, '0')}`,
-  );
-}
-
-/** An E/WD alert, in the form of the PseudoFWC ewdMessageFailures items */
-export interface BleedLeakMonitoringEwdAlert {
-  flightPhaseInhib: number[];
-  simVarIsActive: Subscribable<boolean>;
-  whichCodeToReturn: () => (number | null)[];
-  codesToReturn: string[];
-  memoInhibit: () => boolean;
-  failure: number;
-  sysPage: EcamSysPage;
-  side: 'LEFT';
-  inopSys: () => string[];
-  statusInfo: () => string[];
-}
 
 /** The inputs of a cold and dark aircraft, before the first update */
 export const NO_BLEED_LEAK_MONITORING_INPUTS: BleedLeakMonitoringInputs = {
@@ -340,26 +310,23 @@ export class BleedLeakMonitoringAlerts {
     flightPhaseInhib: number[],
     lines: () => number[],
     status: () => StatusLines,
-  ): BleedLeakMonitoringEwdAlert {
-    return {
+  ): FwcAlertItem {
+    return cautionItem(
+      key,
+      BleedLeakMonitoringLineCounts[key],
+      this.active[key],
       flightPhaseInhib,
-      simVarIsActive: this.active[key],
-      whichCodeToReturn: lines,
-      codesToReturn: alertCodes(key),
-      memoInhibit: () => false,
-      failure: 2,
-      sysPage: EcamSysPage.BLEED,
-      side: 'LEFT',
-      inopSys: () => status().inopSys,
-      statusInfo: () => status().left,
-    };
+      lines,
+      EcamSysPage.BLEED,
+      status,
+    );
   }
 
   /** The alert items, by key, for the PseudoFWC ewdMessageFailures */
-  public readonly ewdFailures: Record<string, BleedLeakMonitoringEwdAlert> = (() => {
+  public readonly ewdFailures: Record<string, FwcAlertItem> = (() => {
     const P = BleedLeakMonitoringPhaseInhibition;
     const title = () => [0];
-    const items: Record<string, BleedLeakMonitoringEwdAlert> = {};
+    const items: Record<string, FwcAlertItem> = {};
     for (const side of [0, 1] as const) {
       items[bySide(side, K.leftWingLeak, K.rightWingLeak)] = this.item(
         bySide(side, K.leftWingLeak, K.rightWingLeak),
@@ -410,8 +377,6 @@ export class BleedLeakMonitoringAlerts {
 }
 
 /* Acquisition (not unit tested: SimVar reads only) */
-
-const readBool = (name: string): boolean => SimVar.GetSimVarValue(name, 'bool') > 0;
 
 const perEngine = (name: (engineNumber: 1 | 2) => string): [boolean, boolean] => [readBool(name(1)), readBool(name(2))];
 

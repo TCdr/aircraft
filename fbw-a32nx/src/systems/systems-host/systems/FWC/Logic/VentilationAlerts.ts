@@ -7,60 +7,51 @@ import { A320Failure } from '@failures';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { CabPrStatusCodes } from './AirConditioningAlerts';
 import { CondStatusCodes, StatusLines } from './CondStatus';
-import { FwcAlertItem, cautionItem } from './FwcAlertItem';
+import { FwcAlertItem, awarenessItem, cautionItem } from './FwcAlertItem';
 
 /*
- * The avionics and AFT cargo ventilation alerts of the A320 FWC (A320 FCOM, a320_fcom.txt; the title colours and the
- * flight phase inhibition figures are images, read on the FCOM PDF "A320 Neo FCOM_1.pdf", page given at each one):
- * - VENT AVNCS SYS FAULT (PRO-ABN-VENT l.96069-96092, PDF p.5825): "The power up test is not satisfactory, or the AEVC
- *   is not supplied, or the valve position disagrees with the commanded position"; crew awareness; STATUS INOP SYS
- *   AVNCS VENT (VENT BLOWER and VENT EXTRACT only "If AEVC not supplied").
- * - VENT BLOWER FAULT (l.96104-96135, PDF p.5826): "the blowing pressure is low or there is a duct overheat"; If NO DC
- *   ESS BUS FAULT: BLOWER OVRD; If DC ESS BUS FAULT: LAND ASAP; STATUS INOP SYS VENT BLOWER.
- * - VENT EXTRACT FAULT (l.96148-96174, PDF p.5827): "the extract pressure is low"; EXTRACT OVRD; STATUS INOP SYS VENT
- *   EXTRACT.
- * - VENT SKIN VALVE FAULT (l.96187-96258, PDF p.5828-5829, the standard of MSN 05829-09063): "The extract valve is fully
- *   open in phase 3, or the extract valve is fully open in flight, or the inlet valve is not fully closed in flight".
- *   Inlet valve: crew awareness. Extract valve: BLOWER OVRD, EXTRACT OVRD, IF UNSUCCESSFUL: MAX FL 100/MEA-MORA, CAB PR
- *   MODE SEL MAN, MAN V/S CTL FULL UP. STATUS (PDF p.5829): MAX FL 100/MEA-MORA, MAN CAB PR CTL, TGT V/S CLIMB 500 / DESC
- *   300 FT/MIN, the A/C FL - CAB ALT TGT table; INOP SYS AVNCS VALVE.
- * - AIR AFT CRG VENT FAULT (PRO-ABN-AIR l.70643-70667, PDF p.4364): "the aft cargo ventilation fan is failed"; crew
- *   awareness; STATUS INOP SYS AFT CRG VENT (the AFT CRG HEAT line is left out: the FBW A320 has no cargo heating).
- * - COND AFT CRG ISOL VALVE (PRO-ABN-COND l.74019-74042, PDF p.4507): "the aft cargo isolation valve disagrees with the
- *   selected position"; crew awareness; STATUS INOP SYS AFT CRG VENT.
+ * The avionics and AFT cargo ventilation alerts of the A320 FWC:
+ * - VENT AVNCS SYS FAULT: the power up test is not satisfactory, or the AEVC is not supplied, or the valve position
+ *   disagrees with the commanded position; crew awareness; STATUS INOP SYS AVNCS VENT (VENT BLOWER and VENT EXTRACT
+ *   only with the AEVC not supplied).
+ * - VENT BLOWER FAULT: the blowing pressure is low or there is a duct overheat; without DC ESS BUS FAULT: BLOWER OVRD;
+ *   with DC ESS BUS FAULT: LAND ASAP; STATUS INOP SYS VENT BLOWER.
+ * - VENT EXTRACT FAULT: the extract pressure is low; EXTRACT OVRD; STATUS INOP SYS VENT EXTRACT.
+ * - VENT SKIN VALVE FAULT (the standard of MSN 05829-09063): the extract valve is fully open in phase 3 or in flight,
+ *   or the inlet valve is not fully closed in flight. Inlet valve: crew awareness. Extract valve: BLOWER OVRD, EXTRACT
+ *   OVRD, IF UNSUCCESSFUL: MAX FL 100/MEA-MORA, CAB PR MODE SEL MAN, MAN V/S CTL FULL UP. STATUS: MAX FL 100/MEA-MORA,
+ *   MAN CAB PR CTL, TGT V/S CLIMB 500 / DESC 300 FT/MIN, the A/C FL - CAB ALT TGT table; INOP SYS AVNCS VALVE.
+ * - AIR AFT CRG VENT FAULT: the aft cargo ventilation fan is failed; crew awareness; STATUS INOP SYS AFT CRG VENT (the
+ *   AFT CRG HEAT line is left out: the FBW A320 has no cargo heating).
+ * - COND AFT CRG ISOL VALVE: the aft cargo isolation valve disagrees with the selected position; crew awareness;
+ *   STATUS INOP SYS AFT CRG VENT.
  *
- * The A32NX has no avionics ventilation model and no aft cargo extraction fan (FCOM gap rows 21 #25, #26, #29): those
- * alerts are fed by flyPad failures (A320Failure 21020-21025) that stand for the conditions the AEVC and the cargo
+ * The A32NX has no avionics ventilation model and no aft cargo extraction fan: those alerts are fed by flyPad
+ * failures (A320Failure 21020-21025) that stand for the conditions the AEVC and the cargo
  * ventilation controller monitor. The aft cargo isolation valves are modelled by systems.wasm (a320_systems
  * cargo_ventilation.rs, with the AFT ISOL VALVE pb-sw and the flyPad failure 21026 valves stuck closed): COND AFT CRG
- * ISOL VALVE reads its valve disagreement, the same signal as the FAULT light of the pb-sw. Not simulated: the "AEVC
- * not supplied" case (the FCOM gives no supply bus) and the valve disagree case of VENT AVNCS SYS FAULT, the duct
- * overheat of VENT BLOWER FAULT, the FAULT lights of the BLOWER and EXTRACT pbs (row #26).
+ * ISOL VALVE reads its valve disagreement, the same signal as the FAULT light of the pb-sw. Not simulated: the AEVC
+ * not supplied case (no supply bus is documented) and the valve disagree case of VENT AVNCS SYS FAULT, the duct
+ * overheat of VENT BLOWER FAULT, the FAULT lights of the BLOWER and EXTRACT pbs.
  *
  * Design choices:
- * - The isolation valves are commanded open with the AFT ISOL VALVE pb-sw in AUTO and no AFT cargo smoke
- *   (DSC-21-40-20 l.9711-9716: "The controller closes the isolation valves and stops the extraction fan when the flight
- *   crew sets the AFT ISOL VALVE pb-sw to OFF, or the aft cargo smoke detection unit detects smoke"). The extraction fan
- *   runs only with the valves fully open (l.9711-9712), so a failed fan is only detected then.
+ * - The isolation valves are commanded open with the AFT ISOL VALVE pb-sw in AUTO and no AFT cargo smoke (the
+ *   controller closes the valves and stops the extraction fan with the pb-sw OFF or smoke detected). The extraction
+ *   fan runs only with the valves fully open, so a failed fan is only detected then.
  * - A stuck valve does not close on the BLOWER and EXTRACT OVRD closure signals: once both pbs are at OVRD the IF
  *   UNSUCCESSFUL part of VENT SKIN VALVE FAULT is shown. The extract case is a caution with a procedure (level 2), the
  *   inlet only case is crew awareness (level 1): two items with the same title.
- * - Crew awareness alerts without procedure are level 1 (FCOM DSC-31 l.45551-45556), the others level 2.
+ * - Crew awareness alerts without procedure are level 1, the others level 2.
  */
 
-/** The flight phase inhibitions, from the figures of the FCOM PDF ("A320 Neo FCOM_1.pdf") */
-export const VENTILATION_PHASE_INHIBITION = {
-  /** VENT AVNCS SYS FAULT, page 5825 */
+/** The flight phase inhibitions */
+const VENTILATION_PHASE_INHIBITION = {
   avncsSysFault: [3, 4, 5, 6, 7, 8, 9],
-  /** VENT BLOWER FAULT, page 5826 */
   blowerFault: [3, 4, 5, 7, 8],
-  /** VENT EXTRACT FAULT, page 5827 */
   extractFault: [3, 4, 5, 7, 8],
-  /** VENT SKIN VALVE FAULT, page 5828 (phase 3 is not inhibited: the extract valve "fully open in phase 3") */
+  /** Phase 3 is not inhibited: the alert covers the extract valve fully open in phase 3 */
   skinValveFault: [4, 5, 7, 8],
-  /** AIR AFT CRG VENT FAULT, page 4364 */
   aftCargoVentFault: [3, 4, 5, 7, 8],
-  /** COND AFT CRG ISOL VALVE, page 4507 */
   aftCargoIsolValve: [3, 4, 5, 7, 8],
 };
 
@@ -76,7 +67,7 @@ export const AIR_AFT_CRG_VENT_FAULT_KEY = '2150010';
 export const COND_AFT_CRG_ISOL_VALVE_KEY = '2150020';
 
 /** STATUS INOP SYS codes (StatusMessages) */
-export const VentilationStatusCodes = {
+const VentilationStatusCodes = {
   avncsVent: '210300014',
   ventBlower: '210300015',
   ventExtract: '210300016',
@@ -135,7 +126,7 @@ export function aftCargoIsolValvesCommandedOpen(inputs: VentilationAlertInputs):
 /** Which ventilation alerts are triggered */
 export function ventilationAlerts(inputs: VentilationAlertInputs): VentilationAlertStates {
   const inFlight = !inputs.onGround;
-  // "The extract valve is fully open in phase 3, or ... in flight", "the inlet valve is not fully closed in flight"
+  // The extract valve is fully open in phase 3 or in flight; the inlet valve is not fully closed in flight
   const extractValveOpenFault = inputs.skinExtractValveStuckOpen && (inputs.flightPhase === 3 || inFlight);
   const inletValveOpenFault = inputs.skinInletValveStuckOpen && inFlight;
   const isolValvesFullyOpen = aftCargoIsolValvesCommandedOpen(inputs) && inputs.aftCargoIsolValvesOpen;
@@ -183,14 +174,14 @@ export function skinValveFaultExtractLines(inputs: VentilationAlertInputs, press
 }
 
 /** The STATUS lines */
-export const ventilationStatus = {
+const ventilationStatus = {
   /** VENT AVNCS SYS FAULT: INOP SYS AVNCS VENT (the AEVC is supplied: no VENT BLOWER and VENT EXTRACT) */
   avncsSysFault: (): StatusLines => ({ left: [], inopSys: [S.avncsVent] }),
   /** VENT BLOWER FAULT: INOP SYS VENT BLOWER */
   blowerFault: (): StatusLines => ({ left: [], inopSys: [S.ventBlower] }),
   /** VENT EXTRACT FAULT: INOP SYS VENT EXTRACT */
   extractFault: (): StatusLines => ({ left: [], inopSys: [S.ventExtract] }),
-  /** VENT SKIN VALVE FAULT, extract valve (PDF p.5829): MAX FL, the manual pressurization schedule, AVNCS VALVE */
+  /** VENT SKIN VALVE FAULT, extract valve: MAX FL, the manual pressurization schedule, AVNCS VALVE */
   skinValveFaultExtract: (): StatusLines => ({
     left: [
       CondStatusCodes.maxFl100,
@@ -207,20 +198,6 @@ export const ventilationStatus = {
   /** AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE: INOP SYS AFT CRG VENT */
   aftCargoVent: (): StatusLines => ({ left: [], inopSys: [S.aftCrgVent] }),
 };
-
-/** A level 1 caution (crew awareness): amber, no MASTER CAUTION, no aural, no SD page (FCOM l.45551-45556) */
-function awarenessItem(
-  key: string,
-  lineCount: number,
-  active: Subject<boolean>,
-  flightPhaseInhib: number[],
-  status: () => StatusLines,
-): FwcAlertItem {
-  return {
-    ...cautionItem(key, lineCount, active, flightPhaseInhib, () => [0], EcamSysPage.NONE, status),
-    failure: 1,
-  };
-}
 
 /** The part of the failures consumer the alerts use */
 export type VentilationFailuresSource = Pick<FailuresConsumer, 'register' | 'update' | 'isActive'>;
@@ -309,6 +286,7 @@ export class VentilationAlerts {
       1,
       this.active.avncsSysFault,
       VENTILATION_PHASE_INHIBITION.avncsSysFault,
+      () => [0],
       ventilationStatus.avncsSysFault,
     ),
     [VENT_BLOWER_FAULT_KEY]: cautionItem(
@@ -343,6 +321,7 @@ export class VentilationAlerts {
       1,
       this.active.skinValveFaultInlet,
       VENTILATION_PHASE_INHIBITION.skinValveFault,
+      () => [0],
       ventilationStatus.skinValveFaultInlet,
     ),
     [AIR_AFT_CRG_VENT_FAULT_KEY]: awarenessItem(
@@ -350,6 +329,7 @@ export class VentilationAlerts {
       1,
       this.active.aftCargoVentFault,
       VENTILATION_PHASE_INHIBITION.aftCargoVentFault,
+      () => [0],
       ventilationStatus.aftCargoVent,
     ),
     [COND_AFT_CRG_ISOL_VALVE_KEY]: awarenessItem(
@@ -357,6 +337,7 @@ export class VentilationAlerts {
       1,
       this.active.aftCargoIsolValve,
       VENTILATION_PHASE_INHIBITION.aftCargoIsolValve,
+      () => [0],
       ventilationStatus.aftCargoVent,
     ),
   };

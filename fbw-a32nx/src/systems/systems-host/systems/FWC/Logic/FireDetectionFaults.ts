@@ -13,11 +13,10 @@ export interface FireDetectionFaultAlerts {
 
 /**
  * The fire detection fault cautions of a zone from the state of its two detection loops (failed = break or loss of
- * electrical supply, from the fire detection unit). A320 FCOM DSC-26-20-10 "A loop-fault caution appears, if: One loop
- * is failed, or Both loops are failed, or The FDU fails"; FCOM PRO-ABN-ENG ENG 1(2) FIRE DET FAULT and PRO-ABN-APU APU
- * FIRE DET FAULT: "This alert triggers when: Both loops are inoperative, or Fire Detector Unit is inoperative". When
- * both loops are failed, the DET FAULT caution is shown instead of the two LOOP FAULT cautions (design choice: the FCOM
- * does not give the triggering conditions of the LOOP A(B) FAULT cautions; the A380 FWS does the same). A failed FDU
+ * electrical supply, from the fire detection unit). A loop fault caution appears when one or both loops are failed or
+ * the FDU fails; FIRE DET FAULT triggers when both loops or the FDU are inoperative. When both loops are failed, the
+ * DET FAULT caution is shown instead of the two LOOP FAULT cautions (design choice: the aircraft documentation does not
+ * give the triggering conditions of the LOOP A(B) FAULT cautions; the A380 FWS does the same). A failed FDU
  * gives the DET FAULT caution whatever the state of the loops, and no LOOP FAULT caution (design choice: an FDU that
  * is inoperative cannot tell which loop is failed).
  * @param loopAFailed loop A of the zone is failed

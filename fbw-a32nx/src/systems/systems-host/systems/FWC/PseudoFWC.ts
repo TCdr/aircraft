@@ -306,6 +306,7 @@ import {
   yawDamperSystemLines,
 } from './Logic/FacActuatorAlerts';
 import {
+  CentreTransferFaultInputs,
   centreTransferNotClosedLines,
   centreTransferNotOpenLines,
   centreTransferValveAlerts,
@@ -640,7 +641,7 @@ export class PseudoFWC {
 
   private readonly statusLinesRight = Array.from({ length: STATUS_COLUMN_CODES }, () => Subject.create(''));
 
-  /** The STATUS page shown when it overflows (FCOM DSC-31-20 l.46196-46199), see EcamStatusPaging */
+  /** The STATUS page shown when it overflows, see EcamStatusPaging */
   private readonly statusPaging = new EcamStatusPaging();
 
   private readonly statusPageIndex = Subject.create(0);
@@ -1225,7 +1226,7 @@ export class PseudoFWC {
 
   private readonly elecEmergency = Subject.create(false);
 
-  /** ELEC bus, ESS bus and TR alerts (FCOM PRO-ABN-ELEC), see Logic/ElecBusAlerts */
+  /** ELEC bus, ESS bus and TR alerts, see Logic/ElecBusAlerts */
   private readonly elecNetwork = new ElecNetworkAcquisition();
 
   private readonly elecBusAlerts = new ElecBusAlertMonitor();
@@ -1595,7 +1596,7 @@ export class PseudoFWC {
   /** The X FEED pb-sw is ON (its selection L:var: the MSFS valve switch is held still while the valve is jammed) */
   private readonly fuelXFeedPBOn = Subject.create(false);
 
-  /** FUEL X FEED memo: the X FEED pb-sw is ON and the X FEED valve is not fully closed (FCOM DSC-28-20, l.43407) */
+  /** FUEL X FEED memo: the X FEED pb-sw is ON and the X FEED valve is not fully closed */
   private readonly fuelXFeedMemo = Subject.create(false);
 
   private readonly leftOuterInnerValve = ConsumerSubject.create(null, 0);
@@ -1694,15 +1695,15 @@ export class PseudoFWC {
 
   private readonly twoHydraulicsOut = Subject.create(false);
 
-  /** The HYD cautions and warnings (FCOM PRO-ABN-HYD), see Logic/HydraulicAlerts */
+  /** The HYD cautions and warnings, see Logic/HydraulicAlerts */
   private readonly hydraulicAlerts = new HydraulicAlertMonitor();
 
   /* 49 - APU */
 
-  /** APU AUTO SHUT DOWN (FCOM PRO-ABN-APU), see Logic/ApuShutdownAlerts */
+  /** APU AUTO SHUT DOWN, see Logic/ApuShutdownAlerts */
   private readonly apuAutoShutDown = Subject.create(false);
 
-  /** APU EMER SHUT DOWN (FCOM PRO-ABN-APU), see Logic/ApuShutdownAlerts */
+  /** APU EMER SHUT DOWN, see Logic/ApuShutdownAlerts */
   private readonly apuEmerShutDown = Subject.create(false);
 
   /* 31 - FWS */
@@ -2153,11 +2154,11 @@ export class PseudoFWC {
 
   private crossBleedSelector = CrossBleedSelector.Auto;
 
-  /** The AIR bleed cautions (FCOM PRO-ABN-AIR), see Logic/BleedAlerts */
+  /** The AIR bleed cautions, see Logic/BleedAlerts */
   private readonly bleedAlerts = new BleedAlerts();
 
   /*
-   * Alerts of the FCOM gap batch P4, each in its Logic module: CAB PR LDG ELEV FAULT, ENG THRUST LOCKED, FUEL AUTO
+   * Alerts each in its own Logic module: CAB PR LDG ELEV FAULT, ENG THRUST LOCKED, FUEL AUTO
    * TRANSFER FAULT and CTR TK XFR OFF, WING A.ICE, DOOR, L/G DOORS NOT CLOSED and SYS DISAGREE, NAV GPWS
    */
   private readonly cabinPressureAlerts = new CabinPressureAlerts();
@@ -2318,8 +2319,8 @@ export class PseudoFWC {
 
   private readonly engineIgnitionFaultActive = [Subject.create(false), Subject.create(false)];
 
-  /** A320 FCOM DSC-70-90-50 (a320_fcom.txt l.64667): the IGNITION memo "appears in green when continuous ignition is
-   * activated on any engine" (L:A32NX_ENGINE_n_CONTINUOUS_IGNITION, systems WASM) */
+  /** IGNITION memo (green): continuous ignition is on for any engine (L:A32NX_ENGINE_n_CONTINUOUS_IGNITION, from
+   * the systems WASM) */
   private readonly continuousIgnition = Subject.create(false);
 
   private crossBleedValveOpen = false;
@@ -2340,7 +2341,7 @@ export class PseudoFWC {
   /*
    * FADEC, thrust lever and reverser alerts of engines 1 and 2 (index 0 and 1), see Logic/FadecReverserAlerts. The
    * FADEC status comes from systems.wasm (engine_control_failure.rs, hydraulic reversers); the *Shown subjects apply
-   * the flight phase rules the static inhibitions cannot express ("not inhibited if the FADEC selects idle").
+   * the flight phase rules the static inhibitions cannot express (e.g. not inhibited when the FADEC selects idle).
    */
   private readonly fadecChannelAFault = [Subject.create(false), Subject.create(false)];
 
@@ -2612,7 +2613,7 @@ export class PseudoFWC {
 
   /**
    * The fire detection unit gives a fire warning for engine 1: both loops detect a fire, or one does and the other is
-   * failed, or both loops broke within 5 s (systems.wasm fire protection, A320 FCOM DSC-26-20-10). The fire comes from
+   * failed, or both loops broke within 5 s (systems.wasm fire protection). The fire comes from
    * the flyPad failure or from the sim's own engine fire (MSFS failures menu).
    */
   private readonly eng1FireDetected = Subject.create(false);
@@ -2695,7 +2696,7 @@ export class PseudoFWC {
   private readonly toConfigTestPhase2MemoryNode = new NXLogicMemoryNode(true);
 
   private readonly seatBelt = Subject.create(0);
-  /** The SEAT BELTS signs are on: switch ON or cabin altitude above 11 300 ft (CabinSigns, FCOM DSC-33-40-10) */
+  /** The SEAT BELTS signs are on: switch ON or cabin altitude above 11 300 ft (CabinSigns) */
   private readonly seatBeltsSignsOn = Subject.create(false);
 
   private readonly strobeLightsOn = Subject.create(0);
@@ -2806,7 +2807,7 @@ export class PseudoFWC {
 
   private readonly xpdr2Inop = Subject.create(false);
 
-  /** NAV ATC/XPDR 1 FAULT, NAV ATC/XPDR 2 FAULT and NAV ATC/XPDR 1+2 FAULT (FCOM PRO-ABN-NAV) */
+  /** NAV ATC/XPDR 1 FAULT, NAV ATC/XPDR 2 FAULT and NAV ATC/XPDR 1+2 FAULT */
   private readonly xpdr1Fault = Subject.create(false);
 
   private readonly xpdr2Fault = Subject.create(false);
@@ -2983,8 +2984,8 @@ export class PseudoFWC {
       true,
     );
 
-    // Inhibit master warning/cautions until FWC startup has been completed, and when no FWC works (A320 FCOM PRO-ABN-FWS
-    // FWS FWC 1 + 2 FAULT: "master caution and warning lights are lost")
+    // Inhibit master warning/cautions until FWC startup has been completed, and when no FWC works (with both FWCs
+    // lost, the master caution and warning lights are lost)
     MappedSubject.create(this.masterCaution, this.startupCompleted).sub(([caution, fwsAvailable]) => {
       SimVar.SetSimVarValue('L:A32NX_MASTER_CAUTION', 'bool', fwsAvailable ? caution : false);
     }, true);
@@ -3004,7 +3005,7 @@ export class PseudoFWC {
     this.fwcOut124.sub(() => this.writeFwcOutputWords(), true);
 
     this.stallWarning.sub((v) => this.fwcOut126.setBitValue(17, v), true);
-    // The STALL aural is an FWC level 3 warning (A320 FCOM DSC-31-10 WARNING/CAUTION CLASSIFICATION): lost without FWC
+    // The STALL aural is an FWC level 3 warning: lost without FWC
     MappedSubject.create(this.stallWarning, this.anyFwcOperative).sub(([stall, fwcOperative]) => {
       // set the sound on/off
       SimVar.SetSimVarValue('L:A32NX_AUDIO_STALL_WARNING', 'bool', stall && fwcOperative);
@@ -3248,11 +3249,11 @@ export class PseudoFWC {
   }
 
   /**
-   * FWS FWC 1+2 FAULT (A320 FCOM PRO-ABN-FWS, lines 86756-86806): no FWC is left. "ECAM Cautions and Warnings, aural
-   * warnings, master caution and warning lights are lost": no alert, memo nor STATUS (NOT AVAIL: ECAM WARN, ALTI ALERT,
-   * STATUS, A/CALL OUT, MEMO). The display units then show FWC 1+2 FAULT with its procedure on the E/WD; the A32NX writes
-   * these lines here, in place of the alerts and memos. The aurals and the MASTER lights are stopped by the FWC startup
-   * state (FwsManager), which is false while no FWC works.
+   * FWS FWC 1+2 FAULT: no FWC is left. The ECAM cautions and warnings, aural warnings, master caution and warning
+   * lights are lost: no alert, memo nor STATUS (NOT AVAIL: ECAM WARN, ALTI ALERT, STATUS, A/CALL OUT, MEMO). The
+   * display units then show FWC 1+2 FAULT with its procedure on the E/WD; the A32NX writes these lines here, in place
+   * of the alerts and memos. The aurals and the MASTER lights are stopped by the FWC startup state (FwsManager),
+   * which is false while no FWC works.
    */
   private showFwc1And2Fault(): void {
     this.forgetAlertsAndStatus(FWC_1_AND_2_FAULT_EWD.left, FWC_1_AND_2_FAULT_EWD.right);
@@ -3334,7 +3335,7 @@ export class PseudoFWC {
   }
 
   /**
-   * The STATUS page (A320 FCOM DSC-31-20): the information lines and the inoperative systems of the active alerts, the
+   * The STATUS page: the information lines and the inoperative systems of the active alerts, the
    * automatic call of the page and the STS reminder on the E/WD.
    */
   private updateStatus(primaryFailureDisplayed: boolean, flightPhase: number, deltaTime: number): void {
@@ -3351,14 +3352,14 @@ export class PseudoFWC {
     }
     const left = orderStatusCodes(info);
     const right = orderStatusCodes(inopSys);
-    // CANCELLED CAUTION last in the left column (DSC-31-20 l.46193): the E/WD titles of the EMER CANC cautions
+    // CANCELLED CAUTION last in the left column: the E/WD titles of the EMER CANC cautions
     const cancelledCautions = cancelledCautionStatusCodes(
       this.emerCancel.cancelledCautions.map((key) => this.ewdMessageFailures[key]?.codesToReturn[0]),
     );
     const leftLines = [...left, ...cancelledCautions];
     this.statusLinesLeft.forEach((line, i) => line.set(leftLines[i] ?? ''));
     this.statusLinesRight.forEach((line, i) => line.set(right[i] ?? ''));
-    // A page with only CANCELLED CAUTION is not NORMAL, but gives no STS reminder (DSC-31-20 l.46233-46235)
+    // A page with only CANCELLED CAUTION is not NORMAL, but gives no STS reminder
     const statusEmpty = left.length === 0 && right.length === 0;
     this.statusNormal.set(statusEmpty && cancelledCautions.length === 0);
 
@@ -3530,7 +3531,7 @@ export class PseudoFWC {
   }
 
   /**
-   * EMER CANC pb (FCOM DSC-31-30 l.46809-46818), see Logic/EmerCancelRecall emerCancelAction: stops the aurals and the
+   * EMER CANC pb, see Logic/EmerCancelRecall emerCancelAction: stops the aurals and the
    * MASTER WARN light of the active warnings (their messages stay), or cancels the first caution of the E/WD for the rest
    * of the flight (message, single chime and MASTER CAUT light; STATUS CANCELLED CAUTION).
    */
@@ -3615,7 +3616,7 @@ export class PseudoFWC {
   private ecpEmergencyCancelPulseDown = false;
   private ecpEmergencyCancelLevel = false;
   private ecpEmergencyCancelPulseUpHandled = false;
-  /** EMER CANC and RCL (FCOM DSC-31-30), see Logic/EmerCancelRecall */
+  /** EMER CANC and RCL, see Logic/EmerCancelRecall */
   private readonly emerCancel = new EmerCancelMemory();
   private readonly recallPushbutton = new RecallPushbutton();
   /** The RCL pb has just been held for 3 s (true in one update) */
@@ -3826,7 +3827,7 @@ export class PseudoFWC {
   /**
    * Periodic update
    */
-  /** The NAV ADR and IR alerts (A320 FCOM PRO-ABN-NAV), see Logic/AdirsAlerts */
+  /** The NAV ADR and IR alerts, see Logic/AdirsAlerts */
   private updateAdirsAlerts(deltaTime: number): void {
     const inputs = readAdirsAlertInputs((name, unit) => SimVar.GetSimVarValue(name, unit));
     this.adirsFaults = adirsFaultAlerts(inputs.adrFaulty, inputs.irFaulty);
@@ -3911,7 +3912,7 @@ export class PseudoFWC {
     );
     this.toConfigHalfSecondTriggeredNode.write(this.toConfigPulseNode.read(), deltaTime);
 
-    // RCL pb held for more than 3 s: no flight phase inhibition until the next flight phase (FCOM DSC-31-30 l.46764-46765)
+    // RCL pb held for more than 3 s: no flight phase inhibition until the next flight phase
     this.flightPhaseInhibitOverrideNode.write(this.ecpRecallLongPress, this.flightPhaseEndedPulseNode.read());
 
     this.showTakeoffInhibit.set(
@@ -3969,8 +3970,8 @@ export class PseudoFWC {
     this.fuel.set(SimVar.GetSimVarValue('A:INTERACTIVE POINT OPEN:9', 'percent'));
     this.usrStartRefueling.set(SimVar.GetSimVarValue('L:A32NX_REFUEL_STARTED_BY_USR', 'bool'));
     this.engSelectorPosition.set(SimVar.GetSimVarValue('L:XMLVAR_ENG_MODE_SEL', 'Enum'));
-    // The ENG ANTI ICE pb-sw: the ENG A.ICE memo "appears in green, if one or both ENG ANTI ICE pb-sw are ON" (FCOM
-    // DSC-30-30-20 l.44405). The MSFS ENG ANTI ICE follows the valve (systems ice_rain_protection engine_anti_ice.rs).
+    // The ENG ANTI ICE pb-sw: the green ENG A.ICE memo shows while one or both ENG ANTI ICE pb-sw are ON. The MSFS
+    // ENG ANTI ICE follows the valve (systems ice_rain_protection engine_anti_ice.rs).
     this.eng1AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_1_POSITION', 'bool') > 0);
     this.eng2AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_2_POSITION', 'bool') > 0);
     this.thr1TLA.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:1', 'number'));
@@ -4257,7 +4258,7 @@ export class PseudoFWC {
     const onGround = this.onGroundConf.write(this.onGroundImmediate, deltaTime);
     this.aircraftOnGround.set(onGround);
     this.autoCallouts.update(deltaTime);
-    // DUAL INPUT and PRIORITY LEFT/RIGHT voices (a320_fcom.txt l.41070-41071, 45756-45760, 45804), from the FCDC
+    // DUAL INPUT and PRIORITY LEFT/RIGHT voices, from the FCDC
     const sidestickInputs = readSidestickPriorityInputs(
       PseudoFWC.readFcdcSidestickWords(1),
       PseudoFWC.readFcdcSidestickWords(2),
@@ -4284,7 +4285,7 @@ export class PseudoFWC {
     for (const aural of sidestickAurals) {
       this.soundManager.enqueueSound(aural);
     }
-    // WINDSHEAR three times when the FACs raise the reactive windshear warning (a320_fcom.txt l.34229, 45713)
+    // WINDSHEAR three times when the FACs raise the reactive windshear warning
     const reactiveWindshearWarning =
       SimVar.GetSimVarValue('L:A32NX_REACTIVE_WINDSHEAR_WARNING', SimVarValueType.Bool) > 0;
     if (reactiveWindshearWarning && !this.reactiveWindshearWarningPreviously) {
@@ -4502,7 +4503,7 @@ export class PseudoFWC {
 
     this.autoThrustLimited.set(this.autoThrustLimitedConfNode.read() && this.autoThrustLimitedMtrigNode.read());
 
-    // AUTO BRK LO/MED/MAX and green AUTO BRK OFF memo (A320 FCOM l.51657-51662), see Logic/BrakeSystemAlerts
+    // AUTO BRK LO/MED/MAX and green AUTO BRK OFF memo, see Logic/BrakeSystemAlerts
     this.autoBrakeMemoLineIndex = Brakes.autoBrakeMemoLine(
       this.fwcFlightPhase.get(),
       this.autoBrake.get(),
@@ -5028,9 +5029,9 @@ export class PseudoFWC {
         (this.sdac00201Word.bitValue(20) && this.sdac00210Word.bitValue(20)),
     );
 
-    // ELEC bus, ESS bus and TR alerts (FCOM PRO-ABN-ELEC, see Logic/ElecBusAlerts)
+    // ELEC bus, ESS bus and TR alerts (see Logic/ElecBusAlerts)
     this.elecBusAlerts.update(this.elecNetwork.readNetwork(), this.elecEmergency.get(), deltaTime / 1000);
-    // also VENT BLOWER FAULT with DC ESS BUS FAULT: LAND ASAP (FCOM PRO-ABN-VENT l.96126-96128, Logic/VentilationAlerts)
+    // also VENT BLOWER FAULT with DC ESS BUS FAULT: LAND ASAP (Logic/VentilationAlerts)
     this.elecBusLandAsap.set(this.elecBusAlerts.landAsap || this.ventilationAlerts.landAsap);
 
     /* OTHER STUFF */
@@ -5076,7 +5077,7 @@ export class PseudoFWC {
       ),
     );
     this.updateAdirsAlerts(deltaTime);
-    // GPS receivers: GPS_n_MODE 4 is FAULT (A320 FCOM PRO-ABN-NAV: the alert triggers when the GPS 1(2) is failed)
+    // GPS receivers: GPS_n_MODE 4 is FAULT (the alert triggers when the GPS 1(2) is failed)
     this.gps1Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_1_MODE', 'number') === 4);
     this.gps2Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_2_MODE', 'number') === 4);
     // NAV FM/GPS POS DISAGREE: the FMS compares the FM and GPS positions (fmgc navigation/FmPosition.ts)
@@ -5138,7 +5139,7 @@ export class PseudoFWC {
 
     const leftInnerFuelQuantity = SimVar.GetSimVarValue('FUEL TANK LEFT MAIN QUANTITY', 'gallons') * fuelGallonsToKg;
     const rightInnerFuelQuantity = SimVar.GetSimVarValue('FUEL TANK RIGHT MAIN QUANTITY', 'gallons') * fuelGallonsToKg;
-    // The low level sensors (FCOM DSC-28-10-80, see Logic/WingTankLowLevel); a failed one gives no warning
+    // The low level sensors (see Logic/WingTankLowLevel); a failed one gives no warning
     const leftFuelLow = isWingTankLowLevelSensed(
       leftInnerFuelQuantity,
       SimVar.GetSimVarValue('L:A32NX_FUEL_L_WING_TK_LO_LVL_SENSOR_FAULT', 'bool') > 0,
@@ -5341,7 +5342,7 @@ export class PseudoFWC {
         ![1, 10].includes(this.fwcFlightPhase.get()),
     );
 
-    // F/CTL surface cautions (FCOM PRO-ABN-F_CTL), ELAC 1+2 FAULT, see Logic/FlightControlSurfaceAlerts
+    // F/CTL surface cautions, ELAC 1+2 FAULT, see Logic/FlightControlSurfaceAlerts
     this.fctlSurfaces = this.fctlSurfaceMonitor.update(
       {
         fcdc1: { word1: fcdc1DiscreteWord1, word3: fcdc1DiscreteWord3, word5: fcdc1DiscreteWord5 },
@@ -5387,7 +5388,7 @@ export class PseudoFWC {
     this.flapsHandle.set(SimVar.GetSimVarValue('L:A32NX_FLAPS_HANDLE_INDEX', 'enum'));
     this.slatsAngle.set(SimVar.GetSimVarValue('L:A32NX_SLATS_IPPU_ANGLE', 'degrees'));
 
-    // F/CTL FLAP(SLAT) SYS 1(2) FAULT (FCOM PRO-ABN-F_CTL), see Logic/SlatFlapChannelAlerts
+    // F/CTL FLAP(SLAT) SYS 1(2) FAULT, see Logic/SlatFlapChannelAlerts
     const slatFlapChannels = slatFlapChannelFaults(
       Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_FLAP_SYSTEM_STATUS_WORD'),
       Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_FLAP_SYSTEM_STATUS_WORD'),
@@ -5565,7 +5566,7 @@ export class PseudoFWC {
     this.rudderTrimNotToAudio.set(rudderTrimConfigTestInPhase129 || rudderTrimConfigInPhase3or4);
     this.rudderTrimNotToWarning.set(rudderTrimConfigTestInPhase129 || this.rudderTrimConfigInPhase3or4Sr.read());
 
-    // AUTO FLT yaw damper, rudder trim and rudder travel limiter cautions (FCOM PRO-ABN-AUTO_FLT), see
+    // AUTO FLT yaw damper, rudder trim and rudder travel limiter cautions, see
     // Logic/FacActuatorAlerts: the actuator faults the FACs report, and the functions each FAC has engaged
     const fac1DiscreteWord2 = Arinc429Word.fromSimVarValue('L:A32NX_FAC_1_DISCRETE_WORD_2');
     const fac2DiscreteWord2 = Arinc429Word.fromSimVarValue('L:A32NX_FAC_2_DISCRETE_WORD_2');
@@ -5947,7 +5948,7 @@ export class PseudoFWC {
     this.fireButton2.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_ENG2', 'bool'));
     this.fireButtonAPU.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_APU', 'bool'));
 
-    /* ENG 1(2) FAIL, ENG 1(2) SHUT DOWN (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts) */
+    /* ENG 1(2) FAIL, ENG 1(2) SHUT DOWN (see Logic/EngineFailAlerts) */
 
     const engineIdleN2 = SimVar.GetSimVarValue('L:A32NX_ENGINE_IDLE_N2', 'number');
     const engine1MasterOn = !!this.engine1Master.get();
@@ -5982,10 +5983,10 @@ export class PseudoFWC {
     this.engine2ShutDown.set(isEngineShutDown(engine2MasterOn, engine2FirePbPushed, flightPhase) && !allEnginesFailed);
     this.crossBleedSelector = SimVar.GetSimVarValue('L:A32NX_KNOB_OVHD_AIRCOND_XBLEED_Position', 'number');
 
-    /* AIR bleed cautions (FCOM PRO-ABN-AIR), from the Rust pneumatic flags, see Logic/BleedAlerts */
+    /* AIR bleed cautions, from the Rust pneumatic flags, see Logic/BleedAlerts */
     this.bleedAlerts.update(readBleedInputs(), deltaTime / 1000);
 
-    /* The alerts of the FCOM gap batch P4 (see their Logic modules) */
+    /* The alerts that live in their own Logic modules */
     this.cabinPressureAlerts.update(
       {
         ldgElevSelectorAuto: !this.manLandingElevation.get(),
@@ -6043,7 +6044,7 @@ export class PseudoFWC {
     );
     this.communicationAlerts.update(readComSystemInputs(), deltaTime / 1000);
 
-    /* ENG 1(2) OIL LO PR, OIL HI TEMP, OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts) */
+    /* ENG 1(2) OIL LO PR, OIL HI TEMP, OIL FILTER CLOG (see Logic/EngineOilAlerts) */
     // The oil pressure and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
     this.engineOilMonitors.forEach((monitor, index) => {
       const engineNumber = index + 1;
@@ -6065,7 +6066,7 @@ export class PseudoFWC {
     this.engine1OilFilterClog.set(this.engineOilMonitors[0].isFilterClogged);
     this.engine2OilFilterClog.set(this.engineOilMonitors[1].isFilterClogged);
 
-    /* ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN (FCOM PRO-ABN-A-ICE, see Logic/EngineAntiIceAlerts) */
+    /* ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN (see Logic/EngineAntiIceAlerts) */
     this.engineAntiIceValveMonitors.forEach((monitor, index) => {
       const engineNumber = index + 1;
       monitor.update(
@@ -6083,17 +6084,17 @@ export class PseudoFWC {
       this.engineAntiIceValveOpen[index].set(monitor.valveOpen);
     });
 
-    /* ANTI ICE probe and window heat cautions (FCOM PRO-ABN-A-ICE, see Logic/ProbeWindowHeatAlerts) */
+    /* ANTI ICE probe and window heat cautions (see Logic/ProbeWindowHeatAlerts) */
     this.probeWindowHeatInputs = readProbeWindowHeatInputs();
     const heatAlerts = probeWindowHeatAlerts(this.probeWindowHeatInputs);
     PROBE_WINDOW_HEAT_ALERTS.forEach((alert, index) =>
       this.probeWindowHeatActive[index].set(alert.isActive(heatAlerts)),
     );
 
-    /* AIR bleed leak, leak detection, HP valve and BMC cautions (FCOM PRO-ABN-AIR, PRO-ABN-BLEED), from the Rust BMCs */
+    /* AIR bleed leak, leak detection, HP valve and BMC cautions, from the Rust BMCs */
     this.bleedLeakMonitoringAlerts.update(readBleedLeakMonitoringInputs());
 
-    /* ENG 1(2) FUEL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineFuelFilterAlerts) */
+    /* ENG 1(2) FUEL FILTER CLOG (see Logic/EngineFuelFilterAlerts) */
     // The clogged filter from the systems (engine/fuel_filter_failure.rs)
     [this.engine1FuelFilterClog, this.engine2FuelFilterClog].forEach((alert, index) => {
       const engineNumber = index + 1;
@@ -6106,17 +6107,17 @@ export class PseudoFWC {
       );
     });
 
-    /* FUEL ENG 1(2) LP VALVE OPEN, FUEL FQI CH 1(2) FAULT (FCOM PRO-ABN-FUEL, see Logic/FuelLpValveFqiAlerts) */
+    /* FUEL ENG 1(2) LP VALVE OPEN, FUEL FQI CH 1(2) FAULT (see Logic/FuelLpValveFqiAlerts) */
     const fuelLpValveFqi = fuelLpValveFqiAlerts(
       readFuelLpValveFqiInputs((name) => SimVar.GetSimVarValue(name, 'bool')),
     );
     this.fuelEngLpValveOpen.forEach((alert, index) => alert.set(fuelLpValveFqi.engLpValveOpen[index]));
     this.fuelFqiChannelFault.forEach((alert, index) => alert.set(fuelLpValveFqi.fqiChannelFault[index]));
 
-    /* ELEC system failures (FCOM PRO-ABN-ELEC, see Logic/ElecSystemAlerts) */
+    /* ELEC system failures (see Logic/ElecSystemAlerts) */
     this.elecSystemAlerts.update(this.elecSystem.read());
 
-    /* ENG 1(2) THR LEVER ABV IDLE, ENG SAT ABOVE FLEX TEMP (FCOM PRO-ABN-ENG, see Logic/EngineThrustSettingAlerts) */
+    /* ENG 1(2) THR LEVER ABV IDLE, ENG SAT ABOVE FLEX TEMP (see Logic/EngineThrustSettingAlerts) */
     this.thrustLeverAboveIdleMonitor.update({
       onGround,
       flightPhase,
@@ -6138,7 +6139,7 @@ export class PseudoFWC {
       }),
     );
 
-    /* ENG 1(2) LOW N1 (FCOM PRO-ABN-ENG, see Logic/EngineLowN1Alerts): the N1 and N2 the FADEC shows during a start */
+    /* ENG 1(2) LOW N1 (see Logic/EngineLowN1Alerts): the N1 and N2 the FADEC shows during a start */
     this.engineLowN1Monitors.forEach((monitor, index) => {
       const engineState = (index === 0 ? this.engine1State : this.engine2State).get();
       monitor.update(
@@ -6154,7 +6155,7 @@ export class PseudoFWC {
       this.engineLowN1[index].set(monitor.isActive);
     });
 
-    /* ENG 1(2) START FAULT, START VALVE FAULT, IGN FAULT (FCOM PRO-ABN-ENG, see Logic/EngineStartAlerts) */
+    /* ENG 1(2) START FAULT, START VALVE FAULT, IGN FAULT (see Logic/EngineStartAlerts) */
 
     let continuousIgnition = false;
     for (const index of [0, 1]) {
@@ -6173,7 +6174,7 @@ export class PseudoFWC {
 
       this.engineStartFaultActive[index].set(isStartFaultActive(this.engineStartFault[index], flightPhase));
       this.engineStartValveFaultActive[index].set(this.engineStartValveFault[index] !== StartValveFault.None);
-      // IGN A OR B FAULT is also inhibited in flight phase 6, IGN A+B FAULT is not (2019 FCOM PDF pages 2275-2276)
+      // IGN A OR B FAULT is also inhibited in flight phase 6, IGN A+B FAULT is not
       const igniterAFault = this.engineIgniterAFault[index];
       const igniterBFault = this.engineIgniterBFault[index];
       this.engineIgnitionFaultActive[index].set(
@@ -6183,7 +6184,7 @@ export class PseudoFWC {
     this.continuousIgnition.set(continuousIgnition);
     this.crossBleedValveOpen = !SimVar.GetSimVarValue('L:A32NX_PNEU_XBLEED_VALVE_FULLY_CLOSED', 'bool');
 
-    /* ENG 1(2) HP FUEL VALVE and the FADEC fault crew awareness alerts (FCOM PRO-ABN-ENG, see Logic/EngineMonitoringAlerts) */
+    /* ENG 1(2) HP FUEL VALVE and the FADEC fault crew awareness alerts (see Logic/EngineMonitoringAlerts) */
     if (flightPhase !== this.engineMonitoringFlightPhase) {
       this.engineMonitoringFlightPhase = flightPhase;
       this.engineMonitoringSecondsInFlightPhase = 0;
@@ -6210,7 +6211,7 @@ export class PseudoFWC {
       this.engineRevSwitchFault[index].set(fault(REV_SWITCH_FAULT.variable));
     }
 
-    /* ENG 1(2) STALL, ENG 1(2) N1/N2/EGT OVER LIMIT (FCOM PRO-ABN-ENG, see Logic/EngineParameterAlerts) */
+    /* ENG 1(2) STALL, ENG 1(2) N1/N2/EGT OVER LIMIT (see Logic/EngineParameterAlerts) */
 
     // The FADEC detects the stall (systems.wasm, a320_systems engine_malfunction.rs)
     this.engine1Stall.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_1_STALL', 'bool') > 0);
@@ -6239,7 +6240,7 @@ export class PseudoFWC {
     this.engine1OverLimit.set(this.engine1OverLimitMonitor.isActive);
     this.engine2OverLimit.set(this.engine2OverLimitMonitor.isActive);
 
-    /* FADEC, thrust lever and reverser alerts (FCOM PRO-ABN-ENG, see Logic/FadecReverserAlerts) */
+    /* FADEC, thrust lever and reverser alerts (see Logic/FadecReverserAlerts) */
 
     for (let engineIndex = 0; engineIndex < 2; engineIndex++) {
       const engine = engineIndex + 1;
@@ -6372,7 +6373,7 @@ export class PseudoFWC {
       this.agent2Eng2DischargeTimer.write(this.fireButton2.get() && this.eng1Agent1PB.get(), deltaTime),
     );
     this.agentAPUDischarge.set(
-      // FCOM PRO-ABN-APUF: the AGENT AFTER 10 S countdown starts when the APU FIRE pb is pushed
+      // The AGENT AFTER 10 S countdown starts when the APU FIRE pb is pushed
       this.agentAPUDischargeTimer.write(this.fireButtonAPU.get(), deltaTime),
     );
 
@@ -6834,7 +6835,7 @@ export class PseudoFWC {
     }
 
     /* T.O. CONFIG CHECK */
-    // FCOM DSC-31-15: the wing tank pump 1+2 low pressure alerts are part of the test (see isToConfigSystemStatusNormal)
+    // The wing tank pump 1+2 low pressure alerts are part of the test (see isToConfigSystemStatusNormal)
     const systemStatus = isToConfigSystemStatusNormal({
       gen12NotOperating: this.gen12NotOperating.get(),
       greenLowPressure: this.greenLP.get(),
@@ -6900,7 +6901,7 @@ export class PseudoFWC {
 
     this.recallNormalMessage.update(deltaTime / 1000);
     if (this.ecpRecallPulseUp && !this.ecpRecallPulseUpHandled) {
-      // Nothing to recall: NORMAL for 3 s on the E/WD (FCOM DSC-31-30 l.46763)
+      // Nothing to recall: NORMAL for 3 s on the E/WD
       if (
         isNothingToRecall(
           this.recallFailures.length,
@@ -6918,11 +6919,11 @@ export class PseudoFWC {
       this.ecpRecallPulseUpHandled = true;
     }
 
-    // RCL pb held for more than 3 s: the cautions cancelled with EMER CANC come back (FCOM DSC-31-30 l.46759-46761, l.46820)
+    // RCL pb held for more than 3 s: the cautions cancelled with EMER CANC come back
     if (this.ecpRecallLongPress) {
       this.restoreCancelledCautions();
     }
-    // ... and automatically in phase 1 or 2 when IRs 1 and 2 are aligned (l.46821-46823)
+    // ... and automatically in phase 1 or 2 when IRs 1 and 2 are aligned
     const irAligned = (number: 1 | 2) => {
       const maintWord = Arinc429Word.fromSimVarValue(`L:A32NX_ADIRS_IR_${number}_MAINT_WORD`);
       return isIrAligned(maintWord.isNormalOperation(), maintWord.bitValueOr(1, false), maintWord.bitValueOr(3, false));
@@ -6951,7 +6952,7 @@ export class PseudoFWC {
           this.apuFireTest.get() ||
           this.elecEmergency.get() ||
           (this.engine1State.get() === EngineState.Off && this.engine2State.get() === EngineState.Off) ||
-          // HYD B+Y, G+B, G+Y SYS LO PR (FCOM l.88281, l.88462, l.88646), on the system pressures instead of two pump
+          // HYD B+Y, G+B, G+Y SYS LO PR, on the system pressures instead of two pump
           // low pressure discretes (a pump LO PR with the PTU or the other pump still pressurising its system is no dual
           // hydraulic failure)
           this.hydraulicAlerts.landAsapRed),
@@ -6964,7 +6965,7 @@ export class PseudoFWC {
       ),
     );
 
-    // No FWC left: no alert, memo nor STATUS, the E/WD shows FWS FWC 1+2 FAULT (A320 FCOM PRO-ABN-FWS)
+    // No FWC left: no alert, memo nor STATUS, the E/WD shows FWS FWC 1+2 FAULT
     if (this.fwc1And2Fault.get()) {
       this.showFwc1And2Fault();
       this.resetBufferedInputs();
@@ -7021,7 +7022,7 @@ export class PseudoFWC {
         (value.side === 'LEFT' && !this.failuresLeft.includes(key) && !recallFailureKeys.includes(key)) ||
         (value.side === 'RIGHT' && !this.failuresRight.includes(key) && !this.ewdSecondaryFailuresCleared.has(key));
 
-      // A RCL pb held for more than 3 s suppresses the flight phase inhibition until the next phase (DSC-31-30 l.46764)
+      // A RCL pb held for more than 3 s suppresses the flight phase inhibition until the next phase
       if (
         newWarning &&
         !this.flightPhaseInhibitOverrideNode.read() &&
@@ -7202,7 +7203,7 @@ export class PseudoFWC {
     let orderedMemoArrayRight: string[] = tempMemoArrayRight.sort(compareEwdMessageCodes);
 
     if (!failLeft) {
-      // RCL with nothing to recall: NORMAL replaces the memos for 3 s (design choice, FCOM DSC-31-30 l.46763)
+      // RCL with nothing to recall: NORMAL replaces the memos for 3 s (design choice)
       const memoLinesLeft = this.recallNormalMessage.isShown ? [RECALL_NORMAL_MEMO_CODE] : orderedMemoArrayLeft;
       this.ewdMessageLinesLeft.forEach((l, i) => l.set(memoLinesLeft[i]));
     }
@@ -7311,10 +7312,10 @@ export class PseudoFWC {
   private readonly ewdFailureTiming = new Map<string, EWDFailureTimingState>();
 
   /**
-   * ENG 1(2) START FAULT (FCOM PRO-ABN-ENG, see Logic/EngineStartAlerts): amber, flight phases 3, 4, 5, 7, 8 inhibited (and
+   * ENG 1(2) START FAULT (see Logic/EngineStartAlerts): amber, flight phases 3, 4, 5, 7, 8 inhibited (and
    * 6 for THR LEVER NOT AT IDLE, in isStartFaultActive).
    */
-  /** ENG 1(2) LOW N1 (FCOM PRO-ABN-ENG, see Logic/EngineLowN1Alerts): amber, inhibited in the phases 4 to 9 */
+  /** ENG 1(2) LOW N1 (see Logic/EngineLowN1Alerts): amber, inhibited in the phases 4 to 9 */
   private engineLowN1Alert(engine: 1 | 2): EWDFailureItem {
     const code = (line: number) => `77009${engine + 20}${String(line).padStart(2, '0')}`;
     return {
@@ -7329,7 +7330,7 @@ export class PseudoFWC {
     };
   }
 
-  /** ENG 1(2) HP FUEL VALVE (FCOM PRO-ABN-ENG, see Logic/EngineMonitoringAlerts): amber, phases 3, 4, 5, 7, 8 inhibited */
+  /** ENG 1(2) HP FUEL VALVE (see Logic/EngineMonitoringAlerts): amber, phases 3, 4, 5, 7, 8 inhibited */
   private engineHpFuelValveAlertItem(engine: 1 | 2): EWDFailureItem {
     const index = engine - 1;
     const code = (line: number) => `770731${engine}${String(line).padStart(2, '0')}`;
@@ -7352,7 +7353,7 @@ export class PseudoFWC {
   }
 
   /**
-   * A crew awareness alert of a FADEC fault (FCOM PRO-ABN-ENG, see Logic/EngineMonitoringAlerts): amber, title only.
+   * A crew awareness alert of a FADEC fault (see Logic/EngineMonitoringAlerts): amber, title only.
    * @param key the alert key, whose title code is the key followed by 01
    */
   private engineMonitoringAlertItem(
@@ -7372,7 +7373,7 @@ export class PseudoFWC {
     };
   }
 
-  /** ENG 1(2) SENSOR FAULT (FCOM PRO-ABN-ENG, see Logic/EngineMonitoringAlerts): amber, phases 4, 5, 7, 8 inhibited */
+  /** ENG 1(2) SENSOR FAULT (see Logic/EngineMonitoringAlerts): amber, phases 4, 5, 7, 8 inhibited */
   private engineSensorFaultAlertItem(engine: 1 | 2): EWDFailureItem {
     const index = engine - 1;
     const code = (line: number) => `770735${engine}${String(line).padStart(2, '0')}`;
@@ -7413,7 +7414,7 @@ export class PseudoFWC {
     };
   }
 
-  /** ENG 1(2) START VALVE FAULT (FCOM PRO-ABN-ENG, see Logic/EngineStartAlerts): amber, phases 3, 4, 5, 7, 8 inhibited */
+  /** ENG 1(2) START VALVE FAULT (see Logic/EngineStartAlerts): amber, phases 3, 4, 5, 7, 8 inhibited */
   private engineStartValveFaultAlert(engine: 1 | 2): EWDFailureItem {
     const index = engine - 1;
     const code = (line: number) => `770081${engine}${String(line).padStart(2, '0')}`;
@@ -7448,7 +7449,7 @@ export class PseudoFWC {
   }
 
   /**
-   * ENG 1(2) IGN FAULT (FCOM PRO-ABN-ENG, see Logic/EngineStartAlerts): amber; IGN A OR B FAULT inhibited in phases 3-8, IGN
+   * ENG 1(2) IGN FAULT (see Logic/EngineStartAlerts): amber; IGN A OR B FAULT inhibited in phases 3-8, IGN
    * A+B FAULT in phases 3, 4, 5, 7, 8 (the phase 6 difference is in engineIgnitionFaultActive).
    */
   private engineIgnitionFaultAlert(engine: 1 | 2): EWDFailureItem {
@@ -7466,7 +7467,7 @@ export class PseudoFWC {
     };
   }
 
-  /** The ANTI ICE probe and window heat cautions (FCOM PRO-ABN-A-ICE), see Logic/ProbeWindowHeatAlerts */
+  /** The ANTI ICE probe and window heat cautions, see Logic/ProbeWindowHeatAlerts */
   private probeWindowHeatFailures(): EWDMessageDict<EWDFailureItem> {
     const failures: EWDMessageDict<EWDFailureItem> = {};
     PROBE_WINDOW_HEAT_ALERTS.forEach((alert, index) => {
@@ -7484,6 +7485,19 @@ export class PseudoFWC {
       };
     });
     return failures;
+  }
+
+  /** The inputs of the CTR L (R) XFR FAULT lines: the side's CTR TK XFR pb (centre pump 1 (2)) and wing pumps */
+  private centreTransferFaultInputs(side: 'L' | 'R'): CentreTransferFaultInputs {
+    const left = side === 'L';
+    return {
+      ctrTkXfrOn: (left ? this.centerFuelPump1Auto : this.centerFuelPump2Auto).get(),
+      modeSelMan: this.fuelCtrTankModeSelMan.get(),
+      crossFeedOn: this.fuelXFeedPBOn.get(),
+      pump1On: (left ? this.leftFuelPump1Auto : this.rightFuelPump1Auto).get(),
+      pump2On: (left ? this.leftFuelPump2Auto : this.rightFuelPump2Auto).get(),
+      centreTankEmpty: this.centerTankEmpty.get(),
+    };
   }
 
   ewdMessageFailures: EWDMessageDict<EWDFailureItem> = {
@@ -7689,7 +7703,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2200238: {
-      // YAW DAMPER SYS (FCOM PRO-ABN-AUTO_FLT, see Logic/FacActuatorAlerts)
+      // YAW DAMPER SYS (see Logic/FacActuatorAlerts)
       flightPhaseInhib: FacPhases.yawDamperSystem,
       simVarIsActive: this.yawDamperSystemFault,
       whichCodeToReturn: () => yawDamperSystemLines(),
@@ -7703,7 +7717,7 @@ export class PseudoFWC {
       statusInfo: () => facActuatorStatus.yawDamperSystem().left,
     },
     2200232: {
-      // RUD TRIM SYS (FCOM PRO-ABN-AUTO_FLT, see Logic/FacActuatorAlerts)
+      // RUD TRIM SYS (see Logic/FacActuatorAlerts)
       flightPhaseInhib: FacPhases.rudderTrimSystem,
       simVarIsActive: this.rudderTrimSystemFault,
       whichCodeToReturn: () => rudderTrimSystemLines(),
@@ -7717,7 +7731,7 @@ export class PseudoFWC {
       statusInfo: () => facActuatorStatus.rudderTrimSystem().left,
     },
     2200235: {
-      // RUD TRV LIM SYS (FCOM PRO-ABN-AUTO_FLT, see Logic/FacActuatorAlerts)
+      // RUD TRV LIM SYS (see Logic/FacActuatorAlerts)
       flightPhaseInhib: FacPhases.rudderTravelLimiterSystem,
       simVarIsActive: this.rudderTravelLimiterSystemFault,
       whichCodeToReturn: () => rudderTravelLimiterSystemLines(this.tluLocked),
@@ -7762,7 +7776,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2200240: {
-      // REAC W/S DET FAULT, crew awareness (FCOM l.71701-71739), see Logic/ReactiveWindshearAlerts
+      // REAC W/S DET FAULT, crew awareness, see Logic/ReactiveWindshearAlerts
       flightPhaseInhib: REAC_WS_DET_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.reacWsDetFault,
       whichCodeToReturn: () => [0],
@@ -7918,7 +7932,7 @@ export class PseudoFWC {
         !(this.sdac00300Word.bitValue(14) && this.sdac00300Word.bitValue(19)) && !this.aircraftOnGround.get()
           ? 14
           : null,
-        // 15 FUEL CONSUMPT INCRSD, 16 FMS PRED UNRELIABLE (FCOM l.77606-77608), see Logic/ElecBusAlerts
+        // 15 FUEL CONSUMPT INCRSD, 16 FMS PRED UNRELIABLE, see Logic/ElecBusAlerts
         ...elecEmerConfigFuelLines(!this.aircraftOnGround.get()),
       ],
       codesToReturn: [
@@ -7944,7 +7958,7 @@ export class PseudoFWC {
       failure: 3,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
-      // FCOM l.77641-77675, see Logic/ElecBusAlerts
+      // STATUS, see Logic/ElecBusAlerts
       ...alertStatus(elecEmerConfigStatus),
     },
     2400600: {
@@ -7980,7 +7994,7 @@ export class PseudoFWC {
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
     },
-    // ELEC system failures (FCOM PRO-ABN-ELEC, see Logic/ElecSystemAlerts): amber cautions on the ELEC page
+    // ELEC system failures (see Logic/ElecSystemAlerts): amber cautions on the ELEC page
     2400201: {
       // BAT 1 FAULT
       flightPhaseInhib: BAT_FAULT_PHASE_INHIBITION,
@@ -8239,10 +8253,10 @@ export class PseudoFWC {
       statusInfo: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).left,
     },
     /*
-     * ELEC bus, ESS bus and TR alerts (FCOM PRO-ABN-ELEC, see Logic/ElecBusAlerts). Design choices [GK], the FCOM figures
-     * are not in the text: all amber on the ELEC page; the alerts with a procedure are cautions (single chime, MASTER
-     * CAUT) inhibited in phases 4, 5, 7 and 8, the crew awareness ones in phases 3, 4, 5, 7 and 8 too (AC ESS BUS ALTN
-     * without chime or MASTER CAUT); DC EMER CONFIG and ESS BUSES ON BAT inhibited in phases 4 and 8, as ELEC EMER CONFIG.
+     * ELEC bus, ESS bus and TR alerts (see Logic/ElecBusAlerts). Design choices: all amber on the ELEC page; the
+     * alerts with a procedure are cautions (single chime, MASTER CAUT) inhibited in phases 4, 5, 7 and 8, the crew
+     * awareness ones in phases 3, 4, 5, 7 and 8 too (AC ESS BUS ALTN without chime or MASTER CAUT); DC EMER CONFIG and
+     * ESS BUSES ON BAT inhibited in phases 4 and 8, as ELEC EMER CONFIG.
      */
     2400110: {
       // DC EMER CONFIG
@@ -8522,7 +8536,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     3400105: {
-      // NAV ALTI DISCREPANCY (A320 FCOM PRO-ABN-NAV, a320_fcom.txt l.92693)
+      // NAV ALTI DISCREPANCY
       flightPhaseInhib: [4, 5, 8],
       simVarIsActive: this.altDiscrepancy,
       whichCodeToReturn: () => [0, 1, 2],
@@ -8650,7 +8664,7 @@ export class PseudoFWC {
     },
     7700027: {
       // DUAL ENGINE FAILURE
-      // FCOM PRO-ABN-ENG ENG ALL ENGINES FAILURE flight phase inhibition (2019 FCOM PDF page 2244): phases 1-4 and 8-10
+      // ENG ALL ENGINES FAILURE flight phase inhibition: phases 1-4 and 8-10
       flightPhaseInhib: [1, 2, 3, 4, 8, 9, 10],
       simVarIsActive: this.engDualFault,
       whichCodeToReturn: () =>
@@ -8671,7 +8685,7 @@ export class PseudoFWC {
       ...alertStatus(allEnginesFailureStatus),
     },
     7700101: {
-      // ENG 1 FAIL (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts): amber, no flight phase inhibition
+      // ENG 1 FAIL (see Logic/EngineFailAlerts): amber, no flight phase inhibition
       flightPhaseInhib: [],
       simVarIsActive: this.engine1Fail,
       whichCodeToReturn: () =>
@@ -8700,7 +8714,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700102: {
-      // ENG 2 FAIL (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts): amber, no flight phase inhibition
+      // ENG 2 FAIL (see Logic/EngineFailAlerts): amber, no flight phase inhibition
       flightPhaseInhib: [],
       simVarIsActive: this.engine2Fail,
       whichCodeToReturn: () =>
@@ -8729,7 +8743,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700111: {
-      // ENG 1 SHUT DOWN (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts): amber, no flight phase inhibition
+      // ENG 1 SHUT DOWN (see Logic/EngineFailAlerts): amber, no flight phase inhibition
       flightPhaseInhib: [],
       simVarIsActive: this.engine1ShutDown,
       whichCodeToReturn: () =>
@@ -8772,7 +8786,7 @@ export class PseudoFWC {
           .left,
     },
     7700112: {
-      // ENG 2 SHUT DOWN (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts): amber, no flight phase inhibition
+      // ENG 2 SHUT DOWN (see Logic/EngineFailAlerts): amber, no flight phase inhibition
       flightPhaseInhib: [],
       simVarIsActive: this.engine2ShutDown,
       whichCodeToReturn: () =>
@@ -8815,7 +8829,7 @@ export class PseudoFWC {
           .left,
     },
     7700501: {
-      // ENG 1 FADEC A FAULT (FCOM PRO-ABN-ENG l.79545-79557): crew awareness, inhibited in phases 3, 4, 5, 7, 8
+      // ENG 1 FADEC A FAULT: crew awareness, inhibited in phases 3, 4, 5, 7, 8
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.fadecChannelAFault[0],
       whichCodeToReturn: () => [0],
@@ -8826,7 +8840,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700502: {
-      // ENG 1 FADEC B FAULT (FCOM PRO-ABN-ENG l.79545-79557): crew awareness, inhibited in phases 3, 4, 5, 7, 8
+      // ENG 1 FADEC B FAULT: crew awareness, inhibited in phases 3, 4, 5, 7, 8
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.fadecChannelBFault[0],
       whichCodeToReturn: () => [0],
@@ -8837,7 +8851,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700511: {
-      // ENG 1 FADEC FAULT (FCOM PRO-ABN-ENG l.79616-79660), inhibited in phases 4, 5, 7, 8
+      // ENG 1 FADEC FAULT, inhibited in phases 4, 5, 7, 8
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.fadecFault[0],
       whichCodeToReturn: () => fadecFaultLines(this.fwcFlightPhase.get(), this.thr1TLA.get() === 0),
@@ -8849,7 +8863,7 @@ export class PseudoFWC {
       statusInfo: () => fadecFaultStatus(1, this.aircraftOnGround.get()),
     },
     7700521: {
-      // ENG 1 FADEC HI TEMP (FCOM PRO-ABN-ENG l.79690-79729), inhibited in phases 3, 4, 5, 7, 8
+      // ENG 1 FADEC HI TEMP, inhibited in phases 3, 4, 5, 7, 8
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.fadecHiTemp[0],
       whichCodeToReturn: () =>
@@ -8870,7 +8884,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700531: {
-      // ENG 1 THR LEVER FAULT (FCOM PRO-ABN-ENG l.81792-81874), phases 4 and 5 in thrLeverFaultShown
+      // ENG 1 THR LEVER FAULT, phases 4 and 5 in thrLeverFaultShown
       flightPhaseInhib: [],
       simVarIsActive: this.thrLeverFaultShown[0],
       whichCodeToReturn: () =>
@@ -8899,7 +8913,7 @@ export class PseudoFWC {
       statusInfo: () => thrustLeverStatus(1, true, this.thrLeverRating[0]).left,
     },
     7700541: {
-      // ENG 1 THR LEVER DISAGREE (FCOM PRO-ABN-ENG l.81668-81771), phases 4 and 5 in thrLeverDisagreeShown
+      // ENG 1 THR LEVER DISAGREE, phases 4 and 5 in thrLeverDisagreeShown
       flightPhaseInhib: [],
       simVarIsActive: this.thrLeverDisagreeShown[0],
       whichCodeToReturn: () =>
@@ -8927,7 +8941,7 @@ export class PseudoFWC {
       statusInfo: () => thrustLeverStatus(1, false, this.thrLeverRating[0]).left,
     },
     7700551: {
-      // ENG 1 REVERSE UNLOCKED (FCOM PRO-ABN-ENG l.80848-80910), inhibited in phase 8, phases 4 and 5 in
+      // ENG 1 REVERSE UNLOCKED, inhibited in phase 8, phases 4 and 5 in
       // reverseUnlockedShown
       flightPhaseInhib: [8],
       simVarIsActive: this.reverseUnlockedShown[0],
@@ -8941,7 +8955,7 @@ export class PseudoFWC {
       statusInfo: () => reverseUnlockedStatus(this.aircraftOnGround.get()),
     },
     7700561: {
-      // ENG 1 REVERSER FAULT (FCOM PRO-ABN-ENG l.80933-80962), phases 3, 4 and 5 in reverserFaultShown
+      // ENG 1 REVERSER FAULT, phases 3, 4 and 5 in reverserFaultShown
       flightPhaseInhib: [],
       simVarIsActive: this.reverserFaultShown[0],
       whichCodeToReturn: () => [0],
@@ -8953,7 +8967,7 @@ export class PseudoFWC {
       inopSys: () => reverserFaultInopSys(1),
     },
     7700571: {
-      // ENG 1 REV PRESSURIZED (FCOM PRO-ABN-ENG l.80755-80779), inhibited in phases 4, 5, 8
+      // ENG 1 REV PRESSURIZED, inhibited in phases 4, 5, 8
       flightPhaseInhib: [4, 5, 8],
       simVarIsActive: this.revPressurized[0],
       whichCodeToReturn: () => revPressurizedLines(this.fwcFlightPhase.get(), this.thr1TLA.get() === 0),
@@ -8964,7 +8978,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700503: {
-      // ENG 2 FADEC A FAULT (FCOM PRO-ABN-ENG l.79545-79557): crew awareness, inhibited in phases 3, 4, 5, 7, 8
+      // ENG 2 FADEC A FAULT: crew awareness, inhibited in phases 3, 4, 5, 7, 8
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.fadecChannelAFault[1],
       whichCodeToReturn: () => [0],
@@ -8975,7 +8989,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700504: {
-      // ENG 2 FADEC B FAULT (FCOM PRO-ABN-ENG l.79545-79557): crew awareness, inhibited in phases 3, 4, 5, 7, 8
+      // ENG 2 FADEC B FAULT: crew awareness, inhibited in phases 3, 4, 5, 7, 8
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.fadecChannelBFault[1],
       whichCodeToReturn: () => [0],
@@ -8986,7 +9000,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700512: {
-      // ENG 2 FADEC FAULT (FCOM PRO-ABN-ENG l.79616-79660), inhibited in phases 4, 5, 7, 8
+      // ENG 2 FADEC FAULT, inhibited in phases 4, 5, 7, 8
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.fadecFault[1],
       whichCodeToReturn: () => fadecFaultLines(this.fwcFlightPhase.get(), this.thr2TLA.get() === 0),
@@ -8998,7 +9012,7 @@ export class PseudoFWC {
       statusInfo: () => fadecFaultStatus(2, this.aircraftOnGround.get()),
     },
     7700522: {
-      // ENG 2 FADEC HI TEMP (FCOM PRO-ABN-ENG l.79690-79729), inhibited in phases 3, 4, 5, 7, 8
+      // ENG 2 FADEC HI TEMP, inhibited in phases 3, 4, 5, 7, 8
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.fadecHiTemp[1],
       whichCodeToReturn: () =>
@@ -9019,7 +9033,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700532: {
-      // ENG 2 THR LEVER FAULT (FCOM PRO-ABN-ENG l.81792-81874), phases 4 and 5 in thrLeverFaultShown
+      // ENG 2 THR LEVER FAULT, phases 4 and 5 in thrLeverFaultShown
       flightPhaseInhib: [],
       simVarIsActive: this.thrLeverFaultShown[1],
       whichCodeToReturn: () =>
@@ -9048,7 +9062,7 @@ export class PseudoFWC {
       statusInfo: () => thrustLeverStatus(2, true, this.thrLeverRating[1]).left,
     },
     7700542: {
-      // ENG 2 THR LEVER DISAGREE (FCOM PRO-ABN-ENG l.81668-81771), phases 4 and 5 in thrLeverDisagreeShown
+      // ENG 2 THR LEVER DISAGREE, phases 4 and 5 in thrLeverDisagreeShown
       flightPhaseInhib: [],
       simVarIsActive: this.thrLeverDisagreeShown[1],
       whichCodeToReturn: () =>
@@ -9076,7 +9090,7 @@ export class PseudoFWC {
       statusInfo: () => thrustLeverStatus(2, false, this.thrLeverRating[1]).left,
     },
     7700552: {
-      // ENG 2 REVERSE UNLOCKED (FCOM PRO-ABN-ENG l.80848-80910), inhibited in phase 8, phases 4 and 5 in
+      // ENG 2 REVERSE UNLOCKED, inhibited in phase 8, phases 4 and 5 in
       // reverseUnlockedShown
       flightPhaseInhib: [8],
       simVarIsActive: this.reverseUnlockedShown[1],
@@ -9090,7 +9104,7 @@ export class PseudoFWC {
       statusInfo: () => reverseUnlockedStatus(this.aircraftOnGround.get()),
     },
     7700562: {
-      // ENG 2 REVERSER FAULT (FCOM PRO-ABN-ENG l.80933-80962), phases 3, 4 and 5 in reverserFaultShown
+      // ENG 2 REVERSER FAULT, phases 3, 4 and 5 in reverserFaultShown
       flightPhaseInhib: [],
       simVarIsActive: this.reverserFaultShown[1],
       whichCodeToReturn: () => [0],
@@ -9102,7 +9116,7 @@ export class PseudoFWC {
       inopSys: () => reverserFaultInopSys(2),
     },
     7700572: {
-      // ENG 2 REV PRESSURIZED (FCOM PRO-ABN-ENG l.80755-80779), inhibited in phases 4, 5, 8
+      // ENG 2 REV PRESSURIZED, inhibited in phases 4, 5, 8
       flightPhaseInhib: [4, 5, 8],
       simVarIsActive: this.revPressurized[1],
       whichCodeToReturn: () => revPressurizedLines(this.fwcFlightPhase.get(), this.thr2TLA.get() === 0),
@@ -9113,7 +9127,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700721: {
-      // ENG 1 STALL (FCOM PRO-ABN-ENG, see Logic/EngineParameterAlerts): amber, inhibited in phases 3, 4, 5, 7 and 8
+      // ENG 1 STALL (see Logic/EngineParameterAlerts): amber, inhibited in phases 3, 4, 5, 7 and 8
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.engine1Stall,
       whichCodeToReturn: () => engineStallLines(this.fwcFlightPhase.get(), this.thr1TLA.get() === 0),
@@ -9125,7 +9139,7 @@ export class PseudoFWC {
       statusInfo: () => engineStallStatus(1),
     },
     7700722: {
-      // ENG 2 STALL (FCOM PRO-ABN-ENG, see Logic/EngineParameterAlerts): amber, inhibited in phases 3, 4, 5, 7 and 8
+      // ENG 2 STALL (see Logic/EngineParameterAlerts): amber, inhibited in phases 3, 4, 5, 7 and 8
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.engine2Stall,
       whichCodeToReturn: () => engineStallLines(this.fwcFlightPhase.get(), this.thr2TLA.get() === 0),
@@ -9137,7 +9151,7 @@ export class PseudoFWC {
       statusInfo: () => engineStallStatus(2),
     },
     7700731: {
-      // ENG 1 N1/N2/EGT OVER LIMIT (FCOM PRO-ABN-ENG, see Logic/EngineParameterAlerts): amber, inhibited in phases 4 and 8
+      // ENG 1 N1/N2/EGT OVER LIMIT (see Logic/EngineParameterAlerts): amber, inhibited in phases 4 and 8
       flightPhaseInhib: [4, 8],
       simVarIsActive: this.engine1OverLimit,
       whichCodeToReturn: () =>
@@ -9153,7 +9167,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700732: {
-      // ENG 2 N1/N2/EGT OVER LIMIT (FCOM PRO-ABN-ENG, see Logic/EngineParameterAlerts): amber, inhibited in phases 4 and 8
+      // ENG 2 N1/N2/EGT OVER LIMIT (see Logic/EngineParameterAlerts): amber, inhibited in phases 4 and 8
       flightPhaseInhib: [4, 8],
       simVarIsActive: this.engine2OverLimit,
       whichCodeToReturn: () =>
@@ -9169,7 +9183,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7707901: {
-      // ENG 1 OIL LO PR (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): red warning, inhibited in phases 1 and 10
+      // ENG 1 OIL LO PR (see Logic/EngineOilAlerts): red warning, inhibited in phases 1 and 10
       flightPhaseInhib: [1, 10],
       simVarIsActive: this.engine1OilLoPr,
       whichCodeToReturn: () => engineOilShutDownLines(this.thr1TLA.get() === 0),
@@ -9180,7 +9194,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7707902: {
-      // ENG 2 OIL LO PR (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): red warning, inhibited in phases 1 and 10
+      // ENG 2 OIL LO PR (see Logic/EngineOilAlerts): red warning, inhibited in phases 1 and 10
       flightPhaseInhib: [1, 10],
       simVarIsActive: this.engine2OilLoPr,
       whichCodeToReturn: () => engineOilShutDownLines(this.thr2TLA.get() === 0),
@@ -9191,7 +9205,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7707911: {
-      // ENG 1 OIL HI TEMP (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): amber, inhibited in phases 4, 5, 7 and 8
+      // ENG 1 OIL HI TEMP (see Logic/EngineOilAlerts): amber, inhibited in phases 4, 5, 7 and 8
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.engine1OilHiTemp,
       whichCodeToReturn: () => engineOilShutDownLines(this.thr1TLA.get() === 0),
@@ -9202,7 +9216,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7707912: {
-      // ENG 2 OIL HI TEMP (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): amber, inhibited in phases 4, 5, 7 and 8
+      // ENG 2 OIL HI TEMP (see Logic/EngineOilAlerts): amber, inhibited in phases 4, 5, 7 and 8
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.engine2OilHiTemp,
       whichCodeToReturn: () => engineOilShutDownLines(this.thr2TLA.get() === 0),
@@ -9213,7 +9227,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7707921: {
-      // ENG 1 OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): amber, crew awareness, inhibited in phases
+      // ENG 1 OIL FILTER CLOG (see Logic/EngineOilAlerts): amber, crew awareness, inhibited in phases
       // 3, 4, 5, 7 and 8
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.engine1OilFilterClog,
@@ -9225,7 +9239,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7707922: {
-      // ENG 2 OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): amber, crew awareness, inhibited in phases
+      // ENG 2 OIL FILTER CLOG (see Logic/EngineOilAlerts): amber, crew awareness, inhibited in phases
       // 3, 4, 5, 7 and 8
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.engine2OilFilterClog,
@@ -9237,7 +9251,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     // ENG 1(2) HP FUEL VALVE, FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH
-    // FAULT (FCOM PRO-ABN-ENG, see Logic/EngineMonitoringAlerts)
+    // FAULT (see Logic/EngineMonitoringAlerts)
     7707311: this.engineHpFuelValveAlertItem(1),
     7707312: this.engineHpFuelValveAlertItem(2),
     7707321: this.engineMonitoringAlertItem('7707321', FADEC_ALTERNATOR, this.engineFadecAlternator[0]),
@@ -9253,7 +9267,7 @@ export class PseudoFWC {
     7707811: this.engineMonitoringAlertItem('7707811', REV_SWITCH_FAULT, this.engineRevSwitchFault[0]),
     7707812: this.engineMonitoringAlertItem('7707812', REV_SWITCH_FAULT, this.engineRevSwitchFault[1]),
     7707301: {
-      // ENG 1 FUEL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineFuelFilterAlerts): amber, crew awareness
+      // ENG 1 FUEL FILTER CLOG (see Logic/EngineFuelFilterAlerts): amber, crew awareness
       flightPhaseInhib: FUEL_FILTER_CLOG_PHASE_INHIBITION,
       simVarIsActive: this.engine1FuelFilterClog,
       whichCodeToReturn: () => [0],
@@ -9264,7 +9278,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7707302: {
-      // ENG 2 FUEL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineFuelFilterAlerts): amber, crew awareness
+      // ENG 2 FUEL FILTER CLOG (see Logic/EngineFuelFilterAlerts): amber, crew awareness
       flightPhaseInhib: FUEL_FILTER_CLOG_PHASE_INHIBITION,
       simVarIsActive: this.engine2FuelFilterClog,
       whichCodeToReturn: () => [0],
@@ -9275,7 +9289,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700901: {
-      // ENG 1 THR LEVER ABV IDLE (FCOM PRO-ABN-ENG, see Logic/EngineThrustSettingAlerts): red, RETARD-RETARD voice
+      // ENG 1 THR LEVER ABV IDLE (see Logic/EngineThrustSettingAlerts): red, RETARD-RETARD voice
       flightPhaseInhib: THR_LEVER_ABV_IDLE_PHASE_INHIBITION,
       simVarIsActive: this.engine1ThrLeverAboveIdle,
       auralWarning: Subject.create(FwcAuralWarning.None),
@@ -9287,7 +9301,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700902: {
-      // ENG 2 THR LEVER ABV IDLE (FCOM PRO-ABN-ENG, see Logic/EngineThrustSettingAlerts): red, RETARD-RETARD voice
+      // ENG 2 THR LEVER ABV IDLE (see Logic/EngineThrustSettingAlerts): red, RETARD-RETARD voice
       flightPhaseInhib: THR_LEVER_ABV_IDLE_PHASE_INHIBITION,
       simVarIsActive: this.engine2ThrLeverAboveIdle,
       auralWarning: Subject.create(FwcAuralWarning.None),
@@ -9299,7 +9313,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     7700911: {
-      // ENG SAT ABOVE FLEX TEMP (FCOM PRO-ABN-ENG, see Logic/EngineThrustSettingAlerts): amber, phase 2 only
+      // ENG SAT ABOVE FLEX TEMP (see Logic/EngineThrustSettingAlerts): amber, phase 2 only
       flightPhaseInhib: SAT_ABOVE_FLEX_TEMP_PHASE_INHIBITION,
       simVarIsActive: this.satAboveFlexTemp,
       whichCodeToReturn: () => [0, 1],
@@ -9482,8 +9496,8 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2600200: {
-      // ENG 1 FIRE DET FAULT: crew awareness, STATUS INOP SYS FIRE DET 1 (FCOM PRO-ABN-ENG). The flight
-      // phase inhibition is the one of the other crew awareness cautions (design choice, the FCOM gives it as a figure)
+      // ENG 1 FIRE DET FAULT: crew awareness, STATUS INOP SYS FIRE DET 1. Design choice: the flight phase inhibition
+      // of the other crew awareness cautions
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.eng1FireDetFault,
       whichCodeToReturn: () => [0],
@@ -9495,7 +9509,7 @@ export class PseudoFWC {
       inopSys: () => ['260300007'],
     },
     2600210: {
-      // ENG 1 FIRE LOOP A FAULT: crew awareness, STATUS INOP SYS ENG 1 LOOP A (FCOM PRO-ABN-ENG)
+      // ENG 1 FIRE LOOP A FAULT: crew awareness, STATUS INOP SYS ENG 1 LOOP A
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.eng1FireLoopAFault,
       whichCodeToReturn: () => [0],
@@ -9555,7 +9569,7 @@ export class PseudoFWC {
       inopSys: () => ['260300004'],
     },
     2600260: {
-      // APU FIRE DET FAULT: crew awareness, STATUS INOP SYS APU FIRE DET (FCOM PRO-ABN-APU)
+      // APU FIRE DET FAULT: crew awareness, STATUS INOP SYS APU FIRE DET
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.apuFireDetFault,
       whichCodeToReturn: () => [0],
@@ -9567,7 +9581,7 @@ export class PseudoFWC {
       inopSys: () => ['260300009'],
     },
     2600270: {
-      // APU FIRE LOOP A FAULT: crew awareness, STATUS INOP SYS APU LOOP A (FCOM PRO-ABN-APU)
+      // APU FIRE LOOP A FAULT: crew awareness, STATUS INOP SYS APU LOOP A
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.apuFireLoopAFault,
       whichCodeToReturn: () => [0],
@@ -9591,8 +9605,7 @@ export class PseudoFWC {
       inopSys: () => ['260300006'],
     },
     4900101: {
-      // APU AUTO SHUT DOWN (FCOM PRO-ABN-APU, see Logic/ApuShutdownAlerts). Flight phase inhibition 3, 4, 5, 7, 8: the
-      // figure of the FCOM PDF ("A320 Neo FCOM_1.pdf" page 4393, APU AUTO (EMER) SHUT DOWN), not in the FCOM text
+      // APU AUTO SHUT DOWN (see Logic/ApuShutdownAlerts). Flight phase inhibition 3, 4, 5, 7, 8.
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.apuAutoShutDown,
       whichCodeToReturn: () => apuShutdownLines(this.apuMasterSwitch.get() === 1),
@@ -9604,7 +9617,7 @@ export class PseudoFWC {
       inopSys: () => APU_SHUTDOWN_INOP_SYS,
     },
     4900102: {
-      // APU EMER SHUT DOWN (FCOM PRO-ABN-APU, see Logic/ApuShutdownAlerts)
+      // APU EMER SHUT DOWN (see Logic/ApuShutdownAlerts)
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.apuEmerShutDown,
       whichCodeToReturn: () => apuShutdownLines(this.apuMasterSwitch.get() === 1),
@@ -9656,7 +9669,7 @@ export class PseudoFWC {
       flightPhaseInhib: [3, 4, 5, 7, 8],
       // not with the other ELAC FAULT: ELAC 1+2 FAULT replaces both (Logic/FlightControlSurfaceAlerts elacFaultAlerts)
       simVarIsActive: this.elac1FaultAlert,
-      // FCOM PRO-ABN-F_CTL ELAC 1(2) FAULT, see elacFaultLines
+      // the ELAC 1(2) FAULT lines, see elacFaultLines
       whichCodeToReturn: () => elacFaultLines(this.elac1FaultLine123Display.get()),
       codesToReturn: ['270011001', '270011002', '270011003', '270011004', '270011005', '270011006'],
       memoInhibit: () => false,
@@ -9671,7 +9684,7 @@ export class PseudoFWC {
       flightPhaseInhib: [3, 4, 5, 7, 8],
       // not with the other ELAC FAULT: ELAC 1+2 FAULT replaces both (Logic/FlightControlSurfaceAlerts elacFaultAlerts)
       simVarIsActive: this.elac2FaultAlert,
-      // FCOM PRO-ABN-F_CTL ELAC 1(2) FAULT, see elacFaultLines
+      // the ELAC 1(2) FAULT lines, see elacFaultLines
       whichCodeToReturn: () => elacFaultLines(this.elac2FaultLine123Display.get()),
       codesToReturn: ['270012001', '270012002', '270012003', '270012004', '270012005', '270012006'],
       memoInhibit: () => false,
@@ -9774,7 +9787,7 @@ export class PseudoFWC {
       statusInfo: () => FctlStatus.fcdc12FaultStatus().left,
     },
     2700365: {
-      // DIRECT LAW (FCOM PRO-ABN-F_CTL, see directLawLines)
+      // DIRECT LAW (see directLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.directLawCondition,
       whichCodeToReturn: () =>
@@ -9820,7 +9833,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2700415: {
-      // CONFIG L SIDESTICK FAULT (BY TAKE OVER) (FCOM l.74286-74298), see Logic/ConfigSidestickFault
+      // CONFIG L SIDESTICK FAULT (BY TAKE OVER), see Logic/ConfigSidestickFault
       flightPhaseInhib: CONFIG_SIDESTICK_FAULT_PHASE_INHIBITION,
       auralWarning: this.configLeftSidestickFaultAural.map((on) => (on ? FwcAuralWarning.Crc : FwcAuralWarning.None)),
       simVarIsActive: this.configLeftSidestickFault,
@@ -9832,7 +9845,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2700416: {
-      // CONFIG R SIDESTICK FAULT (BY TAKE OVER) (FCOM l.74286-74298), see Logic/ConfigSidestickFault
+      // CONFIG R SIDESTICK FAULT (BY TAKE OVER), see Logic/ConfigSidestickFault
       flightPhaseInhib: CONFIG_SIDESTICK_FAULT_PHASE_INHIBITION,
       auralWarning: this.configRightSidestickFaultAural.map((on) => (on ? FwcAuralWarning.Crc : FwcAuralWarning.None)),
       simVarIsActive: this.configRightSidestickFault,
@@ -9844,10 +9857,10 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2700375: {
-      // ALTN 2 (FCOM PRO-ABN-F_CTL ALTN LAW, see altnLawLines)
+      // ALTN 2 (ALTN LAW procedure, see altnLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.altn2LawConfirmNodeOutput,
-      // SPD BRK DO NOT USE "IF L OR R ELEVATOR FAULT" (FCOM l.82547), not the FCDC SPD BRK 3+4 bit
+      // SPD BRK DO NOT USE "IF L OR R ELEVATOR FAULT", not the FCDC SPD BRK 3+4 bit
       whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.fctlSurfaces.leftOrRightElevatorLost),
       codesToReturn: ['270037501', '270037502', '270037503', '270037504', '270037505', '270037506', '270037507'],
       memoInhibit: () => false,
@@ -9858,10 +9871,10 @@ export class PseudoFWC {
       statusInfo: () => this.altnLawStatus().left,
     },
     2700390: {
-      // ALTN 1 (FCOM PRO-ABN-F_CTL ALTN LAW, see altnLawLines)
+      // ALTN 1 (ALTN LAW procedure, see altnLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.altn1LawConfirmNodeOutput,
-      // SPD BRK DO NOT USE "IF L OR R ELEVATOR FAULT" (FCOM l.82547), not the FCDC SPD BRK 3+4 bit
+      // SPD BRK DO NOT USE "IF L OR R ELEVATOR FAULT", not the FCDC SPD BRK 3+4 bit
       whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.fctlSurfaces.leftOrRightElevatorLost),
       codesToReturn: ['270039001', '270039002', '270039003', '270039004', '270039005', '270039006', '270039007'],
       memoInhibit: () => false,
@@ -9871,9 +9884,9 @@ export class PseudoFWC {
       inopSys: () => this.altnLawStatus().inopSys,
       statusInfo: () => this.altnLawStatus().left,
     },
-    // F/CTL surface cautions and ELAC 1+2 FAULT (FCOM PRO-ABN-F_CTL), see Logic/FlightControlSurfaceAlerts
+    // F/CTL surface cautions and ELAC 1+2 FAULT, see Logic/FlightControlSurfaceAlerts
     2701010: {
-      // ELAC 1+2 FAULT (FCOM ELAC 1(2) FAULT, BOTH COMPUTERS FAILED)
+      // ELAC 1+2 FAULT (ELAC 1(2) FAULT with both computers failed)
       flightPhaseInhib: FctlPhases.elacFault,
       simVarIsActive: this.elac12FaultAlert,
       whichCodeToReturn: () =>
@@ -10362,7 +10375,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2131233: {
-      // SAFETY VALVE OPEN (FCOM l.73299-73313: ABV 8 PSI, BELOW 0 PSI), see Logic/AirConditioningAlerts
+      // SAFETY VALVE OPEN (above 8 PSI or below 0 PSI), see Logic/AirConditioningAlerts
       flightPhaseInhib: [4, 5, 7, 8, 9, 10],
       simVarIsActive: this.safetyValveNotClosedOutput,
       whichCodeToReturn: () =>
@@ -10477,7 +10490,7 @@ export class PseudoFWC {
     },
     // 36 - PNEUMATIC: the AIR bleed cautions (keys 3611001-3611019), see Logic/BleedAlerts
     ...this.bleedAlerts.ewdFailures,
-    // The alerts of the FCOM gap batch P4, see their Logic modules
+    // The alerts that live in their own Logic modules
     ...this.cabinPressureAlerts.ewdFailures,
     ...this.thrustLockedAlert.ewdFailures,
     ...this.fuelTransferAlerts.ewdFailures,
@@ -10629,7 +10642,7 @@ export class PseudoFWC {
       // HOT AIR FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.hotAirDisagrees,
-      // FCOM PRO-ABN-COND: HOT AIR (IF NOT CLOSED) OFF; IF HOT AIR STILL OPEN and DUCT OVHT persists: both packs OFF,
+      // Procedure: HOT AIR (IF NOT CLOSED) OFF; IF HOT AIR STILL OPEN and DUCT OVHT persists: both packs OFF,
       // descent to FL 100/MEA-MORA, then RAM AIR ON when DIFF PR < 1 PSI and below FL 100, MAX FL 100/MEA-MORA
       whichCodeToReturn: () => {
         const stillOpenWithOvht = this.anyDuctOvht.get() && this.hotAirOpen.get();
@@ -10685,8 +10698,8 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2600150: {
-      // SMOKE FWD CARGO SMOKE (FCOM PRO-ABN-SMOKE l.95244-95318, see Logic/SmokeAlerts): the cargo smoke detection or
-      // the CARGO SMOKE TEST pb. Flight phase inhibition 4, 5, 7, 8 (FCOM PDF "A320 Neo FCOM_1.pdf" page 5786)
+      // SMOKE FWD CARGO SMOKE (see Logic/SmokeAlerts): the cargo smoke detection or the CARGO SMOKE TEST pb. Flight
+      // phase inhibition 4, 5, 7, 8
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.fwdCargoSmoke,
       whichCodeToReturn: () =>
@@ -10713,8 +10726,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2600160: {
-      // SMOKE AFT CARGO SMOKE (FCOM PRO-ABN-SMOKE l.95111-95170, see Logic/SmokeAlerts). Flight phase inhibition 4, 5,
-      // 7, 8 (FCOM PDF page 5781)
+      // SMOKE AFT CARGO SMOKE (see Logic/SmokeAlerts). Flight phase inhibition 4, 5, 7, 8
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.aftCargoSmoke,
       whichCodeToReturn: () =>
@@ -10741,8 +10753,8 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2600170: {
-      // SMOKE FWD CRG DET FAULT (FCOM PRO-ABN-SMOKE l.95378-95392). Flight phase inhibition 3, 4, 5, 7, 8 (FCOM PDF page
-      // 5792). The "IF NO LIVE STOCK: FWD ISOL VALVE OFF" lines stay hidden: no cargo ventilation in this aircraft.
+      // SMOKE FWD CRG DET FAULT. Flight phase inhibition 3, 4, 5, 7, 8. The "IF NO LIVE STOCK: FWD ISOL VALVE OFF"
+      // lines stay hidden: no cargo ventilation in this aircraft.
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.fwdCrgDetFault,
       whichCodeToReturn: () => [0],
@@ -10754,8 +10766,7 @@ export class PseudoFWC {
       inopSys: () => FWD_CRG_DET_FAULT_INOP_SYS,
     },
     2600180: {
-      // SMOKE AFT CRG DET FAULT (FCOM PRO-ABN-SMOKE l.95203-95240). Flight phase inhibition 3, 4, 5, 7, 8 (FCOM PDF
-      // page 5785)
+      // SMOKE AFT CRG DET FAULT. Flight phase inhibition 3, 4, 5, 7, 8
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.aftCrgDetFault,
       whichCodeToReturn: () => [0],
@@ -10767,8 +10778,7 @@ export class PseudoFWC {
       inopSys: () => AFT_CRG_DET_FAULT_INOP_SYS,
     },
     2600190: {
-      // SMOKE FWD CRG BTL 1 FAULT (FCOM PRO-ABN-SMOKE l.95345-95358: crew awareness). Flight phase inhibition 4, 5, 7,
-      // 8 (FCOM PDF page 5791)
+      // SMOKE FWD CRG BTL 1 FAULT (crew awareness). Flight phase inhibition 4, 5, 7, 8
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.fwdCrgBtlFault,
       whichCodeToReturn: () => [0],
@@ -10790,8 +10800,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2600300: {
-      // AVIONICS SMOKE (FCOM PRO-ABN-AVNCS l.72100-72120, DSC-26-30-10 l.38775-38782: single chime and MASTER CAUTION).
-      // Flight phase inhibition 4, 5, 7, 8 (FCOM PDF page 4441)
+      // AVIONICS SMOKE: single chime and MASTER CAUTION. Flight phase inhibition 4, 5, 7, 8
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.avionicsSmoke,
       whichCodeToReturn: () => [0, 1],
@@ -10829,11 +10838,11 @@ export class PseudoFWC {
       side: 'LEFT',
       ...alertStatus(() => antiSkidOffStatus(readYellowSystemLowPressure())),
     },
-    // Brake control unit cautions, see Logic/BrakeSystemAlerts (A320 FCOM PRO-ABN-BRAKES, PRO-ABN-WHEEL). The FCOM
-    // phase inhibition figures are not in the text: design choice, the alerts with a procedure line use the phases of
-    // A/SKID N/WS OFF, the crew awareness ones those of BRK Y ACCU LO PR.
+    // Brake control unit cautions, see Logic/BrakeSystemAlerts. Design choice for the flight phase inhibition: the
+    // alerts with a procedure line use the phases of A/SKID N/WS OFF, the crew awareness ones those of
+    // BRK Y ACCU LO PR.
     3200410: {
-      // BRAKES NORM + ALTN FAULT (l.72630-72674)
+      // BRAKES NORM + ALTN FAULT
       flightPhaseInhib: [4, 5],
       simVarIsActive: this.brakeSystemAlerts.normAndAltnFault,
       whichCodeToReturn: () => [0, 1],
@@ -10846,7 +10855,7 @@ export class PseudoFWC {
       inopSys: () => Brakes.NORM_AND_ALTN_FAULT_STATUS.inopSys,
     },
     3200400: {
-      // BRAKES A/SKID N/WS FAULT (l.72313-72375)
+      // BRAKES A/SKID N/WS FAULT
       flightPhaseInhib: [4, 5],
       simVarIsActive: this.brakeSystemAlerts.antiSkidNwsFault,
       whichCodeToReturn: () => [0, 1],
@@ -10859,7 +10868,7 @@ export class PseudoFWC {
       inopSys: () => Brakes.antiSkidNwsStatus(this.brakeYellowLowPressure).inopSys,
     },
     3200420: {
-      // BRAKES NORM BRK FAULT (l.72676-72715)
+      // BRAKES NORM BRK FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.brakeSystemAlerts.normBrkFault,
       whichCodeToReturn: () => [0],
@@ -10872,7 +10881,7 @@ export class PseudoFWC {
       inopSys: () => Brakes.NORM_BRK_FAULT_STATUS.inopSys,
     },
     3200430: {
-      // BRAKES ALTN BRK FAULT (l.72385-72409)
+      // BRAKES ALTN BRK FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.brakeSystemAlerts.altnBrkFault,
       whichCodeToReturn: () => [0],
@@ -10884,7 +10893,7 @@ export class PseudoFWC {
       inopSys: () => Brakes.ALTN_BRK_FAULT_STATUS.inopSys,
     },
     3200440: {
-      // BRAKES AUTO BRK FAULT (l.72463-72483)
+      // BRAKES AUTO BRK FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.brakeSystemAlerts.autoBrkFault,
       whichCodeToReturn: () => [0],
@@ -10897,7 +10906,7 @@ export class PseudoFWC {
       inopSys: () => Brakes.AUTO_BRK_FAULT_STATUS.inopSys,
     },
     3200450: {
-      // BRAKES SYS 1 FAULT (l.72874-72898)
+      // BRAKES SYS 1 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.brakeSystemAlerts.sys1Fault,
       whichCodeToReturn: () => [0],
@@ -10909,7 +10918,7 @@ export class PseudoFWC {
       inopSys: () => Brakes.SYS_1_FAULT_STATUS.inopSys,
     },
     3200460: {
-      // BRAKES SYS 2 FAULT (l.72874-72898)
+      // BRAKES SYS 2 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.brakeSystemAlerts.sys2Fault,
       whichCodeToReturn: () => [0],
@@ -10921,7 +10930,7 @@ export class PseudoFWC {
       inopSys: () => Brakes.SYS_2_FAULT_STATUS.inopSys,
     },
     3200470: {
-      // WHEEL N/W STRG FAULT (PRO-ABN-WHEEL l.96340-96380)
+      // WHEEL N/W STRG FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.brakeSystemAlerts.nwStrgFault,
       whichCodeToReturn: () => [0],
@@ -10934,7 +10943,7 @@ export class PseudoFWC {
       inopSys: () => Brakes.NW_STRG_FAULT_STATUS.inopSys,
     },
     3200480: {
-      // WHEEL HYD SEL FAULT (PRO-ABN-WHEEL l.96294-96338), no STATUS
+      // WHEEL HYD SEL FAULT, no STATUS
       flightPhaseInhib: Brakes.HYD_SEL_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.brakeSystemAlerts.hydSelFault,
       whichCodeToReturn: Brakes.hydSelFaultLines,
@@ -11123,7 +11132,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
-      // STATUS (FCOM PRO-ABN-NAV NAV RA 1(2) FAULT, a320_fcom.txt l.93833-93840), see Logic/AdirsAlerts
+      // STATUS of NAV RA 1(2) FAULT, see Logic/AdirsAlerts
       inopSys: () => raFaultStatus(1).inopSys,
       statusInfo: () => raFaultStatus(1).left,
     },
@@ -11137,7 +11146,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
-      // STATUS (FCOM PRO-ABN-NAV NAV GPS 1(2) FAULT): INOP SYS GPS 1(2); if both GPS FAULT: FLS LIMITED TO F-APP + RAW
+      // STATUS: INOP SYS GPS 1(2); if both GPS FAULT: FLS LIMITED TO F-APP + RAW
       inopSys: () => [this.gps2Fault.get() ? '340300003' : '340300001'],
       statusInfo: () => (this.gps2Fault.get() ? ['340200001'] : []),
     },
@@ -11155,8 +11164,8 @@ export class PseudoFWC {
       statusInfo: () => (this.gps1Fault.get() ? ['340200001'] : []),
     },
     3400190: {
-      // NAV FM/GPS POS DISAGREE (A320 FCOM PRO-ABN-NAV, see Logic/NavPositionAlerts): MASTER CAUT and single chime
-      // (DSC-22_20-20-20), A/C POS ... CHECK; phase 5 inhibited for its first 15 s by the logic
+      // NAV FM/GPS POS DISAGREE (see Logic/NavPositionAlerts): MASTER CAUT and single chime, A/C POS ... CHECK;
+      // phase 5 inhibited for its first 15 s by the logic
       flightPhaseInhib: FM_GPS_POS_DISAGREE_PHASE_INHIBITION,
       simVarIsActive: this.fmGpsPosDisagree,
       whichCodeToReturn: () => [0, 1],
@@ -11167,8 +11176,8 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     3400195: {
-      // NAV LS TUNING DISAGREE (A320 FCOM PRO-ABN-NAV, see Logic/NavPositionAlerts): crew awareness, level 1 (no aural
-      // symbol on the FCOM page), STATUS INOP SYS CAT 2
+      // NAV LS TUNING DISAGREE (see Logic/NavPositionAlerts): crew awareness, level 1 (no aural), STATUS INOP SYS
+      // CAT 2
       flightPhaseInhib: LS_TUNING_DISAGREE_PHASE_INHIBITION,
       simVarIsActive: this.lsTuningDisagree,
       whichCodeToReturn: () => [0],
@@ -11180,9 +11189,8 @@ export class PseudoFWC {
       inopSys: () => [LS_TUNING_DISAGREE_INOP_SYS],
     },
     3100500: {
-      // FWS FWC 1 FAULT (A320 FCOM PRO-ABN-FWS, line 86821): crew awareness, shown by FWC 2. Level 1 (no MASTER CAUT,
-      // no chime) and the flight phase inhibition of the other computer faults are design choices: the FCOM gives them
-      // in figures only.
+      // FWS FWC 1 FAULT: crew awareness, shown by FWC 2. Design choices: level 1 (no MASTER CAUT, no chime) and the
+      // flight phase inhibition of the other computer faults.
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.fwc1FaultAlert,
       whichCodeToReturn: () => [0],
@@ -11191,7 +11199,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
-      // STATUS (FCOM lines 86846-86849): CAT 3 SINGLE ONLY, INOP SYS CAT 3 DUAL, FWC 1
+      // STATUS: CAT 3 SINGLE ONLY, INOP SYS CAT 3 DUAL, FWC 1
       inopSys: () => fwcFaultStatus(1).inopSys,
       statusInfo: () => fwcFaultStatus(1).info,
     },
@@ -11221,11 +11229,11 @@ export class PseudoFWC {
       inopSys: () => raFaultStatus(2).inopSys,
       statusInfo: () => raFaultStatus(2).left,
     },
-    // NAV RA, ADR and IR alerts (A320 FCOM PRO-ABN-NAV), see Logic/AdirsAlerts. The FCOM gives the flight phase
-    // inhibitions in figures: the RA alerts have the one of NAV RA 1(2) FAULT, the ADR and IR alerts the one of F/CTL ALTN
-    // LAW (phases 4, 5, 7, 8), with the exceptions that the FCOM text gives (design choice).
+    // NAV RA, ADR and IR alerts, see Logic/AdirsAlerts. Design choice for the flight phase inhibitions: the RA alerts
+    // have the one of NAV RA 1(2) FAULT, the ADR and IR alerts the one of F/CTL ALTN LAW (phases 4, 5, 7, 8), with
+    // the documented exceptions.
     3400145: {
-      // NAV RA 1 AND 2 FAULT (a320_fcom.txt l.93752-93807): crew awareness, replaces the two RA 1(2) FAULT alerts
+      // NAV RA 1 AND 2 FAULT: crew awareness, replaces the two RA 1(2) FAULT alerts
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.ra1And2Fault,
       whichCodeToReturn: () => [0],
@@ -11238,7 +11246,7 @@ export class PseudoFWC {
       statusInfo: () => ra1And2FaultStatus().left,
     },
     3400155: {
-      // NAV RA DEGRADED (l.93852-93868): crew awareness
+      // NAV RA DEGRADED: crew awareness
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.raDegraded,
       whichCodeToReturn: () => [0],
@@ -11249,8 +11257,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     3400300: {
-      // NAV ADR 1 FAULT (l.91927-91999): "Not inhibited in flight phases 3, 5, and 7 in the case of NAV ADR 1(2)
-      // FAULT" (l.91943)
+      // NAV ADR 1 FAULT: NAV ADR 1(2) FAULT is not inhibited in flight phases 3, 5 and 7
       flightPhaseInhib: [4, 8],
       simVarIsActive: this.adrFaultAlert[0],
       whichCodeToReturn: () => adrFaultLines(1, this.airKnob.get(), this.adrPbOn[0]),
@@ -11276,7 +11283,7 @@ export class PseudoFWC {
       statusInfo: () => adrFaultStatus(2).left,
     },
     3400320: {
-      // NAV ADR 3 FAULT: in phase 3 only while the ADR 3 is in use (l.91941, see updateAdirsAlerts)
+      // NAV ADR 3 FAULT: in phase 3 only while the ADR 3 is in use (see updateAdirsAlerts)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.adrFaultAlert[2],
       whichCodeToReturn: () => adrFaultLines(3, this.airKnob.get(), this.adrPbOn[2]),
@@ -11289,7 +11296,7 @@ export class PseudoFWC {
       statusInfo: () => adrFaultStatus(3).left,
     },
     3400330: {
-      // NAV ADR 1+2(1+3)(2+3) FAULT (l.92011-92183)
+      // NAV ADR 1+2(1+3)(2+3) FAULT
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.adrDualFaultAlert,
       whichCodeToReturn: () =>
@@ -11311,7 +11318,7 @@ export class PseudoFWC {
       statusInfo: () => (this.adirsFaults.adrDualFault ? adrDualFaultStatus(this.adirsFaults.adrDualFault).left : []),
     },
     3400360: {
-      // NAV ADR 1+2+3 FAULT (l.92185-92297)
+      // NAV ADR 1+2+3 FAULT
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.adrTripleFaultAlert,
       whichCodeToReturn: () =>
@@ -11330,7 +11337,7 @@ export class PseudoFWC {
       statusInfo: () => adrTripleFaultStatus().left,
     },
     3400370: {
-      // NAV ADR DISAGREE (l.92436-92527)
+      // NAV ADR DISAGREE
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.adrDisagree,
       whichCodeToReturn: () => [0, 1, 2, 3, 4],
@@ -11343,8 +11350,7 @@ export class PseudoFWC {
       statusInfo: () => adrDisagreeStatus().left,
     },
     3400400: {
-      // NAV IR 1 FAULT (l.93306-93399): "Alert not inhibited in flight phase 3 in the case of NAV IR 1(2) FAULT"
-      // (l.93322)
+      // NAV IR 1 FAULT: NAV IR 1(2) FAULT is not inhibited in flight phase 3
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.irFaultAlert[0],
       whichCodeToReturn: () =>
@@ -11372,7 +11378,7 @@ export class PseudoFWC {
       statusInfo: () => irFaultStatus(2).left,
     },
     3400420: {
-      // NAV IR 3 FAULT: in phase 3 only while the IR 3 is in use (l.93320-93321, see updateAdirsAlerts)
+      // NAV IR 3 FAULT: in phase 3 only while the IR 3 is in use (see updateAdirsAlerts)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.irFaultAlert[2],
       whichCodeToReturn: () => irFaultLines(3, this.attKnob.get(), false),
@@ -11385,7 +11391,7 @@ export class PseudoFWC {
       statusInfo: () => irFaultStatus(3).left,
     },
     3400430: {
-      // NAV IR 1+2(1+3)(2+3) FAULT (l.93411-93521)
+      // NAV IR 1+2(1+3)(2+3) FAULT
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.irDualFaultAlert,
       whichCodeToReturn: () =>
@@ -11399,7 +11405,7 @@ export class PseudoFWC {
       statusInfo: () => (this.adirsFaults.irDualFault ? irDualFaultStatus(this.adirsFaults.irDualFault).left : []),
     },
     3400460: {
-      // NAV IR DISAGREE (l.93533-93624)
+      // NAV IR DISAGREE
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.irDisagree,
       whichCodeToReturn: () => [0, 1, 2, 3, 4],
@@ -11412,8 +11418,8 @@ export class PseudoFWC {
       statusInfo: () => irDisagreeStatus().left,
     },
     3400860: {
-      // NAV ATC/XPDR 1 FAULT (FCOM PRO-ABN-NAV, a320_fcom.txt:92764-92790; the flight phase inhibition is the one of
-      // the RA faults, design choice): ATC/XPDR SYS 2 while XPDR 1 is selected; INOP SYS ATC/XPDR 1, ADS-B RPTG 1
+      // NAV ATC/XPDR 1 FAULT (design choice: the flight phase inhibition of the RA faults): ATC/XPDR SYS 2 while
+      // XPDR 1 is selected; INOP SYS ATC/XPDR 1, ADS-B RPTG 1
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.xpdr1Fault,
       whichCodeToReturn: () => [0, isXpdrSwitchLineShown(1, this.selectedXpdr.get(), !this.xpdr2Inop.get()) ? 1 : null],
@@ -11437,7 +11443,7 @@ export class PseudoFWC {
       inopSys: () => ['340300006', '340300008'],
     },
     3400890: {
-      // NAV ATC/XPDR 1+2 FAULT (a320_fcom.txt:92802-92830): crew awareness; INOP SYS TCAS, ATC/XPDR 1, ATC/XPDR 2,
+      // NAV ATC/XPDR 1+2 FAULT: crew awareness; INOP SYS TCAS, ATC/XPDR 1, ATC/XPDR 2,
       // ADS-B RPTG 1, ADS-B RPTG 2 (flight phase inhibition of the RA faults, design choice)
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.xpdr1And2Fault,
@@ -11450,7 +11456,7 @@ export class PseudoFWC {
       inopSys: () => ['340300004', '340300005', '340300006', '340300007', '340300008'],
     },
     3400500: {
-      // TCAS FAULT: INOP SYS TCAS (FCOM PRO-ABN-NAV NAV TCAS FAULT, a320_fcom.txt:93880-93904)
+      // TCAS FAULT: INOP SYS TCAS
       flightPhaseInhib: [1, 3, 4, 5, 7, 8, 10],
       simVarIsActive: this.tcasFault,
       whichCodeToReturn: () => [0],
@@ -11525,8 +11531,7 @@ export class PseudoFWC {
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
     },
-    // ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN (FCOM PRO-ABN-A-ICE l.68779-68857), see Logic/EngineAntiIceAlerts; flight
-    // phase inhibition from the FCOM figures (2019 PDF pages 1985-1986)
+    // ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN, see Logic/EngineAntiIceAlerts
     3001101: {
       // ANTI ICE ENG 1 VALVE CLSD
       flightPhaseInhib: [3, 4, 5, 7, 8],
@@ -11581,10 +11586,10 @@ export class PseudoFWC {
     },
     // ANTI ICE probe and window heat cautions (3001201-3001275), see probeWindowHeatFailures()
     ...this.probeWindowHeatFailures(),
-    // HYD alerts (FCOM PRO-ABN-HYD), see Logic/HydraulicAlerts for the triggers, priorities, lines and STATUS. Flight
-    // phase inhibition: the FCOM figures are not in its text, design choice [3, 4, 5, 7, 8] as the RSVR OVHT alerts had
-    // [GK], with the notes the text keeps (ELEC PUMP LO PR: phase 3 only for the OVHT, l.86992, l.87703; G(Y) RSVR LO LVL:
-    // only the first 15 s of phase 5, l.87528, l.88044, applied by the monitor) and [4, 5, 7, 8] for the red dual failures
+    // HYD alerts, see Logic/HydraulicAlerts for the triggers, priorities, lines and STATUS. Flight phase inhibition:
+    // design choice [3, 4, 5, 7, 8] as the RSVR OVHT alerts, with the documented notes (ELEC PUMP LO PR: phase 3 only
+    // for the OVHT; G(Y) RSVR LO LVL: only the first 15 s of phase 5, applied by the monitor) and [4, 5, 7, 8] for the
+    // red dual failures
     2900126: {
       // HYD B RSVR OVHT
       flightPhaseInhib: [3, 4, 5, 7, 8],
@@ -11952,7 +11957,7 @@ export class PseudoFWC {
       // L+R WING TK LO LVL
       flightPhaseInhib: [3, 4, 5, 7, 8, 9],
       simVarIsActive: this.lrTankLow,
-      // FCOM PRO-ABN-FUEL, jet pump variant, see wingTanksLowLevelLines
+      // jet pump variant, see wingTanksLowLevelLines
       whichCodeToReturn: () =>
         wingTanksLowLevelLines({
           modeSelMan: this.fuelCtrTankModeSelMan.get(),
@@ -11986,7 +11991,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2800130: {
-      // L WING TK LO LVL (FCOM PRO-ABN-FUEL, see wingTankLowLevelLines)
+      // L WING TK LO LVL (see wingTankLowLevelLines)
       flightPhaseInhib: [3, 4, 5, 7, 8, 9],
       simVarIsActive: this.leftFuelLow,
       whichCodeToReturn: () =>
@@ -12006,7 +12011,7 @@ export class PseudoFWC {
       statusInfo: () => wingTankLowLevelStatus('L', this.centerTankEmpty.get()).info,
     },
     2800140: {
-      // R WING TK LO LVL (FCOM PRO-ABN-FUEL, see wingTankLowLevelLines)
+      // R WING TK LO LVL (see wingTankLowLevelLines)
       flightPhaseInhib: [3, 4, 5, 7, 8, 9],
       simVarIsActive: this.rightFuelLow,
       whichCodeToReturn: () =>
@@ -12026,8 +12031,8 @@ export class PseudoFWC {
       statusInfo: () => wingTankLowLevelStatus('R', this.centerTankEmpty.get()).info,
     },
     2800201: {
-      // L TK PUMP 1 LO PR: -TK PUMP (AFFECTED) OFF, STATUS INOP SYS TK PUMP (FCOM PRO-ABN-FUEL l.86168-86190).
-      // The FCOM flight phase inhibition is a figure: the one of the other single system faults (design choice)
+      // L TK PUMP 1 LO PR: -TK PUMP (AFFECTED) OFF, STATUS INOP SYS TK PUMP. Design choice: the flight phase
+      // inhibition of the other single system faults (also for the other TK PUMP LO PR alerts)
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.leftTankPump1LoPr,
       whichCodeToReturn: () => [0, this.leftFuelPump1Auto.get() ? 1 : null],
@@ -12039,8 +12044,7 @@ export class PseudoFWC {
       inopSys: () => ['280300001'],
     },
     2800202: {
-      // L TK PUMP 2 LO PR: -TK PUMP (AFFECTED) OFF, STATUS INOP SYS TK PUMP (FCOM PRO-ABN-FUEL l.86168-86190).
-      // The FCOM flight phase inhibition is a figure: the one of the other single system faults (design choice)
+      // L TK PUMP 2 LO PR: as L TK PUMP 1 LO PR
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.leftTankPump2LoPr,
       whichCodeToReturn: () => [0, this.leftFuelPump2Auto.get() ? 1 : null],
@@ -12052,8 +12056,7 @@ export class PseudoFWC {
       inopSys: () => ['280300002'],
     },
     2800203: {
-      // R TK PUMP 1 LO PR: -TK PUMP (AFFECTED) OFF, STATUS INOP SYS TK PUMP (FCOM PRO-ABN-FUEL l.86168-86190).
-      // The FCOM flight phase inhibition is a figure: the one of the other single system faults (design choice)
+      // R TK PUMP 1 LO PR: as L TK PUMP 1 LO PR
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.rightTankPump1LoPr,
       whichCodeToReturn: () => [0, this.rightFuelPump1Auto.get() ? 1 : null],
@@ -12065,8 +12068,7 @@ export class PseudoFWC {
       inopSys: () => ['280300003'],
     },
     2800204: {
-      // R TK PUMP 2 LO PR: -TK PUMP (AFFECTED) OFF, STATUS INOP SYS TK PUMP (FCOM PRO-ABN-FUEL l.86168-86190).
-      // The FCOM flight phase inhibition is a figure: the one of the other single system faults (design choice)
+      // R TK PUMP 2 LO PR: as L TK PUMP 1 LO PR
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.rightTankPump2LoPr,
       whichCodeToReturn: () => [0, this.rightFuelPump2Auto.get() ? 1 : null],
@@ -12078,8 +12080,7 @@ export class PseudoFWC {
       inopSys: () => ['280300004'],
     },
     2800205: {
-      // L TK PUMP 1+2 LO PR (FCOM PRO-ABN-FUEL l.86207-86260, see wingTankPumps1And2Lines); STATUS INOP SYS
-      // L TK PUMPS
+      // L TK PUMP 1+2 LO PR (see wingTankPumps1And2Lines); STATUS INOP SYS L TK PUMPS
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.leftTankPumps1And2LoPr,
       whichCodeToReturn: () =>
@@ -12110,8 +12111,7 @@ export class PseudoFWC {
       inopSys: () => ['280300005'],
     },
     2800206: {
-      // R TK PUMP 1+2 LO PR (FCOM PRO-ABN-FUEL l.86207-86260, see wingTankPumps1And2Lines); STATUS INOP SYS
-      // R TK PUMPS
+      // R TK PUMP 1+2 LO PR (see wingTankPumps1And2Lines); STATUS INOP SYS R TK PUMPS
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.rightTankPumps1And2LoPr,
       whichCodeToReturn: () =>
@@ -12143,7 +12143,6 @@ export class PseudoFWC {
     },
     2800210: {
       // X FEED VALVE FAULT: the valve position disagrees with the pb-sw; crew awareness; STATUS INOP SYS FUEL X FEED
-      // (FCOM PRO-ABN-FUEL l.86717-86735)
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.crossFeedValveFault,
       whichCodeToReturn: () => [0],
@@ -12155,20 +12154,13 @@ export class PseudoFWC {
       inopSys: () => ['280300007'],
     },
     2800211: {
-      // CTR L XFR FAULT (VALVE NOT FULLY CLOSED): the valve failed open (FCOM PRO-ABN-FUEL l.85400-85460):
+      // CTR L XFR FAULT (VALVE NOT FULLY CLOSED): the valve failed open:
       // stop the transfer by switching off the L TK pumps, both engines fed by the other wing; STATUS INOP SYS
-      // CTR TK L XFR. The FCOM flight phase inhibition is a figure: the one of the other fuel faults (design choice)
+      // CTR TK L XFR. Design choice: the flight phase inhibition of the other fuel faults (also for CTR R XFR FAULT)
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.ctrLeftXfrNotFullyClosed,
       whichCodeToReturn: () =>
-        centreTransferNotClosedLines({
-          ctrTkXfrOn: this.centerFuelPump1Auto.get(),
-          modeSelMan: this.fuelCtrTankModeSelMan.get(),
-          crossFeedOn: this.fuelXFeedPBOn.get(),
-          pump1On: this.leftFuelPump1Auto.get(),
-          pump2On: this.leftFuelPump2Auto.get(),
-          centreTankEmpty: this.centerTankEmpty.get(),
-        }).map((show, index) => (show ? index : null)),
+        centreTransferNotClosedLines(this.centreTransferFaultInputs('L')).map((show, index) => (show ? index : null)),
       codesToReturn: [
         '280021101',
         '280021102',
@@ -12187,20 +12179,12 @@ export class PseudoFWC {
       inopSys: () => ['280300008'],
     },
     2800212: {
-      // CTR R XFR FAULT (VALVE NOT FULLY CLOSED): the valve failed open (FCOM PRO-ABN-FUEL l.85400-85460):
-      // stop the transfer by switching off the R TK pumps, both engines fed by the other wing; STATUS INOP SYS
-      // CTR TK R XFR. The FCOM flight phase inhibition is a figure: the one of the other fuel faults (design choice)
+      // CTR R XFR FAULT (VALVE NOT FULLY CLOSED): as CTR L XFR FAULT, with the R TK pumps; STATUS INOP SYS CTR TK R
+      // XFR
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.ctrRightXfrNotFullyClosed,
       whichCodeToReturn: () =>
-        centreTransferNotClosedLines({
-          ctrTkXfrOn: this.centerFuelPump2Auto.get(),
-          modeSelMan: this.fuelCtrTankModeSelMan.get(),
-          crossFeedOn: this.fuelXFeedPBOn.get(),
-          pump1On: this.rightFuelPump1Auto.get(),
-          pump2On: this.rightFuelPump2Auto.get(),
-          centreTankEmpty: this.centerTankEmpty.get(),
-        }).map((show, index) => (show ? index : null)),
+        centreTransferNotClosedLines(this.centreTransferFaultInputs('R')).map((show, index) => (show ? index : null)),
       codesToReturn: [
         '280021201',
         '280021202',
@@ -12219,7 +12203,7 @@ export class PseudoFWC {
       inopSys: () => ['280300009'],
     },
     2800213: {
-      // CTR L + R XFR FAULT (VALVES NOT FULLY CLOSED): both valves failed open (FCOM PRO-ABN-FUEL l.85555-85590): CTR TK
+      // CTR L + R XFR FAULT (VALVES NOT FULLY CLOSED): both valves failed open: CTR TK
       // L and R XFR OFF; STATUS INOP SYS CTR TK XFR
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.ctrLeftRightXfrNotFullyClosed,
@@ -12236,19 +12220,12 @@ export class PseudoFWC {
       inopSys: () => ['280300010'],
     },
     2800214: {
-      // CTR L XFR FAULT (VALVE NOT FULLY OPEN): the valve failed closed (FCOM PRO-ABN-FUEL l.85479-85530):
+      // CTR L XFR FAULT (VALVE NOT FULLY OPEN): the valve failed closed:
       // MODE SEL MAN, if unsuccessful both engines fed by the L wing; STATUS INOP SYS CTR TK L XFR
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.ctrLeftXfrNotFullyOpen,
       whichCodeToReturn: () =>
-        centreTransferNotOpenLines({
-          ctrTkXfrOn: this.centerFuelPump1Auto.get(),
-          modeSelMan: this.fuelCtrTankModeSelMan.get(),
-          crossFeedOn: this.fuelXFeedPBOn.get(),
-          pump1On: this.leftFuelPump1Auto.get(),
-          pump2On: this.leftFuelPump2Auto.get(),
-          centreTankEmpty: this.centerTankEmpty.get(),
-        }).map((show, index) => (show ? index : null)),
+        centreTransferNotOpenLines(this.centreTransferFaultInputs('L')).map((show, index) => (show ? index : null)),
       codesToReturn: [
         '280021401',
         '280021402',
@@ -12268,19 +12245,12 @@ export class PseudoFWC {
       inopSys: () => ['280300008'],
     },
     2800215: {
-      // CTR R XFR FAULT (VALVE NOT FULLY OPEN): the valve failed closed (FCOM PRO-ABN-FUEL l.85479-85530):
+      // CTR R XFR FAULT (VALVE NOT FULLY OPEN): the valve failed closed:
       // MODE SEL MAN, if unsuccessful both engines fed by the R wing; STATUS INOP SYS CTR TK R XFR
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.ctrRightXfrNotFullyOpen,
       whichCodeToReturn: () =>
-        centreTransferNotOpenLines({
-          ctrTkXfrOn: this.centerFuelPump2Auto.get(),
-          modeSelMan: this.fuelCtrTankModeSelMan.get(),
-          crossFeedOn: this.fuelXFeedPBOn.get(),
-          pump1On: this.rightFuelPump1Auto.get(),
-          pump2On: this.rightFuelPump2Auto.get(),
-          centreTankEmpty: this.centerTankEmpty.get(),
-        }).map((show, index) => (show ? index : null)),
+        centreTransferNotOpenLines(this.centreTransferFaultInputs('R')).map((show, index) => (show ? index : null)),
       codesToReturn: [
         '280021501',
         '280021502',
@@ -12300,7 +12270,7 @@ export class PseudoFWC {
       inopSys: () => ['280300009'],
     },
     2800216: {
-      // CTR L + R XFR FAULT (VALVES NOT FULLY OPEN): both valves failed closed (FCOM PRO-ABN-FUEL l.85599-85651): MODE
+      // CTR L + R XFR FAULT (VALVES NOT FULLY OPEN): both valves failed closed: MODE
       // SEL MAN, IF UNSUCCESSFUL: CTR AVAIL BY GRAVITY, 2 T UNUSABLE; STATUS CTR TK USABLE BY GRAVITY, 2 T UNUSABLE, INOP
       // SYS CTR TK XFR. The gravity transfer from the centre tank is not simulated.
       flightPhaseInhib: [3, 4, 5, 7, 8],
@@ -12315,7 +12285,7 @@ export class PseudoFWC {
       statusInfo: () => ['280200001', '280200002'],
     },
     2800230: {
-      // FUEL ENG 1 LP VALVE OPEN (FCOM PRO-ABN-FUEL, see Logic/FuelLpValveFqiAlerts): amber, crew awareness
+      // FUEL ENG 1 LP VALVE OPEN (see Logic/FuelLpValveFqiAlerts): amber, crew awareness
       flightPhaseInhib: ENG_LP_VALVE_OPEN_PHASE_INHIBITION,
       simVarIsActive: this.fuelEngLpValveOpen[0],
       whichCodeToReturn: () => [0],
@@ -12326,7 +12296,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2800231: {
-      // FUEL ENG 2 LP VALVE OPEN (FCOM PRO-ABN-FUEL, see Logic/FuelLpValveFqiAlerts): amber, crew awareness
+      // FUEL ENG 2 LP VALVE OPEN (see Logic/FuelLpValveFqiAlerts): amber, crew awareness
       flightPhaseInhib: ENG_LP_VALVE_OPEN_PHASE_INHIBITION,
       simVarIsActive: this.fuelEngLpValveOpen[1],
       whichCodeToReturn: () => [0],
@@ -12337,7 +12307,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2800232: {
-      // FUEL FQI CH 1 FAULT (FCOM PRO-ABN-FUEL, see Logic/FuelLpValveFqiAlerts): amber, crew awareness
+      // FUEL FQI CH 1 FAULT (see Logic/FuelLpValveFqiAlerts): amber, crew awareness
       flightPhaseInhib: FQI_CHANNEL_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fuelFqiChannelFault[0],
       whichCodeToReturn: () => [0],
@@ -12348,7 +12318,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2800233: {
-      // FUEL FQI CH 2 FAULT (FCOM PRO-ABN-FUEL, see Logic/FuelLpValveFqiAlerts): amber, crew awareness
+      // FUEL FQI CH 2 FAULT (see Logic/FuelLpValveFqiAlerts): amber, crew awareness
       flightPhaseInhib: FQI_CHANNEL_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fuelFqiChannelFault[1],
       whichCodeToReturn: () => [0],
@@ -12449,7 +12419,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     '0000030': {
-      // IRS IN ALIGN X MN, X = 4 to > 7 (A320 FCOM DSC-34-NAV-10-20 MEMO DISPLAY, a320_fcom.txt l.52686-52697)
+      // IRS IN ALIGN X MN, X = 4 to > 7
       flightPhaseInhib: [],
       simVarIsActive: this.irsInAlignMemo1,
       whichCodeToReturn: () => {
@@ -12491,7 +12461,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     '0000031': {
-      // IRS IN ALIGN X MN, X = 1 to 3, then IRS IN ALIGN (a320_fcom.txt l.52686-52697)
+      // IRS IN ALIGN X MN, X = 1 to 3, then IRS IN ALIGN
       flightPhaseInhib: [],
       simVarIsActive: this.irsInAlignMemo2,
       whichCodeToReturn: () => {
@@ -12674,10 +12644,8 @@ export class PseudoFWC {
     '0000360': {
       // LAND ASAP AMBER
       flightPhaseInhib: [],
-      // also with ENG 1(2) FAIL and ENG 1(2) SHUT DOWN: "LAND ASAP" (FCOM PRO-ABN-ENG, l.79797 and l.81087), and with
-      // ENG 1(2) THR LEVER FAULT (l.81826) and ENG 1(2) REVERSE UNLOCKED in flight (l.80895), and with ELEC DC EMER CONFIG
-      // (FCOM PRO-ABN-ELEC l.77163) and ESS BUSES ON BAT (l.77947), and with FUEL L+R WING TK LO LVL (FCOM PRO-ABN-FUEL
-      // l.86557)
+      // also LAND ASAP with ENG 1(2) FAIL and ENG 1(2) SHUT DOWN, ENG 1(2) THR LEVER FAULT, ENG 1(2) REVERSE UNLOCKED
+      // in flight, ELEC DC EMER CONFIG and ESS BUSES ON BAT, and FUEL L+R WING TK LO LVL
       simVarIsActive: MappedSubject.create(
         ([
           landAsapRed,
@@ -12788,8 +12756,7 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000070': {
-      // IGNITION: when continuous ignition is activated on any engine (FCOM DSC-70-90-50 l.64667), not merely when the
-      // ENG MODE selector is at IGN/START
+      // IGNITION: when continuous ignition is on for any engine, not merely when the ENG MODE selector is at IGN/START
       flightPhaseInhib: [],
       simVarIsActive: this.continuousIgnition,
       whichCodeToReturn: () => [0],
@@ -12824,7 +12791,7 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000546': {
-      // TERR STBY, green (FCOM DSC-34-SURV-40-40 l.55563-55566), see Logic/GpwsAlerts
+      // TERR STBY, green, see Logic/GpwsAlerts
       flightPhaseInhib: [],
       simVarIsActive: this.gpwsAlerts.terrStbyMemo,
       whichCodeToReturn: () => [0],
@@ -12860,7 +12827,7 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000553': {
-      // COMPANY DATALINK STBY, green (FCOM DSC-46-10-40-60 l.59467-59468), see Logic/DatalinkAlerts
+      // COMPANY DATALINK STBY, green, see Logic/DatalinkAlerts
       flightPhaseInhib: DATALINK_PHASE_INHIBITION.companyDatalinkStbyMemo,
       simVarIsActive: this.datalinkAlerts.companyDatalinkStby,
       whichCodeToReturn: () => [0, 1],
@@ -12904,7 +12871,7 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000170': {
-      // APU AVAIL (FCOM DSC-49-20, see isApuAvailMemoShown)
+      // APU AVAIL (see isApuAvailMemoShown)
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
         ([apuAvail, apuBleedPbOn]) => isApuAvailMemoShown(apuAvail === 1, apuBleedPbOn),
@@ -12917,7 +12884,7 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000180': {
-      // APU BLEED: APU available and APU BLEED pb-sw ON (FCOM DSC-36-20, see isApuBleedMemoShown)
+      // APU BLEED: APU available and APU BLEED pb-sw ON (see isApuBleedMemoShown)
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
         ([apuAvail, apuBleedPbOn]) => isApuBleedMemoShown(apuAvail === 1, apuBleedPbOn),
@@ -12955,7 +12922,7 @@ export class PseudoFWC {
     '0000290': {
       // SWITCHING PNL
       flightPhaseInhib: [],
-      // A320 FCOM DSC-31-30 MEMO DISPLAY (l.46928-46935): a PFD/ND XFR pb together with ECAM/ND XFR, or EIS DMC
+      // a PFD/ND XFR pb together with ECAM/ND XFR, or EIS DMC
       simVarIsActive: MappedSubject.create(
         ([ndXfrKnob, dmcSwitchingKnob, pfdNdXfrL, pfdNdXfrR]) =>
           isSwitchingPanelMemoShown(ndXfrKnob, dmcSwitchingKnob, pfdNdXfrL, pfdNdXfrR),
@@ -12997,7 +12964,7 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000240': {
-      // RAM AIR ON (FCOM DSC-21-10-50 l.8642), see Logic/AirConditioningAlerts
+      // RAM AIR ON, see Logic/AirConditioningAlerts
       flightPhaseInhib: [],
       simVarIsActive: this.ramAirOn.map(isRamAirOnMemoShown),
       whichCodeToReturn: () => [0],
@@ -13037,7 +13004,7 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000568': {
-      // AUDIO 3 XFRD, green (FCOM DSC-23-50 l.36144-36150), see Logic/CommunicationAlerts
+      // AUDIO 3 XFRD, green, see Logic/CommunicationAlerts
       flightPhaseInhib: COM_PHASE_INHIBITION.audio3XfrdMemo,
       simVarIsActive: this.communicationAlerts.audio3Xfrd,
       whichCodeToReturn: () => [0],

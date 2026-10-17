@@ -31,36 +31,35 @@ const healthy: SmokeAlertInputs = {
   cargoBottleLowPressure: false,
 };
 
-/* A320 FCOM PRO-ABN-SMOKE (a320_fcom.txt l.95111-95392) and PRO-ABN-AVNCS AVIONICS SMOKE (l.72100-72120) */
 describe('cargo and avionics smoke alerts', () => {
   it('no alert when healthy', () => {
     expect(Object.values(smokeAlerts(healthy)).some((alert) => alert)).toBe(false);
   });
 
-  it('FWD CARGO SMOKE from the detection (l.95244-95250), and from the CARGO SMOKE TEST as before', () => {
+  it('FWD CARGO SMOKE from the detection, and from the CARGO SMOKE TEST as before', () => {
     expect(smokeAlerts({ ...healthy, fwdCargoSmokeDetected: true }).fwdCargoSmoke).toBe(true);
     expect(smokeAlerts({ ...healthy, fwdCargoSmokeDetected: true }).aftCargoSmoke).toBe(false);
     expect(smokeAlerts({ ...healthy, cargoSmokeTest: true }).fwdCargoSmoke).toBe(true);
   });
 
-  it('AFT CARGO SMOKE from the AFT detection (l.95111-95117)', () => {
+  it('AFT CARGO SMOKE from the AFT detection', () => {
     expect(smokeAlerts({ ...healthy, aftCargoSmokeDetected: true }).aftCargoSmoke).toBe(true);
     expect(smokeAlerts({ ...healthy, aftCargoSmokeDetected: true }).fwdCargoSmoke).toBe(false);
   });
 
-  it('FWD (AFT) CRG DET FAULT when the detection of that compartment is failed (l.95203-95214, l.95378-95384)', () => {
+  it('FWD (AFT) CRG DET FAULT when the detection of that compartment is failed', () => {
     const fwd = smokeAlerts({ ...healthy, fwdCargoDetectionFault: true });
     expect([fwd.fwdCrgDetFault, fwd.aftCrgDetFault]).toEqual([true, false]);
     const aft = smokeAlerts({ ...healthy, aftCargoDetectionFault: true });
     expect([aft.fwdCrgDetFault, aft.aftCrgDetFault]).toEqual([false, true]);
   });
 
-  it('FWD and AFT CRG BTL 1 FAULT when the single bottle is at low pressure (l.95345-95358)', () => {
+  it('FWD and AFT CRG BTL 1 FAULT when the single bottle is at low pressure', () => {
     const alerts = smokeAlerts({ ...healthy, cargoBottleLowPressure: true });
     expect([alerts.fwdCrgBtlFault, alerts.aftCrgBtlFault]).toEqual([true, true]);
   });
 
-  it('AVIONICS SMOKE from the avionics duct detector (l.72102-72108)', () => {
+  it('AVIONICS SMOKE from the avionics duct detector', () => {
     expect(smokeAlerts({ ...healthy, avionicsSmokeDetected: true }).avionicsSmoke).toBe(true);
   });
 
@@ -103,7 +102,7 @@ describe('cargo and avionics smoke alerts', () => {
     ]);
   });
 
-  it('STATUS INOP SYS FWD (AFT) CRG DET (l.95236-95240, l.95388-95392)', () => {
+  it('STATUS INOP SYS FWD (AFT) CRG DET', () => {
     expect(formatStatusPage([], FWD_CRG_DET_FAULT_INOP_SYS).right).toBe(
       '\x1b<7m\x1b4mINOP SYS\x1bm\r\x1b<4mFWD CRG DET',
     );

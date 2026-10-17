@@ -4,13 +4,11 @@
 import { Subject } from '@microsoft/msfs-sdk';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { StatusLines } from './CondStatus';
-import { FwcAlertItem, cautionItem } from './FwcAlertItem';
+import { FwcAlertItem, cautionItem, readBool } from './FwcAlertItem';
 
 /*
- * The centre tank transfer cautions of the jet pump fuel system (the FBW A32NX one, see Fuel/FuelPumpsAndValves), A320
- * FCOM PRO-ABN-FUEL:
- * - FUEL AUTO TRANSFER FAULT, a320_fcom.txt l.85347-85398, FCOM PDF page 5273;
- * - FUEL CTR TK XFR OFF, l.85792-85817, FCOM PDF page 5284.
+ * The centre tank transfer cautions of the jet pump fuel system (the FBW A32NX one, see Fuel/FuelPumpsAndValves):
+ * FUEL AUTO TRANSFER FAULT and FUEL CTR TK XFR OFF.
  */
 
 export const FuelTransferAlertKeys = {
@@ -18,15 +16,15 @@ export const FuelTransferAlertKeys = {
   centreTankTransferOff: '2800217',
 } as const;
 
-/** AUTO TRANSFER FAULT flight phase inhibition (PDF page 5273): shown in phases 1, 6, 9 and 10 */
+/** AUTO TRANSFER FAULT flight phase inhibition: shown in phases 1, 6, 9 and 10 */
 export const AUTO_TRANSFER_FAULT_PHASE_INHIBITION = [2, 3, 4, 5, 7, 8];
 
-/** CTR TK XFR OFF flight phase inhibition (PDF page 5284): shown in phases 2 and 6 only */
+/** CTR TK XFR OFF flight phase inhibition: shown in phases 2 and 6 only */
 export const CTR_TK_XFR_OFF_PHASE_INHIBITION = [1, 3, 4, 5, 7, 8, 9, 10];
 
-/** l.85362-85363: "the CTR TK quantity > 250 kg (550 lb) and Left or right wing tanks quantity < 5 000 kg (11 000 lb)" */
-export const AUTO_TRANSFER_FAULT_CENTRE_TANK_MIN_KG = 250;
-export const AUTO_TRANSFER_FAULT_WING_TANKS_MAX_KG = 5000;
+/** AUTO TRANSFER FAULT: more than 250 kg in the centre tank and less than 5 000 kg in the left or right wing tanks */
+const AUTO_TRANSFER_FAULT_CENTRE_TANK_MIN_KG = 250;
+const AUTO_TRANSFER_FAULT_WING_TANKS_MAX_KG = 5000;
 
 export interface FuelTransferInputs {
   /** The FUEL MODE SEL pb is at MAN */
@@ -42,8 +40,8 @@ export interface FuelTransferInputs {
 }
 
 /**
- * FUEL AUTO TRANSFER FAULT (l.85361-85363). With the transfer working, the FLSCU opens the transfer valves as soon as the
- * inner tank is not full, so that the wing tanks stay full while the centre tank has fuel.
+ * FUEL AUTO TRANSFER FAULT. With the transfer working, the FLSCU opens the transfer valves as soon as the inner tank
+ * is not full, so that the wing tanks stay full while the centre tank has fuel.
  */
 export function isAutoTransferFault(inputs: FuelTransferInputs): boolean {
   return (
@@ -54,10 +52,10 @@ export function isAutoTransferFault(inputs: FuelTransferInputs): boolean {
 }
 
 /**
- * The lines of FUEL AUTO TRANSFER FAULT (l.85370-85374): 0 title, 1 -FUEL MODE SEL MAN, 2 -CTR TK L XFR ON, 3 -CTR TK
+ * The lines of FUEL AUTO TRANSFER FAULT: 0 title, 1 -FUEL MODE SEL MAN, 2 -CTR TK L XFR ON, 3 -CTR TK
  * R XFR ON. A done action line is hidden.
  */
-export function autoTransferFaultLines(inputs: FuelTransferInputs): (number | null)[] {
+function autoTransferFaultLines(inputs: FuelTransferInputs): (number | null)[] {
   return [
     0,
     inputs.modeSelMan ? null : 1,
@@ -66,14 +64,14 @@ export function autoTransferFaultLines(inputs: FuelTransferInputs): (number | nu
   ];
 }
 
-/** FUEL AUTO TRANSFER FAULT STATUS (l.85396-85398): CTR TK FEED: MAN ONLY */
-export function autoTransferFaultStatus(): StatusLines {
+/** FUEL AUTO TRANSFER FAULT STATUS: CTR TK FEED: MAN ONLY */
+function autoTransferFaultStatus(): StatusLines {
   return { left: ['280200003'], inopSys: [] };
 }
 
 /**
- * FUEL CTR TK XFR OFF: "This alert triggers when both CTR TK L XFR pb-sw and CTR TK R XFR pb-sw at OFF when the system
- * is in automatic mode." (l.85806-85807). Lines (l.85816-85817): 0 title, 1 -CTR TK L XFR ON, 2 -CTR TK R XFR ON.
+ * FUEL CTR TK XFR OFF: both CTR TK L XFR and CTR TK R XFR pb-sw are OFF with the system in automatic mode. Lines:
+ * 0 title, 1 -CTR TK L XFR ON, 2 -CTR TK R XFR ON.
  */
 export function isCentreTankTransferOff(inputs: FuelTransferInputs): boolean {
   return !inputs.modeSelMan && !inputs.centreLeftTransferOn && !inputs.centreRightTransferOn;
@@ -122,8 +120,6 @@ export class FuelTransferAlerts {
 }
 
 /* Acquisition (not unit tested: SimVar reads only) */
-
-const readBool = (name: string): boolean => SimVar.GetSimVarValue(name, 'bool') > 0;
 
 /** Reads the fuel transfer inputs from the simvars */
 export function readFuelTransferInputs(modeSelMan: boolean): FuelTransferInputs {

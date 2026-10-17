@@ -58,7 +58,7 @@ describe('DoorFailures (A32NX ATA 52 door proximity sensors and cockpit door loc
     expect(flag('L:A32NX_DOOR_R_AFT_CABIN_PROX_SENSOR_FAULT')).toBe(false);
   });
 
-  // FCOM DSC-52-40-20 l.61662-61663 (FAULT), 61673-61675 (strikes), 61682-61684 (pressure sensors)
+  // the CDLS lights: the pedestal FAULT light, the three strikes and the two pressure sensors
   it.each([
     [A320Failure.CockpitDoorUpperLatch, 'L:A32NX_CDLS_UPPER_LATCH_FAULT'],
     [A320Failure.CockpitDoorMidLatch, 'L:A32NX_CDLS_MID_LATCH_FAULT'],

@@ -19,7 +19,7 @@ import {
 } from './FuelLevelSensing';
 import { A320_FUEL_MODE_SEL_MAN_VAR, FuelPumpsAndValves } from './FuelPumpsAndValves';
 
-/* A320 FCOM PRO-ABN-FUEL FUEL L (R) OUTER XFR CLOSED (a320_fcom.txt l.86104-86105) and OPEN (l.86142) */
+/* FUEL L (R) OUTER XFR CLOSED and OPEN */
 describe('outer tank transfer valve disagreement', () => {
   it('is CLOSED when both valves stay closed after the low level command', () => {
     expect(outerTransferDisagreement(true, [0, 0])).toEqual({ closed: true, open: false });
@@ -32,7 +32,7 @@ describe('outer tank transfer valve disagreement', () => {
   });
 });
 
-/* FCOM DSC-28-10-30 (l.42113-42115) and PRO-ABN-FUEL FUEL L (R) WING TK OVERFLOW (l.86638) */
+/* MODE SEL MAN without CTR TK XFR OFF: FUEL L (R) WING TK OVERFLOW */
 describe('wing tank overflow', () => {
   const transferringIntoFullTank: WingOverflowInputs = {
     innerTankGallons: INNER_TANK_FULL_GALLONS,

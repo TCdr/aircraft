@@ -6,15 +6,14 @@ import { StatusLines } from './CondStatus';
 import { FlightControlStatusCodes as F } from './FlightControlStatus';
 
 /*
- * The NAV ADR, IR and RA alerts of the A320 FWC (A320 FCOM PRO-ABN-NAV, a320_fcom.txt line numbers at each function).
- * The ADR and IR faults come from the ADIRUs (systems navigation/adirs.rs): the ADR and IR FAULT discretes, which also
- * drive the FAULT lights of the ADIRS panel (FCOM DSC-34-NAV-10-20, l.52605-52615).
+ * The NAV ADR, IR and RA alerts of the A320 FWC. The ADR and IR faults come from the ADIRUs (systems
+ * navigation/adirs.rs): the ADR and IR FAULT discretes, which also drive the FAULT lights of the ADIRS panel.
  *
  * The STATUS lines that belong to the flight control law (MAX SPEED 320 KT, ALTN LAW: PROT LOST, WHEN L/G DN: DIRECT
- * LAW, INOP SYS F/CTL PROT) are not repeated here: the FCOM gives them as the associated procedure F/CTL ALTN LAW (PROT
- * LOST), and the F/CTL ALTN LAW alert gives them when the ELACs revert (Logic/FlightControlStatus altnLawStatus).
- * Not shown: the options STEEP APPR, GLS AUTOLAND, ROW/ROP, and the reminder "This line is replaced by FOR LDG : USE
- * FLAP 3 when CONF 3 is selected".
+ * LAW, INOP SYS F/CTL PROT) are not repeated here: they belong to the associated procedure F/CTL ALTN LAW (PROT LOST),
+ * and the F/CTL ALTN LAW alert gives them when the ELACs revert (Logic/FlightControlStatus altnLawStatus).
+ * Not shown: the options STEEP APPR, GLS AUTOLAND, ROW/ROP, and the FOR LDG USE FLAP 3 replacement when CONF 3 is
+ * selected.
  */
 
 /** An ADIRU, ADR or IR number */
@@ -128,7 +127,6 @@ const APPROACH_WITH_FLAP_3 = [
   F.ldgDistProcApply,
 ];
 
-/** The ADR and IR fault alerts */
 export interface AdirsFaultAlerts {
   /** NAV ADR 1(2)(3) FAULT, by ADR (index 0 = ADR 1): this ADR is the only faulty one */
   adrFault: [boolean, boolean, boolean];
@@ -147,11 +145,8 @@ function faultyUnits(faulty: readonly boolean[]): AdirsUnit[] {
 }
 
 /**
- * The ADR and IR fault alerts from the faulty units. The FCOM has one alert per number of faulty units:
- * NAV ADR 1(2)(3) FAULT "triggers when the ADR 1(2)(3) is failed" (l.91937), NAV ADR 1+2(1+3)(2+3) FAULT "when two ADRs
- * are failed" (l.92021), NAV ADR 1+2+3 FAULT "when the three ADRs are failed" (l.92196), NAV IR 1(2)(3) FAULT "when the
- * IR 1(2)(3) is failed" (l.93316), NAV IR 1+2(1+3)(2+3) FAULT "when IR 1+2(1+3)(2+3) are failed" (l.93421). The FCOM has
- * no alert for three failed IRs: none is given then.
+ * The ADR and IR fault alerts from the faulty units: one alert per number of faulty units (one, two or three ADRs; one
+ * or two IRs). There is no alert for three failed IRs: none is given then.
  * @param adrFaulty the ADR FAULT discrete of ADR 1, 2 and 3
  * @param irFaulty the IR FAULT discrete of IR 1, 2 and 3
  * @returns the alerts
@@ -182,7 +177,7 @@ function pairIndex(pair: AdirsPair): number {
 }
 
 /**
- * NAV ADR 1(2)(3) FAULT lines (FCOM l.91964-91990). An action line goes when it is done.
+ * NAV ADR 1(2)(3) FAULT lines. An action line goes when it is done.
  * - ADR 1: title, AIR DATA SWTG CAPT 3, ADR 1 P/B OFF;
  * - ADR 2: title, AIR DATA SWTG F/O 3, ADR 2 P/B OFF, BARO REF CHECK;
  * - ADR 3: title, ADR 3 P/B OFF, "AIR DATA SWTG (IF ADR 3 IN USE) NORM".
@@ -204,7 +199,7 @@ export function adrFaultLines(adr: AdirsUnit, airDataKnob: AirDataSwitchingKnob,
 
 /**
  * NAV ADR 1+2(1+3)(2+3) FAULT lines (EwdMessages 3400330xx: titles 1+2, 1+3, 2+3, AIR DATA SWTG CAPT 3, AIR DATA SWTG
- * NORM, ATC/XPDR SYS 2, ATC/XPDR SYS 1, ADR 1 P/B OFF, ADR 2 P/B OFF, ADR 3 P/B OFF), FCOM l.92049-92080:
+ * NORM, ATC/XPDR SYS 2, ATC/XPDR SYS 1, ADR 1 P/B OFF, ADR 2 P/B OFF, ADR 3 P/B OFF):
  * - ADR 1+2: AIR DATA SWTG CAPT 3, ADR (AFFECTED) P/B OFF;
  * - ADR 1+3 (or 2+3): AIR DATA SWTG NORM, "ATC/XPDR (IF ADR 1 FAILED) SYS 2", "ATC/XPDR (IF ADR 2 FAILED) SYS 1",
  *   ADR (AFFECTED) P/B OFF.
@@ -239,8 +234,8 @@ export function adrDualFaultLines(
 }
 
 /**
- * NAV ADR 1+2+3 FAULT lines (EwdMessages 3400360xx), FCOM l.92222-92240 (the variant without the BKUP SPD/ALT pb, which
- * the FBW A320 does not have): AP+FD OFF, A/THR OFF, PROBE/WINDOW HEAT ON, ADR 1+2+3 P/B OFF, SPD FLY THE GREEN, STBY INST
+ * NAV ADR 1+2+3 FAULT lines (EwdMessages 3400360xx), the variant without the BKUP SPD/ALT pb, which the FBW A320 does
+ * not have: AP+FD OFF, A/THR OFF, PROBE/WINDOW HEAT ON, ADR 1+2+3 P/B OFF, SPD FLY THE GREEN, STBY INST
  * MAY BE UNREL, ALL ADR OFF PROC APPLY. An action line goes when it is done.
  * @param apOrFdEngaged an autopilot or a flight director is engaged
  * @param athrEngaged the autothrust is engaged
@@ -267,8 +262,8 @@ export function adrTripleFaultLines(
 }
 
 /**
- * NAV IR 1(2)(3) FAULT lines (FCOM l.93343-93354): IR 1: ATT HDG SWTG CAPT 3, ATC/XPDR SYS 2; IR 2: ATT HDG SWTG F/O 3,
- * ATC/XPDR SYS 1; IR 3: none ("ATT HDG SWTG (IF IR 3 IN USE) NORM ... This line is not displayed on the ECAM").
+ * NAV IR 1(2)(3) FAULT lines: IR 1: ATT HDG SWTG CAPT 3, ATC/XPDR SYS 2; IR 2: ATT HDG SWTG F/O 3, ATC/XPDR SYS 1;
+ * IR 3: none (its ATT HDG SWTG NORM line is not displayed on the ECAM).
  * @param ir the faulty IR
  * @param attHdgKnob the ATT HDG selector
  * @param xpdrLineShown the transponder of the faulty IR's side is in use and the other one works
@@ -290,8 +285,8 @@ export function irFaultLines(
 }
 
 /**
- * NAV IR 1+2(1+3)(2+3) FAULT lines (EwdMessages 3400430xx: titles 1+2, 1+3, 2+3, ATT HDG SWTG CAPT 3, ATT HDG SWTG NORM),
- * FCOM l.93444-93451: "If IR 1 + 2 FAULT: ATT HDG SWTG ... CAPT 3", "If IR 1 + 3 (or 2 + 3) FAULT: ATT HDG SWTG ... NORM".
+ * NAV IR 1+2(1+3)(2+3) FAULT lines (EwdMessages 3400430xx: titles 1+2, 1+3, 2+3, ATT HDG SWTG CAPT 3, ATT HDG SWTG
+ * NORM): ATT HDG SWTG CAPT 3 for IR 1+2, ATT HDG SWTG NORM for IR 1+3 (or 2+3).
  * @param pair the faulty IRs
  * @param attHdgKnob the ATT HDG selector
  * @returns the line indexes
@@ -306,10 +301,8 @@ export function irDualFaultLines(pair: AdirsPair, attHdgKnob: AttHdgSwitchingKno
 }
 
 /**
- * The flight phase inhibition of NAV ADR 3 FAULT and NAV IR 3 FAULT in phase 3. FCOM l.91941-91943: "Not inhibited in
- * flight phase 3 in the case of NAV ADR 3 FAULT while the ADR 3 is in use. Not inhibited in flight phases 3, 5, and 7 in
- * the case of NAV ADR 1(2) FAULT."; l.93320-93322: "Alert not inhibited in flight phase 3 in the case of NAV IR 3 FAULT
- * while the ADR 3 is in use" (the IR 3 is meant: the IR 3 is in use with the ATT HDG selector off NORM).
+ * The flight phase inhibition of NAV ADR 3 FAULT and NAV IR 3 FAULT in phase 3: they are inhibited in phase 3 unless
+ * the ADR 3 (IR 3) is in use (selector off NORM). NAV ADR 1(2) FAULT is not inhibited in phases 3, 5 and 7.
  * @param flightPhase the FWC flight phase
  * @param unit3InUse the ADR 3 (IR 3) replaces the ADR (IR) of one side
  * @returns whether the alert of unit 3 is inhibited by the phase 3 rule
@@ -318,7 +311,7 @@ export function unit3AlertInhibitedInPhase3(flightPhase: number, unit3InUse: boo
   return flightPhase === 3 && !unit3InUse;
 }
 
-/** ADR 1(2)(3) FAULT STATUS (FCOM l.91996-91999): CAT 3 SINGLE ONLY; INOP SYS ADR 1(2)(3), CAT 3 DUAL, GPWS (ADR 1) */
+/** ADR 1(2)(3) FAULT STATUS: CAT 3 SINGLE ONLY; INOP SYS ADR 1(2)(3), CAT 3 DUAL, GPWS (ADR 1) */
 export function adrFaultStatus(adr: AdirsUnit): StatusLines {
   return {
     left: [S.cat3SingleOnly],
@@ -327,7 +320,7 @@ export function adrFaultStatus(adr: AdirsUnit): StatusLines {
 }
 
 /**
- * ADR 1+2(1+3)(2+3) FAULT STATUS (FCOM l.92131-92183): APPR PROC FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, if ADR 1+3: L/G
+ * ADR 1+2(1+3)(2+3) FAULT STATUS: APPR PROC FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, if ADR 1+3: L/G
  * GRVTY EXTN, APPR SPD VREF+10 KT, LDG DIST PROC APPLY, FLS LIMITED TO F-APP + RAW, if ADR 1+3 (or 2+3): BOTH PFD ON
  * THE SAME FAC; INOP SYS ADR (pair), AP 1+2, A/THR, ATC/XPDR 1 (ADR 1 failed), ATC/XPDR 2 (ADR 2 failed), RUD TRV LIM
  * 1(2) (ADR 1+3, 2+3), GPWS (ADR 1 failed), CAT 2.
@@ -363,7 +356,7 @@ export function adrDualFaultStatus(pair: AdirsPair): StatusLines {
 }
 
 /**
- * ADR 1+2+3 FAULT STATUS (FCOM l.92272-92297): STBY INST MAY BE UNREL, APPR PROC FOR LDG USE FLAP 3, L/G GRVTY EXTN;
+ * ADR 1+2+3 FAULT STATUS: STBY INST MAY BE UNREL, APPR PROC FOR LDG USE FLAP 3, L/G GRVTY EXTN;
  * INOP SYS REAC W/S DET, ADR 1+2+3, RUD TRV LIM, YAW DAMPER, AP 1+2, A/THR, CAB PR 1+2, GPWS, ATC/XPDR 1, ATC/XPDR 2.
  */
 export function adrTripleFaultStatus(): StatusLines {
@@ -374,7 +367,7 @@ export function adrTripleFaultStatus(): StatusLines {
 }
 
 /**
- * IR 1(2)(3) FAULT STATUS (FCOM l.93374-93389): IR MAY BE AVAIL IN ATT, CAT 3 SINGLE ONLY; INOP SYS IR 1(2)(3), CAT 3
+ * IR 1(2)(3) FAULT STATUS: IR MAY BE AVAIL IN ATT, CAT 3 SINGLE ONLY; INOP SYS IR 1(2)(3), CAT 3
  * DUAL, GPWS TERR, TCAS and ATC/XPDR 1 (IR 1 fault), ATC/XPDR 2 (IR 2 fault).
  */
 export function irFaultStatus(ir: AdirsUnit): StatusLines {
@@ -390,7 +383,7 @@ export function irFaultStatus(ir: AdirsUnit): StatusLines {
 }
 
 /**
- * IR 1+2(1+3)(2+3) FAULT STATUS (FCOM l.93487-93521): APPR PROC FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD
+ * IR 1+2(1+3)(2+3) FAULT STATUS: APPR PROC FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD
  * VREF+10 KT, LDG DIST PROC APPLY, IR (AFFECTED) MAY BE AVAIL IN ATT, FLS LIMITED TO F-APP + RAW; INOP SYS IR (pair),
  * AP 1+2, A/THR, YAW DAMPER 1 (IR 1+3), YAW DAMPER 2 (IR 2+3), GPWS TERR (IR 1 fault), TCAS, CAT 2, ATC/XPDR 1 (IR 1
  * failed), ATC/XPDR 2 (IR 2 failed).
@@ -416,25 +409,25 @@ export function irDualFaultStatus(pair: AdirsPair): StatusLines {
 }
 
 /**
- * ADR DISAGREE STATUS (FCOM l.92506-92527): APPR PROC FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD VREF+10, LDG DIST
- * PROC APPLY, "IF NO SPD DISAGREE: RISK OF UNDUE STALL WARN" (the law lines come with F/CTL ALTN LAW).
+ * ADR DISAGREE STATUS: APPR PROC FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD VREF+10, LDG DIST
+ * PROC APPLY, IF NO SPD DISAGREE: RISK OF UNDUE STALL WARN (the law lines come with F/CTL ALTN LAW).
  */
 export function adrDisagreeStatus(): StatusLines {
   return { left: [...APPROACH_WITH_FLAP_3, S.ifNoSpeedDisagree, S.riskOfUndueStallWarn], inopSys: [] };
 }
 
-/** IR DISAGREE STATUS (FCOM l.93609-93624): APPR PROC FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD, LDG DIST PROC */
+/** IR DISAGREE STATUS: APPR PROC FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD, LDG DIST PROC */
 export function irDisagreeStatus(): StatusLines {
   return { left: [...APPROACH_WITH_FLAP_3], inopSys: [] };
 }
 
-/** RA 1(2) FAULT STATUS (FCOM l.93833-93840): CAT 2 ONLY; INOP SYS RA 1(2), CAT 3 */
+/** RA 1(2) FAULT STATUS: CAT 2 ONLY; INOP SYS RA 1(2), CAT 3 */
 export function raFaultStatus(ra: 1 | 2): StatusLines {
   return { left: [S.cat2Only], inopSys: [ra === 1 ? S.ra1 : S.ra2, S.cat3] };
 }
 
 /**
- * RA 1 AND 2 FAULT STATUS (FCOM l.93789-93807): APPR PROC FOR LDG USE FLAPS 3, GPWS LDG FLAP 3 ON, APPR SPD VREF+10 KT,
+ * RA 1 AND 2 FAULT STATUS: APPR PROC FOR LDG USE FLAPS 3, GPWS LDG FLAP 3 ON, APPR SPD VREF+10 KT,
  * LDG DIST PROC APPLY, WHEN L/G DN: DIRECT LAW; INOP SYS RA 1+2, A/CALL OUT, GPWS, CAT 2, REAC W/S DET, TCAS.
  */
 export function ra1And2FaultStatus(): StatusLines {
@@ -452,8 +445,8 @@ export interface RaFaultAlerts {
 }
 
 /**
- * NAV RA 1(2) FAULT "triggers when the RA 1(2) is failed" (FCOM l.93829), NAV RA 1 AND 2 FAULT "when both RAs are
- * failed" (l.93763): the dual alert replaces the two single ones.
+ * NAV RA 1(2) FAULT triggers when RA 1(2) is failed, NAV RA 1 AND 2 FAULT when both RAs are failed: the dual alert
+ * replaces the two single ones.
  * @param ra1Failed RA 1 is failed
  * @param ra2Failed RA 2 is failed
  * @returns the alerts
@@ -464,12 +457,12 @@ export function raFaultAlerts(ra1Failed: boolean, ra2Failed: boolean): RaFaultAl
 }
 
 /** The NAV RA DEGRADED thresholds (design choice, see radioAltitudesDisagree) */
-export const RA_DEGRADED_MIN_DIFFERENCE_FT = 15;
-export const RA_DEGRADED_RELATIVE_DIFFERENCE = 0.1;
+const RA_DEGRADED_MIN_DIFFERENCE_FT = 15;
+const RA_DEGRADED_RELATIVE_DIFFERENCE = 0.1;
 
 /**
- * NAV RA DEGRADED "triggers when the height that RA 1 and RA 2 provide are significantly different" (FCOM l.93862).
- * Design choice (the FCOM gives no value): both heights are valid and differ by more than 15 ft or 10 % of the higher
+ * NAV RA DEGRADED triggers when the heights of RA 1 and RA 2 are significantly different.
+ * Design choice (no documented value): both heights are valid and differ by more than 15 ft or 10 % of the higher
  * height. The FWC confirms the condition before the alert.
  * @param height1 the RA 1 height in feet when its word is normal operation, else null
  * @param height2 the RA 2 height in feet when its word is normal operation, else null
@@ -487,18 +480,17 @@ export function radioAltitudesDisagree(height1: number | null, height2: number |
 }
 
 /**
- * The ADR comparison thresholds. The A320 FCOM gives none: these are the A380 values of the "ADR monitoring by PRIM"
- * (A380 FCOM DSC-34-10-30-10, a380_fcom.txt l.85708-85725: CAS 16 kt, AOA 3.6 deg in flight and 8 deg on ground), a
- * design choice.
+ * The ADR comparison thresholds. Design choice: the A320 has no documented value, so these are the A380 values of the
+ * ADR monitoring by the PRIMs (CAS 16 kt, AOA 3.6 deg in flight and 8 deg on ground).
  */
-export const ADR_DISAGREE_CAS_THRESHOLD_KT = 16;
-export const ADR_DISAGREE_AOA_THRESHOLD_IN_FLIGHT_DEG = 3.6;
-export const ADR_DISAGREE_AOA_THRESHOLD_ON_GROUND_DEG = 8;
+const ADR_DISAGREE_CAS_THRESHOLD_KT = 16;
+const ADR_DISAGREE_AOA_THRESHOLD_IN_FLIGHT_DEG = 3.6;
+const ADR_DISAGREE_AOA_THRESHOLD_ON_GROUND_DEG = 8;
 
 /**
- * The IR comparison threshold of attitude and heading (design choice: the FCOM gives no value).
+ * The IR comparison threshold of attitude and heading. Design choice: no documented value.
  */
-export const IR_DISAGREE_THRESHOLD_DEG = 5;
+const IR_DISAGREE_THRESHOLD_DEG = 5;
 
 /**
  * Whether the remaining sources of a parameter disagree, after the ELACs have rejected an outlier. With two sources: they
@@ -540,9 +532,9 @@ export interface AdrDisagreement {
 }
 
 /**
- * NAV ADR DISAGREE (FCOM l.92448-92450): "This alert triggers when the following conditions occur: The ELAC rejected an
- * ADR, or an ADR is faulty; The speed or the Angle Of Attack (AOA) from the two remaining ADRs are different." The FBW
- * ELACs do not compare the ADR values, so the FWC does the rejection here (see remainingSourcesDisagree).
+ * NAV ADR DISAGREE triggers when the ELAC rejected an ADR, or an ADR is faulty, and the speed or the angle of attack
+ * from the two remaining ADRs are different. The FBW ELACs do not compare the ADR values, so the FWC does the
+ * rejection here (see remainingSourcesDisagree).
  * @param adrs the data of ADR 1, 2 and 3
  * @param onGround the aircraft is on the ground (larger AOA threshold)
  * @returns which parameters of the remaining ADRs disagree
@@ -575,8 +567,8 @@ export function headingDifference(a: number, b: number): number {
 }
 
 /**
- * NAV IR DISAGREE (FCOM l.93543-93544): "This alert triggers when one IR is failed, and the information received from
- * the two remaining IRs is different." Compared: pitch, roll and heading, above IR_DISAGREE_THRESHOLD_DEG.
+ * NAV IR DISAGREE triggers when one IR is failed and the two remaining IRs give different information. Compared:
+ * pitch, roll and heading, above IR_DISAGREE_THRESHOLD_DEG.
  * @param irs the data of IR 1, 2 and 3
  * @returns whether the alert conditions are met
  */

@@ -34,9 +34,8 @@ class TestFailures implements TcasModeFailuresSource {
 // eslint-disable-next-line no-control-regex
 const visible = (text: string) => text.replace(/\x1b(<\d+m|4m|m)/g, '');
 
-/* A320 FCOM PRO-ABN-AUTO_FLT AUTO FLT TCAS MODE FAULT (a320_fcom.txt l.71942-71968), DSC-22_30-70-85 l.30499-30503 */
-describe('AUTO FLT TCAS MODE FAULT (FCOM gap batch T2-42)', () => {
-  it('"the TCAS flight guidance mode is inoperative" (l.71952), reported by an FMGC', () => {
+describe('AUTO FLT TCAS MODE FAULT', () => {
+  it('"the TCAS flight guidance mode is inoperative", reported by an FMGC', () => {
     expect(tcasModeFaultAlert(false, true)).toBe(false);
     expect(tcasModeFaultAlert(true, true)).toBe(true);
     expect(tcasModeFaultAlert(true, false)).toBe(false);
@@ -58,7 +57,7 @@ describe('AUTO FLT TCAS MODE FAULT (FCOM gap batch T2-42)', () => {
     expect(active.get()).toBe(false);
   });
 
-  it('level 2, FOR TCAS ALERT: AP+FD OFF, FLY MANUALLY TCAS ORDER, INOP SYS AP/FD TCAS (FCOM PDF p.4431-4432)', () => {
+  it('level 2, FOR TCAS ALERT: AP+FD OFF, FLY MANUALLY TCAS ORDER, INOP SYS AP/FD TCAS', () => {
     const item = new TcasModeFaultAlert(new TestFailures()).ewdFailures[TCAS_MODE_FAULT_KEY];
     expect(item.failure).toBe(2);
     expect(item.sysPage).toBe(-1); // SdPages.NONE

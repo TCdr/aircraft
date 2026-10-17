@@ -30,7 +30,7 @@ const text = (prefix: string, lines: (number | null)[]) =>
       .map((line) => `${prefix}${(line + 1).toString().padStart(2, '0')}`),
   ).join(' | ');
 
-/* A320 FCOM PRO-ABN-FUEL FUEL L (R) WING TK LO LVL: "If center tank not empty: FUEL MODE SEL ... MAN". */
+/* FUEL L (R) WING TK LO LVL: FUEL MODE SEL MAN only with fuel in the centre tank. */
 describe('FUEL L(R) WING TK LO LVL lines', () => {
   it.each(['2800130', '2800140'])('%s: FUEL MODE SEL MAN with fuel in the centre tank', (prefix) => {
     expect(text(prefix, wingTankLowLevelLines(inputs))).toContain('-FUEL MODE SEL......MAN');
@@ -56,8 +56,7 @@ describe('FUEL L(R) WING TK LO LVL lines', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-FUEL FUEL L (R) WING TK LO LVL STATUS: INOP SYS TK PUMPS; if center tank not empty: CTR TK FEED: MAN
-   ONLY. */
+/* FUEL L (R) WING TK LO LVL STATUS: INOP SYS TK PUMPS; with fuel in the centre tank: CTR TK FEED: MAN ONLY. */
 describe('FUEL L(R) WING TK LO LVL STATUS', () => {
   it('INOP SYS L TK PUMPS and CTR TK FEED: MAN ONLY with fuel in the centre tank', () => {
     const status = wingTankLowLevelStatus('L', false);
@@ -87,9 +86,8 @@ describe('FUEL L(R) WING TK LO LVL STATUS', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-FUEL FUEL L + R WING TK LO LVL, jet pump variant (a320_fcom.txt l.86536-86569, FCOM PDF page 5316):
-   "LAND ASAP" (amber), "FUEL MODE SEL (IF CENTER TANK NOT EMPTY) ... MAN", "ALL TK PUMPS ... ON", "CTR TK L+R XFR ... ON",
-   "IF NO FUEL LEAK: FUEL X FEED ... ON", "IF GRVTY FEED: FUEL X FEED ... OFF". */
+/* FUEL L + R WING TK LO LVL, jet pump variant: LAND ASAP (amber), FUEL MODE SEL MAN (with fuel in the centre tank),
+   ALL TK PUMPS ON, CTR TK L+R XFR ON, IF NO FUEL LEAK: FUEL X FEED ON, IF GRVTY FEED: FUEL X FEED OFF. */
 describe('FUEL L+R WING TK LO LVL lines', () => {
   const lrInputs: WingTanksLowLevelInputs = {
     modeSelMan: false,

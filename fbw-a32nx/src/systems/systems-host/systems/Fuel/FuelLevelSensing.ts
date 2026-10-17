@@ -4,20 +4,18 @@
 import { A320Failure } from '@failures';
 
 /*
- * The fuel level sensing of the A320 and the outer tank transfer valves it controls (A320 FCOM DSC-28-10-80 FUEL LEVEL
- * SENSING CONTROL UNIT (FLSCU), a320_fcom.txt l.42603-42614): "The FLSCU comprises: - fuel level sensors in the tanks
- * to sense high, low, and overflow levels. [...] When fuel quantity in one wing tank goes below 750 kg (1 650 lb), the
- * low-level sensor triggers the LO LVL warning on ECAM." Driven by Fuel/FuelPumpsAndValves.
+ * The fuel level sensing of the A320 and the outer tank transfer valves it controls: the FLSCU has fuel level sensors
+ * in the tanks for the high, low and overflow levels; when a wing tank goes below 750 kg (1 650 lb), the low-level
+ * sensor triggers the LO LVL warning on ECAM. Driven by Fuel/FuelPumpsAndValves.
  */
 
 /** A wing of the fuel system */
 export type FuelSide = 'L' | 'R';
 
 /**
- * The outer tank transfer valves of a wing (DSC-28-10-30, l.42119-42120: "The transfer valves automatically open, when
- * the inner tank fuel reaches the low level (about 750 kg/1 650 lb), thus enabling the fuel to drain from the outer to
- * inner tanks"). Two MSFS valves per wing (flight_model.cfg Valve.4-7, LeftTransferValve1/2, RightTransferValve1/2),
- * opened by the MSFS triggers of the inner tank low level (Trigger.5/6) and closed when the outer tank is full again
+ * The outer tank transfer valves of a wing: they open automatically when the inner tank reaches the low level (about
+ * 750 kg/1 650 lb), so that the outer tank fuel drains into the inner tank. Two MSFS valves per wing (flight_model.cfg
+ * Valve.4-7, LeftTransferValve1/2, RightTransferValve1/2), opened by the MSFS triggers of the inner tank low level (Trigger.5/6) and closed when the outer tank is full again
  * (Trigger.7/8, refuelling). The FADEC moves the outer tank fuel into the inner tank while one of them is open.
  */
 export interface A320OuterTransferValves {
@@ -38,13 +36,11 @@ export const A320_OUTER_TRANSFER_VALVES: readonly A320OuterTransferValves[] = [
 /** The outer tank transfer valves of a wing that disagree with the low level command */
 export interface OuterTransferDisagreement {
   /**
-   * FUEL L (R) OUTER XFR CLOSED (A320 FCOM PRO-ABN-FUEL, l.86104-86105): "This alert triggers when both transfer valves
-   * remain closed after inner tank reaches the low level."
+   * FUEL L (R) OUTER XFR CLOSED: both transfer valves stay closed after the inner tank reaches the low level.
    */
   closed: boolean;
   /**
-   * FUEL L (R) OUTER XFR OPEN (l.86142): "This alert triggers when either transfer valve opens before inner tank reaches
-   * low level."
+   * FUEL L (R) OUTER XFR OPEN: a transfer valve opens before the inner tank reaches the low level.
    */
   open: boolean;
 }
@@ -80,9 +76,8 @@ export function outerXfrOpenVar(side: FuelSide): string {
 }
 
 /**
- * The low level sensor of each wing tank (l.42612-42614). A failed sensor no longer gives the L (R) WING TK LO LVL
- * warning of its wing; FUEL LO LVL DET FAULT (l.86683-86696): "This alert triggers when both low level sensors are
- * failed." Design choice: one sensor per wing tank.
+ * The low level sensor of each wing tank. A failed sensor no longer gives the L (R) WING TK LO LVL warning of its wing;
+ * FUEL LO LVL DET FAULT triggers when both low level sensors are failed. Design choice: one sensor per wing tank.
  */
 export const A320_WING_LOW_LEVEL_SENSORS: readonly { side: FuelSide; failure: number }[] = [
   { side: 'L', failure: A320Failure.LeftWingTankLowLevelSensor },
@@ -96,8 +91,8 @@ export function wingLowLevelSensorFaultVar(side: FuelSide): string {
 
 /**
  * The inner tank is full: the FLSCU full level at which it closes the centre tank transfer valve in AUTO mode, in gallons
- * (flight_model.cfg Trigger.3/4 StopCenterTankXfer, threshold 1 815 gal; the tank holds 1 816 gal). DSC-28-10-30
- * (l.42110-42111): "The FLSCU automatically closes the associated center tank transfer valve when the inner tank is full."
+ * (flight_model.cfg Trigger.3/4 StopCenterTankXfer, threshold 1 815 gal; the tank holds 1 816 gal): the FLSCU closes
+ * the centre tank transfer valve of a full inner tank.
  */
 export const INNER_TANK_FULL_GALLONS = 1815;
 
@@ -109,17 +104,15 @@ export interface WingOverflowInputs {
   centreTankGallons: number;
   /** How far the centre tank transfer valve of the wing is open, 0 to 1 */
   centreTransferValveOpenRatio: number;
-  /** A tank pump of the wing runs: the motive flow of the centre tank jet pump (DSC-28-10-30, l.42104-42106) */
+  /** A tank pump of the wing runs: the motive flow of the centre tank jet pump */
   wingTankPumpRunning: boolean;
 }
 
 /**
  * Whether the wing tank overflows: the jet pump keeps transferring centre tank fuel into a full inner tank. That happens
- * with the MODE SEL at MAN (DSC-28-10-30, l.42113-42115: "With the MODE SEL in MAN position, the center tank transfer
- * valves will open. Inner tank overflow must be prevented by selecting the CTR TK XFR pb-sw OFF when the inner tanks are
- * full") or with a transfer valve jammed open. FUEL L (R) WING TK OVERFLOW (PRO-ABN-FUEL, l.86638): "This alert
- * triggers when an overflow of the tank is detected." Not modelled: the overflow of a full outer cell by the IDG
- * cooling fuel return (FCOM gap row 28 A32NX #2).
+ * with the MODE SEL at MAN (the centre tank transfer valves open, and the crew must select the CTR TK XFR pb-sw OFF
+ * when the inner tanks are full) or with a transfer valve jammed open. Not modelled: the overflow of a full outer cell
+ * by the IDG cooling fuel return.
  */
 export function isWingTankOverflowing(inputs: WingOverflowInputs): boolean {
   return (
@@ -135,8 +128,8 @@ export const WING_OVERFLOW_CONFIRM_S = 10;
 
 /**
  * The L:var of a wing tank overflow (confirmed): FUEL L (R) WING TK OVERFLOW, the FAULT light of the CTR TK L (R) XFR
- * pb-sw (DSC-28-20, l.42837-42838: "Amber light and associated ECAM caution come on, if the associated wing tank
- * overflows") and the amber inner tank quantity on the SD (l.43239-43241)
+ * pb-sw (the amber light and the caution come on when its wing tank overflows) and the amber inner tank quantity on
+ * the SD
  */
 export function wingTankOverflowVar(side: FuelSide): string {
   return `L:A32NX_FUEL_${side}_WING_TK_OVERFLOW`;

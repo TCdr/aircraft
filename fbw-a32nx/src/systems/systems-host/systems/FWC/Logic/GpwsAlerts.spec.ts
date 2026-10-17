@@ -24,8 +24,7 @@ const normal: GpwsInputs = {
 
 const active = (alerts: GpwsAlerts, key: string) => alerts.ewdFailures[key].simVarIsActive.get();
 
-/* A320 FCOM PRO-ABN-NAV NAV GPWS FAULT (l.93134-93149): "This alerts triggers when the GPWS fails."; "GPWS ... OFF",
-   "This line remains displayed, even after the GPWS pb-sw has been switched OFF."; STATUS INOP SYS GPWS. */
+/* NAV GPWS FAULT: the GPWS fails; the GPWS OFF line stays after the pb-sw is OFF; STATUS INOP SYS GPWS. */
 describe('NAV GPWS FAULT', () => {
   it('triggers on an EGPWC fault with the pb-sw ON, not on the GPWS SYS pb-sw OFF alone', () => {
     expect(gpwsFaultMemory(false, true, false)).toBe(true);
@@ -45,8 +44,7 @@ describe('NAV GPWS FAULT', () => {
   });
 });
 
-/* l.93171-93190: NAV GPWS TERR DET FAULT, "the enhanced TCF and TAD modes of the EGPWS ... are inoperative"; "GPWS TERR
-   ... OFF"; STATUS INOP SYS GPWS TERR. */
+/* NAV GPWS TERR DET FAULT: the enhanced TCF and TAD modes are inoperative; GPWS TERR OFF; STATUS INOP SYS GPWS TERR. */
 describe('NAV GPWS TERR DET FAULT', () => {
   it('triggers on a terrain fault, not on the TERR pb-sw OFF (the TERR OFF memo)', () => {
     const alerts = new GpwsAlerts();
@@ -66,7 +64,7 @@ describe('NAV GPWS TERR DET FAULT', () => {
     expect(statusLines({ left: item.statusInfo(), inopSys: item.inopSys() }).right).toEqual(['INOP SYS', 'GPWS TERR']);
   });
 
-  it('both are cautions shown in phases 2, 6, 7 and 9 (FCOM PDF pages 5650, 5651), wired in the PseudoFWC', () => {
+  it('both are cautions shown in phases 2, 6, 7 and 9, wired in the PseudoFWC', () => {
     expect(new GpwsAlerts().ewdFailures[GpwsAlertKeys.gpwsFault].failure).toBe(2);
     expect(GPWS_PHASE_INHIBITION).toEqual([1, 3, 4, 5, 8, 10]);
     const fwc = pseudoFwcSource();
@@ -75,8 +73,7 @@ describe('NAV GPWS TERR DET FAULT', () => {
   });
 });
 
-/* A320 FCOM DSC-34-SURV-40-40 (l.55563-55566): "TERR STBY : This memo appears in green when any required predictive
-   function input is missing or considered invalid." */
+/* TERR STBY: a green memo shown when an input of the predictive functions is missing or invalid. */
 describe('TERR STBY memo', () => {
   it('shows while the EGPWC is in terrain standby', () => {
     expect(terrStbyMemo({ ...normal, terrainStandby: true })).toBe(true);

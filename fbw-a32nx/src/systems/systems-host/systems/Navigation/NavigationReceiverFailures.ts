@@ -27,12 +27,11 @@ interface ReceiverFailure {
  * Applies the ATA 34 radio navigation receiver failures (VOR 1/2, DME 1/2, ADF 1/2, ILS 1/2) of the A32NX.
  *
  * - Every receiver: publishes L:A32NX_{VOR,DME,ADF,ILS}_{1,2}_FAILED. The VOR bus of the NDs (VorBusPublisher) then
- *   drops the signal of that receiver: no bearing pointer, no deviation, no DME distance. A320 FCOM DSC-34-NAV-30-10
- *   (a320_fcom.txt l.53399-53408): the VOR/ADF flags come on when "The VOR or ADF receiver fails".
+ *   drops the signal of that receiver: no bearing pointer, no deviation, no DME distance; the VOR/ADF flags come on, as
+ *   when a VOR or ADF receiver fails.
  * - ILS 1: also switches the MSFS NAV 3 circuit (systems.cfg circuit.39, CIRCUIT_NAV:3) off, as the FBW module reads
  *   the localiser and glideslope of NAV 3 directly for PFD 1, the ISIS and the autoflight. ILS 2 (NAV 4, no circuit) is
- *   failed in the MMR 2 shim of the systems (navigation/ils.rs) for PFD 2. NAV ILS 1(2)(1+2) FAULT: a320_fcom.txt
- *   l.93273.
+ *   failed in the MMR 2 shim of the systems (navigation/ils.rs) for PFD 2. The FWC shows NAV ILS 1(2)(1+2) FAULT.
  */
 export class NavigationReceiverFailures implements Instrument {
   /** systems.cfg circuit.39 = CIRCUIT_NAV:3, the sim radio of the MMR 1 ILS receiver */

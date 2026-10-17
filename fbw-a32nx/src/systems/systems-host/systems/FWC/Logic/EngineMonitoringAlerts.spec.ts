@@ -28,7 +28,7 @@ const notOpenOnGround = {
   manualStartPbOn: false,
 };
 
-/* A320 FCOM PRO-ABN-ENG ENG 1(2) HP FUEL VALVE, a320_fcom.txt l.80233-80259 */
+/* ENG 1(2) HP FUEL VALVE */
 describe('ENG 1(2) HP FUEL VALVE', () => {
   it('is active while the FADEC reports an abnormal valve position', () => {
     expect(isHpFuelValveAlertActive(HpFuelValveFault.None)).toBe(false);
@@ -53,13 +53,13 @@ describe('ENG 1(2) HP FUEL VALVE', () => {
     expect(hpFuelValveLines({ ...notOpenOnGround, engineAtOrAboveIdle: true })).toEqual([0, 4]);
   });
 
-  it('is inhibited in the flight phases of the FCOM figure (2019 FCOM PDF page 2274)', () => {
+  it('is inhibited in the aircraft flight phases', () => {
     expect(HP_FUEL_VALVE_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
   });
 });
 
 describe('FADEC fault crew awareness alerts', () => {
-  it('have the flight phase inhibitions of the FCOM figures', () => {
+  it('have the aircraft flight phase inhibitions', () => {
     expect(FADEC_ALTERNATOR.flightPhaseInhibition).toEqual([3, 4, 5, 7, 8]);
     expect(OVSPD_PROT_FAULT.flightPhaseInhibition).toEqual([3, 4, 5, 7, 8]);
     expect(PROBES_FAULT.flightPhaseInhibition).toEqual([3, 4, 5, 7, 8]);
@@ -68,7 +68,7 @@ describe('FADEC fault crew awareness alerts', () => {
     expect(REV_SWITCH_FAULT.flightPhaseInhibition).toEqual([3, 4, 5, 6, 7, 8]);
   });
 
-  it('PROBES FAULT is inhibited during the first 60 s of the flight phase 9 (l.80674)', () => {
+  it('PROBES FAULT is inhibited during the first 60 s of the flight phase 9', () => {
     expect(probesFaultInhibitedInPhase9(9, 59)).toBe(true);
     expect(probesFaultInhibitedInPhase9(9, 61)).toBe(false);
     expect(probesFaultInhibitedInPhase9(10, 0)).toBe(false);

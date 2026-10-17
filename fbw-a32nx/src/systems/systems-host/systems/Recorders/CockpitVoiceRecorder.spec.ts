@@ -26,9 +26,9 @@ function run(logic: CvrPowerLogic, seconds: number, inputs: CvrInputs) {
 }
 
 /*
- * A320 FCOM DSC-23-10-40 (a320_fcom.txt l.35299-35306): the CVR is energized automatically on the ground during the
- * first 5 min after the network is energized, on the ground with one engine running, in flight; it stops 5 min after
- * the last engine shutdown; GND CTL energizes it manually.
+ * The CVR is energized automatically on the ground during the first 5 min after the network is energized, on the
+ * ground with one engine running, in flight; it stops 5 min after the last engine shutdown; GND CTL energizes it
+ * manually.
  */
 describe('A32NX CVR power logic', () => {
   it('runs during the first 5 min after the network is energized, then stops', () => {
@@ -72,9 +72,8 @@ describe('A32NX CVR power logic', () => {
 });
 
 /*
- * A320 FCOM DSC-23-10-40 CVR TEST pb (a320_fcom.txt l.35338-35342): "This activates the test, if the CVR is on (the GND
- * CTL pb-sw pressed, or during the first 5 min after energization of the aircraft electrical network), and the parking
- * brake is on."
+ * CVR TEST pb: tests the CVR if it is on (GND CTL pb-sw pressed, or during the first 5 min after the network is
+ * energized) and the parking brake is on.
  */
 describe('A32NX CVR TEST pb', () => {
   it('gives the test signal in the first 5 min after power-up without GND CTL', () => {

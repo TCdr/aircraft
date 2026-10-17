@@ -26,7 +26,7 @@ const page = (lines: StatusLines) => {
   return { left: plain(texts.left).split('\r'), right: plain(texts.right).split('\r') };
 };
 
-describe('A320 air conditioning STATUS lines (FCOM PRO-ABN-AIR, PRO-ABN-COND)', () => {
+describe('A320 air conditioning STATUS lines', () => {
   it('PACK 1(2) FAULT: the pack, plus its zones at fixed temperature and its controller when the ACSC is lost', () => {
     expect(page(packFaultStatus(1, false))).toEqual({ left: [''], right: ['INOP SYS', 'PACK 1'] });
     expect(page(packFaultStatus(1, true))).toEqual({

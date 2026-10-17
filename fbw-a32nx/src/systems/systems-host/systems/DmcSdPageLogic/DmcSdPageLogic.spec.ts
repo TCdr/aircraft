@@ -17,9 +17,9 @@ const FAILED_ECP_WORD = Arinc429Word.getRawWord(0, Arinc429SignStatusMatrix.Fail
 const selectedPage = () => simVars.get('L:A32NX_ECAM_SD_CURRENT_PAGE_INDEX') ?? SdPages.NONE;
 
 /*
- * A320 FCOM DSC-31-30 (a320_fcom.txt l.46834-46836): "If the ECAM control panel fails, the CLR, RCL, STS, EMER CANC,
- * and ALL pushbuttons remain operative, because their contacts are directly wired to the flight warning and display
- * management computers." The DMC reads ALL, STS and CLR from the hardwired discretes as well as from the ECP words.
+ * If the ECAM control panel fails, the CLR, RCL, STS, EMER CANC and ALL pbs still work: their contacts are wired
+ * directly to the FWCs and DMCs. The DMC reads ALL, STS and CLR from the hardwired discretes as well as from the ECP
+ * words.
  */
 describe('DMC SD page selection with the ECAM control panel failed', () => {
   let bus: EventBus;
@@ -64,7 +64,7 @@ describe('DMC SD page selection with the ECAM control panel failed', () => {
     dmc.update(50);
   });
 
-  /* l.46788-46793: the ALL pb pages through the system pages; released, the page shown stays selected */
+  /* The ALL pb pages through the system pages; released, the page shown stays selected */
   it('pages through the system pages with the ALL pb', () => {
     // a short push: the first system page, at the release
     setDiscrete('all', true);
@@ -85,7 +85,7 @@ describe('DMC SD page selection with the ECAM control panel failed', () => {
     expect(selectedPage()).toBe(SdPages.BLEED);
   });
 
-  /* l.46768-46773: STS displays the STATUS page, CLR clears it */
+  /* STS displays the STATUS page, CLR clears it */
   it('displays the STATUS page with the STS pb and clears it with the CLR pb', () => {
     setDiscrete('sts', true);
     dmc.update(50);

@@ -75,7 +75,7 @@ describe('F/CTL STATUS codes', () => {
   });
 });
 
-describe('F/CTL ALTN LAW STATUS (FCOM l.82568-82608)', () => {
+describe('F/CTL ALTN LAW STATUS', () => {
   it('MAX SPEED 320 KT, the approach procedure, ALTN LAW: PROT LOST, WHEN L/G DN: DIRECT LAW; INOP SYS F/CTL PROT', () => {
     expect(page(altnLawStatus(false, false, false))).toEqual({
       left: [
@@ -100,8 +100,8 @@ describe('F/CTL ALTN LAW STATUS (FCOM l.82568-82608)', () => {
   });
 });
 
-describe('F/CTL DIRECT LAW STATUS (FCOM l.82687-82703)', () => {
-  it('shows the FCOM lines', () => {
+describe('F/CTL DIRECT LAW STATUS', () => {
+  it('shows the procedure lines', () => {
     expect(page(directLawStatus()).left).toEqual([
       'MAX SPEED.......320/.77',
       'MANEUVER WITH CARE',
@@ -117,7 +117,7 @@ describe('F/CTL DIRECT LAW STATUS (FCOM l.82687-82703)', () => {
   });
 });
 
-describe('F/CTL ELAC STATUS (FCOM l.82768-82780, l.82874-82894)', () => {
+describe('F/CTL ELAC STATUS', () => {
   it('ELAC 1 FAULT: CAT 3 SINGLE ONLY, FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE; ELAC 1 then CAT 3 DUAL', () => {
     expect(page(elacFaultStatus(1))).toEqual({
       left: ['CAT 3 SINGLE ONLY', 'FUEL CONSUMPT INCRSD', 'FMS PRED UNRELIABLE'],
@@ -142,14 +142,14 @@ describe('F/CTL ELAC STATUS (FCOM l.82768-82780, l.82874-82894)', () => {
     expect(right).toEqual(['INOP SYS', 'F/CTL PROT', 'L+R AIL', 'ELAC 1+2', 'AP 1+2', 'CAT 2']);
   });
 
-  it('ELAC PITCH in INOP SYS only with both ELAC PITCH FAULTs (l.82934-82938)', () => {
+  it('ELAC PITCH in INOP SYS only with both ELAC PITCH FAULTs', () => {
     expect(page(elacPitchFaultStatus(false)).right).toEqual(['INOP SYS', 'CAT 3 DUAL']);
     expect(page(elacPitchFaultStatus(true)).right).toEqual(['INOP SYS', 'ELAC PITCH', 'CAT 3 DUAL']);
   });
 });
 
 describe('F/CTL elevator and aileron STATUS', () => {
-  it('L ELEV FAULT (l.83566-83580)', () => {
+  it('L ELEV FAULT', () => {
     const { left, right } = page(elevatorFaultStatus('L'));
     expect(left.slice(0, 4)).toEqual([
       'MAX SPEED........320 KT',
@@ -160,27 +160,27 @@ describe('F/CTL elevator and aileron STATUS', () => {
     expect(right).toEqual(['INOP SYS', 'F/CTL PROT', 'L ELEV', 'ELAC PITCH', 'AP 1+2', 'CAT 2']);
   });
 
-  it('L+R ELEV FAULT (l.83643-83660)', () => {
+  it('L+R ELEV FAULT', () => {
     const { left, right } = page(leftAndRightElevatorFaultStatus());
     expect(left).toContain('MAN PITCH TRIM......USE');
     expect(left.slice(-2)).toEqual(['PITCH MECH BACK UP', 'ROLL DIRECT LAW']);
     expect(right).toEqual(['INOP SYS', 'L+R ELEV', 'ELAC PITCH', 'AP 1+2', 'CAT 2']);
   });
 
-  it('R AIL FAULT (l.83486-83496)', () => {
+  it('R AIL FAULT', () => {
     expect(page(aileronFaultStatus('R'))).toEqual({
       left: ['FUEL CONSUMPT INCRSD', 'FMS PRED UNRELIABLE'],
       right: ['INOP SYS', 'R AIL'],
     });
   });
 
-  it('ELEV SERVO FAULT (l.82971-82975)', () => {
+  it('ELEV SERVO FAULT', () => {
     expect(page(elevServoFaultStatus())).toEqual({ left: ['CAT 3 SINGLE ONLY'], right: ['INOP SYS', 'CAT 3 DUAL'] });
   });
 });
 
-describe('F/CTL SEC and spoiler STATUS (FCOM l.83812-83853, l.84599-84630)', () => {
-  it('SEC 1 FAULT: SPD BRK DO NOT USE, LDG DIST PROC; SPLR 3+4, SEC 1 (FCOM order: SPLR, SEC)', () => {
+describe('F/CTL SEC and spoiler STATUS', () => {
+  it('SEC 1 FAULT: SPD BRK DO NOT USE, LDG DIST PROC; SPLR 3+4, SEC 1', () => {
     expect(page(secFaultStatus(true, false, false))).toEqual({
       left: ['SPD BRK......DO NOT USE', 'LDG DIST PROC....APPLY'],
       right: ['INOP SYS', 'SPLR 3+4', 'SEC 1'],
@@ -229,7 +229,7 @@ describe('F/CTL SEC and spoiler STATUS (FCOM l.83812-83853, l.84599-84630)', () 
     });
   });
 
-  it('FCDC 1+2 FAULT: F/CTL INDICATIONS LOST; FCDC 1+2 (l.83069-83073)', () => {
+  it('FCDC 1+2 FAULT: F/CTL INDICATIONS LOST; FCDC 1+2', () => {
     expect(page(fcdc12FaultStatus())).toEqual({ left: ['F/CTL INDICATIONS LOST'], right: ['INOP SYS', 'FCDC 1+2'] });
   });
 });

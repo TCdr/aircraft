@@ -6,7 +6,7 @@ import { ElecSystemInputs } from '../Logic/ElecSystemAlerts';
 
 /**
  * Reads the electrical system state that the ELEC system alerts need (Logic/ElecSystemAlerts) from the Rust electrical
- * system (fbw-a32nx/docs/a320-simvars.md): the battery charge limiters, the IDG oil of each engine generator, the
+ * system: the battery charge limiters, the IDG oil of each engine generator, the
  * generator loads and the static inverter fault.
  */
 export class ElecSystemAcquisition {

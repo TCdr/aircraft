@@ -2,23 +2,21 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * ENG 1(2) FAIL and ENG 1(2) SHUT DOWN (A320 FCOM PRO-ABN-ENG, a320_fcom.txt l.79757-79881 and l.81056-81291; the
- * CFM56 FCOM 18 SEP 12 PRO-ABN-70 P 7-8/54, PDF pages 2147-2148, has the same procedure). Both are amber cautions: the
- * FCOM shows their title in amber, and their flight phase inhibition figures (2019 FCOM PDF pages 2262 and 2297) inhibit
- * no flight phase.
+ * ENG 1(2) FAIL and ENG 1(2) SHUT DOWN (the CFM56 variant has the same procedure). Both are amber cautions, inhibited
+ * in no flight phase.
  */
 
 /**
- * ENG 1(2) FAIL triggers "when the engine core speed is below idle" (l.79767). The FADEC computes the idle N2 of the
+ * ENG 1(2) FAIL triggers when the engine core speed is below idle. The FADEC computes the idle N2 of the
  * current conditions (L:A32NX_ENGINE_IDLE_N2). Design choice: the core is below idle 3 % N2 under that idle, so that a
  * running engine at idle never triggers the alert; a flamed out engine runs down to its windmilling N2 within seconds.
  */
-export const ENGINE_CORE_BELOW_IDLE_MARGIN_PERCENT = 3;
+const ENGINE_CORE_BELOW_IDLE_MARGIN_PERCENT = 3;
 
-/** l.79849-79851: "IF NO ENG RELIGHT AFTER 30 S: ... The 30 s countdown starts as soon as the ENG 1(2) FAIL alert is triggered." */
-export const ENG_FAIL_RELIGHT_WAIT_SECONDS = 30;
+/** In flight, the procedure waits this long for a relight: the countdown starts when ENG 1(2) FAIL triggers */
+const ENG_FAIL_RELIGHT_WAIT_SECONDS = 30;
 
-export function isEngineCoreBelowIdle(n2Percent: number, idleN2Percent: number): boolean {
+function isEngineCoreBelowIdle(n2Percent: number, idleN2Percent: number): boolean {
   return n2Percent < idleN2Percent - ENGINE_CORE_BELOW_IDLE_MARGIN_PERCENT;
 }
 
@@ -32,8 +30,8 @@ export interface EngineFailInputs {
 }
 
 /**
- * ENG 1(2) FAIL, l.79767: "This alert triggers when the engine core speed is below idle, with the ENG MASTER lever set to
- * ON, and ENG FIRE pb not pushed." The alert is armed once the engine has run at idle or above (as the A380X FWS does), so
+ * ENG 1(2) FAIL: the engine core speed is below idle, with the ENG MASTER lever ON and the ENG FIRE pb not pushed.
+ * The alert is armed once the engine has run at idle or above (as the A380X FWS does), so
  * that an engine start, below idle with its master ON, does not trigger it. The ENG MASTER OFF disarms it: the ENG SHUT
  * DOWN alert takes over, and the MASTER ON of a relight attempt does not bring the FAIL back.
  */
@@ -68,8 +66,8 @@ export class EngineFailMonitor {
 }
 
 /**
- * ENG 1(2) SHUT DOWN, l.81066-81067: "This alert triggers when ENG master is at off in phases 3 to 8, or ENG FIRE pb is
- * pushed in phases 1, 2, 9 and 10."
+ * ENG 1(2) SHUT DOWN: the ENG master is at OFF in flight phases 3 to 8, or the ENG FIRE pb is pushed in phases 1, 2,
+ * 9 and 10.
  */
 export function isEngineShutDown(masterOn: boolean, firePbPushed: boolean, flightPhase: number): boolean {
   const masterOffPhase = flightPhase >= 3 && flightPhase <= 8;
@@ -91,15 +89,15 @@ export interface EngineFailLineInputs {
 
 /**
  * The "Before takeoff or after landing" procedure of ENG 1(2) FAIL applies in the FWC flight phases 1-3 (before the 80 kt
- * of the takeoff roll) and 8-10 (from touchdown); the "In flight" procedure in phases 4-7. Design choice: the FCOM does
- * not give the phases; from 80 kt the takeoff continues after an engine failure at V1.
+ * of the takeoff roll) and 8-10 (from touchdown); the "In flight" procedure in phases 4-7. Design choice: the phases
+ * are not documented; from 80 kt the takeoff continues after an engine failure at V1.
  */
 export function isEngineFailGroundProcedure(flightPhase: number): boolean {
   return flightPhase <= 3 || flightPhase >= 8;
 }
 
 /**
- * l.79797-79881. Before takeoff or after landing (see isEngineFailGroundProcedure): THR LEVER IDLE, ENG MASTER OFF, IF DAMAGE: FIRE P/B PUSH,
+ * Before takeoff or after landing (see isEngineFailGroundProcedure): THR LEVER IDLE, ENG MASTER OFF, IF DAMAGE: FIRE P/B PUSH,
  * AGENT 1 DISCH, IF NO DAMAGE: RELIGHT CONSIDER. In flight: ENG MODE SEL IGN, THR LEVER IDLE, then "IF NO ENG RELIGHT
  * AFTER 30 S": ENG MASTER OFF, IF DAMAGE: FIRE P/B PUSH, AGENT 1 (AFTER 10 SECONDS IN FLIGHT) DISCH, IF NO DAMAGE:
  * RELIGHT CONSIDER. LAND ASAP is the separate LAND ASAP memo.
@@ -143,9 +141,9 @@ export interface EngineShutDownLineInputs {
 }
 
 /**
- * l.81087-81123: (wing anti-ice ON) in Elec Emer config PACK 1 OFF, otherwise PACK (AFFECTED SIDE) OFF, and if the ENG
+ * (wing anti-ice ON) in Elec Emer config PACK 1 OFF, otherwise PACK (AFFECTED SIDE) OFF, and if the ENG
  * FIRE pb is not pushed X BLEED OPEN; ENG MODE SEL IGN; IF NO FUEL LEAK: IMBALANCE MONITOR; TCAS MODE SEL TA; (REV
- * unlocked, l.81114-81116) IF BUFFET: MAX SPEED 240 KT; (ENG FIRE pb pushed) X BLEED SHUT, WING ANTI ICE OFF, AVOID ICING
+ * unlocked) IF BUFFET: MAX SPEED 240 KT; (ENG FIRE pb pushed) X BLEED SHUT, WING ANTI ICE OFF, AVOID ICING
  * CONDITIONS. The lowercase conditions are computed (not shown), the uppercase ones are shown. The lines of actions done go.
  */
 export function engineShutDownLines(inputs: EngineShutDownLineInputs): number[] {
@@ -189,7 +187,7 @@ export interface EngineShutDownStatus {
 }
 
 /**
- * The STATUS of ENG 1(2) SHUT DOWN, l.81168-81264 (2019 FCOM PDF pages 2300-2301):
+ * The STATUS of ENG 1(2) SHUT DOWN:
  * - If the ENG FIRE pb is pushed: AVOID ICING CONDITIONS; IF SEVERE ICE ACCRETION: MIN SPD VLS + 10/G DOT, MANEUVER WITH
  *   CARE, LDG DIST PROC APPLY.
  * - If REV unlocked: MAX SPEED 300/0.78, and the APPR PROC of the "1, 2, or 3 doors not stowed (CFM), or reverse
@@ -200,7 +198,7 @@ export interface EngineShutDownStatus {
  * - IF NO ENG 1(2) DAMAGE: CONSIDER ENG 1(2) RELIGHT; CAT 3 SINGLE ONLY; ONE PACK ONLY IF WAI ON.
  * - INOP SYS: CAT 3 DUAL, ENG 1(2) BLEED, PACK 1(2), MAIN GALLEY, GEN 1(2), G ENG 1 PUMP or Y ENG 2 PUMP, WING A. ICE (if
  *   the ENG FIRE pb is pushed).
- * Not modelled: the A321 lines, AFT CRG HEAT and STEEP APPR, which the FCOM marks as options, and the "FOR LDG : USE
+ * Not modelled: the A321 lines, AFT CRG HEAT and STEEP APPR (options), and the "FOR LDG : USE
  * FLAP 3" reminder form of the flap line once CONF 3 is selected.
  */
 export function engineShutDownStatus(

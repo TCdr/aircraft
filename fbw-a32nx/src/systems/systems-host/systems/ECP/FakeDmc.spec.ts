@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { SdPages } from '@shared/SdPages';
 import { DmcEcpLightStatus, ecpPageLightRequest } from './FakeDmc';
 
-describe('ECP system page pb lights (A320 FCOM DSC-31-30 l.46728, l.46733-46736)', () => {
+describe('ECP system page pb lights', () => {
   it('two ECAM displays: the pb of the selected page lights, steady (manual or advisory selection)', () => {
     expect(ecpPageLightRequest(SdPages.ENG, SdPages.ENG, false)).toEqual({
       litPage: SdPages.ENG,

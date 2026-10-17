@@ -90,29 +90,28 @@ const statusRight = (alerts: VentilationAlerts, key: string) => {
   return visible(formatStatusPage(item.statusInfo(), item.inopSys()).right).split('\r');
 };
 
-/* A320 FCOM PRO-ABN-VENT (a320_fcom.txt l.96069-96258), PRO-ABN-AIR l.70643-70667, PRO-ABN-COND l.74019-74042 */
-describe('VENT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts (FCOM gap batch T2-42)', () => {
+describe('VENT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts', () => {
   it('no alert without a failure', () => {
     expect(triggered(noFailure)).toEqual([]);
   });
 
-  it('VENT AVNCS SYS FAULT: the AEVC power up test is not satisfactory (l.96077-96080)', () => {
+  it('VENT AVNCS SYS FAULT: the AEVC power up test is not satisfactory', () => {
     expect(triggered({ ...noFailure, aevcFailed: true })).toEqual(['avncsSysFault']);
   });
 
-  it('VENT BLOWER FAULT: "the blowing pressure is low" (l.96110); BLOWER OVRD until done, LAND ASAP with DC ESS BUS FAULT', () => {
+  it('VENT BLOWER FAULT: "the blowing pressure is low"; BLOWER OVRD until done, LAND ASAP with DC ESS BUS FAULT', () => {
     const inputs = { ...noFailure, blowerFanFailed: true };
     expect(triggered(inputs)).toEqual(['blowerFault']);
     expect(blowerFaultLines(inputs)).toEqual([0, 1]);
     expect(blowerFaultLines({ ...inputs, blowerPbAuto: false })).toEqual([0]);
     expect(blowerFaultLandAsap(inputs)).toBe(false);
-    // "If DC ESS BUS FAULT: LAND ASAP" (l.96126-96128), no BLOWER OVRD line
+    // With DC ESS BUS FAULT: LAND ASAP, no BLOWER OVRD line
     expect(blowerFaultLines({ ...inputs, dcEssBusFault: true })).toEqual([0]);
     expect(blowerFaultLandAsap({ ...inputs, dcEssBusFault: true })).toBe(true);
     expect(blowerFaultLandAsap({ ...noFailure, dcEssBusFault: true })).toBe(false);
   });
 
-  it('VENT EXTRACT FAULT: "the extract pressure is low" (l.96154); EXTRACT OVRD until done', () => {
+  it('VENT EXTRACT FAULT: "the extract pressure is low"; EXTRACT OVRD until done', () => {
     const inputs = { ...noFailure, extractFanFailed: true };
     expect(triggered(inputs)).toEqual(['extractFault']);
     expect(extractFaultLines(inputs)).toEqual([0, 1]);
@@ -132,7 +131,7 @@ describe('VENT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts (FCOM 
     expect(triggered({ ...extract, skinInletValveStuckOpen: true })).toEqual(['skinValveFaultExtract']);
   });
 
-  it('VENT SKIN VALVE FAULT, extract valve: BLOWER and EXTRACT OVRD, then IF UNSUCCESSFUL (l.96222-96235)', () => {
+  it('VENT SKIN VALVE FAULT, extract valve: BLOWER and EXTRACT OVRD, then IF UNSUCCESSFUL', () => {
     const extract = { ...noFailure, skinExtractValveStuckOpen: true };
     expect(skinValveFaultExtractLines(extract, true)).toEqual([0, 1, 2]);
     expect(skinValveFaultExtractLines({ ...extract, blowerPbAuto: false }, true)).toEqual([0, 2]);
@@ -142,7 +141,7 @@ describe('VENT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts (FCOM 
     expect(skinValveFaultExtractLines(overridden, false)).toEqual([0, 3, 4, 6]);
   });
 
-  it('AIR AFT CRG VENT FAULT: the failed fan with the isolation valves open (l.70649, DSC-21-40-20 l.9711-9716)', () => {
+  it('AIR AFT CRG VENT FAULT: the failed fan with the isolation valves open', () => {
     expect(triggered({ ...noFailure, aftCargoFanFailed: true })).toEqual(['aftCargoVentFault']);
     // smoke: the valves close and the fan stops
     expect(triggered({ ...noFailure, aftCargoFanFailed: true, aftCargoSmoke: true })).toEqual([]);
@@ -156,13 +155,13 @@ describe('VENT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts (FCOM 
     ]);
   });
 
-  it('the isolation valves are commanded open with the AFT ISOL VALVE pb-sw in AUTO and no smoke (l.9714-9716)', () => {
+  it('the isolation valves are commanded open with the AFT ISOL VALVE pb-sw in AUTO and no smoke', () => {
     expect(aftCargoIsolValvesCommandedOpen(noFailure)).toBe(true);
     expect(aftCargoIsolValvesCommandedOpen({ ...noFailure, aftIsolValvePbAuto: false })).toBe(false);
     expect(aftCargoIsolValvesCommandedOpen({ ...noFailure, aftCargoSmoke: true })).toBe(false);
   });
 
-  it('COND AFT CRG ISOL VALVE: the systems.wasm valve disagreement, the FAULT light of the pb-sw (l.74025)', () => {
+  it('COND AFT CRG ISOL VALVE: the systems.wasm valve disagreement, the FAULT light of the pb-sw', () => {
     expect(triggered({ ...noFailure, ...isolValvesStuckClosed })).toEqual(['aftCargoIsolValve']);
     // set OFF (or closed by the smoke detection): the closed valves agree, systems.wasm clears the disagreement
     expect(
@@ -196,7 +195,7 @@ describe('VENT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts (FCOM 
     expect(alerts.landAsap).toBe(true);
   });
 
-  it('the E/WD texts, levels, SD pages and FCOM PDF flight phase inhibitions', () => {
+  it('the E/WD texts, levels, SD pages and flight phase inhibitions', () => {
     const failures = new TestFailures();
     const alerts = new VentilationAlerts(failures);
     for (const failure of VENTILATION_FAILURES) {
@@ -242,7 +241,7 @@ describe('VENT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts (FCOM 
     expect(shownText(alerts, VENT_EXTRACT_FAULT_KEY)).toEqual(['VENT EXTRACT FAULT', '-EXTRACT...........OVRD']);
   });
 
-  it('the STATUS INOP SYS and the SKIN VALVE FAULT manual pressurization (FCOM PDF p.5825-5829, 4364, 4507)', () => {
+  it('the STATUS INOP SYS and the SKIN VALVE FAULT manual pressurization', () => {
     const alerts = new VentilationAlerts(new TestFailures());
     expect(statusRight(alerts, VENT_AVNCS_SYS_FAULT_KEY)).toEqual(['INOP SYS', 'AVNCS VENT']);
     expect(statusRight(alerts, VENT_BLOWER_FAULT_KEY)).toEqual(['INOP SYS', 'VENT BLOWER']);

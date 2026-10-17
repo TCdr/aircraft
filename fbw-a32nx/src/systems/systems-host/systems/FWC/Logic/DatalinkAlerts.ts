@@ -6,20 +6,15 @@ import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A320Failure } from '@failures';
 import { DatalinkStatusCode } from '@datalink/common';
 import type { RouterFmsMessages } from '@datalink/router';
-import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { StatusLines } from './CondStatus';
-import { FwcAlertItem, alertCodes } from './FwcAlertItem';
+import { FwcAlertItem, awarenessItem } from './FwcAlertItem';
 
 /*
- * The datalink alerts and memo of the A320 FWC (A320 FCOM, a320_fcom.txt):
- * - DATALINK ATSU FAULT (PRO-ABN-DATALINK l.74467-74495): "This alert triggers when there is a failure in ATSU
- *   initialization associated with ATSU INIT FAULT ECAM message" (l.74477-74478); crew awareness (l.74484); the line
- *   ATSU INIT FAULT is "Displayed, in case of failure upon ATSU initialization" (l.74485-74486); STATUS INOP SYS ATSU,
- *   DATA COMPANY (l.74492-74495).
- * - DATALINK COMPANY FAULT (l.74507-74531): "This alert triggers when there is a failure in the AOC datalink
- *   communications" (l.74517); crew awareness (l.74523); STATUS INOP SYS DATA COMPANY (l.74529-74531).
- * - COMPANY DATALINK STBY memo (DSC-46-10-40-60 l.59467-59468): "This memo appears in green when AOC datalink
- *   air-ground communication is temporarily unavailable, but not lost."
+ * The datalink alerts and memo of the A320 FWC:
+ * - DATALINK ATSU FAULT: the ATSU initialization failed (with the ATSU INIT FAULT line); crew awareness; STATUS INOP
+ *   SYS ATSU, DATA COMPANY.
+ * - DATALINK COMPANY FAULT: the AOC datalink communications failed; crew awareness; STATUS INOP SYS DATA COMPANY.
+ * - COMPANY DATALINK STBY memo: green, while the AOC air-ground communication is temporarily unavailable, but not lost.
  *
  * The flyPad failures are those of systems-host AtsuFailureStates: "ATSU" (46000) and "ATSU AOC function (company
  * datalink)" (46001). The ATSU runs on AC BUS 1 (atsu.ts).
@@ -31,16 +26,15 @@ import { FwcAlertItem, alertCodes } from './FwcAlertItem';
  * - "Temporarily unavailable, but not lost" is a working ATSU and AOC function without any air-ground medium: the
  *   router reports no VHF, SATCOM or HF datalink available (the A32NX router: VHF 3 in voice mode or not supplied).
  * - The memo has the flight phase inhibition of the other datalink memos of the PseudoFWC (COMPANY MSG, VHF3 VOICE):
- *   3, 4, 5, 7, 8 (the FCOM memo page gives none).
- * - The alerts are level 1 cautions (FCOM DSC-31 l.45551-45556: "Requires crew monitoring", "generally without
- *   procedure", no aural, no SD page call).
+ *   3, 4, 5, 7, 8 (none is documented for this memo).
+ * - The alerts are level 1 cautions: crew monitoring, generally without procedure, no aural, no SD page call.
  */
 
-/** The flight phase inhibitions, from the figures of the 2019 FCOM PDF (PRO-ABN-DATALINK P 1/2 and P 2/2) */
+/** The flight phase inhibitions */
 export const DATALINK_PHASE_INHIBITION = {
-  /** DATALINK ATSU FAULT, page 2135 */
+  /** DATALINK ATSU FAULT */
   atsuFault: [3, 4, 5, 7, 8],
-  /** DATALINK COMPANY FAULT, page 2136 */
+  /** DATALINK COMPANY FAULT */
   companyFault: [3, 4, 5, 7, 8],
   /** COMPANY DATALINK STBY memo, as COMPANY MSG and VHF3 VOICE (design choice, see above) */
   companyDatalinkStbyMemo: [3, 4, 5, 7, 8],
@@ -50,8 +44,7 @@ export const DATALINK_PHASE_INHIBITION = {
 export const DATALINK_ATSU_FAULT_KEY = '4600010';
 export const DATALINK_COMPANY_FAULT_KEY = '4600020';
 
-/** The memo key and its two lines (COMPANY / DATALINK STBY: the memo column is too narrow for one line) */
-export const COMPANY_DATALINK_STBY_MEMO_KEY = '0000553';
+/** The memo codes (key 0000553), two lines: COMPANY / DATALINK STBY, the memo column is too narrow for one line */
 export const COMPANY_DATALINK_STBY_MEMO_CODES = ['000055301', '000055302'];
 
 /** STATUS INOP SYS codes (StatusMessages) */
@@ -96,33 +89,11 @@ export function airGroundLinkAvailable(status: RouterFmsMessages['routerDatalink
 
 /** The STATUS lines */
 export const datalinkStatus = {
-  /** DATALINK ATSU FAULT: INOP SYS ATSU, DATA COMPANY (l.74492-74495) */
+  /** DATALINK ATSU FAULT: INOP SYS ATSU, DATA COMPANY */
   atsuFault: (): StatusLines => ({ left: [], inopSys: [INOP_SYS_ATSU, INOP_SYS_DATA_COMPANY] }),
-  /** DATALINK COMPANY FAULT: INOP SYS DATA COMPANY (l.74529-74531) */
+  /** DATALINK COMPANY FAULT: INOP SYS DATA COMPANY */
   companyFault: (): StatusLines => ({ left: [], inopSys: [INOP_SYS_DATA_COMPANY] }),
 };
-
-/** A level 1 caution (crew awareness): amber, no aural, no SD page (FCOM l.45551-45556) */
-function awarenessItem(
-  key: string,
-  lineCount: number,
-  active: Subject<boolean>,
-  flightPhaseInhib: number[],
-  status: () => StatusLines,
-): FwcAlertItem {
-  return {
-    flightPhaseInhib,
-    simVarIsActive: active,
-    whichCodeToReturn: () => Array.from({ length: lineCount }, (_, line) => line),
-    codesToReturn: alertCodes(key, lineCount),
-    memoInhibit: () => false,
-    failure: 1,
-    sysPage: EcamSysPage.NONE,
-    side: 'LEFT',
-    inopSys: () => status().inopSys,
-    statusInfo: () => status().left,
-  };
-}
 
 /** The part of the failures consumer the alerts use */
 export type DatalinkFailuresSource = Pick<FailuresConsumer, 'register' | 'update' | 'isActive'>;
@@ -135,7 +106,7 @@ export class DatalinkAlerts {
 
   private readonly companyFault = Subject.create(false);
 
-  /** COMPANY DATALINK STBY, for the PseudoFWC memos (key COMPANY_DATALINK_STBY_MEMO_KEY) */
+  /** COMPANY DATALINK STBY, for the PseudoFWC memos (key 0000553) */
   public readonly companyDatalinkStby = Subject.create(false);
 
   /**
@@ -184,6 +155,7 @@ export class DatalinkAlerts {
       2,
       this.atsuFault,
       DATALINK_PHASE_INHIBITION.atsuFault,
+      () => [0, 1],
       datalinkStatus.atsuFault,
     ),
     [DATALINK_COMPANY_FAULT_KEY]: awarenessItem(
@@ -191,6 +163,7 @@ export class DatalinkAlerts {
       1,
       this.companyFault,
       DATALINK_PHASE_INHIBITION.companyFault,
+      () => [0],
       datalinkStatus.companyFault,
     ),
   };

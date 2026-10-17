@@ -16,7 +16,6 @@ const altitude = (feet: number, ssm = Arinc429SignStatusMatrix.NormalOperation) 
 const discrepancy = (adrFt: number, dmcFt: number, thresholdFt: number) =>
   isAltitudeDiscrepancy(altitude(adrFt), altitude(dmcFt), altitude(adrFt), altitude(dmcFt), thresholdFt);
 
-// A320 FCOM PRO-ABN-NAV NAV ALTI DISCREPANCY, a320_fcom.txt l.92703-92706
 describe('A32NX FWC NAV ALTI DISCREPANCY', () => {
   it('uses 250 ft with QNH or QFE and 500 ft with STD', () => {
     expect(ALTI_DISCREPANCY_BARO_REFERENCE_FT).toBe(250);

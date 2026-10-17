@@ -4,27 +4,25 @@
 import { isThrustLeverAtIdle } from './EngineThrustSettingAlerts';
 
 /*
- * ENG 1(2) LOW N1 (ON GROUND) (A320 FCOM PRO-ABN-ENG, a320_fcom.txt l.80343-80362). l.80353: "This alert triggers when N1
- * rotation is failed during start."; l.80359: "No N1 rotation during start."; l.80361-80363: "IF CONFIRMED: THR LEVER
- * (AFFECTED) ... IDLE, ENG MASTER (AFFECTED) ... OFF". The flight phase inhibition figure is an image, read on the 2019 FCOM
- * PDF page 2277: inhibited in the phases 4 to 9 (shown in 1, 2, 3 and 10). The FCOM page gives neither the title colour
- * nor the aural: design choice, an amber caution (single chime, MASTER CAUT) like the other start alerts (ENG 1(2) START
- * FAULT). No STATUS.
+ * ENG 1(2) LOW N1 (ON GROUND): no N1 rotation during a start; IF CONFIRMED: THR LEVER (AFFECTED) ... IDLE, ENG MASTER
+ * (AFFECTED) ... OFF. Inhibited in phases 4 to 9 (shown in 1, 2, 3 and 10). Design choice (the title colour and aural
+ * are not documented): an amber caution (single chime, MASTER CAUT) like the other start alerts (ENG 1(2) START FAULT).
+ * No STATUS.
  *
  * The failure that makes the N1 stay at 0 during a start: flyPad ATA 72 "Engine 1(2) fan blocked (no N1 rotation at
  * start)" (FADEC FanBlockedStart_A32NX.hpp).
  */
 
-/** ENG 1(2) LOW N1 flight phase inhibition (2019 FCOM PDF page 2277) */
+/** ENG 1(2) LOW N1 flight phase inhibition */
 export const LOW_N1_PHASE_INHIBITION = [4, 5, 6, 7, 8, 9];
 
 /**
- * Design choice, no FCOM value: the N1 has failed to rotate when it is still below 2 % once the core turns at 35 % N2 or
- * more. In a normal start the N1 is about 5 % at 35 % N2 (FADEC start polynomial, fan_blocked_start_test.cpp checks the
- * margin); the core of a start lights up at 22 % N2 (FCOM DSC-70-80-40 l.63707-63708) and the start ends at 50 % N2.
+ * Design choice (no documented value): the N1 has failed to rotate when it is still below 2 % once the core turns at
+ * 35 % N2 or more. In a normal start the N1 is about 5 % at 35 % N2 (FADEC start polynomial, fan_blocked_start_test.cpp
+ * checks the margin); the core of a start lights up at 22 % N2 and the start ends at 50 % N2.
  */
-export const LOW_N1_MIN_N2_PERCENT = 35;
-export const LOW_N1_MAX_N1_PERCENT = 2;
+const LOW_N1_MIN_N2_PERCENT = 35;
+const LOW_N1_MAX_N1_PERCENT = 2;
 
 /** Design choice: the condition must hold for 2 s, so that a single frame of the N1 indication cannot trigger it */
 export const LOW_N1_CONFIRM_SECONDS = 2;

@@ -10,7 +10,7 @@ import {
   LsTuningDisagreeMonitor,
 } from './NavPositionAlerts';
 
-describe('NAV FM/GPS POS DISAGREE (A320 FCOM PRO-ABN-NAV)', () => {
+describe('NAV FM/GPS POS DISAGREE', () => {
   it('follows the FMS condition outside phase 5', () => {
     const alert = new FmGpsPositionDisagreeAlert();
     expect(alert.update(true, 6, 0.1)).toBe(true);
@@ -29,12 +29,12 @@ describe('NAV FM/GPS POS DISAGREE (A320 FCOM PRO-ABN-NAV)', () => {
     expect(alert.update(true, 5, 1)).toBe(false);
   });
 
-  it('is inhibited in the phases of the FCOM figure', () => {
+  it('is inhibited in the aircraft flight phases', () => {
     expect(FM_GPS_POS_DISAGREE_PHASE_INHIBITION).toEqual([1, 3, 4, 8, 10]);
   });
 });
 
-describe('NAV LS TUNING DISAGREE (A320 FCOM PRO-ABN-NAV)', () => {
+describe('NAV LS TUNING DISAGREE', () => {
   const ils = { frequency: 109.5, course: 254 };
 
   it('compares the frequency and the course of the two MMRs', () => {

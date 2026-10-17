@@ -1,60 +1,53 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { Subject, Subscribable } from '@microsoft/msfs-sdk';
+import { Subject } from '@microsoft/msfs-sdk';
 import { Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { StatusLines } from './CondStatus';
 import { CrossBleedSelector } from './EngineFailAlerts';
+import { FwcAlertItem, NO_STATUS, cautionItem, readBool } from './FwcAlertItem';
 
 /*
- * The AIR bleed cautions of the A320 (FCOM PRO-ABN-AIR, a320_fcom.txt l.69509-71070), from the flags the Rust
- * pneumatic system already writes (a320_systems/src/pneumatic.rs, docs/a320-simvars.md "Pneumatic"):
- * - AIR ENG 1(2) BLEED FAULT, l.69799-69855, and its BLEED NOT CLOSED subtitle, l.69942-70003
- * - AIR ENG 1+2 BLEED FAULT, l.70015-70075, and its LEFT LEAK, RIGHT LEAK, LEFT LEAK AND RIGHT LEAK subtitles,
- *   l.70087-70277
- * - AIR ENG 1(2) BLEED LO TEMP, l.70279-70399 (both variants); AIR ENG 1+2 BLEED LO TEMP, l.70401-70452
- * - AIR ENG 1(2) BLEED HI TEMP, l.70464-70520
- * - AIR ENG 1(2) BLEED NOT CLSD, l.70532-70563
- * - AIR BLEED 1(2) OFF, l.69676-69692
- * - AIR APU BLEED FAULT, l.69509-69534
- * - AIR X BLEED FAULT, l.71013-71070
- * The title colours (all amber, level 2) and the flight phase inhibition figures are images, read on the FCOM PDF
- * ("A320 Neo FCOM_1.pdf", PRO-ABN-AIR, pages given at each constant).
+ * The AIR bleed cautions of the A320 (all amber, level 2), from the flags the Rust pneumatic system already writes
+ * (a320_systems/src/pneumatic.rs, docs/a320-simvars.md "Pneumatic"):
+ * - AIR ENG 1(2) BLEED FAULT, and its BLEED NOT CLOSED subtitle
+ * - AIR ENG 1+2 BLEED FAULT, and its LEFT LEAK, RIGHT LEAK, LEFT LEAK AND RIGHT LEAK subtitles
+ * - AIR ENG 1(2) BLEED LO TEMP (both variants); AIR ENG 1+2 BLEED LO TEMP
+ * - AIR ENG 1(2) BLEED HI TEMP
+ * - AIR ENG 1(2) BLEED NOT CLSD
+ * - AIR BLEED 1(2) OFF
+ * - AIR APU BLEED FAULT
+ * - AIR X BLEED FAULT
  *
- * Not modelled here because the Rust code has no input for them (see the report of the FCOM gap audit, 36-pneumatic):
- * BLEED ABNORM PR. The LEAK, LEAK DET FAULT, HP VALVE FAULT and BMC alerts are in FWC/Logic/BleedLeakMonitoringAlerts.
+ * Not modelled here because the Rust code has no input for it: BLEED ABNORM PR. The LEAK, LEAK DET FAULT, HP VALVE
+ * FAULT and BMC alerts are in FWC/Logic/BleedLeakMonitoringAlerts.
  */
 
-/** l.70474: "This alert triggers when the precooler outlet temperature is above 240 °C." */
-export const BLEED_HI_TEMP_THRESHOLD_CELSIUS = 240;
+/** ENG 1(2) BLEED HI TEMP: the precooler outlet temperature is above 240 °C */
+const BLEED_HI_TEMP_THRESHOLD_CELSIUS = 240;
 
 /**
- * The confirmation times of the alerts that compare a valve with its command. Design choices, the FCOM gives none:
- * - APU BLEED FAULT: 10 s, the delay of the amber APU valve of the BLEED page (FCOM DSC-36 l.57807-57808: "the APU bleed
- *   switch is ON for more than 10 s");
+ * The confirmation times of the alerts that compare a valve with its command. Design choices (no documented values):
+ * - APU BLEED FAULT: 10 s, the delay of the amber APU valve of the BLEED page (APU bleed switch ON for more than 10 s);
  * - X BLEED FAULT: 5 s, twice the travel time of the crossbleed valve (2.5 s, valve speed 0.4/s in pneumatic.rs);
  * - BLEED NOT CLSD: 10 s, so that a valve closing at engine shutdown or APU BLEED ON does not trigger it.
  */
-export const APU_BLEED_FAULT_CONFIRM_SECONDS = 10;
-export const X_BLEED_FAULT_CONFIRM_SECONDS = 5;
-export const BLEED_NOT_CLOSED_CONFIRM_SECONDS = 10;
+const APU_BLEED_FAULT_CONFIRM_SECONDS = 10;
+const X_BLEED_FAULT_CONFIRM_SECONDS = 5;
+const BLEED_NOT_CLOSED_CONFIRM_SECONDS = 10;
 
-/** Flight phase inhibition figures (FCOM PDF PRO-ABN-AIR). The A320 FWC phases are 1 to 10. */
+/** Flight phase inhibitions. The A320 FWC phases are 1 to 10. */
 export const BleedPhaseInhibition = {
-  /** ENG 1(2) BLEED FAULT (page 4330) and ENG 1+2 BLEED FAULT (page 4339) */
+  /** ENG 1(2) BLEED FAULT and ENG 1+2 BLEED FAULT */
   bleedFault: [1, 3, 4, 5, 7, 8, 10],
-  /** ENG 1(2) BLEED LO TEMP (pages 4348, 4350) and ENG 1+2 BLEED LO TEMP (page 4353) */
+  /** ENG 1(2) BLEED LO TEMP and ENG 1+2 BLEED LO TEMP */
   bleedLoTemp: [3, 4, 5, 8],
-  /** ENG 1(2) BLEED HI TEMP (page 4356) */
   bleedHiTemp: [1, 3, 4, 5, 7, 8, 10],
-  /** ENG 1(2) BLEED NOT CLSD (page 4359) */
   bleedNotClosed: [3, 4, 5, 7, 8],
-  /** BLEED 1(2) OFF (page 4322): shown in phases 2 and 6 only */
+  /** BLEED 1(2) OFF: shown in phases 2 and 6 only */
   bleedOff: [1, 3, 4, 5, 7, 8, 9, 10],
-  /** APU BLEED FAULT (page 4318) */
   apuBleedFault: [3, 4, 5, 7, 8],
-  /** X BLEED FAULT (page 4390) */
   crossBleedFault: [3, 4, 5, 7, 8],
 };
 
@@ -122,20 +115,19 @@ export type EngineIndex = 0 | 1;
 const opposite = (engine: EngineIndex): EngineIndex => (engine === 0 ? 1 : 0);
 
 /**
- * l.69805-69811: ENG 1(2) BLEED FAULT "triggers when the engine 1(2) is running and: The engine bleed air pressure is
- * above 57 PSI (+3/-0), or The engine bleed air temperature is above: 257 °C for more than 55 s, 270 °C for more than
- * 15 s, 290 °C for more than 5 s." The BMC monitors of pneumatic.rs give the overpressure and overheat flags (their
- * overpressure threshold, 60 PSI for 15 s, is a Rust gap of its own, A5 of the audit).
+ * ENG 1(2) BLEED FAULT: the engine is running and the bleed air pressure is above 57 PSI (+3/-0), or the bleed air
+ * temperature is above 257 °C for more than 55 s, 270 °C for more than 15 s or 290 °C for more than 5 s. The BMC
+ * monitors of pneumatic.rs give the overpressure and overheat flags (their overpressure threshold, 60 PSI for 15 s,
+ * differs from the real one and belongs to the Rust side).
  */
 export function isEngineBleedFault(engine: EngineBleedInputs): boolean {
   return engine.engineRunning && (engine.overheat || engine.overpressure);
 }
 
 /**
- * l.69953-69959: ENG 1(2) BLEED FAULT / BLEED NOT CLOSED "triggers when the engine 1(2) is running, the engine 1(2) bleed
- * valve fails to close, and" the overpressure or overheat of the BLEED FAULT. The BMC closes the bleed valve on these
- * detections (FCOM DSC-36 l.57288-57299, pneumatic.rs): a valve still open is a valve that fails to close (the flyPad
- * failure "Engine n bleed valve stuck open").
+ * ENG 1(2) BLEED FAULT / BLEED NOT CLOSED: the engine is running, its bleed valve fails to close, and the overpressure
+ * or overheat of the BLEED FAULT is present. The BMC closes the bleed valve on these detections (pneumatic.rs): a
+ * valve still open is a valve that fails to close (the flyPad failure "Engine n bleed valve stuck open").
  */
 export function isEngineBleedFaultValveNotClosed(engine: EngineBleedInputs): boolean {
   return isEngineBleedFault(engine) && engine.bleedValveOpen;
@@ -143,20 +135,20 @@ export function isEngineBleedFaultValveNotClosed(engine: EngineBleedInputs): boo
 
 /**
  * The bleed supply of a running engine is lost: its BLEED FAULT, or a wing or pylon leak on its side (the BMC closes
- * the bleed valve on a leak, l.57288-57299). ENG 1+2 BLEED FAULT "triggers when both engine bleed supply systems are
- * lost" (l.70025), with the LEAK subtitle of the leak sides (l.70098-70099, l.70159-70160, l.70232-70233).
+ * the bleed valve on a leak). ENG 1+2 BLEED FAULT triggers when both engine bleed supply systems are lost, with the
+ * LEAK subtitle of the leak sides.
  */
-export function isEngineBleedSupplyLost(engine: EngineBleedInputs): boolean {
+function isEngineBleedSupplyLost(engine: EngineBleedInputs): boolean {
   return isEngineBleedFault(engine) || hasEngineSideLeak(engine);
 }
 
-/** A wing or pylon leak on the side of a running engine: "a left wing leak or a pylon leak on side 1" (l.70098-70099) */
-export function hasEngineSideLeak(engine: EngineBleedInputs): boolean {
+/** A wing or pylon leak on the side of a running engine (side 1: a left wing leak or a pylon 1 leak) */
+function hasEngineSideLeak(engine: EngineBleedInputs): boolean {
   return engine.engineRunning && engine.wingOrPylonLeak;
 }
 
 /**
- * l.70474: ENG 1(2) BLEED HI TEMP above 240 °C at the precooler outlet. Design choice: not shown while the BLEED FAULT of
+ * ENG 1(2) BLEED HI TEMP above 240 °C at the precooler outlet. Design choice: not shown while the BLEED FAULT of
  * the same engine is, which an overheat above 257 °C triggers, as the FAULT procedure covers the HI TEMP one.
  */
 export function isEngineBleedHiTemp(engine: EngineBleedInputs): boolean {
@@ -167,24 +159,24 @@ export function isEngineBleedHiTemp(engine: EngineBleedInputs): boolean {
  * An engine bleed that supplies air: the engine runs, its ENG BLEED pb is ON (AUTO), its ENG FIRE pb is not pushed, and
  * it has no BLEED FAULT. Used for "OPPOSITE BLEED AVAILABLE" (LO TEMP) and "only one bleed available" (X BLEED FAULT).
  */
-export function isEngineBleedAvailable(engine: EngineBleedInputs): boolean {
+function isEngineBleedAvailable(engine: EngineBleedInputs): boolean {
   return engine.engineRunning && engine.bleedPbAuto && !engine.firePbPushed && !isEngineBleedFault(engine);
 }
 
 /**
- * The APU bleed closes an engine bleed valve (FCOM DSC-36 l.57299 "APU bleed being ON"). Design choice: as the BMC
+ * The APU bleed closes an engine bleed valve while the APU bleed is ON. Design choice: as the BMC
  * of pneumatic.rs, engine 2 only while the crossbleed valve is open, as the APU air reaches the engine 2 duct through it.
  */
-export function apuBleedClosesEngineBleed(inputs: BleedInputs, engine: EngineIndex): boolean {
+function apuBleedClosesEngineBleed(inputs: BleedInputs, engine: EngineIndex): boolean {
   return inputs.apuBleedPbOn && inputs.apuBleedValveOpen && (engine === 0 || !inputs.crossBleedFullyClosed);
 }
 
 /**
- * l.70542-70544: BLEED NOT CLSD "triggers when the engine bleed valve fails to close: During engine start or when APU
- * BLEED pb-sw is set to ON; At engine shutdown or when APU BLEED pb-sw is set to OFF with engine not running."
- * The valve must be closed during a start (starter valve open), with the APU bleed on, or with the engine stopped.
+ * BLEED NOT CLSD: the engine bleed valve fails to close during an engine start or with the APU BLEED pb-sw ON, or at
+ * engine shutdown or with the APU BLEED pb-sw OFF and the engine not running. The valve must be closed during a start
+ * (starter valve open), with the APU bleed on, or with the engine stopped.
  * Design choice: "engine shutdown" is the engine stopped (L:A32NX_ENGINE_STATE Off), as the valve closes only when the
- * spooling-down engine no longer gives 8 PSI (l.57285), not at the ENG MASTER OFF.
+ * spooling-down engine no longer gives 8 PSI, not at the ENG MASTER OFF.
  */
 export function isEngineBleedValveNotClosed(inputs: BleedInputs, engine: EngineIndex): boolean {
   const e = inputs.engines[engine];
@@ -194,7 +186,7 @@ export function isEngineBleedValveNotClosed(inputs: BleedInputs, engine: EngineI
 
 /**
  * Whether the crossbleed valve is commanded open: OPEN and SHUT are manual, AUTO opens it while the APU bleed valve is
- * open (FCOM DSC-36 X BLEED selector; the BMC of pneumatic.rs).
+ * open (the BMC of pneumatic.rs).
  */
 export function isCrossBleedValveCommandedOpen(inputs: BleedInputs): boolean {
   switch (inputs.crossBleedSelector) {
@@ -207,26 +199,26 @@ export function isCrossBleedValveCommandedOpen(inputs: BleedInputs): boolean {
   }
 }
 
-/** l.71023-71024: X BLEED FAULT "triggers when the crossbleed valve position disagrees with the X-BLEED selector position." */
+/** X BLEED FAULT: the crossbleed valve position disagrees with the X-BLEED selector position */
 export function isCrossBleedValveDisagree(inputs: BleedInputs): boolean {
   return isCrossBleedValveCommandedOpen(inputs) ? !inputs.crossBleedFullyOpen : !inputs.crossBleedFullyClosed;
 }
 
 /** The APU speed above which the ECB opens the APU bleed valve (electronic_control_box.rs) */
-export const APU_BLEED_VALVE_MIN_SPEED_PERCENT = 95;
+const APU_BLEED_VALVE_MIN_SPEED_PERCENT = 95;
 
 /**
  * The APU is running, for APU BLEED FAULT. Design choice: the APU AVAIL with the APU MASTER SW ON and the speed above
  * 95 %, the conditions in which the ECB opens the valve: the valve stays closed during the APU start, and closes at the
  * MASTER SW OFF and during a shutdown while the AVAIL light of the APS3200 stays on.
  */
-export function isApuRunning(inputs: BleedInputs): boolean {
+function isApuRunning(inputs: BleedInputs): boolean {
   return inputs.apuAvailable && inputs.apuMasterSwitchOn && inputs.apuSpeedPercent > APU_BLEED_VALVE_MIN_SPEED_PERCENT;
 }
 
 /**
- * l.69519-69520: APU BLEED FAULT "triggers when the APU is running and the position of the APU bleed valve disagrees
- * with the selected position of the APU BLEED pb-sw."
+ * APU BLEED FAULT: the APU is running and the position of the APU bleed valve disagrees with the selected position of
+ * the APU BLEED pb-sw.
  */
 export function isApuBleedValveDisagree(inputs: BleedInputs): boolean {
   return isApuRunning(inputs) && inputs.apuBleedPbOn !== inputs.apuBleedValveOpen;
@@ -266,7 +258,7 @@ export interface BleedAlertStates {
 
 /**
  * Whether the bleed of an engine has an alert (FAULT, LO TEMP, HI TEMP, NOT CLSD, or a LEAK on its side, whose
- * procedures ask for ENG BLEED OFF: l.70700-70710, l.70105-70118), to inhibit its BLEED OFF alert
+ * procedures ask for ENG BLEED OFF), to inhibit its BLEED OFF alert
  */
 export function hasEngineBleedAlert(inputs: BleedInputs, engine: EngineIndex, notClosedConfirmed: boolean): boolean {
   const e = inputs.engines[engine];
@@ -274,25 +266,25 @@ export function hasEngineBleedAlert(inputs: BleedInputs, engine: EngineIndex, no
 }
 
 /**
- * BLEED 1(2) OFF "triggers when the ENG 1(2) BLEED pb-sw is abnormally set to OFF" (l.69686). Design choice: the pb OFF is
+ * BLEED 1(2) OFF triggers when the ENG 1(2) BLEED pb-sw is abnormally set to OFF. Design choice: the pb OFF is
  * normal once a bleed alert of that engine has asked for it (BLEED FAULT, LO TEMP, NOT CLSD: "ENG BLEED (AFFECTED) OFF"),
  * so the alert stays inhibited from such an alert until the pb is set back to AUTO, even when the alert condition is
  * gone (the LO TEMP flag, for example, needs the bleed valve open).
  * @returns the memory for the next update
  */
-export function bleedOffInhibitMemory(previous: boolean, bleedPbAuto: boolean, engineBleedAlert: boolean): boolean {
+function bleedOffInhibitMemory(previous: boolean, bleedPbAuto: boolean, engineBleedAlert: boolean): boolean {
   return !bleedPbAuto && (previous || engineBleedAlert);
 }
 
 /**
  * The alerts from the inputs and the confirmed conditions. ENG 1+2 BLEED FAULT (any subtitle) and ENG 1+2 BLEED LO TEMP
- * replace the single engine alerts (l.70025: "both engine bleed supply systems are lost", l.70411: "both engine bleeds
- * supply bleed air at a temperature below 150 °C"). The subtitle of ENG 1+2 BLEED FAULT names the leak sides: none
- * (l.70025-70026 "without wing leak or pylon leak on any side"), LEFT LEAK, RIGHT LEAK, LEFT LEAK AND RIGHT LEAK.
+ * replace the single engine alerts (both engine bleed supply systems are lost; both engine bleeds supply air below
+ * 150 °C). The subtitle of ENG 1+2 BLEED FAULT names the leak sides: none (no wing or pylon leak on any side), LEFT
+ * LEAK, RIGHT LEAK, LEFT LEAK AND RIGHT LEAK.
  * ENG 1(2) BLEED FAULT / BLEED NOT CLOSED replaces ENG 1(2) BLEED FAULT, and the NOT CLSD alert of the same valve
  * (design choice: its procedure already sets the ENG BLEED OFF).
  */
-export function bleedAlertStates(inputs: BleedInputs, confirmed: BleedConfirmedConditions): BleedAlertStates {
+function bleedAlertStates(inputs: BleedInputs, confirmed: BleedConfirmedConditions): BleedAlertStates {
   const [e1, e2] = inputs.engines;
   const fault: [boolean, boolean] = [isEngineBleedFault(e1), isEngineBleedFault(e2)];
   const bothLost = isEngineBleedSupplyLost(e1) && isEngineBleedSupplyLost(e2);
@@ -331,10 +323,10 @@ export function bleedAlertStates(inputs: BleedInputs, confirmed: BleedConfirmedC
 /* E/WD lines. Each function returns the indices of the lines to show in the codes of its alert (EwdMessages 3611xxx). */
 
 /**
- * ENG 1(2) BLEED FAULT, l.69830-69845: 0 title, 1 -ENG n BLEED OFF, 2 -PACK FLOW LO, 3 -PACK n OFF, 4 -X BLEED OPEN.
- * "ENG BLEED (AFFECTED, IF NOT AUTOMATICALLY CLOSED) OFF": shown while the pb is ON and the bleed valve is not closed;
- * "If wing anti-ice is off and both packs are on: PACK FLOW LO"; "If wing anti-ice is on and both packs are on: PACK
- * (AFFECTED) OFF"; "X BLEED OPEN". The lines of actions done go.
+ * ENG 1(2) BLEED FAULT: 0 title, 1 -ENG n BLEED OFF, 2 -PACK FLOW LO, 3 -PACK n OFF, 4 -X BLEED OPEN.
+ * ENG BLEED OFF shows while the pb is ON and the bleed valve is not closed (not closed automatically); PACK FLOW LO
+ * with wing anti-ice off and both packs on; PACK (AFFECTED) OFF with wing anti-ice on and both packs on. The lines of
+ * actions done go.
  */
 export function engineBleedFaultLines(inputs: BleedInputs, engine: EngineIndex): number[] {
   const e = inputs.engines[engine];
@@ -356,9 +348,9 @@ export function engineBleedFaultLines(inputs: BleedInputs, engine: EngineIndex):
 }
 
 /**
- * ENG 1+2 BLEED FAULT, l.70046-70063 (PDF page 4340): 0 title, 1 -X BLEED AUTO, 2 -WING ANTI ICE OFF, 3 AVOID ICING
- * CONDITIONS, 4 -APU BLEED OFF ("If APU Bleed is ON and fails"), 5 -ENG 1 BLEED OFF THEN ON, 6 -ENG 2 BLEED OFF THEN ON,
- * 7 .IF UNSUCCESSFUL:, 8 -ENG 1 BLEED OFF, 9 -ENG 2 BLEED OFF, 10 -DES TO FL 100/MEA-MORA, 11 -BLEED 1+2 PROC APPLY.
+ * ENG 1+2 BLEED FAULT: 0 title, 1 -X BLEED AUTO, 2 -WING ANTI ICE OFF, 3 AVOID ICING CONDITIONS, 4 -APU BLEED OFF
+ * (if the APU bleed is ON and fails), 5 -ENG 1 BLEED OFF THEN ON, 6 -ENG 2 BLEED OFF THEN ON, 7 .IF UNSUCCESSFUL:,
+ * 8 -ENG 1 BLEED OFF, 9 -ENG 2 BLEED OFF, 10 -DES TO FL 100/MEA-MORA, 11 -BLEED 1+2 PROC APPLY.
  * The OFF THEN ON lines cannot be seen done and stay; the lines of actions done go.
  */
 export function engine1And2BleedFaultLines(inputs: BleedInputs, apuBleedFault: boolean): number[] {
@@ -385,11 +377,10 @@ export function engine1And2BleedFaultLines(inputs: BleedInputs, apuBleedFault: b
 }
 
 /**
- * ENG 1(2) BLEED FAULT / BLEED NOT CLOSED, l.69980-69991: 0 title, 1 BLEED NOT CLOSED (subtitle), 2 -ENG n BLEED OFF,
+ * ENG 1(2) BLEED FAULT / BLEED NOT CLOSED: 0 title, 1 BLEED NOT CLOSED (subtitle), 2 -ENG n BLEED OFF,
  * 3 -PACK FLOW LO, 4 -PACK n OFF, 5 -X BLEED SHUT, 6 -WING ANTI ICE OFF, 7 AVOID ICING CONDITIONS, 8 -APU BLEED OFF.
- * "ENG BLEED (AFFECTED) OFF" (while the pb-sw is ON: the valve does not close); "If wing anti-ice is off: PACK FLOW LO";
- * "PACK (AFFECTED) OFF"; "X BLEED SHUT"; "WING ANTI ICE OFF"; "AVOID ICING CONDITIONS"; "If engine 1 bleed is
- * affected: APU BLEED OFF". The lines of actions done go.
+ * ENG BLEED OFF shows while the pb-sw is ON (the valve does not close); PACK FLOW LO with wing anti-ice off; APU BLEED
+ * OFF when the engine 1 bleed is affected. The lines of actions done go.
  */
 export function engineBleedFaultNotClosedLines(inputs: BleedInputs, engine: EngineIndex): number[] {
   const e = inputs.engines[engine];
@@ -422,10 +413,10 @@ export type DualBleedFaultLeak = 'left' | 'right' | 'leftAndRight';
 /**
  * ENG 1+2 BLEED FAULT with a LEAK subtitle. Lines 0 title, 1 subtitle, 2 -X BLEED SHUT, 3 -WING ANTI ICE OFF, 4 AVOID
  * ICING CONDITIONS, 5 -APU BLEED OFF, then:
- * - LEFT LEAK (l.70105-70118, "If APU bleed is ON"): 6 -ENG 2 BLEED OFF THEN ON, 7 .IF UNSUCCESSFUL:, 8 -ENG 1 BLEED OFF,
- *   9 -ENG 2 BLEED OFF, 10 -DES TO FL 100/MEA-MORA, 11 -BLEED 1+2 PROC APPLY;
- * - RIGHT LEAK (l.70181-70197, "If APU bleed is ON and fails"): 6 -ENG 1 BLEED OFF THEN ON, then as LEFT LEAK;
- * - LEFT LEAK AND RIGHT LEAK (l.70239-70250, "If APU bleed is ON"): 6 -ENG 1 BLEED OFF, 7 -ENG 2 BLEED OFF, 8 -DES TO
+ * - LEFT LEAK (APU BLEED OFF if the APU bleed is ON): 6 -ENG 2 BLEED OFF THEN ON, 7 .IF UNSUCCESSFUL:, 8 -ENG 1
+ *   BLEED OFF, 9 -ENG 2 BLEED OFF, 10 -DES TO FL 100/MEA-MORA, 11 -BLEED 1+2 PROC APPLY;
+ * - RIGHT LEAK (APU BLEED OFF if the APU bleed is ON and fails): 6 -ENG 1 BLEED OFF THEN ON, then as LEFT LEAK;
+ * - LEFT LEAK AND RIGHT LEAK (APU BLEED OFF if the APU bleed is ON): 6 -ENG 1 BLEED OFF, 7 -ENG 2 BLEED OFF, 8 -DES TO
  *   FL 100/MEA-MORA, 9 -BLEED 1+2 PROC APPLY.
  * The OFF THEN ON lines cannot be seen done and stay; the lines of actions done go.
  */
@@ -460,17 +451,17 @@ export function engine1And2BleedFaultLeakLines(
   return lines;
 }
 
-/** LO TEMP "(OPPOSITE BLEED AVAILABLE)" (l.70279) or "(OPPOSITE BLEED NOT AVAILABLE)" (l.70346) */
-export function isOppositeBleedAvailable(inputs: BleedInputs, engine: EngineIndex): boolean {
+/** Selects the LO TEMP variant: OPPOSITE BLEED AVAILABLE or OPPOSITE BLEED NOT AVAILABLE */
+function isOppositeBleedAvailable(inputs: BleedInputs, engine: EngineIndex): boolean {
   return isEngineBleedAvailable(inputs.engines[opposite(engine)]);
 }
 
 /**
  * ENG 1(2) BLEED LO TEMP: 0 title, 1 -A/THR OFF, 2 -THR LEVER n ADVANCE, 3 .IF UNSUCCESSFUL:, 4 -X BLEED OPEN, 5 -ENG n
  * BLEED OFF, 6 -PACK n OFF, 7 -WING ANTI ICE OFF, 8 AVOID ICING CONDITIONS.
- * - Opposite bleed available, l.70312-70322: A/THR OFF, THR LEVER (AFFECTED ENGINE) ADVANCE, IF UNSUCCESSFUL: X BLEED
+ * - Opposite bleed available: A/THR OFF, THR LEVER (AFFECTED ENGINE) ADVANCE, IF UNSUCCESSFUL: X BLEED
  *   OPEN, ENG BLEED (AFFECTED) OFF, ASSOCIATED PACK (IF OPPOSITE PACK ON) OFF.
- * - Opposite bleed not available, l.70364-70372: A/THR OFF, THR LEVER (AFFECTED ENGINE) ADVANCE, IF UNSUCCESSFUL: WING
+ * - Opposite bleed not available: A/THR OFF, THR LEVER (AFFECTED ENGINE) ADVANCE, IF UNSUCCESSFUL: WING
  *   ANTI ICE OFF, AVOID ICING CONDITIONS.
  * The THR LEVER line cannot be seen done and stays; the other lines of actions done go.
  */
@@ -501,18 +492,18 @@ export function engineBleedLoTempLines(inputs: BleedInputs, engine: EngineIndex)
 }
 
 /**
- * ENG 1+2 BLEED LO TEMP, l.70432-70440: 0 title, 1 -A/THR OFF, 2 -THR LEVERS ADVANCE, 3 .IF UNSUCCESSFUL:, 4 -WING ANTI
+ * ENG 1+2 BLEED LO TEMP: 0 title, 1 -A/THR OFF, 2 -THR LEVERS ADVANCE, 3 .IF UNSUCCESSFUL:, 4 -WING ANTI
  * ICE OFF, 5 AVOID ICING CONDITIONS.
  */
-export function engine1And2BleedLoTempLines(inputs: BleedInputs): number[] {
+function engine1And2BleedLoTempLines(inputs: BleedInputs): number[] {
   return [0, ...(inputs.autoThrustEngaged ? [1] : []), 2, 3, ...(inputs.wingAntiIceOn ? [4] : []), 5];
 }
 
 /**
- * ENG 1(2) BLEED HI TEMP, l.70480-70490: 0 title, 1 -PACK 2(1) OFF, 2 -PACK 1(2) OR WAI OFF, 3 -PACK 2(1) OR WAI OFF.
- * "If wing anti-ice off: PACK 2 (1) OFF"; "If wing anti-ice on and opposite pack off: PACK 1 (2) OR WAI OFF"; "If wing
- * anti-ice on and affected pack off: PACK 2 (1) OR WAI OFF". The FCOM names the opposite pack for an ENG 1 alert with the
- * wing anti-ice off; it is kept as written. The lines of actions done go.
+ * ENG 1(2) BLEED HI TEMP: 0 title, 1 -PACK 2(1) OFF, 2 -PACK 1(2) OR WAI OFF, 3 -PACK 2(1) OR WAI OFF.
+ * PACK 2(1) OFF with wing anti-ice off; PACK 1(2) OR WAI OFF with wing anti-ice on and the opposite pack off; PACK 2(1)
+ * OR WAI OFF with wing anti-ice on and the affected pack off. The real procedure names the opposite pack for an ENG 1
+ * alert with the wing anti-ice off; it is kept as written. The lines of actions done go.
  */
 export function engineBleedHiTempLines(inputs: BleedInputs, engine: EngineIndex): number[] {
   const affectedPackOn = inputs.engines[engine].packOn;
@@ -530,24 +521,24 @@ export function engineBleedHiTempLines(inputs: BleedInputs, engine: EngineIndex)
   return lines;
 }
 
-/** ENG 1(2) BLEED NOT CLSD, l.70550: 0 title, 1 -ENG n BLEED OFF (goes when the pb is OFF) */
+/** ENG 1(2) BLEED NOT CLSD: 0 title, 1 -ENG n BLEED OFF (goes when the pb is OFF) */
 export function engineBleedNotClosedLines(inputs: BleedInputs, engine: EngineIndex): number[] {
   return [0, ...(inputs.engines[engine].bleedPbAuto ? [1] : [])];
 }
 
 /**
  * X BLEED FAULT: the manual opening does not work (selector OPEN, valve not open) and only one engine bleed supplies air,
- * the condition of the WING ANTI ICE lines and STATUS (l.71035, l.71057-71058).
+ * the condition of the WING ANTI ICE lines and STATUS.
  */
-export function isCrossBleedManualOpeningLostWithOneBleed(inputs: BleedInputs): boolean {
+function isCrossBleedManualOpeningLostWithOneBleed(inputs: BleedInputs): boolean {
   const manualOpeningInoperative = inputs.crossBleedSelector === CrossBleedSelector.Open && !inputs.crossBleedFullyOpen;
   const availableBleeds = inputs.engines.filter((e) => isEngineBleedAvailable(e)).length;
   return manualOpeningInoperative && availableBleeds === 1;
 }
 
 /**
- * X BLEED FAULT, l.71030-71038: 0 title, 1 -X BLEED MAN CTL (goes once the selector is out of AUTO), 2 -WING ANTI ICE
- * OFF, 3 AVOID ICING CONDITIONS ("If manual opening inoperative, and only one bleed available").
+ * X BLEED FAULT: 0 title, 1 -X BLEED MAN CTL (goes once the selector is out of AUTO), 2 -WING ANTI ICE OFF, 3 AVOID
+ * ICING CONDITIONS (both if the manual opening is inoperative and only one bleed is available).
  */
 export function crossBleedFaultLines(inputs: BleedInputs): number[] {
   const lines = [0];
@@ -562,8 +553,6 @@ export function crossBleedFaultLines(inputs: BleedInputs): number[] {
   }
   return lines;
 }
-
-/* STATUS (StatusMessages codes) */
 
 /** The STATUS codes the bleed alerts use (StatusMessages) */
 export const BleedStatusCodes = {
@@ -592,7 +581,7 @@ const ICING_LIMITATIONS = [S.avoidIcing, S.ifSevereIceAccretion, S.minSpeed, S.m
 const engineBleedCode = (engine: EngineIndex) => (engine === 0 ? S.eng1Bleed : S.eng2Bleed);
 const packCode = (engine: EngineIndex) => (engine === 0 ? S.pack1 : S.pack2);
 
-/** ENG 1(2) BLEED FAULT, l.69850-69855: ONE PACK ONLY IF WAI ON; INOP SYS ENG 1(2) BLEED, PACK 1(2) (If closed) */
+/** ENG 1(2) BLEED FAULT: ONE PACK ONLY IF WAI ON; INOP SYS ENG 1(2) BLEED, PACK 1(2) (If closed) */
 export function engineBleedFaultStatus(inputs: BleedInputs, engine: EngineIndex): StatusLines {
   return {
     left: [S.onePackOnlyIfWaiOn],
@@ -601,16 +590,16 @@ export function engineBleedFaultStatus(inputs: BleedInputs, engine: EngineIndex)
 }
 
 /**
- * ENG 1+2 BLEED FAULT, l.70067-70075, and its LEAK subtitles (l.70140-70146, l.70203-70209, l.70271-70277): the icing
- * limitations; INOP SYS WING A. ICE, ENG 1 BLEED, ENG 2 BLEED, APU BLEED, PACK 1+2
+ * ENG 1+2 BLEED FAULT, and its LEAK subtitles: the icing limitations; INOP SYS WING A. ICE, ENG 1 BLEED, ENG 2 BLEED,
+ * APU BLEED, PACK 1+2
  */
 export function engine1And2BleedFaultStatus(): StatusLines {
   return { left: [...ICING_LIMITATIONS], inopSys: [S.wingAntiIce, S.eng1Bleed, S.eng2Bleed, S.apuBleed, S.pack1And2] };
 }
 
 /**
- * ENG 1(2) BLEED LO TEMP: opposite bleed available, l.70329-70334: INOP SYS ENG 1(2) BLEED, PACK 1(2) (If selected OFF);
- * opposite bleed not available, l.70393-70399: the icing limitations, INOP SYS WING A. ICE.
+ * ENG 1(2) BLEED LO TEMP: opposite bleed available: INOP SYS ENG 1(2) BLEED, PACK 1(2) (If selected OFF);
+ * opposite bleed not available: the icing limitations, INOP SYS WING A. ICE.
  */
 export function engineBleedLoTempStatus(inputs: BleedInputs, engine: EngineIndex): StatusLines {
   if (isOppositeBleedAvailable(inputs, engine)) {
@@ -622,32 +611,32 @@ export function engineBleedLoTempStatus(inputs: BleedInputs, engine: EngineIndex
   return { left: [...ICING_LIMITATIONS], inopSys: [S.wingAntiIce] };
 }
 
-/** ENG 1+2 BLEED LO TEMP (l.70444-70452) and ENG 1(2) BLEED HI TEMP (l.70509-70520): the icing limitations, INOP SYS WING A. ICE */
-export function icingLimitationStatus(): StatusLines {
+/** ENG 1+2 BLEED LO TEMP and ENG 1(2) BLEED HI TEMP: the icing limitations, INOP SYS WING A. ICE */
+function icingLimitationStatus(): StatusLines {
   return { left: [...ICING_LIMITATIONS], inopSys: [S.wingAntiIce] };
 }
 
 /**
- * ENG 1(2) BLEED FAULT / BLEED NOT CLOSED, l.69995-70003: the icing limitations; INOP SYS ENG 1(2) BLEED, PACK 1(2),
+ * ENG 1(2) BLEED FAULT / BLEED NOT CLOSED: the icing limitations; INOP SYS ENG 1(2) BLEED, PACK 1(2),
  * WING A. ICE
  */
 export function engineBleedFaultNotClosedStatus(engine: EngineIndex): StatusLines {
   return { left: [...ICING_LIMITATIONS], inopSys: [engineBleedCode(engine), packCode(engine), S.wingAntiIce] };
 }
 
-/** ENG 1(2) BLEED NOT CLSD, l.70559-70563: ONE PACK ONLY IF WAI ON; INOP SYS ENG 1(2) BLEED */
-export function engineBleedNotClosedStatus(engine: EngineIndex): StatusLines {
+/** ENG 1(2) BLEED NOT CLSD: ONE PACK ONLY IF WAI ON; INOP SYS ENG 1(2) BLEED */
+function engineBleedNotClosedStatus(engine: EngineIndex): StatusLines {
   return { left: [S.onePackOnlyIfWaiOn], inopSys: [engineBleedCode(engine)] };
 }
 
-/** APU BLEED FAULT, l.69534: INOP SYS APU BLEED (If valve closed) */
-export function apuBleedFaultStatus(inputs: BleedInputs): StatusLines {
+/** APU BLEED FAULT: INOP SYS APU BLEED (If valve closed) */
+function apuBleedFaultStatus(inputs: BleedInputs): StatusLines {
   return { left: [], inopSys: inputs.apuBleedValveOpen ? [] : [S.apuBleed] };
 }
 
 /**
- * X BLEED FAULT, l.71056-71070 (PDF page 4391): "If manual opening inoperative, and only one bleed available": the icing
- * limitations and INOP SYS WING A.ICE; then X BLEED MAN CTL and INOP SYS X BLEED.
+ * X BLEED FAULT: if the manual opening is inoperative and only one bleed is available, the icing limitations and INOP
+ * SYS WING A.ICE; then X BLEED MAN CTL and INOP SYS X BLEED.
  */
 export function crossBleedFaultStatus(inputs: BleedInputs): StatusLines {
   const icing = isCrossBleedManualOpeningLostWithOneBleed(inputs);
@@ -655,27 +644,6 @@ export function crossBleedFaultStatus(inputs: BleedInputs): StatusLines {
     left: [...(icing ? ICING_LIMITATIONS : []), S.crossBleedManCtl],
     inopSys: [...(icing ? [S.wingAntiIce] : []), S.crossBleed],
   };
-}
-
-/* The FWC alert items */
-
-/** An E/WD alert of the bleed system, in the form of the PseudoFWC ewdMessageFailures items */
-export interface BleedEwdAlert {
-  flightPhaseInhib: number[];
-  simVarIsActive: Subscribable<boolean>;
-  whichCodeToReturn: () => (number | null)[];
-  codesToReturn: string[];
-  memoInhibit: () => boolean;
-  failure: number;
-  sysPage: EcamSysPage;
-  side: 'LEFT';
-  inopSys: () => string[];
-  statusInfo: () => string[];
-}
-
-/** The E/WD codes of an alert: its 7-digit key followed by the line number, 01 for the title */
-export function bleedAlertCodes(key: string, lineCount: number): string[] {
-  return Array.from({ length: lineCount }, (_, i) => `${key}${(i + 1).toString().padStart(2, '0')}`);
 }
 
 /** The alert keys (ATA 36), in the order of the EwdMessages codes */
@@ -868,27 +836,23 @@ export class BleedAlerts {
     flightPhaseInhib: number[],
     lines: () => number[],
     status: () => StatusLines,
-  ): BleedEwdAlert {
-    return {
+  ): FwcAlertItem {
+    return cautionItem(
+      key,
+      BleedAlertLineCounts[key],
+      this.active[key],
       flightPhaseInhib,
-      simVarIsActive: this.active[key],
-      whichCodeToReturn: lines,
-      codesToReturn: bleedAlertCodes(key, BleedAlertLineCounts[key]),
-      memoInhibit: () => false,
-      failure: 2,
-      sysPage: EcamSysPage.BLEED,
-      side: 'LEFT',
-      inopSys: () => status().inopSys,
-      statusInfo: () => status().left,
-    };
+      lines,
+      EcamSysPage.BLEED,
+      status,
+    );
   }
 
   /** The alert items, by key, for the PseudoFWC ewdMessageFailures */
-  public readonly ewdFailures: Record<string, BleedEwdAlert> = (() => {
+  public readonly ewdFailures: Record<string, FwcAlertItem> = (() => {
     const K = BleedAlertKeys;
     const P = BleedPhaseInhibition;
-    const none = (): StatusLines => ({ left: [], inopSys: [] });
-    const items: Record<string, BleedEwdAlert> = {};
+    const items: Record<string, FwcAlertItem> = {};
     const engineKeys = [
       {
         fault: K.eng1BleedFault,
@@ -933,8 +897,8 @@ export class BleedAlerts {
         () => engineBleedNotClosedLines(this.inputs, engine),
         () => engineBleedNotClosedStatus(engine),
       );
-      items[keys.off] = this.item(keys.off, P.bleedOff, () => [0], none);
-      // the phases of ENG 1(2) BLEED FAULT (FCOM PDF page 4336)
+      items[keys.off] = this.item(keys.off, P.bleedOff, () => [0], NO_STATUS);
+      // the phases of ENG 1(2) BLEED FAULT
       items[keys.faultNotClosed] = this.item(
         keys.faultNotClosed,
         P.bleedFault,
@@ -942,7 +906,7 @@ export class BleedAlerts {
         () => engineBleedFaultNotClosedStatus(engine),
       );
     }
-    // the phases of ENG 1+2 BLEED FAULT (FCOM PDF pages 4343, 4345, 4347)
+    // the phases of ENG 1+2 BLEED FAULT
     const leakItems: [string, DualBleedFaultLeak][] = [
       [K.eng1And2BleedFaultLeftLeak, 'left'],
       [K.eng1And2BleedFaultRightLeak, 'right'],
@@ -985,8 +949,6 @@ export class BleedAlerts {
 }
 
 /* Acquisition (not unit tested: SimVar reads only) */
-
-const readBool = (name: string): boolean => SimVar.GetSimVarValue(name, 'bool') > 0;
 
 function readEngineBleedInputs(engineNumber: 1 | 2): EngineBleedInputs {
   // L:A32NX_ENGINE_STATE: 0 off, 1 on, 2 starting, 3 restarting, 4 shutting down

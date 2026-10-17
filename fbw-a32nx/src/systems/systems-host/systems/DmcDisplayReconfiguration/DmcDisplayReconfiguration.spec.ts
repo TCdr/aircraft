@@ -30,7 +30,7 @@ function ecpWord(...pressedBits: number[]): number {
   return word.getRawBusValue();
 }
 
-describe('DMC DU reconfiguration (A320 FCOM DSC-31-05-60)', () => {
+describe('DMC DU reconfiguration', () => {
   const activeFailures = new Set<number>();
   let bus: EventBus;
   let dmc: DmcDisplayReconfiguration;
@@ -146,8 +146,8 @@ describe('DMC DU reconfiguration (A320 FCOM DSC-31-05-60)', () => {
   });
 
   /*
-   * FCOM DSC-31-30 l.46775-46781 (STS held with one ECAM display) and l.46834-46836: with the ECAM control panel failed,
-   * STS still works, through its hardwired discrete to the DMCs.
+   * STS held with one ECAM display pages the STATUS page. With the ECAM control panel failed, STS still works, through
+   * its hardwired discrete to the DMCs.
    */
   it('shows the SD on the lower DU while STS is held through its hardwired discrete, ECP failed', () => {
     activeFailures.add(A320Failure.UpperEcamDisplay);

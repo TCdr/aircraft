@@ -105,7 +105,7 @@ function setHealthyCruise(bus: EventBus): void {
   simvars.set('L:A32NX_OVHD_PRESS_MODE_SEL_PB_IS_AUTO', 1);
   simvars.set('L:A32NX_SWITCH_TCAS_Position', 2);
   simvars.set('L:A32NX_TRANSPONDER_MODE', 1);
-  // alerts added by other batches (FUEL CTR TK XFR OFF, DOOR FWD/AFT CARGO, CAB PR LDG ELEV FAULT): their normal state
+  // other alerts whose default (0) would raise them (FUEL CTR TK XFR OFF, DOOR FWD/AFT CARGO, CAB PR LDG ELEV FAULT)
   simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_L_XFR_PB_IS_ON', 1);
   simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_R_XFR_PB_IS_ON', 1);
   simvars.set('L:A32NX_FWD_DOOR_CARGO_LOCKED', 1);
@@ -141,8 +141,8 @@ const statusLines = (side: 'LEFT' | 'RIGHT') =>
 
 const ENG_A_ICE = '000026001';
 
-/* A320 FCOM PRO-ABN-A-ICE ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN (a320_fcom.txt l.68779-68857), on the engine anti-ice
- * valve of the systems model (L:A32NX_PNEU_ENG_n_ANTI_ICE_VALVE_OPEN) */
+/* ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN, on the engine anti-ice valve of the systems model
+ * (L:A32NX_PNEU_ENG_n_ANTI_ICE_VALVE_OPEN) */
 describe('A32NX ANTI ICE ENG 1(2) VALVE cautions in cruise', () => {
   it('shows ANTI ICE ENG 1 VALVE CLSD with its STATUS when the valve stays closed with the pb-sw ON', () => {
     const { fwc, bus } = createFwc();
@@ -160,7 +160,7 @@ describe('A32NX ANTI ICE ENG 1(2) VALVE cautions in cruise', () => {
     expect(ewdLines('LEFT')).toEqual(['300110101', '300110102']);
     expect(statusLines('LEFT')).toContain('700400001');
     expect(statusLines('RIGHT')).toContain('300300002');
-    // The ENG A.ICE memo follows the pb-sw (FCOM DSC-30-30-20 l.44405)
+    // The ENG A.ICE memo follows the pb-sw
     expect(ewdLines('RIGHT')).toContain(ENG_A_ICE);
 
     // The valve opens: the caution goes
@@ -169,7 +169,7 @@ describe('A32NX ANTI ICE ENG 1(2) VALVE cautions in cruise', () => {
     expect(ewdLines('LEFT')).toEqual([]);
   });
 
-  it('shows ANTI ICE CAPT PITOT with AIR DATA SWTG CAPT 3 when the captain pitot heater fails (FCOM PDF page 1984)', () => {
+  it('shows ANTI ICE CAPT PITOT with AIR DATA SWTG CAPT 3 when the captain pitot heater fails', () => {
     const { fwc, bus } = createFwc();
     setHealthyCruise(bus);
     for (const adr of [1, 2, 3]) {

@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isApuAvailMemoShown, isApuBleedMemoShown } from './ApuMemos';
 
-/* A320 FCOM DSC-36-20 MEMO DISPLAY: "APU BLEED ... if the APU is available and the APU BLEED pb-sw is ON". */
+/* APU BLEED memo: shown when the APU is available and the APU BLEED pb-sw is ON. */
 describe('APU BLEED and APU AVAIL memos', () => {
   it('APU BLEED follows the APU BLEED pb-sw', () => {
     expect(isApuBleedMemoShown(true, true)).toBe(true);
