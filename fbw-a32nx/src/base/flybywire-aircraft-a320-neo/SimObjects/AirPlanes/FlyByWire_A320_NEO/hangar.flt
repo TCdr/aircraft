@@ -103,6 +103,8 @@ Pump.4=False
 Pump.5=False
 Pump.6=False
 Pump.7=False
+Pump.8=True
+Pump.9=True
 Junction.4=1
 Junction.5=1
 
