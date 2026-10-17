@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The power states of the ISIS unit. The two ISIS of the A380 are the same unit, SFD or SND (FCOM DSC-34-10-20-10), so
+ * The power states of the ISIS unit. The two ISIS of the A380 are the same unit, SFD or SND, so
  * the SND unit behaves as the SFD one (ISISlegacy/ISISDisplayUnit): the power-up tests (INIT and a countdown), and a
  * short standby on a power loss.
  */
@@ -14,10 +14,10 @@ export enum IsisUnitState {
 }
 
 /** The duration of the power-up tests, seconds (as the SFD) */
-export const ISIS_POWER_UP_TEST_S = 90;
+const ISIS_POWER_UP_TEST_S = 90;
 
 /** The display stays on this long after a power loss, seconds (as the SFD) */
-export const ISIS_STANDBY_S = 10;
+const ISIS_STANDBY_S = 10;
 
 export class IsisPowerUnit {
   private currentState: IsisUnitState;
@@ -44,9 +44,8 @@ export class IsisPowerUnit {
   }
 
   /**
-   * Updates the unit
    * @param powered whether the unit is supplied
-   * @param deltaSeconds the time since the previous update
+   * @param deltaSeconds the time since the previous update, in seconds
    * @returns true at a power-up: the unit was off and starts its tests (a power loss shorter than the standby is not
    * a power-up)
    */

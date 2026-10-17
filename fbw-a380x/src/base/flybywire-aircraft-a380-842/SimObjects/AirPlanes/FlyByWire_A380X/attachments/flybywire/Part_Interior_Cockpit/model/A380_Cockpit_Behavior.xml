@@ -1234,7 +1234,7 @@
                         <SEQ1_EMISSIVE_CODE>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</SEQ1_EMISSIVE_CODE>
                     </DefaultTemplateParameters>
 
-                    <!-- SFD/SND reconfiguration (FCOM DSC-34-10-20-20-10 P 2): the MODE pb of either ISIS goes to the next
+                    <!-- SFD/SND reconfiguration: the MODE pb of either ISIS goes to the next
                          configuration (L:A380X_ISIS_CONFIGURATION); the other controls act on the display of their ISIS:
                          SFD (legacy ISIS events, the MENU pb opens the bugs as the SFD MENU) or SND (ISIS_2 events) -->
                     <UseTemplate Name="FBW_ISIS_Knob_Template">

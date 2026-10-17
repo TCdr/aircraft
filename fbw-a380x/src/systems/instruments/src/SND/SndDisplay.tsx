@@ -6,7 +6,7 @@ import { formatLatitude, formatLongitude, SndNavigation } from './SndData';
 import { SndFixView, SndGuidanceView, SndLowerView } from './SndViews';
 
 /**
- * Geometry of the SND on its 512 x 512 screen, from the figures of the A380 FCOM (DSC-34-10-20-30): the heading rose
+ * Geometry of the SND on its 512 x 512 screen, from pictures of the aircraft display: the heading rose
  * centred on the aircraft symbol, the navigation line above the waypoint list
  */
 const CX = 256;
@@ -68,7 +68,7 @@ export interface SndDisplayProps {
 }
 
 /**
- * The Standby Navigation Display (SND) of the A380 ISIS (FCOM DSC-34-10-20-30): heading rose (240°, graduated every 5°,
+ * The Standby Navigation Display (SND) of the A380 ISIS: heading rose (240°, graduated every 5°,
  * numbers every 30°) with the heading source, the track, the ground speed and the aircraft position with its source.
  */
 export class SndDisplay extends DisplayComponent<SndDisplayProps> {
@@ -256,7 +256,6 @@ export class SndDisplay extends DisplayComponent<SndDisplayProps> {
   render(): VNode {
     return (
       <svg class="snd" version="1.1" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-        {/* Ground speed */}
         <text x={14} y={44} class="snd-white snd-small">
           GS
         </text>
@@ -264,7 +263,6 @@ export class SndDisplay extends DisplayComponent<SndDisplayProps> {
           {this.groundSpeed}
         </text>
 
-        {/* Heading source: IR3 (IR1), TRU in true reference */}
         <g visibility={this.headingSource.map((s) => (s ? 'inherit' : 'hidden'))}>
           <text
             x={218}
@@ -295,7 +293,6 @@ export class SndDisplay extends DisplayComponent<SndDisplayProps> {
           </text>
         </g>
 
-        {/* TO WPT: bearing (magnetic °, or true T) and distance to the TO waypoint */}
         <g visibility={this.guidanceVisible.map((v) => (v ? 'inherit' : 'hidden'))}>
           <text x={306} y={42} class="snd-white snd-small">
             TO WPT
@@ -362,14 +359,12 @@ export class SndDisplay extends DisplayComponent<SndDisplayProps> {
               class="snd-course"
             />
           </g>
-          {/* FIX bearing */}
           <g
             transform={this.fixAngle.map((a) => (a === null ? '' : `rotate(${a.toFixed(1)} ${CX} ${CY})`))}
             visibility={this.fixAngle.map((a) => (a !== null ? 'inherit' : 'hidden'))}
           >
             <path d={this.fixPath} class="snd-fix-pointer" />
           </g>
-          {/* Track */}
           <g
             transform={this.trackTransform.map((t) => t ?? '')}
             visibility={this.trackTransform.map((t) => (t !== null ? 'inherit' : 'hidden'))}
@@ -388,7 +383,6 @@ export class SndDisplay extends DisplayComponent<SndDisplayProps> {
           </text>
         </g>
 
-        {/* Heading index and fixed markers */}
         {/* The heading index: yellow, white with the HDG flag */}
         <polygon
           points={`${CX - 10},52 ${CX + 10},52 ${CX},66`}
@@ -398,7 +392,6 @@ export class SndDisplay extends DisplayComponent<SndDisplayProps> {
           <polygon points={SndDisplay.marker(angle)} class="snd-marker" />
         ))}
 
-        {/* Aircraft symbol */}
         <path
           d={`M${CX - 20} ${CY}H${CX + 20}M${CX} ${CY - 14}V${CY + 18}M${CX - 8} ${CY + 14}H${CX + 8}`}
           class="snd-aircraft"

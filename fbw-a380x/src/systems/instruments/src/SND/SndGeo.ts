@@ -58,7 +58,7 @@ export function sndLegGuidance(
 }
 
 /** The point at a fraction of the great circle from a to b */
-export function sndIntermediate(a: SndPoint, b: SndPoint, fraction: number): SndPoint {
+function sndIntermediate(a: SndPoint, b: SndPoint, fraction: number): SndPoint {
   const d = sndDistance(a, b) / EARTH_RADIUS;
   if (d < 1e-9) {
     return a;
@@ -72,7 +72,7 @@ export function sndIntermediate(a: SndPoint, b: SndPoint, fraction: number): Snd
 }
 
 /**
- * A waypoint of the list, truncated to the minutes as the FCOM says (DSC-34-10-20-30): e.g. N4815/E00536
+ * A waypoint of the list, truncated to the minutes as the SND shows it: e.g. N4815/E00536
  */
 export function formatWaypoint(p: SndPoint): string {
   const part = (value: number, positive: string, negative: string, degreeDigits: number) => {

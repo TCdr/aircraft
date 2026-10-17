@@ -36,11 +36,11 @@ const BRIGHTNESS_STEP = 0.1;
 const BRIGHTNESS_MIN = 0.2;
 
 /**
- * The Standby Navigation Display (SND, FCOM DSC-34-10-20-30) of the A380 ISIS. The SND is drawn on both ISIS, on the one
- * that displays it (MODE pb, SFD/SND reconfiguration, FCOM DSC-34-10-20-20-10 P 2); the cockpit behaviour sends the
- * SND events of the ISIS that displays the SND, so both drawings keep the same waypoint list. The + and - pb adjust its
- * brightness, the MENU pb, the SET/SEL knob and the LS/DIR TO pb manage the waypoint list and the DIR TO. The waypoint list is kept by the ISIS while the instrument runs. At power-up
- * the ISIS unit runs its tests (INIT and the seconds left), as the SFD.
+ * The Standby Navigation Display (SND) of the A380 ISIS. The SND is drawn on both ISIS, on the one that displays it
+ * (MODE pb, SFD/SND reconfiguration); the cockpit behaviour sends the SND events of the ISIS that displays the SND, so
+ * both drawings keep the same waypoint list. The + and - pb adjust its brightness, the MENU pb, the SET/SEL knob and
+ * the LS/DIR TO pb manage the waypoint list and the DIR TO. The waypoint list is kept by the ISIS while the
+ * instrument runs. At power-up the ISIS unit runs its tests (INIT and the seconds left), as the SFD.
  */
 // eslint-disable-next-line camelcase
 class A380X_SND extends BaseInstrument {
@@ -146,7 +146,7 @@ class A380X_SND extends BaseInstrument {
     this.powerUnit ??= new IsisPowerUnit(SimVar.GetSimVarValue('L:A32NX_COLD_AND_DARK_SPAWN', 'bool'));
     if (this.powerUnit.update(powered, deltaSeconds)) {
       // The ISIS start in their normal configuration (ISIS 1 SFD, ISIS 2 SND) at each power-up, whatever the MODE pb
-      // selected before. Not in the FCOM (silent on it): a design choice. Both SND gauges see the same power-up and
+      // selected before. Design choice: the real behaviour is not documented. Both SND gauges see the same power-up and
       // write the same value.
       SimVar.SetSimVarValue(ISIS_CONFIGURATION_VAR, 'number', IsisConfiguration.Normal);
     }
