@@ -3,9 +3,9 @@
 
 /**
  * Whether an airborne intruder inside the TCAS surveillance volume is shown on the ND, for the position of the TCAS
- * panel TRAFFIC selector. A320 FCOM DSC-34-SURV-60-20 TRAFFIC sel (a320_fcom.txt lines 56168-56180):
- * - THRT: "Proximate and other intruders are displayed only if a TA or RA is present, and they are within 2 700 ft
- *   above and 2 700 ft below the aircraft." The TA and RA intruders themselves are always shown.
+ * panel TRAFFIC selector:
+ * - THRT: the proximate and other intruders are shown only while a TA or RA is present, within 2 700 ft above and
+ *   below the aircraft. The TA and RA intruders themselves are always shown.
  * - ALL, ABV, BLW: all the intruders within the altitude band of the selector position are shown (full time).
  * @param isThreatPosition true with the TRAFFIC selector on THRT
  * @param relativeAlt intruder altitude minus own altitude, in ft
