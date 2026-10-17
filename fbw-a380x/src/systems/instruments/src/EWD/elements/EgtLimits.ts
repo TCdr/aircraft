@@ -3,7 +3,7 @@
 
 /**
  * Thrust limit type of the FADEC (L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE, athr_thrust_limit_type in
- * A380FadecComputer_types.h). The EGT gauge used to compare the thrust lever angle in degrees with these numbers.
+ * A380FadecComputer_types.h), not a thrust lever angle.
  */
 export enum ThrustLimitType {
   None = 0,
@@ -20,8 +20,7 @@ const EGT_RED_C = 900;
 const EGT_LIMIT_C = 850;
 
 /**
- * Whether the amber EGT limit applies. A380 FCOM DSC-70-90 EGT LIMIT: "The amber indication does not appear: During
- * takeoff, or When thrust reversers are selected [...]".
+ * Whether the amber EGT limit applies: not during takeoff, and not with the thrust reversers selected.
  * @param limitType the thrust limit type
  * @returns true when the amber limit (line and amber colour) applies
  */
@@ -32,8 +31,7 @@ export function egtLimitMarkVisible(limitType: number): boolean {
 }
 
 /**
- * Colour of the EGT value and needle: red above the red line, amber above the EGT limit (A380 FCOM DSC-70-90 EGT
- * INDICATIONS).
+ * Colour of the EGT value and needle: red above the red line, amber above the EGT limit.
  * @param egt the EGT in degrees Celsius
  * @param limitType the thrust limit type
  * @returns 'Red', 'Amber' or 'Green'

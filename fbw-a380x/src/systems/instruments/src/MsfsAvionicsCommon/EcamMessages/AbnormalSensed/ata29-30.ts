@@ -518,7 +518,7 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
         sensed: false,
       },
       {
-        // A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO: "L/G GRVTY EXTN ONLY" for both systems
+        // HYD G (Y) SYS PRESS LO: "L/G GRVTY EXTN ONLY" for both systems
         name: 'L/G GRVTY EXTN ONLY',
         sensed: false,
       },

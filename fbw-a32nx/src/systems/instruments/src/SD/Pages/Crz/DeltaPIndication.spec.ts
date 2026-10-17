@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { deltaPClass, deltaPPulses } from './DeltaPIndication';
 
-/* A320 FCOM DSC-21-20-40: delta P pulses if > 1.5 PSI (resets at 1 PSI) during flight phase 7. */
+/* Delta P pulses above 1.5 PSI (resets at 1 PSI) in flight phase 7. */
 describe('CRUISE page delta P', () => {
   it('is steady green in cruise (phase 6) at 7.9 PSI', () => {
     const pulsing = deltaPPulses(7.9, 6, false);

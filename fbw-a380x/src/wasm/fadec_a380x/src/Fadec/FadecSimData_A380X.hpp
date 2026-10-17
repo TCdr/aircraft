@@ -443,8 +443,8 @@ class FadecSimData_A380X {
     packsState[0]       = dm->make_named_var("A32NX_COND_PACK_1_IS_OPERATING", UNITS.Number, AUTO_READ);
     packsState[1]       = dm->make_named_var("A32NX_COND_PACK_2_IS_OPERATING", UNITS.Number, AUTO_READ);
     // STRUCTURAL DEICE SWITCH follows the wing anti-ice valves of the systems model (a380_systems ice_rain_protection.rs,
-    // through the systems_wasm wing anti-ice aspect): the TOGA thrust takes the bleed demand into account (A380 FCOM DSC-70
-    // CONTROLS AND INDICATORS: BLEED SUPPLY lists the wing anti-ice), not during the takeoff wing anti-ice inhibition
+    // through the systems_wasm wing anti-ice aspect): the TOGA thrust takes the bleed demand into account (the bleed
+    // supply includes the wing anti-ice), not during the takeoff wing anti-ice inhibition
     wingAntiIce         = dm->make_aircraft_var("STRUCTURAL DEICE SWITCH", 0, "", nullptr, UNITS.Bool, AUTO_READ);
     refuelRate          = dm->make_named_var("A32NX_EFB_REFUEL_RATE_SETTING", UNITS.Number, AUTO_READ);
     refuelStartedByUser = dm->make_named_var("A32NX_REFUEL_STARTED_BY_USR", UNITS.Number, AUTO_READ);

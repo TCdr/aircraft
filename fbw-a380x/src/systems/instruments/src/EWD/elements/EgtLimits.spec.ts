@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { egtColour, egtLimitMarkVisible, ThrustLimitType, trimmedEgt } from './EgtLimits';
 
-/* A380 FCOM DSC-70-90 EGT INDICATIONS / EGT LIMIT: no amber indication during takeoff or with the reversers selected. */
+/* No amber EGT indication during takeoff or with the reversers selected. */
 describe('EWD EGT limits from the thrust limit type', () => {
   it('is amber above the limit at MCT (the TLA of about 25 degrees made it green)', () => {
     expect(egtColour(860, ThrustLimitType.Mct)).toBe('Amber');

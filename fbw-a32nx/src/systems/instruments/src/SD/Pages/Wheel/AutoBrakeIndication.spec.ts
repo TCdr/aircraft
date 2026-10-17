@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { autoBrakeIndicationClass } from './AutoBrakeIndication';
 
-/* A320 FCOM DSC-32-30-20 AUTO BRK: green when armed, amber only on a system failure. */
+/* AUTO BRK: green when armed, amber only on a system failure. */
 describe('SD WHEEL AUTO BRK legend', () => {
   it('is green when armed without a failure', () => {
     expect(autoBrakeIndicationClass(false)).toBe('Green');

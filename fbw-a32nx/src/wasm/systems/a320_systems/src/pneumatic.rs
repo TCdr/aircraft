@@ -1151,8 +1151,8 @@ impl BleedMonitoringComputerChannel {
         }
     }
 
-    /// AIR ENG 1(2) BLEED LO TEMP: "This alert triggers when the associated engine bleed supplies bleed air at a
-    /// temperature below 150 °C in flight and the WING A-ICE pb-sw is set to ON" (A320 FCOM DSC-36 annunciations).
+    /// AIR ENG 1(2) BLEED LO TEMP: the engine bleed supplies air below 150 °C in flight with the WING A-ICE pb-sw
+    /// ON.
     /// The bleed only supplies air while its pressure regulating valve is open, so a closed valve gives no alert.
     fn is_low_bleed_temperature(
         precooler_outlet_temperature_c: f64,
@@ -6305,12 +6305,12 @@ pub mod tests {
         }
     }
 
-    /// FCOM BLEED LO TEMP: the bleed must be supplying air (valve open), not shut off.
+    /// BLEED LO TEMP: the bleed must be supplying air (valve open), not shut off.
     #[test]
     fn low_bleed_temperature_flag_set_when_open_bleed_supplies_cold_air_with_wai_in_flight() {
         use super::BleedMonitoringComputerChannel;
 
-        // Valve open (not closed), 140 °C, WAI on, in flight: the alert condition of the FCOM.
+        // Valve open (not closed), 140 °C, WAI on, in flight: the alert condition.
         assert!(BleedMonitoringComputerChannel::is_low_bleed_temperature(
             140., true, false, true
         ));

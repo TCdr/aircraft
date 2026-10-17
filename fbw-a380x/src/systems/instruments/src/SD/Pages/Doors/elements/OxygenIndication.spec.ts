@@ -6,7 +6,6 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { oxygenIndication } from './OxygenIndication';
 
-/* A380 FCOM DSC-35-20-20 (cockpit) and DSC-35-30-20 (cabin) oxygen indications of the DOOR/OXY page. */
 describe('SD DOOR/OXY oxygen indications', () => {
   it('are normal with CREW SUPPLY on', () => {
     expect(oxygenIndication(true, true, false)).toEqual({

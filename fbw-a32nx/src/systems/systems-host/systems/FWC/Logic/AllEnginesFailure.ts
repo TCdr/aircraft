@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /** The APU start of the ALL ENGINES FAILURE procedure applies below FL 250 */
-export const APU_START_MAX_PRESSURE_ALTITUDE_FT = 25_000;
+const APU_START_MAX_PRESSURE_ALTITUDE_FT = 25_000;
 
 /**
- * Whether the "-APU ... START" line of ENG ALL ENGINES FAILURE is shown. A320 FCOM PRO-ABN-ENG ALL ENGINES FAILURE:
- * "APU (BELOW FL 250) ..... START". The line was gated on a radio altitude below 2 500 ft, which hid it for most of an
- * all engines failure in flight. The 24-character ECAM line has no room for "(BELOW FL 250)", so the condition gates
- * the line, as the FWC does with the other conditional lines.
+ * Whether the "-APU ... START" line of ENG ALL ENGINES FAILURE is shown. The procedure asks for an APU start below
+ * FL 250 (pressure altitude, not radio altitude). The 24-character ECAM line has no room for "(BELOW FL 250)", so the
+ * condition gates the line, as the FWC does with the other conditional lines.
  * @param apuMasterOn the APU MASTER SW is ON
  * @param apuAvail the APU is available
  * @param pressureAltitudeFt the ADR pressure altitude, null when no ADR is valid
@@ -24,8 +23,7 @@ export function isApuStartLineShown(
 
 /**
  * The lines of ENG ALL ENGINES FAILURE (EwdMessages 7700027xx), in display order. One OPT RELIGHT SPD line: 270/.77,
- * the value of the A320neo with LEAP-1A engines (Air Arabia A320 QRH 18-Aug-21 ABN-19.01A ALL ENG FAIL, A6-ATA to ATF;
- * the CFM56 aircraft of the same QRH use 300/.77).
+ * the value of the A320neo with LEAP-1A engines (CFM56 aircraft use 300/.77).
  */
 export const ALL_ENGINES_FAILURE_CODES = [
   '770002701', // ALL ENGINES FAILURE (title)

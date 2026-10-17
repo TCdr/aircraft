@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { cabinAltitudeNeedleClass } from './CabinAltitudeIndication';
 
-/* A380 FCOM DSC-21-30-20 CABIN ALTITUDE: abnormal (red) above 9 550 ft. */
+/* The cabin altitude is abnormal (red) above 9 550 ft. */
 describe('SD PRESS CAB ALT needle', () => {
   it('is normal at 50 ft and at 8 000 ft', () => {
     expect(cabinAltitudeNeedleClass(50)).toBe('GaugeIndicator');

@@ -230,7 +230,7 @@ const AccumulatorOnly = ({ x, y }: ComponentPositionProps) => (
 );
 
 const AutoBrake = ({ x, y }: ComponentPositionProps) => {
-  // Amber only on an AUTO BRK failure (FCOM DSC-32-30-20), which is not modelled yet: not when an engine is off
+  // Amber only on an AUTO BRK failure, which is not modelled yet: not when an engine is off
   const autoBrakeFailed = false;
   const available = !autoBrakeFailed;
 

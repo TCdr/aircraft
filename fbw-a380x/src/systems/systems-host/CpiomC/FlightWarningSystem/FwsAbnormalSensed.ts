@@ -116,10 +116,10 @@ export class FwsAbnormalSensed {
   }
 
   /**
-   * DOOR MAIN 1(2)(3)(4)(5)L(R) / UPPER 1(2)(3)L(R) NOT CLOSED and DOOR FWD(AFT) CARGO NOT CLOSED (520800017-034),
-   * A380 FCOM PRO-ABN-ECAM-10-52: "The door is not closed and is not locked." One procedure for all doors:
-   * PACK 1+2 & CAB PRESS NOT AVAIL only in flight phases 2 or 3 if pressurization is not available, then in flight
-   * IF ABNORM CAB V/S (crew-confirmed condition, which also adds MAX FL 100/MEA to the LIMITATIONS).
+   * DOOR MAIN 1(2)(3)(4)(5)L(R) / UPPER 1(2)(3)L(R) NOT CLOSED and DOOR FWD(AFT) CARGO NOT CLOSED (520800017-034):
+   * the door is not closed and not locked. One procedure for all doors: PACK 1+2 & CAB PRESS NOT AVAIL only in flight
+   * phases 2 or 3 if pressurization is not available, then in flight IF ABNORM CAB V/S (crew-confirmed condition, which
+   * also adds MAX FL 100/MEA to the LIMITATIONS).
    * See DoorAlerts.ts for the door list and the trigger.
    */
   private doorNotClosedAlerts(): EwdAbnormalDict {
@@ -1106,8 +1106,7 @@ export class FwsAbnormalSensed {
       limitationsPfd: () => ['210400002'],
     },
     213800002: {
-      // EXCESS DIFF PRESS: active in flight phases 1, 8 and 9 (A380 FCOM PRO-ABN CAB PRESS EXCESS DIFF PRESS, flight
-      // phase inhibition figure, airbus-a380-fcom PDF p.4755); it was active in phase 8 only
+      // EXCESS DIFF PRESS: active in flight phases 1, 8 and 9
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 10, 11, 12],
       simVarIsActive: this.fws.excessDiffPressure,
       notActiveWhenItemActive: [],
@@ -2637,7 +2636,7 @@ export class FwsAbnormalSensed {
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.altnLawCondition,
       notActiveWhenItemActive: [],
-      // MAX SPEED 310 KT: "The limitation is not applicable in ALT 1A" (A380 FCOM PRO-ABN F/CTL ALTN LAW)
+      // MAX SPEED 310 KT: not applicable in ALT 1A
       whichItemsToShow: () => [!this.fws.altn1ALawCondition.get()],
       whichItemsChecked: () => [false],
       failure: 2,
@@ -3444,7 +3443,7 @@ export class FwsAbnormalSensed {
         !this.fws.eng2APumpAuto.get() && !this.fws.eng2BPumpAuto.get(),
         this.fws.eng1PumpDisc.get(),
         this.fws.eng2PumpDisc.get(),
-        // G ELEC PMP A and B ... OFF (A380 FCOM PRO-ABN HYD G RSVR LEVEL LO / G SYS OVHT)
+        // G ELEC PMP A and B ... OFF
         !this.fws.greenAPumpAuto.get() && !this.fws.greenBPumpAuto.get(),
       ],
       failure: 2,
@@ -3480,7 +3479,7 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [
         this.fws.engine1Running.get(),
         this.fws.engine2Running.get(),
-        // ENG PMP A+B DISC only "If turning off ... is not successful" (FCOM, see HydOverheatFlags)
+        // ENG PMP A+B DISC only if turning the pumps off is not successful (see HydOverheatFlags)
         this.fws.eng1PumpsOffUnsuccessful.get(),
         this.fws.eng2PumpsOffUnsuccessful.get(),
         this.fws.enginesOffAndOnGroundSignal.read(),
@@ -3490,7 +3489,7 @@ export class FwsAbnormalSensed {
         !this.fws.eng2APumpAuto.get() && !this.fws.eng2BPumpAuto.get(),
         this.fws.eng1PumpDisc.get(),
         this.fws.eng2PumpDisc.get(),
-        // G ELEC PMP A and B ... OFF (A380 FCOM PRO-ABN HYD G RSVR LEVEL LO / G SYS OVHT)
+        // G ELEC PMP A and B ... OFF
         !this.fws.greenAPumpAuto.get() && !this.fws.greenBPumpAuto.get(),
       ],
       failure: 2,
@@ -3504,7 +3503,7 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [
         this.fws.engine3Running.get(),
         this.fws.engine4Running.get(),
-        // ENG PMP A+B DISC only "If turning off ... is not successful" (FCOM, see HydOverheatFlags)
+        // ENG PMP A+B DISC, as above
         this.fws.eng3PumpsOffUnsuccessful.get(),
         this.fws.eng4PumpsOffUnsuccessful.get(),
         this.fws.enginesOffAndOnGroundSignal.read(),
@@ -3529,7 +3528,8 @@ export class FwsAbnormalSensed {
         true,
         true,
         true,
-        // FUEL CONSUMPT INCRSD / FMS PRED UNRELIABLE if PRIM 3 also failed (the Subject itself was tested: never shown)
+        // FUEL CONSUMPT INCRSD / FMS PRED UNRELIABLE if PRIM 3 also failed (read with get(): a Subject is always
+        // truthy)
         !this.fws.prim3Healthy.get(),
         !this.fws.prim3Healthy.get(),
         true,
@@ -3540,8 +3540,8 @@ export class FwsAbnormalSensed {
       limitationsPfd: () => ['320400001'],
       limitationsAllPhases: () => [!this.fws.prim3Healthy.get() ? '800400001' : null],
       limitationsApprLdg: () => ['320400001', '290400001', '290400002', '320400002', '320400003'],
-      // A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO STATUS (a380_fcom.txt l.155731-155766): INFO CAT 3 SINGLE ONLY;
-      // INOP SYS APPR & LDG FLAPS SYS 1 (2), SLATS SYS 2 (G only), BTV, NORM N/W (B/W) STEER, CAT 3 DUAL
+      // G (Y) SYS PRESS LO STATUS: INFO CAT 3 SINGLE ONLY; INOP SYS APPR & LDG FLAPS SYS 1 (2), SLATS SYS 2 (G
+      // only), BTV, NORM N/W (B/W) STEER, CAT 3 DUAL
       info: () => ['220200011', '270200001', '220200016'],
       inopSysAllPhases: () => ['290100001', '320300023', '290300021'],
       inopSysApprLdg: () => ['290100003', '290100006', '320300007', '320300020', '220300028'],
@@ -3563,15 +3563,13 @@ export class FwsAbnormalSensed {
       ],
       whichItemsChecked: () => [false, false, false, false, false, false],
       failure: 2,
-      // A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO LIMITATIONS (a380_fcom.txt l.155652-155700): "For gravity extension:
-      // MAX SPEED : 220 KT" on the ECAM (APPR & LDG) and on the PFD (ALL PHASES); the other limitation lines are "If G
-      // SYS PRESS LO" only
+      // G (Y) SYS PRESS LO LIMITATIONS: MAX SPEED 220 KT for gravity extension on the ECAM (APPR & LDG) and on the PFD
+      // (ALL PHASES); the other limitation lines apply to G SYS PRESS LO only
       limitationsPfd: () => ['320400001'],
       limitationsAllPhases: () => [!this.fws.prim2Healthy.get() ? '800400001' : null],
       limitationsApprLdg: () => ['320400001'],
-      // A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO STATUS (a380_fcom.txt l.155731-155766), in the case of a Y SYS PRESS
-      // LO: INFO TAXI WITH CARE, AVOID MAX TILLER ANGLE TURN ON WET/CONTAM RWY, NO BRAKED PIVOT TURN, CAT 3 SINGLE ONLY
-      // (AVOID MAX TILLER ANGLE was listed twice); INOP SYS APPR & LDG FLAPS SYS 2, BTV, NORM B/W STEER, CAT 3 DUAL
+      // G (Y) SYS PRESS LO STATUS for a Y SYS PRESS LO: INFO TAXI WITH CARE, AVOID MAX TILLER ANGLE TURN ON WET/CONTAM
+      // RWY, NO BRAKED PIVOT TURN, CAT 3 SINGLE ONLY; INOP SYS APPR & LDG FLAPS SYS 2, BTV, NORM B/W STEER, CAT 3 DUAL
       info: () => ['800200003', '800200004', '800200005', '220200016'],
       inopSysAllPhases: () => ['290100001', '320300023', '290300022'],
       inopSysApprLdg: () => ['290100004', '320300007', '320300024', '220300028'],
@@ -3799,11 +3797,11 @@ export class FwsAbnormalSensed {
       monitorConfirmTime: 0,
       nonProcedureKey: true,
     },
-    // L/G alerts from the LGCIS (A380 FCOM PRO-ABN-ECAM-10-32, FwsGearAlerts.ts). The FCOM flight phase inhibitions are
-    // figures: design choice, the A32NX FWC phases of the matching A320 alert mapped onto the A380 phases (A320 3 -> 3,
-    // 4 -> 4+5, 5 -> 6+7, 7 -> 9, 8 -> 10, 9 -> 11, 10 -> 12), the A380 F/CTL crew awareness set for the others.
+    // L/G alerts from the LGCIS (FwsGearAlerts.ts). Design choice for the flight phase inhibitions (the real ones are
+    // not known): the A32NX FWC phases of the matching A320 alert mapped onto the A380 phases (A320 3 -> 3, 4 -> 4+5, 5
+    // -> 6+7, 7 -> 9, 8 -> 10, 9 -> 11, 10 -> 12), the A380 F/CTL crew awareness set for the others.
     320800033: {
-      // L/G CTL 1 FAULT: crew awareness, SD page only (l.160908-160921). Phases: A320 LGCIU 1 FAULT [3, 4, 5, 7, 8].
+      // L/G CTL 1 FAULT: crew awareness, SD page only. Phases: A320 LGCIU 1 FAULT [3, 4, 5, 7, 8].
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.gearAlerts.lgCtl1Fault,
       notActiveWhenItemActive: ['320800035'],
@@ -3813,7 +3811,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Wheel,
     },
     320800034: {
-      // L/G CTL 2 FAULT: crew awareness, SD page only (l.160908-160921). Phases: A320 LGCIU 2 FAULT [3, 4, 5, 7, 8].
+      // L/G CTL 2 FAULT: crew awareness, SD page only. Phases: A320 LGCIU 2 FAULT [3, 4, 5, 7, 8].
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.gearAlerts.lgCtl2Fault,
       notActiveWhenItemActive: ['320800035'],
@@ -3823,7 +3821,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Wheel,
     },
     320800035: {
-      // L/G CTL 1+2 FAULT: audio, master light, SD page (l.160933-161049). Phases: A320 LGCIU 1+2 FAULT [4, 5, 7, 8].
+      // L/G CTL 1+2 FAULT: audio, master light, SD page. Phases: A320 LGCIU 1+2 FAULT [4, 5, 7, 8].
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.gearAlerts.lgCtl12Fault,
       notActiveWhenItemActive: [],
@@ -3834,12 +3832,12 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Wheel,
       limitationsAllPhases: () => lgCtl12Limitations(this.fws.gearAlerts.ctl12WithGearDown.get()),
       limitationsPfd: () => lgCtl12PfdLimitations(this.fws.gearAlerts.ctl12WithGearDown.get()),
-      // STATUS INOP SYS APPR & LDG: L/G CTL 1+2, GPWS 1+2 (l.161040-161045)
+      // STATUS INOP SYS APPR & LDG: L/G CTL 1+2, GPWS 1+2
       inopSysApprLdg: () => ['320300011', '340300003'],
     },
     320800039: {
-      // L/G GEAR NOT LOCKED DOWN: lever DOWN, a gear not downlocked after about 60 s (l.161239-161344). Red title as
-      // the A320 L/G GEAR NOT DOWNLOCKED warning. Phases: A320 GEAR NOT DOWNLOCKED [3, 4, 5, 8].
+      // L/G GEAR NOT LOCKED DOWN: lever DOWN, a gear not downlocked after about 60 s. Red title as the A320 L/G GEAR
+      // NOT DOWNLOCKED warning. Phases: A320 GEAR NOT DOWNLOCKED [3, 4, 5, 8].
       flightPhaseInhib: [3, 4, 5, 6, 7, 10],
       simVarIsActive: this.fws.gearAlerts.gearNotLockedDown,
       notActiveWhenItemActive: [],
@@ -3858,13 +3856,13 @@ export class FwsAbnormalSensed {
         ),
       failure: 3,
       sysPage: SdPages.Wheel,
-      // For gravity extension: MAX SPEED : 220KT, on the ECAM and the PFD (l.161335-161344)
+      // For gravity extension: MAX SPEED : 220KT, on the ECAM and the PFD
       limitationsAllPhases: () => [this.fws.gearAlerts.notLockedDownGravityDue.get() ? '320400001' : ''],
       limitationsPfd: () => [this.fws.gearAlerts.notLockedDownGravityDue.get() ? '320400001' : ''],
     },
     320800040: {
-      // L/G GEAR NOT LOCKED UP: lever UP, a gear not locked up after about 40 s (l.161354-161477). Phases: A320 GEAR
-      // NOT UPLOCKED [3, 4, 7, 8, 9, 10].
+      // L/G GEAR NOT LOCKED UP: lever UP, a gear not locked up after about 40 s. Phases: A320 GEAR NOT UPLOCKED
+      // [3, 4, 7, 8, 9, 10].
       flightPhaseInhib: [3, 4, 5, 9, 10, 11, 12],
       simVarIsActive: this.fws.gearAlerts.gearNotLockedUp,
       notActiveWhenItemActive: [],
@@ -3893,15 +3891,15 @@ export class FwsAbnormalSensed {
           this.fws.gearAlerts.allGearsDownlocked.get(),
           this.fws.gearAlerts.anyDoorNotClosed.get(),
         ),
-      // STATUS INOP SYS ALL PHASES L/G RETRACTION, APPR & LDG L/G DOORS if a door is open (l.161441-161446), INFO
-      // FUEL CONSUMPT INCRSD : FMS PRED DISREGARD (l.161450)
+      // STATUS INOP SYS ALL PHASES L/G RETRACTION, APPR & LDG L/G DOORS if a door is open, INFO FUEL CONSUMPT INCRSD :
+      // FMS PRED DISREGARD
       inopSysAllPhases: () => ['320300013'],
       inopSysApprLdg: () => [this.fws.gearAlerts.anyDoorNotClosed.get() ? '320300012' : ''],
       info: () => [this.fws.aircraftOnGround.get() ? '' : '280200003'],
     },
     320800036: {
-      // L/G DOORS NOT CLOSED: a door not closed with the gear stopped (l.161055-161207). Master light and SD page.
-      // Phases: the A380 crew awareness set (design choice).
+      // L/G DOORS NOT CLOSED: a door not closed with the gear stopped. Master light and SD page. Phases: the A380 crew
+      // awareness set (design choice).
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.gearAlerts.doorsNotClosed,
       notActiveWhenItemActive: ['320800039', '320800040'],
@@ -3920,12 +3918,12 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Wheel,
       limitationsAllPhases: () => doorsNotClosedLimitations(!this.fws.aircraftOnGround.get()),
       limitationsPfd: () => doorsNotClosedLimitations(!this.fws.aircraftOnGround.get()),
-      // STATUS INOP SYS APPR & LDG L/G DOORS (l.161174-161176), INFO FUEL CONSUMPT INCRSD : FMS PRED DISREGARD (l.161180)
+      // STATUS INOP SYS APPR & LDG L/G DOORS, INFO FUEL CONSUMPT INCRSD : FMS PRED DISREGARD
       inopSysApprLdg: () => ['320300012'],
       info: () => [this.fws.aircraftOnGround.get() ? '' : '280200003'],
     },
     320800045: {
-      // L/G SYSTEM DISAGREE: crew awareness, SD page only (l.162498-162516). Phases: as L/G CTL 1(2) FAULT.
+      // L/G SYSTEM DISAGREE: crew awareness, SD page only. Phases: as L/G CTL 1(2) FAULT.
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.gearAlerts.systemDisagree,
       notActiveWhenItemActive: [],
@@ -4483,10 +4481,10 @@ export class FwsAbnormalSensed {
       inopSysApprLdg: () => ['340300028', '310300001', '220300010', '220300021'],
       info: () => ['220200007', '220200008', '220200009'],
     },
-    // NAV CAPT AND F/O DISAGREE alerts (A380 FCOM PRO-ABN-ECAM-10-34-10, FwsNavAlerts.ts): audio and master light, no SD
-    // page. The FCOM flight phase inhibitions are figures: design choice, the phases of the NAV ADR/IR FAULT alerts.
+    // NAV CAPT AND F/O DISAGREE alerts (FwsNavAlerts.ts): audio and master light, no SD page. Design choice: the flight
+    // phases of the NAV ADR/IR FAULT alerts (the real inhibitions are not known).
     340800016: {
-      // CAPT AND F/O ALT DISAGREE (l.164494-164516)
+      // CAPT AND F/O ALT DISAGREE
       flightPhaseInhib: [4, 5, 10],
       simVarIsActive: this.fws.navAlerts.altDisagree,
       notActiveWhenItemActive: [],
@@ -4496,7 +4494,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     340800017: {
-      // CAPT AND F/O ATT DISAGREE (l.164527-164598, lines of TDU 00023230)
+      // CAPT AND F/O ATT DISAGREE
       flightPhaseInhib: [4, 5, 10],
       simVarIsActive: this.fws.navAlerts.attDisagree,
       notActiveWhenItemActive: [],
@@ -4506,7 +4504,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     340800018: {
-      // CAPT AND F/O BARO REF DISAGREE (l.164609-164624)
+      // CAPT AND F/O BARO REF DISAGREE
       flightPhaseInhib: [4, 5, 10],
       simVarIsActive: this.fws.navAlerts.baroRefDisagree,
       notActiveWhenItemActive: [],
@@ -4516,7 +4514,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     340800020: {
-      // CAPT AND F/O HDG DISAGREE (l.164635-164716, lines of TDU 00023229)
+      // CAPT AND F/O HDG DISAGREE
       flightPhaseInhib: [4, 5, 10],
       simVarIsActive: this.fws.navAlerts.hdgDisagree,
       notActiveWhenItemActive: [],

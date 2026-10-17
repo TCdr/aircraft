@@ -528,7 +528,7 @@ const PTU = ({
     yellowElecPumpOn,
   ]);
 
-  // Amber only with the PTU pb-sw OFF (FCOM DSC-29-20, see ptuSymbolColor), not for the automatic inhibitions
+  // Amber only with the PTU pb-sw OFF (see ptuSymbolColor), not for the automatic inhibitions
   const transferColor = ptuSymbolColor(ptuPbIsAuto) === 'Amber' ? TransferColor.Amber : TransferColor.Green;
 
   const triangleFill = transferState !== TransferState.None ? 1 : 0;

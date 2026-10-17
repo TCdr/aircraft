@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isGpwsAlertActive } from './TcasGpwsInhibit';
 
-/* A320 FCOM DSC-34-SURV-60-10-10: the TCAS goes TA ONLY automatically if "GPWS alerts are triggered". */
+/* The TCAS goes TA ONLY automatically while a GPWS alert is active. */
 describe('TCAS GPWS inhibition', () => {
   const reader = (values: Record<string, number>) => (name: string) => values[name] ?? 0;
 
