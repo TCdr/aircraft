@@ -69,10 +69,6 @@ bool redrawDue(RedrawPacer& pacer, double nowSeconds, double periodSeconds, unsi
   return true;
 }
 
-// ---------------------------------------------------------------------------
-// Install and kill.
-// ---------------------------------------------------------------------------
-
 // The `L:` variables of one gauge instance: the ones that differ per side.
 static void registerInstanceVars(Instance& instance) {
 #ifdef A380X
@@ -181,10 +177,6 @@ static void destroyInstance(FsContext ctx, Instance& instance) {
   instance = Instance{};
 }
 
-// ---------------------------------------------------------------------------
-// The ND draw.
-// ---------------------------------------------------------------------------
-
 // The terrain and water views of an ND: their own pair on the A32NX; on the A380X the radar pair,
 // reconfigured when the crew switches between the weather and the terrain (see updateViewRoles).
 struct TerrainViews {
@@ -248,9 +240,8 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
   const double ndMode = get_named_variable_value(instance.ndModeVar);
   const double wxrMode = radarMode();
   const int ir = inertialSource(instance.isRight, static_cast<int>(g_attHdgKnob.read()));
-  // The ARINC429 data field is 32 bits - matches every other usage of
-  // this template in the codebase (cpp-msfs-framework/lib/arinc429.hpp),
-  // <double> would read 8 bytes out of a 4-byte local (UB).
+  // <float>, not <double>: the ARINC429 data field is 32 bits, <double> would read 8 bytes out of a
+  // 4-byte local (UB).
   const auto latWord = types::Arinc429Word<float>::fromSimVar(g_adirsLat[ir - 1].read());
   const auto lonWord = types::Arinc429Word<float>::fromSimVar(g_adirsLon[ir - 1].read());
 
@@ -272,8 +263,7 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
   const bool mapPage = isMapPage(ndMode) && rangeNm > 0.0f;
   frame.showTerrain = terrainViewsReady && terrainSelected(instance) && mapPage && positionValid && headingWord.isNo();
 #ifdef A380X
-  // "The ND can only display the weather if the selected range is below, or equal to, 320 nm"
-  // (A380 FCOM DSC-31-20-50, ND range selector).
+  // The A380 ND displays the weather only at ranges of 320 NM and below.
   const bool weatherRange = rangeNm <= kWxrMaxRangeNm;
 #else
   const bool weatherRange = true;
@@ -293,9 +283,9 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
   // The mode text on the ND: shown whenever the radar is selected on a page that has it (not while the
   // terrain takes its place), on the ground too. A32NX: the display mode selector's position (WX, WX+T,
   // TURB, MAP) and "WXR OFF" while the radar is switched off, the ND's radar indications of the
-  // Honeywell-equipped A320 (A320 FCOM DSC-34-SURV-30-30).
+  // A320 with the Honeywell radar.
 #ifdef A380X
-  // The A380's ND messages of the WXR (A380 FCOM DSC-34-20-30-20, WXR MESSAGES): "WX" for the WX
+  // The A380's ND messages of the WXR: "WX" for the WX
   // display function whatever the TURB button (turbulence has no message of its own while the
   // weather is displayed), "MAP" for the ground mapping function, "WXR OFF" while the WXR button
   // of the SURV CONTROLS page is OFF. (The manual GAIN / ELEVN / TILT values and the stand-alone
@@ -327,10 +317,9 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
       types::Arinc429Word<float>::fromSimVar(instance.isRight ? g_adrBaroAlt2[adr - 1].read() : g_adrBaroAlt1[adr - 1].read());
   frame.vdBaroAltFeet = static_cast<double>(baroAltWord.value());
   // ... and, as on the real aircraft, not while the TERR function is unavailable (a failed TAWS or
-  // TERR SYS OFF): "the VD does not display the weather when the TERR function is not available,
-  // because it cannot locate the weather vertically" (FCOM DSC-31-20-40-10, VD messages).
-  // The VD's weather runs along the same vertical cut as its terrain (FCOM DSC-31-20-40-10: "for the
-  // weather display, the WXR considers a zero-width vertical cut"), which needs the ND's heading (the
+  // TERR SYS OFF): without it the VD cannot place the weather vertically.
+  // The VD's weather runs along the same vertical cut as its terrain (the real radar takes it along a
+  // zero-width cut), which needs the ND's heading (the
   // radar texture's up) and the aircraft's position; the cut along the track follows the IR's true
   // track, the heading stands in while it is not valid.
   const auto trackWord = types::Arinc429Word<float>::fromSimVar(g_adirsTrueTrack[ir - 1].read());
@@ -645,7 +634,6 @@ static unsigned long long ndPictureKey(const Instance& instance, const NdFrame& 
   return key;
 }
 
-// One frame of an ND gauge.
 static void drawNd(FsContext ctx, Instance& instance, const sGaugeDrawData* drawData) {
   // The first ND gauge writes the SimBridge status block (see simBridgeUpdate).
   simBridgeOnGaugeDraw(ctx, drawData->t);
@@ -660,8 +648,6 @@ static void drawNd(FsContext ctx, Instance& instance, const sGaugeDrawData* draw
   updateNdViewParking(ctx, instance, frame, ready);
 
   if (!frame.drawsAnything() && !instance.layerDirty) {
-    // Nothing on the surface from last frame and nothing to draw now -
-    // skip opening a frame entirely.
     return;
   }
   // The picture stays on the surface between redraws (see kNdRedrawPeriodSeconds); the radar's first sweep

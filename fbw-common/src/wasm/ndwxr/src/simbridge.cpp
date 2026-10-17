@@ -110,8 +110,8 @@ static void simBridgeConnect() {
   g_simBridge.areaReady = true;
 }
 
-// The EFIS part for one side: terrain requested on a map page (ROSE ILS / VOR / NAV or ARC), as terronnd sent it.
-// The EFIS part of the status block for one side (the block is packed, so it is filled by value).
+// The EFIS part of the status block for one side, as terronnd sent it (the block is packed, so it is filled by
+// value). terrainOn: terrain requested on a map page (ROSE ILS / VOR / NAV or ARC).
 struct SimBridgeEfis {
   std::uint16_t range;
   std::uint8_t arc;

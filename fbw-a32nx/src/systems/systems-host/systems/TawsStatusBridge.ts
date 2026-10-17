@@ -73,11 +73,10 @@ class TawsStatusPublisher extends SimVarPublisher<TawsStatusSimVars> {
 
 /**
  * Sends the aircraft status the SimBridge terrain service needs (position, EFIS settings, TERR ON ND state of each
- * ND) over HTTP, the way the A380X's EfisTawsBridge does. The terronnd gauge used to send it over SimConnect and
- * receive SimBridge's terrain picture in return; the ND now draws its own terrain (the ndwxr gauge) and only takes
- * the TERR peaks box figures from SimBridge, which it computes from this status. Same content as terronnd's
- * status block (collection.cpp); no VD on the A32NX. Sent on every change, at most every 200 ms, and at least
- * every 30 s: SimBridge drops the HTTP source after two minutes of silence.
+ * ND) over HTTP, the way the A380X's EfisTawsBridge does. The ND draws its own terrain (the ndwxr gauge) and only takes
+ * the TERR peaks box figures from SimBridge, which it computes from this status. Same content as terronnd's status
+ * block (collection.cpp); no VD on the A32NX. Sent on every change, at most every 200 ms, and at least every 30 s:
+ * SimBridge drops the HTTP source after two minutes of silence.
  */
 export class TawsStatusBridge implements Instrument {
   private static readonly MIN_POST_INTERVAL_MS = 200;

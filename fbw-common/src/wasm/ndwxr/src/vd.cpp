@@ -349,7 +349,7 @@ static int createVdRamp(NVGcontext* vg) {
   for (int row = 0; row < kVdRampRows; ++row) {
     const float complement = (1.0f - kVdRampFloor) * static_cast<float>(row) / static_cast<float>(kVdRampRows - 1);
     // The image is sampled as sRGB (decoded to linear), while the view's list brightness arrives linear:
-    // measured in-sim (KASE, 2026-09-23) with a raw ramp the profile sat at 27 % of the plot where the
+    // measured in the sim (at Aspen) with a raw ramp the profile sat at 27 % of the plot where the
     // terrain was at 50 %, exactly the sRGB curve. So the complement is stored encoded, and the compare
     // (list brightness >= 1 - complement) is linear again.
     const unsigned char value = static_cast<unsigned char>(encodeSrgb(complement) * 255.0f + 0.5f);
@@ -569,9 +569,8 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
   if (show && (!draw || redraw)) {
     // The engine colors by ITS OWN (true) altitude minus the terrain height, v = true - E. The VD's
     // scale and its aircraft mock-up are the ADR's BARO altitude (VerticalDisplay.tsx), and the real VD
-    // places the terrain under the mock-up by the TRUE height (FCOM DSC-31-20-40-10, terrain profile:
-    // "the elevation between the terrain and the aircraft is the true height ... only the terrain
-    // altitude value retrieved on the vertical scale may not be correct"). With the range set to
+    // places the terrain under the mock-up by the TRUE height (the gap between terrain and aircraft is
+    // right, only the terrain altitude read on the vertical scale may be off). With the range set to
     // [baro - upper, baro - lower] a texel's height fraction is (E + baro - true - lower) / span: the
     // terrain is drawn at E + (baro - true) on the baro scale, i.e. the gap under the mock-up (at baro)
     // is true - E, the true height. The true altitude is only the fallback while the ADR word is not
