@@ -970,7 +970,6 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     ],
   },
   340900001: {
-    // A380 FCOM PRO-ABN-ECAM-10-34 NAV IR ALIGNMENT IN ATT MODE
     title: '\x1b<4m\x1b4mNAV\x1bm IR ALIGNMENT IN ATT MODE',
     sensed: false,
     items: [

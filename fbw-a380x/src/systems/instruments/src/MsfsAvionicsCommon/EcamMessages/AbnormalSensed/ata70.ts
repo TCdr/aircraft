@@ -159,7 +159,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800029: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL
     title: '\x1b<4m\x1b4mENG 1\x1bm FAIL',
     sensed: true,
     items: [
@@ -189,7 +188,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800030: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL
     title: '\x1b<4m\x1b4mENG 2\x1bm FAIL',
     sensed: true,
     items: [
@@ -219,7 +217,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800031: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL
     title: '\x1b<4m\x1b4mENG 3\x1bm FAIL',
     sensed: true,
     items: [
@@ -249,7 +246,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800032: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL
     title: '\x1b<4m\x1b4mENG 4\x1bm FAIL',
     sensed: true,
     items: [
@@ -1029,7 +1025,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800151: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG ALL ENG FLAME OUT
+    // ENG ALL ENG FLAME OUT
     title: '\x1b<2m\x1b4mENG\x1bm ALL ENGINES FAILURE',
     sensed: true,
     items: [
@@ -1332,7 +1328,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   700900003: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG HI VIBRATIONS
     title: '\x1b<4m\x1b4mENG\x1bm HI VIBRATIONS',
     sensed: false,
     items: [

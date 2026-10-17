@@ -16,8 +16,8 @@ import { FwsSystemDisplayLogic } from './FwsSystemDisplayLogic';
 import { FwsCore } from './FwsCore';
 
 /*
- * A380 FCOM DSC-31-40-10 (STATUS MORE PAGE): MORE at the bottom of the STATUS page, the MORE pb on the ECP shows the
- * STATUS MORE page. FCOM DSC-31-40-20 (MORE pb): pressing it again clears the MORE information page.
+ * STATUS MORE page: MORE at the bottom of the STATUS page, the MORE pb on the ECP shows the STATUS MORE page; pressing
+ * it again clears the MORE information page.
  */
 
 /** Values of the registered simvars (RegisteredSimVar reads/writes by id, which the global SimVar mock lacks) */

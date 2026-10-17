@@ -770,7 +770,7 @@ export class FwsAbnormalNonSensed {
         false,
         false,
       ],
-      // STATUS (FCOM PRO-ABN-ECAM-10-80): internal layer cracked or no diagnosis (item 4) MAX FL 230/MEA and the cabin
+      // STATUS: internal layer cracked or no diagnosis (item 4) MAX FL 230/MEA and the cabin
       // altitude table; the window heating of the AICU pulled (items 11, 13)
       limitationsAllPhases: (checked) => (checked[4] ? ['990400001'] : []),
       limitationsPfd: (checked) => (checked[4] ? ['990400001'] : []),
@@ -787,7 +787,7 @@ export class FwsAbnormalNonSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: showAllItems(990900003),
       whichItemsChecked: () => [false, false, false, false],
-      // STATUS (FCOM PRO-ABN-ECAM-10-80): the window heating of the AICU pulled (items 1, 3)
+      // STATUS: the window heating of the AICU pulled (items 1, 3)
       inopSysAllPhases: (checked) => FwsAbnormalNonSensed.windowHeatInop(!!checked[1], !!checked[3]),
       failure: 1,
       auralWarning: Subject.create(FwcAuralWarning.None),
@@ -872,7 +872,7 @@ export class FwsAbnormalNonSensed {
         false,
         false,
       ],
-      // STATUS (FCOM PRO-ABN-ECAM-10-28 FUEL LEAK DETECTED): LAND ANSA; FUEL PARTLY UNUSABLE except an engine fuel
+      // STATUS: LAND ANSA; FUEL PARTLY UNUSABLE except an engine fuel
       // leak (LEAK STOPS, item 13); the minimum usable fuel when the leak continues (item 17)
       limitationsAllPhases: (checked) => ['2', checked[13] ? null : '280400001'],
       limitationsPfd: () => ['2'],
@@ -1022,7 +1022,7 @@ export class FwsAbnormalNonSensed {
         false,
         false,
       ],
-      // STATUS (FCOM PRO-ABN-ECAM-10-28 FUEL MAN BALANCING PROCEDURE): DELAY T.O on ground; the fuel consumption
+      // STATUS: DELAY T.O on ground; the fuel consumption
       // when the feed tanks 1 & 4 or 2 & 3 are not balanced (items 3, 14: lateral moment)
       limitationsAllPhases: () => (this.fws.aircraftOnGround.get() ? ['280400002'] : []),
       info: (checked) => (checked[3] || checked[14] ? ['280200003'] : []),
@@ -1037,8 +1037,8 @@ export class FwsAbnormalNonSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: showAllItems(320900003),
       whichItemsChecked: () => [false, false, false, false, false],
-      // STATUS (FCOM PRO-ABN-ECAM-10-32): with LDG LIMITED TO MAX LDG WEIGHT ticked, MAX LDG WEIGHT and LDG DIST
-      // AFFECTED; BTV inoperative for approach and landing
+      // STATUS: with LDG LIMITED TO MAX LDG WEIGHT ticked, MAX LDG WEIGHT and LDG DIST AFFECTED;
+      // BTV inoperative for approach and landing
       limitationsApprLdg: (checked) => (checked[0] ? ['320400005', '800400002'] : []),
       limitationsPfd: (checked) => (checked[0] ? ['320400005'] : []),
       inopSysApprLdg: () => ['320300007'],
@@ -1053,8 +1053,8 @@ export class FwsAbnormalNonSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: showAllItems(320900004),
       whichItemsChecked: () => [false, false, false, false, false, false, false, false, false, false, false],
-      // STATUS (FCOM PRO-ABN-ECAM-10-32): with LDG LIMITED TO MAX LDG WEIGHT ticked, MAX LDG WEIGHT and LDG DIST
-      // AFFECTED; BTV inoperative for approach and landing
+      // STATUS: with LDG LIMITED TO MAX LDG WEIGHT ticked, MAX LDG WEIGHT and LDG DIST AFFECTED;
+      // BTV inoperative for approach and landing
       limitationsApprLdg: (checked) => (checked[2] ? ['320400005', '800400002'] : []),
       limitationsPfd: (checked) => (checked[2] ? ['320400005'] : []),
       inopSysApprLdg: () => ['320300007'],
@@ -1069,8 +1069,8 @@ export class FwsAbnormalNonSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: showAllItems(320900005),
       whichItemsChecked: () => [false, false, false, false, false, false, false],
-      // STATUS (FCOM PRO-ABN-ECAM-10-32): with LDG LIMITED TO MAX LDG WEIGHT ticked, MAX LDG WEIGHT and LDG DIST
-      // AFFECTED; BTV inoperative for approach and landing
+      // STATUS: with LDG LIMITED TO MAX LDG WEIGHT ticked, MAX LDG WEIGHT and LDG DIST AFFECTED;
+      // BTV inoperative for approach and landing
       limitationsApprLdg: (checked) => (checked[2] ? ['320400005', '800400002'] : []),
       limitationsPfd: (checked) => (checked[2] ? ['320400005'] : []),
       inopSysApprLdg: () => ['320300007'],
@@ -1134,8 +1134,8 @@ export class FwsAbnormalNonSensed {
         !this.fws.evacCommand.get(),
         this.fws.allBatteriesOff.get(),
       ],
-      // STATUS (FCOM PRO-ABN-ECAM-10-32): with LDG LIMITED TO MAX LDG WEIGHT ticked, MAX LDG WEIGHT and LDG DIST
-      // AFFECTED; BTV inoperative for approach and landing
+      // STATUS: with LDG LIMITED TO MAX LDG WEIGHT ticked, MAX LDG WEIGHT and LDG DIST AFFECTED;
+      // BTV inoperative for approach and landing
       limitationsApprLdg: (checked) => (checked[2] ? ['320400005', '800400002'] : []),
       limitationsPfd: (checked) => (checked[2] ? ['320400005'] : []),
       inopSysApprLdg: () => ['320300007'],
@@ -1195,8 +1195,8 @@ export class FwsAbnormalNonSensed {
         false,
         false,
       ],
-      // STATUS (FCOM PRO-ABN-ECAM-10-32): with LDG LIMITED TO MAX LDG WEIGHT ticked, MAX LDG WEIGHT and LDG DIST
-      // AFFECTED; BTV inoperative for approach and landing
+      // STATUS: with LDG LIMITED TO MAX LDG WEIGHT ticked, MAX LDG WEIGHT and LDG DIST AFFECTED;
+      // BTV inoperative for approach and landing
       limitationsApprLdg: (checked) => (checked[2] ? ['320400005', '800400002'] : []),
       limitationsPfd: (checked) => (checked[2] ? ['320400005'] : []),
       inopSysApprLdg: () => ['320300007'],
@@ -1405,8 +1405,8 @@ export class FwsAbnormalNonSensed {
     },
   };
   /**
-   * STATUS INOP SYS of CKPT WINDOW CRACKED and CKPT WINDOW ELEC ARCING (A380 FCOM PRO-ABN-ECAM-10-80): the heating of the
-   * windows of the AICU pulled, and the wing anti ice with both
+   * STATUS INOP SYS of CKPT WINDOW CRACKED and CKPT WINDOW ELEC ARCING: the heating of the windows of the AICU pulled,
+   * and the wing anti ice with both
    * @param aicu1Pulled the AICU 1 reset button is pulled
    * @param aicu2Pulled the AICU 2 reset button is pulled
    * @returns the INOP SYS ids
@@ -1421,7 +1421,7 @@ export class FwsAbnormalNonSensed {
 
   public ewdDeferredProcs: EwdAbnormalDict = {
     990700001: {
-      // CKPT WINDOW CRACKED (FCOM PRO-ABN-ECAM-10-80, DEFERRED PROC): at top of descent, CABIN ALT MODE AUTO
+      // CKPT WINDOW CRACKED deferred procedure: at top of descent, CABIN ALT MODE AUTO
       flightPhaseInhib: [],
       simVarIsActive: Subject.create(true),
       notActiveWhenItemActive: [],

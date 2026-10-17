@@ -290,7 +290,7 @@ export class FwsCore {
 
   public recallFailures: string[] = [];
 
-  /** EMER CANC pb: the cautions cancelled for the flight and the warnings silenced (A380 FCOM DSC-31-40-20) */
+  /** EMER CANC pb: the cautions cancelled for the flight and the warnings silenced */
   public readonly emerCancel = new FwsEmerCancel();
 
   /** The cancelled cautions, for the CANCELLED CAUTION section of the STATUS page */
@@ -306,7 +306,7 @@ export class FwsCore {
     this.cancelledCautionKeys,
   );
 
-  /** FCOM: RCL pb pressed for more than 3 s recalls the alerts cancelled with the EMER CANC pb */
+  /** RCL pb pressed for more than 3 s recalls the alerts cancelled with the EMER CANC pb */
   private static readonly RECALL_LONG_PRESS_MS = 3_000;
 
   /** How long the RCL pb has been held, in ms */
@@ -314,10 +314,13 @@ export class FwsCore {
 
   private recallLongPressDone = false;
 
-  /** FCOM: EMER CANC pb pressed with nothing to cancel, the EWD displays EMERGENCY CANCEL ON */
+  /** EMER CANC pb pressed with nothing to cancel: the EWD displays EMERGENCY CANCEL ON */
   public readonly emergencyCancelOnMemo = Subject.create(false);
 
-  /** How long the EMERGENCY CANCEL ON memo is displayed, in ms (the FCOM gives no time: as the RCL NORMAL, 3 s) */
+  /**
+   * How long the EMERGENCY CANCEL ON memo is displayed, in ms (design choice: no documented time, 3 s as the RCL
+   * NORMAL)
+   */
   private static readonly EMERGENCY_CANCEL_ON_MEMO_MS = 3_000;
 
   private emergencyCancelOnMemoTime = 0;
@@ -6348,7 +6351,7 @@ export class FwsCore {
   }
 
   /**
-   * EMER CANC pb (A380 FCOM DSC-31-40-20 P 5), on the alert at the top of the EWD:
+   * EMER CANC pb, on the alert at the top of the EWD:
    * - a warning: its audio indicator and MASTER WARN light are cancelled, the procedure stays on the EWD,
    * - a caution: cancelled for the remainder of the flight, with its procedure and the MASTER CAUT light,
    * and in all cases: all the audio indicators and aural alerts, and any activated not-sensed procedure.
