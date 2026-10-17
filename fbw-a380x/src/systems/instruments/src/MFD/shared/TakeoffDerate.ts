@@ -43,3 +43,14 @@ export function writeTakeoffDerate(
 ): void {
   SimVar.SetSimVarValue(TAKEOFF_DERATE_LVAR, 'Number', takeoffDerateThrustReduction(powerSetting, derated));
 }
+
+/**
+ * Which of the T.O panel thrust options (TOGA, FLEX, DERATED, in that order) are disabled. The crew can select any of
+ * the three before takeoff (DERATED included, its level typed in or picked from the list); all three close with the
+ * rest of the T.O panel once the takeoff starts.
+ * @param toPanelInactive true when the T.O panel no longer accepts entries (takeoff phase or later on the active plan)
+ * @returns the disabled state of TOGA, FLEX and DERATED
+ */
+export function takeoffThrustOptionsDisabled(toPanelInactive: boolean): boolean[] {
+  return [toPanelInactive, toPanelInactive, toPanelInactive];
+}
