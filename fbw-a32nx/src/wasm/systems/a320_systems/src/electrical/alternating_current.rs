@@ -547,16 +547,16 @@ impl A320MainPowerSources {
         }
     }
 
-    /// The IDG push button FAULT light (A320 FCOM DSC-24-20 l.37132-37135): oil outlet overheat
-    /// or low oil pressure, off once the IDG is disconnected.
+    /// The IDG push button FAULT light: oil outlet overheat or low oil pressure, off once the IDG
+    /// is disconnected.
     pub fn idg_has_fault(&self, number: usize) -> bool {
         let generator = self.engine_generator(number);
         generator.is_drive_connected()
             && (generator.drive_oil_pressure_is_low() || generator.drive_oil_is_overheating())
     }
 
-    /// The load of the engine generator is above 100 % of its rated output (A320 FCOM DSC-24-20
-    /// GALY & CAB pb FAULT, l.37239-37240).
+    /// The load of the engine generator is above 100 % of its rated output (GALY & CAB pb FAULT
+    /// light).
     pub fn engine_generator_is_overloaded(&self, number: usize) -> bool {
         !self.engine_generator(number).load_normal()
     }

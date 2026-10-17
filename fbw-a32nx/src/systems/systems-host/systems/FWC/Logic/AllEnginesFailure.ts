@@ -44,7 +44,7 @@ export interface AllEnginesFailureLineInputs {
   readonly apuStartLineShown: boolean;
   /** A thrust lever is above IDLE */
   readonly thrustLeverAboveIdle: boolean;
-  /** FAC 1 has failed */
+  /** FAC 1 has failed, for the -FAC 1 OFF THEN ON line */
   readonly fac1Failed: boolean;
 }
 
@@ -69,18 +69,18 @@ export function allEnginesFailureLines(inputs: AllEnginesFailureLineInputs): num
 }
 
 /**
- * The STATUS of ENG ALL ENGINES FAILURE (A320 FCOM PRO-ABN-ENG, a320_fcom.txt l.79177-79239), in the order of the FCOM
- * page. Its codes (StatusMessages 70x07x) come first on the STATUS page: the other alerts of an all engines failure (ELEC
- * EMER CONFIG, HYD G+Y SYS LO PR...) give some of the same lines, which the page then shows once, at this place.
- * - Limitations (l.79183-79195): MIN RAT SPEED 140 KT, MAX SPEED 320/.77, MAX BRK PR 1000 PSI, MANEUVER WITH CARE, FUEL
+ * The STATUS of ENG ALL ENGINES FAILURE, in the order of the real procedure. Its codes (StatusMessages 70x07x) come
+ * first on the STATUS page: the other alerts of an all engines failure (ELEC EMER CONFIG, HYD G+Y SYS LO PR...)
+ * give some of the same lines, which the page then shows once, at this place.
+ * - Limitations: MIN RAT SPEED 140 KT, MAX SPEED 320/.77, MAX BRK PR 1000 PSI, MANEUVER WITH CARE, FUEL
  *   GRVTY FEED, AVOID NEGATIVE G FACTOR, APPR PROC: FOR LDG USE FLAP 2, WHEN CONF 2 AND VAPP: L/G GRVTY EXTN AS RQRD.
- * - Information (l.79202-79208): ALTN LAW: PROT LOST, WHEN L/G DN: DIRECT LAW, BRK Y ACCU PR ONLY, SLATS SLOW, FLS
+ * - Information: ALTN LAW: PROT LOST, WHEN L/G DN: DIRECT LAW, BRK Y ACCU PR ONLY, SLATS SLOW, FLS
  *   LIMITED TO F-APP + RAW.
- * - INOP SYS (l.79210-79234): G+Y HYD, F/CTL PROT, STABILIZER, R AIL, REVERSER 1+2, ADR 2+3, IR 2+3, RA 1+2,
+ * - INOP SYS: G+Y HYD, F/CTL PROT, STABILIZER, R AIL, REVERSER 1+2, ADR 2+3, IR 2+3, RA 1+2,
  *   SPLR 1+2+4+5, ELAC 2, SEC 2+3, FLAPS, YAW DAMPER, A/CALL OUT, AP 1+2, A/THR, FUEL PUMPS, ANTI SKID, N/W STRG
- *   ("N/W. STEER" on the FCOM page, the ECAM text of the other alerts), AUTO BRK, CAT 2, L/G RETRACT, CAB PR 1+2, PACK 1+2.
+ *   (the ECAM text of the other alerts), AUTO BRK, CAT 2, L/G RETRACT, CAB PR 1+2, PACK 1+2.
  */
-export const ALL_ENGINES_FAILURE_STATUS = {
+const ALL_ENGINES_FAILURE_STATUS = {
   left: [
     '700400070',
     '700400071',

@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { engineBleedValveCss, hpValveCss } from './EngineBleedValveIndication';
 
-/* A320 FCOM DSC-36-20 ECAM BLEED PAGE (a320_fcom.txt l.57754-57768) */
+/* HP and engine bleed valves of the BLEED page */
 describe('BLEED page HP valve', () => {
   it('is green open or closed without a fault', () => {
     expect(hpValveCss(true, false)).toBe('GreenLine');

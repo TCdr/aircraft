@@ -12,7 +12,7 @@ import {
   wingTankPumps1And2Lines,
 } from './FuelPumpValveFaults';
 
-describe('FUEL L(R) TK PUMP LO PR cautions (FCOM PRO-ABN-FUEL)', () => {
+describe('FUEL L(R) TK PUMP LO PR cautions', () => {
   it('gives nothing with both pumps delivering', () => {
     expect(wingTankPumpAlerts(false, false)).toEqual({ pump1LoPr: false, pump2LoPr: false, pumps1And2LoPr: false });
   });
@@ -27,7 +27,7 @@ describe('FUEL L(R) TK PUMP LO PR cautions (FCOM PRO-ABN-FUEL)', () => {
   });
 });
 
-describe('FUEL X FEED VALVE FAULT condition (FCOM PRO-ABN-FUEL)', () => {
+describe('FUEL X FEED VALVE FAULT condition', () => {
   it('is false when the valve follows the pb-sw', () => {
     expect(isCrossFeedValveDisagree(100, true)).toBe(false);
     expect(isCrossFeedValveDisagree(0, false)).toBe(false);
@@ -39,7 +39,7 @@ describe('FUEL X FEED VALVE FAULT condition (FCOM PRO-ABN-FUEL)', () => {
   });
 });
 
-describe('FUEL X FEED memo (FCOM DSC-28-20)', () => {
+describe('FUEL X FEED memo', () => {
   it('shows with the X FEED pb-sw ON and the valve not fully closed', () => {
     expect(isCrossFeedMemoShown(true, 100)).toBe(true);
     expect(isCrossFeedMemoShown(true, 30)).toBe(true);
@@ -88,7 +88,7 @@ describe('FUEL L(R) TK PUMP 1 + 2 LO PR lines', () => {
   });
 });
 
-describe('FUEL CTR XFR FAULT cautions (FCOM PRO-ABN-FUEL, jet pump variant)', () => {
+describe('FUEL CTR XFR FAULT cautions', () => {
   const ok = { notFullyClosed: false, notFullyOpen: false };
   const failedOpen = { notFullyClosed: true, notFullyOpen: false };
   const failedClosed = { notFullyClosed: false, notFullyOpen: true };

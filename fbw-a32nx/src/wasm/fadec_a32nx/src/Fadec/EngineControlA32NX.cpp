@@ -163,10 +163,9 @@ void EngineControl_A32NX::update() {
                                                  startN2Hang,             //
                                                  offEngineCombustion);    //
 
-    // In-flight relight ignition. A320 FCOM DSC-70-80-30 (a320_fcom.txt l.63481): "In case of start attempt in flight, when
-    // the ENG MASTER sw is ON, both igniters are supplied", and the windmilling quick relight works "regardless of the rotary
-    // selector position" (l.63538-63541). MSFS only burns during a start with its ignition switch at IGN: with the ENG MODE
-    // selector at NORM a granted quick relight crawled for minutes without combustion. While the systems WASM reports a relight
+    // In-flight relight ignition: in flight both igniters are supplied once the ENG MASTER is ON, and the windmilling quick
+    // relight works whatever the ENG MODE selector position. MSFS only burns during a start with its ignition switch at IGN:
+    // at NORM a granted quick relight crawled for minutes without combustion. While the systems WASM reports a relight
     // lighting up (fuel back, master ON, engine not running), the ignition switch of that engine is set to IGN, then given
     // back to the ENG MODE selector position once the engine runs or the relight ends.
     const bool relightIgnition = simData.engineRelightIgnition[engineIdx]->getAsBool() && !simOnGround &&
@@ -200,15 +199,15 @@ void EngineControl_A32NX::update() {
       case SHUTTING:
         engineShutdownProcedure(engine, ambientTemperature, simN1, deltaTime, engineTimer, engineSeized, simOnGround,
                                 simData.engineWindmillN1[engineIdx]->get(), simData.engineWindmillN2[engineIdx]->get());
-        // No fuel flows into an engine whose fuel valve is closed or whose fuel is cut. The fuel flow was computed from the
-        // windmilling MSFS N1 here, so a dead engine showed (and burned) a small fuel flow.
+        // No fuel flows into an engine whose fuel valve is closed or whose fuel is cut: computed from the windmilling MSFS N1,
+        // a dead engine would show (and burn) a small fuel flow.
         if (engineFuelValveFullyOpen) {
           updateFF(engine, imbalance, simCN1, mach, pressureAltitude, ambientTemperature, ambientPressure);
         } else {
           simData.engineFF[engineIdx]->set(0);
         }
-        // The oil pressure falls with N2. It stayed frozen at its last running value during the whole shutdown, which never
-        // ends in flight (the MSFS N2 of a windmilling engine never reaches the 0.05 % of the OFF state).
+        // The oil pressure follows N2 down during the whole shutdown, which never ends in flight (the MSFS N2 of a windmilling
+        // engine never reaches the 0.05 % of the OFF state).
         updateShutdownOilPressure(engine, imbalance);
         break;
       default:
@@ -298,7 +297,6 @@ void EngineControl_A32NX::initializeEngineControlData() {
   const FLOAT64 timeStamp   = msfsHandlerPtr->getTimeStamp();
   const UINT64  tickCounter = msfsHandlerPtr->getTickCounter();
 
-  // Getting and saving initial N2 into pre (= previous) variables
   prevSimEngineN2[L] = simData.simVarsDataPtr->data().simEngineN2[L];
   prevSimEngineN2[R] = simData.simVarsDataPtr->data().simEngineN2[R];
 
@@ -715,8 +713,8 @@ void EngineControl_A32NX::engineShutdownProcedure(int    engine,              //
     return;
   }
 
-  // Seizure failure: the core stops, from the failure on, without the delay of a normal shutdown. FCOM ENG 1(2) FAIL
-  // (a320_fcom.txt l.79791-79795): engine damage may be accompanied by "no N2 indication".
+  // Seizure failure: the core stops, from the failure on, without the delay of a normal shutdown (engine damage may come
+  // with no N2 indication).
   if (engineSeized) {
     const double seizedN2 = simData.engineN2[engineIdx]->get() * (std::exp)(-SEIZED_CORE_DECAY_RATE * deltaTime);
     simData.engineN2[engineIdx]->set(seizedN2 < SEIZED_CORE_STOPPED_N2 ? 0.0 : seizedN2);
@@ -853,8 +851,7 @@ void EngineControl_A32NX::updateEGT(int         engine,
       egtImbalance = imbalanceExtractor(imbalance, 2);
     }
     // The EGT offset of the stall and EGT overtemperature failures (systems WASM, a320_systems engine_malfunction.rs) has its own
-    // dynamics: it is added after the slow EGT lag below, so that a stall gives the rapid EGT rise of the FCOM (ENG 1(2) STALL,
-    // a320_fcom.txt l.81325-81326: "high EGT and/or a rapid EGT rise").
+    // dynamics: it is added after the slow EGT lag below, so that a stall gives a rapid EGT rise.
     const double egtOffset         = simData.engineEgtOffset[engineIdx]->get();
     const double correctedEGT      = Polynomial_A32NX::correctedEGT(simCN1, customFuelFlow, mach, pressureAltitude);
     const double egtFbwPreviousEng = simData.engineEgt[engineIdx]->get() - egtOffsetApplied[engineIdx];
@@ -1279,9 +1276,8 @@ void EngineControl_A32NX::updateThrustLimits(double                  simulationT
 #endif
 }
 
-// Updates Oil Qty, Pressure and Temperature (in Quarts, PSI and degree Celsius) with realistic values visualized in the SD.
-// Ported from the equivalent, already-migrated A380X implementation (EngineControl_A380X::updateOil), adapted to keep this
-// aircraft's existing engine-imbalance effect on oil pressure.
+// Updates Oil Qty, Pressure and Temperature (in Quarts, PSI and degree Celsius) shown on the SD. Same model as
+// EngineControl_A380X::updateOil, plus this aircraft's engine-imbalance effect on oil pressure.
 void EngineControl_A32NX::updateShutdownOilPressure(int engine, double imbalance) {
   const int engineIdx = engine - 1;
 

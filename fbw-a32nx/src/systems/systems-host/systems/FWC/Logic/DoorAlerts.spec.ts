@@ -16,9 +16,8 @@ const allClosed = Object.values(DoorAlertKeys).reduce(
   {} as Record<string, boolean>,
 ) as DoorsNotClosed;
 
-/* A320 FCOM PRO-ABN-DOOR (l.74575-74861): "This alert triggers when the L(R) FWD(AFT) cabin door is not detected closed by
-   the proximity sensors"; in flight "IF ABN CAB V/S: MAX FL ... 100/MEA-MORA" and STATUS "IF ABN CAB V/S: MAX FL ...
-   100/MEA-MORA"; on ground crew awareness. */
+/* A door not detected closed by its proximity sensor: in flight IF ABN CAB V/S: MAX FL 100/MEA-MORA (E/WD and
+ * STATUS), on ground crew awareness */
 describe('DOOR cautions', () => {
   it('a door is not closed as soon as its interactive point is open at all', () => {
     expect(isInteractivePointNotClosed(0)).toBe(false);
@@ -56,7 +55,7 @@ describe('DOOR cautions', () => {
     ]);
   });
 
-  it('are amber cautions on the DOOR page, shown in phases 2, 3, 6 and 9 (FCOM PDF pages 4533-4548)', () => {
+  it('are amber cautions on the DOOR page, shown in phases 2, 3, 6 and 9', () => {
     const item = new DoorAlerts().ewdFailures[DoorAlertKeys.leftForwardCabin];
     expect(item.failure).toBe(2);
     expect(DOOR_PHASE_INHIBITION).toEqual([1, 4, 5, 7, 8, 10]);

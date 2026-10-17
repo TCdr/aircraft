@@ -10,15 +10,16 @@ import {
   BleedLeakMonitoringAlertKeys as K,
   BleedLeakMonitoringAlerts,
   BleedLeakMonitoringInputs,
+  BleedLeakMonitoringLineCounts,
   BleedLeakMonitoringPhaseInhibition,
   BleedLeakMonitoringStatusCodes,
   NO_BLEED_LEAK_MONITORING_INPUTS,
-  alertCodes,
   apuLeakLines,
   bleedLeakMonitoringStates,
   leakLines,
   leakStatus,
 } from './BleedLeakMonitoringAlerts';
+import { alertCodes } from './FwcAlertItem';
 
 const inputs = (changes: Partial<BleedLeakMonitoringInputs>): BleedLeakMonitoringInputs => ({
   ...NO_BLEED_LEAK_MONITORING_INPUTS,
@@ -28,7 +29,7 @@ const inputs = (changes: Partial<BleedLeakMonitoringInputs>): BleedLeakMonitorin
 });
 
 describe('bleed leak and monitoring cautions', () => {
-  it('triggers the wing leak on the wing leak signal and the engine bleed leak with the engine running (l.70691-70694)', () => {
+  it('triggers the wing leak on the wing leak signal and the engine bleed leak with the engine running', () => {
     expect(bleedLeakMonitoringStates(inputs({ wingLeak: [true, false] })).wingLeak).toEqual([true, false]);
     expect(bleedLeakMonitoringStates(inputs({ pylonLeak: [false, true] })).engineBleedLeak).toEqual([false, true]);
     expect(
@@ -45,7 +46,7 @@ describe('bleed leak and monitoring cautions', () => {
     expect(both.bleedMonitoringFault).toBe(true);
   });
 
-  it('shows the leak procedure lines of the actions not done (l.70700-70710)', () => {
+  it('shows the leak procedure lines of the actions not done', () => {
     const allToDo = inputs({
       apuBleedPbOn: true,
       apuBleedValveOpen: true,
@@ -62,7 +63,7 @@ describe('bleed leak and monitoring cautions', () => {
     expect(apuLeakLines(inputs({ apuBleedPbOn: false, apuBleedValveOpen: false }))).toEqual([0]);
   });
 
-  it('has the STATUS of the leak (l.70728-70736)', () => {
+  it('has the STATUS of the leak', () => {
     const status = leakStatus(1);
     expect(status.left).toEqual(['700400001', '700500001', '700400002', '700400003', '700400004']);
     expect(status.inopSys).toEqual(['300300001', '360300002', '210300002']);
@@ -70,7 +71,7 @@ describe('bleed leak and monitoring cautions', () => {
 
   it('has an E/WD text for every line code and a STATUS text for every status code', () => {
     for (const key of Object.values(K)) {
-      for (const code of alertCodes(key)) {
+      for (const code of alertCodes(key, BleedLeakMonitoringLineCounts[key])) {
         expect(formatEwdMessages([code])[0], code).toBeTruthy();
       }
     }
@@ -80,7 +81,7 @@ describe('bleed leak and monitoring cautions', () => {
     }
   });
 
-  it('uses the flight phase inhibitions of the FCOM figures', () => {
+  it('uses the aircraft flight phase inhibitions', () => {
     const alerts = new BleedLeakMonitoringAlerts();
     expect(alerts.ewdFailures[K.leftWingLeak].flightPhaseInhib).toEqual([3, 4, 5, 7, 8]);
     expect(alerts.ewdFailures[K.eng2LeakDetectionFault].flightPhaseInhib).toEqual([3, 4, 5, 6, 7, 8]);

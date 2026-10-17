@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The probe and window heat cautions of the A32NX FWC (A320 FCOM PRO-ABN-A-ICE, a320_fcom.txt l.68344-69240; the
- * procedure lines, STATUS and flight phase inhibition figures read on the 2019 FCOM PDF pages 1975-1996):
+ * The probe and window heat cautions of the A32NX FWC:
  * ANTI ICE ALL PITOT, CAPT + F/O PITOT, CAPT + STBY PITOT, F/O + STBY PITOT (inhibited in phases 4, 5, 8),
  * ANTI ICE CAPT(F/O)(STBY) PROBES, CAPT(F/O)(STBY) PITOT OR L(R) STAT OR AOA, CAPT(F/O) TAT, L + R WINDSHIELD,
  * L(R) WINDSHIELD and L(R) WINDOW (inhibited in phases 3, 4, 5, 7, 8).
@@ -13,12 +12,12 @@
  * L:A32NX_WHC_n_WINDSHIELD_HEAT_FAULT and L:A32NX_WHC_n_WINDOW_HEAT_FAULT (n = 1 left, 2 right).
  */
 
-export const PITOT_PAIR_PHASE_INHIBITION = [4, 5, 8];
-export const PROBE_WINDOW_HEAT_PHASE_INHIBITION = [3, 4, 5, 7, 8];
+const PITOT_PAIR_PHASE_INHIBITION = [4, 5, 8];
+const PROBE_WINDOW_HEAT_PHASE_INHIBITION = [3, 4, 5, 7, 8];
 
 /** The flags of one probe heat computer */
 export interface ProbeHeatComputerFlags {
-  /** "the captain (F/O)(standby) probe heat computer is failed" */
+  /** The captain (F/O)(standby) probe heat computer is failed */
   computerFault: boolean;
   pitot: boolean;
   leftStatic: boolean;
@@ -68,7 +67,7 @@ const STBY = 2;
 
 /**
  * The pitot heating is lost with a failed pitot heater, or with a failed probe heat computer: the STATUS of the pitot
- * pairs lists the PROBES "If all CAPT (F/O)(STBY) PROBES heating is lost" (l.68448-68452).
+ * pairs lists the PROBES when all the CAPT (F/O)(STBY) probe heating is lost.
  */
 function pitotHeatingLost(computer: ProbeHeatComputerFlags): boolean {
   return computer.computerFault || computer.pitot;
@@ -108,9 +107,8 @@ export function probeWindowHeatAlerts(inputs: ProbeWindowHeatInputs): ProbeWindo
 }
 
 /**
- * The number of failed static, AOA and TAT heaters of the probes of an ADR (ADR 1 CAPT, ADR 2 F/O, ADR 3 STBY): "Depending
- * on the status of the static, AOA, and TAT heating, the ECAM requires that either ADR 1, 2 or 3 be switched OFF"
- * (l.68380-68381). A failed computer heats none of them.
+ * The number of failed static, AOA and TAT heaters of the probes of an ADR (ADR 1 CAPT, ADR 2 F/O, ADR 3 STBY): the
+ * ECAM chooses the ADR to switch OFF from the state of the static, AOA and TAT heating. A failed computer heats none.
  */
 function otherHeatingLost(computer: ProbeHeatComputerFlags): number {
   if (computer.computerFault) {
@@ -121,8 +119,7 @@ function otherHeatingLost(computer: ProbeHeatComputerFlags): number {
 
 /**
  * The ADR (1 to 3) the ECAM asks to switch OFF among the candidates: the one whose other probes lost the most heating.
- * Design choice for a tie: the highest ADR number, to keep ADR 1, which "is supplied in EMER ELEC config"
- * (A320 FCOM DOUBLE AOA HEAT FAILURE, 2019 PDF page 1975).
+ * Design choice for a tie: the highest ADR number, to keep ADR 1, which is supplied in EMER ELEC config.
  */
 export function adrToSwitchOff(inputs: ProbeWindowHeatInputs, candidates: number[]): number {
   let chosen = candidates[0];
@@ -150,7 +147,7 @@ export const PITOT_LINE = {
 };
 
 /**
- * The lines of a pitot pair (CAPT + F/O, CAPT + STBY, F/O + STBY PITOT, l.68498-68945, PDF pages 1979-1989):
+ * The lines of a pitot pair (CAPT + F/O, CAPT + STBY, F/O + STBY PITOT):
  * "If ADR 3 (2)(1) operative and ON: ADR x P/B OFF", "If ADR 3 (2)(1) failed or OFF: ... IF ICING EXPECTED: ADR x P/B OFF,
  * UNREL SPD PROC APPLY". An action line goes once it is done.
  * @param inputs the alert inputs
@@ -176,7 +173,7 @@ export function pitotPairLines(inputs: ProbeWindowHeatInputs, pairAdrs: number[]
 }
 
 /**
- * The lines of ANTI ICE ALL PITOT (PDF page 1976): "ADR 1(2)(3) P/B OFF", then "IF ICING EXPECTED: ADR 2(3) P/B OFF,
+ * The lines of ANTI ICE ALL PITOT: "ADR 1(2)(3) P/B OFF", then "IF ICING EXPECTED: ADR 2(3) P/B OFF,
  * UNREL SPD PROC APPLY".
  */
 export function allPitotLines(inputs: ProbeWindowHeatInputs): number[] {
@@ -198,7 +195,7 @@ export function allPitotLines(inputs: ProbeWindowHeatInputs): number[] {
 }
 
 /** The STATUS codes of the probe and window heat cautions (see StatusMessages) */
-export const PROBE_WINDOW_HEAT_STATUS = {
+const PROBE_WINDOW_HEAT_STATUS = {
   ifIcingExpected: '300500001',
   adrOff: ['300400002', '300400003', '300400004'],
   unreliableSpeedProcedure: '300400005',
@@ -215,7 +212,7 @@ export const PROBE_WINDOW_HEAT_STATUS = {
 
 /**
  * The STATUS of the pitot alerts: INOP SYS the lost pitots and the PROBES of a failed computer; for ALL PITOT, or a pair
- * whose third ADR is failed or OFF, "IF ICING EXPECTED: ADR x P/B OFF, UNREL SPD PROC APPLY" (PDF pages 1977-1989).
+ * whose third ADR is failed or OFF, "IF ICING EXPECTED: ADR x P/B OFF, UNREL SPD PROC APPLY".
  * @param inputs the alert inputs
  * @param lostAdrs the ADRs of the lost pitots (1 to 3)
  */
@@ -281,7 +278,7 @@ export interface ProbeWindowHeatAlertDefinition {
 const codesOf = (key: string, count: number) =>
   Array.from({ length: count }, (_, line) => `${key}${(line + 1).toString().padStart(2, '0')}`);
 
-/** AIR DATA SWTG CAPT 3 (F/O 3) of the CAPT (F/O) probe alerts, until it is done (PDF pages 1984-1991) */
+/** AIR DATA SWTG CAPT 3 (F/O 3) of the CAPT (F/O) probe alerts, until it is done */
 function airDataSwitchingLines(inputs: ProbeWindowHeatInputs, side: number): number[] {
   const done = side === CAPT ? inputs.airDataSwitching === 0 : inputs.airDataSwitching === 2;
   return side === STBY || done ? [0] : [0, 1];
@@ -349,14 +346,14 @@ export const PROBE_WINDOW_HEAT_ALERTS: ProbeWindowHeatAlertDefinition[] = [
   pitotPairDefinition('3001202', [1, 2], 3, (alerts) => alerts.captFoPitot),
   pitotPairDefinition('3001203', [1, 3], 2, (alerts) => alerts.captStbyPitot),
   pitotPairDefinition('3001204', [2, 3], 1, (alerts) => alerts.foStbyPitot),
-  // CAPT (F/O)(STBY) PROBES: AIR DATA SWTG CAPT 3 (F/O 3), STATUS INOP SYS CAPT (F/O)(STBY) PROBES (PDF pages 1984-1996)
+  // CAPT (F/O)(STBY) PROBES: AIR DATA SWTG CAPT 3 (F/O 3), STATUS INOP SYS CAPT (F/O)(STBY) PROBES
   ...singleProbeDefinitions(3001211, (alerts, side) => alerts.probes[side], STATUS.probes, [CAPT, FO, STBY]),
-  // CAPT (F/O)(STBY) PITOT OR L(R) STAT OR AOA, one alert per probe (PDF pages 1983-1995)
+  // CAPT (F/O)(STBY) PITOT OR L(R) STAT OR AOA, one alert per probe
   ...singleProbeDefinitions(3001221, (alerts, side) => alerts.pitot[side], STATUS.pitot, [CAPT, FO, STBY]),
   ...singleProbeDefinitions(3001231, (alerts, side) => alerts.leftStatic[side], STATUS.leftStatic, [CAPT, FO, STBY]),
   ...singleProbeDefinitions(3001241, (alerts, side) => alerts.rightStatic[side], STATUS.rightStatic, [CAPT, FO, STBY]),
   ...singleProbeDefinitions(3001251, (alerts, side) => alerts.aoa[side], STATUS.aoa, [CAPT, FO, STBY]),
-  // CAPT (F/O) TAT, L + R WINDSHIELD, L(R) WINDSHIELD, L(R) WINDOW: crew awareness (PDF pages 1978, 1991-1994)
+  // CAPT (F/O) TAT, L + R WINDSHIELD, L(R) WINDSHIELD, L(R) WINDOW: crew awareness
   ...crewAwarenessDefinitions(3001261, (alerts, side) => alerts.tat[side], STATUS.tat),
   ...crewAwarenessDefinitions(3001271, (alerts) => alerts.bothWindshields, [STATUS.bothWindshields]),
   ...crewAwarenessDefinitions(3001272, (alerts, side) => alerts.windshield[side], STATUS.windshield),

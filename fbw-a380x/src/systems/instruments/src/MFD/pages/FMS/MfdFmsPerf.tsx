@@ -2094,7 +2094,6 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                         560,
                         <Button
                           label="CPNY T.O<br />REQUEST"
-                          // Displays the COMPANY T.O DATA REQUEST page
                           disabled={this.secActive}
                           onClick={() => this.props.mfd.uiService.navigateTo(`fms/active/${cpnyToRequestPage}`)}
                           buttonStyle="min-width: 174px; min-height: 60px;"

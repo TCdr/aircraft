@@ -51,9 +51,9 @@ pub(super) struct A320DirectCurrentElectrical {
     dc_bus_2_to_dc_gnd_flt_service_bus_contactor: Contactor,
 }
 impl A320DirectCurrentElectrical {
-    /// FCOM DSC-24-10-30-30 "FAILURE OF AC BUS 1" (a320_fcom.txt l.36719-36727): "DC BUS 2 supplies
-    /// DC BUS 1 and DC BAT BUS automatically after 5 s." Losing AC BUS 1 loses TR 1; the delay is
-    /// applied to any loss of the TR 1 supply of DC BUS 1 (TR 1 failure included).
+    /// After the loss of AC BUS 1, DC BUS 2 supplies DC BUS 1 and the DC BAT BUS automatically
+    /// after 5 s. Losing AC BUS 1 loses TR 1; the delay is applied to any loss of the TR 1 supply
+    /// of DC BUS 1 (TR 1 failure included).
     pub(super) const DC_BUS_2_TAKES_OVER_DC_BUS_1_DELAY: Duration = Duration::from_secs(5);
 
     pub fn new(context: &mut InitContext) -> Self {
@@ -161,14 +161,14 @@ impl A320DirectCurrentElectrical {
         self.dc_bus_2_takes_over_dc_bus_1_delay
             .update(context, dc_bus_1_lost_its_tr_1_supply);
         // Design choice: a failed DC BUS 1 busbar (flyPad bus failure) cannot be supplied anyway;
-        // DC BUS 2 then takes the DC BAT BUS at once, as before, so the DC ESS BUS behind it never
-        // loses power (see dc_ess_bus_stays_powered_on_every_update_when_dc_bus_1_fails).
+        // DC BUS 2 then takes the DC BAT BUS at once, so the DC ESS BUS behind it never loses power
+        // (see dc_ess_bus_stays_powered_on_every_update_when_dc_bus_1_fails).
         let dc_bus_2_supplies_dc_bus_1_side = !dc_bus_1_is_powered
             && dc_bus_2_is_powered
             && (!self.dc_bus_1.is_conductive() || self.dc_bus_2_takes_over_dc_bus_1_delay.output());
         // The reverse transfer (DC BUS 1 supplies DC BUS 2 when TR 2 is lost) stays immediate: the
-        // FCOM gives a delay only for this direction ("FAILURE OF ONE TR", l.36739-36749: "The other
-        // TR automatically replaces the faulty one.").
+        // 5 s delay is published only for this direction, and after a TR failure the other TR
+        // replaces it automatically.
         let dc_bus_1_supplies_dc_bus_2 = !dc_bus_2_is_powered && dc_bus_1_is_powered;
 
         self.dc_bus_1_tie_contactor
@@ -176,9 +176,10 @@ impl A320DirectCurrentElectrical {
         self.dc_bus_2_tie_contactor
             .close_when(dc_bus_2_supplies_dc_bus_1_side || dc_bus_1_supplies_dc_bus_2);
         // The DC buses flow into their tie contactors only once these are set for this update: a
-        // flow through a contactor still open from the previous update left the DC BAT BUS, and the
-        // DC ESS BUS behind it, unpowered for one update each time a DC bus was lost or came back
-        // (the computers on the DC ESS / DC ESS SHED BUS restarted, the FCU dropped the AP).
+        // flow through a contactor still open from the previous update would leave the DC BAT BUS,
+        // and the DC ESS BUS behind it, unpowered for one update each time a DC bus is lost or
+        // comes back (the computers on the DC ESS / DC ESS SHED BUS would restart and the FCU drop
+        // the AP).
         electricity.flow(&self.dc_bus_1, &self.dc_bus_1_tie_contactor);
         electricity.flow(&self.dc_bus_2, &self.dc_bus_2_tie_contactor);
 
@@ -216,9 +217,8 @@ impl A320DirectCurrentElectrical {
         electricity.flow(&self.battery_1_contactor, &self.hot_bus_1);
         electricity.flow(&self.hot_bus_1, &self.battery_1);
         // Design choice: the monitoring of the static inverter is supplied by the DC HOT BUS 1,
-        // which BAT 1 always supplies. The inverter then reports its failure also while it does
-        // not convert (ELEC STAT INV FAULT, A320 FCOM PRO-ABN-ELEC l.78211: "The alert triggers
-        // when the static inverter is failed.").
+        // which BAT 1 always supplies. The inverter then reports its failure also while it does not
+        // convert (ELEC STAT INV FAULT triggers when the static inverter is failed).
         self.static_inverter
             .update_monitoring(electricity.is_powered(&self.hot_bus_1));
 
@@ -282,16 +282,16 @@ impl A320DirectCurrentElectrical {
         electricity.flow(&self.dc_ess_shed_contactor, &self.dc_ess_shed_bus);
     }
 
-    /// The DC ESS BUS normally comes from the DC BAT BUS, which DC BUS 1 or DC BUS 2 feeds. The ESS TR
-    /// takes over when:
-    /// - TR 1 and TR 2 are lost (FCOM DSC-24-10-30-30, a320_fcom.txt l.36766: "If TR 1 and TR 2 are
-    ///   lost, DC BUS 1, DC BUS 2, and DC BAT BUS are lost. The DC ESS BUS is supplied by the ESS TR."),
-    /// - or the DC BUS 1 and DC BUS 2 busbars themselves are lost while their TRs still work. ELEC DC
-    ///   BUS 1+2 FAULT (FCOM PRO-ABN-ELEC, l.76800-76906) loses the DC BAT BUS (associated procedure
-    ///   ELEC DC BAT BUS FAULT) but keeps FAC 1, AP 1, FCDC 1 and CAB PR 1, all DC ESS BUS users, out
-    ///   of its INOP SYS, and its STATUS shows "BOTH PFD ON SAME FAC": the DC ESS BUS stays supplied.
-    ///   Design choice: the FCOM does not say how this loss is detected; it is modelled on the busbar
-    ///   failures, the only way to lose both DC buses while TR 1 and TR 2 are available.
+    /// The DC ESS BUS normally comes from the DC BAT BUS, which DC BUS 1 or DC BUS 2 feeds. The ESS
+    /// TR takes over when:
+    /// - TR 1 and TR 2 are lost: DC BUS 1, DC BUS 2 and the DC BAT BUS are lost and the ESS TR
+    ///   supplies the DC ESS BUS,
+    /// - or the DC BUS 1 and DC BUS 2 busbars themselves are lost while their TRs still work. ELEC
+    ///   DC BUS 1+2 FAULT loses the DC BAT BUS (associated procedure ELEC DC BAT BUS FAULT) but
+    ///   keeps FAC 1, AP 1, FCDC 1 and CAB PR 1, all DC ESS BUS users, out of its INOP SYS, and its
+    ///   STATUS shows BOTH PFD ON SAME FAC: the DC ESS BUS stays supplied. Design choice: how this
+    ///   loss is detected is not published; it is modelled on the busbar failures, the only way to
+    ///   lose both DC buses while TR 1 and TR 2 are available.
     pub fn normal_dc_ess_supply_lost(
         tr_1_and_2_available: bool,
         dc_bus_1_and_2_busbars_lost: bool,

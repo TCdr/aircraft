@@ -25,9 +25,9 @@ export const ECAM_SINGLE_DISPLAY_VAR = 'L:A32NX_ECAM_SINGLE_DISPLAY';
 export const ECAM_SD_ADVISORY_PAGE_VAR = 'L:A32NX_ECAM_SD_ADVISORY_PAGE';
 
 /**
- * The ECP system page pb to light and the DMC light code (A320 FCOM DSC-31-30, a320_fcom.txt l.46728 the pbs "Light up,
- * when pushed for manual selection, or when an advisory is detected"; l.46733-46736 with only one ECAM display "If an
- * advisory condition arises, the relevant system page is not automatically displayed, but the pushbutton light pulses").
+ * The ECP system page pb to light and the DMC light code. The pbs light up when pushed for manual selection or when an
+ * advisory is detected; with only one ECAM display, an advisory does not display its page automatically but its pb
+ * light pulses.
  * With two displays the advisory page is selected (DmcSdPageLogic), so its pb lights as a selected page. The ECP flashes
  * the lit pb with the MonoDisplay code (Ecp.ts flashOn).
  * @param selectedPage the selected SD page (L:A32NX_ECAM_SD_CURRENT_PAGE_INDEX), SdPages.NONE in flight phase mode

@@ -14,26 +14,17 @@ export interface WingTankLowLevelInputs {
   readonly pump2On: boolean;
 }
 
-/**
- * The lines of FUEL L(R) WING TK LO LVL (EwdMessages 2800130xx / 2800140xx: title, -FUEL MODE SEL MAN, .IF NO FUEL LEAK
- * AND, FUEL IMBALANCE:, -FUEL X FEED ON, -TK PUMP 1 OFF, -TK PUMP 2 OFF).
- * A320 FCOM PRO-ABN-FUEL FUEL L (R) WING TK LO LVL (a320_fcom.txt l.86468-86475): "If center tank not empty: FUEL MODE
- * SEL ... MAN", then "IF NO FUEL LEAK AND FUEL IMBALANCE: FUEL X FEED ... ON, TK PUMP 1 ... OFF, TK PUMP 2 ... OFF".
- * The MODE SEL line was shown with an empty centre tank too.
- * @param inputs the conditions of the conditional lines
- * @returns the line indexes, null for a hidden line
- */
 /** STATUS codes (StatusMessages) of FUEL L(R) WING TK LO LVL */
-export const WING_TK_LO_LVL_STATUS = {
+const WING_TK_LO_LVL_STATUS = {
   ctrTankFeedManOnly: '280200003',
   leftTankPumps: '280300005',
   rightTankPumps: '280300006',
 } as const;
 
 /**
- * The STATUS of FUEL L(R) WING TK LO LVL. A320 FCOM PRO-ABN-FUEL (a320_fcom.txt l.86477-86484, PDF PRO-ABN-FUEL
- * P 44/50): INOP SYS "TK PUMPS"; "If center tank not empty: CTR TK FEED: MAN ONLY". Design choice: TK PUMPS is shown
- * as the L (R) TK PUMPS line of the side with the low level (the existing INOP SYS lines).
+ * The STATUS of FUEL L(R) WING TK LO LVL: INOP SYS TK PUMPS; with fuel in the centre tank: CTR TK FEED: MAN ONLY.
+ * Design choice: TK PUMPS is shown as the L (R) TK PUMPS line of the side with the low level (the existing INOP SYS
+ * lines).
  * @param side the side with the low level
  * @param centreTankEmpty the centre tank is empty
  * @returns the INOP SYS codes and the information codes
@@ -68,11 +59,9 @@ export interface WingTanksLowLevelInputs {
  * PUMP 1(2) ON, 4 -CTR TK L XFR ON, 5 -CTR TK PUMP 1 ON, 6-7 -R TK PUMP 1(2) ON, 8 -CTR TK R XFR ON, 9 -CTR TK PUMP 2 ON,
  * 10 .IF NO FUEL LEAK:, 11 -FUEL X FEED ON, 12 .IF GRVTY FEED:, 13 -FUEL X FEED OFF.
  * The FBW A32NX is the jet pump variant of the fuel system (centre tank transfer valves, see Fuel/FuelPumpsAndValves).
- * A320 FCOM PRO-ABN-FUEL FUEL L + R WING TK LO LVL of that variant (a320_fcom.txt l.86536-86569, FCOM PDF page 5316):
- * "LAND ASAP" (amber), "FUEL MODE SEL (IF CENTER TANK NOT EMPTY) ... MAN", "ALL TK PUMPS ... ON", "CTR TK L+R XFR ...
- * ON", "IF NO FUEL LEAK: FUEL X FEED ... ON", "IF GRVTY FEED: FUEL X FEED ... OFF". The CTR TK PUMP lines belong to the
- * centre tank pump variant (l.86516-86517) and are never shown; the MODE SEL line was shown with an empty centre tank and
- * once at MAN, the transfer lines only with more than 250 kg in the centre tank. A done action line is hidden.
+ * The procedure of that variant: LAND ASAP (amber), FUEL MODE SEL MAN (with fuel in the centre tank), ALL TK PUMPS
+ * ON, CTR TK L+R XFR ON, IF NO FUEL LEAK: FUEL X FEED ON, IF GRVTY FEED: FUEL X FEED OFF. The CTR TK PUMP lines belong
+ * to the centre tank pump variant and are never shown. A done action line is hidden.
  * @param inputs the conditions of the conditional lines
  * @returns the line indexes, null for a hidden line
  */
@@ -95,6 +84,14 @@ export function wingTanksLowLevelLines(inputs: WingTanksLowLevelInputs): (number
   ];
 }
 
+/**
+ * The lines of FUEL L(R) WING TK LO LVL (EwdMessages 2800130xx / 2800140xx: title, -FUEL MODE SEL MAN, .IF NO FUEL LEAK
+ * AND, FUEL IMBALANCE:, -FUEL X FEED ON, -TK PUMP 1 OFF, -TK PUMP 2 OFF).
+ * FUEL MODE SEL MAN only with fuel in the centre tank; then, if no fuel leak and a fuel imbalance: FUEL X FEED ON,
+ * TK PUMP 1 OFF, TK PUMP 2 OFF.
+ * @param inputs the conditions of the conditional lines
+ * @returns the line indexes, null for a hidden line
+ */
 export function wingTankLowLevelLines(inputs: WingTankLowLevelInputs): (number | null)[] {
   return [
     0,

@@ -7,10 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { isTcasFault, TcasFaultInputs } from './TcasFault';
 import { A320Failure, A320FailureDefinitions } from '../../../failures/src/a320';
 
-/*
- * A320 FCOM DSC-34-SURV-60 (a320_fcom.txt:56276, 56313-56315) and PRO-ABN-NAV NAV TCAS FAULT (a320_fcom.txt:93888):
- * amber TCAS on the ND and the PFD and NAV TCAS FAULT on an internal failure of the TCAS.
- */
+/* Amber TCAS on the ND and the PFD and NAV TCAS FAULT on an internal failure of the TCAS. */
 describe('TCAS fault', () => {
   const healthy: TcasFaultInputs = {
     pressureAltitudeValid: true,

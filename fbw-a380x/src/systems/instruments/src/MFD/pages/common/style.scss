@@ -169,8 +169,9 @@
   font-size: 24px;
 }
 
-// Display frame of the FMS pages, measured on full display pictures of the real pages: title bar from y = 104 to 136, page area from y = 143 to the footer line at y = 961, MSG LIST
-// button of 85 x 54 px and 40 px high entry fields (tab bar: fcomTabBar in FcomLayout.tsx).
+// Display frame of the FMS pages, measured on full display pictures of the real pages: title bar from y = 104 to 136,
+// page area from y = 143 to the footer line at y = 961, MSG LIST button of 85 x 54 px and 40 px high entry fields
+// (tab bar: fcomTabBar in FcomLayout.tsx).
 .sys-fms {
   .mfd-title-bar-container {
     height: 32px;

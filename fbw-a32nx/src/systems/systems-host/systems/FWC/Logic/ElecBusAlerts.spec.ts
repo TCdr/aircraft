@@ -76,28 +76,28 @@ function monitorAfter(...steps: [Partial<ElecNetworkState>, number][]): ElecBusA
   return monitor;
 }
 
-/* A320 FCOM PRO-ABN-ELEC "Triggering Conditions" (a320_fcom.txt) */
+/* The alert triggers */
 describe('ELEC bus alert triggers', () => {
   it('no alert with the normal network', () => {
     expect(activeAlerts({})).toEqual([]);
   });
 
-  it('AC BUS 1(2) FAULT: the AC 1(2) busbar is not supplied (l.75420, l.75701)', () => {
+  it('AC BUS 1(2) FAULT: the AC 1(2) busbar is not supplied', () => {
     expect(activeAlerts({ acBus1Powered: false })).toEqual(['acBus1Fault']);
     expect(activeAlerts({ acBus2Powered: false })).toEqual(['acBus2Fault']);
   });
 
-  it('AC ESS BUS ALTN: supplied from the AC 2 busbar with the AC ESS FEED pb-sw at normal (l.75925-75926)', () => {
+  it('AC ESS BUS ALTN: supplied from the AC 2 busbar with the AC ESS FEED pb-sw at normal', () => {
     expect(activeAlerts({ acEssFedByAcBus2: true })).toEqual(['acEssBusAltn']);
     expect(activeAlerts({ acEssFedByAcBus2: true, acEssFeedPbNormal: false })).toEqual([]);
   });
 
-  it('AC ESS BUS FAULT covers AC ESS BUS SHED (l.75954, l.76029)', () => {
+  it('AC ESS BUS FAULT covers AC ESS BUS SHED', () => {
     expect(activeAlerts({ acEssBusPowered: false, acEssShedBusPowered: false })).toEqual(['acEssBusFault']);
     expect(activeAlerts({ acEssShedBusPowered: false })).toEqual(['acEssBusShed']);
   });
 
-  it('DC BUS 1(2) FAULT, and DC BUS 1+2 FAULT instead of both (l.76428, l.76511, l.76810)', () => {
+  it('DC BUS 1(2) FAULT, and DC BUS 1+2 FAULT instead of both', () => {
     expect(activeAlerts({ dcBus1Powered: false })).toEqual(['dcBus1Fault']);
     expect(activeAlerts({ dcBus2Powered: false })).toEqual(['dcBus2Fault']);
     expect(activeAlerts({ dcBus1Powered: false, dcBus2Powered: false, dcBatBusPowered: false })).toEqual([
@@ -106,7 +106,7 @@ describe('ELEC bus alert triggers', () => {
     ]);
   });
 
-  it('DC EMER CONFIG: DC 1, DC 2 and DC ESS not supplied (l.77143), instead of the DC BUS and DC ESS faults', () => {
+  it('DC EMER CONFIG: DC 1, DC 2 and DC ESS not supplied, instead of the DC BUS and DC ESS faults', () => {
     expect(
       activeAlerts({
         dcBus1Powered: false,
@@ -118,23 +118,23 @@ describe('ELEC bus alert triggers', () => {
     ).toEqual(['dcBatBusFault', 'dcEmerConfig']);
   });
 
-  it('DC ESS BUS FAULT covers DC ESS BUS SHED (l.77268, l.77426)', () => {
+  it('DC ESS BUS FAULT covers DC ESS BUS SHED', () => {
     expect(activeAlerts({ dcEssBusPowered: false, dcEssShedBusPowered: false })).toEqual(['dcEssBusFault']);
     expect(activeAlerts({ dcEssShedBusPowered: false })).toEqual(['dcEssBusShed']);
   });
 
-  it('DC BAT BUS FAULT (l.76264)', () => {
+  it('DC BAT BUS FAULT', () => {
     expect(activeAlerts({ dcBatBusPowered: false })).toEqual(['dcBatBusFault']);
   });
 
-  it('TR 1(2) FAULT: the TR output is lost while its AC bus is supplied (l.78238)', () => {
+  it('TR 1(2) FAULT: the TR output is lost while its AC bus is supplied', () => {
     expect(activeAlerts({ tr1PotentialNormal: false })).toEqual(['tr1Fault']);
     expect(activeAlerts({ tr2PotentialNormal: false })).toEqual(['tr2Fault']);
     // An unsupplied TR is not a failed TR: only the AC BUS fault
     expect(activeAlerts({ acBus1Powered: false, tr1PotentialNormal: false })).toEqual(['acBus1Fault']);
   });
 
-  it('ESS BUSES ON BAT: the ESS buses on the batteries, their SHED buses shed on purpose (l.77939, l.36790-36791)', () => {
+  it('ESS BUSES ON BAT: the ESS buses on the batteries, their SHED buses shed on purpose', () => {
     expect(
       activeAlerts({
         staticInverterSuppliesAcEss: true,
@@ -171,7 +171,7 @@ describe('ELEC bus alert confirmation times', () => {
     expect(monitorAfter([{ acBus1Powered: false }, 1.1]).alerts.acBus1Fault.get()).toBe(true);
   });
 
-  it('no AC or DC ESS BUS FAULT during the 3 s AC ESS FEED automatic transfer (l.75584-75586)', () => {
+  it('no AC or DC ESS BUS FAULT during the 3 s AC ESS FEED automatic transfer', () => {
     const transfer: Partial<ElecNetworkState> = {
       acBus1Powered: false,
       acEssBusPowered: false,
@@ -280,7 +280,7 @@ describe('ELEC STATUS pages', () => {
     }
   });
 
-  it('GEN 1(2) FAULT / OFF / IDG DISC: CAT 3 SINGLE ONLY; MAIN GALLEY only without the APU GEN (l.78041-78049)', () => {
+  it('GEN 1(2) FAULT / OFF / IDG DISC: CAT 3 SINGLE ONLY; MAIN GALLEY only without the APU GEN', () => {
     const withoutApu = formatStatusPage(
       engineGeneratorLostStatus(1, false).left,
       engineGeneratorLostStatus(1, false).inopSys,
@@ -290,13 +290,13 @@ describe('ELEC STATUS pages', () => {
     expect(formatStatusPage([], engineGeneratorLostStatus(1, true).inopSys).right).not.toContain('MAIN GALLEY');
   });
 
-  it('APU GEN FAULT: MAIN GALLEY when only one GEN operating (l.76131-76134)', () => {
+  it('APU GEN FAULT: MAIN GALLEY when only one GEN operating', () => {
     expect(formatStatusPage([], apuGenFaultStatus(true).inopSys).right).toContain('MAIN GALLEY');
     expect(formatStatusPage([], apuGenFaultStatus(false).inopSys).right).not.toContain('MAIN GALLEY');
     expect(formatStatusPage([], apuGenFaultStatus(false).inopSys).right).toContain('APU GEN');
   });
 
-  it('DC BUS 2 FAULT: IF ABN CAB V/S: MAX FL 100/MEA, then L/G GRVTY EXTN, then LDG DIST PROC (l.76716-76722)', () => {
+  it('DC BUS 2 FAULT: IF ABN CAB V/S: MAX FL 100/MEA, then L/G GRVTY EXTN, then LDG DIST PROC', () => {
     const page = formatStatusPage(dcBus2FaultStatus(true).left, []);
     expect(page.left.split('\r').slice(0, 4)).toEqual([
       '\x1b<7mIF ABN CAB V/S:',
@@ -307,7 +307,7 @@ describe('ELEC STATUS pages', () => {
     expect(formatStatusPage(dcBus2FaultStatus(false).left, []).left).not.toContain('GRVTY EXTN');
   });
 
-  it('TR 1 FAULT: CAT 3 SINGLE ONLY; TR 1, CAT 3 DUAL (l.78242-78248)', () => {
+  it('TR 1 FAULT: CAT 3 SINGLE ONLY; TR 1, CAT 3 DUAL', () => {
     const page = formatStatusPage(trFaultStatus(1).left, trFaultStatus(1).inopSys);
     expect(page.left).toBe('\x1b<3mCAT 3 SINGLE ONLY');
     expect(page.right.split('\r').slice(1)).toEqual(['\x1b<4mCAT 3 DUAL', '\x1b<4mTR 1']);
@@ -361,7 +361,7 @@ describe('PseudoFWC wiring of the ELEC bus alerts', () => {
     }
   });
 
-  it('gives the generator alerts their STATUS (FCOM PRO-ABN-ELEC GEN FAULT / OFF, IDG DISC, APU GEN FAULT)', () => {
+  it('gives the generator alerts their STATUS', () => {
     for (const key of ['2400001', '2400060', '2400400']) {
       expect(block(key)).toContain('engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline)');
     }

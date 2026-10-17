@@ -50,7 +50,7 @@ describe('F/CTL DIRECT LAW lines', () => {
     expect(text).not.toContain('DO NOT USE');
   });
 
-  /* FCOM l.82662: "MAN PITCH TRIM (EXCEPT IF HYD Y + G SYS LO PR) ... USE" (the THS has no hydraulic power). */
+  /* No MAN PITCH TRIM USE with the green and yellow systems at low pressure: the THS has no hydraulic power. */
   it('drops MAN PITCH TRIM USE when the green and yellow hydraulic systems are both at low pressure', () => {
     const text = shownText('2700365', 8, directLawLines(true));
     expect(text).not.toContain('MAN PITCH TRIM');

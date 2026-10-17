@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The A320 F/CTL surface cautions (FCOM PRO-ABN-F_CTL, a320_fcom.txt l.82488-84648), from the FCDC discrete words that
- * the C++ flight controls already write (fbw_a320/src/fcdc/Fcdc.cpp getBusOutputs, L:A32NX_FCDC_n_DISCRETE_WORD_1..5):
- * - F/CTL AIL SERVO FAULT, l.82488-82505; F/CTL L(R) AIL FAULT, l.83448-83480
- * - F/CTL ELEV SERVO FAULT, l.82950-82986; F/CTL L(R) ELEV FAULT, l.83515-83599
- * - F/CTL ELAC 1(2) PITCH FAULT, l.82916-82949
- * - F/CTL SPLR FAULT, l.84525-84648
- * - F/CTL ELAC 1(2) FAULT (BOTH COMPUTERS FAILED), l.82799-82853: one alert instead of ELAC 1 FAULT + ELAC 2 FAULT
- * The flight phase inhibition figures are images, read on the FCOM PDF ("A320 Neo FCOM_1.pdf", PRO-ABN-F_CTL, pages
- * given at FlightControlSurfacePhaseInhibition).
+ * The F/CTL surface cautions, from the FCDC discrete words that the C++ flight controls already write
+ * (fbw_a320/src/fcdc/Fcdc.cpp getBusOutputs, L:A32NX_FCDC_n_DISCRETE_WORD_1..5):
+ * - F/CTL AIL SERVO FAULT; F/CTL L(R) AIL FAULT
+ * - F/CTL ELEV SERVO FAULT; F/CTL L(R) ELEV FAULT
+ * - F/CTL ELAC 1(2) PITCH FAULT
+ * - F/CTL SPLR FAULT
+ * - F/CTL ELAC 1(2) FAULT (BOTH COMPUTERS FAILED): one alert instead of ELAC 1 FAULT + ELAC 2 FAULT
  *
- * Not modelled (no model output, see the report of the FCOM gap audit, 27-flight-controls): GND SPLR 5 FAULT and
+ * Not modelled (no model output): GND SPLR 5 FAULT and
  * GND SPLR (1+2)(3+4) FAULT (the SEC ground spoiler fault bit, SEC discrete word 1 bit 24, is a constant false), SPD BRK
  * 2 (3+4) FAULT and SPD BRK FAULT (the SEC speed brake lever word is never invalid), the rudder pedal transducer part of
  * AIL SERVO FAULT and the flutter protection part of L(R) ELEV FAULT.
@@ -20,30 +18,25 @@
  * How a surface is seen: each aileron and each elevator has two servojacks. The FCDC tells, for each servojack, whether
  * its computer reports it available. A servojack is lost for one of three causes:
  * - its computer(s) failed: the ELAC (SEC) FAULT alerts cover that;
- * - its hydraulic system is at low pressure: the HYD alerts cover that (their STATUS lists the lost surfaces, FCOM
- *   PRO-ABN-HYD G+B SYS LO PR "L ELEV, L+R AIL", B+Y SYS LO PR "R ELEV");
+ * - its hydraulic system is at low pressure: the HYD alerts cover that (their STATUS lists the lost surfaces: G+B
+ *   SYS LO PR L ELEV, L+R AIL; B+Y SYS LO PR R ELEV);
  * - else a servo fault (the ELAC/SEC discrete input L:A32NX_LEFT_AIL_SERVO_1_FAILED etc.): the F/CTL alerts here.
  * Design choice: a surface fault (L(R) AIL FAULT, L(R) ELEV FAULT) is shown when both servojacks are lost, unless both
  * are lost by their hydraulics alone or by their computers alone (then the HYD or ELAC/SEC alert is the procedure).
  */
 
-/** The flight phase inhibitions (FCOM PDF PRO-ABN-F_CTL). The A320 FWC phases are 1 to 10. */
+/** The flight phase inhibitions. The A320 FWC phases are 1 to 10. */
 export const FlightControlSurfacePhaseInhibition = {
-  /** AIL SERVO FAULT (page 5141) */
   ailServoFault: [3, 4, 5, 7, 8],
-  /** ELAC 1(2) FAULT, both variants (pages 5154, 5156, 5159, 5162) */
+  /** ELAC 1(2) FAULT, both variants */
   elacFault: [3, 4, 5, 7, 8],
-  /** ELAC 1(2) PITCH FAULT (page 5165) */
   elacPitchFault: [3, 4, 5, 7, 8],
-  /** ELEV SERVO FAULT (page 5166) */
   elevServoFault: [3, 4, 5],
-  /** L(R) AIL FAULT (page 5183) */
+  /** L(R) AIL FAULT */
   aileronFault: [4, 5],
-  /** L(R) ELEV FAULT (page 5185) */
+  /** L(R) ELEV FAULT */
   elevatorFault: [4, 5],
-  /** SPLR FAULT (page 5236) */
   spoilerFault: [3, 4, 5, 7],
-  /** FCDC 1+2 FAULT (page 5168): the alert had phase 3 inhibited too */
   fcdc12Fault: [4, 5, 7],
 };
 
@@ -120,27 +113,18 @@ export interface FlightControlSurfaceInputs {
 }
 
 export interface FlightControlSurfaceState {
-  /** F/CTL ELAC 1 PITCH FAULT */
   elac1PitchFault: boolean;
-  /** F/CTL ELAC 2 PITCH FAULT */
   elac2PitchFault: boolean;
-  /** F/CTL ELEV SERVO FAULT */
   elevServoFault: boolean;
-  /** F/CTL L ELEV FAULT */
   leftElevatorFault: boolean;
-  /** F/CTL R ELEV FAULT */
   rightElevatorFault: boolean;
-  /** The left or the right elevator is lost, any cause: "SPD BRK (IF L OR R ELEVATOR FAULT) DO NOT USE" of ALTN LAW */
+  /** The left or the right elevator is lost, any cause: drives the SPD BRK DO NOT USE line of ALTN LAW */
   leftOrRightElevatorLost: boolean;
-  /** F/CTL AIL SERVO FAULT */
   ailServoFault: boolean;
-  /** F/CTL L AIL FAULT */
   leftAileronFault: boolean;
-  /** F/CTL R AIL FAULT */
   rightAileronFault: boolean;
-  /** The faulty spoilers 1 to 5 (index 0 is spoiler 1) */
+  /** Index 0 is spoiler 1 */
   spoilerFaults: boolean[];
-  /** F/CTL SPLR FAULT */
   spoilerFault: boolean;
 }
 
@@ -262,7 +246,7 @@ export function computeSurfaceState(
   const leftElevatorLost = leftElevator1.lost && leftElevator2.lost;
   const rightElevatorLost = rightElevator1.lost && rightElevator2.lost;
 
-  // ELAC 1(2) PITCH FAULT, l.82926: "failure of pitch channel in ELAC 1(2)". The pitch channel of a valid ELAC is lost
+  // ELAC 1(2) PITCH FAULT: the pitch channel of the ELAC failed. The pitch channel of a valid ELAC is lost
   // while its roll channel works (both lost is ELAC 1(2) FAULT). The ELAC 1 pitch needs the blue system, the ELAC 2 the
   // green and yellow ones or one of them without blue (ElacComputer.cpp canEngageInPitch): a loss by the hydraulics is
   // for the HYD alerts.
@@ -280,7 +264,7 @@ export function computeSurfaceState(
     elac1PitchFault,
     elac2PitchFault,
     elevServoFault: isServojackFault(leftElevator1, leftElevator2) || isServojackFault(rightElevator1, rightElevator2),
-    // both elevators lost is L+R ELEV FAULT (l.83600)
+    // both elevators lost is L+R ELEV FAULT
     leftElevatorFault: isSurfaceFault(leftElevator1, leftElevator2) && !rightElevatorLost,
     rightElevatorFault: isSurfaceFault(rightElevator1, rightElevator2) && !leftElevatorLost,
     leftOrRightElevatorLost: leftElevatorLost || rightElevatorLost,
@@ -293,8 +277,8 @@ export function computeSurfaceState(
 }
 
 /**
- * ELAC 1 FAULT, ELAC 2 FAULT and the BOTH COMPUTERS FAILED variant (FCOM l.82799-82853): when both ELAC FAULT alerts
- * are active, one alert with the procedure for both computers replaces them (A22 of the FCOM gap audit).
+ * ELAC 1 FAULT, ELAC 2 FAULT and the BOTH COMPUTERS FAILED variant: when both ELAC FAULT alerts are active, one
+ * alert with the procedure for both computers replaces them.
  * @param elac1Fault the ELAC 1 FAULT condition (confirmed)
  * @param elac2Fault the ELAC 2 FAULT condition (confirmed)
  * @returns which of the three alerts is active
@@ -310,11 +294,11 @@ export function elacFaultAlerts(
 /**
  * F/CTL ELAC 1+2 FAULT lines (EwdMessages 2701010xx: title, -ELAC 1 OFF THEN ON, -ELAC 2 OFF THEN ON, .IF BOTH ELAC
  * FAULT, -ELAC 1 OFF, -ELAC 2 OFF, FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE).
- * FCOM PDF page 5157 (l.82830-82848): "ELAC 1 OFF THEN ON, ELAC 2 OFF THEN ON, If both ELAC FAULT remain: ELAC 1 OFF,
- * ELAC 2 OFF", then the ALTN LAW procedure (the existing F/CTL ALTN LAW alert shows it, with its MAX SPEED 320 KT),
- * then FUEL CONSUMPT INCRSD and FMS PRED UNRELIABLE.
- * Design choice: the FCOM names this procedure "ELAC 1(2) FAULT (BOTH COMPUTERS FAILED)" without its E/WD title; the
- * title is "ELAC 1+2 FAULT" as FCDC 1+2 FAULT, FAC 1+2 FAULT and the INOP SYS line "ELAC 1+2" (l.82880). The action
+ * The procedure: ELAC 1 OFF THEN ON, ELAC 2 OFF THEN ON, and if both ELAC FAULT remain ELAC 1 OFF, ELAC 2 OFF; then
+ * the ALTN LAW procedure (the existing F/CTL ALTN LAW alert shows it, with its MAX SPEED 320 KT), then FUEL CONSUMPT
+ * INCRSD and FMS PRED UNRELIABLE.
+ * Design choice: the documented procedure name "ELAC 1(2) FAULT (BOTH COMPUTERS FAILED)" is no E/WD title; the
+ * title is "ELAC 1+2 FAULT" as FCDC 1+2 FAULT, FAC 1+2 FAULT and the INOP SYS line "ELAC 1+2". The action
  * lines of an ELAC go once it is OFF (as elacFaultLines).
  * @param elac1ProcedureShown the ELAC 1 failed and its pb is not OFF
  * @param elac2ProcedureShown the ELAC 2 failed and its pb is not OFF
@@ -335,7 +319,7 @@ export function elac12FaultLines(elac1ProcedureShown: boolean, elac2ProcedureSho
 
 /**
  * F/CTL L(R) ELEV FAULT lines (EwdMessages 270105001-003 / 270106001-003: title, MANEUVER WITH CARE, FOR GA: MAX PITCH
- * 15 DEG). FCOM l.83525-83540. The associated F/CTL ALTN LAW procedure (MAX SPEED 320 KT, SPD BRK DO NOT USE) is the
+ * 15 DEG). The associated F/CTL ALTN LAW procedure (MAX SPEED 320 KT, SPD BRK DO NOT USE) is the
  * existing ALTN LAW alert, its SPD BRK line keyed on the elevator loss (leftOrRightElevatorLost).
  * @returns the line indexes
  */
@@ -345,7 +329,7 @@ export function elevatorFaultLines(): (number | null)[] {
 
 /**
  * F/CTL L(R) AIL FAULT lines (EwdMessages 270108001-003 / 270109001-003: title, FUEL CONSUMPT INCRSD, FMS PRED
- * UNRELIABLE), FCOM l.83464-83466.
+ * UNRELIABLE).
  * @returns the line indexes
  */
 export function aileronFaultLines(): (number | null)[] {
@@ -354,10 +338,10 @@ export function aileronFaultLines(): (number | null)[] {
 
 /**
  * F/CTL SPLR FAULT lines (EwdMessages 270110001-002: title, SPD BRK DO NOT USE).
- * FCOM l.84572: "SPD BRK (IF SPOILERS 3+4 AFFECTED) ... DO NOT USE". The spoilers 3 and 4 are one speed brake
- * pair of the SEC 1: one of them faulty makes both unavailable (Fcdc.cpp spoiler34Avail).
- * Not shown, no model output: the "If one or more spoilers are fully extended" part (OPT SPD G DOT+10, AP DO NOT USE)
- * and FUEL CONSUMPT INCRSD / FMS PRED UNRELIABLE ("If one or more spoilers are extended").
+ * SPD BRK DO NOT USE shows when the spoilers 3+4 are affected. The spoilers 3 and 4 are one speed brake pair of the
+ * SEC 1: one of them faulty makes both unavailable (Fcdc.cpp spoiler34Avail).
+ * Not shown, no model output: the lines for one or more spoilers fully extended (OPT SPD G DOT+10, AP DO NOT USE)
+ * and for spoilers extended (FUEL CONSUMPT INCRSD / FMS PRED UNRELIABLE).
  * @param spoilerFaults the faulty spoilers 1 to 5
  * @returns the line indexes, null for a hidden line
  */

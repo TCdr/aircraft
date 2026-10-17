@@ -54,7 +54,7 @@ export const PressPage: FC = () => {
   const cabinAltTextCss = cabinAltitudeTextClass(displayedCabinAlt, cabinAltPulses);
   const cabinAltGaugeCss = cabinAltitudeNeedleClass(displayedCabinAlt);
 
-  // Delta P digital value: pulses above 1.5 PSI (resets at 1 PSI) in phase 7, as on the CRUISE page (DeltaPIndication)
+  // Same delta P rule as the CRUISE page
   const [deltaPPulsing, setDeltaPPulsing] = useState(false);
   useEffect(() => {
     setDeltaPPulsing((wasPulsing) => deltaPPulses(deltaPsi, flightPhase, wasPulsing));
@@ -300,7 +300,7 @@ const CabinVerticalSpeedComponent: FC<CabinVerticalSpeedComponentType> = ({ vsx,
   const arincCabinVs = useArinc429Var(`L:A32NX_PRESS_CPC_${activeCpc}_CABIN_VS`, 500);
   const [manCabinVs] = useSimVar('L:A32NX_PRESS_MAN_CABIN_VS', 'feet per minute', 500);
   const cabinVs = arincCabinVs.isNormalOperation() ? arincCabinVs.value : manCabinVs;
-  // V/S digits pulse above 1750 ft/min until back at 1650 ft/min; the needle does not pulse (see PressIndications)
+  // Only the digits pulse, not the needle (see PressIndications)
   const displayedCabinVs = Math.round(cabinVs / 50) * 50;
   const [cabinVsPulsing, setCabinVsPulsing] = useState(false);
   useEffect(() => {

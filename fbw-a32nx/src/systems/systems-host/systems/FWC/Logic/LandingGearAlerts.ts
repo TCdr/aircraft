@@ -5,15 +5,16 @@ import { Subject } from '@microsoft/msfs-sdk';
 import { Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { StatusLines } from './CondStatus';
-import { ConfirmTimer, FwcAlertItem, cautionItem } from './FwcAlertItem';
+import { ConfirmTimer } from './BleedAlerts';
+import { FwcAlertItem, cautionItem } from './FwcAlertItem';
 
 /*
- * Landing gear items of the A320 FWC (ATA 32) that the FCOM gap audit found missing, from the LGCIU words
- * (docs/a320-simvars.md A32NX_LGCIU_{number}_DISCRETE_WORD_1 and _3):
- * - L/G DOORS NOT CLOSED, FCOM PRO-ABN-LG a320_fcom.txt l.89176-89247, FCOM PDF pages 5465-5466;
- * - L/G SYS DISAGREE, l.89848-89865, FCOM PDF page 5487;
- * - the STATUS of the ATA 32 alerts: GEAR NOT UPLOCKED (l.89435-89442), L/G DOORS NOT CLOSED (l.89230-89240),
- *   LGCIU 1(2) FAULT (l.89582-89599), LGCIU 1+2 FAULT (l.89657-89672) and BRAKES A/SKID N/WS OFF (l.72358-72368).
+ * Landing gear items of the A320 FWC (ATA 32), from the LGCIU words (docs/a320-simvars.md
+ * A32NX_LGCIU_{number}_DISCRETE_WORD_1 and _3):
+ * - L/G DOORS NOT CLOSED;
+ * - L/G SYS DISAGREE;
+ * - the STATUS of the ATA 32 alerts: GEAR NOT UPLOCKED, L/G DOORS NOT CLOSED, LGCIU 1(2) FAULT, LGCIU 1+2 FAULT and
+ *   BRAKES A/SKID N/WS OFF.
  */
 
 export const LandingGearAlertKeys = {
@@ -21,21 +22,20 @@ export const LandingGearAlertKeys = {
   sysDisagree: '3200200',
 } as const;
 
-/** L/G DOORS NOT CLOSED flight phase inhibition (PDF page 5465): shown in phases 2, 6 and 7 */
+/** L/G DOORS NOT CLOSED flight phase inhibition: shown in phases 2, 6 and 7 */
 export const DOORS_NOT_CLOSED_PHASE_INHIBITION = [1, 3, 4, 5, 8, 9, 10];
 
-/** L/G SYS DISAGREE flight phase inhibition (PDF page 5487): shown in phases 1, 2, 9 and 10 */
+/** L/G SYS DISAGREE flight phase inhibition: shown in phases 1, 2, 9 and 10 */
 export const SYS_DISAGREE_PHASE_INHIBITION = [3, 4, 5, 6, 7, 8];
 
 /**
- * "This alert triggers when one gear door is not uplocked" (l.89186). The doors open for every gear extension and
- * retraction: design choice, 30 s as the landing gear sequence of GEAR NOT UPLOCKED ("This warning appears if the landing
- * gear sequence is not completed after 30 s", l.89386).
+ * The alert triggers when one gear door is not uplocked. The doors open for every gear extension and retraction.
+ * Design choice: 30 s, as GEAR NOT UPLOCKED, which waits 30 s for the landing gear sequence to complete.
  */
 export const DOORS_NOT_CLOSED_CONFIRM_SECONDS = 30;
 
 /** L/G SYS DISAGREE confirmation time, in seconds: design choice, the two LGCIUs see the same gear at the same time */
-export const SYS_DISAGREE_CONFIRM_SECONDS = 1;
+const SYS_DISAGREE_CONFIRM_SECONDS = 1;
 
 /** The gear position one LGCIU sends, null for a word that is not in normal operation */
 export interface LgciuGearPosition {
@@ -68,7 +68,7 @@ export function fromValidLgcius(lgciu1: boolean | null, lgciu2: boolean | null):
 }
 
 /** A gear door is not closed, from the valid LGCIUs, and the gear itself is uplocked or down (not GEAR NOT UPLOCKED) */
-export function isGearDoorNotClosed(inputs: LandingGearInputs): boolean {
+function isGearDoorNotClosed(inputs: LandingGearInputs): boolean {
   const [lgciu1, lgciu2] = inputs.lgcius;
   const doorNotClosed = [0, 1, 2].some((gear) =>
     fromValidLgcius(lgciu1.doorNotClosed?.[gear] ?? null, lgciu2.doorNotClosed?.[gear] ?? null),
@@ -77,12 +77,12 @@ export function isGearDoorNotClosed(inputs: LandingGearInputs): boolean {
 }
 
 /** The L/G lever is up, from the valid LGCIUs */
-export function isGearLeverUp(inputs: LandingGearInputs): boolean {
+function isGearLeverUp(inputs: LandingGearInputs): boolean {
   return fromValidLgcius(inputs.lgcius[0].leverUp, inputs.lgcius[1].leverUp);
 }
 
 /**
- * "This alert triggers when LGCIU 1 and LGCIU 2 detect a discrepancy between the landing gear positions." (l.89858-89859)
+ * The alert triggers when LGCIU 1 and LGCIU 2 disagree on the landing gear positions.
  * Compared: the downlocked and the uplocked position of each gear, when both LGCIUs send them.
  */
 export function isLgciuGearPositionDisagree(inputs: LandingGearInputs): boolean {
@@ -93,16 +93,16 @@ export function isLgciuGearPositionDisagree(inputs: LandingGearInputs): boolean 
 }
 
 /**
- * The lines of L/G DOORS NOT CLOSED (l.89205-89226, PDF page 5466): 0 title; if the L/G lever is up: 1 .WHEN SPD <
+ * The lines of L/G DOORS NOT CLOSED: 0 title; if the L/G lever is up: 1 .WHEN SPD <
  * 220/.54:, 2 -L/G LEVER RECYCLE; then 3 .IF UNSUCCESSFUL:, 4 MAX SPEED 250/.60, 5 FUEL CONSUMPT INCRSD, 6 FMS PRED
  * UNRELIABLE.
  */
-export function gearDoorsNotClosedLines(leverUp: boolean): (number | null)[] {
+function gearDoorsNotClosedLines(leverUp: boolean): (number | null)[] {
   return [0, leverUp ? 1 : null, leverUp ? 2 : null, 3, 4, 5, 6];
 }
 
 /** The STATUS codes of the ATA 32 alerts (StatusMessages) */
-export const LandingGearStatusCodes = {
+const LandingGearStatusCodes = {
   maxSpeed280: '320400001',
   maxSpeed250: '320400002',
   fuelConsumptionIncreased: '290400018',
@@ -137,8 +137,8 @@ export const LandingGearStatusCodes = {
 const G = LandingGearStatusCodes;
 
 /**
- * L/G GEAR NOT UPLOCKED STATUS (l.89435-89442): MAX SPEED 280/.67, FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE once the
- * gear is down (the flight continued with the landing gear extended, l.89447), INOP SYS L/G RETRACT
+ * L/G GEAR NOT UPLOCKED STATUS: MAX SPEED 280/.67, FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE once the gear is down
+ * (the flight continued with the landing gear extended), INOP SYS L/G RETRACT
  * @param gearDownlocked the landing gear is down and locked
  */
 export function gearNotUplockedStatus(gearDownlocked: boolean): StatusLines {
@@ -148,14 +148,14 @@ export function gearNotUplockedStatus(gearDownlocked: boolean): StatusLines {
   };
 }
 
-/** L/G DOORS NOT CLOSED STATUS (l.89230-89240): MAX SPEED 250/.60, FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE; L/G DOOR */
-export function gearDoorsNotClosedStatus(): StatusLines {
+/** L/G DOORS NOT CLOSED STATUS: MAX SPEED 250/.60, FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE; L/G DOOR */
+function gearDoorsNotClosedStatus(): StatusLines {
   return { left: [G.maxSpeed250, G.fuelConsumptionIncreased, G.fmsPredictionsUnreliable], inopSys: [G.lgDoor] };
 }
 
 /**
- * L/G LGCIU 1(2) FAULT STATUS (l.89582-89599): ENG 1(2) APPR IDLE ONLY; INOP SYS LGCIU 1(2), REVERSER 1(2), GPWS (LGCIU 1
- * failed: the GPWS gets "L/G up", l.89562-89566)
+ * L/G LGCIU 1(2) FAULT STATUS: ENG 1(2) APPR IDLE ONLY; INOP SYS LGCIU 1(2), REVERSER 1(2), GPWS (LGCIU 1 failed: the
+ * GPWS gets "L/G up")
  */
 export function lgciuFaultStatus(lgciu: 1 | 2): StatusLines {
   return lgciu === 1
@@ -164,7 +164,7 @@ export function lgciuFaultStatus(lgciu: 1 | 2): StatusLines {
 }
 
 /**
- * L/G LGCIU 1+2 FAULT STATUS (l.89657-89672): FOR LDG USE FLAP 3, L/G GRVTY EXTN, L/G CONTROL NOT AVAIL, ENG 1 and ENG 2
+ * L/G LGCIU 1+2 FAULT STATUS: FOR LDG USE FLAP 3, L/G GRVTY EXTN, L/G CONTROL NOT AVAIL, ENG 1 and ENG 2
  * APPR IDLE ONLY; INOP SYS REVERSER 1+2, AP 1+2, CAT 2, A/THR, LGCIU 1, LGCIU 2, GPWS. The GLS AUTOLAND and ROW/ROP lines
  * are left out: the FBW A32NX has neither.
  */
@@ -182,7 +182,7 @@ export function lgciu1And2FaultStatus(): StatusLines {
 }
 
 /**
- * BRAKES A/SKID N/WS OFF STATUS (l.72358-72368): MAX BRK PR 1000 PSI, LDG DIST PROC APPLY, BRK Y ACCU PR ONLY if Y SYS
+ * BRAKES A/SKID N/WS OFF STATUS: MAX BRK PR 1000 PSI, LDG DIST PROC APPLY, BRK Y ACCU PR ONLY if Y SYS
  * LO PR, CAT 3 SINGLE ONLY; INOP SYS CAT 3 DUAL, ANTI SKID, N/W STRG, NORM BRK, AUTO BRK
  * @param yellowSystemLowPressure the yellow hydraulic system has a low pressure
  */
@@ -230,7 +230,7 @@ export class LandingGearAlerts {
       EcamSysPage.WHEEL,
       gearDoorsNotClosedStatus,
     ),
-    // crew awareness (l.89865)
+    // Crew awareness level
     [LandingGearAlertKeys.sysDisagree]: cautionItem(
       LandingGearAlertKeys.sysDisagree,
       1,

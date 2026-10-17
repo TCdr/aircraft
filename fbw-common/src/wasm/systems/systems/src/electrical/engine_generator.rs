@@ -253,10 +253,9 @@ impl<Drive: EngineGeneratorDrive> SimulationElement for EngineGenerator<Drive> {
 
 /// The constant speed drive of an integrated drive generator (IDG, A320).
 ///
-/// Oil model, A320 FCOM DSC-24-20 IDG pb (a320_fcom.txt l.37132-37138): "ECAM caution comes on, if:
-/// IDG oil outlet overheats (above 180 °C), or IDG oil pressure is low (inhibited at low engine
-/// speed: N2 below 14 %). It extinguishes when the IDG is disconnected." and "An automatic thermal
-/// disconnection of the IDG will occur if the temperature reaches 200 °C."
+/// Oil model: the IDG FAULT caution comes on when the oil outlet overheats (above 180 °C) or the
+/// oil pressure is low (inhibited below N2 14 %), and goes out once the IDG is disconnected. The
+/// IDG disconnects itself (thermal disconnection) at 200 °C.
 pub struct ConstantSpeedDrive {
     oil_outlet_temperature_id: VariableIdentifier,
     oil_outlet_temperature: ThermodynamicTemperature,
@@ -277,18 +276,18 @@ impl ConstantSpeedDrive {
 
     const M: f64 = Self::OUTPUT_SPEED_RPM / Self::ENGINE_GEARBOX_POWER_UP_OUTPUT_THRESHOLD;
 
-    /// FCOM DSC-24-20 l.37133: the IDG oil outlet overheat threshold
+    /// The IDG oil outlet overheat threshold
     pub const OIL_OVERHEAT_CELSIUS: f64 = 180.;
-    /// FCOM DSC-24-20 l.37137-37138: the automatic thermal disconnection
+    /// The automatic thermal disconnection
     pub const THERMAL_DISCONNECT_CELSIUS: f64 = 200.;
-    /// FCOM DSC-24-20 l.37134: the low oil pressure signal is inhibited below N2 14 %
+    /// The low oil pressure signal is inhibited below N2 14 %
     const LOW_PRESSURE_INHIBITION_N2_PERCENT: f64 = 14.;
 
-    /// Design choice (the FCOM gives no normal values): with the engine at idle or above, the oil
+    /// Design choice (no published normal values): with the engine at idle or above, the oil
     /// comes back from its coolers at 55 °C plus 0.4 times the outside air temperature (limited to
     /// -20..50 °C), and gains 8 °C, plus 12 °C at full generator load, in the drive. The outlet
     /// temperature stays between about 50 °C and 95 °C, well below the 147 °C advisory of the SD
-    /// ELEC page (FCOM DSC-24-20 l.37624-37625).
+    /// ELEC page.
     const OIL_INLET_BASE_CELSIUS: f64 = 55.;
     const OIL_INLET_AMBIENT_FACTOR: f64 = 0.4;
     const OIL_TEMPERATURE_RISE_NO_LOAD_CELSIUS: f64 = 8.;
@@ -861,7 +860,7 @@ mod tests {
 
             test_bed.run_for_seconds(600);
 
-            // A320 FCOM DSC-24-20 l.37624-37625: the SD ELEC page flashes from 147 °C
+            // The SD ELEC page flashes from 147 °C
             assert_lt!(
                 test_bed.idg_oil_outlet_temperature(),
                 ThermodynamicTemperature::new::<degree_celsius>(147.)

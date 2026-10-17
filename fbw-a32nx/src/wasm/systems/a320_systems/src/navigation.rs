@@ -17,21 +17,20 @@ use uom::si::velocity::knot;
 
 pub(crate) struct A320AirDataInertialReferenceSystemBuilder;
 impl A320AirDataInertialReferenceSystemBuilder {
-    /// A320 FCOM DSC-22_20-20-40 ALIGNMENT OF INERTIAL REFERENCE SYSTEM (a320_fcom.txt
-    /// l.12797-12798): "A normal alignment takes 10 min and a fast alignment takes 30 s", with the
-    /// memo "IRS IN ALIGN X MN" counting the minutes left, 1 < X < 10 (l.52686-52688). Unlike the
-    /// A380 FCOM, the A320 FCOM gives no latitude dependency (ground alignment only up to 73 deg,
-    /// l.116718).
+    /// A normal IRS alignment takes 10 min and a fast alignment 30 s, with the memo
+    /// IRS IN ALIGN X MN counting the minutes left, 1 < X < 10. Unlike the A380, the A320 alignment
+    /// time has no latitude dependency (ground alignment only up to 73 deg).
     const COMPLETE_ALIGNMENT_TIME: Duration = Duration::from_secs(10 * 60);
 
-    /// A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG SYS REMAINING (a320_fcom.txt l.75317-75320, l.75390): IR "No 1 only (e)"
-    /// and ADR "No 1 only" with the emergency generator, ADR "INOP" on batteries only; "(e) IR 2 and IR 3 are lost 5 min
-    /// after failure of main generators". With AC, the ELEC busbar faults give the AC supplies (FWC/Logic/ElecBusAlerts):
-    /// AC ESS BUS FAULT loses ADR 1, AC BUS 2 FAULT ADR 2, AC BUS 1 FAULT ADR 3.
-    /// So the ADRs need their AC bus, and the IRs run on the batteries without it, IR 2 and IR 3 for 5 min.
-    /// Design choices (the FCOM text gives no bus names for the battery supply): IR 1 on the hot bus 1, IR 2 and IR 3 on
+    /// In ELEC EMER CONFIG, only IR 1 and ADR 1 remain with the emergency generator, and no ADR on
+    /// batteries only; IR 2 and IR 3 are lost 5 min after the main generators fail. With AC, the
+    /// ELEC busbar faults give the AC supplies (FWC/Logic/ElecBusAlerts): AC ESS BUS FAULT loses
+    /// ADR 1, AC BUS 2 FAULT ADR 2, AC BUS 1 FAULT ADR 3.
+    /// So the ADRs need their AC bus, and the IRs run on the batteries without it, IR 2 and IR 3
+    /// for 5 min. Design choices (the aircraft documents give no battery bus names): IR 1 on the
+    /// hot bus 1, IR 2 and IR 3 on
     /// the hot bus 2. Not modelled: ADIRU 3 on the AC ESS bus with the ATT HDG selector on CAPT 3, which also keeps
-    /// IR 3 on the batteries beyond the 5 min (note (e)).
+    /// IR 3 on the batteries beyond the 5 min.
     const IR_BATTERY_TIME_LIMIT: Duration = Duration::from_secs(5 * 60);
 
     fn electrical_supplies() -> [AdiruElectricalSupply; 3] {

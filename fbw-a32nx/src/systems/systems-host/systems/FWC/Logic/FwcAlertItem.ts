@@ -5,8 +5,6 @@ import { Subscribable } from '@microsoft/msfs-sdk';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { StatusLines } from './CondStatus';
 
-export { ConfirmTimer } from './BleedAlerts';
-
 /**
  * An alert of the E/WD left side in the form of the PseudoFWC ewdMessageFailures items, built by the Logic modules that
  * own their alerts (the PseudoFWC spreads their items into its list, the way it does with Logic/BleedAlerts).
@@ -65,3 +63,21 @@ export function cautionItem(
     statusInfo: () => status().left,
   };
 }
+
+/**
+ * A level 1 caution (crew awareness): amber, no MASTER CAUTION, no aural, no SD page.
+ * The parameters are those of cautionItem.
+ */
+export function awarenessItem(
+  key: string,
+  lineCount: number,
+  active: Subscribable<boolean>,
+  flightPhaseInhib: number[],
+  lines: () => (number | null)[] = () => [0],
+  status: () => StatusLines = NO_STATUS,
+): FwcAlertItem {
+  return { ...cautionItem(key, lineCount, active, flightPhaseInhib, lines, EcamSysPage.NONE, status), failure: 1 };
+}
+
+/** Reads a boolean simvar or L:var (any value above 0 is true), for the Logic modules' input readers */
+export const readBool = (name: string): boolean => SimVar.GetSimVarValue(name, 'bool') > 0;

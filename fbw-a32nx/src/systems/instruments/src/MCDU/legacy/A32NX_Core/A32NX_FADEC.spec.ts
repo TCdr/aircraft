@@ -18,7 +18,7 @@ describe('FADEC power and engine data', () => {
     expect(isFadecPowered(running)).toBe(true);
   });
 
-  /* A320 FCOM ENG 1(2) FADEC FAULT (a320_fcom.txt l.79652-79653): the engine indications are lost */
+  /* ENG FADEC FAULT: with both channels lost the engine indications are lost */
   it('sends no engine data with both FADEC channels lost, even with the engine running', () => {
     expect(isFadecPowered({ ...running, bothChannelsLost: true })).toBe(false);
     expect(isFadecPowered({ ...running, bothChannelsLost: true, fadecGroundPowerOn: true })).toBe(false);

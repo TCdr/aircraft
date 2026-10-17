@@ -25,7 +25,7 @@ function monitorAfter(...steps: [EngineOilInputs, number][]): EngineOilMonitor {
   return monitor;
 }
 
-/* A320 FCOM PRO-ABN-ENG ENG 1(2) OIL LO PR, a320_fcom.txt l.80569: "This alert triggers when oil pressure is below 13 PSI." */
+/* ENG 1(2) OIL LO PR: the oil pressure is below 13 PSI */
 describe('ENG 1(2) OIL LO PR', () => {
   it('triggers below 13 PSI', () => {
     expect(monitorAfter([{ ...running, oilPressurePsi: 12.9 }, 1]).isLowPressure).toBe(true);
@@ -45,8 +45,7 @@ describe('ENG 1(2) OIL LO PR', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-ENG ENG 1(2) OIL HI TEMP, l.80528-80530: "Between 140 °C and 155 °C for more than 15 min, or Above
- * 155 °C." */
+/* ENG 1(2) OIL HI TEMP: between 140 °C and 155 °C for more than 15 min, or above 155 °C */
 describe('ENG 1(2) OIL HI TEMP', () => {
   it('triggers above 155 °C at once', () => {
     expect(monitorAfter([{ ...running, oilTemperatureCelsius: 156 }, 1]).isHighTemperature).toBe(true);
@@ -80,7 +79,7 @@ describe('ENG 1(2) OIL HI TEMP', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-ENG ENG 1(2) OIL FILTER CLOG, l.80497: "This alert triggers when the oil filter is clogged." */
+/* ENG 1(2) OIL FILTER CLOG: the oil filter is clogged */
 describe('ENG 1(2) OIL FILTER CLOG', () => {
   it('triggers with a clogged filter on a running engine', () => {
     expect(monitorAfter([{ ...running, oilFilterClogged: true }, 1]).isFilterClogged).toBe(true);
@@ -95,7 +94,7 @@ describe('ENG 1(2) OIL FILTER CLOG', () => {
   });
 });
 
-/* l.80536-80537 and l.80576-80578: THR LEVER (AFFECTED ENGINE) IDLE, ENG MASTER (AFFECTED ENGINE) OFF */
+/* The procedure: THR LEVER (AFFECTED ENGINE) IDLE, ENG MASTER (AFFECTED ENGINE) OFF */
 describe('ENG 1(2) OIL LO PR and OIL HI TEMP lines', () => {
   it('shows the THR LEVER line while the lever is above idle', () => {
     expect(engineOilShutDownLines(false)).toEqual([0, 1, 2]);
@@ -106,7 +105,7 @@ describe('ENG 1(2) OIL LO PR and OIL HI TEMP lines', () => {
   });
 });
 
-/* The alerts in the FWC: levels and flight phase inhibitions of the 2019 FCOM PDF pages 2281-2283 */
+/* The alerts in the FWC: levels and flight phase inhibitions */
 describe('PseudoFWC oil alerts', () => {
   const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
 

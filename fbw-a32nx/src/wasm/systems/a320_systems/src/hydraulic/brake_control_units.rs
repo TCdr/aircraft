@@ -1,9 +1,8 @@
 //! The A320 brake control units: the two channels of the Brake and Steering Control Unit (BSCU) and the Alternate
 //! Braking Control Unit (ABCU), with their power supplies and failures, and the autobrake fault monitoring.
 //!
-//! A320 FCOM DSC-32-30-10 (a320_fcom.txt l.51081-51102): "In normal operation, a dual channel Brake and Steering
-//! Control Unit (BSCU) controls normal braking and antiskid." The alternate braking is controlled by the ABCU, with the
-//! antiskid from the BSCU, or fully by the ABCU without antiskid.
+//! In normal operation the dual channel BSCU controls the normal braking and the antiskid. The alternate braking is
+//! controlled by the ABCU, with the antiskid from the BSCU, or fully by the ABCU without antiskid.
 
 use systems::{
     failures::{Failure, FailureType},
@@ -14,7 +13,7 @@ use systems::{
     },
 };
 
-/// The BSCU channels, the ABCU and the brake system failures (flyPad failures 32200-32205).
+/// The BSCU channels, the ABCU and the brake system failures.
 pub(super) struct A320BrakeControlUnits {
     bscu_channel_fault_ids: [VariableIdentifier; 2],
     bscu_active_channel_id: VariableIdentifier,
@@ -41,9 +40,8 @@ pub(super) struct A320BrakeControlUnits {
     autobrake_failed_after_armed: bool,
 }
 impl A320BrakeControlUnits {
-    /// Power supplies of the BSCU channels. A320 FCOM PRO-ABN-ELEC bus fault STATUS (see the FWC ElecBusAlerts):
-    /// BRK SYS 1 is lost with AC BUS 1 (l.75628-75654) or DC BUS 1 (l.76463-76476), BRK SYS 2 with AC BUS 2
-    /// (l.75872-75892) or DC BUS 2 (l.76714-76747).
+    /// Power supplies of the BSCU channels, as the electrical bus fault STATUS shows them (see the FWC
+    /// ElecBusAlerts): BRK SYS 1 is lost with AC BUS 1 or DC BUS 1, BRK SYS 2 with AC BUS 2 or DC BUS 2.
     const BSCU_CHANNEL_POWER_SUPPLIES: [[ElectricalBusType; 2]; 2] = [
         [
             ElectricalBusType::AlternatingCurrent(1),
@@ -55,7 +53,7 @@ impl A320BrakeControlUnits {
         ],
     ];
 
-    /// Power supply of the ABCU: ALTN BRK is lost with the DC ESS BUS (FCOM DC ESS BUS FAULT, l.77337-77369).
+    /// Power supply of the ABCU: ALTN BRK is lost with the DC ESS BUS (DC ESS BUS FAULT).
     const ABCU_POWER_SUPPLY: ElectricalBusType = ElectricalBusType::DirectCurrentEssential;
 
     const ADIRU_COUNT: usize = 3;
@@ -100,13 +98,13 @@ impl A320BrakeControlUnits {
     ) {
         self.update_active_channel(gear_handle_is_down);
 
-        // The BSCU uses the horizontal acceleration of ADIRU 1, 2 or 3 (FCOM l.51141-51144). Autobrake arming needs
-        // "At least one ADIRU is available" (l.51169).
+        // The BSCU uses the horizontal acceleration of ADIRU 1, 2 or 3. Autobrake arming needs at least one ADIRU
+        // available.
         self.any_adiru_available = (1..=Self::ADIRU_COUNT)
             .any(|adiru_number| adirs.heading(adiru_number).is_normal_operation());
 
-        // BRAKES AUTO BRK FAULT "triggers when the autobrake is failed, after being armed" (FCOM l.72473): latched
-        // when the autobrake function fails while armed, until the autobrake function is recovered.
+        // BRAKES AUTO BRK FAULT triggers when the autobrake fails after being armed: latched when the autobrake
+        // function fails while armed, until the autobrake function is recovered.
         if !self.autobrake_function_failed() {
             self.autobrake_failed_after_armed = false;
         } else if autobrake_is_armed && sim_is_ready {
@@ -114,8 +112,7 @@ impl A320BrakeControlUnits {
         }
     }
 
-    /// "A changeover between the two BSCU channels takes place at each DOWN landing gear lever selection, or in case
-    /// one channel fails." (FCOM l.51101-51102)
+    /// The two BSCU channels change over at each DOWN landing gear lever selection, or when one channel fails.
     fn update_active_channel(&mut self, gear_handle_is_down: bool) {
         let gear_down_selected = gear_handle_is_down && !self.gear_handle_was_down;
         self.gear_handle_was_down = gear_handle_is_down;
@@ -146,26 +143,26 @@ impl A320BrakeControlUnits {
         self.active_bscu_channel.is_some()
     }
 
-    /// The antiskid is electrically available: "deactivated ... Electrically (A/SKID & N/W STRG sw OFF, or power
-    /// supply failure, or BSCU failure)" (FCOM l.51309-51310)
+    /// The antiskid is electrically available: it is lost with the A/SKID & N/W STRG switch OFF, a power supply
+    /// failure or a BSCU failure
     pub(super) fn anti_skid_available(&self, anti_skid_switch_on: bool) -> bool {
         anti_skid_switch_on && self.bscu_operative()
     }
 
-    /// The normal braking can be used, hydraulic power apart: "Braking is electrically-controlled through the BSCU"
-    /// (FCOM l.51259), with the normal braking equipment working (BRAKES NORM BRK FAULT, l.72686).
+    /// The normal braking can be used, hydraulic power apart: it is electrically controlled through the BSCU and
+    /// needs the normal braking equipment working (BRAKES NORM BRK FAULT).
     pub(super) fn normal_braking_available(&self) -> bool {
         self.bscu_operative() && !self.normal_braking_failure.is_active()
     }
 
-    /// The ABCU works: alternate braking possible. Without it only the parking brake is left ("The parking brake is
-    /// still available", BRAKES NORM + ALTN FAULT l.72640-72641).
+    /// The ABCU works: alternate braking possible. Without it only the parking brake is left (BRAKES NORM + ALTN
+    /// FAULT).
     pub(super) fn alternate_braking_available(&self) -> bool {
         self.abcu_powered && !self.abcu_failure.is_active()
     }
 
-    /// The BSCU commands the nose wheel steering (FCOM DSC-32-20-10 l.50930-50937), lost with "failure of the
-    /// nosewheel steering system, or of both BSCU channels" (l.51038-51041)
+    /// The BSCU commands the nose wheel steering, lost with a failure of the nose wheel steering system or of both
+    /// BSCU channels
     pub(super) fn nose_wheel_steering_available(&self) -> bool {
         self.bscu_operative() && !self.nose_wheel_steering_failure.is_active()
     }
@@ -174,8 +171,8 @@ impl A320BrakeControlUnits {
         self.autobrake_failure.is_active() || !self.any_adiru_available
     }
 
-    /// The BSCU part of the autobrake arming conditions (FCOM l.51164-51169): "No failure in the braking system" and
-    /// "At least one ADIRU is available". The green pressure and the antiskid are checked by the caller.
+    /// The BSCU part of the autobrake arming conditions: no failure in the braking system and at least one ADIRU
+    /// available. The green pressure and the antiskid are checked by the caller.
     pub(super) fn autobrake_arming_allowed(&self) -> bool {
         self.normal_braking_available() && !self.autobrake_function_failed()
     }

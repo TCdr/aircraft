@@ -10,7 +10,6 @@ export type FuelSwitchFailureEffect = 'jam' | 'off';
 
 /** An MSFS fuel valve or pump that a failure can hold in place, whatever its cockpit control says */
 export interface FailableFuelSwitch {
-  /** The failure */
   failure: number;
   /** The MSFS valve (Valve.N) or pump (Pump.N) number, the index of its K events and simvars */
   index: number;

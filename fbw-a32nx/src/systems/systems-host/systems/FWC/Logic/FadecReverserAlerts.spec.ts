@@ -93,7 +93,7 @@ describe('ENG THR LEVER FAULT', () => {
     ]);
   });
 
-  /* l.81826-81829: "On the ground: ENG (AFFECTED) IDLE POWER ONLY", THR LEVER (AFFECTED) IDLE */
+  /* On the ground: ENG (AFFECTED) IDLE POWER ONLY, THR LEVER (AFFECTED) IDLE */
   it('shows ENG IDLE POWER ONLY (not ENG AT IDLE) and the lever line on the ground', () => {
     expect(thrustLeverFaultLines({ ...inputs, flightPhase: TAXI, rating: ThrustLeverRating.Idle })).toEqual([0, 8, 2]);
     expect(
@@ -226,7 +226,7 @@ describe('PseudoFWC wiring of the FADEC, thrust lever and reverser alerts', () =
     }
   });
 
-  it('uses the FCOM flight phase inhibitions', () => {
+  it('uses the aircraft flight phase inhibitions', () => {
     expect(block('7700501')).toContain('flightPhaseInhib: [3, 4, 5, 7, 8],');
     expect(block('7700511')).toContain('flightPhaseInhib: [4, 5, 7, 8],');
     expect(block('7700521')).toContain('flightPhaseInhib: [3, 4, 5, 7, 8],');

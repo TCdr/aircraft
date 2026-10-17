@@ -5077,7 +5077,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
    * Modifies the active flight plan to go direct to a specific waypoint, not necessarily in the flight plan
    */
   /**
-   * Modifies the active flight plan to go direct to a waypoint
    * @param waypoint the DIR TO waypoint
    * @param withAbeam DIR TO with the ABEAM PTS function
    * @param interceptCourse the radial of the RADIAL IN or RADIAL OUT function

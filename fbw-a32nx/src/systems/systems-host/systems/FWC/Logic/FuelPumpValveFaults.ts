@@ -1,19 +1,17 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-/** The FUEL L(R) TK PUMP cautions of one wing (A320 FCOM PRO-ABN-FUEL, a320_fcom.txt l.86168-86260) */
+/** The FUEL L(R) TK PUMP cautions of one wing */
 export interface WingTankPumpAlerts {
-  /** FUEL L(R) TK PUMP 1 LO PR */
   pump1LoPr: boolean;
-  /** FUEL L(R) TK PUMP 2 LO PR */
   pump2LoPr: boolean;
   /** FUEL L(R) TK PUMP 1+2 LO PR, which replaces the two single pump cautions */
   pumps1And2LoPr: boolean;
 }
 
 /**
- * The tank pump cautions of one wing: "This alert triggers when the pressure of one tank pump is low" (L(R) TK PUMP
- * 1(2) LO PR), "... when the pressure of the tank pumps is low" (L(R) TK PUMP 1 + 2 LO PR).
+ * The tank pump cautions of one wing: L(R) TK PUMP 1(2) LO PR when one tank pump has a low pressure, L(R) TK PUMP
+ * 1 + 2 LO PR when both have.
  * @param pump1LowPressure whether pump 1 is ON with a low delivery pressure (L:A32NX_FUEL_PUMP_n_LO_PR, confirmed)
  * @param pump2LowPressure the same for pump 2
  */
@@ -27,8 +25,7 @@ export function wingTankPumpAlerts(pump1LowPressure: boolean, pump2LowPressure: 
 }
 
 /**
- * Whether the X FEED valve position disagrees with the X FEED pb-sw: the condition of FUEL X FEED VALVE FAULT ("This alert
- * triggers when the valve position disagrees with the selected position", PRO-ABN-FUEL, a320_fcom.txt l.86717), before
+ * Whether the X FEED valve position disagrees with the X FEED pb-sw: the condition of FUEL X FEED VALVE FAULT, before
  * its confirmation time (the valve travel time is in transit, not a fault).
  * @param openPercentage the valve position, 0 (closed) to 100 (open)
  * @param pbOn whether the X FEED pb-sw is ON
@@ -38,8 +35,8 @@ export function isCrossFeedValveDisagree(openPercentage: number, pbOn: boolean):
 }
 
 /**
- * Whether the FUEL X FEED memo is shown: "if the fuel X FEED pb-sw is ON, and the X FEED valve is not fully closed"
- * (DSC-28-20, a320_fcom.txt l.43407). A valve jammed closed with the pb-sw ON gives no memo.
+ * Whether the FUEL X FEED memo is shown: the X FEED pb-sw is ON and the X FEED valve is not fully closed. A valve
+ * jammed closed with the pb-sw ON gives no memo.
  * @param pbOn whether the X FEED pb-sw is ON
  * @param openPercentage the valve position, 0 (closed) to 100 (open)
  */
@@ -47,7 +44,7 @@ export function isCrossFeedMemoShown(pbOn: boolean, openPercentage: number): boo
   return pbOn && openPercentage > 0;
 }
 
-/** The ECAM lines of FUEL L(R) TK PUMP 1 + 2 LO PR (A320 FCOM PRO-ABN-FUEL, a320_fcom.txt l.86207-86260) */
+/** The cockpit state the lines of FUEL L(R) TK PUMP 1 + 2 LO PR depend on */
 export interface WingTankPumps1And2Inputs {
   /** Whether the X FEED pb-sw is ON */
   crossFeedOn: boolean;
@@ -90,17 +87,17 @@ export interface CentreTransferValveFlags {
   notFullyOpen: boolean;
 }
 
-/** The FUEL CTR XFR FAULT cautions (A320 FCOM PRO-ABN-FUEL, a320_fcom.txt l.85400-85660) */
+/** The FUEL CTR XFR FAULT cautions */
 export interface CentreTransferValveAlerts {
-  /** FUEL CTR L XFR FAULT (VALVE NOT FULLY CLOSED): "either center transfer valve is failed in open position" */
+  /** FUEL CTR L XFR FAULT (VALVE NOT FULLY CLOSED): one centre transfer valve failed open */
   leftNotFullyClosed: boolean;
   rightNotFullyClosed: boolean;
-  /** FUEL CTR L + R XFR FAULT (VALVES NOT FULLY CLOSED): "both center transfer valves are failed in open position" */
+  /** FUEL CTR L + R XFR FAULT (VALVES NOT FULLY CLOSED): both centre transfer valves failed open */
   bothNotFullyClosed: boolean;
-  /** FUEL CTR L XFR FAULT (VALVE NOT FULLY OPEN): "either center transfer valve is failed in closed position" */
+  /** FUEL CTR L XFR FAULT (VALVE NOT FULLY OPEN): one centre transfer valve failed closed */
   leftNotFullyOpen: boolean;
   rightNotFullyOpen: boolean;
-  /** FUEL CTR L + R XFR FAULT (VALVES NOT FULLY OPEN): "both center transfer valves are failed in closed position" */
+  /** FUEL CTR L + R XFR FAULT (VALVES NOT FULLY OPEN): both centre transfer valves failed closed */
   bothNotFullyOpen: boolean;
 }
 
@@ -141,12 +138,11 @@ export interface CentreTransferFaultInputs {
 }
 
 /**
- * The lines of FUEL CTR L(R) XFR FAULT (VALVE NOT FULLY CLOSED) to show, in the order of its codes (A320 FCOM
- * PRO-ABN-FUEL, a320_fcom.txt l.85431-85460): title, -CTR TK XFR OFF, -FUEL X FEED ON, -TK PUMP 1 OFF, -TK PUMP 2 OFF,
- * .WHEN CTR TK EMPTY:, -TK PUMP 1 ON, -TK PUMP 2 ON, -FUEL X FEED OFF. An action line goes once it is done. While the
- * centre tank has fuel, the wing tank pumps are switched off to stop the transfer, and the lines for the empty centre tank
- * are shown below; once it is empty ("automatic recall of the warning"), only these remain (design choice for the
- * display of the two parts).
+ * The lines of FUEL CTR L(R) XFR FAULT (VALVE NOT FULLY CLOSED) to show, in the order of its codes: title, -CTR TK
+ * XFR OFF, -FUEL X FEED ON, -TK PUMP 1 OFF, -TK PUMP 2 OFF, .WHEN CTR TK EMPTY:, -TK PUMP 1 ON, -TK PUMP 2 ON, -FUEL X
+ * FEED OFF. An action line goes once it is done. While the centre tank has fuel, the wing tank pumps are switched off
+ * to stop the transfer, and the lines for the empty centre tank are shown below; once it is empty (the warning is
+ * recalled automatically), only these remain (design choice for the display of the two parts).
  */
 export function centreTransferNotClosedLines(inputs: CentreTransferFaultInputs): boolean[] {
   const { ctrTkXfrOn, crossFeedOn, pump1On, pump2On, centreTankEmpty } = inputs;
@@ -157,10 +153,10 @@ export function centreTransferNotClosedLines(inputs: CentreTransferFaultInputs):
 }
 
 /**
- * The lines of FUEL CTR L(R) XFR FAULT (VALVE NOT FULLY OPEN) to show, in the order of its codes (A320 FCOM PRO-ABN-FUEL,
- * a320_fcom.txt l.85510-85530): title, -FUEL MODE SEL MAN, .IF UNSUCCESSFUL:, -FUEL X FEED ON, -TK PUMP 1 OFF, -TK PUMP 2
- * OFF, .WHEN CTR TK EMPTY:, -TK PUMP 1 ON, -TK PUMP 2 ON, -FUEL X FEED OFF. The IF UNSUCCESSFUL part applies "if the
- * center tank is not empty"; the lines for the empty centre tank are shown as for VALVE NOT FULLY CLOSED.
+ * The lines of FUEL CTR L(R) XFR FAULT (VALVE NOT FULLY OPEN) to show, in the order of its codes: title, -FUEL MODE
+ * SEL MAN, .IF UNSUCCESSFUL:, -FUEL X FEED ON, -TK PUMP 1 OFF, -TK PUMP 2 OFF, .WHEN CTR TK EMPTY:, -TK PUMP 1 ON,
+ * -TK PUMP 2 ON, -FUEL X FEED OFF. The IF UNSUCCESSFUL part applies only while the centre tank is not empty; the lines
+ * for the empty centre tank are shown as for VALVE NOT FULLY CLOSED.
  */
 export function centreTransferNotOpenLines(inputs: CentreTransferFaultInputs): boolean[] {
   const { modeSelMan, crossFeedOn, pump1On, pump2On, centreTankEmpty } = inputs;

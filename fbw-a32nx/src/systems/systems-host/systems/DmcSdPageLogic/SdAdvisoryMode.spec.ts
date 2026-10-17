@@ -17,7 +17,7 @@ function inputs(overrides: Partial<SdAdvisoryModeInputs>): SdAdvisoryModeInputs 
   };
 }
 
-describe('SD advisory mode (A320 FCOM DSC-31-20 l.46102-46103, l.46122-46124, DSC-31-30 l.46733-46736)', () => {
+describe('SD advisory mode', () => {
   it('a new advisory calls its page, over the flight phase or a manually called page', () => {
     expect(sdAdvisoryAction(inputs({ advisoryPage: SdPages.ENG }))).toBe(SdAdvisoryAction.ShowAdvisoryPage);
   });

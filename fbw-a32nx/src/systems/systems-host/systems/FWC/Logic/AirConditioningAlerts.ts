@@ -5,37 +5,34 @@ import { Subject } from '@microsoft/msfs-sdk';
 import { Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { CondStatusCodes, StatusLines } from './CondStatus';
-import { ConfirmTimer, FwcAlertItem, cautionItem } from './FwcAlertItem';
+import { ConfirmTimer } from './BleedAlerts';
+import { FwcAlertItem, cautionItem } from './FwcAlertItem';
 
 /*
- * Air conditioning and pressurization items of the A320 FWC (ATA 21) that the FCOM gap audit found missing:
- * - the RAM AIR ON memo, FCOM DSC-21-10-50 (a320_fcom.txt l.8642);
- * - the CAB PR LDG ELEV FAULT caution, FCOM PRO-ABN-CAB_PR (l.73175-73196);
- * - the STATUS lines of the CAB PR alerts: EXCESS CAB ALT (l.73131-73132), SAFETY VALVE OPEN (l.73330-73346),
- *   SYS 1(2) FAULT (l.73379-73383) and SYS 1+2 FAULT (l.73443-73459).
- * The flight phase inhibition figures are images, read on the FCOM PDF ("A320 Neo FCOM_1.pdf", page given at each one).
+ * Air conditioning and pressurization items of the A320 FWC (ATA 21): the RAM AIR ON memo, the CAB PR LDG ELEV FAULT
+ * caution, and the STATUS lines of the CAB PR alerts (EXCESS CAB ALT, SAFETY VALVE OPEN, SYS 1(2) FAULT, SYS 1+2
+ * FAULT).
  */
 
-/** "RAM AIR ON : This memo appears in green, if the RAM AIR pb-sw is ON." (DSC-21-10-50, l.8642) */
+/** The green RAM AIR ON memo: shown while the RAM AIR pb-sw is ON */
 export function isRamAirOnMemoShown(ramAirPbOn: boolean): boolean {
   return ramAirPbOn;
 }
 
-/** The E/WD code of the RAM AIR ON memo */
 export const RAM_AIR_ON_MEMO_CODE = '000024001';
 
 /** The alert key of CAB PR LDG ELEV FAULT (EwdMessages 21312360x) */
 export const LDG_ELEV_FAULT_KEY = '2131236';
 
-/** CAB PR LDG ELEV FAULT flight phase inhibition (FCOM PDF page 4475): shown in phases 1, 2 and 6 only */
+/** CAB PR LDG ELEV FAULT flight phase inhibition: shown in phases 1, 2 and 6 only */
 export const LDG_ELEV_FAULT_PHASE_INHIBITION = [3, 4, 5, 7, 8, 9, 10];
 
 /**
  * How long both FMGC landing elevation words must stay in failure before CAB PR LDG ELEV FAULT, in seconds. Design
- * choice, the FCOM gives none: at power-up and at flight load the words read 0 (SSM failure warning) until the FMGC
- * software writes its first word; about 6 s was recorded in the sim on 2026-10-15. The FWC startup inhibit (FwsManager,
- * 5 s) only stops the MASTER lights and aurals, not the E/WD line, and it does not wait for the FMGCs; 15 s leaves margin
- * for a slower FMGC start.
+ * choice (no documented value): at power-up and at flight load the words read 0 (SSM failure warning) until the FMGC
+ * software writes its first word, about 6 s measured in the sim. The FWC startup inhibit (FwsManager, 5 s) only stops
+ * the MASTER lights and aurals, not the E/WD line, and it does not wait for the FMGCs; 15 s leaves margin for a slower
+ * FMGC start.
  */
 export const LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS = 15;
 
@@ -52,12 +49,12 @@ export interface LandingElevationFaultInputs {
 }
 
 /**
- * CAB PR LDG ELEV FAULT: "This alert triggers when the LDG ELEV selector is set to AUTO and the landing field elevation
- * of the FMGS is not available." (PRO-ABN-CAB_PR, l.73186-73187). The FCOM lists the alert only after FMGC failures:
- * "DUAL RESET WITH LOSS OF DATA" (DSC-22_20-90-10, l.26801) and "DUAL LATCH" (both FMGCs inoperative, l.26904).
- * User decision 2026-10-15: the elevation is "not available" when no FMGC sends it at all (each FMGC unhealthy or its
- * word in failure), not when the FMGC has no destination yet (SSM NCD, A32NX_FMCMainDisplay), else the caution showed at every power-up until
- * a destination was entered. The FMGC failure has to last LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS (CabinPressureAlerts).
+ * CAB PR LDG ELEV FAULT: the LDG ELEV selector is at AUTO and the landing field elevation of the FMGS is not available.
+ * The real aircraft gives it only after FMGC failures (dual reset with loss of data, dual latch).
+ * Design choice: the elevation is "not available" when no FMGC sends it at all (each FMGC unhealthy or its word in
+ * failure), not when the FMGC has no destination yet (SSM NCD, A32NX_FMCMainDisplay), else the caution would show at
+ * every power-up until a destination is entered. The FMGC failure has to last LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS
+ * (CabinPressureAlerts).
  * With both CPCs failed, the FWC shows SYS 1+2 FAULT and its MAN pressurization procedure instead (design choice).
  *
  * @param fmgcDataLossConfirmed both FMGC words have been in failure for the confirmation time
@@ -124,27 +121,26 @@ const MAN_CAB_PR_SCHEDULE = [
   S.duringFinalApproach,
 ];
 
-/** CAB PR EXCESS CAB ALT STATUS (l.73131-73132): MAX FL 100/MEA-MORA */
+/** CAB PR EXCESS CAB ALT STATUS: MAX FL 100/MEA-MORA */
 export function excessCabinAltitudeStatus(): StatusLines {
   return { left: [CondStatusCodes.maxFl100], inopSys: [] };
 }
 
 /**
- * CAB PR SAFETY VALVE OPEN STATUS (l.73330-73346; the climb target V/S lost its line in the text, it is on the PDF
- * figure, 2019 FCOM PDF page 2102): MAN CAB PR CTL, TGT V/S CLIMB 500 / DESC 300 FT/MIN, the A/C FL - CAB ALT TGT table,
- * DURING FINAL APPR: MAN V/S CTL FULL UP. The CAUTION box of the FCOM page is a crew note, not an ECAM line.
+ * CAB PR SAFETY VALVE OPEN STATUS: MAN CAB PR CTL, TGT V/S CLIMB 500 / DESC 300 FT/MIN, the A/C FL - CAB ALT TGT
+ * table, DURING FINAL APPR: MAN V/S CTL FULL UP. The CAUTION box of the procedure is a crew note, not an ECAM line.
  */
 export function safetyValveOpenStatus(): StatusLines {
   return { left: [...MAN_CAB_PR_SCHEDULE, S.manVsCtlFullUp], inopSys: [] };
 }
 
-/** CAB PR SYS 1(2) FAULT STATUS (l.73379-73383): INOP SYS CAB PR 1(2) */
+/** CAB PR SYS 1(2) FAULT STATUS: INOP SYS CAB PR 1(2) */
 export function cpcFaultStatus(cpc: 1 | 2): StatusLines {
   return { left: [], inopSys: [cpc === 1 ? S.cabPr1 : S.cabPr2] };
 }
 
 /**
- * CAB PR SYS 1+2 FAULT STATUS (l.73443-73459, 2019 FCOM PDF page 2105): the manual pressurization part with
+ * CAB PR SYS 1+2 FAULT STATUS: the manual pressurization part with
  * V/S CTL FULL UP during the final approach, INOP SYS CAB PR 1+2.
  */
 export function cpc1And2FaultStatus(): StatusLines {
@@ -165,7 +161,7 @@ export class CabinPressureAlerts {
 
   /** The alert items, by key, for the PseudoFWC ewdMessageFailures */
   public readonly ewdFailures: Record<string, FwcAlertItem> = {
-    // CAB PR LDG ELEV FAULT, l.73195: "LDG ELEV ... ADJUST", until the selector leaves AUTO
+    // 0 title, 1 -LDG ELEV ADJUST: the alert ends when the selector leaves AUTO
     [LDG_ELEV_FAULT_KEY]: cautionItem(
       LDG_ELEV_FAULT_KEY,
       2,

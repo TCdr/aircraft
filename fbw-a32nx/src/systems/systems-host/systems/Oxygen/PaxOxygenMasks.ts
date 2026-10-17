@@ -4,10 +4,9 @@
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
 
 /**
- * The cabin altitude above which the passenger oxygen mask containers open by themselves: "Each container has an
- * electrical latching mechanism that opens automatically to allow the masks to drop, if the cabin pressure altitude
- * exceeds 14 000 ft (+250, -750 ft)" (A320 FCOM DSC-35-30-10, a320_fcom.txt l.56878-56880). The 16 000 ft setting for
- * operations on high altitude airfields is an option the FBW A32NX does not have.
+ * The cabin altitude above which the passenger oxygen mask containers open by themselves: each container has an
+ * electrical latch that opens to drop the masks when the cabin pressure altitude exceeds 14 000 ft (+250, -750 ft).
+ * The 16 000 ft setting for operations on high altitude airfields is an option the FBW A32NX does not have.
  */
 export const PAX_MASK_RELEASE_CABIN_ALTITUDE_FT = 14_000;
 

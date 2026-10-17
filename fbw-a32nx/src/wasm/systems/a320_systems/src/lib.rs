@@ -75,7 +75,7 @@ use systems::{
     simulation::{Aircraft, SimulationElement, SimulationElementVisitor, UpdateContext},
 };
 
-/// The FADEC faults of the A320 FCOM that have no engine model effect (PRO-ABN-ENG, a320_fcom.txt):
+/// The A320 FADEC faults that have no engine model effect:
 /// ENG 1(2) FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH
 /// FAULT (see systems::engine::engine_monitoring_fault and the FWC Logic/EngineMonitoringAlerts.ts).
 const A320_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 6] = [
@@ -373,7 +373,7 @@ impl Aircraft for A320 {
             [self.lgcius.lgciu1(), self.lgcius.lgciu2()],
         );
 
-        // Probes and windows heated with an engine running or in flight (FCOM DSC-30-40-10, DSC-30-50-10)
+        // Probes and windows heated with an engine running or in flight
         let lgcius = [self.lgcius.lgciu1(), self.lgcius.lgciu2()];
         self.probe_window_heat.update(
             [1, 2]
@@ -469,10 +469,10 @@ mod tests {
         test_bed
     }
 
-    /// FCOM PRO-ABN-ENG: with the ENG FIRE pb pushed the engine shuts down "after a time delay" once
-    /// the fuel between the LP valve and the nozzles is burned (fuel/engine_lp_valve.rs: about 99 s
-    /// at a sea-level idle). The starvation must still cut the engine fuel (MSFS valve 13/14 and the
-    /// FADEC) now that the engine failures share that cut (engine_failure.rs).
+    /// With the ENG FIRE pb pushed the engine shuts down after a time delay, once the fuel between
+    /// the LP valve and the nozzles is burned (fuel/engine_lp_valve.rs: about 99 s at a sea-level
+    /// idle). The starvation cuts the engine fuel (MSFS valve 13/14 and the FADEC) through the fuel
+    /// cut it shares with the engine failures (engine_failure.rs).
     #[test]
     fn the_eng_fire_pb_cuts_the_engine_fuel_after_the_residual_fuel_is_burned() {
         let mut test_bed = aircraft_with_engines_at_idle();

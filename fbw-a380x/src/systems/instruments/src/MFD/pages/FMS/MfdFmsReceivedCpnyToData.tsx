@@ -16,7 +16,6 @@ import { cpnyToRequestPage } from './MfdFmsCpnyToRequest';
 
 import './MfdFmsReceivedCpnyToData.scss';
 
-/** Takeoff data for up to four runways */
 const maxRunways = 4;
 
 /**

@@ -119,10 +119,10 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
     this.loadedFlightPlanIndex,
   );
 
-  /** The ROUTE SELECTION page lists the company routes of the FROM / TO city pair */
   /**
-   * The (ALTN) RTE SEL buttons always display the ROUTE SELECTION page; only the route entries are limited (company
-   * route: PREFLIGHT phase, alternate route: a primary destination, both: no temporary flight plan). Without a city pair the page shows no route.
+   * The RTE SEL button displays the ROUTE SELECTION page (the company routes of the FROM / TO city pair) while the
+   * COMPANY ROUTE field is enterable, ALTN RTE SEL while no temporary flight plan is pending. Without a city pair the
+   * page shows no route.
    */
   private readonly rteSelDisabled = this.cpnyRteDisabled.map((v) => v);
 

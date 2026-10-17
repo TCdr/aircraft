@@ -15,7 +15,6 @@ import {
   BleedStatusCodes as S,
   EngineBleedInputs,
   NO_BLEED_INPUTS,
-  bleedAlertCodes,
   crossBleedFaultLines,
   crossBleedFaultStatus,
   engine1And2BleedFaultLines,
@@ -32,6 +31,7 @@ import {
   isEngineBleedValveNotClosed,
 } from './BleedAlerts';
 import { CrossBleedSelector } from './EngineFailAlerts';
+import { alertCodes } from './FwcAlertItem';
 
 /** Engine running, bleed ON and supplying air, pack ON: the normal in-flight state */
 const running: EngineBleedInputs = {
@@ -75,7 +75,6 @@ const run = (alerts: BleedAlerts, inputs: BleedInputs, seconds: number) => {
 const activeKeys = (alerts: BleedAlerts) =>
   Object.keys(alerts.ewdFailures).filter((key) => alerts.ewdFailures[key].simVarIsActive.get());
 
-/* A320 FCOM PRO-ABN-AIR AIR ENG 1(2) BLEED FAULT, a320_fcom.txt l.69805-69811 */
 describe('AIR ENG 1(2) BLEED FAULT', () => {
   it('triggers on a running engine with a bleed overheat or overpressure (BMC flags)', () => {
     expect(isEngineBleedFault({ ...running, overheat: true })).toBe(true);
@@ -84,7 +83,7 @@ describe('AIR ENG 1(2) BLEED FAULT', () => {
     expect(isEngineBleedFault({ ...running, overheat: true, engineRunning: false })).toBe(false);
   });
 
-  it('becomes ENG 1+2 BLEED FAULT when both bleeds fail (l.70025)', () => {
+  it('becomes ENG 1+2 BLEED FAULT when both bleeds fail', () => {
     const alerts = new BleedAlerts();
     const one = run(alerts, withEngine(cruise, 0, { overheat: true }), 0.2);
     expect(one.engineBleedFault).toEqual([true, false]);
@@ -94,7 +93,7 @@ describe('AIR ENG 1(2) BLEED FAULT', () => {
     expect(both.engine1And2BleedFault).toBe(true);
   });
 
-  it('shows ENG BLEED OFF while the valve is open, PACK FLOW LO with WAI off, X BLEED OPEN (l.69830-69845)', () => {
+  it('shows ENG BLEED OFF while the valve is open, PACK FLOW LO with WAI off, X BLEED OPEN', () => {
     const fault = withEngine(cruise, 0, { overheat: true });
     expect(engineBleedFaultLines(fault, 0)).toEqual([0, 1, 2, 4]);
     // valve closed by the BMC, PACK FLOW at LO, X BLEED at OPEN: the actions done go
@@ -104,7 +103,7 @@ describe('AIR ENG 1(2) BLEED FAULT', () => {
     expect(engineBleedFaultLines({ ...fault, wingAntiIceOn: true }, 0)).toEqual([0, 1, 3, 4]);
   });
 
-  it('STATUS: ONE PACK ONLY IF WAI ON; INOP SYS ENG 1 BLEED, PACK 1 if closed (l.69850-69855)', () => {
+  it('STATUS: ONE PACK ONLY IF WAI ON; INOP SYS ENG 1 BLEED, PACK 1 if closed', () => {
     expect(engineBleedFaultStatus(cruise, 0)).toEqual({ left: [S.onePackOnlyIfWaiOn], inopSys: [S.eng1Bleed] });
     expect(engineBleedFaultStatus(withEngine(cruise, 1, { packOn: false }), 1).inopSys).toEqual([S.eng2Bleed, S.pack2]);
   });
@@ -116,7 +115,6 @@ describe('AIR ENG 1(2) BLEED FAULT', () => {
   });
 });
 
-/* l.70279-70452 */
 describe('AIR ENG 1(2) BLEED LO TEMP', () => {
   it('follows the Rust LOW_TEMPERATURE flag; both engines give ENG 1+2 BLEED LO TEMP', () => {
     const alerts = new BleedAlerts();
@@ -130,13 +128,13 @@ describe('AIR ENG 1(2) BLEED LO TEMP', () => {
     expect(both.engine1And2BleedLoTemp).toBe(true);
   });
 
-  it('opposite bleed available (l.70312-70322): A/THR OFF, THR LEVER ADVANCE, IF UNSUCCESSFUL X BLEED, BLEED, PACK', () => {
+  it('opposite bleed available: A/THR OFF, THR LEVER ADVANCE, IF UNSUCCESSFUL X BLEED, BLEED, PACK', () => {
     const loTemp = { ...withEngine(cruise, 0, { lowTemperature: true }), wingAntiIceOn: true };
     expect(engineBleedLoTempLines(loTemp, 0)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     expect(engineBleedLoTempStatus(loTemp, 0)).toEqual({ left: [], inopSys: [S.eng1Bleed] });
   });
 
-  it('opposite bleed not available (l.70364-70372): IF UNSUCCESSFUL WING ANTI ICE OFF, AVOID ICING CONDITIONS', () => {
+  it('opposite bleed not available: IF UNSUCCESSFUL WING ANTI ICE OFF, AVOID ICING CONDITIONS', () => {
     const loTemp = {
       ...withEngine(withEngine(cruise, 0, { lowTemperature: true }), 1, { bleedPbAuto: false }),
       wingAntiIceOn: true,
@@ -150,7 +148,6 @@ describe('AIR ENG 1(2) BLEED LO TEMP', () => {
   });
 });
 
-/* l.70474-70490 */
 describe('AIR ENG 1(2) BLEED HI TEMP', () => {
   it('triggers above 240 °C at the precooler outlet, not with the BLEED FAULT of the same engine', () => {
     expect(isEngineBleedHiTemp({ ...running, bleedTemperatureCelsius: 241 })).toBe(true);
@@ -160,7 +157,7 @@ describe('AIR ENG 1(2) BLEED HI TEMP', () => {
     expect(isEngineBleedHiTemp({ ...running, bleedTemperatureCelsius: -100 })).toBe(false);
   });
 
-  it('WAI off: PACK 2 (1) OFF; WAI on: the pack still on OR WAI OFF (l.70480-70490)', () => {
+  it('WAI off: PACK 2 (1) OFF; WAI on: the pack still on OR WAI OFF', () => {
     expect(engineBleedHiTempLines(cruise, 0)).toEqual([0, 1]);
     expect(engineBleedHiTempLines(withEngine(cruise, 0, { packOn: false }), 0)).toEqual([0, 1]);
     expect(engineBleedHiTempLines({ ...withEngine(cruise, 1, { packOn: false }), wingAntiIceOn: true }, 0)).toEqual([
@@ -172,7 +169,6 @@ describe('AIR ENG 1(2) BLEED HI TEMP', () => {
   });
 });
 
-/* l.70542-70544 */
 describe('AIR ENG 1(2) BLEED NOT CLSD', () => {
   it('a bleed valve open during a start, with the APU bleed on, or with the engine stopped', () => {
     expect(isEngineBleedValveNotClosed(withEngine(cruise, 0, { starterValveOpen: true }), 0)).toBe(true);
@@ -195,13 +191,12 @@ describe('AIR ENG 1(2) BLEED NOT CLSD', () => {
     expect(run(alerts, cruise, 0.1).engineBleedNotClosed).toEqual([false, false]);
   });
 
-  it('shows ENG BLEED OFF until the pb is OFF (l.70550)', () => {
+  it('shows ENG BLEED OFF until the pb is OFF', () => {
     expect(engineBleedNotClosedLines(cruise, 1)).toEqual([0, 1]);
     expect(engineBleedNotClosedLines(withEngine(cruise, 1, { bleedPbAuto: false }), 1)).toEqual([0]);
   });
 });
 
-/* l.69686 */
 describe('AIR BLEED 1(2) OFF', () => {
   it('triggers when the ENG BLEED pb of a running engine is set OFF without a reason', () => {
     const alerts = new BleedAlerts();
@@ -227,7 +222,6 @@ describe('AIR BLEED 1(2) OFF', () => {
   });
 });
 
-/* l.69519-69520 */
 describe('AIR APU BLEED FAULT', () => {
   const apuRunning = { ...cruise, apuAvailable: true, apuMasterSwitchOn: true, apuSpeedPercent: 100 };
 
@@ -244,7 +238,7 @@ describe('AIR APU BLEED FAULT', () => {
     expect(isApuBleedValveDisagree({ ...apuRunning, ...pbOnValveClosed, apuSpeedPercent: 90 })).toBe(false);
   });
 
-  it('is confirmed after 10 s (the amber APU valve delay of the BLEED page, l.57807-57808)', () => {
+  it('is confirmed after 10 s', () => {
     const alerts = new BleedAlerts();
     const disagree = { ...apuRunning, apuBleedPbOn: true, apuBleedValveOpen: false };
     expect(run(alerts, disagree, 9.5).apuBleedFault).toBe(false);
@@ -252,7 +246,6 @@ describe('AIR APU BLEED FAULT', () => {
   });
 });
 
-/* l.71023-71038 */
 describe('AIR X BLEED FAULT', () => {
   it('the crossbleed valve disagrees with the selector (AUTO: open with the APU bleed valve open)', () => {
     expect(isCrossBleedValveDisagree(cruise)).toBe(false);
@@ -292,7 +285,7 @@ describe('AIR X BLEED FAULT', () => {
 });
 
 describe('FWC alert items', () => {
-  it('are amber cautions (level 2) that call the BLEED page, with the FCOM PDF phase inhibitions', () => {
+  it('are amber cautions (level 2) that call the BLEED page, with their flight phase inhibitions', () => {
     const alerts = new BleedAlerts();
     for (const item of Object.values(alerts.ewdFailures)) {
       expect(item.failure).toBe(2);
@@ -317,7 +310,7 @@ describe('FWC alert items', () => {
 
   it('every E/WD code has a text, the titles under AIR (EwdMessages)', () => {
     for (const key of Object.values(BleedAlertKeys)) {
-      const codes = bleedAlertCodes(key, BleedAlertLineCounts[key]);
+      const codes = alertCodes(key, BleedAlertLineCounts[key]);
       const texts = formatEwdMessages(codes);
       texts.forEach((text, i) => expect(text, codes[i]).not.toBe(''));
       expect(texts[0]).toContain('AIR');

@@ -4,11 +4,9 @@
 // Native test of the FAC rudder actuator failures (src/fac/FacActuatorMonitor.h) with the generated FacComputer: run
 // test/run_tests.sh.
 //
-// A320 FCOM PRO-ABN-AUTO_FLT: YAW DAMPER 1(2) "one yaw damper actuator is failed" (a320_fcom.txt l.71990), RUD TRIM 1(2)
-// FAULT "one rudder trim actuator is failed" (l.71751), RUD TRV LIM 1(2) "one rudder travel limitation actuator is
-// failed" (l.71836); with both lost, the SYS alerts (l.71792, l.71875, l.72022). Each FAC drives its own actuator of each
-// function: with a failed actuator, FAC 1 cannot engage the function and FAC 2 takes it over; the failed FAC reports
-// the fault to the FWC, a failed FAC reports nothing.
+// YAW DAMPER 1(2), RUD TRIM 1(2) FAULT and RUD TRV LIM 1(2) come with one failed actuator of their function, the SYS
+// alerts with both lost. Each FAC drives its own actuator of each function: with a failed actuator, FAC 1 cannot engage
+// the function and FAC 2 takes it over; the failed FAC reports the fault to the FWC, a failed FAC reports nothing.
 
 #include <cstdio>
 

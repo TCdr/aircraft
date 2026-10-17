@@ -49,7 +49,7 @@ export const FuelPage = () => {
   const [onGround] = useSimVar('SIM ON GROUND', 'bool', 1000);
 
   const [fwcFlightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'enum', 1000);
-  // FUEL QUANTITY - ADVISORY (FCOM DSC-28-20): the heavier wing pulses above 1 500 kg of imbalance in phases 2 and 6
+  // Fuel quantity advisory: the heavier wing pulses above 1 500 kg of imbalance in phases 2 and 6
   const imbalancePulse = wingImbalancePulse(
     (tankLeftInner + tankLeftOuter) * fuelWeightPerGallon,
     (tankRightInner + tankRightOuter) * fuelWeightPerGallon,
@@ -390,7 +390,6 @@ const CrossFeedValveLine = ({ x, y, position }: EngineValveProps) => {
   return <line x1={x - 15} y1={y} x2={x + 15} y2={y} />;
 };
 
-/** The X FEED valve: its colour follows the FCOM rule of isCrossFeedValveGreen */
 const CrossFeedValve = ({ x, y }: EngineLpValveProps) => {
   const [position] = useSimVar('FUELSYSTEM VALVE OPEN:3', 'percent', 500);
   // The X FEED pb-sw selection (the MSFS valve switch is held still while the valve is jammed)
@@ -412,7 +411,6 @@ type PumpProps = {
   pumpNumber: number;
 };
 
-/** A wing tank pump: its symbol follows the FCOM rule of wingPumpIndication */
 const Pump = ({ x, y, onBus = 'DC_ESS', pumpNumber }: PumpProps) => {
   const [busIsPowered] = useSimVar(`L:A32NX_ELEC_${onBus}_BUS_IS_POWERED`, 'bool', 1000);
   // The pb-sw selection (the MSFS pump switch is held off while the pump is failed)

@@ -4,10 +4,10 @@
 // Native test of the MSFS throttle during and after an in-flight engine start
 // (fbw-common/src/wasm/fbw_common/src/EngineStartThrottleHold.h, shared with the A380X): run test/run_tests.sh.
 //
-// The in-flight relights of the sim test of 2026-10-05 (leap_relight.log) ended with the MSFS N2 at 110-114 % for 3-7 s, with
-// the thrust lever in CL (T1, FL150) and even at IDLE (T2, FL265). The thrust loop (the generated FadecComputer model, used here
-// as it is) integrates the MSFS throttle until the MSFS commanded N1 meets the N1 target. The scenarios below close that loop
-// over a small model of the MSFS engine and replay the two recorded relights.
+// Measured in the sim, the in-flight relights ended with the MSFS N2 at 110-114 % for 3-7 s, with the thrust lever in CL
+// (FL150) and even at IDLE (FL265). The thrust loop (the generated FadecComputer model, used here as it is) integrates the
+// MSFS throttle until the MSFS commanded N1 meets the N1 target. The scenarios below close that loop over a small model of
+// the MSFS engine and replay the two recorded relights.
 
 #include <algorithm>
 #include <cmath>
@@ -274,14 +274,14 @@ static void checkScenario(const Scenario& s, double duration, double settleLimit
 }
 
 /**
- * Replay of the A32NX quick relight T2 of the sim test of 2026-10-05 (overshoot.log, engine 1, FL150 / 248 kt, lever CL with the
+ * Replay of an A32NX quick relight recorded in the sim (engine 1, FL150 / 248 kt, lever CL with the
  * A/THR): ENG MASTER OFF at 441.2 s (SHUTTING), ON at 447.3 s (RESTARTING), FBW ON at 452.0 s. MSFS already commanded its idle N1
  * at throttle 0 (26.6 % against the idle limit 26.0-26.1 %) while the engine still turned fast, so the hold took the commanded N1 at
  * the RESTARTING for "idle reached" and let the loop drive the throttle during the start: 0.8 -> 59 % in 5 s, then N2 96.8 %
  * against about 90 % for the lever. The recorded inputs are fed to the hold at 30 frames per second, each sample held for its
  * 0.5 s; the hold is shared by both aircraft (the decision does not depend on the engine).
  */
-static void replayA32nxQuickRelightT2() {
+static void replayA32nxQuickRelight() {
   struct Sample {
     double t;               // s
     double engineState;     // L:A32NX_ENGINE_STATE:1
@@ -328,21 +328,21 @@ static void replayA32nxQuickRelightT2() {
       }
     }
   }
-  std::printf("T2 replay (A32NX quick relight FL150, lever CL): %d of %d RESTARTING frames released, highest MSFS throttle %.1f %% "
+  std::printf("quick relight replay (A32NX FL150, lever CL): %d of %d RESTARTING frames released, highest MSFS throttle %.1f %% "
               "while RESTARTING, released once ON: %s\n",
               restartingFramesReleased, restartingFrames, highestRestartingThrottle, releasedOnceOn ? "yes" : "no");
-  expect(restartingFramesReleased == 0, "T2 replay: the hold keeps the engine at idle during the whole RESTARTING",
+  expect(restartingFramesReleased == 0, "quick relight replay: the hold keeps the engine at idle during the whole RESTARTING",
          restartingFramesReleased);
-  expect(highestRestartingThrottle == 0.0, "T2 replay: MSFS throttle at idle while RESTARTING", highestRestartingThrottle);
-  expect(releasedOnceOn, "T2 replay: released once ON with the commanded N1 at idle", 0.0);
+  expect(highestRestartingThrottle == 0.0, "quick relight replay: MSFS throttle at idle while RESTARTING", highestRestartingThrottle);
+  expect(releasedOnceOn, "quick relight replay: released once ON with the commanded N1 at idle", 0.0);
 }
 
 int main() {
-  // T1 of the sim test: quick relight at FL150 / 250 kt, thrust lever in CL (FBW idle N2 66.8 %, MSFS N2 limit 113.6 %).
-  const Scenario t1{"T1 quick relight FL150, lever CL", 15000, 25.0, 30.0, 87.0, 66.8, 30.0, 72.0, 113.6, 66.0, 6.0, 61.0};
-  // T2 of the sim test: windmill relight at FL265 / 279 kt, thrust lever at IDLE (FBW idle N2 65.6 %, MSFS idle N2 ~75.5 %,
+  // Recorded quick relight at FL150 / 250 kt, thrust lever in CL (FBW idle N2 66.8 %, MSFS N2 limit 113.6 %).
+  const Scenario t1{"quick relight FL150, lever CL", 15000, 25.0, 30.0, 87.0, 66.8, 30.0, 72.0, 113.6, 66.0, 6.0, 61.0};
+  // Recorded windmill relight at FL265 / 279 kt, thrust lever at IDLE (FBW idle N2 65.6 %, MSFS idle N2 ~75.5 %,
   // N2 limit 110.7 %), engine out 30 s (relight N2 35 %).
-  const Scenario t2{"T2 windmill relight FL265, lever IDLE", 26500, 0.0, 40.0, 88.0, 65.6, 40.0, 75.5, 110.7, 64.8, 30.0, 35.0};
+  const Scenario t2{"windmill relight FL265, lever IDLE", 26500, 0.0, 40.0, 88.0, 65.6, 40.0, 75.5, 110.7, 64.8, 30.0, 35.0};
   // The MSFS idle N1 at throttle 0 settles below the FBW idle limit: the commanded N1 never reaches it, the hold must still end.
   const Scenario t3{"MSFS idle N1 below the FBW idle limit, CL", 15000, 25.0, 30.0, 87.0, 66.8, 26.0, 72.0, 113.6, 66.0, 6.0, 61.0};
   // The MSFS idle N2 settles below the FBW idle N2: the FADEC never sees the start end at idle; the throttle must still be released.
@@ -374,23 +374,23 @@ int main() {
   checkScenario(t6, 60.0, EngineStartThrottleHold::IDLE_STABILISATION_MAX_SECONDS + 10.0);
   checkScenario(t7, 60.0, EngineStartThrottleHold::IDLE_STABILISATION_MAX_SECONDS + 10.0);
 
-  // T1 with a compressor stall active during the relight (flyPad ATA 72 compressor stall, lever CL: N1 target above the 60 % stall
-  // threshold): the engine stalls as soon as it is ON and the stall N1 loss (up to 15 %) is added to the MSFS commanded N1 that the
-  // hold sees. The hold must still wait for the MSFS commanded N1 itself to reach idle (integration note of 2026-10-07: "the stall
-  // makes the commanded N1 look higher"); the N2 must settle at the stalled value without overshoot.
+  // The quick relight at FL150 with a compressor stall active during the relight (flyPad ATA 72 compressor stall, lever CL:
+  // N1 target above the 60 % stall threshold): the engine stalls as soon as it is ON and the stall N1 loss (up to 15 %) is
+  // added to the MSFS commanded N1 that the hold sees. The stall loss makes the commanded N1 look higher, so the hold must
+  // still wait for the MSFS commanded N1 itself to reach idle; the N2 must settle at the stalled value without overshoot.
   {
     Scenario t8        = t1;
-    t8.name            = "T8 = T1, compressor stall";
+    t8.name            = "quick relight FL150, lever CL, compressor stall";
     t8.compressorStall = true;
     checkScenario(t8, 40.0, 15.0);
     const Result r = run(t8, true, true, 40.0);
     std::printf("%s: hold released with the MSFS commanded N1 at %.1f %% (idle limit %.1f %%)\n", t8.name, r.releaseCommandedN1,
                 t8.idleLimit);
     expect(r.releaseCommandedN1 >= t8.idleLimit - EngineStartThrottleHold::IDLE_REACHED_MARGIN_PERCENT,
-           "T8: hold released only once the MSFS commanded N1 (without the stall loss) reached idle", r.releaseCommandedN1);
+           "compressor stall: hold released only once the MSFS commanded N1 (without the stall loss) reached idle", r.releaseCommandedN1);
   }
 
-  replayA32nxQuickRelightT2();
+  replayA32nxQuickRelight();
 
   {
     const Result r3 = run(t3, true, true, 50.0);
@@ -398,7 +398,6 @@ int main() {
            "low MSFS idle N1: hold released within the idle stabilisation time", r3.heldAfterOnSeconds);
   }
 
-  // The decision itself.
   {
     using Hold  = EngineStartThrottleHold;
     using Phase = EngineStartThrottleHold::Phase;
@@ -437,7 +436,7 @@ int main() {
     idle.update({false, RESTARTING, 0.0, 40.0, 40.0, 0.1, 0.0, 66.8});
     idle.update({false, ON, 41.0, 40.0, 40.0, 0.1, 0.0, 66.8});
     expect(idle.currentPhase() == Phase::NORMAL, "flight, lever at IDLE: normal once idle is reached", 0.0);
-    // A quick relight: MSFS already commands its idle N1 at throttle 0 while the engine still starts (sim test T2): held until ON.
+    // A quick relight: MSFS already commands its idle N1 at throttle 0 while the engine still starts (as recorded): held until ON.
     Hold quick;
     quick.update({false, SHUTTING, 26.6, 26.0, 60.0, 0.1, 80.0, 66.6});
     expect(quick.update({false, RESTARTING, 27.0, 26.0, 66.0, 0.1, 62.0, 66.6}).throttleAtIdle,

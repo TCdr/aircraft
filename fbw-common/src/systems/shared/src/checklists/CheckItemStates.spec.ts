@@ -31,7 +31,7 @@ describe('A32NX FUEL PUMPS OFF checklist item', () => {
     expect(checkA32NXFuelPumpsOff()).toBe(false);
   });
 
-  it('does not wait for the CTR TK L and R XFR pb-sw, which stay ON at parking (FCOM: items of their own)', () => {
+  it('does not wait for the CTR TK L and R XFR pb-sw, which stay ON at parking (items of their own)', () => {
     mockSimVars();
     simVars.set('L:A32NX_OVHD_FUEL_CTR_TK_L_XFR_PB_IS_ON', 1);
     simVars.set('L:A32NX_OVHD_FUEL_CTR_TK_R_XFR_PB_IS_ON', 1);

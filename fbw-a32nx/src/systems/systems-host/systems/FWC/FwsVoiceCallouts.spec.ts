@@ -70,7 +70,7 @@ function run(fwc: PseudoFWC, soundManager: FwsSoundManager, seconds: number): vo
   }
 }
 
-describe('A32NX FWC sidestick priority voices on the whole FWC (a320_fcom.txt l.45756-45760, 45804)', () => {
+describe('A32NX FWC sidestick priority voices on the whole FWC', () => {
   it('PRIORITY LEFT when the FCDC reports the F/O sidestick deactivated for 1 s', () => {
     const { fwc, soundManager } = createFwc();
     run(fwc, soundManager, 1);
@@ -94,7 +94,7 @@ describe('A32NX FWC sidestick priority voices on the whole FWC (a320_fcom.txt l.
   });
 });
 
-describe('A32NX WINDSHEAR voice on the whole FWC (a320_fcom.txt l.34229, 45713)', () => {
+describe('A32NX WINDSHEAR voice on the whole FWC', () => {
   it('WINDSHEAR (three times in one clip) once when the FACs raise the reactive windshear warning', () => {
     const { fwc, soundManager } = createFwc();
     run(fwc, soundManager, 1);
@@ -104,7 +104,7 @@ describe('A32NX WINDSHEAR voice on the whole FWC (a320_fcom.txt l.34229, 45713)'
   });
 });
 
-describe('A32NX intermediate height callout on the whole FWC (a320_fcom.txt l.53585-53594)', () => {
+describe('A32NX intermediate height callout on the whole FWC', () => {
   it('holding 300 ft: THREE HUNDRED 11 s after the descent below 410 ft, then every 4 s', () => {
     const { fwc, soundManager } = createFwc();
     for (const ra of [1, 2]) {

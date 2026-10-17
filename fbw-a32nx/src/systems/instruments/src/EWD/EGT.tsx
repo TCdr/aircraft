@@ -30,7 +30,7 @@ export class Egt extends DisplayComponent<EgtProps> {
   private readonly gaugeStartAngle = Subject.create(270);
 
   // The red line starts at the EGT red limit (975 °C, see @shared/EngineLimits): the gauge sweeps 180 degrees clockwise from
-  // 270 over its scale. It started at 70 degrees, about 1067 °C, above the red limit of the EGT colour.
+  // 270 over its scale.
   private readonly gaugeStartAngleRed = Subject.create(
     270 + (EGT_RED_LIMIT_DEGREES / (Egt.GAUGE_MAX - Egt.GAUGE_MIN)) * 180 - 360,
   );
@@ -64,7 +64,7 @@ export class Egt extends DisplayComponent<EgtProps> {
   /** The FADEC sends the engine parameters (L:A32NX_FADEC_POWERED_ENGn): the exceedance memory only latches valid values */
   private fadecPowered = false;
 
-  /** The red mark at the highest EGT reached above the red limit (FCOM DSC-70-90-40 EGT EXCEEDANCE) */
+  /** The red mark at the highest EGT reached above the red limit */
   private readonly egtExceedance = new ExceedanceMemory(EGT_RED_LIMIT_DEGREES);
 
   private egtExceedanceValue = Subject.create(0);

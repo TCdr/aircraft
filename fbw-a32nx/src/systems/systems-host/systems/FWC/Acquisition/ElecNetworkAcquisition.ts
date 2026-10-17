@@ -6,7 +6,7 @@ import { ElecNetworkState } from '../Logic/ElecBusAlerts';
 
 /**
  * Reads the electrical network state that the ELEC bus alerts need (Logic/ElecBusAlerts) from the Rust electrical system
- * (fbw-a32nx/docs/a320-simvars.md: A32NX_ELEC_{name}_BUS_IS_POWERED, A32NX_ELEC_CONTACTOR_{name}_IS_CLOSED,
+ * (A32NX_ELEC_{name}_BUS_IS_POWERED, A32NX_ELEC_CONTACTOR_{name}_IS_CLOSED,
  * A32NX_ELEC_{name}_POTENTIAL_NORMAL, A32NX_OVHD_ELEC_AC_ESS_FEED_PB_IS_NORMAL), and the overhead selectors used by the
  * ELEC procedure lines.
  */

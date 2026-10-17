@@ -67,7 +67,7 @@ const ACTIVE_KEYS = (s: ReturnType<typeof state>) =>
     .filter(([key, value]) => key !== 'spoilerFaults' && value === true)
     .map(([key]) => key);
 
-describe('F/CTL surface cautions (FCOM PRO-ABN-F_CTL)', () => {
+describe('F/CTL surface cautions', () => {
   it('no caution with all servojacks available', () => {
     expect(state({})).toEqual(NO_SURFACE_FAULT);
   });
@@ -78,7 +78,7 @@ describe('F/CTL surface cautions (FCOM PRO-ABN-F_CTL)', () => {
     );
   });
 
-  describe('ailerons (AIL SERVO FAULT l.82488-82505, L(R) AIL FAULT l.83448-83480)', () => {
+  describe('ailerons', () => {
     it('one servojack lost by a servo fault: AIL SERVO FAULT only', () => {
       expect(ACTIVE_KEYS(state({ lost: [W3.leftAileronElac1Available] }))).toEqual(['ailServoFault']);
     });
@@ -113,7 +113,7 @@ describe('F/CTL surface cautions (FCOM PRO-ABN-F_CTL)', () => {
     });
   });
 
-  describe('elevators (ELEV SERVO FAULT l.82950-82986, L(R) ELEV FAULT l.83515-83599)', () => {
+  describe('elevators', () => {
     it('one servojack lost by a servo fault: ELEV SERVO FAULT only', () => {
       expect(ACTIVE_KEYS(state({ lost: [W3.rightElevator2Available] }))).toEqual(['elevServoFault']);
     });
@@ -149,7 +149,7 @@ describe('F/CTL surface cautions (FCOM PRO-ABN-F_CTL)', () => {
     });
   });
 
-  describe('ELAC 1(2) PITCH FAULT (l.82916-82949)', () => {
+  describe('ELAC 1(2) PITCH FAULT', () => {
     it('pitch channel lost, roll channel working, blue pressurised: ELAC 1 PITCH FAULT', () => {
       expect(ACTIVE_KEYS(state({ word1: [W1.elac1PitchFault] }))).toEqual(['elac1PitchFault']);
     });
@@ -170,7 +170,7 @@ describe('F/CTL surface cautions (FCOM PRO-ABN-F_CTL)', () => {
     });
   });
 
-  describe('SPLR FAULT (l.84525-84648)', () => {
+  describe('SPLR FAULT', () => {
     it('a spoiler servo fault: SPLR FAULT; SPD BRK DO NOT USE only for spoilers 3 or 4', () => {
       const spoiler1 = state({ word5: [FcdcBits.word5.spoilerFault[0]] });
       expect(spoiler1.spoilerFault).toBe(true);
@@ -202,7 +202,7 @@ describe('F/CTL surface cautions (FCOM PRO-ABN-F_CTL)', () => {
   });
 });
 
-describe('ELAC 1+2 FAULT (FCOM l.82799-82853, BOTH COMPUTERS FAILED)', () => {
+describe('ELAC 1+2 FAULT', () => {
   it('replaces ELAC 1 FAULT and ELAC 2 FAULT when both are active', () => {
     expect(elacFaultAlerts(true, true)).toEqual({ elac1Fault: false, elac2Fault: false, elac12Fault: true });
     expect(elacFaultAlerts(true, false)).toEqual({ elac1Fault: true, elac2Fault: false, elac12Fault: false });
@@ -210,7 +210,7 @@ describe('ELAC 1+2 FAULT (FCOM l.82799-82853, BOTH COMPUTERS FAILED)', () => {
     expect(elacFaultAlerts(false, false)).toEqual({ elac1Fault: false, elac2Fault: false, elac12Fault: false });
   });
 
-  it('shows the FCOM procedure for both computers', () => {
+  it('shows the procedure for both computers', () => {
     const lines = elac12FaultLines(true, true).filter((line): line is number => line !== null);
     const text = formatEwdMessages(lines.map((line) => `2701010${(line + 1).toString().padStart(2, '0')}`)).join('|');
     expect(text).toContain('ELAC 1+2 FAULT');
@@ -258,7 +258,7 @@ describe('E/WD texts of the new F/CTL alerts', () => {
     });
   });
 
-  it('titles and lines as in the FCOM', () => {
+  it('titles and lines as on the aircraft', () => {
     const text = (codes: string[]) => formatEwdMessages(codes).join('|');
     expect(text(['270105001', '270105002', '270105003'])).toMatch(/L ELEV FAULT.*MANEUVER WITH CARE.*MAX PITCH 15 DEG/);
     expect(text(['270108001', '270108002', '270108003'])).toMatch(/L AIL FAULT.*FUEL CONSUMPT INCRSD.*FMS PRED/);
@@ -288,7 +288,7 @@ describe('PseudoFWC wiring', () => {
     return pseudoFwc.slice(start, pseudoFwc.indexOf('\n    },', start));
   };
 
-  it('ALTN LAW keys SPD BRK DO NOT USE on the elevator loss, not on the FCDC SPD BRK 3+4 bit (FCOM l.82547)', () => {
+  it('ALTN LAW keys SPD BRK DO NOT USE on the elevator loss, not on the FCDC SPD BRK 3+4 bit', () => {
     for (const key of ['2700375', '2700390']) {
       expect(entry(key)).toContain('this.fctlSurfaces.leftOrRightElevatorLost');
       expect(entry(key)).not.toContain('speedBrakeDoNotUse');
@@ -301,7 +301,7 @@ describe('PseudoFWC wiring', () => {
     expect(entry('2701010')).toContain('simVarIsActive: this.elac12FaultAlert');
   });
 
-  it('the new alerts use the FCOM phase inhibitions and levels', () => {
+  it('the new alerts use the aircraft phase inhibitions and levels', () => {
     const expected: [string, string, number][] = [
       ['2701010', 'FctlPhases.elacFault', 2],
       ['2701020', 'FctlPhases.elacPitchFault', 1],

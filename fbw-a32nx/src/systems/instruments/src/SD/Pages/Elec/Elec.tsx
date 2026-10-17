@@ -667,7 +667,7 @@ const GalleyShed = ({ x, y }) => (
   </SvgGroup>
 );
 
-/** The IDG state the SD ELEC page shows (FCOM DSC-24-20, see IdgIndications) */
+/** The IDG state the SD ELEC page shows (see IdgIndications) */
 const useIntegratedDriveGenerator = (number: number) => {
   const [connected] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${number}_IDG_IS_CONNECTED`, 'Bool', maxStaleness);
   const [temperature] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${number}_IDG_OIL_OUTLET_TEMPERATURE`, 'Celsius', maxStaleness);

@@ -1230,7 +1230,6 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
         : -1;
     const rtaOnSelected = rta !== null && legIndex !== null && rtaLegIndex === legIndex;
 
-    // RTA message area
     if (
       leg &&
       isLeg(leg) &&

@@ -1,23 +1,21 @@
 //! ATA 30 probe and window heat of the A320: the three Probe Heat Computers (PHC) and the two Window Heat Computers
 //! (WHC), with the failures of the heaters, for the ANTI ICE probe and window cautions of the FWC.
 //!
-//! A320 FCOM DSC-30-50-10 (a320_fcom.txt l.44511-44529), probes heat:
-//! - "Three independent Probe Heat Computers (PHCs) automatically control and monitor: Captain probes, F/O probes,
-//!   STBY probes. They protect against overheating and indicate faults."
-//! - "The probes are heated: Automatically when at least one engine is running, or when the aircraft is in flight.
-//!   Manually, when the flight crew switches ON the PROBE/WINDOW HEAT pb."
-//! - "On the ground, the TAT probes are not heated and pitot heating operates at a low level".
-//!   The heated probes: pitot, static ports, AOA and TAT probes (the STBY probes have no TAT probe).
+//! Probe heat: three independent Probe Heat Computers (PHCs) control and monitor the CAPT, F/O and STBY probes, protect
+//! them against overheating and indicate faults. The probes are heated automatically when at least one engine runs or
+//! in flight, and manually with the PROBE/WINDOW HEAT pb ON. On the ground the TAT probes are not heated and the pitot
+//! heating runs at a low level. The heated probes: pitot, static ports, AOA and TAT probes (the STBY probes have no TAT
+//! probe).
 //!
-//! A320 FCOM DSC-30-40-10 (l.44435-44448), window heat: "Two independent Window Heat Computers (WHCs), one on each
-//! side, automatically regulate the system, protect it against overheating, and indicate faults. Window heating comes
-//! on: automatically when at least one engine is running, or when the aircraft is in flight; manually, before engine
-//! start, when the flight crew switches ON the PROBE/WINDOW HEAT pushbutton switch."
+//! Window heat: two independent Window Heat Computers (WHCs), one on each side, regulate the system, protect it against
+//! overheating and indicate faults. The windows are heated automatically when at least one engine runs or in flight,
+//! and manually before the engine start with the PROBE/WINDOW HEAT pb ON.
 //!
-//! Design choices (the FCOM gives no more): a computer detects the failure of a heater while it heats it (a TAT heater on
-//! the ground, not heated, shows no fault); a failed PHC raises the PROBES fault, an unpowered one does not (the
-//! electrical alerts give the STATUS of a lost bus); the computer buses are not in the FCOM: CAPT PHC AC ESS SHED,
-//! F/O PHC AC 2, STBY PHC AC 1, L WHC AC 1, R WHC AC 2. The heat itself has no effect on the sim (no probe icing model).
+//! Design choices (nothing more is published): a computer detects the failure of a heater while it heats it (a TAT
+//! heater on the ground, not heated, shows no fault); a failed PHC raises the PROBES fault, an unpowered one does not
+//! (the electrical alerts give the STATUS of a lost bus); the computer buses are not published: CAPT PHC AC ESS SHED,
+//! F/O PHC AC 2, STBY PHC AC 1, L WHC AC 1, R WHC AC 2. The heat itself has no effect on the sim (no probe icing
+//! model).
 
 use systems::{
     failures::{Failure, FailureType},
@@ -58,7 +56,7 @@ struct ProbeHeatComputer {
 }
 impl ProbeHeatComputer {
     fn new(context: &mut InitContext, number: usize, powered_by: ElectricalBusType) -> Self {
-        // "the STBY probes": pitot, static ports and AOA, no TAT probe
+        // The STBY probes: pitot, static ports and AOA, no TAT probe
         let probe_count = if number == 3 { 4 } else { 5 };
         Self {
             computer_fault_id: context.get_identifier(format!("PHC_{}_FAULT", number)),
@@ -88,7 +86,7 @@ impl ProbeHeatComputer {
             .zip(self.heater_failures.iter())
             .enumerate()
         {
-            // "On the ground, the TAT probes are not heated"
+            // On the ground the TAT probes are not heated
             let heated = demand.heats() && (probe != TAT_PROBE || demand.in_flight);
             *fault = operating && heated && failure.is_active();
         }

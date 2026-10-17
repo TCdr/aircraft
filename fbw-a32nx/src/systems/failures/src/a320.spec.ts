@@ -307,7 +307,7 @@ describe('A320 flyPad failures', () => {
     expect(adirsFailures.length).toBe(15);
   });
   // The labels say what a320_systems hydraulic/sfcc does with ids 27010-27013: the channel no longer drives its motor
-  // (F/CTL FLAP(SLAT) SYS 1(2) FAULT, a320_fcom.txt l.83217-83247, l.84321-84341)
+  // (F/CTL FLAP(SLAT) SYS 1(2) FAULT)
   it('lists the SFCC flap and slat channel failures in ATA 27 with the Rust failure they trigger', () => {
     const expected: [number, string, string][] = [
       [A320Failure.Sfcc1FlapChannel, 'SlatFlapControlComputerFlapChannel(1)', 'SFCC 1 flap channel'],

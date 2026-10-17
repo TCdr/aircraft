@@ -11,7 +11,6 @@ import {
   readFuelLpValveFqiInputs,
 } from './FuelLpValveFqiAlerts';
 
-/* A320 FCOM PRO-ABN-FUEL FUEL ENG 1(2) LP VALVE OPEN (a320_fcom.txt l.85839) and FUEL FQI CH 1(2) FAULT (l.85896) */
 describe('FUEL ENG 1(2) LP VALVE OPEN and FUEL FQI CH 1(2) FAULT', () => {
   const read = (values: Record<string, number>) => (name: string) => values[name] ?? 0;
 
@@ -35,7 +34,7 @@ describe('FUEL ENG 1(2) LP VALVE OPEN and FUEL FQI CH 1(2) FAULT', () => {
     expect(alerts.fqiChannelFault).toEqual([false, false]);
   });
 
-  it('is inhibited in the flight phases of the FCOM figures (PDF pages 2415 and 2417)', () => {
+  it('is inhibited in the aircraft flight phases', () => {
     expect(ENG_LP_VALVE_OPEN_PHASE_INHIBITION).toEqual([4, 5, 7, 8]);
     expect(FQI_CHANNEL_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
   });

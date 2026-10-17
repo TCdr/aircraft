@@ -150,8 +150,8 @@ class Polynomial_A32NX {
 
     // Below this point the fit is unreliable: evaluated anyway it swings as high as ~2.8x idle FF
     // around normalN2 of 0.06 before settling back down, almost certainly sparse/noisy calibration
-    // data for the very start of the light-off. Rather than clamp straight to 0 there (which made
-    // FF jump discontinuously from 0 to ~27% of idle the instant the polynomial took over), ramp
+    // data for the very start of the light-off. Clamping straight to 0 there would make FF jump
+    // discontinuously from 0 to ~27% of idle the instant the polynomial takes over, so ramp
     // smoothly from 0 at ignition up to the polynomial's own value at the threshold.
     constexpr double FF_POLYNOMIAL_START = 0.37;
     double normalFF;

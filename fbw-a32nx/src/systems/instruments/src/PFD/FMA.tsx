@@ -230,7 +230,6 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
     this.secondBorderSub.set(secondBorder);
   }
 
-  /** Computes the FMA line 3 messages of FmaLine3Messages.ts from the latest inputs */
   private updateLine3Messages(): void {
     const word1 = this.fmgcDiscreteWord1;
     const word4 = this.fmgcDiscreteWord4;

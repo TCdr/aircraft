@@ -82,12 +82,12 @@ const NO_PUMP_LO_PR = {
   yellowEngPumpLoPr: false,
 };
 
-describe('A320 HYD alert triggers (FCOM PRO-ABN-HYD)', () => {
+describe('A320 HYD alert triggers', () => {
   it('no alert with the systems normal', () => {
     expect(shownAfter(state())).toEqual([]);
   });
 
-  it('no alert cold and dark on ground: the ENG pump LO PR is inhibited with the engine stopped (l.43801-43802)', () => {
+  it('no alert cold and dark on ground: the ENG pump LO PR is inhibited with the engine stopped', () => {
     expect(shownAfter(state(COLD_AND_DARK), 30, 1)).toEqual([]);
   });
 
@@ -129,7 +129,7 @@ describe('A320 HYD alert triggers (FCOM PRO-ABN-HYD)', () => {
     expect(shownAfter(state({ blue: { lowPressure: true } }))).toEqual(['blueSysLoPr']);
   });
 
-  it('B SYS LO PR is a line of HYD B RSVR OVHT, not a second alert (l.46444-46445)', () => {
+  it('B SYS LO PR is a line of HYD B RSVR OVHT, not a second alert', () => {
     expect(shownAfter(state({ blue: { lowPressure: true, reservoirOverheat: true } }))).toEqual(['blueRsvrOvht']);
   });
 
@@ -139,19 +139,19 @@ describe('A320 HYD alert triggers (FCOM PRO-ABN-HYD)', () => {
       greenEnginePumpLowPressure: true,
       greenEnginePumpSectionLow: true,
     });
-    // l.88459-88460: "If the green hydraulic system is lost due to low level, the HYD PTU FAULT ECAM message may appear"
+    // A green system lost by a low level may also give HYD PTU FAULT
     expect(shownAfter(leak)).toEqual(['greenRsvrLoLvl', 'ptuFault']);
     const overheat = state({ green: { lowPressure: true, reservoirOverheat: true }, greenEnginePumpLowPressure: true });
     expect(shownAfter(overheat)).toEqual(['greenRsvrOvht']);
   });
 
-  it('B ELEC PUMP OVHT replaces B ELEC PUMP LO PR (one procedure, l.86976)', () => {
+  it('B ELEC PUMP OVHT replaces B ELEC PUMP LO PR', () => {
     expect(shownAfter(state({ blueElecPumpLowPressure: true, blueElecPumpOverheat: true }))).toEqual([
       'blueElecPumpOvht',
     ]);
   });
 
-  it('a dual SYS LO PR warning replaces the alerts of both systems (l.88304-88306)', () => {
+  it('a dual SYS LO PR warning replaces the alerts of both systems', () => {
     const monitor = new HydraulicAlertMonitor();
     const blueLost = state({ blue: { lowPressure: true } });
     expect(run(monitor, blueLost, 6)).toEqual(['blueSysLoPr']);
@@ -167,7 +167,7 @@ describe('A320 HYD alert triggers (FCOM PRO-ABN-HYD)', () => {
   it.each([
     [{ green: { lowPressure: true }, blue: { lowPressure: true } }, ['greenBlueSysLoPr']],
     [{ green: { lowPressure: true }, yellow: { lowPressure: true } }, ['greenYellowSysLoPr']],
-    // design choice: no triple failure procedure, G+Y and the blue system alone
+    // Design choice: no triple failure procedure, G+Y and the blue system alone
     [
       { green: { lowPressure: true }, blue: { lowPressure: true }, yellow: { lowPressure: true } },
       ['blueSysLoPr', 'greenYellowSysLoPr'],
@@ -176,7 +176,7 @@ describe('A320 HYD alert triggers (FCOM PRO-ABN-HYD)', () => {
     expect(shownAfter(state(overrides))).toEqual(expected);
   });
 
-  it('HYD G RSVR LO LVL is inhibited for the first 15 s of phase 5 only (l.87528)', () => {
+  it('HYD G RSVR LO LVL is inhibited for the first 15 s of phase 5 only', () => {
     const monitor = new HydraulicAlertMonitor();
     const lowLevel = state({ green: { reservoirLowLevel: true } });
     expect(run(monitor, lowLevel, 14, 5)).toEqual([]);
@@ -203,15 +203,15 @@ describe('A320 HYD alert triggers (FCOM PRO-ABN-HYD)', () => {
     expect(shownAfter({ ...secondEngineStart, ptuPbAuto: false })).toEqual([]);
   });
 
-  it('HYD PTU FAULT in flight: a G or Y reservoir low level with a G or Y system low pressure (l.88803-88804)', () => {
+  it('HYD PTU FAULT in flight: a G or Y reservoir low level with a G or Y system low pressure', () => {
     const shown = shownAfter(state({ green: { reservoirLowLevel: true, lowPressure: true } }));
     expect(shown).toContain('ptuFault');
     expect(shown).toContain('greenRsvrLoLvl');
   });
 });
 
-describe('A320 HYD alert lines (FCOM PRO-ABN-HYD)', () => {
-  it('HYD B RSVR OVHT: BLUE ELEC PUMP OFF, then B SYS LO PR with FUEL CONSUMPT INCRSD (l.87243-87248)', () => {
+describe('A320 HYD alert lines', () => {
+  it('HYD B RSVR OVHT: BLUE ELEC PUMP OFF, then B SYS LO PR with FUEL CONSUMPT INCRSD', () => {
     expect(text('2900126', blueElecPumpLines(state({ blue: { reservoirOverheat: true } })))).toBe(
       '\x1b<4m\x1b4mHYD\x1bm B RSVR OVHT | \x1b<5m -BLUE ELEC PUMP.....OFF',
     );
@@ -225,7 +225,7 @@ describe('A320 HYD alert lines (FCOM PRO-ABN-HYD)', () => {
     expect(pumpOff).toContain('FMS PRED UNRELIABLE');
   });
 
-  it('HYD G RSVR OVHT: PTU OFF, GREEN ENG 1 PUMP OFF, G ENG 1 PUMP LO PR, G SYS LO PR (l.87611-87619)', () => {
+  it('HYD G RSVR OVHT: PTU OFF, GREEN ENG 1 PUMP OFF, G ENG 1 PUMP LO PR, G SYS LO PR', () => {
     const lines = text(
       '2900128',
       greenReservoirLines(state({ green: { lowPressure: true }, greenEnginePumpSectionLow: true })),
@@ -235,7 +235,7 @@ describe('A320 HYD alert lines (FCOM PRO-ABN-HYD)', () => {
     expect(lines.indexOf('G ENG 1 PUMP LO PR')).toBeLessThan(lines.indexOf('G SYS LO PR'));
   });
 
-  it('HYD Y RSVR OVHT and LO LVL: the YELLOW ENG 2 PUMP and BRK Y ACCU PR MONITOR lines (l.88170-88187)', () => {
+  it('HYD Y RSVR OVHT and LO LVL: the YELLOW ENG 2 PUMP and BRK Y ACCU PR MONITOR lines', () => {
     const inputs = state({ yellow: { lowPressure: true }, yellowElecPumpPbOn: true, yellowEnginePumpSectionLow: true });
     for (const prefix of ['2900127', '2900112']) {
       const lines = text(prefix, yellowReservoirLines(inputs));
@@ -247,7 +247,7 @@ describe('A320 HYD alert lines (FCOM PRO-ABN-HYD)', () => {
     }
   });
 
-  it('HYD Y RSVR LO AIR PR: the IF PRESS FLUCTUATES condition with its actions (l.87948-87951)', () => {
+  it('HYD Y RSVR LO AIR PR: the IF PRESS FLUCTUATES condition with its actions', () => {
     const lines = text(
       '2900109',
       yellowReservoirLowAirPressureLines(state({ yellow: { reservoirLowAirPressure: true } })),
@@ -257,7 +257,7 @@ describe('A320 HYD alert lines (FCOM PRO-ABN-HYD)', () => {
     expect(lines).not.toContain('Y SYS LO PR');
   });
 
-  it('HYD G ENG 1 PUMP LO PR: GREEN ENG 1 PUMP OFF (l.87327)', () => {
+  it('HYD G ENG 1 PUMP LO PR: GREEN ENG 1 PUMP OFF', () => {
     expect(text('2900105', greenEnginePumpLines(state()))).toBe(
       '\x1b<4m\x1b4mHYD\x1bm G ENG 1 PUMP LO PR | \x1b<5m -GREEN ENG 1 PUMP...OFF',
     );
@@ -296,14 +296,14 @@ describe('A320 HYD alert lines (FCOM PRO-ABN-HYD)', () => {
     expect(noPumpCause).not.toContain('YELLOW ELEC PUMP');
   });
 
-  it('HYD G+Y SYS LO PR: PTU OFF, AFFECTED PUMPS OFF, MANEUVER WITH CARE (l.88646-88656)', () => {
+  it('HYD G+Y SYS LO PR: PTU OFF, AFFECTED PUMPS OFF, MANEUVER WITH CARE', () => {
     const lines = text('2900122', greenYellowSysLoPrLines(state(), NO_PUMP_LO_PR));
     expect(lines).toContain('-PTU................OFF');
     expect(lines).toContain('-AFFECTED PUMPS.....OFF');
     expect(lines).toContain('MANEUVER WITH CARE');
   });
 
-  it('HYD PTU FAULT: PTU OFF only for a reservoir low level with its system low pressure (l.88814-88815)', () => {
+  it('HYD PTU FAULT: PTU OFF only for a reservoir low level with its system low pressure', () => {
     expect(text('2900116', ptuFaultLines(state()))).toBe('\x1b<4m\x1b4mHYD\x1bm PTU FAULT');
     expect(text('2900116', ptuFaultLines(state({ yellow: { reservoirLowLevel: true, lowPressure: true } })))).toContain(
       '-PTU................OFF',
@@ -311,8 +311,8 @@ describe('A320 HYD alert lines (FCOM PRO-ABN-HYD)', () => {
   });
 });
 
-describe('A320 HYD STATUS (FCOM PRO-ABN-HYD)', () => {
-  it('HYD B RSVR OVHT: APPR PROC, LDG DIST PROC, INOP SYS BLUE HYD (l.87274-87291)', () => {
+describe('A320 HYD STATUS', () => {
+  it('HYD B RSVR OVHT: APPR PROC, LDG DIST PROC, INOP SYS BLUE HYD', () => {
     const page = statusPage(hydraulicStatus.blueRsvrOvht());
     expect(page.left.split('\r')).toEqual([
       '\x1b<7mAPPR PROC: HYD LO PR',
@@ -334,14 +334,14 @@ describe('A320 HYD STATUS (FCOM PRO-ABN-HYD)', () => {
     ]);
   });
 
-  it('HYD G RSVR LO AIR PR: GREEN ENG 1 PUMP ON, IF HYD NOT RECOVERED: L/G GRVTY EXTN (l.87471-87496)', () => {
+  it('HYD G RSVR LO AIR PR: GREEN ENG 1 PUMP ON, IF HYD NOT RECOVERED: L/G GRVTY EXTN', () => {
     const left = statusPage(hydraulicStatus.greenRsvrLoAirPr()).left;
     expect(left.indexOf('GREEN ENG 1 PUMP.....ON')).toBeLessThan(left.indexOf('IF HYD NOT RECOVERED:'));
     expect(left.indexOf('IF HYD NOT RECOVERED:')).toBeLessThan(left.indexOf('L/G..........GRVTY EXTN'));
     expect(left).toContain('ALTN Y BRK WITH A/SKID');
   });
 
-  it('HYD G(Y) ENG PUMP LO PR: only the pump with the PTU operative, the lost system without (l.87333, l.87394)', () => {
+  it('HYD G(Y) ENG PUMP LO PR: only the pump with the PTU operative, the lost system without', () => {
     expect(statusPage(hydraulicStatus.greenEngPumpLoPr(false))).toEqual({
       normal: false,
       left: '',
@@ -376,7 +376,7 @@ describe('A320 HYD STATUS (FCOM PRO-ABN-HYD)', () => {
     expect(dualLowLevel.right).toContain('EMER GEN');
   });
 
-  it('RAT FAULT and PTU FAULT: INOP SYS RAT and PTU (l.88876-88880, l.88833-88837)', () => {
+  it('RAT FAULT and PTU FAULT: INOP SYS RAT and PTU', () => {
     expect(statusPage(hydraulicStatus.ratFault()).right).toBe('\x1b<7m\x1b4mINOP SYS\x1bm\r\x1b<4mRAT');
     expect(statusPage(hydraulicStatus.ptuFault()).right).toBe('\x1b<7m\x1b4mINOP SYS\x1bm\r\x1b<4mPTU');
   });

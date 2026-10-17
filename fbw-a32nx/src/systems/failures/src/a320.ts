@@ -106,7 +106,7 @@ export const A320Failure = Object.freeze({
   Fcdc1Failure: 27005,
   Fcdc2Failure: 27006,
   // Slat and flap channels of the SFCCs (a320_systems hydraulic/sfcc): the channel no longer drives its motor, the
-  // surfaces move at half speed (a320_fcom.txt l.41431); F/CTL FLAP(SLAT) SYS 1(2) FAULT (l.83217-83247, l.84321-84341)
+  // surfaces move at half speed; F/CTL FLAP(SLAT) SYS 1(2) FAULT
   Sfcc1FlapChannel: 27010,
   Sfcc2FlapChannel: 27011,
   Sfcc1SlatChannel: 27012,
@@ -680,7 +680,8 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // The N1 and N2 indications run 7 % / 6 % above their value: ENG N1 OVER LIMIT at takeoff thrust; the thrust is unchanged
   [72, A320Failure.Eng1Overspeed, 'Engine 1 N1/N2 overspeed indication'],
   [72, A320Failure.Eng2Overspeed, 'Engine 2 N1/N2 overspeed indication'],
-  // N1 and N2 vibrations above the SD advisory (6 / 4.3 units) at climb and cruise thrust; no ECAM alert (QRH procedure)
+  // N1 and N2 vibrations above the SD advisory (6 / 4.3 units) at climb and cruise thrust; no ECAM alert (paper
+  // procedure only)
   [77, A320Failure.Eng1HighVibration, 'Engine 1 high vibration'],
   [77, A320Failure.Eng2HighVibration, 'Engine 2 high vibration'],
 
@@ -692,7 +693,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [73, A320Failure.Eng2FadecChannelB, 'Engine 2 FADEC channel B'],
   [73, A320Failure.Eng1FadecOverheat, 'Engine 1 FADEC overheat'],
   [73, A320Failure.Eng2FadecOverheat, 'Engine 2 FADEC overheat'],
-  // The FADEC selects idle, CLB or frozen takeoff thrust by the FCOM rules; no reverser with both resolvers lost
+  // The FADEC selects idle, CLB or frozen takeoff thrust by the aircraft rules; no reverser with both resolvers lost
   [73, A320Failure.ThrustLever1Resolvers, 'Thrust lever 1 resolvers (both)'],
   [73, A320Failure.ThrustLever2Resolvers, 'Thrust lever 2 resolvers (both)'],
   [73, A320Failure.ThrustLever1ResolverDisagree, 'Thrust lever 1 resolver disagree'],

@@ -72,7 +72,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (ElectricalBusType::DirectCurrentGndFltService, 15),
     ])?
     .with_auxiliary_power_unit(Variable::named("OVHD_APU_START_PB_IS_AVAILABLE"), 8, 7)?
-    // The MSFS engine anti-ice follows the engine anti-ice valves (a320_systems pneumatic.rs)
+    // The MSFS engine anti-ice follows the engine anti-ice valves
     .with_engine_anti_ice_valves(2)?
     .with_wing_anti_ice()?
     // The engine fuel is cut when the engine starves (its LP fuel valve is closed and the fuel left
@@ -227,7 +227,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             26_011,
             FailureType::FireDetectionUnit(FireDetectionZone::Apu),
         ),
-        // SFCC flap and slat channels (hydraulic::sfcc): F/CTL FLAP(SLAT) SYS 1(2) FAULT
+        // SFCC flap and slat channels: F/CTL FLAP(SLAT) SYS 1(2) FAULT
         (27_010, FailureType::SlatFlapControlComputerFlapChannel(1)),
         (27_011, FailureType::SlatFlapControlComputerFlapChannel(2)),
         (27_012, FailureType::SlatFlapControlComputerSlatChannel(1)),
@@ -392,7 +392,6 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_021, FailureType::RadioAntennaDirectCoupling(2)),
         (34_040, FailureType::Gps(1)),
         (34_041, FailureType::Gps(2)),
-        // ADIRS (systems navigation/adirs.rs)
         (34_070, FailureType::AdrFault(1)),
         (34_071, FailureType::AdrFault(2)),
         (34_072, FailureType::AdrFault(3)),
@@ -424,12 +423,10 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (74_001, FailureType::EngineIgniterA(2)),
         (74_010, FailureType::EngineIgniterB(1)),
         (74_011, FailureType::EngineIgniterB(2)),
-        // ATA 30 engine anti-ice valves (systems ice_rain_protection, in a320_systems pneumatic.rs)
         (30_000, FailureType::EngineAntiIceValveStuckClosed(1)),
         (30_001, FailureType::EngineAntiIceValveStuckClosed(2)),
         (30_010, FailureType::EngineAntiIceValveStuckOpen(1)),
         (30_011, FailureType::EngineAntiIceValveStuckOpen(2)),
-        // ATA 30 probe and window heat (a320_systems probe_window_heat.rs)
         (30_100, FailureType::ProbeHeatComputer(1)),
         (30_101, FailureType::ProbeHeatComputer(2)),
         (30_102, FailureType::ProbeHeatComputer(3)),
@@ -496,7 +493,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (80_041, FailureType::EngineStartStall(2)),
         (80_050, FailureType::EngineStarter(1)),
         (80_051, FailureType::EngineStarter(2)),
-        // Stage A4: the engine keeps running (a320_systems engine_malfunction.rs)
+        // The engine keeps running with these failures
         (72_100, FailureType::EngineCompressorStall(1)),
         (72_101, FailureType::EngineCompressorStall(2)),
         (72_110, FailureType::EngineEgtOvertemperature(1)),
@@ -505,7 +502,6 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (72_121, FailureType::EngineOverspeed(2)),
         (77_000, FailureType::EngineHighVibration(1)),
         (77_001, FailureType::EngineHighVibration(2)),
-        // Engine failures stage A5: FADEC and thrust lever (ATA 73), thrust reversers (ATA 78)
         (73_010, FailureType::FadecChannelA(1)),
         (73_011, FailureType::FadecChannelA(2)),
         (73_020, FailureType::FadecChannelB(1)),
@@ -520,10 +516,10 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (28_008, FailureType::EngineLpValveJammed(2)),
         (73_100, FailureType::EngineFuelFilterClog(1)),
         (73_101, FailureType::EngineFuelFilterClog(2)),
-        // FCOM PRO-ABN-ENG ENG 1(2) HP FUEL VALVE (systems engine/hp_fuel_valve_failure.rs)
+        // ENG 1(2) HP FUEL VALVE
         (73_200, FailureType::EngineHpFuelValveStuck(1)),
         (73_201, FailureType::EngineHpFuelValveStuck(2)),
-        // The FADEC faults without engine model effect (systems engine/engine_monitoring_fault.rs)
+        // The FADEC faults without engine model effect
         (
             73_210,
             FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FadecAlternator),
@@ -627,7 +623,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable_range("FUELSYSTEM PUMP ACTIVE", "Bool", 1..=7)?
     .provides_aircraft_variable("FUELSYSTEM VALVE SWITCH", "Bool", 1)?
     .provides_aircraft_variable("FUELSYSTEM VALVE SWITCH", "Bool", 2)?
-    // The fuel X FEED valve (gravity feed ceiling, a320_systems fuel/gravity_feed.rs)
+    // The fuel X FEED valve, read for the gravity feed ceiling
     .provides_aircraft_variable("FUELSYSTEM VALVE OPEN", "Percent over 100", 3)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 0)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 1)?
@@ -672,10 +668,10 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("TURB ENG JET THRUST", "Pounds", 2)?
     .provides_aircraft_variable("TURB ENG IGNITION SWITCH EX1", "Enum", 1)?
     .provides_aircraft_variable("TURB ENG IGNITION SWITCH EX1", "Enum", 2)?
-    // The engine anti-ice valves: automatic continuous ignition (a320_systems engine_failure.rs)
+    // The engine anti-ice valves select the automatic continuous ignition
     .provides_aircraft_variable("ENG ANTI ICE", "Bool", 1)?
     .provides_aircraft_variable("ENG ANTI ICE", "Bool", 2)?
-    // The MSFS engine speeds and vibration (a320_systems engine_malfunction.rs)
+    // The MSFS engine speeds and vibration, read by the engine malfunction model
     .provides_aircraft_variable("TURB ENG N1", "Percent", 1)?
     .provides_aircraft_variable("TURB ENG N1", "Percent", 2)?
     .provides_aircraft_variable("TURB ENG N2", "Percent", 1)?

@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { idgLegendAmber, idgStatusLegend, idgTemperatureClass, idgTemperatureState } from './IdgIndications';
 
-/* A320 FCOM DSC-24-20 SD ELEC page (C) oil outlet temperature, a320_fcom.txt l.37623-37625 */
+/* IDG oil outlet temperature */
 describe('SD ELEC IDG oil outlet temperature', () => {
   it('is green up to 147 °C', () => {
     expect(idgTemperatureState(90)).toBe('normal');
@@ -26,7 +26,7 @@ describe('SD ELEC IDG oil outlet temperature', () => {
   });
 });
 
-/* (A) IDG legend, l.37610-37614; (B) DISC/LO PR, l.37618-37621 */
+/* IDG legend and DISC/LO PR */
 describe('SD ELEC IDG legends', () => {
   it('the IDG legend is amber when disconnected, on low oil pressure or above 180 °C', () => {
     expect(idgLegendAmber(true, 90, false)).toBe(false);

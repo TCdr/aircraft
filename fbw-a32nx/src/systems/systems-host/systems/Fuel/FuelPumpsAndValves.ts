@@ -24,7 +24,7 @@ export interface A320TankPump {
 }
 
 /** The wing tank pumps: L TK PUMP 1, L TK PUMP 2, R TK PUMP 1, R TK PUMP 2 */
-export const A320_TANK_PUMPS: readonly A320TankPump[] = [
+const A320_TANK_PUMPS: readonly A320TankPump[] = [
   // Pump.2 LeftInnerTankPump1, Line.7 PumpLeft1ToJuncLeft
   { failure: A320Failure.LeftTankPump1, pump: 2, outletLine: 7 },
   // Pump.5 LeftInnerTankPump2, Line.9 PumpLeft2ToJuncLeft
@@ -53,12 +53,12 @@ export const A320_CROSSFEED_VALVE = 3;
 export const A320_CROSSFEED_PB_IS_ON_VAR = 'L:A32NX_OVHD_FUEL_XFEED_PB_IS_ON';
 
 /** Below this pump outlet pressure, in psi, the pump delivery pressure is low (as the pb-sw FAULT light always had) */
-export const TANK_PUMP_LOW_PRESSURE_PSI = 6;
+const TANK_PUMP_LOW_PRESSURE_PSI = 6;
 
 /**
  * Whether a wing tank pump is ON with a low delivery pressure: the condition of its FAULT light, of the amber LO on the SD
- * FUEL page and of the FUEL L(R) TK PUMP 1(2) LO PR caution (A320 FCOM DSC-28-20 "L (R) TK PUMPS 1(2) pb-sw", l.42737:
- * "Amber light and ECAM caution come on, when the delivery pressure drops. It does not come on when OFF is selected").
+ * FUEL page and of the FUEL L(R) TK PUMP 1(2) LO PR caution. The light comes on when the delivery pressure drops, not
+ * when OFF is selected.
  * The pump does not deliver when it is failed (its MSFS switch held off), when its tank is empty, or when its outlet
  * pressure is low.
  * @param switchOn whether the pump pb-sw is ON (its selection L:var, tankPumpPbIsOnVar)
@@ -75,11 +75,10 @@ export function tankPumpLowPressureVar(pump: number): string {
 }
 
 /**
- * A centre tank transfer valve, CTR TK L(R) XFR valve (A320 FCOM DSC-28-10 CENTER TANK FUEL TRANSFER, a320_fcom.txt
- * l.42101-42115: "When the transfer valve is open, fuel from the inner tank pumps flows through the jet pump [...] This
- * suction moves the fuel from the center tank to the related inner tank"). The FBW A32NX is the jet pump variant of the
- * FCOM (CTR TK L(R) XFR pb-sw and MODE SEL pb-sw, l.42779-42838). As MSFS triggers can only open and close valves, the
- * valve is made of two MSFS valves in series (flight_model.cfg [FUEL_SYSTEM]):
+ * A centre tank transfer valve, CTR TK L(R) XFR valve: while it is open, the inner tank pump flow drives the jet pump,
+ * whose suction moves the centre tank fuel into the inner tank. The FBW A32NX is the jet pump variant (CTR TK L(R) XFR
+ * pb-sw and MODE SEL pb-sw). As MSFS triggers can only open and close valves, the valve is made of two MSFS valves in
+ * series (flight_model.cfg [FUEL_SYSTEM]):
  * - the inhibit valve (CenterTransferDisableValveL/R), open while the CTR TK XFR pb-sw is ON;
  * - the auto valve (AutoCenterTransferValveL/R), opened and closed by MSFS triggers as the FLSCU does: Trigger.1-4 when
  *   the inner tank is not full / full, Trigger.9 5 min after the centre tank low level;
@@ -99,7 +98,7 @@ export interface A320CentreTankTransferValve {
 }
 
 /** The CTR TK L and R XFR valves */
-export const A320_CTR_TK_XFR_VALVES: readonly A320CentreTankTransferValve[] = [
+const A320_CTR_TK_XFR_VALVES: readonly A320CentreTankTransferValve[] = [
   // Valve.9 CenterTransferDisableValveL, Valve.11 AutoCenterTransferValveL, Junction.4 CenterTransferJunctionL
   { side: 'L', failure: A320Failure.CentreTankLeftTransferValveJammed, inhibitValve: 9, autoValve: 11, junction: 4 },
   // Valve.10 CenterTransferDisableValveR, Valve.12 AutoCenterTransferValveR, Junction.5 CenterTransferJunctionR
@@ -118,7 +117,7 @@ export function ctrTkXfrPbIsOnVar(side: 'L' | 'R'): string {
 export const A320_FUEL_MODE_SEL_MAN_VAR = 'L:A32NX_OVHD_FUEL_MODESEL_MANUAL';
 
 /** Whether a transfer junction is on its MAN option (the MODE SEL pb-sw sets option 2 at MAN, 1 at AUTO) */
-export function isTransferJunctionManual(junctionSetting: number): boolean {
+function isTransferJunctionManual(junctionSetting: number): boolean {
   return junctionSetting > 1.5;
 }
 
@@ -134,9 +133,8 @@ export function centreTransferValveOpenRatio(inhibitOpenRatio: number, autoOpenR
 }
 
 /**
- * Whether a centre tank transfer valve is commanded open: "On: The transfer valve opens, if MAN mode is selected on the
- * MODE SEL pb-sw, The transfer valve is automatically controlled when AUTO mode is selected. OFF: The transfer valve is
- * closed." (A320 FCOM DSC-28-20 CTR TK L(R) XFR pb-sw, a320_fcom.txt l.42817-42823).
+ * Whether a centre tank transfer valve is commanded open: with the pb-sw ON, the valve opens in MAN mode and is
+ * controlled automatically in AUTO mode; with the pb-sw OFF, it is closed.
  * @param pbOn whether the CTR TK XFR pb-sw is ON
  * @param modeSelMan whether the MODE SEL pb-sw is at MAN
  * @param flscuOpen whether the FLSCU commands the valve open (the selection of the MSFS auto valve)
@@ -154,9 +152,8 @@ export interface CentreTransferValveDisagreement {
 }
 
 /**
- * The disagreement of a centre tank transfer valve with its command, the condition of FUEL CTR L(R) XFR FAULT (VALVE NOT
- * FULLY CLOSED) "when either center transfer valve is failed in open position" and (VALVE NOT FULLY OPEN) "... in closed
- * position" (A320 FCOM PRO-ABN-FUEL, a320_fcom.txt l.85400-85480), before its confirmation time.
+ * The disagreement of a centre tank transfer valve with its command, the condition of FUEL CTR L(R) XFR FAULT: VALVE NOT
+ * FULLY CLOSED when the valve failed open, VALVE NOT FULLY OPEN when it failed closed, before its confirmation time.
  * @param commandedOpen whether the valve is commanded open (isCentreTransferValveCommandedOpen)
  * @param openRatio how far the valve is open, 0 to 1 (centreTransferValveOpenRatio)
  */
@@ -181,12 +178,11 @@ export function ctrTkXfrValveNotFullyOpenVar(side: 'L' | 'R'): string {
 }
 
 /**
- * The two channels of the fuel quantity indicating computer (FQI). A failed channel gives FUEL FQI CH 1(2) FAULT, "This
- * alert triggers when a FQI channel is failed" (A320 FCOM PRO-ABN-FUEL, a320_fcom.txt l.85886-85896): crew awareness.
- * The other channel keeps the fuel quantity indications. Not simulated: the loss of the fuel quantities when both
- * channels are failed.
+ * The two channels of the fuel quantity indicating computer (FQI). A failed channel gives FUEL FQI CH 1(2) FAULT (crew
+ * awareness); the other channel keeps the fuel quantity indications. Not simulated: the loss of the fuel quantities
+ * when both channels are failed.
  */
-export const A320_FQI_CHANNELS: readonly { channel: number; failure: number }[] = [
+const A320_FQI_CHANNELS: readonly { channel: number; failure: number }[] = [
   { channel: 1, failure: A320Failure.FqiChannel1 },
   { channel: 2, failure: A320Failure.FqiChannel2 },
 ];

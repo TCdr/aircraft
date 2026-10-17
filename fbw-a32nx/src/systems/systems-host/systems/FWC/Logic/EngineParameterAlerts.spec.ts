@@ -91,12 +91,12 @@ describe('ENG 1(2) N1/N2/EGT OVER LIMIT', () => {
   it('asks for THR LEVER IDLE and ENG MASTER OFF once the max pointer is above the 975 °C red limit, 102.8 % N1 or 117.3 % N2', () => {
     expect(monitorAfter({ egtDegrees: 980 }).inShutdownBand).toBe(true);
     expect(monitorAfter({ egtDegrees: 975 }).inShutdownBand).toBe(false);
-    // N1: the FCOM 1.8 % band above the limit, on the LEAP-1A red line (101 % + 1.8 %)
+    // N1: the CFM56 1.8 % band above the limit, on the LEAP-1A red line (101 % + 1.8 %)
     expect(monitorAfter({ n1Percent: 102.5 }).inShutdownBand).toBe(false);
     expect(monitorAfter({ n1Percent: 102.5 }).overLimitParameter).toBe(OverLimitParameter.N1);
     expect(monitorAfter({ n1Percent: 103 }).inShutdownBand).toBe(true);
     expect(monitorAfter({ n1Percent: 106 }).inShutdownBand).toBe(true);
-    // N2: the FCOM 0.8 % band above the limit, on the LEAP-1A red line (116.5 % + 0.8 %)
+    // N2: the CFM56 0.8 % band above the limit, on the LEAP-1A red line (116.5 % + 0.8 %)
     expect(monitorAfter({ n2Percent: 106 }).inShutdownBand).toBe(false);
     expect(monitorAfter({ n2Percent: 117 }).inShutdownBand).toBe(false);
     expect(monitorAfter({ n2Percent: 117 }).overLimitParameter).toBe(OverLimitParameter.N2);

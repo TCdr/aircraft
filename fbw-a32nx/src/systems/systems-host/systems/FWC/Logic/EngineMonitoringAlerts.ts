@@ -2,28 +2,24 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * FADEC fault alerts of the A320 (A320 FCOM PRO-ABN-ENG, a320_fcom.txt), from the flyPad failures of the systems WASM:
+ * FADEC fault alerts of the A320, from the flyPad failures of the systems WASM:
  *
- * - ENG 1(2) HP FUEL VALVE, l.80233-80259 (systems engine/hp_fuel_valve_failure.rs writes
- *   L:A32NX_ENGINE_n_HP_FUEL_VALVE_FAULT). l.80243: "This alert triggers when HP fuel valve is failed in closed or open
- *   position." l.80249-80259: "HP fuel valve failed closed, and associated engine below idle: HP FUEL VALVE NOT OPEN. On
- *   the ground: MAN START (IF MAN START PERFORMED) ... OFF, ENG MASTER (AFFECTED) ... OFF"; "HP fuel valve failed open,
- *   and associated engine below idle or HP fuel valve failed closed, and associated engine at or above idle: HP FUEL POS
- *   SWT FAULT". 2019 FCOM PDF page 2274: amber, inhibited in the flight phases 3, 4, 5, 7 and 8.
+ * - ENG 1(2) HP FUEL VALVE (systems engine/hp_fuel_valve_failure.rs writes L:A32NX_ENGINE_n_HP_FUEL_VALVE_FAULT): the HP
+ *   fuel valve is failed closed or open. Failed closed with the engine below idle: HP FUEL VALVE NOT OPEN, and on the
+ *   ground MAN START (IF MAN START PERFORMED) ... OFF, ENG MASTER (AFFECTED) ... OFF. Failed open with the engine below
+ *   idle, or failed closed with the engine at or above idle: HP FUEL POS SWT FAULT. Amber, inhibited in the flight
+ *   phases 3, 4, 5, 7 and 8.
  * - The crew awareness alerts of the FADEC faults without engine model effect (systems
- *   engine/engine_monitoring_fault.rs writes one L:var per fault and engine), with the flight phase inhibition figures of
- *   the 2019 FCOM PDF (all amber):
- *   - ENG 1(2) FADEC ALTERNATOR (l.79588-79615, "the electrical auto supply for the FADEC system is lost"), page 2257:
- *     phases 3, 4, 5, 7, 8;
- *   - ENG 1(2) OVSPD PROT FAULT (l.80627-80659, "the overspeed protection is lost"), page 2285: phases 3, 4, 5, 7, 8;
- *   - ENG 1(2) PROBES FAULT (l.80660-80689, "T12, P0, or PT2 data are unavailable on both channels"), page 2286: phases
- *     3, 4, 5, 7, 8, and "Alert inhibited during the first 60 seconds of the flight phase 9" (l.80674);
- *   - ENG 1(2) SENSOR FAULT (l.81012-81055, "PS3 or T25 or T3 or N1 or N2 data is unavailable on both channels"), page
- *     2296: phases 4, 5, 7, 8; procedure "On ground: THR LEVER (AFFECTED) ... IDLE, ENG MASTER (AFFECTED) ... OFF. In
- *     flight: AVOID RAPID THR CHANGES." and STATUS "AVOID RAPID THR CHANGES." (l.81030-81044);
- *   - ENG 1(2) ONE TLA FAULT (l.80603-80626, crew awareness), page 2284: phases 3, 4, 5, 6, 7, 8;
- *   - ENG 1(2) REV SWITCH FAULT (l.80820-80847, "the reverser permission switch is failed"), page 2291: phases 3, 4, 5,
- *     6, 7, 8.
+ *   engine/engine_monitoring_fault.rs writes one L:var per fault and engine), all amber:
+ *   - ENG 1(2) FADEC ALTERNATOR (the FADEC electrical auto supply is lost): inhibited in phases 3, 4, 5, 7, 8;
+ *   - ENG 1(2) OVSPD PROT FAULT (the overspeed protection is lost): phases 3, 4, 5, 7, 8;
+ *   - ENG 1(2) PROBES FAULT (T12, P0 or PT2 data unavailable on both channels): phases 3, 4, 5, 7, 8, and the first
+ *     60 s of flight phase 9;
+ *   - ENG 1(2) SENSOR FAULT (PS3, T25, T3, N1 or N2 data unavailable on both channels): phases 4, 5, 7, 8; procedure on
+ *     ground THR LEVER (AFFECTED) ... IDLE, ENG MASTER (AFFECTED) ... OFF, in flight AVOID RAPID THR CHANGES, and the
+ *     STATUS AVOID RAPID THR CHANGES;
+ *   - ENG 1(2) ONE TLA FAULT (crew awareness): phases 3, 4, 5, 6, 7, 8;
+ *   - ENG 1(2) REV SWITCH FAULT (the reverser permission switch is failed): phases 3, 4, 5, 6, 7, 8.
  */
 
 /** L:A32NX_ENGINE_n_HP_FUEL_VALVE_FAULT (systems::engine::hp_fuel_valve_failure::HpFuelValveFault) */
@@ -35,7 +31,7 @@ export enum HpFuelValveFault {
   NotClosed = 2,
 }
 
-/** ENG 1(2) HP FUEL VALVE flight phase inhibition (2019 FCOM PDF page 2274) */
+/** ENG 1(2) HP FUEL VALVE flight phase inhibition */
 export const HP_FUEL_VALVE_PHASE_INHIBITION = [3, 4, 5, 7, 8];
 
 export interface HpFuelValveLineInputs {
@@ -76,7 +72,7 @@ export interface EngineMonitoringAlertDefinition {
   variable: string;
   /** The title after "ENG n" */
   title: string;
-  /** The flight phase inhibition figure of the 2019 FCOM PDF (see the file comment) */
+  /** The flight phase inhibition (see the file comment) */
   flightPhaseInhibition: number[];
 }
 
@@ -117,8 +113,8 @@ export const REV_SWITCH_FAULT: EngineMonitoringAlertDefinition = {
   flightPhaseInhibition: [3, 4, 5, 6, 7, 8],
 };
 
-/** l.80674: "Alert inhibited during the first 60 seconds of the flight phase 9." */
-export const PROBES_FAULT_PHASE_9_INHIBITION_SECONDS = 60;
+/** ENG 1(2) PROBES FAULT is inhibited during the first 60 s of the flight phase 9 */
+const PROBES_FAULT_PHASE_9_INHIBITION_SECONDS = 60;
 
 /**
  * ENG 1(2) PROBES FAULT is inhibited during the first 60 s of the flight phase 9.
@@ -131,7 +127,7 @@ export function probesFaultInhibitedInPhase9(flightPhase: number, secondsInFligh
 
 /**
  * ENG 1(2) FADEC ALTERNATOR is monitored while the engine runs. Design choice: the FADEC alternator is driven by the
- * engine gearbox, so its supply can only be lost (and detected) with the engine running; the FCOM gives no condition.
+ * engine gearbox, so its supply can only be lost (and detected) with the engine running; no condition is documented.
  */
 export function isFadecAlternatorAlertActive(faultActive: boolean, engineRunning: boolean): boolean {
   return faultActive && engineRunning;
@@ -145,5 +141,5 @@ export function sensorFaultLines(onGround: boolean): number[] {
   return onGround ? [0, 1, 2] : [0, 3];
 }
 
-/** STATUS of ENG 1(2) SENSOR FAULT (l.81042-81044): AVOID RAPID THR CHANGES (StatusMessages 700400063) */
+/** STATUS of ENG 1(2) SENSOR FAULT: AVOID RAPID THR CHANGES (StatusMessages 700400063) */
 export const SENSOR_FAULT_STATUS = ['700400063'];

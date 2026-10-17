@@ -30,7 +30,6 @@ import {
 export const cpnyToRequestPage = 'cpny-to-request';
 export const receivedCpnyToDataPage = 'received-cpny-to-data';
 
-/** The runway conditions of the list */
 export const runwayConditions = ['DRY', 'WET', '1/4 WATER', '1/2 WATER', '1/4 SLUSH', '1/2 SLUSH', 'COMP SNOW'];
 
 /** The request data of one of the two requested runways */

@@ -12,7 +12,7 @@ import {
 
 const running: EngineFuelFilterInputs = { masterOn: true, engineRunning: true, fuelFilterClogged: false };
 
-/* A320 FCOM PRO-ABN-ENG ENG 1(2) FUEL FILTER CLOG, a320_fcom.txt l.80176 */
+/* ENG 1(2) FUEL FILTER CLOG: the fuel filter is clogged */
 describe('ENG 1(2) FUEL FILTER CLOG', () => {
   it('triggers when the fuel filter of a running engine is clogged', () => {
     expect(engineFuelFilterClog({ ...running, fuelFilterClogged: true })).toBe(true);
@@ -24,7 +24,7 @@ describe('ENG 1(2) FUEL FILTER CLOG', () => {
     expect(engineFuelFilterClog({ ...running, fuelFilterClogged: true, masterOn: false })).toBe(false);
   });
 
-  it('is inhibited in the flight phases of the FCOM figure (PDF page 2272)', () => {
+  it('is inhibited in the aircraft flight phases', () => {
     expect(FUEL_FILTER_CLOG_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
   });
 });

@@ -65,7 +65,7 @@ const EwdGroups: Record<string, string> = {
   'ENG$5': '\x1b<4m\x1b4mENG\x1bm',
   'BLEED$1': '\x1b<4m\x1b4mBLEED\x1bm',
   'HYD$1': '\x1b<2m\x1b4mHYD\x1bm',
-  // ENG THRUST LOCKED flashes (FCOM DSC-22_30-90 l.32844), see FWC/Logic/ThrustLockedAlert
+  // ENG THRUST LOCKED flashes, see FWC/Logic/ThrustLockedAlert
   'ENG$6': '\x1b<4m\x1b)m\x1b4mENG\x1bm',
   'WING A.ICE$2': '\x1b<4m\x1b4mWING A.ICE\x1bm',
   'DOOR$2': '\x1b<4m\x1b4mDOOR\x1bm',
@@ -188,8 +188,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['260015007', { text: '\x1b<7m BEFORE OPEN CRG DOORS:' }],
   ['260015008', { text: '\x1b<7m .BEFORE OPEN CRG DOORS:' }],
   ['260015009', { text: '\x1b<5m -PAX..........DISEMBARK' }],
-  // Cargo and avionics smoke (A320 FCOM PRO-ABN-SMOKE l.95111-95392, PRO-ABN-AVNCS l.72100-72120), see
-  // FWC/Logic/SmokeAlerts
+  // Cargo and avionics smoke, see FWC/Logic/SmokeAlerts
   ['260016001', { group: 'SMOKE$2', text: ' AFT CARGO SMOKE' }],
   ['260016002', { text: '\x1b<5m -AFT ISOL VALVE.....OFF' }],
   ['260016003', { text: '\x1b<5m -CAB FANS...........OFF' }],
@@ -203,7 +202,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['260018001', { group: 'SMOKE$4', text: ' AFT CRG DET FAULT' }],
   ['260019001', { group: 'SMOKE$4', text: ' FWD CRG BTL 1 FAULT' }],
   ['260019101', { group: 'SMOKE$4', text: ' AFT CRG BTL 1 FAULT' }],
-  // "Requested by the AVIONICS SMOKE ECAM procedure" (l.94180): the QRH SMOKE / FUMES / AVNCS SMOKE procedure
+  // The AVIONICS SMOKE alert asks for the paper SMOKE / FUMES / AVNCS SMOKE procedure
   ['260030001', { group: 'AVIONICS SMOKE$1', text: '' }],
   ['260030002', { text: '\x1b<5m -SMOKE/FUMES PROC.APPLY' }],
   ['213123501', { group: 'CAB PR$2', text: ' EXCES RESIDUAL PR' }],
@@ -227,8 +226,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['240003115', { text: '\x1b<5m -BLOWER + EXTRACT..OVRD' }],
   ['240003116', { text: '\x1b<5m FUEL CONSUMPT INCRSD' }],
   ['240003117', { text: '\x1b<5m FMS PRED UNRELIABLE' }],
-  // HYD B+Y, G+B, G+Y SYS LO PR (FCOM PRO-ABN-HYD, a320_fcom.txt l.88281-88302, l.88462-88472, l.88646-88656), red
-  // warnings, lines by FWC/Logic/HydraulicAlerts; LAND ASAP is the red special line
+  // HYD B+Y, G+B, G+Y SYS LO PR, red warnings, lines by FWC/Logic/HydraulicAlerts; LAND ASAP is the red special line
   ['290012001', { group: 'HYD$1', text: ' B+Y SYS LO PR' }],
   ['290012002', { text: '\x1b<5m -YELLOW ELEC PUMP....ON' }],
   ['290012003', { text: '\x1b<5m -RAT.............MAN ON' }],
@@ -254,7 +252,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['290012205', { text: '\x1b<5m MANEUVER WITH CARE' }],
   ['290012206', { text: '\x1b<5m FUEL CONSUMPT INCRSD' }],
   ['290012207', { text: '\x1b<5m FMS PRED UNRELIABLE' }],
-  // ENG 1(2) FAIL (FCOM PRO-ABN-ENG, a320_fcom.txt l.79797-79881), lines by FWC/Logic/EngineFailAlerts engineFailLines
+  // ENG 1(2) FAIL, lines by FWC/Logic/EngineFailAlerts engineFailLines
   ['770010101', { group: 'ENG$5', text: ' 1 FAIL' }],
   ['770010102', { text: '\x1b<5m -ENG MODE SEL.......IGN' }],
   ['770010103', { text: '\x1b<5m -THR LEVER 1.......IDLE' }],
@@ -277,7 +275,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['770010209', { text: '\x1b<5m -AGENT 1..........DISCH' }],
   ['770010210', { text: '\x1b<7m  .IF NO DAMAGE:' }],
   ['770010211', { text: '\x1b<5m -ENG 2 RELIGHT.CONSIDER' }],
-  // ENG 1(2) SHUT DOWN (FCOM PRO-ABN-ENG, l.81087-81123), lines by FWC/Logic/EngineFailAlerts engineShutDownLines
+  // ENG 1(2) SHUT DOWN, lines by FWC/Logic/EngineFailAlerts engineShutDownLines
   ['770011101', { group: 'ENG$5', text: ' 1 SHUT DOWN' }],
   ['770011102', { text: '\x1b<5m -PACK 1.............OFF' }],
   ['770011103', { text: '\x1b<5m -PACK 2.............OFF' }],
@@ -304,8 +302,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['770011211', { text: '\x1b<5m AVOID ICING CONDITIONS' }],
   ['770011212', { text: '\x1b<7m .IF BUFFET:' }],
   ['770011213', { text: '\x1b<5m -MAX SPEED.......240 KT' }],
-  // ENG 1(2) OIL LO PR (red), OIL HI TEMP, OIL FILTER CLOG (FCOM PRO-ABN-ENG, a320_fcom.txt l.80487-80591), lines by
-  // FWC/Logic/EngineOilAlerts engineOilShutDownLines
+  // ENG 1(2) OIL LO PR (red), OIL HI TEMP, OIL FILTER CLOG, lines by FWC/Logic/EngineOilAlerts engineOilShutDownLines
   ['770790101', { group: 'ENG$1', text: ' 1 OIL LO PR' }],
   ['770790102', { text: '\x1b<5m -THR LEVER 1.......IDLE' }],
   ['770790103', { text: '\x1b<5m -ENG MASTER 1.......OFF' }],
@@ -320,11 +317,11 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['770791203', { text: '\x1b<5m -ENG MASTER 2.......OFF' }],
   ['770792101', { group: 'ENG$5', text: ' 1 OIL FILTER CLOG' }],
   ['770792201', { group: 'ENG$5', text: ' 2 OIL FILTER CLOG' }],
-  // ENG 1(2) FUEL FILTER CLOG (FCOM PRO-ABN-ENG, a320_fcom.txt l.80166-80185): crew awareness, no procedure line
+  // ENG 1(2) FUEL FILTER CLOG: crew awareness, no procedure line
   ['770730101', { group: 'ENG$5', text: ' 1 FUEL FILTER CLOG' }],
   ['770730201', { group: 'ENG$5', text: ' 2 FUEL FILTER CLOG' }],
   // ENG 1(2) HP FUEL VALVE, FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH
-  // FAULT (FCOM PRO-ABN-ENG), lines by FWC/Logic/EngineMonitoringAlerts
+  // FAULT, lines by FWC/Logic/EngineMonitoringAlerts
   ['770731101', { group: 'ENG$5', text: ' 1 HP FUEL VALVE' }],
   ['770731102', { text: '\x1b<4m HP FUEL VALVE NOT OPEN' }],
   ['770731103', { text: '\x1b<5m -MAN START 1........OFF' }],
@@ -353,15 +350,15 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['770736201', { group: 'ENG$5', text: ' 2 ONE TLA FAULT' }],
   ['770781101', { group: 'ENG$5', text: ' 1 REV SWITCH FAULT' }],
   ['770781201', { group: 'ENG$5', text: ' 2 REV SWITCH FAULT' }],
-  // ENG 1(2) THR LEVER ABV IDLE (FCOM PRO-ABN-ENG, a320_fcom.txt l.81632-81666): red warning
+  // ENG 1(2) THR LEVER ABV IDLE: red warning
   ['770090101', { group: 'ENG$1', text: ' 1 THR LEVER ABV IDLE' }],
   ['770090102', { text: '\x1b<5m -THR LEVER 1.......IDLE' }],
   ['770090201', { group: 'ENG$1', text: ' 2 THR LEVER ABV IDLE' }],
   ['770090202', { text: '\x1b<5m -THR LEVER 2.......IDLE' }],
-  // ENG SAT ABOVE FLEX TEMP (FCOM PRO-ABN-ENG, a320_fcom.txt l.80984-81000): amber caution
+  // ENG SAT ABOVE FLEX TEMP: amber caution
   ['770091101', { group: 'ENG$5', text: ' SAT ABOVE FLEX TEMP' }],
   ['770091102', { text: '\x1b<5m -T.O DATA.........CHECK' }],
-  // ENG 1(2) LOW N1 (FCOM PRO-ABN-ENG, a320_fcom.txt l.80343-80363): amber caution, lines by FWC/Logic/EngineLowN1Alerts
+  // ENG 1(2) LOW N1: amber caution, lines by FWC/Logic/EngineLowN1Alerts
   ['770092101', { group: 'ENG$5', text: ' 1 LOW N1' }],
   ['770092102', { text: '\x1b<7m .IF CONFIRMED:' }],
   ['770092103', { text: '\x1b<5m -THR LEVER 1.......IDLE' }],
@@ -370,7 +367,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['770092202', { text: '\x1b<7m .IF CONFIRMED:' }],
   ['770092203', { text: '\x1b<5m -THR LEVER 2.......IDLE' }],
   ['770092204', { text: '\x1b<5m -ENG MASTER 2.......OFF' }],
-  // ENG 1(2) START FAULT (FCOM PRO-ABN-ENG, a320_fcom.txt l.81353-81528), lines by FWC/Logic/EngineStartAlerts startFaultLines
+  // ENG 1(2) START FAULT, lines by FWC/Logic/EngineStartAlerts startFaultLines
   ['770080101', { group: 'ENG$5', text: ' 1 START FAULT' }],
   ['770080102', { text: '\x1b<4m IGNITION FAULT' }],
   ['770080103', { text: '\x1b<4m STALL' }],
@@ -401,7 +398,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['770080213', { text: '\x1b<5m -BLEED AIR SUPPLY.CHECK' }],
   ['770080214', { text: '\x1b<5m -THR LEVER 2.......IDLE' }],
   ['770080215', { text: '\x1b<5m WINDMILL START ONLY' }],
-  // ENG 1(2) START VALVE FAULT (FCOM PRO-ABN-ENG, l.81530-81592), lines by EngineStartAlerts startValveFaultLines
+  // ENG 1(2) START VALVE FAULT, lines by EngineStartAlerts startValveFaultLines
   ['770081101', { group: 'ENG$5', text: ' 1 START VALVE FAULT' }],
   ['770081102', { text: '\x1b<4m START VALVE NOT CLOSED' }],
   ['770081103', { text: '\x1b<5m -APU BLEED..........OFF' }],
@@ -428,7 +425,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['770081211', { text: '\x1b<5m -X BLEED...........OPEN' }],
   ['770081212', { text: '\x1b<5m -APU BLEED...........ON' }],
   ['770081213', { text: '\x1b<7m .IF UNSUCCESSFUL:' }],
-  // ENG 1(2) IGN FAULT (FCOM PRO-ABN-ENG, l.80271-80331), lines by EngineStartAlerts ignitionFaultLines
+  // ENG 1(2) IGN FAULT, lines by EngineStartAlerts ignitionFaultLines
   ['770074101', { group: 'ENG$5', text: ' 1 IGN A FAULT' }],
   ['770074102', { group: 'ENG$5', text: ' 1 IGN B FAULT' }],
   ['770074103', { group: 'ENG$5', text: ' 1 IGN A+B FAULT' }],
@@ -437,7 +434,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['770074202', { group: 'ENG$5', text: ' 2 IGN B FAULT' }],
   ['770074203', { group: 'ENG$5', text: ' 2 IGN A+B FAULT' }],
   ['770074204', { text: '\x1b<5m AVOID ADVERSE CONDITIONS' }],
-  // ENG 1(2) STALL (FCOM PRO-ABN-ENG, a320_fcom.txt l.81327-81335), lines by FWC/Logic/EngineParameterAlerts engineStallLines
+  // ENG 1(2) STALL, lines by FWC/Logic/EngineParameterAlerts engineStallLines
   ['770072101', { group: 'ENG$5', text: ' 1 STALL' }],
   ['770072102', { text: '\x1b<5m -THR LEVER 1.......IDLE' }],
   ['770072103', { text: '\x1b<5m -ENG MASTER 1.......OFF' }],
@@ -448,8 +445,8 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['770072203', { text: '\x1b<5m -ENG MASTER 2.......OFF' }],
   ['770072204', { text: '\x1b<5m -ENG 2 PARAMETERS.CHECK' }],
   ['770072205', { text: '\x1b<5m -ENG 2 STALL PROC.APPLY' }],
-  // ENG 1(2) N1/N2/EGT OVER LIMIT (FCOM PRO-ABN-ENG, l.80444-80460), lines by FWC/Logic/EngineParameterAlerts
-  // engineOverLimitLines; the title names the parameter above its limit
+  // ENG 1(2) N1/N2/EGT OVER LIMIT, lines by FWC/Logic/EngineParameterAlerts engineOverLimitLines; the title names the
+  // parameter above its limit
   ['770073101', { group: 'ENG$5', text: ' 1 N1 OVER LIMIT' }],
   ['770073102', { group: 'ENG$5', text: ' 1 N2 OVER LIMIT' }],
   ['770073103', { group: 'ENG$5', text: ' 1 EGT OVER LIMIT' }],
@@ -462,7 +459,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['770073204', { text: '\x1b<5m -THR LVR 2..BELOW LIMIT' }],
   ['770073205', { text: '\x1b<5m -THR LEVER 2.......IDLE' }],
   ['770073206', { text: '\x1b<5m -ENG MASTER 2.......OFF' }],
-  // FADEC, thrust lever and reverser alerts (FCOM PRO-ABN-ENG), lines by FWC/Logic/FadecReverserAlerts
+  // FADEC, thrust lever and reverser alerts, lines by FWC/Logic/FadecReverserAlerts
   ['770050101', { group: 'ENG$5', text: ' 1 FADEC A FAULT' }],
   ['770050201', { group: 'ENG$5', text: ' 1 FADEC B FAULT' }],
   ['770050301', { group: 'ENG$5', text: ' 2 FADEC A FAULT' }],
@@ -578,7 +575,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['290012708', { text: '\x1b<5m FUEL CONSUMPT INCRSD' }],
   ['290012709', { text: '\x1b<5m FMS PRED UNRELIABLE' }],
   ['290014301', { group: 'HYD$2', text: ' RAT FAULT' }],
-  // HYD cautions (FCOM PRO-ABN-HYD, a320_fcom.txt l.86976-88837), lines by FWC/Logic/HydraulicAlerts
+  // HYD cautions, lines by FWC/Logic/HydraulicAlerts
   ['290010101', { group: 'HYD$2', text: ' B ELEC PUMP LO PR' }],
   ['290010102', { text: '\x1b<5m -BLUE ELEC PUMP.....OFF' }],
   ['290010103', { text: '\x1b<4m    B SYS LO PR' }],
@@ -659,7 +656,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['290011602', { text: '\x1b<5m -PTU................OFF' }],
   ['240040001', { group: 'ELEC$3', text: ' IDG 1 DISCONNECTED' }],
   ['240040501', { group: 'ELEC$3', text: ' IDG 2 DISCONNECTED' }],
-  // ELEC system failures (FCOM PRO-ABN-ELEC, see FWC/Logic/ElecSystemAlerts)
+  // ELEC system failures (see FWC/Logic/ElecSystemAlerts)
   ['240020101', { group: 'ELEC$3', text: ' BAT 1 FAULT' }],
   ['240020201', { group: 'ELEC$3', text: ' BAT 2 FAULT' }],
   ['240020301', { group: 'ELEC$3', text: ' BCL 1 FAULT' }],
@@ -693,7 +690,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['240000404', { text: '\x1b<5m -APU GEN............OFF' }],
   ['240006001', { group: 'ELEC$3', text: ' GEN 1 OFF' }],
   ['240007001', { group: 'ELEC$3', text: ' GEN 2 OFF' }],
-  // ELEC bus, ESS bus and TR alerts (FCOM PRO-ABN-ELEC, see FWC/Logic/ElecBusAlerts)
+  // ELEC bus, ESS bus and TR alerts (see FWC/Logic/ElecBusAlerts)
   ['240011001', { group: 'ELEC$3', text: ' DC EMER CONFIG' }],
   ['240011002', { text: '\x1b<5m -EMER ELEC PWR...MAN ON' }],
   ['240011003', { text: '\x1b<5m -BLOWER............OVRD' }],
@@ -759,7 +756,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['340004812', { text: '\x1b<4m IR 1+2+3 IN ALIGN' }],
   ['340014001', { group: 'NAV$9', text: ' RA 1 FAULT' }],
   ['340015001', { group: 'NAV$9', text: ' RA 2 FAULT' }],
-  // NAV ADR, IR and RA alerts (A320 FCOM PRO-ABN-NAV), see FWC/Logic/AdirsAlerts
+  // NAV ADR, IR and RA alerts, see FWC/Logic/AdirsAlerts
   ['340014501', { group: 'NAV$9', text: ' RA 1 AND 2 FAULT' }],
   ['340015501', { group: 'NAV$9', text: ' RA DEGRADED' }],
   ['340030001', { group: 'NAV$9', text: ' ADR 1 FAULT' }],
@@ -814,7 +811,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['340046005', { text: '\x1b<5m -ELAC 1.....OFF THEN ON' }],
   ['340016501', { group: 'NAV$9', text: ' GPS 1 FAULT' }],
   ['340017501', { group: 'NAV$9', text: ' GPS 2 FAULT' }],
-  // NAV FM/GPS POS DISAGREE, NAV LS TUNING DISAGREE (A320 FCOM PRO-ABN-NAV l.93030, l.93675)
+  // NAV FM/GPS POS DISAGREE, NAV LS TUNING DISAGREE
   ['340019001', { group: 'NAV$9', text: ' FM/GPS POS DISAGREE' }],
   ['340019002', { text: '\x1b<5m -A/C POS..........CHECK' }],
   ['340019501', { group: 'NAV$9', text: ' LS TUNING DISAGREE' }],
@@ -824,7 +821,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['340087002', { text: '\x1b<5m -ATC/XPDR.........SYS 1' }],
   ['340089001', { group: 'NAV$9', text: ' ATC/XPDR 1+2 FAULT' }],
   ['340050001', { group: 'NAV$9', text: ' TCAS FAULT' }],
-  // NAV GPWS FAULT and GPWS TERR DET FAULT (A320 FCOM PRO-ABN-NAV l.93124-93192), see FWC/Logic/GpwsAlerts
+  // NAV GPWS FAULT and GPWS TERR DET FAULT, see FWC/Logic/GpwsAlerts
   ['340068001', { group: 'NAV$9', text: ' GPWS FAULT' }],
   ['340068002', { text: '\x1b<5m -GPWS...............OFF' }],
   ['340068501', { group: 'NAV$9', text: ' GPWS TERR DET FAULT' }],
@@ -840,7 +837,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['270046001', { group: 'F/CTL$4', text: ' PITCH TRIM/MCDU/CG' }],
   ['270046002', { text: '\x1b<4m     DISAGREE' }],
   ['270046501', { group: 'F/CTL$4', text: ' FLAP/MCDU DISAGREE' }],
-  // F/CTL ELAC 1(2) FAULT (BOTH COMPUTERS FAILED), FCOM l.82830-82848, see FWC/Logic/FlightControlSurfaceAlerts
+  // F/CTL ELAC 1(2) FAULT (BOTH COMPUTERS FAILED), see FWC/Logic/FlightControlSurfaceAlerts
   ['270101001', { group: 'F/CTL$4', text: ' ELAC 1+2 FAULT' }],
   ['270101002', { text: '\x1b<5m -ELAC 1.....OFF THEN ON' }],
   ['270101003', { text: '\x1b<5m -ELAC 2.....OFF THEN ON' }],
@@ -874,8 +871,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['270023002', { text: '\x1b<5m -SEC 3......OFF THEN ON' }],
   ['270023003', { text: '\x1b<7m   .IF UNSUCCESSFUL :' }],
   ['270023004', { text: '\x1b<5m -SEC 3..............OFF' }],
-  // F/CTL L(R) ELEV FAULT (FCOM l.83525-83540), L(R) AIL FAULT (l.83464-83466), SPLR FAULT (l.84572), see
-  // FWC/Logic/FlightControlSurfaceAlerts
+  // F/CTL L(R) ELEV FAULT, L(R) AIL FAULT, SPLR FAULT, see FWC/Logic/FlightControlSurfaceAlerts
   ['270105001', { group: 'F/CTL$4', text: ' L ELEV FAULT' }],
   ['270105002', { text: '\x1b<5m MANEUVER WITH CARE' }],
   ['270105003', { text: '\x1b<5m FOR GA:MAX PITCH 15 DEG' }],
@@ -920,7 +916,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['310015001', { group: 'C/B$1', text: ' TRIPPED ON OVHD PNL' }],
   ['310016001', { group: 'C/B$1', text: ' TRIPPED L ELEC BAY' }],
   ['310022001', { group: 'C/B$1', text: ' TRIPPED R ELEC BAY' }],
-  // ENG THRUST LOCKED (A320 FCOM PRO-ABN-ENG l.81958-81970), see FWC/Logic/ThrustLockedAlert
+  // ENG THRUST LOCKED, see FWC/Logic/ThrustLockedAlert
   ['770031001', { group: 'ENG$6', text: '\x1b)m THRUST LOCKED\x1bm' }],
   ['770031002', { text: '\x1b<5m -THR LEVERS........MOVE' }],
   ['220002201', { group: 'AUTO FLT$2', text: ' A/THR OFF' }],
@@ -928,7 +924,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['220002401', { group: 'AUTO FLT$2', text: ' A/THR LIMITED' }],
   ['220002402', { text: '\x1b<5m -THR LEVERS........MOVE' }],
   ['220020501', { group: 'AUTO FLT$3', text: ' FAC 1+2 FAULT' }],
-  // FCOM PRO-ABN-AUTO_FLT FAC 1 + 2 FAULT, a320_fcom.txt l.71494: "RUD WITH CARE ABV 160 KT"
+  // FAC 1 + 2 FAULT: "RUD WITH CARE ABV 160 KT"
   ['220020502', { text: '\x1b<5mRUD WITH CARE ABV 160 KT' }],
   ['220020503', { text: '\x1b<5m -FAC 1......OFF THEN ON' }],
   ['220020504', { text: '\x1b<5m -FAC 2......OFF THEN ON' }],
@@ -943,8 +939,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['220019502', { text: '\x1b<5m -FAC 2......OFF THEN ON' }],
   ['220019503', { text: '\x1b<7m   .IF UNSUCCESSFUL :' }],
   ['220019504', { text: '\x1b<5m -FAC 2..............OFF' }],
-  // AUTO FLT YAW DAMPER SYS (FCOM l.72028-72031), RUD TRIM SYS (l.71797-71798), RUD TRV LIM SYS (l.71895-71912), see
-  // FWC/Logic/FacActuatorAlerts
+  // AUTO FLT YAW DAMPER SYS, RUD TRIM SYS, RUD TRV LIM SYS, see FWC/Logic/FacActuatorAlerts
   ['220023801', { group: 'AUTO FLT$3', text: ' YAW DAMPER SYS' }],
   ['220023802', { text: '\x1b<5m -FAC 1......OFF THEN ON' }],
   ['220023803', { text: '\x1b<5m -FAC 2......OFF THEN ON' }],
@@ -977,8 +972,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['320019501', { group: 'L/G$4', text: ' LGCIU 1+2 FAULT' }],
   ['320019502', { text: '\x1b<5m -L/G GRVTY PROC...APPLY' }],
   ['320019503', { text: '\x1b<5m -GPWS SYS...........OFF' }],
-  // L/G DOORS NOT CLOSED and L/G SYS DISAGREE (A320 FCOM PRO-ABN-LG l.89176-89247, 89848-89865), see
-  // FWC/Logic/LandingGearAlerts
+  // L/G DOORS NOT CLOSED and L/G SYS DISAGREE, see FWC/Logic/LandingGearAlerts
   ['320013501', { group: 'L/G$4', text: ' DOORS NOT CLOSED' }],
   ['320013502', { text: '\x1b<7m  .WHEN SPD < 220/.54:' }],
   ['320013503', { text: '\x1b<5m -L/G LEVER......RECYCLE' }],
@@ -998,7 +992,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['320001009', { text: '\x1b<5m MAX SPEED.......220/.54' }],
   ['320007001', { group: 'BRAKES$1', text: ' A/SKID N/WS OFF' }],
   ['320007002', { text: '\x1b<5m MAX BRK PR......1000PSI' }],
-  // Brake control unit cautions (FCOM PRO-ABN-BRAKES, see FWC/Logic/BrakeSystemAlerts)
+  // Brake control unit cautions (see FWC/Logic/BrakeSystemAlerts)
   ['320041001', { group: 'BRAKES$1', text: ' NORM + ALTN FAULT' }],
   ['320041002', { text: '\x1b<5m PARK BRK ONLY' }],
   ['320040001', { group: 'BRAKES$1', text: ' A/SKID N/WS FAULT' }],
@@ -1016,7 +1010,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['320008703', { text: '\x1b<5m -CHOCKS CONSIDER' }],
   ['320008101', { group: 'BRAKES$1', text: ' PARK BRK ON' }],
   ['320008102', { text: '\x1b<5m -PARK BRK...........OFF' }],
-  // FCOM PRO-ABN-WHEEL WHEEL N/W STRG FAULT (a320_fcom.txt l.96340-96380), see FWC/Logic/BrakeSystemAlerts
+  // WHEEL N/W STRG FAULT, see FWC/Logic/BrakeSystemAlerts
   ['320047001', { group: 'WHEEL$1', text: ' N/W STRG FAULT' }],
   ['280014501', { group: 'FUEL$1', text: ' L+R WING TK LO LVL' }],
   ['280014502', { text: '\x1b<5m -FUEL MODE SEL......MAN' }],
@@ -1077,7 +1071,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['280020610', { text: '\x1b<5m PROC:GRVTY FUEL FEEDING' }],
   ['280020611', { text: '\x1b<5m AVOID NEGATIVE G FACTOR' }],
   ['280021001', { group: 'FUEL$3', text: ' X FEED VALVE FAULT' }],
-  // CTR L(R) XFR FAULT (VALVE NOT FULLY CLOSED) and (VALVE NOT FULLY OPEN), CTR L + R XFR FAULT (A320 FCOM PRO-ABN-FUEL, a320_fcom.txt l.85400-85660)
+  // CTR L(R) XFR FAULT (VALVE NOT FULLY CLOSED) and (VALVE NOT FULLY OPEN), CTR L + R XFR FAULT
   ['280021101', { group: 'FUEL$3', text: ' CTR L XFR FAULT' }],
   ['280021102', { text: '\x1b<5m -CTR TK L XFR.......OFF' }],
   ['280021103', { text: '\x1b<5m -FUEL X FEED.........ON' }],
@@ -1124,8 +1118,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['280021603', { text: '\x1b<7m   .IF UNSUCCESSFUL:' }],
   ['280021604', { text: '\x1b<5m CTR AVAIL BY GRAVITY' }],
   ['280021605', { text: '\x1b<5m 2T (4400LBS) UNUSABLE' }],
-  // FUEL AUTO TRANSFER FAULT and CTR TK XFR OFF (A320 FCOM PRO-ABN-FUEL l.85347-85398, 85792-85817), see
-  // FWC/Logic/FuelTransferAlerts
+  // FUEL AUTO TRANSFER FAULT and CTR TK XFR OFF, see FWC/Logic/FuelTransferAlerts
   ['280021801', { group: 'FUEL$3', text: ' AUTO TRANSFER FAULT' }],
   ['280021802', { text: '\x1b<5m -FUEL MODE SEL......MAN' }],
   ['280021803', { text: '\x1b<5m -CTR TK L XFR........ON' }],
@@ -1133,7 +1126,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['280021701', { group: 'FUEL$3', text: ' CTR TK XFR OFF' }],
   ['280021702', { text: '\x1b<5m -CTR TK L XFR........ON' }],
   ['280021703', { text: '\x1b<5m -CTR TK R XFR........ON' }],
-  // FUEL ENG 1(2) LP VALVE OPEN, FUEL FQI CH 1(2) FAULT (FCOM PRO-ABN-FUEL, a320_fcom.txt l.85829-85897): crew awareness
+  // FUEL ENG 1(2) LP VALVE OPEN, FUEL FQI CH 1(2) FAULT: crew awareness
   ['280023001', { group: 'FUEL$3', text: ' ENG 1 LP VALVE OPEN' }],
   ['280023101', { group: 'FUEL$3', text: ' ENG 2 LP VALVE OPEN' }],
   ['280023201', { group: 'FUEL$3', text: ' FQI CH 1 FAULT' }],
@@ -1150,9 +1143,9 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['216120202', { text: '\x1b<5m -PACK 1.............OFF' }],
   ['216120301', { group: 'AIR$4', text: ' PACK 2 FAULT' }],
   ['216120302', { text: '\x1b<5m -PACK 2.............OFF' }],
-  // 36 PNEUMATIC leak, leak detection, HP valve and BMC cautions (FCOM PRO-ABN-AIR, PRO-ABN-BLEED), lines by
-  // FWC/Logic/BleedLeakMonitoringAlerts; codes = alert key (3612xxx) + line number
-  // L(R) WING LEAK and ENG 1(2) BLEED LEAK, l.70700-70710 (the APU BLEED line is shown for the left side only)
+  // 36 PNEUMATIC leak, leak detection, HP valve and BMC cautions, lines by FWC/Logic/BleedLeakMonitoringAlerts; codes =
+  // alert key (3612xxx) + line number
+  // L(R) WING LEAK and ENG 1(2) BLEED LEAK (the APU BLEED line is shown for the left side only)
   ['361200101', { group: 'AIR$4', text: ' L WING LEAK' }],
   ['361200102', { text: '\x1b<5m -ENG 1 BLEED........OFF' }],
   ['361200103', { text: '\x1b<5m -APU BLEED..........OFF' }],
@@ -1177,10 +1170,10 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['361200404', { text: '\x1b<5m -X BLEED...........SHUT' }],
   ['361200405', { text: '\x1b<5m -WING ANTI ICE......OFF' }],
   ['361200406', { text: '\x1b<5m AVOID ICING CONDITIONS' }],
-  // APU BLEED LEAK, l.69563
+  // APU BLEED LEAK
   ['361200501', { group: 'AIR$4', text: ' APU BLEED LEAK' }],
   ['361200502', { text: '\x1b<5m -APU BLEED..........OFF' }],
-  // LEAK DET FAULT (l.70617, l.70748, l.69647) and HP VALVE FAULT (l.70585): title only
+  // LEAK DET FAULT and HP VALVE FAULT: title only
   ['361200601', { group: 'AIR$4', text: ' ENG 1 LEAK DET FAULT' }],
   ['361200701', { group: 'AIR$4', text: ' ENG 2 LEAK DET FAULT' }],
   ['361200801', { group: 'AIR$4', text: ' L WNG LEAK DET FAULT' }],
@@ -1188,15 +1181,15 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['361201001', { group: 'AIR$4', text: ' APU LEAK DET FAULT' }],
   ['361201101', { group: 'AIR$4', text: ' ENG 1 HP VALVE FAULT' }],
   ['361201201', { group: 'AIR$4', text: ' ENG 2 HP VALVE FAULT' }],
-  // BLEED MONIT SYS 1(2) FAULT (l.72190) and BLEED MONITORING FAULT (l.72154), PRO-ABN-BLEED
+  // BLEED MONIT SYS 1(2) FAULT and BLEED MONITORING FAULT
   ['361201301', { group: 'BLEED$1', text: ' MONIT SYS 1 FAULT' }],
   ['361201401', { group: 'BLEED$1', text: ' MONIT SYS 2 FAULT' }],
   ['361201501', { group: 'BLEED$1', text: ' MONITORING FAULT' }],
   ['216120701', { group: 'AIR$4', text: ' PACK 1 OFF' }],
   ['216120801', { group: 'AIR$4', text: ' PACK 2 OFF' }],
-  // 36 PNEUMATIC bleed cautions (FCOM PRO-ABN-AIR), lines by FWC/Logic/BleedAlerts. Design choice: under the AIR title of
-  // the pack cautions, after them; codes = alert key (3611xxx) + line number.
-  // ENG 1(2) BLEED FAULT, l.69830-69845
+  // 36 PNEUMATIC bleed cautions, lines by FWC/Logic/BleedAlerts. Design choice: under the AIR title of the pack
+  // cautions, after them; codes = alert key (3611xxx) + line number.
+  // ENG 1(2) BLEED FAULT
   ['361100101', { group: 'AIR$4', text: ' ENG 1 BLEED FAULT' }],
   ['361100102', { text: '\x1b<5m -ENG 1 BLEED........OFF' }],
   ['361100103', { text: '\x1b<5m -PACK FLOW...........LO' }],
@@ -1207,7 +1200,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['361100203', { text: '\x1b<5m -PACK FLOW...........LO' }],
   ['361100204', { text: '\x1b<5m -PACK 2.............OFF' }],
   ['361100205', { text: '\x1b<5m -X BLEED...........OPEN' }],
-  // ENG 1+2 BLEED FAULT, l.70046-70063 (X BLEED AUTO read on the FCOM PDF page 4340)
+  // ENG 1+2 BLEED FAULT
   ['361100301', { group: 'AIR$4', text: ' ENG 1+2 BLEED FAULT' }],
   ['361100302', { text: '\x1b<5m -X BLEED...........AUTO' }],
   ['361100303', { text: '\x1b<5m -WING ANTI ICE......OFF' }],
@@ -1220,7 +1213,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['361100310', { text: '\x1b<5m -ENG 2 BLEED........OFF' }],
   ['361100311', { text: '\x1b<5m -DES TO FL 100/MEA-MORA' }],
   ['361100312', { text: '\x1b<5m -BLEED 1+2 PROC...APPLY' }],
-  // ENG 1(2) BLEED LO TEMP, l.70312-70322 (opposite bleed available) and l.70364-70372 (not available)
+  // ENG 1(2) BLEED LO TEMP, with the opposite bleed available and not available
   ['361100401', { group: 'AIR$4', text: ' ENG 1 BLEED LO TEMP' }],
   ['361100402', { text: '\x1b<5m -A/THR..............OFF' }],
   ['361100403', { text: '\x1b<5m -THR LEVER 1....ADVANCE' }],
@@ -1239,14 +1232,14 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['361100507', { text: '\x1b<5m -PACK 2.............OFF' }],
   ['361100508', { text: '\x1b<5m -WING ANTI ICE......OFF' }],
   ['361100509', { text: '\x1b<5m AVOID ICING CONDITIONS' }],
-  // ENG 1+2 BLEED LO TEMP, l.70432-70440
+  // ENG 1+2 BLEED LO TEMP
   ['361100601', { group: 'AIR$4', text: ' ENG 1+2 BLEED LO TEMP' }],
   ['361100602', { text: '\x1b<5m -A/THR..............OFF' }],
   ['361100603', { text: '\x1b<5m -THR LEVERS.....ADVANCE' }],
   ['361100604', { text: '\x1b<7m  .IF UNSUCCESSFUL:' }],
   ['361100605', { text: '\x1b<5m -WING ANTI ICE......OFF' }],
   ['361100606', { text: '\x1b<5m AVOID ICING CONDITIONS' }],
-  // ENG 1(2) BLEED HI TEMP, l.70480-70490
+  // ENG 1(2) BLEED HI TEMP
   ['361100701', { group: 'AIR$4', text: ' ENG 1 BLEED HI TEMP' }],
   ['361100702', { text: '\x1b<5m -PACK 2.............OFF' }],
   ['361100703', { text: '\x1b<5m -PACK 1 OR WAI......OFF' }],
@@ -1255,17 +1248,17 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['361100802', { text: '\x1b<5m -PACK 1.............OFF' }],
   ['361100803', { text: '\x1b<5m -PACK 2 OR WAI......OFF' }],
   ['361100804', { text: '\x1b<5m -PACK 1 OR WAI......OFF' }],
-  // ENG 1(2) BLEED NOT CLSD, l.70550
+  // ENG 1(2) BLEED NOT CLSD
   ['361100901', { group: 'AIR$4', text: ' ENG 1 BLEED NOT CLSD' }],
   ['361100902', { text: '\x1b<5m -ENG 1 BLEED........OFF' }],
   ['361101001', { group: 'AIR$4', text: ' ENG 2 BLEED NOT CLSD' }],
   ['361101002', { text: '\x1b<5m -ENG 2 BLEED........OFF' }],
-  // X BLEED FAULT, l.71030-71038
+  // X BLEED FAULT
   ['361101401', { group: 'AIR$4', text: ' X BLEED FAULT' }],
   ['361101402', { text: '\x1b<5m -X BLEED........MAN CTL' }],
   ['361101403', { text: '\x1b<5m -WING ANTI ICE......OFF' }],
   ['361101404', { text: '\x1b<5m AVOID ICING CONDITIONS' }],
-  // APU BLEED FAULT (l.69513-69534) and BLEED 1(2) OFF (l.69676-69692): crew awareness, no procedure line
+  // APU BLEED FAULT and BLEED 1(2) OFF: crew awareness, no procedure line
   ['361101301', { group: 'AIR$4', text: ' APU BLEED FAULT' }],
   ['361101101', { group: 'AIR$4', text: ' BLEED 1 OFF' }],
   ['361101201', { group: 'AIR$4', text: ' BLEED 2 OFF' }],
@@ -1315,7 +1308,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['213123101', { group: 'CAB PR$3', text: ' LO DIFF PR' }],
   ['213123102', { text: '\x1b<5m -EXPECT HI CAB RATE' }],
   ['213123103', { text: '\x1b<5m -A/C V/S.........REDUCE' }],
-  // CAB PR LDG ELEV FAULT (A320 FCOM PRO-ABN-CAB_PR l.73175-73196), see FWC/Logic/AirConditioningAlerts
+  // CAB PR LDG ELEV FAULT, see FWC/Logic/AirConditioningAlerts
   ['213123601', { group: 'CAB PR$3', text: ' LDG ELEV FAULT' }],
   ['213123602', { text: '\x1b<5m -LDG ELEV........ADJUST' }],
   ['308118601', { group: 'SEVERE ICE$1', text: ' DETECTED' }],
@@ -1324,7 +1317,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['308128001', { group: 'ANTI ICE$2', text: ' ICE DETECTED' }],
   ['308128002', { text: '\x1b5m -ENG 1 ANTI ICE......ON' }],
   ['308128003', { text: '\x1b5m -ENG 2 ANTI ICE......ON' }],
-  // WING A.ICE SYS FAULT and L(R) HI PR (A320 FCOM PRO-ABN-W_A_ICE l.96433-96719), see FWC/Logic/WingAntiIceAlerts
+  // WING A.ICE SYS FAULT and L(R) HI PR, see FWC/Logic/WingAntiIceAlerts
   ['300011001', { group: 'WING A.ICE$2', text: ' SYS FAULT' }],
   ['300011002', { text: '\x1b<5m -THRUST........INCREASE' }],
   ['300011003', { text: '\x1b<7m   .IF UNSUCCESSFUL:' }],
@@ -1336,7 +1329,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['300011202', { text: '\x1b<5m THRUST LIM PENALTY' }],
   ['300011301', { group: 'WING A.ICE$2', text: ' R HI PR' }],
   ['300011302', { text: '\x1b<5m THRUST LIM PENALTY' }],
-  // DOOR cautions (A320 FCOM PRO-ABN-DOOR l.74575-74861), see FWC/Logic/DoorAlerts
+  // DOOR cautions, see FWC/Logic/DoorAlerts
   ['520010101', { group: 'DOOR$2', text: ' L FWD CABIN' }],
   ['520010102', { text: '\x1b<7m   .IF ABN CAB V/S:' }],
   ['520010103', { text: '\x1b<5m MAX FL.....100/MEA-MORA' }],
@@ -1361,7 +1354,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['520010801', { group: 'DOOR$2', text: ' AFT CARGO' }],
   ['520010802', { text: '\x1b<7m   .IF ABN CAB V/S:' }],
   ['520010803', { text: '\x1b<5m MAX FL.....100/MEA-MORA' }],
-  // ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN (FCOM PRO-ABN-A-ICE l.68779-68857), see FWC/Logic/EngineAntiIceAlerts
+  // ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN, see FWC/Logic/EngineAntiIceAlerts
   ['300110101', { group: 'ANTI ICE$2', text: ' ENG 1 VALVE CLSD' }],
   ['300110102', { text: '\x1b<5m AVOID ICING CONDITIONS' }],
   ['300110201', { group: 'ANTI ICE$2', text: ' ENG 2 VALVE CLSD' }],
@@ -1370,7 +1363,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['300110302', { text: '\x1b<5m THRUST LIM PENALTY' }],
   ['300110401', { group: 'ANTI ICE$2', text: ' ENG 2 VALVE OPEN' }],
   ['300110402', { text: '\x1b<5m THRUST LIM PENALTY' }],
-  // ANTI ICE probe and window heat (FCOM PRO-ABN-A-ICE, 2019 PDF pages 1975-1996), see FWC/Logic/ProbeWindowHeatAlerts
+  // ANTI ICE probe and window heat, see FWC/Logic/ProbeWindowHeatAlerts
   ['300120101', { group: 'ANTI ICE$2', text: ' ALL PITOT' }],
   ['300120102', { text: '\x1b<5m -ADR 1 P/B..........OFF' }],
   ['300120103', { text: '\x1b<5m -ADR 2 P/B..........OFF' }],
@@ -1445,12 +1438,12 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['240010301', { group: 'ELEC$4', text: ' AC ESS BUS ALTN' }],
   ['270055501', { group: 'F/CTL$6', text: ' FCDC 1 FAULT' }],
   ['270055701', { group: 'F/CTL$6', text: ' FCDC 2 FAULT' }],
-  // F/CTL crew awareness cautions (FCOM l.82926, l.82950, l.82488), see FWC/Logic/FlightControlSurfaceAlerts
+  // F/CTL crew awareness cautions, see FWC/Logic/FlightControlSurfaceAlerts
   ['270102001', { group: 'F/CTL$6', text: ' ELAC 1 PITCH FAULT' }],
   ['270103001', { group: 'F/CTL$6', text: ' ELAC 2 PITCH FAULT' }],
   ['270104001', { group: 'F/CTL$6', text: ' ELEV SERVO FAULT' }],
   ['270107001', { group: 'F/CTL$6', text: ' AIL SERVO FAULT' }],
-  // F/CTL FLAP(SLAT) SYS 1(2) FAULT crew awareness cautions (FCOM l.83217, l.84321), see FWC/Logic/SlatFlapChannelAlerts
+  // F/CTL FLAP(SLAT) SYS 1(2) FAULT crew awareness cautions, see FWC/Logic/SlatFlapChannelAlerts
   ['270111001', { group: 'F/CTL$6', text: ' FLAP SYS 1 FAULT' }],
   ['270112001', { group: 'F/CTL$6', text: ' FLAP SYS 2 FAULT' }],
   ['270113001', { group: 'F/CTL$6', text: ' SLAT SYS 1 FAULT' }],
@@ -1459,7 +1452,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['220021002', { text: '\x1b<5m -BARO REF.........CHECK' }],
   ['220021501', { group: 'AUTO FLT$4', text: ' FCU 2 FAULT' }],
   ['220021502', { text: '\x1b<5m -BARO REF.........CHECK' }],
-  // AUTO FLT crew awareness cautions (FCOM l.71990, l.71751, l.71836), see FWC/Logic/FacActuatorAlerts
+  // AUTO FLT crew awareness cautions, see FWC/Logic/FacActuatorAlerts
   ['220023601', { group: 'AUTO FLT$4', text: ' YAW DAMPER 1' }],
   ['220023701', { group: 'AUTO FLT$4', text: ' YAW DAMPER 2' }],
   ['220023001', { group: 'AUTO FLT$4', text: ' RUD TRIM 1 FAULT' }],
@@ -1469,11 +1462,11 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['320018001', { group: 'L/G$6', text: ' LGCIU 1 FAULT' }],
   ['320018002', { text: '\x1b<5m -GPWS SYS...........OFF' }],
   ['320019001', { group: 'L/G$6', text: ' LGCIU 2 FAULT' }],
-  // FWS FWC 1(2) FAULT, crew awareness (A320 FCOM PRO-ABN-FWS)
+  // FWS FWC 1(2) FAULT, crew awareness
   ['310050001', { group: 'FWS$1', text: ' FWC 1 FAULT' }],
   ['310051001', { group: 'FWS$1', text: ' FWC 2 FAULT' }],
-  // FWS FWC 1+2 FAULT (A320 FCOM PRO-ABN-FWS): written instead of the alerts and memos when no FWC is left, see
-  // Logic/FwcAvailability. Left: the alert and its procedure; right: what is not available.
+  // FWS FWC 1+2 FAULT: written instead of the alerts and memos when no FWC is left, see Logic/FwcAvailability. Left:
+  // the alert and its procedure; right: what is not available.
   ['310052001', { group: 'FWS$2', text: ' FWC 1+2 FAULT' }],
   ['310052002', { text: '\x1b<5m -MONITOR SYS' }],
   ['310052003', { text: '\x1b<5m -MONITOR OVERHEAD PANEL' }],
@@ -1496,7 +1489,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['216330505', { text: '\x1b<4m -TRIM AIR HI PR' }],
   ['213122201', { group: 'CAB PR$4', text: ' SYS 1 FAULT' }],
   ['213122301', { group: 'CAB PR$4', text: ' SYS 2 FAULT' }],
-  // Fire detection faults (A320 FCOM PRO-ABN-ENG ENG 1(2) FIRE DET FAULT / FIRE LOOP A(B) FAULT, PRO-ABN-APU)
+  // Fire detection faults (ENG 1(2) FIRE DET FAULT / FIRE LOOP A(B) FAULT)
   ['260020001', { group: 'ENG$4', text: ' 1 FIRE DET FAULT' }],
   ['260021001', { group: 'ENG$4', text: ' 1 FIRE LOOP A FAULT' }],
   ['260022001', { group: 'ENG$4', text: ' 1 FIRE LOOP B FAULT' }],
@@ -1506,7 +1499,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['260026001', { group: 'APU$1', text: ' FIRE DET FAULT' }],
   ['260027001', { group: 'APU$1', text: ' FIRE LOOP A FAULT' }],
   ['260028001', { group: 'APU$1', text: ' FIRE LOOP B FAULT' }],
-  // APU AUTO (EMER) SHUT DOWN (FCOM PRO-ABN-APU, a320_fcom.txt l.71082-71106), see FWC/Logic/ApuShutdownAlerts
+  // APU AUTO (EMER) SHUT DOWN, see FWC/Logic/ApuShutdownAlerts
   ['490010101', { group: 'APU$1', text: ' AUTO SHUT DOWN' }],
   ['490010102', { text: '\x1b<5m -MASTER SW..........OFF' }],
   ['490010201', { group: 'APU$1', text: ' EMER SHUT DOWN' }],
@@ -1590,7 +1583,7 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['000021001', { text: '\x1b<3mRAT OUT' }],
   ['000021002', { text: '\x1b<3mRAT OUT' }],
   ['000031001', { text: '\x1b<3mEMER GEN' }],
-  // RAM AIR ON (A320 FCOM DSC-21-10-50 l.8642), see FWC/Logic/AirConditioningAlerts
+  // RAM AIR ON, see FWC/Logic/AirConditioningAlerts
   ['000024001', { text: '\x1b<3mRAM AIR ON' }],
   ['000004001', { text: '\x1b<3mNW STRG DISC' }],
   ['000004002', { text: '\x1b<4mNW STRG DISC' }],

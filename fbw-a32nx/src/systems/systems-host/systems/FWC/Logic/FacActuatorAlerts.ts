@@ -5,41 +5,30 @@ import { StatusLines } from './CondStatus';
 import { FlightControlStatusCodes } from './FlightControlStatus';
 
 /*
- * The A320 AUTO FLT cautions of the rudder functions of the FACs (FCOM PRO-ABN-AUTO_FLT, a320_fcom.txt):
- * - AUTO FLT YAW DAMPER 1(2), l.71980-72000; AUTO FLT YAW DAMPER SYS, l.72012-72077
- * - AUTO FLT RUD TRIM 1(2) FAULT, l.71741-71780; AUTO FLT RUD TRIM SYS, l.71782-71822
- * - AUTO FLT RUD TRV LIM 1(2), l.71826-71863; AUTO FLT RUD TRV LIM SYS, l.71865-71930
- * The flight phase inhibitions and the alert colours are figures of the FCOM PDF ("A320 Neo FCOM_1.pdf",
- * PRO-ABN-AUTO_FLT, pages at FacActuatorPhaseInhibition).
+ * The AUTO FLT cautions of the rudder functions of the FACs: YAW DAMPER 1(2) / SYS, RUD TRIM 1(2) FAULT / SYS and
+ * RUD TRV LIM 1(2) / SYS.
  *
- * How the FWC sees them. Each FAC drives its own yaw damper actuator (FAC 1 the green one, FAC 2 the yellow one), its own
- * motor of the rudder trim actuator and its own motor of the rudder travel limiter (TLU) actuator. FAC 1 has the
- * priority, FAC 2 engages a function only when FAC 1 does not (FacComputer.cpp yawDamperHasPriority etc.).
- * - "one actuator is failed" (l.71751, l.71836, l.71990): the FAC n actuator fault discretes
+ * Each FAC drives its own yaw damper actuator (FAC 1 the green one, FAC 2 the yellow one), its own motor of the rudder
+ * trim actuator and its own motor of the rudder travel limiter (TLU) actuator. FAC 1 has the priority, FAC 2 engages a
+ * function only when FAC 1 does not (FacComputer.cpp yawDamperHasPriority etc.).
+ * - One actuator failed: the FAC n actuator fault discretes
  *   L:A32NX_FAC_n_{YAW_DAMPER,RUDDER_TRIM,RUDDER_TRAVEL_LIM}_ACTUATOR_FAULT, written by the fbw_a320 module from the flyPad
  *   failures 22006-22011 while the FAC is healthy (a failed FAC reports nothing: FAC 1(2) FAULT is the alert then).
- * - "the system is failed" (l.71792, l.71875, l.72022): no FAC has the function engaged (FAC discrete word 2, "own
- *   engaged" bits 11, 13 and 15) and an actuator fault is the cause. Design choice: a function lost only by the FACs
- *   (FAC 1+2 FAULT, FAC pbs OFF) or by the hydraulics (the yaw dampers with the green and yellow systems lost, HYD G+Y
- *   SYS LO PR) gives no SYS alert: those alerts already list the lost function in their STATUS (FAC 1+2 FAULT l.71507
- *   "the rudder travel limit system, rudder trim control, yaw damper ... are lost", HYD G+Y SYS LO PR INOP SYS YAW
- *   DAMPER, l.88710).
+ * - System failed: no FAC has the function engaged (FAC discrete word 2, "own engaged" bits 11, 13 and 15) and an
+ *   actuator fault is the cause. Design choice: a function lost only by the FACs (FAC 1+2 FAULT, FAC pbs OFF) or by
+ *   the hydraulics (HYD G+Y SYS LO PR loses both yaw dampers) gives no SYS alert: those alerts already list the lost
+ *   function in their STATUS.
  * The single actuator alert is not shown with the SYS alert of its function.
  */
 
-/** The flight phase inhibitions (FCOM PDF PRO-ABN-AUTO_FLT). The A320 FWC phases are 1 to 10. */
+/** The flight phase inhibitions. The A320 FWC phases are 1 to 10. */
 export const FacActuatorPhaseInhibition = {
-  /** RUD TRIM 1(2) FAULT (page 4422) */
   rudderTrimFault: [3, 4, 5, 7, 8],
-  /** RUD TRIM SYS (page 4423) */
   rudderTrimSystem: [4, 5, 7, 8],
-  /** RUD TRV LIM 1(2) (page 4424) */
   rudderTravelLimiterFault: [3, 4, 5, 7, 8],
-  /** RUD TRV LIM SYS (page 4426) */
   rudderTravelLimiterSystem: [4, 5, 7, 8],
-  /** YAW DAMPER 1(2) (pages 4432 and 4433, both variants) */
+  /** Both variants of YAW DAMPER 1(2) have the same inhibitions */
   yawDamperFault: [3, 4, 5, 7, 8, 10],
-  /** YAW DAMPER SYS (page 4434) */
   yawDamperSystem: [4, 5, 7, 8, 10],
 };
 
@@ -49,7 +38,7 @@ export const FacActuatorPhaseInhibition = {
  */
 export const FAC_SYSTEM_ALERT_CONFIRM_SECONDS = 1;
 
-/** The FAC discrete word 2 "own engaged" bits (docs a320-simvars.md A32NX_FAC_{number}_DISCRETE_WORD_2) */
+/** The "own engaged" bits of A32NX_FAC_{number}_DISCRETE_WORD_2 */
 export const FacDiscreteWord2Bits = {
   yawDamperOwnEngaged: 11,
   rudderTrimOwnEngaged: 13,
@@ -93,12 +82,12 @@ export function facFunctionTriggers(inputs: FacFunctionInputs): FacFunctionTrigg
 }
 
 /**
- * Design choice: the TLU counts as "locked at high speed after slat extension" (RUD TRV LIM SYS, l.71904, l.71920) when the
- * slats are extended and the rudder travel limit is below 24 deg. The FAC limits the rudder to 25 deg up to 160 kt
+ * Design choice: the TLU counts as "locked at high speed after slat extension" (RUD TRV LIM SYS) when the slats
+ * are extended and the rudder travel limit is below 24 deg. The FAC limits the rudder to 25 deg up to 160 kt
  * (FacComputer_data.cpp TLU table: 25 deg at 160 kt, 14.5 deg at 200 kt), so a TLU stopped below 24 deg was stopped
  * above about 165 kt.
  */
-export const TLU_FULL_TRAVEL_THRESHOLD_DEG = 24;
+const TLU_FULL_TRAVEL_THRESHOLD_DEG = 24;
 
 /**
  * @param slatsExtended the slats are extended
@@ -111,8 +100,8 @@ export function tluLockedAtHighSpeed(slatsExtended: boolean, rudderTravelLimitDe
 
 /**
  * The procedure lines, by index in the codes of each alert (EwdMessages 2200xxxxx), null for a hidden line.
- * YAW DAMPER SYS (l.72028-72031): 0 title, 1 -FAC 1 OFF THEN ON, 2 -FAC 2 OFF THEN ON. The associated F/CTL ALTN LAW
- * (PROT LOST) procedure (l.72032-72042) is the F/CTL ALTN LAW alert's: the ELACs go to alternate law when no FAC has a
+ * YAW DAMPER SYS: 0 title, 1 -FAC 1 OFF THEN ON, 2 -FAC 2 OFF THEN ON. The associated F/CTL ALTN LAW
+ * (PROT LOST) procedure is the F/CTL ALTN LAW alert's: the ELACs go to alternate law when no FAC has a
  * yaw damper available (ElacComputer.cpp fac_1/2_yaw_control_lost).
  * @returns the line indexes
  */
@@ -121,7 +110,7 @@ export function yawDamperSystemLines(): (number | null)[] {
 }
 
 /**
- * RUD TRIM SYS (l.71797-71798): 0 title, 1 -FAC 1 OFF THEN ON, 2 -FAC 2 OFF THEN ON.
+ * RUD TRIM SYS: 0 title, 1 -FAC 1 OFF THEN ON, 2 -FAC 2 OFF THEN ON.
  * @returns the line indexes
  */
 export function rudderTrimSystemLines(): (number | null)[] {
@@ -129,8 +118,8 @@ export function rudderTrimSystemLines(): (number | null)[] {
 }
 
 /**
- * RUD TRV LIM SYS (l.71895-71902): 0 title, 1 RUD WITH CARE ABV 160 KT, 2 -FAC 1 OFF THEN ON, 3 -FAC 2 OFF THEN ON, and
- * when the TLU stays locked at high speed after slat extension (l.71904-71912): 4 MAX X WIND FOR LDG 15 KT,
+ * RUD TRV LIM SYS: 0 title, 1 RUD WITH CARE ABV 160 KT, 2 -FAC 1 OFF THEN ON, 3 -FAC 2 OFF THEN ON, and
+ * when the TLU stays locked at high speed after slat extension: 4 MAX X WIND FOR LDG 15 KT,
  * 5 -AUTO BRK DO NOT USE, 6 .AT LDG ROLL:, 7 -DIFF BRAKING AS RQRD.
  * @param tluLocked the TLU stays locked at high speed after slat extension (tluLockedAtHighSpeed)
  * @returns the line indexes
@@ -140,7 +129,7 @@ export function rudderTravelLimiterSystemLines(tluLocked: boolean): (number | nu
 }
 
 /** The AUTO FLT STATUS codes (StatusMessages): 22 04 limitations, 22 05 conditions, 22 03 INOP SYS */
-export const FacActuatorStatusCodes = {
+const FacActuatorStatusCodes = {
   rudderWithCareAbove160: '220400001',
   maxCrosswindForLanding15: '220400002',
   autoBrakeDoNotUse: '220400003',
@@ -161,9 +150,9 @@ const S = FacActuatorStatusCodes;
 const F = FlightControlStatusCodes;
 
 /**
- * YAW DAMPER 1(2) STATUS (l.71994-72000): CAT 3 SINGLE ONLY; INOP SYS CAT 3 DUAL, YAW DAMPER 1(2).
- * RUD TRIM 1(2) FAULT STATUS (l.71775-71780): the same with RUD TRIM 1(2).
- * RUD TRV LIM 1(2) STATUS (l.71859-71863): INOP SYS RUD TRV LIM 1(2) only.
+ * YAW DAMPER 1(2) STATUS: CAT 3 SINGLE ONLY; INOP SYS CAT 3 DUAL, YAW DAMPER 1(2).
+ * RUD TRIM 1(2) FAULT STATUS: the same with RUD TRIM 1(2).
+ * RUD TRV LIM 1(2) STATUS: INOP SYS RUD TRV LIM 1(2) only.
  */
 export const facActuatorStatus = {
   yawDamperFault: (unit: 1 | 2): StatusLines => ({
@@ -179,7 +168,7 @@ export const facActuatorStatus = {
     inopSys: [unit === 1 ? S.rudderTravelLimiter1 : S.rudderTravelLimiter2],
   }),
   /**
-   * YAW DAMPER SYS STATUS (l.72062-72077): MAX SPEED 320 KT, APPR PROC (FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD
+   * YAW DAMPER SYS STATUS: MAX SPEED 320 KT, APPR PROC (FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD
    * VREF+10 KT, LDG DIST PROC APPLY), ALTN LAW: PROT LOST; INOP SYS F/CTL PROT, YAW DAMPER, AP 1+2, CAT 2. Not shown: GLS AUTOLAND (option)
    * and the "FOR LDG : USE FLAP 3" reminder variant (as the F/CTL ALTN LAW STATUS, FlightControlStatus).
    */
@@ -195,13 +184,13 @@ export const facActuatorStatus = {
     ],
     inopSys: [F.fctlProt, S.yawDamper, F.ap12, F.cat2],
   }),
-  /** RUD TRIM SYS STATUS (l.71816-71822): INOP SYS RUD TRIM, AP 1+2, CAT 2. Not shown: GLS AUTOLAND (option). */
+  /** RUD TRIM SYS STATUS: INOP SYS RUD TRIM, AP 1+2, CAT 2. Not shown: GLS AUTOLAND (option). */
   rudderTrimSystem: (): StatusLines => ({
     left: [],
     inopSys: [S.rudderTrim, F.ap12, F.cat2],
   }),
   /**
-   * RUD TRV LIM SYS STATUS (l.71916-71930): RUD WITH CARE ABV 160 KT, and when the TLU stays locked at high speed after
+   * RUD TRV LIM SYS STATUS: RUD WITH CARE ABV 160 KT, and when the TLU stays locked at high speed after
    * slat extension MAX X WIND FOR LDG 15 KT, AUTO BRK DO NOT USE, AT LDG ROLL: DIFF BRAKING AS RQRD; INOP SYS RUD TRV LIM.
    * @param tluLocked the TLU stays locked at high speed after slat extension (tluLockedAtHighSpeed)
    */

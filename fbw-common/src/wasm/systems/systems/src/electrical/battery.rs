@@ -34,12 +34,11 @@ impl Battery {
     const RATED_CAPACITY_AMPERE_HOURS: f64 = 23.;
     /// Design choice: a shorted cell takes about one cell (20 Ni-Cd cells of 1.2 to 1.45 V) off the
     /// battery voltage. A full battery (28 V) then falls below the 26.5 V at which the battery charge
-    /// limiter starts a charging cycle (A320 FCOM DSC-24-20, a320_fcom.txt l.37070), so the runaway
-    /// shows whenever the DC BAT BUS can charge the battery.
+    /// limiter starts a charging cycle, so the runaway shows whenever the DC BAT BUS can charge the
+    /// battery.
     const SHORTED_CELL_POTENTIAL_DROP_VOLTS: f64 = 1.5;
     /// Design choice: the charging current of a battery in thermal runaway rises by 2 A each second
-    /// (the A320 FCOM PRO-ABN-ELEC BAT FAULT trigger, l.76146: "the charging current increases at an
-    /// abnormal rate"), up to 100 A.
+    /// (an abnormal rate of increase triggers the BAT FAULT), up to 100 A.
     const RUNAWAY_CURRENT_RISE_AMPERE_PER_SECOND: f64 = 2.;
     const RUNAWAY_CURRENT_MAX_AMPERE: f64 = 100.;
 

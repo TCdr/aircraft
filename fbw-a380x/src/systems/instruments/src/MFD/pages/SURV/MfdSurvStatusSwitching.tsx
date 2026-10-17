@@ -67,7 +67,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
   private readonly wxrTaws1Active = this.activeSystemGroupWxrTaws.map((s) => s === 1);
   private readonly wxrTaws2Active = this.activeSystemGroupWxrTaws.map((s) => s === 2);
 
-  /** The transponder/TCAS system in use (L:A32NX_TRANSPONDER_SYSTEM: 0 = SYS 1, 1 = SYS 2), also switched on the pedestal. */
+  /** The XPDR/TCAS system in use (L:A32NX_TRANSPONDER_SYSTEM: 0 = SYS 1, 1 = SYS 2), also switched on the pedestal */
   private readonly xpdrSystem = ConsumerSubject.create(this.sub.on('xpdrSystem'), 0);
   private readonly activeSystemGroupXpdrTcas = this.xpdrSystem.map((s) => s + 1);
   private readonly xpdrTcas1Active = this.activeSystemGroupXpdrTcas.map((s) => s === 1);

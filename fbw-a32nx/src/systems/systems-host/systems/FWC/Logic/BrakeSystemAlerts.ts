@@ -3,10 +3,9 @@
 
 /**
  * The BRAKES and WHEEL cautions of the brake and steering control units (BSCU channels 1 and 2, ABCU), from the
- * a320_systems brake model (hydraulic/brake_control_units.rs). A320 FCOM PRO-ABN-BRAKES (a320_fcom.txt l.72313-72898)
- * and PRO-ABN-WHEEL (l.96340-96380).
+ * a320_systems brake model (hydraulic/brake_control_units.rs).
  *
- * Power supplies (FCOM PRO-ABN-ELEC bus fault STATUS, see ElecBusAlerts): BSCU channel 1 on AC BUS 1 and DC BUS 1
+ * Power supplies (from the ELEC bus fault STATUS lines, see ElecBusAlerts): BSCU channel 1 on AC BUS 1 and DC BUS 1
  * (BRK SYS 1), channel 2 on AC BUS 2 and DC BUS 2 (BRK SYS 2), ABCU on DC ESS BUS (ALTN BRK). Design choice: a unit
  * lost only because its bus is unpowered gives no BRAKES caution, the ELEC bus fault alert already shows it and lists
  * the same INOP SYS.
@@ -70,41 +69,40 @@ export function brakeSystemAlerts(inputs: BrakeSystemAlertInputs): BrakeSystemAl
   const abcuFailed = inputs.abcuLost && !inputs.abcuPowerLost;
 
   // The normal braking function is lost by a brake system failure: the normal equipment, or both BSCU channels
-  // ("Braking is electrically-controlled through the BSCU", FCOM DSC-32-30-10 l.51259). The loss by the green
+  // (braking is electrically controlled through the BSCU). The loss by the green
   // hydraulic pressure is the HYD G SYS LO PR alert (its STATUS lists NORM BRK, see HydraulicAlerts).
   const normalBrakingLost = inputs.normalBrakingFailed || bothBscuLost;
 
-  // NORM + ALTN FAULT (l.72640-72641): "the normal and alternate braking functions are lost".
+  // NORM + ALTN FAULT: the normal and alternate braking functions are lost.
   // Design choice: shown when one of the two losses is a brake system failure (not only the bus power losses).
   const normAndAltnFault =
     normalBrakingLost && inputs.abcuLost && (inputs.normalBrakingFailed || bscu1Failed || bscu2Failed || abcuFailed);
 
-  // A/SKID N/WS FAULT (l.72323-72328): "a loss of normal brake system associated with Y HYD SYS LO PRESS, or both BSCU
-  // channels are failed". Not with NORM + ALTN FAULT, whose STATUS includes ANTI SKID and N/W STRG (l.72667-72674).
+  // A/SKID N/WS FAULT: a loss of the normal brake system with Y HYD SYS LO PRESS, or both BSCU channels failed.
+  // Not with NORM + ALTN FAULT, whose STATUS includes ANTI SKID and N/W STRG.
   const antiSkidNwsFault =
     !normAndAltnFault &&
     ((inputs.normalBrakingFailed && inputs.yellowLowPressure) || (bothBscuLost && (bscu1Failed || bscu2Failed)));
 
-  // A/SKID N/WS OFF (l.72328): "The A/SKID & N/W STRG sw is set to OFF". The FAULT title takes over when both are true.
+  // A/SKID N/WS OFF: the A/SKID & N/W STRG sw is OFF. The FAULT title takes over when both are true.
   const antiSkidNwsOff = inputs.antiSkidSwitchOff && !normAndAltnFault && !antiSkidNwsFault;
 
-  // NORM BRK FAULT (l.72686): "the normal braking function is lost". Not when A/SKID N/WS FAULT or NORM + ALTN FAULT
+  // NORM BRK FAULT: the normal braking function is lost. Not when A/SKID N/WS FAULT or NORM + ALTN FAULT
   // already shows it (their STATUS lists NORM BRK); both BSCU channels lost is A/SKID N/WS FAULT.
   const normBrkFault = inputs.normalBrakingFailed && !normAndAltnFault && !antiSkidNwsFault;
 
-  // ALTN BRK FAULT (l.72395): "the alternate braking function is lost".
   const altnBrkFault = abcuFailed && !normAndAltnFault;
 
-  // AUTO BRK FAULT (l.72473): "the autobrake is failed, after being armed". Not when a braking alert above already
-  // lists AUTO BRK in its STATUS (A/SKID N/WS l.72355-72375, NORM BRK l.72713, NORM + ALTN l.72667-72674).
+  // AUTO BRK FAULT: the autobrake failed after being armed. Not when a braking alert above already lists AUTO BRK in
+  // its STATUS (A/SKID N/WS, NORM BRK, NORM + ALTN).
   const autoBrkFault =
     inputs.autobrakeFailedAfterArmed && !normAndAltnFault && !antiSkidNwsFault && !antiSkidNwsOff && !normBrkFault;
 
-  // SYS 1(2) FAULT (l.72884): "one BSCU channel is failed". Both channels lost is A/SKID N/WS FAULT.
+  // SYS 1(2) FAULT: one BSCU channel is failed. Both channels lost is A/SKID N/WS FAULT.
   const sys1Fault = bscu1Failed && !inputs.bscu2Lost;
   const sys2Fault = bscu2Failed && !inputs.bscu1Lost;
 
-  // WHEEL N/W STRG FAULT (l.96350): "the nose wheel steering system is failed". Not when A/SKID N/WS FAULT, OFF or
+  // WHEEL N/W STRG FAULT: the nose wheel steering system is failed. Not when A/SKID N/WS FAULT, OFF or
   // NORM + ALTN FAULT already lists N/W STRG in its STATUS.
   const nwStrgFault = inputs.noseWheelSteeringFailed && !normAndAltnFault && !antiSkidNwsFault && !antiSkidNwsOff;
 
@@ -122,7 +120,7 @@ export function brakeSystemAlerts(inputs: BrakeSystemAlertInputs): BrakeSystemAl
 }
 
 /** STATUS codes (StatusMessages) of the BRAKES and WHEEL alerts */
-export const BRAKE_SYSTEM_STATUS = {
+const BRAKE_SYSTEM_STATUS = {
   maxBrkPr: '290400003',
   ldgDistProc: '290400017',
   parkBrkOnly: '320400090',
@@ -148,8 +146,8 @@ export interface BrakeSystemStatus {
 }
 
 /**
- * BRAKES A/SKID N/WS FAULT OR A/SKID N/WS OFF STATUS (l.72355-72375): MAX BRK PR 1000 PSI, LDG DIST PROC APPLY,
- * "If Y SYS LO PR: BRK Y ACCU PR ONLY", CAT 3 SINGLE ONLY; INOP SYS CAT 3 DUAL, ANTI SKID, N/W STRG, NORM BRK, AUTO BRK.
+ * BRAKES A/SKID N/WS FAULT OR A/SKID N/WS OFF STATUS: MAX BRK PR 1000 PSI, LDG DIST PROC APPLY,
+ * BRK Y ACCU PR ONLY (if Y SYS LO PR), CAT 3 SINGLE ONLY; INOP SYS CAT 3 DUAL, ANTI SKID, N/W STRG, NORM BRK, AUTO BRK.
  * @param yellowLowPressure the yellow hydraulic system is in low pressure
  * @returns the STATUS codes
  */
@@ -160,14 +158,13 @@ export function antiSkidNwsStatus(yellowLowPressure: boolean): BrakeSystemStatus
   };
 }
 
-/** BRAKES NORM + ALTN FAULT STATUS (l.72667-72674) */
 export const NORM_AND_ALTN_FAULT_STATUS: BrakeSystemStatus = {
   left: [S.parkBrkOnly, S.ldgDistProc, S.cat3SingleOnly],
   inopSys: [S.cat3Dual, S.antiSkid, S.nwStrg, S.normBrk, S.autoBrk, S.altnBrk],
 };
 
 /**
- * BRAKES NORM BRK FAULT STATUS (l.72709-72715): LDG DIST PROC APPLY, ALTN Y BRK WITH A/SKID, CAT 3 SINGLE ONLY; INOP SYS
+ * BRAKES NORM BRK FAULT STATUS: LDG DIST PROC APPLY, ALTN Y BRK WITH A/SKID, CAT 3 SINGLE ONLY; INOP SYS
  * CAT 3 DUAL, NORM BRK, AUTO BRK
  */
 export const NORM_BRK_FAULT_STATUS: BrakeSystemStatus = {
@@ -175,17 +172,17 @@ export const NORM_BRK_FAULT_STATUS: BrakeSystemStatus = {
   inopSys: [S.cat3Dual, S.normBrk, S.autoBrk],
 };
 
-/** BRAKES ALTN BRK FAULT STATUS (l.72403-72409): INOP SYS ALTN BRK */
+/** BRAKES ALTN BRK FAULT STATUS: INOP SYS ALTN BRK */
 export const ALTN_BRK_FAULT_STATUS: BrakeSystemStatus = { left: [], inopSys: [S.altnBrk] };
 
-/** BRAKES AUTO BRK FAULT STATUS (l.72477-72483): CAT 3 SINGLE ONLY; INOP SYS CAT 3 DUAL, AUTO BRK */
+/** BRAKES AUTO BRK FAULT STATUS: CAT 3 SINGLE ONLY; INOP SYS CAT 3 DUAL, AUTO BRK */
 export const AUTO_BRK_FAULT_STATUS: BrakeSystemStatus = { left: [S.cat3SingleOnly], inopSys: [S.cat3Dual, S.autoBrk] };
 
-/** BRAKES SYS 1 FAULT STATUS (l.72894-72898): INOP SYS BRK SYS 1 */
+/** BRAKES SYS 1 FAULT STATUS: INOP SYS BRK SYS 1 */
 export const SYS_1_FAULT_STATUS: BrakeSystemStatus = { left: [], inopSys: [S.brkSys1] };
 
-/** BRAKES SYS 2 FAULT STATUS (l.72894-72898): INOP SYS BRK SYS 2 */
+/** BRAKES SYS 2 FAULT STATUS: INOP SYS BRK SYS 2 */
 export const SYS_2_FAULT_STATUS: BrakeSystemStatus = { left: [], inopSys: [S.brkSys2] };
 
-/** WHEEL N/W STRG FAULT STATUS (l.96373-96378): CAT 3 SINGLE ONLY; INOP SYS CAT 3 DUAL, N/W STRG */
+/** WHEEL N/W STRG FAULT STATUS: CAT 3 SINGLE ONLY; INOP SYS CAT 3 DUAL, N/W STRG */
 export const NW_STRG_FAULT_STATUS: BrakeSystemStatus = { left: [S.cat3SingleOnly], inopSys: [S.cat3Dual, S.nwStrg] };

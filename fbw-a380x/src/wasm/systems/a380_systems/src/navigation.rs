@@ -16,16 +16,14 @@ use uom::si::velocity::knot;
 
 pub(crate) struct A380AirDataInertialReferenceSystemBuilder;
 impl A380AirDataInertialReferenceSystemBuilder {
-    /// The supplies of the ADIRUs, from the INOP SYS of the A380 FCOM PRO-ABN-ELEC busbar faults:
-    /// - ADIRU 1: AC ESS and DC ESS ("Because the AC ESS BUS supplies the ADR 1", a380_fcom.txt l.139230-139232;
-    ///   "Because the DC ESS BUS supplies the ADR 1", l.140854-140856);
-    /// - ADIRU 2: AC 4 and DC 2 (AC BUS 4 FAULT: ADR 2, l.139085; DC BUS 2 FAULT: ADR 2, l.140685);
-    /// - ADIRU 3: AC 2 and DC 1 ("Because the AC BUS 2 supplies the ADR 3", l.137931; "Because the DC BUS 1 supplies
-    ///   the ADR 3", l.139802).
+    /// The supplies of the ADIRUs, from the INOP SYS lists of the electrical busbar faults:
+    /// - ADIRU 1: AC ESS and DC ESS;
+    /// - ADIRU 2: AC 4 and DC 2;
+    /// - ADIRU 3: AC 2 and DC 1.
     ///
     /// The ADR needs both busbars. The IR keeps running on either: only the loss of both (AC BUS 3+4 & DC BUS 2
-    /// FAULT) gives IR 2 in its INOP SYS (l.138909-138910). The A380 has no ON BAT light: the DC busbars are no
-    /// battery buses here. In the A380X electrical model the AC ESS busbar (400XP) is the "AC ESS SHED" bus type.
+    /// FAULT) gives IR 2 in its INOP SYS. The A380 has no ON BAT light: the DC busbars are no battery buses here. In
+    /// the A380X electrical model the AC ESS busbar (400XP) is the "AC ESS SHED" bus type.
     fn electrical_supplies() -> [AdiruElectricalSupply; 3] {
         [
             (

@@ -6,8 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { PAX_MASK_RELEASE_CABIN_ALTITUDE_FT, isPaxMaskAutoRelease } from './PaxOxygenMasks';
 
-/* A320 FCOM DSC-35-30-10 (a320_fcom.txt l.56878-56880): "Each container has an electrical latching mechanism that opens
-   automatically to allow the masks to drop, if the cabin pressure altitude exceeds 14 000 ft (+250, -750 ft)". */
+/* The mask containers open when the cabin pressure altitude exceeds 14 000 ft (+250, -750 ft) */
 describe('passenger oxygen masks automatic release', () => {
   it('drops the masks when the cabin altitude goes above 14 000 ft', () => {
     expect(PAX_MASK_RELEASE_CABIN_ALTITUDE_FT).toBe(14_000);

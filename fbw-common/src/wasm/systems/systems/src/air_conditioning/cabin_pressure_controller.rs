@@ -554,13 +554,11 @@ impl<C: PressurizationConstants> CabinPressureController<C> {
     }
 
     /// Whether the controller has a landing elevation: the LDG ELEV selector, or in AUTO the FMGS landing elevation.
-    /// A320 FCOM DSC-21-20-30 (a320_fcom.txt:8862-8865): "The controller normally uses the landing elevation and
-    /// the QNH from the FMGC [...] If FMGC data are not available, the controller uses [...] the LDG ELEV
-    /// selection." In AUTO without FMGS data there is no landing elevation: the CPC sends its landing elevation word
-    /// with no computed data (the SD shows XX in amber) and CAB PR LDG ELEV FAULT triggers ("the LDG ELEV selector is
-    /// set to AUTO and the landing field elevation of the FMGS is not available", PRO-ABN-CAB_PR l.73185-73186).
-    /// The FCOM gives no landing elevation for the pressure schedule in this case: the controller keeps 0 ft until
-    /// the crew sets the LDG ELEV selector (procedure LDG ELEV ... ADJUST, l.73192-73196).
+    /// The controller normally uses the FMGC landing elevation and QNH, and the LDG ELEV selection when the FMGC data
+    /// are not available. In AUTO without FMGS data there is no landing elevation: the CPC sends its landing
+    /// elevation word with no computed data (the SD shows XX in amber) and CAB PR LDG ELEV FAULT triggers.
+    /// Design choice (the aircraft documents give no landing elevation for this case): the pressure schedule keeps
+    /// 0 ft until the crew sets the LDG ELEV selector, as the LDG ELEV FAULT procedure asks.
     pub fn landing_elevation_is_available(&self) -> bool {
         !self.landing_elevation_is_auto || self.fm_landing_elevation_is_valid
     }
@@ -582,10 +580,9 @@ impl<C: PressurizationConstants> CabinPressureController<C> {
 
     // FWC warning signals
 
-    /// CAB PR EXCESS CAB ALT, A320 FCOM PRO-ABN-CAB_PR (a320_fcom.txt:73012-73016): "In climb or descent, the cabin
-    /// altitude is above the higher of: 9 550 ft, or 1 000 ft above the airfield pressure altitude. In cruise, the
-    /// cabin altitude is above 9 550 ft." Design choice: outside cruise "the airfield" is both the departure and the
-    /// landing airfield (the higher of the two), as before.
+    /// CAB PR EXCESS CAB ALT: in climb or descent the cabin altitude is above the higher of 9 550 ft and 1 000 ft
+    /// above the airfield pressure altitude; in cruise it is above 9 550 ft. Design choice: outside cruise the
+    /// airfield is both the departure and the landing airfield (the higher of the two).
     pub fn is_excessive_alt(&self) -> bool {
         let above_warning_altitude = self.cabin_alt > Length::new::<foot>(C::EXCESSIVE_ALT_WARNING);
         if matches!(

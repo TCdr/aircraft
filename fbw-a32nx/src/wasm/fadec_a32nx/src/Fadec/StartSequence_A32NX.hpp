@@ -32,15 +32,15 @@ enum StartPhase {
   WET_CRANK       = 5,  // ENG MODE CRANK, MAN START ON, ENG MASTER ON: fuel without ignition
 };
 
-/// A320 FCOM DSC-70-80-40 (a320_fcom.txt l.63707-63708): "The HP fuel valve opens: On ground: when N2 > 22 %".
+/// On the ground the HP fuel valve opens when N2 is above 22 %.
 constexpr double HP_FUEL_VALVE_OPEN_N2 = 22.0;
 
-/// Design choice, no FCOM value: a hung start (or a stall) leaves the core speed at 60 % of the idle N2 (about 41 %), between
+/// Design choice, no published value: a hung start (or a stall) leaves the core speed at 60 % of the idle N2 (about 41 %), between
 /// the light-up (22 %) and the end of the start (50 %).
 constexpr double HUNG_START_N2_RATIO_OF_IDLE = 0.6;
 
-/// Design choice, no FCOM value: the EGT of a hot start (or a stall) rises 30 °C/s above the normal start EGT after the
-/// light-up, which takes it above the 725 °C start limit (FCOM PRO-ABN-ENG l.81366) within a few seconds.
+/// Design choice, no published value: the EGT of a hot start (or a stall) rises 30 °C/s above the normal start EGT after the
+/// light-up, which takes it above the 725 °C start limit within a few seconds.
 constexpr double EGT_OVERSHOOT_RATE_CELSIUS_PER_SECOND = 30.0;
 
 /// Design choice: an unlit core follows the MSFS motoring speed with this time constant (seconds), instead of jumping to it.
@@ -66,9 +66,9 @@ struct StarterInputs {
 /**
  * @brief Engages or releases the MSFS starter, which is how the FBW engine model starts, runs and stops the MSFS engine.
  *
- * Before the start sequence of the systems WASM: engaged when the fuel valve is open and (starter air or N2 above 20 % or an
- * in-flight relight lighting up); released when the fuel valve closes, or without starter air below 20 % N2. Now also engaged
- * while the start sequence motors the core without fuel, and a failed starter gives no starter air.
+ * Engaged when the fuel valve is open and (starter air or N2 above 20 % or an in-flight relight lighting up), and while
+ * the start sequence motors the core without fuel; released when the fuel valve closes, or without starter air below
+ * 20 % N2. A failed starter gives no starter air.
  */
 inline StarterCommand starterCommand(const StarterInputs& in) {
   const bool starterAir = in.starterPressurized && !in.starterFailed;
@@ -86,8 +86,8 @@ inline StarterCommand starterCommand(const StarterInputs& in) {
 /**
  * @brief The OFF engine state may become ON when the MSFS engine turns with its starter above 20 % N2 at NORM and MSFS burns in
  * it (an engine running at the load of a flight). A core that the start sequence motors without fuel is not running, nor is a
- * core that the MSFS starter turns without combustion (the same rule marked a cold A380X engine ON at NORM, sim test
- * 2026-10-07). A normal start (ENG MODE at IGN/START, also the aircraft presets) goes through STARTING.
+ * core that the MSFS starter turns without combustion (measured in the sim: otherwise a cold engine cranked at NORM is marked
+ * ON). A normal start (ENG MODE at IGN/START, also the aircraft presets) goes through STARTING.
  */
 inline bool offEngineIsRunning(int engineIgniter, bool engineStarter, double simN2, bool starterMotoring, bool simCombustion) {
   return engineIgniter == 1 && engineStarter && simN2 > 20 && !starterMotoring && simCombustion;

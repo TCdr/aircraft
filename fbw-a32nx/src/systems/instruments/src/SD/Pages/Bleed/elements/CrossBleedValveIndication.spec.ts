@@ -8,7 +8,7 @@ import {
   isCrossBleedValveCommandedOpen,
 } from './CrossBleedValveIndication';
 
-/* A320 FCOM DSC-36-20 BLEED page, CROSSBLEED VALVE (a320_fcom.txt l.57810-57831) */
+/* Crossbleed valve of the BLEED page */
 describe('BLEED page crossbleed valve', () => {
   it('follows the selector in SHUT and OPEN, the APU bleed valve in AUTO', () => {
     expect(isCrossBleedValveCommandedOpen(CrossBleedSelectorPosition.Shut, true)).toBe(false);

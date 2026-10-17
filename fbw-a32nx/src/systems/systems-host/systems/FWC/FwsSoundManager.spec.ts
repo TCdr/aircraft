@@ -18,7 +18,7 @@ beforeEach(() => {
 
 const crcPlaying = () => lvars.get('L:A32NX_FWC_CRC') === true;
 
-describe('FWS aurals without FWC (A320 FCOM PRO-ABN-FWS FWS FWC 1 + 2 FAULT)', () => {
+describe('FWS aurals without FWC', () => {
   it('plays the aurals once the FWC startup is completed', () => {
     const fwsAvailable = Subject.create(true);
     const sounds = new FwsSoundManager(new EventBus(), fwsAvailable);

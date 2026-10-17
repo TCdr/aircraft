@@ -14,12 +14,8 @@ export interface TcasFaultInputs {
 }
 
 /**
- * Whether the TCAS cannot deliver RA data, out of standby: amber TCAS on the PFD and the ND, ECAM NAV TCAS FAULT.
- *
- * A320 FCOM DSC-34-SURV-60 PFD indications (a320_fcom.txt:56313-56315): the TCAS message "Appears in amber provided
- * that the TCAS is not in standby, when the TCAS cannot deliver RA data, or in case of an internal TCAS failure"; ND
- * (a320_fcom.txt:56276): "TCAS : Displayed in case of TCAS internal failure"; PRO-ABN-NAV NAV TCAS FAULT
- * (a320_fcom.txt:93888): "This alert triggers when there is an internal failure of the TCAS".
+ * Whether the TCAS cannot deliver RA data or has an internal failure, out of standby: amber TCAS on the PFD and the ND,
+ * ECAM NAV TCAS FAULT.
  * @param inputs the fault logic inputs
  * @returns true when the TCAS fault is shown
  */

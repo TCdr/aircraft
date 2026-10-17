@@ -90,10 +90,10 @@ impl SimulationElement for A380FireAndSmokeProtection {
     }
 }
 
-/// The compartments of the Smoke Detection Function (SDF) of the CIDS that are modelled: the cargo compartments (A380
-/// FCOM DSC-26-60-10, a380_fcom.txt l.53797-53836) and the avionics bays with the IFE bay (DSC-26-50-10,
-/// l.53583-53630), each with two smoke detectors. Not modelled: the crew rests, lavatories, CWS / RCC, showers and the
-/// NSS, and the SDF itself as a failable computer (SMOKE DET FAULT, 260800031).
+/// The compartments of the Smoke Detection Function (SDF) of the CIDS that are modelled: the cargo
+/// compartments and the avionics bays with the IFE bay, each with two smoke detectors. Not
+/// modelled: the crew rests, lavatories, CWS / RCC, showers and the NSS, and the SDF itself as a
+/// failable computer (SMOKE DET FAULT, 260800031).
 const A380_SMOKE_DETECTION_ZONES: [SmokeDetectionZone; 9] = [
     SmokeDetectionZone::ForwardCargo,
     SmokeDetectionZone::AftCargo,
@@ -106,27 +106,23 @@ const A380_SMOKE_DETECTION_ZONES: [SmokeDetectionZone; 9] = [
     SmokeDetectionZone::InFlightEntertainmentBay,
 ];
 
-/// The A380 Smoke Detection Function (SDF) of the CIDS: "monitors smoke detection in: The avionics bays, The cargo
-/// compartments, The cabin areas. It also manages fire extinguishing in the cargo compartments." (A380 FCOM DSC-26-10-10,
-/// a380_fcom.txt l.52793-52803)
+/// The A380 Smoke Detection Function (SDF) of the CIDS: smoke detection in the avionics bays, the cargo compartments and
+/// the cabin areas, and the cargo fire extinguishing.
 struct SmokeDetectionFunction {
     zones: [SmokeDetection<2>; 9],
     cargo_fire_extinguishing: CargoFireExtinguishing<2, 2>,
 }
 
 impl SmokeDetectionFunction {
-    /// A380 FCOM DSC-26-60-10 FIRE EXTINGUISHING (a380_fcom.txt l.53860-53866): "Bottle 1 first discharges extinguisher
-    /// agent in the affected cargo compartment. This takes approximately one minute."
+    /// Cargo fire extinguishing: bottle 1 discharges into the affected compartment in about one minute
     const CARGO_BOTTLE_1_DISCHARGE_DURATION: Duration = Duration::from_secs(60);
-    /// "Bottle 2 then slowly discharges extinguisher agent, to provide sufficient extinguisher agent concentration in
-    /// the affected cargo compartment for approximately four hours." (l.53862-53864)
+    /// then bottle 2 discharges slowly, to keep enough agent in the compartment for about four hours
     const CARGO_BOTTLE_2_DISCHARGE_DURATION: Duration = Duration::from_secs(4 * 3600);
 
     fn new(context: &mut InitContext) -> Self {
         Self {
-            // DETECTION LOGIC (l.53619-53630, l.53834-53841). Design choice (no FCOM supply): detector 1 on the DC ESS
-            // bus and detector 2 on the DC 2 bus, as the fire detection loops A and B here. No confirmation time in the
-            // FCOM.
+            // Design choice (no published supply or confirmation time): detector 1 on the DC ESS bus and detector 2
+            // on the DC 2 bus, as the fire detection loops A and B here.
             zones: A380_SMOKE_DETECTION_ZONES.map(|zone| {
                 SmokeDetection::new(
                     context,
@@ -142,7 +138,7 @@ impl SmokeDetectionFunction {
                 )
             }),
             // The AGENT TO FWD / AGENT TO AFT pbs write L:A32NX_CARGOSMOKE_FWD(AFT)_DISCHARGED; the AFT agent goes to
-            // the aft/bulk compartment (l.53846-53848)
+            // the aft/bulk compartment
             cargo_fire_extinguishing: CargoFireExtinguishing::new(
                 context,
                 ["FWD", "AFT"],
@@ -1343,8 +1339,8 @@ mod a380_fire_and_smoke_protection_tests {
             assert!(!test_bed.zone_burning("APU_ON_FIRE"));
         }
 
-        // The fire detection senses the zone burning signal alone: FCOM DSC-26-20-20 ENG MASTER FIRE light "The light
-        // remains on, until the fire is extinguished"
+        // The fire detection senses the zone burning signal alone: the ENG MASTER FIRE light stays on until the fire
+        // is extinguished
 
         #[test]
         fn the_fire_warning_ends_when_the_engine_fire_failure_is_removed_even_if_the_sim_variable_stays_on(
@@ -1451,7 +1447,7 @@ mod a380_fire_and_smoke_protection_tests {
 
         #[test]
         fn one_failed_detector_gives_the_smoke_det_fault_of_its_compartment() {
-            // A380 FCOM DSC-26-60-10 DETECTION LOGIC (a380_fcom.txt l.53834-53836)
+            // Cargo compartment detection logic
             let mut test_bed = test_bed();
             test_bed.fail(FailureType::SmokeDetector(SmokeDetectionZone::BulkCargo, 2));
             test_bed = test_bed.and_double_run();
@@ -1475,7 +1471,7 @@ mod a380_fire_and_smoke_protection_tests {
 
         #[test]
         fn the_aft_agent_discharges_bottle_1_in_about_one_minute_then_bottle_2() {
-            // A380 FCOM DSC-26-60-10 FIRE EXTINGUISHING (a380_fcom.txt l.53860-53864)
+            // Cargo fire extinguishing: bottle 1, then bottle 2
             let mut test_bed = test_bed()
                 .and_double_run()
                 .then()

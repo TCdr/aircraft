@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * Two FUEL cautions that need a failure, both "Crew awareness" (no procedure line) and amber. The flight phase
- * inhibitions are figures, read on the 2019 FCOM PDF:
- * - FUEL ENG 1(2) LP VALVE OPEN (A320 FCOM PRO-ABN-FUEL, a320_fcom.txt l.85829-85845): "This alert triggers when the
- *   valve remains in the open position." Inhibited in phases 4, 5, 7 and 8 (PDF page 2415). The valve and its position
- *   monitoring are simulated by the systems (fuel/engine_lp_valve.rs, flyPad failures 28007/28008 "ENG 1(2) LP fuel
- *   valve jammed in place"): L:A32NX_FUEL_ENG_n_LP_VALVE_ABNORMALLY_OPEN is set once the valve is still open after its
- *   travel time while the ENG MASTER or the ENG FIRE pushbutton commands it closed.
- * - FUEL FQI CH 1(2) FAULT (l.85886-85896): "This alert triggers when a FQI channel is failed." Inhibited in phases 3,
- *   4, 5, 7 and 8 (PDF page 2417). From the flyPad failures 28009/28010 (systems-host Fuel/FuelPumpsAndValves,
- *   L:A32NX_FUEL_FQI_CHANNEL_n_FAULT).
+ * Two FUEL cautions that need a failure, both crew awareness (no procedure line) and amber:
+ * - FUEL ENG 1(2) LP VALVE OPEN: the valve remains in the open position. Inhibited in phases 4, 5, 7 and 8. The valve
+ *   and its position monitoring are simulated by the systems (fuel/engine_lp_valve.rs, flyPad failures 28007/28008
+ *   "ENG 1(2) LP fuel valve jammed in place"): L:A32NX_FUEL_ENG_n_LP_VALVE_ABNORMALLY_OPEN is set once the valve is
+ *   still open after its travel time while the ENG MASTER or the ENG FIRE pushbutton commands it closed.
+ * - FUEL FQI CH 1(2) FAULT: an FQI channel is failed. Inhibited in phases 3, 4, 5, 7 and 8. From the flyPad failures
+ *   28009/28010 (systems-host Fuel/FuelPumpsAndValves, L:A32NX_FUEL_FQI_CHANNEL_n_FAULT).
  */
 
 export const ENG_LP_VALVE_OPEN_PHASE_INHIBITION = [4, 5, 7, 8];

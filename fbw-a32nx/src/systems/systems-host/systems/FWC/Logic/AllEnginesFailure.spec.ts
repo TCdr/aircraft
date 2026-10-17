@@ -87,9 +87,8 @@ describe('ALL ENGINES FAILURE: lines', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-ENG ENG ALL ENGINES FAILURE STATUS (a320_fcom.txt l.79177-79239). */
 describe('ALL ENGINES FAILURE STATUS', () => {
-  it('shows the FCOM limitations, approach procedure and information, in the FCOM order', () => {
+  it('shows the limitations, approach procedure and information, in the aircraft order', () => {
     expect(statusLines(allEnginesFailureStatus()).left).toEqual([
       'MIN RAT SPEED....140 KT',
       'MAX SPEED.......320/.77',
@@ -109,7 +108,7 @@ describe('ALL ENGINES FAILURE STATUS', () => {
     ]);
   });
 
-  it('shows the FCOM INOP SYS list', () => {
+  it('shows the INOP SYS list', () => {
     expect(statusLines(allEnginesFailureStatus()).right).toEqual([
       'INOP SYS',
       'G+Y HYD',

@@ -1134,8 +1134,8 @@ pub enum FireDetectionLoopID {
     B,
 }
 
-/// A compartment watched by smoke detectors: the A320 cargo compartments and avionics ventilation duct (A320 FCOM
-/// DSC-26-30-10, DSC-26-50-10), the A380 cargo compartments and avionics bays (A380 FCOM DSC-26-50-10, DSC-26-60-10)
+/// A compartment watched by smoke detectors: the A320 cargo compartments and avionics ventilation duct, the A380 cargo
+/// compartments and avionics bays
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum SmokeDetectionZone {
     ForwardCargo,

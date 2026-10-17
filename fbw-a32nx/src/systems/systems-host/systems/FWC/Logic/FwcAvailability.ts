@@ -5,17 +5,14 @@
  * The two flight warning computers of the A320. The A32NX computes the warnings in one PseudoFWC: these functions decide
  * which FWC is working, which FWC fault alert is shown and when the warning system is lost altogether.
  *
- * A320 FCOM references (texts in references/manuals/a320_fcom.txt):
- * - DSC-31-05-30 (line 45082): "The two identical FWCs generate alert messages, memos, aural alerts, and synthetic voice
- *   messages", the radio height and decision height callouts (line 45090), and drive the MASTER WARN / MASTER CAUT
- *   lights (line 45109).
- * - PRO-ABN-FWS FWS FWC 1(2) FAULT (line 86821): "This alert triggers when either FWC 1 or, FWC 2 is failed." Crew
- *   awareness; STATUS: CAT 3 SINGLE ONLY, INOP SYS CAT 3 DUAL, FWC 1(2) (lines 86846-86849).
- * - PRO-ABN-FWS FWS FWC 1 + 2 FAULT (line 86766): "This alert triggers when both FWC 1 and FWC 2 are failed";
- *   MONITOR SYS, MONITOR OVERHEAD PANEL; NOT AVAIL: ECAM WARN, ALTI ALERT, STATUS, A/CALL OUT, MEMO (lines 86773-86782);
- *   "ECAM Cautions and Warnings, aural warnings, master caution and warning lights are lost." (line 86806).
- * - Supplies: FWC 1 is lost with the AC ESS bus (ELEC AC ESS BUS FAULT INOP SYS, line 75992), FWC 2 with the AC BUS 2
- *   (ELEC AC BUS 2 FAULT INOP SYS, line 75763).
+ * - The two identical FWCs generate the alert messages, memos, aural alerts, synthetic voice messages and the radio
+ *   height and decision height callouts, and drive the MASTER WARN / MASTER CAUT lights.
+ * - FWS FWC 1(2) FAULT: one FWC failed. Crew awareness; STATUS: CAT 3 SINGLE ONLY, INOP SYS CAT 3 DUAL, FWC 1(2).
+ * - FWS FWC 1 + 2 FAULT: both FWCs failed. MONITOR SYS, MONITOR OVERHEAD PANEL; NOT AVAIL: ECAM WARN, ALTI ALERT,
+ *   STATUS, A/CALL OUT, MEMO. The ECAM cautions and warnings, aural warnings and master caution and warning lights are
+ *   lost.
+ * - Supplies: FWC 1 is lost with the AC ESS bus (in the ELEC AC ESS BUS FAULT INOP SYS), FWC 2 with the AC BUS 2 (in
+ *   the ELEC AC BUS 2 FAULT INOP SYS).
  */
 
 /** The inputs of the two FWCs */
@@ -51,10 +48,10 @@ export interface FwcAvailability {
  *
  * The single FWC fault alert is raised by the remaining FWC, so only while that FWC works. It is raised by the FWC
  * failure, not by the loss of the FWC supply: that loss is shown by the electrical alert, whose INOP SYS list already
- * has the FWC (design choice, FCOM lines 75763 and 75992).
+ * has the FWC (design choice).
  *
  * The FWC 1+2 FAULT needs at least one FWC failure: without power on both supplies the whole cockpit is unpowered
- * (cold and dark) and nothing is shown, as before (design choice).
+ * (cold and dark) and nothing is shown (design choice).
  * @param inputs the failures and supplies of the FWCs
  * @returns what the FWCs can do
  */
@@ -102,7 +99,7 @@ export interface FwcFaultStatus {
 }
 
 /**
- * The STATUS page of FWS FWC 1(2) FAULT (FCOM PRO-ABN-FWS, lines 86846-86849): CAT 3 SINGLE ONLY on the left,
+ * The STATUS page of FWS FWC 1(2) FAULT: CAT 3 SINGLE ONLY on the left,
  * CAT 3 DUAL and FWC 1(2) in the INOP SYS.
  * @param fwc the failed FWC
  * @returns the STATUS page codes
@@ -118,7 +115,7 @@ export function fwcFaultStatus(fwc: 1 | 2): FwcFaultStatus {
 export const FWC_FAULT_EWD_CODES = { fwc1: '310050001', fwc2: '310051001' } as const;
 
 /**
- * The E/WD of FWS FWC 1+2 FAULT (FCOM PRO-ABN-FWS, lines 86756-86782), as EwdMessages codes. The real display units
+ * The E/WD of FWS FWC 1+2 FAULT, as EwdMessages codes. The real display units
  * build it themselves since no FWC is left; the A32NX writes it from the PseudoFWC instead of the alerts and memos.
  */
 export const FWC_1_AND_2_FAULT_EWD = {

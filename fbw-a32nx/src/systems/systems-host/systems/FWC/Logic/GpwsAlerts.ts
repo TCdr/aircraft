@@ -4,21 +4,19 @@
 import { Subject } from '@microsoft/msfs-sdk';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { StatusLines } from './CondStatus';
-import { FwcAlertItem, cautionItem } from './FwcAlertItem';
+import { FwcAlertItem, cautionItem, readBool } from './FwcAlertItem';
 
 /*
- * The GPWS cautions of the A320 (FCOM PRO-ABN-NAV, a320_fcom.txt l.93124-93192), from the EGPWC discretes the Rust
- * EGPWS writes (fbw-common surveillance/egpws: L:A32NX_GPWS_SYS_FAULT = gpws_inop, L:A32NX_GPWS_TERR_FAULT =
- * terrain_inop; both set by the EGPWC failure 34030, the loss of power and the self test):
- * - NAV GPWS FAULT: "This alerts triggers when the GPWS fails." (l.93134); "GPWS ... OFF", "This line remains displayed,
- *   even after the GPWS pb-sw has been switched OFF." (l.93140-93141); STATUS INOP SYS GPWS (l.93145-93149).
- * - NAV GPWS TERR DET FAULT: "This alert triggers when the enhanced TCF and TAD modes of the EGPWS ... are inoperative"
- *   (l.93171-93173); "GPWS TERR ... OFF" (l.93179); STATUS INOP SYS GPWS TERR (l.93186-93190; the ROW/ROP line is left
- *   out, the FBW A32NX has no ROW/ROP).
+ * The GPWS cautions, from the EGPWC discretes the Rust EGPWS writes (fbw-common surveillance/egpws:
+ * L:A32NX_GPWS_SYS_FAULT = gpws_inop, L:A32NX_GPWS_TERR_FAULT = terrain_inop; both set by the EGPWC failure 34030, the
+ * loss of power and the self test):
+ * - NAV GPWS FAULT: the GPWS fails; asks GPWS OFF, a line that stays after the pb-sw is OFF; STATUS INOP SYS GPWS.
+ * - NAV GPWS TERR DET FAULT: the enhanced TCF and TAD modes are inoperative; asks GPWS TERR OFF; STATUS INOP SYS GPWS
+ *   TERR (the ROW/ROP line is left out, the FBW A32NX has no ROW/ROP).
  * The EGPWC also reports gpws_inop when the GPWS SYS pb-sw is OFF (its inhibit discrete): the alert triggers on a fault
  * with the pb-sw ON, and then stays as long as the EGPWC reports the fault, pb-sw OFF included. The TERR pb-sw OFF gives
- * the TERR OFF memo of this aircraft (DSC-34-SURV l.55536-55544), not the caution: the caution needs a terrain fault.
- * Flight phase inhibition (FCOM PDF pages 5650, 5651): shown in phases 2, 6, 7 and 9.
+ * the TERR OFF memo of this aircraft, not the caution: the caution needs a terrain fault.
+ * Flight phase inhibition: shown in phases 2, 6, 7 and 9.
  */
 
 export const GpwsAlertKeys = {
@@ -49,23 +47,23 @@ export function gpwsFaultMemory(previous: boolean, fault: boolean, pbOff: boolea
   return fault && (previous || !pbOff);
 }
 
-/** The lines of NAV GPWS FAULT: 0 title, 1 -GPWS OFF, always shown (l.93141) */
-export function gpwsFaultLines(): number[] {
+/** The lines of NAV GPWS FAULT: 0 title, 1 -GPWS OFF, always shown */
+function gpwsFaultLines(): number[] {
   return [0, 1];
 }
 
 /** The lines of NAV GPWS TERR DET FAULT: 0 title, 1 -GPWS TERR OFF, hidden once done */
-export function terrainDetectionFaultLines(terrainOff: boolean): (number | null)[] {
+function terrainDetectionFaultLines(terrainOff: boolean): (number | null)[] {
   return [0, terrainOff ? null : 1];
 }
 
 /** NAV GPWS FAULT STATUS: INOP SYS GPWS */
-export function gpwsFaultStatus(): StatusLines {
+function gpwsFaultStatus(): StatusLines {
   return { left: [], inopSys: ['240300152'] };
 }
 
 /** NAV GPWS TERR DET FAULT STATUS: INOP SYS GPWS TERR */
-export function terrainDetectionFaultStatus(): StatusLines {
+function terrainDetectionFaultStatus(): StatusLines {
   return { left: [], inopSys: ['240300153'] };
 }
 
@@ -108,8 +106,6 @@ export class GpwsAlerts {
 }
 
 /* Acquisition (not unit tested: SimVar reads only) */
-
-const readBool = (name: string): boolean => SimVar.GetSimVarValue(name, 'bool') > 0;
 
 /** Reads the GPWS inputs from the simvars */
 export function readGpwsInputs(): GpwsInputs {

@@ -1,16 +1,13 @@
 //! Engine faults that the FADEC detects and reports to the flight warning system, and that have no
 //! effect on the engine model: each one is a flyPad failure that only raises its ECAM alert.
 //!
-//! Each aircraft lists the faults its FCOM has (see the aircraft crates); the faults of both FCOMs
-//! are in [`EngineMonitoringFaultKind`]. The FCOM says what each one is and that its alert is crew
-//! awareness (or a procedure without engine model effect):
-//! - A320 FCOM PRO-ABN-ENG (a320_fcom.txt): ENG 1(2) FADEC ALTERNATOR (l.79588-79615), OVSPD PROT
-//!   FAULT (l.80627-80659), PROBES FAULT (l.80660-80689), SENSOR FAULT (l.81012-81055), ONE TLA
-//!   FAULT (l.80603-80626), REV SWITCH FAULT (l.80820-80847).
-//! - A380 FCOM PRO-ABN-ECAM-10-70 (a380_fcom.txt): ENG 1(2)(3)(4) FUEL STRAINER CLOGGED
-//!   (l.172106-172132), FUEL FILTER MONITORING FAULT (l.172018-172043), OIL CHIP DETECTED
-//!   (l.172378-172406), MINOR FAULT (l.172307-172334), OVERTHRUST PROT LOST (l.172639-172666),
-//!   SENSOR FAULT (l.172667-172692).
+//! Each aircraft lists its own faults (see the aircraft crates); the faults of both aircraft are in
+//! [`EngineMonitoringFaultKind`]. Each alert is crew awareness (or a procedure without engine model
+//! effect):
+//! - A320: ENG 1(2) FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT,
+//!   REV SWITCH FAULT.
+//! - A380: ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED,
+//!   MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT.
 //!
 //! Written variable, per engine n and fault: `ENGINE_n_<fault>` (boolean, see
 //! [`EngineMonitoringFaultKind::variable_name`]).
@@ -26,37 +23,32 @@ use crate::{
 /// A fault the FADEC of an engine detects and reports, without effect on the engine model.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EngineMonitoringFaultKind {
-    /// A320 ENG 1(2) FADEC ALTERNATOR: "the electrical auto supply for the FADEC system is lost"
-    /// (l.79598). The FADEC is then supplied by the aircraft network.
+    /// A320 ENG 1(2) FADEC ALTERNATOR: the FADEC loses its own electrical supply and is then
+    /// supplied by the aircraft network.
     FadecAlternator,
-    /// A320 ENG 1(2) OVSPD PROT FAULT: "the overspeed protection is lost" (l.80637).
+    /// A320 ENG 1(2) OVSPD PROT FAULT: the overspeed protection is lost.
     OverspeedProtection,
-    /// A320 ENG 1(2) PROBES FAULT: "T12, P0, or PT2 data are unavailable on both channels"
-    /// (l.80670).
+    /// A320 ENG 1(2) PROBES FAULT: T12, P0 or PT2 data unavailable on both channels.
     InletProbes,
-    /// A320 ENG 1(2) SENSOR FAULT: "PS3 or T25 or T3 or N1 or N2 data is unavailable on both
-    /// channels" (l.81022); A380 ENG 1(2)(3)(4) SENSOR FAULT: "Engine total pressure probe or total
-    /// temperature probe or static temperature probe is failed" (l.172673).
+    /// A320 ENG 1(2) SENSOR FAULT: PS3, T25, T3, N1 or N2 data unavailable on both channels; A380
+    /// ENG 1(2)(3)(4) SENSOR FAULT: an engine total pressure, total temperature or static
+    /// temperature probe failed.
     Sensors,
-    /// A320 ENG 1(2) ONE TLA FAULT: one of the two resolvers of the thrust lever is failed (the
-    /// FCOM gives no triggering condition, l.80603-80626; both resolvers failed is ENG THR LEVER
-    /// FAULT, l.81802).
+    /// A320 ENG 1(2) ONE TLA FAULT: one of the two resolvers of the thrust lever is failed (no
+    /// published triggering condition; both resolvers failed is ENG THR LEVER FAULT).
     OneThrustLeverResolver,
-    /// A320 ENG 1(2) REV SWITCH FAULT: "the reverser permission switch is failed" (l.80830).
+    /// A320 ENG 1(2) REV SWITCH FAULT: the reverser permission switch is failed.
     ReverserPermissionSwitch,
-    /// A380 ENG 1(2)(3)(4) FUEL STRAINER CLOGGED: "The pressure drop across the fuel strainer is
-    /// higher than 12 PSI" (l.172113).
+    /// A380 ENG 1(2)(3)(4) FUEL STRAINER CLOGGED: the pressure drop across the fuel strainer is
+    /// above 12 PSI.
     FuelStrainerClog,
-    /// A380 ENG 1(2)(3)(4) FUEL FILTER MONITORING FAULT: "The fuel filter is no longer monitored"
-    /// (l.172024).
+    /// A380 ENG 1(2)(3)(4) FUEL FILTER MONITORING FAULT: the fuel filter is no longer monitored.
     FuelFilterMonitoring,
-    /// A380 ENG 1(2)(3)(4) OIL CHIP DETECTED: "Metallic particles are detected in the engine oil
-    /// system" (l.172384).
+    /// A380 ENG 1(2)(3)(4) OIL CHIP DETECTED: metallic particles in the engine oil system.
     OilChip,
-    /// A380 ENG 1(2)(3)(4) MINOR FAULT: "Some internal engine sensors or one FADEC channel are
-    /// failed" (l.172313).
+    /// A380 ENG 1(2)(3)(4) MINOR FAULT: some internal engine sensors or one FADEC channel failed.
     MinorFault,
-    /// A380 ENG 1(2)(3)(4) OVERTHRUST PROT LOST: "The overthrust protection is lost" (l.172645).
+    /// A380 ENG 1(2)(3)(4) OVERTHRUST PROT LOST: the overthrust protection is lost.
     OverthrustProtection,
 }
 impl EngineMonitoringFaultKind {
@@ -102,7 +94,7 @@ pub struct EngineMonitoringFaults<const N: usize> {
     engines: [Vec<EngineMonitoringFault>; N],
 }
 impl<const N: usize> EngineMonitoringFaults<N> {
-    /// `kinds`: the faults the FCOM of the aircraft has.
+    /// `kinds`: the faults the real aircraft has.
     pub fn new(context: &mut InitContext, kinds: &[EngineMonitoringFaultKind]) -> Self {
         Self {
             engines: std::array::from_fn(|index| {

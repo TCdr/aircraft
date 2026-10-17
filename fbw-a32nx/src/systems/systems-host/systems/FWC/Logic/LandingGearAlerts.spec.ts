@@ -48,10 +48,9 @@ describe('LGCIU conditions', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-LG L/G DOORS NOT CLOSED (l.89186): "This alert triggers when one gear door is not uplocked."
-   l.89205-89226: "If the L/G lever is UP: WHEN SPD < 220/0.54: L/G LEVER ... RECYCLE", "IF UNSUCCESSFUL: MAX SPEED ...
-   250/0.60, FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE"; STATUS (l.89230-89240) MAX SPEED 250/.60, FUEL CONSUMPT INCRSD,
-   FMS PRED UNRELIABLE, INOP SYS L/G DOOR. */
+/* L/G DOORS NOT CLOSED: triggers when one gear door is not uplocked. With the L/G lever up: WHEN SPD < 220/0.54,
+   L/G LEVER RECYCLE; IF UNSUCCESSFUL: MAX SPEED 250/0.60, FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE. STATUS: MAX SPEED
+   250/.60, FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE, INOP SYS L/G DOOR. */
 describe('L/G DOORS NOT CLOSED', () => {
   const doorOpen = { ...gearUp, doorNotClosed: [false, true, false] } as LgciuGearPosition;
 
@@ -96,8 +95,7 @@ describe('L/G DOORS NOT CLOSED', () => {
   });
 });
 
-/* l.89858-89859: L/G SYS DISAGREE "triggers when LGCIU 1 and LGCIU 2 detect a discrepancy between the landing gear
-   positions"; crew awareness. */
+/* L/G SYS DISAGREE: triggers when LGCIU 1 and LGCIU 2 disagree on the landing gear positions; crew awareness. */
 describe('L/G SYS DISAGREE', () => {
   it('a gear seen downlocked by one LGCIU only, or uplocked by one only, is a disagreement', () => {
     const gearDown: LgciuGearPosition = { ...gearUp, downlocked: [true, true, true], notLockedUp: [true, true, true] };
@@ -110,7 +108,7 @@ describe('L/G SYS DISAGREE', () => {
     expect(isLgciuGearPositionDisagree(inputs(gearUp, { ...gearUp, downlocked: null, notLockedUp: null }))).toBe(false);
   });
 
-  it('is a title only caution, shown in phases 1, 2, 9 and 10 (FCOM PDF page 5487)', () => {
+  it('is a title only caution, shown in phases 1, 2, 9 and 10', () => {
     const alerts = run(new LandingGearAlerts(), inputs(gearUp, { ...gearUp, notLockedUp: [true, false, false] }), 1);
     const item = alerts.ewdFailures[LandingGearAlertKeys.sysDisagree];
     expect(item.simVarIsActive.get()).toBe(true);
@@ -125,8 +123,7 @@ describe('L/G SYS DISAGREE', () => {
   });
 });
 
-/* The STATUS of the ATA 32 alerts: GEAR NOT UPLOCKED l.89435-89442, LGCIU 1(2) FAULT l.89582-89599, LGCIU 1+2 FAULT
-   l.89657-89672, BRAKES A/SKID N/WS OFF l.72358-72368. */
+/* The STATUS of the ATA 32 alerts: GEAR NOT UPLOCKED, LGCIU 1(2) FAULT, LGCIU 1+2 FAULT, BRAKES A/SKID N/WS OFF. */
 describe('ATA 32 STATUS', () => {
   it('GEAR NOT UPLOCKED: MAX SPEED 280/.67 with the gear down; INOP SYS L/G RETRACT', () => {
     expect(statusLines(gearNotUplockedStatus(true))).toEqual({

@@ -9,7 +9,7 @@ import {
   wingPumpIndication,
 } from './FuelPumpValveIndications';
 
-describe('SD FUEL wing pump indication (FCOM DSC-28-20-F WING PUMP INDICATIONS)', () => {
+describe('SD FUEL wing pump indication', () => {
   it('is inline green with the pump ON and its pressure normal', () => {
     expect(wingPumpIndication(true, false, true)).toBe(WingPumpIndication.InlineGreen);
   });
@@ -28,7 +28,7 @@ describe('SD FUEL wing pump indication (FCOM DSC-28-20-F WING PUMP INDICATIONS)'
   });
 });
 
-describe('SD FUEL X FEED valve colour (FCOM DSC-28-20-F X FEED INDICATIONS)', () => {
+describe('SD FUEL X FEED valve colour', () => {
   it('is green when the valve follows the pb-sw', () => {
     expect(isCrossFeedValveGreen(100, true)).toBe(true);
     expect(isCrossFeedValveGreen(0, false)).toBe(true);
@@ -48,7 +48,7 @@ describe('SD FUEL X FEED valve colour (FCOM DSC-28-20-F X FEED INDICATIONS)', ()
   });
 });
 
-describe('A320 SD FUEL centre tank quantity boxed amber (FCOM DSC-28-20-F BOXED INDICATIONS)', () => {
+describe('A320 SD FUEL centre tank quantity boxed amber', () => {
   it('is boxed when both centre tank transfer valves failed closed', () => {
     expect(isCentreTankQuantityBoxed(true, true)).toBe(true);
   });

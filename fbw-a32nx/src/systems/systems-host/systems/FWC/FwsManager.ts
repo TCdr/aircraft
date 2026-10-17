@@ -25,12 +25,12 @@ export class FwsManager {
   private readonly fwcFlightPhases = new FwsLegacyFlightPhases();
   private readonly fwsUpdateThrottler = new UpdateThrottler(FwsManager.FWC_PROCESSING_INTERVAL_MS); // has to be > 100 due to pulse nodes
   private readonly failuresConsumer = new FailuresConsumer();
-  /** FWC 1 supply (A320 FCOM ELEC AC ESS BUS FAULT: INOP SYS FWC 1) */
+  /** FWC 1 supply: lost with the AC ESS bus (INOP SYS FWC 1) */
   private readonly acEssBusPowered = ConsumerSubject.create(
     this.bus.getSubscriber<A32NXElectricalSystemEvents>().on('a32nx_elec_ac_ess_bus_is_powered'),
     false,
   );
-  /** FWC 2 supply (A320 FCOM ELEC AC BUS 2 FAULT: INOP SYS FWC 2) */
+  /** FWC 2 supply: lost with the AC bus 2 (INOP SYS FWC 2) */
   private readonly acBus2Powered = ConsumerSubject.create(
     this.bus.getSubscriber<A32NXElectricalSystemEvents>().on('a32nx_elec_ac_2_bus_is_powered'),
     false,

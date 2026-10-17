@@ -75,7 +75,7 @@ export class DmcSdPageLogic {
 
   private readonly clearPulseNode = new NXLogicPulseNode(true);
 
-  /** The advisories: the system page with a parameter out of its normal range (FCOM DSC-31-20, see SdAdvisories) */
+  /** The advisories: the system page with a parameter out of its normal range (see SdAdvisories) */
   private readonly advisoryMonitor = new SdAdvisoryMonitor();
 
   /** The advisory page at the previous update (SdPages.NONE with one ECAM display), see sdAdvisoryAction */
@@ -340,7 +340,7 @@ export class DmcSdPageLogic {
       this.selectedPage.set(fwcSdPageRequest);
       this.sdMode = SdMode.Warning;
     } else if (advisoryAction === SdAdvisoryAction.ShowAdvisoryPage) {
-      // DSC-31-20 l.46102-46103, l.46122-46123: the advisory page replaces the page shown
+      // the advisory page replaces the page shown, also a page the crew selected
       this.selectedPage.set(advisoryPage);
       this.sdMode = SdMode.Advisory;
     } else if (

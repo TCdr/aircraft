@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * CAB PRESS page colours and pulses. A320 FCOM DSC-21-20-40 Controls and indicators, CAB PRESS page:
- * (3) V/S FT/MIN: "The digital presentation pulses when V/S > 1 750 ft/min (resets at 1 650 ft/min)."
- * (5) CAB ALT FT: "They appear in red if the cabin altitude goes above 9 550 ft. The digital presentation pulses if the
- *     cabin altitude is at or above 8 800 ft (resets at 8 600 ft)."
+ * CAB PRESS page colours and pulses:
+ * - V/S: the digital value pulses above 1 750 ft/min (resets at 1 650 ft/min).
+ * - CAB ALT: red above 9 550 ft; the digital value pulses at or above 8 800 ft (resets at 8 600 ft).
  * Only the digital presentations pulse: the analog needles stay steady.
  * The values compared are the displayed ones (rounded to 50 ft, 50 ft/min), so that the colour matches the digits.
  */
@@ -57,7 +56,7 @@ export function cabinAltitudeNeedleClass(displayedCabinAltitudeFt: number): stri
 
 /**
  * Whether the V/S digital value pulses: above 1750 ft/min, until it is back down to 1650 ft/min.
- * Design choice (kept from the previous code): climb and descent rates both count (absolute value).
+ * Design choice: climb and descent rates both count (absolute value).
  * @param displayedCabinVsFtMin the displayed cabin vertical speed, ft/min
  * @param wasPulsing whether the value pulsed at the previous update (hysteresis)
  * @returns true when the value pulses

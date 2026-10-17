@@ -19,7 +19,7 @@ function run(avail: AvailIndication, durationS: number, i: AvailInputs): string 
   return display;
 }
 
-/* A320 FCOM DSC-70-90-40-50 AVAIL INDICATION (a320_fcom.txt l.64209-64216) */
+/* AVAIL indication of the N1 gauge */
 describe('EWD AVAIL indication', () => {
   it('stays steady 10 s after a successful start on ground, then goes', () => {
     const avail = new AvailIndication();

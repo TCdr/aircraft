@@ -39,9 +39,9 @@ static double secondsToCross(EngineOilFailures::OverheatTracker& tracker,
 int main() {
   // A healthy engine, from idle to beyond take-off thrust (the LEAP-1A26 is rated about 27 000 lbf), with the least and
   // the most oil of the FADEC initialisation (14 and 20 qt), and the least after a 15 h flight (0.4 qt/h burned): the SD
-  // oil quantity never pulses (it pulses below 3.25 QT until 4.75 QT, FCOM DSC-70-90-40 l.64513-64514) and the oil
-  // pump always delivers its full pressure, so no ENG OIL LO PR without a failure (sim test 2026-10-06: a false ENG OIL
-  // LO PR in a normal climb, the tank read 0.6 qt with 14.7 qt in the system).
+  // oil quantity never pulses (it pulses below 3.25 QT until 4.75 QT) and the oil pump always delivers its full pressure,
+  // so no ENG OIL LO PR without a failure (measured in the sim with the gulping fed newtons: a false ENG OIL LO PR in a
+  // normal climb, the tank read 0.6 qt with 14.7 qt in the system).
   for (const double total : {14.0, 20.0, 14.0 - 0.4 * 15.0}) {
     for (double thrustPounds = 0.0; thrustPounds <= 35000.0; thrustPounds += 250.0) {
       const double tank = OilSystem_A32NX::tankQuantity(total, thrustPounds);
@@ -76,10 +76,10 @@ int main() {
   expectTrue("leak: the SD quantity pulses before the pressure falls", pulsingAt >= 0 && pulsingAt < pressureFallsAt, pulsingAt);
   expectTrue("leak: ENG OIL LO PR comes last, within 10 min", pressureFallsAt < lowPressureAt && lowPressureAt < 600, lowPressureAt);
 
-  // An oil overheat at cruise (sim test 2026-10-06, N1 77 %: ENG OIL HI TEMP, above 155 C, after about 2 min; the recording
-  // fits a cruise N2 of 95 % with the idle N2 of 67 % of the FADEC at FL150). THR LEVER IDLE (FCOM PRO-ABN-ENG ENG 1(2) OIL
-  // HI TEMP, l.80536) must bring it back below 155 C, and below the 140 C advisory, with the flight idle N2 about 2 % above
-  // the idle of the FADEC (recording 2026-10-06: 1.7 to 2.6 %).
+  // An oil overheat at cruise (measured in the sim at N1 77 %: ENG OIL HI TEMP, above 155 C, after about 2 min, which
+  // fits a cruise N2 of 95 % with the idle N2 of 67 % of the FADEC at FL150). THR LEVER IDLE must bring it back below
+  // 155 C, and below the 140 C advisory, with the flight idle N2 about 2 % above the idle of the FADEC (measured: 1.7 to
+  // 2.6 %).
   {
     const double                     idleN2 = 67.0;
     EngineOilFailures::OverheatTracker tracker;
