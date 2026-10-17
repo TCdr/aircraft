@@ -175,7 +175,7 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
     this.currentPageMode,
   );
 
-  /** CHECK HDG (amber), not in PLAN mode: A320 FCOM DSC-31-05-60, a320_fcom.txt l.45417-45422 */
+  /** CHECK HDG (amber), not in PLAN mode */
   private readonly checkHdgFlagShown = MappedSubject.create(
     ([headingDiscrepancy, currentPageMode]) => isNdCheckHeadingShown(headingDiscrepancy, currentPageMode),
     this.props.headingDiscrepancy ?? Subject.create(false),

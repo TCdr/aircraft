@@ -61,6 +61,8 @@ import { M3Button, M3Card, M3Segmented, M3Switch } from '../../UtilComponents/Ma
 import {
   PERF_INPUT,
   PERF_SELECT,
+  displayed,
+  unitSelect,
   PERF_SMALL_BUTTON,
   PerfFillFrom,
   PerfResult,
@@ -80,7 +82,6 @@ interface CalculatorProfile {
   noise: boolean;
   /** The FMS insertion needs the T.O CG */
   fmsNeedsCg: boolean;
-  /** Text keys */
   sentToFms: string;
   /** The warnings after Send to FMS: TOW outside the FMS insertion margins, no TOW in the FMS */
   fmsCheckTow: string;
@@ -91,7 +92,7 @@ interface CalculatorProfile {
 
 const PROFILES: Record<'A380' | 'A320', CalculatorProfile> = {
   A380: {
-    // A380 FCOM DSC-22-FMS-20-30 P 316-319: TOW 2 t below to 7 t above the FMS one, T.O CG needed, noise parameters
+    // The A380 FMS takes an uplink TOW 2 t below to 7 t above its own, needs the T.O CG, has noise parameters
     fmsTowMarginBelow: 2_000,
     fmsTowMarginAbove: 7_000,
     noise: true,
@@ -103,7 +104,7 @@ const PROFILES: Record<'A380' | 'A320', CalculatorProfile> = {
     runwayLegend: 'Performance.Takeoff.Calc.RunwayLegend',
   },
   A320: {
-    // A320 FCOM DSC-22_20-50-10-28 P 93: no insertion when the uplink TOW is 3 t greater or 1 t lower than the FMS one
+    // The A320 FMS does not insert an uplink TOW 3 t greater or 1 t lower than its own
     fmsTowMarginBelow: 1_000,
     fmsTowMarginAbove: 3_000,
     noise: false,
@@ -116,7 +117,7 @@ const PROFILES: Record<'A380' | 'A320', CalculatorProfile> = {
   },
 };
 
-/** A320 FCOM PER-LOD-WBA-LTS: performance at forward CG must be used for an operational CG lower than 27 % */
+/** A320: the forward CG performance must be used for an operational CG lower than 27 % */
 const A320_FORWARD_CG_LIMIT = 27;
 
 /** The runway conditions of the FMS lists (A380 MFD and A320 MCDU): DRY, WET, 1/4 WATER, 1/2 WATER, 1/4 SLUSH, 1/2 SLUSH,
@@ -153,10 +154,9 @@ const RUNWAY_CONDITIONS: RunwayCondition[] = [
 
 /**
  * The takeoff calculator of the A380X and the A32NX, with the results in the layout of the RESULTS panel of the Airbus
- * takeoff performance application (A380 FCOM PER-TOF-TOR-SRS P 1), the takeoff run on the runway at TOGA or at any FLEX
- * temperature of the possible range (A380 FCOM PER-TOF-THR-FLX, range of TFLEX), and the takeoff data exchange with the
- * FMS: company takeoff data of the A380 MFD (FCOM DSC-22-FMS-20-30), uplink takeoff data of the A320 MCDU (FCOM
- * DSC-22_20-50-10-28, UPLINK TO DATA pages).
+ * takeoff performance application, the takeoff run on the runway at TOGA or at any FLEX temperature of the possible
+ * range, and the takeoff data exchange with the FMS: company takeoff data of the A380 MFD, uplink takeoff data of the
+ * A320 MCDU (UPLINK TO DATA pages).
  */
 export const TakeoffWidget = () => {
   const dispatch = useAppDispatch();
@@ -283,8 +283,8 @@ export const TakeoffWidget = () => {
   // ---------------------------------------------------------------------------------------------- calculation
 
   const performCalculateTakeoff = (headwind: number): void => {
-    // The maximum FLEX is always calculated when FLEX is permitted (not on a contaminated runway, A380 FCOM
-    // PER-TOF-THR-FLX), so that the takeoff run can show TOGA and any FLEX: the Thrust input is only its first choice
+    // The maximum FLEX is always calculated when FLEX is permitted (not on a contaminated runway), so
+    // that the takeoff run can show TOGA and any FLEX: the Thrust input is only its first choice
     const args = (toga: boolean) =>
       [
         runwayLength,
@@ -674,9 +674,6 @@ export const TakeoffWidget = () => {
     }
   };
 
-  const displayed = (value: number | undefined, imperial: boolean, toImperial: (v: number) => number) =>
-    value !== undefined && imperial ? toImperial(value) : value;
-
   // ---------------------------------------------------------------------------------------------- results
 
   const isEstimate = (e: TakeoffPerformanceEstimate) => result?.estimates?.includes(e) ?? false;
@@ -798,19 +795,8 @@ export const TakeoffWidget = () => {
 
   // ---------------------------------------------------------------------------------------------- render
 
-  const unitSelect = <T extends string>(value: string, options: T[], onChange: (v: T) => void, width = 'w-20') => (
-    <SelectInput
-      fontSizeClassName="text-base"
-      value={value}
-      className={`${width} ml-1 ${PERF_SELECT}`}
-      options={options.map((o) => ({ value: o, displayValue: o === 'C' || o === 'F' ? `°${o}` : o }))}
-      onChange={(v: T) => onChange(v)}
-    />
-  );
-
   return (
     <div className="flex h-content-section-reduced flex-col overflow-hidden text-base text-m3-text">
-      {/* Airport and data sources */}
       <div className="mb-3 flex shrink-0 flex-row items-center">
         <span className="mr-2 text-sm font-semibold text-m3-muted">{t('Performance.Takeoff.Airport')}</span>
         <SimpleInput
@@ -830,7 +816,6 @@ export const TakeoffWidget = () => {
         />
       </div>
 
-      {/* Inputs */}
       <div className="mb-3 flex shrink-0 flex-row">
         <Section className="mr-3 min-w-0 flex-1" title={t('Performance.Takeoff.Calc.SectionRunway')}>
           <Row label={t('Performance.Takeoff.Runway')}>
@@ -1137,7 +1122,6 @@ export const TakeoffWidget = () => {
         </Section>
       </div>
 
-      {/* Results, takeoff run and actions */}
       <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
         <div className="mr-3 flex h-full w-[32.5rem] shrink-0 flex-col">
           <ResultsPanel
@@ -1387,7 +1371,7 @@ interface ResultsPanelProps {
   legend: string;
 }
 
-/** The results in the layout of the RESULTS panel of the Airbus takeoff performance application (A380 FCOM PER-TOF-TOR-SRS P 1) */
+/** The results in the layout of the RESULTS panel of the Airbus takeoff performance application */
 const ResultsPanel = ({
   result,
   runway,

@@ -36,7 +36,7 @@ export const Performance = () => {
       alias: t('Performance.TemperatureCorrection.Title'),
       component: <TemperatureCorrectionWidget />,
     },
-    // Only for an aircraft with a buffet onset chart (A32NX: A320 FCOM LIM-13)
+    // Only for an aircraft with a buffet onset chart (the A32NX)
     calculators.buffetEnvelope
       ? { name: 'Buffet', alias: t('Performance.Buffet.Title'), component: <BuffetWidget /> }
       : null,

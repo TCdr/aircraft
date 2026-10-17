@@ -6,11 +6,8 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { A320WxrNdMode, A320WxrState, a320WxrIndications, isA320PwsScanningWithRadarOff } from './WxrA320Indications';
 
-/*
- * A320 FCOM DSC-34-SURV-30-30 (2) Weather Radar Indication (a320_fcom.txt l.54752-54800): MAN GAIN (cyan), the mode
- * in cyan with MULTISCAN MAN and green in AUTO, PWS SCAN / WXR OFF, the MAN tilt row. Before, the A32NX ND only showed
- * the mode in green (or WXR OFF) whatever the GAIN knob and the MULTISCAN switch.
- */
+// The A32NX ND radar rows: MAN GAIN (cyan), the mode in cyan with MULTISCAN MAN and green in AUTO, PWS SCAN / WXR OFF,
+// the MAN tilt row
 const AUTO_CAL: A320WxrState = {
   ndMode: A320WxrNdMode.Wx,
   gainKnob: 0,
@@ -61,7 +58,7 @@ describe('A32NX ND weather radar rows', () => {
   });
 });
 
-/* A320 FCOM DSC-34-SURV-30-20 (a320_fcom.txt l.54208-54215): the PWS operates with the radar OFF when ... */
+// The PWS also operates with the radar OFF, on the ground with an engine running and some ground speed
 describe('A32NX PWS scanning with the radar off', () => {
   it('PWS AUTO, below 2 300 ft RA, an engine running, above 30 kt', () => {
     expect(isA320PwsScanningWithRadarOff(true, 0, true, 40)).toBe(true);

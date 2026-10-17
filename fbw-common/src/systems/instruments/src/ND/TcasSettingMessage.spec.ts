@@ -12,11 +12,8 @@ import {
   tcasSettingMessage,
 } from './TcasSettingMessage';
 
-/*
- * A320 FCOM DSC-34-SURV-60-20 TCAS MESSAGES (a320_fcom.txt 56266-56273) and A380 FCOM DSC-31-20-30-100
- * (a380_fcom.txt 68708-68761): TCAS: CHANGE MODE / REDUCE RANGE / INCREASE RANGE, red for an RA, amber for a TA.
- * Before, the ND had none of them.
- */
+// The TCAS ND messages of both aircraft: TCAS: CHANGE MODE / REDUCE RANGE / INCREASE RANGE, red for an RA, amber for a
+// TA
 describe('TCAS ND setting message', () => {
   it('none without a TA or RA', () => {
     expect(tcasSettingMessage(TcasAdvisoryState.None, true, false, 160, false)).toBeUndefined();
@@ -65,10 +62,7 @@ describe('TCAS ND setting message', () => {
   });
 });
 
-/*
- * A320 FCOM DSC-34-SURV-60-20 ND INDICATIONS (a320_fcom.txt l.56198): "The traffic is displayed in all ROSE modes and
- * ARC mode when 10, 20 or 40 NM range is selected." Before, the A32NX ND drew the traffic at every range.
- */
+// The A320 ND displays the traffic in ROSE and ARC modes only at the 10, 20 and 40 NM ranges
 describe('ND traffic display range', () => {
   it('A320: traffic at the 10, 20 and 40 NM ranges', () => {
     expect(isTrafficShownAtRange(10, MAX_TRAFFIC_RANGE_NM)).toBe(true);

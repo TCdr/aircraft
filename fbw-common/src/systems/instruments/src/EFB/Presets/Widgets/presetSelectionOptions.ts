@@ -11,7 +11,7 @@ export interface PresetSelectionOption {
 
 /**
  * The options of the auto-load selections: "None" first, then every preset row by its number and its name (also the
- * unnamed ones, which used to be left out: with no named preset the list only offered "None").
+ * unnamed ones: with only unnamed presets the list would offer nothing but "None").
  * @param namesMap the preset names by preset ID
  * @param translate the translation function of the flyPad
  */

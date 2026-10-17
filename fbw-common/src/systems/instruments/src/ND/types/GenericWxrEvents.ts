@@ -12,8 +12,8 @@ export interface GenericWxrEvents {
 }
 
 /**
- * Manual radar settings of aircraft that have them (A380X SURV / CONTROLS page), shown with the mode text on the ND
- * (A380 FCOM DSC-34-20-30-20 P 17 "WXR MESSAGES"). Aircraft that do not publish them keep the automatic texts.
+ * Manual radar settings of aircraft that have them (A380X SURV / CONTROLS page), shown with the mode text on the ND.
+ * Aircraft that do not publish them keep the automatic texts.
  */
 export interface GenericWxrManualSettingsEvents {
   /** GAIN button set to MAN */
@@ -33,7 +33,7 @@ export interface GenericWxrManualSettingsEvents {
 
 /**
  * The A32NX weather radar control panel and the inputs of the PWS activation, for the A32NX ND radar rows
- * (WxrA320Indications.ts, A320 FCOM DSC-34-SURV-30-30). Only the A32NX publishes them.
+ * (WxrA320Indications.ts). Only the A32NX publishes them.
  */
 export interface A320WxrPanelEvents {
   /** L:A32NX_WXR_GAIN_KNOB: -1 (MIN) .. 0 (CAL) .. +1 (MAX) */

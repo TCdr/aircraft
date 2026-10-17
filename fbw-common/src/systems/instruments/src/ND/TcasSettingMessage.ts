@@ -22,10 +22,9 @@ export const ND_ZOOM_RANGE = -1;
 export const MAX_TRAFFIC_RANGE_NM = 40;
 
 /**
- * Whether the ND displays the TCAS traffic at the selected range.
- * A320 FCOM DSC-34-SURV-60-20 ND INDICATIONS (a320_fcom.txt l.56198): "The traffic is displayed in all ROSE modes and
- * ARC mode when 10, 20 or 40 NM range is selected." Read with TCAS MESSAGES (l.56266-56269), "TCAS : REDUCE RANGE:
- * Displayed when a TA or RA is detected and ND range above 40 NM" in any mode: no traffic above 40 NM in ARC or ROSE.
+ * Whether the ND displays the TCAS traffic at the selected range. The A320 ND displays the traffic in ROSE and ARC
+ * modes at 10, 20 or 40 NM, and asks for a lower range (TCAS: REDUCE RANGE) above 40 NM in any mode: no traffic above
+ * 40 NM in ARC or ROSE.
  * @param rangeNm selected ND range in NM
  * @param maxRangeNm highest range with traffic, undefined for an aircraft that displays it at every range (A380X)
  * @returns true when the traffic is displayed
@@ -36,12 +35,10 @@ export function isTrafficShownAtRange(rangeNm: number, maxRangeNm: number | unde
 
 /**
  * The TCAS ND setting message, shown while the TCAS has a TA or an RA that the ND cannot display.
- * - A320 FCOM DSC-34-SURV-60-20 TCAS MESSAGES (a320_fcom.txt 56266-56273): "TCAS : REDUCE RANGE" when a TA or RA is
- *   detected and the ND range is above 40 NM; "TCAS : CHANGE MODE" when a TA or RA is detected and the ND mode is
- *   PLAN; red or amber depending on the advisory level (RA or TA).
- * - A380 FCOM DSC-31-20-30-100 ND MESSAGES (a380_fcom.txt 68708-68761) and DSC-34-20-40-20 (90844-90919): the same two
- *   messages, plus "TCAS: INCREASE RANGE" in ROSE-VOR or ROSE-LS mode with the range selector on ZOOM, not on
- *   ground; with ZOOM the ND does not display TCAS: CHANGE MODE on ground.
+ * - A320: TCAS: REDUCE RANGE when a TA or RA is detected and the ND range is above 40 NM; TCAS: CHANGE MODE when a TA
+ *   or RA is detected and the ND mode is PLAN; red or amber depending on the advisory level (RA or TA).
+ * - A380: the same two messages, plus TCAS: INCREASE RANGE in ROSE-VOR or ROSE-LS mode with the range selector on ZOOM,
+ * not on ground; with ZOOM the ND does not display TCAS: CHANGE MODE on ground.
  * @param advisory TCAS advisory state
  * @param isPlanMode the ND is in PLAN mode
  * @param isRoseVorOrLsMode the ND is in ROSE-VOR or ROSE-LS mode

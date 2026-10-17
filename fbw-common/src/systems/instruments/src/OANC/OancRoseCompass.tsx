@@ -100,7 +100,7 @@ export class RoseModeUnderlay extends DisplayComponent<RoseModeOverlayProps> {
           </text>
         </g>
 
-        {/* between the dashed middle ring (R = 125) and the compass rose (R = 250), as in the FCOM figure */}
+        {/* between the dashed middle ring (R = 125) and the compass rose (R = 250), as on the real ND */}
         <OancDestinationArrow
           centerX={384}
           centerY={384}

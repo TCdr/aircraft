@@ -594,8 +594,8 @@ export const A380Payload: React.FC<PayloadProps> = ({
   }, [gsxDeBoardingState]);
 
   // GSX passenger number (L:FSDT_GSX_NUMPASSENGERS), by the same rule as the Services page: the planned passengers,
-  // or the passengers on board once GSX deboarding is requested or after landing (GSX manual: set before Boarding or
-  // Deboarding). It was the target set above, i.e. 0 for a GSX deboarding.
+  // or the passengers on board once GSX deboarding is requested or after landing (GSX takes it only when set before
+  // the boarding or deboarding).
   useEffect(() => {
     announceGsxPassengers(seatMap, true);
   }, [seatMap, totalPaxDesired, totalPax, gsxBoardingState, gsxDeBoardingState]);

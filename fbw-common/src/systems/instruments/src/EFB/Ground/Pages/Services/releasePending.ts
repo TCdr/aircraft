@@ -8,7 +8,7 @@ import type { ServiceLook } from './ServicesLayout';
  * The release of a connected ground equipment (GPU, jet bridge, stairs), on its way.
  *
  * Pressing Release on a connected equipment does not change what GSX or the sim reports at once: GSX keeps the service
- * 'performing' until its crew has removed the equipment (the 2026-10-15 sim report: the GPU row kept "GPU service is
+ * 'performing' until its crew has removed the equipment (seen in the sim: the GPU row kept "GPU service is
  * being performed" and its Release chip for a long time), and the GPU keeps powering the aircraft until it is unplugged.
  * So the flyPad remembers the press and shows the row 'released' (amber, "Leaving", chip disabled) until the equipment
  * is really gone, i.e. GSX or the sim no longer reports it connected and, for the GPU, no external power is available.

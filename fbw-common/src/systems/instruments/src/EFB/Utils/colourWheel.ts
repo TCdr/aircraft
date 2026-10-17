@@ -17,7 +17,7 @@ import { alertHueClash, contrast, derivePalette, luminance, M3Tokens, parseHexCo
 /**
  * The 12 pure colours of the rim, clockwise from the top (wedge 0 starts at 12 o'clock): yellow, yellow-green, green,
  * sky blue, blue, violet, magenta, crimson, red, red-orange, orange and amber. Design choice: the colours of the
- * painter's wheel the user supplied (2026-10-08), full strength sRGB rather than equal-lightness OKLCH hues.
+ * painter's wheel the user supplied, full strength sRGB rather than equal-lightness OKLCH hues.
  */
 export const WHEEL_COLOURS: readonly string[] = [
   '#ffe100',
@@ -263,7 +263,7 @@ export function readHexEntry(text: string, shown: string): HexEntry {
 
 /**
  * Whether a colour is close to the amber or red of the alerts (alertHueClash): the dialog then says that buttons and
- * switches in it may look like warnings. Design choice (user, 2026-10-08): a note, no longer a block.
+ * switches in it may look like warnings. Design choice (user): a note, not a block.
  */
 export function nearAlertColours(hex: string): boolean {
   return alertHueClash(hex) !== null;

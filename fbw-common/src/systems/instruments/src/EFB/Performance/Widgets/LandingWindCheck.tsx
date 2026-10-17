@@ -57,7 +57,7 @@ const cell = (width: string) => `${width} shrink-0 text-sm`;
 
 /**
  * The wind check of the landing page (a design choice, not an Airbus function): when the wind is above the crosswind
- * maximum or the tailwind limit (FCOM LIM, gusts included), the runways of the destination ranked by wind and the best
+ * maximum or the tailwind limit (gusts included), the runways of the destination ranked by wind and the best
  * runway of the alternate airport of the OFP with its METAR, each with a button that loads it into the calculator.
  * Advice only: the flight crew decides.
  */

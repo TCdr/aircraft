@@ -23,7 +23,7 @@ import {
 } from './colourWheel';
 import { checkPalette, derivePalette, oklchToHex, parseThemeChoice } from './themePalette';
 
-// the painter's wheel the user chose (2026-10-08): 12 pure colours clockwise from yellow right of the top, 5 rings
+// the painter's wheel the user chose: 12 pure colours clockwise from yellow right of the top, 5 rings
 // from the pure colour at the rim to a pale tint next to the centre
 const YELLOW = 0;
 const GREEN = 2;
@@ -66,7 +66,7 @@ describe('colour wheel colours', () => {
     expect(nearAlertColours(COLOUR_WHEEL[PURE][RED].hex)).toBe(true);
     expect(nearAlertColours(COLOUR_WHEEL[PURE][11].hex)).toBe(true); // amber
     expect(nearAlertColours(COLOUR_WHEEL[PURE][BLUE].hex)).toBe(false);
-    // a red or yellow theme is kept when stored (it was refused before 2026-10-08)
+    // a red or yellow theme is kept when stored
     expect(parseThemeChoice('custom:grey:#ff1a00:#ffe100')).toEqual({
       kind: 'custom',
       base: 'grey',

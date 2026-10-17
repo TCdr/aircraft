@@ -4,19 +4,19 @@
 /**
  * The buffet onset envelope ("coffin corner") of the flyPad Performance > Buffet page.
  *
- * Source: A320 FCOM LIM-13 P 3/10 "BUFFET ONSET" (30 MAY 12, applicable to all A318/A319/A320/A321), the chart of the
- * load factor at buffet onset against Mach, pressure altitude, CG and weight, digitised. Every altitude curve of the
- * chart is the same function of Mach scaled by the ISA static pressure ratio (fit residual 1.5 t or less over the
- * 18 curves): the chart is a lift-coefficient chart and reduces to one table G(M):
+ * Data: the A320 family buffet onset chart (load factor at buffet onset against Mach, pressure altitude, CG and
+ * weight), digitised. Every altitude curve of the chart is the same function of Mach scaled by the ISA static pressure
+ * ratio (fit residual 1.5 t or less over the 18 curves): the chart is a lift-coefficient chart and reduces to one table
+ * G(M):
  *
  *   n_buffet = delta(pressure altitude) x G(M) x f(CG) / W [t]
  *
  * G(M)  = the load factor x weight (tonnes) at buffet onset, at sea-level pressure and CG 25 % MAC (the chart's REF line)
  * f(CG) = 1 + 0.00245 x (CG - 25), the chart's CG guide lines (all six give 0.00243 to 0.00246 per % MAC)
  *
- * Checked against the A320 QRH PER-M-2 M.78 n = 1.3 g / 1.4 g lines (CG 33 %): within about 1 % of n (the model is
- * slightly conservative). The A32NX is a neo: the neo keeps the wing of the chart's aircraft, no neo chart is
- * published in our documents ("Design choice": the family chart is used).
+ * Checked against the published M.78 n = 1.3 g / 1.4 g lines (CG 33 %): within about 1 % of n (the model is slightly
+ * conservative). Design choice: the family chart is used for the A32NX, as the neo keeps the wing of the chart's
+ * aircraft and we have no neo chart.
  *
  * The functions are pure; the flyPad page reads the live values and draws the result.
  */
@@ -31,7 +31,6 @@ export interface BuffetEnvelopeData {
   cgFactorPerPercent: number;
   /** VMO in knots CAS */
   vmo: number;
-  /** MMO */
   mmo: number;
   /** The maximum operating altitude, feet */
   maxOperatingAltitude: number;
@@ -39,9 +38,9 @@ export interface BuffetEnvelopeData {
 
 /**
  * The A320 data.
- * - Lift table: FCOM LIM-13 BUFFET ONSET chart, M .50 to .82 (the chart's Mach axis ends at .82 = MMO).
- * - VMO/MMO: FCOM LIM-AG-SPD "VMO 350 kt", "MMO M 0.82".
- * - Maximum operating altitude: FCOM REC MAX "This field is limited to FL 398", history "EXTENSION TO 12100 M (39800 FT)".
+ * - Lift table: the buffet onset chart, M .50 to .82 (the chart's Mach axis ends at .82 = MMO).
+ * - VMO 350 kt, MMO M 0.82.
+ * - Maximum operating altitude FL 398 (the REC MAX field is limited to it).
  */
 export const A320_BUFFET_ENVELOPE: BuffetEnvelopeData = {
   liftTable: [
@@ -87,10 +86,8 @@ export const A320_BUFFET_ENVELOPE: BuffetEnvelopeData = {
 };
 
 /**
- * The buffet margins of the A320 FCOM and FCTM:
- * - FCOM DSC-22_20-40-30 REC MAX: "The aircraft can reach with a 0.3 g buffet margin"; "A maximum altitude using a
- *   0.2 g buffet margin is also computed ... the system uses it to limit CRZ ALT entry".
- * - FCTM: a CRZ FL above REC MAX "will be accepted only if it provides a buffet margin greater than 0.2g".
+ * The A320 buffet margins: REC MAX is the altitude with a 0.3 g buffet margin; the FMS limits the CRZ ALT entry to the
+ * altitude with a 0.2 g margin, and a CRZ FL above REC MAX is acceptable only with more than 0.2 g.
  */
 export const BUFFET_CAUTION_MARGIN = 0.3;
 export const BUFFET_WARNING_MARGIN = 0.2;

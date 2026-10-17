@@ -147,7 +147,6 @@ interface ServicesLayoutProps {
   chips: ReactNode;
   doors: ServiceRowSpec[];
   equipment: ServiceRowSpec[];
-  /** The aircraft drawing */
   aircraft: string;
   variant: 'a380' | 'a320';
   planformDoors: PlanformDoor[];

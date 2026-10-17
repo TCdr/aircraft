@@ -13,7 +13,7 @@ describe('Released ground equipment (GPU, jet bridge, stairs)', () => {
     memory = new ReleasePendingMemory();
   });
 
-  it('shows the released look at once while GSX still reports the GPU performing (the 2026-10-15 sim bug)', () => {
+  it('shows the released look at once while GSX still reports the GPU performing', () => {
     memory.click('gpu', 'active', PRESS_TIME);
 
     // GSX keeps the GPU 'performing' (look 'active') and EXT PWR available until its crew has removed it

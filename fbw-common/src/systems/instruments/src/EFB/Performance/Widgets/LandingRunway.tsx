@@ -186,7 +186,6 @@ export const LandingRunway = ({ ident, lda, airDistance, stops, required, distan
         );
       })}
 
-      {/* DISPATCH: the required landing distance */}
       {required !== undefined && (
         <>
           <rect
@@ -303,7 +302,6 @@ export const LandingRunway = ({ ident, lda, airDistance, stops, required, distan
           );
         })}
 
-      {/* Scale from the threshold */}
       <line x1={RUNWAY_X} x2={x(farthest)} y1={SCALE_Y} y2={SCALE_Y} stroke={COLOURS.scale} strokeWidth={1} />
       {ticks.map((d) => {
         const label = Math.round(toUnit(d)).toLocaleString('en-US');

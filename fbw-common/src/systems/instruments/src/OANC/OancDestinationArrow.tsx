@@ -4,21 +4,18 @@
 import { ComponentProps, DisplayComponent, FSComponent, Subscribable, VNode } from '@microsoft/msfs-sdk';
 
 /**
- * The OANS destination arrow, A380 FCOM DSC-34-10-70-20 (a380_fcom.txt l.86961-86965): "If the moving airport map is
- * out of the ND range and the selected range is 5 nm, a destination arrow indicates the heading of the destination
- * airport. The arrow also has the ICAO code label of the airport." "The destination arrow indicates the airport
- * heading. It does not indicate the runway orientation." The figure "Destination Arrow" (FCOM PDF p. 3085,
- * DSC-34-10-70-20 P 7/18) shows it in ROSE NAV mode, in white, between the dashed middle ring and the compass rose,
- * with the ICAO code beside it.
+ * The OANS destination arrow: when the moving airport map is out of the ND range and the selected range is 5 NM, an
+ * arrow points to the destination airport (its bearing, not the runway orientation), with its ICAO code. In ROSE NAV
+ * mode it is white, between the dashed middle ring and the compass rose, with the ICAO code beside it.
  */
 
-/** "the selected range is 5 nm" (a380_fcom.txt l.86961), the A380 OANS range for the arrow */
+/** The A380 OANS range for the arrow, NM */
 export const A380_OANS_DESTINATION_ARROW_RANGE_NM = 5;
 
 /**
  * @param airportWithinRange the moving airport map is within the ND range
  * @param selectedRangeNm the selected OANS range
- * @param arrowRangeNm the OANS range the arrow needs (the A380's 5 NM); undefined: any range (A32NX, unchanged)
+ * @param arrowRangeNm the OANS range the arrow needs (the A380's 5 NM); undefined: any range (A32NX)
  * @returns whether the destination arrow is shown
  */
 export function isOansDestinationArrowShown(

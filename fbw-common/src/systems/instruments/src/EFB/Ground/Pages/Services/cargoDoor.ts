@@ -14,8 +14,8 @@ export const AFT_CARGO_DOOR_POSITION_VAR = 'L:A32NX_AFT_DOOR_CARGO_POSITION';
 export const AFT_CARGO_DOOR_LOCKED_VAR = 'L:A32NX_AFT_DOOR_CARGO_LOCKED';
 
 /**
- * A380 only: the cargo door actuation has no hydraulic power (A380 Rust hydraulics). FCOM DSC-29-10: the green
- * electric pumps, the only power of the cargo door actuation, are inhibited as soon as engine 1 or 2 runs.
+ * A380 only: the cargo door actuation has no hydraulic power (A380 Rust hydraulics). The green electric pumps, the only
+ * power of the cargo door actuation, are inhibited as soon as engine 1 or 2 runs.
  */
 export const CARGO_DOOR_OPERATION_INHIBITED_VAR = 'L:A32NX_HYD_CARGO_DOOR_OPERATION_INHIBITED';
 

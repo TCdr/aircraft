@@ -16,8 +16,8 @@ export const RAT_STOW_REQUEST_VAR = 'L:A32NX_RAT_STOW_REQUEST';
 export const RAT_STOW_FEEDBACK_MS = 3_000;
 
 /**
- * The look of the RAT stow row of the Services page. A320 FCOM DSC-29-10-20: the RAT "can be stowed only when the
- * aircraft is on the ground"; A380 FCOM DSC-29-10: the green hydraulic system powers RAT retraction, on ground.
+ * The look of the RAT stow row of the Services page. The A320 RAT can be stowed only on the ground; on the A380 the
+ * green hydraulic system powers the RAT retraction, on the ground.
  * - hidden: the RAT is stowed, nothing to do
  * - called: a stow was just requested
  * - disabled: the RAT is out but the aircraft is not stopped on the ground (design choice: stopped, not only on the

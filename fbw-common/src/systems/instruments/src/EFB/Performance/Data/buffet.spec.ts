@@ -18,7 +18,7 @@ import {
   maxOperatingMach,
 } from './buffet';
 
-describe('A320 buffet onset: the FCOM LIM-13 BUFFET ONSET worked examples', () => {
+describe('A320 buffet onset: the worked examples of the chart', () => {
   it('example 1: M .55, FL350, CG 31 %, 50 t gives about 1.25 g or 35 deg of bank', () => {
     // The chart reading of the example is "1.25 g or 35° bank"; 1 / cos 35° = 1.22 (the 1.25 is chart rounding)
     const n = buffetOnsetLoadFactor(A320, 0.55, 35_000, 31, 50);
@@ -36,8 +36,8 @@ describe('A320 buffet onset: the FCOM LIM-13 BUFFET ONSET worked examples', () =
   });
 });
 
-describe('A320 buffet onset: the QRH PER-M-2 M.78 buffet lines (CG 33 % MAC)', () => {
-  // [load factor, weight t, flight level] read off the QRH n = 1.3 g and n = 1.4 g lines
+describe('A320 buffet onset: the published M.78 buffet lines (CG 33 % MAC)', () => {
+  // [load factor, weight t, flight level] read off the published n = 1.3 g and n = 1.4 g lines (CG 33 %)
   const qrhPoints: [number, number, number][] = [
     [1.3, 70, 388],
     [1.3, 76, 370],
@@ -108,7 +108,7 @@ describe('A320 buffet onset: the Mach range of the chart (M .50 to .82)', () => 
   });
 });
 
-describe('A320 buffet onset: the warning thresholds (FCOM 0.3 g REC MAX, 0.2 g CRZ FL limit)', () => {
+describe('A320 buffet onset: the warning thresholds (0.3 g REC MAX, 0.2 g CRZ FL limit)', () => {
   it('is amber under a 0.3 g margin and red under 0.2 g', () => {
     expect(buffetAlert(0.42)).toBe('none');
     expect(buffetAlert(0.3)).toBe('none');

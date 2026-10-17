@@ -28,7 +28,7 @@ export interface WxrModeLabelProps {
 const LABELS = ['', 'WX', 'WX+T', 'TURB', 'MAP', 'WXR OFF'];
 /** Mode 1: the WX display function */
 const WX_MODE = 1;
-/** Mode 5: the radar is switched off, shown in white (A320 FCOM DSC-34-SURV-30-30, "WXR OFF (only in white)"). */
+/** Mode 5: the radar is switched off, WXR OFF shown in white. */
 const WXR_OFF_MODE = 5;
 /** ELEVN/TILT option list values (A380X SURV / CONTROLS page) */
 const ELEVN_MODE = 1;
@@ -46,11 +46,11 @@ const ENGINE_STATE_ON = 1;
  * The weather radar mode (WX, WX+T, TURB, MAP) on the right of the map pages (ROSE and ARC), in green (the
  * colour of the automatic mode) while the radar is on, and "WXR OFF" in white while it is switched off.
  *
- * With manual radar settings (A380 FCOM DSC-34-20-30-20 P 17 "WXR MESSAGES"): "GAIN 53%" with the GAIN button at MAN,
+ * With manual radar settings: "GAIN 53%" with the GAIN button at MAN,
  * "TILT -12.0°" or "ELEVN 12500FT" (FL with the STD baro reference) instead of WX with the ELEVN/TILT option list at
  * TILT or ELEVN, and WX only with the GAIN button and the ELEVN/TILT option list at AUTO. The manual settings are in
- * cyan, the colour of the manual modes (A320 FCOM DSC-34-SURV-30-30 P 10, same radar family; the A380 FCOM gives no
- * colour).
+ * cyan. Design choice: the A380 colour is not published, so this uses the colour of the manual modes of the A320 radar
+ * (same radar family).
  *
  * The A32NX (a320Indications) shows the rows of its own radar panel instead: MAN GAIN, the mode in green (MULTISCAN
  * AUTO) or cyan (MAN), PWS SCAN or WXR OFF, and the MAN tilt (see a320WxrIndications).
@@ -163,7 +163,7 @@ export class WxrModeLabel extends DisplayComponent<WxrModeLabelProps> {
     ConsumerSubject.create(this.a320Sub.on('wxrA320GroundSpeed'), 0),
   );
 
-  /** A32NX: the three radar rows (A320 FCOM DSC-34-SURV-30-30, see a320WxrIndications) */
+  /** A32NX: the three radar rows (see a320WxrIndications) */
   private readonly a320Rows = MappedSubject.create(
     ([ndMode, gainKnob, multiscanAuto, tiltKnobDegrees, pwsScanning]) =>
       a320WxrIndications({ ndMode, gainKnob, multiscanAuto: !!multiscanAuto, tiltKnobDegrees, pwsScanning }),

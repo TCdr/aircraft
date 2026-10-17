@@ -3,7 +3,7 @@
 
 /**
  * The wind limits of the landing calculator: the wind components of a runway, whether they are above the aircraft's
- * crosswind maximum or tailwind limit (FCOM LIM, gusts included), and the runways of an airport ranked by wind, for
+ * crosswind maximum or tailwind limit (gusts included), and the runways of an airport ranked by wind, for
  * the "Wind check" of the landing page (another runway, or the alternate airport, when the wind is above the limits).
  * The flight crew decides: the flyPad only shows the figures.
  */
@@ -79,7 +79,7 @@ function excess(r: RankedRunway<unknown>, limits: LandingWindLimits): number {
 /**
  * The runways of an airport ranked by wind, best first: the runways within the limits first, the one with the most
  * headwind on top (the least crosswind on a tie), then the others, the least above the limits first. The limits are
- * checked with the gust speed (FCOM LIM: gust included); gustSpeed below windSpeed counts as no gust. A variable wind
+ * checked with the gust speed (the limits include gusts); gustSpeed below windSpeed counts as no gust. A variable wind
  * ('VRB') counts as coming from the worst direction for both limits: all of it across and all of it behind.
  */
 export function rankRunwaysByWind<R extends { magneticBearing: number }>(

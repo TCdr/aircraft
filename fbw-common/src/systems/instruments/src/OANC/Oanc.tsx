@@ -318,7 +318,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
 
   public readonly zoomLevelIndex: Subject<number> = Subject.create(this.props.zoomValues.length - 1);
 
-  /** The destination arrow (A380 FCOM DSC-34-10-70-20, see OancDestinationArrow) */
+  /** The destination arrow (see OancDestinationArrow) */
   private readonly destinationArrowVisible = MappedSubject.create(
     ([airportWithinRange, zoomLevelIndex]) =>
       isOansDestinationArrowShown(
@@ -462,7 +462,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
 
     let displayedAirport: string | null = null;
     this.sub.on('oans_display_airport').handle(({ side, airport }) => {
-      // The airport of this side's OANS (FCOM DSC-34-10-70-10)
+      // The airport of this side's OANS: the Captain and the First Officer each have their own
       if (side !== this.props.side || airport === displayedAirport) {
         return;
       }

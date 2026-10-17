@@ -59,6 +59,8 @@ import { M3ActionChip, M3Button, M3Card, M3Segmented, M3Switch } from '../../Uti
 import {
   PERF_INPUT,
   PERF_SELECT,
+  displayed,
+  unitSelect,
   PerfFillFrom,
   PerfResult,
   PerfResultRow,
@@ -80,11 +82,11 @@ const BRAKING_LABELS: Record<LandingBrakingMode, string> = {
   [LandingBrakingMode.Medium]: 'MED',
 };
 
-/** Water and slush 1/2": Airbus does not recommend their operational use (A380 FCOM PER-LND-LCD-OCD) */
+/** Water and slush 1/2": Airbus does not recommend their operational use */
 const NOT_RECOMMENDED = [LandingRunwayCondition.Water13mm, LandingRunwayCondition.Slush13mm];
 
 /**
- * The landing calculator of the A380X and the A32NX, after the LDG PERF application of the A380 (A380 FCOM PER-LND):
+ * The landing calculator of the A380X and the A32NX, after the LDG PERF application of the A380:
  * DISPATCH (required landing distance) and IN-FLIGHT (actual landing distance of each braking mode) computations,
  * with the results in the layout of its RESULTS panel, and the landing roll on the runway.
  */
@@ -578,19 +580,6 @@ export const LandingWidget = () => {
     }
   };
 
-  const displayed = (value: number | undefined, imperial: boolean, toImperial: (v: number) => number) =>
-    value !== undefined && imperial ? toImperial(value) : value;
-
-  const unitSelect = <T extends string>(value: string, options: T[], onChange: (v: T) => void, width = 'w-20') => (
-    <SelectInput
-      fontSizeClassName="text-base"
-      value={value}
-      className={`${width} ml-1 ${PERF_SELECT}`}
-      options={options.map((o) => ({ value: o, displayValue: o === 'C' || o === 'F' ? `°${o}` : o }))}
-      onChange={(v: T) => onChange(v)}
-    />
-  );
-
   const onOff = [
     { value: false, displayValue: 'Off' },
     { value: true, displayValue: 'On' },
@@ -659,7 +648,6 @@ export const LandingWidget = () => {
 
   return (
     <div className="flex h-content-section-reduced flex-col overflow-hidden text-base text-m3-text">
-      {/* Airport, data sources and computation type */}
       <div className="mb-3 flex shrink-0 flex-row items-center">
         <span className="mr-2 text-sm font-semibold text-m3-muted">{t('Performance.Landing.Airport')}</span>
         <SimpleInput
@@ -689,7 +677,6 @@ export const LandingWidget = () => {
         />
       </div>
 
-      {/* Inputs */}
       <div className="mb-3 flex shrink-0 flex-row">
         <Section className="mr-3 min-w-0 flex-1" title={t('Performance.Landing.Calc.SectionRunway')}>
           <Row label={t('Performance.Landing.Runway')}>
@@ -879,7 +866,6 @@ export const LandingWidget = () => {
           className="mr-3 min-w-0 flex-1"
           title={t('Performance.Landing.Calc.SectionAircraft')}
           action={
-            // The maximum landing weight as the landing weight
             <M3ActionChip className="!h-6 !px-2 !text-xs" onClick={() => set({ weight: calculator.mlw })}>
               MLW
             </M3ActionChip>
@@ -1042,7 +1028,6 @@ export const LandingWidget = () => {
         </Section>
       </div>
 
-      {/* Results, landing roll and actions */}
       <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
         <div className="mr-3 flex h-full w-[32.5rem] shrink-0 flex-col">
           <ResultsPanel
@@ -1188,7 +1173,7 @@ export const LandingWidget = () => {
               </div>
             )}
           </div>
-          {/* BTV: the exits the flight crew can select on the OANS (A380 FCOM PRO-NOR-SOP-160, runway exit) */}
+          {/* BTV: the exits the flight crew can select on the OANS */}
           {features.btv && result !== undefined && sidePanel === 'roll' && (
             <div className="mb-1 flex shrink-0 flex-col">
               <div>
@@ -1272,8 +1257,8 @@ interface LandingWindAlert extends LandingWindAssessment {
 }
 
 /**
- * The results in the layout of the RESULTS panel of the Airbus landing performance application (A380 FCOM
- * PER-LND-LRD-DSR, PER-LND-LRF-FSR), with the data of its MORE panel below.
+ * The results in the layout of the RESULTS panel of the Airbus landing performance application, with the data of its
+ * MORE panel below.
  */
 const ResultsPanel = ({
   result,
@@ -1423,7 +1408,6 @@ const ResultsPanel = ({
           })}
         </span>
       )}
-      {/* MORE panel */}
       <span className="shrink-0 text-xs leading-tight text-m3-muted">
         {result !== undefined
           ? `ALD ${extrapolated ? '~' : ''}${formatDistance(result.actualLandingDistance)} ${distanceUnit} · Vwind ${result.windIncrement} kt · ${
