@@ -890,8 +890,8 @@
                 <EMISSIVE_CODE>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</EMISSIVE_CODE>
             </UseTemplate>
 
-            <!-- PFD/ND pb: exchanges the onside PFD and ND (A380 FCOM DSC-31-20-50); DU RECONF pb: manual DU
-                 reconfiguration (DSC-31-15-20). The systems host (Misc/CdsReconfiguration.ts) handles the H: events. -->
+            <!-- PFD/ND pb: exchanges the onside PFD and ND; DU RECONF pb: manual DU
+                 reconfiguration. The systems host (Misc/CdsReconfiguration.ts) handles the H: events. -->
             <UseTemplate Name="FBW_AIRBUS_Push_Event_Template">
                 <NODE_ID>PUSH_EFIS_CS_PFD</NODE_ID>
                 <ANIM_NAME>PUSH_EFIS_CS_PFD</ANIM_NAME>
