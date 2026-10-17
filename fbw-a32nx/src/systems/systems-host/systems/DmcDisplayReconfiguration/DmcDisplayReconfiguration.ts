@@ -41,7 +41,7 @@ export interface DisplayUnitSources {
  * (PFD/ND simvar publishers, EwdSimvarPublisher, SDSimvarPublisher), so that a DU this module counts as available is
  * the DU the gauge shows as ON.
  */
-export const A320_DISPLAY_UNIT_SOURCES: Readonly<Record<DisplayUnitId, DisplayUnitSources>> = {
+const A320_DISPLAY_UNIT_SOURCES: Readonly<Record<DisplayUnitId, DisplayUnitSources>> = {
   PFD_L: { failure: pfdDisplayUnitFailure(1), powerVar: 'L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', potentiometer: 88 },
   ND_L: { failure: ndDisplayUnitFailure(1), powerVar: 'L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', potentiometer: 89 },
   UPPER_ECAM: {
@@ -79,7 +79,7 @@ export function isSystemPagePbPushed(systemSwitchWord: Arinc429Register, warning
 export type DisplayUnitFailureStates = Pick<FailuresConsumer, 'update' | 'isActive'>;
 
 /**
- * The DU reconfiguration part of the DMCs (A320 FCOM DSC-31-05-60 RECONFIGURING DUS, see DisplayReconfiguration.ts):
+ * The DU reconfiguration part of the DMCs (see DisplayReconfiguration.ts):
  * computes the picture of each DU from the DU availability, the ECAM/ND XFR selector, the PFD/ND XFR pbs and the ECAM
  * control panel, and writes it in the DU picture L:vars read by the cockpit model (the glass each DU shows), and whether
  * each picture is shown on another DU (its gauge then keeps drawing). Writes the PFD/ND XFR
@@ -123,7 +123,6 @@ export class DmcDisplayReconfiguration {
   }
 
   /**
-   * One DMC update.
    * @param dt the time since the last update, in milliseconds
    */
   public update(dt: number): void {

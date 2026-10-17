@@ -7,7 +7,7 @@
 // The stock feature (terronnd.wasm) is only a client of the external SimBridge
 // program; this draws the terrain natively from an altitude-mode MapView instead.
 //
-// Findings this is built around (all measured in-sim, 2026-09-20):
+// Findings this is built around (all measured in the sim):
 //
 // - The MapView colors each texel by the aircraft's altitude MINUS the terrain
 //   height (fsMapViewSetAltitudeReference PLANE) through the altitude color list:
@@ -20,7 +20,7 @@
 //   minus the ND's true heading (the ADIRS word nd.html rotates its own map by).
 // - As with the radar, the texture is opaque and can only be added onto the ND.
 //
-// The look follows the Honeywell EGPWS terrain display: colors and dot densities
+// The look follows the EGPWS terrain display: colors and dot densities
 // by the terrain elevation relative to the aircraft,
 //     >= +2000 ft            dense red
 //     +1000 .. +2000 ft      dense yellow
@@ -28,13 +28,13 @@
 //     -1000 (-500) .. -500 (-250) ft      dense green
 //     -2000 .. -1000 (-500) ft            light green
 //     below -2000 ft         nothing
-// (the "image only within 2000 ft of the terrain" rule of the standard mode falls
-// out of the last line; the peaks mode and its MIN/MAX figures need elevations
-// the module cannot read back from a MapView, so they are not implemented).
+// (the standard mode's rule of showing terrain only within 2000 ft below the aircraft
+// falls out of the last line; the peaks mode takes over when nothing is that close, see
+// kPeaksBelowFeet).
 //
-// The dot patterns come from an ordered dither: each band's color entry is a
+// The dot patterns come from a dither: each band's color entry is a
 // per-channel density (R = red, G = green, both = yellow); the texture is added at
-// half strength to the complement of a 4x4 Bayer threshold map (also half
+// half strength to the complement of a threshold map (kTerrainDotStyle; also half
 // strength), so the sum reaches 1 exactly where density >= threshold. Doubling and
 // repeated squaring then turn that into 0/1 dots, and one multiply gives the
 // display colors.
@@ -97,7 +97,6 @@ bool configureTerrainView(FsContext ctx, FsTextureId id) {
   if (id == 0) {
     return false;
   }
-  // As for the radar views: the view stays visible for its whole life.
   fsMapViewSetVisibility(ctx, id, true);
   fsMapViewSetBackgroundColor(ctx, id, rgba(0.0f, 0.0f, 0.0f, 1.0f));
   fsMapViewSet2DViewFollowMode(ctx, id, true);
@@ -110,7 +109,7 @@ bool configureTerrainView(FsContext ctx, FsTextureId id) {
   return true;
 }
 
-// The complement (1 - threshold) of a 4x4 Bayer threshold map, as an image that
+// The complement (1 - threshold) of the dither's threshold map (kTerrainDotStyle), as an image that
 // repeats over the whole ND.
 int createTerrainPattern(NVGcontext* vg) {
   constexpr int kCells = kTerrainPatternCells;

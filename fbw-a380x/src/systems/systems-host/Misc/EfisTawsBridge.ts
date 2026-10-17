@@ -578,11 +578,10 @@ export class EfisTawsBridge implements Instrument {
   /**
    * Publishes the vertical cut of the VD to the native terrain gauge (ndwxr, L:A380X_VD_CUT_*): along the active
    * flight plan in the managed lateral modes, along the aircraft's track otherwise (mode 0, no vertices), as the real
-   * VD does (FCOM DSC-31-20-40-10, "the vertical cut runs along the active flight plan ... or the current track"). The
-   * flight plan goes out as vertices (latitude / longitude): the start of every path vector, the midpoint of every
-   * turn, the end of the last vector and a straight extension of 160 nm beyond it (as for SimBridge), from the vertex
-   * before the one closest to the aircraft and over VD_CUT_LENGTH_NM, at most VD_CUT_MAX_VERTICES of them. The gauge
-   * projects the aircraft onto the vertices and follows them from there for the VD range.
+   * VD does. The flight plan goes out as vertices (latitude / longitude): the start of every path vector, the midpoint
+   * of every turn, the end of the last vector and a straight extension of 160 nm beyond it (as for SimBridge), from the
+   * vertex before the one closest to the aircraft and over VD_CUT_LENGTH_NM, at most VD_CUT_MAX_VERTICES of them. The
+   * gauge projects the aircraft onto the vertices and follows them from there for the VD range.
    */
   private publishVdCut(): void {
     const latitude = this.latitude.get();

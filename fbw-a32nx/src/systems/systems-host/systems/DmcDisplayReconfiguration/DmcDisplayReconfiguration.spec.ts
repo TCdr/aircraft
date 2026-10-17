@@ -29,7 +29,7 @@ function ecpWord(...pressedBits: number[]): number {
   return word.getRawBusValue();
 }
 
-describe('DMC DU reconfiguration (A320 FCOM DSC-31-05-60)', () => {
+describe('DMC DU reconfiguration', () => {
   const activeFailures = new Set<number>();
   let bus: EventBus;
   let dmc: DmcDisplayReconfiguration;

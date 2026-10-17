@@ -7520,7 +7520,7 @@ export class PseudoFWC {
     '0000290': {
       // SWITCHING PNL
       flightPhaseInhib: [],
-      // A320 FCOM DSC-31-30 MEMO DISPLAY (l.46928-46935): a PFD/ND XFR pb together with ECAM/ND XFR, or EIS DMC
+      // a PFD/ND XFR pb together with ECAM/ND XFR, or EIS DMC
       simVarIsActive: MappedSubject.create(
         ([ndXfrKnob, dmcSwitchingKnob, pfdNdXfrL, pfdNdXfrR]) =>
           isSwitchingPanelMemoShown(ndXfrKnob, dmcSwitchingKnob, pfdNdXfrL, pfdNdXfrR),

@@ -59,7 +59,7 @@ const DisplayUnitToPotentiometer: { [k in DisplayUnitID]: number } = {
 
 interface DisplayUnitProps {
   bus: EventBus;
-  /** The DU of the display (its normal DU): the display is the normal display of this DU */
+  /** The normal DU of this gauge's display */
   displayUnitId: DisplayUnitID;
   /**
    * The DU this gauge draws on when it is a hosted gauge (CDS reconfiguration, MsfsAvionicsCommon/HostedDisplay.ts):
@@ -82,10 +82,8 @@ enum DisplayUnitState {
 }
 
 export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
-  /** The DU this display is drawn on */
   private readonly physicalDisplayUnit = this.props.hostDisplayUnitId ?? this.props.displayUnitId;
 
-  /** The display of this gauge */
   private readonly display = normalDisplayOf(this.props.displayUnitId);
 
   /** The L:var with the display the DU shows (CDS reconfiguration, written by the systems host) */
@@ -101,8 +99,8 @@ export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
       : DisplayUnitState.Standby;
 
   /**
-   * The DU shows this gauge's display (CDS reconfiguration, A380 FCOM DSC-31-15-20). Only the gauge of the display
-   * shown draws on the DU, also its power-up test screens.
+   * The DU shows this gauge's display (CDS reconfiguration). Only the gauge of the display shown draws on the DU, also
+   * its power-up test screens.
    */
   private shown = true;
 
@@ -124,10 +122,8 @@ export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
 
   private failed = false;
 
-  /** The instrument's extra failure condition (props.failed) */
   private externalFailed = false;
 
-  /** The DU's own flyPad failure (shared/src/CdsDisplayUnits.ts DisplayUnitFailure) */
   private displayUnitFailed = false;
 
   private readonly failuresConsumer = new FailuresConsumer();
@@ -269,7 +265,6 @@ export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
     this.updateVisibility();
   }
 
-  /** Shows the element of the DU state, or nothing when the DU shows another display */
   private updateVisibility(): void {
     if (!this.shown) {
       // the DU shows another display (CDS reconfiguration): this gauge draws nothing, its DU state keeps running

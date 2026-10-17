@@ -3629,8 +3629,7 @@ export class FwsAbnormalSensed {
       redundLoss: () => ['310300003'],
     },
     311800013: {
-      // CDS CAPT PFD DU FAULT (A380 FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt:157885-157978; SC, MASTER CAUT and the
-      // flight phase inhibition from the PDF p. 5386). The INOP SYS of its STATUS are in FwsInopSys (310300005-011).
+      // CDS CAPT PFD DU FAULT: SC, MASTER CAUT. The INOP SYS of its STATUS are in FwsInopSys (310300005-011).
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptPfd],
       notActiveWhenItemActive: [],

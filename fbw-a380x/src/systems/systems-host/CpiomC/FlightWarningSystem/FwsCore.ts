@@ -2959,7 +2959,7 @@ export class FwsCore {
     this.fws1AudioFunctionLost.set(this.failuresConsumer.isActive(A380Failure.Fws1AudioFunction));
     this.fws2AudioFunctionLost.set(this.failuresConsumer.isActive(A380Failure.Fws2AudioFunction));
 
-    // CDS ... DU FAULT (A380 FCOM PRO-ABN-ECAM-10-31): the DU failure, while the DU is powered
+    // CDS ... DU FAULT: the DU failure, while the DU is powered
     const isDcBusPowered = (bus: DcElectricalBus) =>
       SimVar.GetSimVarValue(`L:A32NX_ELEC_${bus}_BUS_IS_POWERED`, SimVarValueType.Bool) > 0;
     for (const du of ALL_DISPLAY_UNITS) {

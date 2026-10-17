@@ -8,9 +8,9 @@
  * In the sim a gauge is a custom element (registerInstrument). The panel element of a panel.cfg block (vcockpit-panel)
  * creates it with document.createElement, so the gauge's constructor runs first, without any attribute and outside the
  * document (DOM standard: a custom element made by createElement never has attributes or a parent in its constructor).
- * Only then does the gauge element get its url attribute (the full coui:// path of its panel.cfg htmlgauge line,
- * 2026-10-10 sim diagnostic) and go into the panel, after the gauges listed before it: that calls connectedCallback,
- * where BaseInstrument puts the gauge's template (its mount element) into the gauge element.
+ * Only then does the gauge element get its url attribute (the full coui:// path of its panel.cfg htmlgauge line, seen
+ * in the sim) and go into the panel, after the gauges listed before it: that calls connectedCallback, where
+ * BaseInstrument puts the gauge's template (its mount element) into the gauge element.
  */
 
 /** The start of the url attribute of an A380X gauge element in the sim */
@@ -20,7 +20,7 @@ export const A380X_GAUGE_URL_PREFIX = 'coui://html_ui/Pages/VCockpit/Instruments
  * The part of the sim's BaseInstrument the gauges use here: connectedCallback puts the gauge's template (the
  * `<script type="text/html" id="<templateID>">` of its HTML file) into the gauge element
  */
-export class SimBaseInstrument extends HTMLElement {
+class SimBaseInstrument extends HTMLElement {
   get templateID(): string {
     return '';
   }

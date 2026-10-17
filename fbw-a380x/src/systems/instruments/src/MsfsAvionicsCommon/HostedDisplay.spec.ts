@@ -14,14 +14,12 @@ import {
   parseHostDisplayUnit,
 } from './HostedDisplay';
 
-/** The cockpit panel.cfg with the gauges of each DU */
 const PANEL_CFG = join(
   __dirname,
   '../../../../base/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/attachments/flybywire',
   'Part_Interior_Cockpit/panel/panel.cfg',
 );
 
-/** The display each instrument folder draws */
 const FOLDER_DISPLAY: Readonly<Record<string, CdsDisplay>> = {
   PFD: CdsDisplay.Pfd,
   ND: CdsDisplay.Nd,
@@ -64,7 +62,7 @@ describe('hosted display gauges (CDS reconfiguration)', () => {
     ]);
     expect(findInstrumentUrl('PFD')).toBe('A380X/PFD/pfd-hosted.html?Index=1&hostDu=1&duID=0');
     expect(findInstrumentUrl('ND')).toBe('A380X/ND/nd.html?Index=1&duID=1');
-    // no gauge of that folder: the first gauge, as before
+    // no gauge of that folder: the first gauge
     expect(findInstrumentUrl('EWD')).toBe('A380X/ND/nd.html?Index=1&duID=1');
   });
 
@@ -163,8 +161,8 @@ describe('hosted display gauges (CDS reconfiguration)', () => {
   });
 
   it('finds the gauge element of a hidden hosted gauge by its URL when the mount element is outside it', () => {
-    // As in the sim (2026-10-10 diagnostic: a380x-ewd under the mouse with pointer-events auto): the mount element is
-    // not a descendant of the gauge element, so only the panel.cfg URL tells which gauge element to make transparent
+    // As in the sim: the mount element is not a descendant of the gauge element, so only the panel.cfg URL tells which
+    // gauge element to make transparent
     const panel = document.createElement('vcockpit-panel');
     const sdGauge = document.createElement('a380x-sdv2');
     sdGauge.setAttribute('url', 'A380X/SDv2/sdv2.html?duID=7');

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * Gauges of a display drawn on another DU for the CDS reconfiguration (A380 FCOM DSC-31-15-20).
+ * Gauges of a display drawn on another DU for the CDS reconfiguration.
  *
  * Every display is a gauge of its own on the texture of its DU (panel.cfg). To show the PFD on the ND DU, the ND on the
- * PFD DU, the EWD on the SD DU, or the EWD and the SD (its two gauges, SD and SDv2) on the ND DU, panel.cfg stacks an extra gauge of that display on the other DU's texture, with
- * `hostDu=<duID of that DU>` in its URL and the `-hosted` HTML file (the same script, its stylesheet scoped to the
- * display's mount element, see buildSrc/hostedInstrument.js: all gauges of a panel.cfg block share one document).
+ * PFD DU, the EWD on the SD DU, or the EWD and the SD (its two gauges, SD and SDv2) on the ND DU, panel.cfg stacks an
+ * extra gauge of that display on the other DU's texture, with `hostDu=<duID of that DU>` in its URL and the `-hosted`
+ * HTML file (the same script, its stylesheet scoped to the display's mount element, see buildSrc/hostedInstrument.cjs:
+ * all gauges of a panel.cfg block share one document).
  * Such a hosted gauge starts nothing until the systems host first puts its display on the DU
  * (L:A380X_CDS_{DU}_DU_DISPLAY), then only runs while it is shown, so it costs next to nothing in normal operation.
  */
@@ -54,13 +55,7 @@ export function hostDisplayUnitOf(folder: string): DisplayUnitID | null {
   return parseHostDisplayUnit(findInstrumentUrl(folder));
 }
 
-/**
- * Whether a display is shown on a DU
- * @param du the DU
- * @param display the display
- * @returns true while the systems host puts the display on the DU
- */
-export function isDisplayShownOn(du: DisplayUnitID, display: CdsDisplay): boolean {
+function isDisplayShownOn(du: DisplayUnitID, display: CdsDisplay): boolean {
   return resolveDisplay(du, SimVar.GetSimVarValue(displayUnitDisplayVar(du), 'number')) === display;
 }
 
@@ -79,13 +74,13 @@ export function isMailboxActiveOn(du: DisplayUnitID): boolean {
  * The gauge elements of the hosted gauges of a display on a DU: the children of the panel element (vcockpit-panel) whose
  * panel.cfg URL has that hostDu and a duID whose normal display is that display, e.g. a380x-ewd for
  * A380X/EWD/ewd-hosted.html?hostDu=7&duID=6. Found by URL, as the gauge finds its own URL (findInstrumentUrl): in the sim
- * the mount element is not inside the gauge element, so walking up from it missed the hidden EWD over the SD's mailbox.
+ * the mount element is not inside the gauge element, so walking up from it does not find the gauge element.
  * For the SD on an ND DU both the legacy SD and the SDv2 gauge are found.
  * @param hostDisplayUnit the DU the gauges draw on
  * @param display the display of the gauges
  * @returns the gauge elements
  */
-export function hostedGaugeElements(hostDisplayUnit: DisplayUnitID, display: CdsDisplay): HTMLElement[] {
+function hostedGaugeElements(hostDisplayUnit: DisplayUnitID, display: CdsDisplay): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>('vcockpit-panel > *')).filter((gauge) => {
     const url = gauge.getAttribute('url');
     if (parseHostDisplayUnit(url) !== hostDisplayUnit) {
@@ -96,10 +91,8 @@ export function hostedGaugeElements(hostDisplayUnit: DisplayUnitID, display: Cds
   });
 }
 
-/** The class of the gauge element of a hidden hosted gauge */
 export const HIDDEN_HOSTED_GAUGE_CLASS = 'cds-hosted-hidden';
 
-/** The id of the style element with the rule of HIDDEN_HOSTED_GAUGE_CLASS */
 const HIDDEN_HOSTED_GAUGE_STYLE_ID = 'cds-hosted-hidden-style';
 
 /**

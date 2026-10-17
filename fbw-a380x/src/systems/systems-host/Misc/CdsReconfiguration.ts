@@ -21,7 +21,7 @@ import {
   mailboxDisplayUnit,
 } from '@shared/CdsReconfiguration';
 
-/** The cockpit light potentiometer of each DU's brightness knob (inner knob: "Turns on or off" the DU) */
+/** The cockpit light potentiometer of each DU's brightness knob (the inner knob also turns the DU on or off) */
 const DisplayUnitPotentiometer: Readonly<Record<DisplayUnitID, number>> = {
   [DisplayUnitID.CaptPfd]: 88,
   [DisplayUnitID.CaptNd]: 89,
@@ -47,7 +47,7 @@ export const DU_RECONF_PB_EVENT: Readonly<Record<CdsSide, string>> = {
 const UPDATE_PERIOD_MS = 200;
 
 /**
- * The CDS display unit reconfiguration (A380 FCOM DSC-31-15-20, logic in shared/src/CdsReconfiguration.ts): reads the DU
+ * The CDS display unit reconfiguration (logic in shared/src/CdsReconfiguration.ts): reads the DU
  * states and the PFD/ND and DU RECONF pbs, and writes the display of each DU into L:A380X_CDS_{DU}_DU_DISPLAY, which
  * the display gauges read to show or hide (each display is a gauge of its own; panel.cfg puts the PFD, the EWD and the
  * SD on the ND DUs, the ND on the PFD DUs and the EWD on the SD DU as extra gauges that only run while they are shown).
@@ -133,9 +133,8 @@ export class CdsReconfiguration implements Instrument {
   }
 
   /**
-   * Whether each DU can show a picture: powered (its DC busbars, FCOM DSC-31-15-95), not failed (flyPad ATA 31) and not
-   * switched off with its brightness knob ("If the PFD DU is turned OFF, the PFD is automatically displayed on the ND
-   * DU", a380_fcom.txt:157938-157946)
+   * Whether each DU can show a picture: powered (its DC busbars), not failed (flyPad ATA 31) and not switched off with
+   * its brightness knob (a PFD DU turned off moves the PFD to the ND DU automatically)
    * @returns the state of each DU
    */
   private readOperative(): DisplayUnitMap<boolean> {

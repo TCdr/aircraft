@@ -51,7 +51,7 @@ const NORMAL = {
   PFD_R: DisplayPicture.Pfd,
 };
 
-describe('A320 DU reconfiguration (FCOM DSC-31-05-60)', () => {
+describe('A320 DU reconfiguration', () => {
   it('keeps every DU on its own picture in the normal configuration', () => {
     expect(computeDisplayPictures(inputs())).toEqual(NORMAL);
   });
@@ -247,7 +247,7 @@ describe('pictures shown on another DU (their gauge keeps drawing)', () => {
   });
 });
 
-describe('SWITCHING PNL memo (FCOM DSC-31-30)', () => {
+describe('SWITCHING PNL memo', () => {
   it('needs a PFD/ND XFR pb together with ECAM/ND XFR, or the EIS DMC selector', () => {
     expect(isSwitchingPanelMemoShown(EcamNdXfrKnob.Norm, 1, false, false)).toBe(false);
     expect(isSwitchingPanelMemoShown(EcamNdXfrKnob.Capt, 1, false, false)).toBe(false);

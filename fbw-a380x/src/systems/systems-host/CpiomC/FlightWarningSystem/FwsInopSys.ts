@@ -488,8 +488,7 @@ export class FwsInopSys {
       simVarIsActive: this.fws.fws2Failed,
       phase: FwsInopSysPhases.AllPhases,
     },
-    // CDS ... DU FAULT STATUS, INOP SYS ALL PHASES (A380 FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt:157972-157978): one line
-    // per failed DU; the FCOM lists none for the SD DU.
+    // CDS ... DU FAULT STATUS, INOP SYS ALL PHASES: one line per failed DU; the aircraft lists none for the SD DU.
     310300005: {
       // EWD DU
       simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.Ewd],
