@@ -13,7 +13,9 @@ use systems::{
     },
     engine::Engine,
     failures::{Failure, FailureType},
-    shared::{AuxiliaryPowerUnitElectrical, ElectricalBusType, EngineFirePushButtons},
+    shared::{
+        AuxiliaryPowerUnitElectrical, ElectricalBusType, EngineFirePushButtons, PotentialOrigin,
+    },
     simulation::{
         InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
         VariableIdentifier, Write,
@@ -195,25 +197,38 @@ impl A380AlternatingCurrentElectrical {
         electricity.flow(&self.ac_emer_contactor[0], &self.ac_emer_bus);
     }
 
-    /// At most two sources supply the four main AC busbars (A380 FCOM DSC-24-10-60 LOAD SHEDDING, a380_fcom.txt
-    /// l.50528-50530: "An overload may occur when there is a high demand, and only one or two generators are supplying
-    /// the electrical network."). Counts the distinct single sources of the powered busbars. Before, it counted the
-    /// busbars that share their source with another busbar and compared that count with 2, which was true with
-    /// four engine generators (no sharing) and false with the APU generator A alone in flight (AC 1 and AC 2).
+    /// Only one or two generators supply the main AC busbars: the generator overload risk that triggers the automatic
+    /// load shedding. Only the engine and APU generators count: external power units are not generators (two of them
+    /// can supply the whole aircraft network), and they all share one origin in the model, so counting origins would
+    /// make four external power units one source. Hence false as soon as a powered main AC busbar is not supplied by a
+    /// single generator (external power).
     pub fn main_ac_buses_powered_by_two_generators_only(&self, electricity: &Electricity) -> bool {
-        let source_count = (0..self.ac_buses.len())
-            .filter(|&i| {
-                let ac_output = electricity.output_of(&self.ac_buses[i]);
-                // a powered busbar brings a new source unless an earlier busbar has the same single source
-                ac_output.is_powered()
-                    && !(0..i).any(|j| {
-                        ac_output.is_powered_by_same_single_source(
-                            electricity.output_of(&self.ac_buses[j]),
-                        )
-                    })
-            })
+        const GENERATORS: [PotentialOrigin; 6] = [
+            PotentialOrigin::EngineGenerator(1),
+            PotentialOrigin::EngineGenerator(2),
+            PotentialOrigin::EngineGenerator(3),
+            PotentialOrigin::EngineGenerator(4),
+            PotentialOrigin::ApuGenerator(1),
+            PotentialOrigin::ApuGenerator(2),
+        ];
+
+        let powered_outputs: Vec<_> = self
+            .ac_buses
+            .iter()
+            .map(|bus| electricity.output_of(bus))
+            .filter(|output| output.is_powered())
+            .collect();
+
+        let all_supplied_by_a_single_generator = !powered_outputs.is_empty()
+            && powered_outputs
+                .iter()
+                .all(|output| GENERATORS.iter().any(|&gen| output.is_single(gen)));
+        let supplying_generator_count = GENERATORS
+            .iter()
+            .filter(|&&gen| powered_outputs.iter().any(|output| output.is_single(gen)))
             .count();
-        source_count <= 2
+
+        all_supplied_by_a_single_generator && supplying_generator_count <= 2
     }
 
     pub fn gen_contactor_open(&self, number: usize) -> bool {

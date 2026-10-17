@@ -4,8 +4,7 @@ mod galley;
 
 use self::{
     alternating_current::A380AlternatingCurrentElectrical,
-    direct_current::A380DirectCurrentElectrical,
-    galley::{MainGalley, SecondaryGalley},
+    direct_current::A380DirectCurrentElectrical, galley::Galleys,
 };
 pub(super) use direct_current::APU_START_MOTOR_BUS_TYPE;
 
@@ -37,8 +36,8 @@ use systems::{
         LatchedTrueLogicGate, LgciuWeightOnWheels, RamAirTurbineController,
     },
     simulation::{
-        InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
-        VariableIdentifier, Write,
+        InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
+        SimulatorWriter, UpdateContext, VariableIdentifier, Write,
     },
 };
 
@@ -49,8 +48,7 @@ pub(super) struct A380Electrical {
 
     alternating_current: A380AlternatingCurrentElectrical,
     direct_current: A380DirectCurrentElectrical,
-    main_galley: MainGalley,
-    secondary_galley: SecondaryGalley,
+    galleys: Galleys,
     emergency_elec: EmergencyElectrical,
     emergency_gen: EmergencyGenerator,
 
@@ -82,8 +80,7 @@ impl A380Electrical {
             rat_fault_id: context.get_identifier("ELEC_RAT_FAULT".to_owned()),
             alternating_current: A380AlternatingCurrentElectrical::new(context),
             direct_current: A380DirectCurrentElectrical::new(context),
-            main_galley: MainGalley::new(),
-            secondary_galley: SecondaryGalley::new(),
+            galleys: Galleys::new(),
             emergency_elec: EmergencyElectrical::new(),
             emergency_gen: EmergencyGenerator::new(
                 context,
@@ -180,9 +177,7 @@ impl A380Electrical {
             self.tefo_condition.output(),
         );
 
-        self.main_galley
-            .update(electricity, &self.alternating_current, overhead);
-        self.secondary_galley
+        self.galleys
             .update(electricity, &self.alternating_current, overhead);
 
         // Update relay states
@@ -239,14 +234,14 @@ impl A380Electrical {
     }
 
     fn galley_is_shed(&self) -> bool {
-        self.main_galley.is_shed() || self.secondary_galley.is_shed()
+        self.galleys.any_is_shed()
     }
 
-    /// Some, not all, galleys are shed: the GALLEY PARTIALLY SHED legend of the ELEC AC page, against GALLEY SHED when
-    /// all are (A380 FCOM DSC-24-20 GALLEY/COMMERCIAL INDICATION, a380_fcom.txt l.51038-51046). The main galleys are
-    /// shed alone when only one or two sources supply the four main AC busbars.
+    /// Some, not all, galleys are shed: the GALLEY (or COMMERCIAL) PARTIALLY SHED legend of the ELEC AC page, against
+    /// GALLEY SHED (or COMMERCIAL OFF) when all are. Some are shed with one COMMERCIAL pb-sw OFF (one cabin side), or
+    /// the main galleys alone when only one or two generators supply the main AC busbars.
     fn galley_is_partially_shed(&self) -> bool {
-        self.main_galley.is_shed() != self.secondary_galley.is_shed()
+        self.galleys.any_is_shed() && !self.galleys.all_are_shed()
     }
 
     /// Whether battery `number` (1 = BAT 1, 2 = BAT 2, 3 = BAT ESS, 4 = APU BAT) is failed
@@ -385,7 +380,12 @@ pub(super) struct A380ElectricalOverheadPanel {
     ac_ess_feed: NormalAltnFaultPushButton,
     galy_and_cab: AutoOffFaultPushButton,
     ext_pwrs: [OnOffAvailablePushButton; 4],
+    /// COMMERCIAL 1 pb-sw (L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON)
     commercial: OnOffFaultPushButton,
+    /// COMMERCIAL 2 pb-sw, a plain toggle of the cockpit behaviour with its own inverted variable
+    /// (L:A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF, default 0 = ON)
+    commercial_2_is_off_id: VariableIdentifier,
+    commercial_2_is_off: bool,
 }
 impl A380ElectricalOverheadPanel {
     pub fn new(context: &mut InitContext) -> A380ElectricalOverheadPanel {
@@ -409,6 +409,9 @@ impl A380ElectricalOverheadPanel {
             ext_pwrs: [1, 2, 3, 4]
                 .map(|i| OnOffAvailablePushButton::new_off(context, &format!("ELEC_EXT_PWR_{i}"))),
             commercial: OnOffFaultPushButton::new_on(context, "ELEC_COMMERCIAL"),
+            commercial_2_is_off_id: context
+                .get_unprefixed_identifier("A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF".to_owned()),
+            commercial_2_is_off: false,
         }
     }
 
@@ -488,8 +491,12 @@ impl A380ElectricalOverheadPanel {
         self.ac_ess_feed.is_altn()
     }
 
-    fn commercial_is_off(&self) -> bool {
-        self.commercial.is_off()
+    fn commercial_is_off(&self, number: usize) -> bool {
+        match number {
+            1 => self.commercial.is_off(),
+            2 => self.commercial_2_is_off,
+            _ => panic!("There are only two COMMERCIAL pb-sws"),
+        }
     }
 
     fn galy_and_cab_is_off(&self) -> bool {
@@ -524,6 +531,10 @@ impl SimulationElement for A380ElectricalOverheadPanel {
         self.commercial.accept(visitor);
 
         visitor.visit(self);
+    }
+
+    fn read(&mut self, reader: &mut SimulatorReader) {
+        self.commercial_2_is_off = reader.read(&self.commercial_2_is_off_id);
     }
 }
 
@@ -3026,14 +3037,64 @@ mod a380_electrical_circuit_tests {
     }
 
     #[test]
-    fn when_commercial_pb_off_galley_is_shed() {
+    fn when_commercial_1_pb_off_the_galleys_are_partially_shed() {
+        // COMMERCIAL 1 OFF sheds the galleys of the upper left cabin supply centers only
         let mut test_bed = test_bed_with()
             .running_engines()
             .and()
-            .commercial_off()
+            .commercial_1_off()
             .run();
 
         assert!(test_bed.galley_is_shed());
+        assert!(test_bed.galley_is_partially_shed());
+    }
+
+    #[test]
+    fn when_commercial_2_pb_off_the_galleys_are_partially_shed() {
+        // COMMERCIAL 2 OFF sheds the galleys of the upper right cabin supply centers only
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .and()
+            .commercial_2_off()
+            .run();
+
+        assert!(test_bed.galley_is_shed());
+        assert!(test_bed.galley_is_partially_shed());
+    }
+
+    #[test]
+    fn when_both_commercial_pbs_off_all_galleys_are_shed_not_partially() {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .and()
+            .commercial_1_off()
+            .and()
+            .commercial_2_off()
+            .run();
+
+        assert!(test_bed.galley_is_shed());
+        assert!(!test_bed.galley_is_partially_shed());
+    }
+
+    #[rstest]
+    #[case(&[2, 3])]
+    #[case(&[1, 2, 3, 4])]
+    fn when_external_power_units_supply_no_galley_is_shed(#[case] ext_pwrs: &[usize]) {
+        // The automatic shedding is for a generator overload, and two external power units can supply the whole
+        // aircraft network
+        let mut test_bed = test_bed_with()
+            .all_bats_auto()
+            .connected_external_power()
+            .on_the_ground()
+            .and()
+            .airspeed(Velocity::default());
+        for &number in ext_pwrs {
+            test_bed = test_bed.ext_pwr_on(number);
+        }
+        test_bed = test_bed.run();
+
+        assert!(!test_bed.galley_is_shed());
+        assert!(!test_bed.galley_is_partially_shed());
     }
 
     #[test]
@@ -4510,8 +4571,13 @@ mod a380_electrical_circuit_tests {
             self.bus_tie(false)
         }
 
-        fn commercial_off(mut self) -> Self {
+        fn commercial_1_off(mut self) -> Self {
             self.write_by_name("OVHD_ELEC_COMMERCIAL_PB_IS_ON", false);
+            self
+        }
+
+        fn commercial_2_off(mut self) -> Self {
+            self.write_by_name("A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF", true);
             self
         }
 

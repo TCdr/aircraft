@@ -1,16 +1,41 @@
 use super::{alternating_current::A380AlternatingCurrentElectrical, A380ElectricalOverheadPanel};
 use systems::electrical::{AlternatingCurrentElectricalSystem, Electricity};
 
-pub(super) struct MainGalley {
-    is_shed: bool,
+/// The cabin sides of the galleys, numbered as the COMMERCIAL pb-sw that sheds the commercial loads of the upper left
+/// (1) or right (2) cabin supply centers.
+const CABIN_SIDES: [usize; 2] = [1, 2];
+
+/// The galleys of both cabin sides, each side with its main and secondary galleys.
+/// - GALY AND CAB pb-sw OFF sheds all galleys.
+/// - COMMERCIAL 1 (2) pb-sw OFF sheds the galleys of the left (right) cabin side; both OFF shed them all.
+/// - The automatic load shedding (only one or two generators supply the network, generator overload risk) sheds the
+///   main galleys only.
+pub(super) struct Galleys {
+    /// Main galleys of the left (index 0, COMMERCIAL 1) and right (index 1, COMMERCIAL 2) cabin sides
+    main_is_shed: [bool; 2],
+    /// Secondary galleys, same sides
+    secondary_is_shed: [bool; 2],
 }
-impl MainGalley {
+impl Galleys {
     pub fn new() -> Self {
-        Self { is_shed: false }
+        Self {
+            main_is_shed: [false; 2],
+            secondary_is_shed: [false; 2],
+        }
     }
 
-    pub fn is_shed(&self) -> bool {
-        self.is_shed
+    pub fn any_is_shed(&self) -> bool {
+        self.main_is_shed
+            .iter()
+            .chain(self.secondary_is_shed.iter())
+            .any(|&is_shed| is_shed)
+    }
+
+    pub fn all_are_shed(&self) -> bool {
+        self.main_is_shed
+            .iter()
+            .chain(self.secondary_is_shed.iter())
+            .all(|&is_shed| is_shed)
     }
 
     pub fn update(
@@ -19,33 +44,18 @@ impl MainGalley {
         alternating_current: &A380AlternatingCurrentElectrical,
         overhead: &A380ElectricalOverheadPanel,
     ) {
-        self.is_shed = !alternating_current.any_non_essential_bus_powered(electricity)
-            || alternating_current.main_ac_buses_powered_by_two_generators_only(electricity)
-            || overhead.commercial_is_off()
-            || overhead.galy_and_cab_is_off();
-    }
-}
+        let no_main_ac_busbar_powered =
+            !alternating_current.any_non_essential_bus_powered(electricity);
+        let generator_overload =
+            alternating_current.main_ac_buses_powered_by_two_generators_only(electricity);
 
-pub(super) struct SecondaryGalley {
-    is_shed: bool,
-}
-impl SecondaryGalley {
-    pub fn new() -> Self {
-        Self { is_shed: false }
-    }
+        for (index, &side) in CABIN_SIDES.iter().enumerate() {
+            let side_is_unpowered_or_manually_shed = no_main_ac_busbar_powered
+                || overhead.galy_and_cab_is_off()
+                || overhead.commercial_is_off(side);
 
-    pub fn is_shed(&self) -> bool {
-        self.is_shed
-    }
-
-    pub fn update(
-        &mut self,
-        electricity: &Electricity,
-        alternating_current: &A380AlternatingCurrentElectrical,
-        overhead: &A380ElectricalOverheadPanel,
-    ) {
-        self.is_shed = !alternating_current.any_non_essential_bus_powered(electricity)
-            || overhead.commercial_is_off()
-            || overhead.galy_and_cab_is_off();
+            self.secondary_is_shed[index] = side_is_unpowered_or_manually_shed;
+            self.main_is_shed[index] = side_is_unpowered_or_manually_shed || generator_overload;
+        }
     }
 }

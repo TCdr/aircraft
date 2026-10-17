@@ -173,7 +173,8 @@
 - A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF
     - Bool
     - True when the COMMERCIAL 2 push button of the ELEC panel is OFF (default 0 = normal, pb in)
-    - Written by the cockpit behaviour only; nothing consumes it yet
+    - Written by the cockpit behaviour; read by systems.wasm (sheds the right cabin side galleys) and the ELEC AC SD
+      page
 
 - A380X_OVHD_ELEC_ELMU_PB_IS_OFF
     - Bool
@@ -1422,14 +1423,15 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_ELEC_GALLEY_IS_SHED
     - Bool
     - Read only
-    - True when at least one galley is shed (no main AC busbar powered, COMMERCIAL or GALY AND CAB pb OFF, or the main
-      galleys when only one or two sources supply the main AC busbars; a380_systems electrical/galley.rs)
+    - True when at least one galley is shed (no main AC busbar powered, GALY AND CAB pb OFF, the galleys of the left
+      (right) cabin side with COMMERCIAL 1 (2) pb OFF, or the main galleys when only one or two engine/APU generators
+      supply the main AC busbars, never with external power; a380_systems electrical/galley.rs)
 
 - A32NX_ELEC_GALLEY_IS_PARTIALLY_SHED
     - Bool
     - Read only
-    - True when some, not all, galleys are shed (the main galleys only). Drives GALLEY PARTIALLY SHED on the ELEC AC SD
-      page, A32NX_ELEC_GALLEY_IS_SHED alone GALLEY SHED (A380 FCOM DSC-24-20 GALLEY/COMMERCIAL INDICATION)
+    - True when some, not all, galleys are shed (one COMMERCIAL pb OFF, or the main galleys only). Drives GALLEY
+      PARTIALLY SHED on the ELEC AC SD page, A32NX_ELEC_GALLEY_IS_SHED alone GALLEY SHED
 
 ## Fire and Smoke Protection ATA 26
 
