@@ -164,8 +164,11 @@ pub enum FailureType {
     /// The A320 brake normal selector valve is failed open: full green pressure at the entry of the normal servovalves
     /// (WHEEL HYD SEL FAULT)
     BrakeNormalSelectorValve,
-    /// Tyre n is deflated (A320 TPIS: 1 to 4 the main wheels from left to right, 5 and 6 the left and right nose wheels)
+    /// Tyre n has a slow leak (A320 TPIS: 1 to 4 the main wheels from left to right, 5 and 6 the left and right nose
+    /// wheels)
     TyreDeflated(usize),
+    /// Tyre n has burst: it loses its pressure within about a minute (same numbering as TyreDeflated)
+    TyreBurst(usize),
     // ATA30 (ice_rain_protection)
     /// The engine anti-ice valve of engine n stays closed
     EngineAntiIceValveStuckClosed(usize),
