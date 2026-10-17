@@ -3,10 +3,10 @@
 
 import { Conversion, CpdlcMessage, CpdlcMessageContentType, CpdlcMessagesDownlink } from '@datalink/common';
 
-import { RequestFieldKind } from './RequestFrames';
+import { freetextElement, RequestFieldKind } from './RequestFrames';
 
 /**
- * The REPORT/MODIFY page (A380 FCOM DSC-46-10-20-30 P 22-23): the downlink message of the mailbox that the flight crew
+ * The REPORT/MODIFY page: the downlink message of the mailbox that the flight crew
  * modifies before sending it (the response prepared by the FMS for a confirm message), a line for each of its elements.
  */
 
@@ -21,7 +21,7 @@ export interface ModifyField {
 /** A line of the page: texts and fields, from left to right */
 export type ModifyLine = (string | ModifyField)[];
 
-/** The entry formats of the message contents (FCOM DSC-46-10-20-50) */
+/** The entry formats of the message contents */
 const KINDS: Partial<Record<CpdlcMessageContentType, RequestFieldKind>> = {
   [CpdlcMessageContentType.Level]: 'altitude',
   [CpdlcMessageContentType.Position]: 'fix',
@@ -37,7 +37,7 @@ const KINDS: Partial<Record<CpdlcMessageContentType, RequestFieldKind>> = {
   [CpdlcMessageContentType.Distance]: 'distance',
 };
 
-/** The texts of the page use the FCOM field names (e.g. PRESENT ALTITUDE for PRESENT LEVEL) */
+/** The page says ALTITUDE where the message templates say LEVEL (e.g. PRESENT ALTITUDE for PRESENT LEVEL) */
 function label(text: string): string {
   return text.replace(/\bLEVEL\b/g, 'ALTITUDE').trim();
 }
@@ -95,9 +95,7 @@ export function applyModification(
     }),
   );
   if (freetext) {
-    const element = CpdlcMessagesDownlink.DM67[1].deepCopy();
-    element.Content[0].Value = freetext;
-    response.Content.push(element);
+    response.Content.push(freetextElement(freetext));
   }
   return modified;
 }

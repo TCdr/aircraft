@@ -4,16 +4,11 @@
 import { Subject, Subscribable } from '@microsoft/msfs-sdk';
 
 /*
- * The System Message Area of the MFD header (A380 FCOM DSC-31-50, a380_fcom.txt l.74416-74429; the same text in
- * DSC-22-FMS-20-20 l.31315-31330 and the SURV and FCU BKUP chapters l.91646-91662, l.96733):
- * "The System Message Area displays three different messages to get the attention of the flight crew on an FMS or
- * ATCCOM event, when the MFD actually not displays the FMS, or ATCCOM pages:
- * - NEW ATIS RECEIVED: Indicates that a new ATIS report is received, and the MFD displays an application other than
- *   ATCCOM. This message is removed when the flight crew accesses an ATCCOM page.
- * - ATIS SYS MSG: Indicates that a ATIS FSM message is received, and the MFD displays an application other than ATC COM.
- *   This message is removed when the flight crew accesses an ATC COM page.
- * - CHECK FMS MESSAGE: Indicates that an amber FMS message is pending, and the MFD displays an application other than
- *   FMS. This message is removed when the flight crew accesses an FMS page."
+ * The System Message Area of the MFD header: draws the attention of the flight crew to an FMS or ATC COM event while
+ * the MFD shows another application:
+ * - NEW ATIS RECEIVED: a new ATIS report is received; removed when the crew opens an ATC COM page.
+ * - ATIS SYS MSG: an ATIS flight system message (FSM) is received; removed when the crew opens an ATC COM page.
+ * - CHECK FMS MESSAGE: an amber FMS message is pending; removed when the crew opens an FMS page.
  */
 
 /** An application of the MFD system selector, as the MFD URIs name it (MfdSystem): fms, atccom, surv, fcubkup */
@@ -33,15 +28,14 @@ const OWNER: Record<SystemAreaMessage, MfdApplication> = {
 };
 
 /**
- * The Message Status / FSM button indications that come from an ATIS Flight System Message of the ATC center (FCOM
- * DSC-46-10-20-30 P 32, l.97746-97790): USE VOICE, SEND AGAIN, NO AUTO UPDATE, END OF UPDATE. SENDING and SENT are the
- * aircraft's own request states.
+ * The Message Status / FSM button indications that come from an ATIS Flight System Message of the ATC center: USE
+ * VOICE, SEND AGAIN, NO AUTO UPDATE, END OF UPDATE. SENDING and SENT are the aircraft's own request states.
  */
 const ATIS_FSM_STATUSES: readonly string[] = ['USE VOICE', 'SEND AGAIN', 'NO AUTO UPDATE', 'END OF UPDATE'];
 
 /**
  * The System Message Area of one MFD. Design choices: the area shows one message, the most recent one of those raised
- * (the FCOM does not give a priority); a message is raised only by a new event, so going back to another application
+ * (the real priority is not documented); a message is raised only by a new event, so going back to another application
  * does not bring back a message whose event the crew has seen in its application.
  */
 export class MfdSystemMessageArea {
@@ -88,8 +82,8 @@ export class MfdSystemMessageArea {
 
   /**
    * The ATIS reports or the ATIS request areas changed
-   * @param unreadVersions for each ATIS request area, the version (ATIS letter) of its last report when the crew has not
-   * read it yet, else null
+   * @param unreadVersions for each ATIS request area, the version (ATIS letter) of its last report when the crew has
+   * not read it yet, else null
    * @param statuses for each ATIS request area, the Message Status / FSM button indication
    */
   public onAtis(unreadVersions: readonly (string | null)[], statuses: readonly string[]): void {
@@ -108,7 +102,7 @@ export class MfdSystemMessageArea {
   }
 
   private raise(message: SystemAreaMessage): void {
-    // "when the MFD actually not displays" the application of the event
+    // Only while the MFD does not show the application of the event
     if (OWNER[message] === this.application) {
       return;
     }

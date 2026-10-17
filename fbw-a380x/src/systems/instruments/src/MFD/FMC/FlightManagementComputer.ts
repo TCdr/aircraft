@@ -135,7 +135,7 @@ export class FlightManagementComputer implements FmcInterface {
     if (value) {
       this.dataManager = new DataManager(this.bus, value, {
         latLonFormat: LatLonFormatType.ExtendedFormat,
-        // A380 FCOM DSC-22-FMS-10-40-10 and DSC-22-FMS-20-30 P 117: 50 pilot-stored waypoints
+        // The pilot-stored waypoints database holds 50 waypoints
         storedWaypointLimit: { max: 50, inUse: (waypoint) => this.isWaypointInFlightPlans(waypoint) },
       });
     }
@@ -216,6 +216,12 @@ export class FlightManagementComputer implements FmcInterface {
 
   public getStaticAirTemperature(): number | null {
     return this.#navigation?.getStaticAirTemperature() ?? null;
+  }
+
+  /** The aircraft position, null before the first navigation update (0/0) */
+  private knownPresentPosition(): Coordinates | null {
+    const ppos = this.#navigation.getPpos();
+    return ppos && (ppos.lat !== 0 || ppos.long !== 0) ? ppos : null;
   }
 
   get navaidTuner() {
@@ -387,12 +393,12 @@ export class FlightManagementComputer implements FmcInterface {
   public hasActiveFlightPlanWithCityPair = Subject.create<boolean>(false);
 
   /**
-   * FUEL PLANNING (A380 FCOM DSC-22-FMS-20-30 P 179): the minimum BLOCK fuel in tonnes, BLOCK = TAXI + TRIP + RTE RSV +
+   * FUEL PLANNING: the minimum BLOCK fuel in tonnes, BLOCK = TAXI + TRIP + RTE RSV +
    * MIN FUEL AT DEST, until the flight crew confirms it or enters a BLOCK.
    */
   public readonly fuelPlanningBlockFuel = Subject.create<number | null>(null);
 
-  /** The fuel planning computation is running. */
+  /** True while the FUEL PLANNING iterates on trial BLOCK fuels, until the minimum BLOCK is found */
   public readonly fuelPlanningInProgress = Subject.create(false);
 
   private fuelPlanningIterations = 0;
@@ -529,12 +535,8 @@ export class FlightManagementComputer implements FmcInterface {
         () => this.fmgc.getFOB(),
       );
       this.#atcRouteClearance = new AtcRouteClearanceLoader(this.bus, this, {
-        presentPosition: () => {
-          const ppos = this.#navigation.getPpos();
-          // No position before the first navigation update
-          return ppos && (ppos.lat !== 0 || ppos.long !== 0) ? ppos : null;
-        },
-        // FCOM DSC-22-FMS-20-30 P 344: RTA NOT ALLOWED IN EO / IN GA
+        presentPosition: () => this.knownPresentPosition(),
+        // RTA NOT ALLOWED IN EO / IN GA: no RTA with an engine out or in go around
         rtaAllowed: () => !this.fmgc.data.engineOut.get() && this.flightPhase.get() !== FmgcFlightPhase.GoAround,
         beforeCruise: () => this.flightPhase.get() < FmgcFlightPhase.Cruise,
       });
@@ -825,10 +827,6 @@ export class FlightManagementComputer implements FmcInterface {
   }
 
   /**
-   * Checks whether a waypoint is currently in use
-   * @param waypoint the waypoint to look for
-   */
-  /**
    * Whether a waypoint is part of the active, temporary or secondary flight plans (a pilot-stored waypoint that cannot
    * be deleted to make room in the pilot-stored elements database)
    * @param waypoint the waypoint
@@ -848,6 +846,10 @@ export class FlightManagementComputer implements FmcInterface {
     );
   }
 
+  /**
+   * Checks whether a waypoint is currently in use
+   * @param waypoint the waypoint to look for
+   */
   async isWaypointInUse(waypoint: Waypoint): Promise<boolean> {
     // Check in all flight plans
     if (this.flightPlanInterface.hasActive) {
@@ -1367,7 +1369,7 @@ export class FlightManagementComputer implements FmcInterface {
       this.simBriefOfp?.weights.passengerCount !== undefined ? Number(this.simBriefOfp?.weights?.passengerCount) : null,
     );
 
-    // FCOM DSC-22-FMS-20-30 COMPANY F-PLN REQUEST: before engine start, performance data come with the flight plan
+    // COMPANY F-PLN REQUEST: before engine start, performance data come with the flight plan
     if (!this.enginesWereStarted.get() && this.simBriefOfp) {
       this.insertCompanyFuelData(intoPlan, this.simBriefOfp);
     }
@@ -1664,7 +1666,7 @@ export class FlightManagementComputer implements FmcInterface {
   }
 
   computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined {
-    // The plan applies the A380 rule of FpmConfigs.A380 (AlternateCruiseLevel.ts, A380 FCOM l.42387)
+    // The plan applies the A380 rule of FpmConfigs.A380 (AlternateCruiseLevel.ts)
     return this.#flightPlanService.has(forPlan)
       ? this.#flightPlanService.get(forPlan).getAlternateCruiseLevel()
       : undefined;
@@ -1727,8 +1729,8 @@ export class FlightManagementComputer implements FmcInterface {
    * Duplicate implementation, because WaypointEntryUtils needs one parameter with both DataInterface and DisplayInterface
    */
   async createNewWaypoint(ident: string): Promise<Waypoint | undefined> {
-    // A380 FCOM DSC-22-FMS-20-30, DATA / WAYPOINT page: the PILOT STORED WPTs panel opens with the new waypoint
-    // function for an ident that is neither in the navigation database nor pilot created
+    // DATA / WAYPOINT page: the PILOT STORED WPTs panel opens with the new waypoint function for an ident that is
+    // neither in the navigation database nor pilot created
     this.mfdReference?.uiService.navigateTo(`fms/data/waypoint/new/${ident}/withReturn`);
     return undefined;
   }

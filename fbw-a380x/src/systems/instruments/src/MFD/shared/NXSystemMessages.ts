@@ -103,7 +103,7 @@ export const NXSystemMessages = {
   destEfobBelowMin: new TypeIIMessage('DEST EFOB BELOW MIN', true),
   draftWindsInserted: new TypeIMessage('DRAFT WIND INSERTED'),
   enterDestData: new TypeIIMessage('ENTER DEST DATA', true),
-  // FCOM DSC-22-FMS-20-110: the data communication between the FMS and the Avionics Communication Router is not available
+  // The data communication between the FMS and the Avionics Communication Router is not available
   fmsDatalinkNotAvail: new TypeIIMessage('FMS DATALINK NOT AVAIL'),
   EntryNotInList: new TypeIMessage('ENTRY NOT IN LIST'),
   entryOutOfRange: new TypeIMessage('ENTRY OUT OF RANGE'),
@@ -119,7 +119,7 @@ export const NXSystemMessages = {
   notInDatabase: new TypeIMessage('NOT IN DATABASE'),
   notTransmittedToAcr: new TypeIIMessage('NOT TRANSMITTED TO ACR', false),
   receivedCpnyFplnNotValid: new TypeIIMessage('RECEIVED COMPANY F-PLN NOT VALID', false),
-  // FCOM DSC-22-FMS-20-110: the received ATC F-PLN (LOAD-SEC3 of the mailbox) loaded, partially loaded, or rejected
+  // The received ATC F-PLN (LOAD-SEC3 of the mailbox) loaded, partially loaded, or rejected
   atcFplnInsertedSec3: new TypeIIMessage('ATC F-PLN INSERTED IN SEC 3', false),
   atcFplnInsertedSec3Rejected: new TypeIIMessage('ATC F-PLN INSERTED IN SEC 3\nREJECTED INFO SEE SEC / INDEX', false),
   receivedAtcMsgNotValid: new TypeIIMessage('RECEIVED ATC MSG NOT VALID', false),
@@ -141,12 +141,12 @@ export const NXSystemMessages = {
   lrcInUse: new TypeIMessage('LRC MODE IN USE'),
   lateralDiscontinuityAhead: new TypeIIMessage('LATERAL DISCONTINUITY AHEAD', true),
   listOf99InUse: new TypeIMessage('LIST OF 99 IN USE'),
-  // FCOM DSC-22-FMS-20-110: a new pilot-stored waypoint rejected, the 50 of the database are used
+  // A new pilot-stored waypoint rejected, the 50 of the database are used
   wptsMaxAllInUse: new TypeIMessage('50 WPTS MAX : ALL IN USE'),
   pilotRtesListFull: new TypeIMessage('PILOT RTEs LIST FULL'),
   rteIdentAlreadyUsed: new TypeIMessage('RTE IDENT ALREADY USED'),
   someRevisionsNotStored: new TypeIMessage('SOME REVISIONS NOT STORED'),
-  // FCOM DSC-22-FMS-20-110 (a380_fcom.txt l.45865-45870): a PLACE/DISTANCE waypoint whose PLACE is not the revised waypoint
+  // A PLACE/DISTANCE waypoint whose PLACE is not the revised waypoint
   placeWptDisagree: new TypeIMessage('PLACE / WPT DISAGREE'),
 };
 
@@ -184,8 +184,7 @@ export function isTypeIIMessage(message: McduMessage): message is TypeIIMessage 
 }
 
 /**
- * The ATC COM messages (A380 FCOM DSC-46-10-20-40): two lines of 33 characters, the line break as "
-"
+ * The ATC COM messages: two lines of 33 characters, separated by a newline
  */
 export const ATCCOMMessages = {
   atcComNotAvail: new ATCCOMMessage('ATC COM NOT AVAIL'),

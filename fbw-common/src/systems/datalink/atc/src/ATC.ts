@@ -703,8 +703,8 @@ export class Atc {
 
     if (message.Station === '') {
       if (this.currentAtc === '') {
-        // No active ATC center: the message cannot be transmitted, the mailbox shows SEND FAILED (A380 FCOM
-        // DSC-46-10-20-60, transmission of a downlink not possible), as for a transmission failure
+        // No active ATC center: the downlink cannot be transmitted, so the mailbox shows SEND FAILED as for a
+        // transmission failure
         if ((message as CpdlcMessage).MailboxRelevantMessage) {
           this.mailboxBus.updateMessageStatus(message.UniqueMessageID, MailboxStatusMessage.SendFailed);
         }

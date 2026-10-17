@@ -27,6 +27,7 @@ import { FrameComposer } from '../../ATCCOM/FrameComposer';
 import {
   ADD_TEXT_MENU,
   isAddTextFrame,
+  isRequestComplete,
   EMERGENCY_MENU,
   OTHER_REPORTS_MENU,
   REQUEST_FRAMES,
@@ -37,7 +38,7 @@ import {
 import { requestFieldFormat } from './AtccomEntryFormats';
 import { AtccomMenuButtonLayout, AtccomRequestMenu } from './AtccomRequestMenu';
 
-/** The geometry of the frames of a page (FCOM figures, page coordinates) */
+/** The geometry of the frames of a page (reference figures, page coordinates) */
 interface FrameGeometry {
   /** The top of the first frame and the height of a frame: a fifth of the area above the buttons */
   areaTop: number;
@@ -59,7 +60,7 @@ const FRAME_GEOMETRY: FrameGeometry = {
   trashLeft: 521,
 };
 
-/** EMERGENCY: the frames below the ADS EMERGENCY area (FCOM figure DSC-46-10-20-30 P 35) */
+/** EMERGENCY: the frames below the ADS EMERGENCY area */
 const EMERGENCY_GEOMETRY: FrameGeometry = {
   areaTop: 112.6,
   frameHeight: 130.5,
@@ -69,7 +70,7 @@ const EMERGENCY_GEOMETRY: FrameGeometry = {
   trashLeft: 483.3,
 };
 
-/** The REQUEST menu buttons, from the FCOM figure */
+/** The REQUEST menu buttons, from the reference figure */
 const REQUEST_MENU_LAYOUT: AtccomMenuButtonLayout[] = [
   { button: REQUEST_MENU[0], top: 4.2, height: 42.6 },
   { button: REQUEST_MENU[1], top: 47.8, height: 42.6 },
@@ -80,7 +81,7 @@ const REQUEST_MENU_LAYOUT: AtccomMenuButtonLayout[] = [
   { button: ADD_TEXT_MENU, top: 327.2, height: 42.6 },
 ];
 
-/** The OTHER REPORTS menu buttons, from the FCOM figure */
+/** The OTHER REPORTS menu buttons, from the reference figure */
 const OTHER_REPORTS_MENU_LAYOUT: AtccomMenuButtonLayout[] = [
   { button: OTHER_REPORTS_MENU[0], top: 5.5, height: 64.2 },
   { button: OTHER_REPORTS_MENU[1], top: 72.1, height: 64.2 },
@@ -91,7 +92,7 @@ const OTHER_REPORTS_MENU_LAYOUT: AtccomMenuButtonLayout[] = [
   { button: OTHER_REPORTS_MENU[6], top: 419.7, height: 64.2 },
 ];
 
-/** The EMERGENCY menu buttons, from the FCOM figure */
+/** The EMERGENCY menu buttons, from the reference figure */
 const EMERGENCY_MENU_LAYOUT: AtccomMenuButtonLayout[] = [
   { button: EMERGENCY_MENU[0], top: 121.3, height: 42.6 },
   { button: EMERGENCY_MENU[1], top: 165.2, height: 42.6 },
@@ -167,7 +168,7 @@ class RequestFrameSlot extends DisplayComponent<RequestFrameSlotProps> {
     const items: VNode[] = [];
     REQUEST_FRAMES[frame.id].lines(frame).forEach((line, lineIndex) => {
       // The labels and fields of a line follow each other: a field starts after the rendered label, whatever the width
-      // of the font (the sim renders it wider than the FCOM figures)
+      // of the font (the sim renders it wider than the reference figures)
       const lineItems: VNode[] = [];
       for (const item of line) {
         if (typeof item === 'string') {
@@ -223,9 +224,7 @@ class RequestFrameSlot extends DisplayComponent<RequestFrameSlotProps> {
     items.push(fcomLine(geometry.frameHeight, 0, geometry.frameWidth));
     const content = <>{items}</>;
     this.content = content;
-    if (content) {
-      FSComponent.render(content, this.containerRef.instance);
-    }
+    FSComponent.render(content, this.containerRef.instance);
   }
 
   public destroy(): void {
@@ -250,9 +249,9 @@ class RequestFrameSlot extends DisplayComponent<RequestFrameSlotProps> {
 }
 
 /**
- * A page composing a message of frames, laid out on the FCOM figures (page coordinates = display y - 143): up to five
- * frames created with the menu of the page; CANCEL deletes the message, XFR TO MAILBOX transfers it to the mailbox when
- * all its mandatory fields (amber boxes) are completed.
+ * A page composing a message of frames, laid out on the reference figures (page coordinates = display y - 143): up
+ * to five frames created with the menu of the page; CANCEL deletes the message, XFR TO MAILBOX transfers it to the
+ * mailbox when all its mandatory fields (amber boxes) are completed.
  */
 abstract class AtccomFramePage extends DisplayComponent<AtccomMfdPageProps> {
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
@@ -276,16 +275,6 @@ abstract class AtccomFramePage extends DisplayComponent<AtccomMfdPageProps> {
     return this.composer.frames;
   }
 
-  private slotFrames: Subscribable<RequestFrame | null>[] = [];
-
-  private noRequest: Subscribable<boolean> = Subject.create(true);
-
-  private incomplete: Subscribable<boolean> = Subject.create(true);
-
-  public onAfterRender(node: VNode): void {
-    super.onAfterRender(node);
-  }
-
   public destroy(): void {
     // Destroy all subscriptions to remove all references to this instance.
     this.subs.forEach((x) => x.destroy());
@@ -301,10 +290,7 @@ abstract class AtccomFramePage extends DisplayComponent<AtccomMfdPageProps> {
     // The abstract members are set once the subclass is constructed
     const slotFrames = [0, 1, 2, 3, 4].map((i) => this.frames.map((frames) => frames[i] ?? null));
     const noRequest = this.frames.map((frames) => frames.length === 0);
-    const incomplete = this.frames.map((frames) => !this.composer.isComplete(frames));
-    this.slotFrames = slotFrames;
-    this.noRequest = noRequest;
-    this.incomplete = incomplete;
+    const incomplete = this.frames.map((frames) => !isRequestComplete(frames));
     this.subs.push(...slotFrames, noRequest, incomplete);
     return (
       <>
@@ -313,11 +299,10 @@ abstract class AtccomFramePage extends DisplayComponent<AtccomMfdPageProps> {
           offset={Subject.create('')}
           emergency={this.emergency}
         />
-        {/* begin page content */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-atccom-request">
             {this.renderHeader()}
-            {this.slotFrames.map((frame, index) => (
+            {slotFrames.map((frame, index) => (
               <RequestFrameSlot
                 mfd={this.props.mfd}
                 atcService={this.props.atcService}
@@ -332,7 +317,7 @@ abstract class AtccomFramePage extends DisplayComponent<AtccomMfdPageProps> {
               0,
               <Button
                 label="CANCEL"
-                disabled={this.noRequest}
+                disabled={noRequest}
                 onClick={() => this.composer.cancel()}
                 buttonStyle="width: 193px; height: 57px;"
               />,
@@ -342,7 +327,7 @@ abstract class AtccomFramePage extends DisplayComponent<AtccomMfdPageProps> {
               579,
               <Button
                 label={'XFR\nTO MAILBOX'}
-                disabled={this.incomplete}
+                disabled={incomplete}
                 onClick={() => this.composer.transferToMailbox()}
                 buttonStyle="width: 189px; height: 57px;"
               />,
@@ -357,7 +342,6 @@ abstract class AtccomFramePage extends DisplayComponent<AtccomMfdPageProps> {
             />
           </div>
         </div>
-        {/* end page content */}
         <AtccomFooter bus={this.props.bus} mfd={this.props.mfd} atcService={this.props.atcService} />
       </>
     );
@@ -365,7 +349,7 @@ abstract class AtccomFramePage extends DisplayComponent<AtccomMfdPageProps> {
 }
 
 /**
- * REQUEST page (A380 FCOM DSC-46-10-20-30 P 11-16): the frames of a request message, created with the REQUEST menu
+ * REQUEST page: the frames of a request message, created with the REQUEST menu
  */
 export class MfdAtccomRequest extends AtccomFramePage {
   protected readonly composer = this.props.atcService.request;
@@ -375,7 +359,7 @@ export class MfdAtccomRequest extends AtccomFramePage {
   protected onSelect(id: RequestFrameId): void {
     let label: string | undefined;
     if (id === 'SID_STAR') {
-      // With the aircraft on ground, the request is made for a SID, in flight for a STAR (FCOM P 14)
+      // With the aircraft on ground, the request is made for a SID, in flight for a STAR
       label = SimVar.GetSimVarValue('SIM ON GROUND', 'bool') ? 'REQUEST SID' : 'REQUEST STAR';
     }
     this.composer.add(id, label);
@@ -383,7 +367,7 @@ export class MfdAtccomRequest extends AtccomFramePage {
 }
 
 /**
- * REPORT/OTHER REPORTS page (A380 FCOM DSC-46-10-20-30 P 24-26): the frames of a report message, created with the OTHER
+ * REPORT/OTHER REPORTS page: the frames of a report message, created with the OTHER
  * REPORTS menu
  */
 export class MfdAtccomOtherReports extends AtccomFramePage {
@@ -393,7 +377,7 @@ export class MfdAtccomOtherReports extends AtccomFramePage {
 }
 
 /**
- * EMERGENCY page (A380 FCOM DSC-46-10-20-30 P 35-38), laid out on the FCOM figure: the ADS EMERGENCY status, and the
+ * EMERGENCY page, laid out on the reference figure: the ADS EMERGENCY status, and the
  * frames of an emergency message created with the EMERGENCY menu (MAYDAY, PANPAN, CANCEL EMER...)
  */
 export class MfdAtccomEmergency extends AtccomFramePage {
@@ -440,7 +424,7 @@ export class MfdAtccomEmergency extends AtccomFramePage {
   }
 
   protected onSelect(id: RequestFrameId): void {
-    // SENDING MAYDAY WILL SWITCH ADS TO EMERGENCY, as soon as MAYDAY is clicked (FCOM DSC-46-10-20-40 S)
+    // SENDING MAYDAY WILL SWITCH ADS TO EMERGENCY, as soon as MAYDAY is clicked
     if (id === 'MAYDAY') {
       this.props.atcService.addMessageToQueue(ATCCOMMessages.sendingMaydayWillSwitchAdsToEmergency);
     }

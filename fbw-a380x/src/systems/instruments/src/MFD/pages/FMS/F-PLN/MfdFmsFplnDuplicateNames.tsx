@@ -222,7 +222,7 @@ export class MfdFmsFplnDuplicateNames extends DisplayComponent<MfdFmsFplnDuplica
             <div ref={this.linesDivRef} class="mfd-fms-fpln-duplicate-table" />
             <div style="flex-grow: 1;" />
           </div>
-          {/* FCOM DSC-22-FMS-20-30 DUPLICATE NAMES page: the scroll buttons move page by page */}
+          {/* The scroll buttons move page by page */}
           <div style="display: flex; flex-direction: row; justify-content: center">
             <IconButton
               icon="double-down"

@@ -18,7 +18,7 @@ import {
 } from '@datalink/common';
 
 /**
- * The A380 ATC mailbox on the SD (FCOM DSC-46-10-10-70, DSC-46-10-20-60): the messages of the mailbox queue, their
+ * The A380 ATC mailbox on the SD: the messages of the mailbox queue, their
  * communication buttons, status, colors and pages.
  */
 
@@ -43,10 +43,10 @@ export interface MailboxBlock {
 }
 
 /** The standard responses, by downlink id (DM0 to DM5) */
-export const RESPONSES = ['WILCO', 'UNABLE', 'STANDBY', 'ROGER', 'AFFIRM', 'NEGATIVE'];
+const RESPONSES = ['WILCO', 'UNABLE', 'STANDBY', 'ROGER', 'AFFIRM', 'NEGATIVE'];
 
 /**
- * The justifications of the DUE TO button (FCOM DSC-46-10-20-60 P 6: "due to aircraft performance, weather, ..."): the
+ * The justifications of the DUE TO button (due to aircraft performance, weather, ...): the
  * CPDLC elements, or the freetext
  */
 export const DUE_TO_REASONS: Record<string, { label: string; typeId: string; text?: string }> = {
@@ -76,7 +76,7 @@ export type MailboxAction =
 
 /**
  * The response of an action (a DM id): ACK accepts a departure / oceanic clearance (a ROGER), REFUSE declines it (an
- * UNABLE), FCOM DSC-46-10-20-60 P 5-6
+ * UNABLE)
  * @param action the button of the flight crew
  * @returns the DM id of the response, -1 for a button that is not a response
  */
@@ -96,7 +96,7 @@ export function responseOf(action: MailboxAction): number {
  * @param response the DM id of the response
  * @returns the label shown in the message status
  */
-export function responseLabel(block: MailboxBlock, response: number): string {
+function responseLabel(block: MailboxBlock, response: number): string {
   if (block.replyTo?.clearance) {
     if (response === 3) {
       return 'ACK';
@@ -108,13 +108,13 @@ export function responseLabel(block: MailboxBlock, response: number): string {
   return RESPONSES[response] ?? '';
 }
 
-export interface MailboxButton {
+interface MailboxButton {
   action: MailboxAction;
   enabled: boolean;
 }
 
-/** The five communication button positions, top to bottom (FCOM figure: WILCO, STANDBY, UNABLE, LOAD->SEC3, PRINT) */
-export type MailboxButtons = [
+/** The five communication button positions, top to bottom: WILCO, STANDBY, UNABLE, LOAD->SEC3, PRINT */
+type MailboxButtons = [
   MailboxButton | null,
   MailboxButton | null,
   MailboxButton | null,
@@ -122,10 +122,10 @@ export type MailboxButtons = [
   MailboxButton | null,
 ];
 
-/** The lines of a page of the message area, below the time / origin line (FCOM figure) */
+/** The lines of a page of the message area, below the time / origin line */
 export const MAILBOX_PAGE_LINES = 5;
 /** The characters of a line, on the left of the page buttons */
-export const MAILBOX_LINE_LENGTH = 23;
+const MAILBOX_LINE_LENGTH = 23;
 
 /**
  * The type of the first element of a message
@@ -220,10 +220,10 @@ function allPagesSeen(block: MailboxBlock): boolean {
 const button = (action: MailboxAction, enabled = true): MailboxButton => ({ action, enabled });
 
 /**
- * The communication buttons of a message (FCOM DSC-46-10-20-60 P 4-6): the possible replies of an uplink message, SEND
+ * The communication buttons of a message: the possible replies of an uplink message, SEND
  * and CANCEL once a reply is prepared or for a downlink message to send, CLOSE when processed, and PRINT. A route
- * clearance or a crossing constraint (loadable messages) also has LOAD-SEC3 in the fourth position, before and after the reply (FCOM DSC-46-10-40 P 24-25), unless
- * FREETEXT is there.
+ * clearance or a crossing constraint (loadable messages) also has LOAD-SEC3 in the fourth position, before and after
+ * the reply, unless FREETEXT is there.
  * @param block the message block
  * @returns the five button positions, null where there is no button
  */
@@ -292,7 +292,7 @@ function communicationButtons(block: MailboxBlock): MailboxButtons {
     const underModification = block.status === MailboxStatusMessage.FmsDisplayForModification;
     buttons[0] = button('SEND', !sending && !underModification);
     buttons[2] = button('CANCEL', !sending && !underModification);
-    // A justification or a freetext for a NEGATIVE or UNABLE response (FCOM DSC-46-10-20-60 P 6-7)
+    // A justification or a freetext for a NEGATIVE or UNABLE response
     if (negative) {
       buttons[1] = button('DUE TO', !sending && !underModification);
       buttons[3] = button('FREETEXT', !sending && !underModification);
@@ -308,7 +308,7 @@ function communicationButtons(block: MailboxBlock): MailboxButtons {
   }
 
   const enabled = !sending;
-  // A departure / oceanic clearance: ACK or REFUSE (FCOM DSC-46-10-20-60 P 5-6)
+  // A departure / oceanic clearance: ACK or REFUSE
   if (block.replyTo?.clearance) {
     buttons[0] = button('ACK', enabled);
     buttons[2] = button('REFUSE', enabled);
@@ -332,10 +332,10 @@ function communicationButtons(block: MailboxBlock): MailboxButtons {
   return buttons;
 }
 
-export type MailboxStatusStyle = 'open' | 'selected' | 'answered';
+type MailboxStatusStyle = 'open' | 'selected' | 'answered';
 
 /**
- * The message status (FCOM figure): OPEN while an uplink message waits for its response, the prepared response in black
+ * The message status: OPEN while an uplink message waits for its response, the prepared response in black
  * on a blue background, the sent response. Empty for a downlink message and an uplink message without response.
  * @param block the message block
  * @returns the status text and its style, or null
@@ -359,11 +359,11 @@ export function mailboxStatus(block: MailboxBlock): { text: string; style: Mailb
 }
 
 /**
- * The colors of a message (FCOM DSC-46-10-10-70 P 3): an uplink message in white with the main parameters in blue
+ * The colors of a message: an uplink message in white with the main parameters in blue
  * (magenta when monitored), green when answered; a downlink message in black on a blue background before sending, on a
  * green background after sending.
  */
-export type MailboxMessageStyle = 'uplink' | 'answered' | 'downlink' | 'downlinkSent';
+type MailboxMessageStyle = 'uplink' | 'answered' | 'downlink' | 'downlinkSent';
 
 /**
  * The colors of a message block (see {@link MailboxMessageStyle})
@@ -380,7 +380,7 @@ export function mailboxMessageStyle(block: MailboxBlock): MailboxMessageStyle {
 }
 
 /** A part of a line: text, a main parameter, a monitored parameter, or the prepared response of a confirm message */
-export interface MailboxSegment {
+interface MailboxSegment {
   text: string;
   kind: 'text' | 'parameter' | 'monitored' | 'response';
 }
@@ -389,7 +389,7 @@ export type MailboxLine = MailboxSegment[];
 
 /**
  * The segments of a freetext value: Hoppie/BeyondATC mark the variable fields of a freetext uplink with @ (e.g.
- * "CLRD TO @CYVR@ RWY @06R@"). The marked fields are parameters (FCOM DSC-46-10-10-70: "the main parameters in blue"),
+ * "CLRD TO @CYVR@ RWY @06R@"). The marked fields are parameters (shown as the main parameters, in blue),
  * the markers are dropped (the A380 display font draws @ as a triangle). An unclosed marker runs to the end of the
  * text, as on the A32NX DCDU.
  * @param value the freetext value
@@ -491,7 +491,7 @@ function words(segments: MailboxSegment[]): MailboxWord[] {
 /**
  * The lines of a message: words kept whole, a word longer than a line cut
  * @param block the message block
- * @param length the characters of a line
+ * @param length the line width, in characters
  * @returns the lines of the message area
  */
 export function mailboxLines(block: MailboxBlock, length = MAILBOX_LINE_LENGTH): MailboxLine[] {
@@ -534,7 +534,7 @@ export function mailboxLines(block: MailboxBlock, length = MAILBOX_LINE_LENGTH):
     }
   };
 
-  // The reply to a request of the flight crew (FCOM figure: (REPLY TO 1422Z REQ:))
+  // The reply to a request of the flight crew, shown as (REPLY TO 1422Z REQ:)
   if (block.replyTo) {
     addWords([{ text: `(REPLY TO ${block.replyTo.time} REQ:)`, kind: 'text' }]);
   }
@@ -557,7 +557,7 @@ export function mailboxLines(block: MailboxBlock, length = MAILBOX_LINE_LENGTH):
   return lines;
 }
 
-/** The texts of the Information Messages Area (FCOM DSC-46-10-20-60 P 7-9) */
+/** The texts of the Information Messages Area */
 const INFORMATION: Partial<Record<MailboxStatusMessage, string>> = {
   [MailboxStatusMessage.AnswerRequired]: 'ANSWER MSG',
   [MailboxStatusMessage.CommunicationFault]: 'COM FAULT',

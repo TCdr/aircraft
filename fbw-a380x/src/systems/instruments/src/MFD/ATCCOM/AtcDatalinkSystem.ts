@@ -40,12 +40,12 @@ import {
 import { FmsToDatalinkSubsystemEvents } from '../../../../shared/src/publishers/A380XFmsAtcBusPublisher';
 
 /**
- * The indications of the message status / FSM button of an ATIS request area (FCOM DSC-46-10-20-30 P 32): '' when
- * none, SENDING, SENT, USE VOICE, SEND AGAIN, NO AUTO UPDATE, END OF UPDATE
+ * The indications of the message status / FSM button of an ATIS request area: '' when none, SENDING, SENT, USE
+ * VOICE, SEND AGAIN, NO AUTO UPDATE, END OF UPDATE
  */
 export type AtisStatus = '' | 'SENDING' | 'SENT' | 'USE VOICE' | 'SEND AGAIN' | 'NO AUTO UPDATE' | 'END OF UPDATE';
 
-/** An ATIS request area of the ATIS/LIST page (FCOM DSC-46-10-20-30 P 30-34) */
+/** An ATIS request area of the ATIS/LIST page */
 export interface AtisArea {
   /** The airport, ICAO code, or null */
   icao: string | null;
@@ -64,7 +64,7 @@ export interface AtisArea {
   readVersion: string | null;
 }
 
-/** The notification (CPDLC logon) in progress on the CONNECT/NOTIFICATION page (FCOM DSC-46-10-20-30 P 3) */
+/** The notification (CPDLC logon) in progress on the CONNECT/NOTIFICATION page */
 export type AtcNotificationState = 'NONE' | 'NOTIFYING' | 'FAILED';
 
 /** A notified ATC center of the NOTIFIED TO CENTERS list, with the UTC time of the notification (e.g. "1308Z") */
@@ -81,7 +81,7 @@ export interface AtcStationStatus {
   next: string;
 }
 
-/** The ADS status (FCOM DSC-46-10-10-60): ARMED by default; no ADS contract is available through the ATSU */
+/** The ADS status: ARMED by default; no ADS contract is available through the ATSU */
 export type AdsStatus = 'ARMED' | 'CONNECTED' | 'OFF';
 
 export interface AtcErrorMessage {
@@ -113,17 +113,17 @@ export class AtcDatalinkSystem implements Instrument {
 
   private fmsDestination: string | null = null;
 
-  /** The frames of the REQUEST page (FCOM DSC-46-10-20-30 P 11-16) */
+  /** The frames of the REQUEST page */
   public readonly request = new FrameComposer(
     () => this.addMessageToQueue(ATCCOMMessages.lastMsgElement),
     (id) => this.requestDefaults(id),
     (frames) => this.transferRequest(frames),
   );
 
-  /** The report of the REPORT/AUTO & MANUAL POSITION page (FCOM DSC-46-10-20-30 P 17-21) */
+  /** The report of the REPORT/AUTO & MANUAL POSITION page */
   public readonly positionReport = Subject.create<PositionReportValues>(emptyPositionReport());
 
-  /** The message of the mailbox modified on the REPORT/MODIFY page (FCOM DSC-46-10-20-30 P 22-23) */
+  /** The message of the mailbox modified on the REPORT/MODIFY page */
   public readonly modifyMessage = Subject.create<CpdlcMessage | null>(null);
 
   /** Incremented when the mailbox asks the MFD to display the REPORT/MODIFY page (MODIFY button) */
@@ -134,14 +134,14 @@ export class AtcDatalinkSystem implements Instrument {
 
   private positionReportCallbacks: ((requestId: number, data: PositionReportData) => boolean)[] = [];
 
-  /** The frames of the EMERGENCY page (FCOM DSC-46-10-20-30 P 35-38) */
+  /** The frames of the EMERGENCY page */
   public readonly emergency = new FrameComposer(
     () => this.addMessageToQueue(ATCCOMMessages.lastMsgElement),
     (id) => this.emergencyDefaults(id),
     (frames) => this.transferEmergency(frames),
   );
 
-  /** The frames of the REPORT/OTHER REPORTS page (FCOM DSC-46-10-20-30 P 24-26) */
+  /** The frames of the REPORT/OTHER REPORTS page */
   public readonly otherReports = new FrameComposer(
     () => this.addMessageToQueue(ATCCOMMessages.lastMsgElement),
     () => ({}),
@@ -151,7 +151,7 @@ export class AtcDatalinkSystem implements Instrument {
   /** The active and next ATC centers */
   public readonly stationStatus = Subject.create<AtcStationStatus>({ current: '', next: '' });
 
-  /** The NOTIFIED TO CENTERS list, most recent first, up to 6 centers (FCOM DSC-46-10-20-30 P 4) */
+  /** The NOTIFIED TO CENTERS list, most recent first, up to 6 centers */
   public readonly notifiedCenters = ArraySubject.create<AtcNotifiedCenter>([]);
 
   public readonly notificationState = Subject.create<AtcNotificationState>('NONE');
@@ -174,7 +174,7 @@ export class AtcDatalinkSystem implements Instrument {
   /** Incremented at every change of the received ATIS reports */
   public readonly atisReportsVersion = Subject.create(0);
 
-  /** The messages of the MSG RECORD/LIST page, most recent first (FCOM DSC-46-10-20-30 P 27) */
+  /** The messages of the MSG RECORD/LIST page, most recent first */
   public readonly msgRecord = Subject.create<readonly MsgRecordEntry[]>([]);
 
   #atcErrors = ArraySubject.create<AtcErrorMessage>();
@@ -202,8 +202,7 @@ export class AtcDatalinkSystem implements Instrument {
   constructor(private readonly bus: EventBus) {
     this.messageStorage = new MessageStorage(this.sub);
 
-    // After the message storage: the reports are stored when the pages are told
-    // The ADS status for the mailbox on the SD (ADS OFF indication, FCOM DSC-46-10-20-60 P 2)
+    // The ADS status for the mailbox on the SD (ADS OFF indication)
     this.adsStatus.sub(
       (status) =>
         SimVar.SetSimVarValue(
@@ -426,7 +425,7 @@ export class AtcDatalinkSystem implements Instrument {
   }
 
   /**
-   * Whether an ATIS request area can be modified (FCOM DSC-46-10-20-40 D, I, Q): not while a request is waiting (PLEASE
+   * Whether an ATIS request area can be modified: not while a request is waiting (PLEASE
    * WAIT : IN PROGRESS) nor while an auto update contract is active (DESELECT AUTO UPDATE), and not to the same airport
    * and type as another area (IDENTICAL ATIS REQUEST)
    */
@@ -521,7 +520,7 @@ export class AtcDatalinkSystem implements Instrument {
   }
 
   /**
-   * SEND REQUEST button, UPDATE option: sends the ATIS request of a request area (FCOM DSC-46-10-20-30 P 32-33)
+   * SEND REQUEST button, UPDATE option: sends the ATIS request of a request area
    * @param index the request area
    */
   public async requestAtis(index: number): Promise<void> {
@@ -529,8 +528,7 @@ export class AtcDatalinkSystem implements Instrument {
     if (area.icao === null || area.waiting) {
       return;
     }
-    if (!this.isDatalinkAvailable()) {
-      this.addMessageToQueue(ATCCOMMessages.comDatalinkNotAvail);
+    if (!this.checkDatalinkAvailable()) {
       return;
     }
     this.atisAreas[index].set({ ...area, waiting: true, status: 'SENDING' });
@@ -564,13 +562,10 @@ export class AtcDatalinkSystem implements Instrument {
       return;
     }
     if (area.autoUpdate) {
-      await this.genericRequest((requestId) =>
-        this.publisher.pub('atcDeactivateAtisAutoUpdate', { icao: area.icao!, requestId }, true, false),
-      );
+      await this.deactivateAtisAutoUpdate(area.icao);
       return;
     }
-    if (!this.isDatalinkAvailable()) {
-      this.addMessageToQueue(ATCCOMMessages.comDatalinkNotAvail);
+    if (!this.checkDatalinkAvailable()) {
       return;
     }
     await this.genericRequest((requestId) =>
@@ -581,14 +576,18 @@ export class AtcDatalinkSystem implements Instrument {
     // No ATIS from the center (USE VOICE) or a request to send again: there is no auto update contract
     const status = this.atisAreas[index].get().status;
     if (status === 'USE VOICE' || status === 'SEND AGAIN') {
-      await this.genericRequest((requestId) =>
-        this.publisher.pub('atcDeactivateAtisAutoUpdate', { icao: area.icao!, requestId }, true, false),
-      );
+      await this.deactivateAtisAutoUpdate(area.icao);
     }
   }
 
+  private deactivateAtisAutoUpdate(icao: string): Promise<void> {
+    return this.genericRequest((requestId) =>
+      this.publisher.pub('atcDeactivateAtisAutoUpdate', { icao, requestId }, true, false),
+    );
+  }
+
   /**
-   * PRINT, AUTO PRINT, PRINT ALL: there is no cockpit printer (PRINTER NOT AVAIL, FCOM DSC-46-10-20-40 R)
+   * PRINT, AUTO PRINT, PRINT ALL: there is no cockpit printer (PRINTER NOT AVAIL)
    */
   public print(): void {
     this.addMessageToQueue(ATCCOMMessages.printerNotAvail);
@@ -602,14 +601,9 @@ export class AtcDatalinkSystem implements Instrument {
     return `L:A380X_MFD_${side === 'CAPT' ? 'L' : 'R'}_ATCCOM_MSG_RECORD_ZOOM`;
   }
 
-  /** The dialogue of the ATC function with the given unique id, a message with its chain of responses */
-  public msgRecordDialogue(uid: number) {
-    return this.messageStorage.atcMessagesBuffer.find((message) => message.UniqueMessageID === uid);
-  }
-
   /**
    * Whether the ERASE ALL button can erase the recorded messages: not while the other MFD displays a recorded message
-   * (MSG RECORD USED OFFSIDE, FCOM DSC-46-10-20-30 P 29)
+   * (MSG RECORD USED OFFSIDE)
    */
   public canEraseMsgRecord(side: 'CAPT' | 'FO'): boolean {
     const offside = AtcDatalinkSystem.msgRecordZoomVar(side === 'CAPT' ? 'FO' : 'CAPT');
@@ -632,11 +626,10 @@ export class AtcDatalinkSystem implements Instrument {
 
   /**
    * UPDATE ALL button: a new ATIS request for all the request areas, except those with an auto update contract or a
-   * request in waiting state (FCOM DSC-46-10-20-30 P 34)
+   * request in waiting state
    */
   public updateAllAtis(): void {
-    if (!this.isDatalinkAvailable()) {
-      this.addMessageToQueue(ATCCOMMessages.comDatalinkNotAvail);
+    if (!this.checkDatalinkAvailable()) {
       return;
     }
     this.atisAreas.forEach((area, index) => {
@@ -649,7 +642,7 @@ export class AtcDatalinkSystem implements Instrument {
 
   /**
    * The frames that complete a new REQUEST frame: DEPARTURE with the FMS airports, the aircraft type and the ATIS code
-   * received (FCOM DSC-46-10-20-30 P 14)
+   * received
    */
   private requestDefaults(id: RequestFrameId): Record<string, string | null> {
     if (id !== 'DEPARTURE') {
@@ -663,8 +656,11 @@ export class AtcDatalinkSystem implements Instrument {
     };
   }
 
-  /** Whether a message can be transferred to the mailbox: a flight number is needed (FCOM DSC-46-10-20-40 E) */
-  private canTransferToMailbox(): boolean {
+  /**
+   * Whether a flight number is entered, else ENTER OR CHECK FLT NUMBER: needed to transfer a message to the mailbox
+   * and to notify
+   */
+  private checkFlightNumber(): boolean {
     if (this.flightNumber === '') {
       this.addMessageToQueue(ATCCOMMessages.enterOrCheckFltNumber);
       return false;
@@ -673,7 +669,7 @@ export class AtcDatalinkSystem implements Instrument {
   }
 
   /**
-   * The values a new EMERGENCY frame is completed with (FCOM DSC-46-10-20-30 P 37): the FCU-selected altitude for
+   * The values a new EMERGENCY frame is completed with: the FCU-selected altitude for
    * CLIMBING TO and DESCENDING TO, 121.5 MHz for REQUEST VOICE CONTACT
    */
   private emergencyDefaults(id: RequestFrameId): Record<string, string | null> {
@@ -688,8 +684,7 @@ export class AtcDatalinkSystem implements Instrument {
   }
 
   /**
-   * XFR TO MAILBOX of the EMERGENCY page: a MAYDAY sets the ADS EMERGENCY to ON, a CANCEL EMER sets it to OFF (FCOM
-   * DSC-46-10-20-30 P 36-37)
+   * XFR TO MAILBOX of the EMERGENCY page: a MAYDAY sets the ADS EMERGENCY to ON, a CANCEL EMER sets it to OFF
    */
   private transferEmergency(frames: readonly RequestFrame[]): boolean {
     if (!this.transferElementsToMailbox(requestElements(frames))) {
@@ -705,7 +700,7 @@ export class AtcDatalinkSystem implements Instrument {
 
   /** Transfers a CPDLC message of the given elements to the mailbox, for the active ATC center */
   public transferElementsToMailbox(elements: CpdlcMessageElement[]): boolean {
-    if (!this.canTransferToMailbox()) {
+    if (!this.checkFlightNumber()) {
       return false;
     }
     const message = new CpdlcMessage();
@@ -716,14 +711,14 @@ export class AtcDatalinkSystem implements Instrument {
   }
 
   /**
-   * XFR TO MAILBOX of the REQUEST page: transfers the request to the mailbox, where the flight crew sends it (FCOM
-   * DSC-46-10-20-30 P 16). A DEPARTURE frame is a departure clearance request to the departure airport, an OCEANIC frame
-   * an oceanic clearance request to the oceanic ATC center, the other frames a CPDLC message to the active ATC center.
+   * XFR TO MAILBOX of the REQUEST page: the flight crew sends the request from the mailbox.
+   * DEPARTURE is a DCL to the departure airport, OCEANIC an OCL to the oceanic ATC center, the other frames a CPDLC
+   * message to the active ATC center.
    */
   private transferRequest(frames: readonly RequestFrame[]): boolean {
     const values = frames[0].values;
     if (frames[0].id === 'DEPARTURE') {
-      if (!this.canTransferToMailbox()) {
+      if (!this.checkFlightNumber()) {
         return false;
       }
       const message = new DclMessage();
@@ -738,7 +733,7 @@ export class AtcDatalinkSystem implements Instrument {
       return true;
     }
     if (frames[0].id === 'OCEANIC') {
-      if (!this.canTransferToMailbox()) {
+      if (!this.checkFlightNumber()) {
         return false;
       }
       const message = new OclMessage();
@@ -759,14 +754,14 @@ export class AtcDatalinkSystem implements Instrument {
     this.positionReport.set({ ...this.positionReport.get(), [key]: value });
   }
 
-  /** ERASE ALL FIELDS button: clears all the fields of the report */
+  /** ERASE ALL FIELDS button */
   public erasePositionReport(): void {
     this.positionReport.set(emptyPositionReport());
   }
 
   /**
    * REFRESH DATA button: completes the report with the FMS data, except ICING, TURBULENCE and ENDURANCE (emptied) and
-   * the freetext (FCOM DSC-46-10-20-30 P 20). NO FMS DATA when the FMS data are not available.
+   * the freetext. NO FMS DATA when the FMS data are not available.
    */
   public refreshPositionReport(): void {
     const requestId = this.requestId++;
@@ -795,8 +790,8 @@ export class AtcDatalinkSystem implements Instrument {
   }
 
   /**
-   * AUTO POSITION REPORT button (FCOM DSC-46-10-20-30 P 17): a report at each sequenced waypoint. Not possible without an
-   * active datalink connection (PLEASE CHECK NOTIFICATION THEN WAIT FOR ATC CONNECTION).
+   * AUTO POSITION REPORT button: a report at each sequenced waypoint. Not possible without
+   * an active datalink connection (PLEASE CHECK NOTIFICATION THEN WAIT FOR ATC CONNECTION).
    */
   public async toggleAutoPositionReport(): Promise<void> {
     if (!this.autoPositionReport.get() && this.stationStatus.get().current === '') {
@@ -863,17 +858,15 @@ export class AtcDatalinkSystem implements Instrument {
   }
 
   /**
-   * NOTIFY button of the CONNECT/NOTIFICATION page (FCOM DSC-46-10-20-30 P 3): sends the notification (CPDLC logon) to
+   * NOTIFY button of the CONNECT/NOTIFICATION page: sends the notification (CPDLC logon) to
    * an ATC center. The center is added to the NOTIFIED TO CENTERS list once the notification is sent.
    * @param icao the ATC center, ICAO 4-letter code
    */
   public async notify(icao: string): Promise<void> {
-    if (this.flightNumber === '') {
-      this.addMessageToQueue(ATCCOMMessages.enterOrCheckFltNumber);
+    if (!this.checkFlightNumber()) {
       return;
     }
-    if (!this.isDatalinkAvailable()) {
-      this.addMessageToQueue(ATCCOMMessages.comDatalinkNotAvail);
+    if (!this.checkDatalinkAvailable()) {
       return;
     }
     this.notificationState.set('NOTIFYING');
@@ -906,11 +899,20 @@ export class AtcDatalinkSystem implements Instrument {
     this.publisher.pub('atcSetMaxUplinkDelay', { delay: delay ?? -1, requestId }, true, false);
   }
 
-  /** Whether any datalink medium is available (else COM DATALINK NOT AVAIL) */
+  /** Whether VHF, SATCOM or HF datalink is available */
   public isDatalinkAvailable(): boolean {
     return [this.datalinkStatus.vhf, this.datalinkStatus.satellite, this.datalinkStatus.hf].some(
       (status) => status === DatalinkStatusCode.DlkAvail,
     );
+  }
+
+  /** Whether any datalink medium is available, else COM DATALINK NOT AVAIL */
+  private checkDatalinkAvailable(): boolean {
+    if (this.isDatalinkAvailable()) {
+      return true;
+    }
+    this.addMessageToQueue(ATCCOMMessages.comDatalinkNotAvail);
+    return false;
   }
 
   /**

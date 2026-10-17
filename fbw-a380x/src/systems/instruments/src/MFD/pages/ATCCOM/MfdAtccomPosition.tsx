@@ -41,7 +41,7 @@ type CheckKey = 'deviating' | 'climbing' | 'descending';
 /** The freetext frame of the FREETEXT page: 96 characters over two lines */
 const FREETEXT_FORMAT = new AtccomTextFormat(48, parseAtcFreetext, true, '-'.repeat(10));
 
-/** The rows of the position fields, from the FCOM figure (page coordinates, y at the centre) */
+/** The rows of the position fields, from the reference figure (page coordinates, y at the centre) */
 const POSITION_ROWS: [string, TextKey, TextKey | null, TextKey | null, number][] = [
   ['OVHD', 'ovhd', 'ovhdUtc', 'ovhdAlt', 160.3],
   ['PPOS', 'ppos', 'pposUtc', 'pposAlt', 206],
@@ -50,7 +50,7 @@ const POSITION_ROWS: [string, TextKey, TextKey | null, TextKey | null, number][]
 ];
 
 /**
- * REPORT/AUTO & MANUAL POSITION page (A380 FCOM DSC-46-10-20-30 P 17-21), laid out on the FCOM figure (page coordinates
+ * REPORT/AUTO & MANUAL POSITION page, laid out on the reference figure (page coordinates
  * = display y - 143): the AUTO POSITION REPORT function, and the position report completed with the FMS data (REFRESH
  * DATA) or by the flight crew, with PPOS, its time and altitude mandatory. ADD FREETEXT displays the FREETEXT page: the
  * report data not modifiable, a freetext frame and RETURN TO REPORT.
@@ -110,7 +110,7 @@ export class MfdAtccomPosition extends DisplayComponent<AtccomMfdPageProps> {
       this.autoOffClass,
     );
 
-    // The fields are completed with the FMS data (FCOM PRO How to use position report)
+    // An empty report is completed with the FMS data when the page opens
     if (!hasPositionReportData(this.report.get())) {
       this.atc.refreshPositionReport();
     }
@@ -159,7 +159,7 @@ export class MfdAtccomPosition extends DisplayComponent<AtccomMfdPageProps> {
         idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_positionReport_${key}`}
         selectedIndex={index}
         values={ArraySubject.create(values.map((v) => (v === '' ? ' ' : v)))}
-        freeTextAllowed={false}
+        freeTextAllowed={false} // ICING / TURBULENCE: selected in the list only
         onModified={(i) => this.atc.setPositionReportValue(key, values[i ?? 0] ?? '')}
         containerStyle="width: 212px;"
         alignLabels="center"
@@ -172,7 +172,7 @@ export class MfdAtccomPosition extends DisplayComponent<AtccomMfdPageProps> {
     );
   }
 
-  /** DEVIATING, CLIMBING TO, DESCENDING TO: the box ticked makes the associated field mandatory (FCOM P 20) */
+  /** DEVIATING, CLIMBING TO, DESCENDING TO: the box ticked makes the associated field mandatory */
   private check(key: CheckKey, label: string, left: number, kind: RequestFieldKind) {
     const checked = this.report.map((report) => report[key]);
     const fieldVisibility = checked.map((c) => (c ? 'inherit' : 'hidden'));
@@ -218,7 +218,6 @@ export class MfdAtccomPosition extends DisplayComponent<AtccomMfdPageProps> {
     return (
       <>
         <ActivePageTitleBar activePage={this.title} offset={Subject.create('')} />
-        {/* begin page content */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-atccom-request">
             <div style={{ visibility: this.reportVisibility }}>
@@ -263,7 +262,6 @@ export class MfdAtccomPosition extends DisplayComponent<AtccomMfdPageProps> {
             </div>
             {fcomLine(88.8, 11, 754)}
 
-            {/* Position */}
             {fcomCentre(121, 493, label('UTC'))}
             {fcomCentre(121, 653, label('ALT'))}
             {POSITION_ROWS.map(([name, position, utc, alt, y]) => {
@@ -278,7 +276,6 @@ export class MfdAtccomPosition extends DisplayComponent<AtccomMfdPageProps> {
               );
             })}
 
-            {/* Speed and heading */}
             {fcomCentre(349.4, 244.4, label('CAS'))}
             {fcomCentre(349.4, 446.5, label('GROUND'))}
             {fcomCentre(349.4, 645.5, label('VERTICAL'))}
@@ -291,7 +288,6 @@ export class MfdAtccomPosition extends DisplayComponent<AtccomMfdPageProps> {
             {fcomRight(433, 543, label('TRACK'))}
             {fcomAt(433, 549.2, this.field('track', 'degree', 162))}
 
-            {/* Meteo */}
             {fcomRight(499.8, 124.4, label('WIND'))}
             {fcomAt(499.8, 130.6, this.field('wind', 'wind', 229))}
             {fcomRight(499.8, 543, label('SAT'))}
@@ -301,7 +297,6 @@ export class MfdAtccomPosition extends DisplayComponent<AtccomMfdPageProps> {
             {fcomRight(544.7, 543, label('TURBULENCE'))}
             {fcomAt(544.7, 547.9, this.dropdown('turbulence', TURBULENCE_VALUES))}
 
-            {/* Information */}
             {fcomRight(612.4, 124.4, label('ETA DEST'))}
             {fcomAt(612.4, 130.6, this.field('etaDest', 'time', 149))}
             {fcomRight(612.4, 543, label('ENDURANCE'))}
@@ -310,7 +305,6 @@ export class MfdAtccomPosition extends DisplayComponent<AtccomMfdPageProps> {
             {this.check('climbing', 'CLIMBING TO', 253.7, 'altitude')}
             {this.check('descending', 'DESCENDING TO', 533.6, 'altitude')}
 
-            {/* Buttons */}
             <div style={{ visibility: this.reportVisibility }}>
               {fcomAt(
                 784.5,
@@ -367,7 +361,6 @@ export class MfdAtccomPosition extends DisplayComponent<AtccomMfdPageProps> {
             )}
           </div>
         </div>
-        {/* end page content */}
         <AtccomFooter bus={this.props.bus} mfd={this.props.mfd} atcService={this.props.atcService} />
       </>
     );

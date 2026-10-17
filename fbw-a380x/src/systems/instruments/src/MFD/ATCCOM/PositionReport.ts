@@ -3,8 +3,10 @@
 
 import { CpdlcMessageElement, CpdlcMessagesDownlink, PositionReportData } from '@datalink/common';
 
+import { freetextElement } from './RequestFrames';
+
 /**
- * The position report of the REPORT/AUTO & MANUAL POSITION page (A380 FCOM DSC-46-10-20-30 P 17-21): the fields, their
+ * The position report of the REPORT/AUTO & MANUAL POSITION page: the fields, their
  * completion with the FMS data, and the message.
  */
 export interface PositionReportValues {
@@ -38,8 +40,6 @@ export interface PositionReportValues {
   /** The freetext frame (FREETEXT page), two lines */
   freetext: [string | null, string | null];
 }
-
-export type PositionReportKey = keyof PositionReportValues;
 
 export const ICING_VALUES = ['', 'TRACE', 'LIGHT', 'MODERATE', 'SEVERE'];
 export const TURBULENCE_VALUES = ['', 'LIGHT', 'MODERATE', 'SEVERE'];
@@ -84,7 +84,7 @@ export function utcText(seconds: number): string {
     .padStart(2, '0')}${(minutes % 60).toString().padStart(2, '0')}Z`;
 }
 
-/** An altitude in feet: 100 ft resolution (FCOM figure: 32000 FT) */
+/** An altitude in feet, at 100 ft resolution, displayed as e.g. 32000 FT */
 function altitudeText(feet: number): string {
   return `${Math.max(0, Math.round(feet / 100) * 100)}FT`;
 }
@@ -110,7 +110,7 @@ function degreeText(degrees: number): string {
 }
 
 /**
- * The position report with the FMS data (REFRESH DATA, FCOM P 20): all the fields except ICING, TURBULENCE and
+ * The position report with the FMS data (REFRESH DATA): all the fields except ICING, TURBULENCE and
  * ENDURANCE (emptied) and the freetext (kept)
  * @param data the FMS data of the ATC function
  * @param utcSeconds the present UTC time of the day
@@ -154,7 +154,7 @@ export function positionReportFromFms(
   if (data.destination) {
     report.etaDest = utcText(data.destination.utc);
   }
-  // The target altitude of the FCU, sent via the FMS (FCOM P 20)
+  // The target altitude of the FCU, sent via the FMS
   const ap = data.autopilot;
   if (ap.apActive && Math.abs(ap.altitude - state.altitude) >= 500) {
     if (ap.altitude > state.altitude) {
@@ -179,7 +179,7 @@ export function hasPositionReportData(report: PositionReportValues): boolean {
 }
 
 /**
- * The mandatory fields are completed (FCOM P 18-20): PPOS with its time and altitude, the field of a ticked DEVIATING,
+ * The mandatory fields are completed: PPOS with its time and altitude, the field of a ticked DEVIATING,
  * CLIMBING TO or DESCENDING TO
  */
 export function isPositionReportComplete(report: PositionReportValues): boolean {
@@ -193,73 +193,67 @@ export function isPositionReportComplete(report: PositionReportValues): boolean 
   );
 }
 
-function text(value: string): CpdlcMessageElement {
-  const element = CpdlcMessagesDownlink.DM67[1].deepCopy();
-  element.Content[0].Value = value;
-  return element;
-}
-
 /** The message: POSITION REPORT, then a line for each completed data, as the ATC function does */
 export function positionReportElements(report: PositionReportValues): CpdlcMessageElement[] {
   const elements = [CpdlcMessagesDownlink.DM48[1].deepCopy()];
   const at = (utc: string | null, alt: string | null) => [utc, alt].filter((v) => v).join('/');
   if (report.ovhd) {
-    elements.push(text(`OVHD: ${report.ovhd}`));
+    elements.push(freetextElement(`OVHD: ${report.ovhd}`));
     if (report.ovhdUtc || report.ovhdAlt) {
-      elements.push(text(`AT ${at(report.ovhdUtc, report.ovhdAlt)}`));
+      elements.push(freetextElement(`AT ${at(report.ovhdUtc, report.ovhdAlt)}`));
     }
   }
-  elements.push(text(`PPOS: ${report.ppos}`), text(`AT ${at(report.pposUtc, report.pposAlt)}`));
+  elements.push(freetextElement(`PPOS: ${report.ppos}`), freetextElement(`AT ${at(report.pposUtc, report.pposAlt)}`));
   if (report.to) {
-    elements.push(text(`TO: ${report.to}${report.toUtc ? ` AT ${report.toUtc}` : ''}`));
+    elements.push(freetextElement(`TO: ${report.to}${report.toUtc ? ` AT ${report.toUtc}` : ''}`));
   }
   if (report.next) {
-    elements.push(text(`NEXT: ${report.next}`));
+    elements.push(freetextElement(`NEXT: ${report.next}`));
   }
   const meteo = [report.wind && `WIND: ${report.wind}`, report.sat && `SAT: ${report.sat}`].filter((v) => v);
   if (meteo.length > 0) {
-    elements.push(text(meteo.join(' ')));
+    elements.push(freetextElement(meteo.join(' ')));
   }
   const conditions = [
     report.icing && `ICING: ${report.icing}`,
     report.turbulence && `TURBULENCE: ${report.turbulence}`,
   ].filter((v) => v);
   if (conditions.length > 0) {
-    elements.push(text(conditions.join(' ')));
+    elements.push(freetextElement(conditions.join(' ')));
   }
   if (report.etaDest) {
-    elements.push(text(`DEST ETA: ${report.etaDest}`));
+    elements.push(freetextElement(`DEST ETA: ${report.etaDest}`));
   }
   if (report.endurance) {
-    elements.push(text(`ENDURANCE: ${report.endurance}`));
+    elements.push(freetextElement(`ENDURANCE: ${report.endurance}`));
   }
   if (report.deviating && report.deviatingValue) {
-    elements.push(text(`DEVIATING: ${report.deviatingValue}`));
+    elements.push(freetextElement(`DEVIATING: ${report.deviatingValue}`));
   }
   if (report.climbing && report.climbingValue) {
-    elements.push(text(`CLIMBING TO: ${report.climbingValue}`));
+    elements.push(freetextElement(`CLIMBING TO: ${report.climbingValue}`));
   }
   if (report.descending && report.descendingValue) {
-    elements.push(text(`DESCENDING TO: ${report.descendingValue}`));
+    elements.push(freetextElement(`DESCENDING TO: ${report.descendingValue}`));
   }
   const speeds = [report.cas && `SPD: ${report.cas}`, report.groundSpeed && `GS: ${report.groundSpeed}`].filter(
     (v) => v,
   );
   if (speeds.length > 0) {
-    elements.push(text(speeds.join(' ')));
+    elements.push(freetextElement(speeds.join(' ')));
   }
   if (report.verticalSpeed) {
-    elements.push(text(`VS: ${report.verticalSpeed}`));
+    elements.push(freetextElement(`VS: ${report.verticalSpeed}`));
   }
   if (report.heading) {
-    elements.push(text(`HDG: ${report.heading}`));
+    elements.push(freetextElement(`HDG: ${report.heading}`));
   }
   if (report.track) {
-    elements.push(text(`TRK: ${report.track}`));
+    elements.push(freetextElement(`TRK: ${report.track}`));
   }
   const freetext = report.freetext.filter((line) => line).join(' ');
   if (freetext !== '') {
-    elements.push(text(freetext));
+    elements.push(freetextElement(freetext));
   }
   return elements;
 }

@@ -13,7 +13,7 @@ import { AtccomFooter } from './MfdAtccomFooter';
 import { AtisRequestArea } from './AtisRequestArea';
 
 /**
- * ATIS/LIST page (A380 FCOM DSC-46-10-20-30 P 30-34), laid out on the FCOM figure (page coordinates = display y - 143):
+ * ATIS/LIST page, laid out on the reference figure (page coordinates = display y - 143):
  * three ATIS request areas of 250 px, PRINT ALL and UPDATE ALL.
  */
 export class MfdAtccomAtisList extends DisplayComponent<AtccomMfdPageProps> {
@@ -21,7 +21,6 @@ export class MfdAtccomAtisList extends DisplayComponent<AtccomMfdPageProps> {
     return (
       <>
         <ActivePageTitleBar activePage={Subject.create(this.props.pageTitle ?? '')} offset={Subject.create('')} />
-        {/* begin page content */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-atccom-atis">
             {[0, 1, 2].map((index) => (
@@ -56,7 +55,6 @@ export class MfdAtccomAtisList extends DisplayComponent<AtccomMfdPageProps> {
             )}
           </div>
         </div>
-        {/* end page content */}
         <AtccomFooter bus={this.props.bus} mfd={this.props.mfd} atcService={this.props.atcService} />
       </>
     );

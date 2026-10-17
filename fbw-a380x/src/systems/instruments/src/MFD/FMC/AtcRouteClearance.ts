@@ -6,8 +6,7 @@ import { Coordinates, distanceTo } from 'msfs-geo';
 import { CpdlcMessage, UplinkMessageInterpretation } from '@datalink/common';
 
 /**
- * The route clearances the FMS loads in the third secondary flight plan with the LOAD-SEC3 button of the mailbox
- * (A380 FCOM DSC-22-FMS-10-40-100 "Received ATC F-PLN clearance", DSC-46-10-40 "How to manage a loadable message"):
+ * The route clearances the FMS loads in the third secondary flight plan with the LOAD-SEC3 button of the mailbox:
  * UM79 CLEARED TO [position] VIA [route clearance], UM80 CLEARED [route clearance], UM83 AT [position] CLEARED [route
  * clearance]. The route clearance reaches the aircraft as text (e.g. "DIBAG UT210 TUDRA UT158 AMB").
  */
@@ -24,9 +23,9 @@ export interface RouteClearance {
   tokens: string[];
 }
 
-/** An element of the route clearance that the FMS rejected (REJECTED ATC INFO page, FCOM DSC-22-FMS-20-30 P 321) */
+/** An element of the route clearance that the FMS rejected (REJECTED ATC INFO page) */
 export interface RejectedAtcElement {
-  /** The type of element, as the FCOM figure names them (EN RTE WPTS, AIRWAYS, SID, STAR...) */
+  /** The type of element, as the REJECTED ATC INFO page names them (EN RTE WPTS, AIRWAYS, SID, STAR...) */
   description: string;
   /** The element as received */
   value: string;
@@ -67,7 +66,7 @@ export interface RouteClearanceDatabase {
   isAirport(ident: string): Promise<boolean>;
 }
 
-/** The error types of the FCOM figure (DSC-22-FMS-20-30 P 321), and the FMS message of an airway entry */
+/** The error types of the REJECTED ATC INFO page, and the FMS message of an airway entry */
 export const REJECT_NOT_IN_DATABASE = 'NOT IN DATABASE';
 export const REJECT_NOT_ALLOWED_IN_PHASE = 'DATA NOT ALLOWED IN PHASE';
 export const REJECT_AWY_WPT_MISMATCH = 'AWY/WPT MISMATCH';
@@ -147,7 +146,7 @@ export function latLongOf(token: string): Coordinates | null {
  * @param near the previous point of the route, or the aircraft position
  * @returns the nearest fix
  */
-function nearestFix(fixes: Fix[], near: Coordinates | null): Fix {
+export function nearestFix(fixes: Fix[], near: Coordinates | null): Fix {
   if (!near || fixes.length === 1) {
     return fixes[0];
   }
@@ -196,11 +195,11 @@ export async function resolveRouteClearance(
   let newDestination: string | null = null;
   let arrivalAirport = destination;
   const last = tokens[tokens.length - 1];
-  let lastIsAirport = last !== undefined && /^[A-Z]{4}$/.test(last) && last === destination;
-  if (!lastIsAirport && last !== undefined && /^[A-Z]{4}$/.test(last)) {
+  let lastIsAirport = last !== undefined && /^[A-Z]{4}$/.test(last);
+  if (lastIsAirport && last !== destination) {
     lastIsAirport = await db.isAirport(last);
   }
-  if (last !== undefined && lastIsAirport) {
+  if (lastIsAirport) {
     tokens.pop();
     if (last !== destination) {
       newDestination = last;

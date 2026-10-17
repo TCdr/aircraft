@@ -14,7 +14,7 @@ import { AtccomFooter } from './MfdAtccomFooter';
 import { MaxUplinkDelayFormat } from './AtccomEntryFormats';
 
 /**
- * CONNECT/MAX UPLINK DELAY page (A380 FCOM DSC-46-10-20-30 P 9-10), laid out on the FCOM figure (page coordinates =
+ * CONNECT/MAX UPLINK DELAY page, laid out on the reference figure (page coordinates =
  * display y - 143): NONE (default) or SET MAX UPLINK DELAY TO, whose entry field appears when selected (amber boxes
  * until a value is entered), and the active ATC center.
  */
@@ -68,7 +68,6 @@ export class MfdAtccomMaxUplinkDelay extends DisplayComponent<AtccomMfdPageProps
     return (
       <>
         <ActivePageTitleBar activePage={Subject.create(this.props.pageTitle ?? '')} offset={Subject.create('')} />
-        {/* begin page content */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-atccom-connect">
             {fcomAt(164, 57, <span class="mfd-label">MAX UPLINK DELAY :</span>)}
@@ -101,7 +100,6 @@ export class MfdAtccomMaxUplinkDelay extends DisplayComponent<AtccomMfdPageProps
             {fcomAt(461, 307, <span class={this.activeAtcClass}>{this.activeAtc}</span>)}
           </div>
         </div>
-        {/* end page content */}
         <AtccomFooter bus={this.props.bus} mfd={this.props.mfd} atcService={this.props.atcService} />
       </>
     );

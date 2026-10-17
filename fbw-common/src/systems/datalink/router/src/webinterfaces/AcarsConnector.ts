@@ -92,17 +92,16 @@ export class AcarsConnector {
     }
   }
 
+  /** Waits for a time, or until wakeUpLoop is called */
   private static wait(ms: number): Promise<void> {
     return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        AcarsConnector.wakeUpLoop = null;
-        resolve();
-      }, ms);
-      AcarsConnector.wakeUpLoop = () => {
+      const wakeUp = () => {
         clearTimeout(timer);
         AcarsConnector.wakeUpLoop = null;
         resolve();
       };
+      const timer = setTimeout(wakeUp, ms);
+      AcarsConnector.wakeUpLoop = wakeUp;
     });
   }
 
@@ -121,7 +120,6 @@ export class AcarsConnector {
     AcarsConnector.wakeUpLoop?.();
   }
 
-  /** Checks that the provider still answers */
   private static async checkConnection(): Promise<void> {
     try {
       await AcarsClient.getData({ from: 'FBWA32NX', to: 'SERVER', type: 'ping', packet: '' });

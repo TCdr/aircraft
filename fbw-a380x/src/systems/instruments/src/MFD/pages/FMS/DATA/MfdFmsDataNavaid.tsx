@@ -64,7 +64,7 @@ import { fcomAt, fcomTabBar } from '../../common/FcomLayout';
 
 interface MfdFmsDataNavaidProps extends AbstractMfdPageProps {}
 
-/** FCOM P 71: the new NAVAID function shows the latitude as -------- and the longitude as --------- */
+/** New NAVAID function: the empty latitude and longitude fields show these dashes */
 class NewNavaidLatitudeFormat extends LatitudeDmsFormat {
   public readonly placeholder = '--------';
 }
@@ -80,7 +80,7 @@ enum NavaidPanel {
 
 const newNavaidUriExtra = 'new';
 
-/** The FCOM NAVAID data lines of the DATA / NAVAID page, as display strings (empty = the line is not displayed). */
+/** The NAVAID data lines of the DATA / NAVAID page, as display strings (empty = the line is not displayed). */
 class NavaidDataDisplay {
   readonly navaidClass = Subject.create('');
 
@@ -238,18 +238,18 @@ function lsCategoryNumber(category: LsCategory): string {
   }
 }
 
-/** Station declination unit as in the FCOM figure (0.1°W): degrees and E or W */
+/** Station declination unit as on the reference figure (0.1°W): degrees and E or W */
 function declinationUnit(declination: number): string {
   return declination < 0 ? '°W' : '°E';
 }
 
-/** VHF frequency as in the FCOM figures (110.7, 116.0, 116.05): two decimals without a trailing zero */
+/** VHF frequency (110.7, 116.0, 116.05): two decimals without a trailing zero */
 function formatVhfFrequency(frequency: number): string {
   return frequency.toFixed(2).replace(/0$/, '');
 }
 
 /**
- * Vertical centres (panel coordinates) of the NAVAID data lines, from the FCOM figures (DSC-22-FMS-20-30 P 65, 67, 71):
+ * Vertical centres (panel coordinates) of the NAVAID data lines, measured on the reference figures:
  * a line keeps its slot whether or not the lines above it are displayed.
  */
 const navaidSlots = {
@@ -269,16 +269,15 @@ const navaidSlots = {
 const navaidLabelRight = 219;
 const navaidValueLeft = 245;
 
-/** FCOM P 73: the figure of merit list */
 const figureOfMeritLabels = ['0 (40NM)', '1 (70NM)', '2 (130NM)', '3 (250NM)'];
 
 /**
- * DATA / NAVAID page (A380 FCOM DSC-22-FMS-20-30 "DATA / NAVAID PAGE"): the DATABASE NAVAIDS panel shows the data of
- * a navigation database NAVAID (class, position, elevation, runway, station declination, frequency or channel, category,
+ * DATA / NAVAID page: the DATABASE NAVAIDS panel shows the data of
+ * a database NAVAID (class, position, elevation, runway, station declination, frequency or channel, category,
  * figure of merit, course, slope); the PILOT STORED NAVAIDS panel lists the NAVAIDs created by the flight crew and
  * offers the new NAVAID function.
  *
- * Pilot stored NAVAIDs are kept in the pilot stored elements database but cannot be tuned or used as flight plan fixes yet.
+ * Pilot stored NAVAIDs are kept in the pilot stored elements database but cannot be tuned or used as F-PLN fixes yet.
  */
 export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
   private readonly pilotStoredElements = this.props.fmcService.master.pilotStoredElements;
@@ -287,15 +286,11 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
 
   private readonly showReturnButton = Subject.create(true);
 
-  // ---- DATABASE NAVAIDS panel -----------------------------------------------------------------------------------------
-
   private readonly databaseIdent = Subject.create<string | null>(null);
 
   private readonly databaseData = new NavaidDataDisplay();
 
   private readonly databaseDataVisible = this.databaseData.navaidClass.map((v) => v !== '');
-
-  // ---- PILOT STORED NAVAIDS panel ---------------------------------------------------------------------------------
 
   private readonly storedIdents = ArraySubject.create<string>([]);
 
@@ -332,8 +327,6 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
   private readonly deleteOneDialogVisible = Subject.create(false);
 
   private readonly deleteAllDialogVisible = Subject.create(false);
-
-  // ---- new NAVAID function ------------------------------------------------------------------------------------------
 
   private readonly newIdent = Subject.create<string | null>(null);
 
@@ -448,7 +441,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
 
   private handleUriExtra(extra: string): void {
     const parts = extra.split('/');
-    // FCOM: the RETURN button displays the page that was displayed before; the menu bar entry has no previous page
+    // The RETURN button displays the page that was displayed before; the menu bar entry has no previous page
     this.showReturnButton.set(parts.includes(showReturnButtonUriExtra));
 
     const newIndex = parts.indexOf(newNavaidUriExtra);
@@ -459,10 +452,8 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
     }
   }
 
-  // ---- DATABASE NAVAIDS ---------------------------------------------------------------------------------------------
-
   /**
-   * FCOM: a pilot created NAVAID opens the PILOT STORED NAVAIDS panel with its data; an ident that is neither in the
+   * A pilot created NAVAID opens the PILOT STORED NAVAIDS panel with its data; an ident that is neither in the
    * navigation database nor pilot created opens the new NAVAID function.
    */
   private async onDatabaseIdentEntered(ident: string | null): Promise<boolean> {
@@ -499,8 +490,6 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
     this.databaseData.setFromDatabaseNavaid(navaid);
     return true;
   }
-
-  // ---- PILOT STORED NAVAIDS -----------------------------------------------------------------------------------------
 
   private refreshStoredNavaids(): void {
     const navaids = this.pilotStoredElements.navaids.get();
@@ -552,8 +541,6 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
     this.pilotStoredElements.deleteAllNavaids();
   }
 
-  // ---- new NAVAID function ------------------------------------------------------------------------------------------
-
   private openNewNavaidFunction(ident: string | null): void {
     this.clearNewNavaid();
     this.newIdent.set(ident);
@@ -584,7 +571,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
     this.newNavaidMode.set(false);
   }
 
-  /** FCOM STORE NAVAID: stores the new NAVAID in the pilot stored elements database (maximum 20 NAVAIDs). */
+  /** STORE NAVAID: stores the new NAVAID in the pilot stored elements database (maximum 20 NAVAIDs). */
   private storeNewNavaid(): void {
     const ident = this.newIdent.get();
     const navaidClass = this.newClassValue.get();
@@ -628,8 +615,6 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
     this.selectedStored.set(this.pilotStoredElements.navaids.get().findIndex((n) => n.ident === ident));
   }
 
-  // ---- render ---------------------------------------------------------------------------------------------------------
-
   /** A label right-aligned on the label column, at the vertical centre y */
   private static label(y: number, text: string | Subscribable<string>): VNode {
     return (
@@ -649,8 +634,8 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
   }
 
   /**
-   * One NAVAID data line, hidden while its value is empty. Values are left-aligned on the value column, or right-aligned
-   * on rightEdge when given (numbers with a unit, as in the FCOM figures).
+   * One NAVAID data line, hidden while its value is empty. Values are left-aligned on the value column or right-aligned
+   * on rightEdge when given (numbers with a unit).
    */
   private renderDataLine(
     y: number | Subscribable<number>,
@@ -715,7 +700,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
     );
   }
 
-  /** An entry line of the new NAVAID function, at its FCOM slot */
+  /** An entry line of the new NAVAID function, at its slot on the reference figure */
   private renderInputRow(y: number, label: string, visible: Subscribable<boolean> | null, field: VNode): VNode {
     const display = visible ? visible.map((v) => (v ? 'block' : 'none')) : 'block';
     if (typeof display !== 'string') {
@@ -729,14 +714,14 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
     );
   }
 
-  private numberField(
-    format: DataEntryFormat<number>,
-    value: Subject<number | null>,
+  private inputField<T extends number | string>(
+    format: DataEntryFormat<T>,
+    value: Subject<T | null>,
     width: number,
     mandatory = false,
   ): VNode {
     return (
-      <InputField<number>
+      <InputField<number | string>
         dataEntryFormat={format}
         value={value}
         mandatory={Subject.create(mandatory)}
@@ -749,27 +734,40 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
     );
   }
 
-  private textField(
-    format: DataEntryFormat<string>,
-    value: Subject<string | null>,
-    width: number,
-    mandatory = false,
-  ): VNode {
-    return (
-      <InputField<string>
-        dataEntryFormat={format}
-        value={value}
-        mandatory={Subject.create(mandatory)}
-        containerStyle={`width: ${width}px;`}
-        alignText="center"
-        errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+  /** FIG OF MERIT selection list of the new NAVAID function, at the slot y */
+  private renderNewFigureOfMeritRow(y: number): VNode {
+    return this.renderInputRow(
+      y,
+      'FIG OF MERIT',
+      null,
+      <DropdownMenu
+        idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaidFomDropdown`}
+        selectedIndex={this.newFigureOfMerit}
+        values={ArraySubject.create(figureOfMeritLabels)}
+        freeTextAllowed={false} // FIG OF MERIT 0-3, list only (no entry format)
+        containerStyle="width: 174px;"
+        alignLabels="flex-start"
+        numberOfDigitsForInputField={8}
         hEventConsumer={this.props.mfd.hEventConsumer}
         interactionMode={this.props.mfd.interactionMode}
-      />
+      />,
     );
   }
 
-  /** NEW NAVAID FUNCTION (FCOM DSC-22-FMS-20-30 P 71): positions in panel coordinates */
+  /** NEW NAVAID button of the PILOT STORED NAVAIDS panel */
+  private renderNewNavaidButton(): VNode {
+    return MfdFmsDataNavaid.at(
+      664,
+      556,
+      <Button
+        label="NEW NAVAID"
+        onClick={() => this.openNewNavaidFunction(null)}
+        buttonStyle="min-width: 170px; min-height: 58px;"
+      />,
+    );
+  }
+
+  /** NEW NAVAID FUNCTION: positions in panel coordinates */
   private renderNewNavaidFunction(): VNode {
     return (
       <div class="mfd-data-navaid-canvas">
@@ -779,7 +777,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
         >
           <span class="mfd-label">NAVAID IDENT</span>
         </div>
-        {MfdFmsDataNavaid.at(navaidSlots.ident, 287, this.textField(new NavaidIdentFormat(), this.newIdent, 88))}
+        {MfdFmsDataNavaid.at(navaidSlots.ident, 287, this.inputField(new NavaidIdentFormat(), this.newIdent, 88))}
         {this.renderInputRow(
           navaidSlots.navaidClass,
           'CLASS',
@@ -788,7 +786,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaidClassDropdown`}
             selectedIndex={this.newClass}
             values={this.newClassLabels}
-            freeTextAllowed={false} // FCOM NEW NAVAID: the class is entered by using the selection list
+            freeTextAllowed={false} // The class is entered by using the selection list
             containerStyle="width: 172px;"
             alignLabels="flex-start"
             numberOfDigitsForInputField={7}
@@ -800,57 +798,57 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
         {MfdFmsDataNavaid.at(
           navaidSlots.latLong,
           248,
-          this.numberField(new NewNavaidLatitudeFormat(), this.newLatitude, 148),
+          this.inputField(new NewNavaidLatitudeFormat(), this.newLatitude, 148),
         )}
         {MfdFmsDataNavaid.at(navaidSlots.latLong, 414, <span class="mfd-label">/</span>)}
         {MfdFmsDataNavaid.at(
           navaidSlots.latLong,
           440,
-          this.numberField(new NewNavaidLongitudeFormat(), this.newLongitude, 167),
+          this.inputField(new NewNavaidLongitudeFormat(), this.newLongitude, 167),
         )}
         {this.renderInputRow(
           navaidSlots.elevation,
           'ELEVATION',
           this.newElevationVisible,
-          this.numberField(new ElevationFormat(), this.newElevation, 139),
+          this.inputField(new ElevationFormat(), this.newElevation, 139),
         )}
         {this.renderInputRow(
           navaidSlots.runwayOrDeclination,
           'RWY IDENT',
           this.newLandingSystemVisible,
-          this.textField(new WaypointFormat(), this.newRunwayIdent, 149),
+          this.inputField(new WaypointFormat(), this.newRunwayIdent, 149),
         )}
         {this.renderInputRow(
           navaidSlots.runwayOrDeclination,
           'STATION DEC',
           this.newStationDeclinationVisible,
-          this.numberField(new StationDeclinationFormat(), this.newStationDeclination, 89),
+          this.inputField(new StationDeclinationFormat(), this.newStationDeclination, 89),
         )}
         {this.renderInputRow(
           navaidSlots.frequency,
           'FREQ',
           this.newVorDmeFrequencyVisible,
-          this.numberField(new FrequencyVORDMEFormat(), this.newVorDmeFrequency, 140, true),
+          this.inputField(new FrequencyVORDMEFormat(), this.newVorDmeFrequency, 140, true),
         )}
         {this.renderInputRow(
           navaidSlots.frequency,
           'FREQ',
           this.newIlsFrequencyVisible,
-          this.numberField(new FrequencyILSFormat(), this.newIlsFrequency, 140, true),
+          this.inputField(new FrequencyILSFormat(), this.newIlsFrequency, 140, true),
         )}
         {this.renderInputRow(
           navaidSlots.frequency,
           'FREQ',
           this.newNdbFrequencyVisible,
-          this.numberField(new FrequencyADFFormat(), this.newNdbFrequency, 140, true),
+          this.inputField(new FrequencyADFFormat(), this.newNdbFrequency, 140, true),
         )}
         {this.renderInputRow(
           navaidSlots.frequency,
           'CHANNEL',
           this.newGlsVisible,
-          this.numberField(new GlsChannelFormat(), this.newGlsChannel, 140, true),
+          this.inputField(new GlsChannelFormat(), this.newGlsChannel, 140, true),
         )}
-        {/* FCOM P 71-72: the category is selected in a list (1, 2 or 3) */}
+        {/* The category is selected in a list (1, 2 or 3) */}
         {this.renderInputRow(
           navaidSlots.category,
           'CAT',
@@ -859,7 +857,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaidCatDropdown`}
             selectedIndex={this.newCategory}
             values={ArraySubject.create(['1', '2', '3'])}
-            freeTextAllowed={false} // FCOM NEW NAVAID: CAT 1, 2 or 3, list only (no entry format)
+            freeTextAllowed={false}
             containerStyle="width: 55px;"
             alignLabels="flex-start"
             numberOfDigitsForInputField={1}
@@ -871,49 +869,19 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
           navaidSlots.course,
           'CRS',
           this.newLandingSystemVisible,
-          this.numberField(new LsCourseFormat(), this.newCourse, 120),
+          this.inputField(new LsCourseFormat(), this.newCourse, 120),
         )}
         {this.renderInputRow(
           navaidSlots.lastLine,
           'SLOPE',
           this.newGlsVisible,
-          this.numberField(new GlsSlopeFormat(), this.newSlope, 100),
+          this.inputField(new GlsSlopeFormat(), this.newSlope, 100),
         )}
         <div style={{ display: this.newGlsVisible.map((v) => (v ? 'none' : 'block')) }}>
-          {this.renderInputRow(
-            navaidSlots.lastLine,
-            'FIG OF MERIT',
-            null,
-            <DropdownMenu
-              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaidFomDropdown`}
-              selectedIndex={this.newFigureOfMerit}
-              values={ArraySubject.create(figureOfMeritLabels)}
-              freeTextAllowed={false} // FCOM NEW NAVAID: FIG OF MERIT 0-3, list only (no entry format)
-              containerStyle="width: 174px;"
-              alignLabels="flex-start"
-              numberOfDigitsForInputField={8}
-              hEventConsumer={this.props.mfd.hEventConsumer}
-              interactionMode={this.props.mfd.interactionMode}
-            />,
-          )}
+          {this.renderNewFigureOfMeritRow(navaidSlots.lastLine)}
         </div>
         <div style={{ display: this.newGlsVisible.map((v) => (v ? 'block' : 'none')) }}>
-          {this.renderInputRow(
-            navaidSlots.afterLastLine,
-            'FIG OF MERIT',
-            null,
-            <DropdownMenu
-              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaidFomDropdown`}
-              selectedIndex={this.newFigureOfMerit}
-              values={ArraySubject.create(figureOfMeritLabels)}
-              freeTextAllowed={false} // FCOM NEW NAVAID: FIG OF MERIT 0-3, list only (no entry format)
-              containerStyle="width: 174px;"
-              alignLabels="flex-start"
-              numberOfDigitsForInputField={8}
-              hEventConsumer={this.props.mfd.hEventConsumer}
-              interactionMode={this.props.mfd.interactionMode}
-            />,
-          )}
+          {this.renderNewFigureOfMeritRow(navaidSlots.afterLastLine)}
         </div>
         {MfdFmsDataNavaid.at(
           664,
@@ -947,7 +915,6 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
     return (
       <>
         {super.render()}
-        {/* begin page content */}
         <div class="mfd-page-container" style="position: relative;">
           <TopTabNavigator
             pageTitles={Subject.create(['DATABASE NAVAIDS', 'PILOT STORED NAVAIDS'])}
@@ -957,7 +924,6 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
             {...fcomTabBar}
           >
             <TopTabNavigatorPage containerStyle="flex: 0 0 auto; box-sizing: border-box; height: 722px;">
-              {/* DATABASE NAVAIDS panel (FCOM DSC-22-FMS-20-30 P 65) */}
               <div class="mfd-data-navaid-canvas">
                 <div
                   class="mfd-data-navaid-item mfd-data-navaid-label"
@@ -987,7 +953,6 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
               </div>
             </TopTabNavigatorPage>
             <TopTabNavigatorPage containerStyle="flex: 0 0 auto; box-sizing: border-box; height: 722px;">
-              {/* NO PILOT STORED NAVAID (FCOM DSC-22-FMS-20-30 P 68) */}
               <div
                 class="mfd-data-navaid-canvas"
                 style={{ display: this.noStoredVisible.map((v) => (v ? 'flex' : 'none')) }}
@@ -995,17 +960,8 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
                 <div class="mfd-data-navaid-item mfd-data-navaid-centred" style="top: 48px; left: 318px; width: 80px;">
                   <span class="mfd-label">NO PILOT STORED NAVAID</span>
                 </div>
-                {MfdFmsDataNavaid.at(
-                  664,
-                  556,
-                  <Button
-                    label="NEW NAVAID"
-                    onClick={() => this.openNewNavaidFunction(null)}
-                    buttonStyle="min-width: 170px; min-height: 58px;"
-                  />,
-                )}
+                {this.renderNewNavaidButton()}
               </div>
-              {/* PILOT STORED NAVAIDS panel (FCOM DSC-22-FMS-20-30 P 67) */}
               <div
                 class="mfd-data-navaid-canvas"
                 style={{ display: this.listVisible.map((v) => (v ? 'flex' : 'none')) }}
@@ -1023,7 +979,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
                     idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaidStoredDropdown`}
                     selectedIndex={this.selectedStored}
                     values={this.storedIdents}
-                    freeTextAllowed={false} // FCOM PILOT STORED NAVAIDS NAVAID IDENT LIST: list only
+                    freeTextAllowed={false} // NAVAID IDENT LIST: list only
                     containerStyle="width: 178px;"
                     alignLabels="center"
                     numberOfDigitsForInputField={4}
@@ -1080,15 +1036,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
                     buttonStyle="min-width: 240px; min-height: 58px;"
                   />,
                 )}
-                {MfdFmsDataNavaid.at(
-                  664,
-                  556,
-                  <Button
-                    label="NEW NAVAID"
-                    onClick={() => this.openNewNavaidFunction(null)}
-                    buttonStyle="min-width: 170px; min-height: 58px;"
-                  />,
-                )}
+                {this.renderNewNavaidButton()}
               </div>
               <div
                 class="mfd-data-navaid-canvas"

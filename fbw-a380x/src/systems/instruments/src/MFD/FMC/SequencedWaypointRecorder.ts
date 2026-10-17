@@ -13,7 +13,7 @@ import {
 import { ReadonlyFlightPlanLeg } from '@fmgc/flightplanning/legs/ReadonlyFlightPlanLeg';
 import { NavigationProvider } from '@fmgc/navigation/NavigationProvider';
 
-/** Data recorded when a flight plan waypoint was sequenced (A380 FCOM DSC-22-FMS-20-30, POSITION / REPORT page). */
+/** Data recorded when a flight plan waypoint was sequenced (POSITION / REPORT page). */
 export interface SequencedWaypointRecord {
   ident: string;
   /** Simulator absolute time, in seconds */
@@ -30,7 +30,7 @@ export interface SequencedWaypointRecord {
   fuelOnBoard: number | null;
 }
 
-/** Legs whose fix is not a navigation database or pilot stored waypoint (FCOM: "T-P, PPOS, IN-BND, etc") */
+/** Legs whose fix is not a navigation database or pilot stored waypoint (T-P, PPOS, IN-BND...) */
 const nonWaypointIdents: ReadonlySet<string> = new Set([
   turningPointIdent,
   pposPointIDent,
@@ -39,10 +39,9 @@ const nonWaypointIdents: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Records the aircraft data at the moment the active flight plan sequences a waypoint, for the "last sequenced
- * waypoint" of the POSITION / REPORT page (A380 FCOM DSC-22-FMS-20-30: the last sequenced waypoint is the last
- * navigation database or pilot stored waypoint that has been sequenced, with the UTC time, altitude, SAT, true wind
- * and FOB recorded there).
+ * Records the aircraft data at the moment the active flight plan sequences a waypoint, for the last sequenced waypoint
+ * of the POSITION / REPORT page: the last navigation database or pilot stored waypoint that has been sequenced, with
+ * the UTC time, altitude, SAT, true wind and FOB recorded there.
  */
 export class SequencedWaypointRecorder {
   private lastActiveLegIndex: number | null = null;

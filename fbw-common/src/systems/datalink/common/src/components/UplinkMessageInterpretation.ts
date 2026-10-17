@@ -104,12 +104,6 @@ export class UplinkMessageInterpretation {
    */
   public static RouteClearanceMessages: readonly string[] = ['UM79', 'UM80', 'UM83'];
 
-  public static IsRouteClearance(message: CpdlcMessage): boolean {
-    return (message.Content ?? []).some((element) =>
-      UplinkMessageInterpretation.RouteClearanceMessages.includes(element.TypeId),
-    );
-  }
-
   /**
    * The crossing constraints loadable in the FMS: a level (UM46 to UM50), a time (UM51 to UM53), a speed (UM55, UM56),
    * a time and a level (UM58 to UM60), a level and a speed (UM61) at a position
@@ -133,7 +127,6 @@ export class UplinkMessageInterpretation {
 
   /**
    * Whether a message can be loaded in the FMS: a route clearance or a crossing constraint
-   * @param message the uplink message
    * @returns true when one of its elements is loadable
    */
   public static IsLoadable(message: CpdlcMessage): boolean {

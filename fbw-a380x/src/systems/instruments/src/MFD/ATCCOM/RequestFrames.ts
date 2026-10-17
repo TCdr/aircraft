@@ -4,11 +4,11 @@
 import { CpdlcMessageElement, CpdlcMessagesDownlink } from '@datalink/common';
 
 /**
- * The frames of the REQUEST page (A380 FCOM DSC-46-10-20-30 P 11-16): the REQUEST menu creates the frames that compose
+ * The frames of the REQUEST page: the REQUEST menu creates the frames that compose
  * a request message, up to five frames, each a CPDLC message element with the fields the flight crew completes.
  */
 
-/** The entry formats of the fields (FCOM DSC-46-10-20-50) */
+/** The entry formats of the fields */
 export type RequestFieldKind =
   | 'acType'
   | 'airport'
@@ -107,7 +107,7 @@ export interface RequestFrame {
 }
 
 interface RequestFrameDefinition {
-  /** The lines of the frame (FCOM figure: at most three, the first one left of the delete symbol) */
+  /** The lines of the frame: at most three, the first one left of the delete symbol */
   lines: (frame: RequestFrame) => RequestLineItem[][];
   /** The CPDLC message element, or null when a mandatory field is empty */
   element: (values: Record<string, string | null>) => CpdlcMessageElement | null;
@@ -127,7 +127,6 @@ const field = (key: string, kind: RequestFieldKind, width: number, mandatory = t
 const ALT = 150;
 const FIX = 200;
 
-/** The downlink message element with the given values */
 function downlink(typeId: string, ...values: string[]): CpdlcMessageElement {
   const element = CpdlcMessagesDownlink[typeId][1].deepCopy();
   values.forEach((value, i) => {
@@ -136,6 +135,11 @@ function downlink(typeId: string, ...values: string[]): CpdlcMessageElement {
     }
   });
   return element;
+}
+
+/** A freetext element (DM67) with the given text */
+export function freetextElement(text: string): CpdlcMessageElement {
+  return downlink('DM67', text);
 }
 
 function isTime(value: string): boolean {
@@ -149,13 +153,13 @@ function offsetElements(value: string): [string, string] {
   return [distance, directions[direction] ?? ''];
 }
 
-/** The freetext of the three freetext lines */
-function freetext(values: Record<string, string | null>): string | null {
+/** The freetext element of the three freetext lines, null when they are empty */
+function freetextLinesElement(values: Record<string, string | null>): CpdlcMessageElement | null {
   const text = [values.text1, values.text2, values.text3]
     .filter((line) => line)
     .join(' ')
     .trim();
-  return text !== '' ? text : null;
+  return text !== '' ? freetextElement(text) : null;
 }
 
 const FREETEXT_LINES: RequestLineItem[][] = [
@@ -316,10 +320,7 @@ export const REQUEST_FRAMES: Record<RequestFrameId, RequestFrameDefinition> = {
   WCWE_BACK_ON_ROUTE: fixed('WHEN CAN WE EXPECT BACK ON ROUTE', 'DM51'),
   FREETEXT: {
     lines: () => FREETEXT_LINES,
-    element: (values) => {
-      const text = freetext(values);
-      return text ? downlink('DM67', text) : null;
-    },
+    element: freetextLinesElement,
   },
   VOICE_CONTACT: {
     lines: () => [[], ['REQUEST VOICE CONTACT', field('frequency', 'frequency', 160, false)]],
@@ -335,13 +336,10 @@ export const REQUEST_FRAMES: Record<RequestFrameId, RequestFrameDefinition> = {
   AT_PILOTS_DISCRETION: { ...fixed('AT PILOTS DISCRETION', 'DM75'), addText: true },
   ADD_FREETEXT: {
     lines: () => FREETEXT_LINES,
-    element: (values) => {
-      const text = freetext(values);
-      return text ? downlink('DM67', text) : null;
-    },
+    element: freetextLinesElement,
     addText: true,
   },
-  // OTHER REPORTS (FCOM DSC-46-10-20-30 P 25): the text of a report frame is on its first line
+  // OTHER REPORTS page frames: the text of a report frame is on its first line
   BACK_ON_ROUTE: {
     lines: () => [['BACK ON ROUTE']],
     element: () => downlink('DM41'),
@@ -369,7 +367,7 @@ export const REQUEST_FRAMES: Record<RequestFrameId, RequestFrameDefinition> = {
     ],
     element: ({ lower, upper }) => (lower && upper ? downlink('DM76', lower, upper) : null),
   },
-  // EMERGENCY (FCOM DSC-46-10-20-30 P 36-37)
+  // EMERGENCY page frames
   MAYDAY: {
     lines: () => [['MAYDAY MAYDAY MAYDAY']],
     element: () => downlink('DM56'),
@@ -419,7 +417,7 @@ export const REQUEST_FRAMES: Record<RequestFrameId, RequestFrameDefinition> = {
   },
 };
 
-/** The EMERGENCY menu (FCOM DSC-46-10-20-30 P 36): each button creates its frame */
+/** The EMERGENCY menu: each button creates its frame */
 export const EMERGENCY_MENU: RequestMenuButton[] = [
   { label: 'MAYDAY', frame: 'MAYDAY' },
   { label: 'PANPAN', frame: 'PANPAN' },
@@ -433,7 +431,7 @@ export const EMERGENCY_MENU: RequestMenuButton[] = [
   { label: 'ADD FREETEXT', frame: 'ADD_FREETEXT' },
 ];
 
-/** The OTHER REPORTS menu (FCOM DSC-46-10-20-30 P 25): each button creates its frame */
+/** The OTHER REPORTS menu: each button creates its frame */
 export const OTHER_REPORTS_MENU: RequestMenuButton[] = [
   { label: 'BACK\nON ROUTE', frame: 'BACK_ON_ROUTE' },
   { label: 'PASSING\nPOSITION', frame: 'PASSING_POSITION' },
@@ -444,7 +442,7 @@ export const OTHER_REPORTS_MENU: RequestMenuButton[] = [
   { label: 'ADD\nFREETEXT', frame: 'ADD_FREETEXT' },
 ];
 
-/** The REQUEST menu (FCOM DSC-46-10-20-30 P 12-16): the buttons, and the frames of their sub-menus */
+/** The REQUEST menu: the buttons, and the frames of their sub-menus */
 export interface RequestMenuItem {
   label: string;
   frame: RequestFrameId;
@@ -525,17 +523,17 @@ export const ADD_TEXT_MENU: RequestMenuButton = {
   ],
 };
 
-/** The flight crew may select up to five frames (FCOM DSC-46-10-20-30 P 12) */
+/** The flight crew may select up to five frames */
 export const MAX_REQUEST_FRAMES = 5;
 
-/** DEPARTURE and OCEANIC are clearance requests of their own (LAST MSG ELEMENT, FCOM DSC-46-10-20-40 L) */
+/** DEPARTURE and OCEANIC are clearance requests of their own (LAST MSG ELEMENT) */
 const SINGLE_FRAMES: RequestFrameId[] = ['DEPARTURE', 'OCEANIC'];
 
 export function isAddTextFrame(id: RequestFrameId): boolean {
   return REQUEST_FRAMES[id].addText === true;
 }
 
-/** The fields of a frame */
+/** The entry fields of a frame, line after line (its texts left out) */
 export function requestFrameFields(frame: RequestFrame): RequestField[] {
   // No flat(): not in the Coherent GT runtime
   const fields: RequestField[] = [];
@@ -562,7 +560,7 @@ export type AddRequestFrameResult =
   | { frames?: undefined; error: 'LAST_MSG_ELEMENT' | 'NOT_ALLOWED' };
 
 /**
- * Adds a frame to the request (FCOM DSC-46-10-20-30 P 12-16): up to five frames; CLIMB TO / DESCEND TO, HIGHER /
+ * Adds a frame to the request: up to five frames; CLIMB TO / DESCEND TO, HIGHER /
  * LOWER ALTITUDE and the WHEN CAN WE EXPECT CLIMB / DESCEND TO replace each other; REROUTING, DEPARTURE and OCEANIC
  * cannot be selected with other frames (they replace the request, and another frame replaces REROUTING); an ADD TEXT
  * frame completes another frame.

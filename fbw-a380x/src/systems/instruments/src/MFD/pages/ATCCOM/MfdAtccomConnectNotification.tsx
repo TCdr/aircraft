@@ -14,7 +14,7 @@ import { AtccomFooter } from './MfdAtccomFooter';
 import { AtcCenterFormat } from './AtccomEntryFormats';
 
 /**
- * CONNECT/NOTIFICATION page (A380 FCOM DSC-46-10-20-30 P 2-4), laid out on the FCOM figure (page coordinates =
+ * CONNECT/NOTIFICATION page, laid out on the reference figure (page coordinates =
  * display y - 143): the ATC center to notify (amber boxes while empty), NOTIFY, the notification indication and the
  * NOTIFIED TO CENTERS list (6 centers at most, with the UTC time of the notification).
  */
@@ -67,7 +67,7 @@ export class MfdAtccomConnectNotification extends DisplayComponent<AtccomMfdPage
     }
     await this.props.atcService.notify(center);
     if (this.props.atcService.notificationState.get() !== 'FAILED') {
-      // The field is blank again after a successful notification (FCOM P 3)
+      // The field is blank again after a successful notification
       this.atcCenter.set(null);
     }
   }
@@ -83,7 +83,6 @@ export class MfdAtccomConnectNotification extends DisplayComponent<AtccomMfdPage
     return (
       <>
         <ActivePageTitleBar activePage={Subject.create(this.props.pageTitle ?? '')} offset={Subject.create('')} />
-        {/* begin page content */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-atccom-connect">
             {fcomAt(115, 43, <span class="mfd-label">ATC CENTER :</span>)}
@@ -127,7 +126,6 @@ export class MfdAtccomConnectNotification extends DisplayComponent<AtccomMfdPage
             )}
           </div>
         </div>
-        {/* end page content */}
         <AtccomFooter bus={this.props.bus} mfd={this.props.mfd} atcService={this.props.atcService} />
       </>
     );

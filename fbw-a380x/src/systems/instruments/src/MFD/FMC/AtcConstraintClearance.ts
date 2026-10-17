@@ -7,10 +7,10 @@ import { RejectedAtcElement } from './AtcRouteClearance';
 import { TimeConstraintType } from './TimeConstraint';
 
 /*
- * The constraint messages the FMS loads in the third secondary flight plan with the LOAD-SEC3 button of the mailbox
- * (A380 FCOM DSC-46-10-40 "How to manage a loadable message"). The REJECTED ATC INFO figure (DSC-22-FMS-20-30 P 321)
- * names their elements: ALT/SPD CSTR (an altitude or a speed at a waypoint) and RTA TIME (a time at a waypoint), the
- * constraints of the VERT REV page. The CPDLC crossing constraints (UplinkMessageInterpretation.LoadableConstraintMessages):
+ * The constraint messages the FMS loads in the third secondary flight plan with the LOAD-SEC3 button of the mailbox.
+ * The REJECTED ATC INFO page names their elements: ALT/SPD CSTR (an altitude or a speed at a waypoint) and RTA TIME (a
+ * time at a waypoint), the constraints of the VERT REV page. The CPDLC crossing constraints
+ * (UplinkMessageInterpretation.LoadableConstraintMessages):
  * UM46 CROSS [position] AT [level], UM47 ... AT OR ABOVE [level], UM48 ... AT OR BELOW [level], UM49 ... AT AND MAINTAIN
  * [level], UM50 ... BETWEEN [level] AND [level], UM51 ... AT [time], UM52 ... AT OR BEFORE [time], UM53 ... AT OR AFTER
  * [time], UM55 ... AT [speed], UM56 ... AT OR LESS THAN [speed], UM58 to UM60 a time and a level, UM61 ... AT AND
@@ -39,7 +39,7 @@ export interface AtcConstraintClearance {
   rejected: RejectedAtcElement[];
 }
 
-/** The descriptions of the REJECTED ATC INFO figure */
+/** The descriptions of the REJECTED ATC INFO page */
 const ALT_SPD_CSTR = 'ALT/SPD CSTR';
 const RTA_TIME = 'RTA TIME';
 
@@ -47,7 +47,7 @@ const RTA_TIME = 'RTA TIME';
 export const REJECT_FORMAT_ERROR = 'FORMAT ERROR';
 export const REJECT_OUT_OF_RANGE = 'ENTRY OUT OF RANGE';
 
-/** A380 FCOM DSC-22-FMS-20-30 SPD entry format: NNN kt, 90 kt to VMO (340 kt) */
+/** SPD constraint entry format: NNN kt, 90 kt to VMO (340 kt) */
 const MIN_SPEED_CONSTRAINT = 90;
 const MAX_SPEED_CONSTRAINT = 340;
 
@@ -85,7 +85,7 @@ export function timeInSeconds(value: string): number | null {
   return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60;
 }
 
-/** A time of the day as the figure shows it, HH:MM:SS */
+/** A time of the day as the REJECTED ATC INFO page shows it, HH:MM:SS */
 function timeText(seconds: number): string {
   const hh = Math.floor(seconds / 3600);
   const mm = Math.floor((seconds % 3600) / 60);

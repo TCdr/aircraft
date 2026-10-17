@@ -7,8 +7,8 @@ import { DataEntryFormat } from '../common/DataEntryFormats';
 import { RequestFieldKind } from '../../ATCCOM/RequestFrames';
 
 /**
- * Data entry formats of the ATC COM pages (A380 FCOM DSC-46-10-20-50). A wrong entry shows FORMAT ERROR or ENTRY OUT
- * OF RANGE, with the format or the range on the second line of the ATC COM message area (DSC-46-10-20-40 F, H).
+ * Data entry formats of the ATC COM pages. A wrong entry shows FORMAT ERROR or ENTRY OUT OF RANGE, with the format
+ * or the range on the second line of the ATC COM message area.
  */
 type FieldFormatTuple = [value: string | null, unitLeading: string | null, unitTrailing: string | null];
 
@@ -20,7 +20,7 @@ function outOfRangeError(range: string): A380FmsError {
   return new A380FmsError(FmsErrorType.EntryOutOfRange, `RNG: ${range}`);
 }
 
-/** ATC CENTER (DSC-46-10-20-50 H): XXXX, 4 letters at most */
+/** ATC CENTER: XXXX, 4 letters at most */
 export class AtcCenterFormat implements DataEntryFormat<string> {
   public readonly placeholder = '----';
 
@@ -41,7 +41,7 @@ export class AtcCenterFormat implements DataEntryFormat<string> {
   }
 }
 
-/** MAX UPLINK DELAY (DSC-46-10-20-50 AN): NNN or NNN S, 1 to 999 s */
+/** MAX UPLINK DELAY: NNN or NNN S, 1 to 999 s */
 export class MaxUplinkDelayFormat implements DataEntryFormat<number> {
   public readonly placeholder = '---';
 
@@ -89,7 +89,7 @@ function parseLatLong(input: string): string | null {
   return `${latDeg.padStart(2, '0')}${minutes(latMin)}${ns}/${longDeg.padStart(3, '0')}${minutes(longMin)}${ew}`;
 }
 
-/** ALTITUDE, CLB TO, DES TO, BLOCK, LEVEL... (DSC-46-10-20-50): FL NNN or NNN, NNNNN FT or NNNNN, NNNNN M */
+/** ALTITUDE, CLB TO, DES TO, BLOCK, LEVEL...: FL NNN or NNN, NNNNN FT or NNNNN, NNNNN M */
 export function parseAtcAltitude(input: string): string {
   const flightLevel = input.match(/^(?:FL)?(\d{1,3})$/);
   if (flightLevel) {
@@ -130,12 +130,8 @@ export function parseAtcFix(input: string): string {
   throw formatError('WPT OR LAT/LONG');
 }
 
-/** ETA: HHMM, HHMM Z, HH H MM M, HH H MM MN, HH H MM MIN; the time as HHMMZ, null when not a time */
-export function parseAtcTime(input: string): string | null {
-  const match = input.match(/^(\d{2})(\d{2})Z?$/) ?? input.match(/^(\d{1,2})H(\d{1,2})(?:M|MN|MIN)$/);
-  if (!match) {
-    return null;
-  }
+/** The hours and minutes of a time entry match, 0 to 23 H and 0 to 59 MN */
+function hoursAndMinutes(match: RegExpMatchArray): [hours: number, minutes: number] {
   const hours = parseInt(match[1]);
   const minutes = parseInt(match[2]);
   if (hours > 23) {
@@ -144,6 +140,16 @@ export function parseAtcTime(input: string): string | null {
   if (minutes > 59) {
     throw outOfRangeError('0 TO 59 MN');
   }
+  return [hours, minutes];
+}
+
+/** ETA: HHMM, HHMM Z, HH H MM M, HH H MM MN, HH H MM MIN; the time as HHMMZ, null when not a time */
+export function parseAtcTime(input: string): string | null {
+  const match = input.match(/^(\d{2})(\d{2})Z?$/) ?? input.match(/^(\d{1,2})H(\d{1,2})(?:M|MN|MIN)$/);
+  if (!match) {
+    return null;
+  }
+  const [hours, minutes] = hoursAndMinutes(match);
   return `${hours.toString().padStart(2, '0')}${minutes.toString().padStart(2, '0')}Z`;
 }
 
@@ -340,14 +346,7 @@ export function parseAtcEndurance(input: string): string {
   if (!match) {
     throw formatError('HHMM');
   }
-  const hours = parseInt(match[1]);
-  const minutes = parseInt(match[2]);
-  if (hours > 23) {
-    throw outOfRangeError('0 TO 23 H');
-  }
-  if (minutes > 59) {
-    throw outOfRangeError('0 TO 59 MN');
-  }
+  const [hours, minutes] = hoursAndMinutes(match);
   return `${hours}H${minutes.toString().padStart(2, '0')}`;
 }
 
@@ -410,7 +409,7 @@ export class AtccomTextFormat implements DataEntryFormat<string> {
     if (value === null) {
       return [this.placeholder, null, null];
     }
-    // The unit is displayed apart from the value (FCOM figures: 32000 FT, 310 KT, 1133 Z)
+    // The unit is displayed apart from the value (e.g. 32000 FT, 310 KT, 1133 Z)
     const split = this.splitUnit(value);
     return split ? [split[0], null, split[1]] : [value, null, null];
   }
@@ -424,7 +423,7 @@ export class AtccomTextFormat implements DataEntryFormat<string> {
   }
 }
 
-/** The entry format of a REQUEST field (FCOM DSC-46-10-20-50) */
+/** The entry format of a REQUEST field */
 export function requestFieldFormat(kind: RequestFieldKind): AtccomTextFormat {
   const format = requestFieldParser(kind);
   // An empty mandatory field shows amber boxes in place of the dashes
@@ -437,7 +436,7 @@ export function requestFieldFormat(kind: RequestFieldKind): AtccomTextFormat {
   );
 }
 
-/** The value and its unit, as the FCOM figures display them (e.g. 32000 FT, 310 KT, 1133 Z, 135 °T) */
+/** The value and its unit, as the page displays them (e.g. 32000 FT, 310 KT, 1133 Z, 135 °T) */
 function displayUnit(kind: RequestFieldKind, value: string): [string, string] | null {
   let match: RegExpMatchArray | null;
   switch (kind) {

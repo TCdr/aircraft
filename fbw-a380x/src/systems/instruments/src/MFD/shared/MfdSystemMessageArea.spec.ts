@@ -4,7 +4,6 @@
 import { describe, expect, it } from 'vitest';
 import { ATIS_SYS_MSG, CHECK_FMS_MESSAGE, MfdSystemMessageArea, NEW_ATIS_RECEIVED } from './MfdSystemMessageArea';
 
-/* A380 FCOM DSC-31-50 SYSTEM MESSAGE AREA, a380_fcom.txt l.74416-74429 */
 describe('MFD System Message Area', () => {
   it('shows CHECK FMS MESSAGE for a new amber FMS message while another application is shown', () => {
     const area = new MfdSystemMessageArea();

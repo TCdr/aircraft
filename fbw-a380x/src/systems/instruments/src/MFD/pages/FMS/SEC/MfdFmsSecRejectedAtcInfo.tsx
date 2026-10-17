@@ -18,15 +18,15 @@ import './MfdFmsSecRejectedAtcInfo.scss';
 /** URI page of the REJECTED ATC INFO page */
 export const rejectedAtcInfoPage = 'rejected-atc-info';
 
-/** FCOM figure: 4 rejected elements per page */
+/** 4 rejected elements per page */
 const elementsPerPage = 4;
 
-/** FCOM figure: the first row starts below the header line, 145 px per row */
+/** The first row starts below the header line, 145 px per row */
 const firstRowTop = 67;
 const rowHeight = 145;
 
 /**
- * REJECTED ATC INFO page (A380 FCOM DSC-22-FMS-20-30 P 321-323): the elements of the ATC flight plan inserted in SEC 3
+ * REJECTED ATC INFO page: the elements of the ATC flight plan inserted in SEC 3
  * that the FMS rejected (LOAD-SEC3 of the ATC mailbox), with their ranking, description and error type, 4 per page.
  * PRINT is inactive.
  */
@@ -44,7 +44,7 @@ export class MfdFmsSecRejectedAtcInfo extends FmsPage<AbstractMfdPageProps> {
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
     this.subs.push(
-      // The FCOM page title has no flight plan prefix
+      // The page title has no flight plan prefix
       this.props.mfd.uiService.activeUri.sub(() => this.activePageTitle.set('REJECTED ATC INFO'), true),
       this.props.fmcService.master.atcRejectedElements.sub((list) => {
         this.rejected.set(list);
@@ -60,7 +60,7 @@ export class MfdFmsSecRejectedAtcInfo extends FmsPage<AbstractMfdPageProps> {
   }
 
   /**
-   * A row of the list (FCOM figure): the ranking, the description and the value of the element, the waypoint it follows
+   * A row of the list: the ranking, the description and the value of the element, the waypoint it follows
    * (AT xxxxx), and the error type
    * @param row the row on the page, 0 to 3
    * @returns the row
@@ -108,7 +108,7 @@ export class MfdFmsSecRejectedAtcInfo extends FmsPage<AbstractMfdPageProps> {
       <>
         {super.render()}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 321), page container coordinates */}
+          {/* Positions measured on the reference figure, page container coordinates */}
           <div class="mfd-fcom-canvas">
             {fcomCentre(39, 175, <span class="mfd-label">{this.headerText}</span>)}
             {fcomCentre(39, 558, <span class="mfd-label">ERROR TYPE</span>)}

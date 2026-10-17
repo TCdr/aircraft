@@ -111,8 +111,7 @@ export class MailboxBus {
 
   /**
    * Takes a message block out of the mailbox file (at most MaxMailboxFileSize open messages per direction) and moves
-   * the messages waiting for a place into it. A full downlink file shows FILE FULL until it has a place again (A380 FCOM
-   * DSC-46, mailbox information messages: "FILE FULL ... File no more full").
+   * the messages waiting for a place into it. A full downlink file shows FILE FULL until it has a place again.
    */
   private leaveFile(messages: MailboxMessage[][], backlog: MailboxMessage[][], uid: number, uplink: boolean): void {
     const idx = messages.findIndex((elem) => elem[0].MessageId === uid);
@@ -277,7 +276,7 @@ export class MailboxBus {
     this.subscriber.on('loadMessage').handle((uid: number) => {
       if (!this.poweredUp || uid === this.loadingMessageId) return;
 
-      // A380 FCOM DSC-46-10-20-60: LOAD NOT AVAIL when the loading is not possible, including when a loading is in progress
+      // LOAD NOT AVAIL when the loading is not possible, including while another loading is in progress
       if (this.loadingMessageId !== null) {
         this.updateMessageStatus(uid, MailboxStatusMessage.FlightplanLoadingUnavailable);
         return;
