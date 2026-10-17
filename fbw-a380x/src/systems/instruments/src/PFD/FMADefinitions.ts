@@ -77,6 +77,15 @@ export function computeA1A2Message(
   }
 }
 
+/**
+ * The second line of the MAN FLX message. The FADECs fly a derated takeoff on the FLX rating, so the autothrust reports
+ * MAN FLX for it too, but with DERATED selected on the T.O panel the FMA shows MAN DTO instead of MAN FLX +XX.
+ * @param takeoffDeratePercent L:A32NX_AIRLINER_TO_DERATE, the thrust reduction of the selected derate in percent (0 none)
+ */
+export function manualTakeoffThrustLabel(takeoffDeratePercent: number): 'FLX' | 'DTO' {
+  return takeoffDeratePercent > 0 ? 'DTO' : 'FLX';
+}
+
 export enum A3Messages {
   NONE = 0,
   THR_LK,

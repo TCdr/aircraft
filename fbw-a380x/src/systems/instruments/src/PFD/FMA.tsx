@@ -38,6 +38,7 @@ import {
   computeD1D2Message,
   getD1D2Lines,
   D1D2Messages,
+  manualTakeoffThrustLabel,
   isCheckEoSpeedSetting,
   isSpeedAtUpperMargin,
   speedBrakeMessage,
@@ -662,6 +663,8 @@ class A1A2Cell extends ShowForSecondsComponent<A1A2CellProps> {
 
   private flexTemp = ConsumerSubject.create(this.sub.on('flexTemp'), 0);
 
+  private takeoffDerate = ConsumerSubject.create(this.sub.on('takeoffDerate'), 0);
+
   constructor(props: A1A2CellProps) {
     super(props, 10);
   }
@@ -689,6 +692,14 @@ class A1A2Cell extends ShowForSecondsComponent<A1A2CellProps> {
         break;
       case A1A2Messages.MAN_FLEX: {
         this.displayModeChangedPath(true);
+        if (manualTakeoffThrustLabel(this.takeoffDerate.get()) === 'DTO') {
+          text = `<g>
+                                <path class="NormalStroke White" d="m25.114 1.8143v13.506h-16.952v-13.506z" />
+                                <text class="FontMedium MiddleAlign White" x="17.052249" y="7.1280665">MAN</text>
+                                <text class="FontMedium MiddleAlign White" x="16.869141" y="14.351689">DTO</text>
+                            </g>`;
+          break;
+        }
         const FlexTemp = Math.round(this.flexTemp.get());
         const FlexText = FlexTemp.toString();
         text = `<g>
@@ -800,6 +811,13 @@ class A1A2Cell extends ShowForSecondsComponent<A1A2CellProps> {
     this.flexTemp.sub(() => {
       this.setText();
     }, true);
+
+    // Only MAN FLX depends on the derate; rebuilding another message would restart its mode change box.
+    this.takeoffDerate.sub(() => {
+      if (this.props.A1A2CellMessage.get() === A1A2Messages.MAN_FLEX) {
+        this.setText();
+      }
+    });
   }
 
   render(): VNode {
