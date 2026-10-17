@@ -34,11 +34,9 @@ const COLOURS = {
 };
 
 interface PushbackAirportLayerProps {
-  /** The map centre */
   center: Coordinates;
   /** The map is drawn with this true heading up */
   headingTrue: number;
-  /** The map scale */
   pxPerMetre: number;
 }
 

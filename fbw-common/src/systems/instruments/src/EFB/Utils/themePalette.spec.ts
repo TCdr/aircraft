@@ -254,7 +254,7 @@ describe('alert hues', () => {
     expect(THEME_SWATCHES).toHaveLength(10);
   });
 
-  it('keeps a stored custom theme whose primary or secondary is an alert hue (allowed since 2026-10-08)', () => {
+  it('keeps a stored custom theme whose primary or secondary is an alert hue', () => {
     expect(parseThemeChoice('custom:grey:#ea580c:same')).toEqual({
       kind: 'custom',
       base: 'grey',

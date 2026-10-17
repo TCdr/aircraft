@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The weather radar indications of the A32NX ND (A320 FCOM DSC-34-SURV-30-30, the radar of the A32NX pedestal panel
- * with the GAIN and TILT knobs, MULTISCAN and GCS switches; a320_fcom.txt l.54752-54800). Pure logic, tested by
+ * The weather radar indications of the A32NX ND (the radar of the A32NX pedestal panel with the GAIN and TILT knobs,
+ * MULTISCAN and GCS switches). Pure logic, tested by
  * WxrA320Indications.spec.ts; WxrModeLabel draws the rows.
  */
 
@@ -28,10 +28,9 @@ const MODE_TEXTS: Record<number, string> = {
 const GAIN_KNOB_CAL_TOLERANCE = 0.01;
 
 /**
- * PWS activation (A320 FCOM DSC-34-SURV-30-20 PREDICTIVE WINDSHEAR SYSTEM, a320_fcom.txt l.54208-54215): "operates
- * when the PWS switch is in the AUTO position, and the aircraft radio height is below 2 300 ft, and - Weather radar is
- * ON ..., or - Weather radar is OFF, and - At least one engine is running, and - Aircraft ground speed is greater than
- * 30 kt, or - Aircraft longitudinal acceleration is above a given threshold during at least 0.5 s."
+ * PWS activation: the PWS switch at AUTO and the radio height below 2 300 ft, with the weather radar ON, or with the
+ * radar OFF and at least one engine running and either a ground speed above 30 kt or a longitudinal acceleration above
+ * a threshold for at least 0.5 s.
  */
 export const PWS_MAX_RADIO_HEIGHT_FT = 2300;
 export const PWS_MIN_GROUND_SPEED_KT = 30;
@@ -69,7 +68,7 @@ export interface A320WxrIndications {
 
 /**
  * Whether the PWS scans although the radar is switched off (the ND then shows PWS SCAN). Design choice: the
- * longitudinal acceleration case is not modelled (the FCOM gives no threshold), the ground speed one is.
+ * longitudinal acceleration case is not modelled (no threshold is published), the ground speed one is.
  * @param pwsAuto the PWS switch is at AUTO
  * @param radioHeightFeet the radio height, null when no radio altimeter gives a valid one
  * @param anyEngineRunning at least one engine is running
@@ -90,7 +89,7 @@ export function isA320PwsScanningWithRadarOff(
   );
 }
 
-/** The tilt angle "in degrees, and quarters of a degree" (l.54789-54790), signed. */
+/** The tilt angle in degrees and quarters of a degree, signed. */
 function formatTilt(tiltDegrees: number): string {
   const quarters = Math.round(tiltDegrees * 4) / 4;
   const sign = quarters < 0 ? '-' : '+';
@@ -98,16 +97,14 @@ function formatTilt(tiltDegrees: number): string {
 }
 
 /**
- * The A32NX ND radar rows (A320 FCOM DSC-34-SURV-30-30 (2) Weather Radar Indication, a320_fcom.txt l.54752-54800):
- * - 1st row: "MAN GAIN appears in cyan when the flight crew selects the manual gain mode" (GAIN knob out of CAL,
- *   l.54381-54386);
- * - 2nd row: WX, WX+T, TURB, MAP "In cyan if the manual mode is selected, In green if the automatic mode is selected"
- *   (the MULTISCAN switch), "PWS SCAN (only in green when the PWS function is active)", "WXR OFF (only in white)";
- *   l.54885-54888: "If only the PWS detection is active, the ND displays a PWS SCAN message";
- * - 3rd row: the tilt angle "In cyan, next to the "MAN" indication, when the flight crew sets the MULTISCAN sw to
- *   MAN". In AUTO the FCOM shows the average of the two multiscan beam tilts in green: MSFS has no beams to average, so
- *   the row stays empty (MSFS cannot tilt the radar either: the MAN value is the knob's, an indication only).
- * The 4th row (failure messages) needs a WXR failure, which the A32NX does not have.
+ * The A32NX ND radar rows:
+ * - 1st row: MAN GAIN in cyan with the manual gain (GAIN knob out of CAL);
+ * - 2nd row: WX, WX+T, TURB, MAP in cyan with the MULTISCAN switch at MAN, in green at AUTO; PWS SCAN in green when
+ * only the PWS detection is active; WXR OFF in white;
+ * - 3rd row: the tilt angle in cyan next to MAN with the MULTISCAN switch at MAN. In AUTO the real ND shows the average
+ * of the two multiscan beam tilts in green: MSFS has no beams to average, so the row stays empty (MSFS cannot tilt the
+ * radar either: the MAN value is the knob's, an indication only). The 4th row (failure messages) needs a WXR failure,
+ * which the A32NX does not have.
  */
 export function a320WxrIndications(state: A320WxrState): A320WxrIndications {
   const radarOn = state.ndMode >= A320WxrNdMode.Wx && state.ndMode <= A320WxrNdMode.Map;

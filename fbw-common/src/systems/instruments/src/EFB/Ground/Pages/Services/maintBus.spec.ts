@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { maintBusRowState, maintBusStatusKey, maintBusToggled } from './maintBus';
 
-describe('MAINT BUS row of the A320 Services page (FCOM l.37377-37405)', () => {
+describe('MAINT BUS row of the A320 Services page', () => {
   it('is greyed out without external power: the switch cannot latch', () => {
     expect(maintBusRowState(false, false)).toBe('unavailable');
     expect(maintBusRowState(true, false)).toBe('unavailable');

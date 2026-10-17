@@ -6,10 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isFmsSelectedRunway } from './OancMapUtils';
 
-/*
- * A380 FCOM DSC-34-10-70-20 (FMS Runway): "If the flight crew selects an origin runway, or a destination runway in the
- * FMS flight plan, the OANS displays [...] The QFU of the selected runway on the runway label in green."
- */
+// The OANS shows the QFU of the FMS origin or destination runway in green on the runway label
 describe('OANS FMS selected runway', () => {
   const designators = ['04R', '22L'];
 

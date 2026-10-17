@@ -21,7 +21,7 @@ describe('GSX turnaround memory', () => {
     memory = new GsxTurnaroundMemory();
   });
 
-  it('keeps the boarding done after GSX resets it to available (the 2026-10-06 recording: 5 -> 6 -> 1)', () => {
+  it('keeps the boarding done after GSX resets it to available (5 -> 6 -> 1)', () => {
     memory.update(input({ Boarding: 5 }));
     memory.update(input({ Boarding: 6 }));
     memory.update(input({ Boarding: 1 }));

@@ -14,10 +14,9 @@ export const EXT_PWR_AVAIL_VAR = 'L:A32NX_EXT_PWR_AVAIL:1';
 export type MaintBusRowState = 'unavailable' | 'off' | 'on';
 
 /**
- * The state of the MAINT BUS row of the Services page. A320 FCOM DSC-24-20 MAINT BUS SW (a320_fcom.txt l.37377-37405):
- * "ON : The switch latches magnetically if external power is connected and normal (AVAIL light on). The AC and DC
- * GND/FLT buses have power ... The switch trips when the external source is removed. OFF : The AC and DC GND/FLT buses
- * are connected to AC BUS 2 and DC BUS 2."
+ * The state of the MAINT BUS row of the Services page. The MAINT BUS switch latches ON only with external power
+ * connected and normal (AVAIL light on), then powers the AC and DC GND/FLT buses; it trips when the external power is
+ * removed. OFF connects these buses to AC BUS 2 and DC BUS 2.
  * - unavailable: no external power, the switch cannot latch (greyed out)
  * - off / on: the switch position
  * @param switchOn the switch L:var

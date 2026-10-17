@@ -7,7 +7,7 @@ import { GsxPaxCounts, gsxPaxToAnnounce } from './gsxPassengers';
 /** The FMGC flight phase after landing (FmgcFlightPhase.Done) */
 const FLIGHT_PHASE_DONE = 7;
 
-/** L:FSDT_GSX_NUMPASSENGERS: the passenger number GSX uses in place of its own (GSX manual, DEVELOPERS) */
+/** L:FSDT_GSX_NUMPASSENGERS: the passenger number GSX uses in place of its own */
 export const GSX_NUM_PASSENGERS_VAR = 'L:FSDT_GSX_NUMPASSENGERS';
 
 /** The passengers of the seat stations: seated, or planned (the `_DESIRED` seats of the Payload page) */

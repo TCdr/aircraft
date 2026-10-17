@@ -7,10 +7,7 @@ import { EfisNdMode } from '@flybywiresim/fbw-sdk';
 import { describe, expect, it } from 'vitest';
 import { isAirportNotInActiveFpln } from './OancMapUtils';
 
-/*
- * A380 FCOM DSC-34-10-70-20 OANS MESSAGES (a380_fcom.txt l.87262-87264): "ARPT NOT IN ACTIVE F-PLN: In PLAN mode, the
- * flight crew has displayed an airport that is not the origin, destination, or alternate airport."
- */
+// ARPT NOT IN ACTIVE F-PLN: in PLAN mode, the crew displays an airport that is not the origin, destination or alternate
 describe('OANS ARPT NOT IN ACTIVE F-PLN', () => {
   const fpln = ['LFBO', 'EGLL', 'EGKK'] as const;
 

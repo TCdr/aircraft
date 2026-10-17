@@ -4,10 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { A380_OANS_DESTINATION_ARROW_RANGE_NM, isOansDestinationArrowShown } from './OancDestinationArrow';
 
-/*
- * A380 FCOM DSC-34-10-70-20 (a380_fcom.txt l.86961-86963): "If the moving airport map is out of the ND range and the
- * selected range is 5 nm, a destination arrow indicates the heading of the destination airport."
- */
+// The destination arrow: shown when the moving airport map is out of the ND range and the selected range is 5 NM
 describe('OANS destination arrow', () => {
   it('A380: map out of range at the 5 NM range', () => {
     expect(isOansDestinationArrowShown(false, 5, A380_OANS_DESTINATION_ARROW_RANGE_NM)).toBe(true);

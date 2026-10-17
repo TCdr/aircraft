@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { EfisNdMode } from '../NavigationDisplay';
 import { isNdCheckHeadingShown } from './CheckHeadingFlag';
 
-// A320 FCOM DSC-31-05-60 SIDE1/SIDE2 DISCREPANCY MESSAGES, a320_fcom.txt l.45417-45422
+// CHECK HDG: the side 1 / side 2 heading discrepancy message of the ND
 describe('ND CHECK HDG message', () => {
   it('is shown with a heading discrepancy in every mode but PLAN', () => {
     for (const mode of [EfisNdMode.ROSE_ILS, EfisNdMode.ROSE_VOR, EfisNdMode.ROSE_NAV, EfisNdMode.ARC]) {

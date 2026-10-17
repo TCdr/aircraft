@@ -499,7 +499,7 @@ const isBase = (value: string): value is ThemeBase => value === 'grey' || value 
 /**
  * Reads a stored EFB_UI_PALETTE value.
  * @returns the theme, or null when the value is empty or not valid (unknown base, bad hex). A seed near the alert
- *   hues is valid since 2026-10-08 (the colour wheel offers red and yellow; the dialog shows a note).
+ *   hues is valid (the colour wheel offers red and yellow; the dialog shows a note).
  */
 export function parseThemeChoice(value: string | undefined | null): ThemeChoice | null {
   if (!value) {

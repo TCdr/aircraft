@@ -94,7 +94,7 @@ export class WaypointLayer implements MapLayer<NdSymbol> {
       }
     }
 
-    // The interactive areas under the cursor, all of them when several elements are there (A380 FCOM DSC-31-20-30-90 P 2)
+    // The interactive areas under the cursor, all of them when several elements are there
     if (this.options.waypointBoxing) {
       for (const symbol of this.data) {
         if (!WaypointLayer.isInteractive(symbol)) {

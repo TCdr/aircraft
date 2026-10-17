@@ -30,7 +30,6 @@ interface PayloadLayoutProps {
   cabin: ReactNode;
   /** The colours of the seat map: outline, seat */
   seatColours: [string, string, string];
-  /** The cargo holds */
   cargo: ReactNode;
   /** The planned and current load table, the per passenger weights */
   table: ReactNode;

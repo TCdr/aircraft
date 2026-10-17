@@ -14,7 +14,7 @@ const counts = (c: Partial<GsxPaxCounts>): GsxPaxCounts => ({
 
 describe('GSX boarding counter of the Services page', () => {
   it('counts the boarded passengers against the planned ones, not GSX own number', () => {
-    // the user's report: GSX showed 0/19 (its own number) with 120 planned on the Payload page
+    // seen in the sim: GSX showed 0/19 (its own number) with 120 planned on the Payload page
     expect(gsxPaxProgress('Boarding', 'performing', counts({ onBoard: 0, planned: 120 }))).toEqual({
       current: 0,
       total: 120,
@@ -34,7 +34,7 @@ describe('GSX boarding counter of the Services page', () => {
   });
 
   it('shows boarded / scheduled, not the same number twice', () => {
-    // the user's report: 26/26 at the start of the boarding
+    // seen in the sim: 26/26 at the start of the boarding
     const progress = gsxPaxProgress('Boarding', 'performing', counts({ onBoard: 3, planned: 26, gsxBoarded: 3 }));
     expect(progress).toEqual({ current: 3, total: 26 });
   });
