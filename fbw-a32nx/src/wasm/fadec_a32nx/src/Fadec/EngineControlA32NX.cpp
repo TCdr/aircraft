@@ -82,11 +82,10 @@ void EngineControl_A32NX::update() {
     const double engineStarterPressurized   = simData.engineStarterPressurized[engineIdx]->get();
     // The systems WASM cuts the engine fuel (L:A32NX_ENGINE_n_FUEL_CUT; it also closes the MSFS fuel valve in series with the
     // engine feed, so MSFS stops the combustion):
-    // - when the engine is starved. FCOM DSC-28-10-30: the LP fuel valve is closed by the engine master switch or the ENG
-    //   FIRE PUSH pushbutton. FCOM PRO-ABN-ENG: "The engine shuts down when the remaining fuel between the LP fuel valve and
-    //   the nozzles is burned."
+    // - when the engine is starved: the LP fuel valve is closed by the engine master switch or the ENG FIRE PUSH pushbutton,
+    //   and the engine shuts down when the remaining fuel between the LP fuel valve and the nozzles is burned.
     // - after a flameout or a seizure failure, and during an in-flight relight, until the engine lights up inside the relight
-    //   envelope (FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN FLIGHT, see a320_systems engine_failure.rs).
+    //   envelope (see a320_systems engine_failure.rs).
     // An engine whose fuel is cut is handled as if its fuel valve were closed: the starter is no longer held, the engine shuts
     // down and it cannot relight while its fuel is cut.
     const bool   engineFuelCut              = simData.engineFuelCut[engineIdx]->getAsBool();

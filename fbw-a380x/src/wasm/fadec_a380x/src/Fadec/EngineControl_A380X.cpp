@@ -59,7 +59,7 @@ void EngineControl_A380X::update() {
   for (int engine = 1; engine <= 4; engine++) {
     const int engineIdx = engine - 1;
 
-    // FCOM DSC-28-10: "The LP valves automatically close, when their associated ENG FIRE pb is pushed."
+    // The LP valves close automatically when their ENG FIRE pb is pushed.
     // The systems WASM tracks the fuel left between the closed LP valve and the engine. Once it is burned the engine is
     // starved and handled as if its starter (driven by the ENG MASTER switch) were off: it shuts down and cannot relight
     // while starved. The MSFS starter itself is left alone, the ENG MASTER switch behaviour keeps it in sync with the switch.

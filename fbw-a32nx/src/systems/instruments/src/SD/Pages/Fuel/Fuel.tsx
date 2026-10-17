@@ -362,7 +362,6 @@ type EngineLpValveProps = {
   engineNumber?: number;
 };
 
-/** The engine LP valve: its colour follows the FCOM rule of isEngineLpValveGreen */
 const EngineLpValve = ({ x, y, engineNumber }: EngineLpValveProps) => {
   const [position] = useSimVar(`L:A32NX_FUEL_ENG_${engineNumber}_LP_VALVE_OPEN_PERCENTAGE`, 'percent', 500);
   // The ENG MASTER switch drives the MSFS fuel valve switch of the same index

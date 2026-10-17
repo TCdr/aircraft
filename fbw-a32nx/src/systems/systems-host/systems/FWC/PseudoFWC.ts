@@ -5649,7 +5649,7 @@ export class PseudoFWC {
       this.agent2Eng2DischargeTimer.write(this.fireButton2.get() && this.eng1Agent1PB.get(), deltaTime),
     );
     this.agentAPUDischarge.set(
-      // FCOM PRO-ABN-APUF: the AGENT AFTER 10 S countdown starts when the APU FIRE pb is pushed
+      // The AGENT AFTER 10 S countdown starts when the APU FIRE pb is pushed
       this.agentAPUDischargeTimer.write(this.fireButtonAPU.get(), deltaTime),
     );
 
