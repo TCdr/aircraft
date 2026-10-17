@@ -304,7 +304,6 @@ export const DescentWidget = () => {
 
   return (
     <div className="flex h-content-section-reduced flex-col overflow-hidden text-base text-m3-text">
-
       <div className="mb-3 flex shrink-0 flex-row items-center">
         <PerfFillFrom enabled onClick={() => fillFromFms()} label={t('Performance.TopOfDescent.Calc.FillFromFms')} />
         <div className="grow" />
@@ -608,7 +607,7 @@ export const DescentWidget = () => {
             <StartDistance result={result} offset={startOffset} onOffsetChange={setStartOffset} />
           )}
           <span className="shrink-0 text-xs leading-tight text-m3-muted">
-            {/* Both aircraft use the anti-ice factors of the A320 FCOM table: the A380 FCOM has no such table */}
+            {/* Both aircraft use the anti-ice factors of the A320 table: the A380 has no such table */}
             {t(isA380 ? 'Performance.TopOfDescent.Calc.LegendA380' : 'Performance.TopOfDescent.Calc.Legend')}
           </span>
         </M3Card>

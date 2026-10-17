@@ -15,7 +15,7 @@ const HelpItem: FC = ({ children }) => <li className="mt-2 text-base leading-snu
 /**
  * The "?" page of the Presets section: how the interior lighting presets and the aircraft state presets work.
  * The flight management system is set up on the MCDU and the FCU of the A320, on the MFD (with the KCCU) and the
- * AFS CP of the A380 (A380 FCOM: "AFS CONTROL PANEL (AFS CP)", DSC-22-FMS-10-40-40 KCCU).
+ * AFS CP (AFS control panel) of the A380.
  */
 export const PresetsHelp = () => {
   const isA380 = useAppSelector((state) => state.config.airframeInfo?.variant) === AirframeType.A380_842;

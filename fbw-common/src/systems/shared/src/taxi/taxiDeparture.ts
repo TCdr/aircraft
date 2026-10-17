@@ -1,7 +1,15 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { taxiDistance, TaxiLineKind, TaxiNetwork, TaxiPoint } from './taxiNetwork';
+import {
+  taxiDistance,
+  taxiLerp,
+  TaxiLineKind,
+  TaxiNetwork,
+  TaxiPoint,
+  taxiPolylineLength,
+  taxiSegmentCrossing,
+} from './taxiNetwork';
 import {
   TaxiRoute,
   taxiRoute,
@@ -115,20 +123,6 @@ export function taxiRunwayEntries(network: TaxiNetwork, axis: TaxiRunwayAxis): T
   return [...entries.values()].sort((a, b) => a.distance - b.distance);
 }
 
-function segmentCrossing(a: TaxiPoint, b: TaxiPoint, c: TaxiPoint, d: TaxiPoint): number | null {
-  const rx = b[0] - a[0];
-  const ry = b[1] - a[1];
-  const sx = d[0] - c[0];
-  const sy = d[1] - c[1];
-  const denominator = rx * sy - ry * sx;
-  if (Math.abs(denominator) < 1e-9) {
-    return null;
-  }
-  const t = ((c[0] - a[0]) * sy - (c[1] - a[1]) * sx) / denominator;
-  const u = ((c[0] - a[0]) * ry - (c[1] - a[1]) * rx) / denominator;
-  return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? t : null;
-}
-
 /**
  * The route to a runway stopped at its holding point: the last runway holding position line it crosses before its end
  * (within the last 400 m). The route is unchanged when it crosses none.
@@ -146,19 +140,16 @@ export function taxiRouteToHoldingPoint(
     let best: number | null = null;
     for (const line of holdingLines) {
       for (let j = 1; j < line.length; j++) {
-        const t = segmentCrossing(a, b, line[j - 1], line[j]);
+        const t = taxiSegmentCrossing(a, b, line[j - 1], line[j])?.[0] ?? null;
         if (t !== null && (best === null || t > best)) {
           best = t;
         }
       }
     }
     if (best !== null) {
-      const holdingPoint: TaxiPoint = [a[0] + (b[0] - a[0]) * best, a[1] + (b[1] - a[1]) * best];
+      const holdingPoint = taxiLerp(a, b, best);
       const kept = [...points.slice(0, i), holdingPoint];
-      let length = 0;
-      for (let k = 1; k < kept.length; k++) {
-        length += taxiDistance(kept[k - 1], kept[k]);
-      }
+      const length = taxiPolylineLength(kept);
       // The legs lose the part after the holding point, from the end
       let cut = route.length - length;
       const legs = route.legs.map((l) => ({ ...l }));

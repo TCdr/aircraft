@@ -44,7 +44,7 @@ const EXAMPLE: LandingPerformanceInputs = {
 };
 
 describe('A320 landing performance', () => {
-  it('computes the required landing distance of the FCOM example', () => {
+  it('computes the required landing distance of the published example', () => {
     // RLD (DRY, 2000 ft, VLS, 5 kt TW) = 1330 + 2 x 60 + 150
     const result = calculator.calculateLandingPerformance(EXAMPLE);
     expect(result.error).toBe(LandingPerformanceError.None);
@@ -74,7 +74,7 @@ describe('A320 landing performance', () => {
     expect(snow.landingDistance).toBeCloseTo(1670, 0);
   });
 
-  it('gives the in-flight landing distances of the QRH, with the 15 % margin', () => {
+  it('gives the in-flight landing distances, with the 15 % margin', () => {
     const result = calculator.calculateLandingPerformance({
       ...EXAMPLE,
       type: LandingComputationType.InFlight,
@@ -88,7 +88,7 @@ describe('A320 landing performance', () => {
     expect(result.brakingDistances.map((d) => d.distance)).toEqual([1060, 1330, 1860]);
   });
 
-  it('gives reverser credit only where the QRH has a correction', () => {
+  it('gives reverser credit only where the in-flight data has a correction', () => {
     const type = LandingComputationType.InFlight;
     const manual = LandingBrakingMode.Manual;
     expect(calculator.reverseThrustAvailable(type, LandingRunwayCondition.Dry, LandingConf.Full, manual)).toBe(false);
@@ -122,7 +122,7 @@ describe('A320 landing performance', () => {
     expect(short.limitation).toBe(LandingLimitation.Lda);
   });
 
-  describe('in-flight landing distance corrections (QRH, dry, MAX manual braking, CONF FULL: 1060 m at 68 t)', () => {
+  describe('in-flight landing distance corrections (dry, MAX manual braking, CONF FULL: 1060 m at 68 t)', () => {
     const IN_FLIGHT: LandingPerformanceInputs = {
       ...EXAMPLE,
       type: LandingComputationType.InFlight,
@@ -181,7 +181,7 @@ describe('A320 landing performance', () => {
     });
   });
 
-  describe('autoland (FCOM PER-LDG-DIS-RLA)', () => {
+  describe('autoland', () => {
     const conf3 = { ...EXAMPLE, conf: LandingConf.Conf3, headwind: 0 };
     const distance = (inputs: Partial<LandingPerformanceInputs>) =>
       calculator.calculateLandingPerformance({ ...EXAMPLE, ...inputs }).landingDistance!;
@@ -271,7 +271,7 @@ describe('A320 landing performance', () => {
     );
   });
 
-  it('keeps the limits of the FCOM (LIM-12): OEW, MTOW, 9200 ft, 2 % slope', () => {
+  it('keeps the aircraft limits: OEW, MTOW, 9200 ft, 2 % slope', () => {
     const inFlight = { ...EXAMPLE, type: LandingComputationType.InFlight };
     const error = (inputs: Partial<LandingPerformanceInputs>) =>
       calculator.calculateLandingPerformance({ ...inFlight, ...inputs }).error;
@@ -286,14 +286,14 @@ describe('A320 landing performance', () => {
     expect(error({ oat: NaN })).toBe(LandingPerformanceError.InvalidData);
   });
 
-  it('extrapolates the figures beyond the 15 kt tailwind of the FCOM (LIM-AG), flagged', () => {
+  it('extrapolates the figures beyond the 15 kt tailwind limit, flagged', () => {
     const inFlight = { ...EXAMPLE, type: LandingComputationType.InFlight };
     const at = (headwind: number) => calculator.calculateLandingPerformance({ ...inFlight, headwind });
     expect(at(-15).error).toBe(LandingPerformanceError.None);
     expect(at(-15).tailwindExtrapolated).toBe(false);
     expect(at(-16).error).toBe(LandingPerformanceError.None);
     expect(at(-16).tailwindExtrapolated).toBe(true);
-    // the QRH tailwind correction per 5 kt continues beyond the limit
+    // the tailwind correction per 5 kt continues beyond the limit
     expect(at(-20).landingDistance!).toBeGreaterThan(at(-15).landingDistance!);
     expect(at(-20).landingDistance! - at(-15).landingDistance!).toBeCloseTo(
       at(-15).landingDistance! - at(-10).landingDistance!,
@@ -301,7 +301,7 @@ describe('A320 landing performance', () => {
     );
   });
 
-  it('allows 29 kt of crosswind on compacted snow at or below -15 °C, 25 kt above (PER-LDG-DIS-MAT)', () => {
+  it('allows 29 kt of crosswind on compacted snow at or below -15 °C, 25 kt above', () => {
     expect(calculator.crosswindLimit(LandingRunwayCondition.CompactedSnow, -15)).toBe(29);
     expect(calculator.crosswindLimit(LandingRunwayCondition.CompactedSnow, -14)).toBe(25);
     expect(calculator.crosswindLimit(LandingRunwayCondition.WetGrooved, 15)).toBe(38);

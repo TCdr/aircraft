@@ -5,24 +5,22 @@
  * The recommended maximum flight level (REC MAX) of the FMS, shown on the MCDU PROG page and published for the flyPad
  * Performance > Buffet page.
  *
- * A320 FCOM DSC-22_20-40-30 RECOMMENDED MAXIMUM ALTITUDE (REC MAX): "The recommended maximum altitude is the lowest of
- * the maximum altitude that: - The aircraft can reach with a 0.3 g buffet margin - The aircraft can fly in level flight
- * at MAX CRZ rating - The aircraft can maintain a V/S of 300 ft/min at MAX CLB thrust - The aircraft can fly at a speed
- * higher than Green Dot and lower than VMO/MMO - The aircraft is certified at."
- * FCOM (PROG page): "This field is limited to FL 398".
- * FCOM (PROG page, a320_fcom.txt l.21249-21251): "If one engine is out, this field displays the recommended maximum
- * engine-out altitude, that is computed based on the long-range cruise speed and assuming that anti-ice is off."
+ * REC MAX is the lowest of: the level with a 0.3 g buffet margin, the level for level flight at MAX CRZ thrust, the
+ * level with 300 ft/min at MAX CLB thrust, the level with a speed between Green Dot and VMO/MMO, and the certified
+ * level. The PROG page limits it to FL398. With one engine out it shows the engine-out REC MAX, computed at the long
+ * range cruise speed with anti-ice off.
  */
+
+import { MAXIMUM_CERTIFIED_FLIGHT_LEVEL } from '@shared/A32NXPerformanceConstants';
 
 /** The LVar of the REC MAX flight level; 0 while the FMS has no gross weight to compute it */
 export const REC_MAX_FL_LVAR = 'L:A32NX_FM_REC_MAX_FL';
 
-/** The certified maximum (FCOM: "limited to FL 398") */
-export const REC_MAX_LIMIT_FL = 398;
+/** The certified maximum, the PROG page limit */
+export const REC_MAX_LIMIT_FL = MAXIMUM_CERTIFIED_FLIGHT_LEVEL;
 
 /**
- * The maximum cruise flight level for an ISA deviation and a gross weight, the FBW fit of the REC MAX (unchanged from
- * A32NX_FMCMainDisplay.getMaxFL)
+ * The maximum cruise flight level for an ISA deviation and a gross weight, the FBW fit of the REC MAX
  * @param isaDeviation the ISA deviation, °C
  * @param grossWeight the gross weight, tonnes, or null when unknown
  * @returns the flight level, or null without a gross weight
@@ -44,15 +42,13 @@ export function recMaxFlightLevel(isaDeviation: number, grossWeight: number | nu
 }
 
 /**
- * The engine-out REC MAX: the one engine inoperative long-range cruise (LRC) ceiling. The ceiling table itself is in the
- * QRH ("Refer to QRH/PER-L Ceilings (Paper Only)"), not in the FCOM text, so the FMS uses a straight line through the two
- * LRC ceilings of the FCOM one engine inoperative examples (ISA, read with the gross weight at the engine failure):
- * - PER-OEI-GEN-10 (l.126709, l.126732): 70 000 kg, "LRC ceiling :FL 182";
- * - PER-OEI-GEN-15 (l.126862, l.126906): 62 000 kg, "LRC ceiling = FL 203".
- * Design choice: no ISA deviation and no anti-ice effect (the FCOM gives ISA examples only, and the PROG value assumes
+ * The engine-out REC MAX: the one engine inoperative long-range cruise (LRC) ceiling. The ceiling table is not
+ * available as data, so the FMS uses a straight line through two published one engine out LRC ceilings (ISA, gross
+ * weight at the engine failure): 70 000 kg FL 182 and 62 000 kg FL 203.
+ * Design choice: no ISA deviation and no anti-ice effect (only ISA values are published, and the PROG value assumes
  * anti-ice off); the line is not extrapolated beyond the weights the FMS sees, which stay within 40-80 t.
  */
-export const ENGINE_OUT_REC_MAX_FL_PER_TONNE = (203 - 182) / (62 - 70);
+const ENGINE_OUT_REC_MAX_FL_PER_TONNE = (203 - 182) / (62 - 70);
 const ENGINE_OUT_REC_MAX_FL_AT_70_TONNES = 182;
 
 /**

@@ -191,7 +191,6 @@ export const BuffetChart = ({ data, weightTonnes, cg, lines, recMaxFl, point }: 
             />
           ))}
 
-      {/* VMO / MMO */}
       <path d={polyline(speedLimit)} fill="none" style={{ stroke: COLOURS.speedLimit }} strokeWidth={2.5} />
       <text x={x(data.mmo) + 6} y={y(FL_MAX - 10)} fontSize={12} fontWeight={700} style={{ fill: COLOURS.speedLimit }}>
         {`MMO ${formatMach(data.mmo)}`}
@@ -251,7 +250,6 @@ export const BuffetChart = ({ data, weightTonnes, cg, lines, recMaxFl, point }: 
           );
         })}
 
-      {/* the maximum operating altitude */}
       <line
         x1={LEFT}
         x2={BUFFET_CHART_WIDTH - RIGHT}
@@ -267,7 +265,6 @@ export const BuffetChart = ({ data, weightTonnes, cg, lines, recMaxFl, point }: 
         ])}
       </text>
 
-      {/* REC MAX of the FMS */}
       {recMaxFl !== null && recMaxFl >= FL_MIN && recMaxFl <= FL_MAX && (
         <g>
           <line

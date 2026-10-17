@@ -169,9 +169,9 @@ const Tile: FC<{ name: string; text: string; unit?: string; tone?: Tone }> = ({ 
 );
 
 /**
- * Performance > Buffet: the buffet onset envelope ("coffin corner") of the A320 from the FCOM LIM-13 BUFFET ONSET
- * chart, live (ADR/IR, FMS gross weight, weight and balance CG) or for entered values (what if), with REC MAX of the
- * FMS. Shown only for an aircraft with buffet data (AircraftContext performanceCalculators.buffetEnvelope).
+ * Performance > Buffet: the buffet onset envelope ("coffin corner") of the A320 from its buffet onset chart, live
+ * (ADR/IR, FMS gross weight, weight and balance CG) or for entered values (what if), with REC MAX of the FMS. Shown
+ * only for an aircraft with buffet data (AircraftContext performanceCalculators.buffetEnvelope).
  */
 export const BuffetWidget = () => {
   const data = useContext(AircraftContext).performanceCalculators.buffetEnvelope;
@@ -182,7 +182,7 @@ export const BuffetWidget = () => {
 const BuffetEnvelope: FC<{ data: BuffetEnvelopeData }> = ({ data }) => {
   const [mode, setMode] = useState<Mode>('LIVE');
   const [whatIf, setWhatIf] = useState<WhatIfEntries>({});
-  /** The lines of the chart: 1.0 g and 1.3 g shown, 1.4 g (QRH turbulence margin) off by default */
+  /** The lines of the chart: 1.0 g and 1.3 g shown, 1.4 g (turbulence margin) off by default */
   const [shownLines, setShownLines] = useState<Record<string, boolean>>({ '1.0': true, '1.3': true, '1.4': false });
   /** The flyPad weight unit, as on the other Performance pages: t or klb */
   const [weightUnitSetting] = usePersistentProperty('EFB_PREFERRED_WEIGHT_UNIT', Units.usingMetric ? 'kg' : 'lb');
@@ -540,7 +540,7 @@ const BuffetEnvelope: FC<{ data: BuffetEnvelopeData }> = ({ data }) => {
     });
   }
   if (shownLines['1.4']) {
-    // Design choice: the 1.4 g line (QRH turbulence margin) in the light primary, not filled
+    // Design choice: the 1.4 g line (turbulence margin) in the light primary, not filled
     lines.push({ loadFactor: 1.4, colour: 'var(--m3-primary-light)', label: '1.4 g', labelAt: 0.35 });
   }
   if (turn && result !== null) {

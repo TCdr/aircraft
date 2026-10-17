@@ -16,11 +16,11 @@
  * And GSX resets the variables it reads to 0 when it restarts (manual, Remote Control Mode).
  */
 
-/** The GSX service states of the L:FSDT_GSX_*_STATE variables (GSX manual, Reading the current status) */
+/** The GSX service states of the L:FSDT_GSX_*_STATE variables */
 export const GSX_STATE_REQUESTED = 4;
 export const GSX_STATE_PERFORMING = 5;
 
-/** The GSX Remote API service ids of the passenger services (developer guide, Appendix B) */
+/** The GSX Remote API service ids of the passenger services */
 const BOARDING_ID = 'Boarding';
 const DEBOARDING_ID = 'Deboarding';
 
@@ -103,7 +103,7 @@ export interface GsxPaxAnnounceInput {
  * The passenger number to give GSX in L:FSDT_GSX_NUMPASSENGERS, or null to leave it: the passengers on board for a
  * deboarding (after landing, or once GSX deboarding is requested), else the planned passengers. The one rule of every
  * flyPad page that writes it (Services and Payload pages), so they never write different numbers.
- * GSX manual: the number must be set "before Boarding or Deboarding"; GSX uses it "in place of its own calculation".
+ * GSX uses the number in place of its own count only when it is set before the boarding or deboarding starts.
  * Design choice: still given while the service is requested (GSX takes it when the service starts), not while GSX
  * boards or deboards (performing: GSX counts then, and the seats change), not when there is nobody to give (0 lets GSX
  * use its own number, as before), and only when it changed (GSX resets it to 0 when it restarts, so it is checked

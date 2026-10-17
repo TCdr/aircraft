@@ -4484,7 +4484,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   }
   /**
    * Returns the REC MAX of the PROG page: the maximum allowed cruise FL considering max service FL, or the engine-out
-   * REC MAX when one engine is out (FCOM PROG page, see RecMaxFlightLevel.ts)
+   * REC MAX when one engine is out (see RecMaxFlightLevel.ts)
    * @returns the REC MAX FL or null if no grossweight available
    */
   //TODO: can this be an util? no

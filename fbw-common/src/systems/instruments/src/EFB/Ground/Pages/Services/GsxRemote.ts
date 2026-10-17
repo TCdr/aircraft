@@ -382,8 +382,8 @@ export function gsxServiceLook(service: GsxService | undefined): GsxServiceLook 
 /**
  * The action chip of a turnaround step: Request while GSX offers the service, Stop while it runs and GSX lets it be
  * triggered, none otherwise (e.g. a completed step).
- * Remote API developer guide §8.1: canTrigger is "whether service.trigger is meaningful right now (true only when the
- * service is available)"; its reference client triggers a service only when canTrigger. A service GSX allows to be
+ * canTrigger says whether a trigger is meaningful now (true only when the service is available); the GSX reference
+ * client triggers a service only when canTrigger. A service GSX allows to be
  * requested again comes back as available with canTrigger, so it gets its Request chip back.
  * Design choice: without canTrigger (not sent by an older server), Request only in the available state.
  * @param service the service

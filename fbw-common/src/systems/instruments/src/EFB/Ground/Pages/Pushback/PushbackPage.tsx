@@ -269,7 +269,6 @@ export const PushbackPage = () => {
       }
     >
       <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
-        {/* the map */}
         <M3Card low className="relative mr-4 h-full min-w-0 flex-1">
           <div className="absolute inset-0">
             <PushbackMap />
@@ -282,7 +281,6 @@ export const PushbackPage = () => {
           )}
         </M3Card>
 
-        {/* the control rail */}
         <div
           className={`flex h-full w-[380px] shrink-0 flex-col ${!pushbackUIAvailable ? 'pointer-events-none opacity-30' : ''}`}
         >
@@ -392,7 +390,6 @@ export const PushbackPage = () => {
             />
 
             <div className="mt-4 flex flex-row items-center">
-              {/* the steering dial */}
               <div className="mr-4 flex grow flex-col items-center">
                 <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
                   <path
@@ -441,7 +438,6 @@ export const PushbackPage = () => {
                 </TooltipWrapper>
                 <span className="mt-1 text-xs text-m3-muted">{t('Pushback.TugDirection')}</span>
               </div>
-              {/* the speed slider */}
               <TooltipWrapper text={t('Pushback.TT.SliderSpeed')}>
                 <div className="flex flex-col items-center space-y-2">
                   <ChevronDoubleUp className="text-m3-muted" />

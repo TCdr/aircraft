@@ -53,7 +53,6 @@ export const OverviewPage = () => {
 
   return (
     <div className="flex h-content-section-reduced flex-row overflow-hidden text-m3-text">
-      {/* the aircraft */}
       <M3Card low className="relative mr-4 h-full min-w-0 flex-1">
         {/* TODO: Make this SVG configurable */}
         {airframeInfo.variant === AirframeType.A380_842 ? (
@@ -78,7 +77,6 @@ export const OverviewPage = () => {
         </div>
       </M3Card>
 
-      {/* its figures */}
       <div className="flex h-full w-[30rem] shrink-0 flex-col">
         <M3Card className="mb-4 shrink-0 pb-2">
           <SectionTitle>{t('Dispatch.Overview.Weights')}</SectionTitle>

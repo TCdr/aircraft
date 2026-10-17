@@ -50,6 +50,8 @@ import { M3Button, M3Card, M3Segmented, M3Switch } from '../../UtilComponents/Ma
 import {
   PERF_INPUT,
   PERF_SELECT,
+  displayed,
+  unitSelect,
   PERF_SMALL_BUTTON,
   PerfFillFrom,
   PerfResult,
@@ -642,9 +644,6 @@ export const TakeoffWidget = () => {
     }
   };
 
-  const displayed = (value: number | undefined, imperial: boolean, toImperial: (v: number) => number) =>
-    value !== undefined && imperial ? toImperial(value) : value;
-
   // ---------------------------------------------------------------------------------------------- results
 
   const isEstimate = (e: TakeoffPerformanceEstimate) => result?.estimates?.includes(e) ?? false;
@@ -764,19 +763,8 @@ export const TakeoffWidget = () => {
 
   // ---------------------------------------------------------------------------------------------- render
 
-  const unitSelect = <T extends string>(value: string, options: T[], onChange: (v: T) => void, width = 'w-20') => (
-    <SelectInput
-      fontSizeClassName="text-base"
-      value={value}
-      className={`${width} ml-1 ${PERF_SELECT}`}
-      options={options.map((o) => ({ value: o, displayValue: o === 'C' || o === 'F' ? `°${o}` : o }))}
-      onChange={(v: T) => onChange(v)}
-    />
-  );
-
   return (
     <div className="flex h-content-section-reduced flex-col overflow-hidden text-base text-m3-text">
-      {/* Airport and data sources */}
       <div className="mb-3 flex shrink-0 flex-row items-center">
         <span className="mr-2 text-sm font-semibold text-m3-muted">{t('Performance.Takeoff.Airport')}</span>
         <SimpleInput

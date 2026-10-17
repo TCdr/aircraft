@@ -204,8 +204,8 @@ export interface LandingPerformanceResult {
   btv?: BtvLines;
   estimates: LandingPerformanceEstimate[];
   /**
-   * The tailwind is above the limit of the FCOM (maxTailwind, in whole knots): the distances, the stop margin and the
-   * MLW(PERF) continue the tailwind correction of the data beyond it (extrapolated, for information)
+   * The tailwind is above the limit of the aircraft data (maxTailwind, in whole knots): the distances, the stop margin
+   * and the MLW(PERF) continue the tailwind correction of the data beyond it (extrapolated, for information)
    */
   tailwindExtrapolated: boolean;
 }

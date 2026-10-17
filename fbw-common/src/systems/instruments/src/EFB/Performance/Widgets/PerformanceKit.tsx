@@ -16,6 +16,21 @@ import { M3Card, M3_INPUT } from '../../UtilComponents/Material/Material';
 export const PERF_INPUT = `${M3_INPUT} font-bold`;
 export const PERF_SELECT = '!border-m3-outline bg-m3-ground';
 
+/** A form value in the unit shown: converted with toImperial while the imperial unit is selected */
+export const displayed = (value: number | undefined, imperial: boolean, toImperial: (v: number) => number) =>
+  value !== undefined && imperial ? toImperial(value) : value;
+
+/** The unit drop-down beside a form value (°C / °F shown with the degree sign) */
+export const unitSelect = <T extends string>(value: string, options: T[], onChange: (v: T) => void, width = 'w-20') => (
+  <SelectInput
+    fontSizeClassName="text-base"
+    value={value}
+    className={`${width} ml-1 ${PERF_SELECT}`}
+    options={options.map((o) => ({ value: o, displayValue: o === 'C' || o === 'F' ? `°${o}` : o }))}
+    onChange={(v) => onChange(v as T)}
+  />
+);
+
 const eyebrow = 'text-xs font-bold uppercase tracking-widest text-m3-muted';
 
 interface PerfSectionProps {

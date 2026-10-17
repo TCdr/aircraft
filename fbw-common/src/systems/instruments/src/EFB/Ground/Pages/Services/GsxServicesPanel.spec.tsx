@@ -102,7 +102,7 @@ describe('GSX turnaround steps of the Services page', () => {
 describe('GSX turnaround steps after GSX resets a completed service to available', () => {
   it('keeps Board done without a Request chip, also when the page is opened again', () => {
     gsxTurnaround.clear();
-    // the 2026-10-06 recording: L:FSDT_GSX_BOARDING_STATE 5 -> 6 at the end of the boarding, 1 again 14 s later
+    // as recorded in the sim: L:FSDT_GSX_BOARDING_STATE 5 -> 6 at the end of the boarding, 1 again 14 s later
     gsxTurnaround.update({ states: { Boarding: 5 }, departureState: 1, enginesRunning: false });
     gsxTurnaround.update({ states: { Boarding: 6 }, departureState: 1, enginesRunning: false });
     gsxTurnaround.update({ states: { Boarding: 1 }, departureState: 1, enginesRunning: false });

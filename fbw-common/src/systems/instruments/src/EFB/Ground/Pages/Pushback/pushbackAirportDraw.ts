@@ -7,7 +7,7 @@ import { TaxiAirport } from '../Taxi/TaxiAirport';
 /**
  * The drawing of the airport under the pushback map, kept cheap for the sim's browser: the map follows the aircraft
  * (its position is read every 50 ms), and drawing the whole Navigraph airport (thousands of points) on every update
- * halved the frame rate during a pushback (A380X, 2026-10-11: 21 FPS on the page, 42 FPS on another page). So:
+ * halved the frame rate during a pushback (A380X, measured in the sim: 21 FPS on the page, 42 FPS on another page). So:
  * - only the shapes and lines whose bounding box reaches the map window are drawn (at pushback zoom, a few stands);
  * - the map is drawn again only when the picture moves by about a pixel, and at most every MIN_REDRAW_INTERVAL_MS.
  */

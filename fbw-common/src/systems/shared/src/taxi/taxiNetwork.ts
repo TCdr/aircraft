@@ -22,7 +22,7 @@ export interface TaxiLine {
   /** The taxiway or exit name (upper case), null when the line has none */
   name: string | null;
   points: TaxiPoint[];
-  /** The largest wingspan the airport map clears the line for, metres, when it says (ED-99 attribute "wingspan") */
+  /** The largest wingspan the airport map clears the line for, metres, when it says (attribute "wingspan") */
   wingspan?: number;
 }
 
@@ -72,6 +72,20 @@ export function taxiDistance(a: TaxiPoint, b: TaxiPoint): number {
   return Math.hypot(b[0] - a[0], b[1] - a[1]);
 }
 
+/** The length of a polyline, in metres */
+export function taxiPolylineLength(points: readonly TaxiPoint[]): number {
+  let length = 0;
+  for (let i = 1; i < points.length; i++) {
+    length += taxiDistance(points[i - 1], points[i]);
+  }
+  return length;
+}
+
+/** A runway designator with two digits: 4 -> 04, 6L -> 06L, 34L -> 34L */
+export function padRunwayDesignator(designator: string): string {
+  return designator.replace(/[^0-9]/g, '').length < 2 ? `0${designator}` : designator;
+}
+
 /** The point of segment ab nearest to p, as the fraction t along the segment and the distance to it */
 export function nearestOnSegment(p: TaxiPoint, a: TaxiPoint, b: TaxiPoint): { t: number; distance: number } {
   const dx = b[0] - a[0];
@@ -81,12 +95,12 @@ export function nearestOnSegment(p: TaxiPoint, a: TaxiPoint, b: TaxiPoint): { t:
   return { t, distance: Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]) };
 }
 
-function lerp(a: TaxiPoint, b: TaxiPoint, t: number): TaxiPoint {
+export function taxiLerp(a: TaxiPoint, b: TaxiPoint, t: number): TaxiPoint {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 }
 
 /** Fractions along ab and cd where the two segments cross, or null */
-function crossing(a: TaxiPoint, b: TaxiPoint, c: TaxiPoint, d: TaxiPoint): [number, number] | null {
+export function taxiSegmentCrossing(a: TaxiPoint, b: TaxiPoint, c: TaxiPoint, d: TaxiPoint): [number, number] | null {
   const rx = b[0] - a[0];
   const ry = b[1] - a[1];
   const sx = d[0] - c[0];
@@ -174,7 +188,7 @@ export function buildTaxiNetwork(lines: readonly TaxiLine[]): TaxiNetwork {
         continue;
       }
       done.add(key);
-      const c = crossing(s.a, s.b, o.a, o.b);
+      const c = taxiSegmentCrossing(s.a, s.b, o.a, o.b);
       if (c) {
         s.splits.push(c[0]);
         o.splits.push(c[1]);
@@ -196,7 +210,7 @@ export function buildTaxiNetwork(lines: readonly TaxiLine[]): TaxiNetwork {
         const { t, distance } = nearestOnSegment(end, o.a, o.b);
         if (distance <= TAXI_NETWORK_SNAP) {
           o.splits.push(t);
-          joins.push([end, lerp(o.a, o.b, t)]);
+          joins.push([end, taxiLerp(o.a, o.b, t)]);
         }
       }
     }
@@ -228,9 +242,9 @@ export function buildTaxiNetwork(lines: readonly TaxiLine[]): TaxiNetwork {
 
   for (const s of segments) {
     const splits = [...new Set(s.splits)].sort((a, b) => a - b);
-    let previous = node(lerp(s.a, s.b, splits[0]));
+    let previous = node(taxiLerp(s.a, s.b, splits[0]));
     for (let k = 1; k < splits.length; k++) {
-      const next = node(lerp(s.a, s.b, splits[k]));
+      const next = node(taxiLerp(s.a, s.b, splits[k]));
       edge(previous, next, s.line);
       previous = next;
     }
@@ -339,7 +353,7 @@ function joinGaps(network: TaxiNetwork): void {
     } else if (best.t >= 0.999) {
       joined = e.to;
     } else {
-      network.nodes.push(lerp(network.nodes[e.from], network.nodes[e.to], best.t));
+      network.nodes.push(taxiLerp(network.nodes[e.from], network.nodes[e.to], best.t));
       network.adjacency.push([]);
       joined = network.nodes.length - 1;
       part.push(find(e.from));

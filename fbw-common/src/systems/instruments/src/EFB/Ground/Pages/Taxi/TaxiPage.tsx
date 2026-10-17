@@ -260,10 +260,8 @@ export const TaxiPage = () => {
     [airport, start, to, tooNarrow],
   );
   // A380 airport check, departure: is there a route to the runway entry with the lines too narrow forbidden? The
-  // suggestion above still takes them when it must (flagged). ICAO Annex 14 Volume I 3.9.3: code F taxiway width 25 m.
-  // Airbus A380 Airport Characteristics (AC, Dec 01/25) 3-3-3: "A380 can operate on aerodromes classified as code 4F as
-  // per ICAO Aerodrome Reference Code. It can also operate on aerodromes classified as code 4E provided that specific
-  // conditions are met." No such route: a banner sends the crew to the airport's A380 notes.
+  // suggestion above still takes them when it must (flagged). Code F taxiways are 25 m wide; the A380 operates at code
+  // E airports only under specific conditions. No such route: a banner sends the crew to the airport's A380 notes.
   const noWideRoute = useMemo(() => {
     if (!airport || !start || !to || to.kind !== 'runway' || !tooNarrow || tooNarrow.size === 0) {
       return false;

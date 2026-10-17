@@ -2,6 +2,7 @@
 //  SPDX-License-Identifier: GPL-3.0
 
 import { FeatureType } from '../amdb';
+import { padRunwayDesignator, taxiDistance } from '../taxi/taxiNetwork';
 import { LandingRunwayCondition } from './landing';
 
 /** Minimum distance from the threshold to the touchdown zone of BTV, in metres (1312.3 ft) */
@@ -86,11 +87,6 @@ export interface BtvAmdbFeature {
 
 type Point = [number, number];
 
-/** Runway designators with two digits: 6 -> 06, 6L -> 06L */
-function padDesignator(designator: string): string {
-  return designator.replace(/[^0-9]/g, '').length < 2 ? `0${designator}` : designator;
-}
-
 /**
  * The exits of a runway, from the airport mapping database, as the OANS finds them for BTV (OansBrakeToVacateSelection):
  * exit lines that start on the runway (within 50 m of its centreline), at least 400 m after the threshold, and do not
@@ -98,28 +94,27 @@ function padDesignator(designator: string): string {
  * @returns the exits in order, or null when the runway is not in the data
  */
 export function runwayExitsFromAmdb(features: readonly BtvAmdbFeature[], runway: string): BtvExit[] | null {
-  const ident = padDesignator(runway);
+  const ident = padRunwayDesignator(runway);
   const threshold = features.find(
     (f) =>
       f.properties.feattype === FeatureType.RunwayThreshold &&
       f.properties.idthr !== undefined &&
-      padDesignator(f.properties.idthr) === ident,
+      padRunwayDesignator(f.properties.idthr) === ident,
   );
   const centreline = features.find(
     (f) =>
       f.properties.feattype === FeatureType.PaintedCenterline &&
-      (f.properties.idrwy ?? '').split('.').map(padDesignator).includes(ident),
+      (f.properties.idrwy ?? '').split('.').map(padRunwayDesignator).includes(ident),
   );
   if (threshold === undefined || centreline === undefined || threshold.geometry.type !== 'Point') {
     return null;
   }
   const thr = threshold.geometry.coordinates as Point;
   const line = centreline.geometry.coordinates as Point[];
-  const distance = (a: Point, b: Point) => Math.hypot(b[0] - a[0], b[1] - a[1]);
   const first = line[0];
   const last = line[line.length - 1];
-  const end = distance(thr, first) > distance(thr, last) ? first : last;
-  const length = distance(thr, end);
+  const end = taxiDistance(thr, first) > taxiDistance(thr, last) ? first : last;
+  const length = taxiDistance(thr, end);
   if (length < 1) {
     return null;
   }

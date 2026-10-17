@@ -59,6 +59,8 @@ import { M3ActionChip, M3Button, M3Card, M3Segmented, M3Switch } from '../../Uti
 import {
   PERF_INPUT,
   PERF_SELECT,
+  displayed,
+  unitSelect,
   PerfFillFrom,
   PerfResult,
   PerfResultRow,
@@ -578,19 +580,6 @@ export const LandingWidget = () => {
     }
   };
 
-  const displayed = (value: number | undefined, imperial: boolean, toImperial: (v: number) => number) =>
-    value !== undefined && imperial ? toImperial(value) : value;
-
-  const unitSelect = <T extends string>(value: string, options: T[], onChange: (v: T) => void, width = 'w-20') => (
-    <SelectInput
-      fontSizeClassName="text-base"
-      value={value}
-      className={`${width} ml-1 ${PERF_SELECT}`}
-      options={options.map((o) => ({ value: o, displayValue: o === 'C' || o === 'F' ? `°${o}` : o }))}
-      onChange={(v: T) => onChange(v)}
-    />
-  );
-
   const onOff = [
     { value: false, displayValue: 'Off' },
     { value: true, displayValue: 'On' },
@@ -659,7 +648,6 @@ export const LandingWidget = () => {
 
   return (
     <div className="flex h-content-section-reduced flex-col overflow-hidden text-base text-m3-text">
-
       <div className="mb-3 flex shrink-0 flex-row items-center">
         <span className="mr-2 text-sm font-semibold text-m3-muted">{t('Performance.Landing.Airport')}</span>
         <SimpleInput
@@ -878,7 +866,6 @@ export const LandingWidget = () => {
           className="mr-3 min-w-0 flex-1"
           title={t('Performance.Landing.Calc.SectionAircraft')}
           action={
-            // The maximum landing weight as the landing weight
             <M3ActionChip className="!h-6 !px-2 !text-xs" onClick={() => set({ weight: calculator.mlw })}>
               MLW
             </M3ActionChip>

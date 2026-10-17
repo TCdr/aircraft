@@ -6,13 +6,11 @@ import type { GsxService } from './GsxRemote';
 /**
  * The completed GSX services of the current turnaround, remembered by the flyPad.
  *
- * GSX gives one completion signal: the service state 6, "service has been completed" (GSX manual, DEVELOPERS -
- * Reading the current status of GSX operations; Remote API developer guide, Appendix A: "6 completed done"; §1:
- * "watch that service's state go requested -> performing -> completed"). Neither document says how long it stays:
- * in the sim (A32NX, 2026-10-06 recording) GSX set L:FSDT_GSX_BOARDING_STATE 5 -> 6 at the end of the boarding and back
- * to 1 (available, callable again) 14 s later, while L:FSDT_GSX_NUMPASSENGERS_BOARDING_TOTAL stayed at 170. So the
- * flyPad remembers the completion itself, outside the pages (it survives page switches), from the state variables
- * read all the time (startGsxTurnaroundTracker) and from the Remote API services.
+ * GSX gives one completion signal: the service state 6 (completed), after requested and performing. GSX does not say
+ * how long it stays: in a sim recording (A32NX) GSX set L:FSDT_GSX_BOARDING_STATE 5 -> 6 at the end of the boarding and
+ * back to 1 (available, callable again) 14 s later, while L:FSDT_GSX_NUMPASSENGERS_BOARDING_TOTAL stayed at 170. So the
+ * flyPad remembers the completion itself, outside the pages (it survives page switches), from the state variables read
+ * all the time (startGsxTurnaroundTracker) and from the Remote API services.
  *
  * Design choices:
  * - Remembered: boarding, deboarding, catering and refuelling (the services GSX resets after one turnaround step), and
@@ -25,7 +23,7 @@ import type { GsxService } from './GsxRemote';
  *   the next boarding starts, so it would mark the next turnaround's boarding done.
  */
 
-/** The remembered services (Remote API ids) and their GSX state variables (GSX manual, DEVELOPERS) */
+/** The remembered services (Remote API ids) and their GSX state variables */
 export const GSX_REMEMBERED_SERVICES: Record<string, string> = {
   Boarding: 'L:FSDT_GSX_BOARDING_STATE',
   Deboarding: 'L:FSDT_GSX_DEBOARDING_STATE',
@@ -36,13 +34,13 @@ export const GSX_REMEMBERED_SERVICES: Record<string, string> = {
 const DEPARTURE_STATE_VAR = 'L:FSDT_GSX_DEPARTURE_STATE';
 
 /**
- * The baggage (cargo) loading and unloading. GSX has no baggage service of its own (Remote API developer guide,
- * Appendix B: no such id, so nothing to request): it loads the baggage during the boarding and unloads it during the
- * deboarding, and reports it through L:vars (GSX manual, DEVELOPERS - Interfacing with the Cargo loading process):
- * - L:FSDT_GSX_BOARDING_CARGO / L:FSDT_GSX_DEBOARDING_CARGO: "1 if GSX is loading / unloading Luggage/Cargo";
+ * The baggage (cargo) loading and unloading. GSX has no baggage service of its own (no Remote API id, so nothing to
+ * request): it loads the baggage during the boarding and unloads it during the deboarding, and reports it through
+ * L:vars:
+ * - L:FSDT_GSX_BOARDING_CARGO / L:FSDT_GSX_DEBOARDING_CARGO: 1 while GSX loads / unloads the baggage;
  * - L:FSDT_GSX_BOARDING_CARGO_PERCENT / L:FSDT_GSX_DEBOARDING_CARGO_PERCENT: the progress 0-100, the average of the
- *   loaders; "when the loading/unloading process ends, the relevant variable will read 100".
- * Design choices: done = 100 % reached after the process was seen running in this turnaround (the manual does not say
+ *   loaders, 100 when the process ends.
+ * Design choices: done = 100 % reached after the process was seen running in this turnaround (GSX does not say
  * when the percentage goes back to 0: a 100 % left from an earlier loading must not mark the next one done). Remembered
  * and forgotten like the boarding (loading) and the deboarding (unloading).
  */
@@ -111,7 +109,7 @@ export function gsxBaggageService(
   return { id, displayName, state: done ? 'completed' : 'available', canTrigger: false };
 }
 
-/** GSX state variable values (GSX manual: 4 requested, 5 being performed, 6 completed) */
+/** GSX state variable values: 4 requested, 5 being performed, 6 completed */
 const REQUESTED = 4;
 const PERFORMING = 5;
 const COMPLETED = 6;

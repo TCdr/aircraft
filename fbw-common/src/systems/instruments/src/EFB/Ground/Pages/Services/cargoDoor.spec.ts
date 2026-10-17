@@ -25,7 +25,7 @@ describe('A380 cargo door row of the Services page (follows the hydraulic door, 
     expect(cargoDoorStatusKey(door({}))).toBe('Ground.Services.Closed');
   });
 
-  it('is not closed while unlocked without hydraulic power, even if it has barely moved (the 2026-10-10 sim run)', () => {
+  it('is not closed while unlocked without hydraulic power, even if it has barely moved (seen in the sim)', () => {
     const unlocked = door({ positionPercent: 0.24, locked: false, operationInhibited: true, requestedOpen: false });
     expect(cargoDoorOpening(unlocked)).toBeGreaterThan(0);
     expect(cargoDoorStatusKey(unlocked)).toBe('Ground.Services.CargoDoorStoppedNoHyd');

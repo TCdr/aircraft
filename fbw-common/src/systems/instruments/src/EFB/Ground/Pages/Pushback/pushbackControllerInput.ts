@@ -8,8 +8,7 @@ import { isCaptainEfb } from '../../../Utils/efbIndex';
 /**
  * The pushback steered with the rudder pedals and the sidestick (flyPad > Ground > Pushback, "use controller input").
  * It runs at the root of the captain's flyPad, not on the Pushback page, so that a pushback keeps going and stays
- * steerable while the crew looks at another flyPad page (user's choice, 2026-10-11; the page used to stop the tug when
- * left, as its controls were gone).
+ * steerable while the crew looks at another flyPad page (design choice: leaving the page must not stop the tug).
  */
 
 /** Inputs within this deadzone command nothing (rudder pedals and sidestick, as the Pushback page always did) */

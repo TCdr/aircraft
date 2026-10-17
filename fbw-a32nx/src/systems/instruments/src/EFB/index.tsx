@@ -42,7 +42,7 @@ render(
           oew: 42_500,
           mtow: 79_000,
         }),
-        // A320 FCOM LIM-13 BUFFET ONSET chart (Performance > Buffet)
+        // A320 buffet onset chart (Performance > Buffet)
         buffetEnvelope: A320_BUFFET_ENVELOPE,
       },
       pushbackPage: {
