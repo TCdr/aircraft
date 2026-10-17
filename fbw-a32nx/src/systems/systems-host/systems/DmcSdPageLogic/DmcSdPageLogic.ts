@@ -216,12 +216,12 @@ export class DmcSdPageLogic {
 
     this.sdWarningOverridePulseNode.write(fwcSdPageRequest !== this.prevFwcRequestedSdPage);
 
-    // An empty STATUS page shows NORMAL for 3 s (A320 FCOM DSC-31-30 STS pb); the FWC says whether it is empty
+    // An empty STATUS page shows NORMAL for 3 s; the FWC says whether it is empty
     const stsNormal = SimVar.GetSimVarValue('L:A32NX_ECAM_STATUS_NORMAL', 'Bool') !== 0;
     this.stsPageNormalMtrig.write(systemPageButtonPressed === SdPages.STS && stsNormal, dt);
     this.stsPageNormalPulse.write(this.stsPageNormalMtrig.read());
 
-    // CLR removes the STATUS page called with the STS pb, once no alert is shown on the E/WD (A320 FCOM DSC-31-30)
+    // CLR removes the STATUS page called with the STS pb, once no alert is shown on the E/WD
     const clearPressed =
       this.ecpWarningSwitchWord.get().bitValueOr(11, false) || this.ecpWarningSwitchWord.get().bitValueOr(16, false);
     this.clearPulseNode.write(clearPressed);

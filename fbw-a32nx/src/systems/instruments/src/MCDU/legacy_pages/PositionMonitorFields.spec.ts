@@ -26,7 +26,7 @@ const reading: PositionMonitorReading = {
   onSide: 1,
 };
 
-describe('MCDU POSITION MONITOR page (A320 FCOM DSC-22_20-50-10-28)', () => {
+describe('MCDU POSITION MONITOR page', () => {
   it('shows FMGC 1 and 2 with their navigation mode, the GPIRS and the MIX IRS positions', () => {
     const lines = positionMonitorLines(reading);
     expect(lines[1][0]).toBe('{small}FMS1{end}');
@@ -69,7 +69,7 @@ describe('MCDU POSITION MONITOR page (A320 FCOM DSC-22_20-50-10-28)', () => {
   });
 });
 
-describe('MCDU PROG page POSITION UPDATE AT (A320 FCOM DSC-22_20-30-10-18)', () => {
+describe('MCDU PROG page POSITION UPDATE AT', () => {
   it('is hidden in GPS PRIMARY', () => {
     expect(positionUpdateAtLines(true, null)).toEqual([[''], ['']]);
   });

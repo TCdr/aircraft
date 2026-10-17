@@ -68,15 +68,12 @@ export const NXSystemMessages = {
   awyWptMismatch: new TypeIMessage('AWY/WPT MISMATCH'),
   cancelAtisUpdate: new TypeIMessage('CANCEL UPDATE BEFORE'), // FIXME move out of FMS
   checkAltnWind: new TypeIIMessage('CHECK ALTN WIND'),
-  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22532, l.22539-22541): II/W
   checkDataBaseCycle: new TypeIIMessage('CHECK DATA BASE CYCLE'),
-  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22534, l.22543-22547): II/A
   checkDestData: new TypeIIMessage('CHECK DEST DATA', true),
   checkMinDestFob: new TypeIIMessage('CHECK MIN DEST FOB'),
   checkToData: new TypeIIMessage('CHECK TAKE OFF DATA', true),
   checkWeight: new TypeIIMessage('CHECK WEIGHT', true),
   comUnavailable: new TypeIMessage('COM UNAVAILABLE'), // FIXME move out of FMS
-  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22601, l.22620-22621): II/W
   crzFlAboveMaxFl: new TypeIIMessage('CRZ FL ABOVE MAX FL'),
   cstrDelUpToWpt: new TypeIIMessage('CSTR DEL UP TO WWWWW', false, 'WWWWW'),
   databaseCodingError: new TypeIIMessage('DATABASE CODING ERROR'),
@@ -121,7 +118,6 @@ export const NXSystemMessages = {
   stepAhead: new TypeIIMessage('STEP AHEAD'),
   stepDeleted: new TypeIIMessage('STEP DELETED'),
   temporaryFplnExists: new TypeIMessage('TEMPORARY F-PLN EXISTS'),
-  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.23095, l.23116-23118): II/A
   timeToExit: new TypeIIMessage('TIME TO EXIT', true),
   windTempDataUplk: new TypeIIMessage('WIND/TEMP DATA UPLK'),
   windTempUplkPending: new TypeIIMessage('WIND/TEMP UPLK PENDING', true),

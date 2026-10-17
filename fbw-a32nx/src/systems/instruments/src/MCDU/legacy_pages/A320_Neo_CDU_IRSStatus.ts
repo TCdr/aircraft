@@ -5,6 +5,7 @@ import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { SimVarValueType } from '@microsoft/msfs-sdk';
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { FmsFormatters } from '../legacy/FmsFormatters';
+import { NO_POSITION_TEXT } from './PositionMonitorFields';
 
 export class CDUIRSStatus {
   private static frozen = false;
@@ -123,15 +124,14 @@ export class CDUIRSStatus {
   private static readonly gpirsLongitude = Arinc429Register.empty();
   private static readonly gpirsFigureOfMerit = Arinc429Register.empty();
 
-  /** Feet in a nautical mile */
+  /** The GPIRS figure of merit word is in NM, the page shows it in feet */
   private static readonly FEET_PER_NM = 6076.12;
 
   static ShowPage(mcdu: LegacyFmsPageInterface, index: 1 | 2 | 3, frozenTime?: string): void {
     if (!this.frozen) {
       mcdu.clearDisplay();
       this.populateIrData(index);
-      // [5L] GPIRS: "GPS/IRS hybrid position of the IRS"; [4R] GPIRS ACCUR: "GPS/IRS Figure of Merit (meters or feet)"
-      // (A320 FCOM DSC-22_20-50-10-28 IRS page, a320_fcom.txt l.19774-19796): the GPIRS words of this ADIRU
+      // [5L] GPIRS: the hybrid GPS/IRS position of this ADIRU; [4R] GPIRS ACCUR: its figure of merit
       this.gpirsLatitude.setFromSimVar(`L:A32NX_ADIRS_IR_${index}_GPIRS_LATITUDE`);
       this.gpirsLongitude.setFromSimVar(`L:A32NX_ADIRS_IR_${index}_GPIRS_LONGITUDE`);
       this.gpirsFigureOfMerit.setFromSimVar(`L:A32NX_ADIRS_IR_${index}_GPIRS_FIGURE_OF_MERIT`);
@@ -178,7 +178,7 @@ export class CDUIRSStatus {
         [
           gpirsValid
             ? `${coordinateToString(this.gpirsCoordinates, false)}[color]green`
-            : '--°--.--/---°--.--[color]white',
+            : `${NO_POSITION_TEXT}[color]white`,
         ],
         ['', ''],
         [this.frozen ? '{UNFREEZE[color]cyan' : '{FREEZE[color]cyan', 'NEXT IRS>'],

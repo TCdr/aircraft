@@ -31,8 +31,8 @@ const MODE_TEXTS = ['----', 'INIT', 'ACQ', 'NAV', 'FAULT', 'TEST', 'ALTAID', 'AI
 const NAVIGATION_MODES = [3, 6, 7, 8];
 
 /**
- * The values of one receiver on the POSITION / GPS page (A380 FCOM DSC-22-FMS-20-30): the mode, the number of
- * satellites (while acquiring and navigating), and the accuracy (HFOM, in FT as on the FCOM figure), true track,
+ * The values of one receiver on the POSITION / GPS page: the mode, the number of
+ * satellites (while acquiring and navigating), and the accuracy (HFOM, in FT), true track,
  * altitude and ground speed while the receiver computes a position (NAV, ALTAID, AIDED, DIFF); dashes otherwise.
  */
 export function gpsReceiverTexts(outputs: GpsReceiverOutputs): GpsReceiverTexts {

@@ -17,7 +17,7 @@ import { fcomAt, fcomCentre, fcomRight } from '../../common/FcomLayout';
 interface MfdFmsFplnCpnyFplnReqProps extends AbstractMfdPageProps {}
 
 /**
- * COMPANY F-PLN REQUEST page (A380 FCOM DSC-22-FMS-20-30 "COMPANY F-PLN REQUEST PAGE"): flight number, company route
+ * COMPANY F-PLN REQUEST page: flight number, company route
  * and free text of the flight plan request, sent with SEND F-PLN REQUEST for the flight plan the page was opened from.
  *
  * The company ground station is SimBrief: the request downloads the SimBrief OFP, whatever the entered data.
@@ -33,7 +33,7 @@ export class MfdFmsFplnCpnyFplnReq extends FmsFlightPlanPage<MfdFmsFplnCpnyFplnR
     .getCpnyFplnUplinkInProgress()
     .map((pending) => (pending ? 'REQUEST\nPENDING...' : 'SEND F-PLN\nREQUEST'));
 
-  /** FCOM: after engine start, a flight plan request can only be sent from a secondary flight plan */
+  /** After engine start, a flight plan request can only be sent from a secondary flight plan */
   private readonly sendButtonDisabled = MappedSubject.create(
     ([pending, enginesStarted, planIndex]) => pending || (enginesStarted && planIndex < FlightPlanIndex.FirstSecondary),
     this.props.fmcService.master.getCpnyFplnUplinkInProgress(),
@@ -56,7 +56,7 @@ export class MfdFmsFplnCpnyFplnReq extends FmsFlightPlanPage<MfdFmsFplnCpnyFplnR
     super.onAfterRender(node);
 
     this.subs.push(
-      // The FCOM page title has no flight plan prefix
+      // The page title has no flight plan prefix
       this.props.mfd.uiService.activeUri.sub(() => this.activePageTitle.set('COMPANY F-PLN REQUEST'), true),
       this.sendButtonLabel,
       this.sendButtonDisabled,
@@ -67,7 +67,7 @@ export class MfdFmsFplnCpnyFplnReq extends FmsFlightPlanPage<MfdFmsFplnCpnyFplnR
     return (
       <>
         {super.render()}
-        {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 28), page container coordinates */}
+        {/* Positions measured on the reference figure of the page, in page container coordinates */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas">
             {fcomRight(56, 143, <span class="mfd-label">FLT NBR</span>)}

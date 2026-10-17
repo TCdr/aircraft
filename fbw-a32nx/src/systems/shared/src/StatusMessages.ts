@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The parts of the A320 ECAM STATUS page (FCOM DSC-31-20): limitations (blue), approach procedures (white), procedures
+ * The parts of the A320 ECAM STATUS page: limitations (blue), approach procedures (white), procedures
  * (blue) and information (green) on the left; inoperative systems (amber) on the right. Only the parts used by the
  * alerts that have their status modelled are here.
  */

@@ -15,7 +15,7 @@ const idle: EcamStatusInputs = {
   sdShowsStatus: false,
 };
 
-describe('A320 ECAM STATUS page display and STS reminder (FCOM DSC-31-20, DSC-31-25-20)', () => {
+describe('A320 ECAM STATUS page display and STS reminder', () => {
   it('calls the STATUS page when the last alert is cleared and the page is not empty', () => {
     const status = new EcamStatus();
     expect(status.update({ ...idle, leftFailureDisplayed: true }).requestStatusPage).toBe(false);

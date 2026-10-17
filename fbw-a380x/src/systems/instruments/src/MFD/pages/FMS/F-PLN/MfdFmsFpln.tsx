@@ -464,7 +464,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
         }
 
         if (leg instanceof FlightPlanLeg && this.isPendingAbeamPoint(leg)) {
-          // FCOM DSC-22-FMS-20-30 P 162: a pending DIRECT WITH ABEAM shows ABEAM PTS instead of its abeam points
+          // A pending DIRECT WITH ABEAM shows ABEAM PTS instead of its abeam points
           const previous = jointFlightPlan[i - 1];
           if (!(previous instanceof FlightPlanLeg && this.isPendingAbeamPoint(previous))) {
             this.lineData.push({ type: FplnLineType.Special, originalLegIndex: null, label: '(ABEAM PTS)' });
@@ -1245,7 +1245,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
                 },
                 {
                   label: 'CLOSEST AIRPORTS',
-                  // FCOM DSC-22-FMS-20-30 CLOSEST AIRPORTS page: accessed via the ACTIVE / F-PLN page only
+                  // CLOSEST AIRPORTS page: accessed via the ACTIVE / F-PLN page only
                   disabled: this.secActive,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
@@ -1254,7 +1254,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
                 },
                 {
                   label: 'EQUI-TIME POINT',
-                  // FCOM DSC-22-FMS-20-30 P 135: only available for the active flight plan
+                  // Only available for the active flight plan
                   disabled: this.secActive,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
@@ -1266,7 +1266,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
                   disabled: this.secActive,
                   action: () => this.props.mfd.uiService.navigateTo(fixInfoUri),
                 },
-                // FCOM DSC-22-FMS-20-30 p.211: LL CROSSING and TIME MARKER both open the LL XING - TIME MKR page
+                // LL CROSSING and TIME MARKER both open the LL XING - TIME MKR page
                 {
                   label: 'LL CROSSING',
                   action: () =>
@@ -1276,7 +1276,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
                 },
                 {
                   label: 'TIME MARKER',
-                  // FCOM P 210: the time markers are for the active flight plan only
+                  // The time markers are for the active flight plan only
                   disabled: this.secActive,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
@@ -1285,7 +1285,6 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
                 },
                 {
                   label: 'CPNY F-PLN REPORT',
-                  // FCOM DSC-22-FMS-20-30 P 25: only available for the active flight plan
                   disabled: this.secActive,
                   action: () => this.props.mfd.uiService.navigateTo(`fms/active/${cpnyFplnReportPage}`),
                 },

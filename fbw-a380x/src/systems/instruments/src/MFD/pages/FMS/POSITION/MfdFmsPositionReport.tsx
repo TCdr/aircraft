@@ -38,7 +38,7 @@ class WaypointLine {
   readonly altitude = Subject.create('-----');
 }
 
-/** Legs whose fix is not a navigation database or pilot stored waypoint (FCOM: "T-P, PPOS, IN-BND, etc") */
+/** Legs whose fix is not a navigation database or pilot stored waypoint (T-P, PPOS, IN-BND, etc.) */
 const nonWaypointIdents: ReadonlySet<string> = new Set([
   turningPointIdent,
   pposPointIDent,
@@ -46,7 +46,7 @@ const nonWaypointIdents: ReadonlySet<string> = new Set([
   outboundPointIdent,
 ]);
 
-/** Pseudo waypoints that are a cruise vertical profile change (FCOM: S/C, S/D, T/D), keyed by their F-PLN ident */
+/** Pseudo waypoints that are a cruise vertical profile change (S/C, S/D, T/D), keyed by their F-PLN ident */
 const cruiseProfileChangeTypes: ReadonlyMap<string, string> = new Map([
   ['(S/C)', 'S/C'],
   ['(S/D)', 'S/D'],
@@ -54,7 +54,7 @@ const cruiseProfileChangeTypes: ReadonlyMap<string, string> = new Map([
 ]);
 
 /**
- * POSITION / REPORT page (A380 FCOM DSC-22-FMS-20-30 "POSITION / REPORT PAGE"): recorded data of the last sequenced
+ * POSITION / REPORT page: recorded data of the last sequenced
  * waypoint, predictions for the TO and NEXT waypoints, the next cruise vertical profile change (in cruise only) and
  * the destination, plus a free text for the position report. Times follow the PERM DATA SETUP (UTC or flight time).
  *
@@ -80,7 +80,7 @@ export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
 
   private readonly lastSequencedFob = Subject.create('---.-');
 
-  /** FCOM: times are UTC, or the flight time when the PERM DATA SETUP asks for it */
+  /** Times are UTC, or the flight time when the PERM DATA SETUP asks for it */
   private readonly timeHeader = this.timeKeeper.timeReference.map((reference) =>
     reference === FmsTimeReference.FlightTime || reference === FmsTimeReference.BlockTime ? 'TIME' : 'UTC',
   );
@@ -165,7 +165,7 @@ export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
     this.lastSequencedFob.set(formatTonnes(record?.fuelOnBoard ?? null));
   }
 
-  /** TO and NEXT are the next two navigation database or pilot stored waypoints of the flight plan (FCOM). */
+  /** TO and NEXT are the next two navigation database or pilot stored waypoints of the flight plan. */
   private updateToAndNextWaypoints(plan: ReadonlyFlightPlan, transitionAltitude: number | null): void {
     const predictions =
       plan.index === FlightPlanIndex.Active
@@ -226,8 +226,7 @@ export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
 
     const leg = plan.maybeElementAt(next.alongLegIndex);
     const startWaypointIdent = isLeg(leg) ? leg.ident : '-------';
-    // A step starts at its waypoint towards the step altitude; a T/D leaves the current altitude (FCOM: "target
-    // altitude (or current altitude)")
+    // Altitude of the change: a step goes from its waypoint to the step altitude; a T/D leaves the current altitude
     const targetAltitude = (isLeg(leg) ? leg.cruiseStep?.toAltitude : undefined) ?? next.flightPlanInfo.altitude;
 
     this.profileChangeType.set(cruiseProfileChangeTypes.get(next.ident) ?? 'NONE');
@@ -247,7 +246,7 @@ export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
     );
   }
 
-  /** Altitude as in the FCOM figure: a small blue FL before a flight level, FT after an altitude in feet. */
+  /** Altitude: a small blue FL before a flight level, FT after an altitude in feet. */
   private static renderAltitude(altitude: Subscribable<string>): VNode {
     return (
       <>
@@ -260,7 +259,7 @@ export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
     );
   }
 
-  /** One line of the waypoint data table, at the FCOM p.309 positions (container coordinates). */
+  /** One line of the waypoint data table, at the reference figure positions (container coordinates). */
   private renderWaypointLine(label: string, line: WaypointLine, top: number): VNode {
     return (
       <>
@@ -284,12 +283,10 @@ export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
     return (
       <>
         {super.render()}
-        {/* begin page content */}
         <div class="mfd-page-container">
-          {/* Positions follow the FCOM figure (DSC-22-FMS-20-30 P 309): four data areas separated by lines, the free
+          {/* Positions measured on the reference figure: four data areas separated by lines, the free
               text entry field and the SEND REPORT button at the bottom */}
           <div class="mfd-position-report-canvas">
-            {/* WAYPOINT DATA */}
             <div class="mfd-position-report-item mfd-position-report-time-header" style="top: 8px;">
               <span class="mfd-label">{this.timeHeader}</span>
             </div>
@@ -301,7 +298,6 @@ export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
             {this.renderWaypointLine('NEXT WPT', this.nextWaypoint, 135)}
             <div class="mfd-position-report-separator" style="top: 185px;" />
 
-            {/* LAST SEQUENCED WAYPOINT DATA */}
             <div class="mfd-position-report-item" style="top: 199px; left: 8px;">
               <span class="mfd-label">LAST SEQD WPT</span>
             </div>
@@ -382,7 +378,6 @@ export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
             </div>
             <div class="mfd-position-report-separator" style="top: 533px;" />
 
-            {/* DESTINATION DATA */}
             <div class="mfd-position-report-item" style="top: 536px; left: 8px;">
               <span class="mfd-label">DEST</span>
             </div>
@@ -417,7 +412,6 @@ export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
             </div>
             <div class="mfd-position-report-separator" style="top: 729px;" />
 
-            {/* FREE TEXT ENTRY FIELD (24 characters) and SEND REPORT button */}
             <div class="mfd-position-report-item mfd-position-report-free-text-label">
               <span class="mfd-label">FREE TEXT</span>
             </div>

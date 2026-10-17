@@ -222,7 +222,7 @@ export class CDUDirectToPage {
   }
 
   /**
-   * Rebuilds the DIR TO temporary flight plan with another DIRECT TO / INTERCEPT function (A320 FCOM l.18291-18360)
+   * Rebuilds the DIR TO temporary flight plan with another DIRECT TO / INTERCEPT function
    */
   private static applyFunction(
     mcdu: LegacyFmsPageInterface,
