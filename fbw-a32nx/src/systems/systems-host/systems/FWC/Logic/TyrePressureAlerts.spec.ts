@@ -14,7 +14,7 @@ import {
   WHEEL_TYRE_LO_PR_PHASE_INHIBITION,
 } from './TyrePressureAlerts';
 
-/** TPIS installed, every tyre at its nominal pressure (main 200, nose 180 PSI), on the ground (phase 1) */
+/** TPIS installed, every tyre at a round nominal pressure (main 200, nose 180 PSI), on the ground (phase 1) */
 const normal: TyrePressureAlertInputs = {
   tpisInstalled: true,
   pressuresPsi: TYRES.map((tyre) => (tyre >= Tyre.Nose1 ? 180 : 200)),

@@ -7,9 +7,10 @@
 //! nominal pressure between liftoff and engine shutdown (15 % in other cases). The TPIS is lost with ELEC DC BUS 1
 //! FAULT.
 //!
-//! No published tyre figures. Design choices:
-//! - The nominal pressures (A320 main 46x17R20 and nose 30x8.8R15 tyres): main 200 PSI, nose 180 PSI, still to be
-//!   checked against the published A320 inflation pressures.
+//! The nominal pressures are the Airbus published inflation pressures of the A320neo at its 79.4 t maximum ramp weight:
+//! main 46x17R20 tyres 14.4 bar (209 PSI), nose 30x8.8R15 tyres 12.3 bar (178 PSI).
+//!
+//! Design choices:
 //! - The tyres are inflated to their nominal pressure at the outside air temperature of the start of the session.
 //!   The pressure then follows the gas temperature (Gay-Lussac: the absolute pressure is proportional to the absolute
 //!   temperature). The gas temperature tends to the outside air temperature with a 2 h time constant (the wheel wells
@@ -191,8 +192,8 @@ pub struct A320TyrePressureIndicatingSystem {
     pressures: Vec<Pressure>,
 }
 impl A320TyrePressureIndicatingSystem {
-    const MAIN_NOMINAL_PRESSURE_PSI: f64 = 200.;
-    const NOSE_NOMINAL_PRESSURE_PSI: f64 = 180.;
+    const MAIN_NOMINAL_PRESSURE_PSI: f64 = 209.;
+    const NOSE_NOMINAL_PRESSURE_PSI: f64 = 178.;
 
     pub fn new(context: &mut InitContext) -> Self {
         let main = Pressure::new::<psi>(Self::MAIN_NOMINAL_PRESSURE_PSI);
@@ -270,6 +271,10 @@ mod tests {
             Aircraft,
         },
     };
+
+    /// The published A320neo inflation pressures, maximum ramp weight 79.4 t
+    const MAIN_PSI: f64 = 209.;
+    const NOSE_PSI: f64 = 178.;
 
     struct TestAircraft {
         tpis: A320TyrePressureIndicatingSystem,
@@ -356,15 +361,15 @@ mod tests {
 
         for main in ["MAIN_1", "MAIN_2", "MAIN_3", "MAIN_4"] {
             assert!(pressure_word(&mut test_bed, main).is_normal_operation());
-            assert_about_eq!(pressure_psi(&mut test_bed, main), 200., 0.5);
+            assert_about_eq!(pressure_psi(&mut test_bed, main), MAIN_PSI, 0.5);
         }
         for nose in ["NOSE_1", "NOSE_2"] {
-            assert_about_eq!(pressure_psi(&mut test_bed, nose), 180., 0.5);
+            assert_about_eq!(pressure_psi(&mut test_bed, nose), NOSE_PSI, 0.5);
         }
         let main_nominal: f64 = test_bed.read_by_name("TPIS_MAIN_NOMINAL_TYRE_PRESSURE");
         let nose_nominal: f64 = test_bed.read_by_name("TPIS_NOSE_NOMINAL_TYRE_PRESSURE");
-        assert_about_eq!(main_nominal, 200.);
-        assert_about_eq!(nose_nominal, 180.);
+        assert_about_eq!(main_nominal, MAIN_PSI);
+        assert_about_eq!(nose_nominal, NOSE_PSI);
     }
 
     /// The tyres are inflated at the outside air temperature of the start: a cold start is no low pressure
@@ -375,7 +380,7 @@ mod tests {
         set_brake_temperatures(&mut test_bed, [-20.; 4]);
         run_minutes(&mut test_bed, 30);
 
-        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_1"), 200., 0.5);
+        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_1"), MAIN_PSI, 0.5);
     }
 
     /// ELEC DC BUS 1 FAULT: TPIS lost
@@ -400,8 +405,14 @@ mod tests {
 
         let main = pressure_psi(&mut test_bed, "MAIN_1");
         let nose = pressure_psi(&mut test_bed, "NOSE_1");
-        assert!(main < 175. && main > 0.74 * 200., "main tyre {main} psi");
-        assert!(nose < 160. && nose > 0.74 * 180., "nose tyre {nose} psi");
+        assert!(
+            main < 0.85 * MAIN_PSI && main > 0.74 * MAIN_PSI,
+            "main tyre {main} psi"
+        );
+        assert!(
+            nose < 0.85 * NOSE_PSI && nose > 0.74 * NOSE_PSI,
+            "nose tyre {nose} psi"
+        );
     }
 
     #[test]
@@ -411,9 +422,9 @@ mod tests {
         run_minutes(&mut test_bed, 60);
 
         let hot = pressure_psi(&mut test_bed, "MAIN_1");
-        assert!(hot > 205., "main tyre 1 {hot} psi");
-        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_2"), 200., 0.5);
-        assert_about_eq!(pressure_psi(&mut test_bed, "NOSE_1"), 180., 0.5);
+        assert!(hot > MAIN_PSI + 5., "main tyre 1 {hot} psi");
+        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_2"), MAIN_PSI, 0.5);
+        assert_about_eq!(pressure_psi(&mut test_bed, "NOSE_1"), NOSE_PSI, 0.5);
     }
 
     /// A brake temperature word without computed data (brakes not reported yet) adds no brake heat
@@ -427,7 +438,7 @@ mod tests {
         );
         run_minutes(&mut test_bed, 60);
 
-        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_1"), 200., 0.5);
+        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_1"), MAIN_PSI, 0.5);
     }
 
     /// A deflating tyre leaks 10 PSI/min (as the A380X TPIS): about 2 min to the 89 % on-ground threshold
@@ -436,10 +447,13 @@ mod tests {
         let mut test_bed = test_bed();
         test_bed.fail(FailureType::TyreDeflated(1));
         run_minutes(&mut test_bed, 1);
-        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_1"), 190., 0.5);
+        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_1"), MAIN_PSI - 10., 0.5);
         run_minutes(&mut test_bed, 2);
         let main = pressure_psi(&mut test_bed, "MAIN_1");
-        assert!(main < 0.89 * 200. && main > 165., "main tyre 1 {main} psi");
+        assert!(
+            main < 0.89 * MAIN_PSI && main > MAIN_PSI - 35.,
+            "main tyre 1 {main} psi"
+        );
     }
 
     /// A burst tyre is nearly empty within a minute, and back when repaired
@@ -448,14 +462,14 @@ mod tests {
         let mut test_bed = test_bed();
         test_bed.fail(FailureType::TyreBurst(3));
         test_bed.run_with_delta(Duration::from_secs(5));
-        assert!(pressure_psi(&mut test_bed, "MAIN_3") < 0.89 * 200.);
+        assert!(pressure_psi(&mut test_bed, "MAIN_3") < 0.89 * MAIN_PSI);
         run_minutes(&mut test_bed, 1);
         assert!(pressure_psi(&mut test_bed, "MAIN_3") < 15.);
-        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_4"), 200., 0.5);
+        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_4"), MAIN_PSI, 0.5);
 
         test_bed.unfail(FailureType::TyreBurst(3));
         test_bed.run_with_delta(Duration::from_secs(1));
-        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_3"), 200., 0.5);
+        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_3"), MAIN_PSI, 0.5);
     }
 
     #[test]
@@ -467,11 +481,11 @@ mod tests {
 
         assert!(pressure_psi(&mut test_bed, "MAIN_2") < 5.);
         assert!(pressure_psi(&mut test_bed, "NOSE_2") < 5.);
-        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_1"), 200., 0.5);
-        assert_about_eq!(pressure_psi(&mut test_bed, "NOSE_1"), 180., 0.5);
+        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_1"), MAIN_PSI, 0.5);
+        assert_about_eq!(pressure_psi(&mut test_bed, "NOSE_1"), NOSE_PSI, 0.5);
 
         test_bed.unfail(FailureType::TyreDeflated(2));
         test_bed.run_with_delta(Duration::from_secs(1));
-        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_2"), 200., 0.5);
+        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_2"), MAIN_PSI, 0.5);
     }
 }
