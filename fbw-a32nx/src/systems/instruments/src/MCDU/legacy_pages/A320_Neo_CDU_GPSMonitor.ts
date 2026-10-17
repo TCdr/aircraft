@@ -4,7 +4,7 @@ import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { GpsReceiverReading, gpsMonitorFields } from './GpsMonitorFields';
 
 /**
- * GPS MONITOR page (A320 FCOM DSC-22_20-50-10-28): the data of the GPS receivers of MMR 1 and MMR 2 (position, true
+ * GPS MONITOR page: the data of the GPS receivers of MMR 1 and MMR 2 (position, true
  * track, ground speed, UTC, figure of merit, mode and satellites tracked, GPS altitude).
  */
 export class CDUGPSMonitor {

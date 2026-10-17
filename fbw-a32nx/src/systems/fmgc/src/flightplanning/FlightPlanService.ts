@@ -292,7 +292,7 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
       });
     }
 
-    // DIRECT WITH ABEAM: the abeam points appear once the direct to is inserted (A380 FCOM DSC-22-FMS, ABEAM PTS)
+    // DIRECT WITH ABEAM: the abeam points appear once the direct to is inserted (shown as ABEAM PTS until then)
     temporaryPlan.allLegs.forEach((leg, index) => {
       if (leg.isDiscontinuity === false && BitFlags.isAny(leg.flags, FlightPlanLegFlags.PendingDirectToAbeamPoint)) {
         temporaryPlan.editLegFlags(index, leg.flags & ~FlightPlanLegFlags.PendingDirectToAbeamPoint);

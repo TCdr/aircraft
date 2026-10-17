@@ -5,8 +5,8 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 import { Coordinates, distanceTo } from 'msfs-geo';
 
 /*
- * The trigger conditions of FMS messages of the A320 MCDU message list (a320_fcom.txt l.22472-23180) and of the A380
- * MFD message list (a380_fcom.txt l.44767-46377), as pure functions shared by both aircraft.
+ * The trigger conditions of FMS messages of the A320 MCDU and of the A380 MFD, as pure functions shared by both
+ * aircraft.
  */
 
 /** A send or recall of a type II message, by its text */
@@ -47,9 +47,9 @@ export interface RnpMessage {
 }
 
 /**
- * AREA RNP IS XX.XX (A320 l.22494-22497, A380 l.44876-44881): the RNP manually entered is larger than the default RNP of
- * the flight area, and the database has no RNP for the active leg. PROCEDURE RNP IS / PROC RNP IS XX.XX (A320
- * l.22919-22921, A380 l.45916-45920): the RNP manually entered is larger than the RNP of the database for the active leg.
+ * AREA RNP IS XX.XX: the RNP manually entered is larger than the default RNP of the flight area, and the database has
+ * no RNP for the active leg. PROCEDURE RNP IS / PROC RNP IS XX.XX: the RNP manually entered is larger than the RNP of
+ * the database for the active leg.
  * @param pilotRnp the RNP entered by the flight crew, null without entry
  * @param legRnp the RNP of the active leg in the database, undefined or null without one
  * @param areaRnp the default RNP of the current flight area
@@ -86,9 +86,8 @@ export function utcCalendarDate(year: number, month: number, day: number): strin
 }
 
 /**
- * Whether the date is in the effectivity of the active navigation database: else CHECK DATA BASE CYCLE (A320
- * l.22539-22541) / CHECK DATABASE CYCLE (A380 l.44998-45003) "The current date does not match the effectivity of the
- * active navigation database". An unknown effectivity raises nothing.
+ * Whether the date is in the effectivity of the active navigation database: else CHECK DATA BASE CYCLE (A320) /
+ * CHECK DATABASE CYCLE (A380). An unknown effectivity raises nothing.
  * @param today the UTC date (utcCalendarDate)
  * @param ident the effectivity of the active database, null when unknown
  */
@@ -102,11 +101,11 @@ export function isNavDatabaseCycleCurrent(
   return today >= ident.effectiveFrom && today <= ident.effectiveTo;
 }
 
-/** CHECK IRS/AIRPORT POS (A320 l.22552-22553): "is at least 5 NM" */
-export const IRS_AIRPORT_POSITION_DISAGREE_NM = 5;
+/** CHECK IRS/AIRPORT POS: an IRS alignment position this far or farther from the airport, NM */
+const IRS_AIRPORT_POSITION_DISAGREE_NM = 5;
 
 /**
- * CHECK IRS/AIRPORT POS (A320 l.22552-22553) / CHECK IRS / ARPT POSITION (A380 l.45028-45033): the distance between an
+ * CHECK IRS/AIRPORT POS (A320) / CHECK IRS / ARPT POSITION (A380): the distance between an
  * IRS alignment position and the database airport reference point is at least 5 NM.
  * @param irsPositions the IRS positions, null for an IRS without a valid position
  * @param airport the airport reference point, null without an airport
@@ -123,11 +122,11 @@ export function isIrsAirportPositionDisagree(
   );
 }
 
-/** IRS ONLY NAVIGATION (A320 l.22750-22756): "for more than 10 min" */
+/** IRS ONLY NAVIGATION: the time in IRS only navigation after which the message is shown */
 export const IRS_ONLY_NAVIGATION_DELAY_MS = 10 * 60_000;
 
 /**
- * IRS ONLY NAVIGATION (A320 l.22750-22756): the aircraft is neither in an approach nor in a terminal area, and it has
+ * IRS ONLY NAVIGATION (A320): the aircraft is neither in an approach nor in a terminal area, and it has
  * been in IRS only navigation for more than 10 min, or it is in IRS only navigation at the start of the descent phase.
  * Design choice: in flight only (climb, cruise, descent phases).
  */
@@ -153,7 +152,7 @@ export class IrsOnlyNavigationLogic {
 }
 
 /**
- * TIME TO EXIT (A320 l.23116-23118, A380 l.46252-46256): in the holding, the extra fuel is zero (or less)
+ * TIME TO EXIT: in the holding, the extra fuel is zero (or less)
  * @param inHolding the active leg is a holding
  * @param extraFuel the extra fuel, null without predictions
  */
@@ -164,8 +163,8 @@ export function isTimeToExitHolding(inHolding: boolean, extraFuel: number | null
 const SECONDS_PER_DAY = 86_400;
 
 /**
- * Whether the clock has passed a time of day since the previous check (T.O TIME REACHED, A380 l.46287-46291: the aircraft
- * clock reaches the ETT), across midnight
+ * Whether the clock has passed a time of day since the previous check (T.O TIME REACHED, A380: the aircraft clock
+ * reaches the ETT), across midnight
  * @param previousClock the clock at the previous check, s of the UTC day, null at the first check
  * @param clock the clock now, s of the UTC day
  * @param time the time to reach, s of the UTC day
@@ -180,7 +179,7 @@ export function hasClockReachedTime(previousClock: number | null, clock: number,
 }
 
 /**
- * EXPECT TURN AREA EXCEEDANCE (A380 l.45384-45389): the active or the next leg is a procedure turn that exceeds the
+ * EXPECT TURN AREA EXCEEDANCE (A380): the active or the next leg is a procedure turn that exceeds the
  * excursion distance of the navigation database
  * @param legs the active and next legs of the guidance geometry
  */
@@ -191,8 +190,8 @@ export function isProcedureTurnExceedanceAhead(
 }
 
 /**
- * ENTER DEST DATA (A320 l.22665, l.22668-22669): a destination QNH, temperature or wind is missing. CHECK DEST DATA (A320
- * l.22534, l.22543-22547): the destination data were received by uplink (the wind not entered by the flight crew).
+ * ENTER DEST DATA: a destination QNH, temperature or wind is missing. CHECK DEST DATA: the destination data were
+ * received by uplink (the wind not entered by the flight crew).
  * @param qnh the approach QNH, null when missing
  * @param temperature the approach temperature, null when missing
  * @param windDirection the approach wind direction, null when missing

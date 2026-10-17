@@ -27,8 +27,10 @@ interface MfdFmsFplnAlternateProps extends AbstractMfdPageProps {}
 
 const NUM_OTHER_ALTERNATES = 2;
 
-/** FCOM DSC-22-FMS-20-30 P 10: the database alternate list has a maximum of 6 airports */
+/** The database alternate list has a maximum of 6 airports */
 const NUM_DATABASE_ALTERNATES = 6;
+
+const airportButtonStyle = 'min-width: 116px; padding: 9px 2px 5px 2px; white-space: nowrap;';
 
 /** One alternate line: company route, direct track and distance from the primary destination, extra fuel */
 class AlternateLine {
@@ -51,14 +53,14 @@ class AlternateLine {
 }
 
 /**
- * ALTERNATE page (A380 FCOM DSC-22-FMS-20-30 "ALTERNATE PAGE"): the selected alternate, NO ALTN, and up to two other
+ * ALTERNATE page: the selected alternate, NO ALTN, and up to two other
  * airports entered by the flight crew, with the direct track and distance from the primary destination and the extra
  * fuel. Any of them can be selected as the alternate destination.
  *
  * The database alternates are the company alternates of the destination: the navigation data has no alternate
  * records, so they come from the company flight plan (the alternates of the SimBrief OFP for this destination).
  * Not modelled: alternate company routes.
- * The fuel to an alternate is the FCOM default ALTN computation (CI 0, FL220 below 200 NM, else FL310) over the direct
+ * The fuel to an alternate is the default ALTN computation (CI 0, FL220 below 200 NM, else FL310) over the direct
  * distance, from the destination EFOB. Simplified: the selection inserts the alternate directly instead of creating a
  * temporary flight plan.
  */
@@ -73,7 +75,7 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
 
   private readonly databaseLines = Array.from({ length: NUM_DATABASE_ALTERNATES }, () => new AlternateLine());
 
-  /** Company alternates of the displayed destination, and the airport locations already looked up */
+  /** The company alternates last seen: the airport locations are only searched again when they change */
   private databaseAlternatesKey = '';
 
   private readonly airportLocations = new Map<string, Coordinates | null>();
@@ -149,7 +151,7 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
     });
   }
 
-  /** The destination EFOB in tonnes; FCOM: the extra fuel is dashed when a MIN FUEL AT DEST is entered */
+  /** The destination EFOB in tonnes; the extra fuel is dashed when a MIN FUEL AT DEST is entered */
   private destinationEfob(): number | null {
     const plan = this.loadedFlightPlan;
     if (!plan || plan.performanceData.isMinimumDestinationFuelOnBoardPilotEntered.get()) {
@@ -189,7 +191,7 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
     );
   }
 
-  /** Fuel in tonnes to the alternate: the FCOM default ALTN computation (CI 0, FL220 below 200 NM, else FL310) */
+  /** Fuel in tonnes to the alternate: the default ALTN computation (CI 0, FL220 below 200 NM, else FL310) */
   private fuelToAlternate(distance: number, alternateElevation: number, destinationEfob: number): number | null {
     const zfw = this.loadedFlightPlan?.performanceData.zeroFuelWeight.get() ?? null;
     if (zfw === null) {
@@ -231,10 +233,16 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
     this.update();
   }
 
-  private otherAlternateMenu(line: AlternateLine): Subscribable<ButtonMenuItem[]> {
-    const menu = line.ident.map((ident): ButtonMenuItem[] => [
+  private airportMenuItems(ident: string | null): ButtonMenuItem[] {
+    return [
       { label: 'SELECT AS ALTN', action: () => this.selectAsAlternate(ident ?? undefined) },
       { label: 'DATA AIRPORT', action: () => this.props.mfd.uiService.navigateTo(`fms/data/airport/arpt/${ident}`) },
+    ];
+  }
+
+  private otherAlternateMenu(line: AlternateLine): Subscribable<ButtonMenuItem[]> {
+    const menu = line.ident.map((ident): ButtonMenuItem[] => [
+      ...this.airportMenuItems(ident),
       {
         label: 'RTE SELECTION',
         action: () =>
@@ -267,13 +275,10 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
     );
   }
 
-  /** A database alternate (P 10): the airport ident menu gives SELECT AS ALTN and DATA AIRPORT */
+  /** A database alternate: the airport ident menu gives SELECT AS ALTN and DATA AIRPORT */
   private renderDatabaseLine(line: AlternateLine, index: number): VNode {
     const label = line.ident.map((it) => it ?? '');
-    const menu = line.ident.map((ident): ButtonMenuItem[] => [
-      { label: 'SELECT AS ALTN', action: () => this.selectAsAlternate(ident ?? undefined) },
-      { label: 'DATA AIRPORT', action: () => this.props.mfd.uiService.navigateTo(`fms/data/airport/arpt/${ident}`) },
-    ]);
+    const menu = line.ident.map((ident) => this.airportMenuItems(ident));
     this.lineSubscriptions.push(line.visible, line.entryVisible, label, menu);
     return (
       <div class="mfd-alternate-line" style={{ visibility: line.visible }}>
@@ -282,7 +287,7 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
           onClick={() => {}}
           menuItems={menu}
           idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_databaseAltn${index}`}
-          buttonStyle="min-width: 116px; padding: 9px 2px 5px 2px; white-space: nowrap;"
+          buttonStyle={airportButtonStyle}
         />
         {this.renderData(line)}
       </div>
@@ -300,7 +305,7 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
             onClick={() => {}}
             menuItems={this.otherAlternateMenu(line)}
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_otherAltn${index}`}
-            buttonStyle="min-width: 116px; padding: 9px 2px 5px 2px; white-space: nowrap;"
+            buttonStyle={airportButtonStyle}
           />
           {this.renderData(line)}
         </div>
@@ -360,7 +365,7 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
               <Button
                 label="NO ALTN"
                 onClick={() => this.selectAsAlternate(undefined)}
-                buttonStyle="min-width: 116px; padding: 9px 2px 5px 2px; white-space: nowrap;"
+                buttonStyle={airportButtonStyle}
               />
               <span class="mfd-alternate-cell no-altn-extra">
                 <span class="mfd-value bigger">{this.noAlternateExtra}</span>

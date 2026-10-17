@@ -14,7 +14,7 @@ export const cpnyFplnReportPage = 'f-pln-cpny-f-pln-report';
 export const transferToMailboxPage = 'xfer-to-mailbox';
 
 interface MfdFmsFreeTextSendProps extends AbstractMfdPageProps {
-  /** Page title (FCOM: without flight plan prefix) */
+  /** Page title, without flight plan prefix */
   title: string;
   /** Label of the send button */
   sendLabel: string;
@@ -23,9 +23,9 @@ interface MfdFmsFreeTextSendProps extends AbstractMfdPageProps {
 }
 
 /**
- * The FCOM pages made of a 24 character free text and a send button (A380 FCOM DSC-22-FMS-20-30):
- * - COMPANY F-PLN REPORT (P 25-27): SEND REPORT TO CPNY sends the active flight plan report to the company via ACARS
- * - TRANSFER TO MAILBOX (P 337-339): XFER TO MAILBOX sends a secondary flight plan to the ATC mailbox
+ * The FMS pages made of a 24 character free text and a send button:
+ * - COMPANY F-PLN REPORT: SEND REPORT TO CPNY sends the active flight plan report to the company via ACARS
+ * - TRANSFER TO MAILBOX: XFER TO MAILBOX sends a secondary flight plan to the ATC mailbox
  *
  * Neither the company flight plan report nor the ATC mailbox flight plan transfer is modelled: the send button is
  * inactive.
@@ -49,7 +49,7 @@ export class MfdFmsFreeTextSend extends FmsPage<MfdFmsFreeTextSendProps> {
       <>
         {super.render()}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figures (DSC-22-FMS-20-30 P 25 and P 337), page container coordinates */}
+          {/* Positions measured on the reference figures of both pages, in page container coordinates */}
           <div class="mfd-fcom-canvas">
             {freeTextSendControls({
               freeText: this.freeText,

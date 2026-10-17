@@ -71,9 +71,8 @@ abstract class RnpMessageSelector implements FMMessageSelector {
 }
 
 /**
- * AREA RNP IS XX.XX (A320 FCOM l.22482, l.22494-22497): the RNP manually entered on the PROG page is larger than the
- * default RNP of the current flight area, and the navigation database has no RNP for the active leg. XX.XX is the area
- * RNP.
+ * AREA RNP IS XX.XX: the RNP manually entered on the PROG page is larger than the default RNP of the current flight
+ * area, and the navigation database has no RNP for the active leg. XX.XX is the area RNP.
  */
 export class AreaRnp extends RnpMessageSelector {
   constructor() {
@@ -82,8 +81,8 @@ export class AreaRnp extends RnpMessageSelector {
 }
 
 /**
- * PROCEDURE RNP IS XX.XX (A320 FCOM l.22914, l.22919-22921): the RNP manually entered on the PROG page is larger than the
- * RNP of the navigation database for the active leg. XX.XX is the procedure RNP.
+ * PROCEDURE RNP IS XX.XX: the RNP manually entered on the PROG page is larger than the RNP of the navigation database
+ * for the active leg. XX.XX is the procedure RNP.
  */
 export class ProcedureRnp extends RnpMessageSelector {
   constructor() {

@@ -2115,7 +2115,7 @@ export class PseudoFWC {
   }
 
   /**
-   * The STATUS page (A320 FCOM DSC-31-20): the information lines and the inoperative systems of the active alerts, the
+   * The STATUS page: the information lines and the inoperative systems of the active alerts, the
    * automatic call of the page and the STS reminder on the E/WD.
    */
   private updateStatus(primaryFailureDisplayed: boolean, flightPhase: number): void {
@@ -3474,7 +3474,7 @@ export class PseudoFWC {
       this.fwcFlightPhase.get() !== 2,
     );
     this.ra1Fault.set(this.height1Failed.get() && !this.sdac00201Word.bitValue(20));
-    // GPS receivers: GPS_n_MODE 4 is FAULT (A320 FCOM PRO-ABN-NAV: the alert triggers when the GPS 1(2) is failed)
+    // GPS receivers: GPS_n_MODE 4 is FAULT; the alert triggers when the GPS 1(2) is failed
     this.gps1Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_1_MODE', 'number') === 4);
     this.gps2Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_2_MODE', 'number') === 4);
     this.ra2Fault.set(this.height2Failed.get() && !this.sdac00210Word.bitValue(20));
@@ -6927,7 +6927,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
-      // STATUS (FCOM PRO-ABN-NAV NAV GPS 1(2) FAULT): INOP SYS GPS 1(2); if both GPS FAULT: FLS LIMITED TO F-APP + RAW
+      // STATUS: INOP SYS GPS 1(2); if both GPS FAULT: FLS LIMITED TO F-APP + RAW
       inopSys: () => [this.gps2Fault.get() ? '340300003' : '340300001'],
       statusInfo: () => (this.gps2Fault.get() ? ['340200001'] : []),
     },

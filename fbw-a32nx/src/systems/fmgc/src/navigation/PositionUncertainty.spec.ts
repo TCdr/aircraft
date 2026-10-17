@@ -13,8 +13,8 @@ import {
 
 const MINUTE = 60_000;
 
-describe('FMS estimated position uncertainty (A320 FCOM DSC-22_20-20-20)', () => {
-  it('gives the radio position uncertainty of the FCOM, growing with the distance to the navaids', () => {
+describe('FMS estimated position uncertainty', () => {
+  it('gives the radio position uncertainty of the aircraft, growing with the distance to the navaids', () => {
     expect(radioPositionUncertainty(FmNavigationMode.IrsDmeDme, 0)).toBeCloseTo(0.27, 6);
     expect(radioPositionUncertainty(FmNavigationMode.IrsDmeDme, 500)).toBeCloseTo(0.37, 6);
     expect(radioPositionUncertainty(FmNavigationMode.IrsVorDme, 0)).toBeCloseTo(0.3, 6);
@@ -24,7 +24,7 @@ describe('FMS estimated position uncertainty (A320 FCOM DSC-22_20-20-20)', () =>
     expect(halfway).toBeLessThan(0.42);
   });
 
-  it('grows the IRS only uncertainty by the rates of the FCOM', () => {
+  it('grows the IRS only uncertainty by the aircraft rates', () => {
     expect(irsOnlyPositionUncertainty(0.05, 0)).toBeCloseTo(0.05, 6);
     // +6 NM/h for the first 40 min
     expect(irsOnlyPositionUncertainty(0.05, 40)).toBeCloseTo(4.05, 6);
@@ -61,7 +61,7 @@ describe('FMS estimated position uncertainty (A320 FCOM DSC-22_20-20-20)', () =>
     expect(estimator.update(1000, null, null, null).uncertainty).toBeCloseTo(IRS_ALIGNMENT_UNCERTAINTY, 2);
   });
 
-  it('is at least the distance between the FM position and the GPIRS or radio position (A380 FCOM l.23009-23022)', () => {
+  it('is at least the distance between the FM position and the GPIRS or radio position', () => {
     const estimator = new PositionUncertaintyEstimator();
     expect(estimator.update(1000, 0.02, null, null, 0.4, 0).uncertainty).toBeCloseTo(0.4, 6);
     expect(estimator.update(1000, 0.02, null, null, 0.01, 3).uncertainty).toBeCloseTo(0.02, 6);
@@ -69,7 +69,7 @@ describe('FMS estimated position uncertainty (A320 FCOM DSC-22_20-20-20)', () =>
     expect(estimator.update(1000, null, null, 1, 0, 0.1).uncertainty).toBeCloseTo(0.3, 2);
   });
 
-  it('is 0.2 NM after a position update on ground (A320 FCOM l.12446, A380 FCOM l.23042)', () => {
+  it('is 0.2 NM after a position update on ground', () => {
     const estimator = new PositionUncertaintyEstimator();
     expect(estimator.update(1000, null, null, null).uncertainty).toBeCloseTo(IRS_ALIGNMENT_UNCERTAINTY, 2);
     estimator.positionUpdate(true, 0.4);
@@ -77,7 +77,7 @@ describe('FMS estimated position uncertainty (A320 FCOM DSC-22_20-20-20)', () =>
     expect(estimator.update(10 * MINUTE, null, null, null).uncertainty).toBeCloseTo(0.2 + 1, 6);
   });
 
-  it('adds the update distance to the previous EPU after an update in flight in IRS only (A380 FCOM l.23057)', () => {
+  it('adds the update distance to the previous EPU after an update in flight in IRS only', () => {
     const estimator = new PositionUncertaintyEstimator();
     estimator.update(1000, 0.05, null, null);
     estimator.update(10 * MINUTE, null, null, null);

@@ -1863,8 +1863,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
   /**
    * ENTER DEST DATA when a destination QNH, temperature or wind is missing, CHECK DEST DATA when the wind on the PERF APPR
-   * page was received by uplink and not entered by the flight crew (A320 FCOM l.22534, l.22543-22547, l.22665,
-   * l.22668-22669).
+   * page was received by uplink and not entered by the flight crew.
    */
   private checkDestData() {
     const plan = this.getFlightPlan(FlightPlanIndex.Active);
@@ -1888,8 +1887,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   }
 
   /**
-   * CHECK DATA BASE CYCLE (A320 FCOM l.22532, l.22539-22541): "The current date does not match the effective date of the
-   * active database, and someone attempts to enter a FROM/TO or CO RTE."
+   * CHECK DATA BASE CYCLE: a FROM/TO or CO RTE is entered while today's date is outside the validity of the active
+   * navigation database.
    */
   private checkNavDatabaseCycle(): void {
     const today = utcCalendarDate(
@@ -1905,8 +1904,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   private readonly timeToExitMessage = new MessageTextLatch();
 
   /**
-   * TIME TO EXIT (A320 FCOM l.23095, l.23116-23118): "The aircraft must leave holding immediately to satisfy fuel reserve
-   * requirements. (Extra fuel is zero)." In the holding: the active leg is a hold leg.
+   * TIME TO EXIT: in a holding (the active leg is a hold leg) with no extra fuel left, the aircraft must leave the
+   * holding now to keep the fuel reserves.
    */
   private checkTimeToExit(): void {
     const activeLeg = this.flightPlanService.hasActive ? this.flightPlanService.active.activeLeg : undefined;
@@ -2464,10 +2463,9 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   }
 
   /**
-   * Inserts a PLACE/DIST waypoint (A320 FCOM l.13512: "defined by a distance from a place, along the F-PLN"; entry on
-   * the F-PLN, LAT REV NEXT WPT, l.23669-23674): the waypoint goes on the flight plan path at DIST from the first flight
-   * plan waypoint named PLACE from the FROM waypoint on, after it (or before it with a negative DIST), whatever line the
-   * entry was made on. See PlaceDistance.ts.
+   * Inserts a PLACE/DIST waypoint (a distance from a place along the F-PLN, entered on the F-PLN or LAT REV NEXT WPT):
+   * the waypoint goes on the flight plan path at DIST from the first flight plan waypoint named PLACE from the FROM
+   * waypoint on, after it (or before it with a negative DIST), whatever line the entry was made on (PlaceDistance.ts).
    */
   private insertPlaceDistanceWaypoint(
     entry: string,
@@ -3488,8 +3486,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     }
 
     plan.setPerformanceData('cruiseFlightLevel', flightLevelToInsert);
-    // CRZ FL ABOVE MAX FL (A320 FCOM l.22601, l.22620-22621): "The flight crew enters a cruise altitude that is above the
-    // computed maximum altitude."
+    // CRZ FL ABOVE MAX FL: the entered cruise level is above the computed maximum level
     const maxFl = this.getMaxFlCorrected();
     if (maxFl !== null && flightLevelToInsert > maxFl) {
       this.addMessageToQueue(NXSystemMessages.crzFlAboveMaxFl);

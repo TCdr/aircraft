@@ -153,7 +153,7 @@ export class CDUProgressPage {
       });
     };
 
-    // POSITION UPDATE AT [3L], CONFIRM UPDATE AT [3R] (A320 FCOM DSC-22_20-30-10-18, see PositionMonitorFields)
+    // POSITION UPDATE AT [3L], CONFIRM UPDATE AT [3R] (see PositionMonitorFields)
     if (gpsPrimary) {
       CDUProgressPage.pendingPositionUpdate = null;
     }
@@ -196,7 +196,7 @@ export class CDUProgressPage {
       if (pending === null) {
         return;
       }
-      // "When the aircraft position is computed based on GPIRS, [...] NOT ALLOWED" (a320_fcom.txt l.14784-14786)
+      // NOT ALLOWED while the aircraft position comes from the GPIRS
       if (!mcdu.navigation.updatePositionAt(pending.location)) {
         mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
         scratchpadCallback();

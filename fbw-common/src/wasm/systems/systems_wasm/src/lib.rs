@@ -696,8 +696,6 @@ struct UtcTime {
 }
 
 impl UtcTime {
-    const VARIABLE_NAME: &'static str = "GNSS_UTC_UNIX_SECONDS";
-
     fn new(
         sim_connect: &mut SimConnect,
         variables: &mut MsfsVariableRegistry,
@@ -709,7 +707,8 @@ impl UtcTime {
         )?;
 
         Ok(Self {
-            identifier: variables.get(Self::VARIABLE_NAME.to_owned()),
+            identifier: variables
+                .get(systems::navigation::gnss::GpsReceiver::UTC_UNIX_SECONDS.to_owned()),
         })
     }
 }

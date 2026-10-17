@@ -21,8 +21,8 @@ export interface FreeTextSendControlsProps extends Pick<AbstractMfdPageProps, 'm
 
 /**
  * The FREE TEXT field, the send button and the RETURN button of the company pages made of a free text and a send button
- * (A380 FCOM DSC-22-FMS-20-30: COMPANY F-PLN REPORT P 25, COMPANY WIND DATA REQUEST P 42, TRANSFER TO MAILBOX P 337),
- * at the positions of the FCOM figures, in page container coordinates.
+ * (COMPANY F-PLN REPORT, COMPANY WIND DATA REQUEST, TRANSFER TO MAILBOX), at the positions measured on their reference
+ * figures, in page container coordinates.
  */
 export function freeTextSendControls(props: FreeTextSendControlsProps): VNode {
   return (

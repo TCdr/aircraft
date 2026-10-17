@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { GpsDeselectedMessageLogic } from './GpsDeselectedMessageLogic';
 
-describe('GPS IS DESELECTED message (A320 FCOM DSC-22_20, A380 FCOM DSC-22-FMS-20-30)', () => {
+describe('GPS IS DESELECTED message', () => {
   it('is sent 80 NM before the T/D when the GPS is deselected', () => {
     const logic = new GpsDeselectedMessageLogic();
     expect(logic.update(true, false, 200)).toBe(null);

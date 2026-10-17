@@ -26,7 +26,7 @@ export interface EcamStatusOutputs {
 }
 
 /**
- * When the FWC calls the STATUS page and shows the STS reminder (A320 FCOM DSC-31-20 and DSC-31-25-20):
+ * When the FWC calls the STATUS page and shows the STS reminder:
  * - The STATUS page appears automatically when it is not empty and the flight crew clears the last alert of the E/WD,
  *   or selects CONF 1 for the approach. The next CLR push (or an STS push) removes it.
  * - The STS reminder is shown on the E/WD while the STATUS page is not empty and not shown, when no alert is shown.
