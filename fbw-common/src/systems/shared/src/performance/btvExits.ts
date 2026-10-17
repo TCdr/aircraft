@@ -2,14 +2,15 @@
 //  SPDX-License-Identifier: GPL-3.0
 
 import { FeatureType } from '../amdb';
+import { padRunwayDesignator, taxiDistance } from '../taxi/taxiNetwork';
 import { LandingRunwayCondition } from './landing';
 
-/** Minimum distance from the threshold to the touchdown zone of BTV, in metres (A380 FCOM DSC-32-10-30-20: 1312.3 ft) */
+/** Minimum distance from the threshold to the touchdown zone of BTV, in metres (1312.3 ft) */
 export const BTV_TOUCHDOWN_DISTANCE = 400;
 
 /**
- * The BTV DRY and WET lines of a landing, in metres from the threshold (A380 FCOM DSC-32-10-30-20, dry and wet line):
- * the predicted landing distances that the flight crew uses to choose the runway exit during the descent preparation.
+ * The BTV DRY and WET lines of a landing, in metres from the threshold: the predicted landing distances that the flight
+ * crew uses to choose the runway exit during the descent preparation.
  */
 export interface BtvLines {
   touchdown: number;
@@ -28,7 +29,7 @@ export interface BtvExit {
 }
 
 export enum BtvExitStatus {
-  /** The first exit beyond the WET line: the recommended one, even on a dry runway (A380 FCOM PRO-NOR-SOP-160) */
+  /** The first exit beyond the WET line: the recommended one, even on a dry runway */
   Recommended = 'RECOMMENDED',
   /** Beyond the WET line: dry or wet runway */
   BeyondWet = 'BEYOND_WET',
@@ -44,8 +45,8 @@ export interface BtvExitAssessment extends BtvExit {
 
 /**
  * The runway exits in order, with what BTV can achieve with them: select the exit in accordance with the runway
- * condition, dry or wet, and preferably beyond the WET line even on a dry runway (A380 FCOM PRO-NOR-SOP-160, runway exit).
- * BTV is prohibited on a contaminated runway (LIM-32-30): no assessment then.
+ * condition, dry or wet, and preferably beyond the WET line even on a dry runway. BTV is prohibited on a contaminated
+ * runway: no assessment then.
  */
 export function assessBtvExits(
   exits: readonly BtvExit[],
@@ -73,7 +74,7 @@ export function assessBtvExits(
     });
 }
 
-/** BTV must be used only on dry and wet runways (A380 FCOM LIM-32-30) */
+/** BTV must be used only on dry and wet runways */
 export function isBtvRunwayCondition(condition: LandingRunwayCondition): boolean {
   return condition === LandingRunwayCondition.Dry || condition === LandingRunwayCondition.Wet;
 }
@@ -86,11 +87,6 @@ export interface BtvAmdbFeature {
 
 type Point = [number, number];
 
-/** Runway designators with two digits: 6 -> 06, 6L -> 06L */
-function padDesignator(designator: string): string {
-  return designator.replace(/[^0-9]/g, '').length < 2 ? `0${designator}` : designator;
-}
-
 /**
  * The exits of a runway, from the airport mapping database, as the OANS finds them for BTV (OansBrakeToVacateSelection):
  * exit lines that start on the runway (within 50 m of its centreline), at least 400 m after the threshold, and do not
@@ -98,28 +94,27 @@ function padDesignator(designator: string): string {
  * @returns the exits in order, or null when the runway is not in the data
  */
 export function runwayExitsFromAmdb(features: readonly BtvAmdbFeature[], runway: string): BtvExit[] | null {
-  const ident = padDesignator(runway);
+  const ident = padRunwayDesignator(runway);
   const threshold = features.find(
     (f) =>
       f.properties.feattype === FeatureType.RunwayThreshold &&
       f.properties.idthr !== undefined &&
-      padDesignator(f.properties.idthr) === ident,
+      padRunwayDesignator(f.properties.idthr) === ident,
   );
   const centreline = features.find(
     (f) =>
       f.properties.feattype === FeatureType.PaintedCenterline &&
-      (f.properties.idrwy ?? '').split('.').map(padDesignator).includes(ident),
+      (f.properties.idrwy ?? '').split('.').map(padRunwayDesignator).includes(ident),
   );
   if (threshold === undefined || centreline === undefined || threshold.geometry.type !== 'Point') {
     return null;
   }
   const thr = threshold.geometry.coordinates as Point;
   const line = centreline.geometry.coordinates as Point[];
-  const distance = (a: Point, b: Point) => Math.hypot(b[0] - a[0], b[1] - a[1]);
   const first = line[0];
   const last = line[line.length - 1];
-  const end = distance(thr, first) > distance(thr, last) ? first : last;
-  const length = distance(thr, end);
+  const end = taxiDistance(thr, first) > taxiDistance(thr, last) ? first : last;
+  const length = taxiDistance(thr, end);
   if (length < 1) {
     return null;
   }

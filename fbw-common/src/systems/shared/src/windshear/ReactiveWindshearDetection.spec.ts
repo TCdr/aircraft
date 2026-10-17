@@ -141,7 +141,7 @@ describe('Reactive windshear detection', () => {
     ).toBe(false);
   });
 
-  describe('availability (A320 FCOM DSC-22_40-40, A380 FCOM DSC-22-27-20)', () => {
+  describe('availability', () => {
     it('is not available above 1 300 ft RA on approach', () => {
       const { detection, flight } = approach();
       flight.radioAltitudeFt = 1400;
@@ -199,7 +199,7 @@ describe('Reactive windshear detection', () => {
   });
 
   describe('warning duration', () => {
-    it('A320: stays at least 15 s (a320_fcom.txt:34228)', () => {
+    it('A320: stays at least 15 s', () => {
       const { detection, flight } = approach();
       expect(fly(detection, flight, 8, headwindLoss)).toBe(true);
       // The shear ends
@@ -209,7 +209,7 @@ describe('Reactive windshear detection', () => {
       expect(detection.warning).toBe(false);
     });
 
-    it('A380: as long as the windshear is detected (a380_fcom.txt:9274)', () => {
+    it('A380: as long as the windshear is detected', () => {
       const detection = new ReactiveWindshearDetection(0);
       const flight = new Flight();
       flight.radioAltitudeFt = 2000;

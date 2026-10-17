@@ -26,20 +26,17 @@ export interface ReactiveWindshearInputs {
  * Reactive windshear detection (A320 FACs, A380 PRIMs): a red WINDSHEAR on both PFDs when the aircraft meets a
  * decreasing performance windshear during takeoff or landing.
  *
- * Availability, A320 FCOM DSC-22_40-40 Windshear detection function (a320_fcom.txt:34223-34225): "At takeoff, 3 s
- * after liftoff, up to 1 300 ft RA - At landing, from 1 300 ft RA to 50 ft RA - With at least CONF 1 selected";
- * A380 FCOM DSC-22-27-20 Reactive windshear detection (a380_fcom.txt:9282-9285): "During takeoff: 3 s after liftoff,
- * and until reaching 1 300 ft - During landing: From 1 300 ft to 50 ft. It is inhibited if the aircraft is in CONF 0".
+ * Availability, both aircraft: at takeoff from 3 s after liftoff up to 1 300 ft RA, at landing from 1 300 ft RA down to
+ * 50 ft RA, and only with CONF 1 or more.
  *
- * Detection principle, A320 FCOM DSC-22_40-40 (a320_fcom.txt:34235-34241): the computers "generate the windshear
- * warning whenever the predicted energy level for the aircraft falls below a predetermined threshold", from the
- * ADIRS vertical speed, air and ground speeds and slope, "longitudinal wind gradient, and vertical wind". The FCOM
+ * Detection principle: the computers warn when the predicted energy level of the aircraft falls below a threshold,
+ * from the ADIRS vertical speed, air and ground speeds, slope, longitudinal wind gradient and vertical wind. The manual
  * gives neither the formula nor the threshold. Design choice: the windshear hazard index (F-factor) built from exactly
  * these data, F = (rate of tailwind increase) / g - (vertical wind) / TAS, which is the loss of specific energy rate
  * caused by the wind; the warning comes when F, filtered, reaches F_FACTOR_WARNING_THRESHOLD.
  *
- * Warning duration: A320 "displayed on both PFDs for a minimum of 15 s" (a320_fcom.txt:34228); A380 "remains
- * steady, as long as the windshear is detected" (a380_fcom.txt:9274): the minimum duration is a constructor parameter.
+ * Warning duration: the A320 shows it for at least 15 s, the A380 as long as the windshear is detected: the minimum
+ * duration is a constructor parameter.
  */
 export class ReactiveWindshearDetection {
   /** No detection before this time after liftoff, in seconds */

@@ -159,11 +159,8 @@ export interface TakeoffPerformanceSpeeds {
 
 /** The results that a calculator can give as estimates rather than from the aircraft manufacturer data. */
 export enum TakeoffPerformanceEstimate {
-  /** The FLEX temperature. */
   Flex = 'Flex',
-  /** V1. */
   V1 = 'V1',
-  /** VR. */
   VR = 'VR',
   /** V2, when raised to a minimum that is not manufacturer data. */
   V2 = 'V2',
@@ -258,7 +255,7 @@ export interface TakeoffRunwayDistances {
 
 /**
  * Estimated distances of the all-engine takeoff run, from the required takeoff length: the all-engine distance to 35 ft
- * is at most the required length / 1.15 (CS 25.113), reached at V2 + 10 kt (Airbus SRS all-engine target), with a
+ * is at most the required length / 1.15 (certification margin), reached at V2 + 10 kt (SRS all-engine target), with a
  * constant acceleration.
  * @param required required takeoff length in metres
  * @param v1 V1, VR and V2 in knots (CAS)

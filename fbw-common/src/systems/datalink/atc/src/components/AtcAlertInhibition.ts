@@ -2,19 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The flight phase inhibition of the A380X ATC datalink alerts (ATC MSG pb light and RING aural alert).
- * - a380_fcom.txt l.95755 (DSC-46-10-10-10): "Inhibit the ATC MSG pb lighting and the aural signal during taxiing,
- *   takeoff, and landing."
- * - l.95759-95760: "If the aircraft receives a message during the inhibition period, the ATC center is automatically
- *   warned of the uplink message rejection."
- * - l.101523 (DSC-46-10-30, how to read an uplink message): "During takeoff and landing, the ATC MSG light and aural
- *   alert are inhibited."
+ * The flight phase inhibition of the A380X ATC datalink alerts: the ATC MSG pb light and the RING aural alert are
+ * inhibited during takeoff and landing, and an uplink received then is rejected with an automatic warning to the ATC
+ * center.
  *
  * Design choices:
  * - The phases are the A380 FWS flight phases (L:A32NX_FWC_FLIGHT_PHASE, FwcFlightPhase of the A380X FWS): the A32NX
  *   FWC numbers its phases differently, this table is for the A380X mailbox only.
- * - The FCOM figure of the inhibited phases is not in the text. The two FCOM sentences differ on taxiing; this takes
- *   the takeoff and landing phases of l.101523, the same phases as the COMPANY MSG memo inhibition of the A380X FWS
+ * - The manual does not list the phases, and one of its sentences also names taxiing; this takes the takeoff and
+ *   landing phases only, the same phases as the COMPANY MSG memo inhibition of the A380X FWS
  *   (FwsCompanyMessageAural.ts COMPANY_MSG_INHIBITED_FLIGHT_PHASES): phases 3 to 7 (takeoff power to 1500 ft) and 9 to
  *   10 (800 ft to 80 kt). Inhibiting the whole taxi would also reject the taxi and departure clearances.
  */

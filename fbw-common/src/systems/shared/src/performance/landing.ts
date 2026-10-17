@@ -4,9 +4,8 @@
 import type { BtvLines } from './btvExits';
 
 /**
- * The computation types of the Airbus landing performance application (A380 FCOM PER-LND-GEN, LDG PERF computation):
- * DISPATCH gives the required landing distance of the flight preparation, IN-FLIGHT the actual landing distance of the
- * landing to come.
+ * The computation types of the Airbus landing performance application: DISPATCH gives the required landing distance of
+ * the flight preparation, IN-FLIGHT the actual landing distance of the landing to come.
  */
 export enum LandingComputationType {
   Dispatch = 'DISPATCH',
@@ -75,13 +74,13 @@ export enum LandingAntiIce {
   EngineWing = 'ENGINE_WING',
 }
 
-/** Normal for a CAT I approach, CAT II for a CAT II or CAT III approach (A380 FCOM PER-LND-LCD-ACC Approach type) */
+/** Normal for a CAT I approach, CAT II for a CAT II or CAT III approach */
 export enum LandingApproachType {
   Normal = 'NORMAL',
   Cat2 = 'CAT2',
 }
 
-/** The landing limitation codes (A380 FCOM PER-LND-LRD-DSR Landing limitation codes) */
+/** The landing limitation codes of the results */
 export enum LandingLimitation {
   /** The landing weight is below the MLW(PERF) */
   Weight = 'WGT',
@@ -205,8 +204,8 @@ export interface LandingPerformanceResult {
   btv?: BtvLines;
   estimates: LandingPerformanceEstimate[];
   /**
-   * The tailwind is above the limit of the FCOM (maxTailwind, in whole knots): the distances, the stop margin and the
-   * MLW(PERF) continue the tailwind correction of the data beyond it (extrapolated, for information)
+   * The tailwind is above the limit of the aircraft data (maxTailwind, in whole knots): the distances, the stop margin
+   * and the MLW(PERF) continue the tailwind correction of the data beyond it (extrapolated, for information)
    */
   tailwindExtrapolated: boolean;
 }
@@ -263,7 +262,7 @@ export interface LandingPerformanceCalculator {
   calculateLandingPerformance(inputs: LandingPerformanceInputs): LandingPerformanceResult;
 }
 
-/** VAPP = VLS + 1/3 of the headwind, not more than 15 kt and at least 5 kt with the A/THR (A380 FCOM PER-LND-LCD-ACC) */
+/** VAPP = VLS + 1/3 of the headwind, not more than 15 kt and at least 5 kt with the A/THR */
 export function landingWindIncrement(headwind: number): number {
   return Math.min(15, Math.max(5, Math.round(Math.max(0, headwind) / 3)));
 }

@@ -31,10 +31,7 @@ function poweredAoc() {
   return { aoc, internals, sent, metar };
 }
 
-/*
- * A380 NSS DATA TO AVNCS pb-sw OFF: "The AOC can no longer send messages to the ground but can still receive some."
- * (A380 FCOM DSC-46-20-20-80, a380_fcom.txt l.103225-103226)
- */
+// A380 NSS DATA TO AVNCS pb-sw OFF: the AOC can no longer send to the ground but still receives
 describe('AOC downlink inhibition', () => {
   it('sends the messages and requests normally', async () => {
     const { internals, sent, metar } = poweredAoc();

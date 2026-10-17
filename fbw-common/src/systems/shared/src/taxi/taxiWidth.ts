@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { TaxiLine, TaxiLineKind, TaxiPoint } from './taxiNetwork';
+import { TaxiLine, TaxiLineKind, TaxiPoint, taxiPolylineLength } from './taxiNetwork';
 
-/** How a taxi line of the airport map suits the aircraft */
 export enum TaxiLineFit {
   /** Wide enough (or cleared for the wingspan by the airport map) */
   Suitable = 'SUITABLE',
@@ -13,7 +12,6 @@ export enum TaxiLineFit {
   Unverified = 'UNVERIFIED',
 }
 
-/** What the aircraft needs from a taxiway */
 export interface TaxiAircraftSize {
   /** metres */
   wingspan: number;
@@ -22,8 +20,7 @@ export interface TaxiAircraftSize {
 }
 
 /**
- * The A380: wingspan 79.75 m, aerodrome reference code letter F. ICAO Annex 14 Volume I, 3.9.3 (taxiway width of the
- * straight portion of a taxiway): "Code letter F: 25 m".
+ * The A380: wingspan 79.75 m, aerodrome reference code letter F, whose straight taxiways are 25 m wide.
  */
 export const TAXI_A380: TaxiAircraftSize = { wingspan: 79.75, taxiwayWidth: 25 };
 
@@ -223,7 +220,7 @@ export function taxiLineWidth(pavement: TaxiPavement, points: readonly TaxiPoint
 
 /**
  * How each taxi line suits the aircraft:
- * - the wingspan limit of the line in the airport map (ED-99 guidance line attribute "wingspan") when it has one;
+ * - the wingspan limit of the line in the airport map (guidance line attribute "wingspan") when it has one;
  * - else the pavement width under the line against the taxiway width of the aircraft code letter;
  * - else unverified (not treated as unsafe).
  * Runway centrelines are not taxi lines: suitable.
@@ -267,9 +264,8 @@ export function taxiTooNarrowLines(fits: readonly TaxiLineFitInfo[]): Set<number
  * The A380 airport check: the share (0 to 1) of the length of the taxi lines (taxiway and runway exit lines; not the
  * stand lines nor the runway centrelines) too narrow for the aircraft. The lines not verified count in the total, not as
  * too narrow. Null when the airport map has no taxi line.
- * Airbus A380 Airport Characteristics (AC, Dec 01/25) 3-3-3: "A380 can operate on aerodromes classified as code 4F as
- * per ICAO Aerodrome Reference Code. It can also operate on aerodromes classified as code 4E provided that specific
- * conditions are met." A large share shows a code E airport (taxiways of 23 m, ICAO Annex 14 Volume I 3.9.3).
+ * The A380 operates at code F airports, and at code E airports only under specific conditions: a large share shows a
+ * code E airport (taxiways of 23 m).
  * @param fits the fits of the lines, in the same order (see taxiLineFits)
  */
 export function taxiTooNarrowShare(lines: readonly TaxiLine[], fits: readonly TaxiLineFitInfo[]): number | null {
@@ -279,10 +275,7 @@ export function taxiTooNarrowShare(lines: readonly TaxiLine[], fits: readonly Ta
     if (line.kind !== TaxiLineKind.Taxiway && line.kind !== TaxiLineKind.Exit) {
       return;
     }
-    let length = 0;
-    for (let p = 1; p < line.points.length; p++) {
-      length += Math.hypot(line.points[p][0] - line.points[p - 1][0], line.points[p][1] - line.points[p - 1][1]);
-    }
+    const length = taxiPolylineLength(line.points);
     total += length;
     if (fits[i]?.fit === TaxiLineFit.TooNarrow) {
       tooNarrow += length;

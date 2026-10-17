@@ -3,22 +3,23 @@
 
 import {
   nearestOnSegment,
+  padRunwayDesignator,
   taxiDistance,
   TaxiEdge,
+  taxiLerp,
   TaxiLineKind,
   TaxiNetwork,
   TaxiPoint,
   taxiName,
+  taxiPolylineLength,
 } from './taxiNetwork';
 
-/** Where the taxi starts */
 export type TaxiRouteStart =
   /** At a runway exit: its name and where it leaves the runway */
   | { kind: 'exit'; exit: string; point: TaxiPoint }
   /** At the aircraft, with its true heading in degrees (null when not known) */
   | { kind: 'position'; point: TaxiPoint; heading: number | null };
 
-/** Where the taxi ends */
 export type TaxiRouteTarget =
   /** At a parking stand, after landing */
   | { kind: 'stand'; name: string; point: TaxiPoint }
@@ -64,7 +65,6 @@ export interface TaxiRouteLeg {
   name: string | null;
   /** metres */
   length: number;
-  /** Where the leg starts */
   start: TaxiPoint;
   /** The point halfway along the leg, to label it */
   mid: TaxiPoint;
@@ -75,17 +75,12 @@ export interface TaxiRouteLeg {
 /** A leg with its points, while the route is put together */
 type LegPoints = Omit<TaxiRouteLeg, 'start' | 'mid'> & { points: TaxiPoint[] };
 
-/** The point halfway along a polyline */
 function halfway(points: readonly TaxiPoint[], length: number): TaxiPoint {
   let remaining = length / 2;
   for (let i = 1; i < points.length; i++) {
     const d = taxiDistance(points[i - 1], points[i]);
     if (d >= remaining && d > 0) {
-      const t = remaining / d;
-      return [
-        points[i - 1][0] + (points[i][0] - points[i - 1][0]) * t,
-        points[i - 1][1] + (points[i][1] - points[i - 1][1]) * t,
-      ];
+      return taxiLerp(points[i - 1], points[i], remaining / d);
     }
     remaining -= d;
   }
@@ -119,8 +114,8 @@ const OTHER_LINE_FACTOR = 3;
 const LEAD_IN_LIMIT = 2000;
 const LEAD_IN_FACTOR = 1.5;
 /**
- * Two cleared taxiways that do not meet are often joined by a short connector the clearance leaves out (at RJTT, user
- * report 2026-10-14, A does not meet E): between two cleared taxiways, the route can follow lines that are not in the
+ * Two cleared taxiways that do not meet are often joined by a short connector the clearance leaves out (at RJTT, A
+ * does not meet E): between two cleared taxiways, the route can follow lines that are not in the
  * clearance, up to this length per gap (metres), at this cost factor (the route rejoins the next cleared taxiway as soon
  * as it can). A longer way is a taxiway the clearance would name: no route.
  */
@@ -133,6 +128,12 @@ const GAP_FACTOR = 1.5;
 const UNCLEARED_CROSSING_PENALTY = 10000;
 
 const NO_ROUTE = (error: TaxiRouteError): TaxiRoute => ({ error, points: [], length: 0, legs: [], taxiways: [] });
+
+/**
+ * One step of the route search: the cost of an edge, the layer after it (the index of the current cleared taxiway, -1
+ * before the first one), and whether it is a connector outside the clearance between two of its taxiways
+ */
+type StepResult = [number, number, boolean?];
 
 /** A binary heap of [cost, state] */
 class Heap {
@@ -184,7 +185,6 @@ class Heap {
   }
 }
 
-/** The edge of the network nearest to a point, among the edges accepted by the filter */
 function nearestEdge(
   network: TaxiNetwork,
   p: TaxiPoint,
@@ -217,12 +217,10 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
   // at RJTT) are left out, then a taxiway said twice in a row is one taxiway (C1 typed as the last taxiway and again as
   // the holding point)
   const mapNames = new Set(lines.map((l) => l.name));
-  const via = request.via
-    ?.map((it) => taxiName(it))
-    .filter((it): it is string => it !== null && mapNames.has(it))
-    .filter((it, i, all) => i === 0 || it !== all[i - 1]);
+  const via =
+    request.via &&
+    withoutRepeats(request.via.map((it) => taxiName(it)).filter((it): it is string => it !== null && mapNames.has(it)));
   if (via !== undefined && via.length === 0) {
-    // Nothing of the clearance is on the map: no route along it
     return NO_ROUTE(TaxiRouteError.NoRoute);
   }
   const viaNames = new Set(via ?? []);
@@ -233,7 +231,6 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
   const to = request.to;
   const entry = to.kind === 'runway' ? taxiName(to.entry) : null;
 
-  // The stand: its lead-in lines, and the network node nearest to its location; or the runway entry node
   const standLines = new Set<number>();
   let target: number;
   if (to.kind === 'stand') {
@@ -269,12 +266,10 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
   /** The entry line of the runway can be taken after the last cleared taxiway */
   const isEntry = (name: string | null, k: number) => entry !== null && name === entry && (!via || k === last);
 
-  // The start: the end of the exit line on the runway, or the aircraft on its nearest line
   /** The start nodes, with the index of the cleared taxiway the route is on there (-1 before the first one) */
   const initial: { node: number; cost: number; k: number }[] = [];
   const startLines = new Set<number>();
   let startPoint: TaxiPoint | null = null;
-  /** The line the aircraft is on */
   let startLine: number | null = null;
   /** The edge the aircraft is on: the aircraft splits it, so the route never takes it whole (a U-turn through the aircraft) */
   let startEdge = -1;
@@ -338,11 +333,11 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
       }
     }
   });
-  const crossRunways = new Set((request.crossRunways ?? []).map(runwayDesignator));
+  const crossRunways = new Set((request.crossRunways ?? []).map(padRunwayDesignator));
   /** A runway at this node that the clearance does not say to cross (the runway names are e.g. 16R.34L) */
   const unclearedRunwayAt = (node: number) =>
     (runwayAt.get(node) ?? []).some(
-      (runway) => !runway.split('.').some((it) => crossRunways.has(runwayDesignator(it))),
+      (runway) => !runway.split('.').some((it) => crossRunways.has(padRunwayDesignator(it))),
     );
 
   // How far each node is from the start along the lines that can lead to the first cleared taxiway (any line but the
@@ -462,15 +457,28 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
   };
 
   /**
-   * The cost of an edge from layer k, the layer after it, and whether it is a connector outside the clearance between
-   * two of its taxiways; null when it cannot be taken
+   * A line taken along the clearance from layer k: a cleared taxiway, the runway entry line after the last one, a
+   * lead-in taxiway before the first one, or a connector between two of them; null when it is none of them
    */
-  const step = (
-    edgeIndex: number,
-    k: number,
-    lastResort: boolean,
-    avoidNarrow: boolean,
-  ): [number, number, boolean?] | null => {
+  const alongClearance = (e: TaxiEdge, name: string | null, k: number): StepResult | null => {
+    const next = cleared(name, k);
+    if (next !== null) {
+      return [e.length, next];
+    }
+    if (isEntry(name, k)) {
+      return [e.length, k];
+    }
+    if (leadIn(e, name, k)) {
+      return [e.length * LEAD_IN_FACTOR, k];
+    }
+    if (gap(e, name, k)) {
+      return [e.length * GAP_FACTOR, k, true];
+    }
+    return null;
+  };
+
+  /** The cost of an edge from layer k and the layer after it; null when it cannot be taken */
+  const step = (edgeIndex: number, k: number, lastResort: boolean, avoidNarrow: boolean): StepResult | null => {
     const e = edges[edgeIndex];
     const line = lines[e.line];
     if (line.kind === TaxiLineKind.Runway || (avoidNarrow && request.tooNarrow?.has(e.line))) {
@@ -479,7 +487,7 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
     if (startLines.has(e.line) && k === -1) {
       return [e.length, k];
     }
-    let next: number | null;
+    let along: StepResult | null;
     switch (line.kind) {
       case TaxiLineKind.Stand:
         // With a clearance, stand lines only before its first taxiway (leaving the stand, possibly along the line of
@@ -496,18 +504,9 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
           return k === -1 || (k === 0 && via?.[0] === startExit) ? [e.length, k] : null;
         }
         // A runway exit line named in the clearance (e.g. the entry C1, or L4 across a runway) is a cleared taxiway
-        next = cleared(line.name, k);
-        if (next !== null) {
-          return [e.length, next];
-        }
-        if (isEntry(line.name, k)) {
-          return [e.length, k];
-        }
-        if (leadIn(e, line.name, k)) {
-          return [e.length * LEAD_IN_FACTOR, k];
-        }
-        if (gap(e, line.name, k)) {
-          return [e.length * GAP_FACTOR, k, true];
+        along = alongClearance(e, line.name, k);
+        if (along !== null) {
+          return along;
         }
         // Other exit lines as a last resort, but never a cleared one out of its order
         return lastResort && !(line.name !== null && viaNames.has(line.name))
@@ -520,20 +519,7 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
         if (!via) {
           return [e.length, k];
         }
-        next = cleared(line.name, k);
-        if (next !== null) {
-          return [e.length, next];
-        }
-        if (isEntry(line.name, k)) {
-          return [e.length, k];
-        }
-        if (leadIn(e, line.name, k)) {
-          return [e.length * LEAD_IN_FACTOR, k];
-        }
-        if (gap(e, line.name, k)) {
-          return [e.length * GAP_FACTOR, k, true];
-        }
-        return null;
+        return alongClearance(e, line.name, k);
     }
   };
 
@@ -662,11 +648,7 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
       }
     }
     const clean = points.filter((p, i) => i === 0 || taxiDistance(p, points[i - 1]) > 0.01);
-    let length = 0;
-    for (let i = 1; i < clean.length; i++) {
-      length += taxiDistance(clean[i - 1], clean[i]);
-    }
-    return { error: TaxiRouteError.None, points: clean, length, legs, taxiways };
+    return { error: TaxiRouteError.None, points: clean, length: taxiPolylineLength(clean), legs, taxiways };
   };
 
   // Without the lines too narrow for the aircraft first, then with them (flagged on the page) when there is no other way,
@@ -757,7 +739,6 @@ const PHRASEOLOGY = new Set([
   'VIA',
   'WHEN',
 ]);
-/** The words that introduce runway designators */
 const RUNWAY_WORDS = new Set(['RUNWAY', 'RUNWAYS', 'RWY']);
 /** The words followed by a stand name, which is not a taxiway of the route */
 const STAND_WORDS = new Set(['STAND', 'GATE', 'SPOT', 'PARKING']);
@@ -765,11 +746,6 @@ const STAND_WORDS = new Set(['STAND', 'GATE', 'SPOT', 'PARKING']);
 const RUNWAY_DESIGNATOR = /^\d{1,2}[LCR]?$/;
 /** A radio frequency, e.g. 121.7 */
 const FREQUENCY = /^\d{3}\.\d+$/;
-
-/** A runway designator with two digits, e.g. 4 -> 04, 34L -> 34L */
-function runwayDesignator(designator: string): string {
-  return designator.replace(/[^0-9]/g, '').length < 2 ? `0${designator}` : designator;
-}
 
 /** A name for comparison: letters and digits only (e.g. "A-4B" and "A4B" are the same name) */
 function compactName(name: string): string {
@@ -847,7 +823,7 @@ export function readTaxiClearance(text: string, airportNames: Iterable<string> =
       continue;
     } else if (runwayContext !== null && RUNWAY_DESIGNATOR.test(unit)) {
       if (runwayContext === 'cross') {
-        crossings.push(runwayDesignator(unit));
+        crossings.push(padRunwayDesignator(unit));
       }
       continue;
     } else if (runwayContext !== null && unit === 'AND') {
@@ -896,15 +872,6 @@ function withoutRepeats(names: readonly string[]): string[] {
   return names.filter((name, i) => i === 0 || name !== names[i - 1]);
 }
 
-/**
- * The taxiways of a clearance, in order (see {@link readTaxiClearance}).
- * @param airportNames the names of the airport taxiways
- */
-export function parseTaxiClearance(text: string, airportNames: Iterable<string> = []): string[] {
-  return readTaxiClearance(text, airportNames).taxiways;
-}
-
-/** A runway of the airport map, as polygons */
 export interface TaxiRunway {
   /** e.g. 09R/27L */
   name: string;
