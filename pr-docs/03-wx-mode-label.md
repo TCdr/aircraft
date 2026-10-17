@@ -13,24 +13,19 @@
 
 Fixes #[issue_no]
 
-## Update 2026-09-22 (uncommitted): "WXR OFF"
-
-On the A32NX the label reads `WXR OFF` in white while the radar's SYS switch is OFF, on the map pages (A320 FCOM DSC-34-SURV-30-30, weather radar indication
-on ND: "WXR OFF (only in white)"; the modes stay green, the colour of the automatic mode). The gauge publishes it as mode 5 of `A32NX_WXR_ND_{side}_MODE`
-(docs updated); the A380X never publishes it.
-
 ## Summary of Changes
 
 Nothing on the ND told the crew which radar mode was selected. The mode (WX, WX+T, TURB or MAP) is now shown in green on the right of the ARC and
-ROSE NAV pages while the radar is on, on both aircraft.
+ROSE NAV pages while the radar is on, on both aircraft. On the A32NX the text reads `WXR OFF` in white while the radar's SYS switch is OFF
+(A320 FCOM DSC-34-SURV-30-30, weather radar indication on ND: "WXR OFF (only in white)"; the modes stay green, the colour of the automatic mode).
 
 - The native radar gauge already knows whether the radar is selected and shown (the WX SYS knob on the A32NX; the WX overlay, the WXR & TAWS
   system and the SURV CONTROLS buttons on the A380X), so it publishes the text as a number in `A32NX_WXR_ND_{L,R}_MODE` (0 none, 1 WX, 2 WX+T,
-  3 TURB, 4 MAP), only while the radar is selected on an ARC or ROSE NAV page and not while the terrain takes its place.
+  3 TURB, 4 MAP, 5 WXR OFF), only on an ARC or ROSE NAV page and not while the terrain takes its place. The A380X never publishes 5.
 - The ND reads it through its simvar publisher and the new `WxrModeLabel` component draws the text, so the gating rules are not duplicated
   in the ND code.
 - The A380X has no TURB-only mode: its SURV CONTROLS page gives WX, WX+T and MAP.
-- The text is also shown on the ground, where the radar itself does not draw.
+- The text is also shown on the ground.
 
 ## Cockpit API Changes
 
@@ -38,12 +33,12 @@ New LVars, written by the `ndwxr` gauge and read by the ND. Already documented i
 
 | Var | Type | Description |
 |-----|------|-------------|
-| `L:A32NX_WXR_ND_L_MODE` | Enum | Weather radar mode text of the left (CPT) ND: 0 none, 1 WX, 2 WX+T, 3 TURB, 4 MAP |
+| `L:A32NX_WXR_ND_L_MODE` | Enum | Weather radar mode text of the left (CPT) ND: 0 none, 1 WX, 2 WX+T, 3 TURB, 4 MAP, 5 WXR OFF (A32NX only) |
 | `L:A32NX_WXR_ND_R_MODE` | Enum | Same for the right (F/O) ND |
 
 ## Screenshots (if necessary)
 
-**TO ADD**: ARC and ROSE NAV with the label in each mode (WX, WX+T, TURB, MAP), and without the radar (no label). Before: same page, no label.
+**TO ADD**: ARC and ROSE NAV with the label in each mode (WX, WX+T, TURB, MAP), `WXR OFF` on the A32NX, and on a page without the radar (no label). Before: same page, no label.
 
 ## References
 
@@ -58,11 +53,11 @@ Discord username (if different from GitHub): **TO ADD**
 
 ## Testing instructions
 
-1. A32NX: WX SYS on SYS 1, ND in ARC then ROSE NAV: the mode text follows the MODE knob (WX, WX+T, TURB, MAP). WX SYS OFF: no text.
+1. A32NX: WX SYS on SYS 1, ND in ARC then ROSE NAV: the mode text follows the MODE knob (WX, WX+T, TURB, MAP). WX SYS OFF: `WXR OFF` in white.
 2. Other ND modes (PLAN, ROSE ILS, ROSE VOR): no text.
 3. Turn TERR ON ND on (with the terrain PR): the text goes while the terrain is drawn.
 4. A380X: WX overlay + WXR & TAWS system selected: text follows the SURV CONTROLS TURB / MODE buttons (WX, WX+T, MAP). Range index 0 (OANS): none.
-5. On the ground the text is shown although the radar does not draw.
+5. On the ground the text is shown.
 
 <!-- DO NOT DELETE THIS -->
 ## How to download the PR for QA

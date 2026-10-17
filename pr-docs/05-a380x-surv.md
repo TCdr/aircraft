@@ -30,7 +30,8 @@ page publishes.
 **VD messages:** TERR SYS OFF removed both terrain and weather from the message logic, it always showed "NO TERR AND WX DATA AVAILABLE". TERR SYS OFF
 now only gives NO TERR DATA AVAILABLE, a failed or OFF WXR or WX ON VD OFF only gives NO WX DATA AVAILABLE, and the combined message is kept for both.
 
-Known limit: PRED WS is written but nothing reads it (the MSFS radar has no predictive windshear). GAIN MAN and the GAIN value move the radar colour levels, ELEVN/TILT hide the weather where they reach the ground (feature/a380x/wxr-gain-tilt).
+Known limit: PRED WS is written but nothing reads it (the MSFS radar has no predictive windshear). In the native radar, GAIN MAN and the GAIN value
+move the colour levels and ELEVN/TILT hide the weather where they reach the ground; that radar side is a separate change.
 
 ## Cockpit API Changes
 

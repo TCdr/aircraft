@@ -15,8 +15,8 @@ Fixes #[issue_no]
 
 ## Summary of Changes
 
-Every A380X MFD FMS page was compared with its figure in the A380 FCOM (DSC-22-FMS-20-30, PDF pages 1009-1409) and re-laid out on it,
-and the FCOM pages and functions FBW did not have were added. Each layout value and rule names its FCOM page in a code comment.
+Every A380X MFD FMS page was compared with its figure in the A380 FCOM (DSC-22-FMS-20-30) and re-laid out on it, and the FCOM pages and
+functions FBW did not have were added.
 
 - **Layout:** the pages use the FCOM figure coordinates (`common/FcomLayout.tsx`: `fcomAt`, `fcomRight`, `fcomCentre`, `fcomLine`), the
   global FMS frame of the figures (title bar, 40 px entry fields, 22.5 px labels, 38 px tab bar), and box sizes counted border-box as
@@ -44,7 +44,7 @@ New LVars documented in `fbw-a380x/docs/a380-simvars.md` for the SURV pages (WXR
 
 ## References
 
-- A380 FCOM DSC-22-FMS-20-30 (MFD FMS pages, PDF p.1009-1409), DSC-22-FMS-20-100 (data entry formats), DSC-34-20-60-50 (SURV pages).
+- A380 FCOM DSC-22-FMS-20-30 (MFD FMS pages), DSC-22-FMS-20-100 (data entry formats), DSC-34-20-60-50 (SURV pages).
 
 ## Additional context
 

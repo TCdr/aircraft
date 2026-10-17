@@ -12,13 +12,6 @@
 
 Fixes #[issue_no]
 
-## Update 2026-09-22 (uncommitted): reference altitude 30 s ahead in a fast descent
-
-"The reference altitude is computed based on the current aircraft altitude or, if descending more than 1 000 ft/min, the altitude expected in 30 s" (A320
-FCOM DSC-31-45, GPWS terrain picture): the altitude view colours by the aircraft's own altitude, so its band range is shifted by the altitude lost in 30 s
-(from the IR vertical speed word) instead. Both aircraft. The VD terrain gauge also lost its water view (water in the terrain list, blue as the FCOM says) and
-places the terrain by true height, see PR 9.
-
 ## Summary of Changes
 
 Terrain on the ND (TERR ON ND) without SimBridge, drawn by the `ndwxr` module for both aircraft from MSFS's own terrain data, plus a terrain
@@ -30,6 +23,9 @@ profile on the A380X VD.
   medium yellow down to 500 ft below (250 ft with the gear down), dense green to 1000 ft below (500 ft), light green to 2000 ft below and
   nothing under that. The dots are a random stipple (~1 px cells, ~70% lit when dense) made with blend-only passes (ordered compare against a
   noise image, sharpened by repeated squaring), as MSFS gives a gauge no way to read the texture back.
+- Fast descent: A320 FCOM DSC-31-45 (GPWS terrain picture) says "the reference altitude is computed based on the current aircraft altitude or,
+  if descending more than 1 000 ft/min, the altitude expected in 30 s". The altitude view colours by the aircraft's own altitude, so in such a
+  descent its band range is shifted by the altitude lost in 30 s (from the IR vertical speed word). Both aircraft.
 - Water never takes the altitude list's colours (it always gets the first entry, like terrain far above), so a second altitude view with a
   two-entry list tells water from land; the water is wiped from the terrain and redrawn as cyan-blue dots at every altitude.
 - The map is rotated by the ND's own true heading. ARC shows the forward half disk, the ROSE modes the whole disk; every map page but PLAN,
@@ -41,16 +37,17 @@ profile on the A380X VD.
 
 **A380X VD terrain profile:** a third `ndwxr` gauge per ND (`LV` / `RV` in `panel.cfg`, its own surface). The heading-line column of a terrain
 view whose altitude range follows the VD's limits is stretched over the plot height, compared with a vertical ramp and filled brown; water is cyan
-from sea level down. Needs the TERR SYS button of the SURV page not to be OFF.
+from sea level down. Needs the TERR SYS button of the SURV page not to be OFF. PR 9 drops the VD's water view (water becomes an entry of the
+terrain list, blue as the FCOM says) and places the terrain by true height.
 
-**MSFS limits that shaped the module** (found by crashing the gauge draw in-sim): a module can have at most 8 MapViews (a ninth is created without
+**MSFS limits that shaped the module** (going past either one crashes the gauge draw): a module can have at most 8 MapViews (a ninth is created without
 complaint and crashes the draw; hiding views does not help). The A32NX uses 4 per ND; the A380X has 2 per ND, which are either the weather pair
 or the terrain pair (never wanted together) and are reconfigured when the crew switches, and 2 per VD terrain gauge. Growing the module's memory
 while it draws also crashes it, so `build.sh` reserves 16 MB up front.
 
-**Peaks box (PR 9's commit `43a6899f1`, 2026-09-23):** the TERR box with the highest and lowest elevation of the range needs real elevations, which a
+**Peaks box (in PR 9):** the TERR box with the highest and lowest elevation of the range needs real elevations, which a
 gauge cannot read back from MSFS, so its figures come from SimBridge, over SimConnect: SimBridge's terrain service only renders while a SimConnect
-client takes part (its HTTP `renderingThresholds` endpoint stays empty while it is connected to the sim; an HTTP poller was tried first and reverted),
+client takes part (its HTTP `renderingThresholds` endpoint stays empty while it is connected to the sim),
 and the stock `terronnd` gauge was that client. `ndwxr` now takes its place from the first ND gauge installed: it creates and writes the aircraft status
 block `FBW_SIMBRIDGE_EGPWC_AIRCRAFT_STATUS` every 100 ms (the content of terronnd's `collection.cpp`, with the terrain reported on per side exactly
 when the module selects it), subscribes to the two threshold areas SimBridge writes per ND and publishes the figures on the four
@@ -59,7 +56,7 @@ on a map page and the figures are fresh (5 s) and for the ND's range and mode; -
 gauge is killed. `build.sh` adds the SimConnect SDK include path; the client data layouts are terronnd's `simbridge.h`. Without SimBridge the box stays
 empty and the terrain is drawn as before. (Peaks mode, the display when all terrain is far below the aircraft, uses the same figures: PR 9.)
 
-**terronnd retired (uncommitted, 2026-09-23):** the stock `terronnd` gauge is removed from both `panel.cfg` (the wasm is still built, nothing instantiates it).
+**terronnd retired:** the stock `terronnd` gauge is removed from both `panel.cfg` (the wasm is still built, nothing instantiates it).
 Reasons found in test with SimBridge 0.7.0 on MSFS 2024: its picture is not clipped at the compass arc (the old ARC_CLIP dome), it is never
 expired (the last frame stays after SimBridge closes), and on the A380X its SimConnect status reports terrain on for an ND whenever the VD
 wants it, which SimBridge falls back to after two minutes without HTTP posts (a stationary aircraft), so the F/O terrain stayed on with the
@@ -94,8 +91,8 @@ terrain on the other.
 
 The stock `terronnd` module is only a client of the external SimBridge program; its source is not changed by this PR, but the gauge is no longer
 instantiated (removed from both `panel.cfg`, see above), so there is one terrain layer. Say in the review if the `terronnd` build task should go
-too. After the range fix the A380X VD terrain profile still uses a range that ends at the top of its plot (same weakness as the ND had), it
-was not affected in tests at Aspen where the plot sits above the terrain.
+too. The A380X VD terrain profile still uses a range that ends at the top of its plot (the weakness the ND range fixes above), but it was not
+affected in tests at Aspen, where the plot sits above the terrain.
 
 Discord username (if different from GitHub): **TO ADD**
 
