@@ -241,8 +241,16 @@ export class FwsSystemDisplayLogic {
       if (failPage !== SdPages.None) {
         this.pageWhenUnselected.set(failPage);
 
-        // Disable user selected page when new failure detected
-        if (this.prevFailPage.get() !== failPage) {
+        // A380 FCOM DSC-31-40-10 (ECAM Display on the SD -- GENERAL, a380_fcom.txt l.72794-72799): "The System Display
+        // (SD) pages appear on the SD in the following decreasing order of priority: SD page that the flight crew
+        // manually selects (Refer to ECP System Page Pushbuttons), SD page that appears after an alert, ...". A new
+        // alert therefore keeps a page selected with an ECP system page pb (it was cancelled, so the SD fell back to the
+        // flight phase page, e.g. DOOR, once the alert was cleared); only a second press of the pb removes it
+        // (DSC-31-40-20 SYSTEM PAGE PUSHBUTTONS, l.73254-73258). The STATUS page is not a system page pb (STS pb):
+        // the page of a new alert still replaces it.
+        const systemPageSelectedByCrew =
+          this.userSelectedPage.get() !== SdPages.None && this.userSelectedPage.get() !== SdPages.Status;
+        if (this.prevFailPage.get() !== failPage && !systemPageSelectedByCrew) {
           this.sdCurrentPageIndexSimvar.set(SdPages.None);
           this.userSelectedPage.set(SdPages.None);
           this.currentPage.set(failPage);
