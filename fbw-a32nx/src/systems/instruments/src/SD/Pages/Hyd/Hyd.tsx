@@ -9,7 +9,7 @@ import { SvgGroup } from '../../Common/SvgGroup';
 import { Triangle } from '../../Common/Shapes';
 import { ptuSymbolColor } from './PtuIndication';
 import { ratIndication } from './RatIndication';
-import { isEngineN2BelowIdle } from '../../Common/EngineRunning';
+import { FADEC_N_LVAR_UNIT, isEngineN2BelowIdle } from '../../Common/EngineRunning';
 
 import '../../Common/CommonStyles.scss';
 
@@ -23,9 +23,10 @@ enum HydSystem {
 
 export const HydPage = () => {
   // The engine 1 and 2 legends are amber with the engine N2 below idle (FCOM l.44057-44058, EngineRunning.ts)
-  const [Eng1N2] = useSimVar('L:A32NX_ENGINE_N2:1', 'Percent', 1000);
-  const [Eng2N2] = useSimVar('L:A32NX_ENGINE_N2:2', 'Percent', 1000);
-  const [engineIdleN2] = useSimVar('L:A32NX_ENGINE_IDLE_N2', 'Percent', 1000);
+  // L:vars hold plain percent: read as number (a 'percent' read is 100 times too big, FADEC_N_LVAR_UNIT)
+  const [Eng1N2] = useSimVar('L:A32NX_ENGINE_N2:1', FADEC_N_LVAR_UNIT, 1000);
+  const [Eng2N2] = useSimVar('L:A32NX_ENGINE_N2:2', FADEC_N_LVAR_UNIT, 1000);
+  const [engineIdleN2] = useSimVar('L:A32NX_ENGINE_IDLE_N2', FADEC_N_LVAR_UNIT, 1000);
 
   const [greenPressure] = useSimVar('L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE', 'psi', 500);
   const [yellowPressure] = useSimVar('L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE', 'psi', 500);

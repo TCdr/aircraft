@@ -8,7 +8,7 @@ import { Triangle } from '../../../Common/Shapes';
 import BleedGauge from './BleedGauge';
 import { engineBleedValveCss, hpValveCss } from './EngineBleedValveIndication';
 import Valve from './Valve';
-import { isEngineN2BelowIdle } from '../../../Common/EngineRunning';
+import { FADEC_N_LVAR_UNIT, isEngineN2BelowIdle } from '../../../Common/EngineRunning';
 
 interface EngineBleedProps {
   x: number;
@@ -34,13 +34,14 @@ const EngineBleed: FC<EngineBleedProps> = ({
   wingAntiIceTimer,
 }) => {
   // TODO: Should come from ECU
-  const [engineN1] = useSimVar(`L:A32NX_ENGINE_N1:${engine}`, 'percent', 100);
-  const [engineN1Idle] = useSimVar('L:A32NX_ENGINE_IDLE_N1', 'percent', 500);
+  // L:vars hold plain percent: read as number (a 'percent' read is 100 times too big, FADEC_N_LVAR_UNIT)
+  const [engineN1] = useSimVar(`L:A32NX_ENGINE_N1:${engine}`, FADEC_N_LVAR_UNIT, 100);
+  const [engineN1Idle] = useSimVar('L:A32NX_ENGINE_IDLE_N1', FADEC_N_LVAR_UNIT, 500);
   const engineN1BelowIdle = engineN1 + 2 < engineN1Idle;
   const [engineFadecPowered] = useSimVar(`L:A32NX_FADEC_POWERED_ENG${engine}`, 'bool', 500);
   // The engine identification is amber with the engine N2 below idle (FCOM l.57846-57848, EngineRunning.ts)
-  const [engineN2] = useSimVar(`L:A32NX_ENGINE_N2:${engine}`, 'percent', 100);
-  const [engineN2Idle] = useSimVar('L:A32NX_ENGINE_IDLE_N2', 'percent', 500);
+  const [engineN2] = useSimVar(`L:A32NX_ENGINE_N2:${engine}`, FADEC_N_LVAR_UNIT, 100);
+  const [engineN2Idle] = useSimVar('L:A32NX_ENGINE_IDLE_N2', FADEC_N_LVAR_UNIT, 500);
   const engineN2BelowIdle = isEngineN2BelowIdle(engineN2, engineN2Idle);
 
   const [engineHPValveOpen] = useSimVar(`L:A32NX_PNEU_ENG_${engine}_HP_VALVE_OPEN`, 'bool', 500);
