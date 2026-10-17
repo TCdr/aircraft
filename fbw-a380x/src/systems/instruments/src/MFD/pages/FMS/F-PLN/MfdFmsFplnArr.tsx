@@ -119,8 +119,8 @@ export class MfdFmsFplnArr extends FmsFlightPlanPage<MfdFmsFplnArrProps> {
       }
 
       if (flightPlan.availableApproaches?.length > 0) {
-        // FCOM DSC-22-FMS-20-30 ARRIVAL page, APPR LIST: the approaches are sorted by runway, and the last option of
-        // each runway group is the runway itself (e.g. 02C), which creates a default 5 NM leg on the runway axis.
+        // APPR LIST: the approaches are sorted by runway, and the last option of each runway group is the runway
+        // itself (e.g. 02C), which creates a default 5 NM leg on the runway axis.
         const appr: ButtonMenuItem[] = [];
         const pushRunwayOnly = (runwayIdent: string) =>
           appr.push({
@@ -432,7 +432,7 @@ export class MfdFmsFplnArr extends FmsFlightPlanPage<MfdFmsFplnArrProps> {
       <>
         {super.render()}
         {/* begin page content */}
-        {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 13), page container coordinates */}
+        {/* Positions measured on the reference figure of the page, in page container coordinates */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas">
             <div class="mfd-fms-fpln-proc-frame" />

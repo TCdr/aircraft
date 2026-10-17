@@ -6,14 +6,13 @@
 //
 // What MSFS lets us change (MSFS_MapView.h): the radar views only take a list of rain rate bands (the colour table,
 // fsMapViewSetWeatherRadarRainColors), a cone angle and a scan rate. The precipitation they paint has no height (the
-// altitude range is ignored, measured 2026-09-19), and fsMapViewSetWeatherRadarTiltInRadians is not in the build
-// container's SDK header and crashed the module on the vertical views (2026-09-19). So:
+// altitude range is ignored, measured in the sim), and fsMapViewSetWeatherRadarTiltInRadians is not in the build
+// container's SDK header and crashed the module on the vertical views. So:
 //  - GAIN moves the rain rate thresholds of the colour table: the same picture as the real receiver gain, which
 //    moves the reflectivity each colour starts at;
 //  - ELEVN/TILT can only change WHERE the weather is shown, not which cells: the part of the ND where the selected
-//    slice (ELEVN) or tilted surface (TILT) is in the ground shows no weather (the radar's ground returns are removed:
-//    "It also reduces the ground returns from the displayed weather, by using the terrain data provided by the TAWS
-//    database", A380 FCOM DSC-34-20-30-10 P 2/12). A slice or tilt above the cell tops cannot be shown: MSFS gives no
+//    slice (ELEVN) or tilted surface (TILT) is in the ground shows no weather (the real radar removes its ground
+//    returns with the TAWS terrain data). A slice or tilt above the cell tops cannot be shown: MSFS gives no
 //    cell tops.
 
 #pragma once
@@ -30,20 +29,16 @@ constexpr double kWxrNoEntry = -9999.0;
 // ---------------------------------------------------------------------------------------------------------------------
 // GAIN
 //
-// A380 FCOM DSC-34-20-30-10 P 5/12: "The manual GAIN mode enables the flight crew to adjust sensitivity of the weather
-// display on the ND." DSC-34-20-30-20 (GAIN knob): AUTO "The GAIN function is automatically set to the most
-// appropriate setting", manual "adjusts the gain value in percentages", "The default GAIN value is 50 %".
-// Honeywell IntuVue RDR-4000 Pilot's Manual (the A380's radar), Gain Control: "Rotating the GAIN Knob to the minimum
-// (MIN) position reduces gain by approximately 16 dBZ. Rotating the GAIN Knob to the maximum (MAX) position increases
-// gain by approximately 10 dBZ"; the calibrated (AUTO) position is the only one where the colours are the standard
-// levels (green 20, yellow 30, red 40 dBZ); magenta (turbulence) is unaffected by gain changes.
-// Airbus Safety First #22 (2016), Gain adjustment: reducing the gain, "most red areas slowly turn yellow, the yellow
-// areas turn green and the green areas slowly disappear".
+// The A380's manual GAIN adjusts the sensitivity of the weather display on the ND, as a percentage (default 50 %);
+// AUTO sets the most appropriate gain. On the A380's RDR-4000, MIN reduces the gain by about 16 dBZ and MAX increases
+// it by about 10 dBZ; only the calibrated (AUTO) gain shows the standard colour levels (green 20, yellow 30, red
+// 40 dBZ); magenta (turbulence) does not change with the gain. Reducing the gain turns most red areas yellow, yellow
+// areas green, and makes green areas disappear.
 // ---------------------------------------------------------------------------------------------------------------------
 
 constexpr float kGainMinDb = -16.0f;
 constexpr float kGainMaxDb = 10.0f;
-// Design choice (the FCOM gives the percentage but not its scale): 50 %, the FCOM default value, is the calibrated
+// Design choice (the real percentage scale is not published): 50 %, the default value, is the calibrated
 // gain (as AUTO); 0 % is the RDR-4000 MIN and 100 % its MAX, linear in dB on each side.
 constexpr float kGainCalibratedPercent = 50.0f;
 // Marshall-Palmer Z = 200 R^1.6 (the relation the radar colour levels are given in: 20 dBZ = 0.65 mm/h, 40 dBZ =
@@ -78,7 +73,7 @@ struct RadarThresholds {
 };
 
 // The thresholds for a gain: more gain shows a colour from a lower rain rate. The turbulence threshold stands for the
-// Doppler turbulence detection (see kTurbulenceRateMmH) and does not move with the gain (RDR-4000 Pilot's Manual).
+// Doppler turbulence detection (see kTurbulenceRateMmH), which does not move with the gain on the real radar.
 inline RadarThresholds radarThresholdsForGain(const RadarThresholds& calibrated, float gainDb) {
   const float factor = std::pow(10.0f, -gainDb / kRainRateDbPerDecade);
   return RadarThresholds{calibrated.greenFromMmH * factor, calibrated.yellowFromMmH * factor, calibrated.redFromMmH * factor,
@@ -118,11 +113,9 @@ inline void hotViewBands(const RadarThresholds& t, float topBandRate, MaskBand o
 // ---------------------------------------------------------------------------------------------------------------------
 // ELEVN / TILT
 //
-// A380 FCOM DSC-34-20-30-10 P 5/12: "The manual ELEVN mode enables the flight crew to analyze the weather at a selected
-// altitude", "The manual TILT mode enables the flight crew to analyze the weather at a selected tilt angle", "Zero tilt
-// value indicates the horizon as seen by the ADIRS", "the WXR extracts data from the 3-D buffer: At a selected
-// altitude, or At a selected tilt angle. The WXR displays the extracted data on the ND." P 2/12: "The WXR takes into
-// account the curvature of the earth".
+// The A380's manual ELEVN mode shows the weather at a selected altitude, the manual TILT mode at a selected tilt angle
+// (zero tilt = the horizon as the ADIRS see it), both extracted from the radar's 3D buffer. The radar takes the
+// curvature of the earth into account.
 // ---------------------------------------------------------------------------------------------------------------------
 
 // L:A380X_WXR_ELEVN_TILT_MODE (MfdSurvControls.tsx WxrElevnTiltMode).
@@ -131,7 +124,7 @@ constexpr double kElevnTiltModeTilt = 2.0;
 
 constexpr float kFeetPerNm = 6076.12f;
 // Design choice: the earth radius scaled by 4/3, the usual radar engineering allowance for the standard atmosphere's
-// refraction of the beam (the FCOM only says the curvature is taken into account).
+// refraction of the beam (the real radar is only known to take the curvature into account).
 constexpr float kEffectiveEarthRadiusNm = 3440.065f * 4.0f / 3.0f;
 constexpr float kTiltDegToRad = 3.14159265f / 180.0f;
 

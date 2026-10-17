@@ -31,7 +31,7 @@ static void expectTrue(const char* what, bool actual) {
 static const RadarThresholds kCalibrated{0.7f, 4.0f, 12.0f, 20.0f};
 
 static void testGainPercentToDb() {
-  // 50 % (the FCOM default value) is the calibrated gain; the ends are the RDR-4000 MIN and MAX.
+  // 50 % (the default value) is the calibrated gain; the ends are the RDR-4000 MIN and MAX.
   expectNear("50 % = CAL", gainDbFromPercent(50.0f), 0.0f, 1e-6f);
   expectNear("0 % = MIN", gainDbFromPercent(0.0f), -16.0f, 1e-6f);
   expectNear("100 % = MAX", gainDbFromPercent(100.0f), 10.0f, 1e-6f);
@@ -60,7 +60,7 @@ static void testThresholdsForGain() {
   expectNear("MIN green x10", min.greenFromMmH, 7.0f, 1e-4f);
   expectNear("MIN yellow x10", min.yellowFromMmH, 40.0f, 1e-3f);
   expectNear("MIN red x10", min.redFromMmH, 120.0f, 1e-3f);
-  // RDR-4000 Pilot's Manual: magenta (turbulence) is unaffected by gain changes.
+  // Magenta (turbulence) does not change with the gain.
   expectNear("MIN turbulence unchanged", min.turbulenceMmH, 20.0f, 1e-6f);
 
   // +10 dB: rates times 10^(-10/16) = 0.2371.
@@ -69,7 +69,7 @@ static void testThresholdsForGain() {
   expectNear("MAX red", max.redFromMmH, 12.0f * 0.23714f, 1e-3f);
   expectNear("MAX turbulence unchanged", max.turbulenceMmH, 20.0f, 1e-6f);
 
-  // Safety First #22: reducing the gain turns red into yellow, yellow into green, green into nothing. A 10 mm/h cell
+  // Reducing the gain turns red into yellow, yellow into green, green into nothing. A 10 mm/h cell
   // (yellow at CAL, below the 12 mm/h red) is green at -8 dB (yellow from 4 * 3.16 = 12.6 mm/h).
   const RadarThresholds reduced = radarThresholdsForGain(kCalibrated, -8.0f);
   expectTrue("10 mm/h is yellow at CAL", 10.0f >= cal.yellowFromMmH && 10.0f < cal.redFromMmH);

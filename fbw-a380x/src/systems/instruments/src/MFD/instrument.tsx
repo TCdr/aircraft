@@ -100,7 +100,7 @@ class MfdInstrument implements FsInstrument {
 
   public doInit(): void {
     this.backplane.init();
-    // The SURV/CONTROLS page's manual radar settings start with nothing entered (FCOM defaults at the first selection)
+    // The SURV/CONTROLS page's manual radar settings start with nothing entered (the defaults of a first selection)
     initWxrManualSettings((name, value) => SimVar.SetSimVarValue(name, SimVarValueType.Number, value));
 
     const mfd = document.getElementById('MFD_CONTENT');

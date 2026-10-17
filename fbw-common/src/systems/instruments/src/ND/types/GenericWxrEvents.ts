@@ -12,8 +12,8 @@ export interface GenericWxrEvents {
 }
 
 /**
- * Manual radar settings of aircraft that have them (A380X SURV / CONTROLS page), shown with the mode text on the ND
- * (A380 FCOM DSC-34-20-30-20 P 17 "WXR MESSAGES"). Aircraft that do not publish them keep the automatic texts.
+ * Manual radar settings of aircraft that have them (A380X SURV / CONTROLS page), shown with the mode text on the ND.
+ * Aircraft that do not publish them keep the automatic texts.
  */
 export interface GenericWxrManualSettingsEvents {
   /** GAIN button set to MAN */

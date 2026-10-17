@@ -202,7 +202,7 @@ static void precipColors(const RadarThresholds& thresholds, FsRainRateColor colo
   MaskBand bands[3];
   precipViewBands(thresholds, kTopBandRate, bands);
   for (int i = 0; i < 3; ++i) {
-    // The empty band's alpha is 0 like before the gain existed (it makes no difference, see configureRadarView).
+    // The empty band's alpha is 0 (it makes no difference, see configureRadarView).
     colors[i] = FsRainRateColor{rgba(bands[i].r, bands[i].g, bands[i].b, i == 0 ? 0.0f : 1.0f), bands[i].upToMmH};
   }
 }
@@ -215,8 +215,8 @@ bool configurePrecipView(FsContext ctx, FsTextureId id, const RadarThresholds& t
 
 // Hot view: G = rate >= red threshold, drawn as the red wipe; R and B = rate >= turbulence
 // threshold, drawn as the magenta (R + B, also in the TURB-only mode, where no precipitation
-// is drawn; see WeatherPass). Kept visible for its whole life (toggling visibility flashes an
-// empty white texture) and simply not drawn when the mode doesn't call for it. A reduced gain can
+// is drawn; see WeatherPass). Toggling a view's visibility flashes an empty white texture, so a
+// view woken from parking is not drawn before kUnparkWarmupFrames. A reduced gain can
 // move the red threshold above the turbulence one: the bands then run empty / magenta / magenta + red
 // (see hotViewBands).
 static void hotColors(const RadarThresholds& thresholds, FsRainRateColor colors[3]) {

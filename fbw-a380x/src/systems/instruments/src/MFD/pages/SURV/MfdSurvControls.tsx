@@ -18,7 +18,13 @@ import { ActivePageTitleBar } from '../common/ActivePageTitleBar';
 import { AbstractMfdPageProps } from '../../MFD';
 import { Footer } from '../common/Footer';
 import { InputField } from '../../../MsfsAvionicsCommon/UiWidgets/InputField';
-import { SquawkFormat, WxrElevationFormat, WxrGainFormat, WxrTiltFormat } from '../common/DataEntryFormats';
+import {
+  DataEntryFormat,
+  SquawkFormat,
+  WxrElevationFormat,
+  WxrGainFormat,
+  WxrTiltFormat,
+} from '../common/DataEntryFormats';
 import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { RadioButtonColor, RadioButtonGroup } from '../../../MsfsAvionicsCommon/UiWidgets/RadioButtonGroup';
 import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
@@ -45,18 +51,16 @@ export enum TransponderState {
   ModeS = 5,
 }
 
-/** ELEVN/TILT option list (A380 FCOM DSC-34-20-30-20, L:A380X_WXR_ELEVN_TILT_MODE) */
+/** ELEVN/TILT option list (L:A380X_WXR_ELEVN_TILT_MODE) */
 enum WxrElevnTiltMode {
   Auto = 0,
   Elevn = 1,
   Tilt = 2,
 }
 
-const NO_ENTRY = WXR_NO_ENTRY;
-
 /**
- * SURV / CONTROLS page (A380 FCOM DSC-34-20-60-50 P 4-5), laid out on the FCOM figure, with the rules of the XPDR
- * (DSC-34-20-40), TCAS (DSC-34-20-50), WXR (DSC-34-20-30-20) and TAWS (DSC-34-20-10) sections of the page.
+ * SURV / CONTROLS page, laid out on the reference figure, with the rules of the XPDR, TCAS, WXR and TAWS sections
+ * of the page.
  */
 export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
@@ -91,7 +95,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
 
   private readonly tcasFailed = ConsumerSubject.create(this.sub.on('tcasFail'), true);
 
-  /** FCOM: the TCAS option lists are not available with the XPDR on standby or failed, or with ALT RPTG OFF */
+  /** The TCAS option lists are not available with the XPDR on standby or failed, or with ALT RPTG OFF */
   private readonly tcasRadioGroupDisabled = MappedSubject.create(
     ([tcasFailed, xpdrState, altRptgOn]) =>
       Array(3).fill(
@@ -123,9 +127,9 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
     this.wxr2Failed,
   );
 
-  // WXR, TURB and MODE drive the ND weather radar, WX ON VD the VD's "NO TERR AND WX DATA" message, GAIN and ELEVN/TILT the
-  // ND's WXR messages (the radar picture itself does not follow them). PRED W/S only keeps its state so far. All start at
-  // the page's default settings.
+  // WXR, TURB and MODE drive the ND weather radar, WX ON VD the VD's "NO TERR AND WX DATA" message, GAIN and
+  // ELEVN/TILT the ND's WXR messages (the radar picture itself does not follow them). PRED W/S only keeps its state.
+  // All start at the page's default settings.
   private readonly wxrAuto = Subject.create<boolean>(true);
 
   private readonly wxrPredWsAuto = Subject.create<boolean>(true);
@@ -153,14 +157,14 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
 
   private readonly wxrElevationFormat = new WxrElevationFormat(this.baroIsStd);
 
-  /** FCOM: PRED W/S and TURB are inhibited while the WXR is off */
+  /** PRED W/S and TURB are inhibited while the WXR is off */
   private readonly wxrOffOrFailed = MappedSubject.create(
     ([auto, failed]) => !auto || failed,
     this.wxrAuto,
     this.wxrFailed,
   );
 
-  /** FCOM: the ELEVN/TILT option list is inhibited with the WXR off, and not available in MAP mode */
+  /** The ELEVN/TILT option list is inhibited with the WXR off, and not available in MAP mode */
   private readonly wxrElevnTiltDisabled = MappedSubject.create(
     ([offOrFailed, modeWx]) => Array(3).fill(offOrFailed || !modeWx),
     this.wxrOffOrFailed,
@@ -179,7 +183,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
     this.wxrElevnTiltDisabled,
   );
 
-  /** FCOM: GAIN MAN displays an entry field below the GAIN button */
+  /** GAIN MAN displays an entry field below the GAIN button */
   private readonly wxrGainFieldVisible = MappedSubject.create(
     ([gainAuto, offOrFailed]) => !gainAuto && !offOrFailed,
     this.wxrGainAuto,
@@ -264,7 +268,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
       onOff('wxrVdOff', this.wxrOnVd),
     );
 
-    const entry = (v: number) => (v === NO_ENTRY ? null : v);
+    const entry = (v: number) => (v === WXR_NO_ENTRY ? null : v);
     this.subs.push(
       sub
         .on('wxrElevnTiltMode')
@@ -347,7 +351,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
     publisher.pub('mfd_xpdr_set_on', index === 1, true);
   }
 
-  /** FCOM DSC-34-20-40 ALT RPTG button: ON selects TA/RA and NORM */
+  /** ALT RPTG button: ON selects TA/RA and NORM */
   private setAltReporting(on: boolean) {
     const publisher = this.props.bus.getPublisher<MfdSurvEvents>();
     publisher.pub('mfd_xpdr_set_alt_reporting', on, true);
@@ -358,7 +362,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
   }
 
   /**
-   * FCOM DSC-34-20-30-20 WXR button (after the confirmation): AUTO sets PRED W/S, TURB, ELEVN/TILT, GAIN, MODE and WX ON
+   * WXR button (after confirmation): AUTO sets PRED W/S, TURB, ELEVN/TILT, GAIN, MODE and WX ON
    * VD to their automatic positions; OFF sets PRED W/S, TURB and WX ON VD to OFF and deselects ELEVN/TILT.
    */
   private setWxr(auto: boolean) {
@@ -376,7 +380,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
   }
 
   /**
-   * FCOM DSC-34-20-30-20 P 4 (ELEVN knob): selecting the manual ELEVN (TILT) mode without a value uses the default ELEVN
+   * ELEVN knob: selecting manual ELEVN (TILT) without a value uses the default ELEVN
    * value, the current aircraft altitude, or the default TILT value, +3.00° on ground and 0° in flight.
    */
   private setElevnTiltMode(mode: WxrElevnTiltMode) {
@@ -388,7 +392,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
     }
   }
 
-  /** The FCOM default of a manual setting when its manual mode is selected with nothing entered (wxrManualDefaultOnSelection) */
+  /** Default of a manual setting selected with nothing entered (wxrManualDefaultOnSelection) */
   private enterDefaultIfEmpty(setting: WxrManualSetting) {
     const name = WXR_MANUAL_SETTING_VARS[setting];
     const value = wxrManualDefaultOnSelection(setting, SimVar.GetSimVarValue(name, SimVarValueType.Number), {
@@ -437,6 +441,33 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
     return { visibility: visible.map((v) => (v ? 'inherit' : 'hidden')) };
   }
 
+  /** The entry field of a manual WXR setting (ELEVN, TILT or GAIN): a cleared value writes WXR_NO_ENTRY */
+  private wxrManualSettingField(
+    y: number,
+    x: number,
+    width: number,
+    format: DataEntryFormat<number>,
+    value: Subject<number | null>,
+    setting: WxrManualSetting,
+  ): VNode {
+    return fcomAt(
+      y,
+      x,
+      <InputField<number>
+        dataEntryFormat={format}
+        value={value}
+        dataHandlerDuringValidation={async (v) =>
+          SimVar.SetSimVarValue(WXR_MANUAL_SETTING_VARS[setting], SimVarValueType.Number, v ?? WXR_NO_ENTRY)
+        }
+        containerStyle={`width: ${width}px;`}
+        alignText="center"
+        errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+        hEventConsumer={this.props.mfd.hEventConsumer}
+        interactionMode={this.props.mfd.interactionMode}
+      />,
+    );
+  }
+
   private survButton(
     y: number,
     x: number,
@@ -460,16 +491,13 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
   }
 
   render(): VNode {
-    const errorHandler = (e: { type: FmsErrorType; details?: string }) =>
-      this.props.fmcService.master.showFmsErrorMessage(e.type, e.details);
     return (
       <>
         <ActivePageTitleBar activePage={Subject.create('CONTROLS')} offset={Subject.create('')} />
         {/* begin page content */}
-        {/* Positions from the FCOM figure (DSC-34-20-60-50 P 4), page container coordinates (display y - 143) */}
+        {/* Positions measured on the reference figure, page container coordinates (display y - 143) */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-surv-controls">
-            {/* XPDR area */}
             <div class="mfd-surv-area" style="left: 2px; top: 0px; width: 320px; height: 265px;" />
             {fcomCentre(23, 165, <span class={{ 'mfd-surv-heading': true, failed: this.xpdrFailed }}>XPDR</span>)}
             {fcomCentre(30, 66, <span class="mfd-label">SQWK</span>)}
@@ -525,7 +553,6 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
               />,
             )}
 
-            {/* TCAS area */}
             <div class="mfd-surv-area" style="left: 330px; top: 0px; width: 436px; height: 265px;" />
             {fcomCentre(23, 480, <span class={{ 'mfd-surv-heading': true, failed: this.tcasFailed }}>TCAS</span>)}
             {fcomAt(
@@ -558,7 +585,6 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
               />,
             )}
 
-            {/* WXR area */}
             <div class="mfd-surv-area" style="left: 2px; top: 279px; width: 764px; height: 336px;" />
             {fcomCentre(309, 167, <span class={{ 'mfd-surv-heading': true, failed: this.wxrFailed }}>WXR</span>)}
             <div class="mfd-surv-area mfd-surv-titled" style="left: 220px; top: 325px; width: 137px; height: 107px;" />
@@ -597,45 +623,15 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
                 valuesDisabled={this.wxrElevnTiltDisabled}
               />,
             )}
-            {/* FCOM: ELEVN or TILT displays an entry field below the option list */}
+            {/* ELEVN or TILT displays an entry field below the option list */}
             <div style={this.visibleIf(this.wxrElevationVisible)}>
-              {fcomAt(
-                588,
-                12,
-                <InputField<number>
-                  dataEntryFormat={this.wxrElevationFormat}
-                  value={this.wxrElevation}
-                  dataHandlerDuringValidation={async (v) =>
-                    SimVar.SetSimVarValue('L:A380X_WXR_ELEVN', SimVarValueType.Number, v ?? NO_ENTRY)
-                  }
-                  containerStyle="width: 142px;"
-                  alignText="center"
-                  errorHandler={errorHandler}
-                  hEventConsumer={this.props.mfd.hEventConsumer}
-                  interactionMode={this.props.mfd.interactionMode}
-                />,
-              )}
+              {this.wxrManualSettingField(588, 12, 142, this.wxrElevationFormat, this.wxrElevation, 'elevn')}
             </div>
             <div style={this.visibleIf(this.wxrTiltVisible)}>
-              {fcomAt(
-                588,
-                12,
-                <InputField<number>
-                  dataEntryFormat={new WxrTiltFormat()}
-                  value={this.wxrTilt}
-                  dataHandlerDuringValidation={async (v) =>
-                    SimVar.SetSimVarValue('L:A380X_WXR_TILT', SimVarValueType.Number, v ?? NO_ENTRY)
-                  }
-                  containerStyle="width: 128px;"
-                  alignText="center"
-                  errorHandler={errorHandler}
-                  hEventConsumer={this.props.mfd.hEventConsumer}
-                  interactionMode={this.props.mfd.interactionMode}
-                />,
-              )}
+              {this.wxrManualSettingField(588, 12, 128, new WxrTiltFormat(), this.wxrTilt, 'tilt')}
             </div>
 
-            {/* FCOM: GAIN and MODE are not displayed while the WXR is off */}
+            {/* GAIN and MODE are not displayed while the WXR is off */}
             <div style={{ visibility: this.wxrAuto.map((v) => (v ? 'inherit' : 'hidden')) }}>
               {fcomCentre(470, 289, <span class="mfd-label">GAIN</span>)}
               {this.survButton(528, 229, this.wxrGainAuto, this.wxrFailed, 'AUTO', 'MAN', (v) => this.setGainAuto(v))}
@@ -645,29 +641,13 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
               )}
             </div>
             <div style={this.visibleIf(this.wxrGainFieldVisible)}>
-              {fcomAt(
-                591,
-                229,
-                <InputField<number>
-                  dataEntryFormat={new WxrGainFormat()}
-                  value={this.wxrGain}
-                  dataHandlerDuringValidation={async (v) =>
-                    SimVar.SetSimVarValue('L:A380X_WXR_GAIN', SimVarValueType.Number, v ?? NO_ENTRY)
-                  }
-                  containerStyle="width: 112px;"
-                  alignText="center"
-                  errorHandler={errorHandler}
-                  hEventConsumer={this.props.mfd.hEventConsumer}
-                  interactionMode={this.props.mfd.interactionMode}
-                />,
-              )}
+              {this.wxrManualSettingField(591, 229, 112, new WxrGainFormat(), this.wxrGain, 'gain')}
             </div>
             {fcomCentre(470, 662, <span class="mfd-label">WX ON VD</span>)}
             {this.survButton(528, 602, this.wxrOnVd, this.wxrFailed, 'AUTO', 'OFF', (v) =>
               SimVar.SetSimVarValue('L:A380X_WXR_VD_OFF', SimVarValueType.Bool, !v),
             )}
 
-            {/* TAWS area */}
             <div class="mfd-surv-area" style="left: 2px; top: 629px; width: 580px; height: 186px;" />
             {fcomCentre(647, 167, <span class={{ 'mfd-surv-heading': true, failed: this.allTawsFailed }}>TAWS</span>)}
             {fcomCentre(693, 67, <span class="mfd-label mfd-surv-two-lines">{'TERR\nSYS'}</span>)}
@@ -695,7 +675,6 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
               <polyline points="497,810 501,805 505,810" />
             </svg>
 
-            {/* DEFAULT SETTINGS */}
             <div class="mfd-surv-area" style="left: 590px; top: 629px; width: 176px; height: 186px;" />
             <div class="mfd-surv-area mfd-surv-titled" style="left: 594px; top: 707px; width: 166px; height: 86px;" />
             {fcomCentre(707, 677, <span class="mfd-label mfd-surv-frame-title">SURV</span>)}

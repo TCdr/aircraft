@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { cruiseSatRow } from './cruiseSat';
 
-// A380 FCOM l.42335-42345: ALT/SAT pair at the cruise flight level, entered by the crew
+// ALT/SAT pair at the cruise flight level, entered by the crew
 describe('CRZ tab SAT row', () => {
   it('shows the SAT at the cruise flight level and lets it be entered', () => {
     expect(cruiseSatRow(350, -52)).toEqual({ flightLevel: 350, sat: -52, satEditable: true });

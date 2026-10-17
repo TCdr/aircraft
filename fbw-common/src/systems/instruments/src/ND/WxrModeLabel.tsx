@@ -39,11 +39,10 @@ const LINE_HEIGHT = 27;
  * The weather radar mode (WX, WX+T, TURB, MAP) on the right of the map pages (ROSE and ARC), in green (the
  * colour of the automatic mode) while the radar is on, and "WXR OFF" in white while it is switched off.
  *
- * With manual radar settings (A380 FCOM DSC-34-20-30-20 P 17 "WXR MESSAGES"): "GAIN 53%" with the GAIN button at MAN,
+ * With manual radar settings: "GAIN 53%" with the GAIN button at MAN,
  * "TILT -12.0°" or "ELEVN 12500FT" (FL with the STD baro reference) instead of WX with the ELEVN/TILT option list at
  * TILT or ELEVN, and WX only with the GAIN button and the ELEVN/TILT option list at AUTO. The manual settings are in
- * cyan, the colour of the manual modes (A320 FCOM DSC-34-SURV-30-30 P 10, same radar family; the A380 FCOM gives no
- * colour).
+ * cyan, the colour of the manual modes on the A320 radar of the same family (design choice: no A380 colour known).
  */
 export class WxrModeLabel extends DisplayComponent<WxrModeLabelProps> {
   private readonly sub = this.props.bus.getSubscriber<GenericWxrEvents & GenericWxrManualSettingsEvents>();

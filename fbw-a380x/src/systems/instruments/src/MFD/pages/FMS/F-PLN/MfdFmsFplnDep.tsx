@@ -36,7 +36,7 @@ export class MfdFmsFplnDep extends FmsFlightPlanPage<MfdFmsFplnDepProps> {
 
   private readonly rwyFreq = Subject.create<string>('');
 
-  /** FCOM DSC-22-FMS-20-30 DEPARTURE page: type and ident of the landing system of the selected runway */
+  /** DEPARTURE page: type and ident of the landing system of the selected runway */
   private readonly rwyLs = Subject.create<string>('');
 
   private readonly rwySid = Subject.create<string>('');
@@ -263,7 +263,7 @@ export class MfdFmsFplnDep extends FmsFlightPlanPage<MfdFmsFplnDepProps> {
       <>
         {super.render()}
         {/* begin page content */}
-        {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 118), page container coordinates */}
+        {/* Positions measured on the reference figure of the page, in page container coordinates */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas">
             <div class="mfd-fms-fpln-proc-frame" />

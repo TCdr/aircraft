@@ -382,7 +382,7 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
   private readonly wxrTilt = ConsumerSubject.create(this.sub.on('wxrTilt'), WXR_SETTING_NO_ENTRY);
 
   /**
-   * The white line of the WXR's manual ELEVN or TILT mode (A380 FCOM DSC-34-20-30-20, see VdWxrElevnTiltLine), as an
+   * The white line of the WXR's manual ELEVN or TILT mode (see VdWxrElevnTiltLine), as an
    * SVG path ('' when not shown). It goes with the ELEVN / TILT message of the ND, so it shows on the same condition (the
    * ND showing the WX display function); hidden with the VD data (heading or track lost).
    */
@@ -765,7 +765,7 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
           >
             {this.targetAltitudeFormatted}
           </text>
-          {/* WXR ELEVN/TILT line, under the aircraft symbol so it leaves from the symbol's nose as in the FCOM figures */}
+          {/* WXR ELEVN/TILT line, under the aircraft symbol so it leaves from the symbol's nose */}
           <path
             d={this.wxrElevnTiltLinePath}
             fill="none"

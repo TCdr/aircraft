@@ -79,7 +79,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
 
   private readonly altitudeErrorUnitVisibility = this.altitudeErrorText.map((t) => (t ? 'inherit' : 'hidden'));
 
-  /** Display state of the altitude error, with the FCOM hysteresis */
+  /** Display state of the altitude error, with hysteresis (see the ALTITUDE ERROR doc below) */
   private altitudeErrorState: 'hidden' | 'green' | 'amber' = 'hidden';
   private selectedLegIsAlternate: boolean | null = null;
   private readonly dropdownMenuSelectedWaypointIndex = this.selectedLegIndex.map((si) => {
@@ -107,16 +107,12 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
   private readonly spdConstraintTypeRadioSelected = Subject.create<number | null>(null);
   private readonly altConstraintTypeRadioSelected = Subject.create<number | null>(null);
 
-  // RTA page (FCOM DSC-22-FMS-20-30 P 360-364)
-
   /** RTA message area: EXISTING RTA AT / RTA NOT ALLOWED AT (amber) followed by the waypoint ident (big font) */
   private readonly rtaMessage = Subject.create('');
 
   private readonly rtaMessageIdent = Subject.create('');
 
-  private readonly rtaMessageSuffix = Subject.create('');
-
-  /** FCOM P 344: RTA NOT ALLOWED IN EO, the panel is empty with this message */
+  /** RTA NOT ALLOWED IN EO: the panel is empty with this message */
   private readonly rtaPanelMessage = Subject.create('');
 
   private readonly rtaPanelVisible = this.rtaPanelMessage.map((m) => m === '');
@@ -132,7 +128,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
 
   private readonly rtaTime = Subject.create<number | null>(null);
 
-  /** The RTA entry field is displayed on the line of the selected option (FCOM P 362) */
+  /** The RTA entry field is displayed on the line of the selected option */
   private readonly rtaFieldStyle = this.rtaType.map((t) =>
     t === null ? 'display: none;' : `display: block; position: absolute; left: 0; top: ${t * 50}px;`,
   );
@@ -145,7 +141,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
 
   private readonly rtaTimeErrorAmber = Subject.create(false);
 
-  /** Display state of the time error, with the FCOM P 364 hysteresis */
+  /** Display state of the time error, with hysteresis (see updateRtaTimeError) */
   private rtaTimeErrorState: 'hidden' | 'green' | 'amber' = 'hidden';
 
   private readonly inPreflight = Subject.create(true);
@@ -523,7 +519,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
   }
 
   /**
-   * FCOM DSC-22-FMS-20-30 VERT REV page, ALT panel, ALTITUDE ERROR: predicted altitude - altitude constraint, only in
+   * VERT REV page, ALT panel, ALTITUDE ERROR: predicted altitude - altitude constraint, only in
    * the direction that misses the constraint. Displayed green from 100 ft (hidden again below 80 ft), amber from
    * 250 ft (green again below 200 ft).
    */
@@ -1179,8 +1175,6 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     this.stepsAltsClockSub?.destroy();
   }
 
-  // ---- RTA panel (FCOM DSC-22-FMS-20-30 P 360-364) -------------------------------------------------------------------
-
   private static formatTimeOfDay(seconds: number): string {
     const s = ((Math.round(seconds) % 86400) + 86400) % 86400;
     const hh = Math.floor(s / 3600);
@@ -1189,12 +1183,16 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     return `${hh.toFixed(0).padStart(2, '0')}:${mm.toFixed(0).padStart(2, '0')}:${ss.toFixed(0).padStart(2, '0')}`;
   }
 
+  /** The VNAV prediction at a leg of the loaded flight plan, when it is the active one */
+  private activePlanPrediction(legIndex: number) {
+    return this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active
+      ? this.props.fmcService.master.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
+      : undefined;
+  }
+
   /** The ETA at a leg of the active flight plan, seconds of the day (a flight time in preflight without ETT) */
   private rtaEtaSeconds(legIndex: number): number | null {
-    const pred =
-      this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active
-        ? this.props.fmcService.master.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
-        : undefined;
+    const pred = this.activePlanPrediction(legIndex);
     if (!pred || !Number.isFinite(pred.secondsFromPresent)) {
       return null;
     }
@@ -1212,7 +1210,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     this.inPreflight.set(phase === FmgcFlightPhase.Preflight);
     this.rtaUtc.set(MfdFmsFplnVertRev.formatTimeOfDay(fmc.timeKeeper.utcSeconds.get()));
 
-    // FCOM P 344: RTA NOT ALLOWED IN EO / IN GA
+    // RTA NOT ALLOWED IN EO / IN GA
     if (fmc.fmgc.data.engineOut.get()) {
       this.rtaPanelMessage.set('RTA NOT ALLOWED IN EO');
       return;
@@ -1240,22 +1238,15 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     ) {
       this.rtaMessage.set('RTA NOT ALLOWED AT');
       this.rtaMessageIdent.set(leg.ident);
-      this.rtaMessageSuffix.set('');
     } else if (rta && !rtaOnSelected) {
       this.rtaMessage.set('EXISTING RTA AT');
       this.rtaMessageIdent.set(rta.ident);
-      this.rtaMessageSuffix.set('');
     } else {
       this.rtaMessage.set('');
       this.rtaMessageIdent.set('');
-      this.rtaMessageSuffix.set('');
     }
 
-    // Waypoint distance and ETA (P 362)
-    const pred =
-      legIndex !== null && this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active
-        ? fmc.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
-        : undefined;
+    const pred = legIndex !== null ? this.activePlanPrediction(legIndex) : undefined;
     this.rtaDistance.set(
       pred && Number.isFinite(pred.distanceFromAircraft) ? Math.max(0, pred.distanceFromAircraft).toFixed(0) : '----',
     );
@@ -1273,7 +1264,6 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
       }
     }
 
-    // Time error (P 363-364)
     this.updateRtaTimeError(rtaOnSelected ? rta : null, eta, pred?.distanceFromAircraft ?? 0);
   }
 
@@ -1294,7 +1284,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
       (rta.type === TimeConstraintType.AtOrAfter && !late);
     const magnitude = Math.abs(error);
 
-    // P 364: not displayed below 7 s (shown from 10 s), green up to dT1, amber above dT1 until back below dT2;
+    // Not displayed below 7 s (shown from 10 s), green up to dT1, amber above dT1 until back below dT2;
     // dT1 = 30 s and dT2 = 15 s up to 2 000 NM, then increased by 60 s per 1 000 NM
     const extra = Math.max(0, distance - 2000) * 0.06;
     const dT1 = 30 + extra;
@@ -1329,7 +1319,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     }
   }
 
-  /** Creates (or changes) the RTA on the selected waypoint; the default RTA is the ETA (FCOM P 363) */
+  /** Creates (or changes) the RTA on the selected waypoint; the default RTA is the ETA */
   private setRta(type: TimeConstraintType | null, utcSeconds: number | null): void {
     const legIndex = this.selectedLegIndex.get();
     const leg = legIndex !== null && this.loadedFlightPlan ? this.loadedFlightPlan.maybeElementAt(legIndex) : undefined;
@@ -1369,9 +1359,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
             <span class="mfd-value bigger amber" style="margin-left: 16px;">
               {this.rtaMessageIdent}
             </span>,
-            <span class="mfd-label amber" style="margin-left: 16px;">
-              {this.rtaMessageSuffix}
-            </span>,
+            <span class="mfd-label amber" style="margin-left: 16px;" />,
           ])}
           {fcomRight(96, 217, <span class="mfd-label">RTA AT</span>)}
           {fcomAt(
@@ -1381,7 +1369,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
               idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_rtaWptDropdown`}
               selectedIndex={this.dropdownMenuSelectedWaypointIndex}
               values={this.availableWaypoints}
-              keyboardEntryAllowed // FCOM RTA REVISED WAYPOINT LIST: selected in the list or entered with the keyboard
+              keyboardEntryAllowed // RTA REVISED WAYPOINT LIST: selected in the list or entered with the keyboard
               errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
               containerStyle="width: 171px;"
               alignLabels="flex-start"
@@ -1405,7 +1393,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
             <span class="mfd-label-unit mfd-unit-trailing">NM</span>,
           ])}
 
-          {/* P 362: UTC in flight, ETT entry field in preflight */}
+          {/* UTC in flight, ETT entry field in preflight */}
           <div style={{ display: this.inPreflight.map((v) => (v ? 'none' : 'block')) }}>
             {fcomAt(202, 9, <span class="mfd-label">UTC</span>)}
             {fcomAt(202, 101, <span class="mfd-value bigger">{this.rtaUtc}</span>)}
@@ -1479,7 +1467,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
           </div>
           {fcomLine(499, 9, 729)}
 
-          {/* P 363: managed RTA speed; the FMS has no RTA speed control yet, so it is not computed */}
+          {/* Managed RTA speed: the FMS has no RTA speed control yet, so it is not computed */}
           {fcomAt(534, 246, <span class="mfd-label">RTA SPD</span>)}
           {fcomRight(534, 545, <span class="mfd-value bigger">.--</span>)}
           {fcomRight(534, 670, [
@@ -1488,7 +1476,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
           ])}
           {fcomLine(620, 9, 729)}
 
-          {/* FCOM DSC-22-FMS-20-30 P 363-364: the TIME ERROR line is displayed with the time error only */}
+          {/* The TIME ERROR line is displayed with the time error only */}
           {fcomAt(
             650,
             9,
@@ -1523,7 +1511,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
           {super.render()}
           {/* begin page content */}
           <div class="mfd-page-container">
-            {/* FCOM DSC-22-FMS-20-30 P 344-360: the tabs start right below the title bar (y = 150) */}
+            {/* The tabs start right below the title bar (y = 150) */}
             <TopTabNavigator
               pageTitles={Subject.create(['RTA', 'SPD', 'CMS', 'ALT', 'STEP ALTs'])}
               selectedPageIndex={this.selectedPageIndex}
