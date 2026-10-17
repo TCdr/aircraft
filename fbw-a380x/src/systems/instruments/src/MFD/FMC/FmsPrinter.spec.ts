@@ -159,8 +159,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('FmsPrinter (A380 FCOM DSC-22-FMS-10-70, DATA / PRINTER page)', () => {
-  describe('report availability (DSC-22-FMS-20-30 P 76-77)', () => {
+describe('FmsPrinter (DATA / PRINTER page)', () => {
+  describe('report availability', () => {
     it('gives the PRE-FLIGHT report in the PREFLIGHT phase, with the flight plan', () => {
       expect(printer.preFlightAvailable.get()).toBe(true);
       plans.set(FlightPlanIndex.Active, flightPlan({ destinationAirport: undefined }));
@@ -200,7 +200,7 @@ describe('FmsPrinter (A380 FCOM DSC-22-FMS-10-70, DATA / PRINTER page)', () => {
     });
   });
 
-  describe('automatic prints (P 4-5 and P 9)', () => {
+  describe('automatic prints', () => {
     it('prints nothing by itself with no option selected (AMI default)', () => {
       setEnginesRunning(true);
       printer.update();
@@ -249,7 +249,7 @@ describe('FmsPrinter (A380 FCOM DSC-22-FMS-10-70, DATA / PRINTER page)', () => {
       expect(pedestalUpdate).toHaveBeenCalledTimes(1);
     });
 
-    it('shows PRINTER NOT AVAIL and prints nothing while the printer is off or unpowered (DSC-22-FMS-20-110 P 23)', () => {
+    it('shows PRINTER NOT AVAIL and prints nothing while the printer is off or unpowered', () => {
       pedestalAvailable.mockReturnValue(false);
       expect(printer.isAvailable()).toBe(false);
       printer.printTakeoffData();
@@ -376,7 +376,7 @@ describe('FmsPrinter (A380 FCOM DSC-22-FMS-10-70, DATA / PRINTER page)', () => {
     });
   });
 
-  describe('flight plan reports (P 4-9)', () => {
+  describe('flight plan reports', () => {
     const report = (type: FlightPlanReport) => {
       printer.printFlightPlanReport(FlightPlanIndex.Active, type);
       return lastPage().lines.join('\n');

@@ -143,7 +143,7 @@ export const NXSystemMessages = {
   listOf99InUse: new TypeIMessage('LIST OF 99 IN USE'),
   // A new pilot-stored waypoint rejected, the 50 of the database are used
   wptsMaxAllInUse: new TypeIMessage('50 WPTS MAX : ALL IN USE'),
-  // FCOM DSC-22-FMS-20-110 P 23: a printer communication error while printing a report (type II, white)
+  // A printer communication error while printing a report (type II, white)
   printerNotAvail: new TypeIIMessage('PRINTER NOT AVAIL'),
   pilotRtesListFull: new TypeIMessage('PILOT RTEs LIST FULL'),
   rteIdentAlreadyUsed: new TypeIMessage('RTE IDENT ALREADY USED'),

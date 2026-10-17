@@ -83,7 +83,7 @@ The StepType also defines if the step is executed in normal mode, expedited mode
             <Action>(L:A32NX_OVHD_ELEC_EXT_PWR_4_PB_IS_ON, BOOL) ! if{ 1 (&gt;L:A32NX_OVHD_ELEC_EXT_PWR_4_PB_IS_ON, BOOL) }</Action>
         </Step>
 
-        <!-- FCOM PRO-NOR-SOP PRELIMINARY COCKPIT PREPARATION: KCCU CCD sw and KBD sw 1 and 2 ... ON (BOTH).
+        <!-- Preliminary cockpit preparation: KCCU CCD sw and KBD sw 1 and 2 ON (both sides).
              The switches are ON in every start state (FLT files) and stay ON in the cold and dark preset. -->
         <Step Name="KCCU CAPT KBD On" Type="STEP" Delay="500">
             <Condition>(L:A32NX_KCCU_L_KBD_ON_OFF)</Condition>

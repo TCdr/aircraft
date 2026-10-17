@@ -227,9 +227,7 @@ export class FmsPrinter {
     this.send(title, [...this.header(title), '', ...body, '', RULE]);
   }
 
-  // ---- ACTIVE DATA ----------------------------------------------------------------------------------------------------
-
-  /** Flight plan initialization data report: the route, then the performance data */
+  /** Flight plan initialization data (route, then performance data) */
   public printInitData(
     planIndex: FlightPlanIndex = FlightPlanIndex.Active,
     title = 'FM ACTIVE FLIGHT PLAN INITIALIZATION DATA',
@@ -599,8 +597,8 @@ export class FmsPrinter {
   }
 
   private send(title: string, lines: string[]): void {
-    // FCOM DSC-22-FMS-20-110 P 23: PRINTER NOT AVAIL (type II) when a report cannot be printed. Nothing is printed, so
-    // nothing is kept on the flypad either.
+    // PRINTER NOT AVAIL (type II) when a report cannot be printed. Nothing is printed, so nothing is kept on the flypad
+    // either.
     if (!this.pedestalPrinter.isAvailable()) {
       this.fmc.addMessageToQueue(NXSystemMessages.printerNotAvail);
       return;

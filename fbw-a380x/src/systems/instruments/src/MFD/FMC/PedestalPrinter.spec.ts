@@ -97,7 +97,7 @@ describe('PedestalPrinter control panel buttons', () => {
     simVars.set(AC1, 1);
   });
 
-  it('is available with AC 1 powered and switched on (FCOM DSC-46-20-70 P 1)', () => {
+  it('is available with AC 1 powered and switched on', () => {
     const printer = new PedestalPrinter();
     expect(printer.isAvailable()).toBe(true);
     simVars.set(PRINTER_OFF_VAR, 1);

@@ -219,6 +219,7 @@ export class AtcDatalinkSystem implements Instrument {
       true,
     );
 
+    // Subscribed after the message storage: the reports are stored before the pages are told
     this.sub.on('atcAtisReports').handle(() => {
       this.atisReportsVersion.set(this.atisReportsVersion.get() + 1);
       this.autoPrintNewAtis();
@@ -287,7 +288,7 @@ export class AtcDatalinkSystem implements Instrument {
       }
     });
 
-    // PRINT of the mailbox: the message displayed in the mailbox (FCOM DSC-46-10-20-60), as the ATC function prints it
+    // PRINT of the mailbox: the message displayed in the mailbox, as the ATC function prints it
     this.sub.on('atcPrintMessage').handle((text) => {
       // No flatMap in the Coherent GT runtime
       const lines: string[] = [];
@@ -668,17 +669,9 @@ export class AtcDatalinkSystem implements Instrument {
    * @param indexes the request areas
    */
   private printAtisReports(indexes: readonly number[]): void {
-    const printer = this.printer();
-    if (!printer) {
-      this.addMessageToQueue(ATCCOMMessages.printerNotAvail);
-      return;
-    }
     const bodies = indexes
       .map((index) => this.atisPrintBody(index))
       .filter((body): body is { title: string; lines: string[] } => body !== null);
-    if (bodies.length === 0) {
-      return;
-    }
     const lines: string[] = [];
     bodies.forEach((body, i) => {
       if (i > 0) {
@@ -686,25 +679,25 @@ export class AtcDatalinkSystem implements Instrument {
       }
       lines.push(...body.lines);
     });
-    printer.printText(bodies.length === 1 ? bodies[0].title : 'ATC COM ATIS', lines);
+    this.printLines(bodies.length === 1 ? bodies[0].title : 'ATC COM ATIS', lines);
   }
 
   /**
-   * PRINT option of an ATIS request area: prints the last received ATIS message (FCOM DSC-46-10-20-30 P 33)
+   * PRINT option of an ATIS request area: prints the last received ATIS message
    * @param index the request area
    */
   public printAtis(index: number): void {
     this.printAtisReports([index]);
   }
 
-  /** PRINT ALL button: prints all the ATIS messages displayed, on one printout (FCOM DSC-46-10-20-30 P 34) */
+  /** PRINT ALL button: prints all the ATIS messages displayed, on one printout */
   public printAllAtis(): void {
     this.printAtisReports(this.atisAreas.map((_, index) => index));
   }
 
   /**
    * AUTO PRINT / CANCEL AUTO PRINT option: selects or deselects the auto print function, which prints the ATIS message
-   * when a new ATIS version is received (FCOM DSC-46-10-20-30 P 31, 33); PRINTER NOT AVAIL without a printer
+   * when a new ATIS version is received; PRINTER NOT AVAIL without a printer
    * @param index the request area
    */
   public toggleAtisAutoPrint(index: number): void {
@@ -713,12 +706,11 @@ export class AtcDatalinkSystem implements Instrument {
       this.addMessageToQueue(ATCCOMMessages.printerNotAvail);
       return;
     }
-    // Only a new version is printed automatically
+    // The version already received counts as printed: AUTO PRINT prints only the next new version
     this.autoPrintedVersions[index] = this.atisReport(index)?.Information ?? null;
     this.atisAreas[index].set({ ...area, autoPrint: !area.autoPrint });
   }
 
-  /** AUTO PRINT: the request areas print their new ATIS versions */
   private autoPrintNewAtis(): void {
     this.atisAreas.forEach((area, index) => {
       const version = this.atisReport(index)?.Information ?? null;

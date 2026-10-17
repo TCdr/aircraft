@@ -51,9 +51,9 @@ export function atisListLines(text: string): { lines: string[]; truncated: boole
 const PRINT_LINE_LENGTH = 64;
 
 /**
- * The printed ATIS message (PRINT, AUTO PRINT, PRINT ALL of the ATIS/LIST page, FCOM DSC-46-10-20-30 P 32-34): the
- * airport, the ATIS type, the version and the time, then the whole text. The FCOM gives no printout example: the lines
- * follow the FMS printouts.
+ * The printed ATIS message (PRINT, AUTO PRINT, PRINT ALL of the ATIS/LIST page): the airport, the ATIS type, the
+ * version and the time, then the whole text. Design choice: no real ATIS printout to copy, so the lines follow the FMS
+ * printouts.
  */
 export function atisPrintLines(icao: string, type: string, version: string, time: string, text: string): string[] {
   const lines = [`  ${icao} ${type} ATIS ${version || '-'}   ${time || '----'}`, ''];

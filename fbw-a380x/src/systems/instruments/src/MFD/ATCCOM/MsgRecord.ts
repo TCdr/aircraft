@@ -182,7 +182,6 @@ export function isDialogueOpen(dialogue: CpdlcMessage): boolean {
   return expected === CpdlcMessageExpectedResponseType.Yes && last.ComStatus !== AtsuMessageComStatus.Failed;
 }
 
-/** The lines of a text in lines of the given length, words kept whole (a word longer than a line is cut) */
 /**
  * The printed lines of recorded messages (MSG RECORD PRINT ALL and ZOOM PRINT): for each message, its time, origin and
  * status as on the MSG RECORD/LIST page, then its text, and an empty line between the messages
@@ -203,6 +202,7 @@ export function msgRecordPrintLines(entries: readonly MsgRecordEntry[], length =
   return lines;
 }
 
+/** The lines of a text in lines of the given length, words kept whole (a word longer than a line is cut) */
 export function wrapMsgRecordText(text: string, length: number): string[] {
   const lines: string[] = [];
   let line = '';
