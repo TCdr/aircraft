@@ -145,8 +145,16 @@ describe('GALLEY/COMMERCIAL indication of the ELEC AC page (A380 FCOM l.51033-51
 
   it('shows GALLEY SHED when all galleys are shed', () => {
     expect(galleyCommercialIndication({ ...normal, galleyShed: true })).toEqual(['GALLEY SHED']);
-    // the systems.wasm COMMERCIAL (1) pb sheds all galleys: GALLEY SHED comes before the partial commercial shedding
+    // COMMERCIAL 1 OFF with the GALLEY pb OFF (all galleys shed): GALLEY SHED comes before the partial commercial
+    // shedding
     expect(galleyCommercialIndication({ ...normal, commercial1Off: true, galleyShed: true })).toEqual(['GALLEY SHED']);
+  });
+
+  it('shows COMMERCIAL PARTIALLY SHED with one COMMERCIAL pb OFF and its cabin side galleys shed', () => {
+    // systems.wasm sheds the galleys of one cabin side per COMMERCIAL pb: some galleys shed
+    expect(
+      galleyCommercialIndication({ ...normal, commercial1Off: true, galleyShed: true, galleyPartiallyShed: true }),
+    ).toEqual(['COMMERCIAL', 'PARTIALLY', 'SHED']);
   });
 
   it('shows GALLEY PARTIALLY SHED when only some galleys are shed', () => {
