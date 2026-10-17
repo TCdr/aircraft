@@ -127,7 +127,7 @@
                 <UseTemplate Name="FBW_Airbus_Wiper">
                     <ANIM_NAME>HANDLING_Wiper_left</ANIM_NAME>
                     <CIRCUIT_ID_WIPERS>77</CIRCUIT_ID_WIPERS>
-                    <!-- Capt wiper: DC BUS 1 (FCOM PRO-ABN-ELEC DC BUS 1 FAULT, INOP SYS) -->
+                    <!-- Capt wiper: DC BUS 1, lost with a DC BUS 1 fault -->
                     <WIPER_BUS_POWERED>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</WIPER_BUS_POWERED>
                 </UseTemplate>
             </Component>
@@ -135,7 +135,7 @@
                 <UseTemplate Name="FBW_Airbus_Wiper">
                     <ANIM_NAME>HANDLING_Wiper_right</ANIM_NAME>
                     <CIRCUIT_ID_WIPERS>80</CIRCUIT_ID_WIPERS>
-                    <!-- F/O wiper: DC BUS 2 (FCOM PRO-ABN-ELEC DC BUS 2 FAULT, INOP SYS) -->
+                    <!-- F/O wiper: DC BUS 2, lost with a DC BUS 2 fault -->
                     <WIPER_BUS_POWERED>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</WIPER_BUS_POWERED>
                 </UseTemplate>
             </Component>
@@ -595,23 +595,22 @@
               FIRE DETECTED), cleared when the failure is removed / the sim fire is cleared, or when an AGENT discharge
               puts the fire out (1/2 chance per bottle). The sim variables are not read here: they do not go off when an
               agent puts the fire out, and kept the effects on. A FIRE TEST shows nothing: it lights the warnings only,
-              there is no fire (FCOM DSC-26-20-20 ENG 1(2) FIRE TEST pb: chime, MASTER WARNING, ECAM, FIRE panel and ENG
+              there is no fire (chime, MASTER WARNING, ECAM, FIRE panel and ENG
               MASTER panel lights).
             - The effect stays on after the engine shutdown, until the fire is out (the FIRE pb does not put a fire out).
             - Every effect is ANDed with L:A32NX_CONFIG_SITUATION_FX, the flyPad Settings > Sim Options switch "Situation
               Visual Effects" (default on), written by the flyPad from its persistent setting CONFIG_SITUATION_FX.
-            - Looks (design choice, the FCOM gives no visual description of a fire): two stock MSFS 2024 visual effect
-              graphs of the package fs-base-effects (VisualEffectLibs/Asobo/Base), FX_Fire_1_Small (flames) and FX_Smoke_Fire (smoke,
-              user request 2026-10-09: flames alone looked bare) at each
-              engine exhaust node and FX_Smoke_Fire (smoke) at the APU exhaust node (EngineSmoke spread as a general haze around the aircraft in the sim on 2026-10-09). Their GUIDs are the ones stored in
+            - Looks (design choice, how a fire looks is not documented): two stock MSFS 2024 visual effect
+              graphs of the package fs-base-effects (VisualEffectLibs/Asobo/Base), FX_Fire_1_Small (flames) and
+              FX_Smoke_Fire (smoke: flames alone looked bare) at each engine exhaust node and FX_Smoke_Fire (smoke) at the APU exhaust node (EngineSmoke spread as a general haze around the aircraft in the sim). Their GUIDs are the ones stored in
               the .spb files, where the SDK template GUIDs (contrails, heat, ballast) are found too. No offset: FX
               offsets proved unreliable on the A380X jettison plume.
             - aircraft.cfg [EFFECTS] lines with the legacy fire effects (fx_engfire, FX_ASOBO_ENGINEFIRE_SMALL) showed
-              nothing in MSFS 2024 (sim test 2026-10-09); there, EngineFire = fx_dummy turns the sim's own fire effect
+              nothing in MSFS 2024 (seen in the sim); there, EngineFire = fx_dummy turns the sim's own fire effect
               off so that a fire does not show twice.
             - The engine effects hang on FX_ENGINE_FIRE_LEFT/RIGHT, full-scale markers (model fx_engine_fire) at the
               position of fx_exhaust_left/right: those are scaled 0.5 by models.json, which drew the fire at half the size
-              of the A380X one (sim 2026-10-09).
+              of the A380X one (seen in the sim).
             - EngineFireEffects.spec.ts (src/behavior) checks these components.
         -->
         <Component ID="ENGINE_FIRE_FX">
@@ -691,7 +690,7 @@
               the engine (fadec_common EngineOilFailures.hpp leakedQuantity): the flyPad oil leak failure
               (L:A32NX_ENGINE_n_OIL_LEAK, failures 79000/79001), the core turning the oil pump (L:A32NX_ENGINE_N2:n at
               10 % or more) and oil left in the oil system (L:A32NX_ENGINE_OIL_TOTAL:n above 0). No oil flows out of a
-              stopped or emptied engine, so no smoke then. The FCOM describes no exterior sign of an oil leak.
+              stopped or emptied engine, so no smoke then. No exterior sign of an oil leak is documented.
             - Look (design choice): smoke, as the stock fx_OilLeak (fs-base-effects-legacy effects/fx_OilLeak.fx: grey-blue
               and black smoke particles; no MSFS 2024 visual effect graph or SDK template exists for an oil leak). The
               graph is the stock FX_Smoke_Fire of the fire and damage smoke, same full-scale engine node, no offset.

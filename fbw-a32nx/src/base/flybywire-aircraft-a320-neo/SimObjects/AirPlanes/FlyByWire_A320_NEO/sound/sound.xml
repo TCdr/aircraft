@@ -1997,14 +1997,14 @@
             <Range LowerBound="1" />
         </Sound>
 
-        <!-- The same external horn in the nose gear bay sounds for an APU fire on the ground (A320 FCOM DSC-26-20-20 APU FIRE
-             LIGHT, DSC-49-10-20: "A horn in the nose gear bay sounds"); L:A32NX_FIRE_APU_EXTERNAL_HORN from systems.wasm -->
+        <!-- The same external horn in the nose gear bay sounds for an APU fire on the ground;
+             L:A32NX_FIRE_APU_EXTERNAL_HORN from systems.wasm -->
         <Sound WwiseData="true" WwiseEvent="mechhorn" NodeName="WHEELS_C" LocalVar="A32NX_FIRE_APU_EXTERNAL_HORN" Continuous="true">
             <Range LowerBound="1" />
         </Sound>
 
-        <!-- And when an ADIRU is supplied by the batteries on the ground (A320 FCOM DSC-34-NAV-10-20 ON BAT light: "An
-             external horn sounds"); L:A32NX_ADIRS_EXTERNAL_HORN from systems.wasm -->
+        <!-- And when an ADIRU is supplied by the batteries on the ground (ON BAT light);
+             L:A32NX_ADIRS_EXTERNAL_HORN from systems.wasm -->
         <Sound WwiseData="true" WwiseEvent="mechhorn" NodeName="WHEELS_C" LocalVar="A32NX_ADIRS_EXTERNAL_HORN" Continuous="true">
             <Range LowerBound="1" />
         </Sound>
@@ -2016,7 +2016,7 @@
             </Requires>
         </Sound>
 
-        <!-- CVR TEST pb held, CVR running and parking brake on (systems host CockpitVoiceRecorder, A320 FCOM DSC-23-10-40) -->
+        <!-- CVR TEST pb held, CVR running and parking brake on (systems host CockpitVoiceRecorder) -->
         <Sound WwiseData="true" WwiseEvent="cvr_test" NodeName="SOUND_FOOTWELL_LEFT" LocalVar="A32NX_RCDR_CVR_TEST_TONE" Units="Bool" Continuous="true">
             <Range LowerBound="1" />
         </Sound>

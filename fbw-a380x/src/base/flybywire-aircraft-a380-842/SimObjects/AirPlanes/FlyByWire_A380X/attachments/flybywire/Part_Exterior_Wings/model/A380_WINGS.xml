@@ -271,14 +271,14 @@
 			  ASOBO_CONTRAIL_QUAD_FX / RIBBON_FX templates of the SDK Generic/FX.xml) and the FADEC fuel flow is above 0
 			  (L:A32NX_ENGINE_FF:n, fadec_a380x EngineControl_A380X.cpp: 0 as soon as the fuel is cut by a flameout or a
 			  seizure, by the ENG MASTER OFF or by an unlit relight). The fuel flow covers the times MSFS kept its
-			  combustion flag with no fuel (20 to 60 s after a shutdown, 27 s after a FIRE pb push-in, sim recordings
-			  2026-10-05/06); the combustion covers an engine MSFS no longer burns while the FADEC still runs it. No N3
+			  combustion flag with no fuel (20 to 60 s after a shutdown, 27 s after a FIRE pb push-in, sim
+			  recordings); the combustion covers an engine MSFS no longer burns while the FADEC still runs it. No N3
 			  threshold: an A380 core speed limit for "running" has no source (the A32NX N2 > 25 % is A32NX-specific).
 			- Exhaust node of each engine in A380_WINGS.gltf, from the node positions: LEFT1 = engine 1 (left outer), RIGHT2 =
 			  engine 2 (left inner), RIGHT3 = engine 3 (right inner), RIGHT4 = engine 4 (right outer). The ribbon contrails
-			  are on engines 2 and 4 only, as before.
-			- This part owns these nodes: the fuselage part (A380_FUSELAGE.gltf) has none of them, and its old copy of these
-			  contrails was removed.
+			  are on engines 2 and 4 only.
+			- This part owns these nodes: the fuselage part (A380_FUSELAGE.gltf) has none of them, so the contrails
+			  are declared here only.
 			- JettisonDripContrailEffects.spec.ts (src/systems/shared/src) checks these components.
 		-->
 		<Component ID="FX_CONTRAIL_QUAD">
@@ -562,13 +562,12 @@
 		</Component>
 		<!--
 			Fuel jettison on the ground: fuel dripping from each jettison outlet, next to the plume below (visual layer only).
-			- A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON (ABN PROC): "It is possible to jettison in any aircraft configuration, and at any
-			  speed. However, the height should be sufficient to avoid contamination on the ground" (a380_fcom.txt
-			  l.151175-151176): a jettison on the ground puts the fuel on the ground. The FQMS (FuelJettison.ts) does not
+			- A jettison is possible in any configuration and at any speed, the height being what keeps the fuel
+			  off the ground: a jettison on the ground puts the fuel on the ground. The FQMS (FuelJettison.ts) does not
 			  inhibit it on the ground (JETTISON ARM + ACTIVE pb-sw on the overhead FUEL panel).
 			- Same per-side condition as the plume (L:A380X_FUEL_JETTISON_IN_PROGRESS and that side's jettison valve 57 / 58
 			  open), and SIM ON GROUND. Like the plume, not tied to the flyPad Settings > Sim Options switch "Situation
-			  Visual Effects" (user decision 2026-10-12: the jettison effect is not a situation effect, plume and drip
+			  Visual Effects" (design choice: the jettison effect is not a situation effect, plume and drip
 			  always show together).
 			- Look (design choice): the stock MSFS fuel leak drip graphs of the SDK templates ASOBO_Fuel_Leak_Slow_Template
 			  (below 40 kt TAS) and ASOBO_Fuel_Leak_Fast_Template (40 kt TAS and above), switched by the true airspeed as
@@ -576,7 +575,7 @@
 			  FuelLeak_Active is true: it gets the same condition as FX_CODE, as in the stock templates.
 			- Design choice: the drip accompanies the plume on the ground, it does not replace it. The plume (stock water
 			  ballast mist) gives the fuel stream at the outlet, as on a glider draining its ballast on the ground, and the
-			  drip adds the drops falling to the ground. The user-confirmed plume is left unchanged.
+			  drip adds the drops falling to the ground.
 			- No offset, on the outlet nodes FX_JETTISON_LH / FX_JETTISON_RH of the plume.
 			- JettisonDripContrailEffects.spec.ts (src/systems/shared/src) checks these components.
 		-->
@@ -617,15 +616,15 @@
 		<!--
 			Fuel jettison plume, one per wing while fuel flows out of that side: the FQMS jettisons
 			(L:A380X_FUEL_JETTISON_IN_PROGRESS, FuelJettison.ts) and that side's jettison valve is open (fuel system
-			valve 57 left, 58 right). FCOM DSC-28-40: "one discharge point on the trailing edge of each wing"; the exit is
-			the tube (anti-corona device) at the aft end of the second-outermost flap track fairing, MFTF 5 (forum source,
-			PPRuNe 2010-11-20), modelled as "MFTF 5 Moveable.008-010". The effect hangs, with no offset, on the node
+			valve 57 left, 58 right). One discharge point on the trailing edge of each wing: the exit is
+			the tube (anti-corona device) at the aft end of the second-outermost flap track fairing, MFTF 5, modelled
+			as "MFTF 5 Moveable.008-010". The effect hangs, with no offset, on the node
 			FX_JETTISON_LH / FX_JETTISON_RH that aircraft-large-files adds at that tube (child of the fairing bone in
 			LOD00, so it follows the wing flex; at the scene root in LOD01/02). FX offsets on other nodes did not land
 			where expected in the sim.
 			The look is the stock MSFS water-ballast mist (the closest stock match, design choice), in its
 			high-speed version from 40 kt TAS and its low-speed version below, as Asobo switches it. The plume's
-			particles stay where they were released, so it gets longer with the true airspeed by itself (user-checked in
+			particles stay where they were released, so it gets longer with the true airspeed by itself (checked in
 			flight).
 		-->
 		<Component ID="FUEL_JETTISON_FX">
@@ -664,15 +663,15 @@
 			  is burning" (systems.wasm SetOnFireModule, fire_and_smoke_protection.rs): set by the flyPad fire failure,
 			  cleared when the failure is removed or when an AGENT discharge puts the fire out (1/2 chance per bottle).
 			  Its copy in the sim's ENG ON FIRE:n (a380_systems_wasm fire.rs, read by the fire detection) is not read
-			  here: the flames went on after the failure removal with it in the code (sim 2026-10-09). A FIRE TEST shows
-			  nothing: it lights the warnings only, there is no fire (FCOM DSC-26-20-20 TEST pb: chime, MASTER WARN,
+			  here: the flames went on after the failure removal with it in the code (seen in the sim). A FIRE TEST shows
+			  nothing: it lights the warnings only, there is no fire (chime, MASTER WARN,
 			  ECAM, FIRE pb, SQUIB/DISCH and ENG MASTER panel FIRE lights).
-			- The effect stays on after the engine shutdown, until the fire is out (FCOM DSC-26-20-20: the FIRE light
-			  "remains on, until the fire is extinguished, regardless of the position of the ENG FIRE pb").
+			- The effect stays on after the engine shutdown, until the fire is out (the FIRE light
+			  stays on until the fire is extinguished, whatever the position of the ENG FIRE pb).
 			- Every effect is ANDed with L:A32NX_CONFIG_SITUATION_FX, the flyPad Settings > Sim Options switch "Situation
 			  Visual Effects" (default on), written by the flyPad from its persistent setting CONFIG_SITUATION_FX.
-			- Look (design choice, the FCOM gives no visual description of a fire): the stock MSFS 2024 visual effect graph
-			  FX_Fire_1_Small (flames) and FX_Smoke_Fire (smoke, added on the user's request 2026-10-09) of the package fs-base-effects (VisualEffectLibs/Asobo/Base), its GUID being the one
+			- Look (design choice, how a fire looks is not documented): the stock MSFS 2024 visual effect graph
+			  FX_Fire_1_Small (flames) and FX_Smoke_Fire (smoke: flames alone looked bare) of the package fs-base-effects (VisualEffectLibs/Asobo/Base), its GUID being the one
 			  stored in the .spb file, where the SDK template GUIDs (contrails, heat, ballast) are found too. It hangs, with
 			  no offset, on the exhaust node of each engine: LEFT1 = engine 1 (left outer) ... RIGHT4 = engine 4 (right
 			  outer), as the node positions of A380_WINGS.gltf show. FX offsets proved unreliable on the jettison plume.
@@ -682,7 +681,7 @@
 			  effect of this file (fire, smoke, damage, oil leak, contrails) and the aircraft.cfg heat haze use RIGHT2.
 			  A380_WINGS_LOD02.gltf has no exhaust node at all (no engine effect there, for any engine).
 			- aircraft.cfg [EFFECTS] lines with the legacy fire effects (fx_engfire, FX_ASOBO_ENGINEFIRE_SMALL) showed
-			  nothing in MSFS 2024 (sim test 2026-10-09); there, EngineFire = fx_dummy turns the sim's own fire effect off
+			  nothing in MSFS 2024 (seen in the sim); there, EngineFire = fx_dummy turns the sim's own fire effect off
 			  so that a fire does not show twice. The APU fire smoke is in A380_Fuselage_Behavior.xml (APU_FIRE_FX).
 			- EngineFireEffects.spec.ts (src/systems/shared/src) checks these components.
 		-->
@@ -795,7 +794,7 @@
 			  the engine (fadec_common EngineOilFailures.hpp leakedQuantity): the flyPad oil leak failure
 			  (L:A32NX_ENGINE_n_OIL_LEAK, failures 79000-79003), the core turning the oil pump (L:A32NX_ENGINE_N3:n at
 			  10 % or more) and oil left in the oil system (L:A32NX_ENGINE_OIL_TOTAL:n above 0). No oil flows out of a
-			  stopped or emptied engine, so no smoke then. The FCOM describes no exterior sign of an oil leak.
+			  stopped or emptied engine, so no smoke then. No exterior sign of an oil leak is documented.
 			- Look (design choice): smoke, as the stock fx_OilLeak (fs-base-effects-legacy effects/fx_OilLeak.fx: grey-blue
 			  and black smoke particles; no MSFS 2024 visual effect graph or SDK template exists for an oil leak). The
 			  graph is the stock FX_Smoke_Fire of the fire and damage smoke, same exhaust node, no offset.

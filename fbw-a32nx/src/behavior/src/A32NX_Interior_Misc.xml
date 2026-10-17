@@ -217,8 +217,8 @@
     CTR TK L (R) XFR pb-sw. The pb-sw only toggles its selection (PB_IS_ON_VAR, OFF light and animation): the systems host
     (Fuel/FuelPumpsAndValves) drives the MSFS inhibit valve #ID# of the centre tank transfer valve from it, and holds the
     transfer valve open or closed while it is jammed.
-    FAULT light (A320 FCOM DSC-28-20 CTR TK L(R) XFR pb-sw, a320_fcom.txt l.42837-42838): "Amber light and associated ECAM
-    caution come on, if the associated wing tank overflows" (#OVERFLOW_VAR#, systems host Fuel/FuelLevelSensing).
+    FAULT light: the amber light and its ECAM caution come on when the wing tank of that side
+    overflows (#OVERFLOW_VAR#, systems host Fuel/FuelLevelSensing).
     -->
     <Template Name="FBW_Airbus_Fuel_Jet_Pump">
         <UseTemplate Name="FBW_Push_Toggle">
@@ -258,7 +258,7 @@
 
         <UseTemplate Name="FBW_Push_Toggle">
             <TOOLTIPID>%((L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool))%{if}TT:COCKPIT.TOOLTIPS.DEICE_PUSH_ENG_ONLY_ON_#ID# %{else}TT:COCKPIT.TOOLTIPS.DEICE_PUSH_ENG_ONLY_OFF_#ID#%{end}</TOOLTIPID>
-            <!-- FAULT: the anti-ice valve position disagrees with the pb-sw (FCOM DSC-30-30-20, systems ice_rain_protection) -->
+            <!-- FAULT: the anti-ice valve position disagrees with the pb-sw (systems ice_rain_protection) -->
             <SEQ1_CODE>(L:A32NX_PNEU_ENG_#ID#_ANTI_ICE_FAULT, Bool)</SEQ1_CODE>
             <SEQ2_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool)</SEQ2_CODE>
             <LEFT_SINGLE_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool) ! (&gt;L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool)</LEFT_SINGLE_CODE>
@@ -290,7 +290,7 @@
         </UseTemplate>
 
         <!-- Probes and windows heated automatically when at least one engine is running or in flight, or manually with
-        the PROBE/WINDOW HEAT pb ON (FCOM DSC-30-40-10 a320_fcom.txt l.44440-44442, DSC-30-50-10 l.44524-44526) -->
+        the PROBE/WINDOW HEAT pb ON -->
         <UseTemplate Name="ASOBO_GT_Update">
             <FREQUENCY>0.33</FREQUENCY>
             <UPDATE_CODE>
@@ -613,8 +613,8 @@ if groundCtl and !groundControlPermissives {
     <!--
     The MSFS "pump" of a centre tank jet pump: it runs while the transfer valve is open (both MSFS valves, or the inhibit
     valve with the MODE SEL MAN junction) and an inner tank pump of the same wing (MOTIVE_PUMP_1/2_INDEX) runs, as the jet
-    pump is driven by their flow (A320 FCOM DSC-28-10 CENTER TANK FUEL TRANSFER: "fuel from the inner tank pumps flows
-    through the jet pump and creates a suction in it").
+    pump is driven by their flow (the fuel of the inner tank pumps flows
+    through the jet pump and creates its suction).
     -->
     <Template Name="FBW_JET_PUMP">
         <Parameters Type="Default">

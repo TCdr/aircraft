@@ -127,9 +127,9 @@
 
     <!-- Windshield wiper blade. Animation position 0 is the parked blade (out of view); while sweeping the blade
          travels between about 40 and 105 (ANIM_CODE below).
-         A320 FCOM DSC-30-60-20 (WIPER rotary selector): "When turned off, the wiper stops out of view."
-         Power: Capt wiper on DC BUS 1, F/O wiper on DC BUS 2 (lost with ELEC DC BUS 1 / DC BUS 2 FAULT, PRO-ABN-ELEC
-         INOP SYS); WIPER_BUS_POWERED is that bus' condition at each use.
+         WIPER rotary selector: turned off, the wiper stops out of view.
+         Power: Capt wiper on DC BUS 1, F/O wiper on DC BUS 2 (lost with ELEC DC BUS 1 / DC BUS 2 FAULT);
+         WIPER_BUS_POWERED is that bus' condition at each use.
          - selector on (circuit switch on) and bus powered: sweeps at the knob speed (ANIM_CODE);
          - selector OFF and bus powered: finishes its travel at the same speed back to 0 and stays parked (FAILURE_CODE);
          - bus unpowered, whatever the selector: no power to move the blade, it stays where it is (FAILURE_CODE). -->

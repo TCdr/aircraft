@@ -56,7 +56,7 @@
                 (&gt;H:A32NX_SD_PAGE_CHANGED)
             </LEFT_SINGLE_CODE>
             <!-- Also lit (steady or flashing) by an ECAM advisory of its page: L:A380X_ECAM_SD_ADVISORY_PB is the SD page
-                 index + 1, 0 for none (systems host FwsAdvisories, A380 FCOM DSC-31-40-10 ADVISORY) -->
+                 index + 1, 0 for none (systems host FwsAdvisories) -->
             <SEQ2_EMISSIVE_CODE>(#STATE_SIMVAR#) #STATE_ID# == (L:A380X_ECAM_SD_ADVISORY_PB) #STATE_ID# 1 + == or (L:A32NX_OVHD_INTLT_ANN) 0 == or #SEQ2_POWERED# and</SEQ2_EMISSIVE_CODE>
             <CURSOR>Hand</CURSOR>
         </UseTemplate>

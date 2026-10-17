@@ -5,9 +5,8 @@
     <!-- ENG MASTER lever. The A32NX template of the same lever (legacy/generated FBW_ENGINE_Switch_Master_Template) keeps the
          MSFS starter equal to the lever every 0.2 s, so a dry crank with the lever OFF could not turn the engine. Here the
          MSFS starter also follows the FADEC start sequence of the systems WASM: A32NX_ENGINE_n_STARTER_MOTORING is true while
-         the starter turns the core without fuel (A380 FCOM DSC-70-80-40 CRANKING, a380_fcom.txt l.112654-112660: "A dry
-         cranking cycle ventilates the engine ... The dry crank is stopped by setting either the ENG MAN START pb-sw to OFF or
-         setting the ENG START selector to NORM"). With the lever OFF the MSFS fuel valve stays closed: no combustion. -->
+         the starter turns the core without fuel (a dry cranking cycle ventilates the engine; it stops when the ENG MAN START
+         pb-sw is set to OFF or the ENG START selector to NORM). With the lever OFF the MSFS fuel valve stays closed: no combustion. -->
     <Template Name="A380X_ENGINE_Switch_Master_Template">
         <DefaultTemplateParameters>
             <NODE_ID>ENGINE_Switch_Master_#ID#</NODE_ID>
@@ -71,7 +70,7 @@
         </Component>
     </Template>
 
-    <!-- WXR GAIN and ELEVN knobs of the SURV panel (A380 FCOM DSC-34-20-30-20, a380_fcom.txt l.89693-89729): push, pull
+    <!-- WXR GAIN and ELEVN knobs of the SURV panel: push, pull
          and turn send the H events A380X_WXR_#KNOB#_KNOB_PUSH / _PULL / _INC / _DEC, handled by the systems host
          (systems-host/Misc/WxrSurvKnobs.ts), which sets the WXR settings of the MFD SURV/CONTROLS page. The cockpit model
          has no turn or push/pull animation for these knobs (the VD AZIM knob has them): the knob node itself is used.
@@ -372,8 +371,8 @@
                 <UseTemplate Name="FBW_A380X_BacklightIndicator_Button_Template">
                     <NODE_ID>PUSH_SURV_WXR_TAWS_SYS1</NODE_ID>
                     <TOOLTIPID>SET WXR TAWS SYS 1</TOOLTIPID>
-                    <!-- A380 FCOM DSC-34-20-60-20 SURV panel: the WXR/TAWS SYS 1(2) pb selects that system; one system is
-                         always selected, so pressing the lit pb keeps it (it used to select none). -->
+                    <!-- The WXR/TAWS SYS 1(2) pb selects that system; one system is always selected, so pressing the
+                         lit pb keeps it. -->
                     <BUTTON_CODE>1 (&gt;L:A32NX_WXR_TAWS_SYS_SELECTED, Number)</BUTTON_CODE>
                     <INDICATOR_CODE>(L:A32NX_WXR_TAWS_SYS_SELECTED, Number) 1 ==</INDICATOR_CODE>
                     <INDICATOR_POWERED>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</INDICATOR_POWERED>

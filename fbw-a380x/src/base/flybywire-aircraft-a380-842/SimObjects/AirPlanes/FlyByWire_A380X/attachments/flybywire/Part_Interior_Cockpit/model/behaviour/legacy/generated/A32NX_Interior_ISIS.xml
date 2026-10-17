@@ -170,7 +170,7 @@
     </Template>
 
     <!--
-    Template for the MODE pb of an ISIS (A380 FCOM DSC-34-10-20-20-10 P 2, SFD/SND reconfiguration): the next
+    Template for the MODE pb of an ISIS (SFD/SND reconfiguration): the next
     configuration, ISIS 1 SFD / ISIS 2 SND (0), ISIS 1 SND / ISIS 2 SFD (1), ISIS 2 off (2)
     Main Parameters:
         - NODE_ID               <no default>    Button node ID                          (anim name will be same)
