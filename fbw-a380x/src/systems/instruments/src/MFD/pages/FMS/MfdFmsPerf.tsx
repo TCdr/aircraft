@@ -73,7 +73,7 @@ import {
 } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { fcomAt, fcomCentre, fcomLine, fcomRight, fcomTabBar } from '../common/FcomLayout';
 import { longRangeCruiseMach, maxTurbulenceMach, maxTurbulenceSpeedKnots } from '../../FMC/CruiseSpeeds';
-import { TAKEOFF_DERATE_LEVELS, writeTakeoffDerate } from '../../shared/TakeoffDerate';
+import { TAKEOFF_DERATE_LEVELS, takeoffThrustOptionsDisabled, writeTakeoffDerate } from '../../shared/TakeoffDerate';
 
 interface MfdFmsPerfProps extends AbstractMfdPageProps {}
 
@@ -448,10 +448,8 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
   public readonly noiseN1 = Subject.create<number | null>(null);
   public readonly noiseSpeed = Subject.create<number | null>(null);
 
-  private readonly toThrustSettingsDisabled = this.activeFlightPhase.map((it) => [
-    ...Array(2).fill(it >= FmgcFlightPhase.Takeoff),
-    true,
-  ]);
+  /** TOGA / FLEX / DERATED: selectable while the T.O panel accepts entries */
+  private readonly toThrustSettingsDisabled = this.toPageInactive.map(takeoffThrustOptionsDisabled);
 
   // FCOM DSC-22-FMS-20-30 PERF page: the CI field has no LRC / ECON mode selector
   private readonly costIndexDisabled = MappedSubject.create(
