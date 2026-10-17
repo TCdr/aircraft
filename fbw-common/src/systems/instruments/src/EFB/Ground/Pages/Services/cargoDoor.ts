@@ -19,8 +19,8 @@ export const AFT_CARGO_DOOR_LOCKED_VAR = 'L:A32NX_AFT_DOOR_CARGO_LOCKED';
  */
 export const CARGO_DOOR_OPERATION_INHIBITED_VAR = 'L:A32NX_HYD_CARGO_DOOR_OPERATION_INHIBITED';
 
-/** From this position the hydraulic door controller up-locks the door (Rust HydraulicDoorController, 90 %) */
-const FULLY_OPEN_PERCENT = 90;
+/** From this position the hydraulic door controller up-locks the door (Rust HydraulicDoorController, 98 %) */
+const FULLY_OPEN_PERCENT = 98;
 
 /** What the page knows about a hydraulic cargo door */
 export interface CargoDoorState {

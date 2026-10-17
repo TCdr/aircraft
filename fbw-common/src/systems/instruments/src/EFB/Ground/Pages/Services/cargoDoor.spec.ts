@@ -39,10 +39,17 @@ describe('A380 cargo door row of the Services page (follows the hydraulic door, 
   });
 
   it('is open from the up-lock position of the hydraulic controller', () => {
-    const open = door({ positionPercent: 92, locked: false, requestedOpen: true });
+    const open = door({ positionPercent: 98.03, locked: false, requestedOpen: true });
     expect(cargoDoorOpening(open)).toBe(1);
     expect(cargoDoorStatusKey(open)).toBe('Ground.Services.Open');
     expect(cargoDoorTone(open)).toBe('active');
+  });
+
+  it('is still moving short of the up-lock position', () => {
+    const almostOpen = door({ positionPercent: 92, locked: false, requestedOpen: true });
+    expect(cargoDoorOpening(almostOpen)).toBe(0.92);
+    expect(cargoDoorStatusKey(almostOpen)).toBe('Ground.Services.Moving');
+    expect(cargoDoorTone(almostOpen)).toBe('busy');
   });
 
   it('is moving while the hydraulics drive it', () => {
