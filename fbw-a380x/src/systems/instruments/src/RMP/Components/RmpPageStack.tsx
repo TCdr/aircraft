@@ -70,8 +70,7 @@ export class RmpPageStack extends DisplayComponent<RmpPageStackProps> {
       }
     });
 
-    // A380 FCOM DSC-23-20 VHF page (l.48288-48289): the display defaults to the VHF page after deactivation of the
-    // STBY RAD NAV mode
+    // the display defaults to the VHF page after the deactivation of the STBY RAD NAV mode
     let wasStandbyRadioNavigationActive = false;
     this.props.bus
       .getSubscriber<StandbyRadioNavigationEvents>()

@@ -8,9 +8,8 @@ import { KeypadEvents, SystemKeys } from './KeypadController';
 import { NO_TRANSMISSION, transmissionAfterKeyPressed, transmissionAfterKeyReleased } from './TransmissionKeys';
 
 /*
- * A380 FCOM DSC-23-20 INT(CAB)(PA) transmission key (a380_fcom.txt l.48050-48063): one transmission key at a time in
- * transmission mode; "To make an announcement on the PA, the flight crew must press and maintain the PA transmission key
- * during the announcement." Before, the PA key latched on its first press like the other keys.
+ * One transmission key at a time in transmission mode; the PA key is in transmission mode only while it is held
+ * during the announcement.
  */
 describe('RMP transmission keys (pure rules)', () => {
   it('a press selects a key and deselects the others, a second press deselects it', () => {

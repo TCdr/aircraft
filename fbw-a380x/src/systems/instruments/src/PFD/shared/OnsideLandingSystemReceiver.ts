@@ -21,9 +21,9 @@ export interface LandingSystemReceiverSourceTarget {
 }
 
 /**
- * The ILS data of MMR 2, for the F/O PFD. "The aircraft has two ILS receivers" (ILS 1 receiver in MMR 1, ILS 2 receiver
- * in MMR 2), "Captain PFD and first officer ND display ILS 1 information, first officer PFD and captain ND display ILS 2
- * information": A380 FCOM DSC-34-10-20, a380_fcom.txt l.86580-86591. In the sim MMR 2 is NAV 4 (systems.cfg [RADIOS]);
+ * The ILS data of MMR 2, for the F/O PFD. The aircraft has two ILS receivers (ILS 1 in MMR 1, ILS 2 in MMR 2): the
+ * captain PFD and the first officer ND show ILS 1, the first officer PFD and the captain ND show ILS 2. In the sim
+ * MMR 2 is NAV 4 (systems.cfg [RADIOS]);
  * the deviations and valid flags are written by the MMR 2 shim of the systems (fbw-common navigation/ils.rs) with the
  * same contract as the A32NX_RADIO_RECEIVER_* variables of MMR 1.
  */

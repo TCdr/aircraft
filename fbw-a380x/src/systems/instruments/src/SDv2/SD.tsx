@@ -34,8 +34,8 @@ export interface SDProps {
   readonly hostDisplayUnitId?: DisplayUnitID;
   /**
    * Whether the ATC mailbox of this gauge is the active mailbox client (L:A380X_CDS_MAILBOX_DU is this gauge's DU). Every
-   * SD gauge draws the mailbox ("If the SD DU is turned OFF, use the F/O DU RECONF P/B for ATC mailbox", A380 FCOM
-   * PRO-ABN-ECAM-10-31), but only one at a time answers the flight crew and publishes to the ATC function.
+   * SD gauge draws the mailbox (with the SD DU off, the crew moves the mailbox to the F/O ND DU with the DU RECONF pb),
+   * but only one at a time answers the flight crew and publishes to the ATC function.
    */
   readonly mailboxActive: Subscribable<boolean>;
 }

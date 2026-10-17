@@ -9,7 +9,7 @@ import {
   isTransformerRectifierIndicationAmber,
 } from './ElecFailureStates';
 
-describe('ELEC AC page GEN indication (A380 FCOM l.51081-51085)', () => {
+describe('ELEC AC page GEN indication', () => {
   it('is white for a generator in operation', () => {
     expect(isEngineGeneratorIndicationAmber(true, true, true, true, true)).toBe(false);
   });
@@ -26,7 +26,7 @@ describe('ELEC AC page GEN indication (A380 FCOM l.51081-51085)', () => {
   });
 });
 
-describe('ELEC AC page TR indication (A380 FCOM l.51125-51128)', () => {
+describe('ELEC AC page TR indication', () => {
   it('is white for a powered TR with a normal output', () => {
     expect(isTransformerRectifierIndicationAmber(true, true)).toBe(false);
   });
@@ -37,7 +37,7 @@ describe('ELEC AC page TR indication (A380 FCOM l.51125-51128)', () => {
   });
 });
 
-describe('STAT INV indication (A380 FCOM l.50928-50931, l.51264-51267)', () => {
+describe('STAT INV indication', () => {
   it('is failed only when the inverter runs (7XB closed) without a normal output', () => {
     expect(isStaticInverterFailed(true, false)).toBe(true);
     expect(isStaticInverterFailed(true, true)).toBe(false);
@@ -45,7 +45,7 @@ describe('STAT INV indication (A380 FCOM l.50928-50931, l.51264-51267)', () => {
   });
 });
 
-describe('RAT indication (A380 FCOM l.51143-51147)', () => {
+describe('RAT indication', () => {
   it('follows the RAT generator fault', () => {
     expect(isRatIndicationAmber(true)).toBe(true);
     expect(isRatIndicationAmber(false)).toBe(false);

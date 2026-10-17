@@ -107,7 +107,7 @@ span.Amber {
   color: $display-amber;
 }
 
-// The ATC mailbox on the lower part of the SD, laid out on the FCOM figures (DSC-46-10-20-60); coordinates are
+// The ATC mailbox on the lower part of the SD, laid out on pictures of the aircraft display; coordinates are
 // relative to the mailbox (768 x 256), y at the centre of the texts
 .atc-mailbox-top-layout {
   position: absolute;
@@ -130,7 +130,7 @@ span.Amber {
   }
 
   // Connection indications: green, 16.7 px per character (the FBW display font: 0.627 em per character)
-  // MAILBOX NOT AVAIL (ATC function lost). Design choice: amber, in the middle of the mailbox (the FCOM has no figure)
+  // MAILBOX NOT AVAIL (ATC function lost). Design choice: amber, in the middle of the mailbox (no picture available)
   .atc-mailbox-not-avail {
     position: absolute;
     left: 384px;

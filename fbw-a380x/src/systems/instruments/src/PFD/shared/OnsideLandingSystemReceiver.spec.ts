@@ -15,7 +15,7 @@ function sourcesFor(displayIndex: number): Map<string, string> {
   return sources;
 }
 
-// A380 FCOM DSC-34-10-20 (a380_fcom.txt l.86590-86591): Captain PFD displays ILS 1, first officer PFD ILS 2
+// Captain PFD displays ILS 1, first officer PFD ILS 2
 describe('A380X PFD onside ILS receiver', () => {
   it('keeps MMR 1 (NAV 3, A32NX_RADIO_RECEIVER_*) on the CAPT PFD', () => {
     expect(sourcesFor(1).size).toBe(0);

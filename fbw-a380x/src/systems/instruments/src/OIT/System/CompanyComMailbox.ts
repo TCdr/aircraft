@@ -13,19 +13,15 @@ import {
 import { ArraySubject, EventBus, Subscription } from '@microsoft/msfs-sdk';
 
 /**
- * The COMPANY COM inbox of the OIT (AOC application, A380 FCOM DSC-46-40): the AOC uplink messages, newest first.
- *
- * a380_fcom.txt l.107885-107890: "The AOC application either warns, or advises, the flight crew that an AOC message is
- * received"; l.107994-107996: "The flight crew uses the OIT display to: - Access the AOC application - Display, edit,
- * print, send, delete, and/or store AOC messages."; l.108020-108023, COMPANY MSG memo: "The flight crew received a
- * company message. No longer appears, when the flight crew read all the received messages."
+ * The COMPANY COM inbox of the OIT (AOC application): the AOC uplink messages, newest first. The AOC application tells
+ * the flight crew that an AOC message is received; on the OIT the crew displays, edits, prints, sends, deletes and
+ * stores AOC messages; the COMPANY MSG memo goes once all the received messages are read.
  *
  * The AOC (fbw-common datalink, run by the systems host) owns the messages: it publishes every new or changed message
- * (aocResynchronize*Message) and every deleted one (aocDeleteMessage), and counts the unread uplinks for the COMPANY MSG
- * memo. Displaying a message on the OIT sends aocMessageRead back to the AOC, which marks it read.
+ * (aocResynchronize*Message) and every deleted one (aocDeleteMessage), and counts the unread uplinks for the COMPANY
+ * MSG memo. Displaying a message on the OIT sends aocMessageRead back to the AOC, which marks it read.
  */
 
-/** One message of the inbox */
 export interface CompanyComInboxEntry {
   /** The AOC message id */
   uid: number;
@@ -33,7 +29,6 @@ export interface CompanyComInboxEntry {
   subject: string;
   /** The sender (ground station or callsign) */
   from: string;
-  /** The message text */
   text: string;
   /** The reception time, ms since the epoch (UTC), null when unknown */
   receivedAt: number | null;
@@ -160,10 +155,8 @@ export class CompanyComMailbox {
   }
 
   /**
-   * PRINT of a message: "The flight crew can use this printer to manually print any message." (A380 FCOM DSC-46-40-10-20,
-   * a380_fcom.txt l.107938-107939; DSC-46-40-20 PRINTER, l.107980-107981). The AOC prints on the pedestal printer: the
-   * aocPrintMessage text goes to the FMS printer of the MFD (MFD/FMC/AocPrintClient.ts), synced as it is another
-   * instrument.
+   * PRINT of a message: any message can be printed by hand. The AOC prints on the pedestal printer: the aocPrintMessage
+   * text goes to the FMS printer of the MFD (MFD/FMC/AocPrintClient.ts), synced as it is another instrument.
    * @param uid the AOC message id
    * @param formatDateTime the date and time format of the OIT
    * @returns whether the message was sent to the printer (false for an unknown message)
@@ -177,7 +170,6 @@ export class CompanyComMailbox {
     return true;
   }
 
-  /** Stops listening to the AOC */
   public destroy(): void {
     this.subscriptions.forEach((s) => s.destroy());
     this.subscriptions.length = 0;

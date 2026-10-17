@@ -12,9 +12,8 @@ interface BleedWingAntiIceProps {
 }
 
 /**
- * The WING A-ICE indication of one wing (FCOM DSC-30-10-20 BLEED SYSTEM DISPLAY, WingAntiIceIndication): the legend
- * outboard of the engine 1 (4) bleed duct, the triangle on the duct to the wing (y 370, BleedCrossbleed), pointing to
- * the wing.
+ * The WING A-ICE indication of one wing: the legend outboard of the engine 1 (4) bleed duct, the triangle on the duct
+ * to the wing (y 370, as in BleedCrossbleed), pointing to the wing.
  */
 const BleedWingAntiIce: FC<BleedWingAntiIceProps> = ({ wing }) => {
   const [valvesClosed] = useSimVar(`L:A32NX_PNEU_WING_ANTI_ICE_${wing}_VALVE_CLOSED`, 'bool', 500);

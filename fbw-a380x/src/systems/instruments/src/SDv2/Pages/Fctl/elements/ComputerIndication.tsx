@@ -181,8 +181,8 @@ export class Secs extends DisplayComponent<PrimSecFlapsSlatsProps> {
 }
 
 /**
- * BKUP CTL ACTIVE in amber when all the PRIMs and SECs are lost (BackupControlIndication.ts, A380 FCOM l.55643-55645,
- * l.56376-56391). The FCOM text gives no position (figure only): drawn on two lines at the left edge, below the SECs.
+ * BKUP CTL ACTIVE in amber when all the PRIMs and SECs are lost (BackupControlIndication.ts). Design choice (only a
+ * picture gives its place): drawn on two lines at the left edge, below the SECs.
  */
 export class BackupControlActive extends DisplayComponent<PrimSecFlapsSlatsProps> {
   private readonly sub = this.props.bus.getSubscriber<SDSimvars>();

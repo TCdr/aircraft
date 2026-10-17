@@ -14,7 +14,7 @@ import {
 const normal = () => new Array(TIRE_COUNT).fill(220);
 
 describe('A380 TPIS tire pressures', () => {
-  it('measures from 0 to 400 PSI by 5 PSI steps (FCOM l.80822); the normal 217.5 PSI reads 220', () => {
+  it('measures from 0 to 400 PSI by 5 PSI steps; the normal 217.5 PSI reads 220', () => {
     expect(tpisMeasurement(TIRE_NORMAL_PRESSURE_PSI)).toBe(220);
     expect(tpisMeasurement(193.2)).toBe(195);
     expect(tpisMeasurement(-3)).toBe(0);
@@ -26,7 +26,7 @@ describe('A380 TPIS tire pressures', () => {
     expect(tirePressureVar(21)).toBe('L:A380X_TPIS_TIRE_21_PRESSURE');
   });
 
-  it('low below 89 % of 217.5 PSI in flight phases 1 to 5 (WHEEL TIRE PRESS LO, l.163276-163283)', () => {
+  it('low below 89 % of 217.5 PSI in flight phases 1 to 5 (WHEEL TIRE PRESS LO)', () => {
     const pressures = normal();
     pressures[4] = 190; // tire 5, below 193.6 PSI
     pressures[5] = 190; // its axle mate, same pressure: no difference
@@ -36,7 +36,7 @@ describe('A380 TPIS tire pressures', () => {
     expect(isTirePressureAbnormal(pressures, 5, 5)).toBe(false);
   });
 
-  it('low below 74 % of 217.5 PSI in flight phases 6 to 11 (l.163281)', () => {
+  it('low below 74 % of 217.5 PSI in flight phases 6 to 11', () => {
     const pressures = normal();
     pressures[0] = 165;
     pressures[1] = 165;
@@ -47,7 +47,7 @@ describe('A380 TPIS tire pressures', () => {
     expect(isTirePressureAbnormal(pressures, 1, 12)).toBe(true);
   });
 
-  it('abnormal when the two tires of an axle differ by 15 % (phases 1-5) or 21 % (6-11) (l.163285-163289)', () => {
+  it('abnormal when the two tires of an axle differ by 15 % (phases 1-5) or 21 % (6-11)', () => {
     const pressures = normal();
     // nose tires: 35 PSI apart, both above the minimum (more than 32.6 PSI, less than 45.7 PSI)
     pressures[20] = 195;

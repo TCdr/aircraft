@@ -9,8 +9,8 @@ import { describe, expect, it } from 'vitest';
  * Two visual effects of the A380X exterior model, as ASOBO_GT_FX components of the behaviour XML of the part that owns
  * their nodes, with their FX_CODE evaluated by a small RPN interpreter for the operators they use:
  * - the fuel jettison drip on the ground at the jettison outlets (A380_WINGS.xml FUEL_JETTISON_GROUND_DRIP_FX), next to
- *   the jettison plume (FUEL_JETTISON_FX). A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON: "It is possible to jettison in
- *   any aircraft configuration, and at any speed", so a jettison on the ground puts the fuel on the ground.
+ *   the jettison plume (FUEL_JETTISON_FX). The aircraft can jettison in any configuration and at any speed, so a
+ *   jettison on the ground puts the fuel on the ground.
  * - the contrails (A380_WINGS.xml FX_CONTRAIL_QUAD/RIBBON), each with the running term of its own engine, so that a
  *   flamed out engine leaves no contrail; the fuselage part has none of the engine exhaust nodes and no contrails.
  */
@@ -44,7 +44,8 @@ const JETTISON_OUTLETS = [
 
 /**
  * The exhaust node of each engine in A380_WINGS.gltf (aircraft-large-files), from the node positions: LEFT1 x = +25.9 m
- * (left outer, engine 1), RIGHT2 +15.0 m (left inner, the LOD01 node), RIGHT3 -14.9 m (right inner), RIGHT4 -25.6 m (right outer).
+ * (left outer, engine 1), RIGHT2 +15.0 m (left inner, the LOD01 node), RIGHT3 -14.9 m (right inner), RIGHT4 -25.6 m
+ * (right outer).
  */
 const ENGINE_EXHAUST_NODES = {
   1: 'FX_EXHAUST_LEFT1',

@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The IDLE indication of the EWD, A380 FCOM DSC-70-90 IDLE INDICATION (a380_fcom.txt l.112973-112974): "In flight, at
- * least three engines are at idle. Pulses for 10 s then remains steady." The FCOM gives no A/THR condition: IDLE also
- * shows with the A/THR off (it needed an active A/THR before).
+ * The IDLE indication of the EWD: in flight, with at least three engines at idle; it pulses for 10 s, then stays
+ * steady. It has no A/THR condition, so it also shows with the A/THR off.
  *
- * Design choices (unchanged): an engine is at idle up to 2 % N1 above the idle N1, and "in flight" is FWC flight phases
- * 6 (lift-off) to 9 (at or below 800 ft), see FwsFlightPhases FwcFlightPhase. The pulse is the CSS class IdleTextPulse.
+ * Design choices: an engine is at idle up to 2 % N1 above the idle N1, and "in flight" is FWC flight phases 6
+ * (lift-off) to 9 (at or below 800 ft), see FwsFlightPhases FwcFlightPhase. The pulse is the CSS class IdleTextPulse.
  */
 
 /** N1 margin above the idle N1 in which an engine counts as at idle, in percent */

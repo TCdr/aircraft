@@ -2,20 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The SURV messages of the Vertical Display, A380 FCOM DSC-31-20-40-30 SURV MESSAGES (a380_fcom.txt l.69819-69845) and
- * DSC-34-20-30-20 WXR MESSAGES (l.90208-90217). The FCOM has only four of them:
- * - NO TERR AND WX DATA AVAILABLE: "Sets to OFF the TERR SYS button on the SURV CONTROLS page of the MFD. The VD
- *   does not display the weather when the TERR function is not available" (l.69819-69826, l.88835-88841). Its other
- *   trigger, PLAN mode, does not reach the VD: "The VD is only available in ARC and ROSE-NAV modes" (l.69098).
- * - TERR INOP: "The TAWS has failed, or the flight crew turns off the TAWS, via the SURV page of the MFD"
- *   (l.69828-69833).
- * - WXR INOP: "the flight crew presses the WX pb on the EFIS CP, and the WXR (on the SURV system) is failed"
- *   (l.90208-90210).
- * - WX NOT SEL: "the flight crew presses the WX pb on the EFIS CP [and] sets the WX ON VD button to OFF on the SURV
- *   CONTROLS page" (l.69841-69845, l.90213-90217); WX ON VD button OFF: "If the flight crew presses the WX pb on the
- *   EFIS CP, the VD does not display weather information. Associated with the WX NOT SEL message on the VD"
- *   (l.89958-89960). The WXR button set to OFF also sets "The WX ON VD button ... automatically to OFF" (l.89825).
- * There is no NO TERR DATA AVAILABLE or NO WX DATA AVAILABLE message in the FCOM.
+ * The SURV messages of the Vertical Display. There are only four:
+ * - NO TERR AND WX DATA AVAILABLE: the TERR SYS button of the MFD SURV CONTROLS page is OFF; without the TERR function
+ *   the VD shows no weather either. Its other trigger, the PLAN mode, never reaches the VD (no VD in PLAN mode).
+ * - TERR INOP: the TAWS has failed, or the flight crew turned it off on the MFD SURV page.
+ * - WXR INOP: the WX pb of the EFIS CP is pressed and the WXR of the SURV system is failed.
+ * - WX NOT SEL: the WX pb of the EFIS CP is pressed and the WX ON VD button of the SURV CONTROLS page is OFF (setting
+ *   the WXR button to OFF also sets WX ON VD to OFF).
+ * There is no NO TERR DATA AVAILABLE or NO WX DATA AVAILABLE message.
  */
 export interface VdSurvMessageInputs {
   /** The TERR SYS button of the MFD SURV CONTROLS page is OFF */

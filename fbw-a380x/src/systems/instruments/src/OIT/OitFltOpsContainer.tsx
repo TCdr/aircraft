@@ -84,10 +84,10 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
 
   private overlaySub: MappedSubscribable<void> | undefined;
 
-  /** The OIS MENU / OIS XFR keys and the X-OIS function (A380 FCOM DSC-46-20-20-50, DSC-46-20-30, XOisFunction) */
+  /** The OIS MENU / OIS XFR keys and the X-OIS function (see XOisFunction) */
   private readonly xOis = new XOisFunction();
 
-  /** "X-OIS Activated" shows */
+  /** This OIT mirrors the other OIT ("X-OIS Activated") */
   private readonly xOisActive = Subject.create(false);
 
   private readonly hideXOisMessage = this.xOisActive.map((active) => !active);
@@ -102,9 +102,9 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
   private readonly ownPageSimvar = `L:A380X_OIT_${this.props.captOrFo}_FLT_OPS_PAGE`;
 
   /**
-   * A key of the keyboard: OIS MENU and OIS XFR act on the FLT OPS side only (l.103028-103032, l.104890), with the
-   * laptop running and the crew logged in
-   * @param key the key
+   * A key of the keyboard: OIS MENU and OIS XFR act on the FLT OPS side only, with the laptop running and the crew
+   * logged in
+   * @param key the H event name without its A380X_LAPTOP_KEYBOARD_L(R)_ prefix, e.g. OIS_MENU
    */
   private onKeyboardKey(key: string): void {
     if (key !== 'OIS_MENU' && key !== 'OIS_XFR') {
@@ -196,7 +196,7 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
       this.hideXOisMessage,
     );
 
-    // EXIT SESSION initializes the FLT OPS STS page again for the next flight (OitUiService.exitFltOpsSession)
+    // EXIT SESSION: the STS page starts empty for the next flight
     this.uiService.onFltOpsSessionExit(() => this.laptopData.reset());
 
     this.uiService.navigateTo('flt-ops');

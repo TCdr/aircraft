@@ -19,16 +19,14 @@ export interface EnginePumpIndication {
 }
 
 /**
- * The engine pump symbol of the SD HYD page, A380 FCOM DSC-29-20 ENGINE PUMPS (a380_fcom.txt l.61470-61492):
- * - "The engine pump is on, and hydraulic pressure is normal." (green, vertical line)
- * - "The engine pump is depressurized." (ENG PMP pb-sw OFF: horizontal line, as the page always drew it)
- * - "The engine pump is abnormally pressurized (ENG PMP pb-sw is OFF)." (amber, vertical line: the pb-sw is OFF, but
- *   the pump section is pressurized)
- * - "The engine pump is on, and the engine pump pressure is below normal [...] On ground, the associated engine is not
- *   running." (amber LO)
- * - "The pump is disconnected from the engine accessory gearbox, via the ENG PMP A+B DISC pb." (horizontal line, DISC)
- * The FCOM text gives the states, not the figures: the abnormal pressurization symbol is the pressurized symbol
- * (vertical line) in amber.
+ * The engine pump symbol of the SD HYD page:
+ * - on, normal pressure: green, vertical line.
+ * - depressurized (ENG PMP pb-sw OFF): horizontal line.
+ * - abnormally pressurized, the pb-sw OFF but the pump section pressurized: amber, vertical line.
+ * - on, pressure below normal (also on the ground with the engine not running): amber LO.
+ * - disconnected from the engine accessory gearbox by the ENG PMP A+B DISC pb: horizontal line, DISC.
+ * Design choice (the source gives the states, not the pictures): the abnormal pressurization symbol is the pressurized
+ * symbol (vertical line) in amber.
  * @param pressurized the pump section pressure switch reads pressure
  * @param pbAuto the ENG PMP pb-sw is in AUTO (not OFF)
  * @param disconnected the pump is disconnected (ENG PMP A+B DISC)

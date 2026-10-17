@@ -9,7 +9,6 @@ interface WheelProps {
   hasBrake: boolean;
   /** The brake temperature in °C (L:A32NX_REPORTED_BRAKE_TEMPERATURE_n), for a wheel with a brake */
   brakeTemperature: number;
-  /** The arc of the hottest brake (WheelIndications hottestBrakeArcs) */
   hottestArc: HottestBrakeArc;
   /** The TPIS tire pressure in PSI (L:A380X_TPIS_TIRE_n_PRESSURE) */
   tirePressure: number;
@@ -19,7 +18,7 @@ interface WheelProps {
   tirePressureAmber: boolean;
 }
 
-/** A380 FCOM DSC-32-20-70 (l.81361-81373): the upper arc of the wheel turns green or amber on the hottest brake */
+/** The upper arc of the wheel turns green or amber on the hottest brake */
 function upperArcClassName(arc: HottestBrakeArc): string {
   switch (arc) {
     case HottestBrakeArc.Green:

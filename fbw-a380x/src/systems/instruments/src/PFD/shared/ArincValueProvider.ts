@@ -269,7 +269,7 @@ export class ArincValueProvider implements Instrument {
   }
 
   /**
-   * Both PFDs show the same radio height, voted from the three RAs (a380_fcom.txt l.86462-86466): see
+   * Both PFDs show the same radio height, voted from the three RAs: see
    * voteRadioAltitude in shared/src/RadioAltimeterVoting.ts.
    */
   private determineAndPublishChosenRadioAltitude(publisher: Publisher<Arinc429Values>) {

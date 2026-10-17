@@ -45,9 +45,9 @@ const CHART: LandingPerformanceInputs = {
 };
 
 /**
- * The A380 FCOM example of in-flight results (PER-LND-LDI P 3, PER-LND-LRF-FSR P 2): AIRBUS TRAINING, RWY 06, ELEVN
- * 820 ft, LENGTH 13163 ft, GA ALTITUDE 1320 ft, wind 080/15 (HD14 R5), OAT 15 °C, QNH 1013, dry, LW 851.0 klb, CONF FULL,
- * air conditioning on, normal approach, GA gradient 2.7, VLS+ 5, manual landing and braking.
+ * An Airbus example of in-flight results: AIRBUS TRAINING, RWY 06, ELEVN 820 ft, LENGTH 13163 ft, GA ALTITUDE
+ * 1320 ft, wind 080/15 (HD14 R5), OAT 15 °C, QNH 1013, dry, LW 851.0 klb, CONF FULL, air conditioning on, normal
+ * approach, GA gradient 2.7, VLS+ 5, manual landing and braking.
  * Results: MLW(perf) 1254.4 klb, WGT, FLAPS FULL, GA SPEED 141 kt, GA GRADIENT 8.939 %, VAPP VLS+5.
  */
 const FCOM_EXAMPLE: LandingPerformanceInputs = {
@@ -65,7 +65,7 @@ const FCOM_EXAMPLE: LandingPerformanceInputs = {
 
 describe('A380 landing performance', () => {
   it('gives the landing field length of the Airbus chart', () => {
-    // FIGURE-3-4-1-991-001-A01: 380 t at sea level 1878 m, at 4000 ft 2063 m
+    // 380 t at sea level 1878 m, at 4000 ft 2063 m
     expect(calculator.calculateLandingPerformance(CHART).landingDistance).toBeCloseTo(1878, 0);
     const high = calculator.calculateLandingPerformance({ ...CHART, elevation: 4000 });
     expect(high.landingDistance).toBeCloseTo(2063, 0);
@@ -73,7 +73,7 @@ describe('A380 landing performance', () => {
     expect(high.actualLandingDistance).toBeCloseTo(2063 * 0.6, 0);
   });
 
-  it('reproduces the FCOM example of in-flight results', () => {
+  it('reproduces the example of in-flight results', () => {
     const result = calculator.calculateLandingPerformance(FCOM_EXAMPLE);
     expect(result.error).toBe(LandingPerformanceError.None);
     expect(result.conf).toBe(LandingConf.Full);
@@ -192,7 +192,7 @@ describe('A380 landing performance', () => {
       expect(shorter).toBeLessThan(55);
     });
 
-    it('counts the slope for autoland only (PER-LND-LCD-RWY), a downhill slope making it longer', () => {
+    it('counts the slope for autoland only, a downhill slope making it longer', () => {
       expect(actual({ slope: -1 })).toBeCloseTo(actual({}), 6);
       const downhill = autoland({ slope: -1 });
       const uphill = autoland({ slope: 1 });
@@ -237,7 +237,7 @@ describe('A380 landing performance', () => {
   describe('limits, runway condition codes and estimates', () => {
     const IN_FLIGHT: LandingPerformanceInputs = { ...CHART, type: LandingComputationType.InFlight };
 
-    it('keeps the 2 % slope of the FCOM (LIM-12)', () => {
+    it('keeps the 2 % slope limit', () => {
       const error = (inputs: Partial<LandingPerformanceInputs>) =>
         calculator.calculateLandingPerformance({ ...IN_FLIGHT, ...inputs }).error;
       expect(error({ slope: 2 })).toBe(LandingPerformanceError.None);
@@ -247,7 +247,7 @@ describe('A380 landing performance', () => {
       expect(error({ weight: 510_100 })).toBe(LandingPerformanceError.MaximumTakeoffWeight);
     });
 
-    it('extrapolates the figures beyond the 10 kt tailwind of the FCOM (LIM-12), flagged', () => {
+    it('extrapolates the figures beyond the 10 kt tailwind limit, flagged', () => {
       const at = (headwind: number) => calculator.calculateLandingPerformance({ ...IN_FLIGHT, headwind });
       expect(at(-10).error).toBe(LandingPerformanceError.None);
       expect(at(-10).tailwindExtrapolated).toBe(false);
@@ -262,7 +262,7 @@ describe('A380 landing performance', () => {
     });
 
     it('allows 40 kt of crosswind on dry and wet runways, less on contaminated ones (gust included)', () => {
-      // the maximum certified landing crosswind, increased from 35 kt to 40 kt (A380 FCOM revision, EA engines)
+      // the maximum certified landing crosswind, raised from 35 kt to 40 kt for the EA engines
       expect(calculator.crosswindLimit(LandingRunwayCondition.Dry, 15)).toBe(40);
       expect(calculator.crosswindLimit(LandingRunwayCondition.Wet, 15)).toBe(40);
       expect(calculator.crosswindLimit(LandingRunwayCondition.Slush13mm, 15)).toBe(20);
@@ -326,7 +326,7 @@ describe('A380 landing performance', () => {
   });
 });
 
-describe('A380 in-flight landing with BTV (FCOM DSC-32-20-220)', () => {
+describe('A380 in-flight landing with BTV', () => {
   const inFlight = { ...CHART, type: LandingComputationType.InFlight };
 
   it('lands at the DRY line on a dry runway and at the WET line on a wet one', () => {

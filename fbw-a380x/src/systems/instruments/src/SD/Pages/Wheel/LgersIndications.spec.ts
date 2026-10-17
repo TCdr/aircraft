@@ -36,7 +36,6 @@ function runFor(seconds: number, step: (dt: number) => boolean): boolean {
   return out;
 }
 
-/* A380 FCOM DSC-32-20-40 WHEEL SD LGERS indications (a380_fcom.txt l.81054-81065, l.81105-81109) */
 describe('WHEEL page L/G CTL', () => {
   it('shows a gear not downlocked 60 s after the lever went down', () => {
     const lgCtl = new LgCtlIndication();
@@ -86,7 +85,6 @@ describe('WHEEL page L/G GRVTY EXTN IN PROGRESS', () => {
   });
 });
 
-/* A380 FCOM DSC-32-20-40 LANDING GEAR and LANDING GEAR DOORS indications (a380_fcom.txt l.81086-81103) */
 describe('WHEEL page landing gear triangles', () => {
   // word 3 bits 11/12/13: left/right/nose gear not uplocked; word 1 bits 23/24/25: downlocked
   it('shows no triangle when the gear is uplocked', () => {

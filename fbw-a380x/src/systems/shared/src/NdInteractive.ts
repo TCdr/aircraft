@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The interactive ND (A380 FCOM DSC-31-20-30-90): with the KCCU cursor, the flight crew revises the flight plan on the
+ * The interactive ND: with the KCCU cursor, the flight crew revises the flight plan on the
  * lateral ND in ARC, PLAN or ROSE-NAV mode. The ND sends the revisions to the FMS, which answers with the state of the
  * temporary flight plan.
  */
@@ -19,7 +19,6 @@ export interface NdInteractiveElement {
   airport: boolean;
 }
 
-/** The DIRECT TO options (FCOM DSC-31-20-30-90 P 11) */
 export enum NdDirectToOption {
   Direct = 'DIRECT',
   DirectWithAbeam = 'DIRECT WITH ABEAM',
@@ -27,14 +26,14 @@ export enum NdDirectToOption {
   CrsOut = 'CRS OUT',
 }
 
-/** The CRS IN or CRS OUT course of a DIR TO (FCOM P 11), magnetic unless isTrue */
+/** The CRS IN or CRS OUT course of a DIR TO, magnetic unless isTrue */
 export interface NdDirectToCourse {
   course: number;
   isTrue: boolean;
 }
 
 /** An entry error the ND detected, shown as an FMS message */
-export type NdEntryError = 'format' | 'outOfRange';
+type NdEntryError = 'format' | 'outOfRange';
 
 export type NdInteractiveRequest =
   /**

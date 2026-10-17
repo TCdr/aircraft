@@ -30,7 +30,7 @@ describe('SD FUEL gallery flow', () => {
     expect(isGallerySegmentActive(span, 132, 182)).toBe(false);
   });
 
-  it('an open jettison valve is a way out of the AFT gallery (FCOM DSC-28-40 l.60025-60029)', () => {
+  it('an open jettison valve is a way out of the AFT gallery', () => {
     const span = galleryFlowSpan(aftPumps(true), closedValves, [
       { x: 190, active: true },
       { x: 570, active: true },
@@ -50,7 +50,7 @@ describe('SD FUEL gallery flow', () => {
   });
 });
 
-describe('SD FUEL jettison flow (FCOM DSC-28-40 l.60012-60031)', () => {
+describe('SD FUEL jettison flow', () => {
   it('runs the transfer pumps and links the FWD gallery to the AFT gallery while the jettison is in progress', () => {
     expect(jettisonGalleryFlow(true, true, true, false)).toEqual({
       transferPumpsRun: true,

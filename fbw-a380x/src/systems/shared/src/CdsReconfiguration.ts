@@ -3,9 +3,6 @@
 
 /*
  * The display unit reconfiguration of the A380 Control and Display System (CDS): which display each DU shows.
- *
- * Source: A380 FCOM DSC-31-15-20 "CDS - Abnormal operations" (KAL fleet; a380_fcom.txt:63131-63217, the capability
- * table read from the PDF p. 2136) and DSC-31-20-50 "EFIS - Controls and indicators" (PFD/ND pb, a380_fcom.txt:70312-70315).
  * This module is pure (no SimVar): the systems host (Misc/CdsReconfiguration.ts) feeds it and writes the result.
  */
 
@@ -29,7 +26,7 @@ const SIDE_DISPLAY_UNITS: Readonly<Record<CdsSide, { pfd: DisplayUnitID; nd: Dis
   FO: { pfd: DisplayUnitID.FoPfd, nd: DisplayUnitID.FoNd, mfd: DisplayUnitID.FoMfd },
 };
 
-/** The normal display of each DU ("Normal" access mode of the FCOM capability table) */
+/** The normal display of each DU */
 const NORMAL_DISPLAY: Readonly<Record<DisplayUnitID, CdsDisplay>> = {
   [DisplayUnitID.CaptPfd]: CdsDisplay.Pfd,
   [DisplayUnitID.CaptNd]: CdsDisplay.Nd,
@@ -42,9 +39,8 @@ const NORMAL_DISPLAY: Readonly<Record<DisplayUnitID, CdsDisplay>> = {
 };
 
 /**
- * The display sequence of the DU RECONF pb on each DU: the normal display, then the "Manual" displays in the order of
- * the FCOM capability table (DSC-31-15-20 P 2, "the display sequence when using the DU RECONF pb"). The "Automatic"
- * displays (PFD on the ND DU, EWD on the SD DU) are not in the sequence.
+ * The display sequence of the DU RECONF pb on each DU: the normal display, then the displays the crew can select
+ * manually, in the aircraft's order. The automatic ones (PFD on the ND DU, EWD on the SD DU) are not in the sequence.
  */
 export const DU_RECONF_SEQUENCE: Readonly<Record<DisplayUnitID, readonly CdsDisplay[]>> = {
   [DisplayUnitID.CaptPfd]: [CdsDisplay.Pfd, CdsDisplay.Nd, CdsDisplay.Mfd],
@@ -59,10 +55,10 @@ export const DU_RECONF_SEQUENCE: Readonly<Record<DisplayUnitID, readonly CdsDisp
 
 /**
  * The displays the simulation can draw on each DU: every display is a gauge of its own, so a DU can only show a display
- * that has a gauge on its texture (panel.cfg). Design choice, not FCOM: the PFD and the ND on both DUs of a side, the
- * EWD and the SD also on the ND DUs, and the EWD on the SD DU. The MFD (one gauge over both MFD screens, which also runs
- * the FMS) is not drawn on another DU, and nothing is drawn on the MFD DUs (one texture over both MFD screens), so the
- * DU RECONF pb skips them.
+ * that has a gauge on its texture (panel.cfg). Design choice, not the aircraft's: the PFD and the ND on both DUs of a
+ * side, the EWD and the SD also on the ND DUs, and the EWD on the SD DU. The MFD (one gauge over both MFD screens,
+ * which also runs the FMS) is not drawn on another DU, and nothing is drawn on the MFD DUs (one texture over both MFD
+ * screens), so the DU RECONF pb skips them.
  */
 export const DRAWN_DISPLAYS: Readonly<Record<DisplayUnitID, readonly CdsDisplay[]>> = {
   [DisplayUnitID.CaptPfd]: [CdsDisplay.Pfd, CdsDisplay.Nd],
@@ -131,7 +127,7 @@ export function encodeDisplay(du: DisplayUnitID, display: CdsDisplay): number {
 /**
  * The crew side of a DU
  * @param du the DU
- * @returns CAPT, FO, or null for the EWD and SD DUs (centre, "reconfigured from both sides")
+ * @returns CAPT, FO, or null for the EWD and SD DUs (centre, reconfigured from both sides)
  */
 function sideOf(du: DisplayUnitID): CdsSide | null {
   for (const side of ['CAPT', 'FO'] as const) {
@@ -143,7 +139,7 @@ function sideOf(du: DisplayUnitID): CdsSide | null {
   return null;
 }
 
-export interface CdsReconfigurationInputs {
+interface CdsReconfigurationInputs {
   /** The DU can show a picture: powered, not failed and not switched off with its brightness knob */
   operative: Readonly<DisplayUnitMap<boolean>>;
   /** The PFD/ND pb of the side has exchanged the PFD and the ND */
@@ -167,13 +163,12 @@ function shownOnOtherSide(displays: DisplayUnitMap<CdsDisplay>, side: CdsSide, d
 /**
  * The display of every DU.
  *
- * - PFD/ND pb: "exchanges the onside PFD and the ND, regardless of their default position" (a380_fcom.txt:70312-70315).
- * - Automatic reconfiguration: "If the CAPT (F/O) PFD DU fails, the PFD is automatically displayed on the CAPT (F/O) ND
- *   DU. If the EWD DU fails, the EWD is automatically displayed on the SD DU" (a380_fcom.txt:63143-63147; the ECAM
- *   procedure says the same for a DU turned OFF, a380_fcom.txt:157938-157946). With the PFD/ND pb pressed the PFD is on
- *   the ND DU, and comes back to the PFD DU if the ND DU fails (the same priority to the PFD).
- * - Manual reconfiguration (DU RECONF pb): the selected display, on an operative DU that can draw it. "The EWD (SD)
- *   cannot be displayed on both sides at the same time" (a380_fcom.txt:63186-63187).
+ * - PFD/ND pb: exchanges the on-side PFD and ND, whatever their current position.
+ * - Automatic reconfiguration: a failed (or switched off) PFD DU puts the PFD on the on-side ND DU, a failed EWD DU
+ *   puts the EWD on the SD DU. With the PFD/ND pb pressed the PFD is on the ND DU, and comes back to the PFD DU if the
+ *   ND DU fails (the same priority to the PFD).
+ * - Manual reconfiguration (DU RECONF pb): the selected display, on an operative DU that can draw it. The EWD (SD)
+ *   cannot be shown on both sides at the same time.
  *
  * A DU that is not operative keeps its normal display (it is blank anyway): no other gauge wakes up on it.
  * @param inputs the DU states and the crew selections
@@ -224,15 +219,13 @@ export function computeCdsDisplays(inputs: CdsReconfigurationInputs): DisplayUni
 }
 
 /**
- * The DU that shows the ATC mailbox, the bottom section of the SD ("The lower section of the SD permanently displays the
- * mailbox", a380_fcom.txt:95677; "The bottom section displays the mailbox", a380_fcom.txt:72777): the operative DU that
- * shows the SD. "If the SD DU is turned OFF, use the F/O DU RECONF P/B for ATC mailbox" (PRO-ABN-ECAM-10-31,
- * a380_fcom.txt:157950 and 158167): the SD on the F/O ND DU (or on the CAPT ND DU) brings the mailbox with it.
+ * The DU that shows the ATC mailbox, always the bottom section of the SD: the operative DU that shows the SD. With the
+ * SD DU off, the crew uses the F/O DU RECONF pb for the mailbox: the SD on the F/O ND DU (or on the CAPT ND DU) brings
+ * the mailbox with it.
  *
  * Only one mailbox client may answer the flight crew and publish to the ATC function (displayed and read messages):
  * - the SD DU, while it is operative and shows the SD (normal operation);
- * - else the DU that shows the SD after the DU RECONF pb ("The EWD (SD) cannot be displayed on both sides at the same
- *   time", a380_fcom.txt:63186-63187: one ND DU at most).
+ * - else the DU that shows the SD after the DU RECONF pb (one ND DU at most: the SD cannot be shown on both sides).
  * - else none: the SD is shown nowhere, so no mailbox marks a new message as displayed / read (design choice: the ATC
  *   ring and the ATC MSG lights go on until a DU shows the mailbox again).
  * Design choice: the SD DU wins when it shows the SD too (an ND DU may also show the SD while the SD DU works, after a
@@ -252,12 +245,12 @@ export function mailboxDisplayUnit(
 }
 
 /** The value of L:A380X_CDS_MAILBOX_DU when no DU shows the mailbox */
-export const NO_MAILBOX_DISPLAY_UNIT = -1;
+const NO_MAILBOX_DISPLAY_UNIT = -1;
 
 /**
- * The L:A380X_CDS_MAILBOX_DU value for the DU that shows the mailbox: 0 for the SD DU, so the variable stays 0 in normal
- * operation and before the systems host first writes it (the SD DU's mailbox is the active one then, as before the CDS
- * reconfiguration); else the duID of that DU (never 0: the CAPT PFD DU cannot draw the SD), or -1 for none.
+ * The L:A380X_CDS_MAILBOX_DU value for the DU that shows the mailbox: 0 for the SD DU, so the variable stays 0 in
+ * normal operation and before the systems host first writes it (the SD DU's mailbox is the active one then); else the
+ * duID of that DU (never 0: the CAPT PFD DU cannot draw the SD), or -1 for none.
  * @param du the DU, or null
  * @returns the value
  */
@@ -281,11 +274,11 @@ export function decodeMailboxDisplayUnit(value: number): DisplayUnitID | null {
 }
 
 /**
- * The DU the DU RECONF pb of a side acts on (a380_fcom.txt:63160-63175): "active only if there is a failed on-side
- * display unit. The EWD DU and SD DU can be reconfigured from both sides."
+ * The DU the DU RECONF pb of a side acts on. The pb is active only with a failed on-side DU (the EWD and SD DUs count
+ * for both sides).
  * CAPT: the MFD DU; the ND DU if the MFD DU is failed; the PFD DU if both the ND DU and MFD DU are failed.
  * F/O: the ND DU if the PFD DU and ND DU are both operative; the MFD DU if either is failed; the PFD DU if both the ND
- * DU and MFD DU are failed ("to favor the display of the PFD on either the PFD or ND DU").
+ * DU and MFD DU are failed (to keep the PFD on the PFD or ND DU).
  * Design choice: a DU that is not operative (failed, unpowered or switched off) counts as failed; when the F/O's PFD or
  * ND DU and the MFD DU are failed, the F/O order ends on the failed MFD DU (rule 2; rule 3 needs the ND DU failed), so
  * the pb acts on the remaining one of the PFD and ND DUs, as the CAPT pb does with the same failures (CAPT rule 2: the
@@ -320,16 +313,15 @@ export function duReconfTarget(side: CdsSide, operative: Readonly<DisplayUnitMap
 }
 
 /**
- * The DU RECONF cycle of a DU: its base display (what it shows without a DU RECONF selection), then the "Manual"
- * displays of its FCOM sequence that it can draw, in the FCOM order.
+ * The DU RECONF cycle of a DU: its base display (what it shows without a DU RECONF selection), then the manual
+ * displays of its sequence (DU_RECONF_SEQUENCE) that it can draw, in that order.
  *
  * The base display is the normal display, or the display the automatic reconfiguration or the PFD/ND pb put there.
- * With the CAPT (F/O) PFD and MFD DUs failed, the pb acts on the ND DU ("2. The ND DU, if the MFD DU is failed",
- * a380_fcom.txt:63166), which shows the PFD automatically ("If the CAPT (F/O) PFD DU fails, the PFD is automatically
- * displayed on the CAPT (F/O) ND DU", a380_fcom.txt:63146), and the "Manual" displays of the ND DU are MFD, EWD and SD
- * (capability table, a380_fcom.txt:63207-63211). Design choice: the automatic PFD takes the place of the normal display
- * (the ND, lost) at the head of the cycle, so the cycle is PFD, (MFD, not drawn,) EWD, SD and back to the PFD; while
- * the EWD or the SD is selected, that side has no PFD (its PFD and MFD DUs are failed: no other DU to show it on).
+ * With the CAPT (F/O) PFD and MFD DUs failed, the pb acts on the ND DU, which shows the PFD automatically, and the
+ * manual displays of the ND DU are MFD, EWD and SD. Design choice: the automatic PFD takes the place of the normal
+ * display (the ND, lost) at the head of the cycle, so the cycle is PFD, (MFD, not drawn,) EWD, SD and back to the PFD;
+ * while the EWD or the SD is selected, that side has no PFD (its PFD and MFD DUs are failed: no other DU to show it
+ * on).
  * @param du the DU
  * @param base its base display
  * @returns the cycle, the base display first
@@ -341,8 +333,7 @@ export function duReconfCycle(du: DisplayUnitID, base: CdsDisplay): CdsDisplay[]
 
 /**
  * The display after one press of the DU RECONF pb on a DU: the next one of its cycle (duReconfCycle), skipping an EWD
- * or SD shown on the other side ("The EWD (SD) cannot be displayed on both sides at the same time",
- * a380_fcom.txt:63186-63187); after the last one, the base display.
+ * or SD shown on the other side (it cannot be shown on both sides at once); after the last one, the base display.
  * @param du the DU
  * @param current the display it shows
  * @param base the display it shows without a DU RECONF selection (normal, automatic or PFD/ND pb)
@@ -423,8 +414,8 @@ export class CdsReconfigurationState {
    * New DU states. The DU RECONF selections of a side end when its pb is no longer active (no failed DU left), and the
    * selection of a DU that is no longer operative is dropped (design choice). Design choice: a selection also ends when
    * the base display of its DU changes (e.g. the PFD moves onto the ND DU because the PFD DU fails afterwards): the
-   * automatic reconfiguration of the PFD, one of the "two displays [...] considered as more important for continuing
-   * the flight" (a380_fcom.txt:63143-63144), wins over an earlier selection.
+   * automatic reconfiguration of the PFD (with the EWD, the display that matters most to continue the flight) wins
+   * over an earlier selection.
    * @param operative the DU states
    * @returns the display of each DU
    */

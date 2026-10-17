@@ -160,7 +160,6 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
   private thrustPercentSplit1 = this.thrustPercent.map((thr) => splitDecimals(thr)[0]);
   private thrustPercentSplit2 = this.thrustPercent.map((thr) => splitDecimals(thr)[1]);
 
-  /** AVAIL after a start or relight: steady on ground, pulsing in flight (AvailIndication.ts, FCOM DSC-70-90) */
   private readonly availIndication = new AvailIndication();
 
   private readonly availVisible = Subject.create(false);

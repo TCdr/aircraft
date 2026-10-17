@@ -14,7 +14,7 @@ import {
 const none: AnsuSupplies = { ac1: false, ac2: false, acEss: false, acEmer: false, dcHot1: false, dcHot2: false };
 const only = (supply: keyof AnsuSupplies): AnsuSupplies => ({ ...none, [supply]: true });
 
-describe('A380 ANSU power supplies (FCOM DSC-46-20-70)', () => {
+describe('A380 ANSU power supplies', () => {
   it('powers NSS AVNCS ANSU 1 from AC 2 or BAT 2', () => {
     expect(isAnsuPowered('nss-avncs', 1, only('ac2'))).toBe(true);
     expect(isAnsuPowered('nss-avncs', 1, only('dcHot2'))).toBe(true);
@@ -37,7 +37,7 @@ describe('A380 ANSU power supplies (FCOM DSC-46-20-70)', () => {
   });
 });
 
-describe('A380 NSS AVNCS ANSU redundancy (FCOM DSC-46-20-30)', () => {
+describe('A380 NSS AVNCS ANSU redundancy', () => {
   it('keeps the NSS AVNCS applications with ANSU 1 failed: ANSU 2 takes over', () => {
     expect(isNssAvncsAvailable(false, true)).toBe(true);
   });
@@ -51,7 +51,7 @@ describe('A380 NSS AVNCS ANSU redundancy (FCOM DSC-46-20-30)', () => {
   });
 });
 
-describe('A380 ARU start (FCOM DSC-46-20-10-20, a380_fcom.txt l.102249-102252: 2 minutes at power-up)', () => {
+describe('A380 ARU start: 2 minutes at power-up', () => {
   it('operates 2 minutes after the aircraft power-up, not before', () => {
     const aru = new AruStartup();
     // cold and dark at the flight load, the crew powers the aircraft later
@@ -79,7 +79,7 @@ describe('A380 ARU start (FCOM DSC-46-20-10-20, a380_fcom.txt l.102249-102252: 2
   });
 });
 
-describe('A380 laptop STANDALONE (FCOM DSC-46-20-40, a380_fcom.txt l.104922-104945)', () => {
+describe('A380 laptop STANDALONE', () => {
   it('is connected when started with the ARU operating', () => {
     const laptop = new LaptopNetworkConnection();
     expect(laptop.update(true, true)).toBe(false);
@@ -89,7 +89,7 @@ describe('A380 laptop STANDALONE (FCOM DSC-46-20-40, a380_fcom.txt l.104922-1049
     const laptop = new LaptopNetworkConnection();
     expect(laptop.update(true, false)).toBe(true);
     expect(laptop.update(true, true)).toBe(true);
-    // restart
+    // switched off, then on again
     expect(laptop.update(false, true)).toBe(false);
     expect(laptop.update(true, true)).toBe(false);
   });

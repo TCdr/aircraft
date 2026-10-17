@@ -6,23 +6,21 @@ import { SystemKeys } from './KeypadController';
 /**
  * Which transmission key of one RMP is in transmission mode.
  *
- * A380 FCOM DSC-23-20 INT(CAB)(PA) transmission key (a380_fcom.txt l.48050-48063): "When pressed, the transmission key
- * turns on the transmission mode." "Only one communication type at a time (internal and external communication) can be
- * in transmission mode on each RMP." "When pressed, the transmission key turns off the transmission mode." "To make an
- * announcement on the PA, the flight crew must press and maintain the PA transmission key during the announcement."
+ * A press turns the transmission mode of a key on, a second press turns it off; only one communication type at a
+ * time (internal or external) can be in transmission mode on each RMP. For a PA announcement the flight crew keeps
+ * the PA transmission key pressed during the announcement.
  */
 export interface TransmissionState {
   /** The key in transmission mode, null when none is. */
   readonly active: SystemKeys | null;
   /**
    * While the PA key is held: the key that was in transmission mode before the PA key was pressed. The PA key does not
-   * latch, so the previous selection comes back when it is released (the FCOM does not say that the PA announcement
-   * deselects the radio the crew had selected).
+   * latch, so the previous selection comes back when it is released (design choice: nothing says that the PA
+   * announcement deselects the radio the crew had selected).
    */
   readonly beforePa: SystemKeys | null;
 }
 
-/** No key in transmission mode. */
 export const NO_TRANSMISSION: TransmissionState = { active: null, beforePa: null };
 
 /**
@@ -33,7 +31,7 @@ export const NO_TRANSMISSION: TransmissionState = { active: null, beforePa: null
  */
 export function transmissionAfterKeyPressed(state: TransmissionState, key: SystemKeys): TransmissionState {
   if (key === SystemKeys.PaCall) {
-    // PA: in transmission mode while the key is held (l.48061-48063)
+    // PA: in transmission mode while the key is held
     const beforePa = state.active === SystemKeys.PaCall ? state.beforePa : state.active;
     return { active: SystemKeys.PaCall, beforePa };
   }

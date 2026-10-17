@@ -3,7 +3,7 @@
 
 import { sndBearing, sndDistance, sndLegGuidance, SndPoint } from './SndGeo';
 
-/** Waypoints in the list at most (the FCOM gives no number) */
+/** Waypoints in the list at most. Design choice: the real limit is not known */
 export const SND_MAX_WAYPOINTS = 10;
 
 /** The TO waypoint is sequenced abeam, or within this distance, in NM */
@@ -26,7 +26,7 @@ export interface SndGuidance {
 }
 
 /**
- * The waypoint list of the SND (FCOM DSC-34-10-20-30): waypoints entered by the flight crew in latitude / longitude, and
+ * The waypoint list of the SND: waypoints entered by the flight crew in latitude / longitude, and
  * the navigation along them once a DIR TO activates it: from the FROM waypoint (the aircraft position at the DIR TO) to
  * the TO waypoint, then the NEXT one.
  */
@@ -36,7 +36,7 @@ export class SndNavigator {
   /** Navigation: the FROM point and the index of the TO waypoint in the list; null when not activated */
   private navigation: { from: SndPoint; to: number } | null = null;
 
-  /** The FIX: one point, displayed at the end of the waypoint list, with its bearing and distance (FCOM, Fix) */
+  /** The FIX: one point, displayed at the end of the waypoint list, with its bearing and distance */
   private fixPoint: SndPoint | null = null;
 
   get fix(): SndPoint | null {
@@ -64,10 +64,6 @@ export class SndNavigator {
   /** Index of the TO waypoint, -1 when the navigation is not activated */
   get toIndex(): number {
     return this.navigation?.to ?? -1;
-  }
-
-  get fromPoint(): SndPoint | null {
-    return this.navigation?.from ?? null;
   }
 
   /** Inserts a waypoint at the end of the list; false when the list is full */

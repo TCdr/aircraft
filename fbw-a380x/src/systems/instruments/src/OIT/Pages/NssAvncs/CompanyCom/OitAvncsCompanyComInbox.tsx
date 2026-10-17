@@ -16,7 +16,7 @@ interface OitAvncsCompanyComInboxProps extends AbstractOitAvncsPageProps {}
  * @param messageCount the number of messages in the inbox
  * @returns the details texts
  */
-export function inboxDetailsTexts(
+function inboxDetailsTexts(
   entry: CompanyComInboxEntry | null,
   messageCount: number,
 ): { status: string; from: string; subject: string; text: string; receivedAt: number | null } {
@@ -39,9 +39,8 @@ export function inboxDetailsTexts(
 }
 
 /**
- * The COMPANY COM inbox: the AOC uplink messages, newest first (A380 FCOM DSC-46-40-20, a380_fcom.txt l.107994-107996).
- * Clicking a message displays it and marks it read; the COMPANY MSG memo goes when every message is read
- * (a380_fcom.txt l.108020-108023).
+ * The COMPANY COM inbox: the AOC uplink messages, newest first. Clicking a message displays it and marks it read; the
+ * COMPANY MSG memo goes when every message is read.
  */
 export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompanyComInboxProps> {
   private readonly sci = this.props.container.ansu.sci;
@@ -53,7 +52,6 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
   /** The AOC id of the displayed message */
   private readonly selectedUid = Subject.create<number | null>(null);
 
-  /** The rendered message lines, with the selection flag of each */
   private lines: { uid: number; line: OitAvncsCompanyComMessageLine; selected: Subject<boolean> }[] = [];
 
   private readonly toText = this.sci.fltNumber.map((fltNumber) => (fltNumber ? `To : ${fltNumber}` : 'To : <unknown>'));
@@ -94,7 +92,7 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
     this.mailbox.markRead(uid);
   }
 
-  /** PRINT: the displayed message on the pedestal printer (CompanyComMailbox.printMessage) */
+  /** PRINT sends the displayed message to the pedestal printer */
   private printSelected(): void {
     const uid = this.selectedUid.get();
     if (uid !== null) {
@@ -178,8 +176,7 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
           <div>{this.toText}</div>
         </div>
         <div class="oit-ccom-inbox-msg-box">{this.messageText}</div>
-        {/* Manual print of a message (A380 FCOM DSC-46-40-10-20, a380_fcom.txt l.107938-107939). Design choice: below the
-            message, the FCOM has no figure of the inbox page */}
+        {/* Design choice: PRINT below the message, the real inbox page layout is not known */}
         <div class="fr" style="justify-content: flex-end; margin-top: 10px;">
           <Button label="PRINT" disabled={this.printDisabled} onClick={() => this.printSelected()} />
         </div>

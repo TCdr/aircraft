@@ -75,7 +75,7 @@ export const Gear: FC<GearProps> = ({ x, y, position, type, lgciuWords }) => {
         type={PowerSupplyType.Conventional}
         powerSource={hydraulicSource}
       />
-      {/* A380 FCOM DSC-32-20-40 (l.81088-81096): LGCIS 1 controls the left triangle, LGCIS 2 the right one */}
+      {/* LGCIS 1 controls the left triangle, LGCIS 2 the right one */}
       <PositionIndicator system={1} triangle={gearTriangle(lgciuWords.word1Lgcis1, lgciuWords.word3Lgcis1, gear)} />
       <PositionIndicator system={2} triangle={gearTriangle(lgciuWords.word1Lgcis2, lgciuWords.word3Lgcis2, gear)} />
       <GearDoor
@@ -142,9 +142,8 @@ interface GearDoorProps {
 }
 
 /**
- * Door angle of the picture, degrees. A380 FCOM DSC-32-20-40 (l.81098-81103) has three door indications: closed and
- * uplocked, in transit, open. Design choice (the FCOM figures are not in the text): in transit at 55 degrees (the FBW
- * picture), open at 90 degrees.
+ * Door angle of the picture, degrees, for the three door indications: closed and uplocked, in transit, open.
+ * Design choice (the source gives no picture): in transit at 55 degrees (the FBW picture), open at 90 degrees.
  */
 function doorAngle(indication: GearDoorIndication): number {
   switch (indication) {

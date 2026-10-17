@@ -32,9 +32,9 @@ export const EngineGenerator: FC<EngineGeneratorProps> = ({ x, y, bus }) => {
     !!potentialNormal,
     !!frequencyNormal,
   );
-  // OFF or DISC instead of the load and the voltage (A380 FCOM DSC-24-20 l.51061-51065)
+  // OFF or DISC replaces the load and the voltage
   const offText = engineGeneratorOffText(!!genPushbuttonAuto, !!driveConnected);
-  // OVHT above 185 C, from the oil that cools the generator (l.51107-51112)
+  // OVHT above 185 C, from the oil that cools the generator
   const [driveOilOutletTemperature] = useSimVar(
     `L:A32NX_ELEC_ENG_GEN_${bus}_IDG_OIL_OUTLET_TEMPERATURE`,
     'celsius',
@@ -82,7 +82,6 @@ export const EngineGenerator: FC<EngineGeneratorProps> = ({ x, y, bus }) => {
       >
         {Math.round(potential)}
       </text>
-      {/* OFF / DISC Indication */}
       <text
         x={67}
         y={62}
@@ -90,7 +89,7 @@ export const EngineGenerator: FC<EngineGeneratorProps> = ({ x, y, bus }) => {
       >
         {offText ?? ''}
       </text>
-      {/* OVHT Indication, under the GEN box (position: design choice, the FCOM figure is not in the text) */}
+      {/* Design choice: OVHT under the GEN box, the source gives no position */}
       <text x={38} y={110} className={`F26 Amber MiddleAlign LS1 ${overheat ? '' : 'Hide'}`}>
         OVHT
       </text>

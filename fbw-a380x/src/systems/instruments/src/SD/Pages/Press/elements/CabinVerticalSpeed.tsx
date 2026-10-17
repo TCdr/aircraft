@@ -15,7 +15,7 @@ const CabinVerticalSpeed: React.FC<Position & ValidRedundantSystem> = ({ x, y, s
   const cabinVsTarget = cabinVsTargetArinc.isNormalOperation() ? cabinVsTargetArinc.value : null;
   const [cabVsAutoMode] = useSimVar('L:A32NX_OVHD_PRESS_MAN_VS_CTL_PB_IS_AUTO', 'bool', 500);
 
-  // FCOM DSC-21-30-20 V/S INDICATIONS: pulses above 1 800 ft/min, stops below 1 600 ft/min (CabinPressureIndications)
+  // Pulses above 1 800 ft/min and stops below 1 600 ft/min
   const wasPulsing = useRef(false);
   const pulsing = cabinVsPulses(cabinVs, wasPulsing.current);
   wasPulsing.current = pulsing;

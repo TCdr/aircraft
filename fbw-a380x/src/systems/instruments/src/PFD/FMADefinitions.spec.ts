@@ -50,7 +50,6 @@ function bc3(
   );
 }
 
-/* A380 FCOM DSC-22-FG-80-80 FMS MESSAGES (LINE 3), a380_fcom.txt l.19236-19247 */
 describe('A380X FMA line 3 FMS messages', () => {
   it('shows CHECK SPD MODE when the FMS sets it', () => {
     expect(bc3(false, false)).toBe(BC3Messages.NONE);
@@ -83,7 +82,6 @@ describe('A380X FMA line 3 speed brake and approach selection messages', () => {
   });
 });
 
-/* A380 FCOM DSC-22-FMS-20-110 EXTEND SPD BRK (a380_fcom.txt l.45402-45403), RETRACT SPD BRK (l.46006-46009) */
 describe('EXTEND SPD BRK / RETRACT SPD BRK conditions', () => {
   /** In DES at idle, flaps up, speed brakes retracted, 1 000 ft above the path at the upper speed margin */
   const extendCase: SpeedBrakeMessageInputs = {
@@ -103,7 +101,7 @@ describe('EXTEND SPD BRK / RETRACT SPD BRK conditions', () => {
 
   it('no EXTEND SPD BRK while the speed can still increase, on the path, below it, or without the path', () => {
     expect(speedBrakeMessage({ ...extendCase, speedAtUpperMargin: false })).toBe(SpeedBrakeMessage.NONE);
-    // "on the vertical profile when the VERT DEV is less than 50 ft" (l.122395-122397)
+    // on the vertical profile while the vertical deviation is less than 50 ft
     expect(speedBrakeMessage({ ...extendCase, linearDeviationFt: 50 })).toBe(SpeedBrakeMessage.NONE);
     expect(speedBrakeMessage({ ...extendCase, linearDeviationFt: 51 })).toBe(SpeedBrakeMessage.EXTEND);
     expect(speedBrakeMessage({ ...extendCase, linearDeviationFt: -800 })).toBe(SpeedBrakeMessage.NONE);
@@ -148,7 +146,6 @@ describe('EXTEND SPD BRK / RETRACT SPD BRK conditions', () => {
   });
 });
 
-/* A380 FCOM DSC-22-FMS-20-110 CHECK EO SPD SETTING (a380_fcom.txt l.45016-45025) */
 describe('CHECK EO SPD SETTING condition', () => {
   const GD = 220;
 
@@ -168,7 +165,6 @@ describe('CHECK EO SPD SETTING condition', () => {
   });
 });
 
-/* A380 FCOM DSC-22-FG FMA APPROACH CAPABILITY (COLUMN 4), a380_fcom.txt l.19153-19184: the FCOM words */
 describe('A380X FMA approach capability wording', () => {
   it('CAT1, CAT2, CAT3 SINGLE and CAT3 DUAL instead of APPR1, LAND2 and LAND3', () => {
     expect(getD1D2Lines(D1D2Messages.APPR_1)).toEqual(['CAT1', '']);

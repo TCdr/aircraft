@@ -4,14 +4,14 @@
 import { A380Failure } from '@failures';
 
 /**
- * The keys of the KCCU cursor control device (A380 FCOM DSC-31-30-20: Validation pb, ESC key, KBD key, navigation keys),
- * named as in the KCCU H events (`A32NX_KCCU_{L,R}_<KEY>`). Every other KCCU key belongs to the keyboard.
+ * The keys of the KCCU cursor control device (Validation pb, ESC key, KBD key, navigation keys), named as in the KCCU H
+ * events (`A32NX_KCCU_{L,R}_<KEY>`). Every other KCCU key belongs to the keyboard.
  */
 const CURSOR_CONTROL_DEVICE_KEYS: ReadonlySet<string> = new Set(['ESC2', 'KBD', 'REWIND', 'FORWARD']);
 
 /**
- * Whether a KCCU key press is taken. A380 FCOM DSC-31-30-20: the keyboard and the cursor control device each have an ON/OFF
- * switch ("The KCCU keyboard is not active" when OFF) and are independent of each other.
+ * Whether a KCCU key press is taken: the keyboard and the cursor control device each have an ON/OFF switch (the
+ * keyboard is not active when OFF) and are independent of each other.
  * @param key the key name of the H event
  * @param keyboardOn the KBD ON/OFF switch of this KCCU
  * @param cursorControlDeviceOn the CCD ON/OFF switch of this KCCU
@@ -20,15 +20,13 @@ export function isKccuKeyActive(key: string, keyboardOn: boolean, cursorControlD
   return CURSOR_CONTROL_DEVICE_KEYS.has(key) ? cursorControlDeviceOn : keyboardOn;
 }
 
-/** The flyPad failures of the KCCU of one side: its cursor control device, its keyboard, or the whole unit */
-export interface KccuFailureIds {
+interface KccuFailureIds {
   readonly cursorControlDevice: number;
   readonly keyboard: number;
   readonly wholeUnit: number;
 }
 
-/** The KCCU failures of the captain (L) and first officer (R) sides */
-export const KCCU_FAILURES: Readonly<Record<'L' | 'R', KccuFailureIds>> = {
+const KCCU_FAILURES: Readonly<Record<'L' | 'R', KccuFailureIds>> = {
   L: {
     cursorControlDevice: A380Failure.CaptKccuCursorControl,
     keyboard: A380Failure.CaptKccuKeyboard,
@@ -41,16 +39,14 @@ export const KCCU_FAILURES: Readonly<Record<'L' | 'R', KccuFailureIds>> = {
   },
 };
 
-/** Which parts of a KCCU are failed */
 export interface KccuFailureState {
   readonly cursorControlDeviceFailed: boolean;
   readonly keyboardFailed: boolean;
 }
 
 /**
- * The failed parts of the KCCU of one side. A380 FCOM PRO-ABN-ECAM-10-31 (a380_fcom.txt l.157621-157680): the Cursor
- * Control Device (CCD) and the keyboard fail alone (CURSOR CTL FAULT, KEYBOARD FAULT), or the whole KCCU fails (CURSOR
- * CTL+KEYBOARD FAULT, "The CAPT (F/O) Keyboard and Cursor Control Unit (KCCU) is failed").
+ * The failed parts of the KCCU of one side: the Cursor Control Device (CCD) and the keyboard fail alone (CURSOR CTL
+ * FAULT, KEYBOARD FAULT), or the whole KCCU fails (CURSOR CTL+KEYBOARD FAULT).
  * @param side L for the captain, R for the first officer
  * @param isFailureActive whether a flyPad failure is active (FailuresConsumer.isActive)
  */

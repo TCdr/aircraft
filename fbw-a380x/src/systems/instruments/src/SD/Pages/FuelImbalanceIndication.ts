@@ -2,24 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * Wing imbalance indications of the FUEL SD page, A380 FCOM DSC-28-20 (a380_fcom.txt l.58608-58617, l.58657-58666;
- * figures PDF pages 1975-1976: the quantity stays green, underlined amber):
- * - "The fuel quantity in feed tanks 1(2) is not balanced with the fuel quantity in feed tank 4(3)."
- * - "The fuel quantity in the left inner (mid) (outer) tank is not balanced with the fuel quantity in the right inner
- *   (mid) (outer) tank."
- * Both are "Associated with the following ECAM alert: FUEL WINGS NOT BALANCED", so the trigger is that of the alert
- * (FUEL WINGS NOT BALANCED, a380_fcom.txt l.154808-154887, as the FWS computes it in systems-host
- * FwsFuelAlertsRound8.ts WingsBalanceMonitor):
+ * Wing imbalance indications of the FUEL SD page (the quantity stays green, underlined amber): feed tank 1(2) not
+ * balanced with feed tank 4(3), or the left inner (mid) (outer) tank not balanced with the right one.
+ * Both come with the FUEL WINGS NOT BALANCED alert, so the trigger is that of the alert (as the FWS computes it in
+ * systems-host WingsBalanceMonitor):
  * - On ground, unless fueling: feed tanks 1-4 / 2-3 more than 6 600 lb apart, inner tanks 6 600 lb, mid tanks
- *   5 500 lb, outer tanks 2 600 lb (l.154814-154824).
+ *   5 500 lb, outer tanks 2 600 lb.
  * - In flight: a pair of feed tanks more than 6 600 lb apart; it stays until the lighter tank is no longer lighter (the
  *   FWS design choice: the procedure feeds the engines from the heavier tank until the quantities are equal).
- * Both tanks of an unbalanced pair are underlined (design choice: the FCOM names the pair).
+ * Design choice: both tanks of an unbalanced pair are underlined, the source names the pair.
  */
 
 const KG_PER_LB = 0.45359237;
 
-/** Imbalance thresholds of FUEL WINGS NOT BALANCED, l.154814-154824, in kg */
+/** Imbalance thresholds of FUEL WINGS NOT BALANCED, in kg */
 export const WING_IMBALANCE_KG = {
   feed: 6_600 * KG_PER_LB,
   inner: 6_600 * KG_PER_LB,
@@ -47,7 +43,7 @@ export interface WingImbalanceInputs {
 }
 
 /** Which tank quantities are underlined */
-export interface WingImbalanceUnderlines {
+interface WingImbalanceUnderlines {
   /** feed tanks 1 to 4 */
   feed: [boolean, boolean, boolean, boolean];
   /** L and R inner, mid and outer tanks */

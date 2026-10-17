@@ -14,7 +14,6 @@ function inputs(nowS: number, overrides: Partial<FadecGroundPowerInputs> = {}): 
   return { nowS, aircraftPowered: true, groundPowerPbOn: false, onGround: true, ...overrides };
 }
 
-/* A380 FCOM DSC-70-20-10 FADEC ELECTRICAL SUPPLY (a380_fcom.txt l.111401-111403) and ENG FADEC GND PWR PANEL (l.112701-112704) */
 describe('FADEC supply from the aircraft electrical network', () => {
   it('supplies the FADEC for 15 min at aircraft power-up', () => {
     const supply = new FadecGroundPowerSupply();
@@ -62,8 +61,7 @@ describe('FADEC supply from the aircraft electrical network', () => {
  * The timers must follow the real power-up and pb times whatever SD page is shown: the SD instrument loop updates them
  * (updateFadecGroundPowerSupplies), the ENG page only reads them. Recorded cold and dark A380X: EXT PWR 1 powers AC 1 + AC
  * 2 at t=223 s (ENG page shown), APU GEN powers AC 3 + AC 4 at t=414 s (another page shown), the ENG page is next shown
- * at t=965 s. Before the fix the timers ran only while the ENG page was shown, so ENG 3 + 4 counted their 15 min from
- * t=965 s and still showed values at t=1400 s.
+ * at t=965 s. Timers that ran only while the ENG page is shown would count the ENG 3 + 4 15 min from t=965 s.
  */
 describe('FADEC supply timers with the ENG page not shown', () => {
   /** A fake sim: the SimVars the SD loop reads */

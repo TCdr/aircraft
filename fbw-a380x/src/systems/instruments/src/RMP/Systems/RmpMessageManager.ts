@@ -33,7 +33,7 @@ export class RmpMessageManager {
 
   private readonly displayedMessage = Subject.create('');
 
-  /** The active messages, the most recent one displayed (FCOM l.49321-49324, see RmpMessageQueue). */
+  /** The active messages, the most recent one displayed (see RmpMessageQueue). */
   private readonly queue = new RmpMessageQueue();
 
   private readonly clearEvent = `RMP_${this.rmpIndex}_MSG_CLR_PRESSED`;
@@ -54,7 +54,7 @@ export class RmpMessageManager {
 
     this.sub.on('keypad_system_key_pressed').handle((k) => {
       if (k === SystemKeys.MessageClear) {
-        // one message at a time: the previous active message comes back (l.49321-49324)
+        // one message at a time: the previous active message comes back
         this.queue.clearDisplayed();
         this.updateDisplayedMessage();
       }

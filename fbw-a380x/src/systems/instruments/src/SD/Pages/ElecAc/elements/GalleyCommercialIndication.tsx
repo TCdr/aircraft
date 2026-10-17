@@ -10,14 +10,12 @@ interface GalleyCommercialIndicationProps {
   y: number;
 }
 
-/** Line spacing of the legend lines */
 const LINE_HEIGHT = 26;
 
 /**
- * GALLEY/COMMERCIAL INDICATION of the ELEC AC page (A380 FCOM DSC-24-20 l.51033-51046): COMMERCIAL OFF, GALLEY SHED,
- * COMMERCIAL PARTIALLY SHED or GALLEY PARTIALLY SHED, see galleyCommercialIndication. White as the GALLEY SHED of the
- * A320 ELEC AC page (a320_fcom.txt l.37641), the A380 FCOM text gives no colour; the place (top left, above the AC 1
- * feed line) is a design choice, the FCOM figure is not in the text.
+ * COMMERCIAL OFF, GALLEY SHED, COMMERCIAL PARTIALLY SHED or GALLEY PARTIALLY SHED on the ELEC AC page.
+ * Design choice: white as the A320 GALLEY SHED (the A380 source gives no colour), top left above the AC 1 feed line
+ * (the source gives no place).
  */
 export const GalleyCommercialIndication: FC<GalleyCommercialIndicationProps> = ({ x, y }) => {
   const [commercial1On] = useSimVar('L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON', 'bool', 500);

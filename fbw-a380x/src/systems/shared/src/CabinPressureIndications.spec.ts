@@ -25,7 +25,6 @@ function run(pulse: { update(deltaS: number, value: number): boolean }, duration
   return pulsing;
 }
 
-/* A380 FCOM DSC-21-30-20 CAB PRESS page V/S INDICATIONS (a380_fcom.txt l.7589-7593) */
 describe('CAB PRESS cabin vertical speed pulse', () => {
   it('starts above 1 800 ft/min and stops below 1 600 ft/min', () => {
     expect(cabinVsPulses(1750, false)).toBe(false);
@@ -41,7 +40,6 @@ describe('CAB PRESS cabin vertical speed pulse', () => {
   });
 });
 
-/* CAB PRESS page CAB ALT INDICATIONS (l.7542-7546) */
 describe('CAB PRESS cabin altitude pulse', () => {
   it('starts above 8 300 ft below 9 550 ft and stops below 8 100 ft', () => {
     expect(cabinAltitudePulses(8250, false)).toBe(false);
@@ -55,7 +53,6 @@ describe('CAB PRESS cabin altitude pulse', () => {
   });
 });
 
-/* CAB PRESS DELTA P INDICATIONS (l.7514-7516) and CRUISE page DIFFERENTIAL PRESSURE (l.7684-7692) */
 describe('delta P pulse in final approach', () => {
   it('starts from 1.5 PSI in final approach and stops below 1 PSI', () => {
     expect(deltaPPulses(1.4, FINAL_APPROACH, false)).toBe(false);
@@ -71,7 +68,6 @@ describe('delta P pulse in final approach', () => {
   });
 });
 
-/* CRUISE page DIFFERENTIAL PRESSURE colours (l.7684, l.7707-7717) */
 describe('delta P colour', () => {
   it('is green in the normal range, amber then red outside', () => {
     expect(deltaPColour(5)).toBe('Green');
@@ -83,7 +79,6 @@ describe('delta P colour', () => {
   });
 });
 
-/* CRUISE page cabin vertical speed (l.7731-7748) */
 describe('CRUISE cabin vertical speed', () => {
   it('shows the arrow above 25 ft/min only', () => {
     expect(cabinVsArrowShown(20)).toBe(false);
@@ -106,7 +101,6 @@ describe('CRUISE cabin vertical speed', () => {
   });
 });
 
-/* CRUISE page CAB ALT (l.7801-7802) */
 describe('CRUISE cabin altitude', () => {
   it('pulses after more than 5 s from 8 300 ft to 9 550 ft and stops below 8 100 ft', () => {
     const pulse = new CruiseCabinAltitudePulse();

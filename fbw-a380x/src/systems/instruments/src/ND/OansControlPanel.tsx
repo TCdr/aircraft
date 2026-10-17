@@ -187,9 +187,8 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
   );
 
   /**
-   * The flight crew displayed an airport (ARPT SEL). Only the PLAN mode displays an airport other than the default one
-   * (A380 FCOM DSC-34-10-70-20): the selection is kept until the ND leaves the PLAN mode, or the aircraft lands or
-   * takes off.
+   * The flight crew displayed an airport (ARPT SEL). Only the PLAN mode displays an airport other than the default one:
+   * the selection is kept until the ND leaves the PLAN mode, or the aircraft lands or takes off.
    */
   private manualAirportSelection = false;
 
@@ -684,7 +683,7 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
   }
 
   /**
-   * Displays the default airport of the moving airport map (A380 FCOM DSC-34-10-70-20, MOVING AIRPORT MAP): the current
+   * Displays the default airport of the moving airport map: the current
    * airport on ground, the origin, destination or alternate airport in flight (see {@link oansDefaultAirport}).
    */
   private autoLoadAirport() {
@@ -695,8 +694,7 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
     }
     this.lastInFlight = inFlight;
 
-    // No present position, airport unloaded for performance, manual selection, selection pending in the ARPT SEL panel,
-    // no airport database, or the ARPT NAV reset panel pulled: no automatic airport
+    // loadedAirport != selectedAirport: a selection is pending in the ARPT SEL panel
     if (
       this.presentPosNotAvailable.get() ||
       this.oansPerformanceModeAndMovedOutOfZoomRange.read() ||
@@ -708,7 +706,7 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
       return;
     }
 
-    // Each side has its own OANS and airport (FCOM DSC-34-10-70-10): the PLAN mode default follows this ND only
+    // Each side has its own OANS and airport: the PLAN mode default follows this ND only
     const planMode = this.ndMode.get() === EfisNdMode.PLAN;
 
     const altitude = this.altitudeWord.get();
@@ -785,7 +783,7 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
                       values={this.availableEntityList}
                       selectedIndex={this.selectedEntityIndex}
                       idPrefix="oanc-search-letter"
-                      // FCOM MAP DATA panel: a map item is selected in the list, or its IDENT entered with the keyboard
+                      // MAP DATA panel: a map item is selected in the list, or its IDENT entered with the keyboard
                       keyboardEntryAllowed
                       onModified={(i, text) => {
                         const index = dropdownEntryIndex(this.availableEntityList, i, text);
@@ -969,7 +967,7 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
                             newSelectedIndex,
                           );
                         }}
-                        // FCOM ARPT SEL panel: an airport is selected in the list, or its ICAO / IATA code entered
+                        // ARPT SEL panel: an airport is selected in the list, or its ICAO / IATA code entered
                         keyboardEntryAllowed
                         numberOfDigitsForInputField={7}
                         alignLabels={this.store.airportSearchMode.map((it) =>

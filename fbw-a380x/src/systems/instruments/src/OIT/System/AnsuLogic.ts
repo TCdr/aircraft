@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-/** The two sides of the A380 network server system (NSS): NSS AVNCS and FLT OPS (A380 FCOM DSC-46-20-10-20). */
+/** The two sides of the A380 network server system (NSS): NSS AVNCS and FLT OPS. */
 export type AnsuType = 'nss-avncs' | 'flt-ops';
 
 export type AnsuIndex = 1 | 2;
@@ -14,18 +14,16 @@ export interface AnsuSupplies {
   acEss: boolean;
   /** The A380 AC EMER busbar (491XP), the AC_ESS variable. */
   acEmer: boolean;
-  /** The hot busbar of battery 1 (BAT 1). */
   dcHot1: boolean;
-  /** The hot busbar of battery 2 (BAT 2). */
   dcHot2: boolean;
 }
 
 /**
- * Whether an ANSU is powered. A380 FCOM DSC-46-20-70 (a380_fcom.txt:107796-107806):
+ * Whether an ANSU is powered:
  * - NSS AVNCS ANSU 1: AC 2 and BAT 2,
  * - NSS AVNCS ANSU 2: AC 1 or AC EMER and BAT 1,
  * - FLT OPS ANSU: AC ESS and BAT 1.
- * The battery is the backup supply of each unit (as modelled before this change): any of its supplies powers it.
+ * The battery is the backup supply of each unit: any of its supplies powers it.
  * @param type the NSS side of the unit
  * @param index the unit index (the FLT OPS side has one ANSU)
  * @param supplies the state of the busbars
@@ -39,9 +37,8 @@ export function isAnsuPowered(type: AnsuType, index: AnsuIndex, supplies: AnsuSu
 }
 
 /**
- * Whether the NSS AVNCS applications (AOC, eLogbook, maintenance) are available.
- * A380 FCOM DSC-46-20-30 (a380_fcom.txt:107931-107932): the AOC function is hosted by both ANSU 1 and ANSU 2; in the
- * case of an ANSU 1 failure, ANSU 2 provides it. Both ANSUs failed: the NSS AVNCS applications are lost.
+ * Whether the NSS AVNCS applications (AOC, eLogbook, maintenance) are available: both ANSU 1 and ANSU 2 host them,
+ * ANSU 2 takes over when ANSU 1 fails, and they are lost with both ANSUs.
  * @param ansu1Healthy whether NSS AVNCS ANSU 1 is healthy (powered, not failed, not reset, NSS master on)
  * @param ansu2Healthy whether NSS AVNCS ANSU 2 is healthy
  * @returns whether at least one NSS AVNCS ANSU hosts the applications
@@ -50,16 +47,13 @@ export function isNssAvncsAvailable(ansu1Healthy: boolean, ansu2Healthy: boolean
   return ansu1Healthy || ansu2Healthy;
 }
 
-/**
- * A380 FCOM DSC-46-20-10-20 (a380_fcom.txt l.102249-102252): "It takes 2 minutes to start the ARU at aircraft
- * power-up. The flight crew should not start the three connected laptops until the ARU is operating."
- */
+/** The ARU takes 2 minutes to start at aircraft power-up; the laptops should not be started before the ARU operates. */
 export const ARU_START_DURATION_MS = 120_000;
 
 /**
  * The start of the ARU, through which the laptops connect to the FLT OPS network.
  *
- * Design choices (the FCOM gives no ARU supply or failure):
+ * Design choices (the ARU supply and failures are not known):
  * - The ARU goes with the FLT OPS ANSU: it starts when the FLT OPS ANSU is healthy (powered, not failed, not reset, NSS
  *   master on), and stops with it.
  * - An ANSU healthy within the first seconds of the flight (FLIGHT_LOAD_WINDOW_MS: a flight loaded with the aircraft
@@ -104,11 +98,8 @@ export class AruStartup {
 }
 
 /**
- * Whether a laptop operates as a stand-alone, A380 FCOM DSC-46-20-40 LAPTOP START (a380_fcom.txt l.104922-104928):
- * '"STANDALONE" appears on the Login page of the laptop when: The Captain's, First Officer's, or backup laptop is
- * started before the ARU. In this case, when the ARU is started, the flight crew must restart the affected laptop, in
- * order for the laptop to be connected to the aircraft network. The Captain's, First Officer's or backup laptop is not
- * connected to the network. In this case, the laptop operates as a stand-alone.'
+ * Whether a laptop operates as a stand-alone ("STANDALONE" on its Login page): a laptop started before the ARU stays a
+ * stand-alone until the crew restarts it once the ARU operates; a laptop not connected to the network is a stand-alone.
  *
  * Design choice: a laptop connected at its start that loses the ARU is a stand-alone while the ARU is lost, and
  * connects again when the ARU operates again (only a laptop started before the ARU needs a restart).
@@ -137,7 +128,6 @@ export class LaptopNetworkConnection {
     return this.standalone;
   }
 
-  /** @returns whether the laptop operates as a stand-alone (not connected to the aircraft network) */
   public isStandalone(): boolean {
     return this.standalone;
   }

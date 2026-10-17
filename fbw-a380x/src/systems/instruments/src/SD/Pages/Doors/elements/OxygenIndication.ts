@@ -20,7 +20,7 @@ export interface OxygenIndication {
 }
 
 /** The state of the cabin oxygen system (a380_systems oxygen.rs) */
-export interface CabinOxygenState {
+interface CabinOxygenState {
   /** The cabin bottle pressure is low (the amber pressure value, oxygenPressureIndication cabinValueAmber) */
   bottlePressureLow: boolean;
   /** The cabin bottle pressure, PSI */
@@ -29,21 +29,19 @@ export interface CabinOxygenState {
   valveClosed: boolean;
 }
 
-/** "Oxygen pressure is low, if it goes below 98 PSI." (a380_fcom.txt l.93529) */
-export const CABIN_MANIFOLD_LOW_PRESSURE_PSI = 98;
+/** Below this the distribution manifold oxygen pressure is low */
+const CABIN_MANIFOLD_LOW_PRESSURE_PSI = 98;
 
 const NORMAL_CABIN_OXYGEN: CabinOxygenState = { bottlePressureLow: false, bottlePressurePsi: 1850, valveClosed: false };
 
 /**
  * Oxygen indications of the SD DOOR/OXY page.
- * - A380 FCOM DSC-35-20-20 CKPT INDICATION: amber when "The oxygen system is off (the CREW SUPPLY pb-sw is OFF)".
- *   REGUL PR LO INDICATION: "Appears on ground, when: The oxygen CREW SUPPLY pb-sw is OFF, or [manifold pressure low]".
- * - A380 FCOM DSC-35-30-20 CABIN INDICATION (a380_fcom.txt l.93457-93475): amber when "The oxygen system has low
- *   pressure", with "The REGUL PR LO indication, on ground, if there is low pressure in the distribution manifold" and
- *   "The oxygen pressure value in amber, if low pressure is detected in the oxygen bottles"; or when "At least one
- *   engine-burst area shutoff valve is closed, or at least one regulator supply valve is closed" (OXY CABIN VLV
- *   CLOSED). REGUL PR LO INDICATION (l.93523-93529): "Appears on ground, if oxygen pressure in the oxygen distribution
- *   manifold is low [...] below 98 PSI." The cabin has no supply pb.
+ * - CKPT: amber when the oxygen system is off (the CREW SUPPLY pb-sw is OFF). REGUL PR LO appears on ground when the
+ *   CREW SUPPLY pb-sw is OFF or the manifold pressure is low.
+ * - CABIN: amber when the oxygen system has low pressure (REGUL PR LO on ground for a low distribution manifold
+ *   pressure, the pressure value amber for low bottle pressure), or when at least one engine-burst area shutoff
+ *   valve or regulator supply valve is closed (OXY CABIN VLV CLOSED). REGUL PR LO appears on ground when the
+ *   distribution manifold pressure is below 98 PSI. The cabin has no supply pb.
  * The distribution manifold is not simulated. Design choice: its pressure cannot be above the bottle pressure, so it is
  * low when the bottles are below 98 PSI; one closed regulator supply valve does not depressurize it (the other
  * regulators still supply it). Without SDAC data (active false) both lines show XX in amber.
@@ -69,13 +67,13 @@ export function oxygenIndication(
 }
 
 /**
- * The cockpit bottle pressure needed to dispatch with five flight crewmembers. Placeholder: the FCOM gives this minimum
- * only as a graph (LIM-35 MINIMUM FLIGHT CREW OXYGEN PRESSURE), not as a value.
+ * The cockpit bottle pressure needed to dispatch with five flight crewmembers. Placeholder: the source gives this
+ * minimum only as a graph of the minimum flight crew oxygen pressure, not as a value.
  */
-export const CKPT_BOTTLE_DISPATCH_MINIMUM_PRESSURE_PSI = 1000;
+const CKPT_BOTTLE_DISPATCH_MINIMUM_PRESSURE_PSI = 1000;
 
 /** How the DOOR/OXY page shows the CKPT and CABIN oxygen pressure values */
-export interface OxygenPressureIndication {
+interface OxygenPressureIndication {
   /** CKPT pressure value in amber (low pressure) */
   ckptValueAmber: boolean;
   /** Amber half-frame around the CKPT pressure value (below the dispatch minimum, on ground) */
@@ -100,14 +98,11 @@ export interface OxygenPressureInputs {
 
 /**
  * The oxygen pressure values of the SD DOOR/OXY page.
- * - CKPT, A380 FCOM DSC-35-20-20 OXYGEN PRESSURE VALUE (a380_fcom.txt l.93096-93111): green at or above the 5-crew
- *   dispatch minimum; "On ground only, appears with the amber half-frame, if the pressure is below the minimum necessary
- *   to dispatch the aircraft with five flight crewmembers" (l.93101-93102); amber when "the pressure is below 350 PSI"
- *   (l.93108-93109).
- * - CABIN, A380 FCOM DSC-35-30-20 OXYGEN PRESSURE VALUE (l.93477-93511): green at or above 1 600 PSI; "On ground only,
- *   appears with the amber half-frame, if: The pressure is below 1 600 PSI" (l.93480-93481); amber below the emergency
- *   descent minimum for the real number of cabin occupants (FMS passengers), or below 800 PSI before one engine starts
- *   (l.93494-93509).
+ * - CKPT: green at or above the 5-crew dispatch minimum; on ground only, with the amber half-frame below the minimum
+ *   needed to dispatch with five flight crewmembers; amber below 350 PSI.
+ * - CABIN: green at or above 1 600 PSI; on ground only, with the amber half-frame below 1 600 PSI; amber below the
+ *   emergency descent minimum for the real number of cabin occupants (FMS passengers), or below 800 PSI before one
+ *   engine starts.
  */
 export function oxygenPressureIndication(inputs: OxygenPressureInputs): OxygenPressureIndication {
   const ckptValueAmber = !inputs.active || inputs.ckptBottlePressurePsi < CKPT_BOTTLE_LOW_PRESSURE_PSI;

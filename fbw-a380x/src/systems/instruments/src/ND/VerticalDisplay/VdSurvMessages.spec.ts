@@ -17,7 +17,6 @@ const inputs = (i: Partial<VdSurvMessageInputs>): VdSurvMessageInputs => ({
 
 const none = { noTerrAndWxDataAvailable: false, terrInop: false, wxrInop: false, wxNotSel: false };
 
-/* A380 FCOM DSC-31-20-40-30 SURV MESSAGES (a380_fcom.txt l.69819-69845) and DSC-34-20-30-20 (l.90208-90217) */
 describe('VD SURV messages', () => {
   it('no message in normal operation', () => {
     expect(computeVdSurvMessages(inputs({}))).toEqual(none);

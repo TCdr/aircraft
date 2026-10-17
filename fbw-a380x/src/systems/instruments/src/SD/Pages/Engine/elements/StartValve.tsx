@@ -9,7 +9,7 @@ interface StartValveProps {
   igniterA: boolean;
   /** igniter B is energized (L:A32NX_FADEC_IGNITER_B_ACTIVE_ENGn) */
   igniterB: boolean;
-  /** the start valve fault the FADEC detects (L:A32NX_ENGINE_n_START_VALVE_FAULT, see StartParameters StartValveFault) */
+  /** The StartValveFault the FADEC detects (L:A32NX_ENGINE_n_START_VALVE_FAULT) */
   startValveFault: number;
 }
 
@@ -26,7 +26,7 @@ const StartValve: React.FC<Position & EngineNumber & StartValveProps> = ({
 
   return (
     <g id={`SD-start-valve-${engine}`}>
-      {/* FCOM DSC-70-90 START VALVE: amber when abnormally open or closed (StartParameters startValveColour) */}
+      {/* Amber when abnormally open or closed */}
       <Valve
         x={x}
         y={y - 14}
@@ -37,7 +37,7 @@ const StartValve: React.FC<Position & EngineNumber & StartValveProps> = ({
         position={startValveOpen ? 'V' : 'H'}
         sdacDatum
       />
-      {/* Ignition: A, B or A B (A380 FCOM DSC-70-90 "The igniter A(B) is energized." / "Both igniters A and B are energized.") */}
+      {/* Ignition: A, B or A B, the igniters that are energized */}
       <text x={x - 10} y={y - 60} className={`Green F25 MiddleAlign ${!igniterA && 'Hide'}`}>
         A
       </text>

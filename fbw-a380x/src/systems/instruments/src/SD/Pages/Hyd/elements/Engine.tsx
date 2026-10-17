@@ -108,7 +108,7 @@ const EnginePump = ({ x, y, label, lowPressure, pbAuto, disconnected }: EnginePu
   const size = 39;
   const isMirrored = label === 'B';
 
-  // FCOM DSC-29-20 ENGINE PUMPS states, including the abnormal pressurization with the pb-sw OFF (EnginePumpIndication)
+  // Includes the abnormal pressurization with the pb-sw OFF
   const indication = enginePumpIndication(!lowPressure, pbAuto, disconnected);
   const color = indication.colour;
 

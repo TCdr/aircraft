@@ -139,8 +139,8 @@ export class CruisePressure extends DestroyableComponent<CruisePressureProps> {
   );
 
   /*
-   * FCOM DSC-21-30-20 CRUISE SYSTEM DISPLAY (a380_fcom.txt l.7686-7692, l.7739-7748, l.7801-7802): delta P pulses in
-   * final approach, the cabin V/S and the CAB ALT pulse after 5 s out of their range (CabinPressureIndications).
+   * Delta P pulses in final approach, the cabin V/S and the CAB ALT pulse after 5 s out of their range
+   * (CabinPressureIndications).
    */
   private readonly fwcFlightPhase = ConsumerSubject.create(this.sub.on('fwcFlightPhase'), 0);
   private readonly cabinVsPulse = new CruiseCabinVsPulse();
@@ -157,7 +157,7 @@ export class CruisePressure extends DestroyableComponent<CruisePressureProps> {
     (pulse) => `Green SW2 NoFill ${pulse ? 'LinePulse' : ''}`,
   );
 
-  /** l.7684, l.7707-7717: delta P is amber or red out of its normal range */
+  /** Delta P is amber or red out of its normal range */
   private readonly deltaPressClass = MappedSubject.create(
     ([deltaPsi, pulse]) => `F29 ${deltaPColour(deltaPsi)} ${pulse ? 'FillPulse' : ''}`,
     this.deltaPressValue,

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { IsisConfiguration, isisDisplay, isisUnitOf } from './IsisConfiguration';
 
 describe('ISIS SFD/SND reconfiguration', () => {
-  it('follows the FCOM cycle of the MODE pb, with one SFD always displayed', () => {
+  it('follows the cycle of the MODE pb, with one SFD always displayed', () => {
     const displays = (configuration: IsisConfiguration) => [
       isisDisplay(1, configuration),
       isisDisplay(2, configuration),

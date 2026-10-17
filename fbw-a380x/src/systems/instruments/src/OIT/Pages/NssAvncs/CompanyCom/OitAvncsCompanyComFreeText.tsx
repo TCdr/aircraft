@@ -16,12 +16,12 @@ import {
 
 interface OitAvncsCompanyComFreeTextProps extends AbstractOitAvncsPageProps {}
 
-/** The characters of a station (callsign) */
+/** Maximum characters of a station callsign */
 const STATION_LENGTH = 8;
 
 /**
- * COMPANY COM > Reports > Free Text: a free text to a station, sent through the AOC (A380 FCOM DSC-46-40,
- * a380_fcom.txt l.107841: "free text"; the layout is an operator choice, see CompanyComRequests).
+ * COMPANY COM > Reports > Free Text: a free text to a station, sent through the AOC (the layout is an operator choice,
+ * see CompanyComRequests).
  */
 export class OitAvncsCompanyComFreeText extends DestroyableComponent<OitAvncsCompanyComFreeTextProps> {
   private readonly requests = this.props.container.ansu.companyComRequests;

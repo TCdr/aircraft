@@ -65,7 +65,7 @@ describe('A380X flyPad failure definitions', () => {
     expect(nameOf(32006)).toBe('Proximity sensor damage uplock right gear #1');
   });
 
-  it('names the buses, TRs and controllers as the A380 FCOM and SD do (failure names audit 2026-10-03)', () => {
+  it('names the buses, TRs and controllers as the aircraft and its SD do', () => {
     const label = (id: number) => A380FailureDefinitions.find(([, i]) => i === id)?.[2];
     expect(label(24002)).toBe('ESS TR');
     expect(label(24003)).toBe('APU TR');
@@ -188,7 +188,7 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
-  // The labels say what a380_systems engine_failure.rs does with ids 72000-72013 (failure names audit rule)
+  // The labels say what a380_systems engine_failure.rs does with ids 72000-72013
   it('lists the engine flameout and seizure failures of the four engines in ATA 72 Engine', () => {
     const rustMap = readRustFailureMap();
     const expected: [number, string, string][] = [1, 2, 3, 4].flatMap((engine): [number, string, string][] => [
@@ -219,7 +219,7 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
-  // The labels say what systems::engine::engine_start does with ids 74000-74013 and 80000-80053 (failure names audit rule)
+  // The labels say what systems::engine::engine_start does with ids 74000-74013 and 80000-80053
   it('lists the ignition and starting failures of the four engines in ATA 74 and ATA 80', () => {
     const rustMap = readRustFailureMap();
     const kinds: [number, number, string, string][] = [
@@ -267,7 +267,7 @@ describe('A380X flyPad failure definitions', () => {
     expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
       expected.map(([id, failureType, name, chapter]) => [id, failureType, name, chapter]),
     );
-    // No overspeed failure on the A380X (engine_malfunction.rs): the FCOM red limits are out of reach
+    // No overspeed failure on the A380X (engine_malfunction.rs): the red limits are out of reach
     expect(rustMap.has(72120)).toBe(false);
   });
 
@@ -306,8 +306,8 @@ describe('A380X flyPad failure definitions', () => {
 });
 
 describe('A380X FADEC, thrust lever and reverser failures', () => {
-  // The labels say what a380_systems engine_control_failure.rs and the reversers do with ids 73010-78042 (failure names
-  // audit rule): the reversers are on engines 2 and 3 only (A380 FCOM DSC-70-70)
+  // The labels say what a380_systems engine_control_failure.rs and the reversers do with each id: the reversers are on
+  // engines 2 and 3 only
   it('lists them in ATA 73 and 78 with the Rust failure they trigger', () => {
     const rustMap = readRustFailureMap();
     const fadec: [number, string, string][] = [1, 2, 3, 4].flatMap((engine): [number, string, string][] => [
@@ -336,7 +336,7 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
     expect(A380Failure.Reverser3ControlFault).toBe(78042);
   });
 
-  // The labels say what systems engine/fuel_filter_failure.rs does with ids 73100-73103 (failure names audit rule)
+  // The labels say what systems engine/fuel_filter_failure.rs does with ids 73100-73103
   it('lists the engine fuel filter clog failures of the four engines in ATA 73', () => {
     const rustMap = readRustFailureMap();
     const expected = [1, 2, 3, 4].map((engine) => [
@@ -409,7 +409,6 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
   });
 
   // a380_systems pneumatic.rs: the leaks of the APU duct, the pack bays, the hot-air ducts and the forward cargo duct
-  // (FCOM DSC-36-10-60)
   it('lists the APU, pack bay, hot air and forward cargo duct leaks in ATA 36 under the ids of the Rust map', () => {
     const rustMap = readRustFailureMap();
     const expected: [number, string, string][] = [
@@ -427,8 +426,8 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
     );
   });
 
-  // The labels say what systems engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs do with each id
-  // (failure names audit rule): the HP fuel valve sticks, the other faults only raise their FWS alert
+  // The labels say what systems engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs do with each id:
+  // the HP fuel valve sticks, the other faults only raise their FWS alert
   it('lists the HP fuel valve and FADEC monitoring failures with the Rust failure they trigger', () => {
     const rustMap = readRustFailureMap();
     const expected: [number, string, string, number][] = [
@@ -589,8 +588,7 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
 });
 
 describe('A380X slat/flap channel and avionics network failures', () => {
-  // The labels say what a380_systems hydraulic/sfcc does with ids 27010-27013 (F/CTL FLAP(SLAT) SYS 1(2) FAULT,
-  // a380_fcom.txt l.147527-147540, l.148380-148393)
+  // The labels say what a380_systems hydraulic/sfcc does with each id (F/CTL FLAP(SLAT) SYS 1(2) FAULT)
   it('lists the SFCC flap and slat channel failures in ATA 27 with the Rust failure they trigger', () => {
     const rustMap = readRustFailureMap();
     const expected: [number, string, string][] = [
@@ -605,8 +603,8 @@ describe('A380X slat/flap channel and avionics network failures', () => {
     );
   });
 
-  // FCOM DSC-42-10/20 (a380_fcom.txt l.94820-94960, l.94964-95066): 16 AFDX switches (8 per network), 4 pairs of IOMs,
-  // 22 CPIOMs in 7 groups. The Rust model names them as the AFDX_SWITCH_n / IOM_xn / CPIOM_xn L:vars.
+  // 16 AFDX switches (8 per network), 4 pairs of IOMs, 22 CPIOMs in 7 groups. The Rust model names them as the
+  // AFDX_SWITCH_n / IOM_xn / CPIOM_xn L:vars.
   it('lists a failure for every AFDX switch, IOM and CPIOM of the Rust avionics network in ATA 42', () => {
     const rustMap = readRustFailureMap();
     const networkIds = [...rustMap.keys()].filter((id) => Math.floor(id / 1000) === 42);
@@ -627,7 +625,7 @@ describe('A380X slat/flap channel and avionics network failures', () => {
     expect(nameOf(A380Failure.CpiomC2)).toBe('CPIOM C2 (FWS, FCDC)');
   });
 
-  // TS only: read by the FWS (FwsTailStrikeAlerts), TAIL STRIKE DET FAULT (a380_fcom.txt l.147371-147385)
+  // TS only: read by the FWS (FwsTailStrikeAlerts), TAIL STRIKE DET FAULT
   it('lists the tail strike detector failure in ATA 31', () => {
     expect(A380FailureDefinitions.find(([, id]) => id === A380Failure.TailStrikeDetector)).toEqual([
       31,
@@ -709,10 +707,10 @@ describe('A380X slat/flap channel and avionics network failures', () => {
     }
   });
 
-  // The failures of the B25 FADEC alerts without engine model effect (systems engine/engine_monitoring_fault.rs) and the
-  // reverser minor fault and maintenance inhibition (a380_systems reverser): A380 FCOM PRO-ABN-ECAM-10-70 CTL SYS FAULT
-  // l.171310, CTL VLV FAULT l.171454, FADEC IDENT FAULT l.171629, FUEL SYS CONTAMINATION l.172133, OIL SYS CONTAMINATION
-  // l.172517, ENG TYPE DISAGREE l.175642, REVERSER INHIBITED l.173571, REVERSER MINOR FAULT l.173668
+  // The failures of the FADEC alerts without engine model effect (systems engine/engine_monitoring_fault.rs) and
+  // the reverser minor fault and maintenance inhibition (a380_systems reverser): CTL SYS FAULT, CTL VLV FAULT, FADEC
+  // IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE, REVERSER INHIBITED, REVERSER MINOR
+  // FAULT
   it('lists the FADEC alert failures and the reverser minor fault and inhibition with the Rust failure they trigger', () => {
     const rustMap = readRustFailureMap();
     const monitoring = (kind: string, firstId: number, name: string, chapter: number) =>
@@ -742,8 +740,8 @@ describe('A380X slat/flap channel and avionics network failures', () => {
   });
 });
 
-// FCOM audit T2-44: the FADEC shutdowns (a380_systems fadec_automatic_shutdown.rs) and the APU bleed valve stuck failures
-// (a380_systems pneumatic.rs ApuBleedAirValve, AIR APU BLEED FAULT); the names say what the Rust does
+// The FADEC shutdowns (a380_systems fadec_automatic_shutdown.rs) and the APU bleed valve stuck failures (a380_systems
+// pneumatic.rs ApuBleedAirValve, AIR APU BLEED FAULT); the names say what the Rust does
 describe('A380X FADEC shutdown and APU bleed valve failures', () => {
   it('lists them with the Rust failure they trigger', () => {
     const rustMap = readRustFailureMap();

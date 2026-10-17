@@ -17,10 +17,8 @@ function procedureSource(code: number): string {
   return source.slice(start, next < 0 ? undefined : next);
 }
 
-/* A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) SHUT DOWN (a380_fcom.txt l.172738-172741): "If inner engine affected:
- * LDG DIST IMPACT ON WET/CONTAM RWY ONLY" */
 describe('ENG SHUT DOWN landing distance line', () => {
-  it('is on the inner engines (2 and 3) with the FCOM text', () => {
+  it('is on the inner engines (2 and 3) with the procedure text', () => {
     expect(procedureSource(701800110)).toContain(LDG_DIST_LINE);
     expect(procedureSource(701800111)).toContain(LDG_DIST_LINE);
   });

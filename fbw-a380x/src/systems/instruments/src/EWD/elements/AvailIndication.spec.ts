@@ -19,7 +19,6 @@ function run(avail: AvailIndication, durationS: number, i: AvailInputs): string 
   return display;
 }
 
-/* A380 FCOM DSC-70-90 AVAIL INDICATION (a380_fcom.txt l.112976-112983) */
 describe('EWD AVAIL indication', () => {
   it('stays steady 10 s after a successful start on ground, then goes', () => {
     const avail = new AvailIndication();

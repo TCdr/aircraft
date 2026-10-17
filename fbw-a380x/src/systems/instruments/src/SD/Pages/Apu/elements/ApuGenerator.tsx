@@ -15,8 +15,7 @@ export const ApuGenerator: FC<ApuGeneratorProps> = ({ x, y, position }) => {
   const [potential] = useSimVar(`L:A32NX_ELEC_APU_GEN_${position}_POTENTIAL`, 'volts', 500);
   const [frequency] = useSimVar(`L:A32NX_ELEC_APU_GEN_${position}_FREQUENCY`, 'hertz', 500);
 
-  // A380 FCOM DSC-49-20 GEN A(B): load amber after 10 s above 108 % (l.108601), voltage 110-120 V (l.108608),
-  // frequency 390-410 Hz (l.108617)
+  // APU GEN: load amber after 10 s above 108 %, normal voltage 110-120 V, normal frequency 390-410 Hz
   const apuGenLoadNormal = !useGeneratorLoadAmber(load);
   const apuGenFreqNormal = isApuGeneratorFrequencyNormal(frequency);
   const apuGenVoltageNormal = isGeneratorVoltageNormal(potential);

@@ -229,15 +229,14 @@ export const A380Failure = Object.freeze({
   Fcdc1: 27006,
   Fcdc2: 27007,
   // Slat and flap channels of the SFCCs (a380_systems hydraulic/sfcc): the channel no longer drives its motor, the
-  // surfaces move at half speed; F/CTL FLAP(SLAT) SYS 1(2) FAULT, both channels SYS 1+2 FAULT (a380_fcom.txt l.147527-
-  // 147540, l.148380-148393)
+  // surfaces move at half speed; F/CTL FLAP(SLAT) SYS 1(2) FAULT, both channels SYS 1+2 FAULT
   Sfcc1FlapChannel: 27010,
   Sfcc2FlapChannel: 27011,
   Sfcc1SlatChannel: 27012,
   Sfcc2SlatChannel: 27013,
 
-  // Avionics network (systems integrated_modular_avionics, FCOM DSC-42-20 a380_fcom.txt l.94964-95066): a failed AFDX
-  // switch routes no message, a failed IOM or CPIOM is no longer available (*_AVAIL L:vars), as their failure L:vars
+  // Avionics network (systems integrated_modular_avionics): a failed AFDX switch routes no message, a failed IOM or
+  // CPIOM is no longer available (*_AVAIL L:vars), as their failure L:vars
   AfdxSwitch1: 42001,
   AfdxSwitch2: 42002,
   AfdxSwitch3: 42003,
@@ -344,8 +343,8 @@ export const A380Failure = Object.freeze({
   EnginePump4AOHeat: 29016,
   EnginePump4BOHeat: 29017,
 
-  // The 8 display units of the CDS (A380 FCOM DSC-31-15-10, a380_fcom.txt:62972-62980): the DU goes blank and the FWS
-  // raises CDS ... DU FAULT (see shared/src/CdsDisplayUnits.ts)
+  // The 8 display units of the CDS: the DU goes blank and the FWS raises CDS ... DU FAULT (see
+  // shared/src/CdsDisplayUnits.ts)
   CaptPfdDisplayUnit: 31000,
   CaptNdDisplayUnit: 31001,
   CaptMfdDisplayUnit: 31002,
@@ -361,7 +360,7 @@ export const A380Failure = Object.freeze({
   Fws2AudioFunction: 31103,
   FwsEcp: 31104,
   // The tail strike detector (TS only, read by the FWS, see FwsTailStrikeAlerts): no TAIL STRIKE alert, TAIL STRIKE DET
-  // FAULT (a380_fcom.txt l.147371-147385)
+  // FAULT
   TailStrikeDetector: 31200,
   // The EFIS control panels of the FCU and the EFIS CP pages of the MFD FCU backup (TS only, read by the FWS, see
   // FwsCdsControlAlerts): CDS CAPT (F/O) EFIS CTL PNL FAULT, CAPT+F/O EFIS CTL PNLs FAULT, EFIS BKUP CTL FAULT
@@ -421,7 +420,7 @@ export const A380Failure = Object.freeze({
   BrakesAltnCircuitLeak: 32101,
   BrakesAltnAccumulatorGasLeak: 32150,
   // Braking and steering control faults (a380_systems hydraulic/brake_steer_faults.rs): BCS normal braking, BCS
-  // alternate braking and EBCU (A380 FCOM DSC-32-10-30), normal/alternate NWS, BWS, SCS 1/2 (DSC-32-10-40).
+  // alternate braking and EBCU, normal/alternate NWS, BWS, SCS 1/2.
   BrakesNormalBraking: 32110,
   BrakesAlternateBraking: 32111,
   BrakesEmergencyBraking: 32112,
@@ -536,8 +535,8 @@ export const A380Failure = Object.freeze({
   LeftInnerWingBleedLeak: 36075,
   RightInnerWingBleedLeak: 36076,
   RightOuterWingBleedLeak: 36077,
-  // The leaks of the other leak detection zones (FCOM DSC-36-10-60): the APU duct, the pack bays, the hot-air ducts of
-  // HOT AIR 1(2) and the forward cargo duct (on HOT AIR 1)
+  // The leaks of the other leak detection zones: the APU duct, the pack bays, the hot-air ducts of HOT AIR 1(2) and the
+  // forward cargo duct (on HOT AIR 1)
   ApuBleedLeak: 36080,
   Pack1BayLeak: 36081,
   Pack2BayLeak: 36082,
@@ -932,7 +931,7 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [26, A380Failure.CargoFireBottle1LowPressure, 'Cargo fire bottle 1 low pressure'],
   [26, A380Failure.CargoFireBottle2LowPressure, 'Cargo fire bottle 2 low pressure'],
   [26, A380Failure.SmokeDetectionFunction, 'Smoke detection function (SDF) of the CIDS'],
-  // The SMOKE light of the NSS MASTER sw (A380 FCOM DSC-46-20-20-87), no ECAM alert
+  // The SMOKE light of the NSS MASTER sw, no ECAM alert
   [26, A380Failure.NssSmoke, 'Network server system (NSS) smoke'],
   [26, A380Failure.NssSmokeDetector1, 'Network server system (NSS) smoke detector 1'],
   [26, A380Failure.NssSmokeDetector2, 'Network server system (NSS) smoke detector 2'],
@@ -1217,7 +1216,7 @@ export const A380FailureDefinitions: FailureDefinition[] = [
 
   // The APU electronic control box (ECB) senses these and shuts the APU down: MASTER SW FAULT light, APU FAULT (systems
   // apu/electronic_control_box.rs). The overspeed and oil failures act once the APU runs; the high oil temperature
-  // shuts it down on the ground only (A380 FCOM DSC-49-40).
+  // shuts it down on the ground only.
   [49, A380Failure.ApuEcb, 'APU electronic control box (ECB)'],
   [49, A380Failure.ApuOverspeed, 'APU overspeed (automatic shutdown)'],
   [49, A380Failure.ApuOilLowPressure, 'APU low oil pressure (automatic shutdown)'],

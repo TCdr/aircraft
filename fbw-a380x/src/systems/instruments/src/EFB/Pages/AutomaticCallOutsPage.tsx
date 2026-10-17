@@ -81,7 +81,6 @@ export const AutomaticCallOutsPage: React.FC = () => {
               onToggle={() => toggleRadioAcoFlag(A380XRadioAutoCallOutFlags.OneThousand)}
             />
           </SettingItem>
-          {/* Smart FIVE HUNDRED pin: A380 FCOM DSC-34-10-50 AUTOMATIC CALLOUTS (a380_fcom.txt 86490-86491, 86528) */}
           <SettingGroup>
             <SettingItem name="Five Hundred" groupType="parent">
               <Toggle

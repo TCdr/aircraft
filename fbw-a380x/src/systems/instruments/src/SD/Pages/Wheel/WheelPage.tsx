@@ -23,7 +23,7 @@ import {
 
 /** Update period of the timed LGERS indications, ms */
 const LGERS_UPDATE_MS = 500;
-/** Update period of the brake temperatures and of the control lines, ms (the brake temperatures used 300 ms) */
+/** Update period of the brake temperatures, the tire pressures and the control lines, ms */
 const BRAKES_UPDATE_MS = 300;
 
 const NO_CONTROL_FAULT: WheelControlInputs = {
@@ -46,17 +46,14 @@ const readCelsius = (name: string): number => SimVar.GetSimVarValue(name, 'celsi
 const readNumber = (name: string): number => SimVar.GetSimVarValue(name, 'number');
 
 export const WheelPage = () => {
-  // A380 FCOM DSC-32-20-30 (a380_fcom.txt l.81015-81024): the MORE key on the ECP shows the WHEEL MORE page. The FWS
-  // owns the MORE state (EcamSdMore, FwsSystemDisplayLogic).
+  // The MORE key on the ECP shows the WHEEL MORE page. The FWS owns the MORE state (EcamSdMore, FwsSystemDisplayLogic).
   const [moreShownVar] = useSimVar('L:A32NX_ECAM_SD_MORE_SHOWN', 'number', 200);
   const moreActive = moreShownVar > 0;
 
-  // Brake temperatures and the hottest brake arcs (FCOM DSC-32-20-70, WheelIndications.ts)
   const [brakeTemperatures, setBrakeTemperatures] = useState<number[]>(() => readBrakeTemperatures(readCelsius));
-  // BRK CTL / STEER CTL lines and AUTO BRAKE (FCOM DSC-32-20-50/60, WheelIndications.ts)
+  // BRK CTL / STEER CTL lines and AUTO BRAKE
   const [controlInputs, setControlInputs] = useState<WheelControlInputs>(NO_CONTROL_FAULT);
-  // TPIS tire pressures (FCOM DSC-32-20-70 TIRE PRESSURE, systems-host Misc/Tpis.ts) and the FWS flight phase of the
-  // WHEEL TIRE PRESS LO thresholds
+  // TPIS tire pressures (systems-host Misc/Tpis.ts) and the FWS flight phase of the WHEEL TIRE PRESS LO thresholds
   const [tirePressures, setTirePressures] = useState<number[]>(() => readTirePressures(readNumber));
   const [flightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'number', 1000);
   useInterval(() => {
@@ -73,10 +70,9 @@ export const WheelPage = () => {
   const brakeControl = brakeControlIndication(controlInputs, moreActive);
   const steeringControl = steeringControlIndication(controlInputs, moreActive);
 
-  // WING ACCU gauge (FCOM DSC-32-20-50, WheelIndications.ts): the pressure of the brake accumulator of the model
+  // WING ACCU gauge: the pressure of the brake accumulator of the hydraulic model
   const [accuPressurePsi] = useSimVar('L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS', 'number', BRAKES_UPDATE_MS);
 
-  // LGERS indications (FCOM DSC-32-20-40, LgersIndications.ts)
   const lgciu1Word1 = useArinc429Var('L:A32NX_LGCIU_1_DISCRETE_WORD_1', LGERS_UPDATE_MS);
   const lgciu2Word1 = useArinc429Var('L:A32NX_LGCIU_2_DISCRETE_WORD_1', LGERS_UPDATE_MS);
   const lgciu1Word3 = useArinc429Var('L:A32NX_LGCIU_1_DISCRETE_WORD_3', LGERS_UPDATE_MS);

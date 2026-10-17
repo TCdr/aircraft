@@ -6,7 +6,6 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { ExceedanceMemory, N1_RED_LIMIT_PERCENT, n1Colour } from './EgtLimits';
 
-/* A380 FCOM DSC-70-90 N1 INDICATIONS, a380_fcom.txt l.113073-113082, figure "113.8 +" on the FCOM PDF page 4103 */
 describe('A380X EWD N1 red limit and red cross', () => {
   it('shows the N1 value in red above the 111 % red limit', () => {
     expect(n1Colour(111)).toBe('Green');
@@ -22,7 +21,7 @@ describe('A380X EWD N1 red limit and red cross', () => {
     expect(cross.exceeded).toBe(false);
   });
 
-  // a380_fcom.txt l.73512-73516: a parameter that is not available shows XX instead of its value
+  // a parameter that is not available shows XX instead of its value
   it('latches no red cross on an N1 the FADEC does not send (XX) or that is not a finite number', () => {
     const cross = new ExceedanceMemory(N1_RED_LIMIT_PERCENT);
     cross.update(120, false, false);

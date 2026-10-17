@@ -22,7 +22,6 @@ export class Idle extends DisplayComponent<IdleProps> {
 
   private readonly n1Idle = ConsumerSubject.create(this.sub.on('n1Idle').withPrecision(1).whenChanged(), 0);
 
-  // FCOM DSC-70-90 IDLE INDICATION: in flight, at least three engines at idle, whatever the A/THR (IdleIndication)
   private readonly visible = MappedSubject.create(
     ([e1, e2, e3, e4, fp, idle]) => (isIdleIndicationShown([e1, e2, e3, e4], idle, fp) ? 'inherit' : 'hidden'),
     this.n1[0],

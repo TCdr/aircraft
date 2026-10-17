@@ -27,7 +27,7 @@ export const Battery: FC<BatteryProps> = ({ x, y, bus }) => {
   const [current] = useSimVar(`L:A32NX_ELEC_BAT_${bus}_CURRENT`, 'volts', 500);
   const [batPbAuto] = useSimVar(`L:A32NX_OVHD_ELEC_BAT_${lvarName}_PB_IS_AUTO`, 'bool', 500);
 
-  // FCOM DSC-24-20: the APU BAT is not abnormal while it discharges to start the APU (BatteryIndications)
+  // The APU BAT is not abnormal while it discharges to start the APU
   const [apuStartPbOn] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_ON', 'bool', 500);
   const [apuAvailable] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'bool', 500);
   const isApuBattery = bus === DcElecBus.DcApu;

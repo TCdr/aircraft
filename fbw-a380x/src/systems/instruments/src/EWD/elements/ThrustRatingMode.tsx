@@ -26,7 +26,6 @@ export class N1Limit extends DisplayComponent<{
   private readonly flexTemp = ConsumerSubject.create(this.sub.on('flex'), 0);
   private readonly sat = Arinc429ConsumerSubject.create(this.sub.on('sat').withArinc429Precision(0));
   private readonly takeoffDerate = ConsumerSubject.create(this.sub.on('takeoffDerate'), 0);
-  /** CLB, MCT, FLX, TOGA, MREV, or the DOx level of a derated takeoff (ThrustRatingLabel.ts) */
   private readonly thrustRatingLabel = MappedSubject.create(
     ([type, derate]) => thrustRatingModeLabel(type, derate),
     this.N1LimitType,

@@ -6,20 +6,19 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isApuBleedValveAbnormal } from './BleedApuIndication';
 
-/* A380 FCOM DSC-36-20 APU BLEED VALVE (a380_fcom.txt l.94372-94390) */
 describe('SD BLEED APU bleed valve', () => {
   it('green when the valve agrees with its command', () => {
-    // APU AVAIL, APU BLEED ON: open (l.94376)
+    // APU AVAIL, APU BLEED ON: open
     expect(isApuBleedValveAbnormal(true, true, true)).toBe(false);
-    // APU not AVAIL yet: closed (l.94374)
+    // APU not AVAIL yet: closed
     expect(isApuBleedValveAbnormal(false, true, false)).toBe(false);
   });
 
-  it('amber "abnormally open, and the APU BLEED pb-sw is ON" (l.94378)', () => {
+  it('amber "abnormally open, and the APU BLEED pb-sw is ON"', () => {
     expect(isApuBleedValveAbnormal(true, true, false)).toBe(true);
   });
 
-  it('amber "abnormally closed, and the APU BLEED pb-sw is ON" (l.94388)', () => {
+  it('amber "abnormally closed, and the APU BLEED pb-sw is ON"', () => {
     expect(isApuBleedValveAbnormal(false, true, true)).toBe(true);
   });
 

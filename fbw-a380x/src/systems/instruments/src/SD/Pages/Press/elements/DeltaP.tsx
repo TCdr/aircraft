@@ -18,8 +18,7 @@ export const DeltaP: React.FC<Position & ValidRedundantSystem> = ({ x, y, system
 
   const colour = deltaPColour(deltaPsi);
 
-  // FCOM DSC-21-30-20 DELTA P INDICATIONS: the green needle pulses in final approach from 1.5 PSI, stops below 1 PSI
-  // (CabinPressureIndications)
+  // The green needle pulses in final approach from 1.5 PSI and stops below 1 PSI
   const [fwcFlightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'enum', 1000);
   const wasPulsing = useRef(false);
   const pulsing = !deltaPressNotAvail && deltaPPulses(deltaPsi, fwcFlightPhase, wasPulsing.current);

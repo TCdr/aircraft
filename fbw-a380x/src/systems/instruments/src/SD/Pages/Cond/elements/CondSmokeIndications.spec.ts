@@ -8,7 +8,7 @@ import { avionicsBaySmokeLegend, cargoSmokeIndications } from './CondSmokeIndica
 
 const source = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8');
 
-describe('COND page cargo SMOKE (A380 FCOM l.6015-6016, l.53984-53985)', () => {
+describe('COND page cargo SMOKE', () => {
   it('shows the forward cargo smoke in the forward area', () => {
     expect(cargoSmokeIndications(true, false, false)).toEqual({ fwd: true, aftBulk: false });
   });
@@ -33,7 +33,7 @@ describe('COND page cargo SMOKE (A380 FCOM l.6015-6016, l.53984-53985)', () => {
   });
 });
 
-describe('COND page avionics SMOKE (A380 FCOM l.6962-6970)', () => {
+describe('COND page avionics SMOKE', () => {
   it('names the circuit with smoke', () => {
     expect(avionicsBaySmokeLegend(true, false)).toBe('L SMOKE');
     expect(avionicsBaySmokeLegend(false, true)).toBe('R SMOKE');

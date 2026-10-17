@@ -73,7 +73,6 @@ export const BleedPage = () => {
       {/* APU */}
       <BleedApu />
 
-      {/* WING A-ICE, FCOM DSC-30-10-20 BLEED SYSTEM DISPLAY */}
       <BleedWingAntiIce wing={1} />
       <BleedWingAntiIce wing={2} />
     </>

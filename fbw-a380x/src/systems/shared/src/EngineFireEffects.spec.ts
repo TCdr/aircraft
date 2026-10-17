@@ -12,10 +12,10 @@ import { describe, expect, it } from 'vitest';
  * section of aircraft.cfg around them.
  * The fire is the one "zone burning" signal L:A32NX_ENG_n_ON_FIRE / L:A32NX_APU_ON_FIRE (systems.wasm
  * SetOnFireModule: flyPad fire failure, cleared by its removal or when an AGENT discharge puts the fire out).
- * systems.wasm copies the engine one into the sim's ENG ON FIRE:n, which the effects must not read: the flames went on
- * after the failure removal with it in the code (sim 2026-10-09).
- * A380 FCOM DSC-26-20-20: the TEST pb only lights the fire warnings, and the FIRE light
- * "remains on, until the fire is extinguished, regardless of the position of the ENG FIRE pb".
+ * systems.wasm copies the engine one into the sim's ENG ON FIRE:n, which the effects must not read: with it in the code
+ * the flames went on after the failure removal (seen in the sim).
+ * The fire TEST pb only lights the fire warnings, and the FIRE light stays on until the fire is out, whatever the
+ * position of the ENG FIRE pb.
  */
 const AIRCRAFT_DIR = resolve(
   __dirname,
@@ -38,7 +38,7 @@ const SITUATION_FX_SWITCH = 'L:A32NX_CONFIG_SITUATION_FX';
  * FX_WaterDrop_Glider_HighSpeed.spb = the jettison plume {AA642D83-...}).
  */
 const FX_FIRE_1_SMALL = '{75A93861-D48A-456B-BCA5-7C3AFF31C0F6}';
-/** FX_Smoke_Fire.spb: the smoke with the engine flames and at the APU (EngineSmoke spread as a general haze, sim 2026-10-09) */
+/** FX_Smoke_Fire.spb: the smoke with the engine flames and at the APU (EngineSmoke spread as a general haze) */
 const FX_SMOKE_FIRE = '{15B35478-6321-4480-8642-EB44248318E2}';
 
 /**

@@ -86,14 +86,14 @@ describe('A380842TakeoffPerformanceCalculator', () => {
 
   describe('take-off weight limit (Airbus A380 AC 3-3, TRENT 900)', () => {
     it('gives the ISA chart value at a chart point', () => {
-      // FIGURE-3-3-1-991-001-A01: sea level, 3000 m
+      // sea level, 3000 m
       expectChartWeight(calculate().mtow, 577.0);
       // 4000 ft, 2500 m (7 °C is the ISA temperature at 4000 ft)
       expectChartWeight(calculate({ elevation: 4000, oat: 7, tora: 2500, tow: 400_000 }).mtow, 486.2);
     });
 
     it('gives the ISA + 15 °C chart value at the flat rating temperature', () => {
-      // FIGURE-3-3-2-991-001-A01: sea level, 3000 m, 30 °C
+      // sea level, 3000 m, 30 °C
       expectChartWeight(calculate({ oat: 30 }).mtow, 567.0);
     });
 
@@ -149,7 +149,7 @@ describe('A380842TakeoffPerformanceCalculator', () => {
     });
   });
 
-  describe('corrections (A380 FCOM PER-TOF-TOC)', () => {
+  describe('corrections', () => {
     it('takes the ASDA line-up distance off the runway', () => {
       expect(calculate({ lineupAngle: 90 }).params.adjustedTora).toBeCloseTo(3000 - 172.5 / FEET_PER_METRE, 6);
       expect(calculate({ lineupAngle: 180 }).params.adjustedTora).toBeCloseTo(3000 - 219.8 / FEET_PER_METRE, 6);
@@ -187,7 +187,7 @@ describe('A380842TakeoffPerformanceCalculator', () => {
     });
   });
 
-  describe('takeoff speeds (A380 FCOM PER-TOF-TOR-SRS P 1-2)', () => {
+  describe('takeoff speeds', () => {
     const cases: Partial<Inputs>[] = [
       { tow: 320_000, conf: 1 },
       { tow: 400_000, conf: 2 },
@@ -217,7 +217,7 @@ describe('A380842TakeoffPerformanceCalculator', () => {
       expect(vR).toBeLessThanOrEqual(v2);
     });
 
-    it('keeps the VR / V2 and V1 / VR ratios of the FCOM example (V1 153, VR 168, V2 174) at a high weight', () => {
+    it('keeps the VR / V2 and V1 / VR ratios of the example (V1 153, VR 168, V2 174) at a high weight', () => {
       const { v1, vR, v2 } = calculate({ tow: 505_000, conf: 1, tora: 4000 });
       expect(Math.abs(vR! - (v2! * 168) / 174)).toBeLessThanOrEqual(0.5);
       expect(Math.abs(v1! - (vR! * 153) / 168)).toBeLessThanOrEqual(0.5);
@@ -229,7 +229,7 @@ describe('A380842TakeoffPerformanceCalculator', () => {
     });
   });
 
-  describe('FLEX temperature (A380 FCOM PER-TOF-THR-FLX)', () => {
+  describe('FLEX temperature', () => {
     it('has TREF = ISA + 15 and TMAXFLEX = ISA + 60 (30 °C and 75 °C at sea level)', () => {
       const { params } = calculate();
       expect(params.tRef).toBeCloseTo(30, 6);
@@ -395,7 +395,7 @@ describe('A380842TakeoffPerformanceCalculator', () => {
     });
   });
 
-  describe('input limits (A380 FCOM LIM-12 and the data range)', () => {
+  describe('input limits and the data range', () => {
     it.each<[Partial<Inputs>, TakeoffPerfomanceError]>([
       [{ conf: 4 }, TakeoffPerfomanceError.InvalidData],
       [{ tow: 511_000 }, TakeoffPerfomanceError.StructuralMtow],

@@ -4,14 +4,13 @@
 /**
  * The fuel flow in the FWD and AFT transfer galleries of the SD FUEL page, including the jettison flow.
  *
- * A380 FCOM DSC-28-40 Fuel Jettison (a380_fcom.txt l.60012-60031): "When fuel jettison is initiated: - All fuel transfers
- * stop - All transfer pumps run - The forward gallery connects to the aft gallery - The jettison valves open. There are
- * two jettison valves, that are on the aft gallery."
+ * When a fuel jettison starts, all fuel transfers stop, all transfer pumps run, the forward gallery connects to the aft
+ * gallery and the two jettison valves, on the aft gallery, open.
  *
  * The jettison itself is run by the FQMS of the systems host (CpiomF/FuelJettison), which takes the fuel out of the
  * transfer tanks directly (the MSFS fuel system has no overboard outlet) and opens the MSFS jettison valves 57 and 58;
  * the MSFS transfer pumps stay off. So, while the jettison runs, the page shows the transfer pumps running and the
- * galleries connected, as the FCOM describes, from L:A380X_FUEL_JETTISON_IN_PROGRESS.
+ * galleries connected from L:A380X_FUEL_JETTISON_IN_PROGRESS.
  *
  * Not shown (left): the trim tank jettison path. The trim lines of the FUEL page are not wired to the fuel model at
  * all (normal transfers included), and the trim line valves stay closed in the model during a jettison.
@@ -25,7 +24,7 @@ export interface GalleryFlowPoint {
 }
 
 /** The part of a gallery the fuel flows through */
-export interface GalleryFlowSpan {
+interface GalleryFlowSpan {
   /** fuel flows: at least one way out of the gallery is open */
   flowing: boolean;
   /** abscissa of the first active point */
@@ -37,7 +36,6 @@ export interface GalleryFlowSpan {
 /**
  * The flowing part of a gallery: from the first to the last running pump or open valve/outlet, when at least one way
  * out (a transfer valve into a tank, or an outlet such as a jettison valve or the FWD-to-AFT gallery link) is open.
- * Without an outlet, this is the rule the FUEL page always had for its transfer valves.
  * @param pumps the pumps of the gallery
  * @param valves the transfer valves of the gallery into the tanks
  * @param outlets the other ways out of the gallery (jettison valves, link to the other gallery)
@@ -82,12 +80,12 @@ export function insertOutletsByX<T extends { x1: number }>(valves: readonly T[],
 }
 
 /** What a fuel jettison adds to the gallery flow of the FUEL page */
-export interface JettisonGalleryFlow {
-  /** "All transfer pumps run" (l.60014): the wing transfer pumps are shown running */
+interface JettisonGalleryFlow {
+  /** All transfer pumps run: the wing transfer pumps are shown running */
   transferPumpsRun: boolean;
-  /** "The forward gallery connects to the aft gallery" (l.60024): the FWD-to-AFT gallery line carries fuel */
+  /** The forward gallery connects to the aft gallery: the FWD-to-AFT gallery line carries fuel */
   galleryLinkActive: boolean;
-  /** The left jettison valve is a way out of the AFT gallery (l.60027-60029) */
+  /** The left jettison valve is a way out of the AFT gallery */
   leftOutletActive: boolean;
   /** The right jettison valve is a way out of the AFT gallery */
   rightOutletActive: boolean;
