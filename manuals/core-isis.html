@@ -51,12 +51,12 @@ table.test td:nth-child(2) { width: 50%; }
 <b>Aircraft</b><span>A380X</span>
 <b>Where to find it</b><span>Centre instrument panel: the two ISIS (upper: SFD, lower: SND) and their MODE, MENU, LS/DIR TO, +/- and SET/SEL controls</span>
 <b>Branch</b><span><code>core/isis</code>, based on <code>master</code> (FlyByWire master 76db0aef1 merged in); independent.</span>
-<b>Status</b><span>SND tested in the sim by the user: OK (2026-09-29). SFD/SND reconfiguration tested by the user: OK (2026-10-02). SND power-up test and the normal configuration at power-up: not sim-tested (unit tests).</span>
+<b>Status</b><span>SND tested in the sim by the user: OK. SFD/SND reconfiguration tested by the user: OK. SND power-up test and the normal configuration at power-up: not sim-tested (unit tests).</span>
 <b>Pictures</b><span>The SND instrument in the local browser harness, running the build of the branch, with ADIRU data typed in (the harness has no aircraft). No pictures for the power-up test and the reconfiguration.</span>
 </div>
 <div class="toc"><div>1. Standby Navigation Display (SND)</div><div>2. SND power-up self-test</div><div>3. SFD/SND reconfiguration with the MODE pb</div><div>4. Normal ISIS configuration at each power-up</div></div>
 <h2>1. Standby Navigation Display (SND)</h2>
-<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Lower ISIS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-09-29). 10 unit tests.</div>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Lower ISIS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK. 10 unit tests.</div>
 <h3>What it is for</h3>
 <p>The A380 has two ISIS (integrated standby instrument systems): the upper one is the Standby Flight Display (SFD: attitude, speed, altitude), the lower one the <b>Standby Navigation Display</b> (SND): heading, position and a small navigation of its own, independent of the FMS (A380 FCOM DSC-34-10-20). On the FBW A380 the lower screen was black; it is now the SND.</p>
 <h3>The screen</h3>
@@ -84,7 +84,7 @@ table.test td:nth-child(2) { width: 50%; }
 <h3>How to test</h3>
 <table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X powered, ADIRS aligned (NAV). Look at the lower ISIS.</td><td>GS, IR3 (or IR1), the heading rose with the yellow heading index and the green track diamond, GPIR3 and the position at the bottom.</td></tr><tr><td>2</td><td>Press the <b>TRUE</b> north reference pushbutton (MAG / TRUE).</td><td>TRU in cyan; heading and track in true. Press again: back to magnetic.</td></tr><tr><td>3</td><td>Press <b>MENU</b>.</td><td>INSERT WPT, INSERT FIX, EDIT WPT / FIX, CLEAR WPT / FIX in cyan.</td></tr><tr><td>4</td><td>Push the SET/SEL knob on INSERT WPT; turn and push through the 8 fields.</td><td>The waypoint is added to the list under the white line.</td></tr><tr><td>5</td><td>Add a second waypoint the same way.</td><td>The true bearing and distance between the two show in the list.</td></tr><tr><td>6</td><td>Press <b>LS/DIR TO</b>, choose the first waypoint, push.</td><td>FROM / TO / NEXT, TO WPT bearing and distance top right, the course arrow on the rose.</td></tr><tr><td>7</td><td>Fly off the course by about 5 NM.</td><td>The deviation bar moves one large mark (5 NM) from the aircraft.</td></tr><tr><td>8</td><td>MENU, INSERT FIX, enter a point.</td><td>FIX distance top left, a magenta pointer towards it, its coordinates in magenta at the bottom.</td></tr><tr><td>9</td><td>Press <b>+</b> and <b>-</b>.</td><td>Brighter, dimmer.</td></tr></table>
 <h2>2. SND power-up self-test</h2>
-<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Lower ISIS &nbsp;|&nbsp; <b>Status:</b> Not sim-tested (2 unit tests). It was installed with the SFD/SND reconfiguration that the user tested on 2026-10-02, with no separate record.</div>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Lower ISIS &nbsp;|&nbsp; <b>Status:</b> Not sim-tested (2 unit tests). It was installed with the SFD/SND reconfiguration that the user tested, with no separate record.</div>
 <h3>What it is for</h3>
 <p>The two ISIS of the A380 are the same unit, SFD or SND (A380 FCOM DSC-34-10-20-10). The SFD (upper ISIS) already ran its power-up tests: a yellow INIT box and a countdown for 90 seconds. The SND came on at once. It now behaves as the SFD. The A380 FCOM gives no time: the 90 s and the 10 s below are the ones of the FBW SFD.</p>
 <h3>What you should see</h3>
@@ -94,7 +94,7 @@ table.test td:nth-child(2) { width: 50%; }
 <h3>How to test</h3>
 <table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X cold and dark. Switch the batteries on (DC ESS powered).</td><td>The upper (SFD) and lower (SND) ISIS both show INIT with a countdown from 90.</td></tr><tr><td>2</td><td>Wait 90 seconds.</td><td>The SND shows its rose; HDG / PPOS flags until the ADIRS give heading and position.</td></tr><tr><td>3</td><td>Remove the power for less than 10 seconds, then restore it.</td><td>The SND stays on; no new INIT.</td></tr><tr><td>4</td><td>Remove the power for more than 10 seconds, then restore it.</td><td>The SND goes off, then runs INIT again for 90 s.</td></tr><tr><td>5</td><td>Spawn on a runway (powered).</td><td>The SND is on at once, without INIT.</td></tr></table>
 <h2>3. SFD/SND reconfiguration with the MODE pb</h2>
-<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> MODE pb of either ISIS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02). 2 unit tests.</div>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> MODE pb of either ISIS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK. 2 unit tests.</div>
 <h3>What it is for</h3>
 <p>A380 FCOM DSC-34-10-20-20-10: the MODE pb "enables to switch from SFD to SND display or to switch off the corresponding standby display". Before, MODE only switched the SND off and on. Now each press goes to the next configuration, and one SFD is always displayed. Both ISIS screens carry both displays; the knob and the pushbuttons of an ISIS act on the display it shows.</p>
 <h3>What you see</h3>
