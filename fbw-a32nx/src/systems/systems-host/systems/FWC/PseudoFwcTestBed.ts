@@ -122,14 +122,26 @@ export function setHealthyCruise(bus: EventBus, simvars: Map<string, number>): v
 
 /** The real PseudoFWC, both FWCs powered and started */
 export function createFwc(): { fwc: PseudoFWC; bus: EventBus } {
+  return createFwcWithStartup(true);
+}
+
+/**
+ * The real PseudoFWC, both FWCs powered, with the FWC startup state of FwsManager under the test's control
+ * @param started whether the FWC startup is completed at the start
+ */
+export function createFwcWithStartup(started: boolean): {
+  fwc: PseudoFWC;
+  bus: EventBus;
+  startupCompleted: Subject<boolean>;
+} {
   const bus = new EventBus();
-  const startupCompleted = Subject.create(true);
+  const startupCompleted = Subject.create(started);
   const fwcAvailability = Subject.create(
     computeFwcAvailability({ fwc1Failed: false, fwc2Failed: false, fwc1Powered: true, fwc2Powered: true }),
   );
   const fwc = new PseudoFWC(bus, new FwsSoundManager(bus, startupCompleted), startupCompleted, fwcAvailability);
   fwc.init();
-  return { fwc, bus };
+  return { fwc, bus, startupCompleted };
 }
 
 /** Runs the FWC for some seconds at the FwsManager rate (60 ms) */
