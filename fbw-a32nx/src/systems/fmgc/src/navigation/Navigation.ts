@@ -140,6 +140,8 @@ export class Navigation implements NavigationProvider {
     (_, i) => `L:A32NX_ADIRS_ADR_${i + 1}_STATIC_AIR_TEMPERATURE`,
   );
 
+  private isGpirsAvailable = false;
+
   /** The GPIRS position of each IR: the hybrid GPS/IRS position from the GPS receiver it selects */
   private static readonly gpirsLatitudeVars = Array.from(
     { length: 3 },
@@ -247,10 +249,10 @@ export class Navigation implements NavigationProvider {
   constructor(
     private readonly bus: EventBus,
     private flightPlanService: FlightPlanService,
-    positionConfig: Readonly<FmPositionConfig> = A320_FM_POSITION_CONFIG,
+    private readonly positionConfig: Readonly<FmPositionConfig> = A320_FM_POSITION_CONFIG,
   ) {
     this.requiredPerformance = new RequiredPerformance(this.bus, this.flightPlanService);
-    this.fmPosition = new FmPositionComputer(positionConfig);
+    this.fmPosition = new FmPositionComputer(this.positionConfig);
     this.navaidSelectionManager = new NavaidSelectionManager(this.flightPlanService, this);
     this.landingSystemSelectionManager = new LandingSystemSelectionManager(this.bus, this.flightPlanService, this);
     this.navaidTuner = new NavaidTuner(this.bus, this, this.navaidSelectionManager, this.landingSystemSelectionManager);
@@ -421,6 +423,7 @@ export class Navigation implements NavigationProvider {
         this.gpsPositions[i],
       );
     }
+    this.isGpirsAvailable = this.gpirs.some((g) => g.positionValid);
   }
 
   /**
