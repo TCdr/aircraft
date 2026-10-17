@@ -5,9 +5,9 @@ import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 
 /**
  * Whether the CPNY F-PLN REQUEST button of a flight plan is disabled.
- * - FCOM DSC-22-FMS-20-30 INIT page: selectable before engine start, with no active flight plan and no secondary flight
+ * - INIT page: selectable before engine start, with no active flight plan and no secondary flight
  *   plan request pending. A pending active request still gives access to the page.
- * - FCOM SEC INDEX page: a secondary flight plan request needs no other flight plan request pending.
+ * - SEC INDEX page: a secondary flight plan request needs no other flight plan request pending.
  * - A company wind uplink in progress blocks every flight plan request.
  * @param windUplinkInProgress whether a company wind uplink is in progress
  * @param requestedForPlan the flight plan of the pending company F-PLN request, null without one

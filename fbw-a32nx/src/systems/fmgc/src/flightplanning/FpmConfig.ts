@@ -63,7 +63,7 @@ export interface FpmConfig {
   /** The number of different flight levels for which descent wind entries may be made */
   NUM_DESCENT_WIND_LEVELS: number;
 
-  /** Which FCOM rule sets the default alternate cruise flight level (A320: FL100/220/310, A380: FL220/310) */
+  /** Which aircraft rule sets the default alternate cruise flight level (A320: FL100/220/310, A380: FL220/310) */
   ALTERNATE_CRUISE_LEVEL_RULE: AlternateCruiseLevelRule;
 
   /** Which history winds are listed and inserted (A320: the fixed levels, the recorded cruise level and the planned CRZ FL; A380: the CRZ FL and FL 250, 150, 050) */

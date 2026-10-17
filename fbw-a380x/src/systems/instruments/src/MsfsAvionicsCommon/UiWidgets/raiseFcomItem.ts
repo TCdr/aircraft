@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * Raises (or lowers again) the FCOM-positioned items that contain an element with an open menu. Each item is its own
+ * Raises (or lowers again) the .mfd-fcom-item elements that contain an element with an open menu. Each item is its own
  * stacking context (it is translated), so the menu would otherwise be drawn below the items that follow it.
  */
 export function raiseFcomItem(element: HTMLElement, raised: boolean): void {

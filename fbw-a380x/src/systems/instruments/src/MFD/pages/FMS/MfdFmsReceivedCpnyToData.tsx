@@ -16,11 +16,11 @@ import { cpnyToRequestPage } from './MfdFmsCpnyToRequest';
 
 import './MfdFmsReceivedCpnyToData.scss';
 
-/** FCOM P 312: takeoff data for up to four runways */
+/** Takeoff data for up to four runways */
 const maxRunways = 4;
 
 /**
- * RECEIVED COMPANY T.O DATA page (A380 FCOM DSC-22-FMS-20-30 P 312-320): the takeoff data received from the company
+ * RECEIVED COMPANY T.O DATA page: the takeoff data received from the company
  * for up to four runways and two thrust settings per runway, with INSERT and CLEAR.
  *
  * No company takeoff data can be received in the simulation (see the COMPANY T.O DATA REQUEST page): the page shows
@@ -40,7 +40,7 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
     this.subs.push(
-      // The FCOM page title has no flight plan prefix
+      // This page title has no flight plan prefix
       this.props.mfd.uiService.activeUri.sub(() => this.activePageTitle.set('RECEIVED COMPANY T.O DATA'), true),
       this.runwayPageText,
     );
@@ -64,7 +64,7 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
       <>
         {super.render()}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 312), page container coordinates */}
+          {/* Positions measured on the reference figure of the page, in page container coordinates */}
           <div class="mfd-fcom-canvas">
             {fcomAt(27, 12, <span class="mfd-label">DATA FOR RWY</span>)}
             {fcomAt(27, 200, <span class="mfd-value bigger">---</span>)}
@@ -75,7 +75,7 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_receivedCpnyToThrust`}
                 selectedIndex={this.selectedThrust}
                 values={this.thrustLabels}
-                freeTextAllowed={false} // FCOM TAKEOFF THRUST LIST: selected in the list only
+                freeTextAllowed={false} // The takeoff thrust is selected in the list only
                 inactive={this.noData}
                 containerStyle="width: 157px;"
                 numberOfDigitsForInputField={7}

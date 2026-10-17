@@ -122,7 +122,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     (v) => `mfd-value ${v ? '' : 'amber'} bigger mfd-spacing-right`,
   );
 
-  /** FCOM P 292: FREEZE POSITION / UNFREEZE POSITION, and the time the data was frozen */
+  /** FREEZE POSITION / UNFREEZE POSITION, and the time the data was frozen */
   private readonly positionFrozenLabel = this.positionFrozen.map((v) =>
     v ? 'UNFREEZE<br />POSITION *' : 'FREEZE<br />POSITION *',
   );
@@ -223,7 +223,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     this.rnpEnteredByPilot.set(navigation.isPilotRnp());
     const fmCoordinates = this.props.fmcService.master.navigation.getPpos();
     const fmPositionAvailable = fmCoordinates != null;
-    // FCOM P 292: FREEZE POSITION freezes the display of all position data on the page
+    // FREEZE POSITION freezes the display of all position data on the page
     const updatePositionSensors = !this.positionFrozen.get();
 
     if (updatePositionSensors) {
@@ -309,7 +309,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     }
 
     if (updatePositionSensors) {
-      // FCOM P 286: navigation mode "N IRS/GPS" or "N IRS", N = 3 or 1 IRS used for the IRS position
+      // Navigation mode "N IRS/GPS" or "N IRS", N = 3 or 1 IRS used for the IRS position
       const validIrs = [this.ir1LatitudeRegister, this.ir2LatitudeRegister, this.ir3LatitudeRegister].filter(
         (r) => !r.isInvalid(),
       ).length;
@@ -396,7 +396,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
         {super.render()}
         {/* begin page content */}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figures (DSC-22-FMS-20-30 P 273, P 286), page container coordinates */}
+          {/* Positions measured on the reference figures, page container coordinates */}
           <div class="mfd-fcom-canvas">
             {fcomRight(22, 208, <span class="mfd-label">ACCURACY</span>)}
             {fcomAt(22, 227, <span class={this.accuracyClass}>{this.fmsAccuracy}</span>)}
@@ -466,7 +466,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
               11,
               <Button
                 label="POSITION<br />UPDATE"
-                disabled={Subject.create(true)} // FCOM: only when the FMS navigation mode is not IRS/GPS (not modelled)
+                disabled={Subject.create(true)} // Only when the FMS navigation mode is not IRS/GPS (not modelled)
                 onClick={() => {}}
                 buttonStyle="min-width: 127px; min-height: 57px;"
               />,
@@ -510,7 +510,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
             {fcomRight(743, 584, <span class="mfd-value">{this.distanceToWaypointDisplay}</span>)}
             {fcomAt(743, 589, <span class="mfd-label-unit">{this.distanceToWaypointUnit}</span>)}
 
-            {/* FCOM P 286: RETURN always displayed */}
+            {/* RETURN always displayed */}
             {fcomAt(
               796,
               3,

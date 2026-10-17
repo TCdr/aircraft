@@ -26,7 +26,7 @@ const MAX_TRAFFIC_RANGE_NM = 40;
  * - A320: TCAS: REDUCE RANGE when a TA or RA is detected and the ND range is above 40 NM; TCAS: CHANGE MODE when a TA
  *   or RA is detected and the ND mode is PLAN; red or amber depending on the advisory level (RA or TA).
  * - A380: the same two messages, plus TCAS: INCREASE RANGE in ROSE-VOR or ROSE-LS mode with the range selector on ZOOM,
- *   not on ground; with ZOOM the ND does not display TCAS: CHANGE MODE on ground.
+ * not on ground; with ZOOM the ND does not display TCAS: CHANGE MODE on ground.
  * @param advisory TCAS advisory state
  * @param isPlanMode the ND is in PLAN mode
  * @param isRoseVorOrLsMode the ND is in ROSE-VOR or ROSE-LS mode

@@ -37,7 +37,7 @@ function testPlan(withDiscontinuityBeforeTarget: boolean) {
   return { fp: { allLegs }, targetIndex: withDiscontinuityBeforeTarget ? 2 : 1 };
 }
 
-describe('MCDU DIR TO RADIAL IN / RADIAL OUT (A320 FCOM l.18352-18360, l.23686-23688, l.14600-14605)', () => {
+describe('MCDU DIR TO RADIAL IN / RADIAL OUT', () => {
   it('accepts 1 to 3 digits from 000 to 360, magnetic unless T is entered', () => {
     expect(parseDirectToRadial('116')).toEqual({ course: 116, isTrue: false });
     expect(parseDirectToRadial('90')).toEqual({ course: 90, isTrue: false });
