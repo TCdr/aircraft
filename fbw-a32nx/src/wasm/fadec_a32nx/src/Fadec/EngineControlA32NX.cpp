@@ -636,11 +636,11 @@ void EngineControl_A32NX::engineStartProcedure(int                     engine,
 
   const double preN2Fbw  = simData.engineN2[engineIdx]->get();
   const double preEgtFbw = simData.engineEgt[engineIdx]->get();
-  // A burning start never runs down (its N2 rises at least a little each frame); a core that turns without combustion (start
+  // A burning start never runs down (its N2 rises at least a little each second); a core that turns without combustion (start
   // not lit up yet, automatic crank) follows the motoring speed of MSFS, up or down. A hung start or a stall hangs below idle.
-  const double litN2Fbw   = Polynomial_A32NX::startN2(simN2, preN2Fbw, idleN2 - n2Imbalance);
-  const double unlitN2Fbw = StartSequence_A32NX::unlitStartN2(preN2Fbw, Polynomial_A32NX::startN2(simN2, 0.0, idleN2 - n2Imbalance),
-                                                              deltaTime);
+  const double litN2Fbw   = Polynomial_A32NX::startN2(simN2, preN2Fbw, idleN2 - n2Imbalance, deltaTime);
+  const double unlitN2Fbw = StartSequence_A32NX::unlitStartN2(
+      preN2Fbw, Polynomial_A32NX::startN2(simN2, 0.0, idleN2 - n2Imbalance, deltaTime), deltaTime);
   const double newN2Fbw   = StartSequence_A32NX::hungStartN2(lit ? litN2Fbw : unlitN2Fbw, idleN2, startN2Hang);
   const double startN1Fbw = Polynomial_A32NX::startN1(newN2Fbw, idleN2 - n2Imbalance, idleN1);
   const double startFfFbw = Polynomial_A32NX::startFF(newN2Fbw, idleN2 - n2Imbalance, idleFF - ffImbalance);

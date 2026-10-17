@@ -16,14 +16,23 @@
 class Polynomial_A32NX {
  public:
   /**
+   * @brief The least N2 rise of a burning start, in % per second: the start N2 never runs down while the engine burns.
+   *
+   * Design choice: 0.06 %/s is the 0.002 % per frame step at 30 fps the start was tuned with. It is per second so that
+   * the N2 does not climb faster at a higher frame rate while the MSFS N2 stands still (e.g. an engine MSFS gives no fuel).
+   */
+  static constexpr double LIT_START_MIN_N2_RISE_PER_SECOND = 0.06;
+
+  /**
    * @brief Calculates the N2 percentage during engine start-up using real-life modeled polynomials.
    *
    * @param n2 The current N2 percentage.
    * @param preN2 The previous N2 percentage.
    * @param idleN2 The idle N2 percentage.
+   * @param deltaTime The time since the previous update in seconds (scales the least rise of a burning start).
    * @return The calculated N2 percentage.
    */
-  static double startN2(double n2, double preN2, double idleN2) {
+  static double startN2(double n2, double preN2, double idleN2, double deltaTime) {
     // Normalize the current N2 percentage by scaling it with the idle N2
     // percentage and a constant factor.
     // The constant factor 68.2 is likely derived from empirical data or a mathematical model of the
@@ -71,7 +80,7 @@ class Polynomial_A32NX {
     }
 
     outN2 *= n2;
-    outN2 = (std::max)(outN2, preN2 + 0.002);
+    outN2 = (std::max)(outN2, preN2 + LIT_START_MIN_N2_RISE_PER_SECOND * deltaTime);
     return (std::min)(outN2, idleN2 + 0.1);
   }
 
