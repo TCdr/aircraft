@@ -576,7 +576,7 @@ EngineControl_A380X::EngineState EngineControl_A380X::engineStateMachine(int    
     } else if (!engineStarter && simN3 < 0.05 && simData.engineEgt[engineIdx]->get() <= ambientTemperature) {
       engineState = OFF;
       resetTimer  = true;
-    } else if (engineStarter == 1 && simN3 > 50) {
+    } else if (StartSequence_A380X::shuttingEngineRelights(engineStarter, simData.engineN3[engineIdx]->get())) {
       engineState = RESTARTING;
       resetTimer  = true;
     } else {
@@ -697,7 +697,6 @@ void EngineControl_A380X::engineStartProcedure(int         engine,
 #endif
 }
 
-// Original comment: Engine Shutdown Procedure - TEMPORARY SOLUTION
 void EngineControl_A380X::engineShutdownProcedure(int    engine,
                                                   double deltaTime,
                                                   double engineTimer,
@@ -738,8 +737,7 @@ void EngineControl_A380X::engineShutdownProcedure(int    engine,
     simData.engineN2[engineIdx]->set(seizedN3 == 0 ? 0 : seizedN3 + 0.7);
   }
 
-  // delay to simulate the delay between master-switch setting and actual engine shutdown
-  if (engineTimer < 1.8) {
+  if (engineTimer < SHUTDOWN_FLAME_OUT_DELAY_SECONDS) {
     simData.engineTimer[engineIdx]->set(engineTimer + deltaTime);
   } else {
     const double preN1Fbw  = simData.engineN1[engineIdx]->get();

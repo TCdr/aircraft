@@ -71,6 +71,18 @@ static bool offIsRunning(int engineIgniter, bool engineStarter, double simN3, bo
 #endif
 }
 
+/// SHUTTING becomes RESTARTING without IGN/START (EngineControl_A380X::engineStateMachine): before the fix on the MSFS core
+/// speed above 50 %, not on the N3 the FADEC shows.
+static bool shuttingRelights(bool engineStarter, double simN3, double fadecN3) {
+#ifdef WITHOUT_THE_FIX
+  (void)fadecN3;
+  return engineStarter && simN3 > 50;
+#else
+  (void)simN3;
+  return shuttingEngineRelights(engineStarter, fadecN3);
+#endif
+}
+
 /// The MSFS starter acceleration of the recorded A380X core (sim test 2026-10-08, APU bleed): the old run-down settled at
 /// 5.7 % N3 with the 2 s time constant, so about 5.7 / 2 % per second.
 constexpr double RECORDED_MSFS_STARTER_ACCELERATION = 5.7 / UNLIT_N3_TIME_CONSTANT_SECONDS;
@@ -174,6 +186,11 @@ int main() {
   expectNear("hung start N3 at 60 % of idle", hungStartN3(55.0, 62.0, true), 37.2);
   expectNear("hot start EGT excess grows", egtOvershoot(30.0, true, 0.5), 45.0);
   expectNear("no overshoot: no excess", egtOvershoot(30.0, false, 0.5), 0.0);
+
+  // The ENG MASTER back ON relights a shutting down engine while the N3 shown is above 45 %, whatever the MSFS core speed
+  expect("master back ON, N3 47 %, MSFS core 40 %: relight", shuttingRelights(true, 40.0, 47.0));
+  expect("master back ON, N3 44 %, MSFS core 55 %: no relight", !shuttingRelights(true, 55.0, 44.0));
+  expect("master OFF: no relight", !shuttingRelights(false, 60.0, 60.0));
 
   if (failures > 0) {
     std::printf("%d failure(s)\n", failures);
