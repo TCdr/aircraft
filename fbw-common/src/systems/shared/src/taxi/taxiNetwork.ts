@@ -4,11 +4,9 @@
 /** A point of the airport map, in metres from the aerodrome reference point: x east, y north */
 export type TaxiPoint = [number, number];
 
-/** What a line of the airport map guides the aircraft along */
 export enum TaxiLineKind {
-  /** A taxiway guidance line (ED-99 taxiway guidance line), named by its taxiway */
+  /** A taxiway guidance line, named by its taxiway */
   Taxiway = 'TAXIWAY',
-  /** A runway exit line, named by its exit */
   Exit = 'EXIT',
   /** A stand guidance line, the lead-in line of a parking stand */
   Stand = 'STAND',
@@ -63,7 +61,6 @@ interface Segment {
   splits: number[];
 }
 
-/** Normalises a taxiway or exit name of the airport map */
 export function taxiName(name: string | null | undefined): string | null {
   const n = (name ?? '').trim().toUpperCase();
   return n.length > 0 ? n : null;
@@ -156,7 +153,6 @@ export function buildTaxiNetwork(lines: readonly TaxiLine[]): TaxiNetwork {
     }
   });
 
-  // Crossings between segments
   const done = new Set<string>();
   const indexOf = new Map<Segment, number>(segments.map((s, i) => [s, i]));
   for (const s of segments) {
@@ -298,7 +294,6 @@ function joinGaps(network: TaxiNetwork): void {
     const b = network.nodes[e.to];
     edgeGrid.add(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1]), i);
   });
-  /** The nearest line of another part to a dead end, within the gap distance */
   const nearestOtherPart = (n: number): { edge: number; t: number; distance: number } | null => {
     const p = network.nodes[n];
     let best: { edge: number; t: number; distance: number } | null = null;
@@ -336,7 +331,6 @@ function joinGaps(network: TaxiNetwork): void {
       continue;
     }
     const e = network.edges[best.edge];
-    // The join point: an end of the edge, or a new node that splits it
     let joined: number;
     if (best.t <= 0.001) {
       joined = e.from;

@@ -11,14 +11,12 @@ import {
   taxiName,
 } from './taxiNetwork';
 
-/** Where the taxi starts */
 export type TaxiRouteStart =
   /** At a runway exit: its name and where it leaves the runway */
   | { kind: 'exit'; exit: string; point: TaxiPoint }
   /** At the aircraft, with its true heading in degrees (null when not known) */
   | { kind: 'position'; point: TaxiPoint; heading: number | null };
 
-/** Where the taxi ends */
 export type TaxiRouteTarget =
   /** At a parking stand, after landing */
   | { kind: 'stand'; name: string; point: TaxiPoint }
@@ -51,7 +49,6 @@ export interface TaxiRouteLeg {
   name: string | null;
   /** metres */
   length: number;
-  /** Where the leg starts */
   start: TaxiPoint;
   /** The point halfway along the leg, to label it */
   mid: TaxiPoint;
@@ -60,7 +57,6 @@ export interface TaxiRouteLeg {
 /** A leg with its points, while the route is put together */
 type LegPoints = Omit<TaxiRouteLeg, 'start' | 'mid'> & { points: TaxiPoint[] };
 
-/** The point halfway along a polyline */
 function halfway(points: readonly TaxiPoint[], length: number): TaxiPoint {
   let remaining = length / 2;
   for (let i = 1; i < points.length; i++) {
@@ -161,7 +157,6 @@ class Heap {
   }
 }
 
-/** The edge of the network nearest to a point, among the edges accepted by the filter */
 function nearestEdge(
   network: TaxiNetwork,
   p: TaxiPoint,
@@ -201,7 +196,6 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
   const to = request.to;
   const entry = to.kind === 'runway' ? taxiName(to.entry) : null;
 
-  // The stand: its lead-in lines, and the network node nearest to its location; or the runway entry node
   const standLines = new Set<number>();
   let target: number;
   if (to.kind === 'stand') {
@@ -237,12 +231,10 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
   /** The entry line of the runway can be taken after the last cleared taxiway */
   const isEntry = (name: string | null, k: number) => entry !== null && name === entry && (!via || k === last);
 
-  // The start: the end of the exit line on the runway, or the aircraft on its nearest line
   /** The start nodes, with the index of the cleared taxiway the route is on there (-1 before the first one) */
   const initial: { node: number; cost: number; k: number }[] = [];
   const startLines = new Set<number>();
   let startPoint: TaxiPoint | null = null;
-  /** The line the aircraft is on */
   let startLine: number | null = null;
   /** The edge the aircraft is on: the aircraft splits it, so the route never takes it whole (a U-turn through the aircraft) */
   let startEdge = -1;
@@ -627,7 +619,6 @@ const PHRASEOLOGY = new Set([
   'VIA',
   'WHEN',
 ]);
-/** The words that introduce runway designators */
 const RUNWAY_WORDS = new Set(['RUNWAY', 'RUNWAYS', 'RWY']);
 /** The words followed by a stand name, which is not a taxiway of the route */
 const STAND_WORDS = new Set(['STAND', 'GATE', 'SPOT', 'PARKING']);

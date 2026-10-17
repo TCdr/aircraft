@@ -4,15 +4,13 @@
 import { useEffect, useState } from 'react';
 
 /**
- * The GSX services, by their Couatl Remote API v2 id (GSX Pro manual for MSFS, Couatl Remote API v2 developer guide,
- * Appendix B)
+ * The GSX services, by their Couatl Remote API v2 id
  */
 export enum GsxServiceId {
   Deboarding = 'Deboarding',
   Boarding = 'Boarding',
   Refueling = 'Refueling',
   Catering = 'Catering',
-  /** Pushback */
   Departure = 'Departure',
   OperateJetways = 'OperateJetways',
   OperateStairs = 'OperateStairs',
@@ -23,7 +21,7 @@ export enum GsxServiceId {
   Cleaning = 'Cleaning',
 }
 
-/** A GSX service as the Remote API reports it (developer guide §8.1) */
+/** A GSX service as the Remote API reports it */
 export interface GsxService {
   id: string;
   displayName: string;
@@ -42,7 +40,7 @@ export interface GsxService {
   progressText?: string;
 }
 
-/** The GSX menu (developer guide §8.2): the questions GSX asks, e.g. the operator to use */
+/** The GSX menu: the questions GSX asks, e.g. the operator to use */
 export interface GsxMenu {
   title: string;
   entries: string[];
@@ -58,7 +56,7 @@ export interface GsxRemoteState {
   /** A GSX menu is open */
   menuShown: boolean;
   menu: GsxMenu;
-  /** The on-screen GSX message, e.g. "Refuelling complete" (§8.3) */
+  /** The on-screen GSX message, e.g. "Refuelling complete" */
   message: { text: string; visible: boolean };
 }
 
@@ -67,11 +65,11 @@ export type GsxServiceLook = 'disabled' | 'inactive' | 'called' | 'active' | 're
 
 /** The default port of the Remote API server (GSX settings: Remote control server, on by default) */
 const REMOTE_API_PORT = 8744;
-/** The developer guide advises a 2 s reconnection retry */
+/** GSX advises a 2 s reconnection retry */
 const RECONNECT_MS = 2_000;
 const COMMAND_TIMEOUT_MS = 5_000;
 /**
- * GSX manual, Remote Control Mode: set to 1, the GSX toolbar menu is disabled and no pop-up menu or notification is
+ * GSX remote control mode: set to 1, the GSX toolbar menu is disabled and no pop-up menu or notification is
  * shown; GSX resets it to 0 when it restarts, so it is set again periodically
  */
 const REMOTE_CONTROL_VAR = 'L:FSDT_GSX_SET_REMOTECONTROL';
@@ -88,10 +86,10 @@ const DISCONNECTED: GsxRemoteState = {
 };
 
 /**
- * The connection of the flyPad to the Couatl Remote API v2 of GSX: a local WebSocket speaking JSON. It follows the state
- * of the GSX services, menu and message (snapshot, then patches), requests a service with service.trigger (which runs
- * the GSX menu as if the user had picked the service) and answers the GSX menu with menu.pick. One connection for the
- * whole flyPad, open while a page uses it.
+ * The connection of the flyPad to the Couatl Remote API v2 of GSX: a local WebSocket speaking JSON. It follows the
+ * state of the GSX services, menu and message (snapshot, then patches), requests a service with service.trigger (which
+ * runs the GSX menu as if the user had picked the service) and answers the GSX menu with menu.pick. One connection for
+ * the whole flyPad, open while a page uses it.
  */
 class GsxRemoteClient {
   private ws: WebSocket | null = null;
@@ -244,7 +242,7 @@ class GsxRemoteClient {
     return { text: typeof value?.text === 'string' ? value.text : '', visible: value?.visible === true };
   }
 
-  /** A top-level key of the state (a snapshot key or a patch), see developer guide §8 */
+  /** A top-level key of the state (a snapshot key or a patch) */
   private applyKey(key: string, value: any): void {
     switch (key) {
       case 'services':

@@ -44,7 +44,6 @@ export class OancMarkerManager<T extends number> {
     this.crosses.insert(crossSymbolLabel);
   }
 
-  /** Adds a flag, and returns its id */
   addFlag(coords: Position, feature?: AmdbFeature): number {
     const id = this.nextFlagId++;
     const flagSymbolLabel: Label = {

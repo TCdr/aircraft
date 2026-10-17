@@ -12,7 +12,6 @@ export interface TaxiAmdbFeature {
   geometry: { type: string; coordinates: unknown };
 }
 
-/** A parking stand of the airport map */
 export interface TaxiStand {
   name: string;
   /** The terminal or apron it belongs to, when known */
@@ -155,7 +154,6 @@ export function taxiRunwaysFromAmdb(features: readonly TaxiAmdbFeature[]): TaxiR
   return [...runways.values()];
 }
 
-/** The shapes of the runways, taxiways and aprons, to draw the airport */
 export function taxiMapShapesFromAmdb(features: readonly TaxiAmdbFeature[]): TaxiMapShapes {
   const shapes: TaxiMapShapes = { runways: [], taxiways: [], aprons: [] };
   for (const f of features) {
@@ -217,7 +215,6 @@ export function taxiRunwayAxesFromAmdb(features: readonly TaxiAmdbFeature[]): Ta
   return axes.sort((a, b) => a.ident.localeCompare(b.ident));
 }
 
-/** The runway holding position lines of the airport map */
 export function taxiHoldingLinesFromAmdb(features: readonly TaxiAmdbFeature[]): TaxiPoint[][] {
   const lines: TaxiPoint[][] = [];
   for (const f of features) {

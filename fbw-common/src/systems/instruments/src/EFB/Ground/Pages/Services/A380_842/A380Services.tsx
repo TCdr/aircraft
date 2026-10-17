@@ -167,7 +167,6 @@ export const A380Services: React.FC = () => {
 
   const eventBus = useEventBus();
   const pub = eventBus.getPublisher<GPUControlEvents>();
-
   // GSX link: the service buttons request the GSX services (GSX Remote API) instead of the sim ground vehicles; GSX
   // loads the baggage with the boarding, on the GSX panel
   const [gsxLinkSetting, setGsxLinkSetting] = usePersistentNumberProperty('GSX_SERVICES_LINK', 0);

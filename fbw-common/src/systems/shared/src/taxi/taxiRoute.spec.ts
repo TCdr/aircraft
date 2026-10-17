@@ -69,7 +69,6 @@ describe('Taxi route', () => {
       'L',
       'M',
     ]);
-    // The typed clearance
     expect(taxiRoute(NETWORK, { start: FROM_B1, to: STAND_42, via: parseTaxiClearance('a, k-m') }).taxiways).toEqual([
       'A',
       'K',
@@ -347,9 +346,9 @@ describe('Taxi route', () => {
 });
 
 /**
- * A departure to runway 34R as at RJTT (user report 2026-10-12): the aircraft pushed back from gate 67 onto the apron
- * line L4 (facing north-east); A4B and W4 lead to the parallel taxiway W; then A, E and the entry C1 (a runway exit line
- * of the airport map) onto 34R. ATC cleared "via L4, A4B, W4, W, A, E, C1"; the crew typed "W A E C1 C1".
+ * A departure to runway 34R as at RJTT: the aircraft pushed back from gate 67 onto the apron line L4 (facing
+ * north-east); A4B and W4 lead to the parallel taxiway W; then A, E and the entry C1 (a runway exit line of the airport
+ * map) onto 34R. ATC cleared "via L4, A4B, W4, W, A, E, C1"; the crew typed "W A E C1 C1".
  */
 const RJTT_LINES: TaxiLine[] = [
   line(TaxiLineKind.Stand, '67', [0, -60], [0, 0]),
