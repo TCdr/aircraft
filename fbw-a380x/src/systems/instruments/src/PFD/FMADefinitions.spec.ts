@@ -13,6 +13,7 @@ import {
   getD1D2Lines,
   isCheckEoSpeedSetting,
   isSpeedAtUpperMargin,
+  manualTakeoffThrustLabel,
   SpeedBrakeMessage,
   speedBrakeMessage,
   SpeedBrakeMessageInputs,
@@ -181,5 +182,20 @@ describe('A380X FMA approach capability wording', () => {
     expect(getD1D2Lines(D1D2Messages.F_APP_RAW)).toEqual(['F-APP', '+RAW']);
     expect(getD1D2Lines(D1D2Messages.RAW_ONLY)).toEqual(['RAW', 'ONLY']);
     expect(getD1D2Lines(D1D2Messages.NONE)).toEqual(['', '']);
+  });
+});
+
+describe('A380X FMA manual takeoff thrust label', () => {
+  it('MAN DTO with a derated takeoff selected, MAN FLX without', () => {
+    expect(manualTakeoffThrustLabel(12)).toBe('DTO');
+    expect(manualTakeoffThrustLabel(4)).toBe('DTO');
+    expect(manualTakeoffThrustLabel(0)).toBe('FLX');
+  });
+
+  it('the FMA reads the selected derate for the MAN FLX message', () => {
+    const fma = readFileSync(resolve(__dirname, 'FMA.tsx'), 'utf-8');
+    const publisher = readFileSync(resolve(__dirname, 'shared/PFDSimvarPublisher.tsx'), 'utf-8');
+    expect(publisher).toContain("takeoffDerate = 'L:A32NX_AIRLINER_TO_DERATE'");
+    expect(fma).toContain('manualTakeoffThrustLabel(this.takeoffDerate.get())');
   });
 });
