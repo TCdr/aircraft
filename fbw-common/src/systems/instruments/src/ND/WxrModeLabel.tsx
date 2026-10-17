@@ -25,7 +25,7 @@ export interface WxrModeLabelProps {
 const LABELS = ['', 'WX', 'WX+T', 'TURB', 'MAP', 'WXR OFF'];
 /** Mode 1: the WX display function */
 const WX_MODE = 1;
-/** Mode 5: the radar is switched off, shown in white (A320 FCOM DSC-34-SURV-30-30, "WXR OFF (only in white)"). */
+/** Mode 5: the radar is switched off, WXR OFF shown in white. */
 const WXR_OFF_MODE = 5;
 /** ELEVN/TILT option list values (A380X SURV / CONTROLS page) */
 const ELEVN_MODE = 1;

@@ -17,11 +17,10 @@ static bool configureRadarView(FsContext ctx,
   if (id == 0) {
     return false;
   }
-  // CONFIRMED (in-sim, 2026-09-18): fsMapViewSetVisibility is NOT an
-  // independent "base layer only" toggle - it's a master switch for the whole
-  // map view, weather radar included. Setting it false left the render target
-  // with no real content, and our own draw call painted that as a solid white
-  // square instead of weather. Keep it true whenever the view is drawn.
+  // Measured in the sim: fsMapViewSetVisibility is NOT a "base layer only" toggle but a
+  // master switch for the whole map view, weather radar included. Set false, the render
+  // target held no content and drew as a solid white square. Keep it true whenever the
+  // view is drawn.
   fsMapViewSetVisibility(ctx, id, true);
 #ifdef A380X
   // The A380X's ND views switch between this and the terrain (an altitude view).
@@ -41,8 +40,8 @@ static bool configureRadarView(FsContext ctx,
   // the two independent MapViews - the image is briefly only partly built.
   // fsMapViewSetWeatherRadarScanRate changes that, but only exists in newer SDKs
   // than the build container's (it would need a hand-written extern "C"
-  // declaration, and a game without it would fail to load this module); in-sim
-  // 60 RPM was visibly far too fast.
+  // declaration, and a game without it would fail to load this module); measured
+  // in the sim, 60 RPM was visibly far too fast.
   // fsMapViewSetWeatherRadarStabilization is not called either: per the SDK docs
   // the beam is already stabilized in pitch and bank by default (it stays level
   // in turns), so there is nothing to set.
@@ -108,13 +107,11 @@ void drawWeatherRect(NVGcontext* vg,
   const float top = cy - pixelRadius;
   const float size = pixelRadius * 2.0f;
 
-  // CONFIRMED (in-sim): MSFS's native cone-angle clip cannot be trusted. It did
-  // not hold at ROSE_NAV's tighter zoom (2026-09-18: an unclipped, near-
-  // omnidirectional sweep), and later it stopped holding in ARC too (2026-09-19:
-  // weather behind the aircraft, showing through the TA ONLY box and the VD, with
-  // nothing changed on our side). So the draw is restricted to the top (forward)
-  // half of the bounding square - the aircraft is at its centre - via a plain
-  // rectangular nvgScissor, in both modes; simple/safe, scoped by nvgSave/nvgRestore.
+  // Measured in the sim: MSFS's native cone-angle clip cannot be trusted. It did not
+  // hold at ROSE NAV's tighter zoom (a near-omnidirectional sweep), nor at times in ARC
+  // (weather behind the aircraft, through the TA ONLY box and the VD). So the draw is
+  // restricted to the forward half of the bounding square (the aircraft is at its
+  // centre) by a rectangular scissor, in both modes.
   nvgSave(vg);
   nvgScissor(vg, left, top, size, isRose ? pixelRadius : kArcClipBottom - top);
 
@@ -131,7 +128,7 @@ void drawWeatherRect(NVGcontext* vg,
   // The area a textured pass covers: the compass disk (the display's range circle) or a
   // smaller circle, cut down to the sector swept so far. Always a circle, never the whole
   // rect (a view that paints the corners of its texture would show as weather outside the
-  // compass arc, as the former top view did in-sim, 2026-09-22).
+  // compass arc, as a TOP VIEW radar view did in the sim).
   auto area = [&]() {
     const float radius = pixelRadius * std::fmin(rangeFraction, 1.0f);
     if (!isRose) {
