@@ -148,8 +148,8 @@ export const A380Failure = Object.freeze({
   EnginePump4AOHeat: 29016,
   EnginePump4BOHeat: 29017,
 
-  // The 8 display units of the CDS (A380 FCOM DSC-31-15-10, a380_fcom.txt:62972-62980): the DU goes blank and the FWS
-  // raises CDS ... DU FAULT (see shared/src/CdsDisplayUnits.ts)
+  // The 8 display units of the CDS: the DU goes blank and the FWS raises CDS ... DU FAULT (see
+  // shared/src/CdsDisplayUnits.ts)
   CaptPfdDisplayUnit: 31000,
   CaptNdDisplayUnit: 31001,
   CaptMfdDisplayUnit: 31002,

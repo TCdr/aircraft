@@ -85,9 +85,9 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
-  // CDS CAPT PFD(CAPT ND)(CAPT MFD)(EWD)(SD)(F/O PFD)(F/O ND)(F/O MFD) DU FAULT (A380 FCOM PRO-ABN-ECAM-10-31,
-  // a380_fcom.txt:157885-157950), the branch "if monitoring function on affected DU is not detected faulty": the DU
-  // is switched off for 5 s then on, and off if that is not successful. The DU RECONF pb is not simulated yet.
+  // CDS CAPT PFD(CAPT ND)(CAPT MFD)(EWD)(SD)(F/O PFD)(F/O ND)(F/O MFD) DU FAULT, the branch "if monitoring function on
+  // affected DU is not detected faulty": the DU is switched off for 5 s then on, and off if that is not successful. The
+  // DU RECONF pb is not simulated yet.
   311800013: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT PFD DU FAULT',
     sensed: true,

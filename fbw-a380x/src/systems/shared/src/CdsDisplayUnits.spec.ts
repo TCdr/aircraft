@@ -15,7 +15,7 @@ import {
 } from './CdsDisplayUnits';
 import { DcElectricalBus } from './electrical';
 
-/** The FCOM name of each DU (A380 FCOM DSC-31-15-10, a380_fcom.txt:62972-62980) */
+/** The cockpit name of each DU */
 const FCOM_NAME: Record<DisplayUnitID, string> = {
   [DisplayUnitID.CaptPfd]: 'CAPT PFD',
   [DisplayUnitID.CaptNd]: 'CAPT ND',
@@ -27,8 +27,8 @@ const FCOM_NAME: Record<DisplayUnitID, string> = {
   [DisplayUnitID.FoPfd]: 'F/O PFD',
 };
 
-describe('CDS display units (A380 FCOM DSC-31-15)', () => {
-  it('lists the 8 DUs of the FCOM, each once', () => {
+describe('CDS display units', () => {
+  it('lists the 8 DUs, each once', () => {
     expect(ALL_DISPLAY_UNITS.map((du) => FCOM_NAME[du])).toEqual([
       'CAPT PFD',
       'CAPT ND',
@@ -70,7 +70,7 @@ describe('CDS display units (A380 FCOM DSC-31-15)', () => {
     }
   });
 
-  it('powers each DU from its FCOM supply, either busbar being enough (DSC-31-15-95, a380_fcom.txt:63286-63297)', () => {
+  it('powers each DU from its supply, either busbar being enough', () => {
     const only =
       (...powered: DcElectricalBus[]) =>
       (bus: DcElectricalBus) =>
@@ -89,7 +89,7 @@ describe('CDS display units (A380 FCOM DSC-31-15)', () => {
     expect(poweredDus(only())).toEqual([]);
   });
 
-  it('triggers CDS ... DU FAULT for a failed DU that is powered (PRO-ABN-ECAM-10-31, a380_fcom.txt:157893)', () => {
+  it('triggers CDS... DU FAULT for a failed DU that is powered', () => {
     expect(isDisplayUnitFaultTriggered(true, true)).toBe(true);
     expect(isDisplayUnitFaultTriggered(true, false)).toBe(false);
     expect(isDisplayUnitFaultTriggered(false, true)).toBe(false);

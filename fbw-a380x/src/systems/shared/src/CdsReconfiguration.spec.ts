@@ -50,7 +50,7 @@ function changes(displays: DisplayUnitMap<CdsDisplay>): Partial<DisplayUnitMap<C
   return result;
 }
 
-describe('CDS reconfiguration (A380 FCOM DSC-31-15-20)', () => {
+describe('CDS reconfiguration', () => {
   it('shows every display on its own DU in normal operation, all L:vars 0', () => {
     const displays = computeCdsDisplays({ operative: ALL_OPERATIVE, pfdNdSwapped: NOT_SWAPPED, manual: {} });
     expect(changes(displays)).toEqual({});
@@ -114,7 +114,7 @@ describe('CDS reconfiguration (A380 FCOM DSC-31-15-20)', () => {
     expect(encodeDisplay(DisplayUnitID.Sd, CdsDisplay.Sd)).toBe(0);
   });
 
-  it('follows the FCOM capability table for the DU RECONF sequences', () => {
+  it('follows the capability table for the DU RECONF sequences', () => {
     expect(DU_RECONF_SEQUENCE[DisplayUnitID.CaptPfd]).toEqual([CdsDisplay.Pfd, CdsDisplay.Nd, CdsDisplay.Mfd]);
     expect(DU_RECONF_SEQUENCE[DisplayUnitID.FoNd]).toEqual([
       CdsDisplay.Nd,

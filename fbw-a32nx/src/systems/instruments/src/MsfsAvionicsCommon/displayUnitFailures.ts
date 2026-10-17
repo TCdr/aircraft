@@ -6,9 +6,8 @@ import { A320Failure } from '@failures';
 /*
  * Which flyPad failure blanks which A32NX display unit (DU).
  *
- * A failed DU shows a blank screen (A320 FCOM DSC-31-05-60 "FAILURE OF A DU": a blank screen with an amber "F",
- * a distorted display or a blank screen with "INVALID DISPLAY UNIT"), drawn here as the DU's OFF state, like the
- * PFD already does.
+ * A failed DU shows a blank screen (on the aircraft: blank with an amber "F", distorted, or blank with
+ * "INVALID DISPLAY UNIT"), drawn here as the DU's OFF state, like the PFD already does.
  *
  * The CAPT/F/O PFD and ND gauges are told apart by their panel.cfg `Index` (1 = CAPT, 2 = F/O).
  */

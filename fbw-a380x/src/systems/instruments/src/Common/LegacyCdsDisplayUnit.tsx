@@ -65,7 +65,6 @@ function BacklightBleed(props) {
 
 export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<DisplayUnitProps>>(
   ({ displayUnitId, hostDisplayUnitId, failed: failedProp, hideBootTestScreens, children }, ref) => {
-    /** The DU this display is drawn on */
     const physicalDisplayUnit = hostDisplayUnitId ?? displayUnitId;
     // The DU's own flyPad failure, published by the FSComponent instrument of the same DU (CdsDisplayUnit; for the SD,
     // SDv2 shares the DU with this legacy SD; for a hosted gauge, the DU's own gauge)

@@ -13,8 +13,8 @@ type DisplayUnitProps = {
   normDmc: number;
   failed?: boolean;
   /**
-   * Whether the DMC shows the SD on another DU that is available (DU reconfiguration, A320 FCOM DSC-31-05-60): the SD is
-   * then drawn whatever the state of the lower ECAM DU (no self-test of its own there, design choice).
+   * Whether the DMC shows the SD on another DU that is available (DU reconfiguration): the SD is then drawn whatever
+   * the state of the lower ECAM DU (Design choice: no self-test of its own there).
    */
   shownOnOtherDu?: boolean;
 };

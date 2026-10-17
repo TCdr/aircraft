@@ -7,11 +7,10 @@ import '../MsfsAvionicsCommon/common.scss';
 import './style.scss';
 
 /**
- * The "ECAM ON ND" message picture (A320 FCOM DSC-31-30, l.46862-46863): the lower ECAM DU shows it while the ECAM/ND
- * XFR selector puts the SD on an ND. A static picture on its own texture (DU_MESSAGE): the cockpit model shows it on the
- * lower ECAM DU glass while the DMC logic says so (L:A32NX_EIS_DU_LOWER_ECAM_PICTURE, see
- * shared/src/DisplayReconfiguration.ts). Design choice: drawn like the other DU messages (SELF TEST IN PROGRESS), the
- * FCOM gives no colour.
+ * The "ECAM ON ND" message picture: the lower ECAM DU shows it while the ECAM/ND XFR selector puts the SD on an ND.
+ * A static picture on its own texture (DU_MESSAGE): the cockpit model shows it on the lower ECAM DU glass while the DMC
+ * logic says so (L:A32NX_EIS_DU_LOWER_ECAM_PICTURE, see shared/src/DisplayReconfiguration.ts). Design choice: drawn
+ * like the other DU messages (SELF TEST IN PROGRESS), as no colour is documented.
  */
 // eslint-disable-next-line camelcase
 class A32NX_DuMessage extends BaseInstrument {

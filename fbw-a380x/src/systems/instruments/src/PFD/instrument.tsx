@@ -88,7 +88,7 @@ class A380X_PFD extends BaseInstrument {
 
   /**
    * The run gate when this gauge is the PFD drawn on the ND DU (CDS reconfiguration, panel.cfg hostDu): it starts and
-   * runs only while the PFD is shown there. Null for the PFD DU's own gauge. Made in connectedCallback, see there.
+   * runs only while the PFD is shown there. Null for the PFD DU's own gauge. Made in connectedCallback.
    */
   private hostedGate: HostedDisplayGate | null = null;
 
@@ -136,15 +136,12 @@ class A380X_PFD extends BaseInstrument {
   public connectedCallback(): void {
     super.connectedCallback();
 
-    // The side of the PFD: 1 for the CAPT PFD (duID 0), 2 for the F/O PFD (duID 3), also when drawn on an ND DU. Known
-    // only from here on (see below). The constructor read the duID digit itself (0 or 3, never 1) before the gauge had
-    // its URL: both PFDs read the F/O side's FMS data.
+    // The side of the PFD comes from the gauge URL, which the gauge only has from here on, not in its constructor.
     this.fmsDataSide.set(getDisplayIndex() === 1 ? 'L' : 'R');
 
     // Whether this gauge is a hosted one comes from its panel.cfg URL, known only from here on: the sim creates the
-    // gauge element (this constructor) before it gives it its url attribute and puts it into the panel. Read in the
-    // constructor, the hosted PFD found no PFD gauge URL, took the ND's (no hostDu) and ran as the PFD DU's own gauge on
-    // the ND DUs, never hidden.
+    // gauge element (this constructor) before it gives it its url attribute and puts it into the panel. Read too early,
+    // the hosted PFD would take the ND's URL (no hostDu) and run, never hidden, as the PFD DU's own gauge.
     const hostDisplayUnit = hostDisplayUnitOf('PFD');
     this.hostedGate =
       hostDisplayUnit === null

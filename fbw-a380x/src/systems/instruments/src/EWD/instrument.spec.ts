@@ -46,8 +46,7 @@ describe('A380X EWD gauge', () => {
   });
 
   it('keeps the hosted EWD on the SD DU hidden and not started while the SD DU shows the SD', () => {
-    // panel.cfg [VCockpit04]: the SD's own gauges, then the hosted EWD (2026-10-10 sim diagnostic: its EWD_CONTENT had
-    // no display set, the gate never ran its hide step)
+    // panel.cfg [VCockpit04]: the SD's own gauges, then the hosted EWD
     const panel = createPanel([
       ['a380x-sd', `${A380X_GAUGE_URL_PREFIX}SD/sd.html?duID=7`],
       ['a380x-sdv2', `${A380X_GAUGE_URL_PREFIX}SDv2/sdv2.html?duID=7`],

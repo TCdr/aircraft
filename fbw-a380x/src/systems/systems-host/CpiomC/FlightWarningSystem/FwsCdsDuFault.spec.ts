@@ -10,8 +10,7 @@ import { FwsInopSys } from './FwsInopSys';
 import { FwsCore } from './FwsCore';
 
 /*
- * CDS CAPT PFD(CAPT ND)(CAPT MFD)(EWD)(SD)(F/O PFD)(F/O ND)(F/O MFD) DU FAULT (A380 FCOM PRO-ABN-ECAM-10-31,
- * a380_fcom.txt:157885-157978).
+ * CDS CAPT PFD(CAPT ND)(CAPT MFD)(EWD)(SD)(F/O PFD)(F/O ND)(F/O MFD) DU FAULT.
  *
  * The EcamMessages tables and FwsAbnormalSensed are read from the source text: importing EcamMessages/index.ts in a test
  * fails (circular import, see FwsElecAlertsStatus.spec.ts), and FwsAbnormalSensed imports it.
@@ -33,7 +32,7 @@ const ALERTS: [string, string, DisplayUnitID][] = [
   ['311800020', 'F/O MFD', DisplayUnitID.FoMfd],
 ];
 
-/** The INOP SYS id, text and DU of each line of the STATUS (l.157972-157978, in the FCOM order; none for the SD DU) */
+/** The INOP SYS id, text and DU of each line of the STATUS (in the aircraft order; none for the SD DU) */
 const INOP_SYS: [string, string, DisplayUnitID][] = [
   ['310300005', 'EWD DU', DisplayUnitID.Ewd],
   ['310300006', 'CAPT PFD DU', DisplayUnitID.CaptPfd],
@@ -77,21 +76,21 @@ function fakeFws(): { fws: FwsCore; displayUnitFault: Record<DisplayUnitID, Subj
   return { fws, displayUnitFault };
 }
 
-describe('CDS ... DU FAULT (A380 FCOM PRO-ABN-ECAM-10-31)', () => {
-  it('has one ECAM procedure per DU: OFF 5 S THEN ON, IF NOT SUCCESSFUL OFF, DU RECONF P/B AVAIL (l.157930-157950)', () => {
+describe('CDS ... DU FAULT', () => {
+  it('has one ECAM procedure per DU: OFF 5 S THEN ON, IF NOT SUCCESSFUL OFF, DU RECONF P/B AVAIL', () => {
     for (const [id, name] of ALERTS) {
       const procedure = entry(ata31Procedures, id, '  ');
       expect(procedure, id).toContain(`CDS\\x1bm ${name} DU FAULT'`);
       const names = [...procedure.matchAll(/name: '([^']*)'/g)].map((m) => m[1]);
       const expected = [`${name} DU`, 'NOT SUCCESSFUL', `${name} DU`, 'DU RECONF P/B AVAIL'];
       if (name === 'SD') {
-        expected.push('IF SD DU OFF : F/O DU RECONF P/B FOR ATC MAILBOX'); // l.157950
+        expected.push('IF SD DU OFF : F/O DU RECONF P/B FOR ATC MAILBOX');
       }
       expect(names, id).toEqual(expected);
     }
   });
 
-  it('raises each alert from its DU fault, as a caution (SC, MASTER CAUT) inhibited in phases 3-7, 9, 10 (PDF p. 5386)', () => {
+  it('raises each alert from its DU fault, as a caution (SC, MASTER CAUT) inhibited in phases 3-7, 9, 10', () => {
     for (const [id, , du] of ALERTS) {
       const alert = entry(abnormalSensed, id, '    ');
       expect(alert, id).toContain(`simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.${DisplayUnitID[du]}],`);
@@ -100,7 +99,7 @@ describe('CDS ... DU FAULT (A380 FCOM PRO-ABN-ECAM-10-31)', () => {
     }
   });
 
-  it('has the INOP SYS lines of the STATUS (l.157972-157978)', () => {
+  it('has the INOP SYS lines of the STATUS', () => {
     for (const [id, text] of INOP_SYS) {
       expect(ecamMessages, id).toContain(`  ${id}: '\\x1b<4m${text}',`);
     }
@@ -114,7 +113,7 @@ describe('CDS ... DU FAULT (A380 FCOM PRO-ABN-ECAM-10-31)', () => {
     expect(activeLines()).toEqual([]);
     displayUnitFault[DisplayUnitID.CaptPfd].set(true);
     expect(activeLines()).toEqual(['CAPT PFD DU']);
-    displayUnitFault[DisplayUnitID.Sd].set(true); // no INOP SYS line for the SD DU in the FCOM
+    displayUnitFault[DisplayUnitID.Sd].set(true); // the SD DU has no INOP SYS line
     expect(activeLines()).toEqual(['CAPT PFD DU']);
     for (const du of ALL_DISPLAY_UNITS) {
       displayUnitFault[du].set(true);

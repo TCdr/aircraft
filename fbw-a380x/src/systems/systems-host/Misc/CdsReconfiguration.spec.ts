@@ -21,7 +21,7 @@ const COCKPIT_BEHAVIOUR = join(
 /** The sim variables of a test: DU supplies and brightness knobs on unless set */
 const simVars = new Map<string, number | boolean>();
 
-describe('CDS reconfiguration in the systems host (A380 FCOM DSC-31-15-20)', () => {
+describe('CDS reconfiguration in the systems host', () => {
   const activeFailures = new Set<number>();
   let bus: EventBus;
   let host: CdsReconfiguration;

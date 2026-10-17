@@ -39,8 +39,7 @@ class A380X_EWD extends BaseInstrument {
 
   /**
    * The run gate when this gauge is the EWD drawn on the SD DU or an ND DU (CDS reconfiguration, panel.cfg hostDu): it
-   * starts and runs only while the EWD is shown there. Null for the EWD DU's own gauge. Made in connectedCallback, see
-   * there.
+   * starts and runs only while the EWD is shown there. Null for the EWD DU's own gauge. Made in connectedCallback.
    */
   private hostedGate: HostedDisplayGate | null = null;
 
@@ -68,9 +67,8 @@ class A380X_EWD extends BaseInstrument {
     super.connectedCallback();
 
     // Whether this gauge is a hosted one comes from its panel.cfg URL, known only from here on: the sim creates the
-    // gauge element (this constructor) before it gives it its url attribute and puts it into the panel. Read in the
-    // constructor, the hosted EWD found no EWD gauge URL, took the SD's (no hostDu) and ran as the EWD DU's own gauge on
-    // the SD and ND DUs, never hidden (2026-10-10 sim diagnostic: EWD_CONTENT display never set).
+    // gauge element (this constructor) before it gives it its url attribute and puts it into the panel. Read too early,
+    // the hosted EWD would take the SD's URL (no hostDu) and run, never hidden, as the EWD DU's own gauge.
     const hostDisplayUnit = hostDisplayUnitOf('EWD');
     this.hostedGate =
       hostDisplayUnit === null

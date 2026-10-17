@@ -3,18 +3,13 @@
 
 /*
  * The display units (DUs) of the A380 Control and Display System (CDS) and their failures.
- *
- * Source: A380 FCOM DSC-31-15 "CDS" and PRO-ABN-ECAM-10-31 "CDS ... DU FAULT" (KAL fleet). Line numbers refer to the
- * text copy references/manuals/a380_fcom.txt; the audio, master light and flight phase inhibition of the alert are
- * figures, read from the PDF (airbus-a380-fcom_compress.pdf p. 5386).
  */
 
 import { A380Failure } from '@failures';
 import { DcElectricalBus } from './electrical';
 
 /**
- * The 8 DUs of the CDS: "The 8 DUs are: the CAPT PFD, the CAPT ND, the CAPT MFD, the E/WD, the SD, the F/O MFD, the
- * F/O ND, the F/O PFD" (FCOM DSC-31-15-10, a380_fcom.txt:62972-62980). The values are the duID of panel.cfg.
+ * The 8 DUs of the CDS. The values are the duID of panel.cfg.
  */
 export enum DisplayUnitID {
   CaptPfd,
@@ -27,7 +22,7 @@ export enum DisplayUnitID {
   Sd,
 }
 
-/** Every DU, in the order of the FCOM list */
+/** Every DU: captain side, then the centre DUs, then the F/O side */
 export const ALL_DISPLAY_UNITS: readonly DisplayUnitID[] = [
   DisplayUnitID.CaptPfd,
   DisplayUnitID.CaptNd,
@@ -52,9 +47,7 @@ export const DisplayUnitFailure: Readonly<Record<DisplayUnitID, number>> = {
 };
 
 /**
- * The DC busbars that supply each DU; the DU is on while either is powered (FCOM DSC-31-15-95, a380_fcom.txt:63286-63297:
- * CAPT PFD DC ESS, CAPT ND and CAPT MFD DC ESS / DC 1, F/O PFD DC 2, F/O ND and F/O MFD DC 1 / DC 2, EWD DC ESS, SD DC 2).
- * A DU with a single supply lists it twice.
+ * The DC busbars that supply each DU; the DU is on while either is powered. A DU with a single supply lists it twice.
  */
 export const DisplayUnitToDCBus: Readonly<Record<DisplayUnitID, readonly [DcElectricalBus, DcElectricalBus]>> = {
   [DisplayUnitID.CaptPfd]: [DcElectricalBus.DcEssInFlight, DcElectricalBus.DcEssInFlight], // powered by 409PP
@@ -112,8 +105,8 @@ export function isDisplayUnitPowered(du: DisplayUnitID, isBusPowered: (bus: DcEl
 
 /**
  * The triggering condition of the CDS CAPT PFD(CAPT ND)(CAPT MFD)(EWD)(SD)(F/O PFD)(F/O ND)(F/O MFD) DU FAULT alert:
- * "The DU is failed" (FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt:157885-157893). The second condition of the FCOM (a DU that
- * declared two other DUs faulty in turn) needs the DU monitoring loops, which are not simulated.
+ * the DU is failed. The aircraft's second condition (a DU that declared two other DUs faulty in turn) needs the DU
+ * monitoring loops, which are not simulated.
  * Design choice: only while the DU is powered. An unpowered DU is blank too, but the lost busbar has its own ELEC alert.
  * @param failed the DU failure is active
  * @param powered the DU is powered (isDisplayUnitPowered)

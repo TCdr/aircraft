@@ -539,7 +539,7 @@ export const EcamInopSys: { [n: string]: string } = {
   310300001: '\x1b<4mAUTO CALLOUT',
   310300002: '\x1b<4mFWS 1',
   310300003: '\x1b<4mFWS 2',
-  // CDS ... DU FAULT STATUS, INOP SYS ALL PHASES (A380 FCOM PRO-ABN-ECAM-10-31, l.157972-157978; no SD DU line)
+  // CDS... DU FAULT STATUS, INOP SYS ALL PHASES (no SD DU line)
   310300005: '\x1b<4mEWD DU',
   310300006: '\x1b<4mCAPT PFD DU',
   310300007: '\x1b<4mF/O PFD DU',

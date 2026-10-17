@@ -145,8 +145,8 @@ bool isDisplayUnitOn(const Instance& instance) {
 
 // Whether the ND under this gauge shows its picture, so the weather and terrain may be drawn on it.
 // A32NX: nd.html also reports its display unit's state (A32NX_ND_x_DU_SHOWING_PICTURE, 1 while the DU is ON):
-// a DU that is switched off, self-testing or failed from the flyPad (A320 FCOM DSC-31-05-60, failure of a DU:
-// blank screen) shows no weather or terrain either.
+// a DU that is switched off, self-testing or failed from the flyPad (a failed DU is blank) shows no weather or
+// terrain either.
 bool ndPictureShown(const Instance& instance) {
 #ifdef A380X
   return isDisplayUnitOn(instance);
