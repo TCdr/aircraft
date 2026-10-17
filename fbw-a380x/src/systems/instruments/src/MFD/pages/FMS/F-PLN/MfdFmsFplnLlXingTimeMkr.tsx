@@ -25,7 +25,7 @@ import './MfdFmsFplnLlXingTimeMkr.scss';
 
 interface MfdFmsFplnLlXingTimeMkrProps extends AbstractMfdPageProps {}
 
-/** FCOM: up to 4 time markers */
+/** Up to 4 time markers */
 const maxTimeMarkers = 4;
 
 const secondsPerDay = 86_400;
@@ -48,7 +48,7 @@ interface StartWaypoint {
 }
 
 /**
- * LL XING - TIME MKR page (A380 FCOM DSC-22-FMS-20-30 P 209-214): computes the crossings of the flight plan with a
+ * LL XING - TIME MKR page: computes the crossings of the flight plan with a
  * series of latitudes (or longitudes) after a start waypoint and inserts them as waypoints in the temporary flight
  * plan, and defines up to 4 time markers (UTC or remaining time).
  *
@@ -61,7 +61,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
 
   private readonly selectedStart = Subject.create<number | null>(null);
 
-  /** 0 = LAT, 1 = LONG (FCOM: latitude by default) */
+  /** 0 = LAT, 1 = LONG (latitude by default) */
   private readonly crossingType = Subject.create<number | null>(0);
 
   private readonly originLatitude = Subject.create<number | null>(null);
@@ -84,14 +84,14 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
     this.number,
   );
 
-  /** FCOM: the time markers are only displayed for the active flight plan */
+  /** The time markers are only displayed for the active flight plan */
   private readonly timeMarkerVisibility = this.loadedFlightPlanIndex.map((i) =>
     i === FlightPlanIndex.Active ? 'inherit' : 'hidden',
   );
 
   private readonly remainingTimes = timeMarkers.map(() => Subject.create<number | null>(null));
 
-  /** FCOM figure: a new empty time marker line appears once the previous one is defined */
+  /** A new empty time marker line appears once the previous one is defined */
   private readonly markerRowVisibility = timeMarkers.map((_, i) =>
     MappedSubject.create(
       (utcs) => (i === 0 || utcs[i - 1] !== null || utcs[i] !== null ? 'inherit' : 'hidden'),
@@ -99,7 +99,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
     ),
   );
 
-  /** The AURAL checkboxes are plain divs (FSComponent sets an onClick prop as a string attribute): clicks are wired after render */
+  /** AURAL checkboxes are plain divs, FSComponent sets an onClick prop as a string attribute: wired after render */
   private readonly auralCheckboxRefs = timeMarkers.map(() => FSComponent.createRef<HTMLDivElement>());
 
   private readonly auralClickHandlers = timeMarkers.map((marker) => () => marker.aural.set(!marker.aural.get()));
@@ -138,7 +138,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
     if (!plan) {
       return;
     }
-    // FCOM: the start waypoint is between the origin and the last enroute waypoint (excluded)
+    // The start waypoint is between the origin and the last enroute waypoint (excluded)
     const candidates: StartWaypoint[] = [];
     for (let i = Math.max(0, plan.activeLegIndex - 1); i < plan.firstMissedApproachLegIndex; i++) {
       const leg = plan.maybeElementAt(i);
@@ -161,7 +161,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
   }
 
   /**
-   * FCOM: the default origin is the rounded latitude (or longitude) of the flight plan waypoint following the first
+   * The default origin is the rounded latitude (or longitude) of the flight plan waypoint following the first
    * waypoint of the start waypoint list (or of that first waypoint when there is none)
    */
   private updateDefaultOrigin(): void {
@@ -232,7 +232,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
     return result;
   }
 
-  /** INSERT AS WPT: inserts the crossings as waypoints in the temporary flight plan (FCOM P 212) */
+  /** INSERT AS WPT: inserts the crossings as waypoints in the temporary flight plan */
   private async insertCrossings(): Promise<void> {
     const plan = this.loadedFlightPlan;
     const startIndex = this.selectedStart.get();
@@ -353,7 +353,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
       <>
         {super.render()}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 209), page container coordinates */}
+          {/* Positions measured on the reference figure of the page, in page container coordinates */}
           <div class="mfd-fcom-canvas">
             {fcomAt(25, 2, <span class="mfd-label">LAT/LONG XING</span>)}
             {fcomAt(83, 20, <span class="mfd-label">START WPT</span>)}
@@ -364,7 +364,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_llXingStartWpt`}
                 selectedIndex={this.selectedStart}
                 values={this.startWaypointIdents}
-                keyboardEntryAllowed // FCOM START WAYPOINT ENTRY FIELD AND LIST: selected in the list or entered with the keyboard
+                keyboardEntryAllowed // START WAYPOINT LIST: selected in the list or entered with the keyboard
                 errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
                 onModified={(i, text) => {
                   const index = dropdownEntryIndex(this.startWaypointIdents, i, text);
@@ -481,7 +481,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
               {timeMarkers.map((_, i) => this.renderTimeMarker(i))}
             </div>
 
-            {/* FCOM: RETURN (displays the F-PLN page) when no temporary flight plan exists */}
+            {/* RETURN (displays the F-PLN page) when no temporary flight plan exists */}
             {fcomAt(
               792,
               3,

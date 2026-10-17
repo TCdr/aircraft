@@ -18,7 +18,7 @@ import { A320251NLandingCalculator } from './a32nx_landing';
 
 const calculator = new A320251NLandingCalculator();
 
-/** The first example of the A320 FCOM (PER-LDG-DIS-RLD P 3): CONF FULL, 58 t, dry, 2000 ft, VLS, 5 kt tailwind, ISA */
+/** The first worked example of the dispatch data: CONF FULL, 58 t, dry, 2000 ft, VLS, 5 kt tailwind, ISA */
 const EXAMPLE: LandingPerformanceInputs = {
   type: LandingComputationType.Dispatch,
   weight: 58_000,
@@ -44,7 +44,7 @@ const EXAMPLE: LandingPerformanceInputs = {
 };
 
 describe('A320 landing performance', () => {
-  it('computes the required landing distance of the FCOM example', () => {
+  it('computes the required landing distance of the published example', () => {
     // RLD (DRY, 2000 ft, VLS, 5 kt TW) = 1330 + 2 x 60 + 150
     const result = calculator.calculateLandingPerformance(EXAMPLE);
     expect(result.error).toBe(LandingPerformanceError.None);
@@ -53,7 +53,7 @@ describe('A320 landing performance', () => {
   });
 
   it('keeps the wet runway distance on a contaminated runway when it is longer (EU-OPS)', () => {
-    // Second FCOM example: standing water, 2000 ft, no wind, all reversers: 1700 + 2 x 130 - 2 x 80 = 1800 m,
+    // Second published example: standing water, 2000 ft, no wind, all reversers: 1700 + 2 x 130 - 2 x 80 = 1800 m,
     // longer than the wet one, 1530 + 2 x 70 = 1670 m
     const water = calculator.calculateLandingPerformance({
       ...EXAMPLE,
@@ -74,7 +74,7 @@ describe('A320 landing performance', () => {
     expect(snow.landingDistance).toBeCloseTo(1670, 0);
   });
 
-  it('gives the in-flight landing distances of the QRH, with the 15 % margin', () => {
+  it('gives the in-flight landing distances, with the 15 % margin', () => {
     const result = calculator.calculateLandingPerformance({
       ...EXAMPLE,
       type: LandingComputationType.InFlight,
@@ -88,7 +88,7 @@ describe('A320 landing performance', () => {
     expect(result.brakingDistances.map((d) => d.distance)).toEqual([1060, 1330, 1860]);
   });
 
-  it('gives reverser credit only where the QRH has a correction', () => {
+  it('gives reverser credit only where the in-flight data has a correction', () => {
     const type = LandingComputationType.InFlight;
     const manual = LandingBrakingMode.Manual;
     expect(calculator.reverseThrustAvailable(type, LandingRunwayCondition.Dry, LandingConf.Full, manual)).toBe(false);
@@ -122,7 +122,7 @@ describe('A320 landing performance', () => {
     expect(short.limitation).toBe(LandingLimitation.Lda);
   });
 
-  describe('in-flight landing distance corrections (QRH, dry, MAX manual braking, CONF FULL: 1060 m at 68 t)', () => {
+  describe('in-flight landing distance corrections (dry, MAX manual braking, CONF FULL: 1060 m at 68 t)', () => {
     const IN_FLIGHT: LandingPerformanceInputs = {
       ...EXAMPLE,
       type: LandingComputationType.InFlight,
@@ -181,7 +181,7 @@ describe('A320 landing performance', () => {
     });
   });
 
-  describe('autoland (FCOM PER-LDG-DIS-RLA)', () => {
+  describe('autoland', () => {
     const conf3 = { ...EXAMPLE, conf: LandingConf.Conf3, headwind: 0 };
     const distance = (inputs: Partial<LandingPerformanceInputs>) =>
       calculator.calculateLandingPerformance({ ...EXAMPLE, ...inputs }).landingDistance!;
@@ -256,7 +256,7 @@ describe('A320 landing performance', () => {
     const conf3 = { ...EXAMPLE, type: LandingComputationType.InFlight, conf: LandingConf.Conf3, elevation: 0 };
     expect(calculator.calculateLandingPerformance({ ...conf3, reverseThrust: false }).reverseCredit).toBe(false);
     expect(calculator.calculateLandingPerformance({ ...conf3, reverseThrust: true }).reverseCredit).toBe(true);
-    // CONF FULL dry: no reverser correction in the QRH
+    // CONF FULL dry: no reverser correction in the in-flight data
     expect(
       calculator.calculateLandingPerformance({ ...conf3, conf: LandingConf.Full, reverseThrust: true }).reverseCredit,
     ).toBe(false);
@@ -271,7 +271,7 @@ describe('A320 landing performance', () => {
     );
   });
 
-  it('keeps the limits of the FCOM (LIM-12): OEW, MTOW, 9200 ft, 15 kt of tailwind, 2 % slope', () => {
+  it('keeps the aircraft limits: OEW, MTOW, 9200 ft, 15 kt of tailwind, 2 % slope', () => {
     const inFlight = { ...EXAMPLE, type: LandingComputationType.InFlight };
     const error = (inputs: Partial<LandingPerformanceInputs>) =>
       calculator.calculateLandingPerformance({ ...inFlight, ...inputs }).error;
@@ -288,7 +288,7 @@ describe('A320 landing performance', () => {
     expect(error({ oat: NaN })).toBe(LandingPerformanceError.InvalidData);
   });
 
-  it('allows 29 kt of crosswind on compacted snow at or below -15 °C, 25 kt above (PER-LDG-DIS-MAT)', () => {
+  it('allows 29 kt of crosswind on compacted snow at or below -15 °C, 25 kt above', () => {
     expect(calculator.crosswindLimit(LandingRunwayCondition.CompactedSnow, -15)).toBe(29);
     expect(calculator.crosswindLimit(LandingRunwayCondition.CompactedSnow, -14)).toBe(25);
     expect(calculator.crosswindLimit(LandingRunwayCondition.WetGrooved, 15)).toBe(38);

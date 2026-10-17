@@ -21,14 +21,14 @@ const KG_PER_LB = 0.45359237;
 const TROPOPAUSE = 36_089;
 /** The integration step, in feet */
 const STEP = 1000;
-/** The profile table has a point every 5000 ft (A380 FCOM PER-IFT-DES-DSR, table results) */
+/** The profile table has a point every 5000 ft, as the Airbus in-flight performance application */
 const TABLE_STEP = 5000;
 /** The FMS decelerates to the speed limit on a -1° path at idle thrust (IdleDescentStrategy.predictToSpeed) */
 const DECEL_PATH_ANGLE = -1;
 
 /**
- * Anti-ice corrections of the A320 FCOM descent table (PER-DES-STD, DESCENT - M.78/300KT/250KT): time, fuel and
- * distance with engine anti-ice, and with engine and wing (total) anti-ice. The performance model has no bleed.
+ * Anti-ice corrections of the A320 standard descent table (M.78/300KT/250KT): time, fuel and distance with engine
+ * anti-ice, and with engine and wing (total) anti-ice. The performance model has no bleed.
  */
 const ANTI_ICE_CORRECTIONS: Record<DescentAntiIce, { time: number; fuel: number; distance: number }> = {
   [DescentAntiIce.Off]: { time: 1, fuel: 1, distance: 1 },
@@ -37,7 +37,7 @@ const ANTI_ICE_CORRECTIONS: Record<DescentAntiIce, { time: number; fuel: number;
 };
 
 export interface DescentAircraftLimits {
-  /** The standard descent speed profile of the aircraft FCOM */
+  /** The standard descent speed profile of the aircraft */
   standardSchedule: DescentSpeedSchedule;
   mmo: number;
   vmo: number;
@@ -48,7 +48,7 @@ export interface DescentAircraftLimits {
 
 /**
  * The descent performance calculator of the flypad, after the DES module of the Airbus in-flight performance
- * application (A380 FCOM PER-IFT-DES): the descent from an initial to a target pressure altitude at idle thrust (or at
+ * application: the descent from an initial to a target pressure altitude at idle thrust (or at
  * a given rate of descent) along a MACH / SPD / SPD LIM speed schedule, with the fuel, time and distance, and the
  * profile every 5000 ft. It uses the flight and engine models of the FMS (the VNAV predictions of the aircraft), so its
  * results agree with the FMS descent predictions.
@@ -94,7 +94,7 @@ export class FmsDescentPerformanceCalculator implements DescentPerformanceCalcul
       return result;
     }
 
-    // EMERGENCY: MMO/VMO with the speed brakes (A380 FCOM PER-IFT-DES-EMG, PER-IFT-DES-DSD speed brakes)
+    // EMERGENCY: MMO/VMO with the speed brakes, as the Airbus in-flight performance application
     const emergency = inputs.type === DescentType.Emergency;
     const schedule: DescentSpeedSchedule = emergency
       ? { mach: this.mmo, cas: this.vmo, limitCas: this.vmo, limitAltitude: 0 }
@@ -111,6 +111,7 @@ export class FmsDescentPerformanceCalculator implements DescentPerformanceCalcul
     let time = 0;
     let distance = 0;
     let burned = 0;
+    const crossover = this.crossoverAltitude(schedule);
     let crossoverRecorded = false;
 
     const target = inputs.targetAltitude;
@@ -159,7 +160,6 @@ export class FmsDescentPerformanceCalculator implements DescentPerformanceCalcul
         time += decel.timeElapsed;
         distance += decel.distanceTraveled;
         burned += decel.fuelBurned;
-        // The deceleration ends at the speed limit altitude
         altitude = Math.max(target, schedule.limitAltitude);
         decelDone = true;
         push(decel, 'SPD LIM');
@@ -192,8 +192,6 @@ export class FmsDescentPerformanceCalculator implements DescentPerformanceCalcul
       const from = altitude;
       altitude = next;
 
-      // The crossover altitude: where the SPD gives the MACH
-      const crossover = this.crossoverAltitude(schedule);
       const atCrossover =
         !crossoverRecorded && crossover < from && crossover >= altitude && crossover < inputs.initialAltitude;
       if (atCrossover) {
@@ -275,7 +273,7 @@ export class FmsDescentPerformanceCalculator implements DescentPerformanceCalcul
     );
   }
 
-  /** A descent step at idle thrust, or at a given V/S (null when it needs less than idle thrust) */
+  /** A descent step at idle thrust, or at a given V/S (the idle step, marked idleLimited, when the V/S needs less) */
   private descentStep(
     from: number,
     to: number,

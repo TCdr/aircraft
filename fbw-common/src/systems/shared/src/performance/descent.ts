@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The descent types of the Airbus descent performance application (A380 FCOM PER-IFT-DES-DSD, descent type preset),
- * all engines operative.
+ * The descent types of the Airbus descent performance application, all engines operative.
  */
 export enum DescentType {
   /** The managed descent speeds of the FMS (ECON Mach / ECON IAS of the cost index), idle thrust */
@@ -16,7 +15,7 @@ export enum DescentType {
   Emergency = 'EMERGENCY',
 }
 
-/** A380 FCOM PER-IFT-DES-CDT: off, engine, total (engine and wing) */
+/** Off, engine, total (engine and wing) */
 export enum DescentAntiIce {
   Off = 'OFF',
   Engine = 'ENGINE',
@@ -24,7 +23,7 @@ export enum DescentAntiIce {
 }
 
 /**
- * The speed schedule of a descent (A380 FCOM PER-IFT-DES-STD, speed profile): MACH above the crossover altitude, SPD
+ * The speed schedule of a descent: MACH above the crossover altitude, SPD
  * below it down to the speed limit altitude, SPD LIM below it.
  */
 export interface DescentSpeedSchedule {
@@ -87,7 +86,7 @@ export enum DescentPerformanceError {
 
 /** The results that do not come from the aircraft performance model alone */
 export enum DescentPerformanceEstimate {
-  /** The anti-ice corrections are the ones of the A320 FCOM descent table (PER-DES-STD) */
+  /** The anti-ice corrections are the ones of the A320 descent table */
   AntiIce = 'ANTI_ICE',
 }
 
@@ -112,7 +111,7 @@ export interface DescentPerformanceResult {
 }
 
 export interface DescentPerformanceCalculator {
-  /** The standard descent speed profile of the aircraft FCOM */
+  /** The standard descent speed profile of the aircraft */
   readonly standardSchedule: DescentSpeedSchedule;
   readonly mmo: number;
   readonly vmo: number;

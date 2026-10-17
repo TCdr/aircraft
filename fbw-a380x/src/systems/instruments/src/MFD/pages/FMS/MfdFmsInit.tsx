@@ -106,8 +106,8 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
   private readonly cpnyRte = Subject.create<string | null>(null);
 
   /**
-   * FCOM DSC-22-FMS-20-30 INIT page, COMPANY ROUTE ENTRY FIELD: mandatory when no city pair is defined (the route
-   * defines it); not enterable outside PREFLIGHT (ACTIVE / INIT) or when a temporary flight plan is pending.
+   * COMPANY ROUTE field: mandatory when no city pair is defined (the route defines it); not enterable outside
+   * PREFLIGHT (ACTIVE / INIT) or when a temporary flight plan is pending.
    */
   private readonly cpnyRteDisabled = MappedSubject.create(
     ([tmpy, phase, fpIndex]) =>
@@ -120,9 +120,9 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
 
   /** The ROUTE SELECTION page lists the company routes of the FROM / TO city pair */
   /**
-   * FCOM DSC-22-FMS-20-30 P 199-200: the (ALTN) RTE SEL buttons always display the ROUTE SELECTION page; only the route
-   * entries are limited (company route: PREFLIGHT phase, alternate route: a primary destination, both: no temporary
-   * flight plan). Without a city pair the page shows no route.
+   * The (ALTN) RTE SEL buttons always display the ROUTE SELECTION page; only the route entries are limited (company
+   * route: PREFLIGHT phase, alternate route: a primary destination, both: no temporary flight plan). Without a city
+   * pair the page shows no route.
    */
   private readonly rteSelDisabled = this.cpnyRteDisabled.map((v) => v);
 
@@ -155,8 +155,8 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
   private readonly tripWind = Subject.create<number | null>(null);
 
   /**
-   * FCOM DSC-22-FMS-20-30 INIT page, TRIP WIND ENTRY FIELD: not enterable without a city pair; disabled with dashes
-   * once a climb, cruise or descent wind is entered on the WIND page.
+   * TRIP WIND field: not enterable without a city pair; disabled with dashes once a climb, cruise or descent wind is
+   * entered on the WIND page.
    */
   private readonly tripWindDisabled = MappedSubject.create(
     ([toIcao, fromIcao, fpHasWindEntries]) => !toIcao || !fromIcao || fpHasWindEntries,
@@ -172,7 +172,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
     this.mandatoryAndActiveFpln,
   );
 
-  /** FCOM DSC-22-FMS-20-30 INIT page: DEPARTURE is selectable only in PREFLIGHT, when an origin airport exists */
+  /** DEPARTURE is selectable only in PREFLIGHT, when an origin airport exists */
   private readonly departureButtonDisabled = MappedSubject.create(
     ([fromIcao, phase]) => !fromIcao || phase !== FmgcFlightPhase.Preflight,
     this.fromIcao,
@@ -398,7 +398,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
   }
 
   /**
-   * FCOM DSC-22-FMS-20-30 INIT page, COMPANY ROUTE ENTRY FIELD: a manual entry inserts the company route (pilot
+   * INIT page, COMPANY ROUTE ENTRY FIELD: a manual entry inserts the company route (pilot
    * stored, or navigation database via SimBridge), which re-initializes the flight plan and sets the FROM / TO city
    * pair; NOT IN DATABASE otherwise.
    */
@@ -481,7 +481,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
           {super.render()}
           {/* begin page content */}
           <div class="mfd-page-container">
-            {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 191), page container coordinates */}
+            {/* Positions measured on the reference figure of the page, in page container coordinates */}
             <div class="mfd-fcom-canvas">
               {fcomRight(34, 137, <span class="mfd-label">FLT NBR</span>)}
               {fcomAt(
@@ -620,7 +620,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
                   canBeCleared={false}
                   value={this.cpnyRte}
                   dataHandlerDuringValidation={(v) => this.onCompanyRouteEntered(v)}
-                  // FCOM: a CPNY RTE entry inserts the route again, even with the ident already shown
+                  // A CPNY RTE entry inserts the route again, even with the ident already shown
                   handleSameValueEntry
                   containerStyle="width: 209px;"
                   alignText="center"
@@ -904,7 +904,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
                   764,
                   589,
                   <Button
-                    // FCOM DSC-22-FMS-20-30 P 33: displays the COMPANY T.O DATA REQUEST page (active flight plan only)
+                    // Displays the COMPANY T.O DATA REQUEST page (active flight plan only)
                     disabled={this.secActive}
                     label={this.cpnyToButton.label}
                     onClick={() => this.props.mfd.uiService.navigateTo(this.cpnyToButton.target)}

@@ -23,7 +23,7 @@ import { showReturnButtonUriExtra } from '../../../shared/utils';
 
 interface MfdFmsDataStatusProps extends AbstractMfdPageProps {}
 
-/** FCOM DSC-22-FMS-20-30 P 98: the database list of the FMS P/N panel */
+/** The database list of the FMS P/N panel */
 const partNumberDatabases = [
   'FMS SOFTWARE',
   'NAV DATABASE',
@@ -76,8 +76,6 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
   private readonly isSwapConfirmVisible = Subject.create(false);
   private readonly isDeleteAllConfirmVisible = Subject.create(false);
 
-  // ---- FMS P/N panel (FCOM DSC-22-FMS-20-30 P 98-104) ----
-
   private readonly selectedDatabase = Subject.create<number | null>(PartNumberDatabase.FmsSoftware);
 
   /** Version of the FMS software (the aircraft build, read from its build information) */
@@ -87,7 +85,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
 
   /**
    * Part number of the selected database. The FMS software, the options configuration and the performance database
-   * are part of the aircraft build; there is no airline configuration (AMI) file, so it is DEFAULT (P 101); the
+   * are part of the aircraft build; there is no airline configuration (AMI) file, so it is DEFAULT; the
    * magnetic variation comes from the simulator.
    */
   private readonly selectedPartNumber = MappedSubject.create(
@@ -108,15 +106,15 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
     this.navDatabase,
   );
 
-  /** P 99: dashes when the FMC is not available */
+  /** Dashes when the FMC is not available */
   private readonly partNumbers = this.fmcInop.map((inop) =>
     MappedSubject.create(([isInop, pn]) => (isInop ? '-'.repeat(15) : pn), inop, this.selectedPartNumber),
   );
 
-  /** P 99: all part numbers in amber when at least two are different (all FMCs load the same build) */
+  /** All part numbers in amber when at least two are different (all FMCs load the same build) */
   private readonly partNumberAmber = this.partNumbers.map(() => Subject.create(false));
 
-  /** P 103-104: PRINT FMC-x OPC / AMI CONFIG, with the FMC that controls this MFD */
+  /** PRINT FMC-x OPC / AMI CONFIG, with the FMC that controls this MFD */
   private readonly printConfigLabel = this.selectedDatabase.map((d) =>
     d === PartNumberDatabase.OptionsConfig
       ? 'PRINT FMC-A\nOPC CONFIG'
@@ -125,7 +123,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
         : '',
   );
 
-  /** FCOM DSC-22-FMS-20-30 p.103: the RETURN button is only displayed when the page was accessed via the INIT page. */
+  /** The RETURN button is only displayed when the page was accessed via the INIT page. */
   private readonly showReturnButton = Subject.create(false);
 
   protected onNewData() {
@@ -142,7 +140,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
     this.updateStoredElements();
   }
 
-  /** Counts of the pilot stored elements: waypoints (DataManager), NAVAIDs, routes and runways (PilotStoredElements). */
+  /** Pilot stored element counts: waypoints (DataManager), NAVAIDs, routes and runways (PilotStoredElements) */
   private updateStoredElements(): void {
     const fmc = this.props.fmcService.master;
     const waypoints = fmc.getDataManager()?.numberOfStoredWaypoints() ?? 0;
@@ -157,7 +155,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
   }
 
   /**
-   * FCOM DSC-22-FMS-20-30 p.96: DELETE ALL (after confirmation) deletes all pilot stored elements; elements still used
+   * DELETE ALL (after confirmation) deletes all pilot stored elements; elements still used
    * by the FMS are not deleted and F-PLN ELEMENT RETAINED is displayed.
    */
   private async deleteAllStoredElements(): Promise<void> {
@@ -191,7 +189,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
     this.subs.push(
       this.props.mfd.uiService.activeUri.sub((val) => {
         const parts = (val.extra ?? '').split('/');
-        // FCOM DSC-22-FMS-20-30 p.93: the ACFT STATUS panel is displayed automatically (FMS power-up, FMC reset,
+        // The ACFT STATUS panel is displayed automatically (FMS power-up, FMC reset,
         // DONE phase) and via the INIT page's ACFT STATUS button; the FMS P/N panel only when explicitly requested.
         this.selectedPageIndex.set(parts.includes('fms-pn') ? 1 : 0);
         this.showReturnButton.set(parts.includes(showReturnButtonUriExtra));
@@ -235,7 +233,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
             {...fcomTabBar}
           >
             <TopTabNavigatorPage containerStyle="flex: 0 0 auto; box-sizing: border-box; height: 722px;">
-              {/* ACFT STATUS (FCOM DSC-22-FMS-20-30 P 91), positions in panel coordinates (display x - 21, display y - 198) */}
+              {/* ACFT STATUS, panel coordinates (display x - 21, display y - 198) */}
               <div class="mfd-fcom-canvas">
                 {fcomCentre(35, 354, <span class="mfd-value bigger">A380-800</span>)}
                 {fcomAt(118, 2, <span class="mfd-label">ENGINE</span>)}
@@ -334,7 +332,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
               </div>
             </TopTabNavigatorPage>
             <TopTabNavigatorPage containerStyle="flex: 0 0 auto; box-sizing: border-box; height: 722px;">
-              {/* FMS P/N (FCOM DSC-22-FMS-20-30 P 98-104), panel coordinates (display x - 21, display y - 198) */}
+              {/* FMS P/N, panel coordinates (display x - 21, display y - 198) */}
               <div class="mfd-fcom-canvas">
                 {fcomAt(
                   40,
@@ -343,7 +341,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
                     idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataStatusDatabaseList`}
                     selectedIndex={this.selectedDatabase}
                     values={ArraySubject.create([...partNumberDatabases])}
-                    freeTextAllowed={false} // FCOM DATABASE LIST: selected in the list only
+                    freeTextAllowed={false} // DATABASE LIST: selected in the list only
                     containerStyle="width: 330px;"
                     alignLabels="flex-start"
                     numberOfDigitsForInputField={18}
@@ -387,7 +385,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
                   </>
                 ))}
                 {fcomLine(338, -10, 734)}
-                {/* P 103-104: print the OPC / AMI content of the FMC that controls this MFD (no cockpit printer) */}
+                {/* Print the OPC / AMI content of the FMC that controls this MFD (no cockpit printer) */}
                 <div style={{ display: this.printConfigLabel.map((l) => (l ? 'block' : 'none')) }}>
                   {fcomAt(
                     620,
@@ -423,7 +421,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
               </div>
             </TopTabNavigatorPage>
           </TopTabNavigator>
-          {/* FCOM DSC-22-FMS-20-30 p.104: RETURN displays the ACTIVE / INIT page */}
+          {/* RETURN displays the ACTIVE / INIT page */}
           <div class="mfd-fcom-overlay">
             {fcomAt(
               790,

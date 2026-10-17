@@ -114,7 +114,6 @@ export const TakeoffRunway = ({
 
   return (
     <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-      {/* Runway */}
       <rect x={RUNWAY_X} y={RUNWAY_TOP} width={runwayEnd - RUNWAY_X} height={RUNWAY_HEIGHT} fill={COLOURS.asphalt} />
       {[RUNWAY_TOP + 3, RUNWAY_TOP + RUNWAY_HEIGHT - 3].map((y) => (
         <line key={`edge${y}`} x1={RUNWAY_X} x2={runwayEnd} y1={y} y2={y} stroke={COLOURS.paint} strokeWidth={2} />
@@ -252,7 +251,6 @@ export const TakeoffRunway = ({
         );
       })}
 
-      {/* Scale from brake release */}
       <line x1={takeoffStart} x2={x(total)} y1={SCALE_Y} y2={SCALE_Y} stroke={COLOURS.scale} strokeWidth={1} />
       {ticks.map((d) => (
         <g key={`tick${d}`}>

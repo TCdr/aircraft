@@ -2,11 +2,9 @@
 //  SPDX-License-Identifier: GPL-3.0
 
 /*
- * A380-800 take-off weight limitation, TRENT 900 engines, from the Airbus A380 Aircraft Characteristics - Airport and
- * Maintenance Planning document (Dec 01/25), section 3-3 Take-Off Weight Limitation:
- * - ISA conditions: FIGURE-3-3-1-991-001-A01
- * - ISA + 15 °C conditions: FIGURE-3-3-2-991-001-A01
- * The curves were read from the vector drawings of the document (not from a picture), then sampled every 100 m.
+ * A380-800 take-off weight limitation, TRENT 900 engines, from the Airbus airport planning take-off weight limitation
+ * charts at ISA and at ISA + 15 °C. The curves were read from the vector drawings of the charts (not from a picture),
+ * then sampled every 100 m.
  * Airbus gives them for information only: dry runway, no wind, no slope, maximum takeoff thrust.
  */
 
@@ -49,7 +47,7 @@ export const A380_TOW_LIMIT_ISA: readonly (readonly number[])[] = [
 ];
 
 /**
- * Take-off weight limit in tonnes at ISA + 15 °C, the flat rating temperature TREF (A380 FCOM PER-TOF-THR-FLX),
+ * Take-off weight limit in tonnes at ISA + 15 °C, the flat rating temperature TREF,
  * [pressure altitude][runway length]
  */
 export const A380_TOW_LIMIT_ISA_15: readonly (readonly number[])[] = [

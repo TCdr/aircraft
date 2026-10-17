@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The FCOM 4 min of a company request (A380 FCOM DSC-22-FMS-10-40-90: NO COMPANY REPLY when no answer comes within
- * 4 min after the request). One pending request per key (the flight plan index): `settle` takes the answer when it
- * arrives in time, `onTimeout` runs when it does not.
+ * The 4 min limit of a company request: NO COMPANY REPLY when no answer comes within 4 min after the request. One
+ * pending request per key (the flight plan index): `settle` takes the answer when it arrives in time, `onTimeout` runs
+ * when it does not.
  */
 export class CompanyRequestTimeout {
-  /** FCOM: NO COMPANY REPLY 4 min after the request */
+  /** NO COMPANY REPLY 4 min after the request */
   public static readonly REPLY_TIMEOUT_MS = 4 * 60_000;
 
   private readonly timers = new Map<number, ReturnType<typeof setTimeout>>();

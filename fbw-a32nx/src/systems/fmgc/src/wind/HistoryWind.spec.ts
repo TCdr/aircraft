@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FpmConfigs } from '../flightplanning/FpmConfig';
 import { HistoryWind } from './HistoryWind';
 
-// Develop stored the winds as Vec2 [x, y] with x = speed * cos(direction), y = speed * sin(direction);
+// The legacy keys store the winds as Vec2 [x, y] with x = speed * cos(direction), y = speed * sin(direction);
 // a Float64Array serialises as an object with the keys "0" and "1", not as an array.
 const legacyVec2 = (x: number, y: number) => ({ 0: x, 1: y });
 
@@ -54,7 +54,7 @@ describe('history winds storage', () => {
   });
 
   it('stores the directions from 0 to 360 deg and the cruise level to the nearest 100 ft, as recorded winds are', () => {
-    // 25 kt from 270 deg: x = 0, y = -25 (atan2 gives -90 deg); develop stored the measured cruise altitude unrounded
+    // 25 kt from 270 deg: x = 0, y = -25 (atan2 gives -90 deg); the legacy keys hold the cruise altitude unrounded
     localStorage.setItem(
       HistoryWind.LEGACY_LOCALSTORAGE_KEYS.A32NX,
       JSON.stringify([

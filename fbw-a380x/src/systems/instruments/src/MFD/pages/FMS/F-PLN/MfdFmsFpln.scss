@@ -135,7 +135,7 @@
   vertical-align: center;
 }
 
-// FCOM DSC-22-FMS-20-30 P 4: the column titles and the SPD / ALT button from y = 142 to 183
+// The column titles and the SPD / ALT button from y = 142 to 183
 .mfd-fms-fpln-header {
   display: flex;
   flex-direction: row;
@@ -363,22 +363,7 @@
   padding-left: 15px;
 }
 
-// FCOM DSC-22-FMS-20-30 P 118 (DEPARTURE) and P 13 (ARRIVAL): selected procedure box from y = 157 to 335, labels above
-// their values (40 px apart), second row labels at y = 271, procedure buttons centred on y = 373
-// FCOM DSC-22-FMS-20-30 P 13 / P 118: SELECTED DEPARTURE / ARRIVAL box from x = 8 to 757, y = 157 to 335
-.mfd-fms-fpln-proc-box {
-  margin: 14px 11px 18px 8px;
-  height: 178px;
-  box-sizing: border-box;
-  padding: 10px 15px 0 4px;
-  row-gap: 12px;
-
-  .mfd-fms-fpln-label-bottom-space {
-    margin-bottom: 16px;
-  }
-}
-
-// FCOM DSC-22-FMS-20-30 P 13 / P 118: SELECTED DEPARTURE / ARRIVAL frame (display x = 8 to 757, y = 157 to 335)
+// SELECTED DEPARTURE / ARRIVAL frame (display x = 8 to 757, y = 157 to 335)
 .mfd-fms-fpln-proc-frame {
   position: absolute;
   left: 8px;

@@ -147,7 +147,7 @@ export class FlightManagementComputer implements FmcInterface {
     if (value) {
       this.dataManager = new DataManager(this.bus, value, {
         latLonFormat: LatLonFormatType.ExtendedFormat,
-        // A380 FCOM DSC-22-FMS-10-40-10 and DSC-22-FMS-20-30 P 117: 50 pilot-stored waypoints
+        // The pilot-stored waypoints database holds 50 waypoints
         storedWaypointLimit: { max: 50, inUse: (waypoint) => this.isWaypointInFlightPlans(waypoint) },
       });
     }
@@ -375,12 +375,12 @@ export class FlightManagementComputer implements FmcInterface {
   public hasActiveFlightPlanWithCityPair = Subject.create<boolean>(false);
 
   /**
-   * FUEL PLANNING (A380 FCOM DSC-22-FMS-20-30 P 179): the minimum BLOCK fuel in tonnes, BLOCK = TAXI + TRIP + RTE RSV +
+   * FUEL PLANNING: the minimum BLOCK fuel in tonnes, BLOCK = TAXI + TRIP + RTE RSV +
    * MIN FUEL AT DEST, until the flight crew confirms it or enters a BLOCK.
    */
   public readonly fuelPlanningBlockFuel = Subject.create<number | null>(null);
 
-  /** The fuel planning computation is running. */
+  /** True while the FUEL PLANNING iterates on trial BLOCK fuels, until the minimum BLOCK is found */
   public readonly fuelPlanningInProgress = Subject.create(false);
 
   private fuelPlanningIterations = 0;
@@ -451,13 +451,13 @@ export class FlightManagementComputer implements FmcInterface {
 
   private simBriefOfp: ISimbriefData | null = null;
 
-  /** FCOM DSC-22-FMS company F-PLN request: NO COMPANY REPLY when no response is received within 4 min */
+  /** Company F-PLN request: NO COMPANY REPLY when no response is received within 4 min */
   private static readonly CPNY_FPLN_REPLY_TIMEOUT_MS = 4 * 60_000;
 
   /** Company wind replies wait for the datalink reply time of their request (flyPad realism setting) */
   private readonly cpnyWindReplyHold = new CompanyReplyHold();
 
-  /** Company takeoff data (A380 FCOM DSC-22-FMS): the request and the received data, from the flypad calculator */
+  /** Company takeoff data: the request and the received data, from the flypad calculator */
   public readonly companyTakeoffData: CompanyTakeoffData;
 
   private lastUpdateTime: number | null = 0;
@@ -849,10 +849,6 @@ export class FlightManagementComputer implements FmcInterface {
   }
 
   /**
-   * Checks whether a waypoint is currently in use
-   * @param waypoint the waypoint to look for
-   */
-  /**
    * Whether a waypoint is part of the active, temporary or secondary flight plans (a pilot-stored waypoint that cannot
    * be deleted to make room in the pilot-stored elements database)
    * @param waypoint the waypoint
@@ -872,6 +868,10 @@ export class FlightManagementComputer implements FmcInterface {
     );
   }
 
+  /**
+   * Checks whether a waypoint is currently in use
+   * @param waypoint the waypoint to look for
+   */
   async isWaypointInUse(waypoint: Waypoint): Promise<boolean> {
     // Check in all flight plans
     if (this.flightPlanInterface.hasActive) {
@@ -1275,7 +1275,7 @@ export class FlightManagementComputer implements FmcInterface {
       throw new Error('No Navigraph username provided');
     }
 
-    // FCOM: only one request at a time (guard above); the button shows REQUEST PENDING... until the flight plan is received
+    // Only one request at a time (guard above); the button shows REQUEST PENDING... until the flight plan is received
     this.cpnyFplnRequestedForPlan.set(intoPlan);
     this.cpnyFplnUplinkInProgress.set(true);
 
@@ -1309,7 +1309,7 @@ export class FlightManagementComputer implements FmcInterface {
 
   /**
    * The answer of the company ground station (SimBrief) to a flight plan request: the OFP, delivered after the datalink
-   * reply time of the flypad setting, or null without an answer within the FCOM 4 min (download failed or too slow).
+   * reply time of the flypad setting, or null without an answer within 4 min (download failed or too slow).
    */
   private receiveCompanyFlightPlan(
     navigraphUsername: string | undefined,
@@ -1382,7 +1382,7 @@ export class FlightManagementComputer implements FmcInterface {
     this.onCompanyWindUplinkResponseReceived(response);
   }
 
-  /** No answer within the FCOM 4 min (DSC-22-FMS-10-40-90): NO COMPANY REPLY, the request is over */
+  /** No answer within 4 min: NO COMPANY REPLY, the request is over */
   private onCompanyWindRequestTimedOut(planIndex: FlightPlanIndex): void {
     if (this.flightPlanInterface.has(planIndex)) {
       this.flightPlanInterface.get(planIndex).pendingWindUplink.onUplinkAborted();
@@ -1451,7 +1451,7 @@ export class FlightManagementComputer implements FmcInterface {
       this.simBriefOfp?.weights.passengerCount !== undefined ? Number(this.simBriefOfp?.weights?.passengerCount) : null,
     );
 
-    // FCOM DSC-22-FMS-20-30 COMPANY F-PLN REQUEST: before engine start, performance data come with the flight plan
+    // COMPANY F-PLN REQUEST: before engine start, performance data come with the flight plan
     if (!this.enginesWereStarted.get() && this.simBriefOfp) {
       this.insertCompanyFuelData(intoPlan, this.simBriefOfp);
     }
@@ -1694,8 +1694,8 @@ export class FlightManagementComputer implements FmcInterface {
   public readonly timeConstraint = Subject.create<TimeConstraint | null>(null);
 
   /**
-   * The takeoff data of the FMS, as in a company takeoff data request: from the active flight plan and the load data
-   * (A380 FCOM DSC-22-FMS, COMPANY T.O DATA REQUEST page)
+   * The takeoff data of the FMS, as in a company takeoff data request (COMPANY T.O DATA REQUEST page): from the active
+   * flight plan and the load data
    */
   public companyTakeoffDataRequestContent(): CompanyTakeoffDataRequestContent {
     const plan = this.flightPlanInterface.hasActive ? this.flightPlanInterface.active : null;
@@ -1775,8 +1775,8 @@ export class FlightManagementComputer implements FmcInterface {
   }
 
   /**
-   * Whether received company takeoff data can be inserted (A380 FCOM DSC-22-FMS-20-30 P 316-319, RECEIVED COMPANY T.O
-   * DATA page): the departure airport and runway of the active flight plan, a TOW not more than 2 t below or 7 t above
+   * Whether received company takeoff data can be inserted (RECEIVED COMPANY T.O DATA page): the departure airport and
+   * runway of the active flight plan, a TOW not more than 2 t below or 7 t above
    * the FMS one, and the takeoff speeds, TOW, T.O CG, wind, runway condition, baro setting and temperature in the data.
    * @returns whether it can be inserted, whether the runway is not the active one (amber), and whether the TOW disagrees
    *   with the FMS one (amber, with UPLINK/ACTIVE TOW DISAGREE on the active runway)
@@ -1805,8 +1805,8 @@ export class FlightManagementComputer implements FmcInterface {
 
   /**
    * INSERT: the received company takeoff data updates the T.O panel of the PERF page with the takeoff speeds, flaps
-   * setting, takeoff thrust, takeoff shift, thrust reduction and acceleration altitudes and noise parameters (A380 FCOM
-   * DSC-22-FMS-20-30 P 319). The T.O CG is not inserted: the flight crew enters it in THS FOR.
+   * setting, takeoff thrust, takeoff shift, thrust reduction and acceleration altitudes and noise parameters. The T.O
+   * CG is not inserted: the flight crew enters it in THS FOR.
    */
   public insertCompanyTakeoffData(uplink: CompanyTakeoffDataUplink): boolean {
     if (!this.checkCompanyTakeoffData(uplink).insertable) {
@@ -1860,7 +1860,7 @@ export class FlightManagementComputer implements FmcInterface {
   }
 
   computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined {
-    // The plan applies the A380 rule of FpmConfigs.A380 (AlternateCruiseLevel.ts, A380 FCOM l.42387)
+    // The plan applies the A380 rule of FpmConfigs.A380 (AlternateCruiseLevel.ts)
     return this.#flightPlanService.has(forPlan)
       ? this.#flightPlanService.get(forPlan).getAlternateCruiseLevel()
       : undefined;
@@ -1923,8 +1923,8 @@ export class FlightManagementComputer implements FmcInterface {
    * Duplicate implementation, because WaypointEntryUtils needs one parameter with both DataInterface and DisplayInterface
    */
   async createNewWaypoint(ident: string): Promise<Waypoint | undefined> {
-    // A380 FCOM DSC-22-FMS-20-30, DATA / WAYPOINT page: the PILOT STORED WPTs panel opens with the new waypoint
-    // function for an ident that is neither in the navigation database nor pilot created
+    // DATA / WAYPOINT page: the PILOT STORED WPTs panel opens with the new waypoint function for an ident that is
+    // neither in the navigation database nor pilot created
     this.mfdReference?.uiService.navigateTo(`fms/data/waypoint/new/${ident}/withReturn`);
     return undefined;
   }

@@ -22,16 +22,16 @@ interface RouteSummaryDisplayProps extends ComponentProps {
   left: number;
   /** Top edge of the box, in the coordinates of the positioned parent */
   top: number;
-  /** Lines per page (FCOM figures: 10 on the DATABASE RTEs panel, 8 below a city pair line, 11 on ROUTE SELECTION) */
+  /** Lines per page: 10 on the DATABASE RTEs panel, 8 below a city pair line, 11 on ROUTE SELECTION */
   lines: number;
   /** Space below the last line (ROUTE SELECTION: 19 px) */
   bottomPadding?: number;
-  /** Order of the scroll buttons below the box (the FCOM figures show both orders) */
+  /** Order of the scroll buttons below the box (the pages use both orders) */
   scrollDownFirst?: boolean;
 }
 
 /**
- * The route summary of the DATA / ROUTE and ROUTE SELECTION pages (A380 FCOM DSC-22-FMS-20-30 P 83-89, P 324): a 560 px
+ * The route summary of the DATA / ROUTE and ROUTE SELECTION pages: a 560 px
  * wide box with a 24 px top margin and lines of 42 px separated by a thin line, each with two VIA / TO pairs (VIA at 6
  * and 283 px, TO at 134 and 411 px), read from left to right and from top to bottom; waypoints in green big font,
  * airways and procedures in small white font. The two scroll buttons below the box move page by page.
@@ -88,7 +88,7 @@ export class RouteSummaryDisplay extends DisplayComponent<RouteSummaryDisplayPro
     ];
     for (let line = 0; line < this.props.lines; line++) {
       const top = RouteSummaryDisplay.topMargin + line * RouteSummaryDisplay.lineHeight;
-      // FCOM figures: the text is 2 px above the middle of its line
+      // The text sits 2 px above the middle of its line
       const centre = top + RouteSummaryDisplay.lineHeight / 2 - 2;
       for (let column = 0; column < 2; column++) {
         const pair = pairs[(first + line) * 2 + column];

@@ -8,7 +8,7 @@ export interface SurvStatusItemProps extends ComponentProps {
   active: Subscribable<boolean>;
   failed: Subscribable<boolean>;
   sys: string;
-  /** Text after the label when the system is not in use (A380 FCOM DSC-34-20-60-50: OFF, or STBY for XPDR and TCAS) */
+  /** Text after the label when the system is not in use (OFF, or STBY for XPDR and TCAS) */
   offLabel?: string;
   style?: string;
   onChanged?(val: boolean): void;

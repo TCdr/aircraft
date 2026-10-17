@@ -92,7 +92,7 @@ export const NXSystemMessages = {
     'COMPANY WIND DATA RECEIVED\nWAITING FOR INSERTION IN ACTIVE',
     false,
   ),
-  // FCOM DSC-22-FMS-20-110 company takeoff data messages
+  // Company takeoff data messages
   cpnyToDataReceivedPendingInsertion: new TypeIIMessage('COMPANY T.O DATA RECEIVED\nWAITING FOR INSERTION'),
   receivedCpnyToDataNotValid: new TypeIIMessage('RECEIVED COMPANY T.O DATA NOT VALID'),
   comWindRecievedPendingInsertionInSecondary: new TypeIIMessage(
@@ -138,12 +138,12 @@ export const NXSystemMessages = {
   lrcInUse: new TypeIMessage('LRC MODE IN USE'),
   lateralDiscontinuityAhead: new TypeIIMessage('LATERAL DISCONTINUITY AHEAD', true),
   listOf99InUse: new TypeIMessage('LIST OF 99 IN USE'),
-  // FCOM DSC-22-FMS-20-110: a new pilot-stored waypoint rejected, the 50 of the database are used
+  // A new pilot-stored waypoint rejected, the 50 of the database are used
   wptsMaxAllInUse: new TypeIMessage('50 WPTS MAX : ALL IN USE'),
   pilotRtesListFull: new TypeIMessage('PILOT RTEs LIST FULL'),
   rteIdentAlreadyUsed: new TypeIMessage('RTE IDENT ALREADY USED'),
   someRevisionsNotStored: new TypeIMessage('SOME REVISIONS NOT STORED'),
-  // FCOM DSC-22-FMS-20-110 (a380_fcom.txt l.45865-45870): a PLACE/DISTANCE waypoint whose PLACE is not the revised waypoint
+  // A PLACE/DISTANCE waypoint whose PLACE is not the revised waypoint
   placeWptDisagree: new TypeIMessage('PLACE / WPT DISAGREE'),
 };
 

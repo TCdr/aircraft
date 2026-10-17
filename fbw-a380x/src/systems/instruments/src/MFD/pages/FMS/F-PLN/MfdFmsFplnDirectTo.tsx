@@ -43,7 +43,7 @@ export class MfdFmsFplnDirectTo extends FmsFlightPlanPage<MfdFmsFplnDirectToProp
 
   readonly directToOption = Subject.create<DirectToOption | null>(DirectToOption.DIRECT);
 
-  /** CRS IN / CRS OUT course, magnetic unless {@link courseIsTrue} (FCOM DSC-22-FMS-20-30 P 131, CRS entry field) */
+  /** CRS IN / CRS OUT course, magnetic unless {@link courseIsTrue} */
   private readonly course = Subject.create<number | null>(null);
 
   private readonly courseIsTrue = Subject.create(false);
@@ -55,7 +55,7 @@ export class MfdFmsFplnDirectTo extends FmsFlightPlanPage<MfdFmsFplnDirectToProp
     o === DirectToOption.CRS_IN || o === DirectToOption.CRS_OUT ? 'inherit' : 'hidden',
   );
 
-  /** The CRS field is next to the selected CRS IN or CRS OUT option (FCOM figure) */
+  /** The CRS field is next to the selected CRS IN or CRS OUT option */
   private readonly courseFieldTop = this.directToOption.map((o) => (o === DirectToOption.CRS_OUT ? '209px' : '166px'));
 
   private readonly eraseButtonDiv = FSComponent.createRef<HTMLDivElement>();
@@ -143,7 +143,7 @@ export class MfdFmsFplnDirectTo extends FmsFlightPlanPage<MfdFmsFplnDirectToProp
   }
 
   /**
-   * FCOM DSC-22-FMS-20-30 P 131: for a flight plan target waypoint, the default CRS IN is the course from the preceding
+   * For a flight plan target waypoint, the default CRS IN is the course from the preceding
    * flight plan waypoint to the target, and the default CRS OUT the course from the target to the following waypoint.
    */
   private setDefaultCourse(): void {
@@ -331,7 +331,7 @@ export class MfdFmsFplnDirectTo extends FmsFlightPlanPage<MfdFmsFplnDirectToProp
                   color={this.directOptionRadioColor}
                 />
               </div>
-              {/* FCOM DSC-22-FMS-20-30 P 131: CRS entry field of the selected CRS IN or CRS OUT option */}
+              {/* CRS entry field of the selected CRS IN or CRS OUT option */}
               <div
                 class="mfd-fms-direct-to-course-field"
                 style={{ visibility: this.courseFieldVisibility, top: this.courseFieldTop }}

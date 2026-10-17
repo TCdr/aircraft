@@ -25,7 +25,7 @@ import { defaultTropopauseAlt } from '@shared/PerformanceConstants';
 
 interface MfdFmsFplnClosestAirportsProps extends AbstractMfdPageProps {}
 
-/** FCOM: the four closest airports, and up to three other airports entered by the flight crew */
+/** The four closest airports, and up to three other airports entered by the flight crew */
 const NUM_CLOSEST_AIRPORTS = 4;
 
 const NUM_OTHER_AIRPORTS = 3;
@@ -67,11 +67,11 @@ class AirportLine {
 }
 
 /**
- * CLOSEST AIRPORTS page (A380 FCOM DSC-22-FMS-20-30 "CLOSEST AIRPORTS PAGE"): the four closest airports, ranked by
+ * CLOSEST AIRPORTS page: the four closest airports, ranked by
  * distance from the aircraft present position, and up to three airports entered by the flight crew, with the direct
  * distance, bearing, time and EFOB. Time and EFOB are only computed in the cruise phase.
  *
- * Simplified: the FCOM predictions assume a flight at the CRZ FL down to the ground; here the whole great-circle
+ * Simplified: the real predictions assume a flight at the CRZ FL down to the ground; here the whole great-circle
  * distance is flown level at the CRZ FL (no descent segment). The default effective wind is the INIT trip wind.
  */
 export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClosestAirportsProps> {
@@ -92,7 +92,7 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
   private readonly lineSubscriptions: Subscription[] = [];
 
   protected onNewData(): void {
-    // Data refreshed every second
+    // Nothing to do: update() runs every second (onAfterRender)
   }
 
   public onAfterRender(node: VNode): void {
@@ -177,7 +177,7 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
     );
   }
 
-  /** FCOM: time and EFOB are only computed in the CRZ phase */
+  /** Time and EFOB are only computed in the CRZ phase */
   private cruisePrediction(distance: number, tailWind: number): { seconds: number; efobTonnes: number } | null {
     const fmc = this.props.fmcService.master;
     const plan = this.props.flightPlanInterface.active;
@@ -232,7 +232,6 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
   }
 
   private deleteOtherAirport(index: number): void {
-    // The next airports move up one line
     for (let i = index; i < NUM_OTHER_AIRPORTS - 1; i++) {
       const next = this.otherLines[i + 1];
       this.otherLines[i].ident.set(next.ident.get());

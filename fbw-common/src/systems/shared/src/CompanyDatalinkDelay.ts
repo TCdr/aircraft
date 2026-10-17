@@ -10,9 +10,9 @@ export type CompanyDatalinkReplyTime = 'INSTANT' | 'FAST' | 'REAL';
  * The time the company ground station takes to answer a request sent by datalink (ACARS to the airline operations
  * centre and back): company flight plan, wind and takeoff data requests of the A380X FMS.
  *
- * Airbus gives no figure, only NO COMPANY REPLY when no answer comes within 4 min (A380 FCOM DSC-22-FMS-10-40-90): the
- * REAL values are typical airline values, below these 4 min. The transit is the time of a message sent without a
- * request, or after the reply time has already passed.
+ * Airbus gives no figure, only NO COMPANY REPLY when no answer comes within 4 min. Design choice: the REAL values are
+ * typical airline values, below these 4 min. The transit is the time of a message sent without a request, or after the
+ * reply time has already passed.
  */
 export class CompanyDatalinkDelay {
   /** The flypad setting (Settings > Realism) */

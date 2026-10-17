@@ -21,16 +21,16 @@ import './MfdFmsFplnOffset.scss';
 
 interface MfdFmsFplnOffsetProps extends AbstractMfdPageProps {}
 
-/** FCOM: the default intercept angle is 30° */
+/** The default intercept angle is 30° */
 const defaultInterceptAngle = 30;
 
 /**
- * OFFSET page (A380 FCOM DSC-22-FMS-20-30 P 215-219): start and end waypoints, intercept angle, offset distance and
+ * OFFSET page: start and end waypoints, intercept angle, offset distance and
  * side of a lateral offset segment, inserted in a temporary flight plan.
  *
  * The FMS has no lateral offset guidance yet: the page shows the start / end waypoint lists of the flight plan (P.POS
- * to the destination, holds excluded) with the FCOM defaults, but the entry fields are inactive and no offset can be
- * inserted.
+ * to the destination, holds excluded) with the default entries, but the entry fields are inactive and no offset can
+ * be inserted.
  */
 export class MfdFmsFplnOffset extends FmsFlightPlanPage<MfdFmsFplnOffsetProps> {
   private readonly startWaypoints = ArraySubject.create<string>([]);
@@ -54,7 +54,7 @@ export class MfdFmsFplnOffset extends FmsFlightPlanPage<MfdFmsFplnOffsetProps> {
     if (!plan) {
       return;
     }
-    // FCOM: waypoints from the aircraft present position to the primary destination; holds cannot be part of an offset
+    // Waypoints from the aircraft present position to the primary destination; holds cannot be part of an offset
     const idents: string[] = [];
     const lastLeg = Math.min(plan.firstMissedApproachLegIndex, plan.legCount) - 1;
     for (let i = Math.max(0, plan.activeLegIndex); i <= lastLeg; i++) {
@@ -66,7 +66,7 @@ export class MfdFmsFplnOffset extends FmsFlightPlanPage<MfdFmsFplnOffsetProps> {
     this.startWaypoints.set(['P.POS', ...idents]);
     this.endWaypoints.set(idents);
 
-    // FCOM defaults: the revised waypoint as start (P.POS for the FROM waypoint), the last waypoint before the
+    // Defaults: the revised waypoint as start (P.POS for the FROM waypoint), the last waypoint before the
     // destination as end
     if (this.selectedStart.get() === null) {
       const revisedIndex = this.props.fmcService.master.revisedLegIndex.get();
@@ -84,7 +84,7 @@ export class MfdFmsFplnOffset extends FmsFlightPlanPage<MfdFmsFplnOffsetProps> {
       <>
         {super.render()}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 215), page container coordinates */}
+          {/* Positions measured on the reference figure of the page, in page container coordinates */}
           <div class="mfd-fcom-canvas">
             {fcomAt(41, 30, <span class="mfd-label">START WPT</span>)}
             {fcomAt(
@@ -94,7 +94,7 @@ export class MfdFmsFplnOffset extends FmsFlightPlanPage<MfdFmsFplnOffsetProps> {
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_offsetStartWpt`}
                 selectedIndex={this.selectedStart}
                 values={this.startWaypoints}
-                keyboardEntryAllowed // FCOM START WAYPOINT LIST: selected in the list or entered with the keyboard
+                keyboardEntryAllowed // START WAYPOINT LIST: selected in the list or entered with the keyboard
                 errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
                 onModified={(i, text) => {
                   const index = dropdownEntryIndex(this.startWaypoints, i, text);
@@ -118,7 +118,7 @@ export class MfdFmsFplnOffset extends FmsFlightPlanPage<MfdFmsFplnOffsetProps> {
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_offsetEndWpt`}
                 selectedIndex={this.selectedEnd}
                 values={this.endWaypoints}
-                keyboardEntryAllowed // FCOM END WAYPOINT LIST: selected in the list or entered with the keyboard
+                keyboardEntryAllowed // END WAYPOINT LIST: selected in the list or entered with the keyboard
                 errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
                 onModified={(i, text) => {
                   const index = dropdownEntryIndex(this.endWaypoints, i, text);
@@ -185,7 +185,7 @@ export class MfdFmsFplnOffset extends FmsFlightPlanPage<MfdFmsFplnOffsetProps> {
                 buttonStyle="min-width: 133px; min-height: 60px;"
               />,
             )}
-            {/* FCOM: RETURN (lower left) when no temporary flight plan exists, it displays the F-PLN page */}
+            {/* RETURN (lower left) when no temporary flight plan exists, it displays the F-PLN page */}
             {fcomAt(
               790,
               2,

@@ -20,7 +20,7 @@ import { activeFlightPhaseSubject } from '../../common/activeFlightPhase';
 interface MfdFmsDataPrinterProps extends AbstractMfdPageProps {}
 
 /**
- * DATA / PRINTER page (A380 FCOM DSC-22-FMS-20-30 P 75-78): manual printing of the active flight plan data and of the
+ * DATA / PRINTER page: manual printing of the active flight plan data and of the
  * flight plan reports, and the automatic printing options.
  *
  * The A380X cockpit printer has no paper: the pages are sent to the flypad (DISPATCH / PRINTOUTS).
@@ -43,10 +43,10 @@ export class MfdFmsDataPrinter extends FmsPage<MfdFmsDataPrinterProps> {
     postFlight: Subject.create(false),
   };
 
-  /** FCOM P 77: a secondary flight plan report needs the secondary flight plan */
+  /** A secondary flight plan report needs the secondary flight plan */
   private readonly secondaryAvailable = [1, 2, 3].map(() => Subject.create(false));
 
-  /** The checkboxes are plain divs (FSComponent sets an onClick prop as a string attribute): clicks are wired after render */
+  /** Plain divs (FSComponent sets an onClick prop as a string attribute): the clicks are wired after render */
   private readonly checkboxes: { ref: NodeReference<HTMLDivElement>; onClick: () => void }[] = [];
 
   protected onNewData(): void {
@@ -66,7 +66,7 @@ export class MfdFmsDataPrinter extends FmsPage<MfdFmsDataPrinterProps> {
     );
   }
 
-  /** FCOM P 77: a secondary report is an in-flight report in flight (except DONE), else a pre-flight report */
+  /** A secondary report is an in-flight report in flight (except DONE), else a pre-flight report */
   private secondaryReport(): FlightPlanReport {
     const phase = this.activeFlightPhase.get();
     return phase >= FmgcFlightPhase.Takeoff && phase < FmgcFlightPhase.Done
@@ -110,7 +110,7 @@ export class MfdFmsDataPrinter extends FmsPage<MfdFmsDataPrinterProps> {
       <>
         {super.render()}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 75), page container coordinates */}
+          {/* Positions measured on the reference figure, page container coordinates */}
           <div class="mfd-fcom-canvas">
             {fcomCentre(30, 180, <span class="mfd-label">ACTIVE DATA</span>)}
             {fcomCentre(30, 565, <span class="mfd-label">CPNY DATA</span>)}
