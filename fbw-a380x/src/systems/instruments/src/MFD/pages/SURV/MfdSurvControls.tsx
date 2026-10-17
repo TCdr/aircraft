@@ -591,7 +591,14 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
             )}
             {/* ELEVN or TILT displays an entry field below the option list */}
             <div style={this.visibleIf(this.wxrElevationVisible)}>
-              {this.wxrManualSettingField(588, 12, 142, this.wxrElevationFormat, this.wxrElevation, 'L:A380X_WXR_ELEVN')}
+              {this.wxrManualSettingField(
+                588,
+                12,
+                142,
+                this.wxrElevationFormat,
+                this.wxrElevation,
+                'L:A380X_WXR_ELEVN',
+              )}
             </div>
             <div style={this.visibleIf(this.wxrTiltVisible)}>
               {this.wxrManualSettingField(588, 12, 128, new WxrTiltFormat(), this.wxrTilt, 'L:A380X_WXR_TILT')}

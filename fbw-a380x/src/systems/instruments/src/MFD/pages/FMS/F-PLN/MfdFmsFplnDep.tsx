@@ -3,7 +3,6 @@
   NumberFormatter,
   NumberUnitSubject,
   Subject,
-  Subscribable,
   Unit,
   UnitFamily,
   UnitType,
@@ -259,11 +258,6 @@ export class MfdFmsFplnDep extends FmsFlightPlanPage<MfdFmsFplnDepProps> {
     this.subs.push(this.lengthUnit);
   }
 
-  /** A value of the SELECTED box, in the colour of the loaded flight plan */
-  private procValue(value: Subscribable<string>): VNode {
-    return <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>{value}</span>;
-  }
-
   render(): VNode {
     return (
       <>
@@ -275,27 +269,76 @@ export class MfdFmsFplnDep extends FmsFlightPlanPage<MfdFmsFplnDepProps> {
             <div class="mfd-fms-fpln-proc-frame" />
             {fcomAt(14, 35, <span class="mfd-label mfd-fms-fpln-proc-frame-title">SELECTED DEPARTURE</span>)}
             {fcomAt(65, 10, <span class="mfd-label">FROM</span>)}
-            {fcomAt(65, 88, this.procValue(this.fromIcao))}
-            {fcomAt(65, 190, this.procValue(this.rwyLs))}
+            {fcomAt(
+              65,
+              88,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.fromIcao}
+              </span>,
+            )}
+            {fcomAt(
+              65,
+              190,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyLs}
+              </span>,
+            )}
             {fcomAt(45, 380, <span class="mfd-label">RWY</span>)}
-            {fcomAt(85, 380, this.procValue(this.rwyIdent))}
+            {fcomAt(
+              85,
+              380,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyIdent}
+              </span>,
+            )}
             {fcomAt(45, 505, <span class="mfd-label">LENGTH</span>)}
             {fcomRight(85, 620, [
-              this.procValue(this.rwyLength.asUnit(this.lengthUnit).map((v) => this.lengthNumberFormatter(v))),
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyLength.asUnit(this.lengthUnit).map((v) => this.lengthNumberFormatter(v))}
+              </span>,
               <span class="mfd-label-unit mfd-unit-trailing">
                 {this.lengthUnit.map((v) => this.distanceUnitFormatter(v))}
               </span>,
             ])}
             {fcomAt(45, 655, <span class="mfd-label">CRS</span>)}
-            {fcomAt(85, 650, [this.procValue(this.rwyCrs), <span class="mfd-label-unit mfd-unit-trailing">°</span>])}
+            {fcomAt(85, 650, [
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyCrs}
+              </span>,
+              <span class="mfd-label-unit mfd-unit-trailing">°</span>,
+            ])}
             {fcomAt(127, 10, <span class="mfd-label">EOSID</span>)}
-            {fcomAt(164, 10, this.procValue(this.rwyEoSid))}
+            {fcomAt(
+              164,
+              10,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyEoSid}
+              </span>,
+            )}
             {fcomAt(127, 185, <span class="mfd-label">FREQ/CHAN</span>)}
-            {fcomAt(164, 190, this.procValue(this.rwyFreq))}
+            {fcomAt(
+              164,
+              190,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyFreq}
+              </span>,
+            )}
             {fcomAt(127, 438, <span class="mfd-label">SID</span>)}
-            {fcomAt(164, 438, this.procValue(this.rwySid))}
+            {fcomAt(
+              164,
+              438,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwySid}
+              </span>,
+            )}
             {fcomAt(127, 609, <span class="mfd-label">TRANS</span>)}
-            {fcomAt(164, 609, this.procValue(this.rwyTrans))}
+            {fcomAt(
+              164,
+              609,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyTrans}
+              </span>,
+            )}
             {fcomAt(
               229,
               48,
