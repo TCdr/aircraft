@@ -276,9 +276,9 @@
 			  threshold: an A380 core speed limit for "running" has no source (the A32NX N2 > 25 % is A32NX-specific).
 			- Exhaust node of each engine in A380_WINGS.gltf, from the node positions: LEFT1 = engine 1 (left outer), RIGHT2 =
 			  engine 2 (left inner), RIGHT3 = engine 3 (right inner), RIGHT4 = engine 4 (right outer). The ribbon contrails
-			  are on engines 2 and 4 only, as before.
-			- This part owns these nodes: the fuselage part (A380_FUSELAGE.gltf) has none of them, and its old copy of these
-			  contrails was removed.
+			  are on engines 2 and 4 only.
+			- This part owns these nodes: the fuselage part (A380_FUSELAGE.gltf) has none of them, so the contrails
+			  are declared here only.
 			- JettisonDripContrailEffects.spec.ts (src/systems/shared/src) checks these components.
 		-->
 		<Component ID="FX_CONTRAIL_QUAD">
