@@ -76,6 +76,8 @@ impl VariableSpeedPump {
     const FLOW_CONSTANT_RPM_CUBIC_INCH_TO_GPM: f64 = 231.;
     const DISPLACEMENT_CU_IN: f64 = 0.214;
     const NOMINAL_MAX_PRESSURE_PSI: f64 = 5000.;
+    /// Below this accumulator pressure the pump cannot run in electrical mode
+    const MIN_ACCUMULATOR_PRESSURE_PSI: f64 = 100.;
 
     const LOW_PASS_RPM_TRANSIENT_TIME_CONSTANT: Duration = Duration::from_millis(100);
 
@@ -132,7 +134,9 @@ impl VariableSpeedPump {
     }
 
     fn max_available_pressure(&self, accumulator_pressure: Pressure) -> Pressure {
-        if self.is_active() && accumulator_pressure.get::<psi>() > 100. {
+        if self.is_active()
+            && accumulator_pressure.get::<psi>() > Self::MIN_ACCUMULATOR_PRESSURE_PSI
+        {
             Pressure::new::<psi>(Self::NOMINAL_MAX_PRESSURE_PSI)
         } else {
             Pressure::default()
@@ -185,14 +189,20 @@ impl LowPressureAccumulator {
         Self {
             pressure: LowPassFilter::<Pressure>::new_with_init_value(
                 Self::PRESSURE_TIME_CONSTANT,
-                Pressure::new::<psi>(init_pressure_psi.clamp(
-                    0.,
-                    Self::MAX_ACCUMULATOR_PRESSURE_PSI
-                        - Self::MAX_ACCUMULATOR_PRESSURE_THRESHOLD_FOR_REFILL_FLOW_PSI,
-                )),
+                Self::serviced_pressure(init_pressure_psi),
             ),
             total_volume_to_actuator: Volume::default(),
         }
+    }
+
+    /// A serviced accumulator is never charged below 3 sigma of its dispersion, so the pump always
+    /// finds enough pressure to start; a flat accumulator is a failure, not a random start state.
+    fn serviced_pressure(random_pressure_psi: f64) -> Pressure {
+        Pressure::new::<psi>(random_pressure_psi.clamp(
+            Self::MEAN_ACCUMULATOR_PRESSURE_PSI - 3. * Self::STDEV_ACCUMULATOR_PRESSURE_PSI,
+            Self::MAX_ACCUMULATOR_PRESSURE_PSI
+                - Self::MAX_ACCUMULATOR_PRESSURE_THRESHOLD_FOR_REFILL_FLOW_PSI,
+        ))
     }
 
     fn update(
@@ -4087,6 +4097,16 @@ mod tests {
             test_bed.query(|a| a.body_position()),
             Ratio::new::<ratio>(0.01)
         );
+    }
+
+    #[test]
+    fn a_serviced_electro_hydrostatic_accumulator_is_never_below_the_pump_start_pressure() {
+        for lowest_possible_draw_psi in [0., 21.1, 99.9, 100.] {
+            assert_gt!(
+                LowPressureAccumulator::serviced_pressure(lowest_possible_draw_psi),
+                Pressure::new::<psi>(VariableSpeedPump::MIN_ACCUMULATOR_PRESSURE_PSI)
+            );
+        }
     }
 
     #[test]
