@@ -9,15 +9,15 @@ import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
 import { NXSystemMessages } from '../messages/NXSystemMessages';
 import { CDUPerformancePage } from './A320_Neo_CDU_PerformancePage';
 
-/** A320 FCOM DSC-22_20-50-10-28: the CONTAM list of the UPLINK TO DATA REQ page */
-export const UPLINK_CONTAMINATIONS = ['DRY', 'WET', '1/4 WATER', '1/2 WATER', '1/4 SLUSH', '1/2 SLUSH', 'COMP SNOW'];
+/** The CONTAM list of the UPLINK TO DATA REQ page */
+const UPLINK_CONTAMINATIONS = ['DRY', 'WET', '1/4 WATER', '1/2 WATER', '1/4 SLUSH', '1/2 SLUSH', 'COMP SNOW'];
 
 const FEET_PER_METRE = 3.28084;
 
-/** The column of V1 / VR / V2 and of the speeds on the UPLINK MAX / FLX TO DATA pages (FCOM figure, 0-based) */
+/** The column of V1 / VR / V2 and of the speeds on the UPLINK MAX / FLX TO DATA pages (0-based) */
 const SPEED_COLUMN = 10;
 
-/** A320 FCOM P 93: the uplinked data cannot be inserted with a TOW 3 t above or 1 t below the FMS one */
+/** The uplinked data cannot be inserted with a TOW 3 t above or 1 t below the FMS one */
 const TOW_MARGIN_ABOVE = 3_000;
 const TOW_MARGIN_BELOW = 1_000;
 
@@ -38,7 +38,7 @@ interface RunwayRequest {
   contamination: number;
 }
 
-/** The request of the two pages; QNH and wind are common (FCOM P 91) */
+/** The request of the two pages; QNH and wind are common */
 interface RequestForm {
   runways: [RunwayRequest, RunwayRequest];
   qnh: number | null;
@@ -69,9 +69,8 @@ function formatTemperature(t: number): string {
 }
 
 /**
- * The takeoff data uplink pages of the MCDU (A320 FCOM DSC-22_20-50-10-28 UPLINK TO DATA REQ, UPLINK MAX TO DATA and
- * UPLINK FLX TO DATA pages, DSC-22_45 TAKEOFF DATA FUNCTION), reached from the PERF TAKE OFF page in the PREFLIGHT and
- * DONE phases.
+ * The takeoff data uplink pages of the MCDU (UPLINK TO DATA REQ, UPLINK MAX TO DATA and UPLINK FLX TO DATA), reached
+ * from the PERF TAKE OFF page in the PREFLIGHT and DONE phases.
  */
 export class CDUUplinkTakeoffDataPages {
   private static form: RequestForm | null = null;
@@ -89,7 +88,7 @@ export class CDUUplinkTakeoffDataPages {
     };
   }
 
-  /** The request form, with its defaults (FCOM P 90-91) */
+  /** The request form, with its defaults */
   private static getForm(mcdu: LegacyFmsPageInterface): RequestForm {
     const plan = mcdu.getFlightPlan(FlightPlanIndex.Active);
     if (CDUUplinkTakeoffDataPages.form === null) {
@@ -221,7 +220,7 @@ export class CDUUplinkTakeoffDataPages {
     };
     if (defined) {
       mcdu.onLeftInput[1] = (value, scratchpadCallback) => {
-        // BARO: QNH in hPa or inHg (FCOM: can be modified by the pilot)
+        // BARO: QNH in hPa or inHg, the pilot can modify it
         const match = value.match(/^\/?(\d{2,4}(\.\d{1,2})?)$/);
         const qnh = match ? parseFloat(match[1]) : NaN;
         const hpa = qnh < 40 ? qnh * 33.8639 : qnh;
@@ -286,7 +285,7 @@ export class CDUUplinkTakeoffDataPages {
         }
         refresh();
       };
-      // [4L] CONTAM: the scroll keys change the runway contamination (FCOM P 90)
+      // [4L] CONTAM: the scroll keys change the runway contamination
       mcdu.onUp = () => {
         rwy.contamination = (rwy.contamination + 1) % UPLINK_CONTAMINATIONS.length;
         refresh();
@@ -330,8 +329,8 @@ export class CDUUplinkTakeoffDataPages {
   }
 
   /**
-   * UPLINK MAX TO DATA / UPLINK FLX TO DATA page of a received runway (FCOM P 92-93), with INSERT UPLINK when the runway
-   * is the active runway.
+   * UPLINK MAX TO DATA / UPLINK FLX TO DATA page of a received runway, with INSERT UPLINK when the runway is the active
+   * runway.
    */
   public static ShowUplinkPage(mcdu: LegacyFmsPageInterface, runwayIndex: number, flex: boolean, opened = true): void {
     mcdu.clearDisplay();
@@ -375,7 +374,7 @@ export class CDUUplinkTakeoffDataPages {
       ? `${formatTemperature(flex ? uplink.flexTemperature ?? 0 : uplink.oat)}/${uplink.qnh.toFixed(0)}`
       : null;
     const speed = (v: number | null | undefined) => value(v !== null && v !== undefined ? v.toFixed(0) : null, '---');
-    /** A left cell with a speed in column 11 after it, as V1 / VR / V2 in the FCOM figure (DSC-22_20-50-10-28 P 92) */
+    /** A left cell with a speed in column 11 after it, as V1 / VR / V2 on the page */
     const withSpeed = (text: string | null, dashes: string, v: number | null | undefined) =>
       `${value(text, dashes)}${'\xa0'.repeat(Math.max(1, SPEED_COLUMN - (text !== null && uplink ? text : dashes).length))}${speed(v)}`;
 
@@ -451,14 +450,14 @@ export class CDUUplinkTakeoffDataPages {
     ]);
   }
 
-  /** FCOM DSC-22_20-70 P 6: no INSERT UPLINK prompt for an incomplete uplink (no V1 or VR from the calculator) */
+  /** No INSERT UPLINK prompt for an incomplete uplink (no V1 or VR from the calculator) */
   private static isComplete(uplink: CompanyTakeoffDataUplink): uplink is CompleteUplink {
     return uplink.v1 !== null && uplink.vr !== null;
   }
 
   /**
-   * INSERT UPLINK (FCOM P 93): V1, VR, V2, THR RED/ACC, ENG OUT ACC, FLAPS/THS, SHIFT and FLEX into the PERF TAKE OFF
-   * page, with the entry checks of the page.
+   * INSERT UPLINK: V1, VR, V2, THR RED/ACC, ENG OUT ACC, FLAPS/THS, SHIFT and FLEX into the PERF TAKE OFF page, with
+   * the entry checks of the page.
    */
   private static async insert(mcdu: LegacyFmsPageInterface, uplink: CompleteUplink): Promise<boolean> {
     const plan = FlightPlanIndex.Active;

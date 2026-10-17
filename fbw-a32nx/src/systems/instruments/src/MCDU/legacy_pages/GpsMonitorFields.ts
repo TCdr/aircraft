@@ -32,10 +32,9 @@ export interface GpsMonitorFields {
 }
 
 /**
- * The fields of one receiver on the MCDU GPS MONITOR page (A320 FCOM DSC-22_20-50-10-28): TTRK, GS, MERIT (figure of
- * merit), MODE/SAT (the mode and the number of satellites tracked), GPS ALT. The data is dashed while the receiver is not
- * in NAV (or a degraded mode, ALTAID or AIDED), and for a receiver that no ADIRU has selected ("the data of the GPS that is not selected is dashed on the GPS
- * MONITOR page").
+ * The fields of one receiver on the MCDU GPS MONITOR page: TTRK, GS, MERIT (figure of merit), MODE/SAT (the mode and
+ * the number of satellites tracked), GPS ALT. The data is dashed while the receiver is not in NAV (or a degraded mode,
+ * ALTAID or AIDED), and for a receiver that no ADIRU has selected.
  */
 export function gpsMonitorFields(reading: GpsReceiverReading): GpsMonitorFields {
   const navigating = NAVIGATION_MODES.includes(reading.mode);

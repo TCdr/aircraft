@@ -2,26 +2,24 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The fields of the PREDICTIVE GPS page (A320 FCOM DSC-22_20-50-10-28 PREDICTIVE GPS PAGE, a320_fcom.txt l.21346-21404):
- * - [1L] DEST [1R] ETA (l.21356-21364): the destination of the active flight plan; the ETA "is defaulted to the estimated
- *   arrival time, as computed by the FMS (small blue font). The pilot may enter a value in this field (large blue font).
- *   Amber boxes are displayed when no prediction exists, or when the crew entry has been cleared."
- * - Line 2 and line 4 PRIMARY Y/N (l.21378-21386): the predicted GPS PRIMARY at the ETA -15, -10, -5, 0, +5, +10, +15 min,
- *   Y available, N unavailable; "These fields are blank, when the destination [1L], or time [1R] field is not defined."
- * - [3L] WPT [3R] ETA (l.21388-21396): a crew waypoint (blue brackets without one), then amber boxes for its reference
- *   time, then the same Y/N line as for the destination.
- * - Line 5/6 DESELECTED SATELLITES (l.21398-21404): up to four satellite numbers in large blue font; "The deselection
- *   is cancelled when the entry is cleared (blue brackets appears), or when the field is overwritten by a different
- *   satellite number."
- * - Time format (MCDU data format list, UTC CSTR l.23888-23893): HHMM, HH 0-23, MM 0-59, leading zeros may be omitted.
+ * The fields of the PREDICTIVE GPS page:
+ * - [1L] DEST [1R] ETA: the destination of the active flight plan; the ETA is the FMS estimate (small blue font) or the
+ *   crew entry (large blue font); amber boxes without a prediction or after the crew entry is cleared.
+ * - Line 2 and line 4 PRIMARY Y/N: the predicted GPS PRIMARY at the ETA -15, -10, -5, 0, +5, +10, +15 min, Y available,
+ *   N unavailable; blank while the place or its time is not defined.
+ * - [3L] WPT [3R] ETA: a crew waypoint (blue brackets without one), then amber boxes for its reference time, then the
+ *   same Y/N line as for the destination.
+ * - Line 5/6 DESELECTED SATELLITES: up to four satellite numbers in large blue font; CLR (blue brackets back) or a
+ *   different number cancels a deselection.
+ * - Time format: HHMM, HH 0-23, MM 0-59, leading zeros may be omitted.
  *
  * The sim has no GPS constellation (no almanac to predict the satellite geometry at a future time): the prediction is the
  * GPS receiver state now, Y at every time when a GPS receiver gives a position, N when none does. The deselected
  * satellites are kept and shown, they cannot change that prediction.
  */
 
-/** Up to four satellites can be deselected (l.21398) */
-export const MAX_DESELECTED_SATELLITES = 4;
+/** Up to four satellites can be deselected */
+const MAX_DESELECTED_SATELLITES = 4;
 
 /** GPS satellite numbers (PRN) */
 const MIN_SATELLITE_NUMBER = 1;
@@ -47,10 +45,6 @@ export function parsePredictiveEta(entry: string): number | PredictiveGpsEntryEr
   return hours * 3600 + minutes * 60;
 }
 
-/**
- * Parses a satellite number entry.
- * @returns the satellite number, or the entry error
- */
 export function parseSatelliteNumber(entry: string): number | PredictiveGpsEntryError {
   if (!/^\d{1,2}$/.test(entry)) {
     return 'format';

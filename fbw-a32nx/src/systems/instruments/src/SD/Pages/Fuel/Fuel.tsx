@@ -60,7 +60,7 @@ export const FuelPage = () => {
   const [onGround] = useSimVar('SIM ON GROUND', 'bool', 1000);
 
   const [fwcFlightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'enum', 1000);
-  // FUEL QUANTITY - ADVISORY (FCOM DSC-28-20): the heavier wing pulses above 1 500 kg of imbalance in phases 2 and 6
+  // Fuel quantity advisory: the heavier wing pulses above 1 500 kg of imbalance in phases 2 and 6
   const imbalancePulse = wingImbalancePulse(
     (tankLeftInner + tankLeftOuter) * fuelWeightPerGallon,
     (tankRightInner + tankRightOuter) * fuelWeightPerGallon,
@@ -68,8 +68,7 @@ export const FuelPage = () => {
   );
   const leftWingQuantityClass = `TankQuantity${imbalancePulse.left ? ' TankQuantityPulse' : ''}`;
   const rightWingQuantityClass = `TankQuantity${imbalancePulse.right ? ' TankQuantityPulse' : ''}`;
-  // FUEL QUANTITY - OVERFLOW INDICATION (FCOM DSC-28-20, a320_fcom.txt l.43239-43241): "In the case of wing overflow,
-  // the associated inner tank quantity indication turns amber" (systems host Fuel/FuelLevelSensing)
+  // Wing overflow: the inner tank quantity of that wing turns amber (systems host Fuel/FuelLevelSensing)
   const [leftWingOverflow] = useSimVar('L:A32NX_FUEL_L_WING_TK_OVERFLOW', 'bool', 500);
   const [rightWingOverflow] = useSimVar('L:A32NX_FUEL_R_WING_TK_OVERFLOW', 'bool', 500);
   const leftInnerQuantityClass = leftWingOverflow > 0 ? 'TankQuantity TankQuantityAmber' : leftWingQuantityClass;
@@ -128,7 +127,7 @@ export const FuelPage = () => {
         <Pump x={145} y={215} pumpNumber={2} />
         <Pump x={180} y={215} onBus="DC_2" pumpNumber={5} />
 
-        {/* Quantities; the outer one boxed amber when its transfer valves failed to open (FCOM l.43219-43220), the box
+        {/* Quantities; the outer one boxed amber when its transfer valves failed to open, the box
             sized as the centre tank one around the right-aligned value */}
         {isOuterTankQuantityBoxed(leftOuterXfrClosed > 0) && (
           <rect className="AmberLine" x={6} y={268} width={80} height={34} fill="none" />
@@ -247,9 +246,8 @@ type CellTemperatureProps = {
 };
 
 /**
- * The fuel temperature of a wing tank cell (systems WASM fuel/fuel_temperature.rs), FCOM DSC-28-20 FUEL TEMPERATURE
- * INDICATION (a320_fcom.txt l.43178-43187): shown while its sensor is wet, green, pulsing for the advisory, amber with
- * the caution (shared/src/FuelTemperature.ts).
+ * The fuel temperature of a wing tank cell (systems WASM fuel/fuel_temperature.rs): shown while its sensor is wet,
+ * green, pulsing for the advisory, amber with the caution (shared/src/FuelTemperature.ts).
  */
 const CellTemperature: FC<CellTemperatureProps> = ({
   x,
@@ -346,7 +344,7 @@ const FuelFlow = ({ useMetric }: FuelFlowProps) => {
 
 type FOBProps = {
   useMetric: boolean;
-  /** Some displayed fuel is not usable (FCOM l.43275-43278, shared/src/FuelQuantityIndications.ts) */
+  /** Some displayed fuel is not usable (shared/src/FuelQuantityIndications.ts) */
   halfBoxed: boolean;
 };
 
@@ -356,8 +354,8 @@ const FOB = ({ useMetric, halfBoxed }: FOBProps) => {
   return (
     <>
       <path className="ThickShape" d="m 5 499 v -30 h 250 v 30 z" />
-      {/* The amber half box: the lower half of a box around the value (as the DOOR/OXY crew oxygen half frame); the
-          FCOM text gives no figure */}
+      {/* The amber half box: the lower half of a box around the value (Design choice: drawn as the DOOR/OXY crew
+          oxygen half frame) */}
       {halfBoxed && <path className="AmberLine" fill="none" d="m 112 485 v 10 h 96 v -10" />}
 
       <text id="FobLabel" x={18} y={491}>
@@ -444,7 +442,6 @@ type EngineLpValveProps = {
   engineNumber?: number;
 };
 
-/** The engine LP valve: its colour follows the FCOM rule of isEngineLpValveGreen */
 const EngineLpValve = ({ x, y, engineNumber }: EngineLpValveProps) => {
   const [position] = useSimVar(`L:A32NX_FUEL_ENG_${engineNumber}_LP_VALVE_OPEN_PERCENTAGE`, 'percent', 500);
   // The ENG MASTER switch drives the MSFS fuel valve switch of the same index
@@ -473,7 +470,6 @@ const CrossFeedValveLine = ({ x, y, position }: EngineValveProps) => {
   return <line x1={x - 15} y1={y} x2={x + 15} y2={y} />;
 };
 
-/** The X FEED valve: its colour follows the FCOM rule of isCrossFeedValveGreen */
 const CrossFeedValve = ({ x, y }: EngineLpValveProps) => {
   const [position] = useSimVar('FUELSYSTEM VALVE OPEN:3', 'percent', 500);
   // The X FEED pb-sw selection (the MSFS valve switch is held still while the valve is jammed)
@@ -495,7 +491,6 @@ type PumpProps = {
   pumpNumber: number;
 };
 
-/** A wing tank pump: its symbol follows the FCOM rule of wingPumpIndication */
 const Pump = ({ x, y, onBus = 'DC_ESS', pumpNumber }: PumpProps) => {
   const [busIsPowered] = useSimVar(`L:A32NX_ELEC_${onBus}_BUS_IS_POWERED`, 'bool', 1000);
   // The pb-sw selection (the MSFS pump switch is held off while the pump is failed)

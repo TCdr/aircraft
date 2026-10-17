@@ -10,8 +10,8 @@ export enum CrossBleedSelectorPosition {
 
 /**
  * Whether the BMC commands the crossbleed valve open: SHUT and OPEN are manual, AUTO opens it while the APU bleed valve
- * is open (A320 FCOM DSC-36-20 X BLEED selector; the same derivation as the FWC X BLEED FAULT caution,
- * systems-host FWC/Logic/BleedAlerts.ts isCrossBleedValveCommandedOpen). Simplification: the automatic closure on a
+ * is open (the same derivation as the FWC X BLEED FAULT caution, systems-host FWC/Logic/BleedAlerts.ts
+ * isCrossBleedValveCommandedOpen). Simplification: the automatic closure on a
  * wing, pylon or APU leak (pneumatic.rs) is not seen here; a leak also closes the APU bleed valve.
  * @param selector the X BLEED selector position
  * @param apuBleedValveOpen whether the APU bleed valve is open
@@ -29,10 +29,8 @@ export function isCrossBleedValveCommandedOpen(selector: number, apuBleedValveOp
 }
 
 /**
- * Whether the crossbleed valve symbol is amber. A320 FCOM DSC-36-20 BLEED page, CROSSBLEED VALVE (a320_fcom.txt
- * l.57810-57831): green crossline/in line when normally closed/open; "Crossline - Amber: The crossbleed valve is not
- * in the commanded (closed) position", "In line - Amber: The crossbleed valve is not in the commanded (open)
- * position", "Transit - Amber: The crossbleed valve is in transit."
+ * Whether the crossbleed valve symbol is amber: green crossline or in line when closed or open as commanded, amber when
+ * not in the commanded position or in transit.
  * @param commandedOpen whether the valve is commanded open (isCrossBleedValveCommandedOpen)
  * @param fullyOpen L:A32NX_PNEU_XBLEED_VALVE_FULLY_OPEN
  * @param fullyClosed L:A32NX_PNEU_XBLEED_VALVE_FULLY_CLOSED

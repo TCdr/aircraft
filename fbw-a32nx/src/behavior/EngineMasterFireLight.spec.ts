@@ -69,7 +69,7 @@ function fireLight(engine: 1 | 2, localVars: Record<string, boolean>): boolean {
   return evaluate(engineFireLightCode(engine), localVars);
 }
 
-describe('ENG MASTER panel FIRE light (A320 FCOM DSC-26-20-20)', () => {
+describe('ENG MASTER panel FIRE light', () => {
   it('is dark without fire and without test', () => {
     expect(fireLight(1, {})).toBe(false);
     expect(fireLight(2, {})).toBe(false);

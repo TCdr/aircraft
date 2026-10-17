@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * CAB PRESS page colours and pulses. A320 FCOM DSC-21-20-40 Controls and indicators, CAB PRESS page:
- * (3) V/S FT/MIN: "The digital presentation pulses when V/S > 1 750 ft/min (resets at 1 650 ft/min)."
- * (5) CAB ALT FT: "They appear in red if the cabin altitude goes above 9 550 ft. The digital presentation pulses if the
- *     cabin altitude is at or above 8 800 ft (resets at 8 600 ft)."
+ * CAB PRESS page colours and pulses:
+ * - V/S: the digital value pulses above 1 750 ft/min (resets at 1 650 ft/min).
+ * - CAB ALT: red above 9 550 ft; the digital value pulses at or above 8 800 ft (resets at 8 600 ft).
  * Only the digital presentations pulse: the analog needles stay steady.
  * The values compared are the displayed ones (rounded to 50 ft, 50 ft/min), so that the colour matches the digits.
  */
@@ -57,7 +56,7 @@ export function cabinAltitudeNeedleClass(displayedCabinAltitudeFt: number): stri
 
 /**
  * Whether the V/S digital value pulses: above 1750 ft/min, until it is back down to 1650 ft/min.
- * Design choice (kept from the previous code): climb and descent rates both count (absolute value).
+ * Design choice: climb and descent rates both count (absolute value).
  * @param displayedCabinVsFtMin the displayed cabin vertical speed, ft/min
  * @param wasPulsing whether the value pulsed at the previous update (hysteresis)
  * @returns true when the value pulses
@@ -77,13 +76,10 @@ export interface VentilationIndication {
 }
 
 /**
- * The avionics ventilation legends of the CAB PRESS page, A320 FCOM DSC-21-30-60 ECAM CAB PRESS PAGE (a320_fcom.txt
- * l.9587-9591): "VENT message normally appears in white. It becomes amber, if there is a BLOWER FAULT, EXTRACT FAULT, or
- * AVNCS SYS FAULT. BLOWER message appears in amber if there is a BLOWER FAULT. EXTRACT message appears in amber if
- * there is an EXTRACT FAULT."
- * The BLOWER and EXTRACT FAULTs are the signals of the overhead FAULT lights, which also come on with the avionics smoke
- * (DSC-21-30-20 l.9560-9566: "smoke warning is activated"). Not simulated: the avionics equipment ventilation computer,
- * so no AVNCS SYS FAULT.
+ * The avionics ventilation legends of the CAB PRESS page: VENT white, amber with a BLOWER, EXTRACT or AVNCS SYS FAULT;
+ * BLOWER and EXTRACT in amber with their own FAULT. The BLOWER and EXTRACT FAULTs are the signals of the overhead FAULT
+ * lights, which also come on with the avionics smoke warning. Not simulated: the avionics equipment ventilation
+ * computer, so no AVNCS SYS FAULT.
  * @param blowerFault L:A32NX_VENTILATION_BLOWER_FAULT, or the avionics smoke
  * @param extractFault L:A32NX_VENTILATION_EXTRACT_FAULT, or the avionics smoke
  */

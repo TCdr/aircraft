@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * SD ELEC page IDG indications (A320 FCOM DSC-24-20, a320_fcom.txt l.37610-37625):
- * - (A) IDG legend: "normally white, but becomes amber, if: Oil outlet temperature > 180 °C. Oil pressure gets too low.
- *   IDG becomes disconnected."
- * - (B) DISC/LO PR: "The DISC legend appears in amber, when the IDG is disconnected. LO PR appears in amber, when IDG
- *   low pressure is detected and the associated engine is running."
- * - (C) Oil outlet temperature: "normally in green, but appears amber, if T > 180 °C. It flashes, if 147 °C < T < 180 °C
- *   (advisory)."
+ * SD ELEC page IDG indications:
+ * - IDG legend: white, amber with the oil outlet above 180 °C, a low oil pressure, or the IDG disconnected.
+ * - DISC in amber with the IDG disconnected; LO PR in amber with a low IDG oil pressure and the engine running.
+ * - Oil outlet temperature: green, flashing between 147 °C and 180 °C (advisory), amber above 180 °C.
  */
 
-export const IDG_OIL_ADVISORY_CELSIUS = 147;
+const IDG_OIL_ADVISORY_CELSIUS = 147;
 export const IDG_OIL_OVERHEAT_CELSIUS = 180;
 
 export type IdgTemperatureState = 'normal' | 'advisory' | 'overheat';
@@ -48,8 +45,7 @@ export function idgLegendAmber(connected: boolean, temperatureCelsius: number, l
 }
 
 /**
- * The RISE value (FCOM DSC-24-20 (13), a320_fcom.txt l.37650-37652): "This number, displayed in green, is the difference
- * between the temperature at the IDG inlet and that at the IDG outlet."
+ * The RISE value, in green: the IDG oil temperature difference between the outlet and the inlet.
  * @param outletCelsius L:A32NX_ELEC_ENG_GEN_n_IDG_OIL_OUTLET_TEMPERATURE
  * @param inletCelsius L:A32NX_ELEC_ENG_GEN_n_IDG_OIL_INLET_TEMPERATURE
  * @returns the displayed rise, whole °C

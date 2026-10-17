@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { dcduKeyEvent, dcduKeyWorks } from './DcduFailures';
 
-/* The DCDU 1 and DCDU 2 flyPad failures (FCOM DSC-46-10-10, a320_fcom.txt l.59032) */
+/* The DCDU 1 and DCDU 2 flyPad failures: one DCDU on each side */
 describe('DCDU failures', () => {
   const noFailure = { dcdu1Failed: false, dcdu2Failed: false };
 

@@ -236,7 +236,6 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
     this.secondBorderSub.set(secondBorder);
   }
 
-  /** Computes the FMA line 3 messages of FmaLine3Messages.ts from the latest inputs */
   private updateLine3Messages(): void {
     const word1 = this.fmgcDiscreteWord1;
     const word4 = this.fmgcDiscreteWord4;
@@ -1721,7 +1720,7 @@ const getBC3Message = (
     text = 'T/D REACHED';
     className = 'FontMediumSmaller White Fill';
   } else if (moreDrag) {
-    // FCOM DSC-22_30-100 l.33617-33623, computed by the FMGC VNAV (fmgc guidance/vnav/descent/MoreDragMessage.ts)
+    // computed by the FMGC VNAV (fmgc guidance/vnav/descent/MoreDragMessage.ts)
     text = 'MORE DRAG';
     className = 'FontMediumSmaller White Fill';
   } else if (checkSpeedMode && !isAttExcessive) {

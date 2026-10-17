@@ -36,8 +36,8 @@ export class CDUSelectedNavaids {
     mcdu.pageRedrawCallback = () => CDUSelectedNavaids.ShowPage(mcdu);
     setTimeout(mcdu.requestUpdate.bind(mcdu), 500);
 
-    // [6L] GPS selection (A320 FCOM DSC-22_20-50-10-28): the state in the label line in blue small font, the action in
-    // white large font; the GPS is selected by default
+    // [6L] GPS selection: the state in the label line in blue small font, the action in white large font; the GPS is
+    // selected by default
     const gpsDeselected = mcdu.navigation.isGpsDeselected();
 
     const template = [

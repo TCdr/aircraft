@@ -292,7 +292,7 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
       });
     }
 
-    // DIRECT WITH ABEAM: the abeam points appear once the direct to is inserted (A380 FCOM DSC-22-FMS, ABEAM PTS)
+    // DIRECT WITH ABEAM: the abeam points appear once the direct to is inserted (shown as ABEAM PTS until then)
     temporaryPlan.allLegs.forEach((leg, index) => {
       if (leg.isDiscontinuity === false && BitFlags.isAny(leg.flags, FlightPlanLegFlags.PendingDirectToAbeamPoint)) {
         temporaryPlan.editLegFlags(index, leg.flags & ~FlightPlanLegFlags.PendingDirectToAbeamPoint);
@@ -408,9 +408,8 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
       throw new Error('[FMS/FPM] Cannot set alternate on temporary flight plan');
     }
 
-    // A revision of the active flight plan goes into the temporary flight plan (A380 FCOM DSC-22-FMS-10-40-50,
-    // a380_fcom.txt l.26192: "Insertion, changing, or removing the alternate destination, creates a temporary flight
-    // plan."; l.26194-26195: not from the INIT page, which calls this without asTemporaryRevision)
+    // A380: inserting, changing or removing the alternate destination creates a temporary flight plan, except from the
+    // INIT page, which calls this without asTemporaryRevision
     const finalIndex = asTemporaryRevision ? this.prepareDestructiveModification(planIndex) : planIndex;
 
     const plan = this.flightPlanManager.get(finalIndex);
@@ -428,9 +427,8 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
       throw new Error('[FMS/FPM] Cannot insert an alternate company route on temporary flight plan');
     }
 
-    // A380 FCOM DSC-22-FMS-20-30 INIT page, ALTERNATE ROUTE ENTRY FIELD (a380_fcom.txt l.36757-36758): "Entering an
-    // alternate route re-initializes the alternate flight plan, and deletes the existing alternate flight plan, if any";
-    // from the INIT page without a temporary flight plan (l.26216-26217)
+    // A380 INIT page ALTN RTE: an alternate route replaces the whole alternate flight plan, without a temporary flight
+    // plan
     const plan = this.flightPlanManager.get(planIndex);
     plan.wasModified = true;
 

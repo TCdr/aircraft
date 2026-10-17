@@ -805,8 +805,8 @@ export enum TakeoffPowerSetting {
 }
 
 /**
- * The derated takeoff levels of the A380 (FCOM DSC-70-20-40 l.111564-111565: "6 derated takeoff levels are defined: DO4 ,
- * DO8 , D12 , D16 , D20 , D24 . Each level reduces the maximum thrust from 4 % up to 24 %."), as the index of the MFD list
+ * The six derated takeoff levels of the A380 (D04 to D24: each reduces the maximum thrust by 4 % to 24 %), as the index
+ * of the MFD list
  */
 export enum TakeoffDerated {
   D04 = 0,

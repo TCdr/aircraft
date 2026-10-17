@@ -1,32 +1,27 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-/*
- * Display rules of PFD flags (A320 FCOM DSC-31-40 FLAGS AND MESSAGES DISPLAYED ON PFD).
- * l.47908: "All flags, except, V1 INOP which is steady, flash for 9 s, then remain steady."
- */
+/* Display rules of the PFD flags */
 
-/** l.47908: the flags flash for 9 s, then remain steady (V1 INOP excepted) */
+/** The flags flash for 9 s, then remain steady (V1 INOP excepted: always steady) */
 export const PFD_FLAG_FLASH_SECONDS = 9;
 
 /** The last FWC flight phase in which the V1 bug is displayed (phase 4: 80 kt, the V1BugElement rule) */
 const LAST_V1_FLIGHT_PHASE = 4;
 
-/** Inputs of the V1 INOP flag */
 export interface V1InopInputs {
   /** the V1 the FMS holds, knots (0 or negative: none entered) */
   v1Knots: number;
   /** the FM that sends the V1 to this PFD is healthy (A32NX_FM1/2_HEALTHY_DISCRETE of either FM) */
   anyFmHealthy: boolean;
-  /** the FWC flight phase */
   fwcFlightPhase: number;
 }
 
 /**
- * V1 INOP flag (red, steady), l.47815-47816: "When the V1 signal is not valid, a V1 INOP flag replaces the digital
- * value." The V1 comes from the FMGC: the signal is not valid when no FM is healthy (both FMs lost: the PFD reads the
- * FM of the other side when only one is lost). Shown only while a V1 was entered and the V1 is displayed (up to
- * flight phase 4, as the V1 bug), like the V1 it replaces.
+ * V1 INOP flag (red, steady): replaces the digital V1 when the V1 signal is not valid. The V1 comes from the FMGC: the
+ * signal is not valid when no FM is healthy (both FMs lost: the PFD reads the FM of the other side when only one is
+ * lost). Shown only while a V1 was entered and the V1 is displayed (up to flight phase 4, as the V1 bug), like the V1
+ * it replaces.
  * @param i the inputs
  * @returns whether V1 INOP replaces the V1 value (the V1 bug and value are then hidden)
  */
@@ -34,7 +29,6 @@ export function isV1InopShown(i: V1InopInputs): boolean {
   return i.v1Knots > 0 && i.fwcFlightPhase <= LAST_V1_FLIGHT_PHASE && !i.anyFmHealthy;
 }
 
-/** Inputs of the ILS and DME flags of one PFD */
 export interface LandingSystemFlagInputs {
   /** the LS pushbutton of this side is on (the ILS information is displayed) */
   lsSelected: boolean;
@@ -45,10 +39,9 @@ export interface LandingSystemFlagInputs {
 }
 
 /**
- * ILS1 (ILS2) flag (red), l.47872-47874: "If an ILS frequency fails, or if either the LOC or G/S signals fail, an
- * ILS1 (on PFD1) or ILS2 (on PFD2) flag replaces the ILS frequency indication." The sim has no ILS receiver failure:
- * the receiver fails when it loses its power (ELEC AC ESS BUS FAULT lists LS 1, l.75990; ELEC AC BUS 2 FAULT lists
- * ILS 2, l.75774).
+ * ILS1 (ILS2) flag (red): replaces the ILS frequency indication on PFD 1 (PFD 2) when the ILS frequency, the LOC or
+ * the G/S signal fails. The sim has no ILS receiver failure: the receiver fails when it loses its power (LS 1 is lost
+ * with the AC ESS bus, ILS 2 with the AC bus 2).
  * @param i the inputs
  * @returns whether the ILS flag replaces the ILS ident and frequency
  */
@@ -57,10 +50,10 @@ export function isIlsFlagShown(i: LandingSystemFlagInputs): boolean {
 }
 
 /**
- * DME1 (DME2) flag (red), l.47868-47870: "When the DME distance is not valid, a DME1 (on PFD1) or DME2 (on PFD2) flag
- * replaces the DME distance indication." A DME distance that is only not received (no DME at the station, out of
- * range) is no computed data and stays blank, as before. The interrogator fails when it loses its power (ELEC AC ESS
- * BUS SHED lists DME 1, l.76069, while the CAPT PFD remains; ELEC AC BUS 2 FAULT lists DME 2, l.75780).
+ * DME1 (DME2) flag (red): replaces the DME distance indication on PFD 1 (PFD 2) when the DME distance is not valid. A
+ * DME distance that is only not received (no DME at the station, out of range) is no computed data and stays blank.
+ * The interrogator fails when it loses its power (DME 1 is lost with the AC ESS SHED bus while the CAPT PFD remains,
+ * DME 2 with the AC bus 2).
  * @param i the inputs
  * @returns whether the DME flag replaces the DME distance
  */
@@ -69,7 +62,7 @@ export function isDmeFlagShown(i: LandingSystemFlagInputs): boolean {
 }
 
 /**
- * The text of the ILS or DME flag of a PFD: ILS1/DME1 on PFD 1, ILS2/DME2 on PFD 2 (l.47869, l.47873).
+ * The text of the ILS or DME flag of a PFD: ILS1/DME1 on PFD 1, ILS2/DME2 on PFD 2.
  * @param receiver ILS or DME
  * @param displayIndex 1 for the CAPT PFD, 2 for the F/O PFD
  * @returns the flag text
@@ -86,7 +79,7 @@ export type LandingSystemPowerTopic =
 
 /**
  * The electrical bus that powers the ILS receiver and the DME interrogator a PFD reads.
- * MMR 1 (LS 1): AC ESS (l.75990), DME 1: AC ESS SHED (l.76069); MMR 2 (ILS 2) and DME 2: AC 2 (l.75774, l.75780).
+ * MMR 1 (LS 1): AC ESS, DME 1: AC ESS SHED; MMR 2 (ILS 2) and DME 2: AC 2.
  * @param displayIndex 1 for the CAPT PFD, 2 for the F/O PFD
  * @returns the bus topics of the A32NXElectricalSystemPublisher
  */

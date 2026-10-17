@@ -4,56 +4,50 @@
 import { ThrustLimitType } from '@shared/EngineLimits';
 
 /*
- * Display rules of the EWD engine indications, A320 FCOM DSC-70-90-40-50 (a320_fcom.txt):
- * - EGT LIMIT, l.64263-64273: "The amber line indicates the maximum EGT (i.e. the EGT limit). [...] The EGT limit
- *   does not appear: When a takeoff or a go-around mode is selected, or When the thrust reversers are selected, or If
- *   the alpha floor protection is activated."
- * - THRUST LIMIT VALUE, l.64172: "The thrust limit value disappears when the thrust reversers are selected."
- * - FLEX TEMPERATURE, l.64179-64181 and l.64195-64196: cyan flexible temperature "when the FLX rating mode is selected",
- *   "Dashes in cyan: Indicates that the Static Air Temperature is above the flexible temperature."
- * - IDLE INDICATION, l.64203-64204: "Both engines are at idle speed, and the aircraft is in flight. Pulses during 10 s,
- *   and then remains steady."
+ * Display rules of the EWD engine indications:
+ * - EGT limit: an amber line at the maximum EGT, hidden in a takeoff or go-around mode, with the thrust reversers
+ *   selected, or with the alpha floor protection active.
+ * - Thrust limit value: hidden with the thrust reversers selected.
+ * - Flexible temperature: cyan, in FLX rating mode; cyan dashes when the static air temperature is above it.
+ * - IDLE: both engines at idle speed in flight; it pulses for 10 s, then stays steady.
  *
  * Design choices:
  * - The takeoff and go-around modes are the TOGA and FLX thrust limit types of the FADEC
- *   (L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE, the rating mode shown on the EWD); the thrust reversers are selected when the
- *   thrust limit type is MREV (a thrust lever in the reverse range).
- * - In flight is FWC flight phases 5 (lift off) to 7 (approach), as before.
- * - At idle speed: N1 at most 2 % above the idle N1 of the current conditions (L:A32NX_ENGINE_IDLE_N1), as before.
+ *   (L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE, the rating mode shown on the EWD); the thrust reversers are selected when
+ *   the thrust limit type is MREV (a thrust lever in the reverse range).
+ * - In flight is FWC flight phases 5 (lift off) to 7 (approach).
+ * - At idle speed: N1 at most 2 % above the idle N1 of the current conditions (L:A32NX_ENGINE_IDLE_N1).
  */
 
-/** l.64269-64273: the amber EGT limit line of the EGT gauge */
+/** The amber EGT limit line of the EGT gauge */
 export function isEgtLimitLineVisible(thrustLimitType: number, alphaFloorActive: boolean): boolean {
   const takeoffOrGoAroundMode = thrustLimitType === ThrustLimitType.Toga || thrustLimitType === ThrustLimitType.Flex;
   const reversersSelected = thrustLimitType === ThrustLimitType.Mrev;
   return !takeoffOrGoAroundMode && !reversersSelected && !alphaFloorActive;
 }
 
-/** l.64172: the N1 limit value under the thrust rating mode */
+/** The N1 limit value under the thrust rating mode */
 export function isThrustLimitValueVisible(thrustLimitType: number): boolean {
   return thrustLimitType !== ThrustLimitType.Mrev;
 }
 
-/** The text of the flexible temperature under the thrust limit value, null when it is not shown */
-export type FlexTemperatureText = string | null;
-
-/** Cyan dashes in place of the flexible temperature, l.64195-64196 */
+/** Cyan dashes in place of the flexible temperature */
 export const FLEX_TEMPERATURE_DASHES = '--';
 
 /**
- * l.64179-64181, 64195-64196: the flexible temperature in FLX rating mode, cyan dashes when the static air temperature
- * is above it.
+ * The flexible temperature in FLX rating mode, cyan dashes when the static air temperature is above it.
  * @param flexTemperature the flexible temperature entered in the FMS (L:A32NX_AIRLINER_TO_FLEX_TEMP), 0 when none
  * @param thrustLimitType L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE
  * @param satValid the static air temperature of the ADR is valid
  * @param sat the static air temperature, in °C
+ * @returns the text under the thrust limit value, null when the flexible temperature is not shown
  */
 export function flexTemperatureText(
   flexTemperature: number,
   thrustLimitType: number,
   satValid: boolean,
   sat: number,
-): FlexTemperatureText {
+): string | null {
   if (thrustLimitType !== ThrustLimitType.Flex || flexTemperature === 0) {
     return null;
   }
@@ -71,8 +65,7 @@ const FWC_FLIGHT_PHASE_LIFT_OFF = 5;
 const FWC_FLIGHT_PHASE_APPROACH = 7;
 
 /**
- * l.64203: the IDLE indication, both engines at idle speed in flight. The autothrust status is not part of the rule (it
- * was required to be active before).
+ * The IDLE indication, both engines at idle speed in flight. The autothrust status is not part of the rule.
  */
 export function isIdleIndicationVisible(
   engine1N1: number,

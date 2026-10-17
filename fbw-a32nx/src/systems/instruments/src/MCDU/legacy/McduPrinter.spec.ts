@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { PrintRequestOutcome, printRequestOutcome } from './McduPrinter';
 import { NXSystemMessages } from '../messages/NXSystemMessages';
 
-/* The cockpit printer failure (flyPad 46004), A320 FCOM MCDU messages (a320_fcom.txt l.22912-22918) */
+/* The cockpit printer failure (flyPad 46004): PRINTER NOT AVAILABLE, nothing printed */
 describe('MCDU print with the cockpit printer failure', () => {
   it('prints with a working printer, one page at a time', () => {
     expect(printRequestOutcome(false, false)).toBe(PrintRequestOutcome.Print);

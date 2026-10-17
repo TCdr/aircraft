@@ -36,8 +36,7 @@ const DistanceSpacing = 10;
 const DisplayRange = 42;
 
 /**
- * Whether the V1 INOP flag replaces the V1 (A320 FCOM DSC-31-40, a320_fcom.txt l.47815-47816): the V1 bug and the
- * digital V1 are hidden while it is shown.
+ * Whether the V1 INOP flag replaces the V1: the V1 bug and the digital V1 are hidden while it is shown.
  * @param bus the PFD event bus
  * @returns the V1 INOP state
  */
@@ -1033,8 +1032,8 @@ class V1Offtape extends DisplayComponent<{ bus: ArincEventBus }> {
           </text>
         </g>
         {/*
-          V1 INOP flag (red, steady, l.47908), in place of the digital V1 (l.47816) at the top of the speed scale. Shown
-          whether the V1 would be on or off the scale: the FCOM gives no position, this one is a design choice.
+          V1 INOP flag (red, steady), in place of the digital V1 at the top of the speed scale. Design choice: no
+          documented position, shown there whether the V1 would be on or off the scale.
         */}
         <text
           id="V1InopFlag"

@@ -5,9 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { isRmpNavaidTuningActive } from './RmpNavaidTuning';
 
 /*
- * The FMS hands the navaid tuning over to the RMPs. A380 FCOM DSC-34-10-60-10 Standby RadNav (a380_fcom.txt
- * l.86641-86649): RMP 1 or RMP 2 in RAD NAV STBY mode tune the navaids, RMP 3 does not. Before, the FMS (NavaidTuner)
- * only read the A320 RMP NAV keys, so the A380X STBY RAD NAV mode never took the tuning away from the FMS.
+ * The FMS hands the navaid tuning over to the RMPs: the A320 RMP NAV keys, and on the A380 RMP 1 or RMP 2 in RAD NAV
+ * STBY mode (RMP 3 does not tune navaids). The A380X discretes must take the tuning away from the FMS too.
  */
 describe('RMP navaid tuning discretes', () => {
   const reader =

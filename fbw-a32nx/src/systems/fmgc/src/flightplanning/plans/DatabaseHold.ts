@@ -9,13 +9,9 @@ import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDataba
 /*
  * The database hold of a hold fix (HOLD page DATABASE button / revert, both aircraft).
  *
- * A320 FCOM HOLD page (a320_fcom.txt l.18269-18270): "[2R] DATABASE () Pressing this key reverts the displayed parameters
- * to the parameters memorized in the database for this waypoint."
- * A380 FCOM DSC-22-FMS-10-40-50 (a380_fcom.txt l.25355-25358): "DATABASE HOLD The FMS navigation database, may have an
- * HM, associated to the revised waypoint. The inbound course, turn side, and leg size are taken from the navigation
- * database." HOLD page (l.36446-36450): "DATABASE HOLD BUTTON When clicked, displays the database hold, associated to the
- * revised waypoint, and updates the temporary flight plan with this hold. If no database hold exists for the selected
- * waypoint, the button cannot be selected."
+ * The DATABASE key reverts the hold to the one stored in the navigation database for the revised waypoint: its
+ * inbound course, turn side and leg size. On the A380 the button also updates the temporary flight plan, and it cannot
+ * be selected when the waypoint has no database hold.
  */
 
 /**

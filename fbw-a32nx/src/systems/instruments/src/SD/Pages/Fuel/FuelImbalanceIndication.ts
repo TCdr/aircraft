@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * FUEL QUANTITY - ADVISORY, A320 FCOM DSC-28-20 (a320_fcom.txt l.43246-43250): "An advisory appears in flight phases 2
- * and 6, when the difference between the fuel quantities in the two wings is greater than 1 500 kg (3 300 lb). The wing
- * inner and outer tank indications pulse with the highest fuel level."
+ * Fuel quantity advisory: in flight phases 2 and 6, with more than 1 500 kg (3 300 lb) between the two wings, the inner
+ * and outer tank quantities of the heavier wing pulse.
  */
 
-/** l.43247-43248: the wing imbalance of the advisory, in kg */
-export const WING_IMBALANCE_ADVISORY_KG = 1_500;
+/** The wing imbalance of the advisory, in kg */
+const WING_IMBALANCE_ADVISORY_KG = 1_500;
 
-/** l.43247: the FWC flight phases of the advisory (2: first engine started, 6: airborne above 1 500 ft) */
+/** The FWC flight phases of the advisory (2: first engine started, 6: airborne above 1 500 ft) */
 const ADVISORY_FLIGHT_PHASES = [2, 6];
 
 /** Which wing's inner and outer tank quantities pulse */

@@ -16,7 +16,6 @@ describe('A32NX radio navigation receivers', () => {
     expect(isSignalReceived(0, false)).toBe(false);
   });
 
-  // A320 FCOM DSC-34-NAV-30-30 (9) BFO key, a320_fcom.txt l.53502-53505
   it('toggles the BFO with the RMP BFO key while the ADF is selected in NAV backup', () => {
     expect(bfoAfterRmpBfoKey(true, RMP_ADF_MODE, false)).toBe(true);
     expect(bfoAfterRmpBfoKey(true, RMP_ADF_MODE, true)).toBe(false);

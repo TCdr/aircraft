@@ -14,7 +14,7 @@ import {
   n2Color,
 } from './EngineLimits';
 
-describe('EWD engine limits (EGT: CFM56-5B TCDS values confirmed in the sim; N1, N2: FCOM DSC-70-90-40)', () => {
+describe('EWD engine limits (EGT: certified CFM56-5B values; N1, N2: LEAP-1A red lines)', () => {
   it('has the EGT amber limit of the thrust limit type: 940 °C at TOGA/FLX, 905 °C at CLB/MCT/MREV, 725 °C otherwise', () => {
     expect(egtAmberLimit(ThrustLimitType.Toga)).toBe(940);
     expect(egtAmberLimit(ThrustLimitType.Flex)).toBe(940);
@@ -51,7 +51,7 @@ describe('EWD engine limits (EGT: CFM56-5B TCDS values confirmed in the sim; N1,
 
   it('colours the N2 red above the LEAP-1A red line of 116.5 %, not above the CFM56 105 %', () => {
     expect(n2Color(100)).toBe('Green');
-    // the N2 of a LEAP-1A TOGA take-off (the CFM56 105 % turned it red at every take-off)
+    // the N2 of a LEAP-1A TOGA take-off, above the CFM56 105 %
     expect(n2Color(106)).toBe('Green');
     expect(n2Color(116.5)).toBe('Green');
     expect(n2Color(116.6)).toBe('Red');
@@ -84,14 +84,14 @@ describe('EWD engine limits (EGT: CFM56-5B TCDS values confirmed in the sim; N1,
     expect(memory.exceeded).toBe(false);
   });
   it('keeps no N2 red cross on the N2 of the recorded LEAP-1A take-offs and climbs (the CFM56 105 % latched it)', () => {
-    // L:A32NX_ENGINE_N2 of recorded flights (2026-10-11/12): TOGA lift-off 105.3-105.7 %, CLB 101-103.6 %
+    // L:A32NX_ENGINE_N2 of recorded flights: TOGA lift-off 105.3-105.7 %, CLB 101-103.6 %
     const recordedN2 = [104.7, 105.0, 105.3, 105.7, 104.5, 103.6, 101.0];
     const memory = new ExceedanceMemory(N2_RED_LIMIT_PERCENT);
     recordedN2.forEach((n2) => memory.update(n2, false, true));
     expect(memory.exceeded).toBe(false);
   });
 
-  it('latches no red cross on an N2 the FADEC does not send (not powered: amber XX, FCOM l.46305-46306)', () => {
+  it('latches no red cross on an N2 the FADEC does not send (not powered: amber XX)', () => {
     const memory = new ExceedanceMemory(N2_RED_LIMIT_PERCENT);
     // a stale or not yet initialised L:A32NX_ENGINE_N2 while the FADEC is not powered
     memory.update(120, false, false);

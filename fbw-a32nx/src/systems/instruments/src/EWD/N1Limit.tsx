@@ -107,7 +107,6 @@ export class N1Limit extends DisplayComponent<N1LimitProps> {
           // 'inherit', not 'visible': a visible SVG child shows inside a hidden parent (unpowered FADEC XX)
           this.limitValueVisibility.set(isThrustLimitValueVisible(this.thrustLimitType) ? 'inherit' : 'hidden');
 
-          // The flexible temperature, or cyan dashes when the SAT is above it
           const flexText = flexTemperatureText(
             this.flexTemp,
             this.thrustLimitType,

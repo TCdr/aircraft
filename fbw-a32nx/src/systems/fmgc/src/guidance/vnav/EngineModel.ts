@@ -56,7 +56,7 @@ export class EngineModel {
    * The sim engine reads the table forwards (MSFS n1_and_mach_on_thrust_table: bilinear in N1 and Mach), so the N1 the
    * engine settles on is the one where the Mach-interpolated thrust equals the drag. This function therefore first
    * interpolates every row at the column value j, then inverts that single curve. (Inverting each Mach column on its
-   * own and interpolating the two N1 between the columns, as before, is not the inverse: between table columns it gave
+   * own and interpolating the two N1 between the columns is not the inverse: between table columns it gives
    * up to 2 % N1 less than the engine at M.85, so 4 to 7 % less cruise fuel flow than the FADEC burns.)
    *
    * Where the curve is not monotonic, the first crossing from below is taken (the lowest row value giving the result):

@@ -1,8 +1,8 @@
 @import "../MsfsAvionicsCommon/definitions.scss";
 
-// Chronometer: A320 FCOM DSC-31-45 (INDICATIONS ON ND, item 9) "Chronometer Indication (white)".
-// The FCOM gives no box colour: the box is filled with the display background so the white digits stay readable
-// over the map (design choice; the former light grey fill made green digits hard to read).
+// ND chronometer: white digits.
+// Design choice: the box is filled with the display background so the white digits stay readable over the map
+// (the aircraft gives no box colour).
 $nd-chrono-text: $display-white;
 $nd-chrono-box-fill: $display-background;
 
@@ -34,10 +34,9 @@ $nd-chrono-box-fill: $display-background;
 }
 
 // The TCAS message ("TA ONLY", "TCAS") stays at the left of its line at the bottom of the ND, as the shared
-// TcasWxrMessages component draws it: the A320 FCOM ND messages figure (DSC-34-SURV-60-20, item 2) shows TA ONLY at
-// the bottom left of centre, and the bottom centre is the FM message line (GPS PRIMARY...). No centring here: the
-// sim renderer (Coherent GT) applies a CSS text-anchor but not a CSS transform on SVG text, so a centring rule left
-// the text half outside its box (seen in the sim 2026-10-09).
+// TcasWxrMessages component draws it: on the A320 ND, TA ONLY sits at the bottom left of centre, and the bottom centre
+// is the FM message line (GPS PRIMARY...). No centring here: the sim renderer (Coherent GT) applies a CSS text-anchor
+// but not a CSS transform on SVG text, so a centring rule left the text half outside its box (seen in the sim).
 
 .mode-range-change {
   font-size: 35px;

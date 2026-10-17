@@ -17,8 +17,8 @@ export class NavRadioUtils {
   }
 
   /**
-   * The BFO state of an ADF: the BFO is a mode of a tuned ADF, the MCDU RADIO NAV page shows its ADF/BFO prompt "When
-   * an ADF is selected" (A320 FCOM DSC-22_20-50-10-28, a320_fcom.txt l.21521-21523).
+   * The BFO state of an ADF: the BFO is a mode of a tuned ADF, the MCDU RADIO NAV page shows its ADF/BFO prompt only
+   * when an ADF is tuned.
    * @param frequency the tuned ADF frequency, null without one
    * @param bfoSelected the BFO is selected
    * @returns whether the BFO is on

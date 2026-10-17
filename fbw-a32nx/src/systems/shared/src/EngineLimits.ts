@@ -4,26 +4,22 @@
 /*
  * The engine limits of the EWD, also used by the FWC alert ENG 1(2) N1/N2/EGT OVER LIMIT (systems-host
  * FWC/Logic/EngineParameterAlerts) so that the alert and the gauge colours agree.
- * - EGT: the certified "Maximum permitted gas temperature" figures of the CFM56-5B TCDS (EASA E.003, -5B/P /2P /3 variant
- *   family), confirmed in the sim by the user (commit 8f527e3b0): 940 °C at takeoff thrust (TOGA, FLX), 905 °C at the
- *   continuous ratings (CLB, MCT, MREV), 725 °C otherwise (idle, cruise without a rated limit, start). The TCDS publishes no
- *   absolute red line: the red limit keeps a 35 °C margin above the takeoff limit (975 °C). The amber limit mark is always
- *   drawn. The A320 FCOM (CFM56-5B, DSC-70-90-40, a320_fcom.txt l.64265-64307) gives 725 / 915 °C and a 950 °C red limit;
- *   the user chose the TCDS values (2026-10-06). The EGT stays on these CFM56-5B values (user decision 2026-10-12): the
- *   LEAP-1A document below gives a maximum EGT of 1060 °C, but marked "(To Be Confirmed)", so it is not used.
- *   A red mark keeps the highest EGT reached once the red limit is exceeded (FCOM l.64281-64287).
- * FBW models the LEAP-1A (A320-251N): the N1 and N2 red lines are the LEAP-1A ones (user decision 2026-10-12), from the
- * CFM "LEAP-1A General Familiarization" (DEC 2014), page 34, "Leading Particulars - Performances and Limits":
- * "100% N1 = 3851 rpm & Red Line = 101 %," and "100% N2 = 16645 rpm & Red Line = 116.5 %." The document gives no separate
- * transient limit or time. The red colour, red marks and red cross are those of the FCOM (CFM56-5B, DSC-70-90-40), whose
- * red limits (N1 104 %, l.64323; N2 105 %, l.64420) are those of the CFM56: the LEAP-1A runs above 105 % N2 at TOGA, so
- * every TOGA take-off showed ENG N2 OVER LIMIT at lift-off.
- * - N1 (FCOM l.64317-64397): amber above the N1 limit (the TO/GA N1), red above the LEAP-1A 101 %. A red mark keeps the
- *   highest N1 reached once the red limit is exceeded. The TOGA N1 of the sim stays well below it (86-89 % in the recorded
- *   take-offs; at most about 96.5 % in the FADEC TO/GA limit tables, hot and high).
- * - N2 (FCOM l.64419-64423): red above the LEAP-1A 116.5 %, with a red cross that stays. It is also the N2 of the fuel
- *   flow protection of the sim engine (engines.cfg max_n2_protection = 116.5).
- * The red marks and the red cross "no longer appear at the next engine start sequence on ground" (l.64286, 64388, 64422).
+ * - EGT: the certified maximum gas temperatures of the CFM56-5B: 940 °C at takeoff thrust (TOGA, FLX), 905 °C at the
+ *   continuous ratings (CLB, MCT, MREV), 725 °C otherwise (idle, cruise without a rated limit, start). No absolute red
+ *   line is certified: the red limit keeps a 35 °C margin above the takeoff limit (975 °C). The amber limit mark is
+ *   always drawn. Design choice (checked in the sim): these certified values rather than the 725 / 915 °C amber and
+ *   950 °C red limits of the CFM56-5B cockpit display; the 1060 °C LEAP-1A maximum EGT is not used (not confirmed).
+ *   A red mark keeps the highest EGT reached once the red limit is exceeded.
+ * FBW models the LEAP-1A (A320-251N). Design choice: the N1 and N2 red lines are the LEAP-1A ones, 101 % N1
+ * (100 % = 3851 rpm) and 116.5 % N2 (100 % = 16645 rpm), with no separate transient limit or time. The red colour, red
+ * marks and red cross are those of the CFM56-5B display, whose red limits (N1 104 %, N2 105 %) would show ENG N2 OVER
+ * LIMIT at every TOGA lift-off: the LEAP-1A runs above 105 % N2 at TOGA.
+ * - N1: amber above the N1 limit (the TO/GA N1), red above the LEAP-1A 101 %. A red mark keeps the highest N1 reached
+ *   once the red limit is exceeded. The TOGA N1 of the sim stays well below it (86-89 % in the recorded take-offs; at
+ *   most about 96.5 % in the FADEC TO/GA limit tables, hot and high).
+ * - N2: red above the LEAP-1A 116.5 %, with a red cross that stays. It is also the N2 of the fuel flow protection of
+ *   the sim engine (engines.cfg max_n2_protection = 116.5).
+ * The red marks and the red cross go away at the next engine start sequence on ground.
  */
 
 export const EGT_TAKEOFF_LIMIT_DEGREES = 940;
@@ -47,7 +43,7 @@ export enum ThrustLimitType {
   Mrev = 5,
 }
 
-/** The amber EGT limit of the thrust limit type (TCDS values, see above) */
+/** The amber EGT limit of the thrust limit type (certified values, see above) */
 export function egtAmberLimit(thrustLimitType: number): number {
   switch (thrustLimitType) {
     // TOGA, and FLX (a de-rated take-off, certified under the same take-off rating)
@@ -79,7 +75,7 @@ export function egtColor(egt: number, amberLimit: number): LimitColor {
  */
 export const N1_LIMIT_AMBER_MARGIN_PERCENT = 0.5;
 
-/** l.64317-64323: amber above the N1 limit, red above the N1 red limit */
+/** Amber above the N1 limit, red above the N1 red limit */
 export function n1Color(n1: number, n1Limit: number): LimitColor {
   if (n1 > N1_RED_LIMIT_PERCENT) {
     return 'Red';
@@ -87,7 +83,7 @@ export function n1Color(n1: number, n1Limit: number): LimitColor {
   return n1Limit > 0 && n1 > n1Limit + N1_LIMIT_AMBER_MARGIN_PERCENT ? 'Amber' : 'Green';
 }
 
-/** l.64419-64421: red above the N2 red limit */
+/** Red above the N2 red limit */
 export function n2Color(n2: number): LimitColor {
   return n2 > N2_RED_LIMIT_PERCENT ? 'Red' : 'Green';
 }
@@ -104,11 +100,10 @@ export class ExceedanceMemory {
   constructor(private readonly redLimit: number) {}
 
   /**
-   * @param value the value of the parameter
    * @param groundStartSequence an engine start sequence on ground is in progress: clears the memory
    * @param valueValid the FADEC sends the parameter (L:A32NX_FADEC_POWERED_ENGn). A parameter that is not available is shown
-   *   as amber XX instead of its value (FCOM DSC-31-20, a320_fcom.txt l.46305-46306): a stale or not yet initialised value
-   *   is no exceedance. A value that is not a finite number is not one either, and leaves the highest value as it is.
+   *   as amber XX instead of its value: a stale or not yet initialised value is no exceedance. A value that is not a
+   *   finite number is not one either, and leaves the highest value as it is.
    */
   update(value: number, groundStartSequence: boolean, valueValid: boolean): void {
     if (groundStartSequence) {

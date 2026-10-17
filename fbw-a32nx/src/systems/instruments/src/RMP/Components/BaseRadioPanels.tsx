@@ -34,7 +34,6 @@ export const RootRadioPanel = (props: Props) => {
     250,
   );
   // A failed RMP (flyPad failure RMP 1/2) goes blank and no longer tunes, as when it is switched off
-  // (A320 FCOM DSC-23-60 failure cases).
   const [failed] = useSimVar(rmpFailedVar(props.side as RmpSide), 'Bool', 250);
   const operative = isRmpOperative(!!powerAvailable, !!panelSwitch, !!failed);
 

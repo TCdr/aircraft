@@ -101,7 +101,7 @@ export class PermanentData extends DisplayComponent<PermanentDataProps> {
 
   private readonly gLoadText = this.normalAcc.map((gLoad) => getValuePrefix(gLoad.value) + gLoad.value.toFixed(1));
 
-  // FCU selected altitude in metres (green) with METRIC ALT selected and no G LOAD: FCOM l.46271-46272
+  // FCU selected altitude in metres (green) with METRIC ALT selected and no G LOAD
 
   private readonly fcuDiscreteWord1 = Arinc429LocalVarConsumerSubject.create(this.sub.on('a32nx_fcu_discrete_word_1'));
 
@@ -292,7 +292,7 @@ export class PermanentData extends DisplayComponent<PermanentDataProps> {
             </text>
           </g>
 
-          {/* Metric FCU selected altitude, on the G LOAD line (the FCOM gives no layout: design choice) */}
+          {/* Metric FCU selected altitude, Design choice for the position: on the G LOAD line */}
           <g visibility={this.metricAltSelVisibility}>
             <text x={410} y={702} class="F27 Green EndAlign">
               {this.metricAltSelText}

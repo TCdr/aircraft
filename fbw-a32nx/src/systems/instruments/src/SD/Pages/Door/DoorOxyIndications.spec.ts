@@ -14,7 +14,7 @@ import {
 
 const page = () => readFileSync(resolve(__dirname, 'Door.tsx'), 'utf-8');
 
-/* A320 FCOM DSC-52-20 DOOR/OXY SD page (a320_fcom.txt l.61436-61440) */
+/* Doors of the DOOR/OXY page */
 describe('SD DOOR/OXY doors', () => {
   it('is green only when the door is fully closed, amber as soon as it opens (not locked)', () => {
     expect(isDoorNotLocked(0)).toBe(false);
@@ -32,7 +32,7 @@ describe('SD DOOR/OXY doors', () => {
     expect(source).toContain('EMER EXIT');
   });
 
-  // PRO-ABN-DOOR (l.74659-74660): "not detected closed by the proximity sensors", the same rule as the DOOR cautions
+  // A door its proximity sensors do not detect closed is not closed, the same rule as the DOOR cautions
   it('is amber when its proximity sensor is failed, the door closed (flyPad ATA 52 failure)', () => {
     expect(isDoorNotLocked(0, true)).toBe(true);
     expect(isDoorNotLocked(0, false)).toBe(false);
@@ -49,7 +49,7 @@ describe('SD DOOR/OXY doors', () => {
   });
 });
 
-/* A320 FCOM DSC-35-20-20 crew oxygen pressure (a320_fcom.txt l.56814-56818) */
+/* Crew oxygen pressure */
 describe('SD DOOR/OXY crew oxygen pressure', () => {
   it('is green at 600 PSI and above', () => {
     expect(crewOxygenIndication(1850, false).valueClass).toBe('Value');
@@ -76,7 +76,7 @@ describe('SD DOOR/OXY crew oxygen pressure', () => {
   });
 });
 
-/* A320 FCOM DSC-21-20-40 ECAM DOOR/OXY page cabin V/S (a320_fcom.txt l.9180-9186) */
+/* Cabin V/S of the DOOR/OXY page */
 describe('SD DOOR/OXY cabin V/S', () => {
   it('appears in flight phases 5, 6 and 7 only', () => {
     expect([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter((phase) => isCabinVsShown(phase))).toEqual([5, 6, 7]);
@@ -98,7 +98,7 @@ describe('SD DOOR/OXY cabin V/S', () => {
   });
 });
 
-/* A320 FCOM DSC-35-20-20 REGUL LO PR and CKPT OXY (a320_fcom.txt l.56822-56831) */
+/* REGUL LO PR and CKPT OXY */
 describe('SD DOOR/OXY REGUL LO PR and CKPT OXY', () => {
   it('shows no REGUL LO PR and a white CKPT OXY with the CREW SUPPLY ON and a normal bottle', () => {
     expect(crewOxygenCircuitIndication(1850, false)).toEqual({ regulatorLowPressure: false, ckptOxyAmber: false });

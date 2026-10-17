@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { wingImbalancePulse } from './FuelImbalanceIndication';
 
-/* A320 FCOM DSC-28-20 FUEL QUANTITY - ADVISORY (a320_fcom.txt l.43246-43250) */
+/* Fuel quantity advisory: wing imbalance */
 describe('FUEL page wing imbalance advisory', () => {
   it('pulses the heavier wing above 1 500 kg in phase 6', () => {
     expect(wingImbalancePulse(6_000, 4_400, 6)).toEqual({ left: true, right: false });

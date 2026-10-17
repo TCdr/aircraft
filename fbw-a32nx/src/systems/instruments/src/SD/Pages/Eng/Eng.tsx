@@ -12,8 +12,6 @@ import { SvgGroup } from '../../Common/SvgGroup';
 import { isStartIndicationShown } from './StartIndications';
 import { fuelFilterClogShown } from './EngFuelFilterIndication';
 import { N1_VIBRATION_ADVISORY_UNITS, N2_VIBRATION_ADVISORY_UNITS, vibrationClassName } from './EngVibration';
-
-import './Eng.scss';
 import {
   OIL_PSI_RED_MAX,
   OIL_PSI_SCALE_MAX,
@@ -27,6 +25,8 @@ import {
   oilTemperatureAdvisoryTimeExceeded,
   oilTemperatureClassName,
 } from './EngOilIndications';
+
+import './Eng.scss';
 
 export const EngPage: FC = () => {
   const [useMetric] = usePersistentSetting('CONFIG_USING_METRIC_UNIT');
@@ -128,7 +128,7 @@ const PressureGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
   const activeVisibility = fadecOn ? 'visible' : 'hidden';
   const inactiveVisibility = fadecOn ? 'hidden' : 'visible';
   /* Controls different styling of pressure needle and digital readout according to certain critical, or cautionary ranges
-   * (FCOM DSC-70-90-40 OIL PRESSURE, see EngOilIndications).
+   * (see EngOilIndications).
    */
   useEffect(() => {
     setShouldPressurePulse((wasPulsing) => oilPressurePulses(wasPulsing, engineOilPressure, n2Percent));
@@ -171,7 +171,7 @@ const PressureGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
         <text x={x} y={y + 45} className={`FontLarge TextCenter ${textClassName}`}>
           {displayedEngineOilPressure}
         </text>
-        {/* FCOM DSC-70-90-40 OIL FILTER CLOG INDICATION, below the oil pressure */}
+        {/* Oil filter CLOG, below the oil pressure */}
         <text
           x={x}
           y={y + 72}
@@ -197,7 +197,7 @@ const QuantityGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
 
   const activeVisibility = fadecOn ? 'visible' : 'hidden';
   const inactiveVisibility = fadecOn ? 'hidden' : 'visible';
-  // FCOM DSC-70-90-40 OIL QUANTITY: pulses below 3.25 QT until 4.75 QT, see EngOilIndications
+  // The oil quantity pulses below 3.25 QT until 4.75 QT, see EngOilIndications
   useEffect(() => {
     setShouldQuantityPulse((wasPulsing) => oilQuantityPulses(wasPulsing, engineOilQuantity));
   }, [engineOilQuantity]);
@@ -352,7 +352,7 @@ const EngineColumn = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) =
       <text x={x} y={y} className="FillGreen FontLarge TextCenter">
         {displayedFuelUsed}
       </text>
-      {/* FCOM DSC-70-90-40 FUEL FILTER CLOG INDICATION, below the fuel used */}
+      {/* Fuel filter CLOG, below the fuel used */}
       <text
         x={x}
         y={y + 22}

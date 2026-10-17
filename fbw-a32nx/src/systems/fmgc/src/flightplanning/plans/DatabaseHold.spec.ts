@@ -21,7 +21,7 @@ function hold(databaseId: string, course: number, extra: Partial<ProcedureLeg> =
   } as ProcedureLeg;
 }
 
-describe('database hold of a hold fix (A320 FCOM l.18269-18270, A380 FCOM l.25355-25358, l.36446-36450)', () => {
+describe('database hold of a hold fix', () => {
   it('measures how far an altitude is outside the altitude window of the hold', () => {
     const between = { altitudeDescriptor: AltitudeDescriptor.BetweenAlt1Alt2, altitude1: 14000, altitude2: 7000 };
     expect(holdVerticalDistanceFromAltitude(10000, between)).toBe(0);

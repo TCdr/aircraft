@@ -33,7 +33,7 @@ function fakeMcdu() {
   };
 }
 
-describe('MCDU ATSU DATALINK page (A320 FCOM l.59174-59175)', () => {
+describe('MCDU ATSU DATALINK page', () => {
   it('shows AOC MENU on 1R and opens the AOC MENU page from 1R', () => {
     const mcdu = fakeMcdu();
     CDUAtsuMenu.ShowPage(mcdu as any);

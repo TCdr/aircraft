@@ -7,11 +7,11 @@ import { isEngineN2BelowIdle, isEngineRunning } from './EngineRunning';
 /** An idle N2 of the FADEC (L:A32NX_ENGINE_IDLE_N2) */
 const IDLE_N2 = 68;
 
-/* A320 FCOM HYD page l.44057-44058, BLEED page l.57846-57848, ELEC page l.37528 */
+/* Engine signals of the HYD, BLEED and ELEC page colours */
 describe('SD engine signals', () => {
   it('finds the N2 below idle on an engine off, starting or flamed out (HYD PUMP legend, BLEED engine number)', () => {
     expect(isEngineN2BelowIdle(0, IDLE_N2)).toBe(true);
-    // a starting engine at 25 % N2, above the 15 % of the HYD page before: amber until idle
+    // a starting engine at 25 % N2: amber until idle
     expect(isEngineN2BelowIdle(25, IDLE_N2)).toBe(true);
     // a windmilling engine at 40 % N2 in flight
     expect(isEngineN2BelowIdle(40, IDLE_N2)).toBe(true);

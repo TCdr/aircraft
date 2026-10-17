@@ -531,8 +531,8 @@ const DCDU: React.FC = () => {
     case DcduState.Off:
       return <></>;
     default:
-      // FCOM PRO-ABN-ABN-RESET (a320_fcom.txt l.67771): '"INVALID DATA" is displayed on the DCDU'; the DCDU keeps its
-      // power-up pages above and shows the messages again once the ATSU runs
+      // Without a running ATSU the DCDU shows INVALID DATA; it keeps its power-up pages above and shows the messages
+      // again once the ATSU runs
       if (atsuOff > 0) {
         return <InvalidData />;
       }

@@ -33,7 +33,7 @@ render(
       performanceCalculators: {
         takeoff: new A320251NTakeoffPerformanceCalculator(),
         landing: new A320251NLandingCalculator(),
-        // A320 FCOM PER-DES-STD: standard descent M.78 / 300 kt / 250 kt below FL 100; LIM: MMO, VMO, max altitude
+        // Standard descent M.78 / 300 kt / 250 kt below FL 100; limits: MMO, VMO, max altitude
         descent: new FmsDescentPerformanceCalculator(A320AircraftConfig, {
           standardSchedule: { mach: 0.78, cas: 300, limitCas: 250, limitAltitude: 10_000 },
           mmo: 0.82,
@@ -42,7 +42,7 @@ render(
           oew: 42_500,
           mtow: 79_000,
         }),
-        // A320 FCOM LIM-13 BUFFET ONSET chart (Performance > Buffet)
+        // A320 buffet onset chart (Performance > Buffet)
         buffetEnvelope: A320_BUFFET_ENVELOPE,
       },
       pushbackPage: {

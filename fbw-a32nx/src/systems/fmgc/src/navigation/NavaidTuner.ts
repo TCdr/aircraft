@@ -782,8 +782,8 @@ export class NavaidTuner {
   }
 
   /**
-   * Sets the BFO of a tuned ADF: the MCDU RADIO NAV page ADF/BFO prompt "revert ADF to BFO mode. A clear action
-   * recalls the arrow, and cancels BFO" (A320 FCOM DSC-22_20-50-10-28, a320_fcom.txt l.21521-21523).
+   * Sets the BFO of a tuned ADF: the MCDU RADIO NAV page ADF/BFO prompt switches the ADF to BFO, a clear action cancels
+   * it.
    * @param index ADF index, 1 or 2
    * @param bfo true to activate the BFO
    */

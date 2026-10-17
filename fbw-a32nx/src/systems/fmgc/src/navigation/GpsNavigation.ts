@@ -1,6 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { selectGpirs } from '@fmgc/navigation/FmPosition';
+
 /** The GPIRS data of one IR as the FMS reads it: null for a word that is not in normal operation */
 export interface GpirsData {
   /** Whether the GPIRS position is valid (the IR in NAV with a GPS receiver in NAV) */
@@ -11,11 +13,8 @@ export interface GpirsData {
   integrityLimit: number | null;
 }
 
-/** The order in which the FMS selects a GPIRS position: onside, IR 3, opposite (A320 FCOM DSC-22_20) */
-export const GPIRS_SELECTION_ORDER = [1, 3, 2] as const;
-
 /** The smallest estimated position uncertainty, in NM (the PROG page shows two decimals) */
-export const MIN_ESTIMATED_POSITION_UNCERTAINTY = 0.01;
+const MIN_ESTIMATED_POSITION_UNCERTAINTY = 0.01;
 
 export interface GpsNavigationState {
   /** The IR whose GPIRS position is used, null when none is valid */
@@ -31,14 +30,12 @@ export interface GpsNavigationState {
 /**
  * The GPS navigation state of the FMS from the GPIRS data of the three IRs and the required navigation performance.
  *
- * A320 FCOM DSC-22_20: the FMS selects one GPIRS position (onside, GPIRS 3, opposite) and rejects the GPS mode when the
- * GPIRS data does not comply with the integrity criterion based on the Horizontal Integrity Limit. A380 FCOM
- * DSC-22-FMS-10-30-10: each FMS uses the onside GPIRS position, else GPIRS 3, else the offside one when the onside one is
- * "not valid or integer"; the GPIRS position accuracy is its HFOM; GPS PRIMARY when the navigation mode is IRS/GPS and
- * the navigation accuracy is HIGH.
+ * The FMS selects one GPIRS position (onside, GPIRS 3, offside) and rejects the GPS mode when the GPIRS data fails the
+ * integrity criterion of the Horizontal Integrity Limit. The accuracy of the GPIRS position is its HFOM. GPS PRIMARY
+ * needs the IRS/GPS navigation mode and a HIGH navigation accuracy.
  *
  * The flight crew can deselect the GPS (A320 MCDU SELECTED NAVAIDS page, A380 MFD POSITION/NAVAIDS page): the GPIRS
- * position is then no longer used to compute the FMS position (A380 FCOM DSC-22-FMS-10-30-10).
+ * position is then no longer used to compute the FMS position.
  * @param gpirs the GPIRS data of IR 1, 2 and 3 (index 0, 1, 2)
  * @param requiredNavigationPerformance the active RNP, in NM
  * @param gpsDeselected whether the flight crew has deselected the GPS
@@ -48,7 +45,13 @@ export function gpsNavigationState(
   requiredNavigationPerformance: number,
   gpsDeselected = false,
 ): GpsNavigationState {
-  const source = gpsDeselected ? null : GPIRS_SELECTION_ORDER.find((ir) => gpirs[ir - 1].positionValid) ?? null;
+  // The GPIRS selection order of FMS 1: onside, IR 3, opposite
+  const source = gpsDeselected
+    ? null
+    : selectGpirs(
+        1,
+        gpirs.map((g) => g.positionValid),
+      );
   if (source === null) {
     return { source, estimatedPositionUncertainty: null, accuracyHigh: false, gpsPrimary: false };
   }

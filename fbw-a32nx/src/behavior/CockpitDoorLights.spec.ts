@@ -17,7 +17,6 @@ const interior = readFileSync(
   'utf8',
 );
 
-/** A parameter of a block */
 function parameter(block: string, tag: string): string {
   const value = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`).exec(block)?.[1];
   if (value === undefined) {
@@ -58,10 +57,9 @@ const NORMAL: RpnVariables = {
 };
 
 /*
- * A320 FCOM DSC-52-40-20 (a320_fcom.txt l.61654-61687): pedestal "FAULT: This light comes on when a system failure has
- * been identified (Example: Latch, pressure sensors, control unit)"; overhead "Strikes' status lights ... On: The
- * corresponding (upper, mid, or lower) locking latch is faulty", "Pressure sensor status lights ... On: The corresponding
- * (1 or 2) pressure sensor is faulty". Before, they only came on with the annunciator light test.
+ * Cockpit door locking system lights: the pedestal FAULT light comes on with a system failure (latch, pressure sensor,
+ * control unit); on the overhead panel, a strike status light comes on with a faulty upper, mid or lower locking latch,
+ * and a pressure sensor status light with a faulty pressure sensor 1 or 2.
  */
 describe('COCKPIT DOOR FAULT light (pedestal)', () => {
   it('is off without a CDLS failure, on in the annunciator light test', () => {

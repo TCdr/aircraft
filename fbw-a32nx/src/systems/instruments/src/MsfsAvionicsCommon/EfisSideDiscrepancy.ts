@@ -7,20 +7,15 @@ import { Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { getSupplier } from './AdirsValueProvider';
 
 /*
- * Side 1 / side 2 discrepancy messages of the EFIS (A320 FCOM DSC-31-05-60 SIDE1/SIDE2 DISCREPANCY MESSAGES,
- * a320_fcom.txt l.45405-45422):
- * - l.45410-45411: both PFDs display "CHECK ATT" if there is a discrepancy of at least 5 degrees between the attitude
- *   values, pitch and/or roll
- * - l.45417-45418: both PFDs and NDs display "CHECK HDG" if there is a discrepancy of at least 5 degrees between the
- *   heading values
- * The ECAM cautions NAV ATT DISCREPANCY / NAV HDG DISCREPANCY (l.92881, l.93215) are FWC alerts, not part of this file.
+ * Side 1 / side 2 discrepancy messages of the EFIS:
+ * - both PFDs show CHECK ATT when the pitch or the roll of the two sides differ by 5 degrees or more
+ * - both PFDs and NDs show CHECK HDG when the headings of the two sides differ by 5 degrees or more
+ * The ECAM cautions NAV ATT DISCREPANCY / NAV HDG DISCREPANCY are FWC alerts, not part of this file.
  * CHECK ALT is already sent by the FWC (FWC discrete word 124 bits 24/25, AltitudeIndicatorOfftape).
  */
 
-/** l.45410: "a discrepancy of at least 5 degrees between the attitude values, pitch and/or roll" */
-export const CHECK_ATT_THRESHOLD_DEGREES = 5;
-/** l.45417: "a discrepancy of at least 5 degrees between the heading values" */
-export const CHECK_HDG_THRESHOLD_DEGREES = 5;
+const CHECK_ATT_THRESHOLD_DEGREES = 5;
+const CHECK_HDG_THRESHOLD_DEGREES = 5;
 
 /** The attitude and heading one EFIS side displays, null when the value is not valid (its flag is shown instead) */
 export interface EfisSideAttitudeHeading {
@@ -41,7 +36,7 @@ export function headingDifferenceDegrees(a: number, b: number): number {
 }
 
 /**
- * CHECK ATT (amber) on both PFDs, l.45410-45411. A value that is not valid on one side is not compared: that side
+ * CHECK ATT (amber) on both PFDs. A value that is not valid on one side is not compared: that side
  * shows its ATT flag instead.
  * @param own the attitude displayed on this side
  * @param opposite the attitude displayed on the other side
@@ -60,7 +55,7 @@ export function isCheckAttitudeShown(own: EfisSideAttitudeHeading, opposite: Efi
 }
 
 /**
- * CHECK HDG (amber) on both PFDs and NDs, l.45417-45418. A heading that is not valid on one side is not compared.
+ * CHECK HDG (amber) on both PFDs and NDs. A heading that is not valid on one side is not compared.
  * @param own the heading displayed on this side
  * @param opposite the heading displayed on the other side
  * @returns whether CHECK HDG is displayed
@@ -98,11 +93,10 @@ function readEfisSideAttitudeHeading(side: 'L' | 'R'): EfisSideAttitudeHeading {
   };
 }
 
-/** The bus events of the EfisSideDiscrepancyMonitor */
 export interface EfisSideDiscrepancyEvents {
-  /** CHECK ATT is displayed on this side (l.45410) */
+  /** CHECK ATT is displayed on this side */
   efis_check_attitude: boolean;
-  /** CHECK HDG is displayed on this side (l.45417) */
+  /** CHECK HDG is displayed on this side */
   efis_check_heading: boolean;
 }
 

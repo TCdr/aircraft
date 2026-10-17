@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-/** The FM navigation modes, by decreasing priority (A320 FCOM DSC-22_20-20-10) */
+/** The FM navigation modes, by decreasing priority */
 export enum FmNavigationMode {
   IrsGps,
   IrsDmeDme,
@@ -9,15 +9,15 @@ export enum FmNavigationMode {
   IrsOnly,
 }
 
-/** The estimated position uncertainty after an IRS alignment, in NM (A320 FCOM DSC-22_20-20-20) */
+/** The estimated position uncertainty after an IRS alignment, in NM */
 export const IRS_ALIGNMENT_UNCERTAINTY = 5;
 
-/** The estimated position uncertainty after a position update on ground, in NM (A320 FCOM l.12446, A380 FCOM l.23042) */
-export const POSITION_UPDATE_ON_GROUND_UNCERTAINTY = 0.2;
+/** The estimated position uncertainty after a position update on ground, in NM (both aircraft) */
+const POSITION_UPDATE_ON_GROUND_UNCERTAINTY = 0.2;
 
 /**
- * The radio position uncertainty of the FCOM, in NM, nearest and farthest navaids: IRS/DME/DME 0.27 to 0.37 NM,
- * IRS/VOR/DME 0.30 to 0.42 NM, "dependent on the distance between the aircraft and the VOR/DME"
+ * The radio position uncertainty of the aircraft, in NM, nearest and farthest navaids: IRS/DME/DME 0.27 to 0.37 NM,
+ * IRS/VOR/DME 0.30 to 0.42 NM, depending on the distance to the navaids
  */
 const RADIO_UNCERTAINTY: Record<FmNavigationMode.IrsDmeDme | FmNavigationMode.IrsVorDme, [number, number]> = {
   [FmNavigationMode.IrsDmeDme]: [0.27, 0.37],
@@ -27,7 +27,7 @@ const RADIO_UNCERTAINTY: Record<FmNavigationMode.IrsDmeDme | FmNavigationMode.Ir
 /** The distance to the navaids at which the radio position uncertainty reaches its largest value, in NM (design choice) */
 const RADIO_UNCERTAINTY_RANGE = 100;
 
-/** The growth of the IRS only uncertainty (A320 FCOM DSC-22_20-20-20): [duration in minutes, rate in NM/h] */
+/** The growth of the IRS only uncertainty: [duration in minutes, rate in NM/h] */
 const IRS_ONLY_GROWTH: readonly [number, number][] = [
   [40, 6],
   [50, 0],
@@ -76,9 +76,8 @@ export interface PositionUncertaintyState {
 }
 
 /**
- * The FM navigation mode and the estimated position uncertainty (A320 FCOM DSC-22_20-20-10 and DSC-22_20-20-20): the
- * FM position is updated with the GPS, else a DME pair, else a VOR/DME, else it is the IRS position alone, whose
- * uncertainty grows with time.
+ * The FM navigation mode and the estimated position uncertainty: the FM position is updated with the GPS, else a DME
+ * pair, else a VOR/DME, else it is the IRS position alone, whose uncertainty grows with time.
  */
 export class PositionUncertaintyEstimator {
   private mode: FmNavigationMode | null = null;
@@ -91,8 +90,8 @@ export class PositionUncertaintyEstimator {
 
   /**
    * The EPU is the greater of the distance between the FMS position and the GPIRS (radio) position and the GPS (radio)
-   * position uncertainty (A380 FCOM DSC-22-FMS-10-30-10, a380_fcom.txt l.23009-23022): after a position update the FM
-   * position is away from the sensor position until it has approached it again.
+   * position uncertainty: after a position update the FM position is away from the sensor position until it has
+   * approached it again.
    * @param deltaTime the time since the last update, in milliseconds
    * @param gpsUncertainty the uncertainty of the GPIRS position in use, null when the GPS is not used
    * @param dmePairDistances the distances to the two DMEs of the DME pair in use, in NM, null without a DME pair
@@ -136,11 +135,9 @@ export class PositionUncertaintyEstimator {
 
   /**
    * A position update of the FM position (the update at takeoff, or a manual update).
-   * - On ground the EPU is set to 0.2 NM: "At takeoff, the EPU is set at 0.2 NM" (A320 FCOM DSC-22_20-20-20,
-   *   a320_fcom.txt l.12446); "After a manual or automatic position update on ground, the EPU is set to 0.2 nm" (A380 FCOM
-   *   a380_fcom.txt l.23042).
-   * - In flight in IRS only, "The EPU = (distance between the update position and the FMS position) + previous EPU"
-   *   (a380_fcom.txt l.23056-23057). In the GPS and radio modes the distance to the sensor position does it (update()).
+   * - On ground (the takeoff update, or a manual or automatic update) the EPU is set to 0.2 NM.
+   * - In flight in IRS only, the EPU becomes the previous EPU plus the distance between the update position and the FMS
+   *   position. In the GPS and radio modes the distance to the sensor position does it (update()).
    * The IRS only uncertainty then grows again from the new value.
    * @param onGround whether the aircraft is on ground
    * @param updateDistance the distance between the update position and the FM position before the update, in NM

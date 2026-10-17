@@ -3,7 +3,7 @@
 
 import React from 'react';
 
-/** The DCDU without data from the ATSU (A320 FCOM PRO-ABN-ABN-RESET, a320_fcom.txt l.67771), see DcduFailures */
+/** The DCDU without data from the ATSU, see DcduFailures */
 export const InvalidData: React.FC = () => (
   <>
     <svg className="startup-text">

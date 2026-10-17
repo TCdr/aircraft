@@ -27,7 +27,7 @@ const leg = (constraint: AltitudeConstraint, type: WaypointConstraintType): Cons
   constraintType: type,
 });
 
-describe('CSTR DEL ABOVE CRZ FL / CONSTRAINTS ABOVE CRZ FL: DELETED (A320 FCOM l.15144-15162, A380 FCOM l.27100-27104)', () => {
+describe('CSTR DEL ABOVE CRZ FL / CONSTRAINTS ABOVE CRZ FL: DELETED', () => {
   it('deletes the climb and descent constraints at or above the new CRZ FL on the legs not flown yet', () => {
     const { plan, calls } = fakePlan(
       [

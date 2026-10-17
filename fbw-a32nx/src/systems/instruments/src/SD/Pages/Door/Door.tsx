@@ -19,7 +19,6 @@ import './Door.scss';
 interface DoorIndicationProps {
   /** The door is not locked: amber symbol, dashes and legend */
   notLocked: boolean;
-  /** The door symbol */
   symbol: string;
   /** The dashes from the door symbol to the legend */
   dashes: string;
@@ -33,7 +32,7 @@ interface DoorIndicationProps {
 
 /**
  * A door of the DOOR/OXY page: its symbol is green when closed and locked, amber when not locked, with amber dashes and
- * legend (A320 FCOM DSC-52-20, a320_fcom.txt l.61436-61440).
+ * legend.
  */
 const DoorIndication = ({ notLocked, symbol, dashes, legend, legendX, legendY, secondSymbol }: DoorIndicationProps) => (
   <g>
@@ -49,8 +48,8 @@ const DoorIndication = ({ notLocked, symbol, dashes, legend, legendX, legendY, s
 );
 
 /**
- * The cabin vertical speed, in flight phases 5, 6 and 7 (A320 FCOM DSC-21-20-40 ECAM DOOR/OXY page,
- * a320_fcom.txt l.9180-9186), from the active CPC (the CAB PRESS page source) or the manual partition.
+ * The cabin vertical speed, in flight phases 5, 6 and 7, from the active CPC (the CAB PRESS page source) or the manual
+ * partition.
  */
 const CabinVerticalSpeed = () => {
   const [fwcFlightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'enum', 1000);
@@ -61,7 +60,6 @@ const CabinVerticalSpeed = () => {
   const cabinVs = arincCabinVs.isNormalOperation() ? arincCabinVs.value : manCabinVs;
   const displayedCabinVs = Math.round(cabinVs / 50) * 50;
 
-  // Pulses above 1750 ft/min until back below 1650 ft/min (hysteresis on the displayed value)
   const [pulsing, setPulsing] = useState(false);
   useEffect(() => {
     setPulsing((wasPulsing) => cabinVsPulses(displayedCabinVs, wasPulsing));
@@ -325,12 +323,12 @@ export const DoorPage = () => {
           >
             {crewOxygenPressureRounded}
           </text>
-          {/* On ground below 1000 PSI: amber half frame (the lower half of a box) around the value */}
+          {/* The half frame: the lower half of a box around the value */}
           {crewOxygen.halfFrame && <path id="psi_half_frame" className="HalfFrame" d="M 402 42 v 12 h 60 v -12" />}
           <text id="psi_unit" className="Unit" x="486" y="43" textAnchor="middle" alignmentBaseline="central">
             PSI
           </text>
-          {/* REGUL LO PR (FCOM l.56822-56823), under the pressure: the FCOM text gives no position */}
+          {/* REGUL LO PR, Design choice for the position: under the pressure */}
           {crewOxygenCircuit.regulatorLowPressure && (
             <text
               id="regul_lo_pr"

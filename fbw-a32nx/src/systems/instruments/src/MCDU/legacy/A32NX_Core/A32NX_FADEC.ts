@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The igniters (L:A32NX_FADEC_IGNITER_A/B_ACTIVE_ENGn) are now written by the systems WASM, with the start sequence and the
+ * The igniters (L:A32NX_FADEC_IGNITER_A/B_ACTIVE_ENGn) are written by the systems WASM, with the start sequence and the
  * igniter failures (a320_systems engine_failure.rs, systems::engine::engine_start).
  */
 
@@ -21,8 +21,8 @@ export interface FadecPowerInputs {
 
 /**
  * Whether the FADEC is powered and sends its engine data to the displays (E/WD and SD XX when not).
- * A FADEC with both channels lost sends nothing: A320 FCOM ENG 1(2) FADEC FAULT (a320_fcom.txt l.79652-79653), "Due to
- * the fact that engine indications are lost, other system pages ... must be used to check engine status".
+ * A FADEC with both channels lost sends nothing: the engine indications are lost and the crew checks the engine on the
+ * other system pages.
  */
 export function isFadecPowered(inputs: FadecPowerInputs): boolean {
   if (inputs.bothChannelsLost || inputs.firePbPushed) {

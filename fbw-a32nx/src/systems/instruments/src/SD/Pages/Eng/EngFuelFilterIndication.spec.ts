@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { fuelFilterClogShown } from './EngFuelFilterIndication';
 
-/* A320 FCOM DSC-70-90-40 FUEL FILTER CLOG INDICATION, a320_fcom.txt l.64497-64499 */
+/* Fuel filter CLOG indication */
 describe('SD ENGINE fuel filter CLOG', () => {
   it('shows CLOG with a clogged filter on a running engine', () => {
     expect(fuelFilterClogShown(true, 1)).toBe(true);

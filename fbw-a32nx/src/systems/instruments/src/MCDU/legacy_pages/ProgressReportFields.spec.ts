@@ -22,7 +22,7 @@ const data = (utcMs: number): Omit<OverheadRecord, 'ident'> => ({
   fob: 8.4,
 });
 
-describe('PROG REPORT page OVHD (A320 FCOM l.21428-21432, l.21442-21444)', () => {
+describe('PROG REPORT page OVHD', () => {
   it('never shows the pseudo waypoints and the F-PLN markers', () => {
     for (const ident of ['T-P', 'PPOS', 'IN-BND', 'OUT-BND', '(T/D)', '(DECEL)', '(1500)', '(INTCPT)', '']) {
       expect(isOverheadReportable(ident)).toBe(false);
@@ -83,7 +83,7 @@ describe('PROG REPORT page cell formats', () => {
   });
 });
 
-describe('PROG REPORT page T/D/UTC/DIST (A320 FCOM l.21446-21448)', () => {
+describe('PROG REPORT page T/D/UTC/DIST', () => {
   const pwps = [
     { ident: '(DECEL)', flightPlanInfo: { secondsFromPresent: 3000, distanceFromAircraft: 300 } },
     { ident: '(T/D)', flightPlanInfo: { secondsFromPresent: 1800, distanceFromAircraft: 220 } },

@@ -4,17 +4,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { adfSignalStrength, navAvailable, navHasDme } from './VorBusPublisher';
 
-describe('VOR bus of the NDs with the radio navigation receiver failures (A320 FCOM DSC-34-NAV-30-10)', () => {
+describe('VOR bus of the NDs with the radio navigation receiver failures', () => {
   const { GetSimVarValue } = SimVar;
   /** The failed receiver L:vars, as the systems host (NavigationReceiverFailures) writes them */
   let failed: Set<string>;
 
-  /**
-   * Fails a receiver.
-   * @param name its failed L:var
-   */
-  function fail(name: string): void {
-    failed.add(name);
+  function fail(receiverFailedVar: string): void {
+    failed.add(receiverFailedVar);
   }
 
   beforeEach(() => {

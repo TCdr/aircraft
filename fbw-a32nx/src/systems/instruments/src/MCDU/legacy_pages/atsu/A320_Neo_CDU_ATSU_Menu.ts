@@ -10,7 +10,7 @@ export class CDUAtsuMenu {
     mcdu.page.Current = mcdu.page.ATSUMenu;
     mcdu.activeSystem = 'ATSU';
 
-    // A320 FCOM DSC-46-10-40-30 ATSU DATALINK (a320_fcom.txt l.59174-59175): "[1R] AOC MENU", "[6R] COMM"
+    // AOC MENU is on [1R]
     const display = [
       ['ATSU DATALINK'],
       [''],

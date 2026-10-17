@@ -57,7 +57,7 @@ export class A320_Neo_CDU_MainDisplay
 
   private readonly _keypad = new Keypad(this);
 
-  /** The takeoff data uplink (A320 FCOM DSC-22_45 TAKEOFF DATA FUNCTION): the ground station is the flypad calculator */
+  /** The takeoff data uplink: the ground station is the flypad calculator */
   public readonly uplinkTakeoffData = new UplinkTakeoffData(
     this.bus,
     () => CDUUplinkTakeoffDataPages.requestContent(this),
@@ -1939,7 +1939,6 @@ export class A320_Neo_CDU_MainDisplay
   }
 
   private sendUpdateToMcduServer = (): void => {
-    // Only calculate the update when mcduServerClient is established.
     if (!this.mcduServerClient?.isConnected()) {
       return;
     }
@@ -1952,13 +1951,13 @@ export class A320_Neo_CDU_MainDisplay
     const integralLightsPowered = SimVar.GetSimVarValue('L:A32NX_ELEC_AC_1_BUS_IS_POWERED', 'bool');
 
     if (mcdu1Powered) {
-      left = Object.assign({}, this.getScreenState(this, integralLightsPowered));
+      left = this.getScreenState(this, integralLightsPowered);
       left.annunciators = this.annunciators.left;
       left.displayBrightness = this.leftBrightness / A320_Neo_CDU_MainDisplay.MAX_BRIGHTNESS;
     }
 
     if (mcdu2Powered) {
-      right = Object.assign({}, this.getScreenState(this.screens[1] ?? this, integralLightsPowered));
+      right = this.getScreenState(this.screens[1] ?? this, integralLightsPowered);
       right.annunciators = this.annunciators.right;
       right.displayBrightness = this.rightBrightness / A320_Neo_CDU_MainDisplay.MAX_BRIGHTNESS;
     }

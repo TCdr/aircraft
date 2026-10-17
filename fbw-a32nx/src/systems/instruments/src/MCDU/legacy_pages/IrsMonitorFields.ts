@@ -7,7 +7,7 @@ import { Arinc429Register, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sd
  * Bits of the IR maintenance word A32NX_ADIRS_IR_{number}_MAINT_WORD (docs/a320-simvars.md), numbered from 1 as
  * Arinc429Register.bitValue counts them (the docs number them from 0).
  */
-export const IrMaintWordBit = {
+const IrMaintWordBit = {
   /** REV_ATT_MODE: the mode selector is on ATT */
   AttitudeMode: 2,
   /** VALID_SET_HEADING: the IR in ATT mode holds a heading the crew entered */
@@ -23,9 +23,8 @@ export const IRS_SET_HEADING_VAR = 'L:A32NX_FM_IRS_SET_HEADING';
 export const SET_HEADING_TRANSMISSION_MS = 1000;
 
 /**
- * The status message of an IRS on the IRS MONITOR page (A320 FCOM DSC-22_20-50-10-28, a320_fcom.txt l.19730-19743).
- * ENTER HEADING: the IR is in ATT mode without a heading entered (the heading "must be entered through the MCDU",
- * l.52640-52643).
+ * The status message of an IRS on the IRS MONITOR page.
+ * ENTER HEADING: the IR is in ATT mode without a heading entered (the crew enters it on the MCDU).
  * @param word the maintenance word of the IR
  * @returns the message, empty without one
  */
@@ -46,7 +45,7 @@ export function irsStatusMessage(word: Arinc429Register): string {
 }
 
 /**
- * The [5R] SET HDG field "is displayed, if at least one IRS is in ATT mode" (a320_fcom.txt l.19747).
+ * The [5R] SET HDG field is displayed while at least one IRS is in ATT mode.
  * @param words the maintenance words of IR 1, 2 and 3
  * @returns whether the field is displayed
  */
@@ -55,8 +54,7 @@ export function isSetHeadingFieldDisplayed(words: readonly Arinc429Register[]): 
 }
 
 /**
- * The [5R] SET HDG field (a320_fcom.txt l.19751-19754): "If a heading has been entered in this field ... the value is
- * displayed in blue. If not, amber boxes are displayed."
+ * The [5R] SET HDG field: the entered heading in blue, else amber boxes.
  * @param enteredHeading the heading the crew entered, in degrees, null without one
  * @returns the label and the value cells of line 5 right
  */
@@ -68,7 +66,6 @@ export function setHeadingField(enteredHeading: number | null): [label: string, 
   return ['SET HDG', value];
 }
 
-/** A crew entry in the SET HDG field */
 export type SetHeadingEntry = { heading: number } | { error: 'format' | 'range' };
 
 /**
@@ -87,32 +84,24 @@ export function parseSetHeadingEntry(input: string): SetHeadingEntry {
   return { heading: heading % 360 };
 }
 
-/** Writes the set heading word */
 export type SetHeadingWordWriter = (heading: number, ssm: Arinc429SignStatusMatrix) => void;
 
 /**
  * Sends the crew SET HDG entries to the IRs: the word is in normal operation for SET_HEADING_TRANSMISSION_MS after
- * each entry, then no computed data, so that the IRs take each entry once, also a repeated one ("has to be reset
- * frequently", a320_fcom.txt l.52642-52643).
+ * each entry, then no computed data, so that the IRs take each entry once, also a repeated one (the crew has to reset
+ * the heading often).
  */
 export class SetHeadingTransmitter {
   private endTimer: ReturnType<typeof setTimeout> | null = null;
 
-  /**
-   * @param write writes the word
-   * @param schedule runs a function after a delay in milliseconds
-   * @param cancel cancels a scheduled function
-   */
+  /** The timer functions can be replaced in the specs */
   constructor(
     private readonly write: SetHeadingWordWriter,
     private readonly schedule: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout> = setTimeout,
     private readonly cancel: (timer: ReturnType<typeof setTimeout>) => void = clearTimeout,
   ) {}
 
-  /**
-   * Sends an entry.
-   * @param heading the entered heading in degrees
-   */
+  /** @param heading degrees */
   public send(heading: number): void {
     if (this.endTimer !== null) {
       // A new entry during the transmission of the previous one: the IRs take a new heading at once, the same

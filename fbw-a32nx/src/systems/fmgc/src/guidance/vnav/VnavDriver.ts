@@ -221,7 +221,7 @@ export class VnavDriver implements GuidanceComponent {
   }
 
   /**
-   * The MORE DRAG FMA message (A320 FCOM DSC-22_30-100 l.33617-33623, see descent/MoreDragMessage.ts): the intercept of
+   * The MORE DRAG FMA message (see descent/MoreDragMessage.ts): the intercept of
    * the ND profile against the next ALT CSTR, and the speedbrake decelerations of the descent profile.
    */
   private updateMoreDragMessage(): void {

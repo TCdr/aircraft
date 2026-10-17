@@ -18,7 +18,7 @@ const APUValve: FC<APUValveProps> = ({ x, y, sdacDatum }) => {
   const [apuMasterSwitchPbIsOn] = useSimVar('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON', 'bool', 500);
   const [apuAvail] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'Bool', 1000);
   const [apuBleedPbIsOn] = useSimVar('L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON', 'bool', 500);
-  // The APU BLEED pb ON for more than 10 s (FCOM l.57807-57808, ApuBleedValveIndication.ts)
+  // The APU BLEED pb ON for more than 10 s (ApuBleedValveIndication.ts)
   const [apuBleedPbOnConfirmed, setApuBleedPbOnConfirmed] = useState(false);
   useEffect(() => {
     if (apuBleedPbIsOn) {

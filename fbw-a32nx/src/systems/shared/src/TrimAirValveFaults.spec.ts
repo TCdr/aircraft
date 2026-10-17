@@ -13,7 +13,7 @@ function word2(...bits: number[]): Arinc429Word {
   return word;
 }
 
-describe('trimAirValveFaults (ACSC discrete words 2, FCOM DSC-21-10-50 COND page)', () => {
+describe('trimAirValveFaults (ACSC discrete words 2, COND page amber XX)', () => {
   it('reports each valve from its own bit', () => {
     expect(trimAirValveFaults(word2(18), word2())).toEqual({ cockpit: true, forward: false, aft: false });
     expect(trimAirValveFaults(word2(19), word2())).toEqual({ cockpit: false, forward: true, aft: false });

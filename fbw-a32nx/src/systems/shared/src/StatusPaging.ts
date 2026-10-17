@@ -4,9 +4,8 @@
 import { formatStatusPage } from './StatusMessages';
 
 /*
- * The pages of the A320 ECAM STATUS page (FCOM DSC-31-20 STATUS PAGE, a320_fcom.txt l.46196-46199): "(8) The arrow
- * appears if the data on the STATUS page overflows the left or right area of the page. The flight crew can press the
- * CLR pb, in order to scroll the display to view the overflow."
+ * The pages of the A320 ECAM STATUS page: a green arrow shows when the STATUS overflows the left or right area of the
+ * page, and the CLR pb scrolls the display to the overflow.
  *
  * The FWC sends all its STATUS codes (L:A32NX_ECAM_STATUS_LEFT/RIGHT_LINE_n) and the page shown
  * (L:A32NX_ECAM_STATUS_PAGE_INDEX). The SD formats the codes into display rows (formatStatusPage: colours, titles,
@@ -19,8 +18,8 @@ export const STATUS_COLUMN_CODES = 64;
 /**
  * How many display rows one STATUS page has per column (design choice from the SD layout): the rows are 30 px apart
  * from y = 118 (FormattedFwcText), so 17 rows end at y = 598, where the column separator ends (y = 593); the overflow
- * arrow goes below it, above the permanent data (y = 667), as the arrow (8) of the FCOM figure. Page 1 holds the INOP
- * SYS title and 16 systems, the 16 codes of the former single page.
+ * arrow goes below it, above the permanent data (y = 667), where the aircraft shows it. Page 1 holds the INOP SYS
+ * title and 16 systems.
  */
 export const STATUS_PAGE_ROWS = 17;
 
@@ -41,7 +40,6 @@ export function statusLineVar(side: 'LEFT' | 'RIGHT', line: number): string {
 /**
  * The codes of one column as the SD reads them, up to the first empty line: the FWC sends the codes from line 1 on,
  * without gaps.
- * @param side the column
  * @param read reads one L:var as a number (0 for an empty line)
  */
 export function readStatusColumnCodes(side: 'LEFT' | 'RIGHT', read: (name: string) => number): string[] {
@@ -76,8 +74,8 @@ function rows(text: string): string[] {
 }
 
 /**
- * One page of the STATUS page. Design choices: both columns scroll together (one arrow, the CLR pb "scroll[s] the
- * display", FCOM l.46199); a page shows the next STATUS_PAGE_ROWS rows of each column, titles are not repeated.
+ * One page of the STATUS page. Design choices: both columns scroll together (one arrow, the CLR pb scrolls the whole
+ * display); a page shows the next STATUS_PAGE_ROWS rows of each column, titles are not repeated.
  * @param leftCodes the codes of the left column, as sent by the FWC
  * @param rightCodes the codes of the right column (INOP SYS), as sent by the FWC
  * @param pageIndex the page asked, from 0

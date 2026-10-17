@@ -32,9 +32,9 @@ type DisplayUnitProps = {
    */
   onPictureShownChanged?: (shown: boolean) => void;
   /**
-   * The picture this gauge draws (DU reconfiguration, A320 FCOM DSC-31-05-60): while the DMC shows it on another DU that
-   * is available, the gauge draws it whatever the state of its own DU (e.g. the PFD on the ND DU with the PFD DU
-   * failed or switched off). The cockpit model routes the picture to that DU.
+   * The picture this gauge draws (DU reconfiguration): while the DMC shows it on another DU that is available, the
+   * gauge draws it whatever the state of its own DU (e.g. the PFD on the ND DU with the PFD DU failed or switched off).
+   * The cockpit model routes the picture to that DU.
    */
   picture?: EisPictureId;
 };

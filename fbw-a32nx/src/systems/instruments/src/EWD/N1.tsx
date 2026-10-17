@@ -421,12 +421,12 @@ export class N1 extends DisplayComponent<N1Props> {
   /** The FADEC sends the engine parameters (L:A32NX_FADEC_POWERED_ENGn): the exceedance memory only latches valid values */
   private fadecPowered = false;
 
-  /** FCOM DSC-70-90-40 (see shared/EngineLimits): amber above the N1 limit, red above the red limit */
+  /** Amber above the N1 limit, red above the red limit (see shared/EngineLimits) */
   private readonly n1Color = Subject.create('Green');
 
   private readonly n1IndicatorClass = Subject.create('GaugeIndicator Gauge');
 
-  /** The red mark at the highest N1 reached above the red limit (FCOM DSC-70-90-40 N1 EXCEEDANCE) */
+  /** The red mark at the highest N1 reached above the red limit */
   private readonly n1Exceedance = new ExceedanceMemory(N1_RED_LIMIT_PERCENT);
 
   private readonly n1ExceedanceValue = Subject.create(0);
@@ -491,7 +491,7 @@ export class N1 extends DisplayComponent<N1Props> {
       .whenChanged()
       .handle((n1) => {
         this.gaugeN1Limit.set(Math.abs(n1 / 10));
-        // The N1 limit is the maximum N1 in the TO/GA detent (FCOM DSC-70-90-40 N1 LIMIT)
+        // The N1 limit is the maximum N1 in the TO/GA detent
         this.n1LimitPercent = Math.abs(n1);
         this.updateN1Limits();
       });

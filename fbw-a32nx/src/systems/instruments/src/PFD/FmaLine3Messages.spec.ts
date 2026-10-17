@@ -11,7 +11,7 @@ import {
   SetGreenDotSpeedInputs,
 } from './FmaLine3Messages';
 
-/* A320 FCOM DSC-22_30-100 SPECIAL MESSAGES (FMA COLUMNS 2 AND 3), a320_fcom.txt l.33650-33725 */
+/* The FMA line 3 special messages computed on the PFD */
 
 function toga(over: Partial<ForGaSetTogaInputs> = {}): ForGaSetTogaInputs {
   return {
@@ -23,7 +23,7 @@ function toga(over: Partial<ForGaSetTogaInputs> = {}): ForGaSetTogaInputs {
   };
 }
 
-describe('FMA FOR GA: SET TOGA (l.33713-33715)', () => {
+describe('FMA FOR GA: SET TOGA', () => {
   it('shows with all levers in MCT on approach below 1 000 ft RA', () => {
     expect(isForGaSetToga(toga())).toBe(true);
     expect(isForGaSetToga(toga({ tlaDegrees: [40, 44.9] }))).toBe(true);
@@ -54,7 +54,7 @@ function disconnect(over: Partial<DisconnectApForLdgInputs> = {}): DisconnectApF
   };
 }
 
-describe('FMA DISCONNECT AP FOR LDG (l.33657-33661)', () => {
+describe('FMA DISCONNECT AP FOR LDG', () => {
   it('shows at the MDA minus 50 ft with the AP engaged on a non precision approach', () => {
     expect(isDisconnectApForLdg(disconnect({ baroAltitudeFt: 1_051 }))).toBe(false);
     expect(isDisconnectApForLdg(disconnect({ baroAltitudeFt: 1_050 }))).toBe(true);
@@ -87,7 +87,7 @@ function greenDot(over: Partial<SetGreenDotSpeedInputs> = {}): SetGreenDotSpeedI
   };
 }
 
-describe('FMA SET GREEN DOT SPEED (l.33676-33681, l.23022-23036)', () => {
+describe('FMA SET GREEN DOT SPEED', () => {
   it('shows at green dot +10 kt or more, except in ALT* / ALT', () => {
     expect(isSetGreenDotSpeed(greenDot())).toBe(true);
     expect(isSetGreenDotSpeed(greenDot({ fcuSelectedSpeedKt: 209 }))).toBe(false);

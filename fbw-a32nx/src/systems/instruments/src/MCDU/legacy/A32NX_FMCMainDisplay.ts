@@ -1872,8 +1872,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
   /**
    * ENTER DEST DATA when a destination QNH, temperature or wind is missing, CHECK DEST DATA when the wind on the PERF APPR
-   * page was received by uplink and not entered by the flight crew (A320 FCOM l.22534, l.22543-22547, l.22665,
-   * l.22668-22669).
+   * page was received by uplink and not entered by the flight crew.
    */
   private checkDestData() {
     const plan = this.getFlightPlan(FlightPlanIndex.Active);
@@ -1897,8 +1896,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   }
 
   /**
-   * CHECK DATA BASE CYCLE (A320 FCOM l.22532, l.22539-22541): "The current date does not match the effective date of the
-   * active database, and someone attempts to enter a FROM/TO or CO RTE."
+   * CHECK DATA BASE CYCLE: a FROM/TO or CO RTE is entered while today's date is outside the validity of the active
+   * navigation database.
    */
   private checkNavDatabaseCycle(): void {
     const today = utcCalendarDate(
@@ -1914,8 +1913,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   private readonly timeToExitMessage = new MessageTextLatch();
 
   /**
-   * TIME TO EXIT (A320 FCOM l.23095, l.23116-23118): "The aircraft must leave holding immediately to satisfy fuel reserve
-   * requirements. (Extra fuel is zero)." In the holding: the active leg is a hold leg.
+   * TIME TO EXIT: in a holding (the active leg is a hold leg) with no extra fuel left, the aircraft must leave the
+   * holding now to keep the fuel reserves.
    */
   private checkTimeToExit(): void {
     const activeLeg = this.flightPlanService.hasActive ? this.flightPlanService.active.activeLeg : undefined;
@@ -2473,10 +2472,9 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   }
 
   /**
-   * Inserts a PLACE/DIST waypoint (A320 FCOM l.13512: "defined by a distance from a place, along the F-PLN"; entry on
-   * the F-PLN, LAT REV NEXT WPT, l.23669-23674): the waypoint goes on the flight plan path at DIST from the first flight
-   * plan waypoint named PLACE from the FROM waypoint on, after it (or before it with a negative DIST), whatever line the
-   * entry was made on. See PlaceDistance.ts.
+   * Inserts a PLACE/DIST waypoint (a distance from a place along the F-PLN, entered on the F-PLN or LAT REV NEXT WPT):
+   * the waypoint goes on the flight plan path at DIST from the first flight plan waypoint named PLACE from the FROM
+   * waypoint on, after it (or before it with a negative DIST), whatever line the entry was made on (PlaceDistance.ts).
    */
   private insertPlaceDistanceWaypoint(
     entry: string,
@@ -3497,14 +3495,12 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     }
 
     plan.setPerformanceData('cruiseFlightLevel', flightLevelToInsert);
-    // CRZ FL ABOVE MAX FL (A320 FCOM l.22601, l.22620-22621): "The flight crew enters a cruise altitude that is above the
-    // computed maximum altitude."
+    // CRZ FL ABOVE MAX FL: the entered cruise level is above the computed maximum level
     const maxFl = this.getMaxFlCorrected();
     if (maxFl !== null && flightLevelToInsert > maxFl) {
       this.addMessageToQueue(NXSystemMessages.crzFlAboveMaxFl);
     }
-    // CSTR DEL ABOVE CRZ FL (A320 FCOM l.15144-15162, l.22602, l.22623-22625): the altitude constraints at or above the
-    // new CRZ FL are deleted (see CruiseLevelConstraints.ts)
+    // CSTR DEL ABOVE CRZ FL: the altitude constraints at or above the new CRZ FL are deleted
     if (deleteConstraintsAboveCruiseLevel(plan, flightLevelToInsert) > 0) {
       this.addMessageToQueue(NXSystemMessages.cstrDelAboveCrzFl);
     }
@@ -4057,11 +4053,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     return this.navigation.getNavaidTuner().setManualAdf(index, facilityOrFrequency);
   }
 
-  /**
-   * Set the BFO of a tuned ADF (RADIO NAV page ADF/BFO prompt)
-   * @param index ADF 1 or 2
-   * @param bfo true to activate the BFO
-   */
+  /** The RADIO NAV page ADF/BFO prompt of a tuned ADF */
   public setAdfBfo(index: 1 | 2, bfo: boolean): void {
     return this.navigation.getNavaidTuner().setAdfBfo(index, bfo);
   }
@@ -4542,7 +4534,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     this._messageQueue.resetQueue();
   }
 
-  /** Runs the callback for every MCDU screen that shares this FMS: the CPT one, and the F/O one when it exists. */
   protected forEachScreen(callback: (screen: A320_Neo_CDU_MainDisplay) => void) {
     for (const screen of this.screens) {
       callback(screen);
@@ -4606,7 +4597,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   }
   /**
    * Returns the REC MAX of the PROG page: the maximum allowed cruise FL considering max service FL, or the engine-out
-   * REC MAX when one engine is out (FCOM PROG page, see RecMaxFlightLevel.ts)
+   * REC MAX when one engine is out (see RecMaxFlightLevel.ts)
    * @returns the REC MAX FL or null if no grossweight available
    */
   //TODO: can this be an util? no
@@ -4714,9 +4705,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   }
 
   /**
-   * The FUEL PRED page FOB [4R] entry: a FOB (in flight only) and/or the fuel sensors, "The flight crew can modify the
-   * FOB value in flight, or modify the sensors used by entering "/FF", "/FQ" or "/FF+FQ"" (a320_fcom.txt l.17569-17570).
-   * SENSOR IS INVALID when the selected sensors cannot give a FOB (l.23020-23028).
+   * The FUEL PRED page FOB [4R] entry: a FOB (in flight only) and/or the fuel sensors "/FF", "/FQ" or "/FF+FQ".
+   * SENSOR IS INVALID when the selected sensors cannot give a FOB.
    * @param s the scratchpad entry
    * @returns whether the entry was accepted
    */
@@ -4762,7 +4752,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
   /**
    * Records the PROG REPORT page OVHD waypoint with its time, altitude, SAT, wind and FOB when the FROM leg of the
-   * active flight plan changes in flight (ProgressReportFields.ts, a320_fcom.txt l.21428-21444).
+   * active flight plan changes in flight (ProgressReportFields.ts).
    */
   private updateOverheadWaypointRecord(): void {
     const plan = this.flightPlanService.hasActive ? this.flightPlanService.active : null;
@@ -5235,9 +5225,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
   /**
    * Modifies the active flight plan to go direct to a specific waypoint, not necessarily in the flight plan
-   */
-  /**
-   * Modifies the active flight plan to go direct to a waypoint
    * @param waypoint the DIR TO waypoint
    * @param withAbeam DIR TO with the ABEAM PTS function
    * @param interceptCourse the radial of the RADIAL IN or RADIAL OUT function

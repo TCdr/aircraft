@@ -159,7 +159,7 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     )
     .pause();
 
-  // ILS1(2) and DME1(2) flags (red, flash 9 s then steady): A320 FCOM DSC-31-40, a320_fcom.txt l.47868-47874, 47908
+  // ILS1(2) and DME1(2) flags (red, flash 9 s then steady)
 
   private readonly powerTopics = landingSystemPowerTopics(getDisplayIndex());
 
@@ -183,7 +183,7 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     this.dmeInterrogatorPowered,
   );
 
-  /** l.47873: the ILS flag replaces the ILS frequency indication (and the ident of the failed receiver) */
+  /** The ILS flag replaces the ILS frequency indication (and the ident of the failed receiver) */
   private readonly isLsIdentHidden = MappedSubject.create(
     ([ident, isAlive, ilsFlagShown]) => ident.length === 0 || !isAlive || ilsFlagShown,
     this.lsIdent,
@@ -199,7 +199,7 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
 
   // FIXME major hack: when the FM is not tuning the VORs and MMRs, the DME receiver is not tuned (goes into standby)
   // Since we use the sim radios at the moment we can't tell that... instead we look at the FM tuning state
-  // l.47869: the DME flag replaces the DME distance indication
+  // The DME flag replaces the DME distance indication
   private isDmeAvailable = MappedSubject.create(
     ([dmeAlive, fmNavDiscrete, dmeFlagShown]) => dmeAlive && fmNavDiscrete.isNormalOperation() && !dmeFlagShown,
     this.dmeAlive,
@@ -360,7 +360,7 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
           </text>
         </g>
 
-        {/* The FCOM gives no position: the flags are drawn on the line of the indication they replace */}
+        {/* Design choice: no documented position, the flags are drawn on the line of the indication they replace */}
         <FlashOneHertz bus={this.props.bus} flashDuration={PFD_FLAG_FLASH_SECONDS} visible={this.isIlsFlagShown}>
           <text id="ILSFlag" class="Red FontLarge AlignLeft" x="1.3610243" y="151.11575">
             {landingSystemFlagText('ILS', getDisplayIndex())}

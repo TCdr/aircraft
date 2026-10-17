@@ -5,12 +5,13 @@
 // WipersRight components of A320_NEO.xml), evaluated frame by frame with a small RPN interpreter for the operators the
 // template uses. Kept outside src/ because build.js copies every file of src/.
 //
-// A320 FCOM DSC-30-60-20 (rain removal, WIPER rotary selector): "When turned off, the wiper stops out of view."
-// The Capt wiper is lost with ELEC DC BUS 1 FAULT and the F/O wiper with ELEC DC BUS 2 FAULT (PRO-ABN-ELEC, INOP SYS).
+// WIPER rotary selector: when turned off, the wiper stops out of view. The Capt wiper is lost with ELEC DC BUS 1 FAULT
+// and the F/O wiper with ELEC DC BUS 2 FAULT (INOP SYS).
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
+import { decodeXmlCode } from './RpnTestInterpreter';
 
 const EXTERIOR_BEHAVIOR_XML = join(__dirname, 'src', 'A32NX_Exterior.xml');
 const EXTERIOR_MODEL_XML = join(
@@ -33,10 +34,6 @@ const PARKED = 0;
 
 type Side = 'left' | 'right';
 
-function decodeXml(text: string): string {
-  return text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-}
-
 function stripXmlComments(text: string): string {
   return text.replace(/<!--[\s\S]*?-->/g, '');
 }
@@ -45,7 +42,7 @@ function stripXmlComments(text: string): string {
 function childParameters(fragment: string): Map<string, { value: string; attributes: string }> {
   const parameters = new Map<string, { value: string; attributes: string }>();
   for (const match of fragment.matchAll(/<(\w+)(\s[^>]*)?>([\s\S]*?)<\/\1>/g)) {
-    parameters.set(match[1], { value: decodeXml(match[3]).trim(), attributes: match[2] ?? '' });
+    parameters.set(match[1], { value: decodeXmlCode(match[3]).trim(), attributes: match[2] ?? '' });
   }
   return parameters;
 }
@@ -133,7 +130,7 @@ function wiperCode(side: Side): WiperCode {
     throw new Error('ANIM_CODE or FAILURE missing');
   }
   const failureCode = parameters.get('FAILURE_CODE') ?? '(O:AnimCode)';
-  const init = decodeXml(section(template, /<Update Once="True">([\s\S]*?)<\/Update>/, 'Update Once'));
+  const init = decodeXmlCode(section(template, /<Update Once="True">([\s\S]*?)<\/Update>/, 'Update Once'));
 
   return {
     init: substitute(init, parameters),
@@ -144,7 +141,6 @@ function wiperCode(side: Side): WiperCode {
 interface SimState {
   /** A: variables by name (with index, without unit), e.g. "CIRCUIT SWITCH ON:77" */
   a: Map<string, number>;
-  /** L: variables by name */
   l: Map<string, number>;
   /** O: (component) variables by name */
   o: Map<string, number>;
@@ -289,7 +285,6 @@ class WiperBlade {
     const switchedOn = conditions.selectorOn ? 1 : 0;
     const busPowered = conditions.busPowered ? 1 : 0;
     this.state.a.set(`CIRCUIT SWITCH ON:${circuit}`, switchedOn);
-    // The MSFS circuit is live when switched on and its MSFS bus is powered
     this.state.a.set(
       `CIRCUIT ON:${circuit}`,
       switchedOn && (conditions.msfsBusPowered ?? conditions.busPowered) ? 1 : 0,
@@ -320,7 +315,7 @@ class WiperBlade {
   }
 }
 
-describe.each<Side>(['left', 'right'])('%s windshield wiper blade (A320 FCOM DSC-30-60-20)', (side) => {
+describe.each<Side>(['left', 'right'])('%s windshield wiper blade', (side) => {
   it('stays parked at flight load with the selector OFF, powered or not', () => {
     const powered = new WiperBlade(side);
     expect(powered.position).toBe(PARKED);

@@ -11,7 +11,6 @@ import {
   PFD_FLAG_FLASH_SECONDS,
 } from './PfdFlags';
 
-// A320 FCOM DSC-31-40 FLAGS AND MESSAGES DISPLAYED ON PFD, a320_fcom.txt l.47815-47816, 47868-47874, 47908
 describe('A32NX PFD V1 INOP flag', () => {
   const takeoff = { v1Knots: 142, anyFmHealthy: true, fwcFlightPhase: 2 };
 

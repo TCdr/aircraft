@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { metricAltSelMetres } from './MetricAltSel';
 
-// A320 FCOM DSC-31-20, a320_fcom.txt l.46264-46277: G LOAD - ALT SEL area of the lower SD
+// G LOAD - ALT SEL area of the lower SD
 describe('A32NX SD metric FCU selected altitude', () => {
   it('shows the FCU selected altitude in metres when METRIC ALT is selected', () => {
     expect(metricAltSelMetres({ metricAltSelected: true, selectedAltitudeFt: 35000, gLoadShown: false })).toBe(10670);

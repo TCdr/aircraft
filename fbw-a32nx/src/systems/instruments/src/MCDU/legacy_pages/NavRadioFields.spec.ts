@@ -8,7 +8,6 @@ const noAdf = { frequency: null, bfo: false };
 const adf = { frequency: 350, bfo: false };
 const adfInBfo = { frequency: 350, bfo: true };
 
-// A320 FCOM DSC-22_20-50-10-28 RADIO NAV page, a320_fcom.txt l.21508-21509, l.21521-21523
 describe('MCDU RADIO NAV page ADF/BFO prompts', () => {
   it('shows no prompt without a tuned ADF', () => {
     expect(adfBfoCell(1, noAdf)).toBe('');

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-/** The radio navigation receivers of the A32NX, two of each (A320 FCOM DSC-34-NAV-30-10/20) */
+/** The radio navigation receivers of the A32NX, two of each */
 export type NavigationReceiverKind = 'VOR' | 'DME' | 'ADF' | 'ILS';
 
 /** Receiver 1 or 2 */
@@ -10,9 +10,6 @@ export type NavigationReceiverIndex = 1 | 2;
 /**
  * The L:var that tells the displays that a radio navigation receiver has failed (flyPad ATA 34 failures). Written by
  * the systems host (NavigationReceiverFailures).
- * @param kind the receiver
- * @param index receiver 1 or 2
- * @returns the L:var name
  */
 export function navigationReceiverFailedVar(kind: NavigationReceiverKind, index: NavigationReceiverIndex): string {
   return `L:A32NX_${kind}_${index}_FAILED`;
@@ -22,10 +19,9 @@ export function navigationReceiverFailedVar(kind: NavigationReceiverKind, index:
 export const RMP_ADF_MODE = 10;
 
 /**
- * The RMP BFO key: "If the ADF is selected, pressing this key activates the BFO" (A320 FCOM DSC-34-NAV-30-30 (9),
- * a320_fcom.txt l.53502-53505). The ADF is selected in the NAV backup mode only (the STBY NAV keys work with the NAV
- * key on, l.53452-53456). Pressing the key again deactivates the BFO, which "must be deactivated in order to hear the
- * audio identification" of some ADF (l.53504-53505).
+ * The RMP BFO key: with the ADF selected, pressing it activates the BFO. The ADF is selected in the NAV backup mode
+ * only (the STBY NAV keys work with the NAV key on). Pressing the key again deactivates the BFO, which must be off to
+ * hear the audio identification of some ADF stations.
  * @param navBackupSelected the NAV key of this RMP is on
  * @param selectedMode the selected mode of this RMP
  * @param bfoOn the BFO of the ADF of this RMP is on

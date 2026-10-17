@@ -4,7 +4,6 @@
 import { describe, expect, it } from 'vitest';
 import { SensedDoors, doorProximitySensorFaultVar, isDoorDetectedNotClosed } from './DoorProximitySensors';
 
-/* A320 FCOM PRO-ABN-DOOR (a320_fcom.txt l.74659-74660): "not detected closed by the proximity sensors" */
 describe('door proximity sensors', () => {
   it('a closed door with a working sensor is detected closed', () => {
     expect(isDoorDetectedNotClosed(false, false)).toBe(false);

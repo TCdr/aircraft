@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { apuBleedValveCss } from './ApuBleedValveIndication';
 
-/* A320 FCOM DSC-36-20 ECAM BLEED PAGE (4) APU BLEED VALVE (a320_fcom.txt l.57801-57808) */
+/* APU bleed valve of the BLEED page */
 describe('BLEED page APU bleed valve', () => {
   it('is amber crossline when closed with the APU master switch ON and the APU BLEED pb ON for 10 s', () => {
     expect(apuBleedValveCss(false, true, true)).toBe('AmberLine');

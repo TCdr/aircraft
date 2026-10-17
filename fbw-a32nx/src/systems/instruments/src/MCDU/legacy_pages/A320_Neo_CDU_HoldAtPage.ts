@@ -68,8 +68,7 @@ export class CDUHoldAtPage {
         };
 
         const fix = waypoint.terminationWaypoint();
-        // The database hold of the fix (see DatabaseHold.ts), else the computed hold. The database holds carry their
-        // inbound course in `course` (the former lookup read a `magneticCourse` field the database does not have).
+        // The database hold of the fix (see DatabaseHold.ts), else the computed hold
         findDatabaseHold(
           fix,
           targetPlan.originAirport?.ident,
@@ -123,7 +122,7 @@ export class CDUHoldAtPage {
 
   /**
    * HOLD at PPOS (see PresentPositionHold.ts): a temporary flight plan with the computed hold at the aircraft position,
-   * on the aircraft track. Without a valid aircraft position: A/C POSITION INVALID (A320 FCOM l.22477-22480).
+   * on the aircraft track. Without a valid aircraft position: A/C POSITION INVALID.
    */
   static ShowPresentPositionPage(mcdu: LegacyFmsPageInterface) {
     const latitude = ADIRS.getLatitude();
@@ -327,8 +326,8 @@ export class CDUHoldAtPage {
   }
 
   /**
-   * The LAST EXIT UTC / FUEL cell (A320 FCOM l.18272-18275, see HoldLastExit.ts): the time and the fuel on board when the
-   * EXTRA fuel of the FUEL PRED page is burnt in the hold, from the arrival at the hold fix (or now, in the hold).
+   * The LAST EXIT UTC / FUEL cell (see HoldLastExit.ts): the time and the fuel on board when the EXTRA fuel of the FUEL
+   * PRED page is burnt in the hold, from the arrival at the hold fix (or now, in the hold).
    * Design choice: dashes for a hold of the temporary, secondary or alternate flight plan, whose fuel predictions the FMS
    * does not compute.
    */

@@ -13,10 +13,9 @@ export function rmpFailedVar(side: RmpSide): string {
 }
 
 /**
- * Whether an RMP works: it is powered, its ON/OFF switch is ON (A320 FCOM DSC-23-10-20 (9), a320_fcom.txt:35125
- * "This switch controls the RMP power supply") and it has not failed. A failed RMP behaves as one that is off: "The
- * affected RMP no longer controls the selected receiver. The frequency displays disappear and the green VHF or HF
- * lights go out." (FCOM DSC-23-60 failure cases, a320_fcom.txt:36229-36231).
+ * Whether an RMP works: it is powered, its ON/OFF switch (the RMP power supply) is ON and it has not failed. A failed
+ * RMP behaves as one that is off: it no longer controls the selected receiver, its frequency displays go blank and its
+ * green VHF or HF lights go out.
  */
 export function isRmpOperative(powered: boolean, switchedOn: boolean, failed: boolean): boolean {
   return powered && switchedOn && !failed;

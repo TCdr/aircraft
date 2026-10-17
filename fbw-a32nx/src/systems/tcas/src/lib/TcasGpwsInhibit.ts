@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * Whether a GPWS alert is active, for the automatic TCAS inhibition. A320 FCOM DSC-34-SURV-60-10-10 TA ONLY MODE:
- * selected automatically if "GPWS alerts are triggered". The A32NX EGPWC (fbw-common surveillance/egpws) writes the
- * GPWS warning (red) and alert (amber) lights; the TCAS used to read L:A32NX_GPWS_Warning_Active, which only the A380X
- * GPWS writes.
+ * Whether a GPWS alert is active: the TCAS then goes to TA ONLY automatically. The A32NX EGPWC (fbw-common
+ * surveillance/egpws) writes the GPWS warning (red) and alert (amber) lights; L:A32NX_GPWS_Warning_Active is written by
+ * the A380X GPWS only.
  * @param read reads one L:var (SimVar.GetSimVarValue(name, 'bool') in the sim)
  * @returns true when the GPWS warning or alert light is on
  */
@@ -14,10 +13,9 @@ export function isGpwsAlertActive(read: (name: string) => number): boolean {
 }
 
 /**
- * Whether a windshear or stall warning is active, for the automatic TCAS inhibition. A320 FCOM DSC-34-SURV-60-10-10 TA
- * ONLY MODE (a320_fcom.txt:56003-56004): selected automatically if "The windshear alert is triggered" or "The stall
- * warning is triggered". The windshear alert is the reactive windshear warning of the FACs (FacReactiveWindshear); the
- * stall warning is the FWC output that also drives the stall aural (PseudoFWC).
+ * Whether a windshear or stall warning is active: the TCAS then goes to TA ONLY automatically. The windshear alert is
+ * the reactive windshear warning of the FACs (FacReactiveWindshear); the stall warning is the FWC output that also
+ * drives the stall aural (PseudoFWC).
  * @param read reads one L:var (SimVar.GetSimVarValue(name, 'bool') in the sim)
  * @returns true when the windshear warning or the stall warning is on
  */

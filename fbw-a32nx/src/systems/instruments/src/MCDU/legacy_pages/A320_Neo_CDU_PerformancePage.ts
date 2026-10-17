@@ -268,7 +268,7 @@ export class CDUPerformancePage {
         cleanCell = `{green}${cleanSpeed.toFixed(0)}{end}`;
       }
     }
-    // takeoff shift (A320 FCOM DSC-22_20-50-10-28 P 99 [2R]: positive, not greater than the runway length), in metres
+    // takeoff shift [2R]: positive, not greater than the runway length, in metres
     let toShiftCell = '{inop}----{end}\xa0';
     if (hasOrigin && hasRunway) {
       const shift = targetPlan.performanceData.takeoffShift.get();
@@ -292,7 +292,7 @@ export class CDUPerformancePage {
       };
     }
 
-    // UPLINK TO DATA (A320 FCOM DSC-22_20-50-10-28 P 99 [6L]): only in the preflight and done phases
+    // UPLINK TO DATA [6L]: only in the preflight and done phases
     const uplinkAvailable =
       isActivePlan &&
       (mcdu.flightPhaseManager.phase === FmgcFlightPhase.Preflight ||

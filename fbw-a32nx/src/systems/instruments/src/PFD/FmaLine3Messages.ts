@@ -2,29 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * Trigger logic of the FMA line 3 special messages that the PFD computes from the data it already receives
- * (A320 FCOM DSC-22_30-100 SPECIAL MESSAGES (FMA COLUMNS 2 AND 3), a320_fcom.txt l.33650-33725).
+ * Trigger logic of the FMA line 3 special messages that the PFD computes from the data it already receives.
  */
 
 /** Thrust lever angle of the FLX/MCT detent, degrees (the FWC uses the same value, PseudoFWC thr1TLA >= 35) */
-export const TLA_MCT_DEGREES = 35;
+const TLA_MCT_DEGREES = 35;
 /** Thrust lever angle of the TOGA detent, degrees (PseudoFWC thr1TLA >= 45) */
-export const TLA_TOGA_DEGREES = 45;
+const TLA_TOGA_DEGREES = 45;
 
-/** l.33713: "below 1 000 ft RA" */
-export const FOR_GA_SET_TOGA_MAX_RA_FT = 1_000;
+const FOR_GA_SET_TOGA_MAX_RA_FT = 1_000;
 
-/** l.33660: "Minimum minus 50 ft" */
-export const DISCONNECT_AP_BELOW_MINIMUM_FT = 50;
-/** l.33661: "400 ft AGL (if no minimum entered)" */
-export const DISCONNECT_AP_NO_MINIMUM_AGL_FT = 400;
+const DISCONNECT_AP_BELOW_MINIMUM_FT = 50;
+const DISCONNECT_AP_NO_MINIMUM_AGL_FT = 400;
 
-/** l.33680-33681: "Green Dot -10 kt, or Green Dot +10 kt" */
-export const GREEN_DOT_SPEED_MARGIN_KT = 10;
+const GREEN_DOT_SPEED_MARGIN_KT = 10;
 
-/** Inputs of FOR GA: SET TOGA */
 export interface ForGaSetTogaInputs {
-  /** an AP or an FD is engaged */
   apOrFdEngaged: boolean;
   /** an approach vertical mode is engaged: G/S, FINAL, LAND or FLARE */
   approachVerticalModeActive: boolean;
@@ -35,8 +28,8 @@ export interface ForGaSetTogaInputs {
 }
 
 /**
- * FOR GA: SET TOGA (amber), l.33713-33715: "When AP/FD is in approach vertical mode and aircraft is below 1 000 ft RA,
- * this message is displayed if all thrust levers are moved to or above MCT, but below TOGA."
+ * FOR GA: SET TOGA (amber): AP/FD in an approach vertical mode below 1 000 ft RA, with all thrust levers at or above
+ * MCT but below TOGA.
  * @param i the inputs
  * @returns whether the message shows
  */
@@ -51,7 +44,6 @@ export function isForGaSetToga(i: ForGaSetTogaInputs): boolean {
   );
 }
 
-/** Inputs of DISCONNECT AP FOR LDG */
 export interface DisconnectApForLdgInputs {
   apEngaged: boolean;
   /**
@@ -70,9 +62,8 @@ export interface DisconnectApForLdgInputs {
 }
 
 /**
- * DISCONNECT AP FOR LDG (amber), l.33657-33661: "This message is displayed when, during a Non Precision Approach, the
- * AP/FD remains engaged at: Minimum minus 50 ft, or 400 ft AGL (if no minimum entered)". The SOP (l.103297-103298) says
- * "At minimum -50 ft, if the AP is still engaged", so the AP is the condition.
+ * DISCONNECT AP FOR LDG (amber): on a non precision approach, the AP still engaged at the minimum minus 50 ft, or at
+ * 400 ft AGL without a minimum. The AP (not the FD) is the condition, as in the standard procedure.
  * @param i the inputs
  * @returns whether the message shows
  */
@@ -89,7 +80,6 @@ export function isDisconnectApForLdg(i: DisconnectApForLdgInputs): boolean {
   return i.radioAltitudeFt !== null && i.radioAltitudeFt <= DISCONNECT_AP_NO_MINIMUM_AGL_FT;
 }
 
-/** Inputs of SET GREEN DOT SPEED */
 export interface SetGreenDotSpeedInputs {
   /** engine-out: one engine not running in flight */
   engineOut: boolean;
@@ -99,15 +89,12 @@ export interface SetGreenDotSpeedInputs {
   fcuSelectedSpeedKt: number | null;
   /** green dot speed in knots, null when not valid */
   greenDotKt: number | null;
-  /** ALT* or ALT is engaged */
   altOrAltStarActive: boolean;
 }
 
 /**
- * SET GREEN DOT SPEED (white), l.33676-33681 and the MCDU message table l.23022-23036: "The aircraft is in Engine Out
- * mode and the SPEED target is selected. This message is displayed if the FCU selected speed is: Green Dot -10 kt, or
- * Green Dot +10 kt, except in ALT* and ALT mode." (MCDU: "FCU-selected speed equal to, or greater than, green-dot speed
- * +10 kt, and ALT* or ALT not active, or FCU-selected speed equal to or less than green-dot speed -10 kt.")
+ * SET GREEN DOT SPEED (white): engine-out with a selected speed target, the FCU selected speed at green dot +10 kt or
+ * more (not in ALT* or ALT), or at green dot -10 kt or less (in any mode).
  * @param i the inputs
  * @returns whether the message shows
  */

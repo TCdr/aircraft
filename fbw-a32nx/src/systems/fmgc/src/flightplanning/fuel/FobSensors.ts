@@ -5,18 +5,12 @@
 /*
  * The fuel on board (FOB) of the A320 FMS and the fuel sensors it is computed from (FUEL PRED page [4R]).
  *
- * A320 FCOM FUEL PRED page (a320_fcom.txt l.17564-17570): "Displays the Fuel On Board (FOB) calculated by the FMGS and/or
- * the following fuel sensors: - Fuel flow and fuel quantity sensors (/FF+FQ) - Fuel flow sensors only (/FF) - Fuel quantity
- * sensors only (/FQ). The flight crew can modify the FOB value in flight, or modify the sensors used by entering "/FF",
- * "/FQ" or "/FF+FQ", as required."
- * A320 FCOM MCDU data format list (a320_fcom.txt l.23392, l.23402-23412): FF/FQ sensors "One or both may be entered,
- * Both - /FF + FQ or - / FQ + FF, Fuel flow - /FF, Fuel Quantity - / FQ"; FOB (l.23472-23474) "NN.N (leading zeros may be
- * omitted)", thousands of kg or lb.
- * A320 FCOM MCDU messages (a320_fcom.txt l.23020-23028): SENSOR IS INVALID (I/W) "The pilot has selected FF or FQ, or
- * FF + FQ, or FQ + FF on the FUEL PRED page and the sole sensor or both of the selected sensors are invalid, or The flight
- * crew has entered fuel on board only, and the FF sensor is invalid."
- * A320 FCOM INIT B page (a320_fcom.txt l.17364-17365): after the first engine start the FMGC "will compute its
- * predictions based on the FOB indicated by the FQI computer".
+ * The FUEL PRED page shows the FOB with the sensors it comes from: fuel flow and fuel quantity (/FF+FQ), fuel flow
+ * only (/FF) or fuel quantity only (/FQ). In flight the crew can enter a FOB, or the sensors (/FF, /FQ, /FF+FQ or
+ * /FQ+FF). The FOB is entered as NN.N (leading zeros may be omitted), in thousands of kg or lb.
+ * SENSOR IS INVALID: the sole selected sensor or both selected sensors are invalid, or the crew entered a FOB only
+ * while the FF sensor is invalid.
+ * After the first engine start the predictions use the FOB of the FQI computer.
  *
  * What the sensors mean here:
  * - FQ: the fuel quantity gauged by the FQI.
@@ -25,8 +19,8 @@
  *   lower it).
  * - FF+FQ (the default): the FQ value; the FF value when the FQ is invalid (both FQI channels failed), since the FMS
  *   then still has the other selected sensor.
- * Design choice (no FCOM rule): when the only selected sensor becomes invalid later on, the FMS goes on with the other
- * one, so that the predictions are kept.
+ * Design choice (the aircraft documents give no rule): when the only selected sensor becomes invalid later on, the FMS
+ * goes on with the other one, so that the predictions are kept.
  */
 
 /** The fuel sensors the FMS computes the FOB from */
@@ -118,7 +112,6 @@ export class FobSensorComputer {
   /** The fuel used counter at the previous computation, to see a counter reset */
   private lastFuelUsed = 0;
 
-  /** The selected sensors */
   public get sensors(): FobSensors {
     return this.selectedSensors;
   }

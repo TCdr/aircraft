@@ -126,7 +126,7 @@ export class CDUFuelPredPage {
       if (fob !== null && fob !== undefined) {
         fobCell = '{small}' + NXUnits.kgToUser(fob).toFixed(1) + '{end}';
       }
-      // the FOB sensors: /FF+FQ, /FF or /FQ (a320_fcom.txt l.17564-17570)
+      // the FOB sensors: /FF+FQ, /FF or /FQ
       fobOtherCell = mcdu.getFobSensorsText();
       fobCellColor = '[color]cyan';
 

@@ -12,7 +12,7 @@ import {
   idgTemperatureState,
 } from './IdgIndications';
 
-/* A320 FCOM DSC-24-20 SD ELEC page (C) oil outlet temperature, a320_fcom.txt l.37623-37625 */
+/* IDG oil outlet temperature */
 describe('SD ELEC IDG oil outlet temperature', () => {
   it('is green up to 147 °C', () => {
     expect(idgTemperatureState(90)).toBe('normal');
@@ -32,7 +32,7 @@ describe('SD ELEC IDG oil outlet temperature', () => {
   });
 });
 
-/* (A) IDG legend, l.37610-37614; (B) DISC/LO PR, l.37618-37621 */
+/* IDG legend and DISC/LO PR */
 describe('SD ELEC IDG legends', () => {
   it('the IDG legend is amber when disconnected, on low oil pressure or above 180 °C', () => {
     expect(idgLegendAmber(true, 90, false)).toBe(false);
@@ -59,7 +59,7 @@ describe('SD ELEC IDG legends', () => {
   });
 });
 
-/* A320 FCOM DSC-24-20 SD ELEC page (13) RISE indication, a320_fcom.txt l.37650-37652 */
+/* IDG oil RISE */
 describe('SD ELEC IDG RISE', () => {
   it('is the outlet minus the inlet temperature, in whole degrees', () => {
     expect(idgTemperatureRise(75.4, 55.2)).toBe(20);

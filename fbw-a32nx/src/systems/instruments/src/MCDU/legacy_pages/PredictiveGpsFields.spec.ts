@@ -12,7 +12,7 @@ import {
   predictivePrimaryLine,
 } from './PredictiveGpsFields';
 
-describe('PREDICTIVE GPS page entries (A320 FCOM l.21356-21404, time format l.23888-23893)', () => {
+describe('PREDICTIVE GPS page entries', () => {
   it('ETA HHMM, leading zeros omitted, 1 or 2 digits as minutes', () => {
     expect(parsePredictiveEta('1435')).toBe(14 * 3600 + 35 * 60);
     expect(parsePredictiveEta('935')).toBe(9 * 3600 + 35 * 60);

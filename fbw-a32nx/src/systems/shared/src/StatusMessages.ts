@@ -4,7 +4,7 @@
 import { formatEwdMessages } from './EwdMessages';
 
 /**
- * The parts of the A320 ECAM STATUS page (FCOM DSC-31-20): limitations (blue), approach procedures (white), procedures
+ * The parts of the A320 ECAM STATUS page: limitations (blue), approach procedures (white), procedures
  * (blue) and information (green) on the left; inoperative systems (amber) on the right. Only the parts used by the
  * alerts that have their status modelled are here.
  */
@@ -24,9 +24,8 @@ export enum StatusPart {
  * in the left column.
  */
 const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
-  // 70 ENGINE: the STATUS of ENG ALL ENGINES FAILURE (FCOM PRO-ABN-ENG, a320_fcom.txt l.79177-79239, see
-  // FWC/Logic/AllEnginesFailure), first on the page in the FCOM order: the lines the other alerts of an all engines
-  // failure share with it are shown once, here
+  // 70 ENGINE: the STATUS of ENG ALL ENGINES FAILURE (see FWC/Logic/AllEnginesFailure), first on the page in the
+  // aircraft order: the lines the other alerts of an all engines failure share with it are shown once, here
   ['700400070', { part: StatusPart.Limitation, text: 'MIN RAT SPEED....140 KT' }],
   ['700400071', { part: StatusPart.Limitation, text: 'MAX SPEED.......320/.77' }],
   ['700400072', { part: StatusPart.Limitation, text: 'MAX BRK PR.....1000 PSI' }],
@@ -66,9 +65,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700300091', { part: StatusPart.InopSys, text: 'L/G RETRACT' }],
   ['700300092', { part: StatusPart.InopSys, text: 'CAB PR 1+2' }],
   ['700300093', { part: StatusPart.InopSys, text: 'PACK 1+2' }],
-  // 24 ELECTRICAL: the STATUS of ELEC EMER CONFIG (FCOM PRO-ABN-ELEC, a320_fcom.txt l.77641-77675, see
-  // FWC/Logic/ElecBusAlerts elecEmerConfigStatus), in the FCOM order; after the ENG ALL ENGINES FAILURE lines above,
-  // which an all engines failure (with ELEC EMER CONFIG) shows first
+  // 24 ELECTRICAL: the STATUS of ELEC EMER CONFIG (see FWC/Logic/ElecBusAlerts elecEmerConfigStatus), in the aircraft
+  // order; after the ENG ALL ENGINES FAILURE lines above, which an all engines failure (with ELEC EMER CONFIG) shows
+  // first
   ['240400301', { part: StatusPart.Limitation, text: 'MIN RAT SPEED....140 KT' }],
   ['240400302', { part: StatusPart.Limitation, text: 'MAX SPEED........320 KT' }],
   ['240400303', { part: StatusPart.Limitation, text: 'MAX BRK PR.....1000 PSI' }],
@@ -99,10 +98,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['240300313', { part: StatusPart.InopSys, text: 'ANTI SKID' }],
   ['240300314', { part: StatusPart.InopSys, text: 'N/W STRG' }],
   ['240300315', { part: StatusPart.InopSys, text: 'CAT 2' }],
-  // 21 AIR CONDITIONING (FCOM PRO-ABN-AIR, PRO-ABN-COND)
+  // 21 AIR CONDITIONING
   ['210400001', { part: StatusPart.Limitation, text: 'MAX FL.....100/MEA-MORA' }],
-  // CAB PR SAFETY VALVE OPEN and SYS 1+2 FAULT (FCOM PRO-ABN-CAB_PR l.73330-73346, l.73443-73459), see
-  // FWC/Logic/AirConditioningAlerts: the manual pressurization schedule
+  // CAB PR SAFETY VALVE OPEN and SYS 1+2 FAULT, see FWC/Logic/AirConditioningAlerts: the manual pressurization schedule
   ['210500002', { part: StatusPart.ProcedureTitle, text: '\x1b4mMAN CAB PR CTL\x1bm' }],
   ['210400002', { part: StatusPart.Limitation, text: 'TGT V/S: CLIMB 500 FT/MN' }],
   ['210400003', { part: StatusPart.Limitation, text: 'TGT V/S: DESC 300 FT/MN' }],
@@ -115,17 +113,15 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['210500004', { part: StatusPart.Condition, text: 'DURING FINAL APPR:' }],
   ['210400009', { part: StatusPart.Limitation, text: 'MAN V/S CTL.....FULL UP' }],
   ['210400010', { part: StatusPart.Limitation, text: 'V/S CTL.........FULL UP' }],
-  // 30 ICE AND RAIN PROTECTION (FCOM PRO-ABN-W_A_ICE WING A.ICE L(R) HI PR l.96448-96454), see
-  // FWC/Logic/WingAntiIceAlerts
+  // 30 ICE AND RAIN PROTECTION (WING A.ICE L(R) HI PR), see FWC/Logic/WingAntiIceAlerts
   ['300400001', { part: StatusPart.Limitation, text: 'THRUST LIM PENALTY' }],
-  // 32 LANDING GEAR (FCOM PRO-ABN-LG GEAR NOT UPLOCKED l.89437, DOORS NOT CLOSED l.89234), see
-  // FWC/Logic/LandingGearAlerts
+  // 32 LANDING GEAR (GEAR NOT UPLOCKED, DOORS NOT CLOSED), see FWC/Logic/LandingGearAlerts
   ['320400001', { part: StatusPart.Limitation, text: 'MAX SPEED.......280/.67' }],
   ['320400002', { part: StatusPart.Limitation, text: 'MAX SPEED.......250/.60' }],
-  // 52 DOORS (FCOM PRO-ABN-DOOR, in flight, l.74677-74680), see FWC/Logic/DoorAlerts
+  // 52 DOORS (in flight), see FWC/Logic/DoorAlerts
   ['520500001', { part: StatusPart.Condition, text: 'IF ABN CAB V/S:' }],
   ['520400001', { part: StatusPart.Limitation, text: 'MAX FL.....100/MEA-MORA' }],
-  // 24 ELECTRICAL (FCOM PRO-ABN-ELEC bus faults STATUS, see FWC/Logic/ElecBusAlerts), before LDG DIST PROC as in the FCOM
+  // 24 ELECTRICAL (bus faults STATUS, see FWC/Logic/ElecBusAlerts), before LDG DIST PROC as on the aircraft
   ['240500101', { part: StatusPart.Condition, text: 'IF ABN CAB V/S:' }],
   ['240400106', { part: StatusPart.Limitation, text: 'MAX FL..........100/MEA' }],
   ['240400103', { part: StatusPart.Limitation, text: 'MIN RAT SPEED....140 KT' }],
@@ -133,10 +129,10 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['240400101', { part: StatusPart.Limitation, text: 'MAX BRK PR.....1000 PSI' }],
   ['240400105', { part: StatusPart.Limitation, text: 'FUEL GRVTY FEED' }],
   ['240400102', { part: StatusPart.Limitation, text: 'L/G..........GRVTY EXTN' }],
-  // 32 LANDING GEAR (FCOM PRO-ABN-BRAKES NORM + ALTN FAULT STATUS, a320_fcom.txt l.72667), see FWC/Logic/BrakeSystemAlerts
+  // 32 LANDING GEAR (NORM + ALTN FAULT STATUS), see FWC/Logic/BrakeSystemAlerts
   ['320400090', { part: StatusPart.Limitation, text: 'PARK BRK ONLY' }],
-  // 29 HYDRAULIC (FCOM PRO-ABN-HYD STATUS, a320_fcom.txt l.87028-88759), see FWC/Logic/HydraulicAlerts: limitations,
-  // then the APPR PROC block, then the procedures, as on the FCOM STATUS pages
+  // 29 HYDRAULIC (STATUS), see FWC/Logic/HydraulicAlerts: limitations, then the APPR PROC block, then the procedures,
+  // as on the STATUS pages
   ['290400001', { part: StatusPart.Limitation, text: 'MIN RAT SPD......140 KT' }],
   ['290400002', { part: StatusPart.Limitation, text: 'MAX SPEED.......320/.77' }],
   ['290400003', { part: StatusPart.Limitation, text: 'MAX BRK PR.....1000 PSI' }],
@@ -158,7 +154,7 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['290400012', { part: StatusPart.Limitation, text: 'FOR LDG......USE FLAP 3' }],
   ['290400013', { part: StatusPart.Limitation, text: 'GPWS LDG FLAP 3......ON' }],
   ['290400014', { part: StatusPart.Limitation, text: 'GPWS FLAP MODE......OFF' }],
-  // l.88570: "WHEN SPD 200 KT" lost its sign in the FCOM text, "Extend the landing gear at 200 kt" (l.88576)
+  // The condition is "speed below 200 kt": the landing gear is extended at 200 kt
   ['290500008', { part: StatusPart.Condition, text: 'WHEN SPD < 200 KT:' }],
   ['290500009', { part: StatusPart.Condition, text: 'WHEN CONF 3 AND VAPP:' }],
   ['290400015', { part: StatusPart.Limitation, text: 'L/G..........GRVTY EXTN' }],
@@ -166,22 +162,22 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['290400017', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
   ['290400018', { part: StatusPart.Limitation, text: 'FUEL CONSUMPT INCRSD' }],
   ['290400019', { part: StatusPart.Limitation, text: 'FMS PRED UNRELIABLE' }],
-  // 30 ICE AND RAIN PROTECTION: ANTI ICE ENG 1(2) VALVE OPEN (FCOM PRO-ABN-A-ICE l.68855, see
-  // FWC/Logic/EngineAntiIceAlerts) gives the THRUST LIM PENALTY line 300400001 above, shared with WING A.ICE L(R) HI PR
-  // ANTI ICE ALL PITOT and the pitot pairs STATUS (2019 PDF pages 1977-1989), see FWC/Logic/ProbeWindowHeatAlerts
+  // 30 ICE AND RAIN PROTECTION: ANTI ICE ENG 1(2) VALVE OPEN (see FWC/Logic/EngineAntiIceAlerts) gives the THRUST LIM
+  // PENALTY line 300400001 above, shared with WING A.ICE L(R) HI PR ANTI ICE ALL PITOT and the pitot pairs STATUS, see
+  // FWC/Logic/ProbeWindowHeatAlerts
   ['300500001', { part: StatusPart.Condition, text: 'IF ICING EXPECTED:' }],
   ['300400002', { part: StatusPart.Limitation, text: 'ADR 1 P/B...........OFF' }],
   ['300400003', { part: StatusPart.Limitation, text: 'ADR 2 P/B...........OFF' }],
   ['300400004', { part: StatusPart.Limitation, text: 'ADR 3 P/B...........OFF' }],
   ['300400005', { part: StatusPart.Limitation, text: 'UNREL SPD PROC....APPLY' }],
-  // 70 ENGINE (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN STATUS, a320_fcom.txt l.81168-81264), in the order of the FCOM
+  // 70 ENGINE (ENG 1(2) SHUT DOWN STATUS), in the aircraft order
   ['700400001', { part: StatusPart.Limitation, text: 'AVOID ICING CONDITIONS' }],
   ['700500001', { part: StatusPart.Condition, text: 'IF SEVERE ICE ACCRETION:' }],
   ['700400002', { part: StatusPart.Limitation, text: 'MIN SPD....VLS+10/G DOT' }],
   ['700400003', { part: StatusPart.Limitation, text: 'MANEUVER WITH CARE' }],
   ['700400004', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
-  // "If REV unlocked" (l.81172-81173, 81205-81214), see FWC/Logic/EngineFailAlerts engineShutDownStatus; MAX SPEED
-  // 300/.78 is also the STATUS of REVERSE UNLOCKED (FWC/Logic/FadecReverserAlerts)
+  // "If REV unlocked", see FWC/Logic/EngineFailAlerts engineShutDownStatus; MAX SPEED 300/.78 is also the STATUS of
+  // REVERSE UNLOCKED (FWC/Logic/FadecReverserAlerts)
   ['700400058', { part: StatusPart.Limitation, text: 'MAX SPEED.......300/.78' }],
   ['700500051', { part: StatusPart.Condition, text: 'APPR PROC:' }],
   ['700500052', { part: StatusPart.Condition, text: 'IF BUFFET:' }],
@@ -189,9 +185,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400060', { part: StatusPart.Limitation, text: 'GPWS LDG FLAP 3......ON' }],
   ['700400061', { part: StatusPart.Limitation, text: 'APPR SPD.....VREF+10 KT' }],
   ['700400062', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
-  // ENG 1(2) SENSOR FAULT STATUS (FCOM PRO-ABN-ENG l.81042-81044), FWC/Logic/EngineMonitoringAlerts
+  // ENG 1(2) SENSOR FAULT STATUS, FWC/Logic/EngineMonitoringAlerts
   ['700400063', { part: StatusPart.Limitation, text: 'AVOID RAPID THR CHANGES' }],
-  // ENG 1(2) CTL VALVE FAULT STATUS (FCOM PRO-ABN-ENG l.79485), FWC/Logic/EngineFadecFaultAlerts
+  // ENG 1(2) CTL VALVE FAULT STATUS, FWC/Logic/EngineFadecFaultAlerts
   ['700400090', { part: StatusPart.Limitation, text: 'MAX ENG 1 N2.......96 %' }],
   ['700400091', { part: StatusPart.Limitation, text: 'MAX ENG 2 N2.......96 %' }],
   ['700500002', { part: StatusPart.Condition, text: 'IF PERF PERMITS:' }],
@@ -200,9 +196,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400006', { part: StatusPart.Limitation, text: 'CONSIDER ENG 1 RELIGHT' }],
   ['700500004', { part: StatusPart.Condition, text: 'IF NO ENG 2 DAMAGE:' }],
   ['700400007', { part: StatusPart.Limitation, text: 'CONSIDER ENG 2 RELIGHT' }],
-  // 34 NAVIGATION (FCOM PRO-ABN-NAV NAV ADR 1+2+3 FAULT STATUS, l.92277), see FWC/Logic/AdirsAlerts
+  // 34 NAVIGATION (NAV ADR 1+2+3 FAULT STATUS), see FWC/Logic/AdirsAlerts
   ['340400001', { part: StatusPart.Limitation, text: 'STBY INST..MAY BE UNREL' }],
-  // 27 FLIGHT CONTROLS (FCOM PRO-ABN-F_CTL STATUS, a320_fcom.txt l.82568-83853), see FWC/Logic/FlightControlStatus
+  // 27 FLIGHT CONTROLS (STATUS), see FWC/Logic/FlightControlStatus
   ['270400001', { part: StatusPart.Limitation, text: 'MAX SPEED........320 KT' }],
   ['270400002', { part: StatusPart.Limitation, text: 'MAX SPEED.......320/.77' }],
   ['270400003', { part: StatusPart.Limitation, text: 'MANEUVER WITH CARE' }],
@@ -215,24 +211,22 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['270400009', { part: StatusPart.Limitation, text: 'MAN PITCH TRIM......USE' }],
   ['270400010', { part: StatusPart.Limitation, text: 'APPR SPD.....VREF+10 KT' }],
   ['270400011', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
-  // APPR PROC of F/CTL FLAP SYS 1 FAULT (l.83240-83242), see FWC/Logic/SlatFlapChannelAlerts
+  // APPR PROC of F/CTL FLAP SYS 1 FAULT, see FWC/Logic/SlatFlapChannelAlerts
   ['270400012', { part: StatusPart.Limitation, text: 'GPWS FLAP MODE......OFF' }],
-  // 22 AUTO FLIGHT (FCOM PRO-ABN-AUTO_FLT RUD TRV LIM SYS STATUS, a320_fcom.txt l.71916-71930), see
-  // FWC/Logic/FacActuatorAlerts
+  // 22 AUTO FLIGHT (RUD TRV LIM SYS STATUS), see FWC/Logic/FacActuatorAlerts
   ['220400001', { part: StatusPart.Limitation, text: 'RUD WITH CARE ABV 160 KT' }],
   ['220400002', { part: StatusPart.Limitation, text: 'MAX X WIND FOR LDG 15 KT' }],
   ['220400003', { part: StatusPart.Limitation, text: 'AUTO BRK.....DO NOT USE' }],
   ['220500001', { part: StatusPart.Condition, text: 'AT LDG ROLL:' }],
   ['220400004', { part: StatusPart.Limitation, text: 'DIFF BRAKING.....AS RQRD' }],
-  // 23 COMMUNICATIONS (FCOM PRO-ABN-COM COM SINGLE PTT STUCK STATUS l.73781-73786), see FWC/Logic/CommunicationAlerts
+  // 23 COMMUNICATIONS (COM SINGLE PTT STUCK STATUS), see FWC/Logic/CommunicationAlerts
   ['230400001', { part: StatusPart.Limitation, text: 'AUDIO SWTG...DO NOT USE' }],
-  // 34 NAVIGATION (FCOM PRO-ABN-NAV NAV ADR 1+2(1+3)(2+3) and 1+2+3 FAULT STATUS, l.92144, l.92282)
+  // 34 NAVIGATION (NAV ADR 1+2(1+3)(2+3) and 1+2+3 FAULT STATUS)
   ['340400002', { part: StatusPart.Limitation, text: 'L/G..........GRVTY EXTN' }],
-  // 80 STARTING (A320neo FCOM PRO-ABN-ENG ENG 1(2) START FAULT STATUS, STARTER SHAFT SHEAR)
+  // 80 STARTING (ENG 1(2) START FAULT STATUS, STARTER SHAFT SHEAR)
   ['800400001', { part: StatusPart.Limitation, text: 'ENG 1 WINDMILL START ONLY' }],
   ['800400002', { part: StatusPart.Limitation, text: 'ENG 2 WINDMILL START ONLY' }],
-  // 70 ENGINE (FCOM PRO-ABN-ENG STATUS of FADEC FAULT l.79659-79660, THR LEVER DISAGREE l.81738-81771, THR LEVER FAULT
-  // l.81866-81874), lines by FWC/Logic/FadecReverserAlerts
+  // 70 ENGINE (STATUS of FADEC FAULT, THR LEVER DISAGREE, THR LEVER FAULT), lines by FWC/Logic/FadecReverserAlerts
   ['700400050', { part: StatusPart.Limitation, text: 'THR LVR 1 NOT ABV IDLE' }],
   ['700400051', { part: StatusPart.Limitation, text: 'THR LVR 2 NOT ABV IDLE' }],
   ['700500050', { part: StatusPart.Condition, text: 'WHEN SLATS OUT:' }],
@@ -242,10 +236,10 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400055', { part: StatusPart.Limitation, text: 'ENG 2 AVAIL MAX PWR:CLB' }],
   ['700400056', { part: StatusPart.Limitation, text: 'GND ENG 1 MAX PWR: IDLE' }],
   ['700400057', { part: StatusPart.Limitation, text: 'GND ENG 2 MAX PWR: IDLE' }],
-  // 24 ELECTRICAL (FCOM PRO-ABN-ELEC bus faults STATUS, see FWC/Logic/ElecBusAlerts)
+  // 24 ELECTRICAL (bus faults STATUS, see FWC/Logic/ElecBusAlerts)
   ['240200103', { part: StatusPart.Information, text: 'ENG 1 APPR IDLE ONLY' }],
   ['240200104', { part: StatusPart.Information, text: 'ENG 2 APPR IDLE ONLY' }],
-  // ENG 1(2) BLEED STATUS FAULT STATUS (FCOM PRO-ABN-ENG l.79286, l.79354), FWC/Logic/EngineFadecFaultAlerts
+  // ENG 1(2) BLEED STATUS FAULT STATUS, FWC/Logic/EngineFadecFaultAlerts
   ['700200080', { part: StatusPart.Information, text: 'ENG 1 HI GND IDLE' }],
   ['700200081', { part: StatusPart.Information, text: 'ENG 2 HI GND IDLE' }],
   ['240200105', { part: StatusPart.Information, text: 'BOTH PFD ON SAME FAC' }],
@@ -258,18 +252,18 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['210200002', { part: StatusPart.Information, text: 'CAB AT FIXED TEMP' }],
   ['210200003', { part: StatusPart.Information, text: 'CAB TEMP BY PACK ONLY' }],
   ['210200004', { part: StatusPart.Information, text: 'CAB TEMP CKPT CTL ONLY' }],
-  // 29 HYDRAULIC (FCOM PRO-ABN-HYD STATUS), before CAT 3 SINGLE ONLY as in the FCOM
+  // 29 HYDRAULIC (STATUS), before CAT 3 SINGLE ONLY as on the aircraft
   ['290200001', { part: StatusPart.Information, text: 'BRK Y ACCU PR ONLY' }],
   ['290200002', { part: StatusPart.Information, text: 'ALTN Y BRK WITH A/SKID' }],
   ['290200003', { part: StatusPart.Information, text: 'SLATS/FLAPS SLOW' }],
   ['290200004', { part: StatusPart.Information, text: 'SLATS SLOW' }],
   ['290200005', { part: StatusPart.Information, text: 'FLAPS SLOW' }],
-  // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
+  // 22 AUTO FLIGHT (FWS FWC 1(2) FAULT)
   ['220200001', { part: StatusPart.Information, text: 'CAT 3 SINGLE ONLY' }],
-  // 27 FLIGHT CONTROLS (FCOM PRO-ABN-F_CTL STATUS), after CAT 3 SINGLE ONLY as in ELAC 1(2) FAULT (l.82768-82780)
+  // 27 FLIGHT CONTROLS (STATUS), after CAT 3 SINGLE ONLY as in ELAC 1(2) FAULT
   ['270200001', { part: StatusPart.Information, text: 'ALTN LAW: PROT LOST' }],
   ['270200002', { part: StatusPart.Information, text: 'WHEN L/G DN: DIRECT LAW' }],
-  // "WHEN L/G DN AND AP OFF: DIRECT LAW" (l.82596) in two lines, the second is the DIRECT LAW line
+  // "WHEN L/G DN AND AP OFF: DIRECT LAW" in two lines, the second is the DIRECT LAW line
   ['270200003', { part: StatusPart.Information, text: 'WHEN L/G DN AND AP OFF:' }],
   ['270200004', { part: StatusPart.Information, text: 'DIRECT LAW' }],
   ['270200005', { part: StatusPart.Information, text: 'PITCH MECH BACK UP' }],
@@ -277,32 +271,29 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['270200007', { part: StatusPart.Information, text: 'F/CTL INDICATIONS LOST' }],
   ['270200008', { part: StatusPart.Information, text: 'FUEL CONSUMPT INCRSD' }],
   ['270200009', { part: StatusPart.Information, text: 'FMS PRED UNRELIABLE' }],
-  // 70 ENGINE (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN STATUS, l.81263)
+  // 70 ENGINE (ENG 1(2) SHUT DOWN STATUS)
   ['700200001', { part: StatusPart.Information, text: 'ONE PACK ONLY IF WAI ON' }],
   // 34 NAVIGATION
-  // NAV ADR DISAGREE (l.92521-92523) and NAV IR 1(2)(3) / 1+2(1+3)(2+3) FAULT (l.93374, l.93505) STATUS, see
-  // FWC/Logic/AdirsAlerts
+  // NAV ADR DISAGREE and NAV IR 1(2)(3) / 1+2(1+3)(2+3) FAULT STATUS, see FWC/Logic/AdirsAlerts
   ['340500001', { part: StatusPart.Condition, text: 'IF NO SPD DISAGREE:' }],
   ['340200010', { part: StatusPart.Information, text: 'RISK OF UNDUE STALL WARN' }],
   ['340200011', { part: StatusPart.Information, text: 'IR MAY BE AVAIL IN ATT' }],
   ['340200001', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
-  // 36 PNEUMATIC (FCOM PRO-ABN-AIR ENG 1(2) HP VALVE FAULT STATUS, a320_fcom.txt l.70595), see
-  // FWC/Logic/BleedLeakMonitoringAlerts
+  // 36 PNEUMATIC (ENG 1(2) HP VALVE FAULT STATUS), see FWC/Logic/BleedLeakMonitoringAlerts
   ['360200101', { part: StatusPart.Information, text: 'AIR PRESS LOW AT IDLE' }],
-  // 28 FUEL (FCOM PRO-ABN-FUEL CTR L + R XFR FAULT (VALVES NOT FULLY OPEN), a320_fcom.txt l.85648-85651)
+  // 28 FUEL (CTR L + R XFR FAULT (VALVES NOT FULLY OPEN))
   ['280200001', { part: StatusPart.Information, text: 'CTR TK USABLE BY GRAVITY' }],
   ['280200002', { part: StatusPart.Information, text: '2T (4400LBS) UNUSABLE' }],
-  // 28 FUEL (FCOM PRO-ABN-FUEL FUEL L (R) WING TK LO LVL STATUS, a320_fcom.txt l.86477-86484, if center tank not empty)
+  // 28 FUEL (FUEL L (R) WING TK LO LVL STATUS, if center tank not empty)
   ['280200003', { part: StatusPart.Information, text: 'CTR TK FEED: MAN ONLY' }],
-  // 28 FUEL (FCOM PRO-ABN-FUEL FUEL L (R) OUTER XFR CLOSED STATUS, a320_fcom.txt l.86118-86120), see
-  // FWC/Logic/FuelSystemFaultAlerts
+  // 28 FUEL (FUEL L (R) OUTER XFR CLOSED STATUS), see FWC/Logic/FuelSystemFaultAlerts
   ['280200004', { part: StatusPart.Information, text: 'L OUTER TK UNUSABLE' }],
   ['280200005', { part: StatusPart.Information, text: 'R OUTER TK UNUSABLE' }],
-  // 36 PNEUMATIC (FCOM PRO-ABN-AIR X BLEED FAULT STATUS, a320_fcom.txt l.71070), see FWC/Logic/BleedAlerts
+  // 36 PNEUMATIC (X BLEED FAULT STATUS), see FWC/Logic/BleedAlerts
   ['360200001', { part: StatusPart.Information, text: 'X BLEED MAN CTL' }],
-  // 24 ELECTRICAL (FCOM PRO-ABN-ELEC BAT 1(2) FAULT and BCL 1(2) FAULT STATUS, l.76175, l.76252)
+  // 24 ELECTRICAL (BAT 1(2) FAULT and BCL 1(2) FAULT STATUS)
   ['240200201', { part: StatusPart.Information, text: 'APU BAT START NOT AVAIL' }],
-  // 27 FLIGHT CONTROLS (FCOM PRO-ABN-F_CTL INOP SYS), before CAT 3 DUAL as in ELAC 1(2) FAULT (l.82768-82780)
+  // 27 FLIGHT CONTROLS (INOP SYS), before CAT 3 DUAL as in ELAC 1(2) FAULT
   ['270300001', { part: StatusPart.InopSys, text: 'F/CTL PROT' }],
   ['270300002', { part: StatusPart.InopSys, text: 'L+R ELEV' }],
   ['270300003', { part: StatusPart.InopSys, text: 'L ELEV' }],
@@ -329,36 +320,36 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['270300024', { part: StatusPart.InopSys, text: 'FCDC 1+2' }],
   ['270300025', { part: StatusPart.InopSys, text: 'FCDC 1' }],
   ['270300026', { part: StatusPart.InopSys, text: 'FCDC 2' }],
-  // 22 AUTO FLIGHT (FCOM PRO-ABN-AUTO_FLT YAW DAMPER / RUD TRIM / RUD TRV LIM SYS, before AP 1+2 as in the FCOM, see
+  // 22 AUTO FLIGHT (YAW DAMPER / RUD TRIM / RUD TRV LIM SYS, before AP 1+2 as on the aircraft, see
   // FWC/Logic/FacActuatorAlerts)
   ['220300004', { part: StatusPart.InopSys, text: 'YAW DAMPER' }],
   ['220300007', { part: StatusPart.InopSys, text: 'RUD TRIM' }],
   ['220300010', { part: StatusPart.InopSys, text: 'RUD TRV LIM' }],
   ['270300027', { part: StatusPart.InopSys, text: 'AP 1+2' }],
   ['270300028', { part: StatusPart.InopSys, text: 'CAT 2' }],
-  // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
+  // 22 AUTO FLIGHT (FWS FWC 1(2) FAULT)
   ['220300001', { part: StatusPart.InopSys, text: 'CAT 3 DUAL' }],
-  // 22 AUTO FLIGHT (FCOM PRO-ABN-AUTO_FLT YAW DAMPER 1(2), RUD TRIM 1(2) FAULT, RUD TRV LIM 1(2), after CAT 3 DUAL as in
-  // the FCOM, see FWC/Logic/FacActuatorAlerts)
+  // 22 AUTO FLIGHT (YAW DAMPER 1(2), RUD TRIM 1(2) FAULT, RUD TRV LIM 1(2), after CAT 3 DUAL as on the aircraft, see
+  // FWC/Logic/FacActuatorAlerts)
   ['220300002', { part: StatusPart.InopSys, text: 'YAW DAMPER 1' }],
   ['220300003', { part: StatusPart.InopSys, text: 'YAW DAMPER 2' }],
   ['220300005', { part: StatusPart.InopSys, text: 'RUD TRIM 1' }],
   ['220300006', { part: StatusPart.InopSys, text: 'RUD TRIM 2' }],
   ['220300008', { part: StatusPart.InopSys, text: 'RUD TRV LIM 1' }],
   ['220300009', { part: StatusPart.InopSys, text: 'RUD TRV LIM 2' }],
-  // 36 PNEUMATIC (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN INOP SYS, between CAT 3 DUAL and PACK 1(2))
+  // 36 PNEUMATIC (ENG 1(2) SHUT DOWN INOP SYS, between CAT 3 DUAL and PACK 1(2))
   ['360300001', { part: StatusPart.InopSys, text: 'ENG 1 BLEED' }],
   ['360300002', { part: StatusPart.InopSys, text: 'ENG 2 BLEED' }],
-  // FCOM PRO-ABN-AIR ENG 1+2 BLEED FAULT (l.70072-70075: ENG 1 BLEED, ENG 2 BLEED, APU BLEED, PACK 1+2) and X BLEED FAULT
+  // ENG 1+2 BLEED FAULT (ENG 1 BLEED, ENG 2 BLEED, APU BLEED, PACK 1+2) and X BLEED FAULT
   ['360300003', { part: StatusPart.InopSys, text: 'APU BLEED' }],
   ['360300004', { part: StatusPart.InopSys, text: 'X BLEED' }],
-  // 70 ENGINE (FCOM PRO-ABN-ENG REVERSER FAULT, THR LEVER FAULT and THR LEVER DISAGREE INOP SYS)
+  // 70 ENGINE (REVERSER FAULT, THR LEVER FAULT and THR LEVER DISAGREE INOP SYS)
   ['780300001', { part: StatusPart.InopSys, text: 'REVERSER 1' }],
   ['780300002', { part: StatusPart.InopSys, text: 'REVERSER 2' }],
   ['730300001', { part: StatusPart.InopSys, text: 'ENG 1 THR' }],
   ['730300002', { part: StatusPart.InopSys, text: 'ENG 2 THR' }],
-  // 29 HYDRAULIC (FCOM PRO-ABN-HYD INOP SYS, see FWC/Logic/HydraulicAlerts), the FCOM lists merged in their order;
-  // G ENG 1 PUMP and Y ENG 2 PUMP are the ENG 1(2) SHUT DOWN codes 290300001/2 below
+  // 29 HYDRAULIC (INOP SYS, see FWC/Logic/HydraulicAlerts), the lists merged in their order; G ENG 1 PUMP and Y ENG 2
+  // PUMP are the ENG 1(2) SHUT DOWN codes 290300001/2 below
   ['290300010', { part: StatusPart.InopSys, text: 'GREEN HYD' }],
   ['290300011', { part: StatusPart.InopSys, text: 'BLUE HYD' }],
   ['290300012', { part: StatusPart.InopSys, text: 'YELLOW HYD' }],
@@ -399,7 +390,7 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['290300047', { part: StatusPart.InopSys, text: 'YAW DAMPER 2' }],
   ['290300048', { part: StatusPart.InopSys, text: 'CAT 2' }],
   ['290300049', { part: StatusPart.InopSys, text: 'RAT' }],
-  // 49 APU (FCOM PRO-ABN-APU APU AUTO (EMER) SHUT DOWN INOP SYS, l.71110-71114)
+  // 49 APU (APU AUTO (EMER) SHUT DOWN INOP SYS)
   ['490300001', { part: StatusPart.InopSys, text: 'APU' }],
   // 21 AIR CONDITIONING
   ['210300001', { part: StatusPart.InopSys, text: 'PACK 1' }],
@@ -414,13 +405,13 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['210300010', { part: StatusPart.InopSys, text: 'HOT AIR' }],
   ['210300011', { part: StatusPart.InopSys, text: 'L+R CAB FAN' }],
   ['210300012', { part: StatusPart.InopSys, text: 'GALLEY FAN' }],
-  // CAB PR SYS 1+2 FAULT (FCOM PRO-ABN-CAB_PR l.73447)
+  // CAB PR SYS 1+2 FAULT
   ['210300013', { part: StatusPart.InopSys, text: 'CAB PR 1+2' }],
-  // ENG 1(2) SHUT DOWN INOP SYS (FCOM PRO-ABN-ENG, l.81170-81181), in its order with 22 CAT 3 DUAL and 21 PACK 1(2)
+  // ENG 1(2) SHUT DOWN INOP SYS, in its order with 22 CAT 3 DUAL and 21 PACK 1(2)
   ['240300001', { part: StatusPart.InopSys, text: 'MAIN GALLEY' }],
   ['240300002', { part: StatusPart.InopSys, text: 'GEN 1' }],
   ['240300003', { part: StatusPart.InopSys, text: 'GEN 2' }],
-  // 24 ELECTRICAL (FCOM PRO-ABN-ELEC BAT/BCL FAULT l.76175, l.76252, GEN OVERLOAD l.77988 INOP SYS)
+  // 24 ELECTRICAL (BAT/BCL FAULT, GEN OVERLOAD INOP SYS)
   ['240300201', { part: StatusPart.InopSys, text: 'BAT 1' }],
   ['240300202', { part: StatusPart.InopSys, text: 'BAT 2' }],
   ['240300203', { part: StatusPart.InopSys, text: 'BCL 1' }],
@@ -429,12 +420,12 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['290300001', { part: StatusPart.InopSys, text: 'G ENG 1 PUMP' }],
   ['290300002', { part: StatusPart.InopSys, text: 'Y ENG 2 PUMP' }],
   ['300300001', { part: StatusPart.InopSys, text: 'WING A. ICE' }],
-  // ANTI ICE ENG 1(2) VALVE CLSD (FCOM PRO-ABN-A-ICE l.68817)
+  // ANTI ICE ENG 1(2) VALVE CLSD
   ['300300002', { part: StatusPart.InopSys, text: 'ENG 1 A. ICE' }],
   ['300300003', { part: StatusPart.InopSys, text: 'ENG 2 A. ICE' }],
-  // WING A.ICE L(R) HI PR (FCOM PRO-ABN-W_A_ICE l.96452), see FWC/Logic/WingAntiIceAlerts
+  // WING A.ICE L(R) HI PR, see FWC/Logic/WingAntiIceAlerts
   ['300300004', { part: StatusPart.InopSys, text: 'WAI REGUL' }],
-  // ANTI ICE probe and window heat INOP SYS (2019 PDF pages 1977-1996), see FWC/Logic/ProbeWindowHeatAlerts
+  // ANTI ICE probe and window heat INOP SYS, see FWC/Logic/ProbeWindowHeatAlerts
   ['300300010', { part: StatusPart.InopSys, text: 'CAPT PITOT' }],
   ['300300011', { part: StatusPart.InopSys, text: 'F/O PITOT' }],
   ['300300012', { part: StatusPart.InopSys, text: 'STBY PITOT' }],
@@ -457,10 +448,10 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['300300029', { part: StatusPart.InopSys, text: 'R WSHLD HEAT' }],
   ['300300030', { part: StatusPart.InopSys, text: 'L WNDW HEAT' }],
   ['300300031', { part: StatusPart.InopSys, text: 'R WNDW HEAT' }],
-  // L/G DOORS NOT CLOSED (PRO-ABN-LG l.89236)
+  // L/G DOORS NOT CLOSED
   ['320300001', { part: StatusPart.InopSys, text: 'L/G DOOR' }],
-  // 36 PNEUMATIC (FCOM PRO-ABN-AIR LEAK DET FAULT l.70631, l.70775, l.69674; APU BLEED LEAK l.69574; PRO-ABN-BLEED
-  // BLEED MONIT SYS 1(2) FAULT l.72204, BLEED MONITORING FAULT l.72168), see FWC/Logic/BleedLeakMonitoringAlerts
+  // 36 PNEUMATIC (LEAK DET FAULT, APU BLEED LEAK, BLEED MONIT SYS 1(2) FAULT, BLEED MONITORING FAULT), see
+  // FWC/Logic/BleedLeakMonitoringAlerts
   ['360300101', { part: StatusPart.InopSys, text: 'ENG 1 LK DET' }],
   ['360300102', { part: StatusPart.InopSys, text: 'ENG 2 LK DET' }],
   ['360300103', { part: StatusPart.InopSys, text: 'L WNG LK DET' }],
@@ -470,10 +461,10 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['360300107', { part: StatusPart.InopSys, text: 'BMC 1' }],
   ['360300108', { part: StatusPart.InopSys, text: 'BMC 2' }],
   ['360300109', { part: StatusPart.InopSys, text: 'BMC 1 + 2' }],
-  // 31 INDICATING/RECORDING (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
+  // 31 INDICATING/RECORDING (FWS FWC 1(2) FAULT)
   ['310300001', { part: StatusPart.InopSys, text: 'FWC 1' }],
   ['310300002', { part: StatusPart.InopSys, text: 'FWC 2' }],
-  // 26 FIRE PROTECTION (FCOM PRO-ABN-ENG ENG 1(2) FIRE LOOP A(B) FAULT / FIRE DET FAULT, PRO-ABN-APU)
+  // 26 FIRE PROTECTION (ENG 1(2) FIRE LOOP A(B) FAULT / FIRE DET FAULT)
   ['260300001', { part: StatusPart.InopSys, text: 'ENG 1 LOOP A' }],
   ['260300002', { part: StatusPart.InopSys, text: 'ENG 1 LOOP B' }],
   ['260300003', { part: StatusPart.InopSys, text: 'ENG 2 LOOP A' }],
@@ -483,10 +474,10 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['260300007', { part: StatusPart.InopSys, text: 'FIRE DET 1' }],
   ['260300008', { part: StatusPart.InopSys, text: 'FIRE DET 2' }],
   ['260300009', { part: StatusPart.InopSys, text: 'APU FIRE DET' }],
-  // FCOM PRO-ABN-SMOKE SMOKE FWD (AFT) CRG DET FAULT STATUS (a320_fcom.txt l.95236-95240, l.95388-95392)
+  // SMOKE FWD (AFT) CRG DET FAULT STATUS
   ['260300010', { part: StatusPart.InopSys, text: 'FWD CRG DET' }],
   ['260300011', { part: StatusPart.InopSys, text: 'AFT CRG DET' }],
-  // 28 FUEL (FCOM PRO-ABN-FUEL)
+  // 28 FUEL
   ['280300001', { part: StatusPart.InopSys, text: 'L TK PUMP 1' }],
   ['280300002', { part: StatusPart.InopSys, text: 'L TK PUMP 2' }],
   ['280300003', { part: StatusPart.InopSys, text: 'R TK PUMP 1' }],
@@ -497,12 +488,12 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['280300008', { part: StatusPart.InopSys, text: 'CTR TK L XFR' }],
   ['280300009', { part: StatusPart.InopSys, text: 'CTR TK R XFR' }],
   ['280300010', { part: StatusPart.InopSys, text: 'CTR TK XFR' }],
-  // FUEL L (R) OUTER XFR OPEN (l.86152-86156), see FWC/Logic/FuelSystemFaultAlerts
+  // FUEL L (R) OUTER XFR OPEN, see FWC/Logic/FuelSystemFaultAlerts
   ['280300011', { part: StatusPart.InopSys, text: 'L CELL VALVE' }],
   ['280300012', { part: StatusPart.InopSys, text: 'R CELL VALVE' }],
   // 34 NAVIGATION
-  // NAV ADR, IR and RA alerts INOP SYS (FCOM PRO-ABN-NAV), see FWC/Logic/AdirsAlerts; ADR 1(2)(3), RA 1(2) and the
-  // lines of other chapters keep their codes
+  // NAV ADR, IR and RA alerts INOP SYS, see FWC/Logic/AdirsAlerts; ADR 1(2)(3), RA 1(2) and the lines of other chapters
+  // keep their codes
   ['340300020', { part: StatusPart.InopSys, text: 'REAC W/S DET' }],
   ['340300021', { part: StatusPart.InopSys, text: 'ADR 1+2' }],
   ['340300022', { part: StatusPart.InopSys, text: 'ADR 1+3' }],
@@ -518,27 +509,27 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['340300032', { part: StatusPart.InopSys, text: 'RUD TRV LIM' }],
   ['340300033', { part: StatusPart.InopSys, text: 'CAB PR 1+2' }],
   ['340300034', { part: StatusPart.InopSys, text: 'A/CALL OUT' }],
-  // NAV PRED W/S DET FAULT (A320 FCOM l.93736-93740), see FWC/Logic/PredictiveWindshearAlerts
+  // NAV PRED W/S DET FAULT, see FWC/Logic/PredictiveWindshearAlerts
   ['340300035', { part: StatusPart.InopSys, text: 'PRED W/S DET' }],
   ['340300001', { part: StatusPart.InopSys, text: 'GPS 1' }],
   ['340300002', { part: StatusPart.InopSys, text: 'GPS 2' }],
   ['340300003', { part: StatusPart.InopSys, text: 'GPS 1+2' }],
-  // NAV TCAS FAULT, NAV ATC/XPDR 1(2) FAULT and 1+2 FAULT, in the order of the 1+2 FAULT STATUS (FCOM PRO-ABN-NAV)
+  // NAV TCAS FAULT, NAV ATC/XPDR 1(2) FAULT and 1+2 FAULT, in the order of the 1+2 FAULT STATUS
   ['340300004', { part: StatusPart.InopSys, text: 'TCAS' }],
   ['340300005', { part: StatusPart.InopSys, text: 'ATC/XPDR 1' }],
   ['340300006', { part: StatusPart.InopSys, text: 'ATC/XPDR 2' }],
   ['340300007', { part: StatusPart.InopSys, text: 'ADS-B RPTG 1' }],
   ['340300008', { part: StatusPart.InopSys, text: 'ADS-B RPTG 2' }],
-  // NAV LS TUNING DISAGREE INOP SYS (A320 FCOM PRO-ABN-NAV, a320_fcom.txt l.93700-93704)
+  // NAV LS TUNING DISAGREE INOP SYS
   ['340300009', { part: StatusPart.InopSys, text: 'CAT 2' }],
-  // 74 IGNITION (FCOM PRO-ABN-ENG ENG 1(2) IGN FAULT INOP SYS, a320_fcom.txt l.80295, 80331)
+  // 74 IGNITION (ENG 1(2) IGN FAULT INOP SYS)
   ['740300001', { part: StatusPart.InopSys, text: 'ENG 1 IGN A' }],
   ['740300002', { part: StatusPart.InopSys, text: 'ENG 1 IGN B' }],
   ['740300003', { part: StatusPart.InopSys, text: 'ENG 2 IGN A' }],
   ['740300004', { part: StatusPart.InopSys, text: 'ENG 2 IGN B' }],
   ['740300005', { part: StatusPart.InopSys, text: 'ENG 1 IGN' }],
   ['740300006', { part: StatusPart.InopSys, text: 'ENG 2 IGN' }],
-  // 24 ELECTRICAL (FCOM PRO-ABN-ELEC bus and TR faults INOP SYS, see FWC/Logic/ElecBusAlerts), FCOM texts
+  // 24 ELECTRICAL (bus and TR faults INOP SYS, see FWC/Logic/ElecBusAlerts)
   ['240300101', { part: StatusPart.InopSys, text: 'BLUE HYD' }],
   ['240300102', { part: StatusPart.InopSys, text: 'B HYD' }],
   ['240300103', { part: StatusPart.InopSys, text: 'SPLR 1+2+5' }],
@@ -622,21 +613,18 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['240300181', { part: StatusPart.InopSys, text: 'TR 1' }],
   ['240300182', { part: StatusPart.InopSys, text: 'TR 2' }],
   ['240300183', { part: StatusPart.InopSys, text: 'APU GEN' }],
-  // 46 INFORMATION SYSTEMS (FCOM PRO-ABN-DATALINK ATSU FAULT l.74492-74495, COMPANY FAULT l.74529-74531), see
-  // FWC/Logic/DatalinkAlerts
+  // 46 INFORMATION SYSTEMS (ATSU FAULT, COMPANY FAULT), see FWC/Logic/DatalinkAlerts
   ['460300001', { part: StatusPart.InopSys, text: 'ATSU' }],
   ['460300002', { part: StatusPart.InopSys, text: 'DATA COMPANY' }],
-  // FCOM gap batch T2-42: 21 VENT, AIR AFT CRG VENT FAULT, COND AFT CRG ISOL VALVE (FCOM PRO-ABN-VENT l.96088-96258,
-  // PRO-ABN-AIR l.70665, PRO-ABN-COND l.74041), see FWC/Logic/VentilationAlerts
+  // 21 VENT, AIR AFT CRG VENT FAULT, COND AFT CRG ISOL VALVE, see FWC/Logic/VentilationAlerts
   ['210300014', { part: StatusPart.InopSys, text: 'AVNCS VENT' }],
   ['210300015', { part: StatusPart.InopSys, text: 'VENT BLOWER' }],
   ['210300016', { part: StatusPart.InopSys, text: 'VENT EXTRACT' }],
   ['210300017', { part: StatusPart.InopSys, text: 'AVNCS VALVE' }],
   ['210300018', { part: StatusPart.InopSys, text: 'AFT CRG VENT' }],
-  // 22 AUTO FLT TCAS MODE FAULT (l.71964-71968), see FWC/Logic/TcasModeFaultAlert
+  // 22 AUTO FLT TCAS MODE FAULT, see FWC/Logic/TcasModeFaultAlert
   ['220300011', { part: StatusPart.InopSys, text: 'AP/FD TCAS' }],
-  // 23 COM CIDS 1 + 2 FAULT, SINGLE PTT STUCK, VHF 3 DATA FAULT (PRO-ABN-COM l.73598-73864), see
-  // FWC/Logic/CommunicationAlerts
+  // 23 COM CIDS 1 + 2 FAULT, SINGLE PTT STUCK, VHF 3 DATA FAULT, see FWC/Logic/CommunicationAlerts
   ['230300001', { part: StatusPart.InopSys, text: 'CIDS' }],
   ['230300002', { part: StatusPart.InopSys, text: 'SINGLE PTT' }],
   ['230300003', { part: StatusPart.InopSys, text: 'VHF 3 DATA' }],
@@ -683,8 +671,8 @@ export interface StatusPageTexts {
 }
 
 /**
- * The CANCELLED CAUTION part of the left column (FCOM DSC-31-20 l.46193 "(5) Cancelled caution: White"): the FWC sends
- * this code, then the E/WD title codes (EwdMessages) of the cautions cancelled with the EMER CANC pb.
+ * The CANCELLED CAUTION part of the left column, in white: the FWC sends this code, then the E/WD title codes
+ * (EwdMessages) of the cautions cancelled with the EMER CANC pb.
  */
 export const CANCELLED_CAUTION_STATUS_CODE = '310600001';
 
@@ -698,8 +686,8 @@ function cancelledCautionTitle(ewdTitleCode: string): string {
 
 /**
  * The texts of the STATUS page from the codes of its left and right columns. The titles are white and underlined; an
- * empty page shows NORMAL in green. The CANCELLED CAUTION part comes last in the left column, after a blank line (FCOM
- * l.46221-46222: "Each block ... is separated by a blank line").
+ * empty page shows NORMAL in green. The CANCELLED CAUTION part comes last in the left column, after a blank line, as
+ * every block of the page.
  */
 export function formatStatusPage(leftCodes: readonly string[], rightCodes: readonly string[]): StatusPageTexts {
   const lines = (codes: readonly string[]) =>

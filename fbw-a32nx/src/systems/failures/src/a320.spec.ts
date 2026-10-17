@@ -354,8 +354,8 @@ describe('A320 flyPad failures', () => {
         'EngineMonitoringFault(2,EngineMonitoringFaultKind::ReverserPermissionSwitch)',
         'Reverser 2 permission switch',
       ],
-      // FCOM gap batch T2-37: ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, BLEED STATUS
-      // FAULT, REV INHIBITED, REV ISOL FAULT
+      // ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED,
+      // REV ISOL FAULT
       ...[1, 2].flatMap((engine): [number, number, string, string][] => [
         [
           73,
@@ -425,7 +425,7 @@ describe('A320 flyPad failures', () => {
     }
   });
 
-  // TS only failures of the FCOM gap batch T2-37: the systems-host reads them (FWC Logic/EngineFadecFaultAlerts,
+  // TS only failures: the systems-host reads them (FWC Logic/EngineFadecFaultAlerts,
   // Logic/DatalinkAlerts and atsu.ts), the systems WASM does not know them
   it('lists the vibration monitoring unit in ATA 77 and the ATSU failures in ATA 46, TS only', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
@@ -452,8 +452,8 @@ describe('A320 flyPad failures', () => {
     }
   });
 
-  // TS only failures of the FCOM gap batch T2-46: the systems-host ATSU (atsu.ts) writes them for the DCDU, its
-  // screens and the MCDU print (FCOM DSC-46-10-10 l.59032-59056)
+  // TS only failures: the systems-host ATSU (atsu.ts) writes them for the DCDU, its
+  // screens and the MCDU print
   it('lists the DCDU 1, DCDU 2 and printer failures in ATA 46, TS only, read by the systems-host ATSU', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
     expect(label(A320Failure.Dcdu1)).toEqual([46, 46002, 'DCDU 1 (captain)']);
@@ -490,7 +490,7 @@ describe('A320 flyPad failures', () => {
     expect(adirsFailures.length).toBe(15);
   });
   // The labels say what a320_systems hydraulic/sfcc does with ids 27010-27013: the channel no longer drives its motor
-  // (F/CTL FLAP(SLAT) SYS 1(2) FAULT, a320_fcom.txt l.83217-83247, l.84321-84341)
+  // (F/CTL FLAP(SLAT) SYS 1(2) FAULT)
   it('lists the SFCC flap and slat channel failures in ATA 27 with the Rust failure they trigger', () => {
     const expected: [number, string, string][] = [
       [A320Failure.Sfcc1FlapChannel, 'SlatFlapControlComputerFlapChannel(1)', 'SFCC 1 flap channel'],
@@ -538,8 +538,8 @@ describe('A320 flyPad failures', () => {
     }
   });
 
-  // FCOM gap batch T2-42: the ventilation and communication failures are TS only (the FWC Logic module reads them), the
-  // FG TCAS mode failure is read by the C++ fbw module (failures/FailureList.h, FlyByWireInterface.cpp)
+  // The ventilation and communication failures are TS only (the FWC Logic module reads them), the FG TCAS mode failure
+  // is read by the C++ fbw module (failures/FailureList.h, FlyByWireInterface.cpp)
   it('lists the ventilation, FG TCAS mode and communication failures with the code that reads them', () => {
     const host = resolve(__dirname, '../../systems-host/systems/FWC/Logic');
     const ventilation = readFileSync(resolve(host, 'VentilationAlerts.ts'), 'utf8');

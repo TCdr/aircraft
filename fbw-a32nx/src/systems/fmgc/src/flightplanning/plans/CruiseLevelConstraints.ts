@@ -19,10 +19,9 @@ export interface CruiseLevelConstraintPlan {
 
 /**
  * Deletes the altitude constraints at or above a new CRZ FL from the legs not flown yet (see
- * cruiseLevelConstraintAction: A320 FCOM l.15144-15160, A380 FCOM l.27100-27104); the window across the CRZ FL keeps its
- * lower limit, as an AT OR ABOVE constraint. The caller shows CSTR DEL ABOVE CRZ FL (A320) / CONSTRAINTS ABOVE CRZ FL:
- * DELETED (A380) when constraints were deleted.
- * Not done: the A380 deletion of the descent constraints at or above a step altitude (l.27101-27102).
+ * cruiseLevelConstraintAction); the window across the CRZ FL keeps its lower limit, as an AT OR ABOVE constraint. The
+ * caller shows CSTR DEL ABOVE CRZ FL (A320) / CONSTRAINTS ABOVE CRZ FL: DELETED (A380) when constraints were deleted.
+ * Not done: the A380 deletion of the descent constraints at or above a step altitude.
  * @param plan the flight plan whose CRZ FL changed
  * @param cruiseFlightLevel the new CRZ FL (flight level, e.g. 350)
  * @returns the number of constraints deleted or cut

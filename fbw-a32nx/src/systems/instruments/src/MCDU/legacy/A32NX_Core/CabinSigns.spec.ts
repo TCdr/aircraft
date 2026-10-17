@@ -17,7 +17,6 @@ const CRUISE: NoSmokingSignsInputs = {
 
 const signsOn = (changes: Partial<NoSmokingSignsInputs>) => areNoSmokingSignsOn({ ...CRUISE, ...changes });
 
-/* A320 FCOM DSC-33-40-10 Signs (a320_fcom.txt l.52357-52388) */
 describe('NO SMOKING cabin signs', () => {
   it('are off in AUTO with the gear up and the flaps lever at 0', () => {
     expect(signsOn({})).toBe(false);
@@ -63,7 +62,6 @@ describe('NO SMOKING cabin signs', () => {
   });
 });
 
-/* A320 FCOM DSC-33-40-10 Signs (a320_fcom.txt l.52351, 52376-52378, 52387-52388): the SEAT BELTS sw signs, note 1 */
 describe('SEAT BELTS cabin signs', () => {
   it('follow the SEAT BELTS switch below 11 300 ft cabin altitude', () => {
     expect(areSeatBeltsSignsOn({ switchOn: true, cabinAltitudeFt: 8000 })).toBe(true);

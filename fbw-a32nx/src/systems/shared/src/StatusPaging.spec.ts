@@ -21,10 +21,9 @@ const inopSys = (count: number) => INOP_SYS.slice(0, count);
 /** Information lines (green) */
 const INFORMATION = range('210200', 4);
 
-/** The text rows of a column */
 const rows = (column: string) => (column === '' ? [] : column.split('\r'));
 
-describe('A320 ECAM STATUS page overflow (FCOM DSC-31-20 l.46196-46199)', () => {
+describe('A320 ECAM STATUS page overflow', () => {
   it('the SD reads every code the FWC sends, not only the first 16 (DC BUS 1+2: 35 INOP SYS)', () => {
     const vars = new Map<string, number>();
     inopSys(35).forEach((code, i) => vars.set(statusLineVar('RIGHT', i + 1), Number(code)));

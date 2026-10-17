@@ -5,15 +5,12 @@ import { isDoorDetectedNotClosed } from '@shared/DoorProximitySensors';
 
 /*
  * Indications of the SD DOOR/OXY page.
- * - Doors, A320 FCOM DSC-52-20 DOOR/OXY SD page (a320_fcom.txt l.61436-61440): door symbol "Green: The door is closed
- *   and locked. Amber: The door is not locked."; door indication (CABIN, EMER EXIT, CARGO) "appears in amber, when the
- *   door is not locked".
- * - Crew oxygen, A320 FCOM DSC-35-20-20 (l.56814-56818): OXY pressure "in green, when the pressure is >= 600 PSI",
- *   "pulses in green, when the pressure is < 600 PSI", "in amber, when the pressure is < 300 PSI"; "On ground, an amber
- *   half frame appears when oxygen pressure is < 1 000 PSI".
- * - Cabin V/S, A320 FCOM DSC-21-20-40 ECAM DOOR/OXY page (l.9180-9186): "This number only appears during flight phases
- *   5, 6 and 7"; "It pulses, when the V/S is greater than 1 750 ft/min and stops pulsing, when less than 1 650 ft/min";
- *   "It becomes amber, when the V/S is greater than 2 000 ft/min, or less than -2 000 ft/min".
+ * - Doors: the symbol is green when closed and locked, amber when not locked; the CABIN, EMER EXIT or CARGO legend
+ *   shows in amber when the door is not locked.
+ * - Crew oxygen pressure: green from 600 PSI, pulsing green below 600 PSI, amber below 300 PSI; on ground, an amber
+ *   half frame below 1 000 PSI.
+ * - Cabin V/S: shown in flight phases 5, 6 and 7 only; it pulses above 1 750 ft/min until below 1 650 ft/min, and is
+ *   amber beyond +-2 000 ft/min.
  * The values compared are the displayed ones (rounded to 50 PSI, 50 ft/min), so that the colour matches the digits.
  */
 
@@ -33,7 +30,7 @@ const CABIN_VS_FLIGHT_PHASES = [5, 6, 7];
  * Whether a cabin door or emergency exit is not locked: its MSFS interactive point is open at all. The same rule as the
  * DOOR cautions (systems-host FWC/Logic/DoorAlerts.ts isInteractivePointNotClosed), so that the page and the caution
  * agree. A failed proximity sensor (flyPad ATA 52 failure) does not detect its closed door closed either
- * (@shared/DoorProximitySensors, FCOM PRO-ABN-DOOR l.74659-74660).
+ * (@shared/DoorProximitySensors).
  * @param openPercent the opening of the interactive point, percent
  * @param sensorFault the proximity sensor of the door is failed
  * @returns true when the door symbol and its indication are amber
@@ -42,10 +39,11 @@ export function isDoorNotLocked(openPercent: number, sensorFault = false): boole
   return isDoorDetectedNotClosed(openPercent > 0, sensorFault);
 }
 
+/** CSS class of a DOOR/OXY page value: 'Value' (green), 'ValuePulse' (pulsing green) or 'ValueAmber' */
+export type ValueClass = 'Value' | 'ValuePulse' | 'ValueAmber';
+
 export interface CrewOxygenIndication {
-  /** CSS class of the PSI value: 'Value' (green), 'ValuePulse' (pulsing green) or 'ValueAmber' */
-  readonly valueClass: 'Value' | 'ValuePulse' | 'ValueAmber';
-  /** The amber half frame around the value */
+  readonly valueClass: ValueClass;
   readonly halfFrame: boolean;
 }
 
@@ -56,7 +54,7 @@ export interface CrewOxygenIndication {
  * @returns the value colour and the half frame
  */
 export function crewOxygenIndication(displayedPressurePsi: number, onGround: boolean): CrewOxygenIndication {
-  let valueClass: CrewOxygenIndication['valueClass'] = 'Value';
+  let valueClass: ValueClass = 'Value';
   if (displayedPressurePsi < CREW_OXYGEN_AMBER_PSI) {
     valueClass = 'ValueAmber';
   } else if (displayedPressurePsi < CREW_OXYGEN_PULSE_PSI) {
@@ -66,8 +64,7 @@ export function crewOxygenIndication(displayedPressurePsi: number, onGround: boo
 }
 
 /**
- * Low-pressure circuit pressure below which REGUL LO PR appears, PSI: "It is in amber, if oxygen pressure on the
- * low-pressure circuit is low (50 PSI)" (A320 FCOM DSC-35-20-20, a320_fcom.txt l.56822-56823)
+ * Low-pressure circuit pressure below which REGUL LO PR appears, PSI
  */
 const CREW_OXYGEN_LOW_CIRCUIT_PRESSURE_PSI = 50;
 
@@ -79,11 +76,9 @@ export interface CrewOxygenCircuitIndication {
 }
 
 /**
- * The CKPT OXY legend and the REGUL LO PR indication of the DOOR/OXY page, A320 FCOM DSC-35-20-20
- * (a320_fcom.txt l.56822-56831):
- * - REGUL LO PR: "It is in amber, if oxygen pressure on the low-pressure circuit is low (50 PSI)".
- * - CKPT OXY: "It is normally in white. It becomes amber, when: Pressure goes below 300 PSI, Low oxygen pressure is
- *   detected, The OXYGEN CREW SUPPLY pb on the overhead panel is OFF."
+ * The CKPT OXY legend and the REGUL LO PR indication of the DOOR/OXY page:
+ * - REGUL LO PR: amber when the low-pressure circuit pressure is low (50 PSI).
+ * - CKPT OXY: white, amber below 300 PSI, with a low oxygen pressure, or with the OXYGEN CREW SUPPLY pb OFF.
  * The low-pressure circuit (downstream of the bottle regulator and of the supply valve) is not simulated: it has no
  * pressure when the CREW SUPPLY pb-sw is OFF (supply valve closed), or when the bottle itself is below 50 PSI (the
  * regulator cannot deliver more than its inlet pressure).
@@ -117,10 +112,7 @@ export function isCabinVsShown(fwcFlightPhase: number): boolean {
  * @param pulsing whether the value pulses
  * @returns the class
  */
-export function doorPageCabinVsClass(
-  displayedCabinVsFtMin: number,
-  pulsing: boolean,
-): 'Value' | 'ValuePulse' | 'ValueAmber' {
+export function doorPageCabinVsClass(displayedCabinVsFtMin: number, pulsing: boolean): ValueClass {
   if (Math.abs(displayedCabinVsFtMin) > CABIN_VS_AMBER_FT_MIN) {
     return 'ValueAmber';
   }

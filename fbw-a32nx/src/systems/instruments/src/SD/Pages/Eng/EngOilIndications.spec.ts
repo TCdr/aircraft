@@ -14,7 +14,7 @@ import {
   oilTemperatureClassName,
 } from './EngOilIndications';
 
-/* A320 FCOM DSC-70-90-40 OIL QUANTITY, a320_fcom.txt l.64508-64514 */
+/* Oil quantity */
 describe('SD ENGINE oil quantity', () => {
   it('pulses below 3.25 QT', () => {
     expect(oilQuantityPulses(false, 3.2)).toBe(true);
@@ -42,7 +42,7 @@ describe('SD ENGINE oil quantity', () => {
   });
 });
 
-/* A320 FCOM DSC-70-90-40 OIL PRESSURE, l.64522-64540 */
+/* Oil pressure */
 describe('SD ENGINE oil pressure', () => {
   it('is red from 0 to 13 PSI, the ENG OIL LO PR threshold', () => {
     expect(oilPressureIsRed(0)).toBe(true);
@@ -73,7 +73,7 @@ describe('SD ENGINE oil pressure', () => {
   });
 });
 
-/* A320 FCOM DSC-70-90-40 OIL FILTER CLOG INDICATION, l.64569-64571 */
+/* Oil filter CLOG indication */
 describe('SD ENGINE oil filter CLOG', () => {
   it('shows CLOG with a clogged filter on a running engine', () => {
     expect(oilFilterClogShown(true, 1)).toBe(true);
@@ -94,7 +94,7 @@ describe('SD ENGINE oil filter CLOG', () => {
   });
 });
 
-/* A320 FCOM DSC-70-90-40 OIL TEMPERATURE, l.64555-64566: pulses green between 140 °C and 155 °C for less than 15 min;
+/* Oil temperature: pulses green between 140 °C and 155 °C for less than 15 min;
    amber between 140 °C and 155 °C for more than 15 min, or above 155 °C. */
 describe('SD ENGINE oil temperature', () => {
   /** Runs the advisory timer at a steady temperature for the given time, in 1 s updates as the SD does */
