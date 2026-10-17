@@ -761,6 +761,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/LIGHTS] The STBY COMPASS / ICE IND switch on the overhead stays where it is set; ICE IND lights the ice indicator lights - @TCdr
 1. [A32NX/FUEL] The engines are fed by gravity (suction feed) from the inner tanks with the wing tank pumps off or failed, as in the FCOM: an engine now starts and runs with its pumps off - @TCdr
 1. [A32NX/ENG] The least N2 rise of a burning start is per second, not per frame: the start N2 no longer climbs faster at a higher frame rate - @TCdr
+1. [A32NX/WHEEL] New flyPad aircraft option "Tyre Pressure Indicating System (TPIS)", off by default: the WHEEL page shows the six tyre pressures in PSI (amber when low) and the WHEEL TYRE LO PR caution comes on with a low or deflated tyre - @TCdr
 
 ## 2024.1.0
 

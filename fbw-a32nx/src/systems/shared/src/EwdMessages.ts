@@ -1152,6 +1152,8 @@ const EwdMessages = new Map<
   // WHEEL HYD SEL FAULT (a320_fcom.txt l.96294-96338), see FWC/Logic/BrakeSystemAlerts
   ['320048001', { group: 'WHEEL$1', text: ' HYD SEL FAULT' }],
   ['320048002', { text: '\x1b<5m -A/SKID N/WS....KEEP ON' }],
+  // WHEEL TYRE LO PR, crew awareness, see FWC/Logic/TyrePressureAlerts
+  ['320049001', { group: 'WHEEL$1', text: ' TYRE LO PR' }],
   ['280014501', { group: 'FUEL$1', text: ' L+R WING TK LO LVL' }],
   ['280014502', { text: '\x1b<5m -FUEL MODE SEL......MAN' }],
   ['280014503', { text: '\x1b<5m -L TK PUMP 1.........ON' }],

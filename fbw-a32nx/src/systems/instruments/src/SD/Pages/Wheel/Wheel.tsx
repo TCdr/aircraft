@@ -4,7 +4,18 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { useState } from 'react';
-import { useSimVar, useArinc429Var, Arinc429Word } from '@flybywiresim/fbw-sdk-react';
+import { useSimVar, useArinc429Var, Arinc429Word, usePersistentProperty } from '@flybywiresim/fbw-sdk-react';
+import {
+  MAIN_NOMINAL_PRESSURE_VAR,
+  NOSE_NOMINAL_PRESSURE_VAR,
+  TPIS_INSTALLED_DEFAULT,
+  TPIS_INSTALLED_SETTING,
+  TYRES,
+  Tyre,
+  TyrePressureIndication,
+  tyrePressureIndication,
+  tyrePressureVar,
+} from '@shared/TyrePressures';
 import { HydraulicsProvider, useHydraulics } from '../../Common/HydraulicsProvider';
 import { HydraulicIndicator } from '../../Common/HydraulicIndicator';
 import { ComponentPositionProps } from '../../Common/ComponentPositionProps';
@@ -109,9 +120,69 @@ export const WheelPage = () => {
         left={{ number: 3, temperature: tempBrake3, hottest: isHottest[2] }}
         right={{ number: 4, temperature: tempBrake4, hottest: isHottest[3] }}
       />
+
+      <TyrePressures />
     </svg>
   );
 };
+
+/**
+ * The TPIS tyre pressures, with the flyPad aircraft option "TPIS installed" only (rules in shared/TyrePressures):
+ * "nnn PSI nnn" under the wheel numbers of each main gear and under the nose gear, above the lower wheel arcs.
+ */
+const TyrePressures = () => {
+  const [tpisInstalled] = usePersistentProperty(TPIS_INSTALLED_SETTING, TPIS_INSTALLED_DEFAULT);
+  const main1 = useArinc429Var(tyrePressureVar(Tyre.Main1), maxStaleness);
+  const main2 = useArinc429Var(tyrePressureVar(Tyre.Main2), maxStaleness);
+  const main3 = useArinc429Var(tyrePressureVar(Tyre.Main3), maxStaleness);
+  const main4 = useArinc429Var(tyrePressureVar(Tyre.Main4), maxStaleness);
+  const nose1 = useArinc429Var(tyrePressureVar(Tyre.Nose1), maxStaleness);
+  const nose2 = useArinc429Var(tyrePressureVar(Tyre.Nose2), maxStaleness);
+  const [mainNominalPsi] = useSimVar(MAIN_NOMINAL_PRESSURE_VAR, 'number', maxStaleness);
+  const [noseNominalPsi] = useSimVar(NOSE_NOMINAL_PRESSURE_VAR, 'number', maxStaleness);
+  const [fwcFlightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'Enum', maxStaleness);
+
+  if (tpisInstalled !== '1') {
+    return null;
+  }
+
+  // In the order of TYRES; null when the TPIS data is not valid (SSM not normal operation)
+  const pressures = [main1, main2, main3, main4, nose1, nose2].map((word) =>
+    word.isNormalOperation() ? word.value : null,
+  );
+  const nominal = { mainPsi: mainNominalPsi, nosePsi: noseNominalPsi };
+  const [main1Ind, main2Ind, main3Ind, main4Ind, nose1Ind, nose2Ind] = TYRES.map((tyre) =>
+    tyrePressureIndication(pressures, nominal, tyre, fwcFlightPhase),
+  );
+
+  return (
+    <>
+      <TyrePressurePair x={36} y={528} left={main1Ind} right={main2Ind} />
+      <TyrePressurePair x={294} y={212} left={nose1Ind} right={nose2Ind} />
+      <TyrePressurePair x={551} y={528} left={main3Ind} right={main4Ind} />
+    </>
+  );
+};
+
+interface TyrePressurePairProps extends ComponentPositionProps {
+  left: TyrePressureIndication;
+  right: TyrePressureIndication;
+}
+
+/** "nnn PSI nnn" of one axle, laid out as the "nnn °C nnn" of the brake temperatures (Wheels) */
+const TyrePressurePair = ({ x, y, left, right }: TyrePressurePairProps) => (
+  <SvgGroup x={x} y={y}>
+    <text className={`${left.amber ? 'Amber' : 'Green'} Large End`} x={57} y={0}>
+      {left.text}
+    </text>
+    <text className="Cyan Standard" x={70} y={0}>
+      PSI
+    </text>
+    <text className={`${right.amber ? 'Amber' : 'Green'} Large End`} x={181} y={0}>
+      {right.text}
+    </text>
+  </SvgGroup>
+);
 
 /**
  * The N/W STEERING, ANTI SKID, NORM BRK and ALTN BRK legends, from the brake fault L:vars of the a320_systems brake model

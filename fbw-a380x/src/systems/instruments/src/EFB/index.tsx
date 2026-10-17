@@ -59,6 +59,7 @@ render(
           latLonExtend: false,
           rmpVhfSpacing: false,
           raas: false,
+          tpis: false,
         },
         realism: {
           mcduKeyboard: false,
