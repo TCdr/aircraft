@@ -7,9 +7,9 @@ import { AwarenessRunway } from '@flybywiresim/fbw-sdk';
  * An airport the A380X VD draws as flat ground (L:A380X_VD_AIRPORT_*, read by the native VD terrain gauge ndwxr,
  * vd_airports.h): the terrain MapView draws the airport diagram (runways, taxiways, aprons) over the terrain, which the
  * VD would read as terrain far above its plot, so the gauge replaces the stretches of its cut whose band reaches one of
- * these circles with flat ground at the airport's elevation (a design choice: an airport is flat ground). One circle
- * per airport, sized to it, covers the taxiways and aprons between and beside the runways, which rectangles around
- * each runway left as spikes (2026-10-10, user's choice over a fixed radius).
+ * these circles with flat ground at the airport's elevation (a design choice: an airport is flat ground). Design
+ * choice: one circle per airport, sized to it rather than a fixed radius, covers the taxiways and aprons between and
+ * beside the runways, which rectangles around each runway left as spikes.
  */
 export interface VdAirport {
   /** The centre of the circle, in degrees */
