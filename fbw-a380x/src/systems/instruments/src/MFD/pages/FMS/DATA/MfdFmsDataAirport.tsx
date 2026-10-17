@@ -492,18 +492,43 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     );
   }
 
-  /** An entry field (number or text) whose left edge is at x, centred on y */
-  private inputField<T extends number | string>(
+  // ---- render -------------------------------------------------------------------------------------------------------
+
+  private numberField(
     y: number,
     x: number,
     width: number,
-    format: DataEntryFormat<T>,
-    value: Subject<T | null>,
+    format: DataEntryFormat<number>,
+    value: Subject<number | null>,
+    disabled?: Subscribable<boolean>,
   ): VNode {
     return fcomAt(
       y,
       x,
-      <InputField<number | string>
+      <InputField<number>
+        dataEntryFormat={format}
+        value={value}
+        disabled={disabled}
+        containerStyle={`width: ${width}px;`}
+        alignText="flex-start"
+        errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+        hEventConsumer={this.props.mfd.hEventConsumer}
+        interactionMode={this.props.mfd.interactionMode}
+      />,
+    );
+  }
+
+  private textField(
+    y: number,
+    x: number,
+    width: number,
+    format: DataEntryFormat<string>,
+    value: Subject<string | null>,
+  ) {
+    return fcomAt(
+      y,
+      x,
+      <InputField<string>
         dataEntryFormat={format}
         value={value}
         containerStyle={`width: ${width}px;`}
@@ -515,19 +540,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     );
   }
 
-  /** A value followed by its unit, whose left edge is at x */
-  private static valueWithUnit(y: number, x: number, value: Subscribable<string>, unit: string): VNode {
-    return fcomAt(
-      y,
-      x,
-      <>
-        <span class="mfd-value bigger">{value}</span>
-        <span class="mfd-label-unit mfd-unit-trailing">{unit}</span>
-      </>,
-    );
-  }
-
-  /** Runway data of a database runway, in the runway box */
+  /** Runway data of a database runway (P 53, in the runway box) */
   private renderDatabaseRunwayData(): VNode {
     const data = this.databaseRunwayData;
     return (
@@ -556,9 +569,23 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
         {fcomRight(414, 242, <span class="mfd-label">LAT/LONG</span>)}
         {fcomAt(414, 270, <span class="mfd-value bigger">{data.coordinates}</span>)}
         {fcomRight(475, 242, <span class="mfd-label">ELEVATION</span>)}
-        {MfdFmsDataAirport.valueWithUnit(475, 280, data.elevation, 'FT')}
+        {fcomAt(
+          475,
+          280,
+          <>
+            <span class="mfd-value bigger">{data.elevation}</span>
+            <span class="mfd-label-unit mfd-unit-trailing">FT</span>
+          </>,
+        )}
         {fcomRight(534, 242, <span class="mfd-label">LENGTH</span>)}
-        {MfdFmsDataAirport.valueWithUnit(534, 298, data.length, 'FT')}
+        {fcomAt(
+          534,
+          298,
+          <>
+            <span class="mfd-value bigger">{data.length}</span>
+            <span class="mfd-label-unit mfd-unit-trailing">FT</span>
+          </>,
+        )}
         {fcomRight(534, 561, <span class="mfd-label">CRS</span>)}
         {fcomAt(
           534,
@@ -623,11 +650,32 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
         {fcomRight(379, 242, <span class="mfd-label">LAT/LONG</span>)}
         {fcomAt(379, 269, <span class="mfd-value bigger">{data.coordinates}</span>)}
         {fcomRight(441, 242, <span class="mfd-label">ELEVATION</span>)}
-        {MfdFmsDataAirport.valueWithUnit(441, 278, data.elevation, 'FT')}
+        {fcomAt(
+          441,
+          278,
+          <>
+            <span class="mfd-value bigger">{data.elevation}</span>
+            <span class="mfd-label-unit mfd-unit-trailing">FT</span>
+          </>,
+        )}
         {fcomRight(500, 242, <span class="mfd-label">LENGTH</span>)}
-        {MfdFmsDataAirport.valueWithUnit(500, 298, data.length, 'FT')}
+        {fcomAt(
+          500,
+          298,
+          <>
+            <span class="mfd-value bigger">{data.length}</span>
+            <span class="mfd-label-unit mfd-unit-trailing">FT</span>
+          </>,
+        )}
         {fcomRight(500, 525, <span class="mfd-label">CRS</span>)}
-        {MfdFmsDataAirport.valueWithUnit(500, 577, data.course, '°')}
+        {fcomAt(
+          500,
+          577,
+          <>
+            <span class="mfd-value bigger">{data.course}</span>
+            <span class="mfd-label-unit mfd-unit-trailing">°</span>
+          </>,
+        )}
         {fcomRight(559, 242, <span class="mfd-label">LS IDENT</span>)}
         {fcomAt(559, 269, <span class="mfd-value bigger">{data.lsIdent}</span>)}
       </>
@@ -646,7 +694,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataAirportStoredDropdown`}
             selectedIndex={this.selectedStoredAirport}
             values={this.storedAirports}
-            freeTextAllowed={false} // AIRPORT IDENT LIST: list only (typed idents go in the AIRPORT field)
+            freeTextAllowed={false} // FCOM PILOT STORED RWYS AIRPORT IDENT LIST: list only (typed idents go in the AIRPORT field)
             containerStyle="width: 119px;"
             alignLabels="center"
             numberOfDigitsForInputField={4}
@@ -739,22 +787,22 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     return (
       <>
         {fcomRight(111, 310, <span class="mfd-label">ARPT IDENT</span>)}
-        {this.inputField(111, 333, 90, new AirportFormat(), this.newAirportIdent)}
+        {this.textField(111, 333, 90, new AirportFormat(), this.newAirportIdent)}
         <div class="mfd-data-airport-box" />
         {fcomRight(311, 86, <span class="mfd-label">RWY</span>)}
-        {this.inputField(311, 110, 69, new RunwayDesignatorFormat(), this.newRunwayIdent)}
+        {this.textField(311, 110, 69, new RunwayDesignatorFormat(), this.newRunwayIdent)}
         {fcomRight(381, 242, <span class="mfd-label">LAT/LONG</span>)}
-        {this.inputField(381, 269, 150, new NewRunwayLatitudeFormat(), this.newLatitude)}
+        {this.numberField(381, 269, 150, new NewRunwayLatitudeFormat(), this.newLatitude)}
         {fcomCentre(381, 442, <span class="mfd-label">/</span>)}
-        {this.inputField(381, 458, 170, new NewRunwayLongitudeFormat(), this.newLongitude)}
+        {this.numberField(381, 458, 170, new NewRunwayLongitudeFormat(), this.newLongitude)}
         {fcomRight(442, 242, <span class="mfd-label">ELEVATION</span>)}
-        {this.inputField(442, 269, 140, new ElevationFormat(), this.newElevation)}
+        {this.numberField(442, 269, 140, new ElevationFormat(), this.newElevation)}
         {fcomRight(502, 242, <span class="mfd-label">LENGTH</span>)}
-        {this.inputField(502, 269, 140, this.lengthFormat, this.newLength)}
+        {this.numberField(502, 269, 140, this.lengthFormat, this.newLength)}
         {fcomRight(502, 524, <span class="mfd-label">CRS</span>)}
-        {this.inputField(502, 551, 99, new BearingFormat(), this.newCourse)}
+        {this.numberField(502, 551, 99, new BearingFormat(), this.newCourse)}
         {fcomRight(561, 242, <span class="mfd-label">LS IDENT</span>)}
-        {this.inputField(561, 269, 129, new NavaidIdentFormat('------'), this.newLsIdent)}
+        {this.textField(561, 269, 129, new NavaidIdentFormat('------'), this.newLsIdent)}
         {fcomAt(561, 456, <span class="mfd-label">(OPTIONAL)</span>)}
         {fcomAt(
           728,
