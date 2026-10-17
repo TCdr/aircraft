@@ -385,3 +385,100 @@ describe('FwsSystemDisplayLogic ECAM advisory (A380 FCOM DSC-31-40-10 ADVISORY, 
     expect(fws.ecamEwdShowAdvIndication.get()).toBe(false);
   });
 });
+
+/*
+ * A380 FCOM DSC-31-40-10 (ECAM Display on the SD -- GENERAL, a380_fcom.txt l.72794-72799): "The System Display (SD)
+ * pages appear on the SD in the following decreasing order of priority: SD page that the flight crew manually selects
+ * (Refer to ECP System Page Pushbuttons), SD page that appears after an alert, SD page that automatically appears
+ * when there is an advisory, SD page that automatically appears depending on the flight phases".
+ * FCOM DSC-31-40-20 (SYSTEM PAGE PUSHBUTTONS, l.73254-73258): only a second press of the pb removes the page.
+ */
+describe('FwsSystemDisplayLogic page selected by the crew vs the page of an ECAM alert', () => {
+  /** The simvars the logic reads and writes (SimVar.GetSimVarValue / SetSimVarValue) */
+  let values: Record<string, number>;
+
+  beforeEach(() => {
+    // On the ground before engine start (flight phase 1): engines off, ENG START selector on NORM, no APU
+    values = { 'L:XMLVAR_ENG_MODE_SEL': 1 };
+    for (let engine = 1; engine <= 4; engine++) {
+      values[`L:A32NX_ENGINE_STATE:${engine}`] = 0;
+      values[`L:A32NX_ENGINE_OIL_QTY:${engine}`] = 15;
+      values[`GENERAL ENG OIL TEMPERATURE:${engine}`] = 20;
+    }
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => values[name] ?? 0);
+    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number) => {
+      values[name] = value;
+      return Promise.resolve();
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const pageShown = () => values['L:A32NX_ECAM_SD_PAGE_TO_SHOW'];
+  /** The ECP system page pb lit by the crew selection (ecam-cp.xml), SdPages.None when none */
+  const crewSelection = () => simvars.get('L:A32NX_ECAM_SD_CURRENT_PAGE_INDEX');
+
+  /** The FWS in flight phase 1, the SD on its automatic page (DOOR) */
+  const onGroundBeforeEngineStart = () => {
+    const setup = setUp();
+    setup.fws.flightPhase.set(1);
+    simvars.set('L:A32NX_ECAM_SD_CURRENT_PAGE_INDEX', SdPages.None);
+    setup.logic.update(50);
+    setup.logic.update(50);
+    expect(pageShown()).toBe(SdPages.Door);
+    return setup;
+  };
+
+  /** The page the ECAM alert on top of the EWD calls (L:A32NX_ECAM_SFAIL), SdPages.None once cleared or gone */
+  const alertPage = (logic: FwsSystemDisplayLogic, page: SdPages) => {
+    simvars.set('L:A32NX_ECAM_SFAIL', page);
+    logic.update(50);
+    logic.update(50);
+  };
+
+  it('keeps the page selected with an ECP pb when an alert calls another page, and after the alert is cleared', () => {
+    const { logic, showPage } = onGroundBeforeEngineStart();
+    showPage(SdPages.Wheel);
+    logic.update(50);
+    expect(pageShown()).toBe(SdPages.Wheel);
+
+    alertPage(logic, SdPages.Bleed);
+    expect(pageShown()).toBe(SdPages.Wheel);
+    expect(crewSelection()).toBe(SdPages.Wheel);
+
+    // The alert is cleared (or the failure is gone): the crew page stays, not the phase 1 DOOR page
+    alertPage(logic, SdPages.None);
+    expect(pageShown()).toBe(SdPages.Wheel);
+    expect(crewSelection()).toBe(SdPages.Wheel);
+  });
+
+  it('shows the alert page once the crew removes its page with a second pb press', () => {
+    const { logic, showPage } = onGroundBeforeEngineStart();
+    showPage(SdPages.Wheel);
+    alertPage(logic, SdPages.Bleed);
+
+    showPage(SdPages.None);
+    logic.update(50);
+    expect(pageShown()).toBe(SdPages.Bleed);
+  });
+
+  it('shows the alert page at once without a crew page, then the flight phase page after the alert', () => {
+    const { logic } = onGroundBeforeEngineStart();
+    simvars.set('L:A32NX_ECAM_SFAIL', SdPages.Bleed);
+    logic.update(50);
+    expect(pageShown()).toBe(SdPages.Bleed);
+
+    alertPage(logic, SdPages.None);
+    expect(pageShown()).toBe(SdPages.Door);
+  });
+
+  it('replaces the STATUS page (not an ECP system page pb) with the page of a new alert', () => {
+    const { logic, showPage } = onGroundBeforeEngineStart();
+    showPage(SdPages.Status);
+    alertPage(logic, SdPages.Bleed);
+    expect(pageShown()).toBe(SdPages.Bleed);
+    expect(crewSelection()).toBe(SdPages.None);
+  });
+});

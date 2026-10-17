@@ -683,6 +683,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ELEC] The emergency generator couples to the network 3 s after its output is normal - @TCdr
 1. [A32NX/ECAM] With the ECAM control panel failed, the ALL, STS and CLR pushbuttons still select, page and clear the SD pages through their hardwired contacts, as in the FCOM - @TCdr
 1. [A32NX/FWC] ENG ALL ENGINES FAILURE always shows -FAC 1 OFF THEN ON, as in the FCOM, not only when FAC 1 has failed - @TCdr
+1. [A380X/ECAM] An SD page selected with an ECP key stays when a new alert appears, as in the FCOM priority order - @TCdr
 
 ## 2024.1.0
 
