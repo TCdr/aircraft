@@ -29,10 +29,11 @@ export class UplinkTakeoffData extends CompanyTakeoffDataLink {
     super(bus, true, fmsData, onMessage);
   }
 
-  /** The A320 UPLINK TO DATA pages need V1 and VR */
+  /** The A320 UPLINK TO DATA pages need V1 and VR, and have no derated takeoff */
   protected override isValid(uplink: CompanyTakeoffDataUplink): boolean {
     return (
       super.isValid(uplink) &&
+      uplink.thrust !== 'DERATED' &&
       CompanyTakeoffDataLink.isFiniteNumber(uplink.v1) &&
       CompanyTakeoffDataLink.isFiniteNumber(uplink.vr)
     );

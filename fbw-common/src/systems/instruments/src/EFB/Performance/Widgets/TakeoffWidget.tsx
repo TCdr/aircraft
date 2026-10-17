@@ -17,7 +17,10 @@ import {
 } from '@flybywiresim/fbw-sdk-react';
 import {
   CompanyTakeoffDataUplink,
+  CompanyTakeoffThrust,
+  formatTakeoffDerate,
   getSimbriefData,
+  TakeoffDerateResult,
   TakeoffPerformanceEstimate,
   TakeoffPerformanceResult,
   TakeoffRunwayDistances,
@@ -46,6 +49,14 @@ import {
 import { fetchRawMetarBySource } from '../../Service/WeatherService';
 import { CompanyTakeoffRequests, requestFmsTakeoffData, sendTakeoffDataToFms } from './TakeoffFmsLink';
 import { TakeoffRunway } from './TakeoffRunway';
+import {
+  flexLimits,
+  isContaminatedRunway,
+  offeredTakeoffThrusts,
+  TakeoffRunThrust,
+  takeoffRunThrust,
+  takeoffThrustChoice,
+} from './TakeoffThrust';
 import { M3Button, M3Card, M3Segmented, M3Switch } from '../../UtilComponents/Material/Material';
 import {
   PERF_INPUT,
@@ -206,9 +217,16 @@ export const TakeoffWidget = () => {
     noiseSpeed,
     noiseN1,
     selectedFlex,
+    selectedDerate,
     result,
     togaResult,
   } = useAppSelector((state) => state.performance.takeoff);
+  const derateLevels = calculator.derateLevels ?? [];
+  const derateSupported = derateLevels.length > 0;
+  /** The Thrust input: the first choice of the thrust of the takeoff run */
+  const offeredThrusts = offeredTakeoffThrusts(runwayCondition, derateSupported);
+  const thrustChoice: CompanyTakeoffThrust =
+    derateSupported && selectedDerate !== undefined ? 'DERATED' : forceToga ? 'TOGA' : 'FLEX';
 
   const {
     departingAirport: ofpDepartingAirport,
@@ -246,9 +264,6 @@ export const TakeoffWidget = () => {
       ),
     [],
   );
-
-  const isContaminated = (condition: RunwayCondition) =>
-    condition !== RunwayCondition.Dry && condition !== RunwayCondition.Wet;
 
   const subReplacements = (msg: string, replacements: Record<string, string>): string =>
     msg.replace(/\{([a-z_]+)\}/g, (m) => replacements[m.substring(1, m.length - 1)] ?? m[1]);
@@ -288,8 +303,17 @@ export const TakeoffWidget = () => {
     const forwardCg = !isA380 && cg !== undefined && cg < A320_FORWARD_CG_LIMIT;
     const perf =
       config > 0
-        ? calculator.calculateTakeoffPerformance(weight, forwardCg, config, ...args(isContaminated(runwayCondition)))
-        : calculator.calculateTakeoffPerformanceOptConf(weight, forwardCg, ...args(isContaminated(runwayCondition)));
+        ? calculator.calculateTakeoffPerformance(
+            weight,
+            forwardCg,
+            config,
+            ...args(isContaminatedRunway(runwayCondition)),
+          )
+        : calculator.calculateTakeoffPerformanceOptConf(
+            weight,
+            forwardCg,
+            ...args(isContaminatedRunway(runwayCondition)),
+          );
     // The A320 TOGA speeds differ from the FLEX ones (FBW A320 performance model): a TOGA calculation too
     const togaPerf =
       !isA380 && perf.error === TakeoffPerfomanceError.None
@@ -310,14 +334,19 @@ export const TakeoffWidget = () => {
     };
 
     if (perf.error === TakeoffPerfomanceError.None) {
+      const derated = thrustChoice === 'DERATED';
       dispatch(
         setTakeoffValues({
           result: perf,
           togaResult: togaPerf?.error === TakeoffPerfomanceError.None ? togaPerf : undefined,
-          selectedFlex: forceToga ? null : undefined,
+          selectedFlex: forceToga || derated ? null : undefined,
+          // DERATED stays the choice, at the deepest level the new result permits
+          ...(derated ? { selectedDerate: null } : {}),
         }),
       );
-      if (!forceToga && perf.flex === undefined) {
+      if (derated && perf.derate === undefined) {
+        toast.info(t('Performance.Takeoff.Messages.DerateNotPossible'));
+      } else if (!derated && !forceToga && perf.flex === undefined) {
         toast.info(t('Performance.Takeoff.Messages.FlexNotPossible'));
       }
     } else {
@@ -534,6 +563,7 @@ export const TakeoffWidget = () => {
         ? crewRequest.runways.find((r) => r.runway === fmsRunway?.runway) ?? crewRequest.runways[0]
         : undefined;
     const conditions = requested ?? fmsRunway;
+    const requestedThrust = conditions?.thrust === 'DERATED' && !derateSupported ? null : conditions?.thrust ?? null;
     try {
       const runways = await getRunways(fms.departure);
       const runwayIndex = runways.findIndex((r) => r.ident === conditions?.runway);
@@ -559,7 +589,7 @@ export const TakeoffWidget = () => {
             conditions?.runwayCondition !== null && conditions?.runwayCondition !== undefined
               ? RUNWAY_CONDITIONS[conditions.runwayCondition] ?? runwayCondition
               : runwayCondition,
-          forceToga: conditions?.thrust === 'TOGA' ? true : conditions?.thrust === 'FLEX' ? false : forceToga,
+          ...(requestedThrust !== null ? takeoffThrustChoice(requestedThrust) : {}),
           ...(direction !== null && speed !== null
             ? {
                 windDirection: direction,
@@ -650,15 +680,16 @@ export const TakeoffWidget = () => {
   // ---------------------------------------------------------------------------------------------- results
 
   const isEstimate = (e: TakeoffPerformanceEstimate) => result?.estimates?.includes(e) ?? false;
-  const flexMin = result ? Math.ceil(Math.max(result.params.tRef, result.inputs.oat)) : undefined;
-  const flexMax = result?.flex;
-  const flexPossible = flexMax !== undefined && flexMin !== undefined && flexMin <= flexMax;
-  /** The FLEX temperature of the takeoff run and of the data sent to the FMS, undefined for TOGA */
-  const runFlex = flexPossible && selectedFlex !== null ? Math.min(flexMax, selectedFlex ?? flexMax) : undefined;
+  const { min: flexMin, max: flexMax, possible: flexPossible } = flexLimits(result);
+  /** The thrust of the takeoff run and of the data sent to the FMS */
+  const runThrust = takeoffRunThrust(result, selectedFlex, derateSupported ? selectedDerate : undefined);
+  const runFlex = runThrust?.flex;
+  const runDerate = runThrust?.derate;
+  const runDerated = result?.derates?.find((d) => d.level === runDerate);
   /** The result of the thrust of the takeoff run: the TOGA result has its own speeds on the A320 */
   const runResult = runFlex === undefined && togaResult !== undefined ? togaResult : result;
   const distances: TakeoffRunwayDistances | undefined =
-    runResult !== undefined ? calculator.calculateTakeoffDistances?.(runResult, runFlex) : undefined;
+    runResult !== undefined ? calculator.calculateTakeoffDistances?.(runResult, runFlex, runDerate) : undefined;
   const lineUp = result ? result.inputs.tora - result.params.adjustedTora : 0;
 
   const formatWeight = (kg: number | undefined) =>
@@ -697,12 +728,12 @@ export const TakeoffWidget = () => {
       noiseN1 !== undefined
         ? { endAltitude: noiseEndAltitude, speed: noiseSpeed, n1: noiseN1 }
         : null;
-    // The takeoff data of the thrust selected for the takeoff run only: TOGA, or FLEX at its temperature. The FMS can
-    // hold two thrust settings per runway (A380 FCOM DSC-22-FMS-20-30 RECEIVED COMPANY T.O DATA page; A320 FCOM
-    // DSC-22_20-50-10-28, MAX TO and FLEX TO DATA pages), but the company sends what the crew asked for.
+    // The takeoff data of the thrust selected for the takeoff run only: TOGA, FLEX at its temperature or DERATED at its
+    // level. The FMS can hold two thrust settings per runway (the A380 RECEIVED COMPANY T.O DATA page, the A320 MAX TO
+    // and FLEX TO DATA pages), but the company sends what the crew asked for.
     const uplink = (
-      speeds: TakeoffPerformanceResult,
-      flexTemperature: number | undefined,
+      speeds: Pick<TakeoffPerformanceResult, 'v1' | 'vR' | 'v2'>,
+      thrust: TakeoffRunThrust,
     ): CompanyTakeoffDataUplink => ({
       departure: icao.toUpperCase(),
       runway: selectedRunway.ident,
@@ -716,8 +747,9 @@ export const TakeoffWidget = () => {
       v1: speeds.v1 ?? null,
       vr: speeds.vR ?? null,
       v2: speeds.v2,
-      thrust: flexTemperature !== undefined ? 'FLEX' : 'TOGA',
-      flexTemperature: flexTemperature ?? null,
+      thrust: thrust.rating,
+      flexTemperature: thrust.flex ?? null,
+      derate: thrust.derate ?? null,
       flaps: result.inputs.conf,
       ths: result.stabTrim ?? null,
       shift: takeoffShift !== undefined ? Math.round(takeoffShift) : null,
@@ -726,9 +758,9 @@ export const TakeoffWidget = () => {
       accelerationAltitude: accel ?? null,
       engineOutAccelerationAltitude: eoAccel ?? null,
       noise,
-      mtowPerf: result.mtow ?? result.inputs.tow,
+      mtowPerf: runDerated?.mtow ?? result.mtow ?? result.inputs.tow,
     });
-    sendTakeoffDataToFms(eventBus, [uplink(runResult ?? result, runFlex)], datalinkDelay);
+    sendTakeoffDataToFms(eventBus, [uplink(runDerated ?? runResult ?? result, runThrust)], datalinkDelay);
     toast.success(t(profile.sentToFms));
 
     // The FMS only inserts data for its departure runway and a TOW close to its own: tell why before the crew tries
@@ -896,7 +928,7 @@ export const TakeoffWidget = () => {
               defaultValue={initialState.takeoff.runwayCondition}
               value={runwayCondition}
               onChange={(v: RunwayCondition) =>
-                set(isContaminated(v) ? { runwayCondition: v, forceToga: true } : { runwayCondition: v })
+                set(isContaminatedRunway(v) ? { runwayCondition: v, forceToga: true } : { runwayCondition: v })
               }
               options={RUNWAY_CONDITIONS.map((c) => ({
                 value: c,
@@ -1040,17 +1072,12 @@ export const TakeoffWidget = () => {
             <SelectInput
               fontSizeClassName="text-base"
               className={`w-40 ${PERF_SELECT}`}
-              defaultValue={initialState.takeoff.forceToga}
-              value={forceToga}
-              // The results have both thrusts: only the thrust of the takeoff run changes
-              onChange={(v: boolean) =>
-                dispatch(setTakeoffValues({ forceToga: !!v, selectedFlex: v ? null : undefined }))
-              }
-              options={[
-                { value: false, displayValue: 'FLEX' },
-                { value: true, displayValue: 'TOGA' },
-              ]}
-              disabled={isContaminated(runwayCondition)}
+              defaultValue="FLEX"
+              value={thrustChoice}
+              // The results have every thrust: only the thrust of the takeoff run changes
+              onChange={(v: CompanyTakeoffThrust) => dispatch(setTakeoffValues(takeoffThrustChoice(v)))}
+              options={offeredThrusts.map((rating) => ({ value: rating, displayValue: rating }))}
+              disabled={offeredThrusts.length < 2}
             />
           </Row>
         </Section>
@@ -1118,6 +1145,7 @@ export const TakeoffWidget = () => {
             runway={selectedRunway?.ident}
             flex={runFlex}
             flexIsMax={runFlex !== undefined && runFlex === flexMax}
+            derated={runDerated}
             isEstimate={isEstimate}
             weightsEstimated={weightsEstimated}
             formatWeight={formatWeight}
@@ -1131,7 +1159,7 @@ export const TakeoffWidget = () => {
             thrRed={thrRed}
             accel={accel}
             eoAccel={eoAccel}
-            speeds={runResult}
+            speeds={runDerated ?? runResult}
             legend={t(profile.resultsLegend)}
           />
           <div className="mt-3 flex shrink-0 flex-row">
@@ -1203,69 +1231,107 @@ export const TakeoffWidget = () => {
             )}
           </div>
 
-          {/* Thrust of the takeoff run: TOGA, or a FLEX temperature from the lowest possible one to the maximum */}
+          {/* Thrust of the takeoff run: TOGA, a FLEX temperature from the lowest possible one to the maximum, or a
+              derated level down to the deepest one the TOW permits */}
           <div className="mt-3 flex shrink-0 flex-row items-center">
             <span className="mr-3 text-sm font-semibold text-m3-text">
               {t('Performance.Takeoff.Calc.FlexSimulation')}
             </span>
             <M3Segmented
-              className="mr-3 w-44"
+              className={`mr-3 ${derateSupported ? 'w-72' : 'w-44'}`}
               options={[
                 {
                   label: t('Performance.Takeoff.Calc.Toga'),
-                  selected: result !== undefined && runFlex === undefined,
+                  selected: runThrust?.rating === 'TOGA',
                   disabled: result === undefined,
                   onClick: () =>
-                    result !== undefined && dispatch(setTakeoffValues({ selectedFlex: null, forceToga: true })),
+                    result !== undefined &&
+                    dispatch(setTakeoffValues({ selectedFlex: null, forceToga: true, selectedDerate: undefined })),
                 },
                 {
                   label: 'FLEX',
                   selected: runFlex !== undefined,
                   disabled: !flexPossible,
                   onClick: () =>
-                    flexPossible && dispatch(setTakeoffValues({ selectedFlex: flexMax, forceToga: false })),
+                    flexPossible &&
+                    dispatch(setTakeoffValues({ selectedFlex: flexMax, forceToga: false, selectedDerate: undefined })),
                 },
+                ...(derateSupported
+                  ? [
+                      {
+                        label: 'DERATED',
+                        selected: runDerate !== undefined,
+                        disabled: result?.derate === undefined,
+                        onClick: () =>
+                          result?.derate !== undefined &&
+                          dispatch(setTakeoffValues({ selectedFlex: null, selectedDerate: result.derate })),
+                      },
+                    ]
+                  : []),
               ]}
             />
-            <button
-              type="button"
-              className={`${PERF_SMALL_BUTTON} w-10 text-xl ${runFlex === undefined || runFlex <= flexMin ? 'pointer-events-none opacity-40' : 'hover:bg-m3-tile'}`}
-              onClick={() =>
-                runFlex !== undefined && dispatch(setTakeoffValues({ selectedFlex: Math.max(flexMin, runFlex - 1) }))
-              }
-            >
-              −
-            </button>
-            <span className="w-24 text-center">
-              {runFlex !== undefined ? (
-                <Value text={`${runFlex}°C`} estimate={isEstimate(TakeoffPerformanceEstimate.Flex)} />
-              ) : (
-                <span className="text-lg text-m3-muted">---</span>
-              )}
-            </span>
-            <button
-              type="button"
-              className={`${PERF_SMALL_BUTTON} mr-4 w-10 text-xl ${runFlex === undefined || runFlex >= flexMax ? 'pointer-events-none opacity-40' : 'hover:bg-m3-tile'}`}
-              onClick={() =>
-                runFlex !== undefined && dispatch(setTakeoffValues({ selectedFlex: Math.min(flexMax, runFlex + 1) }))
-              }
-            >
-              +
-            </button>
-            <div className={`flex flex-1 flex-row items-center space-x-3 ${runFlex === undefined ? 'opacity-40' : ''}`}>
-              <span className="text-xs text-m3-muted">{flexPossible ? `${flexMin}°` : ''}</span>
-              <Slider
-                disabled={runFlex === undefined || flexMin === flexMax}
-                min={flexMin ?? 0}
-                max={flexMax ?? 1}
-                step={1}
-                value={runFlex ?? flexMax ?? 0}
-                onChange={(v: number) => dispatch(setTakeoffValues({ selectedFlex: v }))}
-              />
-              <span className="whitespace-nowrap text-xs text-m3-muted">
-                {flexPossible ? `${flexMax}° ${t('Performance.Takeoff.Calc.FlexMax')}` : ''}
-              </span>
-            </div>
+            {runDerate !== undefined ? (
+              <div className="flex flex-1 flex-row items-center">
+                <M3Segmented
+                  className="mr-3 flex-1"
+                  options={derateLevels.map((level) => ({
+                    label: formatTakeoffDerate(level),
+                    selected: level === runDerate,
+                    disabled: level > result.derate,
+                    onClick: () => dispatch(setTakeoffValues({ selectedDerate: level })),
+                  }))}
+                />
+                <span className="whitespace-nowrap text-xs text-m3-muted">
+                  {`${formatTakeoffDerate(result.derate)} ${t('Performance.Takeoff.Calc.FlexMax')}`}
+                </span>
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className={`${PERF_SMALL_BUTTON} w-10 text-xl ${runFlex === undefined || runFlex <= flexMin ? 'pointer-events-none opacity-40' : 'hover:bg-m3-tile'}`}
+                  onClick={() =>
+                    runFlex !== undefined &&
+                    dispatch(setTakeoffValues({ selectedFlex: Math.max(flexMin, runFlex - 1) }))
+                  }
+                >
+                  −
+                </button>
+                <span className="w-24 text-center">
+                  {runFlex !== undefined ? (
+                    <Value text={`${runFlex}°C`} estimate={isEstimate(TakeoffPerformanceEstimate.Flex)} />
+                  ) : (
+                    <span className="text-lg text-m3-muted">---</span>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  className={`${PERF_SMALL_BUTTON} mr-4 w-10 text-xl ${runFlex === undefined || runFlex >= flexMax ? 'pointer-events-none opacity-40' : 'hover:bg-m3-tile'}`}
+                  onClick={() =>
+                    runFlex !== undefined &&
+                    dispatch(setTakeoffValues({ selectedFlex: Math.min(flexMax, runFlex + 1) }))
+                  }
+                >
+                  +
+                </button>
+                <div
+                  className={`flex flex-1 flex-row items-center space-x-3 ${runFlex === undefined ? 'opacity-40' : ''}`}
+                >
+                  <span className="text-xs text-m3-muted">{flexPossible ? `${flexMin}°` : ''}</span>
+                  <Slider
+                    disabled={runFlex === undefined || flexMin === flexMax}
+                    min={flexMin ?? 0}
+                    max={flexMax ?? 1}
+                    step={1}
+                    value={runFlex ?? flexMax ?? 0}
+                    onChange={(v: number) => dispatch(setTakeoffValues({ selectedFlex: v }))}
+                  />
+                  <span className="whitespace-nowrap text-xs text-m3-muted">
+                    {flexPossible ? `${flexMax}° ${t('Performance.Takeoff.Calc.FlexMax')}` : ''}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="mt-2 min-h-0 flex-1">
@@ -1301,6 +1367,8 @@ interface ResultsPanelProps {
   runway: string | undefined;
   flex: number | undefined;
   flexIsMax: boolean;
+  /** The derated level of the takeoff run, when DERATED */
+  derated: TakeoffDerateResult | undefined;
   isEstimate: (e: TakeoffPerformanceEstimate) => boolean;
   weightsEstimated: boolean;
   formatWeight: (kg: number | undefined) => string;
@@ -1315,7 +1383,7 @@ interface ResultsPanelProps {
   accel: number | undefined;
   eoAccel: number | undefined;
   /** The result of the thrust of the takeoff run, for the speeds */
-  speeds: TakeoffPerformanceResult | undefined;
+  speeds: Pick<TakeoffPerformanceResult, 'v1' | 'vR' | 'v2'> | undefined;
   legend: string;
 }
 
@@ -1325,6 +1393,7 @@ const ResultsPanel = ({
   runway,
   flex,
   flexIsMax,
+  derated,
   isEstimate,
   weightsEstimated,
   formatWeight,
@@ -1346,7 +1415,7 @@ const ResultsPanel = ({
       <Value
         text={value?.toFixed(0) ?? '---'}
         unit="kt"
-        estimate={value !== undefined && isEstimate(estimate)}
+        estimate={value !== undefined && (derated ? derated.estimates.includes(estimate) : isEstimate(estimate))}
         primary={primary}
         big
       />
@@ -1364,6 +1433,12 @@ const ResultsPanel = ({
     if (flex !== undefined && !flexIsMax) {
       thrust += ` (max ${result.flex})`;
     }
+    if (derated !== undefined) {
+      thrust = `DERATED ${formatTakeoffDerate(derated.level)}*`;
+      if (derated.level !== result.derate) {
+        thrust += ` (max ${formatTakeoffDerate(result.derate)})`;
+      }
+    }
   }
   const flaps = result ? (result.inputs.conf === 1 ? '1+F' : result.inputs.conf.toFixed(0)) : '-';
   return (
@@ -1373,7 +1448,9 @@ const ResultsPanel = ({
         <div className="grow" />
         <span
           className={`rounded-full bg-m3-tile px-3 py-1 text-xs font-bold leading-none ${
-            flex !== undefined && isEstimate(TakeoffPerformanceEstimate.Flex) ? 'text-m3-on-warn' : 'text-m3-text'
+            (flex !== undefined && isEstimate(TakeoffPerformanceEstimate.Flex)) || derated !== undefined
+              ? 'text-m3-on-warn'
+              : 'text-m3-text'
           }`}
         >
           {`RWY ${runway ?? '---'} · FLAPS ${flaps} · ${thrust}`}
@@ -1390,9 +1467,9 @@ const ResultsPanel = ({
         </PerfResult>
         <PerfResult name="MTOW(perf)">
           <Value
-            text={formatWeight(result?.mtow)}
+            text={formatWeight(derated?.mtow ?? result?.mtow)}
             unit={weightUnit}
-            estimate={result?.mtow !== undefined && weightsEstimated}
+            estimate={derated !== undefined || (result?.mtow !== undefined && weightsEstimated)}
           />
         </PerfResult>
         <PerfResult name={t('Performance.Takeoff.Calc.Margin')}>

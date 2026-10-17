@@ -3,7 +3,12 @@
 
 import { describe, expect, it } from 'vitest';
 import { TakeoffDerated, TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
-import { TAKEOFF_DERATE_LEVELS, takeoffDerateThrustReduction, takeoffThrustOptionsDisabled } from './TakeoffDerate';
+import {
+  TAKEOFF_DERATE_LEVELS,
+  takeoffDeratedOfThrustReduction,
+  takeoffDerateThrustReduction,
+  takeoffThrustOptionsDisabled,
+} from './TakeoffDerate';
 
 describe('MFD PERF T.O derated takeoff', () => {
   // FCOM DSC-70-20-40 l.111564-111565: "6 derated takeoff levels are defined: DO4 , DO8 , D12 , D16 , D20 , D24 . Each
@@ -21,6 +26,15 @@ describe('MFD PERF T.O derated takeoff', () => {
     TAKEOFF_DERATE_LEVELS.forEach((label, level) =>
       expect(takeoffDerateThrustReduction(TakeoffPowerSetting.DERATED, level)).toBe(Number(label.slice(1))),
     );
+  });
+
+  it('gives the level of a thrust reduction, and none for a reduction that is not a level', () => {
+    TAKEOFF_DERATE_LEVELS.forEach((label, level) =>
+      expect(takeoffDeratedOfThrustReduction(Number(label.slice(1)))).toBe(level),
+    );
+    for (const reduction of [0, 2, 6, 28, null, undefined]) {
+      expect(takeoffDeratedOfThrustReduction(reduction)).toBeNull();
+    }
   });
 
   it('gives no derate for TOGA, FLEX or no level', () => {

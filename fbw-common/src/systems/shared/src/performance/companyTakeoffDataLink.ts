@@ -90,9 +90,9 @@ export abstract class CompanyTakeoffDataLink {
     return [...new Set(this.uplinks.get().map((u) => u.runway))];
   }
 
-  /** The received data of a runway and thrust rating */
+  /** The received TOGA or FLEX data of a runway */
   public find(runway: string, flex: boolean): CompanyTakeoffDataUplink | undefined {
-    return this.uplinks.get().find((u) => u.runway === runway && (u.thrust === 'FLEX') === flex);
+    return this.uplinks.get().find((u) => u.runway === runway && u.thrust === (flex ? 'FLEX' : 'TOGA'));
   }
 
   /** Removes received takeoff data, inserted or cleared by the flight crew */
@@ -117,8 +117,15 @@ export abstract class CompanyTakeoffDataLink {
       uplink.runway.length > 0 &&
       [uplink.tow, uplink.qnh, uplink.windDirection, uplink.windSpeed, uplink.oat, uplink.v2].every(finite) &&
       [1, 2, 3].includes(uplink.flaps) &&
-      (uplink.thrust === 'TOGA' || (uplink.thrust === 'FLEX' && finite(uplink.flexTemperature)))
+      (uplink.thrust === 'TOGA' ||
+        (uplink.thrust === 'FLEX' && finite(uplink.flexTemperature)) ||
+        (uplink.thrust === 'DERATED' && CompanyTakeoffDataLink.isDerateLevel(uplink.derate)))
     );
+  }
+
+  /** A derated level the DNN format can show: D01 to D99 */
+  protected static isDerateLevel(value: unknown): value is number {
+    return CompanyTakeoffDataLink.isFiniteNumber(value) && Number.isInteger(value) && value >= 1 && value <= 99;
   }
 
   protected static isFiniteNumber(value: unknown): value is number {

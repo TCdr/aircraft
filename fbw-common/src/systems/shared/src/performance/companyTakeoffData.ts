@@ -18,6 +18,14 @@ export interface CompanyTakeoffDataEvents {
   cpny_to_uplink: CompanyTakeoffDataUplink;
 }
 
+/** The takeoff thrust ratings of the company takeoff data */
+export type CompanyTakeoffThrust = 'TOGA' | 'FLEX' | 'DERATED';
+
+/** A derated level as the FMS shows it: D and two digits of its thrust reduction in percent (D04, D24) */
+export function formatTakeoffDerate(derate: number): string {
+  return `D${derate.toFixed(0).padStart(2, '0')}`;
+}
+
 /** The takeoff conditions of one runway of a request */
 export interface CompanyTakeoffDataRequestRunway {
   /** Runway ident, without the airport (e.g. 27R) */
@@ -31,7 +39,7 @@ export interface CompanyTakeoffDataRequestRunway {
   /** Runway condition, index of the FMS list (0 = DRY) */
   runwayCondition: number | null;
   /** Takeoff thrust rating */
-  thrust: 'TOGA' | 'FLEX' | 'DERATED' | null;
+  thrust: CompanyTakeoffThrust | null;
   /** Flap configuration 1 (1+F), 2 or 3 */
   flaps: number | null;
   /** Takeoff shift in metres */
@@ -78,10 +86,12 @@ export interface CompanyTakeoffDataUplink {
   v1: number | null;
   vr: number | null;
   v2: number;
-  /** Takeoff thrust rating */
-  thrust: 'TOGA' | 'FLEX';
+  /** Takeoff thrust rating: TOGA, FLEX and DERATED are mutually exclusive */
+  thrust: CompanyTakeoffThrust;
   /** FLEX temperature in °C, for a FLEX thrust rating */
   flexTemperature: number | null;
+  /** The derated level as its thrust reduction in percent (4 for D04 ... 24 for D24), for a DERATED thrust rating */
+  derate: number | null;
   /** Flap configuration 1 (1+F), 2 or 3 */
   flaps: number;
   /** THS for takeoff in degrees, positive nose up (A320 FLAPS/THS), or null */

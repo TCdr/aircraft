@@ -92,7 +92,7 @@ import { FlightPlanUtils } from '@fmgc/flightplanning/FlightPlanUtils';
 import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
 import { clampFmcUpdateStep } from './FmcUpdateStep';
-import { CompanyTakeoffData } from './CompanyTakeoffData';
+import { CompanyTakeoffData, companyTakeoffThrustSettings } from './CompanyTakeoffData';
 import { TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FmsPrinter } from './FmsPrinter';
 import { FmsAdvisoryMessages } from './FmsAdvisoryMessages';
@@ -1994,21 +1994,21 @@ export class FlightManagementComputer implements FmcInterface {
     SimVar.SetSimVarValue('L:AIRLINER_V2_SPEED', 'Knots', uplink.v2);
     this.flightPlanInterface.setPerformanceData('takeoffFlaps', uplink.flaps as 1 | 2 | 3, plan);
     this.acInterface.setTakeoffFlaps(uplink.flaps);
-    if (uplink.thrust === 'FLEX' && uplink.flexTemperature !== null) {
-      this.flightPlanInterface.setPerformanceData('flexTakeoffTemperature', uplink.flexTemperature, plan);
-      this.flightPlanInterface.setPerformanceData('takeoffPowerSetting', TakeoffPowerSetting.FLEX, plan);
-      // 0 means no FLEX, 0.1 a FLEX temperature of 0
-      SimVar.SetSimVarValue(
-        'L:A32NX_AIRLINER_TO_FLEX_TEMP',
-        'Number',
-        uplink.flexTemperature === 0 ? 0.1 : uplink.flexTemperature,
-      );
-    } else {
-      this.flightPlanInterface.setPerformanceData('takeoffPowerSetting', TakeoffPowerSetting.TOGA, plan);
-      SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', 0);
+    const thrust = companyTakeoffThrustSettings(uplink);
+    if (thrust.flexTemperature !== null) {
+      this.flightPlanInterface.setPerformanceData('flexTakeoffTemperature', thrust.flexTemperature, plan);
     }
-    // the uplinked thrust is TOGA or FLEX: no DOx derate for the FADECs
-    writeTakeoffDerate(TakeoffPowerSetting.TOGA, null);
+    if (thrust.derated !== null) {
+      this.flightPlanInterface.setPerformanceData('takeoffDeratedSetting', thrust.derated, plan);
+    }
+    this.flightPlanInterface.setPerformanceData('takeoffPowerSetting', thrust.powerSetting, plan);
+    // 0 means no FLEX, 0.1 a FLEX temperature of 0
+    SimVar.SetSimVarValue(
+      'L:A32NX_AIRLINER_TO_FLEX_TEMP',
+      'Number',
+      thrust.flexTemperature === 0 ? 0.1 : thrust.flexTemperature ?? 0,
+    );
+    writeTakeoffDerate(thrust.powerSetting, thrust.derated);
     this.flightPlanInterface.setPerformanceData('takeoffShift', uplink.shift, plan);
     if (uplink.thrustReductionAltitude !== null) {
       this.flightPlanInterface.setPerformanceData('pilotThrustReductionAltitude', uplink.thrustReductionAltitude, plan);

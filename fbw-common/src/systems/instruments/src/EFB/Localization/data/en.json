@@ -717,6 +717,7 @@
       },
       "Messages": {
         "FlexNotPossible": "Flex Not Possible",
+        "DerateNotPossible": "Derate Not Possible",
         "InvalidData": "Invalid Inputs",
         "OperatingEmptyWeight": "Below Operating Empty Weight ({oew} {weight_unit})",
         "StructuralMtow": "Above Structural MTOW ({structural_mtow} {weight_unit})",
