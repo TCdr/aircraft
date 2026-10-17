@@ -441,7 +441,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
 
     let displayedAirport: string | null = null;
     this.sub.on('oans_display_airport').handle(({ side, airport }) => {
-      // The airport of this side's OANS (FCOM DSC-34-10-70-10)
+      // The airport of this side's OANS: the Captain and the First Officer each have their own
       if (side !== this.props.side || airport === displayedAirport) {
         return;
       }

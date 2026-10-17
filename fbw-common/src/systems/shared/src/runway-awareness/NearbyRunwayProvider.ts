@@ -78,7 +78,6 @@ export class NearbyRunwayProvider {
     this.loader = new FacilityLoader(FacilityRepository.getRepository(bus));
   }
 
-  /** The runways of the airports around the aircraft at the last search */
   public get runways(): readonly AwarenessRunway[] {
     return this.runwayList;
   }
@@ -142,7 +141,7 @@ export class NearbyRunwayProvider {
     try {
       const session = await this.loader.startNearestSearchSessionWithIcaoStructs(FacilitySearchType.Airport);
       // A new session has no filter, and the search returns the closest maxAirports airports of every class. In a
-      // city the heliports fill that list: at RJTT (2026-10-11 sim test, 25 NM / 24 airports) only RJTT itself had
+      // city the heliports fill that list: at RJTT (sim test, 25 NM / 24 airports) only RJTT itself had
       // runways on the ground, though RJTA, RJTF and RJTY are within 25 NM, and a few NM after take-off RJTT dropped
       // out of the list too. So only the airports with a runway are searched.
       session.setAirportFilter(false, NearbyRunwayProvider.RUNWAY_AIRPORT_CLASSES);

@@ -35,9 +35,8 @@ export type RaasWord =
   | 'pause';
 
 /**
- * The RAAS advisories and cautions, in the order they are issued when several come at the same time (Honeywell
- * RAAS product description 060-4564-001, 3.1). The distance remaining callouts come first: they are only valid at
- * the moment they are issued.
+ * The RAAS advisories and cautions, in the order they are issued when several come at the same time. The distance
+ * remaining callouts come first: they are only valid at the moment they are issued.
  */
 export enum RaasAdvisory {
   DistanceRemaining,
@@ -98,6 +97,8 @@ export interface RaasInputs {
   readonly verticalSpeed: number;
 }
 
+type AddCallout = (advisory: RaasAdvisory, words: RaasWord[]) => void;
+
 /** The state of the runway the flight deck is on, from the moment it enters the runway to the moment it leaves it */
 interface RunwayOccupancy {
   readonly key: string;
@@ -113,7 +114,6 @@ interface RunwayOccupancy {
   lastMark: number;
   runwayEndGiven: boolean;
   holdAlong: number;
-  holdSince: number;
   holdNextCallout: number;
 }
 
@@ -121,7 +121,7 @@ const FT_PER_M = 3.28084;
 const KT_TO_MPS = 1_852 / 3_600;
 const NM_M = 1_852;
 const ALIGNMENT_TOLERANCE = 20;
-/** Lateral limit of an aligned approach: 200 ft plus the runway width from the centreline (4.2.1.1) */
+/** Lateral limit of an aligned approach: 200 ft plus the runway width from the centreline */
 const LATERAL_MARGIN_M = 200 / FT_PER_M;
 
 const DIGITS: readonly RaasWord[] = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
@@ -130,10 +130,10 @@ const DIGITS: readonly RaasWord[] = ['zero', 'one', 'two', 'three', 'four', 'fiv
  * The Honeywell Runway Awareness and Advisory System (RAAS), an EGPWS software option: aural advisories of the runway
  * the aircraft is approaching, lined up with or rolling on, from its position and the airport runways.
  *
- * Implemented from the Honeywell product description 060-4564-001 (section 4): all the routine advisories (approaching
- * runway in air and on ground, on runway, distance remaining at landing, runway end) and the non-routine ones
- * (approaching short runway and its caution, insufficient runway length on ground and its caution, extended holding
- * on runway, taxiway takeoff, distance remaining at a rejected takeoff, taxiway landing). No visual messages.
+ * All the routine advisories (approaching runway in air and on ground, on runway, distance remaining at landing,
+ * runway end) and the non-routine ones (approaching short runway and its caution, insufficient runway length on ground
+ * and its caution, extended holding on runway, taxiway takeoff, distance remaining at a rejected takeoff, taxiway
+ * landing). No visual messages.
  */
 export class Raas {
   private occupancy: RunwayOccupancy | null = null;
@@ -266,17 +266,11 @@ export class Raas {
       lastMark: Infinity,
       runwayEndGiven: false,
       holdAlong: NaN,
-      holdSince: now,
       holdNextCallout: NaN,
     };
   }
 
-  private updateOnGround(
-    inputs: RaasInputs,
-    runways: readonly AwarenessRunway[],
-    now: number,
-    add: (advisory: RaasAdvisory, words: RaasWord[]) => void,
-  ): void {
+  private updateOnGround(inputs: RaasInputs, runways: readonly AwarenessRunway[], now: number, add: AddCallout): void {
     const occupancy = this.occupancy;
     const alignedEnd = occupancy
       ? AwarenessRunwayGeometry.alignedEnd(occupancy.runway, inputs.trueHeading, ALIGNMENT_TOLERANCE)
@@ -288,7 +282,7 @@ export class Raas {
       const remaining = AwarenessRunwayGeometry.distanceToEnd(occupancy.runway, alignedEnd, this.deckPos);
       const short = this.config.takeoffNominalLength !== null && remaining < this.config.takeoffNominalLength;
 
-      // On Runway (4.2.3), with the length remaining when shorter than the nominal takeoff length (4.3.3)
+      // On Runway, with the length remaining when shorter than the nominal takeoff length
       if (occupancy.enteredOnGround && !occupancy.onRunwayGiven) {
         occupancy.onRunwayGiven = true;
         if (short) {
@@ -303,7 +297,7 @@ export class Raas {
         }
       }
 
-      // The takeoff roll starts above 40 kt; Caution Short Runway when the length is still short (4.3.4)
+      // The takeoff roll starts above 40 kt; Caution Short Runway when the length is still short
       if (occupancy.rollMode === null && inputs.groundSpeed > 40) {
         this.startRoll('takeoff', inputs);
         if (short) {
@@ -311,7 +305,7 @@ export class Raas {
         }
       }
 
-      // Rejected takeoff: the ground speed decreases by 7 kt from its maximum above 40 kt (4.3.7)
+      // Rejected takeoff: the ground speed decreases by 7 kt from its maximum above 40 kt
       if (occupancy.rollMode === 'takeoff') {
         occupancy.maxGroundSpeed = Math.max(occupancy.maxGroundSpeed, inputs.groundSpeed);
         if (
@@ -324,7 +318,7 @@ export class Raas {
         }
       }
 
-      // Runway End: within 100 ft of the end, below 40 kt (4.2.5)
+      // Runway End: within 100 ft of the end, below 40 kt
       if (!occupancy.runwayEndGiven && inputs.groundSpeed < 40 && remaining <= 100 / FT_PER_M && remaining > 0) {
         occupancy.runwayEndGiven = true;
         add(
@@ -336,7 +330,7 @@ export class Raas {
       this.updateExtendedHolding(occupancy, end, now, add);
     }
 
-    // Taxiway takeoff: above 40 kt and not aligned with a runway (4.3.6)
+    // Taxiway takeoff: above 40 kt and not aligned with a runway
     if (inputs.groundSpeed > 40) {
       if (!this.onTaxiwayGiven && alignedEnd === null && this.anyRunwayWithin(runways, inputs, 3 * NM_M)) {
         this.onTaxiwayGiven = true;
@@ -346,25 +340,23 @@ export class Raas {
       this.onTaxiwayGiven = false;
     }
 
-    // Approaching Runway on ground (4.2.2)
     if (inputs.groundSpeed < 40) {
       this.updateApproachingOnGround(inputs, runways, now, add);
     }
   }
 
-  /** Extended holding on runway: along-track movement under 100 ft during the holding time (4.3.5) */
+  /** Extended holding on runway: along-track movement under 100 ft during the holding time */
   private updateExtendedHolding(
     occupancy: RunwayOccupancy,
     end: AwarenessRunwayEnd,
     now: number,
-    add: (advisory: RaasAdvisory, words: RaasWord[]) => void,
+    add: AddCallout,
   ): void {
     if (this.config.extendedHoldingInitial === null || occupancy.rejectedTakeoff || occupancy.rollMode !== null) {
       return;
     }
     if (!(Math.abs(this.deckPos.along - occupancy.holdAlong) <= 100 / FT_PER_M)) {
       occupancy.holdAlong = this.deckPos.along;
-      occupancy.holdSince = now;
       occupancy.holdNextCallout = now + this.config.extendedHoldingInitial * 1_000;
       return;
     }
@@ -380,7 +372,7 @@ export class Raas {
     inputs: RaasInputs,
     runways: readonly AwarenessRunway[],
     now: number,
-    add: (advisory: RaasAdvisory, words: RaasWord[]) => void,
+    add: AddCallout,
   ): void {
     // The advisory distance: 1.5 runway widths from the edge at very low speed, farther as the ground speed increases
     const leadDistance = inputs.groundSpeed * KT_TO_MPS * 5;
@@ -422,11 +414,7 @@ export class Raas {
     }
   }
 
-  private updateInAir(
-    inputs: RaasInputs,
-    runways: readonly AwarenessRunway[],
-    add: (advisory: RaasAdvisory, words: RaasWord[]) => void,
-  ): void {
+  private updateInAir(inputs: RaasInputs, runways: readonly AwarenessRunway[], add: AddCallout): void {
     if (inputs.radioAltitude > 1_000) {
       // A new approach
       this.airApproachGiven.clear();
@@ -434,7 +422,7 @@ export class Raas {
       this.airShortCautionGiven.clear();
     }
 
-    // Approaching Runway in air (4.2.1), approaching short runway (4.3.1) and its caution (4.3.2)
+    // Approaching Runway in air, approaching short runway and its caution
     const candidates: { runway: AwarenessRunway; end: AwarenessRunwayEnd; heightAbove: number }[] = [];
     let linedUp = false;
     for (const runway of runways) {
@@ -491,7 +479,7 @@ export class Raas {
       }
     }
 
-    // Taxiway landing: 150 to 250 ft, not climbing, within 5 NM of a runway but not lined up with one (4.3.8)
+    // Taxiway landing: 150 to 250 ft, not climbing, within 5 NM of a runway but not lined up with one
     if (inputs.radioAltitude > 500) {
       this.taxiwayLandingGiven = false;
     } else if (
@@ -508,10 +496,10 @@ export class Raas {
   }
 
   /**
-   * Distance remaining at landing (4.2.4) and at a rejected takeoff (4.3.7): on the last half of the runway, at each
+   * Distance remaining at landing and at a rejected takeoff: on the last half of the runway, at each
    * whole 1000 ft (last one 500 ft), or each 300 m (last one 100 m).
    */
-  private updateDistanceRemaining(inputs: RaasInputs, add: (advisory: RaasAdvisory, words: RaasWord[]) => void): void {
+  private updateDistanceRemaining(inputs: RaasInputs, add: AddCallout): void {
     const occupancy = this.occupancy;
     if (!occupancy || occupancy.rollMode === null) {
       return;

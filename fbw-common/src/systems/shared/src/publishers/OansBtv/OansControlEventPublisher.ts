@@ -8,8 +8,8 @@ export interface OansControlEvents {
   nd_show_oans: { side: EfisSide; show: boolean };
   oans_performance_mode_hide: { side: EfisSide; hide: boolean };
   /**
-   * The airport displayed by the OANS of one side (A380 FCOM DSC-34-10-70-10: a Captain's and a First Officer's OANS,
-   * each on its onside ND); '' unloads it
+   * The airport displayed by the OANS of one side (the Captain and the First Officer each have an OANS on their onside
+   * ND); '' unloads it
    */
   oans_display_airport: { side: EfisSide; airport: string };
   oans_not_avail: boolean;

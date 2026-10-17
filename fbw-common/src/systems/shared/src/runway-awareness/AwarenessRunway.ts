@@ -33,7 +33,6 @@ export interface AwarenessRunway {
   readonly ends: readonly [AwarenessRunwayEnd, AwarenessRunwayEnd];
 }
 
-/** A point in the frame of a runway */
 export interface RunwayFramePosition {
   /** The distance along the runway from its centre, towards the primary course, in metres */
   along: number;
@@ -46,14 +45,12 @@ const DEG_TO_RAD = Math.PI / 180;
 
 /** Flat-earth runway geometry: exact enough within the few nautical miles around an airport */
 export class AwarenessRunwayGeometry {
-  /** A unique key of a runway */
   public static key(runway: AwarenessRunway): string {
     return `${runway.airport}${runway.ends[0].ident}${runway.ends[1].ident}`;
   }
 
   /**
    * The position of a point in the frame of a runway.
-   * @param runway the runway
    * @param latitude the latitude of the point, in degrees
    * @param longitude the longitude of the point, in degrees
    * @param forwardOffset a distance to move the point forward first (e.g. the flight deck ahead of the aircraft reference), in metres
@@ -86,9 +83,7 @@ export class AwarenessRunwayGeometry {
 
   /**
    * The distance along a runway direction, from the start of the paved runway in that direction.
-   * @param runway the runway
    * @param endIndex 0 for the primary direction, 1 for the secondary direction
-   * @param pos the point
    */
   public static distanceFromStart(runway: AwarenessRunway, endIndex: 0 | 1, pos: RunwayFramePosition): number {
     return endIndex === 0 ? pos.along + runway.length / 2 : runway.length / 2 - pos.along;
@@ -108,11 +103,6 @@ export class AwarenessRunwayGeometry {
       return 1;
     }
     return null;
-  }
-
-  /** The end of the runway nearest to a point on or beside it */
-  public static nearestEnd(pos: RunwayFramePosition): 0 | 1 {
-    return pos.along <= 0 ? 0 : 1;
   }
 
   /**

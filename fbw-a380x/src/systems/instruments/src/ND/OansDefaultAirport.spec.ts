@@ -29,7 +29,7 @@ const inputs = (i: Partial<OansDefaultAirportInputs>): OansDefaultAirportInputs 
   ...i,
 });
 
-describe('OANS default airport (A380 FCOM DSC-34-10-70-20)', () => {
+describe('OANS default airport', () => {
   it('is the current airport on ground', () => {
     expect(oansDefaultAirport(inputs({ onGround: true, position: northOf(LFPG, 0.5) }))).toBe('LFPG');
     expect(oansDefaultAirport(inputs({ onGround: true, position: northOf(LFPO, 1) }))).toBe('LFPO');
