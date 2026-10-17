@@ -3397,7 +3397,7 @@
                             <DUMMY_BUTTON />
                         </UseTemplate>
                         <!-- CARGO SMOKE panel BTL 1 and BTL 2 lights: the fire extinguisher bottle has discharged, or
-                             the TEST pb (A380 FCOM DSC-26-60-20 BTL LIGHTS); systems.wasm cargo_fire_extinguishing.rs -->
+                             the TEST pb; systems.wasm cargo_fire_extinguishing.rs -->
                         <UseTemplate Name="FBW_AIRBUS_Push_Dummy_Template">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_FWD1</NODE_ID>
                             <SEQ1_EMISSIVE_CODE>(L:A32NX_FIRE_TEST_CARGO, Bool) (L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool) or</SEQ1_EMISSIVE_CODE>
@@ -4127,8 +4127,8 @@
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_TEST</NODE_ID>
                         </UseTemplate>
                         <!-- AGENT TO AFT (FWD) pb: SMOKE light when smoke is detected in the compartment (AFT: aft or
-                             bulk), DISCH light when the bottles discharge into it (A380 FCOM DSC-26-60-20 CARGO SMOKE
-                             PANEL), both with the TEST pb; systems.wasm SDF (smoke_detection.rs,
+                             bulk), DISCH light when the bottles discharge into it, both with the TEST pb;
+                             systems.wasm SDF (smoke_detection.rs,
                              cargo_fire_extinguishing.rs) -->
                         <UseTemplate Name="FBW_Push_Toggle">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_AFT</NODE_ID>

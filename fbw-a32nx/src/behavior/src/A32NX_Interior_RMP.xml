@@ -160,7 +160,7 @@
                     alias selectedModeRight = (L:A32NX_RMP_R_SELECTED_MODE, number);
                     alias annunciatorLight = (L:A32NX_OVHD_INTLT_ANN, number);
                     alias dc2Powered = (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, bool);
-                    // A failed RMP is dark and no longer tunes (A320 FCOM DSC-23-60 failure cases)
+                    // A failed RMP is dark and no longer tunes
                     alias rmpFailed = (L:A32NX_RMP_#SIDE#_FAILED, bool);
                     alias rmpLeftFailed = (L:A32NX_RMP_L_FAILED, bool);
                     alias rmpRightFailed = (L:A32NX_RMP_R_FAILED, bool);
@@ -191,7 +191,7 @@
                     alias selectedModeRight = (L:A32NX_RMP_R_SELECTED_MODE, number);
                     alias annunciatorLight = (L:A32NX_OVHD_INTLT_ANN, number);
                     alias dc2Powered = (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, bool);
-                    // A failed RMP is dark and no longer tunes (A320 FCOM DSC-23-60 failure cases)
+                    // A failed RMP is dark and no longer tunes
                     alias rmpFailed = (L:A32NX_RMP_#SIDE#_FAILED, bool);
                     alias rmpLeftFailed = (L:A32NX_RMP_L_FAILED, bool);
                     alias rmpRightFailed = (L:A32NX_RMP_R_FAILED, bool);
@@ -328,7 +328,7 @@
                     alias navButtonPressed = (L:A32NX_RMP_#SIDE#_NAV_BUTTON_SELECTED, bool);
                     alias annunciatorLight = (L:A32NX_OVHD_INTLT_ANN, number);
                     alias dc2Powered = (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, bool);
-                    // A failed RMP is dark (A320 FCOM DSC-23-60 failure cases)
+                    // A failed RMP is dark
                     alias rmpFailed = (L:A32NX_RMP_#SIDE#_FAILED, bool);
                     let emissiveDim = if annunciatorLight == 2 { 0.05 } else { 1 };
                     (if ((!inop and toggleSwitch and !rmpFailed and ((selectedMode == modeId) or (modeId == 12 and navButtonPressed))) or ((annunciatorLight == 0) and dc2Powered)) and indicatorsPowered  {
@@ -385,7 +385,7 @@
                     alias availableMode = (L:A32NX_RMP_#SIDE#_AVAILABLE_MODE, number);
                     alias annunciatorLight = (L:A32NX_OVHD_INTLT_ANN, number);
                     alias dc2Powered = (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, bool);
-                    // A failed RMP is dark (A320 FCOM DSC-23-60 failure cases)
+                    // A failed RMP is dark
                     alias rmpFailed = (L:A32NX_RMP_#SIDE#_FAILED, bool);
                     let emissiveDim = if annunciatorLight == 2 { 0.05 } else { 1 };
                     (if (!inop and toggleSwitch and !rmpFailed and (availableMode == modeId) or ((annunciatorLight == 0) and dc2Powered)) and indicatorsPowered {

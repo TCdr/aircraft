@@ -255,7 +255,7 @@
 
         <UseTemplate Name="FBW_Push_Toggle">
             <TOOLTIPID>%((L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool))%{if}TT:COCKPIT.TOOLTIPS.DEICE_PUSH_ENG_ONLY_ON_#ID# %{else}TT:COCKPIT.TOOLTIPS.DEICE_PUSH_ENG_ONLY_OFF_#ID#%{end}</TOOLTIPID>
-            <!-- FAULT: the anti-ice valve position disagrees with the pb-sw (FCOM DSC-30-30-20, systems ice_rain_protection) -->
+            <!-- FAULT: the anti-ice valve position disagrees with the pb-sw (systems ice_rain_protection) -->
             <SEQ1_CODE>(L:A32NX_PNEU_ENG_#ID#_ANTI_ICE_FAULT, Bool)</SEQ1_CODE>
             <SEQ2_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool)</SEQ2_CODE>
             <LEFT_SINGLE_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool) ! (&gt;L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool)</LEFT_SINGLE_CODE>
@@ -608,8 +608,8 @@ if groundCtl and !groundControlPermissives {
     <!--
     The MSFS "pump" of a centre tank jet pump: it runs while the transfer valve is open (both MSFS valves, or the inhibit
     valve with the MODE SEL MAN junction) and an inner tank pump of the same wing (MOTIVE_PUMP_1/2_INDEX) runs, as the jet
-    pump is driven by their flow (A320 FCOM DSC-28-10 CENTER TANK FUEL TRANSFER: "fuel from the inner tank pumps flows
-    through the jet pump and creates a suction in it").
+    pump is driven by their flow (the fuel of the inner tank pumps flows
+    through the jet pump and creates its suction).
     -->
     <Template Name="FBW_JET_PUMP">
         <Parameters Type="Default">

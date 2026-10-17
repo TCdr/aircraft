@@ -230,7 +230,7 @@
         <UseTemplate Name="FBW_Push_Toggle">
             <TOOLTIPID>%((L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool))%{if}TT:COCKPIT.TOOLTIPS.DEICE_PUSH_ENG_ONLY_ON_#ID# %{else}TT:COCKPIT.TOOLTIPS.DEICE_PUSH_ENG_ONLY_OFF_#ID#%{end}</TOOLTIPID>
             <!-- The pb-sw commands the engine anti-ice valve of the systems model (a380_systems ice_rain_protection.rs), which
-                 drives ENG ANTI ICE. FAULT: the valve position disagrees with the pb-sw (A380 FCOM DSC-30-10-20) -->
+                 drives ENG ANTI ICE. FAULT: the valve position disagrees with the pb-sw -->
             <SEQ1_CODE>(L:A32NX_PNEU_ENG_#ID#_ANTI_ICE_FAULT, Bool)</SEQ1_CODE>
             <SEQ2_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool)</SEQ2_CODE>
             <LEFT_SINGLE_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool) ! (&gt;L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool)</LEFT_SINGLE_CODE>
@@ -242,7 +242,7 @@
             <TOOLTIPID>%((L:A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION, Bool))%{if}TT:COCKPIT.TOOLTIPS.DEICE_WINGS_ON%{else}TT:COCKPIT.TOOLTIPS.DEICE_WINGS_OFF%{end}</TOOLTIPID>
             <!-- The pb-sw commands the AICU wing anti-ice of the systems model (a380_systems ice_rain_protection.rs), whose
                  valves drive STRUCTURAL DEICE. ON: the pb-sw, also while the AICU inhibits the valves. FAULT: valve
-                 position disagreement or low pressure (A380 FCOM DSC-30-10-20) -->
+                 position disagreement or low pressure -->
             <SEQ1_CODE>(L:A32NX_PNEU_WING_ANTI_ICE_FAULT, Bool)</SEQ1_CODE>
             <SEQ2_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION, Bool)</SEQ2_CODE>
             <LEFT_SINGLE_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION, Bool) ! (&gt;L:A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION, Bool)</LEFT_SINGLE_CODE>

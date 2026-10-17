@@ -2572,7 +2572,7 @@
                             <TOGGLE_SIMVAR>L:A32NX_OVHD_EMER_ELEC_GEN_1_LINE_PB_IS_ON</TOGGLE_SIMVAR>
                             <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                             <!-- SMOKE: the amber light comes on when smoke is detected in the avionics ventilation duct
-                                 (A320 FCOM DSC-26-30-20 GEN 1 LINE PB-SW), systems.wasm smoke detection -->
+                                 (systems.wasm smoke detection) -->
                             <SEQ1_CODE>(L:A32NX_OVHD_EMER_ELEC_GEN_1_LINE_PB_HAS_FAULT, Bool) (L:A32NX_SMOKE_AVIONICS_DETECTED, Bool) or</SEQ1_CODE>
                             <SEQ2_CODE>(L:A32NX_OVHD_EMER_ELEC_GEN_1_LINE_PB_IS_ON, Bool) !</SEQ2_CODE>
                             <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
@@ -2976,8 +2976,7 @@
                             <NODE_ID>PUSH_OVHD_VENTILATION_BLOWER</NODE_ID>
                             <TOGGLE_SIMVAR>L:A32NX_VENTILATION_BLOWER_TOGGLE</TOGGLE_SIMVAR>
                             <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool) (L:A32NX_ELEC_AC_STAT_INV_BUS_IS_POWERED, Bool) or</SEQ_POWERED>
-                            <!-- FAULT also when smoke is detected in the avionics ventilation duct (A320 FCOM
-                                 DSC-26-30-20 BLOWER PB-SW), systems.wasm smoke detection -->
+                            <!-- FAULT also when smoke is detected in the avionics ventilation duct (systems.wasm smoke detection) -->
                             <SEQ1_CODE>(L:A32NX_VENTILATION_BLOWER_FAULT, Bool) (L:A32NX_SMOKE_AVIONICS_DETECTED, Bool) or</SEQ1_CODE>
                             <SEQ2_CODE>(L:A32NX_VENTILATION_BLOWER_TOGGLE, Bool) !</SEQ2_CODE>
                             <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
@@ -2993,8 +2992,7 @@
                             <NODE_ID>PUSH_OVHD_VENTILATION_EXTRACT</NODE_ID>
                             <TOGGLE_SIMVAR>L:A32NX_VENTILATION_EXTRACT_TOGGLE</TOGGLE_SIMVAR>
                             <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool) (L:A32NX_ELEC_AC_STAT_INV_BUS_IS_POWERED, Bool) or</SEQ_POWERED>
-                            <!-- FAULT also when smoke is detected in the avionics ventilation duct (DSC-26-30-20 EXTRACT
-                                 PB-SW) -->
+                            <!-- FAULT also when smoke is detected in the avionics ventilation duct -->
                             <SEQ1_CODE>(L:A32NX_VENTILATION_EXTRACT_FAULT, Bool) (L:A32NX_SMOKE_AVIONICS_DETECTED, Bool) or</SEQ1_CODE>
                             <SEQ2_CODE>(L:A32NX_VENTILATION_EXTRACT_TOGGLE, Bool) !</SEQ2_CODE>
                             <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
@@ -3500,7 +3498,7 @@
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_TEST</NODE_ID>
                         </UseTemplate>
                         <!-- CARGO SMOKE AFT: the red SMOKE light comes on when the system detects smoke in the
-                             compartment (A320 FCOM DSC-26-50-20 SMOKE LIGHT), systems.wasm smoke detection, or with the
+                             compartment (systems.wasm smoke detection), or with the
                              TEST pb -->
                         <UseTemplate Name="FBW_Push_Toggle">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_FWD2</NODE_ID>
@@ -3535,10 +3533,9 @@
                             <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_CARGOSMOKE_FWD_DISCHARGED)</LEFT_SINGLE_CODE>
                             <TOOLTIPID>%((L:A32NX_CARGOSMOKE_FWD_DISCHARGED, Bool))%{if}Fire-extinguisher discharged%{else}Discharge fire-extinguisher%{end}</TOOLTIPID>
                             <MOMENTARY/>
-                            <!-- DISCH: the amber light comes on when the (single) cargo bottle is fully discharged (A320
-                                 FCOM DSC-26-50-20 DISCH LIGHT), systems.wasm cargo_fire_extinguishing.rs, and while the
-                                 CARGO SMOKE TEST pb is held, like the red SMOKE lights (DSC-26-50-20 TEST PB: "The DISCH
-                                 lights come on in amber"). Same for the AFT DISCH light below. -->
+                            <!-- DISCH: the amber light comes on when the (single) cargo bottle is fully discharged
+                                 (systems.wasm cargo_fire_extinguishing.rs), and while the CARGO SMOKE TEST pb is held, like
+                                 the red SMOKE lights (the test lights them in amber). Same for the AFT DISCH light below. -->
                             <SEQ1_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool) (L:A32NX_FIRE_TEST_CARGO, Bool) or</SEQ1_CODE>
                             <SEQ2_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool) (L:A32NX_FIRE_TEST_CARGO, Bool) or</SEQ2_CODE>
                         </UseTemplate>
@@ -4924,7 +4921,7 @@
                 <POTENTIOMETER>85</POTENTIOMETER>
                 <SEQ1_POWERED>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</SEQ1_POWERED>
             </UseTemplate>
-            <!-- ATC FAIL light: the selected XPDR failed or unpowered (FCOM DSC-34-SURV-10-20 item 8), or the annunciator test -->
+            <!-- ATC FAIL light: the selected XPDR failed or unpowered, or the annunciator test -->
             <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                 <NODE_ID>PUSH_ATC_FAIL_SEQ2</NODE_ID>
                 <EMISSIVE_CODE>(L:A32NX_OVHD_INTLT_ANN) 0 == (L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool) and (L:A32NX_TRANSPONDER_SYSTEM, number) 1 == (L:A32NX_XPDR_2_FAILED, Bool) and (L:A32NX_TRANSPONDER_SYSTEM, number) 1 != (L:A32NX_XPDR_1_FAILED, Bool) and or or (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool) and</EMISSIVE_CODE>
