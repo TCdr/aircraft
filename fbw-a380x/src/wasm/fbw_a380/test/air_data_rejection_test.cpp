@@ -23,7 +23,6 @@ static void expect(bool condition, const char* what) {
   }
 }
 
-/// SignStatusMatrix::NormalOperation
 static constexpr uint32_T SSM_NORMAL_OPERATION = 3U;
 
 static base_arinc_429 normal(float value) {

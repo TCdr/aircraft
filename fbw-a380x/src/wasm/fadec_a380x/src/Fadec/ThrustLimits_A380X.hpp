@@ -303,7 +303,7 @@ class ThrustLimits_A380X {
         cn1 = (m * ambientTemp) + b;
       }
       if (type <= 1) {
-        // DOx derated takeoff (FCOM DSC-70-20-40 l.111561-111565): the rated thrust reduced by 4 to 24 %
+        // DOx derated takeoff: the rated thrust reduced by 4 to 24 %
         cn1 = TakeoffDerate_A380X::deratedCorrectedN1(cn1, thrustReductionPercent);
       }
     }

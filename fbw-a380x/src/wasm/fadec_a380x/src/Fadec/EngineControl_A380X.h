@@ -112,8 +112,7 @@ class EngineControl_A380X {
   static constexpr double FORCE_LB_TO_N       = 4.4482216153;
   static constexpr double FUEL_RATE_THRESHOLD = 661;  // lbs/sec for determining fuel ui tampering
 
-  // Seizure failure: the core stops in about 3 s (design choice, the FCOM gives no rate): N3 decays at 2 /s from the
-  // failure and is 0 below 0.5 %.
+  // Seizure failure: the core stops in about 3 s (design choice): N3 decays at 2 /s from the failure and is 0 below 0.5 %.
   static constexpr double SEIZED_CORE_DECAY_RATE = 2.0;  // 1/s
   static constexpr double SEIZED_CORE_STOPPED_N3 = 0.5;  // percent
 

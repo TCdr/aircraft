@@ -40,32 +40,28 @@ pub struct A380ReverserController {
     secondary_lock_from_prim_should_unlock: bool,
     tertiary_lock_from_prim_should_unlock: bool,
 
-    /// flyPad "Reverser N fault (does not deploy)": A380 FCOM ENG 2(3) REVERSER FAULT (a380_fcom.txt
-    /// l.173514, "One thrust reverser is failed"), INOP SYS ENG 2(3) REVERSER.
+    /// flyPad "Reverser N fault (does not deploy)": ENG 2(3) REVERSER FAULT, INOP SYS ENG 2(3)
+    /// REVERSER.
     fault: Failure,
-    /// flyPad "Reverser N control fault (ETRAC)": ENG 2(3) REVERSER CTL FAULT (l.173449-173450, "One
-    /// thrust reverser control system is failed. The affected thrust reverser is inoperative.").
+    /// flyPad "Reverser N control fault (ETRAC)": ENG 2(3) REVERSER CTL FAULT, the reverser is
+    /// inoperative.
     control_fault: Failure,
-    /// flyPad "Reverser N failed locked": ENG 2(3) REVERSER LOCKED (l.173595-173596, "One thrust
-    /// reverser is failed locked. Primary left, right or tertiary locking system is failed locked"):
-    /// the locks are not released, the reverser does not deploy.
+    /// flyPad "Reverser N failed locked": ENG 2(3) REVERSER LOCKED (a primary or the tertiary lock
+    /// failed locked): the locks are not released, the reverser does not deploy.
     locked: Failure,
-    /// flyPad "Reverser N energized (tertiary lock unlocked)": ENG 2(3) REVERSER ENERGIZED
-    /// (l.173495-173497, "On ground, the thrust reverser is energized without thrust reverser
-    /// deployment order. In flight, the thrust reverser is energized and the tertiary lock is failed
-    /// not locked."). Design choice: the tertiary lock stays released, the two primary locks hold the
-    /// cowls stowed.
+    /// flyPad "Reverser N energized (tertiary lock unlocked)": ENG 2(3) REVERSER ENERGIZED (on ground
+    /// energized without deployment order, in flight energized with the tertiary lock failed not
+    /// locked). Design choice: the tertiary lock stays released, the two primary locks hold the cowls
+    /// stowed.
     energized: Failure,
-    /// flyPad "Reverser N minor fault (alert only)": ENG 2(3) REVERSER MINOR FAULT (l.173676-173677,
-    /// "Displayed, after landing, when the FADEC detects a failure that does not impair thrust
-    /// reversers operation"): the reverser operates normally.
+    /// flyPad "Reverser N minor fault (alert only)": ENG 2(3) REVERSER MINOR FAULT, shown after landing
+    /// for a failure that does not impair the reverser: it operates normally.
     minor_fault: Failure,
-    /// flyPad "Reverser N inhibited (maintenance)": ENG 2(3) REVERSER INHIBITED (l.173579, "One
-    /// thrust reverser has been electrically and mechanically inhibited by maintenance action"): the
-    /// locks are not released, the reverser does not deploy.
+    /// flyPad "Reverser N inhibited (maintenance)": ENG 2(3) REVERSER INHIBITED by maintenance action:
+    /// the locks are not released, the reverser does not deploy.
     inhibited: Failure,
-    /// The FADEC no longer commands a deployment (thrust lever fault: INOP SYS ENG 2(3) REVERSER,
-    /// l.173326-173328). Set by the engine control failures (engine_control_failure.rs).
+    /// The FADEC no longer commands a deployment (thrust lever fault: INOP SYS ENG 2(3) REVERSER).
+    /// Set by the engine control failures (engine_control_failure.rs).
     deployment_inhibited: bool,
 }
 impl A380ReverserController {
@@ -156,17 +152,14 @@ impl A380ReverserController {
             && lgciu.left_and_right_gear_compressed(false)
     }
 
-    /// A380 FCOM DSC-70-70 THIRD LINE OF DEFENSE (a380_fcom.txt l.112207-112218): "The third line of
-    /// defense is cleared when: - The Throttle is set to the reverse position ... - The aircraft is on
-    /// ground." Before 2026-10-13 the on-ground condition was missing: a lever in reverse in flight
-    /// released the tertiary lock.
+    /// Third line of defense: the tertiary lock is released only with the throttle in reverse and the
+    /// aircraft on the ground (in flight a lever in reverse must not release it).
     fn third_line_of_defense_condition_should_unlock(
         &self,
         lgciu: &impl LgciuWeightOnWheels,
     ) -> bool {
-        // TODO The PRIM uses "a throttle position independent of the throttle position that the
-        // FADEC uses" (l.112212-112213) and its own on-ground data: the TLA and this LGCIU are
-        // placeholders for them.
+        // TODO The PRIM uses a throttle position independent of the one the FADEC uses, and its own
+        // on-ground data: the TLA and this LGCIU are placeholders for them.
         self.throttle_lever_angle.get::<degree>() <= Self::THIRD_LINE_OF_DEFENCE_TLA_ANGLE_DEGREE
             && lgciu.left_and_right_gear_compressed(false)
     }
@@ -307,10 +300,9 @@ pub struct A380Reversers {
     reversers_in_transition: [bool; 2],
     reversers_deployed: [bool; 2],
 
-    /// flyPad "Reverser N unlocked (engine at idle)": ENG 2(3) REVERSER UNLOCKED (a380_fcom.txt
-    /// l.173663, "One thrust reverser is not fully locked while not commanded deployed by the flight
-    /// crew"). Design choice: the cowls stay in the stowed position (no reverse thrust, no buffet); the
-    /// FADEC sets the engine at idle ("ENG 2(3) IDLE ONLY", l.173678).
+    /// flyPad "Reverser N unlocked (engine at idle)": ENG 2(3) REVERSER UNLOCKED, a reverser not fully
+    /// locked while not commanded deployed. Design choice: the cowls stay in the stowed position (no
+    /// reverse thrust, no buffet); the FADEC sets the engine at idle (ENG 2(3) IDLE ONLY).
     unlocked: [Failure; 2],
 
     reverser_unlocked_ids: [VariableIdentifier; 2],
@@ -751,8 +743,8 @@ mod tests {
         assert!(test_bed.position(1) < 0.01);
     }
 
-    /// FCOM DSC-70-70 THIRD LINE OF DEFENSE (l.112207-112218): the tertiary lock is released with
-    /// the throttle in reverse on the ground only.
+    /// Third line of defense: the tertiary lock is released with the throttle in reverse on the
+    /// ground only.
     #[test]
     fn third_line_of_defense_is_cleared_on_ground_only() {
         let test_bed = ReverserTestBed::new().levers(-20.).run_for(1.);
@@ -769,7 +761,7 @@ mod tests {
             .query(|a| a.controllers[1].should_unlock_third()));
     }
 
-    /// ENG 2(3) REVERSER MINOR FAULT (l.173676-173677): the reverser still operates.
+    /// ENG 2(3) REVERSER MINOR FAULT: the reverser still operates.
     #[test]
     fn reverser_with_a_minor_fault_deploys_and_is_reported() {
         let mut test_bed = ReverserTestBed::new()
@@ -781,8 +773,8 @@ mod tests {
         assert!(!test_bed.flag("REVERSER_3_MINOR_FAULT"));
     }
 
-    /// ENG 2(3) REVERSER INHIBITED (l.173579): inhibited by maintenance action, the reverser does
-    /// not deploy and its locks stay locked.
+    /// ENG 2(3) REVERSER INHIBITED by maintenance action: the reverser does not deploy and its locks
+    /// stay locked.
     #[test]
     fn reverser_inhibited_by_maintenance_does_not_deploy() {
         let mut test_bed = ReverserTestBed::new()
@@ -825,8 +817,7 @@ mod tests {
             .query(|a| a.reversers.monitoring()[0].in_operation));
     }
 
-    /// FCOM DSC-70-70 AUTO-IDLE PROTECTION (l.112250-112256): the FADECs of the outboard engines
-    /// read the reverser operation.
+    /// Auto-idle protection: the FADECs of the outboard engines read the reverser operation.
     #[test]
     fn the_reverser_operation_lasts_from_the_deploy_order_to_the_end_of_the_stowage() {
         let test_bed = ReverserTestBed::new().run_for(1.);

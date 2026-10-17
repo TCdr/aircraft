@@ -12,19 +12,18 @@
  * @brief The derated takeoff thrust rating of the FADEC (DOx), as a corrected N1 limit. No MSFS SDK dependency: tested
  * natively (test/run_tests.sh).
  *
- * A380 FCOM DSC-70-20-40 THRUST RATING LIMIT (a380_fcom.txt l.111561-111568): "DOx : Derated takeoff mode. The DOx mode
- * reduces the maximum thrust at takeoff. 6 derated takeoff levels are defined: DO4 , DO8 , D12 , D16 , D20 , D24 . Each
- * level reduces the maximum thrust from 4 % up to 24 %." The flight crew selects the level on the T.O panel of the MFD
- * PERF page (L:A32NX_AIRLINER_TO_DERATE, the thrust reduction in percent, 0 for no derate).
+ * DOx derated takeoff: six levels, D04, D08, D12, D16, D20 and D24, reduce the maximum takeoff thrust by 4 % up to 24 %. The
+ * flight crew selects the level on the T.O panel of the MFD PERF page (L:A32NX_AIRLINER_TO_DERATE, the thrust reduction in
+ * percent, 0 for no derate).
  *
- * The FCOM gives the reduction as a thrust, the FADEC limits are N1. The thrust of a corrected N1 is the one MSFS applies:
- * the Mach 0 column of n1_and_mach_on_thrust_table of the A380X engines.cfg (common/config/engines.cfg), the static
- * thrust the takeoff rating is defined at. The derated N1 is the corrected N1 at which that table gives the rated thrust
- * reduced by the derate. Keep THRUST_TABLE in step with engines.cfg.
+ * The reduction is a thrust, the FADEC limits are N1. The thrust of a corrected N1 is the one MSFS applies: the Mach 0 column
+ * of n1_and_mach_on_thrust_table of the A380X engines.cfg (common/config/engines.cfg), the static thrust the takeoff rating is
+ * defined at. The derated N1 is the corrected N1 at which that table gives the rated thrust reduced by the derate. Keep
+ * THRUST_TABLE in step with engines.cfg.
  */
 class TakeoffDerate_A380X {
  public:
-  /// The six levels of the FCOM (l.111564): the thrust reduction of D04 to D24, in percent
+  /// The six derate levels: the thrust reduction of D04 to D24, in percent
   static constexpr double MAX_THRUST_REDUCTION_PERCENT = 24.0;
 
   /**

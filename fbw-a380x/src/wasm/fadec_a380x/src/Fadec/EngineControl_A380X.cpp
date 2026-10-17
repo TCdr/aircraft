@@ -66,13 +66,13 @@ void EngineControl_A380X::update() {
 
     // The systems WASM cuts the engine fuel (L:A32NX_ENGINE_n_FUEL_CUT; it also closes the MSFS fuel valve 60 to 63 in series
     // with the engine feed, so MSFS stops the combustion):
-    // - when the engine is starved. FCOM DSC-28-10: "The LP valves automatically close, when their associated ENG FIRE pb is
-    //   pushed." The systems WASM tracks the fuel left between the closed LP valve and the engine.
+    // - when the engine is starved: the LP valve closes with the ENG FIRE pb, and the systems WASM tracks the fuel left
+    //   between the closed LP valve and the engine.
     // - after a flameout or a seizure failure, and during an in-flight relight, until the engine lights up inside the relight
-    //   envelope (FCOM PRO-ABN-ECAM-10-70 ENG RELIGHT IN FLIGHT, see a380_systems engine_failure.rs).
+    //   envelope (see a380_systems engine_failure.rs).
     // An engine whose fuel is cut is handled as if its starter (driven by the ENG MASTER switch) were off: it shuts down and
     // cannot relight while its fuel is cut. During a relight attempt (the 30 s after a MASTER ON for a relight) the FADEC runs
-    // its start sequence while the fuel is still cut: the start valve opens (FCOM DSC-70-30 IN FLIGHT, l.113567) so that a
+    // its start sequence while the fuel is still cut: the start valve opens (in flight below 11 % N2 or 260 kt) so that a
     // starter assisted relight gets its starter air, and the systems WASM releases the fuel cut when the engine lights up.
     // The MSFS starter itself is left alone, the ENG MASTER switch behaviour keeps it in sync with the switch.
     const bool engineFuelCut        = simData.engineFuelCut[engineIdx]->getAsBool();
@@ -114,14 +114,14 @@ void EngineControl_A380X::update() {
     const double msfsN1        = simData.simVarsDataPtr->data().simEngineN1[engineIdx];
     const double msfsN3        = simData.simVarsDataPtr->data().simEngineN2[engineIdx];  // as the sim does not have N3, we use N2
     // At the end of an MSFS start (in-flight relight) the MSFS core jumps to the top of its fuel flow table for a few seconds
-    // (96.9-99.2 % recorded, sim tests 2026-10-06). The FADEC uses and shows the speeds through the guard, which holds them at idle
+    // (96.9-99.2 % measured in the sim). The FADEC uses and shows the speeds through the guard, which holds them at idle
     // (start that ends) or at a normal acceleration (running engine) meanwhile; MSFS values otherwise (see CoreSpikeGuard_A380X).
     const CoreSpikeGuard_A380X::Output guardedSpeeds = coreSpikeGuard[engineIdx].update(
         {msfsN3, msfsN1, engineState == STARTING || engineState == RESTARTING, idleN3, simData.engineIdleN1->get(), deltaTime});
     const double simN1 = guardedSpeeds.n1;
     const double simN3 = guardedSpeeds.n3;
-    // The guard only hides the jump from the FADEC: MSFS still takes its fan along and gives a real thrust pulse (blip2.log, sim
-    // test 2026-10-08: engine 4 thrust -2 100 -> +11 800 lb for 10 s after an in-flight relight). In flight the FADEC therefore also
+    // The guard only hides the jump from the FADEC: MSFS still takes its fan along and gives a real thrust pulse (measured in
+    // the sim: engine 4 thrust -2 100 -> +11 800 lb for 10 s after an in-flight relight). In flight the FADEC therefore also
     // writes the MSFS core back to a ceiling near idle while the MSFS fuel flow controller, wound up during the start, unwinds (see
     // MsfsCoreLimiter_A380X). The ceiling is an uncorrected speed: it is written as TURB ENG CORRECTED N2 with the corrected /
     // uncorrected ratio MSFS uses this frame.
@@ -148,15 +148,13 @@ void EngineControl_A380X::update() {
     prevSimEngineN3[engineIdx] = simN3;
 
     // The FADEC selects both igniters whatever the ENG START selector position (EngineIgnition_A380X):
-    // - In-flight relight. A380 FCOM DSC-70-30 IN FLIGHT (a380_fcom.txt l.113572): at the MASTER ON "Ignition starts
-    //   (igniters A + B)", and the quick relight "automatically selects the continuous ignition with both igniters"
-    //   (l.112541-112543). While the systems WASM reports a relight lighting up (fuel back, master ON, engine not running).
-    // - Auto relight. FCOM DSC-70-80-30-20 (l.112533-112537): "If the FADEC detects an engine flame out, on ground or in flight,
-    //   continuous ignition with both igniters is automatically selected. The ignition is maintained for 60 s after engine
-    //   relight." While an engine that must run (state ON, master ON, fuel not cut, FADEC supplied) has lost its MSFS combustion.
-    // MSFS only burns again with its ignition switch at IGN (on the A32NX a quick relight at NORM crawled for minutes without
-    // combustion; on 2026-10-06 four A380X engines windmilled at NORM for 150 s without combustion). The MSFS ignition switch of
-    // that engine is set to IGN meanwhile, then given back to the ENG START selector position.
+    // - In-flight relight: ignition with igniters A + B from the MASTER ON, and the quick relight selects continuous ignition
+    //   with both igniters. While the systems WASM reports a relight lighting up (fuel back, master ON, engine not running).
+    // - Auto relight: after a flameout, on the ground or in flight, continuous ignition with both igniters, kept 60 s after the
+    //   relight. While an engine that must run (state ON, master ON, fuel not cut, FADEC supplied) has lost its MSFS combustion.
+    // MSFS only burns again with its ignition switch at IGN (measured in the sim: an A32NX quick relight at NORM crawled for
+    // minutes without combustion, and four A380X engines windmilled at NORM for 150 s without combustion). The MSFS ignition
+    // switch of that engine is set to IGN meanwhile, then given back to the ENG START selector position.
     const bool firePbReleased = simData.engineFirePbReleased[engineIdx]->getAsBool();
     // GENERAL ENG COMBUSTION is only needed (and read) for a running engine: the auto relight watches no other state
     const bool simCombustion = engineState == ON &&
@@ -630,8 +628,7 @@ void EngineControl_A380X::engineStartProcedure(int         engine,
   }
 
   // The MSFS core speed during the start: held at 0 during the start delay on the ground, and in flight (or in a quick relight on
-  // the ground, FCOM DSC-70-80-30-20 l.112539-112545) brought to the light-up speed once the systems WASM lets the relight light
-  // up (see RelightStart_A380X).
+  // the ground) brought to the light-up speed once the systems WASM lets the relight light up (see RelightStart_A380X).
   const bool simOnGround        = msfsHandlerPtr->getSimOnGround();
   const bool groundQuickRelight = simOnGround && simData.engineGroundQuickRelight[engineIdx]->getAsBool();
   // GENERAL ENG COMBUSTION is only needed (and read) in flight or in a ground quick relight while the fuel is not cut
@@ -729,7 +726,7 @@ void EngineControl_A380X::engineShutdownProcedure(int    engine,
   }
 
   // Seizure failure: the core stops, from the failure on, without the delay of a normal shutdown (design choice: about 3 s).
-  // FCOM ENG 1(2)(3)(4) FAIL (a380_fcom.txt l.171834) treats a damaged engine (fire pb, agent) apart from the relight.
+  // A damaged engine is handled by the fire pb and agent procedure, not by a relight.
   if (engineSeized) {
     const double decayedN3 = simData.engineN3[engineIdx]->get() * (std::exp)(-SEIZED_CORE_DECAY_RATE * deltaTime);
     const double seizedN3  = decayedN3 < SEIZED_CORE_STOPPED_N3 ? 0.0 : decayedN3;
@@ -870,8 +867,7 @@ void EngineControl_A380X::updateEGT(int          engine,
     simData.engineEgt[engineIdx]->set(ambientTemperature);
   } else {
     // The EGT offset of the stall and EGT overtemperature failures (systems WASM, a380_systems engine_malfunction.rs) has its
-    // own dynamics: it is added after the slow EGT lag below, so that a stall gives the rapid EGT rise of the FCOM (ENG STALL,
-    // a380_fcom.txt l.172818: "high EGT, and/or a rapid EGT rise").
+    // own dynamics: it is added after the slow EGT lag below, so that a stall gives the rapid EGT rise of an ENG STALL.
     const double egtOffset       = simData.engineEgtOffset[engineIdx]->get();
     const double correctedEGT    = Polynomial_A380X::correctedEGT(simCN1, correctedFuelFlow, mach, pressureAltitude);
     const double egtFbwTarget    = (correctedEGT * EngineRatios::theta2(mach, ambientTemperature));
@@ -1136,7 +1132,7 @@ void EngineControl_A380X::updateFuel(double deltaTimeSeconds) {
         cycleBurnKg          = (fuelFlowRateChange * std::pow(deltaTimeHours, 2) / 2) + (previousFuelFlowRate * deltaTimeHours);
       }
       // Taken from the Extra tank. While its feed tank holds fuel, one long frame does not empty it: an empty Extra tank leaves MSFS
-      // no fuel at the engine (suspected cause of the four-engine flameout of 2026-10-06). The burn that cannot be taken yet is
+      // no fuel at the engine (the suspected cause of a four-engine flameout seen in the sim). The burn that cannot be taken yet is
       // carried to the next updates.
       const FeedTankDraw_A380X::Output draw = FeedTankDraw_A380X::draw(
           {extraTankGallons[i], weightLbsPerGallon, cycleBurnKg, carriedFeedTankBurnLbs[i], feedTankQty[i] > 0});
@@ -1242,8 +1238,8 @@ void EngineControl_A380X::updateThrustLimits(double simulationTime,
     flex_to = ThrustLimits_A380X::limitN1(0, altitude, ambientTemperature, ambientPressure, latchedFlexTemperature, packs, nai, wai);
     flex_ga = ThrustLimits_A380X::limitN1(1, altitude, ambientTemperature, ambientPressure, latchedFlexTemperature, packs, nai, wai);
   } else if (latchedDerate > 0) {
-    // DOx derated takeoff (FCOM DSC-70-20-40 l.111561-111565), at the FLX-MCT detent as a FLEX takeoff (DSC-22-FG-50-30
-    // MAN DTO l.11443-11446): the FADEC model of the flight computers uses this FLX limit (fbw_a380 TakeoffDerate.h)
+    // DOx derated takeoff, at the FLX-MCT detent as a FLEX takeoff: the FADEC model of the flight computers uses this FLX limit
+    // (fbw_a380 TakeoffDerate.h)
     flex_to = ThrustLimits_A380X::limitN1(0, altitude, ambientTemperature, ambientPressure, 0, packs, nai, wai, latchedDerate);
     flex_ga = ThrustLimits_A380X::limitN1(1, altitude, ambientTemperature, ambientPressure, 0, packs, nai, wai, latchedDerate);
   }

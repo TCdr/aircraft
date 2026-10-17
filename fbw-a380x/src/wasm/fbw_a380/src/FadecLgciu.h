@@ -3,12 +3,11 @@
 // The LGCIU that gives each A380X FADEC its on-ground signal.
 //
 // The aircraft has 4 FADECs (one per engine) but only 2 LGCIUs (L:A32NX_LGCIU_1/2_..., arrays of 2 in
-// FlyByWireInterface). The FADEC loop used the engine index as the LGCIU index, so engines 3 and 4 read past the end
-// of the LGCIU arrays.
+// FlyByWireInterface): the engine index cannot be the LGCIU index, engines 3 and 4 would read past the end of the LGCIU
+// arrays.
 //
-// Design choice (the A380 FCOM does not say which LGCIU each FADEC uses): the engines are split by side, like the
-// A32NX where engine 1 reads LGCIU 1 and engine 2 reads LGCIU 2: engines 1 and 2 (left wing) read LGCIU 1, engines 3
-// and 4 (right wing) read LGCIU 2.
+// Design choice (no published LGCIU per FADEC): the engines are split by side, like the A32NX where engine 1 reads LGCIU 1
+// and engine 2 reads LGCIU 2: engines 1 and 2 (left wing) read LGCIU 1, engines 3 and 4 (right wing) read LGCIU 2.
 
 constexpr int FADEC_COUNT = 4;
 constexpr int LGCIU_COUNT = 2;

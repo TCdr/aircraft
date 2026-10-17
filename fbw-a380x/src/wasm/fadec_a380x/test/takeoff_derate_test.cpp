@@ -25,8 +25,7 @@ static bool near(double value, double expected, double tolerance) {
 /// The corrected N1 of the TOGA rating at sea level below the corner point (ThrustLimits_A380X TO row 0 ft, CN1 Flat)
 static constexpr double SEA_LEVEL_TOGA_CN1 = 83.832;
 
-/// FCOM DSC-70-20-40 (l.111564-111565): "6 derated takeoff levels are defined: DO4 , DO8 , D12 , D16 , D20 , D24 . Each
-/// level reduces the maximum thrust from 4 % up to 24 %."
+/// Six derate levels, D04 to D24, reduce the maximum thrust by 4 % up to 24 %.
 static void testEachLevelReducesTheRatedThrustByItsPercentage() {
   const double ratedThrust = TakeoffDerate_A380X::thrustOfCorrectedN1(SEA_LEVEL_TOGA_CN1);
   double       previousN1  = SEA_LEVEL_TOGA_CN1;

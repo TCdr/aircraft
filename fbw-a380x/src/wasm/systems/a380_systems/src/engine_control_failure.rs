@@ -1,34 +1,27 @@
-//! FADEC, thrust lever and thrust reverser failures of the A380 (engine failures stage B5): the
-//! thrust lever angle the FADECs use, and the FADEC status the FWS reads.
+//! FADEC, thrust lever and thrust reverser failures of the A380: the thrust lever angle the FADECs
+//! use, and the FADEC status the FWS reads.
 //!
 //! Per engine (1 to 4):
-//! - FADEC avionics network link (A380 FCOM ENG 1(2)(3)(4) FADEC FAULT, a380_fcom.txt
-//!   l.171542-171604): "The FADEC of the ENG 1(2)(3)(4) cannot communicate via the avionic networks
-//!   ... The FADEC can still provide engine control, and transmits to the EWD the primary engine
-//!   parameters ... The ENG 1(2)(3)(4) parameters on the ENG SD page are lost", INOP SYS ENG n A/THR
-//!   (if the A/THR is engaged). The flight computer interface cuts the PRIM orders (A/THR) to that
-//!   FADEC; the SD ENG page shows XX for that engine.
-//! - FADEC system fault (FADEC SYS FAULT, l.171654-171667, "A FADEC failure affects the control of
-//!   the engine", crew awareness) and FADEC overheat (FADEC TEMP HI, l.171683-171693, crew
-//!   awareness): alerts only.
-//! - Thrust lever resolvers (ENG 1(2)(3)(4) THR LEVER FAULT, l.173303-173335): [`A380ThrustLeverRating`].
+//! - FADEC avionics network link (ENG 1(2)(3)(4) FADEC FAULT): the FADEC cannot communicate over
+//!   the avionics networks but still controls its engine and sends the primary parameters to the
+//!   EWD; the ENG SD page loses that engine (XX), INOP SYS ENG n A/THR if the A/THR is engaged. The
+//!   flight computer interface cuts the PRIM orders (A/THR) to that FADEC.
+//! - FADEC system fault (FADEC SYS FAULT) and FADEC overheat (FADEC TEMP HI): crew awareness
+//!   alerts only.
+//! - Thrust lever resolvers (ENG 1(2)(3)(4) THR LEVER FAULT): [`A380ThrustLeverRating`].
 //!
-//! Per reverser (engines 2 and 3 only: "When the thrust lever of the engine 2(3) is set to the
-//! reverse position", DSC-70-70 l.112148; FBW ThrottleAxisMapping disables reverse on engines 1
-//! and 4): the reverse idle of a deployment ("During the thrust reverser deployment, the engine
-//! reverse thrust is limited to reverse idle", l.112117) and the idle protection of an unlocked
-//! reverser ("ENG 2(3) IDLE ONLY", l.173678).
+//! Per reverser (engines 2 and 3 only, the only engines with a reverse lever position; FBW
+//! ThrottleAxisMapping disables reverse on engines 1 and 4): the reverse thrust is limited to
+//! reverse idle during the deployment, and an unlocked reverser holds its engine at idle (ENG 2(3)
+//! IDLE ONLY).
 //!
-//! Auto-idle protection of the outboard engines (engines 1 and 4), DSC-70-70 THIRD LINE OF DEFENSE
-//! (a380_fcom.txt l.112250-112256): "The auto-idle protection ensures that the outboard engines are
-//! at idle during the thrust reversers operation. The auto-idle protection activates if at least one
-//! outboard engine thrust lever is above idle detent during thrust reverser operation."
+//! Auto-idle protection of the outboard engines (engines 1 and 4): they are held at idle while the
+//! reversers operate, when an outboard thrust lever is above the idle detent.
 //!
-//! The idle protection of an inadvertent deployment (l.112243-112249: "The reverse thrust is not
-//! selected - At least one thrust reverser translating cowl is deployed by more than 5 %") stays on
-//! the unlocked reverser without a deploy order: the 5 % cowl travel is a detection threshold, and
-//! an unlocked reverser (ENG 2(3) REVERSER UNLOCKED, "IDLE ONLY", l.173678) is already detected at
-//! the unlock, before any cowl travel.
+//! The idle protection of an inadvertent deployment (reverse not selected and a translating cowl
+//! deployed by more than 5 %) stays on the unlocked reverser without a deploy order: the 5 % cowl
+//! travel is a detection threshold, and an unlocked reverser (ENG 2(3) REVERSER UNLOCKED, IDLE
+//! ONLY) is already detected at the unlock, before any cowl travel.
 
 use systems::{
     engine::engine_control_failure::{
@@ -52,11 +45,10 @@ const REVERSE_IDLE_TLA_DEG: f64 = -6.;
 /// The engine rating the FADEC selects with a failed thrust lever, written as
 /// `ENGINE_n_THR_LEVER_RATING` for the FWS.
 ///
-/// ENG 1(2)(3)(4) THR LEVER FAULT, "the FADEC has lost the throttle lever position"
-/// (l.173306): "On ground: ENG 1(2)(3)(4) IDLE ONLY ... The affected engine is automatically set
-/// to idle. In flight: ENG 1(2)(3)(4) CLB ONLY ... THR LEVER CLB. The affected engine power is
-/// automatically limited." (l.173316-173323). Design choice: limited to CLB = the FADEC uses the
-/// CL detent, so the A/THR still manages the engine between idle and CLB.
+/// ENG 1(2)(3)(4) THR LEVER FAULT, the FADEC has lost the thrust lever position: on the ground the
+/// engine is set to idle (IDLE ONLY), in flight its power is limited (CLB ONLY, THR LEVER CLB).
+/// Design choice: limited to CLB = the FADEC uses the CL detent, so the A/THR still manages the
+/// engine between idle and CLB.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum A380ThrustLeverRating {
     #[default]
@@ -364,7 +356,7 @@ mod tests {
         assert!(!read_bool(&mut test_bed, "ENGINE_3_FADEC_AUTO_IDLE"));
     }
 
-    /// FCOM DSC-70-70 AUTO-IDLE PROTECTION (l.112250-112256)
+    /// Auto-idle protection of the outboard engines
     #[test]
     fn the_outboard_engines_are_at_idle_during_the_reverser_operation() {
         let mut test_bed = test_bed(true, 25.);

@@ -475,9 +475,9 @@ impl A380MainPowerSources {
             electricity.supplied_by(ext_pwr);
         }
 
-        // ELEC EXT PWR 1(2)(3)(4) FAULT, A380 FCOM PRO-ABN-ECAM-10-24 (a380_fcom.txt:142240): "The external
-        // power unit, or its associated GGPCU, is failed." Design choice: the GGPCU reports it while the
-        // external power unit is connected; without a ground power unit there is nothing to supply.
+        // ELEC EXT PWR 1(2)(3)(4) FAULT: the external power unit or its GGPCU is failed. Design choice: the GGPCU
+        // reports it while the external power unit is connected; without a ground power unit there is nothing to
+        // supply.
         for ((fault, failure), ext_pwr) in self
             .ext_pwr_fault
             .iter_mut()
@@ -729,8 +729,7 @@ impl SimulationElement for A380MainPowerSources {
         for (id, fault) in self.ext_pwr_fault_ids.iter().zip(self.ext_pwr_fault) {
             writer.write(id, fault);
         }
-        // ELEC DRIVE 1(2)(3)(4) DISC FAULT, A380 FCOM PRO-ABN-ECAM-10-24 (a380_fcom.txt:141156): "The
-        // disconnection function of the engine generator from its assigned engine failed." Its monitoring
+        // ELEC DRIVE 1(2)(3)(4) DISC FAULT: the disconnection function of the engine generator failed. Its monitoring
         // detects it at all times.
         for (id, failure) in self
             .drive_disc_fault_ids

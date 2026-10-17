@@ -39,9 +39,9 @@ static double secondsToCross(EngineOilFailures::OverheatTracker& tracker,
 int main() {
   // A healthy engine, from idle to beyond take-off thrust (the Trent 972B is rated about 70 000 lbf), with the least and
   // the most oil of the FADEC initialisation (17 and 20 qt), and the least after a 15 h flight (0.4 qt/h burned): the SD
-  // oil quantity never pulses (below the 1.2 qt oil advisory, FCOM DSC-70-90 l.113343) and the oil pump always delivers
-  // its full pressure, so no ENG OIL PRESS LO without a failure (the pressure follows the oil of the whole system, never
-  // the tank reading, which falls as the oil moves into the circuit at high thrust: sim test 2026-10-06 on the A32NX).
+  // oil quantity never pulses (below the 1.2 qt oil advisory) and the oil pump always delivers its full pressure, so no ENG
+  // OIL PRESS LO without a failure (the pressure follows the oil of the whole system, never the tank reading, which falls as
+  // the oil moves into the circuit at high thrust, as measured in the sim on the A32NX).
   for (const double total : {17.0, 20.0, 17.0 - 0.4 * 15.0}) {
     for (double thrustPounds = 0.0; thrustPounds <= 85000.0; thrustPounds += 500.0) {
       const double tank = OilSystem_A380X::tankQuantity(total, thrustPounds);
@@ -70,11 +70,11 @@ int main() {
   expectTrue("leak: the SD advisory comes before the pressure falls", advisoryAt >= 0 && advisoryAt < pressureFallsAt, advisoryAt);
   expectTrue("leak: ENG OIL PRESS LO comes last, within 10 min", pressureFallsAt < lowPressureAt && lowPressureAt < 600, lowPressureAt);
 
-  // An oil overheat at cruise (sim test 2026-10-07, FL200, A/THR, N1 55-60 %: N3 82.6 %, idle N3 61 % from Table1502 at
+  // An oil overheat at cruise (measured in the sim, FL200, A/THR, N1 55-60 %: N3 82.6 %, idle N3 61 % from Table1502 at
   // FL200, Mach 0.55, ISA): the linear target (225 C at 100 % N3) crept from 190 C to 196.3 C in 60 s and OIL TEMP HI came
-  // after 4 min. It must come clearly, about 2 min after the failure, and "THR LEVER ... REDUCE BELOW OIL TEMP LIMIT"
-  // (FCOM PRO-ABN-ECAM-10-70 ENG OIL TEMP HI, l.172585-172586) must bring it back below 196 C, at IDLE within 2 min. In
-  // flight the idle core speed runs about 2 % above the idle of the FADEC (A32NX recording 2026-10-06: 1.7 to 2.6 %).
+  // after 4 min. It must come clearly, about 2 min after the failure, and the procedure (reduce the thrust below the oil
+  // temperature limit) must bring it back below 196 C, at IDLE within 2 min. In flight the idle core speed runs about 2 %
+  // above the idle of the FADEC (A32NX recording: 1.7 to 2.6 %).
   {
     const double                     idleN3 = 61.0;
     EngineOilFailures::OverheatTracker tracker;

@@ -1,23 +1,17 @@
 //! ATA 30 ice protection of the A380: the wing anti-ice of slat 4 (two Anti-Ice Control Units, two valves per wing) and
 //! the engine anti-ice valves.
 //!
-//! A380 FCOM DSC-30-10-10 (a380_fcom.txt l.61869-61893):
-//! - "Hot air from the pneumatic system can be used to prevent ice accretion on slat 4."
-//! - "There are two redundant wing anti-ice valves per wing: AICU 1 controls the outer wing anti-ice valves, AICU 2
-//!   controls the inner wing anti-ice valves."
-//! - "When the crew sets the WING ANTI ICE pb to ON, both wing anti-ice valves in both wings will open."
-//! - "On ground, if the WING ANTI ICE pb is set to ON, the wing anti-ice valves will open for 30 s. Wing anti-ice will
-//!   then be inhibited for 10 min, provided the aircraft is not in flight. Wing anti-ice is also inhibited during
-//!   takeoff, until takeoff thrust reduction."
-//! - "Each valve is electrically-controlled and pneumatically-actuated. The valve closes, if it loses its power
-//!   supply."
+//! - Hot bleed air protects slat 4 from ice. Two redundant valves per wing: AICU 1 controls the outer valves, AICU 2 the
+//!   inner valves; the WING ANTI ICE pb ON opens all of them.
+//! - On ground the pb ON opens the valves for a 30 s test, then wing anti-ice is inhibited for 10 min while the
+//!   aircraft is not in flight. It is also inhibited during takeoff, until the takeoff thrust reduction.
+//! - Each valve is electrically controlled and pneumatically actuated, and closes without power.
 //!
-//! A380 FCOM DSC-30-10-20 (l.62004-62028), WING ANTI ICE pb FAULT: "The anti-ice valve position disagrees with the
-//! requested position" (A-ICE L(R) WING VLV CLOSED / OPEN), "Or, the anti-ice valve is open, but a low pressure is
-//! detected" (A-ICE L(R) WING VLV PRESS LO).
+//! WING ANTI ICE pb FAULT: a valve position that disagrees with the request (A-ICE L(R) WING VLV CLOSED / OPEN), or an
+//! open valve with a low pressure downstream (A-ICE L(R) WING VLV PRESS LO).
 //!
-//! Electrical supply (DSC-30-10-40, FCOM PDF p.2103): AICU 1 DC ESS, AICU 2 DC 2, outer valves DC 1, inner valves DC 2;
-//! engine anti-ice ENG 1 DC 2, ENG 2 DC 1, ENG 3 DC 2, ENG 4 DC 1.
+//! Electrical supply: AICU 1 DC ESS, AICU 2 DC 2, outer valves DC 1, inner valves DC 2; engine anti-ice ENG 1 DC 2,
+//! ENG 2 DC 1, ENG 3 DC 2, ENG 4 DC 1.
 //!
 //! Design choice: the wing anti-ice air is not taken out of the pneumatic model; the valves open on the bleed duct
 //! pressure of their wing and the pressure sensors downstream of them read the pressure the valve lets through.
@@ -46,7 +40,7 @@ impl A380IceRainProtection {
     pub fn new(context: &mut InitContext) -> Self {
         Self {
             wing_anti_ice: A380WingAntiIce::new(context),
-            // "The valve opens, if it loses its power supply" (DSC-30-10-10 l.61857), as the A320 valve
+            // The engine anti-ice valve opens without power, as the A320 valve
             engine_anti_ice_valves: [
                 EngineAntiIceValve::new(context, 1, ElectricalBusType::DirectCurrent(2)),
                 EngineAntiIceValve::new(context, 2, ElectricalBusType::DirectCurrent(1)),
@@ -57,8 +51,8 @@ impl A380IceRainProtection {
     }
 
     /// * `bleed_duct_pressures` - the bleed duct pressure of each engine, downstream of its precooler
-    /// * `high_pressure_compressor_pressures` - the HP compressor air of each engine: "Each engine has its own anti-ice
-    ///   system, with an independent hot bleed air source" (DSC-30-10-10 l.61846)
+    /// * `high_pressure_compressor_pressures` - the HP compressor air of each engine: each engine anti-ice has its own
+    ///   hot bleed air source
     pub fn update(
         &mut self,
         context: &UpdateContext,
@@ -98,11 +92,11 @@ struct WingAntiIceValve {
     downstream_pressure_psig: f64,
 }
 impl WingAntiIceValve {
-    /// Design choice (no FCOM value): the valve travel time, as the engine anti-ice valve
+    /// Design choice: the valve travel time, as the engine anti-ice valve
     const TRAVEL_TIME: Duration = Duration::from_secs(2);
 
-    /// Design choice (no FCOM value): the duct pressure that opens the valve and the pressure the valve regulates to,
-    /// the values of the A320 wing anti-ice valves (a320_systems pneumatic/wing_anti_ice.rs)
+    /// Design choice: the duct pressure that opens the valve and the pressure the valve regulates to, the values of
+    /// the A320 wing anti-ice valves (a320_systems pneumatic/wing_anti_ice.rs)
     const MIN_SUPPLY_PRESSURE_PSIG: f64 = 10.;
     const REGULATED_PRESSURE_PSIG: f64 = 22.5;
 
@@ -166,15 +160,13 @@ impl SimulationElement for WingAntiIceValve {
 /// The AICU wing anti-ice control and monitoring of one wing
 #[derive(Clone, Copy, Default, PartialEq, Debug)]
 struct WingAntiIceMonitoring {
-    /// A-ICE L(R) WING VLV CLOSED: "Both left (right) wing anti-ice valves are abnormally closed" (l.156751)
+    /// A-ICE L(R) WING VLV CLOSED: both valves of the wing abnormally closed
     abnormally_closed: bool,
-    /// A-ICE L(R) WING VLV OPEN: "The left(right) inner and(or) outer wing anti-ice valve is abnormally open" (l.156843)
+    /// A-ICE L(R) WING VLV OPEN: the inner and/or outer valve of the wing abnormally open
     abnormally_open: bool,
-    /// A-ICE L(R) WING VLV PRESS LO: "Both left (right) wing anti-ice valves are set to ON, however both pressure
-    /// sensors (downstream of the valves) indicate that the pressure is low" (l.156955-156956)
+    /// A-ICE L(R) WING VLV PRESS LO: both valves of the wing ON, but both downstream pressure sensors read low
     low_pressure: bool,
-    /// A-ICE L(R) WING VLV PRESS HI: "The WING A-ICE pb is set to ON and the pressure sensor (downstream of the valve)
-    /// indicates there is high pressure in the duct" (l.156928-156929)
+    /// A-ICE L(R) WING VLV PRESS HI: pb ON and a downstream pressure sensor reads high
     high_pressure: bool,
 }
 
@@ -215,15 +207,15 @@ struct A380WingAntiIce {
     monitoring: [WingAntiIceMonitoring; 2],
 }
 impl A380WingAntiIce {
-    /// "the wing anti-ice valves will open for 30 s" on ground (l.61888)
+    /// The ground test opens the valves for 30 s
     const GROUND_TEST_TIME: Duration = Duration::from_secs(30);
-    /// "Wing anti-ice will then be inhibited for 10 min, provided the aircraft is not in flight" (l.61889)
+    /// Then wing anti-ice is inhibited for 10 min while the aircraft is not in flight
     const GROUND_INHIBITION_TIME: Duration = Duration::from_secs(600);
     /// The lower bound of the FLX/MCT detent band (FWS FwsTakeoffPower): a thrust lever above it is at takeoff thrust,
     /// all levers below it after the takeoff is the takeoff thrust reduction
     const TAKEOFF_THRUST_MIN_TLA_DEG: f64 = 33.3;
-    /// Design choice (no FCOM value): the pressure sensor thresholds over the ambient pressure, those of the A320 wing
-    /// anti-ice (1 bar low, 2.1 bar high, a320_systems pneumatic/wing_anti_ice.rs)
+    /// Design choice: the pressure sensor thresholds over the ambient pressure, those of the A320 wing anti-ice (1 bar
+    /// low, 2.1 bar high, a320_systems pneumatic/wing_anti_ice.rs)
     const LOW_PRESSURE_PSIG: f64 = 14.5;
     const HIGH_PRESSURE_PSIG: f64 = 30.5;
 
@@ -315,9 +307,8 @@ impl A380WingAntiIce {
 
     /// The AICU control: the 30 s ground test, the 10 min ground inhibition and the takeoff inhibition.
     ///
-    /// Design choices (the FCOM does not say more): a ground test runs once per selection of the pb ON (the FCOM: "If
-    /// the flight crew does not switch off wing anti-ice, the ON light will remain on, even though wing anti-ice is
-    /// off. The wing anti-ice valves will then reopen after takeoff thrust reduction", l.62009-62011); the takeoff
+    /// Design choices (nothing more is published): a ground test runs once per selection of the pb ON (left ON, the
+    /// pb light stays on with the valves closed, and the valves reopen after the takeoff thrust reduction); the takeoff
     /// inhibition starts with a thrust lever at takeoff thrust on ground and ends in flight when all thrust levers are
     /// below the FLX/MCT detent.
     fn update_control(&mut self, context: &UpdateContext, on_ground: bool) {
@@ -360,7 +351,7 @@ impl A380WingAntiIce {
         }
     }
 
-    /// AICU 1 commands the outer valves, AICU 2 the inner valves (l.61876-61877)
+    /// AICU 1 commands the outer valves, AICU 2 the inner valves
     fn valve_commanded_open(&self, position: usize) -> bool {
         let aicu = if position == OUTER { 0 } else { 1 };
         self.commanded_open && self.aicu_powered[aicu]
@@ -370,8 +361,7 @@ impl A380WingAntiIce {
         let valves = &self.valves[wing];
         let commanded = [INNER, OUTER].map(|position| self.valve_commanded_open(position));
         // A valve that stays closed while the duct supplies air is abnormally closed; with too little air it is a low
-        // pressure: "An increase in thrust increases the bleed pressure. This may help to open the wing anti-ice valves"
-        // (l.156990-156991)
+        // pressure (more thrust raises the bleed pressure and may open the valves)
         let air_available = supply_pressure_psig > WingAntiIceValve::MIN_SUPPLY_PRESSURE_PSIG;
         let abnormally_closed = [INNER, OUTER]
             .iter()
@@ -403,8 +393,8 @@ impl A380WingAntiIce {
             .any(|wing| wing.iter().any(|valve| valve.is_open()))
     }
 
-    /// The FAULT light of the WING ANTI ICE pb: valve position disagreement or low pressure (DSC-30-10-20
-    /// l.62014-62024). High pressure is a crew awareness without FAULT light.
+    /// The FAULT light of the WING ANTI ICE pb: valve position disagreement or low pressure. High pressure is a crew
+    /// awareness without FAULT light.
     fn fault_light(&self) -> bool {
         self.monitoring
             .iter()
@@ -703,7 +693,7 @@ mod tests {
         run_seconds(&mut test_bed, 3);
 
         assert!(wing_anti_ice_on(&mut test_bed));
-        // One closed valve per wing is not a fault of the wing: "Both ... valves are abnormally closed"
+        // One closed valve per wing is not a fault of the wing: both must be abnormally closed
         assert_eq!(wing_flags(&mut test_bed, 1), NO_FLAG);
     }
 
@@ -749,7 +739,7 @@ mod tests {
         assert_eq!(wing_flags(&mut test_bed, 2), [false, false, true, false]);
         assert!(flag(&mut test_bed, "PNEU_WING_ANTI_ICE_FAULT"));
 
-        // "An increase in thrust increases the bleed pressure. This may help to open the wing anti-ice valves"
+        // More thrust raises the bleed pressure, which may open the valves
         test_bed.command(|a| a.bleed_duct_psig = 40.);
         run_seconds(&mut test_bed, 3);
         assert_eq!(wing_flags(&mut test_bed, 1), NO_FLAG);

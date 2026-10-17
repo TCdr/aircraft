@@ -249,9 +249,8 @@ impl A380Electrical {
         self.direct_current.battery_has_fault(number)
     }
 
-    /// ELEC RAT FAULT, A380 FCOM PRO-ABN-ECAM-10-24 (a380_fcom.txt:142545-142557): "The RAT is failed"; the
-    /// RAT generator fails in the case of an overload, a low or high voltage, a short-circuit... Only the
-    /// generator failure is simulated (no RAT uplock or heater): its control unit detects it at all times,
+    /// ELEC RAT FAULT: the RAT generator fails in the case of an overload, a low or high voltage, a short-circuit...
+    /// Only the generator failure is simulated (no RAT uplock or heater): its control unit detects it at all times,
     /// RAT stowed or deployed.
     fn rat_has_fault(&self) -> bool {
         self.rat_generator_failure.is_active()
@@ -421,7 +420,7 @@ impl A380ElectricalOverheadPanel {
         electricity: &Electricity,
         apu: &impl AuxiliaryPowerUnitElectrical,
     ) {
-        // A380 FCOM DSC-24-20 AC ESS FEED pb-sw FAULT: "The AC ESS busbar is not supplied." (a380_fcom.txt:50689)
+        // AC ESS FEED pb-sw FAULT: the AC ESS busbar is not supplied
         self.ac_ess_feed
             .set_fault(!electrical.ac_ess_bus_is_powered(electricity));
 
@@ -432,19 +431,17 @@ impl A380ElectricalOverheadPanel {
                 gen.set_fault(electrical.gen_contactor_open(index + 1) && gen.is_on());
             });
 
-        // A380 FCOM DSC-24-20 DRIVE pb (a380_fcom.txt:50789-50796, PDF p.1661): FAULT "The engine generator must be
-        // disconnected from the engine", with ELEC DRIVE OIL OVHT and ELEC DRIVE OIL PRESS LO. The drive signals stop
-        // once it is disconnected (DISC light).
+        // DRIVE pb FAULT: the engine generator must be disconnected from the engine (ELEC DRIVE OIL OVHT, ELEC DRIVE
+        // OIL PRESS LO). The drive signals stop once it is disconnected (DISC light).
         self.idgs.iter_mut().enumerate().for_each(|(index, drive)| {
             drive.set_disconnected(!electrical.gen_drive_connected(index + 1));
             drive.set_fault(electrical.gen_drive_has_fault(index + 1));
         });
 
-        // A380 FCOM DSC-24-20 APU GEN A(B) pb-sw FAULT (a380_fcom.txt:50749-50754, PDF p.1660): "The APU generator is
-        // disconnected from the electrical network. The applicable GGPCU disconnects the APU generator from the
-        // electrical network." Design choice: the GGPCU disconnects a generator whose output is not normal while the
-        // APU is available, the condition of ELEC APU GEN A(B) FAULT in the FWS (FwsElecAlerts apuGenFault). With
-        // the pb-sw OFF the generator is disconnected on purpose: no FAULT light.
+        // APU GEN A(B) pb-sw FAULT: the GGPCU has disconnected the APU generator from the network. Design choice: the
+        // GGPCU disconnects a generator whose output is not normal while the APU is available, the condition of ELEC
+        // APU GEN A(B) FAULT in the FWS (FwsElecAlerts apuGenFault). With the pb-sw OFF the generator is disconnected
+        // on purpose: no FAULT light.
         let apu_available = apu.is_available();
         self.apu_gens
             .iter_mut()
@@ -457,8 +454,8 @@ impl A380ElectricalOverheadPanel {
                 );
             });
 
-        // A380 FCOM DSC-24-20 BAT pb-sw FAULT (a380_fcom.txt:50623-50624). Design choice: the light stays on
-        // in either pb-sw position while the battery is failed, as the FCOM gives no pb-sw condition.
+        // BAT pb-sw FAULT. Design choice: the light stays on in either pb-sw position while the battery is failed (no
+        // pb-sw condition is published).
         self.batteries
             .iter_mut()
             .enumerate()
@@ -2996,7 +2993,7 @@ mod a380_electrical_circuit_tests {
         assert!(test_bed.ac_ess_feed_has_fault());
     }
 
-    /// A380 FCOM DSC-24-20 AC ESS FEED pb-sw FAULT: "The AC ESS busbar is not supplied." (a380_fcom.txt:50689)
+    /// AC ESS FEED pb-sw FAULT: the AC ESS busbar is not supplied.
     #[test]
     fn ac_ess_busbar_failure_lights_the_ac_ess_feed_fault() {
         let mut test_bed = test_bed_with()
@@ -3645,8 +3642,7 @@ mod a380_electrical_circuit_tests {
     #[case(1)]
     #[case(4)]
     fn drive_pb_fault_light_comes_on_with_a_low_drive_oil_pressure(#[case] number: usize) {
-        // A380 FCOM DSC-24-20 DRIVE pb FAULT (a380_fcom.txt:50789-50796): "The engine generator must be
-        // disconnected from the engine", with ELEC DRIVE OIL OVHT and ELEC DRIVE OIL PRESS LO
+        // DRIVE pb FAULT: the engine generator must be disconnected (ELEC DRIVE OIL OVHT, ELEC DRIVE OIL PRESS LO)
         let mut test_bed = test_bed_with().running_engines().run();
         assert!(!test_bed.drive_has_fault(number));
 
@@ -3672,9 +3668,7 @@ mod a380_electrical_circuit_tests {
     fn apu_gen_pb_fault_light_comes_on_when_the_apu_generator_is_disconnected(
         #[case] number: usize,
     ) {
-        // A380 FCOM DSC-24-20 APU GEN A(B) pb-sw FAULT (PDF p.1660, a380_fcom.txt:50749-50754): "The APU generator
-        // is disconnected from the electrical network. The applicable GGPCU disconnects the APU generator from the
-        // electrical network." with ELEC APU GEN A(B) FAULT
+        // APU GEN A(B) pb-sw FAULT: the GGPCU has disconnected the APU generator (ELEC APU GEN A(B) FAULT)
         let mut test_bed = test_bed_with().running_apu().run();
         assert!(!test_bed.apu_gen_has_fault(number));
 
@@ -3749,9 +3743,8 @@ mod a380_electrical_circuit_tests {
     }
 
     /// On the A380 the AC ESS busbar (400XP) is `AlternatingCurrentEssentialShed` and the AC EMER busbar (491XP) is
-    /// `AlternatingCurrentEssential` (the names come from the A320). The loads the FCOM puts on AC ESS are bound to
-    /// the first, the AC EMER loads to the second. A380 FCOM DSC-24-40 (a380_fcom.txt:51946-51953): when the AC ESS
-    /// busbar is lost, AC EMER and AC ESS are lost.
+    /// `AlternatingCurrentEssential` (the names come from the A320). The AC ESS loads are bound to the first, the AC
+    /// EMER loads to the second. When the AC ESS busbar is lost, AC EMER and AC ESS are lost.
     #[test]
     fn ac_ess_busbar_failure_loses_ac_ess_and_ac_emer_loads() {
         let test_bed = test_bed_with()
