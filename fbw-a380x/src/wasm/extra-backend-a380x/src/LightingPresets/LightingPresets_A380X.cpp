@@ -156,7 +156,7 @@ void LightingPresets_A380X::applyToAircraft() {
 void LightingPresets_A380X::loadFromIni(const mINI::INIStructure& ini, const std::string& iniSectionName) {
   // The target of the load: the preset saved in its ini section, or the default preset (all lights at 50 %) for a preset
   // row that was never saved. calculateIntermediateValues() fades every light to loadedLightValues, so it must be set in
-  // both cases (it was left unset for a missing section, which faded every light, displays included, to 0).
+  // both cases: left unset, every light, displays included, fades to 0.
   loadedLightValues = lighting_presets::presetLoadTarget(ini.has(iniSectionName), DEFAULT_50, [&]() {
     LightingValues_A380X saved{};
     saved.efbBrightness = iniGetOrDefault(ini, iniSectionName, "efb_brightness", 80.0);

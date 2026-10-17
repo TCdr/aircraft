@@ -43,7 +43,7 @@ int main() {
   expectTrue("both presets are in the file", readBack.has("preset 1") && readBack.has("preset 2"));
 
   // A load with no presets file yet (fresh install): the read finds no file, the presets stay empty and the requested
-  // row loads the default preset instead of failing (which left every light untouched)
+  // row loads the default preset instead of failing (a failed load leaves every light untouched)
   const std::string missing = folder + "/NoSuchPresets.ini";
   std::remove(missing.c_str());
   mINI::INIFile      missingFile(missing);

@@ -70,7 +70,7 @@ static void savedPresetLoadsItsValues() {
 }
 
 // The cold and dark cockpit (displays at 10 %) loading a preset row that was never saved: the displays end at 50 %,
-// not dark (the bug: the target stayed at its zero initial value, so every light faded to 0)
+// not dark (a target left at its zero initial value would fade every light to 0)
 static void unsavedPresetDoesNotFadeTheDisplaysToZero() {
   const Lights coldAndDark = {10.0, 10.0};
   const Lights target = presetLoadTarget(false, DEFAULT_50, []() { return Lights{0.0, 0.0}; });
