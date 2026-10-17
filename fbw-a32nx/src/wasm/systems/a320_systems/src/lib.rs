@@ -186,8 +186,8 @@ impl A320 {
             pneumatic: A320Pneumatic::new(context),
             probe_window_heat: A320ProbeWindowHeat::new(context),
             radio_altimeters: A320RadioAltimeters::new(context),
-            // The GPS receivers of MMR 1 and 2. The FCOM gives no power supply: MMR 1 on AC ESS and MMR 2 on AC 2,
-            // as the other side 1 / side 2 navigation receivers (design choice)
+            // The GPS receivers of MMR 1 and 2. No published power supply: MMR 1 on AC ESS and MMR
+            // 2 on AC 2, as the other side 1 / side 2 navigation receivers (design choice)
             gps_1: GpsReceiver::new(context, 1, ElectricalBusType::AlternatingCurrentEssential),
             gps_2: GpsReceiver::new(context, 2, ElectricalBusType::AlternatingCurrent(2)),
             gpirs: Gpirs::new(context),

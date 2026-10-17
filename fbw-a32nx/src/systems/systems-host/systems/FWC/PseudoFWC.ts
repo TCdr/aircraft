@@ -9851,7 +9851,7 @@ export class PseudoFWC {
       // HOT AIR FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.hotAirDisagrees,
-      // FCOM PRO-ABN-COND: HOT AIR (IF NOT CLOSED) OFF; IF HOT AIR STILL OPEN and DUCT OVHT persists: both packs OFF,
+      // Procedure: HOT AIR (IF NOT CLOSED) OFF; IF HOT AIR STILL OPEN and DUCT OVHT persists: both packs OFF,
       // descent to FL 100/MEA-MORA, then RAM AIR ON when DIFF PR < 1 PSI and below FL 100, MAX FL 100/MEA-MORA
       whichCodeToReturn: () => {
         const stillOpenWithOvht = this.anyDuctOvht.get() && this.hotAirOpen.get();
@@ -10337,7 +10337,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
-      // STATUS (FCOM PRO-ABN-NAV NAV GPS 1(2) FAULT): INOP SYS GPS 1(2); if both GPS FAULT: FLS LIMITED TO F-APP + RAW
+      // STATUS: INOP SYS GPS 1(2); if both GPS FAULT: FLS LIMITED TO F-APP + RAW
       inopSys: () => [this.gps2Fault.get() ? '340300003' : '340300001'],
       statusInfo: () => (this.gps2Fault.get() ? ['340200001'] : []),
     },

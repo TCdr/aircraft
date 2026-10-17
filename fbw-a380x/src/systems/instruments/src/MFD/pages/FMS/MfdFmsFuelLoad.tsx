@@ -124,7 +124,7 @@ export class MfdFmsFuelLoad extends FmsFlightPlanPage<MfdFmsFuelLoadProps> {
 
   private readonly fuelPlanningIsDisabled = Subject.create<boolean>(true);
 
-  /** The minimum BLOCK fuel computed by the fuel planning, displayed in yellow until confirmed (FCOM P 179) */
+  /** The minimum BLOCK fuel computed by the fuel planning, displayed in yellow until confirmed */
   private readonly fuelPlanningBlockWeight = NumberUnitSubject.create(UnitType.KILOGRAM.createNumber(NaN));
 
   private readonly fuelPlanningBlockWeightText = this.createWeightSubscribable(this.fuelPlanningBlockWeight);
@@ -134,8 +134,8 @@ export class MfdFmsFuelLoad extends FmsFlightPlanPage<MfdFmsFuelLoadProps> {
   private readonly fuelPlanningNotComputed = this.fuelPlanningComputed.map((v) => !v);
 
   /**
-   * COMPUTING... while the fuel planning runs. Not in the FCOM (the real FMS computes the BLOCK at once): the computation
-   * waits for several VNAV prediction cycles here, and the flight crew sees that it is running.
+   * COMPUTING... while the fuel planning runs. Design choice: the real FMS computes the BLOCK at once, here the
+   * computation waits for several VNAV prediction cycles, so the flight crew sees that it is running.
    */
   private readonly fuelPlanningLabel = this.props.fmcService.master.fuelPlanningInProgress.map((inProgress) =>
     inProgress ? 'COMPUTING...' : 'FUEL<br />PLANNING *',
@@ -177,11 +177,11 @@ export class MfdFmsFuelLoad extends FmsFlightPlanPage<MfdFmsFuelLoadProps> {
   private readonly extraFuelWeight = NumberUnitSubject.create(UnitType.KILOGRAM.createNumber(NaN));
   private readonly extraFuelWeightText = this.createWeightSubscribable(this.extraFuelWeight);
 
-  /** The EXTRA time (FCOM FUEL&LOAD page: EXTRA fuel and time), in ms */
+  /** The EXTRA time (shown with the EXTRA fuel), in ms */
   private readonly extraFuelTime = Subject.create<number | null>(null);
   private readonly extraFuelTimeText = this.extraFuelTime.map((it) => hhmmFormatter(it ?? NaN));
 
-  /** The ALTN time of the default ALTN fuel computation (FCOM FUEL&LOAD page: ALTN fuel and time), in ms */
+  /** The ALTN time of the default ALTN fuel computation (shown with the ALTN fuel), in ms */
   private readonly alternateFuelTime = Subject.create<number | null>(null);
 
   private readonly alternateFuelTimeText = this.alternateFuelTime.map((it) => hhmmFormatter(it ?? NaN));
@@ -374,9 +374,9 @@ export class MfdFmsFuelLoad extends FmsFlightPlanPage<MfdFmsFuelLoadProps> {
   }
 
   /**
-   * FUEL PLANNING button (A380 FCOM DSC-22-FMS-20-30 P 179): the computation is possible before engine start, with a
-   * flight plan and a cruise flight level, the ZFW and ZFWCG entered and no BLOCK entered by the flight crew. Once
-   * computed, the button confirms the BLOCK.
+   * FUEL PLANNING button: the computation is possible before engine start, with a flight plan and a cruise flight
+   * level, the ZFW and ZFWCG entered and no BLOCK entered by the flight crew. Once computed, the button confirms the
+   * BLOCK.
    */
   private updateFuelPlanning(loadedFlightPlanIndex: number): void {
     const fmc = this.props.fmcService.master;
@@ -498,7 +498,7 @@ export class MfdFmsFuelLoad extends FmsFlightPlanPage<MfdFmsFuelLoadProps> {
           {super.render()}
           {/* begin page content */}
           <div class="mfd-page-container" style="position: relative;">
-            {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 174), page container coordinates */}
+            {/* Positions measured on the reference figure of the page, in page container coordinates */}
             <div class="mfd-fcom-canvas">
               {fcomRight(24, 96, <span class="mfd-label">GW</span>)}
               {fcomRight(24, 286, [
@@ -829,7 +829,7 @@ export class MfdFmsFuelLoad extends FmsFlightPlanPage<MfdFmsFuelLoadProps> {
                       v,
                       this.loadedFlightPlanIndex.get(),
                     );
-                    // No LRC / ECON mode field on the FCOM page: a cost index selects the economy speeds
+                    // The real page has no LRC / ECON mode field: a cost index selects the economy speeds
                     this.props.flightPlanInterface?.setPerformanceData(
                       'costIndexMode',
                       CostIndexMode.ECON,
@@ -940,7 +940,7 @@ export class MfdFmsFuelLoad extends FmsFlightPlanPage<MfdFmsFuelLoadProps> {
                 <InputField<number, number, false>
                   dataEntryFormat={new WeightFormat(undefined, Subject.create(maxMinDestFuel), this.weightUnit)}
                   dataHandlerDuringValidation={async (v) => {
-                    // FCOM DSC-22-FMS-20-30 FUEL&LOAD page: clearing MIN FUEL AT DEST is NOT ALLOWED (canBeCleared={false})
+                    // Clearing MIN FUEL AT DEST is NOT ALLOWED (canBeCleared={false})
                     this.props.flightPlanInterface?.setPerformanceData(
                       'pilotMinimumDestinationFuelOnBoard',
                       kilogramsToPerfPlanTonnes(v),
@@ -976,7 +976,7 @@ export class MfdFmsFuelLoad extends FmsFlightPlanPage<MfdFmsFuelLoadProps> {
                 <Button
                   label="RETURN"
                   onClick={() =>
-                    // FCOM DSC-22-FMS-20-30 FUEL&LOAD page: RETURN displays the ACTIVE / INIT page
+                    // RETURN displays the ACTIVE / INIT page
                     this.props.mfd.uiService.navigateTo(this.mandatoryAndActiveFpln.get() ? 'fms/active/init' : 'back')
                   }
                   buttonStyle="min-width: 148px;"

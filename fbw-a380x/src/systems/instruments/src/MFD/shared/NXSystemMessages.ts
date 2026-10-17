@@ -134,35 +134,35 @@ export const NXSystemMessages = {
   sqwkCodeNotValid: new TypeIMessage('SQWK CODE NOT VALID'),
   lrcInUse: new TypeIMessage('LRC MODE IN USE'),
   lateralDiscontinuityAhead: new TypeIIMessage('LATERAL DISCONTINUITY AHEAD', true),
-  // FCOM DSC-22-FMS-20-30: the GPS deselected, 80 NM before the T/D or in APPROACH phase (type II, white)
+  // The GPS deselected, 80 NM before the T/D or in APPROACH phase (type II, white)
   gpsDeselected: new TypeIIMessage('GPS DESELECTED'),
   listOf99InUse: new TypeIMessage('LIST OF 99 IN USE'),
-  // FCOM DSC-22-FMS-20-110: a new pilot-stored waypoint rejected, the 50 of the database are used
+  // A new pilot-stored waypoint rejected, the 50 of the database are used
   wptsMaxAllInUse: new TypeIMessage('50 WPTS MAX : ALL IN USE'),
   pilotRtesListFull: new TypeIMessage('PILOT RTEs LIST FULL'),
   rteIdentAlreadyUsed: new TypeIMessage('RTE IDENT ALREADY USED'),
   someRevisionsNotStored: new TypeIMessage('SOME REVISIONS NOT STORED'),
-  // FCOM DSC-22-FMS-20-110 (a380_fcom.txt l.45865-45870): a PLACE/DISTANCE waypoint whose PLACE is not the revised waypoint
+  // A PLACE/DISTANCE waypoint whose PLACE is not the revised waypoint
   placeWptDisagree: new TypeIMessage('PLACE / WPT DISAGREE'),
-  // A380 FCOM DSC-22-FMS-20-110 FMS messages (a380_fcom.txt l.44767-46377). Colours from l.44735-44742: white for the
-  // result of a flight crew entry and less important messages, amber for navigation and more important messages.
-  // l.44814-44821: a DIR TO with interception of an inbound/outbound radial is inserted
+  // Message colours: white for the result of a flight crew entry and less important messages, amber for navigation
+  // and more important messages.
+  // A DIR TO with interception of an inbound/outbound radial is inserted
   adjustDesiredTrkOrHdg: new TypeIIMessage('ADJUST DESIRED TRK OR HDG'),
-  // l.44876-44881: the pilot RNP is above the default RNP, no RNP in the navigation database for the active leg
+  // The pilot RNP is above the default RNP, no RNP in the navigation database for the active leg
   areaRnpIs: new TypeIIMessage('AREA RNP IS XX.XX', false, 'XX.XX'),
-  // l.45916-45920: the pilot RNP is above the RNP of the navigation database for the active leg
+  // The pilot RNP is above the RNP of the navigation database for the active leg
   procRnpIs: new TypeIIMessage('PROC RNP IS XX.XX', true, 'XX.XX'),
-  // l.44998-45003: the current date does not match the effectivity of the active navigation database
+  // The current date does not match the effectivity of the active navigation database
   checkDatabaseCycle: new TypeIIMessage('CHECK DATABASE CYCLE'),
-  // l.45028-45033: at least one IRS position is 5 NM or more from the airport position
+  // At least one IRS position is 5 NM or more from the airport position
   checkIrsArptPosition: new TypeIIMessage('CHECK IRS / ARPT POSITION', true),
-  // l.45384-45389: the procedure turn ahead exceeds the excursion distance of the navigation database
+  // The procedure turn ahead exceeds the excursion distance of the navigation database
   expectTurnAreaExceedance: new TypeIIMessage('EXPECT TURN AREA EXCEEDANCE', true),
-  // l.46154-46157: the NDB of the NDB approach is not available or deselected
+  // The NDB of the NDB approach is not available or deselected
   specifNdbNotAvail: new TypeIIMessage('SPECIF NDB NOT AVAIL', true),
-  // l.46252-46256: the aircraft must leave the holding pattern immediately (extra fuel = 0 at destination)
+  // The aircraft must leave the holding pattern immediately (extra fuel = 0 at destination)
   timeToExit: new TypeIIMessage('TIME TO EXIT', true),
-  // l.46287-46291: the aircraft clock time reaches the ETT
+  // The aircraft clock time reaches the ETT
   toTimeReached: new TypeIIMessage('T.O TIME REACHED'),
 };
 

@@ -7,7 +7,7 @@ import { historyWindRows } from './historyWindRows';
 
 const wind = (altitude: number, magnitude = 20): WindEntry => ({ altitude, vector: { direction: 1, magnitude } });
 
-// A380 FCOM l.42171: the winds are "measured, and stored for the CRZ FL, FL 250, FL 150, and FL 050"
+// The A380 measures and stores the winds of the CRZ FL, FL 250, FL 150 and FL 050
 describe('history wind rows', () => {
   it('uses the measured wind of the previous flight for the CRZ FL, not the one interpolated for the planned level', () => {
     // Previous flight cruised at FL380 (30 kt), the plan now has FL350: the FMS list has 5 entries

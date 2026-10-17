@@ -4146,9 +4146,8 @@ export class FwsAbnormalSensed {
       redundLoss: () => [''],
       info: () => [''],
     },
-    // GPS 1(2) FAULT, GPS 1+2 FAULT: the A380 FCOM gives no procedure (crew awareness); the flight phase inhibition is
-    // the one of the ADR faults (design choice). STATUS (FCOM PRO-ABN-ECAM-10-34-10): INOP SYS GPS 1(2), GPS 1+2 and,
-    // for APPR & LDG, BTV and ROW/ROP
+    // GPS 1(2) FAULT, GPS 1+2 FAULT: no procedure (crew awareness); design choice: the flight phase inhibition of the
+    // ADR faults. STATUS: INOP SYS GPS 1(2), GPS 1+2 and, for APPR & LDG, BTV and ROW/ROP
     340800034: {
       // GPS 1 FAULT
       flightPhaseInhib: [4, 5, 10],

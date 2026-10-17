@@ -37,7 +37,7 @@ describe('MessageTextLatch (send / recall of a type II message on its condition)
   });
 });
 
-describe('AREA RNP IS / PROCEDURE (PROC) RNP IS (A320 FCOM l.22494-22497, l.22919-22921; A380 FCOM l.44876-44881, l.45916-45920)', () => {
+describe('AREA RNP IS / PROCEDURE (PROC) RNP IS', () => {
   it('has no message without a pilot RNP', () => {
     expect(rnpMessage(null, undefined, 2)).toBe(null);
     expect(rnpMessage(null, 0.3, 2)).toBe(null);
@@ -65,7 +65,7 @@ describe('AREA RNP IS / PROCEDURE (PROC) RNP IS (A320 FCOM l.22494-22497, l.2291
   });
 });
 
-describe('CHECK DATA BASE CYCLE / CHECK DATABASE CYCLE (A320 FCOM l.22539-22541, A380 FCOM l.44998-45003)', () => {
+describe('CHECK DATA BASE CYCLE / CHECK DATABASE CYCLE', () => {
   const ident = { effectiveFrom: '2026-09-03', effectiveTo: '2026-10-01' };
 
   it('formats the UTC calendar date as the database ident does', () => {
@@ -91,7 +91,7 @@ describe('CHECK DATA BASE CYCLE / CHECK DATABASE CYCLE (A320 FCOM l.22539-22541,
   });
 });
 
-describe('CHECK IRS/AIRPORT POS / CHECK IRS / ARPT POSITION (A320 FCOM l.22552-22553, A380 FCOM l.45028-45033)', () => {
+describe('CHECK IRS/AIRPORT POS / CHECK IRS / ARPT POSITION', () => {
   const airport = { lat: 48.0, long: 11.0 };
   // 1 minute of latitude is 1 NM
   const at = (nm: number) => ({ lat: 48.0 + nm / 60, long: 11.0 });
@@ -111,7 +111,7 @@ describe('CHECK IRS/AIRPORT POS / CHECK IRS / ARPT POSITION (A320 FCOM l.22552-2
   });
 });
 
-describe('IRS ONLY NAVIGATION (A320 FCOM l.22750-22756)', () => {
+describe('IRS ONLY NAVIGATION', () => {
   const minute = 60_000;
 
   it('shows after more than 10 min in IRS only navigation en route', () => {
@@ -148,7 +148,7 @@ describe('IRS ONLY NAVIGATION (A320 FCOM l.22750-22756)', () => {
   });
 });
 
-describe('TIME TO EXIT (A320 FCOM l.23116-23118, A380 FCOM l.46252-46256)', () => {
+describe('TIME TO EXIT', () => {
   it('shows in the holding when the extra fuel is zero or less', () => {
     expect(isTimeToExitHolding(true, 0)).toBe(true);
     expect(isTimeToExitHolding(true, -0.4)).toBe(true);
@@ -161,7 +161,7 @@ describe('TIME TO EXIT (A320 FCOM l.23116-23118, A380 FCOM l.46252-46256)', () =
   });
 });
 
-describe('T.O TIME REACHED (A380 FCOM l.46287-46291)', () => {
+describe('T.O TIME REACHED', () => {
   it('is reached when the clock passes the ETT', () => {
     expect(hasClockReachedTime(36_000, 36_010, 36_005)).toBe(true);
     expect(hasClockReachedTime(36_000, 36_005, 36_005)).toBe(true);
@@ -183,7 +183,7 @@ describe('T.O TIME REACHED (A380 FCOM l.46287-46291)', () => {
   });
 });
 
-describe('EXPECT TURN AREA EXCEEDANCE (A380 FCOM l.45384-45389)', () => {
+describe('EXPECT TURN AREA EXCEEDANCE', () => {
   it('is expected when the active or next leg is a procedure turn that exceeds its excursion distance', () => {
     expect(isProcedureTurnExceedanceAhead([{ turnAreaExceeded: true }, undefined])).toBe(true);
     expect(isProcedureTurnExceedanceAhead([{}, { turnAreaExceeded: true }])).toBe(true);
@@ -195,7 +195,7 @@ describe('EXPECT TURN AREA EXCEEDANCE (A380 FCOM l.45384-45389)', () => {
   });
 });
 
-describe('ENTER DEST DATA / CHECK DEST DATA (A320 FCOM l.22543-22547, l.22668-22669)', () => {
+describe('ENTER DEST DATA / CHECK DEST DATA', () => {
   it('asks to enter the data when one is missing', () => {
     expect(destinationDataMessages(1013, null, 270, 10, true)).toEqual({ enterDestData: true, checkDestData: false });
     expect(destinationDataMessages(null, 15, 270, 10, true)).toEqual({ enterDestData: true, checkDestData: false });

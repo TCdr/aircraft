@@ -7,8 +7,7 @@ import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
 import { CostIndex } from '@fmgc/guidance/vnav/CostIndex';
 
 /**
- * MAX TURB speed (A380 FCOM PRO-SUP-91-40 and MISC SEVERE TURBULENCE IN CRUISE: "MAX TURB SPEED : 300 / .85").
- * The CRZ panel of the PERF page displays it (FCOM DSC-22-FMS-20-30 P 252).
+ * MAX TURB speed, 300 kt / M.85: the speed for severe turbulence in cruise. The CRZ panel of the PERF page displays it.
  */
 export const maxTurbulenceSpeedKnots = 300;
 
@@ -18,7 +17,7 @@ export const maxTurbulenceMach = 0.85;
 const maxMach = 0.89;
 
 /**
- * Long range cruise Mach (A380 FCOM PER-IFT "LONG RANGE CRUISE SPEED"): the Mach for which the specific range is 99 %
+ * Long range cruise Mach: the Mach for which the specific range is 99 %
  * of the maximum specific range, at the given weight, altitude and temperature, above the Mach of maximum range.
  * Computed with the flight and engine models of the FMS.
  * @param weightKg gross weight

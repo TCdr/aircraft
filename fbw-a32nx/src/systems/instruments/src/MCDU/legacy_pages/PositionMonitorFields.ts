@@ -4,7 +4,6 @@
 import { coordinateToString } from '@flybywiresim/fbw-sdk';
 import { Coordinates, distanceTo } from 'msfs-geo';
 
-/** The text of a position that is not available */
 export const NO_POSITION_TEXT = '--°--.--/---°--.--';
 
 /** What the POSITION MONITOR page shows, read once (the POSITION FROZEN page keeps a copy) */
@@ -29,9 +28,8 @@ export interface PositionMonitorReading {
 }
 
 /**
- * The IRS mode shown on the POSITION MONITOR page: "INVAL, ALIGN, NAV or ATT" (a320_fcom.txt l.19585-19590).
+ * The IRS mode shown on the POSITION MONITOR page: INVAL, ALIGN, NAV or ATT.
  * @param stateMessage the IRS state of the IRS MONITOR page (CDUIRSMonitor.getAdiruStateMessage)
- * @returns the mode text
  */
 export function irsModeText(stateMessage: string): string {
   if (stateMessage.startsWith('ALIGN')) {
@@ -43,24 +41,18 @@ export function irsModeText(stateMessage: string): string {
   return 'INVAL';
 }
 
-/**
- * A position in green, or dashes in white.
- * @param position the position
- * @returns the MCDU cell
- */
 function positionCell(position: Coordinates | null): string {
   return position !== null ? `${coordinateToString(position, false)}[color]green` : `${NO_POSITION_TEXT}[color]white`;
 }
 
 /**
- * The lines 1 to 10 (after the title line) of the POSITION MONITOR page (A320 FCOM DSC-22_20-50-10-28 "POSITION
- * MONITOR AND POSITION FROZEN PAGE", a320_fcom.txt l.19552-19590):
- * - Line 1 FMGC 1 and Line 2 FMGC 2: the position in green and "the navigation method used by the FMGC for that
- *   calculation in white (Example: "3 IRS/DME/DME")"
- * - Line 3: "RADIO or GPS or GPIRS", the position the onside FMGC computes from the selected navaids or the GPIRS
- * - Line 4 MIX IRS: "the weighted mean inertial reference system (IRS) calculated by the onside FMGC"
- * - Line 5 IRS 1,2,3: "the deviation in nautical miles of each IRS position from the onside FMGC position. It also
- *   displays the IRS mode, which can be INVAL, ALIGN, NAV or ATT."
+ * The lines 1 to 10 (after the title line) of the POSITION MONITOR and POSITION FROZEN pages:
+ * - Line 1 FMGC 1 and Line 2 FMGC 2: the position in green and the navigation method of that FMGC in white
+ *   (e.g. 3 IRS/DME/DME)
+ * - Line 3 RADIO, GPS or GPIRS: the position the onside FMGC computes from the selected navaids or the GPIRS
+ * - Line 4 MIX IRS: the weighted mean IRS position the onside FMGC computes
+ * - Line 5 IRS 1,2,3: the deviation in NM of each IRS position from the onside FMGC position, and the IRS mode
+ *   (INVAL, ALIGN, NAV or ATT)
  * @param reading the data
  * @returns the template lines 1 to 10
  */
@@ -98,11 +90,9 @@ export interface PendingPositionUpdate {
 }
 
 /**
- * The POSITION UPDATE AT lines (label and data) of the PROG page [3L] (A320 FCOM DSC-22_20-50-10-28 PROG page Line 3
- * UPDATE AT, a320_fcom.txt l.21263-21282, and DSC-22_20-30-10-18 "POSITION UPDATE AT", l.14723-14786): the entry field,
- * then "CONFIRM UPDATE AT, followed by the latitude/longitude and IDENT of the inserted position with an asterisk", the
- * update being confirmed with the right key. The field is hidden in GPS PRIMARY, as before. Design choice: the confirm
- * prompt in amber, as the other MCDU confirm prompts.
+ * The POSITION UPDATE AT lines (label and data) of the PROG page [3L]: the entry field, then CONFIRM UPDATE AT with the
+ * latitude/longitude and IDENT of the entered position and an asterisk, the update being confirmed with the right key.
+ * The field is hidden in GPS PRIMARY. Design choice: the confirm prompt in amber, as the other MCDU confirm prompts.
  * @param gpsPrimary whether GPS PRIMARY is active
  * @param pending the entered position, null when none is entered
  * @returns the label line and the data line

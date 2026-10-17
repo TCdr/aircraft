@@ -12,9 +12,8 @@ export interface TrimAirValveFaults {
 
 /**
  * The failed trim air valves, from the ACSC discrete words 2 (bits 18, 19 and 20, as the FWC reads them for TRIM AIR
- * SYS FAULT): a valve counts as failed when either controller reports it. The COND page replaces the arrow of a failed
- * valve with amber crosses (A320 FCOM DSC-21-10-50, COND page, zone trim air valve position: "The arrow is green. It is
- * replaced by amber crosses ("XX") if the valve fails").
+ * SYS FAULT): a valve counts as failed when either controller reports it. The COND page replaces the green arrow of
+ * a failed zone trim air valve with amber crosses (XX).
  */
 export function trimAirValveFaults(acsc1Word2: Arinc429WordData, acsc2Word2: Arinc429WordData): TrimAirValveFaults {
   const failed = (bit: number) => acsc1Word2.bitValueOr(bit, false) || acsc2Word2.bitValueOr(bit, false);

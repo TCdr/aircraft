@@ -359,7 +359,7 @@ export class InputField<
     }
   }
 
-  /** ESC: cancels the current field edition, the field returns to the last valid value (A380 FCOM DSC-31-30-20 P 8) */
+  /** ESC: cancels the current field edition, the field returns to the last valid value */
   private handleEscape() {
     this.modifiedFieldValue.set(null);
     if (this.isOverFlow) {

@@ -17,8 +17,8 @@ const STATUS_LEFT_LINE_VARS = STATUS_LINE_VARS('LEFT');
 const STATUS_RIGHT_LINE_VARS = STATUS_LINE_VARS('RIGHT');
 
 /**
- * The STATUS page (A320 FCOM DSC-31-20): the lines the FWC computes from the active alerts, information on the left and
- * the inoperative systems on the right; NORMAL when there are none.
+ * The STATUS page: the lines the FWC computes from the active alerts, information on the left and the inoperative
+ * systems on the right; NORMAL when there are none.
  */
 export class StatusPage extends DestroyableComponent<SdPageProps> {
   private readonly sub = this.props.bus.getSubscriber<SDSimvars & ClockEvents>();

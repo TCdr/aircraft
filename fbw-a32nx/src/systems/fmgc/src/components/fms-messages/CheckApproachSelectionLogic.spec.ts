@@ -6,7 +6,6 @@ import { ApproachType } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { isCheckApproachSelection } from './CheckApproachSelectionLogic';
 
-/* A320 FCOM MCDU messages CHECK APPR SELECTION (a320_fcom.txt l.22524-22536), FMA l.33663-33671 */
 describe('CHECK APPR SELECTION message', () => {
   it('applies to a non ILS approach with a manually tuned ILS in descent and approach', () => {
     expect(isCheckApproachSelection(ApproachType.Rnav, true, FmgcFlightPhase.Descent, -20)).toBe(true);

@@ -38,7 +38,7 @@ export interface AlternateFuelPrediction {
 }
 
 /**
- * The default ALTN fuel and time of the FUEL&LOAD page (A380 FCOM DSC-22-FMS-20-30): the fuel (time) necessary for the
+ * The default ALTN fuel and time of the FUEL&LOAD page: the fuel (time) necessary for the
  * trip between the primary destination and the landing at the alternate, computed with a cost index of 0, at FL220 when
  * the alternate flight plan distance is less than 200 NM, FL310 otherwise.
  *
@@ -47,7 +47,7 @@ export interface AlternateFuelPrediction {
  * distance is too short for the climb and descent, the cruise altitude is lowered until they fit.
  */
 export class AlternateFuelPredictor {
-  /** FCOM: FL220 below 200 NM, FL310 from 200 NM */
+  /** Cruise level of the default ALTN trip: FL220 below 200 NM, FL310 from 200 NM */
   private static readonly SHORT_ALTERNATE_DISTANCE = 200;
 
   private static readonly SHORT_ALTERNATE_ALTITUDE = 22_000;
@@ -61,7 +61,6 @@ export class AlternateFuelPredictor {
 
   private static readonly MACH = 0.84;
 
-  /** Standard speed limit */
   private static readonly SPEED_LIMIT_CAS = 250;
 
   private static readonly SPEED_LIMIT_ALTITUDE = 10_000;
@@ -182,7 +181,7 @@ export class AlternateFuelPredictor {
         fuel,
         inputs.headwind ?? 0,
         inputs.isaDeviation ?? 0,
-        inputs.tropopause ?? defaultTropopauseAlt,
+        tropopause,
         inputs.perfFactor ?? 0,
       );
       result.distance += Math.abs(step.distanceTraveled);

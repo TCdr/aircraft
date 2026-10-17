@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { packOutletTemperatureDisplay } from './PackOutletTemperature';
 
-describe('BLEED page pack outlet temperature (FCOM DSC-21-10-50 ECAM BLEED PAGE)', () => {
+describe('BLEED page pack outlet temperature', () => {
   it('shows the temperature in 5 °C steps', () => {
     expect(packOutletTemperatureDisplay(16.06).value).toBe(15);
     expect(packOutletTemperatureDisplay(29.0).value).toBe(30);

@@ -42,7 +42,7 @@ const GPS_1 = '340300001';
 const GPS_1_AND_2 = '340300003';
 const FLS_LIMITED = '340200001';
 
-describe('A320 ECAM STATUS page texts (FCOM DSC-31-20)', () => {
+describe('A320 ECAM STATUS page texts', () => {
   it('shows NORMAL when the page is empty', () => {
     const page = formatStatusPage([], []);
     expect(page.normal).toBe(true);

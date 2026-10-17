@@ -21,7 +21,7 @@ const irsPositionWord = Arinc429Register.empty();
  * valid position (not aligned, off).
  * @returns the three positions
  */
-export function readIrsPositions(): (Coordinates | null)[] {
+function readIrsPositions(): (Coordinates | null)[] {
   const positions: (Coordinates | null)[] = [];
   for (let ir = 1; ir <= 3; ir++) {
     irsPositionWord.setFromSimVar(`L:A32NX_ADIRS_IR_${ir}_LATITUDE`);
@@ -51,9 +51,8 @@ export function isOriginIrsPositionDisagree(
 }
 
 /**
- * CHECK IRS/AIRPORT POS (A320 FCOM l.22539, l.22552-22553): "The distance between ADIRS alignment position and the NAV
- * Database Airport Reference Point is at least 5 NM." Recalled when the positions agree again (e.g. the FROM airport is
- * corrected) or after the preflight phase.
+ * CHECK IRS/AIRPORT POS: an ADIRS alignment position is 5 NM or more from the database reference point of the airport.
+ * Recalled when the positions agree again (e.g. the FROM airport is corrected) or after the preflight phase.
  */
 export class CheckIrsAirportPosition implements FMMessageSelector {
   public readonly message: FMMessage = FMMessageTypes.CheckIrsAirportPosition;
@@ -77,7 +76,7 @@ export class CheckIrsAirportPosition implements FMMessageSelector {
 }
 
 /**
- * IRS ONLY NAVIGATION (A320 FCOM l.22740, l.22750-22756): the aircraft is neither in an approach nor in a terminal area,
+ * IRS ONLY NAVIGATION: the aircraft is neither in an approach nor in a terminal area,
  * and it has been in IRS (only) mode for more than 10 min, or it is in IRS mode and starting the descent phase.
  */
 export class IrsOnlyNavigation implements FMMessageSelector {
@@ -112,7 +111,6 @@ export class IrsOnlyNavigation implements FMMessageSelector {
   }
 }
 
-/** The FM message update of a latch update */
 function latchToUpdate(update: ReturnType<MessageTextLatch['update']>): FMMessageUpdate {
   if (update === null) {
     return FMMessageUpdate.NO_ACTION;

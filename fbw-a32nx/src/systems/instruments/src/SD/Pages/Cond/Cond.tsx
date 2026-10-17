@@ -219,7 +219,7 @@ const CondUnit = ({
       <text className="Standard" x={74} y={146}>
         H
       </text>
-      {/* FCOM DSC-21-10-50: the arrow of a failed trim air valve is replaced by amber crosses */}
+      {/* The arrow of a failed trim air valve is replaced by amber crosses */}
       {trimAirValveFailed ? (
         <text className="Standard Amber Center" x={42} y={150}>
           XX

@@ -48,7 +48,7 @@ export class MfdMsgList extends DisplayComponent<MfdMsgListProps> {
 
     // Render them
     arr?.forEach((it, idx) => {
-      // FCOM DSC-22-FMS-20-30 MESSAGES LIST page: the list has a maximum of 5 messages
+      // The MESSAGES LIST holds a maximum of 5 messages
       if (idx < 5) {
         FSComponent.render(
           <div class="mfd-label msg-list-element">{it.messageText}</div>,
@@ -106,7 +106,7 @@ export class MfdMsgList extends DisplayComponent<MfdMsgListProps> {
           <div class="mfd-page-container">
             <div ref={this.msgListContainer} class="mfd-msg-list-element-container" />
             <div style="flex-grow: 1;" />
-            {/* FCOM DSC-22-FMS-20-30 P 207: CLOSE button at display x = 3, bottom at y = 956 */}
+            {/* CLOSE button at display x = 3, bottom at y = 956 */}
             <div style="display: flex; justify-content: flex-start; margin: 0 0 -4px 3px;">
               <Button label="CLOSE" onClick={() => this.props.visible.set(false)} buttonStyle="min-width: 128px;" />
             </div>

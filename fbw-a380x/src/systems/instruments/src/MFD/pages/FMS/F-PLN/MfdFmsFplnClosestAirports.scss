@@ -1,6 +1,6 @@
 @import "../../../../MsfsAvionicsCommon/definitions";
 
-// FCOM DSC-22-FMS-20-30 P 21: title line at y = 168, column titles at y = 218, CLOSEST ARPTs box y = 262..550 (lines
+// Title line at y = 168, column titles at y = 218, CLOSEST ARPTs box y = 262..550 (lines
 // of 62 px from y = 309), OTHER ARPT box y = 600..808 (lines of 57 px from y = 650)
 .mfd-closest-airports-title {
   display: flex;

@@ -156,9 +156,9 @@ impl A380 {
             landing_gear: LandingGear::new(context, true),
             pneumatic: A380Pneumatic::new(context),
             radio_altimeters: A380RadioAltimeters::new(context),
-            // The GPS receivers of MMR 1 and 2. The FCOM gives no power supply: MMR 1 on AC ESS and MMR 2 on AC 2
-            // (design choice)
-            // The A380 MMRs use satellite based augmentation (DIFF mode, A380 FCOM DSC-22-FMS-20-30)
+            // The GPS receivers of MMR 1 and 2. Design choice: MMR 1 on AC ESS and MMR 2 on AC 2 (the aircraft
+            // documents give no power supply)
+            // The A380 MMRs use satellite based augmentation (DIFF mode)
             gps_1: GpsReceiver::new_with_augmentation(
                 context,
                 1,

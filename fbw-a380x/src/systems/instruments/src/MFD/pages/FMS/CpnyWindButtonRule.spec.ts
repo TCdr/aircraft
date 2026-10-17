@@ -19,8 +19,8 @@ describe('CPNY WIND REQUEST button', () => {
     expect(isCpnyWindButtonDisabled(state({}))).toBe(false);
   });
 
-  // A380 FCOM a380_fcom.txt l.42124-42128: "When an active wind request is pending, the button displays REQUEST
-  // PENDING ... The button gives still access to the COMPANY WIND DATA REQUEST page."
+  // While its own wind request is pending, the button shows REQUEST PENDING and still opens the COMPANY WIND DATA
+  // REQUEST page
   it('stays enabled while its company wind request is pending', () => {
     expect(isCpnyWindButtonDisabled(state({ uplinkInProgress: true, cpnyWindUplinkInProgress: true }))).toBe(false);
   });
@@ -44,7 +44,7 @@ describe('CPNY WIND REQUEST button', () => {
 });
 
 describe('CPNY WIND REQUEST button click', () => {
-  // FCOM l.42114-42131: received winds -> INSERT/CLEAR menu; otherwise (free text option) the request page
+  // Received winds -> INSERT/CLEAR menu; otherwise (free text option) the request page
   it('opens the INSERT/CLEAR menu when company winds were received for the plan', () => {
     expect(cpnyWindButtonClickAction(true)).toBe('menu');
   });

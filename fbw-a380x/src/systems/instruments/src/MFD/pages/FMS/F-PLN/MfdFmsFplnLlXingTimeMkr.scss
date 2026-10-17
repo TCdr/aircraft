@@ -1,6 +1,6 @@
 @import "../../../../MsfsAvionicsCommon/definitions";
 
-// FCOM DSC-22-FMS-20-30 P 209 (page container coordinates)
+// Positions measured on the reference figure of the page, in page container coordinates
 .mfd-llxing-origin-box {
   position: absolute;
   top: 72px;
@@ -23,7 +23,7 @@
   }
 }
 
-// FCOM P 209: LAT / LONG options in small font
+// LAT / LONG options in small font
 .mfd-llxing-radio .mfd-radio-button {
   font-size: 22.5px;
 }

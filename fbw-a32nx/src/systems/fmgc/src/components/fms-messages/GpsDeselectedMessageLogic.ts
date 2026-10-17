@@ -5,9 +5,9 @@
 const DISTANCE_BEFORE_TOP_OF_DESCENT = 80;
 
 /**
- * When to show the GPS IS DESELECTED (A320) / GPS DESELECTED (A380) message: with the GPS deselected by the flight crew,
- * "when the aircraft is less than 80 NM from the top of descent, or in approach phase" (A320 FCOM DSC-22_20-50-10-28,
- * A380 FCOM DSC-22-FMS-20-30). The message is sent at each of the two events and recalled when the GPS is selected again.
+ * When to show the GPS IS DESELECTED (A320) / GPS DESELECTED (A380) message: with the GPS deselected by the flight
+ * crew, when the aircraft comes within 80 NM of the top of descent and when it enters the approach phase. The message
+ * is sent at each of the two events and recalled when the GPS is selected again.
  */
 export class GpsDeselectedMessageLogic {
   private nearTopOfDescent = false;
