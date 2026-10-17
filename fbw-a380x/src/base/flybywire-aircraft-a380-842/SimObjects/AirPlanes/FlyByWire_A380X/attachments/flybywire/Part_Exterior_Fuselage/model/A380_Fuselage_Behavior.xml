@@ -148,7 +148,7 @@
 		<!--
 			No contrails here: the engine exhaust nodes FX_EXHAUST_LEFT1/LEFT2/RIGHT3/RIGHT4 are in the wings part, which
 			declares the contrails (Part_Exterior_Wings/model/A380_WINGS.xml FX_CONTRAIL_QUAD/RIBBON). A380_FUSELAGE.gltf
-			has none of these nodes; the copy that was here could only duplicate them.
+			has none of these nodes; a copy here could only duplicate them.
 		-->
 		<Component ID="GND_EQUIPMENT">
 			<!-- GND CHOCKS -->
