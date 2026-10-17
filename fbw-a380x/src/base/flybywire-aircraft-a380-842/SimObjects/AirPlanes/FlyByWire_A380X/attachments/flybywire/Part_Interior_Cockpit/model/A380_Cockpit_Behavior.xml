@@ -1184,10 +1184,10 @@
                 </Component>
 
                 <!-- The control panel of the printer, in the row of push buttons beside the paper door: ON/OFF, SLEW, TEST,
-                ABORT and two blank buttons. The A380 FCOM does not describe these buttons (the printer is supplied by AC 1,
-                FCOM DSC-46-20-70 P 1); their functions are design choices, done by the FMS printer (MFD
+                ABORT and two blank buttons. These buttons are not documented (the printer is supplied by AC 1);
+                their functions are design choices, done by the FMS printer (MFD
                 FMC/PedestalPrinter.ts) on the request variables set here, SLEW after the A320 printer SLEW switch that feeds
-                paper (A320 FCOM DSC-45-30). The model has no press animation for these buttons, and no emissive light: the
+                paper. The model has no press animation for these buttons, and no emissive light: the
                 green half of the ON/OFF button face is shown while the printer is on and powered. The blank buttons have
                 no function. -->
                 <Component ID="PRINTER_ON_OFF" Node="PRINTER_ON_OFF">
