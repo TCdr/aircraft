@@ -2257,15 +2257,19 @@
                         <ANIMTIP_1>SET ICE INDICATOR LIGHT</ANIMTIP_1>
                         <ANIMTIP_2>OFF</ANIMTIP_2>
 
-                        <CODE_POS_0> <!-- TODO TT -->
+                        <!-- TODO TT -->
+                        <!-- STBY COMPASS lights the standby compass and the eye reference lights, ICE IND the ice indicator lights. -->
+                        <!-- Only the ice indicator lights read the L:var so far. -->
+                        <!-- No XML comment inside the CODE_POS blocks: MSFS runs only the code before the first comment there. -->
+                        <CODE_POS_0>
                             (* STBY COMPASS *)
                             2 (&gt;L:A380X_OVHD_EXTLT_STBY_COMPASS_ICE_IND_SWITCH_POS)
                         </CODE_POS_0>
-                        <CODE_POS_1> <!-- TODO TT -->
+                        <CODE_POS_1>
                             (* ICE IND *)
                             1 (&gt;L:A380X_OVHD_EXTLT_STBY_COMPASS_ICE_IND_SWITCH_POS)
                         </CODE_POS_1>
-                        <CODE_POS_2> <!-- TODO TT -->
+                        <CODE_POS_2>
                             (* OFF *)
                             0 (&gt;L:A380X_OVHD_EXTLT_STBY_COMPASS_ICE_IND_SWITCH_POS)
                         </CODE_POS_2>
