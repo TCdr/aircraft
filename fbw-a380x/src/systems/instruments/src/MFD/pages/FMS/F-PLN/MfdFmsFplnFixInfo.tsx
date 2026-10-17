@@ -44,7 +44,7 @@ export class MfdFmsFplnFixInfo extends FmsFlightPlanPage {
 
   private readonly selectedTab = Subject.create(0);
 
-  /** FCOM DSC-22-FMS-20-30 FIX INFO page, TIME / UTC label: flight time in preflight (no ETT modelled) */
+  /** TIME / UTC label: flight time in preflight (no ETT modelled) */
   private readonly timeLabel = this.activeFlightPhase.map((phase) =>
     phase === FmgcFlightPhase.Preflight ? 'TIME' : 'UTC',
   );
@@ -76,7 +76,7 @@ export class MfdFmsFplnFixInfo extends FmsFlightPlanPage {
         >
           {...([1, 2, 3, 4] as const).map((value) => (
             <TopTabNavigatorPage containerStyle="max-height: 45rem;">
-              {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 139), tab page coordinates (display x - 21, y - 198) */}
+              {/* Positions measured on the reference figure, tab page coordinates (display x - 21, y - 198) */}
               <div class="mfd-fcom-canvas mfd-fms-fpln-fix-info-canvas">
                 {fcomAt(34, 22, <span class="mfd-label">REF IDENT</span>)}
                 {fcomAt(
@@ -96,7 +96,7 @@ export class MfdFmsFplnFixInfo extends FmsFlightPlanPage {
                         return;
                       }
 
-                      // FCOM FIX INFO page: the reference fix is a navigation database or pilot-stored element,
+                      // The reference fix is a navigation database or pilot-stored element,
                       // never created here (an unknown ident is NOT IN DATABASE, not a NEW WAYPOINT)
                       const fix = await WaypointEntryUtils.parsePlace(this.props.fmcService.master!, text);
 

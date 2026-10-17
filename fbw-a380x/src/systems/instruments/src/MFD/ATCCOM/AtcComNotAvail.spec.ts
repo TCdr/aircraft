@@ -6,9 +6,8 @@ import { EventBus } from '@microsoft/msfs-sdk';
 import { AtcDatalinkSystem } from './AtcDatalinkSystem';
 
 /*
- * A380 FCOM DSC-46-10-20-30 MFD ATC COM Pages - General (a380_fcom.txt l.96792-96795): "If the flight crew decides to
- * display an ATC COM page while the ATC is failed, via the KCCU keys (ATC COM key or Navigation keys), the ATC COM NOT
- * AVAIL message appears for 5 s."
+ * An ATC COM page selected with the KCCU keys (ATC COM key or navigation keys) while the ATC function is failed: the
+ * ATC COM NOT AVAIL message shows for 5 s.
  */
 describe('ATC COM NOT AVAIL', () => {
   afterEach(() => {

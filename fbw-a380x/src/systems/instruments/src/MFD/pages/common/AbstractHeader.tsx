@@ -37,7 +37,7 @@ export abstract class AbstractHeader extends DisplayComponent<AbstractMfdHeaderP
       case 0: // FMS
         this.props.uiService.navigateTo('fms/active/init');
         break;
-      case 1: // ATC COM: the REQUEST page, as the KCCU ATC COM key (FCOM DSC-31-30-20)
+      case 1: // ATC COM: the REQUEST page, as the KCCU ATC COM key
         this.props.uiService.navigateTo('atccom/request');
         break;
       case 2: // SURV
@@ -108,7 +108,7 @@ export abstract class AbstractHeader extends DisplayComponent<AbstractMfdHeaderP
           hEventConsumer={this.props.mfd.hEventConsumer}
           interactionMode={this.props.mfd.interactionMode}
         />
-        {/* System Message Area (A380 FCOM DSC-31-50 l.74416-74429): CHECK FMS MESSAGE, NEW ATIS RECEIVED, ATIS SYS MSG */}
+        {/* System Message Area: CHECK FMS MESSAGE, NEW ATIS RECEIVED, ATIS SYS MSG */}
         <span class="mfd-header-system-message">{this.props.mfd.systemMessage}</span>
         <span class="mfd-header-callsign">{this.props.callsign.map((cs) => (cs !== null ? cs : '----------'))}</span>
       </div>

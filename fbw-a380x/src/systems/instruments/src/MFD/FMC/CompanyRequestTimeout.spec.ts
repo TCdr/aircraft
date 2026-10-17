@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CompanyRequestTimeout } from './CompanyRequestTimeout';
 
-// A380 FCOM DSC-22-FMS-10-40-90: NO COMPANY REPLY when no answer comes within 4 min after the request
+// NO COMPANY REPLY when no answer comes within 4 min after the request
 describe('company request timeout (NO COMPANY REPLY)', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());

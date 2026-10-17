@@ -104,12 +104,11 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
   private readonly irs3DataVisible = Subject.create<boolean>(false);
 
   /**
-   * FCOM DSC-22-FMS-20-30 POSITION / IRS page, FREEZE ALL IRS: freezes the IRS 1(2)(3) data, with the UTC (or flight)
+   * FREEZE ALL IRS: freezes the IRS 1(2)(3) data, with the UTC (or flight)
    * time of the freeze; the button then reads UNFREEZE ALL IRS.
    */
   private readonly irsDataFrozen = Subject.create(false);
 
-  // FCOM DSC-22-FMS-20-30 P 284: FREEZE ALL IRS / UNFREEZE ALL IRS
   private readonly irsDataFreezeButtonLabel = this.irsDataFrozen.map((v) =>
     v ? 'UNFREEZE<br />ALL IRS *' : 'FREEZE<br />ALL IRS *',
   );
@@ -149,13 +148,12 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
 
   protected onNewData() {}
 
-  /** The origin airport of the active flight plan */
   private activeOrigin(): { ident: string; location: Coordinates } | undefined {
     const origin = this.props.fmcService.master.flightPlanInterface.active?.originAirport;
     return origin ? { ident: origin.ident, location: origin.location } : undefined;
   }
 
-  /** ALIGN ON OTHER REF: opens the panel with the origin airport as the default position (FCOM l.39444-39446) */
+  /** ALIGN ON OTHER REF: opens the panel with the origin airport as the default position */
   private openAlignReferencePanel(): void {
     const reference = defaultAlignReference(this.activeOrigin()?.location);
     this.alignReferenceLat.set(reference.lat);
@@ -163,7 +161,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
     this.alignReferencePanelOpen.set(true);
   }
 
-  /** ALIGN IRS: sends the reference position for the IRS alignment (FCOM l.39451-39452), and closes the panel */
+  /** ALIGN IRS: sends the reference position for the IRS alignment, and closes the panel */
   private alignIrsOnReference(): void {
     const reference = alignReferenceToSend({ lat: this.alignReferenceLat.get(), long: this.alignReferenceLong.get() });
     if (reference === null) {
@@ -192,7 +190,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
 
     this.subs.push(this.showIrsDataFor.sub((v) => this.changeIrsData(v), true));
 
-    // IRS ALIGNMENT LABEL and POSITION (FCOM l.39397-39413): on the reference position of the Align On Other Reference
+    // IRS ALIGNMENT LABEL and POSITION: on the reference position of the Align On Other Reference
     // panel once the crew has sent one, else on the GPS position
     const updateAlignment = () => {
       const reference = this.props.fmcService.master.irsAlignReferencePosition.get();
@@ -276,7 +274,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
       this.irsDataGpirsPosition.set(
         coordinateToString(this.props.fmcService.master.navigation.getPpos() ?? { lat: 0, long: 0 }, false),
       );
-      // FCOM P 275: GPIRS accuracy in feet (the FMS EPU is in nautical miles)
+      // GPIRS accuracy in feet (the FMS EPU is in nautical miles)
       const epe = this.props.fmcService.master.navigation.getEpe();
       this.irsDataAccuracy.set(Number.isFinite(epe) ? (epe * 6076.12).toFixed(0) : '----');
     }
@@ -355,7 +353,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
         {super.render()}
         {/* begin page content */}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 275), page container coordinates */}
+          {/* Positions measured on the reference figure, page container coordinates */}
           <div class="mfd-fcom-canvas">
             {fcomAt(22, 19, <span class="mfd-label amber">{this.alignmentLabel}</span>)}
             {fcomAt(22, 394, <span class="mfd-value bigger">{this.alignmentPosition}</span>)}
@@ -369,7 +367,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
                 buttonStyle="min-width: 152px; min-height: 59px;"
               />,
             )}
-            {/* Align On Other Reference panel (FCOM P 281 figure), over the button row */}
+            {/* Align On Other Reference panel, over the button row */}
             <div class={{ hidden: this.alignReferencePanelHidden }}>
               <div class="mfd-position-irs-align-ref-panel" />
               {fcomAt(

@@ -152,7 +152,7 @@ export class MfdComponent
 
   private readonly messageListOpened = Subject.create<boolean>(false);
 
-  /** The System Message Area of the header (A380 FCOM DSC-31-50 l.74416-74429) */
+  /** The System Message Area of the header */
   private readonly systemMessageArea = new MfdSystemMessageArea();
 
   public readonly systemMessage = this.systemMessageArea.text;
@@ -239,7 +239,7 @@ export class MfdComponent
 
     const isCaptainSide = this.props.captOrFo === 'CAPT';
 
-    // The DATA revision of an airport on the ND of this side (A380 FCOM DSC-31-20-30-90 P 19): its DATA / AIRPORT page
+    // The DATA revision of an airport on the ND of this side opens its DATA / AIRPORT page
     this.subs.push(
       this.props.bus
         .getSubscriber<NdInteractiveEvents>()
@@ -272,9 +272,8 @@ export class MfdComponent
           if (eventName.startsWith(this.props.captOrFo === 'CAPT' ? 'A32NX_KCCU_L' : 'A32NX_KCCU_R')) {
             const key = eventName.substring(13);
             // A failed KCCU keyboard or cursor control device takes no key press (Kccu.ts)
-            const isFailureActive = this.props.isFailureActive;
             const failures = kccuFailureState(this.props.captOrFo === 'CAPT' ? 'L' : 'R', (id) =>
-              isFailureActive ? isFailureActive(id) : false,
+              this.props.isFailureActive ? this.props.isFailureActive(id) : false,
             );
             if (
               !isKccuKeyAvailable(
@@ -293,8 +292,8 @@ export class MfdComponent
 
             switch (key) {
               case 'DIR': {
-                // INSERT OR ERASE TMPY F-PLN FIRST (FCOM l.45663, l.45667-45670): not with a pending temporary flight
-                // plan of a revision (DirectToAccess.ts)
+                // DIR key: refused (INSERT OR ERASE TMPY F-PLN FIRST) while the temporary flight plan of a revision is
+                // pending (DirectToAccess.ts)
                 const fmc = this.props.fmcService.master;
                 const flightPlans = fmc?.flightPlanInterface;
                 const temporary = flightPlans?.hasTemporary ? flightPlans.temporary : undefined;
@@ -321,8 +320,7 @@ export class MfdComponent
                 this.uiService.navigateTo('fms/position/navaids');
                 break;
               case 'MAILBOX':
-                // The cursor moves to the mailbox of the SD (FCOM DSC-46-10-20-80 Mailbox KEY, l.101303-101306): the
-                // SD mailbox shows it (SDv2/AtcMailbox), it leaves the MFD
+                // The cursor moves to the mailbox of the SD (SDv2/AtcMailbox): it leaves the MFD
                 this.mouseCursorRef.getOrDefault()?.hide();
                 break;
               case 'FPLN':
@@ -339,14 +337,13 @@ export class MfdComponent
                 break;
               case 'ATCCOM':
                 this.uiService.navigateTo('atccom/request');
-                // ATC COM NOT AVAIL for 5 s while the ATC is failed (FCOM DSC-46-10-20-30)
+                // ATC COM NOT AVAIL for 5 s while the ATC is failed
                 this.props.atcService.onAtcComPageSelectedWithKccu();
                 break;
               case 'ND': // Move cursor to ND
                 break;
               case 'CLRINFO':
-                // Clears the message of the displayed system: the ATC COM message area on an ATC COM page (FCOM
-                // DSC-46-10-20-60 KCCU CLR INFO key)
+                // Clears the message of the displayed system: the ATC COM message area on an ATC COM page
                 if (this.uiService.activeUri.get().sys === 'atccom') {
                   this.props.atcService.clearLatestAtcErrorMessage();
                 } else {
@@ -372,8 +369,8 @@ export class MfdComponent
 
     this.subscribeSystemMessageArea();
 
-    // MODIFY in the mailbox displays the REPORT/MODIFY page (FCOM PRO How to manage a confirm message): on the MFD that
-    // displays an ATC COM page, else on the captain MFD
+    // MODIFY on a confirm message in the mailbox displays the REPORT/MODIFY page: on the MFD that displays an ATC COM
+    // page, else on the captain MFD
     this.subs.push(
       this.props.atcService.modifyRequests.sub(() => {
         const otherSide = this.props.captOrFo === 'CAPT' ? 'R' : 'L';
@@ -391,7 +388,7 @@ export class MfdComponent
     const area = this.systemMessageArea;
     this.subs.push(this.uiService.activeUri.sub((uri) => area.onApplicationShown(uri.sys), true));
 
-    // "an amber FMS message is pending": in the FMS message queue and not cleared
+    // An amber FMS message is pending while it is in the FMS message queue and not cleared
     this.subs.push(
       this.props.fmcService.master.fmsErrors.sub((_, type, item, messages) => {
         const added = (Array.isArray(item) ? item : [item]) as readonly (
@@ -479,8 +476,7 @@ export class MfdComponent
       );
     }
 
-    // FMS pages use the display frame of the FCOM figures (A380 FCOM DSC-22-FMS-20-30), see common/style.scss
-    // The ATC COM pages have the same display frame as the FMS pages (FCOM DSC-46-10-20-20 P 1)
+    // FMS and ATC COM pages use the display frame of the reference figures, see common/style.scss
     this.activePageRef.getOrDefault()?.classList.toggle('sys-fms', uri.sys === 'fms' || uri.sys === 'atccom');
 
     FSComponent.render(this.activeHeader, this.activeHeaderRef.getOrDefault());

@@ -23,7 +23,6 @@ function inDescent(approach: ApproachLandingSystem | null, tuned: ManuallyTunedI
   return isCheckApproachSelection(approach, tuned, frequency, FmgcFlightPhase.Descent, null, null);
 }
 
-/* A380 FCOM DSC-22-FMS-20-110 CHECK APPR SEL (a380_fcom.txt l.44966-44979) */
 describe('CHECK APPR SEL', () => {
   it('applies to a manually tuned ILS that is not the one of the ILS approach', () => {
     expect(inDescent(ILS_23, TUNED_IOT)).toBe(true);

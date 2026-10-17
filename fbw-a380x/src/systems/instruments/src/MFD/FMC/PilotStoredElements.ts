@@ -8,8 +8,7 @@ import type { Fix as CoRouteFix } from '@simbridge/Coroute/Fix';
 import { PilotStoredElementsPersistence } from './PilotStoredElementsPersistence';
 
 /**
- * Classes of a pilot stored NAVAID (A380 FCOM DSC-22-FMS-20-30, DATA / NAVAID page, NEW NAVAID function: VOR, DME,
- * LOC, ILS, GLS, NDB, VOR/DME).
+ * Classes of a pilot stored NAVAID (DATA / NAVAID page, NEW NAVAID function: VOR, DME, LOC, ILS, GLS, NDB, VOR/DME).
  */
 export enum PilotNavaidClass {
   Vor,
@@ -29,17 +28,17 @@ export function isLandingSystemClass(navaidClass: PilotNavaidClass): boolean {
   );
 }
 
-/** ELEVATION is not displayed for VOR and NDB (FCOM). */
+/** ELEVATION is not displayed for VOR and NDB. */
 export function hasElevation(navaidClass: PilotNavaidClass): boolean {
   return navaidClass !== PilotNavaidClass.Vor && navaidClass !== PilotNavaidClass.Ndb;
 }
 
-/** STATION DEC is only displayed for VOR and VOR/DME (FCOM). */
+/** STATION DEC is only displayed for VOR and VOR/DME. */
 export function hasStationDeclination(navaidClass: PilotNavaidClass): boolean {
   return navaidClass === PilotNavaidClass.Vor || navaidClass === PilotNavaidClass.VorDme;
 }
 
-/** A NAVAID created by the flight crew (FCOM DATA / NAVAID page, PILOT STORED NAVAIDS panel). */
+/** A NAVAID created by the flight crew (DATA / NAVAID page, PILOT STORED NAVAIDS panel). */
 export interface PilotStoredNavaid {
   ident: string;
   class: PilotNavaidClass;
@@ -66,7 +65,7 @@ export interface PilotStoredNavaid {
   slope?: number;
 }
 
-/** A runway created by the flight crew (FCOM DATA / AIRPORT page, PILOT STORED RWYs panel, P 55-60). */
+/** A runway created by the flight crew (DATA / AIRPORT page, PILOT STORED RWYs panel). */
 export interface PilotStoredRunway {
   /** Ident of the airport of the runway */
   airportIdent: string;
@@ -99,14 +98,14 @@ export interface StoredRouteProcedures {
   approachViaDatabaseId?: string;
   approachIdent?: string;
   approachDatabaseId?: string;
-  /** First waypoint of the approach (FCOM: the summary shows the first waypoint and the name of the procedure) */
+  /** First waypoint of the approach (the summary shows the first waypoint and the name of the procedure) */
   approachFirstWaypointIdent?: string;
   destinationRunwayIdent?: string;
 }
 
 /**
  * A company route: either one of the navigation database (SimBridge company routes) or one stored by the flight crew
- * (FCOM DATA / ROUTE page, PILOT STORED RTEs panel). The en-route part uses the SimBridge navlog format so that both
+ * (DATA / ROUTE page, PILOT STORED RTEs panel). The en-route part uses the SimBridge navlog format so that both
  * kinds are inserted by the same uplink adapter.
  */
 export interface StoredRoute {
@@ -119,22 +118,22 @@ export interface StoredRoute {
   procedures: StoredRouteProcedures;
 }
 
-/** The pilot stored routes database has a maximum of 5 routes (FCOM). */
+/** The pilot stored routes database has a maximum of 5 routes. */
 export const maxPilotStoredRoutes = 5;
 
-/** Each stored route has a maximum size of 30 flight plan elements (FCOM). */
+/** Each stored route has a maximum size of 30 flight plan elements. */
 export const maxStoredRouteElements = 30;
 
-/** The pilot stored NAVAIDs database has a maximum of 20 NAVAIDs (FCOM). */
+/** The pilot stored NAVAIDs database has a maximum of 20 NAVAIDs. */
 export const maxPilotStoredNavaids = 20;
 
-/** The pilot stored runways database has a maximum of 10 runways (FCOM P 56). */
+/** The pilot stored runways database has a maximum of 10 runways. */
 export const maxPilotStoredRunways = 10;
 
 /**
  * The pilot stored elements database of the FMS, except the waypoints (kept by the DataManager): NAVAIDs, runways and
- * company routes, persisted in the browser storage like the pilot stored waypoints, for the sim session (FCOM: deleted
- * when all the FMCs are shut down), or from one session to the next with the flypad setting (see
+ * company routes, persisted in the browser storage like the pilot stored waypoints, for the sim session (the aircraft
+ * deletes them when all the FMCs are shut down), or from one session to the next with the flypad setting (see
  * {@link PilotStoredElementsPersistence}).
  *
  * Stored NAVAIDs are not tunable and not usable as flight plan fixes yet, stored runways are not usable in the flight
@@ -184,8 +183,8 @@ export class PilotStoredElements {
   }
 
   /**
-   * Stores a NAVAID. When the database is full, the first created NAVAID is deleted (FCOM: "the first created NAVAID
-   * that is not part of the flight plan is deleted"; stored NAVAIDs cannot be part of the flight plan yet).
+   * Stores a NAVAID. When the database is full, the first created NAVAID that is not part of the flight plan is deleted
+   * (stored NAVAIDs cannot be part of the flight plan yet).
    */
   storeNavaid(navaid: PilotStoredNavaid): void {
     const navaids = this._navaids.get().filter((n) => n.ident !== navaid.ident);
@@ -206,8 +205,8 @@ export class PilotStoredElements {
 
   /**
    * Stores a runway (a runway with the same airport and ident is replaced). When the database is full, the first
-   * created runway is deleted (FCOM P 60: "the first created runway (that is not part of the flight plan)"; stored
-   * runways cannot be part of the flight plan yet).
+   * created runway that is not part of the flight plan is deleted (stored runways cannot be part of the flight plan
+   * yet).
    */
   storeRunway(runway: PilotStoredRunway): void {
     const runways = this._runways
@@ -237,7 +236,7 @@ export class PilotStoredElements {
     return this._routes.get().filter((r) => r.originIcao === originIcao && r.destinationIcao === destinationIcao);
   }
 
-  /** @returns false when the list is full (FCOM: PILOT RTEs LIST FULL) */
+  /** @returns false when the list is full (PILOT RTEs LIST FULL) */
   storeRoute(route: StoredRoute): boolean {
     if (this._routes.get().length >= maxPilotStoredRoutes) {
       return false;

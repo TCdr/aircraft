@@ -11,9 +11,8 @@ import {
 } from './TakeoffDerate';
 
 describe('MFD PERF T.O derated takeoff', () => {
-  // FCOM DSC-70-20-40 l.111564-111565: "6 derated takeoff levels are defined: DO4 , DO8 , D12 , D16 , D20 , D24 . Each
-  // level reduces the maximum thrust from 4 % up to 24 %."
-  it('lists the six levels of the FCOM, D04 to D24', () => {
+  // Six derated takeoff levels, DO4 to D24, each reducing the maximum thrust by 4 % up to 24 %
+  it('lists the six derate levels, D04 to D24', () => {
     expect(TAKEOFF_DERATE_LEVELS).toEqual(['D04', 'D08', 'D12', 'D16', 'D20', 'D24']);
     expect(TakeoffDerated.D04).toBe(0);
     expect(TakeoffDerated.D24).toBe(5);

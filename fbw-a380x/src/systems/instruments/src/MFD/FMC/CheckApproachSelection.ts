@@ -6,21 +6,20 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 import { isLandingSystemApproach } from '@fmgc/components/fms-messages/CheckApproachSelectionLogic';
 
 /*
- * CHECK APPR SEL, A380 FCOM DSC-22-FMS-20-110 (a380_fcom.txt l.44966-44979), type II, MFD and PFD (FMA line 3,
- * DSC-22-FG-80-80 l.19241): "The flight crew has manually tuned an ILS(GLS), on the POSITION/NAVAIDS page, that does
- * not correspond with the approach selected in the flight plan. This message is only displayed, when the aircraft is:
- * In cruise, and less then 100 nm from the T/D, or In descent, or In approach, and the altitude is higher then 800 ft."
+ * CHECK APPR SEL (type II message, on the MFD and on the PFD FMA line 3): the flight crew manually tuned an ILS
+ * (GLS) on the POSITION/NAVAIDS page that does not correspond with the approach of the flight plan. Shown only in
+ * cruise less than 100 NM from the T/D, in descent, or in approach above 800 ft.
  * (The A380 has no RWY/LS MISMATCH message: a tuned ILS that is not the one of the ILS approach is a mismatch too.)
  */
 
-/** l.44976: "In cruise, and less then 100 nm from the T/D" */
+/** CHECK APPR SEL in cruise: only less than 100 NM from the T/D */
 export const CHECK_APPR_SEL_DISTANCE_BEFORE_TOD_NM = 100;
-/** l.44978: "In approach, and the altitude is higher then 800 ft" */
+/** CHECK APPR SEL in approach: only above 800 ft */
 export const CHECK_APPR_SEL_MIN_HEIGHT_IN_APPROACH_FT = 800;
 
 /** The landing system that the approach of the flight plan uses */
 export interface ApproachLandingSystem {
-  /** the approach type */
+  /** only a landing system approach can mismatch the tuned ILS */
   type: ApproachType;
   /** ident of the recommended navaid of the final leg (the LOC/ILS of an ILS approach), null without */
   ident: string | null;
@@ -64,7 +63,7 @@ export function tunedIlsCorrespondsWithApproach(
  * @param flightPhase the FMGC flight phase
  * @param distanceToTopOfDescentNm the distance to the T/D in NM (negative once past it), null without a T/D
  * @param heightAboveDestinationFt the altitude above the destination elevation in feet, null when unknown. Design
- * choice: "the altitude is higher then 800 ft" is read as the height above the destination airport.
+ * choice: the 800 ft of the approach condition are read as the height above the destination airport.
  * @returns whether CHECK APPR SEL applies
  */
 export function isCheckApproachSelection(

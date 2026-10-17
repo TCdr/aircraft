@@ -4,12 +4,10 @@
 import { TakeoffDerated, TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 
 /**
- * The DOx derated takeoff the MFD PERF T.O panel gives the FADECs. A380 FCOM DSC-70-20-40 THRUST RATING LIMIT
- * (a380_fcom.txt l.111561-111568): "DOx : Derated takeoff mode. The DOx mode reduces the maximum thrust at takeoff. 6
- * derated takeoff levels are defined: DO4 , DO8 , D12 , D16 , D20 , D24 . Each level reduces the maximum thrust from 4 %
- * up to 24 %. ... The flight crew can select the derated takeoff level via the T.O panel of the FMS ACTIVE/PERF page."
- * The MFD DERATED list (DSC-22-FMS-20-30 l.37652-37655): "The list may have maximum 9 derated levels. The number of
- * available thrust levels depends on the selected engine type": the six of the engine chapter.
+ * The DOx derated takeoff the MFD PERF T.O panel gives the FADECs. The engine has six derated takeoff levels, DO4,
+ * DO8, D12, D16, D20 and D24, which reduce the maximum takeoff thrust by 4 % up to 24 %; the crew selects one on the
+ * T.O panel of the ACTIVE/PERF page. The MFD DERATED list can hold up to 9 levels depending on the engine type: this
+ * engine has six.
  */
 
 /** The labels of the MFD DERATED list, in the order of TakeoffDerated */

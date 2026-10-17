@@ -30,7 +30,7 @@ export enum StatusItemState {
   Failed = 2,
 }
 
-/** SURV / STATUS & SWITCHING page (A380 FCOM DSC-34-20-60-50 P 6-8), laid out on the FCOM figure */
+/** SURV / STATUS & SWITCHING page, laid out on the reference figure */
 export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitchingProps> {
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
   private readonly subs = [] as Subscription[];
@@ -38,8 +38,8 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
   private readonly sub = this.props.bus.getSubscriber<MfdSimvars & MfdSurvEvents>();
 
   /**
-   * TCAS 1 inoperative (systems host Transponder.ts): XPDR 1 failed or unpowered (A380 FCOM SURV XPDR 1 FAULT STATUS,
-   * a380_fcom.txt:167311-167322), or SYS 1 selected and the TCAS computer faulty
+   * TCAS 1 inoperative (systems host Transponder.ts): XPDR 1 failed or unpowered, or SYS 1 selected and the TCAS
+   * computer faulty
    */
   private readonly tcas1Failed = ConsumerSubject.create(this.sub.on('tcas1Failed'), false);
 
@@ -90,7 +90,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
   private readonly taws1Active = this.tawsSystemNumber.map((s) => s === 1);
   private readonly taws2Active = this.tawsSystemNumber.map((s) => s === 2);
 
-  /** TAWS 1(2) IN USE (FCOM DSC-34-20-60-50 P 6-7), shown with its frame only when the TAWS comes from the other SYS */
+  /** TAWS 1(2) IN USE, shown with its frame only when the TAWS comes from the other SYS */
   private readonly tawsInUseIndication = MappedSubject.create(
     ([selected, inUse]) => tawsInUseText(selected, inUse),
     this.activeSystemGroupWxrTaws,
@@ -99,7 +99,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
   private readonly tawsInUseHidden = this.tawsInUseIndication.map((text) => text === null);
   private readonly tawsInUseLabel = this.tawsInUseIndication.map((text) => text ?? '');
 
-  /** The transponder/TCAS system in use (L:A32NX_TRANSPONDER_SYSTEM: 0 = SYS 1, 1 = SYS 2), also switched on the pedestal. */
+  /** XPDR/TCAS system in use (L:A32NX_TRANSPONDER_SYSTEM: 0 = SYS 1, 1 = SYS 2), also switched on the pedestal */
   private readonly xpdrSystem = ConsumerSubject.create(this.sub.on('xpdrSystem'), 0);
   private readonly activeSystemGroupXpdrTcas = this.xpdrSystem.map((s) => s + 1);
   private readonly xpdrTcas1Active = this.activeSystemGroupXpdrTcas.map((s) => s === 1);
@@ -149,7 +149,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
     super.destroy();
   }
 
-  /** A SYS box of the page: SYS button on top of the frame, then groups of status items (FCOM DSC-34-20-60-50 P 6) */
+  /** A SYS box of the page: SYS button on top of the frame, then groups of status items */
   private sysBox(
     x: number,
     top: number,
@@ -202,7 +202,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
         <SurvStatusButton
           label={`SYS ${sys}`}
           active={active}
-          // A380 FCOM DSC-34-20-60-20: the SYS button selects that WXR/TAWS system (one is always selected)
+          // The SYS button selects that WXR/TAWS system (one is always selected)
           onClick={() => SimVar.SetSimVarValue('L:A32NX_WXR_TAWS_SYS_SELECTED', SimVarValueType.Number, one ? 1 : 2)}
         />,
         [
@@ -261,14 +261,14 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
       <>
         <ActivePageTitleBar activePage={Subject.create('STATUS & SWITCHING')} offset={Subject.create('')} />
         {/* begin page content */}
-        {/* Positions from the FCOM figure (DSC-34-20-60-50 P 6), page container coordinates (display y - 143) */}
+        {/* Positions measured on the reference figure, page container coordinates (display y - 143) */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-surv-status">
             {wxrTaws('1', 57, this.wxrTaws1Active, this.taws1Active)}
             {fcomCentre(137, 383, <span class="mfd-label bigger">WXR</span>)}
             {fcomCentre(266, 383, <span class="mfd-label bigger">TAWS</span>)}
             {wxrTaws('2', 440, this.wxrTaws2Active, this.taws2Active)}
-            {/* TAWS 1(2) IN USE indication across both SYS boxes (FCOM figure P 6), only in abnormal operation */}
+            {/* TAWS 1(2) IN USE indication across both SYS boxes, only in abnormal operation */}
             <div class={{ 'mfd-surv-taws-in-use': true, hidden: this.tawsInUseHidden }}>
               <div class="sys-box" style="left: 57px; top: 343px; width: 655px; height: 40px;" />
               {fcomCentre(364, 381, <span class="mfd-surv-status-item active">{this.tawsInUseLabel}</span>)}

@@ -7,7 +7,7 @@ const MIN_GROUND_SPEED_KT = 30;
 const SECONDS_PER_DAY = 86400;
 
 /**
- * The UTC of arrival at the DIR TO target (FCOM DSC-31-20-30-90 P 12, DSC-22-FMS-20-30 DIRECT TO page). The FMS has no
+ * The UTC of arrival at the DIR TO target (DIRECT TO page of the MFD and of the ND). The FMS has no
  * predictions of the temporary flight plan, so the DIRECT TO pages of the MFD and the ND estimate it from the distance
  * and the current ground speed.
  * @param distanceNm the distance to the target, null when not computed

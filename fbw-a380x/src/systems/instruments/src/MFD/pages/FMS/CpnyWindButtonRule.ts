@@ -19,8 +19,7 @@ export interface CpnyWindButtonState {
 
 /**
  * Whether the CPNY WIND REQUEST button is disabled. A company F-PLN uplink in progress disables it, but not its own
- * pending wind request: A380 FCOM a380_fcom.txt l.42124-42128, "When an active wind request is pending, the button
- * displays REQUEST PENDING ... The button gives still access to the COMPANY WIND DATA REQUEST page."
+ * pending wind request: then the button shows REQUEST PENDING and still opens the COMPANY WIND DATA REQUEST page.
  */
 export function isCpnyWindButtonDisabled(state: CpnyWindButtonState): boolean {
   return (
@@ -35,9 +34,8 @@ export function isCpnyWindButtonDisabled(state: CpnyWindButtonState): boolean {
 export type CpnyWindButtonClickAction = 'menu' | 'open-request-page';
 
 /**
- * A380 FCOM a380_fcom.txt l.42114-42131: with the free text option, the button opens the COMPANY WIND DATA REQUEST
- * page (also while the request is pending); once company winds are received for the plan it opens the INSERT/CLEAR
- * menu instead.
+ * With the free text option, the button opens the COMPANY WIND DATA REQUEST page (also while the request is
+ * pending); once company winds are received for the plan it opens the INSERT/CLEAR menu instead.
  */
 export function cpnyWindButtonClickAction(availableForPlan: boolean): CpnyWindButtonClickAction {
   return availableForPlan ? 'menu' : 'open-request-page';

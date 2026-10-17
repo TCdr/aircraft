@@ -18,7 +18,7 @@ interface ActivePageTitleBarProps extends ComponentProps {
   penaltyIsActive?: Subscribable<boolean>;
   /** Whether this is an FMS subsystem page. If it is, title section for EO AND TMPY are visible */
   isFmsSubsystemPage?: boolean;
-  /** The EMERGENCY page of the ATC COM system: an orange title bar (A380 FCOM DSC-46-10-20-30 P 35) */
+  /** The EMERGENCY page of the ATC COM system: an orange title bar */
   emergency?: boolean;
 }
 

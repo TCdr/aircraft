@@ -3,7 +3,7 @@
 
 @import "../../../MsfsAvionicsCommon/definitions";
 
-// REQUEST page, laid out on the FCOM figure (FcomLayout)
+// REQUEST page, laid out on the reference figure (FcomLayout)
 .mfd-atccom-request {
   // A frame: a fifth of the area between the title bar and the buttons
   .mfd-atccom-request-frame {
@@ -12,7 +12,7 @@
     width: 569px;
   }
 
-  // A line of a frame: its labels and fields follow each other, 19 px apart (FCOM figure)
+  // A line of a frame: its labels and fields follow each other, 19 px apart
   .mfd-atccom-request-line {
     display: flex;
     align-items: center;
@@ -24,7 +24,7 @@
     flex-shrink: 0;
   }
 
-  // The frame labels: 13.5 px per character (FCOM figure) (the FBW display font: 0.627 em per character)
+  // The frame labels: 13.5 px per character (the FBW display font: 0.627 em per character)
   .mfd-atccom-request-label {
     font-size: 21.5px;
     color: $display-white;

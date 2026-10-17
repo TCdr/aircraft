@@ -135,16 +135,16 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
    */
   get hasActiveFlightPlanWithCityPair(): Subject<boolean>;
 
-  /** FUEL PLANNING: the computed minimum BLOCK fuel in tonnes, until confirmed (A380 FCOM DSC-22-FMS-20-30 P 179) */
+  /** FUEL PLANNING: the computed minimum BLOCK fuel in tonnes, until confirmed */
   readonly fuelPlanningBlockFuel: Subscribable<number | null>;
 
   /** FUEL PLANNING: the computation is running */
   readonly fuelPlanningInProgress: Subscribable<boolean>;
 
-  /** Starts the fuel planning computation */
+  /** Starts the FUEL PLANNING: predictions with trial BLOCK fuels until the minimum BLOCK is found */
   startFuelPlanning(): void;
 
-  /** Company takeoff data: the request and the received data (A380 FCOM DSC-22-FMS) */
+  /** Company takeoff data: the request and the received data */
   readonly companyTakeoffData: CompanyTakeoffData;
 
   /** The takeoff data of the FMS, as in a company takeoff data request */
@@ -227,7 +227,7 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
 
   /**
    * The alternates planned by the company for a destination (the alternates of the SimBrief OFP, when it is for this
-   * destination), used as the database alternates of the ALTERNATE page (FCOM: a maximum of 6)
+   * destination), used as the database alternates of the ALTERNATE page (a maximum of 6)
    */
   getCompanyAlternates(destinationIcao: string): string[];
 
@@ -373,7 +373,7 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
    */
   computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined;
 
-  /** The time constraint (RTA) of the active flight plan (FCOM: only one time constraint in the flight plan) */
+  /** The time constraint (RTA) of the active flight plan (only one time constraint in the flight plan) */
   readonly timeConstraint: Subject<TimeConstraint | null>;
 
   /**
@@ -399,31 +399,30 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
 
   /**
    * The last sequenced navigation database or pilot stored waypoint with the data recorded there, for the
-   * POSITION / REPORT page (A380 FCOM DSC-22-FMS-20-30); null when nothing has been sequenced yet.
+   * POSITION / REPORT page; null when nothing has been sequenced yet.
    */
   get lastSequencedWaypoint(): SequencedWaypointRecord | null;
 
   /** Pilot stored NAVAIDs and company routes (DATA / NAVAID and DATA / ROUTE pages). */
   get pilotStoredElements(): PilotStoredElements;
 
-  /** The FMS print functions (DATA / PRINTER page, A380 FCOM DSC-22-FMS-10-70); null until the FMS is initialized */
+  /** The FMS print functions (DATA / PRINTER page); null until the FMS is initialized */
   get printer(): FmsPrinter | null;
 
   /**
-   * The elements of the last ATC flight plan loaded in SEC 3 that the FMS rejected (REJECTED ATC INFO page, A380 FCOM
-   * DSC-22-FMS-20-30 P 321)
+   * The elements of the last ATC flight plan loaded in SEC 3 that the FMS rejected (REJECTED ATC INFO page)
    */
   get atcRejectedElements(): Subscribable<readonly RejectedAtcElement[]>;
 
   /**
    * Inserts a company route (navigation database or pilot stored) into a flight plan, with its procedures
-   * (A380 FCOM DSC-22-FMS-20-30, ROUTE SELECTION page INSERT button).
+   * (ROUTE SELECTION page INSERT button).
    */
   insertCompanyRoute(route: StoredRoute, intoPlan: FlightPlanIndex): Promise<void>;
 
   /**
    * Inserts an alternate company route (from the primary destination to the alternate destination) into the alternate
-   * flight plan of a flight plan, without a temporary flight plan (A380 FCOM DSC-22-FMS-20-30, INIT page ALTN RTE).
+   * flight plan of a flight plan, without a temporary flight plan (INIT page ALTN RTE).
    */
   insertAlternateCompanyRoute(route: StoredRoute, intoPlan: FlightPlanIndex): Promise<void>;
 

@@ -125,7 +125,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     (v) => `mfd-value ${v ? '' : 'amber'} bigger mfd-spacing-right`,
   );
 
-  /** FCOM P 292: FREEZE POSITION / UNFREEZE POSITION, and the time the data was frozen */
+  /** FREEZE POSITION / UNFREEZE POSITION, and the time the data was frozen */
   private readonly positionFrozenLabel = this.positionFrozen.map((v) =>
     v ? 'UNFREEZE<br />POSITION *' : 'FREEZE<br />POSITION *',
   );
@@ -220,11 +220,11 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     this.fmsEpe.set(navigation.getEpe());
     this.fmsRnp.set(rnp ?? null);
     this.rnpEnteredByPilot.set(navigation.isPilotRnp());
-    // FMS1 on the CAPT side, FMS2 on the F/O side (A380 FCOM POSITION / MONITOR page, a380_fcom.txt l.39683-39686)
+    // FMS1 on the CAPT side, FMS2 on the F/O side
     const onSide: 1 | 2 = this.props.mfd.uiService.captOrFo === 'CAPT' ? 1 : 2;
     const offSide: 1 | 2 = onSide === 1 ? 2 : 1;
     const fmCoordinates = navigation.getFmPosition(onSide);
-    // FCOM P 292: FREEZE POSITION freezes the display of all position data on the page
+    // FREEZE POSITION freezes the display of all position data on the page
     const updatePositionSensors = !this.positionFrozen.get();
     const positionText = (position: Coordinates | null) =>
       position !== null ? coordinateToString(position, false) : noPositionAvailableText;
@@ -268,10 +268,10 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     );
 
     if (updatePositionSensors) {
-      // The pure GPS positions of the two MMR receivers, sent through the ADIRS (a380_fcom.txt l.22760-22761)
+      // The pure GPS positions of the two MMR receivers, sent through the ADIRS
       this.gnss1PositionText.set(positionText(navigation.getGpsPosition(1)));
       this.gnss2PositionText.set(positionText(navigation.getGpsPosition(2)));
-      // The MIX IRS position, or the single IRS position the onside FMS uses (a380_fcom.txt l.39724-39726)
+      // The MIX IRS position, or the single IRS position the onside FMS uses
       this.mixIrsPositionText.set(positionText(navigation.getMixIrsPosition(onSide)));
     }
 
@@ -289,7 +289,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     }
 
     if (updatePositionSensors) {
-      // FCOM P 286: navigation mode "N IRS/GPS", "N IRS/DME/DME", "N IRS/VOR/DME" or "N IRS", N = 3 or 1 IRS. Both FMSs
+      // Navigation mode "N IRS/GPS", "N IRS/DME/DME", "N IRS/VOR/DME" or "N IRS", N = 3 or 1 IRS. Both FMSs
       // use the same navaids and the same IRS, so both have the navigation mode of the FMS function.
       const modeText = navigationModeText(navigation.getIrsUsedCount(), navigation.getNavigationMode());
       const mode = modeText === '' ? '' : `(${modeText})`;
@@ -375,7 +375,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
         {super.render()}
         {/* begin page content */}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figures (DSC-22-FMS-20-30 P 273, P 286), page container coordinates */}
+          {/* Positions measured on the reference figures, page container coordinates */}
           <div class="mfd-fcom-canvas">
             {fcomRight(22, 208, <span class="mfd-label">ACCURACY</span>)}
             {fcomAt(22, 227, <span class={this.accuracyClass}>{this.fmsAccuracy}</span>)}
@@ -445,7 +445,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
               11,
               <Button
                 label="POSITION<br />UPDATE"
-                disabled={Subject.create(true)} // FCOM: only when the FMS navigation mode is not IRS/GPS (not modelled)
+                disabled={Subject.create(true)} // Only when the FMS navigation mode is not IRS/GPS (not modelled)
                 onClick={() => {}}
                 buttonStyle="min-width: 127px; min-height: 57px;"
               />,
@@ -489,7 +489,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
             {fcomRight(743, 584, <span class="mfd-value">{this.distanceToWaypointDisplay}</span>)}
             {fcomAt(743, 589, <span class="mfd-label-unit">{this.distanceToWaypointUnit}</span>)}
 
-            {/* FCOM P 286: RETURN always displayed */}
+            {/* RETURN always displayed */}
             {fcomAt(
               796,
               3,

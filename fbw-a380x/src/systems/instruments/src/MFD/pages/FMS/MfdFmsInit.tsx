@@ -110,8 +110,8 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
   private readonly cpnyRte = Subject.create<string | null>(null);
 
   /**
-   * FCOM DSC-22-FMS-20-30 INIT page, COMPANY ROUTE ENTRY FIELD: mandatory when no city pair is defined (the route
-   * defines it); not enterable outside PREFLIGHT (ACTIVE / INIT) or when a temporary flight plan is pending.
+   * COMPANY ROUTE field: mandatory when no city pair is defined (the route defines it); not enterable outside
+   * PREFLIGHT (ACTIVE / INIT) or when a temporary flight plan is pending.
    */
   private readonly cpnyRteDisabled = MappedSubject.create(
     ([tmpy, phase, fpIndex]) =>
@@ -122,20 +122,10 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
     this.loadedFlightPlanIndex,
   );
 
-  /** The ROUTE SELECTION page lists the company routes of the FROM / TO city pair */
-  /**
-   * FCOM DSC-22-FMS-20-30 P 199-200: the (ALTN) RTE SEL buttons always display the ROUTE SELECTION page; only the route
-   * entries are limited (company route: PREFLIGHT phase, alternate route: a primary destination, both: no temporary
-   * flight plan). Without a city pair the page shows no route.
-   */
-  private readonly rteSelDisabled = this.cpnyRteDisabled.map((v) => v);
-
-  private readonly altnRteSelDisabled = this.tmpyActive.map((v) => v);
-
   /** ALTN RTE: the alternate company route inserted into the plan (AlternateCompanyRoute.ts) */
   private readonly altnRte = Subject.create<string | null>(null);
 
-  /** ALTN RTE entry: not without a primary destination or with a pending temporary flight plan (FCOM l.36770-36773) */
+  /** ALTN RTE entry: not without a primary destination or with a pending temporary flight plan */
   private readonly altnRteDisabled = MappedSubject.create(
     ([toIcao, tmpy]) => !isAlternateRouteEntryAllowed(toIcao ?? undefined, tmpy),
     this.toIcao,
@@ -167,8 +157,8 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
   private readonly tripWind = Subject.create<number | null>(null);
 
   /**
-   * FCOM DSC-22-FMS-20-30 INIT page, TRIP WIND ENTRY FIELD: not enterable without a city pair; disabled with dashes
-   * once a climb, cruise or descent wind is entered on the WIND page.
+   * TRIP WIND field: not enterable without a city pair; disabled with dashes once a climb, cruise or descent wind is
+   * entered on the WIND page.
    */
   private readonly tripWindDisabled = MappedSubject.create(
     ([toIcao, fromIcao, fpHasWindEntries]) => !toIcao || !fromIcao || fpHasWindEntries,
@@ -184,7 +174,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
     this.mandatoryAndActiveFpln,
   );
 
-  /** FCOM DSC-22-FMS-20-30 INIT page: DEPARTURE is selectable only in PREFLIGHT, when an origin airport exists */
+  /** DEPARTURE is selectable only in PREFLIGHT, when an origin airport exists */
   private readonly departureButtonDisabled = MappedSubject.create(
     ([fromIcao, phase]) => !fromIcao || phase !== FmgcFlightPhase.Preflight,
     this.fromIcao,
@@ -239,8 +229,6 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
       this.tripWindDisabled,
       this.cpnyRteMandatory,
       this.cpnyRteDisabled,
-      this.rteSelDisabled,
-      this.altnRteSelDisabled,
       this.altnRteDisabled,
       this.departureButtonDisabled,
       this.costIndexModeDisabled,
@@ -389,7 +377,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
         this.loadedFlightPlanIndex.get(),
       );
 
-      // A380 FCOM l.44998-45003: CHECK DATABASE CYCLE on a FROM/TO entry
+      // CHECK DATABASE CYCLE on a FROM/TO entry
       void checkNavDatabaseCycle(this.props.fmcService.master);
 
       if (this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active) {
@@ -402,9 +390,24 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
   }
 
   /**
-   * FCOM DSC-22-FMS-20-30 INIT page, COMPANY ROUTE ENTRY FIELD: a manual entry inserts the company route (pilot
-   * stored, or navigation database via SimBridge), which re-initializes the flight plan and sets the FROM / TO city
-   * pair; NOT IN DATABASE otherwise.
+   * The company route of the navigation database via SimBridge, undefined when it is unknown or SimBridge is not
+   * available
+   */
+  private static async fetchSimBridgeRoute(ident: string, logLabel: string): Promise<StoredRoute | undefined> {
+    try {
+      const result = await CompanyRoute.getCoRoute(ident);
+      if (result.success && result.data) {
+        return routeFromCoRouteDto(result.data);
+      }
+    } catch (e) {
+      console.warn(`[FMS] ${logLabel} not available:`, e);
+    }
+    return undefined;
+  }
+
+  /**
+   * COMPANY ROUTE field: a manual entry inserts the company route (pilot stored, or navigation database via
+   * SimBridge), which re-initializes the flight plan and sets the FROM / TO city pair; NOT IN DATABASE otherwise.
    */
   private async onCompanyRouteEntered(ident: string | null): Promise<boolean> {
     const fmc = this.props.fmcService.master;
@@ -419,14 +422,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
         ? fmc.pilotStoredElements.routesForCityPair(fromIcao, toIcao).find((r) => r.ident === ident)
         : undefined) ?? fmc.pilotStoredElements.findRoute(ident);
     if (!route) {
-      try {
-        const result = await CompanyRoute.getCoRoute(ident);
-        if (result.success && result.data) {
-          route = routeFromCoRouteDto(result.data);
-        }
-      } catch (e) {
-        console.warn('[FMS] Company route not available:', e);
-      }
+      route = await MfdFmsInit.fetchSimBridgeRoute(ident, 'Company route');
     }
     if (!route) {
       fmc.addMessageToQueue(NXSystemMessages.notInDatabase, undefined, undefined);
@@ -434,16 +430,16 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
     }
 
     await fmc.insertCompanyRoute(route, this.loadedFlightPlanIndex.get());
-    // A380 FCOM l.44998-45003: CHECK DATABASE CYCLE on a company route entry
+    // CHECK DATABASE CYCLE on a company route entry
     void checkNavDatabaseCycle(fmc);
     return true;
   }
 
   /**
-   * FCOM DSC-22-FMS-20-30 INIT page, ALTERNATE ROUTE ENTRY FIELD (l.36743-36775): an entry inserts the alternate company
-   * route (pilot stored, or navigation database via SimBridge) from the primary destination, which re-initializes the
-   * alternate flight plan without a temporary flight plan; NOT IN DATABASE for an unknown route, DEST / ALTN CPNY RTE
-   * DISAGREE for a route that does not start at the primary destination (AlternateCompanyRoute.ts).
+   * ALTERNATE ROUTE field: an entry inserts the alternate company route (pilot stored, or navigation database via
+   * SimBridge) from the primary destination, which re-initializes the alternate flight plan without a temporary flight
+   * plan; NOT IN DATABASE for an unknown route, DEST / ALTN CPNY RTE DISAGREE for a route that does not start at the
+   * primary destination (AlternateCompanyRoute.ts).
    */
   private async onAlternateRouteEntered(ident: string | null): Promise<boolean> {
     const fmc = this.props.fmcService.master;
@@ -455,14 +451,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
 
     let route: StoredRoute | undefined = fmc.pilotStoredElements.findRoute(ident);
     if (!route) {
-      try {
-        const result = await CompanyRoute.getCoRoute(ident);
-        if (result.success && result.data) {
-          route = routeFromCoRouteDto(result.data);
-        }
-      } catch (e) {
-        console.warn('[FMS] Alternate company route not available:', e);
-      }
+      route = await MfdFmsInit.fetchSimBridgeRoute(ident, 'Alternate company route');
     }
 
     const error = alternateRouteEntryError(route, destination);
@@ -496,7 +485,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
           {super.render()}
           {/* begin page content */}
           <div class="mfd-page-container">
-            {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 191), page container coordinates */}
+            {/* Positions measured on the reference figure of the page, in page container coordinates */}
             <div class="mfd-fcom-canvas">
               {fcomRight(34, 137, <span class="mfd-label">FLT NBR</span>)}
               {fcomAt(
@@ -638,7 +627,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
                   canBeCleared={false}
                   value={this.cpnyRte}
                   dataHandlerDuringValidation={(v) => this.onCompanyRouteEntered(v)}
-                  // FCOM: a CPNY RTE entry inserts the route again, even with the ident already shown
+                  // A CPNY RTE entry inserts the route again, even with the ident already shown
                   handleSameValueEntry
                   containerStyle="width: 209px;"
                   alignText="center"
@@ -652,7 +641,9 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
                 165,
                 369,
                 <Button
-                  disabled={this.rteSelDisabled}
+                  // The ROUTE SELECTION page lists the company routes of the city pair; RTE SEL follows the CPNY RTE
+                  // entry, ALTN RTE SEL is not available with a temporary flight plan
+                  disabled={this.cpnyRteDisabled}
                   label="RTE SEL"
                   onClick={() =>
                     this.props.mfd.uiService.navigateTo(
@@ -686,7 +677,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
                 369,
                 <Button
                   label="ALTN RTE SEL"
-                  disabled={this.altnRteSelDisabled}
+                  disabled={this.tmpyActive}
                   onClick={() =>
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/${routeSelectionPage}/${alternateRouteSelectionUriExtra}/${showReturnButtonUriExtra}`,
@@ -925,7 +916,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
                   764,
                   589,
                   <Button
-                    // FCOM DSC-22-FMS-20-30 P 33: displays the COMPANY T.O DATA REQUEST page (active flight plan only)
+                    // Displays the COMPANY T.O DATA REQUEST page (active flight plan only)
                     disabled={this.secActive}
                     label={this.cpnyToButton.label}
                     onClick={() => this.props.mfd.uiService.navigateTo(this.cpnyToButton.target)}

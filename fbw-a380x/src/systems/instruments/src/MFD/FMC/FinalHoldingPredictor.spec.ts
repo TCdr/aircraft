@@ -8,8 +8,8 @@ import { FinalHoldingPredictor, roundFuelUpToTenthTonne } from './FinalHoldingPr
 const KLB_TO_T = 0.453_592_37;
 
 describe('FinalHoldingPredictor', () => {
-  it('reproduces the FCOM IN-FLT PERF holding (PER-IFT-HLD-HMI: 940.0 klb, 30 min, ISA+10 -> 13100 lb, 926.9 klb)', () => {
-    // The figure is at ISA+10, the FINAL fuel at ISA: the ISA fuel flow is the figure's one less 3 % (0.3 %/°C)
+  it('reproduces the published holding example (940.0 klb, 30 min, ISA+10 -> 13100 lb, 926.9 klb)', () => {
+    // The published holding is at ISA+10, the FINAL fuel at ISA: the ISA fuel flow is 3 % less (0.3 %/°C)
     const isaFuelKlb = FinalHoldingPredictor.fuelForTime(926.9 * KLB_TO_T, 30)! / KLB_TO_T;
     expect(isaFuelKlb * 1.03).toBeCloseTo(13.1, 1);
     const isaAverageFlowLbPerHour = (isaFuelKlb * 1000) / 0.5;
@@ -17,10 +17,10 @@ describe('FinalHoldingPredictor', () => {
     expect(isaAverageFlowLbPerHour * 1.03).toBeLessThan(26_300);
   });
 
-  it('gives the FINAL of the airline flight plans (RJTT-RKSI OFP: 4.8 t at ZFW 342.6 t; FCOM 10 600 lb)', () => {
+  it('gives the FINAL of the airline flight plans (RJTT-RKSI OFP: 4.8 t at ZFW 342.6 t; published 10 600 lb)', () => {
     const fuel = FinalHoldingPredictor.fuelForTime(342.6, 30)!;
     expect(fuel).toBeCloseTo(4.7, 1);
-    // Within 3 % of the OFP and of the FCOM conservative quantity (4.81 t)
+    // Within 3 % of the OFP and of the published conservative quantity (4.81 t)
     expect(Math.abs(fuel - 4.8) / 4.8).toBeLessThan(0.03);
   });
 
@@ -33,7 +33,7 @@ describe('FinalHoldingPredictor', () => {
     );
   });
 
-  it('uses the FCOM conservative 10 600 lb per 30 min without a ZFW', () => {
+  it('uses the conservative published 10 600 lb per 30 min without a ZFW', () => {
     expect(FinalHoldingPredictor.fuelForTime(null, 30)).toBeCloseTo(4.808, 3);
     expect(FinalHoldingPredictor.timeForFuel(null, 4.808)).toBeCloseTo(30, 1);
   });
@@ -52,7 +52,7 @@ describe('FinalHoldingPredictor', () => {
     expect(FinalHoldingPredictor.calculatedFinalFuel(342.6, 30)).toBe(4.8);
     // ZFW 300 t: 4.12 t -> 4.2 t
     expect(FinalHoldingPredictor.calculatedFinalFuel(300, 30)).toBe(4.2);
-    // Without a ZFW: the FCOM 10 600 lb (4.81 t) -> 4.9 t
+    // Without a ZFW: the published conservative 10 600 lb (4.81 t) -> 4.9 t
     expect(FinalHoldingPredictor.calculatedFinalFuel(null, 30)).toBe(4.9);
     expect(FinalHoldingPredictor.calculatedFinalFuel(342.6, null)).toBeNull();
   });

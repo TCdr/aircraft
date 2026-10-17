@@ -7,7 +7,7 @@ import { grossWeightCgFromFqmsOrWbbc } from './GrossWeightCgSource';
 
 const word = (value: number, ssm: Arinc429SignStatusMatrix) => new Arinc429Word(Arinc429Word.getRawWord(value, ssm));
 
-describe('FMS gross weight CG source (A380 FCOM DSC-28-10 l.57741-57744)', () => {
+describe('FMS gross weight CG source', () => {
   it('uses the FQMS CG, the WBBC CG when the FQMS gives none, null without both', () => {
     const fqms = word(38.5, Arinc429SignStatusMatrix.NormalOperation);
     const wbbc = word(40, Arinc429SignStatusMatrix.NormalOperation);

@@ -9,7 +9,7 @@ const Active = FlightPlanIndex.Active;
 const Sec1 = FlightPlanIndex.FirstSecondary;
 const Sec2 = FlightPlanIndex.FirstSecondary + 1;
 
-describe('CPNY F-PLN REQUEST button (FCOM DSC-22-FMS-20-30 INIT and SEC INDEX pages)', () => {
+describe('CPNY F-PLN REQUEST button (INIT and SEC INDEX pages)', () => {
   it('is disabled during a company wind uplink', () => {
     expect(isCpnyFplnButtonDisabled(true, null, false, false, Active)).toBe(true);
     expect(isCpnyFplnButtonDisabled(true, null, false, false, Sec1)).toBe(true);

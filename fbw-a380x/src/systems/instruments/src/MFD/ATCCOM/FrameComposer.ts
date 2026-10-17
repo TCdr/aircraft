@@ -14,7 +14,7 @@ import {
 
 /**
  * The frames of a message composed on an ATC COM page (REQUEST, OTHER REPORTS): up to five frames created with the page
- * menu, CANCEL and XFR TO MAILBOX (FCOM DSC-46-10-20-30 P 11-16, P 24-26).
+ * menu, CANCEL and XFR TO MAILBOX.
  */
 export class FrameComposer {
   private readonly _frames = Subject.create<readonly RequestFrame[]>([]);
@@ -64,10 +64,6 @@ export class FrameComposer {
   /** CANCEL button: deletes the message */
   public cancel(): void {
     this._frames.set([]);
-  }
-
-  public isComplete(frames: readonly RequestFrame[]): boolean {
-    return isRequestComplete(frames);
   }
 
   /** XFR TO MAILBOX button: the message goes to the mailbox and the page is cleared */

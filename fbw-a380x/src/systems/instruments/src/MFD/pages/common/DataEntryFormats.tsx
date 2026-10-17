@@ -221,9 +221,8 @@ export class AltitudeOrFlightLevelFormat extends SubscriptionCollector implement
   private transAlt: number | null = null;
 
   /**
-   * The last value entered as a flight level (3 characters or less): FCOM DSC-22-FMS-20-100 (ACCEL ALT, ALT, EO ACCEL,
-   * PRED TO, THR RED): "the FMS considers the entry as a flight level. In this case, the unit of the entry field reverts
-   * to FL".
+   * The last value entered as a flight level (3 characters or less): in the ACCEL ALT, ALT, EO ACCEL, PRED TO and
+   * THR RED fields such an entry is a flight level, and the unit of the field becomes FL.
    */
   private flightLevelEntry: number | null = null;
 
@@ -464,7 +463,7 @@ export class WindAltitudeFormat extends SubscriptionCollector implements DataEnt
       throw new A380FmsError(FmsErrorType.EntryOutOfRange);
     }
 
-    // A380 FCOM a380_fcom.txt l.42211-42212: an altitude below 400 ft is a ground wind
+    // An altitude below 400 ft is a ground wind
     if (groundAlt !== null && nbr < 400) {
       return groundAlt;
     }
@@ -732,7 +731,7 @@ export class PercentageFormat extends SubscriptionCollector implements DataEntry
   constructor(
     minValue: Subscribable<number> = Subject.create(0),
     maxValue: Subscribable<number> = Subject.create(Number.POSITIVE_INFINITY),
-    /** Decimals of the value (FCOM DSC-22-FMS-20-100: 1 for THS, ZFWCG and RTE RSV, 0 for N1 (NOISE)) */
+    /** Decimals of the value (1 for THS, ZFWCG and RTE RSV, 0 for N1 (NOISE)) */
     private readonly decimals = 1,
   ) {
     super();
@@ -970,7 +969,7 @@ export class TripWindFormat implements DataEntryFormat<number> {
       return [this.placeholder, null, null] as FieldFormatTuple;
     }
 
-    // FCOM DSC-22-FMS-20-30 INIT page: a zero trip wind reads HD000
+    // A zero trip wind reads HD000
     if (value > 0) {
       return [Math.abs(value).toFixed(0).toString().padStart(3, '0'), 'TL', null] as FieldFormatTuple;
     }
@@ -1378,7 +1377,7 @@ export class WaypointFormat implements DataEntryFormat<string> {
   }
 }
 
-/** Free text of a given maximum length, e.g. the 24 characters sent with the position report (A380 FCOM, POSITION / REPORT page). */
+/** Free text of a given maximum length, e.g. the 24 characters sent with the position report. */
 export class FreeTextFormat implements DataEntryFormat<string> {
   public readonly placeholder: string;
 
@@ -1576,7 +1575,7 @@ export class TimeHHMMSSFormat implements DataEntryFormat<number> {
 }
 
 /**
- * Latitude of the DATA pages (A380 FCOM DSC-22-FMS-20-100 "LAT": XDD°MM.M, DD°MM.MX, XDDMM.M, DDMM.MX, XDD or DDX,
+ * Latitude of the DATA pages (entry formats XDD°MM.M, DD°MM.MX, XDDMM.M, DDMM.MX, XDD or DDX,
  * X = N or S). Displayed as DD°MM.MX. The value is in decimal degrees, positive north.
  */
 export class LatitudeDmsFormat implements DataEntryFormat<number> {
@@ -1597,13 +1596,12 @@ export class LatitudeDmsFormat implements DataEntryFormat<number> {
     if (input === '') {
       return null;
     }
-    const value = parseDegreesMinutes(input, 'N', 'S', 90, this.requiredFormat);
-    return value;
+    return parseDegreesMinutes(input, 'N', 'S', 90, this.requiredFormat);
   }
 }
 
 /**
- * Longitude of the DATA pages (A380 FCOM DSC-22-FMS-20-100 "LONG": YDDD°MM.M, DDD°MM.MY, YDDDMM.M, DDDMM.MY, YDDD or
+ * Longitude of the DATA pages (entry formats YDDD°MM.M, DDD°MM.MY, YDDDMM.M, DDDMM.MY, YDDD or
  * DDDY, Y = E or W). Displayed as DDD°MM.MY. The value is in decimal degrees, positive east.
  */
 export class LongitudeDmsFormat implements DataEntryFormat<number> {
@@ -1630,36 +1628,31 @@ export class LongitudeDmsFormat implements DataEntryFormat<number> {
 
 /**
  * Latitude field of the POSITION / IRS Align On Other Reference panel: the latitude entry of the DATA pages, shown as
- * DDMM.MX without the degree sign (A380 FCOM DSC-22-FMS-20-30 P 281 figure: 3856.7N).
+ * DDMM.MX without the degree sign (e.g. 3856.7N).
  */
 export class AlignReferenceLatitudeFormat extends LatitudeDmsFormat {
   public readonly placeholder: string = '----.-';
 
   public format(value: number | null): FieldFormatTuple {
-    const [text, leading, trailing] = super.format(value);
-    return [
-      value === null || value === undefined ? this.placeholder : text?.replace('°', '') ?? null,
-      leading,
-      trailing,
-    ];
+    return withoutDegreeSign(super.format(value));
   }
 }
 
 /**
  * Longitude field of the POSITION / IRS Align On Other Reference panel: the longitude entry of the DATA pages, shown as
- * DDDMM.MY without the degree sign (A380 FCOM DSC-22-FMS-20-30 P 281 figure: 07727.3W).
+ * DDDMM.MY without the degree sign (e.g. 07727.3W).
  */
 export class AlignReferenceLongitudeFormat extends LongitudeDmsFormat {
   public readonly placeholder: string = '-----.-';
 
   public format(value: number | null): FieldFormatTuple {
-    const [text, leading, trailing] = super.format(value);
-    return [
-      value === null || value === undefined ? this.placeholder : text?.replace('°', '') ?? null,
-      leading,
-      trailing,
-    ];
+    return withoutDegreeSign(super.format(value));
   }
+}
+
+/** A LAT / LONG field text without its degree sign (the placeholder of the subclass has none) */
+function withoutDegreeSign([text, leading, trailing]: FieldFormatTuple): FieldFormatTuple {
+  return [text?.replace('°', '') ?? null, leading, trailing];
 }
 
 function formatDegreesMinutes(value: number, degreeDigits: number, hemisphere: string): string {
@@ -1669,7 +1662,7 @@ function formatDegreesMinutes(value: number, degreeDigits: number, hemisphere: s
   return `${degrees.toFixed(0).padStart(degreeDigits, '0')}°${minutes.toFixed(1).padStart(4, '0')}${hemisphere}`;
 }
 
-/** Parses the FCOM LAT / LONG entry formats (hemisphere letter leading or trailing, minutes optional). */
+/** Parses the LAT / LONG entry formats (hemisphere letter leading or trailing, minutes optional). */
 function parseDegreesMinutes(
   input: string,
   positiveLetter: string,
@@ -1700,7 +1693,7 @@ function parseDegreesMinutes(
   return hemisphere === negativeLetter ? -value : value;
 }
 
-/** Bearing of a place/bearing entry (A380 FCOM DSC-22-FMS-20-100, PBD / PB-PB: NNN, degrees, 0 to 360). */
+/** Bearing of a place/bearing entry (PBD / PB-PB: NNN, degrees, 0 to 360). */
 export class BearingFormat implements DataEntryFormat<number> {
   public readonly placeholder = '---';
 
@@ -1732,7 +1725,7 @@ export class BearingFormat implements DataEntryFormat<number> {
   }
 }
 
-/** Distance of a place/bearing/distance entry (A380 FCOM DSC-22-FMS-20-100, PBD: NNN.N nautical miles). */
+/** Distance of a place/bearing/distance entry (PBD: NNN.N nautical miles). */
 export class DistanceFormat implements DataEntryFormat<number> {
   public readonly placeholder = '---.-';
 
@@ -1765,7 +1758,7 @@ export class DistanceFormat implements DataEntryFormat<number> {
 }
 
 /**
- * Elevation of a NAVAID or runway (A380 FCOM DSC-22-FMS-20-100 "NAVAID ELEVATION": ±NNNNN feet, -1 000 to 20 470 ft,
+ * Elevation of a NAVAID or runway (entry format ±NNNNN feet, -1 000 to 20 470 ft,
  * no sign means +).
  */
 export class ElevationFormat implements DataEntryFormat<number> {
@@ -1800,7 +1793,7 @@ export class ElevationFormat implements DataEntryFormat<number> {
 }
 
 /**
- * Station declination of a VOR (A380 FCOM DSC-22-FMS-20-100 "STATION DECLINATION": NNNY, Y = W or E, 0 to 360°).
+ * Station declination of a VOR (entry format NNNY, Y = W or E, 0 to 360°).
  * The value is in degrees, positive east.
  */
 export class StationDeclinationFormat implements DataEntryFormat<number> {
@@ -1856,7 +1849,6 @@ export class GlsChannelFormat implements DataEntryFormat<number> {
       throw getFormattedFormatError(this.requiredFormat);
     }
     const value = Number(input);
-    // FCOM DSC-22-FMS-20-100 CHANNEL (GLS): 20001 to 99999
     if (value < 20001 || value > 99999) {
       throw getFormattedEntryOutOfRangeError('20001', '99999');
     }
@@ -1864,7 +1856,7 @@ export class GlsChannelFormat implements DataEntryFormat<number> {
   }
 }
 
-/** GLS slope (A380 FCOM DSC-22-FMS-20-100 "LS SLOPE": AN.N, -9.9 to 0°, "-" by default). */
+/** GLS slope (entry format AN.N, -9.9 to 0°, "-" by default). */
 export class GlsSlopeFormat implements DataEntryFormat<number> {
   public readonly placeholder = '-.-';
 
@@ -1891,39 +1883,6 @@ export class GlsSlopeFormat implements DataEntryFormat<number> {
     const value = -Math.abs(Number(input));
     if (value < -9.9) {
       throw getFormattedEntryOutOfRangeError('-9.9', '0', this.unit);
-    }
-    return value;
-  }
-}
-
-/** A number from a small set of allowed integers, e.g. the approach category (1, 2, 3) or the figure of merit (0-3). */
-export class SmallIntegerFormat implements DataEntryFormat<number> {
-  public readonly placeholder = '-';
-
-  public readonly maxDigits = 1;
-
-  constructor(
-    private readonly minValue: number,
-    private readonly maxValue: number,
-  ) {}
-
-  public format(value: number | null): FieldFormatTuple {
-    if (value === null || value === undefined) {
-      return [this.placeholder, null, null];
-    }
-    return [value.toFixed(0), null, null];
-  }
-
-  public async parse(input: string): Promise<number | null> {
-    if (input === '') {
-      return null;
-    }
-    if (!input.match(/^\d$/)) {
-      throw getFormattedFormatError('N');
-    }
-    const value = Number(input);
-    if (value < this.minValue || value > this.maxValue) {
-      throw getFormattedEntryOutOfRangeError(this.minValue.toString(), this.maxValue.toString());
     }
     return value;
   }
@@ -2074,8 +2033,8 @@ export class InboundCourseFormat extends SubscriptionCollector implements DataEn
       return null;
     }
 
-    // FCOM DSC-22-FMS-20-100 INBOUND CRS: NNNB or BNNN, B = M or nothing for magnetic, T for true (true courses are
-    // not modelled: the hold is stored in the magnetic reference)
+    // INBOUND CRS: NNNB or BNNN, B = M or nothing for magnetic, T for true (true courses are not modelled: the hold is
+    // stored in the magnetic reference)
     const match = input.match(/^M?(\d{1,3})M?$/);
     const nbr = match ? Number(match[1]) : Number.NaN;
     if (!Number.isNaN(nbr) && nbr <= this.maxValue && nbr >= this.minValue) {
@@ -2546,7 +2505,7 @@ export class FuelPenaltyPercentFormat implements DataEntryFormat<number> {
   }
 }
 
-/** An integer of up to two digits in a range (FCOM entry formats INCREMENT 1-20 and NUMBER 1-99, format NN) */
+/** An integer of up to two digits in a range (entry formats INCREMENT 1-20 and NUMBER 1-99, format NN) */
 export class TwoDigitIntegerFormat implements DataEntryFormat<number> {
   public readonly placeholder = '--';
 
@@ -2579,7 +2538,7 @@ export class TwoDigitIntegerFormat implements DataEntryFormat<number> {
   }
 }
 
-/** A time of day or a duration as HHMM or HHMMSS, in seconds (FCOM TIME MARKER UTC and REMAINING TIME formats) */
+/** A time of day or a duration as HHMM or HHMMSS, in seconds (TIME MARKER UTC and REMAINING TIME entry formats) */
 export class TimeHhMmSsFormat implements DataEntryFormat<number> {
   public readonly placeholder = '--:--:--';
 
@@ -2618,7 +2577,7 @@ export class TimeHhMmSsFormat implements DataEntryFormat<number> {
   }
 }
 
-/** A runway designator (FCOM RWY IDENT entry format of the takeoff data pages): NN, NNL, NNC or NNR */
+/** A runway designator (RWY IDENT entry format of the takeoff data pages): NN, NNL, NNC or NNR */
 export class RunwayDesignatorFormat implements DataEntryFormat<string> {
   public readonly placeholder = '---';
 
@@ -2641,7 +2600,7 @@ export class RunwayDesignatorFormat implements DataEntryFormat<string> {
 }
 
 /**
- * Origin of the LAT / LONG crossings (FCOM LL XING - TIME MKR page, LAT and LONG entry formats): displayed as whole
+ * Origin of the LAT / LONG crossings (LL XING - TIME MKR page, LAT and LONG entry formats): displayed as whole
  * degrees with the hemisphere letter (45N, 010E).
  */
 export class CrossingOriginFormat implements DataEntryFormat<number> {
@@ -2678,7 +2637,7 @@ export class CrossingOriginFormat implements DataEntryFormat<number> {
   }
 }
 
-/** Intercept angle of a lateral offset (A380 FCOM DSC-22-FMS-20-100 "INTERCEPT ANGLE": NN, 10 to 50 degrees). */
+/** Intercept angle of a lateral offset (entry format NN, 10 to 50 degrees). */
 export class InterceptAngleFormat implements DataEntryFormat<number> {
   public readonly placeholder = '--';
 
@@ -2709,8 +2668,8 @@ export class InterceptAngleFormat implements DataEntryFormat<number> {
 }
 
 /**
- * Lateral offset distance (A380 FCOM DSC-22-FMS-20-100 "OFFSET DIST": NN, ANN or NNA, A = L or R, 0 to 50 NM). The side
- * entered with the distance goes to `onSide`; the field then only shows the distance (DSC-22-FMS-20-30 OFFSET page).
+ * Lateral offset distance (entry format NN, ANN or NNA, A = L or R, 0 to 50 NM). The side entered with the distance
+ * goes to `onSide`; the field then only shows the distance (OFFSET page).
  */
 export class OffsetDistanceFormat implements DataEntryFormat<number> {
   public readonly placeholder = '--';
@@ -2719,7 +2678,7 @@ export class OffsetDistanceFormat implements DataEntryFormat<number> {
 
   public readonly unit = 'NM';
 
-  constructor(private readonly onSide: (side: 'L' | 'R') => void = () => {}) {}
+  constructor(private readonly onSide: (side: 'L' | 'R') => void) {}
 
   public format(value: number | null): FieldFormatTuple {
     if (value === null || value === undefined) {
@@ -2749,9 +2708,9 @@ export class OffsetDistanceFormat implements DataEntryFormat<number> {
 }
 
 /**
- * Weather radar elevation of the SURV / CONTROLS page (A380 FCOM DSC-34-20-60-50 P 10 "ELEVN"): with the STD baro
- * reference FL NNN or NNN (FL 0 to FL 600), with the QNH reference NNNNN FT or NNNNN (0 to 60 000 ft, "FT" must be written
- * between 0 and 1 000 ft). The value is in feet.
+ * Weather radar elevation (ELEVN) of the SURV / CONTROLS page: with the STD baro reference FL NNN or NNN (FL 0 to
+ * FL 600), with the QNH reference NNNNN FT or NNNNN (0 to 60 000 ft, "FT" must be written between 0 and 1 000 ft).
+ * The value is in feet.
  */
 export class WxrElevationFormat extends SubscriptionCollector implements DataEntryFormat<number> {
   public placeholder = '-----';
@@ -2807,7 +2766,7 @@ export class WxrElevationFormat extends SubscriptionCollector implements DataEnt
   }
 }
 
-/** Weather radar gain of the SURV / CONTROLS page (A380 FCOM DSC-34-20-60-50 P 10 "GAIN": NNN, 0 to 100 %). */
+/** Weather radar gain of the SURV / CONTROLS page (entry format NNN, 0 to 100 %). */
 export class WxrGainFormat implements DataEntryFormat<number> {
   public readonly placeholder = '---';
 
@@ -2838,7 +2797,7 @@ export class WxrGainFormat implements DataEntryFormat<number> {
 }
 
 /**
- * Weather radar tilt of the SURV / CONTROLS page (A380 FCOM DSC-34-20-60-50 P 10-11 "TILT": ±NN.N or ±NN.N°, "-" may be
+ * Weather radar tilt of the SURV / CONTROLS page (entry formats ±NN.N or ±NN.N°, "-" may be
  * entered as M, "+" displayed when there is no sign, -15.0 to +15.0°).
  */
 export class WxrTiltFormat implements DataEntryFormat<number> {
@@ -2872,7 +2831,7 @@ export class WxrTiltFormat implements DataEntryFormat<number> {
 }
 
 /**
- * CRS IN / CRS OUT of the DIRECT TO page (A380 FCOM DSC-22-FMS-20-100 "COURSE IN/OUT": NNNB or BNNN, 0 to 360°, B = M
+ * CRS IN / CRS OUT of the DIRECT TO page (entry format NNNB or BNNN, 0 to 360°, B = M
  * or nothing for a magnetic course, T for a true course). The reference goes to `onTrue`; the field shows °T for a true
  * course.
  */
@@ -2885,7 +2844,7 @@ export class DirectToCourseFormat implements DataEntryFormat<number> {
 
   constructor(
     private readonly isTrue: Subscribable<boolean>,
-    private readonly onTrue: (isTrue: boolean) => void = () => {},
+    private readonly onTrue: (isTrue: boolean) => void,
   ) {}
 
   public format(value: number | null): FieldFormatTuple {

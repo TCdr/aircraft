@@ -39,7 +39,7 @@ export interface FmsPrintEvents {
   [FMS_PRINT_EVENT]: FmsPrintPage;
 }
 
-/** Flight plan reports of the DATA / PRINTER page (A380 FCOM DSC-22-FMS-20-30 P 76-77) */
+/** Flight plan reports of the DATA / PRINTER page */
 export enum FlightPlanReport {
   PreFlight = 'PREFLIGHT',
   InFlight = 'INFLIGHT',
@@ -84,12 +84,12 @@ const windText = (vector: WindVector | null | undefined) => {
 };
 
 /**
- * The FMS print functions (A380 FCOM DSC-22-FMS-10-70 and DSC-22-FMS-20-30 P 74-77): the active flight plan data
+ * The FMS print functions: the active flight plan data
  * (initialization, takeoff and wind data), the flight plan reports (pre-flight, in-flight, post-flight, and the
  * secondary flight plan reports), and the automatic prints at engine start, at the transition to TAKEOFF, at engine
  * shutdown and at the reception of company data.
  *
- * The pages follow the FCOM printout examples; data the FMS does not have (e.g. the takeoff contamination, the IRS
+ * The pages follow the reference printout examples; data the FMS does not have (e.g. the takeoff contamination, the IRS
  * drift) are printed as dashes.
  */
 export class FmsPrinter {
@@ -110,20 +110,20 @@ export class FmsPrinter {
   /** Whether the engines ran since the last flight began (the post-flight report is available after their shutdown) */
   private readonly enginesHaveRun = Subject.create(false);
 
-  /** FCOM P 76: PRE-FLIGHT only in the PREFLIGHT phase, with the flight plan data entered */
+  /** PRE-FLIGHT only in the PREFLIGHT phase, with the flight plan data entered */
   public readonly preFlightAvailable = MappedSubject.create(
     ([phase]) => phase === FmgcFlightPhase.Preflight && this.hasFlightPlanData(FlightPlanIndex.Active),
     this.flightPhase,
   );
 
-  /** FCOM P 76: IN-FLIGHT from TAKEOFF to DONE, before all engines are shut down */
+  /** IN-FLIGHT from TAKEOFF to DONE, before all engines are shut down */
   public readonly inFlightAvailable = MappedSubject.create(
     ([phase, running]) => phase >= FmgcFlightPhase.Takeoff && running,
     this.flightPhase,
     this.enginesRunning,
   );
 
-  /** FCOM P 77: POST-FLIGHT after all engines are shut down */
+  /** POST-FLIGHT after all engines are shut down */
   public readonly postFlightAvailable = MappedSubject.create(
     ([running, haveRun]) => !running && haveRun,
     this.enginesRunning,
@@ -157,7 +157,7 @@ export class FmsPrinter {
       .catch(() => (this.softwareVersion = null));
 
     this.subs.push(
-      // FCOM DSC-22-FMS-10-70 P 4-5: automatic reports at engine start, at transition to TAKEOFF, at engine shutdown
+      // Automatic reports at engine start, at transition to TAKEOFF, at engine shutdown
       this.enginesRunning.sub((running) => {
         if (running) {
           this.enginesHaveRun.set(true);
@@ -183,7 +183,7 @@ export class FmsPrinter {
           this.landingUtc = null;
         }
       }),
-      // FCOM DSC-22-FMS-10-70 P 9: the received company data are printed at reception
+      // The received company data are printed at reception
       this.fmc.getCpnyFplnAvailable().sub((available) => {
         if (available && this.autoPrint.cpnyInit.get()) {
           this.printInitData(FlightPlanIndex.Uplink, 'FM COMPANY FLIGHT PLAN INITIALIZATION DATA');
@@ -227,9 +227,7 @@ export class FmsPrinter {
     this.send(title, [...this.header(title), '', ...body, '', RULE]);
   }
 
-  // ---- ACTIVE DATA ----------------------------------------------------------------------------------------------------
-
-  /** FCOM DSC-22-FMS-10-70 P 2: flight plan initialization data (route, then performance data) */
+  /** Flight plan initialization data (route, then performance data) */
   public printInitData(
     planIndex: FlightPlanIndex = FlightPlanIndex.Active,
     title = 'FM ACTIVE FLIGHT PLAN INITIALIZATION DATA',
@@ -292,7 +290,7 @@ export class FmsPrinter {
     this.send(title, lines);
   }
 
-  /** FCOM DSC-22-FMS-10-70 P 2: takeoff data */
+  /** Takeoff data printout */
   public printTakeoffData(): void {
     const plan = this.fmc.flightPlanInterface.get(FlightPlanIndex.Active);
     const pd = plan.performanceData;
@@ -337,7 +335,7 @@ export class FmsPrinter {
     this.send(title, lines);
   }
 
-  /** FCOM DSC-22-FMS-10-70 P 3: wind data (climb, cruise and descent winds, destination data, alternate wind) */
+  /** Wind data (climb, cruise and descent winds, destination data, alternate wind) */
   public printWindData(): void {
     const plan = this.fmc.flightPlanInterface.get(FlightPlanIndex.Active);
     const pd = plan.performanceData;
@@ -403,9 +401,7 @@ export class FmsPrinter {
     this.send(title, lines);
   }
 
-  // ---- F-PLN REPORTS --------------------------------------------------------------------------------------------------
-
-  /** FCOM DSC-22-FMS-10-70 P 4-9: pre-flight, in-flight and post-flight reports of the active or a secondary plan */
+  /** Pre-flight, in-flight and post-flight reports of the active or a secondary plan */
   public printFlightPlanReport(planIndex: FlightPlanIndex, report: FlightPlanReport): void {
     if (!this.fmc.flightPlanInterface.has(planIndex)) {
       return;
@@ -572,8 +568,6 @@ export class FmsPrinter {
     this.send(title, lines);
   }
 
-  // ---- helpers --------------------------------------------------------------------------------------------------------
-
   private navDatabase: string | null = null;
 
   private navCycle: string | null = null;
@@ -603,8 +597,8 @@ export class FmsPrinter {
   }
 
   private send(title: string, lines: string[]): void {
-    // FCOM DSC-22-FMS-20-110 P 23: PRINTER NOT AVAIL (type II) when a report cannot be printed. Nothing is printed, so
-    // nothing is kept on the flypad either.
+    // PRINTER NOT AVAIL (type II) when a report cannot be printed. Nothing is printed, so nothing is kept on the flypad
+    // either.
     if (!this.pedestalPrinter.isAvailable()) {
       this.fmc.addMessageToQueue(NXSystemMessages.printerNotAvail);
       return;

@@ -34,14 +34,14 @@ function firstSelection(setting: WxrManualSetting, aircraft: { onGround: boolean
   return sim.read(name);
 }
 
-describe('WXR manual settings (A380 FCOM DSC-34-20-30-20-10)', () => {
+describe('WXR manual settings', () => {
   it('has no GAIN, TILT or ELEVN entered at power-up', () => {
     const sim = lvars();
     initWxrManualSettings(sim.write);
     Object.values(WXR_MANUAL_SETTING_VARS).forEach((name) => expect(sim.read(name)).toBe(WXR_NO_ENTRY));
   });
 
-  // In-sim 2026-10-02: the first selection kept 0 (the unset L:var) instead of the default
+  // Sim regression: the first selection kept 0 (the unset L:var) instead of the default
   it('gives GAIN 50 % at the first GAIN MAN selection', () => {
     expect(firstSelection('gain', onGround)).toBe(50);
   });
