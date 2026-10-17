@@ -42,6 +42,7 @@ pub struct HydraulicDoorController {
     should_close_valves: bool,
     control_position_request: Ratio,
     should_unlock: bool,
+    up_lock_position: Ratio,
 
     // The door actuation has no hydraulic power (e.g. its pumps are inhibited): the ground crew does not start an
     // operation and the actuator is isolated, the door holds where it is. The request is kept for later.
@@ -54,6 +55,10 @@ impl HydraulicDoorController {
     // Delay from the ground crew unlocking the door to the time they start requiring up movement in control panel
     pub const DELAY_UNLOCK_TO_HYDRAULIC_CONTROL: Duration = Duration::from_secs(5);
     const STD_DEVIATION_RAND_TIME_TO_HYD_CONTROL: Duration = Duration::from_millis(800);
+
+    // The door is mechanically arrested only at the end of its travel. Near full open the actuator is almost in line
+    // with the door arm, so trapped fluid alone cannot hold the door: it would sag several percent.
+    const FULLY_OPEN_POSITION: f64 = 0.98;
 
     pub fn new(context: &mut InitContext, id: &str) -> Self {
         Self {
@@ -69,6 +74,7 @@ impl HydraulicDoorController {
             should_close_valves: true,
             control_position_request: Ratio::new::<ratio>(0.),
             should_unlock: false,
+            up_lock_position: Ratio::new::<ratio>(1.),
 
             operation_inhibited: false,
         }
@@ -161,17 +167,25 @@ impl HydraulicDoorController {
                 self.should_unlock = false;
                 DoorControlState::DownLocked
             }
+            DoorControlState::HydControl if self.should_unlock && !door.is_locked_open() => {
+                // The up-lock has released: arm the down-lock for the closing
+                self.should_unlock = false;
+                DoorControlState::HydControl
+            }
             DoorControlState::HydControl
-                if door.position() > Ratio::new::<ratio>(0.9)
+                if door.position() > Ratio::new::<ratio>(Self::FULLY_OPEN_POSITION)
                     && self.position_requested > Ratio::new::<ratio>(0.5) =>
             {
                 self.should_unlock = false;
+                self.up_lock_position = door.position();
                 DoorControlState::UpLocked
             }
             DoorControlState::UpLocked
                 if self.position_requested < Ratio::new::<ratio>(1.)
-                    && current_pressure > Pressure::new::<psi>(1000.) =>
+                    && current_pressure > Pressure::new::<psi>(1000.)
+                    && !self.operation_inhibited =>
             {
+                self.should_unlock = true;
                 DoorControlState::HydControl
             }
             _ => self.control_state,
@@ -206,7 +220,11 @@ impl HydraulicAssemblyController for HydraulicDoorController {
     }
 
     fn requested_lock_position(&self) -> Ratio {
-        Ratio::new::<ratio>(0.)
+        if self.control_state == DoorControlState::UpLocked {
+            self.up_lock_position
+        } else {
+            Ratio::new::<ratio>(0.)
+        }
     }
 }
 impl SimulationElement for HydraulicDoorController {
@@ -225,6 +243,7 @@ pub struct CargoDoor {
     position: Ratio,
 
     is_locked: bool,
+    is_locked_open: bool,
 
     aerodynamic_model: AerodynamicModel,
 }
@@ -243,6 +262,7 @@ impl CargoDoor {
             position: Ratio::new::<ratio>(0.),
 
             is_locked: true,
+            is_locked_open: false,
 
             aerodynamic_model,
         }
@@ -252,8 +272,13 @@ impl CargoDoor {
         self.position
     }
 
+    /// Closed and locked
     pub fn is_locked(&self) -> bool {
         self.is_locked
+    }
+
+    pub fn is_locked_open(&self) -> bool {
+        self.is_locked_open
     }
 
     pub fn actuator(&mut self) -> &mut impl Actuator {
@@ -277,7 +302,11 @@ impl CargoDoor {
         );
 
         self.position = self.hydraulic_assembly.position_normalized();
-        self.is_locked = self.hydraulic_assembly.is_locked();
+
+        let is_body_locked = self.hydraulic_assembly.is_locked();
+        let is_on_open_side = self.position > Ratio::new::<ratio>(0.5);
+        self.is_locked = is_body_locked && !is_on_open_side;
+        self.is_locked_open = is_body_locked && is_on_open_side;
     }
 }
 impl SimulationElement for CargoDoor {

@@ -114,6 +114,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
 1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
 1. [A380X/HYD] The cargo doors no longer unlock when asked to open with an engine running (their electric pumps are inhibited): the request is carried out once the engines are stopped - @TCdr
+1. [HYD] The hydraulic cargo doors of both aircraft open fully and are held locked open once the pumps stop, instead of stopping and sagging at about 88 % (GSX loaders went through the door) - @TCdr
 
 ## 2024.1.0
 
