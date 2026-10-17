@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { TakeoffDerated, TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
-import { TAKEOFF_DERATE_LEVELS, takeoffDerateThrustReduction } from './TakeoffDerate';
+import { TAKEOFF_DERATE_LEVELS, takeoffDerateThrustReduction, takeoffThrustOptionsDisabled } from './TakeoffDerate';
 
 describe('MFD PERF T.O derated takeoff', () => {
   // FCOM DSC-70-20-40 l.111564-111565: "6 derated takeoff levels are defined: DO4 , DO8 , D12 , D16 , D20 , D24 . Each
@@ -28,5 +28,15 @@ describe('MFD PERF T.O derated takeoff', () => {
     expect(takeoffDerateThrustReduction(TakeoffPowerSetting.FLEX, TakeoffDerated.D12)).toBe(0);
     expect(takeoffDerateThrustReduction(TakeoffPowerSetting.DERATED, null)).toBe(0);
     expect(takeoffDerateThrustReduction(null, TakeoffDerated.D12)).toBe(0);
+  });
+});
+
+describe('MFD PERF T.O thrust options', () => {
+  it('offers TOGA, FLEX and DERATED before takeoff', () => {
+    expect(takeoffThrustOptionsDisabled(false)).toEqual([false, false, false]);
+  });
+
+  it('closes all three once the T.O panel is inactive (takeoff phase or later)', () => {
+    expect(takeoffThrustOptionsDisabled(true)).toEqual([true, true, true]);
   });
 });
