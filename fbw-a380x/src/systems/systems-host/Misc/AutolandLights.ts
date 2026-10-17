@@ -7,8 +7,8 @@ import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
 const FLASH_HALF_PERIOD_MS = 500;
 
 /**
- * Whether an AUTOLAND light is lit. A380 FCOM DSC-22-FG-80-100: the light flashes in autoland below 200 ft RA when
- * the autoland conditions are lost, and "as long as the AUTOLAND light is pressed, the AUTOLAND light flashes".
+ * Whether an AUTOLAND light is lit: it flashes in autoland below 200 ft RA when the autoland conditions are lost, and
+ * as long as the AUTOLAND light is pressed.
  * The flashing is computed here because the cockpit lamp code cannot read the sim time (both
  * "(E:ABSOLUTE TIME, seconds) 1 %" and a sine of "(E:SIMULATION TIME, seconds)" kept the light dark in the sim).
  * @param autolandWarning the autoland warning is active

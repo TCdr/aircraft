@@ -18,8 +18,8 @@
 
         <!-- AUTO LAND -->
         <!-- Lit and flashing from the systems host (Misc/AutolandLights.ts): the lamp code cannot read the sim time -->
-        <!-- A380 FCOM DSC-22-FG-80-100: the light flashes in autoland below 200 ft RA when the autoland conditions are lost,
-             and "as long as the AUTOLAND light is pressed, the AUTOLAND light flashes" (light test) -->
+        <!-- The light flashes in autoland below 200 ft RA when the autoland conditions are lost,
+             and as long as it is pressed (light test) -->
         <UseTemplate Name="FBW_Push_Held">
             <NODE_ID>PUSH_GLARESHIELD_CS_AUTOLAND</NODE_ID>
             <TOOLTIPID>AUTOLAND (PRESS TO TEST)</TOOLTIPID>
@@ -100,8 +100,8 @@
 
         <!-- AUTO LAND -->
         <!-- Lit and flashing from the systems host (Misc/AutolandLights.ts): the lamp code cannot read the sim time -->
-        <!-- A380 FCOM DSC-22-FG-80-100: the light flashes in autoland below 200 ft RA when the autoland conditions are lost,
-             and "as long as the AUTOLAND light is pressed, the AUTOLAND light flashes" (light test) -->
+        <!-- The light flashes in autoland below 200 ft RA when the autoland conditions are lost,
+             and as long as it is pressed (light test) -->
         <UseTemplate Name="FBW_Push_Held">
             <NODE_ID>PUSH_GLARESHIELD_FO_AUTOLAND</NODE_ID>
             <TOOLTIPID>AUTOLAND (PRESS TO TEST)</TOOLTIPID>

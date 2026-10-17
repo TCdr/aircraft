@@ -4721,7 +4721,7 @@
                         <TOOLTIPID>NSS FLT OPS reset</TOOLTIPID>
                     </UseTemplate>
 
-                    <!-- The other reset buttons of the panel (FCOM PRO-SUP-24-00 list of computer resets). They toggle
+                    <!-- The other reset buttons of the panel (the list of computer resets). They toggle
                     L:A32NX_RESET_PANEL_<NAME> like the ones above, but no system reads these variables yet, so they are
                     visual only. The blank CB_EMPTY1..8 slots of the model have no button and are not wired. -->
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
