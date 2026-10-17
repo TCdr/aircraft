@@ -106,7 +106,7 @@ describe('AcarsConnector activation', () => {
   });
 });
 
-/* The A380X DATALINK STBY memo: "the datalink is temporarily lost" (A380 FCOM DSC-23-20 MEMO, a380_fcom.txt l.49460-49461) */
+// The A380X DATALINK STBY memo: the datalink is temporarily lost
 describe('AcarsConnector temporarily lost link', () => {
   beforeEach(() => {
     vi.useFakeTimers();

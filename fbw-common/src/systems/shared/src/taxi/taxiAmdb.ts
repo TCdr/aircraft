@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { FeatureType } from '../amdb';
-import { TaxiLine, TaxiLineKind, taxiName, TaxiPoint } from './taxiNetwork';
+import { padRunwayDesignator, TaxiLine, TaxiLineKind, taxiName, TaxiPoint } from './taxiNetwork';
 import { TaxiRunway } from './taxiRoute';
 import { TaxiRunwayAxis } from './taxiDeparture';
 
@@ -16,7 +16,8 @@ export interface TaxiAmdbFeature {
     idthr?: string;
     termref?: string;
     /**
-     * The largest wingspan a guidance line is for, metres: an attribute of the ED-99 taxiway and stand guidance lines.
+     * The largest wingspan a guidance line is for, metres: an attribute of the taxiway and stand guidance lines of
+     * the airport mapping standard.
      * Not seen in the Navigraph data so far (not in the FBW AmdbProperties): read only when present.
      */
     wingspan?: unknown;
@@ -24,7 +25,6 @@ export interface TaxiAmdbFeature {
   geometry: { type: string; coordinates: unknown };
 }
 
-/** A parking stand of the airport map */
 export interface TaxiStand {
   name: string;
   /** The terminal or apron it belongs to, when known */
@@ -159,10 +159,7 @@ export function taxiRunwaysFromAmdb(features: readonly TaxiAmdbFeature[]): TaxiR
     if (f.properties.feattype !== FeatureType.RunwayElement || !f.properties.idrwy) {
       continue;
     }
-    const name = f.properties.idrwy
-      .split('.')
-      .map((it) => (it.replace(/[^0-9]/g, '').length < 2 ? `0${it}` : it))
-      .join('/');
+    const name = f.properties.idrwy.split('.').map(padRunwayDesignator).join('/');
     const runway = runways.get(name) ?? { name, polygons: [] };
     runway.polygons.push(...outerRings(f));
     runways.set(name, runway);
@@ -170,7 +167,6 @@ export function taxiRunwaysFromAmdb(features: readonly TaxiAmdbFeature[]): TaxiR
   return [...runways.values()];
 }
 
-/** The shapes of the runways, taxiways and aprons, to draw the airport */
 export function taxiMapShapesFromAmdb(features: readonly TaxiAmdbFeature[]): TaxiMapShapes {
   const shapes: TaxiMapShapes = { runways: [], taxiways: [], aprons: [] };
   for (const f of features) {
@@ -191,10 +187,6 @@ export function taxiMapShapesFromAmdb(features: readonly TaxiAmdbFeature[]): Tax
   return shapes;
 }
 
-function padDesignator(designator: string): string {
-  return designator.replace(/[^0-9]/g, '').length < 2 ? `0${designator}` : designator;
-}
-
 /** The runway directions of the airport map: each threshold, and the far end of its runway centreline */
 export function taxiRunwayAxesFromAmdb(features: readonly TaxiAmdbFeature[]): TaxiRunwayAxis[] {
   const axes: TaxiRunwayAxis[] = [];
@@ -202,7 +194,7 @@ export function taxiRunwayAxesFromAmdb(features: readonly TaxiAmdbFeature[]): Ta
     if (t.properties.feattype !== FeatureType.RunwayThreshold || !t.properties.idthr || t.geometry.type !== 'Point') {
       continue;
     }
-    const ident = padDesignator(t.properties.idthr);
+    const ident = padRunwayDesignator(t.properties.idthr);
     const threshold = t.geometry.coordinates as TaxiPoint;
     if (axes.some((a) => a.ident === ident)) {
       continue;
@@ -213,7 +205,7 @@ export function taxiRunwayAxesFromAmdb(features: readonly TaxiAmdbFeature[]): Ta
     for (const f of features) {
       if (
         f.properties.feattype !== FeatureType.PaintedCenterline ||
-        !(f.properties.idrwy ?? '').split('.').map(padDesignator).includes(ident)
+        !(f.properties.idrwy ?? '').split('.').map(padRunwayDesignator).includes(ident)
       ) {
         continue;
       }
@@ -257,7 +249,6 @@ export function taxiPavementFromAmdb(features: readonly TaxiAmdbFeature[]): Taxi
   return polygons;
 }
 
-/** The runway holding position lines of the airport map */
 export function taxiHoldingLinesFromAmdb(features: readonly TaxiAmdbFeature[]): TaxiPoint[][] {
   const lines: TaxiPoint[][] = [];
   for (const f of features) {

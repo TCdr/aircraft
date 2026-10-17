@@ -3,8 +3,8 @@
 
 /**
  * Company takeoff data exchanged between the A380X FMS and the flypad takeoff calculator, which plays the company
- * ground station (A380 FCOM DSC-22-FMS company takeoff data: a request for up to two runways, and uplinks received
- * with or without a request). The events are synced between the instruments.
+ * ground station: a request for up to two runways, and uplinks received with or without a request. The events are
+ * synced between the instruments.
  */
 export interface CompanyTakeoffDataEvents {
   /**
@@ -110,7 +110,7 @@ export interface CompanyTakeoffDataUplink {
   mtowPerf: number;
 }
 
-/** The noise procedure parameters (A380 FCOM DSC-22-FMS-20-30, PERF page - noise parameters) */
+/** The noise procedure parameters of the PERF page */
 export interface CompanyTakeoffDataNoise {
   /** NOISE END altitude in feet */
   endAltitude: number;

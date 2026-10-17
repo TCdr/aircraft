@@ -21,14 +21,13 @@ export enum CompanyTakeoffDataLinkMessage {
 /**
  * The takeoff data link of an FMS with the ground station, which is the flypad takeoff calculator: the request, sent
  * for up to two runways, and the takeoff data received with or without a request, for up to four runways, kept until
- * the flight crew inserts or clears it (A380 FCOM DSC-22-FMS company takeoff data, A320 FCOM DSC-22_45 TAKEOFF DATA
- * FUNCTION). The aircraft classes add their own validation of the received data.
+ * the flight crew inserts or clears it. The aircraft classes add their own validation of the received data.
  */
 export abstract class CompanyTakeoffDataLink {
-  /** FCOM: the received takeoff data covers up to four runways */
+  /** The received takeoff data covers up to four runways */
   public static readonly MAX_RUNWAYS = 4;
 
-  /** FCOM: the FMS message when no answer is received within 4 min after the request */
+  /** The FMS shows a message when no answer is received within 4 min after the request */
   private static readonly REPLY_TIMEOUT_MS = 4 * 60_000;
 
   /** A request is waiting for its answer */
@@ -143,7 +142,7 @@ export abstract class CompanyTakeoffDataLink {
     }
     this.requestPending.set(false);
 
-    // FCOM: the same runway and thrust rating replace the older data; beyond four runways, the oldest runway goes
+    // The same runway and thrust rating replace the older data; beyond four runways, the oldest runway goes
     let list = this.uplinks.get().filter((u) => !(u.runway === uplink.runway && u.thrust === uplink.thrust));
     list = [...list, uplink];
     const runways = [...new Set(list.map((u) => u.runway))];

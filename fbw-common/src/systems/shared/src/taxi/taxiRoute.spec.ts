@@ -14,13 +14,15 @@ import {
 import { taxiDefaultEntry, taxiRouteToHoldingPoint, taxiRunwayEntries } from './taxiDeparture';
 import { buildTaxiNetwork, TaxiLine, TaxiLineKind, TaxiPoint } from './taxiNetwork';
 import {
-  parseTaxiClearance,
   readTaxiClearance,
   taxiRoute,
   TaxiRouteError,
   taxiRouteFlagPoints,
   taxiRouteRunwayCrossings,
 } from './taxiRoute';
+
+const parseTaxiClearance = (text: string, airportNames?: Iterable<string>): string[] =>
+  readTaxiClearance(text, airportNames).taxiways;
 
 const line = (kind: TaxiLineKind, name: string | null, ...points: TaxiPoint[]): TaxiLine => ({ kind, name, points });
 
@@ -69,7 +71,6 @@ describe('Taxi route', () => {
       'L',
       'M',
     ]);
-    // The typed clearance
     expect(taxiRoute(NETWORK, { start: FROM_B1, to: STAND_42, via: parseTaxiClearance('a, k-m') }).taxiways).toEqual([
       'A',
       'K',
@@ -348,9 +349,9 @@ describe('Taxi route', () => {
 });
 
 /**
- * A departure to runway 34R as at RJTT (user report 2026-10-12): the aircraft pushed back from gate 67 onto the apron
- * line L4 (facing north-east); A4B and W4 lead to the parallel taxiway W; then A, E and the entry C1 (a runway exit line
- * of the airport map) onto 34R. ATC cleared "via L4, A4B, W4, W, A, E, C1"; the crew typed "W A E C1 C1".
+ * A departure to runway 34R as at RJTT: the aircraft pushed back from gate 67 onto the apron line L4 (facing
+ * north-east); A4B and W4 lead to the parallel taxiway W; then A, E and the entry C1 (a runway exit line of the airport
+ * map) onto 34R. ATC cleared "via L4, A4B, W4, W, A, E, C1"; the crew typed "W A E C1 C1".
  */
 const RJTT_LINES: TaxiLine[] = [
   line(TaxiLineKind.Stand, '67', [0, -60], [0, 0]),
@@ -437,8 +438,8 @@ describe('Taxi route along an ATC clearance', () => {
   });
 
   it('leaves out the cleared names that are not taxiways of the airport map', () => {
-    // An airport map without A4B and W4 (user report 2026-10-14: "Not a taxiway of the airport map: A4B, W4" and no
-    // route at all): here L4 meets W
+    // An airport map without A4B and W4 ("Not a taxiway of the airport map: A4B, W4" used to give no route at all):
+    // here L4 meets W
     const network = buildTaxiNetwork([
       ...RJTT_LINES.filter((l) => l.name !== 'L4' && l.name !== 'A4B' && l.name !== 'W4'),
       line(TaxiLineKind.Taxiway, 'L4', [-200, 0], [600, 0]),
@@ -459,8 +460,8 @@ describe('Taxi route along an ATC clearance', () => {
   });
 
   /**
-   * W, then A (y 1500) ends short of E (x 1200), joined by the connector A9 the clearance leaves out (at RJTT, user
-   * report 2026-10-14, A does not meet E); C1 enters runway 34R. aEnd: where A ends (the connector is 1200 - aEnd long).
+   * W, then A (y 1500) ends short of E (x 1200), joined by the connector A9 the clearance leaves out (at RJTT, A
+   * does not meet E); C1 enters runway 34R. aEnd: where A ends (the connector is 1200 - aEnd long).
    */
   const gapMap = (aEnd: number) =>
     buildTaxiNetwork([

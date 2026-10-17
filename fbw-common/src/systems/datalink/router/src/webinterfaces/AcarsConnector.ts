@@ -100,17 +100,16 @@ export class AcarsConnector {
     }
   }
 
+  /** Waits for a time, or until wakeUpLoop is called */
   private static wait(ms: number): Promise<void> {
     return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        AcarsConnector.wakeUpLoop = null;
-        resolve();
-      }, ms);
-      AcarsConnector.wakeUpLoop = () => {
+      const wakeUp = () => {
         clearTimeout(timer);
         AcarsConnector.wakeUpLoop = null;
         resolve();
       };
+      const timer = setTimeout(wakeUp, ms);
+      AcarsConnector.wakeUpLoop = wakeUp;
     });
   }
 
@@ -130,7 +129,6 @@ export class AcarsConnector {
     AcarsConnector.wakeUpLoop?.();
   }
 
-  /** Checks that the provider still answers */
   private static async checkConnection(): Promise<void> {
     try {
       await AcarsClient.getData({ from: 'FBWA32NX', to: 'SERVER', type: 'ping', packet: '' });
@@ -176,8 +174,8 @@ export class AcarsConnector {
 
   /**
    * The datalink is temporarily lost: the ACARS provider was active and does not answer any more, the reconnection
-   * attempts go on (the A380X DATALINK STBY memo, A380 FCOM DSC-23-20 MEMO, l.49460-49461). Not lost while the provider
-   * never answered, or with the ACARS not activated.
+   * attempts go on (the A380X DATALINK STBY memo). Not lost while the provider never answered, or with the ACARS not
+   * activated.
    * @returns whether the link is temporarily lost
    */
   public static isLinkTemporarilyLost(): boolean {

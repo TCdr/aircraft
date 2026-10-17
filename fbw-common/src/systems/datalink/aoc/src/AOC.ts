@@ -90,7 +90,6 @@ export class Aoc {
     this.downlinksInhibited = inhibited;
   }
 
-  /** Whether the AOC can send to the ground */
   private canSendDownlinks(): boolean {
     return this.poweredUp && !this.downlinksInhibited;
   }

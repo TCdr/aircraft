@@ -39,7 +39,7 @@ function setup(a380xMailbox: boolean) {
   return { atc, sent, enqueue, receive };
 }
 
-describe('Atc automatic rejection of an uplink (A380 FCOM l.95759-95760, l.96604-96606)', () => {
+describe('Atc automatic rejection of an uplink', () => {
   beforeEach(() => {
     // the message watchdog interval of the powered ATC function
     vi.useFakeTimers();
