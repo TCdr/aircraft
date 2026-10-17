@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { engineLpValveIndication } from './EngineLpValveIndication';
 
-describe('SD FUEL engine LP valve indication (FCOM DSC-28-20)', () => {
+describe('SD FUEL engine LP valve indication', () => {
   it('is inline green when the valve is open as commanded', () => {
     expect(engineLpValveIndication(100, true)).toEqual({ inline: true, amber: false });
   });

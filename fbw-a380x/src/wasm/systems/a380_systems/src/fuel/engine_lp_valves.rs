@@ -1,14 +1,9 @@
 //! The four engine low-pressure (LP) fuel valves of the A380 and the fuel left between each valve
 //! and its engine.
 //!
-//! FCOM DSC-28-10 (ENGINE LP VALVES): "Each engine has a Low Pressure (LP) valve, that is used to
-//! stop the flow of fuel to the engine. The ENG MASTER sw control the LP valves. The LP valves
-//! automatically close, when their associated ENG FIRE pb is pushed."
-//!
-//! FCOM DSC-26-20-10 (ENGINE ISOLATION): when the ENG FIRE pb is pressed, the system, among other
-//! actions, "Closes the low-pressure fuel valve". FCOM DSC-70-30 (ENGINE SHUTDOWN): "The ENG FIRE
-//! pb-sw provides a backup engine shutdown capability on ground and in flight." FCOM PRO-ABN-ECAM
-//! ENG 1(2)(3)(4) HP FUEL VLV FAULT: "The engine will shutdown by closure of the LP fuel valve."
+//! Each engine has a low pressure (LP) valve that stops its fuel flow. The ENG MASTER sw controls
+//! it, and it closes when the ENG FIRE pb is pushed, the backup engine shutdown on the ground and
+//! in flight. A stuck open HP fuel valve also shuts the engine down through the LP valve.
 //!
 //! The valve and the fuel it leaves downstream are simulated by the aircraft-independent
 //! `systems::fuel::engine_lp_valve::EngineLpFuelValve`; this module gives it the A380 values.
@@ -16,8 +11,7 @@
 //! valve 60..63 of that engine (so MSFS stops the combustion) and the FADEC handles the engine as one
 //! without fuel (it shuts down and cannot relight while starved).
 //!
-//! Not simulated: the two valve motors and their electrical supplies (DSC-28-10: "For redundancy,
-//! each LP valve has two motors with different electrical supplies"), the LP valve failures.
+//! Not simulated: the two valve motors and their electrical supplies, the LP valve failures.
 
 use std::time::Duration;
 use systems::{
@@ -31,17 +25,15 @@ pub(super) struct A380EngineLpFuelValves {
     valves: [EngineLpFuelValve; 4],
 }
 impl A380EngineLpFuelValves {
-    /// The A380 FCOM gives no LP valve travel time. The valves travel in the same 3 s as the MSFS
-    /// engine LP valves Valve.1..4 of flight_model.cfg (OpeningTime:3), which the ENG MASTER
-    /// switches drive.
+    /// No LP valve travel time is published. The valves travel in the same 3 s as the MSFS engine LP
+    /// valves Valve.1..4 of flight_model.cfg (OpeningTime:3), which the ENG MASTER switches drive.
     const TRAVEL_TIME: Duration = Duration::from_secs(3);
 
     /// The fuel left between an LP valve and its engine, burned by the engine after the valve has
-    /// closed. The A380 FCOM gives neither this quantity nor a time delay between the LP valve
-    /// closure and the engine shutdown (unlike the A320 FCOM "UP TO 2 MIN 30 S", which is not an
-    /// A380 value). It is the 1 gallon of the "Extra" tank that the FBW fuel model of
-    /// flight_model.cfg places between each engine LP valve and its engine (Tank.12..15 Extra1..4,
-    /// Capacity:1), i.e. 3.04 kg.
+    /// closed. No A380 quantity or delay between the LP valve closure and the engine shutdown is
+    /// published (the A320 "up to 2 min 30 s" is not an A380 value). It is the 1 gallon of the
+    /// "Extra" tank that the FBW fuel model of flight_model.cfg places between each engine LP valve and
+    /// its engine (Tank.12..15 Extra1..4, Capacity:1), i.e. 3.04 kg.
     ///
     /// With the FADEC idle fuel flow model (EngineControl_A380X::generateIdleParameters, ISA,
     /// Mach 0) the engine starves, after the 3 s of valve travel:

@@ -1531,7 +1531,7 @@ interface EngineLpValveProps extends Position {
   engineNumber: number;
 }
 
-/** An engine LP valve and the fuel line from it to its engine, shown per FCOM DSC-28-20 (engineLpValveIndication) */
+/** An engine LP valve and the fuel line from it to its engine */
 const EngineLpValve: FC<EngineLpValveProps> = ({ x, y, engineNumber }) => {
   const [openPercentage] = useSimVar(`L:A32NX_FUEL_ENG_${engineNumber}_LP_VALVE_OPEN_PERCENTAGE`, 'percent', 1000);
   // The ENG MASTER lever drives the MSFS fuel valve switch of the same index
