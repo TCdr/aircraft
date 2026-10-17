@@ -48,18 +48,19 @@ impl NavigationDisplay {
     }
 
     /// ## Parameters
-    /// `predictive_inputs_valid` - the EGPWC has the position data of its predictive functions (no terrain standby)
+    /// `terrain_display_available` - the EGPWC can show the terrain: it has the position data of its predictive
+    /// functions (no terrain standby) and its terrain functions work (A320: TERR pb-sw not OFF, no TERR FAULT)
     /// `deselect_terrain_on_nd_pb` - the EGPWC sets a selected TERR ON ND pb-sw back to OFF (terrain standby)
     pub fn update(
         &mut self,
         is_powered: bool,
         range_lookup: &[Length],
-        predictive_inputs_valid: bool,
+        terrain_display_available: bool,
         deselect_terrain_on_nd_pb: bool,
     ) {
         self.range = range_lookup[self.range_knob_position];
         self.terrain_on_nd_active =
-            predictive_inputs_valid && self.terrain_on_nd_pb_active && is_powered;
+            terrain_display_available && self.terrain_on_nd_pb_active && is_powered;
         self.deselect_terrain_on_nd_pb = deselect_terrain_on_nd_pb && self.terrain_on_nd_pb_active;
     }
 }

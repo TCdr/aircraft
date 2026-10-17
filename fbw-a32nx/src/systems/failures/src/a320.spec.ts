@@ -55,10 +55,52 @@ describe('A320 flyPad failures', () => {
     expect(wasm).toContain('(32_210, FailureType::BrakeNormalSelectorValve),');
   });
 
+  // The ids are the Rust failure ids of a320_systems_wasm, used by a320_systems tyre_pressure.rs (TPIS)
+  it('lists the tyre deflation failures in ATA 32 with the Rust failure they trigger', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.MainTyre1Deflated)).toEqual([32, 32300, 'Main wheel 1 tyre deflated (left outer)']);
+    expect(label(A320Failure.MainTyre4Deflated)).toEqual([32, 32303, 'Main wheel 4 tyre deflated (right outer)']);
+    expect(label(A320Failure.NoseTyreLeftDeflated)).toEqual([32, 32304, 'Nose wheel left tyre deflated']);
+    expect(label(A320Failure.NoseTyreRightDeflated)).toEqual([32, 32305, 'Nose wheel right tyre deflated']);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    for (let tyre = 1; tyre <= 6; tyre++) {
+      expect(wasm).toContain(`(32_${299 + tyre}, FailureType::TyreDeflated(${tyre})),`);
+    }
+  });
+
+  // The id is the Rust failure id of a320_systems_wasm, used by a320_systems cargo_ventilation.rs: the valves model
+  // gives the FAULT light of the AFT ISOL VALVE pb-sw, which the FWC reads for COND AFT CRG ISOL VALVE
+  it('lists the aft cargo isolation valves failure in ATA 21 with the Rust failure it triggers', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.AftCargoIsolationValvesStuckClosed)).toEqual([
+      21,
+      21026,
+      'AFT cargo ventilation isolation valves stuck closed',
+    ]);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    expect(wasm).toContain('(21_026, FailureType::AftCargoIsolationValvesStuckClosed),');
+  });
+
   // TS only: the FWC reads it (FWC/Logic/PredictiveWindshearAlerts.ts), no Rust failure
   it('lists the predictive windshear failure of the weather radar in ATA 34', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
     expect(label(A320Failure.WxrPredictiveWindshear)).toEqual([34, 34120, 'Weather radar predictive windshear (PWS)']);
+  });
+
+  // The systems host (Navigation/NavigationReceiverFailures.ts) applies them, the ILS ones also the Rust MMR shims
+  it('lists the radio navigation receiver failures in ATA 34 with the Rust ILS receiver failures', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.Vor1Receiver)).toEqual([34, 34130, 'VOR 1 receiver (no bearing)']);
+    expect(label(A320Failure.Vor2Receiver)).toEqual([34, 34131, 'VOR 2 receiver (no bearing)']);
+    expect(label(A320Failure.Dme1Receiver)).toEqual([34, 34140, 'DME 1 receiver (no distance)']);
+    expect(label(A320Failure.Dme2Receiver)).toEqual([34, 34141, 'DME 2 receiver (no distance)']);
+    expect(label(A320Failure.Adf1Receiver)).toEqual([34, 34150, 'ADF 1 receiver (no bearing)']);
+    expect(label(A320Failure.Adf2Receiver)).toEqual([34, 34151, 'ADF 2 receiver (no bearing)']);
+    expect(label(A320Failure.Ils1Receiver)).toEqual([34, 34160, 'ILS 1 receiver (no LOC/GS on PFD 1)']);
+    expect(label(A320Failure.Ils2Receiver)).toEqual([34, 34161, 'ILS 2 receiver (no LOC/GS on PFD 2)']);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    expect(wasm).toContain('(34_160, FailureType::IlsReceiver(1)),');
+    expect(wasm).toContain('(34_161, FailureType::IlsReceiver(2)),');
   });
 
   // The oil failure labels say what systems engine/oil_failure.rs and the FADEC (EngineOilFailures.hpp) do with ids 79000-79031
@@ -191,6 +233,34 @@ describe('A320 flyPad failures', () => {
     expect(wasm).toContain('(30_001, FailureType::EngineAntiIceValveStuckClosed(2)),');
     expect(wasm).toContain('(30_010, FailureType::EngineAntiIceValveStuckOpen(1)),');
     expect(wasm).toContain('(30_011, FailureType::EngineAntiIceValveStuckOpen(2)),');
+  });
+
+  // The ATA 35 id is the Rust failure of a320_systems oxygen.rs, registered in a320_systems_wasm
+  it('lists the crew oxygen bottle leak in ATA 35 with the Rust failure it triggers', () => {
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    const entry = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(entry(A320Failure.CrewOxygenBottleLeak)).toEqual([35, 35000, 'Crew oxygen bottle leak (100 PSI/min)']);
+    expect(wasm).toContain('(35_000, FailureType::CockpitOxygenBottleLeak),');
+  });
+
+  // TS only: systems-host Doors/DoorFailures.ts publishes them for the DOOR cautions, the DOOR/OXY page and the CDLS
+  // lights
+  it('lists the door proximity sensor and cockpit door locking system failures in ATA 52', () => {
+    const entry = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(entry(A320Failure.LeftForwardCabinDoorProximitySensor)).toEqual([
+      52,
+      52000,
+      'L FWD cabin door proximity sensor (door shown not closed)',
+    ]);
+    expect(entry(A320Failure.AftCargoDoorProximitySensor)).toEqual([
+      52,
+      52007,
+      'AFT cargo door proximity sensor (door shown not closed)',
+    ]);
+    expect(entry(A320Failure.CockpitDoorUpperLatch)).toEqual([52, 52100, 'Cockpit door upper latch (strike)']);
+    expect(entry(A320Failure.CockpitDoorPressureSensor2)).toEqual([52, 52111, 'Cockpit door pressure sensor 2']);
+    expect(entry(A320Failure.CockpitDoorControlUnit)).toEqual([52, 52120, 'Cockpit door control unit']);
+    expect(A320FailureDefinitions.filter(([chapter]) => chapter === 52)).toHaveLength(14);
   });
 
   // The labels say what systems engine/fuel_filter_failure.rs does with ids 73100-73101 (failure names audit rule)
@@ -379,6 +449,23 @@ describe('A320 flyPad failures', () => {
     }
   });
 
+  // TS only failures of the FCOM gap batch T2-46: the systems-host ATSU (atsu.ts) writes them for the DCDU, its
+  // screens and the MCDU print (FCOM DSC-46-10-10 l.59032-59056)
+  it('lists the DCDU 1, DCDU 2 and printer failures in ATA 46, TS only, read by the systems-host ATSU', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.Dcdu1)).toEqual([46, 46002, 'DCDU 1 (captain)']);
+    expect(label(A320Failure.Dcdu2)).toEqual([46, 46003, 'DCDU 2 (first officer)']);
+    expect(label(A320Failure.Printer)).toEqual([46, 46004, 'Cockpit printer']);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    for (const rustId of ['46_002', '46_003', '46_004']) {
+      expect(wasm).not.toContain(`(${rustId},`);
+    }
+    const atsu = readFileSync(resolve(__dirname, '../../systems-host/systems/atsu.ts'), 'utf8');
+    for (const failure of ['Dcdu1', 'Dcdu2', 'Printer']) {
+      expect(atsu).toContain(`this.failuresConsumer.isActive(A320Failure.${failure})`);
+    }
+  });
+
   // The ids are the Rust failure ids of a320_systems_wasm (systems navigation/adirs.rs)
   it('lists the ADIRS failures in ATA 34 Navigation with the Rust failure they trigger', () => {
     const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
@@ -446,5 +533,49 @@ describe('A320 flyPad failures', () => {
       const rustId = `${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')}`;
       expect(wasm).toContain(`(${rustId},FailureType::${failureType}),`);
     }
+  });
+
+  // FCOM gap batch T2-42: the ventilation and communication failures are TS only (the FWC Logic module reads them), the
+  // FG TCAS mode failure is read by the C++ fbw module (failures/FailureList.h, FlyByWireInterface.cpp)
+  it('lists the ventilation, FG TCAS mode and communication failures with the code that reads them', () => {
+    const host = resolve(__dirname, '../../systems-host/systems/FWC/Logic');
+    const ventilation = readFileSync(resolve(host, 'VentilationAlerts.ts'), 'utf8');
+    const communication = readFileSync(resolve(host, 'CommunicationAlerts.ts'), 'utf8');
+    const tcasMode = readFileSync(resolve(host, 'TcasModeFaultAlert.ts'), 'utf8');
+    const expected: [number, number, string, string, string][] = [
+      [21, 21020, 'AvionicsVentilationController', 'AEVC (avionics equipment ventilation controller)', ventilation],
+      [21, 21021, 'AvionicsBlowerFan', 'Avionics ventilation blower fan', ventilation],
+      [21, 21022, 'AvionicsExtractFan', 'Avionics ventilation extract fan', ventilation],
+      [
+        21,
+        21023,
+        'AvionicsSkinExtractValveStuckOpen',
+        'Avionics ventilation skin extract valve stuck open',
+        ventilation,
+      ],
+      [21, 21024, 'AvionicsSkinInletValveStuckOpen', 'Avionics ventilation skin inlet valve stuck open', ventilation],
+      [21, 21025, 'AftCargoExtractionFan', 'AFT cargo ventilation extraction fan', ventilation],
+      // 21026 (AFT cargo isolation valves stuck closed) is a Rust failure: see the ATA 21 test above
+      [22, 22012, 'TcasModeFailure', 'FG TCAS mode (AP/FD TCAS, both FMGCs)', tcasMode],
+      [23, 23008, 'CidsDirector1', 'CIDS 1 (cabin intercommunication data system)', communication],
+      [23, 23009, 'CidsDirector2', 'CIDS 2 (cabin intercommunication data system)', communication],
+      [23, 23017, 'CaptPttStuck', 'CAPT push-to-talk (PTT) switch stuck in transmit', communication],
+      [23, 23018, 'FoPttStuck', 'F/O push-to-talk (PTT) switch stuck in transmit', communication],
+      [23, 23020, 'Vhf1StuckEmitting', 'VHF 1 transmitter stuck emitting', communication],
+      [23, 23021, 'Vhf2StuckEmitting', 'VHF 2 transmitter stuck emitting', communication],
+      [23, 23022, 'Vhf3StuckEmitting', 'VHF 3 transmitter stuck emitting', communication],
+    ];
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    for (const [chapter, id, key, name, consumer] of expected) {
+      expect((A320Failure as Record<string, number>)[key]).toBe(id);
+      expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, name]);
+      expect(consumer).toContain(`A320Failure.${key}`);
+      expect(wasm).not.toContain(`(${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')},`);
+    }
+    const fbw = resolve(__dirname, '../../../wasm/fbw_a320/src');
+    expect(readFileSync(resolve(fbw, 'failures/FailureList.h'), 'utf8')).toContain('TcasMode = 22012,');
+    expect(readFileSync(resolve(fbw, 'FlyByWireInterface.cpp'), 'utf8')).toContain(
+      'failuresConsumer.isActive(Failures::TcasMode)',
+    );
   });
 });

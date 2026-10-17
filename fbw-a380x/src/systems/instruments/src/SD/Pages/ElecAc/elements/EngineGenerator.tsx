@@ -3,10 +3,8 @@ import React, { FC } from 'react';
 import { Triangle } from '@instruments/common/Shapes';
 import { AcElecBus } from './BusBar';
 import { isEngineGeneratorIndicationAmber } from '../ElecFailureStates';
-
-const ENG_GEN_VOLTAGE_NORMAL_RANGE_LOWER = 110;
-const ENG_GEN_VOLTAGE_NORMAL_RANGE_UPPER = 120;
-const ENG_GEN_LOAD_NORMAL_RANGE_UPPER = 108;
+import { engineGeneratorOffText, isEngineGeneratorOverheat, isGeneratorVoltageNormal } from '../GeneratorIndications';
+import { useGeneratorLoadAmber } from './useGeneratorLoadAmber';
 
 interface EngineGeneratorProps {
   x: number;
@@ -18,9 +16,8 @@ export const EngineGenerator: FC<EngineGeneratorProps> = ({ x, y, bus }) => {
   const [potential] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${bus}_POTENTIAL`, 'volts', 500);
   const [load] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${bus}_LOAD`, 'number', 500);
 
-  const engGenLoadNormal = load < ENG_GEN_LOAD_NORMAL_RANGE_UPPER;
-  const engGenVoltageNormal =
-    potential > ENG_GEN_VOLTAGE_NORMAL_RANGE_LOWER && potential < ENG_GEN_VOLTAGE_NORMAL_RANGE_UPPER;
+  const engGenLoadNormal = !useGeneratorLoadAmber(load);
+  const engGenVoltageNormal = isGeneratorVoltageNormal(potential);
 
   const [lineContactorClosed] = useSimVar(`L:A32NX_ELEC_CONTACTOR_990XU${bus}_IS_CLOSED`, 'number', 500);
   const [genPushbuttonAuto] = useSimVar(`GENERAL ENG MASTER ALTERNATOR:${bus}`, 'number', 500);
@@ -35,6 +32,15 @@ export const EngineGenerator: FC<EngineGeneratorProps> = ({ x, y, bus }) => {
     !!potentialNormal,
     !!frequencyNormal,
   );
+  // OFF or DISC instead of the load and the voltage (A380 FCOM DSC-24-20 l.51061-51065)
+  const offText = engineGeneratorOffText(!!genPushbuttonAuto, !!driveConnected);
+  // OVHT above 185 C, from the oil that cools the generator (l.51107-51112)
+  const [driveOilOutletTemperature] = useSimVar(
+    `L:A32NX_ELEC_ENG_GEN_${bus}_IDG_OIL_OUTLET_TEMPERATURE`,
+    'celsius',
+    1000,
+  );
+  const overheat = isEngineGeneratorOverheat(driveOilOutletTemperature);
 
   return (
     <g id={`engine-generator-${bus}-indication`} transform={`translate(${x} ${y})`}>
@@ -64,7 +70,7 @@ export const EngineGenerator: FC<EngineGeneratorProps> = ({ x, y, bus }) => {
       <text
         x={67}
         y={52}
-        className={`F29 EndAlign ${engGenLoadNormal ? 'Green' : 'Amber'} LS1 ${genPushbuttonAuto ? '' : 'Hide'}`}
+        className={`F29 EndAlign ${engGenLoadNormal ? 'Green' : 'Amber'} LS1 ${offText === null ? '' : 'Hide'}`}
       >
         {Math.round(load)}
       </text>
@@ -72,13 +78,21 @@ export const EngineGenerator: FC<EngineGeneratorProps> = ({ x, y, bus }) => {
       <text
         x={67}
         y={80}
-        className={`F29 EndAlign ${engGenVoltageNormal ? 'Green' : 'Amber'} LS1 ${genPushbuttonAuto ? '' : 'Hide'}`}
+        className={`F29 EndAlign ${engGenVoltageNormal ? 'Green' : 'Amber'} LS1 ${offText === null ? '' : 'Hide'}`}
       >
         {Math.round(potential)}
       </text>
-      {/* OFF Indication */}
-      <text x={67} y={62} className={`F29 EndAlign White LS1 ${genPushbuttonAuto ? 'Hide' : ''}`}>
-        OFF
+      {/* OFF / DISC Indication */}
+      <text
+        x={67}
+        y={62}
+        className={`F29 EndAlign ${offText === 'DISC' ? 'Amber' : 'White'} LS1 ${offText === null ? 'Hide' : ''}`}
+      >
+        {offText ?? ''}
+      </text>
+      {/* OVHT Indication, under the GEN box (position: design choice, the FCOM figure is not in the text) */}
+      <text x={38} y={110} className={`F26 Amber MiddleAlign LS1 ${overheat ? '' : 'Hide'}`}>
+        OVHT
       </text>
 
       {/* GEN line contactor indication */}

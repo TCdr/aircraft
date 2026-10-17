@@ -263,6 +263,7 @@ describe('COM alerts wiring', () => {
 describe('ATA 46 information system COM alerts (PRO-ABN-ECAM-10-46 l.169812-169959)', () => {
   const normal: InformationSystemInputs = {
     cpiomD1Available: true,
+    atcResetPulled: false,
     adsFunctionFailed: false,
     nssDataToAvncsPbOff: false,
     sciFailed: [false, false],
@@ -280,6 +281,12 @@ describe('ATA 46 information system COM alerts (PRO-ABN-ECAM-10-46 l.169812-1699
 
   it('COM ATC DATALINK FAULT when CPIOM D1 (the ATC applications) is lost, the ADS stops with it (l.169848, 158377)', () => {
     const alerts = informationSystemAlerts({ ...normal, cpiomD1Available: false });
+    expect(alerts.atcDatalinkFault).toBe(true);
+    expect(alerts.adsDatalinkFault).toBe(true);
+  });
+
+  it('COM ATC DATALINK FAULT while the ATC RESET pb is pulled (PRO-SUP-46 l.184541-184543)', () => {
+    const alerts = informationSystemAlerts({ ...normal, atcResetPulled: true });
     expect(alerts.atcDatalinkFault).toBe(true);
     expect(alerts.adsDatalinkFault).toBe(true);
   });

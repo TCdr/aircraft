@@ -7,11 +7,16 @@ interface WheelProps {
   number: number | null;
   isLeftSide: boolean;
   hasBrake: boolean;
-  moreActive: boolean;
   /** The brake temperature in °C (L:A32NX_REPORTED_BRAKE_TEMPERATURE_n), for a wheel with a brake */
   brakeTemperature: number;
   /** The arc of the hottest brake (WheelIndications hottestBrakeArcs) */
   hottestArc: HottestBrakeArc;
+  /** The TPIS tire pressure in PSI (L:A380X_TPIS_TIRE_n_PRESSURE) */
+  tirePressure: number;
+  /** The tire pressure is shown (MORE, or abnormal: WheelIndications tirePressureIndication) */
+  tirePressureVisible: boolean;
+  /** The tire pressure is abnormal (amber) */
+  tirePressureAmber: boolean;
 }
 
 /** A380 FCOM DSC-32-20-70 (l.81361-81373): the upper arc of the wheel turns green or amber on the hottest brake */
@@ -32,9 +37,11 @@ export const Wheel: FC<WheelProps> = ({
   number,
   isLeftSide,
   hasBrake,
-  moreActive,
   brakeTemperature,
   hottestArc,
+  tirePressure,
+  tirePressureVisible,
+  tirePressureAmber,
 }) => {
   const negativeSign = isLeftSide ? '-' : '';
   const rightNegativeSign = !isLeftSide ? '-' : '';
@@ -66,12 +73,12 @@ export const Wheel: FC<WheelProps> = ({
         </>
       )}
       <text
-        className="F22 Green EndAlign"
+        className={`F22 ${tirePressureAmber ? 'Amber' : 'Green'} EndAlign`}
         x={isLeftSide ? -16 : 65}
         y={34}
-        visibility={moreActive ? 'visible' : 'hidden'}
+        visibility={tirePressureVisible ? 'visible' : 'hidden'}
       >
-        220
+        {tirePressure}
       </text>
       {number && (
         <text className={`F22 White ${isLeftSide ? 'EndAlign' : ''}`} x={isLeftSide ? -38 : 42} y={7}>

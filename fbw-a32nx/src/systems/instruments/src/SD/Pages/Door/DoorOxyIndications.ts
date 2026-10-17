@@ -1,6 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { isDoorDetectedNotClosed } from '@shared/DoorProximitySensors';
+
 /*
  * Indications of the SD DOOR/OXY page.
  * - Doors, A320 FCOM DSC-52-20 DOOR/OXY SD page (a320_fcom.txt l.61436-61440): door symbol "Green: The door is closed
@@ -30,12 +32,14 @@ const CABIN_VS_FLIGHT_PHASES = [5, 6, 7];
 /**
  * Whether a cabin door or emergency exit is not locked: its MSFS interactive point is open at all. The same rule as the
  * DOOR cautions (systems-host FWC/Logic/DoorAlerts.ts isInteractivePointNotClosed), so that the page and the caution
- * agree.
+ * agree. A failed proximity sensor (flyPad ATA 52 failure) does not detect its closed door closed either
+ * (@shared/DoorProximitySensors, FCOM PRO-ABN-DOOR l.74659-74660).
  * @param openPercent the opening of the interactive point, percent
+ * @param sensorFault the proximity sensor of the door is failed
  * @returns true when the door symbol and its indication are amber
  */
-export function isDoorNotLocked(openPercent: number): boolean {
-  return openPercent > 0;
+export function isDoorNotLocked(openPercent: number, sensorFault = false): boolean {
+  return isDoorDetectedNotClosed(openPercent > 0, sensorFault);
 }
 
 export interface CrewOxygenIndication {

@@ -1,8 +1,11 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { isTirePressureAbnormal, TIRE_COUNT, tirePressureVar } from '@shared/TirePressures';
+
 /*
- * Brake temperatures and the braking / steering control lines of the WHEEL SD page, A380 FCOM DSC-32-20-50/60/70.
+ * Brake temperatures, tire pressures, the braking / steering control lines and the WING ACCU gauge of the WHEEL SD
+ * page, A380 FCOM DSC-32-20-50/60/70.
  */
 
 /** A380 FCOM DSC-32-20-70 BRAKE TEMPERATURE (a380_fcom.txt l.81367-81370): "The brake temperature exceeds 300 °C." */
@@ -166,4 +169,79 @@ export function readBrakeTemperatures(read: (name: string) => number): number[] 
     temperatures.push(read(`L:A32NX_REPORTED_BRAKE_TEMPERATURE_${i}`));
   }
   return temperatures;
+}
+
+/**
+ * Reads the TPIS tire pressures (systems-host Misc/Tpis.ts).
+ * @param read reads one simvar as a number
+ * @returns the pressures of tires 1 to 22 in PSI (shared/TirePressures numbering)
+ */
+export function readTirePressures(read: (name: string) => number): number[] {
+  const pressures: number[] = [];
+  for (let tire = 1; tire <= TIRE_COUNT; tire++) {
+    pressures.push(read(tirePressureVar(tire)));
+  }
+  return pressures;
+}
+
+/** How the WHEEL SD page shows the pressure of one tire */
+export interface TirePressureIndication {
+  visible: boolean;
+  amber: boolean;
+}
+
+/**
+ * A380 FCOM DSC-32-20-70 TIRE PRESSURE (a380_fcom.txt l.81385-81395): green, "Displayed when: - The tire pressure is
+ * normal - The MORE key on the ECP is pressed"; amber, "Displayed when: - The tire pressure is low, or - The difference
+ * between the two tire pressures of the same axle is excessive" (thresholds of WHEEL TIRE PRESS LO, shared/TirePressures).
+ * @param pressuresPsi the TPIS pressures of tires 1 to 22
+ * @param tire the tire, 1 to 22
+ * @param flightPhase the FWS flight phase (L:A32NX_FWC_FLIGHT_PHASE)
+ * @param moreShown the WHEEL MORE page is shown
+ */
+export function tirePressureIndication(
+  pressuresPsi: readonly number[],
+  tire: number,
+  flightPhase: number,
+  moreShown: boolean,
+): TirePressureIndication {
+  const amber = isTirePressureAbnormal(pressuresPsi, tire, flightPhase);
+  return { visible: amber || moreShown, amber };
+}
+
+/** A380 FCOM DSC-32-20-50 WING ACCU (a380_fcom.txt l.81253): "The amber arc ranges from 0 to 3480 PSI." */
+export const WING_ACCU_AMBER_ARC_MAX_PSI = 3480;
+/** l.81248: "The green arc ranges from 4872 to more than 5000 PSI." */
+export const WING_ACCU_GREEN_ARC_MIN_PSI = 4872;
+/** End of the gauge scale (5, x 1000 PSI) */
+export const WING_ACCU_SCALE_MAX_PSI = 5000;
+
+export interface WingAccuIndication {
+  /** The gauge is shown */
+  visible: boolean;
+  /** The pressure is in the amber arc: amber needle, else green */
+  amber: boolean;
+  /** Needle position, x 1000 PSI, on the 0-5 scale */
+  needleKpsi: number;
+}
+
+/**
+ * WING ACCU pressure indication (A380 FCOM DSC-32-20-50, l.81231-81243): "Displayed when: The pressure of a wing brake
+ * accumulator is low (in the amber arc), or The MORE key on the ECP is pressed." "The pressure indication shows the
+ * lowest wing brake accumulator pressure. When in the amber arc, the pressure indication is amber. When outside the
+ * amber arc, the pressure indication is green."
+ * Design choice: the model has one brake accumulator (L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS) for the four of the aircraft
+ * (l.80020-80022); it stands for the wing accumulators. A pressure that is not a finite number shows 0 psi, in amber.
+ * @param pressurePsi the brake accumulator pressure
+ * @param moreShown the WHEEL MORE page is shown (L:A32NX_ECAM_SD_MORE_SHOWN)
+ * @returns the indication
+ */
+export function wingAccuIndication(pressurePsi: number, moreShown: boolean): WingAccuIndication {
+  const pressure = Number.isFinite(pressurePsi) ? Math.max(0, pressurePsi) : 0;
+  const amber = pressure <= WING_ACCU_AMBER_ARC_MAX_PSI;
+  return {
+    visible: moreShown || amber,
+    amber,
+    needleKpsi: Math.min(pressure, WING_ACCU_SCALE_MAX_PSI) / 1000,
+  };
 }

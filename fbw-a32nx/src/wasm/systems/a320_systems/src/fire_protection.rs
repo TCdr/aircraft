@@ -248,6 +248,12 @@ impl A320FireProtection {
     pub(super) fn apu_fire_on_ground(&self) -> bool {
         self.fire_detection_unit.apu_fire_on_ground()
     }
+
+    /// The aft cargo smoke detection unit detects smoke: the cargo ventilation controller closes the aft isolation
+    /// valves (FCOM DSC-21-40-20, a320_fcom.txt l.9716)
+    pub(super) fn aft_cargo_smoke_detected(&self) -> bool {
+        self.aft_cargo_smoke_detection.smoke_detected()
+    }
 }
 
 impl SimulationElement for A320FireProtection {

@@ -350,6 +350,10 @@ impl A320Hydraulic {
     const FORWARD_CARGO_DOOR_ID: &'static str = "FWD";
     const AFT_CARGO_DOOR_ID: &'static str = "AFT";
 
+    /// The nose wheel counts as centred within this angle, for the gear lever interlock (design choice: the FCOM
+    /// gives no tolerance)
+    const NOSE_WHEEL_STEERING_CENTERED_MAX_ANGLE_DEGREES: f64 = 1.;
+
     const ELECTRIC_PUMP_MAX_CURRENT_AMPERE: f64 = 45.;
     const BLUE_ELEC_PUMP_CONTROL_POWER_BUS: ElectricalBusType =
         ElectricalBusType::DirectCurrentEssential;
@@ -1443,6 +1447,13 @@ impl A320Hydraulic {
         &self.gear_system
     }
 
+    /// The nose wheel steering is centred: the gear lever interlock also locks the lever DOWN when it is not
+    /// (A320 FCOM DSC-32-10-40, a320_fcom.txt:50811-50815)
+    pub fn nose_wheel_steering_centered(&self) -> bool {
+        self.nose_steering.position_feedback().get::<degree>().abs()
+            < Self::NOSE_WHEEL_STEERING_CENTERED_MAX_ANGLE_DEGREES
+    }
+
     pub fn brakes_hot(&self) -> bool {
         self.brake_steer_computer.brakes_hot()
     }
@@ -2517,14 +2528,16 @@ impl A320HydraulicBrakeSteerComputerUnit {
 
     const TILLER_INPUT_GAIN: f64 = 75.;
     const TILLER_INPUT_MAP: [f64; 6] = [0., 1., 20., 40., 66., 75.];
-    const TILLER_INPUT_CURVE_MAP: [f64; 6] = [0., 0., 4., 15., 45., 74.];
+    /// "The handwheel can turn the nosewheel up to 75 ° in either direction" (FCOM DSC-32-20-10, a320_fcom.txt:50946)
+    const TILLER_INPUT_CURVE_MAP: [f64; 6] = [0., 0., 4., 15., 45., 75.];
 
     const AUTOPILOT_STEERING_INPUT_GAIN: f64 = 6.;
 
     const SPEED_MAP_FOR_TILLER_ACTION_KNOT: [f64; 5] = [0., 20., 70., 1500.0, 2800.0];
     const STEERING_ANGLE_FOR_TILLER_ACTION_DEGREE: [f64; 5] = [1., 1., 0., 0., 0.];
 
-    const MAX_STEERING_ANGLE_DEMAND_DEGREES: f64 = 74.;
+    /// The handwheel limit of the FCOM (l.50946); the towing lever gives 95 ° with the steering deactivated
+    const MAX_STEERING_ANGLE_DEMAND_DEGREES: f64 = 75.;
 
     /// ABCU brake pressure limit of the alternate braking without anti-skid (FCOM DSC-32-30-10: 1 000 PSI)
     const ALTERNATE_BRAKING_WITHOUT_ANTI_SKID_MAX_PRESSURE_PSI: f64 = 1000.;
@@ -5118,6 +5131,8 @@ impl A320Reversers {
                 pressurized: self.reversers[idx].pressure_switch_pressurised()
                     && stowed_and_locked
                     && no_deploy_order,
+                position: self.reversers[idx].position_sensor().get::<ratio>(),
+                deploy_commanded: controller.deploy_is_commanded(),
             };
         }
     }
@@ -5197,6 +5212,11 @@ pub struct A320ReverserMonitoring {
     pub fault: bool,
     /// ENG 1(2) REV PRESSURIZED
     pub pressurized: bool,
+    /// The reverser feedback position, 0 stowed to 1 deployed (FCOM DSC-70-70 l.63313-63318: "the thrust
+    /// reverser feedback position").
+    pub position: f64,
+    /// The reverser is commanded deployed (otherwise commanded stowed).
+    pub deploy_commanded: bool,
 }
 
 #[cfg(test)]
@@ -5771,6 +5791,7 @@ mod tests {
                     &self.landing_gear,
                     &self.hydraulics.gear_system,
                     self.ext_pwr.output_potential().is_powered(),
+                    self.hydraulics.nose_wheel_steering_centered(),
                 );
 
                 self.hydraulics.update(
@@ -5863,6 +5884,10 @@ mod tests {
 
             fn is_slats_moving(&mut self) -> bool {
                 self.read_by_name("IS_SLATS_MOVING")
+            }
+
+            fn is_nose_wheel_steering_centered(&self) -> bool {
+                self.query(|a| a.hydraulics.nose_wheel_steering_centered())
             }
 
             fn nose_steering_position(&self) -> Angle {
@@ -11202,14 +11227,49 @@ mod tests {
                 .set_tiller_demand(Ratio::new::<ratio>(1.))
                 .run_waiting_for(Duration::from_secs_f64(5.));
 
+            // 75 ° handwheel limit, with the overshoot of the open loop actuator: it varies with the update steps
+            // (75.11 ° to above 75.2 ° seen), so the bound only catches a missing limit; the 75 ° value itself is
+            // checked by nose_steering_reaches_75_degrees_with_full_tiller
             assert_ge!(test_bed.nose_steering_position().get::<degree>(), 73.5);
-            assert_le!(test_bed.nose_steering_position().get::<degree>(), 75.1);
+            assert_le!(test_bed.nose_steering_position().get::<degree>(), 76.);
 
             test_bed = test_bed
                 .set_tiller_demand(Ratio::new::<ratio>(-1.))
                 .run_waiting_for(Duration::from_secs_f64(10.));
 
             assert_le!(test_bed.nose_steering_position().get::<degree>(), -73.5);
+            assert_ge!(test_bed.nose_steering_position().get::<degree>(), -76.);
+        }
+
+        /// A320 FCOM DSC-32-20-10 (a320_fcom.txt:50946): "The handwheel can turn the nosewheel up to 75 ° in either
+        /// direction"
+        #[test]
+        fn nose_steering_reaches_75_degrees_with_full_tiller() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .set_yellow_e_pump(false)
+                .start_eng1(Ratio::new::<percent>(80.))
+                .start_eng2(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs_f64(1.));
+
+            assert!(test_bed.is_nose_wheel_steering_centered());
+
+            test_bed = test_bed
+                .set_tiller_demand(Ratio::new::<ratio>(1.))
+                .run_waiting_for(Duration::from_secs_f64(8.));
+
+            assert_ge!(test_bed.nose_steering_position().get::<degree>(), 74.6);
+            assert_le!(test_bed.nose_steering_position().get::<degree>(), 75.1);
+            // The gear lever interlock input (FCOM DSC-32-10-40, a320_fcom.txt:50811-50815)
+            assert!(!test_bed.is_nose_wheel_steering_centered());
+
+            test_bed = test_bed
+                .set_tiller_demand(Ratio::new::<ratio>(-1.))
+                .run_waiting_for(Duration::from_secs_f64(12.));
+
+            assert_le!(test_bed.nose_steering_position().get::<degree>(), -74.6);
             assert_ge!(test_bed.nose_steering_position().get::<degree>(), -75.1);
         }
 
@@ -12642,6 +12702,35 @@ mod tests {
             assert!(!reverser_flag(&mut test_bed, "REVERSER_1_UNLOCKED"));
             assert!(!reverser_flag(&mut test_bed, "REVERSER_1_PRESSURIZED"));
             assert!(!reverser_flag(&mut test_bed, "REVERSER_1_DEPLOYING"));
+        }
+
+        /// The FADEC idle protection reads the reverser feedback position and the deploy order (FCOM
+        /// DSC-70-70 l.63311-63318, see engine_control_failure).
+        #[test]
+        fn reverser_monitoring_gives_the_feedback_position_and_the_deploy_order() {
+            let mut test_bed = test_bed_on_ground_with_engines_running();
+            let monitoring = test_bed.query(|a| a.hydraulics.reversers_monitoring()[0]);
+            assert!(!monitoring.deploy_commanded);
+            assert_lt!(monitoring.position, 0.01);
+
+            test_bed = test_bed
+                .eng1_throttle_reverse_full()
+                .run_waiting_for(Duration::from_secs_f64(3.));
+            let monitoring = test_bed.query(|a| a.hydraulics.reversers_monitoring()[0]);
+            assert!(monitoring.deploy_commanded);
+            assert_gt!(monitoring.position, 0.99);
+            assert!(
+                (monitoring.position - test_bed.get_reverser_1_position().get::<ratio>()).abs()
+                    < 1e-9
+            );
+            assert!(!test_bed.query(|a| a.hydraulics.reversers_monitoring()[1].deploy_commanded));
+
+            test_bed = test_bed
+                .set_throttles_idle()
+                .run_waiting_for(Duration::from_secs_f64(5.));
+            let monitoring = test_bed.query(|a| a.hydraulics.reversers_monitoring()[0]);
+            assert!(!monitoring.deploy_commanded);
+            assert_lt!(monitoring.position, 0.01);
         }
     }
 }

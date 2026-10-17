@@ -9,6 +9,8 @@ import { VhfRadioPanel } from './VhfRadioPanel';
 import { NavRadioPanel } from './NavRadioPanel';
 import { RmpStbyNavKey, rmpStbyNavKeyPanelMode } from './RmpNavBackupTuning';
 import { isRmpOperative, RmpSide, rmpFailedVar } from '@shared/communications/RadioCommunicationLogic';
+import { bfoAfterRmpBfoKey } from '@shared/navigation/NavigationReceivers';
+import { NavRadioUtils } from '@fmgc/navigation/NavRadioUtils';
 
 interface Props {
   /**
@@ -108,6 +110,16 @@ const PoweredRadioPanel = (props: Props) => {
   useInteractionEvent(`A32NX_RMP_${props.side}_GLS_BUTTON_PRESSED`, () => onStbyNavKey('GLS', TransceiverType.GLS));
   useInteractionEvent(`A32NX_RMP_${props.side}_MLS_BUTTON_PRESSED`, () => onStbyNavKey('MLS', TransceiverType.MLS));
   useInteractionEvent(`A32NX_RMP_${props.side}_ADF_BUTTON_PRESSED`, () => onStbyNavKey('ADF', TransceiverType.ADF));
+
+  // The BFO key toggles the BFO of the ADF of this RMP (RMP 1: ADF 1, RMP 2: ADF 2) while the ADF is selected
+  const adfIndex = props.side === 'L' ? 1 : 2;
+  const [bfoOn, setBfoOn] = useSimVar(NavRadioUtils.adfBfoVar(adfIndex), 'Bool', 250);
+  useInteractionEvent(`A32NX_RMP_${props.side}_BFO_BUTTON_PRESSED`, () => {
+    const bfo = bfoAfterRmpBfoKey(!!navButtonPressed, panelMode, !!bfoOn);
+    if (bfo !== null) {
+      setBfoOn(bfo);
+    }
+  });
 
   // This means we're in a VHF communications mode.
   switch (navTransceiverType) {

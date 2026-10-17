@@ -30,30 +30,61 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
+  // CDS CAPT (F/O) EFIS BKUP CTL FAULT (A380 FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt l.157708-157724)
   311800002: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT EFIS BKUP CTL FAULT',
     sensed: true,
-    items: [],
+    items: [
+      {
+        name: 'CAPT BARO REF : STD ONLY',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
   },
   311800003: {
     title: '\x1b<4m\x1b4mCDS\x1bm F/O EFIS BKUP CTL FAULT',
     sensed: true,
-    items: [],
+    items: [
+      {
+        name: 'F/O BARO REF : STD ONLY',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
   },
+  // CDS CAPT (F/O) EFIS CTL PNL FAULT (l.157756-157773): "If CAPT (F/O) FCU BKUP is available: USE CAPT (F/O) MFD FCU
+  // BKUP"; the FWS raises this alert only with the FCU backup available (FwsCdsControlAlerts)
   311800004: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT EFIS CTL PNL FAULT',
     sensed: true,
-    items: [],
+    items: [
+      {
+        name: 'USE CAPT MFD FCU BKUP',
+        sensed: false,
+      },
+    ],
   },
   311800005: {
     title: '\x1b<4m\x1b4mCDS\x1bm F/O EFIS CTL PNL FAULT',
     sensed: true,
-    items: [],
+    items: [
+      {
+        name: 'USE F/O MFD FCU BKUP',
+        sensed: false,
+      },
+    ],
   },
+  // CDS CAPT+F/O EFIS CTL PNLs FAULT (l.158064-158080)
   311800006: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT+F/O EFIS CTL PNLs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      {
+        name: 'USE MFD FCU BKUP',
+        sensed: false,
+      },
+    ],
   },
   311800007: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT PFD DU NOT MONITORED',
@@ -65,18 +96,19 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
+  // CDS CAPT PFD(CAPT ND)(EWD)(F/O PFD)(F/O ND) DU NOT MONITORED (DSC-31-15-90, l.63264; PRO-ABN, l.158042-158051)
   311800009: {
-    title: '\x1b<4m\x1b4mCDS\x1bm CAPT EWD DU NOT MONITORED',
+    title: '\x1b<4m\x1b4mCDS\x1bm EWD DU NOT MONITORED',
     sensed: true,
     items: [],
   },
   311800010: {
-    title: '\x1b<4m\x1b4mCDS\x1bm CAPT F/O PFD DU NOT MONITORED',
+    title: '\x1b<4m\x1b4mCDS\x1bm F/O PFD DU NOT MONITORED',
     sensed: true,
     items: [],
   },
   311800011: {
-    title: '\x1b<4m\x1b4mCDS\x1bm CAPT F/O ND DU NOT MONITORED',
+    title: '\x1b<4m\x1b4mCDS\x1bm F/O ND DU NOT MONITORED',
     sensed: true,
     items: [],
   },
@@ -309,15 +341,28 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
       },
     ],
   },
+  // CDS CAPT (F/O) CURSOR CTL FAULT (A380 FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt l.157621-157634)
   313800001: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT CURSOR CTL FAULT',
     sensed: true,
-    items: [],
+    items: [
+      {
+        name: 'CAPT KEYBOARD CURSOR CTL AVAIL',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
   },
   313800002: {
     title: '\x1b<4m\x1b4mCDS\x1bm F/O CURSOR CTL FAULT',
     sensed: true,
-    items: [],
+    items: [
+      {
+        name: 'F/O KEYBOARD CURSOR CTL AVAIL',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
   },
   313800003: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT CURSOR CTL+KEYBOARD FAULT',
@@ -329,15 +374,28 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
+  // CDS CAPT (F/O) KEYBOARD FAULT (l.157796-157823)
   313800005: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT KEYBOARD FAULT',
     sensed: true,
-    items: [],
+    items: [
+      {
+        name: 'CAPT SOFT KEYBOARD AVAIL',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
   },
   313800006: {
     title: '\x1b<4m\x1b4mCDS\x1bm F/O KEYBOARD FAULT',
     sensed: true,
-    items: [],
+    items: [
+      {
+        name: 'F/O SOFT KEYBOARD AVAIL',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
   },
   313800007: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT MAILBOX ACCESS FAULT',

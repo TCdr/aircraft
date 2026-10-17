@@ -424,6 +424,7 @@ impl A320Pneumatic {
             &mut self.engine_systems,
             overhead_panel.wing_anti_ice.mode(),
             lgciu,
+            self.leak_detection.wing_leaks(),
         );
         let [left_system, right_system] = &mut self.engine_systems;
         self.apu_bleed_air_valve.update_move_fluid(
@@ -871,6 +872,8 @@ impl BleedMonitoringComputerChannel {
     /// choice: 5 PSI away from these limits, so that a valve the pressures close is not seen as failed.
     const HP_VALVE_EXPECTED_OPEN_MIN_UPSTREAM_PSIG: f64 = 20.;
     const HP_VALVE_EXPECTED_OPEN_MAX_DOWNSTREAM_PSIG: f64 = 70.;
+    /// See bleed_valve_upstream_pressure_too_low
+    const BLEED_VALVE_MIN_UPSTREAM_PRESSURE_PSIG: f64 = 8.;
 
     fn new(
         context: &mut InitContext,
@@ -1288,6 +1291,13 @@ impl BleedMonitoringComputerChannel {
     fn is_in_low_temperature_regulation(&self) -> bool {
         self.low_temperature_regulation_active.output()
     }
+
+    /// The bleed valve closes pneumatically "If upstream pressure goes below 8 PSI" and opens if "Upstream pressure
+    /// is above 8 PSI" (A320 FCOM DSC-36-10-20, a320_fcom.txt:57283-57285; DSC-36-20, l.57604). `transfer_pressure`
+    /// is the gauge pressure upstream of the valve.
+    fn bleed_valve_upstream_pressure_too_low(transfer_pressure: Pressure) -> bool {
+        transfer_pressure < Pressure::new::<psi>(Self::BLEED_VALVE_MIN_UPSTREAM_PRESSURE_PSIG)
+    }
 }
 impl ControllerSignal<SolenoidSignal> for BleedMonitoringComputerChannel {
     fn signal(&self) -> Option<SolenoidSignal> {
@@ -1302,7 +1312,7 @@ impl ControllerSignal<SolenoidSignal> for BleedMonitoringComputerChannel {
 impl ControllerSignal<PressureRegulatingValveSignal> for BleedMonitoringComputerChannel {
     fn signal(&self) -> Option<PressureRegulatingValveSignal> {
         // TODO: The pressure condition should be pneumatically simulated
-        if self.transfer_pressure < Pressure::new::<psi>(15.)
+        if Self::bleed_valve_upstream_pressure_too_low(self.transfer_pressure)
             || self.should_command_onside_prv_closed
         {
             Some(PressureRegulatingValveSignal::new_closed())
@@ -1315,7 +1325,9 @@ impl ControllerSignal<PressureRegulatingValveSignal> for BleedMonitoringComputer
 }
 impl ControllerSignal<FanAirValveSignal> for BleedMonitoringComputerChannel {
     fn signal(&self) -> Option<FanAirValveSignal> {
-        if self.transfer_pressure < Pressure::new::<psi>(15.)
+        // The fan air valve works on the same bleed air: "A spring keeps the fan air valve closed in the absence of
+        // pressure" (FCOM DSC-36-10-20, a320_fcom.txt:57409)
+        if Self::bleed_valve_upstream_pressure_too_low(self.transfer_pressure)
             || self.should_command_onside_prv_closed
         {
             Some(FanAirValveSignal::new_closed())
@@ -2296,6 +2308,12 @@ impl BleedLeakDetection {
         self.pylon_leak[engine_number - 1] || self.wing_leak[engine_number - 1]
     }
 
+    /// The wing leak of each wing (1 left, 2 right): it also closes the wing anti-ice valve of that wing (FCOM
+    /// DSC-30-20-10 l.44257-44258)
+    fn wing_leaks(&self) -> [bool; 2] {
+        self.wing_leak
+    }
+
     /// Any leak: the crossbleed valve closes in AUTO (except during engine start)
     fn any_leak(&self) -> bool {
         self.pylon_leak.iter().any(|&leak| leak)
@@ -2882,6 +2900,9 @@ pub mod tests {
         }
         fn ambient_static_pressure(&self, _adiru_number: usize) -> Arinc429Word<Pressure> {
             Arinc429Word::new(Pressure::default(), SignStatus::NoComputedData)
+        }
+        fn computed_airspeed(&self, _adiru_number: usize) -> Arinc429Word<Velocity> {
+            Arinc429Word::new(Velocity::default(), SignStatus::NoComputedData)
         }
     }
 
@@ -6330,6 +6351,23 @@ pub mod tests {
         ));
     }
 
+    /// FCOM DSC-36-10-20 (a320_fcom.txt:57283-57285): the bleed valve is fully closed pneumatically "If upstream
+    /// pressure goes below 8 PSI"; DSC-36-20 (l.57604): it opens if "Upstream pressure is above 8 PSI"
+    #[test]
+    fn bleed_valve_closes_pneumatically_below_8_psi_upstream() {
+        use super::BleedMonitoringComputerChannel;
+
+        for (upstream_psig, too_low) in [(0., true), (7.9, true), (8.1, false), (12., false)] {
+            assert_eq!(
+                BleedMonitoringComputerChannel::bleed_valve_upstream_pressure_too_low(
+                    Pressure::new::<psi>(upstream_psig)
+                ),
+                too_low,
+                "upstream pressure {upstream_psig} psig"
+            );
+        }
+    }
+
     /// The flyPad ATA 36 failures and the BMC monitoring they trigger (FCOM DSC-36, PRO-ABN-AIR)
     mod ata_36_failures {
         use super::*;
@@ -6711,6 +6749,31 @@ pub mod tests {
             assert!(flag(&mut test_bed, "PNEU_LEFT_WING_LEAK"));
             assert!(test_bed.apu_bleed_valve_is_open());
             assert!(flag(&mut test_bed, "PNEU_XBLEED_VALVE_FULLY_OPEN"));
+        }
+
+        /// DSC-30-20-10 l.44257-44258: "If the system detects a leak during normal operation, the affected side's
+        /// wing anti-ice valve automatically closes". The crossbleed is selected OPEN so that the left duct stays
+        /// pressurised from engine 2: only the leak protection can close the left valve.
+        #[test]
+        fn a_wing_leak_closes_the_wing_anti_ice_valve_of_its_side() {
+            let mut test_bed = idle_descent_through_10000_ft_with_wing_anti_ice()
+                .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Open);
+            // In flight for the LGCIUs too: no 30 s ground test sequence of the wing anti-ice
+            test_bed.set_lgciu_on_ground(false);
+            run_seconds(&mut test_bed, 30);
+            assert!(!test_bed.left_valve_closed());
+            assert!(!test_bed.right_valve_closed());
+            assert!(!test_bed.wing_anti_ice_has_fault());
+
+            test_bed.fail(FailureType::WingBleedLeak(1));
+            run_seconds(&mut test_bed, 30);
+
+            assert!(flag(&mut test_bed, "PNEU_LEFT_WING_LEAK"));
+            assert!(test_bed.left_precooler_pressurised());
+            assert!(test_bed.left_valve_closed());
+            assert!(!test_bed.right_valve_closed());
+            // DSC-30-20-20 l.44295-44298: the valve is not in the required position, the WING pb FAULT light comes on
+            assert!(test_bed.wing_anti_ice_has_fault());
         }
 
         /// DSC-36-10-50 l.57508-57509: both wing loops, or one loop with the other inoperative; PRO-ABN-AIR

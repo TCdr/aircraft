@@ -42,6 +42,12 @@ import { ClockEvents, ConsumerSubject, EventBus, GameStateProvider, Instrument, 
 import { MfdSurvEvents } from '../../../../instruments/src/MsfsAvionicsCommon/providers/MfdSurvPublisher';
 import { isXpdrTcasPowered, selectedSurvSystem } from '../../Communications/TransponderSystem';
 import { trafPbLightVar, trafPbPushEvent, trafPbsToAutoSelect } from '../lib/TcasTrafAutoSelect';
+import { isTcasAutoTaOnly } from '../lib/TcasAutoTaOnly';
+import {
+  isEmergencyElectricalConfiguration,
+  isFwsStallWarningActive,
+  isReactiveWindshearWarningActive,
+} from '../../SurvAlertPriority';
 
 export class NDTcasTraffic {
   ID: string;
@@ -243,6 +249,9 @@ export class LegacyTcasComputer implements Instrument {
 
   private gpwsWarning: boolean; // GPWS warning on/off
 
+  /** TA ONLY selected automatically by a windshear / stall warning or the emergency electrical configuration */
+  private autoTaOnly = false;
+
   private raInhibitedLow = false; // RAs inhibited by the low-altitude hysteresis (see updateInhibitions)
 
   private taAuralInhibitedLow = false; // TA aural inhibited by the low-altitude hysteresis
@@ -371,6 +380,12 @@ export class LegacyTcasComputer implements Instrument {
     this.isSlewActive = !!SimVar.GetSimVarValue('IS SLEW ACTIVE', 'boolean');
     this.simRate = SimVar.GetGlobalVarValue('SIMULATION RATE', 'number');
     this.gpwsWarning = !!SimVar.GetSimVarValue('L:A32NX_GPWS_Warning_Active', 'boolean');
+    // Automatic TA ONLY selection (A380 FCOM DSC-34-20-40-10, a380_fcom.txt l.90525-90536, TcasAutoTaOnly.ts)
+    this.autoTaOnly = isTcasAutoTaOnly({
+      windshearWarning: isReactiveWindshearWarningActive(),
+      stallWarning: isFwsStallWarningActive(),
+      emergencyElectricalConfiguration: isEmergencyElectricalConfiguration(),
+    });
 
     // TRAF pb of each EFIS CP, written by the FCU (A380 FCOM DSC-34-20-40-20 ND)
     this.trafficLeftEfisFilter = SimVar.GetSimVarValue(trafPbLightVar('L'), 'bool') > 0;
@@ -392,7 +407,9 @@ export class LegacyTcasComputer implements Instrument {
    * Set inhibition level
    */
   private updateInhibitions(): void {
-    // TODO: Add more TA only conditions here (i.e Windshear warning active, stall)
+    // Automatic TA ONLY (a380_fcom.txt l.90525-90536): the TAWS warnings (gpwsWarning, also inhibits the TA aural),
+    // the windshear and stall warnings and the emergency electrical configuration (autoTaOnly), below 1 000 ft
+    // (raInhibitedLow).
     // TODO FIXME: Less magic numbers, Use constants defined in TcasConstants
     // The low-altitude inhibitions have a hysteresis (TcasConstants): RAs are inhibited below 900 ft AGL in
     // descent and 1 100 ft AGL in climb (the FCOM's "below 1 000 ft +-100 ft"), the TA aural below 400 ft in
@@ -423,7 +440,7 @@ export class LegacyTcasComputer implements Instrument {
       this.tcasMode.getVar() === TcasMode.STBY
     ) {
       this.inhibitions = Inhibit.ALL_RA_AURAL_TA;
-    } else if (this.raInhibitedLow || this.tcasMode.getVar() === TcasMode.TA) {
+    } else if (this.raInhibitedLow || this.autoTaOnly || this.tcasMode.getVar() === TcasMode.TA) {
       this.inhibitions = Inhibit.ALL_RA;
     } else if (!this.radioAlt.isNoComputedData() && this.radioAlt.value < 1100) {
       this.inhibitions = Inhibit.ALL_DESC_RA;

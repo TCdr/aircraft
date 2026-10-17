@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { NXLogicConfirmNode, NXLogicMemoryNode, NXLogicPulseNode } from '@flybywiresim/fbw-sdk';
+import { FadecShutdownReason } from './EngineMonitoringAlerts';
 
 /*
  * A380X FWS engine failure logic (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt): ENG 1(2)(3)(4) FAIL (l.171712-171981),
@@ -246,6 +247,52 @@ export function autoRelightInProgress(inputs: AutoRelightInputs): boolean {
     !inputs.relightAttempt &&
     !inputs.relightIgnition
   );
+}
+
+/**
+ * The ENG n FAIL items of ata70 (701800029-032): 24 lines of the branches where the FADEC does not identify the failure
+ * (0 L/G UP to 23 RELIGHT PROC CONSIDER on ground), then 4 lines of the branches where it does: 24 FADEC OVHT, 25 THRUST
+ * CTL LOST, 26 THR LEVER n IDLE, 27 ENG n MASTER OFF.
+ */
+export const ENG_FAIL_NOT_IDENTIFIED_ITEM_COUNT = 24;
+export const ENG_FAIL_ITEM_COUNT = 28;
+
+/**
+ * The ENG n FAIL lines shown, with the reason of a FADEC shutdown (l.171719-171720: "In the case of FADEC overheat or
+ * overthrust protection activation, the FADEC indicates the reason of the failure"):
+ * - l.171781-171808: "In the case of a FADEC OVHT : ... THR LEVER (AFFECTED ENGINE) ... IDLE, ENG (AFFECTED ENGINE) MASTER
+ *   ... OFF" and "In the case of THRUST CTL LOST : ... THR LEVER ... IDLE, ENG (AFFECTED) MASTER ... OFF", each with the
+ *   associated procedure ENG SHUTDOWN only: no AUTO RELIGHT, no IF DAMAGED / NOT DAMAGED lines, which belong to the
+ *   branches "the FADEC does not identify the failure" (in flight l.171810-171872, on ground l.171898-171936).
+ * - The L/G UP line (item 0, "If L/G is down in the takeoff and initial climb phases", l.171778-171779) stays.
+ * Design choice: the reason is a white line of its own, named as the FCOM names the case ("FADEC OVHT", "THRUST CTL
+ * LOST").
+ * @param reason the FADEC shutdown reason (L:A32NX_ENGINE_n_FADEC_SHUTDOWN)
+ * @param notIdentifiedShown the 24 lines of the other branches, as FwsAbnormalSensed computes them
+ */
+export function engineFailItemsShown(reason: FadecShutdownReason, notIdentifiedShown: boolean[]): boolean[] {
+  if (reason === FadecShutdownReason.None) {
+    return notIdentifiedShown.concat([false, false, false, false]);
+  }
+  const shown: boolean[] = [notIdentifiedShown[0]];
+  for (let index = 1; index < ENG_FAIL_NOT_IDENTIFIED_ITEM_COUNT; index++) {
+    shown.push(false);
+  }
+  return shown.concat([
+    reason === FadecShutdownReason.FadecOverheat,
+    reason === FadecShutdownReason.ThrustControlLost,
+    true,
+    true,
+  ]);
+}
+
+/** The ENG n FAIL lines done: the 24 lines of the other branches, then the 4 lines of the FADEC shutdown branches */
+export function engineFailItemsChecked(
+  notIdentifiedChecked: boolean[],
+  thrLeverIdle: boolean,
+  masterOff: boolean,
+): boolean[] {
+  return notIdentifiedChecked.concat([false, false, thrLeverIdle, masterOff]);
 }
 
 /** The aircraft state that the TWO ENGS OUT deferred procedures sense */

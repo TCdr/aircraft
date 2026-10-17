@@ -24,6 +24,8 @@ export enum SystemKeys {
   CabCall = 'CAB_CALL',
   PaCall = 'PA_CALL',
   Voice = 'VOICE',
+  /** The guarded STBY RAD NAV key (rmp.xml button STBY_RAD_NAV). */
+  StandbyRadNav = 'STBY_RAD_NAV',
 }
 
 export enum PageKeys {

@@ -64,9 +64,9 @@
         - AESU2
         - NSS_AVNCS
         - NSS_FLT_OPS
+        - ATC (pulled: the ATC datalink function is powered down, CpiomD/AtcDatalink.ts; COM ATC DATALINK FAULT)
     - {name} wired in the cockpit only, not read by any system yet
         - AICU1, AICU2
-        - ATC
         - AVS1, AVS2
         - BSCS1, BSCS2
         - CIDS1, CIDS2, CIDS3
@@ -1124,6 +1124,23 @@ The PRIMs perform the flight guidance and flight envelope functions.
       fully clockwise. The knob of the active AMU side scales the COM receive volumes set by the RMP (not the FWS and
       SURV sounds). Set to 100 at each flight load by the systems host.
 
+- `L:PUSH_OVHD_CALLS_{station}`
+    - Bool
+    - The CALLS panel pushbuttons, 1 while pressed. `{station}`: `MECH` (ground crew horn), `ALL`, `DECK_UPPER`,
+      `DECK_MAIN`, `PURS` (cabin calls, the cabin crew then report CABIN READY), `REST_FWD`, `REST_MAIN` (crew rests).
+
+- `L:A32NX_CALLS_EMER_ON`
+    - Bool
+    - The CALLS panel EMER pb-sw is on (its ON and CALL lights are on steady).
+
+- `L:A32NX_ELT_ON`
+    - Bool
+    - The ELT selector is at ON (the ELT transmits).
+
+- `L:A32NX_ELT_TEST_RESET`
+    - Bool
+    - The ELT selector is at TEST/RESET. Both ELT variables 0: ARMED.
+
 ## Electrical ATA 24
 
 - A32NX_ELEC_CONTACTOR_{name}_IS_CLOSED
@@ -1402,6 +1419,18 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - True when the RAT generator is failed (flyPad failure RAT Generator), RAT stowed or deployed: it gives no output
       to the AC ESS busbar. Triggers ELEC RAT FAULT
 
+- A32NX_ELEC_GALLEY_IS_SHED
+    - Bool
+    - Read only
+    - True when at least one galley is shed (no main AC busbar powered, COMMERCIAL or GALY AND CAB pb OFF, or the main
+      galleys when only one or two sources supply the main AC busbars; a380_systems electrical/galley.rs)
+
+- A32NX_ELEC_GALLEY_IS_PARTIALLY_SHED
+    - Bool
+    - Read only
+    - True when some, not all, galleys are shed (the main galleys only). Drives GALLEY PARTIALLY SHED on the ELEC AC SD
+      page, A32NX_ELEC_GALLEY_IS_SHED alone GALLEY SHED (A380 FCOM DSC-24-20 GALLEY/COMMERCIAL INDICATION)
+
 ## Fire and Smoke Protection ATA 26
 
 - A32NX_FIRE_FDU_DISCRETE_WORD
@@ -1535,12 +1564,13 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_SMOKE_{zone}_DETECTED
     - Bool
     - {zone} = FWD_CARGO, AFT_CARGO, BULK_CARGO, L_MAIN_AVNCS, R_MAIN_AVNCS, L_UPPER_AVNCS, R_UPPER_AVNCS, AFT_AVNCS,
-      IFE_BAY
+      IFE_BAY, NSS (network server system)
     - True when the Smoke Detection Function (SDF) detects smoke in the compartment: both detectors sense it, or one does
       and the other is failed (A380 FCOM DSC-26-50-10 / DSC-26-60-10 DETECTION LOGIC; systems
       fire_protection/smoke_detection.rs). The smoke comes from the flyPad failures "<compartment> smoke"
-    - Read by the FWS for the SMOKE ... SMOKE warnings (the main / upper avionics bay logic is in the FWS), and by the
-      AGENT TO FWD (AFT) pb SMOKE lights for the cargo compartments
+    - Read by the FWS for the SMOKE ... SMOKE warnings (the main / upper avionics bay logic is in the FWS), by the
+      AGENT TO FWD (AFT) pb SMOKE lights for the cargo compartments, and by the SMOKE light of the NSS MASTER sw for the
+      NSS (A380 FCOM DSC-46-20-20-87, no ECAM alert)
 
 - A32NX_SMOKE_{zone}_DET_FAULT
     - Bool
@@ -2212,6 +2242,12 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
 
 ## EFIS Control Panel ATA 31
 
+- A32NX_FCU_SWITCHED_OFF
+    - Boolean
+    - The FCU is switched off (A380 FCOM DSC-22-FG-80-40: the left FCU brightness knob turned to its end): the FCU model
+      shuts the EFIS CPs and the AFS CP down and the FWS raises CDS & AUTO FLT FCU SWITCHED OFF
+    - No cockpit control writes it yet
+
 - A380X_EFIS_{side}_LS_BUTTON_IS_ON
     - Boolean
     - Whether the LS button is activated
@@ -2278,6 +2314,8 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - The cursor control device ON/OFF switch of the KCCU: its ESC, KBD and navigation keys work only when ON
     - ON by default: set ON in every flight start (cold and dark included) and by the Powered aircraft preset
     - {side} = L or R
+    - A failed keyboard or cursor control device (flyPad failures CAPT/F/O KCCU keyboard, cursor control device or whole
+      KCCU, ATA 31) takes no key press either, as when OFF
 
 ## Landing Gear ATA 32
 
@@ -2340,6 +2378,14 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - Written by the FWS: an active ECAM alert lists BTV in STATUS INOP SYS (ENG 2(3) SHUT DOWN, TWO ENGS OUT,
       ENG 2(3) REVERSER failures). Like A32NX_BTV_LOST, BTV then does not arm and an armed BTV reverts to BRK HI
 
+- A380X_TPIS_TIRE_{n}_PRESSURE
+    - Number (PSI)
+    - The TPIS pressure of tire n, 0 to 400 PSI by 5 PSI steps (systems-host `Misc/Tpis.ts`): 220 (the normal
+      217.5 PSI) unless the tire deflation failure (flyPad failures 32300-32321) is active; read by the SD WHEEL page
+    - {n}
+        - 1 to 20: the main gear tires, numbered as on the SD WHEEL page (wing gears 1-8, body gears 9-20)
+        - 21: left nose tire, 22: right nose tire
+
 ## Lights ATA 33
 
 - `L:A380X_PED_LIGHTING_MIP_FLOOD_LT_KNOB`
@@ -2380,17 +2426,17 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
 
 - `L:A380X_WXR_GAIN_MAN`
     - Bool
-    - Set from the GAIN button of the MFD SURV CONTROLS page. True when the gain is MANUAL (false = AUTO)
+    - Set from the GAIN button of the MFD SURV CONTROLS page and the SURV panel GAIN knob (pull MAN, push AUTO; H events A380X_WXR_GAIN_KNOB_PUSH/_PULL/_INC/_DEC of the cockpit, systems host Misc/WxrSurvKnobs.ts). True when the gain is MANUAL (false = AUTO)
     - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr): MANUAL applies L:A380X_WXR_GAIN, AUTO the calibrated gain
 
 - `L:A380X_WXR_GAIN`
     - Number (percent)
-    - Set from the GAIN entry field of the MFD SURV CONTROLS page (shown with GAIN MAN), 0 to 100, -9999 when nothing is entered
+    - Set from the GAIN entry field of the MFD SURV CONTROLS page (shown with GAIN MAN), and turned with the SURV panel GAIN knob (1 % per detent, 50 % when nothing is entered), 0 to 100, -9999 when nothing is entered
     - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr) with GAIN MAN: 50 % (and no entry) = calibrated, 0 % = -16 dB, 100 % = +10 dB, the rain rate each colour starts at moves with it (turbulence unchanged)
 
 - `L:A380X_WXR_ELEVN_TILT_MODE`
     - Enum
-    - Set from the ELEVN/TILT option list of the MFD SURV CONTROLS page
+    - Set from the ELEVN/TILT option list of the MFD SURV CONTROLS page and the SURV panel ELEVN knob (push AUTO, pull ELEVN, pull again TILT; H events A380X_WXR_ELEVN_KNOB_PUSH/_PULL/_INC/_DEC, systems host Misc/WxrSurvKnobs.ts)
     - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr): in ELEVN or TILT the ND hides the weather where the selected altitude or tilt reaches the ground
     -   | State | Number |
         |-------|--------|
@@ -2400,12 +2446,12 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
 
 - `L:A380X_WXR_ELEVN`
     - Number (feet)
-    - Set from the ELEVN entry field of the MFD SURV CONTROLS page, 0 to 60000 (FL 0 to FL 600 with the STD reference), -9999 when nothing is entered
+    - Set from the ELEVN entry field of the MFD SURV CONTROLS page and turned with the SURV panel ELEVN knob in ELEVN mode (100 ft per detent), 0 to 60000 (FL 0 to FL 600 with the STD reference), -9999 when nothing is entered
     - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr): at or below the ground under the aircraft the ND shows no weather
 
 - `L:A380X_WXR_TILT`
     - Number (degrees)
-    - Set from the TILT entry field of the MFD SURV CONTROLS page, -15.0 to +15.0, -9999 when nothing is entered
+    - Set from the TILT entry field of the MFD SURV CONTROLS page and turned with the SURV panel ELEVN knob in TILT mode (0.1 degree per detent), -15.0 to +15.0, -9999 when nothing is entered
     - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr): a down tilt shows the weather only up to the range where the tilted surface reaches the ground
 
 - `L:A380X_WXR_MODE_MAP`
@@ -2722,6 +2768,63 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - A bleed leak in the wing zone is detected (above 124 °C, FCOM DSC-36-10-60). The zone goes with the engine 1, 2, 3
     or 4: its ENG BLEED pb-sw holds it, and it closes the bleed valve of that engine as the pylon leak does
 
+- A32NX_PNEU_APU_BLEED_LEAK
+  - Bool
+  - A leak of the APU bleed duct is detected (above 124 °C, FCOM DSC-36-10-60, AIR APU BLEED LEAK). Held while the APU
+    BLEED pb-sw is ON (its FAULT light); it closes the APU bleed valve and the APU isolation valve. Written by the systems
+    WASM (a380_systems pneumatic.rs)
+
+- A32NX_PNEU_PACK_{number}_LEAK
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - A leak in the pack bay is detected (above 124 °C, AIR PACK 1(2) LEAK). Held while the PACK pb-sw is ON (its FAULT
+    light); it closes the two pack valves of the pack and the hot-air valve of the same number
+
+- A32NX_PNEU_HOT_AIR_{number}_LEAK
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - A leak of the hot-air ducts of the hot-air valve is detected (above 124 °C, AIR HOT AIR 1(2) LEAK). Held while the
+    HOT AIR pb-sw is ON (its FAULT light); it closes that hot-air valve
+
+- A32NX_PNEU_FWD_CARGO_DUCT_LEAK
+  - Bool
+  - A leak of the forward cargo bleed duct is detected (above 124 °C, AIR FWD CARGO DUCT LEAK). Held while the HOT AIR 1
+    pb-sw is ON (its FAULT light); it closes the hot-air valve 1
+
+- A32NX_PNEU_ENG_{number}_OVERPRESSURE_VALVE_CLOSED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The overpressure valve downstream of the engine bleed valve is closed: it closes above 85 PSI and opens again below
+    55 PSI (FCOM DSC-36-10-20), e.g. with a bleed valve stuck open at high power
+
+- A32NX_PNEU_XBLEED_VALVE_{valve}_AUTO_CONTROL_LOST
+  - Bool
+  - {valve}
+    - L
+    - C
+    - R
+  - The crossbleed valve no longer gets the AUTO logic: both CPIOM-A of its pair are lost (CPIOM-A1/A2 for the left
+    valve, A3/A4 for the center and right valves). The XBLEED selector OPEN/CLOSE still moves it. For AIR XBLEED FAULT
+    ("Is no longer controlled automatically by the bleed controller")
+
+- A32NX_ASU_TURNED_ON
+  - Bool
+  - An HP ground air cart is connected and supplies air (flyPad Ground > Services, Air Starter Unit). Read by the systems
+    WASM: the air enters the bleed ducts on the engine 1 side through the non-return valve of the HP ground connector
+    (FCOM DSC-36-10-40)
+
+- A32NX_APU_BLEED_AIR_VALVE_COMMANDED_OPEN
+  - Bool
+  - True when the APU ECB commands the APU bleed valve open (the stuck failures 36060 closed / 36061 open do not change it). The FWS compares it with A32NX_APU_BLEED_AIR_VALVE_OPEN for AIR APU BLEED FAULT, valve abnormally open (closed) (A380 FCOM PRO-ABN-ECAM-10-36; ApuBleedFaultAlerts.ts). Written by the systems WASM (a380_systems apu_bleed_air_valve.rs)
+
 ## Integrated Modular Avionics ATA 42
 
 -A32NX_AFDX_<SOURCE_ID>_<DESTINATION_ID>_REACHABLE
@@ -2763,7 +2866,21 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - Bool
   - The NSS DATA TO AVNCS pb-sw: 1 = normal (released, the NSS and the avionics exchange data both ways; the value of
     every flight file), 0 = OFF (pressed in, OFF light; the SCIs pass data only from the avionics to the NSS). OFF gives
-    the FWS alert COM NSS DATA TO AVNCS XFR FAULT (A380 FCOM DSC-46-20-20-80, PRO-ABN-ECAM-10-46)
+    the FWS alert COM NSS DATA TO AVNCS XFR FAULT (A380 FCOM DSC-46-20-20-80, PRO-ABN-ECAM-10-46). OFF also stops the AOC
+    downlinks (messages and requests), the uplinks still come in (systems host CpiomD/atsu.ts)
+
+- A32NX_NSS_ANSU_{index}_IS_HEALTHY
+  - Bool
+  - NSS AVNCS ANSU 1(2) healthy: powered, not failed (flyPad 46001, 46002), not reset (RESET panel NSS AVNCS), NSS master
+    on. Written by the OIT (AircraftNetworkServerUnit.ts); the AOC (systems host CpiomD/atsu.ts) runs while one of them
+    is healthy (A380 FCOM DSC-46-40-10-20: "In the case of an ANSU 1 failure, ANSU 2 provides the AOC application")
+
+- A380X_ATC_FUNCTION_AVAIL
+  - Bool
+  - The ATC datalink function (CPDLC, ADS, ATIS) runs: CPIOM D1 available and the ATC RESET pb of the RESET panel pushed
+    in. Written by the systems host (CpiomD/AtcDatalink.ts); false: MAILBOX NOT AVAIL in the SD mailbox, ATC COM NOT
+    AVAIL for 5 s when an ATC COM page is selected with the KCCU ATC COM key (A380 FCOM PRO-SUP-46 ATC RESET,
+    DSC-46-10-20-30)
 
 ## Auxiliary Power Unit ATA 49
 
@@ -2781,6 +2898,11 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     pressure, DC power lost (start motor supply, or the ECB's DC supply above N 70 %), ECB failure, overspeed, low oil
     pressure, high oil temperature on the ground (A380 FCOM DSC-49-40; the last four from the ATA 49 flyPad failures).
     Drives APU FAULT
+
+- A32NX_APU_LOW_OIL_LEVEL
+  - `Arinc429Word<Bool>`
+  - The APU ECB detects a low APU oil level: on the ground with the APU not running (flyPad failure "APU oil level
+    low", 49005; common ECB, see the A32NX doc). Shows the pulsing OIL LVL LO on the APU SD page (A380 FCOM DSC-49-20)
 
 ## Engines ATA 70
   - L:A32NX_OVHD_FADEC_{ENG}
@@ -3048,7 +3170,25 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 2
     - 3
     - 4
-  - True while the FADEC fault failure of the engine is active (flyPad failures 73270-73273 control system fault, 73280-73283 control valve, 73290-73293 FADEC engine identification, 73130-73133 fuel filter bypass open, 79050-79053 oil filter bypass open, 73300-73303 thrust rating differs), for ENG 1(2)(3)(4) CTL SYS FAULT, CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION and ENG TYPE DISAGREE (A380 FCOM PRO-ABN-ECAM-10-70), no effect on the engine. Not read by the FWS yet. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73270-73273 control system fault, 73280-73283 control valve, 73290-73293 FADEC engine identification, 73130-73133 fuel filter bypass open, 79050-79053 oil filter bypass open, 73300-73303 thrust rating differs), for ENG 1(2)(3)(4) CTL SYS FAULT, CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION and ENG TYPE DISAGREE (A380 FCOM PRO-ABN-ECAM-10-70; FwsCore, EngineMonitoringAlerts.ts), no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+
+- A32NX_ENGINE_{number}_FADEC_SHUTDOWN
+  - Number
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Why the FADEC shut the engine down by itself (its fuel stays cut, no automatic relight, until the failure is removed and the ENG MASTER is OFF): 0 none, 1 FADEC overheat (flyPad failures 73310-73313, ENG FAIL "FADEC OVHT"), 2 overthrust protection on ground with the thrust lever at idle or reverse (flyPad failures 73320-73323, ENG FAIL "THRUST CTL LOST" and CTL SYS FAULT, ENG MASTER FAULT light). A380 FCOM PRO-ABN-ECAM-10-70 ENG FAIL, DSC-70-20-20 OVERTHRUST PROTECTION. Written by the systems WASM (a380_systems fadec_automatic_shutdown.rs)
+
+- A32NX_ENGINE_{number}_OVERTHRUST_CUTBACK
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC overthrust protection reduces the thrust of the engine in flight (overthrust failure 73320-73323, below 15 000 ft and M 0.4): ENG CTL SYS FAULT "Fuel cutback following overthrust detection" (A380 FCOM l.171321). Written by the systems WASM (a380_systems fadec_automatic_shutdown.rs)
 
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool
@@ -3191,6 +3331,19 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - Boolean
     - Disconnected pump feedback signal
     - {ENG} = 1, 2, 3, 4
+
+- A32NX_HYD_{SYSTEM}_{PUMP}_EDPUMP_OVHT
+    - Boolean
+    - The engine driven pump {PUMP} overheats. The FWS reads it as the "engine pump case drain temperature is above
+      120 C" term of HYD G (Y) SYS OVHT (FCOM PRO-ABN, a380_fcom.txt l.155436-155437)
+    - {SYSTEM}_{PUMP} = GREEN_1A, GREEN_1B, GREEN_2A, GREEN_2B, YELLOW_3A, YELLOW_3B, YELLOW_4A, YELLOW_4B
+
+- A32NX_HYD_{SYSTEM}_PUMP_{N}_SECTION_PRESSURE_SWITCH
+    - Boolean
+    - Pressure switch of the pump section {N}: 1 to 4 the engine pumps (not pressurised below 2 500 PSI, ENG PMP PRESS
+      LO, l.155038), 5 and 6 the electric pumps A and B (below 1 885 PSI, ELEC PMP FAULT, l.154993); both pressurised
+      again above 3 700 PSI
+    - {SYSTEM} = GREEN, YELLOW
 
 - A32NX_{DOOR}_DOOR_CARGO_POSITION
     - Percent

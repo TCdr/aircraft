@@ -14,9 +14,11 @@ import {
   brakeControlIndication,
   hottestBrakeArcs,
   readBrakeTemperatures,
+  readTirePressures,
   readWheelControlInputs,
   steeringControlIndication,
   WheelControlInputs,
+  wingAccuIndication,
 } from './WheelIndications';
 
 /** Update period of the timed LGERS indications, ms */
@@ -53,9 +55,15 @@ export const WheelPage = () => {
   const [brakeTemperatures, setBrakeTemperatures] = useState<number[]>(() => readBrakeTemperatures(readCelsius));
   // BRK CTL / STEER CTL lines and AUTO BRAKE (FCOM DSC-32-20-50/60, WheelIndications.ts)
   const [controlInputs, setControlInputs] = useState<WheelControlInputs>(NO_CONTROL_FAULT);
+  // TPIS tire pressures (FCOM DSC-32-20-70 TIRE PRESSURE, systems-host Misc/Tpis.ts) and the FWS flight phase of the
+  // WHEEL TIRE PRESS LO thresholds
+  const [tirePressures, setTirePressures] = useState<number[]>(() => readTirePressures(readNumber));
+  const [flightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'number', 1000);
   useInterval(() => {
     const temperatures = readBrakeTemperatures(readCelsius);
     setBrakeTemperatures((previous) => (sameValues(previous, temperatures) ? previous : temperatures));
+    const pressures = readTirePressures(readNumber);
+    setTirePressures((previous) => (sameValues(previous, pressures) ? previous : pressures));
     const inputs = readWheelControlInputs(readNumber);
     setControlInputs((previous) =>
       CONTROL_INPUT_KEYS.every((key) => previous[key] === inputs[key]) ? previous : inputs,
@@ -64,6 +72,9 @@ export const WheelPage = () => {
   const arcs = hottestBrakeArcs(brakeTemperatures);
   const brakeControl = brakeControlIndication(controlInputs, moreActive);
   const steeringControl = steeringControlIndication(controlInputs, moreActive);
+
+  // WING ACCU gauge (FCOM DSC-32-20-50, WheelIndications.ts): the pressure of the brake accumulator of the model
+  const [accuPressurePsi] = useSimVar('L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS', 'number', BRAKES_UPDATE_MS);
 
   // LGERS indications (FCOM DSC-32-20-40, LgersIndications.ts)
   const lgciu1Word1 = useArinc429Var('L:A32NX_LGCIU_1_DISCRETE_WORD_1', LGERS_UPDATE_MS);
@@ -176,6 +187,8 @@ export const WheelPage = () => {
           moreActive={moreActive}
           brakeTemperatures={brakeTemperatures}
           hottestBrakeArcs={arcs}
+          tirePressures={tirePressures}
+          flightPhase={flightPhase}
         />
         <WheelBogey
           x={81}
@@ -185,6 +198,8 @@ export const WheelPage = () => {
           moreActive={moreActive}
           brakeTemperatures={brakeTemperatures}
           hottestBrakeArcs={arcs}
+          tirePressures={tirePressures}
+          flightPhase={flightPhase}
         />
         <WheelBogey
           x={257}
@@ -194,6 +209,8 @@ export const WheelPage = () => {
           moreActive={moreActive}
           brakeTemperatures={brakeTemperatures}
           hottestBrakeArcs={arcs}
+          tirePressures={tirePressures}
+          flightPhase={flightPhase}
         />
         <WheelBogey
           x={513}
@@ -203,6 +220,8 @@ export const WheelPage = () => {
           moreActive={moreActive}
           brakeTemperatures={brakeTemperatures}
           hottestBrakeArcs={arcs}
+          tirePressures={tirePressures}
+          flightPhase={flightPhase}
         />
         <WheelBogey
           x={690}
@@ -212,6 +231,8 @@ export const WheelPage = () => {
           moreActive={moreActive}
           brakeTemperatures={brakeTemperatures}
           hottestBrakeArcs={arcs}
+          tirePressures={tirePressures}
+          flightPhase={flightPhase}
         />
       </g>
 
@@ -226,7 +247,7 @@ export const WheelPage = () => {
         <BrakingSupply x={690} y={328} type={WheelBogeyType.WLG} />
       </g>
 
-      <Accumulator x={687} y={602} moreActive={moreActive} />
+      <Accumulator x={687} y={602} indication={wingAccuIndication(accuPressurePsi, moreActive)} />
     </>
   );
 };

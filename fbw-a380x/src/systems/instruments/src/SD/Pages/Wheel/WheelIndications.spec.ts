@@ -11,10 +11,13 @@ import {
   HottestBrakeArc,
   hottestBrakeArcs,
   readBrakeTemperatures,
+  readTirePressures,
   readWheelControlInputs,
   roundBrakeTemperature,
   steeringControlIndication,
+  tirePressureIndication,
   WheelControlInputs,
+  wingAccuIndication,
 } from './WheelIndications';
 
 const NO_FAULT: WheelControlInputs = {
@@ -148,8 +151,36 @@ describe('WHEEL page BRK CTL and STEER CTL lines', () => {
   });
 });
 
+describe('WING ACCU pressure indication (A380 FCOM DSC-32-20-50, l.81231-81253)', () => {
+  it('shows the live accumulator pressure in green outside the amber arc, with MORE only', () => {
+    expect(wingAccuIndication(5000, true)).toEqual({ visible: true, amber: false, needleKpsi: 5 });
+    expect(wingAccuIndication(4100, true)).toEqual({ visible: true, amber: false, needleKpsi: 4.1 });
+    expect(wingAccuIndication(5000, false).visible).toBe(false);
+    expect(wingAccuIndication(3500, false).visible).toBe(false);
+  });
+
+  it('shows the indication in amber, also without MORE, when the pressure is in the amber arc (0-3 480 psi)', () => {
+    expect(wingAccuIndication(3480, false)).toEqual({ visible: true, amber: true, needleKpsi: 3.48 });
+    expect(wingAccuIndication(0, true)).toEqual({ visible: true, amber: true, needleKpsi: 0 });
+  });
+
+  it('keeps the needle on the 0-5 000 psi scale', () => {
+    expect(wingAccuIndication(5250, true).needleKpsi).toBe(5);
+    expect(wingAccuIndication(-20, true).needleKpsi).toBe(0);
+    expect(wingAccuIndication(Number.NaN, false)).toEqual({ visible: true, amber: true, needleKpsi: 0 });
+  });
+});
+
 describe('WHEEL page wiring', () => {
   const source = readFileSync(resolve(__dirname, 'WheelPage.tsx'), 'utf-8');
+
+  it('feeds the WING ACCU gauge with the accumulator pressure instead of a fixed needle', () => {
+    expect(source).toContain("useSimVar('L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS', 'number'");
+    expect(source).toContain('indication={wingAccuIndication(');
+    const accumulator = readFileSync(resolve(__dirname, 'elements/Accumulator.tsx'), 'utf-8');
+    expect(accumulator).not.toContain('value={4.8}');
+    expect(accumulator).toContain('value={indication.needleKpsi}');
+  });
 
   it('drives the control lines and the AUTO BRAKE text from the indications, not from MORE alone', () => {
     expect(source).toContain("id=\"brk-control\" visibility={brakeControl.lineVisible ? 'visible' : 'hidden'}");
@@ -166,5 +197,38 @@ describe('WHEEL page wiring', () => {
     const gear = readFileSync(resolve(__dirname, 'elements/Gear.tsx'), 'utf-8');
     expect(gear).not.toContain('_POSITION`');
     expect(gear).not.toContain('FIXME');
+  });
+});
+
+/* A380 FCOM DSC-32-20-70 TIRE PRESSURE (a380_fcom.txt l.81385-81395) */
+describe('WHEEL SD tire pressures', () => {
+  const normal = () => new Array(22).fill(220);
+
+  it('normal pressure: green, only on the WHEEL MORE page', () => {
+    expect(tirePressureIndication(normal(), 3, 1, false)).toEqual({ visible: false, amber: false });
+    expect(tirePressureIndication(normal(), 3, 1, true)).toEqual({ visible: true, amber: false });
+  });
+
+  it('low pressure: amber, shown without MORE', () => {
+    const pressures = normal();
+    pressures[2] = 150;
+    expect(tirePressureIndication(pressures, 3, 1, false)).toEqual({ visible: true, amber: true });
+    // its axle mate shows the excessive difference too
+    expect(tirePressureIndication(pressures, 4, 1, false)).toEqual({ visible: true, amber: true });
+  });
+
+  it('reads the 22 TPIS pressures, tire 1 first', () => {
+    const pressures = readTirePressures((name) => Number(name.match(/TIRE_(\d+)_/)?.[1] ?? 0));
+    expect(pressures).toHaveLength(22);
+    expect(pressures[0]).toBe(1);
+    expect(pressures[21]).toBe(22);
+  });
+
+  it('the wheels show the TPIS values, not a fixed 220', () => {
+    const wheel = readFileSync(resolve(__dirname, 'elements/Wheel.tsx'), 'utf-8');
+    expect(wheel).toContain('{tirePressure}');
+    expect(wheel).not.toMatch(/>\s*220\s*</);
+    const bogey = readFileSync(resolve(__dirname, 'elements/WheelBogey.tsx'), 'utf-8');
+    expect(bogey).toContain('tirePressureIndication(tirePressures, tire, flightPhase, moreActive)');
   });
 });

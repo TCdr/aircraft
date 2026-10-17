@@ -612,6 +612,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New WHEEL HYD SEL FAULT caution with a new flyPad failure of the brake normal selector valve - @TCdr
 1. [A32NX/FWC] New NAV PRED W/S DET FAULT alert and STATUS INOP SYS PRED W/S DET with a new flyPad failure of the weather radar predictive windshear function - @TCdr
 1. [A32NX/EGPWS] New green TERR STBY memo when an input of the predictive terrain functions is missing or invalid; the terrain leaves the NDs and the TERR ON ND pushbuttons go off meanwhile - @TCdr
+1. [A380X/BLEED] HP ground air: the flyPad Air Starter Unit now supplies the bleed ducts, so the engines can be started without the APU - @TCdr
+1. [A380X/BLEED] New overpressure valve downstream of each engine bleed valve: it closes above 85 PSI and opens again below 55 PSI, e.g. with a bleed valve stuck open - @TCdr
+1. [A380X/BLEED] The two engine bleed valves of a side share the airflow equally while the crossbleed valve of that side is open - @TCdr
+1. [A380X/BLEED] The crossbleed valves follow their own CPIOM-A pair (A1/A2 left, A3/A4 center and right): with both CPIOMs of a pair failed, the valve no longer opens or closes at AUTO, the XBLEED selector still moves it - @TCdr
+1. [A380X/BLEED] New APU bleed, pack bay, hot-air duct and forward cargo duct leak detection, with flyPad failures: the APU bleed, the pack valves or the hot-air valve close, and the APU BLEED, PACK or HOT AIR FAULT light comes on - @TCdr
 1. [A380X/SD] WHEEL page: the ECP MORE key shows the WHEEL MORE page, BRK CTL and STEER CTL lines show a failed BCS, EBCU or SCS, AUTO BRAKE only on an autobrake failure, green or amber arc on the hottest brake, gear triangles and doors from LGCIS 1 and 2 - @TCdr
 1. [A380X/SD] FUEL page: the ECP MORE key shows the FUEL MORE page - @TCdr
 1. [A380X/PFD] FMA line 3: EXTEND SPD BRK, RETRACT SPD BRK and CHECK APPR SEL now show; CHECK APPR SEL also on the MFD - @TCdr
@@ -668,6 +673,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] STATUS INOP SYS shows STBY RAD NAV with RMPs 1+2 (or all RMPs) failed, and the GPWS, TERR SYS and TAWS lines of the SURV faults under APPR & LDG instead of ALL PHASES - @TCdr
 1. [A380X/FWS] New IR 1(2)(3)(1+2)(1+3)(2+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN memos while IRs align in ATT mode, and a new DATALINK STBY memo while the ACARS provider link is temporarily lost with VHF 3 in data mode - @TCdr
 1. [A380X/FWS] NAV ALL AIR DATA DISAGREE radome destruction line now reads FMS FUEL PRED DISREGARD, as in the FCOM - @TCdr
+1. [A32NX/ADIRS] An IR in ATT mode gives no heading until the crew enters one on the new MCDU IRS MONITOR SET HDG field, then runs from the entered heading; the IRS MONITOR page shows ENTER HEADING until then - @TCdr
+1. [A32NX/ADIRS] Ground alignment of the IRS is only possible up to 73° North and South, and the magnetic heading and track are only valid between 60° South and 73° North, as in the FCOM limitations - @TCdr
+1. [A32NX/NAV] New flyPad failures for the VOR 1/2, DME 1/2, ADF 1/2 and ILS 1/2 receivers: the NDs lose the bearing, distance or deviation of the failed receiver, a failed ILS receiver loses LOC and G/S on its PFD - @TCdr
+1. [A32NX/NAV] The RMP BFO key and the MCDU RADIO NAV ADF/BFO prompts now set the ADF BFO mode, with the BFO key light - @TCdr
 1. [A32NX/PFD] The FMA shows MORE DRAG in DES at idle when the descent profile intercept comes less than 2 NM before the next altitude constraint, or in a speedbrake deceleration of the descent profile - @TCdr
 1. [A32NX/SD] DOOR/OXY page: REGUL LO PR in amber and an amber CKPT OXY with the CREW SUPPLY pb-sw OFF or below 300 PSI - @TCdr
 1. [A32NX/SD] CAB PRESS page: amber VENT with amber BLOWER and EXTRACT legends on a blower or extract fault (also with the avionics smoke) - @TCdr
@@ -683,6 +692,70 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ELEC] The emergency generator couples to the network 3 s after its output is normal - @TCdr
 1. [A32NX/ECAM] With the ECAM control panel failed, the ALL, STS and CLR pushbuttons still select, page and clear the SD pages through their hardwired contacts, as in the FCOM - @TCdr
 1. [A32NX/FWC] ENG ALL ENGINES FAILURE always shows -FAC 1 OFF THEN ON, as in the FCOM, not only when FAC 1 has failed - @TCdr
+1. [A380X/HYD] The engine pump pressure switches read low below 2 500 PSI (ENG PMP PRESS LO) and the electric pump ones below 1 885 PSI (ELEC PMP FAULT), as in the FCOM, instead of 2 900 PSI - @TCdr
+1. [A380X/FWS] HYD G (Y) SYS OVHT is also raised by an overheating engine pump (case drain), not only by the reservoir - @TCdr
+1. [A380X/FWS] New CDS EFIS CTL PNL, CAPT+F/O EFIS CTL PNLs and EFIS BKUP CTL FAULT alerts from new flyPad failures of the EFIS control panels and of the FCU backup EFIS pages, CDS & AUTO FLT FCU SWITCHED OFF when the FCU is switched off, and the EWD, F/O PFD and F/O ND DU NOT MONITORED titles fixed - @TCdr
+1. [A380X/FWS] New flyPad failures of the KCCUs (cursor control device, keyboard or whole KCCU per side): the failed part takes no key press and the CDS CURSOR CTL, KEYBOARD or CURSOR CTL+KEYBOARD FAULT alert is raised - @TCdr
+1. [A380X/FWS] New RECORDER CVR, DFDR, ACCELMTR and SYS FAULT and CABIN EMER EXIT LT FAULT alerts from new flyPad failures - @TCdr
+1. [A380X/FWS] Activated not-sensed ABN PROCs are deactivated 15 min after the last engine shutdown and 10 min after power-up, on ground - @TCdr
+1. [A380X/SD] FUEL page: during a fuel jettison the transfer pumps run and the galleries carry the fuel to the jettison valves - @TCdr
+1. [A380X/SD] F/CTL page: BKUP CTL ACTIVE in amber when all the PRIMs and SECs are lost - @TCdr
+1. [A380X/SD] HYD page: an engine pump that keeps its pressure with the ENG PMP pb-sw OFF is shown abnormally pressurized - @TCdr
+1. [A380X/WHEEL] Tire pressures (TPIS) on the WHEEL page, in amber when low or different on an axle, with a deflation failure per tire - @TCdr
+1. [A32NX/TCAS] The TCAS goes to TA ONLY automatically with the windshear or the stall warning, as with a GPWS alert - @TCdr
+1. [A32NX/TCAS] Both radio altimeters failed or a triple ADR failure now put the TCAS in standby (TCAS STBY memo) instead of TCAS FAULT - @TCdr
+1. [A32NX/HYD] The handwheel now turns the nose wheel up to 75 degrees (was 74) - @TCdr
+1. [A32NX/LG] The landing gear lever also stays locked down while the nose wheel steering is not centred - @TCdr
+1. [A32NX/EGPWS] No terrain on the NDs with the TERR pb-sw OFF or the TERR FAULT light on (also a failed or unpowered EGPWS) - @TCdr
+1. [A32NX/BLEED] The engine bleed valve now closes pneumatically below 8 PSI upstream (was 15 PSI) - @TCdr
+1. [A32NX/WHEEL] New tyre pressure source (TPIS): six tyre pressures with temperature effect and new flyPad tyre deflation failures, for the WHEEL page and WHEEL TYRE LO PR (not displayed yet) - @TCdr
+1. [A380X/GPWS] The stall warning now overrides the GPWS alerts, as the windshear warning already did - @TCdr
+1. [A380X/TCAS] The TCAS goes to TA ONLY automatically during a windshear or stall warning and in emergency electrical configuration - @TCdr
+1. [A380X/WXR] The GAIN and ELEVN knobs of the SURV panel work: pull for manual GAIN, ELEVN (pull again for TILT), push for AUTO, turn to adjust; the MFD SURV CONTROLS page follows them - @TCdr
+1. [A380X/ATC] The ATC RESET pb of the overhead RESET panel resets the ATC datalink (connections and mailbox messages lost, COM ATC DATALINK FAULT while pulled); the SD mailbox shows MAILBOX NOT AVAIL and the KCCU ATC COM key ATC COM NOT AVAIL while the ATC is lost - @TCdr
+1. [A380X/OIT] EXIT SESSION of the FLT OPS MENU page returns to the login page and clears the FLT OPS STS page (not while the FLT FOLDER is open) - @TCdr
+1. [A380X/AOC] The AOC runs on the NSS AVNCS ANSUs instead of AC 1, NSS DATA TO AVNCS OFF stops its downlinks (uplinks still received), and the OIT COMPANY COM inbox can print a message on the pedestal printer - @TCdr
+1. [A32NX/FWC] New VENT AVNCS SYS FAULT, BLOWER FAULT, EXTRACT FAULT and SKIN VALVE FAULT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts with their FCOM procedures and STATUS, triggered by new flyPad ventilation failures - @TCdr
+1. [A32NX/AUTOFLIGHT] New flyPad failure of the FG TCAS mode: the AP/FD TCAS mode is no longer available and the FWC shows AUTO FLT TCAS MODE FAULT - @TCdr
+1. [A32NX/FWC] New COM CIDS 1+2 FAULT, SINGLE PTT STUCK, VHF 1(2)(3) EMITTING and VHF 3 DATA FAULT alerts with new flyPad failures (CIDS, stuck PTT, VHF transmitter stuck emitting), and the green AUDIO 3 XFRD memo when the AUDIO SWITCHING selector is not on NORM - @TCdr
+1. [A380X/BRAKES] Brake pressures of the A380 5 000 psi system instead of the A320 values: about 3 600 psi with the park brake, full pedals and alternate braking, a brake accumulator that keeps one park brake application out of the amber arc, and the pedals still brake with the park brake on - @TCdr
+1. [A380X/BRAKES] The brake pedals no longer brake in flight with the gear down (manual braking on ground only) - @TCdr
+1. [A380X/BRAKES] AUTO BRK arms and brakes in alternate braking (A-SKID available), and needs at least two PRIMs - @TCdr
+1. [A380X/BRAKES] ROP stops the maximum braking and gives back the selected autobrake mode when the aircraft can stop before the runway end, and no longer keeps the maximum braking after the autobrake is disconnected at low speed - @TCdr
+1. [A380X/SD] WHEEL page: the WING ACCU gauge shows the accumulator pressure (needle no longer fixed), in amber and without MORE when it is in the amber arc - @TCdr
+1. [A32NX/ATSU] New flyPad failures DCDU 1, DCDU 2 (blank screen, keys do nothing) and cockpit printer (nothing printed, PRINTER NOT AVAILABLE on the MCDU) - @TCdr
+1. [A32NX/ATSU] The ATSU stops while its C/B L15 or L16 on 121VU is pulled (the ATSU reset of the FCOM drops the CPDLC connection), and the DCDU shows INVALID DATA while the ATSU does not run - @TCdr
+1. [A32NX/ENG] The FADEC idle protection follows the reverser position: idle while a reverser commanded stowed is more than 15 % deployed, reverse idle when a deployed reverser stows below 78 %, as in the FCOM - @TCdr
+1. [A32NX/ENG] In-flight starter assisted relight: the starter turns the core and the HP fuel valve opens above 15 % N2, as in the FCOM - @TCdr
+1. [A32NX/PRESS] The residual pressure control unit also opens the outflow valve on the ground when both CPCs are failed, and works below 100 kt on all ADIRS (or with all engines shut down), as in the FCOM - @TCdr
+1. [A32NX/COND] The DITCHING pb closes the emergency ram air inlet (RAM AIR valve on the SD BLEED page) - @TCdr
+1. [A32NX/COND] The AFT ISOL VALVE pb-sw of the CARGO VENT panel works: OFF closes the aft cargo isolation valves (also closed on aft cargo smoke), FAULT and COND AFT CRG ISOL VALVE when a valve disagrees (flyPad failure "AFT cargo ventilation isolation valves stuck closed") - @TCdr
+1. [A32NX/AP] The AUTOLAND light also flashes when both RAs differ by more than 15 ft, and on an untimely flare with one RA inoperative - @TCdr
+1. [A32NX/ATHR] Alpha floor also comes with the sidestick more than 14 degrees nose up with the angle-of-attack protection active, and is lost with an engine out and slats/flaps extended - @TCdr
+1. [A380X/SD] COND page: red cargo SMOKE (forward, aft/bulk) and avionics bay SMOKE from the smoke detection - @TCdr
+1. [A380X/SD] ELEC AC page: GALLEY SHED, GALLEY PARTIALLY SHED, COMMERCIAL OFF and COMMERCIAL PARTIALLY SHED legends, engine generator DISC (drive disconnected) and OVHT (above 185 C), generator loads amber only after 10 s above 108 % - @TCdr
+1. [A380X/SD] APU page: pulsing OIL LVL LO on ground with its flyPad failure (APU oil level low); the APU generator load is amber only after 10 s above 108 % and the voltage and frequency colours are no longer swapped - @TCdr
+1. [A380X/FWS] New FADEC alerts from the engine failures: ENG CTL SYS FAULT (with THR LEVER IDLE / ENG MASTER OFF on ground), CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS and OIL SYS CONTAMINATION, ENG TYPE DISAGREE, ENG 2(3) REVERSER INHIBITED (with its BTV and reverser INOP SYS) and REVERSER MINOR FAULT, with the FCOM flight phase inhibitions - @TCdr
+1. [A380X/ENG] New flyPad failures "Engine n FADEC overheat (engine shutdown)" and "Engine n overthrust (thrust control lost)": the FADEC shuts the engine down without automatic relight and ENG FAIL shows the FADEC OVHT or THRUST CTL LOST lines; in flight below 15 000 ft the overthrust protection gives ENG CTL SYS FAULT - @TCdr
+1. [A380X/FWS] AIR APU BLEED FAULT also triggers when the APU bleed valve is abnormally open or closed (new flyPad failures "APU bleed valve stuck closed / open") - @TCdr
+1. [A380X/FWS] The amber attention box of an engine also comes up with a red oil pressure, an amber oil temperature, an amber CLOGGED or an amber REV indication - @TCdr
+1. [A380X/FWS] L/G GRVTY EXTN memo after a gravity extension, and STATUS INOP SYS ENG n BLEED also for a bleed fault, a bleed leak or the ENG BLEED pb-sw OFF - @TCdr
+1. [A380X/FWS] WHEEL TIRE PRESS LO from the TPIS tire pressures (low tire, or two tires of an axle too different) - @TCdr
+1. [A380X/RMP] The STBY RAD NAV guarded key now works on RMP 1 and 2: key light on, the FMS stops tuning the navaids, back to the VHF page when deselected - @TCdr
+1. [A380X/RMP] The PA key now transmits only while held, the radio selected before comes back at the release - @TCdr
+1. [A380X/RMP] RMP messages are now queued: MSG CLR clears them one by one and shows the previous one - @TCdr
+1. [A380X/COMM] Each CALLS panel pushbutton now calls its own station (a PILOT REST call no longer makes the cabin report CABIN READY), EMER ON and CALL lights steady - @TCdr
+1. [A380X/COMM] The ELT selector now works (ON, ARMED, TEST/RESET) - @TCdr
+1. [A380X/ATC] The ATC MSG lights and RING are inhibited in takeoff and landing; an uplink received then, or a sixth one while five wait for an answer, is rejected with an automatic ERROR downlink to the ATC center - @TCdr
+1. [A380X/FIRE] New flyPad failures for NSS smoke and its two smoke detectors; NSS smoke lights the SMOKE light of the NSS MASTER pb - @TCdr
+1. [A380X/OIS] The laptop shows STANDALONE and SYNCHRONIZATION NOT AVAIL when started before the ARU (2 min after power-up) or without the FLT OPS network - @TCdr
+1. [A380X/OIS] The OIS MENU key shows the FLT OPS menu and the OIS XFR key shows the other OIT's page (X-OIS) - @TCdr
+1. [A380X/OIS] COMPANY COM weather request (METAR/TAF) and free text pages, sent through the AOC - @TCdr
+1. [A32NX/ANTI ICE] A detected wing leak closes the wing anti-ice valve of its side (WING pb FAULT light), also with the crossbleed open - @TCdr
+1. [A32NX/ANTI ICE] The probes and windshields are heated in flight with both engines stopped (PROBE/WINDOW HEAT pb AUTO) - @TCdr
+1. [A32NX/SIGNS] The SEAT BELTS memo comes on above 11 300 ft cabin altitude whatever the switch - @TCdr
+1. [A32NX/FLYPAD] New failures: crew oxygen bottle leak (ATA 35), door proximity sensors and cockpit door locking system latches, pressure sensors and control unit (ATA 52) - @TCdr
+1. [A32NX/DOORS] The COCKPIT DOOR FAULT light and the CKPT DOOR CONT strike and CHAN lights come on with their cockpit door locking system failure; a failed door proximity sensor shows its door not closed on the DOOR/OXY page and ECAM - @TCdr
 
 ## 2024.1.0
 

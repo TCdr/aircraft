@@ -26,6 +26,8 @@ pub enum FailureType {
     OutflowValveFault,
     SafetyValveFault,
     RapidDecompression,
+    /// A320 aft cargo ventilation: both isolation valves stuck closed
+    AftCargoIsolationValvesStuckClosed,
     Fdac(FdacId, Channel),
     Tadd(Channel),
     Vcm(VcmId, Channel),
@@ -121,6 +123,8 @@ pub enum FailureType {
     /// The A320 brake normal selector valve is failed open: full green pressure at the entry of the normal servovalves
     /// (WHEEL HYD SEL FAULT)
     BrakeNormalSelectorValve,
+    /// Tyre n is deflated (A320 TPIS: 1 to 4 the main wheels from left to right, 5 and 6 the left and right nose wheels)
+    TyreDeflated(usize),
     // ATA30 (ice_rain_protection)
     /// The engine anti-ice valve of engine n stays closed
     EngineAntiIceValveStuckClosed(usize),
@@ -170,6 +174,12 @@ pub enum FailureType {
     WingBleedLeak(usize),
     /// Hot air leaks from the APU bleed duct
     ApuBleedLeak,
+    /// Hot air leaks from the bleed ducts in the bay of pack n, downstream of its pack valves (A380)
+    PackBayLeak(usize),
+    /// Hot air leaks from a hot-air duct of the hot-air valve n (A380)
+    HotAirDuctLeak(usize),
+    /// Hot air leaks from the forward cargo bleed duct (A380, on the hot-air valve 1)
+    FwdCargoBleedDuctLeak,
     /// The pylon leak detection loop of engine n is inoperative
     EngineLeakDetectionLoop(usize),
     /// Leak detection loop A (1) or B (2) of wing n (1 left, 2 right) is inoperative
@@ -201,6 +211,8 @@ pub enum FailureType {
     EnhancedGroundProximityWarningSystemComputer,
     /// The GPS receiver of MMR 1 or 2
     Gps(usize),
+    /// The ILS receiver of MMR 1 or 2: no localiser and glideslope (navigation::ils)
+    IlsReceiver(usize),
     /// The total pressure (pitot) input of ADR n is erroneous: its airspeed and Mach read low, with a valid status.
     /// The ADR does not see it; only a comparison with the other air data sources (PRIM monitoring) can detect it.
     AdrAirspeedErroneous(usize),
@@ -271,6 +283,11 @@ pub enum FailureType {
     FadecChannelB(usize),
     /// The FADEC of engine n detects a high temperature
     FadecOverheat(usize),
+    /// The FADEC of engine n overheats and shuts the engine down (A380 ENG FAIL "FADEC OVHT")
+    FadecOverheatShutdown(usize),
+    /// The FADEC of engine n detects an overthrust (A380 overthrust protection: ENG FAIL "THRUST
+    /// CTL LOST" on ground, CTL SYS FAULT fuel cutback in flight)
+    EngineOverthrust(usize),
     /// The FADEC of engine n cannot communicate via the avionics networks (A380 ENG FADEC FAULT)
     FadecNetworkLink(usize),
     /// A FADEC failure of engine n affects the engine control (A380 ENG FADEC SYS FAULT)

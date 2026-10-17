@@ -243,8 +243,14 @@ describe('ELEC bus alert procedure lines', () => {
   });
 
   it('DC ESS BUS FAULT: -GPWS SYS OFF until done, L/G GRVTY EXTN if the DC BUS 2 is failed', () => {
-    expect(dcEssBusFaultLines(false, false, false)).toEqual([0, 1, 2, 3, 4, 6]);
-    expect(dcEssBusFaultLines(true, true, false)).toEqual([0, 1, 2, 3, 5, 6]);
+    expect(dcEssBusFaultLines(false, false, false, true)).toEqual([0, 1, 2, 3, 4, 6]);
+    expect(dcEssBusFaultLines(true, true, false, true)).toEqual([0, 1, 2, 3, 5, 6]);
+  });
+
+  // FCOM gap batch T2-42: l.77289-77291 "set the AUDIO SWTG rotary selector to CAPT 3 or F/O 3"
+  it('DC ESS BUS FAULT: -AUDIO SWTG SELECT until the AUDIO SWITCHING selector leaves NORM', () => {
+    expect(dcEssBusFaultLines(false, false, false, true)).toContain(2);
+    expect(dcEssBusFaultLines(false, false, false, false)).toEqual([0, 1, 3, 4, 6]);
   });
 
   it('DC ESS BUS SHED and ESS BUSES ON BAT', () => {
@@ -375,7 +381,8 @@ describe('PseudoFWC wiring of the ELEC bus alerts', () => {
 
   it('calls LAND ASAP (amber) with DC EMER CONFIG and ESS BUSES ON BAT', () => {
     expect(block("'0000360'").replace(/\s+/g, ' ')).toContain('reverse2Unlocked || elecBusLandAsap');
-    expect(fwc).toContain('this.elecBusLandAsap.set(this.elecBusAlerts.landAsap);');
+    // with the LAND ASAP of VENT BLOWER FAULT + DC ESS BUS FAULT (FCOM gap batch T2-42, Logic/VentilationAlerts)
+    expect(fwc).toContain('this.elecBusLandAsap.set(this.elecBusAlerts.landAsap || this.ventilationAlerts.landAsap);');
   });
 
   it('updates the monitor with the network and ELEC EMER CONFIG', () => {

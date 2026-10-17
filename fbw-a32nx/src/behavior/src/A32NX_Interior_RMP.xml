@@ -285,6 +285,60 @@
             <BASE_NAME>ADF</BASE_NAME>
             <MODE_ID>10</MODE_ID>
         </UseTemplate>
+
+        <!-- BFO key and led: "If the ADF is selected, pressing this key activates the BFO" (A320 FCOM DSC-34-NAV-30-30 (9),
+             a320_fcom.txt l.53502-53505). The RMP instrument toggles the BFO of ADF #ID# (RMP 1: ADF 1, RMP 2: ADF 2). -->
+        <UseTemplate Name="FBW_Anim_Interactions">
+            <ANIM_TYPE>BUTTON</ANIM_TYPE>
+            <ANIM_TEMPLATE>FBW_RMP_BFO_BUTTON_AND_LED</ANIM_TEMPLATE>
+            <BASE_NAME>BFO</BASE_NAME>
+        </UseTemplate>
+    </Template>
+
+    <Template Name="FBW_RMP_BFO_BUTTON_AND_LED">
+        <DefaultTemplateParameters>
+            <NORMALIZED_TIME_1>0.1</NORMALIZED_TIME_1>
+            <NORMALIZED_TIME_2>0.5</NORMALIZED_TIME_2>
+            <NODE_ID>PUSH_RADIO#SIDE#_#BASE_NAME#</NODE_ID>
+            <WWISE_EVENT_1>fcubutton</WWISE_EVENT_1>
+            <WWISE_EVENT_2>fcubutton</WWISE_EVENT_2>
+            <ANIM_NAME_BUTTON>PUSH_RADIO#SIDE#_#BASE_NAME#</ANIM_NAME_BUTTON>
+            <TOOLTIPID>BFO</TOOLTIPID>
+            <LED_NODE_ID>PUSH_RADIO#SIDE#_#BASE_NAME#_SEQ2</LED_NODE_ID>
+        </DefaultTemplateParameters>
+
+        <!-- Button to be pressed -->
+        <Component ID="#NODE_ID#" Node="#NODE_ID#">
+            <UseTemplate Name="ASOBO_GT_Push_Button">
+                <ANIM_NAME>#ANIM_NAME_BUTTON#</ANIM_NAME>
+                <LEFT_SINGLE_CODE>(&gt;H:A32NX_RMP_#SIDE#_#BASE_NAME#_BUTTON_PRESSED)</LEFT_SINGLE_CODE>
+            </UseTemplate>
+        </Component>
+
+        <!-- LED light next to the button: the BFO of the ADF of this RMP is on (design choice: the FCOM gives no light
+             for this key; the model has its LED, lit as the green monitor lights of the other keys) -->
+        <Component ID="#LED_NODE_ID#" Node="#LED_NODE_ID#">
+            <UseTemplate Name="ASOBO_GT_Emissive_Gauge">
+                <EMISSIVE_CODE type="rnp" return="number">
+                    let indicatorsPowered = #INDICATORS_POWERED, bool#;
+                    alias toggleSwitch = (L:A32NX_RMP_#SIDE#_TOGGLE_SWITCH, bool);
+                    alias bfoOn = (L:A32NX_ADF_#ID#_BFO_ON, bool);
+                    alias annunciatorLight = (L:A32NX_OVHD_INTLT_ANN, number);
+                    alias dc2Powered = (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, bool);
+                    // A failed RMP is dark (A320 FCOM DSC-23-60 failure cases)
+                    alias rmpFailed = (L:A32NX_RMP_#SIDE#_FAILED, bool);
+                    let emissiveDim = if annunciatorLight == 2 { 0.05 } else { 1 };
+                    (if ((toggleSwitch and !rmpFailed and bfoOn) or ((annunciatorLight == 0) and dc2Powered)) and indicatorsPowered {
+                        1 * emissiveDim
+                    } else {
+                        0
+                    })
+                </EMISSIVE_CODE>
+            </UseTemplate>
+        </Component>
+
+        <!-- Button label backlight -->
+        <UseTemplate Name="FBW_RMP_BACKLIGHT_Template" />
     </Template>
 
     <Template Name="FBW_RMP_MODE_BUTTON_AND_LED">

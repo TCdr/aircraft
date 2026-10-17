@@ -10,6 +10,9 @@ import {
   isReverserInoperative,
   isReverserSelectedInFlight,
   isThrLeverInClimbDetent,
+  REVERSER_INHIBITED_PHASE_INHIBITION,
+  REVERSER_MAINTENANCE_ALERTS_LEVEL,
+  REVERSER_MINOR_FAULT_PHASE_INHIBITION,
   reverserInopItemsShown,
   reverserSelectedItemsShown,
   reverserUnlockedItemsChecked,
@@ -94,11 +97,29 @@ describe('ENG 2(3) reverser alerts', () => {
   });
 
   it('makes the reverser inoperative with a fault, a control fault, a failed lock or a thrust lever fault', () => {
-    expect(isReverserInoperative(false, false, false, false)).toBe(false);
-    expect(isReverserInoperative(true, false, false, false)).toBe(true);
-    expect(isReverserInoperative(false, true, false, false)).toBe(true);
-    expect(isReverserInoperative(false, false, true, false)).toBe(true);
-    expect(isReverserInoperative(false, false, false, true)).toBe(true);
+    expect(isReverserInoperative(false, false, false, false, false)).toBe(false);
+    expect(isReverserInoperative(true, false, false, false, false)).toBe(true);
+    expect(isReverserInoperative(false, true, false, false, false)).toBe(true);
+    expect(isReverserInoperative(false, false, true, false, false)).toBe(true);
+    expect(isReverserInoperative(false, false, false, true, false)).toBe(true);
+  });
+
+  /* FCOM audit T2-44 (row B25): ENG 2(3) REVERSER INHIBITED, l.173571-173617, and REVERSER MINOR FAULT, l.173668-173685 */
+  it('makes the reverser inoperative when it is inhibited by maintenance (INOP SYS ENG 2(3) REVERSER, BTV)', () => {
+    expect(isReverserInoperative(false, false, false, false, true)).toBe(true);
+  });
+
+  it('REVERSER INHIBITED checks the takeoff performance before takeoff, as REVERSER LOCKED', () => {
+    for (const key of [701800143, 701800144]) {
+      expect(reverserInopItemsShown(true)).toHaveLength(itemCount(key));
+    }
+  });
+
+  it('REVERSER INHIBITED and MINOR FAULT: no audio, no master light, the inhibitions of the FCOM figures', () => {
+    expect(REVERSER_MAINTENANCE_ALERTS_LEVEL).toBe(1);
+    expect(REVERSER_INHIBITED_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
+    // "Displayed, after landing": phases 1 to 10 inhibited
+    expect(REVERSER_MINOR_FAULT_PHASE_INHIBITION).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });
 
@@ -122,6 +143,19 @@ describe('FwsAbnormalSensed wiring of the FADEC, thrust lever and reverser alert
     for (const key of keys) {
       expect(block(key), `${key}`).toContain('failure: 2,');
     }
+  });
+
+  it('wires REVERSER INHIBITED and REVERSER MINOR FAULT from the reverser variables', () => {
+    expect(fws).toContain('alerts[701800143 + reverserIndex] = {');
+    expect(fws).toContain('simVarIsActive: this.fws.reverserInhibited[reverserIndex],');
+    expect(fws).toContain('alerts[701800147 + reverserIndex] = {');
+    expect(fws).toContain('simVarIsActive: this.fws.reverserMinorFault[reverserIndex],');
+    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
+    expect(core).toContain("const inhibited = read('INHIBITED');");
+    expect(core).toContain("this.reverserMinorFault[reverserIndex].set(read('MINOR_FAULT'));");
+    expect(core).toContain(
+      'isReverserInoperative(fault, ctlFault, locked, this.thrLeverFault[engine - 1].get(), inhibited)',
+    );
   });
 
   it('uses the FCOM flight phase inhibitions', () => {

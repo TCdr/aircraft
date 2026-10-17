@@ -1,19 +1,26 @@
 import { GaugeComponent, GaugeMarkerComponent } from '@instruments/common/gauges';
 import React, { FC } from 'react';
+import {
+  WING_ACCU_AMBER_ARC_MAX_PSI,
+  WING_ACCU_GREEN_ARC_MIN_PSI,
+  WING_ACCU_SCALE_MAX_PSI,
+  WingAccuIndication,
+} from '../WheelIndications';
 
 interface AccumulatorProps {
   x: number;
   y: number;
-  moreActive: boolean;
+  /** WING ACCU pressure indication (A380 FCOM DSC-32-20-50, WheelIndications.wingAccuIndication) */
+  indication: WingAccuIndication;
 }
 
-export const Accumulator: FC<AccumulatorProps> = ({ x, y, moreActive }) => {
-  const AMBER_ARC_MAX = 3480;
-  const GREEN_ARC_MIN = 4872;
+export const Accumulator: FC<AccumulatorProps> = ({ x, y, indication }) => {
+  const AMBER_ARC_MAX = WING_ACCU_AMBER_ARC_MAX_PSI;
+  const GREEN_ARC_MIN = WING_ACCU_GREEN_ARC_MIN_PSI;
   const GREEN_ARC_MAX = 5300;
 
   const GAUGE_MIN = 0;
-  const GAUGE_MAX = 5;
+  const GAUGE_MAX = WING_ACCU_SCALE_MAX_PSI / 1000;
   const GAUGE_RADIUS = 50;
   const GAUGE_START = 270;
   const GAUGE_END = 90;
@@ -24,9 +31,12 @@ export const Accumulator: FC<AccumulatorProps> = ({ x, y, moreActive }) => {
 
   const gaugeMarkerClassName = 'White SW3';
   const gaugeMarkerTextClassName = 'White F24';
+  // l.81242-81243: "When in the amber arc, the pressure indication is amber. When outside the amber arc, the pressure
+  // indication is green."
+  const needleClassName = `SW6 ${indication.amber ? 'Amber' : 'Green'} LineRound`;
 
   return (
-    <g id="wing-accu" transform={`translate(${x} ${y})`} visibility={moreActive ? 'visible' : 'hidden'}>
+    <g id="wing-accu" transform={`translate(${x} ${y})`} visibility={indication.visible ? 'visible' : 'hidden'}>
       <GaugeComponent
         x={0}
         y={0}
@@ -106,6 +116,7 @@ export const Accumulator: FC<AccumulatorProps> = ({ x, y, moreActive }) => {
               bold
             />
 
+            {/* Lowest wing brake accumulator pressure (l.81241) */}
             <GaugeMarkerComponent
               x={0}
               y={0}
@@ -114,8 +125,8 @@ export const Accumulator: FC<AccumulatorProps> = ({ x, y, moreActive }) => {
               max={GAUGE_MAX}
               startAngle={GAUGE_START}
               endAngle={GAUGE_END}
-              value={4.8}
-              className="SW6 Green LineRound"
+              value={indication.needleKpsi}
+              className={needleClassName}
               multiplierInner={0.8}
               multiplierOuter={1.2}
               indicator

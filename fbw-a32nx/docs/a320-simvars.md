@@ -78,6 +78,12 @@
       of 0, or (NO SMOKING signs only) cabin altitude above 11 300 ft
     - Also is used for knowing when to play the no smoking chime sound
 
+- A32NX_SEAT_BELTS_MEMO
+    - Bool
+    - The SEAT BELTS signs are on: SEAT BELTS switch ON, or cabin altitude above 11 300 ft whatever the switch
+      (FCOM DSC-33-40-10 note 1)
+    - Drives the SEAT BELTS memo and the SIGNS ON line of the T.O MEMO
+
 - A32NX_BRAKE_TEMPERATURE_{1,2,3,4}
     - celsius
     - represents the brake temperature of the rear wheels
@@ -121,6 +127,27 @@
 - A32NX_AIRCOND_RAMAIR_TOGGLE
     - Bool
     - True if ram air is on
+
+- A32NX_AIRCOND_EMER_RAM_AIR_INLET_IS_OPEN
+    - Bool
+    - True if the emergency ram air inlet valve is open: RAM AIR pb ON and DITCHING pb not ON
+
+- A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_IS_AUTO
+    - Bool
+    - True if the AFT ISOL VALVE pb-sw (CARGO VENT panel) is in AUTO, false if OFF (OFF light, isolation valves closed)
+
+- A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_HAS_FAULT
+    - Bool
+    - True if an aft cargo isolation valve disagrees with its commanded position (FAULT light; the FWC shows COND AFT
+      CRG ISOL VALVE)
+
+- A32NX_CARGO_VENT_AFT_{valve}_ISOL_VALVE_IS_OPEN
+    - Bool
+    - True if the aft cargo ventilation isolation valve is open: closed with the AFT ISOL VALVE pb-sw OFF or aft cargo
+      smoke
+    - {valve}
+        - INLET
+        - OUTLET
 
 - A32NX_CALLS_EMER_ON
     - Bool
@@ -1052,6 +1079,14 @@
         - GREEN
         - YELLOW
 
+- A32NX_HYD_{loop_name}_EDPUMP_OVHT
+    - Bool
+    - Engine driven pump of {loop_name} hydraulic circuit is overheating (written by the shared hydraulic model, not read
+      by the A32NX)
+    - {loop_name}
+        - GREEN
+        - YELLOW
+
 - A32NX_HYD_{loop_name}_EDPUMP_LOW_PRESS
     - Bool
     - Engine driven pump of {loop_name} hydraulic circuit is active but pressure is too low
@@ -1210,6 +1245,39 @@
 - A32NX_FWD_DOOR_CARGO_LOCKED
     - Bool
     - Forward cargo door is locked in closed position
+
+- A32NX_DOOR_{door}_PROX_SENSOR_FAULT
+    - Bool
+    - The proximity sensor of the door is failed (flyPad ATA 52 failure): the door is no longer detected closed, so the
+      DOOR caution and the amber door of the DOOR/OXY page show while it is closed
+    - Written by the systems host (Doors/DoorFailures.ts)
+    - {door}
+        - L_FWD_CABIN
+        - R_FWD_CABIN
+        - L_AFT_CABIN
+        - R_AFT_CABIN
+        - L_EMER_EXIT
+        - R_EMER_EXIT
+        - FWD_CARGO
+        - AFT_CARGO
+
+- A32NX_CDLS_{part}_FAULT
+    - Bool
+    - A part of the cockpit door locking system is failed (flyPad ATA 52 failure): its status light of the CKPT DOOR
+      CONT overhead panel comes on
+    - Written by the systems host (Doors/DoorFailures.ts)
+    - {part}
+        - UPPER_LATCH (TOP strike light)
+        - MID_LATCH (MID strike light)
+        - LOWER_LATCH (BOT strike light)
+        - PRESSURE_SENSOR_1 (CHAN 1 light)
+        - PRESSURE_SENSOR_2 (CHAN 2 light)
+
+- A32NX_CDLS_FAULT
+    - Bool
+    - The cockpit door locking system has a failure (a latch, a pressure sensor or the control unit): the COCKPIT DOOR
+      FAULT light of the pedestal comes on
+    - Written by the systems host (Doors/DoorFailures.ts)
 
 - A32NX_PARK_BRAKE_LEVER_POS
     - Bool
@@ -2178,7 +2246,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
         0 | ALIGNMENT_NOT_READY
         1 | REV_ATT_MODE
         2 | NAV_MODE
-        3 | VALID_SET_HEADING
+        3 | VALID_SET_HEADING (ATT mode, a heading entered by the crew is held)
         4 | ATTITUDE_INVALID
         5 | DC_FAIL
         6 | ON_DC
@@ -2198,6 +2266,22 @@ In the variables below, {number} should be replaced with one item in the set: { 
        16 | ALIGN_2_MINUTES
        15 | ALIGN_1_MINUTES
        18 | COMPUTED_LATITUDE_MISCOMPARE
+
+- A32NX_FM_IRS_SET_HEADING
+    - Arinc429Word<Degrees>
+    - The heading the crew enters for the IRs in ATT mode (MCDU IRS MONITOR page SET HDG): normal operation for 1 s
+      after each entry, no computed data otherwise. An IR in ATT mode takes each entry and runs from it; without one its
+      heading is no computed data.
+
+- A32NX_ADF_{number}_BFO_ON
+    - Bool
+    - The BFO of ADF {number} (1 or 2) is on: set by the FMGC from the MCDU RADIO NAV page ADF/BFO prompt, or by the
+      BFO key of RMP {number} in the NAV backup mode with the ADF selected. Lights the BFO key of the RMP.
+
+- A32NX_VOR_{number}_FAILED, A32NX_DME_{number}_FAILED, A32NX_ADF_{number}_FAILED, A32NX_ILS_{number}_FAILED
+    - Bool
+    - The VOR, DME, ADF or ILS receiver {number} (1 or 2) has failed (flyPad ATA 34 failures, written by the systems
+      host): the NDs then get no bearing, deviation or distance from it.
 
 - A32NX_PUSH_TRUE_REF
     - Bool
@@ -4648,7 +4732,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True on the ground when the starter turns the core without fuel (start valve open with air, engine fuel cut or ENG MASTER OFF): the FADEC keeps the MSFS starter engaged. Written by the systems WASM
+  - True on the ground when the starter turns the core without fuel (start valve open with air, engine fuel cut or ENG MASTER OFF), and in flight during a starter assisted relight until the HP fuel valve opens above 15 % N2 (ENG MASTER ON, start valve open with air, engine waiting for its relight, core not seized): the FADEC keeps the MSFS starter engaged. Written by the systems WASM
 
 - A32NX_ENGINE_{number}_STARTER_FAILED
   - Bool
@@ -5391,6 +5475,24 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
       BSCU channels are lost
     - Read-Only
 
+- A32NX_TPIS_MAIN_{number}_TYRE_PRESSURE / A32NX_TPIS_NOSE_{number}_TYRE_PRESSURE
+    - Arinc429<PSI>
+    - The tyre pressure (gauge) measured by the tyre pressure indicating system (TPIS), the source of the WHEEL TYRE LO
+      PR alert (FCOM PRO-ABN-WHEEL, not built yet). The tyres are inflated to their nominal pressure at the outside air
+      temperature of the start, then follow the gas temperature (outside air, brake heat on the main wheels) and the
+      tyre deflation failures (flyPad ATA 32, 32300-32305). Failure warning SSM while DC BUS 1 is unpowered (ELEC DC
+      BUS 1 FAULT INOP SYS TPIS). Written by the systems WASM (a320_systems tyre_pressure.rs)
+    - {number}
+        - MAIN: 1 to 4, the main wheels from left to right (as the brakes)
+        - NOSE: 1 left, 2 right
+    - Read-Only
+
+- A32NX_TPIS_MAIN_NOMINAL_TYRE_PRESSURE / A32NX_TPIS_NOSE_NOMINAL_TYRE_PRESSURE
+    - PSI
+    - The nominal pressure of the main (200) and nose (180) tyres, the reference of the WHEEL TYRE LO PR percentages
+      (design values, the FCOM gives no tyre pressure)
+    - Read-Only
+
 ## Lighting (ATA 33)
 
 - `L:A32NX_LIGHTS_NAV_LOGO`
@@ -5739,6 +5841,25 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - Bool
     - The paper door of the pedestal printer is open (a click on the door or its handle toggles it; cockpit
       model animation PRINTER_DOOR). No effect on printing.
+
+- A32NX_ATSU_OFF
+    - Bool
+    - True while the ATSU does not run: AC BUS 1 not powered, one of its C/Bs L15/L16 on 121VU pulled (the ATSU reset of
+      the FCOM, read from `L:1:A32NX_CB_121VU_L_TRIPPED_0`) or the flyPad ATSU failure (46000). A supplied DCDU then shows
+      INVALID DATA. Written by the systems-host ATSU (atsu.ts)
+
+- A32NX_DCDU_{number}_FAILED
+    - Bool
+    - {number}
+        - 1 (captain)
+        - 2 (first officer)
+    - True while the flyPad DCDU failure (46002, 46003) is active: the DCDU screen is blank (cockpit model) and its keys
+      do nothing. Written by the systems-host ATSU (atsu.ts)
+
+- A32NX_PRINTER_FAILED
+    - Bool
+    - True while the flyPad cockpit printer failure (46004) is active: nothing is printed and the MCDU shows PRINTER NOT
+      AVAILABLE. Written by the systems-host ATSU (atsu.ts)
 
 ## Non-Systems Related
 

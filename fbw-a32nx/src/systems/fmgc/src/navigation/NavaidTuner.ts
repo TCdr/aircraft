@@ -7,6 +7,7 @@ import { LandingSystemSelectionManager } from '@fmgc/navigation/LandingSystemSel
 import { NavaidSelectionManager, VorSelectionReason } from '@fmgc/navigation/NavaidSelectionManager';
 import { NavigationProvider } from '@fmgc/navigation/NavigationProvider';
 import { NavRadioUtils } from '@fmgc/navigation/NavRadioUtils';
+import { isRmpNavaidTuningActive } from '@fmgc/navigation/RmpNavaidTuning';
 import {
   Arinc429SignStatusMatrix,
   Arinc429Word,
@@ -249,6 +250,8 @@ export class NavaidTuner {
 
   private lastAdfFrequencies = [null, null];
 
+  private lastAdfBfo: (boolean | null)[] = [null, null];
+
   /** Increments each time the tuned navaids change */
   public navaidVersion = 0;
 
@@ -316,9 +319,7 @@ export class NavaidTuner {
     }
 
     // FIXME RMPs should provide a discrete output for this
-    const rmpTuningActive =
-      SimVar.GetSimVarValue('L:A32NX_RMP_L_NAV_BUTTON_SELECTED', 'bool') ||
-      SimVar.GetSimVarValue('L:A32NX_RMP_R_NAV_BUTTON_SELECTED', 'bool');
+    const rmpTuningActive = isRmpNavaidTuningActive((name) => SimVar.GetSimVarValue(name, 'bool'));
     const rmpTuningDeActivated = !rmpTuningActive && this.rmpTuningActive;
     this.rmpTuningActive = rmpTuningActive;
 
@@ -380,6 +381,8 @@ export class NavaidTuner {
     this.tuneMmrCourse(2, null);
     this.tuneAdf(1, null);
     this.tuneAdf(2, null);
+    this.writeAdfBfo(1, false, true);
+    this.writeAdfBfo(2, false, true);
   }
 
   private updateArincBus(): void {
@@ -469,6 +472,8 @@ export class NavaidTuner {
       }
 
       this.tuneAdf((i + 1) as 1 | 2, adf.frequency);
+      adf.bfo = NavRadioUtils.adfBfo(adf.frequency, adf.bfo);
+      this.writeAdfBfo((i + 1) as 1 | 2, adf.bfo);
     }
 
     if (this.tuneNavaidMessage !== tuneNavaidMessage) {
@@ -575,6 +580,19 @@ export class NavaidTuner {
       );
     }
     return false;
+  }
+
+  /**
+   * Sends the BFO state to an ADF (L:var read by the RMP BFO key light and written by the RMP BFO key in NAV backup).
+   * @param index ADF index, 1 or 2
+   * @param bfo whether the BFO is on
+   * @param force write even when the last written state is the same (the RMP may have changed it)
+   */
+  private writeAdfBfo(index: 1 | 2, bfo: boolean, force = false): void {
+    if (force || this.lastAdfBfo[index - 1] !== bfo) {
+      this.lastAdfBfo[index - 1] = bfo;
+      SimVar.SetSimVarValue(NavRadioUtils.adfBfoVar(index), SimVarValueType.Bool, bfo);
+    }
   }
 
   private hasRunwayLsMismatch(index: 1 | 2): boolean {
@@ -761,6 +779,17 @@ export class NavaidTuner {
       adfStatus.frequency = ndb.frequency;
       adfStatus.bfo = false;
     }
+  }
+
+  /**
+   * Sets the BFO of a tuned ADF: the MCDU RADIO NAV page ADF/BFO prompt "revert ADF to BFO mode. A clear action
+   * recalls the arrow, and cancels BFO" (A320 FCOM DSC-22_20-50-10-28, a320_fcom.txt l.21521-21523).
+   * @param index ADF index, 1 or 2
+   * @param bfo true to activate the BFO
+   */
+  setAdfBfo(index: 1 | 2, bfo: boolean): void {
+    const adfStatus = this.adfTuningStatus[index - 1];
+    adfStatus.bfo = NavRadioUtils.adfBfo(adfStatus.frequency, bfo);
   }
 
   public getVorRadioTuningStatus(index: 1 | 2): VorRadioTuningStatus {

@@ -2,7 +2,11 @@ use systems::{
     shared::LgciuGearExtension,
     simulation::{InitContext, Read, SimulationElement, SimulatorReader, VariableIdentifier},
     surveillance::{
-        egpws::EgpwsElectricalHarness, taws::TerrainAwarenessWarningSystemDiscreteInputs,
+        egpws::EgpwsElectricalHarness,
+        taws::{
+            TerrainAwarenessWarningSystemDiscreteInputs,
+            TerrainAwarenessWarningSystemDiscreteOutput,
+        },
     },
 };
 
@@ -72,6 +76,24 @@ impl A320EgpwsElectricalHarness {
         self.discrete_inputs.steep_approach_mode = false; // TODO
         self.discrete_inputs.audio_inhibit = false; // TODO: Comes from FWC during e.g. STALL STALL
     }
+
+    /// The terrain awareness functions of the EGPWS work, for the terrain display on the NDs (the ND terrain picture
+    /// of the enhanced_gpwc): the TERR pb-sw is not OFF and the TERR FAULT light is off (a failed or unpowered EGPWS
+    /// lights it). A320 FCOM DSC-34-SURV-40-40, a320_fcom.txt:55447, 55467-55468, 55509-55511.
+    pub fn terrain_functions_available(
+        &self,
+        egpws: &impl TerrainAwarenessWarningSystemDiscreteOutput,
+    ) -> bool {
+        terrain_functions_available(
+            self.discrete_inputs.terrain_awareness_inhibit,
+            egpws.discrete_outputs().terrain_inop,
+        )
+    }
+}
+
+/// `terr_pb_off`: the TERR pb-sw is OFF; `terr_fault`: the EGPWS TERR FAULT discrete (L:A32NX_GPWS_TERR_FAULT)
+fn terrain_functions_available(terr_pb_off: bool, terr_fault: bool) -> bool {
+    !terr_pb_off && !terr_fault
 }
 impl EgpwsElectricalHarness for A320EgpwsElectricalHarness {
     fn discrete_inputs(&self) -> &TerrainAwarenessWarningSystemDiscreteInputs {
@@ -98,5 +120,18 @@ impl SimulationElement for A320EgpwsElectricalHarness {
         self.discrete_inputs.gs_cancel = reader.read(&self.gs_cancel_self_test_id);
         self.discrete_inputs.terrain_awareness_inhibit = reader.read(&self.terr_off_id);
         self.discrete_inputs.sim_reposition_active = reader.read(&self.slew_active_id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn terrain_functions_need_the_terr_pb_on_and_no_terr_fault() {
+        assert!(terrain_functions_available(false, false));
+        assert!(!terrain_functions_available(true, false));
+        assert!(!terrain_functions_available(false, true));
+        assert!(!terrain_functions_available(true, true));
     }
 }

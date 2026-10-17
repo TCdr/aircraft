@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { useState } from 'react';
-import { useInteractionEvents } from '@flybywiresim/fbw-sdk-react';
 import { Checkerboard } from './Checkerboard';
+import { useDcduKeyEvent } from '../useDcduKeyEvent';
 
 type ButtonProps = {
   messageId: number;
@@ -21,7 +21,7 @@ export const Button: React.FC<ButtonProps> = ({ index, content, active, onClick 
     return <></>;
   }
 
-  useInteractionEvents([`A32NX_DCDU_BTN_MPL_${index}`, `A32NX_DCDU_BTN_MPR_${index}`], () => {
+  useDcduKeyEvent(index, () => {
     if (active) {
       setClicked(true);
       setTimeout(() => {

@@ -102,6 +102,13 @@ import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
 import { ELEC_AC_ESS_BUS_FAULT_STATUS } from './FwsElecAlerts';
 import { TAIL_STRIKE_DET_FAULT_PHASE_INHIBITION, TAIL_STRIKE_PHASE_INHIBITION } from './FwsTailStrikeAlerts';
 import {
+  EFIS_CTL_PHASE_INHIBITION,
+  FCU_SWITCHED_OFF_PHASE_INHIBITION,
+  KCCU_PHASE_INHIBITION,
+} from './FwsCdsControlAlerts';
+import { RECORDER_ACCELMTR_PHASE_INHIBITION, RECORDER_PHASE_INHIBITION } from './FwsRecorderAlerts';
+import { CABIN_EMER_EXIT_LT_PHASE_INHIBITION } from './FwsEmerExitLightAlerts';
+import {
   APU_GEN_INOP_SYS,
   APU_TR_INOP_SYS,
   apuTrFaultInfo,
@@ -138,6 +145,8 @@ import { directLawInfo, directLawInopSysAllPhases, lawInopSysApprLdg } from './F
 import {
   ALL_ENG_FLAME_OUT_INHIBITED_PHASES,
   ENG_FAIL_FLIGHT_PHASE_INHIBITION,
+  engineFailItemsChecked,
+  engineFailItemsShown,
   oppositeSideApproachItems,
   sameSideApproachItems,
   TwoEnginesOutDeferredInputs,
@@ -150,9 +159,21 @@ import {
   OIL_TEMP_HI_PHASE_INHIBITION,
 } from './EngineOilAlerts';
 import { FUEL_FILTER_CLOGGED_LEVEL, FUEL_FILTER_CLOGGED_PHASE_INHIBITION } from './EngineFuelFilterAlerts';
+import { apuBleedFaultItems } from './ApuBleedFaultAlerts';
 import {
+  WHEEL_TIRE_PRESS_LO_ALERT,
+  WHEEL_TIRE_PRESS_LO_LEVEL,
+  WHEEL_TIRE_PRESS_LO_PHASE_INHIBITION,
+} from './TirePressureAlerts';
+import {
+  CTL_SYS_FAULT_LEVEL,
+  CTL_SYS_FAULT_PHASE_INHIBITION,
+  ctlSysFaultItems,
+  ENG_TYPE_DISAGREE_KEY,
+  ENG_TYPE_DISAGREE_LEVEL,
+  ENG_TYPE_DISAGREE_PHASE_INHIBITION,
   ENGINE_MONITORING_ALERTS,
-  ENGINE_MONITORING_ALERT_LEVEL,
+  engineMonitoringAlertLevel,
   HP_FUEL_VLV_FAULT_LEVEL,
   HP_FUEL_VLV_FAULT_PHASE_INHIBITION,
   hpFuelVlvFaultItems,
@@ -186,7 +207,10 @@ import {
   REVERSER_CTL_FAULT_PHASE_INHIBITION,
   REVERSER_ENERGIZED_PHASE_INHIBITION,
   REVERSER_FAULT_PHASE_INHIBITION,
+  REVERSER_INHIBITED_PHASE_INHIBITION,
   REVERSER_LOCKED_PHASE_INHIBITION,
+  REVERSER_MAINTENANCE_ALERTS_LEVEL,
+  REVERSER_MINOR_FAULT_PHASE_INHIBITION,
   REVERSER_SELECTED_PHASE_INHIBITION,
   REVERSER_UNLOCKED_PHASE_INHIBITION,
   THR_LEVER_FAULT_PHASE_INHIBITION,
@@ -1300,6 +1324,12 @@ export class FwsAbnormalSensed {
       this.fws.fireButtonEng3,
       this.fws.fireButtonEng4,
     ];
+    const thrustLeversIdle = [
+      this.fws.thrustLever1Idle,
+      this.fws.thrustLever2Idle,
+      this.fws.thrustLever3Idle,
+      this.fws.thrustLever4Idle,
+    ];
     for (let index = 0; index < 4; index++) {
       const items = () =>
         hpFuelVlvFaultItems({
@@ -1325,12 +1355,69 @@ export class FwsAbnormalSensed {
           notActiveWhenItemActive: [],
           whichItemsToShow: () => [],
           whichItemsChecked: () => [],
-          failure: ENGINE_MONITORING_ALERT_LEVEL,
-          sysPage: SdPages.None,
+          failure: engineMonitoringAlertLevel(alert),
+          sysPage: alert.caution ? SdPages.Eng : SdPages.None,
         };
       });
+      // ENG n CTL SYS FAULT (701800001-004, EngineMonitoringAlerts.ts)
+      const ctlSysFaultItemsNow = () =>
+        ctlSysFaultItems(
+          this.fws.engineCtlSysFaultInputs[index],
+          this.fws.aircraftOnGround.get(),
+          thrustLeversIdle[index].get(),
+          masters[index].get(),
+        );
+      alerts[701800001 + index] = {
+        flightPhaseInhib: CTL_SYS_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.engineCtlSysFault[index],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => ctlSysFaultItemsNow().show,
+        whichItemsChecked: () => ctlSysFaultItemsNow().checked,
+        failure: CTL_SYS_FAULT_LEVEL,
+        sysPage: SdPages.None,
+      };
     }
+    // ENG 2(3) REVERSER INHIBITED (701800143-144) and REVERSER MINOR FAULT (701800147-148), FadecReverserAlerts.ts
+    for (let reverserIndex = 0; reverserIndex < 2; reverserIndex++) {
+      alerts[701800143 + reverserIndex] = {
+        flightPhaseInhib: REVERSER_INHIBITED_PHASE_INHIBITION,
+        simVarIsActive: this.fws.reverserInhibited[reverserIndex],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => reverserInopItemsShown(this.fws.aircraftOnGround.get()),
+        whichItemsChecked: () => [false, false],
+        failure: REVERSER_MAINTENANCE_ALERTS_LEVEL,
+        sysPage: SdPages.None,
+      };
+      alerts[701800147 + reverserIndex] = {
+        flightPhaseInhib: REVERSER_MINOR_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.reverserMinorFault[reverserIndex],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: REVERSER_MAINTENANCE_ALERTS_LEVEL,
+        sysPage: SdPages.None,
+      };
+    }
+    // ENG TYPE DISAGREE (701800161, EngineMonitoringAlerts.ts)
+    alerts[ENG_TYPE_DISAGREE_KEY] = {
+      flightPhaseInhib: ENG_TYPE_DISAGREE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineTypeDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: ENG_TYPE_DISAGREE_LEVEL,
+      sysPage: SdPages.None,
+    };
     return alerts;
+  }
+
+  /** The lines of AIR APU BLEED FAULT (ApuBleedFaultAlerts apuBleedFaultItems) */
+  private apuBleedFaultItems(): { show: boolean[]; checked: boolean[] } {
+    return apuBleedFaultItems({
+      abnormallyOpen: this.fws.apuBleedValvePositionMonitor.abnormallyOpen,
+      aboveFl225: (this.fws.adrPressureAltitude.get() ?? 0) > 22_500,
+      apuBleedPbOn: this.fws.apuBleedPbOn.get(),
+    });
   }
 
   /** The transfer lines of FUEL FEED TK(s) LEVEL LO (FwsFuelTankAlerts feedTankLevelLoTransferLines) */
@@ -2074,12 +2161,12 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['210300028'],
     },
     211800051: {
-      // APU BLEED FAULT due to outside envelope
+      // APU BLEED FAULT: outside the envelope, or the APU bleed valve abnormally open (closed) (ApuBleedFaultAlerts.ts)
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
-      simVarIsActive: this.fws.apuBleedPbOnOver22500ft,
+      simVarIsActive: this.fws.apuBleedFault,
       notActiveWhenItemActive: [],
-      whichItemsToShow: () => [false, false, false, false, true, (this.fws.adrPressureAltitude.get() ?? 0) > 22_500],
-      whichItemsChecked: () => [false, false, false, false, !this.fws.apuBleedPbOn.get(), false],
+      whichItemsToShow: () => this.apuBleedFaultItems().show,
+      whichItemsChecked: () => this.apuBleedFaultItems().checked,
       failure: 2,
       sysPage: SdPages.Bleed,
       inopSysAllPhases: () => ['260300006'],
@@ -6286,6 +6373,180 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.None,
     },
+    // CDS & AUTO FLT FCU SWITCHED OFF, EFIS CP and KCCU alerts (A380 FCOM PRO-ABN-ECAM-10-31), see FwsCdsControlAlerts;
+    // their INOP SYS and INFO lines are in FwsInopSys and FwsInformation
+    311800001: {
+      // CDS & AUTO FLT FCU SWITCHED OFF, SC and MASTER CAUT (PDF page 5375)
+      flightPhaseInhib: FCU_SWITCHED_OFF_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fcuSwitchedOff,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800002: {
+      // CDS CAPT EFIS BKUP CTL FAULT, SC and MASTER CAUT (PDF page 5380)
+      flightPhaseInhib: EFIS_CTL_PHASE_INHIBITION,
+      simVarIsActive: this.fws.efisBkupCtlFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800002),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800002].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800003: {
+      // CDS F/O EFIS BKUP CTL FAULT
+      flightPhaseInhib: EFIS_CTL_PHASE_INHIBITION,
+      simVarIsActive: this.fws.efisBkupCtlFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800003),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800003].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800004: {
+      // CDS CAPT EFIS CTL PNL FAULT, SC and MASTER CAUT (PDF page 5382)
+      flightPhaseInhib: EFIS_CTL_PHASE_INHIBITION,
+      simVarIsActive: this.fws.efisCtlPnlFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800004),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800004].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800005: {
+      // CDS F/O EFIS CTL PNL FAULT
+      flightPhaseInhib: EFIS_CTL_PHASE_INHIBITION,
+      simVarIsActive: this.fws.efisCtlPnlFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800005),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800005].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800006: {
+      // CDS CAPT+F/O EFIS CTL PNLs FAULT, SC and MASTER CAUT (PDF page 5391)
+      flightPhaseInhib: EFIS_CTL_PHASE_INHIBITION,
+      simVarIsActive: this.fws.efisCtlPnlsBothFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800006),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800006].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    313800001: {
+      // CDS CAPT CURSOR CTL FAULT, crew awareness (PDF page 5377)
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.kccuCursorCtlFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(313800001),
+      whichItemsChecked: () => EcamAbnormalProcedures[313800001].items.map(() => false),
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    313800002: {
+      // CDS F/O CURSOR CTL FAULT
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.kccuCursorCtlFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(313800002),
+      whichItemsChecked: () => EcamAbnormalProcedures[313800002].items.map(() => false),
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    313800003: {
+      // CDS CAPT CURSOR CTL+KEYBOARD FAULT, crew awareness (PDF page 5378)
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.kccuCursorCtlKeyboardFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    313800004: {
+      // CDS F/O CURSOR CTL+KEYBOARD FAULT
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.kccuCursorCtlKeyboardFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    313800005: {
+      // CDS CAPT KEYBOARD FAULT, crew awareness (PDF page 5383)
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.kccuKeyboardFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(313800005),
+      whichItemsChecked: () => EcamAbnormalProcedures[313800005].items.map(() => false),
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    313800006: {
+      // CDS F/O KEYBOARD FAULT
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.kccuKeyboardFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(313800006),
+      whichItemsChecked: () => EcamAbnormalProcedures[313800006].items.map(() => false),
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    // RECORDER alerts, crew awareness (A380 FCOM PRO-ABN-ECAM-10-31, PDF pages 5417-5420), see FwsRecorderAlerts
+    319800001: {
+      // RECORDER ACCELMTR FAULT
+      flightPhaseInhib: RECORDER_ACCELMTR_PHASE_INHIBITION,
+      simVarIsActive: this.fws.recorderAccelmtrFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    319800002: {
+      // RECORDER CVR FAULT
+      flightPhaseInhib: RECORDER_PHASE_INHIBITION,
+      simVarIsActive: this.fws.recorderCvrFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    319800003: {
+      // RECORDER DFDR FAULT
+      flightPhaseInhib: RECORDER_PHASE_INHIBITION,
+      simVarIsActive: this.fws.recorderDfdrFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    319800004: {
+      // RECORDER SYS FAULT
+      flightPhaseInhib: RECORDER_PHASE_INHIBITION,
+      simVarIsActive: this.fws.recorderSysFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    // ATA 33 - LIGHTS
+    334800101: {
+      // CABIN EMER EXIT LT FAULT, crew awareness (A380 FCOM PRO-ABN-ECAM-10-33, PDF page 5541), see FwsEmerExitLightAlerts
+      flightPhaseInhib: CABIN_EMER_EXIT_LT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.cabinEmerExitLtFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
     // ATA 32 - LANDING GEAR & BRAKES
     320800008: {
       // BRAKES A_SKID OFF
@@ -7740,67 +8001,84 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Door,
     },
+    [WHEEL_TIRE_PRESS_LO_ALERT]: {
+      // WHEEL TIRE PRESS LO (TirePressureAlerts.ts, A380 FCOM PRO-ABN-ECAM-10-32 l.163270-163311): crew awareness
+      flightPhaseInhib: WHEEL_TIRE_PRESS_LO_PHASE_INHIBITION,
+      simVarIsActive: this.fws.wheelTirePressLo,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: WHEEL_TIRE_PRESS_LO_LEVEL,
+      sysPage: SdPages.Wheel,
+    },
     // ATA 70 - ENGINES
     701800029: {
       // ENG 1 FAIL
       simVarIsActive: this.fws.eng1Fail,
       flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none (PDF p.5776)
       notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        !this.fws.aircraftOnGround.get() &&
-          this.fws.gearLeverPos.get() &&
-          [FwcFlightPhase.LiftOff, FwcFlightPhase.AtOrAbove400Feet].includes(this.fws.flightPhase.get()),
-        // AUTO RELIGHT IN PROGRESS only while the FADEC auto relight runs (EngineFailAlerts.ts)
-        this.fws.engineAutoRelightInProgress[0].get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get() && !this.fws.engineRelightProcApply.get(),
-        !this.fws.aircraftOnGround.get() && this.fws.engineRelightProcApply.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [
-        !this.fws.gearLeverPos.get(),
-        false,
-        this.fws.thrustLever1Idle.get(),
-        false,
-        !this.fws.engine1Master.get(),
-        false,
-        this.fws.fireButtonEng1.get(),
-        !this.fws.apuBleedPbOn.get(),
-        false,
-        this.fws.eng1Agent1Discharged.get(),
-        false,
-        false,
-        false,
-        false,
-        this.fws.thrustLever1Idle.get(),
-        !this.fws.engine1Master.get(),
-        false,
-        this.fws.fireButtonEng1.get(),
-        !this.fws.apuBleedPbOn.get(),
-        false,
-        this.fws.eng1Agent1Discharged.get(),
-        false,
-        false,
-        false,
-      ],
+      // The FADEC OVHT and THRUST CTL LOST branches replace the others (EngineFailAlerts engineFailItemsShown)
+      whichItemsToShow: () =>
+        engineFailItemsShown(this.fws.engineCtlSysFaultInputs[0].fadecShutdownReason, [
+          !this.fws.aircraftOnGround.get() &&
+            this.fws.gearLeverPos.get() &&
+            [FwcFlightPhase.LiftOff, FwcFlightPhase.AtOrAbove400Feet].includes(this.fws.flightPhase.get()),
+          // AUTO RELIGHT IN PROGRESS only while the FADEC auto relight runs (EngineFailAlerts.ts)
+          this.fws.engineAutoRelightInProgress[0].get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get() && !this.fws.engineRelightProcApply.get(),
+          !this.fws.aircraftOnGround.get() && this.fws.engineRelightProcApply.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+        ]),
+      whichItemsChecked: () =>
+        engineFailItemsChecked(
+          [
+            !this.fws.gearLeverPos.get(),
+            false,
+            this.fws.thrustLever1Idle.get(),
+            false,
+            !this.fws.engine1Master.get(),
+            false,
+            this.fws.fireButtonEng1.get(),
+            !this.fws.apuBleedPbOn.get(),
+            false,
+            this.fws.eng1Agent1Discharged.get(),
+            false,
+            false,
+            false,
+            false,
+            this.fws.thrustLever1Idle.get(),
+            !this.fws.engine1Master.get(),
+            false,
+            this.fws.fireButtonEng1.get(),
+            !this.fws.apuBleedPbOn.get(),
+            false,
+            this.fws.eng1Agent1Discharged.get(),
+            false,
+            false,
+            false,
+          ],
+          this.fws.thrustLever1Idle.get(),
+          !this.fws.engine1Master.get(),
+        ),
       sysPage: SdPages.Eng,
       failure: 2,
     },
@@ -7809,61 +8087,68 @@ export class FwsAbnormalSensed {
       simVarIsActive: this.fws.eng2Fail,
       flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none (PDF p.5776)
       notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        !this.fws.aircraftOnGround.get() &&
-          this.fws.gearLeverPos.get() &&
-          [FwcFlightPhase.LiftOff, FwcFlightPhase.AtOrAbove400Feet].includes(this.fws.flightPhase.get()),
-        // AUTO RELIGHT IN PROGRESS only while the FADEC auto relight runs (EngineFailAlerts.ts)
-        this.fws.engineAutoRelightInProgress[1].get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get() && false,
-        !this.fws.aircraftOnGround.get() && false,
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get() && !this.fws.engineRelightProcApply.get(),
-        !this.fws.aircraftOnGround.get() && this.fws.engineRelightProcApply.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get() && false,
-        this.fws.aircraftOnGround.get() && false,
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [
-        !this.fws.gearLeverPos.get(),
-        false,
-        this.fws.thrustLever2Idle.get(),
-        false,
-        !this.fws.engine2Master.get(),
-        false,
-        this.fws.fireButtonEng2.get(),
-        !this.fws.apuBleedPbOn.get(),
-        false,
-        this.fws.eng2Agent1Discharged.get(),
-        false,
-        false,
-        false,
-        false,
-        this.fws.thrustLever2Idle.get(),
-        !this.fws.engine2Master.get(),
-        false,
-        this.fws.fireButtonEng2.get(),
-        !this.fws.apuBleedPbOn.get(),
-        false,
-        this.fws.eng2Agent1Discharged.get(),
-        false,
-        false,
-        false,
-      ],
+      // The FADEC OVHT and THRUST CTL LOST branches replace the others (EngineFailAlerts engineFailItemsShown)
+      whichItemsToShow: () =>
+        engineFailItemsShown(this.fws.engineCtlSysFaultInputs[1].fadecShutdownReason, [
+          !this.fws.aircraftOnGround.get() &&
+            this.fws.gearLeverPos.get() &&
+            [FwcFlightPhase.LiftOff, FwcFlightPhase.AtOrAbove400Feet].includes(this.fws.flightPhase.get()),
+          // AUTO RELIGHT IN PROGRESS only while the FADEC auto relight runs (EngineFailAlerts.ts)
+          this.fws.engineAutoRelightInProgress[1].get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get() && false,
+          !this.fws.aircraftOnGround.get() && false,
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get() && !this.fws.engineRelightProcApply.get(),
+          !this.fws.aircraftOnGround.get() && this.fws.engineRelightProcApply.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get() && false,
+          this.fws.aircraftOnGround.get() && false,
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+        ]),
+      whichItemsChecked: () =>
+        engineFailItemsChecked(
+          [
+            !this.fws.gearLeverPos.get(),
+            false,
+            this.fws.thrustLever2Idle.get(),
+            false,
+            !this.fws.engine2Master.get(),
+            false,
+            this.fws.fireButtonEng2.get(),
+            !this.fws.apuBleedPbOn.get(),
+            false,
+            this.fws.eng2Agent1Discharged.get(),
+            false,
+            false,
+            false,
+            false,
+            this.fws.thrustLever2Idle.get(),
+            !this.fws.engine2Master.get(),
+            false,
+            this.fws.fireButtonEng2.get(),
+            !this.fws.apuBleedPbOn.get(),
+            false,
+            this.fws.eng2Agent1Discharged.get(),
+            false,
+            false,
+            false,
+          ],
+          this.fws.thrustLever2Idle.get(),
+          !this.fws.engine2Master.get(),
+        ),
       sysPage: SdPages.Eng,
       failure: 2,
     },
@@ -7872,61 +8157,68 @@ export class FwsAbnormalSensed {
       simVarIsActive: this.fws.eng3Fail,
       flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none (PDF p.5776)
       notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        !this.fws.aircraftOnGround.get() &&
-          this.fws.gearLeverPos.get() &&
-          [FwcFlightPhase.LiftOff, FwcFlightPhase.AtOrAbove400Feet].includes(this.fws.flightPhase.get()),
-        // AUTO RELIGHT IN PROGRESS only while the FADEC auto relight runs (EngineFailAlerts.ts)
-        this.fws.engineAutoRelightInProgress[2].get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get() && false,
-        !this.fws.aircraftOnGround.get() && false,
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get() && !this.fws.engineRelightProcApply.get(),
-        !this.fws.aircraftOnGround.get() && this.fws.engineRelightProcApply.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get() && false,
-        this.fws.aircraftOnGround.get() && false,
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [
-        !this.fws.gearLeverPos.get(),
-        false,
-        this.fws.thrustLever3Idle.get(),
-        false,
-        !this.fws.engine3Master.get(),
-        false,
-        this.fws.fireButtonEng3.get(),
-        !this.fws.apuBleedPbOn.get(),
-        false,
-        this.fws.eng3Agent1Discharged.get(),
-        false,
-        false,
-        false,
-        false,
-        this.fws.thrustLever3Idle.get(),
-        !this.fws.engine3Master.get(),
-        false,
-        this.fws.fireButtonEng3.get(),
-        !this.fws.apuBleedPbOn.get(),
-        false,
-        this.fws.eng3Agent1Discharged.get(),
-        false,
-        false,
-        false,
-      ],
+      // The FADEC OVHT and THRUST CTL LOST branches replace the others (EngineFailAlerts engineFailItemsShown)
+      whichItemsToShow: () =>
+        engineFailItemsShown(this.fws.engineCtlSysFaultInputs[2].fadecShutdownReason, [
+          !this.fws.aircraftOnGround.get() &&
+            this.fws.gearLeverPos.get() &&
+            [FwcFlightPhase.LiftOff, FwcFlightPhase.AtOrAbove400Feet].includes(this.fws.flightPhase.get()),
+          // AUTO RELIGHT IN PROGRESS only while the FADEC auto relight runs (EngineFailAlerts.ts)
+          this.fws.engineAutoRelightInProgress[2].get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get() && false,
+          !this.fws.aircraftOnGround.get() && false,
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get() && !this.fws.engineRelightProcApply.get(),
+          !this.fws.aircraftOnGround.get() && this.fws.engineRelightProcApply.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get() && false,
+          this.fws.aircraftOnGround.get() && false,
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+        ]),
+      whichItemsChecked: () =>
+        engineFailItemsChecked(
+          [
+            !this.fws.gearLeverPos.get(),
+            false,
+            this.fws.thrustLever3Idle.get(),
+            false,
+            !this.fws.engine3Master.get(),
+            false,
+            this.fws.fireButtonEng3.get(),
+            !this.fws.apuBleedPbOn.get(),
+            false,
+            this.fws.eng3Agent1Discharged.get(),
+            false,
+            false,
+            false,
+            false,
+            this.fws.thrustLever3Idle.get(),
+            !this.fws.engine3Master.get(),
+            false,
+            this.fws.fireButtonEng3.get(),
+            !this.fws.apuBleedPbOn.get(),
+            false,
+            this.fws.eng3Agent1Discharged.get(),
+            false,
+            false,
+            false,
+          ],
+          this.fws.thrustLever3Idle.get(),
+          !this.fws.engine3Master.get(),
+        ),
       sysPage: SdPages.Eng,
       failure: 2,
     },
@@ -7935,61 +8227,68 @@ export class FwsAbnormalSensed {
       simVarIsActive: this.fws.eng4Fail,
       flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none (PDF p.5776)
       notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        !this.fws.aircraftOnGround.get() &&
-          this.fws.gearLeverPos.get() &&
-          [FwcFlightPhase.LiftOff, FwcFlightPhase.AtOrAbove400Feet].includes(this.fws.flightPhase.get()),
-        // AUTO RELIGHT IN PROGRESS only while the FADEC auto relight runs (EngineFailAlerts.ts)
-        this.fws.engineAutoRelightInProgress[3].get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get() && false,
-        !this.fws.aircraftOnGround.get() && false,
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get() && !this.fws.engineRelightProcApply.get(),
-        !this.fws.aircraftOnGround.get() && this.fws.engineRelightProcApply.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get() && false,
-        this.fws.aircraftOnGround.get() && false,
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-        this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [
-        !this.fws.gearLeverPos.get(),
-        false,
-        this.fws.thrustLever4Idle.get(),
-        false,
-        !this.fws.engine4Master.get(),
-        false,
-        this.fws.fireButtonEng4.get(),
-        !this.fws.apuBleedPbOn.get(),
-        false,
-        this.fws.eng4Agent1Discharged.get(),
-        false,
-        false,
-        false,
-        false,
-        this.fws.thrustLever4Idle.get(),
-        !this.fws.engine4Master.get(),
-        false,
-        this.fws.fireButtonEng4.get(),
-        !this.fws.apuBleedPbOn.get(),
-        false,
-        this.fws.eng4Agent1Discharged.get(),
-        false,
-        false,
-        false,
-      ],
+      // The FADEC OVHT and THRUST CTL LOST branches replace the others (EngineFailAlerts engineFailItemsShown)
+      whichItemsToShow: () =>
+        engineFailItemsShown(this.fws.engineCtlSysFaultInputs[3].fadecShutdownReason, [
+          !this.fws.aircraftOnGround.get() &&
+            this.fws.gearLeverPos.get() &&
+            [FwcFlightPhase.LiftOff, FwcFlightPhase.AtOrAbove400Feet].includes(this.fws.flightPhase.get()),
+          // AUTO RELIGHT IN PROGRESS only while the FADEC auto relight runs (EngineFailAlerts.ts)
+          this.fws.engineAutoRelightInProgress[3].get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get() && false,
+          !this.fws.aircraftOnGround.get() && false,
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get(),
+          !this.fws.aircraftOnGround.get() && !this.fws.engineRelightProcApply.get(),
+          !this.fws.aircraftOnGround.get() && this.fws.engineRelightProcApply.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get() && false,
+          this.fws.aircraftOnGround.get() && false,
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+          this.fws.aircraftOnGround.get(),
+        ]),
+      whichItemsChecked: () =>
+        engineFailItemsChecked(
+          [
+            !this.fws.gearLeverPos.get(),
+            false,
+            this.fws.thrustLever4Idle.get(),
+            false,
+            !this.fws.engine4Master.get(),
+            false,
+            this.fws.fireButtonEng4.get(),
+            !this.fws.apuBleedPbOn.get(),
+            false,
+            this.fws.eng4Agent1Discharged.get(),
+            false,
+            false,
+            false,
+            false,
+            this.fws.thrustLever4Idle.get(),
+            !this.fws.engine4Master.get(),
+            false,
+            this.fws.fireButtonEng4.get(),
+            !this.fws.apuBleedPbOn.get(),
+            false,
+            this.fws.eng4Agent1Discharged.get(),
+            false,
+            false,
+            false,
+          ],
+          this.fws.thrustLever4Idle.get(),
+          !this.fws.engine4Master.get(),
+        ),
       sysPage: SdPages.Eng,
       failure: 2,
     },

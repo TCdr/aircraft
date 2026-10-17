@@ -236,3 +236,42 @@ describe('KCCU MAILBOX key (A380 FCOM DSC-46-10-20-80, l.101303-101306: "the cur
     expect(active.cursor().style.display).not.toBe('block');
   });
 });
+
+/*
+ * A380 FCOM PRO-SUP-46 AIR TRAFFIC CONTROL (ATC) RESET (a380_fcom.txt l.184521-184523): "It is possible to perform an
+ * ATC reset, when: MAILBOX NOT AVAIL is displayed on the lower part of the SD".
+ */
+describe('MAILBOX NOT AVAIL', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('replaces the mailbox while the ATC function is not available, and goes away with it', () => {
+    const bus = new EventBus();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    FSComponent.render(<AtcMailbox bus={bus} active={Subject.create(true)} />, container);
+    const notAvail = container.querySelector('.atc-mailbox-not-avail') as HTMLElement;
+    const recall = container.querySelector('.atc-mailbox-recall') as HTMLElement;
+    const shown = (element: HTMLElement) => {
+      for (let e: HTMLElement | null = element; e && e !== container; e = e.parentElement) {
+        if (e.style.display === 'none') {
+          return false;
+        }
+      }
+      return true;
+    };
+    expect(shown(notAvail)).toBe(false);
+    expect(shown(recall)).toBe(true);
+
+    const publisher = bus.getPublisher<{ atcFunctionAvailable: boolean }>();
+    publisher.pub('atcFunctionAvailable', false);
+    expect(notAvail.textContent).toBe('MAILBOX NOT AVAIL');
+    expect(shown(notAvail)).toBe(true);
+    expect(shown(recall)).toBe(false);
+
+    publisher.pub('atcFunctionAvailable', true);
+    expect(shown(notAvail)).toBe(false);
+    expect(shown(recall)).toBe(true);
+  });
+});

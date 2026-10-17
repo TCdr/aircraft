@@ -660,12 +660,15 @@ impl LandingGearControlInterfaceUnitSet {
         }
     }
 
+    /// `nose_wheel_steering_centered`: the nose wheel steering is centred, for the gear lever baulk lock (an
+    /// aircraft whose interlock does not use it passes true)
     pub fn update(
         &mut self,
         context: &UpdateContext,
         landing_gear: &LandingGear,
         gear_system_sensors: &impl GearSystemSensors,
         external_power_available: bool,
+        nose_wheel_steering_centered: bool,
     ) {
         self.coordinator.update(
             [
@@ -680,6 +683,7 @@ impl LandingGearControlInterfaceUnitSet {
             landing_gear,
             gear_system_sensors,
             external_power_available,
+            nose_wheel_steering_centered,
             &self.gear_handle_unit,
             self.coordinator.active_lgciu_id() == LgciuId::Lgciu1,
         );
@@ -688,6 +692,7 @@ impl LandingGearControlInterfaceUnitSet {
             landing_gear,
             gear_system_sensors,
             external_power_available,
+            nose_wheel_steering_centered,
             &self.gear_handle_unit,
             self.coordinator.active_lgciu_id() == LgciuId::Lgciu2,
         );
@@ -888,6 +893,8 @@ pub struct LandingGearControlInterfaceUnit {
 
     powered_by: ElectricalBusType,
     external_power_available: bool,
+    /// The nose wheel steering is centred (gear lever baulk lock input)
+    nose_wheel_steering_centered: bool,
 
     sensor_inputs: LgciuSensorInputs,
     gear_system_control: GearSystemStateMachine,
@@ -953,6 +960,7 @@ impl LandingGearControlInterfaceUnit {
 
             powered_by,
             external_power_available: false,
+            nose_wheel_steering_centered: true,
 
             sensor_inputs: LgciuSensorInputs::new(context, lgciu_id),
             gear_system_control: GearSystemStateMachine::default(),
@@ -978,11 +986,13 @@ impl LandingGearControlInterfaceUnit {
         landing_gear: &LandingGear,
         gear_system_sensors: &impl GearSystemSensors,
         external_power_available: bool,
+        nose_wheel_steering_centered: bool,
         gear_handle: &impl LandingGearHandle,
         is_master_computer: bool,
     ) {
         self.is_gear_lever_down = gear_handle.gear_handle_is_down();
         self.external_power_available = external_power_available;
+        self.nose_wheel_steering_centered = nose_wheel_steering_centered;
 
         self.sensor_inputs.update(
             landing_gear,
@@ -1408,10 +1418,13 @@ impl LandingGearHandle for LandingGearControlInterfaceUnit {
     }
 
     fn gear_handle_baulk_locked(&self) -> bool {
-        // Unpowered lgciu will lock mechanism
+        // Unpowered lgciu will lock mechanism. A320 FCOM DSC-32-10-40 L/G LEVER (a320_fcom.txt:50811-50815): locked
+        // DOWN "when the shock absorber on either main gear is compressed (aircraft on ground) or the nose wheel
+        // steering is not centered".
         !(self.is_powered
             && self.left_and_right_gear_extended(false)
-            && self.nose_gear_extended(false))
+            && self.nose_gear_extended(false)
+            && self.nose_wheel_steering_centered)
     }
 }
 
@@ -1629,6 +1642,7 @@ mod tests {
         powered_source_ac: TestElectricitySource,
         dc_ess_bus: ElectricalBus,
         pressure: Pressure,
+        nose_wheel_steering_centered: bool,
     }
     impl TestGearAircraft {
         fn new(context: &mut InitContext) -> Self {
@@ -1648,12 +1662,18 @@ mod tests {
                 dc_ess_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrentEssential),
 
                 pressure: Pressure::new::<psi>(3000.),
+                nose_wheel_steering_centered: true,
             }
         }
 
         fn update(&mut self, context: &UpdateContext) {
-            self.lgcius
-                .update(context, &self.landing_gear, &self.gear_system, false);
+            self.lgcius.update(
+                context,
+                &self.landing_gear,
+                &self.gear_system,
+                false,
+                self.nose_wheel_steering_centered,
+            );
 
             self.gear_system
                 .update(self.lgcius.active_lgciu(), self.pressure);
@@ -1673,6 +1693,10 @@ mod tests {
 
         fn set_no_pressure(&mut self) {
             self.pressure = Pressure::new::<psi>(0.);
+        }
+
+        fn set_nose_wheel_steering_centered(&mut self, centered: bool) {
+            self.nose_wheel_steering_centered = centered;
         }
     }
     impl Aircraft for TestGearAircraft {
@@ -1756,6 +1780,11 @@ mod tests {
 
         fn fail_hyd_pressure(&mut self) {
             self.command(|a| a.set_no_pressure());
+        }
+
+        fn set_nose_wheel_steering_centered(mut self, centered: bool) -> Self {
+            self.command(|a| a.set_nose_wheel_steering_centered(centered));
+            self.run_one_tick()
         }
     }
     impl TestBed for LgciusTestBed {
@@ -1914,6 +1943,31 @@ mod tests {
 
         assert!(!test_bed.is_gear_handle_lock_down_active());
         assert!(test_bed.is_gear_handle_down());
+    }
+
+    /// A320 FCOM DSC-32-10-40 L/G LEVER (a320_fcom.txt:50811-50815): the interlock locks the lever in DOWN "when
+    /// the shock absorber on either main gear is compressed (aircraft on ground) or the nose wheel steering is not
+    /// centered"
+    #[test]
+    fn gear_lever_locked_down_in_flight_while_nose_wheel_steering_not_centered() {
+        let mut test_bed = test_bed_in_flight_with()
+            .in_flight()
+            .set_gear_handle_down()
+            .run_one_tick();
+
+        assert!(!test_bed.is_gear_handle_lock_down_active());
+
+        test_bed = test_bed.set_nose_wheel_steering_centered(false);
+        assert!(test_bed.is_gear_handle_lock_down_active());
+
+        test_bed = test_bed.set_gear_handle_up();
+        assert!(test_bed.is_gear_handle_down());
+
+        test_bed = test_bed.set_nose_wheel_steering_centered(true);
+        assert!(!test_bed.is_gear_handle_lock_down_active());
+
+        test_bed = test_bed.set_gear_handle_up();
+        assert!(!test_bed.is_gear_handle_down());
     }
 
     #[test]

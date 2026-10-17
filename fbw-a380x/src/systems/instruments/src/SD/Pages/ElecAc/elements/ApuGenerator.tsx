@@ -1,12 +1,8 @@
 import { useSimVar } from '@instruments/common/simVars';
 import React, { FC } from 'react';
 import { Triangle } from '@instruments/common/Shapes';
-
-const APU_GEN_LOAD_NORMAL_RANGE_UPPER = 108;
-const APU_GEN_VOLTAGE_NORMAL_RANGE_LOWER = 110;
-const APU_GEN_VOLTAGE_NORMAL_RANGE_UPPER = 120;
-const APU_GEN_FREQUENCY_NORMAL_RANGE_LOWER = 390;
-const APU_GEN_FREQUENCY_NORMAL_RANGE_UPPER = 410;
+import { isApuGeneratorFrequencyNormal, isGeneratorVoltageNormal } from '../GeneratorIndications';
+import { useGeneratorLoadAmber } from './useGeneratorLoadAmber';
 
 interface ApuGeneratorProps {
   x: number;
@@ -19,11 +15,11 @@ export const ApuGenerator: FC<ApuGeneratorProps> = ({ x, y, position }) => {
   const [potential] = useSimVar(`L:A32NX_ELEC_APU_GEN_${position}_POTENTIAL`, 'volts', 500);
   const [frequency] = useSimVar(`L:A32NX_ELEC_APU_GEN_${position}_FREQUENCY`, 'hertz', 500);
 
-  const apuGenLoadNormal = load < APU_GEN_LOAD_NORMAL_RANGE_UPPER;
-  const apuGenFreqNormal =
-    frequency > APU_GEN_FREQUENCY_NORMAL_RANGE_LOWER && frequency < APU_GEN_FREQUENCY_NORMAL_RANGE_UPPER;
-  const apuGenVoltageNormal =
-    potential > APU_GEN_VOLTAGE_NORMAL_RANGE_LOWER && potential < APU_GEN_VOLTAGE_NORMAL_RANGE_UPPER;
+  // A380 FCOM DSC-24-20 GEN A(B): load amber after 10 s above 108 % (l.51013), voltage 110-120 V (l.51020),
+  // frequency 390-410 Hz (l.51029)
+  const apuGenLoadNormal = !useGeneratorLoadAmber(load);
+  const apuGenFreqNormal = isApuGeneratorFrequencyNormal(frequency);
+  const apuGenVoltageNormal = isGeneratorVoltageNormal(potential);
 
   const [lineContactorClosed] = useSimVar(`L:A32NX_ELEC_CONTACTOR_990XS${position}_IS_CLOSED`, 'number', 500);
   const [genPushbuttonAuto] = useSimVar(`APU GENERATOR SWITCH:${position}`, 'number', 500);
@@ -51,11 +47,11 @@ export const ApuGenerator: FC<ApuGeneratorProps> = ({ x, y, position }) => {
           {Math.round(load)}
         </text>
         {/* Voltage */}
-        <text x={71} y={64} className={`F29 EndAlign ${apuGenFreqNormal ? 'Green' : 'Amber'} LS1`}>
+        <text x={71} y={64} className={`F29 EndAlign ${apuGenVoltageNormal ? 'Green' : 'Amber'} LS1`}>
           {Math.round(potential)}
         </text>
         {/* Frequency */}
-        <text x={71} y={91} className={`F29 EndAlign ${apuGenVoltageNormal ? 'Green' : 'Amber'} LS1`}>
+        <text x={71} y={91} className={`F29 EndAlign ${apuGenFreqNormal ? 'Green' : 'Amber'} LS1`}>
           {Math.round(frequency)}
         </text>
       </g>

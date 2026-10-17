@@ -3,6 +3,7 @@ extern crate systems;
 mod air_conditioning;
 mod air_data_monitoring;
 mod airframe;
+mod apu_bleed_air_valve;
 mod avionics_data_communication_network;
 mod control_display_system;
 mod electrical;
@@ -11,6 +12,7 @@ mod engine_failure;
 mod engine_malfunction;
 #[cfg(test)]
 mod engine_out_aircraft_tests;
+mod fadec_automatic_shutdown;
 mod fire_and_smoke_protection;
 mod fuel;
 pub mod hydraulic;
@@ -55,6 +57,7 @@ use uom::si::{f64::Length, length::nautical_mile};
 
 use systems::{
     accept_iterable,
+    air_starter_unit::AirStarterUnit,
     apu::{
         AuxiliaryPowerUnit, AuxiliaryPowerUnitFactory, AuxiliaryPowerUnitFireOverheadPanel,
         AuxiliaryPowerUnitOverheadPanel, Pw980ApuGenerator, Pw980Constants, Pw980StartMotor,
@@ -69,6 +72,7 @@ use systems::{
         EngineFireOverheadPanel,
     },
     enhanced_gpwc::EnhancedGroundProximityWarningComputer,
+    integrated_modular_avionics::AvionicsDataCommunicationNetwork,
     landing_gear::{LandingGear, LandingGearControlInterfaceUnitSet},
     navigation::{
         adirs::{AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel},
@@ -113,6 +117,8 @@ pub struct A380 {
     apu: AuxiliaryPowerUnit<Pw980ApuGenerator, Pw980StartMotor, Pw980Constants, 2>,
     apu_fire_overhead: AuxiliaryPowerUnitFireOverheadPanel,
     apu_overhead: AuxiliaryPowerUnitOverheadPanel,
+    /// The HP ground air cart (flyPad ground services, A380 FCOM DSC-36-10-40)
+    asu: AirStarterUnit,
     pneumatic_overhead: A380PneumaticOverheadPanel,
     pressurization_overhead: A380PressurizationOverheadPanel,
     electrical_overhead: A380ElectricalOverheadPanel,
@@ -183,6 +189,7 @@ impl A380 {
             ),
             apu_fire_overhead: AuxiliaryPowerUnitFireOverheadPanel::new(context),
             apu_overhead: AuxiliaryPowerUnitOverheadPanel::new(context),
+            asu: AirStarterUnit::new(context),
             pneumatic_overhead: A380PneumaticOverheadPanel::new(context),
             pressurization_overhead: A380PressurizationOverheadPanel::new(context),
             electrical_overhead: A380ElectricalOverheadPanel::new(context),
@@ -282,7 +289,10 @@ impl Aircraft for A380 {
             &self.apu_overhead,
             self.fire_and_smoke_protection.apu_fire_on_ground(),
             &self.apu_fire_overhead,
-            self.pneumatic_overhead.apu_bleed_is_on(),
+            // "In the case of an APU bleed leak ... the APU bleed valve will close automatically"
+            // (A380 FCOM DSC-36-10-30, a380_fcom.txt l.94007-94008): the leak detection of the
+            // previous update
+            self.pneumatic_overhead.apu_bleed_is_on() && !self.pneumatic.apu_bleed_leak(),
             // This will be replaced when integrating the whole electrical system.
             // For now we use the same logic as found in the JavaScript code; ignoring whether or not
             // the engine generators are supplying electricity.
@@ -340,6 +350,8 @@ impl Aircraft for A380 {
             &self.landing_gear,
             self.hydraulic.gear_system(),
             self.ext_pwrs[0].output_potential().is_powered(),
+            // The A380 baulk only uses the gear compression (A380 FCOM DSC-32-20-120, a380_fcom.txt:81619-81622)
+            true,
         );
 
         self.fire_and_smoke_protection.update(
@@ -382,6 +394,7 @@ impl Aircraft for A380 {
 
         self.power_consumption.update(context);
 
+        self.asu.update();
         self.pneumatic.update(
             context,
             [
@@ -393,7 +406,10 @@ impl Aircraft for A380 {
             &self.pneumatic_overhead,
             &self.engine_fire_overhead,
             &self.apu,
+            &self.asu,
             &self.air_conditioning,
+            ["A1", "A2", "A3", "A4"].map(|cpiom| self.adcn.get_cpiom(cpiom).is_available()),
+            [1, 2].map(|hot_air| self.air_conditioning.hot_air_valve_is_open(hot_air)),
         );
         self.pneumatic_overhead.update_fault_lights(&self.pneumatic);
         self.air_conditioning
@@ -509,6 +525,7 @@ impl SimulationElement for A380 {
         self.apu.accept(visitor);
         self.apu_fire_overhead.accept(visitor);
         self.apu_overhead.accept(visitor);
+        self.asu.accept(visitor);
         self.electrical_overhead.accept(visitor);
         self.emergency_electrical_overhead.accept(visitor);
         self.fire_and_smoke_protection.accept(visitor);

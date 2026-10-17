@@ -3,6 +3,7 @@
 
 import { Subject } from '@microsoft/msfs-sdk';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
+import { SensedDoor, doorProximitySensorFaultVar, isDoorDetectedNotClosed } from '@shared/DoorProximitySensors';
 import { StatusLines } from './CondStatus';
 import { FwcAlertItem, NO_STATUS, cautionItem } from './FwcAlertItem';
 
@@ -16,7 +17,8 @@ import { FwcAlertItem, NO_STATUS, cautionItem } from './FwcAlertItem';
  * and 9.
  * The doors of the sim: the four passenger/service doors (MSFS interactive points 0 L FWD, 1 R FWD, 2 L AFT, 3 R AFT),
  * the overwing emergency exits (points 6 L, 7 R; the A320 ECAM has one EMER EXIT title per side) and the two cargo doors
- * (their lock, L:A32NX_FWD(AFT)_DOOR_CARGO_LOCKED, from the Rust cargo door). The avionics doors (DOOR L(R)(FWD)(AFT)
+ * (their lock, L:A32NX_FWD(AFT)_DOOR_CARGO_LOCKED, from the Rust cargo door). A failed proximity sensor (flyPad ATA 52
+ * failure) does not detect its door closed either (@shared/DoorProximitySensors). The avionics doors (DOOR L(R)(FWD)(AFT)
  * AVIONICS, l.74575-74636) are not in the sim.
  */
 
@@ -116,18 +118,27 @@ export class DoorAlerts {
 
 /* Acquisition (not unit tested: SimVar reads only) */
 
-/** Reads which doors are not closed from the simvars */
+/**
+ * Reads which doors the proximity sensors do not detect closed from the simvars: a door not closed, or a door whose
+ * proximity sensor is failed (flyPad ATA 52 failure, @shared/DoorProximitySensors)
+ */
 export function readDoorsNotClosed(): DoorsNotClosed {
-  const point = (index: number) =>
-    isInteractivePointNotClosed(SimVar.GetSimVarValue(`INTERACTIVE POINT OPEN:${index}`, 'percent'));
+  const sensorFault = (door: SensedDoor) => SimVar.GetSimVarValue(doorProximitySensorFaultVar(door), 'bool') > 0;
+  const point = (index: number, door: SensedDoor) =>
+    isDoorDetectedNotClosed(
+      isInteractivePointNotClosed(SimVar.GetSimVarValue(`INTERACTIVE POINT OPEN:${index}`, 'percent')),
+      sensorFault(door),
+    );
+  const cargo = (lockedVar: string, door: SensedDoor) =>
+    isDoorDetectedNotClosed(!(SimVar.GetSimVarValue(lockedVar, 'bool') > 0), sensorFault(door));
   return {
-    [DoorAlertKeys.leftForwardCabin]: point(0),
-    [DoorAlertKeys.rightForwardCabin]: point(1),
-    [DoorAlertKeys.leftAftCabin]: point(2),
-    [DoorAlertKeys.rightAftCabin]: point(3),
-    [DoorAlertKeys.leftEmergencyExit]: point(6),
-    [DoorAlertKeys.rightEmergencyExit]: point(7),
-    [DoorAlertKeys.forwardCargo]: !SimVar.GetSimVarValue('L:A32NX_FWD_DOOR_CARGO_LOCKED', 'bool'),
-    [DoorAlertKeys.aftCargo]: !SimVar.GetSimVarValue('L:A32NX_AFT_DOOR_CARGO_LOCKED', 'bool'),
+    [DoorAlertKeys.leftForwardCabin]: point(0, 'L_FWD_CABIN'),
+    [DoorAlertKeys.rightForwardCabin]: point(1, 'R_FWD_CABIN'),
+    [DoorAlertKeys.leftAftCabin]: point(2, 'L_AFT_CABIN'),
+    [DoorAlertKeys.rightAftCabin]: point(3, 'R_AFT_CABIN'),
+    [DoorAlertKeys.leftEmergencyExit]: point(6, 'L_EMER_EXIT'),
+    [DoorAlertKeys.rightEmergencyExit]: point(7, 'R_EMER_EXIT'),
+    [DoorAlertKeys.forwardCargo]: cargo('L:A32NX_FWD_DOOR_CARGO_LOCKED', 'FWD_CARGO'),
+    [DoorAlertKeys.aftCargo]: cargo('L:A32NX_AFT_DOOR_CARGO_LOCKED', 'AFT_CARGO'),
   } as DoorsNotClosed;
 }
