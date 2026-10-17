@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-/** Which FCOM rule sets the default alternate cruise flight level */
+/** Which aircraft rule sets the default alternate cruise flight level */
 export type AlternateCruiseLevelRule = 'A320' | 'A380';
 
 /**
  * The default alternate cruise flight level for an alternate flight plan distance.
- * A320 FCOM (a320_fcom.txt l.14309-14311): FL 100 below 100 NM, FL 220 between 100 and 200 NM, else FL 310.
- * A380 FCOM DSC-22-FMS-20-30 (a380_fcom.txt l.42387): FL 220 below 200 NM, FL 310 from 200 NM.
+ * A320: FL 100 below 100 NM, FL 220 between 100 and 200 NM, else FL 310.
+ * A380: FL 220 below 200 NM, FL 310 from 200 NM.
  * @param distanceNm the distance from the destination to the alternate in nautical miles
- * @param rule which aircraft's FCOM rule to apply
+ * @param rule which aircraft's rule to apply
  * @returns the cruise level in hundreds of feet
  */
 export function alternateCruiseLevel(distanceNm: number, rule: AlternateCruiseLevelRule): number {
@@ -27,8 +27,8 @@ export function alternateCruiseLevel(distanceNm: number, rule: AlternateCruiseLe
 
 /**
  * Whether CHECK ALTN WIND is raised when company winds are inserted: the uplinked alternate wind level differs from the
- * default alternate cruise level (A380 FCOM message list l.21975-21990, A320 FCOM l.22527-22528). The uplinked wind
- * altitude is in feet, the default alternate cruise level a flight level.
+ * default alternate cruise level (both aircraft). The uplinked wind altitude is in feet, the default alternate cruise
+ * level a flight level.
  * @param uplinkedAltitudeFt the altitude of the uplinked alternate wind, in feet, if any
  * @param defaultFlightLevel the default alternate cruise flight level, if any
  */

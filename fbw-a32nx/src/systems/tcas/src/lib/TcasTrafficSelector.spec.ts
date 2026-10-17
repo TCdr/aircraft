@@ -6,10 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isIntruderShownForTrafficSelector } from './TcasTrafficSelector';
 
-/*
- * A320 FCOM DSC-34-SURV-60-20 TRAFFIC sel (a320_fcom.txt 56168-56170): THRT shows the proximate and other intruders
- * only if a TA or RA is present, within +-2 700 ft. Before, THRT only ever showed the TA/RA intruders themselves.
- */
+/* THRT shows the proximate and other intruders only if a TA or RA is present, within +-2 700 ft. */
 describe('TCAS TRAFFIC selector', () => {
   const thrtBand = [-2700, 2700] as const;
 

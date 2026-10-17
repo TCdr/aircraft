@@ -69,12 +69,11 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
   private readonly irs3DataVisible = Subject.create<boolean>(false);
 
   /**
-   * FCOM DSC-22-FMS-20-30 POSITION / IRS page, FREEZE ALL IRS: freezes the IRS 1(2)(3) data, with the UTC (or flight)
+   * FREEZE ALL IRS: freezes the IRS 1(2)(3) data, with the UTC (or flight)
    * time of the freeze; the button then reads UNFREEZE ALL IRS.
    */
   private readonly irsDataFrozen = Subject.create(false);
 
-  // FCOM DSC-22-FMS-20-30 P 284: FREEZE ALL IRS / UNFREEZE ALL IRS
   private readonly irsDataFreezeButtonLabel = this.irsDataFrozen.map((v) =>
     v ? 'UNFREEZE<br />ALL IRS *' : 'FREEZE<br />ALL IRS *',
   );
@@ -219,7 +218,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
       this.irsDataGpirsPosition.set(
         coordinateToString(this.props.fmcService.master.navigation.getPpos() ?? { lat: 0, long: 0 }, false),
       );
-      // FCOM P 275: GPIRS accuracy in feet (the FMS EPU is in nautical miles)
+      // GPIRS accuracy in feet (the FMS EPU is in nautical miles)
       const epe = this.props.fmcService.master.navigation.getEpe();
       this.irsDataAccuracy.set(Number.isFinite(epe) ? (epe * 6076.12).toFixed(0) : '----');
     }
@@ -298,7 +297,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
         {super.render()}
         {/* begin page content */}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 275), page container coordinates */}
+          {/* Positions measured on the reference figure, page container coordinates */}
           <div class="mfd-fcom-canvas">
             {fcomAt(22, 19, <span class="mfd-label amber">{this.alignmentLabel}</span>)}
             {fcomAt(22, 394, <span class="mfd-value bigger">{this.alignmentPosition}</span>)}

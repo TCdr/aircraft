@@ -19,7 +19,7 @@ import './MfdFmsPositionGps.scss';
 
 interface MfdFmsPositionGpsProps extends AbstractMfdPageProps {}
 
-/** The data of one GPS receiver shown on the page (A380 FCOM DSC-22-FMS-20-30, POSITION / GPS page). */
+/** The data of one GPS receiver shown on the POSITION / GPS page. */
 class GpsReceiverData {
   readonly position = Subject.create(noPositionAvailableText);
 
@@ -39,7 +39,7 @@ class GpsReceiverData {
 }
 
 /**
- * POSITION / GPS page (A380 FCOM DSC-22-FMS-20-30 "POSITION / GPS PAGE"): GPS 1 and GPS 2 position, mode, number of
+ * POSITION / GPS page: GPS 1 and GPS 2 position, mode, number of
  * satellites, accuracy (HFOM), true track, UTC time, altitude and ground speed, from the GPS receivers of MMR 1 and 2.
  */
 export class MfdFmsPositionGps extends FmsPage<MfdFmsPositionGpsProps> {
@@ -107,7 +107,7 @@ export class MfdFmsPositionGps extends FmsPage<MfdFmsPositionGpsProps> {
 
   /**
    * The values of one receiver. The rows, the value right edges and the 448 px offset between GPS 1 and GPS 2 follow
-   * the FCOM figure (DSC-22-FMS-20-30 P 271); positions are page container coordinates.
+   * the reference figure; positions are page container coordinates.
    */
   private renderReceiver(index: number): VNode {
     const data = this.receivers[index];
@@ -119,7 +119,7 @@ export class MfdFmsPositionGps extends FmsPage<MfdFmsPositionGpsProps> {
         <div class="mfd-position-gps-item mfd-position-gps-title" style={`top: -2px; left: ${104 + offset}px;`}>
           <span class="mfd-label">{`GPS ${index + 1}`}</span>
         </div>
-        {/* FCOM: the two positions fill one line, GPS 2 starts at x = 415 */}
+        {/* The two positions fill one line, GPS 2 starts at x = 415 */}
         <div class="mfd-position-gps-item" style={`top: 38px; left: ${index === 0 ? 12 : 415}px;`}>
           <span class="mfd-value bigger">{data.position}</span>
         </div>
@@ -164,7 +164,6 @@ export class MfdFmsPositionGps extends FmsPage<MfdFmsPositionGpsProps> {
     return (
       <>
         {super.render()}
-        {/* begin page content */}
         <div class="mfd-page-container" style="position: relative;">
           <div class="mfd-position-gps-canvas">
             {this.renderReceiver(0)}
@@ -192,7 +191,7 @@ export class MfdFmsPositionGps extends FmsPage<MfdFmsPositionGpsProps> {
             </div>
             <div class="mfd-position-gps-separator" />
           </div>
-          {/* FCOM: the RETURN button displays the POSITION / MONITOR page */}
+          {/* The RETURN button displays the POSITION / MONITOR page */}
           <div class="mfd-fcom-overlay">
             {fcomAt(
               797,

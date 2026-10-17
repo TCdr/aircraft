@@ -1,6 +1,6 @@
 ﻿@import "../../../../MsfsAvionicsCommon/definitions";
 
-// FCOM DSC-22-FMS-20-30 P 186: the hold frame spans x = 8..598 and y = 185..886 of the display, small radio labels
+// The hold frame spans x = 8..598 and y = 185..886 of the display, small radio labels
 .mfd-fpln-hold-frame {
   position: absolute;
   left: 8px;

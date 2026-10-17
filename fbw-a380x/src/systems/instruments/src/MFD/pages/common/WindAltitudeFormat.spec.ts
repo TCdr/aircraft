@@ -5,8 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { Subject } from '@microsoft/msfs-sdk';
 import { WindAltitudeFormat } from './DataEntryFormats';
 
-// A380 FCOM a380_fcom.txt l.42211-42212 and l.42374-42375: "The flight crew can enter a ground wind, by entering an
-// altitude less than 400 ft, or by entering "GND" in the entry field."
+// A ground wind is entered with an altitude below 400 ft, or with GND
 describe('WIND ALTITUDE entry: ground wind', () => {
   const atElevation = (ft: number) => new WindAltitudeFormat(null, false, Subject.create<number | null>(ft));
 

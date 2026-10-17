@@ -48,7 +48,7 @@ export class Transponder implements Instrument {
 
   private readonly isAuto = ConsumerSubject.create(this.sub.on('mfd_xpdr_set_auto'), false);
   private readonly isAltReportingOn = ConsumerSubject.create(this.sub.on('mfd_xpdr_set_alt_reporting'), true);
-  /** XPDR mode ON (A380 FCOM DSC-34-20-40): the transponder replies as in flight, also on ground */
+  /** XPDR mode ON: the transponder replies as in flight, also on ground */
   private readonly isOn = ConsumerSubject.create(this.sub.on('mfd_xpdr_set_on'), false);
 
   private readonly msfsTransponderState = Subject.create(MsfsTransponderState.Off);

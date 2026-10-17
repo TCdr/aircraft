@@ -11,7 +11,7 @@ import { FMMessageTypes } from './FmMessages';
 import { GpsDeselectedMessageLogic } from './GpsDeselectedMessageLogic';
 import { distanceToTopOfDescent } from './TopOfDescentDistance';
 
-/** GPS IS DESELECTED (A320 FCOM DSC-22_20-50-10-28): the GPS deselected, 80 NM before the T/D or in approach phase */
+/** GPS IS DESELECTED: the GPS deselected, 80 NM before the T/D or in approach phase */
 export class GpsIsDeselected implements FMMessageSelector {
   public readonly message: FMMessage = FMMessageTypes.GpsIsDeselected;
 

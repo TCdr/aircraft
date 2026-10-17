@@ -15,7 +15,7 @@ import { distanceToTopOfDescent } from './TopOfDescentDistance';
 const PFD_MESSAGE_VAR = 'L:A32NX_PFD_MSG_CHECK_APPR_SELECTION';
 
 /**
- * CHECK APPR SELECTION (A320 FCOM MCDU messages, a320_fcom.txt l.22524-22536): a non ILS approach in the F-PLN with an
+ * CHECK APPR SELECTION: a non ILS approach in the F-PLN with an
  * ILS manually tuned on the RAD NAV page, near the T/D or in descent/approach. Sent to the MCDU and to the PFD FMA.
  */
 export class CheckApproachSelection implements FMMessageSelector {

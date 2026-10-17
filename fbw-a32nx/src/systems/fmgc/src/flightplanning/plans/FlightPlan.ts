@@ -266,10 +266,10 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
   }
 
   /**
-   * DIR TO a leg of the flight plan (A380 FCOM DSC-22-FMS, DIR TO revision): DIRECT, DIRECT WITH ABEAM (the flight plan
-   * waypoints up to the target are replaced by their abeam points on the direct leg), CRS IN (the current track up to
-   * the intercept of an inbound course to the target) or CRS OUT (the current track up to the intercept of an outbound
-   * course from the target, a MANUAL leg).
+   * DIR TO a leg of the flight plan (A380 DIR TO revision): DIRECT, DIRECT WITH ABEAM (the flight plan waypoints up to
+   * the target are replaced by their abeam points on the direct leg), CRS IN (the current track up to the intercept of
+   * an inbound course to the target) or CRS OUT (the current track up to the intercept of an outbound course from the
+   * target, a MANUAL leg).
    */
   directToLeg(
     ppos: Coordinates,
@@ -392,7 +392,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
   }
 
   /**
-   * HOLD at the present position (see PresentPositionHold.ts for the FCOM rules): a manual hold (HM) at a PPOS waypoint
+   * HOLD at the present position (see PresentPositionHold.ts for the rules): a manual hold (HM) at a PPOS waypoint
    * at the aircraft position, entered from the present position (the T-P, as for a DIR TO), and followed by the TO
    * waypoint, so that the flight plan continues from the hold fix when the crew exits the hold. The legs before the TO
    * waypoint are removed, as for a DIR TO.
@@ -456,7 +456,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
   /**
    * The legs of a DIRECT or DIRECT WITH ABEAM up to the target: the direct leg to the target, or the direct leg to the
    * first abeam point, the abeam points, and the target. Abeam points have no constraint, and the winds of their
-   * reference waypoint when it is less than 100 NM away (A380 FCOM DSC-22-FMS, DIRECT WITH ABEAM).
+   * reference waypoint when it is less than 100 NM away (A380 DIRECT WITH ABEAM).
    */
   private directLegs(
     ppos: Coordinates,
@@ -491,19 +491,27 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
       abeamLegs.length > 0
         ? FlightPlanLeg.fromEnrouteFix(this.enrouteSegment, targetFix, '', LegType.TF)
         : FlightPlanLeg.directToTurnEnd(this.enrouteSegment, targetFix, MagVar.getForFix(targetFix));
-    if (targetLeg) {
-      target.withDefinitionFrom(targetLeg).withPilotEnteredDataFrom(targetLeg);
-      // If we don't do this, the leg will have the termination waypoint's ident which may not be the leg ident (for runway legs for example)
-      target.ident = targetLeg.ident;
-    }
+    FlightPlan.takeTargetLegData(target, targetLeg);
 
     return [...abeamLegs, target];
   }
 
   /**
-   * The legs of a CRS IN or CRS OUT DIR TO (A380 FCOM DSC-22-FMS, DIR TO revision): the current track up to the intercept
-   * point (INTCPT), then the inbound course to the target, or the outbound course (a MANUAL leg). Without intercept
-   * point, the course leg to the target (CRS IN) or from it (CRS OUT).
+   * Gives a DIR TO leg the definition, the pilot entered data and the ident of the flight plan leg it replaces, if any.
+   * If we don't copy the ident, the leg will have the termination waypoint's ident which may not be the leg ident (for
+   * runway legs for example).
+   */
+  private static takeTargetLegData(leg: FlightPlanLeg, targetLeg: FlightPlanLeg | undefined): void {
+    if (targetLeg) {
+      leg.withDefinitionFrom(targetLeg).withPilotEnteredDataFrom(targetLeg);
+      leg.ident = targetLeg.ident;
+    }
+  }
+
+  /**
+   * The legs of a CRS IN or CRS OUT DIR TO (A380 DIR TO revision): the current track up to the intercept point
+   * (INTCPT), then the inbound course to the target, or the outbound course (a MANUAL leg). Without intercept point,
+   * the course leg to the target (CRS IN) or from it (CRS OUT).
    */
   private interceptLegs(
     ppos: Coordinates,
@@ -512,8 +520,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     targetFix: Fix,
     interceptCourse: DirectToInterceptCourse,
   ): FlightPlanLeg[] {
-    const targetMagVar = MagVar.getForFix(targetFix);
-    const courseMagVar = interceptCourse.isTrue ? null : targetMagVar;
+    const courseMagVar = interceptCourse.isTrue ? null : MagVar.getForFix(targetFix);
     const trueCourse =
       courseMagVar === null ? interceptCourse.course : MagVar.magneticToTrue(interceptCourse.course, courseMagVar);
 
@@ -537,10 +544,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
       );
       if (interceptCourse.inbound) {
         const target = FlightPlanLeg.fromEnrouteFix(this.enrouteSegment, targetFix, '', LegType.TF);
-        if (targetLeg) {
-          target.withDefinitionFrom(targetLeg).withPilotEnteredDataFrom(targetLeg);
-          target.ident = targetLeg.ident;
-        }
+        FlightPlan.takeTargetLegData(target, targetLeg);
         return [...legs, target];
       }
       // CRS OUT: the MANUAL leg starts at the intercept point
@@ -554,9 +558,8 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
       courseMagVar,
       interceptCourse.inbound,
     );
-    if (targetLeg && interceptCourse.inbound) {
-      courseLeg.withDefinitionFrom(targetLeg).withPilotEnteredDataFrom(targetLeg);
-      courseLeg.ident = targetLeg.ident;
+    if (interceptCourse.inbound) {
+      FlightPlan.takeTargetLegData(courseLeg, targetLeg);
     }
     return [...legs, courseLeg];
   }
@@ -1465,7 +1468,6 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     const hasDraftCruise = draftCruiseWind !== null;
     const hasDraftDescent = draftDescentWind !== null;
     const hasDraftAlternate = draftAlternateWind !== null;
-    // Nothing to insert without any draft (the old check returned when all four drafts existed, inserting none)
     if (!hasDraftClimb && !hasDraftCruise && !hasDraftDescent && !hasDraftAlternate) {
       return;
     }

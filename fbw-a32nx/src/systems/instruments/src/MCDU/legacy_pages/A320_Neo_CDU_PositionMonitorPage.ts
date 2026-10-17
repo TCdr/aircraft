@@ -15,10 +15,8 @@ export class CDUPositionMonitorPage {
   private static readonly irLongitude = Arinc429Register.empty();
 
   /**
-   * Reads the positions of the FMS function, the GPIRS, radio, MIX IRS and IRS positions (A320 FCOM DSC-22_20-50-10-28
-   * POSITION MONITOR page). The MCDU pages share one FMS: the onside FMGC is FMGC 1.
-   * @param mcdu the MCDU
-   * @returns what the page shows
+   * Reads the positions of the FMS function, the GPIRS, radio, MIX IRS and IRS positions. The MCDU pages share one FMS:
+   * the onside FMGC is FMGC 1.
    */
   static read(mcdu: LegacyFmsPageInterface): PositionMonitorReading {
     const navigation = mcdu.navigation;
@@ -69,7 +67,7 @@ export class CDUPositionMonitorPage {
       CDUSelectedNavaids.ShowPage(mcdu);
     };
 
-    // FREEZE: the page keeps the data of this moment (A320 FCOM DSC-22_20-50-10-28 [6L])
+    // FREEZE [6L]: the page keeps the data of this moment
     mcdu.onLeftInput[5] = () => {
       CDUPosFrozen.ShowPage(mcdu, reading);
     };
