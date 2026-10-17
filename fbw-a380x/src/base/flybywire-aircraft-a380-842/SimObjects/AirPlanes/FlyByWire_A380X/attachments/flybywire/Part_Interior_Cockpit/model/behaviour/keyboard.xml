@@ -387,6 +387,83 @@
             </UseTemplate>
 		</Component>
     </Template>
+
+    <!--
+    Template for rigging a key of the Additional Control Device (ACD), the 8-key pad beside the OIT used when the
+    keyboard is stowed. It sends the H event of the same laptop key, so both reach the OIT the same way.
+
+    Define one level up:
+            - SIDE_NODE_GROUP   <no default>    side (CPT or FO)
+            - OIT_SIDE          <no default>    side of the H event (L or R), read by the OIT instrument.tsx
+            - BACKLIGHT_POWERED <no default>    power of the key legends
+
+    Main Parameters:
+            - ACD_KEY           <no default>    Node-ID suffix of the ACD key
+            - KEY               <no default>    laptop key of the H event
+            - TOOLTIP           <no default>    tooltip of the key
+    -->
+    <Template Name="FBW_A380X_Acd_Key_Template">
+        <UseTemplate Name="ASOBO_GT_Push_Button_Airliner">
+            <!-- The interaction covers the key's children too: its invisible _CLICK box makes the 8 x 6 mm key a larger
+                 mouse target, while the hover highlight stays visible on the key -->
+            <NODE_ID>PUSH_ACD_#SIDE_NODE_GROUP#_#ACD_KEY#</NODE_ID>
+            <SEQ1_NODE_ID>PUSH_ACD_#SIDE_NODE_GROUP#_#ACD_KEY#_SEQ1</SEQ1_NODE_ID>
+            <ANIM_NAME>PUSH_ACD_#SIDE_NODE_GROUP#_#ACD_KEY#</ANIM_NAME>
+            <POTENTIOMETER_SEQ1>85</POTENTIOMETER_SEQ1>
+            <SEQ1_POWERED>#BACKLIGHT_POWERED#</SEQ1_POWERED>
+            <SEQ1_EMISSIVE_CODE>#BACKLIGHT_POWERED#</SEQ1_EMISSIVE_CODE>
+            <SEQ1_EMISSIVE_DRIVES_VISIBILITY>False</SEQ1_EMISSIVE_DRIVES_VISIBILITY>
+            <NO_SEQ2/>
+            <TOOLTIPID>#TOOLTIP#</TOOLTIPID>
+            <LEFT_SINGLE_CODE>(&gt;H:A380X_LAPTOP_KEYBOARD_#OIT_SIDE#_#KEY#) 1 (&gt;L:A380X_ACD_#SIDE_NODE_GROUP#_#ACD_KEY#, Bool)</LEFT_SINGLE_CODE>
+        </UseTemplate>
+    </Template>
+
+    <Template Name="FBW_A380X_Acd_Template">
+        <Component ID="ACD_#SIDE_NODE_GROUP#">
+            <UseTemplate Name="FBW_A380X_Acd_Key_Template">
+                <ACD_KEY>OIS_XFR</ACD_KEY>
+                <TOOLTIP>OIS XFR (display of the other OIT)</TOOLTIP>
+                <KEY>OIS_XFR</KEY>
+            </UseTemplate>
+            <UseTemplate Name="FBW_A380X_Acd_Key_Template">
+                <ACD_KEY>OIS_MENU</ACD_KEY>
+                <TOOLTIP>OIS MENU (FLT OPS menu)</TOOLTIP>
+                <KEY>OIS_MENU</KEY>
+            </UseTemplate>
+            <UseTemplate Name="FBW_A380X_Acd_Key_Template">
+                <ACD_KEY>ESC</ACD_KEY>
+                <TOOLTIP>ESC</TOOLTIP>
+                <KEY>ESC</KEY>
+            </UseTemplate>
+            <UseTemplate Name="FBW_A380X_Acd_Key_Template">
+                <ACD_KEY>ENTER</ACD_KEY>
+                <TOOLTIP>ENTER</TOOLTIP>
+                <KEY>ENTER</KEY>
+            </UseTemplate>
+            <UseTemplate Name="FBW_A380X_Acd_Key_Template">
+                <ACD_KEY>UP</ACD_KEY>
+                <TOOLTIP>Up</TOOLTIP>
+                <KEY>ARROW_UP</KEY>
+            </UseTemplate>
+            <UseTemplate Name="FBW_A380X_Acd_Key_Template">
+                <ACD_KEY>DOWN</ACD_KEY>
+                <TOOLTIP>Down</TOOLTIP>
+                <KEY>ARROW_DOWN</KEY>
+            </UseTemplate>
+            <UseTemplate Name="FBW_A380X_Acd_Key_Template">
+                <ACD_KEY>LEFT</ACD_KEY>
+                <TOOLTIP>Left</TOOLTIP>
+                <KEY>ARROW_LEFT</KEY>
+            </UseTemplate>
+            <UseTemplate Name="FBW_A380X_Acd_Key_Template">
+                <ACD_KEY>RIGHT</ACD_KEY>
+                <TOOLTIP>Right</TOOLTIP>
+                <KEY>ARROW_RIGHT</KEY>
+            </UseTemplate>
+        </Component>
+    </Template>
+
     <Template Name="FBW_A380X_Components_Keyboards">
         <!-- CPT -->
         <UseTemplate Name="FBW_A380X_Laptop_Keyboard_Template">
@@ -402,6 +479,18 @@
 
             <BACKLIGHT_POWERED>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</BACKLIGHT_POWERED>
             <BACKLIGHT_POTENTIOMETER>85</BACKLIGHT_POTENTIOMETER>
+        </UseTemplate>
+
+        <UseTemplate Name="FBW_A380X_Acd_Template">
+            <SIDE_NODE_GROUP>CPT</SIDE_NODE_GROUP>
+            <OIT_SIDE>L</OIT_SIDE>
+            <BACKLIGHT_POWERED>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</BACKLIGHT_POWERED>
+        </UseTemplate>
+
+        <UseTemplate Name="FBW_A380X_Acd_Template">
+            <SIDE_NODE_GROUP>FO</SIDE_NODE_GROUP>
+            <OIT_SIDE>R</OIT_SIDE>
+            <BACKLIGHT_POWERED>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</BACKLIGHT_POWERED>
         </UseTemplate>
     </Template>
 </ModelBehaviors>

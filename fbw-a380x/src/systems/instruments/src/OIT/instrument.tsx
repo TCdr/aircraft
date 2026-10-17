@@ -15,6 +15,7 @@ import { AdrBusPublisher, FwcBusPublisher, FailuresConsumer } from '@flybywiresi
 import { OIT } from './OIT';
 import { InternalKbdKeyEvent, OitSimvarPublisher } from './OitSimvarPublisher';
 import { OisLaptop } from './OisLaptop';
+import { laptopKeyToOitKey } from './LaptopKeyboard';
 import { AircraftNetworkServerUnit } from './System/AircraftNetworkServerUnit';
 import { AnsuOps } from './System/AnsuOps';
 import { ResetPanelSimvarPublisher } from '../MsfsAvionicsCommon/providers/ResetPanelPublisher';
@@ -90,12 +91,13 @@ class OitInstrument implements FsInstrument {
       .getSubscriber<HEvent>()
       .on('hEvent')
       .handle((eventName) => {
-        if (
-          eventName.startsWith(
-            this.instrument.instrumentIndex === 1 ? 'A380X_LAPTOP_KEYBOARD_L' : 'A380X_LAPTOP_KEYBOARD_R',
-          )
-        ) {
-          const key = eventName.substring(23);
+        // H:A380X_LAPTOP_KEYBOARD_L(R)_<key> of the laptop OIS keys and the ACD keys (keyboard.xml), e.g. A380X_LAPTOP_KEYBOARD_L_OIS_MENU
+        const prefix = this.instrument.instrumentIndex === 1 ? 'A380X_LAPTOP_KEYBOARD_L_' : 'A380X_LAPTOP_KEYBOARD_R_';
+        if (eventName.startsWith(prefix)) {
+          const key = laptopKeyToOitKey(eventName.substring(prefix.length));
+          if (key === null) {
+            return;
+          }
 
           this.bus
             .getPublisher<InternalKbdKeyEvent>()

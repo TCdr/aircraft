@@ -118,6 +118,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
 1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
+1. [A380X/OIT] The keys of the captain and F/O Additional Control Devices beside the OITs (OIS XFR, OIS MENU, ESC, ENTER, arrows) work, with sharp lit legends and larger click areas - @TCdr
 
 ## 2024.1.0
 

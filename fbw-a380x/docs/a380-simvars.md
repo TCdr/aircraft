@@ -1776,6 +1776,13 @@ The PRIMs perform the flight guidance and flight envelope functions.
   - Bool
   - Indicates if a specific IOM system is available
 
+- A380X_ACD_{side}_{key}
+  - Bool
+  - Set to 1 by a press of the key of the Additional Control Device (the 8-key pad beside the OIT, A380 FCOM
+    DSC-46-20-20-60), never reset; the key itself goes to the OIT as H:A380X_LAPTOP_KEYBOARD_L(R)_<key> (keyboard.xml)
+  - {side} = CPT or FO
+  - {key} = OIS_XFR, OIS_MENU, ESC, ENTER, UP, DOWN, LEFT or RIGHT
+
 ## Auxiliary Power Unit ATA 49
 
 - A32NX_APU_N2
