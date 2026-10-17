@@ -12,7 +12,6 @@ import {
   oilTemperatureClass,
 } from './OilIndications';
 
-/* A380 FCOM DSC-70-90 OIL QUANTITY, a380_fcom.txt l.113334-113349 */
 describe('SD ENGINE oil quantity', () => {
   it('pulses below the 1.2 qt oil advisory limit', () => {
     expect(oilQuantityPulses(1.1, 20)).toBe(true);
@@ -38,7 +37,6 @@ describe('SD ENGINE oil quantity', () => {
   });
 });
 
-/* A380 FCOM DSC-70-90 OIL TEMPERATURE, l.113357-113373 */
 describe('SD ENGINE oil temperature', () => {
   it('is green up to 163 °C, pulses green above 163 °C and is amber above 177 °C', () => {
     expect(oilTemperatureClass(100)).toBe('Green');
@@ -49,7 +47,6 @@ describe('SD ENGINE oil temperature', () => {
   });
 });
 
-/* A380 FCOM DSC-70-90 OIL PRESSURE, l.113376-113390 */
 describe('SD ENGINE oil pressure', () => {
   it('uses the non linear scale: 0-100 PSI on the first half, 100-440 PSI on the second half', () => {
     expect(oilPressureGaugeValue(0)).toBe(0);

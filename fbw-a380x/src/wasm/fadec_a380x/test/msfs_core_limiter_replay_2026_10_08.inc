@@ -1,8 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-// Generated from the SimConnect recording of the A380X sim test of 2026-10-08 (blip2.log, every sample, 268.0-300.0 s; the
-// recording clock has 0.1 s steps, the samples are spread evenly, 0.0629 s apart on average, as in core_spike_replay_2026_10_08.inc).
+// Generated from a SimConnect recording of an A380X sim test (every sample, 268.0-300.0 s; the recording clock has 0.1 s steps,
+// the samples are spread evenly, 0.0629 s apart on average, as in core_spike_replay_2026_10_08.inc).
 // Engine 4 quick relight at FL150/240 kt, -18.3 C, A/THR CL, MSFS throttle held at idle until 285.0 s, then released.
 // Each sample: t (s), A32NX_ENGINE_STATE (FBW: 1 ON, 2 STARTING), SIM ON GROUND, GENERAL ENG THROTTLE LEVER POSITION:4,
 // TURB ENG N2:4, TURB ENG CORRECTED N2:4, TURB ENG CORRECTED N1:4, TURB ENG COMMANDED N1:4 (percent), TURB ENG JET THRUST:4 (lbf).

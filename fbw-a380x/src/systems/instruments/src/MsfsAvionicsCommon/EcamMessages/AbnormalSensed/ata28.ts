@@ -1444,14 +1444,12 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
     items: [], // TODO
   },
   280900002: {
-    // A380 FCOM PRO-ABN-ECAM-10-28 FUEL LEAK DETECTED (ABN PROC FUEL LEAK)
     title: '\x1b<4m\x1b4mFUEL\x1bm FUEL LEAK',
     sensed: false,
     items: FUEL_LEAK_PROCEDURE_ITEMS,
     recommendation: 'LAND ANSA',
   },
   280900003: {
-    // A380 FCOM PRO-ABN-ECAM-10-28 FUEL MAN BALANCING PROCEDURE
     title: '\x1b<4m\x1b4mFUEL\x1bm MAN BALANCING PROCEDURE',
     sensed: false,
     items: [

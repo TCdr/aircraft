@@ -7,37 +7,30 @@ import { Subject } from '@microsoft/msfs-sdk';
 /**
  * Trigger logic of the BRAKES and STEER alerts of the FWS that come from the braking control system (BCS), the
  * emergency brake control unit (EBCU) and the steering control system (SCS) of the Rust hydraulic model
- * (fbw-a380x/src/wasm/systems/a380_systems/src/hydraulic/brake_steer_faults.rs), A380 FCOM PRO-ABN-ECAM-10-32
- * (a380_fcom.txt l.159700-160808 and l.162553-163160).
+ * (a380_systems hydraulic/brake_steer_faults.rs).
  *
  * The model has one NORM brake circuit (GREEN) and one ALTN brake circuit (YELLOW with one accumulator) for all the
- * wheel groups, so a brake fault is on all the wheel groups ("A wheel group is defined as: Wing landing gear wheel
- * group, Left body ..., Right body ...", l.159852-159855).
+ * wheel groups (wing, left body, right body), so a brake fault is on all the wheel groups.
  */
 
 /** What the FWS reads from the BCS, the EBCU, the SCS and the brake pressure transmitters */
 export interface BrakeSteerInputs {
-  /** L:A32NX_BRAKES_NORM_BRK_FAULT: the BCS normal braking is failed */
   normBrkFault: boolean;
-  /** L:A32NX_BRAKES_ALTN_BRK_FAULT: the BCS alternate braking is failed */
   altnBrkFault: boolean;
-  /** L:A32NX_BRAKES_EMER_BRK_FAULT: the EBCU is failed */
+  /** The EBCU is failed */
   emerBrkFault: boolean;
-  /** L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS: brake accumulator pressure, psi */
+  /** Brake accumulator pressure, psi */
   accuPressurePsi: number;
-  /** L:A32NX_HYD_BRAKE_ALTN_LEFT_PRESS: left alternate (park brake) brake pressure, psi */
+  /** Left alternate (park brake) brake pressure, psi */
   altnLeftPressurePsi: number;
-  /** L:A32NX_HYD_BRAKE_ALTN_RIGHT_PRESS: right alternate (park brake) brake pressure, psi */
+  /** Right alternate (park brake) brake pressure, psi */
   altnRightPressurePsi: number;
-  /** L:A32NX_STEERING_NORM_NWS_FAULT: the normal nose wheel steering is failed */
   normNwsFault: boolean;
-  /** L:A32NX_STEERING_ALTN_NWS_FAULT: the alternate nose wheel steering (steering LEHGS) is failed */
+  /** The alternate nose wheel steering (steering LEHGS) is failed */
   altnNwsFault: boolean;
-  /** L:A32NX_STEERING_BWS_FAULT: the body wheel steering is failed (centred and locked) */
+  /** The body wheel steering is failed (centred and locked) */
   bwsFault: boolean;
-  /** L:A32NX_STEERING_SCS_1_FAULT */
   scs1Fault: boolean;
-  /** L:A32NX_STEERING_SCS_2_FAULT */
   scs2Fault: boolean;
   /** L:A32NX_BRAKES_PEDAL_BRAKING_MODE: 0 none, 1 normal, 2 alternate, 3 emergency (EBCU) */
   pedalBrakingMode: number;
@@ -75,9 +68,9 @@ export function readBrakeSteerInputs(read: (name: string) => number): BrakeSteer
 }
 
 /**
- * BRAKES ACCU PRESS LO: "The pressure of, at least, one brake accumulator is below the minimum value" (l.159708).
- * Design choice: 3 000 psi. The FCOM amber arc of the accumulator pressure ends at 3 840 psi (triple pressure
- * indicator, l.81552) for A380 accumulators that give "at least 6 brake applications" (l.78946). The model has one
+ * BRAKES ACCU PRESS LO: the pressure of at least one brake accumulator is below its minimum value.
+ * Design choice: 3 000 psi. The amber arc of the accumulator pressure on the triple pressure indicator ends at
+ * 3 840 psi, for A380 accumulators that give at least 6 brake applications. The model has one
  * A320-sized accumulator that loses about 1 600 psi on the first park brake application (5 250 to 3 600 psi, then
  * 2 750 psi: Rust hydraulic test bed), so 3 840 psi would trigger after a single application without hydraulic
  * pressure. 3 000 psi triggers after the second application, when less than one park brake application is left above
@@ -88,42 +81,36 @@ export const ACCU_PRESS_LO_PSI = 3000;
  * Design choice: the accumulator pressure stays low for 10 s, so the short dip of a brake application refilled by a
  * running YELLOW pump, and the gauge filter at power-up, do not trigger it.
  */
-export const ACCU_PRESS_LO_CONFIRM_S = 10;
+const ACCU_PRESS_LO_CONFIRM_S = 10;
 /**
- * BRAKES PARK BRK PRESS LO: "Parking brake pressure is low on at least one body landing gear when the parking brake is
- * on" (l.160467). The FCOM gives no value. Design choice: 1 700 psi, the pressure that the EBCU applies with the
- * take-off brake law and to the wing gear brakes in ultimate braking (l.80043-80045, l.80154); the model applies
+ * BRAKES PARK BRK PRESS LO: the parking brake pressure is low on at least one body landing gear with the parking
+ * brake on. No threshold is published. Design choice: 1 700 psi, the pressure that the EBCU applies with the
+ * take-off brake law and to the wing gear brakes in ultimate braking; the model applies
  * 2 103 psi with the park brake on, so the alert means that the accumulator can no longer hold that pressure.
  */
 export const PARK_BRK_PRESS_LO_PSI = 1700;
 /** Design choice: 5 s, longer than the pressure build-up after the PARK BRK handle is set to ON (about 1 s) */
-export const PARK_BRK_PRESS_LO_CONFIRM_S = 5;
+const PARK_BRK_PRESS_LO_CONFIRM_S = 5;
 
 /** The BRAKES alerts that come from the BCS/EBCU faults; at most one of norm/altn/emer/altnEmer/pedal per fault set */
 export interface BrakeFaultAlerts {
-  /** BRAKES NORM BRK FAULT */
   normBrk: boolean;
-  /** BRAKES ALTN BRK FAULT */
   altnBrk: boolean;
-  /** BRAKES EMER BRK FAULT */
   emerBrk: boolean;
-  /** BRAKES ALTN + EMER BRK FAULT */
   altnEmerBrk: boolean;
-  /** BRAKES PEDAL BRAKING FAULT */
   pedalBraking: boolean;
 }
 
 /**
  * Which BRAKES alerts the BCS and EBCU faults raise.
- * - PEDAL BRAKING FAULT: "The normal, the alternate and the emergency braking modes are failed" (l.160525); it replaces
- *   the alerts of the three single faults.
- * - ALTN + EMER BRK FAULT: "Alternate braking and emergency braking fail ... and the normal braking remains available"
- *   (l.159767-159768); it replaces ALTN BRK FAULT and EMER BRK FAULT.
- * - NORM BRK FAULT: "Normal braking fails" (l.160331); the model fault is on all the wheel groups, so the in-flight
- *   condition "normal braking is failed on all landing gears" (l.160339) is met too.
- * - ALTN BRK FAULT, EMER BRK FAULT: the single faults (l.159848-159850, l.160184-160185). Design choice: with the
- *   normal braking also failed they still show next to NORM BRK FAULT (the FCOM gives no combined alert for these; the
- *   emergency braking that follows raises BRAKES A-SKID FAULT ON ALL L/G too, see aSkidFaultOnAllLg).
+ * - PEDAL BRAKING FAULT: normal, alternate and emergency braking all failed; it replaces the three single-fault alerts.
+ * - ALTN + EMER BRK FAULT: alternate and emergency braking failed while normal braking remains; it replaces ALTN BRK
+ *   FAULT and EMER BRK FAULT.
+ * - NORM BRK FAULT: the model fault is on all the wheel groups, so the in-flight condition (normal braking failed on
+ *   all landing gears) is met too.
+ * - ALTN BRK FAULT, EMER BRK FAULT: the single faults. Design choice: with the normal braking also failed they still
+ *   show next to NORM BRK FAULT (there is no combined alert for these; the emergency braking that follows raises
+ *   BRAKES A-SKID FAULT ON ALL L/G too, see aSkidFaultOnAllLg).
  * @param normFault the BCS normal braking is failed
  * @param altnFault the BCS alternate braking is failed
  * @param emerFault the EBCU is failed
@@ -156,17 +143,11 @@ export function aSkidFaultOnAllLg(inputs: BrakeSteerInputs): boolean {
 
 /** The STEER alerts that come from the SCS and steering faults */
 export interface SteerFaultAlerts {
-  /** STEER NORM N/W STEER FAULT */
   normNw: boolean;
-  /** STEER ALTN N/W STEER FAULT */
   altnNw: boolean;
-  /** STEER N/W STEER FAULT */
   nw: boolean;
-  /** STEER B/W STEER FAULT */
   bw: boolean;
-  /** STEER CTL 1 FAULT */
   ctl1: boolean;
-  /** STEER CTL 2 FAULT */
   ctl2: boolean;
   /** STEER N/W + B/W STEER FAULT */
   nwBw: boolean;
@@ -174,15 +155,12 @@ export interface SteerFaultAlerts {
 
 /**
  * Which STEER alerts the steering faults raise.
- * - N/W + B/W STEER FAULT: "SCS 1 and SCS 2 are failed, or Both the NWS and the BWS are failed" (l.162869-162870); it
- *   replaces the other STEER alerts.
- * - N/W STEER FAULT: "The normal and alternate nose wheel steering modes are failed" (l.163012); it replaces NORM and
- *   ALTN N/W STEER FAULT.
- * - NORM N/W STEER FAULT (l.163100), ALTN N/W STEER FAULT (l.162559), B/W STEER FAULT (l.162636), STEER CTL 1(2)
- *   FAULT (l.162823).
+ * - N/W + B/W STEER FAULT: SCS 1 and SCS 2 failed, or both the NWS and the BWS failed; it replaces the other STEER
+ *   alerts.
+ * - N/W STEER FAULT: normal and alternate nose wheel steering failed; it replaces NORM and ALTN N/W STEER FAULT.
  * Design choice: NORM N/W STEER FAULT comes from the normal NWS equipment fault only. The loss of the GREEN system
  * also stops the normal NWS, but HYD G SYS PRESS LO already shows "FOR TAXI : STEER ENDURANCE LIMITED" and INOP NORM
- * N/W STEER (l.155606-155609, l.155741).
+ * N/W STEER.
  * @param inputs the SCS faults
  * @returns the alerts
  */
@@ -202,9 +180,9 @@ export function steerFaultAlerts(inputs: BrakeSteerInputs): SteerFaultAlerts {
 
 /**
  * Lines of BRAKES ACCU PRESS LO and BRAKES PARK BRK PRESS LO (ata31-32-33.ts 320800009 and 320800023: ACCUS REINFLATE,
- * CHOCKS, BEFORE ENGINE SHUTDOWN:, CHOCKS). The first two "If the alert is triggered before engine start or after the
- * last engine shutdown", the last two "after landing and before the last engine shutdown" (l.159732-159742,
- * l.160492-160500). Design choice: an engine running stands for "after landing and before the last engine shutdown".
+ * CHOCKS, BEFORE ENGINE SHUTDOWN:, CHOCKS). The first two apply when the alert triggers before engine start or after
+ * the last engine shutdown, the last two after landing and before the last engine shutdown. Design choice: an engine
+ * running stands for "after landing and before the last engine shutdown".
  * @param engineRunning at least one engine is running
  * @returns which lines show
  */
@@ -213,11 +191,10 @@ export function accuPressLoItems(engineRunning: boolean): boolean[] {
 }
 
 /**
- * BRAKES BTV FAULT trigger. FCOM: "The BTV auto-brake mode is failed" (A380 FCOM PRO-ABN-ECAM-10-32 P 29/118, single
- * chime and MASTER CAUT). The FCDC BTV LOST bit is also set when engine 2 or 3 is not running (Fcdc.cpp
- * ldgDistAffectedBtvLost), but an inner engine out makes BTV inoperative through the ENG 1(2)(3)(4) SHUT DOWN STATUS,
- * "BTV (If ENG 2(3) affected)" (a380_fcom.txt l.172781), not through this caution: without the inner engines running,
- * the caution stays off (an inner engine not yet started on the ground showed it with a single chime). The BTV
+ * BRAKES BTV FAULT trigger: the BTV auto-brake mode is failed (single chime and MASTER CAUT). The FCDC BTV LOST bit
+ * is also set when engine 2 or 3 is not running (Fcdc.cpp ldgDistAffectedBtvLost), but an inner engine out makes BTV
+ * inoperative through the ENG 1(2)(3)(4) SHUT DOWN STATUS (BTV if ENG 2(3) affected), not through this caution:
+ * without the inner engines running, the caution stays off (an inner engine not yet started on the ground showed it with a single chime). The BTV
  * inoperative status keeps the FCDC BTV LOST (FwsInopSys 320300007).
  * @param btvLost the FCDC BTV LOST bit (FwsCore btvLost)
  * @param engine2Running engine 2 is running
@@ -229,7 +206,7 @@ export function btvFaultCautionTriggered(btvLost: boolean, engine2Running: boole
   return btvLost && innerEnginesRunning;
 }
 
-/** BRAKES and STEER alerts from the BCS, EBCU and SCS (A380 FCOM PRO-ABN-ECAM-10-32) */
+/** BRAKES and STEER alerts from the BCS, EBCU and SCS */
 export class FwsBrakeAlerts {
   /** BRAKES NORM BRK FAULT (320800020) */
   public readonly normBrkFault = Subject.create(false);

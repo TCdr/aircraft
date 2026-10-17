@@ -351,7 +351,7 @@ export const A380Failure = Object.freeze({
   BrakesAltnCircuitLeak: 32101,
   BrakesAltnAccumulatorGasLeak: 32150,
   // Braking and steering control faults (a380_systems hydraulic/brake_steer_faults.rs): BCS normal braking, BCS
-  // alternate braking and EBCU (A380 FCOM DSC-32-10-30), normal/alternate NWS, BWS, SCS 1/2 (DSC-32-10-40).
+  // alternate braking and EBCU, normal/alternate NWS, BWS, SCS 1/2.
   BrakesNormalBraking: 32110,
   BrakesAlternateBraking: 32111,
   BrakesEmergencyBraking: 32112,

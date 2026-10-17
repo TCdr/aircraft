@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { isFireAuralActive, isFireWarningActive } from './FireWarning';
 
-describe('ENG / APU FIRE warning (A320 FCOM DSC-26-20-10)', () => {
+describe('ENG / APU FIRE warning', () => {
   it('is not shown without a fire nor a test (a released FIRE pb alone does not raise it)', () => {
     expect(isFireWarningActive({ fireTest: false, fireDetected: false })).toBe(false);
   });
@@ -18,7 +18,7 @@ describe('ENG / APU FIRE warning (A320 FCOM DSC-26-20-10)', () => {
   });
 });
 
-describe('ENG / APU FIRE aural (A320 FCOM DSC-26-20-20)', () => {
+describe('ENG / APU FIRE aural', () => {
   it('sounds while the warning is shown and the FIRE pb is not pushed', () => {
     expect(isFireAuralActive({ fireTest: false, fireDetected: true, fireButtonPushed: false })).toBe(true);
   });

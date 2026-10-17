@@ -791,11 +791,11 @@ impl ControllerSignal<CrossBleedValveSignal> for CrossBleedValveCommand {
 
 /// The engines whose bleed duct has no air source and empties (vented), engine 1 first.
 ///
-/// Design choice, no FCOM value: the bleed duct of an engine that is not running is fed only by
+/// Design choice, no published value: the bleed duct of an engine that is not running is fed only by
 /// the APU bleed (connected to the engine 1 duct) and, through open crossbleed valves, by the ducts
 /// of running engines (left crossbleed valve: engines 1-2, center: 1-4, right: 3-4, as the model
 /// connects them). Without such a source the air trapped in the duct after the engine stopped (its
-/// bleed valve closes below 15 PSI, FCOM DSC-36 a380_fcom.txt l.93916-93922) leaks away, so that a
+/// bleed valve closes below 15 PSI) leaks away, so that a
 /// starter assisted relight finds no air in the duct: a starter needs a real air source (APU,
 /// crossbleed). Without this the trapped air pressurized the starter for 5 to 15 s and a relight
 /// was granted with no APU or crossbleed air.
@@ -847,7 +847,7 @@ impl ControllerSignal<EngineStarterValveSignal> for EngineStarterValveController
     }
 }
 impl EngineStarterValveController {
-    /// FCOM N2 (the HP spool of the GP7270), read on the Trent N3
+    /// The documented N2 (the HP spool of the GP7270), read on the Trent N3
     const START_VALVE_CLOSING_N3_PERCENT: f64 = 58.4;
 
     fn new(context: &mut InitContext, number: usize) -> Self {
@@ -863,14 +863,10 @@ impl EngineStarterValveController {
         self.commanded_open
     }
 
-    /// A380 FCOM DSC-70-30 (a380_fcom.txt l.113548-113576), at the ENG MASTER ON of a start
-    /// (STARTING), or of the restart of an engine that has not run down to OFF yet (RESTARTING):
-    /// - on the ground (l.113552): "Engine start valve opens";
-    /// - in flight (l.113567-113570): "Engine start valve opens if N2 is below 11 %, or if the
-    ///   aircraft airspeed (CAS) is below 260 kt. Note: The engine start valve remains closed in the
-    ///   case of a windmilling start sequence";
-    /// - in both cases (l.113558-113559, l.113574-113576): "When N2 above 58.4 %: Engine start valve
-    ///   closes".
+    /// At the ENG MASTER ON of a start (STARTING), or of the restart of an engine that has not run
+    /// down to OFF yet (RESTARTING), the start valve opens: on the ground always, in flight only if N2
+    /// is below 11 % or the CAS below 260 kt (otherwise a windmilling start, valve closed). It closes
+    /// above 58.4 % N2.
     fn update(&mut self, context: &UpdateContext, fadec: &FullAuthorityDigitalEngineControl) {
         let core_speed = fadec.engine_core_speed(self.number);
         let starting = matches!(
@@ -932,8 +928,8 @@ impl CoreProcessingInputOutputModuleA {
         engine_start_valves_commanded_open: [bool; 4],
         leak_detection: &BleedLeakDetection,
     ) {
-        // "On ground, at engine start" (FCOM DSC-36-10-50, see the crossbleed signal): any engine
-        // whose start valve the FADEC commands open
+        // The crossbleed valves open at AUTO for an engine start on the ground: any engine whose
+        // start valve the FADEC commands open
         let engine_start_on_ground =
             context.is_on_ground() && engine_start_valves_commanded_open.contains(&true);
         for (unit, sensor) in self.units.iter_mut().zip(sensors) {
@@ -1225,19 +1221,16 @@ impl ControllerSignal<FanAirValveSignal> for CoreProcessingInputOutputModuleAUni
         )))
     }
 }
-/// The X BLEED selector at AUTO. A380 FCOM DSC-36-10-50 (a380_fcom.txt l.94076-94079): the
-/// crossbleed valves "are normally closed. They open automatically, and at the same time: On
-/// ground, at engine start; When the APU bleed valve is selected open; In case any engine bleed
-/// system fails."
+/// The X BLEED selector at AUTO: the crossbleed valves are normally closed and open automatically,
+/// all at the same time, on the ground at engine start, when the APU bleed valve is open, or when
+/// any engine bleed system fails.
 ///
-/// - Engine start: the crossbleed engine start of PRO-SUP-70-10 (l.180984-180988, l.181024-181029:
-///   "ALL ENG BLEEDS ... ON, X BLEED ... AUTO, SECOND ENG ... START") gets the starter air of the
-///   running engines through these valves. Design choice, the FCOM gives no opening or closing
-///   point: "at engine start" is while the FADEC commands the start valve of any engine open, from
-///   the ENG MASTER ON (or MAN START ON, crank) to the start valve closing at 58.4 % N2 (DSC-70-30
-///   l.113558) or the end/abort of the start. All three valves together ("at the same time"). The
-///   valves then close again, unless another condition keeps them open; the FCOM APU BLEED OFF
-///   after the start (PRO-NOR-SOP l.119903-119907): "All crossbleed valves close".
+/// - Engine start: the crossbleed engine start procedure gets the starter air of the running
+///   engines through these valves. Design choice (no published opening or closing point): "at engine
+///   start" is while the FADEC commands the start valve of any engine open, from the ENG MASTER ON
+///   (or MAN START ON, crank) to the start valve closing at 58.4 % N2 or the end/abort of the start.
+///   All three valves together. The valves then close again, unless another condition keeps them
+///   open (the APU BLEED OFF after the start closes all crossbleed valves).
 /// - An engine bleed failure: an ENG BLEED pb OFF, or an engine bleed lost by an overtemperature or
 ///   an overpressure with its pb ON (CoreProcessingInputOutputModuleAUnit::engine_bleed_failed).
 ///
@@ -1335,18 +1328,16 @@ struct EngineBleedAirSystem {
 impl EngineBleedAirSystem {
     const MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_HIGH: f64 = 10.;
     const MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_LOW: f64 = 5.;
-    /// How fast the starter turbine vents the starter duct overboard (1/s). Design choice, no FCOM
-    /// value. The A380 FCOM DSC-70-30 (a380_fcom.txt l.113555-113559) only says that the start
-    /// valve is "fully closed after approximately 10 s": the starter gets no more air after that.
-    /// The former 3e-2 kept the duct pressurized for about 45 s after the start valve closed
-    /// (STARTER_PRESSURIZED stayed 1), so a ground relight in that time lit up without APU or
-    /// crossbleed air. The A320 model raised its own value for the same reason when it introduced
-    /// STARTER_PRESSURIZED (#8066: 10 / s, with a 0.3 m3 duct); the A380 start valve cannot keep
-    /// its 0.5 m3 duct above 10 PSIG at that rate. 0.5 / s keeps about 21 PSIG with the APU bleed
-    /// and empties the duct below 5 PSIG within about 3 s of the start valve closing.
+    /// How fast the starter turbine vents the starter duct overboard (1/s). Design choice: the start
+    /// valve is fully closed about 10 s after it starts closing, and the starter gets no more air
+    /// after that. A slower vent kept the duct pressurized for about 45 s after the start valve
+    /// closed, so a ground relight in that time lit up without APU or crossbleed air. The A320 model
+    /// uses 10 / s with a 0.3 m3 duct; the A380 start valve cannot keep its 0.5 m3 duct above 10 PSIG
+    /// at that rate. 0.5 / s keeps about 21 PSIG with the APU bleed and empties the duct below 5 PSIG
+    /// within about 3 s of the start valve closing.
     const ENGINE_STARTER_EXHAUST_SPEED: f64 = 0.5;
     /// How fast the duct of an engine without an air source empties (1/s, engine_ducts_without_air_source).
-    /// Design choice, no FCOM value: the trapped air is gone within about 3 s.
+    /// Design choice: the trapped air is gone within about 3 s.
     const ISOLATED_DUCT_VENT_SPEED: f64 = 1.;
 
     fn new(context: &mut InitContext, number: usize, powered_by: ElectricalBusType) -> Self {
@@ -1556,7 +1547,7 @@ impl EngineBleedAirSystem {
         self.update_engine_start_pressurization(context);
     }
 
-    /// The starter container gauge pressure, with a hysteresis. The A380 FCOM gives no value: the
+    /// The starter container gauge pressure, with a hysteresis. No A380 value is published: the
     /// 10 / 5 PSI (gauge) of the A320 pneumatic model (a320_systems pneumatic.rs) are used.
     fn update_engine_start_pressurization(&mut self, context: &UpdateContext) {
         let starter_container_pressure_psig =
@@ -1895,7 +1886,7 @@ pub struct FullAuthorityDigitalEngineControl {
     engine_mode_selector1_id: VariableIdentifier,
     engine_mode_selector1_position: EngineModeSelector,
 
-    /// The core speed of each engine: the FADEC N3 (the GP7270 N2 of the A380 FCOM)
+    /// The core speed of each engine: the FADEC N3 (the documented GP7270 N2)
     engine_core_speed_ids: [VariableIdentifier; 4],
     engine_core_speeds: [Ratio; 4],
 }
@@ -3726,7 +3717,7 @@ mod tests {
 
     #[test]
     fn in_flight_the_start_valve_stays_closed_for_a_windmilling_start() {
-        // A380 FCOM DSC-70-30: in flight the start valve opens below 11 % N2 or 260 kt only
+        // In flight the start valve opens below 11 % N2 or 260 kt only
         let test_bed = in_flight_with_engine_1_out(300.)
             .set_engine_state(1, EngineState::Starting)
             .and_run();
@@ -3769,7 +3760,7 @@ mod tests {
         #[values(true, false)] on_ground: bool,
         #[values(EngineState::Starting, EngineState::Restarting)] engine_state: EngineState,
     ) {
-        // A380 FCOM DSC-70-30: "When N2 above 58.4 %: Engine start valve closes"
+        // The engine start valve closes when N2 is above 58.4 %
         let mut test_bed = test_bed_with().stop_eng1().and_run();
         test_bed.set_on_ground(on_ground);
         test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
@@ -3873,7 +3864,7 @@ mod tests {
 
     #[test]
     fn on_the_ground_a_flamed_out_engine_relights_with_apu_bleed_as_soon_as_it_is_restarted() {
-        // Sim test 2026-10-05 (ground): the starter was pressurized only 26 s after the MASTER ON,
+        // Measured in the sim (ground): the starter was pressurized only 26 s after the MASTER ON,
         // when the FADEC went from RESTARTING to STARTING, 4 s before the end of the attempt.
         let mut test_bed = test_bed_with()
             .stop_eng2()
@@ -3894,7 +3885,7 @@ mod tests {
 
     #[test]
     fn in_flight_a_starter_assisted_relight_lights_up_with_crossbleed_air_from_the_other_engines() {
-        // FCOM ENG RELIGHT IN FLIGHT (a380_fcom.txt l.174908): "XBLEED ... OPEN"; FL150, 210 kt
+        // The relight procedure sets XBLEED OPEN; FL150, 210 kt
         let test_bed = in_flight_with_engine_1_out(210.)
             .in_isa_atmosphere(Length::new::<foot>(15_000.))
             .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Open)
@@ -3943,9 +3934,9 @@ mod tests {
 
     #[test]
     fn with_all_four_engines_out_the_apu_bleed_relights_two_engines_at_a_time() {
-        // ENG ALL ENG FLAME OUT (a380_fcom.txt l.173859-173872): "WHEN APU AVAIL: ALL ENG MASTERS
-        // ... OFF, APU BLEED ... ON", then "ENG MASTER (2 AT A TIME) ... ON". FL150, 220 kt (zone 2
-        // of the relight envelope: starter assisted), the cores windmilling at 9 %.
+        // ALL ENG FLAME OUT procedure: with the APU available all masters OFF, APU BLEED ON, then the
+        // masters ON two at a time. FL150, 220 kt (zone 2 of the relight envelope: starter assisted),
+        // the cores windmilling at 9 %.
         let mut test_bed = test_bed_with()
             .stop_eng1()
             .stop_eng2()
@@ -4040,9 +4031,8 @@ mod tests {
 
     #[test]
     fn the_starter_is_no_longer_pressurized_a_few_seconds_after_the_start_valve_closed() {
-        // A380 FCOM DSC-70-30 (l.113557-113559): "When N2 above 58.4 %: Engine start valve closes
-        // (fully closed after approximately 10 s)". Before the fix the starter duct kept about
-        // 20 PSIG for 5 s and above 5 PSIG for about 45 s.
+        // The start valve closes above 58.4 % N2 (fully closed after about 10 s). Without the vent
+        // the starter duct kept about 20 PSIG for 5 s and above 5 PSIG for about 45 s.
         let mut test_bed = on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(5);
 
         let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
@@ -4053,7 +4043,7 @@ mod tests {
     fn a_ground_relight_soon_after_a_start_does_not_light_up_without_apu_or_crossbleed_air() {
         // Engine 1 flames out 5 s after its APU bleed start, stops, and is restarted 10 s later
         // (ENG MASTER OFF then ON) with the APU bleed OFF and the crossbleed valves closed: no air
-        // turns the starter. Before the fix the starter duct still held about 13 PSIG from the
+        // turns the starter. Without the vent the starter duct still held about 13 PSIG from the
         // first start and the relight lit up.
         let mut test_bed = with_engine_1_flamed_out(
             on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(5),
@@ -4080,7 +4070,7 @@ mod tests {
     #[test]
     fn a_ground_relight_finds_no_air_trapped_in_the_duct_of_the_stopped_engine() {
         // Engine 1 runs for a minute on its own bleed (APU bleed OFF), flames out, stops and is
-        // restarted about 2 s later (ENG MASTER OFF then ON). Before the duct vent the air trapped
+        // restarted about 2 s later (ENG MASTER OFF then ON). Without the duct vent the air trapped
         // in its own bleed duct (about 28 PSIG) pressurized the starter and the relight lit up with no air source.
         let mut test_bed = with_engine_1_flamed_out(
             on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(60),
@@ -4124,7 +4114,7 @@ mod tests {
             "the APU bleed reaches the starter of the stopped engine"
         );
 
-        // the starter air turns the core (the test bed does not spin it up): the B3 start sequence
+        // the starter air turns the core (the test bed does not spin it up): the start sequence
         // lights the fuel from 20 % N3
         test_bed.write_by_name("ENGINE_N3:1", 25.);
         assert!(engine_1_lights_up_within(
@@ -4205,9 +4195,8 @@ mod tests {
         assert!(!test_bed.cross_bleed_valves_are_open());
     }
 
-    /// The crossbleed engine start of PRO-SUP-70-10 (a380_fcom.txt l.181024-181029) on the ground:
-    /// engine 1 runs at idle, engines 2 to 4 are stopped, ALL ENG BLEEDS ON, APU bleed OFF, X BLEED
-    /// AUTO.
+    /// The crossbleed engine start on the ground: engine 1 runs at idle, engines 2 to 4 are stopped,
+    /// ALL ENG BLEEDS ON, APU bleed OFF, X BLEED AUTO.
     fn on_the_ground_with_engine_1_running_and_no_apu_bleed() -> PneumaticTestBed {
         let mut test_bed = test_bed_with()
             .idle_eng1()
@@ -4244,9 +4233,9 @@ mod tests {
     fn on_the_ground_the_crossbleed_valves_open_at_auto_for_an_engine_start(
         #[values(2, 3, 4)] engine_number: usize,
     ) {
-        // FCOM DSC-36-10-50 (l.94076-94077): "They open automatically ... On ground, at engine
-        // start". Before the fix AUTO opened only for the APU bleed valve or an ENG BLEED pb OFF:
-        // the starter got no air and the start ended in START FAULT (NO STARTER AIR PRESSURE).
+        // The crossbleed valves open automatically on the ground at engine start. Without it AUTO
+        // opened only for the APU bleed valve or an ENG BLEED pb OFF: the starter got no air and the
+        // start ended in START FAULT (NO STARTER AIR PRESSURE).
         let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed();
         assert!(!test_bed.cross_bleed_valves_are_open());
 
@@ -4280,7 +4269,7 @@ mod tests {
             .and_run();
         assert!(test_bed.cross_bleed_valves_are_open());
 
-        // DSC-70-30 (l.113558): "When N2 above 58.4 %: Engine start valve closes"
+        // The start valve closes above 58.4 % N2
         test_bed.write_by_name("ENGINE_N3:2", 60.);
         test_bed = test_bed.and_run();
         assert!(!test_bed.es_valve_is_open(2));
@@ -4308,7 +4297,7 @@ mod tests {
 
     #[test]
     fn in_flight_the_crossbleed_valves_stay_closed_at_auto_for_an_engine_start() {
-        // "On ground" only: in flight the relight procedure sets X BLEED OPEN (l.174908)
+        // On the ground only: in flight the relight procedure sets X BLEED OPEN
         let test_bed = in_flight_with_engine_1_out(210.)
             .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
             .set_engine_state(1, EngineState::Starting)

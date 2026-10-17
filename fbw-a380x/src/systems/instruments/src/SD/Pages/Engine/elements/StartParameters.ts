@@ -4,16 +4,15 @@
 /*
  * Which block the bottom of an SD ENGINE page column shows: the start parameters (ignition, start valve, starter inlet
  * pressure) or the nacelle temperature.
- * A380 FCOM DSC-70-90 START PARAMETERS (a380_fcom.txt l.113430): "During the engine start sequence, the start
- * indications replace the nacelle temperature indications." IGNITION (l.113443-113444): "The igniter A(B) is energized." /
- * "Both igniters A and B are energized." The FADEC writes which igniters are energized
- * (L:A32NX_FADEC_IGNITER_A_ACTIVE_ENGn and L:A32NX_FADEC_IGNITER_B_ACTIVE_ENGn).
+ * During the engine start sequence the start indications replace the nacelle temperature indications. IGNITION shows
+ * A, B or A B, the energized igniters, which the FADEC writes (L:A32NX_FADEC_IGNITER_A_ACTIVE_ENGn and
+ * L:A32NX_FADEC_IGNITER_B_ACTIVE_ENGn).
  *
- * As before, the start parameters show during a start and with the ENG START selector at IGN START.
+ * The start parameters show during a start and with the ENG START selector at IGN START.
  * Design choice: they also show while the FADEC energizes an igniter by itself with the selector at NORM (auto relight
- * after a flameout, quick relight, in-flight relight): the FCOM ignition indication would otherwise never be seen then.
- * Design choice: they also show while the FADEC reports a start valve fault, so that the amber start valve of the FCOM
- * (START VALVE, l.113452-113462) is seen with the selector back at NORM, e.g. a valve stuck open after the start.
+ * after a flameout, quick relight, in-flight relight): the ignition indication would otherwise never be seen then.
+ * Design choice: they also show while the FADEC reports a start valve fault, so that the amber start valve is seen with
+ * the selector back at NORM, e.g. a valve stuck open after the start.
  */
 
 /**
@@ -29,9 +28,8 @@ export enum StartValveFault {
 }
 
 /**
- * The colour of the start valve symbol. A380 FCOM DSC-70-90 START VALVE (a380_fcom.txt l.113452-113462): green open or
- * closed, amber when "The start valve is abnormally open" (START VLV NOT CLOSED) or "abnormally closed" (VLV STUCK
- * CLOSED). The FCOM figures show the symbol amber, its in-line stubs stay green.
+ * The colour of the start valve symbol: green open or closed, amber when abnormally open (START VLV NOT CLOSED) or
+ * abnormally closed (VLV STUCK CLOSED). Only the symbol turns amber, its in-line stubs stay green.
  * @param fault L:A32NX_ENGINE_n_START_VALVE_FAULT
  * @returns the colour class of the valve symbol
  */

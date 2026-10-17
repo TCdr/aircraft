@@ -12,39 +12,35 @@
  * No MSFS SDK dependency: tested natively (test/run_tests.sh).
  *
  * MSFS only burns again after losing its combustion with its ignition switch at IGN, above min_n2_for_combustion = 20 % N2
- * (engines.cfg). At NORM the MSFS automatic ignition (ignition_auto_type = "AntiIce,Flaps") stays off in a clean climb: in the
- * flight of 2026-10-06 MSFS dropped the combustion of all four engines by itself at 7 900 ft, the engines windmilled at
- * 24.7 % N2 for 150 s and lit up in the 0.5 s sample in which the crew selected IGN START.
+ * (engines.cfg). At NORM the MSFS automatic ignition (ignition_auto_type = "AntiIce,Flaps") stays off in a clean climb: in a
+ * sim flight MSFS dropped the combustion of all four engines by itself at 7 900 ft, the engines windmilled at 24.7 % N2 for
+ * 150 s and lit up in the 0.5 s sample in which the crew selected IGN START.
  *
  * Two FADEC functions select the igniters:
  *
- * 1. IN-FLIGHT RELIGHT (unchanged): while the systems WASM reports a relight lighting up (A32NX_ENGINE_n_RELIGHT_IGNITION),
- *    in flight, during the start sequence (STARTING, RESTARTING) or the shutdown that precedes it (SHUTTING).
- *    A380 FCOM DSC-70-30 IN FLIGHT (a380_fcom.txt l.113572): "Ignition starts (igniters A + B)".
+ * 1. IN-FLIGHT RELIGHT: while the systems WASM reports a relight lighting up (A32NX_ENGINE_n_RELIGHT_IGNITION), in flight,
+ *    during the start sequence (STARTING, RESTARTING) or the shutdown that precedes it (SHUTTING): an in-flight start
+ *    ignites with igniters A + B.
  *
- * 2. AUTO RELIGHT. A380 FCOM DSC-70-80-30-20 QUICK AND AUTO RELIGHT (l.112533-112537): "If the FADEC detects an engine flame
- *    out, on ground or in flight, continuous ignition with both igniters is automatically selected. The ignition is
- *    maintained for 60 s after engine relight." Also DSC-70-80-20 FLAMEOUT PREVENTION (l.112374-112378): "the FADEC
- *    automatically selects both igniters to quickly recover the engine. When the engine relights, the FADEC maintains both
- *    igniters for 60 s", and the ENG START selector NORM (DSC-70-90, l.112720-112723): "continuous ignition A + B is
- *    automatically selected when: - The FADEC detects that the engine has a risk of flameout".
+ * 2. AUTO RELIGHT: after a flameout, on the ground or in flight, the FADEC selects continuous ignition with both igniters to
+ *    recover the engine, and keeps them 60 s after the relight. At NORM continuous ignition A + B is also selected when the
+ *    FADEC detects a flameout risk.
  *
  *    Flameout detection: the engine must run - FBW engine state ON, ENG MASTER ON, FADEC supplied, fuel not cut - but MSFS has
  *    lost its combustion (GENERAL ENG COMBUSTION) for FLAMEOUT_CONFIRMATION_SECONDS.
- *    Design choice: the FCOM detection "is based on the N2 and on the pressure in the combustion chamber" (l.112379); MSFS has
- *    no combustion chamber pressure, and its combustion flag is its flame itself, so the flag is the detection. The core speed
- *    is not used: the FBW idle N3 and the MSFS idle differ by a few tenths of a percent, so "below idle" would fire on a normal
- *    running engine. The confirmation time ignores a combustion flag that drops for a frame or two (start-end transitions);
- *    0.5 s keeps the ignition within about 1 s of a real flameout.
+ *    Design choice: the aircraft detects a flameout from N2 and the combustion chamber pressure; MSFS has no combustion chamber
+ *    pressure, and its combustion flag is its flame itself, so the flag is the detection. The core speed is not used: the FBW
+ *    idle N3 and the MSFS idle differ by a few tenths of a percent, so "below idle" would fire on a normal running engine. The
+ *    confirmation time ignores a combustion flag that drops for a frame or two (start-end transitions); 0.5 s keeps the
+ *    ignition within about 1 s of a real flameout.
  *
  *    Release: the ignition stays on until the combustion is back, then for IGNITION_HOLD_AFTER_RELIGHT_SECONDS of continuous
  *    combustion (a new loss of combustion during that time restarts the 60 s at the next relight).
  *
  *    Inhibitions (the auto relight ends at once and gives the ignition switch back to the ENG START selector):
- *    - ENG MASTER OFF. DSC-70-80-30-20 MANUAL ABORT OF AUTOMATIC START (l.112518-112524): setting the ENG MASTER lever to OFF
- *      "Closes the fuel HP valve and the engine start valve - Stops the ignition - Resets the FADEC".
- *    - ENG FIRE pb released. DSC-26 ENGINE ISOLATION (l.52996-53004): the ENG FIRE pb, when pressed, "Closes the low-pressure
- *      fuel valve" and "Shuts off the FADEC power supply": an unsupplied FADEC selects no igniter.
+ *    - ENG MASTER OFF: it closes the HP fuel valve and the start valve, stops the ignition and resets the FADEC.
+ *    - ENG FIRE pb released: it closes the LP fuel valve and cuts the FADEC power supply; an unsupplied FADEC selects no
+ *      igniter.
  *    - Fuel cut by the systems WASM (LP valve starvation, flyPad flameout or seizure failure, in-flight relight not lit up yet)
  *      and seizure. Design choice: no auto relight while the fuel is cut. The systems WASM owns the relight of a failed engine
  *      (relight envelope, crew ENG RELIGHT procedure) and selects the igniters itself (function 1) once it lets the engine
@@ -53,14 +49,14 @@
  *    - Crew start or shutdown: any FBW engine state but ON (OFF, STARTING, RESTARTING, SHUTTING) keeps the existing logic.
  *
  *    The ignition alone relights only a core that turns at least at 20 % N2 (MSFS min_n2_for_combustion): a windmilling
- *    engine above about 215 kt (24.7 % N2 in the 2026-10-06 flight) relights at once; a slower core needs the crew relight
+ *    engine above about 215 kt (24.7 % N2 measured in the sim) relights at once; a slower core needs the crew relight
  *    procedure (starter air). The auto relight does not run a starter.
  */
 class EngineIgnition_A380X {
  public:
   /// Design choice: how long MSFS must have lost its combustion before the FADEC calls it a flameout (filters a flicker).
   static constexpr double FLAMEOUT_CONFIRMATION_SECONDS = 0.5;
-  /// FCOM DSC-70-80-30-20 (l.112537): "The ignition is maintained for 60 s after engine relight."
+  /// The ignition is kept 60 s after the relight.
   static constexpr double IGNITION_HOLD_AFTER_RELIGHT_SECONDS = 60.0;
 
   enum class AutoRelightPhase {

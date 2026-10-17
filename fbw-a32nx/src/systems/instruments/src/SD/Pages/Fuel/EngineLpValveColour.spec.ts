@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { isEngineLpValveGreen } from './EngineLpValveColour';
 
-describe('SD FUEL engine LP valve colour (FCOM DSC-28-20-F)', () => {
+describe('SD FUEL engine LP valve colour', () => {
   it('is green when the valve is open with the ENG MASTER ON', () => {
     expect(isEngineLpValveGreen(100, true)).toBe(true);
   });

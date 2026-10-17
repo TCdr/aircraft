@@ -128,7 +128,6 @@ impl EngineLpFuelValve {
         context: &UpdateContext,
         engine_fire_push_buttons: &impl EngineFirePushButtons,
     ) {
-        // Closed by the engine master switch or by the ENG FIRE pushbutton.
         let is_commanded_open =
             self.master_switch_is_on && !engine_fire_push_buttons.is_released(self.engine_number);
         let commanded_position = Ratio::new::<ratio>(if is_commanded_open { 1. } else { 0. });

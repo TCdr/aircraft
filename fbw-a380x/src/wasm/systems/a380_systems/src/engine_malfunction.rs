@@ -7,30 +7,29 @@
 //! N1 of a stalled engine, the FWS raises ENG 1(2)(3)(4) STALL and EGT OVER LIMIT, and the ENGINE
 //! SD page shows the vibrations.
 //!
-//! FBW models the Trent 972 (N1, N2 = IP, N3 = HP); the A380 FCOM is written for the GP7270 (N1,
-//! N2 = HP): the FCOM N2 is the FBW N3, as in `engine_failure`. Every value below is a design
-//! choice; the FCOM gives the symptoms and the limits (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt):
-//! - ENG STALL (l.172812-172821): fluctuating performance parameters, sluggish thrust lever
+//! FBW models the Trent 972 (N1, N2 = IP, N3 = HP); the Airbus documentation describes the GP7270
+//! (N1, N2 = HP): its N2 is the FBW N3, as in `engine_failure`. Every value below is a design
+//! choice; the documentation gives the symptoms and the limits:
+//! - ENG STALL: fluctuating performance parameters, sluggish thrust lever
 //!   response, high EGT. The engine stalls when the N1 command is at or above 60 % (above the
-//!   approach thrust) and recovers below 57 % ("THR LEVER ... IDLE", l.172842).
-//! - ENG EGT OVER LIMIT (l.171488-171494) triggers above the EGT limit at or below MCT and above
+//!   approach thrust) and recovers below 57 % (the procedure sets the thrust lever to idle).
+//! - ENG EGT OVER LIMIT triggers above the EGT limit at or below MCT and above
 //!   the red line at takeoff thrust. FBW shows its own Trent EGT limits on the EWD (850 / 900 degC,
 //!   EWD EgtLimits.ts) instead of the GP7270 970 / 1002 degC: the EGT overtemperature (120 degC at
 //!   100 % N1) takes a climb EGT above that EGT limit.
-//! - ENG HI VIBRATIONS (l.174816): the vibration advisory is N1, N2 above 5 units (also
-//!   DSC-70-90, l.113396). The high vibration failure (N1 7 units at 100 % N1, N3 6 units
-//!   at 100 % N3, with the square of the rotor speed) is above the advisory at climb and cruise
-//!   thrust, below it at reduced thrust and clearly below it at idle.
-//!   The advisory is per rotor: each indication pulses on its own above 5 units (l.113396). At a
-//!   low cruise power (FL200, N1 about 60 %, N3 about 81 %) the N1 stays just below it (4.7) and
-//!   the N3 is above it (5.3): the fan turns at a much lower fraction of its full speed than the
-//!   HP rotor, so the same law gives it less vibration. This is intended, not an inconsistency: the
-//!   failure does give the advisory at cruise power (on the HP rotor, the FCOM N2), the FCOM notes
-//!   that "High N2 vibrations can occur without airframe vibrations" (l.174824), and the procedure
-//!   "IF ABOVE VIB ADV: THRUST (AFFECTED ENG) ... REDUCE" (l.174844) brings the N3 back below it.
-//! - No overspeed failure: the FCOM red limits (N1 111 %, N2 118.7 %, DSC-70-90 l.113079,
-//!   113301) are about 25 % above the TOGA N1 of the FBW engine, so the N1/N2 OVER LIMIT alert is
-//!   not reachable by an indication offset of a credible size.
+//! - ENG HI VIBRATIONS: the vibration advisory is N1, N2 above 5 units. The high vibration failure
+//!   (N1 7 units at 100 % N1, N3 6 units at 100 % N3, with the square of the rotor speed) is above
+//!   the advisory at climb and cruise thrust, below it at reduced thrust and clearly below it at
+//!   idle. The advisory is per rotor: each indication pulses on its own above 5 units. At a low
+//!   cruise power (FL200, N1 about 60 %, N3 about 81 %) the N1 stays just below it (4.7) and the N3
+//!   is above it (5.3): the fan turns at a much lower fraction of its full speed than the HP rotor,
+//!   so the same law gives it less vibration. This is intended: the failure does give the advisory
+//!   at cruise power (on the HP rotor), high HP vibrations can occur without airframe vibrations,
+//!   and the procedure (reduce the thrust of the affected engine above the advisory) brings the N3
+//!   back below it.
+//! - No overspeed failure: the red limits (N1 111 %, N2 118.7 %) are about 25 % above the TOGA N1
+//!   of the FBW engine, so the N1/N2 OVER LIMIT alert is not reachable by an indication offset of a
+//!   credible size.
 
 use systems::{
     engine::engine_malfunction::{
@@ -279,9 +278,9 @@ mod tests {
         assert!(other_n1 < 5.);
     }
 
-    /// Like the A320 of the sim test of 2026-10-06 (N2 vibration above its advisory at idle): at
-    /// flight idle (N1 28 %, N3 65 %, MSFS vibration 2.2 as recorded on 2026-10-06) N1, N2 and N3
-    /// are clearly below the 5 units advisory.
+    /// Like the A320 measured in the sim (N2 vibration above its advisory at idle): at flight idle
+    /// (N1 28 %, N3 65 %, MSFS vibration 2.2 as recorded) N1, N2 and N3 are clearly below the
+    /// 5 units advisory.
     #[test]
     fn at_idle_the_high_vibration_is_clearly_below_the_advisory() {
         let mut test_bed = engines_at_climb_thrust();

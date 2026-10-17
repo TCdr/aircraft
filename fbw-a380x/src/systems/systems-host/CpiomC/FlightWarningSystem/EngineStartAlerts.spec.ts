@@ -86,8 +86,6 @@ describe('A380X ENG START FAULT', () => {
     expect(checked[13]).toBe(true);
   });
 
-  /* l.172917-172928: XBLEED OPEN, APU BLEED ON; in flight MIN SPEED FOR WINDML RELIGHT : 260 KT, WINDMILL START
-   * INITIATED, ENG PARAMETERS MONITOR, IF ABNORMAL: ENG MAN START OFF, ENG MASTER OFF */
   it('asks for air for NO STARTER AIR PRESSURE, with the windmill start lines in flight', () => {
     expect(shown(startFaultItems({ ...groundAutoStart, fault: EngineStartFault.LowStartAirPressure }).show)).toEqual([
       0, 8, 9,
@@ -100,9 +98,9 @@ describe('A380X ENG START FAULT', () => {
     expect(startFaultItems({ ...inFlight, manualStartPbOn: true }).checked[21]).toBe(false);
   });
 
-  /* FCOM PDF p.5810 (l.172889): no aural, no MASTER light, no SD page. IGN A(B) FAULT p.5791: crew awareness; IGN A+B
-   * FAULT l.172275: Audio + Master Light */
-  it('has the warning levels of the FCOM figures', () => {
+  /* START FAULT: no aural, no MASTER light, no SD page. IGN A(B) FAULT: crew awareness; IGN A+B FAULT: aural and MASTER
+   * light */
+  it('has the warning levels of the aircraft', () => {
     expect(START_FAULT_LEVEL).toBe(1);
     expect(IGN_A_OR_B_FAULT_LEVEL).toBe(1);
     expect(IGN_A_AND_B_FAULT_LEVEL).toBe(2);
@@ -154,8 +152,6 @@ describe('A380X ENG START VLV FAULT', () => {
     ]);
   });
 
-  /* l.173248-173257: in flight ... ENG PARAMETERS MONITOR WITH CARE, IF ABNORMAL: During manual start: MAN START OFF;
-   * MASTER OFF */
   it('asks for ENG MASTER OFF on the ground for a start valve stuck closed, a windmill start in flight', () => {
     expect(shown(startValveNotOpenItems({ ...valveOnGround, manualStartPbOn: true }).show)).toEqual([0, 1, 2]);
     expect(shown(startValveNotOpenItems({ ...valveOnGround, onGround: false }).show)).toEqual([0, 3, 4, 5, 6, 8]);
@@ -164,8 +160,8 @@ describe('A380X ENG START VLV FAULT', () => {
     expect(startValveNotOpenItems({ ...valveOnGround, onGround: false, masterOn: false }).checked[8]).toBe(true);
   });
 
-  /* l.173136-173158: LIMITATIONS AVOID ICING CONDs (engine 1 or 4) on ECAM and PFD; INOP SYS ENG n BLEED, APU BLEED
-   * (engine 1), WING A-ICE (engine 1 or 4) */
+  /* LIMITATIONS AVOID ICING CONDs (engine 1 or 4) on ECAM and PFD; INOP SYS ENG n BLEED, APU BLEED (engine 1), WING
+   * A-ICE (engine 1 or 4) */
   it('has the LIMITATIONS and INOP SYS of START VLV FAULT (NOT CLOSED)', () => {
     expect(startValveNotClosedStatus(1)).toEqual({
       limitations: ['300400001'],
@@ -182,7 +178,7 @@ describe('A380X ENG START VLV FAULT', () => {
     expect(entry).toContain('inopSysAllPhases: () => valveNotClosedStatus.inopSys,');
   });
 
-  it('has the deferred procedure FOR APPROACH of an outer start valve not closed (l.173149-173153)', () => {
+  it('has the deferred procedure FOR APPROACH of an outer start valve not closed', () => {
     const deferred = ata70.slice(ata70.indexOf('  700700001: {'), ata70.indexOf('  700700002: {'));
     expect(deferred).toContain("fromAbnormalProcs: ['701800121', '701800124'],");
     expect(deferred).toContain('type: DeferredProcedureType.FOR_APPROACH,');
@@ -191,8 +187,7 @@ describe('A380X ENG START VLV FAULT', () => {
   });
 });
 
-/* FCOM DSC-70-90 MEMO l.113497-113498: "Automatic continuous ignition is in progress, or manual continuous ignition is
- * selected." */
+/* The IGNITION memo: automatic continuous ignition in progress, or manual continuous ignition selected */
 describe('A380X IGNITION memo', () => {
   it('shows with the ENG START selector at IGN START', () => {
     expect(isIgnitionMemoShown(2, [false, false, false, false])).toBe(true);

@@ -12,29 +12,27 @@
 //! - `ENGINE_n_N1_VIBRATION` and `ENGINE_n_<core>_VIBRATION`: the rotor vibrations, in units,
 //!   shown on the ENGINE SD page.
 //!
-//! What each failure does is a design choice: the FCOM describes the symptoms (A320 FCOM
-//! PRO-ABN-ENG ENG 1(2) STALL, a320_fcom.txt l.81322-81326: "fluctuating performance parameters,
-//! vibration, sluggish or no thrust lever response, high EGT and/or a rapid EGT rise when thrust
-//! lever is advanced"; A380 FCOM PRO-ABN-ECAM-10-70 ENG STALL, a380_fcom.txt l.172810-172816) but
-//! no values. Each aircraft gives its own values in [`EngineMalfunctionParameters`].
+//! What each failure does is a design choice: the manuals describe the symptoms of a stall
+//! (fluctuating performance parameters, vibration, sluggish or no thrust lever response, high EGT
+//! or a rapid EGT rise when the thrust lever is advanced) but give no values. Each aircraft gives
+//! its own values in [`EngineMalfunctionParameters`].
 //! - Compressor stall: the engine stalls while the FADEC N1 command is at or above a stall
 //!   threshold, and recovers when the command goes below it (the crew sets the thrust lever to
-//!   IDLE): the QRH procedure "Reduce thrust and operate below the thrust threshold where stall
-//!   recurs" (a320_fcom.txt l.78864). The stalled engine loses N1 (thrust), its EGT rises,
+//!   IDLE): the stall procedure has the crew reduce thrust and operate below the threshold where
+//!   the stall recurs. The stalled engine loses N1 (thrust), its EGT rises,
 //!   its N1 and core speed fluctuate and its N1 vibrates.
 //! - EGT overtemperature: the EGT is higher by an amount proportional to the N1, so that reducing
-//!   the thrust reduces the EGT (ENG N1/N2/EGT OVER LIMIT: "THR LEVER ... BELOW LIMIT").
+//!   the thrust reduces the EGT (ENG N1/N2/EGT OVER LIMIT: thrust lever below the limit).
 //! - Overspeed: the N1 and core speed indications are higher by a fraction of their value, so that
 //!   they exceed their limits at high thrust only, up to an optional ceiling of the indication
 //!   (so that the A320 stays in the first band of ENG N1/N2/EGT OVER LIMIT). The thrust follows
 //!   the MSFS engine and does not change.
 //! - High vibration: the N1 and core vibrations are higher by an amount that grows with the
 //!   square of the rotor speed, like the force of a rotor unbalance, so that reducing the thrust
-//!   brings them below the advisory (QRH HIGH ENGINE VIBRATION, a320_fcom.txt l.78975: "THRUST
-//!   (affected engine) ... REDUCE BELOW ADVISORY THRESHOLD"), and at idle clearly below it. With an
-//!   amount proportional to the rotor speed the core, which turns at about 70 % at idle, kept
-//!   most of its vibration: N2 4.6 units at idle on the A320, above the 4.3 advisory (sim test
-//!   2026-10-06).
+//!   brings them below the advisory (the HIGH ENGINE VIBRATION procedure reduces the thrust of the
+//!   affected engine below the advisory threshold), and at idle clearly below it. With an amount
+//!   proportional to the rotor speed the core, which turns at about 70 % at idle, kept most of its
+//!   vibration: measured in the sim, N2 4.6 units at idle on the A320, above the 4.3 advisory.
 //!
 //! The values change gradually (first order lags) so that the indications move like engine
 //! parameters do, not in steps.
@@ -327,26 +325,9 @@ impl EngineMalfunction {
         )
     }
 
-    /// The FADEC detects a stall of the engine.
-    pub fn is_stalled(&self) -> bool {
-        self.stalled
-    }
-
     /// The N1 that the stalled engine loses, in percent.
     pub fn stall_n1_loss_percent(&self) -> f64 {
         self.stall_intensity * self.parameters.stall_n1_loss_percent
-    }
-
-    pub fn egt_offset_degrees_celsius(&self) -> f64 {
-        self.egt_offset
-    }
-
-    pub fn n1_offset_percent(&self) -> f64 {
-        self.n1_offset
-    }
-
-    pub fn core_offset_percent(&self) -> f64 {
-        self.core_offset
     }
 
     pub fn n1_vibration(&self) -> f64 {
@@ -686,7 +667,7 @@ mod tests {
         assert!((test_bed.n2_vibration() - (0.6 + 5. * 0.7 * 0.7)).abs() < 0.05);
     }
 
-    /// Sim test 2026-10-06 (A320, lever at IDLE, MSFS vibration 2): the core at 69 % N2 kept a
+    /// Measured in the sim (A320, lever at IDLE, MSFS vibration 2): the core at 69 % N2 kept a
     /// vibration above the 4.3 units advisory. At idle the failure adds little: N2 clearly
     /// below the advisory.
     #[test]

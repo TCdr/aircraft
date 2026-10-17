@@ -136,7 +136,7 @@ mod tests {
         );
     }
 
-    /// The bug seen in the sim on 2026-10-07: the A380X HP fuel valve variable stayed closed, MSFS
+    /// The bug seen in the sim: the A380X HP fuel valve variable stayed closed, MSFS
     /// reopened the valve on its own, and the valve was never closed again.
     #[test]
     fn msfs_reopening_the_valve_while_the_variable_stays_closed_closes_it_again() {

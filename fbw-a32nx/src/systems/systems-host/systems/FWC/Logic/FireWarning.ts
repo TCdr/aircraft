@@ -10,8 +10,8 @@ export interface FireWarningInputs {
 }
 
 /**
- * Whether an ENG 1(2) FIRE or APU FIRE warning is shown. A320 FCOM DSC-26-20-10: "A fire warning appears, if: Both
- * loops A and B send a fire signal [...] or A test is performed on the FIRE panel". Releasing the FIRE pb is an action
+ * Whether an ENG 1(2) FIRE or APU FIRE warning is shown: both loops A and B send a fire
+ * signal, or a test is performed on the FIRE panel. Releasing the FIRE pb is an action
  * of the fire procedure (it closes the valves and arms the squibs), it does not raise the warning.
  * @param inputs the fire test and fire detection of the zone
  * @returns true when the warning is shown
@@ -22,8 +22,8 @@ export function isFireWarningActive(inputs: FireWarningInputs): boolean {
 
 /**
  * Whether the continuous repetitive chime of an ENG 1(2) FIRE or APU FIRE warning sounds. Like any red warning it is
- * cancelled with the MASTER WARN pb (FCOM DSC-31-10, handled by the FWC aural logic); pushing the FIRE pb also
- * "Silences the aural fire warning" (FCOM DSC-26-20-20 ENG FIRE PB and APU FIRE PB).
+ * cancelled with the MASTER WARN pb (handled by the FWC aural logic); pushing the ENG or APU FIRE pb also silences
+ * the aural fire warning.
  * @param inputs the fire test and fire detection of the zone, and whether its FIRE pb is pushed (released out)
  * @returns true when the warning asks for the chime
  */

@@ -26,8 +26,7 @@ const CargoTemperatures: React.FC<Position> = ({ x, y }) => {
   }
 
   const bulkHeaterFault = vcsDiscreteWordToUse.bitValueOr(22, true);
-  // A380 FCOM DSC-21-10-20 COND system display, cargo: OVHT (duct overheat) and the trim air valve mark (failed trim air
-  // valve) of the forward cargo, written by the temperature controller (a380_systems trim_air_drive_device.rs)
+  // Written by the temperature controller (a380_systems trim_air_drive_device.rs)
   const [fwdCargoOverheat] = useSimVar('L:A32NX_COND_CARGO_FWD_DUCT_OVHT', 'bool', 1000);
   const [fwdCargoTrimAirValveFault] = useSimVar('L:A32NX_COND_CARGO_FWD_TRIM_AIR_VALVE_FAULT', 'bool', 1000);
   // TODO: Replace with actual LVars when failures simulated

@@ -1694,7 +1694,7 @@ impl SimulationElement for A380EhaInhibitPlaceholder {
 pub(super) struct A380Hydraulic {
     eha_backup_inhibit_logic: A380EhaInhibitPlaceholder,
     nose_steering: SteeringActuator,
-    /// GREEN in normal NWS, the steering LEHGS in alternate NWS (A380 FCOM l.80569-80610)
+    /// GREEN in normal NWS, the steering LEHGS in alternate NWS
     nose_wheel_steering_supply: NoseWheelSteeringSupply,
     body_wheel_steering_left: SteeringActuator,
     body_wheel_steering_right: SteeringActuator,
@@ -2513,8 +2513,7 @@ impl A380Hydraulic {
 
         self.tilting_gears.update(context);
 
-        // A380 FCOM DSC-32-10-40 (a380_fcom.txt l.80569-80572): "In normal NWS: The GREEN system supplies hydraulic
-        // power"; the alternate NWS uses the steering LEHGS. The BWS stays on YELLOW (l.80699).
+        // GREEN supplies the normal NWS; the alternate NWS uses the steering LEHGS. The BWS stays on YELLOW.
         self.nose_wheel_steering_supply.update(
             self.brake_steer_computer.nose_wheel_steering_mode(),
             self.green_circuit.system_section(),
@@ -2692,8 +2691,8 @@ impl A380Hydraulic {
         self.green_circuit
             .update_system_actuator_volumes(&mut self.braking_circuit_norm);
 
-        // Normal NWS takes its fluid from GREEN; the steering LEHGS of the alternate NWS has its own reservoir
-        // (A380 FCOM l.80585-80587), not modelled.
+        // Normal NWS takes its fluid from GREEN; the steering LEHGS of the alternate NWS has its own reservoir, not
+        // modelled.
         if self.nose_wheel_steering_supply.is_supplied_by_green() {
             self.green_circuit
                 .update_system_actuator_volumes(&mut self.nose_steering);
@@ -3808,10 +3807,9 @@ impl A380EngineDrivenPumpController {
             should_pressurise_if_powered = false;
         }
 
-        // A380 FCOM DSC-70-80-30-20 (a380_fcom.txt l.112570-112571): "During a windmilling engine
-        // start, the FADEC disconnects both hydraulic pumps in order to increase the relight
-        // envelope." Design choice: both pumps of the engine are depressurised (off-loaded) for the
-        // start; the clutch of the ENG PUMPS DISC pb is not used, it cannot be reconnected in flight.
+        // During a windmilling start the FADEC disconnects both hydraulic pumps to widen the relight envelope. Design
+        // choice: both pumps of the engine are depressurised (off-loaded) for the start; the clutch of the ENG PUMPS
+        // DISC pb is not used, it cannot be reconnected in flight.
         if self.engine_windmill_start {
             should_pressurise_if_powered = false;
         }
@@ -4305,7 +4303,7 @@ impl BodyWheelSteeringController {
     }
 
     fn update(&mut self, context: &UpdateContext, nose_steering_angle: Angle, available: bool) {
-        // A failed or uncontrolled BWS stays centred and locked (A380 FCOM l.80696-80698, l.162636)
+        // A failed or uncontrolled BWS stays centred and locked
         if available
             && context.ground_speed().get::<knot>() < Self::MAX_BODY_STEERING_SPEED_ENABLING_KNOT
         {
@@ -4603,7 +4601,7 @@ impl A380HydraulicBrakeSteerComputerUnit {
             }
         } else if self.pedal_braking_mode == PedalBrakingMode::Emergency {
             // Emergency braking (EBCU, no A-SKID): A-SKID sw OFF, or the BCS lost normal and alternate braking.
-            // EBCU landing law 1 000 psi, take-off law 1 700 psi (A380 FCOM l.80043-80047, EmergencyBrakeLaw)
+            // EBCU landing law 1 000 psi, take-off law 1 700 psi (EmergencyBrakeLaw)
             self.emergency_brake_law.pressure_limit().get::<psi>()
         } else {
             // Else if any manual braking we use standard limit
@@ -4672,7 +4670,7 @@ impl A380HydraulicBrakeSteerComputerUnit {
             .update(context, is_in_flight_gear_lever_up);
 
         if is_in_flight_gear_lever_up {
-            // Retraction braking is a normal braking function (A380 FCOM l.78871-78872)
+            // Retraction braking is a normal braking function
             if self.should_disable_auto_brake_when_retracting.output()
                 || self.braking_faults.normal_braking_failed()
             {
@@ -4703,7 +4701,7 @@ impl A380HydraulicBrakeSteerComputerUnit {
 
                 if !self.parking_brake_demand {
                     if self.pedal_braking_mode == PedalBrakingMode::None {
-                        // BRAKES PEDAL BRAKING FAULT: "Pedal braking is not available" (A380 FCOM l.160552)
+                        // BRAKES PEDAL BRAKING FAULT: no pedal braking
                         self.alternate_brake_outputs.set_no_demands();
                     } else {
                         // Alternate or emergency braking on the alternate circuit
@@ -4788,7 +4786,7 @@ impl A380HydraulicBrakeSteerComputerUnit {
         // A380 FCOM DSC-32-30-10 (a380_fcom.txt l.80959): "A-SKID sw OFF does not cut off NWS" (also l.79122): unlike
         // the A320 A/SKID & N/W STRG switch, the A380 A-SKID switch does not gate the steering.
         // Without NWS (all engines shut down, both NWS modes or both SCS failed) the SCS commands nothing and the nose
-        // wheels caster ("the nose landing gear is free to caster", l.163025-163027).
+        // wheels caster freely.
         let nose_wheel_steering_available =
             self.steering_control.nose_wheel_steering_mode() != NoseWheelSteeringMode::Off;
         self.final_steering_position_request =
@@ -8983,7 +8981,7 @@ mod tests {
             /// Charges the yellow brake accumulator with the yellow electric pump A, then stops the
             /// pump. The accumulator starts empty in 1 % of the test runs (empty after maintenance,
             /// BrakeAccumulatorCharacteristics): a test that relies on its stored pressure calls this
-            /// first, like the A320 test bed (FBW #7794).
+            /// first, like the A320 test bed.
             fn load_brake_accumulator(mut self) -> Self {
                 // Design choice: "charged" is 90 % of the regulated pressure; the accumulator only
                 // needs to hold enough for the brake applications of the test.
@@ -10635,9 +10633,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-20-220 BTV ARMING (l.79398-79404) "No ECAM warning affects landing distances"; LIM-32
-        // (l.188646) "BTV cannot be used in the case of ECAM alert that impact the landing performance". The FWS lists
-        // BTV in STATUS INOP SYS for ENG 2(3) SHUT DOWN, TWO ENGS OUT and the ENG 2(3) REVERSER failures.
+        // BTV cannot be used with an ECAM alert that impacts the landing performance: the FWS lists BTV in STATUS INOP
+        // SYS for ENG 2(3) SHUT DOWN, TWO ENGS OUT and the ENG 2(3) REVERSER failures.
         fn btv_does_not_arm_while_an_ecam_alert_lists_btv_inop() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -10655,8 +10652,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-20-220 BTV DISARMING note (l.79433-79436): "if any arming condition is lost ... The
-        // auto-brake reverts to BRK HI mode"
+        // When an arming condition is lost the auto-brake reverts to BRK HI
         fn armed_btv_reverts_to_brk_hi_when_an_ecam_alert_lists_btv_inop() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -12442,8 +12438,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM BRAKES NORM BRK FAULT (l.160331-160332) and alternate braking (l.79942-79950): the pedals brake
-        // through the alternate circuit with A-SKID, at full pressure
+        // BRAKES NORM BRK FAULT: the pedals brake through the alternate circuit with A-SKID, at full pressure
         fn normal_braking_fault_brakes_on_the_alternate_circuit() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BrakeNormalBraking);
@@ -12466,8 +12461,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.78886-78887: the EBCU takes over when the normal and the alternate braking modes fail; no
-        // A-SKID, limited pressure: before the take-off the take-off brake law, 1 700 psi (l.80043-80045)
+        // The EBCU takes over when the normal and the alternate braking modes fail: no A-SKID, limited pressure;
+        // before the take-off, the take-off brake law (1 700 psi)
         fn normal_and_alternate_braking_faults_leave_emergency_braking() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BrakeNormalBraking);
@@ -12530,8 +12525,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM BRAKES PEDAL BRAKING FAULT (l.160525, l.160550-160559): no pedal braking, the PARK BRK handle
-        // still brakes
+        // BRAKES PEDAL BRAKING FAULT: no pedal braking, the PARK BRK handle still brakes
         fn all_braking_modes_failed_leave_only_the_parking_brake() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BrakeNormalBraking);
@@ -12559,8 +12553,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM BRAKES ALTN BRK FAULT, BRAKES EMER BRK FAULT: "the normal ... braking remains available"
-        // (l.159848-159850, l.160184-160185)
+        // BRAKES ALTN BRK FAULT and EMER BRK FAULT keep the normal braking
         fn alternate_and_emergency_braking_faults_keep_normal_braking() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BrakeAlternateBraking);
@@ -12577,8 +12570,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.80571-80572: "In normal NWS: The GREEN system supplies hydraulic power" (B19). With the engines
-        // 1 and 2 only, YELLOW is not pressurised and the nose wheels steer on GREEN.
+        // GREEN supplies the normal NWS. With the engines 1 and 2 only, YELLOW is not pressurised and the nose wheels
+        // steer on GREEN.
         fn nose_steering_steers_on_green_with_engines_1_and_2_only() {
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
@@ -12600,8 +12593,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.80589 "If the GREEN hydraulic supply fails, the alternate NWS activates automatically";
-        // l.80610 "The maximum alternate NWS rate is 10 degrees per second"
+        // Without GREEN the alternate NWS takes over at once, at 10 degrees per second at most
         fn nose_steering_reverts_to_alternate_at_10_deg_per_s_without_green() {
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
@@ -12625,7 +12617,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM STEER NORM N/W STEER FAULT: "Alternate nose wheel steering is still available" (l.163126)
+        // STEER NORM N/W STEER FAULT: the alternate nose wheel steering is still available
         fn normal_nws_fault_reverts_to_alternate_nws() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::NoseWheelSteeringNormal);
@@ -12639,8 +12631,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM STEER N/W STEER FAULT: "The normal and alternate nose wheel steering modes are failed" and "the
-        // nose landing gear is free to caster" (l.163012, l.163025-163027)
+        // STEER N/W STEER FAULT: both NWS modes are failed and the nose landing gear casters
         fn nose_wheels_do_not_steer_with_both_nws_modes_failed() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::NoseWheelSteeringNormal);
@@ -12654,8 +12645,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM STEER CTL 1(2) FAULT: "The NWS and the BWS are still available" (l.162848); N/W + B/W STEER
-        // FAULT: "SCS 1 and SCS 2 are failed" (l.162869)
+        // STEER CTL 1(2) FAULT: the NWS and the BWS are still available; N/W + B/W STEER FAULT: both SCS failed
         fn one_steering_control_system_is_enough_both_failed_lose_the_steering() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::SteeringControlSystem(1));
@@ -12677,8 +12667,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM STEER B/W STEER FAULT: "The body wheel steering is failed in the centered and locked position"
-        // (l.162636)
+        // STEER B/W STEER FAULT: the body wheel steering is failed centred and locked
         fn body_wheel_steering_fault_keeps_the_body_wheels_centred() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BodyWheelSteering);

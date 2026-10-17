@@ -1,5 +1,5 @@
-// Generated from the SimConnect recording of the A380X flight of 2026-10-06 (overshoot.log, 700.0-862.0 s, 0.5 s samples):
-// all four engines lost their MSFS combustion at 703.8 s and relit at 854.9 s when the crew selected IGN START.
+// Generated from a SimConnect recording of an A380X flight (700.0-862.0 s, 0.5 s samples): all four engines lost their MSFS
+// combustion at 703.8 s and relit at 854.9 s when the crew selected IGN START.
 // Columns: t (recording clock, s), SIM ON GROUND, XMLVAR_ENG_MODE_SEL, then for engine 1 and engine 4: FUELSYSTEM VALVE SWITCH
 // (ENG MASTER), A32NX_ENGINE_STATE, GENERAL ENG COMBUSTION, A32NX_ENGINE_n_FUEL_CUT, TURB ENG N2; then
 // A32NX_ENGINE_4_RELIGHT_IGNITION and TURB ENG N2:2. Engines 2 and 3 were not recorded but TURB ENG N2:2: their N2 is

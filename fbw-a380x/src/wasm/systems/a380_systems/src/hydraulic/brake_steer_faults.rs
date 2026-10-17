@@ -2,9 +2,9 @@
 //! Unit (EBCU) and the Steering Control System (SCS), with the nose wheel steering (NWS) hydraulic supply.
 //!
 //! Simplified model. The hydraulic model keeps one NORM brake circuit (GREEN) and one ALTN brake circuit (YELLOW and
-//! one accumulator) for all the wheel groups, so a brake fault below acts on all the wheel groups at once (A380 FCOM
-//! DSC-32-10-30-10, a380_fcom.txt l.78914-78947: the real normal braking uses GREEN for the wing gears and YELLOW for
-//! the body gears, the alternate braking two LEHGS and four accumulators).
+//! one accumulator) for all the wheel groups, so a brake fault below acts on all the wheel groups at once (the aircraft
+//! uses GREEN for the wing gears and YELLOW for the body gears in normal braking, and two LEHGS and four accumulators
+//! in alternate braking).
 
 use systems::{
     failures::{Failure, FailureType},
@@ -16,7 +16,7 @@ use systems::{
 };
 use uom::si::{f64::*, pressure::psi};
 
-/// The braking mode that the brake pedals command (A380 FCOM DSC-32-10-30-30, a380_fcom.txt l.79938-80067)
+/// The braking mode that the brake pedals command
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PedalBrakingMode {
     /// Normal braking: NORM circuit, A-SKID and AUTO BRK available
@@ -87,17 +87,17 @@ impl EmergencyBrakeLaw {
 }
 
 /// Faults of the BCS normal braking, of the BCS alternate braking and of the EBCU (flyPad failures 32110-32112).
-/// The BCS reports them to the FWS (A380 FCOM DSC-32-10-30-10 l.78878-78881, l.78910-78911).
+/// The BCS reports them to the FWS.
 pub struct A380BrakingControlFaults {
     norm_brk_fault_id: VariableIdentifier,
     altn_brk_fault_id: VariableIdentifier,
     emer_brk_fault_id: VariableIdentifier,
 
-    /// Normal hydraulic brake equipment failed on all the wheel groups (BRAKES NORM BRK FAULT, l.160331-160332)
+    /// Normal hydraulic brake equipment failed on all the wheel groups (BRAKES NORM BRK FAULT)
     normal_braking_failure: Failure,
-    /// Alternate braking failed on all the wheel groups (BRAKES ALTN BRK FAULT, l.159848-159850)
+    /// Alternate braking failed on all the wheel groups (BRAKES ALTN BRK FAULT)
     alternate_braking_failure: Failure,
-    /// EBCU failed (BRAKES EMER BRK FAULT, l.160184-160185)
+    /// EBCU failed (BRAKES EMER BRK FAULT)
     emergency_braking_failure: Failure,
 }
 impl A380BrakingControlFaults {
@@ -117,14 +117,14 @@ impl A380BrakingControlFaults {
         self.normal_braking_failure.is_active()
     }
 
-    /// The braking mode of the pedals, from the braking system reconfiguration (A380 FCOM l.79960-79962, l.80061-80067):
-    /// - A-SKID sw OFF: the EBCU takes over (emergency braking, l.78886-78888, l.80064).
-    ///   Design choice: the EBCU fault is not applied here; the FCOM does not describe A-SKID OFF with the EBCU
-    ///   failed, and the model keeps the emergency pressure law instead of losing all pedal braking.
+    /// The braking mode of the pedals, from the braking system reconfiguration:
+    /// - A-SKID sw OFF: the EBCU takes over (emergency braking).
+    ///   Design choice: the EBCU fault is not applied here; A-SKID OFF with the EBCU failed is not described, and the
+    ///   model keeps the emergency pressure law instead of losing all pedal braking.
     /// - Normal braking while its hydraulic power is available and the normal equipment works.
     /// - Else alternate braking, if the BCS alternate braking works.
-    /// - Else emergency braking, if the EBCU works ("the normal and the alternate braking modes fail", l.78887).
-    /// - Else no pedal braking ("the normal, the alternate and the emergency braking modes are failed", l.160525).
+    /// - Else emergency braking, if the EBCU works (the normal and the alternate braking failed).
+    /// - Else no pedal braking (normal, alternate and emergency braking all failed).
     pub fn pedal_braking_mode(
         &self,
         normal_hydraulic_power_available: bool,
@@ -183,14 +183,14 @@ impl SimulationElement for A380BrakingControlFaults {
     }
 }
 
-/// The hydraulic supply mode of the nose wheel steering (A380 FCOM DSC-32-10-40, a380_fcom.txt l.80514-80616)
+/// The hydraulic supply mode of the nose wheel steering
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NoseWheelSteeringMode {
     /// No nose wheel steering: the nose wheels caster
     Off,
-    /// Normal NWS: GREEN hydraulic system, 15 deg/s (l.80569-80574)
+    /// Normal NWS: GREEN hydraulic system, 15 deg/s
     Normal,
-    /// Alternate NWS: steering LEHGS and NWS accumulator, 10 deg/s (l.80583-80610)
+    /// Alternate NWS: steering LEHGS and NWS accumulator, 10 deg/s
     Alternate,
 }
 impl From<NoseWheelSteeringMode> for f64 {
@@ -203,9 +203,9 @@ impl From<NoseWheelSteeringMode> for f64 {
     }
 }
 
-/// The two Steering Control Systems (SCS 1 and 2, one active and one backup, A380 FCOM l.80459-80463) with the
-/// faults of the steering equipment (flyPad failures 32200-32204). The SCS chooses the NWS mode and enables the body
-/// wheel steering (BWS); it reports the faults to the FWS (l.80502-80503).
+/// The two Steering Control Systems (SCS 1 and 2, one active and one backup) with the faults of the steering equipment
+/// (flyPad failures 32200-32204). The SCS chooses the NWS mode and enables the body wheel steering (BWS); it reports
+/// the faults to the FWS.
 pub struct A380SteeringControlSystem {
     norm_nws_fault_id: VariableIdentifier,
     altn_nws_fault_id: VariableIdentifier,
@@ -214,12 +214,11 @@ pub struct A380SteeringControlSystem {
     scs_2_fault_id: VariableIdentifier,
     nws_mode_id: VariableIdentifier,
 
-    /// Normal NWS failed: the normal selector valve isolates the NWS from GREEN (STEER NORM N/W STEER FAULT,
-    /// l.80652-80656, l.163100)
+    /// Normal NWS failed: the normal selector valve isolates the NWS from GREEN (STEER NORM N/W STEER FAULT)
     normal_nws_failure: Failure,
-    /// Alternate NWS failed: the steering LEHGS failed (STEER ALTN N/W STEER FAULT, l.80616, l.162559)
+    /// Alternate NWS failed: the steering LEHGS failed (STEER ALTN N/W STEER FAULT)
     alternate_nws_failure: Failure,
-    /// Body wheel steering failed in the centred and locked position (STEER B/W STEER FAULT, l.162636)
+    /// Body wheel steering failed in the centred and locked position (STEER B/W STEER FAULT)
     bws_failure: Failure,
     scs_1_failure: Failure,
     scs_2_failure: Failure,
@@ -247,13 +246,12 @@ impl A380SteeringControlSystem {
     }
 
     /// Chooses the NWS mode.
-    /// - "The NWS is not available when the engines are shut down" (l.80518).
-    /// - Normal NWS needs GREEN pressure (l.80572); "If the GREEN hydraulic supply fails, the alternate NWS activates
-    ///   automatically" (l.80589).
-    /// - Design choice: the steering LEHGS runs while an engine runs. The FCOM note says it "is active when all engines
-    ///   are running" (l.80597), but it keeps ALTN NWS available with the GREEN system or the engines 1+2 lost
-    ///   (HYD G SYS PRESS LO l.155606-155609, TWO ENGS OUT l.175444).
-    /// - Without both SCS, neither the NWS nor the BWS works (STEER N/W + B/W STEER FAULT, l.162869-162870).
+    /// - No NWS with the engines shut down.
+    /// - Normal NWS needs GREEN pressure; without it the alternate NWS takes over automatically.
+    /// - Design choice: the steering LEHGS runs while an engine runs. It is documented as active with all engines
+    ///   running, but the alternate NWS stays available with the GREEN system or the engines 1+2 lost (HYD G SYS PRESS
+    ///   LO, TWO ENGS OUT).
+    /// - Without both SCS, neither the NWS nor the BWS works (STEER N/W + B/W STEER FAULT).
     pub fn update(&mut self, green_pressurised: bool, any_engine_running: bool) {
         self.nose_wheel_steering_mode = Self::steering_mode(
             self.is_steering_controlled(),
@@ -282,7 +280,7 @@ impl A380SteeringControlSystem {
         }
     }
 
-    /// One SCS is enough: "The backup SCS automatically activates, if the active SCS fails" (l.80463)
+    /// One SCS is enough: the backup SCS takes over when the active one fails
     fn is_steering_controlled(&self) -> bool {
         !(self.scs_1_failure.is_active() && self.scs_2_failure.is_active())
     }
@@ -291,7 +289,7 @@ impl A380SteeringControlSystem {
         self.nose_wheel_steering_mode
     }
 
-    /// The BWS stays centred and locked when it is failed or not controlled (l.80696-80698, l.162636)
+    /// The BWS stays centred and locked when it is failed or not controlled
     pub fn is_body_wheel_steering_available(&self) -> bool {
         self.is_steering_controlled() && !self.bws_failure.is_active()
     }
@@ -329,8 +327,8 @@ pub struct NoseWheelSteeringSupply {
 }
 impl NoseWheelSteeringSupply {
     /// Design choice: the steering LEHGS is modelled as a constant pressure. The NWS actuator speed scales with the
-    /// square root of the pressure (15 deg/s at 4 000 psi and above, SteeringActuator), so 1 778 psi gives the
-    /// "maximum alternate NWS rate is 10 degrees per second" (l.80610): 15 x sqrt(1 778 / 4 000) = 10.0 deg/s.
+    /// square root of the pressure (15 deg/s at 4 000 psi and above, SteeringActuator), so 1 778 psi gives the maximum
+    /// alternate NWS rate of 10 deg/s: 15 x sqrt(1 778 / 4 000) = 10.0 deg/s.
     const ALTERNATE_NWS_PRESSURE_PSI: f64 = 1778.;
 
     pub fn new() -> Self {
@@ -370,7 +368,7 @@ impl NoseWheelSteeringSupply {
         }
     }
 
-    /// The NWS actuators take their fluid from GREEN only in normal NWS; the LEHGS has its own reservoir (l.80585-80587)
+    /// The NWS actuators take their fluid from GREEN only in normal NWS; the LEHGS has its own reservoir
     pub fn is_supplied_by_green(&self) -> bool {
         self.mode == NoseWheelSteeringMode::Normal
     }

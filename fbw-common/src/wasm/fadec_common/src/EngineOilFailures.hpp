@@ -14,7 +14,7 @@
  *
  * Pure functions without the MSFS SDK, unit tested natively (fadec_common/test/run_tests.sh).
  *
- * Design choice: the FCOMs give the alert thresholds of the oil parameters but not how fast a leak or an overheat
+ * Design choice: the manuals give the alert thresholds of the oil parameters but not how fast a leak or an overheat
  * develops. A leak empties the oil system at a fixed rate while the oil pump turns; once the system is nearly empty the pump
  * no longer delivers its normal pressure. An overheat (the oil no longer cooled enough) drives the oil temperature towards
  * a temperature that rises with the engine core speed, so that reducing thrust reduces it.
@@ -44,8 +44,8 @@ inline double leakedQuantity(bool leaking, double coreSpeedPercent, double total
  * @brief The fraction of its normal pressure the oil pump delivers with the oil left in the oil system.
  *
  * It takes the oil of the whole system (tank and circuit, A32NX_ENGINE_OIL_TOTAL), never the tank reading: at high
- * thrust the oil moves from the tank into the circuit (gulping), which is normal and must not lower the pressure (sim
- * test 2026-10-06: a false ENG OIL LO PR in a normal climb when the pressure followed the tank reading).
+ * thrust the oil moves from the tank into the circuit (gulping), which is normal and must not lower the pressure (in the
+ * sim, a pressure that followed the tank reading gave a false ENG OIL LO PR in a normal climb).
  * @param totalQuantity The oil quantity in the whole oil system, in quarts.
  * @param fullPressureQuantity At or above this quantity the pump delivers its normal pressure, in quarts.
  * @param noPressureQuantity At or below this quantity the pump delivers no pressure, in quarts.
@@ -118,13 +118,13 @@ inline double overheatTemperature(double previousTemperature,
  * MSFS runs its own oil temperature model on GENERAL ENG OIL TEMPERATURE (engines.cfg oil_temp_cooling_constant,
  * oil_temp_heating_constant, oil_temp_tc): between two FADEC updates it moves the value the FADEC wrote towards its own
  * temperature. An overheat integrated from the value read back therefore settles where the FADEC push and the MSFS pull
- * balance, far below its target: sim test 2026-10-06, A380X engine 4 at FL200 and 84 % N3, the oil temperature stopped
+ * balance, far below its target: measured in the sim, A380X engine 4 at FL200 and 84 % N3, the oil temperature stopped
  * at 128 C for a 203 C target, and ENG OIL TEMP HI (196 C) never came up. The tracker takes the value read back only
  * when the failure begins, then integrates its own temperature and the FADEC writes it every update.
  *
  * Once the failure is cleared the tracker cools its temperature down towards the normal oil temperature of the FADEC, with
  * the time constant of the overheat, and hands the oil temperature back to the FADEC within HANDBACK_DEGREES of it. Handing it
- * back at once made the oil temperature drop from 196 C to 84 C in one update (sim test 2026-10-06/07, A380X; 158 C to 85 C on
+ * back at once made the oil temperature drop from 196 C to 84 C in one update (measured in the sim, A380X; 158 C to 85 C on
  * the A32NX): the normal oil model of the FADEC caps it at its maximum normal temperature. The OIL TEMP HI alerts, which
  * watch the temperature, therefore stay until the oil has really cooled below their threshold.
  */

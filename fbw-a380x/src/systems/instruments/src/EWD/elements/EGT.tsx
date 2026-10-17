@@ -83,7 +83,7 @@ export class EGT extends DisplayComponent<EGTProps> {
     this.engineState,
   );
 
-  /** The red mark at the highest EGT shown above the red line (FCOM DSC-70-90 EGT EXCEEDANCE) */
+  /** The red mark at the highest EGT shown above the red line */
   private readonly egtExceedance = new ExceedanceMemory(EGT_RED_LINE_C);
 
   private readonly egtExceedanceValue = Subject.create(0);

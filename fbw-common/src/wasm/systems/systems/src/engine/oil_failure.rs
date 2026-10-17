@@ -7,12 +7,11 @@
 //! from the oil parameters the FADEC computes, and from the clogged filter.
 //!
 //! - Oil leak: the engine loses oil overboard. Its oil quantity falls, and once the oil tank is
-//!   nearly empty the oil pressure falls (A320 FCOM PRO-ABN-ENG ENG 1(2) OIL LO PR, A380 FCOM
-//!   PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO).
-//! - Oil filter clog: the pressure loss across the oil filter is excessive (A320 FCOM
-//!   DSC-70-90-40 OIL FILTER CLOG INDICATION, A380 FCOM ENG 1(2)(3)(4) OIL FILTER CLOGGED): an
-//!   indication and a crew awareness alert.
-//! - Oil overheat (design choice, the FCOMs give no cause): the oil is no longer cooled enough and
+//!   nearly empty the oil pressure falls (A320 ENG 1(2) OIL LO PR, A380 ENG 1(2)(3)(4) OIL PRESS
+//!   LO).
+//! - Oil filter clog: the pressure loss across the oil filter is excessive (A320 OIL FILTER CLOG
+//!   indication, A380 ENG 1(2)(3)(4) OIL FILTER CLOGGED): an indication and a crew awareness alert.
+//! - Oil overheat (design choice, the manuals give no cause): the oil is no longer cooled enough and
 //!   its temperature rises with the engine thrust (A320 ENG 1(2) OIL HI TEMP, A380 ENG
 //!   1(2)(3)(4) OIL TEMP HI).
 //!

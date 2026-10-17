@@ -6,11 +6,8 @@ import { SdPages } from './EcamSystemPages';
 // Rules of the ECP MORE pb and of the MORE information pages on the SD.
 // The FWS (systems host) owns the decision because it owns the lists behind it; the SD STATUS page uses the same
 // rule from the same published lists only to draw the boxed MORE label, so the label and the pb always agree.
-//
-// A380 FCOM DSC-31-40-10 (STATUS MORE PAGE): the crew can display a STATUS MORE page "if MORE appears at the bottom
-// of the STATUS page, by pressing MORE pb on the ECP".
-// A380 FCOM DSC-31-40-20 (MORE pb): the SD displays the MORE information page available when MORE appears on the
-// system display pages and STATUS page; pressing the pb again clears the MORE information page.
+// The MORE pb shows the MORE information page when MORE appears on a system page or the STATUS page; pressing it
+// again clears the MORE page.
 
 /** The SD pages that have a MORE information page. Only STATUS MORE is implemented so far. */
 export const SD_PAGES_WITH_MORE: readonly SdPages[] = [SdPages.Status];

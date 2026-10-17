@@ -4,9 +4,9 @@
 // Native test of the MSFS throttle during and after an in-flight engine start on the A380X
 // (fbw-common/src/wasm/fbw_common/src/EngineStartThrottleHold.h, shared with the A32NX): run test/run_tests.sh.
 //
-// The three in-flight relights of the A380X sim test of 2026-10-05 (b1_inflight.log) all ended with the N3 at 97.5 % (the MSFS N2
-// limit) for 5.1-6.7 s, levers in CL with the A/THR: engine 1 windmill relight at FL200/300 kt, engine 4 quick relight at
-// FL150/240 kt, engine 3 crossbleed relight at FL150/210 kt. The thrust loop (the generated A380FadecComputer model, used here as it
+// Three in-flight relights of the A380X measured in the sim all ended with the N3 at 97.5 % (the MSFS N2 limit) for 5.1-6.7 s,
+// levers in CL with the A/THR: engine 1 windmill relight at FL200/300 kt, engine 4 quick relight at FL150/240 kt, engine 3
+// crossbleed relight at FL150/210 kt. The thrust loop (the generated A380FadecComputer model, used here as it
 // is) integrates the MSFS throttle until the MSFS commanded N1 meets the N1 target. The scenarios below close that loop over a small
 // model of the MSFS engine and replay the three recorded relights, then the cases where the start ends just below the FBW idle.
 //
@@ -96,8 +96,8 @@ struct Table1502 {
  *   throttle 0 gives the MSFS idle N1, throttle 100 gives N1 105 % (so that full throttle reaches the recorded limit). n3Offset
  *   moves the MSFS curve against the FBW one (MSFS idle a little below the FBW idle in the "start ends below idle" cases).
  * - E. With commandedN1WhileStarting, TURB ENG COMMANDED N1 answers the throttle while the engine is out or starting (as recorded on
- *   the A32NX quick relight T2 of 2026-10-05, overshoot.log: 26.6 % at throttle 0 = the idle limit, then 27 -> 68 % while the
- *   throttle rose 1 -> 54 % during the RESTARTING). Not recorded on the A380X yet: the same MSFS engine model is assumed.
+ *   an A32NX quick relight in the sim: 26.6 % at throttle 0 = the idle limit, then 27 -> 68 % while the throttle rose 1 -> 54 %
+ *   during the RESTARTING). Not recorded on the A380X yet: the same MSFS engine model is assumed.
  */
 struct MsfsEngineModel {
   double mach;
@@ -221,7 +221,6 @@ struct CompressorStallModel {
 
 static constexpr double FRAME_SECONDS = 1.0 / 30.0;
 
-/// Fills the inputs of the thrust loop for one frame.
 static void setLoopInputs(A380FadecComputer::ExternalInputs_A380FadecComputer_T& inputs, const Scenario& s, double t, bool onGround,
                           const MsfsEngineModel& engine, double tlaDeg) {
   inputs.in.time.dt                         = FRAME_SECONDS;
@@ -383,14 +382,14 @@ static void report(const char* name, const char* variant, const Result& r) {
 }
 
 /**
- * Replay of the A32NX quick relight T2 of the sim test of 2026-10-05 (overshoot.log, engine 1, FL150 / 248 kt, lever CL with the
+ * Replay of a recorded A32NX quick relight (engine 1, FL150 / 248 kt, lever CL with the
  * A/THR): ENG MASTER OFF at 441.2 s (SHUTTING), ON at 447.3 s (RESTARTING), FBW ON at 452.0 s. MSFS already commanded its idle N1
  * at throttle 0 (26.6 % against the idle limit 26.0-26.1 %) while the engine still turned fast, so the hold took the commanded N1 at
  * the RESTARTING for "idle reached" and let the loop drive the throttle during the start: 0.8 -> 59 % in 5 s, then N2 96.8 %
  * against about 90 % for the lever. The recorded inputs are fed to the hold at 30 frames per second, each sample held for its
  * 0.5 s; the hold is shared by both aircraft (the decision does not depend on the engine).
  */
-static void replayA32nxQuickRelightT2() {
+static void replayA32nxQuickRelight() {
   struct Sample {
     double t;               // s
     double engineState;     // L:A32NX_ENGINE_STATE:1
@@ -447,7 +446,7 @@ static void replayA32nxQuickRelightT2() {
 }
 
 /**
- * Replay of the A380X flight of the sim test of 2026-10-05 in which all four engines flamed out at once (overshoot.log, engines 1
+ * Replay of a recorded A380X flight in which all four engines flamed out at once (engines 1
  * and 4; flight loaded in the air at FL050 / 267 kt at 657 s, engines running, normal climb, all four out at 703.8 s at 7 870 ft /
  * 239 kt with throttle 82 % and N1 85.8 %, FBW state still ON, no fuel cut). The engines were running and never out or starting
  * for the FADEC (OFF while the FADEC initialised after the spawn, then ON): the hold must be transparent for the whole flight, up
@@ -681,8 +680,8 @@ int main() {
   checkScenario(r8, 90.0, LONGEST_SETTLE);
   checkScenario(r9, 90.0, LONGEST_SETTLE);
 
-  // The quick relights R2 / R4 with MSFS commanding its idle N1 at throttle 0 during the start (MsfsEngineModel E., as on the A32NX
-  // T2): the hold must not take that commanded N1 for "idle reached" before the FADEC sees the start end.
+  // The quick relights R2 / R4 with MSFS commanding its idle N1 at throttle 0 during the start (MsfsEngineModel E., as recorded
+  // on the A32NX): the hold must not take that commanded N1 for "idle reached" before the FADEC sees the start end.
   const Scenario r10{"R10 = R2, commanded N1 at idle while starting", 15000, 240, 0.48, 0.8969, 25.0, 62.0, 80.3, 0.0, 0.0, 3.0, 33.3,
                      true};
   const Scenario r11{"R11 = R4, commanded N1 at idle while starting", 15000, 240, 0.48, 0.8969, 0.0, 62.0, 80.3, 0.0, 0.0, 3.0, 33.3,
@@ -699,7 +698,7 @@ int main() {
   // A compressor stall active during the relight (flyPad ATA 72 compressor stall), R1 conditions (levers in CL with the A/THR, N1
   // target above the 60 % stall threshold; at the R2/R3 conditions the target is below it): the engine stalls as soon as it is ON
   // and the stall N1 loss (up to 15 %) is added to the MSFS commanded N1 that the hold sees. The hold must still wait for the MSFS
-  // commanded N1 itself to reach idle (integration note of 2026-10-07: "the stall makes the commanded N1 look higher"). Without
+  // commanded N1 itself to reach idle (the stall makes the commanded N1 look higher). Without
   // the fix the hold ends 0.8 s early with the commanded N1 9 % below idle; the target ramp of the ACCELERATING phase still keeps
   // the N3 at the lever value, so the early release has no visible effect in this model.
   const Scenario r12{"R12 = R1, compressor stall", 20000, 300, 0.63, 0.8626, 25.0, 61.0, 83.0, 0.0, 0.0, 52.0, 26.1, false, true};
@@ -714,7 +713,7 @@ int main() {
            "R12: hold released only once the MSFS commanded N1 (without the stall loss) reached idle", r.releaseCommandedN1);
   }
 
-  replayA32nxQuickRelightT2();
+  replayA32nxQuickRelight();
   replayA380xAllEngineFlameoutFlight();
 
   // Unchanged: a thrust lever change of a running engine in flight, and a start on the ground.

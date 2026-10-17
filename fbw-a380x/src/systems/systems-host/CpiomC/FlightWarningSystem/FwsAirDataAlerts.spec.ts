@@ -44,7 +44,7 @@ function procedureItemNames(id: string): string[] {
   return [...block.matchAll(/\{ name: '([^']+)'/g)].map((match) => match[1]);
 }
 
-describe('NAV AIR DATA DISAGREE / ALL AIR DATA DISAGREE / AOA DISAGREE triggers (A380 FCOM PRO-ABN-ECAM-10-34-10)', () => {
+describe('NAV AIR DATA DISAGREE / ALL AIR DATA DISAGREE / AOA DISAGREE triggers', () => {
   it('nothing without a rejection', () => {
     const alerts = alertsWith({});
     expect(alerts.airDataDisagree.get()).toBe(false);
@@ -67,7 +67,7 @@ describe('NAV AIR DATA DISAGREE / ALL AIR DATA DISAGREE / AOA DISAGREE triggers 
     expect(alerts.airDataDisagree.get()).toBe(false);
   });
 
-  it('one rejected AOA gives no NAV alert (FCOM l.136361-136362), two give AOA DISAGREE', () => {
+  it('one rejected AOA gives no NAV alert, two give AOA DISAGREE', () => {
     expect(alertsWith({ aoaRejected: [false, false, true] }).aoaDisagree.get()).toBe(false);
     expect(alertsWith({ aoaRejected: [true, true, false] }).aoaDisagree.get()).toBe(true);
   });
@@ -192,7 +192,7 @@ describe('readAirDataAlertInputs', () => {
   });
 });
 
-describe('FwsAbnormalSensed entries (A380 FCOM flight phase inhibition figures, PDF pages 5555, 5557, 5565)', () => {
+describe('FwsAbnormalSensed entries (flight phase inhibitions)', () => {
   const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
   const alertBlock = (id: string) => {
     const start = abnormalSensed.indexOf(`    ${id}: {`);

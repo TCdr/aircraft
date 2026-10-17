@@ -1479,12 +1479,11 @@ impl SimulationElement for BtvDecelScheduler {
             raw_feet_exit_length_arinc.ssm(),
         );
 
-        // A380 FCOM DSC-32-20-220 BTV ARMING (a380_fcom.txt l.79398-79404): "No ECAM warning affects landing distances",
-        // and LIM-32 (l.188646): "BTV cannot be used in the case of ECAM alert that impact the landing performance".
-        // The FCDC BTV LOST covers the flight control, hydraulic, electrical, ADIRU and OANS losses; the FWS adds the
-        // alerts that list BTV in STATUS INOP SYS on their own (ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER
-        // failures, FwsCore engineOutBtvInop / reverserBtvInop). Design choice: both act the same way, BTV does not arm
-        // and an armed BTV reverts to BRK HI (l.79434-79436: "if any arming condition is lost ... reverts to BRK HI").
+        // BTV cannot be used with an ECAM alert that impacts the landing performance. The FCDC BTV LOST covers the
+        // flight control, hydraulic, electrical, ADIRU and OANS losses; the FWS adds the alerts that list BTV in
+        // STATUS INOP SYS on their own (ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER failures, FwsCore
+        // engineOutBtvInop / reverserBtvInop). Design choice: both act the same way, BTV does not arm and an armed
+        // BTV reverts to BRK HI (as when any arming condition is lost).
         let fcdc_btv_lost: bool = reader.read(&self.btv_lost_id);
         let fws_btv_inop: bool = reader.read(&self.fws_btv_inop_id);
         self.btv_lost = fcdc_btv_lost || fws_btv_inop;

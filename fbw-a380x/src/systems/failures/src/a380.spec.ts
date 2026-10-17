@@ -65,7 +65,7 @@ describe('A380X flyPad failure definitions', () => {
     expect(nameOf(32006)).toBe('Proximity sensor damage uplock right gear #1');
   });
 
-  it('names the buses, TRs and controllers as the A380 FCOM and SD do (failure names audit 2026-10-03)', () => {
+  it('names the buses, TRs and controllers as the aircraft and its SD do', () => {
     const label = (id: number) => A380FailureDefinitions.find(([, i]) => i === id)?.[2];
     expect(label(24002)).toBe('ESS TR');
     expect(label(24003)).toBe('APU TR');
@@ -166,7 +166,7 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
-  // The labels say what a380_systems engine_failure.rs does with ids 72000-72013 (failure names audit rule)
+  // The labels say what a380_systems engine_failure.rs does with ids 72000-72013
   it('lists the engine flameout and seizure failures of the four engines in ATA 72 Engine', () => {
     const rustMap = readRustFailureMap();
     const expected: [number, string, string][] = [1, 2, 3, 4].flatMap((engine): [number, string, string][] => [
@@ -197,7 +197,7 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
-  // The labels say what systems::engine::engine_start does with ids 74000-74013 and 80000-80053 (failure names audit rule)
+  // The labels say what systems::engine::engine_start does with ids 74000-74013 and 80000-80053
   it('lists the ignition and starting failures of the four engines in ATA 74 and ATA 80', () => {
     const rustMap = readRustFailureMap();
     const kinds: [number, number, string, string][] = [
@@ -245,7 +245,7 @@ describe('A380X flyPad failure definitions', () => {
     expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
       expected.map(([id, failureType, name, chapter]) => [id, failureType, name, chapter]),
     );
-    // No overspeed failure on the A380X (engine_malfunction.rs): the FCOM red limits are out of reach
+    // No overspeed failure on the A380X (engine_malfunction.rs): the red limits are out of reach
     expect(rustMap.has(72120)).toBe(false);
   });
 
@@ -342,8 +342,8 @@ describe('A380X flyPad failure definitions', () => {
 });
 
 describe('A380X FADEC, thrust lever and reverser failures', () => {
-  // The labels say what a380_systems engine_control_failure.rs and the reversers do with ids 73010-78042 (failure names
-  // audit rule): the reversers are on engines 2 and 3 only (A380 FCOM DSC-70-70)
+  // The labels say what a380_systems engine_control_failure.rs and the reversers do with each id: the reversers are on
+  // engines 2 and 3 only
   it('lists them in ATA 73 and 78 with the Rust failure they trigger', () => {
     const rustMap = readRustFailureMap();
     const fadec: [number, string, string][] = [1, 2, 3, 4].flatMap((engine): [number, string, string][] => [
@@ -372,7 +372,7 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
     expect(A380Failure.Reverser3ControlFault).toBe(78042);
   });
 
-  // The labels say what systems engine/fuel_filter_failure.rs does with ids 73100-73103 (failure names audit rule)
+  // The labels say what systems engine/fuel_filter_failure.rs does with ids 73100-73103
   it('lists the engine fuel filter clog failures of the four engines in ATA 73', () => {
     const rustMap = readRustFailureMap();
     const expected = [1, 2, 3, 4].map((engine) => [

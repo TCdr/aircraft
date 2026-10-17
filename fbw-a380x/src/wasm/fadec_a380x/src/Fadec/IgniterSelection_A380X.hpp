@@ -13,52 +13,41 @@
  * The MSFS ignition switch that makes MSFS burn is driven separately (EngineIgnition_A380X); this class only tells which
  * igniters are on.
  *
- * A380 FCOM DSC-70-80-20 IGNITION (a380_fcom.txt l.112317): "The ignition system has two independent igniters A and B for
- * each engine." DSC-70-90 SD ENGINE page, start parameters (l.113443-113444): "The igniter A(B) is energized." / "Both
- * igniters A and B are energized."
+ * Each engine has two independent igniters A and B; the SD ENGINE page shows the energized ones (A, B or A B).
  *
- * The FCOM core speed "N2" is the HP spool of the GP7270 of the FCOM: on the A380X (Trent 900) it is the FBW N3, as for the
- * start valve (closes above 58.4 % N3, a380_systems pneumatic.rs) and the windmilling core speed.
+ * The documented core speed "N2" is the HP spool of the GP7270: on the A380X (Trent 900) it is the FBW N3, as for the start
+ * valve (closes above 58.4 % N3, a380_systems pneumatic.rs) and the windmilling core speed.
  *
  * Selection, in priority order:
- * 1. NO IGNITER when the FADEC is not supplied (ENG FIRE pb released, DSC-26 ENGINE ISOLATION l.52996-53004 "Shuts off the
- *    FADEC power supply") or the ENG MASTER lever is OFF (DSC-70-80-30-20 l.112518-112524: "Stops the ignition").
+ * 1. NO IGNITER when the FADEC is not supplied (the ENG FIRE pb released cuts its power supply) or the ENG MASTER lever is OFF
+ *    (which stops the ignition).
  * 2. A + B when the FADEC selects both igniters by itself (EngineIgnition_A380X): the auto relight after a flameout
- *    (l.112533-112537 "continuous ignition with both igniters is automatically selected. The ignition is maintained for 60 s
- *    after engine relight") or an in-flight relight that lights up.
+ *    (continuous ignition with both igniters is selected automatically and maintained for 60 s after the relight) or an
+ *    in-flight relight that lights up.
  * 3. A + B for the QUICK RELIGHT: the ENG MASTER lever set back to ON within QUICK_RELIGHT_MAX_MASTER_OFF_SECONDS of being set
- *    to OFF with the engine running, with N2 above QUICK_RELIGHT_MIN_N3 (DSC-70-80-20 l.112384-112387 and DSC-70-90
- *    l.112541-112545), for QUICK_RELIGHT_HOLD_SECONDS (l.112397-112398: "The FADEC maintains both igniters for 60 s after
- *    the ENG MASTER lever is set back to ON").
+ *    to OFF with the engine running, with N2 above QUICK_RELIGHT_MIN_N3, kept QUICK_RELIGHT_HOLD_SECONDS after the lever is
+ *    set back to ON.
  * 4. START SEQUENCE (FBW engine state STARTING or RESTARTING):
- *    - in flight A + B (DSC-70-80-20 l.112353 "Both igniters are selected, when ENG MASTER lever is set to ON"; DSC-70-30
- *      l.113572 "Ignition starts (igniters A + B)") until the engine runs (l.113578 "Igniter is set to off when AVAIL
- *      appears");
+ *    - in flight A + B from the ENG MASTER ON until the engine runs (AVAIL);
  *    - on the ground, the igniters of the start sequence of the systems WASM (L:A32NX_ENGINE_n_IGNITERS, written by
  *      systems::engine::engine_start with the A380 schedule of a380_systems engine_failure.rs). The start sequence is the
  *      one source of truth of the ground start: it also decides with them whether a failed igniter lights the engine up.
- *      It energizes one igniter for a first automatic start (l.112328 "Only one igniter operates for an automatic start"),
- *      alternated at each start, from 20 % to 58 % N2 (DSC-70-30 l.113553-113555, DSC-70-80-20 l.112341-112342), both
- *      igniters for the new automatic attempts (l.112332) and none during the automatic dry crank. It is shown while that
- *      start sequence runs (A32NX_ENGINE_n_START_PHASE not 0) or while the FBW engine state is STARTING on the ground.
- * 5. CONTINUOUS IGNITION (ENG START selector at IGN START, engine running), A + B (DSC-70-80-20 l.112367 "The FADEC uses
- *    both igniters, when the continuous ignition operates"):
- *    - in flight at once (l.112361-112362);
- *    - on the ground only after the selector was set to NORM then back to IGN START after the start sequence, and when the
- *      engine is not at low power (l.112363-112365: "On ground, after the engine start sequence, the FADEC automatically
- *      stops the igniters. To activate the continuous ignition, the flight crew must set the ENG START selector to NORM,
- *      then back to IGN START. On ground, the continuous ignition operates, if the engine is not at low power."; l.112366
- *      "The engine is at low power when N1 is below 53 % for more than 30 s").
- *    Not modelled: the inhibition when the combustion chamber pressure is too high (l.112368-112370): MSFS has no combustion
- *    chamber pressure.
+ *      It energizes one igniter for a first automatic start, alternated at each start, from 20 % to 58 % N2, both igniters
+ *      for the new automatic attempts and none during the automatic dry crank. It is shown while that start sequence runs
+ *      (A32NX_ENGINE_n_START_PHASE not 0) or while the FBW engine state is STARTING on the ground.
+ * 5. CONTINUOUS IGNITION (ENG START selector at IGN START, engine running), A + B:
+ *    - in flight at once;
+ *    - on the ground the FADEC stops the igniters after the start sequence: the selector must be set to NORM then back to
+ *      IGN START, and the engine must not be at low power (N1 below 53 % for more than 30 s).
+ *    Not modelled: the inhibition when the combustion chamber pressure is too high: MSFS has no combustion chamber pressure.
  */
 class IgniterSelection_A380X {
  public:
-  /// FCOM DSC-70-80-20 (l.112366): "The engine is at low power when N1 is below 53 % for more than 30 s."
+  /// The engine is at low power when N1 is below 53 % for more than 30 s.
   static constexpr double LOW_POWER_N1      = 53.0;
   static constexpr double LOW_POWER_SECONDS = 30.0;
-  /// FCOM DSC-70-80-20 (l.112384-112387): the ENG MASTER lever set to OFF then to ON "within 30 s"; "available if N2 is
-  /// greater than 45 %"; (l.112397) "The FADEC maintains both igniters for 60 s after the ENG MASTER lever is set back to ON".
+  /// Quick relight: the ENG MASTER lever set to OFF then back to ON within 30 s, with N2 above 45 %; both igniters are kept
+  /// 60 s after the lever is back ON.
   static constexpr double QUICK_RELIGHT_MAX_MASTER_OFF_SECONDS = 30.0;
   static constexpr double QUICK_RELIGHT_MIN_N3                 = 45.0;
   static constexpr double QUICK_RELIGHT_HOLD_SECONDS           = 60.0;
@@ -78,7 +67,7 @@ class IgniterSelection_A380X {
     bool   fadecBothIgniters;  // the FADEC selects both igniters by itself: auto relight or in-flight relight
     bool   startSequenceActive;    // the ground start sequence of the systems WASM runs (A32NX_ENGINE_n_START_PHASE not 0)
     int    startSequenceIgniters;  // the igniters that start sequence energizes (A32NX_ENGINE_n_IGNITERS): bit 0 A, bit 1 B
-    double n3Percent;          // FBW N3 (A32NX_ENGINE_N3): the HP spool, the "N2" of the FCOM
+    double n3Percent;          // FBW N3 (A32NX_ENGINE_N3): the HP spool, the documented "N2"
     double n1Percent;          // FBW N1 (A32NX_ENGINE_N1)
     double deltaTime;          // seconds since the previous update
   };

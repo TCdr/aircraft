@@ -878,8 +878,8 @@ export class FwsAbnormalSensed {
   }
 
   /**
-   * ENG n START FAULT (701800117-120), START VLV FAULT (NOT CLOSED) (121-124), (NOT OPEN) (125-128), IGN A FAULT (057-060),
-   * IGN B FAULT (061-064), IGN A+B FAULT (065-068): A380 FCOM PRO-ABN-ECAM-10-70, see EngineStartAlerts.ts. Amber cautions.
+   * ENG n START FAULT (701800117-120), START VLV FAULT (NOT CLOSED) (121-124), (NOT OPEN) (125-128), IGN A FAULT
+   * (057-060), IGN B FAULT (061-064), IGN A+B FAULT (065-068), see EngineStartAlerts.ts. Amber cautions.
    */
   private engineStartAlerts(): EwdAbnormalDict {
     const alerts: EwdAbnormalDict = {};
@@ -906,7 +906,7 @@ export class FwsAbnormalSensed {
           apuBleedPbOn: this.fws.apuBleedPbOn.get(),
           allThrustLeversIdle: this.fws.allThrottleIdle.get(),
         });
-      // START FAULT: no aural, no MASTER light and no SD page (FCOM PDF p.5810, l.172889 "Indications:" empty)
+      // START FAULT: no aural, no MASTER light and no SD page
       alerts[701800117 + index] = {
         flightPhaseInhib: START_ALERTS_FLIGHT_PHASE_INHIBITION,
         simVarIsActive: this.fws.engineStartFaultActive[index],
@@ -916,7 +916,7 @@ export class FwsAbnormalSensed {
         failure: START_FAULT_LEVEL,
         sysPage: SdPages.None,
       };
-      // START VLV FAULT (NOT CLOSED) LIMITATIONS and STATUS (l.173136-173158); the deferred procedure is ata70 700700001
+      // START VLV FAULT (NOT CLOSED) LIMITATIONS and STATUS; the deferred procedure is ata70 700700001
       const valveNotClosedStatus = startValveNotClosedStatus(engineNumber);
       alerts[701800121 + index] = {
         flightPhaseInhib: START_ALERTS_FLIGHT_PHASE_INHIBITION,
@@ -939,7 +939,7 @@ export class FwsAbnormalSensed {
         failure: 2,
         sysPage: SdPages.Eng,
       };
-      // IGN A(B) FAULT: crew awareness, no aural and no MASTER light (PDF p.5791); IGN A+B FAULT: SC + MASTER CAUT (l.172275)
+      // IGN A(B) FAULT: crew awareness, no aural and no MASTER light; IGN A+B FAULT: SC + MASTER CAUT
       const ignitionFault = (simVarIsActive: Subscribable<boolean>, flightPhaseInhib: number[], level: number) => ({
         flightPhaseInhib,
         simVarIsActive,
@@ -1291,8 +1291,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['210300013', '210300015'],
     },
     211800028: {
-      // COND DUCT OVHT (A380 FCOM PRO-ABN-ECAM-10-21-10, a380_fcom.txt:132563-132674)
-      // Design choice: the phase inhibition of COND HOT AIR FAULT (the FCOM inhibition column is a picture)
+      // COND DUCT OVHT. Design choice: the phase inhibition of COND HOT AIR FAULT (the real inhibition is not known)
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: MappedSubject.create(
         () => condDuctOvhtActive(this.fws.trimAirMonitoringFlags()),
@@ -1306,7 +1305,7 @@ export class FwsAbnormalSensed {
         condDuctOvhtItems(this.fws.trimAirMonitoringFlags(), this.fws.hotAirValveFlags(), this.fws.packPbsOn()).show,
       whichItemsChecked: () =>
         condDuctOvhtItems(this.fws.trimAirMonitoringFlags(), this.fws.hotAirValveFlags(), this.fws.packPbsOn()).checked,
-      // Indications: audio, master light, HOT AIR pb local light and COND SD page (a380_fcom.txt:132577-132581)
+      // Audio, master light, HOT AIR pb local light and COND SD page
       failure: 2,
       sysPage: SdPages.Cond,
       info: () => condDuctOvhtInfo(this.fws.trimAirMonitoringFlags()),
@@ -1328,8 +1327,8 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['210300016'],
     },
     211800030: {
-      // COND FWD CARGO TEMP REGUL FAULT (A380 FCOM PRO-ABN-ECAM-10-21-10, a380_fcom.txt:132245-132297)
-      // Design choice: the phase inhibition of COND FWD CARGO ISOL FAULT (the FCOM inhibition column is a picture)
+      // COND FWD CARGO TEMP REGUL FAULT. Design choice: the phase inhibition of COND FWD CARGO ISOL FAULT (the real
+      // inhibition is not known)
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: MappedSubject.create(
         () => fwdCargoTempRegulFaultActive(this.fws.trimAirMonitoringFlags()),
@@ -1338,10 +1337,10 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => fwdCargoTempRegulFaultItemsToShow(this.fws.trimAirMonitoringFlags()),
       whichItemsChecked: () => [false, false],
-      // Indications: COND SD page only, no audio and no master light (a380_fcom.txt:132254-132258)
+      // COND SD page only, no audio and no master light
       failure: 1,
       sysPage: SdPages.Cond,
-      // FWD CRG TEMP REGUL DEGRADED (a380_fcom.txt:132294-132297)
+      // FWD CRG TEMP REGUL DEGRADED
       info: () => ['210200003'],
       inopSysAllPhases: () => [],
     },
@@ -4372,8 +4371,8 @@ export class FwsAbnormalSensed {
         this.fws.feedTank4Low,
       ),
       whichItemsToShow: () => [true, true, false, false, false, false, false],
-      // CROSSFEED 1+2+3+4 ON and ALL FEED TKs PMPs ON: the crew actions, sensed on the pb-sw (a jammed valve or a failed
-      // pump does not prevent them)
+      // CROSSFEED 1+2+3+4 ON and ALL FEED TKs PMPs ON: the crew actions, sensed on the pb-sw (a jammed valve or a
+      // failed pump does not prevent them)
       whichItemsChecked: () => [
         this.fws.allCrossFeedPbsOn.get(),
         this.fws.allFeedTankPumpPbsOn.get(),
@@ -4395,7 +4394,7 @@ export class FwsAbnormalSensed {
       flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
       simVarIsActive: this.fws.feedTank1Low,
       whichItemsToShow: () => [true, true, true, false, false, false, false, false],
-      // IF NO FUEL LEAK: CROSSFEED 1 ON, CROSSFEED 2 ON (FCOM PRO-ABN-ECAM-10-28 l.149903-149906), sensed on the pb-sw
+      // IF NO FUEL LEAK: CROSSFEED 1 ON, CROSSFEED 2 ON, sensed on the pb-sw
       whichItemsChecked: () => [
         false,
         this.fws.crossFeedPbOn[0].get(),
@@ -4472,9 +4471,8 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => [],
     },
     281800031: {
-      // FEED TK 1 MAIN PMP FAULT (A380 FCOM PRO-ABN-ECAM-10-28, a380_fcom.txt l.150267-150315): FEED TK 1 MAIN PMP
-      // OFF; STATUS INOP SYS FEED TK 1 MAIN PMP. The FCOM flight phase inhibition is a figure (design choice: the one
-      // of JETTISON VLV NOT CLOSED)
+      // FEED TK 1 MAIN PMP FAULT: FEED TK 1 MAIN PMP OFF; STATUS INOP SYS FEED TK 1 MAIN PMP. Design choice: the flight
+      // phase inhibition of JETTISON VLV NOT CLOSED (the real one is not known)
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.feedTankMainPumpFault[0],
       notActiveWhenItemActive: ['281800027'],
@@ -4485,9 +4483,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['280300005'],
     },
     281800032: {
-      // FEED TK 2 MAIN PMP FAULT (A380 FCOM PRO-ABN-ECAM-10-28, a380_fcom.txt l.150267-150315): FEED TK 2 MAIN PMP
-      // OFF; STATUS INOP SYS FEED TK 2 MAIN PMP. The FCOM flight phase inhibition is a figure (design choice: the one
-      // of JETTISON VLV NOT CLOSED)
+      // FEED TK 2 MAIN PMP FAULT, as FEED TK 1
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.feedTankMainPumpFault[1],
       notActiveWhenItemActive: ['281800028'],
@@ -4498,9 +4494,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['280300002'],
     },
     281800033: {
-      // FEED TK 3 MAIN PMP FAULT (A380 FCOM PRO-ABN-ECAM-10-28, a380_fcom.txt l.150267-150315): FEED TK 3 MAIN PMP
-      // OFF; STATUS INOP SYS FEED TK 3 MAIN PMP. The FCOM flight phase inhibition is a figure (design choice: the one
-      // of JETTISON VLV NOT CLOSED)
+      // FEED TK 3 MAIN PMP FAULT, as FEED TK 1
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.feedTankMainPumpFault[2],
       notActiveWhenItemActive: ['281800029'],
@@ -4511,9 +4505,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['280300006'],
     },
     281800034: {
-      // FEED TK 4 MAIN PMP FAULT (A380 FCOM PRO-ABN-ECAM-10-28, a380_fcom.txt l.150267-150315): FEED TK 4 MAIN PMP
-      // OFF; STATUS INOP SYS FEED TK 4 MAIN PMP. The FCOM flight phase inhibition is a figure (design choice: the one
-      // of JETTISON VLV NOT CLOSED)
+      // FEED TK 4 MAIN PMP FAULT, as FEED TK 1
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.feedTankMainPumpFault[3],
       notActiveWhenItemActive: ['281800030'],
@@ -4524,7 +4516,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['280300007'],
     },
     281800035: {
-      // FEED TK 1 STBY PMP FAULT (FCOM l.150328-150372): crew awareness; MORE INFO REDUND LOSS FEED TK 1 STBY PMP
+      // FEED TK 1 STBY PMP FAULT: crew awareness; MORE INFO REDUND LOSS FEED TK 1 STBY PMP
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.feedTankStbyPumpFault[0],
       notActiveWhenItemActive: ['281800027'],
@@ -4535,7 +4527,7 @@ export class FwsAbnormalSensed {
       redundLoss: () => ['280300008'],
     },
     281800036: {
-      // FEED TK 2 STBY PMP FAULT (FCOM l.150328-150372): crew awareness; MORE INFO REDUND LOSS FEED TK 2 STBY PMP
+      // FEED TK 2 STBY PMP FAULT, as FEED TK 1
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.feedTankStbyPumpFault[1],
       notActiveWhenItemActive: ['281800028'],
@@ -4546,7 +4538,7 @@ export class FwsAbnormalSensed {
       redundLoss: () => ['280300009'],
     },
     281800037: {
-      // FEED TK 3 STBY PMP FAULT (FCOM l.150328-150372): crew awareness; MORE INFO REDUND LOSS FEED TK 3 STBY PMP
+      // FEED TK 3 STBY PMP FAULT, as FEED TK 1
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.feedTankStbyPumpFault[2],
       notActiveWhenItemActive: ['281800029'],
@@ -4557,7 +4549,7 @@ export class FwsAbnormalSensed {
       redundLoss: () => ['280300003'],
     },
     281800038: {
-      // FEED TK 4 STBY PMP FAULT (FCOM l.150328-150372): crew awareness; MORE INFO REDUND LOSS FEED TK 4 STBY PMP
+      // FEED TK 4 STBY PMP FAULT, as FEED TK 1
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.feedTankStbyPumpFault[3],
       notActiveWhenItemActive: ['281800030'],
@@ -4568,9 +4560,9 @@ export class FwsAbnormalSensed {
       redundLoss: () => ['280300010'],
     },
     281800068: {
-      // L OUTR TK PMP FAULT (A380 FCOM PRO-ABN-ECAM-10-28 l.151632-151680): L OUTR TK PMP OFF; STATUS INOP SYS
-      // L OUTR TK PMP, INFO OUTR TKs XFR BY GRVTY ONLY if the outer tanks are not empty. The FCOM flight phase inhibition is a figure (design choice: the one of the feed tank pump alerts).
-      // The FQMS shut-off of the symmetric pump and the gravity transfer are not simulated.
+      // L OUTR TK PMP FAULT: L OUTR TK PMP OFF; STATUS INOP SYS L OUTR TK PMP, INFO OUTR TKs XFR BY GRVTY ONLY if the
+      // outer tanks are not empty. Design choice: the flight phase inhibition of the feed tank pump alerts (the real
+      // one is not known). The FQMS shut-off of the symmetric pump and the gravity transfer are not simulated.
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.outerTankPumpFault[0],
       notActiveWhenItemActive: [],
@@ -4582,9 +4574,7 @@ export class FwsAbnormalSensed {
       info: () => (this.fws.outerTanksNotEmpty.get() ? ['280200008'] : []),
     },
     281800069: {
-      // R OUTR TK PMP FAULT (A380 FCOM PRO-ABN-ECAM-10-28 l.151632-151680): R OUTR TK PMP OFF; STATUS INOP SYS
-      // R OUTR TK PMP, INFO OUTR TKs XFR BY GRVTY ONLY if the outer tanks are not empty. The FCOM flight phase inhibition is a figure (design choice: the one of the feed tank pump alerts).
-      // The FQMS shut-off of the symmetric pump and the gravity transfer are not simulated.
+      // R OUTR TK PMP FAULT, as L OUTR TK PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.outerTankPumpFault[1],
       notActiveWhenItemActive: [],
@@ -4596,8 +4586,8 @@ export class FwsAbnormalSensed {
       info: () => (this.fws.outerTanksNotEmpty.get() ? ['280200008'] : []),
     },
     281800063: {
-      // L INR TK FWD PMP FAULT (FCOM l.151494-151555): L INR TK FWD PMP OFF; STATUS INOP SYS L INR TK FWD PMP.
-      // The alternate transfers (INFO FUEL ALTN XFR IN USE) are not simulated.
+      // L INR TK FWD PMP FAULT: L INR TK FWD PMP OFF; STATUS INOP SYS L INR TK FWD PMP. The alternate transfers (INFO
+      // FUEL ALTN XFR IN USE) are not simulated.
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.innerTankPumpFaults[0].fwd,
       notActiveWhenItemActive: [],
@@ -4608,9 +4598,9 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['280300021'],
     },
     281800058: {
-      // L INR TK AFT PMP FAULT (FCOM l.151415-151490): L INR TK AFT PMP OFF; STATUS INOP SYS L INR TK AFT PMP.
-      // The aft gallery pumps never run in the simulation: only turned off by the flight crew. The manual transfers
-      // (FUEL MAN XFR PROCEDURE) are not simulated.
+      // L INR TK AFT PMP FAULT: L INR TK AFT PMP OFF; STATUS INOP SYS L INR TK AFT PMP. The aft gallery pumps never run
+      // in the simulation: only turned off by the flight crew. The manual transfers (FUEL MAN XFR PROCEDURE) are not
+      // simulated.
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.innerTankPumpFaults[0].aft,
       notActiveWhenItemActive: [],
@@ -4621,9 +4611,9 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['280300025'],
     },
     281800056: {
-      // L INR TK FWD+AFT PMPs FAULT (FCOM l.151340-151410): L INR TK FWD and AFT PMP OFF; LIMITATION
-      // L INR TK NOT USABLE if the tank is not empty; STATUS INOP SYS L INR TK PMPs. The INFO MAN XFR AVAIL is not
-      // shown: the manual transfers are not simulated.
+      // L INR TK FWD+AFT PMPs FAULT: L INR TK FWD and AFT PMP OFF; LIMITATION L INR TK NOT USABLE if the tank is not
+      // empty; STATUS INOP SYS L INR TK PMPs. The INFO MAN XFR AVAIL is not shown: the manual transfers are not
+      // simulated.
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.innerTankPumpFaults[0].fwdAndAft,
       notActiveWhenItemActive: [],
@@ -4638,8 +4628,7 @@ export class FwsAbnormalSensed {
       limitationsAllPhases: () => (this.fws.innerTankNotEmpty[0].get() ? ['280400007'] : []),
     },
     281800065: {
-      // R INR TK FWD PMP FAULT (FCOM l.151494-151555): R INR TK FWD PMP OFF; STATUS INOP SYS R INR TK FWD PMP.
-      // The alternate transfers (INFO FUEL ALTN XFR IN USE) are not simulated.
+      // R INR TK FWD PMP FAULT, as L INR TK FWD PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.innerTankPumpFaults[1].fwd,
       notActiveWhenItemActive: [],
@@ -4650,9 +4639,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['280300022'],
     },
     281800060: {
-      // R INR TK AFT PMP FAULT (FCOM l.151415-151490): R INR TK AFT PMP OFF; STATUS INOP SYS R INR TK AFT PMP.
-      // The aft gallery pumps never run in the simulation: only turned off by the flight crew. The manual transfers
-      // (FUEL MAN XFR PROCEDURE) are not simulated.
+      // R INR TK AFT PMP FAULT, as L INR TK AFT PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.innerTankPumpFaults[1].aft,
       notActiveWhenItemActive: [],
@@ -4663,9 +4650,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['280300026'],
     },
     281800057: {
-      // R INR TK FWD+AFT PMPs FAULT (FCOM l.151340-151410): R INR TK FWD and AFT PMP OFF; LIMITATION
-      // R INR TK NOT USABLE if the tank is not empty; STATUS INOP SYS R INR TK PMPs. The INFO MAN XFR AVAIL is not
-      // shown: the manual transfers are not simulated.
+      // R INR TK FWD+AFT PMPs FAULT, as L INR TK FWD+AFT PMPs FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.innerTankPumpFaults[1].fwdAndAft,
       notActiveWhenItemActive: [],
@@ -4680,8 +4665,7 @@ export class FwsAbnormalSensed {
       limitationsAllPhases: () => (this.fws.innerTankNotEmpty[1].get() ? ['280400008'] : []),
     },
     281800062: {
-      // L MID TK FWD PMP FAULT (FCOM l.151494-151555): L MID TK FWD PMP OFF; STATUS INOP SYS L MID TK FWD PMP.
-      // The alternate transfers (INFO FUEL ALTN XFR IN USE) are not simulated.
+      // L MID TK FWD PMP FAULT, as L INR TK FWD PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.midTankPumpFaults[0].fwd,
       notActiveWhenItemActive: [],
@@ -4692,9 +4676,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['280300023'],
     },
     281800059: {
-      // L MID TK AFT PMP FAULT (FCOM l.151415-151490): L MID TK AFT PMP OFF; STATUS INOP SYS L MID TK AFT PMP.
-      // The aft gallery pumps never run in the simulation: only turned off by the flight crew. The manual transfers
-      // (FUEL MAN XFR PROCEDURE) are not simulated.
+      // L MID TK AFT PMP FAULT, as L INR TK AFT PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.midTankPumpFaults[0].aft,
       notActiveWhenItemActive: [],
@@ -4705,9 +4687,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['280300027'],
     },
     281800066: {
-      // L MID TK FWD+AFT PMPs FAULT (FCOM l.151559-151628): L MID TK FWD and AFT PMP OFF; LIMITATION
-      // L MID TK NOT USABLE if the tank is not empty; STATUS INOP SYS L MID TK PMPs. The INFO MAN XFR AVAIL is not
-      // shown: the manual transfers are not simulated.
+      // L MID TK FWD+AFT PMPs FAULT, as L INR TK FWD+AFT PMPs FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.midTankPumpFaults[0].fwdAndAft,
       notActiveWhenItemActive: [],
@@ -4722,8 +4702,7 @@ export class FwsAbnormalSensed {
       limitationsAllPhases: () => (this.fws.midTankNotEmpty[0].get() ? ['280400009'] : []),
     },
     281800064: {
-      // R MID TK FWD PMP FAULT (FCOM l.151494-151555): R MID TK FWD PMP OFF; STATUS INOP SYS R MID TK FWD PMP.
-      // The alternate transfers (INFO FUEL ALTN XFR IN USE) are not simulated.
+      // R MID TK FWD PMP FAULT, as L INR TK FWD PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.midTankPumpFaults[1].fwd,
       notActiveWhenItemActive: [],
@@ -4734,9 +4713,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['280300024'],
     },
     281800061: {
-      // R MID TK AFT PMP FAULT (FCOM l.151415-151490): R MID TK AFT PMP OFF; STATUS INOP SYS R MID TK AFT PMP.
-      // The aft gallery pumps never run in the simulation: only turned off by the flight crew. The manual transfers
-      // (FUEL MAN XFR PROCEDURE) are not simulated.
+      // R MID TK AFT PMP FAULT, as L INR TK AFT PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.midTankPumpFaults[1].aft,
       notActiveWhenItemActive: [],
@@ -4747,9 +4724,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['280300028'],
     },
     281800067: {
-      // R MID TK FWD+AFT PMPs FAULT (FCOM l.151559-151628): R MID TK FWD and AFT PMP OFF; LIMITATION
-      // R MID TK NOT USABLE if the tank is not empty; STATUS INOP SYS R MID TK PMPs. The INFO MAN XFR AVAIL is not
-      // shown: the manual transfers are not simulated.
+      // R MID TK FWD+AFT PMPs FAULT, as L INR TK FWD+AFT PMPs FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.midTankPumpFaults[1].fwdAndAft,
       notActiveWhenItemActive: [],
@@ -4764,7 +4739,7 @@ export class FwsAbnormalSensed {
       limitationsAllPhases: () => (this.fws.midTankNotEmpty[1].get() ? ['280400010'] : []),
     },
     281800089: {
-      // TRIM TK L PMP FAULT (FCOM l.153692-153740): TRIM TK L PMP OFF; MORE INFO REDUND LOSS TRIM TK L PMP
+      // TRIM TK L PMP FAULT: TRIM TK L PMP OFF; MORE INFO REDUND LOSS TRIM TK L PMP
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.trimTankPumpFaults.left,
       notActiveWhenItemActive: [],
@@ -4775,7 +4750,7 @@ export class FwsAbnormalSensed {
       redundLoss: () => ['280300004'],
     },
     281800090: {
-      // TRIM TK R PMP FAULT (FCOM l.153692-153740): TRIM TK R PMP OFF; MORE INFO REDUND LOSS TRIM TK R PMP
+      // TRIM TK R PMP FAULT, as TRIM TK L PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.trimTankPumpFaults.right,
       notActiveWhenItemActive: [],
@@ -4786,10 +4761,10 @@ export class FwsAbnormalSensed {
       redundLoss: () => ['280300033'],
     },
     281800091: {
-      // TRIM TK L+R PMPs FAULT (FCOM l.153742-153808): TRIM TK L and R PMP OFF, in flight PITCH ATT < 3° FOR GRVTY FWD
-      // XFR, TRIM TK FEED OPEN, if the pumps are failed TRIM TK : 2300 KG MAX NOT USABLE; LIMITATIONS FOR TRIM TK FWD XFR:
-      // PITCH ATT < 3°, FUEL PARTLY UNUSABLE if the pumps are failed; STATUS INOP SYS TRIM TK PMPs, INFO TRIM TK XFR BY
-      // GRVTY ONLY, TRIM TK GRVTY XFR : AROUND 3000 KG / HR. The gravity transfer from the trim tank is not simulated.
+      // TRIM TK L+R PMPs FAULT: TRIM TK L and R PMP OFF, in flight PITCH ATT < 3° FOR GRVTY FWD XFR, TRIM TK FEED
+      // OPEN, if the pumps are failed TRIM TK : 2300 KG MAX NOT USABLE; LIMITATIONS FOR TRIM TK FWD XFR: PITCH ATT <
+      // 3°; FUEL PARTLY UNUSABLE if the pumps are failed; STATUS INOP SYS TRIM TK PMPs, INFO TRIM TK XFR BY GRVTY
+      // ONLY, TRIM TK GRVTY XFR : AROUND 3000 KG / HR. The gravity transfer from the trim tank is not simulated.
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.trimTankPumpFaults.leftAndRight,
       notActiveWhenItemActive: [],
@@ -4817,9 +4792,9 @@ export class FwsAbnormalSensed {
           : ['280200009', '280200010'],
     },
     281800027: {
-      // FEED TK 1 MAIN + STBY PMPs FAULT (FCOM l.149935-150260): after takeoff, CROSSFEED 1 and 2 ON, then both pumps
-      // OFF (before takeoff: both pumps OFF); STATUS INOP SYS FEED TK 1 PMPs, INFO FEED TK 1 BY GRVTY ONLY. The
-      // gravity feed ceiling (MAX FL 280 or 50/MEA once the inner and mid tanks are empty) is not simulated.
+      // FEED TK 1 MAIN + STBY PMPs FAULT: after takeoff, CROSSFEED 1 and 2 ON, then both pumps OFF (before takeoff:
+      // both pumps OFF); STATUS INOP SYS FEED TK 1 PMPs, INFO FEED TK 1 BY GRVTY ONLY. The gravity feed ceiling (MAX FL
+      // 280 or 50/MEA once the inner and mid tanks are empty) is not simulated.
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.feedTankMainAndStbyPumpsFault[0],
       notActiveWhenItemActive: [],
@@ -4840,9 +4815,7 @@ export class FwsAbnormalSensed {
       info: () => ['280200004'],
     },
     281800028: {
-      // FEED TK 2 MAIN + STBY PMPs FAULT (FCOM l.149935-150260): after takeoff, CROSSFEED 1 and 2 ON, then both pumps
-      // OFF (before takeoff: both pumps OFF); STATUS INOP SYS FEED TK 2 PMPs, INFO FEED TK 2 BY GRVTY ONLY. The
-      // gravity feed ceiling (MAX FL 280 or 50/MEA once the inner and mid tanks are empty) is not simulated.
+      // FEED TK 2 MAIN + STBY PMPs FAULT, as FEED TK 1
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.feedTankMainAndStbyPumpsFault[1],
       notActiveWhenItemActive: [],
@@ -4863,9 +4836,7 @@ export class FwsAbnormalSensed {
       info: () => ['280200005'],
     },
     281800029: {
-      // FEED TK 3 MAIN + STBY PMPs FAULT (FCOM l.149935-150260): after takeoff, CROSSFEED 3 and 4 ON, then both pumps
-      // OFF (before takeoff: both pumps OFF); STATUS INOP SYS FEED TK 3 PMPs, INFO FEED TK 3 BY GRVTY ONLY. The
-      // gravity feed ceiling (MAX FL 280 or 50/MEA once the inner and mid tanks are empty) is not simulated.
+      // FEED TK 3 MAIN + STBY PMPs FAULT, as FEED TK 1 with CROSSFEED 3 and 4
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.feedTankMainAndStbyPumpsFault[2],
       notActiveWhenItemActive: [],
@@ -4886,9 +4857,7 @@ export class FwsAbnormalSensed {
       info: () => ['280200006'],
     },
     281800030: {
-      // FEED TK 4 MAIN + STBY PMPs FAULT (FCOM l.149935-150260): after takeoff, CROSSFEED 3 and 4 ON, then both pumps
-      // OFF (before takeoff: both pumps OFF); STATUS INOP SYS FEED TK 4 PMPs, INFO FEED TK 4 BY GRVTY ONLY. The
-      // gravity feed ceiling (MAX FL 280 or 50/MEA once the inner and mid tanks are empty) is not simulated.
+      // FEED TK 4 MAIN + STBY PMPs FAULT, as FEED TK 1 with CROSSFEED 3 and 4
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.feedTankMainAndStbyPumpsFault[3],
       notActiveWhenItemActive: [],
@@ -4909,8 +4878,8 @@ export class FwsAbnormalSensed {
       info: () => ['280200007'],
     },
     281800014: {
-      // CROSSFEED VLV 1 FAULT (FCOM l.149618-149680): crew awareness; if the valve is abnormally closed and ENG 1 is
-      // not running: FEED TK 1 NOT USABLE; STATUS INOP SYS CROSSFEED VLV 1
+      // CROSSFEED VLV 1 FAULT: crew awareness; if the valve is abnormally closed and ENG 1 is not running: FEED TK 1
+      // NOT USABLE; STATUS INOP SYS CROSSFEED VLV 1
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.crossFeedValveFault[0],
       notActiveWhenItemActive: [],
@@ -4923,8 +4892,7 @@ export class FwsAbnormalSensed {
         this.fws.crossFeedValveClosed[0].get() && !this.fws.engine1Running.get() ? ['280400003'] : [],
     },
     281800015: {
-      // CROSSFEED VLV 2 FAULT (FCOM l.149618-149680): crew awareness; if the valve is abnormally closed and ENG 2 is
-      // not running: FEED TK 2 NOT USABLE; STATUS INOP SYS CROSSFEED VLV 2
+      // CROSSFEED VLV 2 FAULT, as CROSSFEED VLV 1 with ENG 2 and FEED TK 2
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.crossFeedValveFault[1],
       notActiveWhenItemActive: [],
@@ -4937,8 +4905,7 @@ export class FwsAbnormalSensed {
         this.fws.crossFeedValveClosed[1].get() && !this.fws.engine2Running.get() ? ['280400004'] : [],
     },
     281800016: {
-      // CROSSFEED VLV 3 FAULT (FCOM l.149618-149680): crew awareness; if the valve is abnormally closed and ENG 3 is
-      // not running: FEED TK 3 NOT USABLE; STATUS INOP SYS CROSSFEED VLV 3
+      // CROSSFEED VLV 3 FAULT, as CROSSFEED VLV 1 with ENG 3 and FEED TK 3
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.crossFeedValveFault[2],
       notActiveWhenItemActive: [],
@@ -4951,8 +4918,7 @@ export class FwsAbnormalSensed {
         this.fws.crossFeedValveClosed[2].get() && !this.fws.engine3Running.get() ? ['280400005'] : [],
     },
     281800017: {
-      // CROSSFEED VLV 4 FAULT (FCOM l.149618-149680): crew awareness; if the valve is abnormally closed and ENG 4 is
-      // not running: FEED TK 4 NOT USABLE; STATUS INOP SYS CROSSFEED VLV 4
+      // CROSSFEED VLV 4 FAULT, as CROSSFEED VLV 1 with ENG 4 and FEED TK 4
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.crossFeedValveFault[3],
       notActiveWhenItemActive: [],
@@ -5647,10 +5613,10 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.None,
     },
-    // BRAKES and STEER alerts from the BCS, EBCU and SCS faults (FwsBrakeAlerts.ts). Levels and phase inhibitions from
-    // the A380 FCOM PRO-ABN-ECAM-10-32 figures (PDF pages in the comments); no audio and no master light = level 1.
+    // BRAKES and STEER alerts from the BCS, EBCU and SCS faults (FwsBrakeAlerts.ts); no audio and no master light =
+    // level 1.
     320800020: {
-      // BRAKES NORM BRK FAULT (a380_fcom.txt l.160325-160392, PDF p.5457)
+      // BRAKES NORM BRK FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 10, 11],
       simVarIsActive: this.fws.brakeSteerAlerts.normBrkFault,
       notActiveWhenItemActive: [],
@@ -5660,11 +5626,11 @@ export class FwsAbnormalSensed {
       failure: 1,
       sysPage: SdPages.Wheel,
       inopSysApprLdg: () => ['320300008'],
-      // ALTN BRK WITH A-SKID (l.160392), while the alternate braking works
+      // ALTN BRK WITH A-SKID, while the alternate braking works
       info: () => [this.fws.brakeSteerAlerts.altnBrkFault.get() ? null : '320200001'],
     },
     320800011: {
-      // BRAKES ALTN BRK FAULT (l.159842-159906, PDF p.5444)
+      // BRAKES ALTN BRK FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.brakeSteerAlerts.altnBrkFault,
       notActiveWhenItemActive: [],
@@ -5676,11 +5642,11 @@ export class FwsAbnormalSensed {
       inopSysApprLdg: () => ['320300005'],
     },
     320800017: {
-      // BRAKES EMER BRK FAULT (l.160176-160292, PDF p.5453)
+      // BRAKES EMER BRK FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.brakeSteerAlerts.emerBrkFault,
       notActiveWhenItemActive: [],
-      // NO LOSS IN BRK EFFICIENCY: "In cruise or after landing, if braking is not affected"
+      // NO LOSS IN BRK EFFICIENCY: in cruise or after landing, if braking is not affected
       whichItemsToShow: () => [
         [8, 11, 12].includes(this.fws.flightPhase.get()) && !this.fws.brakeSteerAlerts.normBrkFault.get(),
       ],
@@ -5690,11 +5656,11 @@ export class FwsAbnormalSensed {
       inopSysApprLdg: () => ['320300006'],
     },
     320800010: {
-      // BRAKES ALTN + EMER BRK FAULT (l.159761-159831, PDF p.5442), the Impacted by TDU version
+      // BRAKES ALTN + EMER BRK FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.brakeSteerAlerts.altnEmerBrkFault,
       notActiveWhenItemActive: [],
-      // NO LOSS IN BRK EFFICIENCY: "Only in cruise or after landing" (l.159814-159815)
+      // NO LOSS IN BRK EFFICIENCY: only in cruise or after landing
       whichItemsToShow: () => [[8, 11, 12].includes(this.fws.flightPhase.get())],
       whichItemsChecked: () => [false],
       failure: 1,
@@ -5702,7 +5668,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['320300005', '320300006'],
     },
     320800024: {
-      // BRAKES PEDAL BRAKING FAULT (l.160519-160582, PDF p.5463)
+      // BRAKES PEDAL BRAKING FAULT
       flightPhaseInhib: [4, 5, 6, 7],
       simVarIsActive: this.fws.brakeSteerAlerts.pedalBrakingFault,
       notActiveWhenItemActive: [],
@@ -5715,7 +5681,7 @@ export class FwsAbnormalSensed {
       inopSysApprLdg: () => ['320300010', '320300002'],
     },
     320800009: {
-      // BRAKES ACCU PRESS LO (l.159700-159750, PDF p.5440)
+      // BRAKES ACCU PRESS LO
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.brakeSteerAlerts.accuPressLo,
       notActiveWhenItemActive: [],
@@ -5727,7 +5693,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['320300004'],
     },
     320800023: {
-      // BRAKES PARK BRK PRESS LO (l.160461-160508, PDF p.5461)
+      // BRAKES PARK BRK PRESS LO
       flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
       simVarIsActive: this.fws.brakeSteerAlerts.parkBrkPressLo,
       notActiveWhenItemActive: [],
@@ -5768,7 +5734,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['320300002'],
     },
     320800060: {
-      // STEER NORM N/W STEER FAULT (l.163094-163150, PDF p.5534)
+      // STEER NORM N/W STEER FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 10],
       simVarIsActive: this.fws.brakeSteerAlerts.normNwSteerFault,
       notActiveWhenItemActive: [],
@@ -5780,7 +5746,7 @@ export class FwsAbnormalSensed {
       inopSysApprLdg: () => ['320300020'],
     },
     320800047: {
-      // STEER ALTN N/W STEER FAULT (l.162553-162589, PDF p.5517); STATUS: REDUND LOSS ALTN N/W STEER (not shown)
+      // STEER ALTN N/W STEER FAULT; STATUS: REDUND LOSS ALTN N/W STEER (not shown)
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.brakeSteerAlerts.altnNwSteerFault,
       notActiveWhenItemActive: [],
@@ -5790,7 +5756,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Wheel,
     },
     320800058: {
-      // STEER N/W STEER FAULT (l.163006-163054, PDF p.5531)
+      // STEER N/W STEER FAULT
       flightPhaseInhib: [4, 5, 6, 7],
       simVarIsActive: this.fws.brakeSteerAlerts.nwSteerFault,
       notActiveWhenItemActive: [],
@@ -5803,7 +5769,7 @@ export class FwsAbnormalSensed {
       info: () => ['220200016'],
     },
     320800049: {
-      // STEER B/W STEER FAULT (l.162628-162685, PDF p.5519)
+      // STEER B/W STEER FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.brakeSteerAlerts.bwSteerFault,
       notActiveWhenItemActive: [],
@@ -5812,11 +5778,11 @@ export class FwsAbnormalSensed {
       failure: 1,
       sysPage: SdPages.Wheel,
       inopSysApprLdg: () => ['320300014'],
-      // "If at least one engine is running: TAXI WITH CARE" ... (l.162674-162685)
+      // TAXI WITH CARE ... only if at least one engine is running
       info: () => (this.fws.oneEngineRunning.get() ? ['800200003', '800200004', '800200005'] : []),
     },
     320800053: {
-      // STEER CTL 1 FAULT (l.162815-162853, PDF p.5524); STATUS: REDUND LOSS STEER CTL 1 (not shown)
+      // STEER CTL 1 FAULT; STATUS: REDUND LOSS STEER CTL 1 (not shown)
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.brakeSteerAlerts.steerCtl1Fault,
       notActiveWhenItemActive: [],
@@ -5826,7 +5792,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Wheel,
     },
     320800054: {
-      // STEER CTL 2 FAULT (l.162815-162853, PDF p.5524)
+      // STEER CTL 2 FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.brakeSteerAlerts.steerCtl2Fault,
       notActiveWhenItemActive: [],
@@ -5836,7 +5802,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Wheel,
     },
     320800055: {
-      // STEER N/W + B/W STEER FAULT (l.162863-162910, PDF p.5526)
+      // STEER N/W + B/W STEER FAULT
       flightPhaseInhib: [4, 5, 6, 7],
       simVarIsActive: this.fws.brakeSteerAlerts.nwBwSteerFault,
       notActiveWhenItemActive: [],
@@ -6218,8 +6184,7 @@ export class FwsAbnormalSensed {
       limitationsApprLdg: () => ['240400001'],
       limitationsPfd: () => ['240400002', '240400003', '240400004', '300400001'],
     },
-    // NAV AIR DATA DISAGREE, ALL AIR DATA DISAGREE, AOA DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10): logic in
-    // FwsAirDataAlerts.ts. Flight phase inhibitions from the FCOM figures (PDF pages 5555, 5557, 5565).
+    // NAV AIR DATA DISAGREE, ALL AIR DATA DISAGREE, AOA DISAGREE: logic in FwsAirDataAlerts.ts
     340800009: {
       // AIR DATA DISAGREE
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
@@ -6255,7 +6220,6 @@ export class FwsAbnormalSensed {
       whichItemsChecked: () => [false],
       failure: 2,
       sysPage: SdPages.None,
-      // LIMITATIONS and STATUS: a380_fcom.txt l.164427-164451
       inopSysAllPhases: () => ['290100008', '220300007', '220300001', '220300024'],
       inopSysApprLdg: () => ['220300027', '220300010', '220300021'],
       info: () => ['340200002', '340200020'],
@@ -7030,7 +6994,7 @@ export class FwsAbnormalSensed {
     701800029: {
       // ENG 1 FAIL
       simVarIsActive: this.fws.eng1Fail,
-      flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none (PDF p.5776)
+      flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [
         !this.fws.aircraftOnGround.get() &&
@@ -7093,7 +7057,7 @@ export class FwsAbnormalSensed {
     701800030: {
       // ENG 2 FAIL
       simVarIsActive: this.fws.eng2Fail,
-      flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none (PDF p.5776)
+      flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [
         !this.fws.aircraftOnGround.get() &&
@@ -7156,7 +7120,7 @@ export class FwsAbnormalSensed {
     701800031: {
       // ENG 3 FAIL
       simVarIsActive: this.fws.eng3Fail,
-      flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none (PDF p.5776)
+      flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [
         !this.fws.aircraftOnGround.get() &&
@@ -7219,7 +7183,7 @@ export class FwsAbnormalSensed {
     701800032: {
       // ENG 4 FAIL
       simVarIsActive: this.fws.eng4Fail,
-      flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none (PDF p.5776)
+      flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [
         !this.fws.aircraftOnGround.get() &&
@@ -7325,7 +7289,7 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine1Master.get()],
       failure: 2,
-      sysPage: SdPages.None, // no SD page (FCOM figure)
+      sysPage: SdPages.None,
     },
     701800073: {
       // ENG 1 N1/N2 OVER LIMIT (EngineParameterAlerts.ts): red warning, inhibited in phases 5 and 6
@@ -7335,10 +7299,10 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine1Master.get()],
       failure: 3,
-      sysPage: SdPages.None, // no SD page (FCOM figure)
+      sysPage: SdPages.None,
     },
     701800114: {
-      // ENG 2 STALL (EngineParameterAlerts.ts): amber, inhibited from V1 to 400 ft unless two or more engines stall
+      // ENG 2 STALL, as ENG 1
       flightPhaseInhib: [],
       simVarIsActive: this.fws.engStall[1],
       notActiveWhenItemActive: [],
@@ -7348,27 +7312,27 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800010: {
-      // ENG 2 EGT OVER LIMIT (EngineParameterAlerts.ts): amber, inhibited in phases 4, 5 and 6
+      // ENG 2 EGT OVER LIMIT, as ENG 1
       flightPhaseInhib: [4, 5, 6],
       simVarIsActive: this.fws.engEgtOverLimit[1],
       notActiveWhenItemActive: [],
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine2Master.get()],
       failure: 2,
-      sysPage: SdPages.None, // no SD page (FCOM figure)
+      sysPage: SdPages.None,
     },
     701800074: {
-      // ENG 2 N1/N2 OVER LIMIT (EngineParameterAlerts.ts): red warning, inhibited in phases 5 and 6
+      // ENG 2 N1/N2 OVER LIMIT, as ENG 1
       flightPhaseInhib: [5, 6],
       simVarIsActive: this.fws.engN1N2OverLimit[1],
       notActiveWhenItemActive: [],
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine2Master.get()],
       failure: 3,
-      sysPage: SdPages.None, // no SD page (FCOM figure)
+      sysPage: SdPages.None,
     },
     701800115: {
-      // ENG 3 STALL (EngineParameterAlerts.ts): amber, inhibited from V1 to 400 ft unless two or more engines stall
+      // ENG 3 STALL, as ENG 1
       flightPhaseInhib: [],
       simVarIsActive: this.fws.engStall[2],
       notActiveWhenItemActive: [],
@@ -7378,27 +7342,27 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800011: {
-      // ENG 3 EGT OVER LIMIT (EngineParameterAlerts.ts): amber, inhibited in phases 4, 5 and 6
+      // ENG 3 EGT OVER LIMIT, as ENG 1
       flightPhaseInhib: [4, 5, 6],
       simVarIsActive: this.fws.engEgtOverLimit[2],
       notActiveWhenItemActive: [],
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine3Master.get()],
       failure: 2,
-      sysPage: SdPages.None, // no SD page (FCOM figure)
+      sysPage: SdPages.None,
     },
     701800075: {
-      // ENG 3 N1/N2 OVER LIMIT (EngineParameterAlerts.ts): red warning, inhibited in phases 5 and 6
+      // ENG 3 N1/N2 OVER LIMIT, as ENG 1
       flightPhaseInhib: [5, 6],
       simVarIsActive: this.fws.engN1N2OverLimit[2],
       notActiveWhenItemActive: [],
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine3Master.get()],
       failure: 3,
-      sysPage: SdPages.None, // no SD page (FCOM figure)
+      sysPage: SdPages.None,
     },
     701800116: {
-      // ENG 4 STALL (EngineParameterAlerts.ts): amber, inhibited from V1 to 400 ft unless two or more engines stall
+      // ENG 4 STALL, as ENG 1
       flightPhaseInhib: [],
       simVarIsActive: this.fws.engStall[3],
       notActiveWhenItemActive: [],
@@ -7408,24 +7372,24 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800012: {
-      // ENG 4 EGT OVER LIMIT (EngineParameterAlerts.ts): amber, inhibited in phases 4, 5 and 6
+      // ENG 4 EGT OVER LIMIT, as ENG 1
       flightPhaseInhib: [4, 5, 6],
       simVarIsActive: this.fws.engEgtOverLimit[3],
       notActiveWhenItemActive: [],
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine4Master.get()],
       failure: 2,
-      sysPage: SdPages.None, // no SD page (FCOM figure)
+      sysPage: SdPages.None,
     },
     701800076: {
-      // ENG 4 N1/N2 OVER LIMIT (EngineParameterAlerts.ts): red warning, inhibited in phases 5 and 6
+      // ENG 4 N1/N2 OVER LIMIT, as ENG 1
       flightPhaseInhib: [5, 6],
       simVarIsActive: this.fws.engN1N2OverLimit[3],
       notActiveWhenItemActive: [],
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine4Master.get()],
       failure: 3,
-      sysPage: SdPages.None, // no SD page (FCOM figure)
+      sysPage: SdPages.None,
     },
     701800110: {
       // ENG 2 SHUTDOWN
@@ -7516,7 +7480,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800033: {
-      // ENG 1 FUEL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineFuelFilterAlerts.ts): amber, crew awareness
+      // ENG 1 FUEL FILTER CLOGGED (EngineFuelFilterAlerts.ts): amber, crew awareness
       flightPhaseInhib: FUEL_FILTER_CLOGGED_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineFuelFilterClogged[0],
       notActiveWhenItemActive: [],
@@ -7526,7 +7490,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800034: {
-      // ENG 2 FUEL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineFuelFilterAlerts.ts): amber, crew awareness
+      // ENG 2 FUEL FILTER CLOGGED
       flightPhaseInhib: FUEL_FILTER_CLOGGED_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineFuelFilterClogged[1],
       notActiveWhenItemActive: [],
@@ -7536,7 +7500,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800035: {
-      // ENG 3 FUEL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineFuelFilterAlerts.ts): amber, crew awareness
+      // ENG 3 FUEL FILTER CLOGGED
       flightPhaseInhib: FUEL_FILTER_CLOGGED_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineFuelFilterClogged[2],
       notActiveWhenItemActive: [],
@@ -7546,7 +7510,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800036: {
-      // ENG 4 FUEL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineFuelFilterAlerts.ts): amber, crew awareness
+      // ENG 4 FUEL FILTER CLOGGED
       flightPhaseInhib: FUEL_FILTER_CLOGGED_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineFuelFilterClogged[3],
       notActiveWhenItemActive: [],
@@ -7556,7 +7520,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800081: {
-      // ENG 1 OIL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber, crew awareness
+      // ENG 1 OIL FILTER CLOGGED (EngineOilAlerts.ts): amber, crew awareness
       flightPhaseInhib: OIL_FILTER_CLOGGED_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilFilterClogged[0],
       notActiveWhenItemActive: [],
@@ -7566,7 +7530,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800085: {
-      // ENG 1 OIL PRESS LO (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): red warning
+      // ENG 1 OIL PRESS LO (EngineOilAlerts.ts): red warning
       flightPhaseInhib: OIL_PRESS_LO_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilPressLo[0],
       notActiveWhenItemActive: [],
@@ -7576,7 +7540,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800093: {
-      // ENG 1 OIL TEMP HI (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber
+      // ENG 1 OIL TEMP HI (EngineOilAlerts.ts): amber
       flightPhaseInhib: OIL_TEMP_HI_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilTempHi[0],
       notActiveWhenItemActive: [],
@@ -7586,7 +7550,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800082: {
-      // ENG 2 OIL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber, crew awareness
+      // ENG 2 OIL FILTER CLOGGED
       flightPhaseInhib: OIL_FILTER_CLOGGED_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilFilterClogged[1],
       notActiveWhenItemActive: [],
@@ -7596,7 +7560,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800086: {
-      // ENG 2 OIL PRESS LO (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): red warning
+      // ENG 2 OIL PRESS LO
       flightPhaseInhib: OIL_PRESS_LO_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilPressLo[1],
       notActiveWhenItemActive: [],
@@ -7606,7 +7570,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800094: {
-      // ENG 2 OIL TEMP HI (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber
+      // ENG 2 OIL TEMP HI
       flightPhaseInhib: OIL_TEMP_HI_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilTempHi[1],
       notActiveWhenItemActive: [],
@@ -7616,7 +7580,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800083: {
-      // ENG 3 OIL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber, crew awareness
+      // ENG 3 OIL FILTER CLOGGED
       flightPhaseInhib: OIL_FILTER_CLOGGED_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilFilterClogged[2],
       notActiveWhenItemActive: [],
@@ -7626,7 +7590,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800087: {
-      // ENG 3 OIL PRESS LO (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): red warning
+      // ENG 3 OIL PRESS LO
       flightPhaseInhib: OIL_PRESS_LO_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilPressLo[2],
       notActiveWhenItemActive: [],
@@ -7636,7 +7600,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800095: {
-      // ENG 3 OIL TEMP HI (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber
+      // ENG 3 OIL TEMP HI
       flightPhaseInhib: OIL_TEMP_HI_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilTempHi[2],
       notActiveWhenItemActive: [],
@@ -7646,7 +7610,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800084: {
-      // ENG 4 OIL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber, crew awareness
+      // ENG 4 OIL FILTER CLOGGED
       flightPhaseInhib: OIL_FILTER_CLOGGED_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilFilterClogged[3],
       notActiveWhenItemActive: [],
@@ -7656,7 +7620,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800088: {
-      // ENG 4 OIL PRESS LO (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): red warning
+      // ENG 4 OIL PRESS LO
       flightPhaseInhib: OIL_PRESS_LO_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilPressLo[3],
       notActiveWhenItemActive: [],
@@ -7666,7 +7630,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800096: {
-      // ENG 4 OIL TEMP HI (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber
+      // ENG 4 OIL TEMP HI
       flightPhaseInhib: OIL_TEMP_HI_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilTempHi[3],
       notActiveWhenItemActive: [],
@@ -7676,7 +7640,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800097: {
-      // ENG 1 OIL TEMP LO (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): amber, phases 2 and 3
+      // ENG 1 OIL TEMP LO (EngineTakeoffAlerts.ts): amber, phases 2 and 3
       flightPhaseInhib: OIL_TEMP_LO_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilTempLo[0],
       notActiveWhenItemActive: [],
@@ -7686,7 +7650,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800098: {
-      // ENG 2 OIL TEMP LO (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): amber, phases 2 and 3
+      // ENG 2 OIL TEMP LO
       flightPhaseInhib: OIL_TEMP_LO_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilTempLo[1],
       notActiveWhenItemActive: [],
@@ -7696,7 +7660,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800099: {
-      // ENG 3 OIL TEMP LO (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): amber, phases 2 and 3
+      // ENG 3 OIL TEMP LO
       flightPhaseInhib: OIL_TEMP_LO_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilTempLo[2],
       notActiveWhenItemActive: [],
@@ -7706,7 +7670,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800100: {
-      // ENG 4 OIL TEMP LO (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): amber, phases 2 and 3
+      // ENG 4 OIL TEMP LO
       flightPhaseInhib: OIL_TEMP_LO_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineOilTempLo[3],
       notActiveWhenItemActive: [],
@@ -7877,7 +7841,7 @@ export class FwsAbnormalSensed {
       failure: 3,
     },
     701800013: {
-      // ENG 1 FADEC FAULT (A380 FCOM l.171542-171599, see FadecReverserAlerts)
+      // ENG 1 FADEC FAULT (see FadecReverserAlerts)
       flightPhaseInhib: FADEC_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.fadecFault[0],
       notActiveWhenItemActive: [],
@@ -7887,7 +7851,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800014: {
-      // ENG 2 FADEC FAULT (A380 FCOM l.171542-171599, see FadecReverserAlerts)
+      // ENG 2 FADEC FAULT
       flightPhaseInhib: FADEC_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.fadecFault[1],
       notActiveWhenItemActive: [],
@@ -7897,7 +7861,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800015: {
-      // ENG 3 FADEC FAULT (A380 FCOM l.171542-171599, see FadecReverserAlerts)
+      // ENG 3 FADEC FAULT
       flightPhaseInhib: FADEC_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.fadecFault[2],
       notActiveWhenItemActive: [],
@@ -7907,7 +7871,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800016: {
-      // ENG 4 FADEC FAULT (A380 FCOM l.171542-171599, see FadecReverserAlerts)
+      // ENG 4 FADEC FAULT
       flightPhaseInhib: FADEC_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.fadecFault[3],
       notActiveWhenItemActive: [],
@@ -7917,7 +7881,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800021: {
-      // ENG 1 FADEC SYS FAULT (A380 FCOM l.171654-171667): crew awareness
+      // ENG 1 FADEC SYS FAULT: crew awareness
       flightPhaseInhib: FADEC_SYS_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.fadecSysFault[0],
       notActiveWhenItemActive: [],
@@ -7927,7 +7891,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800022: {
-      // ENG 2 FADEC SYS FAULT (A380 FCOM l.171654-171667): crew awareness
+      // ENG 2 FADEC SYS FAULT
       flightPhaseInhib: FADEC_SYS_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.fadecSysFault[1],
       notActiveWhenItemActive: [],
@@ -7937,7 +7901,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800023: {
-      // ENG 3 FADEC SYS FAULT (A380 FCOM l.171654-171667): crew awareness
+      // ENG 3 FADEC SYS FAULT
       flightPhaseInhib: FADEC_SYS_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.fadecSysFault[2],
       notActiveWhenItemActive: [],
@@ -7947,7 +7911,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800024: {
-      // ENG 4 FADEC SYS FAULT (A380 FCOM l.171654-171667): crew awareness
+      // ENG 4 FADEC SYS FAULT
       flightPhaseInhib: FADEC_SYS_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.fadecSysFault[3],
       notActiveWhenItemActive: [],
@@ -7957,7 +7921,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800025: {
-      // ENG 1 FADEC TEMP HI (A380 FCOM l.171683-171693): crew awareness
+      // ENG 1 FADEC TEMP HI: crew awareness
       flightPhaseInhib: FADEC_TEMP_HI_PHASE_INHIBITION,
       simVarIsActive: this.fws.fadecTempHi[0],
       notActiveWhenItemActive: [],
@@ -7967,7 +7931,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800026: {
-      // ENG 2 FADEC TEMP HI (A380 FCOM l.171683-171693): crew awareness
+      // ENG 2 FADEC TEMP HI
       flightPhaseInhib: FADEC_TEMP_HI_PHASE_INHIBITION,
       simVarIsActive: this.fws.fadecTempHi[1],
       notActiveWhenItemActive: [],
@@ -7977,7 +7941,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800027: {
-      // ENG 3 FADEC TEMP HI (A380 FCOM l.171683-171693): crew awareness
+      // ENG 3 FADEC TEMP HI
       flightPhaseInhib: FADEC_TEMP_HI_PHASE_INHIBITION,
       simVarIsActive: this.fws.fadecTempHi[2],
       notActiveWhenItemActive: [],
@@ -7987,7 +7951,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800028: {
-      // ENG 4 FADEC TEMP HI (A380 FCOM l.171683-171693): crew awareness
+      // ENG 4 FADEC TEMP HI
       flightPhaseInhib: FADEC_TEMP_HI_PHASE_INHIBITION,
       simVarIsActive: this.fws.fadecTempHi[3],
       notActiveWhenItemActive: [],
@@ -7997,7 +7961,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800129: {
-      // ENG 1 THR LEVER FAULT (A380 FCOM l.173303-173335, see FadecReverserAlerts)
+      // ENG 1 THR LEVER FAULT (see FadecReverserAlerts)
       flightPhaseInhib: THR_LEVER_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.thrLeverFault[0],
       notActiveWhenItemActive: [],
@@ -8012,7 +7976,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800130: {
-      // ENG 2 THR LEVER FAULT (A380 FCOM l.173303-173335, see FadecReverserAlerts)
+      // ENG 2 THR LEVER FAULT
       flightPhaseInhib: THR_LEVER_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.thrLeverFault[1],
       notActiveWhenItemActive: [],
@@ -8027,7 +7991,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800131: {
-      // ENG 3 THR LEVER FAULT (A380 FCOM l.173303-173335, see FadecReverserAlerts)
+      // ENG 3 THR LEVER FAULT
       flightPhaseInhib: THR_LEVER_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.thrLeverFault[2],
       notActiveWhenItemActive: [],
@@ -8042,7 +8006,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800132: {
-      // ENG 4 THR LEVER FAULT (A380 FCOM l.173303-173335, see FadecReverserAlerts)
+      // ENG 4 THR LEVER FAULT
       flightPhaseInhib: THR_LEVER_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.thrLeverFault[3],
       notActiveWhenItemActive: [],
@@ -8057,7 +8021,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800137: {
-      // ENG 2 REVERSER CTL FAULT (A380 FCOM l.173440-173471)
+      // ENG 2 REVERSER CTL FAULT
       flightPhaseInhib: REVERSER_CTL_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.reverserCtlFault[0],
       notActiveWhenItemActive: [],
@@ -8067,7 +8031,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800139: {
-      // ENG 2 REVERSER ENERGIZED (A380 FCOM l.173490-173508)
+      // ENG 2 REVERSER ENERGIZED
       flightPhaseInhib: REVERSER_ENERGIZED_PHASE_INHIBITION,
       simVarIsActive: this.fws.reverserEnergized[0],
       notActiveWhenItemActive: [],
@@ -8077,7 +8041,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800141: {
-      // ENG 2 REVERSER FAULT (A380 FCOM l.173510-173537)
+      // ENG 2 REVERSER FAULT
       flightPhaseInhib: REVERSER_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.reverserFault[0],
       notActiveWhenItemActive: [],
@@ -8087,7 +8051,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800145: {
-      // ENG 2 REVERSER LOCKED (A380 FCOM l.173590-173617)
+      // ENG 2 REVERSER LOCKED
       flightPhaseInhib: REVERSER_LOCKED_PHASE_INHIBITION,
       simVarIsActive: this.fws.reverserLocked[0],
       notActiveWhenItemActive: [],
@@ -8097,7 +8061,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800149: {
-      // ENG 2 REVERSER UNLOCKED (A380 FCOM l.173660-173698, see FadecReverserAlerts)
+      // ENG 2 REVERSER UNLOCKED (see FadecReverserAlerts)
       flightPhaseInhib: REVERSER_UNLOCKED_PHASE_INHIBITION,
       simVarIsActive: this.fws.reverserUnlocked[0],
       notActiveWhenItemActive: [],
@@ -8108,7 +8072,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800138: {
-      // ENG 3 REVERSER CTL FAULT (A380 FCOM l.173440-173471)
+      // ENG 3 REVERSER CTL FAULT
       flightPhaseInhib: REVERSER_CTL_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.reverserCtlFault[1],
       notActiveWhenItemActive: [],
@@ -8118,7 +8082,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800140: {
-      // ENG 3 REVERSER ENERGIZED (A380 FCOM l.173490-173508)
+      // ENG 3 REVERSER ENERGIZED
       flightPhaseInhib: REVERSER_ENERGIZED_PHASE_INHIBITION,
       simVarIsActive: this.fws.reverserEnergized[1],
       notActiveWhenItemActive: [],
@@ -8128,7 +8092,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800142: {
-      // ENG 3 REVERSER FAULT (A380 FCOM l.173510-173537)
+      // ENG 3 REVERSER FAULT
       flightPhaseInhib: REVERSER_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.reverserFault[1],
       notActiveWhenItemActive: [],
@@ -8138,7 +8102,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800146: {
-      // ENG 3 REVERSER LOCKED (A380 FCOM l.173590-173617)
+      // ENG 3 REVERSER LOCKED
       flightPhaseInhib: REVERSER_LOCKED_PHASE_INHIBITION,
       simVarIsActive: this.fws.reverserLocked[1],
       notActiveWhenItemActive: [],
@@ -8148,7 +8112,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800150: {
-      // ENG 3 REVERSER UNLOCKED (A380 FCOM l.173660-173698, see FadecReverserAlerts)
+      // ENG 3 REVERSER UNLOCKED
       flightPhaseInhib: REVERSER_UNLOCKED_PHASE_INHIBITION,
       simVarIsActive: this.fws.reverserUnlocked[1],
       notActiveWhenItemActive: [],
@@ -8159,7 +8123,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800133: {
-      // ENG 1 THRUST LOSS (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): amber, phase 3 only
+      // ENG 1 THRUST LOSS (EngineThrustAlerts.ts): amber, phase 3 only
       flightPhaseInhib: THRUST_LOSS_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineThrustLoss[0],
       notActiveWhenItemActive: [],
@@ -8169,7 +8133,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800134: {
-      // ENG 2 THRUST LOSS (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): amber, phase 3 only
+      // ENG 2 THRUST LOSS
       flightPhaseInhib: THRUST_LOSS_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineThrustLoss[1],
       notActiveWhenItemActive: [],
@@ -8179,7 +8143,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800135: {
-      // ENG 3 THRUST LOSS (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): amber, phase 3 only
+      // ENG 3 THRUST LOSS
       flightPhaseInhib: THRUST_LOSS_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineThrustLoss[2],
       notActiveWhenItemActive: [],
@@ -8189,7 +8153,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800136: {
-      // ENG 4 THRUST LOSS (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): amber, phase 3 only
+      // ENG 4 THRUST LOSS
       flightPhaseInhib: THRUST_LOSS_PHASE_INHIBITION,
       simVarIsActive: this.fws.engineThrustLoss[3],
       notActiveWhenItemActive: [],
@@ -8199,7 +8163,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Eng,
     },
     701800155: {
-      // ENG T.O THRUST DISAGREE (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): amber, phases 2 and 11, crew awareness
+      // ENG T.O THRUST DISAGREE (EngineThrustAlerts.ts): amber, phases 2 and 11, crew awareness
       flightPhaseInhib: TO_THRUST_DISAGREE_PHASE_INHIBITION,
       simVarIsActive: this.fws.takeoffThrustDisagree,
       notActiveWhenItemActive: [],
@@ -8209,7 +8173,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800154: {
-      // ENG REVERSER SELECTED (A380 FCOM l.175028-175039)
+      // ENG REVERSER SELECTED
       flightPhaseInhib: REVERSER_SELECTED_PHASE_INHIBITION,
       simVarIsActive: this.fws.anyReverserSelected,
       notActiveWhenItemActive: [],
@@ -8220,12 +8184,12 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800159: {
-      // ENG TWO ENGS OUT ON SAME SIDE (A380 FCOM l.175216-175470). Phases 5 and 6 inhibited (PDF p.5862).
+      // ENG TWO ENGS OUT ON SAME SIDE. Phases 5 and 6 inhibited.
       flightPhaseInhib: this.fws.phase56Inhibition,
       simVarIsActive: this.fws.twoEnginesOutSameSide,
       notActiveWhenItemActive: [],
-      // l.175265-175271: PACK 1(2) OFF depending on the failed engines (EngineFailAlerts.sameSideLines), LDG PERF
-      // AFFECTED, if ENG 1+2 failed: FOR TAXI : STEER ENDURANCE LIMITED
+      // PACK 1(2) OFF depending on the failed engines (EngineFailAlerts.sameSideLines), LDG PERF AFFECTED, if ENG 1+2
+      // failed: FOR TAXI : STEER ENDURANCE LIMITED
       whichItemsToShow: () => [
         this.fws.twoEnginesOutLeftSide.get(),
         this.fws.twoEnginesOutRightSide.get(),
@@ -8235,26 +8199,25 @@ export class FwsAbnormalSensed {
       whichItemsChecked: () => [!this.fws.pack1On.get(), !this.fws.pack2On.get(), false, false],
       failure: 2,
       sysPage: SdPages.Eng,
-      // STATUS l.175434-175454. ALL PHASES: PART L/G RETRACTION, PACK 1(2) here (l.175441, 175448); PART SPLRs, GEN 1+2
-      // (3+4), G(Y) HYD SYS, ENG BLEED come from FwsInopSys (the HYD SYS lost with its two engines: FwsCore).
-      // APPR & LDG: the lines below, REVERSER and BTV from FwsInopSys
+      // STATUS. ALL PHASES: PART L/G RETRACTION, PACK 1(2) here; PART SPLRs, GEN 1+2 (3+4), G(Y) HYD SYS, ENG BLEED
+      // come from FwsInopSys (the HYD SYS lost with its two engines: FwsCore). APPR & LDG: the lines below, REVERSER
+      // and BTV from FwsInopSys
       inopSysAllPhases: () => ['320300023', this.fws.twoEnginesOutLeftSide.get() ? '210300009' : '210300010'],
       inopSysApprLdg: () =>
         this.fws.twoEnginesOutLeftSide.get()
           ? ['290100003', '290100006', '320300020', '220300027', '220300010']
           : ['290100004', '320300014', '220300027', '220300010'],
       info: () => (this.fws.twoEnginesOutRightSide.get() ? ['800200003'] : []),
-      // LIMITATIONS l.175317-175327: FOR LDG : FLAP LVR 3, FLAPS SLOW, LDG PERF AFFECTED; if ENG 1+2 failed: SLATS SLOW,
-      // L/G GRVTY EXTN ONLY, STEER ENDUR LIMITED. LAND ANSA comes from the recommendation of the procedure.
+      // LIMITATIONS: FOR LDG : FLAP LVR 3, FLAPS SLOW, LDG PERF AFFECTED; if ENG 1+2 failed: SLATS SLOW, L/G GRVTY EXTN
+      // ONLY, STEER ENDUR LIMITED. LAND ANSA comes from the recommendation of the procedure.
       limitationsApprLdg: () =>
         this.fws.twoEnginesOutLeftSide.get()
           ? ['270400001', '290400001', '290400002', '320400002', '800400003', '320400003']
           : ['270400001', '290400002', '800400003'],
     },
     701800160: {
-      // ENG TWO ENGS OUT ON OPPOSITE SIDE (A380 FCOM l.175471-175633). Phases 5 and 6 inhibited (PDF p.5868).
-      // The "Depending on the failed engines: PACK 1(2) OFF" line (l.175518-175519) is not shown: the FCOM does not say
-      // which pack goes with which pair of engines on opposite sides.
+      // ENG TWO ENGS OUT ON OPPOSITE SIDE. Phases 5 and 6 inhibited. The PACK 1(2) OFF line, which depends on the
+      // failed engines, is not shown: which pack goes with which pair of engines on opposite sides is not known.
       flightPhaseInhib: this.fws.phase56Inhibition,
       simVarIsActive: this.fws.twoEnginesOutOppositeSide,
       notActiveWhenItemActive: [],
@@ -8262,15 +8225,15 @@ export class FwsAbnormalSensed {
       whichItemsChecked: () => [false],
       failure: 2,
       sysPage: SdPages.Eng,
-      // STATUS l.175614-175632: BTV (FwsInopSys), CAT 3; INFO CAT 2 ONLY
+      // STATUS: BTV (FwsInopSys), CAT 3; INFO CAT 2 ONLY
       inopSysApprLdg: () => ['220300029'],
       info: () => ['220200017'],
-      // LIMITATIONS l.175549-175551: FOR LDG : FLAP LVR 3, LDG PERF AFFECTED
+      // LIMITATIONS: FOR LDG : FLAP LVR 3, LDG PERF AFFECTED
       limitationsApprLdg: () => ['270400001', '800400003'],
     },
     701800157: {
-      // ENG THR LEVERS NOT SET (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): amber, phases 2 and 3. Design choice:
-      // confirmed 3 s, as the A32NX FWC (a lever moved through CL to FLX/MCT does not trigger it)
+      // ENG THR LEVERS NOT SET (EngineTakeoffAlerts.ts): amber, phases 2 and 3. Design choice: confirmed 3 s, as the
+      // A32NX FWC (a lever moved through CL to FLX/MCT does not trigger it)
       flightPhaseInhib: THR_LEVERS_NOT_SET_PHASE_INHIBITION,
       simVarIsActive: this.fws.thrustLeverNotSet,
       monitorConfirmTime: 3,
@@ -8503,7 +8466,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     700700001: {
-      // ENG 1(4) START VLV FAULT (NOT CLOSED) FOR APPROACH: IF SEVERE ICE ACCRETION: FOR LDG : FLAP LVR 3 (l.173149-173153)
+      // ENG 1(4) START VLV FAULT (NOT CLOSED) FOR APPROACH: IF SEVERE ICE ACCRETION: FOR LDG : FLAP LVR 3
       flightPhaseInhib: [],
       simVarIsActive: Subject.create(true),
       notActiveWhenItemActive: [],
@@ -8547,8 +8510,7 @@ export class FwsAbnormalSensed {
   /** The aircraft state that the ENG TWO ENGS OUT deferred procedures sense */
   private twoEnginesOutDeferredInputs(): TwoEnginesOutDeferredInputs {
     return {
-      // The fuel jettison FWS (FwsCore fuelJettisonArmPbOn / fuelJettisonActivePbOn) is on core/fuel: the pbs are read
-      // here directly (merging core/fuel: read the FwsCore subjects as develop does)
+      // The FWS has no fuel jettison pb inputs of its own: the pbs are read here directly
       jettisonArmPbOn: SimVar.GetSimVarValue('L:A380X_OVHD_FUEL_JETTISON_ARM_PB_IS_ON', SimVarValueType.Bool) > 0,
       jettisonActivePbOn: SimVar.GetSimVarValue('L:A380X_OVHD_FUEL_JETTISON_ACTIVE_PB_IS_ON', SimVarValueType.Bool) > 0,
       engines1And2Out: this.fws.twoEnginesOutLeftSide.get(),

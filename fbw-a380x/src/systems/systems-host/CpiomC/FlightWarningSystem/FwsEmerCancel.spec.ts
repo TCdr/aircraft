@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { FwsEmerCancel } from './FwsEmerCancel';
 
-describe('FwsEmerCancel (A380 FCOM DSC-31-40-20, EMER CANC pb)', () => {
+describe('FwsEmerCancel (EMER CANC pb)', () => {
   it('keeps a caution cancelled for the rest of the flight, even when it goes and comes back', () => {
     const emerCancel = new FwsEmerCancel();
     emerCancel.cancelCaution('A');

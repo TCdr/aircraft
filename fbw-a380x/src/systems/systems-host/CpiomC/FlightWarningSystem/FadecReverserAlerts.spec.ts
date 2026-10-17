@@ -124,7 +124,7 @@ describe('FwsAbnormalSensed wiring of the FADEC, thrust lever and reverser alert
     }
   });
 
-  it('uses the FCOM flight phase inhibitions', () => {
+  it('uses the flight phase inhibitions', () => {
     expect(block(701800013)).toContain('flightPhaseInhib: FADEC_FAULT_PHASE_INHIBITION,');
     expect(block(701800130)).toContain('flightPhaseInhib: THR_LEVER_FAULT_PHASE_INHIBITION,');
     expect(block(701800149)).toContain('flightPhaseInhib: REVERSER_UNLOCKED_PHASE_INHIBITION,');

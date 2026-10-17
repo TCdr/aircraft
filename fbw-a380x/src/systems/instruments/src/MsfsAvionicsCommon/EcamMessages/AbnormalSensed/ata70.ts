@@ -59,7 +59,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800009: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) EGT OVER LIMIT (a380_fcom.txt l.171515-171519)
     title: '\x1b<4m\x1b4mENG\x1bm 1 EGT OVER LIMIT',
     sensed: true,
     items: [
@@ -69,7 +68,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800010: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) EGT OVER LIMIT (a380_fcom.txt l.171515-171519)
     title: '\x1b<4m\x1b4mENG\x1bm 2 EGT OVER LIMIT',
     sensed: true,
     items: [
@@ -79,7 +77,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800011: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) EGT OVER LIMIT (a380_fcom.txt l.171515-171519)
     title: '\x1b<4m\x1b4mENG\x1bm 3 EGT OVER LIMIT',
     sensed: true,
     items: [
@@ -89,7 +86,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800012: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) EGT OVER LIMIT (a380_fcom.txt l.171515-171519)
     title: '\x1b<4m\x1b4mENG\x1bm 4 EGT OVER LIMIT',
     sensed: true,
     items: [
@@ -99,7 +95,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800013: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt l.171571-171584)
     title: '\x1b<4m\x1b4mENG\x1bm 1 FADEC FAULT',
     sensed: true,
     items: [
@@ -111,7 +106,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800014: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt l.171571-171584)
     title: '\x1b<4m\x1b4mENG\x1bm 2 FADEC FAULT',
     sensed: true,
     items: [
@@ -123,7 +117,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800015: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt l.171571-171584)
     title: '\x1b<4m\x1b4mENG\x1bm 3 FADEC FAULT',
     sensed: true,
     items: [
@@ -135,7 +128,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800016: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt l.171571-171584)
     title: '\x1b<4m\x1b4mENG\x1bm 4 FADEC FAULT',
     sensed: true,
     items: [
@@ -207,7 +199,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800029: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL
     title: '\x1b<4m\x1b4mENG 1\x1bm FAIL',
     sensed: true,
     items: [
@@ -238,7 +229,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800030: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL
     title: '\x1b<4m\x1b4mENG 2\x1bm FAIL',
     sensed: true,
     items: [
@@ -269,7 +259,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800031: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL
     title: '\x1b<4m\x1b4mENG 3\x1bm FAIL',
     sensed: true,
     items: [
@@ -300,7 +289,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800032: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL
     title: '\x1b<4m\x1b4mENG 4\x1bm FAIL',
     sensed: true,
     items: [
@@ -571,7 +559,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800073: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) N1/N2 OVER LIMIT (a380_fcom.txt l.172363-172366): red, CRC
+    // Red warning with CRC
     title: '\x1b<2m\x1b4mENG\x1bm 1 N1/N2 OVER LIMIT',
     sensed: true,
     items: [
@@ -581,7 +569,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800074: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) N1/N2 OVER LIMIT (a380_fcom.txt l.172363-172366): red, CRC
     title: '\x1b<2m\x1b4mENG\x1bm 2 N1/N2 OVER LIMIT',
     sensed: true,
     items: [
@@ -591,7 +578,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800075: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) N1/N2 OVER LIMIT (a380_fcom.txt l.172363-172366): red, CRC
     title: '\x1b<2m\x1b4mENG\x1bm 3 N1/N2 OVER LIMIT',
     sensed: true,
     items: [
@@ -601,7 +587,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800076: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) N1/N2 OVER LIMIT (a380_fcom.txt l.172363-172366): red, CRC
     title: '\x1b<2m\x1b4mENG\x1bm 4 N1/N2 OVER LIMIT',
     sensed: true,
     items: [
@@ -651,7 +636,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800085: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO (RED ALERT), a380_fcom.txt l.172478-172515: a red warning
     title: '\x1b<2m\x1b4mENG\x1bm 1 OIL PRESS LO',
     sensed: true,
     items: [
@@ -660,7 +644,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800086: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO (RED ALERT), a380_fcom.txt l.172478-172515: a red warning
     title: '\x1b<2m\x1b4mENG\x1bm 2 OIL PRESS LO',
     sensed: true,
     items: [
@@ -669,7 +652,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800087: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO (RED ALERT), a380_fcom.txt l.172478-172515: a red warning
     title: '\x1b<2m\x1b4mENG\x1bm 3 OIL PRESS LO',
     sensed: true,
     items: [
@@ -678,7 +660,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800088: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO (RED ALERT), a380_fcom.txt l.172478-172515: a red warning
     title: '\x1b<2m\x1b4mENG\x1bm 4 OIL PRESS LO',
     sensed: true,
     items: [
@@ -707,8 +688,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800093: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP HI, l.172553-172592. Design choice: "REDUCE BELOW OIL TEMP
-    // LIMIT" (l.172585) shortened to fit the 39 characters of the line
+    // Design choice: "REDUCE BELOW OIL TEMP LIMIT" shortened to fit the 39 characters of the line
     title: '\x1b<4m\x1b4mENG\x1bm 1 OIL TEMP HI',
     sensed: true,
     items: [
@@ -718,8 +698,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800094: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP HI, l.172553-172592. Design choice: "REDUCE BELOW OIL TEMP
-    // LIMIT" (l.172585) shortened to fit the 39 characters of the line
     title: '\x1b<4m\x1b4mENG\x1bm 2 OIL TEMP HI',
     sensed: true,
     items: [
@@ -729,8 +707,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800095: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP HI, l.172553-172592. Design choice: "REDUCE BELOW OIL TEMP
-    // LIMIT" (l.172585) shortened to fit the 39 characters of the line
     title: '\x1b<4m\x1b4mENG\x1bm 3 OIL TEMP HI',
     sensed: true,
     items: [
@@ -740,8 +716,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800096: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP HI, l.172553-172592. Design choice: "REDUCE BELOW OIL TEMP
-    // LIMIT" (l.172585) shortened to fit the 39 characters of the line
     title: '\x1b<4m\x1b4mENG\x1bm 4 OIL TEMP HI',
     sensed: true,
     items: [
@@ -751,7 +725,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800097: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628
     title: '\x1b<4m\x1b4mENG\x1bm 1 OIL TEMP LO',
     sensed: true,
     items: [
@@ -760,7 +733,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800098: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628
     title: '\x1b<4m\x1b4mENG\x1bm 2 OIL TEMP LO',
     sensed: true,
     items: [
@@ -769,7 +741,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800099: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628
     title: '\x1b<4m\x1b4mENG\x1bm 3 OIL TEMP LO',
     sensed: true,
     items: [
@@ -778,7 +749,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800100: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628
     title: '\x1b<4m\x1b4mENG\x1bm 4 OIL TEMP LO',
     sensed: true,
     items: [
@@ -1009,7 +979,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800113: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) STALL (a380_fcom.txt l.172842-172847)
     title: '\x1b<4m\x1b4mENG\x1bm 1 STALL',
     sensed: true,
     items: [
@@ -1021,7 +990,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800114: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) STALL (a380_fcom.txt l.172842-172847)
     title: '\x1b<4m\x1b4mENG\x1bm 2 STALL',
     sensed: true,
     items: [
@@ -1033,7 +1001,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800115: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) STALL (a380_fcom.txt l.172842-172847)
     title: '\x1b<4m\x1b4mENG\x1bm 3 STALL',
     sensed: true,
     items: [
@@ -1045,7 +1012,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800116: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) STALL (a380_fcom.txt l.172842-172847)
     title: '\x1b<4m\x1b4mENG\x1bm 4 STALL',
     sensed: true,
     items: [
@@ -1059,7 +1025,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800117: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 START FAULT',
     sensed: true,
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START FAULT (a380_fcom.txt l.172905-173026), items by EngineStartAlerts
+    // Items chosen by EngineStartAlerts
     items: [
       { name: 'NO STARTER AIR PRESSURE', sensed: false },
       { name: 'LOW N2', sensed: false },
@@ -1089,7 +1055,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800118: {
     title: '\x1b<4m\x1b4mENG\x1bm 2 START FAULT',
     sensed: true,
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START FAULT (a380_fcom.txt l.172905-173026), items by EngineStartAlerts
     items: [
       { name: 'NO STARTER AIR PRESSURE', sensed: false },
       { name: 'LOW N2', sensed: false },
@@ -1119,7 +1084,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800119: {
     title: '\x1b<4m\x1b4mENG\x1bm 3 START FAULT',
     sensed: true,
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START FAULT (a380_fcom.txt l.172905-173026), items by EngineStartAlerts
     items: [
       { name: 'NO STARTER AIR PRESSURE', sensed: false },
       { name: 'LOW N2', sensed: false },
@@ -1149,7 +1113,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800120: {
     title: '\x1b<4m\x1b4mENG\x1bm 4 START FAULT',
     sensed: true,
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START FAULT (a380_fcom.txt l.172905-173026), items by EngineStartAlerts
     items: [
       { name: 'NO STARTER AIR PRESSURE', sensed: false },
       { name: 'LOW N2', sensed: false },
@@ -1179,7 +1142,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800121: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 START VLV FAULT (NOT CLOSED)',
     sensed: true,
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT CLOSED) (l.173080-173105), items by EngineStartAlerts
+    // Items chosen by EngineStartAlerts
     items: [
       { name: 'ENG 1 BLEED', sensed: false, labelNotCompleted: 'OFF' },
       { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
@@ -1193,7 +1156,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800122: {
     title: '\x1b<4m\x1b4mENG\x1bm 2 START VLV FAULT (NOT CLOSED)',
     sensed: true,
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT CLOSED) (l.173080-173105), items by EngineStartAlerts
     items: [
       { name: 'ENG 2 BLEED', sensed: false, labelNotCompleted: 'OFF' },
       { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
@@ -1207,7 +1169,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800123: {
     title: '\x1b<4m\x1b4mENG\x1bm 3 START VLV FAULT (NOT CLOSED)',
     sensed: true,
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT CLOSED) (l.173080-173105), items by EngineStartAlerts
     items: [
       { name: 'ENG 3 BLEED', sensed: false, labelNotCompleted: 'OFF' },
       { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
@@ -1221,7 +1182,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800124: {
     title: '\x1b<4m\x1b4mENG\x1bm 4 START VLV FAULT (NOT CLOSED)',
     sensed: true,
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT CLOSED) (l.173080-173105), items by EngineStartAlerts
     items: [
       { name: 'ENG 4 BLEED', sensed: false, labelNotCompleted: 'OFF' },
       { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
@@ -1235,7 +1195,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800125: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 START VLV FAULT (NOT OPEN)',
     sensed: true,
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT OPEN) (l.173216-173252), items by EngineStartAlerts
+    // Items chosen by EngineStartAlerts
     items: [
       { name: 'VLV STUCK CLOSED', sensed: false },
       { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF' },
@@ -1251,7 +1211,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800126: {
     title: '\x1b<4m\x1b4mENG\x1bm 2 START VLV FAULT (NOT OPEN)',
     sensed: true,
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT OPEN) (l.173216-173252), items by EngineStartAlerts
     items: [
       { name: 'VLV STUCK CLOSED', sensed: false },
       { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF' },
@@ -1267,7 +1226,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800127: {
     title: '\x1b<4m\x1b4mENG\x1bm 3 START VLV FAULT (NOT OPEN)',
     sensed: true,
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT OPEN) (l.173216-173252), items by EngineStartAlerts
     items: [
       { name: 'VLV STUCK CLOSED', sensed: false },
       { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF' },
@@ -1283,7 +1241,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800128: {
     title: '\x1b<4m\x1b4mENG\x1bm 4 START VLV FAULT (NOT OPEN)',
     sensed: true,
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT OPEN) (l.173216-173252), items by EngineStartAlerts
     items: [
       { name: 'VLV STUCK CLOSED', sensed: false },
       { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF' },
@@ -1297,7 +1254,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800129: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER FAULT (a380_fcom.txt l.173316-173326)
     title: '\x1b<4m\x1b4mENG\x1bm 1 THR LEVER FAULT',
     sensed: true,
     items: [
@@ -1308,7 +1264,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800130: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER FAULT (a380_fcom.txt l.173316-173326)
     title: '\x1b<4m\x1b4mENG\x1bm 2 THR LEVER FAULT',
     sensed: true,
     items: [
@@ -1320,7 +1275,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800131: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER FAULT (a380_fcom.txt l.173316-173326)
     title: '\x1b<4m\x1b4mENG\x1bm 3 THR LEVER FAULT',
     sensed: true,
     items: [
@@ -1332,7 +1286,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800132: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER FAULT (a380_fcom.txt l.173316-173326)
     title: '\x1b<4m\x1b4mENG\x1bm 4 THR LEVER FAULT',
     sensed: true,
     items: [
@@ -1343,7 +1296,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800133: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408
     title: '\x1b<4m\x1b4mENG\x1bm 1 THRUST LOSS',
     sensed: true,
     items: [
@@ -1352,7 +1304,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800134: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408
     title: '\x1b<4m\x1b4mENG\x1bm 2 THRUST LOSS',
     sensed: true,
     items: [
@@ -1361,7 +1312,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800135: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408
     title: '\x1b<4m\x1b4mENG\x1bm 3 THRUST LOSS',
     sensed: true,
     items: [
@@ -1370,7 +1320,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800136: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408
     title: '\x1b<4m\x1b4mENG\x1bm 4 THRUST LOSS',
     sensed: true,
     items: [
@@ -1379,7 +1328,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800137: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER CTL FAULT (a380_fcom.txt l.173459-173462)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER CTL FAULT',
     sensed: true,
     items: [
@@ -1388,7 +1336,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800138: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER CTL FAULT (a380_fcom.txt l.173459-173462)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER CTL FAULT',
     sensed: true,
     items: [
@@ -1397,19 +1344,16 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800139: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER ENERGIZED (a380_fcom.txt l.173508)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER ENERGIZED',
     sensed: true,
     items: [{ name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' }],
   },
   701800140: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER ENERGIZED (a380_fcom.txt l.173508)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER ENERGIZED',
     sensed: true,
     items: [{ name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' }],
   },
   701800141: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER FAULT (a380_fcom.txt l.173527-173530)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER FAULT',
     sensed: true,
     items: [
@@ -1418,7 +1362,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800142: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER FAULT (a380_fcom.txt l.173527-173530)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER FAULT',
     sensed: true,
     items: [
@@ -1437,7 +1380,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800145: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER LOCKED (a380_fcom.txt l.173606-173609)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REV LOCKED',
     sensed: true,
     items: [
@@ -1446,7 +1388,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800146: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER LOCKED (a380_fcom.txt l.173606-173609)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REV LOCKED',
     sensed: true,
     items: [
@@ -1465,7 +1406,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800149: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER UNLOCKED (a380_fcom.txt l.173678-173692)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER UNLOCKED',
     sensed: true,
     items: [
@@ -1477,7 +1417,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800150: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER UNLOCKED (a380_fcom.txt l.173678-173692)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER UNLOCKED',
     sensed: true,
     items: [
@@ -1489,7 +1428,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800151: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG ALL ENG FLAME OUT (a380_fcom.txt l.173768-174788)
     title: '\x1b<2m\x1b4mENG\x1bm ALL ENG FLAME OUT',
     sensed: true,
     items: [
@@ -1535,7 +1473,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
         level: 3,
       },
       { name: 'FOR L/G GRVTY : MAX SPEED 220 KT', sensed: false, level: 3 },
-      // l.173963, as in the NO FUEL part
+      // as in the NO FUEL part
       { name: 'L/G GRVTY (EXTN 2 MIN)', sensed: false, labelNotCompleted: 'DOWN', level: 3 },
       { name: 'WHEN L/G LOCKED DOWN', sensed: false, condition: true, level: 3 },
       { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'DOWN', level: 4 },
@@ -1682,7 +1620,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800154: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG REVERSER SELECTED (a380_fcom.txt l.175039)
     title: '\x1b<4m\x1b4mENG\x1bm REVERSER SELECTED',
     sensed: true,
     items: [
@@ -1692,7 +1629,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800155: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG T.O THRUST DISAGREE, l.175054-175070: crew awareness, no line
+    // Crew awareness: no line
     title: '\x1b<4m\x1b4mENG\x1bm T.O THRUST DISAGREE',
     sensed: true,
     items: [],
@@ -1703,8 +1640,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800157: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG THR LEVERS NOT SET, l.175146-175184 (no derated take-off in FBW: its TOGA line is
-    // left out)
+    // No derated takeoff in FBW: the TOGA line of the procedure is left out
     title: '\x1b<4m\x1b4mENG\x1bm THR LEVERS NOT SET',
     sensed: true,
     items: [
@@ -1724,7 +1660,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800159: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG TWO ENGS OUT ON SAME SIDE (a380_fcom.txt l.175261-175271)
     title: "\x1b<4m\x1b4mENG\x1bm \x1b'mTWO ENGS OUT ON SAME SIDE\x1bm",
     recommendation: 'LAND ANSA',
     sensed: true,
@@ -1736,7 +1671,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800160: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG TWO ENGS OUT ON OPPOSITE SIDE (a380_fcom.txt l.175514-175521)
     title: "\x1b<4m\x1b4mENG\x1bm \x1b'mTWO ENGS OUT ON OPPOSITE SIDE\x1bm",
     recommendation: 'LAND ANSA',
     sensed: true,
@@ -1751,7 +1685,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mENG\x1bm RELIGHT IN FLIGHT',
     sensed: false,
     items: [
-      // A380 FCOM ENG RELIGHT IN FLIGHT, single engine l.174902-174904, multiple engines l.174977-174979
       { name: 'FOR RELIGHT (SINGLE ENGINE)', sensed: false, condition: true },
       { name: 'MAX GUARANTEED ALTITUDE : 30000 FT', sensed: false, level: 1 },
       { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false, level: 1 },
@@ -1815,7 +1748,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   700900003: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG HI VIBRATIONS
     title: '\x1b<4m\x1b4mENG\x1bm HI VIBRATIONS',
     sensed: false,
     items: [
@@ -1831,14 +1763,13 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
 };
 
 /**
- * ATA 70 deferred procedures. The FCOM gives no title for them; design choice: the title names the alert they come from
+ * ATA 70 deferred procedures. They have no title of their own; design choice: the title names the alert they come from
  * (the STATUS page lists them as "> title" under their FOR APPROACH / ALL PHASES heading).
  * The items checked are in FwsAbnormalSensed ewdDeferredProcs (EngineFailAlerts.ts for the TWO ENGS OUT lines).
  */
 export const EcamDeferredProcAta70: { [n: number]: DeferredProcedure } = {
   700700001: {
-    // A380 FCOM ENG 1(2)(3)(4) START VLV FAULT (NOT CLOSED) DEFERRED PROC (l.173149-173153): FOR APPROACH, if
-    // engine 1 or 4 affected
+    // Only with engine 1 or 4 affected
     fromAbnormalProcs: ['701800121', '701800124'],
     title: 'ENG START VLV FAULT',
     type: DeferredProcedureType.FOR_APPROACH,
@@ -1848,8 +1779,7 @@ export const EcamDeferredProcAta70: { [n: number]: DeferredProcedure } = {
     ],
   },
   700700002: {
-    // A380 FCOM ENG TWO ENGS OUT ON SAME SIDE (l.175333-175337) and ON OPPOSITE SIDE (l.175554-175558) DEFERRED PROC:
-    // ALL PHASES
+    // From both TWO ENGS OUT ON SAME SIDE and ON OPPOSITE SIDE
     fromAbnormalProcs: ['701800159', '701800160'],
     title: 'ENG TWO ENGS OUT',
     type: DeferredProcedureType.ALL_PHASES,
@@ -1860,7 +1790,7 @@ export const EcamDeferredProcAta70: { [n: number]: DeferredProcedure } = {
     ],
   },
   700700003: {
-    // A380 FCOM ENG TWO ENGS OUT ON SAME SIDE DEFERRED PROC FOR APPROACH (l.175338-175396), items by EngineFailAlerts
+    // Items chosen by EngineFailAlerts sameSideApproachItems; [n] = the item index it uses
     fromAbnormalProcs: ['701800159'],
     title: 'TWO ENGS OUT ON SAME SIDE',
     type: DeferredProcedureType.FOR_APPROACH,
@@ -1900,9 +1830,8 @@ export const EcamDeferredProcAta70: { [n: number]: DeferredProcedure } = {
     ],
   },
   700700004: {
-    // A380 FCOM ENG TWO ENGS OUT ON OPPOSITE SIDE DEFERRED PROC APPR & LDG (l.175559-175612), items by
-    // EngineFailAlerts. Design choice: the FCOM heading "APPR & LDG" is shown as FOR APPROACH (the deferred
-    // procedure types of the FWS).
+    // Items chosen by EngineFailAlerts; [n] = the item index it uses. Design choice: the heading "APPR & LDG" is shown
+    // as FOR APPROACH (the deferred procedure types of the FWS).
     fromAbnormalProcs: ['701800160'],
     title: 'TWO ENGS OUT ON OPPOSITE SIDE',
     type: DeferredProcedureType.FOR_APPROACH,

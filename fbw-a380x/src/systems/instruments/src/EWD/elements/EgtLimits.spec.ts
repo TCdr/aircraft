@@ -20,7 +20,7 @@ import {
   trimmedEgt,
 } from './EgtLimits';
 
-/* A380 FCOM DSC-70-90 EGT INDICATIONS / EGT LIMIT: no amber indication during takeoff or with the reversers selected. */
+/* No amber EGT indication during takeoff or with the reversers selected. */
 describe('EWD EGT limits from the thrust limit type', () => {
   it('is amber above the limit at MCT (the TLA of about 25 degrees made it green)', () => {
     expect(egtColour(860, ThrustLimitType.Mct)).toBe('Amber');
@@ -55,7 +55,7 @@ describe('EWD EGT limits from the thrust limit type', () => {
   });
 });
 
-describe('EWD EGT with the engine failures (stage B4)', () => {
+describe('EWD EGT with the engine failures', () => {
   it('shows the trimmed EGT of a healthy engine', () => {
     expect(displayedEgt(880, 0, ThrustLimitType.Mct)).toBe(850);
     expect(displayedEgt(800, 0, ThrustLimitType.Mct)).toBe(800);
@@ -94,7 +94,7 @@ describe('EWD EGT with the engine failures (stage B4)', () => {
     expect(memory.exceeded).toBe(false);
   });
 
-  // a380_fcom.txt l.73512-73516: a parameter that is not available shows XX instead of its value
+  // a parameter that is not available shows XX instead of its value
   it('latches no red mark on an EGT the FADEC does not send (XX)', () => {
     const memory = new ExceedanceMemory(900);
     memory.update(1200, false, false);
@@ -112,7 +112,7 @@ describe('EWD EGT with the engine failures (stage B4)', () => {
     expect(memory.highestValue).toBe(950);
   });
 
-  it('has the FCOM N1 and N2 (FBW N3) red limits of 111 % and 118.7 %', () => {
+  it('has the N1 and N2 (FBW N3) red limits of 111 % and 118.7 %', () => {
     expect(n1Exceeds(111)).toBe(false);
     expect(n1Exceeds(111.1)).toBe(true);
     expect(n3Exceeds(118.7)).toBe(false);

@@ -74,7 +74,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .with_engine_anti_ice_valves(2)?
     .with_wing_anti_ice()?
     // The engine starves once its LP fuel valve is closed and the fuel left downstream of it is burned
-    // (FCOM PRO-ABN-ENG, see a320_systems fuel/engine_lp_valve.rs). Fuel valves 13 and 14 of
+    // (see a320_systems fuel/engine_lp_valve.rs). Fuel valves 13 and 14 of
     // flight_model.cfg feed the engines in series with their MSFS engine valves 1 and 2: closing them
     // stops the MSFS combustion exactly when the engine starves.
     .with_fuel_valves_closed_while([

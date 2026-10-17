@@ -17,7 +17,7 @@ describe('A380X SD ENGINE page vibrations and N3', () => {
     expect(n3ClassName(118.8)).toBe('Red');
   });
 
-  // FCOM DSC-70-90 N2 (l.113300-113302): red cross with the exceedance, gone after a subsequent engine start on ground
+  // The red cross appears with the exceedance and goes after a subsequent engine start on the ground
   it('shows the N3 red cross above 118.7 % and keeps it once the N3 is back below the limit', () => {
     expect(n3RedCrossShown(false, 118.7, false, true)).toBe(false);
     expect(n3RedCrossShown(false, 118.8, false, true)).toBe(true);

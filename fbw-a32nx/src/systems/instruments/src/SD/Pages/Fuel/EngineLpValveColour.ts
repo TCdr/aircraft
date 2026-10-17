@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * Whether the engine LP valve symbol of the SD FUEL page is green. FCOM DSC-28-20-F LP VALVE (ENG) INDICATIONS:
+ * Whether the engine LP valve symbol of the SD FUEL page is green:
  * - Inline - Green: The valve is open.
  * - Inline - Amber: The valve is open, with the ENG MASTER switch OFF.
  * - Crossline - Amber: The ENG valve is fully closed.

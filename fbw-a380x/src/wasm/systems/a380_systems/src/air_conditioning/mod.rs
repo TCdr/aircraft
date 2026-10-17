@@ -5594,7 +5594,7 @@ mod tests {
             const COCKPIT: usize = 0;
             const MAIN_DECK_1: usize = 1;
 
-            // A380 FCOM PRO-ABN-ECAM-10-21-10 COND DUCT OVHT: a duct overheats above 70 deg C
+            // COND DUCT OVHT: a duct overheats above 70 deg C
             const FCOM_DUCT_OVERHEAT_LIMIT_DEG_C: f64 = 70.;
 
             fn test_bed_with_trim_air_valves_open() -> CabinAirTestBed {
@@ -5668,7 +5668,7 @@ mod tests {
                     FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
                 );
 
-                // FCOM COND DUCT OVHT procedure: HOT AIR OFF stops the overheat
+                // The COND DUCT OVHT procedure: HOT AIR OFF stops the overheat
                 test_bed = test_bed.hot_air_pbs_off().iterate(50);
                 assert_lt!(
                     test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
@@ -5732,7 +5732,7 @@ mod tests {
 
                 assert!(test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
                 assert!(!test_bed.duct_overheat_in_zone(ZoneType::Cabin(11)));
-                // FCOM COND DUCT OVHT: a cockpit duct overheat asks for HOT AIR 2 OFF
+                // COND DUCT OVHT: a cockpit duct overheat asks for HOT AIR 2 OFF
                 assert!(test_bed.hot_air_pb_has_fault(2));
                 assert!(!test_bed.hot_air_pb_has_fault(1));
                 assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_CKPT_DUCT_OVHT));
@@ -5772,7 +5772,7 @@ mod tests {
                     test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
                     FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
                 );
-                // FCOM DSC-21-10-20: the FAULT light goes off below 70 deg C AND with the HOT AIR pb OFF
+                // The FAULT light goes off below 70 deg C AND with the HOT AIR pb OFF
                 assert!(test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
                 assert!(test_bed.hot_air_pb_has_fault(2));
 

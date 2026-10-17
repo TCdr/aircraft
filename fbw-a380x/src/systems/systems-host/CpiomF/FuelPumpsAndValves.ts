@@ -15,11 +15,8 @@ import { A380Failure } from '@failures';
 
 /** A feed tank pump of the MSFS fuel system (flight_model.cfg [FUEL_SYSTEM]) */
 export interface A380FeedPump {
-  /** The feed tank, 1 to 4 */
   tank: number;
-  /** MAIN or STBY */
   kind: 'MAIN' | 'STBY';
-  /** The failure of the pump */
   failure: number;
   /**
    * The MSFS pump number (Pump.N), the index of FUELSYSTEM PUMP SWITCH and ACTIVE. Its switch stays ON (flight files),
@@ -47,14 +44,13 @@ export const A380_FEED_PUMPS: readonly A380FeedPump[] = [
 
 /** A crossfeed valve of the MSFS fuel system */
 export interface A380CrossFeedValve {
-  /** The crossfeed valve number, 1 to 4 */
   number: number;
   failure: number;
   /** The MSFS valve number (Valve.N), the index of FUELSYSTEM VALVE SWITCH and VALVE OPEN */
   valve: number;
   /**
-   * The CROSSFEED pb-sw selection: the pb-sw toggles it and shows it (ON light, animation), this module copies it to the
-   * MSFS valve unless the valve is jammed
+   * The CROSSFEED pb-sw selection: the pb-sw toggles it and shows it (ON light, animation), this module copies it to
+   * the MSFS valve unless the valve is jammed
    */
   selectionVar: string;
 }
@@ -65,7 +61,7 @@ export function crossFeedPbIsOnVar(valveNumber: number): string {
 }
 
 /** The crossfeed valves: Valve.46-49 CrossFeedValve1-4 (flight_model.cfg) */
-export const A380_CROSSFEED_VALVES: readonly A380CrossFeedValve[] = [
+const A380_CROSSFEED_VALVES: readonly A380CrossFeedValve[] = [
   { number: 1, failure: A380Failure.FuelCrossFeedValve1Jammed, valve: 46, selectionVar: crossFeedPbIsOnVar(1) },
   { number: 2, failure: A380Failure.FuelCrossFeedValve2Jammed, valve: 47, selectionVar: crossFeedPbIsOnVar(2) },
   { number: 3, failure: A380Failure.FuelCrossFeedValve3Jammed, valve: 48, selectionVar: crossFeedPbIsOnVar(3) },
@@ -176,15 +172,13 @@ export const A380_TRANSFER_PUMPS: readonly A380TransferPump[] = [
  * A tank holding less than this, in gallons, is empty: the FQMS stops its transfer pumps (LegacyFuel fires the
  * xxxTankEmpty triggers below 0.1 gal)
  */
-export const TRANSFER_TANK_EMPTY_GAL = 0.1;
+const TRANSFER_TANK_EMPTY_GAL = 0.1;
 
 /**
- * Whether a transfer pump is faulty, the FAULT light of its pb-sw: it "Comes on: When the transfer pump is failed, or is
- * abnormally on [...] The FAULT light goes off, when the flight crew sets the [...] pb-sw to OFF" (A380 FCOM DSC-28-20,
- * a380_fcom.txt l.57853-57869 and l.57914-57930), and the "Failed, or Running, when the associated tank is empty" part
- * of the triggering conditions of its FUEL ... PMP FAULT alert (PRO-ABN-ECAM-10-28, l.151638-151640, l.153692-153700).
- * A failed pump is faulty whether or not the FQMS runs it at that time (the FCOM says "failed", not "at low pressure"
- * as for the feed pumps, l.57802): the fault shows as soon as the pump fails, not only during a transfer. A pump that
+ * Whether a transfer pump is faulty, the FAULT light of its pb-sw: the pump is failed or abnormally on (running while
+ * its tank is empty); the light goes off when the crew sets the pb-sw OFF. The same rule triggers its FUEL ... PMP
+ * FAULT alert. A failed pump is faulty whether or not the FQMS runs it at that time (the rule says failed, not at low
+ * pressure as for the feed pumps): the fault shows as soon as the pump fails, not only during a transfer. A pump that
  * MSFS does not run in an empty tank is no fault.
  * @param pbOn whether the pump pb-sw is ON (its circuit connected to the bus)
  * @param failed whether the pump is failed (its flyPad failure)
@@ -283,9 +277,8 @@ export function crossFeedValveAbnormalVar(valveNumber: number): string {
 }
 
 /**
- * Whether a feed tank pump is ON and "running at low pressure or is failed" (A380 FCOM DSC-28-20 FEED TK 1(2)(3)(4)
- * MAIN/STBY pb-sw FAULT light, a380_fcom.txt l.57805 and l.57821; it "goes off, when the flight crew sets the pb-sw to
- * OFF").
+ * Whether a feed tank pump is ON and running at low pressure or failed: the FAULT light of its MAIN/STBY pb-sw, which
+ * goes off when the crew sets the pb-sw OFF.
  * @param pbOn whether the pump pb-sw is ON (its circuit connected to the bus)
  * @param running whether MSFS runs the pump (FUELSYSTEM PUMP ACTIVE)
  */
@@ -294,10 +287,9 @@ export function isFeedPumpLowPressure(pbOn: boolean, running: boolean): boolean 
 }
 
 /**
- * Whether a crossfeed valve position disagrees with its CROSSFEED pb-sw: "The CROSSFEED 1(2)(3)(4) pb-sw is set to ON and
- * the crossfeed valve remains closed", or "is deselected and the crossfeed valve is open" (A380 FCOM DSC-28-20
- * CROSSFEED pb-sw, a380_fcom.txt l.58063-58100). The automatic openings of the valves (electrical emergency
- * configuration, ground transfer) are not simulated.
+ * Whether a crossfeed valve position disagrees with its CROSSFEED pb-sw: the pb-sw is ON and the valve stays closed, or
+ * the pb-sw is off and the valve is open. The automatic openings of the valves (electrical emergency configuration,
+ * ground transfer) are not simulated.
  * @param openRatio the valve position, 0 (closed) to 1 (open)
  * @param pbOn whether the CROSSFEED pb-sw is ON
  */
@@ -313,10 +305,9 @@ export type FailureStates = Pick<FailuresConsumer, 'isActive'>;
  * An MSFS pump or valve keeps running or moving with its electrical circuit switched off, so the failures hold the MSFS
  * pump and valve switches instead (FailableFuelSwitchesDriver):
  * - A failed feed pump stops: its MSFS pump switch is held off, while its pb-sw (the connection of the pump circuit to
- *   its bus) stays where the flight crew put it. The FAULT light of the pb-sw,
- *   the amber pump on the SD FUEL page and the FUEL FEED TK n MAIN (STBY) PMP FAULT alerts follow the low pressure
- *   computed here. The other pump of the tank, or the gravity feed pump of the MSFS fuel system when both are failed,
- *   still feeds the engine.
+ *   its bus) stays where the flight crew put it. The FAULT light of the pb-sw, the amber pump on the SD FUEL page and
+ *   the FUEL FEED TK n MAIN (STBY) PMP FAULT alerts follow the low pressure computed here. The other pump of the tank,
+ *   or the gravity feed pump of the MSFS fuel system when both are failed, still feeds the engine.
  * - A jammed crossfeed valve keeps its position whatever its CROSSFEED pb-sw is: the pb-sw only sets a selection L:var,
  *   which is copied to the MSFS valve switch unless the valve is jammed. The valve is abnormal once its position
  *   disagrees with its CROSSFEED pb-sw longer than its travel time.
@@ -338,8 +329,8 @@ export class FuelPumpsAndValves implements Instrument {
   private readonly transferPumps: FailableFuelSwitchesDriver;
 
   /**
-   * A transfer pump seen faulty longer than this, in seconds, is faulty (design choice: the time for the FQMS to stop the
-   * pump of a tank that just became empty)
+   * A transfer pump seen faulty longer than this, in seconds, is faulty (design choice: the time for the FQMS to stop
+   * the pump of a tank that just became empty)
    */
   public static readonly TRANSFER_PUMP_FAULT_CONFIRM_S = 2;
 

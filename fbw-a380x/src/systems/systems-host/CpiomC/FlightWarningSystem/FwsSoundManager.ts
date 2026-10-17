@@ -564,7 +564,7 @@ export class FwsSoundManager {
   }
 
   /**
-   * EMER CANC pb (A380 FCOM DSC-31-40-20): cancels all the audio indicators and aural alerts, the one playing and the
+   * EMER CANC pb: cancels all the audio indicators and aural alerts, the one playing and the
    * queued ones. A sound whose triggering conditions occur again sounds again.
    * @returns whether there was a sound to cancel
    */

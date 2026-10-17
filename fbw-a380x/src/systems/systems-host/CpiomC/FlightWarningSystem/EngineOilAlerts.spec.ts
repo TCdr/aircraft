@@ -15,8 +15,6 @@ const running: EngineOilInputs = {
   oilFilterClogged: false,
 };
 
-/* A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO, a380_fcom.txt l.172486: "This warning is displayed when the
- * oil pressure drops below 25 PSI." */
 describe('ENG OIL PRESS LO', () => {
   it('triggers below 25 PSI', () => {
     expect(engineOilAlerts({ ...running, oilPressurePsi: 24.9 }).pressureLow).toBe(true);
@@ -34,7 +32,6 @@ describe('ENG OIL PRESS LO', () => {
   });
 });
 
-/* l.172561: "The oil temperature is above 196 °C." */
 describe('ENG OIL TEMP HI', () => {
   it('triggers above 196 °C', () => {
     expect(engineOilAlerts({ ...running, oilTemperatureCelsius: 197 }).temperatureHigh).toBe(true);
@@ -46,7 +43,7 @@ describe('ENG OIL TEMP HI', () => {
   });
 });
 
-/* l.172415: "The oil filter in the feed line or in the return line is clogged." */
+/* The oil filter of the feed line or of the return line is clogged */
 describe('ENG OIL FILTER CLOGGED', () => {
   it('triggers with a clogged filter on a running engine only', () => {
     expect(engineOilAlerts({ ...running, oilFilterClogged: true }).filterClogged).toBe(true);
@@ -59,7 +56,7 @@ describe('ENG OIL FILTER CLOGGED', () => {
 
 /*
  * The alerts in the FWS and their procedures, read from the source text (importing the EcamMessages tables in a test
- * fails on a circular import, see FwsAbnormalSensedItems.spec.ts). Levels and phase inhibitions: FCOM PDF pages 5796-5800.
+ * fails on a circular import, see FwsAbnormalSensedItems.spec.ts).
  */
 describe('FWS oil alerts', () => {
   const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
@@ -113,7 +110,7 @@ describe('FWS oil alerts', () => {
     expect(`THR LEVER ${engine}`.length + 'REDUCE BELOW OIL TEMP LIM'.length + 2).toBeLessThanOrEqual(39);
   });
 
-  /* FCOM l.172418-172422, PDF p.5796: the only indication is the ENGINE SD page (no aural, no MASTER CAUT) */
+  /* The only indication is the ENGINE SD page (no aural, no MASTER CAUT) */
   it.each([1, 2, 3, 4])('ENG %d OIL FILTER CLOGGED: amber, crew awareness, inhibited in phases 3 to 10', (engine) => {
     const id = 701800081 + engine - 1;
     const alert = block(abnormalSensed, id);

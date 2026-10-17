@@ -403,7 +403,7 @@ export class FwsCore {
 
   public recallFailures: string[] = [];
 
-  /** EMER CANC pb: the cautions cancelled for the flight and the warnings silenced (A380 FCOM DSC-31-40-20) */
+  /** EMER CANC pb: the cautions cancelled for the flight and the warnings silenced */
   public readonly emerCancel = new FwsEmerCancel();
 
   /** The cancelled cautions, for the CANCELLED CAUTION section of the STATUS page */
@@ -422,7 +422,7 @@ export class FwsCore {
     this.moreInfoKeys,
   );
 
-  /** FCOM: RCL pb pressed for more than 3 s recalls the alerts cancelled with the EMER CANC pb */
+  /** RCL pb pressed for more than 3 s recalls the alerts cancelled with the EMER CANC pb */
   private static readonly RECALL_LONG_PRESS_MS = 3_000;
 
   /** How long the RCL pb has been held, in ms */
@@ -438,15 +438,18 @@ export class FwsCore {
   /** The CLEAR pb actions, newest last: the RCL LAST pb cancels the last one (FwsRecall.ts) */
   public readonly clearHistory = new EcamClearHistory();
 
-  /** FCOM l.73433: RCL pb with no alert to recall, NORMAL appears for 3 seconds */
+  /** RCL pb with no alert to recall: NORMAL appears for 3 seconds */
   public readonly recallNormalMemo = Subject.create(false);
 
   private recallNormalMemoTime = 0;
 
-  /** FCOM: EMER CANC pb pressed with nothing to cancel, the EWD displays EMERGENCY CANCEL ON */
+  /** EMER CANC pb pressed with nothing to cancel, the EWD displays EMERGENCY CANCEL ON */
   public readonly emergencyCancelOnMemo = Subject.create(false);
 
-  /** How long the EMERGENCY CANCEL ON memo is displayed, in ms (the FCOM gives no time: as the RCL NORMAL, 3 s) */
+  /**
+   * How long the EMERGENCY CANCEL ON memo is displayed, in ms (design choice: no documented time, 3 s as the RCL
+   * NORMAL)
+   */
   private static readonly EMERGENCY_CANCEL_ON_MEMO_MS = 3_000;
 
   private emergencyCancelOnMemoTime = 0;
@@ -1627,13 +1630,10 @@ export class FwsCore {
     this.crossFeed4ValveOpen,
   );
 
-  /** FUEL FEED TK 1-4 MAIN PMP FAULT (feedTankPumpAlerts) */
   public readonly feedTankMainPumpFault = [1, 2, 3, 4].map(() => Subject.create(false));
 
-  /** FUEL FEED TK 1-4 STBY PMP FAULT (feedTankPumpAlerts) */
   public readonly feedTankStbyPumpFault = [1, 2, 3, 4].map(() => Subject.create(false));
 
-  /** FUEL FEED TK 1-4 MAIN + STBY PMPs FAULT (feedTankPumpAlerts) */
   public readonly feedTankMainAndStbyPumpsFault = [1, 2, 3, 4].map(() => Subject.create(false));
 
   /** The FEED TK 1-4 MAIN and STBY pb-sw ON */
@@ -1661,7 +1661,6 @@ export class FwsCore {
   /** The transfer pumps (pb-sw and FAULT, CpiomF/FuelPumpsAndValves), for the sensed items of their alerts */
   public transferPumpFlags: TransferPumpsFlags = readTransferPumpFlags(() => 0);
 
-  /** FUEL L (R) OUTR TK PMP FAULT (transferPumpAlerts) */
   public readonly outerTankPumpFault = [0, 1].map(() => Subject.create(false));
 
   /** FUEL L (R) INR TK FWD PMP FAULT, AFT PMP FAULT, FWD+AFT PMPs FAULT (transferPumpAlerts) */
@@ -2059,7 +2058,7 @@ export class FwsCore {
 
   public readonly configParkBrakeOn = Subject.create(false);
 
-  /** BRAKES and STEER alerts from the BCS, EBCU and SCS faults (A380 FCOM PRO-ABN-ECAM-10-32, FwsBrakeAlerts.ts) */
+  /** BRAKES and STEER alerts from the BCS, EBCU and SCS faults (FwsBrakeAlerts.ts) */
   public readonly brakeSteerAlerts = new FwsBrakeAlerts();
 
   public readonly lgNotDown = Subject.create(false);
@@ -2191,7 +2190,7 @@ export class FwsCore {
   public readonly gps1Faulty = Subject.create(false);
   public readonly gps2Faulty = Subject.create(false);
   public readonly gps1And2Faulty = Subject.create(false);
-  /** NAV AIR DATA DISAGREE, ALL AIR DATA DISAGREE, AOA DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10) */
+  /** NAV AIR DATA DISAGREE, ALL AIR DATA DISAGREE, AOA DISAGREE */
   public readonly airDataAlerts = new FwsAirDataAlerts();
 
   private readonly adr3UsedLeft = Subject.create(false);
@@ -2565,16 +2564,12 @@ export class FwsCore {
   /** The ENG FAIL memory of the engines 1 to 4, the same logic for the four engines (EngineFailAlerts.ts) */
   private readonly engineFailMonitors = [1, 2, 3, 4].map(() => new EngineFailMonitor());
 
-  /** ENG 1(2)(3)(4) OIL PRESS LO, by engine (EngineOilAlerts.ts) */
   public readonly engineOilPressLo = [1, 2, 3, 4].map(() => Subject.create(false));
 
-  /** ENG 1(2)(3)(4) OIL TEMP HI, by engine (EngineOilAlerts.ts) */
   public readonly engineOilTempHi = [1, 2, 3, 4].map(() => Subject.create(false));
 
-  /** ENG 1(2)(3)(4) OIL FILTER CLOGGED, by engine (EngineOilAlerts.ts) */
   public readonly engineOilFilterClogged = [1, 2, 3, 4].map(() => Subject.create(false));
 
-  /** ENG 1(2)(3)(4) FUEL FILTER CLOGGED, by engine (EngineFuelFilterAlerts.ts) */
   public readonly engineFuelFilterClogged = [1, 2, 3, 4].map(() => Subject.create(false));
 
   /** ENG 1(2)(3)(4) HP FUEL VLV FAULT, by engine (EngineMonitoringAlerts.ts): the fault the FADEC reports */
@@ -2595,10 +2590,8 @@ export class FwsCore {
   /** The take-off thrust mode of the FADECs is FLEX, for the lines of ENG THR LEVERS NOT SET (EngineTakeoffAlerts.ts) */
   public readonly flexTakeoffMode = Subject.create(false);
 
-  /** ENG 1(2)(3)(4) THRUST LOSS, by engine (EngineThrustAlerts.ts) */
   public readonly engineThrustLoss = [1, 2, 3, 4].map(() => Subject.create(false));
 
-  /** ENG T.O THRUST DISAGREE (EngineThrustAlerts.ts) */
   public readonly takeoffThrustDisagree = Subject.create(false);
 
   /*
@@ -2628,10 +2621,10 @@ export class FwsCore {
 
   public readonly engineIgnAPlusBFault = [1, 2, 3, 4].map(() => Subject.create(false));
 
-  /** ENG FAIL, IF NOT DAMAGED: more than two engines failed, the RELIGHT PROC line reads APPLY (FCOM l.171871-171872) */
+  /** ENG FAIL, IF NOT DAMAGED: more than two engines failed, the RELIGHT PROC line reads APPLY */
   public readonly engineRelightProcApply = Subject.create(false);
 
-  /** ENG TWO ENGS OUT ON SAME SIDE (FCOM l.175224): the engines 1 and 2 (left), or 3 and 4 (right) */
+  /** ENG TWO ENGS OUT ON SAME SIDE: the engines 1 and 2 (left), or 3 and 4 (right) */
   public readonly twoEnginesOutLeftSide = Subject.create(false);
   public readonly twoEnginesOutRightSide = Subject.create(false);
   public readonly twoEnginesOutSameSide = MappedSubject.create(
@@ -2639,7 +2632,6 @@ export class FwsCore {
     this.twoEnginesOutLeftSide,
     this.twoEnginesOutRightSide,
   );
-  /** ENG TWO ENGS OUT ON OPPOSITE SIDE (FCOM l.175477) */
   public readonly twoEnginesOutOppositeSide = Subject.create(false);
 
   /** The engines 1 and 2 (3 and 4) out in flight: the GREEN (YELLOW) hydraulic system is lost (EngineFailAlerts.ts) */
@@ -2647,7 +2639,7 @@ export class FwsCore {
   private readonly yellowHydSysLostByEnginesOut = Subject.create(false);
   /**
    * INOP SYS G (Y) HYD SYS and PART SPLRs: the low pressure alert of the system, which needs an engine of its side running,
-   * or both engines of its side out (ENG TWO ENGS OUT ON SAME SIDE STATUS, FCOM l.175440-175444)
+   * or both engines of its side out (ENG TWO ENGS OUT ON SAME SIDE STATUS)
    */
   public readonly greenHydSysInop = MappedSubject.create(
     SubscribableMapFunctions.or(),
@@ -2660,9 +2652,9 @@ export class FwsCore {
     this.yellowHydSysLostByEnginesOut,
   );
 
-  /** ENG SHUT DOWN (engine 2 or 3) or TWO ENGS OUT: INOP SYS BTV (FCOM l.172781, 175443, 175620) */
+  /** ENG SHUT DOWN (engine 2 or 3) or TWO ENGS OUT: INOP SYS BTV */
   public readonly engineOutBtvInop = Subject.create(false);
-  /** ENG SHUT DOWN with the APU off: INOP SYS CAT 3 DUAL, INFO CAT 3 SINGLE ONLY (FCOM l.172783, 172792-172793) */
+  /** ENG SHUT DOWN with the APU off: INOP SYS CAT 3 DUAL, INFO CAT 3 SINGLE ONLY */
   public readonly engineShutDownCat3SingleOnly = Subject.create(false);
 
   private readonly eng1ShutDown = Subject.create(false);
@@ -2700,14 +2692,14 @@ export class FwsCore {
   public readonly eng4Out = Subject.create(false);
 
   /*
-   * FADEC, thrust lever and reverser alerts (engine failures stage B5, see FadecReverserAlerts.ts). The engines 1 to 4 at
+   * FADEC, thrust lever and reverser alerts (see FadecReverserAlerts.ts). The engines 1 to 4 at
    * index 0 to 3; the reversers of the engines 2 and 3 at index 0 and 1. The FADEC status comes from systems.wasm
    * (a380_systems engine_control_failure.rs and reverser).
    */
   public readonly fadecFault = [1, 2, 3, 4].map(() => Subject.create(false));
   public readonly fadecSysFault = [1, 2, 3, 4].map(() => Subject.create(false));
   public readonly fadecTempHi = [1, 2, 3, 4].map(() => Subject.create(false));
-  /** INOP SYS ENG 1(2)(3)(4) A/THR: FADEC FAULT with the A/THR engaged (A380 FCOM l.171599) */
+  /** INOP SYS ENG 1(2)(3)(4) A/THR: FADEC FAULT with the A/THR engaged */
   public readonly fadecAthrInop = [1, 2, 3, 4].map(() => Subject.create(false));
   public readonly thrLeverFault = [1, 2, 3, 4].map(() => Subject.create(false));
   /** STATUS INFO ENG n IDLE ONLY (THR LEVER FAULT on ground, REVERSER UNLOCKED) and ENG n CLB ONLY */
@@ -2734,8 +2726,8 @@ export class FwsCore {
   );
   /**
    * INOP SYS BTV from an alert, besides the FCDC BTV LOST: ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER failures.
-   * A380 FCOM LIM-32 (a380_fcom.txt l.188646): "BTV cannot be used in the case of ECAM alert that impact the landing
-   * performance"; DSC-32-20-220 BTV ARMING (l.79403): "No ECAM warning affects landing distances".
+   * BTV cannot be used with an ECAM alert that impacts the landing performance, and BTV arms only when no ECAM warning
+   * affects the landing distances.
    */
   public readonly btvInopByAlert = MappedSubject.create(
     SubscribableMapFunctions.or(),
@@ -3128,7 +3120,7 @@ export class FwsCore {
 
   // TODO disable when abnormal hydralic pressure
   // Not when the whole system of the side is lost with its two engines: ENG TWO ENGS OUT ON SAME SIDE lists G(Y) HYD SYS
-  // and no ENG PMP A+B line (FCOM l.175440-175448), while ON OPPOSITE SIDE lists G ENG 1(2) / Y ENG 3(4) PMP A+B
+  // and no ENG PMP A+B line, while ON OPPOSITE SIDE lists G ENG 1(2) / Y ENG 3(4) PMP A+B
   public readonly eng1HydraulicInop = MappedSubject.create(
     ([genInop, systemLost]) => genInop && !systemLost,
     this.gen1Inop,
@@ -3733,12 +3725,10 @@ export class FwsCore {
     }
     this.recallHeldTime = recallButton && !this.fwsEcpFailed.get() ? this.recallHeldTime + deltaTime : 0;
 
-    // RCL LAST button
     if (SimVar.GetSimVarValue('L:A32NX_BTN_RCL_LAST', 'bool') && !this.fwsEcpFailed.get()) {
       this.recallLastButtonInputBuffer.write(true, false);
     }
 
-    // EMER CANC button
     if (SimVar.GetSimVarValue('L:A32NX_BTN_EMERCANC', 'bool') && !this.fwsEcpFailed.get()) {
       this.emerCancelInputBuffer.write(true, false);
     }
@@ -3844,9 +3834,9 @@ export class FwsCore {
       this.toConfigTestHeldMin1s5PulseNode.write(this.toConfigTestRaw, deltaTime) || this.toConfigTestRaw,
     );
 
-    // FCOM l.73429-73431: only the RCL pb "pressed for more than three seconds" shows the alerts "inhibited by the
-    // current aircraft flight phase" (the short press did it before). True in the first update of the long press only:
-    // recallLongPressDone is set below, in CLEAR AND RECALL.
+    // Only an RCL pb press longer than 3 s shows the alerts inhibited by the current flight phase (the short press did
+    // it before). True in the first update of the long press only: recallLongPressDone is set below, in CLEAR AND
+    // RECALL.
     const recallLongPressStarted = this.recallHeldTime >= FwsCore.RECALL_LONG_PRESS_MS && !this.recallLongPressDone;
     const phaseInhibitOverridden = this.flightPhaseInhibitOverride.update(recallLongPressStarted, flightPhase);
 
@@ -3897,7 +3887,7 @@ export class FwsCore {
     this.elecEmerConfig.set(
       !this.ac1BusPowered.get() && !this.ac2BusPowered.get() && !this.ac3BusPowered.get() && !this.ac4BusPowered.get(),
     );
-    // ENG ALL ENG FLAME OUT inhibits ELEC EMER CONFIG while it is shown (FCOM l.173795, EngineFailAlerts.ts)
+    // ENG ALL ENG FLAME OUT inhibits ELEC EMER CONFIG while it is shown (EngineFailAlerts.ts)
     this.elecEmerConfigAlert.set(
       this.elecEmerConfig.get() &&
         !allEngFlameOutInhibitsElecEmerConfig(
@@ -4071,7 +4061,7 @@ export class FwsCore {
       this.reverserFailureInop[reverserIndex].set(
         isReverserInoperative(fault, ctlFault, locked, this.thrLeverFault[engine - 1].get()),
       );
-      // ENG 2(3) REVERSER UNLOCKED: ENG 2(3) IDLE ONLY (l.173678, STATUS INFO l.173698)
+      // ENG 2(3) REVERSER UNLOCKED: STATUS INFO ENG 2(3) IDLE ONLY
       if (unlocked) {
         this.engineIdleOnly[engine - 1].set(true);
       }
@@ -5011,7 +5001,7 @@ export class FwsCore {
     );
 
     // Engine Logic
-    // ENG THR LEVERS NOT SET (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): the thrust levers of the running engines
+    // ENG THR LEVERS NOT SET (EngineTakeoffAlerts.ts): the thrust levers of the running engines
     // against the take-off thrust mode of the FADECs (the autothrust THRUST_LEVER_WARNING vars are never written)
     this.flexTakeoffMode.set(
       isFlexTakeoffMode(
@@ -5036,7 +5026,7 @@ export class FwsCore {
         flexTakeoffMode: this.flexTakeoffMode.get(),
       }),
     );
-    // ENG THRUST LOSS and ENG T.O THRUST DISAGREE (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): the max THR and the
+    // ENG THRUST LOSS and ENG T.O THRUST DISAGREE (EngineThrustAlerts.ts): the max THR and the
     // take-off mode each FADEC sends (fbw WASM, FadecThrustFailures.h)
     const fadecMaxThr = [1, 2, 3, 4].map((engineNumber) =>
       SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_FADEC_MAX_THR`, 'number'),
@@ -6912,7 +6902,7 @@ export class FwsCore {
 
     /** ATA 70- Engines */
 
-    // ENG FAIL (FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL, l.171718), the same logic for the four engines
+    // ENG 1(2)(3)(4) FAIL, the same logic for the four engines
     const engineFailInputs = [
       [this.engine1Master, this.fireButtonEng1, this.engine1State, this.HPNEng1],
       [this.engine2Master, this.fireButtonEng2, this.engine2State, this.HPNEng2],
@@ -6934,7 +6924,7 @@ export class FwsCore {
       engFail.set(!this.allEnginesFailure.get() && this.engineFailMonitors[index].failed),
     );
 
-    // ENG OIL PRESS LO, OIL TEMP HI, OIL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): the oil pressure
+    // ENG OIL PRESS LO, OIL TEMP HI, OIL FILTER CLOGGED (EngineOilAlerts.ts): the oil pressure
     // and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
     engineFailInputs.forEach(([master, , state], index) => {
       const engineNumber = index + 1;
@@ -6948,7 +6938,7 @@ export class FwsCore {
       this.engineOilPressLo[index].set(oilAlerts.pressureLow);
       this.engineOilTempHi[index].set(oilAlerts.temperatureHigh);
       this.engineOilFilterClogged[index].set(oilAlerts.filterClogged);
-      // ENG FUEL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineFuelFilterAlerts.ts), from engine/fuel_filter_failure.rs
+      // ENG FUEL FILTER CLOGGED (EngineFuelFilterAlerts.ts), from engine/fuel_filter_failure.rs
       this.engineFuelFilterClogged[index].set(
         engineFuelFilterClogged({
           masterOn: master.get(),
@@ -6956,7 +6946,7 @@ export class FwsCore {
           fuelFilterClogged: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_FUEL_FILTER_CLOGGED`, 'bool') > 0,
         }),
       );
-      // ENG OIL TEMP LO (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): the oil temperature the FADEC computes
+      // ENG OIL TEMP LO (EngineTakeoffAlerts.ts): the oil temperature the FADEC computes
       this.oilTemperatureLowMonitors[index].update(
         {
           onGround: this.aircraftOnGround.get(),
@@ -6970,7 +6960,7 @@ export class FwsCore {
       this.engineOilTempLo[index].set(this.oilTemperatureLowMonitors[index].isActive);
     });
 
-    // ENG START FAULT, START VLV FAULT, IGN FAULT (FCOM PRO-ABN-ECAM-10-70, see EngineStartAlerts.ts)
+    // ENG START FAULT, START VLV FAULT, IGN FAULT (see EngineStartAlerts.ts)
     for (let index = 0; index < 4; index++) {
       const engine = index + 1;
       this.engineStartFault[index] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_START_FAULT`, 'number');
@@ -7033,7 +7023,7 @@ export class FwsCore {
     this.eng3ShutDown.set(engineShutdownPreCondition && (this.fireButtonEng3.get() || !this.engine3Master.get()));
     this.eng4ShutDown.set(engineShutdownPreCondition && (this.fireButtonEng4.get() || !this.engine4Master.get()));
 
-    // ENG STALL, ENG EGT OVER LIMIT, ENG N1/N2 OVER LIMIT (FCOM PRO-ABN-ECAM-10-70, see EngineParameterAlerts.ts). The FADEC
+    // ENG STALL, ENG EGT OVER LIMIT, ENG N1/N2 OVER LIMIT (see EngineParameterAlerts.ts). The FADEC
     // detects the stall (systems WASM, a380_systems engine_malfunction.rs); the EGT is the one the EWD shows.
     const engineStalls = [1, 2, 3, 4].map(
       (engineNumber) => SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_STALL`, 'bool') > 0,
@@ -7061,12 +7051,12 @@ export class FwsCore {
       };
       this.engStall[index].set(isStallAlertShown(engineStalls[index], stalledEngineCount, this.flightPhase.get()));
       egtExceeded[index] = engineRunning[index] && isEgtOverLimit(overLimitInputs);
-      // No ENG EGT OVER LIMIT with ENG n FADEC FAULT (FCOM l.171597-171600). fadecFault is read earlier in this update.
+      // No ENG EGT OVER LIMIT with ENG n FADEC FAULT. fadecFault is read earlier in this update.
       this.engEgtOverLimit[index].set(isEgtOverLimitAlertTriggered(egtExceeded[index], this.fadecFault[index].get()));
       this.engN1N2OverLimit[index].set(engineRunning[index] && isN1N2OverLimit(overLimitInputs));
     }
-    // The amber attention getting box also comes up with an EGT, N1 or N2 above its limit: "as soon as any amber or
-    // red indication shows on the EWD" (FCOM DSC-70-90, a380_fcom.txt l.112899-112904; the gap B17 of the FCOM audit).
+    // The amber attention getting box also comes up with an EGT, N1 or N2 above its limit: as soon as any amber or red
+    // indication shows on the EWD.
     [
       this.eng1PrimaryAbnormalParams,
       this.eng2PrimaryAbnormalParams,
@@ -7152,8 +7142,8 @@ export class FwsCore {
     /* T.O. CONFIG CHECK */
 
     if (this.toMemo.get() && this.toConfigTestRaw) {
-      // A380 FCOM DSC-31-40-10 T.O CONFIG test (l.72715-72759, ToConfigNormal.ts): the ELEC DRIVE / GEN alerts of the four
-      // engines and ENG OIL TEMP LO replace the A320 GEN 1+2 potential check
+      // T.O CONFIG test (ToConfigNormal.ts): the ELEC DRIVE / GEN alerts of the four engines and ENG OIL TEMP LO
+      // replace the A320 GEN 1+2 potential check
 
       const brakesHot = this.anyBrakeHot;
 
@@ -7200,7 +7190,7 @@ export class FwsCore {
     }
 
     // RCL pb: every cleared alert and not-sensed ABN PROC still active comes back at once, or NORMAL for 3 s when there
-    // is none. RCL LAST pb: the alert of the last CLEAR pb action comes back. FCOM l.73420-73433, FwsRecall.ts.
+    // is none. RCL LAST pb: the alert of the last CLEAR pb action comes back (FwsRecall.ts).
     if (this.rclUpPulseNode.read()) {
       const { recalled, showNormal } = recallAll(this.recallFailures);
       recalled.forEach((key) => this.recallClearedAlert(key));
@@ -7349,7 +7339,7 @@ export class FwsCore {
         continue;
       }
 
-      // A long RCL press shows the alerts inhibited by the current flight phase (FCOM l.73429-73431), until the end of
+      // A long RCL press shows the alerts inhibited by the current flight phase, until the end of
       // the flight phase (FlightPhaseInhibitOverride)
       if (
         newWarning &&
@@ -8029,7 +8019,7 @@ export class FwsCore {
   }
 
   /**
-   * EMER CANC pb (A380 FCOM DSC-31-40-20 P 5), on the alert at the top of the EWD:
+   * EMER CANC pb, on the alert at the top of the EWD:
    * - a warning: its audio indicator and MASTER WARN light are cancelled, the procedure stays on the EWD,
    * - a caution: cancelled for the remainder of the flight, with its procedure and the MASTER CAUT light,
    * and in all cases: all the audio indicators and aural alerts, and any activated not-sensed procedure.
