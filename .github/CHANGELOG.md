@@ -117,20 +117,20 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/EWD] The EGT gauge uses the thrust limit (no amber limit at FLEX/TOGA or reverse, amber above the limit at MCT/CLB) instead of the thrust lever angle - @TCdr
 1. [A380X/SD] PRESS page: the CAB ALT needle turns red above 9 550 ft like the value, instead of using A320 delta P limits - @TCdr
 1. [A380X/FWS] F/CTL ALTN LAW shows MAX SPEED 310 KT except in ALT 1A, not only in ALT 1A - @TCdr
-1. [A380X/HYD] G RSVR LEVEL LO and G SYS OVHT tick the G ELEC PMP A and B OFF line from the green electric pumps (they read the yellow ones); the engine 3 and 4 pump disconnection now use DC 2 and DC 1 as in the FCOM (they were swapped) - @TCdr
+1. [A380X/HYD] G RSVR LEVEL LO and G SYS OVHT tick the G ELEC PMP A and B OFF line from the green electric pumps (they read the yellow ones); the engine 3 and 4 pump disconnection now use DC 2 and DC 1 as on the aircraft (they were swapped) - @TCdr
 1. [A380X/SD] DOOR/OXY page: CREW SUPPLY OFF now shows the CKPT legend amber and REGUL PR LO on ground; the CABIN line no longer follows the crew oxygen pb - @TCdr
 1. [A32NX/FWS] AIR PACK 2 OFF checks the ENG 2 BLEED pb (it read ENG 1 BLEED) - @TCdr
 1. [A32NX/BLEED] BLEED page: the bleed temperature turns amber when the bleed supplies air below 150 °C with WING ANTI ICE on in flight (the low temperature flag was set only with the bleed valve closed) - @TCdr
 1. [A32NX/TCAS] A GPWS warning or alert now puts the TCAS in TA ONLY automatically (it read an A380X variable) - @TCdr
 1. [A32NX/SD] CRUISE page: delta P pulses only above 1.5 PSI in the approach phase (resets at 1 PSI), not during the whole cruise - @TCdr
 1. [A32NX/SD] WHEEL page: AUTO BRK no longer turns amber when an engine is off (single-engine taxi, engine failure) - @TCdr
-1. [A32NX/FWS] ALL ENGINES FAILURE: the APU START line shows below FL 250 as in the FCOM, not only below 2 500 ft radio altitude - @TCdr
-1. [ADIRS] A fast IR alignment (mode selector OFF then back to NAV within 5 s) takes 30 s as in the FCOM, not 180 s - @TCdr
+1. [A32NX/FWS] ALL ENGINES FAILURE: the APU START line shows below FL 250 as on the aircraft, not only below 2 500 ft radio altitude - @TCdr
+1. [ADIRS] A fast IR alignment (mode selector OFF then back to NAV within 5 s) takes 30 s as on the aircraft, not 180 s - @TCdr
 1. [A32NX/ECAM] F/CTL ALTN LAW shows MAX SPEED 320 KT (320/.77 only with a dual hydraulic low pressure) and SPD BRK DO NOT USE only with an elevator fault, without MANEUVER WITH CARE; DIRECT LAW no longer shows SPD BRK DO NOT USE next to USE SPD BRK WITH CARE - @TCdr
 1. [A32NX/ECAM] F/CTL ELAC 1(2) FAULT shows its FUEL CONSUMPT INCRSD and FMS PRED UNRELIABLE lines - @TCdr
 1. [A32NX/ECAM] The APU BLEED memo follows the APU BLEED pb-sw (APU available and pb-sw ON), no longer the bleed valve - @TCdr
 1. [A32NX/SD] The PTU symbol of the HYD page is amber only with the PTU pb-sw OFF, no longer during the automatic PTU inhibitions - @TCdr
-1. [A32NX/BRAKES] Alternate braking without anti-skid is limited to 1 000 PSI as in the FCOM (was 1 160 PSI) - @TCdr
+1. [A32NX/BRAKES] Alternate braking without anti-skid is limited to 1 000 PSI as on the aircraft (was 1 160 PSI) - @TCdr
 1. [A32NX/BRAKES] The brake fans run when the left main gear is down and locked, also in flight before landing - @TCdr
 1. [A32NX/GPWS] The red PULL UP light comes on only for the mode 1 PULL UP and mode 2 warnings; the other GPWS alerts (SINK RATE, DON'T SINK, TOO LOW...) light the amber GPWS light - @TCdr
 1. [A380X/SD] The F/CTL page shows the aileron droop circle only in CONF 1+F, 2, 3 and FULL - @TCdr
@@ -139,7 +139,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] HYD G(Y) SYS PRESS LO: the STATUS lists BTV and CAT 3 DUAL inoperative and CAT 3 SINGLE ONLY, the Y STATUS shows TAXI WITH CARE and NO BRAKED PIVOT TURN (AVOID MAX TILLER ANGLE was shown twice), the FUEL CONSUMPT INCRSD lines show when the PRIM also failed, and Y SYS PRESS LO shows L/G GRVTY EXTN ONLY with the MAX SPEED 220 KT limitation - @TCdr
 1. [A380X/FWS] CAB PRESS EXCESS DIFF PRESS can trigger on the ground before take-off and below 800 ft before landing (flight phases 1, 8 and 9), not in cruise only - @TCdr
 1. [A380X/GPWS] Mode 4 gives TOO LOW TERRAIN above 200 kt with the gear up (4A) and above 180 kt with the flaps not in landing configuration (4B), the A380 speeds (was 190 kt and 159 kt); the alert ceiling is a flat 500 ft (4A) / 245 ft (4B) while the terrain function is available, and rises to 1 000 ft only with TERR SYS OFF or a TERR failure - @TCdr
-1. [A380X/PRESS] The cabin descent rate is limited to 300 ft/min as in the FCOM (was 350 ft/min) - @TCdr
+1. [A380X/PRESS] The cabin descent rate is limited to 300 ft/min as on the aircraft (was 350 ft/min) - @TCdr
 1. [A380X/BRAKES] The A-SKID switch OFF no longer cuts the nose wheel steering - @TCdr
 1. [A380X/BRAKES] A landing AUTO BRK mode armed on the ground stays armed after take-off; only RTO disarms 10 s after lift-off - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
@@ -156,7 +156,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New L/G CTL 1(2)(1+2) FAULT, L/G GEAR NOT LOCKED DOWN, L/G GEAR NOT LOCKED UP, L/G DOORS NOT CLOSED, L/G SYSTEM DISAGREE and NAV CAPT AND F/O ALT, ATT, HDG and BARO REF DISAGREE alerts, and the CAT 2, GLS AUTOLAND and LOAD ALLEVIATION STATUS lines of F/CTL ALTN LAW and DIRECT LAW - @TCdr
 1. [A380X/GPWS] Mode 4B: gear up with the flaps in landing configuration gives TOO LOW GEAR below 245 ft and never TOO LOW TERRAIN, and a mode 4 alert stops once the aircraft climbs back above its ceiling - @TCdr
 1. [A380X] The contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
-1. [A380X/OANS] ARPT NOT IN ACTIVE F/PLN now shows in PLAN mode only, as in the FCOM (it also showed in ROSE NAV) - @TCdr
+1. [A380X/OANS] ARPT NOT IN ACTIVE F/PLN now shows in PLAN mode only, as on the aircraft (it also showed in ROSE NAV) - @TCdr
 1. [A380X/PRESS] Automatic pressurization keeps the cabin differential pressure in the normal range in cruise above the FMS cruise FL or after an FMS reset, instead of drifting to the 9 PSI pressure limiter - @TCdr
 
 ## 2024.1.0
@@ -2016,7 +2016,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
    Sounds (Future PR by Boris) - @oliverpope03 (Oliver Pope)
 1. [Sounds] Added new sounds for fuel pumps, flaps, ground roll and rattles, touchdowns, and wind - @hotshotp (Boris)
 1. [ND] Hide the aircraft indicator in PLAN mode while ADIRS are not aligned - @lousybyte (lousybyte)
-1. [A32NX/ND] The chronometer at the bottom left of the ND now shows white digits on a black box (FCOM: white), instead of green digits on a light grey box that were hard to read - @TCdr
+1. [A32NX/ND] The chronometer at the bottom left of the ND now shows white digits on a black box (white on the aircraft), instead of green digits on a light grey box that were hard to read - @TCdr
 1. [LIGHTS] Improved Strobe, Nav and beacon lights - @lukecologne (lukecologne)
 1. [Sounds] Added new startup sounds - @hotshotp (Boris)
 1. [ECAM] ELAC/SEC warning color fix, added spoiler functionality to ECAM page - @wpine215 (Iceman)
