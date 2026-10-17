@@ -534,13 +534,12 @@
 		</Component>
 		<!--
 			Fuel jettison on the ground: fuel dripping from each jettison outlet, next to the plume below (visual layer only).
-			- A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON (ABN PROC): "It is possible to jettison in any aircraft configuration, and at any
-			  speed. However, the height should be sufficient to avoid contamination on the ground" (a380_fcom.txt
-			  l.151175-151176): a jettison on the ground puts the fuel on the ground. The FQMS (FuelJettison.ts) does not
+			- A jettison is possible in any configuration and at any speed, the height being what keeps the fuel
+			  off the ground: a jettison on the ground puts the fuel on the ground. The FQMS (FuelJettison.ts) does not
 			  inhibit it on the ground (JETTISON ARM + ACTIVE pb-sw on the overhead FUEL panel).
 			- Same per-side condition as the plume (L:A380X_FUEL_JETTISON_IN_PROGRESS and that side's jettison valve 57 / 58
 			  open), and SIM ON GROUND. Like the plume, not tied to the flyPad Settings > Sim Options switch "Situation
-			  Visual Effects" (user decision 2026-10-12: the jettison effect is not a situation effect, plume and drip
+			  Visual Effects" (design choice: the jettison effect is not a situation effect, plume and drip
 			  always show together).
 			- Look (design choice): the stock MSFS fuel leak drip graphs of the SDK templates ASOBO_Fuel_Leak_Slow_Template
 			  (below 40 kt TAS) and ASOBO_Fuel_Leak_Fast_Template (40 kt TAS and above), switched by the true airspeed as
@@ -548,7 +547,7 @@
 			  FuelLeak_Active is true: it gets the same condition as FX_CODE, as in the stock templates.
 			- Design choice: the drip accompanies the plume on the ground, it does not replace it. The plume (stock water
 			  ballast mist) gives the fuel stream at the outlet, as on a glider draining its ballast on the ground, and the
-			  drip adds the drops falling to the ground. The user-confirmed plume is left unchanged.
+			  drip adds the drops falling to the ground.
 			- No offset, on the outlet nodes FX_JETTISON_LH / FX_JETTISON_RH of the plume.
 			- JettisonDripContrailEffects.spec.ts (src/systems/shared/src) checks these components.
 		-->
@@ -589,15 +588,15 @@
 		<!--
 			Fuel jettison plume, one per wing while fuel flows out of that side: the FQMS jettisons
 			(L:A380X_FUEL_JETTISON_IN_PROGRESS, FuelJettison.ts) and that side's jettison valve is open (fuel system
-			valve 57 left, 58 right). FCOM DSC-28-40: "one discharge point on the trailing edge of each wing"; the exit is
-			the tube (anti-corona device) at the aft end of the second-outermost flap track fairing, MFTF 5 (forum source,
-			PPRuNe 2010-11-20), modelled as "MFTF 5 Moveable.008-010". The effect hangs, with no offset, on the node
+			valve 57 left, 58 right). One discharge point on the trailing edge of each wing: the exit is
+			the tube (anti-corona device) at the aft end of the second-outermost flap track fairing, MFTF 5, modelled
+			as "MFTF 5 Moveable.008-010". The effect hangs, with no offset, on the node
 			FX_JETTISON_LH / FX_JETTISON_RH that aircraft-large-files adds at that tube (child of the fairing bone in
 			LOD00, so it follows the wing flex; at the scene root in LOD01/02). FX offsets on other nodes did not land
 			where expected in the sim.
 			The look is the stock MSFS water-ballast mist (the closest stock match, design choice), in its
 			high-speed version from 40 kt TAS and its low-speed version below, as Asobo switches it. The plume's
-			particles stay where they were released, so it gets longer with the true airspeed by itself (user-checked in
+			particles stay where they were released, so it gets longer with the true airspeed by itself (checked in
 			flight).
 		-->
 		<Component ID="FUEL_JETTISON_FX">
