@@ -27,13 +27,12 @@ import { cpnyToRequestPage, runwayConditions } from './MfdFmsCpnyToRequest';
 import './MfdFmsReceivedCpnyToData.scss';
 
 /**
- * RECEIVED COMPANY T.O DATA page (A380 FCOM DSC-22-FMS-20-30 P 312-320): the takeoff data received from the company
- * for up to four runways and two thrust settings per runway, with INSERT and CLEAR. The company ground station is the
- * flypad takeoff calculator.
+ * RECEIVED COMPANY T.O DATA page: the takeoff data received from the company for up to four runways and two thrust
+ * settings per runway, with INSERT and CLEAR. The company ground station is the flypad takeoff calculator.
  *
  * INSERT is only possible for the departure airport and runway of the active flight plan, with a TOW not more than
- * 2 t below or 7 t above the FMS one, and the takeoff speeds, T.O CG, wind, runway condition, QNH and temperature
- * (FCOM P 316-319). A runway that is not the active one is amber; a TOW outside the margin is amber, with
+ * 2 t below or 7 t above the FMS one, and the takeoff speeds, T.O CG, wind, runway condition, QNH and temperature.
+ * A runway that is not the active one is amber; a TOW outside the margin is amber, with
  * UPLINK/ACTIVE TOW DISAGREE when the runway is the active one.
  */
 export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageProps> {
@@ -98,7 +97,7 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
     this.subs.push(
-      // The FCOM page title has no flight plan prefix
+      // This page title has no flight plan prefix
       this.props.mfd.uiService.activeUri.sub(() => this.activePageTitle.set('RECEIVED COMPANY T.O DATA'), true),
       this.runways,
       this.runwayPageText,
@@ -164,7 +163,7 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
       <>
         {super.render()}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 312), page container coordinates */}
+          {/* Positions measured on the reference figure of the page, in page container coordinates */}
           <div class="mfd-fcom-canvas">
             {fcomAt(27, 12, <span class="mfd-label">DATA FOR RWY</span>)}
             {fcomAt(
@@ -181,7 +180,7 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_receivedCpnyToThrust`}
                 selectedIndex={this.selectedThrust}
                 values={this.thrustLabels}
-                freeTextAllowed={false} // FCOM TAKEOFF THRUST LIST: selected in the list only
+                freeTextAllowed={false} // The takeoff thrust is selected in the list only
                 inactive={this.noData}
                 containerStyle="width: 157px;"
                 numberOfDigitsForInputField={7}
@@ -255,7 +254,7 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
             {this.value(
               203,
               241,
-              // FCOM P 316: green dashes replace the temperature for a FLEX or DERATED thrust
+              // Green dashes replace the temperature for a FLEX or DERATED thrust
               this.text(
                 (u) => (u.thrust === 'TOGA' ? `${u.oat >= 0 ? '+' : '-'}${Math.abs(Math.round(u.oat))}` : null),
                 '---',
@@ -303,7 +302,7 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
             {fcomAt(421, 8, <span class="mfd-label">FLAPS</span>)}
             {fcomAt(421, 95, <span class="mfd-value bigger">{this.text((u) => u.flaps.toFixed(0), '-')}</span>)}
             {fcomRight(421, 566, <span class="mfd-label">T.O SHIFT</span>)}
-            {/* FCOM DSC-22-FMS-20-100: T.O SHIFT in metres, T.O LIMIT (the remaining runway length) in feet */}
+            {/* T.O SHIFT in metres, T.O LIMIT (the remaining runway length) in feet */}
             {this.value(
               421,
               668,

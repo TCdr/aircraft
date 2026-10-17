@@ -66,8 +66,8 @@ export enum ClimbDerated {
 export const LOWEST_FUEL_ESTIMATE_KGS = Units.poundToKilogram(A380AircraftConfig.vnavConfig.LOWEST_FUEL_ESTIMATE);
 
 /**
- * Holding fuel flow of the FINAL fuel default, in tonnes per minute (30 min = 6 t). The FCOM leaves the FINAL default to
- * the company fuel policy (DSC-22-FMS-20-30, FUEL&LOAD page); the EXTRA time is the EXTRA fuel at the same flow.
+ * Holding fuel flow of the FINAL fuel default, in tonnes per minute (30 min = 6 t). Design choice: Airbus leaves the
+ * FINAL default to the company fuel policy; the EXTRA time is the EXTRA fuel at the same flow.
  */
 export const FINAL_HOLDING_FUEL_FLOW_T_PER_MIN = 0.2;
 
@@ -484,7 +484,7 @@ export class FmgcDataService implements Fmgc {
       const efob = this.guidanceController?.vnavDriver?.getDestinationPrediction()?.estimatedFuelOnBoard; // in Pounds
       if (useFob && efob !== undefined) {
         // Before takeoff the predictions start from the FOB (BLOCK), which still holds the TAXI fuel: the fuel after
-        // landing is BLOCK - TAXI - TRIP (A380 FCOM DSC-22-FMS-20-30 FUEL&LOAD page: EXTRA and LW deduct the TAXI)
+        // landing is BLOCK - TAXI - TRIP (the FUEL&LOAD EXTRA and LW deduct the TAXI)
         const taxiFuel =
           this.getFlightPhase() < FmgcFlightPhase.Takeoff
             ? this.flightPlanService.get(forPlan).performanceData.taxiFuel.get() ?? 0

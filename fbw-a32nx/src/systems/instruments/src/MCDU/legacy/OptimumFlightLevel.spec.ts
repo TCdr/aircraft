@@ -4,8 +4,8 @@
 import { describe, expect, it } from 'vitest';
 import { optimumFlightLevelForWeight, progOptimumFlightLevel } from './OptimumFlightLevel';
 
-describe('PROG page OPT FL (A320 FCOM l.15872-15898, A320neo FCOM PER-CRZ-CRT-30 LRC ISA)', () => {
-  it('follows the best specific range level of the FCOM long range cruise table', () => {
+describe('PROG page OPT FL (long range cruise table, ISA)', () => {
+  it('follows the best specific range level of the long range cruise table', () => {
     expect(optimumFlightLevelForWeight(64)).toBe(392);
     expect(optimumFlightLevelForWeight(70)).toBe(371);
     expect(optimumFlightLevelForWeight(72)).toBeCloseTo(365.5, 5);

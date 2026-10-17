@@ -104,7 +104,6 @@ export const DescentProfile = ({
 
       <path d={path} fill="none" stroke={COLOURS.path} strokeWidth={3.5} />
 
-      {/* Top of descent and target */}
       {points.length > 0 && (
         <>
           <circle cx={x(totalDistance)} cy={y(points[0].altitude)} r={6} fill={COLOURS.path} />
@@ -137,7 +136,6 @@ export const DescentProfile = ({
         </g>
       )}
 
-      {/* Crossover, deceleration and speed limit */}
       {points
         .filter((p) => p.event !== undefined)
         .map((p) => {
@@ -155,7 +153,6 @@ export const DescentProfile = ({
           );
         })}
 
-      {/* The aircraft of the descent check */}
       {aircraft !== undefined && aircraft.distanceToTarget <= span && (
         <g>
           <polygon

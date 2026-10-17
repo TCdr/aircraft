@@ -330,7 +330,7 @@ export const TaxiPage = () => {
         }
       : null;
 
-  // The accepted route is marked on the OANS with green flags (FCOM: flags mark a given point on the airport); a route
+  // The accepted route is marked on the OANS with green flags; a route
   // that is not accepted any more takes its flags away
   const flagRoute = accepted && cleared !== null ? shownRoute : null;
   // With a flyPad per pilot, a flyPad takes away only the flags it has set: opening the page on the other flyPad must

@@ -6,18 +6,11 @@ import { FmsError, FmsErrorType } from '@fmgc/FmsError';
 import { ReadonlyFlightPlanElement } from '@fmgc/flightplanning/legs/ReadonlyFlightPlanLeg';
 
 /**
- * The DIRECT TO / INTERCEPT functions of the MCDU DIR TO page.
- *
- * A320 FCOM DSC-22_20-50-10-28 DIRECT TO PAGE (a320_fcom.txt l.18291-18292): "These are four DIRECT TO/INTERCEPT
- * functions: DIRECT TO, ABEAM PTS, RADIAL IN, RADIAL OUT."; l.18352-18360: "[4R] RADIAL IN and [5R] RADIAL OUT The pilot
- * fills in these fields to define a radial associated to the waypoint. Selecting a radial in (out) will activate the
- * intercept radial into (from) the specified waypoint in the DIR TO temporary F-PLN. The pilot enters the radial in, or
- * radial out, as XXX, XXX being the radial. An M or T may also be entered, referring to a MAG or a True value. A default
- * radial in is proposed by the FMS if the DIR TO waypoint is part of the F-PLN."
- * Data entry format (l.23685-23688): RADIAL IN / RADIAL OUT "NNN(T) 3 digits entry", "000 - 360", degrees.
- * DSC-22_20-30-10-18 (l.14399-14404): "The DIR TO/ABEAM function, computes the abeam waypoints along the direct leg";
- * "The DIR TO/INTCPT function allows the definition of a specified RADIAL INBOUND or OUTBOUND at an inserted waypoint.
- * The current aircraft track is used to compute the INTCPT point with the specified radial."
+ * The four DIRECT TO / INTERCEPT functions of the MCDU DIR TO page: DIRECT TO, ABEAM PTS, RADIAL IN, RADIAL OUT.
+ * - ABEAM PTS: the abeam waypoints along the direct leg.
+ * - RADIAL IN [4R] / RADIAL OUT [5R]: the DIR TO temporary F-PLN intercepts that radial into (from) the waypoint, the
+ *   intercept point computed on the current aircraft track. Entry: 3 digits, 000 to 360, with M or T for magnetic or
+ *   true. The FMS proposes a default radial in when the DIR TO waypoint is in the F-PLN.
  */
 export enum DirectToFunction {
   Direct,
@@ -59,12 +52,8 @@ function fixLocationOf(element: ReadonlyFlightPlanElement | undefined) {
 }
 
 /**
- * The default RADIAL IN of a DIR TO waypoint of the flight plan, as a true course (A320 FCOM DSC-22_20-30-10-18
- * PROCEDURE FOR DIR TO/INTERCEPT, l.14600-14605): "If the DIR TO waypoint belongs to the flight plan and is not preceded
- * by a discontinuity, the system displays the flight plan track to the DIR TO waypoint as the default inbound radial. If
- * the DIR TO waypoint belongs to the flight plan and is preceded by a discontinuity, the system displays the flight plan
- * track from the DIR TO waypoint as the default inbound radial."
- * @param elements the flight plan elements
+ * The default RADIAL IN of a DIR TO waypoint of the flight plan, as a true course: the flight plan track to the
+ * waypoint, or the track from it when a discontinuity is before it.
  * @param targetLegIndex the index of the DIR TO waypoint in the flight plan
  * @returns the true course, degrees, or null when there is no flight plan track to or from the waypoint
  */

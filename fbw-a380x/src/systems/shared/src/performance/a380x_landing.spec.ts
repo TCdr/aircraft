@@ -45,9 +45,9 @@ const CHART: LandingPerformanceInputs = {
 };
 
 /**
- * The A380 FCOM example of in-flight results (PER-LND-LDI P 3, PER-LND-LRF-FSR P 2): AIRBUS TRAINING, RWY 06, ELEVN
- * 820 ft, LENGTH 13163 ft, GA ALTITUDE 1320 ft, wind 080/15 (HD14 R5), OAT 15 °C, QNH 1013, dry, LW 851.0 klb, CONF FULL,
- * air conditioning on, normal approach, GA gradient 2.7, VLS+ 5, manual landing and braking.
+ * An Airbus example of in-flight results: AIRBUS TRAINING, RWY 06, ELEVN 820 ft, LENGTH 13163 ft, GA ALTITUDE
+ * 1320 ft, wind 080/15 (HD14 R5), OAT 15 °C, QNH 1013, dry, LW 851.0 klb, CONF FULL, air conditioning on, normal
+ * approach, GA gradient 2.7, VLS+ 5, manual landing and braking.
  * Results: MLW(perf) 1254.4 klb, WGT, FLAPS FULL, GA SPEED 141 kt, GA GRADIENT 8.939 %, VAPP VLS+5.
  */
 const FCOM_EXAMPLE: LandingPerformanceInputs = {
@@ -65,7 +65,7 @@ const FCOM_EXAMPLE: LandingPerformanceInputs = {
 
 describe('A380 landing performance', () => {
   it('gives the landing field length of the Airbus chart', () => {
-    // FIGURE-3-4-1-991-001-A01: 380 t at sea level 1878 m, at 4000 ft 2063 m
+    // 380 t at sea level 1878 m, at 4000 ft 2063 m
     expect(calculator.calculateLandingPerformance(CHART).landingDistance).toBeCloseTo(1878, 0);
     const high = calculator.calculateLandingPerformance({ ...CHART, elevation: 4000 });
     expect(high.landingDistance).toBeCloseTo(2063, 0);
@@ -262,7 +262,7 @@ describe('A380 landing performance', () => {
     });
 
     it('allows 40 kt of crosswind on dry and wet runways, less on contaminated ones (gust included)', () => {
-      // the maximum certified landing crosswind, increased from 35 kt to 40 kt (A380 FCOM revision, EA engines)
+      // the maximum certified landing crosswind, raised from 35 kt to 40 kt for the EA engines
       expect(calculator.crosswindLimit(LandingRunwayCondition.Dry, 15)).toBe(40);
       expect(calculator.crosswindLimit(LandingRunwayCondition.Wet, 15)).toBe(40);
       expect(calculator.crosswindLimit(LandingRunwayCondition.Slush13mm, 15)).toBe(20);

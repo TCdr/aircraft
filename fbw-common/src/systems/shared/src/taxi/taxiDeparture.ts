@@ -19,7 +19,6 @@ export interface TaxiRunwayAxis {
   end: TaxiPoint;
 }
 
-/** Where a taxi line enters a runway */
 export interface TaxiRunwayEntry {
   /** The taxiway (or exit line) name */
   name: string;

@@ -4,7 +4,7 @@
 import { CompanyTakeoffDataLink, CompanyTakeoffDataUplink } from '@flybywiresim/fbw-sdk';
 
 /**
- * The company takeoff data of the FMS (A380 FCOM DSC-22-FMS, company takeoff data): the request sent with SEND T.O
+ * The company takeoff data of the FMS: the request sent with SEND T.O
  * REQUEST (REQUEST PENDING... while it waits), and the takeoff data received with or without a request, kept until the
  * flight crew inserts or clears it. The company ground station is the flypad takeoff calculator.
  */

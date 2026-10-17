@@ -1363,9 +1363,8 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
   }
 
   /**
-   * Inserts a PLACE/DIST waypoint on the leg after its place (positive distance) or before it (negative distance, A380
-   * FCOM l.24831-24832: "inserted "before" the revised waypoint"). The waypoint is on the flight plan path, so no
-   * discontinuity is added (see PlaceDistance.ts).
+   * Inserts a PLACE/DIST waypoint on the leg after its place (positive distance) or before it (negative distance). The
+   * waypoint is on the flight plan path, so no discontinuity is added (see PlaceDistance.ts).
    *
    * @param placeLegIndex the index of the place waypoint
    * @param waypoint the PLACE/DIST waypoint

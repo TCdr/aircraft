@@ -18,7 +18,7 @@ import { A320251NLandingCalculator } from './a32nx_landing';
 
 const calculator = new A320251NLandingCalculator();
 
-/** The first example of the A320 FCOM (PER-LDG-DIS-RLD P 3): CONF FULL, 58 t, dry, 2000 ft, VLS, 5 kt tailwind, ISA */
+/** The first worked example of the dispatch data: CONF FULL, 58 t, dry, 2000 ft, VLS, 5 kt tailwind, ISA */
 const EXAMPLE: LandingPerformanceInputs = {
   type: LandingComputationType.Dispatch,
   weight: 58_000,
@@ -53,7 +53,7 @@ describe('A320 landing performance', () => {
   });
 
   it('keeps the wet runway distance on a contaminated runway when it is longer (EU-OPS)', () => {
-    // Second FCOM example: standing water, 2000 ft, no wind, all reversers: 1700 + 2 x 130 - 2 x 80 = 1800 m,
+    // Second published example: standing water, 2000 ft, no wind, all reversers: 1700 + 2 x 130 - 2 x 80 = 1800 m,
     // longer than the wet one, 1530 + 2 x 70 = 1670 m
     const water = calculator.calculateLandingPerformance({
       ...EXAMPLE,
@@ -256,7 +256,7 @@ describe('A320 landing performance', () => {
     const conf3 = { ...EXAMPLE, type: LandingComputationType.InFlight, conf: LandingConf.Conf3, elevation: 0 };
     expect(calculator.calculateLandingPerformance({ ...conf3, reverseThrust: false }).reverseCredit).toBe(false);
     expect(calculator.calculateLandingPerformance({ ...conf3, reverseThrust: true }).reverseCredit).toBe(true);
-    // CONF FULL dry: no reverser correction in the QRH
+    // CONF FULL dry: no reverser correction in the in-flight data
     expect(
       calculator.calculateLandingPerformance({ ...conf3, conf: LandingConf.Full, reverseThrust: true }).reverseCredit,
     ).toBe(false);

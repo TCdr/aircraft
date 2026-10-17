@@ -49,7 +49,7 @@ const isaTemperature = (altitude: number) => 15 - 0.0019812 * Math.min(altitude,
 
 /**
  * The descent calculator of the A380X and the A32NX, after the DES module of the Airbus in-flight performance
- * application (A380 FCOM PER-IFT-DES): the descent from an initial to a target altitude with a descent type and a speed
+ * application: the descent from an initial to a target altitude with a descent type and a speed
  * schedule, its time, distance and fuel, its profile, and a check of the aircraft against it (where to start the
  * descent, or the rate of descent needed when late).
  */
@@ -120,7 +120,7 @@ export const DescentWidget = () => {
 
   /**
    * The FMS descent data: cruise level (or the current altitude when lower), destination elevation + 1500 ft (the end
-   * of the descent tables of the FCOM), gross weight, speed limit, ECON speeds, and the distance to the destination
+   * of the Airbus descent tables), gross weight, speed limit, ECON speeds, and the distance to the destination
    */
   const fillFromFms = async (econOnly = false) => {
     const fms = await requestFmsDescentData(eventBus);
@@ -153,7 +153,6 @@ export const DescentWidget = () => {
         : {}),
       ...(type === DescentType.Econ ? econ : {}),
       ...(fms.distanceToDestination !== null ? { distanceToTarget: Math.round(fms.distanceToDestination) } : {}),
-      // The destination is the target
       targetWaypoint: undefined,
       isaDeviation: currentIsaDeviation(),
     });
@@ -305,7 +304,7 @@ export const DescentWidget = () => {
 
   return (
     <div className="flex h-content-section-reduced flex-col overflow-hidden text-base text-m3-text">
-      {/* Data source and descent type */}
+
       <div className="mb-3 flex shrink-0 flex-row items-center">
         <PerfFillFrom enabled onClick={() => fillFromFms()} label={t('Performance.TopOfDescent.Calc.FillFromFms')} />
         <div className="grow" />
@@ -322,7 +321,6 @@ export const DescentWidget = () => {
         />
       </div>
 
-      {/* Inputs */}
       <div className="mb-3 flex shrink-0 flex-row">
         <Section className="mr-3 min-w-0 flex-1" title={t('Performance.TopOfDescent.Calc.SectionDescent')}>
           <Row label={t('Performance.TopOfDescent.Calc.InitialAltitude')} missing={missingInputs.initial}>
@@ -532,7 +530,6 @@ export const DescentWidget = () => {
         </Section>
       </div>
 
-      {/* Results, profile and actions */}
       <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
         <div className="mr-3 flex h-full w-[30rem] shrink-0 flex-col">
           <ResultsPanel
@@ -749,7 +746,7 @@ interface ResultsPanelProps {
   formatAltitude: (altitude: number) => string;
 }
 
-/** The results in the layout of the RESULTS panel of the Airbus descent performance application (PER-IFT-DES-DSR) */
+/** The results in the layout of the RESULTS panel of the Airbus descent performance application */
 const ResultsPanel = ({ result, formatFuel, fuelUnit, formatTime, formatAltitude }: ResultsPanelProps) => {
   const antiIce = result?.estimates.includes(DescentPerformanceEstimate.AntiIce) ?? false;
   const crossover = result?.points.find((p) => p.event === 'CROSSOVER');
@@ -898,7 +895,7 @@ interface ProfileTableProps {
 }
 
 /**
- * The profile every 5000 ft (A380 FCOM PER-IFT-DES-DSR, table results). As in the FCOM table, RATE is the rate of
+ * The profile every 5000 ft. As in the Airbus table results, RATE is the rate of
  * descent and GRDT the descent gradient, both positive in descent (ROD = TAS x sin GRDT).
  */
 const ProfileTable = ({ result, formatFuel, formatTime, formatAltitude }: ProfileTableProps) => (

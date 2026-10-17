@@ -53,7 +53,7 @@ export class A320_Neo_CDU_MainDisplay
 
   private readonly _keypad = new Keypad(this);
 
-  /** The takeoff data uplink (A320 FCOM DSC-22_45 TAKEOFF DATA FUNCTION): the ground station is the flypad calculator */
+  /** The takeoff data uplink: the ground station is the flypad calculator */
   public readonly uplinkTakeoffData = new UplinkTakeoffData(
     this.bus,
     () => CDUUplinkTakeoffDataPages.requestContent(this),

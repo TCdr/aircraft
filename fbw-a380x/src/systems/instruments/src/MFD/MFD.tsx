@@ -367,7 +367,7 @@ export class MfdComponent
       );
     }
 
-    // FMS pages use the display frame of the FCOM figures (A380 FCOM DSC-22-FMS-20-30), see common/style.scss
+    // FMS pages use the display frame of the real pages, see common/style.scss
     this.activePageRef.getOrDefault()?.classList.toggle('sys-fms', uri.sys === 'fms');
 
     FSComponent.render(this.activeHeader, this.activeHeaderRef.getOrDefault());

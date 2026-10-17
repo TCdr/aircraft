@@ -95,8 +95,8 @@ export interface CpnyWindRequestButtonProps extends ComponentProps {
   tmpyExists: Subscribable<boolean>;
   isActiveOrCopiedFromActive: Subscribable<boolean>;
   /**
-   * Opens the COMPANY WIND DATA REQUEST page of this plan (free text option, A380 FCOM l.42121-42128). Without it,
-   * the button sends the request directly (l.42115).
+   * Opens the COMPANY WIND DATA REQUEST page of this plan (free text option). Without it, the button sends the
+   * request directly.
    */
   onOpenRequestPage?: () => void;
   /** Style of the button, to fit the page layout (default: the WIND page slot) */
