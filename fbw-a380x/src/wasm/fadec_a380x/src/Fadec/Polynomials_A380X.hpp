@@ -225,15 +225,23 @@ class Polynomial_A380X {
    * @return The calculated N3 value in percent.
    */
   static double shutdownN3(double previousN3, double deltaTime) {
-    // The decayRate is used to model the rate at which the N3 percentage decreases during the engine
-    // shutdown process.
-    // The specific values -0.0515 and -0.08183 are likely derived from empirical
-    // data or a mathematical model of the engine's behavior.
-    // The choice to use a different decay rate for 'previousN2' values below 30 suggests that the
-    // engine's shutdown behavior changes at this threshold.
-    double decayRate = previousN3 < 30 ? -0.0515 : -0.08183;
-    return previousN3 * (std::exp)(decayRate * deltaTime);
+    if (previousN3 <= 0.0) {
+      return 0.0;
+    }
+    // The exact solution of dN/dt = -(friction + windage * N^2) over the frame, so that the run-down is the same at every frame
+    // rate: atan(N * scale) falls linearly with time.
+    const double scale = (std::sqrt)(SHUTDOWN_N3_WINDAGE_DECELERATION / SHUTDOWN_N3_FRICTION_DECELERATION);
+    const double rate  = (std::sqrt)(SHUTDOWN_N3_WINDAGE_DECELERATION * SHUTDOWN_N3_FRICTION_DECELERATION);
+    const double angle = (std::atan)(previousN3 * scale) - rate * deltaTime;
+    return angle <= 0.0 ? 0.0 : (std::tan)(angle) / scale;
   }
+
+  // Design choice: no run-down figure of the Trent 900 or GP7200 core is published. The HP spool slows fast at first, from
+  // the compressor drag that grows with the square of the speed, then more slowly from the bearing and gearbox drag, and it
+  // stops in about a minute. With the flame-out delay of the shutdown, N3 falls from idle to 45 % in about 10 s: a usable
+  // window for the quick relight on the ground, which needs more than 45 %.
+  static constexpr double SHUTDOWN_N3_FRICTION_DECELERATION = 0.583;     // %/s
+  static constexpr double SHUTDOWN_N3_WINDAGE_DECELERATION  = 0.000582;  // %/s per %^2
 
   /**
    * @brief Calculates the N1 value during engine shutdown.

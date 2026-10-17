@@ -16,6 +16,8 @@ clang++ -std=c++20 -Wall -Wextra -Werror igniter_selection_test.cpp -o ../obj/ig
 ../obj/igniter_selection_test
 clang++ -std=c++20 -Wall -Wextra -Werror takeoff_derate_test.cpp -o ../obj/takeoff_derate_test
 ../obj/takeoff_derate_test
+clang++ -std=c++20 -Wall -Wextra -Werror shutdown_n3_rundown_test.cpp -o ../obj/shutdown_n3_rundown_test
+../obj/shutdown_n3_rundown_test
 # With WITHOUT_THE_FIX=1 the start sequence test uses the FADEC decisions before the start sequence and must fail.
 FLAGS=""
 if [ "${WITHOUT_THE_FIX:-0}" = "1" ]; then

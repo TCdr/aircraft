@@ -766,6 +766,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ELEC] The COMMERCIAL 1 and COMMERCIAL 2 pbs each shed the galleys of their own cabin side (one OFF: COMMERCIAL PARTIALLY SHED; both OFF: COMMERCIAL OFF) - @TCdr
 1. [EFB] A380 takeoff calculator: DERATED takeoff (D04-D24) next to TOGA and FLEX, sent to the MFD with the company T.O data - @TCdr
 1. [A380X/PFD] FMA shows MAN DTO instead of MAN FLX +0 for a derated takeoff - @TCdr
+1. [A380X/ENG] After ENG MASTER OFF the N3 runs down more slowly from idle (45 % after about 10 s, stopped after about a minute), and setting the ENG MASTER back ON relights the engine while the N3 shown is above 45 % - @TCdr
 
 ## 2024.1.0
 
