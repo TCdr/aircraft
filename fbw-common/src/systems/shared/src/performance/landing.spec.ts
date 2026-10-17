@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { landingIsaTemperature, landingPressureAltitude, landingWindIncrement } from './landing';
 
 describe('landingWindIncrement', () => {
-  // A320 FCOM DSC-22_20-50 (PERF APPR VAPP) and A380 FCOM PER-LND: 1/3 of the tower headwind, at least 5 kt with the
+  // VAPP wind correction, both aircraft: 1/3 of the tower headwind, at least 5 kt with the
   // A/THR, at most 15 kt; no wind or a tailwind counts as 0
   it('is 1/3 of the headwind', () => {
     expect(landingWindIncrement(18)).toBe(6);
@@ -24,7 +24,7 @@ describe('landingWindIncrement', () => {
     expect(landingWindIncrement(60)).toBe(15);
   });
 
-  it('rounds to the nearest knot (design choice: the FCOM gives no rounding)', () => {
+  it('rounds to the nearest knot (design choice: the manual gives no rounding)', () => {
     expect(landingWindIncrement(22)).toBe(7);
     expect(landingWindIncrement(23)).toBe(8);
   });

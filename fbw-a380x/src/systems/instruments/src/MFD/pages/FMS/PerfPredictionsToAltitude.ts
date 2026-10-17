@@ -4,12 +4,9 @@
 import { PerfToAltPrediction } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 
 /**
- * The time and distance predictions of the PERF page CLB and DES speed tables (A380 FCOM DSC-22-FMS-20-30, PERF page
- * CLB tab, a380_fcom.txt l.38020-38021: "The FMS computes the time and distance predictions from the aircraft present
- * position to reach the reference altitude, displayed in this entry field."; MANAGED, l.38076-38077: "Indicates the
- * managed speed target for the CLB phase and its associated time and distance predictions to reach the entered
- * reference altitude."; DES tab, l.38713-38715: the same for the DES phase, "The flight crew can only use this field when the DES phase is
- * active.").
+ * The time and distance predictions of the PERF page CLB and DES speed tables: from the aircraft present position to
+ * the reference altitude of the PRED TO field, for each speed table line (MANAGED included). On the DES tab the field
+ * is only usable while the DES phase is active.
  */
 
 /** The predictions of the vertical profile the speed table line is flown with */

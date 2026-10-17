@@ -1,9 +1,8 @@
 // Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-// In-flight landing distances: Quick Reference Handbook (In Flight Procedures, Landing Performance Assessment/Landing
-// Distance). Dispatch required landing distances: A320 FCOM PER-LDG-DIS-RLD (CONF FULL and CONF 3, 12 APR 18) and
-// PER-LDG-DIS-RLA.
+// Two sets of A320 landing data: the in-flight landing distances (per runway condition and braking mode) and the
+// dispatch required landing distances (CONF FULL and CONF 3, with the autoland increments).
 
 import {
   LandingBrakingMode,
@@ -21,7 +20,7 @@ import {
   landingWindIncrement,
 } from '@flybywiresim/fbw-sdk';
 
-/** The autobrake modes of the QRH data (MAX = maximum manual braking) */
+/** The braking modes of the in-flight data (MAX = maximum manual braking) */
 enum AutobrakeMode {
   Low,
   Medium,
@@ -33,7 +32,7 @@ enum LandingFlapsConfig {
   Full,
 }
 
-/** The runway condition codes of the QRH data (6 DRY ... 1 POOR) */
+/** The runway condition codes of the in-flight data (6 DRY ... 1 POOR) */
 enum LandingRunwayConditions {
   Dry,
   Good,
@@ -571,7 +570,7 @@ const runwayConditionLandingData: RunwayConditionLandingData = {
 };
 
 /**
- * Margin of the in-flight landing distances (A320 FCOM PER-LDG-GEN, factored in-flight landing distance)
+ * Margin of the in-flight landing distances: the factored in-flight landing distance is 15 % longer
  */
 const SAFETY_MARGIN = 1.15;
 
@@ -617,7 +616,7 @@ const DISPATCH_CONDITIONS = [
   LandingRunwayCondition.StandingWater,
 ];
 
-/** The runway condition codes of the in-flight landing distances (QRH), with their data */
+/** The runway condition codes of the in-flight landing distances, with their data */
 const IN_FLIGHT_CONDITIONS: Partial<Record<LandingRunwayCondition, LandingRunwayConditions>> = {
   [LandingRunwayCondition.Dry]: LandingRunwayConditions.Dry,
   [LandingRunwayCondition.Good]: LandingRunwayConditions.Good,
@@ -635,7 +634,7 @@ const IN_FLIGHT_BRAKING: Partial<Record<LandingBrakingMode, AutobrakeMode>> = {
 };
 
 /**
- * A320 FCOM PER-LDG-DIS-RLD: required landing distance in metres at sea level, ISA, no wind, no slope, no reverse
+ * Dispatch required landing distance in metres at sea level, ISA, no wind, no slope, no reverse
  * thrust, manual landing, VAPP = VLS, for the weights {@link DISPATCH_WEIGHTS} (rows) and the runway states
  * {@link DISPATCH_CONDITIONS} (columns), and the corrections: per 1000 ft above sea level, per 5 kt of speed, per 5 kt of
  * tailwind, per thrust reverser operative (contaminated runways).
@@ -689,8 +688,8 @@ function interpolate(xs: readonly number[], ys: readonly number[], x: number): n
 }
 
 /**
- * Landing performance calculator of the A320-251N: the in-flight landing distances of the QRH for each braking mode,
- * and the required landing distances of the FCOM for the dispatch. There is no go-around gradient in this data.
+ * Landing performance calculator of the A320-251N: the in-flight landing distances for each braking mode, and the
+ * required landing distances for the dispatch. There is no go-around gradient in this data.
  */
 export class A320251NLandingCalculator implements LandingPerformanceCalculator {
   /** FBW A32NX airframe.json5 */
@@ -730,8 +729,8 @@ export class A320251NLandingCalculator implements LandingPerformanceCalculator {
   }
 
   /**
-   * Credit where the data has a correction per thrust reverser: the QRH in-flight landing distances for the runway
-   * condition, configuration and braking mode (none on a dry runway in CONF FULL), the FCOM dispatch tables on the
+   * Credit where the data has a correction per thrust reverser: the in-flight landing distances for the runway
+   * condition, configuration and braking mode (none on a dry runway in CONF FULL), the dispatch tables on the
    * contaminated runways
    */
   public reverseThrustAvailable(
@@ -753,7 +752,7 @@ export class A320251NLandingCalculator implements LandingPerformanceCalculator {
     return table.reverser[DISPATCH_CONDITIONS.indexOf(condition)] < 0;
   }
 
-  /** A320 FCOM PER-LDG-DIS-MAT, runway condition assessment matrix for landing (gust included) */
+  /** Maximum crosswind of the runway condition assessment matrix for landing (gust included) */
   public crosswindLimit(condition: LandingRunwayCondition, oat: number): number {
     switch (condition) {
       case LandingRunwayCondition.Dry:
@@ -835,7 +834,7 @@ export class A320251NLandingCalculator implements LandingPerformanceCalculator {
       result.landingDistance = distance(inputs.weight);
     }
     result.stopMargin = inputs.lda - result.landingDistance;
-    // The QRH airborne phase: 7 s from the threshold to the touchdown
+    // The airborne phase: 7 s from the threshold to the touchdown
     result.airDistance = 7 * (result.vapp - Math.min(0, inputs.headwind)) * 0.514444;
 
     // MLW(PERF): the highest weight of the landing distance available
@@ -905,9 +904,9 @@ export class A320251NLandingCalculator implements LandingPerformanceCalculator {
   }
 
   /**
-   * The required landing distance of the FCOM tables (PER-LDG-DIS-RLD), with the correction of each input; on a
-   * contaminated runway at least the one of the wet runway (EU-OPS); autoland (PER-LDG-DIS-RLA): + 240 m in CONF 3 with
-   * no wind or a headwind, + 170 m in CONF FULL with a headwind, up to 70 t.
+   * The required landing distance of the dispatch tables, with the correction of each input; on a contaminated runway
+   * at least the one of the wet runway (regulatory rule); autoland: + 240 m in CONF 3 with no wind or a headwind,
+   * + 170 m in CONF FULL with a headwind, up to 70 t.
    */
   private dispatchDistance(
     inputs: LandingPerformanceInputs,
@@ -946,7 +945,7 @@ export class A320251NLandingCalculator implements LandingPerformanceCalculator {
     return distance;
   }
 
-  /** The in-flight landing distance of the QRH for a braking mode, without margin */
+  /** The in-flight landing distance for a braking mode, without margin */
   private inFlightDistance(
     inputs: LandingPerformanceInputs,
     weight: number,

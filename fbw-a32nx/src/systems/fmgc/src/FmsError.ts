@@ -14,7 +14,7 @@ export enum FmsErrorType {
   ListOf99InUse,
   AwyWptMismatch,
   NotAllowed,
-  /** A PLACE/DIST entry whose place is not the revised waypoint (A380 FCOM: PLACE / WPT DISAGREE) */
+  /** A PLACE/DIST entry whose place is not the revised waypoint (A380 message PLACE / WPT DISAGREE) */
   PlaceWaypointDisagree,
 }
 

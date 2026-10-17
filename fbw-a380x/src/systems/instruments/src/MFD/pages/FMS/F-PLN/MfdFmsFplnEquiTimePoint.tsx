@@ -57,12 +57,26 @@ class Reference {
   readonly etpDistance = Subject.create('----');
 
   readonly etpTime = Subject.create('--:--');
+
+  clearPposData(): void {
+    this.pposBearing.set('---');
+    this.pposDistance.set('----');
+    this.pposTime.set('--:--');
+  }
+
+  clearEtpData(): void {
+    this.etpTrack.set('---');
+    this.etpDistance.set('----');
+    this.etpTime.set('--:--');
+  }
 }
 
 const noEtp = '';
 
+const timeLabel = 'UTC';
+
 /**
- * EQUI-TIME POINT page (A380 FCOM DSC-22-FMS-20-30 P 135-138): computes the point of the active flight plan from which
+ * EQUI-TIME POINT page: computes the point of the active flight plan from which
  * the time to reach both references is the same, taking into account the cruise Mach and the wind entered at each
  * reference. The default references are the origin and destination airports.
  *
@@ -79,14 +93,11 @@ export class MfdFmsFplnEquiTimePoint extends FmsFlightPlanPage<MfdFmsFplnEquiTim
 
   private readonly pposToEtpTime = Subject.create('--:--');
 
-  private readonly timeLabel = this.props.fmcService.master.timeKeeper.timeReference.map(() => 'UTC');
-
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
     this.subs.push(
       this.props.mfd.uiService.activeUri.sub(() => this.activePageTitle.set('ACTIVE/F-PLN/EQUI-TIME POINT'), true),
-      this.timeLabel,
       this.props.bus
         .getSubscriber<ClockEvents>()
         .on('realTime')
@@ -100,7 +111,7 @@ export class MfdFmsFplnEquiTimePoint extends FmsFlightPlanPage<MfdFmsFplnEquiTim
     this.compute();
   }
 
-  /** FCOM: the default REF1 is the origin airport, the default REF2 the destination airport */
+  /** The default REF1 is the origin airport, the default REF2 the destination airport */
   private updateDefaultReferences(): void {
     if (!this.props.flightPlanInterface.hasActive) {
       return;
@@ -123,7 +134,7 @@ export class MfdFmsFplnEquiTimePoint extends FmsFlightPlanPage<MfdFmsFplnEquiTim
       this.compute();
       return true;
     }
-    // FCOM: the ident already selected in the other reference field is NOT ALLOWED
+    // The ident already selected in the other reference field is NOT ALLOWED
     if (this.references[1 - index].ident.get() === ident) {
       this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
       return false;
@@ -208,9 +219,7 @@ export class MfdFmsFplnEquiTimePoint extends FmsFlightPlanPage<MfdFmsFplnEquiTim
     const tas = this.cruiseTrueAirspeed();
     for (const ref of this.references) {
       if (!ref.fix) {
-        ref.pposBearing.set('---');
-        ref.pposDistance.set('----');
-        ref.pposTime.set('--:--');
+        ref.clearPposData();
         continue;
       }
       ref.pposBearing.set(this.formatTrack(ppos, ref.fix.location));
@@ -260,12 +269,12 @@ export class MfdFmsFplnEquiTimePoint extends FmsFlightPlanPage<MfdFmsFplnEquiTim
     }
 
     if (!found) {
-      // FCOM: ETP SEQUENCED once the aircraft is past the ETP, ETP NOT FOUND otherwise
+      // ETP SEQUENCED once the aircraft is past the ETP, ETP NOT FOUND otherwise
       this.clearEtp(difference(ppos) > 0 && path.length > 1 ? 'ETP SEQUENCED' : 'ETP NOT FOUND');
       return;
     }
 
-    // FCOM: the ETP is a place/distance waypoint, the place being the waypoint that follows the ETP
+    // The ETP is a place/distance waypoint, the place being the waypoint that follows the ETP
     const next = path[found.segment + 1];
     const distanceToNext = next.distance - found.distance;
     this.etpText.set(`${next.ident}/-${distanceToNext.toFixed(1)}NM`);
@@ -293,30 +302,26 @@ export class MfdFmsFplnEquiTimePoint extends FmsFlightPlanPage<MfdFmsFplnEquiTim
     this.pposToEtpDistance.set('----');
     this.pposToEtpTime.set('--:--');
     for (const ref of this.references) {
-      ref.etpTrack.set('---');
-      ref.etpDistance.set('----');
-      ref.etpTime.set('--:--');
+      ref.clearEtpData();
     }
   }
 
   private clear(): void {
     this.clearEtp(noEtp);
     for (const ref of this.references) {
-      ref.pposBearing.set('---');
-      ref.pposDistance.set('----');
-      ref.pposTime.set('--:--');
+      ref.clearPposData();
     }
   }
 
-  /** A data box of three lines (FCOM figure): label, value right-aligned, unit */
+  /** A data box of three lines: label, value right-aligned, unit (° and NM; the time has none) */
   private dataBox(
     x: number,
     y: number,
-    labels: [string, string, Subscribable<string>],
+    labels: [string, string, string],
     values: [Subscribable<string>, Subscribable<string>, Subscribable<string>],
-    units: [string, string],
-    valueRight: number,
   ): VNode {
+    const units = ['°', 'NM'];
+    const valueRight = 172;
     return (
       <>
         <div class="mfd-etp-box" style={`left: ${x}px; top: ${y}px;`} />
@@ -339,14 +344,7 @@ export class MfdFmsFplnEquiTimePoint extends FmsFlightPlanPage<MfdFmsFplnEquiTim
     const centre = x + 114;
     return (
       <>
-        {this.dataBox(
-          x,
-          102,
-          ['BRG', 'DIST', this.timeLabel],
-          [ref.pposBearing, ref.pposDistance, ref.pposTime],
-          ['°', 'NM'],
-          172,
-        )}
+        {this.dataBox(x, 102, ['BRG', 'DIST', timeLabel], [ref.pposBearing, ref.pposDistance, ref.pposTime])}
         {fcomCentre(274, centre, <span class="mfd-label">{`REF${index + 1}`}</span>)}
         <div class="mfd-etp-ref-bracket" style={`left: ${x}px;`} />
         {fcomAt(
@@ -398,14 +396,7 @@ export class MfdFmsFplnEquiTimePoint extends FmsFlightPlanPage<MfdFmsFplnEquiTim
             interactionMode={this.props.mfd.interactionMode}
           />,
         )}
-        {this.dataBox(
-          x,
-          470,
-          ['TRK', 'DIST', this.timeLabel],
-          [ref.etpTrack, ref.etpDistance, ref.etpTime],
-          ['°', 'NM'],
-          172,
-        )}
+        {this.dataBox(x, 470, ['TRK', 'DIST', timeLabel], [ref.etpTrack, ref.etpDistance, ref.etpTime])}
       </>
     );
   }
@@ -415,7 +406,7 @@ export class MfdFmsFplnEquiTimePoint extends FmsFlightPlanPage<MfdFmsFplnEquiTim
       <>
         {super.render()}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 135), page container coordinates */}
+          {/* Positions measured on the reference figure of the page, in page container coordinates */}
           <div class="mfd-fcom-canvas">
             <svg class="mfd-etp-lines" width="768" height="760" viewBox="0 0 768 760">
               <ellipse cx="390" cy="40" rx="112" ry="22" />
@@ -441,7 +432,7 @@ export class MfdFmsFplnEquiTimePoint extends FmsFlightPlanPage<MfdFmsFplnEquiTim
             {fcomAt(147, 295, <span class="mfd-label">DIST</span>)}
             {fcomRight(147, 453, <span class="mfd-value bigger">{this.pposToEtpDistance}</span>)}
             {fcomAt(147, 456, <span class="mfd-label-unit">NM</span>)}
-            {fcomAt(187, 295, <span class="mfd-label">{this.timeLabel}</span>)}
+            {fcomAt(187, 295, <span class="mfd-label">{timeLabel}</span>)}
             {fcomAt(187, 360, <span class="mfd-value bigger">{this.pposToEtpTime}</span>)}
 
             {this.renderReference(0)}

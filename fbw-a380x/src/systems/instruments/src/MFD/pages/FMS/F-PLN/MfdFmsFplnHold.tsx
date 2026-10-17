@@ -188,7 +188,7 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
       <>
         {super.render()}
         {/* begin page content */}
-        {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 186), page container coordinates */}
+        {/* Positions measured on the reference figure of the page, in page container coordinates */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-fpln-hold-canvas">
             <div class="mfd-fpln-hold-frame" />
@@ -326,7 +326,7 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
                   label="RETURN"
                   buttonStyle="min-width: 129px;"
                   onClick={() => {
-                    // FCOM DSC-22-FMS-20-30 HOLD page: RETURN displays the F-PLN page
+                    // RETURN displays the F-PLN page
                     this.props.fmcService.master.resetRevisedWaypoint();
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`,

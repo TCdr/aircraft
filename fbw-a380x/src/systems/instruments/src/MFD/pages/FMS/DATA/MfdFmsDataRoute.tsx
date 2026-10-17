@@ -40,13 +40,13 @@ enum RoutePanel {
   PilotStored,
 }
 
-/** URI extra of the INIT page's RTE SUMMARY button: the active flight plan is copied as a new route (FCOM). */
+/** URI extra of the INIT page's RTE SUMMARY button: the active flight plan is copied as a new route. */
 export const newRouteFromActiveUriExtra = 'new-from-active';
 
 const noTokens: RouteSummaryToken[] = [];
 
 /**
- * DATA / ROUTE page (A380 FCOM DSC-22-FMS-20-30 "DATA / ROUTE PAGE"): the DATABASE RTEs panel lists the company
+ * DATA / ROUTE page: the DATABASE RTEs panel lists the company
  * routes of a FROM/TO city pair (the SimBridge company routes stand for the navigation database routes); the PILOT
  * STORED RTEs panel lists the routes stored by the flight crew, deletes them and stores a copy of the active or a
  * secondary flight plan as a new route.
@@ -60,8 +60,6 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
   private readonly selectedPageIndex = Subject.create<number>(RoutePanel.Database);
 
   private readonly showReturnButton = Subject.create(false);
-
-  // ---- DATABASE RTEs panel --------------------------------------------------------------------------------------------
 
   private readonly databaseFrom = Subject.create<string | null>(null);
 
@@ -82,8 +80,6 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
   private readonly nextDatabaseDisabled = this.selectedDatabaseRoute.map(
     (i) => i === null || i >= this.databaseRoutes.length - 1,
   );
-
-  // ---- PILOT STORED RTEs panel ------------------------------------------------------------------------------------
 
   private readonly storedIdents = ArraySubject.create<string>([]);
 
@@ -123,10 +119,8 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
 
   private readonly deleteAllDialogVisible = Subject.create(false);
 
-  /** FCOM: a copy of the active flight plan can only be stored in preflight */
+  /** A copy of the active flight plan can only be stored in preflight */
   private readonly newRouteMenuItems = Subject.create<ButtonMenuItem[]>([]);
-
-  // ---- new route function ---------------------------------------------------------------------------------------------
 
   private newRoute: StoredRoute | null = null;
 
@@ -177,8 +171,6 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     }
   }
 
-  // ---- DATABASE RTEs --------------------------------------------------------------------------------------------------
-
   private async loadDatabaseRoutes(): Promise<void> {
     const from = this.databaseFrom.get();
     const to = this.databaseTo.get();
@@ -212,7 +204,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
   }
 
   /**
-   * FCOM: a route ident that is a pilot created route opens the PILOT STORED RTEs panel; one that is in neither
+   * A route ident that is a pilot created route opens the PILOT STORED RTEs panel; one that is in neither
    * database gives NOT IN DATABASE.
    */
   private onDatabaseRouteEntered(index: number | null, freeText: string): void {
@@ -235,8 +227,6 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     }
     this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notInDatabase, undefined, undefined);
   }
-
-  // ---- PILOT STORED RTEs --------------------------------------------------------------------------------------------
 
   private refreshStoredRoutes(): void {
     const routes = this.pilotStoredElements.routes.get();
@@ -301,8 +291,6 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     this.pilotStoredElements.deleteAllRoutes();
   }
 
-  // ---- new route function ---------------------------------------------------------------------------------------------
-
   private updateNewRouteMenu(): void {
     const fps = this.props.flightPlanInterface;
     const activeUsable =
@@ -310,7 +298,6 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     const items: ButtonMenuItem[] = [
       {
         label: 'ACTIVE',
-        // FCOM: the flight crew can store a copy of the active flight plan only in preflight
         disabled: !activeUsable || this.activeFlightPhase.get() !== FmgcFlightPhase.Preflight,
         action: () => this.openNewRouteFunction(FlightPlanIndex.Active),
       },
@@ -330,7 +317,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     this.newRouteMenuItems.set(items);
   }
 
-  /** FCOM NEW ROUTE: a copy of the chosen flight plan whose summary is displayed and which can then be stored. */
+  /** NEW ROUTE: a copy of the chosen flight plan whose summary is displayed and which can then be stored. */
   private openNewRouteFunction(planIndex: FlightPlanIndex): void {
     const fps = this.props.flightPlanInterface;
     if (!fps.has(planIndex)) {
@@ -354,7 +341,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     this.newRouteMode.set(false);
   }
 
-  /** FCOM: RTE IDENT ALREADY USED when the ident exists already. */
+  /** RTE IDENT ALREADY USED when the ident exists already. */
   private async onNewRouteIdentEntered(ident: string | null): Promise<boolean> {
     if (ident === null) {
       return true;
@@ -369,7 +356,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
   }
 
   /**
-   * FCOM STORE ROUTE: stores the new route (maximum 5 routes, PILOT RTEs LIST FULL otherwise; SOME REVISIONS NOT
+   * STORE ROUTE: stores the new route (maximum 5 routes, PILOT RTEs LIST FULL otherwise; SOME REVISIONS NOT
    * STORED when the plan had more than 30 elements).
    */
   private storeNewRoute(): void {
@@ -391,11 +378,9 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     this.selectedStored.set(this.pilotStoredElements.routes.get().findIndex((r) => r.ident === ident));
   }
 
-  // ---- render ---------------------------------------------------------------------------------------------------------
-  // Positions from the FCOM figures (DSC-22-FMS-20-30 P 83, P 85, P 86, P 89), in page container coordinates
-  // (display y - 143)
+  // Positions measured on the reference figures, in page container coordinates (display y - 143)
 
-  /** FROM xxxx TO xxxx of a stored route, green big font (P 85, P 89) */
+  /** FROM xxxx TO xxxx of a stored route, green big font */
   private static cityPair(y: number, cityPair: Subscribable<string>): VNode {
     return (
       <>
@@ -433,46 +418,34 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     );
   }
 
-  /** DATABASE RTEs panel (P 83) */
+  /** FROM or TO airport of the DATABASE RTEs city pair: an entry loads the company routes of the pair */
+  private renderCityPairAirportField(x: number, width: number, value: Subject<string | null>): VNode {
+    return fcomAt(
+      79,
+      x,
+      <InputField<string>
+        dataEntryFormat={new AirportFormat()}
+        value={value}
+        dataHandlerDuringValidation={async () => {
+          await this.loadDatabaseRoutes();
+        }}
+        mandatory={Subject.create(true)}
+        containerStyle={`width: ${width}px;`}
+        alignText="center"
+        errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+        hEventConsumer={this.props.mfd.hEventConsumer}
+        interactionMode={this.props.mfd.interactionMode}
+      />,
+    );
+  }
+
   private renderDatabasePanel(): VNode {
     return (
       <>
         {fcomRight(79, 262, <span class="mfd-label">FROM</span>)}
-        {fcomAt(
-          79,
-          277,
-          <InputField<string>
-            dataEntryFormat={new AirportFormat()}
-            value={this.databaseFrom}
-            dataHandlerDuringValidation={async () => {
-              await this.loadDatabaseRoutes();
-            }}
-            mandatory={Subject.create(true)}
-            containerStyle="width: 90px;"
-            alignText="center"
-            errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-            hEventConsumer={this.props.mfd.hEventConsumer}
-            interactionMode={this.props.mfd.interactionMode}
-          />,
-        )}
+        {this.renderCityPairAirportField(277, 90, this.databaseFrom)}
         {fcomAt(79, 406, <span class="mfd-label">TO</span>)}
-        {fcomAt(
-          79,
-          443,
-          <InputField<string>
-            dataEntryFormat={new AirportFormat()}
-            value={this.databaseTo}
-            dataHandlerDuringValidation={async () => {
-              await this.loadDatabaseRoutes();
-            }}
-            mandatory={Subject.create(true)}
-            containerStyle="width: 88px;"
-            alignText="center"
-            errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-            hEventConsumer={this.props.mfd.hEventConsumer}
-            interactionMode={this.props.mfd.interactionMode}
-          />,
-        )}
+        {this.renderCityPairAirportField(443, 88, this.databaseTo)}
         {fcomRight(150, 202, <span class="mfd-label">RTE IDENT</span>)}
         {fcomAt(
           150,
@@ -499,7 +472,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     );
   }
 
-  /** PILOT STORED RTEs panel with stored routes (P 85) */
+  /** PILOT STORED RTEs panel with stored routes */
   private renderStoredRouteList(): VNode {
     return (
       <>
@@ -511,7 +484,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataRouteStoredDropdown`}
             selectedIndex={this.selectedStored}
             values={this.storedIdents}
-            freeTextAllowed={false} // FCOM PILOT STORED RTES COMPANY ROUTE LIST: list only
+            freeTextAllowed={false} // COMPANY ROUTE LIST: list only
             containerStyle="width: 249px;"
             alignLabels="center"
             numberOfDigitsForInputField={10}
@@ -568,7 +541,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     );
   }
 
-  /** PILOT STORED RTEs panel without stored route (P 86) */
+  /** PILOT STORED RTEs panel without stored route */
   private renderNoStoredPanel(): VNode {
     return (
       <>
@@ -588,7 +561,6 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     );
   }
 
-  /** NEW ROUTE FUNCTION (P 89) */
   private renderNewRouteFunction(): VNode {
     return (
       <>
@@ -637,8 +609,8 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     const visibleWhen = (visible: Subscribable<boolean>) => ({
       display: visible.map((v) => (v ? 'block' : 'none')),
     });
-    const onPanel = (panel: number) => this.selectedPageIndex.map((i) => i === panel);
-    const storedPanel = onPanel(1);
+    const onPanel = (panel: RoutePanel) => this.selectedPageIndex.map((i) => i === panel);
+    const storedPanel = onPanel(RoutePanel.PilotStored);
     const storedList = MappedSubject.create(([p, v]) => p && v, storedPanel, this.listVisible);
     const storedNone = MappedSubject.create(([p, v]) => p && v, storedPanel, this.noStoredVisible);
     const storedNew = MappedSubject.create(([p, v]) => p && v, storedPanel, this.newRouteMode);
@@ -647,9 +619,8 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
     return (
       <>
         {super.render()}
-        {/* begin page content */}
         <div class="mfd-page-container" style="position: relative;">
-          {/* Tab panels from y = 150 to 910 (P 86); their content is drawn in the overlays below */}
+          {/* Tab panels from y = 150 to 910; their content is drawn in the overlays below */}
           <TopTabNavigator
             pageTitles={Subject.create(['DATABASE RTEs', 'PILOT STORED RTEs'])}
             selectedPageIndex={this.selectedPageIndex}
@@ -660,7 +631,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
             <TopTabNavigatorPage containerStyle="flex: 0 0 auto; box-sizing: border-box; height: 722px;" />
             <TopTabNavigatorPage containerStyle="flex: 0 0 auto; box-sizing: border-box; height: 722px;" />
           </TopTabNavigator>
-          <div class="mfd-fcom-overlay" style={visibleWhen(onPanel(0))}>
+          <div class="mfd-fcom-overlay" style={visibleWhen(onPanel(RoutePanel.Database))}>
             {this.renderDatabasePanel()}
           </div>
           <div class="mfd-fcom-overlay" style={visibleWhen(storedList)}>
@@ -672,7 +643,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
           <div class="mfd-fcom-overlay" style={visibleWhen(storedNew)}>
             {this.renderNewRouteFunction()}
           </div>
-          {/* FCOM: RETURN displays the page the DATA / ROUTE page was called from (e.g. the ACTIVE / INIT page) */}
+          {/* RETURN displays the page the DATA / ROUTE page was called from (e.g. the ACTIVE / INIT page) */}
           <div class="mfd-fcom-overlay">
             {fcomAt(
               788,

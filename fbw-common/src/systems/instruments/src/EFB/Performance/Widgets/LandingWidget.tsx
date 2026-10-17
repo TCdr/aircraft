@@ -69,7 +69,7 @@ const BRAKING_LABELS: Record<LandingBrakingMode, string> = {
   [LandingBrakingMode.Medium]: 'MED',
 };
 
-/** Water and slush 1/2": Airbus does not recommend their operational use (A380 FCOM PER-LND-LCD-OCD) */
+/** Water and slush 1/2": Airbus does not recommend their operational use */
 const NOT_RECOMMENDED = [LandingRunwayCondition.Water13mm, LandingRunwayCondition.Slush13mm];
 
 const Section: FC<{ title: string }> = ({ title, children }) => (
@@ -110,7 +110,7 @@ const Value: FC<{ text: string; unit?: string; estimate?: boolean; big?: boolean
 );
 
 /**
- * The landing calculator of the A380X and the A32NX, after the LDG PERF application of the A380 (A380 FCOM PER-LND):
+ * The landing calculator of the A380X and the A32NX, after the LDG PERF application of the A380:
  * DISPATCH (required landing distance) and IN-FLIGHT (actual landing distance of each braking mode) computations,
  * with the results in the layout of its RESULTS panel, and the landing roll on the runway.
  */
@@ -643,7 +643,6 @@ export const LandingWidget = () => {
 
   return (
     <div className="flex h-content-section-reduced flex-col space-y-3 overflow-hidden text-base">
-      {/* Airport, data sources and computation type */}
       <div className="flex flex-row items-center justify-between">
         <div className="flex flex-row items-center space-x-4">
           <Row label={t('Performance.Landing.Airport')}>
@@ -694,7 +693,6 @@ export const LandingWidget = () => {
         </div>
       </div>
 
-      {/* Inputs */}
       <div className="grid grid-cols-4 gap-3">
         <Section title={t('Performance.Landing.Calc.SectionRunway')}>
           <Row label={t('Performance.Landing.Runway')}>
@@ -1036,7 +1034,6 @@ export const LandingWidget = () => {
         </Section>
       </div>
 
-      {/* Results, landing roll and actions */}
       <div className="flex min-h-0 flex-1 flex-row space-x-3">
         <div className="flex w-[32.5rem] shrink-0 flex-col space-y-3">
           <ResultsPanel
@@ -1122,7 +1119,7 @@ export const LandingWidget = () => {
               </div>
             )}
           </div>
-          {/* BTV: the exits the flight crew can select on the OANS (A380 FCOM PRO-NOR-SOP-160, runway exit) */}
+          {/* BTV: the exits the flight crew can select on the OANS */}
           {features.btv && result !== undefined && (
             <div className="mb-1 flex flex-col text-base leading-snug">
               <div>
@@ -1195,8 +1192,8 @@ interface ResultsPanelProps {
 }
 
 /**
- * The results in the layout of the RESULTS panel of the Airbus landing performance application (A380 FCOM
- * PER-LND-LRD-DSR, PER-LND-LRF-FSR), with the data of its MORE panel below.
+ * The results in the layout of the RESULTS panel of the Airbus landing performance application, with the data of its
+ * MORE panel below.
  */
 const ResultsPanel = ({
   result,
@@ -1317,7 +1314,7 @@ const ResultsPanel = ({
           )}
         </div>
       </div>
-      {/* MORE panel */}
+
       <div className="text-sm leading-tight text-theme-unselected">
         {result !== undefined && (
           <>

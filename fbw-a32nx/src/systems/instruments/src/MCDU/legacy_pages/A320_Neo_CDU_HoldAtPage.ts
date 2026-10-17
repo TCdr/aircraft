@@ -149,7 +149,7 @@ export class CDUHoldAtPage {
 
   /**
    * HOLD at PPOS (see PresentPositionHold.ts): a temporary flight plan with the computed hold at the aircraft position,
-   * on the aircraft track. Without a valid aircraft position: A/C POSITION INVALID (A320 FCOM l.22477-22480).
+   * on the aircraft track. Without a valid aircraft position: A/C POSITION INVALID.
    */
   static ShowPresentPositionPage(mcdu: LegacyFmsPageInterface) {
     const latitude = ADIRS.getLatitude();

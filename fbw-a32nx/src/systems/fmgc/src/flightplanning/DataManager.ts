@@ -16,7 +16,7 @@ export enum PilotWaypointType {
   Pbd = 1,
   Pbx = 2,
   LatLon = 3,
-  /** PLACE/DIST: a distance from a flight plan waypoint, along the flight plan (A320 FCOM l.13512, A380 FCOM l.43981) */
+  /** PLACE/DIST: a distance from a flight plan waypoint, along the flight plan */
   Pd = 4,
 }
 
@@ -82,9 +82,8 @@ export interface DataManagerOptions {
   latLonFormat: LatLonFormatType;
   /**
    * The size of the pilot-stored waypoints database and the rule when it is full: the first created waypoint that is not
-   * used by the flight plans is deleted, and the creation is rejected only when all of them are used (A380 FCOM
-   * DSC-22-FMS-20-30 P 117: 50 waypoints). Without it: 99 waypoints, and the creation is rejected when they are all
-   * stored (LIST OF 99 IN USE).
+   * used by the flight plans is deleted, and the creation is rejected only when all of them are used (A380: 50
+   * waypoints). Without it: 99 waypoints, and the creation is rejected when they are all stored (LIST OF 99 IN USE).
    */
   storedWaypointLimit: StoredWaypointLimit;
 }
@@ -526,7 +525,7 @@ export class DataManager {
   }
 
   /**
-   * Creates a PLACE/DIST waypoint, named PDnn (A320 FCOM l.13519-13520, A380 FCOM l.35155-35159)
+   * Creates a PLACE/DIST waypoint, named PDnn
    * @param place the place waypoint of the flight plan
    * @param distance the signed distance along the flight plan, NM (negative: before the place)
    * @param coordinates the position of the waypoint on the flight plan (see placeDistancePosition)

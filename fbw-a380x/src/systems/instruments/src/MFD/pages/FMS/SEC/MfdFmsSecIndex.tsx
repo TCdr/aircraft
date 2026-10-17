@@ -318,7 +318,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
     this.props.dataStore.wasModified,
   );
 
-  /** FCOM P 322: REJECTED ATC INFO on the SEC 3 panel, for an ATC flight plan */
+  /** REJECTED ATC INFO on the SEC 3 panel, for an ATC flight plan */
   private readonly rejectedAtcInfoVisibility = this.props.dataStore.flags.map((flags) =>
     this.secIndex === 3 && BitFlags.isAll(flags, FlightPlanFlags.AtcFlightPlan) ? 'inherit' : 'hidden',
   );
@@ -401,7 +401,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
   }
 
   render(): VNode | null {
-    // Positions from the FCOM figures (DSC-22-FMS-20-30 P 322 and P 329), in tab panel coordinates (display x - 21,
+    // Positions measured on the reference figures, in tab panel coordinates (display x - 21,
     // display y - 198)
     return (
       <div class="mfd-fcom-canvas">
@@ -643,7 +643,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
                 <span style="display: flex; align-items: center; justify-content: center;">*</span>
               </div>
             }
-            // FCOM DSC-22-FMS-10-70 P 6: the secondary flight plan report (in-flight in flight, pre-flight otherwise)
+            // The secondary flight plan report (in-flight in flight, pre-flight otherwise)
             disabled={this.secDoesNotExist}
             onClick={() => {
               const phase = this.props.fmcService.master.fmgc.getFlightPhase();

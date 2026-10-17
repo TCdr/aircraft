@@ -20,6 +20,7 @@ import { IconButton } from '../../../../MsfsAvionicsCommon/UiWidgets/IconButton'
 import { ConfirmationDialog } from '../../../../MsfsAvionicsCommon/UiWidgets/ConfirmationDialog';
 import {
   BearingFormat,
+  DataEntryFormat,
   DistanceFormat,
   LatitudeDmsFormat,
   LongitudeDmsFormat,
@@ -33,7 +34,7 @@ import { fcomAt, fcomCentre, fcomRight, fcomTabBar } from '../../common/FcomLayo
 
 interface MfdFmsDataWaypointProps extends AbstractMfdPageProps {}
 
-/** FCOM P 116: the new waypoint function shows the latitude as ----.-- and the longitude as -----.-- */
+/** New waypoint function: the empty latitude and longitude fields show these dashes */
 class NewWaypointLatitudeFormat extends LatitudeDmsFormat {
   public readonly placeholder = '----.--';
 }
@@ -51,7 +52,7 @@ enum WaypointPanel {
 const newWaypointUriExtra = 'new';
 
 /**
- * DATA / WAYPOINT page (A380 FCOM DSC-22-FMS-20-30 "DATA / WAYPOINT PAGE"): the DATABASE WPTs panel shows the
+ * DATA / WAYPOINT page: the DATABASE WPTs panel shows the
  * position of a navigation database waypoint, NAVAID, runway or airport; the PILOT STORED WPTs panel lists the
  * waypoints created by the flight crew and offers the new waypoint function (latitude/longitude, place/bearing/distance
  * or place-bearing/place-bearing).
@@ -61,15 +62,11 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
 
   private readonly showReturnButton = Subject.create(false);
 
-  // ---- DATABASE WPTs panel --------------------------------------------------------------------------------------------
-
   private readonly databaseIdent = Subject.create<string | null>(null);
 
   private readonly databaseLatLong = Subject.create('');
 
   private readonly databaseInfoVisibility = this.databaseLatLong.map((v) => (v ? 'visible' : 'hidden'));
-
-  // ---- PILOT STORED WPTs panel ------------------------------------------------------------------------------------
 
   /** The stored waypoints in the order of their storage index */
   private storedWaypoints: PilotWaypoint[] = [];
@@ -129,8 +126,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
 
   private readonly deleteAllDialogVisible = Subject.create(false);
 
-  // ---- new waypoint function ----------------------------------------------------------------------------------------
-
   private readonly newIdent = Subject.create<string | null>(null);
 
   private readonly newLatitude = Subject.create<number | null>(null);
@@ -163,7 +158,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    // The new waypoint is worked out once an entered value is stored (a validation handler would still see the old value)
+    // Worked out once an entered value is stored (a validation handler would still see the old value)
     for (const field of [
       this.newLatitude,
       this.newLongitude,
@@ -212,10 +207,8 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
     }
   }
 
-  // ---- DATABASE WPTs ------------------------------------------------------------------------------------------------
-
   /**
-   * FCOM: a pilot created waypoint opens the PILOT STORED WPTs panel with its data; an ident that is neither in the
+   * A pilot created waypoint opens the PILOT STORED WPTs panel with its data; an ident that is neither in the
    * navigation database nor pilot created opens the new waypoint function.
    */
   private async onDatabaseIdentEntered(ident: string | null): Promise<boolean> {
@@ -244,8 +237,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
       throw e;
     }
   }
-
-  // ---- PILOT STORED WPTs ------------------------------------------------------------------------------------------
 
   private refreshStoredWaypoints(): void {
     const dataManager = this.props.fmcService.master.getDataManager();
@@ -335,7 +326,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
     }
   }
 
-  /** FCOM: a pilot stored waypoint still used by the FMS is not deleted, F-PLN ELEMENT RETAINED is displayed. */
+  /** A pilot stored waypoint still used by the FMS is not deleted, F-PLN ELEMENT RETAINED is displayed. */
   private async deleteSelectedStoredWaypoint(): Promise<void> {
     this.deleteOneDialogVisible.set(false);
     const index = this.selectedStored.get();
@@ -366,8 +357,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
     this.refreshStoredWaypoints();
   }
 
-  // ---- new waypoint function ----------------------------------------------------------------------------------------
-
   private openNewWaypointFunction(ident: string | null): void {
     this.clearNewWaypoint();
     this.newIdent.set(ident);
@@ -396,7 +385,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
   }
 
   /**
-   * Works out the waypoint from whichever of the three entry ways is complete (FCOM: latitude/longitude,
+   * Works out the waypoint from whichever of the three entry ways is complete (latitude/longitude,
    * place/bearing/distance or place-bearing/place-bearing) and shows its position.
    */
   private async updateNewWaypointDefinition(): Promise<void> {
@@ -475,7 +464,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
     }
   }
 
-  /** FCOM STORE WPT: stores the new waypoint in the pilot stored elements database. */
+  /** STORE WPT: stores the new waypoint in the pilot stored elements database. */
   private storeNewWaypoint(): void {
     if (this.storeDisabled.get()) {
       return;
@@ -510,33 +499,23 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
     }
   }
 
-  // ---- render ---------------------------------------------------------------------------------------------------------
-  // Positions from the FCOM figures (DSC-22-FMS-20-30 P 107, P 109-116), in page container coordinates (display y - 143)
+  // Positions measured on the reference figures, page container coordinates (display y - 143)
 
-  private renderPlaceField(y: number, x: number, value: Subject<string | null>, width: number): VNode {
+  /** An entry field (number or text) whose left edge is at x, centred on y */
+  private inputField<T extends number | string>(
+    y: number,
+    x: number,
+    width: number,
+    format: DataEntryFormat<T>,
+    value: Subject<T | null>,
+  ): VNode {
     return fcomAt(
       y,
       x,
-      <InputField<string>
-        dataEntryFormat={new WaypointFormat()}
+      <InputField<number | string>
+        dataEntryFormat={format}
         value={value}
         containerStyle={`width: ${width}px;`}
-        alignText="flex-start"
-        errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-        hEventConsumer={this.props.mfd.hEventConsumer}
-        interactionMode={this.props.mfd.interactionMode}
-      />,
-    );
-  }
-
-  private renderBearingField(y: number, x: number, value: Subject<number | null>): VNode {
-    return fcomAt(
-      y,
-      x,
-      <InputField<number>
-        dataEntryFormat={new BearingFormat()}
-        value={value}
-        containerStyle="width: 99px;"
         alignText="flex-start"
         errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
         hEventConsumer={this.props.mfd.hEventConsumer}
@@ -565,7 +544,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
     );
   }
 
-  /** DATABASE WPTs panel (P 107) */
   private renderDatabasePanel(): VNode {
     return (
       <>
@@ -595,7 +573,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
     );
   }
 
-  /** PILOT STORED WPTs panel with stored waypoints (P 109, P 112-114) */
+  /** PILOT STORED WPTs panel with stored waypoints */
   private renderStoredWaypointList(): VNode {
     const label = MfdFmsDataWaypoint.label;
     const value = MfdFmsDataWaypoint.value;
@@ -611,7 +589,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataWaypointStoredDropdown`}
             selectedIndex={this.selectedStored}
             values={this.storedIdents}
-            freeTextAllowed={false} // FCOM PILOT STORED WPTS WAYPOINT IDENT LIST: list only
+            freeTextAllowed={false} // WAYPOINT IDENT LIST: list only
             containerStyle="width: 179px;"
             alignLabels="flex-start"
             numberOfDigitsForInputField={7}
@@ -639,7 +617,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
         )}
         {fcomCentre(178, 576, <span class="mfd-label">{this.storedNumberText}</span>)}
 
-        {/* LAT / LONG */}
         {label(239, 280, 'LAT')}
         {label(239, 469, 'LONG')}
         {fcomCentre(
@@ -650,7 +627,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
           </span>,
         )}
 
-        {/* PLACE / BRG / DIST (P 113) */}
         <div style={whenPbd}>
           {label(373, 219, 'PLACE')}
           {label(373, 368, 'BRG')}
@@ -662,7 +638,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
           {MfdFmsDataWaypoint.valueWithUnit(414, 624, this.storedDistance, 'NM')}
         </div>
 
-        {/* PLACE - BRG / PLACE - BRG (P 109, P 114) */}
         <div style={whenPbx}>
           {label(372, 148, 'PLACE')}
           {label(372, 304, 'BRG')}
@@ -718,7 +693,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
     );
   }
 
-  /** PILOT STORED WPTs panel without stored waypoint (P 110) */
+  /** PILOT STORED WPTs panel without stored waypoint */
   private renderNoStoredPanel(): VNode {
     return (
       <>
@@ -736,7 +711,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
     );
   }
 
-  /** NEW WAYPOINT FUNCTION (P 116) */
   private renderNewWaypointFunction(): VNode {
     const label = MfdFmsDataWaypoint.label;
     return (
@@ -757,71 +731,32 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
           />,
         )}
 
-        {/* LAT / LONG */}
         {label(240, 280, 'LAT')}
         {label(240, 469, 'LONG')}
-        {fcomAt(
-          280,
-          207,
-          <InputField<number>
-            dataEntryFormat={new NewWaypointLatitudeFormat()}
-            value={this.newLatitude}
-            containerStyle="width: 141px;"
-            alignText="flex-start"
-            errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-            hEventConsumer={this.props.mfd.hEventConsumer}
-            interactionMode={this.props.mfd.interactionMode}
-          />,
-        )}
+        {this.inputField(280, 207, 141, new NewWaypointLatitudeFormat(), this.newLatitude)}
         {label(280, 370, '/')}
-        {fcomAt(
-          280,
-          386,
-          <InputField<number>
-            dataEntryFormat={new NewWaypointLongitudeFormat()}
-            value={this.newLongitude}
-            containerStyle="width: 160px;"
-            alignText="flex-start"
-            errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-            hEventConsumer={this.props.mfd.hEventConsumer}
-            interactionMode={this.props.mfd.interactionMode}
-          />,
-        )}
+        {this.inputField(280, 386, 160, new NewWaypointLongitudeFormat(), this.newLongitude)}
 
-        {/* PLACE / BRG / DIST */}
         {label(373, 217, 'PLACE')}
         {label(373, 378, 'BRG')}
         {label(373, 546, 'DIST')}
-        {this.renderPlaceField(416, 145, this.newPbdPlace, 142)}
+        {this.inputField(416, 145, 142, new WaypointFormat(), this.newPbdPlace)}
         {label(416, 308, '/')}
-        {this.renderBearingField(416, 327, this.newPbdBearing)}
+        {this.inputField(416, 327, 99, new BearingFormat(), this.newPbdBearing)}
         {label(416, 452, '/')}
-        {fcomAt(
-          416,
-          472,
-          <InputField<number>
-            dataEntryFormat={new DistanceFormat()}
-            value={this.newPbdDistance}
-            containerStyle="width: 145px;"
-            alignText="flex-start"
-            errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-            hEventConsumer={this.props.mfd.hEventConsumer}
-            interactionMode={this.props.mfd.interactionMode}
-          />,
-        )}
+        {this.inputField(416, 472, 145, new DistanceFormat(), this.newPbdDistance)}
 
-        {/* PLACE - BRG / PLACE - BRG */}
         {label(518, 142, 'PLACE')}
         {label(518, 304, 'BRG')}
         {label(518, 470, 'PLACE')}
         {label(518, 632, 'BRG')}
-        {this.renderPlaceField(560, 70, this.newPbxPlace1, 141)}
+        {this.inputField(560, 70, 141, new WaypointFormat(), this.newPbxPlace1)}
         {label(560, 234, '-')}
-        {this.renderBearingField(560, 253, this.newPbxBearing1)}
+        {this.inputField(560, 253, 99, new BearingFormat(), this.newPbxBearing1)}
         {label(560, 376, '/')}
-        {this.renderPlaceField(560, 398, this.newPbxPlace2, 141)}
+        {this.inputField(560, 398, 141, new WaypointFormat(), this.newPbxPlace2)}
         {label(560, 562, '-')}
-        {this.renderBearingField(560, 581, this.newPbxBearing2)}
+        {this.inputField(560, 581, 99, new BearingFormat(), this.newPbxBearing2)}
 
         {fcomAt(
           736,
@@ -861,9 +796,8 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
     return (
       <>
         {super.render()}
-        {/* begin page content */}
         <div class="mfd-page-container" style="position: relative;">
-          {/* Tab panels from y = 150 to 910 (P 110); their content is drawn in the overlays below */}
+          {/* Tab panels from y = 150 to 910; their content is drawn in the overlays below */}
           <TopTabNavigator
             pageTitles={Subject.create(['DATABASE WPTs', 'PILOT STORED WPTs'])}
             selectedPageIndex={this.selectedPageIndex}
@@ -929,7 +863,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
 }
 
 function formatBearing(bearing: number): string {
-  return `${(Math.round(bearing) % 360).toFixed(0).padStart(3, '0')}°`;
+  return `${formatBearingValue(bearing)}°`;
 }
 
 function formatBearingValue(bearing: number): string {

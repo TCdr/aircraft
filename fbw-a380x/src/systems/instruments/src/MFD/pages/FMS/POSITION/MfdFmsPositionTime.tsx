@@ -17,7 +17,7 @@ interface MfdFmsPositionTimeProps extends AbstractMfdPageProps {}
 /**
  * POSITION / TIME page: UTC time and date, the flight and block times of the current flight (from the OOOI block
  * events), and the PERM DATA SETUP that selects the time reference of the FMS pages (FLT TIME / BLK TIME / DATE /
- * UTC ONLY). This page is not described in the available A380 FCOM (DSC-22-FMS-20-30); the layout follows the
+ * UTC ONLY). This page is not documented in our references; the layout follows the
  * reference screenshots.
  */
 export class MfdFmsPositionTime extends FmsPage<MfdFmsPositionTimeProps> {
@@ -89,7 +89,6 @@ export class MfdFmsPositionTime extends FmsPage<MfdFmsPositionTimeProps> {
     return (
       <>
         {super.render()}
-        {/* begin page content */}
         <div class="mfd-page-container">
           <div class="mfd-position-time-block">
             <div class="mfd-position-time-row">
@@ -131,7 +130,7 @@ export class MfdFmsPositionTime extends FmsPage<MfdFmsPositionTimeProps> {
               idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_positionTimePermDataSetup`}
               selectedIndex={this.selectedTimeReference}
               values={this.timeReferenceLabels}
-              freeTextAllowed={false} // FCOM POSITION/TIME time reference: list only
+              freeTextAllowed={false} // Time reference: list only
               containerStyle="width: 200px;"
               alignLabels="center"
               numberOfDigitsForInputField={8}

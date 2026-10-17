@@ -46,7 +46,7 @@ function fmsErrorOf(f: () => unknown): FmsErrorType | undefined {
   return undefined;
 }
 
-describe('PLACE/DIST waypoints (A320 FCOM l.13512, A380 FCOM l.43981-43998)', () => {
+describe('PLACE/DIST waypoints', () => {
   it('parses the PLACE/DIST format, a missing sign is +', () => {
     expect(parsePlaceDistance('BRAVO/10')).toEqual({ place: 'BRAVO', distance: 10 });
     expect(parsePlaceDistance('BRAVO/+10.5')).toEqual({ place: 'BRAVO', distance: 10.5 });
@@ -70,7 +70,7 @@ describe('PLACE/DIST waypoints (A320 FCOM l.13512, A380 FCOM l.43981-43998)', ()
     expect(distanceTo(before.place.location, before.location)).toBeCloseTo(20, 3);
   });
 
-  it('limits the distance to the preceding or following waypoint (FCOM: ENTRY OUT OF RANGE)', () => {
+  it('limits the distance to the preceding or following waypoint (ENTRY OUT OF RANGE)', () => {
     const { fp } = testPlan();
     // ALPHA-BRAVO is 60 NM
     expect(fmsErrorOf(() => placeDistancePosition(fp.allLegs, { place: 'BRAVO', distance: 61 }, 0))).toBe(
