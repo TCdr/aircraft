@@ -61,7 +61,7 @@ static void testWakeUp() {
   const ViewParkStep wake = stepViewPark(park, true, kParkAfter, kWarmup);
   expect("shown again when wanted", wake.change == ViewVisibilityChange::Show, true);
   expect("not usable during the warm-up", wake.usable, false);
-  // The fix: the whole setup is due once after the wake-up, and the radius is sent again even when unchanged.
+  // The whole setup is due once after the wake-up, and the radius is sent again even when unchanged.
   expect("setup due after the wake-up", takeViewSetupDue(park), true);
   expect("setup due only once", takeViewSetupDue(park), false);
   expect("radius sent again after the wake-up (same radius, 0.1 s later)", viewRadiusSendDue(park, 18520.0f, 5.1, kResend), true);
@@ -81,7 +81,7 @@ static void testRadiusResend() {
   noteViewRadiusSent(park, 18520.0f, 10.0);
   expect("same radius 0.5 s later: not sent", viewRadiusSendDue(park, 18520.0f, 10.5, kResend), false);
   expect("changed radius: sent at once", viewRadiusSendDue(park, 37040.0f, 10.5, kResend), true);
-  // The fix: the same radius is sent again after kResend, in case the engine ignored it.
+  // The same radius is sent again after kResend, in case the engine ignored it.
   expect("same radius 1 s later: sent again", viewRadiusSendDue(park, 18520.0f, 11.0, kResend), true);
   expect("sim time went back: sent", viewRadiusSendDue(park, 18520.0f, 2.0, kResend), true);
   noteViewRadiusSent(park, 18520.0f, 11.0);

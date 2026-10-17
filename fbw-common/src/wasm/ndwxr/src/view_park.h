@@ -7,7 +7,8 @@
 // A view nothing has wanted for a while is made invisible (parked, see kParkAfterFrames) and made visible again when
 // it is wanted, then left alone for a warm-up before it is drawn. Whether the engine keeps a view's settings while it
 // is invisible is not known, and a setting the engine ignored is never sent again by a setter that only sends changes.
-// So, as a safeguard (the A380X F/O VD once showed a terrain profile the CPT VD did not, with the same inputs, 2026-10-07):
+// So, as a safeguard (measured in the sim: the A380X F/O VD once showed a terrain profile the CPT VD did not, with the
+// same inputs):
 // - a view that wakes up gets its whole setup again (setupDue, taken by the gauge code that knows the view's role);
 // - the radius is sent on a change and again every resendSeconds while the view is in use, not only on a change.
 

@@ -23,7 +23,7 @@ export interface WxrModeLabelProps {
 
 /** The radar's ND indications by the mode value the gauge publishes (see A32NX_WXR_ND_{L,R}_MODE). */
 const LABELS = ['', 'WX', 'WX+T', 'TURB', 'MAP', 'WXR OFF'];
-/** Mode 5: the radar is switched off, shown in white (A320 FCOM DSC-34-SURV-30-30, "WXR OFF (only in white)"). */
+/** Mode 5: the radar is switched off, WXR OFF shown in white. */
 const WXR_OFF_MODE = 5;
 
 /**
