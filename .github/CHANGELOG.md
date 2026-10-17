@@ -759,6 +759,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] BLEED and HYD pages: the engine numbers and the bleed ducts no longer turn amber with the engines at idle - @TCdr
 1. [A380X/ECAM] An SD page selected with an ECP key stays when a new alert appears, as in the FCOM priority order - @TCdr
 1. [A380X/LIGHTS] The STBY COMPASS / ICE IND switch on the overhead stays where it is set; ICE IND lights the ice indicator lights - @TCdr
+1. [A32NX/FUEL] The engines are fed by gravity (suction feed) from the inner tanks with the wing tank pumps off or failed, as in the FCOM: an engine now starts and runs with its pumps off - @TCdr
 
 ## 2024.1.0
 
