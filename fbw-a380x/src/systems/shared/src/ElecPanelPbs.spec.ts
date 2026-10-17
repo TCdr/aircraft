@@ -6,9 +6,9 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 
 /*
- * A380 FCOM DSC-24-20 ELEC PANEL: the ELMU pb-sw (automatic shedding of low commercial loads) is a function of its own.
- * The COMMERCIAL, COMMERCIAL 2 and ELMU pbs of the cockpit behaviour each toggle their own variable; before, all three
- * toggled L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON (the Rust COMMERCIAL pb), so pressing ELMU shed the commercial loads.
+ * The ELMU pb-sw (automatic shedding of low commercial loads) is a function of its own: the COMMERCIAL, COMMERCIAL 2
+ * and ELMU pbs of the cockpit behaviour each toggle their own variable. Sharing L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON
+ * (the Rust COMMERCIAL pb) would make the ELMU pb shed the commercial loads.
  */
 const behaviour = readFileSync(
   resolve(

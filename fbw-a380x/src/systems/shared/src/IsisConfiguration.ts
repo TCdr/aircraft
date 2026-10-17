@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The configuration of the two ISIS (A380 FCOM DSC-34-10-20-20-10 P 2, SFD/SND reconfiguration). The MODE pb of an ISIS
+ * The configuration of the two ISIS (SFD/SND reconfiguration). The MODE pb of an ISIS
  * goes from one configuration to the next: ISIS 1 SFD and ISIS 2 SND, then ISIS 1 SND and ISIS 2 SFD, then ISIS 2 off,
  * then back to the first one. One SFD is always displayed.
  */
@@ -20,7 +20,7 @@ export const ISIS_CONFIGURATION_VAR = 'L:A380X_ISIS_CONFIGURATION';
 
 export type IsisUnit = 1 | 2;
 
-export type IsisDisplay = 'SFD' | 'SND' | 'OFF';
+type IsisDisplay = 'SFD' | 'SND' | 'OFF';
 
 /**
  * The display of an ISIS

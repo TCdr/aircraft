@@ -28,14 +28,14 @@ export interface OansDefaultAirportInputs {
 }
 
 /** The current airport on ground: the nearest one within this distance, in NM */
-export const OANS_CURRENT_AIRPORT_RADIUS = 20;
+const OANS_CURRENT_AIRPORT_RADIUS = 20;
 /** In flight, ARC or ROSE-NAV: the virtual cylinder over the origin, destination and alternate airports */
-export const OANS_CYLINDER_RADIUS = 20;
-export const OANS_CYLINDER_HEIGHT = 5000;
+const OANS_CYLINDER_RADIUS = 20;
+const OANS_CYLINDER_HEIGHT = 5000;
 /** In flight, PLAN: the origin airport within this distance of the aircraft, in NM... */
-export const OANS_PLAN_ORIGIN_RADIUS = 50;
+const OANS_PLAN_ORIGIN_RADIUS = 50;
 /** ...unless the flight is shorter than this distance, in NM */
-export const OANS_PLAN_SHORT_FLIGHT = 300;
+const OANS_PLAN_SHORT_FLIGHT = 300;
 
 const METRES_TO_FEET = 1 / 0.3048;
 
@@ -44,7 +44,7 @@ function distance(from: Coordinates, airport: OansAirport): number {
 }
 
 /**
- * The default airport of the OANS moving airport map (A380 FCOM DSC-34-10-70-20, MOVING AIRPORT MAP):
+ * The default airport of the OANS moving airport map:
  * - ARC or ROSE-NAV mode: the current airport on ground; in flight the origin, destination or alternate airport, while
  *   the aircraft is within a virtual cylinder of 20 NM radius and 5000 ft height centred over it.
  * - PLAN mode: in flight, the origin airport if it is closer than 50 NM to the aircraft, else the destination airport; the

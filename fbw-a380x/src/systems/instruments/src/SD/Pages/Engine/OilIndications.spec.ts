@@ -13,7 +13,6 @@ import {
 } from './OilIndications';
 import { AutoThrustMode } from '@shared/autopilot';
 
-/* A380 FCOM DSC-70-90 OIL QUANTITY, a380_fcom.txt l.113334-113349 */
 describe('SD ENGINE oil quantity', () => {
   it('pulses below the 1.2 qt oil advisory limit', () => {
     expect(oilQuantityPulses(1.1, 20, AutoThrustMode.SPEED)).toBe(true);
@@ -26,7 +25,6 @@ describe('SD ENGINE oil quantity', () => {
     expect(oilQuantityPulses(0.8, -10, AutoThrustMode.NONE)).toBe(false);
   });
 
-  /* l.113346-113348: "At takeoff or go-around, or ... When the alpha floor protection is active." */
   it('does not pulse at a FLEX or derated takeoff, a soft go-around or in alpha floor', () => {
     expect(oilQuantityPulses(0.8, 35, AutoThrustMode.MAN_FLEX)).toBe(false);
     expect(oilQuantityPulses(0.8, 35, AutoThrustMode.MAN_DTO)).toBe(false);
@@ -49,7 +47,6 @@ describe('SD ENGINE oil quantity', () => {
   });
 });
 
-/* A380 FCOM DSC-70-90 OIL TEMPERATURE, l.113357-113373 */
 describe('SD ENGINE oil temperature', () => {
   it('is green up to 163 °C, pulses green above 163 °C and is amber above 177 °C', () => {
     expect(oilTemperatureClass(100)).toBe('Green');
@@ -60,7 +57,6 @@ describe('SD ENGINE oil temperature', () => {
   });
 });
 
-/* A380 FCOM DSC-70-90 OIL PRESSURE, l.113376-113390 */
 describe('SD ENGINE oil pressure', () => {
   it('uses the non linear scale: 0-100 PSI on the first half, 100-440 PSI on the second half', () => {
     expect(oilPressureGaugeValue(0)).toBe(0);

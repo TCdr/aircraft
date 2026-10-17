@@ -14,7 +14,7 @@ export const EmergencyGenerator: FC<EmergencyGeneratorProps> = ({ x, y }) => {
   const [potential] = useSimVar('L:A32NX_ELEC_EMER_GEN_POTENTIAL', 'volts', 500);
   const [load] = useSimVar('L:A32NX_ELEC_EMER_GEN_LOAD', 'number', 500);
 
-  // A380 FCOM DSC-24-20 RAT LOAD: amber after 10 s above 108 % (l.51167); RAT VOLTAGE 110-120 V (l.51179)
+  // RAT load amber after 10 s above 108 %; normal RAT voltage 110-120 V
   const emerGenLoadNormal = !useGeneratorLoadAmber(load);
   const emerGenVoltageNormal = isGeneratorVoltageNormal(potential);
 

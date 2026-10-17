@@ -15,7 +15,6 @@ const Oxygen: React.FC<Position & SdacActive & OnGround & { oneEngineRunning: bo
   onGround,
   oneEngineRunning,
 }) => {
-  // The bottle pressures of the oxygen model (a380_systems oxygen.rs)
   const [crewBottlePressure] = useSimVar('L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE', 'number', 1000);
   const crewOxygenPressure = Math.round(crewBottlePressure);
   // CREW SUPPLY pb-sw: 1 when OFF (the SECURING THE AIRCRAFT checklist checks OXYGEN OFF with it)

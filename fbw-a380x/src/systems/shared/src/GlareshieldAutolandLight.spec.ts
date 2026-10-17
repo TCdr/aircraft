@@ -6,8 +6,8 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 
 /*
- * A380 FCOM DSC-22-FG-80-100 AUTOLAND light: it flashes in autoland below 200 ft RA when the autoland conditions are
- * lost, and "as long as the AUTOLAND light is pressed, the AUTOLAND light flashes" (light test). The behaviour lives in
+ * AUTOLAND light: it flashes in autoland below 200 ft RA when the autoland conditions are lost, and flashes as long as
+ * it is pressed (light test). The behaviour lives in
  * the cockpit XML, so this checks the glareshield template of both lights.
  */
 const glareshield = readFileSync(

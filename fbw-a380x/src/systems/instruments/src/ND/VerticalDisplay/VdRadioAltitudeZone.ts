@@ -4,21 +4,16 @@
 import { VdPlotArea } from './VdWxrElevnTiltLine';
 
 /**
- * The amber radio altitude zone of the Vertical Display, under the aircraft symbol.
+ * The amber radio altitude zone of the Vertical Display, under the aircraft symbol: the real location of the terrain
+ * from the measured radio altitude, shown while the radio altitude is below 5 000 ft. A narrow amber block centred on
+ * the dashed 0 NM line, from the ground under the aircraft down to the bottom of the VD.
  *
- * A380 FCOM DSC-31-20-40-10 (a380_fcom.txt l.69544-69548) and DSC-34-20-20-20 (l.89106-89108): "Indicates the real
- * location of the terrain. The zone elevation in amber is based on the measured radio-altimeter information. Appears
- * when the aircraft radio-altimeter altitude is below 5 000 ft."
- * The figure (FCOM PDF p. 2381, DSC-31-20-40-10 P 17/18) shows a narrow amber block centred on the dashed 0 NM line,
- * below the aircraft symbol, from the ground under the aircraft down to the bottom of the VD.
- *
- * Design choices (not in the FCOM): the ground elevation is the aircraft altitude of the VD scale minus the radio
- * height; the block is 18 px wide (about two thirds of the aircraft symbol, as in the figure); a ground below the
+ * Design choices: the ground elevation is the aircraft altitude of the VD scale minus the radio
+ * height; the block is 18 px wide (about two thirds of the aircraft symbol); a ground below the
  * vertical scale shows nothing, a ground above it fills the plot height.
  */
 
-/** "Appears when the aircraft radio-altimeter altitude is below 5 000 ft" (a380_fcom.txt l.69548) */
-export const VD_RADIO_ALTITUDE_ZONE_MAX_HEIGHT_FEET = 5000;
+const VD_RADIO_ALTITUDE_ZONE_MAX_HEIGHT_FEET = 5000;
 
 /** Width of the amber block, in VD pixels */
 export const VD_RADIO_ALTITUDE_ZONE_WIDTH = 18;
@@ -34,7 +29,7 @@ export interface VdRadioAltitudeZoneInputs {
   plot: VdPlotArea;
 }
 
-export interface VdRadioAltitudeZoneRect {
+interface VdRadioAltitudeZoneRect {
   x: number;
   y: number;
   width: number;

@@ -30,8 +30,7 @@ export const FuelPage = () => {
   const JETTISON_VALVE_CLOSED_THRESHOLD = 0.1;
   const FEED_TANK_LOW_LEVEL_THRESHOLD_KG = 1375;
 
-  // A380 FCOM DSC-28-20 (a380_fcom.txt l.58352-58371): the MORE key on the ECP shows the FUEL MORE page. The FWS owns
-  // the MORE state (EcamSdMore, FwsSystemDisplayLogic).
+  // The MORE key on the ECP shows the FUEL MORE page. The FWS owns the MORE state (EcamSdMore, FwsSystemDisplayLogic).
   const [moreShownVar] = useSimVar('L:A32NX_ECAM_SD_MORE_SHOWN', 'number', 200);
   const showMore = moreShownVar > 0;
 
@@ -146,8 +145,8 @@ export const FuelPage = () => {
   const [crossFeed3ValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:48', 'Percent over 100', 1000);
   const [crossFeed4ValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:49', 'Percent over 100', 1000);
 
-  // Feed pumps ON and running at low pressure or failed, and crossfeed valves abnormally closed or open (FCOM DSC-28-20
-  // FUEL SD page FEED TANK MAIN/STBY PUMP and CROSSFEED VALVE), from the CPIOM-F fuel monitoring (FuelPumpsAndValves)
+  // Feed pumps ON and running at low pressure or failed, and crossfeed valves abnormally closed or open, from the
+  // CPIOM-F fuel monitoring (FuelPumpsAndValves)
   const [feed1MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_1_MAIN_PMP_LO_PR', 'bool', 1000);
   const [feed1StbyPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_1_STBY_PMP_LO_PR', 'bool', 1000);
   const [feed2MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_2_MAIN_PMP_LO_PR', 'bool', 1000);
@@ -312,7 +311,6 @@ export const FuelPage = () => {
 
   const isTrimLineIsolated = areTrimLineIsolationValvesClosed && areTrimTankInletValvesClosed;
 
-  // Jettison valves
   const [leftJettisonValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:57', 'Percent over 100', 1000);
   const isLeftJettisonValveOpen = leftJettisonValveOpen >= JETTISON_VALVE_CLOSED_THRESHOLD;
   const [rightJettisonValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:58', 'Percent over 100', 1000);
@@ -323,7 +321,7 @@ export const FuelPage = () => {
   const leftJettisonIndication = jettisonValveIndication(isLeftJettisonValveOpen, isJettisonActive);
   const rightJettisonIndication = jettisonValveIndication(isRightJettisonValveOpen, isJettisonActive);
   // The jettison flow through the galleries: transfer pumps running, FWD gallery linked to the AFT gallery, jettison
-  // valves as AFT gallery outlets (FCOM DSC-28-40 l.60012-60031, FuelGalleryFlow.ts)
+  // valves as AFT gallery outlets
   const jettisonFlow = jettisonGalleryFlow(
     isJettisonActive,
     isLeftJettisonValveOpen,
@@ -817,7 +815,7 @@ export const FuelPage = () => {
     { x1: 592, y1: 346, x2: 602, y2: 362, active: true, displayWhenInactive: showMore },
   ];
 
-  // Collector cells, from the feed tanks (CpiomF/FuelCollectorCells); amber when not full (FCOM DSC-28-20 l.58553-58580)
+  // Collector cells, from the feed tanks (CpiomF/FuelCollectorCells); amber when not full
   const [collectorCell1Weight] = useSimVar(collectorCellQuantityVar(1), 'number', 1000);
   const isCollectorCell1NotFull = useCollectorCellState(collectorCell1Weight);
   const [collectorCell2Weight] = useSimVar(collectorCellQuantityVar(2), 'number', 1000);
@@ -901,7 +899,7 @@ export const FuelPage = () => {
   );
   const trimTankWeight = fqmsTrimTankWeight.valueOr(fqdc1TrimTankWeight.valueOr(fqdc2TrimTankWeight.valueOr(null)));
 
-  // Wing imbalance underlines (FCOM DSC-28-20, FuelImbalanceIndication.ts), with the trigger of FUEL WINGS NOT BALANCED
+  // Wing imbalance underlines, with the trigger of FUEL WINGS NOT BALANCED
   const [onGround] = useSimVar('SIM ON GROUND', 'bool', 1000);
   const [refuelStarted] = useSimVar('L:A32NX_REFUEL_STARTED_BY_USR', 'bool', 1000);
   const [refuelPanelOpen] = useSimVar('INTERACTIVE POINT OPEN:18', 'percent over 100', 1000);
@@ -980,7 +978,6 @@ export const FuelPage = () => {
         underline={imbalance.feed[0]}
       />
       {(showMore || isAnyCollectorCellNotFull) && (
-        // FEED TANK 1 collector cell
         <TankQuantity x={138} y={268} smallFont quantity={collectorCell1Weight} hasFault={isCollectorCell1NotFull} />
       )}
       <FeedTankTemperature x={130} y={326} temperature={feed1Temperature} showMore={showMore} />
@@ -1036,7 +1033,6 @@ export const FuelPage = () => {
         underline={imbalance.feed[1]}
       />
       {(showMore || isAnyCollectorCellNotFull) && (
-        // FEED TANK 2 collector cell
         <TankQuantity x={310} y={252} smallFont quantity={collectorCell2Weight} hasFault={isCollectorCell2NotFull} />
       )}
       <FeedTankTemperature x={298} y={314} temperature={feed2Temperature} showMore={showMore} />
@@ -1080,7 +1076,6 @@ export const FuelPage = () => {
         underline={imbalance.feed[2]}
       />
       {(showMore || isAnyCollectorCellNotFull) && (
-        // FEED TANK 3 collector cell
         <TankQuantity x={518} y={252} smallFont quantity={collectorCell3Weight} hasFault={isCollectorCell3NotFull} />
       )}
       <FeedTankTemperature x={504} y={314} temperature={feed3Temperature} showMore={showMore} />
@@ -1129,7 +1124,6 @@ export const FuelPage = () => {
         underline={imbalance.feed[3]}
       />
       {(showMore || isAnyCollectorCellNotFull) && (
-        // FEED TANK 4 collector cell
         <TankQuantity x={690} y={268} smallFont quantity={collectorCell4Weight} hasFault={isCollectorCell4NotFull} />
       )}
       <FeedTankTemperature x={672} y={326} temperature={feed4Temperature} showMore={showMore} />
@@ -1732,7 +1726,7 @@ interface EngineLpValveProps extends Position {
   engineNumber: number;
 }
 
-/** An engine LP valve and the fuel line from it to its engine, shown per FCOM DSC-28-20 (engineLpValveIndication) */
+/** An engine LP valve and the fuel line from it to its engine */
 const EngineLpValve: FC<EngineLpValveProps> = ({ x, y, engineNumber }) => {
   const [openPercentage] = useSimVar(`L:A32NX_FUEL_ENG_${engineNumber}_LP_VALVE_OPEN_PERCENTAGE`, 'percent', 1000);
   // The ENG MASTER lever drives the MSFS fuel valve switch of the same index
@@ -1820,7 +1814,7 @@ interface TankQuantityProps extends Position {
   smallFont?: boolean;
   quantity: number | null;
   hasFault?: boolean;
-  /** Amber underline of the wing imbalance (FuelImbalanceIndication.ts) */
+  /** Amber underline of the wing imbalance */
   underline?: boolean;
 }
 
@@ -1937,8 +1931,7 @@ const FuelTemperatureText: FC<FuelTemperatureProps & { amber: boolean }> = ({ x,
 );
 
 /**
- * A feed tank fuel temperature (A380 FCOM DSC-28-20 l.58763-58776): "The feed tank temperature appears, in case of low or
- * high temperature, or when the MORE key is pressed", amber above 53 °C or below -40 °C.
+ * A feed tank fuel temperature: shown when it is low or high, or on the MORE page; amber above 53 °C or below -40 °C.
  */
 const FeedTankTemperature: FC<FuelTemperatureProps & { showMore: boolean }> = ({ x, y, temperature, showMore }) => {
   const abnormal = isFeedTankTemperatureAbnormal(temperature);
@@ -1946,8 +1939,7 @@ const FeedTankTemperature: FC<FuelTemperatureProps & { showMore: boolean }> = ({
 };
 
 /**
- * An outer or trim tank fuel temperature (A380 FCOM DSC-28-20 l.58693-58713): displayed while its sensor is immersed,
- * amber below -40 °C.
+ * An outer or trim tank fuel temperature: displayed while its sensor is immersed, amber below -40 °C.
  */
 const OuterOrTrimTankTemperature: FC<
   FuelTemperatureProps & { tank: 'LEFT_OUTER' | 'RIGHT_OUTER' | 'TRIM'; quantity: number | null }

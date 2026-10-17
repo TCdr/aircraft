@@ -10,10 +10,7 @@ const normal = (height: number) =>
 const noComputedData = () => new Arinc429Word(Arinc429Word.getRawWord(0, Arinc429SignStatusMatrix.NoComputedData));
 const failed = () => new Arinc429Word(Arinc429Word.getRawWord(0, Arinc429SignStatusMatrix.FailureWarning));
 
-/*
- * A380 FCOM DSC-34-10-30 (a380_fcom.txt l.86462-86466): "Both PFD display the same height", the median of three RAs,
- * the average of two, else the remaining one.
- */
+/* Both PFDs show the same height: the median of three RAs, the average of two, else the remaining one. */
 describe('voteRadioAltitude', () => {
   it('three RAs: the median', () => {
     const voted = voteRadioAltitude([normal(100), normal(140), normal(120)]);

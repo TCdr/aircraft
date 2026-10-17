@@ -15,7 +15,7 @@ describe('FLT OPS page codes of the OITs', () => {
   });
 });
 
-describe('OIS MENU key (A380 FCOM DSC-46-20-20-50, a380_fcom.txt l.103028-103029)', () => {
+describe('OIS MENU key', () => {
   it('displays the FLT OPS Menu page', () => {
     expect(new XOisFunction().onOisMenuKey()).toBe(FLT_OPS_MENU_URI);
   });
@@ -28,7 +28,7 @@ describe('OIS MENU key (A380 FCOM DSC-46-20-20-50, a380_fcom.txt l.103028-103029
   });
 });
 
-describe('OIS XFR key, X-OIS (A380 FCOM DSC-46-20-30, a380_fcom.txt l.104889-104895)', () => {
+describe('OIS XFR key, X-OIS', () => {
   it('displays the current page of the other OIT, "X-OIS Activated", and follows it', () => {
     const xOis = new XOisFunction();
     expect(xOis.onOisXfrKey('flt-ops/sts', fltOpsPageCode('flt-ops/to-perf'))).toBe('flt-ops/to-perf');

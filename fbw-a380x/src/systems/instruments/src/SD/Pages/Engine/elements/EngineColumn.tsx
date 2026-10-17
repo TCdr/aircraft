@@ -40,13 +40,13 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   const startValveFault = startValveFaultValue ?? StartValveFault.None;
   const hasStartValveFault = startValveFault !== StartValveFault.None;
 
-  // FCOM DSC-70-90 N2: the red cross of an N3 exceedance stays until the next start of the engine on the ground
-  // (EngineVibration n3RedCrossShown). ENGINE_STATE 2 starting, 3 restarting.
+  // The red cross of an N3 exceedance stays until the next start of the engine on the ground.
+  // ENGINE_STATE 2 starting, 3 restarting.
   const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engine}`, 'number', 500);
   const [onGround] = useSimVar('SIM ON GROUND', 'bool', 500);
   const groundStart = !!onGround && (engineState === 2 || engineState === 3);
   const [n3RedCross, setN3RedCross] = useState(false);
-  // FCOM DSC-70-20-10: the aircraft network supplies the FADEC 15 min at power-up, 10 min after the FADEC GND PWR pb.
+  // The aircraft network supplies the FADEC 15 min at power-up, 10 min after the FADEC GND PWR pb.
   // The timers run in the SD instrument loop whatever page is shown (SD/index.tsx, FadecGroundPower); the page reads
   // their result every frame and re-renders when it changes.
   const fadecGroundPowerSupply = fadecGroundPowerSupplies[engine - 1];
@@ -71,7 +71,7 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   }, [N3, groundStart, fadecPowered]);
 
   const [fuelFlow] = useSimVar(`L:A32NX_ENGINE_FF:${engine}`, 'number', 100);
-  // The fuel filter clog failure (systems engine/fuel_filter_failure.rs) and the engine state (above), see FuelFilterIndication
+  // The fuel filter clog failure of the systems WASM (engine/fuel_filter_failure.rs)
   const [fuelFilterClogged] = useSimVar(`L:A32NX_ENGINE_${engine}_FUEL_FILTER_CLOGGED`, 'bool', 500);
 
   // The rotor vibrations of the systems WASM (see EngineVibration): MSFS has a single vibration value per engine.
@@ -80,7 +80,7 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   const [n3Vibration] = useSimVar(`L:A32NX_ENGINE_${engine}_N3_VIBRATION`, 'number', 250);
 
   const [oilQuantity] = useSimVar(`L:A32NX_ENGINE_OIL_QTY:${engine}`, 'number', 500); // TODO: Update with correct SimVars
-  // FCOM DSC-70-90 OIL QUANTITY: pulses below the 1.2 qt advisory, except at TOGA or in reverse (OilIndications),
+  // The oil quantity pulses below the 1.2 qt advisory, except at TOGA or in reverse,
   const [thrustLeverAngle] = useSimVar(`L:A32NX_AUTOTHRUST_TLA:${engine}`, 'number', 500);
   // and at a FLEX or derated takeoff, a go-around and in alpha floor (A/THR mode)
   const [autothrustMode] = useSimVar('L:A32NX_AUTOTHRUST_MODE', 'enum', 500);
@@ -115,7 +115,6 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
           {Math.ceil(NXUnits.kgToUser(fuelFlow) / 10) * 10}
         </text>
       )}
-      {/* FCOM DSC-70-90 FUEL FLOW: CLOGGED in amber below the fuel flow */}
       {fadecPowered && fuelFilterCloggedShown(!!fuelFilterClogged, engineState) && (
         <text x={x} y={y + 118} className="Amber MiddleAlign F22">
           CLOGGED

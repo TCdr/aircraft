@@ -6,7 +6,6 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { enginePumpIndication, EnginePumpLine } from './EnginePumpIndication';
 
-/* A380 FCOM DSC-29-20 ENGINE PUMPS (a380_fcom.txt l.61470-61492) */
 describe('SD HYD engine pump symbol', () => {
   it('on, pressure normal: green with the vertical line', () => {
     expect(enginePumpIndication(true, true, false)).toEqual({
@@ -24,7 +23,7 @@ describe('SD HYD engine pump symbol', () => {
     });
   });
 
-  it('abnormally pressurized (pb-sw OFF, pressure): amber with the vertical line (l.61475)', () => {
+  it('abnormally pressurized (pb-sw OFF, pressure): amber with the vertical line', () => {
     expect(enginePumpIndication(true, false, false)).toEqual({
       colour: 'Amber',
       line: EnginePumpLine.Vertical,

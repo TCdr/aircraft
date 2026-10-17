@@ -38,7 +38,6 @@ function temperatures(base: number, set: Record<number, number> = {}): number[] 
   return t;
 }
 
-/* A380 FCOM DSC-32-20-70 BRAKE TEMPERATURE (a380_fcom.txt l.81355-81373) */
 describe('WHEEL page hottest brake arcs', () => {
   it('has no arc while the hottest brake is at or below 100 °C', () => {
     expect(hottestBrakeArcs(temperatures(40, { 5: 100 }))).toEqual(temperatures(HottestBrakeArc.None));
@@ -71,7 +70,7 @@ describe('WHEEL page hottest brake arcs', () => {
     expect(arcs[0]).toBe(HottestBrakeArc.Green);
   });
 
-  it('colours the number amber above 300 °C (l.81367-81370) and rounds it to 5 °C', () => {
+  it('colours the number amber above 300 °C and rounds it to 5 °C', () => {
     expect(brakeTemperatureColour(300)).toBe('Green');
     expect(brakeTemperatureColour(301)).toBe('Amber');
     expect(roundBrakeTemperature(123)).toBe(125);
@@ -91,7 +90,6 @@ describe('WHEEL page hottest brake arcs', () => {
   });
 });
 
-/* A380 FCOM DSC-32-20-50 BRAKING CONTROL (l.81181-81193), DSC-32-20-60 STEERING CONTROL (l.81309-81322) */
 describe('WHEEL page BRK CTL and STEER CTL lines', () => {
   it('hides both lines without a fault and without MORE', () => {
     expect(brakeControlIndication(NO_FAULT, false).lineVisible).toBe(false);
@@ -151,7 +149,7 @@ describe('WHEEL page BRK CTL and STEER CTL lines', () => {
   });
 });
 
-describe('WING ACCU pressure indication (A380 FCOM DSC-32-20-50, l.81231-81253)', () => {
+describe('WING ACCU pressure indication', () => {
   it('shows the live accumulator pressure in green outside the amber arc, with MORE only', () => {
     expect(wingAccuIndication(5000, true)).toEqual({ visible: true, amber: false, needleKpsi: 5 });
     expect(wingAccuIndication(4100, true)).toEqual({ visible: true, amber: false, needleKpsi: 4.1 });
@@ -200,7 +198,6 @@ describe('WHEEL page wiring', () => {
   });
 });
 
-/* A380 FCOM DSC-32-20-70 TIRE PRESSURE (a380_fcom.txt l.81385-81395) */
 describe('WHEEL SD tire pressures', () => {
   const normal = () => new Array(22).fill(220);
 

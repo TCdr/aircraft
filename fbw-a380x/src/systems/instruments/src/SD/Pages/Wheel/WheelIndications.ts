@@ -5,13 +5,13 @@ import { isTirePressureAbnormal, TIRE_COUNT, tirePressureVar } from '@shared/Tir
 
 /*
  * Brake temperatures, tire pressures, the braking / steering control lines and the WING ACCU gauge of the WHEEL SD
- * page, A380 FCOM DSC-32-20-50/60/70.
+ * page.
  */
 
-/** A380 FCOM DSC-32-20-70 BRAKE TEMPERATURE (a380_fcom.txt l.81367-81370): "The brake temperature exceeds 300 °C." */
-export const BRAKE_TEMPERATURE_EXCESSIVE_C = 300;
-/** l.81361-81363: "The green arc displays only if the brake temperature exceeds 100 °C." */
-export const HOTTEST_BRAKE_GREEN_ARC_MIN_C = 100;
+/** Above this the brake temperature is excessive (amber) */
+const BRAKE_TEMPERATURE_EXCESSIVE_C = 300;
+/** The green hottest brake arc shows only above this brake temperature */
+const HOTTEST_BRAKE_GREEN_ARC_MIN_C = 100;
 
 /**
  * The brake temperature shown: steps of 5 °C between 0 and 995 °C (FBW display, kept).
@@ -23,7 +23,7 @@ export function roundBrakeTemperature(rawTemperature: number): number {
 }
 
 /**
- * Colour of the brake temperature (l.81357, l.81367-81370): amber when it exceeds 300 °C, else green.
+ * Colour of the brake temperature: amber when it exceeds 300 °C, else green.
  * @param rawTemperature the brake temperature in °C
  * @returns 'Amber' or 'Green'
  */
@@ -34,16 +34,15 @@ export function brakeTemperatureColour(rawTemperature: number): 'Amber' | 'Green
 /** The arc over a brake that marks the hottest brake of the aircraft */
 export enum HottestBrakeArc {
   None,
-  /** l.81361-81363: hottest brake, above 100 °C */
+  /** hottest brake, above 100 °C */
   Green,
-  /** l.81372-81373: hottest brake, above 300 °C */
+  /** hottest brake, above 300 °C */
   Amber,
 }
 
 /**
- * The arcs of the hottest brakes (l.81361-81363, l.81372-81373): "The green arc indicates that it is the hottest wheel
- * brake on the aircraft. The green arc displays only if the brake temperature exceeds 100 °C." / "The brake temperature
- * exceeds 300 °C. The amber arc indicates that is the hottest wheel brake on the aircraft."
+ * The arcs of the hottest brakes: the arc marks the hottest wheel brake of the aircraft, green above 100 °C, amber
+ * above 300 °C.
  * Design choice: the hottest brake is found on the displayed (rounded) temperatures, so brakes that show the same
  * highest value all get the arc, as the A32NX WHEEL page; the 100 °C and 300 °C thresholds use the measured value, as
  * the colour of the number (brakeTemperatureColour). A temperature that is not a finite number has no arc.
@@ -84,23 +83,21 @@ export interface WheelControlInputs {
 }
 
 /** The BRK CTL line and the AUTO BRAKE indication */
-export interface BrakeControlIndication {
+interface BrakeControlIndication {
   lineVisible: boolean;
   bcs1Failed: boolean;
   bcs2Failed: boolean;
   ebcuFailed: boolean;
-  /** l.81189-81193: "AUTO BRAKE ... Displayed when the AUTO BRK is failed." (with or without MORE) */
+  /** AUTO BRAKE shows when the autobrake is failed, with or without MORE */
   autoBrakeFailedVisible: boolean;
 }
 
 /**
- * BRK CTL line (A380 FCOM DSC-32-20-50, l.81181-81187): "The braking control line displays when: One or more braking
- * control systems are failed (BCS and/or EBCU), or The MORE key on the ECP is pressed." "BCS 1(2) operates normally." /
- * "The EBCU is failed."
- * Design choice: the BCS "controls the normal and the alternate braking modes and has two redundant control systems
- * referred to as BCS 1 and BCS 2" (l.78852-78853) and "BCS 1 and BCS 2 fail" reverts to the emergency braking
- * (l.80062-80063). The model has no BCS 1/2 split, only the normal, alternate and emergency braking faults: BCS 1 and
- * BCS 2 show failed together when both the normal and the alternate braking are failed; one BCS alone cannot fail.
+ * BRK CTL line: shown when one or more braking control systems (BCS 1, BCS 2, EBCU) are failed, or on the MORE page.
+ * Design choice: the BCS controls the normal and the alternate braking modes with two redundant systems, BCS 1 and
+ * BCS 2, and the loss of both reverts to the emergency braking. The model has no BCS 1/2 split, only the normal,
+ * alternate and emergency braking faults: BCS 1 and BCS 2 show failed together when both the normal and the alternate
+ * braking are failed; one BCS alone cannot fail.
  * @param inputs the brake faults
  * @param moreShown the WHEEL MORE page is shown (L:A32NX_ECAM_SD_MORE_SHOWN)
  * @returns the indication
@@ -117,16 +114,14 @@ export function brakeControlIndication(inputs: WheelControlInputs, moreShown: bo
 }
 
 /** The STEER CTL line */
-export interface SteeringControlIndication {
+interface SteeringControlIndication {
   lineVisible: boolean;
   scs1Failed: boolean;
   scs2Failed: boolean;
 }
 
 /**
- * STEER CTL line (A380 FCOM DSC-32-20-60, l.81309-81322): "The steering control line displays when: At least one
- * steering control system is failed, or The MORE key on the ECP is pressed." "SCS 1(2) operates normally." / "SCS 2(1)
- * is failed."
+ * STEER CTL line: shown when at least one steering control system (SCS 1, SCS 2) is failed, or on the MORE page.
  * @param inputs the SCS faults
  * @param moreShown the WHEEL MORE page is shown
  * @returns the indication
@@ -185,15 +180,14 @@ export function readTirePressures(read: (name: string) => number): number[] {
 }
 
 /** How the WHEEL SD page shows the pressure of one tire */
-export interface TirePressureIndication {
+interface TirePressureIndication {
   visible: boolean;
   amber: boolean;
 }
 
 /**
- * A380 FCOM DSC-32-20-70 TIRE PRESSURE (a380_fcom.txt l.81385-81395): green, "Displayed when: - The tire pressure is
- * normal - The MORE key on the ECP is pressed"; amber, "Displayed when: - The tire pressure is low, or - The difference
- * between the two tire pressures of the same axle is excessive" (thresholds of WHEEL TIRE PRESS LO, shared/TirePressures).
+ * Tire pressure: green when normal, shown on the MORE page; amber, always shown, when low or when the two tire
+ * pressures of the same axle differ too much (thresholds of WHEEL TIRE PRESS LO, shared/TirePressures).
  * @param pressuresPsi the TPIS pressures of tires 1 to 22
  * @param tire the tire, 1 to 22
  * @param flightPhase the FWS flight phase (L:A32NX_FWC_FLIGHT_PHASE)
@@ -209,9 +203,9 @@ export function tirePressureIndication(
   return { visible: amber || moreShown, amber };
 }
 
-/** A380 FCOM DSC-32-20-50 WING ACCU (a380_fcom.txt l.81253): "The amber arc ranges from 0 to 3480 PSI." */
+/** WING ACCU amber arc: 0 to 3480 PSI */
 export const WING_ACCU_AMBER_ARC_MAX_PSI = 3480;
-/** l.81248: "The green arc ranges from 4872 to more than 5000 PSI." */
+/** WING ACCU green arc: 4872 to more than 5000 PSI */
 export const WING_ACCU_GREEN_ARC_MIN_PSI = 4872;
 /** End of the gauge scale (5, x 1000 PSI) */
 export const WING_ACCU_SCALE_MAX_PSI = 5000;
@@ -226,12 +220,10 @@ export interface WingAccuIndication {
 }
 
 /**
- * WING ACCU pressure indication (A380 FCOM DSC-32-20-50, l.81231-81243): "Displayed when: The pressure of a wing brake
- * accumulator is low (in the amber arc), or The MORE key on the ECP is pressed." "The pressure indication shows the
- * lowest wing brake accumulator pressure. When in the amber arc, the pressure indication is amber. When outside the
- * amber arc, the pressure indication is green."
- * Design choice: the model has one brake accumulator (L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS) for the four of the aircraft
- * (l.80020-80022); it stands for the wing accumulators. A pressure that is not a finite number shows 0 psi, in amber.
+ * WING ACCU pressure indication: shown when a wing brake accumulator pressure is low (in the amber arc), or on the
+ * MORE page. It shows the lowest wing brake accumulator pressure, amber in the amber arc, else green.
+ * Design choice: the model has one brake accumulator (L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS) for the four of the aircraft;
+ * it stands for the wing accumulators. A pressure that is not a finite number shows 0 psi, in amber.
  * @param pressurePsi the brake accumulator pressure
  * @param moreShown the WHEEL MORE page is shown (L:A32NX_ECAM_SD_MORE_SHOWN)
  * @returns the indication

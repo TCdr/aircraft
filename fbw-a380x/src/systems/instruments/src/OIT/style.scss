@@ -319,7 +319,7 @@
   font-size: 24px;
 }
 
-/* "X-OIS Activated": the OIT shows the current display of the other OIT (A380 FCOM DSC-46-20-30 X-OIS FUNCTION) */
+/* "X-OIS Activated": the OIT shows the current display of the other OIT */
 .oit-x-ois-message {
   position: absolute;
   top: 70px;
@@ -331,7 +331,7 @@
   font-size: 22px;
 }
 
-/* "STANDALONE": the laptop is not connected to the aircraft network (A380 FCOM DSC-46-20-40 LAPTOP START) */
+/* "STANDALONE": the laptop is not connected to the aircraft network */
 .oit-login-page-standalone {
   position: absolute;
   top: 48%;

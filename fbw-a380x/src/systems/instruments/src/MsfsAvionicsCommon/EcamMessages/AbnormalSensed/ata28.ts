@@ -17,8 +17,8 @@ import { AbnormalProcedure, ChecklistLineStyle } from '..';
 //    9 for ABN non-sensed procedures
 
 /**
- * The lines of the FUEL LEAK DETECTED procedure (A380 FCOM PRO-ABN-ECAM-10-28, a380_fcom.txt l.152017-152277), shared by
- * the alert of the FQMS leak detection (281800073) and the ABN PROC FUEL LEAK (280900002).
+ * The lines of the FUEL LEAK DETECTED procedure, shared by the alert of the FQMS leak detection (281800073) and the ABN
+ * PROC FUEL LEAK (280900002).
  */
 const FUEL_LEAK_PROCEDURE_ITEMS: AbnormalProcedure['items'] = [
   { name: 'ALL TKs QTY & FOB & FU', sensed: false, labelNotCompleted: 'CHECK' },
@@ -73,9 +73,7 @@ const FUEL_LEAK_PROCEDURE_ITEMS: AbnormalProcedure['items'] = [
 ];
 
 /**
- * The lines of FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL (A380 FCOM PRO-ABN-ECAM-10-28, a380_fcom.txt l.149597-149607):
- * the pumps of the feed tank and of the opposite one (4(3)(2)(1)) ON and both crossfeeds ON, under IF NO FUEL LEAK;
- * for cells 2 and 3, the fuel of the feed tank that cannot be used (FwsFuelTankAlerts collectorCellNotFullLines).
+ * FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL; FwsFuelTankAlerts collectorCellNotFullLines chooses the lines shown.
  * @param cell the collector cell, 1 to 4
  */
 function collectorCellNotFullItems(cell: number): AbnormalProcedure['items'] {
@@ -96,8 +94,8 @@ function collectorCellNotFullItems(cell: number): AbnormalProcedure['items'] {
 }
 
 /**
- * The lines of FUEL FEED TK 1(2)(3)(4) TEMP HI (A380 FCOM l.150410-150426): on ground DELAY T.O; in flight ENG
- * PARAMETERS MONITOR, IF ABNORMAL: THR LEVER IDLE (FwsFuelTankAlerts feedTankTempHiLines).
+ * FUEL FEED TK 1(2)(3)(4) TEMP HI: DELAY T.O on ground, the other lines in flight (FwsFuelTankAlerts
+ * feedTankTempHiLines chooses them).
  * @param tank the feed tank, 1 to 4
  */
 function feedTankTempHiItems(tank: number): AbnormalProcedure['items'] {
@@ -180,7 +178,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800007: {
     title: '\x1b<4m\x1b4mFUEL\x1bm CG AT FWD LIMIT',
     sensed: true,
-    // A380 FCOM l.149358-149386 (FwsFuelCgWeightAlerts cgAtFwdLimitLines)
+    // FwsFuelCgWeightAlerts cgAtFwdLimitLines
     items: [
       { name: 'NO TRIM TK COLD FUEL', sensed: true, condition: true },
       { name: 'TRIM TK XFR', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
@@ -197,7 +195,6 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800008: {
     title: '\x1b<4m\x1b4mFUEL\x1bm CG DATA DISAGREE',
     sensed: true,
-    // A380 FCOM l.149457-149458
     items: [
       { name: 'ERROR > 8% DETECTED BY F/CTL', sensed: false, style: ChecklistLineStyle.Green },
       { name: 'FMS ZFWCG VALUE', sensed: false, labelNotCompleted: 'CONFIRM' },
@@ -206,7 +203,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800009: {
     title: '\x1b<4m\x1b4mFUEL\x1bm CG OUT OF RANGE',
     sensed: true,
-    // A380 FCOM l.149522-149529 (FwsFuelCgWeightAlerts cgOutOfRangeLines)
+    // FwsFuelCgWeightAlerts cgOutOfRangeLines
     items: [
       { name: 'DELAY ENG START', sensed: false, style: ChecklistLineStyle.Cyan },
       { name: 'AUTO GND XFR', sensed: true, labelNotCompleted: 'ON' },
@@ -256,31 +253,31 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800018: {
     title: '\x1b<4m\x1b4mFUEL\x1bm ENG 1 LP VLV FAULT',
     sensed: true,
-    // Before takeoff (A380 FCOM l.149722-149723)
+    // Before takeoff
     items: [{ name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800019: {
     title: '\x1b<4m\x1b4mFUEL\x1bm ENG 2 LP VLV FAULT',
     sensed: true,
-    // Before takeoff (A380 FCOM l.149722-149723)
+    // Before takeoff
     items: [{ name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800020: {
     title: '\x1b<4m\x1b4mFUEL\x1bm ENG 3 LP VLV FAULT',
     sensed: true,
-    // Before takeoff (A380 FCOM l.149722-149723)
+    // Before takeoff
     items: [{ name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800021: {
     title: '\x1b<4m\x1b4mFUEL\x1bm ENG 4 LP VLV FAULT',
     sensed: true,
-    // Before takeoff (A380 FCOM l.149722-149723)
+    // Before takeoff
     items: [{ name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800022: {
     title: '\x1b<4m\x1b4mFUEL\x1bm EXCESS AFT CG',
     sensed: true,
-    // A380 FCOM l.149783-149824 (FwsFuelCgWeightAlerts excessAftCgLines)
+    // FwsFuelCgWeightAlerts excessAftCgLines
     items: [
       { name: 'TRIM TK FEED', sensed: true, labelNotCompleted: 'AUTO' }, // If the trim tank is isolated
       { name: 'TRIM TK XFR', sensed: true, labelNotCompleted: 'FWD' }, // If the trim tank is not empty
@@ -651,14 +648,14 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800050: {
     title: '\x1b<4m\x1b4mFUEL\x1bm INR TK MAN XFR COMPLETED',
     sensed: true,
-    // A380 FCOM l.151103 (FwsFuelTankAlerts manualTransferCompletedLines)
+    // FwsFuelTankAlerts manualTransferCompletedLines
     items: [{ name: 'INR TK XFR', sensed: true, labelNotCompleted: 'AUTO' }],
   },
   281800051: {
     title: '\x1b<4m\x1b4mFUEL\x1bm INR TKs QTY LO',
     sensed: true,
     items: [
-      // A380 FCOM l.151138-151139 (the AUTO GND XFR pb-sw is INOP in the simulation: a crew check box)
+      // the AUTO GND XFR pb-sw is INOP in the simulation: a crew check box
       {
         name: 'REFUEL NOT PLANNED',
         sensed: false,
@@ -798,7 +795,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mFUEL\x1bm L WING FEED PMPs FAULT',
     sensed: true,
     items: [
-      // Before takeoff (A380 FCOM l.151757-151769)
+      // Before takeoff
       {
         name: 'FEED TK 1 MAIN PMP',
         sensed: true,
@@ -827,7 +824,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
         name: 'FEED TK 2 : 2000 KG MAX NOT USABLE',
         sensed: false,
       },
-      // After takeoff (l.151775-151873)
+      // After takeoff
       {
         name: 'ALL CROSSFEEDS',
         sensed: true,
@@ -936,7 +933,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mFUEL\x1bm R WING FEED PMPs FAULT',
     sensed: true,
     items: [
-      // Before takeoff (A380 FCOM l.151757-151769)
+      // Before takeoff
       {
         name: 'FEED TK 3 MAIN PMP',
         sensed: true,
@@ -965,7 +962,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
         name: 'FEED TK 3 : 2000 KG MAX NOT USABLE',
         sensed: false,
       },
-      // After takeoff (l.151775-151873)
+      // After takeoff
       {
         name: 'ALL CROSSFEEDS',
         sensed: true,
@@ -1089,7 +1086,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800075: {
     title: '\x1b<4m\x1b4mFUEL\x1bm MID TK MAN XFR COMPLETED',
     sensed: true,
-    // A380 FCOM l.152846 (FwsFuelTankAlerts manualTransferCompletedLines)
+    // FwsFuelTankAlerts manualTransferCompletedLines
     items: [{ name: 'MID TK XFR', sensed: true, labelNotCompleted: 'AUTO' }],
   },
   281800076: {
@@ -1122,7 +1119,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800080: {
     title: '\x1b<4m\x1b4mFUEL\x1bm OUTR TK MAN XFR COMPLETED',
     sensed: true,
-    // A380 FCOM PDF p.5252 (FwsFuelTankAlerts manualTransferCompletedLines)
+    // FwsFuelTankAlerts manualTransferCompletedLines
     items: [
       { name: 'OUTR TK XFR', sensed: true, labelNotCompleted: 'AUTO' },
       { name: 'EMER OUTR TK XFR', sensed: true, labelNotCompleted: 'OFF' }, // If the emergency transfer valves are open
@@ -1156,7 +1153,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800086: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TEMP LO',
     sensed: true,
-    // A380 FCOM l.153475-153502 (FwsFuelTankAlerts fuelTempLoLines)
+    // FwsFuelTankAlerts fuelTempLoLines
     items: [
       { name: 'DELAY T.O', sensed: false, style: ChecklistLineStyle.Cyan }, // On ground
       { name: 'INR TK XFR', sensed: true, labelNotCompleted: 'AUTO' }, // If a manual inner tank transfer is selected
@@ -1202,7 +1199,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800092: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK MAN XFR COMPLETED',
     sensed: true,
-    // A380 FCOM l.153841-153847 (FwsFuelTankAlerts manualTransferCompletedLines)
+    // FwsFuelTankAlerts manualTransferCompletedLines
     items: [
       { name: 'TRIM TK XFR', sensed: true, labelNotCompleted: 'AUTO' },
       { name: 'TRIM TK FEED', sensed: true, labelNotCompleted: 'AUTO' },
@@ -1226,7 +1223,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800096: {
     title: '\x1b<4m\x1b4mFUEL\x1bm WEIGHT DATA DISAGREE',
     sensed: true,
-    // A380 FCOM l.154399-154422 (198 400 lb = 90 000 kg)
+    // 198 400 lb = 90 000 kg
     items: [
       { name: 'ERROR > 90000 KG DETECTED BY F/CTL', sensed: false, style: ChecklistLineStyle.Green },
       { name: 'FMS ZFW VALUE', sensed: false, labelNotCompleted: 'CONFIRM' },
@@ -1246,7 +1243,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mFUEL\x1bm WINGS BALANCED',
     sensed: true,
     items: [
-      // Feed tanks 1 and 4 (A380 FCOM l.154610-154616)
+      // Feed tanks 1 and 4
       {
         name: 'FEED TK 1 & 4 BALANCED',
         sensed: false,
@@ -1282,7 +1279,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
         sensed: true,
         labelNotCompleted: 'OFF',
       },
-      // Feed tanks 2 and 3 (A380 FCOM l.154610-154616)
+      // Feed tanks 2 and 3
       {
         name: 'FEED TK 2 & 3 BALANCED',
         sensed: false,
@@ -1329,7 +1326,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mFUEL\x1bm WINGS NOT BALANCED',
     sensed: true,
     items: [
-      // On ground (A380 FCOM l.154852-154867)
+      // On ground
       {
         name: 'T.O PLANNED',
         sensed: false,
@@ -1355,7 +1352,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
         style: ChecklistLineStyle.Cyan,
         level: 1,
       },
-      // In flight, imbalance between feed tanks 1 and 4 (l.154869-154887)
+      // In flight, imbalance between feed tanks 1 and 4
       {
         name: 'FEED TK 1 & 4 NOT BALANCED',
         sensed: false,
@@ -1404,7 +1401,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
         labelNotCompleted: 'OFF',
         level: 1,
       },
-      // In flight, imbalance between feed tanks 2 and 3 (l.154869-154887)
+      // In flight, imbalance between feed tanks 2 and 3
       {
         name: 'FEED TK 2 & 3 NOT BALANCED',
         sensed: false,
@@ -1561,7 +1558,6 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
     ],
   },
   280900001: {
-    // A380 FCOM PRO-ABN-ECAM-10-28-80 FUEL JETTISON
     title: '\x1b<4m\x1b4mFUEL\x1bm JETTISON',
     sensed: false,
     items: [
@@ -1581,14 +1577,12 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
     ],
   },
   280900002: {
-    // A380 FCOM PRO-ABN-ECAM-10-28 FUEL LEAK DETECTED (ABN PROC FUEL LEAK)
     title: '\x1b<4m\x1b4mFUEL\x1bm FUEL LEAK',
     sensed: false,
     items: FUEL_LEAK_PROCEDURE_ITEMS,
     recommendation: 'LAND ANSA',
   },
   280900003: {
-    // A380 FCOM PRO-ABN-ECAM-10-28 FUEL MAN BALANCING PROCEDURE
     title: '\x1b<4m\x1b4mFUEL\x1bm MAN BALANCING PROCEDURE',
     sensed: false,
     items: [

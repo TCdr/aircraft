@@ -15,14 +15,14 @@ import {
 
 const KG_PER_LB = 0.45359237;
 
-describe('A380 fuel tank indications (FCOM DSC-28-10 / DSC-28-20 / PRO-ABN-ECAM-10-28)', () => {
+describe('A380 fuel tank indications', () => {
   it('names the L:vars written by the FQMS simulation', () => {
     expect(fuelTankTemperatureVar('FEED_1')).toBe('L:A380X_FUEL_FEED_1_TANK_TEMPERATURE');
     expect(fuelTankTemperatureVar('TRIM')).toBe('L:A380X_FUEL_TRIM_TANK_TEMPERATURE');
     expect(collectorCellQuantityVar(3)).toBe('L:A380X_FUEL_COLLECTOR_CELL_3_QUANTITY');
   });
 
-  it('has the FCOM collector cell capacity and thresholds (l.57268, l.149562-149564)', () => {
+  it('has the collector cell capacity and thresholds', () => {
     expect(COLLECTOR_CELL_CAPACITY_KG).toBeCloseTo(2_866 * KG_PER_LB, 3);
     expect(COLLECTOR_CELL_NOT_FULL_KG).toBeCloseTo(1_735 * KG_PER_LB, 3);
     expect(COLLECTOR_CELL_FULL_AGAIN_KG).toBeCloseTo(2_076 * KG_PER_LB, 3);
@@ -37,7 +37,7 @@ describe('A380 fuel tank indications (FCOM DSC-28-10 / DSC-28-20 / PRO-ABN-ECAM-
     expect(isCollectorCellNotFull(2_080 * KG_PER_LB, true)).toBe(false);
   });
 
-  it('outer and trim tank temperature sensors are immersed above 8 819 lb and 13 890 lb (l.58698-58701)', () => {
+  it('outer and trim tank temperature sensors are immersed above 8 819 lb and 13 890 lb', () => {
     expect(isTemperatureSensorImmersed('LEFT_OUTER', 8_800 * KG_PER_LB)).toBe(false);
     expect(isTemperatureSensorImmersed('RIGHT_OUTER', 8_850 * KG_PER_LB)).toBe(true);
     expect(isTemperatureSensorImmersed('TRIM', 13_800 * KG_PER_LB)).toBe(false);
@@ -46,7 +46,7 @@ describe('A380 fuel tank indications (FCOM DSC-28-10 / DSC-28-20 / PRO-ABN-ECAM-
     expect(isTemperatureSensorImmersed('FEED_2', 0)).toBe(false);
   });
 
-  it('a feed tank temperature is abnormal above 53 °C or below -40 °C (l.58772)', () => {
+  it('a feed tank temperature is abnormal above 53 °C or below -40 °C', () => {
     expect(isFeedTankTemperatureAbnormal(53)).toBe(false);
     expect(isFeedTankTemperatureAbnormal(53.5)).toBe(true);
     expect(isFeedTankTemperatureAbnormal(-40)).toBe(false);

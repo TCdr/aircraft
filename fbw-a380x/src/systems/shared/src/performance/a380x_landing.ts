@@ -31,13 +31,13 @@ const MPS_PER_KNOT = 0.514444;
 const GRAVITY = 9.80665;
 const FEET_PER_METRE = 3.28084;
 
-/** The forward CG limit in % MAC: the landing performance assumes the most forward CG (A380 FCOM PER-LND-LCD-ACC) */
+/** The forward CG limit in % MAC: the landing performance assumes the most forward CG */
 const FORWARD_CG = 29;
 
 /**
- * Landing field length on a dry runway in metres (Airbus A380 Aircraft Characteristics, Dec 01/25, FIGURE-3-4-1-991-001-A01,
- * "valid for all temperatures", extracted from the vector curves of the chart), for the pressure altitudes
- * {@link LFL_ALTITUDES} (rows) and the landing weights {@link LFL_WEIGHTS} (columns).
+ * Landing field length on a dry runway in metres (Airbus landing field length chart, valid for all temperatures,
+ * extracted from the vector curves of the chart), for the pressure altitudes {@link LFL_ALTITUDES} (rows) and the
+ * landing weights {@link LFL_WEIGHTS} (columns).
  */
 const LFL_WEIGHTS = [300, 320, 340, 360, 380, 400, 420, 430, 450];
 const LFL_ALTITUDES = [0, 2000, 4000, 6000, 8000];
@@ -49,9 +49,9 @@ const LFL = [
   [1887, 1984, 2078, 2172, 2270, 2359, 2469, 2541, 2681],
 ];
 
-/** The required landing distance on a dry runway is the actual landing distance divided by 0.6 (PER-LND-GEN) */
+/** The required landing distance on a dry runway is the actual landing distance divided by 0.6 */
 const DRY_DISPATCH_FACTOR = 1 / 0.6;
-/** The wet RLD is the dry RLD x 1.15, the contaminated RLD at least the contaminated ALD x 1.15 (PER-LND-GEN) */
+/** The wet RLD is the dry RLD x 1.15, the contaminated RLD at least the contaminated ALD x 1.15 */
 const WET_FACTOR = 1.15;
 
 /**
@@ -79,7 +79,7 @@ const RWYCC_DECELERATION: Record<number, number> = {
   1: DRY_DECELERATION / 3.926,
 };
 
-/** Deceleration targets of the autobrake modes (A380 FCOM DSC-32-10-30-20, basic AUTO BRK), and the part achieved */
+/** Deceleration targets of the basic autobrake modes, and the part achieved */
 const AUTOBRAKE_DECELERATION: Partial<Record<LandingBrakingMode, number>> = {
   [LandingBrakingMode.Lo]: 2.0,
   [LandingBrakingMode.Two]: 2.5,
@@ -93,15 +93,15 @@ const AUTOBRAKE_DELAY = 0.5;
 const REVERSER_DECELERATION = 0.15;
 /** Autoland: longer airborne phase (flare law), in seconds */
 const AUTOLAND_EXTRA_AIR_TIME = 1.5;
-/** Overweight landing: maximum braking after the nosewheel touchdown (PER-LND-GEN Overweight landing requirements) */
+/** Overweight landing: maximum braking only after the nosewheel touchdown */
 const OVERWEIGHT_BRAKING_DELAY = 2;
 
 /**
  * Approach climb gradient: gradient = T / W - K, with T the thrust of the three remaining engines at TOGA in tonnes
  * (flat rated up to ISA + 15, then 40 % less at ISA + 60, as the takeoff calculator) and K the drag to lift ratio of
- * the go-around configuration. T and K of CONF 3 come from the A380 FCOM example of in-flight landing results
- * (PER-LND-LDI P 3, PER-LND-LRF-FSR P 2): 386.0 t at a GA altitude of 1320 ft, ISA + 2, gives a GA gradient of
- * 8.939 %, and 569.0 t (the MLW(perf)) the minimum 2.7 %.
+ * the go-around configuration. T and K of CONF 3 are fitted on an Airbus example of in-flight landing results:
+ * 386.0 t at a GA altitude of 1320 ft, ISA + 2, gives a GA gradient of 8.939 %, and 569.0 t (the MLW(perf)) the
+ * minimum 2.7 %.
  */
 const GA_THRUST_SEA_LEVEL = 74.89 / (1 - 6.8756e-6 * 1320) ** (5.2559 * 0.7);
 const GA_DRAG_RATIO: Record<LandingGoAroundConf, number> = {
@@ -117,7 +117,7 @@ const GA_BLEED_FACTOR = {
 };
 
 /**
- * BTV DRY and WET lines (A380 FCOM DSC-32-10-30-20, computation principle): touchdown at 400 m from the threshold at
+ * BTV DRY and WET lines: touchdown at 400 m from the threshold at
  * least, touchdown ground speed from the approach speed and the wind, then the stopping distances of the FBW A380X BTV
  * (autobrakes.rs BrakingDistanceCalculator, the lines the ND and the OANS show): 5 s of roll before the braking, then
  * 2.8 m/s² on a dry runway (autobrake HI, no reverser) and 1.8 m/s² on a wet one (1/4 in of water, maximum braking and
@@ -133,7 +133,7 @@ const GA_CONF_IN_SPEED_TABLES: Record<LandingGoAroundConf, ApproachConf> = {
   [LandingGoAroundConf.Conf1F]: ApproachConf.CONF_1F,
 };
 
-/** The runway conditions of the A380 LDG PERF application (A380 FCOM PER-LND-LCD-OCD Runway conditions) */
+/** The runway conditions of the A380 LDG PERF application */
 const RUNWAY_CONDITIONS = [
   LandingRunwayCondition.Dry,
   LandingRunwayCondition.Wet,
@@ -178,14 +178,14 @@ function densityRatio(pressureAlt: number, temperature: number): number {
 }
 
 /**
- * Landing performance calculator of the A380-842, after the LDG PERF application of the A380 FCOM (PER-LND): DISPATCH
- * and IN-FLIGHT computations, required and actual landing distances, stop margin, VAPP, go-around gradient and speed,
- * MLW(PERF) and its limitation code, AUTO CONF.
+ * Landing performance calculator of the A380-842, after the aircraft's LDG PERF application: DISPATCH and IN-FLIGHT
+ * computations, required and actual landing distances, stop margin, VAPP, go-around gradient and speed, MLW(PERF) and
+ * its limitation code, AUTO CONF.
  *
- * The data: the landing field length chart of the Airbus Aircraft Characteristics (dry runway, manual landing, CONF
- * FULL, VAPP = VLS, no wind), the regulatory rules of the FCOM (RLD = ALD / 0.6 on a dry runway, x 1.15 on a wet
- * runway, 50 % of the headwind and 150 % of the tailwind, the temperature only for water contaminated runways and
- * autoland, the slope only for autoland), and its example of in-flight results for the go-around gradient.
+ * The data: the Airbus landing field length chart (dry runway, manual landing, CONF FULL, VAPP = VLS, no wind), the
+ * regulatory rules (RLD = ALD / 0.6 on a dry runway, x 1.15 on a wet runway, 50 % of the headwind and 150 % of the
+ * tailwind, the temperature only for water contaminated runways and autoland, the slope only for autoland), and an
+ * Airbus example of in-flight results for the go-around gradient.
  * Everything else is an estimate (see the constants): the other runway conditions, the autobrake modes, the reversers,
  * the autoland, the go-around gradient.
  */
@@ -197,13 +197,13 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
 
   public readonly oew = 300_006;
 
-  /** A380 FCOM LIM-12 */
+  /** The aircraft's tailwind limit at landing, kt */
   public readonly maxTailwind = 10;
 
   /** The highest airfield altitude of the Airbus chart */
   public readonly maxPressureAlt = 8_000;
 
-  /** A380 FCOM PER-LND-LCD-ACC Go-around gradient: 2.7 % whatever the approach type (four engines) */
+  /** 2.7 % whatever the approach type (four engines) */
   public readonly minGoAroundGradient = 2.7;
 
   public readonly features = {
@@ -216,7 +216,7 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
     btv: true,
   };
 
-  /** A380 FCOM LIM-12 */
+  /** The aircraft's runway slope limit, % */
   private static readonly MAX_SLOPE = 2;
 
   public runwayConditions(_type: LandingComputationType): LandingRunwayCondition[] {
@@ -246,9 +246,8 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
 
   /**
    * The maximum landing crosswind, gust included: 40 kt on dry and wet runways (the maximum certified crosswind at
-   * landing, increased from 35 kt to 40 kt by an A380 FCOM revision for the EA engines), and from A380 FCOM
-   * PER-LND-CTA-CWD 20 kt with slush or dry snow, 15 kt with standing water or compacted snow (friction 0.2, poor), 5 kt
-   * on an icy runway.
+   * landing, raised from 35 kt to 40 kt for the EA engines); 20 kt with slush or dry snow, 15 kt with standing water
+   * or compacted snow (friction 0.2, poor), 5 kt on an icy runway.
    */
   public crosswindLimit(condition: LandingRunwayCondition, _oat: number): number {
     switch (condition) {
@@ -300,7 +299,7 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
     }
 
     // AUTO CONF: landing in FULL if its go-around in CONF 3 has the gradient, otherwise in CONF 3 with a go-around in
-    // CONF 2, and for an overweight landing CONF 3 with a go-around in CONF 1+F (PER-LND-LCF-ACC)
+    // CONF 2, and for an overweight landing CONF 3 with a go-around in CONF 1+F
     const cases = this.confCases(inputs, result.overweight);
     const chosen = cases.find((c) => this.goAroundGradient(inputs, weight, c) >= inputs.goAroundGradient) ?? cases[0];
     result.conf = chosen.conf;
@@ -318,7 +317,7 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
     result.stopMargin = inputs.lda - result.landingDistance;
     result.airDistance = this.groundSpeed(inputs, result.vapp, pressureAlt) * TOUCHDOWN_TIME;
     if (inFlight) {
-      // BTV on dry and wet runways only (A380 FCOM DSC-32-20-220)
+      // BTV on dry and wet runways only
       result.brakingDistances = this.brakingModes()
         .filter((mode) => mode !== LandingBrakingMode.Btv || isBtvRunwayCondition(inputs.runwayCondition))
         .map(
@@ -412,7 +411,7 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
   }
 
   /**
-   * The go-around speed of the approach climb (PER-LND-LRD-DSR Go-around speed): VLS of the go-around configuration for
+   * The go-around speed of the approach climb: VLS of the go-around configuration for
    * a CAT I approach; for CAT II, also at least VLS of the landing configuration + 5 kt and VMCL + 5 kt.
    */
   private goAroundSpeed(inputs: LandingPerformanceInputs, weight: number, c: ConfCase): number {
@@ -444,7 +443,7 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
     return { touchdown: BTV_TOUCHDOWN_DISTANCE, dry: stop(BTV_DRY_DECELERATION), wet: stop(BTV_WET_DECELERATION) };
   }
 
-  /** Ground speed at the threshold in m/s: 50 % of the headwind, 150 % of the tailwind (PER-LND-LCD-OCD Wind) */
+  /** Ground speed at the threshold in m/s: 50 % of the headwind, 150 % of the tailwind */
   private groundSpeed(
     inputs: LandingPerformanceInputs,
     ias: number,
@@ -495,7 +494,7 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
    * The actual landing distance (50 ft above the threshold to the stop) in metres: the chart distance, changed in the
    * ratio of the model distance with the conditions to the model distance of the chart.
    * @param brakingMode an autobrake mode, the maximum manual braking when undefined or MANUAL; BTV: the DRY or WET line
-   *   (the landing distance in autoland and with autobrake before the runway exit is selected, FCOM DSC-32-20-220)
+   *   (the landing distance in autoland and with autobrake before the runway exit is selected)
    * @param dry the distance on a dry runway whatever the runway condition
    */
   private actualLandingDistance(
@@ -520,7 +519,6 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
     }
 
     // The temperature counts on water contaminated runways and for autoland only, the slope for autoland only
-    // (PER-LND-LCD-OCD Outside air temperature, PER-LND-LCD-RWY Slope)
     const withTemperature = inputs.autoland || WATER_CONTAMINATED.includes(condition);
     const groundSpeed = this.groundSpeed(inputs, vapp, pressureAlt, withTemperature ? inputs.oat : undefined);
 
@@ -558,7 +556,7 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
   }
 
   /**
-   * The required landing distance of the DISPATCH computation (PER-LND-GEN Landing distance definitions): dry ALD / 0.6,
+   * The required landing distance of the DISPATCH computation: dry ALD / 0.6,
    * wet x 1.15, contaminated the greater of the wet RLD and the contaminated ALD x 1.15; autoland the greater of its ALD
    * x 1.15 and the manual RLD.
    */

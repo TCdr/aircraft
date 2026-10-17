@@ -6,30 +6,25 @@ import { AtsuMessageNetwork, AtsuStatusCodes, FreetextMessage, WeatherMessage } 
 import { EventBus, Subject, Subscribable, Subscription } from '@microsoft/msfs-sdk';
 
 /*
- * The weather request and the free text of the COMPANY COM application of the OIT (AOC, A380 FCOM DSC-46-40).
- * a380_fcom.txt l.107840-107846: "The AOC application enables Operators to: - Manage flight operations: Data
- * initialization, flight log, flight summary, free text, [...] - Check the weather status: TAF, METAR, or SIGMET".
- * l.107848-107850: "Due to the fact that Operators can customize the AOC application, this chapter only provides a
- * general description of the application."
+ * The weather request and the free text of the COMPANY COM application of the OIT (AOC). The operators customise the
+ * AOC application; it covers flight operations (data initialization, flight log, flight summary, free text...) and the
+ * weather status (TAF, METAR, SIGMET).
  *
  * The AOC of the systems host (fbw-common datalink, the same backend as the A32NX MCDU AOC pages) sends them: the OIT
  * publishes the requests on the event bus as the A32NX FMS client does (aocRequestWeather, aocSendFreetextMessage), and
  * hands a received weather report back to the AOC (aocRegisterWeatherMessages), which puts it in the COMPANY COM inbox.
  *
- * Design choices (customised by the operators, no FCOM layout):
+ * Design choices (customised by the operators, no common layout):
  * - Up to four airports per weather request, METAR or TAF (as the A32NX MCDU AOC WEATHER REQ page). No SIGMET: the
  *   datalink backend has none.
  * - The free text goes to one station (callsign), four lines of 24 characters, on the Hoppie network.
  * - The airline-only functions (INIT data, NOTAM, delays, ramp service...) stay disabled: there is no airline.
  */
 
-/** The airports of one weather request */
 export const MAX_WEATHER_AIRPORTS = 4;
 
-/** The lines of a free text */
 export const FREE_TEXT_LINES = 4;
 
-/** The characters of a free text line */
 export const FREE_TEXT_LINE_LENGTH = 24;
 
 /** No answer of the AOC within this time: the request failed, ms */

@@ -33,7 +33,7 @@ function fly(segments: Segment[]) {
   return said;
 }
 
-describe('A380 intermediate callout words (a380_fcom.txt l.86544-86547)', () => {
+describe('A380 intermediate callout words', () => {
   it('between 400 ft and 100 ft: the height rounded to the lower 10 ft, hundreds then tens', () => {
     expect(intermediateCalloutWords(229)).toEqual(['intermediate_200', 'intermediate_20']);
     expect(intermediateCalloutWords(399)).toEqual(['intermediate_300', 'intermediate_90']);
@@ -69,7 +69,7 @@ describe('A380 intermediate callout words (a380_fcom.txt l.86544-86547)', () => 
   });
 });
 
-describe('A380 intermediate callout timing (a380_fcom.txt l.86539-86543)', () => {
+describe('A380 intermediate callout timing', () => {
   it('between 400 ft and 100 ft: 11 s after the previous predetermined callout, then every 11 s', () => {
     const said = fly([
       { seconds: 0.125, height: 400, predetermined: true },

@@ -542,8 +542,8 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
-  // TAIL STRIKE and TAIL STRIKE DET FAULT (a380_fcom.txt l.147331-147385), see FwsTailStrikeAlerts. TAIL STRIKE shows
-  // LAND ANSA (LIMITATIONS ON ECAM, ALL PHASES); its other FCOM lines are crew guidance, not ECAM actions.
+  // TAIL STRIKE and TAIL STRIKE DET FAULT, see FwsTailStrikeAlerts. TAIL STRIKE shows LAND ANSA (LIMITATIONS ON ECAM,
+  // ALL PHASES); its other lines are crew guidance, not ECAM actions.
   271800071: {
     title: '\x1b<4mTAIL STRIKE',
     recommendation: 'LAND ANSA',

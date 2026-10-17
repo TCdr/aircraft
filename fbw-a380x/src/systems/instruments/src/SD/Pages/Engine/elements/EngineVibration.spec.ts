@@ -17,14 +17,14 @@ describe('A380X SD ENGINE page vibrations and N3', () => {
     expect(n3ClassName(118.8)).toBe('Red');
   });
 
-  // FCOM DSC-70-90 N2 (l.113300-113302): red cross with the exceedance, gone after a subsequent engine start on ground
+  // The red cross appears with the exceedance and goes after a subsequent engine start on the ground
   it('shows the N3 red cross above 118.7 % and keeps it once the N3 is back below the limit', () => {
     expect(n3RedCrossShown(false, 118.7, false, true)).toBe(false);
     expect(n3RedCrossShown(false, 118.8, false, true)).toBe(true);
     expect(n3RedCrossShown(true, 95, false, true)).toBe(true);
   });
 
-  // a380_fcom.txt l.73512-73516: "If a parameter value on any SD page is not available for display, XX appears"
+  // A parameter value that is not available for display shows XX on any SD page
   it('latches no N3 red cross on an N3 the FADEC does not send (XX) or that is not a finite number', () => {
     expect(n3RedCrossShown(false, 125, false, false)).toBe(false);
     expect(n3RedCrossShown(false, Infinity, false, true)).toBe(false);

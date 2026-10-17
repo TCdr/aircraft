@@ -24,7 +24,6 @@ interface WheelBogeyProps {
   moreActive: boolean;
   /** The temperatures of brakes 1 to 16 in °C, brake 1 first */
   brakeTemperatures: readonly number[];
-  /** The hottest brake arcs of brakes 1 to 16 (WheelIndications hottestBrakeArcs) */
   hottestBrakeArcs: readonly HottestBrakeArc[];
   /** The TPIS pressures of tires 1 to 22 in PSI (shared/TirePressures numbering) */
   tirePressures: readonly number[];

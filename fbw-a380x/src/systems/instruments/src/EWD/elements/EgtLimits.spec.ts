@@ -25,8 +25,7 @@ import {
   trimmedEgt,
 } from './EgtLimits';
 
-/* A380 FCOM DSC-70-90 EGT LIMIT / EGT RED LINE (a380_fcom.txt l.113170-113203): 970 °C amber, 1 002 °C red line */
-describe('EWD EGT limits of the FCOM', () => {
+describe('EWD EGT limits', () => {
   it('has the 970 °C EGT limit, the 1 002 °C red line and the takeoff values 1 022 °C / 20 s', () => {
     expect(EGT_LIMIT_C).toBe(970);
     expect(EGT_RED_LINE_C).toBe(1002);
@@ -35,7 +34,7 @@ describe('EWD EGT limits of the FCOM', () => {
   });
 });
 
-/* A380 FCOM DSC-70-90 EGT INDICATIONS / EGT LIMIT: no amber indication during takeoff or with the reversers selected. */
+/* No amber EGT indication during takeoff or with the reversers selected. */
 describe('EWD EGT limits from the thrust limit type', () => {
   it('is amber above the limit at MCT (the TLA of about 25 degrees made it green)', () => {
     expect(egtColour(970, ThrustLimitType.Mct)).toBe('Green');
@@ -80,9 +79,8 @@ describe('EWD EGT limits from the thrust limit type', () => {
 });
 
 /*
- * A380 FCOM DSC-70-90 EGT INDICATIONS (a380_fcom.txt l.113170-113177): "The EGT indication appears in red: During
- * takeoff, if the EGT is: At or above 1 022 °C, or At or above 1 002 °C, for more than 20 s. During all other phases, if
- * the EGT is at or above 1 002 °C."
+ * The EGT is red during takeoff at or above 1 022 °C, or at or above 1 002 °C for more than 20 s; during all other phases
+ * at or above 1 002 °C.
  */
 describe('EWD EGT red indication during takeoff', () => {
   it('is red at once from 1 022 °C at FLEX and TOGA', () => {
@@ -185,7 +183,7 @@ describe('EWD EGT with the engine failures (stage B4)', () => {
     expect(memory.exceeded).toBe(false);
   });
 
-  // a380_fcom.txt l.73512-73516: a parameter that is not available shows XX instead of its value
+  // a parameter that is not available shows XX instead of its value
   it('latches no red mark on an EGT the FADEC does not send (XX)', () => {
     const memory = new ExceedanceMemory(900);
     memory.update(1200, false, false);
@@ -203,7 +201,7 @@ describe('EWD EGT with the engine failures (stage B4)', () => {
     expect(memory.highestValue).toBe(950);
   });
 
-  it('has the FCOM N1 and N2 (FBW N3) red limits of 111 % and 118.7 %', () => {
+  it('has the N1 and N2 (FBW N3) red limits of 111 % and 118.7 %', () => {
     expect(n1Exceeds(111)).toBe(false);
     expect(n1Exceeds(111.1)).toBe(true);
     expect(n3Exceeds(118.7)).toBe(false);
@@ -211,7 +209,6 @@ describe('EWD EGT with the engine failures (stage B4)', () => {
   });
 });
 
-/* A380 FCOM DSC-70-90 EGT LIMIT (a380_fcom.txt l.113189-113192): 745 °C ground start, 865 °C relight in flight */
 describe('EWD EGT limit during a start sequence', () => {
   it('is 745 °C during a ground start (STARTING or RESTARTING)', () => {
     expect(EGT_START_LIMIT_C).toBe(745);

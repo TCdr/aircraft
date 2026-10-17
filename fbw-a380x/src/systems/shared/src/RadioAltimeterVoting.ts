@@ -15,11 +15,7 @@ function toWord(word: Arinc429WordData): Arinc429Word {
 
 /**
  * The radio height the A380 shows on both PFDs and uses for the automatic callouts, voted from the three radio
- * altimeters (a380_fcom.txt l.86462-86466, DSC-34-10-30):
- * "Both PFD display the same height",
- * "When all three RA are available the displayed height is the median value.
- *  If only two RA are available, the displayed height is the average value.
- *  If only one RA is available the displayed height is the remaining value."
+ * altimeters: the median of three usable RAs, the average of two, else the remaining one.
  *
  * With no usable RA, a no-computed-data word is kept in preference to a failed one, so the PFD shows the
  * RA flag only when no radio altimeter is merely out of range.

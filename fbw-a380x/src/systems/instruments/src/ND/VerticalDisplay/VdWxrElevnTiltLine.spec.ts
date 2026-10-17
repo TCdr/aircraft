@@ -25,7 +25,7 @@ const inputs = (i: Partial<VdWxrElevnTiltLineInputs>): VdWxrElevnTiltLineInputs 
   ...i,
 });
 
-describe('VD white line of the WXR ELEVN/TILT selection (A380 FCOM DSC-34-20-30-20)', () => {
+describe('VD white line of the WXR ELEVN/TILT selection', () => {
   it('is not shown in the AUTO mode', () => {
     expect(vdWxrElevnTiltLine(inputs({ mode: VdWxrElevnTiltMode.Auto }))).toBeNull();
   });

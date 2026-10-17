@@ -50,7 +50,7 @@ const OilQuantityGauge: FC<OilQuantityGaugeProps> = ({ x, y, engine, active, val
               className="White SW2"
               showValue={false}
             />
-            {/* FCOM DSC-70-90 OIL QUANTITY: the first white dash is the 1.2 qt oil advisory limit */}
+            {/* The first white dash is the oil advisory limit */}
             <GaugeMarkerComponent
               value={OIL_QTY_ADVISORY_QT}
               x={x}

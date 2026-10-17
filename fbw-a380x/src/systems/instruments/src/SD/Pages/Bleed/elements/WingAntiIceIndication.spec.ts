@@ -12,7 +12,6 @@ const off: WingAntiIceInputs = {
   highPressure: false,
 };
 
-/* A380 FCOM DSC-30-10-20 BLEED SYSTEM DISPLAY, WING A-ICE INDICATION (a380_fcom.txt l.62050-62079) */
 describe('SD BLEED WING A-ICE indication', () => {
   it('is not displayed when wing anti-ice is off', () => {
     expect(wingAntiIceIndication(off)).toBe('hidden');

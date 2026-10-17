@@ -3,8 +3,7 @@
 
 /*
  * The Tire Pressure Indicating System (TPIS) of the A380, shared by the TPIS model (systems-host Misc/Tpis.ts) and the
- * SD WHEEL page (instruments SD Wheel). A380 FCOM DSC-32-10-60 TPIS (a380_fcom.txt l.80813-80826), DSC-32-20-70 TIRE
- * PRESSURE (l.81385-81395) and PRO-ABN-ECAM-10-32 WHEEL TIRE PRESS LO (l.163270-163289).
+ * SD WHEEL page (instruments SD Wheel).
  *
  * Tires 1 to 20 are the main gear tires, numbered as on the SD WHEEL page (wing gears 1-8, body gears 9-20); tire 21 is
  * the left nose tire and tire 22 the right one. The two tires of an axle are 2n-1 and 2n.
@@ -14,24 +13,20 @@ export const TIRE_COUNT = 22;
 export const NOSE_LEFT_TIRE = 21;
 export const NOSE_RIGHT_TIRE = 22;
 
-/** "The normal tire pressure is 217.5. PSI" (l.163283) */
 export const TIRE_NORMAL_PRESSURE_PSI = 217.5;
 
-/** "The TPIS can measure pressures from 0 to 400 PSI by 5 PSI steps." (l.80822) */
-export const TPIS_MAX_PRESSURE_PSI = 400;
-export const TPIS_STEP_PSI = 5;
+const TPIS_MAX_PRESSURE_PSI = 400;
+const TPIS_STEP_PSI = 5;
 
 /**
- * WHEEL TIRE PRESS LO (l.163276-163289): "Any tire pressure is lower than the minimum value [...] a percentage of the
- * normal tire pressure: - 11 % during flight phases 1 to 5 - 26 % during flight phases 6 to 11", or "The pressures of two
- * tires on the same axle are different [...] minimum difference [...] - 15 % during flight phases 1 to 5 - 21 % during
- * flight phases 6 to 11." Design reading: the minimum value is the normal pressure less that percentage, and the
- * difference is a percentage of the normal pressure too.
+ * WHEEL TIRE PRESS LO: a tire pressure below a minimum (11 % below normal in flight phases 1 to 5, 26 % in phases 6 to
+ * 11), or two tires of an axle differing by at least 15 % (phases 1 to 5) or 21 % (phases 6 to 11). Design reading:
+ * both percentages are of the normal tire pressure.
  */
-export const TIRE_LOW_FRACTION_GROUND = 0.11;
-export const TIRE_LOW_FRACTION_FLIGHT = 0.26;
-export const AXLE_DIFFERENCE_FRACTION_GROUND = 0.15;
-export const AXLE_DIFFERENCE_FRACTION_FLIGHT = 0.21;
+const TIRE_LOW_FRACTION_GROUND = 0.11;
+const TIRE_LOW_FRACTION_FLIGHT = 0.26;
+const AXLE_DIFFERENCE_FRACTION_GROUND = 0.15;
+const AXLE_DIFFERENCE_FRACTION_FLIGHT = 0.21;
 
 /** The L:var of the TPIS pressure of a tire (1 to 22), PSI */
 export function tirePressureVar(tire: number): string {
@@ -56,7 +51,7 @@ function usesFlightThresholds(flightPhase: number): boolean {
 
 /**
  * Whether the pressure of a tire is abnormal: low, or too different from the other tire of its axle. The SD WHEEL page
- * then shows it in amber, whatever the MORE key (l.81391-81395).
+ * then shows it in amber, whatever the MORE key.
  * @param pressuresPsi the TPIS pressures of tires 1 to 22 (index 0 = tire 1)
  * @param tire the tire, 1 to 22
  * @param flightPhase the FWS flight phase

@@ -2,20 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The white line of the weather radar's manual ELEVN and TILT modes on the Vertical Display.
+ * The white line of the weather radar's manual ELEVN and TILT modes on the Vertical Display: a horizontal white line at
+ * the selected altitude ahead of the aircraft symbol (ELEVN), or a straight white line from the aircraft symbol's nose
+ * along the selected tilt angle (TILT). It goes with the ELEVN / TILT message and value on the ND. Zero tilt is the
+ * horizon as seen by the ADIRS.
  *
- * A380 FCOM DSC-34-20-30-20 (ELEVN knob): "The VD displays a white line indicating the elevation or tilt value."
- * ELEVN/TILT option list: ELEVN is "associated with the ELEVN message and the selected value on the ND" and "with the
- * white line indicating the selected altitude on the VD"; TILT is "associated with the TILT message and the selected
- * value on the ND" and "with the white line indicating the selected tilt value on the VD".
- * VD, ELEVN AND TILT INDICATIONS (figures, PDF p. 3196-3197): a horizontal white line at the selected altitude ahead of
- * the aircraft symbol (ELEVN), a straight white line from the aircraft symbol's nose along the tilt angle (TILT).
- * DSC-34-20-30-10: "Zero tilt value indicates the horizon as seen by the ADIRS."
- *
- * Design choices (not in the FCOM):
+ * Design choices:
  * - the line runs from the aircraft (0 NM) to the end of the VD range, cut to the plot; a selected altitude off the
- *   vertical scale shows no line (the FCOM gives no off-scale indication).
- * - the TILT line is straight, as in the figure: the earth's curvature and the beam refraction are not applied.
+ *   vertical scale shows no line (the aircraft has no off-scale indication).
+ * - the TILT line is straight, as on the aircraft display: the earth's curvature and the beam refraction are not applied.
  */
 
 /** ELEVN/TILT option list of the MFD SURV/CONTROLS page (L:A380X_WXR_ELEVN_TILT_MODE) */
@@ -62,7 +57,7 @@ export interface VdWxrElevnTiltLineInputs {
   plot: VdPlotArea;
 }
 
-export interface VdLine {
+interface VdLine {
   x1: number;
   y1: number;
   x2: number;
@@ -98,7 +93,6 @@ export function vdWxrElevnTiltLine(i: VdWxrElevnTiltLineInputs): VdLine | null {
     ) {
       return null;
     }
-    // The altitude the tilt line reaches at the end of the VD range
     const endAltitude =
       i.aircraftAltitudeFeet + i.vdRangeNm * FEET_PER_NAUTICAL_MILE * Math.tan((i.tiltDegrees * Math.PI) / 180);
     return clipToPlot(

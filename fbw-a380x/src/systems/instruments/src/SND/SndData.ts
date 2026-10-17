@@ -3,7 +3,6 @@
 
 import { Arinc429Word } from '@flybywiresim/fbw-sdk';
 
-/** The navigation data of the SND (A380 FCOM DSC-34-10-20-30) */
 export interface SndNavigation {
   /** The ADIRU the heading comes from: 3, or 1 when ADIRU 3 has no heading; null when neither has one */
   headingAdiru: 1 | 3 | null;
@@ -26,8 +25,8 @@ const word = (adiru: 1 | 3, name: string) => Arinc429Word.fromSimVarValue(`L:A32
 const value = (w: Arinc429Word): number | null => (w.isNormalOperation() ? w.value : null);
 
 /**
- * Reads the navigation data of the SND. ADIRU 3 and ADIRU 1 give the heading, track, ground speed and position (FCOM
- * DSC-34-10-20-10): ADIRU 3, or ADIRU 1 when ADIRU 3 is not available.
+ * Reads the navigation data of the SND. ADIRU 3 and ADIRU 1 give the heading, track, ground speed and position:
+ * ADIRU 3, or ADIRU 1 when ADIRU 3 is not available.
  */
 export function readSndNavigation(): SndNavigation {
   const headingAdiru: 1 | 3 | null = word(3, 'HEADING').isNormalOperation()

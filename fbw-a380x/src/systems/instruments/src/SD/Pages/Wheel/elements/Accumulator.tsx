@@ -10,7 +10,6 @@ import {
 interface AccumulatorProps {
   x: number;
   y: number;
-  /** WING ACCU pressure indication (A380 FCOM DSC-32-20-50, WheelIndications.wingAccuIndication) */
   indication: WingAccuIndication;
 }
 
@@ -31,8 +30,6 @@ export const Accumulator: FC<AccumulatorProps> = ({ x, y, indication }) => {
 
   const gaugeMarkerClassName = 'White SW3';
   const gaugeMarkerTextClassName = 'White F24';
-  // l.81242-81243: "When in the amber arc, the pressure indication is amber. When outside the amber arc, the pressure
-  // indication is green."
   const needleClassName = `SW6 ${indication.amber ? 'Amber' : 'Green'} LineRound`;
 
   return (
@@ -116,7 +113,7 @@ export const Accumulator: FC<AccumulatorProps> = ({ x, y, indication }) => {
               bold
             />
 
-            {/* Lowest wing brake accumulator pressure (l.81241) */}
+            {/* Lowest wing brake accumulator pressure */}
             <GaugeMarkerComponent
               x={0}
               y={0}

@@ -26,7 +26,7 @@ function loadAmberAfter(loadPercent: number, seconds: number): boolean {
   return isGeneratorLoadAmber(duration);
 }
 
-describe('generator load amber only after 10 s above 108 % (A380 FCOM l.51013, 51097, 51167, 108601)', () => {
+describe('generator load amber only after 10 s above 108 %', () => {
   it('stays green during a short overload', () => {
     expect(loadAmberAfter(115, 9)).toBe(false);
     expect(loadAmberAfter(115, 10)).toBe(false);
@@ -62,7 +62,7 @@ describe('generator load amber only after 10 s above 108 % (A380 FCOM l.51013, 5
   });
 });
 
-describe('generator voltage and APU generator frequency (A380 FCOM l.51020, 51029, 51104, 108608, 108617)', () => {
+describe('generator voltage and APU generator frequency', () => {
   it('is normal inside 110 V to 120 V and 390 Hz to 410 Hz', () => {
     expect(isGeneratorVoltageNormal(115)).toBe(true);
     expect(isGeneratorVoltageNormal(105)).toBe(false);
@@ -75,14 +75,13 @@ describe('generator voltage and APU generator frequency (A380 FCOM l.51020, 5102
   it('colours the APU generator voltage by the voltage and the frequency by the frequency', () => {
     for (const path of ['./elements/ApuGenerator.tsx', '../Apu/elements/ApuGenerator.tsx']) {
       const element = source(path);
-      // before, the voltage line was coloured by the frequency check and the frequency line by the voltage check
       expect(element).toMatch(/apuGenVoltageNormal \? 'Green' : 'Amber'[^>]*>\s*\{Math\.round\(potential\)\}/);
       expect(element).toMatch(/apuGenFreqNormal \? 'Green' : 'Amber'[^>]*>\s*\{Math\.round\(frequency\)\}/);
     }
   });
 });
 
-describe('engine generator OFF / DISC (A380 FCOM l.51061-51065)', () => {
+describe('engine generator OFF / DISC', () => {
   it('shows nothing for a generator in operation', () => {
     expect(engineGeneratorOffText(true, true)).toBeNull();
   });
@@ -103,7 +102,7 @@ describe('engine generator OFF / DISC (A380 FCOM l.51061-51065)', () => {
   });
 });
 
-describe('engine generator OVHT (A380 FCOM l.51107-51112)', () => {
+describe('engine generator OVHT', () => {
   it('appears above 185 C', () => {
     expect(isEngineGeneratorOverheat(90)).toBe(false);
     expect(isEngineGeneratorOverheat(185)).toBe(false);
@@ -117,7 +116,7 @@ describe('engine generator OVHT (A380 FCOM l.51107-51112)', () => {
   });
 });
 
-describe('GALLEY/COMMERCIAL indication of the ELEC AC page (A380 FCOM l.51033-51046)', () => {
+describe('GALLEY/COMMERCIAL indication of the ELEC AC page', () => {
   const normal: LoadSheddingState = {
     commercial1Off: false,
     commercial2Off: false,

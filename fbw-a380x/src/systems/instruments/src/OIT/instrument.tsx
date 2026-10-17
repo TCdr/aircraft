@@ -49,9 +49,9 @@ class OitInstrument implements FsInstrument {
   );
 
   private readonly avncsAnsu = new AnsuOps(this.bus, 1, 'nss-avncs', this.failuresConsumer);
-  // NSS AVNCS ANSU 2: hosts the same applications as ANSU 1 and takes over when ANSU 1 fails (A380 FCOM DSC-46-20-30,
-  // a380_fcom.txt:107931-107932). The applications keep their data in avncsAnsu (AnsuOps); the OIT shows them while
-  // either NSS AVNCS ANSU is healthy (AnsuLogic.isNssAvncsAvailable).
+  // NSS AVNCS ANSU 2: hosts the same applications as ANSU 1 and takes over when ANSU 1 fails. The applications keep
+  // their data in avncsAnsu (AnsuOps); the OIT shows them while either NSS AVNCS ANSU is healthy
+  // (AnsuLogic.isNssAvncsAvailable).
   private readonly avncsAnsu2 = new AircraftNetworkServerUnit(this.bus, 2, 'nss-avncs', this.failuresConsumer);
   private readonly fltOpsAnsu = new AircraftNetworkServerUnit(this.bus, 1, 'flt-ops', this.failuresConsumer);
 

@@ -27,7 +27,6 @@ render(
       performanceCalculators: {
         takeoff: new A380842TakeoffPerformanceCalculator(),
         landing: new A380842LandingPerformanceCalculator(),
-        // A380 FCOM PER-IFT-DES-STD: standard descent M 0.85 / 300 kt / 250 kt below FL 100; LIM: MMO, VMO, max altitude
         descent: new FmsDescentPerformanceCalculator(A380AircraftConfig, {
           standardSchedule: { mach: 0.85, cas: 300, limitCas: 250, limitAltitude: 10_000 },
           mmo: 0.89,
@@ -36,7 +35,7 @@ render(
           oew: 300_006,
           mtow: 510_000,
         }),
-        // No Buffet tab: no A380 buffet onset chart in the FCOM (PER BUFFET CEILING is a qualitative figure only)
+        // No Buffet tab: there is no A380 buffet onset chart to build it from
         buffetEnvelope: null,
       },
       pushbackPage: {

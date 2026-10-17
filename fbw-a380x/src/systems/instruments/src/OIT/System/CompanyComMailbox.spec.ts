@@ -72,9 +72,8 @@ afterEach(() => {
 });
 
 /*
- * A380 FCOM DSC-46-40 AOC (a380_fcom.txt l.107994-107996): "The flight crew uses the OIT display to: - Access the AOC
- * application - Display, edit, print, send, delete, and/or store AOC messages"; l.108020-108023 COMPANY MSG: "The flight
- * crew received a company message. No longer appears, when the flight crew read all the received messages."
+ * On the OIT the flight crew can display, edit, print, send, delete and store AOC messages; the COMPANY MSG memo goes
+ * once all the received messages are read.
  */
 describe('OIT COMPANY COM inbox', () => {
   it('lists the AOC uplinks, newest first, and not the downlinks', () => {
@@ -146,7 +145,7 @@ describe('OIT COMPANY COM inbox', () => {
     expect(mailbox.messages.length).toBe(0);
   });
 
-  it('still receives the uplinks while the AOC downlinks are inhibited (NSS DATA TO AVNCS OFF, l.103225-103226)', () => {
+  it('still receives the uplinks while the AOC downlinks are inhibited (NSS DATA TO AVNCS OFF)', () => {
     const bus = new EventBus();
     const aoc = new Aoc(bus, false);
     aoc.initialize();
@@ -158,7 +157,7 @@ describe('OIT COMPANY COM inbox', () => {
     expect(mailbox.messages.getArray().map((e) => e.text)).toEqual(['GATE CHANGE B32']);
   });
 
-  it('PRINT sends the displayed message to the pedestal printer (DSC-46-40-10-20 l.107938-107939)', () => {
+  it('PRINT sends the displayed message to the pedestal printer', () => {
     const bus = new EventBus();
     const mailbox = new CompanyComMailbox(bus);
     mailbox.init();

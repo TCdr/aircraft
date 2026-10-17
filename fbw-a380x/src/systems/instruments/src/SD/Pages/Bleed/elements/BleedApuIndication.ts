@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The APU BLEED VALVE symbol of the SD BLEED page. A380 FCOM DSC-36-20 (a380_fcom.txt l.94372-94390):
- * "Appears only if APU pb-sw is ON." Green closed, green open, "abnormally open, and the APU BLEED pb-sw is ON",
- * "abnormally closed, and the APU BLEED pb-sw is ON", "in transit".
- * APU BLEED pb-sw (l.94304-94310): "The APU bleed valve is open, provided that: The APU is running, The aircraft altitude
- * is below 22 500 ft, No APU leak is detected."
+ * The APU BLEED VALVE symbol of the SD BLEED page: shown only with the APU pb-sw ON; green closed or open, amber when
+ * abnormally open or closed with the APU BLEED pb-sw ON. With the APU BLEED pb-sw ON the valve opens when the APU runs,
+ * the aircraft is below 22 500 ft and no APU leak is detected.
  * Simplifications: the valve should be open when the APU BLEED pb-sw is ON and the APU is AVAIL. The 22 500 ft limit and
  * the APU leak are not modelled by the APU ECB (the valve stays open above 22 500 ft), so they are left out here, else
  * the valve would show amber in every climb with the APU bleed on. The valve moves instantly: no transit state.

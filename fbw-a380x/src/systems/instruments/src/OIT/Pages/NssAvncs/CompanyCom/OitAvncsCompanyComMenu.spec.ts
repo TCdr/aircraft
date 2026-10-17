@@ -13,7 +13,7 @@ const targets = (menu.match(/navigationTarget="[^"]+"/g) ?? []).map((match) =>
   match.substring('navigationTarget="'.length, match.length - 1),
 );
 
-describe('COMPANY COM menu (A380 FCOM DSC-46-40, a380_fcom.txt l.107840-107846)', () => {
+describe('COMPANY COM menu', () => {
   it('opens the weather request in pre-flight and in-flight, and the free text in the three phases', () => {
     expect(targets).toEqual(
       expect.arrayContaining([

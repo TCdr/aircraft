@@ -175,9 +175,8 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
   private readonly radioAltitude3 = Arinc429LocalVarConsumerSubject.create(this.sub.on('radioAltitude3'));
 
   /**
-   * The amber radio altitude zone under the aircraft symbol, below 5 000 ft RA (A380 FCOM DSC-31-20-40-10,
-   * a380_fcom.txt l.69544-69548, see VdRadioAltitudeZone), from the radio height of the PFDs (voted from the three RAs,
-   * l.86462-86466), as an SVG path ('' when not shown).
+   * The amber radio altitude zone under the aircraft symbol, below 5 000 ft RA (see VdRadioAltitudeZone), from the
+   * radio height of the PFDs (voted from the three RAs), as an SVG path ('' when not shown).
    */
   private readonly radioAltitudeZonePath = MappedSubject.create(
     ([ra1, ra2, ra3, alt, verticalRange, vdAvailable]) => {
@@ -397,7 +396,6 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
   private readonly wxrOff = ConsumerSubject.create(this.sub.on('a380x_wxr_off'), false);
   private readonly wxrVdOff = ConsumerSubject.create(this.sub.on('a380x_wxr_vd_off'), false);
 
-  /** The FCOM SURV messages of the VD (NO TERR AND WX DATA AVAILABLE, TERR INOP, WXR INOP, WX NOT SEL) */
   private readonly survMessages = MappedSubject.create(
     ([terrSysOff, terrFailed, activeOverlay, wxrFailed, wxOnVdOff, wxrOff]) =>
       computeVdSurvMessages({
@@ -430,7 +428,7 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
   private readonly wxrTilt = ConsumerSubject.create(this.sub.on('wxrTilt'), WXR_SETTING_NO_ENTRY);
 
   /**
-   * The white line of the WXR's manual ELEVN or TILT mode (A380 FCOM DSC-34-20-30-20, see VdWxrElevnTiltLine), as an
+   * The white line of the WXR's manual ELEVN or TILT mode (see VdWxrElevnTiltLine), as an
    * SVG path ('' when not shown). It goes with the ELEVN / TILT message of the ND, so it shows on the same condition (the
    * ND showing the WX display function); hidden with the VD data (heading or track lost).
    */
@@ -645,13 +643,12 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
   }
 
   /**
-   * The vertical range of the VD (FCOM DSC-31-20-40-10, VERTICAL SCALE): its height follows the VD range ("the diagonal
-   * of the VD is equal to a 4° slope"), its origin is set by the FMS "in order to display the aircraft mock-up and most
-   * of the aircraft trajectory", and it cannot exceed 70 000 ft. The highest of the aircraft and the trajectory is put
-   * three quarters up the scale, so the terrain and the safety altitudes below keep most of the plot (a real A380 in
-   * cruise at FL400 with 160 nm selected shows its scale from below 0 ft to about FL560, the mock-up at three quarters
-   * of the height); the aircraft is then kept at least 15 % of the height above the bottom (a climb whose trajectory
-   * tops the scale). Without a trajectory the aircraft is placed in the middle.
+   * The vertical range of the VD: its height follows the VD range (the diagonal of the VD is a 4° slope), the FMS sets
+   * its origin to show the aircraft mock-up and most of the trajectory, and it cannot exceed 70 000 ft. The highest of
+   * the aircraft and the trajectory is put three quarters up the scale, so the terrain and the safety altitudes below
+   * keep most of the plot (a real A380 in cruise at FL400 with 160 NM selected shows its scale from below 0 ft to about
+   * FL560). The aircraft then stays at least 15 % of the height above the bottom (a climb whose trajectory tops the
+   * scale). Without a trajectory the aircraft is placed in the middle.
    * @param vdRange in nm
    * @param egoAltitude in ft
    * @param pathFirstAltitude in ft
@@ -676,7 +673,6 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
       return [lowerLimit, lowerLimit + verticalExtent];
     }
 
-    // The highest of the aircraft and the trajectory at three quarters of the height, the scale capped at 70 000 ft
     const highest = Math.max(egoAltitude, pathFirstAltitude, pathLastAltitude);
     let upperLimit = Math.min(VERTICAL_DISPLAY_MAX_ALTITUDE, highest + 0.25 * verticalExtent);
     let lowerLimit = upperLimit - verticalExtent;
@@ -802,14 +798,14 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
           >
             {this.targetAltitudeFormatted}
           </text>
-          {/* amber radio altitude zone ($display-amber), under the aircraft symbol as in the FCOM figure */}
+          {/* $display-amber; drawn before the aircraft symbol so it stays under it */}
           <path
             d={this.radioAltitudeZonePath}
             fill="#e68000"
             stroke="none"
             visibility={this.radioAltitudeZoneVisibility}
           />
-          {/* WXR ELEVN/TILT line, under the aircraft symbol so it leaves from the symbol's nose as in the FCOM figures */}
+          {/* WXR ELEVN/TILT line, under the aircraft symbol so it leaves from the symbol's nose */}
           <path
             d={this.wxrElevnTiltLinePath}
             fill="none"

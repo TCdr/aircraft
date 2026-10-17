@@ -3,28 +3,24 @@
 
 /*
  * The FADEC supply from the aircraft electrical network while the engine is not running, for the ENG SD page
- * (EngineParametersAvailability). A380 FCOM DSC-70-20-10 FADEC ELECTRICAL SUPPLY (a380_fcom.txt l.111401-111403): "The
- * aircraft electrical network supplies the FADEC for 15 min at aircraft power-up. The aircraft electrical network
- * supplies the FADEC for 10 min when the FADEC GND PWR pb is pressed." ENG FADEC GND PWR PANEL (l.112701-112704): "On
- * ground, the aircraft electrical network supplies the FADEC for 10 min, provided that: The ENG FIRE pb-sw is not
- * pressed, The FADEC is not self-powered." (the FIRE pb and the running engine stay in areEngineParametersShown).
+ * (EngineParametersAvailability). The aircraft electrical network supplies the FADEC for 15 min at aircraft power-up,
+ * and on the ground for 10 min when the FADEC GND PWR pb is pressed, provided that the ENG FIRE pb-sw is not pressed
+ * and the FADEC is not self-powered (the FIRE pb and the running engine stay in areEngineParametersShown).
  *
  * Design choices:
  * - Aircraft power-up is the AC bus of the engine becoming powered (L:A32NX_ELEC_AC_n_BUS_IS_POWERED).
  * - The FADEC GND PWR pb is a latched pb (L:A32NX_OVHD_FADEC_n): setting it ON starts the 10 min, setting it OFF ends
  *   them, pressing it OFF and ON again gives 10 more minutes.
- * - Each FADEC has its own power-up: the FCOM does not name the bus, and the FADECs have their own EIPMs ("There is
- *   one EIPM for two engines", l.111399, ENG 1(2)(3)(4) EIPM 1(2) reset), so a bus powered later (AC 3 + AC 4 from the
- *   APU GEN after AC 1 + AC 2 from EXT PWR 1) starts the 15 min of its FADECs later.
+ * - Each FADEC has its own power-up: the source does not name the bus, and the FADECs have their own EIPMs (one EIPM
+ *   for two engines, with an EIPM reset per engine), so a bus powered later (AC 3 + AC 4 from the APU GEN after
+ *   AC 1 + AC 2 from EXT PWR 1) starts the 15 min of its FADECs later.
  * - The timers follow the real power-up and pb times whatever SD page is shown: the SD instrument loop (SD/index.tsx)
  *   samples the AC buses, the pbs and the sim time with updateFadecGroundPowerSupplies, also while the ENG page (a React
  *   page, unmounted while another page is shown) is not shown. The ENG page only reads isSupplied. The times are
  *   absolute sim times (E:ABSOLUTE TIME).
  */
 
-/** l.111401: 15 min at aircraft power-up */
 export const FADEC_POWER_UP_SUPPLY_S = 15 * 60;
-/** l.111402, l.112701: 10 min after the FADEC GND PWR pb */
 export const FADEC_GND_PWR_PB_SUPPLY_S = 10 * 60;
 
 export interface FadecGroundPowerInputs {

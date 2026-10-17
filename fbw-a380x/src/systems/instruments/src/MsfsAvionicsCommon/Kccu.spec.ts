@@ -7,13 +7,12 @@ import { describe, expect, it } from 'vitest';
 import { A380Failure } from '@failures';
 import { isKccuKeyAvailable, kccuFailureState } from './Kccu';
 
-/** A failure lookup with these failures active */
 const withFailures =
   (...active: number[]) =>
   (id: number) =>
     active.includes(id);
 
-describe('KCCU failures (A380 FCOM PRO-ABN-ECAM-10-31, l.157621-157680)', () => {
+describe('KCCU failures', () => {
   it('has nothing failed without a failure', () => {
     expect(kccuFailureState('L', withFailures())).toEqual({ cursorControlDeviceFailed: false, keyboardFailed: false });
   });

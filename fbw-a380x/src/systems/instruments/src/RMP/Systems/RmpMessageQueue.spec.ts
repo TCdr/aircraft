@@ -8,9 +8,8 @@ import { RmpMessageControlEvents, RmpMessageDataEvents, RmpMessageManager } from
 import { RmpMessageQueue } from './RmpMessageQueue';
 
 /*
- * A380 FCOM DSC-23-20 RMP MESSAGES (a380_fcom.txt l.49321-49324): the active messages are stored in a queue in their
- * order of appearance, the RMP displays the most recent one, the crew clears them one by one. Before, a new message
- * overwrote the previous one and MSG CLR emptied the display at once.
+ * The active RMP messages are stored in a queue in their order of appearance, the RMP displays the most recent one,
+ * the crew clears them one by one.
  */
 describe('RmpMessageQueue', () => {
   it('displays the most recent message and clears the messages one by one', () => {

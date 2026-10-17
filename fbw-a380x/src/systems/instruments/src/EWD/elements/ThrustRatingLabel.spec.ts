@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { thrustRatingModeLabel } from './ThrustRatingLabel';
 
 describe('E/WD thrust rating mode', () => {
-  // FCOM DSC-70-90 l.112943-112944: "6 derated takeoff levels are defined: D04, D08, D12, D16, D20, D24."
+  // 6 derated takeoff levels: D04, D08, D12, D16, D20, D24
   it('shows the derated takeoff level in place of FLX', () => {
     expect(thrustRatingModeLabel(3, 4)).toBe('D04');
     expect(thrustRatingModeLabel(3, 12)).toBe('D12');

@@ -27,7 +27,7 @@ export interface SndFixView {
 }
 
 /** A line of the waypoint list */
-export interface SndListRow {
+interface SndListRow {
   label: string;
   text: string;
   /** The TO waypoint is white, the others green, the FIX magenta */
@@ -44,10 +44,10 @@ export type SndLowerView =
       bracket: { row: number; bearing: string; distance: string } | null;
     };
 
-export const formatSndDistance = (nm: number) => (nm >= 20 ? Math.round(nm).toString() : nm.toFixed(1));
+const formatSndDistance = (nm: number) => (nm >= 20 ? Math.round(nm).toString() : nm.toFixed(1));
 
 /**
- * TO WPT bearing / distance (magnetic or true as the heading, FCOM DSC-34-10-20-30) and the leg course
+ * TO WPT bearing / distance (magnetic or true as the heading) and the leg course
  * @param magneticVariation degrees east
  */
 export function sndGuidanceView(

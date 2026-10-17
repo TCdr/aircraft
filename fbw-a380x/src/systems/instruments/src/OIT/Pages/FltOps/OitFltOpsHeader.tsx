@@ -91,7 +91,7 @@ export abstract class OitFltOpsHeader extends DisplayComponent<OitFltOpsHeaderPr
             },
             {
               label: 'EXIT SESSION',
-              // Not while the FLT FOLDER is open (OitUiService.exitFltOpsSession)
+              // Does nothing while the FLT FOLDER is open
               action: () => this.props.uiService.exitFltOpsSession(),
               disabled: false,
             },

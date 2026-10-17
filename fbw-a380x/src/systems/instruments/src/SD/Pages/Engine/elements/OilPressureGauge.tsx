@@ -19,7 +19,7 @@ interface OilPressureGaugeProps {
 const OilPressureGauge: FC<OilPressureGaugeProps> = ({ x, y, engine, active }) => {
   // The oil pressure the FADEC computes (EngineControl_A380X updateOil), as the FWS reads it
   const [engineOilPressure] = useSimVar(`GENERAL ENG OIL PRESSURE:${engine}`, 'psi', 100);
-  // The oil filter clog failure (systems engine/oil_failure.rs) and the engine state, see OilIndications
+  // The oil filter clog failure of the systems WASM (engine/oil_failure.rs)
   const [oilFilterClogged] = useSimVar(`L:A32NX_ENGINE_${engine}_OIL_FILTER_CLOGGED`, 'bool', 500);
   const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engine}`, 'number', 500);
   const radius = 45;
@@ -28,7 +28,7 @@ const OilPressureGauge: FC<OilPressureGaugeProps> = ({ x, y, engine, active }) =
   const min = 0;
   const max = OIL_PSI_GAUGE_MAX;
 
-  // FCOM DSC-70-90 OIL PRESSURE: 0-100 PSI on the first half of the scale, 100-440 PSI on the second half
+  // Non-linear scale: 0-100 PSI on the first half, 100-440 PSI on the second half
   const needleValue = oilPressureGaugeValue(engineOilPressure);
   const red = oilPressureIsRed(engineOilPressure);
   // The red range, 0 to 25 PSI, in degrees of the 180 degree scale
@@ -121,7 +121,6 @@ const OilPressureGauge: FC<OilPressureGaugeProps> = ({ x, y, engine, active }) =
           {engineOilPressure < 0 ? 0 : Math.round(engineOilPressure)}
         </text>
       )}
-      {/* FCOM DSC-70-90 OIL PRESSURE: CLOGGED in amber below the oil pressure */}
       {active && oilFilterCloggedShown(!!oilFilterClogged, engineState) && (
         <text x={x} y={y + 26} className="Amber MiddleAlign F22">
           CLOGGED

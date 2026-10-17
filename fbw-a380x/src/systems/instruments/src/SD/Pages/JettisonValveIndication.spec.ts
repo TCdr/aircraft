@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { jettisonValveIndication } from './JettisonValveIndication';
 
-describe('SD FUEL jettison indication (FCOM DSC-28-20)', () => {
+describe('SD FUEL jettison indication', () => {
   it('is normal (white, no fault) when the valve is open during a jettison', () => {
     expect(jettisonValveIndication(true, true)).toEqual({ fault: false, textClass: 'White' });
   });

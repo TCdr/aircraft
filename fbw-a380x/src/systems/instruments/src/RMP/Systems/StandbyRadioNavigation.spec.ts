@@ -18,10 +18,8 @@ import {
 } from './StandbyRadioNavigation';
 
 /*
- * A380 FCOM DSC-34-10-60-10 Standby RadNav (a380_fcom.txt l.86641-86649): RMP 1 or RMP 2 switched to RAD NAV STBY mode
- * by pressing the STBY RAD NAV key tune the navaids, RMP 3 is not used for navaids tuning (also DSC-23-10, l.47426).
- * DSC-23-20 (l.48288-48289): after deactivation of the mode the RMP display defaults to the VHF page.
- * Before, the guarded key had no handler (KeypadController logged an unknown H event) and its light never came on.
+ * RMP 1 or RMP 2 switched to STBY RAD NAV mode with the STBY RAD NAV key tune the navaids; RMP 3 is never used for
+ * navaids tuning. After the deactivation of the mode the RMP display defaults to the VHF page.
  */
 describe('STBY RAD NAV rules', () => {
   it('RMP 1 and RMP 2 only', () => {
@@ -66,7 +64,7 @@ describe('STBY RAD NAV key (KeypadController + StandbyRadioNavigationManager)', 
 
   /**
    * Creates the keypad controller and the STBY RAD NAV manager of one RMP on a new bus.
-   * @param rmpIndex the RMP
+   * @param rmpIndex the RMP number
    * @returns the key and RMP state inputs, the mode and the system keys published
    */
   function setup(rmpIndex: 1 | 2 | 3): {

@@ -4,13 +4,13 @@
 import { Arinc429WordData } from '@flybywiresim/fbw-sdk';
 
 /*
- * LGERS indications of the WHEEL SD page, A380 FCOM DSC-32-20-40 (a380_fcom.txt l.81054-81065, l.81105-81109):
- * - L/G CTL: "Displayed when one or more landing gears are not locked in the selected position, after the normal
- *   extension/retraction delay. The L/G GEAR NOT LOCKED DOWN or L/G GEAR NOT LOCKED UP alerts are also displayed."
+ * LGERS indications of the WHEEL SD page:
+ * - L/G CTL: shown when one or more landing gears are not locked in the selected position after the normal
+ *   extension/retraction delay, with the L/G GEAR NOT LOCKED DOWN or L/G GEAR NOT LOCKED UP alert.
  *   Same trigger as these two alerts (systems-host FwsGearAlerts.ts): a gear not downlocked 60 s after the lever went
- *   down (l.161245-161246), not uplocked 40 s after it went up (l.161360-161361), with the FWS vote of the two LGCIS.
- * - L/G GRVTY EXTN IN PROGRESS: "appears when the flight crew commands a landing gear gravity extension. The message no
- *   longer appears when all gears are down locked, or after 120 s."
+ *   down, not uplocked 40 s after it went up, with the FWS vote of the two LGCIS.
+ * - L/G GRVTY EXTN IN PROGRESS: shown when the crew commands a landing gear gravity extension, until all gears are
+ *   downlocked or for 120 s.
  *
  * LGCIU discrete word 1 bits (fbw-common landing_gear/mod.rs discrete_word_1): 11/12/13 left/right/nose gear not
  * uplocked and the lever not down, 14/15/16 left/right/nose gear not downlocked and the lever down, 23/24/25
@@ -20,12 +20,9 @@ import { Arinc429WordData } from '@flybywiresim/fbw-sdk';
 /** An LGCIU discrete word */
 export type LgciuWord = Arinc429WordData;
 
-/** l.161245-161246: "not downlocked after approximately 60 s" */
-export const LG_CTL_NOT_LOCKED_DOWN_DELAY_S = 60;
-/** l.161360-161361: "not locked up after approximately 40 s" */
-export const LG_CTL_NOT_LOCKED_UP_DELAY_S = 40;
-/** l.81108: the gravity extension message goes after 120 s */
-export const GRAVITY_EXTENSION_MESSAGE_DURATION_S = 120;
+const LG_CTL_NOT_LOCKED_DOWN_DELAY_S = 60;
+const LG_CTL_NOT_LOCKED_UP_DELAY_S = 40;
+const GRAVITY_EXTENSION_MESSAGE_DURATION_S = 120;
 
 const NOT_UPLOCKED_LEVER_UP_BITS = [11, 12, 13];
 const NOT_DOWNLOCKED_LEVER_DOWN_BITS = [14, 15, 16];
@@ -77,13 +74,11 @@ export class LgCtlIndication {
 }
 
 /*
- * LANDING GEAR and LANDING GEAR DOORS indications of the WHEEL SD page, A380 FCOM DSC-32-20-40 (a380_fcom.txt
- * l.81086-81103):
- * - Gear (l.81086-81096): "No display: The associated landing gear is uplocked." / "The associated landing gear is
- *   downlocked." / "The associated landing gear is in transit." "LGCIS 1 controls the display of the left triangle and
- *   LGCIS 2 controls the display of the right triangle."
- * - Doors (l.81098-81103): "The landing gear doors are closed and uplocked." / "... in transit." / "... open."
- * - Lost data: "replaced by amber crosses" (the ECAM rule of the SD pages, e.g. l.145294).
+ * LANDING GEAR and LANDING GEAR DOORS indications of the WHEEL SD page:
+ * - Gear: no display when uplocked, then downlocked or in transit. LGCIS 1 controls the left triangle, LGCIS 2 the
+ *   right one.
+ * - Doors: closed and uplocked, in transit, or open.
+ * - Lost data: replaced by amber crosses (the ECAM rule of the SD pages).
  *
  * LGCIU discrete word 1 bits 17/18/19 left/right/nose door not uplocked, 23/24/25 left/right/nose gear downlocked;
  * discrete word 3 bits 11/12/13 left/right/nose gear not uplocked, 25/26/27 left/right/nose door fully open
@@ -121,7 +116,7 @@ const DOOR_FULLY_OPEN_WORD_3_BIT: Record<LgciuGear, number> = {
 
 /** One triangle of a landing gear: what one LGCIS sees */
 export enum GearTriangle {
-  /** "No display: The associated landing gear is uplocked." */
+  /** Uplocked: no display */
   Hidden,
   /** Downlocked: green */
   Downlocked,
@@ -161,7 +156,7 @@ export enum GearDoorIndication {
 }
 
 /**
- * Design choice: the FCOM does not say which LGCIS drives the doors; as the A32NX WHEEL page, a door is not uplocked
+ * Design choice: the source does not say which LGCIS drives the doors; as the A32NX WHEEL page, a door is not uplocked
  * (or fully open) when one valid LGCIS sees it so.
  * @param word1Lgcis1 LGCIU 1 discrete word 1
  * @param word1Lgcis2 LGCIU 2 discrete word 1

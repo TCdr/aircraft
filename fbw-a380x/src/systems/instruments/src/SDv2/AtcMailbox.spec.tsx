@@ -88,7 +88,7 @@ function setup(sdDuActive: boolean, foNdActive: boolean) {
   };
 }
 
-describe('ATC mailbox clients (A380 FCOM PRO-ABN-ECAM-10-31: "If the SD DU is turned OFF, use the F/O DU RECONF P/B for ATC mailbox")', () => {
+describe('ATC mailbox clients: with the SD DU off, the F/O DU RECONF P/B brings the ATC mailbox', () => {
   afterEach(() => {
     document.body.innerHTML = '';
     vi.useRealTimers();
@@ -173,7 +173,7 @@ describe('ATC mailbox clients (A380 FCOM PRO-ABN-ECAM-10-31: "If the SD DU is tu
   });
 });
 
-describe('KCCU MAILBOX key (A380 FCOM DSC-46-10-20-80, l.101303-101306: "the cursor moves to the mailbox section of the SD")', () => {
+describe('KCCU MAILBOX key: the cursor moves to the mailbox section of the SD', () => {
   /** The KCCU keyboard ON/OFF switches the mailbox reads */
   let keyboards: Record<string, number>;
 
@@ -220,7 +220,7 @@ describe('KCCU MAILBOX key (A380 FCOM DSC-46-10-20-80, l.101303-101306: "the cur
     expect(cursor().innerHTML).toContain('rotate(0');
   });
 
-  it('ignores the key while the KCCU keyboard is OFF (DSC-31-30-20)', () => {
+  it('ignores the key while the KCCU keyboard is OFF', () => {
     const { press, cursor } = mountMailbox(true);
     press('A32NX_KCCU_L_MAILBOX');
     expect(cursor().style.display).not.toBe('block');
@@ -238,8 +238,7 @@ describe('KCCU MAILBOX key (A380 FCOM DSC-46-10-20-80, l.101303-101306: "the cur
 });
 
 /*
- * A380 FCOM PRO-SUP-46 AIR TRAFFIC CONTROL (ATC) RESET (a380_fcom.txt l.184521-184523): "It is possible to perform an
- * ATC reset, when: MAILBOX NOT AVAIL is displayed on the lower part of the SD".
+ * An ATC reset is possible when MAILBOX NOT AVAIL is displayed on the lower part of the SD.
  */
 describe('MAILBOX NOT AVAIL', () => {
   afterEach(() => {

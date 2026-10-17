@@ -14,8 +14,7 @@ export const CabAlt: React.FC<Position & ValidRedundantSystem> = ({ x, y, system
 
   const cabAlt50 = Math.round(cabinAlt / 50) * 50;
 
-  // FCOM DSC-21-30-20 CAB ALT INDICATIONS: the needle pulses above 8 300 ft, stops below 8 100 ft
-  // (CabinPressureIndications)
+  // The needle pulses above 8 300 ft and stops below 8 100 ft
   const wasPulsing = useRef(false);
   const pulsing = cabinAltitudePulses(cabAlt50, wasPulsing.current);
   wasPulsing.current = pulsing;

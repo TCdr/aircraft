@@ -30,7 +30,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
-  // CDS CAPT (F/O) EFIS BKUP CTL FAULT (A380 FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt l.157708-157724)
   311800002: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT EFIS BKUP CTL FAULT',
     sensed: true,
@@ -53,8 +52,8 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
       },
     ],
   },
-  // CDS CAPT (F/O) EFIS CTL PNL FAULT (l.157756-157773): "If CAPT (F/O) FCU BKUP is available: USE CAPT (F/O) MFD FCU
-  // BKUP"; the FWS raises this alert only with the FCU backup available (FwsCdsControlAlerts)
+  // CDS CAPT (F/O) EFIS CTL PNL FAULT: "If CAPT (F/O) FCU BKUP is available: USE CAPT (F/O) MFD FCU BKUP"; the FWS
+  // raises this alert only with the FCU backup available (FwsCdsControlAlerts)
   311800004: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT EFIS CTL PNL FAULT',
     sensed: true,
@@ -75,7 +74,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
       },
     ],
   },
-  // CDS CAPT+F/O EFIS CTL PNLs FAULT (l.158064-158080)
   311800006: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT+F/O EFIS CTL PNLs FAULT',
     sensed: true,
@@ -96,7 +94,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
-  // CDS CAPT PFD(CAPT ND)(EWD)(F/O PFD)(F/O ND) DU NOT MONITORED (DSC-31-15-90, l.63264; PRO-ABN, l.158042-158051)
   311800009: {
     title: '\x1b<4m\x1b4mCDS\x1bm EWD DU NOT MONITORED',
     sensed: true,
@@ -117,9 +114,9 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
-  // CDS CAPT PFD(CAPT ND)(CAPT MFD)(EWD)(SD)(F/O PFD)(F/O ND)(F/O MFD) DU FAULT (A380 FCOM PRO-ABN-ECAM-10-31,
-  // a380_fcom.txt:157885-157950), the branch "if monitoring function on affected DU is not detected faulty": the DU
-  // is switched off for 5 s then on, and off if that is not successful. The DU RECONF pb is not simulated yet.
+  // CDS CAPT PFD(CAPT ND)(CAPT MFD)(EWD)(SD)(F/O PFD)(F/O ND)(F/O MFD) DU FAULT, the branch "if monitoring function on
+  // affected DU is not detected faulty": the DU is switched off for 5 s then on, and off if that is not successful. The
+  // DU RECONF pb is not simulated yet.
   311800013: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT PFD DU FAULT',
     sensed: true,
@@ -341,7 +338,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
       },
     ],
   },
-  // CDS CAPT (F/O) CURSOR CTL FAULT (A380 FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt l.157621-157634)
   313800001: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT CURSOR CTL FAULT',
     sensed: true,
@@ -374,7 +370,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
-  // CDS CAPT (F/O) KEYBOARD FAULT (l.157796-157823)
   313800005: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT KEYBOARD FAULT',
     sensed: true,
@@ -1389,13 +1384,12 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320800049: {
-    // Crew awareness, no action line (A380 FCOM STEER B/W STEER FAULT, a380_fcom.txt l.162658-162660)
+    // Crew awareness: no action line
     title: '\x1b<4m\x1b4mSTEER\x1bm B/W STEER FAULT',
     sensed: true,
     items: [],
   },
   320800050: {
-    // A380 FCOM STEER B/W STEER NOT LOCKED (a380_fcom.txt l.162695-162736)
     title: '\x1b<4m\x1b4mSTEER\x1bm B/W STEER NOT LOCKED',
     sensed: true,
     items: [
@@ -1527,7 +1521,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   320900001: {
-    // A380 FCOM PRO-ABN-ECAM-10-32 L/G LDG WITH ABNORM NOSE L/G
     title: '\x1b<4m\x1b4mL/G\x1bm LDG WITH ABNORM NOSE L/G',
     sensed: false,
     items: [
@@ -1578,7 +1571,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320900002: {
-    // A380 FCOM PRO-ABN-ECAM-10-32 L/G LDG WITH 2 ABNORM L/Gs ON SAME SIDE
     title: '\x1b<4m\x1b4mL/G\x1bm LDG WITH 2 ABNORM L/Gs ON SAME SIDE',
     sensed: false,
     items: [
@@ -1633,7 +1625,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320900003: {
-    // A380 FCOM PRO-ABN-ECAM-10-32 L/G LDG WITH 1 ABNORM WING OR BODY L/G
     title: '\x1b<4m\x1b4mL/G\x1bm LDG WITH 1 ABNORM WING OR BODY L/G',
     sensed: false,
     items: [
@@ -1645,7 +1636,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320900004: {
-    // A380 FCOM PRO-ABN-ECAM-10-32 L/G LDG WITH 2 ABNORM BODY L/Gs
     title: '\x1b<4m\x1b4mL/G\x1bm LDG WITH 2 ABNORM BODY L/Gs',
     sensed: false,
     items: [
@@ -1663,7 +1653,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320900005: {
-    // A380 FCOM PRO-ABN-ECAM-10-32 L/G LDG WITH 2 ABNORM WING L/Gs
     title: '\x1b<4m\x1b4mL/G\x1bm LDG WITH 2 ABNORM WING L/Gs',
     sensed: false,
     items: [

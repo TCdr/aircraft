@@ -14,8 +14,7 @@ interface OitAvncsCompanyComWeatherRequestProps extends AbstractOitAvncsPageProp
 
 /**
  * COMPANY COM > Requests > Weather: the METAR or TAF of up to four airports, sent through the AOC; the report comes in
- * the inbox (A380 FCOM DSC-46-40, a380_fcom.txt l.107844: "Check the weather status: TAF, METAR, or SIGMET"; the
- * layout is an operator choice, see CompanyComRequests).
+ * the inbox (the layout is an operator choice, see CompanyComRequests).
  */
 export class OitAvncsCompanyComWeatherRequest extends DestroyableComponent<OitAvncsCompanyComWeatherRequestProps> {
   private readonly requests = this.props.container.ansu.companyComRequests;

@@ -11,14 +11,10 @@ import { KeypadEvents, SystemKeys } from './KeypadController';
 /*
  * STBY RAD NAV mode of the RMP (backup tuning of the navaids when the FMS cannot tune them).
  *
- * A380 FCOM DSC-34-10-60-10 Standby RadNav (a380_fcom.txt l.86641-86649): "If all three FMCs fail, the flight crew can
- * use the RMP 1 or RMP 2 [...] for back up tuning. The RMP backup tuning is available when any of RMP1 or RMP2 is
- * switched to RAD NAV STBY mode by pressing the RAD NAV STDBY." "RMP 3 is not used for navaids tuning."
- * DSC-23-10 (l.47426): RMP 3 replaces a failed RMP "(not for STBY RAD NAV control)".
- * DSC-23-20 NAV page (l.49003-49004): "The flight crew must press the RAD NAV STBY key to enable the NAV page access
- * key." (The NAV page itself is not built yet: the FCOM has no figure of it.)
- * DSC-23-20 VHF page (l.48288-48289): "after deactivation of the RAD NAV STBY mode, the RMP display defaults to the VHF
- * page."
+ * If all three FMCs fail, the flight crew can use RMP 1 or RMP 2 for backup tuning, once switched to STBY RAD NAV
+ * mode with its guarded key. RMP 3 is not used for navaids tuning, also when it replaces a failed RMP. The NAV page
+ * access key needs the STBY RAD NAV mode (the NAV page itself is not built yet: no picture of it is available).
+ * After the deactivation of the mode, the RMP display defaults to the VHF page.
  */
 
 export interface StandbyRadioNavigationEvents {
@@ -37,7 +33,7 @@ export function hasStandbyRadioNavigation(rmpIndex: number): boolean {
 
 /**
  * The STBY RAD NAV selection after a press of the guarded key: each press switches the mode on or off.
- * @param rmpIndex the RMP
+ * @param rmpIndex the RMP number, 1 to 3
  * @param selected whether the mode is selected before the press
  * @returns whether the mode is selected after the press
  */
@@ -49,7 +45,7 @@ export function standbyRadioNavigationAfterKeyPress(rmpIndex: number, selected: 
  * Whether the RMP tunes the navaids: STBY RAD NAV selected, on an RMP that is on and not failed (an RMP off or failed
  * has no output to the receivers).
  * @param selected whether STBY RAD NAV is selected
- * @param rmpState the RMP state
+ * @param rmpState the RMP power/failure state: only On tunes
  * @returns true when the mode is active
  */
 export function isStandbyRadioNavigationActive(selected: boolean, rmpState: RmpState): boolean {
@@ -57,7 +53,7 @@ export function isStandbyRadioNavigationActive(selected: boolean, rmpState: RmpS
 }
 
 /**
- * Whether the RMP display goes back to the VHF page: when the STBY RAD NAV mode is deactivated (l.48288-48289).
+ * Whether the RMP display goes back to the VHF page: when the STBY RAD NAV mode is deactivated.
  * @param wasActive whether the mode was active before
  * @param isActive whether the mode is active now
  * @returns true at the deactivation

@@ -26,10 +26,7 @@ export class OitFltOpsLogin extends DestroyableComponent<OitFltOpsLoginPageProps
 
   private readonly hideLoginScreen = this.props.uiService.fltOpsLoginScreenVisible.map(SubscribableMapFunctions.not());
 
-  /**
-   * A380 FCOM DSC-46-20-40 LAPTOP START (a380_fcom.txt l.104922): '"STANDALONE" appears on the Login page of the
-   * laptop' started before the ARU or not connected to the network
-   */
+  /** "STANDALONE" on the Login page: the laptop was started before the ARU, or is not connected to the network */
   private readonly hideStandalone = this.props.standalone.map(SubscribableMapFunctions.not());
 
   public onAfterRender(node: VNode): void {

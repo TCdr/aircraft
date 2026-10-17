@@ -24,8 +24,8 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
   private readonly subs = [] as Subscription[];
 
   /**
-   * A380 FCOM DSC-46-20-40 LAPTOP OPERATED AS A STAND-ALONE (a380_fcom.txt l.104944-104945): "When a laptop is operated
-   * as a stand-alone, (i.e. not connected to the network), "SYNCHRONIZATION NOT AVAIL" appears on the FLT OPS STS page."
+   * A laptop operated as a stand-alone (not connected to the network) shows "SYNCHRONIZATION NOT AVAIL" on the FLT OPS
+   * STS page.
    */
   private readonly hideSynchronizationNotAvail = this.props.container.laptop.standalone.map(
     SubscribableMapFunctions.not(),

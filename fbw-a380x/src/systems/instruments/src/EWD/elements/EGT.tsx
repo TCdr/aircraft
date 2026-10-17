@@ -46,19 +46,17 @@ export class EGT extends DisplayComponent<EGTProps> {
   private endAngle = 90;
   private min = 0;
   /**
-   * The end of the scale. Design choice: the FCOM figure (DSC-70-90 EGT INDICATIONS, PDF p.4105-4106) has a short red arc
-   * at the end of the scale, above the 1 002 °C red line (a380_fcom.txt l.113199-113201); 1 100 °C gives it 16 degrees of
-   * the 180 degree scale, close to the 20 degree red arc of the upstream gauge (scale end 1 000 °C).
+   * Design choice: the aircraft display has a short red arc above the 1 002 °C red line at the end of the scale;
+   * 1 100 °C gives it 16 degrees of the 180 degree scale.
    */
   private max = 1100;
 
-  /** The red arc runs from the red line to the end of the scale */
   private readonly redArcStartAngle =
     this.endAngle - ((this.endAngle - this.startAngle + 360) * (this.max - EGT_RED_LINE_C)) / (this.max - this.min);
 
   private readonly amberVisible = this.thrustLimitType.map(egtLimitMarkVisible);
 
-  /** The EGT offset of the stall and EGT overtemperature failures (EgtLimits displayedEgt) */
+  /** Added by the stall and EGT overtemperature failures (EgtLimits displayedEgt) */
   private readonly egtOffset = ConsumerSubject.create(
     this.sub.on(`egt_offset_${this.props.engine}`).withPrecision(1).whenChanged(),
     0,
@@ -71,7 +69,6 @@ export class EGT extends DisplayComponent<EGTProps> {
 
   private readonly onGround = ConsumerSubject.create(this.sub.on('nose_gear_compressed_1').whenChanged(), false);
 
-  /** The amber EGT limit: start limit on ground, relight limit in flight, normal limit otherwise (EgtLimits egtLimit) */
   private readonly egtLimit = MappedSubject.create(
     ([state, onGround]) => egtLimit(state, onGround),
     this.engineState,
@@ -106,7 +103,7 @@ export class EGT extends DisplayComponent<EGTProps> {
     this.secondsAtOrAboveRedLine,
   );
 
-  /** The red mark at the highest EGT shown above the red line (FCOM DSC-70-90 EGT EXCEEDANCE) */
+  /** The red mark at the highest EGT shown above the red line */
   private readonly egtExceedance = new ExceedanceMemory(EGT_RED_LINE_C);
 
   private readonly egtExceedanceValue = Subject.create(0);

@@ -18,7 +18,7 @@ import { AbnormalProcedure, ChecklistLineStyle } from '..';
 
 /** All abnormal sensed procedures (alerts, via ECL) should be here. */
 export const EcamAbnormalSensedAta353642: { [n: number]: AbnormalProcedure } = {
-  // ATA 35 OXYGEN (A380 FCOM PRO-ABN-ECAM-10-35, a380_fcom.txt l.167419-167530), see FWS OxygenAlerts: no ECAM action
+  // ATA 35 OXYGEN see FWS OxygenAlerts: no ECAM action
   350800001: {
     title: '\x1b<4m\x1b4mOXY\x1bm CABIN BOTTLE PRESS LO',
     sensed: true,
@@ -48,20 +48,20 @@ export const EcamAbnormalSensedAta353642: { [n: number]: AbnormalProcedure } = {
   361800010: bleedLeak('L INR WING LEAK', 2),
   361800011: bleedLeak('R INR WING LEAK', 3),
   361800012: bleedLeak('R OUTR WING LEAK', 4),
-  // ATA 42 AVIONICS NETWORK (A380 FCOM PRO-ABN-ECAM-10-42, a380_fcom.txt l.169102-169800). The alert logic is in
-  // systems-host CpiomC/FlightWarningSystem/AvionicsNetworkAlerts.ts. The "(NETWORK DEGRADED)" / "(REDUNDANCY DEGRADED)"
-  // second title line of the FCOM is the first line of the procedure (the full title does not fit the EWD line).
+  // ATA 42 AVIONICS NETWORK. The alert logic is in systems-host CpiomC/FlightWarningSystem/AvionicsNetworkAlerts.ts.
+  // The "(NETWORK DEGRADED)" / "(REDUNDANCY DEGRADED)" second title line is the first line of the procedure (the full
+  // title does not fit the EWD line).
   420800001: {
     title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm ALL SWITCHES FAULT',
     recommendation: 'LAND ANSA',
     sensed: true,
-    // l.169225-169292; the "Depending on ..." and DEFERRED PROC lines are not listed
+    // the "Depending on..." and DEFERRED PROC lines are not listed
     items: [
       { name: 'A/THR NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan },
       { name: 'ALL THR LEVERS', sensed: false, labelNotCompleted: 'MOVE' },
       { name: 'FMA NOT AVAIL', sensed: false, style: ChecklistLineStyle.Green },
       { name: 'AP MODES AVAIL : LOC, G/S', sensed: false, style: ChecklistLineStyle.Green },
-      // one FCOM line, longer than an EWD line (WD_LINE_CHARACTERS)
+      // One line in the procedure, split in two: longer than an EWD line (WD_LINE_CHARACTERS)
       { name: 'CONSIDER BASIC AP MODES ONLY :', sensed: false, style: ChecklistLineStyle.Cyan },
       { name: 'V/S, FPA, ALT', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
       { name: 'FOR NAV : STBY INSTRUMENTS ONLY', sensed: false, style: ChecklistLineStyle.Cyan },
@@ -82,37 +82,37 @@ export const EcamAbnormalSensedAta353642: { [n: number]: AbnormalProcedure } = {
     ],
   },
   420800002: {
-    // crew awareness (l.169423-169441)
+    // crew awareness
     title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm DOUBLE IOM FAULT',
     sensed: true,
     items: [],
   },
   420800003: {
-    // crew awareness (l.169453-169473)
+    // crew awareness
     title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm DOUBLE SWITCH FAULT',
     sensed: true,
     items: [],
   },
   420800004: {
-    // l.169514-169530; its lines "Depending on the affected IOMs" are not simulated
+    // its lines "Depending on the affected IOMs" are not simulated
     title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm MULTIPLE IOM FAULT',
     sensed: true,
     items: [{ name: '(NETWORK DEGRADED)', sensed: true, style: ChecklistLineStyle.Amber }],
   },
   420800005: {
-    // crew awareness (l.169663-169687)
+    // crew awareness
     title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm MULTIPLE IOM FAULT',
     sensed: true,
     items: [{ name: '(REDUNDANCY DEGRADED)', sensed: true, style: ChecklistLineStyle.Amber }],
   },
   420800006: {
-    // l.169699-169770; its lines "Depending on the affected switches" are not simulated
+    // its lines "Depending on the affected switches" are not simulated
     title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm MULTIPLE SWITCH FAULT',
     sensed: true,
     items: [{ name: '(NETWORK DEGRADED)', sensed: true, style: ChecklistLineStyle.Amber }],
   },
   420800007: {
-    // crew awareness (l.169782-169800)
+    // crew awareness
     title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm MULTIPLE SWITCH FAULT',
     sensed: true,
     items: [{ name: '(REDUNDANCY DEGRADED)', sensed: true, style: ChecklistLineStyle.Amber }],
@@ -120,11 +120,10 @@ export const EcamAbnormalSensedAta353642: { [n: number]: AbnormalProcedure } = {
 };
 
 /**
- * AIR ENG 1(2)(3)(4) BLEED FAULT, A380 FCOM PRO-ABN-ECAM-10-36 (a380_fcom.txt l.168016-168034, TDU 00023117). The
- * "HP VLV NOT CLOSED" line is not listed (no HP valve failed open in the model); "If the XBLEED valves do not open
- * automatically: Refer to AIR ABNORM BLEED CONFIG" is that alert (211800056).
- * @param engine the engine number
- * @returns the procedure
+ * AIR ENG 1(2)(3)(4) BLEED FAULT. The "HP VLV NOT CLOSED" line is not listed (no HP valve failed open in the model);
+ * the line sending the crew to AIR ABNORM BLEED CONFIG when the XBLEED valves do not open is that alert (211800056).
+ * @param engine the engine number, 1 to 4
+ * @returns the procedure of that engine
  */
 function engineBleedFault(engine: number): AbnormalProcedure {
   return {
@@ -142,8 +141,8 @@ function engineBleedFault(engine: number): AbnormalProcedure {
 }
 
 /**
- * AIR L(R) INR WING LEAK / ENG 2(3) BLEED LEAK (a380_fcom.txt l.168524-168555) and AIR L(R) OUTR WING LEAK / ENG 1(4)
- * BLEED LEAK (l.168682-168716). The APU BLEED line is only shown for the left outer wing leak.
+ * AIR L(R) INR WING LEAK / ENG 2(3) BLEED LEAK and AIR L(R) OUTR WING LEAK / ENG 1(4) BLEED LEAK. The APU BLEED line is
+ * only shown for the left outer wing leak.
  * @param title the alert title after AIR
  * @param engine the engine of the leak zone
  * @returns the procedure

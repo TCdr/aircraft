@@ -30,9 +30,9 @@ if (renderTarget) {
   }
 }
 
-// The FADEC supply timers of the ENG page (FCOM DSC-70-20-10: 15 min at aircraft power-up, 10 min after the FADEC GND
-// PWR pb) run from the instrument loop, whatever SD page is shown and also while the gauge is hidden, so that they count
-// from the real power-up and pb times (FadecGroundPower). Sampled every FADEC_SUPPLY_SAMPLE_INTERVAL_MS of real time.
+// The FADEC supply timers of the ENG page (15 min at aircraft power-up, 10 min after the FADEC GND PWR pb) run from the
+// instrument loop, whatever SD page is shown and also while the gauge is hidden, so that they count from the real
+// power-up and pb times.
 let lastFadecSupplySampleMs = 0;
 getRootElement().addEventListener('update', () => {
   const nowMs = Date.now();

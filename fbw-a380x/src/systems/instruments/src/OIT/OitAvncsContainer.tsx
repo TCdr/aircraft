@@ -59,7 +59,7 @@ export abstract class OitAvncsContainer extends DisplayComponent<OitAvncsContain
   private readonly nssAnsu1Healthy = ConsumerSubject.create(this.sub.on('nssAnsu1Healthy'), false);
   private readonly nssAnsu2Healthy = ConsumerSubject.create(this.sub.on('nssAnsu2Healthy'), false);
 
-  /** The NSS AVNCS applications run while ANSU 1 or ANSU 2 is healthy (A380 FCOM, a380_fcom.txt:107931-107932). */
+  /** The NSS AVNCS applications run while ANSU 1 or ANSU 2 is healthy. */
   private readonly ansuPowered = MappedSubject.create(
     ([ansu1, ansu2]) => isNssAvncsAvailable(ansu1, ansu2),
     this.nssAnsu1Healthy,

@@ -14,7 +14,7 @@ const inputs = (i: Partial<VdRadioAltitudeZoneInputs>): VdRadioAltitudeZoneInput
   ...i,
 });
 
-/* A380 FCOM DSC-31-20-40-10 (a380_fcom.txt l.69544-69548): amber zone from the RA, below 5 000 ft RA */
+/* The amber zone comes from the radio altitude, only below 5 000 ft RA */
 describe('VD amber radio altitude zone', () => {
   it('from the ground under the aircraft (altitude minus RA) down to the bottom of the VD, on the 0 NM line', () => {
     // ground at 1 000 ft: y = 800 + (4000 - 1000) / 20 = 950

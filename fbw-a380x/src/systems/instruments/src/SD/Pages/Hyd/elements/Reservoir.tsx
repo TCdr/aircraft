@@ -6,9 +6,8 @@ import '../../../../index.scss';
 const LITERS_PER_GALLON = 3.785411784;
 
 /**
- * Low level limit, shown as the amber part at the bottom of the reservoir gauge (A380 FCOM DSC-29-20 RESERVOIR FLUID
- * LEVEL, a380_fcom.txt l.61434-61438). PRO-ABN HYD G (Y) RSVR LEVEL LO (l.155270): "There are less than 2.6 US Gal of
- * hydraulic fluid". Same threshold as the reservoir low level switch of the hydraulic system (a380_systems).
+ * Low level limit, shown as the amber part at the bottom of the reservoir gauge: the RSVR LEVEL LO alert threshold,
+ * 2.6 US gal, the same as the reservoir low level switch of the hydraulic system (a380_systems).
  */
 const LOW_LEVEL_LIMIT_LITERS = 2.6 * LITERS_PER_GALLON;
 
@@ -20,7 +19,7 @@ type ReservoirProps = {
 export const Reservoir = ({ x, y, side }: ReservoirProps) => {
   const height = 166;
   const width = 19;
-  // Total reservoir capacity is 31.70 US gal, about 120L (A380 FCOM DSC-29-10, a380_fcom.txt l.60986).
+  // Total reservoir capacity is 31.70 US gal, about 120L.
   // Reservoir capacity is displayed up to 70L.
   const reservoirCapacityInLiters = 70;
   const litersToPixels = (liters: number) => (liters * height) / reservoirCapacityInLiters;
@@ -115,9 +114,8 @@ const ReservoirFailIndications = ({ side }: ReservoirFailIndicationsProps) => {
   const isLeftSide = side === 'GREEN';
 
   const [lowAirPress] = useSimVar(`L:A32NX_HYD_${side}_RESERVOIR_AIR_PRESSURE_IS_LOW`, 'boolean', 1000);
-  // A380 FCOM DSC-29-20 RESERVOIR OVHT (a380_fcom.txt l.61440-61447): one indication, OVHT, "The temperature in the
-  // reservoir is above normal", for both HYD G(Y) SYS OVHT (above 95 °C, l.155436) and HYD G(Y) SYS TEMP EXCESS HI (above
-  // 130 °C, l.155789). The FCOM has no separate TEMP HI indication on the HYD page.
+  // One OVHT indication for both reservoir temperature alerts: SYS OVHT (above 95 °C) and SYS TEMP EXCESS HI (above
+  // 130 °C). The HYD page has no separate TEMP HI indication.
   const [ovht] = useSimVar(`L:A32NX_HYD_${side}_RESERVOIR_OVHT`, 'boolean', 1000);
 
   return (

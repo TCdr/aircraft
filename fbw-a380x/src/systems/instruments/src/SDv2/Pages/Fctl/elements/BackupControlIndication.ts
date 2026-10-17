@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The BKUP CTL ACTIVE indication of the SD F/CTL page.
- * - A380 FCOM DSC-27-10-20 F/CTL page (a380_fcom.txt l.55643-55645): "BKUP CTL ACTIVE INDICATION - Backup control is
- *   active."
- * - A380 FCOM DSC-27-10-40 Backup Control (l.56376-56391): "In the unlikely event of the loss of all flight control
- *   computers (PRIMs and SECs), the backup control [...] The BCM [...] starts to operate when all flight control
- *   computers are lost."
- * This is the condition the FWS uses too (FwsCore allPrimAndSecFailed).
+ * The BKUP CTL ACTIVE indication of the SD F/CTL page: the backup control is active, which happens when all flight
+ * control computers (PRIMs and SECs) are lost. This is the condition the FWS uses too (FwsCore allPrimAndSecFailed).
  * @param primsHealthy the PRIM 1 to 3 healthy states (L:A32NX_PRIM_n_HEALTHY, 1 when healthy)
  * @param secsHealthy the SEC 1 to 3 healthy states (L:A32NX_SEC_n_HEALTHY, 1 when healthy)
  * @returns true when the backup control is active

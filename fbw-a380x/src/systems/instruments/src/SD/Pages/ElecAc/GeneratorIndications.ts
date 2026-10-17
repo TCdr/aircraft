@@ -2,31 +2,29 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * Generator indications of the ELEC AC and APU SD pages (FCOM gap report 2026-10-10, A380X ATA 24 rows #32, #33, #35,
- * #36). Source: A380 FCOM DSC-24-20 CONTROLS AND INDICATORS (ELEC AC page) and DSC-49-20 (APU page); "l." = line of
- * references/manuals/a380_fcom.txt.
+ * Generator indications of the ELEC AC and APU SD pages.
  */
 
-/** "The load is normal, when it is less than 108 %." (l.51003, 51092, 51162, 108596) */
-export const GENERATOR_OVERLOAD_PERCENT = 108;
+/** A generator load is normal below 108 % */
+const GENERATOR_OVERLOAD_PERCENT = 108;
 
-/** "The load is greater than 108 % for more than 10 s." (l.51013, 51097, 51167, 108601) */
-export const GENERATOR_OVERLOAD_CONFIRMATION_MS = 10_000;
+/** An overload is shown once the load has been above 108 % for more than 10 s */
+const GENERATOR_OVERLOAD_CONFIRMATION_MS = 10_000;
 
-/** "The voltage is normal between 110 V and 120 V." (l.51020 APU gen, l.51104 engine gen, l.108608 APU page) */
+/** The APU and engine generator voltage is normal between 110 V and 120 V */
 const GENERATOR_VOLTAGE_NORMAL_LOWER = 110;
 const GENERATOR_VOLTAGE_NORMAL_UPPER = 120;
 
-/** "The frequency is between 390 Hz and 410 Hz." (l.51029 ELEC AC page, l.108617 APU page) */
+/** The APU generator frequency is normal between 390 Hz and 410 Hz */
 const APU_GENERATOR_FREQUENCY_NORMAL_LOWER = 390;
 const APU_GENERATOR_FREQUENCY_NORMAL_UPPER = 410;
 
-/** OVHT INDICATION: "The engine generator overheats. The temperature is above 185 C." (l.51107-51112) */
-export const ENGINE_GENERATOR_OVERHEAT_CELSIUS = 185;
+/** OVHT: the engine generator temperature is above 185 C */
+const ENGINE_GENERATOR_OVERHEAT_CELSIUS = 185;
 
 /**
  * How long a generator load has been above GENERATOR_OVERLOAD_PERCENT, for the 10 s confirmation of the amber load
- * (l.51011-51013 APU gen, l.51094-51097 engine gen, l.51164-51167 RAT, l.108599-108601 APU page).
+ * (APU and engine generators, RAT).
  * @param previousDurationMs the overload duration at the previous update
  * @param loadPercent the generator load in percent
  * @param deltaMs the time since the previous update
@@ -41,7 +39,7 @@ export function nextGeneratorOverloadDurationMs(
 }
 
 /**
- * The load is amber ("There is an overload on the ... generator") only once it has been above 108 % for more than
+ * The load is amber (generator overload) only once it has been above 108 % for more than
  * 10 s; a short peak stays green.
  * @param overloadDurationMs the time the load has been above 108 % (nextGeneratorOverloadDurationMs)
  * @returns whether the load is amber
@@ -67,10 +65,10 @@ export function isApuGeneratorFrequencyNormal(frequencyHertz: number): boolean {
 }
 
 /**
- * ENGINE GENERATOR OFF (l.51061-51065): "The engine generator is off." / "The engine generator is disconnected from the
- * engine." The drive disconnection (DRIVE pb, or the automatic disconnection of ELEC DRIVE OIL OVHT / OIL PRESS LO)
- * stops the generator whatever its GEN pb, so DISC wins over OFF. The FCOM figure is not in the text: DISC in amber at
- * the place of OFF is a design choice (the drive can only be reconnected by maintenance, l.50783-50786).
+ * The engine generator is off (OFF) or disconnected from the engine (DISC). The drive disconnection (DRIVE pb, or the
+ * automatic disconnection of ELEC DRIVE OIL OVHT / OIL PRESS LO) stops the generator whatever its GEN pb, so DISC wins
+ * over OFF. Design choice (the source gives no picture): DISC in amber at the place of OFF, as the drive can only be
+ * reconnected by maintenance.
  * @param genPbOn GEN pb-sw ON
  * @param driveConnected the generator drive is connected (L:A32NX_ELEC_ENG_GEN_n_IDG_IS_CONNECTED)
  * @returns 'DISC', 'OFF', or null when the generator is in operation (load and voltage shown)
@@ -83,7 +81,7 @@ export function engineGeneratorOffText(genPbOn: boolean, driveConnected: boolean
 }
 
 /**
- * OVHT INDICATION of an engine generator (l.51107-51112). The generator is cooled by the oil of its drive, so the
+ * OVHT indication of an engine generator. The generator is cooled by the oil of its drive, so the
  * temperature of the oil leaving it (L:A32NX_ELEC_ENG_GEN_n_IDG_OIL_OUTLET_TEMPERATURE, systems
  * electrical/engine_generator.rs DirectDrive) stands for the generator temperature (design choice: the generator
  * winding temperature is not modelled). It goes above 185 C after a lost oil cooling or an oil leak, before the
@@ -108,13 +106,12 @@ export interface LoadSheddingState {
 }
 
 /**
- * GALLEY/COMMERCIAL INDICATION of the ELEC AC page (l.51033-51046): "COMMERCIAL OFF All commercial loads are shed.",
- * "GALLEY SHED All galley loads are shed.", "COMMERCIAL PARTIALLY SHED Some commercial loads are shed.", "GALLEY
- * PARTIALLY SHED Some galley loads are shed." The COMMERCIAL 1(2) pb-sw sheds the commercial loads of the upper left
- * (right) cabin supply centers (l.50709-50716): both OFF shed them all, one OFF some. The galley shedding comes from the
- * ENMU / ELMU of systems.wasm (a380_systems electrical/galley.rs).
- * The four legends share one place, in the FCOM order (all loads before some loads), as the FCOM gives one item for
- * them (design choice; the figure is not in the text).
+ * GALLEY/COMMERCIAL indication of the ELEC AC page: COMMERCIAL OFF (all commercial loads shed), GALLEY SHED (all
+ * galley loads shed), COMMERCIAL PARTIALLY SHED or GALLEY PARTIALLY SHED (some loads shed). The COMMERCIAL 1(2) pb-sw
+ * sheds the commercial loads of the upper left (right) cabin supply centers: both OFF shed them all, one OFF some.
+ * The galley shedding comes from the ENMU / ELMU of systems.wasm (a380_systems electrical/galley.rs).
+ * Design choice (the source gives one item for them, no picture): the four legends share one place, all loads before
+ * some loads.
  * @param state the shedding state
  * @returns the lines of the legend, or an empty list when nothing is shed
  */

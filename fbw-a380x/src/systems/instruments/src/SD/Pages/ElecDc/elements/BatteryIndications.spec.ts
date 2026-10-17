@@ -9,7 +9,6 @@ import {
   batteryWireColour,
 } from './BatteryIndications';
 
-/* A380 FCOM DSC-24-20 BAT1(2)(ESS) INDICATIONS (a380_fcom.txt l.51348-51368), unchanged */
 describe('SD ELEC DC BAT 1(2)(ESS) indications', () => {
   it('voltage is abnormal at or below 25 V while charging, or below 20 V', () => {
     expect(batteryVoltageNormal(false, 26, 5, false)).toBe(true);
@@ -26,7 +25,6 @@ describe('SD ELEC DC BAT 1(2)(ESS) indications', () => {
   });
 });
 
-/* A380 FCOM DSC-24-20 APU BAT INDICATIONS (l.51408-51426) */
 describe('SD ELEC DC APU BAT indications', () => {
   it('voltage is abnormal at or below 25 V outside the APU start sequence', () => {
     expect(batteryVoltageNormal(true, 28, 0, false)).toBe(true);

@@ -4,8 +4,8 @@
 import { formatWaypoint, SndPoint } from './SndGeo';
 import { SND_MAX_WAYPOINTS, SndNavigator } from './SndNavigator';
 
-/** The SND menu (FCOM DSC-34-10-20-30, MENU pb) */
-export const SND_MENU_ITEMS = ['INSERT WPT', 'INSERT FIX', 'EDIT WPT / FIX', 'CLEAR WPT / FIX'] as const;
+/** The SND menu (MENU pb) */
+const SND_MENU_ITEMS = ['INSERT WPT', 'INSERT FIX', 'EDIT WPT / FIX', 'CLEAR WPT / FIX'] as const;
 
 enum Item {
   InsertWpt,
@@ -15,7 +15,7 @@ enum Item {
 }
 
 /** A part of the coordinates being entered; the active one is the one the SET/SEL knob changes */
-export interface SndEditorField {
+interface SndEditorField {
   text: string;
   active: boolean;
 }
@@ -24,7 +24,7 @@ export interface SndEditorField {
  * Coordinates entered with the SET/SEL knob, one field after the other: latitude hemisphere, degrees, minutes, tenths of
  * minutes, then the same for the longitude. Turning the knob changes the active field, pressing it goes to the next one.
  */
-export class SndCoordinateEditor {
+class SndCoordinateEditor {
   // [N/S, degrees, minutes, tenths, E/W, degrees, minutes, tenths]
   private readonly values: number[];
 
@@ -96,7 +96,7 @@ type State =
     };
 
 /**
- * The SND menu and the DIR TO (FCOM DSC-34-10-20-30 and -50). MENU pb: the first item of the menu, MENU again: exit.
+ * The SND menu and the DIR TO. MENU pb: the first item of the menu, MENU again: exit.
  * SET/SEL knob: turned, scrolls the items (or the values of the selected item); pressed, selects. LS/DIR TO pb: DIR TO a
  * waypoint of the list (which activates the navigation), or to new coordinates when there is no list. EDIT and CLEAR
  * WPT / FIX choose among the waypoints, then the FIX.

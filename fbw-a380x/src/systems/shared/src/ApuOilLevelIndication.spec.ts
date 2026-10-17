@@ -8,7 +8,7 @@ import { apuOilLevelLowIndicationShown } from './ApuOilLevelIndication';
 
 const source = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8');
 
-describe('APU page OIL LVL LO (A380 FCOM l.108682-108693, l.108376-108390)', () => {
+describe('APU page OIL LVL LO', () => {
   it('shows when the ECB word reports a low oil level', () => {
     expect(apuOilLevelLowIndicationShown(true, true)).toBe(true);
   });

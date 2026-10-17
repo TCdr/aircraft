@@ -44,7 +44,6 @@ interface Revision {
   action: () => void;
 }
 
-/** The DIRECT TO page of the ND (FCOM DSC-31-20-30-90 P 6) */
 interface DirectToPage {
   kind: 'directTo';
   target: NdInteractiveElement | null;
@@ -53,7 +52,6 @@ interface DirectToPage {
   course: NdDirectToCourse | null;
 }
 
-/** The INSERT NEXT WPT page of the ND (FCOM DSC-31-20-30-90 P 15-17) */
 interface InsertNextWptPage {
   kind: 'insertNextWpt';
   revised: NdInteractiveElement;
@@ -70,7 +68,7 @@ interface PendingEntry {
   chosen: string[];
 }
 
-/** The DUPLICATE page (FCOM P 10, P 17): the elements of an entry that is not unique */
+/** The DUPLICATE page: the elements of an entry that is not unique */
 interface DuplicatePage {
   entry: PendingEntry;
   candidates: NdInteractiveElement[];
@@ -100,13 +98,12 @@ const DIRECT_TO_OPTIONS = [
   NdDirectToOption.CrsOut,
 ];
 
-/** An element of the list and revision menus is this high, in pixels */
+/** Of the list and revision menus, in pixels */
 const ROW_HEIGHT = 30;
 
-/** The DUPLICATE page shows this many elements at a time */
 const DUPLICATE_ROWS = 4;
 
-/** The latitude/longitude of a waypoint, as on the ND pages (FCOM P 16: 44°03.4N/008°13.3E) */
+/** The latitude/longitude of a waypoint as the ND pages show it, e.g. 44°03.4N/008°13.3E */
 function formatLatLong(location: { lat: number; long: number }): string {
   const part = (value: number, degreesDigits: number, positive: string, negative: string) => {
     const abs = Math.abs(value);
@@ -137,7 +134,7 @@ function latLongEntry(location: { lat: number; long: number }): string {
 }
 
 /**
- * The interactive ND (A380 FCOM DSC-31-20-30-90): with the KCCU cursor on the lateral ND in ARC, PLAN or ROSE-NAV mode,
+ * The interactive ND: with the KCCU cursor on the lateral ND in ARC, PLAN or ROSE-NAV mode,
  * the flight crew clicks on an interactive area (the blue rectangle around a waypoint, NAVAID or airport, or the aircraft
  * mock-up); several elements there give a list first. The revision list of the element sends the revision to the FMS:
  * FROM P.POS DIR TO * (the DIRECT TO page), INSERT NEXT WPT (its page), DELETE *, DATA (the DATA / AIRPORT page on the
@@ -159,10 +156,8 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
 
   private page: Page | null = null;
 
-  /** The waypoint list of the page is open */
   private listOpen = false;
 
-  /** The field the KCCU keyboard writes in, and the entry so far */
   private focused: Field | null = null;
 
   private typed = '';
@@ -184,7 +179,6 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
       .filter((symbol) => symbol.location !== null)
       .map((symbol) => NdInteractive.elementOf(symbol));
     const selections: Selection[] = elements.length > 0 ? elements : click.aircraft ? ['aircraft'] : [];
-    // The waypoint of the page, with the cursor (P 10, P 17)
     const page = this.page;
     const pageWaitsForWaypoint =
       page !== null &&
@@ -226,10 +220,8 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
     this.props.bus.getPublisher<NdInteractiveEvents>().pub('nd_interactive_request', request, true);
   }
 
-  // ------------------------------------------------------------------------------------------ list and revisions
-
   /**
-   * The list of the interactive elements under the cursor (P 3-4): the chosen one gives its revisions, or is the
+   * The list of the interactive elements under the cursor: the chosen one gives its revisions, or is the
    * waypoint of the open page
    */
   private showList(x: number, y: number, selections: Selection[], forPageWaypoint: boolean): void {
@@ -249,7 +241,7 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
     }
   }
 
-  /** The revision list of an element (P 5): its ident (green in the flight plan, yellow in the temporary one) */
+  /** The revision list of an element: its ident is green in the flight plan, yellow in the temporary one */
   private showRevisions(x: number, y: number, selection: Selection): void {
     const menu = this.openMenu(x, y);
     const state = this.state.get();
@@ -278,9 +270,9 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
   }
 
   /**
-   * The revisions of an element (P 5): the aircraft mock-up DIR TO; a flight plan waypoint FROM P.POS DIR TO *, INSERT
+   * The revisions of an element: the aircraft mock-up DIR TO; a flight plan waypoint FROM P.POS DIR TO *, INSERT
    * NEXT WPT, DELETE * (and DATA for an airport); a database element FROM P.POS DIR TO * (and DATA for an airport). No
-   * DIRECT TO while the ND shows a temporary flight plan (P 9), no revision while it shows a DIR TO one (P 1).
+   * DIRECT TO while the ND shows a temporary flight plan, no revision while it shows a DIR TO one.
    */
   private revisionsOf(selection: Selection): Revision[] {
     const state = this.state.get();
@@ -341,8 +333,6 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
     return row;
   }
 
-  // ------------------------------------------------------------------------------------------ pages
-
   /** The DIRECT TO page, with the target of the FROM P.POS DIR TO * revision, or none from the aircraft mock-up */
   private openDirectTo(target: NdInteractiveElement | null): void {
     this.page = { kind: 'directTo', target, option: NdDirectToOption.Direct, course: null };
@@ -353,7 +343,6 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
     this.renderPage();
   }
 
-  /** The INSERT NEXT WPT page of a flight plan waypoint (P 14) */
   private openInsertNextWpt(revised: NdInteractiveElement): void {
     this.page = { kind: 'insertNextWpt', revised, next: null };
     this.resetEntry();
@@ -406,14 +395,11 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
     }
   }
 
-  /** The ident shown in the waypoint field of the page */
   private pageWaypointIdent(): string {
     const page = this.page;
     const entry = page?.kind === 'directTo' ? page.target : page?.next;
     return entry?.ident ?? '';
   }
-
-  // ------------------------------------------------------------------------------------------ KCCU entry
 
   /** A KCCU key of this side, for the focused field (the same keys as the MFD input fields) */
   private onKccuKey(key: string): void {
@@ -537,9 +523,7 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
     });
   }
 
-  // ------------------------------------------------------------------------------------------ rendering
-
-  /** The page at the bottom of the display: DIRECT TO (P 6), INSERT NEXT WPT (P 15-17) or DUPLICATE (P 10) */
+  /** The page at the bottom of the display: DIRECT TO, INSERT NEXT WPT or DUPLICATE */
   private renderPage(): void {
     const root = this.pageRef.getOrDefault();
     if (!root) {
@@ -574,7 +558,7 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
   }
 
   /**
-   * The waypoint field of a page (P 10, P 17): a click on the ident takes the KCCU entry, the arrow opens the list of
+   * The waypoint field of a page: a click on the ident takes the KCCU entry, the arrow opens the list of
    * the flight plan waypoints
    */
   private waypointField(root: HTMLElement, label: string, className: string): void {
@@ -628,7 +612,7 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
     }
   }
 
-  /** The DIRECT TO page (P 6): the target and its list, UTC and DIST, the OPTIONS with the CRS field (P 11) */
+  /** The DIRECT TO page: the target and its list, UTC and DIST, the OPTIONS with the CRS field */
   private renderDirectTo(root: HTMLElement, page: DirectToPage): void {
     const state = this.state.get();
     this.waypointField(root, 'DIRECT TO', 'nd-interactive-dirto-target');
@@ -663,7 +647,6 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
       });
       options.appendChild(row);
     }
-    // The CRS entry field next to the selected CRS IN or CRS OUT option (P 11)
     if (page.option === NdDirectToOption.CrsIn || page.option === NdDirectToOption.CrsOut) {
       const field = document.createElement('div');
       field.className = `nd-interactive-field nd-interactive-course ${
@@ -688,7 +671,7 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
   }
 
   /**
-   * The INSERT NEXT WPT page (P 15-17): the revised waypoint (FROM, green in the active flight plan, yellow in the
+   * The INSERT NEXT WPT page: the revised waypoint (FROM, green in the active flight plan, yellow in the
    * temporary one), IN TMPY, its latitude/longitude (unless it is the FROM waypoint), the NEXT WPT field and list
    */
   private renderInsertNextWpt(root: HTMLElement, page: InsertNextWptPage): void {
@@ -711,7 +694,7 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
     this.waypointField(root, 'NEXT WPT', 'nd-interactive-next-target');
   }
 
-  /** The DUPLICATE page (P 10): the elements of the entry, nearest first, with RETURN and the scroll arrows */
+  /** The DUPLICATE page: the elements of the entry, nearest first, with RETURN and the scroll arrows */
   private renderDuplicate(root: HTMLElement, duplicate: DuplicatePage): void {
     const header = document.createElement('div');
     header.className = 'nd-interactive-duplicate-row nd-interactive-duplicate-header';
@@ -761,9 +744,7 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
     });
   }
 
-  // ------------------------------------------------------------------------------------------ INSERT / ERASE
-
-  /** INSERT DIR TO * and ERASE DIR TO * (P 12), or INSERT TMPY * and ERASE TMPY * (P 22-23), while the cursor is in the ND */
+  /** INSERT DIR TO * and ERASE DIR TO *, or INSERT TMPY * and ERASE TMPY *, only while the cursor is in the ND */
   private renderButtons(): void {
     const root = this.buttonsRef.getOrDefault();
     if (!root) {
@@ -785,7 +766,7 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
       });
       root.appendChild(element);
     };
-    // The pages close with their temporary flight plan (P 12, P 17)
+    // The pages close with their temporary flight plan
     button('ERASE', 'nd-interactive-erase', () => {
       this.send({ side: this.props.side, kind: 'eraseTmpy' });
       this.closePage();

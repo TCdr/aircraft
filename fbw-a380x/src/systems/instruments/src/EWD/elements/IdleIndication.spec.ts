@@ -6,7 +6,6 @@ import { isIdleIndicationShown } from './IdleIndication';
 
 const IDLE_N1 = 20;
 
-/* A380 FCOM DSC-70-90 IDLE INDICATION (a380_fcom.txt l.112973-112974) */
 describe('EWD IDLE indication', () => {
   it('shows in flight with at least three engines at idle, also with the A/THR off', () => {
     // the indication has no A/THR input: the A/THR state cannot hide it

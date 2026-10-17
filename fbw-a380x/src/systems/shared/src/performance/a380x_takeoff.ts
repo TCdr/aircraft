@@ -47,19 +47,19 @@ const vec2Cache = Vec2Math.create();
  *
  * The take-off weight limit comes from the Airbus take-off weight limitation charts (a380x_takeoff_data.ts): dry
  * runway, no wind, no slope, maximum takeoff thrust, at ISA and at ISA + 15 °C (the flat rating temperature TREF).
- * V2 is the minimum of the A380 FCOM, 1.13 VS1G (PER-TOF-TOR-SRS), with VS1G from the FBW A380X speed tables.
+ * V2 is the regulatory minimum, 1.13 VS1G, with VS1G from the FBW A380X speed tables.
  *
  * The calculator also gives estimates for what this data does not cover:
- * - the wind (50 % of the headwind, 150 % of the tailwind, A380 FCOM PER-TOF-TOC-OCD) and the runway slope, as a
- *   change of the distance needed to reach the lift-off speed
+ * - the wind (50 % of the headwind, 150 % of the tailwind) and the runway slope, as a change of the distance needed to
+ *   reach the lift-off speed
  * - the temperatures above TREF and the FLEX temperature: from TREF the thrust decreases linearly down to 60 % at
- *   TMAXFLEX = ISA + 60 (the 40 % maximum reduction, A380 FCOM PER-TOF-THR-FLX) and the weight limit goes with it;
- *   the density effect on the weight limit is calibrated on the charts (ISA against ISA + 15 °C, flat rated thrust).
- *   This reproduces the FCOM example of takeoff results (PER-TOF-TOR-SRS P 1: TOW 560 t for a MTOW(perf) of 614 t
- *   gives FLEX 38 °C), which gives 39 °C at sea level.
- * - VR and V1, in the ratios of the same FCOM example (V1 153, VR 168, V2 174)
- * - the minimum speeds from VMCA and VMCG (V2 >= 1.10 VMCA, VR >= 1.05 VMCA, V1 >= VMCG, PER-TOF-TOR-SRS P 1-2), with
- *   the VMCA and VMCG of the FBW A380X speed tables, as its FMS uses them: the FCOM gives no A380 values.
+ *   TMAXFLEX = ISA + 60 (the 40 % maximum reduction) and the weight limit goes with it; the density effect on the
+ *   weight limit is calibrated on the charts (ISA against ISA + 15 °C, flat rated thrust). This reproduces an Airbus
+ *   example of takeoff results (TOW 560 t for a MTOW(perf) of 614 t gives FLEX 38 °C), which gives 39 °C at sea
+ *   level.
+ * - VR and V1, in the ratios of the same Airbus example (V1 153, VR 168, V2 174)
+ * - the minimum speeds from VMCA and VMCG (V2 >= 1.10 VMCA, VR >= 1.05 VMCA, V1 >= VMCG), with the VMCA and VMCG of
+ *   the FBW A380X speed tables, as its FMS uses them: Airbus publishes no A380 values.
  * - the runway length needed below the shortest runway of the charts, and where V1, VR and 35 ft are reached (see
  *   {@link calculateTakeoffDistances}).
  * - the derated takeoff levels D04 to D24: the TOGA weight limit at the OAT times the derated thrust ratio, and lower
@@ -75,37 +75,37 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
   /** The FBW A380X empty weight in kg (flight_model.cfg, 661 403 lb) */
   public readonly oew = 300_006;
 
-  /** Not limited: only 50 % of the headwind is taken into account (A380 FCOM PER-TOF-TOC-OCD) */
+  /** Not limited: only 50 % of the headwind is taken into account */
   public readonly maxHeadwind = Number.POSITIVE_INFINITY;
 
-  /** A380 FCOM PER-TOF-TOC-OCD */
+  /** The aircraft's tailwind limit at takeoff, kt */
   public readonly maxTailwind = 10;
 
   /** The derated takeoff levels D04 to D24, as their thrust reduction in percent: 4 % of the maximum thrust each */
   public readonly derateLevels = [4, 8, 12, 16, 20, 24];
 
-  /** The flat rating temperature TREF, and TMAXFLEX, as ISA deviations (A380 FCOM PER-TOF-THR-FLX) */
+  /** The flat rating temperature TREF, and TMAXFLEX, as ISA deviations */
   private static readonly TREF_ISA_DEVIATION = 15;
 
   private static readonly TMAXFLEX_ISA_DEVIATION = 60;
 
-  /** The thrust at TMAXFLEX: the thrust cannot be reduced by more than 40 % (A380 FCOM PER-TOF-THR-FLX) */
+  /** The thrust at TMAXFLEX: the thrust cannot be reduced by more than 40 % */
   private static readonly THRUST_RATIO_AT_TMAXFLEX = 0.6;
 
-  /** A380 FCOM LIM-12 */
+  /** The aircraft's runway slope limit, % */
   private static readonly MAX_SLOPE = 2;
 
-  /** Maximum certified crosswind at takeoff, gust included (A380 FCOM LIM-12) */
+  /** Maximum certified crosswind at takeoff, gust included */
   private static readonly MAX_CROSSWIND = 30;
 
-  /** Lineup distance corrections, the ASDA ones (the larger), in metres (A380 FCOM PER-TOF-TOC-RWY) */
+  /** Lineup distance corrections, the ASDA ones (the larger), in metres */
   private static readonly LINEUP_CORRECTION: Record<LineupAngle, number> = {
     0: 0,
     90: 172.5 / FEET_PER_METRE,
     180: 219.8 / FEET_PER_METRE,
   };
 
-  /** The speed ratios of the A380 FCOM example of takeoff results (PER-TOF-TOR-SRS P 1) */
+  /** The speed ratios of an Airbus example of takeoff results */
   private static readonly VR_TO_V2 = 168 / 174;
 
   private static readonly V1_TO_VR = 153 / 168;
@@ -248,8 +248,7 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     cg?: number,
     out?: Partial<TakeoffPerformanceResult>,
   ): TakeoffPerformanceResult {
-    // A380 FCOM PER-TOF-THR-FLX: the configuration that gives the highest TFLEX, the highest configuration when two
-    // give the same one
+    // The configuration that gives the highest TFLEX, the highest configuration when two give the same one
     let best: TakeoffPerformanceResult | undefined;
     for (const conf of [1, 2, 3]) {
       const result = this.calculateTakeoffPerformance(
@@ -291,8 +290,8 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
    * floor, and the acceleration goes with 1 / weight).
    *
    * V1, VR and 35 ft are estimates: the charts give no distances for them. The all-engine distance to 35 ft is taken as
-   * the required length / 1.15 (CS 25.113), as the all-engine distance usually limits a four-engine aircraft (A380 FCOM
-   * PER-TOF-GEN, speed optimization), with a constant acceleration up to V2 + 10 kt at 35 ft.
+   * the required length / 1.15 (CS 25.113), as the all-engine distance usually limits a four-engine aircraft, with a
+   * constant acceleration up to V2 + 10 kt at 35 ft.
    */
   calculateTakeoffDistances(
     result: TakeoffPerformanceResult,
@@ -483,7 +482,7 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     return cg >= limits[0] && cg <= limits[1];
   }
 
-  /** FCOM LIM: one crosswind limit for every runway condition and temperature */
+  /** One crosswind limit for every runway condition and temperature */
   getCrosswindLimit(_runwayCondition: RunwayCondition, _oat: number): number {
     return A380842TakeoffPerformanceCalculator.MAX_CROSSWIND;
   }
@@ -611,7 +610,6 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
    * The runway length without wind and slope that needs the same distance to reach the lift-off speed.
    * @param length runway length in metres
    * @param wind headwind in knots, negative for a tailwind: 50 % of the headwind and 150 % of the tailwind are used
-   *   (A380 FCOM PER-TOF-TOC-OCD)
    * @param slope runway slope in %, positive uphill
    * @param liftOffTas lift-off true airspeed in m/s
    */
@@ -676,7 +674,7 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     return [i, Math.min(Math.max(f, 0), 1)];
   }
 
-  /** VS1G in knots: the FBW A380X VLS table of the configuration is 1.23 VS1G (A380 FCOM DSC-22-27-10-10 P 3) */
+  /** VS1G in knots: the FBW A380X VLS table of the configuration is 1.23 VS1G */
   private static vs1g(conf: number, cg: number, weight: number): number {
     return SpeedsLookupTables.getApproachVls(CONF_IN_SPEED_TABLES[conf], cg, weight) / 1.23;
   }

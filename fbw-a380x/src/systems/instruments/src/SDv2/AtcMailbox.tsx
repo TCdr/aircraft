@@ -67,7 +67,7 @@ export interface AtcMailboxProps extends ComponentProps {
   readonly active: Subscribable<boolean>;
   /**
    * The KCCU cursor of the mailbox: the F/O's on the F/O ND DU (design choice, the F/O works the mailbox there), else
-   * the CAPT's as before
+   * the CAPT's
    */
   readonly cursorSide?: 'CAPT' | 'FO';
 }
@@ -77,7 +77,7 @@ const ADS_STATUS_VAR = 'L:A380X_ATCCOM_ADS_STATUS';
 
 /**
  * Where the KCCU MAILBOX key puts the cursor, in mailbox coordinates (768 x 256). Design choice: the middle of the
- * mailbox, the FCOM gives no position.
+ * mailbox, the real position is not known.
  */
 const MAILBOX_KEY_CURSOR_POSITION = { x: 384, y: 128 };
 
@@ -87,7 +87,7 @@ const MAILBOX_KEY_CURSOR_POSITION = { x: 384, y: 128 };
  * @param eventName the H event
  * @returns the side of the KCCU, or null
  */
-export function mailboxKeyCursorSide(eventName: string): 'CAPT' | 'FO' | null {
+function mailboxKeyCursorSide(eventName: string): 'CAPT' | 'FO' | null {
   if (eventName === 'A32NX_KCCU_L_MAILBOX') {
     return 'CAPT';
   }
@@ -97,15 +97,15 @@ export function mailboxKeyCursorSide(eventName: string): 'CAPT' | 'FO' | null {
 /** The information of the system (e.g. PRINTING) is displayed for 5 s */
 const SYSTEM_STATUS_DURATION = 5000;
 
-/** The communication buttons, from the FCOM figure (mailbox coordinates, 768 x 256) */
+/** The communication buttons, from pictures of the aircraft display (mailbox coordinates, 768 x 256) */
 const BUTTON_TOPS = [3.3, 54.3, 105.2, 156.5, 207.2];
 
-/** The message lines: centres, below the time / origin line (FCOM figure) */
+/** The message lines: centres, below the time / origin line */
 const LINE_Y = [56.4, 92.9, 129.9, 167, 202.2];
 
 /**
- * The ATC mailbox on the lower part of the SD (A380 FCOM DSC-46-10-10-70, DSC-46-10-20-60), laid out on the FCOM
- * figures: the connection indications when no message is displayed; else the displayed message of the mailbox queue with
+ * The ATC mailbox on the lower part of the SD, laid out on pictures of the aircraft display: the connection
+ * indications when no message is displayed; else the displayed message of the mailbox queue with
  * its time, origin / destination and status, its pages, the previous / next message buttons and RECALL on the left, the
  * communication buttons on the right, and the Information Messages Area below. A client of the mailbox of the ATC
  * function (the same mailbox bus as the A32NX DCDU).
@@ -141,7 +141,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
 
   /**
    * The ATC function runs (L:A380X_ATC_FUNCTION_AVAIL, systems host CpiomD/AtcDatalink.ts): without it the mailbox
-   * shows MAILBOX NOT AVAIL, the condition of an ATC reset (A380 FCOM PRO-SUP-46, a380_fcom.txt l.184521-184523)
+   * shows MAILBOX NOT AVAIL, the condition of an ATC reset
    */
   private readonly atcAvailable = ConsumerSubject.create(
     this.props.bus.getSubscriber<SDSimvars>().on('atcFunctionAvailable').whenChanged(),
@@ -206,8 +206,8 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
    * Publishes to the ATC function, only from the active mailbox: an inactive one (the SD DU's while its DU is off, or
    * the SD on an ND DU while the SD DU shows the SD) would otherwise publish its own displayed / read messages over
    * those of the active one
-   * @param topic the topic
-   * @param data the data
+   * @param topic the mailbox or FMS-ATC bus topic
+   * @param data its payload
    */
   private publishToAtc<K extends keyof (AtsuMailboxMessages & FmsAtcMessages)>(
     topic: K,
@@ -355,10 +355,9 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
   }
 
   /**
-   * KCCU MAILBOX key (A380 FCOM DSC-46-10-20-80 Mailbox KEY, a380_fcom.txt l.101303-101306: "When pressed, the cursor
-   * moves to the mailbox section of the SD"; DSC-46-10-10-10 l.95692 "MAILBOX key, to position the cursor on the mailbox section
-   * of the SD"): the active mailbox shows the KCCU cursor of that side. The key works with the KCCU keyboard ON
-   * (DSC-31-30-20, isKccuKeyActive); the MFD of that side hides its cursor (MFD.tsx).
+   * KCCU MAILBOX key: it moves the cursor to the mailbox section of the SD, so the active mailbox shows the KCCU cursor
+   * of that side. The key works with the KCCU keyboard ON (isKccuKeyActive); the MFD of that side hides its cursor
+   * (MFD.tsx).
    * @param eventName the H event
    */
   private onKccuMailboxKey(eventName: string): void {
@@ -459,7 +458,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
         replyTo: this.replyToOf(messages[0]),
       };
       this.blocks.set([...this.blocks.get(), block]);
-      // A new message appears when the mailbox shows no message, or when it is urgent (FCOM PRO How to read)
+      // A new message appears when the mailbox shows no message, or when it is urgent
       if (this.visibleUid.get() === null || messages[0].Content[0]?.Urgent) {
         this.show(uid);
       }
@@ -551,7 +550,6 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
         break;
       case 'CANCEL':
         if (message.Direction === AtsuMessageDirection.Downlink) {
-          // Removes the prepared downlink message from the mailbox
           this.publishToAtc('deleteMessage', uid);
           this.removeBlock(uid);
         } else {
@@ -743,12 +741,12 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
 
     return (
       <div ref={this.topRef} class="atc-mailbox-top-layout">
-        {/* ATC function lost (CPIOM D1, ATC RESET): MAILBOX NOT AVAIL instead of the mailbox (PRO-SUP-46 l.184521-184523) */}
+        {/* ATC function lost (CPIOM D1, ATC RESET): MAILBOX NOT AVAIL instead of the mailbox */}
         <div class="atc-mailbox-not-avail" style={{ display: notAvailDisplay }}>
           MAILBOX NOT AVAIL
         </div>
         <div style={{ display: mailboxDisplay }}>
-          {/* The separators of the columns and of the Information Messages Area (FCOM figure) */}
+          {/* The separators of the columns and of the Information Messages Area */}
           <div class="atc-mailbox-vline" style="left: 100px; top: 0; height: 256px;" />
           <div class="atc-mailbox-vline" style="left: 615px; top: 0; height: 256px;" />
           <div class="atc-mailbox-hline" style="left: 100px; top: 222px; width: 515px;" />
@@ -833,7 +831,6 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
           {/* Communication buttons */}
           {BUTTON_TOPS.map((_, i) => this.renderButton(i))}
 
-          {/* The justifications of the DUE TO button, on the left of the communication buttons */}
           <div
             class="atc-mailbox-due-to-menu"
             style={{ display: this.dueToMenuOpen.map((open) => (open ? 'block' : 'none')) }}
@@ -845,7 +842,6 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
             ))}
           </div>
 
-          {/* Information Messages Area */}
           <div class="atc-mailbox-information" style="left: 230.5px;">
             {information}
           </div>

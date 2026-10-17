@@ -19,9 +19,8 @@ export interface EngineParametersInputs {
 }
 
 /**
- * Whether the ENG SD page shows the parameters of the engine. A380 FCOM ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt
- * l.171562-171564): "The FADEC can still provide engine control, and transmits to the EWD the primary engine parameters
- * ... The ENG 1(2)(3)(4) parameters on the ENG SD page are lost."
+ * Whether the ENG SD page shows the parameters of the engine. With an ENG FADEC FAULT the FADEC still controls the
+ * engine and sends the primary parameters to the EWD, but the ENG SD page loses that engine's parameters.
  */
 export function areEngineParametersShown(inputs: EngineParametersInputs): boolean {
   const fadecPowered =

@@ -11,8 +11,7 @@ interface ControlSystemProps {
   number: 1 | 2 | 'E';
   type: ControlSystemType;
   /**
-   * A380 FCOM DSC-32-20-50/60 (l.81185-81187, l.81313-81322): "operates normally" / "is failed". Green when normal;
-   * design choice: amber when failed, the ECAM colour of a failure (the FCOM figures are not in the text).
+   * Green when normal. Design choice: amber when failed, the ECAM colour of a failure (the source gives no colour).
    */
   failed: boolean;
 }

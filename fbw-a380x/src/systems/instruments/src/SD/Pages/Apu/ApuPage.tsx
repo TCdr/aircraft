@@ -514,9 +514,8 @@ const ApuMemos = ({ x, y }: ComponentPositionProps) => {
 
   const [apuMasterPbOn] = useSimVar('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON', 'Bool', 1000);
 
-  // A380 FCOM DSC-49-20 OIL LVL LO INDICATION (l.108682-108693): pulsing, inhibited in flight (the ECB detects it on
-  // the ground only). Green as an advisory (the APU keeps running normally for at least 14 h); the colour and the place
-  // are design choices, the FCOM figure is not in the text.
+  // OIL LVL LO pulses and is inhibited in flight (the ECB detects it on the ground only).
+  // Design choice: green as an advisory (the APU still runs for at least 14 h) and its place; the source gives neither.
   const lowOilLevel = useArinc429Var('L:A32NX_APU_LOW_OIL_LEVEL', 1000);
   const showOilLevelLow = apuOilLevelLowIndicationShown(lowOilLevel.isNormalOperation(), lowOilLevel.value > 0);
 

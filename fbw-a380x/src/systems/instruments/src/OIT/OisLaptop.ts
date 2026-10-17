@@ -38,7 +38,7 @@ export class OisLaptop implements Instrument {
 
   private lastUpdateSimTime: number | null = null;
 
-  /** The ARU, through which the laptop connects to the FLT OPS network (A380 FCOM DSC-46-20-10-20, DSC-46-20-40) */
+  /** The ARU, through which the laptop connects to the FLT OPS network */
   private readonly aru = new AruStartup();
 
   private readonly networkConnection = new LaptopNetworkConnection();
@@ -126,7 +126,7 @@ export class OisLaptopData {
   public readonly fromAirport = Subject.create<string | null>(null);
   public readonly toAirport = Subject.create<string | null>(null);
 
-  /** The FLT OPS STS page data of a new session: nothing entered (EXIT SESSION, OitUiService.exitFltOpsSession) */
+  /** EXIT SESSION: the STS page starts empty for the next flight */
   public reset(): void {
     this.fltNumber.set(null);
     this.fromAirport.set(null);
