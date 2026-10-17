@@ -414,6 +414,7 @@ struct CoreHydraulicForce {
 
     has_flow_restriction: bool,
     max_working_pressure: Pressure,
+    flow_cut_off_pressure: Pressure,
 
     locks_position_in_closed_mode: bool,
     is_soft_locked: bool,
@@ -433,6 +434,8 @@ impl CoreHydraulicForce {
     // Threshold to start reducing max possible flow
     //   ie: 500 value for a max pressure of 3000psi will start reducing flow when below 2500 psi
     const FLOW_REDUCTION_THRESHOLD_BELOW_MAX_PRESS_PSI: f64 = 500.;
+
+    const NEW_ARCHITECTURE_FULL_FLOW_PRESSURE_PSI: f64 = 5000.;
 
     fn new(
         context: &mut InitContext,
@@ -514,6 +517,7 @@ impl CoreHydraulicForce {
             ),
             has_flow_restriction,
             max_working_pressure,
+            flow_cut_off_pressure: Pressure::default(),
 
             locks_position_in_closed_mode,
             is_soft_locked: locks_position_in_closed_mode,
@@ -810,17 +814,23 @@ impl CoreHydraulicForce {
     fn flow_restriction_factor(&self, current_pressure: Pressure) -> f64 {
         // Selecting old 3000psi vs new hydraulic architecture based on max pressure of the system
         // New 5000 psi systems have a higher flow degradation with pressure going lower
-        if self.max_working_pressure < Pressure::new::<psi>(4000.) {
-            (1. / (self.max_working_pressure.get::<psi>()
-                - Self::FLOW_REDUCTION_THRESHOLD_BELOW_MAX_PRESS_PSI)
-                * current_pressure.get::<psi>().powi(2)
-                * 1.
-                / (self.max_working_pressure.get::<psi>()
-                    - Self::FLOW_REDUCTION_THRESHOLD_BELOW_MAX_PRESS_PSI))
-                .min(1.)
-        } else {
-            (current_pressure.get::<psi>().powi(3) * (0.00000004 / 5000.)).min(1.)
-        }
+        let (full_flow_pressure_psi, exponent) =
+            if self.max_working_pressure < Pressure::new::<psi>(4000.) {
+                (
+                    self.max_working_pressure.get::<psi>()
+                        - Self::FLOW_REDUCTION_THRESHOLD_BELOW_MAX_PRESS_PSI,
+                    2,
+                )
+            } else {
+                (Self::NEW_ARCHITECTURE_FULL_FLOW_PRESSURE_PSI, 3)
+            };
+
+        let cut_off_psi = self.flow_cut_off_pressure.get::<psi>();
+        let pressure_above_cut_off_psi = (current_pressure.get::<psi>() - cut_off_psi).max(0.);
+
+        (pressure_above_cut_off_psi / (full_flow_pressure_psi - cut_off_psi))
+            .powi(exponent)
+            .min(1.)
     }
 
     fn force_position_control(
@@ -1087,6 +1097,12 @@ impl LinearActuator {
             ),
             electro_hydrostatic_backup,
         }
+    }
+
+    /// With flow restriction, the flow of position control fades out at this pressure instead of at zero pressure.
+    pub fn with_flow_cut_off_pressure(mut self, cut_off_pressure: Pressure) -> Self {
+        self.core_hydraulics.flow_cut_off_pressure = cut_off_pressure;
+        self
     }
 
     fn update_before_rigid_body(

@@ -766,6 +766,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ELEC] The COMMERCIAL 1 and COMMERCIAL 2 pbs each shed the galleys of their own cabin side (one OFF: COMMERCIAL PARTIALLY SHED; both OFF: COMMERCIAL OFF) - @TCdr
 1. [EFB] A380 takeoff calculator: DERATED takeoff (D04-D24) next to TOGA and FLEX, sent to the MFD with the company T.O data - @TCdr
 1. [A380X/PFD] FMA shows MAN DTO instead of MAN FLX +0 for a derated takeoff - @TCdr
+1. [A380X/HYD] With only one electric pump on ground, the hydraulic pressure rises steadily to normal while the drooped flight controls re-centre, instead of saw-toothing between about 2 900 and 4 300 psi - @TCdr
 
 ## 2024.1.0
 
