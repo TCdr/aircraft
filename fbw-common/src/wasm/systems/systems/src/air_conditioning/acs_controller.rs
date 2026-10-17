@@ -242,7 +242,7 @@ impl<const ZONES: usize, const ENGINES: usize> AirConditioningSystemController<Z
     }
 
     /// The pack flow control valve position disagrees with the commanded position (one of the PACK 1(2) FAULT
-    /// triggers, FCOM PRO-ABN-AIR)
+    /// triggers)
     pub fn pack_flow_control_valve_disagrees(&self) -> bool {
         self.pack_flow_controller.fcv_disagree_status()
     }
@@ -685,9 +685,9 @@ impl ZoneController {
             && matches!(acsc_id, AcscId::Acsc2(_))
             && is_enabled
         {
-            // FCOM PRO-ABN-COND LAV + GALLEY FAN FAULT: the cabin zone temperature sensors are ventilated by the air
-            // this fan extracts, so the cabin temperature regulation is lost. With ACSC 2 operative, the FWD CABIN and
-            // AFT CABIN selectors "control the cabin duct temperature directly". The cockpit regulation is normal.
+            // LAV + GALLEY FAN FAULT: the cabin zone temperature sensors are ventilated by the air this fan extracts,
+            // so the cabin temperature regulation is lost. With ACSC 2 operative, the FWD CABIN and AFT CABIN
+            // selectors control the cabin duct temperature directly. The cockpit regulation is normal.
             self.zone_selected_temperature
         } else {
             self.calculate_duct_temp_demand(
@@ -866,8 +866,8 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
     const FCV_FAILED_OPEN_TIME_LIMIT: Duration = Duration::from_secs(30);
     const FCV_FAILED_CLOSED_TIME_LIMIT: Duration = Duration::from_secs(17);
     const INLET_PRESSURE_BELOW_MIN_TIME: Duration = Duration::from_secs(5);
-    // FCOM DSC-21-10-50 (PACK pb-sw): "On ground, reopening of the valves is delayed for 30 s to avoid a
-    // supplementary pack closure cycle during second engine start."
+    // On ground the pack valves reopen 30 s after an engine start, to avoid another pack closure cycle during the
+    // second engine start
     const ENGINE_START_REOPENING_DELAY_ON_GROUND: Duration = Duration::from_secs(30);
 
     fn new(context: &mut InitContext, pack_id: Pack) -> Self {
@@ -1022,7 +1022,6 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
                 && (pneumatic.engine_state(onside_engine_number) == EngineState::Off
                     || pneumatic.engine_state(onside_engine_number) == EngineState::Shutting));
 
-        // On ground the valve stays closed for 30 s after the engine start condition ends, in flight it reopens at once
         self.engine_start_closure
             .update(context, closed_for_engine_start);
         let is_on_ground = !matches!(aircraft_state, AirConditioningStateManager::InFlight(_));
@@ -1034,7 +1033,7 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
 
         acs_overhead.pack_pushbuttons_state()[self.id]
             && !kept_closed_by_engine_start
-            // FCOM DSC-21-10-50: the valve closes when the FIRE pb of the engine on the related side is pressed
+            // The valve closes when the FIRE pb of the engine on the related side is pressed
             && !engine_fire_push_buttons.is_released(onside_engine_number)
             && !pressurization_overhead.ditching_is_on()
         // && ! pack 1 overheat
@@ -1127,8 +1126,8 @@ struct TrimAirSystemController<const ZONES: usize, const ENGINES: usize> {
 }
 
 impl<const ZONES: usize, const ENGINES: usize> TrimAirSystemController<ZONES, ENGINES> {
-    // FCOM PRO-ABN-COND DUCT OVHT: the duct temperature rises above 88 deg C, or above 80 deg C four times during the
-    // same flight. The FAULT light goes off below 70 deg C with the HOT AIR pb selected OFF (FCOM DSC-21-10-50).
+    // DUCT OVHT: the duct temperature rises above 88 deg C, or above 80 deg C four times during the same flight. The
+    // FAULT light goes off below 70 deg C with the HOT AIR pb selected OFF.
     const DUCT_OVERHEAT_SET_LIMIT: f64 = 88.; // Deg C
     const DUCT_REPEATED_EXCURSION_LIMIT: f64 = 80.; // Deg C
     const DUCT_REPEATED_EXCURSIONS_FOR_OVERHEAT: u8 = 4;
@@ -1231,7 +1230,7 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystemController<ZONES, EN
             && !tav_failures_close_taprv
     }
 
-    /// FCOM DSC-21-10-20 (hot-air pressure-regulating valve): the valve closes if the cockpit trim air valve fails or
+    /// Hot-air pressure-regulating valve: the valve closes if the cockpit trim air valve fails or
     /// if both cabin trim air valves fail, and remains operative if either the forward or the aft cabin trim air valve
     /// fails. The first zone is the cockpit, the others are the cabin zones.
     fn trim_air_valve_failures_close_hot_air_valve(trim_air_valve_failed: &[bool]) -> bool {
@@ -1274,7 +1273,6 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystemController<ZONES, EN
         if new_excursion_count
             .is_some_and(|count| count >= Self::DUCT_REPEATED_EXCURSIONS_FOR_OVERHEAT)
         {
-            // The fourth (or a later) excursion above 80 deg C in this flight is an overheat
             true
         } else if duct_temperature[zone_id]
             > ThermodynamicTemperature::new::<degree_celsius>(Self::DUCT_OVERHEAT_SET_LIMIT)
@@ -4800,7 +4798,7 @@ mod acs_controller_tests {
 
         #[test]
         fn hot_air_stays_open_with_one_of_two_cabin_tavs_failed() {
-            // Zone order: cockpit, FWD cabin, AFT cabin (FCOM DSC-21-10-20)
+            // Zone order: cockpit, FWD cabin, AFT cabin
             let closes = |failed: [bool; 3]| {
                 TrimAirSystemController::<3, 2>::trim_air_valve_failures_close_hot_air_valve(
                     &failed,

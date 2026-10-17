@@ -18,7 +18,7 @@ export enum StatusPart {
  * in the left column.
  */
 const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
-  // 21 AIR CONDITIONING (FCOM PRO-ABN-AIR, PRO-ABN-COND)
+  // 21 AIR CONDITIONING
   ['210400001', { part: StatusPart.Limitation, text: 'MAX FL.....100/MEA-MORA' }],
   ['210200001', { part: StatusPart.Information, text: 'CKPT AT FIXED TEMP' }],
   ['210200002', { part: StatusPart.Information, text: 'CAB AT FIXED TEMP' }],

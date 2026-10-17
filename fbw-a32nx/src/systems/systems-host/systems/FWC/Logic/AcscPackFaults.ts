@@ -23,9 +23,11 @@ export interface AcscPackFaults {
 }
 
 /**
- * FCOM PRO-ABN-AIR: PACK 1(2) FAULT triggers when the position of the pack flow control valve disagrees with the
- * commanded position; its STATUS also covers the loss of ACSC 1(2), which closes that pack (DSC-21-10-40, both lanes
- * failure). PACK 1+2 FAULT triggers when both ACSCs are failed, and then replaces the two single pack cautions.
+ * PACK 1(2) FAULT triggers when the position of the pack flow control valve disagrees with the commanded position; it
+ * also covers the loss of ACSC 1(2) (both lanes failed), which closes that pack. PACK 1+2 FAULT triggers when both
+ * ACSCs are failed, and then replaces the two single pack cautions.
+ * @param inputs the ACSC failure states and the pack valve disagreements
+ * @returns the pack fault states
  */
 export function acscPackFaults(inputs: AcscPackFaultInputs): AcscPackFaults {
   const bothAcscFailed = inputs.acsc1Failed && inputs.acsc2Failed;

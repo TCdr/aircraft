@@ -445,13 +445,12 @@ impl A320AirConditioningSystem {
 
     /// The zone duct demands each pack regulates to (a pack supplies the lowest demand of its list).
     ///
-    /// Hot air pressure regulating valve open, FCOM DSC-21-10-20: "A signal corresponding to the lowest demanded zone
-    /// temperature goes to the pack controller or the ACSC, which then make both packs supply the required outlet
-    /// temperature." The trim air valves then add hot air to the warmer zones.
+    /// Hot air pressure regulating valve open: the lowest demanded zone temperature goes to the pack controllers, and
+    /// both packs supply that outlet temperature. The trim air valves then add hot air to the warmer zones.
     ///
-    /// Valve closed, FCOM DSC-21-10-40 HOT AIR PRESSURE REGULATING VALVE FAILURE, failed closed: "Trim air valves are
-    /// driven to the fully closed position. Pack 1 controls the cockpit temperature to the selected value and pack 2
-    /// controls the cabin temperature (FWD and AFT) to the mean value of the selected temperatures." Without trim air
+    /// Valve closed (as in a hot air pressure regulating valve failed closed): the trim air valves are fully closed,
+    /// pack 1 controls the cockpit to its selection and pack 2 the cabin (FWD and AFT) to the mean of the two cabin
+    /// selections. Without trim air
     /// the packs are the only temperature control, so the same rule applies whatever closed the valve (failure, HOT
     /// AIR pb OFF, or the automatic closure on trim air valve failures). Each cabin zone demand drives its zone to its
     /// own selection, so the mean of the FWD and AFT demands drives the cabin to the mean of the two selections.
@@ -472,8 +471,8 @@ impl A320AirConditioningSystem {
 
         let [_, acsc_2_both_lanes_failed] = acsc_both_lanes_failed;
         let pack_2_demand = if acsc_2_both_lanes_failed {
-            // FCOM PRO-ABN-COND LAV + GALLEY FAN FAULT, ACSC 2 inoperative: "Cabin duct temperature is the same as
-            // cockpit duct temperature" (pack 2 itself then runs at its fixed backup outlet temperature)
+            // LAV + GALLEY FAN FAULT, ACSC 2 inoperative: the cabin duct temperature is the cockpit duct temperature
+            // (pack 2 itself then runs at its fixed backup outlet temperature)
             cockpit_demand
         } else {
             cabin_demands.iter().average()
@@ -482,10 +481,10 @@ impl A320AirConditioningSystem {
         [vec![cockpit_demand], vec![pack_2_demand]]
     }
 
-    /// The zone duct demands both packs regulate to with the hot air valve open (each pack supplies the lowest one). ACSC 1 computes the cockpit
-    /// demand and ACSC 2 the cabin demands; a controller with both lanes failed sends none, so the remaining pack only
-    /// follows the zones of the operative controller. FCOM PRO-ABN-COND LAV + GALLEY FAN FAULT, ACSC 2 inoperative:
-    /// "Cabin duct temperature is the same as cockpit duct temperature", adjusted with the COCKPIT selector.
+    /// The zone duct demands both packs regulate to with the hot air valve open (each pack supplies the lowest one).
+    /// ACSC 1 computes the cockpit demand and ACSC 2 the cabin demands; a controller with both lanes failed sends none,
+    /// so the remaining pack only follows the zones of the operative controller. With ACSC 2 inoperative (LAV + GALLEY
+    /// FAN FAULT) the cabin duct temperature is the cockpit duct temperature, adjusted with the COCKPIT selector.
     fn pack_temperature_demands(
         cockpit_demand: ThermodynamicTemperature,
         cabin_demands: [ThermodynamicTemperature; 2],
@@ -2174,7 +2173,7 @@ mod tests {
 
         #[test]
         fn pack_1_follows_the_cockpit_only_with_acsc_2_inoperative() {
-            // FCOM PRO-ABN-COND LAV + GALLEY FAN FAULT: cabin duct temperature = cockpit duct temperature
+            // LAV + GALLEY FAN FAULT: cabin duct temperature = cockpit duct temperature
             let demands = A320AirConditioningSystem::pack_temperature_demands(
                 celsius(20.),
                 [celsius(15.), celsius(25.)],
@@ -2207,7 +2206,6 @@ mod tests {
 
         #[test]
         fn pack_1_follows_the_cockpit_and_pack_2_the_cabin_mean_with_the_hot_air_valve_closed() {
-            // FCOM DSC-21-10-40 HOT AIR PRESSURE REGULATING VALVE FAILURE, failed closed
             let demands = A320AirConditioningSystem::pack_temperature_demands_per_pack(
                 celsius(20.),
                 [celsius(15.), celsius(25.)],
@@ -2308,7 +2306,6 @@ mod tests {
 
         #[test]
         fn with_the_hot_air_valve_closed_pack_1_regulates_the_cockpit_and_pack_2_the_cabin_mean() {
-            // FCOM DSC-21-10-40 HOT AIR PRESSURE REGULATING VALVE FAILURE, failed closed
             let test_bed = test_bed_with_cockpit_hot_and_cabin_cold(false);
             assert!(!hot_air_valve_is_open(&test_bed));
 

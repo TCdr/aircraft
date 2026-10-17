@@ -11,7 +11,7 @@ const normal: AcscPackFaultInputs = {
   pack2ValveDisagrees: false,
 };
 
-describe('A320 PACK 1(2) FAULT and PACK 1+2 FAULT triggers (FCOM PRO-ABN-AIR)', () => {
+describe('A320 PACK 1(2) FAULT and PACK 1+2 FAULT triggers', () => {
   it('gives no pack caution when both ACSCs and both valves are normal', () => {
     expect(acscPackFaults(normal)).toEqual({ pack1Fault: false, pack2Fault: false, bothAcscFailed: false });
   });
