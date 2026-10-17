@@ -16,16 +16,13 @@ constexpr double kOverlayTerr = 2.0;
 
 // The vertical cut of the VD's terrain profile, published by EfisTawsBridge.ts (publishVdCut): along the
 // active flight plan in the managed lateral modes (mode 1, the vertices below in degrees), along the
-// aircraft's track otherwise (mode 0), as the real VD (FCOM DSC-31-20-40-10, "the vertical cut runs
-// along the active flight plan ... or the current track").
+// aircraft's track otherwise (mode 0), as the real VD's cut.
 constexpr int kVdCutMaxVertices = 32;
 constexpr int kVdCutMaxSegments = kVdCutMaxVertices;
 
-// The RDR-4000 takes about 30 s to fill its 3D buffer once the crew selects the radar (FCOM
-// DSC-34-20-30, operational recommendations: "when they press the WX pb on the EFIS CP, it takes
-// about 30 s to fill the buffer with radar data and have the complete display available on the
-// ND and on the VD"). While it fills, the picture is revealed by one slow sweep from the left
-// edge to the right one. The transmitter is shared by both NDs (see the ND draw).
+// The A380's radar takes about 30 s after the crew presses the WX pb to fill its 3D buffer and
+// show the complete picture on the ND and the VD. While it fills, the picture is revealed by one
+// slow sweep from the left edge to the right one. The transmitter is shared by both NDs (see the ND draw).
 constexpr double kWxrBufferFillSeconds = 30.0;
 
 // The vertical display (VD) below the A380X ND (VerticalDisplay.tsx): its plot
@@ -44,27 +41,24 @@ constexpr float kVdHeight = 200.0f;
 // see one slice of weather at about the aircraft's altitude (see the header of the
 // module). The ND texel columns along the VD's vertical cut are rotated onto the VD's
 // range axis and extruded vertically, shaped like the cells of a real VD: green and
-// yellow columns from the ground up to a rounded, tapering top (kVdGreenTopSpan /
-// kVdYellowTopSpan above the aircraft altitude), with the red core a block centred on
-// the aircraft's altitude (+-kVdRedHalfSpan), where the ND measures it.
-//  Turbulence (magenta) is not drawn on the VD: the real VD does not display it
-//  either (FCOM DSC-31-20-40-10, weather display).
+// yellow columns from the ground up to their top (kVdGreenTopSpan / kVdYellowTopSpan
+// above the aircraft altitude), with the red core a block centred on the aircraft's
+// altitude (+-kVdRedHalfSpan), where the ND measures it.
+//  Turbulence (magenta) is not drawn on the VD: the real VD does not display it either.
 // All the heights are made up, and given as fractions of the altitude span of the
-// VD plot (in-sim, fixed heights of thousands of feet were far above the plot at low
-// altitude, where the VD only spans about 5000 ft, so no top was ever visible). The
-// columns stand on the ground: from sea level up when the plot reaches below it.
+// VD plot (measured in the sim: fixed heights of thousands of feet were far above the
+// plot at low altitude, where the VD only spans about 5000 ft, so no top was ever
+// visible). The columns stand on the ground: from sea level up when the plot reaches below it.
 //
-// The rounded top is built from levels (kVdColumnDome): level 0 is the whole shape, only
+// The top can be built from levels (kVdColumnDome): level 0 is the whole shape, only
 // up to a fraction of the height; each further level covers the next band of height but
 // only where the shape is also there depthPx to both sides along the range axis (an
-// erosion: three taps, all must agree), so the shape is narrower the higher it goes. The
-// levels follow the outline of a quarter ellipse (steep near the shape's edge, flat on
-// top), so a column has straight sides up to about half its height and rounded shoulders.
+// erosion: three taps, all must agree), so the shape is narrower the higher it goes.
 // Each level only draws its own band of height (plus a small overlap, kVdBandOverlapPx).
 //
-// The cut is the VD's vertical cut (FCOM DSC-31-20-40-10: the active flight plan in the
-// managed lateral modes, the track otherwise; "for the weather display, the WXR considers
-// a zero-width vertical cut"), followed piece by piece as the terrain does (see
+// The cut is the VD's vertical cut (the active flight plan in the managed lateral modes,
+// the track otherwise; the real radar takes the weather along a zero-width cut), followed
+// piece by piece as the terrain does (see
 // drawVdErodedRect). The radar's beam has a width, though (about 3.5 degrees), so the
 // base level shows the STRONGEST weather within the beam around the cut (half angle
 // atan(kVdWedgeTan)): kVdLateralTapsPerSide columns on each side of the cut are drawn
@@ -97,13 +91,11 @@ struct VdDomeLevel {
   float heightFraction;  // how much of the full height it reaches
 };
 
-// h = h0 + (1 - h0) * sqrt(1 - (1 - t)^2), depth = t * 24 (h0 = 0.5, t = 0, 1/7 .. 1).
-// A single level: the real VD draws the cells as plain vertical bars with flat tops (A380 ND photo, MALPA); the
-// rounded dome of before was h = h0 + (1 - h0) * sqrt(1 - (1 - t)^2), depth = t * 24 over 8 levels.
+// A single level: the real VD draws the cells as plain vertical bars with flat tops (seen on a photo of a real A380 ND).
 constexpr VdDomeLevel kVdColumnDome[] = {{0.0f, 1.0f}};
 constexpr int kVdColumnDomeCount = 1;
 
-// Why the red core is a plain block and not a rounded shape: the red is made by wiping the
+// Why the red core is a plain block, never eroded: the red is made by wiping the
 // green channel out of the yellow with a multiply blend, and a multiply can only be "any one
 // tap sees the weather" (a dilation - the erosion taps made the outer levels WIDER than the
 // inner ones, an hourglass), never "all taps agree". Additive passes (the columns) can be
@@ -123,7 +115,7 @@ constexpr int kVdLateralTapsPerSide = 3;
 // ND texture this many screen pixels per texel across the path (much more than the
 // VD is tall, so neighbouring columns don't leak in).
 constexpr float kVdColumnTexelPx = 3000.0f;
-// Measured in-sim (2026-09-19): MSFS has no usable height information for the
+// Measured in the sim: MSFS has no usable height information for the
 // horizontal radar. fsMapViewSetAltitudeRangeInFeet changes nothing on it (slabs
 // 3000-5000 and 9000-11000 ft above the aircraft came out identical to each other),
 // and the TOP VIEW radar mode is a composite over all altitudes that saturates
@@ -146,8 +138,7 @@ constexpr double kNdModePlan = 4.0;
 // a380EfisRangeSettings, NavigationDisplay.ts:19. Range index 0 (-1) is the
 // OANS airport map: the ND shows that instead of the moving map, so no radar.
 constexpr float kRangeTableNm[8] = {-1.0f, 10.0f, 20.0f, 40.0f, 80.0f, 160.0f, 320.0f, 640.0f};
-// The weather is not displayed above this ND range: "The ND can only display the weather, if the
-// selected range is below, or equal to, 320 nm" (A380 FCOM DSC-31-20-50). The terrain has no such limit.
+// The A380 ND displays the weather only at ranges of 320 NM and below. The terrain has no such limit.
 constexpr float kWxrMaxRangeNm = 320.0f;
 #endif
 #ifndef A380X
@@ -185,7 +176,7 @@ constexpr int kWxrLabelMap = 4;
 // which MSFS doesn't expose - a rain rate above this (mm/h; a strong convective
 // core) stands in for it. It has to sit above the red band's start (see
 // kRedFromMmH), otherwise the magenta would cover every red cell. Measured
-// in-sim: 30 never triggered (no magenta at all under a thunderstorm), 20 does
+// in the sim: 30 never triggered (no magenta at all under a thunderstorm), 20 does
 // while leaving the red visible around the core. Real Airbus WXR only reports
 // turbulence out to ~40 NM, drawn magenta inside precipitation.
 constexpr float kTurbulenceRateMmH = 20.0f;
@@ -193,7 +184,7 @@ constexpr float kTurbulenceMaxRangeNm = 40.0f;
 
 // Brightness scale applied to every band color (see the header) - lower it if
 // the weather still looks washed out, raise it if it looks too dim. Measured
-// in-sim at 0.7: greens came out vivid, but amber read pale yellow.
+// in the sim at 0.7: greens came out vivid, but amber read pale yellow.
 constexpr float kColorGain = 0.85f;
 
 // The MapView texture carries per-texel noise: neighboring texels flip between
@@ -220,12 +211,11 @@ constexpr float kEraseRemainder = 0.05f;
 constexpr float kTurbulenceGain = 2.0f;
 
 // Weather color bands, by rain rate like the color levels of an airborne weather
-// radar (ARINC 708 style): black below 0.7 mm/h, green 0.7-4 mm/h, amber 4-12
+// radar: black below 0.7 mm/h, green 0.7-4 mm/h, amber 4-12
 // mm/h, red above 12 mm/h. Magenta is reserved for turbulence (see
-// kTurbulenceRateMmH), never precipitation. An earlier palette used the
-// weatherai.world GROUND radar reflectivity table (red from 50 dBZ, about
-// 49 mm/h); MSFS's rain rates never got that high, so red never showed up, not
-// even without turbulence. Below the green threshold nothing is drawn (MSFS's
+// kTurbulenceRateMmH), never precipitation. A ground radar reflectivity table
+// (red from 50 dBZ, about 49 mm/h) never showed red in the sim: MSFS's rain rates do
+// not get that high. Below the green threshold nothing is drawn (MSFS's
 // clear-sky baseline measured <= 0.001 mm/h).
 constexpr float kGreenFromMmH = 0.7f;
 constexpr float kYellowFromMmH = 4.0f;
@@ -276,10 +266,9 @@ constexpr float kArcLeftCornerX = 122.0f;
 constexpr float kArcLeftCornerY = 625.0f;
 constexpr float kArcClipBottom = 674.0f;
 // The engine's radar cone, centred on the heading: the real antenna's azimuth sweep. A32NX: the
-// Honeywell RDR-4B sweeps 180 degrees (Avionics International, "Product Focus: Weather Radar",
-// 2002). A380X: the Honeywell RDR-4000 scans 160 degrees, +-80 (Honeywell's IntuVue white
-// paper; its display covers +-90 from the radar's memory, which the engine does not have, so
-// nothing is painted behind the aircraft). The area path and the scissor clip whatever the cone
+// RDR-4B sweeps 180 degrees. A380X: the RDR-4000 scans 160 degrees, +-80 (its display covers
+// +-90 from the radar's memory, which the engine does not have, so nothing is painted behind
+// the aircraft). The area path and the scissor clip whatever the cone
 // paints beyond the display's shape.
 #ifdef A380X
 constexpr float kRadarConeDegrees = 160.0f;
@@ -291,7 +280,7 @@ constexpr float kDegToRadF = 0.01745329f;
 // The color list: kTerrainBandCount equal bands of kTerrainBandFeet over
 // [kTerrainMinFeet, kTerrainMaxFeet] of (aircraft altitude - terrain height). The range is deliberately
 // far wider on the "terrain above the aircraft" side than the 2000 ft the display cares about: terrain
-// beyond the range's top is NOT drawn with the first entry (measured in-sim 2026-09-20 with a probe at
+// beyond the range's top is NOT drawn with the first entry (measured in the sim with a probe at
 // Aspen and in the Alps: mountains 3000+ ft above the aircraft came out in a rainbow of other entries,
 // no red at all), whereas terrain beyond the bottom does take the last entry. So the top has to reach
 // past any terrain (Everest is 29,000 ft above sea level): the bands above +2000 ft all carry the red
@@ -302,7 +291,7 @@ constexpr float kTerrainMinFeet = -29500.0f;
 constexpr float kTerrainMaxFeet = kTerrainMinFeet + kTerrainBandFeet * static_cast<float>(kTerrainBandCount);
 
 // The two dot styles of the terrain. ORDERED is a regular 4x4 Bayer pattern (14/16, 7/16 and
-// 3/16 of the cells lit); the first in-sim version, and liked. RANDOM is white noise like the
+// 3/16 of the cells lit). RANDOM is white noise like the
 // real display, whose dense-red area was measured on a photo of a real A320 ND at about 70%
 // lit, in irregular clumps of about one ND pixel cells (medium and light are guesses).
 enum class TerrainDotStyle { Ordered, Random };
@@ -327,22 +316,20 @@ constexpr float kTerrainDotCellPx = 2.0f;
 constexpr int kTerrainSharpenPasses = 8;
 
 // Terrain elevation relative to the aircraft (feet) where the levels start; the
-// gear position moves the lower ones (Honeywell: 500 ft gear up, 250 ft gear down).
+// gear position moves the lower ones (500 ft gear up, 250 ft gear down).
 constexpr float kTerrainRedFromFeet = 2000.0f;
 constexpr float kTerrainDenseYellowFromFeet = 1000.0f;
 constexpr float kTerrainLightGreenFromFeet = -2000.0f;
 
-// "The reference altitude is computed based on the current aircraft altitude or, if descending
-// more than 1 000 ft/min, the altitude expected in 30 s" (A320 FCOM DSC-31-45, GPWS terrain
-// picture). The view colours by the aircraft's own altitude, so the bands are shifted instead by
+// GPWS terrain picture: the reference altitude is the aircraft's altitude or, when descending
+// faster than 1000 ft/min, the altitude expected in 30 s. The view colours by the aircraft's own altitude, so the bands are shifted instead by
 // the altitude the aircraft loses in that time (see the ND draw).
 constexpr float kTerrainLookAheadFromFpm = 1000.0f;
 constexpr float kTerrainLookAheadSeconds = 30.0f;
 
-// Ground mapping, the radar's MAP mode, from the same altitude view: "black indicates water,
-// green indicates the ground, and amber indicates cities and mountains" (A320 FCOM
-// DSC-34-SURV-30-30, display mode selector; the A380's SURV CONTROLS MODE button has the
-// same MAP mode, FCOM: "use MAP to detect prominent terrain (mountain, city, and coastline)").
+// Ground mapping, the radar's MAP mode, from the same altitude view: water black, ground green,
+// cities and mountains amber (the A320's mode selector; the A380's SURV CONTROLS MODE button has
+// the same MAP mode, for prominent terrain: mountains, cities, coastlines).
 // Mountains are the terrain within kMapMountainBelowFeet below the aircraft or above it; the
 // sim's terrain data has no cities. The list spans [kMapMinFeet, kMapMaxFeet] of (aircraft
 // altitude - terrain height) in kTerrainBandCount bands: entry 0 is the water (which no land
@@ -406,10 +393,10 @@ constexpr float kPeaksMinSpanFeet = 500.0f;
 // (see configureWaterMaskView), which no land reaches: it has no R and G, so the
 // compare leaves no bar over water. The water itself is drawn from a second view, a
 // water mask as the A32NX ND has (white over water), as a flat area up to sea level in
-// the same colour as the ND's water: the real VD's water is blue (FCOM DSC-31-20-40-10),
-// and the ND's teal is what the crew sees next to it.
+// the same colour as the ND's water: the real VD's water is blue, and the ND's teal is
+// what the crew sees next to it.
 //
-// The cut follows the real VD's (FCOM DSC-31-20-40-10): the active flight plan in the
+// The cut follows the real VD's: the active flight plan in the
 // managed lateral modes, published as vertices by EfisTawsBridge.ts (see g_vdCutMode) and
 // followed piece by piece from the aircraft's projection onto it, or the aircraft's track
 // otherwise. The cut has a width of 2 x the TAWS RNP on the real aircraft (1 NM in the

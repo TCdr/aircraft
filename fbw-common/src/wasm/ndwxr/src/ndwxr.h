@@ -4,10 +4,9 @@
 #pragma once
 
 // Native WASM ND weather radar and terrain gauge, built on MSFS_MapView.h's
-// native weather radar API (which testing showed gives materially more
-// consistent precipitation data across sessions than the JS/Bing map path it
-// replaces) and its altitude view mode (the terrain, see the section on the
-// terrain below).
+// native weather radar API (measured in the sim, it gives more consistent precipitation data
+// across sessions than the JS/Bing map path) and its altitude view mode (the
+// terrain, see below).
 //
 // Draws ONLY the weather / terrain image, on the ND's map pages (the three ROSE pages
 // and ARC, not PLAN), positioned/sized to match the ND's per-mode pixelRadius/centerYBias
@@ -15,7 +14,7 @@
 // Everything else on the ND (compass ring, range rings, numbers, aircraft
 // symbol, traffic, flight plan) stays nd.html's job.
 //
-// Findings this module is built around (all confirmed in-sim):
+// Findings this module is built around (all measured in the sim):
 //
 // - A live fsMapViewCreate texture always ends up drawn over nd.html's vector
 //   content, no matter which htmlgauge slot this module occupies in
@@ -35,7 +34,7 @@
 //   radar off, and nd.html's white lines/text stay readable through cells.
 //
 // - Big bright fills wash out toward white on the emissive ND screen (a
-//   pale light-green band read as white in-sim); band colors are scaled by
+//   pale light-green band read as white); band colors are scaled by
 //   kColorGain so they stay saturated.
 //
 // - MSFS's radar API has no turbulence data (rain rate only). Turbulence
@@ -57,7 +56,7 @@
 //   This module therefore clears its own surface explicitly (clearLayer)
 //   before redrawing, and once more when it stops drawing.
 //
-// - A native copy of nd.html's symbology (TFDi-style) was tried and dropped:
+// - Design choice: no native copy of nd.html's symbology (TFDi-style). Tried in the sim:
 //   nd.html draws the same ring/numbers/range arcs, so both copies showed at
 //   once (double lines, overlapping unreadable numbers), and "erasing" a
 //   previous frame by redrawing it in opaque black leaves an anti-aliasing
@@ -65,15 +64,13 @@
 //   showed up as dotted ghost outlines of the old ring/numbers/dashes.
 //
 // - clearLayer() relies on NVG_COPY / NVG_DESTINATION_OUT being honoured
-//   against this gauge's persistent surface, which they are (confirmed in-sim).
+//   against this gauge's persistent surface, which they are.
 //   Note MSFS caches compiled WASM per package: a rebuilt module that appears
 //   to have no effect may be a stale cache entry.
 //
-// - The radar works on the ground as well: the FCOM has it scanning there as soon
-//   as it is selected (A320 FCOM DSC-34-SURV-30-30: "on the ground, the radar is
-//   scanning when the flight crew sets one radar to ON and selects a display mode";
-//   the A380's WX pb is pressed before takeoff and its buffer fills there, and the
-//   A320 FCTM has the crew check the radar on the ground during taxi).
+// - The radar works on the ground as well: the real one scans there as soon as the
+//   crew switches it on and selects a display mode (the A380's WX pb is pressed
+//   before takeoff and its buffer fills there; A320 crews check the radar during taxi).
 //
 // - The radar antenna is stabilized in pitch and bank by the engine itself
 //   (fsMapViewSetWeatherRadarStabilization defaults to true for both axes), so
@@ -82,13 +79,14 @@
 // The terrain (TERR ON ND) needs no SimBridge: an altitude-mode MapView colors the
 // terrain by the aircraft's altitude minus the terrain height (in bands, water is
 // not colored but always gets the list's first entry, so a second view tells water
-// from land), and the Honeywell EGPWS look (dense / medium / light dots in red,
+// from land), and the EGPWS look (dense / medium / light dots in red,
 // yellow and green) is built from those bands with blend-only passes, see drawTerrain.
 // The A380X's VD shows the terrain profile along its vertical cut in the same
 // way, see drawVdTerrain (its weather is drawn in drawVdWeather).
 //
-// A module can have at most 8 MapViews: a ninth crashes the module's gauge draw
-// when it is drawn (hiding views does not help), so the A32NX has 4 per ND
+// A module can have at most 8 MapViews: a ninth is created without complaint but
+// crashes the module's gauge draw when it is drawn (measured in the sim;
+// hiding views does not help, only the number that exist counts), so the A32NX has 4 per ND
 // (precipitation, hot, terrain, water) and the A380X 2 per ND (a pair that is
 // the weather pair or the terrain pair - the terrain takes the weather's place -
 // and is reconfigured when the crew switches) and 2 per VD terrain gauge (terrain
@@ -101,14 +99,14 @@
 // WX and TERR off, in PLAN or with the ND unpowered no view renders at all.
 //
 // The A380X's radar shows the same picture as the A32NX's: the weather the engine's
-// horizontal radar mode sees, a slice at about the aircraft's altitude. The FCOM's
-// AUTO mode (DSC-34-20-30, WX display function) also shows the weather the aircraft
+// horizontal radar mode sees, a slice at about the aircraft's altitude. The real
+// radar's AUTO mode also shows the weather the aircraft
 // will not encounter (OFF-PATH) with reduced intensity and black parallel lines; that
-// is NOT modelled. It was, from a third view in the engine's TOP VIEW radar mode
-// (precipitation anywhere in the column), but the engine runs one radar per
+// is NOT modelled. A third view in the engine's TOP VIEW radar mode (precipitation
+// anywhere in the column) cannot be used: the engine runs one radar per
 // aircraft and a view in that mode changes what the horizontal views deliver: with
 // rain at the aircraft's level they return it over the whole range instead of the
-// cells (in-sim, 2026-09-23, RJTT on the ground in rain, the A32NX clean next to it;
+// cells (measured in the sim, at RJTT on the ground in rain, the A32NX clean next to it;
 // the same views without the top view were clean too). The 30 s the real radar takes
 // to fill its buffer after the crew selects it are modelled (kWxrBufferFillSeconds).
 //
@@ -160,13 +158,9 @@ constexpr FsColor rgba(float r, float g, float b, float a = 1.0f) {
   return FsColor{{{r, g, b, a}}};
 }
 
-// All values below are plain `L:` local variables, readable directly via
-// the in-process named-variable gauge API (register_named_variable /
-// get_named_variable_value) - no SimConnect connection needed. Note the WX
-// radar knobs use Asobo's own unprefixed naming (XMLVAR_A320_...), NOT FBW's
-// "A32NX_" convention, so they can't go through terronnd's LVarObject helper
-// (which hardcodes an "A32NX_" prefix) - reading everything directly here
-// avoids that mismatch entirely.
+// An `L:` variable read through the in-process named-variable gauge API (no SimConnect connection needed).
+// Not terronnd's LVarObject: it hardcodes an "A32NX_" prefix, and the WX radar knobs use Asobo's unprefixed
+// naming (XMLVAR_A320_...).
 struct NamedVar {
   const char* name;
   ID id = -1;
@@ -321,12 +315,6 @@ struct Channels {
 };
 
 constexpr Channels kAllChannels{1.0f, 1.0f, 1.0f};
-
-// A module can have at most 8 map views: a ninth (and any later) one is created without complaint, but crashes
-// the module's gauge draw as soon as it is drawn (measured in-sim 2026-09-20; hiding views does not help, only
-// the number that exist counts). The A320 has 4 per ND (precipitation, hot, terrain, water); the A380X has 2 per
-// ND (a pair that is either the weather pair or the terrain pair, never both at once) and 2 per VD terrain gauge
-// (terrain and water mask, see drawVdTerrain).
 
 // The `L:` variables shared by the gauges (defined and registered in simvars.cpp).
 extern NamedVar g_attHdgKnob;
