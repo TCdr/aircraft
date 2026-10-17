@@ -15,22 +15,19 @@
  *
  * Model frame (MSFS glTF): +X = left, +Y = up, +Z = forward, metres. The exterior nodes it touches have no transform.
  *
- * Sources:
- * - FCOM DSC-29-10-20: "The RAT deploys automatically if AC BUS 1 and AC BUS 2 are both lost. It can be deployed
- *   manually from the overhead panel. It can be stowed only when the aircraft is on the ground."
- * - The FCOM and the other Airbus documents on hand do not give the RAT location or size. The RAT sits in the LEFT
- *   belly fairing, just forward of the main gear well (crew and engineer accounts, e.g. airliners.net "Which airliners
- *   have ram air turbines"). Design choice for the exact numbers: the doors, the hinge and the propeller size follow
- *   the RAT of a commercial A320 model (positions and sizes measured only, nothing copied). Its main gear bay doors
- *   line up with ours within 3 cm along Z and its fuselage is 0.2 m lower (Y), so its slot maps onto ours at the same
- *   X and Z: a 1.1 m long, 0.16 m wide slot with two doors, 0.24 m ahead of the main gear bay doors, and a two-blade
- *   propeller (its stowed blades measure 0.74 m fore-aft).
- * - Propeller size: Hamilton Sundstrand component maintenance manual, model ERPS06M, "Ram air turbine module", as
- *   reproduced for the A320 in the French education ministry RAT resource file (eduscol STI, seminar 5277, U41,
- *   "Caracteristiques techniques de la RAT - Pour un A320"): "Turbine Diameter ... 29.5 inch (749.3 mm)", governed
- *   turbine speed 4,800/6,600 rpm. The same file gives 1625.6 mm for the A380 RAT, which is where the "about 1.6 m"
- *   figure seen online comes from (fbw-common electrical RamAirTurbine uses that 1.6256 m for the A380X).
- *   The A32NX hydraulic systems use a 1.003 m propeller (fbw-common hydraulic RamAirTurbine::PROPELLER_DIAMETER_M).
+ * The aircraft:
+ * - The RAT deploys automatically when AC BUS 1 and AC BUS 2 are both lost. It can be deployed manually from the
+ *   overhead panel, and stowed only on the ground.
+ * - The RAT sits in the LEFT belly fairing, just forward of the main gear well; its exact location and size are not
+ *   published. Design choice for the exact numbers: the doors, the hinge and the propeller size follow the RAT of a
+ *   commercial A320 model (positions and sizes measured only, nothing copied). Its main gear bay doors line up with
+ *   ours within 3 cm along Z and its fuselage is 0.2 m lower (Y), so its slot maps onto ours at the same X and Z: a
+ *   1.1 m long, 0.16 m wide slot with two doors, 0.24 m ahead of the main gear bay doors, and a two-blade propeller
+ *   (its stowed blades measure 0.74 m fore-aft).
+ * - Propeller size: the A320 RAT turbine is 29.5 in (749.3 mm) in diameter, governed at 4,800/6,600 rpm. The "about
+ *   1.6 m" figure seen online is the A380 RAT (1625.6 mm, the value fbw-common electrical RamAirTurbine uses for the
+ *   A380X). The A32NX hydraulic systems use a 1.003 m propeller (fbw-common hydraulic
+ *   RamAirTurbine::PROPELLER_DIAMETER_M).
  *   Design choice: the model keeps the real 749.3 mm; the systems value is left alone because it is tuned together
  *   with the WindTurbine efficiency curve (BEST_EFFICIENCY_TIP_SPEED_RATIO) for the blue pressure behaviour. A 1.003 m
  *   disc would not fit under the belly either: on this strut its upper blade tip would pass 3 mm from the skin.
@@ -77,9 +74,8 @@ const HINGE_ABOVE_SKIN = 0.09;
 const STRUT_LENGTH = 0.6;
 /** Propeller disc centre, ahead of the strut on the gearbox axis. */
 const PROPELLER_FORWARD = 0.19;
-/** A320 RAT turbine diameter: 29.5 in = 749.3 mm (Hamilton Sundstrand CMM ERPS06M, see the header). */
+/** A320 RAT turbine diameter: 29.5 in = 749.3 mm (see the header). */
 const PROPELLER_DIAMETER = 0.7493;
-/** Blade tip radius, from the hub axis. */
 const PROPELLER_RADIUS = PROPELLER_DIAMETER / 2;
 const BLADE_ROOT_RADIUS = 0.055;
 
@@ -121,10 +117,6 @@ const FUSELAGE_SOURCE = path.join(__dirname, '..', 'fuse', 'A320_NEO_LOD00.gltf'
 const OUTPUT_GLTF = path.join(__dirname, 'rat.gltf');
 const OUTPUT_BIN_NAME = 'rat.bin';
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Math
-// ---------------------------------------------------------------------------------------------------------------------
-
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const scale = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
@@ -154,7 +146,6 @@ function quatMultiply(a, b) {
   ];
 }
 
-/** Rotates vector v by the unit quaternion q. */
 function quatRotate(q, v) {
   const u = [q[0], q[1], q[2]];
   const t = scale(cross(u, v), 2);
@@ -199,7 +190,6 @@ function toHalf(value) {
   return half;
 }
 
-/** Number of a half-precision bit pattern. */
 function fromHalf(bits) {
   const sign = bits & 0x8000 ? -1 : 1;
   const exponent = (bits >>> 10) & 0x1f;
@@ -354,10 +344,6 @@ class FuselageSkin {
   }
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Mesh building
-// ---------------------------------------------------------------------------------------------------------------------
-
 /** Any unit vector perpendicular to n, used as the tangent of untextured faces. */
 function perpendicular(n) {
   const helper = Math.abs(n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
@@ -372,7 +358,6 @@ class MeshBuilder {
     this.indices = [];
   }
 
-  /** Adds a vertex and returns its index. */
   vertex(position, normal, options = {}) {
     this.vertices.push({
       position,
@@ -737,10 +722,6 @@ function buildCavity(skin) {
   return { mesh, origin };
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Animations
-// ---------------------------------------------------------------------------------------------------------------------
-
 /** Value of a piecewise linear function through [[x, y], ...] (x ascending), clamped at the ends. */
 function piecewise(points, x) {
   if (x <= points[0][0]) {
@@ -785,10 +766,6 @@ function bladePitchDeg(propellerAngle) {
 }
 
 const keyValues = () => Array.from({ length: KEY_COUNT }, (_, k) => k / (KEY_COUNT - 1));
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Assembly and glTF writing
-// ---------------------------------------------------------------------------------------------------------------------
 
 /** The RAT as nodes (with meshes) and animations, before packing. */
 function buildRat(skin) {
@@ -918,7 +895,6 @@ const VERTEX_STRIDE = 36;
 const toSnorm8 = (v) => Math.max(-127, Math.min(127, Math.round(v * 127)));
 const HALF_ONE = toHalf(1);
 
-/** Packs the RAT into a glTF JSON object and its binary buffer. */
 function packGltf({ nodes, animations }) {
   const indexData = new ByteWriter();
   const vertexData = new ByteWriter();
@@ -1111,30 +1087,4 @@ if (require.main === module) {
   console.log(`Wrote ${OUTPUT_GLTF} and ${OUTPUT_BIN_NAME} (${bin.length} bytes)`);
 }
 
-module.exports = {
-  FuselageSkin,
-  bladePitchDeg,
-  buildRat,
-  doorAngleDeg,
-  fromHalf,
-  generate,
-  quatFromAxisAngle,
-  quatMultiply,
-  quatRotate,
-  strutAngleDeg,
-  toHalf,
-  constants: {
-    HINGE_ABOVE_SKIN,
-    HINGE_Z,
-    PROPELLER_FORWARD,
-    PROPELLER_RADIUS,
-    SLOT_AFT_Z,
-    SLOT_FORWARD_Z,
-    SLOT_INBOARD_X,
-    SLOT_OUTBOARD_X,
-    STRUT_LENGTH,
-    STRUT_STOWED_ANGLE_DEG,
-    DOOR_OFFSET,
-    CAVITY_OFFSET,
-  },
-};
+module.exports = { FuselageSkin, generate };

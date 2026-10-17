@@ -9,7 +9,7 @@
 //   hydraulic systems publish (A32NX_RAT_STOW_POSITION, _ANGULAR_POSITION, _PROPELLER_ANGLE, _RPM);
 // - the geometry: stowed inside the belly skin, deployed under the left belly fairing ahead of the main gear bay,
 //   clear of the ground and with the blade tips clear of the belly;
-// - the propeller: the 29.5 in (749.3 mm) turbine of the A320 RAT (Hamilton Sundstrand CMM ERPS06M).
+// - the propeller: the 29.5 in (749.3 mm) turbine of the A320 RAT.
 
 import { readFileSync } from 'fs';
 import { createRequire } from 'module';
@@ -268,7 +268,7 @@ describe('A32NX RAT model files', () => {
 
   it('keep one kind of accessor per unstrided view, one view per animation accessor, like every model the sim loads', () => {
     // A view holding the SCALAR keys and the VEC4 rotations together is in none of the 5916 optimized models of the
-    // installed packages; the exterior LOD00/01 that had it stayed invisible in the sim (2026-10-09).
+    // installed packages; the exterior LOD00/01 that had it stayed invisible in the sim.
     gltf.bufferViews.forEach((view, index) => {
       if (view.byteStride === undefined) {
         const kinds = new Set(
@@ -433,8 +433,7 @@ describe('A32NX RAT position', () => {
 });
 
 describe('A32NX RAT propeller', () => {
-  // Hamilton Sundstrand component maintenance manual, model ERPS06M (the A320 RAT module):
-  // "Turbine Diameter ... 29.5 inch (749.3 mm)". The about 1.6 m seen online is the A380 RAT (1625.6 mm).
+  // The A320 RAT turbine is 29.5 in (749.3 mm) in diameter. The about 1.6 m seen online is the A380 RAT (1625.6 mm).
   const TURBINE_DIAMETER_M = 29.5 * 0.0254;
   const meshPositions = (name: string) => {
     const node = gltf.nodes.find((n) => n.name === name);
