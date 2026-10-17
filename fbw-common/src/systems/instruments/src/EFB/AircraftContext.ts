@@ -44,6 +44,8 @@ interface PinProgramOptions {
   satcom: boolean;
   /** The EGPWS Runway Awareness and Advisory System option (A32NX) */
   raas: boolean;
+  /** The tyre pressure indicating system option (A32NX TPIS: WHEEL page pressures, WHEEL TYRE LO PR) */
+  tpis: boolean;
 }
 
 interface RealismOptions {
@@ -110,6 +112,7 @@ export const AircraftContext = createContext<AircraftEfbContext>({
       rmpVhfSpacing: false,
       satcom: false,
       raas: false,
+      tpis: false,
     },
     realism: {
       mcduKeyboard: false,

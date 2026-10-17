@@ -107,6 +107,15 @@ import {
   wingTanksLowLevelLines,
 } from './Logic/WingTankLowLevel';
 import * as Brakes from './Logic/BrakeSystemAlerts';
+import * as TyrePressure from './Logic/TyrePressureAlerts';
+import {
+  MAIN_NOMINAL_PRESSURE_VAR,
+  NOSE_NOMINAL_PRESSURE_VAR,
+  TPIS_INSTALLED_DEFAULT,
+  TPIS_INSTALLED_SETTING,
+  TYRES,
+  tyrePressureVar,
+} from '@shared/TyrePressures';
 import {
   CONFIG_SIDESTICK_FAULT_PHASE_INHIBITION,
   ConfigSidestickFault,
@@ -1871,6 +1880,12 @@ export class PseudoFWC {
   /** The yellow hydraulic system is in low pressure (BRAKES A/SKID N/WS STATUS "If Y SYS LO PR") */
   private brakeYellowLowPressure = false;
 
+  /** The flyPad aircraft option "TPIS installed" (shared/TyrePressures TPIS_INSTALLED_SETTING) */
+  private tpisInstalled = false;
+
+  /** WHEEL TYRE LO PR, see Logic/TyrePressureAlerts */
+  private readonly wheelTyreLoPr = Subject.create(false);
+
   private readonly parkBrakeMemo = Subject.create(false);
 
   private readonly parkBrakeOnConfirm = new NXLogicConfirmNode(2);
@@ -3012,6 +3027,13 @@ export class PseudoFWC {
       'ENABLED',
     );
 
+    // EFB aircraft option: "TPIS installed" (WHEEL TYRE LO PR)
+    NXDataStore.getAndSubscribeLegacy(
+      TPIS_INSTALLED_SETTING,
+      (_, v) => (this.tpisInstalled = v === '1'),
+      TPIS_INSTALLED_DEFAULT,
+    );
+
     // Radio altimeter callouts
     NXDataStore.getAndSubscribeLegacy(
       'CONFIG_A32NX_FWC_RADIO_AUTO_CALL_OUT_PINS',
@@ -4058,6 +4080,22 @@ export class PseudoFWC {
     for (const key of Object.keys(this.brakeSystemAlerts) as (keyof Brakes.BrakeSystemAlerts)[]) {
       this.brakeSystemAlerts[key].set(brakeAlerts[key]);
     }
+
+    // WHEEL TYRE LO PR, see Logic/TyrePressureAlerts
+    this.wheelTyreLoPr.set(
+      TyrePressure.isWheelTyreLoPr({
+        tpisInstalled: this.tpisInstalled,
+        pressuresPsi: TYRES.map((tyre) => {
+          const word = Arinc429Word.fromSimVarValue(tyrePressureVar(tyre));
+          return word.isNormalOperation() ? word.value : null;
+        }),
+        nominal: {
+          mainPsi: SimVar.GetSimVarValue(MAIN_NOMINAL_PRESSURE_VAR, 'number'),
+          nosePsi: SimVar.GetSimVarValue(NOSE_NOMINAL_PRESSURE_VAR, 'number'),
+        },
+        fwcFlightPhase: this.fwcFlightPhase.get(),
+      }),
+    );
 
     // A/SKID N/WS OFF: not with A/SKID N/WS FAULT or BRAKES NORM + ALTN FAULT (brakeAlerts.antiSkidNwsOff)
     const phase2For60Seconds = this.antiSkidOffPhase2Confirm.write(this.fwcFlightPhase.get() === 2, deltaTime);
@@ -10868,6 +10906,17 @@ export class PseudoFWC {
       codesToReturn: Brakes.HYD_SEL_FAULT_CODES,
       memoInhibit: () => false,
       failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+    },
+    3200490: {
+      // WHEEL TYRE LO PR, crew awareness, no STATUS, see Logic/TyrePressureAlerts
+      flightPhaseInhib: TyrePressure.WHEEL_TYRE_LO_PR_PHASE_INHIBITION,
+      simVarIsActive: this.wheelTyreLoPr,
+      whichCodeToReturn: () => [0],
+      codesToReturn: TyrePressure.WHEEL_TYRE_LO_PR_CODES,
+      memoInhibit: () => false,
+      failure: TyrePressure.WHEEL_TYRE_LO_PR_LEVEL,
       sysPage: EcamSysPage.WHEEL,
       side: 'LEFT',
     },
