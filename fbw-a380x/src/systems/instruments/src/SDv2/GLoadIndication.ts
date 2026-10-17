@@ -5,10 +5,8 @@
 const AIRBORNE_FLIGHT_PHASES = [6, 7, 8, 9];
 
 /**
- * The G LOAD line of the SD permanent data. A380 FCOM DSC-31-40-10 G LOAD DATA (a380_fcom.txt l.73112-73131): "The
- * aircraft becomes airborne, and the G LOAD is less than 0.7 g, or greater than 1.4 g, for longer than 2 seconds.
- * After the G load returns to normal, G LOAD data remains visible for 5 seconds." It showed whenever the value was
- * outside 0.7-1.4 g, also on the ground, with no timers.
+ * The G LOAD line of the SD permanent data: it shows once the aircraft is airborne and the G load has been below
+ * 0.7 g or above 1.4 g for longer than 2 seconds, and stays 5 seconds after the G load returns to normal.
  */
 export class GLoadIndication {
   static readonly LOW_G = 0.7;
@@ -47,7 +45,7 @@ export class GLoadIndication {
     } else {
       this.abnormalForMs = 0;
       this.normalForMs += deltaMs;
-      // Design choice: an invalid value keeps the line (the FCOM shows amber XX then), it does not count as normal
+      // Design choice: an invalid value keeps the line (amber XX shows then), it does not count as normal
       if (gLoad === null && this.shown && airborne) {
         this.normalForMs = 0;
       }

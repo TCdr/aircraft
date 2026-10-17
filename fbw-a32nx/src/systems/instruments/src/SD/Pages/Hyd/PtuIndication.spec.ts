@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { ptuSymbolColor } from './PtuIndication';
 
-/* A320 FCOM DSC-29-20 HYD page (9) PTU control: "Amber: The PTU pb-sw is OFF". */
+/* HYD page PTU symbol: amber with the PTU pb-sw OFF. */
 describe('SD HYD PTU symbol colour', () => {
   it('is green with the PTU pb-sw at AUTO, also when the PTU is inhibited', () => {
     expect(ptuSymbolColor(true)).toBe('Green');

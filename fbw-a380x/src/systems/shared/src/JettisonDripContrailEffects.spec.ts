@@ -24,7 +24,8 @@ const CONTRAIL_RIBBON = '{904EC2CE-F8DD-4480-99E7-B33F7CF6E114}';
 
 /**
  * The exhaust node of each engine in A380_WINGS.gltf (aircraft-large-files), from the node positions: LEFT1 x = +25.9 m
- * (left outer, engine 1), RIGHT2 +15.0 m (left inner, the LOD01 node), RIGHT3 -14.9 m (right inner), RIGHT4 -25.6 m (right outer).
+ * (left outer, engine 1), RIGHT2 +15.0 m (left inner, the LOD01 node), RIGHT3 -14.9 m (right inner), RIGHT4 -25.6 m
+ * (right outer).
  */
 const ENGINE_EXHAUST_NODES = {
   1: 'FX_EXHAUST_LEFT1',

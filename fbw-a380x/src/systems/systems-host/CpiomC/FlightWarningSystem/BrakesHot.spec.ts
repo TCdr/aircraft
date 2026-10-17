@@ -6,7 +6,6 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
 
-/* A380 FCOM BRAKES HOT: "At least one brake temperature is equal to, or higher than 300 °C." */
 describe('BRAKES HOT from the reported brake temperatures', () => {
   const temps = (hot: number) => Array.from({ length: 16 }, (_, i) => (i === 7 ? hot : 150));
 

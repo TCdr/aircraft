@@ -858,7 +858,7 @@ fn mode_1_test() {
     test_bed.assert_no_warning_active();
 }
 
-/// The alternate (Airbus) lamp format, as the A320 FCOM DSC-34-SURV-40-40 PULL UP - GPWS pb: PULL UP for the mode 1
+/// The alternate (Airbus) lamp format, as the A320 PULL UP - GPWS pb: PULL UP for the mode 1
 /// second boundary, amber GPWS for the first one (SINK RATE).
 #[test]
 fn mode_1_alternate_lamp_format_test() {

@@ -16,8 +16,8 @@ const shownText = (prefix: string, count: number, lines: (number | null)[]) =>
       .slice(0, count),
   ).join(' | ');
 
-/* A320 FCOM PRO-ABN-F_CTL F/CTL ALTN LAW: MAX SPEED 320 KT (320/.77 if dual hydraulic system low pressure),
-   SPD BRK (IF L OR R ELEVATOR FAULT) DO NOT USE. */
+/* F/CTL ALTN LAW: MAX SPEED 320 KT (320/.77 with a dual hydraulic low pressure), SPD BRK DO NOT USE only with a
+   left or right elevator fault. */
 describe('F/CTL ALTN LAW lines', () => {
   it.each(['2700390', '2700375'])('%s: MAX SPEED 320 KT, no MANEUVER WITH CARE, no SPD BRK line', (prefix) => {
     const text = shownText(prefix, 7, altnLawLines(false, false));
@@ -39,9 +39,9 @@ describe('F/CTL ALTN LAW lines', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-F_CTL F/CTL DIRECT LAW: USE SPD BRK WITH CARE, no SPD BRK DO NOT USE. */
+/* F/CTL DIRECT LAW: USE SPD BRK WITH CARE, no SPD BRK DO NOT USE. */
 describe('F/CTL DIRECT LAW lines', () => {
-  it('shows the FCOM lines and no contradicting SPD BRK DO NOT USE', () => {
+  it('shows the procedure lines and no contradicting SPD BRK DO NOT USE', () => {
     const text = shownText('2700365', 8, directLawLines());
     expect(text).toContain('MAX SPEED.......320/.77');
     expect(text).toContain('-MAN PITCH TRIM.....USE');
@@ -51,7 +51,7 @@ describe('F/CTL DIRECT LAW lines', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-F_CTL F/CTL ELAC 1(2) FAULT: the procedure ends with FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE. */
+/* F/CTL ELAC 1(2) FAULT: the procedure ends with FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE. */
 describe('F/CTL ELAC 1(2) FAULT lines', () => {
   it.each(['2700110', '2700120'])('%s: shows FUEL CONSUMPT INCRSD and FMS PRED UNRELIABLE', (prefix) => {
     const text = shownText(prefix, 6, elacFaultLines(true));

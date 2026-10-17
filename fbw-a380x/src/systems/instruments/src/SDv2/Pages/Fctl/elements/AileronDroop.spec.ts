@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isAileronDroopSymbolShown } from './AileronDroop';
 
-/* A380 FCOM DSC-27-10-20: the aileron droop (white round symbol) applies in CONF 1+F, 2, 3 and FULL. */
+/* The aileron droop (white round symbol) applies in CONF 1+F, 2, 3 and FULL. */
 describe('SD F/CTL aileron droop symbol', () => {
   it.each([
     [0, 'CONF 0'],

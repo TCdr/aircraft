@@ -3628,8 +3628,8 @@ impl A380EngineDrivenPumpController {
         }
     }
 
-    /// Engine pump disconnection supply, A380 FCOM DSC-29-40 ELECTRICAL SUPPLY table:
-    /// engine 1 pumps DC 2, engine 2 pumps DC 1, engine 3 pumps DC 2, engine 4 pumps DC 1.
+    /// Engine pump disconnection supply: engine 1 pumps DC 2, engine 2 pumps DC 1, engine 3 pumps DC 2, engine 4
+    /// pumps DC 1.
     fn disconnection_power_supply(engine_num: usize) -> ElectricalBusType {
         match engine_num {
             1 | 3 => ElectricalBusType::DirectCurrent(2),
@@ -4613,8 +4613,7 @@ impl A380HydraulicBrakeSteerComputerUnit {
         let is_both_engine_low_oil_pressure =
             engine1.oil_pressure_is_low() && engine2.oil_pressure_is_low();
 
-        // A380 FCOM DSC-32-30-10 (a380_fcom.txt l.80959): "A-SKID sw OFF does not cut off NWS" (also l.79122): unlike
-        // the A320 A/SKID & N/W STRG switch, the A380 A-SKID switch does not gate the steering.
+        // Unlike the A320 A/SKID & N/W STRG switch, the A380 A-SKID switch does not cut off the steering.
         self.final_steering_position_request =
             if !is_both_engine_low_oil_pressure && lgciu1.nose_gear_compressed(false) {
                 (final_steer_rudder_plus_autopilot
@@ -9863,7 +9862,7 @@ mod tests {
             assert_lt!(test_bed.yellow_pressure(), Pressure::new::<psi>(1500.));
         }
 
-        /// FCOM DSC-29-40: the engine 3 pump disconnection is supplied by DC 2, the engine 4 one by DC 1.
+        /// The engine 3 pump disconnection is supplied by DC 2, the engine 4 one by DC 1.
         #[test]
         fn yellow_edp_disconnection_engine_3_on_dc_2_engine_4_on_dc_1() {
             let mut test_bed = test_bed_on_ground_with()
@@ -9895,7 +9894,7 @@ mod tests {
         }
 
         #[test]
-        fn edp_disconnection_power_supply_matches_fcom() {
+        fn edp_disconnection_supply_is_dc_2_for_engines_1_3_and_dc_1_for_2_4() {
             assert_eq!(
                 A380EngineDrivenPumpController::disconnection_power_supply(1),
                 ElectricalBusType::DirectCurrent(2)
@@ -10372,8 +10371,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-10-30: the 10 s in flight disarming is "for RTO mode only"; "A landing AUTO BRK mode can be
-        // armed in flight, and on ground"
+        // The 10 s in flight disarming is for the RTO mode only: a landing AUTO BRK mode can be armed in flight and on
+        // ground
         fn autobrakes_landing_mode_armed_on_ground_stays_armed_after_take_off() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -11149,14 +11148,10 @@ mod tests {
             );
         }
 
-        /// A380 FCOM DSC-27-20-20 (a380_fcom.txt l.56783-56806):
-        /// ARS: "In CONF 1+F, the Auto Retraction System (ARS) automatically retracts the flaps ...
-        /// The resulting configuration is CONF 1. The ARS activates, when the aircraft reaches a
-        /// speed of 212 kt, and if still in CONF 1+F."
-        /// AES: "In CONF 1, the Auto Extension System (AES) automatically extends the flaps ...
-        /// The AES activates, when the speed goes below 205 kt, and if still in CONF 1."
-        /// Whole aircraft: lever 0 -> 1 at the gate, take-off in CONF 1+F, climb through 212 kt
-        /// (to 240 kt as in the user report), then back below 205 kt.
+        /// In CONF 1+F the auto retraction system (ARS) retracts the flaps to CONF 1 at 212 kt; in CONF 1 the auto
+        /// extension system (AES) extends them again below 205 kt.
+        /// Whole aircraft: lever 0 -> 1 at the gate, take-off in CONF 1+F, climb through 212 kt (to 240 kt as in the
+        /// user report), then back below 205 kt.
         #[test]
         fn flaps_auto_retraction_and_extension_after_a_conf_1_plus_f_takeoff() {
             let mut test_bed = test_bed_on_ground_with()
@@ -11220,7 +11215,6 @@ mod tests {
 
         /// Flight loaded in the air with the FLAPS lever already at 1 (no lever movement by the
         /// crew): above 212 kt the SFCC must select CONF 1, below 205 kt CONF 1+F
-        /// (A380 FCOM DSC-27-20-20, a380_fcom.txt l.56783-56806).
         #[rstest]
         #[case(240., FLAPS_CONF_INDEX_CONF1)]
         #[case(190., FLAPS_CONF_INDEX_CONF1F)]
@@ -11412,7 +11406,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-30-10: "A-SKID sw OFF does not cut off NWS"
+        // The A-SKID sw OFF does not cut off the NWS
         fn nose_steering_still_steers_when_a_skid_off() {
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()

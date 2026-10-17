@@ -1742,8 +1742,7 @@ impl InertialReference {
 
     const WIND_VELOCITY_TIME_CONSTANT: Duration = Duration::from_millis(100);
     const QUICK_REALIGN_AVAILABLE_TIME: Duration = Duration::from_secs(5);
-    // Fast alignment (mode selector OFF then NAV within 5 s): "A fast alignment takes 30 s"
-    // (A320 FCOM DSC-22_20-20-40, A380 FCOM DSC-34-10-30-30 "It takes about 30 s").
+    // A fast alignment (mode selector OFF then NAV within 5 s) takes about 30 s on both aircraft
     const QUICK_REALIGN_ALIGN_TIME: Duration = Duration::from_secs(30);
     const ALIGNMENT_VELOCITY_TIME_CONSTANT: Duration = Duration::from_millis(500);
     const MAX_ALIGNMENT_VELOCITY_FPS: f64 = 0.011;
@@ -3816,7 +3815,7 @@ mod tests {
 
         let alignment_time = test_bed.remaining_alignment_time();
 
-        // FCOM: a fast alignment takes 30 s.
+        // A fast alignment takes 30 s.
         assert!(alignment_time <= Duration::from_secs(30));
     }
 

@@ -142,9 +142,8 @@ impl A320 {
                 ],
                 0,
             ),
-            // A320 FCOM DSC-34-SURV-40-40 PULL UP - GPWS pb (a320_fcom.txt l.55481-55486): "PULL UP: Comes on when the
-            // second boundary of mode 1 is penetrated or when the mode 2 is activated", "GPWS: Comes on in amber when any
-            // other mode is activated": the alternate lamp format of the EGPWC.
+            // PULL UP - GPWS pb: the red PULL UP comes on for the second boundary of mode 1 and for
+            // mode 2, the amber GPWS for any other mode: the alternate lamp format of the EGPWC.
             egpwc_2: EnhancedGroundProximityWarningComputer2::new_with_pin_programming(
                 context,
                 ElectricalBusType::AlternatingCurrent(1),
@@ -356,7 +355,7 @@ mod tests {
         test_bed
     }
 
-    /// A320 FCOM DSC-34-SURV-40-40 PULL UP - GPWS pb: red PULL UP for mode 1 second boundary and mode 2 only, amber
+    /// PULL UP - GPWS pb: red PULL UP for mode 1 second boundary and mode 2 only, amber
     /// GPWS for every other mode: the alternate lamp format of the EGPWC (surveillance/egpws/test.rs checks the lamps).
     #[test]
     fn the_egpwc_uses_the_airbus_lamp_format() {

@@ -8,8 +8,7 @@ import { LegacyGpws } from './LegacyGpws';
 import { LegacySoundManager } from './LegacySoundManager';
 
 /*
- * A380 FCOM DSC-34-SURV (FLAP MODE BUTTON): "The flight crew can inhibit mode 4B by setting the FLAP MODE button to
- * OFF". The MFD SURV CONTROLS page writes L:A32NX_GPWS_FLAPS_OFF.
+ * The FLAP MODE button set to OFF inhibits mode 4B. The MFD SURV CONTROLS page writes L:A32NX_GPWS_FLAPS_OFF.
  */
 describe('GPWS mode 4B (TOO LOW FLAPS) and the FLAP MODE button', () => {
   afterEach(() => {
@@ -37,8 +36,8 @@ describe('GPWS mode 4B (TOO LOW FLAPS) and the FLAP MODE button', () => {
 });
 
 /*
- * A380 FCOM DSC-34-20-20-10: mode 4A "if the aircraft speed is above 200 kt" and mode 4B "above 180 kt" give TOO LOW
- * TERRAIN instead of TOO LOW GEAR / TOO LOW FLAPS (the A320 speeds 190 kt and 159 kt were used).
+ * Mode 4A above 200 kt and mode 4B above 180 kt give TOO LOW TERRAIN instead of TOO LOW GEAR / TOO LOW FLAPS (A380
+ * values, not the A320 190 kt and 159 kt).
  * mode.current: 1 = TOO LOW GEAR, 2 = TOO LOW FLAPS, 3 = TOO LOW TERRAIN.
  */
 describe('GPWS mode 4A and 4B speeds', () => {
@@ -77,7 +76,7 @@ describe('GPWS mode 4A and 4B speeds', () => {
     expect(mode4(500, 190, true)).toBe(0);
   });
 
-  /* FCOM figures Mode 4A / Mode 4B Gear Down and Flaps Not in Landing Configuration: a flat ceiling with the TAD. */
+  /* Mode 4A and mode 4B with the gear down and the flaps not in landing configuration: a flat ceiling with the TAD. */
   it('mode 4A, TERR function operative: TOO LOW TERRAIN above 200 kt below a flat 500 ft', () => {
     expect(mode4(400, 205, false, true)).toBe(3);
     expect(mode4(700, 250, false, true)).toBe(0);
@@ -102,9 +101,8 @@ describe('GPWS mode 4A and 4B speeds', () => {
 });
 
 /*
- * A380 FCOM DSC-34-20-20-10 (a380_fcom.txt l.88328-88366): mode 4A is the landing gear up AND the flaps not extended
- * for landing; the landing gear up with the flaps extended for landing is mode 4B, TOO LOW GEAR only (figure Mode 4B
- * Gear Up and Flaps in Landing Configuration: flat 245 ft ceiling up to 400 kt, no TOO LOW TERRAIN).
+ * Mode 4A is the landing gear up AND the flaps not extended for landing; the landing gear up with the flaps extended
+ * for landing is mode 4B, TOO LOW GEAR only (flat 245 ft ceiling up to 400 kt, no TOO LOW TERRAIN).
  * mode.current: 1 = TOO LOW GEAR, 2 = TOO LOW FLAPS, 3 = TOO LOW TERRAIN.
  */
 describe('GPWS mode 4B with the landing gear up and the flaps in landing configuration', () => {

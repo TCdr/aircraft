@@ -5772,7 +5772,7 @@ export class PseudoFWC {
       // ELAC 1 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.elac1FaultConfirmNodeOutput,
-      // FCOM PRO-ABN-F_CTL ELAC 1(2) FAULT, see elacFaultLines
+      // the ELAC 1(2) FAULT lines, see elacFaultLines
       whichCodeToReturn: () => elacFaultLines(this.elac1FaultLine123Display.get()),
       codesToReturn: ['270011001', '270011002', '270011003', '270011004', '270011005', '270011006'],
       memoInhibit: () => false,
@@ -5784,7 +5784,7 @@ export class PseudoFWC {
       // ELAC 2 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.elac2FaultConfirmNodeOutput,
-      // FCOM PRO-ABN-F_CTL ELAC 1(2) FAULT, see elacFaultLines
+      // the ELAC 1(2) FAULT lines, see elacFaultLines
       whichCodeToReturn: () => elacFaultLines(this.elac2FaultLine123Display.get()),
       codesToReturn: ['270012001', '270012002', '270012003', '270012004', '270012005', '270012006'],
       memoInhibit: () => false,
@@ -5877,7 +5877,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2700365: {
-      // DIRECT LAW (FCOM PRO-ABN-F_CTL, see directLawLines)
+      // DIRECT LAW (see directLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.directLawCondition,
       whichCodeToReturn: () => directLawLines(),
@@ -5920,7 +5920,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2700375: {
-      // ALTN 2 (FCOM PRO-ABN-F_CTL ALTN LAW, see altnLawLines)
+      // ALTN 2 (ALTN LAW procedure, see altnLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.altn2LawConfirmNodeOutput,
       whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.speedBrakeDoNotUse.get()),
@@ -5931,7 +5931,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2700390: {
-      // ALTN 1 (FCOM PRO-ABN-F_CTL ALTN LAW, see altnLawLines)
+      // ALTN 1 (ALTN LAW procedure, see altnLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.altn1LawConfirmNodeOutput,
       whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.speedBrakeDoNotUse.get()),
@@ -7439,7 +7439,7 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000170': {
-      // APU AVAIL (FCOM DSC-49-20, see isApuAvailMemoShown)
+      // APU AVAIL (see isApuAvailMemoShown)
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
         ([apuAvail, apuBleedPbOn]) => isApuAvailMemoShown(apuAvail === 1, apuBleedPbOn),
@@ -7452,7 +7452,7 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000180': {
-      // APU BLEED: APU available and APU BLEED pb-sw ON (FCOM DSC-36-20, see isApuBleedMemoShown)
+      // APU BLEED: APU available and APU BLEED pb-sw ON (see isApuBleedMemoShown)
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
         ([apuAvail, apuBleedPbOn]) => isApuBleedMemoShown(apuAvail === 1, apuBleedPbOn),

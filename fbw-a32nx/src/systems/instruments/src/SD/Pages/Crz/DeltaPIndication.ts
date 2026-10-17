@@ -1,12 +1,10 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-/** FWC flight phase 7: approach (FCOM DSC-31-15 Flight Phases) */
 const FWC_PHASE_APPROACH = 7;
 
 /**
- * Whether the delta P digital value pulses. A320 FCOM DSC-21-20-40: "The digital presentation pulses if delta P > 1.5
- * PSI (resets at 1 PSI) during flight phase 7"; CRUISE page: "Pulses green when CAB delta P > 1.5 PSI before landing".
+ * Whether the delta P digital value pulses: above 1.5 PSI (resets at 1 PSI) in flight phase 7, before landing.
  * @param deltaPsi the cabin differential pressure in PSI
  * @param fwcFlightPhase the FWC flight phase (L:A32NX_FWC_FLIGHT_PHASE)
  * @param wasPulsing whether the value pulsed at the previous update (hysteresis)
