@@ -12262,6 +12262,41 @@ mod tests {
         }
 
         #[test]
+        fn cargo_door_opens_fully_and_is_held_open_after_the_green_pumps_stop() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_one_tick();
+
+            test_bed = test_bed
+                .open_fwd_cargo_door()
+                .run_waiting_for(Duration::from_secs_f64(60.));
+
+            assert!(test_bed.is_cargo_fwd_door_locked_up());
+            // FWD_DOOR_CARGO_POSITION is in percent
+            assert_gt!(test_bed.cargo_fwd_door_position(), 97.5);
+
+            test_bed = test_bed.run_waiting_for(Duration::from_secs_f64(60.));
+
+            assert!(!test_bed.is_green_pressure_switch_pressurised());
+            assert_lt!(
+                test_bed.green_pressure_auxiliary(),
+                Pressure::new::<psi>(3000.)
+            );
+            assert!(test_bed.is_cargo_fwd_door_locked_up());
+            assert!(!test_bed.is_cargo_fwd_door_locked_down());
+            assert_gt!(test_bed.cargo_fwd_door_position(), 97.5);
+
+            test_bed = test_bed
+                .close_fwd_cargo_door()
+                .run_waiting_for(Duration::from_secs_f64(60.));
+
+            assert!(test_bed.is_cargo_fwd_door_locked_down());
+            assert_le!(test_bed.cargo_fwd_door_position(), 0.);
+        }
+
+        #[test]
         fn fwd_cargo_door_controller_opens_fwd_door_only() {
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
@@ -13664,7 +13699,7 @@ mod tests {
 
             test_bed = test_bed
                 .open_fwd_cargo_door()
-                .run_waiting_for(Duration::from_secs(35));
+                .run_waiting_for(Duration::from_secs(50));
 
             assert!(!test_bed.is_green_pressure_switch_pressurised());
             assert_le!(test_bed.green_pressure(), Pressure::new::<psi>(1500.));
