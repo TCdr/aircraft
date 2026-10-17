@@ -4,9 +4,8 @@
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
 
 /**
- * Half period of the ATC MSG light flashing, ms. A380 FCOM DSC-46-10-20-70 (a380_fcom.txt l.101229-101230): "Flashing:
- * A message from the ATC has been received. The pushbutton flashes at a frequency of 2 Hz."; also DSC-46 l.95740 "The
- * light flashes at a frequency of 2 Hz." 2 Hz: 250 ms on, 250 ms off.
+ * Half period of the ATC MSG light flashing, ms: the pb flashes at 2 Hz after an ATC message is received, so 250 ms
+ * on, 250 ms off.
  */
 const FLASH_HALF_PERIOD_MS = 250;
 
@@ -18,8 +17,8 @@ export const ATC_MSG_LIGHT_VAR = 'L:A380X_GLARESHIELD_ATC_MSG_LIGHT';
 
 /**
  * Whether the ATC MSG lights are lit at a time. The ATC function only says that a message waits; the lights flash at
- * 2 Hz until either pb is pressed (A380 FCOM l.101236-101237: "When the flight crew presses either of the pushbutton,
- * the ATC MSG lights of the two ATC MSG pb go off"), which resets the waiting flag.
+ * 2 Hz until either pb is pressed (pressing either pb turns off the lights of both ATC MSG pbs), which resets the
+ * waiting flag.
  * @param messageWaiting a message waits in the mailbox (the ATC function's attention getter)
  * @param timeMs a running time in ms
  * @returns whether the lights are lit at that time

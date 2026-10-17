@@ -214,11 +214,9 @@ export class MailboxBus {
   /**
    * @param bus the event bus
    * @param atc the ATC function
-   * @param delayedFirstRing the RING sounds only if the message is not read in time, the A380X mailbox (A380 FCOM
-   * DSC-46-10-20-70, a380_fcom.txt l.101232-101235: "Associated with a RING aural alert that sounds if the flight crew
-   * does not press the pushbutton or read the message within: 15 s after the reception of a normal message, 5 s after
-   * the reception of an urgent message."). Else (the A32NX DCDU) the RING sounds at once, as before: the A320 FCOM has
-   * no RING timing.
+   * @param delayedFirstRing the RING sounds only if the message is not read in time, the A380X mailbox: the flight
+   * crew has 15 s after a normal message and 5 s after an urgent one to press the pb or read the message. Else (the
+   * A32NX DCDU) the RING sounds at once: the A320 has no RING timing.
    */
   constructor(
     private readonly bus: EventBus,
@@ -533,7 +531,7 @@ export class MailboxBus {
       return;
     }
 
-    // A380X: the RING waits for the reading time of the message, 5 s urgent, 15 s normal (l.101232-101235)
+    // A380X: the RING waits for the reading time of the message, 5 s urgent, 15 s normal
     const readingTime = urgent ? 5000 : 15000;
     if (this.atcRingInterval) {
       // already ringing for an older unread message: an urgent one rings at its shorter interval from now on

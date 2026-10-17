@@ -328,9 +328,6 @@ export class Atc {
   }
 
   /**
-   * @param bus the event bus
-   * @param synchronizedAoc whether the AOC data is synchronized with a remote instance
-   * @param synchronizedRouter whether the router data is synchronized with a remote instance
    * @param delayedFirstRing the RING of an uplink sounds only if the message is not read in time (A380X, see MailboxBus)
    */
   constructor(bus: EventBus, synchronizedAoc: boolean, synchronizedRouter: boolean, delayedFirstRing = false) {

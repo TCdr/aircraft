@@ -109,7 +109,7 @@ describe('CDS reconfiguration in the systems host', () => {
     expect(captPfdDuDisplay()).toBe(CdsDisplay.Nd);
   });
 
-  it('moves the ATC mailbox to the F/O ND DU with the F/O DU RECONF pb when the SD DU is turned OFF (PRO-ABN-ECAM-10-31)', () => {
+  it('moves the ATC mailbox to the F/O ND DU with the F/O DU RECONF pb when the SD DU is turned OFF', () => {
     const mailboxDu = () => simVars.get(MAILBOX_DISPLAY_UNIT_VAR);
     const foNdDuDisplay = () => simVars.get(displayUnitDisplayVar(DisplayUnitID.FoNd));
     // normal operation: the SD DU (0)

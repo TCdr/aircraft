@@ -23,10 +23,9 @@ import {
  */
 
 /**
- * The top of the mailbox on the DU, in pixels: the bottom 256 px of the 768 x 1024 SD (FCOM DSC-31-40-10, a380_fcom.txt:72777:
- * "The bottom section displays the mailbox"). The same on every DU that draws the SD, the SD DU and the ND DUs (CDS reconfiguration):
- * their textures and the SDv2 gauges on them are all 768 x 1024 at 0,0 (panel.cfg), so the KCCU cursor needs no other
- * offset there.
+ * The top of the mailbox on the DU, in pixels: the mailbox is the bottom 256 px of the 768 x 1024 SD. The same on every
+ * DU that draws the SD, the SD DU and the ND DUs (CDS reconfiguration): their textures and the SDv2 gauges on them are
+ * all 768 x 1024 at 0,0 (panel.cfg), so the KCCU cursor needs no other offset there.
  */
 export const MAILBOX_TOP_ON_DU = 768;
 
@@ -608,7 +607,7 @@ export function informationText(status: MailboxStatusMessage): string {
 }
 
 /** A block of the mailbox file of the ATC function (mailboxSnapshot), its messages converted */
-export interface MailboxFileBlock {
+interface MailboxFileBlock {
   messages: CpdlcMessage[];
   status: MailboxStatusMessage;
 }

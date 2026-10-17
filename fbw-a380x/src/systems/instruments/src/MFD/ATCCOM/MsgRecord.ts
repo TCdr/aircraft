@@ -182,7 +182,6 @@ export function isDialogueOpen(dialogue: CpdlcMessage): boolean {
   return expected === CpdlcMessageExpectedResponseType.Yes && last.ComStatus !== AtsuMessageComStatus.Failed;
 }
 
-/** The lines of a text in lines of the given length, words kept whole (a word longer than a line is cut) */
 export function wrapMsgRecordText(text: string, length: number): string[] {
   const lines: string[] = [];
   let line = '';

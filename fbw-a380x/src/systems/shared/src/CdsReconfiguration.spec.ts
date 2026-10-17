@@ -298,7 +298,7 @@ describe('CDS reconfiguration', () => {
   });
 });
 
-describe('ATC mailbox display unit (A380 FCOM PRO-ABN-ECAM-10-31: "If the SD DU is turned OFF, use the F/O DU RECONF P/B for ATC mailbox")', () => {
+describe('ATC mailbox display unit: with the SD DU off, the F/O DU RECONF P/B brings the ATC mailbox', () => {
   /** The DU of the active mailbox after the given F/O DU RECONF presses */
   const mailboxAfter = (operative: DisplayUnitMap<boolean>, foPresses: number, captPresses = 0) => {
     const state = new CdsReconfigurationState(operative);
@@ -353,7 +353,7 @@ describe('ATC mailbox display unit (A380 FCOM PRO-ABN-ECAM-10-31: "If the SD DU 
     for (const du of [DisplayUnitID.Sd, DisplayUnitID.FoNd, DisplayUnitID.CaptNd, null]) {
       expect(decodeMailboxDisplayUnit(encodeMailboxDisplayUnit(du))).toBe(du);
     }
-    // an unwritten variable (0): the SD DU, as before the CDS reconfiguration
+    // an unwritten variable (0): the SD DU
     expect(decodeMailboxDisplayUnit(0)).toBe(DisplayUnitID.Sd);
     expect(decodeMailboxDisplayUnit(7)).toBeNull();
     expect(decodeMailboxDisplayUnit(12)).toBeNull();

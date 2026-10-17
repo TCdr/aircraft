@@ -894,7 +894,7 @@
                     <EMISSIVE_CODE>12</EMISSIVE_CODE>
                 </UseTemplate>
 
-                <!-- DU reconfiguration (A320 FCOM DSC-31-05-60): the glass each DU shows (templates in A32NX/Airbus.xml,
+                <!-- DU reconfiguration: the glass each DU shows (templates in A32NX/Airbus.xml,
                 FBW_A32NX_DU_Picture_Glass). The overlay glasses SCREEN_<DU>_<PICTURE> are in the interior model. -->
                 <!-- PFD_L DU: its own picture, the ND of its side, blank -->
                 <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">

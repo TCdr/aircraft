@@ -98,7 +98,7 @@ function hostedHtml({ templateId, mountElementId, imports, cssPath, jsPath }) {
 /**
  * The rule that makes a hosted gauge element and everything in it transparent to the mouse, matched by its panel.cfg
  * URL. Unscoped, it reaches the gauge element itself, which covers the whole DU even while the gauge draws nothing:
- * the hidden hosted EWD over the SD took every mouse event of the SD's ATC mailbox (2026-10-10 sim diagnostic:
+ * the hidden hosted EWD over the SD took every mouse event of the SD's ATC mailbox (seen in the sim:
  * a380x-ewd under the mouse with pointer-events auto). For the displays that take no mouse input (EWD, PFD).
  * @param {string} fileName the instrument's file name (e.g. ewd)
  * @returns {string} the rule
@@ -112,8 +112,8 @@ function mouseTransparentRule(fileName) {
  * The rules that make a hosted gauge element transparent to the mouse but not its content (the mount element and what
  * is in it), matched by its panel.cfg URL: hidden, the gauge has no content to click (its mount element is empty or
  * not displayed), so the mouse goes through to the DU's own display (the ND and its OANS); shown, its content takes the
- * mouse. For the SD: drawn on an ND DU (DU RECONF), its ATC mailbox is used with the mouse (2026-10-11: the rule of
- * mouseTransparentRule left the mailbox on the F/O ND dead).
+ * mouse. For the SD: drawn on an ND DU (DU RECONF), its ATC mailbox is used with the mouse (the rule of
+ * mouseTransparentRule leaves the mailbox on the F/O ND dead).
  * @param {string} fileName the instrument's file name (e.g. sdv2)
  * @param {string} mountElementId the id of its mount element (e.g. SDv2_CONTENT)
  * @returns {string} the rules

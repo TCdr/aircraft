@@ -123,8 +123,7 @@ export class CdsReconfiguration implements Instrument {
       }
     }
 
-    // the DU of the active ATC mailbox (FCOM PRO-ABN-ECAM-10-31: "If the SD DU is turned OFF, use the F/O DU RECONF P/B
-    // for ATC mailbox")
+    // the DU of the active ATC mailbox: with the SD DU off, the F/O DU RECONF pb moves the mailbox to another DU
     const mailboxDu = encodeMailboxDisplayUnit(mailboxDisplayUnit(displays, operative));
     if (this.writtenMailboxDu !== mailboxDu) {
       this.writtenMailboxDu = mailboxDu;

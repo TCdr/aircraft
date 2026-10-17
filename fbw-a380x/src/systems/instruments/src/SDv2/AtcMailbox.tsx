@@ -65,7 +65,7 @@ export interface AtcMailboxProps extends ComponentProps {
   readonly active: Subscribable<boolean>;
   /**
    * The KCCU cursor of the mailbox: the F/O's on the F/O ND DU (design choice, the F/O works the mailbox there), else
-   * the CAPT's as before
+   * the CAPT's
    */
   readonly cursorSide?: 'CAPT' | 'FO';
 }
@@ -75,7 +75,7 @@ const ADS_STATUS_VAR = 'L:A380X_ATCCOM_ADS_STATUS';
 
 /**
  * Where the KCCU MAILBOX key puts the cursor, in mailbox coordinates (768 x 256). Design choice: the middle of the
- * mailbox, the FCOM gives no position.
+ * mailbox, the real position is not known.
  */
 const MAILBOX_KEY_CURSOR_POSITION = { x: 384, y: 128 };
 
@@ -85,7 +85,7 @@ const MAILBOX_KEY_CURSOR_POSITION = { x: 384, y: 128 };
  * @param eventName the H event
  * @returns the side of the KCCU, or null
  */
-export function mailboxKeyCursorSide(eventName: string): 'CAPT' | 'FO' | null {
+function mailboxKeyCursorSide(eventName: string): 'CAPT' | 'FO' | null {
   if (eventName === 'A32NX_KCCU_L_MAILBOX') {
     return 'CAPT';
   }
@@ -195,8 +195,8 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
    * Publishes to the ATC function, only from the active mailbox: an inactive one (the SD DU's while its DU is off, or
    * the SD on an ND DU while the SD DU shows the SD) would otherwise publish its own displayed / read messages over
    * those of the active one
-   * @param topic the topic
-   * @param data the data
+   * @param topic the mailbox or FMS-ATC bus topic
+   * @param data its payload
    */
   private publishToAtc<K extends keyof (AtsuMailboxMessages & FmsAtcMessages)>(
     topic: K,
@@ -344,10 +344,9 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
   }
 
   /**
-   * KCCU MAILBOX key (A380 FCOM DSC-46-10-20-80 Mailbox KEY, a380_fcom.txt l.101303-101306: "When pressed, the cursor
-   * moves to the mailbox section of the SD"; DSC-46-10-10-10 l.95692 "MAILBOX key, to position the cursor on the mailbox section
-   * of the SD"): the active mailbox shows the KCCU cursor of that side. The key works with the KCCU keyboard ON
-   * (DSC-31-30-20, isKccuKeyActive); the MFD of that side hides its cursor (MFD.tsx).
+   * KCCU MAILBOX key: it moves the cursor to the mailbox section of the SD, so the active mailbox shows the KCCU cursor
+   * of that side. The key works with the KCCU keyboard ON (isKccuKeyActive); the MFD of that side hides its cursor
+   * (MFD.tsx).
    * @param eventName the H event
    */
   private onKccuMailboxKey(eventName: string): void {
@@ -540,7 +539,6 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
         break;
       case 'CANCEL':
         if (message.Direction === AtsuMessageDirection.Downlink) {
-          // Removes the prepared downlink message from the mailbox
           this.publishToAtc('deleteMessage', uid);
           this.removeBlock(uid);
         } else {

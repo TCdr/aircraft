@@ -242,10 +242,10 @@ describe('hosted display gauges (CDS reconfiguration)', () => {
     }
   });
 
-  it('makes only the mailbox of the DU written by the systems host active (FCOM: F/O DU RECONF P/B for ATC mailbox)', () => {
+  it('makes only the mailbox of the DU written by the systems host active (F/O DU RECONF P/B for ATC mailbox)', () => {
     const activeDus = () =>
       [DisplayUnitID.Sd, DisplayUnitID.CaptNd, DisplayUnitID.FoNd].filter((du) => isMailboxActiveOn(du));
-    // unwritten (0): the SD DU, as before the CDS reconfiguration
+    // unwritten (0): the SD DU, the mailbox's normal DU
     SimVar.SetSimVarValue(MAILBOX_DISPLAY_UNIT_VAR, 'number', 0);
     expect(activeDus()).toEqual([DisplayUnitID.Sd]);
     SimVar.SetSimVarValue(MAILBOX_DISPLAY_UNIT_VAR, 'number', DisplayUnitID.FoNd);

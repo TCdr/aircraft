@@ -219,15 +219,13 @@ export function computeCdsDisplays(inputs: CdsReconfigurationInputs): DisplayUni
 }
 
 /**
- * The DU that shows the ATC mailbox, the bottom section of the SD ("The lower section of the SD permanently displays the
- * mailbox", a380_fcom.txt:95677; "The bottom section displays the mailbox", a380_fcom.txt:72777): the operative DU that
- * shows the SD. "If the SD DU is turned OFF, use the F/O DU RECONF P/B for ATC mailbox" (PRO-ABN-ECAM-10-31,
- * a380_fcom.txt:157950 and 158167): the SD on the F/O ND DU (or on the CAPT ND DU) brings the mailbox with it.
+ * The DU that shows the ATC mailbox, always the bottom section of the SD: the operative DU that shows the SD. With the
+ * SD DU off, the crew uses the F/O DU RECONF pb for the mailbox: the SD on the F/O ND DU (or on the CAPT ND DU) brings
+ * the mailbox with it.
  *
  * Only one mailbox client may answer the flight crew and publish to the ATC function (displayed and read messages):
  * - the SD DU, while it is operative and shows the SD (normal operation);
- * - else the DU that shows the SD after the DU RECONF pb ("The EWD (SD) cannot be displayed on both sides at the same
- *   time", a380_fcom.txt:63186-63187: one ND DU at most).
+ * - else the DU that shows the SD after the DU RECONF pb (one ND DU at most: the SD cannot be shown on both sides).
  * - else none: the SD is shown nowhere, so no mailbox marks a new message as displayed / read (design choice: the ATC
  *   ring and the ATC MSG lights go on until a DU shows the mailbox again).
  * Design choice: the SD DU wins when it shows the SD too (an ND DU may also show the SD while the SD DU works, after a
@@ -247,12 +245,12 @@ export function mailboxDisplayUnit(
 }
 
 /** The value of L:A380X_CDS_MAILBOX_DU when no DU shows the mailbox */
-export const NO_MAILBOX_DISPLAY_UNIT = -1;
+const NO_MAILBOX_DISPLAY_UNIT = -1;
 
 /**
- * The L:A380X_CDS_MAILBOX_DU value for the DU that shows the mailbox: 0 for the SD DU, so the variable stays 0 in normal
- * operation and before the systems host first writes it (the SD DU's mailbox is the active one then, as before the CDS
- * reconfiguration); else the duID of that DU (never 0: the CAPT PFD DU cannot draw the SD), or -1 for none.
+ * The L:A380X_CDS_MAILBOX_DU value for the DU that shows the mailbox: 0 for the SD DU, so the variable stays 0 in
+ * normal operation and before the systems host first writes it (the SD DU's mailbox is the active one then); else the
+ * duID of that DU (never 0: the CAPT PFD DU cannot draw the SD), or -1 for none.
  * @param du the DU, or null
  * @returns the value
  */

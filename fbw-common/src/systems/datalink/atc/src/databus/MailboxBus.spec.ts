@@ -27,7 +27,7 @@ function downlink(uid: number): CpdlcMessage {
 
 /**
  * The parts of the ATC function the mailbox uses here; removeMessage calls back into the mailbox like the real one
- * @param delayedFirstRing the A380X RING timing (A380 FCOM DSC-46-10-20-70): no ring before the reading time
+ * @param delayedFirstRing the A380X RING timing: no ring before the reading time
  */
 function setup(delayedFirstRing = false) {
   const bus = new EventBus();
@@ -116,7 +116,7 @@ describe('MailboxBus downlink file (FILE FULL)', () => {
   });
 });
 
-describe('MailboxBus resync (A380X SD mailbox on another DU, FCOM PRO-ABN-ECAM-10-31: "If the SD DU is turned OFF, use the F/O DU RECONF P/B for ATC mailbox")', () => {
+describe('MailboxBus resync (A380X SD mailbox moved to another DU by the F/O DU RECONF pb)', () => {
   beforeEach(() => {
     // the ring tone interval of an unread uplink message
     vi.useFakeTimers();
@@ -192,7 +192,7 @@ describe('MailboxBus resync (A380X SD mailbox on another DU, FCOM PRO-ABN-ECAM-1
   });
 });
 
-describe('MailboxBus RING (A380 FCOM DSC-46-10-20-70, a380_fcom.txt l.101232-101235)', () => {
+describe('MailboxBus RING timing', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
