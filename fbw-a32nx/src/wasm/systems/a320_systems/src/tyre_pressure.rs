@@ -1,5 +1,6 @@
 //! ATA 32 tyre pressure indicating system (TPIS, an option of the A320): the pressure of the six tyres, as the
-//! source of the WHEEL page tyre pressures and of the WHEEL TYRE LO PR alert of the FWC (neither displayed yet).
+//! source of the WHEEL page tyre pressures and of the WHEEL TYRE LO PR alert of the FWC (both in TypeScript,
+//! shared/TyrePressures.ts, with the flyPad option "TPIS installed").
 //!
 //! A320 FCOM PRO-ABN-WHEEL WHEEL TYRE LO PR (a320_fcom.txt:96406-96414): the alert triggers when "One tire pressure is
 //! below: 74% of nominal pressure between liftoff and engines shutdown, or 89% of nominal pressure in other cases", or

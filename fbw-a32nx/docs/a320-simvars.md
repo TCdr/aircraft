@@ -5477,11 +5477,13 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 
 - A32NX_TPIS_MAIN_{number}_TYRE_PRESSURE / A32NX_TPIS_NOSE_{number}_TYRE_PRESSURE
     - Arinc429<PSI>
-    - The tyre pressure (gauge) measured by the tyre pressure indicating system (TPIS), the source of the WHEEL TYRE LO
-      PR alert (FCOM PRO-ABN-WHEEL, not built yet). The tyres are inflated to their nominal pressure at the outside air
-      temperature of the start, then follow the gas temperature (outside air, brake heat on the main wheels) and the
-      tyre deflation failures (flyPad ATA 32, 32300-32305). Failure warning SSM while DC BUS 1 is unpowered (ELEC DC
-      BUS 1 FAULT INOP SYS TPIS). Written by the systems WASM (a320_systems tyre_pressure.rs)
+    - The tyre pressure (gauge) measured by the tyre pressure indicating system (TPIS), the source of the SD WHEEL page
+      tyre pressures and of the WHEEL TYRE LO PR caution, both shown only with the flyPad aircraft option "Tyre Pressure
+      Indicating System (TPIS)" (persistent setting CONFIG_A32NX_TPIS_INSTALLED, default 0: not installed). The tyres
+      are inflated to their nominal pressure at the outside air temperature of the start, then follow the gas
+      temperature (outside air, brake heat on the main wheels) and the tyre deflation failures (flyPad ATA 32,
+      32300-32305). Failure warning SSM while DC BUS 1 is unpowered (ELEC DC BUS 1 FAULT INOP SYS TPIS). Written by the
+      systems WASM (a320_systems tyre_pressure.rs)
     - {number}
         - MAIN: 1 to 4, the main wheels from left to right (as the brakes)
         - NOSE: 1 left, 2 right

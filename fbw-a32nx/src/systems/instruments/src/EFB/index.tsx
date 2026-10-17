@@ -65,6 +65,7 @@ render(
           rmpVhfSpacing: true,
           satcom: true,
           raas: true,
+          tpis: true,
         },
         realism: {
           mcduKeyboard: true,

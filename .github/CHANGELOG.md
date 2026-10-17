@@ -758,6 +758,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/DOORS] The COCKPIT DOOR FAULT light and the CKPT DOOR CONT strike and CHAN lights come on with their cockpit door locking system failure; a failed door proximity sensor shows its door not closed on the DOOR/OXY page and ECAM - @TCdr
 1. [A32NX/SD] BLEED and HYD pages: the engine numbers and the bleed ducts no longer turn amber with the engines at idle - @TCdr
 1. [A380X/ECAM] An SD page selected with an ECP key stays when a new alert appears, as in the FCOM priority order - @TCdr
+1. [A32NX/WHEEL] New flyPad aircraft option "Tyre Pressure Indicating System (TPIS)", off by default: the WHEEL page shows the six tyre pressures in PSI (amber when low) and the WHEEL TYRE LO PR caution comes on with a low or deflated tyre - @TCdr
 
 ## 2024.1.0
 

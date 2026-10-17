@@ -14,6 +14,9 @@ import { Toggle } from '../../UtilComponents/Form/Toggle';
 import { AircraftContext } from '@flybywiresim/flypad';
 import { M3Button } from '../../UtilComponents/Material/Material';
 
+/** The A32NX TPIS option key and default (fbw-a32nx shared/TyrePressures TPIS_INSTALLED_SETTING): not installed */
+const A32NX_TPIS_INSTALLED_SETTING = 'CONFIG_A32NX_TPIS_INSTALLED';
+
 const basePinProgRoute = `/settings/${pathify('Aircraft Options / Pin Programs')}`;
 
 export const AircraftOptionsPinProgramsPage = () => {
@@ -40,6 +43,7 @@ export const AircraftOptionsPinProgramsPage = () => {
   const [latLonExtended, setLatLonExtended] = usePersistentProperty('LATLON_EXT_FMT', '0');
   const [satcomEnabled, setsatcomEnabled] = usePersistentNumberProperty('MODEL_SATCOM_ENABLED', 0);
   const [raas, setRaas] = usePersistentProperty('CONFIG_A32NX_RAAS', 'FEET');
+  const [tpisInstalled, setTpisInstalled] = usePersistentProperty(A32NX_TPIS_INSTALLED_SETTING, '0');
 
   const handleSetThrustReductionAlt = (value: string) => {
     setThrustReductionHeightSetting(value);
@@ -219,6 +223,12 @@ export const AircraftOptionsPinProgramsPage = () => {
                   </SelectItem>
                 ))}
               </SelectGroup>
+            </SettingItem>
+          )}
+
+          {aircraftContext.settingsPages.pinProgram.tpis && (
+            <SettingItem name={t('Settings.AircraftOptionsPinPrograms.Tpis')}>
+              <Toggle value={tpisInstalled === '1'} onToggle={(value) => setTpisInstalled(value ? '1' : '0')} />
             </SettingItem>
           )}
 
