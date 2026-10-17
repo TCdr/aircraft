@@ -22,8 +22,8 @@ function sfccWord(bits: number[], ssm = Arinc429SignStatusMatrix.NormalOperation
   return new Arinc429Word(register.rawWord);
 }
 
-describe('A380 Weight and Balance Backup Computer (FCOM DSC-28-10 l.57734-57767)', () => {
-  it('computes nothing on ground nor before the slats and flaps retraction (l.57739)', () => {
+describe('A380 Weight and Balance Backup Computer', () => {
+  it('computes nothing on ground nor before the slats and flaps retraction', () => {
     const wbbc = new WeightBalanceBackupComputer();
     expect(wbbc.update(climb({ onGround: true }))).toEqual({ grossWeightKg: null, cgPercentMac: null });
     expect(wbbc.update(climb({ slatsAndFlapsRetracted: false }))).toEqual({ grossWeightKg: null, cgPercentMac: null });
@@ -34,7 +34,7 @@ describe('A380 Weight and Balance Backup Computer (FCOM DSC-28-10 l.57734-57767)
     expect(wbbc.update(climb())).toEqual({ grossWeightKg: 500_000, cgPercentMac: 38 });
   });
 
-  it('after slats/flaps extension: GW from the takeoff GW and the fuel used, no CG (l.57764-57767)', () => {
+  it('after slats/flaps extension: GW from the takeoff GW and the fuel used, no CG', () => {
     const wbbc = new WeightBalanceBackupComputer();
     wbbc.update(climb());
     wbbc.update(climb({ aerodynamicGrossWeightKg: 420_000, fuelUsedKg: 80_000 }));

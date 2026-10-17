@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The oxygen alerts of the A380X FWS (A380 FCOM PRO-ABN-ECAM-10-35, a380_fcom.txt l.167419-167530): OXY CABIN BOTTLE
- * PRESS LO, OXY CABIN VLV CLOSED and OXY CKPT BOTTLE PRESS LO, on the oxygen model of the systems
+ * The oxygen alerts of the A380X FWS: OXY CABIN BOTTLE PRESS LO, OXY CABIN VLV CLOSED and OXY CKPT BOTTLE PRESS LO,
+ * on the oxygen model of the systems
  * (a380_systems oxygen.rs: L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE, L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE,
  * L:A32NX_OXYGEN_CABIN_VALVE_CLOSED).
  */
@@ -24,8 +24,7 @@ export {
   CKPT_BOTTLE_LOW_PRESSURE_PSI,
 } from '@shared/OxygenBottlePressures';
 
-/** "The alert is inhibited, in the case of depressurization: The cabin altitude is above 13 800 ft" (l.167437-167438) */
-export const DEPRESSURIZATION_CABIN_ALTITUDE_FT = 13_800;
+const DEPRESSURIZATION_CABIN_ALTITUDE_FT = 13_800;
 
 export interface OxygenAlertInputs {
   ckptBottlePressurePsi: number;
@@ -49,8 +48,8 @@ export interface OxygenAlerts {
 }
 
 /**
- * The oxygen alerts. The two bottle alerts are inhibited "in the case of depressurization: The cabin altitude is above
- * 13 800 ft, or The flight crew pressed the MASK MAN ON pb" (l.167436-167439, l.167519-167521).
+ * The oxygen alerts. The two bottle alerts are inhibited in a depressurization: cabin altitude above 13 800 ft, or the
+ * crew pressed the MASK MAN ON pb.
  */
 export function oxygenAlerts(inputs: OxygenAlertInputs): OxygenAlerts {
   const depressurization =

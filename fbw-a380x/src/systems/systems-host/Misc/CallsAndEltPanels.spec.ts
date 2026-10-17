@@ -69,9 +69,8 @@ function run(code: string, variables: Record<string, number>): { value: number; 
 }
 
 /*
- * A380 FCOM DSC-23-20 CALLS panel (a380_fcom.txt l.49023-49096): PURS, PILOT REST, DECK, ALL, MECH and EMER each call
- * their own station. Before, the panel was the A320 one: DECK UPPER and REST FWD drove the A320 FWD call, DECK MAIN,
- * REST MAIN and PURS the A320 AFT call, so a PILOT REST call made the cabin crew report CABIN READY.
+ * CALLS panel: PURS, PILOT REST, DECK, ALL, MECH and EMER each call their own station, not the A320 FWD/AFT calls
+ * (through those, a PILOT REST call made the cabin crew report CABIN READY).
  */
 describe('CALLS panel', () => {
   const stations = ['MECH', 'ALL', 'DECK_UPPER', 'DECK_MAIN', 'REST_FWD', 'REST_MAIN', 'PURS'];
@@ -103,8 +102,8 @@ describe('CALLS panel', () => {
     expect(isCabinCalledFromCockpit(() => 0)).toBe(false);
   });
 
-  // EMER pb-sw (l.49080-49096): "When pressed: The ON and the CALL lights come on". Before, both flashed from
-  // E:ABSOLUTE TIME, which XML lamp codes cannot read (the lights stayed dark).
+  // EMER pb-sw: pressed, the ON and CALL lights come on steady. XML lamp codes cannot read E:ABSOLUTE TIME, so a
+  // flash driven from it leaves the lights dark.
   it('EMER: ON and CALL lights steady while the emergency call is on, off without it', () => {
     const emer = templateOf('PUSH_OVHD_CALLS_EMER').body;
     for (const seq of ['SEQ1_CODE', 'SEQ2_CODE']) {
@@ -117,10 +116,8 @@ describe('CALLS panel', () => {
 });
 
 /*
- * A380 FCOM DSC-23-20 ELT panel (a380_fcom.txt l.49172-49200): ARMED/ON and TEST/RESET. The cockpit model has one
- * 3-position selector, SWITCH_OVHD_ELT_SELECTOR (ON / ARMED / TEST/RESET as the A320 FCOM DSC-23-40-30 selector,
- * a320_fcom.txt l.36072-36082). Before, the XML named two pushbuttons that do not exist in the model (PUSH_OVHD_ELT_TEST
- * and PUSH_OVHD_ELT_ON, marked Inop.) and the selector did nothing.
+ * ELT panel: ARMED/ON and TEST/RESET. The cockpit model has one 3-position selector, SWITCH_OVHD_ELT_SELECTOR
+ * (ON / ARMED / TEST/RESET, as the A320 selector), and no PUSH_OVHD_ELT_TEST or PUSH_OVHD_ELT_ON pushbuttons.
  */
 describe('ELT selector', () => {
   const selector =

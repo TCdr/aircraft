@@ -5,9 +5,7 @@ import { Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { Subject } from '@microsoft/msfs-sdk';
 
 /**
- * Trigger and display logic of NAV AIR DATA DISAGREE, NAV ALL AIR DATA DISAGREE and NAV AOA DISAGREE (A380 FCOM
- * PRO-ABN-ECAM-10-34-10, a380_fcom.txt l.163894-164420; system description DSC-34-10-30-10 l.85698-85725 and
- * DSC-34-10-30-40 l.86240-86319).
+ * Trigger and display logic of NAV AIR DATA DISAGREE, NAV ALL AIR DATA DISAGREE and NAV AOA DISAGREE.
  *
  * The PRIMs compare the air data of the ADRs and of the standby instruments and reject a diverging source. The comparison
  * runs in systems.wasm (a380_systems air_data_monitoring.rs), which writes the L:vars read here:
@@ -16,12 +14,12 @@ import { Subject } from '@microsoft/msfs-sdk';
  * - A32NX_PRIM_AOA_1(2)(3)_REJECTED: one angle of attack rejected.
  */
 
-/** Below FL 250 the ALL AIR DATA DISAGREE procedure switches the ADRs off and flies the green (l.164074-164129) */
-export const ALL_AIR_DATA_FL250_FT = 25_000;
-/** The pitch targets change at 10 000 ft and 25 000 ft (l.164059, l.164068) */
-export const ALL_AIR_DATA_10000_FT = 10_000;
+/** Below FL 250 the ALL AIR DATA DISAGREE procedure switches the ADRs off and flies the green */
+const ALL_AIR_DATA_FL250_FT = 25_000;
+/** The pitch targets change at 10 000 ft and 25 000 ft */
+const ALL_AIR_DATA_10000_FT = 10_000;
 /** Thrust lever angle of the CL detent: a lever above it means the thrust is not yet reduced (A380 detents CL 25 deg) */
-export const CLIMB_DETENT_TLA_DEG = 25;
+const CLIMB_DETENT_TLA_DEG = 25;
 /** Indexes of the sensed action lines of NAV ALL AIR DATA DISAGREE (ata34.ts 340800010) */
 export const ALL_AIR_DATA_ITEM_SPEED_BRAKES = 8;
 export const ALL_AIR_DATA_ITEM_ADR_PBS_OFF = 16;
@@ -33,10 +31,10 @@ export interface AirDataAlertInputs {
   aoaRejected: [boolean, boolean, boolean];
   /**
    * The altitude for the conditions of the ALL AIR DATA DISAGREE procedure, in feet, null if none. Design choice: the GPS
-   * altitude (the FCOM uses it as the alternate source, l.164089), else the first valid ADR pressure altitude.
+   * altitude (the alternate altitude source of the procedure), else the first valid ADR pressure altitude.
    */
   altitudeFt: number | null;
-  /** "Before thrust reduction" (l.164053): one thrust lever above the CL detent */
+  /** Before thrust reduction: one thrust lever above the CL detent */
   thrustLeverAboveClimb: boolean;
   adrPbOn: [boolean, boolean, boolean];
 }
@@ -86,14 +84,13 @@ export function readAirDataAlertInputs(read: (name: string, unit: string) => num
 }
 
 export class FwsAirDataAlerts {
-  /** NAV AIR DATA DISAGREE: one or two sources rejected (l.163897-163905) */
+  /** NAV AIR DATA DISAGREE: one or two sources rejected */
   public readonly airDataDisagree = Subject.create(false);
 
-  /** NAV ALL AIR DATA DISAGREE: all air data rejected by the PRIMs (l.163969-163973) */
+  /** NAV ALL AIR DATA DISAGREE: all air data rejected by the PRIMs */
   public readonly allAirDataDisagree = Subject.create(false);
 
-  /** NAV AOA DISAGREE: "The PRIMs detect a discrepancy between the angles of attack" (l.164382), i.e. two or more
-   * AOAs rejected (DSC-34-10-30-10 l.85721-85723). One AOA alone gives no NAV alert (l.136361-136362). */
+  /** NAV AOA DISAGREE: two or more AOAs rejected by the PRIMs. One rejected AOA alone gives no NAV alert. */
   public readonly aoaDisagree = Subject.create(false);
 
   private inputs: AirDataAlertInputs = {
@@ -117,7 +114,7 @@ export class FwsAirDataAlerts {
     return this.inputs.adrRejected.filter((rejected) => rejected).length + (this.inputs.stbyRejected ? 1 : 0);
   }
 
-  /** "If two air data sources are rejected by PRIMs: RISK OF UNDUE OVERSPEED WARNING" (l.163945-163946, STATUS INFO) */
+  /** Two rejected air data sources add RISK OF UNDUE OVERSPEED WARNING (STATUS INFO) */
   public twoSourcesRejected(): boolean {
     return this.rejectedSourceCount() >= 2;
   }
@@ -133,7 +130,7 @@ export class FwsAirDataAlerts {
 
   /**
    * NAV AIR DATA DISAGREE lines (ata34.ts 340800009): ADR 1, ADR 2, ADR 3, STBY INSTRUMENTS REJECTED BY PRIMs, RISK OF
-   * UNDUE OVERSPEED WARNING, AIR DATA XCHECK, AIR DATA SWTG AS RQRD (l.163933-163952).
+   * UNDUE OVERSPEED WARNING, AIR DATA XCHECK, AIR DATA SWTG AS RQRD.
    */
   public airDataDisagreeItemsToShow(): boolean[] {
     const [adr1, adr2, adr3] = this.inputs.adrRejected;
@@ -141,8 +138,8 @@ export class FwsAirDataAlerts {
   }
 
   /**
-   * NAV ALL AIR DATA DISAGREE lines (ata34.ts 340800010, l.164052-164205); "The ECAM displays only the appropriate pitch"
-   * (l.164057, l.164066).
+   * NAV ALL AIR DATA DISAGREE lines (ata34.ts 340800010); the ECAM shows only the pitch target of the current altitude
+   * and thrust state.
    */
   public allAirDataDisagreeItemsToShow(): boolean[] {
     const altitude = this.inputs.altitudeFt ?? 0;
@@ -181,7 +178,7 @@ export class FwsAirDataAlerts {
     return checked;
   }
 
-  /** STATUS of NAV ALL AIR DATA DISAGREE (l.164301-164320); CAB PRESS AUTO CTL and TAWS 1+2 are not listed (no key) */
+  /** STATUS of NAV ALL AIR DATA DISAGREE; CAB PRESS AUTO CTL and TAWS 1+2 are not listed (no key) */
   public allAirDataDisagreeInopSysAllPhases(): string[] {
     const allOff = this.allAdrsOff();
     return [
@@ -203,8 +200,8 @@ export class FwsAirDataAlerts {
     ];
   }
 
-  /** LIMITATIONS of NAV ALL AIR DATA DISAGREE, on the ECAM and the PFD, ALL PHASES (l.164231-164258); AVOID ICING CONDs
-   * (MFP heating failed) is not modelled */
+  /** LIMITATIONS of NAV ALL AIR DATA DISAGREE, on the ECAM and the PFD, ALL PHASES; AVOID ICING CONDs (MFP heating
+   * failed) is not modelled */
   public allAirDataDisagreeLimitations(): string[] {
     const allOff = this.allAdrsOff();
     return [

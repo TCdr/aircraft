@@ -16,7 +16,7 @@ const normal: OxygenAlertInputs = {
   masksReleased: false,
 };
 
-/* A380 FCOM PRO-ABN-ECAM-10-35 OXY CKPT BOTTLE PRESS LO, a380_fcom.txt l.167516-167521 */
+/* OXY CKPT BOTTLE PRESS LO */
 describe('OXY CKPT BOTTLE PRESS LO', () => {
   it('triggers below 350 PSI', () => {
     expect(oxygenAlerts({ ...normal, ckptBottlePressurePsi: 349 }).ckptBottlePressLo).toBe(true);
@@ -37,7 +37,7 @@ describe('OXY CKPT BOTTLE PRESS LO', () => {
   });
 });
 
-/* OXY CABIN BOTTLE PRESS LO, l.167425-167439, and the EMERGENCY DESCENT table of LIM-35 (2019 FCOM PDF p.6312) */
+/* OXY CABIN BOTTLE PRESS LO, and the emergency descent oxygen limitation table */
 describe('OXY CABIN BOTTLE PRESS LO', () => {
   it('takes the minimum pressure of the emergency descent for the FMS passengers', () => {
     expect(cabinOxygenMinimumPressurePsi(100)).toBe(286);
@@ -64,7 +64,7 @@ describe('OXY CABIN BOTTLE PRESS LO', () => {
   });
 });
 
-/* OXY CABIN VLV CLOSED, l.167490-167491 */
+/* OXY CABIN VLV CLOSED */
 describe('OXY CABIN VLV CLOSED', () => {
   it('follows the closed regulator supply valve', () => {
     expect(oxygenAlerts({ ...normal, cabinValveClosed: true }).cabinValveClosed).toBe(true);

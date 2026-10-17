@@ -27,7 +27,7 @@ const failures = readFileSync(resolve(__dirname, '../../../failures/src/a380.ts'
 
 const none: ApuFaultInputs = { emergencyShutdown: false, autoShutdown: false, apuFireWarning: false };
 
-describe('APU FAULT (A380 FCOM PRO-ABN-ECAM-10-49, l.170067-170193)', () => {
+describe('APU FAULT', () => {
   it('triggers on an emergency or an automatic shutdown, not while the APU FIRE warning is shown', () => {
     expect(isApuFault(none)).toBe(false);
     expect(isApuFault({ ...none, emergencyShutdown: true })).toBe(true);
@@ -63,7 +63,7 @@ describe('APU FAULT (A380 FCOM PRO-ABN-ECAM-10-49, l.170067-170193)', () => {
     expect(apuFaultItemsChecked(true).some((checked) => checked)).toBe(false);
   });
 
-  it('is inhibited in flight phases 3-7, 9 and 10 (PDF p.5729)', () => {
+  it('is inhibited in flight phases 3-7, 9 and 10', () => {
     expect(APU_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 9, 10]);
   });
 
@@ -87,8 +87,8 @@ function ata49Procedure(id: string): string {
   return ata49.slice(start, ata49.indexOf('\n  },', start));
 }
 
-describe('APU MACH LIMIT EXCEEDED (A380 FCOM PRO-ABN-ECAM-10-49, l.170204-170230)', () => {
-  it('triggers with the APU running above M 0.5 (l.170210)', () => {
+describe('APU MACH LIMIT EXCEEDED', () => {
+  it('triggers with the APU running above M 0.5', () => {
     expect(isApuMachLimitExceeded(true, 0.5)).toBe(false);
     expect(isApuMachLimitExceeded(true, 0.51)).toBe(true);
     expect(isApuMachLimitExceeded(false, 0.85)).toBe(false);
@@ -99,7 +99,7 @@ describe('APU MACH LIMIT EXCEEDED (A380 FCOM PRO-ABN-ECAM-10-49, l.170204-170230
     expect(apuMachLimitItemsChecked(false)).toEqual([false, true]);
   });
 
-  it('is inhibited in every flight phase but 8 (PDF p.5731)', () => {
+  it('is inhibited in every flight phase but 8', () => {
     expect(APU_MACH_LIMIT_PHASE_INHIBITION).toEqual([1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]);
   });
 
@@ -118,14 +118,14 @@ describe('APU MACH LIMIT EXCEEDED (A380 FCOM PRO-ABN-ECAM-10-49, l.170204-170230
   });
 });
 
-describe('APU OIL FILTER CLOGGED (A380 FCOM PRO-ABN-ECAM-10-49, l.170240-170258)', () => {
+describe('APU OIL FILTER CLOGGED', () => {
   it('shows the clogging failure while the APU runs', () => {
     expect(isApuOilFilterClogged(true, true)).toBe(true);
     expect(isApuOilFilterClogged(true, false)).toBe(false);
     expect(isApuOilFilterClogged(false, true)).toBe(false);
   });
 
-  it('is inhibited in flight phases 2 to 11 (PDF p.5732)', () => {
+  it('is inhibited in flight phases 2 to 11', () => {
     expect(APU_OIL_FILTER_CLOGGED_PHASE_INHIBITION).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
   });
 

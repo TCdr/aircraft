@@ -35,7 +35,7 @@ describe('A380 XPDR system selection', () => {
   });
 });
 
-describe('A380 XPDR/TCAS power (FCOM DSC-34-20-100: SYS 1 = AC ESS, SYS 2 = AC 4)', () => {
+describe('A380 XPDR/TCAS power (SYS 1 = AC ESS, SYS 2 = AC 4)', () => {
   it('powers SYS 1 from AC ESS only', () => {
     expect(isXpdrTcasPowered(1, true, false)).toBe(true);
     expect(isXpdrTcasPowered(1, false, true)).toBe(false);
@@ -64,7 +64,7 @@ describe('A380 XPDR operative state', () => {
   });
 });
 
-describe('A380 TCAS inoperative state (FCOM SURV XPDR 1(2) FAULT STATUS: XPDR 1(2), TCAS 1(2))', () => {
+describe('A380 TCAS inoperative state (SURV XPDR 1(2) FAULT STATUS: XPDR 1(2), TCAS 1(2))', () => {
   it('makes TCAS n inoperative when XPDR n is failed, selected or not', () => {
     expect(isTcasInoperative(1, 1, true, false)).toBe(true);
     expect(isTcasInoperative(1, 2, true, false)).toBe(true);

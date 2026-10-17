@@ -36,16 +36,15 @@ export const TIRE_DEFLATION_FAILURES: readonly number[] = [
 ];
 
 /**
- * Design choice (the FCOM gives no rate): a deflating tire loses 10 PSI/min, so that it is below the WHEEL TIRE PRESS
- * LO ground minimum (89 % of 217.5 PSI) after about 2.5 min and flat after about 22 min.
+ * Design choice (no published rate): a deflating tire loses 10 PSI/min, so that it is below the WHEEL TIRE PRESS LO
+ * ground minimum (89 % of 217.5 PSI) after about 2.5 min and flat after about 22 min.
  */
 export const TIRE_DEFLATION_RATE_PSI_PER_S = 10 / 60;
 
 /**
- * The pressure of the tires. Each tire holds the normal pressure, 217.5 PSI (A380 FCOM PRO-ABN-ECAM-10-32 WHEEL TIRE
- * PRESS LO, a380_fcom.txt l.163283), and loses pressure while its deflation failure is active; it is back at the normal
- * pressure when the failure is removed (the tire is replaced).
- * Not modelled: the effect of the tire temperature on the pressure (the FCOM gives no figure), the TPIS power supply.
+ * The pressure of the tires. Each tire holds the normal pressure, 217.5 PSI, and loses pressure while its deflation
+ * failure is active; it is back at the normal pressure when the failure is removed (the tire is replaced).
+ * Not modelled: the effect of the tire temperature on the pressure (no published figure), the TPIS power supply.
  */
 export class TirePressureModel {
   private readonly pressuresPsi: number[] = [];
@@ -72,8 +71,8 @@ export class TirePressureModel {
 }
 
 /**
- * The TPIS: measures the pressure of each tire, from 0 to 400 PSI by 5 PSI steps (A380 FCOM DSC-32-10-60, l.80817-80822),
- * for the SD WHEEL page (L:A380X_TPIS_TIRE_n_PRESSURE).
+ * The TPIS: measures the pressure of each tire, from 0 to 400 PSI by 5 PSI steps, for the SD WHEEL page
+ * (L:A380X_TPIS_TIRE_n_PRESSURE).
  */
 export class Tpis implements Instrument {
   /** The pressures are measured at most this often, ms */

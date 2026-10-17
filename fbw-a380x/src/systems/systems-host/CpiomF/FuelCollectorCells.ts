@@ -5,17 +5,15 @@ import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
 import { COLLECTOR_CELL_CAPACITY_KG, collectorCellQuantityVar } from '@shared/FuelTankIndications';
 
 /*
- * The collector cells of the four feed tanks (A380 FCOM DSC-28-10, a380_fcom.txt l.57265-57271): "Each feed tank [...]
- * Contains a collector cell that has a fuel capacity of approximately 2 866 lb. The collector cell is maintained full,
- * to keep the fuel pumps immersed, in order to provide low or negative "g" protection to feed the engine." The MSFS
- * fuel system has no collector cell: its quantity is derived here from the feed tank quantity, for the FUEL SD page and
- * FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL.
+ * The collector cells of the four feed tanks: each feed tank has a collector cell of about 2 866 lb, kept full so that
+ * the fuel pumps stay immersed and the engine is fed under low or negative g. The MSFS fuel system has no collector
+ * cell: its quantity is derived here from the feed tank quantity, for the FUEL SD page and FUEL COLLECTOR CELL
+ * 1(2)(3)(4) NOT FULL.
  *
- * When the feed tank pumps are lost, the engine is fed by gravity and the cell empties: "EXPECT NORM COLLECTOR CELL
- * DEPLETION. In the case of collector cell depletion, the associated collector cell quantity appears in amber on the
- * FUEL SD page" (ELEC AC BUS 2+3 & DC BUS 1+2 FAULT, l.138086-138093).
+ * When the feed tank pumps are lost (e.g. ELEC AC BUS 2+3 & DC BUS 1+2 FAULT), the engine is fed by gravity and the
+ * cell empties; a depleted cell quantity shows amber on the FUEL SD page.
  *
- * Design choices (the FCOM gives no rates):
+ * Design choices (no published rates):
  * - While a pump of the feed tank runs, or while its engine is not running (no fuel drawn out of the cell), the cell
  *   is refilled from the feed tank at COLLECTOR_CELL_REFILL_RATE_KG_PER_HOUR, up to its capacity.
  * - While no pump of the feed tank runs and its engine runs, the engine draws its fuel out of the cell: the cell loses
@@ -26,7 +24,6 @@ import { COLLECTOR_CELL_CAPACITY_KG, collectorCellQuantityVar } from '@shared/Fu
 /** Design choice: the refill rate of the collector cell, well above the engine fuel flow (about 3 000 kg/h at cruise) */
 export const COLLECTOR_CELL_REFILL_RATE_KG_PER_HOUR = 20_000;
 
-/** What a collector cell reads on one update */
 export interface CollectorCellInputs {
   /** The feed tank quantity (the cell included), in kg */
   feedTankKg: number;
@@ -36,7 +33,6 @@ export interface CollectorCellInputs {
   engineRunning: boolean;
 }
 
-/** The collector cell of one feed tank */
 export class CollectorCell {
   private quantityKg: number | null = null;
 

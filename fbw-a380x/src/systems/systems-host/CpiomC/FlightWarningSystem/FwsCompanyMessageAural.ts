@@ -4,23 +4,18 @@
 import { FwcFlightPhase } from './FwsFlightPhases';
 
 /*
- * The COMPANY MESSAGE synthetic voice of the A380 FWS.
- * - a380_fcom.txt l.73651-73652 (DSC-31-40-20 audio indicators): Company Message (Synthetic Voice), "Company message:
- *   The flight crew receives a company message.", "Sounds 1 time".
- * - l.108111-108120 (DSC-46-40-20 AOC aural alerts): COMPANY MESSAGE, "The flight crew has received a company
- *   message. It is associated with: The COMPANY MSG MEMO, or The COMPANY MSG: PRNTR MEMO."; inhibition: "The AOC
- *   inhibits the aural alert, when the aircraft goes below 10 000 ft in flight phase 8."
+ * The COMPANY MESSAGE synthetic voice of the A380 FWS: said once when the flight crew receives a company message,
+ * together with the COMPANY MSG (or COMPANY MSG: PRNTR) memo. The AOC inhibits it below 10 000 ft in flight phase 8.
  *
  * The AOC (fbw-common datalink) counts the unread company messages in L:A32NX_COMPANY_MSG_COUNT, the source of the
  * COMPANY MSG memo (FwsMemos.ts '460000001'): a new message raises the count.
  *
  * Design choices:
- * - The voice goes with the COMPANY MSG memo (l.108113-108120): it is also inhibited in the flight phases where the
- *   memo is inhibited (takeoff and landing).
- * - A message received while the voice is inhibited is not said later (the FCOM inhibits the alert, it does not delay
- *   it), and the messages already there when the systems host starts are not said.
- * - Not done: COMPANY ALERT (urgent company message, l.73647-73649, 108122-108132) and CALL COMPANY
- *   (l.108134-108140): the AOC has no urgent or call-company messages.
+ * - The voice goes with the COMPANY MSG memo: it is also inhibited in the flight phases where the memo is inhibited
+ *   (takeoff and landing).
+ * - A message received while the voice is inhibited is not said later (the aircraft inhibits the alert, it does not
+ *   delay it), and the messages already there when the systems host starts are not said.
+ * - Not done: COMPANY ALERT (urgent company message) and CALL COMPANY: the AOC has no urgent or call-company messages.
  */
 
 /** The flight phases where the COMPANY MSG memo (and its voice) are inhibited */
@@ -34,8 +29,8 @@ export const COMPANY_MSG_INHIBITED_FLIGHT_PHASES: readonly number[] = [
   FwcFlightPhase.TouchDown,
 ];
 
-/** Below this altitude in flight phase 8 the voice is inhibited, feet (a380_fcom.txt l.108111-108116) */
-export const COMPANY_MESSAGE_AURAL_MIN_ALTITUDE_FT = 10_000;
+/** Below this altitude in flight phase 8 the voice is inhibited, feet */
+const COMPANY_MESSAGE_AURAL_MIN_ALTITUDE_FT = 10_000;
 
 /**
  * @param flightPhase the FWS flight phase

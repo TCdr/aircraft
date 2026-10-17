@@ -47,8 +47,7 @@ export class FwsLimitations {
       simVarIsActive: this.fws.allRmpFault,
       phase: FwsLimitationsPhases.AllPhases,
     },
-    // F/CTL DIRECT LAW: "LIMITATIONS ON ECAM / APPR & LDG: MAX SPEED : 310/.86, MANEUVER WITH CARE", the same on the PFD
-    // (A380 FCOM PRO-ABN-ECAM-10-27-10 F/CTL DIRECT LAW, a380_fcom.txt l.144962-144972, PDF page 5025)
+    // F/CTL DIRECT LAW lists these two in the APPR & LDG column of the ECAM limitations, and on the PFD
     240400002: {
       // MAX SPEED: 310/.86
       simVarIsActive: this.fws.directLawCondition,

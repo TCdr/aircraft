@@ -23,10 +23,10 @@ import {
   FlightTimeAboveFl300,
   isStaticInverterFault,
   ProcedureLines,
-  ROUND8_ELEC_PHASE_INHIBITION,
-} from './FwsElecAlertsRound8';
+  ELEC_COMBINED_BUS_PHASE_INHIBITION,
+} from './FwsElecCombinedBusAlerts';
 
-/* The source texts (importing the EcamMessages tables in a test fails on a circular import, see FwsCdsDuFault.spec.ts) */
+/* The source texts (importing the EcamMessages tables in a test fails on a circular import, see FwsCdsDuFault.spec) */
 const messagesDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
 const ata24 = readFileSync(resolve(messagesDir, 'AbnormalSensed/ata24.ts'), 'utf-8');
 const ecamIndex = readFileSync(resolve(messagesDir, 'index.ts'), 'utf-8');
@@ -110,7 +110,7 @@ function shownNames(id: string, lines: ProcedureLines): string[] {
   return names.filter((_, n) => lines.show[n]);
 }
 
-describe('combineElecBusFaults (A380 FCOM PRO-ABN-ECAM-10-24 combined busbar alerts)', () => {
+describe('combineElecBusFaults (combined busbar alerts)', () => {
   it.each([
     ['AC BUS 1+2 & DC BUS 1 FAULT', ['ac1', 'ac2', 'dc1'] as Bus[], 'ac12Dc1'],
     ['AC BUS 2+3 & DC BUS 1+2 FAULT', ['ac2', 'ac3', 'dc1', 'dc2'] as Bus[], 'ac23Dc12'],
@@ -176,19 +176,19 @@ describe('combineElecBusFaults (A380 FCOM PRO-ABN-ECAM-10-24 combined busbar ale
   });
 });
 
-describe('ELEC STATIC INV FAULT (FCOM l.142773)', () => {
+describe('ELEC STATIC INV FAULT', () => {
   it('is raised when the static inverter is switched in (contactor 7XB closed) and gives no normal output', () => {
     expect(isStaticInverterFault(true, false)).toBe(true);
     expect(isStaticInverterFault(true, true)).toBe(false);
     expect(isStaticInverterFault(false, false)).toBe(false);
   });
 
-  it('is crew awareness, no master light, on the ELEC AC page, inhibited in phases 3 to 10 (PDF p.4959)', () => {
+  it('is crew awareness, no master light, on the ELEC AC page, inhibited in phases 3 to 10', () => {
     const block = alertBlock('240800080');
     expect(block).toContain('failure: 1');
     expect(block).toContain('SdPages.ElecAc');
     expect(block).toContain('simVarIsActive: this.fws.elecStaticInvFault');
-    expect(ROUND8_ELEC_PHASE_INHIBITION.staticInvFault).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(ELEC_COMBINED_BUS_PHASE_INHIBITION.staticInvFault).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });
 
@@ -235,14 +235,14 @@ describe('Combined busbar alert procedures match their ata24.ts items', () => {
     expect(block).toContain(`whichItemsToShow: () => ${lines}(`);
     expect(block).toContain('failure: 2');
     expect(block).toContain(`sysPage: SdPages.${page}`);
-    expect(block).toContain('ROUND8_ELEC_PHASE_INHIBITION.combinedBusFault');
+    expect(block).toContain('ELEC_COMBINED_BUS_PHASE_INHIBITION.combinedBusFault');
   });
 
-  it('the combined alerts are inhibited in phases 4, 5 and 10 (PDF p.4834 ... 4897)', () => {
-    expect(ROUND8_ELEC_PHASE_INHIBITION.combinedBusFault).toEqual([4, 5, 10]);
+  it('the combined alerts are inhibited in phases 4, 5 and 10', () => {
+    expect(ELEC_COMBINED_BUS_PHASE_INHIBITION.combinedBusFault).toEqual([4, 5, 10]);
   });
 
-  it('AC BUS 1+2 & DC BUS 1 FAULT: ATC COM VOICE ONLY, AP SIDESTICK..., LDG DIST AFFECTED (l.137747-137751)', () => {
+  it('AC BUS 1+2 & DC BUS 1 FAULT: ATC COM VOICE ONLY, AP SIDESTICK..., LDG DIST AFFECTED', () => {
     expect(shownNames('240800003', acBus12Dc1FaultLines())).toEqual([
       'ATC COM VOICE ONLY',
       'AP : SIDESTICK LOCKING DEVICE NOT AVAIL',
@@ -310,14 +310,14 @@ describe('Combined busbar alert procedures match their ata24.ts items', () => {
     expect(ata24).toMatch(/name: 'VENT AVNCS EXTRACT',\r?\n\s+sensed: true,\r?\n\s+labelNotCompleted: 'OVRD'/);
   });
 
-  it('DC BUS 1+2 FAULT: EMER OUTR TK XFR lines only with low feed tanks 1 and 4 (l.140053)', () => {
+  it('DC BUS 1+2 FAULT: EMER OUTR TK XFR lines only with low feed tanks 1 and 4', () => {
     expect(shownNames('240800027', dcBus12FaultLines(procedureInputs()))).not.toContain('EMER OUTR TK XFR');
     const lines = dcBus12FaultLines(procedureInputs({ feedTanks1And4Low: true, emerOutrTkXfrOn: true }));
     expect(shownNames('240800027', lines)).toContain('EMER OUTR TK XFR');
     expect(lines.checked[19]).toBe(true);
   });
 
-  it('DC BUS 1+ESS FAULT: CROSSFEED 1+2 ON, SURV SYS 2 (l.140339-140342)', () => {
+  it('DC BUS 1+ESS FAULT: CROSSFEED 1+2 ON, SURV SYS 2', () => {
     const lines = dcBus1EssFaultLines(
       procedureInputs({ crossFeedPbOn: [true, true, false, false], wxrTawsSys: 2, xpdrTcasSys: 2 }),
     );
@@ -362,7 +362,7 @@ describe('STATUS of the combined busbar alerts', () => {
     status.info.forEach((key) => expect(infos.has(key), key).toBe(true));
   });
 
-  it('DC BUS 1+ESS FAULT INOP SYS has the three X BLEED AUTO CTL and FEED TK 2 PMPs (l.140517, l.140524)', () => {
+  it('DC BUS 1+ESS FAULT INOP SYS has the three X BLEED AUTO CTL and FEED TK 2 PMPs', () => {
     expect(DC_BUS_1_ESS_FAULT_STATUS.inopSysAllPhases).toEqual(
       expect.arrayContaining(['280300012', '260300007', '260300008', '260300009']),
     );

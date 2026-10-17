@@ -16,8 +16,7 @@ const ECAM_LIGHT_DELAY_ALL = 200;
 const ECAM_ALL_CYCLE_DELAY = 3000;
 
 /**
- * The automatic SD page in flight phases 8 to 11 (from 1 500 ft to the engine shutdown), A380 FCOM DSC-31-40-30
- * (a380_fcom.txt l.73745-73751)
+ * The automatic SD page in flight phases 8 to 11 (from 1 500 ft to the engine shutdown)
  * @param gearExtended the landing gear is extended
  * @returns WHEEL after the landing gear extension, else CRUISE
  */
@@ -38,7 +37,7 @@ export class FwsSystemDisplayLogic {
   /** The MORE page is shown on the SD; also lights the ECP MORE pb (ecam-cp.xml) */
   private readonly sdMoreShownSimvar = RegisteredSimVar.create('L:A32NX_ECAM_SD_MORE_SHOWN', SimVarValueType.Number);
 
-  /** The page on which the crew showed the MORE page (EcamSdMore sdMoreShownToKeep), null without a MORE page */
+  /** The page on which the crew showed the MORE page, null without a MORE page */
   private moreShownOnPage: SdPages | null = null;
 
   private readonly userSelectedPage = Subject.create<SdPages>(SdPages.None);
@@ -77,7 +76,6 @@ export class FwsSystemDisplayLogic {
     SimVarValueType.Number,
   );
 
-  /** The ECAM advisories (FwsAdvisories) */
   private readonly advisoryInputs = new FwsAdvisoryInputsReader();
   private readonly advisoryDisplay = new FwsAdvisoryDisplay();
   /** The ECP pb lit by an advisory: the SD page index + 1, 0 for none (ecam-cp.xml) */
@@ -217,11 +215,10 @@ export class FwsSystemDisplayLogic {
         case 9:
         case 10:
         case 11: {
-          // A380 FCOM DSC-31-40-30 (a380_fcom.txt l.73745-73751): CRUISE "At 1 500 ft AGL or at the thrust reduction,
-          // whichever occurs the first until landing gear extension in approach"; WHEEL "After landing gear extension,
-          // until last engine shutdown". The A320 rules were used: WHEEL only below 16 000 ft, and the CRUISE page 60 s
-          // after T.O power, flaps and spoilers were back. Phase 8 starts at 1 500 ft (FwsFlightPhases.ts); the thrust
-          // reduction below 1 500 ft is not a phase of its own (design choice: the 1 500 ft phase change only).
+          // A380 rules, not the A320 ones: CRUISE from 1 500 ft or the thrust reduction (whichever comes first) until
+          // the gear extension, then WHEEL until the last engine shutdown, with no 16 000 ft or 60 s condition.
+          // Design choice: the thrust reduction below 1 500 ft is not a phase of its own, so only the phase 8 change
+          // at 1 500 ft is used.
           const isGearExtended = SimVar.GetSimVarValue('GEAR TOTAL PCT EXTENDED', 'percent') > 0.95;
           this.pageWhenUnselected.set(automaticPageInFlight(isGearExtended));
           this.checkApuPage(deltaTime);
@@ -241,13 +238,10 @@ export class FwsSystemDisplayLogic {
       if (failPage !== SdPages.None) {
         this.pageWhenUnselected.set(failPage);
 
-        // A380 FCOM DSC-31-40-10 (ECAM Display on the SD -- GENERAL, a380_fcom.txt l.72794-72799): "The System Display
-        // (SD) pages appear on the SD in the following decreasing order of priority: SD page that the flight crew
-        // manually selects (Refer to ECP System Page Pushbuttons), SD page that appears after an alert, ...". A new
-        // alert therefore keeps a page selected with an ECP system page pb (it was cancelled, so the SD fell back to the
-        // flight phase page, e.g. DOOR, once the alert was cleared); only a second press of the pb removes it
-        // (DSC-31-40-20 SYSTEM PAGE PUSHBUTTONS, l.73254-73258). The STATUS page is not a system page pb (STS pb):
-        // the page of a new alert still replaces it.
+        // SD page priority: a page the crew selects with an ECP system page pb comes before an alert page, so a new
+        // alert keeps it (without this, the SD fell back to the flight phase page, e.g. DOOR, once the alert was
+        // cleared); only a second press of the pb removes it. The STATUS page (STS pb) is not a system page pb: the
+        // page of a new alert still replaces it.
         const systemPageSelectedByCrew =
           this.userSelectedPage.get() !== SdPages.None && this.userSelectedPage.get() !== SdPages.Status;
         if (this.prevFailPage.get() !== failPage && !systemPageSelectedByCrew) {
@@ -280,8 +274,7 @@ export class FwsSystemDisplayLogic {
   }
 
   /**
-   * The ECAM advisories (A380 FCOM DSC-31-40-10 ADVISORY, l.72215-72241, see FwsAdvisories): the advisory page in flight
-   * phase mode, the ECP pb light and the ADV indication of the EWD
+   * The ECAM advisories: the advisory page in flight phase mode, the ECP pb light and the ADV indication of the EWD
    * @param failPage the page of the ECAM alerts (L:A32NX_ECAM_SFAIL), SdPages.None if none
    */
   private updateAdvisories(failPage: SdPages): void {

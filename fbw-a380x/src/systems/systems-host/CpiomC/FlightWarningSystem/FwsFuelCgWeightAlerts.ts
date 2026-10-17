@@ -2,13 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * A380X FUEL (ATA 28) CG and weight alerts of the FCOM gap batch T2-16: FUEL CG AT FWD LIMIT, FUEL CG OUT OF RANGE,
- * FUEL EXCESS AFT CG, FUEL CG DATA DISAGREE and FUEL WEIGHT DATA DISAGREE, with their procedure lines.
- *
- * Source: A380 FCOM PRO-ABN-ECAM-10-28 "FUEL" (KAL fleet, 25 JUL 11) and LIM-11 CENTER OF GRAVITY LIMITS. "l." = line
- * of the text copy references/manuals/a380_fcom.txt; the flight phase inhibitions, master lights, audio and the CG
- * envelope are figures, read from airbus-a380-fcom_compress.pdf ("PDF p."). The FCOM gives the weights in lb; they are
- * converted to kg here.
+ * A380X FUEL (ATA 28) CG and weight alerts: FUEL CG AT FWD LIMIT, FUEL CG OUT OF RANGE, FUEL EXCESS AFT CG, FUEL CG
+ * DATA DISAGREE and FUEL WEIGHT DATA DISAGREE, with their procedure lines. The aircraft gives the weights in lb; they
+ * are converted to kg here.
  *
  * The FQMS GW and CG (A32NX_FQMS_GROSS_WEIGHT / _CENTER_OF_GRAVITY_MAC) come from the FMS ZFW and ZFWCG and the fuel
  * quantities; the WBBC GW and CG (A380X_WBBC_*) from the aerodynamic data (CpiomF/WeightBalanceBackup).
@@ -17,9 +13,8 @@
 const KG_PER_LB = 0.45359237;
 
 /**
- * Flight phase inhibitions (FCOM figures): FUEL CG AT FWD LIMIT every phase but 8 (PDF p.5151); FUEL CG DATA DISAGREE
- * every phase but 8 (PDF p.5154); FUEL CG OUT OF RANGE phases 3-12 (PDF p.5156); FUEL EXCESS AFT CG every phase but 8
- * (PDF p.5164); FUEL WEIGHT DATA DISAGREE every phase but 8 (PDF p.5283).
+ * Flight phase inhibitions: FUEL CG AT FWD LIMIT, FUEL CG DATA DISAGREE, FUEL EXCESS AFT CG and FUEL WEIGHT DATA
+ * DISAGREE in every phase but 8; FUEL CG OUT OF RANGE in phases 3-12.
  */
 export const FUEL_CG_WEIGHT_PHASE_INHIBITION: {
   cgAtFwdLimit: number[];
@@ -42,10 +37,9 @@ export interface CgLimitPoint {
 }
 
 /*
- * The CG limits of LIM-11 CENTER OF GRAVITY LIMITS (PDF p.6223), digitised from the figure (about +-0.2 % MAC): the CG
- * lines of the figure are slanted (the % MAC scale at 260 t is not the one at 600 t), so each straight edge of the
- * envelope is sampled. Between the points the limit is interpolated linearly; below 260 t and above MTOW (560 t) it is
- * held at the end values.
+ * The certified CG limits, digitised from the CG envelope chart (about +-0.2 % MAC): the CG lines of the chart are
+ * slanted (the % MAC scale at 260 t is not the one at 600 t), so each straight edge of the envelope is sampled. Between
+ * the points the limit is interpolated linearly; below 260 t and above MTOW (560 t) it is held at the end values.
  */
 
 /** The forward limit of the flight envelope ("Flight", lavender) */
@@ -107,8 +101,8 @@ export interface WeightAndCg {
 }
 
 /**
- * FUEL CG AT FWD LIMIT, l.149333-149334: "The aircraft Center of Gravity ( CG ) exceeds the forward certified flight
- * limit ( Refer to LIM-11 Center of Gravity Limits )." Design choice: from the FQMS GW and CG (the primary computation).
+ * FUEL CG AT FWD LIMIT: the CG is forward of the certified flight limit. Design choice: from the FQMS GW and CG (the
+ * primary computation).
  * @param fqms the FQMS GW and CG
  */
 export function isCgAtFwdLimit(fqms: WeightAndCg): boolean {
@@ -120,7 +114,7 @@ export function isCgAtFwdLimit(fqms: WeightAndCg): boolean {
 }
 
 /**
- * Whether a CG is outside the certified takeoff limits (LIM-11, PDF p.6223)
+ * Whether a CG is outside the certified takeoff limits
  * @param weightAndCg the GW and CG
  */
 export function isOutsideTakeoffCgLimits(weightAndCg: WeightAndCg): boolean {
@@ -133,14 +127,13 @@ export function isOutsideTakeoffCgLimits(weightAndCg: WeightAndCg): boolean {
   );
 }
 
-/** l.149498-149499: the alternate gauging CG limit after the second engine start */
-export const ALTERNATE_GAUGING_CG_LIMIT_PERCENT = 54;
+/** The alternate gauging CG limit after the second engine start, % MAC */
+const ALTERNATE_GAUGING_CG_LIMIT_PERCENT = 54;
 
 /** What FUEL CG OUT OF RANGE reads */
 export interface CgOutOfRangeInputs {
   /** The ENG MODE selector is at IGN/START */
   engModeIgnStart: boolean;
-  /** The number of engines running */
   enginesRunning: number;
   /** The FQMS GW and CG */
   fqms: WeightAndCg;
@@ -158,16 +151,15 @@ export interface CgOutOfRangeState {
 }
 
 /**
- * FUEL CG OUT OF RANGE, l.149495-149499: "- The CG computed by the FQMS exceeds the certified takeoff limits, when the
- * flight crew sets the ENG MODE selector to IGN/START, or - The CG computed by the alternate gauging system is greater
- * than 54 % after the second engine start."
+ * FUEL CG OUT OF RANGE: the FQMS CG is outside the certified takeoff limits when the crew sets the ENG MODE selector to
+ * IGN/START, or the alternate gauging CG is above 54 % after the second engine start.
  *
  * Design choices:
  * - The first trigger is checked when the ENG MODE selector is set to IGN/START, and then stays while the FQMS CG
  *   remains outside the takeoff limits: the procedure asks to delay the engine start and run the automatic ground
- *   transfer (AUTO GND XFR ON, l.149524-149525), which clears it once the CG is back inside.
- * - The alternate gauging system is not simulated: its CG is the simulator's own CG (L:A32NX_AIRFRAME_GW_CG_PERCENT_MAC),
- *   independent of the FMS entries, as the WBBC (CpiomF/WeightBalanceBackup).
+ *   transfer (AUTO GND XFR ON), which clears it once the CG is back inside.
+ * - The alternate gauging system is not simulated: its CG is the simulator's own CG
+ *   (L:A32NX_AIRFRAME_GW_CG_PERCENT_MAC), independent of the FMS entries, as the WBBC (CpiomF/WeightBalanceBackup).
  */
 export class CgOutOfRangeMonitor {
   private wasIgnStart = false;
@@ -197,14 +189,13 @@ export class CgOutOfRangeMonitor {
   }
 }
 
-/** l.149756-149757: FUEL EXCESS AFT CG above a WBBC CG of 50 % */
-export const EXCESS_AFT_CG_PERCENT = 50;
+/** FUEL EXCESS AFT CG above this WBBC CG, % MAC */
+const EXCESS_AFT_CG_PERCENT = 50;
 
 /**
- * FUEL EXCESS AFT CG, l.149756-149757: "The aircraft center of gravity (CG), computed by the Weight and Balance Backup
- * Computer (WBBC) exceeds 50 % while the fuel system is in automatic mode." Design choice: it triggers only in automatic
- * mode (every transfer pb-sw in AUTO), and then stays while the WBBC CG is above 50 %, so that the TRIM TK XFR FWD that
- * the procedure asks (l.149787) does not clear it.
+ * FUEL EXCESS AFT CG: the WBBC CG is above 50 % while the fuel system is in automatic mode. Design choice: it triggers
+ * only in automatic mode (every transfer pb-sw in AUTO), and then stays while the WBBC CG is above 50 %, so that the
+ * TRIM TK XFR FWD that the procedure asks for does not clear it.
  */
 export class ExcessAftCgMonitor {
   private active = false;
@@ -220,15 +211,14 @@ export class ExcessAftCgMonitor {
   }
 }
 
-/** l.149433-149434: FUEL CG DATA DISAGREE above 8 % MAC between the FQMS and the WBBC CG */
-export const CG_DATA_DISAGREE_PERCENT = 8;
+/** FUEL CG DATA DISAGREE above this difference between the FQMS and the WBBC CG, % MAC */
+const CG_DATA_DISAGREE_PERCENT = 8;
 
-/** l.154375-154376: FUEL WEIGHT DATA DISAGREE above 198 400 lb between the FQMS and the WBBC GW */
-export const WEIGHT_DATA_DISAGREE_KG = 198_400 * KG_PER_LB;
+/** FUEL WEIGHT DATA DISAGREE above this difference (198 400 lb) between the FQMS and the WBBC GW, kg */
+const WEIGHT_DATA_DISAGREE_KG = 198_400 * KG_PER_LB;
 
 /**
- * FUEL CG DATA DISAGREE, l.149433-149434: "The PRIMs have detected a difference of more than 8%, between the
- * aircraft's center of gravity (CG) computed by the FQMS and the aircraft's CG computed by the WBBC."
+ * FUEL CG DATA DISAGREE: the PRIMs see more than 8 % between the FQMS CG and the WBBC CG.
  * @param fqms the FQMS GW and CG
  * @param wbbc the WBBC GW and CG
  */
@@ -241,8 +231,7 @@ export function isCgDataDisagree(fqms: WeightAndCg, wbbc: WeightAndCg): boolean 
 }
 
 /**
- * FUEL WEIGHT DATA DISAGREE, l.154375-154376: "The PRIMs detected a difference of more than 198 400 lb between the Gross
- * Weight (GW) of the aircraft computed by the FQMS and the GW of the aircraft computed by the WBBC."
+ * FUEL WEIGHT DATA DISAGREE: the PRIMs see more than 198 400 lb between the FQMS GW and the WBBC GW.
  * @param fqms the FQMS GW and CG
  * @param wbbc the WBBC GW and CG
  */
@@ -285,14 +274,13 @@ export interface FuelCgProcedureInputs {
 }
 
 /**
- * FUEL CG AT FWD LIMIT lines (ata28 281800007), l.149358-149386: "IF NO TRIM TK COLD FUEL: TRIM TK XFR ... AUTO, TRIM TK
- * FEED ... ISOL, WHEN CG ALLOWS TRIM TK FWD XFR (AUTO RCL): If a pumped manual transfer can be performed: TRIM TK FEED
- * ... AUTO, TRIM TK XFR ... FWD. If only a gravity forward transfer is possible: PITCH ATT < 3° FOR GRVTY FWD XFR, TRIM
- * TK FEED ... OPEN". A pumped transfer "can be performed if: At least one trim tank pump is available" (l.149374-149376;
- * the trim tank isolation valve failure is not simulated). The WHEN condition and the lines after it are not sensed:
- * the automatic recall when the CG allows the forward transfer is not simulated, the crew confirms it.
- * Items: 0 IF NO TRIM TK COLD FUEL (sensed condition), 1 TRIM TK XFR AUTO, 2 TRIM TK FEED ISOL, 3 WHEN CG ALLOWS TRIM TK
- * FWD XFR, 4 TRIM TK FEED AUTO, 5 TRIM TK XFR FWD, 6 PITCH ATT < 3° FOR GRVTY FWD XFR, 7 TRIM TK FEED OPEN.
+ * FUEL CG AT FWD LIMIT lines: without cold trim tank fuel, TRIM TK XFR AUTO and TRIM TK FEED ISOL; when the CG allows a
+ * trim tank forward transfer, a pumped transfer (TRIM TK FEED AUTO, TRIM TK XFR FWD) when at least one trim tank pump
+ * is available, else a gravity transfer (PITCH ATT < 3° FOR GRVTY FWD XFR, TRIM TK FEED OPEN). The trim tank isolation
+ * valve failure is not simulated. The WHEN condition and the lines after it are not sensed: the automatic recall when
+ * the CG allows the forward transfer is not simulated, the crew confirms it.
+ * Items: 0 IF NO TRIM TK COLD FUEL (sensed condition), 1 TRIM TK XFR AUTO, 2 TRIM TK FEED ISOL, 3 WHEN CG ALLOWS TRIM
+ * TK FWD XFR, 4 TRIM TK FEED AUTO, 5 TRIM TK XFR FWD, 6 PITCH ATT < 3° FOR GRVTY FWD XFR, 7 TRIM TK FEED OPEN.
  */
 export function cgAtFwdLimitLines(inputs: FuelCgProcedureInputs): ProcedureLines {
   const pumped = inputs.trimTankPumpAvailable;
@@ -312,8 +300,8 @@ export function cgAtFwdLimitLines(inputs: FuelCgProcedureInputs): ProcedureLines
 }
 
 /**
- * FUEL CG OUT OF RANGE lines (ata28 281800009), l.149522-149529: with the takeoff limits trigger "DELAY ENG START,
- * AUTO GND XFR ... ON"; with the alternate gauging trigger "DELAY T.O".
+ * FUEL CG OUT OF RANGE lines: with the takeoff limits trigger DELAY ENG START and AUTO GND XFR ON; with the alternate
+ * gauging trigger DELAY T.O.
  * Items: 0 DELAY ENG START, 1 AUTO GND XFR ON, 2 DELAY T.O.
  */
 export function cgOutOfRangeLines(state: CgOutOfRangeState, inputs: FuelCgProcedureInputs): ProcedureLines {
@@ -324,14 +312,13 @@ export function cgOutOfRangeLines(state: CgOutOfRangeState, inputs: FuelCgProced
 }
 
 /**
- * FUEL EXCESS AFT CG lines (ata28 281800022), l.149783-149824: "If the trim tank is isolated: TRIM TK FEED ... AUTO. If
- * the trim tank is not empty: TRIM TK XFR ... FWD. IF NOT SUCCESSFUL: TRIM TK XFR ... AUTO, PITCH ATT < 3° FOR GRVTY FWD
- * XFR, TRIM TK FEED ... OPEN. IF NOT SUCCESSFUL: MAX FLT TIME : 4 HR, TRIM TK NOT USABLE, If the outer tanks are not
- * empty: OUTR TK XFR ... MAN. If the trim tank is empty [...]: MAX FLT TIME : 4 HR, If the outer tanks are not empty:
- * OUTR TK XFR ... MAN". The IF NOT SUCCESSFUL branches are the crew's assessment: not sensed.
- * Items: 0 TRIM TK FEED AUTO, 1 TRIM TK XFR FWD, 2 IF NOT SUCCESSFUL, 3 TRIM TK XFR AUTO, 4 PITCH ATT < 3° FOR GRVTY FWD
- * XFR, 5 TRIM TK FEED OPEN, 6 IF NOT SUCCESSFUL, 7 MAX FLT TIME : 4 HR, 8 TRIM TK NOT USABLE, 9 OUTR TK XFR MAN, 10 MAX
- * FLT TIME : 4 HR, 11 OUTR TK XFR MAN.
+ * FUEL EXCESS AFT CG lines: TRIM TK FEED AUTO if the trim tank is isolated; TRIM TK XFR FWD if it is not empty, then
+ * the IF NOT SUCCESSFUL branches (gravity transfer, then MAX FLT TIME 4 HR and TRIM TK NOT USABLE); with an empty trim
+ * tank MAX FLT TIME 4 HR; OUTR TK XFR MAN while the outer tanks are not empty. The IF NOT SUCCESSFUL branches are the
+ * crew's assessment: not sensed.
+ * Items: 0 TRIM TK FEED AUTO, 1 TRIM TK XFR FWD, 2 IF NOT SUCCESSFUL, 3 TRIM TK XFR AUTO, 4 PITCH ATT < 3° FOR GRVTY
+ * FWD XFR, 5 TRIM TK FEED OPEN, 6 IF NOT SUCCESSFUL, 7 MAX FLT TIME : 4 HR, 8 TRIM TK NOT USABLE, 9 OUTR TK XFR MAN, 10
+ * MAX FLT TIME : 4 HR, 11 OUTR TK XFR MAN.
  */
 export function excessAftCgLines(inputs: FuelCgProcedureInputs): ProcedureLines {
   const trimFuel = inputs.trimTankHoldsFuel;

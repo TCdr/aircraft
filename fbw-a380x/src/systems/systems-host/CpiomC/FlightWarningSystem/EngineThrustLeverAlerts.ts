@@ -2,27 +2,24 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * ENG 1(2)(3)(4) THR LEVER ABOVE IDLE of the A380X FWS (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt l.173271-173292).
- * l.173277-173283, triggering conditions:
- *   "- One thrust lever is above idle and at least one thrust reverser lever is in reverse detent, or
- *    - One thrust lever is above idle and at least one thrust lever on the other engines is at idle, or
- *      This condition covers the inadvertent selection of an engine thrust lever above idle during thrust reversers
- *      de-selection.
- *    - The auto-idle protection is active."
- * l.173285: "In addition, a dual RETARD callout triggers." l.173292: "THR LEVER 1(2)(3)(4) ... IDLE".
- * FCOM PDF page 5819: red title with MASTER WARN, inhibited in the flight phases 1, 6, 7 and 12.
+ * ENG 1(2)(3)(4) THR LEVER ABOVE IDLE of the A380X FWS. It triggers when:
+ * - one thrust lever is above idle and at least one thrust reverser lever is in the reverse detent, or
+ * - one thrust lever is above idle and at least one lever of the other engines is at idle (an engine lever moved above
+ *   idle by mistake while the thrust reversers are de-selected), or
+ * - the auto-idle protection is active.
+ * A dual RETARD callout comes with it; the procedure line is THR LEVER 1(2)(3)(4) IDLE. Red title with MASTER WARN,
+ * inhibited in the flight phases 1, 6, 7 and 12.
  *
- * The auto-idle protection (DSC-70-70, l.112238-112256): "ensures that the outboard engines are at idle during the thrust
- * reversers operation. The auto-idle protection activates if at least one outboard engine thrust lever is above idle
- * detent during thrust reverser operation." The systems WASM writes it per engine (a380_systems engine_control_failure.rs,
- * L:A32NX_ENGINE_n_FADEC_AUTO_IDLE); for the outboard engines 1 and 4 that variable is the auto-idle protection, unless the
- * thrust lever itself is lost (THR LEVER FAULT, the FADEC then holds idle on ground: not this protection).
+ * The auto-idle protection keeps the outboard engines at idle during the thrust reverser operation: it activates when
+ * an outboard thrust lever is above the idle detent while the reversers operate. The systems WASM writes it per engine
+ * (a380_systems engine_control_failure.rs, L:A32NX_ENGINE_n_FADEC_AUTO_IDLE); for the outboard engines 1 and 4 that
+ * variable is the auto-idle protection, unless the thrust lever itself is lost (THR LEVER FAULT, the FADEC then holds
+ * idle on ground: not this protection).
  */
 
-/** ENG 1(2)(3)(4) THR LEVER ABOVE IDLE flight phase inhibition (FCOM PDF page 5819) */
 export const THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION = [1, 6, 7, 12];
 
-/** The alert level: red, MASTER WARN (FCOM PDF page 5819) */
+/** The alert level: red, MASTER WARN */
 export const THR_LEVER_ABOVE_IDLE_LEVEL = 3;
 
 /*
@@ -34,7 +31,7 @@ export const THR_LEVER_ABOVE_IDLE_LEVEL = 3;
 const ABOVE_IDLE_TLA_FROM_DEGREES = 2.6;
 const REVERSE_TLA_BELOW_DEGREES = -4.3;
 
-/** Engines 2 and 3 have the thrust reversers (DSC-70-70, l.112148) */
+/** Engines 2 and 3 have the thrust reversers */
 const ENGINES_WITH_REVERSER = [1, 2];
 /** Engines 1 and 4 are the outboard engines of the auto-idle protection */
 const OUTBOARD_ENGINES = [0, 3];
@@ -65,7 +62,7 @@ export interface ThrustLeverAboveIdleInputs {
  *
  * The second trigger ("during thrust reversers de-selection") needs the memory of a reverse selection: it is armed while a
  * reverser lever is in the reverse detent, and disarmed once every lever is back at idle (the de-selection is finished).
- * Design choice: the FCOM gives no time; as the A32NX FWC (EngineThrustSettingAlerts), this keeps the alert away from a
+ * Design choice: no time is published; as the A32NX FWC (EngineThrustSettingAlerts), this keeps the alert away from a
  * normal taxi with asymmetric thrust.
  */
 export class ThrustLeverAboveIdleMonitor {
@@ -117,7 +114,7 @@ export class ThrustLeverAboveIdleMonitor {
 export const DUAL_RETARD_INTERVAL_SECONDS = 1.1;
 
 /**
- * "In addition, a dual RETARD callout triggers." (l.173285): two RETARD callouts when the alert comes, none after that.
+ * The dual RETARD callout: two RETARD callouts when the alert comes, none after that.
  * The second one is not made when the alert has gone before it.
  */
 export class DualRetardCallout {

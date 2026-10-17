@@ -6,10 +6,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { isEnginePumpsTurnOffUnsuccessful, isHydSystemOverheat } from './HydOverheatFlags';
 
-/*
- * A380 FCOM PRO-ABN HYD G (Y) SYS OVHT (a380_fcom.txt l.155436-155437): "The temperature of the green (yellow) hydraulic
- * reservoir is above 95 C, or an engine pump case drain temperature is above 120 C".
- */
+/* HYD G (Y) SYS OVHT: the reservoir is above 95 C, or an engine pump case drain is above 120 C */
 describe('HYD SYS OVHT trigger', () => {
   it('is raised by the reservoir overheat', () => {
     expect(isHydSystemOverheat(true, [false, false, false, false])).toBe(true);
@@ -37,14 +34,14 @@ describe('HYD SYS OVHT trigger', () => {
     expect(core).toMatch(/this\.yellowRsvOverheat\.set\(\s*isHydSystemOverheat\(/);
   });
 
-  it('reads the engine pump pressure switches as below 2 500 PSI (ENG PMP PRESS LO, l.155038)', () => {
+  it('reads the engine pump pressure switches as below 2 500 PSI (ENG PMP PRESS LO)', () => {
     const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
     expect(core).not.toContain('PumpBelow2900');
     expect(core.match(/const eng[1-4][AB]PumpBelow2500 = /g)).toHaveLength(8);
   });
 });
 
-/* A380 FCOM PRO-ABN HYD G (Y) SYS OVHT: "If turning off G (Y) ENG 1 (3) PMP A or B is not successful: ... DISC". */
+/* The DISC line shows only when turning off ENG PMP A or B did not depressurise it */
 describe('HYD SYS OVHT: ENG PMP A+B DISC line', () => {
   it('is hidden before the pumps are turned off', () => {
     expect(isEnginePumpsTurnOffUnsuccessful(true, true, true, true)).toBe(false);

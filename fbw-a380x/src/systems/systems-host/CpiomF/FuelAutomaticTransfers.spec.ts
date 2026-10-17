@@ -87,7 +87,7 @@ describe('FuelAutomaticTransfers', () => {
     expect(quantity(10)).toBeCloseTo(quantity(1), 3);
   });
 
-  it('a manual transfer stops the load alleviation transfers (FCOM l.151103-151104)', () => {
+  it('a manual transfer stops the load alleviation transfers', () => {
     setQuantity(1, 1_000);
     setQuantity(4, 18_000);
     simVars.set(INR_TK_XFR_PB_IS_AUTO_VAR, 0);

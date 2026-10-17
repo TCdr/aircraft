@@ -89,7 +89,7 @@ describe('Trim air monitoring bits of the CPIOM B TCS discrete word', () => {
   });
 });
 
-describe('COND DUCT OVHT (A380 FCOM PRO-ABN-ECAM-10-21-10)', () => {
+describe('COND DUCT OVHT', () => {
   it('is active for any duct overheat and not for a jammed trim air valve', () => {
     expect(condDuctOvhtActive(noFault)).toBe(false);
     expect(condDuctOvhtActive({ ...noFault, ckptTrimAirValveFault: true, cabinTrimAirValveFault: true })).toBe(false);
@@ -155,7 +155,7 @@ describe('COND DUCT OVHT (A380 FCOM PRO-ABN-ECAM-10-21-10)', () => {
     expect(condDuctOvhtItems(cabin, [valveOff, valveJammedOpen], packsOn).checked[7]).toBe(false);
   });
 
-  it('gives the FCOM STATUS of each case', () => {
+  it('gives the STATUS of each case', () => {
     expect(condDuctOvhtInopSys({ ...noFault, ckptDuctOvht: true })).toEqual(['210300019']);
     expect(condDuctOvhtInopSys({ ...noFault, cabinDuctOvhtHotAir2: true })).toEqual(['210300020']);
     expect(condDuctOvhtInopSys({ ...noFault, fwdCargoDuctOvht: true })).toEqual(['210300018']);
@@ -184,7 +184,7 @@ describe('COND DUCT OVHT (A380 FCOM PRO-ABN-ECAM-10-21-10)', () => {
   });
 });
 
-describe('COND FWD CARGO TEMP REGUL FAULT (A380 FCOM PRO-ABN-ECAM-10-21-10)', () => {
+describe('COND FWD CARGO TEMP REGUL FAULT', () => {
   const items = procedure(211800030).items;
 
   it('is active for a jammed forward cargo trim air valve only', () => {

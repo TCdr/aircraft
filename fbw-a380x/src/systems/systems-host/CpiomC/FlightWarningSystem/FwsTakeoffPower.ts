@@ -4,7 +4,7 @@
 /**
  * The take-off power signal of the flight phases (FwsFlightPhases): a thrust lever at take-off power, from its TLA only
  * (the FADECs do not send the take-off power words yet). One function for every engine, so that each engine is judged
- * on its own thrust lever: engine 4 used to read the TLA of lever 3 for its full power check.
+ * on its own thrust lever.
  */
 
 /** TLA band of the FLX/MCT detent (35 degrees) */
@@ -27,8 +27,8 @@ export function engineTakeoffPowerSignal(tlaDegrees: number, flexTempSet: boolea
 }
 
 /**
- * The FLX/MCT detent is a take-off power setting: a FLEX TEMP is entered, or a DOx derated takeoff is selected (A380 FCOM
- * DSC-22-FG-50-30 l.11406-11408: "DERATED has been selected on the T.O panel of the FMS PERF page ... FLX-MCT").
+ * The FLX/MCT detent is a take-off power setting: a FLEX TEMP is entered, or a DOx derated takeoff is selected (a
+ * DERATED takeoff from the FMS PERF T.O page is also flown at the FLX-MCT detent).
  * @param flexTemperature L:A32NX_AIRLINER_TO_FLEX_TEMP (0 for no FLEX TEMP)
  * @param takeoffDeratePercent L:A32NX_AIRLINER_TO_DERATE (0 for no derate)
  */

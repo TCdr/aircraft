@@ -30,10 +30,10 @@ export interface EwdMemoDict {
   [key: keyof typeof EcamMemos]: EwdMemoItem;
 }
 
-/** "During take-off (flight phase 2) or landing (flight phases 9 or 10)" (A380 FCOM l.84113, 84117) */
-export const SIGNS_ON_MEMO_FLIGHT_PHASES = [2, 9, 10];
+/** Takeoff (flight phase 2) and landing (flight phases 9 and 10) */
+const SIGNS_ON_MEMO_FLIGHT_PHASES = [2, 9, 10];
 /** The SIGNS ON memo is shown in those phases only */
-export const SIGNS_ON_MEMO_INHIBITED_FLIGHT_PHASES = [1, 3, 4, 5, 6, 7, 8, 11, 12];
+const SIGNS_ON_MEMO_INHIBITED_FLIGHT_PHASES = [1, 3, 4, 5, 6, 7, 8, 11, 12];
 
 export class FwsMemos {
   public readonly subscriptions: Subscription[] = [];
@@ -49,8 +49,8 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     '210000002': {
-      // RAM AIR (A380 FCOM DSC-21-10-20 MEMO, a380_fcom.txt l.6055-6058): the emergency RAM air inlets are open, green
-      // on ground with no engine running, amber in all other cases (CabPressAlerts ramAirMemoIndex)
+      // RAM AIR: the emergency RAM air inlets are open, green on ground with no engine running, amber in all other
+      // cases (CabPressAlerts ramAirMemoIndex)
       flightPhaseInhib: [],
       simVarIsActive: this.fws.ramAirInletsOpen,
       whichCodeToReturn: () => [this.fws.ramAirMemoIndex.get()],
@@ -82,7 +82,7 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     280000004: {
-      // FWD XFR IN PROGRESS (A380 FCOM DSC-28-20 MEMO, a380_fcom.txt l.59140): no flight phase inhibition (PDF p.1990)
+      // FWD XFR IN PROGRESS
       flightPhaseInhib: [],
       simVarIsActive: this.fws.fwdXfrInProgress,
       whichCodeToReturn: () => [0],
@@ -90,7 +90,7 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     280000007: {
-      // OUTR TK XFR IN PROG (l.59157): no flight phase inhibition (PDF p.1992)
+      // OUTR TK XFR IN PROG
       flightPhaseInhib: [],
       simVarIsActive: this.fws.outerTankXfrInProgress,
       whichCodeToReturn: () => [0],
@@ -98,7 +98,7 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     280000008: {
-      // OUTR TKs XFRD (l.59169): flight phase 8 only (PDF p.1992)
+      // OUTR TKs XFRD: flight phase 8 only
       flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
       simVarIsActive: this.fws.outerTanksXfrd,
       whichCodeToReturn: () => [0],
@@ -106,7 +106,7 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     280000012: {
-      // TRIM TK XFRD (l.59191): flight phase 8 only (PDF p.1994)
+      // TRIM TK XFRD: flight phase 8 only
       flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
       simVarIsActive: this.fws.trimTankXfrd,
       whichCodeToReturn: () => [0],
@@ -114,8 +114,8 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     280000005: {
-      // GND XFR IN PROGRESS (A380 FCOM DSC-28-20 MEMO, a380_fcom.txt l.59149-59151; the FCOM figure of its flight phase
-      // inhibition is not in the text, design choice: as REFUEL IN PROGRESS, a ground function)
+      // GND XFR IN PROGRESS. Design choice: the flight phase inhibition of REFUEL IN PROGRESS, a ground function (the
+      // real one is not known)
       flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
       simVarIsActive: this.fws.gndXfrInProgress,
       whichCodeToReturn: () => [0],
@@ -123,7 +123,7 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     280000006: {
-      // JETTISON IN PROGRESS (A380 FCOM DSC-28-20 MEMO)
+      // JETTISON IN PROGRESS
       flightPhaseInhib: [],
       simVarIsActive: this.fws.fuelJettisonInProgress,
       whichCodeToReturn: () => [0],
@@ -189,7 +189,7 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     '310000002': {
-      // EMERGENCY CANCEL ON: EMER CANC pb pressed with nothing to cancel (FCOM DSC-31-40-20)
+      // EMERGENCY CANCEL ON: EMER CANC pb pressed with nothing to cancel
       flightPhaseInhib: [],
       simVarIsActive: this.fws.emergencyCancelOnMemo,
       whichCodeToReturn: () => [0],
@@ -197,7 +197,7 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     '000000001': {
-      // NORMAL: RCL pb pressed with no alert to recall, for 3 s (FCOM DSC-31-40-20 l.73433, FwsRecall.ts)
+      // NORMAL: RCL pb pressed with no alert to recall, for 3 s (FwsRecall.ts)
       flightPhaseInhib: [],
       simVarIsActive: this.fws.recallNormalMemo,
       whichCodeToReturn: () => [0],
@@ -309,8 +309,7 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     '230000008': {
-      // PA IN USE: the PA transmission key of an RMP is on (CommunicationAlerts isPaInUse, A380 FCOM DSC-23-20
-      // l.49491-49492); no flight phase inhibition figure (PDF p.1607)
+      // PA IN USE: the PA transmission key of an RMP is on (CommunicationAlerts isPaInUse); no flight phase inhibition
       flightPhaseInhib: [],
       simVarIsActive: this.fws.paInUse,
       whichCodeToReturn: () => [0],
@@ -318,8 +317,7 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     [DATALINK_STBY_MEMO]: {
-      // DATALINK STBY: data mode available, datalink temporarily lost (DatalinkStbyMemo, A380 FCOM DSC-23-20 MEMO,
-      // l.49460-49461); the flight phase inhibition is a figure only: none
+      // DATALINK STBY: data mode available, datalink temporarily lost (DatalinkStbyMemo); no flight phase inhibition
       flightPhaseInhib: [],
       simVarIsActive: this.fws.datalinkStby,
       whichCodeToReturn: () => [0],
@@ -387,9 +385,8 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     '230000016': {
-      // EVAC ACTIVE: the flight crew orders an evacuation with the EVAC COMMAND pb-sw (A380 FCOM DSC-23-20 EVAC panel,
-      // a380_fcom.txt l.49145-49149: "When pressed: [...] Message EVAC ACTIVE is displayed on the ECAM"). The Chief
-      // Purser order (CAPT & PURS, l.49131-49134) is not simulated.
+      // EVAC ACTIVE: the flight crew orders an evacuation with the EVAC COMMAND pb-sw, which shows EVAC ACTIVE on the
+      // ECAM. The Chief Purser order (CAPT & PURS) is not simulated.
       flightPhaseInhib: [],
       simVarIsActive: this.fws.evacCommandOn,
       whichCodeToReturn: () => [0],
@@ -483,7 +480,7 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     [GRAVITY_EXTENSION_MEMO]: {
-      // L/G GRVTY EXTN (GravityExtensionMemo.ts, A380 FCOM DSC-32-20-180 MEMO, l.82307; inhibition from the figure)
+      // L/G GRVTY EXTN (GravityExtensionMemo.ts)
       flightPhaseInhib: GRAVITY_EXTENSION_MEMO_PHASE_INHIBITION,
       simVarIsActive: this.fws.gravityExtensionMemo,
       whichCodeToReturn: () => [0],
@@ -529,9 +526,9 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     /*
-     * SIGNS memos, A380 FCOM DSC-33-50-10 MEMO (a380_fcom.txt l.84110-84118): "The flight crew sets the SEAT BELTS sw to
-     * ON. During take-off (flight phase 2) or landing (flight phases 9 or 10), the SIGNS ON MEMO replaces the SEAT BELTS
-     * MEMO." The same for the NO SMOKING sw and memo. The FCOM switch is NO SMOKING (no NO MOBILE memo in this FCOM).
+     * SIGNS memos: the flight crew sets the SEAT BELTS sw to ON; in takeoff (flight phase 2) and landing (flight
+     * phases 9 and 10) the SIGNS ON memo replaces the SEAT BELTS memo. The same for the NO SMOKING sw and memo (the
+     * A380 switch is NO SMOKING, there is no NO MOBILE memo).
      */
     '335000001': {
       // SEAT BELTS
@@ -570,8 +567,8 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     '340002701': {
-      // IR 1(2)(3)(1+2)(2+3)(1+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN (IrAttAlignMemo, A380 FCOM DSC-34-10-30-20 MEMO,
-      // l.86019-86026); the flight phase inhibition is a figure only: none, as the A32NX IRS IN ATT ALIGN memo
+      // IR 1(2)(3)(1+2)(2+3)(1+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN (IrAttAlignMemo); no flight phase
+      // inhibition, as the A32NX IRS IN ATT ALIGN memo
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
         ([ir1, ir2, ir3]) => ir1 || ir2 || ir3,
@@ -710,8 +707,8 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     '342000001': {
-      // PRED W/S OFF: in green in flight phases 2 and 8, in amber in the takeoff and landing phases (A380 FCOM
-      // DSC-34-20-60-140 P 1-2, the colours as the A320 PRED W/S OFF memo)
+      // PRED W/S OFF: in green in flight phases 2 and 8, in amber in the takeoff and landing phases (the colours as the
+      // A320 PRED W/S OFF memo)
       flightPhaseInhib: [1, 12],
       simVarIsActive: this.fws.wxrPredWsOff,
       whichCodeToReturn: () => [this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 8 ? 1 : 0],
@@ -786,7 +783,7 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     '709000001': {
-      // IGNITION: manual (ENG START selector IGN START) or automatic (FADEC A + B) continuous ignition, FCOM l.113497-113498
+      // IGNITION: manual (ENG START selector IGN START) or automatic (FADEC A + B) continuous ignition
       flightPhaseInhib: [],
       simVarIsActive: this.fws.ignitionMemo,
       whichCodeToReturn: () => [0],

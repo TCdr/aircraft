@@ -46,10 +46,10 @@ export type WxrSurvKnobWrites = Partial<
 >;
 
 /**
- * Design choices, the FCOM gives no knob resolution: per detent 1 % of GAIN, 100 ft of ELEVN and 0.1 degree of TILT,
- * the resolutions of the ND WXR messages ("GAIN 53%", "ELEVN 12500FT", "TILT -12.0", l.90086-90089)
+ * Design choice, the real knob resolution is not known: per detent 1 % of GAIN, 100 ft of ELEVN and 0.1 degree of TILT,
+ * the resolutions of the ND WXR messages ("GAIN 53%", "ELEVN 12500FT", "TILT -12.0")
  */
-export const WXR_KNOB_STEPS = { gain: 1, elevn: 100, tilt: 0.1 };
+const WXR_KNOB_STEPS = { gain: 1, elevn: 100, tilt: 0.1 };
 
 /** The entry ranges of the SURV/CONTROLS page (DataEntryFormats WxrGainFormat, WxrElevationFormat, WxrTiltFormat) */
 const RANGES = { gain: [0, 100], elevn: [0, 60000], tilt: [-15, 15] };
@@ -57,7 +57,7 @@ const RANGES = { gain: [0, 100], elevn: [0, 60000], tilt: [-15, 15] };
 const clamp = (value: number, [min, max]: number[]) => Math.min(max, Math.max(min, value));
 
 /**
- * The value of a manual setting, or its FCOM default when nothing is entered (wxrManualDefaultOnSelection).
+ * The value of a manual setting, or its default when nothing is entered (wxrManualDefaultOnSelection).
  * @param setting the setting
  * @param stored the stored value
  * @param state the aircraft state
@@ -68,16 +68,14 @@ function valueOrDefault(setting: 'gain' | 'elevn' | 'tilt', stored: number, stat
 }
 
 /**
- * The ELEVN and GAIN knobs of the SURV panel (A380 FCOM DSC-34-20-30-20, a380_fcom.txt l.89693-89729):
- * - ELEVN knob: "When pushed, selects the AUTO mode", "When pulled: Selects the manual ELEVN mode - Selects the manual
- *   TILT mode, if the previous manual mode was ELEVN" (pulled two times for TILT, l.90092-90093), "When turned, adjusts
- *   the elevation or tilt value", with the default ELEVN value the current aircraft altitude and the default TILT +3.00
- *   degrees on ground, 0 in flight.
- * - GAIN knob: "When pushed, selects the AUTO GAIN mode", "When pulled, selects the manual GAIN mode", "When turned,
- *   adjusts the gain value in percentages", default 50 %.
- * The SURV/CONTROLS page follows them ("the ELEVN/TILT option list is automatically updated", "the GAIN button is
- * automatically updated"). With the WXR OFF the knobs do nothing (the option list is inhibited and the GAIN button is
- * not displayed, l.89820-89823); in MAP mode the ELEVN/TILT option list "is no longer available" (l.89943-89944).
+ * The ELEVN and GAIN knobs of the SURV panel:
+ * - ELEVN knob: push selects the AUTO mode; pull selects the manual ELEVN mode, a second pull (manual mode ELEVN)
+ *   selects the manual TILT mode; turning adjusts the elevation or tilt value. Default ELEVN: the current aircraft
+ *   altitude; default TILT: +3.00 degrees on ground, 0 in flight.
+ * - GAIN knob: push selects the AUTO GAIN mode, pull the manual GAIN mode; turning adjusts the gain in %, default 50 %.
+ * The SURV/CONTROLS page follows them (ELEVN/TILT option list and GAIN button). With the WXR OFF the knobs do nothing
+ * (the option list is inhibited and the GAIN button is not displayed); in MAP mode the ELEVN/TILT option list is not
+ * available.
  * Design choices: turning a knob changes the manual value only, in its manual mode; pulling the ELEVN knob in TILT
  * selects ELEVN again.
  * @param knob the knob

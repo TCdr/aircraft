@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * Automatic deactivation of the not-sensed ABN PROCs (A380 FCOM DSC-31-40-10, a380_fcom.txt l.71853-71861):
- * "An ACTIVE not-sensed ABN PROC is automatically deactivated at engine shutdown or at aircraft electrical power-up."
- * (l.71855-71856) "A not-sensed ABN PROC is automatically deactivated 15 minutes after the last engine shutdown, or 10
- * minutes after aircraft electrical power-up." (l.71859-71860)
+ * Automatic deactivation of the active not-sensed ABN PROCs: 15 minutes after the last engine shutdown, or 10 minutes
+ * after the aircraft electrical power-up.
  * Design choices:
  * - The power-up is the FWS power-up (its startup completed); the 10 minutes run from there.
  * - The last engine shutdown is the moment no engine runs any more after one ran; an engine started again before the
@@ -14,10 +12,8 @@
  *   flight must not take away the procedures the crew activated.
  */
 
-/** 15 minutes after the last engine shutdown (l.71859), in ms */
 export const DEACTIVATION_AFTER_LAST_ENGINE_SHUTDOWN_MS = 15 * 60 * 1000;
 
-/** 10 minutes after aircraft electrical power-up (l.71860), in ms */
 export const DEACTIVATION_AFTER_POWER_UP_MS = 10 * 60 * 1000;
 
 /** The two deactivation countdowns of the not-sensed ABN PROCs */

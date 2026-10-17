@@ -9,9 +9,8 @@ import { Inhibit, TcasMode } from '../lib/TcasConstants';
 import { LegacySoundManager } from '../../LegacySoundManager';
 
 /*
- * A380 FCOM DSC-34-20-40-10 (a380_fcom.txt l.90525-90536): "The TA ONLY mode is automatically selected, if: One of the
- * following alerts is triggered: Windshear, Stall, TAWS. The TCAS returns to TA/RA mode, when the alert is finished.
- * [...] The aircraft is in emergency electrical configuration."
+ * The TCAS goes to TA ONLY automatically during a windshear, stall or TAWS alert (back to TA/RA when the alert ends)
+ * and in emergency electrical configuration.
  */
 describe('TCAS automatic TA ONLY', () => {
   afterEach(() => {

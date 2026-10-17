@@ -2,45 +2,29 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * FADEC fault alerts of the A380 (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt), from the flyPad failures of the systems
- * WASM. The level and the flight phase inhibition of each alert are images, read on the FCOM PDF
- * (airbus-a380-fcom_compress.pdf; pink = inhibited):
+ * FADEC fault alerts of the A380, from the flyPad failures of the systems WASM:
  *
- * - ENG 1(2)(3)(4) HP FUEL VLV FAULT, l.172172-172236 (systems engine/hp_fuel_valve_failure.rs writes
- *   L:A32NX_ENGINE_n_HP_FUEL_VALVE_FAULT). l.172178: "The high pressure fuel valve is failed either in the close or in the
- *   open position." l.172203-172226: "During engine start : HP FUEL VALVE NOT OPEN. In the case of manual engine start :
- *   ENG MAN START ... OFF. ENG MASTER ... OFF. During engine shutdown : HP FUEL VALVE NOT CLOSED. In the case of manual
- *   engine start : ENG MAN START ... OFF. ENG MASTER ... OFF. The engine will shutdown by closure of the LP fuel valve.
- *   On ground : ENG FIRE P/B ... PUSH. This ensures LP valve closure." PDF page 5789: single chime, MASTER CAUT, ENGINE
- *   SD page; inhibited in the phases 3, 4, 5, 6, 7, 9 and 10.
- * - The crew awareness alerts of the FADEC faults without engine model effect (systems engine/engine_monitoring_fault.rs
- *   writes one L:var per fault and engine), no aural, no MASTER light and no SD page ("Indications:" empty):
- *   - FUEL STRAINER CLOGGED (l.172106-172132), PDF page 5787: phases 3 to 10 inhibited;
- *   - FUEL FILTER MONITORING FAULT (l.172018-172043), PDF page 5784: phases 1 to 10 inhibited;
- *   - OIL CHIP DETECTED (l.172378-172406), PDF page 5795: phases 1 to 10 inhibited;
- *   - MINOR FAULT (l.172307-172334, "It is triggered after flight if only one engine is affected"), PDF page 5793: phases
- *     2 to 10 inhibited;
- *   - OVERTHRUST PROT LOST (l.172639-172666, "It is displayed after flight if only one engine is affected"), PDF page
- *     5803: phases 2 to 10 inhibited;
- *   - SENSOR FAULT (l.172667-172692), PDF page 5804: phases 2 to 10 inhibited;
- *   - CTL VLV FAULT (l.171454-171470, "One control valve of the applicable engine is failed"), PDF page 5768: phases 2
- *     to 10 inhibited. Not shown: the line "COOL VLV / HP TURB VLV / COMP DISCHARGE VLV NOT OPEN" that names the failed
- *     valve ("Depending on the failure case", l.171466-171470): the flyPad failure does not say which valve failed;
- *   - FADEC IDENT FAULT (l.171629-171643, "The FADEC cannot identify the engine configuration", "Crew awareness"), PDF
- *     page 5773: phases 2 to 12 inhibited.
- * - The FADEC fault cautions without engine model effect, single chime, MASTER CAUT and ENGINE SD page, "Crew
- *   awareness" (no line):
- *   - FUEL SYS CONTAMINATION (l.172133-172156, the bypass valve of the fuel filter is open), PDF page 5788: phases 3 to
- *     7, 9 and 10 inhibited;
- *   - OIL SYS CONTAMINATION (l.172517-172552, the oil filter of the return line is clogged and its bypass valve open),
- *     PDF page 5799: phases 3 to 7, 9 and 10 inhibited.
- * - ENG 1(2)(3)(4) CTL SYS FAULT (l.171310-171445), PDF page 5765: single chime, MASTER CAUT, no SD page, phases 5 and 6
- *   inhibited. Triggers: the flyPad control system failure (no engine model effect), and the "Fuel cutback following
- *   overthrust detection" (l.171321) of the FADEC overthrust protection (a380_systems fadec_automatic_shutdown.rs), which
- *   also shuts the engine down on the ground ("The overthrust protection is active and the FADEC automatically shut
- *   downs the engine. Associated with the ECAM alert ENG 1(2)(3)(4) CTL SYS FAULT", DSC-70-90 l.112856-112858).
- * - ENG TYPE DISAGREE (l.175642-175655, "The engine thrust ratings are not similar on all engines", "Crew awareness"),
- *   PDF page 5873: single chime, MASTER CAUT, no SD page, phases 3 to 12 inhibited. One alert for the four engines.
+ * - ENG 1(2)(3)(4) HP FUEL VLV FAULT (systems engine/hp_fuel_valve_failure.rs writes
+ *   L:A32NX_ENGINE_n_HP_FUEL_VALVE_FAULT): the HP fuel valve is stuck closed or open. Not open at an engine start, or
+ *   not closed at a shutdown: MAN START OFF (manual start only) and ENG MASTER OFF; when the HP valve stays open the
+ *   LP valve shuts the engine down, and on ground the ENG FIRE pb is pushed to make sure the LP valve closes. Single
+ *   chime, MASTER CAUT, ENGINE SD page.
+ * - The crew awareness alerts of the FADEC faults without engine model effect (systems
+ *   engine/engine_monitoring_fault.rs writes one L:var per fault and engine): no aural, no MASTER light, no SD page.
+ *   FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT and OVERTHRUST PROT LOST
+ *   (these two after flight when only one engine is affected), SENSOR FAULT, CTL VLV FAULT, FADEC IDENT FAULT (the
+ *   FADEC cannot identify the engine configuration). CTL VLV FAULT does not show the line that names the failed
+ *   valve (COOL VLV / HP TURB VLV / COMP DISCHARGE VLV NOT OPEN): the flyPad failure does not say which valve failed.
+ * - The FADEC fault cautions without engine model effect and without procedure line, single chime, MASTER CAUT and
+ *   ENGINE SD page: FUEL SYS CONTAMINATION (the bypass valve of the fuel filter is open) and OIL SYS CONTAMINATION (the
+ *   oil filter of the return line is clogged and its bypass valve open).
+ * - ENG 1(2)(3)(4) CTL SYS FAULT: single chime, MASTER CAUT, no SD page. Triggers: the flyPad control system failure
+ *   (no engine model effect), and the fuel cutback of the FADEC overthrust protection (a380_systems
+ *   fadec_automatic_shutdown.rs), which also shuts the engine down on the ground.
+ * - ENG TYPE DISAGREE: the engine thrust ratings differ. Single chime, MASTER CAUT, no SD page, one alert for the four
+ *   engines.
+ *
+ * The levels and flight phase inhibitions below are the aircraft values.
  */
 
 /** L:A32NX_ENGINE_n_HP_FUEL_VALVE_FAULT (systems::engine::hp_fuel_valve_failure::HpFuelValveFault) */
@@ -52,7 +36,7 @@ export enum HpFuelValveFault {
   NotClosed = 2,
 }
 
-/** ENG n HP FUEL VLV FAULT: FwsAbnormalSensed level 2, single chime and MASTER CAUT (PDF page 5789) */
+/** ENG n HP FUEL VLV FAULT: FwsAbnormalSensed level 2, single chime and MASTER CAUT */
 export const HP_FUEL_VLV_FAULT_LEVEL = 2;
 
 export const HP_FUEL_VLV_FAULT_PHASE_INHIBITION = [3, 4, 5, 6, 7, 9, 10];
@@ -110,7 +94,6 @@ export interface EngineMonitoringAlertDefinition {
   variable: string;
   /** The ata70 key of the alert of engine 1 (engines 2 to 4 follow) */
   engine1Key: number;
-  /** The flight phase inhibition figure of the FCOM PDF (see the file comment) */
   flightPhaseInhibition: number[];
   /**
    * The cautions with single chime and MASTER CAUT: FwsAbnormalSensed level 2 and the ENGINE SD page. Not set: a crew
@@ -163,21 +146,20 @@ export const ENGINE_MONITORING_ALERTS: EngineMonitoringAlertDefinition[] = [
   },
 ];
 
-/** ENG 1(2)(3)(4) CTL SYS FAULT (ata70 701800001-004): single chime and MASTER CAUT (PDF page 5765) */
+/** ENG 1(2)(3)(4) CTL SYS FAULT (ata70 701800001-004): single chime and MASTER CAUT */
 export const CTL_SYS_FAULT_LEVEL = 2;
 
 export const CTL_SYS_FAULT_PHASE_INHIBITION = [5, 6];
 
 /**
  * Why the FADEC shut the engine down (L:A32NX_ENGINE_n_FADEC_SHUTDOWN, a380_systems fadec_automatic_shutdown.rs
- * FadecShutdownReason): ENG 1(2)(3)(4) FAIL, "In the case of FADEC overheat or overthrust protection activation, the
- * FADEC indicates the reason of the failure" (l.171719-171720).
+ * FadecShutdownReason): ENG 1(2)(3)(4) FAIL gives the reason after a FADEC overheat or an overthrust protection
+ * shutdown.
  */
 export enum FadecShutdownReason {
   None = 0,
-  /** "In the case of a FADEC OVHT : The FADEC automatically shuts down the engine." (l.171781-171782) */
   FadecOverheat = 1,
-  /** "In the case of THRUST CTL LOST : ... the FADEC automatically shuts down the affected engine." (l.171798-171800) */
+  /** Thrust control lost: the overthrust protection shut the engine down */
   ThrustControlLost = 2,
 }
 
@@ -191,9 +173,8 @@ export interface CtlSysFaultInputs {
 }
 
 /**
- * ENG n CTL SYS FAULT, l.171316-171321: "A failure preventing the FADEC for satisfactorily controlling the engine has
- * occurred", among them the "Fuel cutback following overthrust detection"; the overthrust protection shutdown on the
- * ground too (DSC-70-90 l.112856-112858).
+ * ENG n CTL SYS FAULT: a failure keeps the FADEC from controlling the engine correctly, including the fuel cutback
+ * after an overthrust detection; also the overthrust protection shutdown on the ground.
  */
 export function isCtlSysFaultActive(inputs: CtlSysFaultInputs): boolean {
   return (
@@ -205,10 +186,9 @@ export function isCtlSysFaultActive(inputs: CtlSysFaultInputs): boolean {
 
 /**
  * The items of ENG n CTL SYS FAULT (ata70 701800001-004): 0 THR LEVER n IDLE, 1 ENG n MASTER OFF.
- * l.171384-171394: "In the case of fuel reduction following overthrust protection activation ...: THR LEVER IDLE. In the
- * case of fuel reduction following overthrust protection activation: ENG MASTER OFF. On ground: THR LEVER IDLE, ENG
- * MASTER OFF". Not shown: the in-flight lines of a degraded engine control (NO RAPID THR CHANGES, SLOW RESPONSE, ENG 2(3)
- * REVERSER DO NOT USE, l.171345-171383), the flyPad control system failure has no engine model effect.
+ * Both lines show after the overthrust protection fuel cutback and on ground. Not shown: the in-flight lines of a
+ * degraded engine control (NO RAPID THR CHANGES, SLOW RESPONSE, ENG 2(3) REVERSER DO NOT USE), the flyPad control
+ * system failure has no engine model effect.
  */
 export function ctlSysFaultItems(
   inputs: CtlSysFaultInputs,
@@ -223,7 +203,7 @@ export function ctlSysFaultItems(
   };
 }
 
-/** ENG TYPE DISAGREE (ata70 701800161): single chime and MASTER CAUT (PDF page 5873) */
+/** ENG TYPE DISAGREE (ata70 701800161): single chime and MASTER CAUT */
 export const ENG_TYPE_DISAGREE_KEY = 701800161;
 
 export const ENG_TYPE_DISAGREE_LEVEL = 2;
@@ -231,8 +211,7 @@ export const ENG_TYPE_DISAGREE_LEVEL = 2;
 export const ENG_TYPE_DISAGREE_PHASE_INHIBITION = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
 /**
- * ENG TYPE DISAGREE, l.175648: "The engine thrust ratings are not similar on all engines". The flyPad failure "thrust
- * rating differs" of any engine (L:A32NX_ENGINE_n_TYPE_DISAGREE).
+ * ENG TYPE DISAGREE: the flyPad failure "thrust rating differs" of any engine (L:A32NX_ENGINE_n_TYPE_DISAGREE).
  * @param typeDisagree the thrust rating of each engine differs, engine 1 first
  */
 export function isEngineTypeDisagree(typeDisagree: readonly boolean[]): boolean {

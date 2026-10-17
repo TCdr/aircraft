@@ -4,9 +4,8 @@
 import { isXpdrTcasPowered, SurvSystem } from '../../Misc/Communications/TransponderSystem';
 
 /**
- * Decision logic of the SURV XPDR and TCAS alerts of the FWS, one state per surveillance system (A380 FCOM
- * PRO-ABN-ECAM-10-34-20). Each SURV system has its own XPDR and TCAS: SURV SYS 1 on AC ESS, SURV SYS 2 on AC 4
- * (DSC-34-20-100, a380_fcom.txt:92741-92743).
+ * Decision logic of the SURV XPDR and TCAS alerts of the FWS, one state per surveillance system. Each SURV system has
+ * its own XPDR and TCAS: SURV SYS 1 on AC ESS, SURV SYS 2 on AC 4.
  */
 
 /** The SYS 1, SYS 2 and SYS 1+2 alerts made from the fault conditions of both systems. */
@@ -34,9 +33,9 @@ export function splitSurvFaults(sys1Condition: boolean, sys2Condition: boolean):
 }
 
 /**
- * The fault condition of SURV XPDR 1(2) FAULT. FCOM a380_fcom.txt:167287: "The XPDR function of SURV SYS 1(2) is
- * failed". The XPDR is also lost with its busbar, but ELEC AC ESS BUS FAULT already lists XPDR 1 and TCAS 1
- * (a380_fcom.txt:139256-139275), so like the TCAS alerts the condition needs the busbar of that system powered.
+ * The fault condition of SURV XPDR 1(2) FAULT: the XPDR function of that SURV system has failed. The XPDR is also
+ * lost with its busbar, but ELEC AC ESS BUS FAULT already lists XPDR 1 and TCAS 1, so like the TCAS alerts the
+ * condition needs the busbar of that system powered.
  * @param system the surveillance system
  * @param xpdrFailed whether the XPDR of that system is failed or unpowered (L:A32NX_XPDR_n_FAILED)
  * @param acEssPowered whether the AC ESS busbar (400XP) is powered
@@ -53,9 +52,9 @@ export function xpdrFaultCondition(
 }
 
 /**
- * The fault condition of SURV TCAS 1(2) FAULT. FCOM a380_fcom.txt:166890: "The TCAS surveillance function of SURV
- * system 1(2) is failed". Needs the busbar of that system powered (ELEC AC ESS BUS FAULT lists TCAS 1 itself,
- * a380_fcom.txt:139256-139275) and at least one valid radio altimeter.
+ * The fault condition of SURV TCAS 1(2) FAULT: the TCAS surveillance function of that SURV system has failed. Needs
+ * the busbar of that system powered (ELEC AC ESS BUS FAULT lists TCAS 1 itself) and at least one valid radio
+ * altimeter.
  * @param system the surveillance system
  * @param tcasInopConfirmed the TCAS of that system inoperative, after the ADR/IR inhibit confirm node of the FWS
  * @param allRaInvalid whether all radio altimeters are invalid
@@ -74,8 +73,8 @@ export function tcasFaultCondition(
 }
 
 /**
- * Whether the STATUS of a SURV XPDR/TCAS 1(2) FAULT lists AP/FD TCAS MODE: "If the XPDR/TCAS is selected on SYS 1(2)"
- * (a380_fcom.txt:166923-166924, 167321-167322).
+ * Whether the STATUS of a SURV XPDR/TCAS 1(2) FAULT lists AP/FD TCAS MODE: only while the XPDR/TCAS of the failed
+ * system is the one in use.
  * @param failedSystem the system of the alert
  * @param selectedSystem the XPDR & TCAS system in use
  * @returns whether AP/FD TCAS MODE is inoperative
@@ -85,11 +84,10 @@ export function isApFdTcasModeInop(failedSystem: SurvSystem, selectedSystem: Sur
 }
 
 /**
- * The "XPDR & TCAS ..... SYS 2(1)" line of SURV TCAS 1(2) FAULT and SURV XPDR 1(2) FAULT: shown "If the XPDR/TCAS is
- * selected on SYS 1(2), and if the XPDR/TCAS on SYS 2(1) [the XPDR 2(1)] is operative" (a380_fcom.txt:166912-166914,
- * 167297-167298). The FWS evaluates the lines on every update, so once the crew selects the other system the line
- * would vanish instead of showing as done: it stays shown (and ticked) while the alert is active, unless the other
- * system fails as well.
+ * The "XPDR & TCAS ..... SYS 2(1)" line of SURV TCAS 1(2) FAULT and SURV XPDR 1(2) FAULT: shown while the failed
+ * system is in use and the XPDR/TCAS (XPDR alert: the XPDR) of the other system is operative. The FWS evaluates the
+ * lines on every update, so once the crew selects the other system the line would vanish instead of showing as done:
+ * it stays shown (and ticked) while the alert is active, unless the other system fails as well.
  */
 export class XpdrTcasSwitchLine {
   private shown = false;
@@ -126,19 +124,19 @@ export class XpdrTcasSwitchLine {
 
 /** The TAWS functions lost on one SURV system, each reported by one alert only. */
 export interface TawsFunctionFaults {
-  /** SURV TAWS 1(2) FAULT: "The TAWS surveillance function (GPWS and TERR SYS) on SURV SYS 1(2) is failed" (l.166806) */
+  /** SURV TAWS 1(2) FAULT: the whole TAWS function (GPWS and TERR SYS) of that SURV system has failed */
   taws: boolean;
-  /** SURV GPWS 1(2) FAULT: "The GPWS function of the TAWS system 1(2) is failed" (l.166427), the TERR SYS still working */
+  /** SURV GPWS 1(2) FAULT: the GPWS has failed, the TERR SYS still works */
   gpws: boolean;
   /** SURV TERR SYS 1(2) FAULT, the GPWS still working */
   terr: boolean;
 }
 
 /**
- * The fault conditions of the TAWS of one SURV system. GPWS and TERR SYS both failed is the TAWS fault (the FCOM
- * definition), which replaces the GPWS and the TERR SYS faults. The L:A32NX_GPWS_n_FAILED and L:A32NX_TERR_n_FAILED
+ * The fault conditions of the TAWS of one SURV system. GPWS and TERR SYS both failed is by definition the TAWS fault,
+ * which replaces the GPWS and the TERR SYS faults. The L:A32NX_GPWS_n_FAILED and L:A32NX_TERR_n_FAILED
  * (Misc/EfisTawsBridge.ts) include the AESU reset and the unpowered system, so the alerts need the busbar powered
- * (ELEC AC ESS BUS FAULT lists TAWS 1 itself, a380_fcom.txt:139275).
+ * (ELEC AC ESS BUS FAULT lists TAWS 1 itself).
  * @param gpwsFailed L:A32NX_GPWS_n_FAILED
  * @param terrFailed L:A32NX_TERR_n_FAILED
  * @param powered the busbar of that SURV system (AC ESS for SYS 1, AC 4 for SYS 2) is powered
@@ -154,9 +152,9 @@ export function tawsFunctionFaults(gpwsFailed: boolean, terrFailed: boolean, pow
 }
 
 /**
- * The lines of SURV GPWS 1(2) FAULT (a380_fcom.txt l.166450-166455): WXR & TAWS ... SYS 2(1) "If the WXR/TAWS is
- * selected on SYS 1(2), and if the WXR/TAWS on SYS 2(1) is operative"; [MFD SURV] STATUS & SWTG PAGE ... CHECK and
- * WXR & TAWS ... AS RQRD "If the WXR or TAWS, on SYS 2(1) is failed".
+ * The lines of SURV GPWS 1(2) FAULT: WXR & TAWS ... SYS 2(1) while the failed system is in use and the WXR/TAWS of
+ * the other system is operative; [MFD SURV] STATUS & SWTG PAGE ... CHECK and WXR & TAWS ... AS RQRD while the WXR or
+ * the TAWS of the other system has failed.
  * @param failedSystem the system of the alert
  * @param selectedSystem the WXR/TAWS system in use (L:A32NX_WXR_TAWS_SYS_SELECTED)
  * @param otherWxrFailed the WXR of the other system is failed

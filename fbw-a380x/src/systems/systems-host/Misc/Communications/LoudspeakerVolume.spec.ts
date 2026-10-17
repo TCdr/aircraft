@@ -11,7 +11,6 @@ const glareshieldXml = resolve(
   '../../../../base/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/attachments/flybywire/Part_Interior_Cockpit/model/behaviour/glareshield.xml',
 );
 
-/* A380 FCOM DSC-23-20 LOUDSPEAKER VOLUME CONTROL PANEL (a380_fcom.txt l.49203-49222) */
 describe('A380X loudspeaker volume control knobs', () => {
   it('fully anticlockwise: "The two onside loudspeakers are OFF."', () => {
     expect(loudspeakerComVolume(80, 0)).toBe(0);

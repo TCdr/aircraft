@@ -8,8 +8,8 @@ import { RECORDER_ACCELMTR_PHASE_INHIBITION, RECORDER_PHASE_INHIBITION, recorder
 import { CABIN_EMER_EXIT_LT_PHASE_INHIBITION, isCabinEmerExitLightFault } from './FwsEmerExitLightAlerts';
 
 /*
- * RECORDER ACCELMTR / CVR / DFDR / SYS FAULT (A380 FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt l.158880-158980) and CABIN EMER
- * EXIT LT FAULT (PRO-ABN-ECAM-10-33, l.163327-163345): crew awareness alerts that had a title but no trigger.
+ * RECORDER ACCELMTR / CVR / DFDR / SYS FAULT and CABIN EMER EXIT LT FAULT: crew awareness alerts that had a title but
+ * no trigger.
  */
 const messagesDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
 const ecamMessages = readFileSync(resolve(messagesDir, 'index.ts'), 'utf-8');
@@ -51,7 +51,7 @@ describe('RECORDER alerts', () => {
     expect(recorderAlerts({ ...NO_FAILURE, flightDataInterfaceUnit: true }).dfdrFault).toBe(false);
   });
 
-  it('has the flight phase inhibitions of the FCOM figures (PDF pages 5417-5420)', () => {
+  it('has the flight phase inhibitions of the aircraft', () => {
     expect(RECORDER_ACCELMTR_PHASE_INHIBITION).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(RECORDER_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11]);
   });
@@ -68,7 +68,7 @@ describe('RECORDER alerts', () => {
     expect(source).toContain('failure: 1,');
   });
 
-  it('shows the INOP SYS lines (l.158900, 158925, 158950, 158979)', () => {
+  it('shows the INOP SYS lines', () => {
     for (const [id, text, cond] of [
       ['310300022', 'RECORDER ACCELMTR', 'this.fws.recorderAccelmtrFault'],
       ['310300023', 'CVR', 'this.fws.recorderCvrFault'],
@@ -98,11 +98,11 @@ describe('CABIN EMER EXIT LT FAULT', () => {
     expect(isCabinEmerExitLightFault(false)).toBe(false);
   });
 
-  it('is inhibited in phases 3 to 10 (PDF page 5541)', () => {
+  it('is inhibited in phases 3 to 10', () => {
     expect(CABIN_EMER_EXIT_LT_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
-  it('is a level 1 caution with its INOP SYS EMER EXIT LT (l.163345)', () => {
+  it('is a level 1 caution with its INOP SYS EMER EXIT LT', () => {
     const source = entry(abnormalSensed, '334800101');
     expect(source).toContain('flightPhaseInhib: CABIN_EMER_EXIT_LT_PHASE_INHIBITION,');
     expect(source).toContain('simVarIsActive: this.fws.cabinEmerExitLtFault,');

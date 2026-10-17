@@ -7,9 +7,8 @@ import { describe, expect, it } from 'vitest';
 import { EcamClearHistory, FlightPhaseInhibitOverride, recallAll } from './FwsRecall';
 
 /*
- * A380 FCOM DSC-31-40-20 (a380_fcom.txt l.73420-73433): RCL LAST pb "Cancels the last CLEAR pb action on an alert";
- * RCL pb "all alerts previously performed and still active, and all not-sensed ABN PROC that are still active appear
- * on the EWD", "When there is no alert to recall, NORMAL appears for 3 seconds".
+ * RCL LAST pb cancels the last CLEAR pb action on an alert. RCL pb brings back on the EWD every alert already performed
+ * and still active and every still active not-sensed ABN PROC; with nothing to recall, NORMAL appears for 3 s.
  */
 describe('RCL pb', () => {
   it('brings back every cleared alert still active at once (one per press before)', () => {
@@ -80,7 +79,7 @@ describe('RCL / RCL LAST wiring', () => {
   });
 });
 
-/* FCOM l.73429-73431: RCL pressed for more than three seconds, the alerts inhibited by the current flight phase appear */
+/* RCL pressed for more than 3 s: the alerts inhibited by the current flight phase appear */
 describe('RCL long press: flight phase inhibition override', () => {
   it('starts with the long press and lasts while the flight phase stays the same', () => {
     const override = new FlightPhaseInhibitOverride();

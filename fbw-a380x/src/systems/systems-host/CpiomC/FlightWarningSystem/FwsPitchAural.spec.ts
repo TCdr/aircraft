@@ -13,7 +13,7 @@ const flare: PitchAuralInputs = {
   flightPhase: FwcFlightPhase.AtOrBelow800Feet,
 };
 
-describe('A380 PITCH PITCH alert condition (a380_fcom.txt l.9046-9054)', () => {
+describe('A380 PITCH PITCH alert condition', () => {
   it('manual landing below 400 ft RA with the pitch above 12 deg', () => {
     expect(isPitchAttitudeExcessive(flare)).toBe(true);
     expect(isPitchAttitudeExcessive({ ...flare, flightPhase: FwcFlightPhase.TouchDown, radioHeightFt: 0 })).toBe(true);
@@ -49,7 +49,7 @@ describe('A380 PITCH PITCH alert condition (a380_fcom.txt l.9046-9054)', () => {
   });
 });
 
-describe('A380 PITCH PITCH voice (a380_fcom.txt l.73618-73619: "Sounds 2 times")', () => {
+describe('A380 PITCH PITCH voice ("Sounds 2 times")', () => {
   it('is said once when the pitch becomes excessive, again at the next occurrence', () => {
     const aural = new FwsPitchAural();
     const pitches = [10, 12.5, 13, 14, 11, 12.1];

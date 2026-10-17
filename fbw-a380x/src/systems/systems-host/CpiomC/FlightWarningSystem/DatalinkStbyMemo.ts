@@ -18,8 +18,8 @@ export interface DatalinkStbyInputs {
 }
 
 /**
- * DATALINK STBY memo: "Data mode is available, via at least one VHF/HF/SATCOM, but the datalink is temporarily lost."
- * (A380 FCOM DSC-23-20 MEMO, a380_fcom.txt l.49460-49461). Its flight phase inhibition is a figure only: none here.
+ * DATALINK STBY memo: data mode is available via at least one VHF/HF/SATCOM, but the datalink is temporarily lost.
+ * No flight phase inhibition (none is published as data).
  * @param inputs the data mode and datalink states
  * @returns whether the memo is shown
  */

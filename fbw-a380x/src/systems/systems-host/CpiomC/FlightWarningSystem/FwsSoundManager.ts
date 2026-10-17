@@ -465,8 +465,8 @@ export const FwsAuralsList: Record<string, FwsAural> = {
   },
 
   // PRIORITY LEFT / PRIORITY RIGHT (FwsSidestickPriority): WAV clips of tools/fws-voice/generate.py, played by the
-  // sound.xml Wave Data entries. The FCOM gives no priority among the synthetic voices: design choice, below the
-  // height callouts, above the intermediate callout.
+  // sound.xml Wave Data entries. Design choice (no known priority among the synthetic voices): below the height
+  // callouts, above the intermediate callout.
   priorityLeft: {
     localVarName: 'A32NX_FWS_AUDIO_PRIORITY_LEFT',
     length: FWS_VOICE_CLIP_LENGTHS.priorityLeft,
@@ -479,23 +479,22 @@ export const FwsAuralsList: Record<string, FwsAural> = {
     priority: -1,
     type: FwsAuralWarningType.SyntheticVoice,
   },
-  // PITCH PITCH, "Sounds 2 times" (a380_fcom.txt l.9048, 73618-73619), one clip (FwsPitchAural). Priority of the
-  // A32NX FWC pitchPitch.
+  // PITCH PITCH sounds twice, in one clip (FwsPitchAural). Same priority as the A32NX FWC pitchPitch.
   pitchPitch: {
     localVarName: 'A32NX_FWS_AUDIO_PITCH',
     length: FWS_VOICE_CLIP_LENGTHS.pitchPitch,
     priority: 25,
     type: FwsAuralWarningType.SyntheticVoice,
   },
-  // COMPANY MESSAGE, "Sounds 1 time" (a380_fcom.txt l.73651-73652), FwsCompanyMessageAural. Design choice: below the
-  // PRIORITY LEFT / RIGHT voices, above the intermediate callout.
+  // COMPANY MESSAGE sounds once (FwsCompanyMessageAural). Design choice: below the PRIORITY LEFT / RIGHT voices, above
+  // the intermediate callout.
   companyMessage: {
     localVarName: 'A32NX_FWS_AUDIO_COMPANY_MESSAGE',
     length: FWS_VOICE_CLIP_LENGTHS.companyMessage,
     priority: -2,
     type: FwsAuralWarningType.SyntheticVoice,
   },
-  // WINDSHEAR, "Sounds 3 times" (a380_fcom.txt l.9274-9276, 73643), one clip: highest priority of the synthetic voices
+  // WINDSHEAR sounds three times, in one clip: highest priority of the synthetic voices
   windshear: {
     localVarName: 'A32NX_FWS_AUDIO_WINDSHEAR',
     length: FWS_VOICE_CLIP_LENGTHS.windshear,
@@ -564,7 +563,7 @@ export class FwsSoundManager {
   }
 
   /**
-   * EMER CANC pb (A380 FCOM DSC-31-40-20): cancels all the audio indicators and aural alerts, the one playing and the
+   * EMER CANC pb: cancels all the audio indicators and aural alerts, the one playing and the
    * queued ones. A sound whose triggering conditions occur again sounds again.
    * @returns whether there was a sound to cancel
    */

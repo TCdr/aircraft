@@ -11,7 +11,7 @@ import { TIRE_DEFLATION_FAILURES, TIRE_DEFLATION_RATE_PSI_PER_S, TirePressureMod
 const none = () => new Array(TIRE_COUNT).fill(false);
 
 describe('A380 TPIS tire pressure model', () => {
-  it('holds the normal pressure, 217.5 PSI, without failure (FCOM l.163283)', () => {
+  it('holds the normal pressure, 217.5 PSI, without failure', () => {
     const model = new TirePressureModel();
     expect(model.update(600, none())).toEqual(new Array(TIRE_COUNT).fill(TIRE_NORMAL_PRESSURE_PSI));
   });

@@ -71,9 +71,8 @@ function shownMemo(memos: FwsMemos): string | undefined {
   return memoText(memo.codesToReturn[memo.whichCodeToReturn()[0]]);
 }
 
-/* A380 FCOM DSC-34-10-30-20 ADIRS MEMO (a380_fcom.txt l.86019-86026) */
 describe('A380X IR IN ATT ALIGN memos', () => {
-  it('an IR is in ATT alignment: mode ATT selected, attitude not yet available (l.86019-86021)', () => {
+  it('an IR is in ATT alignment: mode ATT selected, attitude not yet available', () => {
     const ncd = Arinc429SignStatusMatrix.NoComputedData;
     const normal = Arinc429SignStatusMatrix.NormalOperation;
     expect(isIrInAttAlign(maintWord('ATT'), pitchWord(ncd))).toBe(true);
@@ -86,7 +85,7 @@ describe('A380X IR IN ATT ALIGN memos', () => {
     expect(isIrInAttAlign(maintWord('ATT'), pitchWord(Arinc429SignStatusMatrix.FailureWarning))).toBe(false);
   });
 
-  it('has the FCOM texts: IR 1(2)(3)(1+2)(2+3)(1+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN (l.86019-86026)', () => {
+  it('has the texts: IR 1(2)(3)(1+2)(2+3)(1+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN', () => {
     expect(IR_ATT_ALIGN_MEMO_CODES.map(memoText)).toEqual([
       'IR 1 IN ATT ALIGN',
       'IR 2 IN ATT ALIGN',
@@ -111,7 +110,7 @@ describe('A380X IR IN ATT ALIGN memos', () => {
     expect(irAttAlignMemoIndex(irs)).toBe(index);
   });
 
-  it('the memo shows the IRs in ATT alignment, ALL IRs IN ATT ALIGN with the three (l.86025-86026)', () => {
+  it('the memo shows the IRs in ATT alignment, ALL IRs IN ATT ALIGN with the three', () => {
     const fws = fakeFws();
     const memos = new FwsMemos(fws);
     expect(shownMemo(memos)).toBeUndefined();

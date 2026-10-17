@@ -55,7 +55,7 @@ describe('A380X FWS AIR PACK monitoring words', () => {
   });
 });
 
-describe('A380X FWS AIR PACK 1(2) VLV 1(2) FAULT (FCOM l.131946-131949)', () => {
+describe('A380X FWS AIR PACK 1(2) VLV 1(2) FAULT', () => {
   it('is true for one valve failed open', () => {
     const flags = noFlags();
     flags.valveFailedOpen[1] = true;
@@ -83,13 +83,13 @@ describe('A380X FWS AIR PACK 1(2) VLV 1(2) FAULT (FCOM l.131946-131949)', () => 
     expect(packValveFaults(flags, [false, true])).toEqual([false, false, false, false]);
   });
 
-  it('is active in flight phases 1, 2, 8 and 12 (PDF p.4657)', () => {
+  it('is active in flight phases 1, 2, 8 and 12', () => {
     expect(activePhases(PACK_VLV_FAULT_PHASE_INHIBITION)).toEqual([1, 2, 8, 12]);
   });
 });
 
 describe('A380X FWS AIR PACK 1(2) OVHT and REGUL FAULT', () => {
-  it('are active in flight phases 1, 2, 8, 11 and 12 (PDF p.4653 and p.4655)', () => {
+  it('are active in flight phases 1, 2, 8, 11 and 12', () => {
     expect(activePhases(PACK_OVHT_PHASE_INHIBITION)).toEqual([1, 2, 8, 11, 12]);
     expect(activePhases(PACK_REGUL_FAULT_PHASE_INHIBITION)).toEqual([1, 2, 8, 11, 12]);
   });
@@ -120,15 +120,15 @@ describe('A380X FWS AIR PACK 1(2) OVHT and REGUL FAULT', () => {
 });
 
 describe('A380X FWS COND and CAB PRESS alerts of the cargo heater, extract valve and manual mode', () => {
-  it('COND BULK CARGO DUCT OVHT is active in flight phases 1, 2, 8, 11 and 12 (PDF p.4669)', () => {
+  it('COND BULK CARGO DUCT OVHT is active in flight phases 1, 2, 8, 11 and 12', () => {
     expect(activePhases(BULK_CARGO_DUCT_OVHT_PHASE_INHIBITION)).toEqual([1, 2, 8, 11, 12]);
   });
 
-  it('COND CABIN AIR EXTRACT VLV FAULT is active in flight phases 10, 11 and 12 (PDF p.4778)', () => {
+  it('COND CABIN AIR EXTRACT VLV FAULT is active in flight phases 10, 11 and 12', () => {
     expect(activePhases(CABIN_AIR_EXTRACT_VLV_FAULT_PHASE_INHIBITION)).toEqual([10, 11, 12]);
   });
 
-  it('CAB PRESS MAN CTL FAULT is active in flight phases 6, 7, 10, 11 and 12 (PDF p.4766)', () => {
+  it('CAB PRESS MAN CTL FAULT is active in flight phases 6, 7, 10, 11 and 12', () => {
     expect(activePhases(CAB_PRESS_MAN_CTL_FAULT_PHASE_INHIBITION)).toEqual([6, 7, 10, 11, 12]);
   });
 
@@ -137,7 +137,7 @@ describe('A380X FWS COND and CAB PRESS alerts of the cargo heater, extract valve
     expect(isCabPressManCtlFault([false, true, false, false])).toBe(true);
   });
 
-  it('CAB PRESS INHIBITED BY DOORS is active in flight phases 2, 3, 8 and 12 (PDF p.4761)', () => {
+  it('CAB PRESS INHIBITED BY DOORS is active in flight phases 2, 3, 8 and 12', () => {
     expect(activePhases(CAB_PRESS_INHIBITED_BY_DOORS_PHASE_INHIBITION)).toEqual([2, 3, 8, 12]);
   });
 });
@@ -167,17 +167,17 @@ describe('A380X FwsAbnormalSensed wiring of the AIR PACK, COND and CAB PRESS ale
     ['211800024', 'BULK_CARGO_DUCT_OVHT_PHASE_INHIBITION', 'bulkCargoDuctOvht'],
     ['213800010', 'CAB_PRESS_MAN_CTL_FAULT_PHASE_INHIBITION', 'cabPressManCtlFault'],
     ['213800018', 'CABIN_AIR_EXTRACT_VLV_FAULT_PHASE_INHIBITION', 'cabinAirExtractVlvFault'],
-  ])('%s uses the FCOM phase inhibition %s and the FWS condition %s', (id, inhibition, condition) => {
+  ])('%s uses the phase inhibition %s and the FWS condition %s', (id, inhibition, condition) => {
     const block = alertBlock(id);
     expect(block).toContain(`flightPhaseInhib: ${inhibition},`);
     expect(block).toContain(`simVarIsActive: this.fws.${condition},`);
   });
 
-  it('INHIBITED BY DOORS uses the FCOM phase inhibition (no longer inhibited in phase 12)', () => {
+  it('INHIBITED BY DOORS uses the phase inhibition (no longer inhibited in phase 12)', () => {
     expect(alertBlock('213800009')).toContain('flightPhaseInhib: CAB_PRESS_INHIBITED_BY_DOORS_PHASE_INHIBITION,');
   });
 
-  it('the indication levels follow the FCOM: VLV FAULT and EXTRACT VLV FAULT without master caution', () => {
+  it('the indication levels follow the aircraft: VLV FAULT and EXTRACT VLV FAULT without master caution', () => {
     for (const id of ['211800017', '211800018', '211800019', '211800020', '213800018']) {
       expect(alertBlock(id)).toContain('failure: 1,');
     }

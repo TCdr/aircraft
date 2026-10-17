@@ -2,34 +2,29 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * A380X FWS engine thrust alerts (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt):
+ * A380X FWS engine thrust alerts:
  *
- * - ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408. l.173384: "A loss of thrust is detected following an erroneous but
- *   valid calculation of the THR parameter"; l.173388-173390: "The FADEC detects a loss of thrust if the maximum THR of
- *   the affected engine is 10 % lower than at least two other engines maximum THR." Lines l.173407-173408:
- *   "THR LEVER 1(2)(3)(4) ... IDLE", "ENG 1(2)(3)(4) MASTER ... OFF". FCOM PDF page 5822: amber caution (MASTER CAUT,
- *   SC), shown in phase 3 only (inhibited in 1, 2 and 4 to 12).
- * - ENG T.O THRUST DISAGREE, l.175054-175070. l.175060: "All FADECs do not have the same takeoff mode, derate, flex or
- *   TOGA."; l.175070: "Crew awareness" (no line). FCOM PDF page 5857: amber caution (MASTER CAUT, SC), shown in phases 2
- *   and 11 only.
+ * - ENG 1(2)(3)(4) THRUST LOSS: an erroneous but valid THR calculation; the FADEC detects it when the maximum THR of
+ *   the engine is 10 % lower than the maximum THR of at least two other engines. Amber caution (MASTER CAUT, SC).
+ * - ENG T.O THRUST DISAGREE: the FADECs do not all have the same takeoff mode (derate, flex or TOGA). Amber caution
+ *   (MASTER CAUT, SC), crew awareness only (no procedure line).
  *
  * The failures that make them possible (flyPad ATA 73) act on the FADEC models of the fbw WASM (FadecThrustFailures.h),
  * which send each FADEC's maximum THR (L:A32NX_ENGINE_n_FADEC_MAX_THR, percent) and take-off mode
  * (L:A32NX_ENGINE_n_FADEC_TAKEOFF_MODE: 0 TOGA, 1 FLEX). FBW has no derated take-off.
- * Design choice: the FCOM says the FADEC detects the thrust loss from the maximum THR of the other engines; the comparison
- * of the four maximum THR is made here, from the values each FADEC sends.
+ * Design choice: on the aircraft the FADEC detects the thrust loss from the maximum THR of the other engines; the
+ * comparison of the four maximum THR is made here, from the values each FADEC sends.
  */
 
-/** ENG THRUST LOSS flight phase inhibition (FCOM PDF page 5822): shown in phase 3 only */
+/** ENG THRUST LOSS: shown in phase 3 only */
 export const THRUST_LOSS_PHASE_INHIBITION = [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-/** ENG T.O THRUST DISAGREE flight phase inhibition (FCOM PDF page 5857): shown in phases 2 and 11 only */
+/** ENG T.O THRUST DISAGREE: shown in phases 2 and 11 only */
 export const TO_THRUST_DISAGREE_PHASE_INHIBITION = [1, 3, 4, 5, 6, 7, 8, 9, 10, 12];
 
-/** l.173388-173390: "10 % lower": the max THR of the engine is at most 90 % of the max THR of the other engine */
-export const THRUST_LOSS_MAX_THR_RATIO = 0.9;
+/** 10 % lower: the max THR of the engine is at most 90 % of the max THR of the other engine */
+const THRUST_LOSS_MAX_THR_RATIO = 0.9;
 
-/** l.173390: "at least two other engines" */
 const THRUST_LOSS_MIN_OTHER_ENGINES = 2;
 
 /**

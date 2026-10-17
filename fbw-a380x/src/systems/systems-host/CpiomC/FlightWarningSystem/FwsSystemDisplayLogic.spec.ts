@@ -16,8 +16,8 @@ import { automaticPageInFlight, FwsSystemDisplayLogic } from './FwsSystemDisplay
 import { FwsCore } from './FwsCore';
 
 /*
- * A380 FCOM DSC-31-40-10 (STATUS MORE PAGE): MORE at the bottom of the STATUS page, the MORE pb on the ECP shows the
- * STATUS MORE page. FCOM DSC-31-40-20 (MORE pb): pressing it again clears the MORE information page.
+ * STATUS MORE page: MORE at the bottom of the STATUS page, the MORE pb on the ECP shows the STATUS MORE page; pressing
+ * it again clears the MORE information page.
  */
 
 /** Values of the registered simvars (RegisteredSimVar reads/writes by id, which the global SimVar mock lacks) */
@@ -169,7 +169,6 @@ describe('FwsSystemDisplayLogic ECP MORE pb on the STATUS page', () => {
 });
 
 describe('FwsSystemDisplayLogic ECP MORE pb on the FUEL and WHEEL pages', () => {
-  // A380 FCOM DSC-28-20 (a380_fcom.txt l.58352-58371) FUEL MORE, DSC-32-20-30 (l.81015-81024) WHEEL MORE
   it.each([
     ['FUEL', SdPages.Fuel],
     ['WHEEL', SdPages.Wheel],
@@ -216,7 +215,7 @@ describe('EcamSdMore rules', () => {
     expect(isSdMoreAvailable(SdPages.Status, true)).toBe(true);
     expect(isSdMoreAvailable(SdPages.Status, false)).toBe(false);
     expect(isSdMoreAvailable(SdPages.Eng, true)).toBe(false);
-    // FUEL MORE (a380_fcom.txt l.58352-58371) and WHEEL MORE (l.81015-81024) always exist
+    // FUEL MORE and WHEEL MORE always exist
     expect(isSdMoreAvailable(SdPages.Fuel, false)).toBe(true);
     expect(isSdMoreAvailable(SdPages.Wheel, false)).toBe(true);
   });
@@ -258,9 +257,9 @@ describe('ECP MORE pb light (ecam-cp.xml)', () => {
 });
 
 /*
- * A380 FCOM DSC-31-40-30 (a380_fcom.txt l.73745-73751): CRUISE "At 1 500 ft AGL or at the thrust reduction, whichever
- * occurs the first until landing gear extension in approach"; WHEEL "After landing gear extension, until last engine
- * shutdown". The A320 rules (CRUISE 60 s after T.O power / flaps / spoilers, WHEEL below 16 000 ft only) were used.
+ * CRUISE from 1 500 ft or the thrust reduction (whichever comes first) until the gear extension, then WHEEL until the
+ * last engine shutdown; not the A320 rules (CRUISE 60 s after T.O power / flaps / spoilers, WHEEL below 16 000 ft
+ * only).
  */
 describe('FwsSystemDisplayLogic automatic page in flight (phases 8-11)', () => {
   afterEach(() => {
@@ -310,7 +309,7 @@ describe('FwsSystemDisplayLogic automatic page in flight (phases 8-11)', () => {
   });
 });
 
-describe('FwsSystemDisplayLogic ECAM advisory (A380 FCOM DSC-31-40-10 ADVISORY, l.72215-72241)', () => {
+describe('FwsSystemDisplayLogic ECAM advisory (ADVISORY)', () => {
   /** The simvars the logic reads and writes (SimVar.GetSimVarValue / SetSimVarValue) */
   let values: Record<string, number>;
 
@@ -387,11 +386,8 @@ describe('FwsSystemDisplayLogic ECAM advisory (A380 FCOM DSC-31-40-10 ADVISORY, 
 });
 
 /*
- * A380 FCOM DSC-31-40-10 (ECAM Display on the SD -- GENERAL, a380_fcom.txt l.72794-72799): "The System Display (SD)
- * pages appear on the SD in the following decreasing order of priority: SD page that the flight crew manually selects
- * (Refer to ECP System Page Pushbuttons), SD page that appears after an alert, SD page that automatically appears
- * when there is an advisory, SD page that automatically appears depending on the flight phases".
- * FCOM DSC-31-40-20 (SYSTEM PAGE PUSHBUTTONS, l.73254-73258): only a second press of the pb removes the page.
+ * SD page priority, highest first: the page the crew selects with an ECP system page pb, the page of an alert, the
+ * page of an advisory, the flight phase page. Only a second press of the pb removes the crew page.
  */
 describe('FwsSystemDisplayLogic page selected by the crew vs the page of an ECAM alert', () => {
   /** The simvars the logic reads and writes (SimVar.GetSimVarValue / SetSimVarValue) */

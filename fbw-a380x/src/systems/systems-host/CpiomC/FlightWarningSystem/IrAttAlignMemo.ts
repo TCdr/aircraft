@@ -4,13 +4,11 @@
 import { Arinc429WordData } from '@flybywiresim/fbw-sdk';
 
 /*
- * The IR 1(2)(3)(1+2)(2+3)(1+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN memos (A380 FCOM DSC-34-10-30-20 MEMO,
- * a380_fcom.txt l.86019-86026): "The corresponding IRs started an alignment to recover the ATT mode." / "All IRs started
- * an alignment to recover the ATT mode." Their flight phase inhibition is a figure only: none here, as the A32NX IRS IN
- * ATT ALIGN memo.
+ * The IR 1(2)(3)(1+2)(2+3)(1+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN memos: the IRs shown started an alignment to
+ * recover the ATT mode. Design choice: no flight phase inhibition, as the A32NX IRS IN ATT ALIGN memo.
  */
 
-/** Bit of the IR maintenance word (label 350) set while the IR mode selector is in ATT: REV ATT MODE (adirs.rs IrMaintFlags) */
+/** REV ATT MODE bit of the IR maintenance word (label 350), set while the IR mode selector is in ATT (adirs.rs) */
 const IR_MAINT_WORD_ATT_MODE_BIT = 2;
 
 /** The EcamMemos codes of the memo, in the order of irAttAlignMemoIndex */
@@ -26,8 +24,8 @@ export const IR_ATT_ALIGN_MEMO_CODES = [
 
 /**
  * An IR is in ATT alignment: its mode selector is in ATT (REV ATT MODE bit of its maintenance word) and its attitude is
- * not available yet (the pitch is NCD until the attitude initialisation ends, adirs.rs update_attitude_values). An IR that
- * is off sends no valid maintenance word, a failed IR a failed pitch: no memo for them.
+ * not available yet (the pitch is NCD until the attitude initialisation ends, adirs.rs update_attitude_values). An IR
+ * that is off sends no valid maintenance word, a failed IR a failed pitch: no memo for them.
  * @param maintWord the IR maintenance word
  * @param pitch the IR pitch angle word
  * @returns whether the IR is in ATT alignment

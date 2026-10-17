@@ -74,8 +74,8 @@ function runFor(monitor: ComTransmissionMonitor, inputs: ComTransmissionInputs, 
   return out;
 }
 
-describe('CAB COM alerts of the CIDS (A380 FCOM PRO-ABN-ECAM-10-23, l.137027-137155)', () => {
-  it('CIDS 1+2+3 FAULT needs the three CIDS failed (l.137033)', () => {
+describe('CAB COM alerts of the CIDS', () => {
+  it('CIDS 1+2+3 FAULT needs the three CIDS failed', () => {
     expect(cidsAlerts(noCidsFailure).cids123Fault).toBe(false);
     expect(cidsAlerts({ ...noCidsFailure, directorFailed: [true, true, false] }).cids123Fault).toBe(false);
     expect(cidsAlerts({ ...noCidsFailure, directorFailed: [true, true, true] }).cids123Fault).toBe(true);
@@ -88,7 +88,7 @@ describe('CAB COM alerts of the CIDS (A380 FCOM PRO-ABN-ECAM-10-23, l.137027-137
     expect(cidsAlerts({ ...noCidsFailure, lowerDeckPaFailed: true }).cabinComFault).toBe(false);
     const alerts = cidsAlerts({ ...noCidsFailure, mainDeckPaFailed: true, lowerDeckPaFailed: true });
     expect(alerts.cabinComFaultLines).toEqual([false, true, true, false]);
-    // MAIN DECK PA, LOWER DECK PA "(If affected)"
+    // MAIN DECK PA, LOWER DECK PA, each one only when affected
     expect(alerts.cabinComFaultInopSys).toEqual(['230300003', '230300004']);
   });
 
@@ -99,13 +99,13 @@ describe('CAB COM alerts of the CIDS (A380 FCOM PRO-ABN-ECAM-10-23, l.137027-137
     expect(alerts.comDegradedLines).toEqual([false, true]);
   });
 
-  it('flight phase inhibitions of the FCOM figures (PDF p.4811, 4813, 4815)', () => {
+  it('flight phase inhibitions of the aircraft', () => {
     expect(COM_ALERT_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 9, 10]);
     expect(COM_DEGRADED_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11]);
   });
 });
 
-describe('PTT STUCK and VHF EMITTING (l.137167-137190, l.137568-137591)', () => {
+describe('PTT STUCK and VHF EMITTING', () => {
   it('reads the transmission keys of an RMP', () => {
     const on = ['L:A380X_RMP_2_VHF_TX_3', 'L:A380X_RMP_2_PA_TX'];
     expect(readRmpTransmissionKeys(2, (name) => on.includes(name))).toEqual({
@@ -149,7 +149,7 @@ describe('PTT STUCK and VHF EMITTING (l.137167-137190, l.137568-137591)', () => 
   });
 });
 
-describe('COM DATALINK FAULT and VHF 3 DATALINK FAULT (l.137201-137240, l.137600-137618)', () => {
+describe('COM DATALINK FAULT and VHF 3 DATALINK FAULT', () => {
   it('VHF 3 DATALINK FAULT on the VHF 3 failure', () => {
     expect(datalinkAlerts({ vhf3Failed: false, vhf3DataMode: true }).vhf3DatalinkFault).toBe(false);
     expect(datalinkAlerts({ vhf3Failed: true, vhf3DataMode: true }).vhf3DatalinkFault).toBe(true);
@@ -161,7 +161,7 @@ describe('COM DATALINK FAULT and VHF 3 DATALINK FAULT (l.137201-137240, l.137600
     expect(datalinkAlerts({ vhf3Failed: false, vhf3DataMode: false }).datalinkFault).toBe(true);
   });
 
-  it('COM DATALINK FAULT has the FCOM lines, only VHF & HF & SATCOM DATA NOT AVAIL is shown', () => {
+  it('COM DATALINK FAULT has the lines, only VHF & HF & SATCOM DATA NOT AVAIL is shown', () => {
     expect(itemNames(COM_ALERT_IDS.datalinkFault)).toEqual([
       'DATALINK INIT FAULT',
       'ATC COM VOICE ONLY',
@@ -171,7 +171,7 @@ describe('COM DATALINK FAULT and VHF 3 DATALINK FAULT (l.137201-137240, l.137600
   });
 });
 
-describe('PA IN USE memo (DSC-23-20 l.49491-49492)', () => {
+describe('PA IN USE memo', () => {
   it('shows while the PA transmission key of any RMP is on', () => {
     expect(isPaInUse([noKey, noKey, noKey])).toBe(false);
     expect(isPaInUse([noKey, noKey, { ...noKey, pa: true, any: true }])).toBe(true);
@@ -260,7 +260,7 @@ describe('COM alerts wiring', () => {
   });
 });
 
-describe('ATA 46 information system COM alerts (PRO-ABN-ECAM-10-46 l.169812-169959)', () => {
+describe('ATA 46 information system COM alerts', () => {
   const normal: InformationSystemInputs = {
     cpiomD1Available: true,
     atcResetPulled: false,
@@ -279,35 +279,35 @@ describe('ATA 46 information system COM alerts (PRO-ABN-ECAM-10-46 l.169812-1699
     });
   });
 
-  it('COM ATC DATALINK FAULT when CPIOM D1 (the ATC applications) is lost, the ADS stops with it (l.169848, 158377)', () => {
+  it('COM ATC DATALINK FAULT when CPIOM D1 (the ATC applications) is lost, the ADS stops with it', () => {
     const alerts = informationSystemAlerts({ ...normal, cpiomD1Available: false });
     expect(alerts.atcDatalinkFault).toBe(true);
     expect(alerts.adsDatalinkFault).toBe(true);
   });
 
-  it('COM ATC DATALINK FAULT while the ATC RESET pb is pulled (PRO-SUP-46 l.184541-184543)', () => {
+  it('COM ATC DATALINK FAULT while the ATC RESET pb is pulled', () => {
     const alerts = informationSystemAlerts({ ...normal, atcResetPulled: true });
     expect(alerts.atcDatalinkFault).toBe(true);
     expect(alerts.adsDatalinkFault).toBe(true);
   });
 
-  it('COM ADS DATALINK FAULT alone when only the ADS function is stopped (l.169820)', () => {
+  it('COM ADS DATALINK FAULT alone when only the ADS function is stopped', () => {
     const alerts = informationSystemAlerts({ ...normal, adsFunctionFailed: true });
     expect(alerts.adsDatalinkFault).toBe(true);
     expect(alerts.atcDatalinkFault).toBe(false);
   });
 
-  it('COM NSS DATA TO AVNCS XFR FAULT with the pb-sw OFF (l.169906)', () => {
+  it('COM NSS DATA TO AVNCS XFR FAULT with the pb-sw OFF', () => {
     expect(informationSystemAlerts({ ...normal, nssDataToAvncsPbOff: true }).nssDataToAvncsXfrFault).toBe(true);
   });
 
-  it('COM NSS/AVNCS DATA XFR FAULT only with both SCIs lost (l.169942)', () => {
+  it('COM NSS/AVNCS DATA XFR FAULT only with both SCIs lost', () => {
     expect(informationSystemAlerts({ ...normal, sciFailed: [true, false] }).nssAvncsDataXfrFault).toBe(false);
     expect(informationSystemAlerts({ ...normal, sciFailed: [false, true] }).nssAvncsDataXfrFault).toBe(false);
     expect(informationSystemAlerts({ ...normal, sciFailed: [true, true] }).nssAvncsDataXfrFault).toBe(true);
   });
 
-  it('uses the flight phase inhibition of the FCOM figures (PDF p.5719, 5720, 5722, 5723)', () => {
+  it('uses the flight phase inhibition of the aircraft', () => {
     expect(INFO_SYS_ALERT_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 9, 10]);
   });
 

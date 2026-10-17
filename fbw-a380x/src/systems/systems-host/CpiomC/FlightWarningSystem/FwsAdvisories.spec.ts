@@ -30,7 +30,6 @@ const flightPhaseMode: AdvisorySdState = {
   timeMs: 0,
 };
 
-/* A380 FCOM DSC-31-40-10 ADVISORY, a380_fcom.txt l.72203-72312 */
 describe('ECAM advisory conditions', () => {
   it('has none with all parameters in range', () => {
     expect(advisoryPages(inputs())).toEqual([]);
@@ -40,9 +39,9 @@ describe('ECAM advisory conditions', () => {
     expect(advisoryPages(inputs({ oilTemperatureCelsius: 164 }))).toEqual([SdPages.Eng]);
     expect(advisoryPages(inputs({ n2VibrationUnits: 5.1 }))).toEqual([SdPages.Eng]);
     expect(advisoryPages(inputs({ oilQuantityQt: 1 }))).toEqual([SdPages.Eng]);
-    // the oil quantity advisory is inhibited at TOGA and in reverse (l.72262-72265)
+    // the oil quantity advisory is inhibited at TOGA and in reverse
     expect(advisoryPages(inputs({ oilQuantityQt: 1, thrustLeverAngle: 45 }))).toEqual([]);
-    // and at a FLEX takeoff and in alpha floor, as on the ENGINE page (l.72265-72267)
+    // and at a FLEX takeoff and in alpha floor, as on the ENGINE page
     expect(advisoryPages(inputs({ oilQuantityQt: 1, autothrustMode: AutoThrustMode.MAN_FLEX }))).toEqual([]);
     expect(advisoryPages(inputs({ oilQuantityQt: 1, autothrustMode: AutoThrustMode.A_FLOOR }))).toEqual([]);
     // above 177 C the oil temperature is amber (an alert level, not an advisory)
@@ -99,7 +98,7 @@ describe('ECAM advisory display', () => {
     expect(display.update([SdPages.Eng], flightPhaseMode).ewdAdvIndication).toBe(true);
   });
 
-  it('gives no indication while the SD shows the page of an ECAM alert (l.72222-72224)', () => {
+  it('gives no indication while the SD shows the page of an ECAM alert', () => {
     const display = new FwsAdvisoryDisplay();
     expect(display.update([SdPages.Eng], { ...flightPhaseMode, alertPageShown: true })).toEqual({
       automaticPage: SdPages.None,

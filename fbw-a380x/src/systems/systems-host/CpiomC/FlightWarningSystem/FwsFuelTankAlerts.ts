@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * A380X FUEL (ATA 28) tank alerts of the FCOM gap batch T2-16: FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL, FUEL FEED TK
- * 1(2)(3)(4) TEMP HI, FUEL TEMP LO, FUEL INR(MID)(OUTR)(TRIM) TK MAN XFR COMPLETED, with their procedure lines, and the
- * transfer lines of FUEL FEED TK 1(2)(3)(4) LEVEL LO and FUEL FEED TKs 1+2(3+4) LEVEL LO.
+ * A380X FUEL (ATA 28) tank alerts FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL, FUEL FEED TK 1(2)(3)(4) TEMP HI, FUEL
+ * TEMP LO, FUEL INR(MID)(OUTR)(TRIM) TK MAN XFR COMPLETED, with their procedure lines, and the transfer lines of FUEL
+ * FEED TK 1(2)(3)(4) LEVEL LO and FUEL FEED TKs 1+2(3+4) LEVEL LO.
  *
- * Source: A380 FCOM PRO-ABN-ECAM-10-28 "FUEL" (KAL fleet, 25 JUL 11). "l." = line of the text copy
- * references/manuals/a380_fcom.txt; the flight phase inhibitions, master lights and audio are figures, read from
- * airbus-a380-fcom_compress.pdf ("PDF p."). The FCOM gives the quantities in lb; they are converted to kg here.
+ * The aircraft quantities are given in lb; they are converted to kg here.
  */
 
 import {
@@ -20,14 +18,13 @@ import {
 
 const KG_PER_LB = 0.45359237;
 
-/** l.153489: FUEL TEMP LO "WHEN ANY FEED TK < 35300 LBS (AUTO RCL): OUTR TK XFR ... MAN" */
+/** FUEL TEMP LO: WHEN ANY FEED TK < 35300 LBS (AUTO RCL), OUTR TK XFR MAN */
 export const TEMP_LO_OUTER_XFR_FEED_TANK_KG = 35_300 * KG_PER_LB;
 
 /**
- * Flight phase inhibitions (FCOM figures): FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL every phase but 2 and 8 (PDF
- * p.5158); FUEL FEED TK 1(2)(3)(4) TEMP HI phases 3-7, 9, 10 (PDF p.5179); FUEL TEMP LO phases 3-7, 9-12 (PDF p.5258);
- * FUEL INR TKs, MID TKs, OUTR TKs and TRIM TK MAN XFR COMPLETED phases 3-7, 9, 10 (PDF p.5198, p.5241, p.5251,
- * p.5269).
+ * Flight phase inhibitions: FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL every phase but 2 and 8; FUEL FEED TK 1(2)(3)(4)
+ * TEMP HI phases 3-7, 9, 10; FUEL TEMP LO phases 3-7, 9-12; FUEL INR TKs, MID TKs, OUTR TKs and TRIM TK MAN XFR
+ * COMPLETED phases 3-7, 9, 10.
  */
 export const FUEL_TANK_PHASE_INHIBITION: {
   collectorCellNotFull: number[];
@@ -55,9 +52,8 @@ export interface CollectorCellAlertInputs {
 }
 
 /**
- * FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL, l.149560-149568: "There is less than 265 US Gal (1 735 lb) in the collector
- * cell. The alert no longer appears, when the fuel quantity exceeds 317 US Gal (2 076 lb). [...] The alert is inhibited
- * in the case the associated feed tank level is low, or if both associated feed tank pumps are not running."
+ * FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL: below 265 US gal (1 735 lb) in the collector cell, until it is back above
+ * 317 US gal (2 076 lb). Inhibited when the feed tank level is low or when both pumps of the feed tank are not running.
  */
 export class CollectorCellNotFullMonitor {
   private readonly notFull: boolean[] = [false, false, false, false];
@@ -98,10 +94,8 @@ export interface FuelTankProcedureInputs {
 }
 
 /**
- * FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL lines (ata28 281800010-13), l.149597-149607: "IF NO FUEL LEAK: FEED TK
- * 1(2)(3)(4) MAIN PMP ... ON, FEED TK 1(2)(3)(4) STBY PMP ... ON, FEED TK 4(3)(2)(1) MAIN PMP ... ON, FEED TK 4(3)(2)(1)
- * STBY PMP ... ON, CROSSFEED 1(2) ... ON, CROSSFEED 4(3) ... ON. If COLLECTOR CELL 2(3) NOT FULL: FEED TK 2(3) : 2000 KG
- * MAX NOT USABLE".
+ * FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL lines (ata28 281800010-13). The opposite feed tank of 1(2)(3)(4) is
+ * 4(3)(2)(1).
  * Items: 0 IF NO FUEL LEAK, 1-2 own MAIN / STBY PMP ON, 3-4 opposite MAIN / STBY PMP ON, 5 own CROSSFEED ON, 6 opposite
  * CROSSFEED ON; cells 2 and 3: 7 FEED TK n : 2000 KG MAX NOT USABLE.
  * @param cell the collector cell index, 0 to 3
@@ -127,14 +121,13 @@ export function collectorCellNotFullLines(cell: number, inputs: FuelTankProcedur
   return { show, checked };
 }
 
-/** FUEL FEED TK 1(2)(3)(4) TEMP HI, l.150383: "The fuel temperature in feed tank 1(2)(3)(4) is above 53 °C." */
+/** FUEL FEED TK 1(2)(3)(4) TEMP HI: the fuel temperature in the feed tank is above 53 °C */
 export function isFeedTankTempHi(temperatureC: number): boolean {
   return temperatureC > FEED_TANK_TEMP_HI_C;
 }
 
 /**
- * FUEL FEED TK 1(2)(3)(4) TEMP HI lines (ata28 281800039-42), l.150410-150426: "On ground: DELAY TO. In flight: ENG
- * 1(2)(3)(4) PARAMETERS ... MONITOR, IF ABNORMAL: THR LEVER 1(2)(3)(4) ... IDLE".
+ * FUEL FEED TK 1(2)(3)(4) TEMP HI lines (ata28 281800039-42): on ground item 0, in flight items 1 to 3.
  * Items: 0 DELAY T.O, 1 ENG n PARAMETERS MONITOR, 2 IF ABNORMAL, 3 THR LEVER n IDLE.
  */
 export function feedTankTempHiLines(onGround: boolean): TankProcedureLines {
@@ -160,10 +153,9 @@ export interface TempLoState {
 }
 
 /**
- * FUEL TEMP LO, l.153448: "A low fuel temperature (-40 °C ) is detected in any outer tank, the trim tank, or in any
- * feed tank." A temperature is detected only by an immersed sensor (l.58698-58704, isTemperatureSensorImmersed). The
- * TAT below -40 °C for 60 min trigger "If both FQMS are failed, or if the temperature sensors are failed"
- * (l.153449-153451) is not simulated (no FQMS or sensor failure).
+ * FUEL TEMP LO: a fuel temperature below -40 °C in an outer tank, the trim tank or a feed tank. A temperature is
+ * detected only by an immersed sensor. The other trigger, TAT below -40 °C for 60 min with both FQMS or the temperature
+ * sensors failed, is not simulated (no FQMS or sensor failure).
  */
 export function fuelTempLoState(tanks: TempLoTankInputs): TempLoState {
   const isLo = (tank: 'LEFT_OUTER' | 'TRIM' | 'FEED_1', inputs: { temperatureC: number; quantityKg: number }) =>
@@ -175,11 +167,9 @@ export function fuelTempLoState(tanks: TempLoTankInputs): TempLoState {
 }
 
 /**
- * FUEL TEMP LO lines (ata28 281800086), l.153475-153502: "On ground: DELAY TO. In flight: If the flight crew selected a
- * manual transfer of the inner (mid) tanks: INR(MID) TK XFR ... AUTO. If the fuel temperature in one or both outer tank
- * is below -40 °C: WHEN ANY FEED TK < 35300 LBS (AUTO RCL): OUTR TK XFR ... MAN. If the fuel temperature in the trim tank
- * is below -40 °C: TRIM TK XFR ... FWD. If the fuel temperature in any feed tank is below -40 °C: FUEL FREEZE POINT ...
- * CHECK, TAT ... INCREASE". 35 300 lb = 16 000 kg.
+ * FUEL TEMP LO lines (ata28 281800086): on ground DELAY T.O; in flight INR(MID) TK XFR AUTO after a manual transfer of
+ * those tanks, the OUTR TK XFR lines for a cold outer tank, TRIM TK XFR FWD for a cold trim tank, FUEL FREEZE POINT
+ * CHECK and TAT INCREASE for a cold feed tank. 35 300 lb = 16 000 kg.
  * Items: 0 DELAY T.O, 1 INR TK XFR AUTO, 2 MID TK XFR AUTO, 3 WHEN ANY FEED TK < 16000 KG (sensed condition: the
  * OUTR TK XFR line under it becomes active then), 4 OUTR TK XFR MAN, 5 TRIM TK XFR FWD, 6 FUEL FREEZE POINT CHECK, 7 TAT
  * INCREASE.
@@ -238,12 +228,10 @@ export interface ManualTransferCompleted {
 }
 
 /**
- * The MAN XFR COMPLETED alerts: "The manual transfer of fuel from the inner tanks to the feed tanks is completed"
- * (l.151086), "The manual transfer from the mid tanks to the feed tanks is completed" (l.152837), "The manual transfer
- * from the outer tanks to the feed tanks is completed" (l.153233), "The manual transfer from the trim tank to the inner
- * tanks is completed" (l.153832). Design choice: a manual transfer is completed when its pb-sw is in MAN (FWD) and both
- * tanks it empties are empty (less than 1 gal, the FWS "holds fuel" quantity); the procedure, setting the pb-sw back to
- * AUTO, clears it.
+ * The MAN XFR COMPLETED alerts: the manual transfer from the inner, mid or outer tanks to the feed tanks, or from the
+ * trim tank to the inner tanks, is completed. Design choice: a manual transfer is completed when its pb-sw is in MAN
+ * (FWD) and both tanks it empties are empty (less than 1 gal, the FWS "holds fuel" quantity); the procedure, setting
+ * the pb-sw back to AUTO, clears it.
  */
 export function manualTransferCompleted(inputs: ManualTransferCompletedInputs): ManualTransferCompleted {
   return {
@@ -256,13 +244,12 @@ export function manualTransferCompleted(inputs: ManualTransferCompletedInputs): 
 
 /**
  * The MAN XFR COMPLETED lines:
- * - INR TKs (ata28 281800050), l.151103: "INR TK XFR ... AUTO" (the L(R) INR TK AFT PMP ON line of l.151095-151097 is for
- *   a pump turned off during the FUEL MAN XFR PROCEDURE, which is not simulated). Items: 0 INR TK XFR AUTO.
- * - MID TKs (281800075), l.152846: "MID TK XFR ... AUTO". Items: 0 MID TK XFR AUTO.
- * - OUTR TKs (281800080), PDF p.5252: "OUTR TK XFR ... AUTO. If the outer tank emergency transfer valves are open: EMER
- *   OUTR TK XFR ... OFF". Items: 0 OUTR TK XFR AUTO, 1 EMER OUTR TK XFR OFF.
- * - TRIM TK (281800092), l.153841-153847: "TRIM TK XFR ... AUTO, TRIM TK FEED ... AUTO". Items: 0 TRIM TK XFR AUTO, 1
- *   TRIM TK FEED AUTO.
+ * - INR TKs (ata28 281800050): items 0 INR TK XFR AUTO. The L(R) INR TK AFT PMP ON line is for a pump turned off during
+ *   the FUEL MAN XFR PROCEDURE, which is not simulated.
+ * - MID TKs (281800075): items 0 MID TK XFR AUTO.
+ * - OUTR TKs (281800080): items 0 OUTR TK XFR AUTO, 1 EMER OUTR TK XFR OFF (when the outer tank emergency transfer
+ *   valves are open).
+ * - TRIM TK (281800092): items 0 TRIM TK XFR AUTO, 1 TRIM TK FEED AUTO.
  */
 export function manualTransferCompletedLines(
   tank: keyof ManualTransferCompleted,
@@ -293,10 +280,9 @@ export interface FeedTankLevelLoTransferInputs {
 }
 
 /**
- * The transfer lines of FUEL FEED TK 1(2)(3)(4) LEVEL LO (l.149913-149923) and FUEL FEED TKs 1+2(3+4) LEVEL LO
- * (l.150493-150503), under IF NO FUEL LEAK: "If gravity transfer from the trim tank is in progress: TRIM TK FEED ...
- * AUTO. For transfer tanks containing fuel: OUTR TK XFR ... MAN, If at least one trim tank pump is running: TRIM TK XFR
- * ... FWD, INR TK XFR ... MAN, MID TK XFR ... MAN".
+ * The transfer lines of FUEL FEED TK 1(2)(3)(4) LEVEL LO and FUEL FEED TKs 1+2(3+4) LEVEL LO, under IF NO FUEL LEAK:
+ * TRIM TK FEED AUTO while a gravity transfer from the trim tank is in progress, then a MAN (trim: FWD, only with a
+ * trim tank pump running) line for each transfer tank holding fuel.
  * Lines, in this order: TRIM TK FEED AUTO, OUTR TK XFR MAN, TRIM TK XFR FWD, INR TK XFR MAN, MID TK XFR MAN.
  */
 export function feedTankLevelLoTransferLines(

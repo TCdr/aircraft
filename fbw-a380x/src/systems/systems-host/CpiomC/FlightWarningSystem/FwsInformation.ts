@@ -19,35 +19,35 @@ export class FwsInformation {
   /** INFO shown on SD */
   info: FwsInfoDict = {
     700200050: {
-      // ENG 1 IDLE ONLY: THR LEVER FAULT on ground (A380 FCOM l.173332-173333), ENG 1 REVERSER UNLOCKED (l.173698)
+      // ENG 1 IDLE ONLY: THR LEVER FAULT on ground, ENG 1 REVERSER UNLOCKED
       simVarIsActive: this.fws.engineIdleOnly[0],
     },
     700200051: {
-      // ENG 2 IDLE ONLY: THR LEVER FAULT on ground (A380 FCOM l.173332-173333), ENG 2 REVERSER UNLOCKED (l.173698)
+      // ENG 2 IDLE ONLY: THR LEVER FAULT on ground, ENG 2 REVERSER UNLOCKED
       simVarIsActive: this.fws.engineIdleOnly[1],
     },
     700200052: {
-      // ENG 3 IDLE ONLY: THR LEVER FAULT on ground (A380 FCOM l.173332-173333), ENG 3 REVERSER UNLOCKED (l.173698)
+      // ENG 3 IDLE ONLY: THR LEVER FAULT on ground, ENG 3 REVERSER UNLOCKED
       simVarIsActive: this.fws.engineIdleOnly[2],
     },
     700200053: {
-      // ENG 4 IDLE ONLY: THR LEVER FAULT on ground (A380 FCOM l.173332-173333), ENG 4 REVERSER UNLOCKED (l.173698)
+      // ENG 4 IDLE ONLY: THR LEVER FAULT on ground, ENG 4 REVERSER UNLOCKED
       simVarIsActive: this.fws.engineIdleOnly[3],
     },
     700200054: {
-      // ENG 1 CLB ONLY: THR LEVER FAULT in flight (A380 FCOM l.173334-173335)
+      // ENG 1 CLB ONLY: THR LEVER FAULT in flight
       simVarIsActive: this.fws.engineClbOnly[0],
     },
     700200055: {
-      // ENG 2 CLB ONLY: THR LEVER FAULT in flight (A380 FCOM l.173334-173335)
+      // ENG 2 CLB ONLY: THR LEVER FAULT in flight
       simVarIsActive: this.fws.engineClbOnly[1],
     },
     700200056: {
-      // ENG 3 CLB ONLY: THR LEVER FAULT in flight (A380 FCOM l.173334-173335)
+      // ENG 3 CLB ONLY: THR LEVER FAULT in flight
       simVarIsActive: this.fws.engineClbOnly[2],
     },
     700200057: {
-      // ENG 4 CLB ONLY: THR LEVER FAULT in flight (A380 FCOM l.173334-173335)
+      // ENG 4 CLB ONLY: THR LEVER FAULT in flight
       simVarIsActive: this.fws.engineClbOnly[3],
     },
     220200004: {
@@ -58,8 +58,7 @@ export class FwsInformation {
       // LAND 3 SINGLE ONLY
       simVarIsActive: this.fws.land3FailOperationalInop,
     },
-    // CDS EFIS BKUP CTL, CURSOR CTL and KEYBOARD FAULT STATUS INFO (A380 FCOM l.157745, 157659, 157841), see
-    // FwsCdsControlAlerts
+    // CDS EFIS BKUP CTL, CURSOR CTL and KEYBOARD FAULT STATUS INFO, see FwsCdsControlAlerts
     310200001: {
       // CAPT BARO REF : STD ONLY
       simVarIsActive: this.fws.efisBkupCtlFault[0],
@@ -93,7 +92,7 @@ export class FwsInformation {
       simVarIsActive: this.fws.land2Inop,
     },
     220200016: {
-      // CAT 3 SINGLE ONLY: ENG 1(2)(3)(4) SHUT DOWN with the APU off (A380 FCOM l.172792-172795)
+      // CAT 3 SINGLE ONLY: ENG 1(2)(3)(4) SHUT DOWN with the APU off
       simVarIsActive: this.fws.engineShutDownCat3SingleOnly,
     },
     270200003: {

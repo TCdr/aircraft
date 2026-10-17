@@ -18,7 +18,7 @@ import { FwcFlightPhase } from './FwsFlightPhases';
 
 const normal: FeedTankPumpFlags = { mainPbOn: true, stbyPbOn: true, mainLowPressure: false, stbyLowPressure: false };
 
-describe('FUEL FEED TK pump alerts (A380 FCOM PRO-ABN-ECAM-10-28)', () => {
+describe('FUEL FEED TK pump alerts', () => {
   it('gives nothing with both pumps ON and running', () => {
     expect(feedTankPumpAlerts(normal, FwcFlightPhase.AtOrAbove1500FeetTo800Feet)).toEqual({
       mainFault: false,
@@ -82,7 +82,7 @@ describe('CROSSFEED pb-sw selections (sensed CROSSFEED ... ON items)', () => {
   });
 });
 
-describe('FUEL transfer pump alerts (A380 FCOM PRO-ABN-ECAM-10-28)', () => {
+describe('FUEL transfer pump alerts', () => {
   const cruise = FwcFlightPhase.AtOrAbove1500FeetTo800Feet;
   /** Every pb-sw ON, no FAULT */
   const normalSimVars = (): Map<string, number> =>
@@ -159,7 +159,7 @@ describe('FUEL transfer pump alerts (A380 FCOM PRO-ABN-ECAM-10-28)', () => {
   });
 });
 
-describe('FUEL FEED TK 1(2)(3)(4) LEVEL LO detection (A380 FCOM PRO-ABN-ECAM-10-28, less than 3 030 lb)', () => {
+describe('FUEL FEED TK 1(2)(3)(4) LEVEL LO detection (less than 3 030 lb)', () => {
   /** Runs the monitor for some seconds with the given feed tank quantities, 1 s steps */
   const run = (monitor: FeedTankLevelLoMonitor, feedTankWeightsKg: number[], seconds: number): boolean[] => {
     let lowLevels: boolean[] = [];

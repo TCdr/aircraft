@@ -23,10 +23,7 @@ function fakeFws(): FwsCore {
 }
 
 describe('FwsLimitations', () => {
-  /*
-   * A380 FCOM PRO-ABN-ECAM-10-27-10 F/CTL DIRECT LAW (a380_fcom.txt l.144962-144972, PDF page 5025): LIMITATIONS ON ECAM
-   * and ON PFD, APPR & LDG: MAX SPEED : 310/.86, MANEUVER WITH CARE.
-   */
+  /* F/CTL DIRECT LAW: MAX SPEED : 310/.86 and MANEUVER WITH CARE are APPR & LDG limitations, on the ECAM and the PFD */
   it.each([
     ['240400002', 'MAX SPEED: 310/.86'],
     ['240400004', 'MANEUVER WITH CARE'],
@@ -37,7 +34,7 @@ describe('FwsLimitations', () => {
   });
 
   it('the APPR & LDG column drops a limitation the ALL PHASES column already shows', () => {
-    // F/CTL DIRECT LAW (APPR & LDG) with NAV ALL AIR DATA DISAGREE (ALL PHASES, a380_fcom.txt l.164233-164235)
+    // F/CTL DIRECT LAW (APPR & LDG) with NAV ALL AIR DATA DISAGREE (ALL PHASES)
     expect(withoutAllPhasesDuplicates(['240400002', '240400004', '800400003'], ['240400002'])).toEqual([
       '240400004',
       '800400003',

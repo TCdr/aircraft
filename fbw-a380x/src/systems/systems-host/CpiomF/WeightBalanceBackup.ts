@@ -5,20 +5,16 @@ import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
 import { Arinc429Register, Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 
 /*
- * The Weight and Balance Backup Computer (WBBC), A380 FCOM DSC-28-10 WEIGHT AND BALANCE BACKUP COMPUTER (a380_fcom.txt
- * l.57734-57767):
- * - l.57736-57737: "There are two WBBCs that compute the GW and CG, based on aerodynamic data and on the position of the
- *   flight control surfaces."
- * - l.57739: "The WBBC starts computing the GW and CG after the retraction of the slats and flaps."
- * - l.57741-57747: the WBBC GW and CG are used when both FQMS are failed, "to provide a warning against excessive aft
- *   CG" (FUEL EXCESS AFT CG) and "to detect discrepancies between the GW and CG computed by the FQMS, and the GW and CG
- *   computed by the WBBC" (FUEL WEIGHT DATA DISAGREE, FUEL CG DATA DISAGREE).
- * - l.57764-57767: "If the WBBC does not have the necessary input to compute the GW by using aerodynamic data, or after
- *   slats/flaps extension, the GW is computed by using the fuel used and the takeoff GW (as computed by the WBBC at
- *   slats/flaps retraction). The computation of the CG is unavailable after slats/flaps extension."
+ * The Weight and Balance Backup Computer (WBBC):
+ * - Two WBBCs compute the GW and CG from aerodynamic data and the flight control surface positions.
+ * - They start computing after the slats and flaps retract.
+ * - Their GW and CG are used when both FQMS are failed, for the excessive aft CG warning (FUEL EXCESS AFT CG), and to
+ *   detect a disagreement with the FQMS GW and CG (FUEL WEIGHT DATA DISAGREE, FUEL CG DATA DISAGREE).
+ * - Without the inputs for the aerodynamic GW, or after slats/flaps extension, the GW comes from the fuel used and the
+ *   takeoff GW (the WBBC GW at slats/flaps retraction); the CG is unavailable after slats/flaps extension.
  *
  * Design choices:
- * - The aerodynamic computation (altitude, Mach, angle of attack, elevator and THS positions, l.57749-57762) is the
+ * - The aerodynamic computation (altitude, Mach, angle of attack, elevator and THS positions) is the
  *   simulator's own weight and CG (A:TOTAL WEIGHT, L:A32NX_AIRFRAME_GW_CG_PERCENT_MAC): the values that the
  *   aerodynamic data of the simulated aircraft reflect. They do not depend on the ZFW and ZFWCG entered in the FMS,
  *   unlike the FQMS values, so a wrong FMS entry shows as a WBBC disagreement.
@@ -48,7 +44,7 @@ export interface WbbcOutputs {
 
 /** The WBBC gross weight and CG computation */
 export class WeightBalanceBackupComputer {
-  /** The GW at the first slats/flaps retraction in flight ("the takeoff GW"), and the fuel used then */
+  /** The GW at the first slats/flaps retraction in flight (the takeoff GW), and the fuel used then */
   private takeoffGrossWeightKg: number | null = null;
 
   private fuelUsedAtTakeoffKg = 0;
@@ -77,8 +73,8 @@ export class WeightBalanceBackupComputer {
 }
 
 /** The WBBC outputs: ARINC 429 words, no computed data while not computed */
-export const WBBC_GROSS_WEIGHT_VAR = 'L:A380X_WBBC_GROSS_WEIGHT';
-export const WBBC_CG_VAR = 'L:A380X_WBBC_CENTER_OF_GRAVITY_MAC';
+const WBBC_GROSS_WEIGHT_VAR = 'L:A380X_WBBC_GROSS_WEIGHT';
+const WBBC_CG_VAR = 'L:A380X_WBBC_CENTER_OF_GRAVITY_MAC';
 
 /**
  * Whether the slats and flaps are retracted, from an SFCC slat/flap actual position word (docs/a380-simvars.md

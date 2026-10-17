@@ -4,18 +4,17 @@
 import { NXLogicConfirmNode } from '@flybywiresim/fbw-sdk';
 
 /*
- * AIR APU BLEED FAULT of the A380 FWS (A380 FCOM PRO-ABN-ECAM-10-36, a380_fcom.txt l.167685-167734; procedure on PDF page
- * 5665): "One of the following occurs: - The APU is running, and: The APU bleed valve is abnormally open(closed), or The
- * APU isolation valve is abnormally open(closed), or The APU bleed valve and the APU isolation valve are abnormally open.
- * - The APU BLEED pb-sw is ON, while the altitude is not within the APU operational envelope."
+ * AIR APU BLEED FAULT of the A380 FWS. Triggered when the APU runs with the APU bleed valve or the APU isolation
+ * valve abnormally open or closed (or both abnormally open), or when the APU BLEED pb-sw is ON outside the APU
+ * operational altitude envelope.
  *
- * The envelope case was already there (FwsCore apuBleedPbOnOver22500ft). This module adds the abnormal valve position
- * (the gap B18 of the FCOM audit): the APU bleed valve open while the APU ECB commands it closed, or closed while it
+ * The envelope case is FwsCore apuBleedPbOnOver22500ft. This module gives the abnormal valve position: the APU bleed
+ * valve open while the APU ECB commands it closed, or closed while it
  * commands it open (a380_systems apu_bleed_air_valve.rs: L:A32NX_APU_BLEED_AIR_VALVE_OPEN and
  * L:A32NX_APU_BLEED_AIR_VALVE_COMMANDED_OPEN; flyPad failures "APU bleed valve stuck closed / open").
  *
  * Design choices:
- * - "The APU is running": the APU AVAIL (L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE).
+ * - The APU is running: the APU AVAIL (L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE).
  * - The disagreement is confirmed for 10 s, as the CPIOM-A engine bleed valve position monitoring (a380_systems
  *   pneumatic.rs BLEED_VALVE_POSITION_DISAGREE_CONFIRMATION).
  * - The model has one valve for the APU bleed valve and the APU isolation valve: the APU ISOL VLV lines are not shown.
@@ -79,10 +78,8 @@ export interface ApuBleedFaultItemInputs {
 /**
  * The items of AIR APU BLEED FAULT (ata21-22-23 211800051): 0 APU ISOL VLV NOT CLOSED, 1 APU BLEED VLV NOT CLOSED, 2 APU
  * ISOL VLV NOT OPEN, 3 APU BLEED VLV NOT OPEN, 4 APU BLEED OFF, 5 APU BLEED AVAIL BELOW FL225.
- * PDF page 5665 (l.167723-167734): "If the APU bleed valve is abnormally open: APU BLEED VLV NOT CLOSED. Otherwise: APU
- * BLEED ... OFF. If the APU bleed valve, or the APU isolation valve is closed, and the aircraft is above FL 225: APU
- * BLEED AVAIL BELOW FL 225". The NOT OPEN lines are not in the FCOM: never shown.
- * Before 2026-10-13 only the envelope case was wired: APU BLEED OFF, and APU BLEED AVAIL BELOW FL225 above FL 225 (kept).
+ * APU BLEED VLV NOT CLOSED when the APU bleed valve is abnormally open, else APU BLEED OFF, then APU BLEED AVAIL BELOW
+ * FL 225 above FL 225. The NOT OPEN lines have no published condition: never shown.
  */
 export function apuBleedFaultItems(inputs: ApuBleedFaultItemInputs): { show: boolean[]; checked: boolean[] } {
   const otherwise = !inputs.abnormallyOpen;

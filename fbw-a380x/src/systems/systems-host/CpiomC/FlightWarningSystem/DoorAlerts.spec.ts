@@ -58,7 +58,7 @@ describe('A380X doors and their sim interactive points', () => {
   });
 });
 
-/* A380 FCOM PRO-ABN-ECAM-10-52 DOOR ... NOT CLOSED: "The door is not closed and is not locked." */
+/* DOOR ... NOT CLOSED: the door is not closed and not locked */
 describe('DOOR ... NOT CLOSED triggers', () => {
   it('a passenger door is not closed as soon as it moves off closed', () => {
     expect(isCabinDoorNotClosed(0)).toBe(false);
@@ -72,7 +72,7 @@ describe('DOOR ... NOT CLOSED triggers', () => {
   });
 });
 
-/* A380 FCOM CAB PRESS INHIBITED BY DOORS: "At least one door is not closed, and locked, at takeoff power application." */
+/* CAB PRESS INHIBITED BY DOORS: at least one door is not closed and locked when takeoff power is applied */
 describe('CAB PRESS INHIBITED BY DOORS door input', () => {
   const allClosed = () => CABIN_DOORS.map(() => false);
 
@@ -102,9 +102,8 @@ describe('CAB PRESS INHIBITED BY DOORS door input', () => {
 });
 
 /*
- * A380 FCOM DSC-31-40-10 Takeoff Configuration Test: the test can trigger "DOOR MAIN 1(2)(3)(4)(5) R(L) NOT CLOSED",
- * "DOOR UPPER 1(2)(3)(4) R(L) NOT CLOSED", "DOOR FWD(AFT)(MAIN)(UPPER)(BULK) CARGO NOT CLOSED" and
- * "DOOR CKPT SLIDING WINDOW NOT CLOSED".
+ * The takeoff configuration test can trigger DOOR MAIN 1(2)(3)(4)(5) R(L) NOT CLOSED, DOOR UPPER 1(2)(3)(4) R(L) NOT
+ * CLOSED, DOOR FWD(AFT)(MAIN)(UPPER)(BULK) CARGO NOT CLOSED and DOOR CKPT SLIDING WINDOW NOT CLOSED.
  */
 describe('T.O CONFIG test door input', () => {
   const allClosed = () => CABIN_DOORS.map(() => false);
@@ -167,9 +166,9 @@ describe('DOOR ... NOT CLOSED alerts', () => {
   ];
 
   /*
-   * FCOM: "In flight: ... IF ABNORM CAB V/S : MAX FL 100/MEA, CABIN CREW ADVISE, ATC NOTIFY, DESCENT TO FL 100/MEA
-   * INITIATE". The condition is confirmed by the crew (not sensed) and gates the four lines under it; it is also what
-   * the FWS limitation MAX FL 100/MEA reads (checked[1]).
+   * In flight, IF ABNORM CAB V/S is followed by MAX FL 100/MEA, CABIN CREW ADVISE, ATC NOTIFY and DESCENT TO FL
+   * 100/MEA INITIATE. The condition is confirmed by the crew (not sensed) and gates the four lines under it; it is also
+   * what the FWS limitation MAX FL 100/MEA reads (checked[1]).
    */
   it.each(allDoorAlertIds)('%s: IF ABNORM CAB V/S is a crew-confirmed condition above its four lines', (id) => {
     expect(textBlock(id)).toMatch(

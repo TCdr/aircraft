@@ -29,8 +29,7 @@ export function isReactiveWindshearWarningActive(): boolean {
 }
 
 /**
- * Emergency electrical configuration: "The AC 1, AC 2, AC 3, and AC 4 busbars are lost" (A380 FCOM ELEC EMER CONFIG,
- * a380_fcom.txt l.141558), the condition FwsCore.ts uses for ELEC EMER CONFIG.
+ * Emergency electrical configuration: the four AC busbars are lost, the condition FwsCore.ts uses for ELEC EMER CONFIG.
  * @returns true while all four AC busbars are unpowered
  */
 export function isEmergencyElectricalConfiguration(): boolean {

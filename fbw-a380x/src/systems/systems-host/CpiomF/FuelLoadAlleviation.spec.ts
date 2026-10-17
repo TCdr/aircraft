@@ -48,7 +48,7 @@ function run(logic: LoadAlleviationTransferLogic, inputs: LoadAlleviationInputs,
   return result;
 }
 
-describe('load alleviation transfer to the outer tanks (A380 FCOM DSC-28-30, a380_fcom.txt l.59445-59470)', () => {
+describe('load alleviation transfer to the outer tanks', () => {
   it('runs in flight when the FOB is greater than 110 200 lb and the outer tanks are not full', () => {
     const logic = new LoadAlleviationTransferLogic();
     expect(logic.update(cruise, 1).toOuterTanks).toBe(true);
@@ -64,7 +64,7 @@ describe('load alleviation transfer to the outer tanks (A380 FCOM DSC-28-30, a38
   });
 });
 
-describe('load alleviation transfer from the trim tank (l.59472-59524)', () => {
+describe('load alleviation transfer from the trim tank', () => {
   it('starts when the RTD has been below 80 min for 3 min', () => {
     const logic = new LoadAlleviationTransferLogic();
     const below80 = { ...cruise, remainingTimeToDestinationMin: 79 };
@@ -112,7 +112,7 @@ describe('load alleviation transfer from the trim tank (l.59472-59524)', () => {
   });
 });
 
-describe('load alleviation transfer from the outer tanks (l.59526-59576)', () => {
+describe('load alleviation transfer from the outer tanks', () => {
   it('starts when the RTD has been below 30 min for 3 min, with an outer tank above 8 800 lb', () => {
     const logic = new LoadAlleviationTransferLogic();
     const below30 = { ...cruise, remainingTimeToDestinationMin: 29 };
@@ -219,7 +219,6 @@ describe('load alleviation fuel moves', () => {
     expect(leftFeedTanksGal).toBeCloseTo(2_700 - halfFullGal);
     // below 8 800 lb: nothing leaves
     expect(tanks.quantityGal.get(RIGHT_OUTER_TANK)).toBe(1_300);
-    // the rate
     const oneMinute = levels({ [LEFT_OUTER_TANK]: 2_700 });
     loadAlleviationMoves({ ...none, fromOuterTanks: true }, oneMinute, allPumps, POUNDS_PER_GALLON, 60);
     expect(oneMinute.quantityGal.get(LEFT_OUTER_TANK)).toBeCloseTo(

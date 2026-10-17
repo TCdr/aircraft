@@ -23,19 +23,18 @@ export interface GpwsMode2Inputs {
 }
 
 /**
- * GPWS mode 2, excessive terrain closure rate, A380 FCOM DSC-34-20-20-10 (a380_fcom.txt:88221-88294): "TERRAIN,
- * TERRAIN", then "PULL UP" "that repeats as long as the aircraft has an excessive terrain closure rate"; mode 2A
- * (not in landing configuration), whose "upper cutoff limit of the envelope will increase ... depending on the
- * airspeed", and whose alerts stop when the aircraft has left the envelope "for a minimum of 45 s" or has climbed
- * 300 ft above the altitude at which it left it; mode 2B (flaps extended for landing, ILS deviations below 2 dots,
- * "During the first 60 s after takeoff"), in which, with the landing gear and the flaps in landing configuration,
- * "TERRAIN, TERRAIN" is "repeated until the aircraft exits the protection envelope (No "PULL UP" aural alert)".
+ * GPWS mode 2, excessive terrain closure rate: TERRAIN TERRAIN, then PULL UP repeated as long as the terrain closure
+ * rate is excessive. Mode 2A (not in landing configuration): the upper cutoff of the envelope rises with the airspeed,
+ * and the alerts stop when the aircraft has been out of the envelope for 45 s or has climbed 300 ft above the
+ * altitude at which it left it. Mode 2B (flaps extended for landing, ILS deviations below 2 dots, or the first 60 s
+ * after takeoff): with the landing gear and the flaps in landing configuration, TERRAIN TERRAIN repeats until the
+ * aircraft leaves the envelope, without PULL UP.
  *
- * The FCOM gives the envelopes as figures only. Design choice: the Honeywell EGPWS envelopes of the shared EGPWS
- * runtime (fbw-common surveillance/egpws/runtime.rs, update_mode_2_logic), with its closure rate computation: the radio
- * altitude rate limited, differentiated, rate limited and low-pass filtered (the sim radio altitude is noisy over
- * rough terrain, the reason why the previous mode 2 was switched off). Not simulated: the 2B condition "within 5 nm
- * and 3 500 ft height of the destination" (terrain clearance floor function).
+ * Design choice: the aircraft envelopes are only published as pictures, so this uses the Honeywell EGPWS envelopes of
+ * the shared EGPWS runtime (fbw-common surveillance/egpws/runtime.rs, update_mode_2_logic), with its closure rate
+ * computation: the radio altitude rate limited, differentiated, rate limited and low-pass filtered (the sim radio
+ * altitude is noisy over rough terrain, the reason why the previous mode 2 was switched off). Not simulated: the 2B
+ * condition within 5 nm and 3 500 ft height of the destination (terrain clearance floor function).
  */
 export class GpwsMode2 {
   /** Closure rate (ft/min) to alert radio altitude (ft), ascending breakpoints */
@@ -58,13 +57,11 @@ export class GpwsMode2 {
 
   private static readonly CLOSURE_RATE_FILTER_TIME_CONSTANT_S = 1;
 
-  /** a380_fcom.txt:88284 */
   static readonly MODE_2B_AFTER_TAKEOFF_S = 60;
 
   /** "TERRAIN, TERRAIN" before "PULL UP": two TERRAIN calls of 0.7 s */
   static readonly TERRAIN_PREFACE_S = 1.4;
 
-  /** a380_fcom.txt:88263-88264 */
   static readonly ALTITUDE_GAIN_FT = 300;
 
   static readonly ALTITUDE_GAIN_MAX_DURATION_S = 45;
@@ -97,7 +94,7 @@ export class GpwsMode2 {
   }
 
   /**
-   * Follows the air/ground state for the 2B condition "During the first 60 s after takeoff" (a380_fcom.txt:88284).
+   * Follows the air/ground state for the 2B condition "first 60 s after takeoff".
    * Called on every GPWS update, also on the ground and out of the GPWS range, where update() is not called.
    * @param onGround the aircraft is on the ground
    * @param deltaTimeS time since the previous call, in seconds
@@ -156,10 +153,10 @@ export class GpwsMode2 {
       ra > lowerLimitFt &&
       ra < upperLimitFt;
 
-    // Landing gear and flaps in landing configuration: TERRAIN only, as long as in the envelope (a380_fcom.txt:88292-88294)
+    // Landing gear and flaps in landing configuration: TERRAIN only, as long as in the envelope
     const terrainOnly = inputs.landingFlaps && inputs.gearDown;
 
-    // Altitude gain after leaving the envelope (a380_fcom.txt:88262-88264): the alerts stop after 45 s or 300 ft above
+    // Altitude gain after leaving the envelope: the alerts stop after 45 s or 300 ft above
     // the lowest altitude since leaving the envelope.
     if (inEnvelope || terrainOnly) {
       this.altitudeGainActive = false;

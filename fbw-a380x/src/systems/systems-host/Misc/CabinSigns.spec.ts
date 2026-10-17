@@ -26,9 +26,8 @@ const cruise: NoSmokingSignsInputs = {
 const sfccWord = (slatsRetracted: boolean, ssm = Arinc429SignStatusMatrix.NormalOperation) =>
   new Arinc429Word(Arinc429Word.getRawWord(slatsRetracted ? 1 << 11 : 0, ssm));
 
-/* A380 FCOM DSC-33-50-10 SIGNS, NO SMOKING sw (a380_fcom.txt l.84079-84098) */
 describe('A380X cabin NO SMOKING signs', () => {
-  it('ON: the signs come on (l.84080); OFF: they go off (l.84091)', () => {
+  it('ON: the signs come on; OFF: they go off', () => {
     expect(areNoSmokingSignsOn({ ...cruise, switchPosition: NoSmokingSwitchPosition.On })).toBe(true);
     expect(
       areNoSmokingSignsOn({
@@ -40,13 +39,13 @@ describe('A380X cabin NO SMOKING signs', () => {
     ).toBe(false);
   });
 
-  it('AUTO: on when "The slats are extended, or The main landing gear is extended." (l.84083-84087)', () => {
+  it('AUTO: on when "The slats are extended, or The main landing gear is extended."', () => {
     expect(areNoSmokingSignsOn(cruise)).toBe(false);
     expect(areNoSmokingSignsOn({ ...cruise, slatsExtended: true })).toBe(true);
     expect(areNoSmokingSignsOn({ ...cruise, mainGearExtended: true })).toBe(true);
   });
 
-  it('excessive cabin altitude: on regardless of the switch (l.84095-84098)', () => {
+  it('excessive cabin altitude: on regardless of the switch', () => {
     for (const switchPosition of [NoSmokingSwitchPosition.Off, NoSmokingSwitchPosition.Auto]) {
       expect(areNoSmokingSignsOn({ ...cruise, switchPosition, cabinAltitudeExcessive: true })).toBe(true);
     }
@@ -82,9 +81,8 @@ describe('A380X cabin NO SMOKING signs', () => {
   });
 });
 
-/* A380 FCOM DSC-33-50-10 SIGNS, SEAT BELTS sw (a380_fcom.txt l.84053-84069) and Note l.84095-84098 */
 describe('A380X cabin FASTEN SEAT BELT signs', () => {
-  it('ON: the signs come on (l.84055); OFF: they go off (l.84067)', () => {
+  it('ON: the signs come on; OFF: they go off', () => {
     expect(areSeatBeltsSignsOn({ ...cruise, switchPosition: CabinSignsSwitchPosition.On })).toBe(true);
     expect(
       areSeatBeltsSignsOn({
@@ -96,13 +94,13 @@ describe('A380X cabin FASTEN SEAT BELT signs', () => {
     ).toBe(false);
   });
 
-  it('AUTO: on when "The slats are extended, or The main landing gear is extended." (l.84059-84063), no engine term', () => {
+  it('AUTO: on when "The slats are extended, or The main landing gear is extended.", no engine term', () => {
     expect(areSeatBeltsSignsOn(cruise)).toBe(false);
     expect(areSeatBeltsSignsOn({ ...cruise, slatsExtended: true })).toBe(true);
     expect(areSeatBeltsSignsOn({ ...cruise, mainGearExtended: true })).toBe(true);
   });
 
-  it('excessive cabin altitude: on regardless of the switch (l.84095-84098)', () => {
+  it('excessive cabin altitude: on regardless of the switch', () => {
     for (const switchPosition of [CabinSignsSwitchPosition.Off, CabinSignsSwitchPosition.Auto]) {
       expect(areSeatBeltsSignsOn({ ...cruise, switchPosition, cabinAltitudeExcessive: true })).toBe(true);
     }

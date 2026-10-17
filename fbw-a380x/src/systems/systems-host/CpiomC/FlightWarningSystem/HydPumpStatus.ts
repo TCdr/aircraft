@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * STATUS of HYD G(Y) ENG 1(2)(3)(4) PMP A(B) PRESS LO (A380 FCOM PRO-ABN-ECAM-10-29, a380_fcom.txt l.155077-155091):
- * INOP SYS ALL PHASES "G (Y) ENG 1 or 2 (3 or 4) PMP A or B (If at least two pumps are failed:)" (l.155081-155082), and
- * MORE INFO REDUND LOSS "If only one pump is failed: G (Y) ENG 1 or 2 (3 or 4) PMP A or B" (l.155090-155091).
+ * STATUS of HYD G(Y) ENG 1(2)(3)(4) PMP A(B) PRESS LO: with at least two failed pumps, each one is an INOP SYS line
+ * (all phases); with only one failed pump, it is a MORE INFO REDUND LOSS line.
  * Design choice: the pumps are counted per hydraulic system (the 4 engine pumps of the green, or of the yellow, system),
  * as the alert names them; with the whole system lost (HYD G (Y) SYS PRESS LO, INOP SYS G (Y) HYD SYS) the system line
  * replaces the pump lines.
@@ -31,10 +30,9 @@ export function enginePumpPressLoStatus(pumpPressLo: readonly boolean[], hydSysI
 }
 
 /**
- * STATUS of HYD G (Y) ELEC PMP A OR (B) FAULT (A380 FCOM PRO-ABN-ECAM-10-29, a380_fcom.txt l.154983-155028): "MORE INFO
- * REDUND LOSS: G (Y) ELEC PMP A or B" (l.155025-155028), no INOP SYS.
+ * STATUS of HYD G (Y) ELEC PMP A OR (B) FAULT: a MORE INFO REDUND LOSS line for the pump, no INOP SYS.
  * The FWS sees the failed pump through its fault signal (low pressure while it should pressurise, or overheat), which goes
- * away once the crew sets the pump OFF as the procedure asks (l.155023). Design choice: the REDUND LOSS stays from the fault
+ * away once the crew sets the pump OFF as the procedure asks. Design choice: the REDUND LOSS stays from the fault
  * until the pump pb-sw is back at AUTO without a fault; as for the engine pumps, the G (Y) HYD SYS line replaces it when
  * the whole system is lost.
  */

@@ -19,7 +19,7 @@ import {
 
 const SIDE: SideDisplayData = { baroStd: false, altitudeFt: 10000, pitchDeg: 2, rollDeg: 0, headingDeg: 90 };
 
-describe('NAV CAPT AND F/O BARO REF DISAGREE: QNH on one side, STD on the other (A380 FCOM l.164615-164616)', () => {
+describe('NAV CAPT AND F/O BARO REF DISAGREE: QNH on one side, STD on the other', () => {
   it('differs only with valid references', () => {
     expect(baroRefDisagree(SIDE, { ...SIDE, baroStd: true })).toBe(true);
     expect(baroRefDisagree(SIDE, SIDE)).toBe(false);
@@ -27,7 +27,7 @@ describe('NAV CAPT AND F/O BARO REF DISAGREE: QNH on one side, STD on the other 
   });
 });
 
-describe('NAV CAPT AND F/O ALT DISAGREE: > 500 ft in STD, > 250 ft in QNH (l.164500-164502)', () => {
+describe('NAV CAPT AND F/O ALT DISAGREE: > 500 ft in STD, > 250 ft in QNH', () => {
   it('QNH: 250 ft', () => {
     expect(altDisagree(SIDE, { ...SIDE, altitudeFt: 10250 })).toBe(false);
     expect(altDisagree(SIDE, { ...SIDE, altitudeFt: 10251 })).toBe(true);
@@ -45,7 +45,7 @@ describe('NAV CAPT AND F/O ALT DISAGREE: > 500 ft in STD, > 250 ft in QNH (l.164
   });
 });
 
-describe('NAV CAPT AND F/O ATT and HDG DISAGREE (l.164533, l.164641-164643)', () => {
+describe('NAV CAPT AND F/O ATT and HDG DISAGREE', () => {
   it('ATT: more than 5° in pitch or roll', () => {
     expect(attDisagree(SIDE, { ...SIDE, pitchDeg: 7 })).toBe(false);
     expect(attDisagree(SIDE, { ...SIDE, pitchDeg: 7.1 })).toBe(true);
@@ -134,7 +134,7 @@ describe('FWS wiring of the NAV CAPT AND F/O DISAGREE alerts', () => {
     ['340800017', 'attDisagree', 2],
     ['340800018', 'baroRefDisagree', 1],
     ['340800020', 'hdgDisagree', 2],
-  ])('%s is raised by navAlerts.%s, level 2, with its %i FCOM lines', (id, subject, lines) => {
+  ])('%s is raised by navAlerts.%s, level 2, with its %i lines', (id, subject, lines) => {
     const start = abnormalSensed.indexOf(`    ${id}: {`);
     expect(start).toBeGreaterThan(0);
     const b = abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
@@ -144,8 +144,7 @@ describe('FWS wiring of the NAV CAPT AND F/O DISAGREE alerts', () => {
     expect(shown.match(/true/g)).toHaveLength(lines);
   });
 
-  // An ADR without one of its supplies is in the INOP SYS of the ELEC alert, not a NAV ADR FAULT (a380_fcom.txt
-  // l.139230-139232, l.140854-140856)
+  // An ADR without one of its supplies is in the INOP SYS of the ELEC alert, not a NAV ADR FAULT
   it('takes a faulty ADR as NAV ADR FAULT only with its AC and DC busbars powered', () => {
     expect(adrFaultyForNavAlerts(true, true, true, false)).toBe(true);
     expect(adrFaultyForNavAlerts(true, false, true, false)).toBe(false);

@@ -19,7 +19,7 @@ function alertBlock(id: string): string {
 }
 
 describe('FwsAbnormalSensed item rules', () => {
-  it('ALTN LAW: MAX SPEED 310 KT is not shown in ALT 1A (A380 FCOM, as FwsLimitations.ts)', () => {
+  it('ALTN LAW: MAX SPEED 310 KT is not shown in ALT 1A (as FwsLimitations.ts)', () => {
     expect(alertBlock('271800008')).toMatch(/whichItemsToShow: \(\) => \[!this\.fws\.altn1ALawCondition\.get\(\)\]/);
   });
 
@@ -32,7 +32,7 @@ describe('FwsAbnormalSensed item rules', () => {
     expect(checked).not.toContain('yellowAPumpAuto');
   });
 
-  /* A380 FCOM PRO-ABN HYD G (Y) SYS OVHT: "If turning off G (Y) ENG 1 (3) PMP A or B is not successful: ... DISC". */
+  /* HYD G (Y) SYS OVHT: the pumps are disconnected only when turning off G (Y) ENG 1 (3) PMP A or B failed */
   it.each([
     ['290800031', 'G SYS OVHT', 1, 2],
     ['290800032', 'Y SYS OVHT', 3, 4],
@@ -43,7 +43,6 @@ describe('FwsAbnormalSensed item rules', () => {
     expect(shown).not.toMatch(/^\s+true,\s*$/m);
   });
 
-  /* A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO STATUS. */
   it('Y SYS PRESS LO INFO: TAXI WITH CARE, AVOID MAX TILLER ANGLE, NO BRAKED PIVOT TURN, CAT 3 SINGLE ONLY', () => {
     expect(alertBlock('290800036')).toContain("info: () => ['800200003', '800200004', '800200005', '220200016']");
   });
@@ -63,7 +62,7 @@ describe('FwsAbnormalSensed item rules', () => {
     expect(shown).not.toContain(`!this.fws.${prim},`);
   });
 
-  /* A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO: L/G GRVTY EXTN ONLY for both; "For gravity extension: MAX SPEED : 220 KT". */
+  /* HYD G (Y) SYS PRESS LO: L/G GRVTY EXTN ONLY for both, and a 220 kt max speed for the gravity extension */
   it('Y SYS PRESS LO: L/G GRVTY EXTN ONLY item and the MAX SPEED 220 KT limitation on the ECAM and the PFD', () => {
     const block = alertBlock('290800036');
     const shown = block.split('whichItemsToShow')[1].split('whichItemsChecked')[0];
@@ -81,13 +80,12 @@ describe('FwsAbnormalSensed item rules', () => {
     expect(yItems).toContain("name: 'L/G GRVTY EXTN ONLY'");
   });
 
-  /* A380 FCOM PRO-ABN CAB PRESS EXCESS DIFF PRESS: flight phase inhibition 2-7 and 10-12 (PDF p.4755). */
   it('EXCESS DIFF PRESS is active in flight phases 1, 8 and 9', () => {
     expect(alertBlock('213800002')).toContain('flightPhaseInhib: [2, 3, 4, 5, 6, 7, 10, 11, 12],');
   });
 });
 
-describe('ENG ALL ENG FLAME OUT (A380 FCOM PRO-ABN-ECAM-10-70, l.173768-174788)', () => {
+describe('ENG ALL ENG FLAME OUT', () => {
   const ata70 = readFileSync(
     resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
     'utf-8',
@@ -108,7 +106,7 @@ describe('ENG ALL ENG FLAME OUT (A380 FCOM PRO-ABN-ECAM-10-70, l.173768-174788)'
       .filter((line) => line.length > 0);
   };
 
-  it('"This alert inhibits the ELEC EMER CONFIG alert." (l.173795), only while it is shown', () => {
+  it('"This alert inhibits the ELEC EMER CONFIG alert.", only while it is shown', () => {
     // not with notActiveWhenItemActive: that reads the alert condition without its flight phase inhibition
     expect(alertBlock('240800055')).toContain('simVarIsActive: this.fws.elecEmerConfigAlert,');
     expect(alertBlock('240800055')).toContain('notActiveWhenItemActive: [],');
@@ -119,13 +117,13 @@ describe('ENG ALL ENG FLAME OUT (A380 FCOM PRO-ABN-ECAM-10-70, l.173768-174788)'
     expect(checkedEntries('701800151').length).toBe(itemNames('701800151').length);
   });
 
-  it('RAT MAN ON ... PRESS (l.173832) is sensed with the RAT out, as in ELEC EMER CONFIG', () => {
+  it('RAT MAN ON ... PRESS is sensed with the RAT out, as in ELEC EMER CONFIG', () => {
     expect(procedure('701800151')).toContain("{ name: 'RAT MAN ON', sensed: true, labelNotCompleted: 'PRESS' }");
     expect(itemNames('701800151')[0]).toBe('RAT MAN ON');
     expect(checkedEntries('701800151')[0]).toContain('this.fws.ratDeployed.get() > 0');
   });
 
-  it('both FORCED LDG parts have L/G GRVTY (EXTN 2 MIN) ... DOWN after FOR L/G GRVTY (l.173963, 174162)', () => {
+  it('both FORCED LDG parts have L/G GRVTY (EXTN 2 MIN) ... DOWN after FOR L/G GRVTY', () => {
     const names = itemNames('701800151');
     const gravityLines = names.flatMap((name, index) => (name === 'L/G GRVTY (EXTN 2 MIN)' ? [index] : []));
     expect(gravityLines.length).toBe(2);
@@ -136,13 +134,13 @@ describe('ENG ALL ENG FLAME OUT (A380 FCOM PRO-ABN-ECAM-10-70, l.173768-174788)'
   });
 });
 
-describe('ENG RELIGHT IN FLIGHT (A380 FCOM l.174864-175027)', () => {
+describe('ENG RELIGHT IN FLIGHT', () => {
   const ata70 = readFileSync(
     resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
     'utf-8',
   );
 
-  it('single engine: 30000 FT and 260 KT (l.174902-174904); multiple engines: 28000 FT and 250 KT (l.174977-174979)', () => {
+  it('single engine: 30000 FT and 260 KT; multiple engines: 28000 FT and 250 KT', () => {
     const start = ata70.indexOf('  700900001: {');
     const procedure = ata70.slice(start, ata70.indexOf('\n  },', start));
     const multiple = procedure.indexOf('FOR RELIGHT (MULTIPLE ENGINES)');
@@ -155,7 +153,7 @@ describe('ENG RELIGHT IN FLIGHT (A380 FCOM l.174864-175027)', () => {
   });
 });
 
-describe('ENG 1(2)(3)(4) SHUT DOWN (A380 FCOM PRO-ABN-ECAM-10-70, l.172693-172742, PDF p.5806)', () => {
+describe('ENG 1(2)(3)(4) SHUT DOWN', () => {
   const ata70 = readFileSync(
     resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
     'utf-8',
@@ -181,7 +179,7 @@ describe('ENG 1(2)(3)(4) SHUT DOWN (A380 FCOM PRO-ABN-ECAM-10-70, l.172693-17274
     ['701800110', 2, true],
     ['701800111', 3, true],
     ['701800112', 4, false],
-  ])('%s ENG %i: the FCOM lines, ABNORM BLEED CONFIG PROC APPLY, no FOR GA: TOGA ONLY', (id, engine, inner) => {
+  ])('%s ENG %i: the lines, ABNORM BLEED CONFIG PROC APPLY, no FOR GA: TOGA ONLY', (id, engine, inner) => {
     expect(itemNames(id)).toEqual([
       'TCAS MODE',
       'L/G LEVER',
@@ -203,7 +201,7 @@ describe('ENG 1(2)(3)(4) SHUT DOWN (A380 FCOM PRO-ABN-ECAM-10-70, l.172693-17274
       const checked = arrayEntries(id, 'whichItemsChecked');
       expect(shown.length).toBe(count);
       expect(checked.length).toBe(count);
-      // "In the case of an abnormal bleed configuration: ABNORM BLEED CONFIG procedure ... APPLY" (l.172733-172734)
+      // ABNORM BLEED CONFIG procedure APPLY: only with an abnormal bleed configuration
       expect(shown[4]).toMatch(/^this\.fws\.abnormBleedConfig\.get\(\),/);
       // the AIR FLOW LO and FWD CARGO TEMP REGUL OFF lines keep their sensed checks
       expect(checked[6]).toBe('this.fws.flowSelectorKnob.get() === 1,');

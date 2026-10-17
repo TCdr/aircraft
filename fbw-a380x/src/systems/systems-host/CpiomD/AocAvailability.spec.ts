@@ -8,8 +8,8 @@ import { areAocDownlinksInhibited, isAocAvailable } from './AocAvailability';
 
 const atsu = readFileSync(resolve(__dirname, 'atsu.ts'), 'utf-8');
 
-describe('A380X AOC availability (COM NSS/AVNCS DATA XFR FAULT, A380 FCOM l.169942-169947)', () => {
-  it('runs on either NSS AVNCS ANSU with at least one SCI (DSC-46-40-10-20 l.107931-107932)', () => {
+describe('A380X AOC availability (COM NSS/AVNCS DATA XFR FAULT)', () => {
+  it('runs on either NSS AVNCS ANSU with at least one SCI', () => {
     expect(isAocAvailable([true, true], [false, false])).toBe(true);
     expect(isAocAvailable([false, true], [false, false])).toBe(true);
     expect(isAocAvailable([true, false], [true, false])).toBe(true);
@@ -28,7 +28,7 @@ describe('A380X AOC availability (COM NSS/AVNCS DATA XFR FAULT, A380 FCOM l.1699
   });
 });
 
-describe('NSS DATA TO AVNCS pb-sw OFF (DSC-46-20-20-80 l.103225-103226, l.169906-169914)', () => {
+describe('NSS DATA TO AVNCS pb-sw OFF', () => {
   it('inhibits the AOC downlinks only while OFF', () => {
     expect(areAocDownlinksInhibited(true)).toBe(true);
     expect(areAocDownlinksInhibited(false)).toBe(false);

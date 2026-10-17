@@ -29,7 +29,7 @@ function runHours(model: FuelTankTemperatures, inputs: FuelTemperatureInputs, ho
   return temperatures;
 }
 
-describe('A380 fuel tank temperatures (FCOM DSC-28-10 l.57725-57732, design choices)', () => {
+describe('A380 fuel tank temperatures (design choices)', () => {
   it('has the eleven tanks', () => {
     expect(A380_FUEL_TANKS.map((tank) => tank.name)).toEqual([
       'LEFT_OUTER',

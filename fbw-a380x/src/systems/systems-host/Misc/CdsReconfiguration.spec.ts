@@ -21,7 +21,7 @@ const COCKPIT_BEHAVIOUR = join(
 /** The sim variables of a test: DU supplies and brightness knobs on unless set */
 const simVars = new Map<string, number | boolean>();
 
-describe('CDS reconfiguration in the systems host (A380 FCOM DSC-31-15-20)', () => {
+describe('CDS reconfiguration in the systems host', () => {
   const activeFailures = new Set<number>();
   let bus: EventBus;
   let host: CdsReconfiguration;
@@ -109,7 +109,7 @@ describe('CDS reconfiguration in the systems host (A380 FCOM DSC-31-15-20)', () 
     expect(captPfdDuDisplay()).toBe(CdsDisplay.Nd);
   });
 
-  it('moves the ATC mailbox to the F/O ND DU with the F/O DU RECONF pb when the SD DU is turned OFF (PRO-ABN-ECAM-10-31)', () => {
+  it('moves the ATC mailbox to the F/O ND DU with the F/O DU RECONF pb when the SD DU is turned OFF', () => {
     const mailboxDu = () => simVars.get(MAILBOX_DISPLAY_UNIT_VAR);
     const foNdDuDisplay = () => simVars.get(displayUnitDisplayVar(DisplayUnitID.FoNd));
     // normal operation: the SD DU (0)

@@ -196,7 +196,7 @@ const sortedLineup = ({ pumps, valves, junctions }: FuelLineup): FuelLineup => (
   junctions: junctions.slice().sort(([a], [b]) => a - b),
 });
 
-describe('A380 manual transfer lineups (FCOM DSC-28-20, DSC-28-40 MANUAL TRANSFERS)', () => {
+describe('A380 manual transfer lineups (MANUAL TRANSFERS)', () => {
   it('is empty with every transfer pb-sw in AUTO', () => {
     expect(manualTransferLineup(NO_MANUAL_TRANSFER, ALL_PUMP_PBS_ON)).toEqual({ pumps: [], valves: [], junctions: [] });
   });
@@ -251,7 +251,7 @@ describe('A380 manual transfer lineups (FCOM DSC-28-20, DSC-28-40 MANUAL TRANSFE
     });
   });
 
-  it('TRIM TK XFR FWD with TRIM TK FEED in ISOL: no trim tank pump, the trim line stays closed (l.58044-58053)', () => {
+  it('TRIM TK XFR FWD with TRIM TK FEED in ISOL: no trim tank pump, the trim line stays closed', () => {
     expect(sortedLineup(manualTransferLineup(select({ trimForward: true }), ALL_PUMP_PBS_ON, true))).toEqual({
       pumps: [],
       valves: [],

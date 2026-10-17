@@ -42,9 +42,8 @@ function fakeFws(): DatalinkFws {
   ) as unknown as DatalinkFws;
 }
 
-/* A380 FCOM DSC-23-20 MEMO (a380_fcom.txt l.49460-49461) */
 describe('A380X DATALINK STBY memo', () => {
-  it('"Data mode is available, via at least one VHF/HF/SATCOM, but the datalink is temporarily lost." (l.49460-49461)', () => {
+  it('"Data mode is available, via at least one VHF/HF/SATCOM, but the datalink is temporarily lost."', () => {
     expect(isDatalinkStby({ dataModeAvailable: true, linkTemporarilyLost: true })).toBe(true);
     expect(isDatalinkStby({ dataModeAvailable: true, linkTemporarilyLost: false })).toBe(false);
     // no data mode (VHF 3 in voice or failed): COM DATALINK FAULT, not this memo

@@ -5,7 +5,7 @@
  * Bits of the CPIOM B TCS discrete word (L:A32NX_COND_CPIOM_B{n}_TCS_DISCRETE_WORD) set by the trim air monitoring of
  * the temperature controller (a380_systems air_conditioning/cpiom_b.rs, docs/a380-simvars.md).
  */
-export const TCS_TRIM_AIR_BITS = {
+const TCS_TRIM_AIR_BITS = {
   ckptDuctOvht: 17,
   cabinDuctOvhtHotAir1: 18,
   cabinDuctOvhtHotAir2: 19,
@@ -66,15 +66,14 @@ function hotAirValvesToClose(flags: TrimAirMonitoringFlags): [boolean, boolean] 
 }
 
 /**
- * COND DUCT OVHT (A380 FCOM PRO-ABN-ECAM-10-21-10, a380_fcom.txt:132563-132573): an overheat (above 70 deg C) in a
- * cockpit, cabin or forward cargo duct.
+ * COND DUCT OVHT: an overheat (above 70 deg C) in a cockpit, cabin or forward cargo duct.
  */
 export function condDuctOvhtActive(flags: TrimAirMonitoringFlags): boolean {
   return flags.ckptDuctOvht || flags.cabinDuctOvhtHotAir1 || flags.cabinDuctOvhtHotAir2 || flags.fwdCargoDuctOvht;
 }
 
 /**
- * Lines of COND DUCT OVHT (EcamAbnormalSensedAta212223[211800028]) to show and checked, a380_fcom.txt:132599-132623:
+ * Lines of COND DUCT OVHT (EcamAbnormalSensedAta212223[211800028]) to show and checked:
  * CKPT DUCT OVHT: HOT AIR 2 OFF, if jammed open PACK 2 OFF. CABIN DUCT OVHT: HOT AIR 1(2) OFF depending on the duct, if
  * jammed open PACK 1(2) OFF, CARGO TEMP MONITOR. FWD CARGO DUCT OVHT: HOT AIR 1 OFF, if jammed open PACK 1 OFF.
  */
@@ -125,7 +124,7 @@ export function condDuctOvhtItems(
 }
 
 /**
- * Lines of the deferred procedure WHEN DUCT OVHT OUT (EcamDeferredProcAta212223[210700003]), a380_fcom.txt:132645-132651:
+ * Lines of the deferred procedure WHEN DUCT OVHT OUT (EcamDeferredProcAta212223[210700003]):
  * HOT AIR 1(2) ON for the valve closed by the procedure, and if it was jammed open PACK 1(2) ON.
  */
 export function condDuctOvhtOutItems(
@@ -141,7 +140,7 @@ export function condDuctOvhtOutItems(
   };
 }
 
-/** STATUS INOP SYS of COND DUCT OVHT (a380_fcom.txt:132655-132666), EcamInopSys ids */
+/** STATUS INOP SYS of COND DUCT OVHT, EcamInopSys ids */
 export function condDuctOvhtInopSys(flags: TrimAirMonitoringFlags): string[] {
   const inopSys: string[] = [];
   if (flags.ckptDuctOvht) {
@@ -156,18 +155,17 @@ export function condDuctOvhtInopSys(flags: TrimAirMonitoringFlags): string[] {
   return inopSys;
 }
 
-/** STATUS INFO of COND DUCT OVHT (a380_fcom.txt:132668-132674), EcamInfos ids */
+/** STATUS INFO of COND DUCT OVHT, EcamInfos ids */
 export function condDuctOvhtInfo(flags: TrimAirMonitoringFlags): string[] {
   // CABIN TEMP REGUL DEGRADED, and FWD CRG TEMP REGUL DEGRADED if the forward cargo is affected
   return flags.fwdCargoDuctOvht ? ['210200001', '210200003'] : ['210200001'];
 }
 
 /**
- * COND FWD CARGO TEMP REGUL FAULT (a380_fcom.txt:132245-132279): the temperature regulation of the forward cargo is
- * lost or degraded; "In the case of trim air valve failure: CARGO TRIM AIR VLV FAULT". The only cause the model has is
- * a jammed forward cargo trim air valve. Design choice: that is a DEGRADED regulation (the aircraft has two forward
- * cargo trim air valves, a380_fcom.txt:5346-5347, and DSC-21-10-30 says a jammed valve loses the "optimized"
- * regulation, a380_fcom.txt:6108-6109): CARGO TEMP MONITOR and the INFO FWD CRG TEMP REGUL DEGRADED, no INOP SYS.
+ * COND FWD CARGO TEMP REGUL FAULT: the temperature regulation of the forward cargo is lost or degraded; a trim air
+ * valve failure adds the line CARGO TRIM AIR VLV FAULT. The only cause the model has is a jammed forward cargo trim air
+ * valve. Design choice: that is a DEGRADED regulation (the aircraft has two forward cargo trim air valves, and a jammed
+ * valve only loses the optimized regulation): CARGO TEMP MONITOR and the INFO FWD CRG TEMP REGUL DEGRADED, no INOP SYS.
  */
 export function fwdCargoTempRegulFaultActive(flags: TrimAirMonitoringFlags): boolean {
   return flags.fwdCargoTrimAirValveFault;

@@ -6,10 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { trafPbLightVar, trafPbPushEvent, trafPbsToAutoSelect } from './TcasTrafAutoSelect';
 
-/*
- * A380 FCOM DSC-34-20-40-20 ND (a380_fcom.txt 90812-90815): the ND displays the intruders when the TCAS triggers an
- * alert, the TRAF pb is selected automatically. Before, the TCAS read a TRAF L:var nothing writes and never pushed it.
- */
+/* When the TCAS triggers an alert, the TRAF pb is selected automatically so that the ND shows the intruders. */
 describe('TCAS TRAF pb auto-selection', () => {
   it('selects the TRAF pbs that are off when a TA starts', () => {
     expect(trafPbsToAutoSelect(0, 1, false, true)).toEqual(['L']);

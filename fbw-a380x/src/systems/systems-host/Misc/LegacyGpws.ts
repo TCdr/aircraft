@@ -26,16 +26,16 @@ type ModesType = {
  * This 1:1 port from the A32NX's GPWS+FWS serves as temporary replacement, until a more sophisticated system simulation is in place.
  */
 export class LegacyGpws {
-  /** Mode 4A: TOO LOW TERRAIN instead of TOO LOW GEAR above this speed (A380 FCOM DSC-34-20-20-10) */
+  /** Mode 4A: TOO LOW TERRAIN instead of TOO LOW GEAR above this speed */
   static readonly MODE_4A_TERRAIN_SPEED_KT = 200;
 
-  /** Mode 4B: TOO LOW TERRAIN instead of TOO LOW FLAPS above this speed (A380 FCOM DSC-34-20-20-10) */
+  /** Mode 4B: TOO LOW TERRAIN instead of TOO LOW FLAPS above this speed */
   static readonly MODE_4B_TERRAIN_SPEED_KT = 180;
 
   /**
-   * Whether the crew can rely on the terrain awareness (TAD) function, for the mode 4 envelope. Design choice: the
-   * FCOM names the aircraft position and the terrain database; the sim has neither failure, so the TERR SYS pb
-   * (MFD SURV CONTROLS, L:A32NX_GPWS_TERR_OFF) and the TERR failure of the AESU system that provides the TAWS
+   * Whether the crew can rely on the terrain awareness (TAD) function, for the mode 4 envelope. Design choice: on the
+   * aircraft it depends on the aircraft position and the terrain database; the sim has neither failure, so the TERR
+   * SYS pb (MFD SURV CONTROLS, L:A32NX_GPWS_TERR_OFF) and the TERR failure of the AESU system that provides the TAWS
    * (L:A32NX_TERR_n_FAILED, see tawsSystem) stand for it.
    * @returns true when the TAD function is operative
    */
@@ -58,8 +58,8 @@ export class LegacyGpws {
   }
 
   /**
-   * "Stall or windshear alerts override GPWS visual and aural alerts" (A380 FCOM DSC-34-20-20-10, a380_fcom.txt
-   * l.88167): the FWS STALL warning or the reactive WINDSHEAR warning.
+   * Stall and windshear alerts have priority over the GPWS visual and aural alerts: the FWS STALL warning or the
+   * reactive WINDSHEAR warning.
    * @returns true while one of them is on, the GPWS modes then give no alert
    */
   static isStallOrWindshearWarningActive(): boolean {
@@ -67,9 +67,8 @@ export class LegacyGpws {
   }
 
   /**
-   * Mode 2B condition "the aircraft is flying an ILS(GLS) approach, and both glide slope and LOC deviations are below 2
-   * dots" (A380 FCOM DSC-34-20-20-10, a380_fcom.txt:88281-88282). One dot: 0.4 degree of glide slope (as mode 5),
-   * 0.8 degree of localizer.
+   * Mode 2B condition: on an ILS (GLS) approach with both the glide slope and the LOC deviations below 2 dots.
+   * One dot: 0.4 degree of glide slope (as mode 5), 0.8 degree of localizer.
    * @returns true when both the glide slope and the localizer are received with less than 2 dots of deviation
    */
   static areIlsDeviationsBelowTwoDots(): boolean {
@@ -91,7 +90,7 @@ export class LegacyGpws {
 
   private pub = this.bus.getPublisher<FwsSoundManagerControlEvents>();
 
-  /** The intermediate callout (a380_fcom.txt l.86537-86547), see shared/src/AutoCallOuts.ts */
+  /** See shared/src/AutoCallOuts.ts */
   private readonly intermediateCallout = new IntermediateCallout();
 
   /** A height callout (or MINIMUM, HUNDRED ABOVE, RETARD) was enqueued during the current update */
@@ -111,7 +110,7 @@ export class LegacyGpws {
 
   Mode4MaxRAAlt: number;
 
-  /** Mode 2, excessive terrain closure rate (GpwsMode2) */
+  /** Mode 2, excessive terrain closure rate */
   private readonly mode2 = new GpwsMode2();
 
   modes: ModesType[];
@@ -153,8 +152,8 @@ export class LegacyGpws {
       },
       // Mode 2 (GpwsMode2)
       {
-        // 0: no warning, 1: "terrain", 2: "pull up". "TERRAIN, TERRAIN" (a380_fcom.txt l.88221-88225), repeated in
-        // mode 2B (l.88292-88294): the aural_terrain voice of the A32NX GPWS.
+        // 0: no warning, 1: "terrain", 2: "pull up". TERRAIN TERRAIN, also in mode 2B: the aural_terrain voice of the
+        // A32NX GPWS.
         current: 0,
         previous: 0,
         type: [{}, { sound: soundList.terrain, soundPeriod: 1.1, gpwsLight: true }, { gpwsLight: true, pullUp: true }],
@@ -183,8 +182,8 @@ export class LegacyGpws {
         // 0: no warning, 1: "glideslope", 2: "hard glideslope" (louder)
         current: 0,
         previous: 0,
-        // "GLIDE SLOPE" repeated while below the glide slope, louder below 300 ft more than 2 dots below
-        // (a380_fcom.txt l.88434-88440): the aural_glideslope_quiet / _loud voices of the A32NX GPWS.
+        // GLIDE SLOPE repeated while below the glide slope, louder below 300 ft more than 2 dots below: the
+        // aural_glideslope_quiet / _loud voices of the A32NX GPWS.
         type: [
           {},
           { sound: soundList.glideslope_quiet, soundPeriod: soundList.glideslope_quiet.length },
@@ -207,7 +206,7 @@ export class LegacyGpws {
   gpwsUpdateDiscreteWords() {
     this.egpwsAlertDiscreteWord1.ssm = Arinc429SignStatusMatrix.NormalOperation;
     this.egpwsAlertDiscreteWord1.setBitValue(11, this.modes[0].current === 1);
-    // PULL UP: mode 1 or mode 2 (the mode 2 bit used to overwrite the mode 1 one, so the PFD never showed a mode 1 PULL UP)
+    // PULL UP: mode 1 or mode 2 in one bit (separate writes would let mode 2 overwrite a mode 1 PULL UP)
     this.egpwsAlertDiscreteWord1.setBitValue(12, this.modes[0].current === 2 || this.modes[1].current === 2);
     this.egpwsAlertDiscreteWord1.setBitValue(13, this.modes[1].current === 1);
     this.egpwsAlertDiscreteWord1.setBitValue(14, this.modes[2].current === 1);
@@ -299,7 +298,7 @@ export class LegacyGpws {
     // EGPWS receives ADR1 only
     const baroAlt = Arinc429Word.fromSimVarValue('L:A32NX_ADIRS_ADR_1_BARO_CORRECTED_ALTITUDE_1');
     // the callouts and the GPWS modes use the radio height of the PFDs, voted from the three RAs: median of three,
-    // average of two, else the remaining one (a380_fcom.txt l.86462-86466, l.86475-86477)
+    // average of two, else the remaining one
     const radioAlt = voteRadioAltitude([
       Arinc429Word.fromSimVarValue('L:A32NX_RA_1_RADIO_ALTITUDE'),
       Arinc429Word.fromSimVarValue('L:A32NX_RA_2_RADIO_ALTITUDE'),
@@ -366,7 +365,7 @@ export class LegacyGpws {
       this.GPWSMode3(this.modes[2], radioAlt.value, phase);
       this.GPWSMode4(this.modes[3], radioAlt.value, Airspeed, FlapsInLandingConfig, gearExtended, phase);
       this.GPWSMode5(this.modes[4], radioAlt.value, gearExtended);
-      // "Stall or windshear alerts override GPWS visual and aural alerts" (a380_fcom.txt l.88167)
+      // Stall and windshear alerts have priority over the GPWS alerts
       if (LegacyGpws.isStallOrWindshearWarningActive()) {
         this.modes.forEach((mode) => {
           mode.current = 0;
@@ -400,7 +399,7 @@ export class LegacyGpws {
   }
 
   /**
-   * The intermediate callout (a380_fcom.txt l.86537-86547). It waits while the height callouts are not made: on
+   * The intermediate callout. It waits while the height callouts are not made: on
    * ground, climbing (the radio height increasing for 0.3 s, as the A32NX FWC), RETARD, or a GPWS alert.
    * @param radioAlt the radio height in feet, null when invalid
    * @param onGround the aircraft is on ground
@@ -565,20 +564,18 @@ export class LegacyGpws {
       mode.current = 0;
       return;
     }
-    // FLAP MODE OFF on the MFD SURV CONTROLS page inhibits mode 4B (A380 FCOM DSC-34-SURV, TOO LOW FLAPS)
+    // FLAP MODE OFF on the MFD SURV CONTROLS page inhibits mode 4B TOO LOW FLAPS
     const FlapModeOff = SimVar.GetSimVarValue('L:A32NX_GPWS_FLAPS_OFF', 'Bool');
 
-    // Mode 4 A and B logic. A380 FCOM DSC-34-20-20-10 (a380_fcom.txt l.88330-88337, l.88380-88387): mode 4A gives
-    // TOO LOW TERRAIN instead of TOO LOW GEAR "if the aircraft speed is above 200 kt", mode 4B instead of TOO LOW
-    // FLAPS "above 180 kt" (the A320 values 190 kt and 159 kt were used). The FCOM figures (PDF p.3130-3135) give a
-    // flat ceiling, 500 ft (4A) and 245 ft (4B), and "if system data (e.g. aircraft position or terrain database)
-    // does not enable the flight crew to rely on the TAD function" a ceiling rising to 1 000 ft (design choice: at
-    // 250 kt, as the A320 one; the figure is not precise enough to read the speed).
+    // Mode 4 A and B logic: mode 4A gives TOO LOW TERRAIN instead of TOO LOW GEAR above 200 kt, mode 4B instead of
+    // TOO LOW FLAPS above 180 kt (A380 values, not the A320 190 kt and 159 kt). The ceiling is flat, 500 ft (4A) and
+    // 245 ft (4B); when the crew cannot rely on the TAD function it rises to 1 000 ft (design choice: reached at
+    // 250 kt, as on the A320; the published envelope is not precise enough to read the speed).
     const terrainFunctionOperative = LegacyGpws.isTerrainFunctionOperative();
-    // Each branch sets mode.current in every case: below the ceiling at a low speed (no TOO LOW TERRAIN), the alert
-    // stopped when the aircraft climbed back above the ceiling (it stayed on before).
+    // Each branch sets mode.current in every case, so the alert stops when the aircraft climbs back above the ceiling
+    // at a low speed (no TOO LOW TERRAIN).
     if (!gearExtended && !FlapsInLandingConfig && phase === FmgcFlightPhase.Approach) {
-      // Mode 4A: "landing gear up and the flaps not extended for landing" (l.88328-88337)
+      // Mode 4A: landing gear up and the flaps not in the landing configuration
       if (speed < LegacyGpws.MODE_4A_TERRAIN_SPEED_KT) {
         mode.current = radioAlt < 500 ? 1 : 0;
       } else {
@@ -588,14 +585,13 @@ export class LegacyGpws {
         mode.current = radioAlt < maxWarnAlt ? 3 : 0;
       }
     } else if (!gearExtended && phase === FmgcFlightPhase.Approach) {
-      // Mode 4B "landing gear up and the flaps extended for landing" (l.88360-88366): TOO LOW GEAR only, no TOO LOW
-      // TERRAIN at any speed. The FCOM figure Mode 4B Gear Up and Flaps in Landing Configuration (PDF p.3133) gives a
-      // flat 245 ft ceiling up to 400 kt, and has no TERR-function-not-operative variant. Design choice: FLAP MODE OFF
-      // does not inhibit it, the button is for "a landing with abnormal flaps configuration" (l.88410-88412) and only
-      // the flaps signal changes with it (the gear-up warning stays).
+      // Mode 4B, landing gear up and the flaps in the landing configuration: TOO LOW GEAR only, no TOO LOW TERRAIN at
+      // any speed. The ceiling is a flat 245 ft up to 400 kt, with no variant for an inoperative TERR function.
+      // Design choice: FLAP MODE OFF does not inhibit it; the button is for a landing with an abnormal flaps
+      // configuration and only the flaps signal changes with it (the gear-up warning stays).
       mode.current = radioAlt < 245 ? 1 : 0;
     } else if (!FlapsInLandingConfig && !FlapModeOff && phase === FmgcFlightPhase.Approach) {
-      // Mode 4B "landing gear down and the flaps not extended for landing" (l.88378-88386)
+      // Mode 4B: landing gear down and the flaps not in the landing configuration
       if (speed < LegacyGpws.MODE_4B_TERRAIN_SPEED_KT) {
         mode.current = radioAlt < 245 ? 2 : 0;
       } else {
@@ -624,9 +620,8 @@ export class LegacyGpws {
    * @constructor
    */
   /**
-   * Mode 5, excessive glide slope deviation.
-   * "Mode 5 is active during approach, if the landing gear is down, and the aircraft is below 1 000 ft and above
-   * 30 ft AGL" (a380_fcom.txt l.88445-88446).
+   * Mode 5, excessive glide slope deviation. Active on approach with the landing gear down, between 30 ft and
+   * 1 000 ft AGL.
    * @param mode the mode 5 state
    * @param radioAlt the radio height in feet
    * @param gearExtended true when the landing gear is down
@@ -809,7 +804,7 @@ export class LegacyGpws {
         if (radioAlt > 1020) {
           this.AltCallState.action('up');
         } else if (radioAlt <= 513) {
-          // FIVE HUNDRED, or smart FIVE HUNDRED: only when off the glide by more than half a dot (FCOM DSC-34-10-50)
+          // FIVE HUNDRED, or smart FIVE HUNDRED: only when off the glide by more than half a dot
           const glideValid = SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_IS_VALID', 'number') > 0;
           // one dot is approx. 0.4 degrees, as in GPWSMode5
           const glideDots = SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_DEVIATION', 'number') * 2.5;

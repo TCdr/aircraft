@@ -5,7 +5,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 
-/* The EcamInfos table is read from the source text (EcamMessages/index.ts import cycle, see FwsElecAlertsStatus.spec.ts) */
+/* EcamInfos is read from the source text (EcamMessages/index.ts import cycle, see FwsElecAlertsStatus.spec.ts) */
 const ecamMessages = readFileSync(
   resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
   'utf-8',
@@ -19,9 +19,9 @@ function infoText(key: string): string | undefined {
   return line ? line[1].replace(/\\xa0/g, ' ') : undefined;
 }
 
-/* A380 FCOM PRO-ABN-ECAM-10-34 NAV ALL AIR DATA DISAGREE (Cont'd), ALL AIR DATA REJECTED BY PRIMs (a380_fcom.txt l.164360-164364) */
+/* NAV ALL AIR DATA DISAGREE, with all the air data rejected by the PRIMs */
 describe('A380X NAV ALL AIR DATA DISAGREE STATUS INFO, radome destruction', () => {
-  it('has the FCOM lines IF RADOME DESTRUCTION : / INCREASE THRUST BY 5 % / FUEL CONSUMPT INCRSD / FMS FUEL PRED DISREGARD', () => {
+  it('has the lines IF RADOME DESTRUCTION: / INCREASE THRUST BY 5 % / FUEL CONSUMPT INCRSD / FMS FUEL PRED DISREGARD', () => {
     expect(['340200016', '340200017', '340200018', '340200019'].map(infoText)).toEqual([
       'IF RADOME DESTRUCTION :',
       '  INCREASE THRUST BY 5 %',
