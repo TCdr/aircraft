@@ -112,7 +112,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Sense the WXR & TAWS and XPDR & TCAS lines of the ECAM procedures and add the CABIN CREW line to the ECAM LINE-UP checklist - @TCdr
 1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
 1. [A380X/FMS] 50 pilot-stored waypoints: the oldest one not used in a flight plan is replaced, 50 WPTS MAX : ALL IN USE when all are used - @TCdr
-1. [EFB] Add the A380 landing calculator and rework the A320 one: dispatch and in-flight landing distances from the FCOM, FMS data import, BTV exit advice on the A380 - @TCdr
+1. [EFB] Add the A380 landing calculator and rework the A320 one: dispatch and in-flight landing distances of the aircraft, FMS data import, BTV exit advice on the A380 - @TCdr
 1. [EFB] Replace the top of descent calculator with a descent calculator: ECON, standard, given V/S and emergency descents from the FMS performance model, descent profile and descent check - @TCdr
 1. [EFB] Descent calculator: a waypoint of the FMS flight plan as the target, with its altitude constraint and its distance along the route - @TCdr
 1. [A380X/EFB] Landing calculator: BTV braking mode, landing at the BTV DRY or WET line - @TCdr
@@ -134,33 +134,33 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] The flyPad error screen shows the error, where it was thrown and in which page components - @TCdr
 1. [EFB] Landing calculator: a wind above the crosswind maximum or the tailwind limit no longer stops the calculation: the results show a warning banner (tailwind figures extrapolated and marked ~ and †), and a Wind check tab ranks the destination runways by wind and checks the OFP alternate with its METAR, each loadable into the calculator - @TCdr
 1. [EFB] Settings > flyPad: custom theme (Grey, Black or Light base with a primary and a secondary colour picked from swatches or a colour wheel, contrast-checked); the Blue, Dark and Light themes are unchanged - @TCdr
-1. [A32NX/EFB] New Performance > Buffet tab: the buffet onset envelope (coffin corner) from the A320 FCOM chart, live or what-if, with the buffet margin, max bank, 1.3 g ceiling and Mach range and the FMS REC MAX - @TCdr
+1. [A32NX/EFB] New Performance > Buffet tab: the buffet onset envelope (coffin corner) of the A320 chart, live or what-if, with the buffet margin, max bank, 1.3 g ceiling and Mach range and the FMS REC MAX - @TCdr
 1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
 1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
-1. [A380X/MFD] The default alternate cruise level now follows the A380 FCOM (FL 220 below 200 NM, FL 310 from 200 NM) instead of the A320 rule - @TCdr
+1. [A380X/MFD] The default alternate cruise level now follows the aircraft rules (FL 220 below 200 NM, FL 310 from 200 NM) instead of the A320 rule - @TCdr
 1. [A380X/MFD] The WIND page CRZ tab now has a working SAT entry at the cruise flight level - @TCdr
-1. [A380X/MFD] The history winds of the WIND page now show the CRZ FL and FL 250, 150 and 050 as in the FCOM, and the stored history winds are kept when the storage key changes - @TCdr
-1. [A380X/MFD] Company wind messages use the FCOM wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
+1. [A380X/MFD] The history winds of the WIND page now show the CRZ FL and FL 250, 150 and 050 as on the aircraft, and the stored history winds are kept when the storage key changes - @TCdr
+1. [A380X/MFD] Company wind messages use the aircraft wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
 1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
 1. [A380X/EFB] The flyPad cargo door row shows the real forward and aft doors, and says when the open request waits for hydraulic power (engines running) - @TCdr
 1. [Pushback] The pushback goes on when another flyPad page is opened, still steered with the rudder pedals and the sidestick - @TCdr
 1. [A380X/EFB] Ground > Services: the aft right door button is labelled Main 5 R (it opens MAIN 5R, the door the SD DOOR page and the FWS show), and its planform marker sits on door 5 R; a new Main 4 R button opens and closes MAIN 4R (the catering truck still docks at MAIN 5R) - @TCdr
-1. [A32NX/MCDU] PROG page: with one engine out, REC MAX shows the engine-out recommended maximum altitude (long-range cruise ceiling), as in the FCOM; the flyPad Buffet page gets the same value - @TCdr
-1. [A32NX/TCAS] TRAFFIC selector on THRT: the proximate and other intruders within 2700 ft above and below are now shown on the ND while a TA or RA is present, as in the FCOM (before only the TA/RA intruders were shown) - @TCdr
+1. [A32NX/MCDU] PROG page: with one engine out, REC MAX shows the engine-out recommended maximum altitude (long-range cruise ceiling), as on the aircraft; the flyPad Buffet page gets the same value - @TCdr
+1. [A32NX/TCAS] TRAFFIC selector on THRT: the proximate and other intruders within 2700 ft above and below are now shown on the ND while a TA or RA is present, as on the aircraft (before only the TA/RA intruders were shown) - @TCdr
 1. [ND] TCAS: CHANGE MODE (ND in PLAN) and TCAS: REDUCE RANGE (ND range above 40 NM) are shown while a TA (amber) or an RA (red) cannot be seen on the ND; on the A380X also TCAS: INCREASE RANGE in ROSE-VOR/ROSE-LS with the ZOOM range in flight - @TCdr
 1. [A380X/SURV] Pressing the lit WXR/TAWS SYS 1 or SYS 2 pb (SURV panel or MFD SURV STATUS & SWITCHING) keeps that system selected instead of selecting none, which failed TERR and GPWS - @TCdr
-1. [A380X/TCAS] The EFIS CP TRAF pb now shows all the traffic on the ND (it was ignored), and a TCAS TA or RA selects it automatically, as in the FCOM - @TCdr
-1. [A32NX/MCDU] PLACE/DIST waypoints (for example LMG/-15) can be entered on the F-PLN page and as LAT REV NEXT WPT: the PDnn waypoint goes on the flight plan path at that distance after (or before, negative distance) the flight plan waypoint, without a discontinuity, as in the FCOM - @TCdr
-1. [A380X/MFD] INSERT NEXT WPT accepts PLACE/DIST waypoints of the revised waypoint (PLACE / WPT DISAGREE for another place, ENTRY OUT OF RANGE beyond the neighbouring waypoint), as in the FCOM - @TCdr
+1. [A380X/TCAS] The EFIS CP TRAF pb now shows all the traffic on the ND (it was ignored), and a TCAS TA or RA selects it automatically - @TCdr
+1. [A32NX/MCDU] PLACE/DIST waypoints (for example LMG/-15) can be entered on the F-PLN page and as LAT REV NEXT WPT: the PDnn waypoint goes on the flight plan path at that distance after (or before, negative distance) the flight plan waypoint, without a discontinuity - @TCdr
+1. [A380X/MFD] INSERT NEXT WPT accepts PLACE/DIST waypoints of the revised waypoint (PLACE / WPT DISAGREE for another place, ENTRY OUT OF RANGE beyond the neighbouring waypoint) - @TCdr
 1. [A32NX/MCDU] HOLD from the LAT REV at PPOS (the FROM waypoint) creates a hold at the present position on the aircraft track, instead of a hold at the waypoint behind the aircraft - @TCdr
-1. [A380X/MFD] The HOLD revision of the FROM waypoint creates a hold at P.POS on the aircraft track, as in the FCOM (it was greyed out) - @TCdr
+1. [A380X/MFD] The HOLD revision of the FROM waypoint creates a hold at P.POS on the aircraft track, as on the aircraft (it was greyed out) - @TCdr
 1. [A32NX/MCDU] DIR TO page: ABEAM PTS, RADIAL IN (with the default inbound radial of a flight plan waypoint) and RADIAL OUT now build the DIR TO temporary flight plan instead of NOT YET IMPLEMENTED - @TCdr
-1. [A32NX/MCDU] The PROG page OPT FL is the best specific range level for the gross weight (FCOM long range cruise table), never above REC MAX, instead of the REC MAX rounded down - @TCdr
+1. [A32NX/MCDU] The PROG page OPT FL is the best specific range level for the gross weight (long range cruise table), never above REC MAX, instead of the REC MAX rounded down - @TCdr
 1. [A380X/MFD] PERF page CLB and DES tabs show the time and distance to the PRED TO altitude instead of dashes - @TCdr
-1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan, as in the FCOM - @TCdr
+1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan - @TCdr
 1. [GPU] External power becomes available as soon as the sim's ground power does (GSX GPU, sim GPU or jetway power connected after the flight is loaded), without waiting for the GPU door animation - @TCdr
 1. [EFB] Taxi page on the A380: taxiways narrower than 25 m (code F) or limited to a smaller wingspan in the airport map are avoided by the suggested route, marked on the map and flagged in a cleared route; widths without data show as not verified; an airport check gives the share of the taxi lines under 25 m and warns when no route to the departure runway entry is wide enough (A380 AC 3-3-3: code 4E aerodromes only under specific conditions) - @TCdr
 
