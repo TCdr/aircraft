@@ -22,7 +22,10 @@ use std::time::Duration;
 
 use systems::{
     failures::{Failure, FailureType},
-    shared::{arinc429::SignStatus, ElectricalBusType, ElectricalBuses},
+    shared::{
+        arinc429::{Arinc429Word, SignStatus},
+        ElectricalBusType, ElectricalBuses,
+    },
     simulation::{
         InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
         SimulatorWriter, UpdateContext, VariableIdentifier, Write,
@@ -40,7 +43,8 @@ struct Tyre {
     brake_temperature_id: Option<VariableIdentifier>,
 
     nominal_pressure: Pressure,
-    deflation_failure: Failure,
+    leak_failure: Failure,
+    burst_failure: Failure,
 
     /// The temperature of the gas, None until the first update (it starts at the outside air temperature)
     gas_temperature: Option<ThermodynamicTemperature>,
@@ -48,13 +52,17 @@ struct Tyre {
     inflation_temperature: Option<ThermodynamicTemperature>,
     /// The brake temperature of a main wheel (degrees Celsius, REPORTED_BRAKE_TEMPERATURE_n)
     brake_temperature_celsius: Option<f64>,
-    /// The part of the inflation gas left in the tyre (1 inflated, 0 deflated)
-    inflation_ratio: f64,
+    /// The pressure lost through a leak or a burst (0 for a sound tyre)
+    leaked_pressure: Pressure,
 }
 impl Tyre {
     const GAS_TEMPERATURE_TIME_CONSTANT: Duration = Duration::from_secs(2 * 3600);
     const BRAKE_HEAT_RATIO: f64 = 0.15;
-    const DEFLATION_TIME_CONSTANT: Duration = Duration::from_secs(20);
+    /// Design choice, as on the A380X (the manufacturer gives no rate): 10 PSI/min takes a main tyre below the 89 %
+    /// on-ground threshold of WHEEL TYRE LO PR in about 2 min
+    const LEAK_RATE_PSI_PER_MINUTE: f64 = 10.;
+    /// Design choice: a burst tyre is nearly empty within a minute
+    const BURST_TIME_CONSTANT: Duration = Duration::from_secs(20);
 
     fn new_main(context: &mut InitContext, number: usize, nominal_pressure: Pressure) -> Self {
         let brake_temperature_id =
@@ -64,7 +72,7 @@ impl Tyre {
             format!("TPIS_MAIN_{number}_TYRE_PRESSURE"),
             Some(brake_temperature_id),
             nominal_pressure,
-            FailureType::TyreDeflated(number),
+            number,
         )
     }
 
@@ -74,7 +82,7 @@ impl Tyre {
             format!("TPIS_NOSE_{number}_TYRE_PRESSURE"),
             None,
             nominal_pressure,
-            FailureType::TyreDeflated(4 + number),
+            4 + number,
         )
     }
 
@@ -83,17 +91,18 @@ impl Tyre {
         pressure_name: String,
         brake_temperature_id: Option<VariableIdentifier>,
         nominal_pressure: Pressure,
-        failure_type: FailureType,
+        failure_number: usize,
     ) -> Self {
         Self {
             pressure_id: context.get_identifier(pressure_name),
             brake_temperature_id,
             nominal_pressure,
-            deflation_failure: Failure::new(failure_type),
+            leak_failure: Failure::new(FailureType::TyreDeflated(failure_number)),
+            burst_failure: Failure::new(FailureType::TyreBurst(failure_number)),
             gas_temperature: None,
             inflation_temperature: None,
             brake_temperature_celsius: None,
-            inflation_ratio: 1.,
+            leaked_pressure: Pressure::new::<psi>(0.),
         }
     }
 
@@ -116,20 +125,27 @@ impl Tyre {
         );
         self.gas_temperature = Some(ThermodynamicTemperature::new::<kelvin>(gas_kelvin));
 
-        self.inflation_ratio = if self.deflation_failure.is_active() {
-            Self::first_order_step(
-                self.inflation_ratio,
+        self.leaked_pressure = if self.burst_failure.is_active() {
+            let remaining = self.nominal_pressure - self.leaked_pressure;
+            let remaining_after = Self::first_order_step(
+                remaining.get::<psi>(),
                 0.,
                 context.delta(),
-                Self::DEFLATION_TIME_CONSTANT,
-            )
+                Self::BURST_TIME_CONSTANT,
+            );
+            self.nominal_pressure - Pressure::new::<psi>(remaining_after)
+        } else if self.leak_failure.is_active() {
+            self.leaked_pressure
+                + Pressure::new::<psi>(
+                    Self::LEAK_RATE_PSI_PER_MINUTE * context.delta().as_secs_f64() / 60.,
+                )
         } else {
-            1.
+            Pressure::new::<psi>(0.)
         };
     }
 
-    /// The gauge pressure: the absolute inflation pressure scaled by the gas temperature ratio (Gay-Lussac) and by the
-    /// gas left in the tyre, minus the outside pressure
+    /// The gauge pressure: the absolute inflation pressure scaled by the gas temperature ratio (Gay-Lussac), minus the
+    /// outside pressure and the pressure lost through a leak
     fn pressure(&self, context: &UpdateContext) -> Pressure {
         let (Some(gas), Some(inflation)) = (self.gas_temperature, self.inflation_temperature)
         else {
@@ -138,7 +154,7 @@ impl Tyre {
         let ambient_pressure = context.ambient_pressure();
         let inflated_absolute = (self.nominal_pressure + ambient_pressure)
             * (gas.get::<kelvin>() / inflation.get::<kelvin>());
-        (inflated_absolute * self.inflation_ratio - ambient_pressure).max(Pressure::new::<psi>(0.))
+        (inflated_absolute - ambient_pressure - self.leaked_pressure).max(Pressure::new::<psi>(0.))
     }
 
     /// One step of a first order lag from `value` to `target`
@@ -149,13 +165,17 @@ impl Tyre {
 }
 impl SimulationElement for Tyre {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
-        self.deflation_failure.accept(visitor);
+        self.leak_failure.accept(visitor);
+        self.burst_failure.accept(visitor);
         visitor.visit(self);
     }
 
     fn read(&mut self, reader: &mut SimulatorReader) {
+        // The hydraulic brake model publishes the reported brake temperatures as ARINC 429 words: the brake heat is
+        // only taken from a word in normal operation (none while the brakes report no data)
         if let Some(id) = &self.brake_temperature_id {
-            self.brake_temperature_celsius = Some(reader.read(id));
+            let word: Arinc429Word<f64> = reader.read_arinc429(id);
+            self.brake_temperature_celsius = word.normal_value();
         }
     }
 }
@@ -309,12 +329,14 @@ mod tests {
         }
     }
 
-    /// The brakes at the given temperature (degrees Celsius), REPORTED_BRAKE_TEMPERATURE_1 to 4
+    /// The brakes at the given temperature (degrees Celsius), REPORTED_BRAKE_TEMPERATURE_1 to 4, written as the
+    /// hydraulic brake model publishes them: ARINC 429 words in normal operation
     fn set_brake_temperatures(test_bed: &mut SimulationTestBed<TestAircraft>, celsius: [f64; 4]) {
         for (index, temperature) in celsius.iter().enumerate() {
-            test_bed.write_by_name(
+            test_bed.write_arinc429_by_name(
                 &format!("REPORTED_BRAKE_TEMPERATURE_{}", index + 1),
                 *temperature,
+                SignStatus::NormalOperation,
             );
         }
     }
@@ -394,12 +416,54 @@ mod tests {
         assert_about_eq!(pressure_psi(&mut test_bed, "NOSE_1"), 180., 0.5);
     }
 
+    /// A brake temperature word without computed data (brakes not reported yet) adds no brake heat
+    #[test]
+    fn a_brake_temperature_without_data_adds_no_brake_heat() {
+        let mut test_bed = test_bed();
+        test_bed.write_arinc429_by_name(
+            "REPORTED_BRAKE_TEMPERATURE_1",
+            300.,
+            SignStatus::NoComputedData,
+        );
+        run_minutes(&mut test_bed, 60);
+
+        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_1"), 200., 0.5);
+    }
+
+    /// A deflating tyre leaks 10 PSI/min (as the A380X TPIS): about 2 min to the 89 % on-ground threshold
+    #[test]
+    fn a_deflating_tyre_leaks_10_psi_per_minute() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::TyreDeflated(1));
+        run_minutes(&mut test_bed, 1);
+        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_1"), 190., 0.5);
+        run_minutes(&mut test_bed, 2);
+        let main = pressure_psi(&mut test_bed, "MAIN_1");
+        assert!(main < 0.89 * 200. && main > 165., "main tyre 1 {main} psi");
+    }
+
+    /// A burst tyre is nearly empty within a minute, and back when repaired
+    #[test]
+    fn a_burst_tyre_loses_its_pressure_within_a_minute() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::TyreBurst(3));
+        test_bed.run_with_delta(Duration::from_secs(5));
+        assert!(pressure_psi(&mut test_bed, "MAIN_3") < 0.89 * 200.);
+        run_minutes(&mut test_bed, 1);
+        assert!(pressure_psi(&mut test_bed, "MAIN_3") < 15.);
+        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_4"), 200., 0.5);
+
+        test_bed.unfail(FailureType::TyreBurst(3));
+        test_bed.run_with_delta(Duration::from_secs(1));
+        assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_3"), 200., 0.5);
+    }
+
     #[test]
     fn a_deflated_tyre_loses_its_pressure_and_comes_back_when_repaired() {
         let mut test_bed = test_bed();
         test_bed.fail(FailureType::TyreDeflated(2));
         test_bed.fail(FailureType::TyreDeflated(6));
-        run_minutes(&mut test_bed, 2);
+        run_minutes(&mut test_bed, 25);
 
         assert!(pressure_psi(&mut test_bed, "MAIN_2") < 5.);
         assert!(pressure_psi(&mut test_bed, "NOSE_2") < 5.);
