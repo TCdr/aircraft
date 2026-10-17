@@ -6,10 +6,10 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 
 /*
- * A380 FCOM DSC-70-90 ENG MASTER FAULT light (a380_fcom.txt l.112849-112859): it comes on when an automatic start
- * sequence aborts (or for an abnormal HP fuel valve position or an overthrust shutdown, which FBW does not model). The
- * FADEC start sequence of systems.wasm writes L:A32NX_ENGINE_n_FAULT_LIGHT for an aborted automatic start. The light is
- * the SEQ2 of the cockpit XML template FBW_Airbus_Engine_Lights, so this checks that template, evaluated for each engine.
+ * ENG MASTER FAULT light: it comes on when an automatic start sequence aborts (or for an abnormal HP fuel valve
+ * position or an overthrust shutdown, which FBW does not model). The FADEC start sequence of systems.wasm writes
+ * L:A32NX_ENGINE_n_FAULT_LIGHT for an aborted automatic start. The light is the SEQ2 of the cockpit XML template
+ * FBW_Airbus_Engine_Lights, so this checks that template, evaluated for each engine.
  */
 const behaviourDir = resolve(
   __dirname,
@@ -43,7 +43,7 @@ function evaluate(code: string, variables: Record<string, boolean>): boolean {
   return !!variables[read[1].trim()];
 }
 
-describe('ENG MASTER FAULT light (A380 FCOM DSC-70-90)', () => {
+describe('ENG MASTER FAULT light', () => {
   it('is used for the four ENG MASTER levers, with engine ids 1 to 4', () => {
     expect(cockpitXml.match(/<UseTemplate Name="FBW_Airbus_Engine_Lights">/g)).toHaveLength(4);
     for (const engine of [1, 2, 3, 4]) {

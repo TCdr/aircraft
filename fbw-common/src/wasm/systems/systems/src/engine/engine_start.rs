@@ -2,8 +2,8 @@
 //! (ATA 74 IGNITION, ATA 80 STARTING).
 //!
 //! The FBW FADEC (C++) runs the engine model (engine states OFF, ON, STARTING, RESTARTING,
-//! SHUTTING; N1, N2, EGT, fuel flow). What a real FADEC also does during a start, and FBW lacked, is
-//! modelled here, where it can be tested:
+//! SHUTTING; N1, N2, EGT, fuel flow). What a real FADEC also does during a start is modelled here,
+//! where it can be tested:
 //! - the igniters it energizes: one igniter for a first automatic start on the ground, alternated
 //!   between starts, both for a new attempt, a manual start and an in-flight start; continuous
 //!   ignition; igniter failures (an igniter that has failed does not light the engine);
@@ -17,12 +17,8 @@
 //! - the start valve command of these functions, and the start valve failures (stuck closed, stuck
 //!   open) with their detection (start valve position disagrees with its command).
 //!
-//! Both FCOMs describe the same FADEC functions, with different numbers: each aircraft gives its
-//! own [`EngineStartSchedule`].
-//! - A320 FCOM DSC-70-80-30 IGNITION, DSC-70-80-40 STARTING, PRO-ABN-ENG ENG 1(2) START FAULT,
-//!   START VALVE FAULT, IGN FAULT, PRO-NOR-SUP-ENG MANUAL ENGINE START and ENGINE VENTILATION.
-//! - A380 FCOM DSC-70-80-20 IGNITION, DSC-70-80-30 STARTING, DSC-70-80-40 CRANKING,
-//!   PRO-ABN-ECAM-10-70 ENG START FAULT, START VLV FAULT, IGN FAULT.
+//! The A320 and the A380 FADECs have the same functions with different numbers: each aircraft
+//! gives its own [`EngineStartSchedule`].
 //!
 //! What the FADEC (C++) does with the outputs (each one is an L:var of the engine):
 //! - `ENGINE_n_STARTER_MOTORING`: it keeps the MSFS starter engaged although the engine fuel is cut
@@ -47,7 +43,7 @@ use uom::si::{
     ratio::percent,
 };
 
-/// The numbers of the start sequence of an aircraft, from its FCOM.
+/// The numbers of the start sequence of an aircraft.
 #[derive(Clone, Copy, Debug)]
 pub struct EngineStartSchedule {
     /// Automatic start on the ground: the ignition comes on at this N2.
@@ -76,7 +72,7 @@ pub struct EngineStartSchedule {
     pub automatic_start_attempts: u8,
     /// The dry crank after an aborted attempt lasts this long.
     pub automatic_crank_time: Duration,
-    /// The FADEC monitors the time the starter runs, if the FCOM gives a limit.
+    /// The FADEC monitors the time the starter runs, if the aircraft has a limit.
     pub starter_time_limit: Option<Duration>,
     /// The continuous ignition uses both igniters; otherwise one igniter, and both if it has failed.
     pub continuous_ignition_uses_both_igniters: bool,
@@ -129,10 +125,9 @@ pub enum EngineStartFault {
     StarterTimeExceeded = 8,
 }
 impl EngineStartFault {
-    /// The faults after which an automatic start on the ground is aborted. A320 FCOM DSC-70-80-40
-    /// PROTECTION (a320_fcom.txt l.63596-63606): "Detects a hot start, a hung start, a stall, or no
-    /// light up ... Runs an abort sequence if a start aborts on the ground". A380 FCOM DSC-70-80-30-20
-    /// (a380_fcom.txt l.112476-112493), with the starter failure: no further attempt.
+    /// The faults after which an automatic start on the ground is aborted: a hot start, a hung
+    /// start, a stall or no light up; on the A380 also a starter failure, then without further
+    /// attempt.
     fn aborts_an_automatic_start(self) -> bool {
         matches!(
             self,
@@ -289,20 +284,22 @@ pub struct EngineStartSequence {
     start_valve_command: StartValveCommand,
 }
 impl EngineStartSequence {
-    /// Design choice, no FCOM value: the stall of a start is detected this long after the light-up
-    /// (the FADEC detects it from the compressor pressure, which the FBW engine model has not).
+    /// Design choice, no published value: the stall of a start is detected this long after the
+    /// light-up (the FADEC detects it from the compressor pressure, which the FBW engine model has
+    /// not).
     const STALL_DETECTION_TIME: Duration = Duration::from_secs(3);
-    /// Design choice, no FCOM value: a hung start is a core speed that rises by less than 1 % in
-    /// 20 s after the light-up, below the end of the start, while the starter has its air (a core
-    /// without starter air is LOW START AIR, not a hung start). A slow but healthy MSFS spool-up
-    /// (0.08 %/s, 1.6 % in 20 s) is never one.
+    /// Design choice, no published value: a hung start is a core speed that rises by less than 1 %
+    /// in 20 s after the light-up, below the end of the start, while the starter has its air (a
+    /// core without starter air is LOW START AIR, not a hung start). A slow but healthy MSFS
+    /// spool-up (0.08 %/s, 1.6 % in 20 s) is never one.
     const HUNG_START_WINDOW: Duration = Duration::from_secs(20);
     const HUNG_START_MIN_RISE_PERCENT: f64 = 1.;
-    /// Design choice, no FCOM value: a starter that gets air but leaves the core below 5 % N2 for
-    /// 10 s has failed (starter shaft shear).
+    /// Design choice, no published value: a starter that gets air but leaves the core below 5 % N2
+    /// for 10 s has failed (starter shaft shear).
     const STARTER_FAULT_MAX_N2_PERCENT: f64 = 5.;
     const STARTER_FAULT_DETECTION_TIME: Duration = Duration::from_secs(10);
-    /// Design choice, no FCOM value: the start valve is open and the starter has had no air for 10 s.
+    /// Design choice, no published value: the start valve is open and the starter has had no air
+    /// for 10 s.
     const LOW_START_AIR_DETECTION_TIME: Duration = Duration::from_secs(10);
 
     pub fn new(context: &mut InitContext, engine_number: usize) -> Self {
@@ -389,16 +386,15 @@ impl EngineStartSequence {
 
         if !on_ground {
             // The start sequence, its automatic abort and the cranks are ground functions. In flight
-            // the FADEC "always commands a starter-assisted air start" (A320 FCOM l.63782) and "the
-            // automatic start is not aborted" (A380 FCOM l.112512): see engine_failure for the relight.
+            // the A320 FADEC always commands a starter-assisted air start and the A380 FADEC does
+            // not abort an automatic start: see engine_failure for the relight.
             // A starter fault found in flight stays (see update_in_flight_starter_fault).
             self.end_start(self.start_fault == EngineStartFault::StarterFault);
             self.phase = EngineStartPhase::None;
         } else if master_turned_off {
-            // A320 FCOM DSC-70-80-40 (l.63740-63744): with the ENG MASTER OFF the FADEC "Closes the LP
-            // and the HP fuel shutoff valves - Stops to energize the ignitor - Closes the engine start
-            // valve"; PRO-ABN-ENG (l.81484): "Setting ENG MASTER to OFF confirms automatic start
-            // abort". A380 FCOM l.112520-112524: "Resets the FADEC".
+            // The ENG MASTER OFF closes the LP and HP fuel shutoff valves, stops the ignition and
+            // closes the start valve; it also confirms the abort of an automatic start (A320) and
+            // resets the FADEC (A380).
             self.end_start(false);
             self.phase = Self::phase_with_master_off(inputs);
         } else if master_turned_on {
@@ -430,9 +426,8 @@ impl EngineStartSequence {
             && (self.hot_start_failure.is_active() || self.start_stall_failure.is_active());
 
         // The start valve opens with the start (ENG MASTER ON, or the ENG MAN START pb ON before it)
-        // and closes at the end of the starter assistance: A320 FCOM DSC-70-80-40 (l.63704,
-        // 63711-63713): "The engine start valve opens ... When N2 > 50 %: The engine start valve
-        // closes"; A380 FCOM DSC-70-30 (l.113558). The start sequence commands it from the first
+        // and closes at the end of the starter assistance (above 50 % N2 on the A320). The start
+        // sequence commands it from the first
         // frame of its phase: the engine state of the FADEC (the schedule of the pneumatic system)
         // follows one frame later, and a start valve closed for a frame would release the starter.
         let below_start_valve_closing = inputs.core_speed < schedule.start_valve_close_n2;
@@ -481,8 +476,6 @@ impl EngineStartSequence {
 
     /// The ENG MASTER is OFF on the ground: the starter turns the core with the ENG MAN START pb ON,
     /// at CRANK (dry crank) or IGN/START (manual start, before the ENG MASTER ON).
-    /// A320 FCOM DSC-70-90-10 (l.63828-63840), DSC-70-80-40 (l.63757-63765, 63801-63803); A380 FCOM
-    /// DSC-70-80-30-30 (l.112606-112607), DSC-70-80-40 (l.112654-112660).
     fn phase_with_master_off(inputs: &EngineStartInputs) -> EngineStartPhase {
         let motoring = inputs.manual_start_is_on
             && matches!(
@@ -508,16 +501,15 @@ impl EngineStartSequence {
             EngineStartPhase::None
         } else {
             match inputs.mode_selector {
-                // A320 FCOM l.63755-63766: manual start = IGN/START, MAN START ON, ENG MASTER ON;
-                // otherwise the automatic start (l.63684-63712).
+                // Manual start = IGN/START, MAN START ON, ENG MASTER ON; otherwise the automatic
+                // start.
                 EngineModeSelector::Ignition => {
                     self.manual_start = inputs.manual_start_is_on;
                     self.begin_attempt(1);
                     EngineStartPhase::Starting
                 }
-                // A380 FCOM l.112662-112664: "A wet cranking can be also performed by setting the ENG
-                // START selector to CRANK and the MAN START pb-sw to ON, then by setting the ENG
-                // MASTER lever to ON. In this case, fuel is provided without ignition."
+                // Wet crank: selector at CRANK, MAN START ON, then ENG MASTER ON gives fuel without
+                // ignition.
                 EngineModeSelector::Crank if inputs.manual_start_is_on => {
                     EngineStartPhase::WetCrank
                 }
@@ -568,7 +560,6 @@ impl EngineStartSequence {
             }
             EngineStartPhase::Starting => {
                 if inputs.engine_state == EngineState::On {
-                    // The engine runs: the start sequence is over.
                     self.end_start(false);
                     self.phase = EngineStartPhase::None;
                 } else {
@@ -580,9 +571,8 @@ impl EngineStartSequence {
                 if self.automatic_crank_time >= schedule.automatic_crank_time {
                     self.automatic_crank_time = Duration::ZERO;
                     if self.attempt < schedule.automatic_start_attempts {
-                        // A320 FCOM DSC-70-80-30 (l.63498-63500): "if the first attempt fails, the
-                        // FADEC automatically initiates a new start attempt with both igniters
-                        // energized". The ECAM shows NEW START IN PROGRESS.
+                        // After a failed attempt the FADEC starts a new attempt with both igniters
+                        // energized. The ECAM shows NEW START IN PROGRESS.
                         self.begin_attempt(self.attempt + 1);
                         self.phase = EngineStartPhase::Starting;
                     } else {
@@ -592,8 +582,7 @@ impl EngineStartSequence {
             }
             EngineStartPhase::Aborted => {}
             EngineStartPhase::WetCrank => {
-                // A380 FCOM l.112664: "The wet crank is stopped by setting the ENG START selector to
-                // NORM." Design choice: the fuel then stays off until the ENG MASTER OFF.
+                // The selector back at NORM stops the wet crank. Design choice: the fuel then stays off until the ENG MASTER OFF.
                 if inputs.mode_selector == EngineModeSelector::Norm {
                     self.phase = EngineStartPhase::Aborted;
                 }
@@ -601,8 +590,8 @@ impl EngineStartSequence {
         }
     }
 
-    /// The FADEC watches the start attempt (A320 FCOM DSC-70-80-40 PROTECTION l.63596-63606; A380
-    /// FCOM DSC-70-80-30-20 START ABORT DURING AUTOMATIC START l.112476-112500).
+    /// The FADEC start protection: it watches the start attempt and aborts an automatic start on
+    /// the ground.
     fn monitor_attempt(
         &mut self,
         context: &UpdateContext,
@@ -619,11 +608,10 @@ impl EngineStartSequence {
             }
         }
 
-        // The engine lights up once fuel (HP valve) and a working igniter are there. A320 FCOM
-        // DSC-70-80-40 (l.63766-63767), manual start: the FADEC "Opens the HP shutoff valve, and
-        // operates both igniters when the flight crew sets the ENG MASTER sw to ON", which the crew
-        // does when "N2 reaches 22 % or the maximum motoring speed (20 % minimum)" (PRO-NOR-SUP-ENG
-        // l.106855): the manual start has its own light-up speed.
+        // The engine lights up once fuel (HP valve) and a working igniter are there. In a manual
+        // start the FADEC opens the HP valve and energizes both igniters at the ENG MASTER ON, which
+        // the A320 crew sets at 22 % N2 or the maximum motoring speed (20 % minimum): the manual
+        // start has its own light-up speed.
         let light_up_n2 = if self.manual_start {
             schedule.manual_start_fuel_on_n2
         } else {
@@ -645,23 +633,19 @@ impl EngineStartSequence {
         self.start_fault = fault;
 
         // On the ground, an automatic start is not aborted once the core is past the end of the
-        // start (A380 FCOM l.112500: "On ground, automatic start is not aborted, when N2 is above
-        // 58.4 %"; A320 FCOM l.63777-63779 for the manual start: "before reaching 50 % N2").
+        // start (A380: N2 above 58.4 %; A320 manual start: 50 % N2).
         if inputs.core_speed >= schedule.start_abort_inhibition_n2 {
             return;
         }
         if self.manual_start {
-            // A320 FCOM DSC-70-80-40 (l.63776-63779): "The FADEC has not the authority to abort the
-            // manual start ... on ground, except if the start EGT limit is exceeded before reaching
-            // 50 % N2. In this case only, the FADEC aborts the start." A380 FCOM l.112616-112617 likewise.
-            // Design choice: no ENG FAULT light, which comes on for the abort of an automatic start
-            // (A320 FCOM DSC-70-90-20 l.63947).
+            // The FADEC aborts a manual start on the ground only for the start EGT limit exceeded
+            // before 50 % N2 (both aircraft). Design choice: no ENG FAULT light, which comes on for
+            // the abort of an automatic start.
             if fault == EngineStartFault::EgtOverlimit {
                 self.phase = EngineStartPhase::Aborted;
             }
         } else if fault == EngineStartFault::StarterFault {
-            // A380 FCOM l.112492-112493: "In the case of a starter failure ... the FADEC automatically
-            // aborts the engine start without further attempt of automatic start sequence."
+            // A starter failure aborts the start without further attempt (A380).
             self.abort_start();
         } else if schedule.stall_or_egt_restart_before_crank
             && matches!(
@@ -669,11 +653,10 @@ impl EngineStartSequence {
                 EngineStartFault::Stall | EngineStartFault::EgtOverlimit
             )
         {
-            // A320 FCOM PRO-ABN-ENG ENG 1(2) STALL, ENG 1(2) EGT OVERLIMIT, on ground (auto start)
-            // (l.81458-81478): "If the FADEC detects a stall or a potential EGT overheat, the FADEC
-            // will reduce the fuel schedule in stages" with NEW START IN PROGRESS; "If restart not
-            // possible: ... the FADEC shuts off fuel and turn off ignition. Then a dry crank phase
-            // automatically occurs" (AUTO CRANK IN PROGRESS), then ENG MASTER OFF. Design choice:
+            // A320 ENG 1(2) STALL, ENG 1(2) EGT OVERLIMIT in an automatic ground start: the FADEC
+            // reduces the fuel schedule in stages (NEW START IN PROGRESS); when no restart is left it
+            // cuts the fuel and the ignition, then a dry crank follows (AUTO CRANK IN PROGRESS), then
+            // ENG MASTER OFF. Design choice:
             // each stage is a new attempt (one frame without fuel, then the light-up again with both
             // igniters), up to the attempts of the automatic start; the last one ends in the dry
             // crank and the abort.
@@ -684,18 +667,15 @@ impl EngineStartSequence {
                 self.automatic_crank_time = Duration::ZERO;
             }
         } else if fault.aborts_an_automatic_start() {
-            // A320 FCOM PRO-ABN-ENG (l.81403-81404): "After any start attempt that is not
-            // successful, a dry crank phase automatically occurs"; A380 FCOM l.112489: "initiates two
-            // further attempts of automatic start sequence after cranking".
+            // A dry crank follows every unsuccessful attempt, then the next attempt (two further
+            // attempts on the A380).
             self.phase = EngineStartPhase::AutomaticCrank;
             self.automatic_crank_time = Duration::ZERO;
         }
     }
 
-    /// The automatic start is aborted: start valve, fuel and ignition off, ENG FAULT light.
-    /// A320 FCOM PRO-ABN-ENG (l.81480-81481): "The fuel metering valve and starter air valve are
-    /// automatically closed. Both igniters are turned off"; DSC-70-90-20 (l.63944-63948): the FAULT
-    /// light "comes on ... if ... The automatic start sequence of the associated engine aborts".
+    /// The automatic start is aborted: fuel metering valve and start valve closed, both igniters
+    /// off, ENG FAULT light on.
     fn abort_start(&mut self) {
         self.phase = EngineStartPhase::Aborted;
         self.fault_light = true;
@@ -721,8 +701,8 @@ impl EngineStartSequence {
         }
 
         if !self.lit {
-            // A320 FCOM PRO-ABN-ENG (l.81393): "The engine does not start within the 18 s that follow
-            // the ignition start".
+            // No light up: the engine has not started within the time after the ignition start
+            // (18 s on the A320).
             let no_light_up = self
                 .since_ignition
                 .is_some_and(|time| time >= schedule.no_light_up_time);
@@ -738,7 +718,7 @@ impl EngineStartSequence {
             return EngineStartFault::Stall;
         }
 
-        // A320 FCOM PRO-ABN-ENG (l.81366): "Engine overtemperature (above 725 °C)".
+        // Start EGT overtemperature (above 725 °C on the A320).
         if inputs.egt > schedule.start_egt_limit {
             return EngineStartFault::EgtOverlimit;
         }
@@ -765,10 +745,8 @@ impl EngineStartSequence {
     }
 
     /// In flight the FADEC does not abort a start, but reports an engine that does not light up
-    /// (A320 FCOM PRO-ABN-ENG l.81395-81397: IGNITION FAULT "In flight: ENG MASTER (AFFECTED) OFF";
-    /// A380 FCOM l.112512-112514: "the FADEC monitors the engine parameters and generates the
-    /// associated ECAM alerts"). In flight the ignition starts at the ENG MASTER ON (A320 FCOM
-    /// l.63704: "In flight: Immediately").
+    /// (A320 IGNITION FAULT, whose in-flight action is the ENG MASTER OFF; the A380 FADEC raises the
+    /// matching ECAM alerts). In flight the ignition starts at once with the ENG MASTER ON.
     fn update_in_flight_light_up(
         &mut self,
         context: &UpdateContext,
@@ -791,10 +769,9 @@ impl EngineStartSequence {
     }
 
     /// In flight the starter fault is detected during a relight: the ENG MASTER is ON, the engine
-    /// waits for its relight, the starter has its air, but it does not turn the core. A320neo FCOM
-    /// PRO-ABN-ENG ENG 1(2) START FAULT (IGO FCOM 21 JAN 19, P 323/368, not in a320_fcom.txt):
-    /// "STARTER SHAFT SHEAR", with the in-flight line and STATUS "ENG (AFFECTED) WINDMILL START
-    /// ONLY". Design choice: in flight the FBW engine model does not motor the core with the
+    /// waits for its relight, the starter has its air, but it does not turn the core: the A320neo
+    /// ENG 1(2) START FAULT STARTER SHAFT SHEAR, which has an in-flight branch and the STATUS line
+    /// ENG (AFFECTED) WINDMILL START ONLY. Design choice: in flight the FBW engine model does not motor the core with the
     /// starter, so the FADEC detection is the starter failure itself once the starter has had its
     /// air for [`Self::STARTER_FAULT_DETECTION_TIME`] (the ground detection time). The fault then
     /// stays for the rest of the flight.
@@ -831,14 +808,14 @@ impl EngineStartSequence {
         on_ground: bool,
     ) {
         let starting = on_ground && self.phase == EngineStartPhase::Starting;
-        // A380 FCOM PRO-ABN-ECAM-10-70 ENG START FAULT (l.172917-172928): NO STARTER AIR PRESSURE
-        // has an "In flight:" branch (MIN SPEED FOR WINDML RELIGHT, WINDMILL START INITIATED). The
+        // The A380 ENG START FAULT NO STARTER AIR PRESSURE has an in-flight branch (MIN SPEED FOR
+        // WINDML RELIGHT, WINDMILL START INITIATED). The
         // in-flight start has no start sequence phase (see `update`), so it is the relight start.
         let starting_in_flight =
             schedule.monitors_in_flight_start_air && Self::is_in_flight_start(inputs, on_ground);
 
-        // The start valve is open, the starter has no air (A320 "LO START AIR PRESS", A380 "NO
-        // STARTER AIR PRESSURE").
+        // The start valve is open, the starter has no air (A320 LO START AIR PRESS, A380 NO
+        // STARTER AIR PRESSURE).
         if (starting || starting_in_flight)
             && inputs.start_valve_is_open
             && !inputs.starter_air_pressurized
@@ -848,11 +825,9 @@ impl EngineStartSequence {
             self.valve_open_without_air_time = Duration::ZERO;
         }
 
-        // A380 FCOM LIM-70 STARTER (l.189725-189730): "When the starter-on time exceeds 5 min
-        // continuous operation, the ENG x START FAULT STARTER TIME EXCEEDED ECAM alert triggers. The
-        // starter-on time resets when the flight crew sets to off the ENG MASTER lever. The starter-on
-        // time begins when the flight crew sets to on the ENG MASTER lever and stops when the starter
-        // disengages, i.e. when N2 is 58.4 %."
+        // A380 starter limit: more than 5 min of continuous starter-on time triggers ENG x START
+        // FAULT STARTER TIME EXCEEDED. The starter-on time runs from the ENG MASTER ON until the
+        // starter disengages (58.4 % N2), and only resets with the ENG MASTER OFF.
         if starting && inputs.core_speed < schedule.start_valve_close_n2 {
             self.starter_time += context.delta();
         }
@@ -870,7 +845,7 @@ impl EngineStartSequence {
             } else if self.valve_open_without_air_time >= Self::LOW_START_AIR_DETECTION_TIME {
                 EngineStartFault::LowStartAirPressure
             } else if starting && !inputs.thrust_lever_at_idle {
-                // A320 FCOM PRO-ABN-ENG (l.81369): "Thrust lever not at idle".
+                // A320 START FAULT for a thrust lever not at idle.
                 EngineStartFault::ThrustLeverNotAtIdle
             } else {
                 EngineStartFault::None
@@ -887,20 +862,15 @@ impl EngineStartSequence {
             return Igniters::NONE;
         }
         if self.manual_start {
-            // A320 FCOM DSC-70-80-30 (l.63503-63504): "During a manual start both igniters are
-            // supplied, when the ENG MASTER sw is ON. Both igniters are cut off when N2 reaches
-            // approximately 50 %."
+            // A manual start supplies both igniters from the ENG MASTER ON until about 50 % N2.
             return if inputs.core_speed < schedule.manual_start_ignition_off_n2 {
                 Igniters::BOTH
             } else {
                 Igniters::NONE
             };
         }
-        // A320 FCOM DSC-70-80-30 (l.63492-63500): "During a first automatic start attempt only one
-        // igniter is supplied. The FADEC automatically alternates the igniters ... The ignition comes
-        // on automatically when N2 reaches 16 % and cuts off automatically when N2 reaches 50 % ...
-        // if the first attempt fails, the FADEC automatically initiates a new start attempt with both
-        // igniters energized". A380 FCOM DSC-70-80-20 (l.112328-112332) likewise.
+        // Automatic start: the first attempt uses one igniter, alternated between starts, a new
+        // attempt both. The ignition is on from 16 % to 50 % N2 on the A320 (A380 alike).
         let ignition_window = inputs.core_speed >= schedule.ground_ignition_on_n2
             && inputs.core_speed < schedule.automatic_start_ignition_off_n2;
         if !ignition_window {
@@ -930,8 +900,7 @@ impl EngineStartSequence {
             EngineState::Starting | EngineState::Restarting
         );
         if !on_ground && starting {
-            // A320 FCOM DSC-70-80-30 (l.63520): "In case of start attempt in flight, when the ENG
-            // MASTER sw is ON, both igniters are supplied." A380 FCOM l.112353 likewise.
+            // An in-flight start supplies both igniters once the ENG MASTER is ON (both aircraft).
             return Igniters::BOTH;
         }
         if self.continuous_ignition_is_on(inputs, on_ground) {
@@ -940,15 +909,12 @@ impl EngineStartSequence {
         Igniters::NONE
     }
 
-    /// A320 FCOM DSC-70-80-30 MANUAL SELECTION (l.63529-63536): "In flight, continuous ignition is on
-    /// when the ENG MODE selector is on IGN/START, if the corresponding engine is running ... On the
-    /// ground after the engine is started, because ignition cuts off automatically, the flight crew
-    /// must switch the ENG MODE selector to NORM then back to IGN/START to turn on continuous
-    /// ignition." A380 FCOM DSC-70-80-20 (l.112361-112365) likewise.
+    /// Manual selection: in flight the continuous ignition is on with the ENG MODE selector at
+    /// IGN/START and the engine running. On the ground the ignition cuts off by itself after the
+    /// start, so the crew sets the selector to NORM then back to IGN/START to turn it on.
     ///
-    /// A320 FCOM DSC-70-80-30 (l.63527): "Continuous ignition may be selected either manually or
-    /// automatically to maintain engine combustion"; the conditions of the automatic selection come
-    /// from the aircraft ([`EngineStartInputs::automatic_continuous_ignition`]). They need no
+    /// The continuous ignition can also be selected automatically to keep the engine combustion;
+    /// the conditions of the automatic selection come from the aircraft ([`EngineStartInputs::automatic_continuous_ignition`]). They need no
     /// NORM then IGN/START on the ground.
     fn continuous_ignition_is_on(&self, inputs: &EngineStartInputs, on_ground: bool) -> bool {
         let manual_selection = inputs.mode_selector == EngineModeSelector::Ignition
@@ -959,9 +925,8 @@ impl EngineStartSequence {
             && (manual_selection || inputs.automatic_continuous_ignition)
     }
 
-    /// A320 FCOM l.63533: "Only one igniter is selected. If failed, both igniters are automatically
-    /// selected." Design choice: igniter A. A380 FCOM l.112367: "The FADEC uses both igniters, when
-    /// the continuous ignition operates."
+    /// The A320 continuous ignition uses one igniter, and both if it has failed (design choice:
+    /// igniter A); the A380 continuous ignition uses both igniters.
     fn continuous_ignition_igniters(&self, schedule: &EngineStartSchedule) -> Igniters {
         if schedule.continuous_ignition_uses_both_igniters || self.igniter_a_failure.is_active() {
             Igniters::BOTH
@@ -1013,10 +978,6 @@ impl EngineStartSequence {
         self.fault_light
     }
 
-    pub fn starter_is_motoring(&self) -> bool {
-        self.starter_motoring
-    }
-
     pub fn start_valve_command(&self) -> StartValveCommand {
         self.start_valve_command
     }
@@ -1047,8 +1008,8 @@ impl SimulationElement for EngineStartSequence {
         writer.write(&self.starter_failed_id, self.starter_failure.is_active());
         writer.write(&self.n2_hang_id, self.n2_hang);
         writer.write(&self.egt_overshoot_id, self.egt_overshoot);
-        // A320 FCOM PRO-ABN-ENG ENG 1(2) IGN FAULT (l.80281, 80317): the alert "triggers when
-        // ignition circuit A or B is failed": the FADEC monitors both circuits.
+        // ENG 1(2) IGN FAULT is either ignition circuit A or B failed: the FADEC monitors both
+        // circuits.
         writer.write(&self.igniter_a_fault_id, self.igniter_a_failure.is_active());
         writer.write(&self.igniter_b_fault_id, self.igniter_b_failure.is_active());
         writer.write(&self.igniters_id, self.igniters.bits() as f64);
@@ -1064,17 +1025,16 @@ impl SimulationElement for EngineStartSequence {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StartValveFault {
     None = 0,
-    /// A320 FCOM PRO-ABN-ENG ENG 1(2) START VALVE FAULT, START VALVE NOT OPEN.
+    /// A320 ENG 1(2) START VALVE FAULT, START VALVE NOT OPEN.
     NotOpen = 1,
     /// START VALVE NOT CLOSED.
     NotClosed = 2,
 }
 
 /// The start valve of an engine as the aircraft pneumatic system sees it: the FADEC command, the
-/// stuck failures and the position monitoring. A320 FCOM PRO-ABN-ENG ENG 1(2) START VALVE FAULT
-/// (l.81540): "This alert triggers when the start valve is stuck in closed or open position". A380
-/// FCOM ENG START VLV FAULT (NOT CLOSED) "The engine start air valve is failed open", (NOT OPEN) "The
-/// starter air valve cannot open".
+/// stuck failures and the position monitoring. A320 ENG 1(2) START VALVE FAULT: the start valve is
+/// stuck closed or open. A380 ENG START VLV FAULT: NOT CLOSED for a valve failed open, NOT OPEN for
+/// a valve that cannot open.
 pub struct EngineStartValveSupervision {
     stuck_closed: Failure,
     stuck_open: Failure,
@@ -1085,8 +1045,8 @@ pub struct EngineStartValveSupervision {
     fault: StartValveFault,
 }
 impl EngineStartValveSupervision {
-    /// Design choice, no FCOM value: the position must disagree with the command for 5 s, longer than
-    /// the travel of the valve.
+    /// Design choice, no published value: the position must disagree with the command for 5 s,
+    /// longer than the travel of the valve.
     const DISAGREEMENT_CONFIRMATION_TIME: Duration = Duration::from_secs(5);
 
     pub fn new(context: &mut InitContext, engine_number: usize) -> Self {
@@ -1169,7 +1129,7 @@ mod tests {
     };
     use uom::si::thermodynamic_temperature::degree_celsius;
 
-    /// An A320-like schedule (A320 FCOM numbers).
+    /// An A320-like schedule (the A320 numbers).
     fn schedule() -> EngineStartSchedule {
         EngineStartSchedule {
             ground_ignition_on_n2: Ratio::new::<percent>(16.),
@@ -1893,8 +1853,8 @@ mod tests {
 
     #[test]
     fn in_flight_the_no_light_up_time_is_the_one_of_the_relight() {
-        // A380 FCOM ENG RELIGHT IN FLIGHT (l.174943): "Engine must relight within 30 s", while the
-        // ground start of the same aircraft has 20 s
+        // An A380 in-flight relight must light up within 30 s, while the ground start of the
+        // same aircraft has 20 s
         let mut test_bed = StartTestBed::new()
             .with_schedule(|schedule| {
                 schedule.no_light_up_time = Duration::from_secs(20);
@@ -1931,8 +1891,8 @@ mod tests {
 
     #[test]
     fn in_flight_a_start_valve_open_without_air_is_reported_when_the_aircraft_monitors_it() {
-        // A380 FCOM ENG START FAULT (l.172917-172928): NO STARTER AIR PRESSURE, "In flight: MIN
-        // SPEED FOR WINDML RELIGHT : 260 KT, WINDMILL START INITIATED"
+        // A380 ENG START FAULT NO STARTER AIR PRESSURE has an in-flight branch: min speed for a
+        // windmill relight 260 kt, windmill start initiated
         let mut test_bed = in_flight_start_without_air(true);
         assert_eq!(test_bed.fault(), EngineStartFault::LowStartAirPressure);
 

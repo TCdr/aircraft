@@ -17,7 +17,7 @@ const tadd = readFileSync(
 const cabinTemperatures = readFileSync(resolve(__dirname, 'CabinTemperatures.tsx'), 'utf-8');
 const cargoTemperatures = readFileSync(resolve(__dirname, 'CargoTemperatures.tsx'), 'utf-8');
 
-describe('COND SD page OVHT and trim air valve marks (A380 FCOM DSC-21-10-20)', () => {
+describe('COND SD page OVHT and trim air valve marks', () => {
   it('are written per zone by the temperature controller', () => {
     expect(tadd).toContain('format!("COND_{}_DUCT_OVHT", zone)');
     expect(tadd).toContain('format!("COND_{}_TRIM_AIR_VALVE_FAULT", zone)');

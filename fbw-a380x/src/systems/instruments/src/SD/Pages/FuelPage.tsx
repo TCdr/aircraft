@@ -125,8 +125,8 @@ export const FuelPage = () => {
   const [crossFeed3ValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:48', 'Percent over 100', 1000);
   const [crossFeed4ValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:49', 'Percent over 100', 1000);
 
-  // Feed pumps ON and running at low pressure or failed, and crossfeed valves abnormally closed or open (FCOM DSC-28-20
-  // FUEL SD page FEED TANK MAIN/STBY PUMP and CROSSFEED VALVE), from the CPIOM-F fuel monitoring (FuelPumpsAndValves)
+  // Feed pumps ON and running at low pressure or failed, and crossfeed valves abnormally closed or open, from the
+  // CPIOM-F fuel monitoring (FuelPumpsAndValves)
   const [feed1MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_1_MAIN_PMP_LO_PR', 'bool', 1000);
   const [feed1StbyPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_1_STBY_PMP_LO_PR', 'bool', 1000);
   const [feed2MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_2_MAIN_PMP_LO_PR', 'bool', 1000);
@@ -1579,7 +1579,7 @@ interface EngineLpValveProps extends Position {
   engineNumber: number;
 }
 
-/** An engine LP valve and the fuel line from it to its engine, shown per FCOM DSC-28-20 (engineLpValveIndication) */
+/** An engine LP valve and the fuel line from it to its engine */
 const EngineLpValve: FC<EngineLpValveProps> = ({ x, y, engineNumber }) => {
   const [openPercentage] = useSimVar(`L:A32NX_FUEL_ENG_${engineNumber}_LP_VALVE_OPEN_PERCENTAGE`, 'percent', 1000);
   // The ENG MASTER lever drives the MSFS fuel valve switch of the same index

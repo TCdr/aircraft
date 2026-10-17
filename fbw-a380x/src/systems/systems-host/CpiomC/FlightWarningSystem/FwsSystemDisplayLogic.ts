@@ -15,8 +15,7 @@ const ECAM_LIGHT_DELAY_ALL = 200;
 const ECAM_ALL_CYCLE_DELAY = 3000;
 
 /**
- * The automatic SD page in flight phases 8 to 11 (from 1 500 ft to the engine shutdown), A380 FCOM DSC-31-40-30
- * (a380_fcom.txt l.73745-73751)
+ * The automatic SD page in flight phases 8 to 11 (from 1 500 ft to the engine shutdown)
  * @param gearExtended the landing gear is extended
  * @returns WHEEL after the landing gear extension, else CRUISE
  */
@@ -207,11 +206,10 @@ export class FwsSystemDisplayLogic {
         case 9:
         case 10:
         case 11: {
-          // A380 FCOM DSC-31-40-30 (a380_fcom.txt l.73745-73751): CRUISE "At 1 500 ft AGL or at the thrust reduction,
-          // whichever occurs the first until landing gear extension in approach"; WHEEL "After landing gear extension,
-          // until last engine shutdown". The A320 rules were used: WHEEL only below 16 000 ft, and the CRUISE page 60 s
-          // after T.O power, flaps and spoilers were back. Phase 8 starts at 1 500 ft (FwsFlightPhases.ts); the thrust
-          // reduction below 1 500 ft is not a phase of its own (design choice: the 1 500 ft phase change only).
+          // A380 rules, not the A320 ones: CRUISE from 1 500 ft or the thrust reduction (whichever comes first) until
+          // the gear extension, then WHEEL until the last engine shutdown, with no 16 000 ft or 60 s condition.
+          // Design choice: the thrust reduction below 1 500 ft is not a phase of its own, so only the phase 8 change
+          // at 1 500 ft is used.
           const isGearExtended = SimVar.GetSimVarValue('GEAR TOTAL PCT EXTENDED', 'percent') > 0.95;
           this.pageWhenUnselected.set(automaticPageInFlight(isGearExtended));
           this.checkApuPage(deltaTime);

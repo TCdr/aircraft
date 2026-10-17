@@ -40,7 +40,7 @@ function run(alerts: FwsBrakeAlerts, seconds: number, input: BrakeSteerInputs, p
   }
 }
 
-describe('BRAKES alerts from the BCS and EBCU faults (A380 FCOM PRO-ABN-ECAM-10-32)', () => {
+describe('BRAKES alerts from the BCS and EBCU faults', () => {
   const none = { normBrk: false, altnBrk: false, emerBrk: false, altnEmerBrk: false, pedalBraking: false };
 
   it('raises nothing without a fault', () => {
@@ -67,7 +67,7 @@ describe('BRAKES alerts from the BCS and EBCU faults (A380 FCOM PRO-ABN-ECAM-10-
   });
 });
 
-describe('STEER alerts from the SCS and steering faults (A380 FCOM PRO-ABN-ECAM-10-32)', () => {
+describe('STEER alerts from the SCS and steering faults', () => {
   const none = { normNw: false, altnNw: false, nw: false, bw: false, ctl1: false, ctl2: false, nwBw: false };
 
   it('raises nothing without a fault', () => {
@@ -184,36 +184,33 @@ describe('FwsBrakeAlerts inputs and wiring', () => {
 
   /**
    * Level (failure: 1 without audio and master light, 2 with SC and MASTER CAUT) and flight phase inhibition of each
-   * alert, from the A380 FCOM PRO-ABN-ECAM-10-32 figures (PDF page).
+   * alert, as published for the aircraft.
    */
   const expectedAlerts: [string, string, number, number[]][] = [
-    ['320800020', 'normBrkFault', 1, [3, 4, 5, 6, 7, 10, 11]], // NORM BRK FAULT p.5457
-    ['320800011', 'altnBrkFault', 1, [3, 4, 5, 6, 7, 9, 10]], // ALTN BRK FAULT p.5444
-    ['320800017', 'emerBrkFault', 1, [3, 4, 5, 6, 7, 9, 10]], // EMER BRK FAULT p.5453
-    ['320800010', 'altnEmerBrkFault', 1, [3, 4, 5, 6, 7, 9, 10]], // ALTN + EMER BRK FAULT p.5442
-    ['320800024', 'pedalBrakingFault', 2, [4, 5, 6, 7]], // PEDAL BRAKING FAULT p.5463
-    ['320800009', 'accuPressLo', 2, [3, 4, 5, 6, 7, 9, 10]], // ACCU PRESS LO p.5440
-    ['320800023', 'parkBrkPressLo', 2, [3, 4, 5, 6, 7, 8, 9, 10]], // PARK BRK PRESS LO p.5461
-    ['320800060', 'normNwSteerFault', 2, [3, 4, 5, 6, 7, 10]], // NORM N/W STEER FAULT p.5534
-    ['320800047', 'altnNwSteerFault', 1, [3, 4, 5, 6, 7, 9, 10, 11]], // ALTN N/W STEER FAULT p.5517
-    ['320800058', 'nwSteerFault', 2, [4, 5, 6, 7]], // N/W STEER FAULT p.5531
-    ['320800049', 'bwSteerFault', 1, [3, 4, 5, 6, 7, 9, 10]], // B/W STEER FAULT p.5519
-    ['320800053', 'steerCtl1Fault', 1, [3, 4, 5, 6, 7, 9, 10, 11]], // STEER CTL 1 FAULT p.5524
-    ['320800054', 'steerCtl2Fault', 1, [3, 4, 5, 6, 7, 9, 10, 11]], // STEER CTL 2 FAULT p.5524
-    ['320800055', 'nwBwSteerFault', 2, [4, 5, 6, 7]], // N/W + B/W STEER FAULT p.5526
+    ['320800020', 'normBrkFault', 1, [3, 4, 5, 6, 7, 10, 11]], // NORM BRK FAULT
+    ['320800011', 'altnBrkFault', 1, [3, 4, 5, 6, 7, 9, 10]], // ALTN BRK FAULT
+    ['320800017', 'emerBrkFault', 1, [3, 4, 5, 6, 7, 9, 10]], // EMER BRK FAULT
+    ['320800010', 'altnEmerBrkFault', 1, [3, 4, 5, 6, 7, 9, 10]], // ALTN + EMER BRK FAULT
+    ['320800024', 'pedalBrakingFault', 2, [4, 5, 6, 7]], // PEDAL BRAKING FAULT
+    ['320800009', 'accuPressLo', 2, [3, 4, 5, 6, 7, 9, 10]], // ACCU PRESS LO
+    ['320800023', 'parkBrkPressLo', 2, [3, 4, 5, 6, 7, 8, 9, 10]], // PARK BRK PRESS LO
+    ['320800060', 'normNwSteerFault', 2, [3, 4, 5, 6, 7, 10]], // NORM N/W STEER FAULT
+    ['320800047', 'altnNwSteerFault', 1, [3, 4, 5, 6, 7, 9, 10, 11]], // ALTN N/W STEER FAULT
+    ['320800058', 'nwSteerFault', 2, [4, 5, 6, 7]], // N/W STEER FAULT
+    ['320800049', 'bwSteerFault', 1, [3, 4, 5, 6, 7, 9, 10]], // B/W STEER FAULT
+    ['320800053', 'steerCtl1Fault', 1, [3, 4, 5, 6, 7, 9, 10, 11]], // STEER CTL 1 FAULT
+    ['320800054', 'steerCtl2Fault', 1, [3, 4, 5, 6, 7, 9, 10, 11]], // STEER CTL 2 FAULT
+    ['320800055', 'nwBwSteerFault', 2, [4, 5, 6, 7]], // N/W + B/W STEER FAULT
   ];
 
-  it.each(expectedAlerts)(
-    'wires %s to %s with level %i and the FCOM phase inhibition',
-    (id, subject, level, phases) => {
-      const sensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-      const start = sensed.indexOf(`    ${id}: {`);
-      expect(start).toBeGreaterThan(0);
-      const block = sensed.slice(start, sensed.indexOf('\n    },', start));
-      expect(block).toContain(`simVarIsActive: this.fws.brakeSteerAlerts.${subject},`);
-      expect(block).toContain(`failure: ${level},`);
-      expect(block).toContain(`flightPhaseInhib: [${phases.join(', ')}],`);
-      expect(block).toContain('sysPage: SdPages.Wheel,');
-    },
-  );
+  it.each(expectedAlerts)('wires %s to %s with level %i and the phase inhibition', (id, subject, level, phases) => {
+    const sensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+    const start = sensed.indexOf(`    ${id}: {`);
+    expect(start).toBeGreaterThan(0);
+    const block = sensed.slice(start, sensed.indexOf('\n    },', start));
+    expect(block).toContain(`simVarIsActive: this.fws.brakeSteerAlerts.${subject},`);
+    expect(block).toContain(`failure: ${level},`);
+    expect(block).toContain(`flightPhaseInhib: [${phases.join(', ')}],`);
+    expect(block).toContain('sysPage: SdPages.Wheel,');
+  });
 });

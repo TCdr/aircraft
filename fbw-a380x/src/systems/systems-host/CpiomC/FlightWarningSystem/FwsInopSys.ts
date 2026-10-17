@@ -26,7 +26,7 @@ export interface FwsInopSysDict {
 export class FwsInopSys {
   public readonly subscriptions: Subscription[] = [];
 
-  // The G (Y) HYD SYS lost: low pressure, or both engines of its side out (ENG TWO ENGS OUT ON SAME SIDE, FwsCore)
+  // G (Y) HYD SYS inop covers low pressure and both engines of its side out (ENG TWO ENGS OUT ON SAME SIDE, FwsCore)
   public readonly partSplrs = MappedSubject.create(
     SubscribableMapFunctions.or(),
     this.fws.greenHydSysInop,
@@ -42,7 +42,7 @@ export class FwsInopSys {
     this.fws.yellowHydSysInop,
   );
 
-  /** GEN 1+3, 1+4, 2+3, 2+4: ENG TWO ENGS OUT ON OPPOSITE SIDE STATUS (FCOM l.175620-175621, EngineFailAlerts.ts) */
+  /** GEN 1+3, 1+4, 2+3, 2+4 lines of the ENG TWO ENGS OUT ON OPPOSITE SIDE STATUS (EngineFailAlerts.ts) */
   private readonly oppositeSideGenPair = MappedSubject.create(
     ([gen1, gen2, gen3, gen4]) => {
       const pair = oppositeSideGeneratorPair([gen1, gen2, gen3, gen4]);
@@ -67,8 +67,8 @@ export class FwsInopSys {
 
   /** INOP SYS shown on SD */
   inopSys: FwsInopSysDict = {
-    // ENG n IGN A+B FAULT STATUS INOP SYS ALL PHASES: ENG n IGNITION; ENG n IGN A(B) FAULT MORE INFO REDUND LOSS: ENG n IGN
-    // A(B) (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt l.172254-172255, 172289)
+    // ENG n IGN A+B FAULT STATUS INOP SYS ALL PHASES: ENG n IGNITION; ENG n IGN A(B) FAULT MORE INFO REDUND LOSS: ENG n
+    // IGN A(B)
     740300002: { simVarIsActive: this.fws.engineIgnAPlusBFault[0], phase: FwsInopSysPhases.AllPhases },
     740300003: { simVarIsActive: this.fws.engineIgnAPlusBFault[1], phase: FwsInopSysPhases.AllPhases },
     740300004: { simVarIsActive: this.fws.engineIgnAPlusBFault[2], phase: FwsInopSysPhases.AllPhases },
@@ -542,10 +542,9 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
     },
     320300007: {
-      // BTV, also with ENG 2(3) SHUT DOWN and the TWO ENGS OUT cautions (A380 FCOM l.172781, 175443, 175620)
-      // and with the reverser of the engine 2 or 3 inoperative (REVERSER CTL FAULT, FAULT, LOCKED, THR LEVER 2(3)
-      // FAULT: STATUS INOP SYS BTV at A380 FCOM l.173359, 173488, 173569, 173613, 173666). The alert part also stops the
-      // BTV arming (FwsCore btvInopByAlert, L:A32NX_FWC_1_BTV_INOP)
+      // BTV, also with ENG 2(3) SHUT DOWN and the TWO ENGS OUT cautions, and with the reverser of the engine 2 or 3
+      // inoperative (REVERSER CTL FAULT, FAULT, LOCKED, THR LEVER 2(3) FAULT). The alert part also stops the BTV arming
+      // (FwsCore btvInopByAlert, L:A32NX_FWC_1_BTV_INOP)
       simVarIsActive: MappedSubject.create(
         ([btvLost, engineOut, reverserInop]) => btvLost || engineOut || reverserInop,
         this.fws.btvLost,
@@ -555,7 +554,7 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.ApprLdg,
     },
     220300028: {
-      // CAT 3 DUAL: ENG 1(2)(3)(4) SHUT DOWN with the APU off (A380 FCOM l.172783)
+      // CAT 3 DUAL: ENG 1(2)(3)(4) SHUT DOWN with the APU off
       simVarIsActive: this.fws.engineShutDownCat3SingleOnly,
       phase: FwsInopSysPhases.ApprLdg,
     },
@@ -835,7 +834,7 @@ export class FwsInopSys {
       notActiveWhenItemActive: ['700300003'],
     },
 
-    // ENG 1(2)(3)(4) THR LEVER FAULT, INOP SYS ALL PHASES ENG 1(2)(3)(4) THR LEVER (A380 FCOM l.173326)
+    // ENG 1(2)(3)(4) THR LEVER FAULT, INOP SYS ALL PHASES ENG 1(2)(3)(4) THR LEVER
     700300050: {
       simVarIsActive: this.fws.thrLeverFault[0],
       phase: FwsInopSysPhases.AllPhases,
@@ -852,7 +851,7 @@ export class FwsInopSys {
       simVarIsActive: this.fws.thrLeverFault[3],
       phase: FwsInopSysPhases.AllPhases,
     },
-    // ENG 1(2)(3)(4) FADEC FAULT, INOP SYS ALL PHASES ENG 1(2)(3)(4) A/THR "If A/THR engaged" (A380 FCOM l.171599)
+    // ENG 1(2)(3)(4) FADEC FAULT, INOP SYS ALL PHASES ENG 1(2)(3)(4) A/THR, only with the A/THR engaged
     220300014: {
       simVarIsActive: this.fws.fadecAthrInop[0],
       phase: FwsInopSysPhases.AllPhases,

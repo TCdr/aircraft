@@ -17,7 +17,6 @@ describe('SD ENG page engine parameters', () => {
     expect(areEngineParametersShown(running)).toBe(true);
   });
 
-  /* A380 FCOM ENG FADEC FAULT (a380_fcom.txt l.171563-171564): "The ENG 1(2)(3)(4) parameters on the ENG SD page are lost" */
   it('loses the parameters of a FADEC that cannot communicate via the avionics networks', () => {
     expect(areEngineParametersShown({ ...running, fadecNetworkLost: true })).toBe(false);
   });

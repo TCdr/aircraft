@@ -85,12 +85,12 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .with_fuel_pumps(1..=21)?
     // Fuel valves 60 to 63 of flight_model.cfg feed the engines 1 to 4 in series after their Extra
     // tanks: they are the engine HP fuel valves, and closing one stops the MSFS combustion at once.
-    // The HP fuel valve is closed (a380_systems engine_failure.rs) while the ENG MASTER is OFF (FCOM
-    // DSC-70-30 ENGINE SHUTDOWN: "The FADEC closes the LP and HP fuel valves") and while the engine
-    // fuel is cut: the engine starves (its LP fuel valve is closed and the fuel left downstream of it
-    // is burned, see a380_systems fuel/engine_lp_valves.rs), or a flameout or seizure failure until a
-    // relight lights it up. The ENG MASTER valves 1 to 4 (the LP valves) are upstream of the Extra
-    // tanks, which MSFS does not burn: closing them alone left MSFS burning for 20 to 60 s.
+    // The HP fuel valve is closed (a380_systems engine_failure.rs) while the ENG MASTER is OFF (the
+    // master OFF closes the LP and HP fuel valves) and while the engine fuel is cut: the engine
+    // starves (its LP fuel valve is closed and the fuel left downstream of it is burned, see
+    // a380_systems fuel/engine_lp_valves.rs), or a flameout or seizure failure until a relight lights
+    // it up. The ENG MASTER valves 1 to 4 (the LP valves) are upstream of the Extra tanks, which MSFS
+    // does not burn: closing them alone left MSFS burning for 20 to 60 s.
     .with_fuel_valves_closed_while([
         (Variable::named("ENGINE_1_HP_FUEL_VALVE_CLOSED"), 60),
         (Variable::named("ENGINE_2_HP_FUEL_VALVE_CLOSED"), 61),
@@ -154,9 +154,9 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (21_047, FailureType::CpcsApp(CpiomId::B2)),
         (21_048, FailureType::CpcsApp(CpiomId::B3)),
         (21_049, FailureType::CpcsApp(CpiomId::B4)),
-        // Trim air: one zone per case of the A380 FCOM COND DUCT OVHT procedure (CKPT, CABIN on each deck,
-        // FWD CARGO) and the COND FWD CARGO TEMP REGUL FAULT cargo trim air valve. The bulk cargo is
-        // left out: its duct temperature comes from the bulk heater, not from its trim air valve.
+        // Trim air: one zone per case of the COND DUCT OVHT procedure (CKPT, CABIN on each deck, FWD
+        // CARGO) and the COND FWD CARGO TEMP REGUL FAULT cargo trim air valve. The bulk cargo is left
+        // out: its duct temperature comes from the bulk heater, not from its trim air valve.
         // TrimAirHighPressure is not mapped: no A380 system reads the trim air outlet pressure.
         (21_050, FailureType::TrimAirFault(ZoneType::Cockpit)),
         (21_051, FailureType::TrimAirFault(ZoneType::Cabin(11))), // MAIN_DECK_1
@@ -444,7 +444,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         ),
         // Brakes: the model feeds the NORM circuit from the GREEN system and the ALTN circuit (with
         // its accumulator) from the YELLOW system. On the real aircraft the ALTN brakes use the LEHGS
-        // and accumulators (A380 FCOM DSC-32-10-30-30).
+        // and accumulators.
         (
             32_100,
             FailureType::BrakeHydraulicLeak(HydraulicColor::Green),
@@ -454,7 +454,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             FailureType::BrakeHydraulicLeak(HydraulicColor::Yellow),
         ),
         (32_150, FailureType::BrakeAccumulatorGasLeak),
-        // Braking and steering control faults (hydraulic/brake_steer_faults.rs, A380 FCOM DSC-32-10-30 and -40)
+        // Braking and steering control faults (hydraulic/brake_steer_faults.rs)
         (32_110, FailureType::BrakeNormalBraking),
         (32_111, FailureType::BrakeAlternateBraking),
         (32_112, FailureType::BrakeEmergencyBraking),
@@ -530,7 +530,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (80_051, FailureType::EngineStarter(2)),
         (80_052, FailureType::EngineStarter(3)),
         (80_053, FailureType::EngineStarter(4)),
-        // Stage B4: the engine keeps running (a380_systems engine_malfunction.rs)
+        // The engine keeps running (a380_systems engine_malfunction.rs)
         (72_100, FailureType::EngineCompressorStall(1)),
         (72_101, FailureType::EngineCompressorStall(2)),
         (72_102, FailureType::EngineCompressorStall(3)),
@@ -543,7 +543,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (77_001, FailureType::EngineHighVibration(2)),
         (77_002, FailureType::EngineHighVibration(3)),
         (77_003, FailureType::EngineHighVibration(4)),
-        // Engine failures stage B5: FADEC and thrust lever (ATA 73), thrust reversers 2 and 3 (ATA 78)
+        // FADEC and thrust lever (ATA 73), thrust reversers 2 and 3 (ATA 78)
         (73_010, FailureType::FadecNetworkLink(1)),
         (73_011, FailureType::FadecNetworkLink(2)),
         (73_012, FailureType::FadecNetworkLink(3)),

@@ -6,10 +6,6 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isToConfigNormal, ToConfigState } from './ToConfigNormal';
 
-/*
- * A380 FCOM DSC-31-40-10 TAKEOFF CONFIGURATION TEST (a380_fcom.txt l.72715-72759): T.O CONFIG NORMAL when the test is
- * correct, i.e. none of the listed alerts is triggered.
- */
 describe('A380 T.O CONFIG NORMAL', () => {
   const four = (index?: number) => [0, 1, 2, 3].map((i) => i === index);
   const normal: ToConfigState = {

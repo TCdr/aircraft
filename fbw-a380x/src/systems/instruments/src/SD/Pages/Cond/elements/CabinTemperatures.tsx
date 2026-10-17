@@ -130,9 +130,8 @@ interface CabinZoneWarningProps {
 }
 
 /**
- * A380 FCOM DSC-21-10-20 COND system display: OVHT, a duct overheat in the indicated cockpit or cabin zone; the trim air
- * valve mark, the trim air valve of the zone is failed (written per zone by the temperature controller, a380_systems
- * trim_air_drive_device.rs).
+ * OVHT: a duct overheat in the cockpit or cabin zone; the trim air valve mark: the trim air valve of the zone is failed
+ * (both written per zone by the temperature controller, a380_systems trim_air_drive_device.rs).
  */
 const CabinZoneWarning: React.FC<CabinZoneWarningProps> = ({ x, y, zone }) => {
   const [ductOverheat] = useSimVar(`L:A32NX_COND_${zone}_DUCT_OVHT`, 'bool', 1000);

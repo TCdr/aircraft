@@ -12,7 +12,7 @@
 //! - [`apply_auto_idle`]: the FADEC idle protection.
 //!
 //! The rules of each aircraft (thrust lever failures, which reverser state sets the idle) are in
-//! the aircraft crates, from their own FCOM.
+//! the aircraft crates.
 
 use crate::{
     failures::{Failure, FailureType},
@@ -24,11 +24,9 @@ use crate::{
 
 /// The two channels of the FADEC of one engine, and its high temperature detection.
 ///
-/// A320 FCOM DSC-70-20 (a320_fcom.txt l.62589-62590): "FADEC has two-channel redundancy, with one
-/// channel active and one in standby. If one channel fails, the other automatically takes control."
-/// ENG 1(2) FADEC A(B) FAULT "triggers when the associated FADEC channel is lost" (l.79552), ENG
-/// 1(2) FADEC FAULT "when both FADEC channels are lost" (l.79626), ENG 1(2) FADEC HI TEMP "when high
-/// temperature is detected by one or both channels" (l.79700).
+/// The FADEC has two channels, one active and one in standby: if one fails, the other takes
+/// control. ENG 1(2) FADEC A(B) FAULT is one channel lost, ENG 1(2) FADEC FAULT both channels
+/// lost, ENG 1(2) FADEC HI TEMP a high temperature detected by one or both channels.
 pub struct FadecChannels {
     channel_a: Failure,
     channel_b: Failure,
@@ -100,10 +98,8 @@ impl SimulationElement for FadecChannels {
 
 /// The reverse idle of a reverser deployment, for a TLA in the reverse range (negative).
 ///
-/// A320 FCOM DSC-70-70 ACTUATION LOGIC (a320_fcom.txt l.63304-63305): "Before deployment is
-/// completed, the FADEC sets reverse idle thrust on the engine that is having its thrust
-/// reversed." A380 FCOM DSC-70-70 DEPLOYMENT-STOWAGE SEQUENCE (a380_fcom.txt l.112117): "During
-/// the thrust reverser deployment, the engine reverse thrust is limited to reverse idle."
+/// On both aircraft the FADEC limits the engine to reverse idle until the reverser deployment is
+/// complete.
 ///
 /// `reverse_idle_tla_deg` is the TLA of reverse idle in the FADEC model (negative). A reverser
 /// that does not deploy (failed, inhibited) keeps the engine at reverse idle.
@@ -120,8 +116,7 @@ pub fn limit_reverse_thrust_until_deployed(
 }
 
 /// The FADEC idle protection: the engine is set to (forward) idle whatever the lever position
-/// above idle. A320 FCOM DSC-70-70 PROTECTION (l.63311-63321), A380 FCOM DSC-70-70 IDLE
-/// PROTECTION (l.112243-112249).
+/// above idle.
 pub fn apply_auto_idle(tla_deg: f64, auto_idle: bool) -> f64 {
     if auto_idle && tla_deg > 0. {
         0.
@@ -135,7 +130,7 @@ pub fn apply_auto_idle(tla_deg: f64, auto_idle: bool) -> f64 {
 ///
 /// Written as `ENGINE_n_FADEC_TLA_OVERRIDE_ACTIVE` (the FADEC uses `ENGINE_n_FADEC_TLA_OVERRIDE`
 /// in place of the lever angle) and `ENGINE_n_FADEC_AUTO_IDLE`. While the override is not active,
-/// the FADEC model uses the lever, as before: a missing or zero variable changes nothing.
+/// the FADEC model uses the lever: a missing or zero variable changes nothing.
 pub struct FadecThrustLeverAngle {
     override_active_id: VariableIdentifier,
     override_tla_id: VariableIdentifier,
@@ -220,11 +215,6 @@ mod tests {
     }
 
     fn read_bool(test_bed: &mut SimulationTestBed<TestAircraft>, name: &str) -> bool {
-        test_bed.read_by_name(name)
-    }
-
-    #[allow(dead_code)]
-    fn read_f64(test_bed: &mut SimulationTestBed<TestAircraft>, name: &str) -> f64 {
         test_bed.read_by_name(name)
     }
 

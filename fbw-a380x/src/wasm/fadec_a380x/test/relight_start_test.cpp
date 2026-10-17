@@ -39,7 +39,7 @@ int main() {
   expectCommand("ground start, start delay", RelightStart_A380X::correctedN2Command({true, 0.5, false, false, 0.0, 15.0}), 0.0);
   expectNone("ground start, after the start delay", RelightStart_A380X::correctedN2Command({true, 2.0, false, false, 20.0, 15.0}));
 
-  // In flight the core turns (windmilling or still fast): the start delay must not stop it (sim test 2026-10-05: the quick relight
+  // In flight the core turns (windmilling or still fast): the start delay must not stop it (measured in the sim: the quick relight
   // at 50 % N3 and the windmilling relights never burned).
   expectNone("in flight, start delay of a quick relight", RelightStart_A380X::correctedN2Command({false, 0.5, false, true, 50.0, -15.0}));
   expectNone("in flight, start delay of a relight attempt", RelightStart_A380X::correctedN2Command({false, 0.5, true, false, 12.0, -15.0}));

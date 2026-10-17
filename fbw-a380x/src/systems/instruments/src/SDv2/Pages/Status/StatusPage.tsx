@@ -202,7 +202,7 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
 
   private readonly inopSysRedundHeight = this.inopSysRedundLines.map((lines) => `${lines * 30 + 3}px`);
 
-  /* CANCELLED CAUTION: the cautions cancelled with the EMER CANC pb, in white (FCOM DSC-31-40-10) */
+  /* CANCELLED CAUTION: the cautions cancelled with the EMER CANC pb, in white */
   private readonly cancelledCaution = ConsumerSubject.create(this.sub.on('fws_cancelled_caution'), []);
 
   private readonly cancelledCautionFormatString = this.cancelledCaution.map((keys) =>

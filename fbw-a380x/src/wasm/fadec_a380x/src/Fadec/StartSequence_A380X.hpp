@@ -39,11 +39,11 @@ enum StartPhase {
   WET_CRANK       = 5,  // ENG START CRANK, MAN START ON, ENG MASTER ON: fuel without ignition
 };
 
-/// Design choice, no FCOM value: a hung start (or a stall) leaves the core speed at 60 % of the idle N3.
+/// Design choice: a hung start (or a stall) leaves the core speed at 60 % of the idle N3.
 constexpr double HUNG_START_N3_RATIO_OF_IDLE = 0.6;
 
-/// Design choice, no FCOM value: the EGT of a hot start (or a stall) rises 30 °C/s above the normal start EGT after the
-/// light-up, which takes it above the 745 °C start limit (FCOM DSC-70-90 l.113191) within a few seconds.
+/// Design choice: the EGT of a hot start (or a stall) rises 30 °C/s above the normal start EGT after the light-up, which takes
+/// it above the 745 °C start limit within a few seconds.
 constexpr double EGT_OVERSHOOT_RATE_CELSIUS_PER_SECOND = 30.0;
 
 /// Design choice: an unlit core follows the MSFS motoring speed with this time constant (seconds), and a core without starter
@@ -94,10 +94,9 @@ inline double restingCoreCorrectedN3(double correctedN3, double deltaTime) {
  * Design choice: the core runs down from the speed it had when the hold began, along the FADEC's own value, and not from the
  * MSFS speed read back each frame. The MSFS starter (it follows the ENG MASTER lever) keeps adding its torque between two
  * writes; a run-down applied to the MSFS speed read back settles where the two balance, at about the starter acceleration
- * times the time constant: 5.7 % N3 with the APU bleed (sim test 2026-10-08, starter failure). The systems WASM detects a
- * failed starter as starter air with the core below 5 % N2 for 10 s (engine_start.rs STARTER_FAULT_MAX_N2_PERCENT), so the
- * starter failure was never detected. A380 FCOM DSC-70-80-30-20 (a380_fcom.txt l.112492-112493): "In the case of a starter
- * failure [...] the FADEC automatically aborts the engine start without further attempt of automatic start sequence."
+ * times the time constant: 5.7 % N3 with the APU bleed (measured in the sim with a starter failure). The systems WASM detects
+ * a failed starter as starter air with the core below 5 % N2 for 10 s (engine_start.rs STARTER_FAULT_MAX_N2_PERCENT), so the
+ * starter failure was never detected, although a starter failure must abort the start without a further automatic attempt.
  */
 class RestingCore {
  public:
@@ -119,8 +118,8 @@ class RestingCore {
  * START selector at NORM, MSFS starter on (it follows the ENG MASTER lever), core above 20 % N3, and MSFS burning in it.
  *
  * Without the combustion a cold engine became ON as soon as its MSFS starter turned the core past 20 % with the ENG MASTER ON
- * at NORM on the ground: the FADEC showed it running and the auto relight selected igniters A + B for an unlit engine (sim
- * test 2026-10-07). A normal start (ENG START at IGN/START, also the aircraft presets) goes through STARTING.
+ * at NORM on the ground: the FADEC showed it running and the auto relight selected igniters A + B for an unlit engine
+ * (measured in the sim). A normal start (ENG START at IGN/START, also the aircraft presets) goes through STARTING.
  */
 inline bool offEngineIsRunning(int engineIgniter, bool engineStarter, double simN3, bool simCombustion) {
   return engineIgniter == 1 && engineStarter && simN3 > 20 && simCombustion;

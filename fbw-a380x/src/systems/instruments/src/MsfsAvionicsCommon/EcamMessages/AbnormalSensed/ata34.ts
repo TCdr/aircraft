@@ -267,7 +267,6 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     ],
   },
   340800009: {
-    // A380 FCOM PRO-ABN-ECAM-10-34-10 NAV AIR DATA DISAGREE (a380_fcom.txt l.163933-163952)
     title: '\x1b<4m\x1b4mNAV\x1bm AIR DATA DISAGREE',
     sensed: true,
     items: [
@@ -281,9 +280,9 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     ],
   },
   340800010: {
-    // A380 FCOM PRO-ABN-ECAM-10-34-10 NAV ALL AIR DATA DISAGREE (a380_fcom.txt l.164050-164205, PDF page 5559). The
-    // pitch target lines are the FCOM tables: "The ECAM displays only the appropriate pitch" (l.164057, l.164066).
-    // Not shown: the cabin altitude table, the MFP heating (AVOID ICING) lines and the level-off thrust table above FL 250.
+    // The pitch target lines are the rows of a table: the ECAM shows only the row that applies.
+    // Not shown: the cabin altitude table, the MFP heating (AVOID ICING) lines and the level-off thrust table above FL
+    // 250.
     title: '\x1b<2m\x1b4mNAV\x1bm ALL AIR DATA DISAGREE',
     sensed: true,
     items: [
@@ -325,7 +324,6 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     items: [], // not implemented
   },
   340800014: {
-    // A380 FCOM PRO-ABN-ECAM-10-34-10 NAV AOA DISAGREE (a380_fcom.txt l.164378-164452)
     title: '\x1b<4m\x1b4mNAV\x1bm AOA DISAGREE',
     sensed: true,
     items: [{ name: 'RISK OF UNDUE STALL WARNING', sensed: true, style: ChecklistLineStyle.White }],
@@ -1004,7 +1002,6 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     ],
   },
   340900001: {
-    // A380 FCOM PRO-ABN-ECAM-10-34 NAV IR ALIGNMENT IN ATT MODE
     title: '\x1b<4m\x1b4mNAV\x1bm IR ALIGNMENT IN ATT MODE',
     sensed: false,
     items: [

@@ -19,7 +19,7 @@ import {
   isTransferPumpFaulty,
 } from './FuelPumpsAndValves';
 
-describe('A380 feed pump low pressure (FCOM DSC-28-20 FEED TK MAIN/STBY pb-sw FAULT light)', () => {
+describe('A380 feed pump low pressure (FEED TK MAIN/STBY pb-sw FAULT light)', () => {
   it('is low with the pump ON and not running (failed)', () => {
     expect(isFeedPumpLowPressure(true, false)).toBe(true);
   });
@@ -30,7 +30,7 @@ describe('A380 feed pump low pressure (FCOM DSC-28-20 FEED TK MAIN/STBY pb-sw FA
   });
 });
 
-describe('A380 crossfeed valve disagreement (FCOM DSC-28-20 CROSSFEED pb-sw)', () => {
+describe('A380 crossfeed valve disagreement (CROSSFEED pb-sw)', () => {
   it('is false when the valve follows the pb-sw', () => {
     expect(isCrossFeedValveDisagree(1, true)).toBe(false);
     expect(isCrossFeedValveDisagree(0, false)).toBe(false);
@@ -164,7 +164,7 @@ describe('A380 feed pump and crossfeed valve failures', () => {
   });
 });
 
-describe('A380 transfer pump fault (FCOM DSC-28-20 transfer pump pb-sw FAULT light, PRO-ABN-ECAM-10-28 PMP FAULT)', () => {
+describe('A380 transfer pump fault (transfer pump pb-sw FAULT light, PMP FAULT)', () => {
   it('is faulty when failed, whether or not the FQMS runs it and whatever its tank holds', () => {
     expect(isTransferPumpFaulty(true, true, false, 5000)).toBe(true);
     expect(isTransferPumpFaulty(true, true, false, 0)).toBe(true);

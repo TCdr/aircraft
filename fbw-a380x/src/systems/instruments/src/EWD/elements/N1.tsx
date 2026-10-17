@@ -56,7 +56,6 @@ export class N1 extends DisplayComponent<N1Props> {
   private n1PercentSplit1 = this.n1.map((n1) => splitDecimals(n1)[0]);
   private n1PercentSplit2 = this.n1.map((n1) => splitDecimals(n1)[1]);
 
-  /** FCOM DSC-70-90 N1 INDICATIONS: the N1 value is red above the 111 % red limit (EgtLimits n1Colour) */
   private readonly n1ClassLarge = this.n1.map((n1) => `F26 End ${n1Colour(n1)}`);
 
   private readonly n1ClassSmall = this.n1.map((n1) => `F20 End ${n1Colour(n1)}`);
@@ -69,9 +68,8 @@ export class N1 extends DisplayComponent<N1Props> {
   private readonly onGround = ConsumerSubject.create(this.sub.on('nose_gear_compressed_1').whenChanged(), false);
 
   /**
-   * The red cross after the N1 value (FCOM DSC-70-90 N1 INDICATIONS, a380_fcom.txt l.113073-113082, figure "113.8 +" on
-   * PDF page 4103): it comes with an exceedance of the red limit and stays, also once the N1 is back below the limit,
-   * until the next engine start on the ground (the latch of the EGT red mark, ExceedanceMemory).
+   * The red cross after the N1 value: it stays after an exceedance of the red limit, also once the N1 is back below
+   * it, until the next engine start on the ground (same latch as the EGT red mark).
    */
   private readonly n1Exceedance = new ExceedanceMemory(N1_RED_LIMIT_PERCENT);
 

@@ -1125,11 +1125,11 @@ impl AirDataReference {
     // 1 second filter
     const VERTICAL_SPEED_TIME_CONSTANT: Duration = Duration::from_secs(1);
 
-    /// Airspeed error of an erroneous pitot input (design choice: the FCOM gives no failure values; 40 kt is
-    /// well above the 16 kt CAS threshold of the PRIM air data monitoring, A380 FCOM DSC-34-10-30-10 l.85708).
+    /// Airspeed error of an erroneous pitot input (design choice: no published failure values; 40 kt is well above
+    /// the 16 kt CAS threshold of the A380 PRIM air data monitoring).
     const ERRONEOUS_AIRSPEED_ERROR_KNOTS: f64 = -40.;
     /// Angle of attack error of an erroneous AOA probe (design choice: above the 3.6 deg in-flight and the 8 deg
-    /// on-ground AOA thresholds of the PRIM monitoring, A380 FCOM DSC-34-10-30-10 l.85718-85725).
+    /// on-ground AOA thresholds of the A380 PRIM monitoring).
     const ERRONEOUS_ANGLE_OF_ATTACK_ERROR_DEGREES: f64 = 10.;
 
     fn new(context: &mut InitContext, number: usize, vmo: Velocity, mmo: MachNumber) -> Self {

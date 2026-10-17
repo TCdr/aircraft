@@ -31,7 +31,6 @@ function oilMonitorAfter(seconds: number, inputs: OilTemperatureLowInputs, monit
   return monitor;
 }
 
-/* A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, a380_fcom.txt l.172611-172614 */
 describe('ENG OIL TEMP LO', () => {
   it('triggers on ground below 50 °C once the engine has run for 30 s', () => {
     expect(oilMonitorAfter(29, coldRunning).isActive).toBe(false);
@@ -58,14 +57,13 @@ describe('ENG OIL TEMP LO', () => {
     expect(oilMonitorAfter(10, coldRunning, monitor).isActive).toBe(false);
   });
 
-  it('is shown in phases 2 and 3 only (FCOM PDF page 5802)', () => {
+  it('is shown in phases 2 and 3 only', () => {
     expect(OIL_TEMP_LO_PHASE_INHIBITION).toEqual([1, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 });
 
 const allRunning = [1, 2, 3, 4].map(() => FadecEngineState.On);
 
-/* A380 FCOM PRO-ABN-ECAM-10-70 ENG THR LEVERS NOT SET, a380_fcom.txt l.175152-175181 */
 describe('ENG THR LEVERS NOT SET', () => {
   it('triggers with one lever at or between CL and FLX/MCT', () => {
     for (const flexTakeoffMode of [true, false]) {
@@ -113,7 +111,7 @@ describe('ENG THR LEVERS NOT SET', () => {
     expect(thrLeversNotSetItemsShown(true)).toEqual([false, true]);
   });
 
-  it('is shown in phases 2 and 3 only (FCOM PDF page 5860)', () => {
+  it('is shown in phases 2 and 3 only', () => {
     expect(THR_LEVERS_NOT_SET_PHASE_INHIBITION).toEqual([1, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 });

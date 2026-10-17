@@ -26,13 +26,12 @@ enum TaddFault {
 
 /// The hot-air valve (HOT AIR 1 or 2) that feeds the trim air valve of a zone.
 ///
-/// A380 FCOM DSC-21-10-10-20 (a380_fcom.txt:5338-5339): four hot-air manifolds, each hot-air valve feeds two of
-/// them. Which zones hang on which manifold is only given by the COND DUCT OVHT procedure (a380_fcom.txt:132599-132623):
-/// a cockpit duct overheat asks for HOT AIR 2 OFF and a forward cargo duct overheat for HOT AIR 1 OFF, while for a cabin
-/// duct "the hot-air valve that must be closed depends on the affected cabin duct" (a380_fcom.txt:132612).
-/// Design choice (no source): the main deck zones are fed by HOT AIR 1 (with the forward cargo below them), the upper
-/// deck zones by HOT AIR 2 (with the cockpit). The bulk cargo has no trim air valve on the aircraft (electric heater,
-/// a380_fcom.txt:5489-5501); its model trim air valve is put on HOT AIR 1.
+/// Four hot-air manifolds, each hot-air valve feeds two of them. Which zones hang on which manifold only shows in the
+/// COND DUCT OVHT procedure: a cockpit duct overheat asks for HOT AIR 2 OFF and a forward cargo duct overheat for HOT
+/// AIR 1 OFF, while for a cabin duct the valve to close depends on the duct.
+/// Design choice: the main deck zones are fed by HOT AIR 1 (with the forward cargo below them), the upper deck zones
+/// by HOT AIR 2 (with the cockpit). The bulk cargo has no trim air valve on the aircraft (electric heater); its model
+/// trim air valve is put on HOT AIR 1.
 pub fn hot_air_valve_feeding_zone(zone: ZoneType) -> usize {
     match zone {
         ZoneType::Cockpit => 2,
@@ -91,17 +90,16 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirDriveDevice<ZONES, ENGINES
     const TAPRV_CLOSE_COMMAND_DISAGREE_TIMER: f64 = 14.; // seconds
     const TIMER_RESET: f64 = 1.2; // seconds
 
-    // A380 FCOM PRO-ABN-ECAM-10-21-10 COND DUCT OVHT (a380_fcom.txt:132573): "There is a duct overheat, when the air
-    // temperature inside the applicable duct exceeds 70 deg C". DSC-21-10-20 HOT AIR pb (a380_fcom.txt:5644-5645): the
-    // FAULT light goes off when the temperature decreases below 70 deg C and the HOT AIR pb is set to OFF.
+    // COND DUCT OVHT: a duct overheats above 70 deg C. The HOT AIR pb FAULT light goes off when the temperature is
+    // back below 70 deg C and the HOT AIR pb is set to OFF.
     const DUCT_OVERHEAT_LIMIT_DEG_C: f64 = 70.;
     // Design choice: the duct temperature must stay above the limit this long before the overheat is declared, as the
     // other monitors of this controller confirm their disagreements (TIMER_RESET).
     const DUCT_OVERHEAT_CONFIRMATION_TIME: f64 = 1.2; // seconds
 
-    // Design choice (the FCOM gives no detection logic): a trim air valve is jammed when its position stays this far
-    // from the controller command for this long. The valves travel fully in 5 s, so a healthy valve never disagrees
-    // that long.
+    // Design choice (no published detection logic): a trim air valve is jammed when its position stays this far from
+    // the controller command for this long. The valves travel fully in 5 s, so a healthy valve never disagrees that
+    // long.
     const TRIM_AIR_VALVE_DISAGREE_LIMIT_PERCENT: f64 = 10.;
     const TRIM_AIR_VALVE_DISAGREE_TIME: f64 = 10.; // seconds
 
@@ -227,7 +225,7 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirDriveDevice<ZONES, ENGINES
     }
 
     /// Duct overheat of one zone: set when the duct stays above 70 deg C, reset when it is back below 70 deg C with
-    /// the HOT AIR pb of the zone set OFF (a380_fcom.txt:132573, 5644-5645).
+    /// the HOT AIR pb of the zone set OFF.
     fn duct_overheat_monitor(
         &mut self,
         context: &UpdateContext,
@@ -289,7 +287,6 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirDriveDevice<ZONES, ENGINES
     }
 
     /// The HOT AIR 1(2) pb FAULT light: an overheat is detected in a duct fed by that hot-air valve
-    /// (A380 FCOM DSC-21-10-20 HOT AIR pb, a380_fcom.txt:5636-5645)
     pub fn hot_air_pushbutton_has_fault(&self, hot_air_id: usize) -> bool {
         (0..ZONES).any(|id| {
             self.duct_overheat[id] && hot_air_valve_feeding_zone(self.zones[id]) == hot_air_id
@@ -330,9 +327,8 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirDriveDevice<ZONES, ENGINES
             && !self.active_channel.has_fault()
             && (pneumatic.pack_flow_valve_is_open(1) || pneumatic.pack_flow_valve_is_open(2))
             && !should_close_taprv
-        // No automatic closure on a duct overheat or a jammed trim air valve: the A380 FCOM has the crew set the HOT
-        // AIR pb OFF in COND DUCT OVHT (a380_fcom.txt:132599-132623), and a jammed trim air valve leaves both
-        // hot-air valves regulating (DSC-21-10-30, a380_fcom.txt:6104-6133).
+        // No automatic closure on a duct overheat or a jammed trim air valve: the crew sets the HOT AIR pb OFF in COND
+        // DUCT OVHT, and a jammed trim air valve leaves both hot-air valves regulating.
     }
 
     fn taprv_open_command_disagree_monitor(
@@ -444,7 +440,7 @@ impl<const ZONES: usize, const ENGINES: usize> SimulationElement
         writer.write(&self.tadd_channel_1_failure_id, channel_1_failure);
         writer.write(&self.tadd_channel_2_failure_id, channel_2_failure);
 
-        // Per zone OVHT and trim air valve marks of the COND SD page (DSC-21-10-20, a380_fcom.txt:5906-5910, 6018-6022)
+        // Per zone OVHT and trim air valve marks of the COND SD page
         for id in 0..ZONES {
             writer.write(&self.duct_overheat_id[id], self.duct_overheat[id]);
             writer.write(

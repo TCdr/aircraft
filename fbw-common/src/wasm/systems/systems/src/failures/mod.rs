@@ -122,7 +122,7 @@ pub enum FailureType {
     EngineOverspeed(usize),
     /// The N1 and N2 rotors of engine n vibrate above the advisory at high thrust
     EngineHighVibration(usize),
-    // ATA73 FADEC and thrust lever (stage A5/B5, see a320_systems / a380_systems engine_control_failure)
+    // ATA73 FADEC and thrust lever (a320_systems / a380_systems engine_control_failure)
     /// FADEC channel A of engine n is lost
     FadecChannelA(usize),
     /// FADEC channel B of engine n is lost

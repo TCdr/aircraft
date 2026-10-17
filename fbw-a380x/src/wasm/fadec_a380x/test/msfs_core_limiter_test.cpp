@@ -48,7 +48,7 @@ class LimitedEngine {
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Replay of the recorded jump (blip2.log): the FADEC detects it in its first sample and holds the core it gives back to MSFS
+// Replay of the recorded jump: the FADEC detects it in its first sample and holds the core it gives back to MSFS
 // ---------------------------------------------------------------------------------------------------------------------
 
 struct RecordedSample {
@@ -76,7 +76,7 @@ static constexpr double BLIP2_IDLE_N3 = 61.2;
  * the real jump, on its first sample, and what it gives back to MSFS: the MSFS core after the FADEC write never above the FBW idle
  * + HOLD_MARGIN, where the recording reaches 96.2 %.
  */
-static void testReplayBlip2() {
+static void testReplayRecordedJump() {
   constexpr double JUMP_TIME      = 273.9;  // the sample of the jump (57.7 -> 60.9 %)
   constexpr double THROTTLE_RISES = 285.0;  // EngineStartThrottleHold releases the MSFS throttle
 
@@ -122,7 +122,7 @@ static void testReplayBlip2() {
               maxCoreAfterFadec, maxRecordedCore);
 }
 
-/// The normal acceleration after the start (blip2.log 285-300 s, throttle 0 -> 56 %, core 58 -> 83 % at up to 7.6 %/s) is not
+/// The normal acceleration after the start (recorded 285-300 s, throttle 0 -> 56 %, core 58 -> 83 % at up to 7.6 %/s) is not
 /// limited: a limiter that has not seen a jump never writes.
 static void testReplayNormalAccelerationNotLimited() {
   LimitedEngine engine;
@@ -155,7 +155,7 @@ static void testFastNormalAccelerationNotLimited() {
   expect(!written, "an 11 %/s acceleration is not limited");
 }
 
-/// On the ground the start ends without the jump (blip1.log): the limiter never writes there, even on a fast rise.
+/// On the ground the start ends without the jump (measured in the sim): the limiter never writes there, even on a fast rise.
 static void testNothingOnTheGround() {
   LimitedEngine engine;
   bool          written = false;
@@ -188,7 +188,7 @@ static void testEndsWhenTheEngineStops() {
 // ---------------------------------------------------------------------------------------------------------------------
 
 /**
- * A small model of the MSFS A380X engine in flight at FL150/240 kt, fitted to blip2.log (it is not the MSFS code, which is not
+ * A small model of the MSFS A380X engine in flight at FL150/240 kt, fitted to the recording (it is not the MSFS code, which is not
  * public; it reproduces the recorded jump: 0.5 s rise, 2.1 s at 100 % corrected, run down to idle in about 8 s, fan peak 66 %).
  * All speeds corrected (the model uses theta = 1).
  * - Start: the core rises at 1 %/s up to low_idle_n2 = 60 %, then MSFS runs it from its fuel flow controller.
@@ -274,7 +274,7 @@ struct ClosedLoopResult {
   double maxCoreAfterAll = 0.0;   // the highest core after the throttle rise
 };
 
-/// FBW idle N3 of the model, corrected: 61.2 % (blip2.log) x 1.039 (the recorded corrected / uncorrected core ratio).
+/// FBW idle N3 of the model, corrected: 61.2 % (recorded) x 1.039 (the recorded corrected / uncorrected core ratio).
 static constexpr double MODEL_IDLE_N3 = 63.6;
 
 /**
@@ -339,7 +339,7 @@ static void testModelReproducesTheJump() {
   expect(std::fabs(msfs.core - 61.0) < 0.5, what);
 }
 
-/// Quick relight with the lever at idle (blip2.log): the core is held near the FBW idle instead of jumping, the fan stays near
+/// Quick relight with the lever at idle (as recorded): the core is held near the FBW idle instead of jumping, the fan stays near
 /// idle, the limiter ends once MSFS has unwound, and the engine idles afterwards.
 static void testClosedLoopRelightAtIdle() {
   const ClosedLoopResult result = runClosedLoop(1000.0, 0.0, 120.0);
@@ -360,7 +360,7 @@ static void testClosedLoopRelightAtIdle() {
               result.maxCoreHeld, result.maxFanHeld, result.limiterEnd - result.startEnd);
 }
 
-/// The lever stays in CL with the A/THR: EngineStartThrottleHold releases the throttle 11 s after the jump, as in blip2.log (274 ->
+/// The lever stays in CL with the A/THR: EngineStartThrottleHold releases the throttle 11 s after the jump, as recorded (274 ->
 /// 285 s). The engine accelerates to the climb (core 87 %) without the limiter keeping it below, and the MSFS fuel flow controller
 /// has unwound under the hold by then: no overshoot of the climb (with a 3 % hold margin the model went to 95 %).
 static void testClosedLoopThrottleRisesAfterTheStart() {
@@ -394,7 +394,7 @@ static void testClosedLoopAutoRelightInClimb() {
 }
 
 int main() {
-  testReplayBlip2();
+  testReplayRecordedJump();
   testReplayNormalAccelerationNotLimited();
   testFastNormalAccelerationNotLimited();
   testNothingOnTheGround();

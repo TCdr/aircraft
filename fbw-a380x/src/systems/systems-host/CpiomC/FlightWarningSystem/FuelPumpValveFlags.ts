@@ -4,10 +4,7 @@
 import { NXLogicConfirmNode } from '@flybywiresim/fbw-sdk';
 import { FwcFlightPhase } from './FwsFlightPhases';
 
-/**
- * A feed tank holding less than this is at low level: "There is less than 3 030 lb of fuel in feed tank 1(2)(3)(4)"
- * (A380 FCOM PRO-ABN-ECAM-10-28 FUEL FEED TK 1(2)(3)(4) LEVEL LO, a380_fcom.txt l.149878), in kg
- */
+/** A feed tank holding less than this (3 030 lb) is at low level, in kg */
 export const FEED_TANK_LEVEL_LO_KG = 1375;
 
 /**
@@ -88,19 +85,16 @@ export function readCrossFeedValveFlags(
 
 /** The FUEL FEED TK n pump alerts of one feed tank */
 export interface FeedTankPumpAlerts {
-  /** FUEL FEED TK n MAIN PMP FAULT */
   mainFault: boolean;
-  /** FUEL FEED TK n STBY PMP FAULT */
   stbyFault: boolean;
   /** FUEL FEED TK n MAIN + STBY PMPs FAULT, which replaces the two single pump alerts */
   mainAndStbyFault: boolean;
 }
 
 /**
- * The pump alerts of one feed tank (A380 FCOM PRO-ABN-ECAM-10-28, a380_fcom.txt l.149935-149960, l.150267-150275 and
- * l.150328-150336). A pump is faulty when it is "operating at low pressure, or abnormally not running, or turned off by
- * the flight crew (except in flight phase 1 and 12 ...)". The exception "if required by another ECAM procedure (e.g. FUEL
- * WINGS NOT BALANCED)" is not simulated, and the pumps are never unpowered in the simulation.
+ * The pump alerts of one feed tank. A pump is faulty when it runs at low pressure, is abnormally not running, or is
+ * turned off by the flight crew outside flight phases 1 and 12. Not simulated: the exception for a pump turned off by
+ * another ECAM procedure (e.g. FUEL WINGS NOT BALANCED); the pumps are never unpowered in the simulation.
  * @param flags the pumps of the feed tank
  * @param flightPhase the FWS flight phase
  */
@@ -176,10 +170,8 @@ export function readTransferPumpFlags(read: (name: string) => number): TransferP
 }
 
 /**
- * Whether a transfer pump is faulty for its FUEL ... PMP FAULT alert: "Failed, or Running, when the associated tank is
- * empty, or Turned off by the flight crew (except in flight phase 1 and 12)" (A380 FCOM PRO-ABN-ECAM-10-28 triggering
- * conditions, a380_fcom.txt l.151343-151346, l.151418-151421, l.151497-151500, l.151562-151565, l.151635-151638,
- * l.153695-153698, l.153745-153748).
+ * Whether a transfer pump is faulty for its FUEL ... PMP FAULT alert: failed, running while its tank is empty, or
+ * turned off by the flight crew outside flight phases 1 and 12.
  * @param flags the pump
  * @param flightPhase the FWS flight phase
  */
@@ -199,14 +191,13 @@ export interface PumpPairAlerts {
 }
 
 /** The two single alerts, or the double alert of a pair of pumps */
-export function pumpPairAlerts(firstFaulty: boolean, secondFaulty: boolean): PumpPairAlerts {
+function pumpPairAlerts(firstFaulty: boolean, secondFaulty: boolean): PumpPairAlerts {
   const both = firstFaulty && secondFaulty;
   return { first: firstFaulty && !both, second: secondFaulty && !both, both };
 }
 
-/** The transfer pump alerts (A380 FCOM PRO-ABN-ECAM-10-28) */
+/** The transfer pump alerts */
 export interface TransferPumpAlerts {
-  /** FUEL L (R) OUTR TK PMP FAULT */
   leftOuter: boolean;
   rightOuter: boolean;
   /** FUEL L (R) INR TK FWD PMP FAULT, INR TK AFT PMP FAULT, INR TK FWD+AFT PMPs FAULT */
@@ -220,7 +211,6 @@ export interface TransferPumpAlerts {
 }
 
 /**
- * The transfer pump alerts.
  * @param flags the transfer pumps
  * @param flightPhase the FWS flight phase
  */

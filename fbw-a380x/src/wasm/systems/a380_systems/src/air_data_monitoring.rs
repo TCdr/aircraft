@@ -1,5 +1,4 @@
-//! Air data monitoring by the PRIMs (A380 FCOM DSC-34-10-30-10 "ADR monitoring by PRIM", l.85698-85725, and
-//! DSC-34-10-30-40 "Failure scenarios", l.86240-86319).
+//! Air data monitoring by the PRIMs: ADR monitoring and its failure scenarios.
 //!
 //! The PRIMs compare the air data of the three ADRs and of the standby instruments (ISIS) and reject a source that
 //! diverges from the coherent other ones, until the end of the flight. When they cannot tell which source is wrong,
@@ -12,7 +11,7 @@
 //! failure warning status, which gives the law reversions (two ADRs: alternate law, all: direct law), and the FWS
 //! raises NAV AIR DATA DISAGREE, NAV ALL AIR DATA DISAGREE and NAV AOA DISAGREE.
 //!
-//! Design choices (the FCOM gives no values for them):
+//! Design choices (no published values):
 //! - the standby instruments are the sim air data (they have no failure);
 //! - one confirmation time of 1 s for every rejection;
 //! - the low angle of attack thresholds only (CAS 16 kt, Mach .04), not the high AOA/sideslip ones;
@@ -60,7 +59,7 @@ pub(crate) fn vote(values: &[Option<f64>], threshold: f64) -> AirDataVote {
         return AirDataVote::NoConflict;
     }
     if available.len() == 2 {
-        // "TWO SOURCES ALREADY INVALID AND DETECTION OF CONFLICT BETWEEN THE TWO REMAINING SOURCES" (l.86290)
+        // Two sources already invalid and a conflict between the two remaining ones
         return AirDataVote::Ambiguous;
     }
 
@@ -95,7 +94,7 @@ pub(crate) fn vote(values: &[Option<f64>], threshold: f64) -> AirDataVote {
             }
         }
         0 => {
-            // "TWO SOURCES IN CONFLICT WITH TWO OTHER SOURCES" (l.86306): two coherent pairs that disagree
+            // Two sources in conflict with two other sources: two coherent pairs that disagree
             if available.len() == 4 {
                 let (a, b, c, d) = (
                     available[0].1,
@@ -165,11 +164,11 @@ impl A380PrimAirDataMonitoring {
     const CONFIRMATION_TIME: Duration = Duration::from_secs(1);
     const SETTLING_TIME: Duration = Duration::from_secs(5);
 
-    /// A380 FCOM DSC-34-10-30-10 l.85708-85710 (low AOA / sideslip values)
+    /// Low AOA / sideslip values
     const CAS_THRESHOLD_KNOTS: f64 = 16.;
     const MACH_THRESHOLD: f64 = 0.04;
     const ALTITUDE_THRESHOLD_FEET: f64 = 400.;
-    /// A380 FCOM DSC-34-10-30-10 l.85725 (low sideslip) and l.85716 (on ground, during the takeoff roll)
+    /// Low sideslip, and on ground during the takeoff roll
     const AOA_THRESHOLD_IN_FLIGHT_DEGREES: f64 = 3.6;
     const AOA_THRESHOLD_ON_GROUND_DEGREES: f64 = 8.;
 
@@ -283,7 +282,7 @@ impl A380PrimAirDataMonitoring {
         let mut aoa: [Option<f64>; 3] = [None; 3];
         for number in 1..=3 {
             let index = number - 1;
-            // A source rejected for its CAS, Mach or altitude is rejected with all its parameters (l.85704)
+            // A source rejected for its CAS, Mach or altitude is rejected with all its parameters
             let adr_rejected = self.source_rejected[index].latched || self.all_rejected.latched;
             if adr_rejected || self.aoa_rejected[index].latched {
                 continue;

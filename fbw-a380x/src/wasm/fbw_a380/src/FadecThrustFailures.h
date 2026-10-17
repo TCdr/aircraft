@@ -12,20 +12,16 @@ namespace FadecThrustFailures {
 // ------------------------------------------------------------------------------------------------------------------------
 // ENG 1(2)(3)(4) THRUST LOSS, flyPad ATA 73 "Engine 1(2)(3)(4) max thrust miscalculated (thrust loss)"
 //
-// A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, a380_fcom.txt l.173378-173408 (PDF page 5822): "A loss of thrust is
-// detected following an erroneous but valid calculation of the THR parameter" (l.173384); "The FADEC detects a loss of
-// thrust if the maximum THR of the affected engine is 10 % lower than at least two other engines maximum THR. A wrong
-// calculation of the maximum THR may lead to a wrong but valid calculation of the actual THR." (l.173388-173394). The procedure
-// (l.173407-173408): "THR LEVER 1(2)(3)(4) ... IDLE", "ENG 1(2)(3)(4) MASTER ... OFF".
-// DSC-70-20-40-20 ENGINE POWER SETTING (l.111674-111675): "100 % THR corresponds to the engine thrust achieved when the
-// thrust lever is in the TOGA detent".
+// ENG THRUST LOSS: the FADEC detects a loss of thrust when the maximum THR of its engine is 10 % lower than that of at least two
+// other engines, after an erroneous but valid calculation of the THR parameter; the procedure sets the thrust lever to IDLE
+// and the ENG MASTER OFF. 100 % THR is the engine thrust at the TOGA detent.
 //
 // The failure: the FADEC of the engine computes a maximum thrust lower than the real one. Its rating limits (CLB, MCT, FLEX,
 // TOGA) are scaled down above idle, so the engine gives that much less thrust in every detent.
 // ------------------------------------------------------------------------------------------------------------------------
 
-/// Design choice, no FCOM value: the faulty FADEC computes a maximum thrust 15 % lower than the real one (between idle and
-/// TOGA), above the 10 % that the FADEC detects.
+/// Design choice: the faulty FADEC computes a maximum thrust 15 % lower than the real one (between idle and TOGA), above the
+/// 10 % that the FADEC detects.
 constexpr double MISCALCULATED_MAX_THRUST_RATIO = 0.85;
 
 /// A thrust rating limit (percent N1) of the FADEC: scaled down above idle by the max thrust miscalculation. A limit at or below
@@ -50,10 +46,9 @@ inline double maxThrPercent(double fadecTogaN1, double healthyTogaN1, double idl
 // ------------------------------------------------------------------------------------------------------------------------
 // ENG T.O THRUST DISAGREE, flyPad ATA 73 "FADEC 1(2)(3)(4) FLEX TEMP not received"
 //
-// A380 FCOM PRO-ABN-ECAM-10-70 ENG T.O THRUST DISAGREE, a380_fcom.txt l.175054-175070 (PDF page 5857): "All FADECs do not
-// have the same takeoff mode, derate, flex or TOGA." (l.175060), "Crew awareness" (l.175070). DSC-70-20-40 MANUAL THRUST ON
-// GROUND (l.111615-111617): "Depending on the selected takeoff thrust on the T.O panel of the FMS ACTIVE/PERF page, i.e. TOGA,
-// or FLEX, or DERATED, the associated thrust rating mode, T.O, or DOx, or FLEX is displayed".
+// ENG T.O THRUST DISAGREE (crew awareness): the FADECs do not all have the same takeoff mode, derate, flex or TOGA. The
+// takeoff thrust selected on the T.O panel of the FMS PERF page (TOGA, FLEX or DERATED) gives the thrust rating mode T.O, FLEX
+// or DOx.
 //
 // The failure: the FLEX TEMP of the PRIMs (label flx_to_temp_deg_c of the PRIM FG bus) does not reach one FADEC. That FADEC has
 // no valid FLEX TEMP and its take-off mode is TOGA, while the others are in FLEX: its engine gives the thrust of its own mode

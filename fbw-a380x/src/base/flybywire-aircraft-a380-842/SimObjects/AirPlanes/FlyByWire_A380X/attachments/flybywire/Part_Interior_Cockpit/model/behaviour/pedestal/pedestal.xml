@@ -5,9 +5,8 @@
     <!-- ENG MASTER lever. The A32NX template of the same lever (legacy/generated FBW_ENGINE_Switch_Master_Template) keeps the
          MSFS starter equal to the lever every 0.2 s, so a dry crank with the lever OFF could not turn the engine. Here the
          MSFS starter also follows the FADEC start sequence of the systems WASM: A32NX_ENGINE_n_STARTER_MOTORING is true while
-         the starter turns the core without fuel (A380 FCOM DSC-70-80-40 CRANKING, a380_fcom.txt l.112654-112660: "A dry
-         cranking cycle ventilates the engine ... The dry crank is stopped by setting either the ENG MAN START pb-sw to OFF or
-         setting the ENG START selector to NORM"). With the lever OFF the MSFS fuel valve stays closed: no combustion. -->
+         the starter turns the core without fuel (a dry cranking cycle ventilates the engine; it stops when the ENG MAN START
+         pb-sw is set to OFF or the ENG START selector to NORM). With the lever OFF the MSFS fuel valve stays closed: no combustion. -->
     <Template Name="A380X_ENGINE_Switch_Master_Template">
         <DefaultTemplateParameters>
             <NODE_ID>ENGINE_Switch_Master_#ID#</NODE_ID>

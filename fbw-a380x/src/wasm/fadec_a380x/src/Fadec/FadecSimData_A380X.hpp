@@ -235,7 +235,7 @@ class FadecSimData_A380X {
   NamedVariablePtr engineStartEgtOvershoot[4];  // Bool - hot start or stall: the start EGT overshoots
   NamedVariablePtr engineStartIgniters[4];      // Number - the igniters the start sequence energizes: bit 0 A, bit 1 B
   NamedVariablePtr engineStartSelector;       // Enum - ENG START selector: 0 crank, 1 norm, 2 ign start
-  NamedVariablePtr engineFirePbReleased[4];   // Bool - ENG FIRE pb released: the FADEC is no longer supplied (FCOM DSC-26)
+  NamedVariablePtr engineFirePbReleased[4];   // Bool - ENG FIRE pb released: the FADEC is no longer supplied
   NamedVariablePtr engineIgniterA[4];         // Bool - igniter A energized (SD ENGINE page ignition indication)
   NamedVariablePtr engineIgniterB[4];         // Bool - igniter B energized (SD ENGINE page ignition indication)
   NamedVariablePtr engineOilLeak[4];          // Bool - oil leak failure: the oil system loses oil (systems WASM)

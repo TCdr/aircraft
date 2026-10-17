@@ -1107,13 +1107,12 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320800049: {
-    // Crew awareness, no action line (A380 FCOM STEER B/W STEER FAULT, a380_fcom.txt l.162658-162660)
+    // Crew awareness: no action line
     title: '\x1b<4m\x1b4mSTEER\x1bm B/W STEER FAULT',
     sensed: true,
     items: [],
   },
   320800050: {
-    // A380 FCOM STEER B/W STEER NOT LOCKED (a380_fcom.txt l.162695-162736)
     title: '\x1b<4m\x1b4mSTEER\x1bm B/W STEER NOT LOCKED',
     sensed: true,
     items: [
@@ -1245,7 +1244,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   320900001: {
-    // A380 FCOM PRO-ABN-ECAM-10-32 L/G LDG WITH ABNORM NOSE L/G
     title: '\x1b<4m\x1b4mL/G\x1bm LDG WITH ABNORM NOSE L/G',
     sensed: false,
     items: [
@@ -1296,7 +1294,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320900002: {
-    // A380 FCOM PRO-ABN-ECAM-10-32 L/G LDG WITH 2 ABNORM L/Gs ON SAME SIDE
     title: '\x1b<4m\x1b4mL/G\x1bm LDG WITH 2 ABNORM L/Gs ON SAME SIDE',
     sensed: false,
     items: [
@@ -1351,7 +1348,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320900003: {
-    // A380 FCOM PRO-ABN-ECAM-10-32 L/G LDG WITH 1 ABNORM WING OR BODY L/G
     title: '\x1b<4m\x1b4mL/G\x1bm LDG WITH 1 ABNORM WING OR BODY L/G',
     sensed: false,
     items: [
@@ -1363,7 +1359,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320900004: {
-    // A380 FCOM PRO-ABN-ECAM-10-32 L/G LDG WITH 2 ABNORM BODY L/Gs
     title: '\x1b<4m\x1b4mL/G\x1bm LDG WITH 2 ABNORM BODY L/Gs',
     sensed: false,
     items: [
@@ -1381,7 +1376,6 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320900005: {
-    // A380 FCOM PRO-ABN-ECAM-10-32 L/G LDG WITH 2 ABNORM WING L/Gs
     title: '\x1b<4m\x1b4mL/G\x1bm LDG WITH 2 ABNORM WING L/Gs',
     sensed: false,
     items: [

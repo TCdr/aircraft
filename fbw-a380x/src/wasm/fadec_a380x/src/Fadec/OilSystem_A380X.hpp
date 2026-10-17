@@ -14,20 +14,18 @@
 namespace OilSystem_A380X {
 
 /*
- * Design choices, the FCOM gives no rates:
+ * Design choices (no published rates):
  * - an oil leak empties the oil system (A32NX_ENGINE_OIL_TOTAL) at 2 qt/min; the tank quantity shown on the SD is the total
  *   less the oil in the circuit (about 20 % at idle to 37 % at 70 000 lbf) and falls about 1.6 qt/min;
  * - the oil pump delivers its normal pressure down to 1.3 qt in the whole oil system and no pressure at 0.3 qt, so that ENG
- *   OIL PRESS LO (below 25 PSI, FCOM PRO-ABN-ECAM-10-70 l.172486) follows the 1.2 qt oil advisory of the SD (FCOM
- *   DSC-70-90 OIL QUANTITY, a380_fcom.txt l.113343), reached at about 1.5 to 1.9 qt in the system. A healthy engine
- *   holds 17 to 20 qt;
- * - an oil overheat drives the oil to 170 C at idle, between the 163 C pulsing and the 177 C amber of the SD (FCOM
- *   DSC-70-90 OIL TEMPERATURE, l.113362-113371), and to 230 C at 100 % N3, above the 196 C of ENG OIL TEMP HI (FCOM
- *   l.172561), with a 60 s time constant. The target rises with the square root of the N3 fraction above idle: about 214 C
- *   at a cruise N3 half way between idle and 100 % (OIL TEMP HI after about 2 min), back at 196 C at a fifth of the way.
- *   The procedure "THR LEVER ... REDUCE BELOW OIL TEMP LIMIT. Gradually reduce thrust on the affected engine, to decrease
- *   the oil temperature below limit" (FCOM l.172585-172586) then brings it below 196 C, at IDLE within about 1 min. A linear
- *   target (225 C at 100 % N3) only reached 196.3 C after 4 min at cruise N1 55-60 % (sim test 2026-10-07).
+ *   OIL PRESS LO (below 25 PSI) follows the 1.2 qt oil advisory of the SD, reached at about 1.5 to 1.9 qt in the system. A
+ *   healthy engine holds 17 to 20 qt;
+ * - an oil overheat drives the oil to 170 C at idle, between the 163 C pulsing and the 177 C amber of the SD, and to 230 C at
+ *   100 % N3, above the 196 C of ENG OIL TEMP HI, with a 60 s time constant. The target rises with the square root of the N3
+ *   fraction above idle: about 214 C at a cruise N3 half way between idle and 100 % (OIL TEMP HI after about 2 min), back at
+ *   196 C at a fifth of the way. The procedure, which gradually reduces the thrust of the affected engine, then brings it
+ *   below 196 C, at IDLE within about 1 min. A linear target (225 C at 100 % N3) only reached 196.3 C after 4 min at cruise
+ *   N1 55-60 % (measured in the sim).
  */
 constexpr double                                LEAK_RATE               = 2.0 / 60.0;  // qt/s
 constexpr double                                FULL_PRESSURE_TOTAL_QTY = 1.3;         // qt

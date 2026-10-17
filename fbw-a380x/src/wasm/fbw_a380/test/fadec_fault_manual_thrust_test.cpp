@@ -4,9 +4,9 @@
 // Native test of the A380X thrust loop under ENG 1(2)(3)(4) FADEC FAULT (the FADEC cannot communicate via the avionics networks,
 // fbw-common/src/wasm/fbw_common/src/FadecFailureInputs.h): run test/run_tests.sh.
 //
-// Sim test of 2026-10-06 (s4_main1.log): FL100, 250 kt, A/THR active, the four levers in the CL detent. Engine 1 FADEC network link
-// failed at 231.3 s: until the failure was cleared at 280.6 s, engine 1 stayed at the N1 of the failure (50.2 %, MSFS throttle frozen
-// at 44.1 %) while the A/THR kept managing engines 2-4. The FCOM gives that engine to its lever ("THR LEVER ... MAN ADJUST"): in the
+// Measured in the sim: FL100, 250 kt, A/THR active, the four levers in the CL detent. Engine 1 FADEC network link failed at
+// 231.3 s: until the failure was cleared at 280.6 s, engine 1 stayed at the N1 of the failure (50.2 %, MSFS throttle frozen at
+// 44.1 %) while the A/THR kept managing engines 2-4. The procedure gives that engine to its lever (manual adjust): in the
 // CL detent it must go to the CLB thrust. The thrust loop below is the generated A380FadecComputer model, used as it is, fed as
 // FlyByWireInterface::updateFadec feeds it; the MSFS engine is a first-order lag on its throttle.
 //
@@ -46,7 +46,6 @@ static constexpr double ATHR_N1_ORDER = 50.0;
 /// bit 12 A/THR active (thrust control). Bit 24 (alpha floor / TOGA) stays clear.
 static constexpr float ATS_WORD_ATHR_ENGAGED_AND_ACTIVE = static_cast<float>((1U << 10) | (1U << 11));
 
-/// SignStatusMatrix::NormalOperation
 static constexpr uint32_T SSM_NORMAL_OPERATION = 3U;
 
 static constexpr double FRAME_SECONDS = 1.0 / 30.0;
@@ -170,7 +169,7 @@ static void lostLinkInMctDetentGivesMctThrust() {
 }
 
 /// The THRUST LOCK function itself is kept: an A/THR disconnection with a working link (A/THR pb on the AFS CP, or the A/THR
-/// inoperative) in the CL detent still freezes the thrust at its level (A380 FCOM DSC-22-FG-50-40 THRUST LOCK FUNCTION).
+/// inoperative) in the CL detent still freezes the thrust at its level (thrust lock function).
 static void autothrustDisconnectionStillLocksTheThrust() {
   ThrustLoop loop;
   loop.engageAutothrust(CL_DETENT_DEG);

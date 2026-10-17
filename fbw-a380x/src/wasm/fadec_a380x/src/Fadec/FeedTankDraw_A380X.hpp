@@ -18,13 +18,13 @@
  * the MSFS fuel system refills it from the feed tanks (crossfeed and gravity feed included). The Extra tank is also the only
  * fuel MSFS sees at the engine, and it gives the engine line its pressure through Curve.1 (0 psi empty, 30 psi from 2 % full).
  *
- * The FADEC took the whole burn of an update at once, down to an empty tank: one long frame (the burn grows with the frame time,
- * about 2.1 kg/s per engine in a climb) emptied the four Extra tanks in the same update, identical engines burning the same.
+ * Taking the whole burn of an update at once, down to an empty tank, lets one long frame (the burn grows with the frame time,
+ * about 2.1 kg/s per engine in a climb) empty the four Extra tanks in the same update, identical engines burning the same.
  * Design choice: while MSFS can refill the Extra tank (its feed tank holds fuel), the FADEC leaves at least
  * MIN_EXTRA_TANK_GALLONS in it and carries the burn it could not take over to the next updates, so that the fuel burned is still
  * taken in full once MSFS has refilled the tank. A feed tank that runs dry stops the floor: the engine then empties its Extra
- * tank as before and flames out (fuel exhaustion). The starvation of an engine whose LP valve is closed does not depend on the
- * Extra tank: the systems WASM closes the MSFS feed valve 60-63 of that engine (a380_systems fuel/engine_lp_valves.rs).
+ * tank and flames out (fuel exhaustion). The starvation of an engine whose LP valve is closed does not depend on the Extra
+ * tank: the systems WASM closes the MSFS feed valve 60-63 of that engine (a380_systems fuel/engine_lp_valves.rs).
  */
 class FeedTankDraw_A380X {
  public:
@@ -36,7 +36,7 @@ class FeedTankDraw_A380X {
   static constexpr double MIN_EXTRA_TANK_GALLONS = 0.002;
 
   /// Design choice: the most burn carried over to the next updates, in gallons: one full Extra tank (Tank.12-15 Capacity:1).
-  /// Beyond it the burn is dropped, as the FADEC did before for the burn it could not take.
+  /// Beyond it the burn is dropped.
   static constexpr double MAX_CARRIED_BURN_GALLONS = 1.0;
 
   struct Input {
@@ -57,8 +57,7 @@ class FeedTankDraw_A380X {
     const double burnLbs = std::max(input.burnKg, 0.0) * LBS_PER_KG;
 
     // No valid fuel weight or quantity (no MSFS data yet): nothing can be converted, the tank is left as it is and the burn of this
-    // update is dropped, as the FADEC did for an Extra tank it read empty. The quantity was divided by this weight before, so a 0
-    // wrote NaN into the four Extra tanks.
+    // update is dropped. Dividing the quantity by a 0 weight would write NaN into the four Extra tanks.
     if (!(input.weightLbsPerGallon > 0) || !std::isfinite(input.weightLbsPerGallon) || !std::isfinite(input.extraTankGallons)) {
       return {input.extraTankGallons, 0.0, std::max(input.carriedBurnLbs, 0.0)};
     }

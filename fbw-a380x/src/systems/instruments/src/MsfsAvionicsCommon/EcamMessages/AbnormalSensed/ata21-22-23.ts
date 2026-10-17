@@ -339,7 +339,7 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   211800028: {
-    // A380 FCOM PRO-ABN-ECAM-10-21-10 COND DUCT OVHT (a380_fcom.txt:132599-132623). Which lines show: CondTrimAirFlags.ts
+    // The lines shown are chosen in CondTrimAirFlags.ts
     title: '\x1b<4m\x1b4mCOND\x1bm DUCT OVHT  ',
     sensed: true,
     items: [
@@ -372,7 +372,6 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     ],
   },
   211800030: {
-    // A380 FCOM PRO-ABN-ECAM-10-21-10 COND FWD CARGO TEMP REGUL FAULT (a380_fcom.txt:132278-132282)
     title: '\x1b<4m\x1b4mCOND\x1bm FWD CARGO TEMP REGUL FAULT  ',
     sensed: true,
     items: [
@@ -394,7 +393,6 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   211800032: {
-    // A380 FCOM PRO-ABN-ECAM-10-21 COND HOT AIR 1(2) FAULT
     title: '\x1b<4m\x1b4mCOND\x1bm HOT AIR 1 FAULT',
     sensed: true,
     items: [
@@ -403,7 +401,6 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     ],
   },
   211800033: {
-    // A380 FCOM PRO-ABN-ECAM-10-21 COND HOT AIR 1(2) FAULT
     title: '\x1b<4m\x1b4mCOND\x1bm HOT AIR 2 FAULT',
     sensed: true,
     items: [
@@ -447,7 +444,6 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   211800041: {
-    // A380 FCOM PRO-ABN-ECAM-10-21 COND TEMP CTL FAULT
     title: '\x1b<4m\x1b4mCOND\x1bm TEMP CTL FAULT',
     sensed: true,
     items: [{ name: 'CARGO TEMP', sensed: false, labelNotCompleted: 'MONITOR' }],
@@ -2337,7 +2333,6 @@ export const EcamDeferredProcAta212223: { [n: number]: DeferredProcedure } = {
     ],
   },
   210700003: {
-    // A380 FCOM PRO-ABN-ECAM-10-21-10 COND DUCT OVHT, DEFERRED PROC (a380_fcom.txt:132645-132651)
     fromAbnormalProcs: ['211800028'],
     title: 'WHEN DUCT OVHT OUT',
     type: DeferredProcedureType.ALL_PHASES,

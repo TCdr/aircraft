@@ -48,7 +48,7 @@ const running: EngineFailInputs = {
 };
 const flamedOut: EngineFailInputs = { ...running, engineState: FadecEngineState.Shutting, coreSpeedPercent: 12 };
 
-describe('ENG 1(2)(3)(4) FAIL memory (A380 FCOM PRO-ABN-ECAM-10-70 l.171718)', () => {
+describe('ENG 1(2)(3)(4) FAIL memory', () => {
   it('an engine that ran and flames out fails below 50 % N3, not before', () => {
     const monitor = run(new EngineFailMonitor(), running, 10);
     run(monitor, { ...flamedOut, coreSpeedPercent: 55 }, 1);
@@ -75,8 +75,8 @@ describe('ENG 1(2)(3)(4) FAIL memory (A380 FCOM PRO-ABN-ECAM-10-70 l.171718)', (
     expect(monitor.failed).toBe(false);
   });
 
-  // The engines 3 and 4 took "master ON and not STARTING" for "was running" (FwsCore before 2026-10-05): the attempts
-  // below raised ENG 3(4) FAIL, not ENG 1(2) FAIL.
+  // Regression: FwsCore once took "master ON and not STARTING" for "was running" on the engines 3 and 4, so the
+  // attempts below raised ENG 3(4) FAIL, not ENG 1(2) FAIL.
   it('a relight attempt after a crew shutdown that does not light up raises no ENG FAIL', () => {
     const monitor = run(new EngineFailMonitor(), running, 10);
     // MASTER OFF: the engine shuts down and windmills
@@ -122,7 +122,7 @@ describe('FwsCore wiring of the engine failure logic', () => {
   });
 });
 
-describe('ENG FAIL: RELIGHT PROC CONSIDER or APPLY (l.171867-171872)', () => {
+describe('ENG FAIL: RELIGHT PROC CONSIDER or APPLY', () => {
   it('APPLY when more than two engines failed', () => {
     expect(relightProcMustBeApplied([true, false, false, false])).toBe(false);
     expect(relightProcMustBeApplied([true, true, false, false])).toBe(false);
@@ -164,7 +164,7 @@ describe('ENG FAIL: RELIGHT PROC CONSIDER or APPLY (l.171867-171872)', () => {
   );
 });
 
-describe('ENG TWO ENGS OUT ON SAME / OPPOSITE SIDE (l.175224, 175477)', () => {
+describe('ENG TWO ENGS OUT ON SAME / OPPOSITE SIDE', () => {
   const out = (...engines: number[]): EnginesOut =>
     [1, 2, 3, 4].map((engine) => engines.includes(engine)) as unknown as EnginesOut;
 
@@ -191,7 +191,7 @@ describe('ENG TWO ENGS OUT ON SAME / OPPOSITE SIDE (l.175224, 175477)', () => {
   });
 });
 
-describe('ENG SHUT DOWN STATUS (l.172777-172795)', () => {
+describe('ENG SHUT DOWN STATUS', () => {
   it('BTV is inoperative when engine 2 or 3 is shut down', () => {
     expect(shutDownBtvInop(true, false)).toBe(true);
     expect(shutDownBtvInop(false, true)).toBe(true);
@@ -205,7 +205,7 @@ describe('ENG SHUT DOWN STATUS (l.172777-172795)', () => {
   });
 });
 
-describe('ENG TWO ENGS OUT STATUS (l.175434-175454, 175614-175632)', () => {
+describe('ENG TWO ENGS OUT STATUS', () => {
   const out = (...engines: number[]): EnginesOut =>
     [1, 2, 3, 4].map((engine) => engines.includes(engine)) as unknown as EnginesOut;
   const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
@@ -218,7 +218,7 @@ describe('ENG TWO ENGS OUT STATUS (l.175434-175454, 175614-175632)', () => {
     return source.slice(start, source.indexOf('\n    },', start));
   };
 
-  it('the two engines of a side out lose the hydraulic system of that side (DSC-29-10)', () => {
+  it('the two engines of a side out lose the hydraulic system of that side', () => {
     expect(hydraulicSystemsLostByEnginesOut(out(1, 2))).toEqual({ green: true, yellow: false });
     expect(hydraulicSystemsLostByEnginesOut(out(3, 4))).toEqual({ green: false, yellow: true });
     expect(hydraulicSystemsLostByEnginesOut(out(1, 3))).toEqual({ green: false, yellow: false });
@@ -277,7 +277,7 @@ describe('ENG TWO ENGS OUT STATUS (l.175434-175454, 175614-175632)', () => {
   });
 });
 
-describe('ENG ALL ENG FLAME OUT inhibits ELEC EMER CONFIG while it is shown (l.173795)', () => {
+describe('ENG ALL ENG FLAME OUT inhibits ELEC EMER CONFIG while it is shown', () => {
   const PHASE_6_LIFT_OFF_TO_1500_FT = 6;
   const PHASE_8_CRUISE = 8;
 
@@ -296,7 +296,7 @@ describe('ENG ALL ENG FLAME OUT inhibits ELEC EMER CONFIG while it is shown (l.1
   });
 });
 
-describe('ENG FAIL inhibition and AUTO RELIGHT IN PROGRESS (FCOM l.171712-171811, PDF p.5776)', () => {
+describe('ENG FAIL inhibition and AUTO RELIGHT IN PROGRESS', () => {
   const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
   const engFailEntry = (engine: number) => {
     const start = abnormalSensed.search(new RegExp(` {6}// ENG ${engine} FAIL\\r?\\n`));
@@ -350,7 +350,7 @@ describe('ENG FAIL inhibition and AUTO RELIGHT IN PROGRESS (FCOM l.171712-171811
   );
 });
 
-describe('ENG TWO ENGS OUT deferred procedures (FCOM l.175333-175396, l.175554-175612)', () => {
+describe('ENG TWO ENGS OUT deferred procedures', () => {
   const ata70 = readFileSync(
     resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
     'utf-8',
@@ -411,7 +411,7 @@ describe('ENG TWO ENGS OUT deferred procedures (FCOM l.175333-175396, l.175554-1
     );
   });
 
-  it('SAME SIDE: SLATS SLOW only with ENG 1+2 lost (l.175352)', () => {
+  it('SAME SIDE: SLATS SLOW only with ENG 1+2 lost', () => {
     expect(sameSideApproachItems(cruise).show[7]).toBe(true);
     expect(sameSideApproachItems({ ...cruise, engines1And2Out: false }).show[7]).toBe(false);
     expect(deferred(700700003)).toMatch(/'FLAPS SLOW'[^\n]*\n[^\n]*'SLATS SLOW'/);

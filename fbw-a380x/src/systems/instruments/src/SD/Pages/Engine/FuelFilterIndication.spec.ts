@@ -6,7 +6,6 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { fuelFilterCloggedShown } from './FuelFilterIndication';
 
-/* A380 FCOM DSC-70-90 FUEL FLOW, a380_fcom.txt l.113330-113332 */
 describe('A380X SD ENGINE fuel filter CLOGGED', () => {
   it('shows CLOGGED with a clogged filter on a running engine', () => {
     expect(fuelFilterCloggedShown(true, 1)).toBe(true);

@@ -11,7 +11,7 @@ import {
   startValveColour,
 } from './StartParameters';
 
-/* A380 FCOM DSC-70-90 START PARAMETERS: the start indications replace the nacelle temperature indications. */
+/* The start indications replace the nacelle temperature indications. */
 describe('SD ENGINE start parameters or nacelle temperature', () => {
   it('shows the start parameters during a start and with the selector at IGN START, as before', () => {
     expect(startParametersVisible(true, true, false, false)).toBe(true);
@@ -45,7 +45,7 @@ describe('SD ENGINE start parameters or nacelle temperature', () => {
   });
 });
 
-/* A380 FCOM DSC-70-90 START VALVE (a380_fcom.txt l.113452-113462): amber when abnormally open or closed. */
+/* The start valve is amber when abnormally open or closed. */
 describe('SD ENGINE start valve colour', () => {
   it('is green without start valve fault', () => {
     expect(startValveColour(StartValveFault.None)).toBe('Green');

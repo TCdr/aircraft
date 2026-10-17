@@ -45,7 +45,7 @@ export class EGT extends DisplayComponent<EGTProps> {
     this.thrustLimitType,
   );
 
-  /** The EGT offset of the stall and EGT overtemperature failures (EgtLimits displayedEgt) */
+  /** Added by the stall and EGT overtemperature failures (EgtLimits displayedEgt) */
   private readonly egtOffset = ConsumerSubject.create(
     this.sub.on(`egt_offset_${this.props.engine}`).withPrecision(1).whenChanged(),
     0,
@@ -66,7 +66,7 @@ export class EGT extends DisplayComponent<EGTProps> {
     this.thrustLimitType,
   );
 
-  /** The red mark at the highest EGT shown above the red line (FCOM DSC-70-90 EGT EXCEEDANCE) */
+  /** The red mark at the highest EGT shown above the red line */
   private readonly egtExceedance = new ExceedanceMemory(EGT_RED_LINE_C);
 
   private readonly egtExceedanceValue = Subject.create(0);

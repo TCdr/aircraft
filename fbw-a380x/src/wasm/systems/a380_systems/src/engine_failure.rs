@@ -4,65 +4,44 @@
 //! this module gives it the A380 relight envelope and windmilling speeds, and the A380 variables.
 //! The FADEC reads the fuel cut it computes in place of the LP valve starvation.
 //!
-//! HP fuel valve: A380 FCOM DSC-70-30 ENGINE SHUTDOWN (a380_fcom.txt l.113611-113612): with the ENG
-//! MASTER lever OFF "The FADEC closes the LP and HP fuel valves. The engine decelerates and stops."
-//! (also DSC-70-40 FUEL SHUTOFF VALVES l.111846-111847, STARTING INTERRUPTION l.113598-113599). The
-//! MSFS fuel valves 60 to 63 feed the engines after their Extra tanks (see a380_systems_wasm): they
-//! are the HP fuel valves (`ENGINE_n_HP_FUEL_VALVE_CLOSED`, see `HpFuelValve`): closed while the
-//! ENG MASTER is OFF or the fuel is cut, and on the ground until the FADEC start sequence (ENG START
-//! selector at IGN START) or the quick relight opens them. The ENG MASTER only closes the MSFS LP valve (Valve.1-4)
-//! upstream of the 1 gallon Extra tank, which MSFS does not burn (engines.cfg fuel_flow_scalar = 0)
-//! and the FADEC no longer drains once its fuel flow is 0 (master OFF): MSFS kept the combustion and
-//! the idle N2 of a shut down engine for 20 to 60 s (sim recordings 2026-10-05 and 2026-10-06), and a
-//! restart in that time skipped the start sequence (the FADEC took the idle MSFS N2 for a started
-//! engine).
+//! HP fuel valve: the MSFS fuel valves 60 to 63, after the Extra tanks (see a380_systems_wasm), are the
+//! HP fuel valves (`HpFuelValve`). The ENG MASTER alone only closes the MSFS LP valve upstream of the
+//! Extra tank, and MSFS keeps the combustion and the idle N2 of a shut down engine for 20 to 60 s
+//! (measured in the sim): a restart in that time skipped the start sequence. Closing the HP valve
+//! stops the burn at once, as on the aircraft, where the master OFF closes both fuel valves.
 //!
 //! This module decides whether a relight lights up; MSFS then has to burn. MSFS only burns above
 //! 20 % N2 and its starter only turns with the MSFS APU bleed, so once the fuel cut is released in
 //! flight the FADEC brings the MSFS core to its light-up speed (fadec_a380x RelightStart_A380X.hpp).
 //!
-//! The FCOM is the one of the GP7270 (two spools, N1 and N2); FBW models the Trent 972 (three
-//! spools). The FCOM N2 is the HP core speed, which is the Trent N3 here: the "core speed" of the
-//! shared module is the FADEC N3 (`ENGINE_N3`), and its windmill "N2" output is the windmilling N3.
+//! The Airbus documentation describes the GP7270 (N1 and N2); FBW models the Trent 972 (three
+//! spools). Its N2 is the HP core speed, the Trent N3 here: the "core speed" of the shared module
+//! is the FADEC N3 (`ENGINE_N3`), and its windmill "N2" output is the windmilling N3.
 //!
-//! Relight envelope: A380 FCOM PRO-ABN-ECAM-10-70 ENG RELIGHT IN FLIGHT, "In Flight Relight
-//! Envelope" chart, P 90/110 (PDF page 5854 of airbus-a380-fcom_compress.pdf), read off the image
-//! (IAS, flight level):
-//! - (1) STARTER ASSISTED RELIGHT ("APU available below FL200"): 150 to 220 kt up to FL200, and
+//! Relight envelope (IAS, flight level), read off the in-flight relight envelope chart:
+//! - (1) starter assisted relight (APU available below FL200): 150 to 220 kt up to FL200, and
 //!   185 to 260 kt from FL200 to FL250.
-//! - (2) STARTER ASSISTED RELIGHT or WINDMILLING QUICK RELIGHT if N2 > 45 %: 220 to 260 kt up to
+//! - (2) starter assisted relight, or windmilling quick relight if N2 > 45 %: 220 to 260 kt up to
 //!   FL200.
-//! - (3) WINDMILLING START: 260 to 340 kt up to FL300.
+//! - (3) windmilling start: 260 to 340 kt up to FL300.
 //!
-//! The text of the procedure (a380_fcom.txt):
-//! - l.174902-174904 (single engine): "MAX GUARANTEED ALTITUDE : 30000 FT", "MIN SPEED FOR WINDML
-//!   RELIGHT : 260 KT"; l.174977-174979 (multiple engines): "MAX GUARANTEED ALTITUDE : 28000 FT",
-//!   "MIN SPEED FOR WINDML RELIGHT : 250 KT". Design choice: the multiple-engine values apply when
-//!   two or more engines are not running.
-//! - l.174917 "ENG START SEL ... IGN START", then the MASTER ON (l.174941): a relight needs the ENG
-//!   START selector at IGN START, except the quick relight below.
-//! - l.174943 "Engine must relight within 30 s after fuel flow increases" (the 30 s attempt of the
-//!   shared module).
+//! Relight procedure limits: one engine out, 30 000 ft maximum and 260 kt minimum for a windmill
+//! relight; several engines out, 28 000 ft and 250 kt (design choice: from two engines not running).
+//! A relight needs the ENG START selector at IGN START, except the quick relight, and the engine must
+//! light up within 30 s after the fuel flow increases (the attempt time of the shared module).
 //!
-//! How each zone lights up the engine (FCOM DSC-70-80-30-20 and DSC-70-30):
-//! - l.112553-112556: "The FADEC selects a starter assisted engine start (i.e. engine start valve
-//!   automatically open), when N2 is below 11 %. An airspeed at or above 260 kt ensures a
-//!   windmilling start capability." and l.113567-113570: "Engine start valve opens if N2 is below
-//!   11 %, or if the aircraft airspeed (CAS) is below 260 kt ... The engine start valve remains
-//!   closed in the case of a windmilling start sequence". Zones 1 and 2 light up with starter air
-//!   (APU bleed or the bleed of the other engines, l.112566-112567), zone 3 by windmilling.
-//! - l.112539-112545 QUICK RELIGHT FUNCTION: "In the event of an inadvertent cycling of the ENG
-//!   MASTER lever with the engine running, from ON position to OFF, then back to ON within 30 s, the
-//!   FADEC automatically selects the continuous ignition with both igniters ... available provided
-//!   that N2 is greater than 45 %": zone 2 of the chart, at any ENG START selector position. Design
-//!   choice: also in zone 3, where the windmill alone lights the engine.
-//! - On the ground (ENG 1(2)(3)(4) FAIL l.171935: "ENG (AFFECTED) RELIGHT PROC ... CONSIDER") a
-//!   failed engine starts again as a normal start, with starter air.
-//! - l.112570-112571: "During a windmilling engine start, the FADEC disconnects both hydraulic pumps
-//!   in order to increase the relight envelope." This module reports the windmilling start
-//!   (`ENGINE_n_WINDMILL_START`) and the engine-driven pump controllers depressurise both pumps of
-//!   that engine during it (hydraulic/mod.rs; design choice: the pumps are off-loaded, the clutch
-//!   disconnection of the ENG PUMPS DISC pb is not used, it cannot be undone in flight).
+//! How each zone lights up the engine:
+//! - The FADEC opens the start valve (starter assisted start) when N2 is below 11 % or the CAS below
+//!   260 kt; otherwise it is a windmilling start with the start valve closed. Zones 1 and 2 light
+//!   up with starter air (APU bleed or the bleed of the other engines), zone 3 by windmilling.
+//! - Quick relight: a master cycled ON-OFF-ON within 30 s on a running engine gets continuous
+//!   ignition with both igniters if N2 is above 45 %: zone 2, at any ENG START selector position.
+//!   Design choice: also in zone 3, where the windmill alone lights the engine.
+//! - On the ground a failed engine starts again as a normal start, with starter air.
+//! - During a windmilling start the FADEC off-loads both hydraulic pumps of that engine to widen the
+//!   envelope: this module reports it (`ENGINE_n_WINDMILL_START`) and the pump controllers
+//!   depressurise them (design choice: the ENG PUMPS DISC clutch is not used, it cannot be undone in
+//!   flight).
 
 use std::time::Duration;
 use systems::{
@@ -106,23 +85,22 @@ impl A380RelightEnvelope {
     const WINDMILL_CEILING_FEET: f64 = 30_000.;
     const MULTIPLE_ENGINES_CEILING_FEET: f64 = 28_000.;
     const MAX_CAS_KNOTS: f64 = 340.;
-    /// Zone 2 (and 3, design choice), windmilling quick relight "if N2 > 45%"
+    /// Zone 2 (and 3, design choice), windmilling quick relight if N2 > 45 %. The same limits are
+    /// used by the HP fuel valve and the ground quick relight of the start schedule.
     const QUICK_RELIGHT_MIN_CAS_KNOTS: f64 = 220.;
     const QUICK_RELIGHT_MAX_MASTER_OFF: Duration = Duration::from_secs(30);
     const QUICK_RELIGHT_MIN_N2_PERCENT: f64 = 45.;
 
-    /// FCOM l.112553-112556 and l.113567-113570: the FADEC opens the start valve of an in-flight
-    /// start when the core speed is below 11 % or the CAS below 260 kt; otherwise it is a
-    /// windmilling start.
+    /// The FADEC opens the start valve of an in-flight start when the core speed is below 11 % or
+    /// the CAS below 260 kt; otherwise it is a windmilling start.
     const STARTER_ASSISTED_START_BELOW_N2_PERCENT: f64 = 11.;
     const STARTER_ASSISTED_START_BELOW_CAS_KNOTS: f64 = 260.;
 
-    /// The windmilling core speed. Design choice, no FCOM value: proportional to the airspeed and
-    /// 11 % at 260 kt, at any altitude, so that "an airspeed at or above 260 kt ensures a
-    /// windmilling start capability" while the FADEC selects a starter assisted start "when N2 is
-    /// below 11 %" (l.112553-112556). 12.7 % at 300 kt.
+    /// Design choice: the windmilling core speed is proportional to the airspeed, 11 % at 260 kt
+    /// (12.7 % at 300 kt) at any altitude, so that 260 kt and above gives a windmilling start while
+    /// the FADEC still selects a starter assisted start below 11 %.
     const WINDMILL_N2_PERCENT_AT_260_KNOTS: f64 = 11.;
-    /// Design choice, no FCOM value: the fan windmills at 1.5 times the core speed (as the A32NX).
+    /// Design choice: the fan windmills at 1.5 times the core speed (as the A32NX).
     const WINDMILL_N1_TO_N2_RATIO: f64 = 1.5;
 
     pub fn new(multiple_engines_out: bool) -> Self {
@@ -220,54 +198,42 @@ impl EngineRelightEnvelope for A380RelightEnvelope {
     }
 }
 
-/// The A380 start sequence numbers (GP7270 FCOM, a380_fcom.txt). The FCOM "N2" is the HP spool of the
-/// GP7270: on the A380X (Trent 900) it is the FBW N3, as for the start valve and the relight envelope.
+/// The A380 start sequence numbers. The documented "N2" is the HP spool of the GP7270: on the
+/// A380X (Trent 900) it is the FBW N3, as for the start valve and the relight envelope.
 pub fn a380_engine_start_schedule() -> EngineStartSchedule {
     EngineStartSchedule {
-        // DSC-70-30 (l.113553-113555): "At 20 % N2: Ignition starts (igniters A or B) - FMV and HP
-        // fuel valve open, and FF increases". Design choice: the 20 % rule, not "20 s after N2
-        // reaches 20 %" (DSC-70-80-20 l.112329), as the igniter indication of the FADEC.
+        // Ignition, FMV and HP fuel valve at 20 % N2. Design choice: the 20 % rule rather than the
+        // "20 s after 20 % N2" of the igniter description, as the igniter indication of the FADEC.
         ground_ignition_on_n2: Ratio::new::<percent>(20.),
-        // DSC-70-80-20 (l.112341-112342): "Ignition automatically stops at the end of the start
-        // sequence, when N2 reaches approximately 58 %".
+        // The automatic start ignition stops at about 58 % N2.
         automatic_start_ignition_off_n2: Ratio::new::<percent>(58.),
-        // l.112348-112349: manual start, "The ignition automatically stops at the end of the start
-        // sequence when N2 reaches approximately 56 %".
+        // The manual start ignition stops at about 56 % N2.
         manual_start_ignition_off_n2: Ratio::new::<percent>(56.),
         fuel_on_n2: Ratio::new::<percent>(20.),
-        // DSC-70-30 (l.113558): "When N2 above 58.4 %: Engine start valve closes".
+        // The start valve closes above 58.4 % N2.
         start_valve_close_n2: Ratio::new::<percent>(58.4),
-        // DSC-70-80-30-20 (l.112500): "On ground, automatic start is not aborted, when N2 is above
-        // 58.4 %".
+        // On the ground an automatic start is no longer aborted above 58.4 % N2.
         start_abort_inhibition_n2: Ratio::new::<percent>(58.4),
-        // Design choice, the FCOM gives no light-up time for the automatic start: PRO-SUP-70-10
-        // MANUAL ENGINE START (l.180907-180908): "20 s maximum after ENG MASTER lever is set to ON:
-        // N1 AND EGT INCREASE ... CHECK".
+        // Design choice: no light-up time is given for the automatic start; the manual start
+        // procedure checks N1 and EGT rising within 20 s of the MASTER ON.
         no_light_up_time: Duration::from_secs(20),
-        // PRO-ABN-ECAM-10-70 ENG RELIGHT IN FLIGHT (l.174943): "Engine must relight within 30 s
-        // after fuel flow increases", the time of the relight attempt (engine_failure). Before
-        // 2026-10-09 the in-flight NO LIGHT UP came at the 20 s of the ground start.
+        // An in-flight relight must light up within 30 s after the fuel flow increases.
         in_flight_no_light_up_time: Duration::from_secs(30),
-        // ENG START FAULT NO STARTER AIR PRESSURE (l.172917-172928) has an "In flight:" branch.
+        // NO STARTER AIR PRESSURE is also monitored in flight.
         monitors_in_flight_start_air: true,
-        // DSC-70-90 (l.113191): EGT limit "745 °C, during the ground start sequence".
+        // EGT limit during the ground start.
         start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(745.),
-        // DSC-70-80-30-20 (l.112489-112491): "initiates two further attempts of automatic start
-        // sequence after cranking ... If the third start attempt fails, the start sequence is aborted".
+        // Two more automatic attempts after a crank; after the third the start is aborted.
         automatic_start_attempts: 3,
-        // Design choice: PRO-ABN-ECAM-10-70 ENG START FAULT (l.172943): "To clear fuel vapors, it is
-        // necessary to dry crank the engine for 30 seconds".
+        // Design choice: the dry crank that clears the fuel vapours after a start fault lasts 30 s.
         automatic_crank_time: Duration::from_secs(30),
-        // LIM-70 STARTER (l.189725-189726): "When the starter-on time exceeds 5 min continuous
-        // operation, the ENG x START FAULT STARTER TIME EXCEEDED ECAM alert triggers".
+        // Starter time: above 5 min of continuous operation, START FAULT STARTER TIME EXCEEDED.
         starter_time_limit: Some(Duration::from_secs(5 * 60)),
-        // DSC-70-80-20 (l.112367): "The FADEC uses both igniters, when the continuous ignition
-        // operates."
+        // The continuous ignition uses both igniters.
         continuous_ignition_uses_both_igniters: true,
-        // Unchanged A380X behaviour (A32NX FCOM batch 7 kept the A380X as it was): the manual start
-        // lights up at the automatic light-up speed, every start fault cranks before the new start
-        // (DSC-70-80-30-20 l.112489: "initiates two further attempts of automatic start sequence
-        // after cranking"), and no starter fault is detected in flight.
+        // A380X behaviour kept as it was before the A32NX start changes: the manual start lights up
+        // at the automatic light-up speed, every start fault cranks before the next attempt, and no
+        // starter fault is detected in flight.
         manual_start_fuel_on_n2: Ratio::new::<percent>(20.),
         stall_or_egt_restart_before_crank: false,
         starter_fault_detected_in_flight: false,
@@ -283,7 +249,7 @@ struct HpFuelValveInputs {
     /// On the ground, the FADEC start sequence gives the engine its fuel (see
     /// `A380EngineFailure::ground_start_fuel_on`).
     ground_start_fuel_on: bool,
-    /// The core speed (FADEC N3, the FCOM N2).
+    /// The core speed (FADEC N3, the documented N2).
     core_speed: Ratio,
     /// The aircraft presets start the engines at once, without start sequence.
     preset_quick_mode: bool,
@@ -292,17 +258,11 @@ struct HpFuelValveInputs {
 /// The HP fuel valve of one engine: MSFS fuel valve 60 to 63 (see a380_systems_wasm), which feeds
 /// the engine after its Extra tank, so MSFS burns exactly while it is open.
 ///
-/// A380 FCOM (a380_fcom.txt):
-/// - DSC-70-30 ENGINE SHUTDOWN (l.113611): with the ENG MASTER OFF "The FADEC closes the LP and HP
-///   fuel valves".
-/// - DSC-70-30 AUTOMATIC STARTING SEQUENCE ON GROUND (l.113553-113557): the ENG START selector is set
-///   to IGN START first, then at the MASTER ON "At 20 % N2: ... FMV and HP fuel valve open". At NORM
-///   the MASTER ON starts nothing: the HP fuel valve stays closed (sim recording 2026-10-07: MASTER ON
-///   at NORM, the MSFS starter, which follows the lever, turned the core and MSFS lit it at 22 % N2
-///   without any FADEC start).
-/// - DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112545): MASTER ON to OFF then back to ON
-///   within 30 s, "The quick relight function immediately opens the FMV", "available provided that
-///   N2 is greater than 45 %".
+/// - The master OFF closes it.
+/// - On the ground the start sequence opens it at 20 % N2, after the ENG START selector was set to
+///   IGN START; at NORM the MASTER ON starts nothing (measured in the sim: without this, the MSFS
+///   starter, which follows the lever, turned the core and MSFS lit it at 22 % N2 with no FADEC start).
+/// - The quick relight (master ON-OFF-ON within 30 s, N2 above 45 %) opens it at once.
 ///
 /// The valve opens, ENG MASTER ON and fuel not cut, for:
 /// - in flight, any engine: the in-flight relight logic (relight envelope, quick relight, starter
@@ -311,7 +271,7 @@ struct HpFuelValveInputs {
 ///   presets, and a flight loaded with the master ON (engine running).
 ///
 /// It then stays open until the master OFF or a fuel cut: a running engine keeps its fuel when the
-/// selector is set back to NORM, and its auto relight (DSC-70-80-30-20 AUTO RELIGHT) has fuel.
+/// selector is set back to NORM, and its auto relight has fuel.
 struct HpFuelValve {
     is_open: bool,
     /// None until the first update: a flight loaded with the master ON is a running engine.
@@ -320,10 +280,6 @@ struct HpFuelValve {
     master_off_duration: Duration,
 }
 impl HpFuelValve {
-    /// FCOM DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112545)
-    const QUICK_RELIGHT_MAX_MASTER_OFF_DURATION: Duration = Duration::from_secs(30);
-    const QUICK_RELIGHT_MIN_N2_PERCENT: f64 = 45.;
-
     fn new() -> Self {
         Self {
             is_open: false,
@@ -343,8 +299,10 @@ impl HpFuelValve {
         }
         self.previous_master_switch_is_on = Some(inputs.master_switch_is_on);
 
-        let quick_relight = self.master_off_duration <= Self::QUICK_RELIGHT_MAX_MASTER_OFF_DURATION
-            && inputs.core_speed.get::<percent>() > Self::QUICK_RELIGHT_MIN_N2_PERCENT;
+        let quick_relight = self.master_off_duration
+            <= A380RelightEnvelope::QUICK_RELIGHT_MAX_MASTER_OFF
+            && inputs.core_speed.get::<percent>()
+                > A380RelightEnvelope::QUICK_RELIGHT_MIN_N2_PERCENT;
         let opens = !inputs.on_ground
             || inputs.ground_start_fuel_on
             || quick_relight
@@ -448,10 +406,8 @@ impl A380EngineFailure {
         self.engine_state == EngineState::On
     }
 
-    /// On the ground, the FADEC start sequence gives the engine its fuel: an automatic or manual
-    /// start (ENG START selector at IGN START, then the MASTER ON: FCOM DSC-70-30,
-    /// DSC-70-80-30-30). The start sequence keeps the fuel cut until its fuel-on point ("At 20 % N2:
-    /// ... FMV and HP fuel valve open", l.113555-113557), so the HP fuel valve opens there.
+    /// On the ground the FADEC start sequence (IGN START, then the MASTER ON) keeps the fuel cut
+    /// until its fuel-on point at 20 % N2, so the HP fuel valve opens there.
     fn ground_start_fuel_on(&self) -> bool {
         self.start.phase() == EngineStartPhase::Starting
     }
@@ -595,7 +551,7 @@ pub struct A380EngineFailures {
     start_schedule: EngineStartSchedule,
 }
 impl A380EngineFailures {
-    /// Two or more engines not running: the multiple-engine relight limits (FCOM l.174977-174979).
+    /// From two engines not running the multiple-engine relight limits apply.
     const MULTIPLE_ENGINES_OUT: usize = 2;
 
     pub fn new(context: &mut InitContext) -> Self {
@@ -683,7 +639,6 @@ mod tests {
         assert!(!lights_up(conditions(255., 10_000.)));
         assert!(!lights_up(conditions(345., 10_000.)));
         assert!(!lights_up(conditions(300., 31_000.)));
-        // at cruise
         assert!(!lights_up(conditions(280., 38_000.)));
     }
 
@@ -950,9 +905,9 @@ mod tests {
 
         #[test]
         fn a_quick_relight_at_norm_lights_up_with_the_fadec_core_speed_5_s_after_the_flameout() {
-            // Sim test T4 2026-10-05: FL150, 240 kt (zone 2), ENG START NORM, MASTER OFF then ON
-            // within about 5 s. The FADEC holds N3 for 1.8 s, then it decays at 8.2 %/s
-            // (Polynomial_A380X::shutdownN3): 80 % * exp(-0.08183 * 3.2) = 62 % at 5 s.
+            // FL150, 240 kt (zone 2), ENG START NORM, MASTER OFF then ON within about 5 s. The FADEC
+            // holds N3 for 1.8 s, then it decays at 8.2 %/s (Polynomial_A380X::shutdownN3):
+            // 80 % * exp(-0.08183 * 3.2) = 62 % at 5 s.
             let mut test_bed = flying_test_bed();
             test_bed.set_indicated_airspeed(Velocity::new::<knot>(240.));
             test_bed.set_pressure_altitude(Length::new::<foot>(15_000.));
@@ -969,7 +924,6 @@ mod tests {
 
         #[test]
         fn a_cleared_seizure_relights_by_windmilling_at_300_kt() {
-            // Sim test T5 2026-10-05
             let mut test_bed = flying_test_bed();
             test_bed.fail(FailureType::EngineSeizure(2));
             run(&mut test_bed);
@@ -1090,7 +1044,7 @@ mod tests {
         }
 
         #[test]
-        fn the_a380_start_schedule_follows_the_fcom() {
+        fn the_a380_start_schedule_has_the_a380_start_values() {
             let schedule = a380_engine_start_schedule();
             assert_eq!(schedule.ground_ignition_on_n2.get::<percent>(), 20.);
             assert_eq!(schedule.start_valve_close_n2.get::<percent>(), 58.4);
@@ -1099,8 +1053,7 @@ mod tests {
             assert_eq!(schedule.automatic_start_attempts, 3);
             assert_eq!(schedule.starter_time_limit, Some(Duration::from_secs(300)));
             assert!(schedule.continuous_ignition_uses_both_igniters);
-            // ENG RELIGHT IN FLIGHT (l.174943) and START FAULT NO STARTER AIR PRESSURE in flight
-            // (l.172917-172928)
+            // 30 s for an in-flight relight, and NO STARTER AIR PRESSURE is monitored in flight
             assert_eq!(schedule.in_flight_no_light_up_time, Duration::from_secs(30));
             assert!(schedule.monitors_in_flight_start_air);
         }
@@ -1209,10 +1162,9 @@ mod tests {
 
         #[test]
         fn the_eng_master_off_closes_the_hp_fuel_valve_of_its_engine_at_once() {
-            // Sim recording 2026-10-06 (s2_part1.log): ENG MASTER 2 OFF on the ground at 4719 s,
-            // MSFS kept GENERAL ENG COMBUSTION:2 = 1 and TURB ENG N2:2 = 63 % for the 34 s until the
-            // restart, which then skipped the start sequence. FCOM DSC-70-30 ENGINE SHUTDOWN: "The
-            // FADEC closes the LP and HP fuel valves."
+            // Measured in the sim: after the master OFF on the ground MSFS kept the combustion and
+            // 63 % N2 for 34 s, and a restart in that time skipped the start sequence. The master OFF
+            // closes the fuel valves.
             let mut test_bed = engines_at_ground_idle_test_bed();
             test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", false);
             run(&mut test_bed);
@@ -1265,8 +1217,8 @@ mod tests {
 
         #[test]
         fn on_the_ground_a_master_on_at_norm_leaves_the_hp_fuel_valve_closed() {
-            // Sim recording 2026-10-07 (a380rt1.log): MASTER 2 ON at NORM at 311.3 s, the MSFS
-            // starter turned the core and MSFS lit it at 22 % N2 (333.2 s) without a FADEC start.
+            // Measured in the sim: MASTER ON at NORM, the MSFS starter turned the core and MSFS lit
+            // it at 22 % N2 without a FADEC start.
             let mut test_bed = engine_2_shut_down_test_bed(1.);
             test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", true);
             run(&mut test_bed);
@@ -1321,7 +1273,7 @@ mod tests {
 
         #[test]
         fn on_the_ground_the_quick_relight_at_norm_opens_the_hp_fuel_valve_within_30_s() {
-            // FCOM DSC-70-80-30-20 QUICK RELIGHT: MASTER OFF then ON within 30 s, N2 above 45 %
+            // Quick relight: MASTER OFF then ON within 30 s, N2 above 45 %
             let mut test_bed = engines_at_ground_idle_test_bed();
             test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 1.);
             test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:3", false);
@@ -1401,8 +1353,7 @@ mod tests {
 
         #[test]
         fn on_the_ground_the_hp_fuel_valve_opens_at_the_fuel_on_point_of_the_start_sequence() {
-            // FCOM DSC-70-30 ON GROUND (l.113553-113557): MASTER ON, start valve opens, "At 20 % N2:
-            // ... FMV and HP fuel valve open"
+            // MASTER ON, the start valve opens, and at 20 % N2 the FMV and the HP fuel valve open
             let mut test_bed = ground_test_bed();
             test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", true);
             run(&mut test_bed);
@@ -1421,8 +1372,7 @@ mod tests {
 
         #[test]
         fn on_the_ground_ign_start_selected_after_the_master_on_at_norm_starts_nothing() {
-            // Sim recording 2026-10-07 (a380rt1.log, 337.3 s): the automatic start needs IGN START
-            // before the MASTER ON
+            // Measured in the sim: the automatic start needs IGN START before the MASTER ON
             let mut test_bed = ground_test_bed();
             test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 1.);
             test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", true);

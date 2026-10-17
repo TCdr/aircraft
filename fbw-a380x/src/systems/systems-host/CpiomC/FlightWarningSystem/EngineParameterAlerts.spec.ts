@@ -50,8 +50,7 @@ describe('ENG EGT OVER LIMIT', () => {
   });
 });
 
-/* FCOM ENG FADEC FAULT l.171597-171600: "the ENG 1(2)(3)(4) EGT OVER LIMIT ECAM will not trigger in the case of EGT
- * exceedance" */
+/* With ENG FADEC FAULT, ENG EGT OVER LIMIT does not trigger on an EGT exceedance */
 describe('ENG EGT OVER LIMIT with ENG FADEC FAULT', () => {
   it('does not trigger with the FADEC FAULT of the engine', () => {
     expect(isEgtOverLimitAlertTriggered(true, false)).toBe(true);
@@ -109,7 +108,7 @@ describe('the ENG STALL, EGT OVER LIMIT and N1/N2 OVER LIMIT alerts of the four 
     expect(n1n2).toContain(`this.fws.engN1N2OverLimit[${index}]`);
     expect(n1n2).toContain('flightPhaseInhib: [5, 6],');
     expect(n1n2).toContain('failure: 3,');
-    // Audio and Master Light only, no SD page (FCOM l.171495 and l.172346, PDF p.5769 and p.5794); STALL has the ENGINE page
+    // Audio and Master Light only, no SD page; STALL has the ENGINE page
     expect(egt).toContain('sysPage: SdPages.None');
     expect(n1n2).toContain('sysPage: SdPages.None');
     expect(stall).toContain('sysPage: SdPages.Eng');
@@ -118,7 +117,7 @@ describe('the ENG STALL, EGT OVER LIMIT and N1/N2 OVER LIMIT alerts of the four 
     expect(itemCount(701800113 + index)).toBe(ENG_STALL_ITEMS_SHOWN.length);
     expect(itemCount(701800009 + index)).toBe(ENG_OVER_LIMIT_ITEMS_SHOWN.length);
     expect(itemCount(701800073 + index)).toBe(ENG_OVER_LIMIT_ITEMS_SHOWN.length);
-    // N1/N2 OVER LIMIT is a red warning (FCOM PDF page 5794)
+    // N1/N2 OVER LIMIT is a red warning
     expect(block(ata70, 701800073 + index)).toContain("title: '\\x1b<2m");
   });
 });

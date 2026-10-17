@@ -40,24 +40,22 @@ pub struct A380ReverserController {
     secondary_lock_from_prim_should_unlock: bool,
     tertiary_lock_from_prim_should_unlock: bool,
 
-    /// flyPad "Reverser N fault (does not deploy)": A380 FCOM ENG 2(3) REVERSER FAULT (a380_fcom.txt
-    /// l.173514, "One thrust reverser is failed"), INOP SYS ENG 2(3) REVERSER.
+    /// flyPad "Reverser N fault (does not deploy)": ENG 2(3) REVERSER FAULT, INOP SYS ENG 2(3)
+    /// REVERSER.
     fault: Failure,
-    /// flyPad "Reverser N control fault (ETRAC)": ENG 2(3) REVERSER CTL FAULT (l.173449-173450, "One
-    /// thrust reverser control system is failed. The affected thrust reverser is inoperative.").
+    /// flyPad "Reverser N control fault (ETRAC)": ENG 2(3) REVERSER CTL FAULT, the reverser is
+    /// inoperative.
     control_fault: Failure,
-    /// flyPad "Reverser N failed locked": ENG 2(3) REVERSER LOCKED (l.173595-173596, "One thrust
-    /// reverser is failed locked. Primary left, right or tertiary locking system is failed locked"):
-    /// the locks are not released, the reverser does not deploy.
+    /// flyPad "Reverser N failed locked": ENG 2(3) REVERSER LOCKED (a primary or the tertiary lock
+    /// failed locked): the locks are not released, the reverser does not deploy.
     locked: Failure,
-    /// flyPad "Reverser N energized (tertiary lock unlocked)": ENG 2(3) REVERSER ENERGIZED
-    /// (l.173495-173497, "On ground, the thrust reverser is energized without thrust reverser
-    /// deployment order. In flight, the thrust reverser is energized and the tertiary lock is failed
-    /// not locked."). Design choice: the tertiary lock stays released, the two primary locks hold the
-    /// cowls stowed.
+    /// flyPad "Reverser N energized (tertiary lock unlocked)": ENG 2(3) REVERSER ENERGIZED (on ground
+    /// energized without deployment order, in flight energized with the tertiary lock failed not
+    /// locked). Design choice: the tertiary lock stays released, the two primary locks hold the cowls
+    /// stowed.
     energized: Failure,
-    /// The FADEC no longer commands a deployment (thrust lever fault: INOP SYS ENG 2(3) REVERSER,
-    /// l.173326-173328). Set by the engine control failures (engine_control_failure.rs).
+    /// The FADEC no longer commands a deployment (thrust lever fault: INOP SYS ENG 2(3) REVERSER).
+    /// Set by the engine control failures (engine_control_failure.rs).
     deployment_inhibited: bool,
 }
 impl A380ReverserController {
@@ -275,10 +273,9 @@ pub struct A380Reversers {
     reversers_in_transition: [bool; 2],
     reversers_deployed: [bool; 2],
 
-    /// flyPad "Reverser N unlocked (engine at idle)": ENG 2(3) REVERSER UNLOCKED (a380_fcom.txt
-    /// l.173663, "One thrust reverser is not fully locked while not commanded deployed by the flight
-    /// crew"). Design choice: the cowls stay in the stowed position (no reverse thrust, no buffet); the
-    /// FADEC sets the engine at idle ("ENG 2(3) IDLE ONLY", l.173678).
+    /// flyPad "Reverser N unlocked (engine at idle)": ENG 2(3) REVERSER UNLOCKED, a reverser not fully
+    /// locked while not commanded deployed. Design choice: the cowls stay in the stowed position (no
+    /// reverse thrust, no buffet); the FADEC sets the engine at idle (ENG 2(3) IDLE ONLY).
     unlocked: [Failure; 2],
 
     reverser_unlocked_ids: [VariableIdentifier; 2],

@@ -572,8 +572,7 @@ impl SimulationElement for AirGenerationSystemApplication {
 }
 
 /// Duct overheats and jammed trim air valves found by the temperature controller, grouped as the FWS alerts need
-/// them (A380 FCOM COND DUCT OVHT, a380_fcom.txt:132599-132623, and COND FWD CARGO TEMP REGUL FAULT,
-/// a380_fcom.txt:132278-132279)
+/// them (COND DUCT OVHT and COND FWD CARGO TEMP REGUL FAULT)
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
 struct TrimAirMonitoring {
     cockpit_duct_overheat: bool,

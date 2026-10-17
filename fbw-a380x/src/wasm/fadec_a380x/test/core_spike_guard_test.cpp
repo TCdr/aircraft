@@ -62,8 +62,8 @@ static double syntheticJumpN3(double t, double startEnd, double top, double plat
 // ---------------------------------------------------------------------------------------------------------------------
 
 static void testNormalAccelerationNotLimited() {
-  // idle to climb in flight: 11 %/s (A380X, sim test 2026-10-06 s6_main1.log 518-526 s) and 15 %/s (A32NX S1 T1), at several
-  // frame rates; N1 rises along at twice the rate
+  // idle to climb in flight: 11 %/s (A380X) and 15 %/s (A32NX), measured in the sim, at several frame rates; N1 rises along at
+  // twice the rate
   for (const double ratePerSecond : {5.0, 11.0, 15.0, 25.0}) {
     for (const double frameSeconds : {1.0 / 60.0, 1.0 / 30.0, 1.0 / 15.0}) {
       GuardedEngine engine;
@@ -310,7 +310,7 @@ static void replay(const ReplayCase& replayCase) {
               idleTime);
 }
 
-// The MSFS fan lags the core jump (sim test 2026-10-08, blip2.log): N1 still below the FBW idle when the core jumps
+// The MSFS fan lags the core jump (measured in the sim): N1 still below the FBW idle when the core jumps
 // ---------------------------------------------------------------------------------------------------------------------
 
 struct CoreFanSample {
@@ -323,7 +323,7 @@ struct CoreFanSample {
 #include "core_spike_replay_2026_10_08.inc"
 
 /**
- * Replays the 2026-10-08 relight with the recorded MSFS N1. At the jump the MSFS N1 is still at 22.4 %, below the FBW idle N1, and
+ * Replays a recorded relight with the recorded MSFS N1. At the jump the MSFS N1 is still at 22.4 %, below the FBW idle N1, and
  * rises to 59.7 % only 2.6 s later: the guarded N1 (and with it the fuel flow and EGT the FADEC computes from it) must not follow it.
  * The FBW idle N3/N1 are not in the recording: 61.2 % is the N3 the E/WD held at the end of the start, 25.8 % the idle N1 used above.
  */

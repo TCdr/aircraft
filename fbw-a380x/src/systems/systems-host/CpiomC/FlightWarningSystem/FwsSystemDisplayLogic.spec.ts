@@ -16,8 +16,8 @@ import { automaticPageInFlight, FwsSystemDisplayLogic } from './FwsSystemDisplay
 import { FwsCore } from './FwsCore';
 
 /*
- * A380 FCOM DSC-31-40-10 (STATUS MORE PAGE): MORE at the bottom of the STATUS page, the MORE pb on the ECP shows the
- * STATUS MORE page. FCOM DSC-31-40-20 (MORE pb): pressing it again clears the MORE information page.
+ * STATUS MORE page: MORE at the bottom of the STATUS page, the MORE pb on the ECP shows the STATUS MORE page; pressing
+ * it again clears the MORE information page.
  */
 
 /** Values of the registered simvars (RegisteredSimVar reads/writes by id, which the global SimVar mock lacks) */
@@ -210,9 +210,9 @@ describe('ECP MORE pb light (ecam-cp.xml)', () => {
 });
 
 /*
- * A380 FCOM DSC-31-40-30 (a380_fcom.txt l.73745-73751): CRUISE "At 1 500 ft AGL or at the thrust reduction, whichever
- * occurs the first until landing gear extension in approach"; WHEEL "After landing gear extension, until last engine
- * shutdown". The A320 rules (CRUISE 60 s after T.O power / flaps / spoilers, WHEEL below 16 000 ft only) were used.
+ * CRUISE from 1 500 ft or the thrust reduction (whichever comes first) until the gear extension, then WHEEL until the
+ * last engine shutdown; not the A320 rules (CRUISE 60 s after T.O power / flaps / spoilers, WHEEL below 16 000 ft
+ * only).
  */
 describe('FwsSystemDisplayLogic automatic page in flight (phases 8-11)', () => {
   afterEach(() => {

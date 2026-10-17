@@ -52,7 +52,6 @@ export const EcamAbnormalSensedAta80Rest: { [n: number]: AbnormalProcedure } = {
     ],
   },
   990900002: {
-    // A380 FCOM PRO-ABN-ECAM-10-80 MISC CKPT WINDOW CRACKED
     title: '\x1b<4m\x1b4mMISC\x1bm CKPT WINDOW CRACKED',
     sensed: false,
     items: [
@@ -73,7 +72,6 @@ export const EcamAbnormalSensedAta80Rest: { [n: number]: AbnormalProcedure } = {
     ],
   },
   990900003: {
-    // A380 FCOM PRO-ABN-ECAM-10-80 MISC CKPT WINDOW ELEC ARCING
     title: '\x1b<4m\x1b4mMISC\x1bm CKPT WINDOW ELEC ARCING',
     sensed: false,
     items: [
@@ -84,7 +82,6 @@ export const EcamAbnormalSensedAta80Rest: { [n: number]: AbnormalProcedure } = {
     ],
   },
   990900004: {
-    // A380 FCOM PRO-ABN-ECAM-10-80 MISC DITCHING
     title: '\x1b<2m\x1b4mMISC\x1bm DITCHING',
     sensed: false,
     items: [
@@ -186,7 +183,6 @@ export const EcamAbnormalSensedAta80Rest: { [n: number]: AbnormalProcedure } = {
     ],
   },
   990900007: {
-    // A380 FCOM PRO-ABN-ECAM-10-80 MISC FORCED LANDING
     title: '\x1b<2m\x1b4mMISC\x1bm FORCED LANDING',
     sensed: false,
     items: [
@@ -237,7 +233,7 @@ export const EcamAbnormalSensedAta80Rest: { [n: number]: AbnormalProcedure } = {
     ],
   },
   990900008: {
-    // A380 FCOM PRO-ABN-ECAM-10-46 MISC OIS FAULT
+    // The MORE INFO line of this procedure is in StatusMore.ts (EcamMoreInfo)
     title: '\x1b<4m\x1b4mMISC\x1bm OIS FAULT',
     sensed: false,
     items: [
@@ -316,7 +312,6 @@ export const EcamAbnormalSensedAta80Rest: { [n: number]: AbnormalProcedure } = {
 
 export const EcamDeferredProcAta80Rest: { [n: number]: DeferredProcedure } = {
   990700001: {
-    // A380 FCOM PRO-ABN-ECAM-10-80 MISC CKPT WINDOW CRACKED, DEFERRED PROC
     fromAbnormalProcs: ['990900002'],
     title: 'CKPT WINDOW CRACKED',
     type: DeferredProcedureType.AT_TOP_OF_DESCENT,
