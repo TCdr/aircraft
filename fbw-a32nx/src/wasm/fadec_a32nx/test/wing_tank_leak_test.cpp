@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 // Native unit test of the wing tank leak (src/Fadec/WingTankLeak_A32NX.hpp): run test/run_tests.sh.
-// Built with -DWITHOUT_THE_FIX, the leak takes nothing out of the tank, as EngineControlA32NX.cpp did before the leak
-// failures: the test then fails.
+// Built with -DWITHOUT_THE_FIX, the leak takes nothing out of the tank: the test then fails.
 
 #include <cmath>
 #include <cstdio>
@@ -40,7 +39,6 @@ int main() {
   }
   expectNear("1 500 kg lost in 30 min", (10000.0 - tankPounds) / 2.2046226218, 1500.0);
 
-  // Never more than the tank holds, nothing without the failure or without time
   expectNear("never more than the tank holds", leaked(true, 1.0, 100.0), 100.0);
   expectNear("no failure, no leak", leaked(false, 1.0, 10000.0), 0.0);
   expectNear("no time, no leak", leaked(true, 0.0, 10000.0), 0.0);

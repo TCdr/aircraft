@@ -5,39 +5,31 @@
 //! The fuel cut it computes closes the MSFS fuel valves 13/14 (see a320_systems_wasm) and the FADEC
 //! reads it in place of the LP valve starvation.
 //!
-//! Relight envelope: the LEAP-1A chart of the Air Arabia A320 QRH 18-Aug-21 ABN-19.06A ENG RELIGHT
-//! IN FLIGHT (A6-ATA..ATF, CFM LEAP-1A; page dated 17-Aug-20). FBW models the A320neo with LEAP-1A
-//! engines: this chart replaces the PW1100G-JM chart of the A320neo FCOM (PRO-ABN-ENG P 1/368, PDF
-//! page 4761 of "A320 Neo FCOM_1.pdf") that was used while no LEAP chart was available. The values
-//! were read off the chart grid (Zp the pressure altitude, Vc the calibrated airspeed, used here as
-//! the indicated airspeed):
+//! Relight envelope: the LEAP-1A in-flight relight chart (FBW models the A320neo with LEAP-1A
+//! engines), read off the chart grid (Zp the pressure altitude, Vc the calibrated airspeed, used
+//! here as the indicated airspeed):
 //! - (1) STARTER ASSISTED RELIGHT: Vc 135 to 270 kt up to 15 000 ft; from 15 000 ft to 27 000 ft,
 //!   Vc 200 to 270 kt.
 //! - (3) STABILIZED WINDMILL RELIGHT, "N2 > 8%": Vc 270 to 350 kt up to 27 000 ft, the ceiling
 //!   falling linearly from 27 000 ft at 330 kt to 24 000 ft at 350 kt.
 //! - (2) WINDMILL QUICK RELIGHT, "t < 20 s": Vc 230 to 270 kt up to 20 000 ft.
 //!
-//! How each zone lights up the engine (FCOM):
-//! - PDF page 4762 (a320_fcom.txt l.78284 for the CFM56): "If outside the windmilling start
-//!   envelope, the FADEC will open the starter valve", and the note "For an in-flight restart, the
-//!   FADEC decides whether the rotor speed is sufficient to perform a windmill relight or needs
-//!   assistance from the starter": with the ENG MODE selector at IGN (the in-flight start of the
-//!   QRH) the engine lights up in zone 3 by windmilling, and in zone 1 with starter air once the
-//!   starter has turned the core above 15 % N2, where the HP fuel valve opens in flight (DSC-70-80-40
-//!   l.63706-63708); until then the start sequence motors the core without fuel.
-//! - DSC-70-80-30 WINDMILLING QUICK RELIGHT (PDF page 3267, a320_fcom.txt l.63538-63541): "In case
-//!   of inadvertent engine shutdown by cycling the Engine Master lever to OFF then ON, in the
-//!   windmilling quick relight envelope, the FADEC will attempt automatically a relight regardless of
-//!   the rotary selector position": zone 2, with the master OFF for less than 20 s (design choice:
-//!   t is how long the master stayed OFF), at any ENG MODE selector position. Design choice, not on
-//!   the LEAP chart: the core must still turn above 15 % N2 (the value of the PW1100G chart), the
-//!   sign of an engine that was running before the master cycle; an engine that has windmilled for
-//!   a while turns at 8 % N2 or less in zone 2 and needs IGN (zone 1 or 3).
-//! - On the ground (FCOM ENG 1(2) FAIL, l.79815: "If no damage, a new start sequence may be
-//!   initiated") a failed engine starts again as a normal start, with starter air.
-//! - In flight, the flameout of a running engine starts the FADEC relight attempt at once (FCOM
-//!   ENG 1(2) FAIL, l.79828: "Selection of continuous ignition confirms the immediate relight
-//!   attempt made by the FADEC"; "IF NO ENG RELIGHT AFTER 30 S", l.79849-79851): see
+//! How each zone lights up the engine:
+//! - Outside the windmilling envelope the FADEC opens the starter valve: in flight it decides
+//!   whether the rotor turns fast enough for a windmill relight or needs the starter. With the ENG
+//!   MODE selector at IGN (the in-flight start) the engine lights up in zone 3 by windmilling, and
+//!   in zone 1 with starter air once the starter has turned the core above 15 % N2, where the HP
+//!   fuel valve opens in flight; until then the start sequence motors the core without fuel.
+//! - Windmilling quick relight: after an inadvertent shutdown by cycling the ENG MASTER OFF then ON
+//!   in the quick relight envelope, the FADEC attempts a relight automatically at any ENG MODE
+//!   selector position: zone 2, with the master OFF for less than 20 s (design choice: t is how
+//!   long the master stayed OFF). Design choice, not on the LEAP chart: the core must still turn
+//!   above 15 % N2 (the value of the PW1100G chart), the sign of an engine that was running before
+//!   the master cycle; an engine that has windmilled for a while turns at 8 % N2 or less in zone 2
+//!   and needs IGN (zone 1 or 3).
+//! - On the ground a failed engine without damage starts again as a normal start, with starter air.
+//! - In flight, the flameout of a running engine starts the FADEC relight attempt at once (the crew
+//!   confirms it with continuous ignition and waits 30 s for a relight): see
 //!   [`EngineRelightEnvelope::fadec_attempts_relight_after_flameout`]. Design choice: the attempt
 //!   lights up in the envelope above once the continuous ignition is on (ENG MODE IGN, or the
 //!   automatic selection by the engine anti-ice), or at once in zone 2 within 20 s of the flameout.
@@ -47,22 +39,21 @@
 //! here as well, with the A320 numbers of [`a320_engine_start_schedule`]: their fuel cut and their
 //! ignition feed the relight logic above.
 //!
-//! Fan blocked failure (A320 ENG 1(2) LOW N1, FCOM PRO-ABN-ENG, a320_fcom.txt l.80343-80363: "This
-//! alert triggers when N1 rotation is failed during start"): the fan (N1 rotor) of the engine does
-//! not turn. This module writes `ENGINE_n_FAN_BLOCKED`; the FADEC (C++, FanBlockedStart_A32NX.hpp)
-//! keeps the N1 of a start on the ground at 0 and the core below idle.
+//! Fan blocked failure (A320 ENG 1(2) LOW N1, the alert of a start without N1 rotation): the fan
+//! (N1 rotor) of the engine does not turn. This module writes `ENGINE_n_FAN_BLOCKED`; the FADEC
+//! (C++, FanBlockedStart_A32NX.hpp) keeps the N1 of a start on the ground at 0 and the core below
+//! idle.
 //!
-//! HP fuel valve stuck failure (`systems::engine::hp_fuel_valve_failure`, FCOM ENG 1(2) HP FUEL
-//! VALVE, l.80233-80259): the command of the valve is the A320 rule of
+//! HP fuel valve stuck failure (`systems::engine::hp_fuel_valve_failure`, ENG 1(2) HP FUEL VALVE):
+//! the command of the valve is the A320 rule of
 //! [`A320EngineFailure::hp_fuel_valve_commanded_open`]; a valve stuck closed cuts the engine fuel.
 //!
-//! ENG FAULT light (FCOM DSC-70-90-20, l.63941-63950): "This amber light comes on ... if there is: -
-//! The position of the HP fuel shutoff valve is abnormal, or - The automatic start sequence of the
-//! associated engine aborts, or - There is a malfunction of the thrust control." Design choice: the
-//! thrust control malfunction is the loss of both FADEC channels (ENG 1(2) FADEC FAULT) or of both
-//! thrust lever resolvers (ENG 1(2) THR LEVER FAULT), see `engine_control_failure`.
+//! ENG FAULT light: it comes on for an abnormal HP fuel shutoff valve position, an aborted
+//! automatic start sequence, or a malfunction of the thrust control. Design choice: the thrust
+//! control malfunction is the loss of both FADEC channels (ENG 1(2) FADEC FAULT) or of both thrust
+//! lever resolvers (ENG 1(2) THR LEVER FAULT), see `engine_control_failure`.
 //!
-//! Pre-start motoring (FCOM DSC-70-80-40 DRY CRANKING, l.63612-63630): the engine thermal state of
+//! Pre-start motoring (dry cranking): the engine thermal state of
 //! [`A320EngineFailure::thermal_state`] sets the motoring time of the start sequence.
 
 use std::time::Duration;
@@ -116,19 +107,18 @@ impl A320RelightEnvelope {
     const QUICK_RELIGHT_MAX_MASTER_OFF: Duration = Duration::from_secs(20);
     /// Design choice, not on the LEAP chart (see the module comment).
     const QUICK_RELIGHT_MIN_N2_PERCENT: f64 = 15.;
-    /// DSC-70-80-40 SECOND STEP (a320_fcom.txt l.63706-63708): "The HP fuel valve opens: - On ground:
-    /// when N2 > 22 % - In flight: when N2 > 15 %." A starter assisted relight lights up once the
-    /// starter has turned the core above it (see `A320EngineFailure::update`, in-flight motoring).
+    /// In flight the HP fuel valve opens above 15 % N2 (22 % on the ground): a starter assisted
+    /// relight lights up once the starter has turned the core above it (see
+    /// `A320EngineFailure::update`, in-flight motoring).
     const IN_FLIGHT_FUEL_ON_N2_PERCENT: f64 = 15.;
 
     /// The windmill N2. The chart marks zone 3 "STABILIZED WINDMILL RELIGHT N2 > 8%", from 270 kt.
     /// Design choice: the windmill N2 is proportional to the airspeed and is 8 % at 270 kt, where
-    /// zone 3 begins, at any altitude (8.9 % at 300 kt). The CFM56 FCOM gives 12 % at 300 kt
-    /// (a320_fcom.txt l.107842-107843: "above 300 kt (corresponding N2 above 12 %)"): a CFM56
-    /// value, not used.
+    /// zone 3 begins, at any altitude (8.9 % at 300 kt). The CFM56 value (12 % at 300 kt) is not
+    /// used.
     const WINDMILL_N2_PERCENT_AT_270_KNOTS: f64 = 8.;
     const WINDMILL_N2_REFERENCE_CAS_KNOTS: f64 = 270.;
-    /// Design choice, no FCOM value: the fan windmills at 1.5 times the core speed.
+    /// Design choice, no published value: the fan windmills at 1.5 times the core speed.
     const WINDMILL_N1_TO_N2_RATIO: f64 = 1.5;
 
     fn is_in_starter_assisted_zone(cas_knots: f64, altitude_feet: f64) -> bool {
@@ -194,78 +184,64 @@ impl EngineRelightEnvelope for A320RelightEnvelope {
         )
     }
 
-    /// FCOM PRO-ABN-ENG ENG 1(2) FAIL in flight (a320_fcom.txt l.79826-79828): "ENG MODE SEL ...
-    /// IGN. Selection of continuous ignition confirms the immediate relight attempt made by the
-    /// FADEC", then "IF NO ENG RELIGHT AFTER 30 S" (l.79849-79851).
+    /// ENG 1(2) FAIL in flight: the crew selects the continuous ignition to confirm the immediate
+    /// relight attempt of the FADEC, then waits 30 s for a relight.
     fn fadec_attempts_relight_after_flameout(&self) -> bool {
         true
     }
 }
 
-/// The A320 start sequence numbers (CFM56-5B FCOM, a320_fcom.txt; FBW models the LEAP-1A, for which
-/// no FCOM is available: these are the numbers of the FCOM the FBW A320 follows).
+/// The A320 start sequence numbers. They are the CFM56-5B numbers the FBW A320 follows: none are
+/// published for the LEAP-1A it models.
 pub fn a320_engine_start_schedule() -> EngineStartSchedule {
     EngineStartSchedule {
-        // DSC-70-80-30 (l.63495-63497): "The ignition comes on automatically when N2 reaches 16 % and
-        // cuts off automatically when N2 reaches 50 %."
         ground_ignition_on_n2: Ratio::new::<percent>(16.),
         automatic_start_ignition_off_n2: Ratio::new::<percent>(50.),
-        // l.63503-63504: manual start, "Both igniters are cut off when N2 reaches approximately 50 %."
         manual_start_ignition_off_n2: Ratio::new::<percent>(50.),
-        // DSC-70-80-40 (l.63707-63708): "The HP fuel valve opens: On ground: when N2 > 22 %".
+        // On the ground (15 % in flight, see A320RelightEnvelope).
         fuel_on_n2: Ratio::new::<percent>(22.),
-        // l.63711-63713: "When N2 > 50 %: The engine start valve closes".
         start_valve_close_n2: Ratio::new::<percent>(50.),
-        // l.63777-63779: the FADEC aborts a manual start for the EGT "before reaching 50 % N2".
-        // Design choice: the same 50 % ends the automatic abort, where the start valve closes.
+        // The FADEC aborts a manual start for the EGT only below 50 % N2. Design choice: the same
+        // 50 % ends the automatic abort, where the start valve closes.
         start_abort_inhibition_n2: Ratio::new::<percent>(50.),
-        // PRO-ABN-ENG ENG 1(2) START FAULT (l.81393): "The engine does not start within the 18 s that
-        // follow the ignition start."
+        // ENG 1(2) START FAULT: no light up within 18 s of the ignition start.
         no_light_up_time: Duration::from_secs(18),
-        // Design choice: the same 18 s in flight (unchanged); the A320 numbers of the in-flight
-        // relight are left as they were.
+        // Design choice: the same 18 s in flight, the A32NX in-flight relight timing.
         in_flight_no_light_up_time: Duration::from_secs(18),
-        // The A320 FCOM START FAULT LO START AIR PRESS (l.81510-81511) has no in-flight branch: the
-        // fault stays a ground start fault.
+        // The A320 START FAULT LO START AIR PRESS procedure has no in-flight branch: the fault
+        // stays a ground start fault.
         monitors_in_flight_start_air: false,
-        // l.81366: "Engine overtemperature (above 725 °C)".
         start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(725.),
-        // The A320 FCOM gives no relight EGT limit: not monitored (unchanged A32NX behaviour).
+        // No published A320 relight EGT limit: not monitored.
         relight_egt_limit: None,
-        // LIM-ENG STARTER (l.115972): "A standard automatic start that includes up to three start
-        // attempts, is considered one cycle".
+        // A standard automatic start of up to three attempts counts as one starter cycle.
         automatic_start_attempts: 3,
-        // Design choice: PRO-NOR-SUP-ENG ENGINE VENTILATION (l.107098): "To clear fuel vapors, a 30
-        // seconds dry crank cycle is the minimum required"; the FCOM does not give the length of the
-        // automatic dry crank.
+        // Design choice: a dry crank that clears the fuel vapours lasts at least 30 s; the length
+        // of the automatic dry crank is not published.
         automatic_crank_time: Duration::from_secs(30),
-        // The FCOM gives no starter time limit (LIM-ENG STARTER, l.115970-115975).
+        // No published A320 starter time limit.
         starter_time_limit: None,
-        // DSC-70-80-30 (l.63533): continuous ignition, "Only one igniter is selected. If failed, both
-        // igniters are automatically selected."
+        // Continuous ignition selects one igniter, and both only if it fails.
         continuous_ignition_uses_both_igniters: false,
-        // DSC-70-80-40 (l.63766-63767): manual start, the FADEC "Opens the HP shutoff valve, and
-        // operates both igniters when the flight crew sets the ENG MASTER sw to ON", which the crew
-        // does when "N2 reaches 22 % or the maximum motoring speed (20 % minimum)" (PRO-NOR-SUP-ENG
-        // MANUAL ENGINE START, l.106855). 20 % is also the MSFS min_n2_for_combustion (engines.cfg).
+        // Manual start: the FADEC opens the HP fuel valve and supplies both igniters when the crew
+        // sets the ENG MASTER ON, which they do at 22 % N2 or at the maximum motoring speed (20 %
+        // minimum). 20 % is also the MSFS min_n2_for_combustion (engines.cfg).
         manual_start_fuel_on_n2: Ratio::new::<percent>(20.),
-        // PRO-ABN-ENG ENG 1(2) START FAULT, ENG 1(2) STALL / EGT OVERLIMIT on ground (auto start)
-        // (l.81458-81478): reduced fuel schedule and NEW START IN PROGRESS first, the dry crank (AUTO
-        // CRANK IN PROGRESS) only "If restart not possible"; IGNITION FAULT cranks first
-        // (l.81400-81413).
+        // ENG 1(2) START FAULT, ENG 1(2) STALL / EGT OVERLIMIT on ground (auto start): reduced fuel
+        // schedule and NEW START IN PROGRESS first, the dry crank (AUTO CRANK IN PROGRESS) only if
+        // a restart is not possible; IGNITION FAULT cranks first.
         stall_or_egt_restart_before_crank: true,
-        // A320neo FCOM ENG 1(2) START FAULT STARTER SHAFT SHEAR (P 323/368): in flight "ENG
-        // (AFFECTED) WINDMILL START ONLY", with the same STATUS line.
+        // ENG 1(2) START FAULT STARTER SHAFT SHEAR: in flight "ENG (AFFECTED) WINDMILL START ONLY",
+        // with the same STATUS line.
         starter_fault_detected_in_flight: true,
-        // DSC-70-80-40 DRY CRANKING (l.63612-63613): "Depending on the engine thermal state, the
-        // FADEC can initiate a pre-start motoring (dry cranking) up to 60 s."
+        // Depending on the engine thermal state, the FADEC motors the engine (dry cranking) for up
+        // to 60 s before a start.
         max_pre_start_motoring_time: Duration::from_secs(60),
-        // DSC-70-80-30 (l.63468-63471): "During automatic ground start, when engine is cold or above
-        // 10 000 ft ... When the ignition is detected, the second igniter is supplied."
+        // Automatic ground start of a cold engine or above 10 000 ft: the second igniter is
+        // supplied once the ignition is detected.
         second_igniter_at_light_up_cold_or_above: Some(Length::new::<foot>(10_000.)),
-        // Unchanged A32NX behaviour: the A380 FCOM rules of the shared start sequence (starter
-        // engagement limit, ground quick relight, abort for the start valve and the starter time)
-        // are not applied to the A32NX.
+        // The A380 rules of the shared start sequence (starter engagement limit, ground quick
+        // relight, abort for the start valve and the starter time) are not applied to the A32NX.
         starter_engagement_max_n2: None,
         ground_quick_relight: None,
         aborts_for_start_valve_and_starter_time: false,
@@ -339,7 +315,7 @@ impl A320EngineFailure {
                 .get_identifier(format!("AUTOTHRUST_TLA:{}", engine_number)),
             preset_quick_mode_id: context.get_identifier("AIRCRAFT_PRESET_QUICK_MODE".to_owned()),
             engine_anti_ice_id: context.get_identifier(format!("ENG ANTI ICE:{}", engine_number)),
-            // The SD ENG page shows the igniters (FCOM DSC-70-90-40 l.64587-64591).
+            // The SD ENG page shows the igniters.
             igniter_a_active_id: context
                 .get_identifier(format!("FADEC_IGNITER_A_ACTIVE_ENG{}", engine_number)),
             igniter_b_active_id: context
@@ -393,8 +369,8 @@ impl A320EngineFailure {
         }
     }
 
-    /// The residual heat of the engine core for the pre-start motoring (FCOM DSC-70-80-40 l.63612-63616:
-    /// "Depending on the engine thermal state"), from 0 (cold) to 1 (just shut down).
+    /// The residual heat of the engine core, which sets the pre-start motoring time, from 0 (cold)
+    /// to 1 (just shut down).
     ///
     /// Design choice: the FADEC EGT is the thermal state. After a shutdown the FBW FADEC model cools
     /// it down quickly to the ambient temperature + 135 °C, then slowly (time constant about 23 min)
@@ -410,11 +386,10 @@ impl A320EngineFailure {
             .clamp(0., 1.)
     }
 
-    /// The FADEC command of the HP fuel shutoff valve. A320 FCOM DSC-70-80-40 (l.63707-63708): "The
-    /// HP fuel valve opens: On ground: when N2 > 22 %"; with the ENG MASTER OFF the FADEC "Closes the
-    /// LP and the HP fuel shutoff valves" (l.63740-63744); the abort of a start closes it (PROTECTION,
-    /// l.63600: "Closes the HP valve"). On the ground outside a start sequence it is open for an
-    /// engine that runs (or starts by the aircraft presets); in flight with the ENG MASTER ON.
+    /// The FADEC command of the HP fuel shutoff valve. On the ground it opens above 22 % N2 in a
+    /// start, and the abort of a start closes it; the ENG MASTER OFF closes it (and the LP valve).
+    /// On the ground outside a start sequence it is open for an engine that runs (or starts by the
+    /// aircraft presets); in flight with the ENG MASTER ON.
     fn hp_fuel_valve_commanded_open(&self, on_ground: bool) -> bool {
         if !self.master_switch_is_on {
             return false;
@@ -433,14 +408,11 @@ impl A320EngineFailure {
         }
     }
 
-    /// The FADEC selects the continuous ignition by itself while the engine anti-ice valve is open.
-    /// A320 FCOM DSC-70-80-30 (a320_fcom.txt l.63527): "Continuous ignition may be selected either
-    /// manually or automatically"; PRO-ABN-ENG ENG 1(2) BLEED STATUS FAULT (l.79342): "When ENG
-    /// anti ice is on, there is no automatic selection of continuous relight since FADEC does not
-    /// know position of engine anti ice valves position": the automatic selection follows the
-    /// engine anti-ice valves. Design choice: the valve is the MSFS ENG ANTI ICE of the engine (FBW
-    /// models no engine anti-ice valve); the other conditions of the FCOM automatic selection (its
-    /// list is a figure, not in the FCOM text) are not modelled.
+    /// The FADEC selects the continuous ignition by itself while the engine anti-ice valve is open:
+    /// with an ENG BLEED STATUS FAULT the FADEC no longer knows the valve position and loses this
+    /// automatic selection. Design choice: the valve is the MSFS ENG ANTI ICE of the engine (FBW
+    /// models no engine anti-ice valve); the other conditions of the automatic selection are not
+    /// modelled.
     fn automatic_continuous_ignition(&self) -> bool {
         self.engine_anti_ice_valve_open
     }
@@ -483,9 +455,9 @@ impl A320EngineFailure {
 
         self.start
             .update_starter_motoring(context, self.failure.fuel_is_cut(), &start_inputs);
-        // In flight the HP fuel valve of a starter assisted relight opens above 15 % N2 (FCOM l.63708,
-        // A320RelightEnvelope): until then the starter turns the core of the engine that waits for its
-        // relight. A seized core does not turn.
+        // In flight the HP fuel valve of a starter assisted relight opens above 15 % N2
+        // (A320RelightEnvelope): until then the starter turns the core of the engine that waits for
+        // its relight. A seized core does not turn.
         self.start.update_in_flight_relight_motoring(
             context,
             self.failure.fuel_is_cut(),
@@ -599,8 +571,6 @@ mod tests {
         conditions
     }
 
-    /// FCOM DSC-70-80-40 (a320_fcom.txt l.63706-63708): "The HP fuel valve opens: ... In flight: when
-    /// N2 > 15 %". A starter assisted relight lights up once the starter has turned the core above 15 %.
     #[test]
     fn a_starter_assisted_relight_gets_its_fuel_above_15_percent_n2() {
         let mut starter_assisted = with_starter_air(conditions(200., 10_000.));
@@ -896,7 +866,7 @@ mod tests {
             let engine_2_motoring: bool = test_bed.read_by_name("ENGINE_2_STARTER_MOTORING");
             assert!(!engine_2_motoring);
 
-            // FCOM l.63708: the HP fuel valve opens in flight when N2 > 15 %
+            // the HP fuel valve opens in flight when N2 > 15 %
             test_bed.write_by_name("ENGINE_N2:1", 16.);
             run(&mut test_bed);
             assert!(!fuel_is_cut(&mut test_bed, 1));
@@ -1026,9 +996,8 @@ mod tests {
 
         #[test]
         fn a_cold_ground_start_lights_up_with_one_igniter_then_adds_the_second_shown_on_the_sd() {
-            // DSC-70-80-30 (l.63468-63471): "During automatic ground start, when engine is cold ...: 1. One
-            // igniter is supplied, and 2. When the ignition is detected, the second igniter is supplied." The
-            // engine of this test bed is at the ambient temperature (cold).
+            // A cold automatic ground start supplies one igniter, then the second once the ignition
+            // is detected. The engine of this test bed is at the ambient temperature (cold).
             let mut test_bed = ground_test_bed();
             test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
             run(&mut test_bed);
@@ -1093,7 +1062,7 @@ mod tests {
         }
 
         #[test]
-        fn the_a320_start_schedule_follows_the_fcom() {
+        fn the_a320_start_schedule_has_the_aircraft_numbers() {
             let schedule = a320_engine_start_schedule();
             assert_eq!(schedule.ground_ignition_on_n2.get::<percent>(), 16.);
             assert_eq!(
@@ -1110,7 +1079,7 @@ mod tests {
             assert_eq!(schedule.manual_start_fuel_on_n2.get::<percent>(), 20.);
             assert!(schedule.stall_or_egt_restart_before_crank);
             assert!(schedule.starter_fault_detected_in_flight);
-            // DSC-70-80-30 (l.63468-63471): the second igniter of a cold or above 10 000 ft start
+            // the second igniter of a cold or above 10 000 ft start
             let second_igniter_altitude_feet = schedule
                 .second_igniter_at_light_up_cold_or_above
                 .map(|altitude| altitude.get::<foot>())
@@ -1209,9 +1178,8 @@ mod tests {
             test_bed.read_by_name("ENGINE_1_FAULT_LIGHT")
         }
 
-        /// FCOM ENG 1(2) HP FUEL VALVE (l.80256-80259): "HP fuel valve failed open, and associated
-        /// engine below idle": the valve sticks open on the running engine and stays open at the
-        /// shutdown; DSC-70-90-20 (l.63947): the FAULT light comes on.
+        /// ENG 1(2) HP FUEL VALVE, valve failed open with the engine below idle: the valve sticks
+        /// open on the running engine and stays open at the shutdown, and the FAULT light comes on.
         #[test]
         fn an_hp_fuel_valve_stuck_on_a_running_engine_is_not_closed_at_the_shutdown() {
             let mut test_bed = running_on_ground_test_bed();
@@ -1227,8 +1195,8 @@ mod tests {
             assert!(fault_light(&mut test_bed));
         }
 
-        /// FCOM ENG 1(2) HP FUEL VALVE (l.80249-80254): "HP fuel valve failed closed, and associated
-        /// engine below idle: HP FUEL VALVE NOT OPEN": no fuel, no light up.
+        /// ENG 1(2) HP FUEL VALVE, valve failed closed with the engine below idle (HP FUEL VALVE
+        /// NOT OPEN): no fuel, no light up.
         #[test]
         fn an_hp_fuel_valve_stuck_closed_is_not_open_at_the_start_and_cuts_the_fuel() {
             let mut test_bed = ground_test_bed();
@@ -1243,8 +1211,8 @@ mod tests {
             assert!(fuel_is_cut(&mut test_bed, 1));
         }
 
-        /// FCOM DSC-70-90-20 (l.63950): the FAULT light comes on for "a malfunction of the thrust
-        /// control" (see the module comment).
+        /// The FAULT light comes on for a malfunction of the thrust control (see the module
+        /// comment).
         #[test]
         fn a_thrust_control_malfunction_lights_the_fault_light_of_its_engine() {
             let mut test_bed = running_on_ground_test_bed();

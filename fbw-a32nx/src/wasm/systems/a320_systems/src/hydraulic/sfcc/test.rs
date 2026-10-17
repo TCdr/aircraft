@@ -3627,9 +3627,9 @@ fn flaps_autocommand_different_adiru_speeds() {
     assert_eq!(test_bed.get_flaps_conf(), FlapsConf::Conf1F);
 }
 
-// F/CTL FLAP SYS 1(2) FAULT and SLAT SYS 1(2) FAULT: "failure of flap (slat) channel in one SFCC"
-// (a320_fcom.txt l.83217-83247, l.84321-84341). The failed channel no longer drives its motor, the other SFCC still
-// does (half speed, l.41431), and the SFCC reports the fault in its status word (label 046 bits 11 and 12).
+// F/CTL FLAP SYS 1(2) FAULT and SLAT SYS 1(2) FAULT: the flap (slat) channel of one SFCC failed. The failed channel
+// no longer drives its motor, the other SFCC still does (half speed), and the SFCC reports the fault in its status
+// word (label 046 bits 11 and 12).
 #[test]
 fn flap_channel_failure_stops_its_motor_and_reports_a_flap_fault() {
     let mut test_bed = test_bed_with().set_flaps_handle_position(0).run_one_tick();

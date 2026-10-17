@@ -3,20 +3,18 @@
 
 // Native test of the AUTOLAND warning light (src/fmgc/AutolandWarning.h): run test/run_tests.sh.
 //
-// A320 FCOM DSC-22_30-80-30-10 AUTOLAND WARNING LIGHT (a320_fcom.txt l.32107-32127): besides the AP loss and the LOC /
-// GLIDE conditions, the light flashes when "the difference between both RA indications is greater than 15 ft RA", or
-// when "the FMGS detects an untimely Flare condition [...] when one radio altimeter is inoperative, and the time
-// between LAND engagement (measured radio height is below 400 ft) and FLARE condition (measured radio height is below
-// 50 ft) is lower than 2 s".
-// Built with -DWITHOUT_THE_FIX, the light uses the logic FlyByWireInterface.cpp had before (AP loss and LOC / GLIDE on
-// the simulator radio height only): the RA disagree and untimely flare checks then fail.
+// Besides the AP loss and the LOC / GLIDE conditions, the light flashes when both RA indications differ by more than
+// 15 ft, or on an untimely flare: one RA inoperative and less than 2 s between LAND engagement (measured radio height
+// below 400 ft) and the FLARE condition (measured radio height below 50 ft).
+// Built with -DWITHOUT_THE_FIX, the light uses only the AP loss and LOC / GLIDE on the simulator radio height: the RA
+// disagree and untimely flare checks then fail.
 
 #include <cstdio>
 
 #include "../src/fmgc/AutolandWarning.h"
 
 #ifdef WITHOUT_THE_FIX
-// The logic of FlyByWireInterface.cpp before the fix (develop c33609d0c)
+// The logic without the RA conditions: AP loss and LOC / GLIDE on the simulator radio height
 class Warning {
  public:
   bool update(const AutolandWarning::Inputs& in, double) {
@@ -104,7 +102,7 @@ static void lastApDisengagingBelow200FtGivesTheWarning() {
 
 static void raDisagreeAbove15FtGivesTheWarning() {
   Approach approach;
-  // RA 2 reads 20 ft more than RA 1 (l.32122: "greater than 15 ft")
+  // RA 2 reads 20 ft more than RA 1: above the 15 ft limit
   approach.descend(1000, 0, 12, 0, 20);
   expect(approach.warningOn, "RA 1 and RA 2 20 ft apart below 200 ft: AUTOLAND warning");
 }

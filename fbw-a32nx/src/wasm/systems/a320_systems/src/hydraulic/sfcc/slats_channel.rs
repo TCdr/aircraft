@@ -34,8 +34,8 @@ pub(super) struct SlatsChannel {
 
     csu_monitor: CSUMonitor,
 
-    /// The flyPad failure of this slat channel (F/CTL SLAT SYS 1(2) FAULT, A320 FCOM a320_fcom.txt l.84321-84341):
-    /// the channel no longer drives its slat motor, the other motor moves the slats at half speed (l.41431)
+    /// The flyPad failure of this slat channel (F/CTL SLAT SYS 1(2) FAULT): the channel no longer drives its slat
+    /// motor, the other motor moves the slats at half speed
     motor_control_failure: Failure,
 
     kts_60: Velocity,

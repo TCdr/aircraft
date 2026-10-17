@@ -4,25 +4,16 @@
 
 // The AUTOLAND warning light of the glareshield. Pure logic, no MSFS SDK: tested natively by test/run_tests.sh.
 //
-// A320 FCOM DSC-22_30-80-30-10 AUTOLAND WARNING LIGHT (a320_fcom.txt l.32107-32127, the same list as l.32073-32088 plus
-// the untimely flare):
-//   "The AUTOLAND warning flashes when:
-//   - At least one RA indicates a height below 200 ft, and
-//   - At least one AP is engaged with LAND or FLARE mode on the FMA, and
-//   - At least one of the following conditions occurs:
-//     - The LOC deviation exceeds 1/4 dot and the aircraft is above 15 ft RA [...], or
-//     - The GLIDE deviation exceeds 1 dot and the aircraft is above 100 ft RA [...], or
-//     - Loss of LOC signal above 15 ft RA [...], or
-//     - Loss of GLIDE signal above 100 ft RA [...], or
-//     - The difference between both RA indications is greater than 15 ft RA, or
-//     - The last autopilot disengages, or
-//     - The FMGS detects a long flare, or
-//     - The FMGS detects an untimely Flare condition.
-//   The FMGS detects an untimely Flare condition when one radio altimeter is inoperative, and the time between LAND
-//   engagement (measured radio height is below 400 ft) and FLARE condition (measured radio height is below 50 ft) is
-//   lower than 2 s."
+// The light flashes when at least one RA indicates a height below 200 ft, at least one AP is engaged with LAND or FLARE
+// mode on the FMA, and one of these conditions occurs:
+//   - the LOC deviation exceeds 1/4 dot above 15 ft RA, or the GLIDE deviation exceeds 1 dot above 100 ft RA,
+//   - the LOC signal is lost above 15 ft RA, or the GLIDE signal above 100 ft RA,
+//   - both RA indications differ by more than 15 ft,
+//   - the last AP disengages,
+//   - the FMGS detects a long flare, or an untimely flare: one RA inoperative and less than 2 s between LAND
+//     engagement (measured radio height below 400 ft) and the FLARE condition (measured radio height below 50 ft).
 //
-// Not modelled: the long flare (the A320 FCOM gives no duration for it).
+// Not modelled: the long flare (no published duration for it).
 class AutolandWarning {
  public:
   /// The data of one radio altimeter (the RA bus word)
@@ -34,7 +25,7 @@ class AutolandWarning {
 
   struct Inputs {
     RadioAltimeter radioAltimeters[2];
-    /// The radio height of the aircraft for the deviation conditions (the simulator radio height, as before)
+    /// The radio height of the aircraft for the deviation conditions (the simulator radio height)
     double aircraftRadioHeightFt = 0;
     /// At least one AP is engaged
     bool apEngaged = false;
@@ -46,12 +37,12 @@ class AutolandWarning {
     bool glideSignalValid = false;
   };
 
-  /// 1/4 dot of LOC deviation, and 1 dot of GLIDE deviation, in degrees (the values of the earlier logic)
+  /// 1/4 dot of LOC deviation, and 1 dot of GLIDE deviation, in degrees
   static constexpr double LOC_QUARTER_DOT_DEG = 0.2;
   static constexpr double GLIDE_ONE_DOT_DEG = 0.4;
-  /// l.32122: "The difference between both RA indications is greater than 15 ft RA"
+  /// The warning comes on when both RA indications differ by more than this
   static constexpr double RA_DISAGREE_FT = 15;
-  /// l.32125-32127: LAND engagement below 400 ft, FLARE condition below 50 ft, untimely when lower than 2 s
+  /// Untimely flare: LAND engagement below 400 ft, FLARE condition below 50 ft, untimely when lower than 2 s
   static constexpr double LAND_ENGAGEMENT_HEIGHT_FT = 400;
   static constexpr double FLARE_CONDITION_HEIGHT_FT = 50;
   static constexpr double UNTIMELY_FLARE_TIME_S = 2;

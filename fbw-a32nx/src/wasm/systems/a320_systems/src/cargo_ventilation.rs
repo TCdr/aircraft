@@ -1,24 +1,22 @@
 //! The aft cargo ventilation isolation valves and their AFT ISOL VALVE pb-sw of the CARGO VENT panel.
 //!
-//! FCOM DSC-21-40-20 AFT CARGO VENTILATION (a320_fcom.txt l.9701-9716): "Air from the cabin goes via the inlet
-//! isolation valve to the aft cargo compartment, driven by an extraction fan. Air is controlled by the outlet isolation
-//! valve [...]. The cargo ventilation controller controls the operation of the inlet and outlet isolation valves and
-//! the extraction fan. [...] The controller closes the isolation valves and stops the extraction fan when:
-//! - The flight crew sets the AFT ISOL VALVE pb-sw to OFF, or
-//! - The aft cargo smoke detection unit detects smoke."
+//! Cabin air goes through the inlet isolation valve to the aft cargo compartment, driven by an extraction fan, and
+//! leaves through the outlet isolation valve. The cargo ventilation controller controls both isolation valves and the
+//! extraction fan: it closes the valves and stops the fan when the crew sets the AFT ISOL VALVE pb-sw to OFF or the aft
+//! cargo smoke detection unit detects smoke.
 //!
-//! FAULT light: FCOM PRO-ABN-COND COND FWD(AFT) CRG ISOL VALVE (l.74019-74027) "This alert triggers if the
-//! forward(aft) cargo isolation valve disagrees with the selected position". The selected position is the one the
-//! controller commands, so the automatic closure on smoke is no disagreement. The FWC reads the same disagreement (the
-//! FAULT light L:var) for that alert (FWC/Logic/VentilationAlerts.ts), and the valve positions for AIR AFT CRG VENT
-//! FAULT (the extraction fan runs only with the valves fully open).
+//! FAULT light: COND FWD(AFT) CRG ISOL VALVE triggers when the cargo isolation valve disagrees with the selected
+//! position. The selected position is the one the controller commands, so the automatic closure on smoke is no
+//! disagreement. The FWC reads the same disagreement (the FAULT light L:var) for that alert
+//! (FWC/Logic/VentilationAlerts.ts), and the valve positions for AIR AFT CRG VENT FAULT (the extraction fan runs only
+//! with the valves fully open).
 //!
 //! flyPad failure 21026: the isolation valves stuck closed.
 //!
 //! Not modelled yet: the extraction fan and the airflow through the compartment (the fan failure is a TS-only flyPad
-//! failure of the FWC), the electrical supply of the controller (not in the FCOM) and a valve travel time (not in the
-//! FCOM: the valves follow their command at once). The FWD cargo ventilation (FWD ISOL VALVE pb-sw) is not installed
-//! on this aircraft.
+//! failure of the FWC), the electrical supply of the controller (not published) and a valve travel time (not published:
+//! the valves follow their command at once). The FWD cargo ventilation (FWD ISOL VALVE pb-sw) is not installed on this
+//! aircraft.
 
 use systems::{
     failures::{Failure, FailureType},
@@ -86,7 +84,7 @@ impl A320AftCargoVentilation {
     /// @param aft_cargo_smoke_detected the aft cargo smoke detection unit detects smoke (the update of the fire
     /// protection that ran before this one)
     pub(super) fn update(&mut self, aft_cargo_smoke_detected: bool) {
-        // l.9714-9716: closed with the pb-sw OFF or smoke in the aft cargo compartment
+        // closed with the pb-sw OFF or smoke in the aft cargo compartment
         let open_command = self.isolation_valve_pb.is_auto() && !aft_cargo_smoke_detected;
         let is_stuck_closed = self.isolation_valves_stuck_closed.is_active();
 
@@ -95,7 +93,7 @@ impl A320AftCargoVentilation {
         self.outlet_isolation_valve
             .update(open_command, is_stuck_closed);
 
-        // l.74026-74027: a valve disagrees with the commanded position
+        // a valve disagrees with the commanded position
         self.isolation_valve_pb.set_fault(
             self.inlet_isolation_valve.is_open() != open_command
                 || self.outlet_isolation_valve.is_open() != open_command,
@@ -187,7 +185,7 @@ mod tests {
         assert!(!pb_has_fault(&mut test_bed));
     }
 
-    // FCOM l.9715: "The flight crew sets the AFT ISOL VALVE pb-sw to OFF"
+    // The flight crew sets the AFT ISOL VALVE pb-sw to OFF
     #[test]
     fn pb_sw_off_closes_both_isolation_valves() {
         let mut test_bed = test_bed();
@@ -211,7 +209,7 @@ mod tests {
         assert_eq!(valves_are_open(&test_bed), [true, true]);
     }
 
-    // FCOM l.9716: "The aft cargo smoke detection unit detects smoke"
+    // The aft cargo smoke detection unit detects smoke
     #[test]
     fn aft_cargo_smoke_closes_both_isolation_valves_without_fault() {
         let mut test_bed = test_bed();
@@ -224,7 +222,7 @@ mod tests {
         assert!(!pb_has_fault(&mut test_bed));
     }
 
-    // FCOM l.74026-74027: the valves disagree with the selected position
+    // the valves disagree with the selected position
     #[test]
     fn valves_stuck_closed_light_the_fault_while_commanded_open() {
         let mut test_bed = test_bed();

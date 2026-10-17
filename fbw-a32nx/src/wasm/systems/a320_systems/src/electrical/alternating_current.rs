@@ -46,11 +46,10 @@ pub(super) struct A320AlternatingCurrentElectrical {
     auxiliary_supplies: A320AuxiliaryPowerSupplies,
 }
 impl A320AlternatingCurrentElectrical {
-    /// A320 FCOM DSC-24-20 EMER ELEC PWR MAN ON pb (a320_fcom.txt l.37307-37312): "As soon as the
-    /// emergency generator electrical parameters are within tolerance the emergency generator is
-    /// connected to the aircraft network. ... Emergency generator coupling occurs 3 s after the RAT
-    /// supplies the emergency generator." Also in AUTO: DSC-24-10-30-30 (l.36797) "During RAT
-    /// extension and emergency generator coupling (about 8 s), the batteries ...".
+    /// As soon as its electrical parameters are within tolerance the emergency generator is
+    /// connected to the aircraft network, 3 s after the RAT supplies it (with the EMER ELEC PWR MAN
+    /// ON pb and in AUTO); during the RAT extension and the coupling (about 8 s) the batteries
+    /// supply the network.
     const EMERGENCY_GENERATOR_COUPLING_DELAY: Duration = Duration::from_secs(3);
 
     pub fn new(context: &mut InitContext) -> Self {
@@ -130,9 +129,8 @@ impl A320AlternatingCurrentElectrical {
             .close_when(electricity.is_powered(&self.ac_bus_2) && !self.tr_2.has_failed());
         electricity.flow(&self.ac_bus_2, &self.ac_bus_2_to_tr_2_contactor);
 
-        // 12XN: external power feeds the GND/FLT buses directly only with the MAINT BUS switch ON
-        // (A320 FCOM DSC-24-10-30-20 l.36663-36665, DSC-24-20 l.37377-37405); with it OFF they are on
-        // AC BUS 2 and DC BUS 2.
+        // 12XN: external power feeds the GND/FLT buses directly only with the MAINT BUS switch ON;
+        // with it OFF they are on AC BUS 2 and DC BUS 2.
         self.maintenance_bus_switch
             .update(electricity.is_powered(ext_pwr));
         self.ext_pwr_to_ac_gnd_flt_service_bus_and_tr_2_contactor
@@ -409,12 +407,11 @@ impl SimulationElement for A320AlternatingCurrentElectrical {
     }
 }
 
-/// The MAINT BUS switch in the forward entrance area (A320 FCOM DSC-24-20, a320_fcom.txt
-/// l.37377-37405). The cockpit model does not have it: the flyPad (Ground > Services) stands in for
-/// it, through the L:var that this element reads and writes back.
-/// "ON : The switch latches magnetically if external power is connected and normal (AVAIL light on).
-/// The AC and DC GND/FLT buses have power ... The switch trips when the external source is removed.
-/// OFF : The AC and DC GND/FLT buses are connected to AC BUS 2 and DC BUS 2."
+/// The MAINT BUS switch in the forward entrance area. The cockpit model does not have it: the
+/// flyPad (Ground > Services) stands in for it, through the L:var that this element reads and
+/// writes back. ON: the switch latches magnetically if external power is connected and normal
+/// (AVAIL light on), the AC and DC GND/FLT buses have power, and the switch trips when the external
+/// source is removed. OFF: the AC and DC GND/FLT buses are connected to AC BUS 2 and DC BUS 2.
 struct A320MaintenanceBusSwitch {
     is_on_id: VariableIdentifier,
     is_on: bool,
@@ -605,16 +602,16 @@ impl A320MainPowerSources {
         }
     }
 
-    /// The IDG push button FAULT light (A320 FCOM DSC-24-20 l.37132-37135): oil outlet overheat
-    /// or low oil pressure, off once the IDG is disconnected.
+    /// The IDG push button FAULT light: oil outlet overheat or low oil pressure, off once the IDG
+    /// is disconnected.
     pub fn idg_has_fault(&self, number: usize) -> bool {
         let generator = self.engine_generator(number);
         generator.is_drive_connected()
             && (generator.drive_oil_pressure_is_low() || generator.drive_oil_is_overheating())
     }
 
-    /// The load of the engine generator is above 100 % of its rated output (A320 FCOM DSC-24-20
-    /// GALY & CAB pb FAULT, l.37239-37240).
+    /// The load of the engine generator is above 100 % of its rated output (GALY & CAB pb FAULT
+    /// light).
     pub fn engine_generator_is_overloaded(&self, number: usize) -> bool {
         !self.engine_generator(number).load_normal()
     }

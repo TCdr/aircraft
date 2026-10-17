@@ -1,22 +1,21 @@
-//! FADEC, thrust lever and thrust reverser failures of the A320 (engine failures stage A5): the
-//! thrust lever angle the FADEC uses, and the FADEC status the FWC reads.
+//! FADEC, thrust lever and thrust reverser failures of the A320: the thrust lever angle the FADEC
+//! uses, and the FADEC status the FWC reads.
 //!
 //! Per engine:
 //! - FADEC channels A and B, FADEC high temperature (shared `FadecChannels`). Both channels lost =
-//!   ENG 1(2) FADEC FAULT: the engine indications are lost (A320 FCOM PRO-ABN-ENG, a320_fcom.txt
-//!   l.79652-79653), the A/THR is lost ("Two FADECs operative" is an A/THR arming condition, DSC-22_30-90
-//!   l.32672; the flight computer interface cuts the A/THR orders to that FADEC) and the reverser
-//!   no longer deploys (DSC-70-70 l.63300: deployment "requires one FADEC channel"). Design choice:
-//!   the engine keeps following its thrust lever, the FCOM gives no thrust change ("ENG (AFFECTED)
-//!   PARAMETERS CHECK, IF ABN ENG OPERATION: ENG MASTER OFF", l.79640-79650).
-//! - Thrust lever resolvers (ENG 1(2) THR LEVER FAULT, l.81792-81892) and resolver disagreement
-//!   (ENG 1(2) THR LEVER DISAGREE, l.81668-81786): [`A320ThrustLeverFailure`].
+//!   ENG 1(2) FADEC FAULT: the engine indications are lost, the A/THR is lost (two operative FADECs
+//!   are an A/THR arming condition; the flight computer interface cuts the A/THR orders to that
+//!   FADEC) and the reverser no longer deploys (its deployment needs one FADEC channel). Design
+//!   choice: the engine keeps following its thrust lever, as the procedure gives no thrust change
+//!   (the crew checks the engine parameters and shuts an abnormal engine down).
+//! - Thrust lever resolvers (ENG 1(2) THR LEVER FAULT) and resolver disagreement (ENG 1(2) THR
+//!   LEVER DISAGREE): [`A320ThrustLeverFailure`].
 //! - The reverse idle of a reverser deployment and the idle protection of an unlocked reverser
-//!   (DSC-70-70 l.63304-63321, ENG 1(2) REVERSE UNLOCKED l.80888-80889), and the idle protection
-//!   for the reverser feedback position (15 % / 78 %, [`ReverserIdleProtection`]).
+//!   (ENG 1(2) REVERSE UNLOCKED), and the idle protection for the reverser feedback position
+//!   (15 % / 78 %, [`ReverserIdleProtection`]).
 //!
-//! The result is the TLA the FADEC model uses (`ENGINE_n_FADEC_TLA_OVERRIDE*`, read by
-//! fbw_a320 FlyByWireInterface through FadecFailureInputs.h).
+//! The result is the TLA the FADEC model uses (`ENGINE_n_FADEC_TLA_OVERRIDE*`, read by fbw_a320
+//! FlyByWireInterface through FadecFailureInputs.h).
 
 use systems::{
     engine::engine_control_failure::{
@@ -49,11 +48,11 @@ pub enum ThrustLeverRating {
     /// The lever works: the FADEC follows it.
     #[default]
     Normal = 0,
-    /// Idle, definitively, "even for go around" (l.81858-81862).
+    /// Idle, definitively, even for a go-around.
     Idle = 1,
-    /// TO or FLX TO frozen (l.81838-81840 FAULT, l.81693-81696 DISAGREE).
+    /// TO or FLX TO frozen.
     TakeOff = 2,
-    /// CLB in manual thrust, idle to CLB with the A/THR (l.81840-81845, l.81698-81704).
+    /// CLB in manual thrust, idle to CLB with the A/THR.
     Climb = 3,
 }
 
@@ -71,29 +70,26 @@ pub struct ThrustLeverConditions {
 
 /// ENG 1(2) THR LEVER FAULT and ENG 1(2) THR LEVER DISAGREE: the engine rating the FADEC selects.
 ///
-/// THR LEVER FAULT, "both resolvers on one thrust lever are failed" (l.81803):
-/// - "Idle power is automatically selected by FADEC. If associated thrust reverser is already
-///   deployed, FADEC commands restow." (l.81830-81831). Design choice: on the ground.
-/// - In flight, from the lever position at the detection (l.81835-81845): "TO or FLEX: FADEC
-///   freezes TO or FLEX TO thrust until slat retraction. At slat retraction it selects CLB thrust.
-///   Between IDLE and MCT: in manual thrust setting mode, engine rating freezes at CLB, or IDLE
-///   with slats extended" (the EIU Mach rule is not modelled: the EIU does not fail).
-/// - "the FADEC will command idle thrust for the approach when slats are extended ... Thrust of
-///   affected engine remains definitively at idle even for go around." (l.81856-81862).
+/// THR LEVER FAULT, both resolvers of one thrust lever failed:
+/// - The FADEC selects idle, and commands the restow of a deployed reverser. Design choice: on the
+///   ground.
+/// - In flight, from the lever position at the detection: TO or FLEX TO thrust frozen until the
+///   slat retraction, then CLB; between IDLE and MCT in manual thrust, the rating freezes at CLB,
+///   or IDLE with the slats extended (the EIU Mach rule is not modelled: the EIU does not fail).
+/// - Idle for the approach once the slats extend, definitively, even for a go-around.
 ///
-/// THR LEVER DISAGREE, "a discrepancy between both resolvers of a thrust lever" (l.81679):
-/// - On the ground, "ENG (AFFECTED) IDLE POWER ONLY", except "During take-off (if both TLA are
-///   above IDLE): ... TO, FLX TO, or DRT TO thrust until thrust reduction, after which the maximum
-///   available thrust is CLB" (l.81688-81696).
-/// - In flight between idle and MCT with the slats retracted, "the FADEC selects the larger TLA
-///   power limited to CLB" (l.81697-81700); idle for the approach, definitively (l.81714-81733).
+/// THR LEVER DISAGREE, a discrepancy between both resolvers of a thrust lever:
+/// - On the ground, ENG (AFFECTED) IDLE POWER ONLY, except during the takeoff (both TLA above
+///   IDLE): TO, FLX TO or DRT TO thrust until the thrust reduction, then at most CLB.
+/// - In flight between idle and MCT with the slats retracted, the FADEC selects the larger TLA
+///   power limited to CLB; idle for the approach, definitively.
 ///
 /// Design choices (the sim has one lever, its two resolvers are not modelled):
-/// - DISAGREE: the faulty resolver stays at the lever angle of the detection; the other one
-///   follows the lever. "The larger TLA" is the larger of the two. "Thrust reduction" is the lever
-///   set at or below the CL detent (on the ground: a rejected takeoff, the engine goes to idle).
+/// - DISAGREE: the faulty resolver stays at the lever angle of the detection; the other one follows
+///   the lever. "The larger TLA" is the larger of the two. "Thrust reduction" is the lever set at
+///   or below the CL detent (on the ground: a rejected takeoff, the engine goes to idle).
 /// - TO / FLX is a lever above the FLX/MCT detent, or in that detent with FLX TO selected.
-/// - DISAGREE keeps reverse idle on the ground (its INOP SYS has no REVERSER, l.81769).
+/// - DISAGREE keeps reverse idle on the ground (its INOP SYS has no REVERSER).
 #[derive(Default)]
 pub struct A320ThrustLeverFailure {
     lever_lost: bool,
@@ -165,10 +161,10 @@ impl A320ThrustLeverFailure {
             }
             ThrustLeverRating::TakeOff => {
                 let leaves_takeoff = if self.lever_lost() {
-                    // "until slat retraction"
+                    // FAULT: until the slat retraction
                     !conditions.on_ground && !conditions.slats_extended
                 } else {
-                    // "until thrust reduction"
+                    // DISAGREE: until the thrust reduction
                     Self::is_thrust_reduction(conditions)
                 };
                 if !leaves_takeoff {
@@ -180,7 +176,7 @@ impl A320ThrustLeverFailure {
                 }
             }
             ThrustLeverRating::Climb => {
-                // "idle thrust for the approach when slats are extended"
+                // idle for the approach once the slats extend
                 if !conditions.on_ground && conditions.slats_extended {
                     ThrustLeverRating::Idle
                 } else {
@@ -216,19 +212,16 @@ impl A320ThrustLeverFailure {
     }
 }
 
-/// The idle protection of the FADEC for the thrust reverser position. A320 FCOM DSC-70-70 PROTECTION
-/// (a320_fcom.txt l.63311-63318): "The FADEC will automatically select the thrust to idle:
-/// - In case of inadvertent thrust reverser deployment (while thrust reversers are commanded stowed),
-///   as soon as the thrust reverser feedback position is above 15 % deployed (thrust decreasing
-///   toward idle, when the detected position is between 10 % and 15 %).
-/// - In case of inadvertent thrust reverser stowage (while thrust reversers are commanded deployed),
-///   as soon as the thrust reverser feedback position is below 78 % deployed (thrust decreasing toward
-///   idle between 90 % and 78 %)."
+/// The idle protection of the FADEC for the thrust reverser position: the FADEC selects idle
+/// - after an inadvertent deployment (reversers commanded stowed) as soon as the feedback position
+///   is above 15 % deployed, the thrust decreasing toward idle between 10 % and 15 %;
+/// - after an inadvertent stowage (reversers commanded deployed) as soon as the feedback position
+///   is below 78 % deployed, the thrust decreasing toward idle between 90 % and 78 %.
 ///
-/// "Before deployment is completed, the FADEC sets reverse idle thrust" (l.63302-63303,
-/// `limit_reverse_thrust_until_deployed`): the stowage protection applies to a completed deployment
-/// (all doors deployed once under the deploy order), until the deploy order ends. Design choice: the
-/// thrust decreases linearly with the thrust lever angle between the two positions.
+/// Before the deployment is completed the FADEC sets reverse idle
+/// (`limit_reverse_thrust_until_deployed`): the stowage protection applies to a completed
+/// deployment (all doors deployed once under the deploy order), until the deploy order ends. Design
+/// choice: the thrust decreases linearly with the thrust lever angle between the two positions.
 #[derive(Default)]
 struct ReverserIdleProtection {
     /// The reverser has been fully deployed since its deploy order.
@@ -359,9 +352,8 @@ impl A320EngineControl {
         let reverse_limited_tla = self
             .reverser_idle_protection
             .limit_tla(reverse_limited_tla, reverser);
-        // ENG 1(2) REVERSE UNLOCKED: "ENG 1(2) AT IDLE ... Only displayed, if the FADEC
-        // automatically sets the engine at idle (i.e. when 4 reverser doors are not stowed ...)"
-        // (l.80887-80889): the unlocked failure unlocks the four doors.
+        // ENG 1(2) REVERSE UNLOCKED: the FADEC sets the engine at idle when the 4 reverser doors
+        // are not stowed; the unlocked failure unlocks the four doors.
         let reverser_idle = reverser.unlocked;
         let fadec_tla = apply_auto_idle(reverse_limited_tla, reverser_idle);
         let auto_idle = reverser_idle || self.thrust_lever.rating() == ThrustLeverRating::Idle;
@@ -374,8 +366,7 @@ impl A320EngineControl {
         self.thrust_lever.lever_lost() || self.fadec_channels.both_channels_lost()
     }
 
-    /// A malfunction of the thrust control, for the ENG FAULT light (FCOM DSC-70-90-20,
-    /// l.63949-63950: "There is a malfunction of the thrust control"). Design choice: the loss of
+    /// A malfunction of the thrust control, for the ENG FAULT light. Design choice: the loss of
     /// both FADEC channels (ENG 1(2) FADEC FAULT) or of both thrust lever resolvers (ENG 1(2) THR
     /// LEVER FAULT); a resolver disagree, which the FADEC manages, is none.
     fn thrust_control_malfunction(&self) -> bool {
@@ -721,7 +712,6 @@ mod tests {
         test_bed.read_by_name(name)
     }
 
-    #[allow(dead_code)]
     fn read_f64(test_bed: &mut SimulationTestBed<TestAircraft>, name: &str) -> f64 {
         test_bed.read_by_name(name)
     }
@@ -761,8 +751,8 @@ mod tests {
         assert_eq!(override_tla(&mut test_bed), None);
     }
 
-    /// Sim test 2026-10-06 (s8_main1.log): reverser 1 failed (stays stowed), reverser 2 deployed.
-    /// Each engine's reverse thrust waits for its own reverser only.
+    /// Measured in the sim: reverser 1 failed (stays stowed), reverser 2 deployed. Each engine's
+    /// reverse thrust waits for its own reverser only.
     #[test]
     fn each_engine_waits_for_its_own_reverser_only() {
         let mut test_bed = test_bed(true, -20.);
@@ -797,8 +787,8 @@ mod tests {
         );
     }
 
-    /// FCOM DSC-70-70 IDLE PROTECTION (l.63313-63316): commanded stowed, idle above 15 % deployed, the
-    /// thrust decreasing toward idle between 10 % and 15 %.
+    /// Idle protection, commanded stowed: idle above 15 % deployed, the thrust decreasing toward
+    /// idle between 10 % and 15 %.
     #[test]
     fn forward_thrust_goes_to_idle_while_a_stowed_reverser_is_more_than_15_percent_deployed() {
         let mut test_bed = test_bed(false, 25.);
@@ -817,9 +807,8 @@ mod tests {
         assert!(!engine_2_override, "engine 2 keeps its lever");
     }
 
-    /// FCOM DSC-70-70 IDLE PROTECTION (l.63317-63318): commanded deployed, idle below 78 % deployed, the
-    /// thrust decreasing toward idle between 90 % and 78 %, once the deployment is completed (before it,
-    /// reverse idle, l.63302-63303).
+    /// Idle protection, commanded deployed: idle below 78 % deployed, the thrust decreasing toward
+    /// idle between 90 % and 78 %, once the deployment is completed (reverse idle before it).
     #[test]
     fn reverse_thrust_goes_to_reverse_idle_when_a_deployed_reverser_stows_below_78_percent() {
         let mut test_bed = test_bed(true, -20.);

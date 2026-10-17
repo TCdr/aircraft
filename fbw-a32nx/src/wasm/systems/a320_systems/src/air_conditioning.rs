@@ -157,10 +157,8 @@ impl SimulationElement for A320AirConditioning {
     }
 }
 
-/// The emergency ram air inlet valve. FCOM DSC-21-10-20 EMERGENCY RAM AIR (a320_fcom.txt l.8109-8111): "The emergency
-/// ram air inlet valve is controlled by the RAM AIR pushbutton on the AIR COND panel. This pushbutton opens the ram air
-/// valve, provided that ditching is not selected." DSC-21-20-30 DITCHING (l.8955-8957): the DITCHING pb closes "the
-/// emergency ram air inlet". No travel time in the FCOM: the valve follows its command at once.
+/// The emergency ram air inlet valve. The RAM AIR pb of the AIR COND panel opens it, provided that ditching is not
+/// selected; the DITCHING pb closes it. No published travel time: the valve follows its command at once.
 struct EmergencyRamAirInlet {
     /// The RAM AIR pb (guarded) of the AIR COND panel, a cockpit L:var of the interior model
     ram_air_pb_is_on_id: VariableIdentifier,
@@ -493,13 +491,12 @@ impl A320AirConditioningSystem {
 
     /// The zone duct demands each pack regulates to (a pack supplies the lowest demand of its list).
     ///
-    /// Hot air pressure regulating valve open, FCOM DSC-21-10-20: "A signal corresponding to the lowest demanded zone
-    /// temperature goes to the pack controller or the ACSC, which then make both packs supply the required outlet
-    /// temperature." The trim air valves then add hot air to the warmer zones.
+    /// Hot air pressure regulating valve open: the lowest demanded zone temperature goes to the pack controllers, and
+    /// both packs supply that outlet temperature. The trim air valves then add hot air to the warmer zones.
     ///
-    /// Valve closed, FCOM DSC-21-10-40 HOT AIR PRESSURE REGULATING VALVE FAILURE, failed closed: "Trim air valves are
-    /// driven to the fully closed position. Pack 1 controls the cockpit temperature to the selected value and pack 2
-    /// controls the cabin temperature (FWD and AFT) to the mean value of the selected temperatures." Without trim air
+    /// Valve closed (as in a hot air pressure regulating valve failed closed): the trim air valves are fully closed,
+    /// pack 1 controls the cockpit to its selection and pack 2 the cabin (FWD and AFT) to the mean of the two cabin
+    /// selections. Without trim air
     /// the packs are the only temperature control, so the same rule applies whatever closed the valve (failure, HOT
     /// AIR pb OFF, or the automatic closure on trim air valve failures). Each cabin zone demand drives its zone to its
     /// own selection, so the mean of the FWD and AFT demands drives the cabin to the mean of the two selections.
@@ -520,8 +517,8 @@ impl A320AirConditioningSystem {
 
         let [_, acsc_2_both_lanes_failed] = acsc_both_lanes_failed;
         let pack_2_demand = if acsc_2_both_lanes_failed {
-            // FCOM PRO-ABN-COND LAV + GALLEY FAN FAULT, ACSC 2 inoperative: "Cabin duct temperature is the same as
-            // cockpit duct temperature" (pack 2 itself then runs at its fixed backup outlet temperature)
+            // LAV + GALLEY FAN FAULT, ACSC 2 inoperative: the cabin duct temperature is the cockpit duct temperature
+            // (pack 2 itself then runs at its fixed backup outlet temperature)
             cockpit_demand
         } else {
             cabin_demands.iter().average()
@@ -530,10 +527,10 @@ impl A320AirConditioningSystem {
         [vec![cockpit_demand], vec![pack_2_demand]]
     }
 
-    /// The zone duct demands both packs regulate to with the hot air valve open (each pack supplies the lowest one). ACSC 1 computes the cockpit
-    /// demand and ACSC 2 the cabin demands; a controller with both lanes failed sends none, so the remaining pack only
-    /// follows the zones of the operative controller. FCOM PRO-ABN-COND LAV + GALLEY FAN FAULT, ACSC 2 inoperative:
-    /// "Cabin duct temperature is the same as cockpit duct temperature", adjusted with the COCKPIT selector.
+    /// The zone duct demands both packs regulate to with the hot air valve open (each pack supplies the lowest one).
+    /// ACSC 1 computes the cockpit demand and ACSC 2 the cabin demands; a controller with both lanes failed sends none,
+    /// so the remaining pack only follows the zones of the operative controller. With ACSC 2 inoperative (LAV + GALLEY
+    /// FAN FAULT) the cabin duct temperature is the cockpit duct temperature, adjusted with the COCKPIT selector.
     fn pack_temperature_demands(
         cockpit_demand: ThermodynamicTemperature,
         cabin_demands: [ThermodynamicTemperature; 2],
@@ -905,7 +902,7 @@ impl A320PressurizationSystem {
 
         // The outflow valve(s) is(are) controlled by either the CPC (auto), the RPCU or the overhead (manual).
         // The RPCU works when both CPCs are failed or MAN is selected: the automatic motors are the CPC ones, so it
-        // drives the manual motor (the FCOM DSC-21-20-20 does not name the motor, a320_fcom.txt l.8825-8830).
+        // drives the manual motor (Design choice: no published source names the motor).
         if self.residual_pressure_controller.signal().is_some() {
             self.outflow_valve
                 .iter_mut()
@@ -1166,25 +1163,24 @@ impl PressurizationOverheadShared for A320PressurizationOverheadPanel {
     }
 }
 
-/// The Residual Pressure Control Unit. FCOM DSC-21-20-20 RPCU (a320_fcom.txt l.8820-8830): "The RPCU automatically
-/// depressurizes the aircraft in case of abnormal residual pressure on ground. It automatically opens the outflow
-/// valve, when:
-/// - The outflow valve is not fully open, and
-/// - Both CPCs are failed, or manual mode is selected, and
-/// - The aircraft is on ground, and
-/// - All engines are shutdown, or all ADIRS indicate an airspeed below 100 kt."
+/// The Residual Pressure Control Unit: it depressurizes the aircraft when an abnormal residual pressure remains on
+/// ground, by opening the outflow valve when:
+/// - the outflow valve is not fully open, and
+/// - both CPCs are failed, or manual mode is selected, and
+/// - the aircraft is on ground, and
+/// - all engines are shut down, or all ADIRS indicate an airspeed below 100 kt.
 ///
-/// Not in the FCOM, kept from the earlier model: the 2.5 hPa threshold of an "abnormal residual pressure" (the same
-/// 2.5 hPa / 0.036 PSI as the CAB PR EXCES RESIDUAL PR warning, l.73154) and the 55 s delay before the opening (the
-/// CPC also fully opens the outflow valve "55 s after landing", l.8871).
+/// Design choice (no published value): the 2.5 hPa threshold of an abnormal residual pressure (the same 2.5 hPa /
+/// 0.036 PSI as the CAB PR EXCES RESIDUAL PR warning) and the 55 s delay before the opening (the CPC also fully opens
+/// the outflow valve 55 s after landing).
 struct ResidualPressureController {
     timer: Duration,
 }
 
 impl ResidualPressureController {
-    /// An engine below this N1 counts as shut down (an engine at idle runs above it)
+    /// Design choice: an engine below this N1 counts as shut down (an engine at idle runs above it)
     const ENGINE_SHUT_DOWN_N1_PERCENT: f64 = 15.;
-    /// FCOM l.8830: "all ADIRS indicate an airspeed below 100 kt"
+    /// The RPCU may open with the engines running when all ADIRS indicate an airspeed below this
     const MAX_AIRSPEED_KNOTS: f64 = 100.;
 
     fn new() -> Self {
@@ -2299,7 +2295,7 @@ mod tests {
 
         #[test]
         fn pack_1_follows_the_cockpit_only_with_acsc_2_inoperative() {
-            // FCOM PRO-ABN-COND LAV + GALLEY FAN FAULT: cabin duct temperature = cockpit duct temperature
+            // LAV + GALLEY FAN FAULT: cabin duct temperature = cockpit duct temperature
             let demands = A320AirConditioningSystem::pack_temperature_demands(
                 celsius(20.),
                 [celsius(15.), celsius(25.)],
@@ -2332,7 +2328,6 @@ mod tests {
 
         #[test]
         fn pack_1_follows_the_cockpit_and_pack_2_the_cabin_mean_with_the_hot_air_valve_closed() {
-            // FCOM DSC-21-10-40 HOT AIR PRESSURE REGULATING VALVE FAILURE, failed closed
             let demands = A320AirConditioningSystem::pack_temperature_demands_per_pack(
                 celsius(20.),
                 [celsius(15.), celsius(25.)],
@@ -2433,7 +2428,6 @@ mod tests {
 
         #[test]
         fn with_the_hot_air_valve_closed_pack_1_regulates_the_cockpit_and_pack_2_the_cabin_mean() {
-            // FCOM DSC-21-10-40 HOT AIR PRESSURE REGULATING VALVE FAILURE, failed closed
             let test_bed = test_bed_with_cockpit_hot_and_cabin_cold(false);
             assert!(!hot_air_valve_is_open(&test_bed));
 
@@ -2619,7 +2613,6 @@ mod tests {
             );
         }
 
-        // FCOM DSC-21-10-20 EMERGENCY RAM AIR (a320_fcom.txt l.8110-8111)
         #[test]
         fn ram_air_pb_on_opens_the_emergency_ram_air_inlet() {
             let mut test_bed = test_bed().iterate(2);
@@ -2632,7 +2625,7 @@ mod tests {
             assert!(!test_bed.emergency_ram_air_inlet_is_open());
         }
 
-        // FCOM DSC-21-20-30 DITCHING (l.8955-8957) and DSC-21-10-20 (l.8111): "provided that ditching is not selected"
+        // The RAM AIR pb opens the inlet only while ditching is not selected
         #[test]
         fn ditching_pb_on_closes_the_emergency_ram_air_inlet() {
             let mut test_bed = test_bed().command_ram_air_pb_on(true).iterate(2);
@@ -2698,7 +2691,7 @@ mod tests {
             );
         }
 
-        // FCOM DSC-21-20-20 RPCU (a320_fcom.txt l.8825-8830): "Both CPCs are failed, or manual mode is selected"
+        // The RPCU works with both CPCs failed, or with manual mode selected
         #[test]
         fn rpcu_opens_ofv_when_both_cpcs_are_failed_in_auto_mode() {
             let mut test_bed = test_bed_in_descent()
@@ -2736,7 +2729,7 @@ mod tests {
             );
         }
 
-        // l.8830: "all ADIRS indicate an airspeed below 100 kt" (engines running)
+        // With the engines running, the RPCU needs all ADIRS to indicate an airspeed below 100 kt
         #[test]
         fn rpcu_opens_ofv_below_100_knots_with_engines_running() {
             let test_bed = test_bed_in_descent()
@@ -2768,7 +2761,7 @@ mod tests {
             );
         }
 
-        // A failed ADR indicates no airspeed: not "all ADIRS indicate an airspeed below 100 kt"
+        // A failed ADR indicates no airspeed, so not all ADIRS indicate an airspeed below 100 kt
         #[test]
         fn rpcu_does_not_open_ofv_with_engines_running_when_one_adr_is_failed() {
             let test_bed = test_bed_in_descent()
@@ -2786,7 +2779,7 @@ mod tests {
             );
         }
 
-        // l.8830: "All engines are shutdown": the airspeed does not matter then
+        // All engines shut down: the airspeed does not matter then
         #[test]
         fn rpcu_opens_ofv_with_all_engines_shut_down_and_one_adr_failed() {
             let mut test_bed = test_bed_in_descent()

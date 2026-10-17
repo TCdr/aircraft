@@ -81,7 +81,7 @@ use systems::{
     simulation::{Aircraft, SimulationElement, SimulationElementVisitor, UpdateContext},
 };
 
-/// The FADEC faults of the A320 FCOM that have no engine model effect (PRO-ABN-ENG, a320_fcom.txt):
+/// The A320 FADEC faults that have no engine model effect:
 /// ENG 1(2) FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH
 /// FAULT (see systems::engine::engine_monitoring_fault and the FWC Logic/EngineMonitoringAlerts.ts),
 /// and FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE (ENG 1(2) and ENG 1+2),
@@ -213,8 +213,8 @@ impl A320 {
             probe_window_heat: A320ProbeWindowHeat::new(context),
             tyre_pressure: A320TyrePressureIndicatingSystem::new(context),
             radio_altimeters: A320RadioAltimeters::new(context),
-            // The GPS receivers of MMR 1 and 2. The FCOM gives no power supply: MMR 1 on AC ESS and MMR 2 on AC 2,
-            // as the other side 1 / side 2 navigation receivers (design choice)
+            // The GPS receivers of MMR 1 and 2. No published power supply: MMR 1 on AC ESS and MMR
+            // 2 on AC 2, as the other side 1 / side 2 navigation receivers (design choice)
             gps_1: GpsReceiver::new(context, 1, ElectricalBusType::AlternatingCurrentEssential),
             gps_2: GpsReceiver::new(context, 2, ElectricalBusType::AlternatingCurrent(2)),
             gpirs: Gpirs::new(context),
@@ -231,11 +231,10 @@ impl A320 {
                 ],
                 0,
             )
-            // TERR STBY deselects the TERR ON ND pb-sws (FCOM DSC-34-SURV-40-40, a320_fcom.txt l.55563-55566)
+            // TERR STBY deselects the TERR ON ND pb-sws
             .with_terrain_display_deselection_on_standby(),
-            // A320 FCOM DSC-34-SURV-40-40 PULL UP - GPWS pb (a320_fcom.txt l.55481-55486): "PULL UP: Comes on when the
-            // second boundary of mode 1 is penetrated or when the mode 2 is activated", "GPWS: Comes on in amber when any
-            // other mode is activated": the alternate lamp format of the EGPWC.
+            // PULL UP - GPWS pb: the red PULL UP comes on for the second boundary of mode 1 and for
+            // mode 2, the amber GPWS for any other mode: the alternate lamp format of the EGPWC.
             egpwc_2: EnhancedGroundProximityWarningComputer2::new_with_pin_programming(
                 context,
                 ElectricalBusType::AlternatingCurrent(1),
@@ -252,9 +251,8 @@ impl A320 {
     }
 
     /// Per engine, the reverser does not deploy: the FADEC no longer commands it (thrust lever
-    /// fault, FADEC fault) or it is inhibited by maintenance action (ENG 1(2) REV INHIBITED, A320
-    /// FCOM PRO-ABN-ENG l.80700 "the reverser is inhibited by maintenance action", STATUS INOP SYS
-    /// REVERSER 1(2) l.80711-80715).
+    /// fault, FADEC fault) or it is inhibited by maintenance action (ENG 1(2) REV INHIBITED, STATUS
+    /// INOP SYS REVERSER 1(2)).
     fn reversers_deployment_inhibited(&self) -> [bool; 2] {
         let fadec_inhibited = self
             .engine_control_failures
@@ -273,7 +271,7 @@ impl Aircraft for A320 {
         context: &UpdateContext,
         electricity: &mut Electricity,
     ) {
-        // The APU speed governing (A320 FCOM l.60473-60476) knows the air conditioning demand: a pack takes air
+        // The APU speed governing knows the air conditioning demand: a pack takes air
         self.apu.update_air_conditioning_demand(
             (1..=2).any(|pack_id| self.pneumatic.pack_flow_valve_is_open(pack_id)),
         );
@@ -433,7 +431,7 @@ impl Aircraft for A320 {
 
         self.oxygen.update(context);
         self.tyre_pressure.update(context);
-        // Probes and windows heated with an engine running or in flight (FCOM DSC-30-40-10, DSC-30-50-10)
+        // Probes and windows heated with an engine running or in flight
         let lgcius = [self.lgcius.lgciu1(), self.lgcius.lgciu2()];
         self.probe_window_heat.update(
             [1, 2]
@@ -540,10 +538,10 @@ mod tests {
         test_bed
     }
 
-    /// FCOM PRO-ABN-ENG: with the ENG FIRE pb pushed the engine shuts down "after a time delay" once
-    /// the fuel between the LP valve and the nozzles is burned (fuel/engine_lp_valve.rs: about 99 s
-    /// at a sea-level idle). The starvation must still cut the engine fuel (MSFS valve 13/14 and the
-    /// FADEC) now that the engine failures share that cut (engine_failure.rs).
+    /// With the ENG FIRE pb pushed the engine shuts down after a time delay, once the fuel between
+    /// the LP valve and the nozzles is burned (fuel/engine_lp_valve.rs: about 99 s at a sea-level
+    /// idle). The starvation cuts the engine fuel (MSFS valve 13/14 and the FADEC) through the fuel
+    /// cut it shares with the engine failures (engine_failure.rs).
     #[test]
     fn the_eng_fire_pb_cuts_the_engine_fuel_after_the_residual_fuel_is_burned() {
         let mut test_bed = aircraft_with_engines_at_idle();
@@ -603,9 +601,9 @@ mod tests {
         }
     }
 
-    /// FCOM PRO-ABN-FUEL FUEL APU LP VALVE FAULT: the flyPad failure 28011 (a320_systems_wasm) jams
-    /// the APU LP fuel valve (fuel/apu_lp_valve.rs); jammed closed with the APU MASTER SW ON, it
-    /// gives the fault and no fuel reaches the APU.
+    /// FUEL APU LP VALVE FAULT: the flyPad failure 28011 (a320_systems_wasm) jams the APU LP fuel
+    /// valve (fuel/apu_lp_valve.rs); jammed closed with the APU MASTER SW ON, it gives the fault
+    /// and no fuel reaches the APU.
     #[test]
     fn the_apu_lp_valve_jammed_closed_gives_a_fault_and_starves_the_apu() {
         let mut test_bed = aircraft_with_engines_at_idle();
@@ -621,9 +619,9 @@ mod tests {
         assert!(!test_bed.query(|a| a.fuel.apu_has_fuel()));
     }
 
-    /// A320 FCOM DSC-49-10-20 FUEL SYSTEM (a320_fcom.txt l.60437-60439): the left fuel feed line supplies the APU,
-    /// with the pressure of the tank pumps or else of the APU fuel pump (fuel/apu_fuel_feed.rs). Without electrical
-    /// power neither runs: tank content alone does not feed the APU.
+    /// The left fuel feed line supplies the APU, with the pressure of the tank pumps or else of the
+    /// APU fuel pump (fuel/apu_fuel_feed.rs). Without electrical power neither runs: tank content
+    /// alone does not feed the APU.
     #[test]
     fn without_a_powered_pump_the_apu_has_no_fuel_pressure_despite_the_tank_content() {
         let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A320::new(context));
@@ -639,8 +637,8 @@ mod tests {
         assert!(!test_bed.query(|a| a.fuel.apu_has_fuel()));
     }
 
-    /// The APU fuel pump starts with the APU MASTER SW ON when no tank pump runs (a320_fcom.txt l.60439, l.60560),
-    /// powered by the AC ESS SHED bus or the static inverter (electrical/alternating_current.rs)
+    /// The APU fuel pump starts with the APU MASTER SW ON when no tank pump runs, powered by the AC
+    /// ESS SHED bus or the static inverter (electrical/alternating_current.rs)
     #[test]
     fn with_the_tank_pumps_off_the_apu_fuel_pump_feeds_the_apu() {
         let mut test_bed = aircraft_with_engines_at_idle();
@@ -683,11 +681,11 @@ mod tests {
         assert!(!read(&mut test_bed, "ENGINE_1_OIL_OVERHEAT"));
     }
 
-    /// The FADEC faults of the FCOM gap batch T2-37 (A320 FCOM PRO-ABN-ENG FUEL CTL FAULT, FUEL
-    /// RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED, REV ISOL
-    /// FAULT) are A320 faults: each flyPad failure writes the variable of its engine for the FWC.
+    /// The A320 FADEC faults FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE,
+    /// BLEED STATUS FAULT, REV INHIBITED and REV ISOL FAULT: each flyPad failure writes the
+    /// variable of its engine for the FWC.
     #[test]
-    fn the_t2_37_fadec_faults_are_written_for_the_fwc() {
+    fn the_fadec_faults_are_written_for_the_fwc() {
         let kinds = [
             EngineMonitoringFaultKind::FuelMeteringValve,
             EngineMonitoringFaultKind::FuelReturnValveFailedClosed,
@@ -711,9 +709,9 @@ mod tests {
         }
     }
 
-    /// ENG 1(2) REV INHIBITED (A320 FCOM PRO-ABN-ENG l.80700): the reverser inhibited by
-    /// maintenance action gets the deployment inhibition of the hydraulic A320ReverserController
-    /// (its deploy authorization, tested in hydraulic), the other reverser does not.
+    /// ENG 1(2) REV INHIBITED: the reverser inhibited by maintenance action gets the deployment
+    /// inhibition of the hydraulic A320ReverserController (its deploy authorization, tested in
+    /// hydraulic), the other reverser does not.
     #[test]
     fn the_reverser_inhibited_by_maintenance_gets_the_deployment_inhibition() {
         let mut test_bed = aircraft_with_engines_at_idle();
@@ -778,16 +776,16 @@ mod tests {
         assert!(vibration_2 < 6.);
     }
 
-    /// A320 FCOM DSC-34-SURV-40-40 PULL UP - GPWS pb: red PULL UP for mode 1 second boundary and mode 2 only, amber
-    /// GPWS for every other mode: the alternate lamp format of the EGPWC (surveillance/egpws/test.rs checks the lamps).
+    /// PULL UP - GPWS pb: red PULL UP for mode 1 second boundary and mode 2 only, amber GPWS for
+    /// every other mode: the alternate lamp format of the EGPWC (surveillance/egpws/test.rs checks
+    /// the lamps).
     #[test]
     fn the_egpwc_uses_the_airbus_lamp_format() {
         let test_bed = aircraft_with_engines_at_idle();
         assert!(test_bed.query(|a| a.egpwc_2.pin_programming().alternate_lamp_format));
     }
 
-    /// PFD1 shows ILS1 (MMR 1, sim NAV 3), PFD2 shows ILS2 (MMR 2, sim NAV 4): A320 FCOM
-    /// DSC-34-NAV-30-20 (a320_fcom.txt l.53282-53289).
+    /// PFD1 shows ILS1 (MMR 1, sim NAV 3), PFD2 shows ILS2 (MMR 2, sim NAV 4).
     #[test]
     fn each_mmr_writes_the_deviations_of_its_own_ils_receiver() {
         let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A320::new(context));

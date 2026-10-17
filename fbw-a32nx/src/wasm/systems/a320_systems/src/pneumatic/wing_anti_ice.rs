@@ -74,9 +74,8 @@ pub struct WingAntiIceValveController {
     controller_signals_on: bool, // Status of the ON light. If button is pushed and
     // the test is finished, the ON light should turn off.
     supplier_pressurized: bool,
-    /// The leak detection of this side detects a wing leak: the valve closes (FCOM DSC-30-20-10 a320_fcom.txt
-    /// l.44257-44258 "If the system detects a leak during normal operation, the affected side's wing anti-ice valve
-    /// automatically closes")
+    /// The leak detection of this side detects a wing leak: the wing anti-ice valve of the affected side closes
+    /// automatically
     closed_by_leak_protection: bool,
 }
 impl WingAntiIceValveController {
@@ -135,8 +134,7 @@ impl WingAntiIceValveController {
 impl ControllerSignal<WingAntiIceValveSignal> for WingAntiIceValveController {
     fn signal(&self) -> Option<WingAntiIceValveSignal> {
         // The leak protection closes the valve whatever the push button; the ON command stays, so the valve no longer
-        // follows it and the WING pb FAULT light comes on (DSC-30-20-20 l.44295-44298 "The position of the anti-icing
-        // control valve is not the required position")
+        // follows it and the WING pb FAULT light comes on (valve position differs from the commanded one)
         match self.controller_signals_on && !self.closed_by_leak_protection {
             false => Some(WingAntiIceValveSignal::new_closed()),
             true => {
@@ -363,8 +361,8 @@ impl WingAntiIceSystem {
 
         Self {
             // At 22000ft, flow rate is given at 0.327kg/s
-            // A wing duct leak is the WingBleedLeak failure of the engine bleed system of its side (pneumatic.rs): its
-            // detection closes this valve (closed_by_leak_protection of the controller)
+            // A wing duct leak is the WingBleedLeak failure of the engine bleed system of its side: its detection
+            // closes this valve through the controller
             wai_exhaust: PneumaticExhaust::new(
                 Self::WAI_EXHAUST_SPEED,
                 Self::WAI_EXHAUST_SPEED,

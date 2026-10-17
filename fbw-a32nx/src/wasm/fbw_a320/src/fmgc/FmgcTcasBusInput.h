@@ -7,10 +7,8 @@
 
 /// The TCAS bus the FMGCs read, under the flyPad failure of the FG TCAS mode (Failures::TcasMode, 22012).
 ///
-/// A320 FCOM DSC-22_30-70-85 (a320_fcom.txt l.30499-30503): "The TCAS mode is not available, when: ... The TCAS mode is
-/// failed (AUTO FLT TCAS MODE FAULT)". PRO-ABN-AUTO_FLT AUTO FLT TCAS MODE FAULT (l.71942-71960): "This alert triggers
-/// when the TCAS flight guidance mode is inoperative"; FOR TCAS ALERT: AP+FD OFF, FLY MANUALLY TCAS ORDER; INOP SYS
-/// AP/FD TCAS.
+/// The TCAS mode is not available when it is failed (AUTO FLT TCAS MODE FAULT: the TCAS flight guidance mode is
+/// inoperative; for a TCAS alert the crew sets AP+FD OFF and flies the TCAS order manually; INOP SYS AP/FD TCAS).
 ///
 /// The FMGCs (model/FmgcComputer.cpp, logic.tcas_mode_available) arm and engage the TCAS mode only from a valid TCAS
 /// sensitivity level word in TA/RA (bits 25-27) above 900 ft RA. With the failure the guidance loses the TCAS link: both

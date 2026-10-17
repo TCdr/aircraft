@@ -350,8 +350,8 @@ impl A320Hydraulic {
     const FORWARD_CARGO_DOOR_ID: &'static str = "FWD";
     const AFT_CARGO_DOOR_ID: &'static str = "AFT";
 
-    /// The nose wheel counts as centred within this angle, for the gear lever interlock (design choice: the FCOM
-    /// gives no tolerance)
+    /// The nose wheel counts as centred within this angle, for the gear lever interlock (Design choice: no published
+    /// tolerance)
     const NOSE_WHEEL_STEERING_CENTERED_MAX_ANGLE_DEGREES: f64 = 1.;
 
     const ELECTRIC_PUMP_MAX_CURRENT_AMPERE: f64 = 45.;
@@ -980,9 +980,8 @@ impl A320Hydraulic {
         self.bypass_pin.update(&self.pushback_tug);
 
         // The relay turning on the brake fans is grounded via LGCIU 2 signal and powered by DC2 (206PP via 3GS).
-        // A320 FCOM DSC-32-30-20 BRK FAN pb-sw (a320_fcom.txt l.51514-51516): "The brake fans run if the lefthand
-        // main landing gear is down and locked" (LGCIU 2, L/G downlocked output, DSC-32-10-30 l.50664-50672), so they
-        // also run in flight with the gear down, to cool the brakes before landing.
+        // The brake fans run when the left main landing gear is down and locked (LGCIU 2, L/G downlocked output), so
+        // they also run in flight with the gear down, to cool the brakes before landing.
         let brake_fan_turned_on = self.dc2_powered
             && brake_fan_panel.brake_fan_pb_is_pressed()
             && lgciu2.left_down_and_locked();
@@ -1448,7 +1447,6 @@ impl A320Hydraulic {
     }
 
     /// The nose wheel steering is centred: the gear lever interlock also locks the lever DOWN when it is not
-    /// (A320 FCOM DSC-32-10-40, a320_fcom.txt:50811-50815)
     pub fn nose_wheel_steering_centered(&self) -> bool {
         self.nose_steering.position_feedback().get::<degree>().abs()
             < Self::NOSE_WHEEL_STEERING_CENTERED_MAX_ANGLE_DEGREES
@@ -2528,7 +2526,7 @@ impl A320HydraulicBrakeSteerComputerUnit {
 
     const TILLER_INPUT_GAIN: f64 = 75.;
     const TILLER_INPUT_MAP: [f64; 6] = [0., 1., 20., 40., 66., 75.];
-    /// "The handwheel can turn the nosewheel up to 75 ° in either direction" (FCOM DSC-32-20-10, a320_fcom.txt:50946)
+    /// The handwheel can turn the nose wheel up to 75 ° in either direction
     const TILLER_INPUT_CURVE_MAP: [f64; 6] = [0., 0., 4., 15., 45., 75.];
 
     const AUTOPILOT_STEERING_INPUT_GAIN: f64 = 6.;
@@ -2536,10 +2534,10 @@ impl A320HydraulicBrakeSteerComputerUnit {
     const SPEED_MAP_FOR_TILLER_ACTION_KNOT: [f64; 5] = [0., 20., 70., 1500.0, 2800.0];
     const STEERING_ANGLE_FOR_TILLER_ACTION_DEGREE: [f64; 5] = [1., 1., 0., 0., 0.];
 
-    /// The handwheel limit of the FCOM (l.50946); the towing lever gives 95 ° with the steering deactivated
+    /// The handwheel limit; the towing lever gives 95 ° with the steering deactivated
     const MAX_STEERING_ANGLE_DEMAND_DEGREES: f64 = 75.;
 
-    /// ABCU brake pressure limit of the alternate braking without anti-skid (FCOM DSC-32-30-10: 1 000 PSI)
+    /// ABCU brake pressure limit of the alternate braking without anti-skid
     const ALTERNATE_BRAKING_WITHOUT_ANTI_SKID_MAX_PRESSURE_PSI: f64 = 1000.;
 
     // Minimum pressure hysteresis on green until main switched on ALTN brakes
@@ -2629,22 +2627,21 @@ impl A320HydraulicBrakeSteerComputerUnit {
         }
     }
 
-    /// Autobrake arming conditions (A320 FCOM DSC-32-30-10, a320_fcom.txt l.51164-51169): "Green pressure
-    /// available", "Anti-skid electrically-powered", "No failure in the braking system", "At least one ADIRU is
-    /// available"
+    /// Autobrake arming conditions: green pressure available, antiskid electrically powered, no failure in the
+    /// braking system, at least one ADIRU available
     fn allow_autobrake_arming(&self) -> bool {
         self.green_pressure_available_for_brakes
             && self.anti_skid_available()
             && self.control_units.autobrake_arming_allowed()
     }
 
-    /// The antiskid works: A/SKID & N/W STRG sw ON and a BSCU channel working (FCOM l.51309-51310)
+    /// The antiskid works: A/SKID & N/W STRG sw ON and a BSCU channel working
     fn anti_skid_available(&self) -> bool {
         self.control_units
             .anti_skid_available(self.anti_skid_activated)
     }
 
-    /// Normal braking (FCOM l.51251-51259): green pressure, A/SKID & N/W STRG sw ON, braking electrically
+    /// Normal braking: green pressure, A/SKID & N/W STRG sw ON, braking electrically
     /// controlled through the BSCU, normal braking equipment working
     fn normal_braking_operative(&self) -> bool {
         self.green_pressure_available_for_brakes
@@ -2685,10 +2682,8 @@ impl A320HydraulicBrakeSteerComputerUnit {
                 2538.
             }
         } else if !self.anti_skid_available() {
-            // Antiskid lost by the switch or by the BSCU (FCOM l.51309-51310).
-            // A320 FCOM DSC-32-30-10 ALTERNATE BRAKING (a320_fcom.txt l.51316-51318): "To avoid wheel locking and
-            // limit the risk of tire burst, brake pressure is automatically limited to 1 000 PSI." QRH LOSS OF
-            // BRAKING: "MAX BRK PR ... 1000 PSI" (l.72241).
+            // Antiskid lost by the switch or by the BSCU: the brake pressure is automatically limited to avoid
+            // wheel locking and limit the risk of tire burst
             Self::ALTERNATE_BRAKING_WITHOUT_ANTI_SKID_MAX_PRESSURE_PSI
         } else {
             // Else if any manual braking we use standard limit
@@ -2758,7 +2753,7 @@ impl A320HydraulicBrakeSteerComputerUnit {
             .update(context, is_in_flight_gear_lever_up);
 
         if is_in_flight_gear_lever_up {
-            // The BSCU brakes the wheels in flight with the gear lever up (FCOM l.51259-51264)
+            // The BSCU brakes the wheels in flight with the gear lever up
             if self.should_disable_auto_brake_when_retracting.output()
                 || !self.control_units.bscu_operative()
             {
@@ -2790,13 +2785,12 @@ impl A320HydraulicBrakeSteerComputerUnit {
                 if !self.parking_brake_demand {
                     if self.control_units.alternate_braking_available() {
                         // Alternate braking: the ABCU controls the alternate servovalves from the pedals
-                        // (FCOM l.51280-51284)
                         self.alternate_brake_outputs.set_brake_demands(
                             self.left_brake_pilot_input,
                             self.right_brake_pilot_input,
                         );
                     } else {
-                        // ABCU lost: no alternate braking, the parking brake only (FCOM l.72640-72641)
+                        // ABCU lost: no alternate braking, the parking brake only
                         self.alternate_brake_outputs.set_no_demands();
                     }
                 } else {
@@ -2858,7 +2852,7 @@ impl A320HydraulicBrakeSteerComputerUnit {
         let is_both_engine_low_oil_pressure =
             engine1.oil_pressure_is_low() && engine2.oil_pressure_is_low();
 
-        // The BSCU commands the steering, lost with the N/W STRG system or both BSCU channels (FCOM l.51038-51041)
+        // The BSCU commands the steering, lost with the N/W STRG system or both BSCU channels
         self.final_steering_position_request = if !is_both_engine_low_oil_pressure
             && self.anti_skid_activated
             && self.control_units.nose_wheel_steering_available()
@@ -2888,10 +2882,9 @@ impl A320HydraulicBrakeSteerComputerUnit {
         self.brakes_hot
     }
 
-    /// BRAKES HOT "triggers when one brake temperature is above 300 degrees C. The alert disappears when the highest
-    /// brake temperature is below 290 degrees C." (FCOM PRO-ABN-BRAKES, a320_fcom.txt l.72548-72549). The same signal
-    /// lights the HOT light of the BRK FAN pb, which "comes on when the brakes get too hot (A caution appears on ECAM,
-    /// also)" (l.51520-51522). Without any valid brake temperature it is off.
+    /// BRAKES HOT triggers when one brake temperature is above 300 degrees C and disappears when the highest brake
+    /// temperature is below 290 degrees C. The same signal lights the HOT light of the BRK FAN pb. Without any valid
+    /// brake temperature it is off.
     fn brakes_hot_with_hysteresis(
         was_hot: bool,
         brake_temperatures: &[Option<ThermodynamicTemperature>; 4],
@@ -2995,11 +2988,10 @@ struct A320BrakingForce {
 }
 impl A320BrakingForce {
     const REFERENCE_PRESSURE_FOR_MAX_FORCE: f64 = 2538.;
-    // 1.0 would be pure linear (force proportional to pedal/pressure input). Kept slightly below
-    // that (rather than the previous 0.5, a sqrt curve) so light-to-medium pedal pressure still
-    // gets a bit more bite than a strictly linear response - particularly relevant for low
-    // alternate-braking pressures (e.g. 1000 psi) - without the old curve's near-max force from
-    // just a quarter of full pedal travel.
+    // Design choice: 1.0 would be pure linear (force proportional to pedal/pressure input). Slightly
+    // below it, light-to-medium pedal pressure gets a bit more bite than a linear response
+    // (relevant for low alternate-braking pressures, e.g. 1000 psi) without the near-max force a
+    // square-root curve (0.5) gives from just a quarter of full pedal travel.
     const FORCE_CURVE_EXPONENT: f64 = 0.75;
 
     const FLAPS_BREAKPOINTS: [f64; 3] = [0., 50., 100.];
@@ -3157,7 +3149,7 @@ impl A320AutobrakeController {
     const MED_MODE_DECEL_PROFILE_TIME_S: [f64; 5] = [0., 1.99, 2., 2.5, 3.];
 
     const MAX_MODE_DECEL_TARGET_MS2: f64 = -6.;
-    /// MAX mode activates above this wheel speed (A320 FCOM DSC-32-30-10 l.51193-51196)
+    /// MAX mode activates above this wheel speed
     const MAX_MODE_MIN_ACTIVATION_WHEEL_SPEED_KNOT: f64 = 40.;
     const OFF_MODE_DECEL_TARGET_MS2: f64 = 5.;
 
@@ -3228,8 +3220,8 @@ impl A320AutobrakeController {
         }
     }
 
-    /// Activation (FCOM l.51190-51196): the ground spoiler extension command for LO and MED, "and the wheel speed is
-    /// above 40 kt, for MAX mode". Once active, MAX keeps braking below 40 kt.
+    /// Activation: the ground spoiler extension command for LO and MED, plus a wheel speed above 40 kt for MAX mode.
+    /// Once active, MAX keeps braking below 40 kt.
     fn should_engage_deceleration_governor(&self, context: &UpdateContext) -> bool {
         let max_mode_wheel_speed_condition = self.mode != AutobrakeMode::MAX
             || self.deceleration_governor.is_engaged()
@@ -4798,17 +4790,16 @@ struct A320ReverserController {
 
     tertiary_lock_from_sec_should_unlock: DelayedFalseLogicGate,
 
-    /// flyPad "Reverser N fault (does not deploy)": the reverser control is failed (FCOM ENG 1(2)
-    /// REVERSER FAULT, a320_fcom.txt l.80943-80944: "the thrust reverser on one engine is failed (due
-    /// to system components or inputs)"), the reverser stays stowed (INOP SYS REVERSER 1(2)).
+    /// flyPad "Reverser N fault (does not deploy)": the reverser control is failed (ENG 1(2)
+    /// REVERSER FAULT), the reverser stays stowed (INOP SYS REVERSER 1(2)).
     fault: Failure,
     /// flyPad "Reverser N pressurized (shutoff valve stuck open)": the hydraulic shutoff valve of the
-    /// reverser stays open, so the reverser is pressurized while stowed and locked (FCOM ENG 1(2) REV
-    /// PRESSURIZED, l.80764-80766, CFM engines). Design choice: modelled as a valve commanded open.
+    /// reverser stays open, so the reverser is pressurized while stowed and locked (ENG 1(2) REV
+    /// PRESSURIZED, CFM engines). Design choice: modelled as a valve commanded open.
     pressurized: Failure,
-    /// The FADEC no longer commands a deployment: thrust lever fault (INOP SYS REVERSER 1(2), FCOM
-    /// l.81892) or both FADEC channels lost (the deployment "requires one FADEC channel", l.63300).
-    /// Set by the engine control failures (engine_control_failure.rs).
+    /// The FADEC no longer commands a deployment: thrust lever fault (INOP SYS REVERSER 1(2)) or
+    /// both FADEC channels lost (the deployment requires one FADEC channel). Set by the engine
+    /// control failures.
     deployment_inhibited: bool,
 }
 impl A320ReverserController {
@@ -4986,9 +4977,9 @@ struct A320Reversers {
     reversers_deployed: [bool; 2],
 
     /// flyPad "Reverser N unlocked": the reverser doors leave their stowed and locked position
-    /// without a deploy order (FCOM ENG 1(2) REVERSE UNLOCKED, a320_fcom.txt l.80858-80859). Design
-    /// choice: all four doors are unlocked (CFM), so the FADEC sets the engine at idle
-    /// (l.80888-80889); the doors do not open into the airflow (no reverse thrust, no buffet).
+    /// without a deploy order (ENG 1(2) REVERSE UNLOCKED). Design choice: all four doors are
+    /// unlocked (CFM), so the FADEC sets the engine at idle; the doors do not open into the airflow
+    /// (no reverse thrust, no buffet).
     unlocked: [Failure; 2],
 
     reverser_unlocked_ids: [VariableIdentifier; 2],
@@ -5105,14 +5096,13 @@ impl A320Reversers {
             let all_deployed = self.reversers[idx].proximity_sensor_all_deployed();
             self.reversers_deployed[idx] = all_deployed;
 
-            // E/WD REV amber (FCOM DSC-70-90-40-50, l.64223-64227): the reverser is unlocked or in
-            // transit.
+            // E/WD REV amber: the reverser is unlocked or in transit.
             self.reversers_in_transition[idx] = !all_deployed && !self.doors_stowed_and_locked(idx);
         }
     }
 
-    /// The reverser status the FADEC reports to the FWC (FCOM DSC-70-20 l.62693, "Thrust reverser
-    /// system status") and uses for its idle protection.
+    /// The thrust reverser system status the FADEC reports to the FWC and uses for its idle
+    /// protection.
     fn update_monitoring(&mut self, reverser_controllers: &[A320ReverserController; 2]) {
         for (idx, controller) in reverser_controllers.iter().enumerate() {
             let no_deploy_order =
@@ -5121,13 +5111,13 @@ impl A320Reversers {
 
             self.monitoring[idx] = A320ReverserMonitoring {
                 fully_deployed: self.reversers_deployed[idx],
-                // l.80858-80859: "one or more reverser doors are not locked in stowed position in
-                // flight, or on ground with no deploy order". The controller never deploys in
-                // flight, so both cases are a door not stowed without a deploy or stow order.
+                // A door not locked stowed in flight, or on ground with no deploy order. The
+                // controller never deploys in flight, so both cases are a door not stowed without a
+                // deploy or stow order.
                 unlocked: !stowed_and_locked && no_deploy_order,
                 fault: controller.is_faulty(),
-                // l.80764-80766 (CFM): "the thrust reverser system is pressurized while the
-                // reverser doors are stowed and locked".
+                // CFM: the thrust reverser system is pressurized while the doors are stowed and
+                // locked.
                 pressurized: self.reversers[idx].pressure_switch_pressurised()
                     && stowed_and_locked
                     && no_deploy_order,
@@ -5212,8 +5202,7 @@ pub struct A320ReverserMonitoring {
     pub fault: bool,
     /// ENG 1(2) REV PRESSURIZED
     pub pressurized: bool,
-    /// The reverser feedback position, 0 stowed to 1 deployed (FCOM DSC-70-70 l.63313-63318: "the thrust
-    /// reverser feedback position").
+    /// The reverser feedback position, 0 stowed to 1 deployed.
     pub position: f64,
     /// The reverser is commanded deployed (otherwise commanded stowed).
     pub deploy_commanded: bool,
@@ -5224,7 +5213,7 @@ mod tests {
     use super::*;
     use more_asserts::*;
 
-    /// BRAKES HOT on above 300 degrees C, off below 290 degrees C (FCOM l.72548-72549)
+    /// BRAKES HOT on above 300 degrees C, off below 290 degrees C
     mod brakes_hot {
         use super::*;
 
@@ -8848,7 +8837,7 @@ mod tests {
         }
 
         #[test]
-        // A320 FCOM DSC-32-30-10 ALTERNATE BRAKING: without anti-skid the brake pressure is limited to 1 000 PSI
+        // Alternate braking without anti-skid: the brake pressure is limited to 1 000 PSI
         fn brakes_alternate_without_anti_skid_limited_to_1000_psi() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -8878,7 +8867,7 @@ mod tests {
         }
 
         #[test]
-        // A320 FCOM DSC-32-30-20 BRK FAN pb-sw: "The brake fans run if the lefthand main landing gear is down and locked"
+        // The brake fans run when the left main landing gear is down and locked
         fn brake_fans_run_in_flight_with_gear_down_and_locked() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -9168,7 +9157,7 @@ mod tests {
                 .start_eng2(Ratio::new::<percent>(100.))
                 .run_waiting_for(Duration::from_secs(3));
 
-            // MAX mode activates above 40 kt wheel speed (FCOM l.51193-51196)
+            // MAX mode activates above 40 kt wheel speed
             test_bed = test_bed
                 .set_autobrake_max()
                 .set_main_wheel_speed_knots(100.)
@@ -9205,7 +9194,7 @@ mod tests {
                 .start_eng2(Ratio::new::<percent>(100.))
                 .run_waiting_for(Duration::from_secs(3));
 
-            // MAX mode activates above 40 kt wheel speed (FCOM l.51193-51196)
+            // MAX mode activates above 40 kt wheel speed
             test_bed = test_bed
                 .set_autobrake_max()
                 .set_main_wheel_speed_knots(100.)
@@ -9240,7 +9229,7 @@ mod tests {
                 .start_eng2(Ratio::new::<percent>(100.))
                 .run_waiting_for(Duration::from_secs(3));
 
-            // MAX mode activates above 40 kt wheel speed (FCOM l.51193-51196)
+            // MAX mode activates above 40 kt wheel speed
             test_bed = test_bed
                 .set_autobrake_max()
                 .set_main_wheel_speed_knots(100.)
@@ -9300,7 +9289,7 @@ mod tests {
                 .start_eng2(Ratio::new::<percent>(100.))
                 .run_waiting_for(Duration::from_secs(1));
 
-            // MAX mode activates above 40 kt wheel speed (FCOM l.51193-51196)
+            // MAX mode activates above 40 kt wheel speed
             test_bed = test_bed
                 .set_autobrake_max()
                 .set_main_wheel_speed_knots(100.)
@@ -9518,8 +9507,6 @@ mod tests {
             assert_eq!(test_bed.autobrake_mode(), AutobrakeMode::MED);
         }
 
-        // A320 brake control units: BSCU channels 1 and 2, ABCU (brake_control_units.rs, A320 FCOM DSC-32-30-10)
-
         fn brake_flag(test_bed: &mut A320HydraulicsTestBed, name: &str) -> bool {
             test_bed.read_by_name(name)
         }
@@ -9540,7 +9527,7 @@ mod tests {
         }
 
         #[test]
-        // FCOM l.51081-51082 + BRAKES SYS 1(2) FAULT (l.72884): one BSCU channel failed, the other keeps normal braking
+        // BRAKES SYS 1(2) FAULT: one BSCU channel failed, the other keeps normal braking
         fn bscu_one_channel_failed_keeps_normal_braking() {
             let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
             test_bed.fail(FailureType::BrakeSteeringControlUnitChannel(1));
@@ -9559,7 +9546,7 @@ mod tests {
         }
 
         #[test]
-        // FCOM l.51309-51318: with a BSCU failure the antiskid is lost, the ABCU brakes on yellow limited to 1000 PSI
+        // With a BSCU failure the antiskid is lost, the ABCU brakes on yellow limited to 1000 PSI
         fn bscu_both_channels_failed_brakes_on_alternate_without_anti_skid() {
             let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
             test_bed.fail(FailureType::BrakeSteeringControlUnitChannel(1));
@@ -9583,7 +9570,7 @@ mod tests {
         }
 
         #[test]
-        // BSCU channel 1 on AC BUS 1 + DC BUS 1, channel 2 on AC BUS 2 + DC BUS 2 (FCOM ELEC bus fault STATUS BRK SYS 1(2))
+        // BSCU channel 1 on AC BUS 1 + DC BUS 1, channel 2 on AC BUS 2 + DC BUS 2 (bus fault STATUS BRK SYS 1(2))
         fn bscu_channels_are_lost_with_their_buses() {
             let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
             assert!(!brake_flag(&mut test_bed, "BRAKES_BSCU_1_FAULT"));
@@ -9598,8 +9585,7 @@ mod tests {
         }
 
         #[test]
-        // FCOM l.51101-51102: "A changeover between the two BSCU channels takes place at each DOWN landing gear lever
-        // selection, or in case one channel fails."
+        // The two BSCU channels change over at each DOWN landing gear lever selection, or when one channel fails
         fn bscu_channel_changeover_at_gear_down_selection_and_on_failure() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -9632,7 +9618,7 @@ mod tests {
         }
 
         #[test]
-        // BRAKES NORM BRK FAULT (FCOM l.72686) STATUS "ALTN Y BRK WITH A/SKID" (l.72713): the ABCU brakes on yellow,
+        // BRAKES NORM BRK FAULT, STATUS ALTN Y BRK WITH A/SKID: the ABCU brakes on yellow,
         // the BSCU keeps the antiskid, so no 1000 PSI limit
         fn normal_braking_failure_brakes_on_alternate_with_anti_skid() {
             let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
@@ -9651,7 +9637,7 @@ mod tests {
         }
 
         #[test]
-        // BRAKES ALTN BRK FAULT (FCOM l.72395) and NORM + ALTN FAULT (l.72640-72641): no alternate braking, the
+        // BRAKES ALTN BRK FAULT and NORM + ALTN FAULT: no alternate braking, the
         // parking brake is still available
         fn abcu_failure_leaves_only_the_parking_brake() {
             let mut test_bed = test_bed_in_flight_gear_down_full_pedals().set_anti_skid(false);
@@ -9678,7 +9664,7 @@ mod tests {
         }
 
         #[test]
-        // ABCU on the DC ESS BUS (FCOM DC ESS BUS FAULT STATUS: ALTN BRK)
+        // ABCU on the DC ESS BUS (DC ESS BUS FAULT STATUS: ALTN BRK)
         fn abcu_is_lost_with_dc_ess_bus() {
             let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
             assert!(!brake_flag(&mut test_bed, "BRAKES_ALTN_BRK_FAULT"));
@@ -9688,7 +9674,7 @@ mod tests {
         }
 
         #[test]
-        // FCOM l.51164-51169 autobrake arming: "At least one ADIRU is available"
+        // Autobrake arming needs at least one ADIRU available
         fn autobrakes_does_not_arm_without_adiru() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -9705,7 +9691,7 @@ mod tests {
         }
 
         #[test]
-        // FCOM l.51164-51168 autobrake arming: "Anti-skid electrically-powered", "No failure in the braking system"
+        // Autobrake arming needs the antiskid electrically powered and no failure in the braking system
         fn autobrakes_does_not_arm_with_bscu_or_normal_braking_failed() {
             for failures in [
                 vec![FailureType::BrakeNormalBraking],
@@ -9733,7 +9719,7 @@ mod tests {
         }
 
         #[test]
-        // One BSCU channel failed: BRAKES SYS 1(2) FAULT STATUS lists only BRK SYS 1(2) (FCOM l.72894-72898)
+        // One BSCU channel failed: BRAKES SYS 1(2) FAULT STATUS lists only BRK SYS 1(2)
         fn autobrakes_arms_with_one_bscu_channel_failed() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -9750,7 +9736,7 @@ mod tests {
         }
 
         #[test]
-        // BRAKES AUTO BRK FAULT "triggers when the autobrake is failed, after being armed" (FCOM l.72473)
+        // BRAKES AUTO BRK FAULT triggers when the autobrake fails after being armed
         fn auto_brk_fault_when_autobrake_fails_after_being_armed() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -9778,8 +9764,8 @@ mod tests {
         }
 
         #[test]
-        // FCOM l.51193-51196: MAX mode activates on the ground spoiler extension command "and the wheel speed is above
-        // 40 kt"; once braking it keeps braking down to the stop
+        // MAX mode activates on the ground spoiler extension command plus a wheel speed above 40 kt; once braking it
+        // keeps braking down to the stop
         fn autobrakes_max_activates_only_above_40_kt_wheel_speed() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -9819,7 +9805,7 @@ mod tests {
         }
 
         #[test]
-        // FCOM l.51190-51192: LO and MED activate on the ground spoiler extension command alone
+        // LO and MED activate on the ground spoiler extension command alone
         fn autobrakes_lo_activates_at_low_wheel_speed() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -9843,7 +9829,7 @@ mod tests {
         }
 
         #[test]
-        // WHEEL N/W STRG FAULT (FCOM l.96350); the BSCU commands the steering (DSC-32-20-10 l.50930-50937)
+        // WHEEL N/W STRG FAULT; the BSCU commands the steering
         fn nose_steering_does_not_move_with_steering_or_both_bscu_failed() {
             for failures in [
                 vec![FailureType::NoseWheelSteeringNormal],
@@ -9887,7 +9873,7 @@ mod tests {
         }
 
         #[test]
-        // WHEEL HYD SEL FAULT "triggers when the brake normal selector valve is failed" (FCOM l.96304-96305)
+        // WHEEL HYD SEL FAULT triggers when the brake normal selector valve has failed
         fn brake_normal_selector_valve_failure_is_reported_by_the_bscu() {
             let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
             assert!(!brake_flag(&mut test_bed, "BRAKES_HYD_SEL_FAULT"));
@@ -9904,8 +9890,8 @@ mod tests {
         }
 
         #[test]
-        // "If the normal brake selector valve is failed open, full green hydraulic pressure is present at normal
-        // servovalves' entry. Nosewheel steering remains available." (FCOM l.96325-96327): normal braking stays
+        // With the normal brake selector valve failed open, full green pressure reaches the normal servovalves and
+        // the nose wheel steering remains available: normal braking stays
         fn brake_normal_selector_valve_failure_keeps_normal_braking() {
             let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
             test_bed.fail(FailureType::BrakeNormalSelectorValve);
@@ -10314,10 +10300,10 @@ mod tests {
 
         #[test]
         fn blue_pressure_is_about_2500_psi_on_the_rat_at_min_rat_speed() {
-            // A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG: MIN RAT SPEED 140 kt
+            // ELEC EMER CONFIG: MIN RAT SPEED 140 kt
             let mut test_bed = test_bed_with_rat_deployed_in_flight_at(Velocity::new::<knot>(140.));
 
-            // A320 FCOM DSC-29-10-10: "3 000 PSI (2 500 PSI when powered by the RAT)"
+            // The blue system is at 3 000 PSI, 2 500 PSI when powered by the RAT
             let blue_pressure_psi = test_bed.blue_pressure().get::<psi>();
             assert_ge!(blue_pressure_psi, 2400.);
             assert_le!(blue_pressure_psi, 2600.);
@@ -10327,15 +10313,14 @@ mod tests {
         fn rat_is_in_its_governed_band_at_min_rat_speed() {
             let mut test_bed = test_bed_with_rat_deployed_in_flight_at(Velocity::new::<knot>(140.));
 
-            // Hamilton Sundstrand ERPS06M CMM (A320 RAT): governed speed 4800 / 6600 rpm
+            // RAT governed speed band: 4800 to 6600 rpm
             assert_ge!(test_bed.get_rat_rpm(), 4800.);
             assert_le!(test_bed.get_rat_rpm(), 6600.);
         }
 
         #[test]
         fn emergency_gen_runs_on_the_rat_down_to_125_kt() {
-            // A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG:
-            // "The RAT is capable of supplying the EMER GEN down to 125 kt, except during flare"
+            // ELEC EMER CONFIG: the RAT supplies the EMER GEN down to 125 kt, except during flare
             let test_bed = test_bed_with_rat_deployed_in_flight_at(Velocity::new::<knot>(125.));
 
             assert!(test_bed.is_emergency_gen_at_nominal_speed());
@@ -10343,8 +10328,8 @@ mod tests {
 
         #[test]
         fn emergency_gen_is_lost_when_the_rat_slows_well_below_125_kt() {
-            // Below its governed band (4800 rpm, Hamilton Sundstrand ERPS06M CMM) the RAT pump unloads:
-            // the blue pressure fades and the EMER GEN stops (FCOM: EMER GEN supplied "down to 125 kt")
+            // Below its governed band (4800 rpm) the RAT pump unloads: the blue pressure fades and the
+            // EMER GEN stops (it is supplied down to 125 kt only)
             let mut test_bed = test_bed_with_rat_deployed_in_flight_at(Velocity::new::<knot>(110.));
 
             assert!(!test_bed.is_emergency_gen_at_nominal_speed());
@@ -10375,9 +10360,8 @@ mod tests {
 
         #[test]
         fn blue_pressure_is_about_2500_psi_on_the_rat_alone_without_the_emergency_generator() {
-            // A320 FCOM PRO-ABN-29 HYD G + Y SYS LO PR: "If blue sys lost by ELEC PUMP LO PR: RAT ... MAN ON",
-            // so the RAT can pressurise the blue system with normal electrics (EMER GEN not coupled).
-            // A320 FCOM DSC-29-10-10: "3 000 PSI (2 500 PSI when powered by the RAT)"
+            // HYD G + Y SYS LO PR: a blue system lost by ELEC PUMP LO PR is recovered with RAT MAN ON, so the
+            // RAT can pressurise the blue system with normal electrics (EMER GEN not coupled), at 2 500 PSI.
             for airspeed_kt in [200., 140.] {
                 let mut test_bed = test_bed_with_rat_deployed_manually_in_flight_at(
                     Velocity::new::<knot>(airspeed_kt),
@@ -10395,7 +10379,7 @@ mod tests {
                 .on_the_ground()
                 .run_waiting_for(Duration::from_secs(5));
 
-            // A320 FCOM DSC-29-10-20: stowed only on the ground (by maintenance), never by itself
+            // The RAT is stowed only on the ground (by maintenance), never by itself
             assert!((test_bed.get_rat_position() - 1.).abs() < f64::EPSILON);
         }
 
@@ -11241,8 +11225,7 @@ mod tests {
             assert_ge!(test_bed.nose_steering_position().get::<degree>(), -76.);
         }
 
-        /// A320 FCOM DSC-32-20-10 (a320_fcom.txt:50946): "The handwheel can turn the nosewheel up to 75 ° in either
-        /// direction"
+        /// The handwheel can turn the nose wheel up to 75 ° in either direction
         #[test]
         fn nose_steering_reaches_75_degrees_with_full_tiller() {
             let mut test_bed = test_bed_on_ground_with()
@@ -11262,7 +11245,7 @@ mod tests {
 
             assert_ge!(test_bed.nose_steering_position().get::<degree>(), 74.6);
             assert_le!(test_bed.nose_steering_position().get::<degree>(), 75.1);
-            // The gear lever interlock input (FCOM DSC-32-10-40, a320_fcom.txt:50811-50815)
+            // The gear lever interlock input
             assert!(!test_bed.is_nose_wheel_steering_centered());
 
             test_bed = test_bed
@@ -12602,7 +12585,7 @@ mod tests {
             assert_lt!(test_bed.get_reverser_2_position().get::<ratio>(), 0.01);
         }
 
-        // Engine failures stage A5: the flyPad reverser failures and the FADEC reverser monitoring
+        // The flyPad reverser failures and the FADEC reverser monitoring
 
         fn reverser_flag(test_bed: &mut A320HydraulicsTestBed, name: &str) -> bool {
             ReadByName::<A320HydraulicsTestBed, bool>::read_by_name(test_bed, name)
@@ -12641,7 +12624,7 @@ mod tests {
                 .run_waiting_for(Duration::from_secs_f64(3.));
             assert_gt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.99);
 
-            // "If associated thrust reverser is already deployed, FADEC commands restow"
+            // The FADEC restows a reverser that is already deployed
             test_bed.command(|a| {
                 a.hydraulics
                     .set_reversers_deployment_inhibited([true, false])
@@ -12704,8 +12687,7 @@ mod tests {
             assert!(!reverser_flag(&mut test_bed, "REVERSER_1_DEPLOYING"));
         }
 
-        /// The FADEC idle protection reads the reverser feedback position and the deploy order (FCOM
-        /// DSC-70-70 l.63311-63318, see engine_control_failure).
+        /// The FADEC idle protection reads the reverser feedback position and the deploy order.
         #[test]
         fn reverser_monitoring_gives_the_feedback_position_and_the_deploy_order() {
             let mut test_bed = test_bed_on_ground_with_engines_running();

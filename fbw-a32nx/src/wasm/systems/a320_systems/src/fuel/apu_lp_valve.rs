@@ -1,18 +1,17 @@
 //! APU low-pressure (LP) fuel valve of the A320.
 //!
-//! A320 FCOM DSC-49-10-20 MASTER SW pb-sw (a320_fcom.txt l.60552-60559): "ON: [...] The APU fuel
-//! isolation valve opens." FCOM DSC-26-20-20 APU FIRE PB (l.38606-38613): when the flight crew
-//! pushes it, the pushbutton is released and "Closes the low-pressure fuel valve".
+//! The APU MASTER SW ON opens the APU fuel isolation valve; the APU FIRE pb, pushed and released,
+//! closes the LP fuel valve.
 //!
-//! FCOM PRO-ABN-FUEL FUEL APU LP VALVE FAULT (l.85254-85264): "This alert triggers when the valve
-//! position disagrees with the selected position." This module simulates the valve with its jam
-//! failure (flyPad failure "APU LP fuel valve jammed in place") and tells the FWC the disagreement
-//! (L:A32NX_FUEL_APU_LP_VALVE_FAULT). A valve jammed closed while the APU needs fuel starves the
-//! APU: its fuel pressure switch sees no pressure and the ECB shuts the APU down (APU FAULT).
+//! FUEL APU LP VALVE FAULT triggers when the valve position disagrees with the selected position.
+//! This module simulates the valve with its jam failure (flyPad failure "APU LP fuel valve jammed
+//! in place") and tells the FWC the disagreement (L:A32NX_FUEL_APU_LP_VALVE_FAULT). A valve jammed
+//! closed while the APU needs fuel starves the APU: its fuel pressure switch sees no pressure and
+//! the ECB shuts the APU down (APU FAULT).
 //!
-//! Design choices (no FCOM value): the valve travels in the 3 s of the MSFS APU valve
-//! (flight_model.cfg Valve.8 OpeningTime), and the position monitoring reports a valve that is still
-//! not where it is commanded 1 s after its travel time (as the engine LP valves,
+//! Design choices (no published value): the valve travels in the 3 s of the MSFS APU valve
+//! (flight_model.cfg Valve.8 OpeningTime), and the position monitoring reports a valve that is
+//! still not where it is commanded 1 s after its travel time (as the engine LP valves,
 //! systems::fuel::engine_lp_valve).
 
 use std::time::Duration;

@@ -3,14 +3,13 @@
 // The alpha floor signal of a FAC (discrete word 5 bit 29, which sets the A.FLOOR mode of the FMGC A/THR), with the two
 // cases the generated FacComputer does not compute. Pure logic, no MSFS SDK: tested natively by test/run_tests.sh.
 //
-// A320 FCOM DSC-22_40-30 FLIGHT ENVELOPE FUNCTION, ALPHA-FLOOR (a320_fcom.txt l.34135-34139): "The floor is activated
-// through the A/THR system, when: - alpha is greater than floor [...], or - Sidestick deflection is greater than 14 deg
-// nose up, with either the pitch attitude or the angle-of-attack protection active. The floor function is available
-// from lift-off to 100 ft RA before landing." l.34141: "Alpha-floor is inhibited above M 0.6."
-// l.34163-34164: "Alpha-floor is lost in engine-out, when slats/flaps are extended."
+// The floor is activated through the A/THR when alpha is above the floor threshold, or when the sidestick is deflected
+// more than 14 deg nose up with either the pitch attitude or the angle-of-attack protection active. It is available
+// from lift-off to 100 ft RA before landing, inhibited above M 0.6, and lost in engine-out when the slats/flaps are
+// extended.
 //
 // The ELACs send the angle-of-attack protection (discrete status word 2 bit 23) but no pitch attitude protection
-// flag: the sidestick case uses the angle-of-attack protection only. The TCAS inhibition (l.34142) is in the FMGC.
+// flag: the sidestick case uses the angle-of-attack protection only. The TCAS inhibition is in the FMGC.
 class AlphaFloorConditions {
  public:
   struct Inputs {
@@ -32,11 +31,11 @@ class AlphaFloorConditions {
     bool slatsOrFlapsExtended = false;
   };
 
-  /// l.34137
+  /// Sidestick nose-up deflection above which the sidestick case applies
   static constexpr double SIDESTICK_NOSE_UP_THRESHOLD_DEG = 14;
-  /// l.34139: available until 100 ft RA before landing
+  /// The sidestick case is available until 100 ft RA before landing
   static constexpr double LANDING_INHIBITION_HEIGHT_FT = 100;
-  /// l.34141
+  /// The alpha floor is inhibited above this Mach number
   static constexpr double MAX_MACH = 0.6;
   /// The radio height the FacComputer uses when its FMGC radio height is not valid
   static constexpr double INVALID_RADIO_HEIGHT_FT = 200;

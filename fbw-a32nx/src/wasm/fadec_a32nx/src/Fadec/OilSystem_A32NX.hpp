@@ -14,18 +14,17 @@
 namespace OilSystem_A32NX {
 
 /*
- * Design choices, the FCOM gives no rates:
+ * Design choices, no published rates:
  * - an oil leak empties the oil system (A32NX_ENGINE_OIL_TOTAL) at 2 qt/min; the tank quantity shown on the SD is the total
  *   less the oil in the circuit (about 20 % at idle, 30 % at take-off thrust) and falls about 1.6 qt/min. The rate is per
- *   simulation minute: at a 4x sim rate it is 8 qt per real minute (the 3 qt/min of the sim test of 2026-10-06, measured on
- *   the real clock, was 2.0 qt/min of simulation time with 50 s of the leak at 4x);
+ *   simulation minute: at a 4x sim rate it is 8 qt per real minute;
  * - the oil pump delivers its normal pressure down to 2.5 qt in the whole oil system and no pressure at 0.6 qt, so that ENG
- *   OIL LO PR (below 13 PSI, FCOM PRO-ABN-ENG l.80569) follows the 3.25 QT pulsing of the SD oil quantity (FCOM
- *   DSC-70-90-40 l.64513), reached at about 4.5 qt in the system. A healthy engine holds 14 to 20 qt;
+ *   OIL LO PR (below 13 PSI) follows the 3.25 QT pulsing of the SD oil quantity, reached at about 4.5 qt in the system. A
+ *   healthy engine holds 14 to 20 qt;
  * - an oil overheat drives the oil to 135 C at idle, below the 140 C advisory, and to 175 C at 100 % N2, above the 155 C
- *   of ENG OIL HI TEMP (FCOM PRO-ABN-ENG l.80528-80530), with a 60 s time constant, linear in N2 (about 165 C at cruise N2,
- *   ENG OIL HI TEMP after about 2 min). THR LEVER IDLE (l.80536) brings it below 155 C within about 30 s, and below the
- *   140 C advisory after that, also with the flight idle N2 a little above the idle of the FADEC.
+ *   of ENG OIL HI TEMP, with a 60 s time constant, linear in N2 (about 165 C at cruise N2, ENG OIL HI TEMP after about
+ *   2 min). THR LEVER IDLE brings it below 155 C within about 30 s, and below the 140 C advisory after that, also with
+ *   the flight idle N2 a little above the idle of the FADEC.
  */
 constexpr double                                LEAK_RATE              = 2.0 / 60.0;  // qt/s
 constexpr double                                FULL_PRESSURE_TOTAL_QTY = 2.5;         // qt
@@ -36,9 +35,7 @@ constexpr EngineOilFailures::OverheatParameters OVERHEAT               = {135.0,
  * @brief The oil quantity in the tank (the SD reading) for the oil of the whole system and the engine thrust.
  *
  * The oil gulping polynomial (Polynomial_A32NX::oilGulpPct, 20 % at idle to 30 % at 27 000 lbf) takes the thrust in
- * pounds, as the FADEC of the A32NX did before its migration (fadec_a320 RegPolynomials.h with
- * SimVars::getThrust in pounds). The migrated FADEC passed it in newtons: the gulping passed 100 % above about
- * 15 700 lbf and the tank read nearly empty in every climb (sim test 2026-10-06: 0.6 qt with 14.7 qt in the system).
+ * pounds: given newtons, the gulping passes 100 % above about 15 700 lbf and the tank reads nearly empty in every climb.
  * @param totalQuantity The oil in the whole oil system (A32NX_ENGINE_OIL_TOTAL), in quarts.
  * @param thrustPounds The engine thrust (TURB ENG JET THRUST), in pounds.
  */

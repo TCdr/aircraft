@@ -5,9 +5,9 @@
 // gives reverse thrust as a NEGATIVE MSFS throttle (its reverse integrator runs from 0 down to -100 %; MSFS clamps it to
 // min_throttle_limit = -1 %, full reverse, engines.cfg). EngineStartThrottleHold::simThrottle must pass that negative throttle on.
 //
-// Sim test 2026-10-06 (s8_main1.log, integration build q-int-1006, A32NX on the runway): both levers at full reverse (TLA -20)
-// for 5.7 s, reverser 2 fully deployed, yet GENERAL ENG THROTTLE LEVER POSITION:1/2 stayed exactly 0 % and both N1 at idle
-// (19.6 %): simThrottle returned max(loopThrottle, 0).
+// Measured in the sim (A32NX on the runway): both levers at full reverse (TLA -20) for 5.7 s, reverser 2 fully deployed,
+// yet GENERAL ENG THROTTLE LEVER POSITION:1/2 stayed exactly 0 % and both N1 at idle (19.6 %) while simThrottle returned
+// max(loopThrottle, 0).
 
 #include <algorithm>
 #include <cstdio>

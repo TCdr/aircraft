@@ -1,16 +1,13 @@
 //! Gravity feeding of the A320 engines and its ceiling.
 //!
-//! FCOM DSC-28-10-30 (a320_fcom.txt l.42023-42024): the suction valves of the inner tanks are
-//! "Closed by pumps pressure in normal operation, they allow engines to be fed by gravity if the
-//! inner tank pumps fail". The FADEC (CrossFeedBurn_A32NX.hpp) already burns the fuel of a gravity
-//! fed engine from its own wing tank.
+//! The suction valves of the inner tanks, closed by the pump pressure in normal operation, let the
+//! engines be fed by gravity if the inner tank pumps fail. The FADEC (CrossFeedBurn_A32NX.hpp)
+//! already burns the fuel of a gravity fed engine from its own wing tank.
 //!
-//! Gravity feeding only works up to a ceiling. FCOM PRO-ABN-FUEL [QRH] GRAVITY FUEL FEEDING
-//! (a320_fcom.txt l.85083-85087):
-//! "MAX FL: GRAVITY FEED CEILING
-//!  - FL 360 if flight time above FL 300 > 30 min.
-//!  - FL 260 if flight time above FL 300 < 30 min.
-//!  - Highest of FL 150 or 7 000 ft above takeoff airport if FL 300 never exceeded."
+//! Gravity feeding only works up to a ceiling (GRAVITY FUEL FEEDING procedure):
+//! - FL 360 if the flight time above FL 300 is more than 30 min.
+//! - FL 260 if the flight time above FL 300 is less than 30 min.
+//! - The highest of FL 150 or 7 000 ft above the takeoff airport if FL 300 was never exceeded.
 //!
 //! An engine is fed by gravity when no wing tank pump pushes fuel to it: both pumps of its own wing
 //! tank are off (or failed), and the fuel X FEED valve is closed or both pumps of the other wing
@@ -18,20 +15,20 @@
 //! CrossFeedBurn_A32NX.hpp).
 //!
 //! Above the ceiling a gravity fed engine is starved: its fuel is cut (`engine_is_starved`) and it
-//! flames out. Design choice (the FCOM gives neither a time nor a partial thrust loss): the engine is
+//! flames out. Design choice (neither a time nor a partial thrust loss is published): the engine is
 //! starved once it has been fed by gravity above the ceiling for STARVATION_DELAY (3 min), the time
-//! for the crew to start the descent the procedure requires (e.g. ELEC EMER CONFIG, l.77564-77576:
-//! "Engines are fed by gravity only", "Apply GRVTY FUEL FEEDING procedure"), and it stays out until
-//! the crew relight procedure (A320 FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN FLIGHT): the ENG MASTER OFF ends the
-//! starvation once the engine is no longer gravity fed above the ceiling, and the MASTER ON relights
-//! the engine inside the relight envelope (engine_failure.rs). Restoring the pumps or descending
-//! alone does not relight the engine.
+//! for the crew to start the descent the procedure requires (e.g. in ELEC EMER CONFIG the engines
+//! are fed by gravity only and the crew applies the GRVTY FUEL FEEDING procedure), and it stays out
+//! until the crew relight procedure (ENG RELIGHT IN FLIGHT): the ENG MASTER OFF ends the starvation
+//! once the engine is no longer gravity fed above the ceiling, and the MASTER ON relights the
+//! engine inside the relight envelope (engine_failure.rs). Restoring the pumps or descending alone
+//! does not relight the engine.
 //!
-//! Design choices for the data the FCOM does not define: the flight levels are the pressure
-//! altitude, the ISA altitude of the static pressure (as for the relight envelope,
-//! engine_failure.rs); the takeoff airport elevation is the pressure altitude on the
-//! ground before the takeoff (0 ft for a flight loaded in the air); the time above FL 300 and the
-//! FL 300 exceedance are counted from the takeoff (they restart on every ground contact).
+//! Design choices for the data that is not published: the flight levels are the pressure altitude,
+//! the ISA altitude of the static pressure (as for the relight envelope, engine_failure.rs); the
+//! takeoff airport elevation is the pressure altitude on the ground before the takeoff (0 ft for a
+//! flight loaded in the air); the time above FL 300 and the FL 300 exceedance are counted from the
+//! takeoff (they restart on every ground contact).
 
 use std::time::Duration;
 use systems::{
@@ -76,11 +73,11 @@ pub struct GravityFeed {
 impl GravityFeed {
     /// Design choice, see the module comment.
     const STARVATION_DELAY: Duration = Duration::from_secs(3 * 60);
-    /// l.85085: "FL 360 if flight time above FL 300 > 30 min."
+    /// FL 360 if the flight time above FL 300 is more than 30 min.
     const LONG_FLIGHT_ABOVE_FL300_CEILING_FT: f64 = 36_000.;
-    /// l.85086: "FL 260 if flight time above FL 300 < 30 min."
+    /// FL 260 if the flight time above FL 300 is less than 30 min.
     const SHORT_FLIGHT_ABOVE_FL300_CEILING_FT: f64 = 26_000.;
-    /// l.85087: "Highest of FL 150 or 7 000 ft above takeoff airport if FL 300 never exceeded."
+    /// The highest of FL 150 or 7 000 ft above the takeoff airport if FL 300 was never exceeded.
     const FL300_NEVER_EXCEEDED_CEILING_FT: f64 = 15_000.;
     const ABOVE_TAKEOFF_AIRPORT_CEILING_FT: f64 = 7_000.;
     const FL300_FT: f64 = 30_000.;
