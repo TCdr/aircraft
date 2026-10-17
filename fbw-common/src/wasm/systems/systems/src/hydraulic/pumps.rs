@@ -41,11 +41,10 @@ impl PumpCharacteristics {
     const A320_EPUMP_DISPLACEMENT_MAP_CUBIC_INCH: [f64; 9] =
         [0.263, 0.263, 0.263, 0.263, 0.263, 0.2, 0.0, 0.0, 0.0];
 
-    // A320 FCOM DSC-29-10-10: "3 000 PSI (2 500 PSI when powered by the RAT)".
-    // TUNED: the pump compensator (displacement fading to zero) sits around 2500 psi, so the RAT holds about
-    // 2550 psi with only the blue system leaks (RAT MAN ON, EMER GEN not coupled) and about 2500 psi with the
-    // emergency generator running. The pre-fix compensator (2300 / 2600 / 2700 psi) held about 2680 psi
-    // without the emergency generator.
+    // The hydraulic systems work at 3 000 psi, 2 500 psi when the RAT powers them.
+    // Design choice: the pump compensator (displacement fading to zero) sits around 2500 psi, so the RAT holds
+    // about 2550 psi with only the blue system leaks (RAT MAN ON, EMER GEN not coupled) and about 2500 psi with
+    // the emergency generator running.
     const A320_RAT_DISPLACEMENT_BREAKPTS_PSI: [f64; 9] = [
         0.0, 500.0, 1000.0, 1500.0, 2100.0, 2350.0, 2525.0, 2575.0, 3500.0,
     ];

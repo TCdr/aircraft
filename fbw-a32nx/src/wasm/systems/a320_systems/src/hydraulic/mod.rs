@@ -10699,10 +10699,10 @@ mod tests {
 
         #[test]
         fn blue_pressure_is_about_2500_psi_on_the_rat_at_min_rat_speed() {
-            // A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG: MIN RAT SPEED 140 kt
+            // ELEC EMER CONFIG: MIN RAT SPEED 140 kt
             let mut test_bed = test_bed_with_rat_deployed_in_flight_at(Velocity::new::<knot>(140.));
 
-            // A320 FCOM DSC-29-10-10: "3 000 PSI (2 500 PSI when powered by the RAT)"
+            // The blue system is at 3 000 PSI, 2 500 PSI when powered by the RAT
             let blue_pressure_psi = test_bed.blue_pressure().get::<psi>();
             assert_ge!(blue_pressure_psi, 2400.);
             assert_le!(blue_pressure_psi, 2600.);
@@ -10712,15 +10712,14 @@ mod tests {
         fn rat_is_in_its_governed_band_at_min_rat_speed() {
             let mut test_bed = test_bed_with_rat_deployed_in_flight_at(Velocity::new::<knot>(140.));
 
-            // Hamilton Sundstrand ERPS06M CMM (A320 RAT): governed speed 4800 / 6600 rpm
+            // RAT governed speed band: 4800 to 6600 rpm
             assert_ge!(test_bed.get_rat_rpm(), 4800.);
             assert_le!(test_bed.get_rat_rpm(), 6600.);
         }
 
         #[test]
         fn emergency_gen_runs_on_the_rat_down_to_125_kt() {
-            // A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG:
-            // "The RAT is capable of supplying the EMER GEN down to 125 kt, except during flare"
+            // ELEC EMER CONFIG: the RAT supplies the EMER GEN down to 125 kt, except during flare
             let test_bed = test_bed_with_rat_deployed_in_flight_at(Velocity::new::<knot>(125.));
 
             assert!(test_bed.is_emergency_gen_at_nominal_speed());
@@ -10728,8 +10727,8 @@ mod tests {
 
         #[test]
         fn emergency_gen_is_lost_when_the_rat_slows_well_below_125_kt() {
-            // Below its governed band (4800 rpm, Hamilton Sundstrand ERPS06M CMM) the RAT pump unloads:
-            // the blue pressure fades and the EMER GEN stops (FCOM: EMER GEN supplied "down to 125 kt")
+            // Below its governed band (4800 rpm) the RAT pump unloads: the blue pressure fades and the
+            // EMER GEN stops (it is supplied down to 125 kt only)
             let mut test_bed = test_bed_with_rat_deployed_in_flight_at(Velocity::new::<knot>(110.));
 
             assert!(!test_bed.is_emergency_gen_at_nominal_speed());
@@ -10760,9 +10759,8 @@ mod tests {
 
         #[test]
         fn blue_pressure_is_about_2500_psi_on_the_rat_alone_without_the_emergency_generator() {
-            // A320 FCOM PRO-ABN-29 HYD G + Y SYS LO PR: "If blue sys lost by ELEC PUMP LO PR: RAT ... MAN ON",
-            // so the RAT can pressurise the blue system with normal electrics (EMER GEN not coupled).
-            // A320 FCOM DSC-29-10-10: "3 000 PSI (2 500 PSI when powered by the RAT)"
+            // HYD G + Y SYS LO PR: a blue system lost by ELEC PUMP LO PR is recovered with RAT MAN ON, so the
+            // RAT can pressurise the blue system with normal electrics (EMER GEN not coupled), at 2 500 PSI.
             for airspeed_kt in [200., 140.] {
                 let mut test_bed = test_bed_with_rat_deployed_manually_in_flight_at(
                     Velocity::new::<knot>(airspeed_kt),
@@ -10780,7 +10778,7 @@ mod tests {
                 .on_the_ground()
                 .run_waiting_for(Duration::from_secs(5));
 
-            // A320 FCOM DSC-29-10-20: stowed only on the ground (by maintenance), never by itself
+            // The RAT is stowed only on the ground (by maintenance), never by itself
             assert!((test_bed.get_rat_position() - 1.).abs() < f64::EPSILON);
         }
 

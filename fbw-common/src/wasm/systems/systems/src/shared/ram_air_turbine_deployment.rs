@@ -11,14 +11,12 @@ use std::time::Duration;
 /// The RAT strut position: 0 = stowed, 1 = fully deployed (L:A32NX_RAT_STOW_POSITION).
 ///
 /// Extension: once a controller commands it, the RAT stays commanded out: it is a drop-out RAT that the crew cannot
-/// retract. A320 FCOM DSC-29-10-20 (a320_fcom.txt 43639-43653): "The RAT deploys automatically if AC BUS 1 and AC BUS
-/// 2 are both lost. It can be deployed manually from the overhead panel. It can be stowed only when the aircraft is on
-/// the ground." A380 FCOM DSC-29-10 (a380_fcom.txt 61250): "The green hydraulic system powers RAT retraction, on
-/// ground."
+/// retract. A320: the RAT deploys automatically when AC BUS 1 and AC BUS 2 are both lost, or manually from the overhead
+/// panel, and can be stowed only on the ground. A380: the green hydraulic system retracts the RAT on the ground.
 ///
 /// Stowing is a ground maintenance action, requested with L:A32NX_RAT_STOW_REQUEST (the flyPad Services page). The
 /// request is accepted only:
-/// - on the ground (FCOM above), and
+/// - on the ground, and
 /// - while no extension is commanded (the deployment solenoids are not energised: emergency electrical configuration,
 ///   RAT MAN ON or EMER ELEC PWR MAN ON): a stowing command against an energised deployment solenoid would just put
 ///   the RAT back out.
@@ -26,8 +24,8 @@ use std::time::Duration;
 /// The request is consumed when it is evaluated (written back to 0), so a request made in flight is dropped instead of
 /// stowing the RAT after the landing. If an extension is commanded while the RAT stows, it goes back out.
 ///
-/// Design choices (not in the FCOMs): the stow does not need hydraulic pressure (the ground crew powers it) and moves
-/// at the same speed as the extension.
+/// Design choices (no published values): the stow does not need hydraulic pressure (the ground crew powers it) and
+/// moves at the same speed as the extension.
 pub struct RamAirTurbineDeployment {
     position_id: VariableIdentifier,
     stow_request_id: VariableIdentifier,
