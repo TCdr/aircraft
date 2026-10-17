@@ -120,13 +120,13 @@ class A32NX_PFD extends BaseInstrument {
       getDisplayIndex() === 1 ? 'L' : 'R',
     );
 
-    // PFD1 displays ILS1 (MMR 1), PFD2 displays ILS2 (MMR 2): FCOM DSC-34-NAV-30-20, a320_fcom.txt l.53288-53289
+    // PFD1 displays ILS1 (MMR 1), PFD2 displays ILS2 (MMR 2)
     selectOnsideLandingSystemReceiver(this.simVarPublisher, getDisplayIndex());
 
     const stateSubject = Subject.create<'L' | 'R'>(getDisplayIndex() === 1 ? 'L' : 'R');
     this.fmsDataPublisher = new FmsDataPublisher(this.bus, stateSubject);
 
-    // CHECK ATT / CHECK HDG: A320 FCOM DSC-31-05-60, a320_fcom.txt l.45410-45418
+    // CHECK ATT / CHECK HDG: attitude or heading of the two sides 5 degrees or more apart
     this.backplane.addInstrument(
       'EfisSideDiscrepancy',
       new EfisSideDiscrepancyMonitor(this.bus, getDisplayIndex() === 2 ? 'R' : 'L'),

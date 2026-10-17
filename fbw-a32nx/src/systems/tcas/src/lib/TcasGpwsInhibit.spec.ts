@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isGpwsAlertActive, isWindshearOrStallWarningActive } from './TcasGpwsInhibit';
 
-/* A320 FCOM DSC-34-SURV-60-10-10: the TCAS goes TA ONLY automatically if "GPWS alerts are triggered". */
+/* The TCAS goes TA ONLY automatically while a GPWS alert is active. */
 describe('TCAS GPWS inhibition', () => {
   const reader = (values: Record<string, number>) => (name: string) => values[name] ?? 0;
 
@@ -29,8 +29,7 @@ describe('TCAS GPWS inhibition', () => {
   });
 });
 
-/* A320 FCOM DSC-34-SURV-60-10-10 (a320_fcom.txt:56003-56004): TA ONLY also when "The windshear alert is triggered" or
- * "The stall warning is triggered". */
+/* TA ONLY also while the windshear alert or the stall warning is active. */
 describe('TCAS windshear and stall inhibition', () => {
   const reader = (values: Record<string, number>) => (name: string) => values[name] ?? 0;
 

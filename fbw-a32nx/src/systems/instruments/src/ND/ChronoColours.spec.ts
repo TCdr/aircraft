@@ -12,7 +12,6 @@ const CHRONO_SOURCE = 'fbw-common/src/systems/instruments/src/ND/Chrono.tsx';
 const A32NX_ND_STYLE = 'fbw-a32nx/src/systems/instruments/src/ND/style.scss';
 const A380X_ND_STYLE = 'fbw-a380x/src/systems/instruments/src/ND/style.scss';
 
-/** Compiles an aircraft ND stylesheet to plain CSS. */
 const compileStyle = (repoPath: string): string => compile(resolve(process.cwd(), repoPath), { style: 'expanded' }).css;
 
 /** Returns the value of one property inside the CSS rule with exactly this selector, or undefined. */
@@ -36,7 +35,7 @@ describe('ND chronometer colours', () => {
     expect(source).toContain("'margin-right'");
   });
 
-  it('A32NX: white digits (A320 FCOM DSC-31-45 item 9) on a display-background box', () => {
+  it('A32NX: white digits on a display-background box', () => {
     const css = compileStyle(A32NX_ND_STYLE);
 
     expect(ruleProperty(css, '.chrono text.ChronoText', 'fill')).toBe('#ffffff');

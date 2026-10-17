@@ -25,7 +25,6 @@ const desIdle: MoreDragInputs = {
   inSpeedbrakeDecelerationSegment: false,
 };
 
-/* A320 FCOM DSC-22_30-100 FMA MORE DRAG (a320_fcom.txt l.33617-33623) */
 describe('FMA MORE DRAG', () => {
   it('is off in DES at idle on the profile without a speedbrake segment', () => {
     expect(isMoreDragMessageActive(desIdle)).toBe(false);

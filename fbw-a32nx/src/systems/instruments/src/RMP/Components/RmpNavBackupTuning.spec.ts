@@ -20,7 +20,7 @@ const radioHeight = (feet: number, ssm = Arinc429SignStatusMatrix.NormalOperatio
 const LOC_ARMED = 1 << 1;
 const GS_ARMED = 1 << 4;
 
-describe('RMP STBY NAV keys (A320 FCOM l.53452-53456)', () => {
+describe('RMP STBY NAV keys', () => {
   it('select VOR, ILS and ADF in the NAV backup mode', () => {
     expect(rmpStbyNavKeyPanelMode('VOR', true)).toBe(RMP_PANEL_MODE_VOR);
     expect(rmpStbyNavKeyPanelMode('ILS', true)).toBe(RMP_PANEL_MODE_ILS);
@@ -38,7 +38,7 @@ describe('RMP STBY NAV keys (A320 FCOM l.53452-53456)', () => {
   });
 });
 
-describe('ILS tune inhibit (A320 FCOM l.111377-111380)', () => {
+describe('ILS tune inhibit', () => {
   it('APPR armed or engaged needs both LOC and G/S', () => {
     expect(isApprModeArmedOrEngaged(10, LOC_ARMED, 10, GS_ARMED)).toBe(true);
     expect(isApprModeArmedOrEngaged(31, 0, 31, 0)).toBe(true);

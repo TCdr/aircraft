@@ -21,7 +21,7 @@ const NORMAL: WheelBrakeInputs = {
 
 const withInputs = (changes: Partial<WheelBrakeInputs>) => wheelBrakeIndications({ ...NORMAL, ...changes });
 
-/* A320 FCOM DSC-32-20-20 and DSC-32-30-20, WHEEL SD page (a320_fcom.txt l.51039-51047, l.51564-51630) */
+/* WHEEL page brake and steering legends */
 describe('SD WHEEL brake and steering legends', () => {
   it('shows no legend when everything works', () => {
     expect(withInputs({})).toEqual({

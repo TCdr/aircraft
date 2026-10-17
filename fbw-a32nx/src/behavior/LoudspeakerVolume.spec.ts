@@ -53,10 +53,8 @@ function knobCode(tag: 'CLOCKWISE_CODE' | 'ANTICLOCKWISE_CODE' | 'ANIM_CODE', si
 }
 
 /*
- * A320 FCOM DSC-23-10-50 LOUDSPEAKER VOLUME KNOB (a320_fcom.txt l.35457-35470): "This knob adjusts the volume of the
- * loudspeaker for radio communication. OFF: Loudspeaker does not respond to signals from the aircraft's radio
- * equipment. Clockwise rotation: ... at increasing volume. Note: This knob does not control the loudness of aural alert
- * and voice messages." Before, the knobs did not turn and the radios ignored them.
+ * LOUDSPEAKER volume knob: sets the loudspeaker volume of the radio communications, from OFF (the loudspeaker stays
+ * silent) to full clockwise. It does not change the loudness of the aural alerts and voice messages.
  */
 describe('A32NX loudspeaker volume knobs', () => {
   it('both knobs full clockwise: the radio volume of the audio panel', () => {
@@ -110,8 +108,8 @@ describe('A32NX loudspeaker volume knobs', () => {
     }
   });
 
-  // The sim runs only the code of an <Update> element before its first XML comment. Sim test 2026-10-16: the COM
-  // volumes written before a comment were set, the loudspeaker knobs written after it stayed at 0 and muted the radios.
+  // The sim runs only the code of an <Update> element before its first XML comment (seen in the sim: the knobs written after a
+  // comment stayed at 0 and muted the radios).
   it('the audio panel init sets both knobs full clockwise at each flight load', () => {
     const interior = readFileSync(INTERIOR_XML, 'utf8');
     const init = /<Component ID="Audio_Panel_Left">[\s\S]*?<Update Once="True">([\s\S]*?)<\/Update>/.exec(interior);

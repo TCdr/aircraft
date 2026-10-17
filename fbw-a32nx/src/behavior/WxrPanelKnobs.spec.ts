@@ -49,8 +49,7 @@ const GAIN = 'L:A32NX_WXR_GAIN_KNOB';
 const TILT = 'L:A32NX_WXR_TILT_KNOB';
 
 /*
- * A320 FCOM DSC-34-SURV-30-30 CONTROL PANEL (a320_fcom.txt l.54368-54420): the GAIN knob with CAL as its normal
- * position, the TILT knob for the MULTISCAN MAN mode. Before, both knobs were inert.
+ * Weather radar control panel: the GAIN knob with CAL as its normal position, the TILT knob for the MULTISCAN MAN mode.
  */
 describe('A32NX weather radar GAIN knob', () => {
   it('CAL (0) is in the middle of its travel, MIN at one end, MAX at the other', () => {

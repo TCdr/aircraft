@@ -10,8 +10,8 @@ import { A320FlightPlanPerformanceData } from './plans/performance/A320FlightPla
 import { setupTestDatabase } from './test/Database';
 import { NavigationDatabaseService } from './NavigationDatabaseService';
 
-// A380 FCOM DSC-22-FMS-10-40-50 (a380_fcom.txt l.26192-26195): "Insertion, changing, or removing the alternate
-// destination, creates a temporary flight plan." The INIT page does not create one.
+// A380: inserting, changing or removing the alternate destination creates a temporary flight plan, except from the
+// INIT page.
 describe('the alternate revision of the flight plan service', () => {
   beforeAll(() => setupTestDatabase());
 
@@ -70,8 +70,8 @@ describe('the alternate revision of the flight plan service', () => {
   });
 });
 
-// A380 FCOM DSC-22-FMS-20-30 INIT page ALTN RTE (a380_fcom.txt l.36757-36758): "Entering an alternate route
-// re-initializes the alternate flight plan"; from the INIT page without a temporary flight plan (l.26216-26217).
+// A380 INIT page ALTN RTE: an alternate route replaces the whole alternate flight plan, without a temporary flight
+// plan.
 describe('the alternate company route of the flight plan service', () => {
   beforeAll(() => setupTestDatabase());
 

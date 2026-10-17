@@ -13,7 +13,6 @@ const none: FuelTransferFailures = {
   rightCentreXfrFailedClosed: false,
 };
 
-/* A320 FCOM DSC-28-20 TOTAL FUEL INDICATION and SD FUEL page FOB (a320_fcom.txt l.43341-43345, l.43275-43278) */
 describe('FOB amber half box', () => {
   it('is not drawn without transfer valve failure', () => {
     expect(isFuelOnBoardHalfBoxed(none)).toBe(false);
@@ -32,7 +31,6 @@ describe('FOB amber half box', () => {
   });
 });
 
-/* A320 FCOM DSC-28-20 FUEL QUANTITY - BOXED INDICATIONS (a320_fcom.txt l.43219-43223) */
 describe('SD FUEL outer tank quantity amber box', () => {
   it('follows the failure of the outer tank transfer valves of its wing', () => {
     expect(isOuterTankQuantityBoxed(true)).toBe(true);

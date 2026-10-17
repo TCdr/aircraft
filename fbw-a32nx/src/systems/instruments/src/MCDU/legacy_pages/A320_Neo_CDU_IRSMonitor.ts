@@ -62,8 +62,7 @@ export class CDUIRSMonitor {
       ['', setHeadingValue],
     ]);
 
-    // [5R] SET HDG: "This function allows initialization of a heading for IRS in ATT mode" (A320 FCOM
-    // DSC-22_20-50-10-28, a320_fcom.txt l.19747-19754; QRH IR ALIGNMENT IN ATT MODE, l.91913-91914)
+    // [5R] SET HDG: the heading the crew enters for an IRS in ATT mode
     mcdu.onRightInput[4] = (value, scratchpadCallback) => {
       if (!setHeadingFieldDisplayed || value === Keypad.clrValue) {
         mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);

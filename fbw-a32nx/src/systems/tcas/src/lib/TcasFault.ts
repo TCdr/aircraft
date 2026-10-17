@@ -14,12 +14,8 @@ export interface TcasFaultInputs {
 }
 
 /**
- * Whether the TCAS cannot deliver RA data, out of standby: amber TCAS on the PFD and the ND, ECAM NAV TCAS FAULT.
- *
- * A320 FCOM DSC-34-SURV-60 PFD indications (a320_fcom.txt:56313-56315): the TCAS message "Appears in amber provided
- * that the TCAS is not in standby, when the TCAS cannot deliver RA data, or in case of an internal TCAS failure"; ND
- * (a320_fcom.txt:56276): "TCAS : Displayed in case of TCAS internal failure"; PRO-ABN-NAV NAV TCAS FAULT
- * (a320_fcom.txt:93888): "This alert triggers when there is an internal failure of the TCAS".
+ * Whether the TCAS cannot deliver RA data or has an internal failure, out of standby: amber TCAS on the PFD and the ND,
+ * ECAM NAV TCAS FAULT.
  * @param inputs the fault logic inputs
  * @returns true when the TCAS fault is shown
  */
@@ -28,9 +24,9 @@ export function isTcasFault(inputs: TcasFaultInputs): boolean {
 }
 
 /**
- * Whether the TCAS is in standby because it lost its altitude sensors. A320 FCOM DSC-34-SURV-60-20 MEMO DISPLAY
- * (a320_fcom.txt:56377-56383): the green TCAS STBY memo appears when "both ATCs or both RAs are failed" or "In the case
- * of a triple ADR failure". The standby takes precedence over the TCAS fault (TcasComputer.updateStatusFaults).
+ * Whether the TCAS is in standby because it lost its altitude sensors: the green TCAS STBY memo also appears when both
+ * RAs are failed or on a triple ADR failure. The standby takes precedence over the TCAS fault
+ * (TcasComputer.updateStatusFaults).
  * @param radioAltimeter1Failed radio altimeter 1 reports a failure (failure warning SSM, also when unpowered)
  * @param radioAltimeter2Failed radio altimeter 2 reports a failure
  * @param adrAltitudeValid for ADR 1, 2 and 3: the pressure altitude word is valid (normal operation or functional test)

@@ -4,24 +4,19 @@
 /*
  * A320 display unit (DU) reconfiguration: which picture each of the six EIS DUs shows.
  *
- * A320 FCOM (a320_fcom.txt):
- * - DSC-31-05-60 "FAILURE OF UPPER ECAM DU (OR CTL/BRIGHTNESS KNOB TURNED TO OFF)" (l.45259-45272): the E/WD
- *   automatically replaces the SD on the lower ECAM DU; the SD can then be displayed on an ND with the ECAM/ND XFR
- *   selector, or on the lower DU by pushing and holding (max 3 min) a system page pb.
- * - "FAILURE OF LOWER ECAM DU (OR CTL/BRIGHTNESS KNOB TURNED TO OFF)" (l.45276-45288): nothing automatic; the SD can be
- *   displayed on an ND with ECAM/ND XFR, or on the upper DU by pushing and holding a system page pb.
- * - "FAILURE OF BOTH ECAM DUs" (l.45290-45298): ECAM/ND XFR displays the E/WD on an ND, and pushing and holding a system
- *   page pb displays the SD there.
- * - "PFDU/NDU RECONFIGURATION" (l.45300-45325): a failed PFDU automatically transfers the PFD image to the NDU; turning
- *   the PFD brightness knob OFF does the same; the PFD/ND XFR pb cross-changes the PFDU and NDU images; with a failed
- *   NDU the PFD/ND XFR pb transfers the ND image to the PFDU.
- * - DSC-31-50 OFF/BRT knobs (l.49317-49332): PFD knob OFF: "the PFD image is automatically displayed on the NDU, but the
- *   pilot may recover the ND by means of the PFD-ND XFR pushbutton"; ND knob OFF switches the NDU off; the PFD/ND pb
- *   interchanges the PFD and the ND.
- * - DSC-31-30 SWITCHING panel, ECAM/ND XFR (l.46861-46867): transfers the system/status display to the CAPT or F/O ND,
- *   the "ECAM ON ND" message is displayed on the lower ECAM display; with both ECAM DUs failed it transfers the E/WD,
- *   without that message.
- * - DSC-31-30 MEMO DISPLAY, SWITCHING PNL (l.46928-46935).
+ * - Upper ECAM DU lost (failed or knob OFF): the E/WD automatically replaces the SD on the lower ECAM DU; the SD can
+ *   then be displayed on an ND with the ECAM/ND XFR selector, or on the lower DU by pushing and holding (max 3 min) a
+ *   system page pb.
+ * - Lower ECAM DU lost: nothing automatic; the SD can be displayed on an ND with ECAM/ND XFR, or on the upper DU by
+ *   pushing and holding a system page pb.
+ * - Both ECAM DUs lost: ECAM/ND XFR displays the E/WD on an ND, and pushing and holding a system page pb displays the
+ *   SD there.
+ * - PFD DU lost (failed or knob OFF): the PFD image automatically goes to the ND DU; the PFD/ND XFR pb cross-changes
+ *   the two images, so the pilot can bring the ND back; with a failed ND DU the pb transfers the ND image to the PFD
+ *   DU. The ND knob OFF switches the ND DU off.
+ * - ECAM/ND XFR selector: transfers the SD to the CAPT or F/O ND and shows the "ECAM ON ND" message on the lower ECAM
+ *   DU; with both ECAM DUs failed it transfers the E/WD, without that message.
+ * - The SWITCHING PNL memo.
  *
  * The DMC logic (systems host) writes the picture of each DU in an L:var. Each picture is the texture of one gauge
  * (PFD_L, ND_L, ECAM_EWD, ECAM_SD, ND_R, PFD_R), and the cockpit model routes it: every DU has one glass per picture it
@@ -48,7 +43,7 @@ export enum DisplayPicture {
   EngineWarning = 3,
   /** The system/status display (SD) */
   System = 4,
-  /** The lower ECAM DU while its SD is transferred to an ND: the "ECAM ON ND" message (FCOM l.46863) */
+  /** The lower ECAM DU while its SD is transferred to an ND: the "ECAM ON ND" message */
   EcamOnNd = 5,
   /** An unavailable DU (failed, unpowered or switched off): its glass stays dark whatever its gauge draws */
   Blank = 6,
@@ -59,7 +54,6 @@ export type EisPictureId = 'PFD_L' | 'ND_L' | 'EWD' | 'SD' | 'ND_R' | 'PFD_R';
 
 export const EIS_PICTURES: readonly EisPictureId[] = ['PFD_L', 'ND_L', 'EWD', 'SD', 'ND_R', 'PFD_R'];
 
-/** The DU that normally shows a picture. */
 const HOME_DISPLAY_UNIT: Readonly<Record<EisPictureId, DisplayUnitId>> = {
   PFD_L: 'PFD_L',
   ND_L: 'ND_L',
@@ -100,7 +94,6 @@ export function pictureOnOtherDuVar(picture: EisPictureId): string {
 
 /**
  * The picture a DU shows, as one of the gauge pictures, or null (the ECAM ON ND message, a blank DU).
- * @param du the DU
  * @param picture its picture (an explicit picture, never DisplayPicture.Own)
  */
 export function eisPictureOn(du: DisplayUnitId, picture: DisplayPicture): EisPictureId | null {
@@ -159,19 +152,19 @@ export enum EcamNdXfrKnob {
 
 export const ECAM_ND_XFR_KNOB_VAR = 'L:A32NX_ECAM_ND_XFR_SWITCHING_KNOB';
 
-/** A system page pb displays the SD instead of the E/WD for at most 3 min while pushed and held (FCOM l.45270). */
+/** A system page pb displays the SD instead of the E/WD for at most 3 min while pushed and held. */
 export const ECAM_PAGE_PB_HOLD_MAX_SECONDS = 180;
 
 /**
- * How long a system page pb must be held before the SD is displayed (design choice: the FCOM says "push and hold"; a
+ * How long a system page pb must be held before the SD is displayed (design choice: the crew must "push and hold"; a
  * click that only selects or deselects a page does not flash the SD, and the SD has its new page drawn before it is
  * shown).
  */
 export const ECAM_PAGE_PB_HOLD_CONFIRM_SECONDS = 0.5;
 
 /**
- * Whether a DU can show a picture. A failed DU, a DU switched off with its brightness knob (FCOM l.45259, l.45320,
- * l.49322) and, as a design choice, an unpowered DU count as unavailable for the automatic transfers.
+ * Whether a DU can show a picture. A failed DU, a DU switched off with its brightness knob and, as a design choice,
+ * an unpowered DU count as unavailable for the automatic transfers.
  */
 export function isDisplayUnitAvailable(failed: boolean, powered: boolean, brightness: number): boolean {
   return !failed && powered && brightness > 0;
@@ -201,8 +194,8 @@ export function computeDisplayPictures(inputs: DisplayReconfigurationInputs): Di
   const lowerEcam = inputs.available.LOWER_ECAM;
   const held = inputs.ecamPagePbHeld;
 
-  // ECAM/ND XFR: the SD goes to the selected ND; with both ECAM DUs lost, the E/WD (or the SD while a system page pb
-  // is held) goes there (FCOM l.46861-46866, l.45290-45298)
+  // ECAM/ND XFR: the SD goes to the selected ND; with both ECAM DUs lost, the E/WD (or the SD while a system page pb is
+  // held) goes there
   let ecamOnNd: DisplayPicture | null = null;
   if (inputs.ecamNdXfrKnob !== EcamNdXfrKnob.Norm) {
     ecamOnNd = !upperEcam && !lowerEcam && !held ? DisplayPicture.EngineWarning : DisplayPicture.System;
@@ -214,11 +207,11 @@ export function computeDisplayPictures(inputs: DisplayReconfigurationInputs): Di
     ecamSide = 'R';
   }
 
-  // Upper ECAM DU: the E/WD, or the SD while a system page pb is held with the lower DU lost (FCOM l.45284)
+  // Upper ECAM DU: the E/WD, or the SD while a system page pb is held with the lower DU lost
   const upperPicture = !lowerEcam && held ? DisplayPicture.System : DisplayPicture.EngineWarning;
 
-  // Lower ECAM DU: the E/WD when the upper DU is lost (automatic, FCOM l.45264) unless a system page pb is held
-  // (l.45270); otherwise the SD, or the "ECAM ON ND" message while the SD is on an ND (l.46863)
+  // Lower ECAM DU: the E/WD when the upper DU is lost (automatic) unless a system page pb is held; otherwise the SD, or
+  // the "ECAM ON ND" message while the SD is on an ND
   let lowerPicture: DisplayPicture;
   if (!upperEcam) {
     lowerPicture = held ? DisplayPicture.System : DisplayPicture.EngineWarning;
@@ -251,8 +244,8 @@ export function computeDisplayPictures(inputs: DisplayReconfigurationInputs): Di
 
 /**
  * The pictures of the PFD DU and ND DU of one side.
- * The PFD goes to the ND DU when the PFD DU is unavailable (automatic, FCOM l.45304, l.49322); the PFD/ND XFR pb
- * cross-changes the two images (l.45321, l.49332), so after an automatic transfer it brings the ND back (l.49323).
+ * The PFD goes to the ND DU when the PFD DU is unavailable (automatic); the PFD/ND XFR pb cross-changes the two
+ * images, so after an automatic transfer it brings the ND back.
  * Design choice: the ND DU picture that goes to the PFD DU is always the ND (an ECAM picture transferred to that ND DU
  * is not moved to the PFD DU, it is replaced by the PFD).
  * @param pfdAvailable whether the PFD DU can show a picture
@@ -272,7 +265,6 @@ function sidePictures(
 /**
  * The value written in the DU picture L:var: DisplayPicture.Blank for an unavailable DU, else 0 (DisplayPicture.Own)
  * for the DU's own picture, so that the normal configuration keeps every L:var at 0.
- * @param du the DU
  * @param picture its picture (computeDisplayPictures)
  * @param available whether the DU can show a picture
  */
@@ -290,8 +282,8 @@ export function encodeDisplayUnitPicture(
 /**
  * The PFD/ND XFR state of a side after one DMC update. The pb cross-changes the images at each push. A change of the
  * PFD DU availability (failure, brightness knob OFF or back ON) starts again from the automatic configuration, so that
- * the PFD image always follows an available DU first (design choice: the FCOM describes the transfers from the normal
- * configuration only).
+ * the PFD image always follows an available DU first (design choice: the aircraft documents describe the transfers
+ * from the normal configuration only).
  * @param xfr the state before the update
  * @param pushed whether the pb was pushed since the last update
  * @param pfdWasAvailable whether the PFD DU was available at the last update
@@ -315,7 +307,7 @@ export function nextEcamPagePbHeldSeconds(heldSeconds: number, held: boolean, dt
   return held ? heldSeconds + dtSeconds : 0;
 }
 
-/** Whether a held system page pb still displays the SD instead of the E/WD (3 min at most, FCOM l.45270). */
+/** Whether a held system page pb still displays the SD instead of the E/WD (3 min at most). */
 export function isEcamPagePbHoldActive(held: boolean, heldSeconds: number): boolean {
   return held && heldSeconds <= ECAM_PAGE_PB_HOLD_MAX_SECONDS;
 }
@@ -330,9 +322,8 @@ export function isEcamPagePbHoldConfirmed(held: boolean, heldSeconds: number): b
 }
 
 /**
- * The SWITCHING PNL memo (FCOM DSC-31-30 MEMO DISPLAY, l.46928-46935): a PFD/ND XFR pb pressed together with the
- * ECAM/ND XFR selector at CAPT or F/O, or the EIS DMC selector at CAPT or F/O. The ATT HDG and AIR DATA selectors give
- * the ADIRS SWTG memo in this aircraft.
+ * The SWITCHING PNL memo: a PFD/ND XFR pb pressed together with the ECAM/ND XFR selector at CAPT or F/O, or the EIS
+ * DMC selector at CAPT or F/O. The ATT HDG and AIR DATA selectors give the ADIRS SWTG memo in this aircraft.
  * @param ecamNdXfrKnob the ECAM/ND XFR selector (an EcamNdXfrKnob value)
  * @param eisDmcKnob the EIS DMC selector (1 = NORM)
  * @param pfdNdXfrL whether the CAPT PFD/ND XFR pb has cross-changed the images
@@ -349,7 +340,7 @@ export function isSwitchingPanelMemoShown(
 
 /**
  * Written by the DMC logic: 1 while only one ECAM display is on, i.e. the SD is shown only while a system page pb is
- * held (A320 FCOM DSC-31-05-60 l.45264-45298). The STS pb then pages the STATUS page (DSC-31-30 l.46775-46779).
+ * held. The STS pb then pages the STATUS page.
  */
 export const ECAM_SINGLE_DISPLAY_VAR = 'L:A32NX_ECAM_SINGLE_DISPLAY';
 

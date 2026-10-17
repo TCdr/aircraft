@@ -88,8 +88,7 @@ function isReceiverFailed(kind: NavigationReceiverKind, index: NavigationReceive
 
 /**
  * The bearing signal (NAV HAS NAV) of a sim NAV radio, lost while its VOR or ILS receiver is failed: the ND then shows
- * no bearing pointer and no deviation for it. A320 FCOM DSC-34-NAV-30-10 (a320_fcom.txt l.53399-53408): the flags
- * appear when "The VOR or ADF receiver fails".
+ * no bearing pointer and no deviation for it (its flags appear when the receiver fails).
  * @param navIndex the sim NAV radio
  * @param received the sim signal
  * @returns whether the signal is received

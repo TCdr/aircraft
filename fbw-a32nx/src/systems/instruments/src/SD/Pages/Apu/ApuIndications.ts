@@ -2,26 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * SD APU page (A320 FCOM DSC-49-20-B ECAM APU PAGE, a320_fcom.txt l.60758-60770):
- * - (1) AVAIL, l.60758-60759: "Displayed in green when APU N is above 95 %."
- * - (2) APU bleed air valve position, l.60763-60770: "Inline-Green: The APU bleed air valve is not closed. Crossline-Green:
- *   The APU bleed air valve is closed. Crossline-Amber: The APU bleed air valve is closed and the APU bleed is ON. XX-Amber:
- *   The APU bleed air valve status information is not available, or the APU BLEED pb status is not available."
+ * SD APU page:
+ * - AVAIL: green when APU N is above 95 %.
+ * - APU bleed air valve: green in line when not closed, green crossline when closed, amber crossline when closed with
+ *   the APU BLEED pb ON, amber XX when the valve status or the APU BLEED pb status is not available.
  *
  * Design choices:
- * - The APU N, the valve status and the bleed pressure come from the APU ECB: its data are available when the APU N word
- *   (L:A32NX_APU_N) is in normal operation (the ECB is powered and on), as for the N, EGT and bleed pressure XX of the page.
- *   The APU BLEED pb status is always available (no failure of it is modelled).
- * - "The APU bleed is ON" keeps the 10 s confirmation of the APU BLEED pb the page already had (the BLEED page rule,
- *   l.57807-57808).
+ * - The APU N, the valve status and the bleed pressure come from the APU ECB: its data are available when the APU N
+ *   word (L:A32NX_APU_N) is in normal operation (the ECB is powered and on), as for the N, EGT and bleed pressure XX of
+ *   the page. The APU BLEED pb status is always available (no failure of it is modelled).
+ * - "The APU bleed is ON" keeps the 10 s confirmation of the APU BLEED pb, as on the BLEED page.
  */
 
 /**
- * (10) LOW OIL LEVEL, l.60848-60850: "Advisory: Displayed if the ECB detects a low APU oil level when the aircraft is on
- * the ground, and the APU is not running." The ECB applies the ground and not running conditions
- * (L:A32NX_APU_LOW_OIL_LEVEL, systems apu/electronic_control_box.rs). An advisory pulses: PRO-ABN-ABN-ADV APU OIL QTY
- * "(message LOW OIL LEVEL pulsing)" (l.66494-66497); the FCOM text gives no colour, it pulses green as the page's other
- * advisory (FLAP OPEN).
+ * LOW OIL LEVEL advisory: the ECB detects a low APU oil level on ground with the APU not running. The ECB applies the
+ * ground and not running conditions (L:A32NX_APU_LOW_OIL_LEVEL, systems apu/electronic_control_box.rs). The advisory
+ * pulses; Design choice: green, as the other advisory of the page (FLAP OPEN).
  * @param ecbDataValid the APU_LOW_OIL_LEVEL word is in normal operation (the ECB is on)
  * @param lowOilLevel the word value
  */
@@ -29,15 +25,13 @@ export function isApuLowOilLevelShown(ecbDataValid: boolean, lowOilLevel: boolea
   return ecbDataValid && lowOilLevel;
 }
 
-/** l.60759: the APU N above which AVAIL shows, in percent */
-export const APU_AVAIL_N_PERCENT = 95;
+/** The APU N above which AVAIL shows, in percent */
+const APU_AVAIL_N_PERCENT = 95;
 
-/** l.60759: the AVAIL of the APU page */
 export function isApuPageAvailVisible(apuNValid: boolean, apuNPercent: number): boolean {
   return apuNValid && apuNPercent > APU_AVAIL_N_PERCENT;
 }
 
-/** l.60763-60770: how the APU bleed air valve shows */
 export type ApuBleedValveDisplay = 'inline-green' | 'crossline-green' | 'crossline-amber' | 'xx-amber';
 
 /**

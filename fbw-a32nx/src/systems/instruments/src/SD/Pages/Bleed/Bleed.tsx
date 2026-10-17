@@ -51,7 +51,7 @@ export const BleedPage: FC = () => {
   const engine2PRValveFullyClosed5s = useConfirmedState(!engine2PRValveOpen, 5_000, !engine2PRValveOpen);
   const [apuBleedAirValveOpen] = useSimVar('L:A32NX_APU_BLEED_AIR_VALVE_OPEN', 'bool', 500);
   const [crossBleedSelector] = useSimVar('L:A32NX_KNOB_OVHD_AIRCOND_XBLEED_Position', 'number', 500);
-  // Amber when in transit or not in the commanded position (FCOM DSC-36-20, CrossBleedValveIndication.ts)
+  // Amber when in transit or not in the commanded position (CrossBleedValveIndication.ts)
   const xbleedAirValveAmber = isCrossBleedValveAmber(
     isCrossBleedValveCommandedOpen(crossBleedSelector, !!apuBleedAirValveOpen),
     !!xbleedAirValveFullyOpen,

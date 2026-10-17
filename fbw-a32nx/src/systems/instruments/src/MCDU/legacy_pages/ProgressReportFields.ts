@@ -2,21 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The fields of the PROG REPORT page (A320 FCOM DSC-22_20-50-10-28 REPORT PAGE, a320_fcom.txt l.21408-21469):
- * - [1L] OVHD (l.21428-21430): "Displays the last sequenced waypoint. This field never displays the pseudo-waypoints and
- *   the F-PLN markers (T-P, PPOS, IN-BND, OUT-BND)."; [1R] UTC/TIME ALT (l.21432): "the time and altitude recorded at the
- *   time of sequence".
- * - [2L]-[2R] TO, [3L]-[3R] NEXT (l.21434-21440): "the active waypoint, predicted time of arrival, and predicted altitude
- *   at this waypoint. Note: Time and altitude values are identical to those values on the F-PLN pages."
- * - [4L] [4R] SAT/T.WIND/FOB (l.21442-21444): "the static air temperature, the wind direction and velocity, and the FOB
- *   recorded at waypoint sequencing."
- * - [5L] T/D/UTC/DIST (l.21446-21448): "the estimated time, and the distance to go to the next change of the cruise
- *   profile (T/D, S/C, S/D). This data is only displayed if the cruise phase is active."
- * - Line 6 DEST/UTC/DIST/EFOB (l.21464-21467): "identical to the information on the F-PLN pages."
- * - l.21469: "No data can be inserted or modified on the REPORT page."
+ * The fields of the PROG REPORT page:
+ * - [1L] OVHD: the last sequenced waypoint, never a pseudo waypoint or an F-PLN marker (T-P, PPOS, IN-BND, OUT-BND);
+ *   [1R] UTC/TIME ALT: the time and altitude recorded at the sequencing.
+ * - [2L]-[2R] TO, [3L]-[3R] NEXT: the waypoint with its predicted time and altitude, the same as on the F-PLN pages.
+ * - [4L] [4R] SAT/T.WIND/FOB: the static air temperature, the wind and the FOB recorded at the sequencing.
+ * - [5L] T/D/UTC/DIST: the time and distance to the next change of the cruise profile (T/D, S/C, S/D), in the cruise
+ *   phase only.
+ * - Line 6 DEST/UTC/DIST/EFOB: the same as on the F-PLN pages.
+ * - No data can be entered or modified on the REPORT page.
  */
 
-/** The F-PLN markers the OVHD field never shows (l.21429-21430) */
+/** The F-PLN markers the OVHD field never shows */
 const F_PLN_MARKERS = ['T-P', 'PPOS', 'IN-BND', 'OUT-BND'];
 
 /**
@@ -141,16 +138,14 @@ export function formatReportWind(windDirection: number | null, windSpeed: number
   return `${direction.toFixed(0).padStart(3, '0')}°/${Math.round(windSpeed).toFixed(0).padStart(3, '0')}`;
 }
 
-/** The pseudo waypoints of the cruise profile changes (l.21446-21448), with their names on the page */
+/** The pseudo waypoints of the cruise profile changes, with their names on the page */
 const CRUISE_PROFILE_CHANGES: Record<string, string> = { '(T/D)': 'T/D', '(S/C)': 'S/C', '(S/D)': 'S/D' };
 
-/** A pseudo waypoint with its predictions */
 export interface ReportPseudoWaypoint {
   ident: string;
   flightPlanInfo?: { secondsFromPresent: number; distanceFromAircraft: number } | null;
 }
 
-/** The next change of the cruise profile: its name, time from now and distance to go */
 export interface CruiseProfileChange {
   name: string;
   secondsFromPresent: number;

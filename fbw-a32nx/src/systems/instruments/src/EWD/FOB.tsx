@@ -37,7 +37,7 @@ export class FOB extends DisplayComponent<FOBProps> {
 
   private readonly rightCentreXfrFailedClosed = Subject.create(false);
 
-  /** The amber half box: the displayed quantity is not all usable (FCOM l.43341-43345, FuelQuantityIndications) */
+  /** The amber half box: the displayed quantity is not all usable (FuelQuantityIndications) */
   private readonly halfBoxed = MappedSubject.create(
     ([leftOuterXfrClosed, rightOuterXfrClosed, leftCentreXfrFailedClosed, rightCentreXfrFailedClosed]) =>
       isFuelOnBoardHalfBoxed({
@@ -90,7 +90,7 @@ export class FOB extends DisplayComponent<FOBProps> {
         <text class="Huge End Green" x={172} y={0}>
           {this.fobDisplay}
         </text>
-        {/* The amber half box: the lower half of a box around the digits; the FCOM text gives no figure */}
+        {/* The amber half box: the lower half of a box around the digits (Design choice for its shape) */}
         <path
           class="AmberLine"
           d="M 82 -10 v 16 h 96 v -16"

@@ -13,9 +13,9 @@ import { readStatusColumnCodes, STATUS_PAGE_INDEX_VAR, statusPageView } from '@s
 const readNumber = (name: string): number => SimVar.GetSimVarValue(name, 'number');
 
 /**
- * The STATUS page (A320 FCOM DSC-31-20): the lines the FWC computes from the active alerts, information on the left and
- * the inoperative systems on the right; NORMAL when there are none. A page that overflows shows the page the FWC selects
- * (CLR, or STS with one ECAM display) and a green arrow at the bottom of the column separator (l.46196-46199).
+ * The STATUS page: the lines the FWC computes from the active alerts, information on the left and the inoperative
+ * systems on the right; NORMAL when there are none. A page that overflows shows the page the FWC selects (CLR, or STS
+ * with one ECAM display) and a green arrow at the bottom of the column separator.
  */
 export class StatusPage extends DestroyableComponent<SdPageProps> {
   private readonly sub = this.props.bus.getSubscriber<SDSimvars & ClockEvents>();
@@ -75,7 +75,7 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
 
         <line class="SW4 Grey LineRound" x1="483" y1="96" x2="483" y2="593" />
 
-        {/* The overflow arrow (FCOM DSC-31-20 figure, item 8): green, pointing down, below the column separator, the
+        {/* The overflow arrow: green, pointing down, below the column separator, the
         same arrow as the E/WD overflow arrow */}
         <path
           class="Green Fill"

@@ -11,18 +11,18 @@ import {
   isThrustLimitValueVisible,
 } from './EngineIndications';
 
-/* A320 FCOM DSC-70-90-40-50 (a320_fcom.txt l.64172-64273) */
+/* EWD engine indications: EGT limit, thrust limit value, flexible temperature, IDLE */
 describe('EWD engine indications', () => {
-  it('hides the amber EGT limit line in the takeoff and go-around modes (TOGA, FLX), l.64269-64271', () => {
+  it('hides the amber EGT limit line in the takeoff and go-around modes (TOGA, FLX)', () => {
     expect(isEgtLimitLineVisible(ThrustLimitType.Toga, false)).toBe(false);
     expect(isEgtLimitLineVisible(ThrustLimitType.Flex, false)).toBe(false);
   });
 
-  it('hides the amber EGT limit line with the thrust reversers selected (MREV), l.64272', () => {
+  it('hides the amber EGT limit line with the thrust reversers selected (MREV)', () => {
     expect(isEgtLimitLineVisible(ThrustLimitType.Mrev, false)).toBe(false);
   });
 
-  it('hides the amber EGT limit line with alpha floor active, l.64273', () => {
+  it('hides the amber EGT limit line with alpha floor active', () => {
     expect(isEgtLimitLineVisible(ThrustLimitType.Clb, true)).toBe(false);
   });
 
@@ -32,20 +32,20 @@ describe('EWD engine indications', () => {
     expect(isEgtLimitLineVisible(ThrustLimitType.None, false)).toBe(true);
   });
 
-  it('hides the thrust limit value with the thrust reversers selected, l.64172', () => {
+  it('hides the thrust limit value with the thrust reversers selected', () => {
     expect(isThrustLimitValueVisible(ThrustLimitType.Mrev)).toBe(false);
     expect(isThrustLimitValueVisible(ThrustLimitType.Toga)).toBe(true);
     expect(isThrustLimitValueVisible(ThrustLimitType.Clb)).toBe(true);
   });
 
-  it('shows cyan dashes when the SAT is above the flexible temperature, l.64195-64196', () => {
-    // SAT 45 °C above a flex temperature of 30 °C (it was hidden from SAT 40.1 °C before)
+  it('shows cyan dashes when the SAT is above the flexible temperature', () => {
+    // SAT 45 °C above a flex temperature of 30 °C
     expect(flexTemperatureText(30, ThrustLimitType.Flex, true, 45)).toBe(FLEX_TEMPERATURE_DASHES);
     // just above the flexible temperature
     expect(flexTemperatureText(30, ThrustLimitType.Flex, true, 31)).toBe(FLEX_TEMPERATURE_DASHES);
   });
 
-  it('shows the flexible temperature in FLX mode when the SAT is at or below it, l.64179-64181', () => {
+  it('shows the flexible temperature in FLX mode when the SAT is at or below it', () => {
     expect(flexTemperatureText(54.4, ThrustLimitType.Flex, true, 15)).toBe('54');
     expect(flexTemperatureText(30, ThrustLimitType.Flex, true, 30)).toBe('30');
     // no valid SAT to compare with: the temperature is shown
@@ -57,7 +57,7 @@ describe('EWD engine indications', () => {
     expect(flexTemperatureText(0, ThrustLimitType.Flex, true, 15)).toBe(null);
   });
 
-  it('shows IDLE with both engines at idle in flight, autothrust off too, l.64203', () => {
+  it('shows IDLE with both engines at idle in flight, autothrust off too', () => {
     // FWC flight phase 6, both N1 at idle
     expect(isIdleIndicationVisible(20, 20.5, 19.5, 6)).toBe(true);
     expect(isIdleIndicationVisible(20, 20.5, 19.5, 5)).toBe(true);

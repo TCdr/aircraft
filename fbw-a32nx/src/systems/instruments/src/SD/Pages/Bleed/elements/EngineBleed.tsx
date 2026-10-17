@@ -39,13 +39,13 @@ const EngineBleed: FC<EngineBleedProps> = ({
   const [engineN1Idle] = useSimVar('L:A32NX_ENGINE_IDLE_N1', FADEC_N_LVAR_UNIT, 500);
   const engineN1BelowIdle = engineN1 + 2 < engineN1Idle;
   const [engineFadecPowered] = useSimVar(`L:A32NX_FADEC_POWERED_ENG${engine}`, 'bool', 500);
-  // The engine identification is amber with the engine N2 below idle (FCOM l.57846-57848, EngineRunning.ts)
+  // The engine identification is amber with the engine N2 below idle (EngineRunning.ts)
   const [engineN2] = useSimVar(`L:A32NX_ENGINE_N2:${engine}`, FADEC_N_LVAR_UNIT, 100);
   const [engineN2Idle] = useSimVar('L:A32NX_ENGINE_IDLE_N2', FADEC_N_LVAR_UNIT, 500);
   const engineN2BelowIdle = isEngineN2BelowIdle(engineN2, engineN2Idle);
 
   const [engineHPValveOpen] = useSimVar(`L:A32NX_PNEU_ENG_${engine}_HP_VALVE_OPEN`, 'bool', 500);
-  // Amber when not in the commanded position (FCOM DSC-36-20 l.57754-57768, EngineBleedValveIndication.ts)
+  // Amber when not in the commanded position (EngineBleedValveIndication.ts)
   const [engineHPValveFault] = useSimVar(`L:A32NX_PNEU_ENG_${engine}_HP_VALVE_FAULT`, 'bool', 500);
   const [enginePRValveDisagree] = useSimVar(`L:A32NX_PNEU_ENG_${engine}_PR_VALVE_DISAGREE`, 'bool', 500);
   const [precoolerOutletTemp] = useSimVar(

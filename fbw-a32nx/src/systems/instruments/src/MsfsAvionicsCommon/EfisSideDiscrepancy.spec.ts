@@ -15,7 +15,6 @@ const side = (pitch: number | null, roll: number | null, heading: number | null)
   headingDegrees: heading,
 });
 
-// A320 FCOM DSC-31-05-60 SIDE1/SIDE2 DISCREPANCY MESSAGES, a320_fcom.txt l.45410-45418
 describe('A32NX EFIS side 1 / side 2 discrepancy messages', () => {
   it('shows no message when both sides agree', () => {
     expect(isCheckAttitudeShown(side(2.5, -10, 90), side(2.5, -10, 90))).toBe(false);

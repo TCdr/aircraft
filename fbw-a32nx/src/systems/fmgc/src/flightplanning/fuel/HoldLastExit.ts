@@ -5,15 +5,8 @@
 /*
  * LAST EXIT time and fuel of the HOLD page (both aircraft).
  *
- * A320 FCOM HOLD page (a320_fcom.txt l.18272-18275): "LAST EXIT UTC FUEL This field displays the time at which the
- * aircraft must leave the holding pattern in order to meet fuel policy criteria (extra fuel = 0). The system also
- * displays the estimated fuel on board at that time".
- * A380 FCOM HOLD page (a380_fcom.txt l.36440-36444): "LAST EXIT TIME AND FUEL Indicates the estimated UTC time (or flight
- * time), and amount of fuel remaining, at which the aircraft must exit the holding pattern, so as to comply with the fuel
- * policy. The fuel policy considers an extra fuel = 0 at landing at the primary destination."
- * A380 FCOM DSC-22-FMS-10-40-50 HM (l.25429-25430, l.25458-25460): before the deceleration "the FMS does not take it [the
- * hold] into account for predictions", and "The FMS also predicts the estimated time and amount of fuel remaining at which
- * the aircraft must exit the holding pattern".
+ * LAST EXIT is the time and the fuel on board at which the aircraft must leave the hold to land at the destination
+ * with an EXTRA fuel of 0. Before the deceleration, the predictions do not include the hold (HM).
  *
  * So the EXTRA fuel of the predictions (the hold not flown) is what the aircraft can burn in the hold: it holds from
  * its arrival at the hold fix for as long as the EXTRA fuel lasts at the holding fuel flow, and leaves with the EXTRA fuel
@@ -28,7 +21,6 @@ export interface HoldEntryPrediction {
   fuelOnBoard: number;
 }
 
-/** The LAST EXIT of a hold */
 export interface HoldLastExit {
   /** Time from now to the last exit, s */
   secondsFromPresent: number;
@@ -48,7 +40,7 @@ export function holdEntryPrediction(
   holdLegIndex: number,
   activeLegIndex: number,
   fuelOnBoardNow: number | null,
-  holdFixPrediction: { secondsFromPresent: number; fuelOnBoard: number } | undefined,
+  holdFixPrediction: HoldEntryPrediction | undefined,
 ): HoldEntryPrediction | null {
   if (holdLegIndex < activeLegIndex) {
     return null;

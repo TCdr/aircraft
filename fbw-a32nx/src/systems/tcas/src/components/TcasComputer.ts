@@ -377,8 +377,7 @@ export class TcasComputer {
       adrAltitudeValid,
     );
 
-    // 34-43-00:A32; both ATCs or both RAs failed, triple ADR failure: TCAS STBY (FCOM DSC-34-SURV-60-20 memo display,
-    // a320_fcom.txt:56377-56383)
+    // Both ATCs or both RAs failed, or a triple ADR failure: TCAS STBY
     this.tcasMode.setVar(
       this.xpdrStatus === XpdrMode.STBY ||
         this.bothXpdrsFailed ||
@@ -397,12 +396,11 @@ export class TcasComputer {
    * Set inhibition level
    */
   private updateInhibitions(): void {
-    // The automatic TA ONLY of the FCOM (a320_fcom.txt:56001-56006): windshear alert, stall warning, GPWS alerts and
-    // below 1 000 ft AGL. Those alerts also take the aural priority over the TCAS: the TA aural is inhibited with them.
+    // Automatic TA ONLY: windshear alert, stall warning, GPWS alerts and below 1 000 ft AGL. Those alerts also take the
+    // aural priority over the TCAS: the TA aural is inhibited with them.
     // TODO FIXME: Less magic numbers, Use constants defined in TcasConstants
     // The low-altitude inhibitions have a hysteresis (TcasConstants): RAs are inhibited below 900 ft AGL in
-    // descent and 1 100 ft AGL in climb (the FCOM's "below 1 000 ft +-100 ft"), the TA aural below 400 ft in
-    // descent and 600 ft in climb (A380 FCTM, Supplementary Information, TCAS).
+    // descent and 1 100 ft AGL in climb (1 000 ft +-100 ft), the TA aural below 400 ft in descent and 600 ft in climb.
     if (!this.radioAlt.isFailureWarning() && !this.radioAlt.isNoComputedData()) {
       if (
         this.raInhibitedLow
@@ -662,7 +660,7 @@ export class TcasComputer {
       if (!onGround) {
         // Workaround for MSFS live traffic, TODO: add option to disable
         if (traffic.groundSpeed >= 30 && TCAS.THREAT[this.tcasThreat] !== undefined) {
-          // THRT: the proximate and other intruders only while a TA or RA is present (FCOM DSC-34-SURV-60-20)
+          // THRT: the proximate and other intruders only while a TA or RA is present
           isDisplayed = isIntruderShownForTrafficSelector(
             this.tcasThreat === TcasThreat.THREAT,
             traffic.relativeAlt,

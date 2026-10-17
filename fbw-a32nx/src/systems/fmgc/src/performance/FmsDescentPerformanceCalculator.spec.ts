@@ -31,7 +31,7 @@ const a380 = new FmsDescentPerformanceCalculator(A380AircraftConfig, {
   mtow: 510_000,
 });
 
-/** The A320 FCOM descent table (PER-DES-STD): M.78/300KT/250KT, idle, ISA, from FL390 to 1500 ft, 65 t */
+/** The A320 standard descent table: M.78/300KT/250KT, idle, ISA, from FL390 to 1500 ft, 65 t */
 const FCOM_TABLE: DescentPerformanceInputs = {
   type: DescentType.Standard,
   initialAltitude: 39_000,
@@ -46,8 +46,8 @@ const FCOM_TABLE: DescentPerformanceInputs = {
 };
 
 describe('Descent performance', () => {
-  it('is close to the A320 FCOM descent table', () => {
-    // FCOM (CFM56 A320): 17.4 min, 106 NM; the FBW A320neo model within 10 %
+  it('is close to the A320 standard descent table', () => {
+    // Airbus table (CFM56 A320): 17.4 min, 106 NM; the FBW A320neo model within 10 %
     const result = a320.calculateDescent(FCOM_TABLE);
     expect(result.error).toBe(DescentPerformanceError.None);
     expect(result.time / 60).toBeGreaterThan(17.4 * 0.9);
@@ -68,7 +68,7 @@ describe('Descent performance', () => {
       schedule: a380.standardSchedule,
       headwind: 50,
     });
-    // A headwind shortens the distance, not the time (A380 FCOM PER-IFT-DES-CDT, wind)
+    // A headwind shortens the distance, not the time
     expect(headwind.distance).toBeLessThan(still.distance - 10);
     expect(headwind.time).toBeCloseTo(still.time, -1);
     const antiIce = a380.calculateDescent({
@@ -103,7 +103,7 @@ describe('Descent performance', () => {
     );
   });
 
-  it('applies the anti-ice corrections of the A320 FCOM table (PER-DES-STD) to the results and the profile', () => {
+  it('applies the anti-ice corrections of the A320 standard descent table to the results and the profile', () => {
     const still = a320.calculateDescent(FCOM_TABLE);
     expect(still.estimates).not.toContain(DescentPerformanceEstimate.AntiIce);
     const corrections: [DescentAntiIce, number, number, number][] = [

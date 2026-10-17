@@ -120,7 +120,7 @@ class NDInstrument implements FsInstrument {
     this.backplane.addPublisher('egpwc', this.egpwcBusPublisher);
 
     this.backplane.addInstrument('clock', this.clock);
-    // CHECK HDG: A320 FCOM DSC-31-05-60, a320_fcom.txt l.45417-45422
+    // CHECK HDG when the headings of the two sides differ by 5 degrees or more
     this.backplane.addInstrument('efisSideDiscrepancy', new EfisSideDiscrepancyMonitor(this.bus, side));
 
     this.doInit();
@@ -173,9 +173,9 @@ class NDInstrument implements FsInstrument {
           rangeChangeMessage={a320NdRangeChange}
           modeChangeMessage={a320NdModeChange}
           fmMessages={Object.values(FMMessageTypes)}
-          // A320 FCOM DSC-34-SURV-60-20 (a320_fcom.txt l.56198): traffic at the 10, 20 and 40 NM ranges only
+          // the A320 ND shows the traffic at the 10, 20 and 40 NM ranges only
           mapOptions={{ trafficMaxRangeNm: MAX_TRAFFIC_RANGE_NM }}
-          // A320 FCOM DSC-34-SURV-30-30: the radar rows of the A32NX pedestal radar panel
+          // the radar rows of the A32NX pedestal radar panel
           a320WxrIndications
           headingDiscrepancy={ConsumerSubject.create(
             this.bus.getSubscriber<EfisSideDiscrepancyEvents>().on('efis_check_heading'),

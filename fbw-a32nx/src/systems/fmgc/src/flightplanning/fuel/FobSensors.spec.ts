@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { areFobSensorsInvalid, FobSensorComputer, FobSensors, fobSensorsText, parseFobEntry } from './FobSensors';
 
-describe('FUEL PRED FOB [4R] entry (A320 FCOM l.17564-17570, data format l.23402-23412, l.23472-23474)', () => {
+describe('FUEL PRED FOB [4R] entry', () => {
   it('parses the four sensor entries', () => {
     expect(parseFobEntry('/FF+FQ')).toEqual({ fob: null, sensors: FobSensors.FuelFlowAndQuantity });
     expect(parseFobEntry('/FQ+FF')).toEqual({ fob: null, sensors: FobSensors.FuelFlowAndQuantity });
@@ -34,7 +34,7 @@ describe('FUEL PRED FOB [4R] entry (A320 FCOM l.17564-17570, data format l.23402
   });
 });
 
-describe('SENSOR IS INVALID conditions (A320 FCOM l.23020-23028)', () => {
+describe('SENSOR IS INVALID conditions', () => {
   it('the sole selected sensor invalid, or both of the selected sensors invalid', () => {
     expect(areFobSensorsInvalid(FobSensors.FuelQuantity, true, false)).toBe(true);
     expect(areFobSensorsInvalid(FobSensors.FuelFlow, false, true)).toBe(true);

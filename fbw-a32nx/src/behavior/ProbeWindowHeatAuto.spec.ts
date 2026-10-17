@@ -31,10 +31,8 @@ const events = (state: RpnVariables): string[] =>
 const ENGINES_STOPPED: RpnVariables = { 'A:SIM ON GROUND': 1 };
 
 /*
- * A320 FCOM DSC-30-40-10 (a320_fcom.txt l.44440-44442): "Window heating comes on: automatically when at least one engine
- * is running, or when the aircraft is in flight"; DSC-30-50-10 (l.44524-44526): "The probes are heated: Automatically
- * when at least one engine is running, or when the aircraft is in flight. Manually, when the flight crew switches ON the
- * PROBE/WINDOW HEAT pb." Before, the in flight term was missing (an all engines out glide switched the heat off).
+ * Window and probe heating: automatic with at least one engine running or in flight, manual with the PROBE/WINDOW HEAT
+ * pb ON. The in flight term keeps the heat on in an all engines out glide.
  */
 describe('PROBE/WINDOW HEAT automatic heating (MSFS PITOT HEAT, WINDSHIELD DEICE)', () => {
   it('stays off on ground with the engines stopped and the pb AUTO', () => {

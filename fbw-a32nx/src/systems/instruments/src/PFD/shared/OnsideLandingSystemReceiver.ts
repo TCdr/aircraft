@@ -21,8 +21,8 @@ export interface LandingSystemReceiverSourceTarget {
 }
 
 /**
- * The ILS data of MMR 2, for PFD 2. "The aircraft has two ILS/GLS/MLS receivers" (ILS1 in MMR1, ILS2 in MMR2),
- * "PFD1 and ND2 display ILS1", "PFD2 and ND1 display ILS2": A320 FCOM DSC-34-NAV-30-20, a320_fcom.txt l.53282-53289.
+ * The ILS data of MMR 2, for PFD 2. The aircraft has two ILS receivers (ILS1 in MMR1, ILS2 in MMR2): PFD1 and ND2
+ * display ILS1, PFD2 and ND1 display ILS2.
  * In the sim MMR 2 is NAV 4 (systems.cfg [RADIOS]); the deviations and valid flags are written by the MMR 2 shim of
  * the systems (fbw-common navigation/ils.rs) with the same contract as the A32NX_RADIO_RECEIVER_* variables of MMR 1.
  */

@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The DCDU side of the datalink failures (systems-host AtsuFailureStates, A320 FCOM a320_fcom.txt):
- * - One DCDU "on the CAPT and F/O side" (DSC-46-10-10 l.59032): DCDU 1 is the captain DCDU, its keys send the MPL
- *   events; DCDU 2 the first officer DCDU, MPR. Both screens show the one DCDU gauge (panel.cfg VCockpit07): a failed
- *   DCDU (flyPad 46002/46003, L:A32NX_DCDU_n_FAILED) is blanked by its screen (model EMISSIVE_CODE) and its keys do
- *   nothing here; the other DCDU keeps working.
- * - The ATSU reset is to be attempted when '"INVALID DATA" is displayed on the DCDU' (PRO-ABN-ABN-RESET l.67771): a
- *   supplied DCDU without a running ATSU (not supplied, C/B pulled, failed: L:A32NX_ATSU_OFF) has no data to show and
- *   shows INVALID DATA in place of its messages, until the ATSU runs again.
+ * The DCDU side of the datalink failures (systems-host AtsuFailureStates):
+ * - One DCDU on each side: DCDU 1 is the captain DCDU, its keys send the MPL events; DCDU 2 the first officer DCDU,
+ *   MPR. Both screens show the one DCDU gauge (panel.cfg VCockpit07): a failed DCDU (flyPad 46002/46003,
+ *   L:A32NX_DCDU_n_FAILED) is blanked by its screen (model EMISSIVE_CODE) and its keys do nothing here; the other DCDU
+ *   keeps working.
+ * - A supplied DCDU without a running ATSU (not supplied, C/B pulled, failed: L:A32NX_ATSU_OFF) has no data to show:
+ *   it shows INVALID DATA in place of its messages until the ATSU runs again (the crew then resets the ATSU).
  */
 
 /** The DCDU keys of a side: MPL on DCDU 1 (captain), MPR on DCDU 2 (first officer) */

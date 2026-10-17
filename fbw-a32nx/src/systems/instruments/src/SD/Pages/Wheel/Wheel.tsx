@@ -186,7 +186,7 @@ const TyrePressurePair = ({ x, y, left, right }: TyrePressurePairProps) => (
 
 /**
  * The N/W STEERING, ANTI SKID, NORM BRK and ALTN BRK legends, from the brake fault L:vars of the a320_systems brake model
- * and the hydraulic low pressures (FCOM rules in WheelBrakeIndications)
+ * and the hydraulic low pressures (rules in WheelBrakeIndications)
  */
 const BrakeAndSteeringLegends = () => {
   const hydraulics = useHydraulics();
@@ -345,8 +345,8 @@ const AccumulatorOnly = ({ x, y }: ComponentPositionProps) => (
 );
 
 const AutoBrake = ({ x, y }: ComponentPositionProps) => {
-  // Amber only on an AUTO BRK failure, "along with an ECAM caution" (FCOM DSC-32-30-20, a320_fcom.txt l.51576-51581):
-  // the BSCU autobrake fault (BRAKES AUTO BRK FAULT), not when an engine is off
+  // Amber only on an AUTO BRK failure, which comes with an ECAM caution: the BSCU autobrake fault (BRAKES AUTO BRK
+  // FAULT), not when an engine is off
   const [autoBrakeFault] = useSimVar('L:A32NX_BRAKES_AUTO_BRK_FAULT', 'Bool', maxStaleness);
   const autoBrakeFailed = autoBrakeFault > 0;
   const available = !autoBrakeFailed;

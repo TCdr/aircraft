@@ -33,7 +33,7 @@ export class EwdComponent extends DisplayComponent<EwdProps> {
 
   private lowerLeftOverflow = Subject.create(false);
 
-  /** The STS reminder (A320 FCOM DSC-31-20): STS, white and framed, at the bottom of the E/WD */
+  /** The STS reminder: STS, white and framed, at the bottom of the E/WD */
   private readonly stsReminder = Subject.create('');
 
   public onAfterRender(node: VNode): void {

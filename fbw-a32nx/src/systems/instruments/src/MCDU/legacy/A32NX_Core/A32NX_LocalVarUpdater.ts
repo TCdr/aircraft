@@ -74,7 +74,7 @@ export class A32NX_LocalVarUpdater {
     }
   }
 
-  /** The NO SMOKING (NO PED) signs are on: FCOM rules in CabinSigns */
+  /** The NO SMOKING (NO PED) signs are on: rules in CabinSigns */
   _noSmokingMemoSelector() {
     return areNoSmokingSignsOn({
       switchPosition: SimVar.GetSimVarValue('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', 'Position'),
@@ -91,7 +91,7 @@ export class A32NX_LocalVarUpdater {
     });
   }
 
-  /** The SEAT BELTS signs are on: FCOM rules in CabinSigns */
+  /** The SEAT BELTS signs are on: rules in CabinSigns */
   _seatBeltsMemoSelector() {
     return areSeatBeltsSignsOn({
       switchOn: SimVar.GetSimVarValue('A:CABIN SEATBELTS ALERT SWITCH', 'Bool') > 0,

@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { holdEntryPrediction, holdLastExit } from './HoldLastExit';
 
-describe('HOLD page LAST EXIT (A320 FCOM l.18272-18275, A380 FCOM l.36440-36444)', () => {
+describe('HOLD page LAST EXIT', () => {
   const atFix = { secondsFromPresent: 1200, fuelOnBoard: 6.4 };
 
   it('arrives in a hold ahead at the hold fix predictions', () => {

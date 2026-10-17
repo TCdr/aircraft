@@ -22,7 +22,7 @@ enum HydSystem {
 }
 
 export const HydPage = () => {
-  // The engine 1 and 2 legends are amber with the engine N2 below idle (FCOM l.44057-44058, EngineRunning.ts)
+  // The engine 1 and 2 legends are amber with the engine N2 below idle (EngineRunning.ts)
   // L:vars hold plain percent: read as number (a 'percent' read is 100 times too big, FADEC_N_LVAR_UNIT)
   const [Eng1N2] = useSimVar('L:A32NX_ENGINE_N2:1', FADEC_N_LVAR_UNIT, 1000);
   const [Eng2N2] = useSimVar('L:A32NX_ENGINE_N2:2', FADEC_N_LVAR_UNIT, 1000);
@@ -529,7 +529,7 @@ const PTU = ({
     yellowElecPumpOn,
   ]);
 
-  // Amber only with the PTU pb-sw OFF (FCOM DSC-29-20, see ptuSymbolColor), not for the automatic inhibitions
+  // Amber only with the PTU pb-sw OFF (see ptuSymbolColor), not for the automatic inhibitions
   const transferColor = ptuSymbolColor(ptuPbIsAuto) === 'Amber' ? TransferColor.Amber : TransferColor.Green;
 
   const triangleFill = transferState !== TransferState.None ? 1 : 0;

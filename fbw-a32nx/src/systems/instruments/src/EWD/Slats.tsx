@@ -172,10 +172,7 @@ export class Slats extends DisplayComponent<SlatsProps> {
 
   private rightGearCompressed = false;
 
-  /**
-   * Computes the S and F colours and the S (F) LOCKED legends (FCOM l.41606-41627, see SlatFlapIndication) from the
-   * status word in use, both SFCC words, the hydraulic pressures and the engine and ground states.
-   */
+  /** The S and F colours and the S (F) LOCKED legends, see SlatFlapIndication */
   private updateSlatFlapIndications(): void {
     const status = this.sfccSlatsFlapsStatus.get();
     const sfccInvalid = status.isFailureWarning();
@@ -378,8 +375,6 @@ export class Slats extends DisplayComponent<SlatsProps> {
 
     this.sfccSlatsFlapsStatus.sub(this.setSfccStatus.bind(this), true);
 
-    // The slat / flap colours and LOCKED legends: the status word in use, both SFCC words (control lost), the
-    // hydraulic pressures and the engine and ground states
     const updateIndications = () => this.updateSlatFlapIndications();
     this.sfccSlatsFlapsStatus.sub(updateIndications);
     this.sfcc1SlatsFlapsStatus.sub(updateIndications);
@@ -488,9 +483,8 @@ export class Slats extends DisplayComponent<SlatsProps> {
         >
           A LOCK
         </text>
-        {/* S (F) LOCKED (FCOM l.41618-41620): the FCOM text gives no position. S LOCKED takes the place of A LOCK
-            above the slats (the amber failure legend before the green function legend), F LOCKED the same place
-            above the flaps */}
+        {/* S (F) LOCKED, Design choice for the position: S LOCKED takes the place of A LOCK above the slats (the amber
+            failure legend before the green function legend), F LOCKED the same place above the flaps */}
         <text
           class="Medium Center Amber"
           x={-95}

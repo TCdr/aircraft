@@ -12,7 +12,7 @@ import {
   ventilationIndication,
 } from './PressIndications';
 
-/* A320 FCOM DSC-21-20-40 (5): CAB ALT digital value pulses at or above 8800 ft (resets at 8600 ft), red above
+/* CAB ALT digital value pulses at or above 8800 ft (resets at 8600 ft), red above
    9550 ft. */
 describe('CAB PRESS page CAB ALT', () => {
   it('starts pulsing at 8800 ft', () => {
@@ -38,7 +38,7 @@ describe('CAB PRESS page CAB ALT', () => {
   });
 });
 
-/* A320 FCOM DSC-21-20-40 (3): V/S digital value pulses when V/S > 1750 ft/min (resets at 1650 ft/min). */
+/* V/S digital value pulses when V/S > 1750 ft/min (resets at 1650 ft/min). */
 describe('CAB PRESS page V/S', () => {
   it('starts pulsing above 1750 ft/min', () => {
     expect(cabinVsPulses(1750, false)).toBe(false);
@@ -62,7 +62,7 @@ describe('CAB PRESS page wiring', () => {
     expect(page).toContain('deltaPPulses(');
   });
 
-  it('pulses no needle (FCOM: only the digital presentations pulse)', () => {
+  it('pulses no needle: only the digital presentations pulse', () => {
     expect(page).not.toContain('GreenIndicatorPulse');
   });
 
@@ -76,7 +76,7 @@ describe('CAB PRESS page wiring', () => {
   });
 });
 
-/* A320 FCOM DSC-21-30-60 ECAM CAB PRESS PAGE (1) BLOWER, VENT and EXTRACT (a320_fcom.txt l.9587-9591) */
+/* CAB PRESS page BLOWER, VENT and EXTRACT */
 describe('CAB PRESS page avionics ventilation', () => {
   it('shows a white VENT alone without fault', () => {
     expect(ventilationIndication(false, false)).toEqual({ ventAmber: false, blowerShown: false, extractShown: false });

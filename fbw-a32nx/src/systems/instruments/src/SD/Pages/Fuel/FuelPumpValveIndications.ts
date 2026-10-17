@@ -12,7 +12,7 @@ export enum WingPumpIndication {
 }
 
 /**
- * The wing tank pump symbol of the SD FUEL page, A320 FCOM DSC-28-20-F WING PUMP INDICATIONS (a320_fcom.txt l.43062).
+ * The wing tank pump symbol of the SD FUEL page.
  * @param pbOn whether the pump pb-sw is ON (pump contactor on)
  * @param lowPressure whether the pump delivery pressure is low with the pb-sw ON (L:A32NX_FUEL_PUMP_n_LO_PR)
  * @param busPowered whether the bus that the SD takes as the pump supply is powered: without it, the pump cannot run
@@ -25,8 +25,7 @@ export function wingPumpIndication(pbOn: boolean, lowPressure: boolean, busPower
 }
 
 /**
- * Whether the X FEED valve symbol of the SD FUEL page is green, A320 FCOM DSC-28-20-F X FEED INDICATIONS
- * (a320_fcom.txt l.43122):
+ * Whether the X FEED valve symbol of the SD FUEL page is green:
  * - Inline - Green: The valve is open.
  * - Inline - Amber: The valve is open, with X Feed pb off.
  * - Crossline - Green: The valve is closed.
@@ -41,11 +40,11 @@ export function isCrossFeedValveGreen(openPercentage: number, pbOn: boolean): bo
 }
 
 /**
- * Whether the centre tank quantity of the SD FUEL page is boxed amber: "The center tank indication is boxed amber, if both
- * center tank transfer valves fail in the closed position" (A320 FCOM DSC-28-20-F FUEL QUANTITY - BOXED INDICATIONS,
- * a320_fcom.txt l.43222, jet pump variant).
- * @param leftFailedClosed whether the CTR TK L XFR valve is failed closed (L:A32NX_FUEL_CTR_TK_L_XFR_VALVE_FAILED_CLOSED,
- *   kept while the FLSCU commands the valve closed, systems host Fuel/FuelPumpsAndValves)
+ * Whether the centre tank quantity of the SD FUEL page is boxed amber: both centre tank transfer valves failed closed
+ * (jet pump variant).
+ * @param leftFailedClosed whether the CTR TK L XFR valve is failed closed
+ *   (L:A32NX_FUEL_CTR_TK_L_XFR_VALVE_FAILED_CLOSED, kept while the FLSCU commands the valve closed, systems host
+ *   Fuel/FuelPumpsAndValves)
  * @param rightFailedClosed the same for the CTR TK R XFR valve
  */
 export function isCentreTankQuantityBoxed(leftFailedClosed: boolean, rightFailedClosed: boolean): boolean {

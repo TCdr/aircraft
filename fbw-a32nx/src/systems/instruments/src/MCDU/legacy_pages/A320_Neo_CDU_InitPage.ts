@@ -304,7 +304,7 @@ export class CDUInitPage {
     };
     mcdu.onRightInput[1] = () => {
       if (requestEnable) {
-        // The flight number of the request, for CHECK FLT NBR (A320 FCOM l.22537, l.22549-22550)
+        // The flight number of the request, for CHECK FLT NBR
         const requestedFlightNumber = plan.flightNumber.get();
         getSimBriefOfp(mcdu, () => {
           if (mcdu.page.Current === mcdu.page.InitPageA) {

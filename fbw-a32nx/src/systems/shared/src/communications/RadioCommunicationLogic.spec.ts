@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { isRmpOperative, MsfsComCircuitSwitch, rmpFailedVar } from './RadioCommunicationLogic';
 
-describe('isRmpOperative (FCOM DSC-23-10-20 ON/OFF switch, DSC-23-60 RMP failure cases)', () => {
+describe('isRmpOperative (ON/OFF switch, RMP failure)', () => {
   it('works when powered, switched on and not failed', () => {
     expect(isRmpOperative(true, true, false)).toBe(true);
   });

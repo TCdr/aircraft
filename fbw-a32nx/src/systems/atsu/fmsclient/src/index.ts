@@ -74,11 +74,7 @@ export class FmsClient implements Instrument {
   // slow-but-working one.
   private static readonly REQUEST_TIMEOUT_MS = 360_000;
 
-  /**
-   * Removes `callback` from `array` if still present. Safe to call even if the callback already
-   * fired and was removed by its response handler (see the `this.subscriber.on(...)` handlers in
-   * the constructor) - `indexOf` just returns -1 and nothing happens.
-   */
+  /** Safe to call after the callback already fired: its response handler has then removed it already. */
   private static removeCallback<T>(array: T[], callback: T): void {
     const index = array.indexOf(callback);
     if (index !== -1) {

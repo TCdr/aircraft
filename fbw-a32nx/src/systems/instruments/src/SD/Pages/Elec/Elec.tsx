@@ -377,7 +377,7 @@ const EngineGenerator = ({ x, y, number }) => {
 
   const allParametersWithinNormalRange =
     loadWithinNormalRange && potentialWithinNormalRange && frequencyWithinNormalRange;
-  // GEN pb OFF: the number is white with the engine running, amber if not (FCOM l.37525-37528, GeneratorIndications.ts)
+  // GEN pb OFF: the number is white with the engine running, amber if not (GeneratorIndications.ts)
   const legendAmber = isEngineGeneratorLegendAmber(!!isOn, !!allParametersWithinNormalRange);
   const numberAmber = isEngineGeneratorNumberAmber(
     !!isOn,
@@ -679,7 +679,7 @@ const GalleyShed = ({ x, y }) => (
   </SvgGroup>
 );
 
-/** The IDG state the SD ELEC page shows (FCOM DSC-24-20, see IdgIndications) */
+/** The IDG state the SD ELEC page shows (see IdgIndications) */
 const useIntegratedDriveGenerator = (number: number) => {
   const [connected] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${number}_IDG_IS_CONNECTED`, 'Bool', maxStaleness);
   const [temperature] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${number}_IDG_OIL_OUTLET_TEMPERATURE`, 'Celsius', maxStaleness);
@@ -719,9 +719,8 @@ const IntegratedDriveGeneratorTemperature = ({ x, y, number }) => {
 };
 
 /**
- * The RISE of the IDG oil, in green with its unit, under the outlet temperature (FCOM DSC-24-20 (13), see
- * IdgIndications). The FCOM text gives a number only and no position: it is drawn one line under the outlet temperature,
- * aligned with it.
+ * The RISE of the IDG oil, in green with its unit (see IdgIndications). Design choice for the position: one line under
+ * the outlet temperature, aligned with it.
  */
 const IntegratedDriveGeneratorRise = ({ x, y, number }) => {
   const { temperature, inletTemperature } = useIntegratedDriveGenerator(number);

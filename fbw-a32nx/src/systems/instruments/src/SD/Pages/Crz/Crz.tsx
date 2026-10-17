@@ -201,7 +201,7 @@ export const PressureComponent = () => {
   const [deltaPShouldPulse, setDeltaPShouldPulse] = useState(false);
   const [fwcFlightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'enum', 1000);
 
-  // FCOM DSC-21-20-40 CRUISE page: V/S pulses above 1 750 ft/min (resets at 1 650 ft/min), CAB ALT at or above 8 800 ft
+  // CRUISE page: V/S pulses above 1 750 ft/min (resets at 1 650 ft/min), CAB ALT at or above 8 800 ft
   // (resets at 8 600 ft), on the displayed values: the same rules as the CAB PRESS page and the ECAM advisory
   // (PressIndications, systems-host DmcSdPageLogic/SdAdvisories)
   useEffect(() => {

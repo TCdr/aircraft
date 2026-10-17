@@ -10,7 +10,6 @@ import {
   isFuelTemperatureSensorWet,
 } from './FuelTemperature';
 
-/* A320 FCOM PRO-ABN-FUEL FUEL L (R) OUTER (INNER) TK HI TEMP (a320_fcom.txt l.85995-85998) and LO TEMP (l.86069) */
 describe('fuel temperature limits', () => {
   it('gives the HI TEMP limits of each cell on the ground and in flight', () => {
     expect(isFuelTemperatureHigh('outer', 55, true)).toBe(false);
@@ -35,7 +34,6 @@ describe('fuel temperature limits', () => {
   });
 });
 
-/* FCOM DSC-28-20 FUEL TEMPERATURE INDICATION (l.43180-43187) */
 describe('SD FUEL page temperature indication', () => {
   it('is hidden with a dry sensor and green otherwise', () => {
     expect(fuelTemperatureIndication('inner', 15, 0, true, 2)).toBe(FuelTemperatureIndication.Hidden);

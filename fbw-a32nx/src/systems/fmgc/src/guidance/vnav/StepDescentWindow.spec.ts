@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { isStepDescentInitiation } from './StepDescentWindow';
 
-describe('step descent initiation (FCOM DSC-22_20-60-100, PRO-NOR-SRP-01-50)', () => {
+describe('step descent initiation', () => {
   it('initiates the step descent when reaching the step point (STEP AHEAD, less than 20 NM)', () => {
     expect(isStepDescentInitiation(12)).toBe(true);
     expect(isStepDescentInitiation(0)).toBe(true);

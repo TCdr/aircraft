@@ -8,8 +8,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
-import { translate, Type } from '@flybywiresim/rnp';
-import { runRpn, RpnVariables } from './RpnTestInterpreter';
+import { compileRnp, runRpn, RpnVariables } from './RpnTestInterpreter';
 
 const RMP_BEHAVIOR_XML = join(__dirname, 'src', 'A32NX_Interior_RMP.xml');
 
@@ -24,16 +23,7 @@ function selLightRpn(component: 'SEQ1' | 'SEQ2', side: Side): string {
   if (!block) {
     throw new Error(`SEL ${component} EMISSIVE_CODE not found`);
   }
-  // (the XML parser of build.js reads CRLF as LF, rnp only takes LF)
-  const { messages, output } = translate(block[1].replace(/\r/g, '').replace(/&lt;/g, '<'), {
-    specifier: '(inline)',
-    returnType: Type.NUMBER,
-  });
-  const errors = messages.filter((m) => m.level === 'error');
-  if (errors.length > 0) {
-    throw new Error(`rnp: ${errors.map((m) => `${m.message} ${m.detail}`).join('; ')}`);
-  }
-  return output
+  return compileRnp(block[1])
     .replace(/#SIDE#/g, side)
     .replace(/#INDICATORS_POWERED#/g, '1')
     .replace(/#ID#/g, side === 'L' ? '1' : '2');
@@ -61,9 +51,8 @@ function selOn(side: Side, variables: RpnVariables): boolean {
 }
 
 /*
- * A320 FCOM DSC-23-10-20 SEL indicator (a320_fcom.txt l.35101-35107): "The SEL indicator on both RMPs comes on amber
- * when a transceiver, normally associated with one RMP, is tuned by another: If 2 RMP installed: VHF1 (VHF3, HF1),
- * tuned by RMP2, VHF2 (HF2), tuned by RMP1." Before, each RMP lit only its own SEL, and RMP1 lit it for VHF3.
+ * SEL indicator: comes on amber on both RMPs when a transceiver normally associated with one RMP is tuned by the other.
+ * With 2 RMPs: VHF1 (VHF3, HF1) tuned by RMP2, or VHF2 (HF2) tuned by RMP1.
  */
 describe('RMP SEL light', () => {
   it('is off in the normal configuration (RMP1 on VHF1, RMP2 on VHF2)', () => {

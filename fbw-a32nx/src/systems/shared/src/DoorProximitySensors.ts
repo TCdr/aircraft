@@ -4,8 +4,8 @@
 /*
  * The door proximity sensors of the A320, shared by the DOOR cautions (systems-host FWC/Logic/DoorAlerts.ts) and the SD
  * DOOR/OXY page (instruments SD/Pages/Door/Door.tsx), so that both agree.
- * A320 FCOM PRO-ABN-DOOR (a320_fcom.txt l.74659-74660, 74734-74735, 74809-74810): "This alert triggers when the L(R)
- * FWD(AFT) cabin door (emergency exit door, FWD(AFT) cargo door) is not detected closed by the proximity sensors."
+ * The DOOR cautions trigger when a cabin door, an emergency exit door or a cargo door is not detected closed by its
+ * proximity sensor.
  * Design choice: a failed proximity sensor (flyPad ATA 52 failure, published by systems-host Doors/DoorFailures.ts)
  * no longer detects its door closed, so the door shows not closed (amber on the DOOR/OXY page, DOOR caution) while it
  * is closed.
@@ -25,21 +25,12 @@ export const SensedDoors = [
 
 export type SensedDoor = (typeof SensedDoors)[number];
 
-/**
- * The L:var of a failed door proximity sensor
- * @param door the door
- * @returns the L:var name, e.g. L:A32NX_DOOR_L_FWD_CABIN_PROX_SENSOR_FAULT
- */
+/** The L:var of a failed door proximity sensor, e.g. L:A32NX_DOOR_L_FWD_CABIN_PROX_SENSOR_FAULT */
 export function doorProximitySensorFaultVar(door: SensedDoor): string {
   return `L:A32NX_DOOR_${door}_PROX_SENSOR_FAULT`;
 }
 
-/**
- * Whether the proximity sensors do not detect a door closed
- * @param notClosed the door is not closed
- * @param sensorFault its proximity sensor is failed
- * @returns true when the door is shown not closed
- */
+/** Whether the proximity sensors do not detect a door closed: the door is then shown not closed */
 export function isDoorDetectedNotClosed(notClosed: boolean, sensorFault: boolean): boolean {
   return notClosed || sensorFault;
 }

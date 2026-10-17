@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { ratIndication } from './RatIndication';
 
-/* A320 FCOM DSC-29-10-30 HYD page (6) RAT (a320_fcom.txt l.43983-43988) */
+/* RAT of the HYD page */
 describe('SD HYD RAT', () => {
   it('is white and stowed when the strut is in', () => {
     expect(ratIndication(0, false)).toEqual({ notStowed: false, legendAmber: false });

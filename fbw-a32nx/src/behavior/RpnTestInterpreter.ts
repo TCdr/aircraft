@@ -4,6 +4,8 @@
 // A small interpreter of the MSFS RPN the behavior specs evaluate (the operators the tested code uses), so XML panel
 // code can be unit tested. Kept outside src/ because build.js copies every file of src/.
 
+import { translate, Type } from '@flybywiresim/rnp';
+
 /** The simulator state the code reads, by variable (e.g. 'L:A32NX_RMP_L_SELECTED_MODE', 'A:COM RECEIVE EX1:1') */
 export type RpnVariables = Record<string, number>;
 
@@ -19,9 +21,24 @@ export interface RpnResult {
   writes: RpnWrite[];
 }
 
-/** Decodes the XML entities of code read from an XML file. */
 export function decodeXmlCode(code: string): string {
   return code.replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
+}
+
+/**
+ * Compiles the rnp code of an XML block (type="rnp" return="number") to RPN as build.js does. The XML parser of
+ * build.js reads CRLF as LF, rnp only takes LF.
+ */
+export function compileRnp(code: string): string {
+  const { messages, output } = translate(code.replace(/\r/g, '').replace(/&lt;/g, '<'), {
+    specifier: '(inline)',
+    returnType: Type.NUMBER,
+  });
+  const errors = messages.filter((m) => m.level === 'error');
+  if (errors.length > 0) {
+    throw new Error(`rnp: ${errors.map((m) => `${m.message} ${m.detail}`).join('; ')}`);
+  }
+  return output;
 }
 
 /** The name of a variable token without its unit: '(L:NAME, bool)' -> 'L:NAME' */

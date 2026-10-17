@@ -42,7 +42,7 @@ describe('A320 XPDR selection and failures', () => {
   });
 });
 
-describe('A320 XPDR power (FCOM ELEC AC ESS BUS SHED / AC BUS 2 FAULT)', () => {
+describe('A320 XPDR power (XPDR 1 on AC ESS SHED, XPDR 2 on AC 2)', () => {
   it('powers XPDR 1 from AC ESS SHED and XPDR 2 from AC 2', () => {
     expect(isXpdrPowered(1, true, false)).toBe(true);
     expect(isXpdrPowered(1, false, true)).toBe(false);
@@ -78,7 +78,7 @@ describe('A320 NAV ATC/XPDR STBY discretes', () => {
   });
 });
 
-describe('A320 NAV ATC/XPDR FAULT alerts (FCOM PRO-ABN-NAV)', () => {
+describe('A320 NAV ATC/XPDR FAULT alerts', () => {
   it('needs the transponder failed with its bus powered (a bus loss is an ELEC alert)', () => {
     expect(xpdrFaultCondition(1, true, true, true)).toBe(true);
     expect(xpdrFaultCondition(1, true, false, true)).toBe(false);
@@ -100,7 +100,7 @@ describe('A320 NAV ATC/XPDR FAULT alerts (FCOM PRO-ABN-NAV)', () => {
     expect(isXpdrSwitchLineShown(2, 2, true)).toBe(true);
   });
 
-  it('lists the FCOM INOP SYS of NAV ATC/XPDR 1+2 FAULT in the FCOM order', () => {
+  it('lists the INOP SYS of NAV ATC/XPDR 1+2 FAULT in the aircraft order', () => {
     const page = formatStatusPage([], ['340300008', '340300007', '340300006', '340300005', '340300004']);
     expect(page.right).toBe(
       [
@@ -134,7 +134,7 @@ describe('A320 NAV ATC/XPDR FAULT E/WD texts', () => {
 });
 
 describe('A320 TCAS without transponder', () => {
-  it('goes to standby only when both transponders are lost (FCOM TCAS STBY memo: both ATCs failed)', () => {
+  it('goes to standby only when both transponders are lost (TCAS STBY memo: both ATCs failed)', () => {
     expect(isTcasStandbyWithoutXpdr(true, true)).toBe(true);
     expect(isTcasStandbyWithoutXpdr(true, false)).toBe(false);
     expect(isTcasStandbyWithoutXpdr(false, true)).toBe(false);

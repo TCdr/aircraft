@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The boxed fuel quantity indications of the E/WD and of the SD FUEL page, A320 FCOM DSC-28-20 (transfer valve
- * variant of the centre tank):
- * - FUEL QUANTITY - BOXED INDICATIONS (a320_fcom.txt l.43219-43223): "The outer indication is boxed amber, if both
- *   transfer valves fail to open when the inner is at low level. The center tank indication is boxed amber, if both
- *   center tank transfer valves fail in the closed position."
- * - E/WD TOTAL FUEL INDICATION (l.43341-43345): "A half amber box appears around FOB, when the displayed quantity is not
- *   all usable (intercell transfer valve failure or both center tank transfer valves fail in the closed position)."
- * - SD FUEL page FOB (l.43275-43278): "The indication is half-boxed in amber, if: Center tank pumps fail, or are switched
- *   OFF. Both transfer valves fail to open, when the inner tank is at low level. Any ACT is not usable." (the pump line
- *   is the centre tank pump variant; this aircraft has transfer valves, no ACT).
+ * The boxed fuel quantity indications of the E/WD and of the SD FUEL page (aircraft with centre tank transfer valves):
+ * - The outer tank quantity is boxed amber when both transfer valves of the wing fail to open with the inner tank at
+ *   low level; the centre tank quantity is boxed amber when both centre tank transfer valves fail closed.
+ * - The FOB (E/WD and SD FUEL page) gets a half amber box when some displayed fuel is not usable: an outer transfer
+ *   valve failure, or both centre tank transfer valves failed closed. The centre tank pump and ACT conditions of other
+ *   aircraft do not apply: this aircraft has transfer valves, no ACT.
  * Inputs (systems host Fuel/FuelPumpsAndValves): L:A32NX_FUEL_L(R)_OUTER_XFR_CLOSED (both outer transfer valves of a wing
  * still closed with the inner tank at low level, confirmed) and L:A32NX_FUEL_CTR_TK_L(R)_XFR_VALVE_FAILED_CLOSED.
  * Not simulated: the FQI degraded mode, so the two dashes across the last two FOB digits never show.

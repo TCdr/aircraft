@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { NavRadioUtils } from './NavRadioUtils';
 
-// A320 FCOM DSC-22_20-50-10-28 RADIO NAV page ADF/BFO prompt, a320_fcom.txt l.21521-21523
+// The MCDU RADIO NAV page ADF/BFO prompt: the BFO is a mode of a tuned ADF
 describe('NavRadioUtils ADF BFO', () => {
   it('names the BFO L:var of each ADF', () => {
     expect(NavRadioUtils.adfBfoVar(1)).toBe('L:A32NX_ADF_1_BFO_ON');

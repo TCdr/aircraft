@@ -28,7 +28,7 @@ function maintWord(flags: number, ssm = Arinc429SignStatusMatrix.NormalOperation
   return Arinc429Register.empty().set(Arinc429Word.getRawWord(flags, ssm));
 }
 
-describe('MCDU IRS MONITOR page (A320 FCOM DSC-22_20-50-10-28)', () => {
+describe('MCDU IRS MONITOR page', () => {
   it('asks for a heading while an IR is in ATT mode without one', () => {
     expect(irsStatusMessage(maintWord(REV_ATT_MODE))).toBe('ENTER HEADING');
   });

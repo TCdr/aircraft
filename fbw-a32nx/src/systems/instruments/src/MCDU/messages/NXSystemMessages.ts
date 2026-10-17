@@ -68,21 +68,16 @@ export const NXSystemMessages = {
   awyWptMismatch: new TypeIMessage('AWY/WPT MISMATCH'),
   cancelAtisUpdate: new TypeIMessage('CANCEL UPDATE BEFORE'), // FIXME move out of FMS
   checkAltnWind: new TypeIIMessage('CHECK ALTN WIND'),
-  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22532, l.22539-22541): II/W
   checkDataBaseCycle: new TypeIIMessage('CHECK DATA BASE CYCLE'),
-  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22534, l.22543-22547): II/A
   checkDestData: new TypeIIMessage('CHECK DEST DATA', true),
-  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22537, l.22549-22550): II/A, the uplinked flight number
-  // differs from the one of the request
+  // the uplinked flight number differs from the one of the request
   checkFltNbr: new TypeIIMessage('CHECK FLT NBR', true),
   checkMinDestFob: new TypeIIMessage('CHECK MIN DEST FOB'),
   checkToData: new TypeIIMessage('CHECK TAKE OFF DATA', true),
   checkWeight: new TypeIIMessage('CHECK WEIGHT', true),
   comUnavailable: new TypeIMessage('COM UNAVAILABLE'), // FIXME move out of FMS
-  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22601, l.22620-22621): II/W
   crzFlAboveMaxFl: new TypeIIMessage('CRZ FL ABOVE MAX FL'),
-  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22602, l.22623-22625): II/W, altitude constraints at or
-  // above a new CRZ FL deleted (l.15144-15162)
+  // the altitude constraints at or above a new CRZ FL are deleted
   cstrDelAboveCrzFl: new TypeIIMessage('CSTR DEL ABOVE CRZ FL'),
   cstrDelUpToWpt: new TypeIIMessage('CSTR DEL UP TO WWWWW', false, 'WWWWW'),
   databaseCodingError: new TypeIIMessage('DATABASE CODING ERROR'),
@@ -111,13 +106,11 @@ export const NXSystemMessages = {
   notAllowedInNav: new TypeIMessage('NOT ALLOWED IN NAV'),
   notInDatabase: new TypeIMessage('NOT IN DATABASE'),
   onlySpdEntryAllowed: new TypeIMessage('ONLY SPD ENTRY ALLOWED'),
-  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22912-22918): II/W, "A printer communication error was
-  // detected while printing a report. The printing was terminated." (the cockpit printer failure, legacy/McduPrinter)
+  // the cockpit printer failure stopped the print (legacy/McduPrinter)
   printerNotAvailable: new TypeIIMessage('PRINTER NOT AVAILABLE'),
   rwyLsMismatch: new TypeIIMessage('RWY/LS MISMATCH', true),
   selectDesiredSystem: new TypeIMessage('SELECT DESIRED SYSTEM'), // FIXME move out of FMS (is part of MCDU itself)
-  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.23020-23028): I/W, the FUEL PRED FOB sensors selected
-  // (or the FF sensor of a FOB entry) are invalid
+  // the FUEL PRED FOB sensors selected (or the FF sensor of a FOB entry) are invalid
   sensorIsInvalid: new TypeIMessage('SENSOR IS INVALID'),
   setHoldSpeed: new TypeIIMessage('SET HOLD SPEED'),
   setManagedSpeed: new TypeIIMessage('SET MANAGED SPEED'),
@@ -125,10 +118,9 @@ export const NXSystemMessages = {
   systemBusy: new TypeIMessage('SYSTEM BUSY-TRY LATER'), // FIXME move out of FMS
   toSpeedTooLow: new TypeIIMessage('TO SPEEDS TOO LOW', true),
   uplinkInsertInProg: new TypeIIMessage('UPLINK INSERT IN PROG'),
-  // A320 FCOM DSC-22_45 TAKEOFF DATA FUNCTION
   takeoffDataUplink: new TypeIIMessage('TAKEOFF DATA UPLINK'),
   invalidTakeoffUplink: new TypeIMessage('INVALID TAKEOFF UPLINK'),
-  // A320 FCOM DSC-22_20-50-10-28 P 92 (UPLINK MAX TO DATA page)
+  // on the UPLINK MAX TO DATA page
   requestIsPending: new TypeIMessage('REQUEST IS PENDING'),
   usingCostIndex: new TypeIMessage('USING COST INDEX: NNN', false, 'NNN'),
   vToDisagree: new TypeIIMessage('V1/VR/V2 DISAGREE', true),
@@ -138,7 +130,6 @@ export const NXSystemMessages = {
   stepAhead: new TypeIIMessage('STEP AHEAD'),
   stepDeleted: new TypeIIMessage('STEP DELETED'),
   temporaryFplnExists: new TypeIMessage('TEMPORARY F-PLN EXISTS'),
-  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.23095, l.23116-23118): II/A
   timeToExit: new TypeIIMessage('TIME TO EXIT', true),
   windTempDataUplk: new TypeIIMessage('WIND/TEMP DATA UPLK'),
   windTempUplkPending: new TypeIIMessage('WIND/TEMP UPLK PENDING', true),

@@ -13,7 +13,7 @@ import { apuBleedValveDisplay, isApuLowOilLevelShown, isApuPageAvailVisible } fr
 import './Apu.scss';
 
 export const ApuPage = () => {
-  // AVAIL from APU N above 95 % (FCOM l.60758-60759, ApuIndications.ts)
+  // AVAIL from APU N above 95 % (ApuIndications.ts)
   const apuN = useArinc429Var('L:A32NX_APU_N', 100);
   const apuAvail = isApuPageAvailVisible(apuN.isNormalOperation(), apuN.value);
 
@@ -173,7 +173,7 @@ const ApuBleed = ({ x, y }: ComponentPositionProps) => {
 
   // FIXME should be APU bleed absolute pressure label from SDAC
   const apuBleedPressAvailable = apuN.isNormalOperation() && correctedAverageStaticPressure.isNormalOperation();
-  // The valve status comes from the ECB: amber XX when its data are not available (FCOM l.60763-60770, ApuIndications.ts)
+  // The valve status comes from the ECB: amber XX when its data are not available (ApuIndications.ts)
   const valveDisplay = apuBleedValveDisplay(apuN.isNormalOperation(), !!apuBleedOpen, apuBleedPbOnConfirmed);
   const valveColour = valveDisplay === 'crossline-amber' || valveDisplay === 'xx-amber' ? 'Amber' : 'Green';
   return (
@@ -514,7 +514,7 @@ const ApuMemos = ({ x, y }: ComponentPositionProps) => {
           </text>
         )}
 
-        {/* LOW OIL LEVEL advisory (FCOM l.60848-60850), between FUEL LO PR and FLAP OPEN: the FCOM text gives no position */}
+        {/* LOW OIL LEVEL advisory, Design choice for the position: between FUEL LO PR and FLAP OPEN */}
         {isApuLowOilLevelShown(lowOilLevel.isNormalOperation(), !!lowOilLevel.value) && (
           <text className="Green FontNormal FillPulse" x={0} y={30}>
             LOW OIL LEVEL

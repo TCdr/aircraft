@@ -46,7 +46,6 @@ export class CDUProgressPage {
     /** The crew reference waypoint and its time (s of the day) */
     waypointIdent: null as string | null,
     waypointEta: null as number | null,
-    /** The deselected satellites */
     deselectedSatellites: [] as number[],
   };
 
@@ -187,7 +186,7 @@ export class CDUProgressPage {
       });
     };
 
-    // POSITION UPDATE AT [3L], CONFIRM UPDATE AT [3R] (A320 FCOM DSC-22_20-30-10-18, see PositionMonitorFields)
+    // POSITION UPDATE AT [3L], CONFIRM UPDATE AT [3R] (see PositionMonitorFields)
     if (gpsPrimary) {
       CDUProgressPage.pendingPositionUpdate = null;
     }
@@ -230,7 +229,7 @@ export class CDUProgressPage {
       if (pending === null) {
         return;
       }
-      // "When the aircraft position is computed based on GPIRS, [...] NOT ALLOWED" (a320_fcom.txt l.14784-14786)
+      // NOT ALLOWED while the aircraft position comes from the GPIRS
       if (!mcdu.navigation.updatePositionAt(pending.location)) {
         mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
         scratchpadCallback();
@@ -315,8 +314,7 @@ export class CDUProgressPage {
   }
 
   /**
-   * The REPORT page (A320 FCOM DSC-22_20-50-10-28 REPORT PAGE, a320_fcom.txt l.21408-21469, see ProgressReportFields):
-   * no data can be inserted or modified on it (l.21469).
+   * The REPORT page (see ProgressReportFields): no data can be inserted or modified on it.
    */
   static ShowReportPage(mcdu: LegacyFmsPageInterface) {
     const plan = mcdu.flightPlanService.active;
@@ -346,7 +344,7 @@ export class CDUProgressPage {
       fobCell = overhead.fob !== null ? overhead.fob.toFixed(1) : '---.-';
     }
 
-    // TO and NEXT: the predicted time and altitude, the same as on the F-PLN pages (l.21434-21440)
+    // TO and NEXT: the predicted time and altitude, the same as on the F-PLN pages
     const fmsGeometryProfile = mcdu.guidanceController?.vnavDriver.mcduProfile;
     const predictions = fmsGeometryProfile?.isReadyToDisplay ? fmsGeometryProfile.waypointPredictions : null;
     const predictionCells = (legIndex: number): [string, string] => {
@@ -380,7 +378,7 @@ export class CDUProgressPage {
       }
     }
 
-    // T/D (S/C, S/D): the next change of the cruise profile, in the cruise phase only (l.21446-21448)
+    // T/D (S/C, S/D): the next change of the cruise profile, in the cruise phase only
     const cruiseProfileChange = nextCruiseProfileChange(
       mcdu.guidanceController ? mcdu.guidanceController.currentPseudoWaypoints : [],
       mcdu.flightPhaseManager.phase === FmgcFlightPhase.Cruise,
@@ -391,7 +389,7 @@ export class CDUProgressPage {
         ? `${mcdu.getTimePrediction(cruiseProfileChange.secondsFromPresent, FlightPlanIndex.Active)}\xa0${Math.round(cruiseProfileChange.distance).toFixed(0).padStart(4, '\xa0')}`
         : '';
 
-    // DEST: the time, distance and EFOB of the F-PLN pages (l.21464-21467)
+    // DEST: the time, distance and EFOB of the F-PLN pages
     let destCell = '';
     let destUTCCell = '----';
     let destDistCell = '----';
@@ -445,8 +443,7 @@ export class CDUProgressPage {
   }
 
   /**
-   * The PREDICTIVE GPS page (A320 FCOM DSC-22_20-50-10-28 PREDICTIVE GPS PAGE, a320_fcom.txt l.21346-21404, see
-   * PredictiveGpsFields).
+   * The PREDICTIVE GPS page (see PredictiveGpsFields).
    */
   static ShowPredictiveGPSPage(mcdu: LegacyFmsPageInterface) {
     mcdu.clearDisplay();
@@ -461,7 +458,7 @@ export class CDUProgressPage {
     const gpsAvailable =
       !!mcdu.navigation && (mcdu.navigation.getGpsPosition(1) !== null || mcdu.navigation.getGpsPosition(2) !== null);
 
-    // DEST and its ETA: "Dashes appear in this field, when no destination airport exists" (l.21356-21359)
+    // DEST and its ETA: dashes without a destination airport
     const destination = plan.destinationAirport;
     if ((destination ? destination.ident : null) !== entries.destinationIdent) {
       entries.destinationIdent = destination ? destination.ident : null;
@@ -502,7 +499,7 @@ export class CDUProgressPage {
       };
     }
 
-    // WPT and its reference time: blue brackets, then amber boxes for the time (l.21388-21396)
+    // WPT and its reference time: blue brackets, then amber boxes for the time
     let waypointCell = '[\xa0\xa0\xa0\xa0\xa0][color]cyan';
     let waypointEtaCell = '';
     if (entries.waypointIdent !== null) {
@@ -557,7 +554,7 @@ export class CDUProgressPage {
       CDUProgressPage.ShowPredictiveGPSPage(mcdu);
     };
 
-    // DESELECTED SATELLITES: up to four, CLR cancels the deselection (l.21398-21404)
+    // DESELECTED SATELLITES: up to four, CLR cancels the deselection
     mcdu.onLeftInput[4] = (value, scratchpadCallback) => {
       if (value === Keypad.clrValue) {
         entries.deselectedSatellites = [];

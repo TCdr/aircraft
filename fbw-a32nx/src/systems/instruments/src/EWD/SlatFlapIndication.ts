@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The S and F legends, the slat and flap position indications and the S (F) LOCKED legend of the E/WD, A320 FCOM
- * DSC-27-50 FLAPS/SLATS INDICATION ON E/WD (a320_fcom.txt l.41606-41627):
- * - (2) F and S: "normally appear in white. They become amber, if: Both relevant hydraulic systems fail, unless the
- *   aircraft is on ground with both engines stopped. The wingtip brakes are on. There is a slats or flaps fault."
- * - "S (F) LOCKED legend, appears in amber, in association with an ECAM caution, when the wingtip brakes are applied, or
- *   when the system detects a non-alignment between two flaps."
- * - (3) Flaps/Slats actual position: green, amber on the same three conditions as (2).
- * The slats use the green and blue hydraulic systems, the flaps the yellow and green ones (DSC-27-50 l.41402).
+ * The S and F legends, the slat and flap position indications and the S (F) LOCKED legend of the E/WD:
+ * - S and F: white, amber when both relevant hydraulic systems fail (unless on ground with both engines stopped), when
+ *   the wingtip brakes are on, or with a slats (flaps) fault.
+ * - S (F) LOCKED: amber, with an ECAM caution, when the wingtip brakes are applied or two flaps are not aligned.
+ * - The slat (flap) position: green, amber on the same conditions as S and F.
+ * The slats use the green and blue hydraulic systems, the flaps the yellow and green ones.
  *
  * Design choices:
  * - The wingtip brakes are the WTB engaged bits of the SFCC status word (15 slats, 16 flaps). The SFCC model has no
@@ -18,7 +16,7 @@
  * - "A slats (flaps) fault" is the loss of the slat (flap) control: the channel fault bit (11 slats, 12 flaps) in both
  *   SFCCs, or one SFCC failed and the other with the fault bit. A single channel failure (SLAT/FLAP SYS 1(2) FAULT)
  *   only slows the surfaces down.
- * - An invalid status word (both SFCCs lost) keeps the amber indications of the previous code.
+ * - An invalid status word (both SFCCs lost) shows the indications amber.
  * - "Both engines stopped": neither FADEC engine state is ON (L:A32NX_ENGINE_STATE), a starting engine is not running.
  */
 export interface SlatFlapIndicationInputs {

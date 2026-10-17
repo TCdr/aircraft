@@ -6,9 +6,7 @@ import { PositionMonitorReading, positionMonitorLines } from './PositionMonitorF
 
 export class CDUPosFrozen {
   /**
-   * The POSITION MONITOR page frozen: "the title of the page specifies the time at which it was frozen" (A320 FCOM
-   * DSC-22_20-50-10-28 [6L]), the data of that moment.
-   * @param mcdu the MCDU
+   * The POSITION MONITOR page frozen: the title gives the time of the freeze, the data is the data of that moment.
    * @param reading the POSITION MONITOR data when the page was frozen
    */
   static ShowPage(mcdu: LegacyFmsPageInterface, reading: PositionMonitorReading) {

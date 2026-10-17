@@ -16,7 +16,7 @@ import {
   selectedSpeedAsCas,
 } from './FmsMessageConditions';
 
-describe('constraints at or above the CRZ FL (A320 FCOM l.15144-15160, A380 FCOM l.27100-27104)', () => {
+describe('constraints at or above the CRZ FL', () => {
   const at = (altitude1: number) => ({ altitudeDescriptor: AltitudeDescriptor.AtAlt1, altitude1 });
 
   it('deletes the AT, AT OR ABOVE and AT OR BELOW constraints at or above the CRZ FL', () => {
@@ -89,7 +89,7 @@ describe('constraints at or above the CRZ FL (A320 FCOM l.15144-15160, A380 FCOM
   });
 });
 
-describe('CHECK FLT NBR (A320 FCOM l.22537, l.22549-22550)', () => {
+describe('CHECK FLT NBR', () => {
   it('is raised when the uplinked flight number differs from the one of the request', () => {
     expect(isUplinkedFlightNumberDifferent('AIB1234', 'AIB5678')).toBe(true);
     expect(isUplinkedFlightNumberDifferent('aib1234', 'AIB1234 ')).toBe(false);
@@ -102,7 +102,7 @@ describe('CHECK FLT NBR (A320 FCOM l.22537, l.22549-22550)', () => {
   });
 });
 
-describe('RECEIVED FLT NUMBER NOT VALID (A380 FCOM l.43411-43417, l.45976-45982)', () => {
+describe('RECEIVED FLT NUMBER NOT VALID', () => {
   it('accepts 1 to 10 alphanumeric characters', () => {
     expect(isValidA380FlightNumber('AFR1')).toBe(true);
     expect(isValidA380FlightNumber('SIA0321ABC')).toBe(true);
@@ -117,7 +117,7 @@ describe('RECEIVED FLT NUMBER NOT VALID (A380 FCOM l.43411-43417, l.45976-45982)
   });
 });
 
-describe('CHECK EO SPD SETTING (A380 FCOM l.45016, l.45020-45026)', () => {
+describe('CHECK EO SPD SETTING', () => {
   it('is raised in engine out, in climb or cruise, with a selected speed more than 10 kt from green dot', () => {
     expect(isEngineOutSpeedSettingWrong(true, FmgcFlightPhase.Climb, false, 250, 230)).toBe(true);
     expect(isEngineOutSpeedSettingWrong(true, FmgcFlightPhase.Cruise, false, 215, 230)).toBe(true);
@@ -137,7 +137,7 @@ describe('CHECK EO SPD SETTING (A380 FCOM l.45016, l.45020-45026)', () => {
   });
 });
 
-describe('NO NAV INTERCEPTION (A380 FCOM l.45787, l.45791-45794)', () => {
+describe('NO NAV INTERCEPTION', () => {
   // a leg from 1 degree west to 1 degree east along the equator, the TO waypoint east
   const from = { lat: 0, long: -1 };
   const to = { lat: 0, long: 1 };
@@ -183,7 +183,7 @@ describe('CHECK EO SPD SETTING selected speed as a CAS', () => {
   });
 });
 
-describe('NO NAV INTERCEPTION conditions (A380 FCOM l.45787, l.45791-45794)', () => {
+describe('NO NAV INTERCEPTION conditions', () => {
   const leg = { start: { lat: 0, long: -1 }, end: { lat: 0, long: 1 } };
   const south = { lat: -0.5, long: 0 };
 

@@ -60,7 +60,7 @@ describe('SD engine numbers with the engine at idle (FADEC N1/N2 L:var units)', 
     SimVar.GetSimVarValue = originalGetSimVarValue;
   });
 
-  it('keeps the BLEED page engine number white and the IP/HP lines green (FCOM l.57846-57848)', () => {
+  it('keeps the BLEED page engine number white and the IP/HP lines green', () => {
     act(() => {
       ReactDOM.render(
         <svg>
@@ -87,7 +87,7 @@ describe('SD engine numbers with the engine at idle (FADEC N1/N2 L:var units)', 
     expect(container.querySelectorAll('path.AmberLine').length).toBe(0);
   });
 
-  it('keeps the HYD page engine 1 and 2 legends white (FCOM l.44057-44058)', () => {
+  it('keeps the HYD page engine 1 and 2 legends white', () => {
     act(() => {
       ReactDOM.render(<HydPage />, container);
     });

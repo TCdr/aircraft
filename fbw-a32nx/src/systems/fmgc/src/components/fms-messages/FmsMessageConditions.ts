@@ -6,8 +6,8 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 import { Coordinates, distanceTo } from 'msfs-geo';
 
 /*
- * The trigger conditions of FMS messages of the A320 MCDU message list (a320_fcom.txt l.22472-23180) and of the A380
- * MFD message list (a380_fcom.txt l.44767-46377), as pure functions shared by both aircraft.
+ * The trigger conditions of FMS messages of the A320 MCDU and of the A380 MFD, as pure functions shared by both
+ * aircraft.
  */
 
 /** A send or recall of a type II message, by its text */
@@ -48,9 +48,9 @@ export interface RnpMessage {
 }
 
 /**
- * AREA RNP IS XX.XX (A320 l.22494-22497, A380 l.44876-44881): the RNP manually entered is larger than the default RNP of
- * the flight area, and the database has no RNP for the active leg. PROCEDURE RNP IS / PROC RNP IS XX.XX (A320
- * l.22919-22921, A380 l.45916-45920): the RNP manually entered is larger than the RNP of the database for the active leg.
+ * AREA RNP IS XX.XX: the RNP manually entered is larger than the default RNP of the flight area, and the database has
+ * no RNP for the active leg. PROCEDURE RNP IS / PROC RNP IS XX.XX: the RNP manually entered is larger than the RNP of
+ * the database for the active leg.
  * @param pilotRnp the RNP entered by the flight crew, null without entry
  * @param legRnp the RNP of the active leg in the database, undefined or null without one
  * @param areaRnp the default RNP of the current flight area
@@ -87,9 +87,8 @@ export function utcCalendarDate(year: number, month: number, day: number): strin
 }
 
 /**
- * Whether the date is in the effectivity of the active navigation database: else CHECK DATA BASE CYCLE (A320
- * l.22539-22541) / CHECK DATABASE CYCLE (A380 l.44998-45003) "The current date does not match the effectivity of the
- * active navigation database". An unknown effectivity raises nothing.
+ * Whether the date is in the effectivity of the active navigation database: else CHECK DATA BASE CYCLE (A320) /
+ * CHECK DATABASE CYCLE (A380). An unknown effectivity raises nothing.
  * @param today the UTC date (utcCalendarDate)
  * @param ident the effectivity of the active database, null when unknown
  */
@@ -103,11 +102,11 @@ export function isNavDatabaseCycleCurrent(
   return today >= ident.effectiveFrom && today <= ident.effectiveTo;
 }
 
-/** CHECK IRS/AIRPORT POS (A320 l.22552-22553): "is at least 5 NM" */
-export const IRS_AIRPORT_POSITION_DISAGREE_NM = 5;
+/** CHECK IRS/AIRPORT POS: an IRS alignment position this far or farther from the airport, NM */
+const IRS_AIRPORT_POSITION_DISAGREE_NM = 5;
 
 /**
- * CHECK IRS/AIRPORT POS (A320 l.22552-22553) / CHECK IRS / ARPT POSITION (A380 l.45028-45033): the distance between an
+ * CHECK IRS/AIRPORT POS (A320) / CHECK IRS / ARPT POSITION (A380): the distance between an
  * IRS alignment position and the database airport reference point is at least 5 NM.
  * @param irsPositions the IRS positions, null for an IRS without a valid position
  * @param airport the airport reference point, null without an airport
@@ -124,11 +123,11 @@ export function isIrsAirportPositionDisagree(
   );
 }
 
-/** IRS ONLY NAVIGATION (A320 l.22750-22756): "for more than 10 min" */
+/** IRS ONLY NAVIGATION: the time in IRS only navigation after which the message is shown */
 export const IRS_ONLY_NAVIGATION_DELAY_MS = 10 * 60_000;
 
 /**
- * IRS ONLY NAVIGATION (A320 l.22750-22756): the aircraft is neither in an approach nor in a terminal area, and it has
+ * IRS ONLY NAVIGATION (A320): the aircraft is neither in an approach nor in a terminal area, and it has
  * been in IRS only navigation for more than 10 min, or it is in IRS only navigation at the start of the descent phase.
  * Design choice: in flight only (climb, cruise, descent phases).
  */
@@ -154,7 +153,7 @@ export class IrsOnlyNavigationLogic {
 }
 
 /**
- * TIME TO EXIT (A320 l.23116-23118, A380 l.46252-46256): in the holding, the extra fuel is zero (or less)
+ * TIME TO EXIT: in the holding, the extra fuel is zero (or less)
  * @param inHolding the active leg is a holding
  * @param extraFuel the extra fuel, null without predictions
  */
@@ -165,8 +164,8 @@ export function isTimeToExitHolding(inHolding: boolean, extraFuel: number | null
 const SECONDS_PER_DAY = 86_400;
 
 /**
- * Whether the clock has passed a time of day since the previous check (T.O TIME REACHED, A380 l.46287-46291: the aircraft
- * clock reaches the ETT), across midnight
+ * Whether the clock has passed a time of day since the previous check (T.O TIME REACHED, A380: the aircraft clock
+ * reaches the ETT), across midnight
  * @param previousClock the clock at the previous check, s of the UTC day, null at the first check
  * @param clock the clock now, s of the UTC day
  * @param time the time to reach, s of the UTC day
@@ -181,7 +180,7 @@ export function hasClockReachedTime(previousClock: number | null, clock: number,
 }
 
 /**
- * EXPECT TURN AREA EXCEEDANCE (A380 l.45384-45389): the active or the next leg is a procedure turn that exceeds the
+ * EXPECT TURN AREA EXCEEDANCE (A380): the active or the next leg is a procedure turn that exceeds the
  * excursion distance of the navigation database
  * @param legs the active and next legs of the guidance geometry
  */
@@ -192,8 +191,8 @@ export function isProcedureTurnExceedanceAhead(
 }
 
 /**
- * ENTER DEST DATA (A320 l.22665, l.22668-22669): a destination QNH, temperature or wind is missing. CHECK DEST DATA (A320
- * l.22534, l.22543-22547): the destination data were received by uplink (the wind not entered by the flight crew).
+ * ENTER DEST DATA: a destination QNH, temperature or wind is missing. CHECK DEST DATA: the destination data were
+ * received by uplink (the wind not entered by the flight crew).
  * @param qnh the approach QNH, null when missing
  * @param temperature the approach temperature, null when missing
  * @param windDirection the approach wind direction, null when missing
@@ -220,16 +219,12 @@ export type CruiseLevelConstraintAction =
 /**
  * The automatic deletion of the altitude constraints at or above the CRZ FL.
  *
- * A320 FCOM DSC-22_20-30-20-05 ALTITUDE CONSTRAINT (a320_fcom.txt l.15144-15160): "The FMS automatically deletes from the
- * F-PLN: - The altitude constraints ("AT", "AT OR ABOVE", or "AT OR BELOW") with values equal to the CRZ FL, or greater
- * than the CRZ FL - The altitude constraint windows with lower constraints equal to the CRZ FL, or greater than the CRZ
- * FL - The upper constraint of altitude constraint windows with upper constraints equal to the CRZ FL, or greater than
- * the CRZ FL. If the lower constraint of the altitude constraint window is below the CRZ FL, the FMS deletes only the
- * upper constraint [...] and keeps the lower constraint". Message CSTR DEL ABOVE CRZ FL (l.22602, l.22623-22625).
- * A380 FCOM DSC-22-FMS-10-40-60 (a380_fcom.txt l.27100-27104): "When the CRZ FL or step altitudes are changed, the
- * following constraints are deleted: The climb and descent constraints, that are at or above the new CRZ FL [...]".
- * Message CONSTRAINTS ABOVE CRZ FL: DELETED (l.45252, l.45260-45262). Design choice: the A380 FCOM does not detail the
- * windows, the A320 rule is used for them.
+ * A320: the FMS deletes the AT, AT OR ABOVE and AT OR BELOW constraints at or above the CRZ FL, and the windows whose
+ * lower limit is at or above it. A window across the CRZ FL loses only its upper limit and keeps its lower one. Message
+ * CSTR DEL ABOVE CRZ FL.
+ * A380: a change of the CRZ FL or of a step altitude deletes the climb and descent constraints at or above the new CRZ
+ * FL. Message CONSTRAINTS ABOVE CRZ FL: DELETED. Design choice: the A380 rule does not detail the windows, the A320
+ * rule is used for them.
  * @param constraint the altitude constraint of the leg
  * @param cruiseAltitude the CRZ FL as an altitude, ft
  * @returns the action, or null when the constraint stays
@@ -274,9 +269,7 @@ export interface ConstraintLegLike {
 
 /** A constraint to delete (or to cut to its lower limit) after a CRZ FL change */
 export interface CruiseLevelConstraintChange {
-  /** The index of the leg in the flight plan */
   index: number;
-  /** The constraint is a descent constraint */
   isDescent: boolean;
   action: CruiseLevelConstraintAction;
 }
@@ -310,8 +303,8 @@ export function constraintsAboveCruiseLevel(
 }
 
 /**
- * CHECK FLT NBR (A320 FCOM l.22537, l.22549-22550): "The uplinked flight number differs from the flight number specified
- * in the request." The INIT REQUEST is sent with the flight number of the INIT A page (none: nothing to compare).
+ * CHECK FLT NBR: the uplinked flight number differs from the flight number of the request. The INIT REQUEST is sent
+ * with the flight number of the INIT A page (none: nothing to compare).
  * @param requested the flight number when the request was sent, null if none
  * @param uplinked the flight number of the uplinked flight plan
  */
@@ -324,22 +317,20 @@ export function isUplinkedFlightNumberDifferent(
 }
 
 /**
- * The A380 FLT NBR entry format (a380_fcom.txt l.43411-43417): "Maximum 10 alphanumeric characters". RECEIVED FLT
- * NUMBER NOT VALID (l.45976-45982): "The received flight number, that is part of the up linked flight plan data, is not
- * valid."
+ * The A380 FLT NBR entry format: at most 10 letters and digits. A received flight number in another format raises
+ * RECEIVED FLT NUMBER NOT VALID.
  * @param flightNumber the received flight number
  */
 export function isValidA380FlightNumber(flightNumber: string | null | undefined): boolean {
   return flightNumber !== null && flightNumber !== undefined && /^[A-Z0-9]{1,10}$/.test(flightNumber.toUpperCase());
 }
 
-/** CHECK EO SPD SETTING (A380 FCOM l.45024-45026): "(GREENDOT - 10 kt, GREENDOT + 10 kt)" */
-export const ENGINE_OUT_SPEED_MARGIN = 10;
+/** CHECK EO SPD SETTING: the selected speed must stay within green dot plus or minus this margin, kt */
+const ENGINE_OUT_SPEED_MARGIN = 10;
 
 /**
- * CHECK EO SPD SETTING (A380 FCOM l.45016, l.45020-45026): "In CLIMB, or CRUISE (and the guidance mode is not ALT* or
- * ALT): the engine-out (EO) mode is active, and the selected speed target is not within the range (GREENDOT - 10 kt,
- * GREENDOT + 10 kt)."
+ * CHECK EO SPD SETTING (A380): in climb or cruise, with the vertical mode neither ALT* nor ALT, the engine-out mode is
+ * active and the selected speed target is more than 10 kt away from green dot.
  * @param engineOut the FMS engine-out mode is active
  * @param phase the flight phase
  * @param verticalModeIsAlt the vertical mode is ALT or ALT* (ALT CPT)
@@ -386,16 +377,15 @@ export function selectedSpeedAsCas(
   return currentMach > 0.1 && Number.isFinite(currentCas) ? (selectedValue * currentCas) / currentMach : null;
 }
 
-/** NM per degree of latitude */
 const NM_PER_DEGREE = 60;
 
 /** An aircraft closer to the leg than this is on the leg, NM */
 const ON_LEG_DISTANCE = 0.1;
 
 /**
- * Whether the aircraft track intercepts a straight leg before its end (the TO waypoint), for NO NAV INTERCEPTION (A380
- * FCOM l.45787, l.45791-45794): "The selected HDG/TRACK does not intercept the flight plan before the TO waypoint. No
- * interception path is displayed on the ND."
+ * Whether the aircraft track intercepts a straight leg before its end (the TO waypoint), for NO NAV INTERCEPTION
+ * (A380): the selected HDG/TRACK does not intercept the flight plan before the TO waypoint, and the ND shows no
+ * interception path.
  * Design choice: a flat earth around the aircraft (a leg of a few hundred NM at most), the track as a ray from the
  * aircraft, and the leg as the segment from its start to the TO waypoint. An aircraft on the leg intercepts it.
  * @param aircraft the aircraft position
@@ -447,7 +437,7 @@ export function doesTrackInterceptLeg(
 }
 
 /**
- * NO NAV INTERCEPTION (A380 FCOM l.45787, l.45791-45794): in HDG or TRK with NAV armed, in flight, the track does not
+ * NO NAV INTERCEPTION (A380): in HDG or TRK with NAV armed, in flight, the track does not
  * intercept the active leg before the TO waypoint. Design choices: only with NAV armed (the ND shows the interception
  * path for the armed NAV mode), and only for an active TF leg (a leg from the FROM waypoint to the TO waypoint), the
  * other legs have no fixed start.

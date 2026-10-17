@@ -27,7 +27,7 @@ import {
 /** One minute of arc, in degrees */
 const MINUTE = 1 / 60;
 
-describe('FM position bias (A320 FCOM DSC-22_20-20-10 FM POSITION, A380 FCOM DSC-22-FMS-10-30-10)', () => {
+describe('FM position bias', () => {
   it('starts at the GPIRS position at flight initialisation, else at the MIX IRS position', () => {
     const withGps = new FmPositionBias();
     withGps.update(0.1, true, { lat: 0.001, long: -0.002 }, true, 0);
@@ -129,7 +129,7 @@ describe('FM position update at takeoff (runway threshold + TO SHIFT)', () => {
 });
 
 describe('FM/GPS POS DISAGREE thresholds', () => {
-  it('uses the A320 thresholds (FCOM DSC-22_20-20-20)', () => {
+  it('uses the A320 thresholds', () => {
     expect(a320FmGpsDisagreeThreshold(40)).toEqual({ latitude: 0.5, longitude: 0.5 });
     expect(a320FmGpsDisagreeThreshold(-54.9)).toEqual({ latitude: 0.5, longitude: 0.5 });
     expect(a320FmGpsDisagreeThreshold(55)).toEqual({ latitude: 0.5, longitude: 0.9 });
@@ -137,7 +137,7 @@ describe('FM/GPS POS DISAGREE thresholds', () => {
     expect(a320FmGpsDisagreeThreshold(70)).toEqual({ latitude: 0.5, longitude: null });
   });
 
-  it('uses the A380 thresholds (FCOM PRO-ABN-ECAM-10-34-10)', () => {
+  it('uses the A380 thresholds', () => {
     expect(a380FmGpsDisagreeThreshold(44.9)).toEqual({ latitude: 0.5, longitude: 0.5 });
     expect(a380FmGpsDisagreeThreshold(-45)).toEqual({ latitude: 0.5, longitude: 0.7 });
     expect(a380FmGpsDisagreeThreshold(60)).toEqual({ latitude: 0.5, longitude: 1 });
@@ -261,7 +261,7 @@ describe('FM position computation (FmPositionComputer)', () => {
     expect(computer.fmPositions[0].lat).toBeCloseTo(gpirs1.lat, 9);
   });
 
-  it('does not allow a manual update in the IRS/GPS mode (A320 FCOM l.14784)', () => {
+  it('does not allow a manual update in the IRS/GPS mode', () => {
     const computer = new FmPositionComputer();
     computer.update(inputs());
     expect(computer.manualUpdate({ lat: 46, long: 7 })).toBe(false);

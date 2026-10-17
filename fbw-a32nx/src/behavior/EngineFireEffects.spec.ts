@@ -9,6 +9,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it, vi } from 'vitest';
+import { decodeXmlCode } from './RpnTestInterpreter';
 
 // Several tests build or read every exterior model LOD (glTF files of several MB): more than vitest's 5 s default on a
 // busy machine (5.8 s seen in a deploy check), so the file gets a longer limit
@@ -25,15 +26,34 @@ const AIRCRAFT_DIR = join(
 );
 const AIRCRAFT_CFG = join(AIRCRAFT_DIR, 'aircraft.cfg');
 const EXTERIOR_BEHAVIOR_XML = join(AIRCRAFT_DIR, 'model', 'A320_NEO.xml');
-/** The exterior model LODs listed in A320_NEO.xml, from the model sources */
 const MODEL_DIR = join(__dirname, '..', 'model');
+/** The exterior model LODs listed in A320_NEO.xml */
 const EXTERIOR_LODS = [0, 1, 2, 3, 4, 5, 6];
 
-/** The node names of a glTF file of the model sources */
 function gltfNodeNames(gltf: string): string[] {
   return (JSON.parse(readFileSync(join(MODEL_DIR, gltf), 'utf8')).nodes as { name?: string }[]).map(
     (node) => node.name ?? '',
   );
+}
+
+/** The operations of the LOD00 entry of modelsv2.json (buildv2.js) */
+function lod0ModelOperations(): { type: string; file?: string; nodes?: string[] }[] {
+  const modelsV2 = JSON.parse(readFileSync(join(MODEL_DIR, 'modelsv2.json'), 'utf8')) as {
+    operations: { type: string; file?: string; nodes?: string[] }[];
+  }[];
+  return modelsV2[0].operations;
+}
+
+/**
+ * The additions of the exterior entry of models.json (build.js combineGltf): they apply to every LOD listed in their
+ * "lods" (all when absent), LOD00 included
+ */
+function exteriorModelAdditions(): { gltf: string; lods?: number[] }[] {
+  const models = JSON.parse(readFileSync(join(MODEL_DIR, 'models.json'), 'utf8')) as {
+    gltf: string[];
+    additions?: { gltf: string; lods?: number[] }[];
+  }[];
+  return models.find((entry) => entry.gltf.includes('./a320-exterior/A320_NEO_LOD01.gltf'))?.additions ?? [];
 }
 
 /**
@@ -45,32 +65,20 @@ function gltfNodeNames(gltf: string): string[] {
 function builtExteriorLodNodeNames(lod: number): Set<string> {
   const names = new Set(gltfNodeNames(`./a320-exterior/A320_NEO_LOD0${lod}.gltf`));
   if (lod === 0) {
-    const modelsV2 = JSON.parse(readFileSync(join(MODEL_DIR, 'modelsv2.json'), 'utf8')) as {
-      operations: { type: string; nodes?: string[] }[];
-    }[];
-    for (const operation of modelsV2[0].operations) {
+    for (const operation of lod0ModelOperations()) {
       if (operation.type === 'append_nodes') {
         operation.nodes?.forEach((node) => names.add(node));
       }
     }
   }
-  {
-    // the additions of models.json apply to every LOD listed in their "lods" (all when absent), LOD00 included
-    const models = JSON.parse(readFileSync(join(MODEL_DIR, 'models.json'), 'utf8')) as {
-      gltf: string[];
-      additions?: { gltf: string; lods?: number[] }[];
-    }[];
-    const exterior = models.find((entry) => entry.gltf.includes('./a320-exterior/A320_NEO_LOD01.gltf'));
-    for (const addition of exterior?.additions ?? []) {
-      if (!addition.lods || addition.lods.includes(lod)) {
-        gltfNodeNames(addition.gltf).forEach((node) => names.add(node));
-      }
+  for (const addition of exteriorModelAdditions()) {
+    if (!addition.lods || addition.lods.includes(lod)) {
+      gltfNodeNames(addition.gltf).forEach((node) => names.add(node));
     }
   }
   return names;
 }
 
-/** The material names of a glTF file of the model sources */
 function gltfMaterialNames(gltf: string): string[] {
   return ((JSON.parse(readFileSync(join(MODEL_DIR, gltf), 'utf8')).materials ?? []) as { name?: string }[]).map(
     (material) => material.name ?? '',
@@ -87,20 +95,12 @@ function builtExteriorLodMaterialOwners(lod: number): Map<string, string[]> {
   const add = (name: string, file: string) => owners.set(name, [...(owners.get(name) ?? []), file]);
   const baseFiles = [`./a320-exterior/A320_NEO_LOD0${lod}.gltf`];
   if (lod === 0) {
-    const modelsV2 = JSON.parse(readFileSync(join(MODEL_DIR, 'modelsv2.json'), 'utf8')) as {
-      operations: { file?: string }[];
-    }[];
-    modelsV2[0].operations.forEach((operation) => operation.file && baseFiles.push(operation.file));
+    lod0ModelOperations().forEach((operation) => operation.file && baseFiles.push(operation.file));
   }
   new Set(baseFiles.flatMap(gltfMaterialNames)).forEach((name) => add(name, 'base'));
-  const models = JSON.parse(readFileSync(join(MODEL_DIR, 'models.json'), 'utf8')) as {
-    gltf: string[];
-    additions?: { gltf?: string; lods?: number[] }[];
-  }[];
-  const exterior = models.find((entry) => entry.gltf.includes('./a320-exterior/A320_NEO_LOD01.gltf'));
-  for (const addition of exterior?.additions ?? []) {
+  for (const addition of exteriorModelAdditions()) {
     if (addition.gltf && (!addition.lods || addition.lods.includes(lod))) {
-      gltfMaterialNames(addition.gltf).forEach((name) => add(name, addition.gltf as string));
+      gltfMaterialNames(addition.gltf).forEach((name) => add(name, addition.gltf));
     }
   }
   return owners;
@@ -116,7 +116,7 @@ const SITUATION_FX_SWITCH = 'L:A32NX_CONFIG_SITUATION_FX';
  * ASOBO_ET_FX_HEAT_ENGINE_JET {B0A8FEDA-...}).
  */
 const FX_FIRE_1_SMALL = '{75A93861-D48A-456B-BCA5-7C3AFF31C0F6}';
-/** FX_Smoke_Fire.spb: the smoke with the engine flames and at the APU (EngineSmoke spread as a general haze, sim 2026-10-09) */
+/** FX_Smoke_Fire.spb: the smoke with the engine flames and at the APU (EngineSmoke spread as a haze in the sim) */
 const FX_SMOKE_FIRE = '{15B35478-6321-4480-8642-EB44248318E2}';
 
 /** One ASOBO_GT_FX component of the exterior model behaviour */
@@ -143,7 +143,7 @@ function fxComponents(): FxComponent[] {
         id: match[1],
         node: match[2],
         guid: guid[1].trim().toUpperCase(),
-        code: code[1].replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&').trim(),
+        code: decodeXmlCode(code[1]).trim(),
         offsets: [...body.matchAll(/<FX_OFFSET_[XYZ]>([^<]*)<\/FX_OFFSET_[XYZ]>/g)].map((offset) => offset[1].trim()),
       });
     }
@@ -255,17 +255,14 @@ function shownOn(components: FxComponent[], node: string, variables: Record<stri
   return components.filter((fx) => fx.node === node && evaluate(fx.code, withSwitch)).map((fx) => fx.guid);
 }
 
-/** The GUIDs of the fire effects shown on a node with the given variables (flyPad switch on unless given) */
 function effectsShownOn(node: string, variables: Record<string, number>): string[] {
   return shownOn(fireComponents(), node, variables);
 }
 
-/** The GUIDs of the engine damage effects shown on a node with the given variables (flyPad switch on unless given) */
 function damageEffectsShownOn(node: string, variables: Record<string, number>): string[] {
   return shownOn(damageComponents(), node, variables);
 }
 
-/** The GUIDs of the oil leak effects shown on a node with the given variables (flyPad switch on unless given) */
 function oilLeakEffectsShownOn(node: string, variables: Record<string, number>): string[] {
   return shownOn(oilLeakComponents(), node, variables);
 }
@@ -290,7 +287,6 @@ const ENGINE_EXHAUST_NODES = { 1: 'FX_ENGINE_FIRE_LEFT', 2: 'FX_ENGINE_FIRE_RIGH
 const APU_EXHAUST_NODE = 'FX_EXHAUST_APU';
 const ALL_FIRE_NODES = [...Object.values(ENGINE_EXHAUST_NODES), APU_EXHAUST_NODE];
 
-/** Variables of a running engine without fire */
 const ENGINES_RUNNING = { 'A:GENERAL ENG COMBUSTION:1': 1, 'A:GENERAL ENG COMBUSTION:2': 1 };
 
 describe('A32NX engine and APU fire effects (exterior model ASOBO_GT_FX components)', () => {
@@ -318,9 +314,8 @@ describe('A32NX engine and APU fire effects (exterior model ASOBO_GT_FX componen
   });
 
   it('adds the effect nodes with materials whose names no other part of the exterior model LOD uses', () => {
-    // fx_engine_fire.gltf first reused the FX_EXHAUST_APU_INVISIBLE name of fx_exhaust_apu.gltf: two materials of one
-    // name in LOD01-06, which none of the 5916 optimized models of the installed packages has (sim 2026-10-09: the
-    // exterior with it stayed invisible)
+    // Two materials of one name in a LOD (none of the 5916 optimized models of the installed packages has that) left
+    // the exterior invisible in the sim
     for (const lod of EXTERIOR_LODS) {
       const owners = builtExteriorLodMaterialOwners(lod);
       for (const [name, files] of owners) {

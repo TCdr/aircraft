@@ -15,7 +15,7 @@ function sourcesFor(displayIndex: number): Map<string, string> {
   return sources;
 }
 
-// A320 FCOM DSC-34-NAV-30-20 (a320_fcom.txt l.53288-53289): PFD1 displays ILS1, PFD2 displays ILS2
+// PFD1 displays ILS1, PFD2 displays ILS2
 describe('A32NX PFD onside ILS receiver', () => {
   it('keeps MMR 1 (NAV 3, A32NX_RADIO_RECEIVER_*) on the CAPT PFD', () => {
     expect(sourcesFor(1).size).toBe(0);

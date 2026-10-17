@@ -33,7 +33,6 @@ function interactionBlock(node: string): string {
   return block[1].replace(/<!--[\s\S]*?-->/g, ' ');
 }
 
-/** A parameter of a block, undefined when absent */
 function parameter(block: string, tag: string): string | undefined {
   return new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`).exec(block)?.[1];
 }
@@ -61,9 +60,8 @@ function after(code: string, state: RpnVariables): RpnVariables {
 const lit = (code: string, state: RpnVariables): boolean => (runRpn(code, state).value ?? 0) > 0;
 
 /*
- * A320 FCOM DSC-23-20-20 EMER pb-sw (a320_fcom.txt l.35619-35620): "on the cockpit CALLS panel, the white ON light and
- * the amber CALL light come on." Only a call from the cabin to the cockpit flashes the CALL light (l.35622-35624).
- * Before, both lights flashed at 1 Hz for a call from the cockpit.
+ * CALLS EMER pb-sw: an emergency call lights the white ON light and the amber CALL light of the cockpit CALLS panel.
+ * Only a call from the cabin to the cockpit flashes the CALL light.
  */
 describe('CALLS EMER pushbutton lights', () => {
   const emer = interactionBlock('PUSH_OVHD_CALLS_EMER');
@@ -85,11 +83,9 @@ describe('CALLS EMER pushbutton lights', () => {
 });
 
 /*
- * A320 FCOM DSC-23-40-30 ELT (a320_fcom.txt l.36072-36099): "ON : The Emergency Locator Transmitter (ELT) transmits an
- * emergency signal." "TEST/RESET: Starts the ELT autotest." "select the TEST/RESET position to reset the ELT and stop
- * signal transmission." "(2) ON TEST light and ELT light: These lights come on amber either when the emergency signal
- * is transmitted, or during ELT autotest." Before, both pushbuttons were inop and the light only followed the
- * annunciator light test.
+ * ELT: ON makes the emergency locator transmitter send its emergency signal; TEST/RESET starts the autotest, and resets
+ * the ELT to stop a transmission. The ON TEST and ELT lights come on amber while the signal is transmitted or during
+ * the autotest.
  */
 describe('ELT pushbuttons and light', () => {
   const eltOn = interactionBlock('PUSH_OVHD_ELT_ON');

@@ -14,7 +14,7 @@ const normal: SlatFlapIndicationInputs = {
   onGroundEnginesStopped: false,
 };
 
-/* A320 FCOM DSC-27-50 FLAPS/SLATS INDICATION ON E/WD (a320_fcom.txt l.41606-41627) */
+/* Flaps and slats indication on the E/WD */
 describe('E/WD S and F legends, slat and flap positions', () => {
   it('are white / green with a valid SFCC, pressurised hydraulics and no wingtip brake', () => {
     expect(slatFlapIndication(normal)).toEqual({ amber: false, locked: false });

@@ -64,7 +64,7 @@ export class Idle extends DisplayComponent<IdleProps> {
       .on('realTime')
       .atFrequency(2)
       .handle((_t) => {
-        // Both engines at idle in flight, with or without the autothrust (FCOM l.64203, EngineIndications.ts)
+        // IDLE shows with or without the autothrust
         const showIdle = isIdleIndicationVisible(this.engine1N1, this.engine2N1, this.idleN1, this.fwcFlightPhase);
 
         this.visibility.set(showIdle ? 'visible' : 'hidden');
