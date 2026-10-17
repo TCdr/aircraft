@@ -6,10 +6,9 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 
 /*
- * A380 FCOM DSC-34-20-60-20 SURV panel (a380_fcom.txt 91475-91487): the WXR/TAWS SYS 1(2) pb selects the system that
- * provides the WXR/TAWS functions, and the MFD SURV STATUS & SWITCHING SYS buttons follow. Before, pressing the lit
- * pb (or MFD button) wrote 0 to L:A32NX_WXR_TAWS_SYS_SELECTED, which the TAWS, the GPWS and the radar read as "no
- * system": TERR and GPWS failed.
+ * SURV panel: the WXR/TAWS SYS 1(2) pb selects the system that provides the WXR/TAWS functions, and the MFD SURV
+ * STATUS & SWITCHING SYS buttons follow. Pressing the lit pb (or MFD button) must not write 0 to
+ * L:A32NX_WXR_TAWS_SYS_SELECTED: the TAWS, the GPWS and the radar read 0 as "no system" (TERR and GPWS failed).
  */
 const pedestal = readFileSync(
   resolve(
