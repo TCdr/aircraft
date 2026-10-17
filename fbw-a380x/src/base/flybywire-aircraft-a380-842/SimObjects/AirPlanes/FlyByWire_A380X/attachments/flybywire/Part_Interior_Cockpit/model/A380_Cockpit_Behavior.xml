@@ -5022,7 +5022,8 @@
                 </Component>
 
                 <Component ID="Overhead_Reset_Panel">
-                    <!-- Reset buttons read by the avionics (ResetPanelPublisher, FMC) -->
+                    <!-- Reset buttons read by the avionics (ResetPanelPublisher, FMC; ATC: CPIOM-D ATC datalink, FWS, ATC function
+                    availability; the crew resets ATC by pulling the button, then pushing it after 1 s) -->
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>ARPT_NAV</NAME>
                         <TOOLTIPID>ARPT NAV reset</TOOLTIPID>
@@ -5063,6 +5064,10 @@
                         <NAME>NSS_FLT_OPS</NAME>
                         <TOOLTIPID>NSS FLT OPS reset</TOOLTIPID>
                     </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>ATC</NAME>
+                        <TOOLTIPID>ATC reset</TOOLTIPID>
+                    </UseTemplate>
 
                     <!-- The other reset buttons of the panel (FCOM PRO-SUP-24-00 list of computer resets). They toggle
                     L:A32NX_RESET_PANEL_<NAME> like the ones above, but no system reads these variables yet, so they are
@@ -5074,10 +5079,6 @@
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>AICU2</NAME>
                         <TOOLTIPID>AICU 2 reset (Inop.)</TOOLTIPID>
-                    </UseTemplate>
-                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
-                        <NAME>ATC</NAME>
-                        <TOOLTIPID>ATC reset (Inop.)</TOOLTIPID>
                     </UseTemplate>
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>AVS1</NAME>
