@@ -1,23 +1,22 @@
 //! Engine and APU fire detection (also the A380 main landing gear bay), shared by the aircraft.
 //!
 //! Each protected zone has two identical detection loops (A and B) mounted in parallel and a fire detection unit (FDU)
-//! that processes their signals (A320 FCOM DSC-26-20-10 "FIRE DETECTION"; the A380 has the same principle). The FDU
-//! logic is the one of the A320 FCOM DSC-26-20-10 "FIRE DETECTION AND DETECTION FAULT LOGIC". A fire warning appears if:
+//! that processes their signals (same principle on the A320 and the A380). The FDU follows the A320 fire detection and
+//! detection fault logic. A fire warning appears if:
 //! - both loops A and B send a fire signal, or
 //! - one loop sends a fire signal and the other one is failed, or
 //! - breaks occur in both loops within 5 s of each other (flame effect), or
 //! - a test is performed on the FIRE panel.
 //!
-//! The FDU of each zone can fail ([`FailureType::FireDetectionUnit`]): A320 FCOM DSC-26-20-10 "A loop-fault caution
-//! appears, if: [...] The FDU fails" and PRO-ABN-ENG / PRO-ABN-APU FIRE DET FAULT "This alert triggers when: Both loops
-//! are inoperative, or Fire Detector Unit is inoperative". A failed FDU gives no fire warning for its zone (it is the
-//! FDU that processes the loop signals), whatever its loops detect. The aircraft that model it map the failure.
+//! The FDU of each zone can fail ([`FailureType::FireDetectionUnit`]): a failed FDU gives the loop fault caution, and
+//! the FIRE DET FAULT alert triggers when both loops or the FDU are inoperative. A failed FDU gives no fire warning for
+//! its zone (it is the FDU that processes the loop signals), whatever its loops detect. The aircraft that model it map
+//! the failure.
 //!
 //! The aircraft give the zones, the electrical supply of each loop and the extinguishing bottles; this module also
 //! holds the [`SetOnFireModule`], which sets a zone on fire from a flyPad failure (and, on the aircraft that give it,
 //! from the simulator's own fire) and puts it out again. The loops sense that fire alone, so the fire warning goes out
-//! when the fire is out (A320 FCOM DSC-26-20-20 APU FIRE LIGHT: "The light goes out when the fire has been
-//! extinguished"; A380 FCOM DSC-26-20-20 ENG MASTER FIRE light: "The light remains on, until the fire is extinguished").
+//! when the fire is out, as the FIRE lights of both aircraft do.
 
 use std::time::Duration;
 
@@ -41,12 +40,11 @@ use crate::{
 pub enum FireLoopPowerLoss {
     /// The loss of supply is seen as a loop break during the update in which it happens only. A simultaneous loss of
     /// both loops of a zone therefore looks like the flame effect; afterwards the unpowered loop neither detects a fire
-    /// nor is failed. This is the A380X model as it was written, kept unchanged.
+    /// nor is failed. Kept for the A380X, whose model was written this way.
     TransientBreak,
-    /// A320 FCOM DSC-26-20-10: "A fault in one loop (break or loss of electrical supply) does not affect the warning
-    /// system and the unaffected loop still protects the aircraft". The unpowered loop is failed for as long as it has
-    /// no supply. A loss of supply is not a break: it does not count for the "breaks occur in both loops within 5 s of
-    /// each other (flame effect)" fire warning.
+    /// A320: a fault in one loop (break or loss of supply) leaves the other loop protecting the zone. The unpowered
+    /// loop is failed for as long as it has no supply. A loss of supply is not a break: it does not count for the
+    /// flame effect fire warning (breaks in both loops within 5 s).
     LoopFault,
 }
 
@@ -401,10 +399,9 @@ impl SimulationElement for FireDetector {
 ///   [`SetOnFireModule::with_simulator_fire_sources`].
 ///
 /// The fire is out again when all its ignition sources are off, or when a new discharge of a fire extinguisher bottle
-/// of the zone puts it out, with a chance of 1/2 per bottle (the procedures discharge AGENT 2 when the fire is still
-/// there 30 s after AGENT 1: A320 FCOM PRO-ABN-ENG ENG 1(2) FIRE, A380 FCOM PRO-ABN-ECAM-10-26 ENG FIRE). A fire put out
-/// by an agent stays out while its sources stay on: only a new rising edge of a source sets the zone on fire again, so
-/// a simulator variable stuck on cannot relight it.
+/// of the zone puts it out, with a chance of 1/2 per bottle (the ENG FIRE procedures of both aircraft discharge AGENT 2
+/// when the fire is still there 30 s after AGENT 1). A fire put out by an agent stays out while its sources stay on:
+/// only a new rising edge of a source sets the zone on fire again, so a simulator variable stuck on cannot relight it.
 ///
 /// This is the one "the zone is burning" signal: the fire detection loops (their fire detectors) and the fire visual
 /// effects of the exterior models read it alone. The variable is only written when it changes, so a test or a tool

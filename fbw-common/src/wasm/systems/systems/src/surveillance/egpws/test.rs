@@ -858,7 +858,7 @@ fn mode_1_test() {
     test_bed.assert_no_warning_active();
 }
 
-/// The alternate (Airbus) lamp format, as the A320 FCOM DSC-34-SURV-40-40 PULL UP - GPWS pb: PULL UP for the mode 1
+/// The alternate (Airbus) lamp format, as the A320 PULL UP - GPWS pb: PULL UP for the mode 1
 /// second boundary, amber GPWS for the first one (SINK RATE).
 #[test]
 fn mode_1_alternate_lamp_format_test() {
@@ -948,8 +948,7 @@ fn mode_2_a_test() {
     assert!(test_bed.is_warning_light_on());
 
     // Exiting warning area due to lowering terrain. Now at 1000ft, since otherwise the Mode 4 warning would trigger.
-    // FCOM DSC-34-SURV-40-20: after leaving the warning conditions "TERRAIN" is repeated and the PULL UP red lights
-    // stay on (altitude gain hold).
+    // After leaving the warning conditions TERRAIN is repeated and the PULL UP red lights stay on (altitude gain hold).
     test_bed = test_bed.terrain_height_of(Length::new::<foot>(1500.0));
     test_bed.run_with_delta(Duration::from_millis(2_000));
     assert!(test_bed.get_audio_on());
@@ -1469,9 +1468,8 @@ impl EgpwcTestBed {
     }
 }
 
-/// A320 FCOM DSC-34-SURV-40-40 (a320_fcom.txt:55491): the GPWS can be tested by pressing the GPWS pushbutton on the
-/// ground. The sequence (GLIDESLOPE, PULL UP, terrain test pattern with TERRAIN TERRAIN PULL UP) is the Honeywell EGPWS
-/// short self-test.
+/// The GPWS pushbutton tests the GPWS on the ground. The sequence (GLIDESLOPE, PULL UP, terrain test pattern with
+/// TERRAIN TERRAIN PULL UP) is the Honeywell EGPWS short self-test.
 #[test]
 fn self_test_on_ground_runs_glideslope_pull_up_and_terrain_steps() {
     let mut test_bed = test_bed_with().on_ground().and().powered();

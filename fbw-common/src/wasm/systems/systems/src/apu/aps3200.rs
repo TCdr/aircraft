@@ -24,22 +24,20 @@ use super::{ApuConstants, ApuGenerator, ApuStartMotor, Turbine, TurbineSignal, T
 pub struct Aps3200Constants;
 
 impl ApuConstants for Aps3200Constants {
-    // A320 FCOM DSC-49-20 EGT (a320_fcom.txt l.60841-60844): "Maximum EGT during start: 1 120 °C (above 35 000 ft).
-    // Maximum EGT during start: 1 090 °C (below 35 000 ft). Maximum EGT with APU running: 675 °C."
+    // EGT MAX: 1 120 °C during the start above 35 000 ft, 1 090 °C below, 675 °C with the APU running
     const RUNNING_WARNING_EGT: f64 = 675.; // Deg C
     const STARTING_WARNING_EGT_LOW_ALTITUDE: f64 = 1090.; // Deg C
     const STARTING_WARNING_EGT_HIGH_ALTITUDE: f64 = 1120.; // Deg C
     /// ISA pressure at 35 000 ft (238.4 hPa)
     const STARTING_WARNING_EGT_SPLIT_PRESSURE_PSI: f64 = 3.458;
-    // A320 FCOM DSC-49-20 START pb (a320_fcom.txt l.60700): "When N = 60 %. The APU starter is de-energized."
+    // The starter is de-energized at N 60 %
     const START_MOTOR_POWERED_UNTIL_N: f64 = 60.;
-    // A320 FCOM DSC-49-20 FAULT lt (a320_fcom.txt l.60653 "Air inlet flap closed", l.60657 "EGT overtemperature");
-    // EGT (l.60838): "Becomes red when EGT ≥ EGT MAX (automatic shutdown begins)."
+    // APU FAULT light causes: air inlet flap closed, EGT overtemperature (the automatic shutdown begins when the EGT
+    // reaches EGT MAX)
     const EGT_OVERTEMPERATURE_SHUTDOWN: bool = true;
     const AIR_INTAKE_FLAP_CLOSED_SHUTDOWN: bool = true;
-    // A320 FCOM DSC-49-20 FAULT lt note (a320_fcom.txt l.60675-60677): "In the case of an automatic, non-emergency
-    // shutdown, the air inlet flap closes 15 min after the APU speed is lower than 7%. If an automatic, non-emergency
-    // shutdown happens on ground, the 15 min countdown starts after liftoff."
+    // After an automatic non-emergency shutdown the air inlet flap closes 15 min after N is below 7 %; after one on
+    // ground the 15 min countdown starts at liftoff
     const AIR_INTAKE_FLAP_CLOSING_DELAY_AFTER_AUTO_SHUTDOWN: Option<Duration> =
         Some(Duration::from_secs(15 * 60));
     const BLEED_AIR_COOLDOWN_DURATION: Duration = Duration::from_secs(120);
@@ -47,9 +45,9 @@ impl ApuConstants for Aps3200Constants {
     const AIR_INTAKE_FLAP_CLOSURE_PERCENT: f64 = 7.;
     const SHOULD_BE_AVAILABLE_DURING_SHUTDOWN: bool = true;
     const FUEL_LINE_ID: u8 = 18;
-    // A320 FCOM DSC-49-20 FAULT lt (a320_fcom.txt l.60660): "High oil temperature", no ground-only restriction
+    // A high oil temperature shuts the APU down in flight too, not only on the ground
     const HIGH_OIL_TEMPERATURE_SHUTDOWN_IN_FLIGHT: bool = true;
-    // A320 FCOM DSC-49-20 AVAIL lt (a320_fcom.txt l.60707): "comes on when N is above 99.5 % or 2 s after N reaches 95 %"
+    // The AVAIL light comes on when N is above 99.5 % or 2 s after N reaches 95 %
     const START_AVAILABLE_CONFIRMATION_TIME: Duration = Duration::from_secs(2);
 }
 
@@ -377,7 +375,7 @@ impl Running {
     const AIR_CONDITIONING_GOVERNED_N: f64 = 99.;
     /// The air conditioning governed speed applies between these ambient temperatures (°C)
     const AIR_CONDITIONING_GOVERNED_N_AMBIENT_RANGE: std::ops::RangeInclusive<f64> = -18.0..=35.0;
-    /// Design choice (no FCOM value): the ECB changes the governed speed at this rate (percent per second), so that N
+    /// Design choice (no published value): the ECB changes the governed speed at this rate (percent per second), so that N
     /// (and the APU sound) does not step.
     const GOVERNED_N_CHANGE_PER_SECOND: f64 = 1.;
 
@@ -422,9 +420,8 @@ impl Running {
         target
     }
 
-    /// A320 FCOM DSC-49-10-20 AIR BLEED SYSTEM (a320_fcom.txt l.60473-60476): "The ECB always sets the APU speed to
-    /// 100 % except for air conditioning demand, if the ambient temperature is between -18 °C and 35 °C. In this
-    /// case, the ECB sets the APU speed to 99 %."
+    /// The ECB sets the APU speed to 100 %, or to 99 % for an air conditioning demand with the ambient temperature
+    /// between -18 °C and 35 °C
     fn governed_n(
         context: &UpdateContext,
         apu_bleed_is_used: bool,

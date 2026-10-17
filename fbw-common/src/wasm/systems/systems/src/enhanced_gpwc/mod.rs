@@ -37,10 +37,10 @@ pub struct EnhancedGroundProximityWarningComputer {
     gear_is_down: bool,
     terronnd_rendering_mode: u8,
     /// A required input of the predictive functions (TAD, TCF) is missing or invalid: the TERR STBY memo of the A320
-    /// FWC (FCOM DSC-34-SURV-40-40, a320_fcom.txt l.55563-55566)
+    /// FWC
     terrain_standby: bool,
-    /// The EGPWC sets the TERR ON ND pb-sws back to OFF while it is in terrain standby (the A320: "If selected, the
-    /// terrain data display on the ND is automatically deselected when the TERR STBY memo is triggered", l.55565-55566)
+    /// The EGPWC sets the TERR ON ND pb-sws back to OFF while it is in terrain standby (A320: a selected terrain
+    /// display is deselected when the TERR STBY memo comes on)
     deselects_terrain_display_on_standby: bool,
     // output variables of the EGPWC
     egpwc_destination_longitude_id: VariableIdentifier,
@@ -101,17 +101,17 @@ impl EnhancedGroundProximityWarningComputer {
         }
     }
 
-    /// The TERR ON ND pb-sws go back to OFF while the EGPWC is in terrain standby (A320 FCOM DSC-34-SURV-40-40,
-    /// l.55565-55566). Used by the A320, whose TERR ON ND pb-sws are latched L:vars of the cockpit.
+    /// The TERR ON ND pb-sws go back to OFF while the EGPWC is in terrain standby. Used by the A320, whose TERR ON ND
+    /// pb-sws are latched L:vars of the cockpit.
     pub fn with_terrain_display_deselection_on_standby(mut self) -> Self {
         self.deselects_terrain_display_on_standby = true;
         self
     }
 
     /// The position data the predictive functions need are valid: the ADIRU 1 is aligned and the present position,
-    /// altitude, heading and vertical speed words are in normal operation. Design choice (the FCOM does not list the
-    /// inputs, "any required predictive function input is missing or considered invalid", l.55563-55564): the inputs
-    /// are the words this EGPWC takes for its terrain picture.
+    /// altitude, heading and vertical speed words are in normal operation. Design choice (the aircraft documents do not
+    /// list the required predictive function inputs): the inputs are the words this EGPWC takes for its terrain
+    /// picture.
     fn predictive_inputs_valid(&self, adirs_output: &impl AdirsMeasurementOutputs) -> bool {
         adirs_output.is_fully_aligned(1)
             && self.latitude.is_normal_operation()
@@ -143,10 +143,9 @@ impl EnhancedGroundProximityWarningComputer {
     }
 
     /// `terrain_functions_available`: the terrain awareness functions of the EGPWS work, for the terrain display on
-    /// the NDs. The A320 TERR ON ND pb-sw "ON : The terrain is displayed on the ND if the: TERR pb-sw is selected ON,
-    /// and TERR FAULT light is not on, TERR STBY ECAM memo is not displayed" (FCOM DSC-34-SURV-40-40,
-    /// a320_fcom.txt:55509-55512); TERR pb-sw "OFF : Inhibits the Terrain Awareness Display (TAD)" (l.55447) and
-    /// "FAULT light : ... The terrain is not shown on the ND" (l.55467-55468).
+    /// the NDs. A320: with TERR ON ND selected, the ND shows the terrain if the TERR pb-sw is ON, its FAULT light is
+    /// off and the TERR STBY memo is not shown; TERR pb-sw OFF inhibits the terrain awareness display and the TERR
+    /// FAULT light means no terrain on the ND.
     pub fn update_with_terrain_functions(
         &mut self,
         adirs_output: &impl AdirsMeasurementOutputs,
@@ -730,8 +729,7 @@ mod tests {
     }
 
     #[test]
-    // A320 FCOM DSC-34-SURV-40-40 (a320_fcom.txt l.55563-55564): TERR STBY "when any required predictive function input
-    // is missing or considered invalid"
+    // TERR STBY: a required predictive function input is missing or invalid
     fn terrain_standby_while_the_position_data_are_invalid() {
         let mut test_bed = SimulationTestBed::new(EgpwcTestAircraft::new);
         test_bed.command(|a| a.set_elec_powered(true));
@@ -757,8 +755,7 @@ mod tests {
     }
 
     #[test]
-    // TERR ON ND "ON: The terrain is displayed on the ND if the: ... TERR STBY ECAM memo is not displayed"
-    // (l.55509-55512)
+    // TERR ON ND: no terrain on the ND while the TERR STBY memo is shown
     fn no_terrain_on_nd_in_terrain_standby() {
         let mut test_bed = SimulationTestBed::new(EgpwcTestAircraft::new);
         select_terrain_on_both_nds(&mut test_bed);
@@ -775,8 +772,7 @@ mod tests {
     }
 
     #[test]
-    // "If selected, the terrain data display on the ND is automatically deselected when the TERR STBY memo is
-    // triggered" (l.55565-55566)
+    // A selected terrain display is deselected when the TERR STBY memo comes on
     fn terrain_standby_deselects_the_terr_on_nd_pbs_when_enabled() {
         let mut test_bed =
             SimulationTestBed::new(EgpwcTestAircraft::new_with_terrain_display_deselection);
@@ -796,8 +792,7 @@ mod tests {
     }
 
     #[test]
-    // TERR ON ND "ON: The terrain is displayed on the ND if the: TERR pb-sw is selected ON, and TERR FAULT light is not
-    // on" (a320_fcom.txt:55509-55511); TERR FAULT light: "The terrain is not shown on the ND" (l.55467-55468)
+    // TERR ON ND: the terrain needs the TERR pb-sw ON and no TERR FAULT light
     fn no_terrain_on_nd_without_the_terrain_functions() {
         let mut test_bed = SimulationTestBed::new(EgpwcTestAircraft::new);
         select_terrain_on_both_nds(&mut test_bed);

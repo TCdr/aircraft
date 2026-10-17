@@ -16,16 +16,13 @@
  * MSFS commanded N1 (TURB ENG COMMANDED N1) meets the N1 target of the thrust lever or the A/THR. While an engine is out or starting,
  * MSFS does not govern it to the throttle and its commanded N1 stays low, and for a few seconds after its start it still lags: the
  * loop wound the throttle up to 100 %. When the MSFS start ended, MSFS governed the engine to that full throttle until the commanded
- * N1 had caught up:
- * - A32NX (sim test 2026-10-05, leap_relight.log): N2 113 % at FL150 (lever CL) and 111 % at FL265 with the lever at IDLE, 3-7 s.
- * - A380X (sim test 2026-10-05, b1_inflight.log): N3 61 -> 97.5 % (the MSFS N2 limit) for 5.5-7 s on all three in-flight relights
- *   (FL200/300 kt windmill, FL150/240 kt quick relight, FL150/210 kt crossbleed relight), levers in CL with the A/THR.
+ * N1 had caught up (measured in the sim):
+ * - A32NX: N2 113 % at FL150 (lever CL) and 111 % at FL265 with the lever at IDLE, 3-7 s.
+ * - A380X: N3 61 -> 97.5 % (the MSFS N2 limit) for 5.5-7 s on all three in-flight relights (FL200/300 kt windmill,
+ *   FL150/240 kt quick relight, FL150/210 kt crossbleed relight), levers in CL with the A/THR.
  *
- * The FADEC brings the engine to idle at the end of a start, whatever the thrust lever:
- * - A320 FCOM DSC-70-80-40 (a320_fcom.txt l.63588) "This sequence is under the full authority of the FADEC"; QRH ENG RELIGHT IN
- *   FLIGHT: "THR LEVER (affected engine) IDLE", then "When idle reached (ENG AVAIL)".
- * - A380 FCOM DSC-70-30 automatic start, IN FLIGHT (a380_fcom.txt l.113579) "FADEC stabilizes the engine at idle speed."; ENG
- *   RELIGHT IN FLIGHT (l.174905) "THR LEVER (AFFECTED) ... IDLE", then (l.174948) "WHEN IDLE REACHED (ENG AVAIL)".
+ * Engine start on both aircraft: the FADEC has full authority over the start and stabilises the engine at idle, whatever the
+ * thrust lever; the in-flight relight procedure keeps the lever at IDLE until idle is reached (ENG AVAIL).
  * Therefore, in flight only (ground starts are unchanged):
  * 1. HOLD: while the engine is out or starting (FBW engine state SHUTTING, STARTING or RESTARTING), and after the start (state ON)
  *    until the MSFS commanded N1 has reached the idle N1 limit (MSFS governs the engine again), the MSFS throttle is at idle and the
@@ -64,7 +61,7 @@ class EngineStartThrottleHold {
   /// Design choice: the engine counts as at idle once the MSFS commanded N1 is within this margin of the idle N1 limit.
   static constexpr double IDLE_REACHED_MARGIN_PERCENT = 1.0;
 
-  /// Design choice (no FCOM value): the longest hold at idle after the start ends, should the MSFS commanded N1 settle below the
+  /// Design choice (no published value): the longest hold at idle after the start ends, should the MSFS commanded N1 settle below the
   /// FBW idle N1 limit. The recordings show the commanded N1 lagging the engine for up to 6.5 s (A32NX) and 7 s (A380X) after an
   /// in-flight start.
   static constexpr double IDLE_STABILISATION_MAX_SECONDS = 10.0;
@@ -128,11 +125,6 @@ class EngineStartThrottleHold {
   EngineStartThrottleHold() = default;
   explicit EngineStartThrottleHold(const Parameters& aircraftParameters) : parameters(aircraftParameters) {}
 
-  /**
-   * @brief Updates the hold for this frame.
-   * @param inputs The engine and flight conditions of this frame.
-   * @return What the thrust loop gets and the MSFS throttle limits.
-   */
   Output update(const Inputs& inputs) {
     const bool engineStarting = inputs.engineState == ENGINE_STATE_STARTING || inputs.engineState == ENGINE_STATE_RESTARTING;
     const bool engineOutOrStarting = inputs.engineState == ENGINE_STATE_SHUTTING || engineStarting;
@@ -158,7 +150,7 @@ class EngineStartThrottleHold {
       }
       // Idle counts as reached only once the FADEC sees the start end (state ON): while the engine still starts, the MSFS commanded
       // N1 can already sit at the idle limit, as MSFS commands its idle N1 at throttle 0 to an engine that still turns fast (A32NX
-      // quick relight, sim test 2026-10-05 T2: released at the RESTARTING, throttle 59 % at the start end, N2 96.8 % against 90 %).
+      // quick relight, measured in the sim: released at the RESTARTING, throttle 59 % at the start end, N2 96.8 % against 90 %).
       // A start that never reaches ON is covered by the fallback above.
       // The MSFS commanded N1 itself must reach idle: a compressor stall, active as soon as the engine is ON with an N1 target above
       // its threshold, adds up to 15 % to the loop feedback and ended the hold while the MSFS commanded N1 still lagged.
@@ -198,7 +190,7 @@ class EngineStartThrottleHold {
     }
     // Only a fallback throttle (> 0) is a floor. A negative loop throttle is the reverse thrust of the thrust loop (its reverse
     // integrator runs from 0 down to -100 %, MSFS full reverse at min_throttle_limit -1 %) and must reach MSFS: a floor at 0 kept
-    // both engines at idle with the levers in full reverse (sim test 2026-10-06, s8_main1.log).
+    // both engines at idle with the levers in full reverse in the sim.
     if (output.minimumThrottle <= 0.0) {
       return loopThrottle;
     }

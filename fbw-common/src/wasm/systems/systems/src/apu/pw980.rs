@@ -30,14 +30,14 @@ pub struct Pw980Constants;
 impl ApuConstants for Pw980Constants {
     const RUNNING_WARNING_EGT: f64 = 900.; // Deg C
 
-    // The values of the shared ECB before the APS3200 got its own (A380 FCOM rows not part of this change)
+    // Upstream values, not checked against the A380 documents
     const STARTING_WARNING_EGT_LOW_ALTITUDE: f64 = 900.; // Deg C
     const STARTING_WARNING_EGT_HIGH_ALTITUDE: f64 = 982.; // Deg C
     /// ISA pressure at 25 000 ft
     const STARTING_WARNING_EGT_SPLIT_PRESSURE_PSI: f64 = 5.45;
     const START_MOTOR_POWERED_UNTIL_N: f64 = 55.;
-    // The A380 FCOM DSC-49-40 APU AUTOMATIC SHUTDOWN table (a380_fcom.txt l.108890-108902) has its own EGT limit
-    // (l.108898: 700 °C, on ground only) and no air intake flap condition: not modelled here.
+    // The A380 APU automatic shutdowns have their own EGT limit (700 °C, on ground only) and no air intake flap
+    // condition: not modelled here.
     const EGT_OVERTEMPERATURE_SHUTDOWN: bool = false;
     const AIR_INTAKE_FLAP_CLOSED_SHUTDOWN: bool = false;
     const AIR_INTAKE_FLAP_CLOSING_DELAY_AFTER_AUTO_SHUTDOWN: Option<Duration> = None;
@@ -46,10 +46,9 @@ impl ApuConstants for Pw980Constants {
     const AIR_INTAKE_FLAP_CLOSURE_PERCENT: f64 = 8.;
     const SHOULD_BE_AVAILABLE_DURING_SHUTDOWN: bool = false;
     const FUEL_LINE_ID: u8 = 141;
-    // A380 FCOM DSC-49-40 APU AUTOMATIC SHUTDOWN (a380_fcom.txt l.108893): "APU oil high temperature: Yes / No"
+    // A high oil temperature shuts the APU down on the ground only
     const HIGH_OIL_TEMPERATURE_SHUTDOWN_IN_FLIGHT: bool = false;
-    // A380 FCOM DSC-49-20 START pb (a380_fcom.txt l.108468-108469): "When the APU reaches 95 % speed, the ON light goes
-    // off and the AVAIL light comes on"; APU AVAIL memo (l.108727): "The APU N1 is greater than 95 %"
+    // The APU is available (AVAIL light, APU AVAIL memo) as soon as N is above 95 %
     const START_AVAILABLE_CONFIRMATION_TIME: Duration = Duration::ZERO;
 }
 

@@ -4,24 +4,21 @@
 //! The failure sticks the valve in the position it has when the failure comes: closed for an
 //! engine that is shut down, open for a running engine. The FADEC compares the valve position with
 //! its command:
-//! - A320 FCOM PRO-ABN-ENG ENG 1(2) HP FUEL VALVE (a320_fcom.txt l.80233-80259): "This alert
-//!   triggers when HP fuel valve is failed in closed or open position"; "HP fuel valve failed
-//!   closed, and associated engine below idle: HP FUEL VALVE NOT OPEN"; "HP fuel valve failed open,
-//!   and associated engine below idle ... HP FUEL POS SWT FAULT". DSC-70-90-20 (l.63941-63950): the
-//!   ENG FAULT light comes on if "The position of the HP fuel shutoff valve is abnormal".
-//! - A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) HP FUEL VLV FAULT (a380_fcom.txt l.172172-172236):
-//!   "The high pressure fuel valve is failed either in the close or in the open position"; "During
-//!   engine start : HP FUEL VALVE NOT OPEN", "During engine shutdown : HP FUEL VALVE NOT CLOSED ...
-//!   The engine will shutdown by closure of the LP fuel valve." DSC-70-90 (l.112849-112853): the ENG
-//!   MASTER FAULT light comes on if "The HP fuel valve position is abnormal".
+//! - A320 ENG 1(2) HP FUEL VALVE: the valve is failed closed or open. Failed closed with the
+//!   engine below idle: HP FUEL VALVE NOT OPEN; failed open with the engine below idle: HP FUEL POS
+//!   SWT FAULT. The ENG FAULT light comes on for an abnormal valve position.
+//! - A380 ENG 1(2)(3)(4) HP FUEL VLV FAULT: the valve is failed closed or open. During an engine
+//!   start: HP FUEL VALVE NOT OPEN; during an engine shutdown: HP FUEL VALVE NOT CLOSED, and the
+//!   engine shuts down by the closure of the LP fuel valve. The ENG MASTER FAULT light comes on for
+//!   an abnormal valve position.
 //!
 //! Effects on the engine (the aircraft crates apply them):
 //! - stuck closed: no fuel reaches the engine, which does not light up (start, relight);
-//! - stuck open: none. The engine still shuts down at the ENG MASTER OFF, by the LP fuel valve (A380
-//!   FCOM l.172225) and the fuel metering valve the FADEC closes (A320 FCOM DSC-70-80-40 l.63740-63744:
-//!   with the ENG MASTER OFF the FADEC "Closes the LP and the HP fuel shutoff valves").
+//! - stuck open: none. The engine still shuts down at the ENG MASTER OFF, by the LP fuel valve
+//!   (A380) and the fuel metering valve the FADEC closes (on the A320 the ENG MASTER OFF makes the
+//!   FADEC close the LP and HP fuel shutoff valves).
 //!
-//! Design choice, no FCOM value: the FADEC detects the abnormal position when it lasts 2 s (the
+//! Design choice, no published value: the FADEC detects the abnormal position when it lasts 2 s (the
 //! travel time of the valve).
 //!
 //! Written variable, per engine n: `ENGINE_n_HP_FUEL_VALVE_FAULT` ([`HpFuelValveFault`]).

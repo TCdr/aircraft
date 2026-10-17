@@ -97,9 +97,8 @@ pub struct BatteryChargeLimiter {
 }
 impl BatteryChargeLimiter {
     /// Design choice: the BCL sees an abnormal charge when the charging current stays above 12 A
-    /// for 2 s. A320 FCOM DSC-24-20 BAT pb FAULT, a320_fcom.txt l.37115-37117: "It is accompanied
-    /// by an ECAM caution, when the charging current for the corresponding battery is outside
-    /// limits. In this case the battery contactor opens." The normal charge of the battery model
+    /// for 2 s. A charging current outside limits gives the BAT pb FAULT light with an ECAM
+    /// caution, and the battery contactor opens. The normal charge of the battery model
     /// is limited to 10 A (`Battery::calculate_charging_current`), so only a battery in thermal
     /// runaway goes beyond.
     const ABNORMAL_CHARGING_CURRENT_AMPERE: f64 = 12.;
@@ -124,9 +123,8 @@ impl BatteryChargeLimiter {
 
     /// The BCL opens the battery contactor and latches the battery fault when the charging
     /// current is outside limits. Design choice: setting the BAT push button to OFF removes the
-    /// BCL power and resets the fault, as the FCOM gives for the automatic battery cut-off
-    /// (A320 FCOM DSC-24-20 l.37097-37098: "The flight crew can reset the contactors by switching
-    /// the BAT pb-sw to OFF then to AUTO").
+    /// BCL power and resets the fault, as for the automatic battery cut-off, whose contactors the
+    /// crew resets by setting the BAT pb-sw to OFF then to AUTO.
     fn update_battery_fault(
         &mut self,
         context: &UpdateContext,
@@ -156,8 +154,7 @@ impl BatteryChargeLimiter {
         self.failure.is_active()
     }
 
-    /// The BAT push button FAULT light: "The battery charge limiter is in fault" (A320 FCOM
-    /// DSC-24-20, l.37115).
+    /// The BAT push button FAULT light: the battery charge limiter is in fault.
     pub fn has_fault(&self) -> bool {
         self.has_battery_fault() || self.has_failed()
     }

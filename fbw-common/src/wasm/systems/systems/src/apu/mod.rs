@@ -2092,8 +2092,7 @@ mod tests {
         }
 
         #[rstest]
-        // A320 FCOM DSC-49-20 EGT (a320_fcom.txt l.60842-60843): "Maximum EGT during start: 1 120 °C (above 35 000
-        // ft). Maximum EGT during start: 1 090 °C (below 35 000 ft)." ISA 35 000 ft: 3.458 psi.
+        // A320 EGT MAX during the start: 1 120 °C above 35 000 ft, 1 090 °C below. ISA 35 000 ft: 3.458 psi.
         #[case::sea_level(14.696, 1090.)]
         #[case::just_below_35000_feet(3.47, 1090.)]
         #[case::above_35000_feet(3.44, 1120.)]
@@ -2119,7 +2118,7 @@ mod tests {
 
         #[test]
         fn aps3200_max_egt_with_the_apu_running_is_675_degrees() {
-            // A320 FCOM DSC-49-20 EGT (a320_fcom.txt l.60844): "Maximum EGT with APU running: 675 °C."
+            // A320 EGT MAX with the APU running: 675 °C
             let mut test_bed = test_bed_aps3200().running_apu();
 
             assert_about_eq!(
@@ -2493,8 +2492,7 @@ mod tests {
             assert!(test_bed.apu_is_available());
         }
 
-        /// A380 FCOM DSC-49-20 START pb (a380_fcom.txt l.108468-108469): "When the APU reaches 95 % speed, the ON light
-        /// goes off and the AVAIL light comes on"
+        /// A380: the AVAIL light comes on when the APU reaches 95 % speed
         #[test]
         fn pw980_available_as_soon_as_n_is_above_95_percent() {
             let mut test_bed = test_bed_pw980()
@@ -2691,8 +2689,7 @@ mod tests {
         >(
             #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
         ) {
-            // A320 FCOM DSC-49-20 FAULT lt (a320_fcom.txt l.60663) "DC power lost", A380 FCOM DSC-49-40 "No normal DC
-            // power": above N 70 % the ECB still runs on the APU and shuts it down with a FAULT
+            // DC power lost: above N 70 % the ECB still runs on the APU and shuts it down with a FAULT
             let mut test_bed = bed_with
                 .starting_apu()
                 .unpower_dc_bat_bus_between(Ratio::new::<percent>(70.), Ratio::new::<percent>(90.))
@@ -2719,7 +2716,7 @@ mod tests {
         >(
             #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
         ) {
-            // A320: "BAT OFF when aircraft on batteries only" (a320_fcom.txt l.60663)
+            // A320: BAT OFF on batteries only is a DC power loss too
             let mut test_bed = bed_with
                 .running_apu()
                 .and()
@@ -2772,8 +2769,7 @@ mod tests {
             #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
             #[case] failure: FailureType,
         ) {
-            // A320 FCOM DSC-49-20 FAULT lt (a320_fcom.txt l.60649-60673), A380 FCOM DSC-49-40 (a380_fcom.txt
-            // l.108880-108900): overspeed, low oil pressure, ECB failure, in flight and on the ground
+            // Both aircraft: overspeed, low oil pressure and ECB failure shut down in flight and on the ground
             let mut test_bed = bed_with
                 .running_apu()
                 .and()
@@ -2839,7 +2835,7 @@ mod tests {
 
         #[test]
         fn aps3200_ecb_detects_a_low_oil_level_on_the_ground_with_the_apu_not_running() {
-            // A320 FCOM DSC-49-20 (10) LOW OIL LEVEL (a320_fcom.txt l.60848-60850)
+            // APU page LOW OIL LEVEL advisory: on the ground with the APU not running
             let mut test_bed = test_bed_aps3200()
                 .on_ground(true)
                 .with_failure(FailureType::ApuOilLevelLow)
@@ -2885,7 +2881,7 @@ mod tests {
 
         #[test]
         fn aps3200_shuts_down_on_a_high_oil_temperature_in_flight() {
-            // A320 FCOM DSC-49-20 (a320_fcom.txt l.60660): "High oil temperature", no ground-only restriction
+            // A320: a high oil temperature shuts the APU down in flight too
             let mut test_bed = test_bed_aps3200()
                 .on_ground(false)
                 .running_apu()
@@ -2899,7 +2895,7 @@ mod tests {
 
         #[test]
         fn pw980_shuts_down_on_a_high_oil_temperature_on_the_ground_only() {
-            // A380 FCOM DSC-49-40 (a380_fcom.txt l.108893): "APU oil high temperature: On Ground Yes, In Flight No"
+            // A380: a high oil temperature shuts the APU down on the ground only
             let mut test_bed = test_bed_pw980()
                 .on_ground(false)
                 .running_apu()
@@ -2924,8 +2920,7 @@ mod tests {
             #[case] egt: f64,
             #[case] shuts_down: bool,
         ) {
-            // A320 FCOM DSC-49-20 (a320_fcom.txt l.60657 "EGT overtemperature", l.60838 EGT "Becomes red when EGT ≥
-            // EGT MAX (automatic shutdown begins)", l.60844 running EGT MAX 675 °C)
+            // A320: the automatic shutdown begins when the EGT reaches EGT MAX (675 °C with the APU running)
             let mut test_bed = test_bed_aps3200()
                 .apu_ready_to_start()
                 .then_continue_with()
@@ -2956,7 +2951,7 @@ mod tests {
             #[case] n: f64,
             #[case] start_motor_powered: bool,
         ) {
-            // A320 FCOM DSC-49-20 START pb (a320_fcom.txt l.60700): "When N = 60 %. The APU starter is de-energized."
+            // A320: the starter is de-energized at N 60 %
             let test_bed = test_bed_aps3200()
                 .apu_ready_to_start()
                 .and()
@@ -2984,7 +2979,7 @@ mod tests {
 
         #[test]
         fn aps3200_shuts_down_automatically_when_the_air_intake_flap_fails_closed() {
-            // A320 FCOM DSC-49-20 FAULT lt (a320_fcom.txt l.60653): "Air inlet flap closed"
+            // A320: an air inlet flap that closes shuts the APU down
             let mut test_bed = test_bed_aps3200()
                 .running_apu()
                 .and()
@@ -3002,7 +2997,7 @@ mod tests {
 
         #[test]
         fn aps3200_does_not_start_with_the_air_intake_flap_failed_closed() {
-            // The starter engages only with the air intake flap fully open (a320_fcom.txt l.60428-60429)
+            // The starter engages only with the air intake flap fully open
             let mut test_bed = test_bed_aps3200()
                 .with_failure(FailureType::ApuAirIntakeFlapFailedClosed)
                 .master_on()
@@ -3029,10 +3024,9 @@ mod tests {
         #[test]
         fn aps3200_after_an_automatic_shutdown_in_flight_the_air_intake_flap_closes_15_min_after_n_is_below_7_percent(
         ) {
-            // A320 FCOM DSC-49-20 FAULT lt note (a320_fcom.txt l.60675-60676): "In the case of an automatic,
-            // non-emergency shutdown, the air inlet flap closes 15 min after the APU speed is lower than 7%."
+            // After an automatic non-emergency shutdown the air inlet flap closes 15 min after N is below 7 %.
             // The crew sets the MASTER SW OFF (APU AUTO SHUT DOWN procedure): after a manual shutdown the flap would
-            // close at N 7 % (l.60647).
+            // close at N 7 %.
             let mut test_bed = test_bed_aps3200()
                 .on_ground(false)
                 .running_apu()
@@ -3060,8 +3054,7 @@ mod tests {
         #[test]
         fn aps3200_after_an_automatic_shutdown_on_the_ground_the_air_intake_flap_countdown_starts_at_liftoff(
         ) {
-            // A320 FCOM DSC-49-20 FAULT lt note (a320_fcom.txt l.60676-60677): "If an automatic, non-emergency
-            // shutdown happens on ground, the 15 min countdown starts after liftoff."
+            // After an automatic non-emergency shutdown on ground, the 15 min countdown starts at liftoff
             let mut test_bed = test_bed_aps3200()
                 .on_ground(true)
                 .running_apu()
@@ -3092,7 +3085,7 @@ mod tests {
         #[test]
         fn aps3200_after_an_automatic_shutdown_the_master_sw_off_ends_the_fault_and_the_apu_restarts(
         ) {
-            // The air intake flap stays open (a320_fcom.txt l.60675-60677), which keeps the ECB on: the MASTER SW OFF
+            // The air intake flap stays open, which keeps the ECB on: the MASTER SW OFF
             // ends the FAULT once the APU has stopped, and a new start is possible.
             let mut test_bed = test_bed_aps3200()
                 .running_apu()
@@ -3120,7 +3113,7 @@ mod tests {
 
         #[test]
         fn aps3200_after_an_emergency_shutdown_the_air_intake_flap_closes_at_n_7_percent() {
-            // The 15 min hold is for a non-emergency shutdown only (a320_fcom.txt l.60675)
+            // The 15 min hold is for a non-emergency shutdown only
             let mut test_bed = test_bed_aps3200()
                 .running_apu()
                 .and()
@@ -3136,9 +3129,8 @@ mod tests {
         }
 
         #[rstest]
-        // A320 FCOM DSC-49-10-20 AIR BLEED SYSTEM (a320_fcom.txt l.60473-60476): 100 % "except for air conditioning
-        // demand, if the ambient temperature is between -18 °C and 35 °C. In this case, the ECB sets the APU speed to
-        // 99 %."
+        // The ECB sets the APU speed to 100 %, or to 99 % for an air conditioning demand with the ambient temperature
+        // between -18 °C and 35 °C
         #[case::air_conditioning_at_15_degrees(true, 15., 99.)]
         #[case::air_conditioning_at_minus_18_degrees(true, -18., 99.)]
         #[case::air_conditioning_at_35_degrees(true, 35., 99.)]

@@ -41,12 +41,6 @@ fn toggled(push_button: f64) -> f64 {
     }
 }
 
-/// The MSFS events masked so that only this module receives them: a key binding or a hardware panel moves the pb-sw,
-/// the systems model then moves the valve, and the MSFS variable follows the valve.
-fn masked(options: EventToVariableOptions) -> EventToVariableOptions {
-    options.mask()
-}
-
 /// The engine anti-ice of each engine:
 /// - The MSFS engine anti-ice events (ANTI_ICE_TOGGLE_ENGn, ANTI_ICE_SET_ENGn, ANTI_ICE_GRADUAL_SET_ENGn and the
 ///   all-engines ANTI_ICE_ON, ANTI_ICE_OFF, ANTI_ICE_SET, ANTI_ICE_TOGGLE, ANTI_ICE_GRADUAL_SET) of key bindings and
@@ -70,22 +64,27 @@ pub(super) fn engine_anti_ice_valves(
                 &format!("ANTI_ICE_SET_ENG{}", engine_number),
                 EventToVariableMapping::EventDataToValue(set_event_value),
                 push_button.clone(),
-                masked,
+                EventToVariableOptions::mask,
             )?;
             builder.event_to_variable(
                 &format!("ANTI_ICE_TOGGLE_ENG{}", engine_number),
                 EventToVariableMapping::CurrentValueToValue(toggled),
                 push_button.clone(),
-                masked,
+                EventToVariableOptions::mask,
             )?;
             builder.event_to_variable(
                 &format!("ANTI_ICE_GRADUAL_SET_ENG{}", engine_number),
                 EventToVariableMapping::EventDataToValue(set_event_value),
                 push_button.clone(),
-                masked,
+                EventToVariableOptions::mask,
             )?;
             for (event, mapping) in ALL_ENGINES_ANTI_ICE_EVENTS {
-                builder.event_to_variable(event, mapping, push_button.clone(), masked)?;
+                builder.event_to_variable(
+                    event,
+                    mapping,
+                    push_button.clone(),
+                    EventToVariableOptions::mask,
+                )?;
             }
 
             builder.variable_to_event_id(
@@ -105,13 +104,18 @@ pub(super) fn engine_anti_ice_valves(
 /// deice disagrees with the wing anti-ice and no toggle from that position is pending (the sim applies it on a later
 /// frame).
 fn wing_toggle_needed(values: &[f64]) -> bool {
-    let [system_on, has_fault, switch_on, _, pending_from] = [0, 1, 2, 3, 4].map(|i| values[i]);
-    let wing_anti_ice_on = system_on > 0. && has_fault <= 0.;
-    let disagrees = wing_anti_ice_on != (switch_on > 0.);
+    let [switch_on, pending_from] = [values[2], values[4]];
     // Allow floating point equality comparison: both values come from the same bool variable
     #[allow(clippy::float_cmp)]
     let toggle_pending = switch_on == pending_from;
-    disagrees && !toggle_pending
+    structural_deice_disagrees(values) && !toggle_pending
+}
+
+/// The MSFS structural deice disagrees with the wing anti-ice (on without a fault) of the systems model
+fn structural_deice_disagrees(values: &[f64]) -> bool {
+    let [system_on, has_fault, switch_on] = [values[0], values[1], values[2]];
+    let wing_anti_ice_on = system_on > 0. && has_fault <= 0.;
+    wing_anti_ice_on != (switch_on > 0.)
 }
 
 fn wing_toggle_count(values: &[f64]) -> f64 {
@@ -123,9 +127,7 @@ fn wing_toggle_count(values: &[f64]) -> f64 {
 }
 
 fn wing_toggle_pending_from(values: &[f64]) -> f64 {
-    let wing_anti_ice_on = values[0] > 0. && values[1] <= 0.;
-    let switch_on = values[2] > 0.;
-    if wing_anti_ice_on == switch_on {
+    if !structural_deice_disagrees(values) {
         -1.
     } else if wing_toggle_needed(values) {
         values[2]
@@ -146,7 +148,7 @@ pub(super) fn wing_anti_ice() -> impl FnOnce(&mut MsfsAspectBuilder) -> Result<(
             "TOGGLE_STRUCTURAL_DEICE",
             EventToVariableMapping::CurrentValueToValue(toggled),
             Variable::named("BUTTON_OVHD_ANTI_ICE_WING_POSITION"),
-            masked,
+            EventToVariableOptions::mask,
         )?;
 
         let toggle_count = Variable::aspect("WING_ANTI_ICE_STRUCTURAL_DEICE_TOGGLES");

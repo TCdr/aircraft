@@ -235,12 +235,12 @@ pub trait PneumaticBleed {
     fn apu_bleed_is_on(&self) -> bool;
     fn engine_crossbleed_is_on(&self) -> bool;
     /// A leak is detected in the bay of pack n (from 1): its pack valves and the hot-air valve n
-    /// close (A380 FCOM DSC-36-10-60). False for an aircraft without that detection.
+    /// close (A380). False for an aircraft without that detection.
     fn pack_valves_closed_by_leak(&self, _pack_number: usize) -> bool {
         false
     }
     /// A leak is detected in the hot-air ducts of the hot-air valve n (from 1): that valve closes
-    /// (A380 FCOM DSC-36-10-60). False for an aircraft without that detection.
+    /// (A380). False for an aircraft without that detection.
     fn hot_air_valve_closed_by_leak(&self, _hot_air_number: usize) -> bool {
         false
     }
@@ -1148,8 +1148,8 @@ pub enum FireDetectionLoopID {
     B,
 }
 
-/// A compartment watched by smoke detectors: the A320 cargo compartments and avionics ventilation duct (A320 FCOM
-/// DSC-26-30-10, DSC-26-50-10), the A380 cargo compartments and avionics bays (A380 FCOM DSC-26-50-10, DSC-26-60-10)
+/// A compartment watched by smoke detectors: the A320 cargo compartments and avionics ventilation duct, the A380 cargo
+/// compartments and avionics bays
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum SmokeDetectionZone {
     ForwardCargo,
@@ -1164,7 +1164,7 @@ pub enum SmokeDetectionZone {
     AftAvionics,
     /// The A380 In Flight Entertainment (IFE) bay
     InFlightEntertainmentBay,
-    /// The A380 Network Server System (NSS) (A380 FCOM DSC-26-50-10, a380_fcom.txt l.53585-53587)
+    /// The A380 Network Server System (NSS) bay
     NetworkServerSystem,
 }
 

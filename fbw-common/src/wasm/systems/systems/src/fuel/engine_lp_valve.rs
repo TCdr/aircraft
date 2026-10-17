@@ -17,13 +17,11 @@
 //! the ENG MASTER and the ENG FIRE pushbutton command. The valve position is monitored against its
 //! command: a valve still not where it is commanded once its travel is over is abnormally open (it
 //! remains open while commanded closed) or abnormally closed (it remains closed while commanded
-//! open). A320 FCOM PRO-ABN-FUEL FUEL ENG 1(2) LP VALVE OPEN (a320_fcom.txt l.85829-85839): "This
-//! alert triggers when the valve remains in the open position." A380 FCOM PRO-ABN-ECAM-10-28 FUEL
-//! ENG 1(2)(3)(4) LP VLV FAULT (a380_fcom.txt l.149688-149694): the LP valve is "Abnormally closed
-//! on ground, during engine start, or - Abnormally open on ground, during engine shutdown". With
-//! the valve jammed open the engine still shuts down with its ENG MASTER, which also closes the HP
-//! valve (l.149731-149732); with the valve jammed closed the engine is starved and cannot start
-//! (l.149725-149726).
+//! open). The A320 FUEL ENG 1(2) LP VALVE OPEN alert is the valve remaining open; the A380 FUEL
+//! ENG 1(2)(3)(4) LP VLV FAULT alert is the valve abnormally closed on the ground during an engine
+//! start, or abnormally open on the ground during an engine shutdown. With the valve jammed open
+//! the engine still shuts down with its ENG MASTER, which also closes the HP valve; with the valve
+//! jammed closed the engine is starved and cannot start.
 
 use crate::{
     failures::{Failure, FailureType},
@@ -73,7 +71,7 @@ pub struct EngineLpFuelValve {
     disagreement_duration: Duration,
 }
 impl EngineLpFuelValve {
-    /// Design choice (no FCOM value): the position monitoring reports a valve that is still not
+    /// Design choice (no published value): the position monitoring reports a valve that is still not
     /// where it is commanded this long after its travel time.
     const DISAGREEMENT_MARGIN: Duration = Duration::from_secs(1);
 
@@ -128,14 +126,12 @@ impl EngineLpFuelValve {
         context: &UpdateContext,
         engine_fire_push_buttons: &impl EngineFirePushButtons,
     ) {
-        // Closed by the engine master switch or by the ENG FIRE pushbutton.
         let is_commanded_open =
             self.master_switch_is_on && !engine_fire_push_buttons.is_released(self.engine_number);
         let commanded_position = Ratio::new::<ratio>(if is_commanded_open { 1. } else { 0. });
         self.is_commanded_open = is_commanded_open;
 
         if self.position_is_initialised {
-            // A jammed valve stays where it is.
             if !self.jammed.is_active() {
                 self.move_towards(commanded_position, context.delta());
             }

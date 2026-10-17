@@ -1,7 +1,7 @@
 #pragma once
 
 // The inputs of the FADEC model of the flight computers (FadecComputer) under the FADEC, thrust lever and thrust
-// reverser failures (engine failures stages A5 and B5). Pure functions, no MSFS SDK: tested natively by
+// reverser failures. Pure functions, no MSFS SDK: tested natively by
 // fbw-common/src/wasm/fbw_common/test/run_tests.sh.
 //
 // systems.wasm (Rust, a320_systems / a380_systems engine_control_failure.rs) computes the thrust lever angle each
@@ -12,7 +12,7 @@
 namespace FadecFailureInputs {
 
 /// The thrust lever angle the FADEC model uses. While no override is active (or systems.wasm has not written the
-/// variables yet: they read 0), the FADEC uses the lever as before.
+/// variables yet: they read 0), the FADEC uses the lever.
 inline double fadecModelThrustLeverAngle(double leverTlaDeg, double overrideActive, double overrideTlaDeg) {
   return overrideActive > 0.5 ? overrideTlaDeg : leverTlaDeg;
 }
@@ -42,17 +42,17 @@ constexpr double THRUST_LOCK_FREE_MARGIN_DEG = 0.01;
 /// frame with the lever outside the bands it never latches.
 ///
 /// The A380 ENG FADEC FAULT does not disconnect the A/THR. The A/THR only loses that engine ("ENG 1(2)(3)(4) A/THR" INOP SYS)
-/// and the engine follows its lever: FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT, "THR LEVER .... MAN ADJUST". The
-/// THRUST LOCK follows an A/THR involuntary disconnection (FCOM DSC-22-FG-50-40), so it does not apply here. Without this,
-/// the engine stayed at the N1 of the failure (sim test 2026-10-06, levers in CL).
+/// and the crew adjusts that engine's thrust with its lever. The THRUST LOCK only follows an involuntary A/THR
+/// disconnection, so it does not apply here. Without this,
+/// the engine stayed at the N1 of the failure in the sim (levers in CL).
 ///
 /// So on that one frame (the link is lost and the A/THR still controlled the engine on the previous frame), the model gets an
 /// angle just below the band. The latch does not set. From the next frame on, the model gets the lever again and sets the
 /// lever thrust: CLB in the CL detent, MCT in the MCT detent. The angle is below the band, not above it, so that the thrust
 /// limit type of that frame stays the same (CLB in the CL band, MCT or FLX in the MCT band).
 ///
-/// Not for the A32NX: there the loss of a FADEC disconnects the whole A/THR (A320 FCOM DSC-22_30-90 A/THR arming condition
-/// "Two FADECs operative"), and the THRUST LOCK is the A320 FCOM behaviour ("The A/THR disconnects due to a failure").
+/// Not for the A32NX: there the A/THR needs two operative FADECs, so the loss of a FADEC disconnects the whole A/THR, and
+/// the THRUST LOCK is the normal behaviour of an A/THR disconnected by a failure.
 inline double thrustLeverAngleWithoutThrustLock(double tlaDeg, bool autothrustOrdersLost, bool athrControlActiveLastFrame) {
   if (!autothrustOrdersLost || !athrControlActiveLastFrame) {
     return tlaDeg;

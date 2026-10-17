@@ -1,23 +1,16 @@
 //! Engine faults that the FADEC detects and reports to the flight warning system, and that have no
 //! effect on the engine model: each one is a flyPad failure that only raises its ECAM alert.
 //!
-//! Each aircraft lists the faults its FCOM has (see the aircraft crates); the faults of both FCOMs
-//! are in [`EngineMonitoringFaultKind`]. The FCOM says what each one is and that its alert is crew
-//! awareness (or a procedure without engine model effect):
-//! - A320 FCOM PRO-ABN-ENG (a320_fcom.txt): ENG 1(2) FADEC ALTERNATOR (l.79588-79615), OVSPD PROT
-//!   FAULT (l.80627-80659), PROBES FAULT (l.80660-80689), SENSOR FAULT (l.81012-81055), ONE TLA
-//!   FAULT (l.80603-80626), REV SWITCH FAULT (l.80820-80847), FUEL CTL FAULT (l.80112-80165), FUEL
-//!   RETURN VALVE (l.80197-80232), CTL VALVE FAULT (l.79445-79486), COMPRESSOR VANE
-//!   (l.79396-79444), ENG 1+2 COMPRESSOR VANE (l.79366-79395), BLEED STATUS FAULT
-//!   (l.79241-79365), REV INHIBITED (l.80690-80726, the aircraft also stops the reverser
-//!   deployment), REV ISOL FAULT (l.80727-80754).
-//! - A380 FCOM PRO-ABN-ECAM-10-70 (a380_fcom.txt): ENG 1(2)(3)(4) FUEL STRAINER CLOGGED
-//!   (l.172106-172132), FUEL FILTER MONITORING FAULT (l.172018-172043), OIL CHIP DETECTED
-//!   (l.172378-172406), MINOR FAULT (l.172307-172334), OVERTHRUST PROT LOST (l.172639-172666),
-//!   SENSOR FAULT (l.172667-172692), CTL SYS FAULT (l.171310-171330), CTL VLV FAULT
-//!   (l.171454-171470), FADEC IDENT FAULT (l.171629-171637), FUEL SYS CONTAMINATION
-//!   (l.172133-172150), OIL SYS CONTAMINATION (l.172517-172530), ENG TYPE DISAGREE
-//!   (l.175642-175650).
+//! Each aircraft lists the faults of the real aircraft (see the aircraft crates); the faults of
+//! both aircraft are in [`EngineMonitoringFaultKind`]. Each alert is crew awareness, or a procedure
+//! without effect on the engine model:
+//! - A320: ENG 1(2) FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT,
+//!   REV SWITCH FAULT, FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2
+//!   COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED (the aircraft also stops the reverser
+//!   deployment), REV ISOL FAULT.
+//! - A380: ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED,
+//!   MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT, CTL SYS FAULT, CTL VLV FAULT, FADEC IDENT
+//!   FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE.
 //!
 //! Written variable, per engine n and fault: `ENGINE_n_<fault>` (boolean, see
 //! [`EngineMonitoringFaultKind::variable_name`]).
@@ -33,86 +26,79 @@ use crate::{
 /// A fault the FADEC of an engine detects and reports, without effect on the engine model.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EngineMonitoringFaultKind {
-    /// A320 ENG 1(2) FADEC ALTERNATOR: "the electrical auto supply for the FADEC system is lost"
-    /// (l.79598). The FADEC is then supplied by the aircraft network.
+    /// A320 ENG 1(2) FADEC ALTERNATOR: the FADEC loses its own electrical supply and is then
+    /// supplied by the aircraft network.
     FadecAlternator,
-    /// A320 ENG 1(2) OVSPD PROT FAULT: "the overspeed protection is lost" (l.80637).
+    /// A320 ENG 1(2) OVSPD PROT FAULT: the overspeed protection is lost.
     OverspeedProtection,
-    /// A320 ENG 1(2) PROBES FAULT: "T12, P0, or PT2 data are unavailable on both channels"
-    /// (l.80670).
+    /// A320 ENG 1(2) PROBES FAULT: T12, P0 or PT2 data unavailable on both channels.
     InletProbes,
-    /// A320 ENG 1(2) SENSOR FAULT: "PS3 or T25 or T3 or N1 or N2 data is unavailable on both
-    /// channels" (l.81022); A380 ENG 1(2)(3)(4) SENSOR FAULT: "Engine total pressure probe or total
-    /// temperature probe or static temperature probe is failed" (l.172673).
+    /// A320 ENG 1(2) SENSOR FAULT: PS3, T25, T3, N1 or N2 data unavailable on both channels; A380
+    /// ENG 1(2)(3)(4) SENSOR FAULT: an engine total pressure, total temperature or static
+    /// temperature probe failed.
     Sensors,
-    /// A320 ENG 1(2) ONE TLA FAULT: one of the two resolvers of the thrust lever is failed (the
-    /// FCOM gives no triggering condition, l.80603-80626; both resolvers failed is ENG THR LEVER
-    /// FAULT, l.81802).
+    /// A320 ENG 1(2) ONE TLA FAULT: one of the two resolvers of the thrust lever is failed (no
+    /// published triggering condition; both resolvers failed is ENG THR LEVER FAULT).
     OneThrustLeverResolver,
-    /// A320 ENG 1(2) REV SWITCH FAULT: "the reverser permission switch is failed" (l.80830).
+    /// A320 ENG 1(2) REV SWITCH FAULT: the reverser permission switch is failed.
     ReverserPermissionSwitch,
-    /// A320 ENG 1(2) FUEL CTL FAULT: "The Fuel Metering Valve (FMV) position is failed, or The FMV
-    /// command is failed, or The FMV position feedback is failed" (l.80122-80126).
+    /// A320 ENG 1(2) FUEL CTL FAULT: the fuel metering valve (FMV) position, command or position
+    /// feedback is failed.
     FuelMeteringValve,
-    /// A320 ENG 1(2) FUEL RETURN VALVE, VALVE NOT OPEN: "The valve is failed closed" (l.80213-80214).
+    /// A320 ENG 1(2) FUEL RETURN VALVE, VALVE NOT OPEN: the valve is failed closed.
     FuelReturnValveFailedClosed,
-    /// A320 ENG 1(2) FUEL RETURN VALVE, VALVE NOT CLOSED: "The valve is failed open" (l.80217-80219).
+    /// A320 ENG 1(2) FUEL RETURN VALVE, VALVE NOT CLOSED: the valve is failed open.
     FuelReturnValveFailedOpen,
-    /// A320 ENG 1(2) CTL VALVE FAULT: "The Burner Staging Valve (BSV) is failed, or The HP Turbine
-    /// Clearance (HPTC) system is failed, or The Rotor Active Clearance Control (RACC) system is
-    /// failed" (l.79455-79459).
+    /// A320 ENG 1(2) CTL VALVE FAULT: the burner staging valve (BSV), the HP turbine clearance
+    /// (HPTC) or the rotor active clearance control (RACC) system is failed.
     ClearanceControlValves,
-    /// A320 ENG 1(2) COMPRESSOR VANE: "either Variable Bleed Valve (VBV) or Variable Stator Vane
-    /// (VSV) is failed" (l.79406-79407).
+    /// A320 ENG 1(2) COMPRESSOR VANE: the variable bleed valve (VBV) or variable stator vane (VSV)
+    /// is failed.
     CompressorVanes,
-    /// A320 ENG 1+2 COMPRESSOR VANE: "loss of the redundancy (i.e. one channel is detected faulty)
-    /// of the compressor vane (i.e. VBV, VSV) control system on both engines" (l.79376-79378): one
-    /// channel of the vane control of this engine; the alert needs it on both engines.
+    /// A320 ENG 1+2 COMPRESSOR VANE: the compressor vane (VBV, VSV) control has lost its
+    /// redundancy (one channel faulty) on both engines. This fault is one channel of the vane
+    /// control of this engine; the alert needs it on both engines.
     CompressorVaneChannel,
-    /// A320 ENG 1(2) BLEED STATUS FAULT: "the status of one of the following valves is not received
-    /// by the FADEC active channel: Bleed valves, Pack valves, Wing and engine anti ice valves,
-    /// Cross-bleed valve" (l.79252-79257).
+    /// A320 ENG 1(2) BLEED STATUS FAULT: the FADEC active channel no longer receives the status of
+    /// a bleed, pack, wing or engine anti-ice, or cross-bleed valve.
     BleedValveStatus,
-    /// A320 ENG 1(2) REV INHIBITED: "the reverser is inhibited by maintenance action" (l.80700).
+    /// A320 ENG 1(2) REV INHIBITED: the reverser is inhibited by a maintenance action.
     /// Unlike the other faults it has an effect, given by the aircraft: the reverser does not deploy.
     ReverserInhibited,
-    /// A320 ENG 1(2) REV ISOL FAULT: "the thrust reverser shut off valve is failed in open
-    /// position" (l.80737). It is the valve that "allows hydraulic pressure to the HCU" (DSC-70-70
-    /// l.63289); the HCU still keeps the reverser actuators unpressurized, so no other effect.
+    /// A320 ENG 1(2) REV ISOL FAULT: the thrust reverser shutoff valve is failed open. That valve
+    /// lets hydraulic pressure to the HCU; the HCU still keeps the reverser actuators
+    /// unpressurized, so no other effect.
     ReverserShutoffValve,
-    /// A380 ENG 1(2)(3)(4) FUEL STRAINER CLOGGED: "The pressure drop across the fuel strainer is
-    /// higher than 12 PSI" (l.172113).
+    /// A380 ENG 1(2)(3)(4) FUEL STRAINER CLOGGED: pressure drop across the fuel strainer above
+    /// 12 PSI.
     FuelStrainerClog,
-    /// A380 ENG 1(2)(3)(4) FUEL FILTER MONITORING FAULT: "The fuel filter is no longer monitored"
-    /// (l.172024).
+    /// A380 ENG 1(2)(3)(4) FUEL FILTER MONITORING FAULT: the fuel filter is no longer monitored.
     FuelFilterMonitoring,
-    /// A380 ENG 1(2)(3)(4) OIL CHIP DETECTED: "Metallic particles are detected in the engine oil
-    /// system" (l.172384).
+    /// A380 ENG 1(2)(3)(4) OIL CHIP DETECTED: metallic particles in the engine oil system.
     OilChip,
-    /// A380 ENG 1(2)(3)(4) MINOR FAULT: "Some internal engine sensors or one FADEC channel are
-    /// failed" (l.172313).
+    /// A380 ENG 1(2)(3)(4) MINOR FAULT: some internal engine sensors or one FADEC channel failed.
     MinorFault,
-    /// A380 ENG 1(2)(3)(4) OVERTHRUST PROT LOST: "The overthrust protection is lost" (l.172645).
+    /// A380 ENG 1(2)(3)(4) OVERTHRUST PROT LOST: the overthrust protection is lost.
     OverthrustProtection,
-    /// A380 ENG 1(2)(3)(4) CTL SYS FAULT: "A failure preventing the FADEC for satisfactorily
-    /// controlling the engine has occurred" (l.171316: P30, N1, N2 sensor or fuel regulation (HMU)
-    /// failure). Design choice: the engine model keeps its normal control (the FCOM procedure
-    /// covers the case "If engine control is degraded").
+    /// A380 ENG 1(2)(3)(4) CTL SYS FAULT: a failure keeps the FADEC from controlling the engine
+    /// properly (P30, N1, N2 sensor or fuel regulation (HMU) failure). Design choice: the engine
+    /// model keeps its normal control (the procedure has a separate branch for a degraded engine
+    /// control).
     ControlSystem,
-    /// A380 ENG 1(2)(3)(4) CTL VLV FAULT: "One control valve of the applicable engine is failed"
-    /// (l.171460: cooling, HP turbine or compressor discharge valve not open).
+    /// A380 ENG 1(2)(3)(4) CTL VLV FAULT: one control valve of the engine is failed (cooling, HP
+    /// turbine or compressor discharge valve not open).
     ControlValve,
-    /// A380 ENG 1(2)(3)(4) FADEC IDENT FAULT: "The FADEC cannot identify the engine configuration"
-    /// (l.171637), crew awareness.
+    /// A380 ENG 1(2)(3)(4) FADEC IDENT FAULT: the FADEC cannot identify the engine configuration,
+    /// crew awareness.
     FadecIdent,
-    /// A380 ENG 1(2)(3)(4) FUEL SYS CONTAMINATION: "The bypass valve of the fuel filter is open"
-    /// (l.172139), crew awareness.
+    /// A380 ENG 1(2)(3)(4) FUEL SYS CONTAMINATION: the bypass valve of the fuel filter is open,
+    /// crew awareness.
     FuelSystemContamination,
-    /// A380 ENG 1(2)(3)(4) OIL SYS CONTAMINATION: "The oil filter in the return line is clogged and
-    /// the bypass valve is open" (l.172525).
+    /// A380 ENG 1(2)(3)(4) OIL SYS CONTAMINATION: the oil filter in the return line is clogged and
+    /// its bypass valve is open.
     OilSystemContamination,
-    /// A380 ENG TYPE DISAGREE: "The engine thrust ratings are not similar on all engines"
-    /// (l.175648), crew awareness: the failure gives this engine a thrust rating that differs.
+    /// A380 ENG TYPE DISAGREE: the engine thrust ratings differ between the engines, crew
+    /// awareness: the failure gives this engine a thrust rating that differs.
     ThrustRatingDisagree,
 }
 impl EngineMonitoringFaultKind {
@@ -175,7 +161,7 @@ pub struct EngineMonitoringFaults<const N: usize> {
     engines: [Vec<EngineMonitoringFault>; N],
 }
 impl<const N: usize> EngineMonitoringFaults<N> {
-    /// `kinds`: the faults the FCOM of the aircraft has.
+    /// `kinds`: the faults the real aircraft has.
     pub fn new(context: &mut InitContext, kinds: &[EngineMonitoringFaultKind]) -> Self {
         Self {
             engines: std::array::from_fn(|index| {

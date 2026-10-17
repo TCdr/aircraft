@@ -5,13 +5,13 @@
 // test/vd_airports_test.cpp.
 //
 // The terrain MapView (ALTITUDE mode) draws the airport diagram (runways, taxiways, aprons) in light grey over the
-// terrain, in every view and whatever the follow mode (probed in the sim at CYUL, 2026-10-03). The VD reads that grey
+// terrain, in every view and whatever the follow mode (measured in the sim at CYUL). The VD reads that grey
 // as terrain far above its plot, which drew spikes wherever the cut crossed an airport. The MapView API has no setting
 // to hide it, and NanoVG cannot mask one tap's texels without erasing the profile of the others, so the stretches of
-// the cut whose band reaches an airport are drawn as flat ground at the airport's elevation instead (a design choice:
+// the cut whose band reaches an airport are drawn as flat ground at the airport's elevation instead (design choice:
 // an airport is flat ground). Each airport is a circle sized to it, holding all its runways plus a margin (from the
 // systems host, EfisTawsBridge / VdAirports.ts, L:A380X_VD_AIRPORT_*): rectangles around each runway left the
-// taxiways and aprons beside them as spikes (2026-10-10).
+// taxiways and aprons beside them as spikes in the sim.
 
 #pragma once
 

@@ -77,9 +77,8 @@ impl AuralWarning {
 
 /// One step of the GPWS self-test, started by the GPWS test pushbutton on the ground.
 ///
-/// A320 FCOM DSC-34-SURV-40-40 (a320_fcom.txt:55491): "The GPWS can be tested by pressing this pushbutton (on ground
-/// only)", and DSC-31-45 (a320_fcom.txt:48990): "TERR TST ... Appears during the GPWS test, when the terrain pattern is
-/// displayed". The FCOM gives no sequence. Design choice: the Honeywell EGPWS short (level 1) self-test, each step
+/// The GPWS pushbutton tests the GPWS on the ground only, and the ND shows TERR TST while the terrain pattern of the
+/// test is displayed. Design choice (no published sequence): the Honeywell EGPWS short (level 1) self-test, each step
 /// lasting one aural emission: GLIDESLOPE with the alert lamp, PULL UP with the warning lamp, then the terrain test
 /// pattern with TERRAIN TERRAIN PULL UP and the warning lamp.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -249,8 +248,8 @@ impl EnhancedGroundProximityWarningComputerRuntime {
     const MODE_2_ALERT_AREA_VALUES: [f64; 3] = [30., 1220., 2450.];
     const MODE_2_B_CUTOFF_AREA_BREAKPOINTS: [f64; 2] = [-1000., -400.];
     const MODE_2_B_CUTOFF_AREA_VALUES: [f64; 2] = [600., 200.];
-    // End of the mode 2 "altitude gain" hold (see update_mode_2_logic). The A320 FCOM gives no end condition; these
-    // are the Honeywell EGPWS mode 2 altitude gain values (300 ft of altitude gain, or 45 s).
+    // End of the mode 2 "altitude gain" hold (see update_mode_2_logic). Design choice (no published A320 end
+    // condition): the Honeywell EGPWS mode 2 altitude gain values (300 ft of altitude gain, or 45 s).
     const MODE_2_ALTITUDE_GAIN_FT: f64 = 300.;
     const MODE_2_ALTITUDE_GAIN_MAX_DURATION: Duration = Duration::from_secs(45);
 
@@ -742,9 +741,9 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             self.mode_2_pull_up_preface_voice_emitted = false;
         }
 
-        // Altitude gain hold. A320 FCOM DSC-34-SURV-40-20 mode 2 table, landing gear up (modes 2A and 2B): after the
-        // PULL UP warning, "TERRAIN" is "repeated as long as MODE 2 is triggered after leaving the warning conditions"
-        // and "The PULL UP red lights stay on". The FCOM gives no end condition. Design choice: the hold ends after
+        // Altitude gain hold, landing gear up (modes 2A and 2B): after the PULL UP warning, TERRAIN is repeated while
+        // mode 2 stays triggered after leaving the warning conditions, and the PULL UP red lights stay on. Design
+        // choice (no published end condition): the hold ends after
         // MODE_2_ALTITUDE_GAIN_FT of altitude gain (from the lowest altitude since leaving the envelope) or
         // MODE_2_ALTITUDE_GAIN_MAX_DURATION (Honeywell EGPWS mode 2 altitude gain), when the envelope is entered again
         // (the normal mode 2 alerts take over), or in the gear down + landing flaps configuration, which has no hold.
@@ -1175,7 +1174,7 @@ impl EnhancedGroundProximityWarningComputerRuntime {
         }
     }
 
-    /// Whether the self-test shows the terrain test pattern (TERR TST on the ND, a320_fcom.txt:48990).
+    /// Whether the self-test shows the terrain test pattern (TERR TST on the ND).
     pub fn is_terrain_test_pattern_active(&self) -> bool {
         self.self_test_step
             .is_some_and(|step| step.shows_terrain_test_pattern())

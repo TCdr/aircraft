@@ -10,8 +10,8 @@ namespace ndwxr {
 
 // The TAWS system (1 or 2, 0 for none) from L:A32NX_WXR_TAWS_SYS_SELECTED and L:A32NX_TAWS_SYS_IN_USE.
 //
-// A380 FCOM PRO-ABN SURV TAWS 1(2) FAULT (a380_fcom.txt l.166816-166824): after an automatic reconfiguration "WXR
-// surveillance function is on SYS 1(2), TAWS surveillance function is on SYS 2(1)". The systems host decides it
+// TAWS 1(2) fault: after an automatic reconfiguration the WXR function stays on the selected system and the TAWS
+// function moves to the other one. The systems host decides it
 // (TawsSystemInUse.ts, EfisTawsBridge.ts) and writes the TAWS system in use; until it has written it (0) the selected
 // WXR/TAWS system provides the TAWS.
 inline int tawsSystemForTerrain(double wxrTawsSelected, double tawsSystemInUse) {

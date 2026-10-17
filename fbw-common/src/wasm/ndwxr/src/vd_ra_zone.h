@@ -4,9 +4,8 @@
 // The amber radio altitude zone of the A380X VD: pure geometry (no MSFS dependency), tested natively by
 // test/vd_ra_zone_test.cpp.
 //
-// A380 FCOM DSC-31-20-40-10 (a380_fcom.txt l.69544-69548): "Indicates the real location of the terrain. The zone
-// elevation in amber is based on the measured radio-altimeter information. Appears when the aircraft
-// radio-altimeter altitude is below 5 000 ft." VerticalDisplay.tsx draws the block in nd.html (VdRadioAltitudeZone.ts):
+// The amber zone shows the real location of the terrain from the measured radio altitude, below 5000 ft radio
+// altitude. VerticalDisplay.tsx draws the block in nd.html (VdRadioAltitudeZone.ts):
 // centred on the 0 NM line (kVdLeft), kVdRadioAltitudeZoneWidth wide, from the ground under the aircraft down to the
 // bottom of the plot. This module's surface is ADDED onto nd.html (see ndwxr.h), so the terrain and the weather it
 // draws under the block would turn the amber into a lighter orange. While the VD shows the block

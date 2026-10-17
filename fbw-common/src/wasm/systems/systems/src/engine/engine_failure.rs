@@ -7,8 +7,8 @@
 //! failure OR an in-flight relight that has not lit up.
 //!
 //! - Flameout failure: when it is activated the flame goes out, and it stays out (latched). The
-//!   crew relights it with the ENG MASTER OFF then ON (A320 FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN
-//!   FLIGHT) inside the relight envelope of the aircraft; the engine then runs normally while the
+//!   crew relights it with the ENG MASTER OFF then ON (the ENG RELIGHT IN FLIGHT procedure) inside
+//!   the relight envelope of the aircraft; the engine then runs normally while the
 //!   failure stays listed. Deactivating then activating the failure gives a new flameout.
 //! - Automatic relight after a flameout, for the aircraft whose envelope asks for it
 //!   ([`EngineRelightEnvelope::fadec_attempts_relight_after_flameout`]): in flight, the flameout of
@@ -25,7 +25,7 @@
 //!   light up. On the ground a failed engine lights up with starter air (a normal start).
 //!
 //! The envelope, and the windmilling speeds of an engine without combustion, are aircraft data:
-//! each aircraft implements [`EngineRelightEnvelope`] from its own FCOM.
+//! each aircraft implements [`EngineRelightEnvelope`].
 
 use crate::{
     failures::{Failure, FailureType},
@@ -72,7 +72,7 @@ pub trait EngineRelightEnvelope {
     fn windmill_n2(&self, indicated_airspeed: Velocity, pressure_altitude: Length) -> Ratio;
 
     /// Whether the FADEC makes a relight attempt by itself as soon as a running engine flames out
-    /// in flight (see the module comment). Off unless the aircraft FCOM describes it.
+    /// in flight (see the module comment). Off unless the real aircraft has this function.
     fn fadec_attempts_relight_after_flameout(&self) -> bool {
         false
     }
@@ -129,9 +129,8 @@ pub struct EngineFailure {
     windmill_n2: Ratio,
 }
 impl EngineFailure {
-    /// A320 FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN FLIGHT (a320_fcom.txt l.78293): "Engine light up
-    /// should be achieved within 30 s after fuel flow increases". An attempt that has not lit up within
-    /// 30 s of the MASTER ON has failed: the crew sets the MASTER OFF and tries again (design
+    /// An in-flight relight must light up within 30 s of the fuel flow increase. An attempt that has
+    /// not lit up within 30 s of the MASTER ON has failed: the crew sets the MASTER OFF and tries again (design
     /// choice: the attempt window starts at the MASTER ON).
     const RELIGHT_ATTEMPT_DURATION: Duration = Duration::from_secs(30);
 
@@ -167,7 +166,6 @@ impl EngineFailure {
     ) {
         let on_ground = context.is_on_ground();
         let seized = self.seizure.is_active();
-        // The pressure altitude is the ISA altitude of the static pressure.
         let pressure_altitude =
             InternationalStandardAtmosphere::altitude_from_pressure(context.ambient_pressure());
 
@@ -181,11 +179,9 @@ impl EngineFailure {
         }
         self.flameout_was_active = flameout_is_active;
 
-        // The FADEC relight attempt of a running engine that flames out in flight (A320 FCOM
-        // PRO-ABN-ENG ENG 1(2) FAIL, a320_fcom.txt l.79828: "Selection of continuous ignition
-        // confirms the immediate relight attempt made by the FADEC"). Its 30 s start at the
-        // flameout: l.79849-79851, "IF NO ENG RELIGHT AFTER 30 S: The 30 s countdown starts as soon
-        // as the ENG 1(2) FAIL alert is triggered".
+        // A running engine that flames out in flight gets an immediate FADEC relight attempt, which
+        // the crew confirms by selecting the continuous ignition (ENG 1(2) FAIL). Its 30 s start at
+        // the flameout, when the ENG 1(2) FAIL alert triggers.
         if flameout_activated
             && !seized
             && !on_ground
@@ -224,30 +220,22 @@ impl EngineFailure {
         }
 
         if let Some(attempt_time) = self.relight_attempt_time {
-            let conditions = if self.automatic_relight_attempt {
-                // Design choice: the automatic attempt lights up with the continuous ignition, manual
-                // (ENG MODE IGN, the "selection of continuous ignition" of the ECAM) or automatic; the
-                // time since the flameout stands for the MASTER OFF time of the quick relight.
-                RelightConditions {
-                    on_ground,
-                    indicated_airspeed: context.indicated_airspeed(),
-                    pressure_altitude,
-                    ignition_selected: inputs.ignition_selected
-                        || inputs.automatic_continuous_ignition,
-                    starter_air_pressurized: inputs.starter_air_pressurized,
-                    core_speed: inputs.core_speed,
-                    master_off_duration: attempt_time,
-                }
-            } else {
-                RelightConditions {
-                    on_ground,
-                    indicated_airspeed: context.indicated_airspeed(),
-                    pressure_altitude,
-                    ignition_selected: inputs.ignition_selected,
-                    starter_air_pressurized: inputs.starter_air_pressurized,
-                    core_speed: inputs.core_speed,
-                    master_off_duration: self.master_off_duration,
-                }
+            // Design choice: the automatic attempt lights up with the continuous ignition, manual
+            // (ENG MODE IGN, the continuous ignition selection of the ECAM procedure) or automatic; the
+            // time since the flameout stands for the MASTER OFF time of the quick relight.
+            let conditions = RelightConditions {
+                on_ground,
+                indicated_airspeed: context.indicated_airspeed(),
+                pressure_altitude,
+                ignition_selected: inputs.ignition_selected
+                    || (self.automatic_relight_attempt && inputs.automatic_continuous_ignition),
+                starter_air_pressurized: inputs.starter_air_pressurized,
+                core_speed: inputs.core_speed,
+                master_off_duration: if self.automatic_relight_attempt {
+                    attempt_time
+                } else {
+                    self.master_off_duration
+                },
             };
             if inputs.ignition_available && envelope.engine_lights_up(&conditions) {
                 self.flamed_out = false;
@@ -269,10 +257,9 @@ impl EngineFailure {
             inputs.lp_valve_starved || seized || self.flamed_out || inputs.start_sequence_fuel_cut;
 
         // An in-flight relight that lights up (fuel no longer cut, master ON, engine not running yet)
-        // has its igniters supplied whatever the ENG MODE selector position. A320 FCOM DSC-70-80-30
-        // (a320_fcom.txt l.63481): "In case of start attempt in flight, when the ENG MASTER sw is
-        // ON, both igniters are supplied"; the windmilling quick relight works "regardless of the
-        // rotary selector position" (l.63538-63541).
+        // has its igniters supplied whatever the ENG MODE selector position: an in-flight start
+        // supplies both igniters once the ENG MASTER is ON, and the windmilling quick relight works
+        // at any selector position.
         self.relight_ignition =
             !on_ground && inputs.master_switch_is_on && !self.fuel_cut && !inputs.engine_is_running;
 
@@ -301,12 +288,12 @@ impl EngineFailure {
         self.seizure.is_active()
     }
 
-    /// A relight attempt is in progress (MASTER ON, not lit up yet, within its 30 s).
     /// An in-flight relight is lighting up: the igniters are supplied at any ENG MODE position.
     pub fn relight_ignition(&self) -> bool {
         self.relight_ignition
     }
 
+    /// A relight attempt is in progress (MASTER ON, not lit up yet, within its 30 s).
     pub fn relight_attempt_in_progress(&self) -> bool {
         self.relight_attempt_time.is_some()
     }

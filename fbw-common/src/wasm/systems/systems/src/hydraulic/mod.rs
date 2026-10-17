@@ -2901,12 +2901,11 @@ struct RatAntiStallPumpController {
     anti_stall_ratio: LowPassFilter<Ratio>,
 }
 impl RatAntiStallPumpController {
-    // DESIGN CHOICE: the pump gets its full displacement only from the real minimum governed speed
-    // (Hamilton Sundstrand ERPS06M CMM, A320 RAT: governed speed 4800 / 6600 rpm), so the RAT pressure fades
-    // when the turbine can no longer hold its governed band. With the real propeller the blue pressure starts
-    // to fade below about 117 kt and the EMER GEN drops out at about 110 kt, in line with the A320 FCOM
-    // PRO-ABN-ELEC ELEC EMER CONFIG caution: "The RAT is capable of supplying the EMER GEN down to 125 kt,
-    // except during flare". The pre-fix value was 4000 rpm.
+    // Design choice: the pump gets its full displacement only from the real minimum governed speed of the A320
+    // RAT (governed band 4800 / 6600 rpm), so the RAT pressure fades when the turbine can no longer hold its
+    // governed band. With the real propeller the blue pressure starts to fade below about 117 kt and the
+    // EMER GEN drops out at about 110 kt, in line with the RAT supplying the EMER GEN down to 125 kt
+    // (except during the flare).
     const LOW_SPEED_CUT_OFF_THRESHOLD_RPM: f64 = RamAirTurbine::GOVERNED_SPEED_MIN_RPM;
     const LOW_SPEED_CUT_OFF_BANDWIDTH_RPM: f64 = 500.;
 
@@ -2956,35 +2955,31 @@ impl RamAirTurbine {
         0.0, 1000., 4700.0, 5500.0, 6250.0, 6300.0, 6450.0, 9000.0, 15000.0,
     ];
     pub const PROP_ALPHA_MAP: [f64; 9] = [0., 0., 0., 0., 1., 1., 1., 1., 1.];
-    // The governor above (blades at fine pitch up to 5500 rpm, feathered from 6250 rpm) is unchanged:
-    // it already holds the RAT inside the real governed band below.
+    // The governor above (blades at fine pitch up to 5500 rpm, feathered from 6250 rpm) holds the RAT inside
+    // the real governed band below.
 
-    // Real A320 RAT (Hamilton Sundstrand ERPS06M CMM, quoted in the eduscol STI resource
-    // 5277-13-epreuve-u41.pdf, "Caracteristiques techniques de la RAT - Pour un A320"):
-    //   turbine diameter 29.5 in (749.3 mm), governed speed 4800 / 6600 rpm,
-    //   rated pump output 21.6 gpm at 2640 psi (about 25 kW) from 135.5 KEAS.
+    // Real A320 RAT: turbine diameter 29.5 in (749.3 mm), governed speed 4800 / 6600 rpm,
+    // rated pump output 21.6 gpm at 2640 psi (about 25 kW) from 135.5 KEAS.
     pub const PROPELLER_DIAMETER_M: f64 = 0.7493;
     pub const GOVERNED_SPEED_MIN_RPM: f64 = 4800.;
     pub const GOVERNED_SPEED_MAX_RPM: f64 = 6600.;
     pub const RATED_OUTPUT_KW: f64 = 25.;
     pub const RATED_OUTPUT_MIN_SPEED_KEAS: f64 = 135.5;
 
-    // TUNED (no published value) so that, with the real diameter, the RAT:
-    // - gives the rated output from 135.5 KEAS while staying above GOVERNED_SPEED_MIN_RPM (CMM),
-    // - still runs the emergency generator at 125 kt (A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG:
-    //   "The RAT is capable of supplying the EMER GEN down to 125 kt, except during flare"),
-    // - keeps the pre-fix limits of the model: 20 kW is too much at 120 kt, 5 kW is fine at 120 kt.
-    // The old values (diameter 1.003 m, best tip speed ratio 2, curve sharpness 3, friction 0.07) were tuned
-    // around the wrong diameter: the smaller real blades spin at a higher tip speed ratio for a given rpm.
+    // Design choice (no published value), so that with the real diameter the RAT:
+    // - gives the rated output from 135.5 KEAS while staying above GOVERNED_SPEED_MIN_RPM,
+    // - still runs the emergency generator at 125 kt (except during the flare),
+    // - keeps the limits of the model: 20 kW is too much at 120 kt, 5 kW is fine at 120 kt.
+    // The small real blades spin at a higher tip speed ratio for a given rpm than a 1 m disc.
     pub const BEST_EFFICIENCY_TIP_SPEED_RATIO: f64 = 2.55;
     pub const EFFICIENCY_CURVE_SHARPNESS: f64 = 1.;
     pub const DYNAMIC_FRICTION: f64 = 0.05;
 
-    // TUNED: keeps the pre-fix spin-down time constant (inertia / friction = 0.10 / 0.07 = 1.4 s)
+    // Design choice: keeps the spin-down time constant of the 1 m disc tuning (inertia / friction = 0.10 / 0.07 = 1.4 s)
     pub const PROPELLER_INERTIA: f64 = 0.07;
 
-    // TUNED: keeps the pre-fix start-up torque, so the RAT starts to spin at the same airspeed as before.
-    // The old value 0.003 was applied to the 1.003 m disc area: 0.003 * (1.003 / 0.7493)^2 = 0.00538
+    // Design choice: keeps the start-up torque of the 1.003 m disc tuning (0.003), so the RAT starts to spin at
+    // the same airspeed: 0.003 * (1.003 / 0.7493)^2 = 0.00538
     pub const LOW_SPEED_WIND_FORCE_COEFFICIENT: f64 = 0.00538;
 
     pub fn new(context: &mut InitContext, pump_characteristics: PumpCharacteristics) -> Self {
@@ -3301,7 +3296,6 @@ mod tests {
 
     #[test]
     fn a320_rat_propeller_has_the_real_29_5_inch_diameter() {
-        // Hamilton Sundstrand ERPS06M CMM (A320 RAT): turbine diameter 29.5 in = 749.3 mm
         let real_diameter = Length::new::<uom::si::length::inch>(29.5);
 
         assert_about_eq!(
@@ -3332,7 +3326,7 @@ mod tests {
 
     #[test]
     fn rat_pump_is_fully_loaded_only_inside_the_governed_band() {
-        // Hamilton Sundstrand ERPS06M CMM (A320 RAT): minimum governed speed 4800 rpm
+        // Real A320 RAT: minimum governed speed 4800 rpm
         assert_about_eq!(rat_anti_stall_displacement_ratio_at(4900.), 1., 0.01);
         assert_lt!(rat_anti_stall_displacement_ratio_at(4700.), 0.9);
         assert_about_eq!(rat_anti_stall_displacement_ratio_at(4000.), 0.15, 0.01);
