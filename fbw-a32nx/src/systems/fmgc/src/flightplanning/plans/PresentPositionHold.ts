@@ -9,19 +9,12 @@ import { HoldData, HoldType } from '@fmgc/flightplanning/data/flightplan';
  * HOLD at the present position (PPOS): a manual hold (HM) whose hold fix is the aircraft position when the hold is
  * inserted.
  *
- * A320 FCOM DSC-22_20-30-10-18 PROCEDURE TO INSERT A HOLD (a320_fcom.txt l.14070-14075): "The HOLD prompt enables the
- * crew to enter a holding pattern, with manual termination (HM), at the revised waypoint or at the present position.
- * The crew accesses the HOLD page from a lateral revision at the present position (PPOS), or at a waypoint."
- * A320 FCOM HOLD page (l.18227-18230): a computed hold has "INB CRS = INBD TRK of the F-PLN leg leading to the revised
- * waypoint", "TURN = Turn direction right", "TIME on outbound leg is 1.5 min above 14 000 ft, 1 min below 14 000 ft".
- * A380 FCOM DSC-22-FMS-10-40-50 HOLD (a380_fcom.txt l.25351-25352): "To insert an HM at P.POS, the flight crew performs
- * the lateral revision on the flight plan FROM waypoint."; COMPUTED HOLD (l.25374-25380): "Inbound course: Track of the
- * flight plan leg preceding the holding fix, or the aircraft bearing if the holding fix is P.POS", "Turn side: RIGHT",
- * "Leg size: 1 minute if the predicted aircraft altitude at the hold is below 14 000 ft, or 1.5 min if the altitude is
- * above 14 000 ft."
+ * The crew opens the HOLD page from a lateral revision at the present position (A320) or at the FROM waypoint (A380).
+ * A computed hold has the inbound course of the leg to the hold fix (at PPOS: the aircraft track), right turns, and a
+ * 1 min outbound leg below 14 000 ft, 1.5 min above.
  */
 
-/** FCOM: the computed hold has a 1 min outbound leg below 14 000 ft, 1.5 min above */
+/** The computed hold has a 1 min outbound leg up to this altitude, 1.5 min above, ft */
 const COMPUTED_HOLD_TIME_ALTITUDE = 14_000;
 
 /**

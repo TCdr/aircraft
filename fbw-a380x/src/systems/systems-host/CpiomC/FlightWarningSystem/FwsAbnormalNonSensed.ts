@@ -277,7 +277,7 @@ export class FwsAbnormalNonSensed {
       limitationsApprLdg: (checked) => (checked[2] ? ['270400004', '220400001', '800400004'] : []),
     },
     280900001: {
-      // FUEL JETTISON (A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON)
+      // FUEL JETTISON
       flightPhaseInhib: [],
       simVarIsActive: this.fws.activeAbnormalNonSensedKeys.map((set) => set.has(280900001)),
       notActiveWhenItemActive: [],

@@ -1809,7 +1809,7 @@ export class FmcAircraftInterface {
     { key: string; prediction: AlternateFuelPrediction | null }
   >();
 
-  /** The default ALTN time of a flight plan (FCOM FUEL&LOAD page: ALTN fuel and time), in ms, or null */
+  /** The default ALTN time of a flight plan (FUEL&LOAD page), in ms, or null */
   public getAlternateTime(fpIndex: number): number | null {
     const prediction = this.alternatePredictions.get(fpIndex)?.prediction;
     return prediction ? prediction.time * 1000 : null;
@@ -1821,7 +1821,7 @@ export class FmcAircraftInterface {
       const fp = this.flightPlanService.get(fpIndex);
       const pd = fp.performanceData;
       const hasAlternate = fp.alternateDestinationAirport !== undefined;
-      // Calculate alternate fuel: the FCOM default computation (CI 0, FL220 below 200 NM, else FL310), needs the ZFW
+      // Calculate alternate fuel: the default computation (CI 0, FL220 below 200 NM, else FL310), needs the ZFW
       const prediction = hasAlternate ? this.predictAlternate(fp, fpIndex) : null;
       pd.calculatedAlternateFuel.set(
         hasAlternate
@@ -1834,11 +1834,10 @@ export class FmcAircraftInterface {
         pd.pilotAlternateFuel.set(null);
         this.alternatePredictions.delete(fpIndex);
       }
-      // Calculate final fuel: a holding at green dot + 25 kt, 1500 ft above the alternate, that ends at the ZFW (FCOM
-      // PER-IFT-FPL-MRF HOLDING FUEL, see FinalHoldingPredictor). The calculated fuel is rounded up to 0.1 t like the
-      // ALTN fuel. Design choice (the FCOM only says the FINAL time default comes from the AMI company fuel policy): the
-      // FINAL time shown with a calculated fuel stays the time the fuel was computed from (default 30 min), not the
-      // slightly longer time of the rounded fuel.
+      // Calculate final fuel: a holding at green dot + 25 kt, 1500 ft above the alternate, that ends at the ZFW (see
+      // FinalHoldingPredictor). The calculated fuel is rounded up to 0.1 t like the ALTN fuel. Design choice (only the
+      // FINAL time default is given, by the AMI company fuel policy): the FINAL time shown with a calculated fuel stays
+      // the time the fuel was computed from (default 30 min), not the slightly longer time of the rounded fuel.
       const zfw = pd.zeroFuelWeight.get();
       if (pd.isFinalHoldingFuelPilotEntered.get()) {
         pd.calculatedFinalHoldingTime.set(FinalHoldingPredictor.timeForFuel(zfw, pd.pilotFinalHoldingFuel.get()));
@@ -1851,7 +1850,7 @@ export class FmcAircraftInterface {
   }
 
   /**
-   * The default ALTN fuel and time (A380 FCOM DSC-22-FMS-20-30, FUEL&LOAD page), from the primary destination to the
+   * The default ALTN fuel and time of the FUEL&LOAD page, from the primary destination to the
    * landing at the alternate, over the alternate flight plan distance (the direct distance without an alternate route),
    * with the ALTN wind of the WIND page and the weight at the destination (ZFW + MIN FUEL AT DEST).
    */

@@ -1,12 +1,11 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-/** Kilograms per pound */
 const KG_PER_LB = 0.453_592_37;
 
 /**
- * Rounds a computed fuel quantity up to the 0.1 t resolution of the FUEL&LOAD fuel fields (FCOM DSC-22-FMS-20-100 FINAL
- * FUEL / ALTN FUEL entry format: resolution 0.1), so that the displayed figure never falls short of the computed one.
+ * Rounds a computed fuel quantity up to the 0.1 t resolution of the FUEL&LOAD FINAL / ALTN fuel fields, so that the
+ * displayed figure never falls short of the computed one.
  * Used for the default ALTN and FINAL fuels. A computation noise of 1e-9 t above a tenth is not rounded up.
  * @param tonnes the fuel in tonnes
  */
@@ -16,53 +15,52 @@ export function roundFuelUpToTenthTonne(tonnes: number): number {
 }
 
 /**
- * The holding fuel of the FUEL&LOAD page: the FINAL fuel and time (A380 FCOM DSC-22-FMS-20-30), and the time the EXTRA
- * fuel lasts at the same holding fuel flow.
+ * The holding fuel of the FUEL&LOAD page: the FINAL fuel and time, and the time the EXTRA fuel lasts at the same
+ * holding fuel flow.
  *
- * A380 FCOM PER-IFT-FPL-MRF HOLDING FUEL: "Holding Fuel is the minimum fuel required to fly for 30 min at 1 500 ft above
- * the alternate airport, at holding speed in ISA conditions. Holding Fuel is calculated with the landing weight at the
- * alternate airport." The holding speed is green dot + 25 kt in CONF CLEAN (PER-IFT-HLD-HLS GD SPEED: "In CONF CLEAN,
- * the standard holding speed is the green dot speed + 25 kt"), the maximum endurance speed.
+ * Holding fuel: the minimum fuel to fly 30 min at 1 500 ft above the alternate airport, at holding speed in ISA
+ * conditions, computed with the landing weight at the alternate. The holding speed is green dot + 25 kt in CONF CLEAN,
+ * the maximum endurance speed.
  *
- * The A380 FCOM has no holding table (holdings are computed by the IN-FLT PERF HLD module of the EFB). The fuel flow is
- * taken from the one A380 holding computation that the FCOM shows (PER-IFT-HLD-HMI figure, IN-FLT PERF HLD module):
- * race track holding, GREEN DOT SPEED + 25 kt IN CONF CLEAN, ALT 1500 ft, ISA+10, A-ICE off, AIR COND NORM,
- * GROSS WGHT 940.0 klbs, 30 min: FUEL 13100 lb, Average FF 26200 lb/HR, FINAL WGHT 926.9 klbs.
+ * There is no published A380 holding table (holdings are computed by the IN-FLT PERF HLD module of the EFB). The fuel
+ * flow is taken from the one published A380 holding computation (IN-FLT PERF HLD module): race track holding, GREEN
+ * DOT SPEED + 25 kt IN CONF CLEAN, ALT 1500 ft, ISA+10, A-ICE off, AIR COND NORM, GROSS WGHT 940.0 klbs, 30 min: FUEL
+ * 13100 lb, Average FF 26200 lb/HR, FINAL WGHT 926.9 klbs.
  *
  * Design choice: the fuel flow is proportional to the weight. At maximum endurance the drag is the weight divided by
- * the best lift/drag ratio, so the thrust (and with it the fuel flow) grows with the weight. The A320neo FCOM holding
- * table (PER-HLD-HLD, CONF 0 - GREEN DOT SPEED, FL15) confirms it: 58 t 844 kg/h/eng to 90 t 1329 kg/h/eng, a fuel flow
- * growing as the weight to the power 1.03. Then the weight decreases exponentially during the holding, and the fuel of a
- * holding has an exact formula.
+ * the best lift/drag ratio, so the thrust (and with it the fuel flow) grows with the weight. The A320neo holding table
+ * (CONF 0 - GREEN DOT SPEED, FL15) confirms it: 58 t 844 kg/h/eng to 90 t 1329 kg/h/eng, a fuel flow growing as the
+ * weight to the power 1.03. Then the weight decreases exponentially during the holding, and the fuel of a holding has
+ * an exact formula.
  *
  * Design choice: the holding altitude is not used. The A320neo table varies by less than 5 % from FL15 to FL140 at any
  * weight (mean +1.6 % at FL50, +1.6 % at FL100, +0.8 % at FL140), well within the 1 500 ft above any airport.
  *
- * Design choice: the FCOM figure (ISA+10) is brought back to ISA with the A320neo table correction "PER 1° ABOVE ISA
- * + 0.3 %" (FUEL), since the A380 FCOM gives no correction.
+ * Design choice: the published A380 holding (ISA+10) is brought back to ISA with the A320neo correction of +0.3 % fuel
+ * per degree above ISA, since no A380 correction is published.
  *
  * Check: at the RJTT-RKSI ZFW of 342.6 t, the 30 min FINAL fuel is 4.70 t, shown 4.8 t once rounded up to 0.1 t; the
- * airline OFP (SimBrief) gives 4.8 t and the FCOM conservative quantity is 10 600 lb (4.81 t).
+ * airline OFP (SimBrief) gives 4.8 t and the published conservative quantity is 10 600 lb (4.81 t).
  */
 export class FinalHoldingPredictor {
-  /** FCOM PER-IFT-HLD-HMI figure: GROSS WGHT at the start of the holding, in klb */
+  /** Published A380 holding: GROSS WGHT at the start of the holding, in klb */
   private static readonly FCOM_START_WEIGHT = 940.0;
 
-  /** FCOM PER-IFT-HLD-HMI figure: FINAL WGHT at the end of the holding, in klb */
+  /** Published A380 holding: FINAL WGHT at the end of the holding, in klb */
   private static readonly FCOM_FINAL_WEIGHT = 926.9;
 
-  /** FCOM PER-IFT-HLD-HMI figure: holding time, in hours (30 min) */
+  /** Published A380 holding: holding time, in hours (30 min) */
   private static readonly FCOM_HOLDING_HOURS = 0.5;
 
-  /** FCOM PER-IFT-HLD-HMI figure: ΔISA, in °C */
+  /** Published A380 holding: ΔISA, in °C */
   private static readonly FCOM_ISA_DEVIATION = 10;
 
-  /** Design choice: A320neo FCOM PER-HLD-HLD correction of the fuel flow per °C above ISA (+0.3 %) */
+  /** Design choice: A320neo holding table correction of the fuel flow per °C above ISA (+0.3 %) */
   private static readonly FUEL_FLOW_CORRECTION_PER_DEGREE_ABOVE_ISA = 0.003;
 
   /**
    * The fuel flow in ISA per unit of weight (fuel flow / weight), in 1/hour. With the fuel flow proportional to the weight,
-   * W(t) = W0 * exp(-k * t), so k = ln(W0 / W1) / t from the start and final weights of the FCOM figure.
+   * W(t) = W0 * exp(-k * t), so k = ln(W0 / W1) / t from the start and final weights of the published holding.
    */
   public static readonly FUEL_FLOW_PER_WEIGHT_PER_HOUR =
     Math.log(FinalHoldingPredictor.FCOM_START_WEIGHT / FinalHoldingPredictor.FCOM_FINAL_WEIGHT) /
@@ -70,9 +68,8 @@ export class FinalHoldingPredictor {
     (1 + FinalHoldingPredictor.FCOM_ISA_DEVIATION * FinalHoldingPredictor.FUEL_FLOW_CORRECTION_PER_DEGREE_ABOVE_ISA);
 
   /**
-   * The fuel flow without a weight (no ZFW entered yet), in tonnes per minute: FCOM PER-IFT-FPL-MRF HOLDING FUEL "A
-   * conservative quantity corresponding to 30 min holding at 1 500 ft above the alternate airport in ISA conditions, at
-   * green dot speed + 25 kt in the clean configuration is 10 600 lb."
+   * The fuel flow without a weight (no ZFW entered yet), in tonnes per minute: the published conservative holding fuel,
+   * 10 600 lb for 30 min at 1 500 ft above the alternate in ISA, at green dot + 25 kt clean.
    */
   public static readonly CONSERVATIVE_FUEL_FLOW_T_PER_MIN = (10_600 * KG_PER_LB) / 1_000 / 30;
 

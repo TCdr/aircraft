@@ -16,7 +16,7 @@ export interface VdAltitudeConstraint {
 export interface MfdSurvEvents {
   /** (MFD SURV -> RMP) Is AUTO or ON (true), or STBY (false). */
   mfd_xpdr_set_auto: boolean;
-  /** (MFD SURV -> XPDR) XPDR mode ON (true) instead of AUTO (A380 FCOM DSC-34-20-40 XPDR MODE OPTION LIST). */
+  /** (MFD SURV -> XPDR) XPDR mode ON (true) instead of AUTO. */
   mfd_xpdr_set_on: boolean;
   /** (MFD SURV -> RMP) Altitude reporting ON/OFF */
   mfd_xpdr_set_alt_reporting: boolean;

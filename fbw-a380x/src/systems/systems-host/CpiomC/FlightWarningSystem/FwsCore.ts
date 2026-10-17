@@ -1886,13 +1886,12 @@ export class FwsCore {
   private readonly egpwcPresentLatitude = Arinc429Register.empty();
   private readonly egpwcPresentLongitude = Arinc429Register.empty();
 
-  /** The TAWS is operative, but the TERR function is not available (A380 FCOM DSC-34-20-60-140, TERR STBY). */
+  /** The TAWS is operative, but the TERR function is not available (TERR STBY). */
   public readonly terrStby = Subject.create(false);
 
   /** The WXR button of the SURV CONTROLS page is OFF. */
   public readonly wxrOff = Subject.create(false);
 
-  /** Fuel jettison in progress (FQMS, A380 FCOM DSC-28-40) */
   public readonly fuelJettisonInProgress = Subject.create(false);
 
   /** The FQMS stopped the jettison (JTSN GW reached or transfer tanks empty), until both JETTISON pb-sw are OFF */
@@ -1910,7 +1909,7 @@ export class FwsCore {
 
   public readonly fuelJettisonRValveFault = Subject.create(false);
 
-  /** A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON FAULT: jettison not available, or one jettison valve failed closed */
+  /** FUEL JETTISON FAULT: jettison not available, or one jettison valve failed closed */
   public readonly fuelJettisonFault = MappedSubject.create(
     SubscribableMapFunctions.or(),
     this.fuelJettisonNotAvail,
@@ -1918,7 +1917,7 @@ export class FwsCore {
     this.fuelJettisonRValveFault,
   );
 
-  /** A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON VLV NOT CLOSED: a jettison valve abnormally open */
+  /** FUEL JETTISON VLV NOT CLOSED: a jettison valve abnormally open */
   public readonly fuelJettisonValveNotClosed = Subject.create(false);
 
   /** The flight crew has set the PRED W/S button to OFF (not the WXR button, which also sets it to OFF). */
@@ -5196,7 +5195,7 @@ export class FwsCore {
     this.tawsWxrSelected.set(this.tawsWxrSelectedSimvar.get());
 
     // TERR STBY: the TAWS of the selected system is operative, but the TERR function cannot rely on the aircraft
-    // position (A380 FCOM DSC-34-20-20-10: system data such as the aircraft position; the TAWS takes it from ADIRU 1).
+    // position (the TAWS takes the aircraft position from ADIRU 1).
     const tawsSystem = this.tawsWxrSelected.get();
     const tawsOperative =
       (tawsSystem === 1 && taws1Powered && !this.gpws1Failed.get() && !this.terrSys1Failed.get()) ||
@@ -5220,12 +5219,12 @@ export class FwsCore {
     this.fuelJettisonRValveFault.set(jettison.rightValveFault);
     this.fuelJettisonValveNotClosed.set(jettison.valveNotClosed);
 
-    // WXR (A380 FCOM DSC-34-20-30-20). The WXR button OFF also sets PRED W/S and TURB to OFF: only the WXR OFF memo
+    // WXR: the WXR button OFF also sets PRED W/S and TURB to OFF: only the WXR OFF memo
     // shows then.
     this.wxrOff.set(SimVar.GetSimVarValue('L:A380X_WXR_OFF', SimVarValueType.Bool));
     this.wxrPredWsOff.set(!this.wxrOff.get() && SimVar.GetSimVarValue('L:A380X_WXR_PRED_WS_OFF', SimVarValueType.Bool));
     this.wxrTurbOff.set(!this.wxrOff.get() && SimVar.GetSimVarValue('L:A380X_WXR_TURB_OFF', SimVarValueType.Bool));
-    // On ground, the WX pb of an EFIS CP turns the WXR on if one engine is operative (P 1): the WXR ON memo.
+    // On ground, the WX pb of an EFIS CP turns the WXR on if one engine is operative: the WXR ON memo.
     const wxSelectedOnEfis =
       SimVar.GetSimVarValue('L:A380X_EFIS_L_ACTIVE_OVERLAY', SimVarValueType.Number) === 1 ||
       SimVar.GetSimVarValue('L:A380X_EFIS_R_ACTIVE_OVERLAY', SimVarValueType.Number) === 1;

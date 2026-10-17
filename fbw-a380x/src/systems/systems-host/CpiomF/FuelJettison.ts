@@ -6,7 +6,7 @@ import { FailuresConsumer, UniversalConfigProvider, Units, UpdateThrottler } fro
 import { A380Failure } from '@failures';
 
 /**
- * Fuel jettison, as controlled by the FQMS (A380 FCOM DSC-28-40 Fuel Jettison, DSC-28-20 JETTISON panel):
+ * Fuel jettison, as controlled by the FQMS:
  * - Jettison starts when the JETTISON ARM and JETTISON ACTIVE pb-sw are both ON, with or without a jettison final gross
  *   weight (JTSN GW, entered on the FMS FUEL&LOAD page).
  * - Fuel is jettisoned from all the transfer tanks (inner, mid, outer and trim) simultaneously, never from the feed
@@ -17,15 +17,14 @@ import { A380Failure } from '@failures';
  *   lights go off and the FUEL JETTISON COMPLETED procedure appears, until the flight crew sets both pb-sw OFF. The flight
  *   crew stops the jettison by setting either pb-sw OFF.
  *
- * - Jettison valve failures (A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON FAULT and VLV NOT CLOSED): a valve stuck
- *   closed does not open, the fuel goes through the other one at half the rate, and with both closed the jettison is not
- *   available; a valve stuck open stays open (OPEN light of the JETTISON ACTIVE pb-sw).
+ * - Jettison valve failures (FUEL JETTISON FAULT and VLV NOT CLOSED): a valve stuck closed does not open, the fuel
+ *   goes through the other one at half the rate, and with both closed the jettison is not available; a valve stuck open
+ *   stays open (OPEN light of the JETTISON ACTIVE pb-sw).
  *
  * The MSFS fuel system has no overboard outlet, so the jettisoned fuel is removed from the tanks directly. The jettison
  * valves of the fuel system are opened as the jettison valves are, for the SD FUEL page.
  */
 export class FuelJettison implements Instrument {
-  /** FCOM DSC-28-40: 330 693 lb/h */
   private static readonly RATE_LB_PER_S = 330_693 / 3600;
 
   /** The transfer tanks of the MSFS fuel system: left outer, mid and inner, right inner, mid and outer, and the trim tank */
@@ -51,7 +50,7 @@ export class FuelJettison implements Instrument {
   /** Below this quantity in gallons, a tank is considered empty */
   private static readonly EMPTY_GALLONS = 0.5;
 
-  /** FCOM: the trim tank jettison resumes when the CG is 0.5 % aft of the forward limit */
+  /** The trim tank jettison resumes when the CG is 0.5 % aft of the forward limit */
   private static readonly TRIM_RESUME_MARGIN = 0.5;
 
   /**
@@ -126,7 +125,6 @@ export class FuelJettison implements Instrument {
         this.valveFaults[i] = true;
       }
     }
-    // Both valves stuck closed: the jettison is not available
     const openValves = stuckClosed.filter((closed) => !closed).length;
     const notAvailable = selected && openValves === 0;
 
@@ -229,7 +227,7 @@ export class FuelJettison implements Instrument {
     FuelJettison.SIDES.forEach((side, i) =>
       SimVar.SetSimVarValue(`L:A380X_FUEL_JETTISON_${side}_VALVE_FAULT`, SimVarValueType.Bool, this.valveFaults[i]),
     );
-    // OPEN light of the JETTISON ACTIVE pb-sw: a jettison valve is open
+    // OPEN light of the JETTISON ACTIVE pb-sw
     SimVar.SetSimVarValue(
       'L:A380X_OVHD_FUEL_JETTISON_IS_OPEN',
       SimVarValueType.Bool,

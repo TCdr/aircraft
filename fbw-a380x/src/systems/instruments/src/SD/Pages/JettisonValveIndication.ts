@@ -10,10 +10,10 @@ export interface JettisonValveIndication {
 }
 
 /**
- * The jettison indication of the SD FUEL page. FCOM DSC-28-20 FUEL SYSTEM DISPLAY - JETTISON INDICATION:
- * - "Jettison is active. The jettison valves are open." (normal)
- * - "Jettison is activated, but the jettison valves are closed." (amber, FUEL JETTISON FAULT)
- * - "Either jettison valve is abnormally open." (amber, FUEL JETTISON VLV NOT CLOSED)
+ * The jettison indication of the SD FUEL page:
+ * - jettison active, the jettison valves open: normal.
+ * - jettison active, but the jettison valves closed: amber (FUEL JETTISON FAULT).
+ * - either jettison valve abnormally open: amber (FUEL JETTISON VLV NOT CLOSED).
  * @param valveOpen whether the jettison valve is open
  * @param jettisonInProgress whether the FQMS runs a jettison (L:A380X_FUEL_JETTISON_IN_PROGRESS)
  * @returns the line fault flag and the legend colour

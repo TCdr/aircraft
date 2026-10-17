@@ -879,7 +879,6 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
     ],
   },
   280900001: {
-    // A380 FCOM PRO-ABN-ECAM-10-28-80 FUEL JETTISON
     title: '\x1b<4m\x1b4mFUEL\x1bm JETTISON',
     sensed: false,
     items: [

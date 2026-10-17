@@ -48,7 +48,7 @@ export class FwsInopSys {
   /** INOP SYS shown on SD */
   inopSys: FwsInopSysDict = {
     280300001: {
-      // JETTISON (A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON FAULT, STATUS)
+      // JETTISON (FUEL JETTISON FAULT STATUS)
       simVarIsActive: this.fws.fuelJettisonFault,
       phase: FwsInopSysPhases.AllPhases,
     },

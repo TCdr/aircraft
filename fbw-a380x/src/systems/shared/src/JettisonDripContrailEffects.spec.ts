@@ -9,8 +9,8 @@ import { describe, expect, it } from 'vitest';
  * A visual effect of the A380X exterior model, as ASOBO_GT_FX components of the behaviour XML of the part that owns
  * its nodes, with their FX_CODE evaluated by a small RPN interpreter for the operators they use:
  * - the fuel jettison drip on the ground at the jettison outlets (A380_WINGS.xml FUEL_JETTISON_GROUND_DRIP_FX), next to
- *   the jettison plume (FUEL_JETTISON_FX). A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON: "It is possible to jettison in
- *   any aircraft configuration, and at any speed", so a jettison on the ground puts the fuel on the ground.
+ *   the jettison plume (FUEL_JETTISON_FX). Fuel can be jettisoned in any aircraft configuration and at any speed, so
+ *   a jettison on the ground puts the fuel on the ground.
  */
 const PARTS_DIR = resolve(
   __dirname,

@@ -62,7 +62,7 @@ export class LegacyFuel implements Instrument {
 
   private refuelInProgress = false;
 
-  /** Fuel jettison in progress: all fuel transfers stop (A380 FCOM DSC-28-40, FuelJettison) */
+  /** Fuel jettison in progress: all fuel transfers stop */
   private jettisonInProgress = false;
 
   private hasInit = false;

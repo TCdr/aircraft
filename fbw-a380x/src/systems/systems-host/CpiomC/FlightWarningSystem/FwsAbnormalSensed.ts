@@ -873,7 +873,7 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['260300005'],
     },
     281800053: {
-      // FUEL JETTISON COMPLETED (A380 FCOM PRO-ABN-ECAM-10-28): the JTSN GW is reached, or the transfer tanks are empty
+      // FUEL JETTISON COMPLETED: the JTSN GW is reached, or the transfer tanks are empty
       flightPhaseInhib: [],
       simVarIsActive: this.fws.fuelJettisonCompleted,
       notActiveWhenItemActive: [],
@@ -883,8 +883,8 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Fuel,
     },
     281800054: {
-      // FUEL JETTISON FAULT (A380 FCOM PRO-ABN-ECAM-10-28 P 61-62): the valve faults on ground (at the end of a flight
-      // with jettison), then the jettison selected but not available
+      // FUEL JETTISON FAULT: the valve faults on ground (at the end of a flight with jettison), then the jettison
+      // selected but not available
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.fuelJettisonFault,
       notActiveWhenItemActive: [],
@@ -910,7 +910,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Fuel,
     },
     281800055: {
-      // FUEL JETTISON VLV NOT CLOSED (A380 FCOM PRO-ABN-ECAM-10-28 P 63): a jettison valve abnormally open
+      // FUEL JETTISON VLV NOT CLOSED: a jettison valve abnormally open
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.fuelJettisonValveNotClosed,
       notActiveWhenItemActive: [],

@@ -31,7 +31,7 @@ const ppos = { lat: 0, long: 0.5 };
 const legs = (fp: ReturnType<typeof emptyFlightPlan>) =>
   fp.allLegs.map((it) => (isDiscontinuity(it) ? 'DISCO' : `${it.ident}/${LegType[it.type]}`));
 
-describe('HOLD at the present position (A320 FCOM l.14070-14075, A380 FCOM l.25351-25380)', () => {
+describe('HOLD at the present position', () => {
   beforeAll(() => {
     // The guidance geometry uses these sim helpers, not in the common test mock
     const utils = Avionics.Utils as any;

@@ -363,8 +363,7 @@ export class LegacyTcasComputer implements Instrument {
     this.trafficLeftEfisFilter = SimVar.GetSimVarValue(trafPbLightVar('L'), 'bool') > 0;
     this.trafficRightEfisFilter = SimVar.GetSimVarValue(trafPbLightVar('R'), 'bool') > 0;
 
-    // With ALT RPTG OFF the TCAS is in standby too (A380 FCOM DSC-34-20-50-20 P 7: TCAS STBY message on the ND, TCAS
-    // STBY memo).
+    // With ALT RPTG OFF the TCAS is in standby too (TCAS STBY message on the ND, TCAS STBY memo)
     this.tcasMode.setVar(
       this.xpdrStatus === XpdrMode.STBY || !this.xpdrAltReporting.get() || !this.tcasPower || this.tcasFault.getVar()
         ? TcasMode.STBY

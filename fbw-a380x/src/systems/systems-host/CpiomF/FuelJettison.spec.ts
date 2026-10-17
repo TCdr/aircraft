@@ -7,7 +7,6 @@ import { FailuresConsumer, UniversalConfigProvider } from '@flybywiresim/fbw-sdk
 import { A380Failure } from '@failures';
 import { FuelJettison } from './FuelJettison';
 
-/** FCOM DSC-28-40: 330 693 lb/h */
 const RATE_LB_PER_S = 330_693 / 3600;
 const POUNDS_PER_GALLON = 6.7;
 const LB_PER_KG = 2.20462;
@@ -123,7 +122,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe('FuelJettison (A380 FCOM DSC-28-40)', () => {
+describe('FuelJettison', () => {
   describe('start', () => {
     it.each<[string, Conditions]>([
       ['JETTISON ARM only', { active: false }],
@@ -264,7 +263,7 @@ describe('FuelJettison (A380 FCOM DSC-28-40)', () => {
     });
   });
 
-  describe('jettison valve failures (FCOM PRO-ABN-ECAM-10-28)', () => {
+  describe('jettison valve failures', () => {
     const removedPounds = () =>
       [...TRANSFER_TANKS, TRIM_TANK].reduce((sum, tank) => sum + 5000 - quantity(tank), 0) * POUNDS_PER_GALLON;
 
