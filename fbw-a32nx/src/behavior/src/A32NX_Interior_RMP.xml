@@ -286,8 +286,8 @@
             <MODE_ID>10</MODE_ID>
         </UseTemplate>
 
-        <!-- BFO key and led: "If the ADF is selected, pressing this key activates the BFO" (A320 FCOM DSC-34-NAV-30-30 (9),
-             a320_fcom.txt l.53502-53505). The RMP instrument toggles the BFO of ADF #ID# (RMP 1: ADF 1, RMP 2: ADF 2). -->
+        <!-- BFO key and led: with the ADF selected, pressing the key turns the BFO on.
+             The RMP instrument toggles the BFO of ADF #ID# (RMP 1: ADF 1, RMP 2: ADF 2). -->
         <UseTemplate Name="FBW_Anim_Interactions">
             <ANIM_TYPE>BUTTON</ANIM_TYPE>
             <ANIM_TEMPLATE>FBW_RMP_BFO_BUTTON_AND_LED</ANIM_TEMPLATE>
@@ -315,7 +315,7 @@
             </UseTemplate>
         </Component>
 
-        <!-- LED light next to the button: the BFO of the ADF of this RMP is on (design choice: the FCOM gives no light
+        <!-- LED light next to the button: the BFO of the ADF of this RMP is on (design choice: no light is documented
              for this key; the model has its LED, lit as the green monitor lights of the other keys) -->
         <Component ID="#LED_NODE_ID#" Node="#LED_NODE_ID#">
             <UseTemplate Name="ASOBO_GT_Emissive_Gauge">

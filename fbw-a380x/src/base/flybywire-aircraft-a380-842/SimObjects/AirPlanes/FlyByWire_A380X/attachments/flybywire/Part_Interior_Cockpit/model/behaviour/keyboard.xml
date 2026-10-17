@@ -27,7 +27,7 @@
 
     <!--
     Template for the OIS MENU and OIS XFR keys: as a laptop key, and the H event of the key for the OIT
-    (A380 FCOM DSC-46-20-20-50: OIS MENU displays the FLT OPS Menu page, OIS XFR the current display of the other OIT)
+    (OIS MENU displays the FLT OPS Menu page, OIS XFR the current display of the other OIT)
 
     Define one level up:
             - SIDE_NODE_GROUP   <no default>    side (CPT or FO)

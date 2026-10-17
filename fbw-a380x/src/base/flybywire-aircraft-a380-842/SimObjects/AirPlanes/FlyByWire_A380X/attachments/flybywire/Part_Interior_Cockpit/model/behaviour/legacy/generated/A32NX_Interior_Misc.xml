@@ -221,9 +221,9 @@
     <!--
     CROSSFEED pb-sw. The pb-sw only toggles its selection (PB_IS_ON_VAR, ON light and animation): the systems host
     (CpiomF/FuelPumpsAndValves) drives the MSFS valve #ID# from it, and holds the valve where it is while it is jammed.
-    The green OPEN light (SEQ1) shows the valve open, whatever the pb-sw (A380 FCOM DSC-28-20 CROSSFEED 1(2)(3)(4) pb-sw,
-    a380_fcom.txt l.58063-58098: ON and the valve open, OPEN and ON lit; ON and the valve closed, only ON; deselected and
-    the valve open, only OPEN). Design choice: open means fully open, as the A320 X FEED OPEN light.
+    The green OPEN light (SEQ1) shows the valve open, whatever the pb-sw (ON and the valve open, OPEN and ON lit; ON
+    and the valve closed, only ON; deselected and the valve open, only OPEN). Design choice: open means fully open,
+    as the A320 X FEED OPEN light.
     -->
     <Template Name="FBW_Airbus_Fuel_Crossfeed">
         <UseTemplate Name="FBW_Push_Toggle">
@@ -243,7 +243,7 @@
         <UseTemplate Name="FBW_Push_Toggle">
             <TOOLTIPID>%((L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool))%{if}TT:COCKPIT.TOOLTIPS.DEICE_PUSH_ENG_ONLY_ON_#ID# %{else}TT:COCKPIT.TOOLTIPS.DEICE_PUSH_ENG_ONLY_OFF_#ID#%{end}</TOOLTIPID>
             <!-- The pb-sw commands the engine anti-ice valve of the systems model (a380_systems ice_rain_protection.rs), which
-                 drives ENG ANTI ICE. FAULT: the valve position disagrees with the pb-sw (A380 FCOM DSC-30-10-20) -->
+                 drives ENG ANTI ICE. FAULT: the valve position disagrees with the pb-sw -->
             <SEQ1_CODE>(L:A32NX_PNEU_ENG_#ID#_ANTI_ICE_FAULT, Bool)</SEQ1_CODE>
             <SEQ2_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool)</SEQ2_CODE>
             <LEFT_SINGLE_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool) ! (&gt;L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool)</LEFT_SINGLE_CODE>
@@ -255,7 +255,7 @@
             <TOOLTIPID>%((L:A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION, Bool))%{if}TT:COCKPIT.TOOLTIPS.DEICE_WINGS_ON%{else}TT:COCKPIT.TOOLTIPS.DEICE_WINGS_OFF%{end}</TOOLTIPID>
             <!-- The pb-sw commands the AICU wing anti-ice of the systems model (a380_systems ice_rain_protection.rs), whose
                  valves drive STRUCTURAL DEICE. ON: the pb-sw, also while the AICU inhibits the valves. FAULT: valve
-                 position disagreement or low pressure (A380 FCOM DSC-30-10-20) -->
+                 position disagreement or low pressure -->
             <SEQ1_CODE>(L:A32NX_PNEU_WING_ANTI_ICE_FAULT, Bool)</SEQ1_CODE>
             <SEQ2_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION, Bool)</SEQ2_CODE>
             <LEFT_SINGLE_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION, Bool) ! (&gt;L:A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION, Bool)</LEFT_SINGLE_CODE>
@@ -532,7 +532,7 @@
     <Template Name="FBW_Airbus_ATC_MSG_Button">
         <UseTemplate Name="FBW_Push_Held">
             <TOOLTIP>Acknowledge ATC message.</TOOLTIP>
-            <!-- Flashing at 2 Hz from the systems host (Misc/AtcMsgLights.ts), A380 FCOM DSC-46-10-20-70 -->
+            <!-- Flashing at 2 Hz from the systems host (Misc/AtcMsgLights.ts) -->
             <SEQ1_CODE>(L:A380X_GLARESHIELD_ATC_MSG_LIGHT, Bool)</SEQ1_CODE>
             <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_DCDU_ATC_MSG_ACK, Bool)</LEFT_SINGLE_CODE>
             <NO_SEQ2/>

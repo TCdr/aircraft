@@ -320,7 +320,7 @@
             </Component>
 
             <!-- OIT_R -->
-            <!-- A380 FCOM DSC-46-20-70 (a380_fcom.txt:107810): F/O OIT = AC ESS. On the A380 AC ESS (400XP) is the AC_ESS_SHED variable (AC_ESS = AC EMER 491XP) -->
+            <!-- F/O OIT = AC ESS. On the A380 AC ESS (400XP) is the AC_ESS_SHED variable (AC_ESS = AC EMER 491XP) -->
             <Component ID="OITR">
                 <Component ID="SCREEN_OITR">
                     <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
@@ -891,8 +891,8 @@
                 <EMISSIVE_CODE>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</EMISSIVE_CODE>
             </UseTemplate>
 
-            <!-- PFD/ND pb: exchanges the onside PFD and ND (A380 FCOM DSC-31-20-50); DU RECONF pb: manual DU
-                 reconfiguration (DSC-31-15-20). The systems host (Misc/CdsReconfiguration.ts) handles the H: events. -->
+            <!-- PFD/ND pb: exchanges the onside PFD and ND; DU RECONF pb: manual DU
+                 reconfiguration. The systems host (Misc/CdsReconfiguration.ts) handles the H: events. -->
             <UseTemplate Name="FBW_AIRBUS_Push_Event_Template">
                 <NODE_ID>PUSH_EFIS_CS_PFD</NODE_ID>
                 <ANIM_NAME>PUSH_EFIS_CS_PFD</ANIM_NAME>
@@ -1191,10 +1191,10 @@
                 </Component>
 
                 <!-- The control panel of the printer, in the row of push buttons beside the paper door: ON/OFF, SLEW, TEST,
-                ABORT and two blank buttons. The A380 FCOM does not describe these buttons (the printer is supplied by AC 1,
-                FCOM DSC-46-20-70 P 1); their functions are design choices, done by the FMS printer (MFD
+                ABORT and two blank buttons. These buttons are not documented (the printer is supplied by AC 1);
+                their functions are design choices, done by the FMS printer (MFD
                 FMC/PedestalPrinter.ts) on the request variables set here, SLEW after the A320 printer SLEW switch that feeds
-                paper (A320 FCOM DSC-45-30). The model has no press animation for these buttons, and no emissive light: the
+                paper. The model has no press animation for these buttons, and no emissive light: the
                 green half of the ON/OFF button face is shown while the printer is on and powered. The blank buttons have
                 no function. -->
                 <Component ID="PRINTER_ON_OFF" Node="PRINTER_ON_OFF">
@@ -1478,7 +1478,7 @@
                         <SEQ1_EMISSIVE_CODE>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</SEQ1_EMISSIVE_CODE>
                     </DefaultTemplateParameters>
 
-                    <!-- SFD/SND reconfiguration (FCOM DSC-34-10-20-20-10 P 2): the MODE pb of either ISIS goes to the next
+                    <!-- SFD/SND reconfiguration: the MODE pb of either ISIS goes to the next
                          configuration (L:A380X_ISIS_CONFIGURATION); the other controls act on the display of their ISIS:
                          SFD (legacy ISIS events, the MENU pb opens the bugs as the SFD MENU) or SND (ISIS_2 events) -->
                     <UseTemplate Name="FBW_ISIS_Knob_Template">
@@ -1934,9 +1934,9 @@
                         commercial%{else}Turn ON commercial%{end}</TOOLTIPID>
                 </UseTemplate>
 
-                <!-- COMMERCIAL 2 and ELMU have their own pbs (A380 FCOM DSC-24-20 ELEC PANEL: ELMU pb-sw is a separate
+                <!-- COMMERCIAL 2 and ELMU have their own pbs (the ELMU pb-sw is a separate
                      function). Their variables are "IS_OFF" so that the normal (pb in, no OFF light) state is the
-                     default 0. Nothing consumes them yet; before, both toggled the COMMERCIAL pb and shed the commercial loads. -->
+                     default 0. Nothing consumes them yet: they do not shed the commercial loads. -->
                 <UseTemplate Name="FBW_Push_Toggle">
                     <NODE_ID>PUSH_OVHD_ELEC_COMMERCIAL2</NODE_ID>
                     <TOGGLE_SIMVAR>L:A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF</TOGGLE_SIMVAR>
@@ -2161,7 +2161,7 @@
                 </UseTemplate>
 
                 <!-- The cabin FASTEN SEAT BELT signs (A:CABIN SEATBELTS ALERT SWITCH) are set by the systems host from the switch
-                     position: fbw-a380x/src/systems/systems-host/Misc/CabinSigns.ts (A380 FCOM DSC-33-50-10 SEAT BELTS sw) -->
+                     position: fbw-a380x/src/systems/systems-host/Misc/CabinSigns.ts -->
                 <UseTemplate Name="A32NX_GT_Switch_Dummy">
                     <NODE_ID>SWITCH_OVHD_INTLT_SEATBELT</NODE_ID>
                     <PART_ID>Seatbelt_Switch</PART_ID>
@@ -3031,13 +3031,11 @@
 
             <Component ID="Overhead_Dummies">
                 <Component ID="Left_Column">
-                    <!-- ELT. The cockpit model has one guarded 3-position selector (SWITCH_OVHD_ELT_SELECTOR), not the
-                         two pbs this block used to name (PUSH_OVHD_ELT_TEST/_ON do not exist in the model), and no ON
-                         light. A380 FCOM DSC-23-20 ELT panel (a380_fcom.txt l.49172-49200): ARMED/ON sw ("armed, and
-                         automatically transmits [...] when the aircraft sustains an abnormal load factor" / "on, and
-                         transmits the emergency radio signal"), TEST/RESET ("An ELT self-test starts, or The ELT stops
-                         transmitting"). The selector combines them as the later Airbus ELT selector does (A320 FCOM
-                         DSC-23-40-30, a320_fcom.txt l.36072-36082: ON / ARMED / TEST/RESET):
+                    <!-- ELT. The cockpit model has one guarded 3-position selector (SWITCH_OVHD_ELT_SELECTOR) and no ON
+                         light. The A380 ELT panel has an ARMED/ON sw (armed: transmits by itself when the aircraft sustains an
+                         abnormal load factor; on: transmits the emergency radio signal) and TEST/RESET (starts an ELT self-test,
+                         or stops the transmission). The selector combines them as the later Airbus ELT selector does
+                         (ON / ARMED / TEST/RESET):
                          up = ON, centre = ARMED, down = TEST/RESET. Same animation as the SEAT BELTS switch (position 0
                          up with INVERT_ANIM). Same L:vars as the A32NX ELT. -->
                     <Component ID="SWITCH_OVHD_ELT_SELECTOR" Node="SWITCH_OVHD_ELT_SELECTOR">
@@ -3294,7 +3292,7 @@
                             <SEQ1_CODE>(L:A380X_OVHD_FUEL_JETTISON_IS_OPEN, Bool)</SEQ1_CODE>
                             <SEQ1_EMISSIVE_DRIVES_VISIBILITY>False</SEQ1_EMISSIVE_DRIVES_VISIBILITY>
                             <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
-                            <!-- FCOM DSC-28-20: the ON light goes off when the FQMS stops the jettison -->
+                            <!-- The ON light goes off when the FQMS stops the jettison -->
                             <SEQ2_CODE>(L:A380X_OVHD_FUEL_JETTISON_ACTIVE_PB_IS_ON, Bool) (L:A380X_FUEL_JETTISON_COMPLETED, Bool) ! and</SEQ2_CODE>
                             <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                             <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
@@ -3700,7 +3698,7 @@
                             <DUMMY_BUTTON />
                         </UseTemplate>
                         <!-- CARGO SMOKE panel BTL 1 and BTL 2 lights: the fire extinguisher bottle has discharged, or
-                             the TEST pb (A380 FCOM DSC-26-60-20 BTL LIGHTS); systems.wasm cargo_fire_extinguishing.rs -->
+                             the TEST pb; systems.wasm cargo_fire_extinguishing.rs -->
                         <UseTemplate Name="FBW_AIRBUS_Push_Dummy_Template">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_FWD1</NODE_ID>
                             <SEQ1_EMISSIVE_CODE>(L:A32NX_FIRE_TEST_CARGO, Bool) (L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool) or</SEQ1_EMISSIVE_CODE>
@@ -3769,8 +3767,7 @@
 
                         <!-- VENTILATION -->
                         <Component ID="Ventilation">
-                            <!-- VENT AVNCS SMOKE: also on while the CARGO SMOKE TEST pb is pressed (A380 FCOM
-                                 DSC-26-50-20 AVNCS light and DSC-26-60-20 Test pb, a380_fcom.txt l.53667-53674, 53973) -->
+                            <!-- VENT AVNCS SMOKE: also on while the CARGO SMOKE TEST pb is pressed -->
                             <UseTemplate Name="FBW_Push_Toggle">
                                 <NODE_ID>PUSH_OVHD_VENTILATION_SMOKE</NODE_ID>
                                 <TOGGLE_SIMVAR>L:A32NX_VENTILATION_BLOWER_TOGGLE</TOGGLE_SIMVAR>
@@ -4431,8 +4428,8 @@
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_TEST</NODE_ID>
                         </UseTemplate>
                         <!-- AGENT TO AFT (FWD) pb: SMOKE light when smoke is detected in the compartment (AFT: aft or
-                             bulk), DISCH light when the bottles discharge into it (A380 FCOM DSC-26-60-20 CARGO SMOKE
-                             PANEL), both with the TEST pb; systems.wasm SDF (smoke_detection.rs,
+                             bulk), DISCH light when the bottles discharge into it, both with the TEST pb;
+                             systems.wasm SDF (smoke_detection.rs,
                              cargo_fire_extinguishing.rs) -->
                         <UseTemplate Name="FBW_Push_Toggle">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_AFT</NODE_ID>
@@ -4522,7 +4519,7 @@
                                 <TOGGLE_SIMVAR>L:A32NX_NSS_MASTER_OFF</TOGGLE_SIMVAR>
                                 <DOWN_CODE>(L:A32NX_NSS_MASTER_OFF, Bool) !</DOWN_CODE>
                                 <SEQ_POWERED>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</SEQ_POWERED>
-                                <!-- SMOKE light: smoke in the NSS, also with the NSS power cut off (A380 FCOM DSC-46-20-20-87, l.103254-103262) -->
+                                <!-- SMOKE light: smoke in the NSS, also with the NSS power cut off -->
                                 <SEQ1_CODE>(L:A32NX_SMOKE_NSS_DETECTED, Bool)</SEQ1_CODE>
                                 <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                                 <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -4599,7 +4596,7 @@
                             </UseTemplate>
                         </Component>
 
-                        <!-- CALLS panel, A380 FCOM DSC-23-20 (a380_fcom.txt l.49023-49096): each pb calls its own station
+                        <!-- CALLS panel: each pb calls its own station
                              with its own L:var (sound.xml plays the high/low chime, the MECH horn while held). The
                              cabin calls (ALL, DECK, PURS) also make the cabin crew report CABIN READY
                              (systems-host CpiomC/FlightWarningSystem/CommunicationAlerts.ts isCabinCalledFromCockpit). -->
@@ -4640,8 +4637,8 @@
                                 <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_PURS</HOLD_SIMVAR>
                                 <TOOLTIPID>Call the purser</TOOLTIPID>
                             </UseTemplate>
-                            <!-- EMER pb-sw (l.49080-49096): "When pressed: The ON and the CALL lights come on" (steady).
-                                 Only an EMER call from the cabin flashes the CALL light (l.49084), not modelled. -->
+                            <!-- EMER pb-sw: pressed, the ON and the CALL lights come on (steady).
+                                 Only an EMER call from the cabin flashes the CALL light, not modelled. -->
                             <UseTemplate Name="FBW_Covered_Push_Toggle">
                                 <NODE_ID>PUSH_OVHD_CALLS_EMER</NODE_ID>
                                 <LOCK_NODE_ID>LOCK_OVHD_CALLS_EMER</LOCK_NODE_ID>
@@ -4915,7 +4912,7 @@
                         <NODE_ID>PUSH_OVHD_REFUEL</NODE_ID>
 						<INOP></INOP>
                     </UseTemplate>
-					<!-- AUTO GND XFR (A380 FCOM DSC-28-20, l.58187-58209): pressed, the FQMS starts the automatic ground transfer
+					<!-- AUTO GND XFR: pressed, the FQMS starts the automatic ground transfer
 					     (CpiomF/FuelGroundTransfer). The light is on while the pb-sw is pressed and flashes when the FQMS aborts. -->
 					<UseTemplate Name="FBW_Push_Toggle">
                         <NODE_ID>PUSH_OVHD_AUTO_GND_XFR</NODE_ID>
@@ -5073,7 +5070,7 @@
                         <TOOLTIPID>ATC reset</TOOLTIPID>
                     </UseTemplate>
 
-                    <!-- The other reset buttons of the panel (FCOM PRO-SUP-24-00 list of computer resets). They toggle
+                    <!-- The other reset buttons of the panel (the list of computer resets). They toggle
                     L:A32NX_RESET_PANEL_<NAME> like the ones above, but no system reads these variables yet, so they are
                     visual only. The blank CB_EMPTY1..8 slots of the model have no button and are not wired. -->
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">

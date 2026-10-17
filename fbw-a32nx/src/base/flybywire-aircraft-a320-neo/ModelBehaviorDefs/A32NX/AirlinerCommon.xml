@@ -637,11 +637,8 @@
 
 
 
-    <!-- Loudspeaker volume knob of the glareshield, CAPT or F/O (A320 FCOM DSC-23-10-50 LOUDSPEAKER VOLUME KNOB,
-         a320_fcom.txt l.35457-35470): "This knob adjusts the volume of the loudspeaker for radio communication.
-         OFF: Loudspeaker does not respond to signals from the aircraft's radio equipment. Clockwise rotation:
-         Loudspeaker broadcasts signals from the aircraft's radio equipment at increasing volume. Note: This knob does
-         not control the loudness of aural alert and voice messages."
+    <!-- Loudspeaker volume knob of the glareshield, CAPT or F/O: it sets the loudspeaker volume of the radio communication,
+         from OFF (silent) to full clockwise; it does not change the aural alerts and voice messages.
          L:A32NX_LOUDSPEAKER_#SIDE#_VOLUME is the knob position in percent (0 = OFF, 100 = full clockwise).
          FBW_AIRLINER_Audio_Panel_Updater scales the COM receive volumes by the louder of the two loudspeakers: the sim
          plays the radios through one output. The aural alerts and voice messages are other sounds: not affected. -->
