@@ -4,18 +4,17 @@
 /*
  * CAB PRESS alerts and the RAM AIR memo of the A380X FWS, from the CPIOM B CPCS discrete word (cpiom_b.rs: bit 15
  * EXCESS NEGATIVE DIFF PRESS, bit 16 DIFF PRESS HI, bit 17 DIFF PRESS LO), the FMS landing elevation words and the
- * RAM AIR pb (A380 FCOM PRO-ABN-ECAM-10-21-30 and DSC-21-10-20).
+ * RAM AIR pb.
  */
 
 /**
- * CAB PRESS EXCESS NEGATIVE DIFF PRESS ends "when the cabin differential pressure goes above -0.32 PSI"
- * (a380_fcom.txt l.135258-135259). It triggers below -0.72 PSI (l.135258), the CPCS bit (cpiom_b.rs
- * FWC_EXCESSIVE_NEGATIVE_DIFF_PRESSURE).
+ * CAB PRESS EXCESS NEGATIVE DIFF PRESS ends when the cabin differential pressure goes above -0.32 PSI. It triggers
+ * below -0.72 PSI, the CPCS bit (cpiom_b.rs FWC_EXCESSIVE_NEGATIVE_DIFF_PRESSURE).
  */
-export const EXCESS_NEGATIVE_DIFF_PRESS_RESET_PSI = -0.32;
+const EXCESS_NEGATIVE_DIFF_PRESS_RESET_PSI = -0.32;
 
-/** "The RAM air inlets only open, if differential pressure is less than one psi." (a380_fcom.txt l.5375) */
-export const RAM_AIR_INLETS_MAX_DIFF_PRESS_PSI = 1;
+/** The RAM air inlets open only below this differential pressure */
+const RAM_AIR_INLETS_MAX_DIFF_PRESS_PSI = 1;
 
 /** The CAB PRESS EXCESS NEGATIVE DIFF PRESS warning: set by the CPCS bit, held until -0.32 PSI is passed. */
 export class ExcessNegativeDiffPressMonitor {
@@ -38,8 +37,8 @@ export class ExcessNegativeDiffPressMonitor {
 }
 
 /**
- * CAB PRESS DIFF PRESS HI: "In automatic mode, the cabin differential pressure is above 8.92 PSI, and is below 9.2 PSI."
- * (a380_fcom.txt l.134896). The CPCS bit holds the pressure band; the FWS adds the automatic mode.
+ * CAB PRESS DIFF PRESS HI: in automatic mode, the cabin differential pressure is between 8.92 and 9.2 PSI. The CPCS bit
+ * holds the pressure band; the FWS adds the automatic mode.
  * @param cpcsBit the DIFF PRESS HI bit of the CPCS discrete word
  * @param manCabinAltMode the CABIN ALT MODE pb is set to MAN
  * @returns whether the alert condition is true
@@ -49,8 +48,8 @@ export function isDiffPressHi(cpcsBit: boolean, manCabinAltMode: boolean): boole
 }
 
 /**
- * The lines of CAB PRESS DIFF PRESS HI (a380_fcom.txt l.134919-134934): CABIN ALT MODE ... MAN and CABIN ALT TRGT ...
- * AS RQRD "If the manual pressurization system is available", EXPECT HI CAB RATE if it is not.
+ * The lines of CAB PRESS DIFF PRESS HI: CABIN ALT MODE ... MAN and CABIN ALT TRGT ... AS RQRD when the manual
+ * pressurization system is available, EXPECT HI CAB RATE when it is not.
  * @param manualPressAvailable the manual pressurization system is available
  * @returns which of the 3 lines are shown
  */
@@ -59,9 +58,9 @@ export function diffPressHiItemsToShow(manualPressAvailable: boolean): boolean[]
 }
 
 /**
- * CAB PRESS LDG ELEVN FAULT: "The outflow valve controllers do not receive the landing field elevation from the FMS."
- * (a380_fcom.txt l.135437). Both FMS landing elevation words (L:A32NX_FM1/FM2_LANDING_ELEVATION) have no normal value:
- * no destination in the FMS, or no FMS.
+ * CAB PRESS LDG ELEVN FAULT: the outflow valve controllers get no landing field elevation from the FMS. Both FMS
+ * landing elevation words (L:A32NX_FM1/FM2_LANDING_ELEVATION) have no normal value: no destination in the FMS, or no
+ * FMS.
  * @param fm1LandingElevationNormal the FM1 landing elevation word is in normal operation
  * @param fm2LandingElevationNormal the FM2 landing elevation word is in normal operation
  * @returns whether the alert condition is true
@@ -71,10 +70,10 @@ export function isLdgElevnFault(fm1LandingElevationNormal: boolean, fm2LandingEl
 }
 
 /**
- * The lines of CAB PRESS LDG ELEVN FAULT (a380_fcom.txt l.135466-135473): IN DES : CAB ALT REGULATED TO 7000 FT, BELOW
- * 7000 FT : CAB ALT = ACFT ALT, BELOW 7000 FT : AVOID HI DES V/S "If the manual pressurization system is not available".
- * With the manual system available the crew uses the deferred procedure (AT TOP OF DESCENT: CABIN ALT MODE MAN, CABIN
- * ALT TRGT LDG ELEVN, l.135509-135513).
+ * The lines of CAB PRESS LDG ELEVN FAULT: IN DES : CAB ALT REGULATED TO 7000 FT, BELOW 7000 FT : CAB ALT = ACFT ALT,
+ * BELOW 7000 FT : AVOID HI DES V/S, when the manual pressurization system is not available. With the manual system
+ * available the crew uses the deferred procedure instead (AT TOP OF DESCENT: CABIN ALT MODE MAN, CABIN ALT TRGT LDG
+ * ELEVN).
  * @param manualPressAvailable the manual pressurization system is available
  * @returns which of the 3 lines are shown
  */
@@ -83,8 +82,8 @@ export function ldgElevnFaultItemsToShow(manualPressAvailable: boolean): boolean
 }
 
 /**
- * The emergency RAM air inlets are open: the RAM AIR pb is ON, and they "only open, if differential pressure is less
- * than one psi" (a380_fcom.txt l.5370-5375). Without a valid differential pressure, the pb alone.
+ * The emergency RAM air inlets are open: the RAM AIR pb is ON and the differential pressure is below 1 PSI. Without a
+ * valid differential pressure, the pb alone.
  * @param ramAirPbOn the RAM AIR pb is ON
  * @param diffPressurePsi the cabin differential pressure, null without a valid value
  * @returns whether the RAM air inlets are open
@@ -94,9 +93,9 @@ export function areRamAirInletsOpen(ramAirPbOn: boolean, diffPressurePsi: number
 }
 
 /**
- * The RAM AIR memo (DSC-21-10-20 MEMO, a380_fcom.txt l.6055-6058): "The emergency RAM air inlets are open, and the
- * aircraft is on ground with no engine running", and "in all other cases". The FCOM text has no colours: as the other
- * two-case memos (ELEC EXT PWR, RAT OUT), the normal case is green and "all other cases" amber.
+ * The RAM AIR memo has two cases: the RAM air inlets open on ground with no engine running, and every other case.
+ * Design choice (no colours given for it): as the other two-case memos (ELEC EXT PWR, RAT OUT), the ground case is
+ * green and the other cases amber.
  * @param onGround the aircraft is on ground
  * @param anyEngineRunning at least one engine is running
  * @returns 0 for the green memo, 1 for the amber memo

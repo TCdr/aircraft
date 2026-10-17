@@ -1,11 +1,10 @@
 //! ATA 35 oxygen of the A380: the pressure of the cockpit and cabin oxygen bottles and the cabin oxygen valves, for
-//! the DOOR/OXY SD page and the FWS alerts OXY CKPT BOTTLE PRESS LO, OXY CABIN BOTTLE PRESS LO and OXY CABIN VLV CLOSED
-//! (A380 FCOM PRO-ABN-ECAM-10-35, a380_fcom.txt l.167419-167520).
+//! the DOOR/OXY SD page and the FWS alerts OXY CKPT BOTTLE PRESS LO, OXY CABIN BOTTLE PRESS LO and OXY CABIN VLV CLOSED.
 //!
-//! Design choices (the FCOM gives no values): the bottles hold their full charge, 1 850 PSI, as long as nothing draws
-//! on them (the crew masks and the cabin masks are not modelled); a leak failure empties a bottle at 100 PSI/min, so
-//! that OXY CKPT BOTTLE PRESS LO (below 350 PSI) comes after 15 min. The cabin valve failure holds one regulator supply
-//! valve closed: "One regulator supply valve is failed in the closed position" (l.167491).
+//! Design choices (no published values): the bottles hold their full charge, 1 850 PSI, as long as nothing draws on
+//! them (the crew masks and the cabin masks are not modelled); a leak failure empties a bottle at 100 PSI/min, so that
+//! OXY CKPT BOTTLE PRESS LO (below 350 PSI) comes after 15 min. The cabin valve failure holds one regulator supply
+//! valve failed closed.
 
 use uom::si::{f64::*, pressure::psi};
 

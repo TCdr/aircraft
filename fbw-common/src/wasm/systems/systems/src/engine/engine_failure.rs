@@ -293,7 +293,6 @@ impl EngineFailure {
         self.relight_ignition
     }
 
-    /// A relight attempt is in progress (MASTER ON, not lit up yet, within its 30 s).
     pub fn relight_attempt_in_progress(&self) -> bool {
         self.relight_attempt_time.is_some()
     }

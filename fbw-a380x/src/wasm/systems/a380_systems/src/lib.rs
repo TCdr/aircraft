@@ -81,8 +81,7 @@ use systems::{
     },
 };
 
-/// The FADEC faults of the A380 FCOM that have no engine model effect (PRO-ABN-ECAM-10-70,
-/// a380_fcom.txt): ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP
+/// The A380 FADEC faults that have no engine model effect: ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP
 /// DETECTED, MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT (see
 /// systems::engine::engine_monitoring_fault and the FWS EngineMonitoringAlerts.ts).
 const A380_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 6] = [

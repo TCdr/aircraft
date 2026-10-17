@@ -974,8 +974,8 @@ mod tests {
         }
     }
 
-    // The flyPad failures of the network components (FCOM DSC-42-20, a380_fcom.txt l.94964-95066) act as the failure
-    // L:vars: a failed switch routes no message, a failed IOM or CPIOM is no longer available.
+    // The flyPad failures of the network components act as the failure L:vars: a failed switch routes no message, a
+    // failed IOM or CPIOM is no longer available.
     #[test]
     fn flypad_failed_switch_not_sending_or_receiving() {
         let mut test_bed = SimulationTestBed::new(AdcnTestAircraft::new);

@@ -6,35 +6,33 @@
  * fire_protection/smoke_detection.rs and cargo_fire_extinguishing.rs, a380_systems fire_and_smoke_protection.rs):
  * L:A32NX_SMOKE_<zone>_DETECTED and L:A32NX_SMOKE_<zone>_DET_FAULT of the cargo compartments and the avionics / IFE
  * bays, L:A32NX_CARGOSMOKE_BOTTLE_<n>_LOW_PRESSURE of the two cargo bottles.
- * A380 FCOM PRO-ABN-ECAM-10-26 SMOKE alerts (airbus-a380-fcom PDF p.4982-5007); the flight phase inhibitions are the
- * figures of these pages. Not fed (no detector modelled): the crew rests, lavatories, CWS / RCC, showers, facilities,
+ * SMOKE alerts; the flight phase inhibitions are those of the aircraft procedures. Not fed (no detector modelled): the crew rests, lavatories, CWS / RCC, showers, facilities,
  * SMOKE DET FAULT, SAFETY TEST REQUIRED, and FWD (AFT) / FWD+AFT CARGO BOTTLES FAULT (diverter valve, bottle control).
  */
 
-/** "Crew awareness" DET FAULT cautions: phases 3 to 7 and 9 to 11 (PDF p.4982, 4990, 4992, 5004) */
+/** The "crew awareness" DET FAULT cautions */
 export const SMOKE_DET_FAULT_PHASE_INHIBITION = [3, 4, 5, 6, 7, 9, 10, 11];
 
-/** The SMOKE warnings: phases 4 to 6, 9 and 10 (PDF p.4983, 4991, 4993, 4995, 5001) */
 export const SMOKE_WARNING_PHASE_INHIBITION = [4, 5, 6, 9, 10];
 
-/** FWD+AFT CARGOS BTL 1(2) FAULT: phases 4 to 7, 9 and 10 (PDF p.5007) */
+/** FWD+AFT CARGOS BTL 1(2) FAULT */
 export const CARGO_BOTTLE_FAULT_PHASE_INHIBITION = [4, 5, 6, 7, 9, 10];
 
 /** A compartment of the SDF: its L:var zone name and its alerts */
 export interface SmokeZoneAlerts {
   /** The zone in L:A32NX_SMOKE_<zone>_DETECTED */
   readonly zone: string;
-  /** The SMOKE warning (ata26.ts) */
+  /** ata26.ts id */
   readonly smokeAlert: string;
-  /** The SMOKE ... DET FAULT caution (ata26.ts) */
+  /** ata26.ts id */
   readonly detFaultAlert: string;
-  /** STATUS INOP SYS ALL PHASES of the DET FAULT (EcamInopSys) */
+  /** EcamInopSys id */
   readonly detFaultInopSys: string;
 }
 
 /**
  * The compartments and their alerts. The main and upper avionics bays share the logic of avionicsBaySmokeAlerts().
- * The AFT and BULK cargo compartments share the AFT CARGO SMK DET INOP SYS ("FWD (AFT) CARGO SMK DET", PDF p.5005).
+ * The AFT and BULK cargo compartments share the AFT CARGO SMK DET INOP SYS line (FWD (AFT) CARGO SMK DET).
  */
 export const SMOKE_ZONES: SmokeZoneAlerts[] = [
   { zone: 'FWD_CARGO', smokeAlert: '260800045', detFaultAlert: '260800048', detFaultInopSys: '260300043' },
@@ -48,13 +46,12 @@ export const SMOKE_ZONES: SmokeZoneAlerts[] = [
   { zone: 'IFE_BAY', smokeAlert: '260800033', detFaultAlert: '260800032', detFaultInopSys: '260300034' },
 ];
 
-/** STATUS INOP SYS of SMOKE FWD+AFT CARGOS BTL 1(2) FAULT: FWD+AFT CRGs BTL 1(2) (PDF p.5007) */
+/** STATUS INOP SYS of SMOKE FWD+AFT CARGOS BTL 1(2) FAULT: FWD+AFT CRGs BTL 1(2) */
 export const CARGO_BOTTLE_FAULT_INOP_SYS = ['260300045', '260300046'];
 
 /**
- * MAIN AND UPPER AVIONICS (A380 FCOM DSC-26-50-10, a380_fcom.txt l.53632-53641, PDF p.1792): smoke in the upper bay
- * gives SMOKE L(R) UPPER AVNCS SMOKE, whether or not the main bay detects smoke; smoke in the main bay only gives SMOKE
- * L(R) MAIN AVNCS SMOKE.
+ * Main and upper avionics bays: smoke in the upper bay gives SMOKE L(R) UPPER AVNCS SMOKE, whether or not the main bay
+ * detects smoke; smoke in the main bay only gives SMOKE L(R) MAIN AVNCS SMOKE.
  * @param mainBaySmoke the SDF detects smoke in the left (right) main avionics bay
  * @param upperBaySmoke the SDF detects smoke in the left (right) upper avionics bay
  * @returns the two warnings of that side
@@ -106,8 +103,8 @@ export interface SmokeProcedureState {
 }
 
 /**
- * SMOKE FWD (AFT/BULK) CARGO SMOKE (PDF p.5002-5003, ata26.ts 260800045-047): 0 ISOL VALVES OFF, 1 IF CRG CLOSED and
- * 2 AGENT DISCH "When all engines are shut down", 3 AGENT DISCH "When at least one engine running", 4 CAB FANS OFF,
+ * SMOKE FWD (AFT/BULK) CARGO SMOKE (ata26.ts 260800045-047): 0 ISOL VALVES OFF, 1 IF CRG CLOSED and 2 AGENT DISCH
+ * when all engines are shut down, 3 AGENT DISCH when at least one engine is running, 4 CAB FANS OFF,
  * 5 SIGNS ON, 6 CKPT / CABIN COM ESTABLISH, 7 BEFORE CARGO OPENING : PAX DISEMBARK.
  * @param state the cockpit state
  * @returns which lines are shown
@@ -135,9 +132,9 @@ export function cargoSmokeItemsChecked(state: SmokeProcedureState): boolean[] {
 }
 
 /**
- * SMOKE AFT (L(R) MAIN) AVNCS SMOKE (PDF p.4983-4984, 4993-4994): CREW OXY MASKS, CAB FANS OFF, GALLEY OFF, SIGNS ON,
- * CKPT / CABIN COM (and [QRH] SMOKE/FUMES PROC for L(R) MAIN). L(R) UPPER AVNCS SMOKE (PDF p.4995-4996) has NSS MASTER
- * after GALLEY and the IF SMOKE PERSISTS condition before the QRH line.
+ * SMOKE AFT (L(R) MAIN) AVNCS SMOKE: CREW OXY MASKS, CAB FANS OFF, GALLEY OFF, SIGNS ON, CKPT / CABIN COM (and [QRH]
+ * SMOKE/FUMES PROC for L(R) MAIN). L(R) UPPER AVNCS SMOKE has NSS MASTER after GALLEY and the IF SMOKE PERSISTS
+ * condition before the QRH line.
  * @param state the cockpit state
  * @param upperBay the L(R) UPPER AVNCS SMOKE item list
  * @param qrhLine the list ends with the [QRH] SMOKE/FUMES PROC line (L(R) MAIN)

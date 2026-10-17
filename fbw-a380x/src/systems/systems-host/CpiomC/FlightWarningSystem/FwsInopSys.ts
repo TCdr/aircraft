@@ -463,7 +463,7 @@ export class FwsInopSys {
       redundancyLoss: true,
     },
     270300016: {
-      // TAIL STRIKE DET: TAIL STRIKE DET FAULT STATUS, INOP SYS APPR (FCOM PDF page 5097), see FwsTailStrikeAlerts
+      // TAIL STRIKE DET: TAIL STRIKE DET FAULT STATUS, INOP SYS APPR, see FwsTailStrikeAlerts
       simVarIsActive: this.fws.tailStrikeDetFault,
       phase: FwsInopSysPhases.ApprLdg,
     },
@@ -551,8 +551,8 @@ export class FwsInopSys {
       simVarIsActive: this.fws.eng4HydraulicInop,
       phase: FwsInopSysPhases.AllPhases,
     },
-    // HYD G(Y) ENG 1(2)(3)(4) PMP A(B) PRESS LO STATUS (A380 FCOM l.155077-155091, HydPumpStatus.ts): INOP SYS ALL PHASES
-    // with at least two pumps of the system failed, MORE INFO REDUND LOSS with one
+    // HYD G(Y) ENG 1(2)(3)(4) PMP A(B) PRESS LO STATUS (HydPumpStatus.ts): INOP SYS ALL PHASES with at least two pumps
+    // of the system failed, MORE INFO REDUND LOSS with one
     290300005: { simVarIsActive: this.fws.enginePumpInopSys[0], phase: FwsInopSysPhases.AllPhases },
     290300006: { simVarIsActive: this.fws.enginePumpInopSys[1], phase: FwsInopSysPhases.AllPhases },
     290300007: { simVarIsActive: this.fws.enginePumpInopSys[2], phase: FwsInopSysPhases.AllPhases },
@@ -640,7 +640,7 @@ export class FwsInopSys {
       notActiveWhenItemActive: ['320300022'],
     },
     // GPWS and TERR SYS of one SURV system both failed: TAWS SYS 1(2) replaces them (SURV TAWS 1(2) FAULT STATUS,
-    // A380 FCOM l.166837-166842, FwsSurvAlerts tawsFunctionFaults)
+    // FwsSurvAlerts tawsFunctionFaults)
     340300001: {
       // GPWS 1
       simVarIsActive: this.notWithAcEssBusFault(this.fws.gpws1Failed),

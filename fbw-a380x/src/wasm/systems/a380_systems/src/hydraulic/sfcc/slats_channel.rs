@@ -12,8 +12,8 @@ pub(super) struct SlatsChannel {
     demanded_angle: Angle,
     feedback_angle: Angle,
 
-    /// The flyPad failure of this slat channel: "the slat system 1(2) is failed", only one slat motor remains
-    /// available and the slats operate at half speed (F/CTL SLAT SYS 1(2) FAULT, a380_fcom.txt l.148380-148393)
+    /// The flyPad failure of this slat channel: the slat system is failed, only one slat motor remains and the slats
+    /// operate at half speed (F/CTL SLAT SYS 1(2) FAULT)
     motor_control_failure: Failure,
 }
 impl SlatsChannel {

@@ -76,7 +76,6 @@ const A380_CROSSFEED_VALVES: readonly A380CrossFeedValve[] = [
 export interface A380TransferPump {
   /** The name of its pb-sw and ECAM alert, e.g. L OUTR TK, L MID TK FWD, TRIM TK L */
   name: string;
-  /** The failure of the pump */
   failure: number;
   /** The MSFS pump number (Pump.N), the index of FUELSYSTEM PUMP SWITCH and ACTIVE */
   pump: number;
@@ -89,8 +88,8 @@ export interface A380TransferPump {
 }
 
 /**
- * The transfer pumps that the FBW fuel transfers run (flight_model.cfg Trigger.1-46 StartPump): outer, mid fwd, inner fwd
- * and trim tank pumps. The aft gallery pumps (MID/INR TK AFT) only run for the manual inner and mid tank transfers
+ * The transfer pumps that the FBW fuel transfers run (flight_model.cfg Trigger.1-46 StartPump): outer, mid fwd, inner
+ * fwd and trim tank pumps. The aft gallery pumps (MID/INR TK AFT) only run for the manual inner and mid tank transfers
  * (CpiomF/FuelManualTransfer) and have no failure.
  */
 export const A380_TRANSFER_PUMPS: readonly A380TransferPump[] = [

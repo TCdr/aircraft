@@ -44,9 +44,8 @@ export class LegacyGpws {
   }
 
   /**
-   * Mode 2B condition "the aircraft is flying an ILS(GLS) approach, and both glide slope and LOC deviations are below 2
-   * dots" (A380 FCOM DSC-34-20-20-10, a380_fcom.txt:88281-88282). One dot: 0.4 degree of glide slope (as mode 5),
-   * 0.8 degree of localizer.
+   * Mode 2B condition: on an ILS (GLS) approach with both the glide slope and the LOC deviations below 2 dots.
+   * One dot: 0.4 degree of glide slope (as mode 5), 0.8 degree of localizer.
    * @returns true when both the glide slope and the localizer are received with less than 2 dots of deviation
    */
   static areIlsDeviationsBelowTwoDots(): boolean {
@@ -68,7 +67,7 @@ export class LegacyGpws {
 
   private pub = this.bus.getPublisher<FwsSoundManagerControlEvents>();
 
-  /** The intermediate callout (a380_fcom.txt l.86537-86547), see shared/src/AutoCallOuts.ts */
+  /** See shared/src/AutoCallOuts.ts */
   private readonly intermediateCallout = new IntermediateCallout();
 
   /** A height callout (or MINIMUM, HUNDRED ABOVE, RETARD) was enqueued during the current update */
@@ -88,7 +87,7 @@ export class LegacyGpws {
 
   Mode4MaxRAAlt: number;
 
-  /** Mode 2, excessive terrain closure rate (GpwsMode2) */
+  /** Mode 2, excessive terrain closure rate */
   private readonly mode2 = new GpwsMode2();
 
   modes: ModesType[];
@@ -130,8 +129,8 @@ export class LegacyGpws {
       },
       // Mode 2 (GpwsMode2)
       {
-        // 0: no warning, 1: "terrain", 2: "pull up". "TERRAIN, TERRAIN" (a380_fcom.txt l.88221-88225), repeated in
-        // mode 2B (l.88292-88294): the aural_terrain voice of the A32NX GPWS.
+        // 0: no warning, 1: "terrain", 2: "pull up". TERRAIN TERRAIN, also in mode 2B: the aural_terrain voice of the
+        // A32NX GPWS.
         current: 0,
         previous: 0,
         type: [{}, { sound: soundList.terrain, soundPeriod: 1.1, gpwsLight: true }, { gpwsLight: true, pullUp: true }],
@@ -160,8 +159,8 @@ export class LegacyGpws {
         // 0: no warning, 1: "glideslope", 2: "hard glideslope" (louder)
         current: 0,
         previous: 0,
-        // "GLIDE SLOPE" repeated while below the glide slope, louder below 300 ft more than 2 dots below
-        // (a380_fcom.txt l.88434-88440): the aural_glideslope_quiet / _loud voices of the A32NX GPWS.
+        // GLIDE SLOPE repeated while below the glide slope, louder below 300 ft more than 2 dots below: the
+        // aural_glideslope_quiet / _loud voices of the A32NX GPWS.
         type: [
           {},
           { sound: soundList.glideslope_quiet, soundPeriod: soundList.glideslope_quiet.length },
@@ -184,7 +183,7 @@ export class LegacyGpws {
   gpwsUpdateDiscreteWords() {
     this.egpwsAlertDiscreteWord1.ssm = Arinc429SignStatusMatrix.NormalOperation;
     this.egpwsAlertDiscreteWord1.setBitValue(11, this.modes[0].current === 1);
-    // PULL UP: mode 1 or mode 2 (the mode 2 bit used to overwrite the mode 1 one, so the PFD never showed a mode 1 PULL UP)
+    // PULL UP: mode 1 or mode 2 in one bit (separate writes would let mode 2 overwrite a mode 1 PULL UP)
     this.egpwsAlertDiscreteWord1.setBitValue(12, this.modes[0].current === 2 || this.modes[1].current === 2);
     this.egpwsAlertDiscreteWord1.setBitValue(13, this.modes[1].current === 1);
     this.egpwsAlertDiscreteWord1.setBitValue(14, this.modes[2].current === 1);
@@ -341,7 +340,7 @@ export class LegacyGpws {
       this.GPWSMode3(this.modes[2], radioAlt.value, phase);
       this.GPWSMode4(this.modes[3], radioAlt.value, Airspeed, FlapsInLandingConfig, gearExtended, phase);
       this.GPWSMode5(this.modes[4], radioAlt.value);
-      // "Stall or windshear alerts override GPWS visual and aural alerts" (a380_fcom.txt l.88167): the windshear part
+      // Stall or windshear alerts override the GPWS visual and aural alerts: the windshear part
       if (SimVar.GetSimVarValue('L:A32NX_REACTIVE_WINDSHEAR_WARNING', 'Bool') > 0) {
         this.modes.forEach((mode) => {
           mode.current = 0;
@@ -375,7 +374,7 @@ export class LegacyGpws {
   }
 
   /**
-   * The intermediate callout (a380_fcom.txt l.86537-86547). It waits while the height callouts are not made: on
+   * The intermediate callout. It waits while the height callouts are not made: on
    * ground, climbing (the radio height increasing for 0.3 s, as the A32NX FWC), RETARD, or a GPWS alert.
    * @param radioAlt the radio height in feet, null when invalid
    * @param onGround the aircraft is on ground
@@ -773,7 +772,7 @@ export class LegacyGpws {
         if (radioAlt > 1020) {
           this.AltCallState.action('up');
         } else if (radioAlt <= 513) {
-          // FIVE HUNDRED, or smart FIVE HUNDRED: only when off the glide by more than half a dot (FCOM DSC-34-10-50)
+          // FIVE HUNDRED, or smart FIVE HUNDRED: only when off the glide by more than half a dot
           const glideValid = SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_IS_VALID', 'number') > 0;
           // one dot is approx. 0.4 degrees, as in GPWSMode5
           const glideDots = SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_DEVIATION', 'number') * 2.5;

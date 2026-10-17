@@ -53,7 +53,6 @@ const risingTerrain = (ftPerMin: number) => (f: Flight) => {
   f.radioAltitudeFt -= (ftPerMin / 60) * DT;
 };
 
-/* A380 FCOM DSC-34-20-20-10 EXCESSIVE TERRAIN CLOSURE RATE (MODE 2), a380_fcom.txt:88221-88294 */
 describe('GPWS mode 2 (excessive terrain closure rate)', () => {
   it('gives no alert over flat terrain', () => {
     const mode2 = new GpwsMode2();
@@ -131,8 +130,8 @@ describe('GPWS mode 2 (excessive terrain closure rate)', () => {
 });
 
 /*
- * The PFD PULL UP (EGPWS alert discrete word 1 bit 12, AttitudeIndicatorWarningsA380) of a mode 1 PULL UP: the mode 2
- * bit used to be written over it.
+ * The PFD PULL UP (EGPWS alert discrete word 1 bit 12, AttitudeIndicatorWarningsA380) of a mode 1 PULL UP must not be
+ * overwritten by the mode 2 state.
  */
 describe('EGPWS alert word PULL UP bit', () => {
   afterEach(() => {

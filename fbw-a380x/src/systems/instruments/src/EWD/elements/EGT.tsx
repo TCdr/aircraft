@@ -47,7 +47,7 @@ export class EGT extends DisplayComponent<EGTProps> {
 
   private readonly amberVisible = this.thrustLimitType.map(egtLimitMarkVisible);
 
-  /** The EGT offset of the stall and EGT overtemperature failures (EgtLimits displayedEgt) */
+  /** Added by the stall and EGT overtemperature failures (EgtLimits displayedEgt) */
   private readonly egtOffset = ConsumerSubject.create(
     this.sub.on(`egt_offset_${this.props.engine}`).withPrecision(1).whenChanged(),
     0,
@@ -60,7 +60,6 @@ export class EGT extends DisplayComponent<EGTProps> {
 
   private readonly onGround = ConsumerSubject.create(this.sub.on('nose_gear_compressed_1').whenChanged(), false);
 
-  /** The amber EGT limit: start limit on ground, relight limit in flight, normal limit otherwise (EgtLimits egtLimit) */
   private readonly egtLimit = MappedSubject.create(
     ([state, onGround]) => egtLimit(state, onGround),
     this.engineState,

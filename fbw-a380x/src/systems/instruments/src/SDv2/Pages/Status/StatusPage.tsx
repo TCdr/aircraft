@@ -215,9 +215,8 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
   private readonly cancelledCautionHeight = this.cancelledCaution.map((keys) => `${keys.length * 30 + 3}px`);
 
   /*
-   * ALERTS IMPACTING LDG PERF, on the STATUS MORE page (FCOM DSC-31-40-10, a380_fcom.txt l.72968-72970: "Indicates, in
-   * the ALERTS IMPACTING LDG PERF section, the alerts associated with performance"; l.72617-72619: "All ECAM alerts that
-   * have an impact on landing performance are listed on the STATUS MORE page"). The titles as on the EWD.
+   * ALERTS IMPACTING LDG PERF, on the STATUS MORE page: all the ECAM alerts that have an impact on landing performance
+   * are listed there, with the titles as on the EWD.
    */
   private readonly alertsImpactingLdgPerf = ConsumerSubject.create(this.sub.on('fws_alerts_impacting_ldg_perf'), []);
 
@@ -237,8 +236,8 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
   );
 
   /*
-   * MORE INFO, on the STATUS MORE page (l.72975-72977): "Provides, in white, additional procedural information ... When
-   * there is at least one CANCELLED CAUTION, a separation line appears above the MORE INFO." (EcamMoreInfo)
+   * MORE INFO, on the STATUS MORE page: additional procedural information in white, with a separation line above it
+   * when there is at least one CANCELLED CAUTION (EcamMoreInfo).
    */
   private readonly moreInfo = ConsumerSubject.create(this.sub.on('fws_more_info'), []);
 
@@ -445,7 +444,7 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
             this.inopSysDisplaySeparationLine.set(true);
           }
           linesUsedOnCurrentPage += inopSysLines;
-          // ALERTS IMPACTING LDG PERF is a section of the STATUS MORE page (FCOM l.72968-72970), not of this page
+          // ALERTS IMPACTING LDG PERF is a section of the STATUS MORE page, not of this page
 
           let displayedOnNextPageAlreadyDisplayed = false;
           if (pageToShow === deferredProceduresVisibleOnPage) {
@@ -659,7 +658,6 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
             </svg>
           </div>
           <div class="sd-sts-more-last-page" style={{ display: this.lastMorePageDisplay }}>
-            {/* ALERTS IMPACTING LDG PERF */}
             <div
               class="sd-sts-section-container"
               style={{
@@ -675,7 +673,6 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
                 <FormattedFwcText x={0} y={24} message={this.alertsImpactingLdgPerfFormatString} />
               </svg>
             </div>
-            {/* CANCELLED CAUTION */}
             <div
               class="sd-sts-section-container"
               style={{
@@ -687,7 +684,7 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
                 <FormattedFwcText x={0} y={24} message={this.cancelledCautionFormatString} />
               </svg>
             </div>
-            {/* MORE INFO: white lines, a separation line above them when there is a CANCELLED CAUTION */}
+            {/* MORE INFO has no heading, only the separation line */}
             <div
               class="sd-sts-section-container"
               style={{

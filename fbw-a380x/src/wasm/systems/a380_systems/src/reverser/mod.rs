@@ -729,8 +729,7 @@ mod tests {
             .query(|a| a.reversers.monitoring()[0].in_operation));
     }
 
-    /// FCOM DSC-70-70 AUTO-IDLE PROTECTION (l.112250-112256): the FADECs of the outboard engines
-    /// read the reverser operation.
+    /// Auto-idle protection: the FADECs of the outboard engines read the reverser operation.
     #[test]
     fn the_reverser_operation_lasts_from_the_deploy_order_to_the_end_of_the_stowage() {
         let test_bed = ReverserTestBed::new().run_for(1.);

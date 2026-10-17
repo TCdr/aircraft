@@ -20,7 +20,7 @@ function alertBlock(id: string, from = 0): string {
   return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
 }
 
-describe('HYD G(Y) ENG PMP PRESS LO STATUS (A380 FCOM l.155077-155091)', () => {
+describe('HYD G(Y) ENG PMP PRESS LO STATUS', () => {
   it('one pump failed: REDUND LOSS of that pump, no INOP SYS', () => {
     expect(enginePumpPressLoStatus([false, true, false, false], false)).toEqual({
       inopSys: [false, false, false, false],
@@ -57,7 +57,7 @@ describe('HYD G(Y) ENG PMP PRESS LO STATUS (A380 FCOM l.155077-155091)', () => {
   });
 });
 
-describe('HYD deferred procedures (A380 FCOM l.155249-155253, l.155480-155487)', () => {
+describe('HYD deferred procedures', () => {
   it.each([
     ['290700001', '290800019'],
     ['290700002', '290800020'],
@@ -81,15 +81,15 @@ describe('HYD deferred procedures (A380 FCOM l.155249-155253, l.155480-155487)',
   });
 });
 
-describe('HYD G+Y SYS PRESS LO (A380 FCOM l.155840-156109)', () => {
-  it('LDG PERF AFFECTED (l.155898), not LDG DIST AFFECTED', () => {
+describe('HYD G+Y SYS PRESS LO', () => {
+  it('LDG PERF AFFECTED, not LDG DIST AFFECTED', () => {
     const start = ata29.indexOf('  290800039: {');
     const procedure = ata29.slice(start, ata29.indexOf('  290800040: {'));
     expect(procedure).toContain("name: 'LDG PERF AFFECTED',");
     expect(procedure).not.toContain('LDG DIST AFFECTED');
   });
 
-  it('STATUS INOP SYS (l.156098-156109): no STABILIZER; BTV, CAT 2 and GLS AUTOLAND in APP & LDG', () => {
+  it('STATUS INOP SYS: no STABILIZER; BTV, CAT 2 and GLS AUTOLAND in APP & LDG', () => {
     const block = alertBlock('290800039');
     const allPhases = block.split('inopSysAllPhases')[1].split('inopSysApprLdg')[0];
     const apprLdg = block.split('inopSysApprLdg')[1];

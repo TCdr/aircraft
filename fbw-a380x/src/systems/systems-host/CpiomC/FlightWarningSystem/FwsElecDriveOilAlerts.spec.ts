@@ -56,7 +56,7 @@ function alertsWith(inputs: Partial<DriveOilInputs>): ElecDriveOilAlerts {
   return alerts;
 }
 
-describe('ELEC DRIVE OIL LEVEL LO, OIL OVHT and OIL PRESS LO conditions (A380 FCOM l.141248, l.141309, l.141380)', () => {
+describe('ELEC DRIVE OIL LEVEL LO, OIL OVHT and OIL PRESS LO conditions', () => {
   it('raises no alert on a normal aircraft', () => {
     const a = alertsWith({});
     expect(a.oilLevelLo.map((s) => s.get())).toEqual([false, false, false, false]);
@@ -95,7 +95,7 @@ describe('ELEC DRIVE OIL LEVEL LO, OIL OVHT and OIL PRESS LO conditions (A380 FC
 });
 
 describe('ELEC DRIVE oil alert entries', () => {
-  it('uses the alert keys of ata24.ts with the FCOM titles and lines', () => {
+  it('uses the alert keys of ata24.ts with the titles and lines', () => {
     for (let drive = 0; drive < 4; drive++) {
       const n = drive + 1;
       expect(alert(DRIVE_OIL_LEVEL_LO_KEYS[drive])).toEqual({ title: `DRIVE ${n} OIL LEVEL LO`, items: [`GEN ${n}`] });
@@ -110,7 +110,7 @@ describe('ELEC DRIVE oil alert entries', () => {
     }
   });
 
-  it('has the flight phase inhibitions of the FCOM figures (PDF p.4920, p.4922, p.4924)', () => {
+  it('has the flight phase inhibitions of the aircraft', () => {
     const items = elecDriveOilAbnormalItems(new ElecDriveOilAlerts());
     expect(items[240800040].flightPhaseInhib).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(items[240800044].flightPhaseInhib).toEqual([1, 3, 4, 5, 6, 7, 9, 10, 12]);
@@ -138,7 +138,7 @@ describe('ELEC DRIVE oil alert entries', () => {
     expect(items[240800044].simVarIsActive.get()).toBe(false);
     expect(items[240800042].simVarIsActive.get()).toBe(true);
 
-    // OIL OVHT: DRIVE 2 ... DISC shown, the GEN 2 line of ata24.ts hidden (not in the FCOM procedure)
+    // OIL OVHT: DRIVE 2 ... DISC shown, the GEN 2 line of ata24.ts hidden (not in the aircraft procedure)
     expect(items[240800045].whichItemsToShow()).toEqual([true, false]);
     expect(items[240800045].whichItemsChecked()).toEqual([false, false]);
     // OIL LEVEL LO: GEN 3 ... OFF

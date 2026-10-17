@@ -29,7 +29,6 @@ function bc3(checkSpeedMode: boolean, checkEoSpeedSetting: boolean, tdReached = 
   );
 }
 
-/* A380 FCOM DSC-22-FG-80-80 FMS MESSAGES (LINE 3), a380_fcom.txt l.19236-19247 */
 describe('A380X FMA line 3 FMS messages', () => {
   it('shows CHECK SPD MODE when the FMS sets it', () => {
     expect(bc3(false, false)).toBe(BC3Messages.NONE);
@@ -42,7 +41,6 @@ describe('A380X FMA line 3 FMS messages', () => {
   });
 });
 
-/* A380 FCOM DSC-22-FMS-20-110 CHECK EO SPD SETTING (a380_fcom.txt l.45016-45025) */
 describe('CHECK EO SPD SETTING condition', () => {
   const GD = 220;
 

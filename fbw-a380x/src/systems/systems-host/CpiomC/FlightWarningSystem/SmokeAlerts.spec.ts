@@ -50,7 +50,7 @@ const noSmoke = SMOKE_ZONES.map(() => false);
 const smokeIn = (...zones: string[]) => SMOKE_ZONES.map((smokeZone) => zones.includes(smokeZone.zone));
 const warningsOf = (warnings: boolean[]) => SMOKE_ZONES.filter((_, index) => warnings[index]).map((zone) => zone.zone);
 
-describe('A380X SMOKE alerts of the SDF (A380 FCOM PRO-ABN-ECAM-10-26, PDF p.4982-5007)', () => {
+describe('A380X SMOKE alerts of the SDF', () => {
   it('each compartment has its own SMOKE warning and DET FAULT caution, with the right titles', () => {
     const titles: Record<string, [string, string]> = {
       FWD_CARGO: ['SMOKE FWD CARGO SMOKE', 'SMOKE FWD CARGO DET FAULT'],
@@ -69,7 +69,7 @@ describe('A380X SMOKE alerts of the SDF (A380 FCOM PRO-ABN-ECAM-10-26, PDF p.498
     }
   });
 
-  it('the DET FAULT INOP SYS lines are the SMK DET of the compartment (PDF p.4983, 4993, 5005)', () => {
+  it('the DET FAULT INOP SYS lines are the SMK DET of the compartment', () => {
     const inopSys = (id: string) => messageIndex.match(new RegExp(`  ${id}: '\\\\x1b<4m([^']*)'`))?.[1];
     expect(SMOKE_ZONES.map((zone) => inopSys(zone.detFaultInopSys))).toEqual([
       'FWD CARGO SMK DET',
@@ -85,7 +85,7 @@ describe('A380X SMOKE alerts of the SDF (A380 FCOM PRO-ABN-ECAM-10-26, PDF p.498
     expect(CARGO_BOTTLE_FAULT_INOP_SYS.map(inopSys)).toEqual(['FWD+AFT CRGs BTL 1', 'FWD+AFT CRGs BTL 2']);
   });
 
-  it('MAIN AND UPPER AVIONICS: upper bay smoke gives UPPER, main bay smoke alone gives MAIN (PDF p.1792)', () => {
+  it('MAIN AND UPPER AVIONICS: upper bay smoke gives UPPER, main bay smoke alone gives MAIN', () => {
     expect(avionicsBaySmokeAlerts(false, false)).toEqual({ mainAvncsSmoke: false, upperAvncsSmoke: false });
     expect(avionicsBaySmokeAlerts(false, true)).toEqual({ mainAvncsSmoke: false, upperAvncsSmoke: true });
     expect(avionicsBaySmokeAlerts(true, false)).toEqual({ mainAvncsSmoke: true, upperAvncsSmoke: false });
@@ -101,7 +101,7 @@ describe('A380X SMOKE alerts of the SDF (A380 FCOM PRO-ABN-ECAM-10-26, PDF p.498
     ]);
   });
 
-  it('CARGO SMOKE: AGENT DISCH after the CRG CLOSED condition with all engines shut down, else directly (PDF p.5002)', () => {
+  it('CARGO SMOKE: AGENT DISCH after the CRG CLOSED condition with all engines shut down, else directly', () => {
     expect(cargoSmokeItemsToShow(state)).toEqual([true, false, false, true, true, true, true, true]);
     expect(cargoSmokeItemsToShow({ ...state, oneEngineRunning: false })).toEqual([
       true,

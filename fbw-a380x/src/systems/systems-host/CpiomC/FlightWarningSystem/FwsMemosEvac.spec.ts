@@ -36,9 +36,8 @@ function fakeFws(): FakeFws {
 }
 
 /*
- * A380 FCOM DSC-23-20 EVAC panel, COMMAND pb-sw (a380_fcom.txt l.49145-49149): "The Flight Crew orders an evacuation,
- * regardless of the CAPT and PURS sw position (CAPT or CAPT & PURS). When pressed: - The ON light and the EVAC light
- * flashes - Message EVAC ACTIVE is displayed on the ECAM".
+ * EVAC panel COMMAND pb-sw: the flight crew orders an evacuation, whatever the CAPT and PURS sw position. Pressed, its
+ * ON and EVAC lights flash and the ECAM shows EVAC ACTIVE.
  */
 describe('A380X EVAC ACTIVE memo', () => {
   it('is an ECAM memo text', () => {

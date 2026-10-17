@@ -73,7 +73,6 @@ export class FwsSystemDisplayLogic {
     SimVarValueType.Number,
   );
 
-  /** The ECAM advisories (FwsAdvisories) */
   private readonly advisoryInputs = new FwsAdvisoryInputsReader();
   private readonly advisoryDisplay = new FwsAdvisoryDisplay();
   /** The ECP pb lit by an advisory: the SD page index + 1, 0 for none (ecam-cp.xml) */
@@ -259,8 +258,7 @@ export class FwsSystemDisplayLogic {
   }
 
   /**
-   * The ECAM advisories (A380 FCOM DSC-31-40-10 ADVISORY, l.72215-72241, see FwsAdvisories): the advisory page in flight
-   * phase mode, the ECP pb light and the ADV indication of the EWD
+   * The ECAM advisories: the advisory page in flight phase mode, the ECP pb light and the ADV indication of the EWD
    * @param failPage the page of the ECAM alerts (L:A32NX_ECAM_SFAIL), SdPages.None if none
    */
   private updateAdvisories(failPage: SdPages): void {

@@ -1,6 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { AVOID_ICING_LIMITATION, WING_ANTI_ICE_INOP_SYS } from './AntiIceValveAlerts';
+import { APU_BLEED_INOP_SYS, ENG_BLEED_INOP_SYS } from './BleedMonitoringAlerts';
+
 /*
  * ENG 1(2)(3)(4) START FAULT, START VLV FAULT (NOT CLOSED), START VLV FAULT (NOT OPEN), IGN A(B) FAULT and IGN A+B
  * FAULT. The FADEC start sequence of the systems WASM (systems::engine::engine_start, a380_systems engine_failure.rs)
@@ -224,12 +227,6 @@ export function startValveNotClosedItems(inputs: StartValveFaultInputs): { show:
   };
 }
 
-/** EcamMessages ids of the STATUS and LIMITATIONS lines of ENG n START VLV FAULT (NOT CLOSED) */
-const AVOID_ICING_CONDS_LIMITATION = '300400001';
-const ENG_BLEED_INOP_SYS = ['260300002', '260300003', '260300004', '260300005'];
-const APU_BLEED_INOP_SYS = '260300006';
-const WING_ANTI_ICE_INOP_SYS = '300300001';
-
 /**
  * The LIMITATIONS and STATUS of ENG n START VLV FAULT (NOT CLOSED):
  * - LIMITATIONS ON ECAM and ON PFD, ALL PHASES, if engine 1 or 4 affected: AVOID ICING CONDs.
@@ -239,7 +236,7 @@ const WING_ANTI_ICE_INOP_SYS = '300300001';
 export function startValveNotClosedStatus(engineNumber: 1 | 2 | 3 | 4): { limitations: string[]; inopSys: string[] } {
   const outerEngine = engineNumber === 1 || engineNumber === 4;
   return {
-    limitations: outerEngine ? [AVOID_ICING_CONDS_LIMITATION] : [],
+    limitations: outerEngine ? [AVOID_ICING_LIMITATION] : [],
     inopSys: [
       ENG_BLEED_INOP_SYS[engineNumber - 1],
       ...(engineNumber === 1 ? [APU_BLEED_INOP_SYS] : []),

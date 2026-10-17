@@ -550,13 +550,11 @@ impl EngineStartSequence {
     }
 
     /// The pre-start motoring (dry crank) of an automatic start on the ground, from the residual
-    /// heat of the engine. A320 FCOM DSC-70-80-40 DRY CRANKING (a320_fcom.txt l.63612-63615,
-    /// 63629-63630): "Depending on the engine thermal state, the FADEC can initiate a pre-start
-    /// motoring (dry cranking) up to 60 s. Pre-start motoring is active during all ground starts ...
-    /// to limit the engine core speed below the bow rotor critical speed (bow rotor protection). The
-    /// motoring time will vary depending on the residual thermal condition of the engine". Design
-    /// choice: the time is proportional to the thermal state (the FCOM gives no schedule), and the
-    /// manual start has none (the crew sets the ENG MASTER ON at the light-up speed).
+    /// heat of the engine: on the A320 the FADEC can motor the engine for up to 60 s before the
+    /// ignition, depending on its thermal state, to keep the core below the bow rotor critical speed
+    /// (bow rotor protection). Design choice: the time is proportional to the thermal state (no
+    /// published schedule), and the manual start has none (the crew sets the ENG MASTER ON at the
+    /// light-up speed).
     fn pre_start_motoring_time(
         schedule: &EngineStartSchedule,
         inputs: &EngineStartInputs,
@@ -650,7 +648,6 @@ impl EngineStartSequence {
         inputs: &EngineStartInputs,
     ) {
         let delta = context.delta();
-        // The pre-start motoring runs while the starter turns the core (start valve open with air).
         if inputs.start_valve_is_open && inputs.starter_air_pressurized {
             self.pre_start_motoring_remaining =
                 self.pre_start_motoring_remaining.saturating_sub(delta);
@@ -2266,7 +2263,7 @@ mod tests {
         assert!(!test_bed.flag("CONTINUOUS_IGNITION"));
     }
 
-    /// A320 FCOM ENG 1(2) HP FUEL VALVE (l.80249-80254): a valve failed closed gives no fuel to the
+    /// A320 ENG 1(2) HP FUEL VALVE: a valve failed closed gives no fuel to the
     /// engine, which does not light up.
     #[test]
     fn an_hp_fuel_valve_stuck_closed_gives_no_light_up_although_the_fadec_commands_the_fuel() {
@@ -2287,7 +2284,7 @@ mod tests {
         assert!(!test_bed.query(|a| a.sequence.fuel_is_commanded()));
     }
 
-    /// A320 FCOM DSC-70-90-20 (l.63941-63950): the FAULT light also comes on for an abnormal HP fuel
+    /// A320: the ENG FAULT light also comes on for an abnormal HP fuel
     /// valve position or a thrust control malfunction, which the aircraft gives the start sequence.
     #[test]
     fn the_fault_light_also_follows_the_other_conditions_of_the_aircraft() {
@@ -2303,7 +2300,7 @@ mod tests {
         assert!(!test_bed.fault_light());
     }
 
-    /// A320 FCOM DSC-70-80-40 DRY CRANKING (l.63612-63615): a hot engine gets up to 60 s of pre-start
+    /// A320 dry cranking: a hot engine gets up to 60 s of pre-start
     /// motoring before the ignition.
     #[test]
     fn a_hot_engine_gets_a_pre_start_motoring_before_the_ignition() {

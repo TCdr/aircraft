@@ -165,7 +165,7 @@ import {
   ElecProcedureInputs,
   FlightTimeAboveFl300,
   isStaticInverterFault,
-} from './FwsElecAlertsRound8';
+} from './FwsElecCombinedBusAlerts';
 import {
   FuelProcedureInputs,
   feedPumpAlertsWithWings,
@@ -173,7 +173,7 @@ import {
   SeenAllOffSincePulse,
   WingsBalanceMonitor,
   WingsBalanceState,
-} from './FwsFuelAlertsRound8';
+} from './FwsFuelFeedBalanceAlerts';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
 import { isEngLpValveFault, readFuelLeakLpValveFlags } from './FwsFuelLeakLpValveAlerts';
 import {
@@ -1079,34 +1079,27 @@ export class FwsCore {
   /** During taxi-in, one minute after the FLAPS lever is set to 0 (a line of ELEC DC BUS 1(2) FAULT) */
   public readonly taxiInFlapsLever0For1Min = Subject.create(false);
 
-  /* ELEC and FUEL alerts of the FCOM gap backlog round 8 (FwsElecAlertsRound8, FwsFuelAlertsRound8) */
+  /* More ELEC and FUEL alerts (FwsElecCombinedBusAlerts, FwsFuelFeedBalanceAlerts) */
 
-  /** ELEC AC BUS 1+2 & DC BUS 1 FAULT */
   public readonly elecAc12Dc1Fault = Subject.create(false);
 
-  /** ELEC AC BUS 2+3 & DC BUS 1+2 FAULT */
   public readonly elecAc23Dc12Fault = Subject.create(false);
 
-  /** ELEC AC BUS 2+4 FAULT */
   public readonly elecAc24Fault = Subject.create(false);
 
-  /** ELEC AC BUS 3+4 & DC BUS 2 FAULT */
   public readonly elecAc34Dc2Fault = Subject.create(false);
 
-  /** ELEC DC BUS 1+2 FAULT */
   public readonly elecDc12Fault = Subject.create(false);
 
-  /** ELEC DC BUS 1+ESS FAULT */
   public readonly elecDc1EssFault = Subject.create(false);
 
-  /** ELEC STATIC INV FAULT */
   public readonly elecStaticInvFault = Subject.create(false);
 
   /** "Flight time above FL 300 since departure" of the gravity feeding procedure lines */
   private readonly flightTimeAboveFl300 = new FlightTimeAboveFl300();
 
-  /** The cockpit state of the round 8 ELEC procedure lines, refreshed every update */
-  public elecRound8Inputs: ElecProcedureInputs = {
+  /** The cockpit state of the FwsElecCombinedBusAlerts procedure lines, refreshed every update */
+  public elecCombinedBusInputs: ElecProcedureInputs = {
     onGround: true,
     moreThan30MinAboveFl300: false,
     feedTanks1And4Low: false,
@@ -1121,7 +1114,6 @@ export class FwsCore {
     autoThrustEngaged: false,
   };
 
-  /** FUEL L(R) WING FEED PMPs FAULT */
   public readonly fuelWingFeedPumpsFault = [Subject.create(false), Subject.create(false)];
 
   /** The first ALL CROSSFEEDS OFF line of FUEL L(R) WING FEED PMPs FAULT, see wingFeedPumpsFaultLines */
@@ -1145,11 +1137,10 @@ export class FwsCore {
 
   public readonly fuelWingsBalanced = Subject.create(false);
 
-  /** FUEL INR TKs QTY LO */
   public readonly fuelInnerTanksQtyLo = Subject.create(false);
 
-  /** The cockpit state of the round 8 FUEL procedure lines, refreshed every update */
-  public fuelRound8Inputs: FuelProcedureInputs = {
+  /** The cockpit state of the FwsFuelFeedBalanceAlerts procedure lines, refreshed every update */
+  public fuelFeedBalanceInputs: FuelProcedureInputs = {
     onGround: true,
     anyEngineRunning: false,
     moreThan30MinAboveFl300: false,
@@ -1285,9 +1276,9 @@ export class FwsCore {
   public readonly evacCommand = Subject.create(false);
 
   /**
-   * The EVAC COMMAND pb-sw is ON. The cockpit L:var is inverted: A380_Cockpit_Behavior.xml (EVAC component, l.3197-3213)
-   * lights the ON light and flashes the EVAC light on `(L:A32NX_EVAC_COMMAND_TOGGLE, Bool) !` and shows the "Turn ON"
-   * tooltip while it is 1, so 1 = OFF and 0 = ON (recorded in the sim 2026-10-15: 1 for a whole flight).
+   * The EVAC COMMAND pb-sw is ON. The cockpit L:var is inverted: A380_Cockpit_Behavior.xml (EVAC component) lights the
+   * ON light and flashes the EVAC light on `(L:A32NX_EVAC_COMMAND_TOGGLE, Bool) !` and shows the "Turn ON" tooltip
+   * while it is 1, so 1 = OFF and 0 = ON (recorded in the sim: 1 for a whole flight).
    */
   public readonly evacCommandOn = this.evacCommand.map((evacCommandToggle) => !evacCommandToggle);
 
@@ -2786,7 +2777,6 @@ export class FwsCore {
   /** The APU ECB shutdown outputs and the APU FIRE warning, for APU FAULT (ApuFaultAlerts) */
   public apuFaultInputs: ApuFaultInputs = { emergencyShutdown: false, autoShutdown: false, apuFireWarning: false };
 
-  /** APU FAULT (ApuFaultAlerts isApuFault) */
   public readonly apuFault = Subject.create(false);
 
   /** The bleed, crossbleed and pack state for AIR ABNORM BLEED CONFIG (AbnormBleedConfig) */
@@ -2805,7 +2795,6 @@ export class FwsCore {
     wingAntiIceOn: false,
   };
 
-  /** AIR ABNORM BLEED CONFIG (AbnormBleedConfig isAbnormBleedConfig) */
   public readonly abnormBleedConfig = Subject.create(false);
 
   /** The CPIOM-A bleed monitoring, for AIR ENG n BLEED FAULT and the bleed leak alerts (BleedMonitoringAlerts) */
@@ -2825,10 +2814,8 @@ export class FwsCore {
     onGround: true,
   };
 
-  /** AIR ENG 1(2)(3)(4) BLEED FAULT (BleedMonitoringAlerts isEngineBleedFault), engine 1 first */
   public readonly engineBleedFault = [1, 2, 3, 4].map(() => Subject.create(false));
 
-  /** AIR ENG 1(2)(3)(4) BLEED LEAK (BleedMonitoringAlerts isBleedLeak), engine 1 first */
   public readonly engineBleedLeak = [1, 2, 3, 4].map(() => Subject.create(false));
 
   /** AIR L OUTR / L INR / R INR / R OUTR WING LEAK (BleedMonitoringAlerts isBleedLeak), in the order of the engines */
@@ -4006,7 +3993,7 @@ export class FwsCore {
     this.ldgMemo.set(SimVar.GetSimVarValue('L:A32NX_FWC_LDGMEMO', 'bool'));
 
     this.engSelectorPosition.set(SimVar.GetSimVarValue('L:XMLVAR_ENG_MODE_SEL', 'Enum'));
-    // The ENG and WING ANTI ICE pb: the ENG A-ICE and WING A-ICE memos (A380 FCOM DSC-30-10-20 l.62083-62086). The
+    // The ENG and WING ANTI ICE pb: the ENG A-ICE and WING A-ICE memos. The
     // MSFS ENG ANTI ICE and STRUCTURAL DEICE follow the valves of the systems model (a380_systems ice_rain_protection.rs)
     this.eng1AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_1_POSITION', 'bool') > 0);
     this.eng2AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_2_POSITION', 'bool') > 0);
@@ -4528,7 +4515,7 @@ export class FwsCore {
       this.soundManager.enqueueSound('v1');
     }
 
-    /* PRIORITY LEFT / PRIORITY RIGHT (a380_fcom.txt l.55350, 55363, 73621-73623) */
+    /* PRIORITY LEFT / PRIORITY RIGHT */
     const gpwsAlertActive =
       SimVar.GetSimVarValue('L:A32NX_GPWS_Warning_Active', SimVarValueType.Bool) > 0 ||
       SimVar.GetSimVarValue('L:A32NX_GPWS_GS_Warning_Active', SimVarValueType.Bool) > 0;
@@ -4542,14 +4529,14 @@ export class FwsCore {
       this.soundManager.enqueueSound(sidestickPriorityAural);
     }
 
-    /* WINDSHEAR (a380_fcom.txt l.9274-9276, 73643) */
+    /* WINDSHEAR */
     if (
       this.windshearAural.update(SimVar.GetSimVarValue('L:A32NX_REACTIVE_WINDSHEAR_WARNING', SimVarValueType.Bool) > 0)
     ) {
       this.soundManager.enqueueSound('windshear');
     }
 
-    /* PITCH PITCH (a380_fcom.txt l.9046-9054, 73618-73619) */
+    /* PITCH PITCH */
     const pitchIr = [this.ir1Pitch, this.ir2Pitch, this.ir3Pitch].find((w) => w.isNormalOperation());
     const pitchRa = [this.radioHeight1, this.radioHeight2, this.radioHeight3].find((w) => w.isNormalOperation());
     if (
@@ -4563,7 +4550,7 @@ export class FwsCore {
       this.soundManager.enqueueSound('pitchPitch');
     }
 
-    /* COMPANY MESSAGE (a380_fcom.txt l.73651-73652, 108111-108120) */
+    /* COMPANY MESSAGE */
     if (
       this.companyMessageAural.update(this.compMesgCount.get(), this.flightPhase.get(), this.adrPressureAltitude.get())
     ) {
@@ -4645,7 +4632,7 @@ export class FwsCore {
       this.dc2BusPowered.get() && SimVar.GetSimVarValue('L:A32NX_LGCIU_2_LEFT_GEAR_COMPRESSED', 'bool') > 0;
     this.gearLeverPos.set(SimVar.GetSimVarValue('GEAR HANDLE POSITION', 'bool'));
 
-    // TAIL STRIKE detector (FCOM PRO-ABN-ECAM-10-27-10), see FwsTailStrikeAlerts: a main gear compressed per LGCIU 1 or 2
+    // TAIL STRIKE detector, see FwsTailStrikeAlerts: a main gear compressed per LGCIU 1 or 2
     const mainGearCompressedForTailStrike =
       leftCompressedHardwireLgciu1 ||
       leftCompressedHardwireLgciu2 ||
@@ -5668,7 +5655,7 @@ export class FwsCore {
 
     // ELEC alerts (FwsElecAlerts)
     const elecInputs = readElecNetworkInputs((name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool));
-    // The combined busbar alerts replace the single ones they cover (FwsElecAlertsRound8)
+    // The combined busbar alerts replace the single ones they cover (FwsElecCombinedBusAlerts)
     const elecFlags = combineElecBusFaults(this.elecAlertLogic.update(elecInputs));
     elecFlags.acBusFault.forEach((fault, i) => this.elecAcBusFault[i].set(fault));
     this.elecAcEssBusFault.set(elecFlags.acEssBusFault);
@@ -5729,7 +5716,7 @@ export class FwsCore {
       !elecInputs.busTiePbAuto,
     );
 
-    // ELEC alerts of the FCOM gap backlog round 8 (FwsElecAlertsRound8)
+    // More ELEC alerts (FwsElecCombinedBusAlerts)
     this.elecAc12Dc1Fault.set(elecFlags.combined.ac12Dc1);
     this.elecAc23Dc12Fault.set(elecFlags.combined.ac23Dc12);
     this.elecAc24Fault.set(elecFlags.combined.ac24);
@@ -5743,7 +5730,7 @@ export class FwsCore {
       ),
     );
     this.flightTimeAboveFl300.update(this.aircraftOnGround.get(), this.adrPressureAltitude.get(), deltaTime);
-    this.elecRound8Inputs = {
+    this.elecCombinedBusInputs = {
       onGround: this.aircraftOnGround.get(),
       moreThan30MinAboveFl300: this.flightTimeAboveFl300.moreThan30Min,
       feedTanks1And4Low: this.feedTanks1And4BelowEmerOutrXfrThreshold.get(),
@@ -6413,7 +6400,7 @@ export class FwsCore {
     const taws2Powered = this.ac4BusPowered.get();
     this.terrSys1Failed.set(this.terrSys1FailedSimvar.get());
     this.terrSys2Failed.set(this.terrSys2FailedSimvar.get());
-    // SURV TAWS 1(2) FAULT is GPWS and TERR SYS both failed (A380 FCOM l.166806); it replaces SURV GPWS 1(2) FAULT and
+    // SURV TAWS 1(2) FAULT is GPWS and TERR SYS both failed; it replaces SURV GPWS 1(2) FAULT and
     // SURV TERR SYS 1(2) FAULT (FwsSurvAlerts tawsFunctionFaults)
     this.taws1Failed.set(this.gpws1Failed.get() && this.terrSys1Failed.get());
     this.taws2Failed.set(this.gpws2Failed.get() && this.terrSys2Failed.get());
@@ -6482,7 +6469,7 @@ export class FwsCore {
     // Feed tank pumps and crossfeed valves (CpiomF/FuelPumpsAndValves), read as real booleans
     const readBool = (name: string) => SimVar.GetSimVarValue(name, SimVarValueType.Bool);
     const feedPumps = readFeedTankPumpFlags(readBool);
-    // FUEL WINGS (NOT) BALANCED (FwsFuelAlertsRound8). MSFS tanks: feed 2, 5, 6, 9; inner 4, 7; mid 3, 8; outer 1, 10
+    // FUEL WINGS (NOT) BALANCED (FwsFuelFeedBalanceAlerts). MSFS tanks: feed 2, 5, 6, 9; inner 4, 7; mid 3, 8; outer 1, 10
     const tankKg = (tank: number): number => SimVar.GetSimVarValue(`FUELSYSTEM TANK WEIGHT:${tank}`, 'kilogram');
     const fuelingInProgress = this.refuelPanelOpen.get() || this.refuelInProgress.get() || this.defuelInProgress.get();
     this.wingsBalanceState = this.wingsBalanceMonitor.update({
@@ -6498,7 +6485,7 @@ export class FwsCore {
     });
     this.fuelWingsNotBalanced.set(this.wingsBalanceState.notBalanced);
     this.fuelWingsBalanced.set(this.wingsBalanceState.balanced);
-    // FEED TK pump alerts, with FUEL L(R) WING FEED PMPs FAULT (FwsFuelAlertsRound8)
+    // FEED TK pump alerts, with FUEL L(R) WING FEED PMPs FAULT (FwsFuelFeedBalanceAlerts)
     const feedPumpAlerts = feedPumpAlertsWithWings(
       feedPumps,
       this.flightPhase.get(),
@@ -6514,7 +6501,7 @@ export class FwsCore {
     });
     this.fuelWingFeedPumpsFault[0].set(feedPumpAlerts.leftWing);
     this.fuelWingFeedPumpsFault[1].set(feedPumpAlerts.rightWing);
-    // FUEL INR TKs QTY LO (FwsFuelAlertsRound8). Outer tanks full: 99 % of their capacity (design choice, MSFS level)
+    // FUEL INR TKs QTY LO (FwsFuelFeedBalanceAlerts). Outer tanks full: 99 % of their capacity (design choice, MSFS level)
     const fob = this.fuelOnBoard.get();
     this.fuelInnerTanksQtyLo.set(
       isInnerTanksQtyLo({
@@ -6534,8 +6521,8 @@ export class FwsCore {
     this.allFeedTankPumpPbsOn.set(
       this.feedTankMainPumpPbOn.every((pb) => pb.get()) && this.feedTankStbyPumpPbOn.every((pb) => pb.get()),
     );
-    // Procedure lines of the round 8 FUEL alerts (FwsFuelAlertsRound8)
-    this.fuelRound8Inputs = {
+    // Procedure lines of the FwsFuelFeedBalanceAlerts alerts
+    this.fuelFeedBalanceInputs = {
       onGround: this.aircraftOnGround.get(),
       anyEngineRunning:
         this.engine1Running.get() ||
@@ -6582,7 +6569,7 @@ export class FwsCore {
       outerTanksOutflow: this.outerTanksOutflowMonitor.update(outerTanksKg, deltaTime / 1000),
       trimTankKg,
       outerTanksKg,
-      // L:A380X_FUEL_JETTISON_IN_PROGRESS of the fuel jettison system (FuelJettison), read directly on this branch
+      // L:A380X_FUEL_JETTISON_IN_PROGRESS of the fuel jettison system (FuelJettison), read directly
       jettisonInProgress: SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_IN_PROGRESS', SimVarValueType.Bool) > 0,
       fuelingInProgress,
     });
@@ -6981,8 +6968,8 @@ export class FwsCore {
       this.engineIgnBFault[index].set(igniterBFault && !igniterAFault);
       this.engineIgnAPlusBFault[index].set(igniterAFault && igniterBFault);
 
-      // ENG HP FUEL VLV FAULT and the FADEC fault crew awareness alerts (FCOM PRO-ABN-ECAM-10-70, see
-      // EngineMonitoringAlerts.ts), from engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs
+      // ENG HP FUEL VLV FAULT and the FADEC fault crew awareness alerts (see EngineMonitoringAlerts.ts), from
+      // engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs
       this.engineHpFuelValveFault[index] = SimVar.GetSimVarValue(
         `L:A32NX_ENGINE_${engine}_HP_FUEL_VALVE_FAULT`,
         'number',

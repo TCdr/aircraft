@@ -51,15 +51,15 @@ const cruise: BleedMonitoringInputs = {
 const shown = (items: { show: boolean[] }) =>
   items.show.map((isShown, index) => (isShown ? index : -1)).filter((index) => index >= 0);
 
-describe('AIR ENG 1(2)(3)(4) BLEED FAULT (A380 FCOM l.167905-168048)', () => {
-  it('triggers on the CPIOM-A overtemperature or overpressure of the engine (l.167912-167928)', () => {
+describe('AIR ENG 1(2)(3)(4) BLEED FAULT', () => {
+  it('triggers on the CPIOM-A overtemperature or overpressure of the engine', () => {
     expect([0, 1, 2, 3].some((engine) => isEngineBleedFault(cruise, engine))).toBe(false);
     expect(isEngineBleedFault({ ...cruise, overheat: [false, true, false, false] }, 1)).toBe(true);
     expect(isEngineBleedFault({ ...cruise, overpressure: [false, false, true, false] }, 2)).toBe(true);
     expect(isEngineBleedFault({ ...cruise, overpressure: [false, false, true, false] }, 1)).toBe(false);
   });
 
-  it('asks for ENG BLEED OFF only when the bleed valve did not close automatically (l.168022-168025)', () => {
+  it('asks for ENG BLEED OFF only when the bleed valve did not close automatically', () => {
     const closed = { ...cruise, overheat: [true, false, false, false], bleedValveOpen: [false, true, true, true] };
     expect(shown(engineBleedFaultItems(closed, 0))).toEqual([]);
     const stuckOpen = { ...cruise, overheat: [true, false, false, false] };
@@ -70,7 +70,7 @@ describe('AIR ENG 1(2)(3)(4) BLEED FAULT (A380 FCOM l.167905-168048)', () => {
     expect(engineBleedFaultItems(pbOff, 0).checked).toEqual([true]);
   });
 
-  it('STATUS INOP SYS: ENG n BLEED, PACK 1(2) with two or more bleeds failed (l.168036-168042)', () => {
+  it('STATUS INOP SYS: ENG n BLEED, PACK 1(2) with two or more bleeds failed', () => {
     const oneFault = { ...cruise, overpressure: [false, false, false, true] };
     expect(engineBleedFaultInopSys(oneFault, 3)).toEqual(['260300005']);
     const twoRight = { ...oneFault, bleedPbAuto: [true, true, false, true] };
@@ -78,7 +78,7 @@ describe('AIR ENG 1(2)(3)(4) BLEED FAULT (A380 FCOM l.167905-168048)', () => {
   });
 });
 
-describe('AIR bleed leak alerts (A380 FCOM l.168486-168790)', () => {
+describe('AIR bleed leak alerts', () => {
   it('triggers on the pylon duct leak and on the wing zone leak, each with its own alert', () => {
     const leaks = { ...cruise, pylonLeak: [false, true, false, false], wingLeak: [false, false, false, true] };
     expect(isBleedLeak(leaks, 1, false)).toBe(true);
@@ -87,7 +87,7 @@ describe('AIR bleed leak alerts (A380 FCOM l.168486-168790)', () => {
     expect(isBleedLeak(leaks, 3, false)).toBe(false);
   });
 
-  it('on ground before any engine start: the four ENG MASTER : KEEP OFF lines, no INOP SYS (l.168526-168530)', () => {
+  it('on ground before any engine start: the four ENG MASTER: KEEP OFF lines, no INOP SYS', () => {
     const coldAndDark = {
       ...cruise,
       onGround: true,
@@ -109,7 +109,7 @@ describe('AIR bleed leak alerts (A380 FCOM l.168486-168790)', () => {
   it('inner leak with the bleed valve and the side crossbleed valve still open: ENG BLEED OFF, XBLEED CLOSE', () => {
     const notIsolated = { ...cruise, pylonLeak: [false, false, true, false], xbleedValveOpen: [true, true, true] };
     expect(shown(bleedLeakItems(notIsolated, 2, false))).toEqual([4, 6]);
-    // The center crossbleed valve stays open for an inner leak (DSC-36-10-60 l.94185-94194)
+    // The center crossbleed valve stays open for an inner leak
     const sideClosed = {
       ...notIsolated,
       bleedValveOpen: [true, true, false, true],
@@ -142,7 +142,7 @@ describe('AIR bleed leak alerts (A380 FCOM l.168486-168790)', () => {
     ]);
   });
 
-  it('outer leak: PACK 1(2) INOP SYS only once the pack is set OFF (l.168768)', () => {
+  it('outer leak: PACK 1(2) INOP SYS only once the pack is set OFF', () => {
     const outer = { ...cruise, pylonLeak: [false, false, false, true], bleedValveOpen: [true, true, true, false] };
     expect(bleedLeakInopSys(outer, 3, false)).toEqual(['260300005', '800300004', '300300001']);
     expect(bleedLeakInopSys({ ...outer, pack2On: false }, 3, false)).toEqual([

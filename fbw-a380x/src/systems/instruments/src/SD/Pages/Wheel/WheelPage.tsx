@@ -17,7 +17,6 @@ const LGERS_UPDATE_MS = 500;
 export const WheelPage = () => {
   const moreActive = false;
 
-  // LGERS indications (FCOM DSC-32-20-40, LgersIndications.ts)
   const lgciu1Word1 = useArinc429Var('L:A32NX_LGCIU_1_DISCRETE_WORD_1', LGERS_UPDATE_MS);
   const lgciu2Word1 = useArinc429Var('L:A32NX_LGCIU_2_DISCRETE_WORD_1', LGERS_UPDATE_MS);
   const [gravitySwitchPosition] = useSimVar('L:A32NX_LG_GRVTY_SWITCH_POS', 'number', LGERS_UPDATE_MS);

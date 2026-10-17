@@ -267,7 +267,7 @@ describe('FwsSystemDisplayLogic automatic page in flight (phases 8-11)', () => {
   });
 });
 
-describe('FwsSystemDisplayLogic ECAM advisory (A380 FCOM DSC-31-40-10 ADVISORY, l.72215-72241)', () => {
+describe('FwsSystemDisplayLogic ECAM advisory (ADVISORY)', () => {
   /** The simvars the logic reads and writes (SimVar.GetSimVarValue / SetSimVarValue) */
   let values: Record<string, number>;
 

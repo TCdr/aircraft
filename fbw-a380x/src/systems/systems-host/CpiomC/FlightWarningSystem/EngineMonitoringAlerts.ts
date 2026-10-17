@@ -2,27 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * FADEC fault alerts of the A380 (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt), from the flyPad failures of the systems
- * WASM. The level and the flight phase inhibition of each alert are images, read on the FCOM PDF
- * (airbus-a380-fcom_compress.pdf; pink = inhibited):
+ * FADEC fault alerts of the A380, from the flyPad failures of the systems WASM:
  *
- * - ENG 1(2)(3)(4) HP FUEL VLV FAULT, l.172172-172236 (systems engine/hp_fuel_valve_failure.rs writes
- *   L:A32NX_ENGINE_n_HP_FUEL_VALVE_FAULT). l.172178: "The high pressure fuel valve is failed either in the close or in the
- *   open position." l.172203-172226: "During engine start : HP FUEL VALVE NOT OPEN. In the case of manual engine start :
- *   ENG MAN START ... OFF. ENG MASTER ... OFF. During engine shutdown : HP FUEL VALVE NOT CLOSED. In the case of manual
- *   engine start : ENG MAN START ... OFF. ENG MASTER ... OFF. The engine will shutdown by closure of the LP fuel valve.
- *   On ground : ENG FIRE P/B ... PUSH. This ensures LP valve closure." PDF page 5789: single chime, MASTER CAUT, ENGINE
+ * - ENG 1(2)(3)(4) HP FUEL VLV FAULT (systems engine/hp_fuel_valve_failure.rs writes
+ *   L:A32NX_ENGINE_n_HP_FUEL_VALVE_FAULT): the HP fuel valve is failed closed or open. During the engine start:
+ *   HP FUEL VALVE NOT OPEN, after a manual start ENG MAN START OFF and ENG MASTER OFF. During the engine shutdown:
+ *   HP FUEL VALVE NOT CLOSED, after a manual start ENG MAN START OFF and ENG MASTER OFF (the engine shuts down when
+ *   the LP fuel valve closes), on ground ENG FIRE P/B PUSH to close the LP valve. Single chime, MASTER CAUT, ENGINE
  *   SD page; inhibited in the phases 3, 4, 5, 6, 7, 9 and 10.
  * - The crew awareness alerts of the FADEC faults without engine model effect (systems engine/engine_monitoring_fault.rs
- *   writes one L:var per fault and engine), no aural, no MASTER light and no SD page ("Indications:" empty):
- *   - FUEL STRAINER CLOGGED (l.172106-172132), PDF page 5787: phases 3 to 10 inhibited;
- *   - FUEL FILTER MONITORING FAULT (l.172018-172043), PDF page 5784: phases 1 to 10 inhibited;
- *   - OIL CHIP DETECTED (l.172378-172406), PDF page 5795: phases 1 to 10 inhibited;
- *   - MINOR FAULT (l.172307-172334, "It is triggered after flight if only one engine is affected"), PDF page 5793: phases
- *     2 to 10 inhibited;
- *   - OVERTHRUST PROT LOST (l.172639-172666, "It is displayed after flight if only one engine is affected"), PDF page
- *     5803: phases 2 to 10 inhibited;
- *   - SENSOR FAULT (l.172667-172692), PDF page 5804: phases 2 to 10 inhibited.
+ *   writes one L:var per fault and engine), no aural, no MASTER light and no SD page:
+ *   - FUEL STRAINER CLOGGED: phases 3 to 10 inhibited;
+ *   - FUEL FILTER MONITORING FAULT: phases 1 to 10 inhibited;
+ *   - OIL CHIP DETECTED: phases 1 to 10 inhibited;
+ *   - MINOR FAULT (triggered after the flight if only one engine is affected): phases 2 to 10 inhibited;
+ *   - OVERTHRUST PROT LOST (displayed after the flight if only one engine is affected): phases 2 to 10 inhibited;
+ *   - SENSOR FAULT: phases 2 to 10 inhibited.
  */
 
 /** L:A32NX_ENGINE_n_HP_FUEL_VALVE_FAULT (systems::engine::hp_fuel_valve_failure::HpFuelValveFault) */
@@ -34,7 +29,7 @@ export enum HpFuelValveFault {
   NotClosed = 2,
 }
 
-/** ENG n HP FUEL VLV FAULT: FwsAbnormalSensed level 2, single chime and MASTER CAUT (PDF page 5789) */
+/** ENG n HP FUEL VLV FAULT: FwsAbnormalSensed level 2, single chime and MASTER CAUT */
 export const HP_FUEL_VLV_FAULT_LEVEL = 2;
 
 export const HP_FUEL_VLV_FAULT_PHASE_INHIBITION = [3, 4, 5, 6, 7, 9, 10];
@@ -92,7 +87,6 @@ export interface EngineMonitoringAlertDefinition {
   variable: string;
   /** The ata70 key of the alert of engine 1 (engines 2 to 4 follow) */
   engine1Key: number;
-  /** The flight phase inhibition figure of the FCOM PDF (see the file comment) */
   flightPhaseInhibition: number[];
 }
 

@@ -1418,9 +1418,8 @@ impl EgpwcTestBed {
     }
 }
 
-/// A320 FCOM DSC-34-SURV-40-40 (a320_fcom.txt:55491): the GPWS can be tested by pressing the GPWS pushbutton on the
-/// ground. The sequence (GLIDESLOPE, PULL UP, terrain test pattern with TERRAIN TERRAIN PULL UP) is the Honeywell EGPWS
-/// short self-test.
+/// The GPWS pushbutton tests the GPWS on the ground. The sequence (GLIDESLOPE, PULL UP, terrain test pattern with
+/// TERRAIN TERRAIN PULL UP) is the Honeywell EGPWS short self-test.
 #[test]
 fn self_test_on_ground_runs_glideslope_pull_up_and_terrain_steps() {
     let mut test_bed = test_bed_with().on_ground().and().powered();

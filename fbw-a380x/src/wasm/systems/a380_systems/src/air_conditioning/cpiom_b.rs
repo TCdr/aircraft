@@ -1394,11 +1394,10 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
         }
     }
 
-    /// The landing elevation the controllers use. A380 FCOM CAB PRESS LDG ELEVN FAULT (a380_fcom.txt:135437, 135468):
-    /// "The outflow valve controllers do not receive the landing field elevation from the FMS." "IN DES : CAB ALT
-    /// REGULATED TO 7000 FT", and CAB PRESS AUTO CTL FAULT (l.134651-134659): "the landing field elevation is set by
-    /// default to 7 000 ft [...] (or 7 500 ft if, in addition, the ambient pressure is no longer available)".
-    /// Design choice: the ambient pressure is no longer available when no ADIRU sends it.
+    /// The landing elevation the controllers use. CAB PRESS LDG ELEVN FAULT: the controllers do not get the landing
+    /// field elevation from the FMS, and in descent the cabin altitude is regulated to 7 000 ft; CAB PRESS AUTO CTL
+    /// FAULT: the landing field elevation is 7 000 ft by default (7 500 ft if the ambient pressure is also lost).
+    /// Design choice: the ambient pressure is lost when no ADIRU sends it.
     fn landing_elevation_for_control(
         fm_landing_elevation: Option<Length>,
         ambient_pressure_is_available: bool,

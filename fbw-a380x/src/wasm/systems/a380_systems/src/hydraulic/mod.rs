@@ -1581,18 +1581,16 @@ impl A380GearSystemFactory {
     }
 }
 
-/// Hydraulic supply of the main gear assemblies of the model, A380 FCOM DSC-32-10-20 (a380_fcom.txt l.78605-78614):
-/// "The GREEN hydraulic system powers the extension/retraction of the NLG and the WLG, the operation of the NLG and the
-/// WLG doors. The YELLOW hydraulic system powers the extension/retraction of the BLG, the operation of the BLG doors."
+/// Hydraulic supply of the main gear assemblies of the model: GREEN extends and retracts the NLG and the WLG and
+/// operates their doors, YELLOW the BLG and its doors.
 ///
 /// Simplification: the model has one left and one right main gear assembly, each standing for the wing and the body
 /// gear of that side (the wing gears are animated with them), and one door assembly per side (the BLG doors). Each main
 /// assembly therefore needs GREEN (WLG) and YELLOW (BLG): it gets the lower of the two pressures, and takes half of its
-/// fluid from each system. This gives the FCOM results:
-/// - YELLOW lost: "The BLG and the WLG remain extended, BLG doors will remain closed. Even if the GREEN hydraulic power
-///   is available, the WLG will not retract" (l.82497-82506).
-/// - YELLOW or GREEN lost: "Landing gear extension is performed by gravity" (HYD G(Y) SYS PRESS LO, l.155567).
-/// - GREEN lost: the NLG and the WLG remain extended (l.82508-82514).
+/// fluid from each system. This gives the aircraft's results:
+/// - YELLOW lost: the BLG and the WLG remain extended and the BLG doors closed, even with GREEN available.
+/// - YELLOW or GREEN lost: the landing gear extends by gravity.
+/// - GREEN lost: the NLG and the WLG remain extended.
 ///
 /// Not modelled: with GREEN lost the BLG retracts, with YELLOW lost the NLG retracts (the common LGCIU moves the gears
 /// only when all the doors are open).
@@ -4126,10 +4124,8 @@ impl A380ElectricPumpController {
         self.update_overheat(pump_status)
     }
 
-    /// A380 FCOM DSC-29-10 ELECTRIC PUMPS (a380_fcom.txt:61020-61026): "Two electric pumps can provide hydraulic power
-    /// on ground only. The green (yellow) electric pumps can pressurize the GREEN (YELLOW) hydraulic system, if the
-    /// engines 1 and 2 (3 and 4) are not running." "Because of the variable frequency of the engine generators, the
-    /// green (yellow) electric pumps are inhibited as soon as the engine 1 or 2 (3 or 4) is running."
+    /// The electric pumps work on ground only, and the green (yellow) pumps are inhibited as soon as engine 1 or 2
+    /// (3 or 4) runs, because of the variable frequency of the engine generators.
     /// Design choices: an engine runs when its oil pressure is not low (the placeholder signal used before), and the
     /// green pumps read LGCIU 1, the yellow pumps LGCIU 2 for "on ground" (both main gears compressed).
     fn is_inhibited(&self, engines: [&impl Engine; 4], lgciu: &impl LgciuWeightOnWheels) -> bool {
@@ -7198,14 +7194,12 @@ impl From<f64> for A380GravityExtensionSwitchPosition {
     }
 }
 
-/// The two Free Fall Control Modules (FFCM) of the landing gear gravity extension, A380 FCOM DSC-32-40-10
-/// (a380_fcom.txt l.82413-82434): with the L/G GRVTY sw DOWN, "The commands are sequenced by a timer and sent in
-/// chronological order to: 1. The cut-out valves to isolate the retraction actuators from the hydraulic power 2. The
-/// retraction actuators to activate the gravity mode ... 3. The landing gear door uplocks ... 4. The landing gear
-/// uplocks (NLG and WLG, then BLG) ... 5. The total duration of gravity extension from L/G GRVTY sw on down to last gear
-/// downlock is 70 s in absence of failure."
+/// The two Free Fall Control Modules (FFCM) of the landing gear gravity extension. With the L/G GRVTY sw DOWN a timer
+/// sequences the commands: 1. the cut-out valves isolate the retraction actuators, 2. the retraction actuators go to
+/// gravity mode, 3. the door uplocks open, 4. the gear uplocks open (NLG and WLG, then BLG). Without failure the last
+/// gear downlocks 70 s after the sw is set DOWN.
 ///
-/// The FCOM gives only the total. Design choice for the steps 3 and 4: in the model the doors take about 20 s to fall
+/// Only that total is published. Design choice for the steps 3 and 4: in the model the doors take about 20 s to fall
 /// open and the gears about 25 s to fall to their downlock, so the door uplocks open after 25 s and the gear uplocks
 /// after 45 s: the last gear downlocks about 70 s after the sw is set DOWN. The model releases all the gear uplocks
 /// together (one main gear assembly per side stands for its WLG and BLG).
@@ -10533,7 +10527,7 @@ mod tests {
 
             // Setting on ground with yellow side hydraulics off
             // This should prevent yellow accumulator to fill. The yellow electric pumps are only inhibited by
-            // engines 3 and 4 (FCOM DSC-29-10), so they stay off here.
+            // engines 3 and 4, so they stay off here.
             test_bed = test_bed
                 .start_eng1(Ratio::new::<percent>(100.))
                 .start_eng2(Ratio::new::<percent>(100.))
@@ -10907,8 +10901,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM BRAKES AUTO BRK FAULT (l.159949-159954, PDF p.5447-5448): the failed autobrake reports the fault
-        // and cannot be armed (STATUS INOP SYS AUTO BRK)
+        // BRAKES AUTO BRK FAULT: the failed autobrake reports the fault and cannot be armed (STATUS INOP SYS AUTO BRK)
         fn failed_autobrake_reports_fault_and_cannot_be_armed() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -10936,7 +10929,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.79071-79073: "the RTO mode does not activate below 40 kt"
+        // The RTO mode does not activate below 40 kt
         fn autobrakes_rto_does_not_activate_below_40_knots() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -11240,10 +11233,8 @@ mod tests {
             assert!(!test_bed.query(|a| a.is_green_epump_b_controller_pressurising()));
         }
 
-        // A380 FCOM DSC-29-10 ELECTRIC PUMPS (a380_fcom.txt:61020-61026): "Two electric pumps can provide hydraulic
-        // power on ground only. The green (yellow) electric pumps can pressurize the GREEN (YELLOW) hydraulic system,
-        // if the engines 1 and 2 (3 and 4) are not running." "the green (yellow) electric pumps are inhibited as soon
-        // as the engine 1 or 2 (3 or 4) is running."
+        // The electric pumps work on ground only, and the green (yellow) pumps are inhibited as soon as engine 1 or 2
+        // (3 or 4) runs.
         #[test]
         fn controller_yellow_epumps_run_with_only_engines_1_and_2_running() {
             let mut test_bed = test_bed_on_ground_with()
@@ -12100,9 +12091,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-40-20 (l.82497-82506): YELLOW failed, L/G lever UP: "The BLG and the WLG remain extended,
-        // BLG doors will remain closed". Not modelled: "The NLG retracts" (the common LGCIU moves the gears only when
-        // all the doors are open).
+        // YELLOW failed, L/G lever UP: the BLG and the WLG remain extended, the BLG doors closed. Not modelled: the NLG
+        // retracts (the common LGCIU moves the gears only when all the doors are open).
         fn gear_retraction_with_yellow_lost_keeps_the_main_gears_extended_and_their_doors_closed() {
             let mut test_bed = in_flight_gear_down_with_system_lost(HydraulicColor::Yellow);
 
@@ -12121,7 +12111,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-40-20 (l.82508-82514): GREEN failed, L/G lever UP: "The NLG and the WLG remain extended"
+        // GREEN failed, L/G lever UP: the NLG and the WLG remain extended
         fn gear_retraction_with_green_lost_keeps_the_nose_and_wing_gears_extended() {
             let mut test_bed = in_flight_gear_down_with_system_lost(HydraulicColor::Green);
 
@@ -12133,8 +12123,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM HYD G(Y) SYS PRESS LO (l.155563-155567): "Landing gear extension is performed by gravity"; the BLG
-        // is on YELLOW (l.78610-78614)
+        // HYD G(Y) SYS PRESS LO: the landing gear extends by gravity; the BLG is on YELLOW
         fn gear_extension_with_yellow_lost_needs_gravity_extension_for_the_main_gears() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -12164,8 +12153,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-40-10 (l.82432-82434): "The total duration of gravity extension from L/G GRVTY sw on down
-        // to last gear downlock is 70 s in absence of failure"
+        // Without failure the last gear downlocks 70 s after the L/G GRVTY sw is set DOWN
         fn gravity_extension_takes_about_70_seconds() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -12475,8 +12463,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.80043-80047: emergency braking is limited to 1 000 psi at landing (landing brake law), and the
-        // PARK BRK handle ON reverts to the take-off brake law (1 700 psi)
+        // Emergency braking is limited to 1 000 psi at landing (landing brake law), and the PARK BRK handle ON reverts
+        // to the take-off brake law (1 700 psi)
         fn emergency_braking_uses_landing_law_after_a_flight_until_park_brake_on() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BrakeNormalBraking);

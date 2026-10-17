@@ -14,7 +14,7 @@ import {
 
 const rotation: TailStrikeInputs = { pitchDegrees: 8, mainGearCompressed: true, detectorFailed: false, flightPhase: 4 };
 
-describe('TAIL STRIKE detector (A380 FCOM l.147331-147385, geometry LIM-10 l.186816-186826)', () => {
+describe('TAIL STRIKE detector (aircraft geometry limit)', () => {
   it('detects no contact below the 11.5 deg tail strike pitch attitude with the gear compressed', () => {
     const detector = new TailStrikeDetector();
     expect(detector.update({ ...rotation, pitchDegrees: 11.4 })).toEqual({ tailStrike: false, detectorFault: false });
@@ -51,7 +51,7 @@ describe('TAIL STRIKE detector (A380 FCOM l.147331-147385, geometry LIM-10 l.186
     expect(detector.update({ ...rotation, pitchDegrees: 0, flightPhase: 1 }).tailStrike).toBe(false);
   });
 
-  it('detects nothing and raises TAIL STRIKE DET FAULT when the detector is failed (l.147379)', () => {
+  it('detects nothing and raises TAIL STRIKE DET FAULT when the detector is failed', () => {
     const detector = new TailStrikeDetector();
     expect(detector.update({ ...rotation, pitchDegrees: 13, detectorFailed: true })).toEqual({
       tailStrike: false,
@@ -59,7 +59,7 @@ describe('TAIL STRIKE detector (A380 FCOM l.147331-147385, geometry LIM-10 l.186
     });
   });
 
-  it('uses the flight phase inhibitions of the FCOM figures (PDF pages 5095, 5096)', () => {
+  it('uses the flight phase inhibitions of the aircraft', () => {
     expect(TAIL_STRIKE_PHASE_INHIBITION).toEqual([1, 2, 3, 4, 5, 6, 9, 10, 12]);
     expect(TAIL_STRIKE_DET_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11]);
   });

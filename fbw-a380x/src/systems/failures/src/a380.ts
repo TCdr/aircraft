@@ -197,15 +197,14 @@ export const A380Failure = Object.freeze({
   Fcdc1: 27006,
   Fcdc2: 27007,
   // Slat and flap channels of the SFCCs (a380_systems hydraulic/sfcc): the channel no longer drives its motor, the
-  // surfaces move at half speed; F/CTL FLAP(SLAT) SYS 1(2) FAULT, both channels SYS 1+2 FAULT (a380_fcom.txt l.147527-
-  // 147540, l.148380-148393)
+  // surfaces move at half speed; F/CTL FLAP(SLAT) SYS 1(2) FAULT, both channels SYS 1+2 FAULT
   Sfcc1FlapChannel: 27010,
   Sfcc2FlapChannel: 27011,
   Sfcc1SlatChannel: 27012,
   Sfcc2SlatChannel: 27013,
 
-  // Avionics network (systems integrated_modular_avionics, FCOM DSC-42-20 a380_fcom.txt l.94964-95066): a failed AFDX
-  // switch routes no message, a failed IOM or CPIOM is no longer available (*_AVAIL L:vars), as their failure L:vars
+  // Avionics network (systems integrated_modular_avionics): a failed AFDX switch routes no message, a failed IOM or
+  // CPIOM is no longer available (*_AVAIL L:vars), as their failure L:vars
   AfdxSwitch1: 42001,
   AfdxSwitch2: 42002,
   AfdxSwitch3: 42003,
@@ -314,7 +313,7 @@ export const A380Failure = Object.freeze({
   Fws2AudioFunction: 31103,
   FwsEcp: 31104,
   // The tail strike detector (TS only, read by the FWS, see FwsTailStrikeAlerts): no TAIL STRIKE alert, TAIL STRIKE DET
-  // FAULT (a380_fcom.txt l.147371-147385)
+  // FAULT
   TailStrikeDetector: 31200,
 
   LgciuPowerSupply1: 32000,
@@ -979,7 +978,7 @@ export const A380FailureDefinitions: FailureDefinition[] = [
 
   // The APU electronic control box (ECB) senses these and shuts the APU down: MASTER SW FAULT light, APU FAULT (systems
   // apu/electronic_control_box.rs). The overspeed and oil failures act once the APU runs; the high oil temperature
-  // shuts it down on the ground only (A380 FCOM DSC-49-40).
+  // shuts it down on the ground only.
   [49, A380Failure.ApuEcb, 'APU electronic control box (ECB)'],
   [49, A380Failure.ApuOverspeed, 'APU overspeed (automatic shutdown)'],
   [49, A380Failure.ApuOilLowPressure, 'APU low oil pressure (automatic shutdown)'],

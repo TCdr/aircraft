@@ -1,16 +1,9 @@
 //! The engine (nacelle) anti-ice valve of one engine.
 //!
-//! A320 FCOM DSC-30-30-10 (a320_fcom.txt l.44351-44358):
-//! - "An independent air bleed from the high pressure compressor protects each engine nacelle from ice. Air is
-//!   supplied through a two-position (open and closed) valve that the flight crew controls with two pushbuttons".
-//! - "The valve automatically closes, if air is unavailable (engine not running)."
-//! - "If electrical power fails, the valves open."
-//!
-//! A320 FCOM DSC-30-30-20 (l.44388-44398), ENG 1(2) ANTI ICE pb-sw:
-//! - "FAULT : Light comes on amber, and caution message appears on ECAM, if the position of the anti-ice valve
-//!   disagrees with the ENG 1 (2) pushbutton selection. Note: The amber FAULT light comes on briefly as valve
-//!   transits."
-//! - "ON : ... Engine anti-icing valve opens if bleed air is available from the engine."
+//! Each nacelle is protected by its own bleed from the HP compressor, through a two-position (open/closed) valve
+//! that the crew controls with the ENG ANTI ICE pb-sw. The valve closes when the engine supplies no air (engine not
+//! running) and opens when electrical power fails. The FAULT light comes on (with an ECAM caution) when the valve
+//! position disagrees with the pb-sw selection, and briefly while the valve transits.
 //!
 //! The valve is solenoid controlled and pneumatically operated: the energised solenoid holds it closed (pb-sw OFF),
 //! the air of the HP compressor opens it. So it opens with the pb-sw ON, or without electrical power, as long as the
@@ -44,11 +37,11 @@ pub struct EngineAntiIceValve {
     stuck_open: Failure,
 }
 impl EngineAntiIceValve {
-    /// Design choice (no FCOM value): the time the valve takes to go from closed to open, or back. The FCOM only says
-    /// that the FAULT light "comes on briefly as valve transits".
+    /// Design choice (no published value): the time the valve takes to go from closed to open, or back, short enough
+    /// for the FAULT light to come on only briefly while the valve transits.
     const TRAVEL_TIME: Duration = Duration::from_secs(2);
 
-    /// Design choice (no FCOM value): the HP compressor air pressure over the ambient pressure that opens the valve,
+    /// Design choice (no published value): the HP compressor air pressure over the ambient pressure that opens the valve,
     /// the same 10 PSI as the A320 wing anti-ice valves. The FBW engine HP compressor model is at the ambient
     /// pressure with the engine stopped, and reaches it at about 25 % N2 during a start.
     const MIN_SUPPLY_PRESSURE_PSIG: f64 = 10.;
@@ -84,7 +77,7 @@ impl EngineAntiIceValve {
     pub fn update(&mut self, context: &UpdateContext, supply_pressure: Pressure) {
         let air_available = (supply_pressure - context.ambient_pressure()).get::<psi>()
             > Self::MIN_SUPPLY_PRESSURE_PSIG;
-        // The energised solenoid holds the valve closed: "If electrical power fails, the valves open"
+        // The energised solenoid holds the valve closed, so the valve opens when electrical power fails
         let solenoid_holds_closed = self.is_powered && !self.push_button_on;
 
         let should_be_open = if self.stuck_closed.is_active() {

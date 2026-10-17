@@ -20,8 +20,7 @@ import { AbnormalProcedure, ChecklistLineStyle } from '..';
 export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } = {
   // ATA 49 APU
   490800001: {
-    // A380 FCOM PRO-ABN-ECAM-10-49 APU FAULT, Impacted DU 00007683 version (a380_fcom.txt l.170161-170185). The lines
-    // shown are chosen by ApuFaultAlerts.ts apuFaultItemsToShow.
+    // The lines shown are chosen by ApuFaultAlerts.ts apuFaultItemsToShow.
     title: '\x1b<4m\x1b4mAPU\x1bm FAULT',
     sensed: true,
     items: [

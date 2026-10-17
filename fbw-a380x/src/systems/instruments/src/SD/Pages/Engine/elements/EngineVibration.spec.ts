@@ -24,7 +24,7 @@ describe('A380X SD ENGINE page vibrations and N3', () => {
     expect(n3RedCrossShown(true, 95, false, true)).toBe(true);
   });
 
-  // a380_fcom.txt l.73512-73516: "If a parameter value on any SD page is not available for display, XX appears"
+  // A parameter value that is not available for display shows XX on any SD page
   it('latches no N3 red cross on an N3 the FADEC does not send (XX) or that is not a finite number', () => {
     expect(n3RedCrossShown(false, 125, false, false)).toBe(false);
     expect(n3RedCrossShown(false, Infinity, false, true)).toBe(false);

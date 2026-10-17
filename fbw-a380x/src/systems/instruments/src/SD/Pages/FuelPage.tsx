@@ -804,7 +804,7 @@ export const FuelPage = () => {
   );
   const trimTankWeight = fqmsTrimTankWeight.valueOr(fqdc1TrimTankWeight.valueOr(fqdc2TrimTankWeight.valueOr(null)));
 
-  // Wing imbalance underlines (FCOM DSC-28-20, FuelImbalanceIndication.ts), with the trigger of FUEL WINGS NOT BALANCED
+  // Wing imbalance underlines, with the trigger of FUEL WINGS NOT BALANCED
   const [onGround] = useSimVar('SIM ON GROUND', 'bool', 1000);
   const [refuelStarted] = useSimVar('L:A32NX_REFUEL_STARTED_BY_USR', 'bool', 1000);
   const [refuelPanelOpen] = useSimVar('INTERACTIVE POINT OPEN:18', 'percent over 100', 1000);
@@ -1686,7 +1686,7 @@ interface TankQuantityProps extends Position {
   smallFont?: boolean;
   quantity: number | null;
   hasFault?: boolean;
-  /** Amber underline of the wing imbalance (FuelImbalanceIndication.ts) */
+  /** Amber underline of the wing imbalance */
   underline?: boolean;
 }
 

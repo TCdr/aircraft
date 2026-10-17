@@ -18,7 +18,6 @@ import {
  * the procedures here are made up, and the real procedure lines are read from the source text.
  */
 
-/** A procedure with these line names */
 function procedure(...names: string[]): AbnormalProcedure {
   return { title: 'TEST', sensed: true, items: names.map((name) => ({ name, sensed: false })) };
 }
@@ -33,7 +32,6 @@ const procedures: { [key: string]: AbnormalProcedure } = {
   5: procedure('LDG LIMITED TO MAX LDG WEIGHT', 'LDG STRATEGY'),
 };
 
-/* A380 FCOM DSC-31-40-10 STATUS MORE PAGE, a380_fcom.txt l.72964-72977, l.72617-72619, table l.72560-72610 */
 describe('STATUS MORE: ALERTS IMPACTING LDG PERF', () => {
   it('lists the alerts whose procedure has a landing performance line, each once, in the order of the alerts', () => {
     expect(alertsImpactingLandingPerformance(['4', '990900009', '1', '1', '2', '3'], procedures)).toEqual([
@@ -59,13 +57,13 @@ describe('STATUS MORE: ALERTS IMPACTING LDG PERF', () => {
 });
 
 describe('STATUS MORE: MORE INFO', () => {
-  it('has the MORE INFO of MISC OIS FAULT (FCOM l.170041-170045)', () => {
+  it('has the MORE INFO of MISC OIS FAULT', () => {
     expect(EcamMoreInfo[990900008].join(' ')).toBe(
       'IF CAPT + F/O OITs AFFECTED, CONSIDER NSS FLT OPS RESET PROCEDURE.',
     );
     expect(alertsWithMoreInfo(['990900009', '990900008', '990900008'])).toEqual(['990900008']);
     const ata80 = readFileSync(resolve(__dirname, 'AbnormalSensed/ata80-rest.ts'), 'utf-8');
-    expect(ata80).toMatch(/990900008: \{\s*\/\/ A380 FCOM PRO-ABN-ECAM-10-46 MISC OIS FAULT/);
+    expect(ata80).toMatch(/990900008: \{\s*\/\/ The MORE INFO line of this procedure is in StatusMore\.ts/);
   });
 });
 

@@ -245,8 +245,8 @@ export class LegacyFuel implements Instrument {
       this.refuelInProgress = false;
       this.checkEmptyTriggers();
     } else if (manualTransferInProgress) {
-      // A380 FCOM PRO-ABN-ECAM-10-28 (a380_fcom.txt l.151103-151104): "As long as the INR TK XFR pb-sw is set to MAN,
-      // all automatic transfers are inhibited". They start again from all their triggers off (CpiomF/FuelManualTransfer).
+      // While an INR TK XFR pb-sw is in MAN, all the automatic transfers are inhibited. They start again from all their
+      // triggers off (FuelManualTransfer).
     } else if (!onGround && totalDtSinceLastUpdate > 0) {
       this.checkEmptyTriggers();
 

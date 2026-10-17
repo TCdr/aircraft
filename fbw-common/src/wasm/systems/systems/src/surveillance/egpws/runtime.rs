@@ -77,9 +77,8 @@ impl AuralWarning {
 
 /// One step of the GPWS self-test, started by the GPWS test pushbutton on the ground.
 ///
-/// A320 FCOM DSC-34-SURV-40-40 (a320_fcom.txt:55491): "The GPWS can be tested by pressing this pushbutton (on ground
-/// only)", and DSC-31-45 (a320_fcom.txt:48990): "TERR TST ... Appears during the GPWS test, when the terrain pattern is
-/// displayed". The FCOM gives no sequence. Design choice: the Honeywell EGPWS short (level 1) self-test, each step
+/// The GPWS pushbutton tests the GPWS on the ground only, and the ND shows TERR TST while the terrain pattern of the
+/// test is displayed. Design choice (no published sequence): the Honeywell EGPWS short (level 1) self-test, each step
 /// lasting one aural emission: GLIDESLOPE with the alert lamp, PULL UP with the warning lamp, then the terrain test
 /// pattern with TERRAIN TERRAIN PULL UP and the warning lamp.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1138,7 +1137,7 @@ impl EnhancedGroundProximityWarningComputerRuntime {
         }
     }
 
-    /// Whether the self-test shows the terrain test pattern (TERR TST on the ND, a320_fcom.txt:48990).
+    /// Whether the self-test shows the terrain test pattern (TERR TST on the ND).
     pub fn is_terrain_test_pattern_active(&self) -> bool {
         self.self_test_step
             .is_some_and(|step| step.shows_terrain_test_pattern())

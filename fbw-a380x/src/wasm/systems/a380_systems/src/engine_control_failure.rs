@@ -357,7 +357,7 @@ mod tests {
         assert!(!read_bool(&mut test_bed, "ENGINE_3_FADEC_AUTO_IDLE"));
     }
 
-    /// FCOM DSC-70-70 AUTO-IDLE PROTECTION (l.112250-112256)
+    /// Auto-idle protection of the outboard engines
     #[test]
     fn the_outboard_engines_are_at_idle_during_the_reverser_operation() {
         let mut test_bed = test_bed(true, 25.);

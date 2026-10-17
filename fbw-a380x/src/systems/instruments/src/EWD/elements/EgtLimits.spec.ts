@@ -120,7 +120,6 @@ describe('EWD EGT with the engine failures', () => {
   });
 });
 
-/* A380 FCOM DSC-70-90 EGT LIMIT (a380_fcom.txt l.113189-113192): 745 °C ground start, 865 °C relight in flight */
 describe('EWD EGT limit during a start sequence', () => {
   it('is 745 °C during a ground start (STARTING or RESTARTING)', () => {
     expect(EGT_START_LIMIT_C).toBe(745);

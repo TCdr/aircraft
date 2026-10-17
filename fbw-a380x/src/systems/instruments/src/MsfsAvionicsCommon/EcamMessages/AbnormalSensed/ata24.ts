@@ -121,7 +121,6 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     ],
   },
   240800005: {
-    // A380 FCOM PRO-ABN-ECAM-10-24 ELEC AC BUS 2+3 & DC BUS 1+2 FAULT, a380_fcom.txt l.138047-138195, in FCOM order
     title: "\x1b<4m\x1b4mELEC\x1bm \x1b'mAC BUS 2+3 & DC BUS 1+2 FAULT\x1bm",
     sensed: true,
     items: [
@@ -302,7 +301,6 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     ],
   },
   240800006: {
-    // A380 FCOM PRO-ABN-ECAM-10-24 ELEC AC BUS 2+4 FAULT, a380_fcom.txt l.138446-138551, in FCOM order
     title: "\x1b<4m\x1b4mELEC\x1bm \x1b'mAC BUS 2+4 FAULT\x1bm",
     sensed: true,
     items: [
@@ -514,7 +512,7 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     title: "\x1b<4m\x1b4mELEC\x1bm \x1b'mAC BUS 3+4 & DC BUS 2 FAULT\x1bm",
     sensed: true,
     items: [
-      // in flight. A380 FCOM l.138804: VENT AVNCS EXTRACT ... OVRD
+      // In flight
       {
         name: 'VENT AVNCS EXTRACT',
         sensed: true,
@@ -1025,7 +1023,6 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     ],
   },
   240800028: {
-    // A380 FCOM PRO-ABN-ECAM-10-24 ELEC DC BUS 1+ESS FAULT, a380_fcom.txt l.140337-140416, in FCOM order
     title: "\x1b<4m\x1b4mELEC\x1bm \x1b'mDC BUS 1+ESS FAULT\x1bm",
     recommendation: 'LAND ANSA',
     sensed: true,

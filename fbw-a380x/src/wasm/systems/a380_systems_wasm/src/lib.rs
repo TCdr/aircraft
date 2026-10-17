@@ -607,7 +607,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         // ATA 35 oxygen bottles and cabin valves (a380_systems oxygen.rs)
         // ATA 36 (a380_systems pneumatic.rs): wing zone n is the wing section of engine n
         (36_000, FailureType::EngineBleedValveStuckClosed(1)),
-        // Avionics network (systems::integrated_modular_avionics, FCOM DSC-42-20): AFDX switches by their number,
+        // Avionics network (systems::integrated_modular_avionics): AFDX switches by their number,
         // IOMs A1-A8 as 42_101-42_108, CPIOMs as 42_2xy (x = letter A..G as 0..6, y = number)
         (42_001, FailureType::AvionicsFullDuplexSwitch(1)),
         (42_002, FailureType::AvionicsFullDuplexSwitch(2)),
@@ -790,7 +790,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (73_101, FailureType::EngineFuelFilterClog(2)),
         (73_102, FailureType::EngineFuelFilterClog(3)),
         (73_103, FailureType::EngineFuelFilterClog(4)),
-        // FCOM PRO-ABN-ECAM-10-70 ENG HP FUEL VLV FAULT (systems engine/hp_fuel_valve_failure.rs)
+        // ENG HP FUEL VLV FAULT (systems engine/hp_fuel_valve_failure.rs)
         (73_200, FailureType::EngineHpFuelValveStuck(1)),
         (73_201, FailureType::EngineHpFuelValveStuck(2)),
         (73_202, FailureType::EngineHpFuelValveStuck(3)),

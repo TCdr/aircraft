@@ -40,11 +40,11 @@ const shownLines = (inputs: AbnormBleedConfigInputs) =>
     .show.map((shown, index) => (shown ? index : -1))
     .filter((index) => index >= 0);
 
-describe('AIR ABNORM BLEED CONFIG (A380 FCOM PRO-ABN-ECAM-10-36, l.167558-167674)', () => {
+describe('AIR ABNORM BLEED CONFIG', () => {
   const eng2ShutDown = { ...normal, engineShutDown: [false, true, false, false] };
   const eng1ShutDown = { ...normal, engineShutDown: [true, false, false, false] };
 
-  it('needs a bleed lost and an ENG SHUT DOWN or ENG FIRE (l.167564-167568)', () => {
+  it('needs a bleed lost and an ENG SHUT DOWN or ENG FIRE', () => {
     expect(isAbnormBleedConfig(normal)).toBe(false);
     expect(isAbnormBleedConfig({ ...normal, bleedPbAuto: [false, true, true, true] })).toBe(false);
     expect(isAbnormBleedConfig(eng2ShutDown)).toBe(true);
@@ -56,32 +56,32 @@ describe('AIR ABNORM BLEED CONFIG (A380 FCOM PRO-ABN-ECAM-10-36, l.167558-167674
     expect(shownLines(eng2ShutDown)).toEqual([0, 1]);
   });
 
-  it('XBLEED open, one bleed lost: IF MAX THR RQRD: AIR FLOW LO, FWD CARGO TEMP REGUL OFF (l.167592-167601)', () => {
+  it('XBLEED open, one bleed lost: IF MAX THR RQRD: AIR FLOW LO, FWD CARGO TEMP REGUL OFF', () => {
     expect(shownLines({ ...eng2ShutDown, xbleedOpen: true })).toEqual([1, 2, 3, 4]);
     expect(abnormBleedConfigItems({ ...eng2ShutDown, xbleedOpen: true, airFlowLo: true }).checked[3]).toBe(true);
   });
 
-  it('XBLEED open, two bleeds lost: PACK 1(2) OFF of the side with the lost bleeds (l.167603-167605)', () => {
+  it('XBLEED open, two bleeds lost: PACK 1(2) OFF of the side with the lost bleeds', () => {
     const twoRight = { ...normal, engineShutDown: [false, false, true, false], bleedPbAuto: [true, true, true, false] };
     // bleed 4 lost: the IF XBLEED STILL CLOSED condition shows, not met (no line under it)
     expect(shownLines({ ...twoRight, xbleedOpen: true })).toEqual([1, 6, 7]);
   });
 
-  it('bleed 1 lost, XBLEED still closed: WING A-ICE OFF, ENGs A-ICE AS RQRD, AVOID ICING CONDs (l.167608-167614)', () => {
+  it('bleed 1 lost, XBLEED still closed: WING A-ICE OFF, ENGs A-ICE AS RQRD, AVOID ICING CONDs', () => {
     expect(shownLines(eng1ShutDown)).toEqual([0, 1, 7, 8, 9, 10]);
     expect(abnormBleedConfigLimitations(eng1ShutDown)).toEqual([]);
     expect(abnormBleedConfigLimitations({ ...eng1ShutDown, wingAntiIceOn: false })).toEqual(['300400001']);
   });
 
-  it('after ENG FIRE with the XBLEED open: XBLEED ... CLOSE; bleed 4: WING A-ICE OFF (l.167616-167628)', () => {
+  it('after ENG FIRE with the XBLEED open: XBLEED ... CLOSE; bleed 4: WING A-ICE OFF', () => {
     const eng4Fire = { ...normal, engineFire: [false, false, false, true], xbleedOpen: true };
     expect(shownLines(eng4Fire)).toEqual([11, 12, 13]);
     const eng34Fire = { ...normal, engineFire: [false, false, true, true] };
     expect(shownLines(eng34Fire)).toEqual([12, 13, 15]);
   });
 
-  // AIR ENG 1(2)(3)(4) BLEED FAULT is a trigger (l.167565); its lines are the ones after ENG SHUT DOWN, except the AIR
-  // FLOW lines of "one bleed is inoperative, and one engine is shut down" (l.167592)
+  // AIR ENG 1(2)(3)(4) BLEED FAULT is a trigger; its lines are the ones after ENG SHUT DOWN, except the AIR FLOW lines,
+  // which need one bleed inoperative and one engine shut down
   it('after AIR ENG BLEED FAULT: XBLEED ... OPEN, and no AIR FLOW lines with its engine still running', () => {
     const eng3BleedFault = { ...normal, bleedFault: [false, false, true, false] };
     expect(isAbnormBleedConfig(eng3BleedFault)).toBe(true);

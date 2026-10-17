@@ -146,10 +146,9 @@ export function hdgDisagree(capt: SideDisplayData, fo: SideDisplayData, trueRef:
 
 /**
  * Whether the FWS takes a faulty ADR as NAV ADR 1(2)(3) FAULT. An ADR that lost one of its two supplies is in the INOP
- * SYS of the ELEC busbar alert instead (A380 FCOM PRO-ABN-ELEC: AC ESS BUS FAULT and DC ESS BUS FAULT lose the ADR 1,
- * a380_fcom.txt l.139230-139232 and l.140854-140856; AC BUS 4 FAULT and DC BUS 2 FAULT the ADR 2, l.139085 and
- * l.140685; AC BUS 2 FAULT and DC BUS 1 FAULT the ADR 3, l.137931 and l.139802). These are the ADIRU supplies of
- * a380_systems navigation.rs.
+ * SYS of the ELEC busbar alert instead (AC ESS BUS FAULT and DC ESS BUS FAULT lose the ADR 1, AC BUS 4 FAULT and DC BUS
+ * 2 FAULT the ADR 2, AC BUS 2 FAULT and DC BUS 1 FAULT the ADR 3). These are the ADIRU supplies of a380_systems
+ * navigation.rs.
  * @param adrFault the ADR discrete word is failure warning or has its ADR fail bit
  * @param acBusPowered the AC busbar of the ADR is powered (ADR 1: AC ESS, ADR 2: AC 4, ADR 3: AC 2)
  * @param dcBusPowered the DC busbar of the ADR is powered (ADR 1: DC ESS, ADR 2: DC 2, ADR 3: DC 1)

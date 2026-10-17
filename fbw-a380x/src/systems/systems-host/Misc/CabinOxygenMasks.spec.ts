@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { Arinc429Register, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
 import { CabinMaskAutoRelease, readCabinAltitudeFt } from './CabinOxygenMasks';
 
-describe('cabin oxygen masks automatic release (A380 FCOM DSC-35-30-10, l.93310, l.93333)', () => {
+describe('cabin oxygen masks automatic release', () => {
   it('releases the masks once when the cabin altitude goes above 13 800 ft', () => {
     const release = new CabinMaskAutoRelease();
     expect(release.update(8000, true)).toBe(false);
@@ -19,7 +19,7 @@ describe('cabin oxygen masks automatic release (A380 FCOM DSC-35-30-10, l.93310,
     expect(release.update(14000, true)).toBe(true);
   });
 
-  it('needs DC ESS (DSC-35-50, l.93707): released when the power comes back above 13 800 ft', () => {
+  it('needs DC ESS: released when the power comes back above 13 800 ft', () => {
     const release = new CabinMaskAutoRelease();
     expect(release.update(15000, false)).toBe(false);
     expect(release.update(15000, true)).toBe(true);

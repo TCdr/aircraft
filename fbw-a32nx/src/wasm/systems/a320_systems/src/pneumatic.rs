@@ -169,7 +169,7 @@ impl A320Pneumatic {
             ),
             air_starter_unit_bleed_air_valve: PurelyPneumaticValve::default(),
             wing_anti_ice: WingAntiIceComplex::new(context),
-            // Design choice (the FCOM gives no bus): the solenoids take the buses of the bleed valves of their engine
+            // Design choice (no published bus): the solenoids take the buses of the bleed valves of their engine
             engine_anti_ice_valves: [
                 EngineAntiIceValve::new(context, 1, ElectricalBusType::DirectCurrentEssentialShed),
                 EngineAntiIceValve::new(context, 2, ElectricalBusType::DirectCurrent(2)),
@@ -250,8 +250,7 @@ impl A320Pneumatic {
             );
         }
 
-        // The engine anti-ice air comes from the HP compressor, independently of the bleed system (FCOM
-        // DSC-30-30-10 l.44351)
+        // The engine anti-ice air comes from the HP compressor, independently of the bleed system
         for (valve, engine_system) in self
             .engine_anti_ice_valves
             .iter_mut()
@@ -5479,7 +5478,7 @@ pub mod tests {
         ));
     }
 
-    /// The engine anti-ice valves on the engine HP compressor air (FCOM DSC-30-30-10 l.44351-44358)
+    /// The engine anti-ice valves on the engine HP compressor air
     mod engine_anti_ice {
         use super::*;
 
@@ -5505,8 +5504,8 @@ pub mod tests {
 
             assert!(flag(&mut test_bed, "PNEU_ENG_1_ANTI_ICE_VALVE_OPEN"));
             assert!(!flag(&mut test_bed, "PNEU_ENG_1_ANTI_ICE_FAULT"));
-            // "The valve automatically closes, if air is unavailable (engine not running)": the FAULT light shows
-            // the disagreement with the pb-sw ON
+            // The valve closes automatically without air (engine not running): the FAULT light shows the
+            // disagreement with the pb-sw ON
             assert!(!flag(&mut test_bed, "PNEU_ENG_2_ANTI_ICE_VALVE_OPEN"));
             assert!(flag(&mut test_bed, "PNEU_ENG_2_ANTI_ICE_FAULT"));
         }
@@ -5522,7 +5521,7 @@ pub mod tests {
             });
             let mut test_bed = test_bed.and_stabilize();
 
-            // pb-sw OFF: "If electrical power fails, the valves open"
+            // pb-sw OFF: the valves open when electrical power fails
             assert!(flag(&mut test_bed, "PNEU_ENG_1_ANTI_ICE_VALVE_OPEN"));
             assert!(!flag(&mut test_bed, "PNEU_ENG_2_ANTI_ICE_VALVE_OPEN"));
         }

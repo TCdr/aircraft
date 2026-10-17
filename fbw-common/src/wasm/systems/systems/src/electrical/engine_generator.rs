@@ -173,11 +173,6 @@ impl<Drive: EngineGeneratorDrive> EngineGenerator<Drive> {
     pub fn drive_oil_is_overheating(&self) -> bool {
         self.drive.oil_is_overheating()
     }
-
-    /// The low oil level signal of the drive (A380 DRIVE OIL LEVEL LO), see `DirectDrive`.
-    pub fn drive_oil_level_is_low(&self) -> bool {
-        self.drive.oil_level_is_low()
-    }
 }
 impl<Drive: EngineGeneratorDrive> ElectricitySource for EngineGenerator<Drive> {
     fn output_potential(&self) -> Potential {
@@ -267,10 +262,9 @@ impl<Drive: EngineGeneratorDrive> SimulationElement for EngineGenerator<Drive> {
 
 /// The constant speed drive of an integrated drive generator (IDG, A320).
 ///
-/// Oil model, A320 FCOM DSC-24-20 IDG pb (a320_fcom.txt l.37132-37138): "ECAM caution comes on, if:
-/// IDG oil outlet overheats (above 180 °C), or IDG oil pressure is low (inhibited at low engine
-/// speed: N2 below 14 %). It extinguishes when the IDG is disconnected." and "An automatic thermal
-/// disconnection of the IDG will occur if the temperature reaches 200 °C."
+/// Oil model: the IDG caution comes on when the oil outlet overheats (above 180 °C) or the oil
+/// pressure is low (inhibited below N2 14 %), and goes off once the IDG is disconnected. The IDG
+/// disconnects itself (thermal disconnection) at 200 °C.
 pub struct ConstantSpeedDrive {
     oil_outlet_temperature_id: VariableIdentifier,
     oil_outlet_temperature: ThermodynamicTemperature,
@@ -291,18 +285,18 @@ impl ConstantSpeedDrive {
 
     const M: f64 = Self::OUTPUT_SPEED_RPM / Self::ENGINE_GEARBOX_POWER_UP_OUTPUT_THRESHOLD;
 
-    /// FCOM DSC-24-20 l.37133: the IDG oil outlet overheat threshold
+    /// The IDG oil outlet overheat threshold
     pub const OIL_OVERHEAT_CELSIUS: f64 = 180.;
-    /// FCOM DSC-24-20 l.37137-37138: the automatic thermal disconnection
+    /// The automatic thermal disconnection
     pub const THERMAL_DISCONNECT_CELSIUS: f64 = 200.;
-    /// FCOM DSC-24-20 l.37134: the low oil pressure signal is inhibited below N2 14 %
+    /// The low oil pressure signal is inhibited below N2 14 %
     const LOW_PRESSURE_INHIBITION_N2_PERCENT: f64 = 14.;
 
-    /// Design choice (the FCOM gives no normal values): with the engine at idle or above, the oil
+    /// Design choice (no published normal values): with the engine at idle or above, the oil
     /// comes back from its coolers at 55 °C plus 0.4 times the outside air temperature (limited to
     /// -20..50 °C), and gains 8 °C, plus 12 °C at full generator load, in the drive. The outlet
     /// temperature stays between about 50 °C and 95 °C, well below the 147 °C advisory of the SD
-    /// ELEC page (FCOM DSC-24-20 l.37624-37625).
+    /// ELEC page.
     const OIL_INLET_BASE_CELSIUS: f64 = 55.;
     const OIL_INLET_AMBIENT_FACTOR: f64 = 0.4;
     const OIL_TEMPERATURE_RISE_NO_LOAD_CELSIUS: f64 = 8.;
@@ -485,27 +479,21 @@ impl SimulationElement for ConstantSpeedDrive {
     }
 }
 
-/// The drive of a variable frequency generator (VFG, A380): the generator turns with the engine accessory gearbox,
-/// "When an engine is running, its generator provides 115 V AC power at variable frequency. This frequency ranges from
-/// 360 Hz to 800 Hz, depending on the N2 rotation speed of the engine." (A380 FCOM DSC-24-10-20, a380_fcom.txt:50026-
-/// 50028).
+/// The drive of a variable frequency generator (VFG, A380): the generator turns with the engine accessory gearbox and
+/// gives 115 V AC at 360 to 800 Hz, depending on N2.
 ///
-/// Oil system: "An oil system lubricates, and cools the engine generators. The ECAM monitors the oil level."
-/// (l.50029-50030). Its generator control unit (GCU) sends three signals, the DRIVE pb FAULT light comes on with the
-/// last two (DSC-24-20 DRIVE pb, l.50789-50796, PDF p.1661):
-/// - oil level low, ELEC DRIVE 1(2)(3)(4) OIL LEVEL LO (PRO-ABN-ECAM-10-24 l.141254): "After 5 min, the engine generator
-///   automatically disconnects, if: The flight crew has not disconnected the applicable engine generator, and the oil
-///   level remains too low." (l.141268-141270). Its procedure is GEN ... OFF (l.141264): the GCU switches the generator
-///   off, the drive stays connected.
-/// - oil overheat, ELEC DRIVE 1(2)(3)(4) OIL OVHT (l.141313-141315): "The temperature in the oil system, is higher than
-///   200 degrees C." "The engine generator automatically disconnects, if [...] The temperature in the oil system goes
-///   above 250 degrees C." (l.141350-141354): the drive disconnects.
-/// - oil pressure low, ELEC DRIVE 1(2)(3)(4) OIL PRESS LO (l.141386-141387): "abnormally low (lower than 35 PSI)".
-///   "After 5 min, the engine generator automatically disconnects [...] The oil pressure remains too low."
-///   (l.141420-141422). Its procedure is DRIVE ... DISC (l.141413): the drive disconnects.
+/// Oil system: an oil system lubricates and cools the generator, the ECAM monitors its oil level. The generator control
+/// unit (GCU) sends three signals, the DRIVE pb FAULT light comes on with the last two:
+/// - oil level low, ELEC DRIVE 1(2)(3)(4) OIL LEVEL LO: the generator disconnects automatically after 5 min if the crew
+///   has not switched it off and the level stays low. Its procedure is GEN ... OFF: the GCU switches the generator off,
+///   the drive stays connected.
+/// - oil overheat, ELEC DRIVE 1(2)(3)(4) OIL OVHT: above 200 degrees C; above 250 degrees C the drive disconnects
+///   automatically.
+/// - oil pressure low, ELEC DRIVE 1(2)(3)(4) OIL PRESS LO: below 35 PSI; the drive disconnects automatically after
+///   5 min if the pressure stays low. Its procedure is DRIVE ... DISC: the drive disconnects.
 ///
-/// A disconnected drive cannot be reconnected in flight (DSC-24-20 DRIVE pb DISC, l.50781-50785). Its signals then stop:
-/// the alerts make way for ELEC DRIVE 1(2)(3)(4) DISCONNECTED.
+/// A disconnected drive cannot be reconnected in flight. Its signals then stop: the alerts make way for
+/// ELEC DRIVE 1(2)(3)(4) DISCONNECTED.
 pub struct DirectDrive {
     oil_outlet_temperature_id: VariableIdentifier,
     oil_outlet_temperature: ThermodynamicTemperature,
@@ -528,22 +516,22 @@ pub struct DirectDrive {
 impl DirectDrive {
     const TRANSMISSION_RATIO: f64 = 1.95;
 
-    /// OIL OVHT threshold (l.141315) and automatic disconnection (l.141354)
+    /// OIL OVHT threshold and automatic disconnection
     const OIL_OVERHEAT_CELSIUS: f64 = 200.;
     const THERMAL_DISCONNECT_CELSIUS: f64 = 250.;
-    /// The automatic disconnection after 5 min of low oil level (l.141268) or low oil pressure (l.141420)
+    /// The automatic disconnection after 5 min of low oil level or low oil pressure
     const AUTOMATIC_DISCONNECTION_DELAY: Duration = Duration::from_secs(5 * 60);
-    /// The GCU monitors the oil pressure while the generator turns in its normal frequency band (360 to 800 Hz,
-    /// l.50027-50028). Design choice: an engine below this speed (shut down, starting) gives no low pressure signal.
+    /// The GCU monitors the oil pressure while the generator turns in its normal frequency band (360 to 800 Hz).
+    /// Design choice: an engine below this speed (shut down, starting) gives no low pressure signal.
     const MIN_MONITORING_FREQUENCY_HZ: f64 = 360.;
     /// Four pole generator, as `EngineGenerator` computes its output frequency
     const POLE_PAIRS_FREQUENCY_FACTOR: f64 = 4. / 120.;
 
-    /// Design choice (the FCOM gives no normal values): with the engine at idle or above, the oil comes back from its
+    /// Design choice (no published normal values): with the engine at idle or above, the oil comes back from its
     /// cooler at 55 degrees C plus 0.4 times the outside air temperature (limited to -20..50 degrees C), and gains
     /// 8 degrees C, plus 12 degrees C at full generator load, in the generator. The oil stays between about 50 and 95
-    /// degrees C, well below the 185 degrees C generator overheat of the ELEC AC page (DSC-24-20 l.51107-51109) and the
-    /// 200 degrees C of OIL OVHT.
+    /// degrees C, well below the 185 degrees C generator overheat of the ELEC AC page and the 200 degrees C of OIL
+    /// OVHT.
     const OIL_INLET_BASE_CELSIUS: f64 = 55.;
     const OIL_INLET_AMBIENT_FACTOR: f64 = 0.4;
     const OIL_TEMPERATURE_RISE_NO_LOAD_CELSIUS: f64 = 8.;
@@ -1057,7 +1045,7 @@ mod tests {
 
             test_bed.run_for_seconds(600);
 
-            // A320 FCOM DSC-24-20 l.37624-37625: the SD ELEC page flashes from 147 °C
+            // The SD ELEC page flashes from 147 °C
             assert_lt!(
                 test_bed.idg_oil_outlet_temperature(),
                 ThermodynamicTemperature::new::<degree_celsius>(147.)
@@ -1747,8 +1735,7 @@ mod tests {
 
             test_bed.run_for_seconds(600);
 
-            // A380 FCOM DSC-24-20 ELEC AC page (a380_fcom.txt:51107-51109): the generator overheats
-            // above 185 degrees C
+            // A380 ELEC AC page: the generator overheats above 185 degrees C
             assert_lt!(
                 test_bed.oil_outlet_temperature(),
                 ThermodynamicTemperature::new::<degree_celsius>(185.)

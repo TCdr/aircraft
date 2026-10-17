@@ -277,13 +277,12 @@ export enum BC3Messages {
   CHECK_EO_SPD_SETTING,
 }
 
-/** A380 FCOM DSC-22-FMS-20-110 CHECK EO SPD SETTING (a380_fcom.txt l.45016-45025): GREENDOT -10 kt / +10 kt */
-export const EO_SPEED_SETTING_MARGIN_KT = 10;
+/** CHECK EO SPD SETTING: the selected speed must stay within green dot -10 kt / +10 kt */
+const EO_SPEED_SETTING_MARGIN_KT = 10;
 
 /**
- * CHECK EO SPD SETTING (FMA line 3, A380 FCOM DSC-22-FG-80-80 l.19242; condition DSC-22-FMS-20-110 l.45016-45025):
- * "In CLIMB, or CRUISE (and the guidance mode is not ALT* or ALT): the engine-out (EO) mode is active, and the selected
- * speed target is not within the range (GREENDOT - 10 kt, GREENDOT + 10 kt)."
+ * CHECK EO SPD SETTING (FMA line 3): in CLIMB or CRUISE, with neither ALT* nor ALT engaged, the engine-out mode is
+ * active and the selected speed target is outside green dot -10 kt .. green dot +10 kt.
  * Design choices: the ALT* / ALT exclusion applies in both phases; the EO mode is the FMS one (FmcAircraftInterface
  * checkEngineOut: an engine not running in flight), and the CLIMB / CRUISE phases are in flight.
  * @param engineOut an engine is not running
@@ -355,7 +354,7 @@ export function computeBC3Message(
   } else if (false) {
     return BC3Messages.MOVE_THR_LEVERS;
   } else if (checkEoSpeedSetting) {
-    // FMS message; placed as the A320 SET GREEN DOT SPEED (before T/D REACHED), the FCOM gives no priority
+    // Design choice: no priority given for the A380, placed as the A320 SET GREEN DOT SPEED (before T/D REACHED)
     return BC3Messages.CHECK_EO_SPD_SETTING;
   } else if (tdReached) {
     return BC3Messages.TD_REACHED;
@@ -364,8 +363,8 @@ export function computeBC3Message(
   } else if (false) {
     return BC3Messages.RETRACT_SPD_BRK;
   } else if (checkSpeedMode && !isAttExcessive) {
-    // A380 FCOM DSC-22-FG-80-80 l.19243, SELECTED SPEED/MACH PRIORITY l.12816-12826 (FMS: FlightManagementComputer
-    // triggerCheckSpeedModeMessage); placed as the A320 CHECK SPEED MODE (after MORE DRAG)
+    // Set by the FMS (FlightManagementComputer triggerCheckSpeedModeMessage); placed as the A320 CHECK SPEED MODE
+    // (after MORE DRAG)
     return BC3Messages.CHECK_SPD_MODE;
   } else if (false) {
     return BC3Messages.CHECK_APPR_SEL;

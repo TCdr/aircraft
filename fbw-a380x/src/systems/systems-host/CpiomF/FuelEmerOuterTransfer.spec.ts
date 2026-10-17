@@ -11,13 +11,13 @@ import {
   isEmerOuterTransferCommandedOpen,
 } from './FuelEmerOuterTransfer';
 
-describe('EMER OUTR TK XFR pb-sw (A380 FCOM DSC-28-20)', () => {
+describe('EMER OUTR TK XFR pb-sw', () => {
   it('commands the emergency outer tank transfer valves open when ON, closed when OFF', () => {
     expect(isEmerOuterTransferCommandedOpen(true, false)).toBe(true);
     expect(isEmerOuterTransferCommandedOpen(false, false)).toBe(false);
   });
 
-  it('opens them for a manual outer tank transfer with an outer tank pump off (DSC-28-10 l.57573-57575)', () => {
+  it('opens them for a manual outer tank transfer with an outer tank pump off', () => {
     expect(isEmerOuterTransferCommandedOpen(false, true)).toBe(true);
   });
 

@@ -32,16 +32,14 @@ export interface BrakeSteerInputs {
   bwsFault: boolean;
   scs1Fault: boolean;
   scs2Fault: boolean;
-  /** L:A32NX_BRAKES_PEDAL_BRAKING_MODE: 0 none, 1 normal, 2 alternate, 3 emergency (EBCU) */
+  /** 0 none, 1 normal, 2 alternate, 3 emergency (EBCU) */
   pedalBrakingMode: number;
-  /** A:ANTISKID BRAKES ACTIVE: the A-SKID sw is ON */
   antiSkidSwitchOn: boolean;
-  /** L:A32NX_BRAKES_AUTO_BRK_FAULT: the autobrake is failed */
   autoBrkFault: boolean;
 }
 
-/** L:A32NX_BRAKES_PEDAL_BRAKING_MODE value of the emergency braking under EBCU control (no A-SKID) */
-export const PEDAL_BRAKING_MODE_EMERGENCY = 3;
+/** Pedal braking mode of the emergency braking under EBCU control (no A-SKID) */
+const PEDAL_BRAKING_MODE_EMERGENCY = 3;
 
 /**
  * Reads the inputs of the BRAKES and STEER alerts.
@@ -128,14 +126,13 @@ export function brakeFaultAlerts(normFault: boolean, altnFault: boolean, emerFau
 }
 
 /**
- * BRAKES A-SKID FAULT ON ALL L/G: "The antiskid is not available on all landing gears (i.e. BCS 1 and BCS 2 failed, or
- * LEHGS failed when in alternate braking)" (l.159037-159038). The braking system then changes to the emergency braking
- * ("BRAKES A-SKID FAULT alert is displayed", l.80059-80067). With the A-SKID sw OFF the BRAKES A-SKID OFF alert is
- * displayed instead (l.80063-80064).
+ * BRAKES A-SKID FAULT ON ALL L/G: the antiskid is lost on all the landing gears (BCS 1 and BCS 2 failed, or the LEHGS
+ * failed in alternate braking), and the braking system changes to emergency braking. With the A-SKID sw OFF the
+ * BRAKES A-SKID OFF alert shows instead.
  * The model has no BCS 1/2 split and no per-wheel-group antiskid: the emergency braking with the A-SKID sw ON is the
  * loss of the antiskid on all the landing gears (normal braking lost and alternate braking failed).
  * @param inputs the pedal braking mode and the A-SKID sw
- * @returns BRAKES A-SKID FAULT ON ALL L/G
+ * @returns whether BRAKES A-SKID FAULT ON ALL L/G triggers
  */
 export function aSkidFaultOnAllLg(inputs: BrakeSteerInputs): boolean {
   return inputs.antiSkidSwitchOn && inputs.pedalBrakingMode === PEDAL_BRAKING_MODE_EMERGENCY;
@@ -224,7 +221,7 @@ export class FwsBrakeAlerts {
   public readonly parkBrkPressLo = Subject.create(false);
   /** BRAKES A-SKID FAULT ON ALL L/G (320800001) */
   public readonly aSkidFaultOnAllLg = Subject.create(false);
-  /** BRAKES AUTO BRK FAULT (320800013): "The autobrake is failed" (l.159953) */
+  /** BRAKES AUTO BRK FAULT (320800013) */
   public readonly autoBrkFault = Subject.create(false);
 
   /** STEER NORM N/W STEER FAULT (320800060) */

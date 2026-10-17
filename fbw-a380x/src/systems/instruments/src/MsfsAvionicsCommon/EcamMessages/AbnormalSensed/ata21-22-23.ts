@@ -618,7 +618,6 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
         level: 1,
       },
       {
-        // A380 FCOM l.167612
         name: 'ENGs A-ICE',
         sensed: false,
         labelNotCompleted: 'AS RQRD',
@@ -1132,7 +1131,7 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     ],
   },
   213800003: {
-    // A380 FCOM l.135252-135262: CRC and MASTER WARN, so a red title
+    // CRC and MASTER WARN, so a red title
     title: '\x1b<2m\x1b4mCAB PRESS\x1bm EXCESS NEGATIVE DIFF PRESS',
     sensed: true,
     items: [
@@ -1733,8 +1732,7 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     ],
   },
   213800043: {
-    // A380 FCOM PRO-ABN-ECAM-10-21-30 CAB PRESS LDG ELEVN FAULT (a380_fcom.txt l.135431-135473): the lines "If the manual
-    // pressurization system is not available"
+    // The branch for a manual pressurization system that is not available
     title: '\x1b<4m\x1b4mCAB PRESS\x1bm LDG ELEVN FAULT',
     sensed: true,
     items: [
@@ -2364,8 +2362,8 @@ export const EcamDeferredProcAta212223: { [n: number]: DeferredProcedure } = {
     ],
   },
   221700001: {
-    // AT TOP OF DESCENT, also of CAB PRESS DIFF PRESS HI (a380_fcom.txt l.134960-134964) and CAB PRESS LDG ELEVN FAULT
-    // (l.135505-135513) with the manual pressurization system available
+    // AT TOP OF DESCENT, also of CAB PRESS DIFF PRESS HI and CAB PRESS LDG ELEVN FAULT with the manual pressurization
+    // system available
     fromAbnormalProcs: ['221800006', '213800007', '213800043'],
     title: 'LDG ELEVN',
     type: DeferredProcedureType.AT_TOP_OF_DESCENT,

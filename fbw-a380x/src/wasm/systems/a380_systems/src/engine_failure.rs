@@ -238,8 +238,8 @@ pub fn a380_engine_start_schedule() -> EngineStartSchedule {
         manual_start_fuel_on_n2: Ratio::new::<percent>(20.),
         stall_or_egt_restart_before_crank: false,
         starter_fault_detected_in_flight: false,
-        // The A320 FCOM pre-start motoring has no counterpart in the A380 FADEC text: the NOR SOP
-        // (l.119704-119707) crank of 20 s after 20 % N2 is not modelled (see ground_ignition_on_n2).
+        // The A320 pre-start motoring has no A380 counterpart (the 20 s crank of the normal
+        // procedure is not modelled, see ground_ignition_on_n2).
         max_pre_start_motoring_time: Duration::ZERO,
     }
 }
@@ -450,19 +450,18 @@ impl A380EngineFailure {
             // the FADEC, EngineIgnition_A380X.hpp).
             automatic_continuous_ignition: false,
             hp_fuel_valve_stuck_closed: self.hp_fuel_valve_failure.is_stuck_closed(),
-            // A380 FCOM DSC-70-90 (l.112849-112857): the ENG MASTER FAULT light also comes on if "The
-            // HP fuel valve position is abnormal" (the overthrust protection shutdown of CTL SYS
+            // The ENG MASTER FAULT light also comes on when the HP fuel valve position is abnormal
+            // (the overthrust protection shutdown of CTL SYS
             // FAULT is not modelled).
             other_fault_light_conditions: self.hp_fuel_valve_failure.position_is_abnormal(),
             engine_thermal_state: 0.,
         }
     }
 
-    /// The FADEC command of the HP fuel valve, for its position monitoring (HP FUEL VLV FAULT,
-    /// l.172172-172236): the valve opens for the fuel ([`HpFuelValve`]), and the FADEC also commands
-    /// it open from the fuel-on point of a start attempt on the ground ("At 20 % N2: ... FMV and HP
-    /// fuel valve open", l.113555-113557) although the engine has not lit up yet (fuel cut of the
-    /// start sequence until the light-up, see `ground_start_fuel_on`).
+    /// The FADEC command of the HP fuel valve, for its position monitoring (HP FUEL VLV FAULT): the
+    /// valve opens for the fuel ([`HpFuelValve`]), and the FADEC also commands it open from the
+    /// fuel-on point of a ground start (20 % N2) although the engine has not lit up yet (fuel cut of
+    /// the start sequence until the light-up, see `ground_start_fuel_on`).
     fn hp_fuel_valve_commanded_open(&self) -> bool {
         !self.hp_fuel_valve.is_closed()
             || (self.master_switch_is_on && self.start.fuel_is_commanded())
@@ -568,8 +567,7 @@ impl SimulationElement for A380EngineFailure {
         );
         writer.write(&self.windmill_start_id, self.windmill_start);
         // A valve stuck closed keeps MSFS from burning; a valve stuck open still closes the MSFS
-        // valve at the shutdown, which models the LP fuel valve that shuts the engine down
-        // (l.172225: "The engine will shutdown by closure of the LP fuel valve").
+        // valve at the shutdown, which models the LP fuel valve that then shuts the engine down.
         writer.write(
             &self.hp_fuel_valve_closed_id,
             self.hp_fuel_valve.is_closed() || self.hp_fuel_valve_failure.is_stuck_closed(),
@@ -1433,8 +1431,8 @@ mod tests {
             test_bed.read_by_name(&format!("ENGINE_{}_FAULT_LIGHT", engine_number))
         }
 
-        /// FCOM ENG 1(2)(3)(4) HP FUEL VLV FAULT (l.172208-172209): "During engine start : HP FUEL
-        /// VALVE NOT OPEN"; DSC-70-90 (l.112849-112853): the ENG MASTER FAULT light comes on.
+        /// HP FUEL VLV FAULT: a valve that does not open during the start; the ENG MASTER FAULT
+        /// light comes on.
         #[test]
         fn an_hp_fuel_valve_stuck_closed_is_not_open_at_the_start_and_the_engine_stays_dry() {
             let mut test_bed = ground_test_bed();
@@ -1451,8 +1449,8 @@ mod tests {
             assert_eq!(hp_fuel_valve_fault(&mut test_bed, 3), 0.);
         }
 
-        /// FCOM ENG 1(2)(3)(4) HP FUEL VLV FAULT (l.172214-172225): "During engine shutdown : HP
-        /// FUEL VALVE NOT CLOSED ... The engine will shutdown by closure of the LP fuel valve".
+        /// HP FUEL VLV FAULT: a valve that does not close at the shutdown; the LP fuel valve then
+        /// shuts the engine down.
         #[test]
         fn an_hp_fuel_valve_stuck_open_is_not_closed_at_the_shutdown_and_the_engine_still_stops() {
             let mut test_bed = flying_test_bed();

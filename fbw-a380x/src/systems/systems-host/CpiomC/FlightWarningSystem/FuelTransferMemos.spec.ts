@@ -49,7 +49,7 @@ describe('TankOutflowMonitor', () => {
   });
 });
 
-describe('fuel transfer memos (A380 FCOM DSC-28-20 MEMO, l.59094-59191)', () => {
+describe('fuel transfer memos', () => {
   it('FWD XFR IN PROGRESS and OUTR TK XFR IN PROG while fuel leaves the trim (outer) tanks', () => {
     expect(fuelTransferMemos({ ...steady, trimTankOutflow: true }).fwdXfrInProgress).toBe(true);
     expect(fuelTransferMemos({ ...steady, outerTanksOutflow: true }).outerTankXfrInProgress).toBe(true);
@@ -74,7 +74,7 @@ describe('fuel transfer memos (A380 FCOM DSC-28-20 MEMO, l.59094-59191)', () => 
     ['280000007', 'outerTankXfrInProgress', '[]'],
     ['280000008', 'outerTanksXfrd', '[1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]'],
     ['280000012', 'trimTankXfrd', '[1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]'],
-  ])('memo %s is wired to %s with the FCOM flight phase inhibition %s', (id, subject, phases) => {
+  ])('memo %s is wired to %s with the flight phase inhibition %s', (id, subject, phases) => {
     const block = memoBlock(id);
     expect(block).toContain(`simVarIsActive: this.fws.${subject},`);
     expect(block).toContain(`flightPhaseInhib: ${phases},`);

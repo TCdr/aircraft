@@ -3296,7 +3296,7 @@ mod tests {
             let cabin_altitude_at_engagement = test_bed.cabin_altitude();
             test_bed = test_bed.command_alt_mode_sel_pb_man().iterate(10);
 
-            // Before the selector turns, the target is the cabin altitude when MAN was engaged (DSC-21-30-20)
+            // Before the selector turns, the target is the cabin altitude when MAN was engaged
             assert_about_eq!(
                 test_bed.cabin_target_altitude().get::<foot>(),
                 cabin_altitude_at_engagement.get::<foot>(),
@@ -3346,7 +3346,7 @@ mod tests {
             let cabin_altitude_at_engagement = test_bed.cabin_altitude();
             test_bed = test_bed.command_alt_mode_sel_pb_man().iterate(10);
 
-            // Before the selector turns, the target is the cabin altitude when MAN was engaged (DSC-21-30-20)
+            // Before the selector turns, the target is the cabin altitude when MAN was engaged
             assert_about_eq!(
                 test_bed.cabin_target_altitude().get::<foot>(),
                 cabin_altitude_at_engagement.get::<foot>(),
@@ -3448,8 +3448,7 @@ mod tests {
 
         #[test]
         fn man_alt_mode_holds_the_current_cabin_altitude_until_a_target_is_selected() {
-            // DSC-21-30-20 CABIN ALT MODE pb-sw MAN (a380_fcom.txt:7422-7425): "The cabin altitude target remains
-            // steady at the current value until the flight crew manually selects a new cabin altitude target."
+            // In MAN the cabin altitude target stays at the current value until the crew selects a new one.
             let mut test_bed = test_bed_in_cruise()
                 .command_alt_sel_knob_value(6000.)
                 .iterate(10);
@@ -3477,9 +3476,8 @@ mod tests {
 
         #[test]
         fn man_vs_mode_holds_zero_vertical_speed_until_a_target_is_selected() {
-            // DSC-21-30-40 MANUAL OPERATION (a380_fcom.txt:8012-8015): "if no altitude or cabin vertical speed is
-            // selected on the CAB ALT TRGT selector or the V/S TRGT selector: The cabin altitude remains steady,
-            // and the cabin vertical speed is set at 0 ft/min."
+            // In manual operation with no altitude or vertical speed selected, the cabin altitude stays steady and
+            // the cabin vertical speed is 0 ft/min.
             let mut test_bed = test_bed_in_cruise()
                 .command_vs_sel_knob_value(400.)
                 .iterate(10)
@@ -3504,8 +3502,7 @@ mod tests {
 
         #[test]
         fn lost_fms_landing_elevation_regulates_the_cabin_to_7000_ft_in_descent() {
-            // PRO-ABN CAB PRESS LDG ELEVN FAULT (a380_fcom.txt:135437, 135468): "IN DES : CAB ALT REGULATED TO
-            // 7000 FT"
+            // CAB PRESS LDG ELEVN FAULT: in descent the cabin altitude is regulated to 7 000 ft
             let mut test_bed = test_bed_in_descent().fm_landing_elevation_lost().iterate(5);
 
             assert_about_eq!(test_bed.cabin_target_altitude().get::<foot>(), 7000., 20.);
@@ -3514,8 +3511,8 @@ mod tests {
         #[test]
         fn lost_fms_landing_elevation_and_ambient_pressure_regulate_the_cabin_to_7500_ft_in_descent(
         ) {
-            // PRO-ABN CAB PRESS AUTO CTL FAULT (a380_fcom.txt:134651-134659): "the landing field elevation is fixed
-            // at 7 000 ft (or 7 500 ft if, in addition, the ambient pressure is no longer available)"
+            // CAB PRESS AUTO CTL FAULT: the landing field elevation is fixed at 7 000 ft (7 500 ft if the ambient
+            // pressure is also lost)
             let mut test_bed = test_bed_in_descent()
                 .fm_landing_elevation_lost()
                 .command_ambient_pressure_fault(true)

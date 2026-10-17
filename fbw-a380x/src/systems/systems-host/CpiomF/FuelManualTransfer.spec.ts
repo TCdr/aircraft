@@ -187,7 +187,7 @@ const sortedLineup = ({ pumps, valves, junctions }: FuelLineup): FuelLineup => (
   junctions: junctions.slice().sort(([a], [b]) => a - b),
 });
 
-describe('A380 manual transfer lineups (FCOM DSC-28-20, DSC-28-40 MANUAL TRANSFERS)', () => {
+describe('A380 manual transfer lineups (MANUAL TRANSFERS)', () => {
   it('is empty with every transfer pb-sw in AUTO', () => {
     expect(manualTransferLineup(NO_MANUAL_TRANSFER, ALL_PUMP_PBS_ON)).toEqual({ pumps: [], valves: [], junctions: [] });
   });

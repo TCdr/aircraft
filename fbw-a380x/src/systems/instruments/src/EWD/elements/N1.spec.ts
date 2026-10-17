@@ -21,7 +21,7 @@ describe('A380X EWD N1 red limit and red cross', () => {
     expect(cross.exceeded).toBe(false);
   });
 
-  // a380_fcom.txt l.73512-73516: a parameter that is not available shows XX instead of its value
+  // a parameter that is not available shows XX instead of its value
   it('latches no red cross on an N1 the FADEC does not send (XX) or that is not a finite number', () => {
     const cross = new ExceedanceMemory(N1_RED_LIMIT_PERCENT);
     cross.update(120, false, false);

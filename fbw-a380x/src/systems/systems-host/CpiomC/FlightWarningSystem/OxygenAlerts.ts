@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The oxygen alerts of the A380X FWS (A380 FCOM PRO-ABN-ECAM-10-35, a380_fcom.txt l.167419-167530): OXY CABIN BOTTLE
- * PRESS LO, OXY CABIN VLV CLOSED and OXY CKPT BOTTLE PRESS LO, on the oxygen model of the systems
+ * The oxygen alerts of the A380X FWS: OXY CABIN BOTTLE PRESS LO, OXY CABIN VLV CLOSED and OXY CKPT BOTTLE PRESS LO,
+ * on the oxygen model of the systems
  * (a380_systems oxygen.rs: L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE, L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE,
  * L:A32NX_OXYGEN_CABIN_VALVE_CLOSED).
  */
@@ -15,20 +15,20 @@ export const OXYGEN_ALERT_IDS = {
   ckptBottlePressLo: '350800003',
 };
 
-/** "The pressure in the cockpit oxygen bottle is below 350 PSI" (l.167517) */
+/** The pressure in the cockpit oxygen bottle is below 350 PSI */
 export const CKPT_BOTTLE_LOW_PRESSURE_PSI = 350;
 
-/** "before one engine starts, the alert triggers, if the pressure in the cabin oxygen bottles is below 800 PSI" (l.167434-167435) */
+/** Before an engine starts, the alert triggers with the cabin oxygen bottles below 800 PSI */
 export const CABIN_BOTTLE_LOW_PRESSURE_BEFORE_ENGINE_START_PSI = 800;
 
-/** "The alert is inhibited, in the case of depressurization: The cabin altitude is above 13 800 ft" (l.167437-167438) */
-export const DEPRESSURIZATION_CABIN_ALTITUDE_FT = 13_800;
+/** The alert is inhibited in a depressurization, with the cabin altitude above 13 800 ft */
+const DEPRESSURIZATION_CABIN_ALTITUDE_FT = 13_800;
 
 /**
  * The minimum cabin bottle pressure of the EMERGENCY DESCENT profile (1 min at FL 430, emergency descent from FL 430 to
- * FL 100 at 5 500 ft/min), by number of cabin masks in use: A380 FCOM LIM-35 MINIMUM CABIN OXYGEN PRESSURE (2019 FCOM PDF
- * p.6312). OXY CABIN BOTTLE PRESS LO: "below the minimum pressure that is required in order to fly an emergency
- * descent: From 40 000 ft to 10 000 ft for 5 min ... With the real number of cabin occupants" (l.167425-167430).
+ * FL 100 at 5 500 ft/min), by number of cabin masks in use (minimum cabin oxygen pressure
+ * limitation). OXY CABIN BOTTLE PRESS LO: below the minimum pressure required to fly an emergency descent from
+ * 40 000 ft to 10 000 ft in 5 min, with the real number of cabin occupants.
  */
 const EMERGENCY_DESCENT_MINIMUM_PRESSURE: readonly [number, number][] = [
   [100, 286],
@@ -42,9 +42,9 @@ const EMERGENCY_DESCENT_MINIMUM_PRESSURE: readonly [number, number][] = [
 ];
 
 /**
- * The minimum cabin bottle pressure for the cabin occupants, interpolated in the FCOM table.
- * Design choices: "The real number of cabin occupants is computed by using the number of passengers, provided by the
- * FMS" (l.167431): the occupants are the FMS passengers; below 100 or above 800 occupants the first or last value of
+ * The minimum cabin bottle pressure for the cabin occupants, interpolated in the limitation table.
+ * Design choices: the real number of cabin occupants comes from the number of passengers of the FMS, so the
+ * occupants are the FMS passengers; below 100 or above 800 occupants the first or last value of
  * the table applies.
  * @param cabinOccupants the number of passengers of the FMS
  */
@@ -86,8 +86,8 @@ export interface OxygenAlerts {
 }
 
 /**
- * The oxygen alerts. The two bottle alerts are inhibited "in the case of depressurization: The cabin altitude is above
- * 13 800 ft, or The flight crew pressed the MASK MAN ON pb" (l.167436-167439, l.167519-167521).
+ * The oxygen alerts. The two bottle alerts are inhibited in a depressurization: cabin altitude above 13 800 ft, or the
+ * crew pressed the MASK MAN ON pb.
  */
 export function oxygenAlerts(inputs: OxygenAlertInputs): OxygenAlerts {
   const depressurization =

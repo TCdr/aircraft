@@ -58,8 +58,8 @@ export const EcamMemos: { [n: string]: string } = {
   '000018001': '\x1b<3mAPU BLEED',
   '000029001': '\x1b<3mSWITCHG PNL',
   '210000001': '\x1b<3mHI ALT AIRPORT',
-  '210000002': '\x1b<3mRAM AIR', // on ground with no engine running (A380 FCOM l.6055-6056)
-  '210000003': '\x1b<4mRAM AIR', // in all other cases (A380 FCOM l.6058)
+  '210000002': '\x1b<3mRAM AIR', // on ground with no engine running
+  '210000003': '\x1b<4mRAM AIR', // in all other cases
   '220000001': '\x1b<2mAP OFF',
   '220000002': '\x1b<4mA/THR OFF',
   '221000001': '\x1b<3mFMS SWTG',
@@ -491,7 +491,7 @@ export const EcamInopSys: { [n: string]: string } = {
   260300007: '\x1b<4mL X BLEED AUTO CTL',
   260300008: '\x1b<4mR X BLEED AUTO CTL',
   260300009: '\x1b<4mCTR X BLEED AUTO CTL',
-  // INOP SYS of the AIR ENG / WING LEAK alerts (A380 FCOM PRO-ABN-ECAM-10-36 l.168606, l.168768)
+  // INOP SYS of the AIR ENG / WING LEAK alerts
   800300001: '\x1b<4mENG 1 STARTER',
   800300002: '\x1b<4mENG 2 STARTER',
   800300003: '\x1b<4mENG 3 STARTER',
@@ -643,7 +643,7 @@ export const EcamInopSys: { [n: string]: string } = {
   290300024: '\x1b<4mG ENG 2 PMP A+B',
   290300025: '\x1b<4mY ENG 3 PMP A+B',
   290300026: '\x1b<4mY ENG 4 PMP A+B',
-  // ENG PMP PRESS LO MORE INFO REDUND LOSS "If only one pump is failed" (A380 FCOM l.155090-155091)
+  // ENG PMP PRESS LO MORE INFO REDUND LOSS "If only one pump is failed"
   290300027: '\x1b<4mG ENG 1 PMP A',
   290300028: '\x1b<4mG ENG 1 PMP B',
   290300029: '\x1b<4mG ENG 2 PMP A',
@@ -652,20 +652,20 @@ export const EcamInopSys: { [n: string]: string } = {
   290300032: '\x1b<4mY ENG 3 PMP B',
   290300033: '\x1b<4mY ENG 4 PMP A',
   290300034: '\x1b<4mY ENG 4 PMP B',
-  490300001: '\x1b<4mAPU', // APU FAULT STATUS (A380 FCOM l.170190-170193)
+  490300001: '\x1b<4mAPU', // APU FAULT STATUS
   310300001: '\x1b<4mAUTO CALLOUT',
   310300002: '\x1b<4mFWS 1',
   310300003: '\x1b<4mFWS 2',
-  310300004: '\x1b<4mDFDR', // ELEC AC ESS BUS FAULT STATUS (A380 FCOM l.139280)
-  300300008: '\x1b<4mSTBY PITOT HEATG', // ELEC AC ESS BUS FAULT STATUS (A380 FCOM l.139278)
-  300300002: '\x1b<4mL WINDSHIELD HEATG', // ELEC AC ESS BUS FAULT STATUS (A380 FCOM l.139279)
+  310300004: '\x1b<4mDFDR', // ELEC AC ESS BUS FAULT STATUS
+  300300008: '\x1b<4mSTBY PITOT HEATG', // ELEC AC ESS BUS FAULT STATUS
+  300300002: '\x1b<4mL WINDSHIELD HEATG', // ELEC AC ESS BUS FAULT STATUS
   300300001: '\x1b<4mWING A-ICE',
   300300003: '\x1b<4mL SLIDG WINDOW HEATG',
   300300004: '\x1b<4mL FIXED WINDOW HEATG',
   300300005: '\x1b<4mR WINDSHIELD HEATG',
   300300006: '\x1b<4mR SLIDG WINDOW HEATG',
   300300007: '\x1b<4mR FIXED WINDOW HEATG',
-  // A-ICE ENG 1(2)(3)(4) VLV CLOSED STATUS (A380 FCOM l.156426), see FWS AntiIceValveAlerts
+  // A-ICE ENG 1(2)(3)(4) VLV CLOSED STATUS, see FWS AntiIceValveAlerts
   300300010: '\x1b<4mENG 1 A-ICE',
   300300011: '\x1b<4mENG 2 A-ICE',
   300300012: '\x1b<4mENG 3 A-ICE',

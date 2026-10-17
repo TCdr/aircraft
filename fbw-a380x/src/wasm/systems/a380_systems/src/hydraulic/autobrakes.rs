@@ -173,8 +173,8 @@ pub struct A380AutobrakeController {
     external_deactivation_event_id: VariableIdentifier,
 
     auto_brk_fault_id: VariableIdentifier,
-    /// The autobrake is failed (flyPad failure 32113): BRAKES AUTO BRK FAULT, "e.g. RTO pb failed, AUTO BRK selector
-    /// failed, position of spoilers not available" (A380 FCOM l.159953-159954)
+    /// The autobrake is failed (flyPad failure 32113): BRAKES AUTO BRK FAULT (e.g. RTO pb failed, AUTO BRK selector
+    /// failed, spoiler position not available)
     autobrake_failure: Failure,
 
     deceleration_governor: AutobrakeDecelerationGovernor,
@@ -342,8 +342,7 @@ impl A380AutobrakeController {
             && !self.should_disarm(context)
     }
 
-    /// A380 FCOM DSC-32-10-30-20 (a380_fcom.txt l.79071-79073): "the RTO mode does not activate below 40 kt. If the
-    /// flight crew selects the RTO mode by error above 40 kt during the landing roll, the RTO mode will activate."
+    /// The RTO mode does not activate below 40 kt; selected by error above 40 kt during the landing roll, it activates.
     /// The speed only gates the activation: an RTO braking that is already active continues down to the stop.
     fn rto_activation_speed_condition(&self, context: &UpdateContext) -> bool {
         self.mode != A380AutobrakeMode::RTO
@@ -443,8 +442,7 @@ impl A380AutobrakeController {
             || (self.deceleration_governor.is_engaged()
                 && (self.external_deactivation_event && self.mode != A380AutobrakeMode::RTO))
             || (context.is_sim_ready() && !self.arming_is_allowed_by_bcu)
-            // A failed autobrake cannot be armed: STATUS INOP SYS AUTO BRK (BRAKES AUTO BRK FAULT, A380 FCOM PDF
-            // p.5448)
+            // A failed autobrake cannot be armed: STATUS INOP SYS AUTO BRK (BRAKES AUTO BRK FAULT)
             || self.autobrake_failure.is_active()
             || self.spoilers_retracted_during_this_update()
             // Only the RTO mode disarms after 10 s in flight; a landing mode can be armed in flight and on the ground,

@@ -654,7 +654,7 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
       },
       { ...FMS_PRED_UNRELIABLE_CHECKLIST_ITEM },
       {
-        // A380 FCOM l.155898: LDG PERF AFFECTED (loss of 6 pairs of ground spoilers and 2 ailerons, increased VAPP)
+        // LDG PERF AFFECTED (loss of 6 pairs of ground spoilers and 2 ailerons, increased VAPP)
         name: 'LDG PERF AFFECTED',
         sensed: false,
       },
@@ -671,7 +671,6 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
   },
   // ATA 30 A-ICE
   300800001: {
-    // A380 FCOM PRO-ABN-ECAM-10-30 A-ICE ICE DETECTED (a380_fcom.txt l.156579-156607)
     title: '\x1b<4m\x1b4mA-ICE\x1bm ICE DETECTED',
     sensed: true,
     items: [
@@ -682,7 +681,6 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
     ],
   },
   300800002: {
-    // A380 FCOM PRO-ABN-ECAM-10-30 A-ICE SEVERE ICE DETECTED (a380_fcom.txt l.157282-157300)
     title: '\x1b<4m\x1b4mA-ICE\x1bm SEVERE ICE DETECTED',
     sensed: true,
     items: [
@@ -693,57 +691,52 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
       { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'ON' },
     ],
   },
-  // ATA 30 A-ICE valves (A380 FCOM PRO-ABN-ECAM-10-30, a380_fcom.txt l.156370-157060), see FWS AntiIceValveAlerts
+  // ATA 30 A-ICE valves see FWS AntiIceValveAlerts
   300800010: {
-    // A-ICE ENG 1 VLV CLOSED (l.156374-156426)
     title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 1 VLV CLOSED',
     sensed: true,
     items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
   },
   300800011: {
-    // A-ICE ENG 2 VLV CLOSED (l.156374-156426)
     title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 2 VLV CLOSED',
     sensed: true,
     items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
   },
   300800012: {
-    // A-ICE ENG 3 VLV CLOSED (l.156374-156426)
     title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 3 VLV CLOSED',
     sensed: true,
     items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
   },
   300800013: {
-    // A-ICE ENG 4 VLV CLOSED (l.156374-156426)
     title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 4 VLV CLOSED',
     sensed: true,
     items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
   },
   300800014: {
-    // A-ICE ENG 1 VLV OPEN (l.156505-156521): crew awareness
+    // Crew awareness
     title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 1 VLV OPEN',
     sensed: true,
     items: [],
   },
   300800015: {
-    // A-ICE ENG 2 VLV OPEN (l.156505-156521): crew awareness
+    // Crew awareness
     title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 2 VLV OPEN',
     sensed: true,
     items: [],
   },
   300800016: {
-    // A-ICE ENG 3 VLV OPEN (l.156505-156521): crew awareness
+    // Crew awareness
     title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 3 VLV OPEN',
     sensed: true,
     items: [],
   },
   300800017: {
-    // A-ICE ENG 4 VLV OPEN (l.156505-156521): crew awareness
+    // Crew awareness
     title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 4 VLV OPEN',
     sensed: true,
     items: [],
   },
   300800018: {
-    // A-ICE L WING VLV CLOSED (l.156743-156830)
     title: '\x1b<4m\x1b4mA-ICE\x1bm L WING VLV CLOSED',
     sensed: true,
     items: [
@@ -752,7 +745,6 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
     ],
   },
   300800019: {
-    // A-ICE R WING VLV CLOSED (l.156743-156830)
     title: '\x1b<4m\x1b4mA-ICE\x1bm R WING VLV CLOSED',
     sensed: true,
     items: [
@@ -761,7 +753,7 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
     ],
   },
   300800020: {
-    // A-ICE L WING VLV OPEN (l.156837-156905): before takeoff and after landing, then in flight
+    // Before takeoff and after landing, then in flight
     title: '\x1b<4m\x1b4mA-ICE\x1bm L WING VLV OPEN',
     sensed: true,
     items: [
@@ -778,7 +770,7 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
     ],
   },
   300800021: {
-    // A-ICE R WING VLV OPEN (l.156837-156905): before takeoff and after landing, then in flight
+    // Before takeoff and after landing, then in flight
     title: '\x1b<4m\x1b4mA-ICE\x1bm R WING VLV OPEN',
     sensed: true,
     items: [
@@ -786,7 +778,7 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
       { name: 'PACK 2', sensed: true, labelNotCompleted: 'OFF' },
       { name: 'ENG 3 BLEED', sensed: true, labelNotCompleted: 'OFF' },
       { name: 'ENG 4 BLEED', sensed: true, labelNotCompleted: 'OFF' },
-      // never shown for the right wing: "If L WING VLV OPEN: APU BLEED OFF" (l.156881-156882)
+      // never shown for the right wing: "If L WING VLV OPEN: APU BLEED OFF"
       { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
       { name: 'BLEEDS/ PACK/ WING A-ICE AVAIL IN FLT', sensed: false },
       { name: 'ENG 3 BLEED', sensed: true, labelNotCompleted: 'ON' },
@@ -796,19 +788,19 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
     ],
   },
   300800022: {
-    // A-ICE L WING VLV PRESS HI (l.156922-156937): crew awareness
+    // Crew awareness
     title: '\x1b<4m\x1b4mA-ICE\x1bm L WING VLV PRESS HI',
     sensed: true,
     items: [],
   },
   300800023: {
-    // A-ICE R WING VLV PRESS HI (l.156922-156937): crew awareness
+    // Crew awareness
     title: '\x1b<4m\x1b4mA-ICE\x1bm R WING VLV PRESS HI',
     sensed: true,
     items: [],
   },
   300800024: {
-    // A-ICE L WING VLV PRESS LO (l.156949-157053): on ground, then in flight
+    // On ground, then in flight
     title: '\x1b<4m\x1b4mA-ICE\x1bm L WING VLV PRESS LO',
     sensed: true,
     items: [
@@ -821,7 +813,7 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
     ],
   },
   300800025: {
-    // A-ICE R WING VLV PRESS LO (l.156949-157053): on ground, then in flight
+    // On ground, then in flight
     title: '\x1b<4m\x1b4mA-ICE\x1bm R WING VLV PRESS LO',
     sensed: true,
     items: [
@@ -836,13 +828,12 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
 };
 
 /**
- * ATA 29 deferred procedures. The FCOM gives no title for them; design choice: the title names the alert they come from.
+ * ATA 29 deferred procedures. They have no title of their own; design choice: the title names the alert they come from.
  * The items checked are in FwsAbnormalSensed ewdDeferredProcs.
  */
 export const EcamDeferredProcAta2930: { [n: number]: DeferredProcedure } = {
   290700001: {
-    // A380 FCOM HYD G(Y) RSVR AIR PRESS LO DEFERRED PROC FOR APPROACH (a380_fcom.txt l.155249-155253): pump cavitation
-    // decreases at a lower altitude, the system may be restored
+    // Pump cavitation decreases at a lower altitude: the system may be restored
     fromAbnormalProcs: ['290800019'],
     title: 'G RSVR AIR PRESS LO',
     type: DeferredProcedureType.FOR_APPROACH,
@@ -852,7 +843,7 @@ export const EcamDeferredProcAta2930: { [n: number]: DeferredProcedure } = {
     ],
   },
   290700002: {
-    // Y RSVR AIR PRESS LO, as 290700001
+    // As 290700001
     fromAbnormalProcs: ['290800020'],
     title: 'Y RSVR AIR PRESS LO',
     type: DeferredProcedureType.FOR_APPROACH,
@@ -862,9 +853,7 @@ export const EcamDeferredProcAta2930: { [n: number]: DeferredProcedure } = {
     ],
   },
   290700003: {
-    // A380 FCOM HYD G(Y) SYS OVHT DEFERRED PROC APPROACH (a380_fcom.txt l.155480-155487): IF G(Y) SYS OVHT OUT, the
-    // engine pumps ON; "The ECAM does not display the following procedure, if the flight crew disconnected the engine
-    // pumps" (FwsAbnormalSensed ewdDeferredProcs)
+    // Not shown when the crew disconnected the engine pumps (FwsAbnormalSensed ewdDeferredProcs)
     fromAbnormalProcs: ['290800031'],
     title: 'G SYS OVHT',
     type: DeferredProcedureType.FOR_APPROACH,
@@ -875,7 +864,7 @@ export const EcamDeferredProcAta2930: { [n: number]: DeferredProcedure } = {
     ],
   },
   290700004: {
-    // Y SYS OVHT, as 290700003
+    // As 290700003
     fromAbnormalProcs: ['290800032'],
     title: 'Y SYS OVHT',
     type: DeferredProcedureType.FOR_APPROACH,

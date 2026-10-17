@@ -70,7 +70,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (ElectricalBusType::DirectCurrentGndFltService, 15),
     ])?
     .with_auxiliary_power_unit(Variable::named("OVHD_APU_START_PB_IS_AVAILABLE"), 8, 7)?
-    // The MSFS engine anti-ice follows the engine anti-ice valves (a320_systems pneumatic.rs)
+    // The MSFS engine anti-ice follows the engine anti-ice valves
     .with_engine_anti_ice_valves(2)?
     .with_wing_anti_ice()?
     // The engine starves once its LP fuel valve is closed and the fuel left downstream of it is burned
@@ -307,7 +307,6 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_021, FailureType::RadioAntennaDirectCoupling(2)),
         (34_040, FailureType::Gps(1)),
         (34_041, FailureType::Gps(2)),
-        // ATA 30 engine anti-ice valves (systems ice_rain_protection, in a320_systems pneumatic.rs)
         (30_000, FailureType::EngineAntiIceValveStuckClosed(1)),
         (30_001, FailureType::EngineAntiIceValveStuckClosed(2)),
         (30_010, FailureType::EngineAntiIceValveStuckOpen(1)),

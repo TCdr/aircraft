@@ -18,7 +18,7 @@ import { AbnormalProcedure, ChecklistLineStyle } from '..';
 
 /** All abnormal sensed procedures (alerts, via ECL) should be here. */
 export const EcamAbnormalSensedAta353642: { [n: number]: AbnormalProcedure } = {
-  // ATA 35 OXYGEN (A380 FCOM PRO-ABN-ECAM-10-35, a380_fcom.txt l.167419-167530), see FWS OxygenAlerts: no ECAM action
+  // ATA 35 OXYGEN see FWS OxygenAlerts: no ECAM action
   350800001: {
     title: '\x1b<4m\x1b4mOXY\x1bm CABIN BOTTLE PRESS LO',
     sensed: true,
@@ -51,11 +51,10 @@ export const EcamAbnormalSensedAta353642: { [n: number]: AbnormalProcedure } = {
 };
 
 /**
- * AIR ENG 1(2)(3)(4) BLEED FAULT, A380 FCOM PRO-ABN-ECAM-10-36 (a380_fcom.txt l.168016-168034, TDU 00023117). The
- * "HP VLV NOT CLOSED" line is not listed (no HP valve failed open in the model); "If the XBLEED valves do not open
- * automatically: Refer to AIR ABNORM BLEED CONFIG" is that alert (211800056).
- * @param engine the engine number
- * @returns the procedure
+ * AIR ENG 1(2)(3)(4) BLEED FAULT. The "HP VLV NOT CLOSED" line is not listed (no HP valve failed open in the model);
+ * the line sending the crew to AIR ABNORM BLEED CONFIG when the XBLEED valves do not open is that alert (211800056).
+ * @param engine the engine number, 1 to 4
+ * @returns the procedure of that engine
  */
 function engineBleedFault(engine: number): AbnormalProcedure {
   return {
@@ -73,8 +72,8 @@ function engineBleedFault(engine: number): AbnormalProcedure {
 }
 
 /**
- * AIR L(R) INR WING LEAK / ENG 2(3) BLEED LEAK (a380_fcom.txt l.168524-168555) and AIR L(R) OUTR WING LEAK / ENG 1(4)
- * BLEED LEAK (l.168682-168716). The APU BLEED line is only shown for the left outer wing leak.
+ * AIR L(R) INR WING LEAK / ENG 2(3) BLEED LEAK and AIR L(R) OUTR WING LEAK / ENG 1(4) BLEED LEAK. The APU BLEED line is
+ * only shown for the left outer wing leak.
  * @param title the alert title after AIR
  * @param engine the engine of the leak zone
  * @returns the procedure

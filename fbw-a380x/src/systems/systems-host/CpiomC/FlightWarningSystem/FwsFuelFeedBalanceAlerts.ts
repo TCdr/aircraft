@@ -2,26 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * A380X FUEL (ATA 28) alerts of the FCOM gap backlog round 8: FUEL L(R) WING FEED PMPs FAULT, FUEL WINGS NOT BALANCED,
- * FUEL WINGS BALANCED and FUEL INR TKs QTY LO, with their procedure lines.
- *
- * Source: A380 FCOM PRO-ABN-ECAM-10-28 "FUEL" (KAL fleet, 25 JUL 11). "l." = line of the text copy
- * references/manuals/a380_fcom.txt; the flight phase inhibitions, master lights and audio are figures, read from
- * airbus-a380-fcom_compress.pdf ("PDF p."). The FCOM gives the quantities in lb; they are converted to kg here.
+ * A380X FUEL (ATA 28) alerts: FUEL L(R) WING FEED PMPs FAULT, FUEL WINGS NOT BALANCED, FUEL WINGS BALANCED and FUEL
+ * INR TKs QTY LO, with their procedure lines. The published quantities are in lb; they are converted to kg here.
  */
 
 import { FeedTankPumpAlerts, FeedTankPumpFlags, feedTankPumpAlerts } from './FuelPumpValveFlags';
 import { FwcFlightPhase } from './FwsFlightPhases';
-import { ProcedureLines, procedureLines } from './FwsElecAlertsRound8';
+import { ProcedureLines, procedureLines } from './FwsElecCombinedBusAlerts';
 
 const KG_PER_LB = 0.45359237;
 
-/**
- * Flight phase inhibitions (FCOM figures): FUEL L(R) WING FEED PMPs FAULT phases 4-7, 9, 10 (PDF p.5216); FUEL WINGS
- * NOT BALANCED and FUEL WINGS BALANCED phases 3-7, 9, 10 (PDF p.5294, p.5289); FUEL INR TKs QTY LO phases 3-11
- * (PDF p.5199).
- */
-export const ROUND8_FUEL_PHASE_INHIBITION: {
+/** Flight phases in which each alert is inhibited */
+export const FUEL_FEED_BALANCE_PHASE_INHIBITION: {
   wingFeedPumpsFault: number[];
   wingsNotBalanced: number[];
   wingsBalanced: number[];
@@ -48,11 +40,11 @@ export interface FeedPumpAlertsWithWings {
 
 /**
  * The feed tank pump alerts (feedTankPumpAlerts), with:
- * - FUEL L(R) WING FEED PMPs FAULT, l.151700-151704: "All left(right) wing feed tank pumps are either: operating at low
- *   pressure, or abnormally not running, or turned off by the flight crew (except in flight phase 1 and 12, or, if
- *   required by another ECAM procedure (e.g. FUEL WINGS NOT BALANCED))". Left wing = feed tanks 1 and 2, right wing =
- *   feed tanks 3 and 4. Design choice: the wing alert replaces the two FEED TK n MAIN + STBY PMPs FAULT alerts of its
- *   tanks (the FCOM note l.151783-151786 says the wing alert "is replaced again by" them once it no longer applies).
+ * - FUEL L(R) WING FEED PMPs FAULT: all left (right) wing feed tank pumps are at low pressure, abnormally not running
+ *   or switched off by the crew (switched off does not count in flight phases 1 and 12, or when another ECAM procedure
+ *   such as FUEL WINGS NOT BALANCED asks for it). Left wing = feed tanks 1 and 2, right wing = feed tanks 3 and 4.
+ *   Design choice: the wing alert replaces the two FEED TK n MAIN + STBY PMPs FAULT alerts of its tanks, which come
+ *   back once it no longer applies.
  * - The "required by another ECAM procedure" exception, for the tanks in `pumpsOffRequired`: their pump pb-sw OFF does
  *   not count as faulty (FUEL WINGS NOT BALANCED asks to switch off the pumps of the lighter feed tank). A failed pump
  *   (low pressure) still counts.
@@ -81,15 +73,15 @@ export function feedPumpAlertsWithWings(
   };
 }
 
-/** Imbalance thresholds of FUEL WINGS NOT BALANCED, l.154814-154824, in kg */
-export const WINGS_IMBALANCE_KG = {
-  /** "more than 6 600 lb between the symmetric feed tanks" (on ground and in flight) */
+/** Imbalance thresholds of FUEL WINGS NOT BALANCED, in kg */
+const WINGS_IMBALANCE_KG = {
+  /** Between the symmetric feed tanks, on ground and in flight */
   feed: 6_600 * KG_PER_LB,
-  /** "more than 6 600 lb between the inner tanks" (on ground) */
+  /** On ground only */
   inner: 6_600 * KG_PER_LB,
-  /** "more than 5 500 lb between the mid tanks" (on ground) */
+  /** On ground only */
   mid: 5_500 * KG_PER_LB,
-  /** "more than 2 600 lb between the outer tanks" (on ground) */
+  /** On ground only */
   outer: 2_600 * KG_PER_LB,
 } as const;
 
@@ -102,7 +94,7 @@ export interface WingsBalanceInputs {
   innerKg: [number, number];
   midKg: [number, number];
   outerKg: [number, number];
-  /** Refuel or defuel in progress, or refuel panel open: "inhibited during refueling, ground fuel transfers, and defueling" */
+  /** Refuel or defuel in progress, or refuel panel open: the alert is inhibited during fueling and ground transfers */
   fuelingInProgress: boolean;
   crossFeedPbOn: FeedTanks<boolean>;
   feedMainPbOn: FeedTanks<boolean>;
@@ -132,16 +124,16 @@ export interface WingsBalanceState {
 }
 
 /**
- * FUEL WINGS NOT BALANCED (l.154808-154887) and FUEL WINGS BALANCED (l.154594-154616).
+ * FUEL WINGS NOT BALANCED and FUEL WINGS BALANCED.
  *
  * - On ground: NOT BALANCED while an imbalance exceeds its threshold (feed, inner, mid, outer tanks), unless fueling
  *   is in progress; it clears with the imbalance (the ground procedure asks for a transfer or a delayed takeoff).
  * - In flight: a pair of feed tanks (1 & 4, 2 & 3) whose imbalance exceeds 6 600 lb triggers NOT BALANCED. Design
  *   choice: the alert then stays until the pair is balanced, otherwise it would disappear 1 kg under the threshold, in
- *   the middle of its procedure. The FCOM gives no "balanced" threshold; design choice: balanced when the tank that was
+ *   the middle of its procedure. No "balanced" threshold is published; design choice: balanced when the tank that was
  *   lighter is no longer lighter (the procedure feeds all engines from the heavier tank until the quantities are equal).
- *   WINGS BALANCED then shows, until its lines are done (the pumps of the pair ON, its crossfeeds OFF): "Following the
- *   FUEL WINGS NOT BALANCED alert, the corrective actions to balance the fuel in the feed tanks are successful."
+ *   WINGS BALANCED then shows, to say the corrective actions worked, until its lines are done (the pumps of the pair
+ *   ON, its crossfeeds OFF).
  * - Landing ends the in-flight procedures (design choice).
  */
 export class WingsBalanceMonitor {
@@ -213,9 +205,9 @@ export class WingsBalanceMonitor {
   }
 }
 
-/** FUEL INR TKs QTY LO thresholds, l.151124-151125: FOB "more than 110 200 lb", inner tank "less than 11 200 lb" */
-export const INR_TKS_QTY_LO_FOB_KG = 110_200 * KG_PER_LB;
-export const INR_TKS_QTY_LO_INNER_KG = 11_200 * KG_PER_LB;
+/** FUEL INR TKs QTY LO thresholds: FOB above 110 200 lb, an inner tank below 11 200 lb */
+const INR_TKS_QTY_LO_FOB_KG = 110_200 * KG_PER_LB;
+const INR_TKS_QTY_LO_INNER_KG = 11_200 * KG_PER_LB;
 
 /** The inputs of FUEL INR TKs QTY LO */
 export interface InnerTanksQtyLoInputs {
@@ -233,10 +225,9 @@ export interface InnerTanksQtyLoInputs {
 }
 
 /**
- * FUEL INR TKs QTY LO (281800051), l.151124-151127: "On ground, when the flight crew enters the ZFW and ZFCG in the
- * FMS, the Fuel On Board (FOB) is more than 110 200 lb, and the quantity in any inner tank is less than 11 200 lb. The
- * alert is inhibited when the outer tanks are full, or when the refuel panel door is open, or if the flight crew presses
- * the REFUEL pb-sw."
+ * FUEL INR TKs QTY LO (281800051): on ground, once the crew has entered the ZFW and ZFCG in the FMS, the FOB is above
+ * 110 200 lb and an inner tank holds less than 11 200 lb. Inhibited when the outer tanks are full, the refuel panel
+ * door is open or the REFUEL pb-sw is pressed.
  */
 export function isInnerTanksQtyLo(i: InnerTanksQtyLoInputs): boolean {
   return (
@@ -265,7 +256,7 @@ export interface FuelProcedureInputs {
 }
 
 /**
- * FUEL L(R) WING FEED PMPs FAULT, l.151757-151873 (items of ata28.ts 281800070 / 281800071).
+ * FUEL L(R) WING FEED PMPs FAULT lines (items of ata28.ts 281800070 / 281800071).
  * Before takeoff (on ground): the four pumps OFF. After takeoff: ALL CROSSFEEDS OFF; IF NO FUEL LEAK: ALL CROSSFEEDS ON,
  * the four pumps OFF, and the gravity feeding lines. Design choice: the first ALL CROSSFEEDS OFF line is checked once
  * the crossfeeds have all been seen OFF (`crossfeedsSeenOff`), so that switching them back ON under IF NO FUEL LEAK does
@@ -289,29 +280,29 @@ export function wingFeedPumpsFaultLines(
   ];
   const allOff = i.crossFeedPbOn.every((on) => !on);
   return procedureLines(
-    ...pumpsOff(ground), // Before takeoff: FEED TK x MAIN/STBY PMP OFF (l.151758-151761)
-    [ground, false], // FEED TK 1(4) : 1300 KG MAX NOT USABLE (l.151763, 2 900 lb)
-    [ground, false], // FEED TK 2(3) : 2000 KG MAX NOT USABLE (l.151769, 4 400 lb)
-    [flight, crossfeedsSeenOff], // After takeoff: ALL CROSSFEEDS OFF (l.151788)
-    [flight, false], // IF NO FUEL LEAK : (l.151790)
-    [flight, i.crossFeedPbOn.every((on) => on)], // ALL CROSSFEEDS ON (l.151802)
-    ...pumpsOff(flight), // FEED TK x MAIN/STBY PMP OFF (l.151804-151821)
-    [flight, false], // FEED TK 1(4) : 1300 KG MAX NOT USABLE (l.151823)
-    [flight, false], // FEED TK 2(3) : 2000 KG MAX NOT USABLE (l.151831)
-    [flight, false], // WHEN INR & MID TKs EMPTY : (l.151839)
-    [flight && i.moreThan30MinAboveFl300, false], // DESCENT TO FL 280 INITIATE (l.151842)
+    ...pumpsOff(ground), // Before takeoff: FEED TK x MAIN/STBY PMP OFF
+    [ground, false], // FEED TK 1(4) : 1300 KG MAX NOT USABLE (2 900 lb)
+    [ground, false], // FEED TK 2(3) : 2000 KG MAX NOT USABLE (4 400 lb)
+    [flight, crossfeedsSeenOff], // After takeoff: ALL CROSSFEEDS OFF
+    [flight, false], // IF NO FUEL LEAK :
+    [flight, i.crossFeedPbOn.every((on) => on)], // ALL CROSSFEEDS ON
+    ...pumpsOff(flight), // FEED TK x MAIN/STBY PMP OFF
+    [flight, false], // FEED TK 1(4) : 1300 KG MAX NOT USABLE
+    [flight, false], // FEED TK 2(3) : 2000 KG MAX NOT USABLE
+    [flight, false], // WHEN INR & MID TKs EMPTY :
+    [flight && i.moreThan30MinAboveFl300, false], // DESCENT TO FL 280 INITIATE
     [flight && i.moreThan30MinAboveFl300, false], // MAX FL : 280
-    [flight && !i.moreThan30MinAboveFl300, false], // DESCENT TO FL 50/MEA INITIATE (l.151852)
+    [flight && !i.moreThan30MinAboveFl300, false], // DESCENT TO FL 50/MEA INITIATE
     [flight && !i.moreThan30MinAboveFl300, false], // MAX FL : 50/MEA
-    [flight, i.engStartSelIgnStart], // ENG START SEL IGN START (l.151861)
-    [flight, allOff], // ALL CROSSFEEDS OFF (l.151865)
-    [flight, false], // EXPECT NORM COLLECTOR CELL DEPLETION (l.151867)
-    [flight, false], // AVOID NEG G LOAD (l.151873)
+    [flight, i.engStartSelIgnStart], // ENG START SEL IGN START
+    [flight, allOff], // ALL CROSSFEEDS OFF
+    [flight, false], // EXPECT NORM COLLECTOR CELL DEPLETION
+    [flight, false], // AVOID NEG G LOAD
   );
 }
 
 /**
- * FUEL WINGS NOT BALANCED, l.154852-154887 (items of ata28.ts 281800100). On ground: IF T.O PLANNED, AUTO GND XFR ON
+ * FUEL WINGS NOT BALANCED lines (items of ata28.ts 281800100). On ground: IF T.O PLANNED, AUTO GND XFR ON
  * before the first engine start, WINGS IMBALANCE COMPENSATE after it, DELAY T.O. In flight, per unbalanced pair: FEED TK
  * a & b NOT BALANCED, IF NO FUEL LEAK: CROSSFEED a, b ON, and the lighter side's STBY and MAIN PMP OFF.
  */
@@ -342,7 +333,7 @@ export function wingsNotBalancedLines(i: FuelProcedureInputs, state: WingsBalanc
   return procedureLines(...lines);
 }
 
-/** FUEL WINGS BALANCED, l.154610-154616 (items of ata28.ts 281800098), per balanced pair */
+/** FUEL WINGS BALANCED lines (items of ata28.ts 281800098), per balanced pair */
 export function wingsBalancedLines(i: FuelProcedureInputs, state: WingsBalanceState): ProcedureLines {
   const lines: [boolean, boolean][] = [];
   FEED_PAIRS.forEach(([a, b], pair) => {
@@ -360,7 +351,7 @@ export function wingsBalancedLines(i: FuelProcedureInputs, state: WingsBalanceSt
   return procedureLines(...lines);
 }
 
-/** FUEL INR TKs QTY LO, l.151138-151139 (items of ata28.ts 281800051): IF REFUEL NOT PLANNED : AUTO GND XFR ON */
+/** FUEL INR TKs QTY LO lines (items of ata28.ts 281800051): IF REFUEL NOT PLANNED : AUTO GND XFR ON */
 export function innerTanksQtyLoLines(): ProcedureLines {
   return procedureLines([true, false], [true, false]);
 }
@@ -386,15 +377,15 @@ export class SeenAllOffSincePulse {
   }
 }
 
-/** STATUS keys (EcamLimitations, EcamInopSys, EcamInfos) of the fuel alerts, l.151887-151955 */
+/** STATUS keys (EcamLimitations, EcamInopSys, EcamInfos) of the fuel alerts */
 export const WING_FEED_PUMPS_FAULT_STATUS: { inopSysAllPhases: string[][]; info: string[][] } = {
-  /** FEED TK 1 PMPs, FEED TK 2 PMPs (left) / FEED TK 3 PMPs, FEED TK 4 PMPs (right) (l.151946-151947) */
+  /** FEED TK 1 PMPs, FEED TK 2 PMPs (left) / FEED TK 3 PMPs, FEED TK 4 PMPs (right) */
   inopSysAllPhases: [
     ['280300011', '280300012'],
     ['280300013', '280300014'],
   ],
-  /** L(R) WING FEED TKs BY GRVTY ONLY (l.151951) */
+  /** L(R) WING FEED TKs BY GRVTY ONLY */
   info: [['280200013'], ['280200014']],
-  // Left out: the LIMITATIONS (MAX FL, AVOID NEG G LOAD, FUEL PARTLY UNUSABLE) apply "when inner and mid tanks are
-  // empty" (l.151893-151907), and the INFO lines FEED TK 1(4) / 2(3) MAX NOT USABLE have no key.
+  // Left out: the LIMITATIONS (MAX FL, AVOID NEG G LOAD, FUEL PARTLY UNUSABLE) apply only once the inner and mid tanks
+  // are empty, and the INFO lines FEED TK 1(4) / 2(3) MAX NOT USABLE have no key.
 };

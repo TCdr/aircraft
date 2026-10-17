@@ -2,19 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * A380X FUEL (ATA 28) alerts of the FCOM gap batch P16: FUEL ENG 1(2)(3)(4) LP VLV FAULT, FUEL LEAK DET FAULT and FUEL
- * LEAK DETECTED, with their procedure lines.
- *
- * Source: A380 FCOM PRO-ABN-ECAM-10-28 "FUEL" (KAL fleet, 25 JUL 11). "l." = line of the text copy
- * references/manuals/a380_fcom.txt; the flight phase inhibitions, master lights and audio are figures, read from
- * airbus-a380-fcom_compress.pdf ("PDF p.").
+ * A380X FUEL (ATA 28) alerts FUEL ENG 1(2)(3)(4) LP VLV FAULT, FUEL LEAK DET FAULT and FUEL LEAK DETECTED, with their
+ * procedure lines.
  */
 
 import { FwcFlightPhase } from './FwsFlightPhases';
 
 /**
- * Flight phase inhibitions (FCOM figures): FUEL ENG 1(2)(3)(4) LP VLV FAULT phases 4-10 (PDF p.5162); FUEL LEAK DET
- * FAULT every phase but 8 (PDF p.5222); FUEL LEAK DETECTED every phase but 2 and 8 (PDF p.5224).
+ * Flight phase inhibitions: FUEL ENG 1(2)(3)(4) LP VLV FAULT phases 4-10; FUEL LEAK DET FAULT every phase but 8; FUEL
+ * LEAK DETECTED every phase but 2 and 8.
  */
 export const FUEL_LEAK_LP_VALVE_PHASE_INHIBITION: {
   engLpValveFault: number[];
@@ -61,11 +57,11 @@ export function readFuelLeakLpValveFlags(read: (name: string) => number): FuelLe
 }
 
 /**
- * FUEL ENG 1(2)(3)(4) LP VLV FAULT, l.149688-149694: "Engine 1(2)(3)(4) LP valve is: - Abnormally closed on ground,
- * during engine start, or - Abnormally open on ground, during engine shutdown." The LP valve is commanded open by the
- * ENG MASTER ON (engine start) and closed by the ENG MASTER OFF or the ENG FIRE pb (engine shutdown): a valve
- * abnormally closed is one that stays closed while commanded open, a valve abnormally open one that stays open while
- * commanded closed. @param onGround whether the aircraft is on ground
+ * FUEL ENG 1(2)(3)(4) LP VLV FAULT: on ground, the LP valve is abnormally closed during the engine start or abnormally
+ * open during the engine shutdown. The LP valve is commanded open by the ENG MASTER ON (engine start) and closed by the
+ * ENG MASTER OFF or the ENG FIRE pb (engine shutdown): a valve abnormally closed is one that stays closed while
+ * commanded open, a valve abnormally open one that stays open while commanded closed.
+ * @param onGround whether the aircraft is on ground
  * @param abnormallyOpen the LP valve remains open while commanded closed
  * @param abnormallyClosed the LP valve remains closed while commanded open
  */
@@ -80,9 +76,9 @@ export interface LpValveFaultLines {
 }
 
 /**
- * The lines of FUEL ENG 1(2)(3)(4) LP VLV FAULT, l.149722-149732: "Before takeoff: ENG 1(2)(3)(4) MASTER....OFF" ("When
- * the LP valve is failed in the closed position, it is not possible to start the associated engine"); "After landing:
- * Crew awareness" (no line). After landing = from the touchdown (flight phases 10-12).
+ * The lines of FUEL ENG 1(2)(3)(4) LP VLV FAULT: before takeoff ENG 1(2)(3)(4) MASTER OFF (an LP valve failed closed
+ * does not let the engine start); after landing, from the touchdown (flight phases 10-12), crew awareness only (no
+ * line).
  * @param flightPhase the FWS flight phase
  * @param masterOn whether the ENG MASTER of the engine is ON
  */
@@ -94,8 +90,8 @@ export function engLpValveFaultLines(flightPhase: number, masterOn: boolean): Lp
   return { show: [!afterLanding], checked: [!masterOn] };
 }
 
-/** STATUS INOP SYS ALL PHASES of FUEL ENG n LP VLV FAULT (l.149734-149739): ENG 1(2)(3)(4) LP VLV */
+/** STATUS INOP SYS ALL PHASES of FUEL ENG n LP VLV FAULT: ENG 1(2)(3)(4) LP VLV */
 export const ENG_LP_VALVE_FAULT_INOP_SYS: Engines<string> = ['280300051', '280300052', '280300053', '280300054'];
 
-/** STATUS INOP SYS ALL PHASES of FUEL LEAK DET FAULT (l.152003-152007): FUEL LEAK DET */
+/** STATUS INOP SYS ALL PHASES of FUEL LEAK DET FAULT: FUEL LEAK DET */
 export const FUEL_LEAK_DET_FAULT_INOP_SYS = '280300050';

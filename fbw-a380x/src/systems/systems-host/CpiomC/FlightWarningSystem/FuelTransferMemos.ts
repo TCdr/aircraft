@@ -2,24 +2,25 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * Fuel transfer memos of the A380X FWS (A380 FCOM DSC-28-20 MEMO, a380_fcom.txt l.59094-59191):
- * FWD XFR IN PROGRESS "Transfer from trim tank is in progress", OUTR TK XFR IN PROG "Transfer from outer tanks is in
- * progress", OUTR TKs XFRD "All the fuel in the outer tanks has been transferred", TRIM TK XFRD "All the fuel in the
- * trim tank has been transferred".
+ * Fuel transfer memos of the A380X FWS: FWD XFR IN PROGRESS (transfer from the trim tank in progress), OUTR TK XFR IN
+ * PROG (transfer from the outer tanks in progress), OUTR TKs XFRD (all the fuel of the outer tanks transferred), TRIM
+ * TK XFRD (all the fuel of the trim tank transferred).
  * The transfers are made by the fuel model (CpiomF/LegacyFuel.ts) with MSFS fuel system triggers, which tell no transfer
  * state to the FWS. The engines never burn from the outer or the trim tank, so their fuel leaving them is a transfer:
  * the FWS watches the tank weights. Not simulated: COLDFUEL OUTR TK XFR (no fuel temperature model) and GND XFR IN
  * PROGRESS (no ground transfer function).
  */
 
-/** Design choice (the FCOM gives no detection rule): the tank weight is compared over 10 s windows */
-export const FUEL_XFR_DETECTION_WINDOW_S = 10;
+/** Design choice: the tank weight is compared over 10 s windows */
+const FUEL_XFR_DETECTION_WINDOW_S = 10;
 
-/** Design choice: more than 5 kg out of the tank over one window is a transfer (sensor noise and rounding stay below) */
-export const FUEL_XFR_MIN_OUTFLOW_KG = 5;
+/**
+ * Design choice: more than 5 kg out of the tank over one window is a transfer (sensor noise and rounding stay below)
+ */
+const FUEL_XFR_MIN_OUTFLOW_KG = 5;
 
 /** Design choice: a tank holding less than 1 kg is empty (the fuel model leaves a few grams in an emptied tank) */
-export const FUEL_TANK_EMPTY_KG = 1;
+const FUEL_TANK_EMPTY_KG = 1;
 
 /** Watches the weight of one tank group and tells whether fuel flows out of it (a transfer in progress). */
 export class TankOutflowMonitor {
@@ -69,9 +70,9 @@ export interface FuelTransferMemos {
   readonly fwdXfrInProgress: boolean;
   /** OUTR TK XFR IN PROG (280000007) */
   readonly outerTankXfrInProgress: boolean;
-  /** OUTR TKs XFRD (280000008), shown in flight phase 8 only (PDF p.1992) */
+  /** OUTR TKs XFRD (280000008), shown in flight phase 8 only */
   readonly outerTanksXfrd: boolean;
-  /** TRIM TK XFRD (280000012), shown in flight phase 8 only (PDF p.1994) */
+  /** TRIM TK XFRD (280000012), shown in flight phase 8 only */
   readonly trimTankXfrd: boolean;
 }
 

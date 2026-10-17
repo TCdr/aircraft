@@ -167,9 +167,8 @@ describe('GPWS mode 4 alert ends above the ceiling', () => {
 });
 
 /*
- * A380 FCOM DSC-34-10-50 AUTOMATIC CALLOUTS (a380_fcom.txt 86490-86491, 86528): "FIVE HUNDRED or Smart FIVE HUNDRED";
- * the smart FIVE HUNDRED "is triggered only if the glide deviation exceeds a half dot". Before, the smart pin was
- * ignored and FIVE HUNDRED was always called out.
+ * The FIVE HUNDRED callout is either the normal or the smart one; the smart FIVE HUNDRED is called out only when the
+ * glide deviation is more than half a dot.
  */
 describe('Smart FIVE HUNDRED callout', () => {
   afterEach(() => {
@@ -225,7 +224,7 @@ describe('Smart FIVE HUNDRED callout', () => {
 });
 
 /*
- * A380 FCOM DSC-34-10-50 INTERMEDIATE CALLOUT (a380_fcom.txt l.86537-86547): below 400 ft, the current height 11 s
+ * Intermediate callout: below 400 ft, the current height 11 s
  * after the previous predetermined callout (4 s below 100 ft), rounded to the lower 10 ft.
  */
 describe('Intermediate callout', () => {
@@ -294,8 +293,8 @@ describe('Intermediate callout', () => {
 });
 
 /*
- * The TERRAIN (mode 2, a380_fcom.txt l.88225, 88292-88294) and GLIDE SLOPE (mode 5, l.88434-88440) aurals, and the
- * windshear priority over the GPWS ("Stall or windshear alerts override GPWS visual and aural alerts", l.88167).
+ * The TERRAIN (mode 2) and GLIDE SLOPE (mode 5) aurals, and the priority of the stall and windshear alerts over the
+ * GPWS visual and aural alerts.
  */
 describe('GPWS mode 2 and mode 5 aurals', () => {
   afterEach(() => {

@@ -39,9 +39,8 @@ impl From<PedalBrakingMode> for f64 {
     }
 }
 
-/// The pressure law of the EBCU in emergency braking (A380 FCOM DSC-32-10-30-30, a380_fcom.txt l.80037-80047):
-/// "Hydraulic pressure is automatically limited to 1 000 PSI at landing (landing brake law), 1 700 PSI for taxi-out and
-/// Take-Off (take-off brake law)".
+/// The pressure law of the EBCU in emergency braking: 1 000 PSI at landing (landing brake law), 1 700 PSI for taxi-out
+/// and take-off (take-off brake law).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmergencyBrakeLaw {
     /// Taxi-out and take-off: 1 700 psi
@@ -63,10 +62,9 @@ impl EmergencyBrakeLaw {
     }
 
     /// The law after this update.
-    /// - "It is possible to revert from landing brake law to take-off brake law by set parking brake to position ON"
-    ///   (l.80046-80047): the PARK BRK handle ON on the ground selects the take-off law.
-    /// - Design choice: the landing law is selected once the aircraft is airborne (main gears not compressed). The
-    ///   FCOM gives no switching point; after the lift-off the next braking is the landing.
+    /// - The PARK BRK handle ON on the ground reverts to the take-off law.
+    /// - Design choice: the landing law is selected once the aircraft is airborne (main gears not compressed). No
+    ///   switching point is published; after the lift-off the next braking is the landing.
     /// - Else the law does not change, so the landing law stays for the taxi-in until the PARK BRK handle is set ON.
     pub fn next(self, in_flight: bool, parking_brake_on: bool) -> Self {
         if in_flight {
@@ -483,7 +481,7 @@ mod tests {
     }
 
     #[test]
-    fn emergency_brake_law_pressure_limits_are_the_fcom_values() {
+    fn emergency_brake_law_limits_are_1000_psi_landing_and_1700_psi_take_off() {
         assert_eq!(
             EmergencyBrakeLaw::TakeOff.pressure_limit(),
             Pressure::new::<psi>(1700.)

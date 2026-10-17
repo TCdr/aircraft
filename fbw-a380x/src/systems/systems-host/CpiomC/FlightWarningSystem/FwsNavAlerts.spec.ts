@@ -144,8 +144,7 @@ describe('FWS wiring of the NAV CAPT AND F/O DISAGREE alerts', () => {
     expect(shown.match(/true/g)).toHaveLength(lines);
   });
 
-  // An ADR without one of its supplies is in the INOP SYS of the ELEC alert, not a NAV ADR FAULT (a380_fcom.txt
-  // l.139230-139232, l.140854-140856)
+  // An ADR without one of its supplies is in the INOP SYS of the ELEC alert, not a NAV ADR FAULT
   it('takes a faulty ADR as NAV ADR FAULT only with its AC and DC busbars powered', () => {
     expect(adrFaultyForNavAlerts(true, true, true, false)).toBe(true);
     expect(adrFaultyForNavAlerts(true, false, true, false)).toBe(false);

@@ -428,7 +428,6 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mNAV\x1bm FM / GPS POS DISAGREE',
     sensed: true,
     items: [
-      // A380 FCOM PRO-ABN-ECAM-10-34-10 (a380_fcom.txt l.164858)
       {
         name: 'ACFT POS',
         sensed: false,
@@ -717,7 +716,7 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800049: {
     title: '\x1b<4m\x1b4mNAV\x1bm LS TUNING DISAGREE',
     sensed: true,
-    items: [], // crew awareness (A380 FCOM a380_fcom.txt l.165700)
+    items: [], // crew awareness
   },
   340800050: {
     title: '\x1b<4m\x1b4mNAV\x1bm OAT PROBE 1 FAULT',

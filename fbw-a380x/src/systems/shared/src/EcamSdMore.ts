@@ -14,7 +14,7 @@ export const SD_PAGES_WITH_MORE: readonly SdPages[] = [SdPages.Status];
 
 /**
  * Whether the STATUS page has a STATUS MORE page: the REDUND LOSS items, the ALERTS IMPACTING LDG PERF, the CANCELLED
- * CAUTION or the MORE INFO section (A380 FCOM DSC-31-40-10 STATUS MORE PAGE, a380_fcom.txt l.72964-72977).
+ * CAUTION or the MORE INFO section.
  * @param redundancyLossKeys the STATUS REDUND LOSS items (FwsInopSys entries flagged redundancyLoss)
  * @param cancelledCautionKeys the cautions cancelled with the EMER CANC pb
  * @param alertsImpactingLdgPerfKeys the active alerts that impact the landing performance (EcamMessages/StatusMore)

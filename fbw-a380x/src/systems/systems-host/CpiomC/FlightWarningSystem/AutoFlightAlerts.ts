@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * AUTO FLT APPROACH CAPABILITY DOWNGRADED (A380 FCOM PRO-ABN-ECAM-10-22-FG, a380_fcom.txt l.136343-136410).
- * Its triggers (l.136350-136372) are PRIM monitorings: flight control gyrometers and vertical accelerometers, AOA,
- * sideslip and IRS voting discrepancies that do not trigger their own NAV alert, the RA B failed, a PFD that cannot show
- * the radio altitude or the ILS (GLS) deviations. The sim has no gyrometer, accelerometer, sideslip or PFD display
- * monitoring, and the FCOM gives no voting threshold: only "The RA B is failed" (l.136370) is simulated.
+ * AUTO FLT APPROACH CAPABILITY DOWNGRADED. Its triggers are PRIM monitorings: flight control gyrometers and
+ * vertical accelerometers, AOA, sideslip and IRS voting discrepancies that do not trigger their own NAV alert, the RA B
+ * failed, a PFD that cannot show the radio altitude or the ILS (GLS) deviations. The sim has no gyrometer,
+ * accelerometer, sideslip or PFD display monitoring, and no voting threshold is known: only the RA B failure is
+ * simulated.
  */
 
 /**
- * "The RA B is failed" (a380_fcom.txt l.136370). With a second RA failed, NAV RA SYS A+B (B+C) (A+B+C) FAULT already
- * lists the lost approach capability (CAT 3, CAT 2 ONLY, l.165793-165797), so this alert is not triggered then.
+ * The RA B is failed. With a second RA failed, NAV RA SYS A+B (B+C) (A+B+C) FAULT already lists the lost approach
+ * capability (CAT 3, CAT 2 ONLY), so this alert is not triggered then.
  * @param raAFailed RA SYS A (L:A32NX_RA_1_RADIO_ALTITUDE) is failed
  * @param raBFailed RA SYS B (L:A32NX_RA_2_RADIO_ALTITUDE) is failed
  * @param raCFailed RA SYS C (L:A32NX_RA_3_RADIO_ALTITUDE) is failed

@@ -4,13 +4,13 @@
 import { Arinc429WordData } from '@flybywiresim/fbw-sdk';
 
 /*
- * LGERS indications of the WHEEL SD page, A380 FCOM DSC-32-20-40 (a380_fcom.txt l.81054-81065, l.81105-81109):
- * - L/G CTL: "Displayed when one or more landing gears are not locked in the selected position, after the normal
- *   extension/retraction delay. The L/G GEAR NOT LOCKED DOWN or L/G GEAR NOT LOCKED UP alerts are also displayed."
+ * LGERS indications of the WHEEL SD page:
+ * - L/G CTL: shown when one or more landing gears are not locked in the selected position after the normal
+ *   extension/retraction delay, with the L/G GEAR NOT LOCKED DOWN or L/G GEAR NOT LOCKED UP alert.
  *   Same trigger as these two alerts (systems-host FwsGearAlerts.ts): a gear not downlocked 60 s after the lever went
- *   down (l.161245-161246), not uplocked 40 s after it went up (l.161360-161361), with the FWS vote of the two LGCIS.
- * - L/G GRVTY EXTN IN PROGRESS: "appears when the flight crew commands a landing gear gravity extension. The message no
- *   longer appears when all gears are down locked, or after 120 s."
+ *   down, not uplocked 40 s after it went up, with the FWS vote of the two LGCIS.
+ * - L/G GRVTY EXTN IN PROGRESS: shown when the crew commands a landing gear gravity extension, until all gears are
+ *   downlocked or for 120 s.
  *
  * LGCIU discrete word 1 bits (fbw-common landing_gear/mod.rs discrete_word_1): 11/12/13 left/right/nose gear not
  * uplocked and the lever not down, 14/15/16 left/right/nose gear not downlocked and the lever down, 23/24/25
@@ -20,12 +20,9 @@ import { Arinc429WordData } from '@flybywiresim/fbw-sdk';
 /** An LGCIU discrete word */
 export type LgciuWord = Arinc429WordData;
 
-/** l.161245-161246: "not downlocked after approximately 60 s" */
-export const LG_CTL_NOT_LOCKED_DOWN_DELAY_S = 60;
-/** l.161360-161361: "not locked up after approximately 40 s" */
-export const LG_CTL_NOT_LOCKED_UP_DELAY_S = 40;
-/** l.81108: the gravity extension message goes after 120 s */
-export const GRAVITY_EXTENSION_MESSAGE_DURATION_S = 120;
+const LG_CTL_NOT_LOCKED_DOWN_DELAY_S = 60;
+const LG_CTL_NOT_LOCKED_UP_DELAY_S = 40;
+const GRAVITY_EXTENSION_MESSAGE_DURATION_S = 120;
 
 const NOT_UPLOCKED_LEVER_UP_BITS = [11, 12, 13];
 const NOT_DOWNLOCKED_LEVER_DOWN_BITS = [14, 15, 16];

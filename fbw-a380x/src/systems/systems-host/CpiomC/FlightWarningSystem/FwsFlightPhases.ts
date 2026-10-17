@@ -229,7 +229,7 @@ export class FwsFlightPhases {
 
     // a FLEX TEMP is entered (one value for all FADECs: no per-FADEC take-off words yet)
     const flexTempSet = SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'number') !== 0;
-    // each engine judged on its own thrust lever (FwsTakeoffPower)
+    // each engine judged on its own thrust lever
     const twoEnginesTOPowerSignal = twoEnginesTakeoffPowerSignal([eng1TLA, eng2TLA, eng3TLA, eng4TLA], flexTempSet);
 
     const twoEnginesTOPower =

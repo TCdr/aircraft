@@ -25,7 +25,7 @@ function hold(
   return said;
 }
 
-describe('A380 PRIORITY LEFT / PRIORITY RIGHT (a380_fcom.txt l.55303, 55350, 55363, 73621-73623)', () => {
+describe('A380 PRIORITY LEFT / PRIORITY RIGHT', () => {
   it('PRIORITY LEFT once when the CAPT holds the sidestick pb', () => {
     // the first update sees the press: the priority is held from there
     expect(hold(new FwsSidestickPriority(), true, false, 5)).toEqual([{ aural: 'priorityLeft', at: 1.125 }]);

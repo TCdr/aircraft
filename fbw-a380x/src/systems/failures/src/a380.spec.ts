@@ -392,8 +392,8 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
     ).toEqual(expected);
   });
 
-  // The labels say what systems engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs do with each id
-  // (failure names audit rule): the HP fuel valve sticks, the other faults only raise their FWS alert
+  // The labels say what systems engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs do with each id:
+  // the HP fuel valve sticks, the other faults only raise their FWS alert
   it('lists the HP fuel valve and FADEC monitoring failures with the Rust failure they trigger', () => {
     const rustMap = readRustFailureMap();
     const expected: [number, string, string, number][] = [
@@ -576,8 +576,7 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
 });
 
 describe('A380X slat/flap channel and avionics network failures', () => {
-  // The labels say what a380_systems hydraulic/sfcc does with ids 27010-27013 (F/CTL FLAP(SLAT) SYS 1(2) FAULT,
-  // a380_fcom.txt l.147527-147540, l.148380-148393)
+  // The labels say what a380_systems hydraulic/sfcc does with each id (F/CTL FLAP(SLAT) SYS 1(2) FAULT)
   it('lists the SFCC flap and slat channel failures in ATA 27 with the Rust failure they trigger', () => {
     const rustMap = readRustFailureMap();
     const expected: [number, string, string][] = [
@@ -592,8 +591,8 @@ describe('A380X slat/flap channel and avionics network failures', () => {
     );
   });
 
-  // FCOM DSC-42-10/20 (a380_fcom.txt l.94820-94960, l.94964-95066): 16 AFDX switches (8 per network), 4 pairs of IOMs,
-  // 22 CPIOMs in 7 groups. The Rust model names them as the AFDX_SWITCH_n / IOM_xn / CPIOM_xn L:vars.
+  // 16 AFDX switches (8 per network), 4 pairs of IOMs, 22 CPIOMs in 7 groups. The Rust model names them as the
+  // AFDX_SWITCH_n / IOM_xn / CPIOM_xn L:vars.
   it('lists a failure for every AFDX switch, IOM and CPIOM of the Rust avionics network in ATA 42', () => {
     const rustMap = readRustFailureMap();
     const networkIds = [...rustMap.keys()].filter((id) => Math.floor(id / 1000) === 42);
@@ -614,7 +613,7 @@ describe('A380X slat/flap channel and avionics network failures', () => {
     expect(nameOf(A380Failure.CpiomC2)).toBe('CPIOM C2 (FWS, FCDC)');
   });
 
-  // TS only: read by the FWS (FwsTailStrikeAlerts), TAIL STRIKE DET FAULT (a380_fcom.txt l.147371-147385)
+  // TS only: read by the FWS (FwsTailStrikeAlerts), TAIL STRIKE DET FAULT
   it('lists the tail strike detector failure in ATA 31', () => {
     expect(A380FailureDefinitions.find(([, id]) => id === A380Failure.TailStrikeDetector)).toEqual([
       31,

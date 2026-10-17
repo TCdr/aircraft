@@ -28,7 +28,7 @@ function alertBlock(id: string): string {
   return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
 }
 
-describe('CAB PRESS EXCESS NEGATIVE DIFF PRESS (A380 FCOM l.135258-135259)', () => {
+describe('CAB PRESS EXCESS NEGATIVE DIFF PRESS', () => {
   it('triggers with the CPCS bit (< -0.72 PSI) and ends only above -0.32 PSI', () => {
     const monitor = new ExcessNegativeDiffPressMonitor();
     expect(monitor.update(false, -0.5)).toBe(false);
@@ -46,7 +46,7 @@ describe('CAB PRESS EXCESS NEGATIVE DIFF PRESS (A380 FCOM l.135258-135259)', () 
     expect(monitor.update(false, null)).toBe(false);
   });
 
-  it('is a red master warning, active in flight phases 8 and 9 (PDF p.4757)', () => {
+  it('is a red master warning, active in flight phases 8 and 9', () => {
     const block = alertBlock('213800003');
     expect(block).toContain('flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 10, 11, 12],');
     expect(block).toContain('simVarIsActive: this.fws.excessNegativeDiffPressure,');
@@ -55,7 +55,7 @@ describe('CAB PRESS EXCESS NEGATIVE DIFF PRESS (A380 FCOM l.135258-135259)', () 
   });
 });
 
-describe('CAB PRESS DIFF PRESS HI (A380 FCOM l.134896-134934)', () => {
+describe('CAB PRESS DIFF PRESS HI', () => {
   it('needs the automatic mode', () => {
     expect(isDiffPressHi(true, false)).toBe(true);
     expect(isDiffPressHi(true, true)).toBe(false);
@@ -67,7 +67,7 @@ describe('CAB PRESS DIFF PRESS HI (A380 FCOM l.134896-134934)', () => {
     expect(diffPressHiItemsToShow(false)).toEqual([false, false, true]);
   });
 
-  it('is wired, master caution, active in flight phase 8 only (PDF p.4748)', () => {
+  it('is wired, master caution, active in flight phase 8 only', () => {
     const block = alertBlock('213800007');
     expect(block).toContain('flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],');
     expect(block).toContain('simVarIsActive: this.fws.diffPressHi,');
@@ -75,8 +75,8 @@ describe('CAB PRESS DIFF PRESS HI (A380 FCOM l.134896-134934)', () => {
   });
 });
 
-describe('CAB PRESS DIFF PRESS LO (A380 FCOM l.134996-135018)', () => {
-  it('is wired, master caution, active in flight phases 8 and 9 (PDF p.4751)', () => {
+describe('CAB PRESS DIFF PRESS LO', () => {
+  it('is wired, master caution, active in flight phases 8 and 9', () => {
     const block = alertBlock('213800008');
     expect(block).toContain('flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 10, 11, 12],');
     expect(block).toContain('simVarIsActive: this.fws.diffPressLo,');
@@ -84,7 +84,7 @@ describe('CAB PRESS DIFF PRESS LO (A380 FCOM l.134996-135018)', () => {
   });
 });
 
-describe('CAB PRESS LDG ELEVN FAULT (A380 FCOM l.135437-135513)', () => {
+describe('CAB PRESS LDG ELEVN FAULT', () => {
   it('triggers when no FMS sends a normal landing elevation', () => {
     expect(isLdgElevnFault(false, false)).toBe(true);
     expect(isLdgElevnFault(true, false)).toBe(false);
@@ -96,7 +96,7 @@ describe('CAB PRESS LDG ELEVN FAULT (A380 FCOM l.135437-135513)', () => {
     expect(ldgElevnFaultItemsToShow(false)).toEqual([true, true, true]);
   });
 
-  it('has a message, is wired in phase 8 only (PDF p.4763) and has the LDG ELEVN deferred procedure', () => {
+  it('has a message, is wired in phase 8 only and has the LDG ELEVN deferred procedure', () => {
     expect(ata21).toContain("title: '\\x1b<4m\\x1b4mCAB PRESS\\x1bm LDG ELEVN FAULT',");
     const block = alertBlock('213800043');
     expect(block).toContain('flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],');
@@ -105,7 +105,7 @@ describe('CAB PRESS LDG ELEVN FAULT (A380 FCOM l.135437-135513)', () => {
   });
 });
 
-describe('RAM AIR memo (A380 FCOM DSC-21-10-20 l.6055-6058)', () => {
+describe('RAM AIR memo', () => {
   it('the inlets open with the pb ON below 1 PSI', () => {
     expect(areRamAirInletsOpen(true, 0.5)).toBe(true);
     expect(areRamAirInletsOpen(true, 3)).toBe(false);

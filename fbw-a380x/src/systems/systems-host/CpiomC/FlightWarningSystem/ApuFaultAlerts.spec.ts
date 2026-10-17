@@ -20,7 +20,7 @@ const messageIndex = readFileSync(resolve(__dirname, messagesDir, 'index.ts'), '
 
 const none: ApuFaultInputs = { emergencyShutdown: false, autoShutdown: false, apuFireWarning: false };
 
-describe('APU FAULT (A380 FCOM PRO-ABN-ECAM-10-49, l.170067-170193)', () => {
+describe('APU FAULT', () => {
   it('triggers on an emergency or an automatic shutdown, not while the APU FIRE warning is shown', () => {
     expect(isApuFault(none)).toBe(false);
     expect(isApuFault({ ...none, emergencyShutdown: true })).toBe(true);
@@ -56,7 +56,7 @@ describe('APU FAULT (A380 FCOM PRO-ABN-ECAM-10-49, l.170067-170193)', () => {
     expect(apuFaultItemsChecked(true).some((checked) => checked)).toBe(false);
   });
 
-  it('is inhibited in flight phases 3-7, 9 and 10 (PDF p.5729)', () => {
+  it('is inhibited in flight phases 3-7, 9 and 10', () => {
     expect(APU_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 9, 10]);
   });
 

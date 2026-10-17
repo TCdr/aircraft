@@ -4,8 +4,7 @@
 // Native test of the alpha floor Mach inhibition of the generated A380PrimComputerFe model (flight envelope part of the
 // PRIMs): run test/run_tests.sh.
 //
-// A380 FCOM DSC-22-27 Flight envelope protections, Alpha floor (a380_fcom.txt:9223-9226): "alpha-floor is inhibited if
-// one of the following conditions occurs: - The Mach is above 0.5". The model used to inhibit it above M 0.6 only.
+// Alpha floor is inhibited above M 0.5; the Simulink model alone would inhibit it above M 0.6 only.
 
 #include <cstdio>
 
@@ -48,7 +47,7 @@ static bool alphaFloorConditionAt(double mach) {
 
 int main() {
   expect(alphaFloorConditionAt(0.45), "alpha floor at M 0.45 (below the M 0.5 inhibition)");
-  expect(!alphaFloorConditionAt(0.55), "no alpha floor at M 0.55 (FCOM: inhibited above M 0.5)");
+  expect(!alphaFloorConditionAt(0.55), "no alpha floor at M 0.55 (inhibited above M 0.5)");
   expect(!alphaFloorConditionAt(0.65), "no alpha floor at M 0.65");
 
   if (failures == 0) {

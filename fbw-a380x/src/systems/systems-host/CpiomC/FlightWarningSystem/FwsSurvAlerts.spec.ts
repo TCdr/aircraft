@@ -192,7 +192,7 @@ describe('XPDR & TCAS ..... SYS 2(1) line', () => {
   });
 });
 
-describe('SURV TAWS 1(2) and GPWS 1(2) FAULT (A380 FCOM l.166421-166498, l.166800-166880)', () => {
+describe('SURV TAWS 1(2) and GPWS 1(2) FAULT', () => {
   const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
   const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
   /** The source of one alert entry of FwsAbnormalSensed, from its id to the end of its object */
@@ -225,13 +225,13 @@ describe('SURV TAWS 1(2) and GPWS 1(2) FAULT (A380 FCOM l.166421-166498, l.16680
   it.each([
     ['341800026', 'this.fws.gpws1FaultCond'],
     ['341800027', 'this.fws.gpws2FaultCond'],
-  ])('GPWS FAULT %s is wired to %s, phases 3-7, 10, 11 inhibited (PDF p.5623)', (id, condition) => {
+  ])('GPWS FAULT %s is wired to %s, phases 3-7, 10, 11 inhibited', (id, condition) => {
     const block = alertBlock(id);
     expect(block).toContain(`simVarIsActive: ${condition},`);
     expect(block).toContain('flightPhaseInhib: [3, 4, 5, 6, 7, 10, 11],');
   });
 
-  it('GPWS 1+2 FAULT: [MFD SURV] GPWS ... OFF (l.166493)', () => {
+  it('GPWS 1+2 FAULT: [MFD SURV] GPWS ... OFF', () => {
     expect(alertBlock('341800028')).toContain('whichItemsChecked: () => [this.fws.tawsGpwsOff.get()],');
   });
 });

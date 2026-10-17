@@ -101,11 +101,11 @@ describe('STEER alerts from the SCS and steering faults', () => {
 });
 
 describe('BRAKES A-SKID FAULT ON ALL L/G and AUTO BRK FAULT', () => {
-  it('raises A-SKID FAULT ON ALL L/G in emergency braking with the A-SKID sw ON (l.159037-159038, l.80059-80067)', () => {
+  it('raises A-SKID FAULT ON ALL L/G in emergency braking with the A-SKID sw ON', () => {
     expect(aSkidFaultOnAllLg(inputs({ pedalBrakingMode: 3 }))).toBe(true);
   });
 
-  it('does not raise A-SKID FAULT ON ALL L/G with the A-SKID sw OFF: A-SKID OFF shows instead (l.80063-80064)', () => {
+  it('does not raise A-SKID FAULT ON ALL L/G with the A-SKID sw OFF: A-SKID OFF shows instead', () => {
     expect(aSkidFaultOnAllLg(inputs({ pedalBrakingMode: 3, antiSkidSwitchOn: false }))).toBe(false);
   });
 
@@ -262,9 +262,8 @@ describe('FwsBrakeAlerts inputs and wiring', () => {
 });
 
 /*
- * BRAKES BTV FAULT: "The BTV auto-brake mode is failed" (A380 FCOM PRO-ABN-ECAM-10-32 P 29/118). An engine 2 or 3 out
- * makes BTV inoperative through the ENG 1(2)(3)(4) SHUT DOWN STATUS ("BTV (If ENG 2(3) affected)", a380_fcom.txt
- * l.172781), not through this caution: the FCDC BTV LOST bit is also set by an inner engine not running.
+ * BRAKES BTV FAULT: an engine 2 or 3 out makes BTV inoperative through the ENG 1(2)(3)(4) SHUT DOWN STATUS, not
+ * through this caution, although the FCDC BTV LOST bit is also set by an inner engine not running.
  */
 describe('BRAKES BTV FAULT trigger', () => {
   it('triggers on BTV LOST with all the inner engines running', () => {

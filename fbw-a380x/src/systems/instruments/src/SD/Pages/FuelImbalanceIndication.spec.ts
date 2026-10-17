@@ -16,7 +16,6 @@ function inputs(over: Partial<WingImbalanceInputs> = {}): WingImbalanceInputs {
   };
 }
 
-/* A380 FCOM DSC-28-20 FUEL SD (a380_fcom.txt l.58608-58617, 58657-58666) with FUEL WINGS NOT BALANCED (l.154814-154824) */
 describe('FUEL SD wing imbalance underlines', () => {
   it('underlines nothing when balanced', () => {
     const r = new WingImbalanceIndication().update(inputs());

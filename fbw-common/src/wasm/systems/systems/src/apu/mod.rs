@@ -2537,8 +2537,7 @@ mod tests {
         >(
             #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
         ) {
-            // A320 FCOM DSC-49-20 FAULT lt (a320_fcom.txt l.60663) "DC power lost", A380 FCOM DSC-49-40 "No normal DC
-            // power": above N 70 % the ECB still runs on the APU and shuts it down with a FAULT
+            // DC power lost: above N 70 % the ECB still runs on the APU and shuts it down with a FAULT
             let mut test_bed = bed_with
                 .starting_apu()
                 .unpower_dc_bat_bus_between(Ratio::new::<percent>(70.), Ratio::new::<percent>(90.))
@@ -2565,7 +2564,7 @@ mod tests {
         >(
             #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
         ) {
-            // A320: "BAT OFF when aircraft on batteries only" (a320_fcom.txt l.60663)
+            // A320: BAT OFF on batteries only is a DC power loss too
             let mut test_bed = bed_with
                 .running_apu()
                 .and()
@@ -2618,8 +2617,7 @@ mod tests {
             #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
             #[case] failure: FailureType,
         ) {
-            // A320 FCOM DSC-49-20 FAULT lt (a320_fcom.txt l.60649-60673), A380 FCOM DSC-49-40 (a380_fcom.txt
-            // l.108880-108900): overspeed, low oil pressure, ECB failure, in flight and on the ground
+            // Both aircraft: overspeed, low oil pressure and ECB failure shut down in flight and on the ground
             let mut test_bed = bed_with
                 .running_apu()
                 .and()
@@ -2692,7 +2690,7 @@ mod tests {
 
         #[test]
         fn aps3200_shuts_down_on_a_high_oil_temperature_in_flight() {
-            // A320 FCOM DSC-49-20 (a320_fcom.txt l.60660): "High oil temperature", no ground-only restriction
+            // A320: a high oil temperature shuts the APU down in flight too
             let mut test_bed = test_bed_aps3200()
                 .on_ground(false)
                 .running_apu()
@@ -2706,7 +2704,7 @@ mod tests {
 
         #[test]
         fn pw980_shuts_down_on_a_high_oil_temperature_on_the_ground_only() {
-            // A380 FCOM DSC-49-40 (a380_fcom.txt l.108893): "APU oil high temperature: On Ground Yes, In Flight No"
+            // A380: a high oil temperature shuts the APU down on the ground only
             let mut test_bed = test_bed_pw980()
                 .on_ground(false)
                 .running_apu()

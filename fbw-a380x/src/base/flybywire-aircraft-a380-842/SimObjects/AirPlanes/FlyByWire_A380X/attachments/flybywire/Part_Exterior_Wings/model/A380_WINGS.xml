@@ -271,8 +271,8 @@
 			  ASOBO_CONTRAIL_QUAD_FX / RIBBON_FX templates of the SDK Generic/FX.xml) and the FADEC fuel flow is above 0
 			  (L:A32NX_ENGINE_FF:n, fadec_a380x EngineControl_A380X.cpp: 0 as soon as the fuel is cut by a flameout or a
 			  seizure, by the ENG MASTER OFF or by an unlit relight). The fuel flow covers the times MSFS kept its
-			  combustion flag with no fuel (20 to 60 s after a shutdown, 27 s after a FIRE pb push-in, sim recordings
-			  2026-10-05/06); the combustion covers an engine MSFS no longer burns while the FADEC still runs it. No N3
+			  combustion flag with no fuel (20 to 60 s after a shutdown, 27 s after a FIRE pb push-in, sim
+			  recordings); the combustion covers an engine MSFS no longer burns while the FADEC still runs it. No N3
 			  threshold: an A380 core speed limit for "running" has no source (the A32NX N2 > 25 % is A32NX-specific).
 			- Exhaust node of each engine in A380_WINGS.gltf, from the node positions: LEFT1 = engine 1 (left outer), RIGHT2 =
 			  engine 2 (left inner), RIGHT3 = engine 3 (right inner), RIGHT4 = engine 4 (right outer). The ribbon contrails

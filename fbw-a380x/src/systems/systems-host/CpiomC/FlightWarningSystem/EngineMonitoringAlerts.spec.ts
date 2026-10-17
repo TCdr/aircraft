@@ -35,7 +35,6 @@ const notOpenOnGround = {
   firePbReleased: false,
 };
 
-/* A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) HP FUEL VLV FAULT, a380_fcom.txt l.172172-172226 */
 describe('ENG n HP FUEL VLV FAULT', () => {
   it('is active while the FADEC reports an abnormal valve position', () => {
     expect(isHpFuelVlvFaultActive(HpFuelValveFault.None)).toBe(false);
@@ -65,7 +64,7 @@ describe('ENG n HP FUEL VLV FAULT', () => {
     expect(hpFuelVlvFaultItems({ ...shutdown, onGround: false }).show[6]).toBe(false);
   });
 
-  it('is an amber caution with single chime and MASTER CAUT, inhibited as on the FCOM figure (PDF page 5789)', () => {
+  it('is an amber caution with single chime and MASTER CAUT, inhibited as on the aircraft', () => {
     expect(HP_FUEL_VLV_FAULT_LEVEL).toBe(2);
     expect(HP_FUEL_VLV_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 9, 10]);
   });
@@ -88,7 +87,7 @@ describe('ENG n HP FUEL VLV FAULT', () => {
 describe('FADEC fault crew awareness alerts', () => {
   const byVariable = (variable: string) => ENGINE_MONITORING_ALERTS.find((alert) => alert.variable === variable);
 
-  it('have the ata70 keys and flight phase inhibitions of the FCOM figures', () => {
+  it('have the ata70 keys and flight phase inhibitions of the aircraft', () => {
     expect(byVariable('FUEL_STRAINER_CLOGGED')).toEqual({
       variable: 'FUEL_STRAINER_CLOGGED',
       engine1Key: 701800045,

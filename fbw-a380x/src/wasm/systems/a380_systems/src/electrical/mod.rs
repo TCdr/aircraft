@@ -414,9 +414,8 @@ impl A380ElectricalOverheadPanel {
                 gen.set_fault(electrical.gen_contactor_open(index + 1) && gen.is_on());
             });
 
-        // A380 FCOM DSC-24-20 DRIVE pb (a380_fcom.txt:50789-50796, PDF p.1661): FAULT "The engine generator must be
-        // disconnected from the engine", with ELEC DRIVE OIL OVHT and ELEC DRIVE OIL PRESS LO. The drive signals stop
-        // once it is disconnected (DISC light).
+        // DRIVE pb FAULT: the engine generator must be disconnected from the engine (ELEC DRIVE OIL OVHT, ELEC DRIVE
+        // OIL PRESS LO). The drive signals stop once it is disconnected (DISC light).
         self.idgs.iter_mut().enumerate().for_each(|(index, drive)| {
             drive.set_disconnected(!electrical.gen_drive_connected(index + 1));
             drive.set_fault(electrical.gen_drive_has_fault(index + 1));
@@ -3435,8 +3434,7 @@ mod a380_electrical_circuit_tests {
     #[case(1)]
     #[case(4)]
     fn drive_pb_fault_light_comes_on_with_a_low_drive_oil_pressure(#[case] number: usize) {
-        // A380 FCOM DSC-24-20 DRIVE pb FAULT (a380_fcom.txt:50789-50796): "The engine generator must be
-        // disconnected from the engine", with ELEC DRIVE OIL OVHT and ELEC DRIVE OIL PRESS LO
+        // DRIVE pb FAULT: the engine generator must be disconnected (ELEC DRIVE OIL OVHT, ELEC DRIVE OIL PRESS LO)
         let mut test_bed = test_bed_with().running_engines().run();
         assert!(!test_bed.drive_has_fault(number));
 
@@ -3462,9 +3460,7 @@ mod a380_electrical_circuit_tests {
     fn apu_gen_pb_fault_light_comes_on_when_the_apu_generator_is_disconnected(
         #[case] number: usize,
     ) {
-        // A380 FCOM DSC-24-20 APU GEN A(B) pb-sw FAULT (PDF p.1660, a380_fcom.txt:50749-50754): "The APU generator
-        // is disconnected from the electrical network. The applicable GGPCU disconnects the APU generator from the
-        // electrical network." with ELEC APU GEN A(B) FAULT
+        // APU GEN A(B) pb-sw FAULT: the GGPCU has disconnected the APU generator (ELEC APU GEN A(B) FAULT)
         let mut test_bed = test_bed_with().running_apu().run();
         assert!(!test_bed.apu_gen_has_fault(number));
 
