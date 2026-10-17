@@ -768,6 +768,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/PFD] FMA shows MAN DTO instead of MAN FLX +0 for a derated takeoff - @TCdr
 1. [A380X/OIT] The keys of the captain and F/O Additional Control Devices beside the OITs (OIS XFR, OIS MENU, ESC, ENTER, arrows) work, with sharp lit legends and larger click areas - @TCdr
 1. [A380X/HYD] With only one electric pump on ground, the hydraulic pressure rises steadily to normal while the drooped flight controls re-centre, instead of saw-toothing between about 2 900 and 4 300 psi - @TCdr
+1. [A380X/ENG] After ENG MASTER OFF the N3 runs down more slowly from idle (45 % after about 10 s, stopped after about a minute), and setting the ENG MASTER back ON relights the engine while the N3 shown is above 45 % - @TCdr
 
 ## 2024.1.0
 

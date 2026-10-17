@@ -117,6 +117,10 @@ class EngineControl_A380X {
   static constexpr double SEIZED_CORE_DECAY_RATE = 2.0;  // 1/s
   static constexpr double SEIZED_CORE_STOPPED_N3 = 0.5;  // percent
 
+  // Design choice: after the ENG MASTER is set to OFF, N3 holds for this time while the fuel valve closes and the flame
+  // dies out, before the HP spool runs down.
+  static constexpr double SHUTDOWN_FLAME_OUT_DELAY_SECONDS = 1.8;
+
   /**
    * @enum EngineState
    * @brief Enumerates the possible states for the engine state machine.

@@ -50,6 +50,9 @@ constexpr double EGT_OVERSHOOT_RATE_CELSIUS_PER_SECOND = 30.0;
 /// air runs down with it.
 constexpr double UNLIT_N3_TIME_CONSTANT_SECONDS = 2.0;
 
+/// The quick relight of the FADEC needs the HP spool above this speed (percent N3, the HP spool of the three-spool Trent).
+constexpr double QUICK_RELIGHT_MIN_N3 = 45.0;
+
 /**
  * @brief The start sequence keeps the start going (STARTING) while it cuts the fuel: a start attempt not lit up yet, the
  * automatic dry crank between attempts, or a wet crank, on the ground with the ENG MASTER ON.
@@ -124,6 +127,16 @@ class RestingCore {
  */
 inline bool offEngineIsRunning(int engineIgniter, bool engineStarter, double simN3, bool simCombustion) {
   return engineIgniter == 1 && engineStarter && simN3 > 20 && simCombustion;
+}
+
+/**
+ * @brief A shutting down engine relights (SHUTTING becomes RESTARTING) without the ENG START selector at IGN/START: the ENG
+ * MASTER is back ON, or a flameout relights, while the HP spool still turns above 45 % N3. The limit applies to the N3 the
+ * FADEC shows, the same speed the quick relight of the systems WASM reads, and not to the MSFS core speed, which runs down on
+ * its own curve.
+ */
+inline bool shuttingEngineRelights(bool engineStarter, double fadecN3) {
+  return engineStarter && fadecN3 > QUICK_RELIGHT_MIN_N3;
 }
 
 /**
