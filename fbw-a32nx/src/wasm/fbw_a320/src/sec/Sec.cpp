@@ -59,10 +59,9 @@ void Sec::monitorSelf(bool faultActive) {
 // If an outage lasts more than 10ms, stop the program execution.
 // If the power has been restored after an outage that lasted longer than 10ms, reset the RAM and
 // perform the startup sequence.
-// In flight the SEC comes back at once, without its power-up test: the FCOM gives an in-flight power-up test "after
-// the occurrence of an electrical transient lasting longer than 25 ms" (with FAULT light and ECAM caution) to the ELAC
-// only (DSC-27-20-30, ELAC pb). The SEC FAULT light comes on, with an ECAM caution, "when a failure is detected"
-// (DSC-27-20-30, SEC pb; F/CTL SEC 1(2)(3) FAULT: "a failure of one SEC").
+// In flight the SEC comes back at once, without its power-up test: only the ELAC has an in-flight power-up test after
+// an electrical transient longer than 25 ms (with FAULT light and ECAM caution). The SEC FAULT light comes on, with an
+// ECAM caution, only when a SEC failure is detected.
 void Sec::monitorPowerSupply(double deltaTime, bool isPowered) {
   if (powerSupplyMonitor.update(deltaTime, isPowered)) {
     if (!isInFlight()) {

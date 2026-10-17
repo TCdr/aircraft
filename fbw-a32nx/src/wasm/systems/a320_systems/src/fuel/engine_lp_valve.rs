@@ -1,19 +1,12 @@
 //! Engine low-pressure (LP) fuel valves of the A320 and the fuel left between each valve and its
 //! engine.
 //!
-//! FCOM DSC-28-10-30 (ENGINE LP VALVES): "The engine fuel flow can be stopped by its low pressure
-//! (LP) fuel valve. The LP fuel valve is closed by either: The engine master switch, or The ENG FIRE
-//! PUSH pushbutton."
+//! The engine fuel flow stops when its LP fuel valve closes: the ENG MASTER switch or the ENG FIRE
+//! pb (pushed and released, it also closes the LP fuel valve) closes it.
 //!
-//! FCOM DSC-26-20-20 (ENG 1(2) FIRE PB): when the flight crew pushes it, the pushbutton is released
-//! and, among other actions, "Closes the low-pressure fuel valve".
-//!
-//! Closing the LP valve does not stop the engine at once. FCOM PRO-ABN-ENG (ON GROUND - NON ENG
-//! SHUTDOWN AFTER ENG MASTER OFF): "Using the ENG FIRE pb-sw will force the LP fuel valve to close.
-//! The engine will shut down after a time delay." ... "ENGINE WILL SHUT DOWN AFTER A TIME DELAY UP
-//! TO 2 MIN 30 S. The engine shuts down when the remaining fuel between the LP fuel valve and the
-//! nozzles is burned. The time delay for engine shutdown depends on airport altitude and fuel
-//! recirculation system operation."
+//! Closing the LP valve does not stop the engine at once: the engine shuts down after a time delay
+//! of up to 2 min 30 s, once the fuel left between the LP fuel valve and the nozzles is burned. The
+//! delay depends on the airport altitude and on the fuel recirculation system.
 //!
 //! The valve and the fuel left downstream of it are simulated by the aircraft-independent
 //! `systems::fuel::engine_lp_valve::EngineLpFuelValve`; this module gives it the A320 travel time
@@ -40,18 +33,17 @@ pub struct EngineLpFuelValve {
     valve: engine_lp_valve::EngineLpFuelValve,
 }
 impl EngineLpFuelValve {
-    /// The FCOM gives no LP valve travel time. The valve travels in the same 1.7 s as the MSFS
-    /// engine fuel valves of flight_model.cfg (Valve.1/2 OpeningTime), so the SD FUEL page keeps
-    /// showing the amber transit indication as it did before.
+    /// No published LP valve travel time. The valve travels in the same 1.7 s as the MSFS engine
+    /// fuel valves of flight_model.cfg (Valve.1/2 OpeningTime), so the SD FUEL page keeps showing
+    /// the amber transit indication.
     const TRAVEL_TIME: Duration = Duration::from_millis(1700);
 
-    /// FCOM PRO-ABN-ENG: "ENGINE WILL SHUT DOWN AFTER A TIME DELAY UP TO 2 MIN 30 S".
+    /// With the ENG FIRE pb pushed the engine shuts down within 2 min 30 s.
     const MAX_SHUTDOWN_DELAY_SECONDS: f64 = 150.;
 
     /// The lowest ground idle fuel flow of the FADEC within the airfield range of the aircraft, so
-    /// that the time delay never exceeds the FCOM 2 min 30 s at any airport. The FCOM gives
-    /// 14 100 ft as the highest airfield the pressurization system supports (DSC-21-20-30, "high
-    /// airfield operations up to a pressure of 14 100 ft").
+    /// that the time delay never exceeds 2 min 30 s at any airport. The pressurization system
+    /// supports airfields up to a pressure altitude of 14 100 ft.
     ///
     /// Derivation, with the FADEC idle model (EngineControl_A32NX::generateIdleParameters) at
     /// 14 100 ft, ISA (-12.9 degrees C, 594 hPa), Mach 0:
@@ -62,8 +54,8 @@ impl EngineLpFuelValve {
     ///
     /// The fuel downstream of the LP valve is then 196.6 kg/h * 150 s = 8.19 kg. At ground idle it
     /// lasts 150 s at 14 100 ft, 125 s at 8 000 ft and 99 s at sea level (ISA, idle fuel flow
-    /// 298.6 kg/h): the delay depends on airport altitude, as the FCOM says. At a higher fuel flow
-    /// it is burned sooner.
+    /// 298.6 kg/h): the delay depends on the airport altitude, as on the aircraft. At a higher fuel
+    /// flow it is burned sooner.
     const LOWEST_GROUND_IDLE_FUEL_FLOW_KG_PER_HOUR: f64 = 196.6;
 
     pub fn new(context: &mut InitContext, engine_number: usize) -> Self {
@@ -315,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn fire_push_button_starves_the_engine_after_the_fcom_delay_at_the_lowest_idle_fuel_flow() {
+    fn fire_push_button_starves_the_engine_after_2_min_30_s_at_the_lowest_idle_fuel_flow() {
         let mut test_bed = test_bed()
             .fuel_flow(
                 1,

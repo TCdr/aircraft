@@ -12,13 +12,12 @@
  *
  * The FADEC (EngineControlA32NX.cpp) computes the inner wing tank quantities itself, so it takes the leaked fuel out of
  * the inner tank of the leaking wing. The leaked fuel is not counted in the fuel used: FOB + fuel used drops below the
- * initial FOB, which gives FUEL F. USED/FOB DISAGREE (A320 FCOM PRO-ABN-FUEL, a320_fcom.txt l.85866-85874: "This alert
- * triggers when the difference between the initial FOB and the actual FOB + fuel used is significant", "FUEL LEAK PROC
- * ... APPLY"), and a fuel imbalance develops ([QRH] FUEL LEAK, l.84858-84866).
+ * initial FOB, which gives FUEL F. USED/FOB DISAGREE (a significant difference between the initial FOB and the actual
+ * FOB + fuel used, which calls for the fuel leak procedure), and a fuel imbalance develops.
  */
 namespace WingTankLeak_A32NX {
 
-/// Design choice (the FCOM gives no leak rate): a leaking wing tank loses 3 000 kg/h, so that the 1 500 kg of
+/// Design choice (no published leak rate): a leaking wing tank loses 3 000 kg/h, so that the 1 500 kg of
 /// F. USED/FOB DISAGREE (systems-host FWC/Logic/FuelSystemFaultAlerts) are reached after 30 min.
 constexpr double LEAK_RATE_KG_PER_HOUR = 3000.0;
 

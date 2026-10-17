@@ -7,32 +7,30 @@
 //! N1 of a stalled engine, the FWC raises ENG 1(2) STALL and ENG 1(2) N1/N2/EGT OVER LIMIT, and the
 //! ENGINE SD page shows the vibrations.
 //!
-//! Every value below is a design choice: the FCOM gives the symptoms and the limits, not how a
-//! failed engine behaves. The values are chosen against the FCOM limits (A320 FCOM PRO-ABN-ENG,
-//! a320_fcom.txt):
-//! - ENG 1(2) N1/N2/EGT OVER LIMIT (l.80420-80423): N1 101 %, N2 116.5 %, the LEAP-1A red lines
-//!   in place of the CFM56 104 % and 105 % of the FCOM (EngineLimits.ts). The EGT limits are those
-//!   of the EWD (CFM56-5B TCDS, 905 degC at CLB/MCT, 940 degC at TOGA/FLX, red above 975 degC;
-//!   systems/shared/src/EngineLimits.ts). The EGT overtemperature (120 degC at 100 % N1) takes
-//!   a climb EGT above its limit, which the crew brings back below the limit by reducing the
-//!   thrust. The overspeed is tuned on the LEAP-1A red lines (design choice, 2026-10-12): +20 %
-//!   of the N1 up to an N1 indication of 101.9 %, +6 % of the N2 up to 116.9 %. The take-off and
-//!   climb N1 of the sim (85.4-88.2 % in the recording of 2026-10-11) gives an N1 of 101.9 %: above
-//!   the 101 % red line, below the 102.8 % second band of the procedure (THR LEVER BELOW LIMIT, not
-//!   ENG MASTER OFF). Reducing the thrust below about 84.2 % N1 ends the alert. Each ceiling sits
-//!   in the middle of the first band (101-102.8 % N1, 116.5-117.3 % N2). A pure fraction cannot do
+//! Every value below is a design choice: the aircraft gives the symptoms and the limits, not how a
+//! failed engine behaves. The values are chosen against those limits:
+//! - ENG 1(2) N1/N2/EGT OVER LIMIT: N1 101 %, N2 116.5 %, the LEAP-1A red lines in place of the
+//!   CFM56 104 % and 105 % (EngineLimits.ts). The EGT limits are those of the EWD (905 degC at
+//!   CLB/MCT, 940 degC at TOGA/FLX, red above 975 degC; systems/shared/src/EngineLimits.ts). The
+//!   EGT overtemperature (120 degC at 100 % N1) takes a climb EGT above its limit, which the crew
+//!   brings back below the limit by reducing the thrust. The overspeed is tuned on the LEAP-1A red
+//!   lines: +20 % of the N1 up to an N1 indication of 101.9 %, +6 % of the N2 up to 116.9 %. The
+//!   take-off and climb N1 measured in the sim (85.4-88.2 %) gives an N1 of 101.9 %: above the
+//!   101 % red line, below the 102.8 % second band of the procedure (THR LEVER BELOW LIMIT, not ENG
+//!   MASTER OFF). Reducing the thrust below about 84.2 % N1 ends the alert. Each ceiling sits in
+//!   the middle of the first band (101-102.8 % N1, 116.5-117.3 % N2). A pure fraction cannot do
 //!   this: the first band is less than 1.8 % wide in engine N1, narrower than the take-off N1
-//!   spread (2.5 %). The previous +7 % N1 reached 101 % only from 94.4 % N1, above any take-off N1
-//!   of the sim. Side effect: at idle the N1 indication is about a fifth higher (24 % for 20 %).
-//! - [QRH] HIGH ENGINE VIBRATION (l.78936): the VIB advisory is N1 6 units, N2 4.3 units. The
-//!   high vibration failure (N1 8 units at 100 % N1, N2 5 units at 100 % N2, with the square of
-//!   the rotor speed) is above the advisory at climb and cruise thrust, below it once the thrust
-//!   is reduced (N2 below about 78 %), and clearly below it at idle (sim test 2026-10-06: N2 4.6
-//!   units at idle with a vibration proportional to the rotor speed).
-//! - ENG 1(2) STALL (l.81322-81326): fluctuating parameters, sluggish thrust lever response, high
-//!   EGT. The engine stalls when the N1 command is at or above 60 % (above the approach thrust) and
-//!   recovers below 57 %: the QRH ENG STALL procedure (l.78834-78867) sets the thrust lever to IDLE,
-//!   then slowly forward until the stall recurs.
+//!   spread (2.5 %). Side effect: at idle the N1 indication is about a fifth higher (24 % for
+//!   20 %).
+//! - HIGH ENGINE VIBRATION: the VIB advisory is N1 6 units, N2 4.3 units. The high vibration
+//!   failure (N1 8 units at 100 % N1, N2 5 units at 100 % N2, with the square of the rotor speed)
+//!   is above the advisory at climb and cruise thrust, below it once the thrust is reduced (N2
+//!   below about 78 %), and clearly below it at idle (measured in the sim: a vibration proportional
+//!   to the rotor speed stayed at N2 4.6 units at idle).
+//! - ENG 1(2) STALL: fluctuating parameters, sluggish thrust lever response, high EGT. The engine
+//!   stalls when the N1 command is at or above 60 % (above the approach thrust) and recovers below
+//!   57 %: the ENG STALL procedure sets the thrust lever to IDLE, then slowly forward until the
+//!   stall recurs.
 
 use systems::{
     engine::engine_malfunction::{
@@ -188,8 +186,8 @@ mod tests {
         }
     }
 
-    /// Engine 1 with the high vibration failure at an N1 and N2, with the MSFS vibration of the
-    /// sim test of 2026-10-06 (2.0 at idle, 2.4 at cruise), after 40 s.
+    /// Engine 1 with the high vibration failure at an N1 and N2, with the MSFS vibration measured
+    /// in the sim (2.0 at idle, 2.4 at cruise), after 40 s.
     fn vibrations_with_the_failure_at(n1: f64, n2: f64, msfs_vibration: f64) -> (f64, f64) {
         let mut test_bed = SimulationTestBed::new(TestAircraft::new);
         test_bed.set_on_ground(false);
@@ -208,8 +206,9 @@ mod tests {
         )
     }
 
-    /// [QRH] HIGH ENGINE VIBRATION: THRUST REDUCE BELOW ADVISORY THRESHOLD. Sim test 2026-10-06:
-    /// with the thrust lever at IDLE the N2 vibration stayed at 4.6 units, above the 4.3 advisory.
+    /// HIGH ENGINE VIBRATION: THRUST REDUCE BELOW ADVISORY THRESHOLD. Measured in the sim with a
+    /// vibration proportional to the rotor speed: at IDLE the N2 vibration stayed at 4.6 units,
+    /// above the 4.3 advisory.
     #[test]
     fn at_idle_the_vibrations_are_clearly_below_the_advisory() {
         let (n1_vibration, n2_vibration) = vibrations_with_the_failure_at(30., 69., 2.);
@@ -243,8 +242,8 @@ mod tests {
     const N2_RED_LIMIT: f64 = 116.5;
     const N2_SHUTDOWN_BAND: f64 = 117.3;
 
-    /// The take-off and climb N1 and N2 of the recording of 2026-10-11 (TOGA 85.7-88.2 % N1,
-    /// 104.6-105.8 % N2; climb 85.4 % N1).
+    /// The take-off and climb N1 and N2 measured in the sim (TOGA 85.7-88.2 % N1, 104.6-105.8 % N2;
+    /// climb 85.4 % N1).
     #[test]
     fn at_take_off_and_climb_thrust_the_overspeed_is_above_the_red_line_in_the_first_band() {
         for (n1, n2) in [(85.4, 103.), (85.7, 104.6), (88., 105.), (88.2, 105.8)] {

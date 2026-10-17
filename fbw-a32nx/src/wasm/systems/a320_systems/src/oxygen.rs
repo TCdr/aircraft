@@ -14,15 +14,14 @@ use uom::si::{f64::*, pressure::psi, ratio::ratio, thermodynamic_temperature::ke
 /// temperature - already computed by [`crate::air_conditioning::A320AirConditioning`] - is used
 /// as a stand-in for that compartment), plus a very slow background leak.
 ///
-/// No FCOM figure for *normal* background leakage could be sourced; maintenance documentation
-/// only specifies an abnormal-fault threshold of roughly 48psi/day. [`Self::LEAK_RATIO_PER_SECOND`]
-/// is a conservative placeholder intentionally far below that figure, so the bottle does not
-/// noticeably deplete within a single flight - consistent with how these bottles behave in
-/// service between scheduled recharges.
+/// Design choice: no value is published for the normal background leakage, only an abnormal-fault
+/// threshold of roughly 48psi/day. [`Self::LEAK_RATIO_PER_SECOND`] is a conservative placeholder
+/// far below that figure, so the bottle does not noticeably deplete within a single flight -
+/// consistent with how these bottles behave in service between scheduled recharges.
 ///
 /// The flyPad crew oxygen bottle leak (FailureType::CockpitOxygenBottleLeak) takes 100 PSI/min more, the rate of the
-/// A380X cockpit bottle leak: the DOOR/OXY page value pulses below 600 PSI and is amber below 300 PSI, CKPT OXY turns
-/// amber below 300 PSI (FCOM DSC-35-20-20, a320_fcom.txt l.56814-56818, 56825-56831). The FCOM gives no leak rate.
+/// A380X cockpit bottle leak (no published leak rate): the DOOR/OXY page value pulses below 600 PSI and is amber below
+/// 300 PSI, CKPT OXY turns amber below 300 PSI.
 pub struct A320Oxygen {
     crew_bottle_pressure_id: VariableIdentifier,
     cockpit_duct_temperature_id: VariableIdentifier,
@@ -146,7 +145,7 @@ mod tests {
     }
 
     /// The leak takes 100 PSI/min, the rate of the A380X cockpit bottle leak (a380_systems oxygen.rs): the DOOR/OXY
-    /// page value pulses below 600 PSI and is amber below 300 PSI (FCOM DSC-35-20-20 l.56814-56818)
+    /// page value pulses below 600 PSI and is amber below 300 PSI
     #[test]
     fn a_crew_bottle_leak_brings_the_pressure_below_300_psi_after_16_min() {
         let mut test_bed = test_bed();

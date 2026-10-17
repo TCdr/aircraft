@@ -124,7 +124,7 @@ impl SlatFlapControlComputer {
         let mut word = Arinc429Word::new(0, SignStatus::NormalOperation);
 
         // Slat fault and flap fault: the channel lost the control of its motor (flyPad failure). They trigger F/CTL
-        // SLAT(FLAP) SYS 1(2) FAULT (a320_fcom.txt l.84321-84341, l.83217-83247)
+        // SLAT(FLAP) SYS 1(2) FAULT
         word.set_bit(11, self.slats_channel.is_failed());
         word.set_bit(12, self.flaps_channel.is_failed());
         word.set_bit(13, false);

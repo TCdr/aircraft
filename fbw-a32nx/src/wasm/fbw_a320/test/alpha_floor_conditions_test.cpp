@@ -3,12 +3,11 @@
 
 // Native test of the FAC alpha floor signal (src/fac/AlphaFloorConditions.h): run test/run_tests.sh.
 //
-// A320 FCOM DSC-22_40-30 ALPHA-FLOOR (a320_fcom.txt l.34135-34141): the floor is also activated when the "Sidestick
-// deflection is greater than 14 deg nose up, with either the pitch attitude or the angle-of-attack protection active",
-// "available from lift-off to 100 ft RA before landing", "inhibited above M 0.6"; l.34163-34164: "Alpha-floor is lost
-// in engine-out, when slats/flaps are extended".
-// Built with -DWITHOUT_THE_FIX, the FAC sends the FacComputer signal unchanged (as before the fix): the sidestick and
-// engine-out checks then fail.
+// The floor is also activated when the sidestick is deflected more than 14 deg nose up with either the pitch attitude
+// or the angle-of-attack protection active; it is available from lift-off to 100 ft RA before landing, inhibited above
+// M 0.6, and lost in engine-out when the slats/flaps are extended.
+// Built with -DWITHOUT_THE_FIX, the FAC sends the FacComputer signal unchanged: the sidestick and engine-out checks
+// then fail.
 
 #include <cstdio>
 
@@ -77,7 +76,7 @@ static void sidestickNoseUpWithProtectionGivesAlphaFloor() {
   InFlight fac;
   fac.in.sidestickNoseUpDeg = 15;
   fac.in.angleOfAttackProtectionActive = true;
-  expect(fac.update(), "15 deg nose up with the AoA protection active: alpha floor (l.34137)");
+  expect(fac.update(), "15 deg nose up with the AoA protection active: alpha floor");
 }
 
 static void sidestickAt13DegHasNoAlphaFloor() {
@@ -97,7 +96,7 @@ static void sidestickCaseInhibitedAboveMach06() {
   InFlight fac;
   fac.fullBackStickWithProtection();
   fac.in.mach = 0.65;
-  expect(!fac.update(), "full back stick with protection at M 0.65: no alpha floor (l.34141)");
+  expect(!fac.update(), "full back stick with protection at M 0.65: no alpha floor");
 }
 
 static void sidestickCaseInhibitedBelow100FtInApproach() {
@@ -105,7 +104,7 @@ static void sidestickCaseInhibitedBelow100FtInApproach() {
   fac.in.radioHeightFt = 90;
   fac.update();
   fac.fullBackStickWithProtection();
-  expect(!fac.update(), "full back stick with protection at 90 ft in approach: no alpha floor (l.34139)");
+  expect(!fac.update(), "full back stick with protection at 90 ft in approach: no alpha floor");
 }
 
 static void sidestickCaseAvailableAfterLiftOff() {
@@ -119,7 +118,7 @@ static void sidestickCaseAvailableAfterLiftOff() {
   expect(!signal.update(in), "on the ground: no alpha floor");
   in.onGround = false;
   in.radioHeightFt = 40;
-  expect(signal.update(in), "after lift-off, below 100 ft: alpha floor available (l.34139)");
+  expect(signal.update(in), "after lift-off, below 100 ft: alpha floor available");
 }
 
 static void sidestickCaseStaysAvailableWithoutRadioHeightInCruise() {
@@ -136,7 +135,7 @@ static void alphaFloorLostInEngineOutWithSlatsOrFlapsExtended() {
   fac.in.facAlphaFloor = true;
   fac.in.engineOut = true;
   fac.in.slatsOrFlapsExtended = true;
-  expect(!fac.update(), "engine out with slats/flaps extended: alpha floor lost (l.34164)");
+  expect(!fac.update(), "engine out with slats/flaps extended: alpha floor lost");
 }
 
 static void alphaFloorKeptInEngineOutClean() {

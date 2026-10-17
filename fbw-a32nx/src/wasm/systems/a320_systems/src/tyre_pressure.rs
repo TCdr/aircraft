@@ -2,15 +2,14 @@
 //! source of the WHEEL page tyre pressures and of the WHEEL TYRE LO PR alert of the FWC (both in TypeScript,
 //! shared/TyrePressures.ts, with the flyPad option "TPIS installed").
 //!
-//! A320 FCOM PRO-ABN-WHEEL WHEEL TYRE LO PR (a320_fcom.txt:96406-96414): the alert triggers when "One tire pressure is
-//! below: 74% of nominal pressure between liftoff and engines shutdown, or 89% of nominal pressure in other cases", or
-//! when the difference between the two wheels of the same axle is "above: 21% of nominal pressure between liftoff and
-//! engines shutdown, or 15% of nominal pressure in other cases". The TPIS is lost with ELEC DC BUS 1 FAULT (INOP list,
-//! a320_fcom.txt:76400).
+//! WHEEL TYRE LO PR triggers when one tyre pressure is below 74 % of the nominal pressure between liftoff and engine
+//! shutdown (89 % in other cases), or when the difference between the two wheels of one axle is above 21 % of the
+//! nominal pressure between liftoff and engine shutdown (15 % in other cases). The TPIS is lost with ELEC DC BUS 1
+//! FAULT.
 //!
-//! The FCOM gives no tyre figures. Design choices:
-//! - The nominal pressures (A320 main 46x17R20 and nose 30x8.8R15 tyres): main 200 PSI, nose 180 PSI, the inflation
-//!   pressures of the Airbus A320 Aircraft Characteristics document to be checked.
+//! No published tyre figures. Design choices:
+//! - The nominal pressures (A320 main 46x17R20 and nose 30x8.8R15 tyres): main 200 PSI, nose 180 PSI, still to be
+//!   checked against the published A320 inflation pressures.
 //! - The tyres are inflated to their nominal pressure at the outside air temperature of the start of the session.
 //!   The pressure then follows the gas temperature (Gay-Lussac: the absolute pressure is proportional to the absolute
 //!   temperature). The gas temperature tends to the outside air temperature with a 2 h time constant (the wheel wells
@@ -209,7 +208,7 @@ impl A320TyrePressureIndicatingSystem {
                 .get_identifier("TPIS_MAIN_NOMINAL_TYRE_PRESSURE".to_owned()),
             nose_nominal_pressure_id: context
                 .get_identifier("TPIS_NOSE_NOMINAL_TYRE_PRESSURE".to_owned()),
-            // ELEC DC BUS 1 FAULT INOP SYS "TPIS" (a320_fcom.txt:76400)
+            // ELEC DC BUS 1 FAULT INOP SYS TPIS
             powered_by: ElectricalBusType::DirectCurrent(1),
             is_powered: false,
             tyres,
@@ -379,7 +378,7 @@ mod tests {
         assert_about_eq!(pressure_psi(&mut test_bed, "MAIN_1"), 200., 0.5);
     }
 
-    /// ELEC DC BUS 1 FAULT: TPIS lost (a320_fcom.txt:76400)
+    /// ELEC DC BUS 1 FAULT: TPIS lost
     #[test]
     fn the_pressures_are_lost_without_dc_bus_1() {
         let mut test_bed = test_bed();
@@ -391,7 +390,7 @@ mod tests {
     }
 
     /// The cold soak of a long cruise lowers the pressure (gas law), less than the 74 % in-flight threshold of WHEEL
-    /// TYRE LO PR (a320_fcom.txt:96410)
+    /// TYRE LO PR
     #[test]
     fn a_cold_cruise_lowers_the_pressure() {
         let mut test_bed = test_bed();

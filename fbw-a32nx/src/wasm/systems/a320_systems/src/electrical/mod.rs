@@ -221,8 +221,8 @@ impl A320Electrical {
         self.alternating_current.idg_has_fault(number)
     }
 
-    /// The load of an engine generator or of the APU generator is above 100 % of its rated
-    /// output: GALY & CAB push button FAULT light (A320 FCOM DSC-24-20 l.37239-37240).
+    /// The load of an engine generator or of the APU generator is above 100 % of its rated output:
+    /// GALY & CAB push button FAULT light.
     fn any_generator_overloaded(&self, apu: &impl AuxiliaryPowerUnitElectrical) -> bool {
         self.alternating_current.engine_generator_is_overloaded(1)
             || self.alternating_current.engine_generator_is_overloaded(2)
@@ -322,7 +322,6 @@ impl A320ElectricalOverheadPanel {
                 gen.set_fault(electrical.gen_contactor_open(index + 1) && gen.is_on());
             });
 
-        // A320 FCOM DSC-24-20 BAT pb FAULT, l.37115-37117
         self.batteries
             .iter_mut()
             .enumerate()
@@ -330,7 +329,6 @@ impl A320ElectricalOverheadPanel {
                 bat.set_fault(electrical.battery_charge_limiter_has_fault(index + 1));
             });
 
-        // A320 FCOM DSC-24-20 IDG pb FAULT, l.37132-37135
         self.idgs.iter_mut().enumerate().for_each(|(index, idg)| {
             idg.set_fault(electrical.idg_has_fault(index + 1));
         });
@@ -943,8 +941,8 @@ mod a320_electrical_circuit_tests {
     }
 
     /// # Source
-    /// A320 manual electrical distribution table, once DC BUS 2 has taken over DC BUS 1 and the
-    /// DC BAT BUS (after 5 s, FCOM DSC-24-10-30-30 l.36727)
+    /// A320 manual electrical distribution table, once DC BUS 2 has taken over DC BUS 1 and the DC
+    /// BAT BUS (after 5 s)
     #[test]
     fn distribution_table_tr_1_fault() {
         let test_bed = test_bed_with()
@@ -1436,12 +1434,11 @@ mod a320_electrical_circuit_tests {
         assert!(test_bed.dc_ess_bus_output().is_unpowered());
     }
 
-    /// A320 FCOM PRO-ABN-ELEC ELEC DC BUS 1+2 FAULT (a320_fcom.txt l.76800-76906): the alert is
-    /// "DC 1 and DC 2 busbars are not supplied", its associated procedure is ELEC DC BAT BUS FAULT,
-    /// and its STATUS lists "BOTH PFD ON SAME FAC" with FAC 2, AP 2, FCDC 2 and CAB PRESS 2 as INOP
-    /// SYS, but not FAC 1, AP 1, FCDC 1 or CAB PR 1 (all on the DC ESS BUS, see ELEC DC ESS BUS
-    /// FAULT l.77357-77367). The DC ESS BUS therefore stays supplied, by the ESS TR, although
-    /// TR 1 and TR 2 themselves are still supplied.
+    /// ELEC DC BUS 1+2 FAULT (DC 1 and DC 2 busbars not supplied): its associated procedure is ELEC
+    /// DC BAT BUS FAULT, and its STATUS lists BOTH PFD ON SAME FAC with FAC 2, AP 2, FCDC 2 and CAB
+    /// PRESS 2 as INOP SYS, but not FAC 1, AP 1, FCDC 1 or CAB PR 1 (all on the DC ESS BUS). The DC
+    /// ESS BUS therefore stays supplied, by the ESS TR, although TR 1 and TR 2 themselves are still
+    /// supplied.
     #[test]
     fn when_dc_bus_1_and_2_fail_tr_ess_powers_dc_ess_bus() {
         let test_bed = test_bed_with()
@@ -1462,9 +1459,9 @@ mod a320_electrical_circuit_tests {
             .is_single(PotentialOrigin::TransformerRectifier(3)));
     }
 
-    /// A single DC bus failure keeps the normal DC ESS supply: the remaining DC bus feeds the
-    /// DC BAT BUS (FCOM DSC-24-10-30-30 "DC BUS 2 supplies DC BUS 1 and DC BAT BUS automatically
-    /// after 5 s", l.36727), which feeds the DC ESS BUS; the ESS TR stays disconnected.
+    /// A single DC bus failure keeps the normal DC ESS supply: the remaining DC bus feeds the DC
+    /// BAT BUS (DC BUS 2 takes over DC BUS 1 and the DC BAT BUS after 5 s), which feeds the DC ESS
+    /// BUS; the ESS TR stays disconnected.
     #[test]
     fn when_only_dc_bus_1_fails_dc_bat_bus_keeps_powering_dc_ess_bus() {
         let test_bed = test_bed_with()
@@ -1480,12 +1477,11 @@ mod a320_electrical_circuit_tests {
     }
 
     /// When DC BUS 1 and 2 come back after an ELEC DC BUS 1+2 FAULT, the DC ESS BUS goes back from
-    /// the ESS TR to the DC BAT BUS. FCOM DSC-24-10-30-30 (a320_fcom.txt l.36638): "TR 1 normally
-    /// supplies DC BUS 1, DC BAT BUS, and DC ESS BUS"; nothing in the FCOM describes a loss of the
-    /// DC ESS BUS during that change. The DC ESS BUS and the DC ESS SHED BUS (FMGC 1, FCDC 1, FAC 1,
-    /// FCU channel 1) must stay supplied on every update, otherwise their computers stop (20 ms
-    /// outage limit) and the FCU drops the AP and A/THR. The sim restored DC BUS 1 first, then
-    /// DC BUS 2, one update apart.
+    /// the ESS TR to the DC BAT BUS (TR 1 normally supplies DC BUS 1, the DC BAT BUS and the DC ESS
+    /// BUS), and the aircraft has no loss of the DC ESS BUS during that change. The DC ESS BUS and
+    /// the DC ESS SHED BUS (FMGC 1, FCDC 1, FAC 1, FCU channel 1) must stay supplied on every
+    /// update, otherwise their computers stop (20 ms outage limit) and the FCU drops the AP and
+    /// A/THR. Measured in the sim: DC BUS 1 came back first, then DC BUS 2, one update apart.
     #[test]
     fn dc_ess_bus_stays_powered_on_every_update_when_dc_bus_1_and_2_come_back() {
         let mut test_bed = test_bed_with()
@@ -1517,8 +1513,8 @@ mod a320_electrical_circuit_tests {
         assert!(test_bed.dc_ess_shed_bus_output().is_powered());
     }
 
-    /// Same no-break rule when a single DC bus fails: the other DC bus takes over the DC BAT BUS
-    /// (FCOM DSC-24-10-30-30), and the DC ESS BUS behind it stays supplied on every update.
+    /// Same no-break rule when a single DC bus fails: the other DC bus takes over the DC BAT BUS,
+    /// and the DC ESS BUS behind it stays supplied on every update.
     #[test]
     fn dc_ess_bus_stays_powered_on_every_update_when_dc_bus_1_fails() {
         let mut test_bed = test_bed_with()
@@ -1533,13 +1529,11 @@ mod a320_electrical_circuit_tests {
         assert!(test_bed.dc_ess_shed_bus_output().is_powered());
     }
 
-    /// The 5 s of FCOM DSC-24-10-30-30 "FAILURE OF AC BUS 1" (a320_fcom.txt l.36727): "DC BUS 2
-    /// supplies DC BUS 1 and DC BAT BUS automatically after 5 s."
+    /// DC BUS 2 supplies DC BUS 1 and the DC BAT BUS automatically 5 s after the loss of AC BUS 1.
     const FCOM_DC_BUS_2_TO_DC_BUS_1_DELAY: Duration = Duration::from_secs(5);
 
-    /// FCOM DSC-24-10-30-30 l.36727: once TR 1 is lost, DC BUS 1 and the DC BAT BUS stay
-    /// unsupplied for 5 s before DC BUS 2 takes them over. The DC ESS BUS does not wait: the ESS TR
-    /// supplies it ("FAILURE OF ONE TR", l.36739-36749: "The ESS TR supplies the DC ESS BUS.").
+    /// Once TR 1 is lost, DC BUS 1 and the DC BAT BUS stay unsupplied for 5 s before DC BUS 2 takes
+    /// them over. The DC ESS BUS does not wait: the ESS TR supplies it (failure of one TR).
     #[test]
     fn when_tr_1_fails_dc_bus_2_supplies_dc_bus_1_and_dc_bat_bus_only_after_5_s() {
         let mut test_bed = test_bed_with()
@@ -1565,8 +1559,8 @@ mod a320_electrical_circuit_tests {
             .is_single(PotentialOrigin::TransformerRectifier(2)));
     }
 
-    /// The case the FCOM describes (DSC-24-10-30-30 "FAILURE OF AC BUS 1", l.36719-36727): AC BUS 1
-    /// is lost, which takes TR 1 with it; DC BUS 2 supplies DC BUS 1 and the DC BAT BUS after 5 s.
+    /// The failure of AC BUS 1: AC BUS 1 is lost, which takes TR 1 with it; DC BUS 2 supplies DC
+    /// BUS 1 and the DC BAT BUS after 5 s.
     #[test]
     fn when_ac_bus_1_fails_dc_bus_2_supplies_dc_bus_1_and_dc_bat_bus_only_after_5_s() {
         let mut test_bed = test_bed_with()
@@ -1589,7 +1583,7 @@ mod a320_electrical_circuit_tests {
     }
 
     /// When TR 1 comes back, it takes DC BUS 1 back at once (1PC2 opens on the same update), and a
-    /// second loss of TR 1 waits the full 5 s again (FCOM DSC-24-10-30-30 l.36727).
+    /// second loss of TR 1 waits the full 5 s again.
     #[test]
     fn when_tr_1_comes_back_it_supplies_dc_bus_1_at_once_and_a_new_loss_waits_5_s_again() {
         let mut test_bed = test_bed_with()
@@ -2311,8 +2305,8 @@ mod a320_electrical_circuit_tests {
             .is_single(PotentialOrigin::TransformerRectifier(2)));
     }
 
-    /// A320 FCOM DSC-24-20 MAINT BUS SW (a320_fcom.txt l.37405): "OFF : The AC and DC GND/FLT buses are connected
-    /// to AC BUS 2 and DC BUS 2." Before, external power always fed them, as if the switch were always ON.
+    /// MAINT BUS switch OFF: the AC and DC GND/FLT buses are connected to AC BUS 2 and DC BUS 2, so
+    /// external power alone does not feed them.
     #[test]
     fn with_maint_bus_off_external_power_alone_does_not_power_the_gnd_flt_buses() {
         let test_bed = test_bed_with()
@@ -2327,8 +2321,8 @@ mod a320_electrical_circuit_tests {
         assert!(test_bed.tr_2_input().is_unpowered());
     }
 
-    /// FCOM l.36663-36665: "external power can supply the AC and DC GND/FLT BUSES directly without supplying the
-    /// entire aircraft network", l.37382-37385 "ON : ... The AC and DC GND/FLT buses have power".
+    /// With the MAINT BUS switch ON, external power supplies the AC and DC GND/FLT buses directly,
+    /// without supplying the whole aircraft network.
     #[test]
     fn with_maint_bus_on_external_power_powers_only_the_gnd_flt_buses() {
         let test_bed = test_bed_with()
@@ -2350,8 +2344,8 @@ mod a320_electrical_circuit_tests {
         assert!(test_bed.dc_bus_output(2).is_unpowered());
     }
 
-    /// FCOM l.37382-37383: "The switch latches magnetically if external power is connected and normal (AVAIL light
-    /// on)."
+    /// The switch latches magnetically only if external power is connected and normal (AVAIL light
+    /// on).
     #[test]
     fn maint_bus_switch_does_not_latch_without_external_power() {
         let mut test_bed = test_bed_with()
@@ -2365,7 +2359,6 @@ mod a320_electrical_circuit_tests {
         assert!(test_bed.ac_gnd_flt_service_bus_output().is_unpowered());
     }
 
-    /// FCOM l.37403: "The switch trips when the external source is removed."
     #[test]
     fn maint_bus_switch_trips_when_external_power_is_removed() {
         let mut test_bed = test_bed_with()
@@ -2391,11 +2384,9 @@ mod a320_electrical_circuit_tests {
         assert!(test_bed.ac_gnd_flt_service_bus_output().is_unpowered());
     }
 
-    /// A320 FCOM DSC-24-20 EMER ELEC PWR MAN ON pb (a320_fcom.txt l.37311-37312): "Emergency generator coupling
-    /// occurs 3 s after the RAT supplies the emergency generator." DSC-24-10-30-30 (l.36797): "During RAT extension
-    /// and emergency generator coupling (about 8 s), the batteries ..." supply the network. Before, the emergency
-    /// generator was coupled as soon as its output was normal. During the delay the static inverter keeps the AC ESS
-    /// BUS and BAT 2 the DC ESS BUS.
+    /// The emergency generator is coupled 3 s after the RAT supplies it; during the RAT extension
+    /// and the coupling (about 8 s) the batteries supply the network: the static inverter keeps the
+    /// AC ESS BUS and BAT 2 the DC ESS BUS.
     #[rstest]
     #[case::rat_man_on(true)]
     #[case::automatic(false)]

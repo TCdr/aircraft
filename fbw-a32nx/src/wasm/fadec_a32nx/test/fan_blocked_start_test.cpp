@@ -3,7 +3,7 @@
 
 // Native unit test of the fan blocked failure in the A32NX FADEC engine model (src/Fadec/FanBlockedStart_A32NX.hpp), with the
 // start polynomials and the start sequence decisions the engine model uses: run test/run_tests.sh.
-// Built with -DWITHOUT_THE_FIX, the engine model ignores the failure (as before it): the checks of the blocked fan fail.
+// Built with -DWITHOUT_THE_FIX, the engine model ignores the failure: the checks of the blocked fan fail.
 
 #include <cmath>
 #include <cstdio>
@@ -94,7 +94,6 @@ int main() {
   expect("fan blocked in flight: normal start", inFlight.reachedIdle && inFlight.minN1AboveAlertN2 > LOW_N1_ALERT_MAX_N1,
          inFlight.minN1AboveAlertN2);
 
-  // The hung start of the start sequence still hangs
   expect("hung start still hangs", coreHangs(true, false), 0.0);
 
   if (failures > 0) {

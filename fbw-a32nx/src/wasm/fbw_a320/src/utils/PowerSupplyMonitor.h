@@ -2,9 +2,8 @@
 
 // Tracks a computer's power-supply outage duration and raises a sticky fault once the outage
 // exceeds a threshold. The fault is cleared on the frame the power comes back (update() returns
-// true); the outage time stays readable until the caller calls acknowledgeRecovery(), after its own
-// self-test startup sequence, as the A32NX computers did before this class (fault cleared, startup
-// sequence, outage time reset).
+// true); the outage time stays readable until the caller calls acknowledgeRecovery() after its own
+// self-test startup sequence (order: fault cleared, startup sequence, outage time reset).
 class PowerSupplyMonitor {
  public:
   PowerSupplyMonitor(double minimumOutageTimeForFailure);

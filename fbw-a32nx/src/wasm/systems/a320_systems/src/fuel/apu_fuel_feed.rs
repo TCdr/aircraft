@@ -1,16 +1,15 @@
 //! APU fuel feed of the A320: the fuel pressure that the APU fuel pressure switch of the ECB senses.
 //!
-//! A320 FCOM DSC-49-10-20 FUEL SYSTEM (a320_fcom.txt l.60437-60440): "The left fuel feed line supplies the APU. The
-//! required pressure is normally available from tank pumps. If pressure is not available (batteries only or pumps off)
-//! the APU FUEL PUMP starts automatically. The ECB controls the fuel flow." DSC-49-20 MASTER SW pb-sw (l.60560): "If no
-//! fuel tank pump is running, the APU fuel pump operates." DSC-26-20-20 APU FIRE pb (l.38614): "Shuts off the APU fuel
-//! pump".
+//! The left fuel feed line supplies the APU. The tank pumps normally give the required pressure; without it (batteries
+//! only or pumps off) the APU FUEL PUMP starts automatically, and it runs whenever no fuel tank pump runs. The ECB
+//! controls the fuel flow, and the APU FIRE pb shuts off the APU fuel pump.
 //!
 //! The APU has fuel pressure while a left wing tank pump runs and is powered, or while the APU fuel pump runs (powered
 //! by the AC ESS SHED bus or the static inverter, electrical/alternating_current.rs). With neither, the ECB sees no
 //! pressure and shuts the APU down (FUEL LO PR on the APU page, APU AUTO SHUT DOWN).
 //!
-//! Design choices (no FCOM value): the ECB asks for the APU fuel pump while the MASTER SW is ON or the APU still turns
+//! Design choices (no published value): the ECB asks for the APU fuel pump while the MASTER SW is ON or the APU still
+//! turns
 //! (cooldown and run down after MASTER SW OFF); the line keeps its pressure for PRESSURE_DECAY_TIME after its last
 //! source stopped, so that a transfer between electrical sources does not stop the APU.
 

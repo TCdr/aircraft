@@ -1,11 +1,11 @@
 //! A320 engine and APU fire protection: the fire detection of ENG 1, ENG 2 and the APU on the shared
-//! [`FireDetectionUnit`] (A320 FCOM DSC-26-20-10), the flyPad fire and detection loop failures, and the chance of the
-//! AGENT discharges to put a fire out.
+//! [`FireDetectionUnit`], the flyPad fire and detection loop failures, and the chance of the AGENT discharges to put a
+//! fire out.
 //!
-//! What is not modelled here (it stays where it was):
+//! What is not modelled here (other parts of the aircraft do it):
 //! - The FIRE TEST pbs: one per zone, they drive the FWC warnings and the FIRE panel lights directly (PseudoFWC and
 //!   A32NX_Interior_Fire.xml, with the flyPad "extend fire test warnings" realism option). The FDU here only sees real
-//!   fires, so a test never shuts the APU down (FCOM DSC-26-20-20 APU FIRE TEST PB note).
+//!   fires, so a test never shuts the APU down.
 //! - The AGENT pbs, squibs and DISCH lights: the cockpit behaviour XML sets L:A32NX_FIRE_<ZONE>_AGENT<n>_Discharge; this
 //!   module only reads them (and sets the APU one for the automatic discharge on the ground).
 //! - The FIRE DET FAULT caution itself: the FWC raises it from both loops failed or the FDU failed (flyPad FDU failure,
@@ -14,11 +14,9 @@
 //!   external warning horn of an APU fire on the ground is written here (L:A32NX_FIRE_APU_EXTERNAL_HORN) and played by
 //!   the sound.xml at the nose landing gear.
 //!
-//! Also the smoke protection: the forward and aft cargo smoke detection of the SDCU and the cargo fire bottle (FCOM
-//! DSC-26-50-10), and the smoke detector of the avionics ventilation duct (FCOM DSC-26-30-10), see
-//! [`systems::fire_protection::smoke_detection`]. Not modelled: the lavatory smoke detection, and the cargo ventilation
-//! (the A320 here has none, so the "isolation valves close and the extraction fan stops" of FCOM DSC-26-50-10 has
-//! nothing to act on).
+//! Also the smoke protection: the forward and aft cargo smoke detection of the SDCU and the cargo fire bottle, and the
+//! smoke detector of the avionics ventilation duct, see [`systems::fire_protection::smoke_detection`]. The aft cargo
+//! smoke closes the aft cargo ventilation (see `aft_cargo_smoke_detected`). Not modelled: the lavatory smoke detection.
 
 use std::time::Duration;
 
@@ -46,7 +44,7 @@ const A320_FIRE_ZONES: [FireDetectionZone; 3] = [
 ];
 
 /// The fire extinguisher bottles, by the name of their AGENT pb discharge variable, and the index of their zone in
-/// [`A320_FIRE_ZONES`]: two bottles per engine and one for the APU (FCOM DSC-26-20-10 EXTINGUISHING).
+/// [`A320_FIRE_ZONES`]: two bottles per engine and one for the APU.
 const A320_FIRE_BOTTLES: [(&str, usize); 5] = [
     ("FIRE_ENG1_AGENT1_Discharge", 0),
     ("FIRE_ENG1_AGENT2_Discharge", 0),
@@ -79,23 +77,20 @@ pub(super) struct A320FireProtection {
 }
 
 impl A320FireProtection {
-    /// FCOM DSC-26-20-20 APU FIRE LIGHT (external power panel): "The APU fire extinguisher discharges automatically
-    /// 3 s after the appearance of the fire warning" (on the ground, FCOM DSC-26-20-10 EXTINGUISHING).
+    /// On the ground the APU fire extinguisher discharges automatically 3 s after the fire warning.
     const DELAY_APU_FIRE_EXTINGUISHING: Duration = Duration::from_secs(3);
 
-    /// FCOM DSC-26-30-10 (a320_fcom.txt l.38775): "When smoke is detected for more than 5 s" (avionics)
+    /// Avionics smoke is confirmed after 5 s of detection.
     const AVIONICS_SMOKE_CONFIRMATION: Duration = Duration::from_secs(5);
 
-    /// FCOM DSC-26-50-20 DISCH LIGHT (a320_fcom.txt l.39017-39019): "Within 60 s after pressing the discharge
-    /// pushbutton, the amber DISCH light comes on when the associated bottle is fully discharged". Design choice: the
-    /// upper bound, 60 s.
+    /// The amber DISCH light comes on within 60 s of pressing the discharge pb, once the bottle is fully discharged.
+    /// Design choice: the upper bound, 60 s.
     const CARGO_BOTTLE_DISCHARGE_DURATION: Duration = Duration::from_secs(60);
 
-    /// The cargo smoke detection of one compartment: FCOM DSC-26-50-10 (a320_fcom.txt l.38911-38926), two detection
-    /// loops (the two FWD detectors, the four AFT detectors two by two) on the two identical channels of the SDCU.
-    /// The supply of the channels from the INOP SYS of the A320 FCOM PRO-ABN-ELEC procedures: ELEC DC ESS BUS SHED
-    /// loses "SDCU 1 or CIDS 1 SMOKE" (l.77487), ELEC DC BUS 2 FAULT loses "SDCU 2 or CIDS 2 SMOKE" (l.76611). No
-    /// confirmation time in the FCOM.
+    /// The cargo smoke detection of one compartment: two detection loops (the two FWD detectors, the four AFT detectors
+    /// two by two) on the two identical channels of the SDCU. The supply of the channels follows the INOP SYS of the
+    /// electrical procedures: ELEC DC ESS BUS SHED loses SDCU 1 or CIDS 1 SMOKE, ELEC DC BUS 2 FAULT loses SDCU 2 or
+    /// CIDS 2 SMOKE. No published confirmation time.
     fn cargo_smoke_detection(
         context: &mut InitContext,
         zone: SmokeDetectionZone,
@@ -115,13 +110,13 @@ impl A320FireProtection {
     }
 
     pub(super) fn new(context: &mut InitContext) -> Self {
-        // The electrical supply of the loops, from the INOP SYS of the A320 FCOM PRO-ABN-ELEC procedures:
+        // The electrical supply of the loops, from the INOP SYS of the electrical procedures:
         // DC BUS 2 FAULT: ENG 1 LOOP B + ENG 2 LOOP A; DC ESS BUS FAULT: ENG 1 LOOP A + ENG 2 LOOP B;
         // DC BAT BUS FAULT: APU FIRE DET (both APU loops).
         // The loops sense L:A32NX_ENG_<n>_ON_FIRE / L:A32NX_APU_ON_FIRE alone: set_zone_on_fire below sets it from the
         // flyPad fire failure or from the simulator's own fire ("ENG ON FIRE:<n>", "APU ON FIRE DETECTED", set from the
         // MSFS failures menu), and clears it when an AGENT puts the fire out. The simulator variables are not sensed
-        // directly: MSFS keeps them on after the agent, which kept the ENG/APU FIRE warning on.
+        // directly: MSFS keeps them on after the agent, which would keep the ENG/APU FIRE warning on.
         let zones = [
             FireDetectionZoneConfig {
                 zone: FireDetectionZone::Engine(1),
@@ -193,9 +188,9 @@ impl A320FireProtection {
                 context,
                 SmokeDetectionZone::AftCargo,
             ),
-            // FCOM DSC-26-30-10 (a320_fcom.txt l.38773): "The air extraction duct of the avionics ventilation system has
-            // one smoke detector." Design choice (no FCOM supply): the DC ESS BUS, so that it works in the electrical
-            // emergency configuration that the SMOKE / FUMES / AVNCS SMOKE procedure may lead to.
+            // The air extraction duct of the avionics ventilation has one smoke detector. Design choice (no published
+            // supply): the DC ESS BUS, so that it works in the electrical emergency configuration that the SMOKE /
+            // FUMES / AVNCS SMOKE procedure may lead to.
             avionics_smoke_detection: SmokeDetection::new(
                 context,
                 SmokeDetectionZoneConfig {
@@ -205,8 +200,8 @@ impl A320FireProtection {
                     fault_logic: SmokeDetectionFaultLogic::AllDetectorsInoperative,
                 },
             ),
-            // FCOM DSC-26-50-10 (a320_fcom.txt l.38932-38939): "One fire bottle with two discharge heads, one for each
-            // compartment". The FWD / AFT DISCH pbs write L:A32NX_CARGOSMOKE_FWD(AFT)_DISCHARGED.
+            // One cargo fire bottle with two discharge heads, one for each compartment. The FWD / AFT DISCH pbs write
+            // L:A32NX_CARGOSMOKE_FWD(AFT)_DISCHARGED.
             cargo_fire_extinguishing: CargoFireExtinguishing::new(
                 context,
                 ["FWD", "AFT"],
@@ -244,13 +239,13 @@ impl A320FireProtection {
         self.cargo_fire_extinguishing.update(context);
     }
 
-    /// An APU fire is detected while on the ground: the ECB shuts the APU down (FCOM DSC-26-20-10 EXTINGUISHING)
+    /// An APU fire is detected while on the ground: the ECB shuts the APU down
     pub(super) fn apu_fire_on_ground(&self) -> bool {
         self.fire_detection_unit.apu_fire_on_ground()
     }
 
     /// The aft cargo smoke detection unit detects smoke: the cargo ventilation controller closes the aft isolation
-    /// valves (FCOM DSC-21-40-20, a320_fcom.txt l.9716)
+    /// valves
     pub(super) fn aft_cargo_smoke_detected(&self) -> bool {
         self.aft_cargo_smoke_detection.smoke_detected()
     }
@@ -298,11 +293,11 @@ impl SimulationElement for A320FireProtection {
             );
         }
 
-        // FCOM DSC-26-20-20 APU FIRE LIGHT (external power panel): "The red APU FIRE light comes on and an external
-        // warning horn sounds when the system detects an APU fire"; FCOM DSC-49-10-20, APU running unattended on the
-        // ground: "In case of fire in the APU compartment: [...] A horn in the nose gear bay sounds". On the ground only
-        // (design choice from that FCOM context), and not during the FIRE TEST (the FDU here only sees real fires).
-        // The APU SHUT OFF pb of the external power panel, which silences it, is not modelled (no panel in the model).
+        // On an APU fire the red APU FIRE light of the external power panel comes on and an external warning horn
+        // sounds (the horn in the nose gear bay that warns of a fire of an APU running unattended on the ground). On
+        // the ground only (design choice from that unattended APU context), and not during the FIRE TEST (the FDU here
+        // only sees real fires). The APU SHUT OFF pb of the external power panel, which silences it, is not modelled
+        // (no panel in the model).
         writer.write(
             &self.external_horn_id,
             self.fire_detection_unit.apu_fire_on_ground(),
@@ -1005,9 +1000,9 @@ mod tests {
         assert!(put_out > 0 && put_out < 64);
     }
 
-    // The fire warning follows the zone burning signal: FCOM DSC-26-20-20 APU FIRE LIGHT "The light goes out when the
-    // fire has been extinguished", ENG 1(2) FIRE PB "The red lights come on [...] whenever the fire warning for the
-    // corresponding engine is activated". MSFS keeps ENG ON FIRE:n / APU ON FIRE DETECTED on after the agent.
+    // The fire warning follows the zone burning signal: the APU FIRE light goes out once the fire is extinguished, and
+    // the ENG FIRE pb lights follow the engine fire warning. MSFS keeps ENG ON FIRE:n / APU ON FIRE DETECTED on after
+    // the agent.
 
     #[test]
     fn the_eng_fire_warning_ends_when_an_agent_puts_a_simulator_fire_out_although_the_sim_variable_stays_on(
@@ -1062,8 +1057,6 @@ mod tests {
         assert!(put_out > 0);
     }
 
-    // Smoke protection: FCOM DSC-26-50-10 cargo (a320_fcom.txt l.38911-38939), DSC-26-30-10 avionics (l.38773-38782)
-
     fn read_bool(test_bed: &mut FireProtectionTestBed, name: &str) -> bool {
         test_bed.read_by_name(name)
     }
@@ -1108,7 +1101,7 @@ mod tests {
 
     #[test]
     fn one_failed_cargo_detection_loop_gives_no_fault_and_the_other_still_detects_smoke() {
-        // Dual loop principle (l.38923-38926)
+        // Dual loop principle
         let mut test_bed = test_bed();
         test_bed.fail(FailureType::SmokeDetector(
             SmokeDetectionZone::ForwardCargo,
@@ -1137,7 +1130,7 @@ mod tests {
 
     #[test]
     fn losing_dc_ess_shed_and_dc_2_loses_the_cargo_smoke_detection() {
-        // SDCU 1 on the DC ESS SHED BUS (l.77487), SDCU 2 on the DC BUS 2 (l.76611)
+        // SDCU 1 on the DC ESS SHED BUS, SDCU 2 on the DC BUS 2
         let mut test_bed = test_bed().dc_2_lost().and_run();
 
         assert!(!smoke_detection_fault(&mut test_bed, "FWD_CARGO"));

@@ -77,9 +77,9 @@ impl A320EgpwsElectricalHarness {
         self.discrete_inputs.audio_inhibit = false; // TODO: Comes from FWC during e.g. STALL STALL
     }
 
-    /// The terrain awareness functions of the EGPWS work, for the terrain display on the NDs (the ND terrain picture
-    /// of the enhanced_gpwc): the TERR pb-sw is not OFF and the TERR FAULT light is off (a failed or unpowered EGPWS
-    /// lights it). A320 FCOM DSC-34-SURV-40-40, a320_fcom.txt:55447, 55467-55468, 55509-55511.
+    /// The terrain awareness functions of the EGPWS work, for the terrain display on the NDs (the ND terrain picture of
+    /// the enhanced_gpwc): the TERR pb-sw is not OFF and the TERR FAULT light is off (a failed or unpowered EGPWS
+    /// lights it).
     pub fn terrain_functions_available(
         &self,
         egpws: &impl TerrainAwarenessWarningSystemDiscreteOutput,

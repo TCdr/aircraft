@@ -2067,7 +2067,7 @@ bool FlyByWireInterface::updateFmgcShim(double sampleTime) {
     athrModeMessage = 5;
   }
 
-  // Autoland warning (fmgc/AutolandWarning.h, A320 FCOM DSC-22_30-80-30-10 l.32107-32127)
+  // Autoland warning (fmgc/AutolandWarning.h)
   SimData simData = simConnectInterface.getSimData();
 
   AutolandWarning::Inputs autolandWarningInputs;
@@ -2534,7 +2534,7 @@ bool FlyByWireInterface::updateFac(double sampleTime, int facIndex) {
     facsBusOutputs[facIndex] = facs[facIndex].getBusOutputs();
 
     // The alpha floor signal (discrete word 5 bit 29, read by the FMGC A/THR) with the sidestick case and the engine-out
-    // loss the FacComputer does not compute (fac/AlphaFloorConditions.h, A320 FCOM DSC-22_40-30 l.34135-34164)
+    // loss the FacComputer does not compute (fac/AlphaFloorConditions.h)
     base_arinc_429& facDiscreteWord5 = facsBusOutputs[facIndex].discrete_word_5;
     if (Arinc429Utils::isNo(facDiscreteWord5)) {
       AlphaFloorConditions::Inputs alphaFloorInputs;
@@ -2760,7 +2760,7 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.input.ATHR_reset_disable = simConnectInterface.getSimInputThrottles().ATHR_reset_disable == 1;
 
   // In flight, an engine out or (re)starting is held at idle and accelerates from idle once it runs: without this the thrust loop
-  // wound the MSFS throttle up during the start and MSFS took the engine to its N2 limit at the end (see EngineStartThrottleHold.h).
+  // winds the MSFS throttle up during the start and MSFS takes the engine to its N2 limit at the end (see EngineStartThrottleHold.h).
   // The loop target is its N1 command of the previous frame.
   const EngineStartThrottleHold::Output engineStartThrottle = engineStartThrottleHolds[fadecIndex].update(
       {fadecInputs[fadecIndex].in.data.on_ground != 0, idEngineState[fadecIndex]->get(),
@@ -2770,7 +2770,7 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = engineStartThrottle.loopCommandedN1;
 
   // ENG FADEC FAULT (both channels lost): the A/THR orders no longer reach the FADEC, the A/THR loses the engine
-  // (A320 FCOM DSC-22_30-90, A/THR arming condition "Two FADECs operative")
+  // (the A/THR arms only with both FADECs operative)
   fadecInputs[fadecIndex].in.fcu_input =
       FadecFailureInputs::autothrustOrdersReceived(fcuBusOutputs, idEngineFadecFault[fadecIndex]->get() > 0.5);
 

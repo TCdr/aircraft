@@ -1057,8 +1057,7 @@ fn start_no_pax_half_cargo_target_full_cargo_real_board_double_gate() {
 
     test_bed.boarding_started();
 
-    // real_rate is 13,800ms/pax/door (was 5,000ms) - scaled up proportionally from the
-    // original 7-minute allowance.
+    // The wait covers the boarding at the real_rate of 13,800ms/pax/door.
     let twenty_minutes_in_seconds = 20 * MINUTES_TO_SECONDS;
 
     test_bed
@@ -1237,8 +1236,7 @@ fn deboard_half_real_double_gate() {
 
     test_bed.boarding_started();
 
-    // real_rate is 13,800ms/pax/door (was 5,000ms) - scaled up proportionally from the
-    // original 10-minute allowance.
+    // The wait covers the boarding at the real_rate of 13,800ms/pax/door.
     let twenty_eight_minutes_in_seconds = 28 * MINUTES_TO_SECONDS;
 
     test_bed
@@ -1366,8 +1364,8 @@ fn detailed_test_with_multiple_stops() {
     // A/B/C need to board up while D needs to deboard down, simultaneously. While any station is
     // still boarding, the boarding sound (not deboarding) is the one that plays, and vice versa -
     // so A/B/C must fully finish before D's deboarding-only sound is expected to be active. At the
-    // real_rate of 13,800ms/pax/door (was 5,000ms), and_stabilize()'s fixed 5 minutes is no longer
-    // enough on its own for that (only ~21 of the 39 A+B+C ticks fit); wait for the rest here.
+    // real_rate of 13,800ms/pax/door, and_stabilize()'s fixed 5 minutes is not enough on its own
+    // for that (only ~21 of the 39 A+B+C ticks fit); wait for the rest here.
     test_bed
         .test_bed
         .run_multiple_frames(Duration::from_secs(250));
@@ -1385,8 +1383,7 @@ fn detailed_test_with_multiple_stops() {
     // D hasn't started deboarding yet - A/B/C just finished boarding.
     assert_eq!(test_bed.pax_num(A320Pax::D.into()), 42);
 
-    // real_rate is 13,800ms/pax/door (was 5,000ms) - scaled up proportionally from the
-    // original 5-minute allowance.
+    // The wait covers the passenger moves at the real_rate of 13,800ms/pax/door.
     let fourteen_minutes_in_seconds = 14 * MINUTES_TO_SECONDS;
 
     test_bed

@@ -9,8 +9,8 @@
 // self-test after an outage longer than 3 s with the three hydraulic systems unpressurised, SEC: 30 s self-test on the
 // ground (no LGCIU reporting the main gear not compressed); in flight the FMGC and the SEC come back at once.
 // The startup sequence (initSelfTests()) is skipped while the power supply fault is set, so the fault must be cleared
-// before it runs, and the outage time must still be readable by it (ELAC long test). Before the fix the fault was still set
-// at that moment: no self-test ran and the computers came back at once.
+// before it runs, and the outage time must still be readable by it (ELAC long test); with the fault still set no
+// self-test runs and the computers come back at once.
 
 #include <cstdio>
 
@@ -117,11 +117,10 @@ static void secRunsItsSelfTestAfterAPowerOutageOnTheGround() {
   expect(sec.modelInputs.in.sim_data.computer_running, "SEC running again after its 30 s self-test");
 }
 
-// FCOM DSC-27-20-30 (a320_fcom.txt l.41172-41190): only the ELAC has a power-up test "after the occurrence of an
-// electrical transient lasting longer than 25 ms", with its FAULT light and ECAM caution. The SEC FAULT light comes on,
-// with an ECAM caution, "when a failure is detected" (F/CTL SEC 1(2)(3) FAULT, l.83757: "a failure of one SEC").
-// In flight (LGCIU: main gear not compressed) a SEC power outage must not flash the FAULT light (F/CTL SEC 2 FAULT
-// flickered twice, 27 s after DC BUS 2 came back, in the 2026-10-12 sim test) and the SEC comes back at once.
+// Only the ELAC has a power-up test after an electrical transient longer than 25 ms, with its FAULT light and ECAM
+// caution; the SEC FAULT light comes on, with an ECAM caution, only when a SEC failure is detected.
+// In flight (LGCIU: main gear not compressed) a SEC power outage must not flash the FAULT light (measured in the sim:
+// F/CTL SEC 2 FAULT flickered twice, 27 s after DC BUS 2 came back) and the SEC comes back at once.
 static void secComesBackAtOnceWithoutFaultLightAfterAPowerOutageInFlight() {
   Sec sec(false, false);
   sec.modelInputs.in.discrete_inputs.sec_engaged_from_switch = true;

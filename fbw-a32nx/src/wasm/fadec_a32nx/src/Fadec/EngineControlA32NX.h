@@ -71,7 +71,6 @@ class EngineControl_A32NX {
   // The EGT excess of a hot start or a stall (StartSequence_A32NX::egtOvershoot), in degrees Celsius
   double startEgtExcess[2] = {0.0, 0.0};
 
-  // Engine oil state
   double thermalEnergy[2] = {0.0, 0.0};
   // The oil temperature of an oil overheat failure, kept by the FADEC (EngineOilFailures.hpp OverheatTracker)
   EngineOilFailures::OverheatTracker oilOverheatTracker[2];
@@ -88,7 +87,7 @@ class EngineControl_A32NX {
   static constexpr int    MAX_OIL_TEMP        = 85;   // degree Celsius
   static constexpr double FORCE_LB_TO_N       = 4.4482216153;
 
-  // Seizure failure: the core stops in about 3 s (design choice, the FCOM gives no rate): N2 decays at 2 /s from the
+  // Seizure failure: the core stops in about 3 s (design choice, no published rate): N2 decays at 2 /s from the
   // failure and is 0 below 0.5 %.
   static constexpr double SEIZED_CORE_DECAY_RATE = 2.0;  // 1/s
   static constexpr double SEIZED_CORE_STOPPED_N2 = 0.5;  // percent

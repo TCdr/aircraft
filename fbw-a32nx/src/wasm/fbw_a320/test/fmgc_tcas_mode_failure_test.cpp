@@ -4,10 +4,10 @@
 // Native test of the flyPad failure of the FG TCAS mode (Failures::TcasMode, src/fmgc/FmgcTcasBusInput.h) with the
 // generated FmgcComputer: run test/run_tests.sh.
 //
-// A320 FCOM DSC-22_30-70-85 (a320_fcom.txt l.30499-30503): the TCAS mode is not available when the TCAS mode is failed
-// (AUTO FLT TCAS MODE FAULT). The FMGC computes logic.tcas_mode_available from the TCAS sensitivity level word: valid,
-// TA/RA (bits 26 and 27 set, bit 25 STBY clear) and the radio height above 900 ft.
-// Add -DWITHOUT_THE_FAILURE_INPUT to see the failure checks fail with the bus passed through unchanged (before the fix).
+// The TCAS mode is not available when the TCAS mode is failed (AUTO FLT TCAS MODE FAULT). The FMGC computes
+// logic.tcas_mode_available from the TCAS sensitivity level word: valid, TA/RA (bits 26 and 27 set, bit 25 STBY clear)
+// and the radio height above 900 ft.
+// Add -DWITHOUT_THE_FAILURE_INPUT to see the failure checks fail with the bus passed through unchanged.
 
 #include <cstdio>
 
@@ -15,7 +15,7 @@
 #include "../src/fmgc/FmgcTcasBusInput.h"
 
 #ifdef WITHOUT_THE_FAILURE_INPUT
-// before the fix: FlyByWireInterface gave the FMGCs the TCAS bus whatever the failures
+// without the failure input: FlyByWireInterface gives the FMGCs the TCAS bus whatever the failures
 #define fmgcTcasBusInput(bus, failed) (bus)
 #endif
 

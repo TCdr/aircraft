@@ -34,8 +34,8 @@ pub(super) struct FlapsChannel {
 
     csu_monitor: CSUMonitor,
 
-    /// The flyPad failure of this flap channel (F/CTL FLAP SYS 1(2) FAULT, A320 FCOM a320_fcom.txt l.83217-83247):
-    /// the channel no longer drives its flap motor, the other motor moves the flaps at half speed (l.41431)
+    /// The flyPad failure of this flap channel (F/CTL FLAP SYS 1(2) FAULT): the channel no longer drives its flap
+    /// motor, the other motor moves the flaps at half speed
     motor_control_failure: Failure,
 
     conf1_flaps: Angle,

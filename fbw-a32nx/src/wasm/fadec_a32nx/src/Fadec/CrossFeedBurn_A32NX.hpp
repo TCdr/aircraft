@@ -13,11 +13,10 @@
  * push the fuel of both engines when the pumps of the other side are off.
  *
  * Gravity feeding: with the X FEED valve open and all four wing pumps off (or failed), no pump pushes the fuel, and each
- * engine is fed by gravity from its wing tank. A320 FCOM PRO-ABN-FUEL [QRH] GRAVITY FUEL FEEDING (a320_fcom.txt
- * l.85074-85100): with one engine running "fed by gravity", "FUEL X FEED ... ON, BANK ANGLE ... 1 deg WING DOWN ON LIVE ENG
- * SIDE. The fuel from the wing tank on the engine running side is used." Design choice: in gravity feeding each engine burns
- * its own wing tank whatever the X FEED valve; the use of the opposite wing tank by a larger bank angle (l.85097-85099) is
- * not modelled. The APU burns from both sides, as with the X FEED valve open and pumps on both sides.
+ * engine is fed by gravity from its wing tank; with one engine running, the fuel of the wing tank on the running engine
+ * side is used. Design choice: in gravity feeding each engine burns its own wing tank whatever the X FEED valve; the use
+ * of the opposite wing tank by a larger bank angle is not modelled. The APU burns from both sides, as with the X FEED
+ * valve open and pumps on both sides.
  */
 namespace CrossFeedBurn_A32NX {
 

@@ -1,32 +1,28 @@
 //! Fuel temperature of the A320 tanks.
 //!
 //! The SD FUEL page shows the fuel temperature of the outer and inner cell of each wing tank, and
-//! the FWC gives FUEL L (R) OUTER (INNER) TK HI TEMP / LO TEMP from it (A320 FCOM DSC-28-20 FUEL
-//! TEMPERATURE INDICATION, a320_fcom.txt l.43178-43187; PRO-ABN-FUEL l.85983-86070). The display
-//! limits and the alert thresholds are in the instruments (shared/src/FuelTemperature.ts); this
-//! module gives the temperatures.
+//! the FWC gives FUEL L (R) OUTER (INNER) TK HI TEMP / LO TEMP from it. The display limits and the
+//! alert thresholds are in the instruments (shared/src/FuelTemperature.ts); this module gives the
+//! temperatures.
 //!
-//! The FCOM gives no temperature model: every constant below is a design choice. The model:
+//! There is no published temperature model: every constant below is a design choice. The model:
 //! - Each tank holds its fuel at one temperature. Fuel flowing into a tank mixes with it by mass:
-//!   the outer cell fuel transferred to the inner cell (DSC-28-10-30, l.42119-42120), the centre
-//!   tank fuel transferred to the inner cells, and fresh fuel (refuelling) at the outside air
-//!   temperature.
+//!   the outer cell fuel transferred to the inner cell, the centre tank fuel transferred to the
+//!   inner cells, and fresh fuel (refuelling) at the outside air temperature.
 //! - The fuel exchanges heat with the air around the wing: it tends to the total air temperature
 //!   (TAT, the temperature of the boundary layer that washes the tank skins) with a time constant
-//!   that grows with the fuel mass. The LIM FUEL TEMPERATURE note (l.116278-116279: "if TAT reaches
-//!   -34 °C, monitor the fuel temperature") ties the fuel temperature to the TAT. The centre tank
-//!   follows the same law (its heating by the air conditioning packs is not modelled).
-//! - The IDG cooling fuel heats the outer cell: "Some of the fuel supplied to each engine goes from
-//!   the high-pressure fuel line in that engine, through the integrated drive generator (IDG) heat
-//!   exchanger (where it absorbs heat), to the fuel return valve and back to the outer fuel tank"
-//!   (DSC-28-10-60, l.42381-42383). The return flow is "300 kg/h" and its temperature "stays below
-//!   100 °C" (DSC-70-40 FUEL SYSTEM (CFM56), the closest FCOM text, l.63100-63101 and
-//!   l.63105-63106). Only the heat is modelled: the returned fuel
-//!   mass itself is still burned from the inner tank (the FADEC does not return it, FCOM gap row 28
-//!   A32NX #2). The return is inhibited (l.63108-63119) at engine shutdown, during takeoff and
-//!   climb, below about 300 kg in the wing tank, in gravity feeding, and in flight above 52.5 °C in
-//!   the wing tank. Not modelled: the surge tank overflow inhibition, and the FADEC raising the flow
-//!   to 600 kg/h when the IDG oil keeps heating.
+//!   that grows with the fuel mass. The fuel temperature limitation, which asks the crew to monitor
+//!   the fuel temperature once the TAT reaches -34 °C, ties the fuel temperature to the TAT. The
+//!   centre tank follows the same law (its heating by the air conditioning packs is not modelled).
+//! - The IDG cooling fuel heats the outer cell: part of the fuel supplied to each engine goes from
+//!   the HP fuel line through the IDG heat exchanger, where it absorbs heat, and back to the outer
+//!   tank through the fuel return valve. The return flow is 300 kg/h and its temperature stays
+//!   below 100 °C (the CFM56 values, the closest available). Only the heat is modelled: the
+//!   returned fuel mass itself is still burned from the inner tank (the FADEC does not return it).
+//!   The return is inhibited at engine shutdown, during takeoff and climb, below about 300 kg in
+//!   the wing tank, in gravity feeding, and in flight above 52.5 °C in the wing tank. Not modelled:
+//!   the surge tank overflow inhibition, and the FADEC raising the flow to 600 kg/h when the IDG
+//!   oil keeps heating.
 
 use std::time::Duration;
 use systems::simulation::{
@@ -63,14 +59,11 @@ pub struct IdgReturnConditions {
     pub wing_tank_temperature_celsius: f64,
 }
 
-/// Whether the IDG cooling fuel of an engine returns to its wing tank (FCOM DSC-70-40,
-/// a320_fcom.txt l.63108-63119):
-/// "Fuel recirculation to the tank is inhibited (FRV closed) in the following cases: at engine
-/// shutdown, during takeoff and climb, if: wing tank level is below about 300 kg (660 lb), there is
-/// fuel overflow in the surge tank, fuel feed is by gravity only, when fuel temperature in the wing
-/// tank in flight is above 52.5 °C. Note: On the ground, high fuel temperature in the wing tank or
-/// fuel overflow in the surge tank does not inhibit the fuel recirculation".
-/// Design choices: takeoff and climb is a vertical speed above 500 ft/min in flight; the surge tank
+/// Whether the IDG cooling fuel of an engine returns to its wing tank. The fuel return valve closes
+/// at engine shutdown, during takeoff and climb, below about 300 kg (660 lb) in the wing tank, with
+/// fuel overflow in the surge tank, in gravity feeding, and in flight with the wing tank fuel above
+/// 52.5 °C; on the ground a hot wing tank or a surge tank overflow does not inhibit it. Design
+/// choices: takeoff and climb is a vertical speed above 500 ft/min in flight; the surge tank
 /// overflow is not used.
 pub fn idg_return_is_active(conditions: IdgReturnConditions) -> bool {
     const CLIMB_VERTICAL_SPEED_FT_PER_MIN: f64 = 500.;
@@ -114,17 +107,14 @@ impl FuelTemperature {
     /// 100 min for a full inner cell (5 500 kg).
     const TIME_CONSTANT_PER_TONNE_MINUTES: f64 = 15.;
 
-    /// FCOM DSC-70-40 (l.63100-63101): "the cooling fuel is sent back to the tank (300 kg/h)".
     const IDG_RETURN_FLOW_KG_PER_HOUR: f64 = 300.;
     /// Design choice: the IDG heat exchanger warms the fuel by this much over the inner cell fuel
     /// that feeds the engine (about 10 kW of IDG heat in 300 kg/h of fuel)...
     const IDG_RETURN_TEMPERATURE_RISE_KELVIN: f64 = 60.;
-    /// ...and FCOM DSC-70-40 (l.63105-63106): "the temperature of fuel returning to the tank stays
-    /// below 100 °C".
+    /// ...and the returned fuel stays below 100 °C.
     const IDG_RETURN_MAX_TEMPERATURE_CELSIUS: f64 = 100.;
     /// Design choice: below this the outer cell is empty and the returned fuel flows on into the
-    /// inner cell (FCOM DSC-28-10-60, l.42387: "If the outer tank is already full, the fuel
-    /// overflows to the inner tank through a spill pipe").
+    /// inner cell (a full outer cell overflows into the inner cell through a spill pipe).
     const EMPTY_TANK_KG: f64 = 1.;
 
     pub fn new(context: &mut InitContext) -> Self {
@@ -444,7 +434,7 @@ mod tests {
 
     #[test]
     fn on_a_hot_day_with_a_long_taxi_the_outer_cell_gets_above_its_ground_limit() {
-        // FCOM HI TEMP on ground: outer cell above 55 °C (a320_fcom.txt l.85995).
+        // HI TEMP on ground: outer cell above 55 °C.
         let mut test_bed = FuelTemperatureTestBed::new();
         test_bed.outside_air(48., 0.);
         test_bed.run_minutes(240);
@@ -514,8 +504,7 @@ mod tests {
     }
 
     #[test]
-    fn the_idg_return_is_inhibited_as_the_fcom_says() {
-        // l.63108-63116
+    fn the_idg_return_is_inhibited_by_each_of_its_conditions() {
         for inhibited in [
             IdgReturnConditions {
                 engine_running: false,
@@ -544,7 +533,6 @@ mod tests {
 
     #[test]
     fn on_the_ground_a_hot_wing_tank_does_not_inhibit_the_idg_return() {
-        // l.63118-63119
         assert!(idg_return_is_active(IdgReturnConditions {
             on_ground: true,
             wing_tank_temperature_celsius: 60.,
