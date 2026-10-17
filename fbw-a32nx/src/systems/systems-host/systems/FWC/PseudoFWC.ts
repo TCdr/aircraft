@@ -412,6 +412,9 @@ import {
   xpdrFaultCondition,
 } from '@shared/TransponderSystem';
 
+/** The longest power-up self test of a radio altimeter, in seconds (4 to 6 s in the systems RA model, ala52b.rs) */
+const RA_POWER_UP_SELF_TEST_MAX_S = 6;
+
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
 }
@@ -823,6 +826,14 @@ export class PseudoFWC {
   private readonly excessPressure = Subject.create(false);
 
   private readonly enginesOffAndOnGroundSignal = new NXLogicConfirmNode(7);
+
+  /**
+   * The AC bus of RA 1(2) powered for the longest RA self test: a radio altimeter reports no valid height while it runs
+   * its power-up self test, which is not the "RA failed" of NAV RA 1(2) FAULT
+   */
+  private readonly ra1PowerUpTestDoneConfirm = new NXLogicConfirmNode(RA_POWER_UP_SELF_TEST_MAX_S);
+
+  private readonly ra2PowerUpTestDoneConfirm = new NXLogicConfirmNode(RA_POWER_UP_SELF_TEST_MAX_S);
 
   private readonly excessResidualPrConfirm = new NXLogicConfirmNode(5);
 
@@ -3222,6 +3233,18 @@ export class PseudoFWC {
    * state (FwsManager), which is false while no FWC works.
    */
   private showFwc1And2Fault(): void {
+    this.forgetAlertsAndStatus(FWC_1_AND_2_FAULT_EWD.left, FWC_1_AND_2_FAULT_EWD.right);
+  }
+
+  /**
+   * No alert, memo nor STATUS while the FWCs are not working: no FWC left (FWS FWC 1+2 FAULT, shown with its E/WD
+   * lines) or the FWCs still starting up after the aircraft power-up (blank E/WD message areas). A started or restarted
+   * FWC then shows every active alert as a new one, with one single chime for the new cautions: the cautions that came
+   * and went while it was starting (the power-up tests of the other computers) are not chimed afterwards.
+   * @param ewdLinesLeft the lines of the E/WD left message area
+   * @param ewdLinesRight the lines of the E/WD right message area
+   */
+  private forgetAlertsAndStatus(ewdLinesLeft: readonly string[], ewdLinesRight: readonly string[]): void {
     // A restarted FWC shows every active alert again, as a new one
     this.failuresLeft.length = 0;
     this.failuresRight.length = 0;
@@ -3246,11 +3269,11 @@ export class PseudoFWC {
     this.masterCaution.set(false);
     this.masterWarning.set(false);
 
-    // E/WD: the FWC 1+2 FAULT display instead of the alerts (left) and the memos (right)
+    // E/WD: the given lines instead of the alerts (left) and the memos (right)
     this.ewdLeftFailureActive.set(false);
     this.ewdLowerLeftOverflow.set(false);
-    this.ewdMessageLinesLeft.forEach((l, i) => l.set(FWC_1_AND_2_FAULT_EWD.left[i] ?? ''));
-    this.ewdMessageLinesRight.forEach((l, i) => l.set(FWC_1_AND_2_FAULT_EWD.right[i] ?? ''));
+    this.ewdMessageLinesLeft.forEach((l, i) => l.set(ewdLinesLeft[i] ?? ''));
+    this.ewdMessageLinesRight.forEach((l, i) => l.set(ewdLinesRight[i] ?? ''));
 
     // STATUS NOT AVAIL: no STATUS lines, no STS reminder, no system page called
     this.statusLinesLeft.forEach((line) => line.set(''));
@@ -4996,9 +5019,11 @@ export class PseudoFWC {
       this.fwcFlightPhase.get() !== 2,
     );
     // NAV RA 1(2) FAULT, RA 1 AND 2 FAULT (Logic/AdirsAlerts raFaultAlerts): an RA failed with its AC bus powered
+    const ra1PowerUpTestDone = this.ra1PowerUpTestDoneConfirm.write(!this.sdac00201Word.bitValue(20), deltaTime);
+    const ra2PowerUpTestDone = this.ra2PowerUpTestDoneConfirm.write(!this.sdac00210Word.bitValue(20), deltaTime);
     const raFaults = raFaultAlerts(
-      this.height1Failed.get() && !this.sdac00201Word.bitValue(20),
-      this.height2Failed.get() && !this.sdac00210Word.bitValue(20),
+      this.height1Failed.get() && ra1PowerUpTestDone,
+      this.height2Failed.get() && ra2PowerUpTestDone,
     );
     this.ra1Fault.set(raFaults.ra1Fault);
     this.ra2Fault.set(raFaults.ra2Fault);
@@ -6904,6 +6929,13 @@ export class PseudoFWC {
     // No FWC left: no alert, memo nor STATUS, the E/WD shows FWS FWC 1+2 FAULT (A320 FCOM PRO-ABN-FWS)
     if (this.fwc1And2Fault.get()) {
       this.showFwc1And2Fault();
+      this.resetBufferedInputs();
+      return;
+    }
+
+    // The FWCs are still starting up (aircraft power-up, FwsManager): they do not compute alerts yet
+    if (!this.startupCompleted.get()) {
+      this.forgetAlertsAndStatus([], []);
       this.resetBufferedInputs();
       return;
     }

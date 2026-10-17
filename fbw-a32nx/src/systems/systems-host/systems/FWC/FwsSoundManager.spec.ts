@@ -49,4 +49,25 @@ describe('FWS aurals without FWC (A320 FCOM PRO-ABN-FWS FWS FWC 1 + 2 FAULT)', (
     expect(sounds.getCurrentSoundPlaying()).toBe(null);
     expect(lvars.get('L:A32NX_FWC_CAVALRY_CHARGE')).not.toBe(true);
   });
+
+  it('does not play the single chimes asked for while the FWC starts up as a backlog', () => {
+    const fwsAvailable = Subject.create(false);
+    const sounds = new FwsSoundManager(new EventBus(), fwsAvailable);
+
+    // Power-up: six cautions come and go while the FWC is still starting up
+    for (let i = 0; i < 6; i++) {
+      sounds.enqueueSound('singleChime');
+    }
+    fwsAvailable.set(true);
+
+    let chimes = 0;
+    for (let i = 0; i < 20; i++) {
+      sounds.onUpdate(600);
+      if (sounds.getCurrentSoundPlaying() === 'singleChime' && lvars.get('L:A32NX_FWC_SC') === true) {
+        chimes++;
+        lvars.set('L:A32NX_FWC_SC', false);
+      }
+    }
+    expect(chimes).toBe(0);
+  });
 });

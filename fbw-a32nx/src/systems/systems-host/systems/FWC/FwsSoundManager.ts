@@ -376,7 +376,9 @@ export class FwsSoundManager {
 
     if (sound.type === FwsAuralWarningType.SyntheticVoice || sound.type === FwsAuralWarningType.AuralWarning) {
       this.soundQueue.add(soundKey);
-    } else if (sound.type === FwsAuralWarningType.SingleChime) {
+    } else if (sound.type === FwsAuralWarningType.SingleChime && this.startupCompleted.get()) {
+      // Only counted once an FWC has completed its startup: a single chime marks a new caution, so the cautions that
+      // came and went while the FWC was starting (aircraft power-up) must not be played afterwards as a backlog
       this.singleChimesPending++;
     }
   }
