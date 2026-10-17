@@ -1843,13 +1843,13 @@ export class A320_Neo_CDU_MainDisplay
     const integralLightsPowered = SimVar.GetSimVarValue('L:A32NX_ELEC_AC_1_BUS_IS_POWERED', 'bool');
 
     if (mcdu1Powered) {
-      left = Object.assign({}, this.getScreenState(this, integralLightsPowered));
+      left = this.getScreenState(this, integralLightsPowered);
       left.annunciators = this.annunciators.left;
       left.displayBrightness = this.leftBrightness / A320_Neo_CDU_MainDisplay.MAX_BRIGHTNESS;
     }
 
     if (mcdu2Powered) {
-      right = Object.assign({}, this.getScreenState(this.screens[1] ?? this, integralLightsPowered));
+      right = this.getScreenState(this.screens[1] ?? this, integralLightsPowered);
       right.annunciators = this.annunciators.right;
       right.displayBrightness = this.rightBrightness / A320_Neo_CDU_MainDisplay.MAX_BRIGHTNESS;
     }

@@ -4378,7 +4378,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     this._messageQueue.resetQueue();
   }
 
-  /** Runs the callback for every MCDU screen that shares this FMS: the CPT one, and the F/O one when it exists. */
   protected forEachScreen(callback: (screen: A320_Neo_CDU_MainDisplay) => void) {
     for (const screen of this.screens) {
       callback(screen);
