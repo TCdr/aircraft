@@ -232,6 +232,11 @@ impl A380HydraulicCircuitFactory {
     const MIN_PRESS_PRESSURISED_HI_HYST: f64 = 3700.0;
     const HYDRAULIC_TARGET_PRESSURE_PSI: f64 = 5250.;
 
+    // Design choice: no A380 servo flow figures are available. The servos that the flight control computers engage
+    // and release get no flow at the pressure where the computers release them, so one electric pump re-centring all
+    // the drooped surfaces levels the pressure out above it, instead of a release and re-engage loop.
+    const FLIGHT_CONTROL_SERVO_FLOW_CUT_OFF_PSI: f64 = Self::MIN_PRESS_PRESSURISED_LO_HYST;
+
     // Nitrogen PSI precharge pressure
     const ACCUMULATOR_GAS_PRE_CHARGE_PSI: f64 = 2612.0;
     const ACCUMULATOR_MAX_VOLUME_GALLONS: f64 = 0.5;
@@ -475,6 +480,9 @@ impl A380AileronFactory {
             }),
             Pressure::new::<psi>(A380HydraulicCircuitFactory::HYDRAULIC_TARGET_PRESSURE_PSI),
         )
+        .with_flow_cut_off_pressure(Pressure::new::<psi>(
+            A380HydraulicCircuitFactory::FLIGHT_CONTROL_SERVO_FLOW_CUT_OFF_PSI,
+        ))
     }
 
     /// Builds an aileron control surface body for A380-800
@@ -812,6 +820,9 @@ impl A380ElevatorFactory {
             }),
             Pressure::new::<psi>(A380HydraulicCircuitFactory::HYDRAULIC_TARGET_PRESSURE_PSI),
         )
+        .with_flow_cut_off_pressure(Pressure::new::<psi>(
+            A380HydraulicCircuitFactory::FLIGHT_CONTROL_SERVO_FLOW_CUT_OFF_PSI,
+        ))
     }
 
     /// Builds an aileron control surface body for A380-800
@@ -992,6 +1003,9 @@ impl A380RudderFactory {
             )),
             Pressure::new::<psi>(A380HydraulicCircuitFactory::HYDRAULIC_TARGET_PRESSURE_PSI),
         )
+        .with_flow_cut_off_pressure(Pressure::new::<psi>(
+            A380HydraulicCircuitFactory::FLIGHT_CONTROL_SERVO_FLOW_CUT_OFF_PSI,
+        ))
     }
 
     fn a380_rudder_body(
@@ -9158,6 +9172,39 @@ mod tests {
                 self
             }
 
+            /// The test bed has no PRIM: engages or releases every yellow flight control servo with a neutral surface
+            /// demand, as the PRIMs do on ground
+            fn set_yellow_flight_control_servos_engaged(
+                mut self,
+                engaged: bool,
+                ths_demand: Angle,
+            ) -> Self {
+                for servo in [
+                    "LEFT_OUTBOARD_AIL_YELLOW",
+                    "RIGHT_OUTBOARD_AIL_YELLOW",
+                    "LEFT_MIDBOARD_AIL_YELLOW",
+                    "RIGHT_MIDBOARD_AIL_YELLOW",
+                    "RIGHT_INBOARD_ELEV_YELLOW",
+                    "RIGHT_OUTBOARD_ELEV_YELLOW",
+                ] {
+                    self.write_by_name(&format!("{}_SERVO_SOLENOID_ENERGIZED", servo), engaged);
+                    self.write_by_name(&format!("{}_COMMANDED_POSITION", servo), 0.);
+                }
+
+                self.write_by_name("THS_YELLOW_SERVO_SOLENOID_ENERGIZED", engaged);
+                self.write_by_name("THS_YELLOW_COMMANDED_POSITION", ths_demand.get::<degree>());
+
+                for rudder in ["UPPER_RUDDER_YELLOW_EBHA", "LOWER_RUDDER_YELLOW_EBHA"] {
+                    self.write_by_name(
+                        &format!("{}_HYDRAULIC_MODE_SOLENOID_ENERGIZED", rudder),
+                        engaged,
+                    );
+                    self.write_by_name(&format!("{}_COMMANDED_POSITION", rudder), 0.);
+                }
+
+                self
+            }
+
             fn set_elevator_neutral(mut self) -> Self {
                 self.write_by_name("LEFT_ELEV_BLUE_COMMANDED_POSITION", 0.);
                 self.write_by_name("RIGHT_ELEV_BLUE_COMMANDED_POSITION", 0.);
@@ -14115,6 +14162,88 @@ mod tests {
                     .get::<ratio>()
                     .abs(),
                 0.5
+            );
+        }
+
+        /// The yellow electric pump A alone on ground: the PRIMs engage the yellow servos once the system has been
+        /// pressurised for 0.5 s and release them when it is not. All the drooped surfaces then re-centre at once,
+        /// while the THS trims and the ALTN brake accumulator recharges. The pressure must level out and reach normal
+        /// pressure, not fall under the release threshold and saw-tooth with the servos.
+        #[test]
+        fn yellow_elec_pump_alone_re_centres_drooped_surfaces_without_pressure_saw_tooth() {
+            let step = Duration::from_millis(50);
+            let prim_engage_confirmation = Duration::from_millis(500);
+            let ths_demand = Angle::new::<degree>(-6.);
+
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_waiting_for(Duration::from_secs(1));
+
+            // A partly used ALTN brake accumulator, as found after some park brake applications
+            for _ in 0..3 {
+                test_bed = test_bed
+                    .set_park_brake(false)
+                    .run_waiting_for(Duration::from_secs(1))
+                    .set_park_brake(true)
+                    .run_waiting_for(Duration::from_secs(1));
+            }
+
+            test_bed = test_bed
+                .set_park_brake(false)
+                .set_yellow_flight_control_servos_engaged(false, ths_demand)
+                .run_waiting_for(Duration::from_secs(10))
+                .set_yellow_e_pump_a(true);
+
+            let mut pressurised_for = Duration::ZERO;
+            let mut servos_engaged = false;
+            let mut has_been_pressurised = false;
+            let mut peak_pressure_psi: f64 = 0.;
+            let mut largest_drop_psi: f64 = 0.;
+            let mut time_since_pump_on = Duration::ZERO;
+            let mut time_to_normal_pressure = None;
+            while time_since_pump_on < Duration::from_secs(30) {
+                test_bed = test_bed.run_waiting_for(step);
+                time_since_pump_on += step;
+
+                pressurised_for = if test_bed.is_yellow_pressure_switch_pressurised() {
+                    pressurised_for + step
+                } else {
+                    Duration::ZERO
+                };
+                let prim_engages = pressurised_for >= prim_engage_confirmation;
+                assert!(
+                    prim_engages || !servos_engaged,
+                    "Yellow servos released {:.2} s after pump on",
+                    time_since_pump_on.as_secs_f64()
+                );
+                servos_engaged = prim_engages;
+                test_bed =
+                    test_bed.set_yellow_flight_control_servos_engaged(servos_engaged, ths_demand);
+
+                let pressure_psi = test_bed.yellow_pressure().get::<psi>();
+                has_been_pressurised |=
+                    pressure_psi >= A380HydraulicCircuitFactory::MIN_PRESS_PRESSURISED_HI_HYST;
+                if has_been_pressurised {
+                    peak_pressure_psi = peak_pressure_psi.max(pressure_psi);
+                    largest_drop_psi = largest_drop_psi.max(peak_pressure_psi - pressure_psi);
+                }
+                if time_to_normal_pressure.is_none() && pressure_psi > 4900. {
+                    time_to_normal_pressure = Some(time_since_pump_on);
+                }
+            }
+
+            assert!(servos_engaged);
+            assert_lt!(largest_drop_psi, 800.);
+            assert_lt!(time_to_normal_pressure.unwrap(), Duration::from_secs(15));
+            assert_gt!(test_bed.yellow_pressure().get::<psi>(), 5000.);
+            // Re-centred: 0.4 is the neutral position of the aileron panel, 0 its drooped one
+            assert_gt!(
+                test_bed
+                    .get_left_aileron_panel_position(AileronPanelPosition::Outward)
+                    .get::<ratio>(),
+                0.35
             );
         }
     }
