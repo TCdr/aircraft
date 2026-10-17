@@ -5491,8 +5491,8 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 
 - A32NX_TPIS_MAIN_NOMINAL_TYRE_PRESSURE / A32NX_TPIS_NOSE_NOMINAL_TYRE_PRESSURE
     - PSI
-    - The nominal pressure of the main (200) and nose (180) tyres, the reference of the WHEEL TYRE LO PR percentages
-      (design values, the FCOM gives no tyre pressure)
+    - The nominal pressure of the main (209) and nose (178) tyres, the reference of the WHEEL TYRE LO PR percentages
+      (Airbus published inflation pressures of the A320neo at 79.4 t maximum ramp weight)
     - Read-Only
 
 ## Lighting (ATA 33)

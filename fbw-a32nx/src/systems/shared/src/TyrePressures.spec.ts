@@ -17,7 +17,7 @@ import {
   TYRES,
 } from './TyrePressures';
 
-/** The nominal pressures of the TPIS model (a320_systems tyre_pressure.rs) */
+/** Round nominal pressures that keep the percentage arithmetic readable (the TPIS model writes the published ones) */
 const nominal = { mainPsi: 200, nosePsi: 180 };
 
 /** Every tyre at its nominal pressure, then the given changes (index = Tyre) */
