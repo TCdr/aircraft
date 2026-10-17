@@ -27,3 +27,7 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS cross_feed_burn_test.cpp -o ../o
 # fail.
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS wing_tank_leak_test.cpp -o ../obj/wing_tank_leak_test
 ../obj/wing_tank_leak_test
+# The least N2 rise of a burning start (the start N2 floor): with WITHOUT_THE_FIX=1 it is a fixed step per frame and the test
+# must fail (the displayed N2 creeps faster at a higher frame rate).
+clang++ -std=c++20 -Wall -Wextra -Werror -Wno-unused-lambda-capture $FLAGS start_n2_floor_test.cpp -o ../obj/start_n2_floor_test
+../obj/start_n2_floor_test

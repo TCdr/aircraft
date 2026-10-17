@@ -61,7 +61,7 @@ static StartResult runStart(bool fanBlockedFailure, bool onGround) {
   double      fadecN2 = 0.0;
   for (double t = 0.0; t < 60.0; t += 1.0 / 30.0) {
     const double simN2 = (std::min)(IDLE_N2, IDLE_N2 * t / 40.0);
-    fadecN2            = StartSequence_A32NX::hungStartN2(Polynomial_A32NX::startN2(simN2, fadecN2, IDLE_N2), IDLE_N2, hang);
+    fadecN2            = StartSequence_A32NX::hungStartN2(Polynomial_A32NX::startN2(simN2, fadecN2, IDLE_N2, 1.0 / 30.0), IDLE_N2, hang);
     const double n1    = shownN1(Polynomial_A32NX::startN1(fadecN2, IDLE_N2, IDLE_N1), fanBlocked);
     if (fadecN2 >= LOW_N1_ALERT_MIN_N2) {
       result.maxN1AboveAlertN2 = (std::max)(result.maxN1AboveAlertN2, n1);
