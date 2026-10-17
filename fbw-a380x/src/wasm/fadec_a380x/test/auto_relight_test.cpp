@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-// Native unit test of the igniter selection of the FADEC, in-flight relight and FCOM AUTO RELIGHT
+// Native unit test of the igniter selection of the FADEC, in-flight relight and auto relight
 // (src/Fadec/EngineIgnition_A380X.hpp): run test/run_tests.sh.
 
 #include <cmath>
@@ -122,7 +122,7 @@ static void testDetectionAndRelease() {
     expect(!run(ignition, EngineConditions{}, 0.4), "second relight: igniters off 60 s after it");
   }
   {
-    // FCOM: "on ground or in flight"
+    // On the ground or in flight
     EngineIgnition_A380X ignition;
     EngineConditions     ground;
     ground.simOnGround = true;
@@ -231,9 +231,9 @@ static void testInFlightRelightIgnition() {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Ground quick relight. A380 FCOM DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112545): "the FADEC automatically selects
-// the continuous ignition with both igniters". Sim test F5 2026-10-16 (rec_f5_s2.log): engine 4 at ground idle, ENG START
-// NORM, MASTER OFF then ON about 2 s later at about 60 % N3: no ignition, the FBW state stayed SHUTTING, the N3 ran down.
+// Ground quick relight: the FADEC selects continuous ignition with both igniters. Measured in the sim without it: engine 4 at
+// ground idle, ENG START NORM, MASTER OFF then ON about 2 s later at about 60 % N3: no ignition, the FBW state stayed SHUTTING,
+// the N3 ran down.
 // ---------------------------------------------------------------------------------------------------------------------
 
 static void testGroundQuickRelightIgnition() {
@@ -274,8 +274,8 @@ static void testGroundQuickRelightIgnition() {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Replay of the flight of 2026-10-06: four engines lose their MSFS combustion at 703.8 s, ENG START NORM, nothing
-// relights them until the crew selects IGN START at 854.9 s
+// Replay of a recorded sim flight: four engines lose their MSFS combustion at 703.8 s, ENG START NORM, nothing relights them
+// until the crew selects IGN START at 854.9 s
 // ---------------------------------------------------------------------------------------------------------------------
 
 struct ReplaySample {

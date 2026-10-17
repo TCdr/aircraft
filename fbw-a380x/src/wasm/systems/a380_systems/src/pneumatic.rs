@@ -132,8 +132,8 @@ pub struct A380Pneumatic {
     /// BLEED AUTO logic of their CPIOM-A pair (cross_bleed_valve_command)
     cpiom_a_available: [bool; 4],
     /// The left, center and right crossbleed valves no longer get the AUTO logic: both CPIOM-A of
-    /// their pair are lost (AIR XBLEED FAULT, "Is no longer controlled automatically by the bleed
-    /// controller", PRO-ABN a380_fcom.txt l.169012-169022)
+    /// their pair are lost (AIR XBLEED FAULT, no longer controlled automatically by the bleed
+    /// controller)
     cross_bleed_valve_automatic_control_lost: [bool; 3],
     cross_bleed_valve_automatic_control_lost_ids: [VariableIdentifier; 3],
 
@@ -145,9 +145,8 @@ pub struct A380Pneumatic {
     /// flyPad failure: hot air leaks from the APU bleed duct (AIR APU BLEED LEAK)
     apu_bleed_leak: Failure,
 
-    /// The HP ground air (A380 FCOM DSC-36-10-40, a380_fcom.txt l.94031-94039): the ground cart
-    /// on the HP ground connectors (flyPad ground services, L:A32NX_ASU_TURNED_ON) feeds the bleed
-    /// ducts through the non-return valve of its connector
+    /// The HP ground air: the ground cart on the HP ground connectors (flyPad ground services,
+    /// L:A32NX_ASU_TURNED_ON) feeds the bleed ducts through the non-return valve of its connector
     hp_ground_air_compression_chamber: CompressionChamber,
     hp_ground_air_non_return_valve: PurelyPneumaticValve,
 
@@ -349,10 +348,9 @@ impl A380Pneumatic {
             fwd_cargo_duct_leaking_air,
         );
 
-        // The APU isolation valve "operates simultaneously with the APU bleed valve" (A380 FCOM
-        // DSC-36-10-30, a380_fcom.txt l.93986-93988): the model has one valve for both, that the APU
-        // ECB commands. An APU bleed leak closes them (l.94205-94207): the ECB closes the APU bleed
-        // valve (lib.rs), and the isolation valve closes here.
+        // The APU isolation valve operates together with the APU bleed valve: the model has one valve
+        // for both, that the APU ECB commands. An APU bleed leak closes both: the ECB closes the APU
+        // bleed valve (lib.rs), and the isolation valve closes here.
         if self.leak_detection.apu_leak() {
             self.apu_bleed_air_valve
                 .update_open_amount::<ApuIsolationValveSignal, _>(&FixedValveCommand(
@@ -416,10 +414,10 @@ impl A380Pneumatic {
             &mut self.apu_compression_chamber,
             engine_1_system,
         );
-        // Design choice (the FCOM gives no duct layout): the HP ground connectors join the bleed
-        // system where the APU duct does, on the engine 1 duct of the model. The ground air start
-        // procedure starts "ENGINE 1 OR 2" first (PRO-SUP-70-10, a380_fcom.txt l.180938-180950);
-        // the crossbleed valves open at AUTO for the start of any engine on the ground.
+        // Design choice (no published duct layout): the HP ground connectors join the bleed system
+        // where the APU duct does, on the engine 1 duct of the model. The ground air start procedure
+        // starts engine 1 or 2 first; the crossbleed valves open at AUTO for the start of any engine
+        // on the ground.
         self.hp_ground_air_non_return_valve.update_move_fluid(
             context,
             &mut self.hp_ground_air_compression_chamber,
@@ -525,14 +523,13 @@ impl A380Pneumatic {
         &mut self.packs
     }
 
-    /// The FAULT light of the ENG 1(2)(3)(4) BLEED pb-sw (FCOM DSC-36-20 l.94277-94291)
+    /// The FAULT light of the ENG 1(2)(3)(4) BLEED pb-sw
     pub fn engine_bleed_fault(&self, engine_number: usize) -> bool {
         self.core_processing_input_output_module_a.units[engine_number - 1].has_fault()
     }
 
     /// A leak is detected in the APU bleed duct: the APU bleed valve closes (the APU ECB input,
-    /// lib.rs) and the APU BLEED pb-sw FAULT light comes on (AIR APU BLEED LEAK, PRO-ABN
-    /// a380_fcom.txt l.167752-167796)
+    /// lib.rs) and the APU BLEED pb-sw FAULT light comes on (AIR APU BLEED LEAK)
     pub fn apu_bleed_leak(&self) -> bool {
         self.leak_detection.apu_leak()
     }
@@ -674,7 +671,7 @@ impl<T: PneumaticValveSignal> ControllerSignal<T> for FixedValveCommand {
 }
 
 /// The opening at which a stuck valve stays: closed, fully open, or None when the valve is not stuck.
-/// Design choice (no FCOM value, as the A320 model): a stuck valve stays fully closed or fully open.
+/// Design choice (as the A320 model): a stuck valve stays fully closed or fully open.
 /// An electro-pneumatic valve only takes it while its solenoid bus is powered; without power it
 /// still follows its pneumatic spring, as without the failure.
 pub(crate) fn stuck_valve_open_amount(
@@ -691,9 +688,8 @@ pub(crate) fn stuck_valve_open_amount(
 }
 
 /// A detection that holds while the ENG BLEED pb-sw is in AUTO, and follows its condition while
-/// the pb-sw is OFF. A380 FCOM DSC-36-20 (a380_fcom.txt l.94290-94291): "The FAULT light goes off,
-/// when the flight crew selects OFF, and the applicable failure disappears". Design choice (as the
-/// A320 model): the automatic closure of the bleed holds with the light.
+/// the pb-sw is OFF: the FAULT light goes off only when the crew selects OFF and the failure is
+/// gone. Design choice (as the A320 model): the automatic closure of the bleed holds with the light.
 fn held_detection(held: bool, detected: bool, bleed_pb_is_off: bool) -> bool {
     if bleed_pb_is_off {
         detected
@@ -702,12 +698,10 @@ fn held_detection(held: bool, detected: bool, bleed_pb_is_off: bool) -> bool {
     }
 }
 
-/// Bleed air overtemperature, seen by the CPIOM-A downstream of the engine bleed valve. A380 FCOM
-/// DSC-36-10-20 (a380_fcom.txt l.93867-93871 for the HP valve, l.93943-93947 for the bleed valve):
-/// "The temperature downstream of the bleed valve exceeds: 260 °C, with a bleed pressure lower or
-/// equal to 45 PSI, during more than 55 s; 245 °C, with a bleed pressure greater than 45 PSI,
-/// during more than 55 s". Design choice: the temperature is the bleed temperature downstream of
-/// the precooler (the regulated temperature; upstream of it the air is the compressor air).
+/// Bleed air overtemperature, seen by the CPIOM-A downstream of the engine bleed valve: above 260 °C
+/// with a bleed pressure up to 45 PSI, or above 245 °C with more than 45 PSI, for more than 55 s.
+/// Design choice: the temperature is the bleed temperature downstream of the precooler (the
+/// regulated temperature; upstream of it the air is the compressor air).
 struct BleedOverheatMonitor {
     over_limit: DelayedTrueLogicGate,
 }
@@ -743,17 +737,15 @@ impl BleedOverheatMonitor {
     }
 }
 
-/// Bleed air overpressure, seen by the CPIOM-A downstream of the engine bleed valve. A380 FCOM
-/// DSC-36-10-20 (a380_fcom.txt l.93934-93939): "The pressure downstream of the bleed valve exceeds:
-/// 60 PSI, with a bleed temperature lower or equal to 245 °C, during more than 15 s. 45 PSI, with a
-/// bleed temperature greater than 245 °C, during more than 15 s."
+/// Bleed air overpressure, seen by the CPIOM-A downstream of the engine bleed valve: above 60 PSI
+/// with a bleed temperature up to 245 °C, or above 45 PSI when hotter, for more than 15 s.
 ///
-/// Design choice (no FCOM value): a closure of the overpressure valve in the last 10 s counts as a
-/// pressure above the limit. That valve (l.93886-93888) cycles the pressure of a failed regulation
-/// between 55 and 85 PSI: each dip below 60 PSI restarted the 15 s and the overpressure (AIR ENG
-/// BLEED FAULT) was never detected. The pressure itself is not filtered: at high power the model's
-/// regulation can leave a duct at 55-75 PSI (one bleed feeding the crossbled ducts), which must not
-/// add up to an overpressure.
+/// Design choice: a closure of the overpressure valve in the last 10 s counts as a pressure above
+/// the limit. That valve cycles the pressure of a failed regulation between 55 and 85 PSI: each
+/// dip below 60 PSI restarted the 15 s and the overpressure (AIR ENG BLEED FAULT) was never
+/// detected. The pressure itself is not filtered: at high power the model's regulation can leave a
+/// duct at 55-75 PSI (one bleed feeding the crossbled ducts), which must not add up to an
+/// overpressure.
 struct BleedOverpressureMonitor {
     over_limit: DelayedTrueLogicGate,
     /// The overpressure valve closed in the last OVERPRESSURE_VALVE_CLOSURE_MEMORY
@@ -801,7 +793,7 @@ impl BleedOverpressureMonitor {
 }
 
 /// Hot air leaking from a duct reaches its leak detection loop while the duct is pressurised.
-/// Design choice (no FCOM value, as the A320 model): above 2 PSI over the ambient pressure.
+/// Design choice (as the A320 model): above 2 PSI over the ambient pressure.
 const LEAK_MIN_DUCT_PRESSURE_PSIG: f64 = 2.;
 
 /// The air that a leak blows on its detection loop: the air of the leaking duct while it is
@@ -837,25 +829,22 @@ fn side_bleed_air_temperature(
         .reduce(|hottest, temperature| hottest.max(temperature))
 }
 
-/// The CPIOM-A units (from 0) that drive each crossbleed valve: left, center, right. FBW team note
-/// from the A380 TTM (no FCOM source): "There is a relay system that connects the 4 CPIOM units
-/// (PADS application) to the 3 crossbleed valves and the APU isolation valve. CPIOM-A1+A2 control
-/// left xbleed and APU isolation valve, CPIOM-A3+A4 control center and right xbleed valve". The
-/// FCOM (a380_fcom.txt l.93810, l.94916-94919) has the bleed controller functions in CPIOM A.
+/// The CPIOM-A units (from 0) that drive each crossbleed valve: left, center, right. From an FBW
+/// team note on the A380 training manual: CPIOM-A1+A2 control the left crossbleed and the APU
+/// isolation valve, CPIOM-A3+A4 the center and right crossbleed valves.
 const CROSS_BLEED_VALVE_CPIOM_A_UNITS: [[usize; 2]; 3] = [[0, 1], [2, 3], [2, 3]];
 
 /// The command of crossbleed valve n (0 left, 1 center, 2 right), and whether its automatic control
 /// is lost.
 ///
 /// The first available CPIOM-A of the pair of the valve sends its command. All units compute the
-/// same X BLEED logic, so the valves still open and close "automatically, and at the same time"
-/// (FCOM DSC-36-10-50, a380_fcom.txt l.94076-94079) while each pair has one unit.
+/// same X BLEED logic, so the valves still open and close automatically and together while each
+/// pair has one unit.
 ///
-/// Design choice (no FCOM detail): with both CPIOM-A of its pair lost the valve gets no AUTO command
-/// and stays where it is; the XBLEED selector OPEN or CLOSE still moves it (its manual motor, as
-/// the dual motor valve of the A320), so the crew keeps control of it. "In case of a CPIOM failure,
-/// the ECAM will not trigger a specific CPIOM alert. Aircraft systems, monitored and controlled by
-/// this failed CPIOM, may be affected" (DSC-42-20, l.95060-95066).
+/// Design choice: with both CPIOM-A of its pair lost the valve gets no AUTO command and stays where
+/// it is; the XBLEED selector OPEN or CLOSE still moves it (its manual motor, as the dual motor valve
+/// of the A320), so the crew keeps control of it. A CPIOM failure has no alert of its own: only the
+/// systems it controls show it.
 fn cross_bleed_valve_command(
     units: &[CoreProcessingInputOutputModuleAUnit; 4],
     cpiom_a_available: [bool; 4],
@@ -885,9 +874,9 @@ fn cross_bleed_valve_command(
     }
 }
 
-/// The opening of a bleed duct with a leak failure. Design choice (no FCOM value, as the A320
-/// model): the hole empties an isolated duct in a few seconds, while the duct stays pressurised as
-/// long as its bleed valve feeds it.
+/// The opening of a bleed duct with a leak failure. Design choice (as the A320 model): the hole
+/// empties an isolated duct in a few seconds, while the duct stays pressurised as long as its bleed
+/// valve feeds it.
 fn new_leak_exhaust() -> PneumaticExhaust {
     const LEAK_EXHAUST_SPEED: f64 = 0.5;
     PneumaticExhaust::new(
@@ -897,29 +886,22 @@ fn new_leak_exhaust() -> PneumaticExhaust {
     )
 }
 
-/// The bleed leak detection of the engine and wing ducts. A380 FCOM DSC-36-10-60
-/// (a380_fcom.txt l.94099-94130): dual detection loops along the ducts of the engines (in the
-/// pylons) and of the outer and inner wings; "An overheat is detected, when the ambient temperature
-/// near the bleed ducts is above: 180 deg C for the engine pylon ducts, 124 deg C for all other
-/// ducts". The wing zones follow the engines: zone 1 left outer wing, 2 left inner, 3 right inner,
-/// 4 right outer (the ENG BLEED pb-sw FAULT light: "A leak is detected in the applicable engine or
-/// inner (outer) wing", DSC-36-20 l.94284).
+/// The bleed leak detection of the engine and wing ducts: dual detection loops along the ducts of
+/// the engines (in the pylons) and of the outer and inner wings detect an overheat above 180 °C near
+/// the pylon ducts and 124 °C near all other ducts. The wing zones follow the engines: zone 1 left
+/// outer wing, 2 left inner, 3 right inner, 4 right outer (the ENG BLEED pb-sw FAULT light of the
+/// engine also shows the leak of its wing zone).
 ///
-/// A leak holds while the ENG BLEED pb-sw of its engine is in AUTO (held_detection, DSC-36-20
-/// l.94290-94291 and the leak procedures "If the ENG 1(4) BLEED pb-sw is set to ON, the FAULT light
-/// remains. If the ENG 1(4) BLEED pb-sw is off, the FAULT light goes off when the overheat due to
-/// the bleed leak disappears", PRO-ABN l.168662-168664).
+/// A leak holds while the ENG BLEED pb-sw of its engine is in AUTO (held_detection): with the pb-sw
+/// OFF the FAULT light goes off once the overheat is gone.
 ///
-/// The other zones of DSC-36-10-60 (l.94101-94107: "APU, Pack bays, Air conditioning hot-air
-/// system"), and the forward cargo duct of AIR FWD CARGO DUCT LEAK (PRO-ABN l.168341-168360), are
-/// detected above 124 deg C too ("all other ducts", l.94124-94125). Their isolation (l.94127-94132,
-/// l.94205-94237): an APU duct leak closes the APU bleed and isolation valves; a pack bay leak the
+/// The APU, pack bay and hot-air ducts, and the forward cargo duct, are detected above 124 °C too.
+/// Their isolation: an APU duct leak closes the APU bleed and isolation valves; a pack bay leak the
 /// two pack valves of the pack and the hot-air valve of its side; a hot-air duct leak its hot-air
-/// valve, and the forward cargo duct leak the hot-air valve 1 ("If the hot-air valve 1 did not
-/// close automatically: HOT AIR 1 OFF", l.168359-168360). Each holds as the engine zones do, while
-/// its pb-sw is ON: APU BLEED ("If the APU BLEED pb-sw is set to ON, the FAULT light remains",
-/// l.167794-167796), PACK 1(2) and HOT AIR 1(2) (design choice: the same rule for the pb-sw of the
-/// valves that the leak closes).
+/// valve, and the forward cargo duct leak the hot-air valve 1 (the crew sets HOT AIR 1 OFF if it
+/// did not close). Each holds as the engine zones do, while its pb-sw is ON: APU BLEED, and PACK
+/// 1(2) and HOT AIR 1(2) (design choice: the same rule for the pb-sw of the valves that the leak
+/// closes).
 ///
 /// Not simulated: the two loops of a zone and their failures (AIR LEAK DET FAULT).
 struct BleedLeakDetection {
@@ -945,7 +927,6 @@ struct BleedLeakDetection {
 impl BleedLeakDetection {
     const PYLON_DETECTION_CELSIUS: f64 = 180.;
     const WING_DETECTION_CELSIUS: f64 = 124.;
-    /// "124 deg C for all other ducts" (l.94124-94125)
     const OTHER_DUCTS_DETECTION_CELSIUS: f64 = 124.;
     /// The wing zone of each engine, as the LVar names give them
     const WING_ZONE_NAMES: [&str; 4] = ["L_OUTR", "L_INR", "R_INR", "R_OUTR"];
@@ -1067,10 +1048,9 @@ impl BleedLeakDetection {
         self.pylon_leak[engine_number - 1] || self.wing_leak[engine_number - 1]
     }
 
-    /// The crossbleed valves that a leak closes at AUTO, left, center and right. A380 FCOM
-    /// DSC-36-10-60 (a380_fcom.txt l.94147-94155, l.94185-94194): an outer engine or outer wing leak
-    /// closes "The crossbleed valve on the side of the affected engine, The center crossbleed
-    /// valve"; an inner one "The crossbleed valve on the side of the affected engine".
+    /// The crossbleed valves that a leak closes at AUTO, left, center and right: an outer engine or
+    /// outer wing leak closes the crossbleed valve of its side and the center one, an inner one the
+    /// crossbleed valve of its side only.
     fn cross_bleed_valves_to_close(&self) -> [bool; 3] {
         let leak = |engine_number: usize| self.zone_leak(engine_number);
         [leak(1) || leak(2), leak(1) || leak(4), leak(3) || leak(4)]
@@ -1130,15 +1110,13 @@ impl ControllerSignal<CrossBleedValveSignal> for CrossBleedValveCommand {
 
 /// The engines whose bleed duct has no air source and empties (vented), engine 1 first.
 ///
-/// Design choice, no FCOM value: the bleed duct of an engine that is not running is fed only by
-/// the APU bleed or the HP ground air (connected to the engine 1 duct) and, through open crossbleed
-/// valves, by the ducts of running engines (left crossbleed valve: engines 1-2, center: 1-4, right:
-/// 3-4, as the model
-/// connects them). Without such a source the air trapped in the duct after the engine stopped (its
-/// bleed valve closes below 15 PSI, FCOM DSC-36 a380_fcom.txt l.93916-93922) leaks away, so that a
-/// starter assisted relight finds no air in the duct: a starter needs a real air source (APU,
-/// crossbleed). Without this the trapped air pressurized the starter for 5 to 15 s and a relight
-/// was granted with no APU or crossbleed air.
+/// Design choice: the bleed duct of an engine that is not running is fed only by the APU bleed or
+/// the HP ground air (connected to the engine 1 duct) and, through open crossbleed valves, by the
+/// ducts of running engines (left crossbleed valve: engines 1-2, center: 1-4, right: 3-4, as the
+/// model connects them). Without such a source the air trapped in the duct after the engine stopped
+/// (its bleed valve closes below 15 PSI) leaks away, so that a starter assisted relight needs a
+/// real air source (APU, crossbleed). Without this the trapped air pressurized the starter for 5 to
+/// 15 s and a relight was granted with no APU or crossbleed air.
 fn engine_ducts_without_air_source(
     engine_running: [bool; 4],
     external_air_on_engine_1_duct: bool,
@@ -1190,10 +1168,10 @@ impl ControllerSignal<EngineStarterValveSignal> for EngineStarterValveController
     }
 }
 impl EngineStarterValveController {
-    /// FCOM N2 (the HP spool of the GP7270), read on the Trent N3
+    /// The documented N2 (the HP spool of the GP7270), read on the Trent N3
     const START_VALVE_CLOSING_N3_PERCENT: f64 = 58.4;
-    /// LIM-70 STARTER (l.189735), FCOM N2 read on the Trent N3 (as the start sequence,
-    /// engine_failure.rs a380_engine_start_schedule)
+    /// No running engagement of the starter above this N2, read on the Trent N3 (as the start
+    /// sequence, engine_failure.rs a380_engine_start_schedule)
     const STARTER_ENGAGEMENT_MAX_N3_PERCENT: f64 = 25.;
 
     fn new(context: &mut InitContext, number: usize) -> Self {
@@ -1210,14 +1188,10 @@ impl EngineStarterValveController {
         self.commanded_open
     }
 
-    /// A380 FCOM DSC-70-30 (a380_fcom.txt l.113548-113576), at the ENG MASTER ON of a start
-    /// (STARTING), or of the restart of an engine that has not run down to OFF yet (RESTARTING):
-    /// - on the ground (l.113552): "Engine start valve opens";
-    /// - in flight (l.113567-113570): "Engine start valve opens if N2 is below 11 %, or if the
-    ///   aircraft airspeed (CAS) is below 260 kt. Note: The engine start valve remains closed in the
-    ///   case of a windmilling start sequence";
-    /// - in both cases (l.113558-113559, l.113574-113576): "When N2 above 58.4 %: Engine start valve
-    ///   closes".
+    /// At the ENG MASTER ON of a start (STARTING), or of the restart of an engine that has not run
+    /// down to OFF yet (RESTARTING), the start valve opens: on the ground always, in flight only if N2
+    /// is below 11 % or the CAS below 260 kt (otherwise a windmilling start, valve closed). It closes
+    /// above 58.4 % N2.
     fn update(&mut self, context: &UpdateContext, fadec: &FullAuthorityDigitalEngineControl) {
         let core_speed = fadec.engine_core_speed(self.number);
         let starting = matches!(
@@ -1230,9 +1204,9 @@ impl EngineStarterValveController {
                 context.indicated_airspeed(),
             );
 
-        // LIM-70 STARTER (l.189735): "If the N2 is above 25 %, no running engagement of the starter
-        // is possible": the schedule opens the valve of a start whose core turns at or below 25 %
-        // N2, and keeps it open once open (see engine_start::starter_can_engage).
+        // No running engagement of the starter above 25 % N2: the schedule opens the valve of a start
+        // whose core turns at or below 25 %, and keeps it open once open (see
+        // engine_start::starter_can_engage).
         let schedule_open = starting
             && starter_assisted
             && core_speed.get::<percent>() <= Self::START_VALVE_CLOSING_N3_PERCENT
@@ -1293,8 +1267,8 @@ impl CoreProcessingInputOutputModuleA {
     ) {
         self.update_same_side_flow_balancing(context, sensors, cross_bleed_valves_open);
 
-        // "On ground, at engine start" (FCOM DSC-36-10-50, see the crossbleed signal): any engine
-        // whose start valve the FADEC commands open
+        // The crossbleed valves open at AUTO for an engine start on the ground: any engine whose
+        // start valve the FADEC commands open
         let engine_start_on_ground =
             context.is_on_ground() && engine_start_valves_commanded_open.contains(&true);
         for (unit, sensor) in self.units.iter_mut().zip(sensors) {
@@ -1309,20 +1283,17 @@ impl CoreProcessingInputOutputModuleA {
             );
         }
 
-        // "In case any engine bleed system fails" the crossbleed valves open at AUTO (see the
-        // crossbleed signal)
+        // The crossbleed valves also open at AUTO when any engine bleed system fails
         let any_engine_bleed_failed = self.units.iter().any(|unit| unit.engine_bleed_failed());
         for unit in self.units.iter_mut() {
             unit.is_any_engine_bleed_failed = any_engine_bleed_failed;
         }
     }
 
-    /// A380 FCOM DSC-36-10-20 (a380_fcom.txt l.93882-93885): the bleed valve "maintains the bleed
-    /// supply pressure at about 40 PSI ... The pressure depends on the bleed airflow. The engine
-    /// bleed valve regulates the airflow, to balance the pressure of the air bled from the two
-    /// engines that are on the same side."
+    /// The bleed valve keeps the bleed pressure at about 40 PSI, and regulates the airflow so that the
+    /// two engines of a side share the bleed.
     ///
-    /// Design choice (the FCOM gives no law): each bleed valve of a side (engines 1-2, 3-4) moves its
+    /// Design choice (no published law): each bleed valve of a side (engines 1-2, 3-4) moves its
     /// pressure target away from 40 PSI until both deliver the same airflow: the engine that
     /// delivers more lowers its target, the other raises it. Only while the crossbleed valve of the
     /// side joins their ducts and both bleed valves deliver air: with separate ducts each bleed only
@@ -1409,12 +1380,12 @@ struct CoreProcessingInputOutputModuleAUnit {
 }
 impl CoreProcessingInputOutputModuleAUnit {
     const PRESSURE_REGULATING_VALVE_TARGET_PSI: f64 = 40.; // FCOM
-    /// Design choices (no FCOM value): how fast the flow balancing moves the pressure target (PSI
-    /// per second for each kg/s of airflow difference), and how far it may move it ("about 40 PSI")
+    /// Design choices: how fast the flow balancing moves the pressure target (PSI per second for each
+    /// kg/s of airflow difference), and how far it may move it from the 40 PSI
     const FLOW_BALANCING_GAIN_PSI_PER_KG: f64 = 10.;
     const FLOW_BALANCING_MAX_OFFSET_PSI: f64 = 5.;
-    /// Design choice, no FCOM value (as the A320 model): the bleed valve must stay out of its
-    /// commanded position for 10 s before the FAULT light comes on.
+    /// Design choice (as the A320 model): the bleed valve must stay out of its commanded position for
+    /// 10 s before the FAULT light comes on.
     const BLEED_VALVE_POSITION_DISAGREE_CONFIRMATION: Duration = Duration::from_secs(10);
 
     fn new(engine_number: usize) -> Self {
@@ -1511,7 +1482,7 @@ impl CoreProcessingInputOutputModuleAUnit {
     }
 
     /// The bleed monitoring of the CPIOM-A: overtemperature, overpressure, leak and bleed valve
-    /// position (FCOM DSC-36-10-20 l.93931-93950, DSC-36-20 l.94277-94291)
+    /// position
     fn update_fault_monitoring(
         &mut self,
         context: &UpdateContext,
@@ -1543,8 +1514,7 @@ impl CoreProcessingInputOutputModuleAUnit {
         );
         self.zone_leak = zone_leak;
 
-        // "The engine bleed position disagrees with the requested position" (DSC-36-20 l.94280):
-        // the request is the opening this unit sent to the valve. The valve position read here
+        // The request is the opening this unit sent to the valve. The valve position read here
         // follows the command of the previous update (the valves move after this unit).
         self.bleed_valve_position_disagrees.update(
             context,
@@ -1582,7 +1552,7 @@ impl CoreProcessingInputOutputModuleAUnit {
     }
 
     /// The engine bleed supply is lost by an overtemperature or an overpressure (AIR ENG 1(2)(3)(4)
-    /// BLEED FAULT, PRO-ABN l.167912-167928)
+    /// BLEED FAULT)
     fn engine_bleed_failed(&self) -> bool {
         self.overheat_latched || self.overpressure_latched
     }
@@ -1599,10 +1569,8 @@ impl CoreProcessingInputOutputModuleAUnit {
         self.bleed_valve_position_disagrees.output()
     }
 
-    /// The FAULT light of the ENG BLEED pb-sw. A380 FCOM DSC-36-20 (a380_fcom.txt l.94277-94284):
-    /// "The engine bleed position disagrees with the requested position, or An overpressure is
-    /// detected, or An engine bleed overheat is detected", "A leak is detected in the applicable
-    /// engine or inner (outer) wing".
+    /// The FAULT light of the ENG BLEED pb-sw: bleed valve position disagreement, overpressure,
+    /// overheat, or a leak of the engine or of its wing zone.
     fn has_fault(&self) -> bool {
         self.overheat_latched
             || self.overpressure_latched
@@ -1612,8 +1580,8 @@ impl CoreProcessingInputOutputModuleAUnit {
 }
 impl ControllerSignal<HighPressureValveSignal> for CoreProcessingInputOutputModuleAUnit {
     fn signal(&self) -> Option<HighPressureValveSignal> {
-        // FCOM DSC-36-10-20 (a380_fcom.txt l.93859-93871): the HP valve closes for a high IP stage
-        // pressure, a low HP stage pressure, the bleed valve closed, and a bleed overtemperature
+        // The HP valve closes for a high IP stage pressure, a low HP stage pressure, the bleed valve
+        // closed, and a bleed overtemperature
         if self.pressure_regulating_valve_is_closed
             || self.overheat_latched
             || self.high_pressure_compressor_pressure < Pressure::new::<psi>(15.)
@@ -1633,8 +1601,7 @@ impl ControllerSignal<PressureRegulatingValveSignal> for CoreProcessingInputOutp
             || (!self.is_engine_bleed_pushbutton_auto || self.is_engine_fire_pushbutton_released)
             || self.should_close_pressure_regulating_valve_because_apu_bleed_is_on()
             || self.engine_starter_valve_is_open
-            // FCOM DSC-36-10-20 l.93931-93950: "In case of associated bleed malfunctions: Bleed air
-            // overpressure, Bleed air overtemperature, A leak detection in the surrounding area"
+            // The bleed valve closes for an overpressure, an overtemperature or a leak nearby
             || self.overheat_latched
             || self.overpressure_latched
             || self.zone_leak
@@ -1654,19 +1621,16 @@ impl ControllerSignal<FanAirValveSignal> for CoreProcessingInputOutputModuleAUni
         )))
     }
 }
-/// The X BLEED selector at AUTO. A380 FCOM DSC-36-10-50 (a380_fcom.txt l.94076-94079): the
-/// crossbleed valves "are normally closed. They open automatically, and at the same time: On
-/// ground, at engine start; When the APU bleed valve is selected open; In case any engine bleed
-/// system fails."
+/// The X BLEED selector at AUTO: the crossbleed valves are normally closed and open automatically,
+/// all at the same time, on the ground at engine start, when the APU bleed valve is open, or when
+/// any engine bleed system fails.
 ///
-/// - Engine start: the crossbleed engine start of PRO-SUP-70-10 (l.180984-180988, l.181024-181029:
-///   "ALL ENG BLEEDS ... ON, X BLEED ... AUTO, SECOND ENG ... START") gets the starter air of the
-///   running engines through these valves. Design choice, the FCOM gives no opening or closing
-///   point: "at engine start" is while the FADEC commands the start valve of any engine open, from
-///   the ENG MASTER ON (or MAN START ON, crank) to the start valve closing at 58.4 % N2 (DSC-70-30
-///   l.113558) or the end/abort of the start. All three valves together ("at the same time"). The
-///   valves then close again, unless another condition keeps them open; the FCOM APU BLEED OFF
-///   after the start (PRO-NOR-SOP l.119903-119907): "All crossbleed valves close".
+/// - Engine start: the crossbleed engine start procedure gets the starter air of the running
+///   engines through these valves. Design choice (no published opening or closing point): "at engine
+///   start" is while the FADEC commands the start valve of any engine open, from the ENG MASTER ON
+///   (or MAN START ON, crank) to the start valve closing at 58.4 % N2 or the end/abort of the start.
+///   The valves then close again, unless another condition keeps them open (the APU BLEED OFF after
+///   the start closes all crossbleed valves).
 /// - An engine bleed failure: an ENG BLEED pb OFF, or an engine bleed lost by an overtemperature or
 ///   an overpressure with its pb ON (CoreProcessingInputOutputModuleAUnit::engine_bleed_failed).
 ///
@@ -1767,23 +1731,19 @@ struct EngineBleedAirSystem {
 impl EngineBleedAirSystem {
     const MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_HIGH: f64 = 10.;
     const MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_LOW: f64 = 5.;
-    /// How fast the starter turbine vents the starter duct overboard (1/s). Design choice, no FCOM
-    /// value. The A380 FCOM DSC-70-30 (a380_fcom.txt l.113555-113559) only says that the start
-    /// valve is "fully closed after approximately 10 s": the starter gets no more air after that.
-    /// The former 3e-2 kept the duct pressurized for about 45 s after the start valve closed
-    /// (STARTER_PRESSURIZED stayed 1), so a ground relight in that time lit up without APU or
-    /// crossbleed air. The A320 model raised its own value for the same reason when it introduced
-    /// STARTER_PRESSURIZED (#8066: 10 / s, with a 0.3 m3 duct); the A380 start valve cannot keep
-    /// its 0.5 m3 duct above 10 PSIG at that rate. 0.5 / s keeps about 21 PSIG with the APU bleed
-    /// and empties the duct below 5 PSIG within about 3 s of the start valve closing.
+    /// How fast the starter turbine vents the starter duct overboard (1/s). Design choice: the start
+    /// valve is fully closed about 10 s after it starts closing, and the starter gets no more air
+    /// after that. A slower vent kept the duct pressurized for about 45 s after the start valve
+    /// closed, so a ground relight in that time lit up without APU or crossbleed air. The A320 model
+    /// uses 10 / s with a 0.3 m3 duct; the A380 start valve cannot keep its 0.5 m3 duct above 10 PSIG
+    /// at that rate. 0.5 / s keeps about 21 PSIG with the APU bleed and empties the duct below 5 PSIG
+    /// within about 3 s of the start valve closing.
     const ENGINE_STARTER_EXHAUST_SPEED: f64 = 0.5;
     /// How fast the duct of an engine without an air source empties (1/s, engine_ducts_without_air_source).
-    /// Design choice, no FCOM value: the trapped air is gone within about 3 s.
+    /// Design choice: the trapped air is gone within about 3 s.
     const ISOLATED_DUCT_VENT_SPEED: f64 = 1.;
-    /// A380 FCOM DSC-36-10-20 (a380_fcom.txt l.93886-93888): "In case pressure regulation fails, an
-    /// OverPressure Valve (OPV) protects the bleed system. This valve automatically closes, if the
-    /// bleed pressure downstream of the engine bleed valve exceeds 85 PSI. It automatically opens
-    /// again, when pressure goes below 55 PSI."
+    /// When the pressure regulation fails, the overpressure valve protects the bleed system: it closes
+    /// above 85 PSI downstream of the bleed valve and opens again below 55 PSI.
     const OVERPRESSURE_VALVE_CLOSING_PSIG: f64 = 85.;
     const OVERPRESSURE_VALVE_OPENING_PSIG: f64 = 55.;
 
@@ -2032,7 +1992,7 @@ impl EngineBleedAirSystem {
         self.pressure_regulating_valve.fluid_flow()
     }
 
-    /// The starter container gauge pressure, with a hysteresis. The A380 FCOM gives no value: the
+    /// The starter container gauge pressure, with a hysteresis. No A380 value is published: the
     /// 10 / 5 PSI (gauge) of the A320 pneumatic model (a320_systems pneumatic.rs) are used.
     fn update_engine_start_pressurization(&mut self, context: &UpdateContext) {
         let starter_container_pressure_psig =
@@ -2325,7 +2285,7 @@ impl A380PneumaticOverheadPanel {
         }
     }
 
-    /// The FAULT lights of the ENG 1(2)(3)(4) BLEED pb-sw (FCOM DSC-36-20 l.94277-94291)
+    /// The FAULT lights of the ENG 1(2)(3)(4) BLEED pb-sw
     pub fn update_fault_lights(&mut self, pneumatic: &A380Pneumatic) {
         self.engine_1_bleed
             .set_fault(pneumatic.engine_bleed_fault(1));
@@ -2335,7 +2295,6 @@ impl A380PneumaticOverheadPanel {
             .set_fault(pneumatic.engine_bleed_fault(3));
         self.engine_4_bleed
             .set_fault(pneumatic.engine_bleed_fault(4));
-        // AIR APU BLEED LEAK (PRO-ABN a380_fcom.txt l.167794-167796)
         self.apu_bleed.set_fault(pneumatic.apu_bleed_leak());
     }
 }
@@ -2377,7 +2336,7 @@ pub struct FullAuthorityDigitalEngineControl {
     engine_mode_selector1_id: VariableIdentifier,
     engine_mode_selector1_position: EngineModeSelector,
 
-    /// The core speed of each engine: the FADEC N3 (the GP7270 N2 of the A380 FCOM)
+    /// The core speed of each engine: the FADEC N3 (the documented GP7270 N2)
     engine_core_speed_ids: [VariableIdentifier; 4],
     engine_core_speeds: [Ratio; 4],
 }
@@ -2759,8 +2718,8 @@ impl PneumaticValve for CrossBleedValve {
 }
 impl SimulationElement for CrossBleedValve {
     fn receive_power(&mut self, buses: &impl ElectricalBuses) {
-        // A380 FCOM DSC-36-30 (a380_fcom.txt:94500-94505): each crossbleed valve is supplied by DC 1/2 or DC ESS.
-        // The manual control uses the DC ESS supply (the A320 DC ESS SHED busbar does not exist on the A380).
+        // Each crossbleed valve is supplied by DC 1/2 or DC ESS. The manual control uses the DC ESS
+        // supply (the A320 DC ESS SHED busbar does not exist on the A380).
         self.is_powered_for_manual_control =
             buses.is_powered(ElectricalBusType::DirectCurrentEssential);
         self.is_powered_for_automatic_control =
@@ -4302,7 +4261,7 @@ mod tests {
 
     #[test]
     fn in_flight_the_start_valve_stays_closed_for_a_windmilling_start() {
-        // A380 FCOM DSC-70-30: in flight the start valve opens below 11 % N2 or 260 kt only
+        // In flight the start valve opens below 11 % N2 or 260 kt only
         let test_bed = in_flight_with_engine_1_out(300.)
             .set_engine_state(1, EngineState::Starting)
             .and_run();
@@ -4345,8 +4304,8 @@ mod tests {
         #[values(true, false)] on_ground: bool,
         #[values(EngineState::Starting, EngineState::Restarting)] engine_state: EngineState,
     ) {
-        // A380 FCOM DSC-70-30: "When N2 above 58.4 %: Engine start valve closes". The starter
-        // engages at or below 25 % (LIM-70 l.189735) and the core accelerates to 58 %.
+        // The start valve closes above 58.4 % N2. The starter engages at or below 25 % and the core
+        // accelerates to 58 %.
         let mut test_bed = test_bed_with().stop_eng1().and_run();
         test_bed.set_on_ground(on_ground);
         test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
@@ -4361,8 +4320,7 @@ mod tests {
         assert!(!test_bed.es_valve_is_open(1));
     }
 
-    /// A380 FCOM LIM-70 STARTER (l.189735): "If the N2 is above 25 %, no running engagement of the
-    /// starter is possible."
+    /// No running engagement of the starter above 25 % N2.
     #[rstest]
     fn the_start_valve_does_not_open_for_a_start_above_25_percent_n3(
         #[values(true, false)] on_ground: bool,
@@ -4476,7 +4434,7 @@ mod tests {
 
     #[test]
     fn on_the_ground_a_flamed_out_engine_relights_with_apu_bleed_as_soon_as_it_is_restarted() {
-        // Sim test 2026-10-05 (ground): the starter was pressurized only 26 s after the MASTER ON,
+        // Measured in the sim (ground): the starter was pressurized only 26 s after the MASTER ON,
         // when the FADEC went from RESTARTING to STARTING, 4 s before the end of the attempt.
         let mut test_bed = test_bed_with()
             .stop_eng2()
@@ -4497,7 +4455,7 @@ mod tests {
 
     #[test]
     fn in_flight_a_starter_assisted_relight_lights_up_with_crossbleed_air_from_the_other_engines() {
-        // FCOM ENG RELIGHT IN FLIGHT (a380_fcom.txt l.174908): "XBLEED ... OPEN"; FL150, 210 kt
+        // The relight procedure sets XBLEED OPEN; FL150, 210 kt
         let test_bed = in_flight_with_engine_1_out(210.)
             .in_isa_atmosphere(Length::new::<foot>(15_000.))
             .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Open)
@@ -4546,9 +4504,9 @@ mod tests {
 
     #[test]
     fn with_all_four_engines_out_the_apu_bleed_relights_two_engines_at_a_time() {
-        // ENG ALL ENG FLAME OUT (a380_fcom.txt l.173859-173872): "WHEN APU AVAIL: ALL ENG MASTERS
-        // ... OFF, APU BLEED ... ON", then "ENG MASTER (2 AT A TIME) ... ON". FL150, 220 kt (zone 2
-        // of the relight envelope: starter assisted), the cores windmilling at 9 %.
+        // ALL ENG FLAME OUT procedure: with the APU available all masters OFF, APU BLEED ON, then the
+        // masters ON two at a time. FL150, 220 kt (zone 2 of the relight envelope: starter assisted),
+        // the cores windmilling at 9 %.
         let mut test_bed = test_bed_with()
             .stop_eng1()
             .stop_eng2()
@@ -4643,9 +4601,8 @@ mod tests {
 
     #[test]
     fn the_starter_is_no_longer_pressurized_a_few_seconds_after_the_start_valve_closed() {
-        // A380 FCOM DSC-70-30 (l.113557-113559): "When N2 above 58.4 %: Engine start valve closes
-        // (fully closed after approximately 10 s)". Before the fix the starter duct kept about
-        // 20 PSIG for 5 s and above 5 PSIG for about 45 s.
+        // The start valve closes above 58.4 % N2 (fully closed after about 10 s). Without the vent
+        // the starter duct kept about 20 PSIG for 5 s and above 5 PSIG for about 45 s.
         let mut test_bed = on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(5);
 
         let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
@@ -4656,7 +4613,7 @@ mod tests {
     fn a_ground_relight_soon_after_a_start_does_not_light_up_without_apu_or_crossbleed_air() {
         // Engine 1 flames out 5 s after its APU bleed start, stops, and is restarted 10 s later
         // (ENG MASTER OFF then ON) with the APU bleed OFF and the crossbleed valves closed: no air
-        // turns the starter. Before the fix the starter duct still held about 13 PSIG from the
+        // turns the starter. Without the vent the starter duct still held about 13 PSIG from the
         // first start and the relight lit up.
         let mut test_bed = with_engine_1_flamed_out(
             on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(5),
@@ -4683,7 +4640,7 @@ mod tests {
     #[test]
     fn a_ground_relight_finds_no_air_trapped_in_the_duct_of_the_stopped_engine() {
         // Engine 1 runs for a minute on its own bleed (APU bleed OFF), flames out, stops and is
-        // restarted about 2 s later (ENG MASTER OFF then ON). Before the duct vent the air trapped
+        // restarted about 2 s later (ENG MASTER OFF then ON). Without the duct vent the air trapped
         // in its own bleed duct (about 28 PSIG) pressurized the starter and the relight lit up with no air source.
         let mut test_bed = with_engine_1_flamed_out(
             on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(60),
@@ -4727,7 +4684,7 @@ mod tests {
             "the APU bleed reaches the starter of the stopped engine"
         );
 
-        // the starter air turns the core (the test bed does not spin it up): the B3 start sequence
+        // the starter air turns the core (the test bed does not spin it up): the start sequence
         // lights the fuel from 20 % N3
         test_bed.write_by_name("ENGINE_N3:1", 25.);
         assert!(engine_1_lights_up_within(
@@ -4808,9 +4765,8 @@ mod tests {
         assert!(!test_bed.cross_bleed_valves_are_open());
     }
 
-    /// The crossbleed engine start of PRO-SUP-70-10 (a380_fcom.txt l.181024-181029) on the ground:
-    /// engine 1 runs at idle, engines 2 to 4 are stopped, ALL ENG BLEEDS ON, APU bleed OFF, X BLEED
-    /// AUTO.
+    /// The crossbleed engine start on the ground: engine 1 runs at idle, engines 2 to 4 are stopped,
+    /// ALL ENG BLEEDS ON, APU bleed OFF, X BLEED AUTO.
     fn on_the_ground_with_engine_1_running_and_no_apu_bleed() -> PneumaticTestBed {
         let mut test_bed = test_bed_with()
             .idle_eng1()
@@ -4847,9 +4803,9 @@ mod tests {
     fn on_the_ground_the_crossbleed_valves_open_at_auto_for_an_engine_start(
         #[values(2, 3, 4)] engine_number: usize,
     ) {
-        // FCOM DSC-36-10-50 (l.94076-94077): "They open automatically ... On ground, at engine
-        // start". Before the fix AUTO opened only for the APU bleed valve or an ENG BLEED pb OFF:
-        // the starter got no air and the start ended in START FAULT (NO STARTER AIR PRESSURE).
+        // The crossbleed valves open automatically on the ground at engine start. Without it AUTO
+        // opened only for the APU bleed valve or an ENG BLEED pb OFF: the starter got no air and the
+        // start ended in START FAULT (NO STARTER AIR PRESSURE).
         let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed();
         assert!(!test_bed.cross_bleed_valves_are_open());
 
@@ -4883,7 +4839,7 @@ mod tests {
             .and_run();
         assert!(test_bed.cross_bleed_valves_are_open());
 
-        // DSC-70-30 (l.113558): "When N2 above 58.4 %: Engine start valve closes"
+        // The start valve closes above 58.4 % N2
         test_bed.write_by_name("ENGINE_N3:2", 60.);
         test_bed = test_bed.and_run();
         assert!(!test_bed.es_valve_is_open(2));
@@ -4911,7 +4867,7 @@ mod tests {
 
     #[test]
     fn in_flight_the_crossbleed_valves_stay_closed_at_auto_for_an_engine_start() {
-        // "On ground" only: in flight the relight procedure sets X BLEED OPEN (l.174908)
+        // On the ground only: in flight the relight procedure sets X BLEED OPEN
         let test_bed = in_flight_with_engine_1_out(210.)
             .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
             .set_engine_state(1, EngineState::Starting)
@@ -5407,9 +5363,8 @@ mod tests {
         assert!(!test_bed.cross_bleed_valves_are_open());
     }
 
-    /// A380 FCOM DSC-36-30 (a380_fcom.txt:94500-94505): the crossbleed valves are also supplied by DC ESS, so the
-    /// XBLEED selector still opens them manually with DC 2 lost (before, manual control used the A320 DC ESS SHED
-    /// busbar, which the A380 does not have, and was never powered).
+    /// The crossbleed valves are also supplied by DC ESS, so the XBLEED selector still opens them
+    /// manually with DC 2 lost (the A320 DC ESS SHED busbar does not exist on the A380).
     #[test]
     fn cross_bleed_valve_opens_manually_on_dc_ess() {
         let mut test_bed = test_bed_with()
@@ -5646,7 +5601,7 @@ mod tests {
     }
 
     /// The CPIOM-A bleed monitoring: overtemperature, overpressure, leaks, bleed valve position, the
-    /// ENG BLEED pb-sw FAULT light (A380 FCOM DSC-36-10-20, DSC-36-10-60, DSC-36-20)
+    /// ENG BLEED pb-sw FAULT light
     mod bleed_monitoring {
         use super::*;
         use crate::pneumatic::{BleedOverheatMonitor, BleedOverpressureMonitor};
@@ -5775,7 +5730,7 @@ mod tests {
             test_bed.query_element(|monitor| monitor.has_overpressure())
         }
 
-        /// FCOM DSC-36-10-20 l.93943-93947: 260 °C up to 45 PSI, 245 °C above, for more than 55 s
+        /// 260 °C up to 45 PSI, 245 °C above, for more than 55 s
         #[test]
         fn overtemperature_limits_depend_on_the_bleed_pressure() {
             assert!(overheat_after(57, 265., 40.));
@@ -5785,7 +5740,7 @@ mod tests {
             assert!(!overheat_after(50, 265., 40.));
         }
 
-        /// FCOM DSC-36-10-20 l.93934-93939: 60 PSI up to 245 °C, 45 PSI above, for more than 15 s
+        /// 60 PSI up to 245 °C, 45 PSI above, for more than 15 s
         #[test]
         fn overpressure_limits_depend_on_the_bleed_temperature() {
             assert!(overpressure_after(17, 61., 200.));
@@ -5795,17 +5750,17 @@ mod tests {
             assert!(!overpressure_after(10, 61., 200.));
         }
 
-        /// A failed regulation cycled by the overpressure valve between 55 and 85 PSI (FCOM
-        /// DSC-36-10-20 l.93886-93888) is an overpressure (BleedOverpressureMonitor)
+        /// A failed regulation cycled by the overpressure valve between 55 and 85 PSI is an
+        /// overpressure (BleedOverpressureMonitor)
         #[test]
         fn an_overpressure_cycled_by_the_overpressure_valve_is_detected() {
             assert!(overpressure_with_cycling_pressure(85., 55., true));
         }
 
-        /// A regulated pressure that keeps dipping below 60 PSI, with the overpressure valve open,
-        /// is no overpressure ("exceeds 60 PSI ... during more than 15 s", l.93934-93939). With a
-        /// filtered pressure the 70/55 PSI swings of the model's regulation at high power (one
-        /// bleed feeding the crossbled ducts) added up to an overpressure.
+        /// A regulated pressure that keeps dipping below 60 PSI, with the overpressure valve open, is
+        /// no overpressure (the limit must be exceeded for more than 15 s). With a filtered pressure
+        /// the 70/55 PSI swings of the model's regulation at high power (one bleed feeding the
+        /// crossbled ducts) added up to an overpressure.
         #[test]
         fn a_pressure_dipping_below_60_psi_without_the_overpressure_valve_is_no_overpressure() {
             assert!(!overpressure_with_cycling_pressure(70., 55., false));
@@ -5840,7 +5795,7 @@ mod tests {
             }
         }
 
-        /// FCOM DSC-36-20 l.94280: "The engine bleed position disagrees with the requested position"
+        /// The engine bleed valve position disagrees with the requested position
         #[test]
         fn a_bleed_valve_stuck_closed_lights_the_fault_after_the_confirmation_time() {
             let mut test_bed = four_engines_at_idle();
@@ -5869,11 +5824,10 @@ mod tests {
             assert!(fault_light(&mut test_bed, 3));
         }
 
-        /// The path of AIR ENG 1(2)(3)(4) BLEED FAULT by overpressure (PRO-ABN l.167922-167928): a
-        /// bleed valve stuck open no longer regulates, the bleed pressure rises at high power. The
-        /// CPIOM-A commands the bleed valve closed (DSC-36-10-20 l.93931-93939), the stuck valve
-        /// disagrees, the crossbleed valves open at AUTO ("In case any engine bleed system fails",
-        /// DSC-36-10-50 l.94076-94079)
+        /// AIR ENG 1(2)(3)(4) BLEED FAULT by overpressure: a bleed valve stuck open no longer
+        /// regulates, the bleed pressure rises at high power. The CPIOM-A commands the bleed valve
+        /// closed, the stuck valve disagrees, and the crossbleed valves open at AUTO because an
+        /// engine bleed system failed
         #[test]
         fn a_bleed_valve_stuck_open_gives_an_overpressure_at_high_power() {
             let mut test_bed = four_engines_at_high_power();
@@ -5897,8 +5851,8 @@ mod tests {
             assert!(!fault_light(&mut test_bed, 2));
         }
 
-        /// FCOM DSC-36-20 l.94290-94291: "The FAULT light goes off, when the flight crew selects OFF,
-        /// and the applicable failure disappears"; the closure holds with it
+        /// The FAULT light goes off when the crew selects OFF and the failure is gone; the closure
+        /// holds with it
         #[test]
         fn an_overpressure_holds_the_bleed_valve_closed_until_the_pb_is_set_off() {
             let mut test_bed = four_engines_at_high_power();
@@ -5930,9 +5884,9 @@ mod tests {
             assert!(!fault_light(&mut test_bed, 1));
         }
 
-        /// A bleed overtemperature (DSC-36-10-20 l.93867-93871, l.93940-93947): the CPIOM-A closes the
-        /// HP valve and the bleed valve, and the FAULT light comes on. The bleed of the model does not
-        /// reach 245 deg C without a failure that also over pressurises it: the detection is set here.
+        /// A bleed overtemperature: the CPIOM-A closes the HP valve and the bleed valve, and the FAULT
+        /// light comes on. The bleed of the model does not reach 245 °C without a failure that also
+        /// over pressurises it: the detection is set here.
         #[test]
         fn an_overheat_closes_the_hp_valve_and_the_bleed_valve() {
             let mut test_bed = four_engines_at_idle();
@@ -5950,9 +5904,8 @@ mod tests {
             assert!(test_bed.cross_bleed_valves_are_open());
         }
 
-        /// AIR ENG 1(4) BLEED LEAK (FCOM DSC-36-10-60 l.94147-94155, PRO-ABN l.168628-168664): the
-        /// bleed valve of the engine, the crossbleed valve of its side and the center crossbleed valve
-        /// close at AUTO; the FAULT light comes on
+        /// AIR ENG 1(4) BLEED LEAK: the bleed valve of the engine, the crossbleed valve of its side and
+        /// the center crossbleed valve close at AUTO; the FAULT light comes on
         #[test]
         fn an_outer_engine_pylon_leak_closes_its_bleed_and_the_side_and_center_crossbleed_valves() {
             let mut test_bed = four_engines_at_high_power()
@@ -5972,8 +5925,8 @@ mod tests {
             assert!(!fault_light(&mut test_bed, 4));
         }
 
-        /// AIR L INR WING LEAK (FCOM DSC-36-10-60 l.94185-94194, PRO-ABN l.168486-168500): the bleed
-        /// valve of the engine and the crossbleed valve of its side close
+        /// AIR L INR WING LEAK: the bleed valve of the engine and the crossbleed valve of its side
+        /// close
         #[test]
         fn an_inner_wing_leak_closes_its_bleed_and_the_side_crossbleed_valve() {
             let mut test_bed = four_engines_at_idle()
@@ -5994,7 +5947,6 @@ mod tests {
         }
 
         /// The XBLEED selector OPEN keeps the valves open: the leak closure is an AUTO function
-        /// (DSC-36-10-60 l.94147-94149 "provided that the XBLEED selector position is at AUTO")
         #[test]
         fn a_leak_does_not_close_the_crossbleed_valves_with_the_selector_open() {
             let mut test_bed = four_engines_at_idle()
@@ -6013,10 +5965,8 @@ mod tests {
             (pressure - InternationalStandardAtmosphere::ground_pressure()).get::<psi>()
         }
 
-        /// The overpressure valve (FCOM DSC-36-10-20 l.93886-93888): "closes, if the bleed pressure
-        /// downstream of the engine bleed valve exceeds 85 PSI. It automatically opens again, when
-        /// pressure goes below 55 PSI." Without it a bleed valve stuck open at high power let the
-        /// duct reach about 141 PSI.
+        /// The overpressure valve closes above 85 PSI and opens again below 55 PSI. Without it a bleed
+        /// valve stuck open at high power let the duct reach about 141 PSI.
         #[test]
         fn the_overpressure_valve_limits_the_pressure_of_a_bleed_valve_stuck_open() {
             let mut test_bed = four_engines_at_high_power();
@@ -6089,10 +6039,9 @@ mod tests {
             })
         }
 
-        /// FCOM DSC-36-10-20 l.93882-93885: "The engine bleed valve regulates the airflow, to balance
-        /// the pressure of the air bled from the two engines that are on the same side." Engine 1 at
-        /// take off power, engine 2 at idle, their ducts joined by the left crossbleed valve:
-        /// without the balancing engine 1 delivered 0.58 kg/s and engine 2 0.43 kg/s.
+        /// The bleed valves balance the airflow of the two engines of a side. Engine 1 at take off
+        /// power, engine 2 at idle, their ducts joined by the left crossbleed valve: without the
+        /// balancing engine 1 delivered 0.58 kg/s and engine 2 0.43 kg/s.
         #[test]
         fn the_bleed_valves_of_a_side_balance_their_airflow_through_the_open_crossbleed_valve() {
             let mut test_bed = four_engines_at_idle()
@@ -6125,8 +6074,7 @@ mod tests {
         }
 
         /// The crossbleed valves are driven by the CPIOM-A1+A2 (left) and A3+A4 (center, right)
-        /// (CROSS_BLEED_VALVE_CPIOM_A_UNITS). Before, all three followed the CPIOM-A1 unit only and
-        /// a lost CPIOM-A changed nothing.
+        /// (CROSS_BLEED_VALVE_CPIOM_A_UNITS).
         #[test]
         fn without_the_cpiom_a3_and_a4_the_center_and_right_crossbleed_valves_lose_their_auto_control(
         ) {
@@ -6181,9 +6129,8 @@ mod tests {
             test_bed
         }
 
-        /// FCOM DSC-36-10-40 l.94031-94039: "An HP ground source can be connected to each HP ground
-        /// connector, to supply bleed air to the aircraft". The ground air start procedure checks
-        /// "BLEED PRESS > 25 PSI" (PRO-SUP-70-10 l.180945).
+        /// An HP ground source on each HP ground connector supplies bleed air; the ground air start
+        /// procedure checks a bleed pressure above 25 PSI.
         #[test]
         fn the_hp_ground_air_pressurises_the_bleed_duct() {
             let test_bed = test_bed_with().and_stabilize();
@@ -6196,8 +6143,8 @@ mod tests {
             assert!(!test_bed.apu_bleed_valve_is_open());
         }
 
-        /// The engine start with ground pneumatic power (PRO-SUP-70-10 l.180938-180950): the ground
-        /// air turns the starter of any engine, the crossbleed valves opening at AUTO for the start
+        /// The engine start with ground pneumatic power: the ground air turns the starter of any
+        /// engine, the crossbleed valves opening at AUTO for the start
         #[rstest]
         fn an_engine_starts_with_the_hp_ground_air(#[values(1, 2, 3, 4)] engine_number: usize) {
             let mut test_bed = with_hp_ground_air(test_bed_with())
@@ -6229,11 +6176,9 @@ mod tests {
             flag(test_bed, "OVHD_PNEU_APU_BLEED_PB_HAS_FAULT")
         }
 
-        /// AIR APU BLEED LEAK (FCOM DSC-36-10-60 l.94205-94207, PRO-ABN l.167752-167796): "the APU
-        /// bleed valve, and the APU isolation valve automatically close. APU bleed is no longer
-        /// available"; "If the APU BLEED pb-sw is set to ON, the FAULT light remains. If the APU
-        /// BLEED pb-sw is off, the FAULT light goes off when the overheat due to the bleed leak
-        /// disappears."
+        /// AIR APU BLEED LEAK: the APU bleed valve and the APU isolation valve close, no APU bleed. With
+        /// the APU BLEED pb-sw ON the FAULT light remains; with it off the light goes off when the
+        /// overheat is gone.
         #[test]
         fn an_apu_bleed_leak_closes_the_apu_bleed_and_holds_until_the_apu_bleed_pb_is_off() {
             let mut test_bed = test_bed_with()
@@ -6271,9 +6216,8 @@ mod tests {
             })
         }
 
-        /// AIR PACK 1(2) LEAK (FCOM DSC-36-10-60 l.94220-94222, PRO-ABN l.168890-168900): "The two
-        /// pack valves of the affected pack and the corresponding hot-air valve automatically
-        /// close"; the PACK pb FAULT light (DSC-21-10-20 l.5616-5627)
+        /// AIR PACK 1(2) LEAK: the two pack valves of the pack and the hot-air valve of its side
+        /// close; the PACK pb FAULT light comes on
         #[rstest]
         fn a_pack_bay_leak_closes_its_pack_valves_and_its_hot_air_valve(
             #[values(1, 2)] pack: usize,
@@ -6306,8 +6250,7 @@ mod tests {
             ));
         }
 
-        /// AIR HOT AIR 1(2) LEAK (FCOM DSC-36-10-60 l.94235-94237, PRO-ABN l.168411-168420): "The
-        /// corresponding hot-air valve closes automatically", HOT AIR 1(2) pb local light
+        /// AIR HOT AIR 1(2) LEAK: the hot-air valve closes, HOT AIR 1(2) pb local light
         #[rstest]
         fn a_hot_air_duct_leak_closes_its_hot_air_valve(#[values(1, 2)] hot_air: usize) {
             let other = 3 - hot_air;
@@ -6328,9 +6271,8 @@ mod tests {
             assert!(test_bed.right_pack_flow_valve_is_open(hot_air));
         }
 
-        /// AIR FWD CARGO DUCT LEAK (PRO-ABN l.168341-168360): "If the hot-air valve 1 did not close
-        /// automatically: HOT AIR 1 OFF"; it holds until the HOT AIR 1 pb is OFF (design choice, as
-        /// the other leaks)
+        /// AIR FWD CARGO DUCT LEAK: the crew sets HOT AIR 1 OFF if the hot-air valve 1 did not close;
+        /// the leak holds until the HOT AIR 1 pb is OFF (design choice, as the other leaks)
         #[test]
         fn a_forward_cargo_duct_leak_closes_the_hot_air_valve_1_until_the_hot_air_1_pb_is_off() {
             let mut test_bed = four_engines_at_idle();
@@ -6351,9 +6293,8 @@ mod tests {
             assert!(!flag(&mut test_bed, "PNEU_FWD_CARGO_DUCT_LEAK"));
         }
 
-        /// The leak procedures (PRO-ABN l.168662-168664): "If the ENG 1(4) BLEED pb-sw is set to ON,
-        /// the FAULT light remains. If the ENG 1(4) BLEED pb-sw is off, the FAULT light goes off when
-        /// the overheat due to the bleed leak disappears."
+        /// With the ENG BLEED pb-sw ON the FAULT light of a leak remains; with it off the light goes
+        /// off when the overheat is gone.
         #[test]
         fn a_wing_leak_holds_until_the_pb_is_off_and_the_duct_is_empty() {
             let mut test_bed = four_engines_at_idle();

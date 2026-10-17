@@ -145,7 +145,7 @@ impl<const ENGINES: usize> FullDigitalAGUController<ENGINES> {
         !matches!(self.fault, Some(FdacFault::BothChannelsFault))
     }
 
-    /// Pack overheat monitoring, from the pack outlet temperature (AIR PACK 1(2) OVHT, a380_fcom.txt l.131799)
+    /// Pack overheat monitoring, from the pack outlet temperature (AIR PACK 1(2) OVHT)
     pub fn update_pack_overheat_monitoring(
         &mut self,
         pack_outlet_temperature: ThermodynamicTemperature,
@@ -160,8 +160,8 @@ impl<const ENGINES: usize> FullDigitalAGUController<ENGINES> {
         self.pack_overheat
     }
 
-    /// The pack is in bypass mode (AIR PACK 1(2) REGUL FAULT, a380_fcom.txt l.131857-131859). Simplified: the pack
-    /// performance itself is not simulated, only the FDAC report.
+    /// The pack is in bypass mode (AIR PACK 1(2) REGUL FAULT). Simplified: the pack performance itself is not
+    /// simulated, only the FDAC report.
     pub fn pack_in_bypass_mode(&self) -> bool {
         self.is_monitoring() && self.pack_regulation_failure.is_active()
     }
@@ -178,8 +178,7 @@ impl<const ENGINES: usize> FullDigitalAGUController<ENGINES> {
 }
 
 impl<const ENGINES: usize> FullDigitalAGUController<ENGINES> {
-    /// A380 FCOM PRO-ABN-ECAM-10-21-10 AIR PACK 1(2) OVHT (a380_fcom.txt l.131799): "The pack outlet temperature is
-    /// above 95 deg C."
+    /// AIR PACK 1(2) OVHT: the pack outlet temperature is above 95 deg C.
     const PACK_OVERHEAT_LIMIT_DEG_C: f64 = 95.;
 }
 
@@ -326,8 +325,7 @@ impl<const ENGINES: usize> FDACFlowControl<ENGINES> {
                 && pneumatic.engine_crossbleed_is_on()
             // The DITCHING pb-sw is set to ON
             || pressurization_overhead.ditching_is_on()
-            // A leak is detected in the pack bay: "the two pack valves of the affected pack ...
-            // automatically close" (A380 FCOM DSC-36-10-60, a380_fcom.txt l.94220-94222)
+            // A leak in the pack bay closes the two pack valves of the pack
             || pneumatic.pack_valves_closed_by_leak(self.fdac_id))
             // On ground, one door (or more) is opened, and at least one engine is running
             && !(any_door_open
@@ -406,9 +404,9 @@ pub struct PackFlowController<const ENGINES: usize> {
 }
 
 impl<const ENGINES: usize> PackFlowController<ENGINES> {
-    // Design choice (the FCOM gives no detection logic): a pack flow valve is failed when its position disagrees with
-    // its command for this long, as the trim air valves of the TADD (trim_air_drive_device.rs). A healthy valve
-    // follows its command in the next update.
+    // Design choice (no published detection logic): a pack flow valve is failed when its position disagrees with its
+    // command for this long, as the trim air valves of the TADD (trim_air_drive_device.rs). A healthy valve follows
+    // its command in the next update.
     const FAILED_VALVE_CONFIRMATION_TIME: Duration = Duration::from_secs(10);
 
     fn new() -> Self {
@@ -457,10 +455,9 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
         self.failed_valve_monitoring(context, pneumatic.pack_flow_valve_is_open(fcv_id));
     }
 
-    /// AIR PACK 1(2) VLV 1(2) FAULT (a380_fcom.txt l.131946-131949): a pack valve is failed open when it stays open
-    /// while commanded closed, failed closed when it stays closed while commanded open. A jammed valve is only found
-    /// when its command changes (l.131972-131974: the FAULT light of a valve failed open comes on with the PACK pb
-    /// set to OFF).
+    /// AIR PACK 1(2) VLV 1(2) FAULT: a pack valve is failed open when it stays open while commanded closed, failed
+    /// closed when it stays closed while commanded open. A jammed valve is only found when its command changes (the
+    /// FAULT light of a valve failed open comes on with the PACK pb set to OFF).
     fn failed_valve_monitoring(&mut self, context: &UpdateContext, valve_is_open: bool) {
         let commanded_open = self.commanded_open_amount() > Ratio::default();
 

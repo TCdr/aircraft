@@ -18,22 +18,21 @@
  * min_n2_for_combustion = 20 % N2 (engines.cfg), and its bleed air starter (starter_type = 2) only turns the engine with the MSFS
  * APU bleed (n2_from_bleed_air_psi_table, set from the FBW APU bleed valve: systems_wasm electrical.rs). The crossbleed air of
  * the other engines and the windmilling airflow never reach it, so without the APU bleed a windmilling engine stayed below
- * 20 % and never burned (sim test 2026-10-05: every in-flight relight failed but the one with APU bleed). Therefore:
+ * 20 % and never burned (measured in the sim: every in-flight relight failed but the one with APU bleed). Therefore:
  * - on the ground, MSFS N2 is held at 0 during the start delay (FBW start behaviour, unchanged);
  * - in flight the core already turns (windmilling, or a quick relight still fast): the start delay does not stop it;
  * - in flight, once the systems WASM lets the relight light up, MSFS is brought to the light-up speed until it burns, as the
  *   MSFS starter does with the APU bleed. MSFS then accelerates the engine to idle by itself.
- * - a quick relight on the ground (A32NX_ENGINE_n_GROUND_QUICK_RELIGHT, FCOM DSC-70-80-30-20 l.112539-112545: "The quick
- *   relight function immediately opens the FMV") is handled as the in-flight relight: the core still turns fast, the start
- *   delay must not bring it to 0.
+ * - a quick relight on the ground (A32NX_ENGINE_n_GROUND_QUICK_RELIGHT: the FMV opens at once) is handled as the in-flight
+ *   relight: the core still turns fast, the start delay must not bring it to 0.
  */
 class RelightStart_A380X {
  public:
   /// The delay between the ENG MASTER ON and the start sequence (EngineControl_A380X::engineStartProcedure).
   static constexpr double START_DELAY_SECONDS = 1.7;
   /// Design choice: the N2 the MSFS starter gives with the APU bleed (engines.cfg n2_from_bleed_air_psi_table, 18 psi -> 25 %),
-  /// above min_n2_for_combustion (20 %) and min_n2_for_fuel_flow (22 %). A380 FCOM DSC-70-30 IN FLIGHT (a380_fcom.txt
-  /// l.113572-113573): "Ignition starts (igniters A + B)", "When N2 is above 20 %: FMV and HP fuel valve open".
+  /// above min_n2_for_combustion (20 %) and min_n2_for_fuel_flow (22 %); an in-flight start ignites with A + B and opens the
+  /// FMV and HP fuel valve above 20 % N2.
   static constexpr double LIGHT_UP_SIM_N2_PERCENT = 25.0;
 
   struct StartConditions {

@@ -4,12 +4,9 @@
 // functions, no MSFS SDK: tested natively with the generated A380PrimComputerGeneralLogic model by
 // test/air_data_rejection_test.cpp (test/run_tests.sh).
 //
-// A380 FCOM DSC-34-10-30-10 "ADR monitoring by PRIM" (a380_fcom.txt l.85698-85725): "If one of these parameters [CAS,
-// Mach, altitude, static pressure] is rejected, the ADR (including all other air data parameters) or ISIS is rejected
-// until the end of the flight for flight controls internal use." (l.85704-85705); "If one AOA parameter is rejected, the
-// AOA and the side slip angle of the affected ADR are rejected" (l.85719). DSC-34-10-30-40 (l.86272-86273): "If two
-// ADRs are rejected in sequence, there is a reversion to alternate law."; NAV ALL AIR DATA DISAGREE (l.164024): "The
-// flight control law reverts to direct law".
+// ADR monitoring by the PRIMs: when the CAS, Mach, altitude or static pressure of an ADR (or ISIS) is rejected, the whole ADR
+// is rejected for the flight controls until the end of the flight; a rejected AOA rejects the AOA and sideslip of that ADR.
+// Two ADRs rejected in sequence revert to alternate law; NAV ALL AIR DATA DISAGREE reverts to direct law.
 //
 // The comparison itself runs in systems.wasm (a380_systems air_data_monitoring.rs), which writes the L:vars
 // A32NX_PRIM_ADR_n_REJECTED, A32NX_PRIM_ALL_AIR_DATA_REJECTED and A32NX_PRIM_AOA_n_REJECTED. Here a rejected ADR goes to
@@ -17,7 +14,7 @@
 // alternate law with two rejected ADRs and the direct law with three. The displays keep the ADR data as it is.
 //
 // Design choice: the models have no separate AOA status. A rejected AOA alone is sent with a failure warning status on its
-// AOA word only; the models then count that ADR as failed (two rejected AOAs: alternate law, FCOM l.85722).
+// AOA word only; the models then count that ADR as failed (two rejected AOAs: alternate law).
 
 #include "A380PrimComputerGeneralLogic_types.h"
 

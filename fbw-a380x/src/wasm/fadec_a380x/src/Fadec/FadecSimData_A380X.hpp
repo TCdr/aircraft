@@ -239,7 +239,7 @@ class FadecSimData_A380X {
   NamedVariablePtr engineStartEgtOvershoot[4];  // Bool - hot start or stall: the start EGT overshoots
   NamedVariablePtr engineStartIgniters[4];      // Number - the igniters the start sequence energizes: bit 0 A, bit 1 B
   NamedVariablePtr engineStartSelector;       // Enum - ENG START selector: 0 crank, 1 norm, 2 ign start
-  NamedVariablePtr engineFirePbReleased[4];   // Bool - ENG FIRE pb released: the FADEC is no longer supplied (FCOM DSC-26)
+  NamedVariablePtr engineFirePbReleased[4];   // Bool - ENG FIRE pb released: the FADEC is no longer supplied
   NamedVariablePtr engineIgniterA[4];         // Bool - igniter A energized (SD ENGINE page ignition indication)
   NamedVariablePtr engineIgniterB[4];         // Bool - igniter B energized (SD ENGINE page ignition indication)
   NamedVariablePtr engineOilLeak[4];          // Bool - oil leak failure: the oil system loses oil (systems WASM)
@@ -550,8 +550,8 @@ class FadecSimData_A380X {
     packsState[0]       = dm->make_named_var("A32NX_COND_PACK_1_IS_OPERATING", UNITS.Number, AUTO_READ);
     packsState[1]       = dm->make_named_var("A32NX_COND_PACK_2_IS_OPERATING", UNITS.Number, AUTO_READ);
     // STRUCTURAL DEICE SWITCH follows the wing anti-ice valves of the systems model (a380_systems ice_rain_protection.rs,
-    // through the systems_wasm wing anti-ice aspect): the TOGA thrust takes the bleed demand into account (A380 FCOM DSC-70
-    // CONTROLS AND INDICATORS: BLEED SUPPLY lists the wing anti-ice), not during the takeoff wing anti-ice inhibition
+    // through the systems_wasm wing anti-ice aspect): the TOGA thrust takes the wing anti-ice bleed demand into account, not
+    // during the takeoff wing anti-ice inhibition
     wingAntiIce         = dm->make_aircraft_var("STRUCTURAL DEICE SWITCH", 0, "", nullptr, UNITS.Bool, AUTO_READ);
     refuelRate          = dm->make_named_var("A32NX_EFB_REFUEL_RATE_SETTING", UNITS.Number, AUTO_READ);
     refuelStartedByUser = dm->make_named_var("A32NX_REFUEL_STARTED_BY_USR", UNITS.Number, AUTO_READ);

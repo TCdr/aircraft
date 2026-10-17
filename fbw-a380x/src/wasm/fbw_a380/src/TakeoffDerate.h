@@ -3,15 +3,10 @@
 // The DOx derated takeoff on the FADEC models of the flight computers. Pure function, no MSFS SDK: tested natively with the
 // generated A380FadecComputer model by test/takeoff_derate_test.cpp (test/run_tests.sh).
 //
-// A380 FCOM (a380_fcom.txt):
-// - DSC-70-20-40 THRUST RATING LIMIT (l.111561-111568): "DOx : Derated takeoff mode. The DOx mode reduces the maximum thrust at
-//   takeoff. 6 derated takeoff levels are defined: DO4 , DO8 , D12 , D16 , D20 , D24 . Each level reduces the maximum thrust
-//   from 4 % up to 24 %."
-// - DSC-22-FG-50-30 (l.11406-11408, l.11443-11446): a derated takeoff is made at the FLX-MCT detent, as a FLEX takeoff ("MAN
-//   DTO ... DERATED has been selected on the T.O panel of the FMS PERF page - The most forward thrust lever is on the FLX-MCT
-//   detent").
-// - PER-TOF-THR-DRT REQUIREMENTS (l.200751-200754): "It is not permitted to combine a Derated Takeoff and a FLEX Takeoff ...
-//   This prevents the simultaneous selection of both a derate level and a TFLEX".
+// - DOx derated takeoff: six levels, D04 to D24, reduce the maximum takeoff thrust by 4 % up to 24 %.
+// - A derated takeoff is made at the FLX-MCT detent, as a FLEX takeoff.
+// - A derated takeoff and a FLEX takeoff cannot be combined: a derate level and a FLEX temperature are never selected
+//   together.
 //
 // The FADEC model (A380FadecComputer) has one reduced takeoff rating: its FLX limit at the FLX-MCT detent, used on the ground
 // when it has a valid FLEX TEMP above the TAT (data_computed.is_FLX_active), latched for the flight until the levers leave the

@@ -1,14 +1,12 @@
 //! The APU bleed valve of the A380, opened and closed by the APU ECB (systems::apu), with its stuck
 //! failures (flyPad ATA 36 "APU bleed valve stuck closed / open", as the A32NX).
 //!
-//! AIR APU BLEED FAULT (A380 FCOM PRO-ABN-ECAM-10-36, a380_fcom.txt l.167692-167696): "The APU is
-//! running, and: The APU bleed valve is abnormally open(closed)". The valve writes the position the
-//! ECB commands (`APU_BLEED_AIR_VALVE_COMMANDED_OPEN`) next to its position
+//! AIR APU BLEED FAULT: the APU runs and the APU bleed valve is abnormally open (closed). The valve
+//! writes the position the ECB commands (`APU_BLEED_AIR_VALVE_COMMANDED_OPEN`) next to its position
 //! (`APU_BLEED_AIR_VALVE_OPEN`): the FWS compares them (ApuBleedFaultAlerts.ts).
 //!
-//! The model has one valve for the APU bleed valve and the APU isolation valve, which "operates
-//! simultaneously with the APU bleed valve" (DSC-36-10-30, l.93988): the stuck failures are those of the
-//! APU bleed valve.
+//! The model has one valve for the APU bleed valve and the APU isolation valve, which operates
+//! together with it: the stuck failures are those of the APU bleed valve.
 
 use crate::pneumatic::{stuck_valve_open_amount, FixedValveCommand};
 use systems::{

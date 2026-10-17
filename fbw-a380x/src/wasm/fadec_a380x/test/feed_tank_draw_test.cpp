@@ -34,7 +34,7 @@ static double burnKg(double fuelFlowKgPerHour, double deltaTimeSeconds) {
 }
 
 int main() {
-  // The 2026-10-06 flameout case: climb at about 7.6 t/h per engine, a 0.3 s sim stall, an Extra tank that MSFS has not refilled
+  // The flameout case seen in the sim: climb at about 7.6 t/h per engine, a 0.3 s sim stall, an Extra tank that MSFS has not refilled
   // to the top (0.15 gal = 1.0 lb, the burn of the stall is 0.63 kg = 1.4 lb). Every engine burns the same, so the four tanks
   // emptied in the same update. The tank must not be emptied while its feed tank can refill it, and no fuel is lost.
   {
@@ -62,11 +62,11 @@ int main() {
     expectNear("normal frame: nothing carried", out.carriedBurnLbs, 0.0);
   }
 
-  // Fuel exhaustion: the feed tank is dry, MSFS cannot refill: the Extra tank empties as before and the engine flames out.
+  // Fuel exhaustion: the feed tank is dry, MSFS cannot refill: the Extra tank empties and the engine flames out.
   {
     const auto out = FeedTankDraw_A380X::draw({0.1, WEIGHT_LBS_PER_GALLON, burnKg(7600, 0.5), 0.0, false});
     expectNear("feed tank dry: the Extra tank empties", out.extraTankGallons, 0.0);
-    // The fuel used is the fuel the tank held, in kilograms (it was capped in pounds and counted as kilograms).
+    // The fuel used is the fuel the tank held, in kilograms (not the pounds of the tank counted as kilograms).
     expectNear("feed tank dry: fuel used = the tank content (kg)", out.drawnKg, 0.1 * WEIGHT_LBS_PER_GALLON / LBS_PER_KG);
   }
 
@@ -88,7 +88,7 @@ int main() {
     expectNear("below the floor: burn carried", out.carriedBurnLbs, burn * LBS_PER_KG);
   }
 
-  // No fuel weight from MSFS yet: no division by 0 (the four Extra tanks were written NaN).
+  // No fuel weight from MSFS yet: no division by 0, which would write NaN into the four Extra tanks.
   {
     const auto out = FeedTankDraw_A380X::draw({0.0, 0.0, burnKg(7600, 1.0 / 30), 0.0, true});
     expectTrue("no fuel weight: quantity is a number", std::isfinite(out.extraTankGallons));

@@ -3036,8 +3036,8 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
        idEngineIdleN3->get(), idEngineStallN1Loss[fadecIndex]->get()});
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = engineStartThrottle.loopCommandedN1;
 
-  // ENG FADEC FAULT: the FADEC cannot communicate via the avionics networks (A380 FCOM l.171549): the PRIM orders do not
-  // reach it, the A/THR loses that engine ("ENG 1(2)(3)(4) A/THR" INOP SYS), which follows its thrust lever
+  // ENG FADEC FAULT: the FADEC cannot communicate over the avionics networks: the PRIM orders do not reach it, the A/THR loses
+  // that engine ("ENG 1(2)(3)(4) A/THR" INOP SYS), which follows its thrust lever
   const bool fadecNetworkLost = idEngineFadecFault[fadecIndex]->get() > 0.5;
   fadecInputs[fadecIndex].in.prim_1 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[0], fadecNetworkLost);
   fadecInputs[fadecIndex].in.prim_2 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[1], fadecNetworkLost);

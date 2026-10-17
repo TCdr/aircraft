@@ -16,16 +16,14 @@ use uom::si::velocity::knot;
 
 pub(crate) struct A380AirDataInertialReferenceSystemBuilder;
 impl A380AirDataInertialReferenceSystemBuilder {
-    /// The supplies of the ADIRUs, from the INOP SYS of the A380 FCOM PRO-ABN-ELEC busbar faults:
-    /// - ADIRU 1: AC ESS and DC ESS ("Because the AC ESS BUS supplies the ADR 1", a380_fcom.txt l.139230-139232;
-    ///   "Because the DC ESS BUS supplies the ADR 1", l.140854-140856);
-    /// - ADIRU 2: AC 4 and DC 2 (AC BUS 4 FAULT: ADR 2, l.139085; DC BUS 2 FAULT: ADR 2, l.140685);
-    /// - ADIRU 3: AC 2 and DC 1 ("Because the AC BUS 2 supplies the ADR 3", l.137931; "Because the DC BUS 1 supplies
-    ///   the ADR 3", l.139802).
+    /// The supplies of the ADIRUs, from the INOP SYS lists of the electrical busbar faults:
+    /// - ADIRU 1: AC ESS and DC ESS;
+    /// - ADIRU 2: AC 4 and DC 2;
+    /// - ADIRU 3: AC 2 and DC 1.
     ///
     /// The ADR needs both busbars. The IR keeps running on either: only the loss of both (AC BUS 3+4 & DC BUS 2
-    /// FAULT) gives IR 2 in its INOP SYS (l.138909-138910). The A380 has no ON BAT light: the DC busbars are no
-    /// battery buses here. In the A380X electrical model the AC ESS busbar (400XP) is the "AC ESS SHED" bus type.
+    /// FAULT) gives IR 2 in its INOP SYS. The A380 has no ON BAT light: the DC busbars are no battery buses here. In
+    /// the A380X electrical model the AC ESS busbar (400XP) is the "AC ESS SHED" bus type.
     fn electrical_supplies() -> [AdiruElectricalSupply; 3] {
         [
             (
@@ -65,9 +63,8 @@ impl A380AirDataInertialReferenceSystemBuilder {
                     Velocity::new::<knot>(100.),
                     Velocity::new::<knot>(104.),
                 ),
-                // Landing gear extension inhibit (hydraulic gear safety valve): A380 FCOM DSC-32-10-20
-                // (a380_fcom.txt l.78663-78664) "The LGCIS receives airspeed data from the ADIRS to inhibit the
-                // extension of the landing gear above 280 kt." (the A320 uses 260 kt here)
+                // Landing gear extension inhibit (hydraulic gear safety valve): the LGCIS inhibits the gear
+                // extension above 280 kt from the ADIRS airspeed (the A320 uses 260 kt here)
                 LowSpeedWarningThreshold::new(
                     Velocity::new::<knot>(280.),
                     Velocity::new::<knot>(284.),
@@ -121,8 +118,8 @@ impl A380RadioAltimeters {
                     Length::new::<foot>(26.2),
                 ),
             ),
-            // RA SYS C = AC ESS (A380 FCOM DSC-34-10-100, a380_fcom.txt:87595-87601; ELEC AC ESS BUS FAULT:
-            // RA SYS C redundancy loss, 139284). AC ESS (400XP) is AlternatingCurrentEssentialShed.
+            // RA SYS C = AC ESS (AC ESS BUS FAULT costs the RA SYS C redundancy). AC ESS (400XP) is
+            // AlternatingCurrentEssentialShed.
             radio_altimeter_3: A380RadioAltimeter::new(
                 context,
                 3,
@@ -245,8 +242,8 @@ mod tests {
     }
 
     #[test]
-    // A380 FCOM DSC-32-10-20 (a380_fcom.txt l.78663-78664): the landing gear extension is inhibited above 280 kt.
-    // The hydraulic gear safety valve opens below the threshold of the ADIRU low speed discrete 4.
+    // The landing gear extension is inhibited above 280 kt: the hydraulic gear safety valve opens below the threshold
+    // of the ADIRU low speed discrete 4.
     fn gear_extension_speed_discrete_allows_extension_up_to_280_knots() {
         let mut test_bed = test_bed_with_all_adirus_in_nav();
 

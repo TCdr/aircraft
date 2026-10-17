@@ -37,7 +37,6 @@ static constexpr double TOGA_DETENT_DEG = 45.0;
 static constexpr double FLEX_TEMP_DEG_C = 60.0;
 static constexpr double TAT_DEG_C = 15.0;
 
-/// SignStatusMatrix::NormalOperation
 static constexpr uint32_T SSM_NORMAL_OPERATION = 3U;
 
 static constexpr double FRAME_SECONDS = 1.0 / 30.0;
@@ -152,7 +151,7 @@ static void maxThrustMiscalculatedGivesThrustLoss() {
       FadecThrustFailures::maxThrPercent(healthy.inputs.in.input.thrust_limit_TOGA_percent, TOGA_LIMIT, IDLE_LIMIT);
   const double failedMaxThr = FadecThrustFailures::maxThrPercent(failed.inputs.in.input.thrust_limit_TOGA_percent, TOGA_LIMIT, IDLE_LIMIT);
   expect(std::abs(healthyMaxThr - 100.0) < 0.01, "healthy FADEC: max THR 100 %", healthyMaxThr);
-  // the FADEC detects the loss when its max THR is 10 % lower than the others (FCOM l.173388-173390)
+  // the FADEC detects the loss when its max THR is 10 % lower than the others
   expect(failedMaxThr <= 0.9 * healthyMaxThr, "miscalculated FADEC: max THR at least 10 % lower", failedMaxThr);
 
   // the idle and a FLEX limit of 0 (no FLEX TEMP) are not scaled

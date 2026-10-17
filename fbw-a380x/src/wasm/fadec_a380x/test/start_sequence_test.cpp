@@ -83,8 +83,8 @@ static bool shuttingRelights(bool engineStarter, double simN3, double fadecN3) {
 #endif
 }
 
-/// The MSFS starter acceleration of the recorded A380X core (sim test 2026-10-08, APU bleed): the old run-down settled at
-/// 5.7 % N3 with the 2 s time constant, so about 5.7 / 2 % per second.
+/// The MSFS starter acceleration of the recorded A380X core (APU bleed): the run-down of the MSFS speed settled at 5.7 % N3 with
+/// the 2 s time constant, so about 5.7 / 2 % per second.
 constexpr double RECORDED_MSFS_STARTER_ACCELERATION = 5.7 / UNLIT_N3_TIME_CONSTANT_SECONDS;
 /// The systems WASM detects a failed starter (start valve open with air) while the core stays below 5 % N2 for 10 s
 /// (engine_start.rs STARTER_FAULT_MAX_N2_PERCENT, STARTER_FAULT_DETECTION_TIME).
@@ -114,10 +114,10 @@ static double highestHeldCoreSpeed(double startCorrectedN3, double deltaTime) {
 }
 
 int main() {
-  // A starter failure (sim test 2026-10-08, ENG 1 starter shaft shear, APU bleed ON, ENG MASTER 1 ON at IGN START): the
-  // systems WASM reports no starter motoring and the FADEC holds the core at rest, which the MSFS starter turns. It must stay
-  // below the 5 % of the starter fault detection, so that the start sequence aborts the start (A380 FCOM DSC-70-80-30-20
-  // l.112492-112493). Before the fix it settled at 5.7 % N3 and no fault was ever detected.
+  // A starter failure (measured in the sim: ENG 1 starter shaft shear, APU bleed ON, ENG MASTER 1 ON at IGN START): the systems
+  // WASM reports no starter motoring and the FADEC holds the core at rest, which the MSFS starter turns. It must stay below the
+  // 5 % of the starter fault detection, so that the start sequence aborts the start. Before the fix it settled at 5.7 % N3 and
+  // no fault was ever detected.
   expect("starter failure: no starter motoring, core held at rest",
          coreHeldAtRest(startSequenceKeepsStarter(true, true, STARTING), false));
   expect("starter failure, 30 fps: the held core stays below the starter fault threshold",
@@ -156,20 +156,19 @@ int main() {
   expect("ENG MASTER OFF releases the starter", !engineStarter(false, true, false, true, STARTING));
   expect("normal running engine", engineStarter(true, false, false, true, NONE));
 
-  // An OFF engine is ON only when MSFS burns in it (sim test 2026-10-07: a cold engine at NORM whose MSFS starter, which
-  // follows the ENG MASTER lever, turned the core past 20 % showed ON unlit, and the auto relight selected igniters A + B)
+  // An OFF engine is ON only when MSFS burns in it (measured in the sim: a cold engine at NORM whose MSFS starter, which follows
+  // the ENG MASTER lever, turned the core past 20 % showed ON unlit, and the auto relight selected igniters A + B)
   expect("an unlit core turned past 20 % at NORM is not running", !offIsRunning(1, true, 25.0, false));
   expect("an engine running at the load of a flight is running (ground or air)", offIsRunning(1, true, 63.0, true));
   expect("a core below 20 % is not running", !offIsRunning(1, true, 15.0, true));
   expect("ENG START at IGN/START is a start, not a running engine", !offIsRunning(2, true, 63.0, true));
   expect("ENG MASTER OFF is not running", !offIsRunning(1, false, 63.0, true));
 
-  // A hung start does not end at idle
   expect("a hung start does not reach idle", !reachesIdle(true, 62.0, 62.0, true));
   expect("a normal start reaches idle", reachesIdle(true, 62.0, 62.0, false));
 
   // In flight the start sequence neither keeps a start going nor brings a core to rest: a windmilling engine with its ENG
-  // MASTER OFF (no starter motoring in flight) is left to the airflow (sim test 2026-10-06, FL100 255 kt)
+  // MASTER OFF (no starter motoring in flight) is left to the airflow (measured in the sim at FL100 255 kt)
   expect("in flight: no core held at rest, unlit start",
          !coreHeldAtRest(startSequenceKeepsStarter(false, true, STARTING), false));
   expect("in flight: no core held at rest, master OFF", !coreHeldAtRest(startSequenceKeepsStarter(false, true, NONE), false));
@@ -181,7 +180,6 @@ int main() {
   expect("not a start of the sequence: MSFS alone", !coreHeldAtRest(false, false));
   expectNear("resting core runs down", restingCoreCorrectedN3(20.0, 1.0), 10.0);
 
-  // The indications
   expectNear("unlit N3 follows the motoring speed down", unlitStartN3(40.0, 20.0, 1.0), 30.0);
   expectNear("hung start N3 at 60 % of idle", hungStartN3(55.0, 62.0, true), 37.2);
   expectNear("hot start EGT excess grows", egtOvershoot(30.0, true, 0.5), 45.0);

@@ -411,7 +411,7 @@ pub(super) struct A380AirConditioningSystem {
 impl A380AirConditioningSystem {
     const CAB_FAN_DESIGN_FLOW_RATE_L_S: f64 = 1250.; // litres/sec
     /// Air temperature in the bulk cargo duct with the heater overheating. Design choice: above the 70 deg C bulk
-    /// cargo duct overheat limit (A380 FCOM PRO-ABN COND BULK CARGO DUCT OVHT, a380_fcom.txt l.132368).
+    /// cargo duct overheat limit (COND BULK CARGO DUCT OVHT).
     const BULK_CARGO_DUCT_OVERHEAT_TEMPERATURE_DEG_C: f64 = 90.;
 
     fn new(context: &mut InitContext, cabin_zones: &[ZoneType; 18]) -> Self {
@@ -420,9 +420,8 @@ impl A380AirConditioningSystem {
                 FullDigitalAGUController::new(
                     context,
                     FdacId::One,
-                    // Pack 1 channel 1 = DC 1 and AC ESS, channel 2 = DC ESS and AC 2
-                    // (A380 FCOM a380_fcom.txt:6223-6224). AC ESS (403XP) is AlternatingCurrentEssentialShed,
-                    // AlternatingCurrentEssential is AC EMER (491XP).
+                    // Pack 1 channel 1 = DC 1 and AC ESS, channel 2 = DC ESS and AC 2. AC ESS (403XP) is
+                    // AlternatingCurrentEssentialShed, AlternatingCurrentEssential is AC EMER (491XP).
                     [
                         ElectricalBusType::AlternatingCurrentEssentialShed, // 403XP
                         ElectricalBusType::AlternatingCurrent(2),           // 117XP
@@ -431,7 +430,7 @@ impl A380AirConditioningSystem {
                 FullDigitalAGUController::new(
                     context,
                     FdacId::Two,
-                    // Pack 2 channel 1 = DC ESS and AC ESS, channel 2 = DC 2 and AC 4 (a380_fcom.txt:6225-6227)
+                    // Pack 2 channel 1 = DC ESS and AC ESS, channel 2 = DC 2 and AC 4
                     [
                         ElectricalBusType::AlternatingCurrentEssentialShed, // 403XP
                         ElectricalBusType::AlternatingCurrent(4),           // 204XP
@@ -664,7 +663,7 @@ impl A380AirConditioningSystem {
         );
 
         // An overheating heater heats whenever the aft VCM allows it on (HEATER pb ON), whatever the bulk cargo
-        // temperature: COND BULK CARGO DUCT OVHT asks for BULK HEATER OFF (a380_fcom.txt l.132360-132404)
+        // temperature: COND BULK CARGO DUCT OVHT asks for BULK HEATER OFF
         self.bulk_cargo_duct_temperature = if self.bulk_cargo_duct_overheat_failure.is_active()
             && self.vcm[1].bulk_duct_heater_on_allowed()
         {
@@ -685,7 +684,7 @@ impl A380AirConditioningSystem {
             self.vcm[1].bulk_isolation_valve_has_failed(),
         ]);
 
-        // The HEATER pb FAULT light: heater failed, or bulk cargo duct overheat (a380_fcom.txt l.5752-5756)
+        // The HEATER pb FAULT light: heater failed, or bulk cargo duct overheat
         self.air_conditioning_overhead.set_cargo_heater_fault(
             self.vcm[1].cargo_heater_has_failed() || self.vcm[1].bulk_cargo_duct_overheat(),
         );
@@ -697,8 +696,7 @@ impl A380AirConditioningSystem {
             ]);
     }
 
-    /// The PACK 1(2) pb FAULT light, also "when there is a bleed leak on one pack" (A380 FCOM
-    /// DSC-21-10-20, a380_fcom.txt l.5616-5627)
+    /// The PACK 1(2) pb FAULT light, also for a bleed leak on one pack
     fn pack_fault_determination(&self) -> [bool; 2] {
         [
             self.fdac[0].fcv_status_determination(1)
@@ -1219,7 +1217,7 @@ impl PressurizationConstants for A380PressurizationConstants {
 
     const MAX_CLIMB_RATE: f64 = 1000.; // fpm
     const MAX_CLIMB_RATE_IN_DESCENT: f64 = 500.; // fpm
-                                                 // A380 FCOM DSC-21-30-30 (a380_fcom.txt l.7948): "The cabin descent rate is limited to 300 ft/min."
+                                                 // The cabin descent rate is limited to 300 ft/min.
     const MAX_DESCENT_RATE: f64 = -300.; // fpm
     const MAX_ABORT_DESCENT_RATE: f64 = -500.; //fpm
     const MAX_TAKEOFF_DELTA_P: f64 = 0.1; // PSI
@@ -3412,7 +3410,7 @@ mod tests {
             let cabin_altitude_at_engagement = test_bed.cabin_altitude();
             test_bed = test_bed.command_alt_mode_sel_pb_man().iterate(10);
 
-            // Before the selector turns, the target is the cabin altitude when MAN was engaged (DSC-21-30-20)
+            // Before the selector turns, the target is the cabin altitude when MAN was engaged
             assert_about_eq!(
                 test_bed.cabin_target_altitude().get::<foot>(),
                 cabin_altitude_at_engagement.get::<foot>(),
@@ -3492,7 +3490,7 @@ mod tests {
             let cabin_altitude_at_engagement = test_bed.cabin_altitude();
             test_bed = test_bed.command_alt_mode_sel_pb_man().iterate(10);
 
-            // Before the selector turns, the target is the cabin altitude when MAN was engaged (DSC-21-30-20)
+            // Before the selector turns, the target is the cabin altitude when MAN was engaged
             assert_about_eq!(
                 test_bed.cabin_target_altitude().get::<foot>(),
                 cabin_altitude_at_engagement.get::<foot>(),
@@ -3594,8 +3592,7 @@ mod tests {
 
         #[test]
         fn man_alt_mode_holds_the_current_cabin_altitude_until_a_target_is_selected() {
-            // DSC-21-30-20 CABIN ALT MODE pb-sw MAN (a380_fcom.txt:7422-7425): "The cabin altitude target remains
-            // steady at the current value until the flight crew manually selects a new cabin altitude target."
+            // In MAN the cabin altitude target stays at the current value until the crew selects a new one.
             let mut test_bed = test_bed_in_cruise()
                 .command_alt_sel_knob_value(6000.)
                 .iterate(10);
@@ -3623,9 +3620,8 @@ mod tests {
 
         #[test]
         fn man_vs_mode_holds_zero_vertical_speed_until_a_target_is_selected() {
-            // DSC-21-30-40 MANUAL OPERATION (a380_fcom.txt:8012-8015): "if no altitude or cabin vertical speed is
-            // selected on the CAB ALT TRGT selector or the V/S TRGT selector: The cabin altitude remains steady,
-            // and the cabin vertical speed is set at 0 ft/min."
+            // In manual operation with no altitude or vertical speed selected, the cabin altitude stays steady and
+            // the cabin vertical speed is 0 ft/min.
             let mut test_bed = test_bed_in_cruise()
                 .command_vs_sel_knob_value(400.)
                 .iterate(10)
@@ -3650,8 +3646,7 @@ mod tests {
 
         #[test]
         fn lost_fms_landing_elevation_regulates_the_cabin_to_7000_ft_in_descent() {
-            // PRO-ABN CAB PRESS LDG ELEVN FAULT (a380_fcom.txt:135437, 135468): "IN DES : CAB ALT REGULATED TO
-            // 7000 FT"
+            // CAB PRESS LDG ELEVN FAULT: in descent the cabin altitude is regulated to 7 000 ft
             let mut test_bed = test_bed_in_descent().fm_landing_elevation_lost().iterate(5);
 
             assert_about_eq!(test_bed.cabin_target_altitude().get::<foot>(), 7000., 20.);
@@ -3660,8 +3655,8 @@ mod tests {
         #[test]
         fn lost_fms_landing_elevation_and_ambient_pressure_regulate_the_cabin_to_7500_ft_in_descent(
         ) {
-            // PRO-ABN CAB PRESS AUTO CTL FAULT (a380_fcom.txt:134651-134659): "the landing field elevation is fixed
-            // at 7 000 ft (or 7 500 ft if, in addition, the ambient pressure is no longer available)"
+            // CAB PRESS AUTO CTL FAULT: the landing field elevation is fixed at 7 000 ft (7 500 ft if the ambient
+            // pressure is also lost)
             let mut test_bed = test_bed_in_descent()
                 .fm_landing_elevation_lost()
                 .command_ambient_pressure_fault(true)
@@ -3757,9 +3752,8 @@ mod tests {
             assert_gt!(test_bed.aft_outflow_valve_open_amount(), Ratio::default());
         }
 
-        /// A380 FCOM DSC-21-30-30: "On ground, if at least one door is not closed and locked at takeoff power
-        /// application: The four cabin pressure controllers will prevent cabin pressurization, by maintaining the
-        /// four outflow valves open."
+        /// On ground, with a door not closed and locked at takeoff power, the four cabin pressure controllers keep
+        /// the four outflow valves open: no cabin pressurization.
         fn assert_all_outflow_valves_open(test_bed: &CabinAirTestBed) {
             for ofv in 1..=4 {
                 assert_gt!(
@@ -3830,8 +3824,7 @@ mod tests {
 
         #[test]
         fn doors_do_not_hold_ofv_open_in_manual_mode() {
-            // DSC-21-30-40: "The manual pressurization system operates independently of the automatic
-            // pressurization system."
+            // The manual pressurization works independently of the automatic one.
             let test_bed = test_bed()
                 .set_on_ground()
                 .command_vs_mode_sel_pb_man()
@@ -3936,7 +3929,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-21-30-30: "The cabin descent rate is limited to 300 ft/min."
+        // The cabin descent rate is limited to 300 ft/min.
         fn cabin_descent_rate_is_limited_to_300_fpm() {
             // A fast aircraft descent: the target cabin rate ramps to the limit and stays there
             let mut test_bed = test_bed_in_cruise()
@@ -3963,8 +3956,8 @@ mod tests {
             );
         }
 
-        // A380 FCOM DSC-21-30-20 (a380_fcom.txt l.7514-7522): the differential pressure is normal
-        // from -0.2 PSI to 8.92 PSI, abnormal (amber, DIFF PRESS HI) from 8.92 PSI to 9.2 PSI.
+        // The differential pressure is normal from -0.2 PSI to 8.92 PSI, abnormal (amber, DIFF PRESS HI) from
+        // 8.92 PSI to 9.2 PSI.
         const MAX_NORMAL_DELTA_P_PSI: f64 = 8.92;
 
         /// Climbs to `flight_level` with the FMS cruise altitude `fms_cruise_altitude` (NAV mode)
@@ -5740,7 +5733,7 @@ mod tests {
             const COCKPIT: usize = 0;
             const MAIN_DECK_1: usize = 1;
 
-            // A380 FCOM PRO-ABN-ECAM-10-21-10 COND DUCT OVHT: a duct overheats above 70 deg C
+            // COND DUCT OVHT: a duct overheats above 70 deg C
             const FCOM_DUCT_OVERHEAT_LIMIT_DEG_C: f64 = 70.;
 
             fn test_bed_with_trim_air_valves_open() -> CabinAirTestBed {
@@ -5814,7 +5807,7 @@ mod tests {
                     FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
                 );
 
-                // FCOM COND DUCT OVHT procedure: HOT AIR OFF stops the overheat
+                // The COND DUCT OVHT procedure: HOT AIR OFF stops the overheat
                 test_bed = test_bed.hot_air_pbs_off().iterate(50);
                 assert_lt!(
                     test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
@@ -5878,7 +5871,7 @@ mod tests {
 
                 assert!(test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
                 assert!(!test_bed.duct_overheat_in_zone(ZoneType::Cabin(11)));
-                // FCOM COND DUCT OVHT: a cockpit duct overheat asks for HOT AIR 2 OFF
+                // COND DUCT OVHT: a cockpit duct overheat asks for HOT AIR 2 OFF
                 assert!(test_bed.hot_air_pb_has_fault(2));
                 assert!(!test_bed.hot_air_pb_has_fault(1));
                 assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_CKPT_DUCT_OVHT));
@@ -5918,7 +5911,7 @@ mod tests {
                     test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
                     FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
                 );
-                // FCOM DSC-21-10-20: the FAULT light goes off below 70 deg C AND with the HOT AIR pb OFF
+                // The FAULT light goes off below 70 deg C AND with the HOT AIR pb OFF
                 assert!(test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
                 assert!(test_bed.hot_air_pb_has_fault(2));
 
@@ -6357,9 +6350,9 @@ mod tests {
             const VCS_BIT_BULK_CARGO_DUCT_OVHT: u8 = 25;
             const VCS_BIT_CABIN_AIR_EXTRACT_VLV_FAULT: u8 = 26;
 
-            // A380 FCOM PRO-ABN AIR PACK 1(2) OVHT: "The pack outlet temperature is above 95 deg C."
+            // AIR PACK 1(2) OVHT: the pack outlet temperature is above 95 deg C
             const FCOM_PACK_OVERHEAT_LIMIT_DEG_C: f64 = 95.;
-            // A380 FCOM PRO-ABN COND BULK CARGO DUCT OVHT: above 70 deg C in the duct
+            // COND BULK CARGO DUCT OVHT: above 70 deg C in the duct
             const FCOM_DUCT_OVERHEAT_LIMIT_DEG_C: f64 = 70.;
             const BULK_CARGO: usize = 17;
 
@@ -6455,7 +6448,7 @@ mod tests {
                 assert!(test_bed.ags_discrete_word_bit(AGS_BIT_PACK_1_OVHT));
                 assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_PACK_2_OVHT));
 
-                // FCOM procedure PACK 1 OFF: no more air flow, the pack cools down
+                // The procedure sets PACK 1 OFF: no more air flow, the pack cools down
                 test_bed = test_bed.command_one_pack_on(2).iterate(30);
                 assert_lt!(
                     test_bed.pack_outlet_temperature(1),
@@ -6512,7 +6505,7 @@ mod tests {
                 // The HEATER pb FAULT light
                 assert!(test_bed.bulk_cargo_heater_pb_has_fault());
 
-                // FCOM procedure BULK HEATER OFF
+                // The procedure sets BULK HEATER OFF
                 test_bed = test_bed.command_bulk_heater_pb_on(false).iterate(5);
                 assert_lt!(
                     test_bed.duct_temperature()[BULK_CARGO].get::<degree_celsius>(),

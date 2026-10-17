@@ -2,14 +2,12 @@
 //! lib.rs (pneumatics, electrics, fuel, the engine failures), with the FADEC (fadec_a380x) played by
 //! the test (the FADEC engine state and core speed).
 //!
-//! A380 FCOM (a380_fcom.txt):
-//! - PRO-ABN-ECAM-10-70 ENG RELIGHT IN FLIGHT, l.174977-174979 (multiple engines): "MAX GUARANTEED
-//!   ALTITUDE : 28000 FT", "MIN SPEED FOR WINDML RELIGHT : 250 KT" (single engine l.174902-174904:
-//!   30000 FT, 260 KT).
-//! - ENG ALL ENG FLAME OUT, l.173768-174788: "RAT MAN ON ... PRESS", "OPTIMUM RELIGHT SPEED :
-//!   260 KT", "WHEN APU AVAIL: ... APU BLEED ... ON", "ENG MASTER (2 AT A TIME) ... ON".
-//! - DSC-70-30 IN FLIGHT, l.113567-113570: "Engine start valve opens if N2 is below 11 %, or if the
-//!   aircraft airspeed (CAS) is below 260 kt".
+//! Procedure values the tests check:
+//! - In-flight relight: several engines out, 28 000 ft maximum and 250 kt minimum for a windmill
+//!   relight (one engine out: 30 000 ft, 260 kt).
+//! - All engines flame out: RAT manual on, optimum relight speed 260 kt, with the APU available
+//!   APU BLEED ON, then the ENG MASTERs ON two at a time.
+//! - In flight the start valve opens below 11 % N2 or 260 kt CAS.
 
 use super::A380;
 use std::time::Duration;
@@ -146,9 +144,8 @@ fn with_two_engines_out_an_engine_relights_by_windmilling_at_255_kt() {
     flame_out(&mut test_bed, 1);
     flame_out(&mut test_bed, 3);
 
-    // 11 % at 260 kt: at 255 kt the core windmills below 11 %, so the FADEC opens the start valve
-    // (l.113567), which gets no air here (no APU bleed, crossbleed AUTO): only the windmill lights
-    // the engine
+    // 11 % at 260 kt: at 255 kt the core windmills below 11 %, so the FADEC opens the start valve,
+    // which gets no air here (no APU bleed, crossbleed AUTO): only the windmill lights the engine
     let core_speed = windmill_core_speed(&mut test_bed, 1);
     assert!((core_speed - 11. * 255. / 260.).abs() < 0.01);
 
@@ -161,7 +158,7 @@ fn with_two_engines_out_an_engine_relights_by_windmilling_at_255_kt() {
 }
 
 /// FL100, 255 kt, one engine out: zone 2 of the relight envelope, a starter assisted relight that
-/// needs starter air (FCOM DSC-70-30 l.113567-113570: the start valve opens below 260 kt).
+/// needs starter air (the start valve opens below 260 kt).
 fn one_engine_out_at_fl100_and_255_kt_master_cycled(
     cross_bleed_selector: f64,
 ) -> SimulationTestBed<A380> {
@@ -179,7 +176,7 @@ const CROSS_BLEED_OPEN: f64 = 2.;
 #[test]
 fn with_one_engine_out_no_starter_assisted_relight_without_apu_or_crossbleed_air() {
     // X BLEED AUTO and no APU bleed: the crossbleed valves stay closed and no air reaches the
-    // starter. Before the duct vent (pneumatic.rs engine_ducts_without_air_source) the air trapped
+    // starter. Without the duct vent (pneumatic.rs engine_ducts_without_air_source) the air trapped
     // in the engine's own bleed duct since the flameout pressurized the starter and it lit up.
     let mut test_bed = one_engine_out_at_fl100_and_255_kt_master_cycled(CROSS_BLEED_AUTO);
 
@@ -188,7 +185,7 @@ fn with_one_engine_out_no_starter_assisted_relight_without_apu_or_crossbleed_air
 
 #[test]
 fn with_one_engine_out_a_starter_assisted_relight_lights_up_with_the_crossbleed_open() {
-    // ENG RELIGHT IN FLIGHT l.174908: "XBLEED ... OPEN": the running engines turn the starter
+    // The relight procedure sets XBLEED OPEN: the running engines turn the starter
     let mut test_bed = one_engine_out_at_fl100_and_255_kt_master_cycled(CROSS_BLEED_OPEN);
 
     assert!(lights_up_within(&mut test_bed, 1, Duration::from_secs(5)));
@@ -266,8 +263,8 @@ fn with_all_four_engines_out_each_engine_relights_by_windmilling_at_fl200_and_30
 
 #[test]
 fn with_all_four_engines_out_no_relight_at_norm() {
-    // "ENG START SEL ... IGN START" (l.173816): at NORM only a quick relight (master cycled within
-    // 30 s, N2 above 45 %) lights up, and the cores windmill here
+    // The procedure sets the ENG START selector to IGN START: at NORM only a quick relight (master
+    // cycled within 30 s, N2 above 45 %) lights up, and the cores windmill here
     let mut test_bed = all_four_engines_flamed_out();
 
     master_off_then_on(&mut test_bed, 1);
@@ -278,9 +275,9 @@ fn with_all_four_engines_out_no_relight_at_norm() {
 const ENGINE_STATE_OFF: f64 = 0.;
 const ENGINE_STATE_STARTING: f64 = 2.;
 
-/// The crossbleed engine start on the ground, PRO-SUP-70-10 (a380_fcom.txt l.181024-181029):
-/// "ALL ENG BLEEDS ... ON, X BLEED ... AUTO, SECOND ENG ... START". Engine 1 runs at idle, the APU
-/// bleed is OFF, engines 2 to 4 are stopped with their ENG MASTER OFF, ENG START selector IGN START.
+/// The crossbleed engine start on the ground (ALL ENG BLEEDS ON, X BLEED AUTO, then the second
+/// engine start). Engine 1 runs at idle, the APU bleed is OFF, engines 2 to 4 are stopped with
+/// their ENG MASTER OFF, ENG START selector IGN START.
 fn on_the_ground_with_engine_1_running_and_no_apu_bleed() -> SimulationTestBed<A380> {
     let mut test_bed = SimulationTestBed::new(A380::new);
     test_bed.set_on_ground(true);
@@ -303,9 +300,9 @@ fn cross_bleed_valves_are_open(test_bed: &mut SimulationTestBed<A380>) -> [bool;
 
 #[test]
 fn on_the_ground_a_crossbleed_engine_start_gets_starter_air_from_the_running_engine() {
-    // FCOM DSC-36-10-50 (l.94076-94077): the crossbleed valves open automatically "On ground, at
-    // engine start". Before the fix they stayed closed at AUTO (no APU bleed, all ENG BLEED pbs ON):
-    // the starter of engine 2 got no air and the FADEC reported START FAULT (NO STARTER AIR PRESSURE).
+    // The crossbleed valves open automatically on the ground at engine start. Without it they stayed
+    // closed at AUTO (no APU bleed, all ENG BLEED pbs ON): the starter of engine 2 got no air and the
+    // FADEC reported START FAULT (NO STARTER AIR PRESSURE).
     let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed();
     assert_eq!(cross_bleed_valves_are_open(&mut test_bed), [false; 3]);
 
@@ -338,9 +335,9 @@ fn on_the_ground_a_crossbleed_engine_start_gets_starter_air_from_the_running_eng
     assert_eq!(start_fault, 0.);
 }
 
-/// A380 FCOM DSC-70-80-30-20 (l.112476-112489): the "Engine start valve abnormal position" the
-/// pneumatic system detects (START VLV FAULT NOT OPEN) interrupts the automatic start of the start
-/// sequence, which cranks the engine (ENGINE_n_START_PHASE 3) before its new attempt.
+/// A start valve in an abnormal position, which the pneumatic system detects (START VLV FAULT NOT
+/// OPEN), interrupts the automatic start, which cranks the engine (ENGINE_n_START_PHASE 3) before
+/// its new attempt.
 #[test]
 fn on_the_ground_a_start_valve_stuck_closed_interrupts_the_automatic_start() {
     let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed();
@@ -355,9 +352,9 @@ fn on_the_ground_a_start_valve_stuck_closed_interrupts_the_automatic_start() {
     assert_eq!(start_phase, 3., "automatic crank");
 }
 
-/// The flyPad failures of the FADEC alerts of B25 without engine model effect (CTL SYS FAULT, CTL
-/// VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE)
-/// are in the A380 list of systems engine_monitoring_fault and write their variable.
+/// The flyPad failures of the FADEC alerts without engine model effect (CTL SYS FAULT, CTL VLV
+/// FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE) are
+/// in the A380 list of systems engine_monitoring_fault and write their variable.
 #[test]
 fn the_fadec_alert_failures_write_their_variable_for_their_engine() {
     use systems::engine::engine_monitoring_fault::EngineMonitoringFaultKind;

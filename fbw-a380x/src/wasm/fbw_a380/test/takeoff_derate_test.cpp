@@ -107,7 +107,7 @@ struct Fadec {
   bool flexPathActive() { return fadec.getExternalOutputs().out.data_computed.is_FLX_active; }
 };
 
-/// DSC-70-20-40 (l.111561-111565) and DSC-22-FG-50-30 MAN DTO (l.11443-11446): the derated rating at the FLX-MCT detent.
+/// The derated rating at the FLX-MCT detent, as a FLEX takeoff.
 static void derateGivesTheDeratedThrustAtTheFlxMctDetent() {
   for (const uint32_T ssm : {SSM_NO_COMPUTED_DATA, SSM_NORMAL_OPERATION}) {
     Fadec derated;

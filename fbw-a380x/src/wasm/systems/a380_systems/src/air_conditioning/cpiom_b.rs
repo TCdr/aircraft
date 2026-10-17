@@ -579,8 +579,7 @@ impl SimulationElement for AirGenerationSystemApplication {
 }
 
 /// Duct overheats and jammed trim air valves found by the temperature controller, grouped as the FWS alerts need
-/// them (A380 FCOM COND DUCT OVHT, a380_fcom.txt:132599-132623, and COND FWD CARGO TEMP REGUL FAULT,
-/// a380_fcom.txt:132278-132279)
+/// them (COND DUCT OVHT and COND FWD CARGO TEMP REGUL FAULT)
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
 struct TrimAirMonitoring {
     cockpit_duct_overheat: bool,
@@ -1246,13 +1245,11 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
             InternationalStandardAtmosphere::pressure_at_altitude(target_aircraft_altitude)
                 + target_cabin_delta_p_psi;
 
-        // The schedule is computed for the FMS cruise FL. When the aircraft flies above it (e.g. a
-        // step climb flown on the FCU without a new cruise FL), the scheduled cabin altitude would
-        // give a differential pressure above the normal range, up to the 9 PSI pressure limiter.
-        // A380 FCOM DSC-21-30-20: "The pressure is normal from -0.2 PSI to 8.92 PSI", DSC-21-30-30:
-        // in cruise the cabin altitude "corresponds to a differential pressure of approximately 8 PSI".
-        // The target cabin pressure is therefore capped at the current outside pressure plus the max
-        // scheduled differential pressure (the schedule itself peaks at 8.55 PSI near FL355).
+        // The schedule is computed for the FMS cruise FL. When the aircraft flies above it (e.g. a step climb flown
+        // on the FCU without a new cruise FL), the scheduled cabin altitude would give a differential pressure above
+        // the normal range (-0.2 to 8.92 PSI; about 8 PSI in cruise), up to the 9 PSI pressure limiter. The target
+        // cabin pressure is therefore capped at the current outside pressure plus the max scheduled differential
+        // pressure (the schedule itself peaks at 8.55 PSI near FL355).
         let max_cabin_pressure =
             self.exterior_pressure.output() + Pressure::new::<psi>(C::MAX_CLIMB_DELTA_P);
         let target_cabin_pressure = scheduled_cabin_pressure.min(max_cabin_pressure);
@@ -1397,11 +1394,10 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
         }
     }
 
-    /// The landing elevation the controllers use. A380 FCOM CAB PRESS LDG ELEVN FAULT (a380_fcom.txt:135437, 135468):
-    /// "The outflow valve controllers do not receive the landing field elevation from the FMS." "IN DES : CAB ALT
-    /// REGULATED TO 7000 FT", and CAB PRESS AUTO CTL FAULT (l.134651-134659): "the landing field elevation is set by
-    /// default to 7 000 ft [...] (or 7 500 ft if, in addition, the ambient pressure is no longer available)".
-    /// Design choice: the ambient pressure is no longer available when no ADIRU sends it.
+    /// The landing elevation the controllers use. CAB PRESS LDG ELEVN FAULT: the controllers do not get the landing
+    /// field elevation from the FMS, and in descent the cabin altitude is regulated to 7 000 ft; CAB PRESS AUTO CTL
+    /// FAULT: the landing field elevation is 7 000 ft by default (7 500 ft if the ambient pressure is also lost).
+    /// Design choice: the ambient pressure is lost when no ADIRU sends it.
     fn landing_elevation_for_control(
         fm_landing_elevation: Option<Length>,
         ambient_pressure_is_available: bool,
@@ -1479,19 +1475,16 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
         self.is_ground() || self.cabin_altitude.get::<foot>() < 15000.
     }
 
-    /// Pressurization inhibited by the doors. A380 FCOM DSC-21-30-30 Automatic Operation (CABIN ALT MODE and
-    /// CABIN V/S MODE pb-sw both in AUTO): "On ground, if at least one door is not closed and locked at takeoff
-    /// power application: The four cabin pressure controllers will prevent cabin pressurization, by maintaining the
-    /// four outflow valves open." The doors closed status is an input of the outflow valve controllers
-    /// (DSC-21-30-10: "The doors - Doors closed status").
+    /// Pressurization inhibited by the doors, in automatic operation (CABIN ALT MODE and CABIN V/S MODE pb-sw both in
+    /// AUTO): on ground, with a door not closed and locked at takeoff power, the four cabin pressure controllers keep
+    /// the four outflow valves open. The doors closed status is an input of the outflow valve controllers.
     ///
     /// Design choices:
     /// - On ground the inhibition follows the doors at any thrust: before takeoff power the outflow valves are open
-    ///   anyway ("Before takeoff, all outflow valves open"), so this only changes what happens from takeoff power on.
+    ///   anyway, so this only changes what happens from takeoff power on.
     /// - In flight it keeps its value from the liftoff: a takeoff with a door not closed keeps the outflow valves open
     ///   (CAB PRESS INHIBITED BY DOORS, MAX FL 100/MEA) until the next touchdown.
-    /// - Manual mode is not affected: "The manual pressurization system operates independently of the automatic
-    ///   pressurization system" (DSC-21-30-40).
+    /// - Manual mode is not affected: the manual pressurization works independently of the automatic one.
     fn update_door_inhibition(
         &mut self,
         on_ground: bool,

@@ -275,7 +275,7 @@ impl SlatFlapControlComputer {
         let mut word = Arinc429Word::new(0, SignStatus::NormalOperation);
 
         // Slat fault and flap fault: the channel lost the control of its motor (flyPad failure). The FWS raises F/CTL
-        // SLAT(FLAP) SYS 1(2) FAULT, or SLAT(FLAP) SYS 1+2 FAULT with both (a380_fcom.txt l.147527-147540, 148380-148393)
+        // SLAT(FLAP) SYS 1(2) FAULT, or SLAT(FLAP) SYS 1+2 FAULT with both
         word.set_bit(11, self.slats_channel.is_failed());
         word.set_bit(12, self.flaps_channel.is_failed());
         word.set_bit(13, false);
@@ -2153,9 +2153,9 @@ mod tests {
         assert!(!test_bed.read_slat_flap_system_status_word(2).get_bit(24));
     }
 
-    // F/CTL FLAP SYS 1(2) FAULT and SLAT SYS 1(2) FAULT (a380_fcom.txt l.147527-147540, 148380-148393): the failed
-    // channel no longer drives its motor, the other SFCC still does (half speed), and the SFCC reports the fault in its
-    // status word (label 046 bit 12 flaps, bit 11 slats) that the FWS reads.
+    // F/CTL FLAP SYS 1(2) FAULT and SLAT SYS 1(2) FAULT: the failed channel no longer drives its motor, the other SFCC
+    // still does (half speed), and the SFCC reports the fault in its status word (label 046 bit 12 flaps, bit 11 slats)
+    // that the FWS reads.
     #[test]
     fn flap_channel_failure_stops_its_motor_and_reports_a_flap_fault() {
         let mut test_bed = test_bed_with()

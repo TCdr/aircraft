@@ -145,7 +145,7 @@ static void testInFlightIgnoresTheGroundStartSequence() {
   expect(is(run(selection, c, 1.0), false, false), "in flight, engine running at NORM: no igniter");
 }
 
-// FCOM DSC-70-80-20: in flight "Both igniters are selected, when ENG MASTER lever is set to ON", at any N2
+// In flight both igniters are selected at the ENG MASTER ON, at any N2
 static void testInFlightStartUsesBothIgniters() {
   IgniterSelection_A380X selection;
   EngineConditions       c;
@@ -175,7 +175,7 @@ static void testFadecBothIgnitersAndInhibitions() {
   expect(is(run(selection, c, 1.0), false, false), "ENG MASTER OFF stops the ignition");
 }
 
-// FCOM DSC-70-80-20 continuous ignition: in flight at once with IGN START and the engine running
+// Continuous ignition: in flight at once with IGN START and the engine running
 static void testContinuousIgnitionInFlight() {
   IgniterSelection_A380X selection;
   EngineConditions       c;
@@ -185,7 +185,7 @@ static void testContinuousIgnitionInFlight() {
   expect(is(run(selection, c, 1.0), true, true), "in flight IGN START: continuous ignition A + B");
 }
 
-// FCOM DSC-70-80-20: on the ground the selector must go to NORM then back to IGN START after the start, and the engine
+// On the ground the selector must go to NORM then back to IGN START after the start, and the engine
 // must not be at low power (N1 below 53 % for more than 30 s)
 static void testContinuousIgnitionOnGround() {
   IgniterSelection_A380X selection;
@@ -205,7 +205,7 @@ static void testContinuousIgnitionOnGround() {
   expect(is(run(selection, c, 1.0), true, true), "ground: above low power again: on");
 }
 
-// FCOM DSC-70-80-20 quick relight: master OFF then ON within 30 s, engine running, N2 above 45 %: A + B for 60 s
+// Quick relight: master OFF then ON within 30 s, engine running, N2 above 45 %: A + B for 60 s
 static void testQuickRelight() {
   IgniterSelection_A380X selection;
   EngineConditions       c;
@@ -249,8 +249,7 @@ static void testQuickRelight() {
   expect(is(run(lowN3, c, 1.0), false, false), "no quick relight below 45 % N2");
 }
 
-/// FCOM DSC-70-20-20 ADVERSE WEATHER (l.111476-111478): "if the FADEC detects a risk of engine flameout due to excessive
-/// rain or hail at low engine power (i.e. idle), the FADEC automatically switches on both igniters".
+/// Adverse weather: a flameout risk from excessive rain or hail at low engine power (idle) switches on both igniters.
 static void testAdverseWeather() {
   EngineConditions c;
   c.simOnGround       = false;

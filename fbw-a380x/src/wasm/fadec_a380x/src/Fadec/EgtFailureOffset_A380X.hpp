@@ -13,8 +13,8 @@
  * systems WASM, a380_systems engine_malfunction.rs). No MSFS SDK dependency: tested natively (test/run_tests.sh).
  *
  * The FADEC EGT follows its target (the EGT polynomial) through a slow lag (time constant 10 s). The failure offset has its own
- * dynamics in the systems WASM: it is added after the lag, so that a stall gives the rapid EGT rise of the FCOM (ENG STALL,
- * a380_fcom.txt l.172818: "high EGT, and/or a rapid EGT rise"), and the lag goes on with the EGT of the healthy engine.
+ * dynamics in the systems WASM: it is added after the lag, so that a stall gives the rapid EGT rise of an ENG STALL, and the lag
+ * goes on with the EGT of the healthy engine.
  */
 class EgtFailureOffset_A380X {
  public:

@@ -86,11 +86,10 @@ use systems::{
     },
 };
 
-/// The FADEC faults of the A380 FCOM that have no engine model effect (PRO-ABN-ECAM-10-70,
-/// a380_fcom.txt): ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP
-/// DETECTED, MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT, CTL SYS FAULT, CTL VLV FAULT, FADEC
-/// IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE (see
-/// systems::engine::engine_monitoring_fault and the FWS EngineMonitoringAlerts.ts).
+/// The FADEC faults that have no engine model effect: ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL
+/// FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT, CTL
+/// SYS FAULT, CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG
+/// TYPE DISAGREE (see systems::engine::engine_monitoring_fault and the FWS EngineMonitoringAlerts.ts).
 const A380_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 12] = [
     EngineMonitoringFaultKind::FuelStrainerClog,
     EngineMonitoringFaultKind::FuelFilterMonitoring,
@@ -117,7 +116,7 @@ pub struct A380 {
     apu: AuxiliaryPowerUnit<Pw980ApuGenerator, Pw980StartMotor, Pw980Constants, 2>,
     apu_fire_overhead: AuxiliaryPowerUnitFireOverheadPanel,
     apu_overhead: AuxiliaryPowerUnitOverheadPanel,
-    /// The HP ground air cart (flyPad ground services, A380 FCOM DSC-36-10-40)
+    /// The HP ground air cart (flyPad ground services)
     asu: AirStarterUnit,
     pneumatic_overhead: A380PneumaticOverheadPanel,
     pressurization_overhead: A380PressurizationOverheadPanel,
@@ -226,10 +225,9 @@ impl A380 {
             landing_gear: LandingGear::new(context, true),
             pneumatic: A380Pneumatic::new(context),
             radio_altimeters: A380RadioAltimeters::new(context),
-            // The GPS receivers of MMR 1 and 2. A380 FCOM DSC-34-10-100 (a380_fcom.txt:87595-87605, column-garbled
-            // table): GPS 1 = AC EMER, which is AlternatingCurrentEssential on the A380 (491XP). GPS 2 stays on AC 2
-            // (the same table reads AC 3, not changed here)
-            // The A380 MMRs use satellite based augmentation (DIFF mode, A380 FCOM DSC-22-FMS-20-30)
+            // The GPS receivers of MMR 1 and 2: GPS 1 = AC EMER, which is AlternatingCurrentEssential on the A380
+            // (491XP). GPS 2 stays on AC 2 (the supply table is garbled there and may read AC 3, not changed here).
+            // The A380 MMRs use satellite based augmentation (DIFF mode).
             gps_1: GpsReceiver::new_with_augmentation(
                 context,
                 1,
@@ -242,13 +240,13 @@ impl A380 {
                 ElectricalBusType::AlternatingCurrent(2),
                 true,
             ),
-            // ILS 1 in MMR 1, ILS 2 in MMR 2 (A380 FCOM DSC-34-10-20, a380_fcom.txt:86580-86591)
+            // ILS 1 in MMR 1, ILS 2 in MMR 2
             mmr_1: MultiModeReceiverShim::new(context, 1),
             mmr_2: MultiModeReceiverShim::new(context, 2),
             gpirs: Gpirs::new(context),
             cds: A380ControlDisplaySystem::new(context),
-            // TAWS = SURV SYS 1 (WXR/TAWS) = 115 V AC ESS (A380 FCOM DSC-34-20-100, a380_fcom.txt:92742).
-            // AC ESS (400XP) is AlternatingCurrentEssentialShed, AlternatingCurrentEssential is AC EMER (491XP).
+            // TAWS = SURV SYS 1 (WXR/TAWS) = 115 V AC ESS. AC ESS (400XP) is AlternatingCurrentEssentialShed,
+            // AlternatingCurrentEssential is AC EMER (491XP).
             egpwc: EnhancedGroundProximityWarningComputer::new(
                 context,
                 ElectricalBusType::AlternatingCurrentEssentialShed,
@@ -289,9 +287,8 @@ impl Aircraft for A380 {
             &self.apu_overhead,
             self.fire_and_smoke_protection.apu_fire_on_ground(),
             &self.apu_fire_overhead,
-            // "In the case of an APU bleed leak ... the APU bleed valve will close automatically"
-            // (A380 FCOM DSC-36-10-30, a380_fcom.txt l.94007-94008): the leak detection of the
-            // previous update
+            // The APU bleed valve closes automatically on an APU bleed leak: the leak detection of the previous
+            // update
             self.pneumatic_overhead.apu_bleed_is_on() && !self.pneumatic.apu_bleed_leak(),
             // This will be replaced when integrating the whole electrical system.
             // For now we use the same logic as found in the JavaScript code; ignoring whether or not
@@ -350,7 +347,7 @@ impl Aircraft for A380 {
             &self.landing_gear,
             self.hydraulic.gear_system(),
             self.ext_pwrs[0].output_potential().is_powered(),
-            // The A380 baulk only uses the gear compression (A380 FCOM DSC-32-20-120, a380_fcom.txt:81619-81622)
+            // The A380 baulk only uses the gear compression
             true,
         );
 
@@ -622,8 +619,7 @@ mod tests {
         assert!(!clogged_1);
     }
 
-    /// Captain PFD shows ILS 1 (MMR 1, sim NAV 3), first officer PFD ILS 2 (MMR 2, sim NAV 4):
-    /// A380 FCOM DSC-34-10-20 (a380_fcom.txt:86590-86591).
+    /// Captain PFD shows ILS 1 (MMR 1, sim NAV 3), first officer PFD ILS 2 (MMR 2, sim NAV 4).
     #[test]
     fn each_mmr_writes_the_deviations_of_its_own_ils_receiver() {
         let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A380::new(context));

@@ -1,11 +1,11 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-// Generated from the SimConnect recordings of the A380X sim tests of 2026-10-06 (s1.log, s6_main1.log, s3_tank1.log).
+// Generated from SimConnect recordings of A380X sim tests.
 // Each case: t (recording clock, s), A32NX_ENGINE_STATE (FBW: 1 ON, 2 STARTING, 3 RESTARTING) and TURB ENG N2 (MSFS core, percent)
 // of the relit engine, around the jump of the MSFS core at the end of the MSFS start.
 
-// T2: S1 T2 (s1.log), engine 4 quick relight at FL150/238 kt, A/THR CL, MSFS throttle held at idle, 1245.0-1278.0 s
+// T2: engine 4 quick relight at FL150/238 kt, A/THR CL, MSFS throttle held at idle, 1245.0-1278.0 s
 static constexpr CoreSample REPLAY_T2[] = {
     {1245.1, 3, 47.0}, {1245.4, 3, 47.3}, {1245.6, 3, 47.5}, {1245.9, 3, 47.8}, {1246.2, 3, 48.0}, {1246.4, 3, 48.3},
     {1246.7, 3, 48.6}, {1247.0, 3, 48.8}, {1247.2, 3, 49.1}, {1247.5, 3, 49.3}, {1247.7, 3, 49.6}, {1248.0, 3, 49.8},
@@ -30,7 +30,7 @@ static constexpr CoreSample REPLAY_T2[] = {
     {1276.8, 1, 84.0}, {1277.1, 1, 84.0}, {1277.3, 1, 83.9}, {1277.6, 1, 83.9}, {1277.9, 1, 83.9},
 };
 
-// T3: S1 T3 (s1.log), engine 4 auto relight at FL150/240 kt, state ON, MSFS throttle 61 % (A/THR CL), 1415.0-1450.0 s
+// T3: engine 4 auto relight at FL150/240 kt, state ON, MSFS throttle 61 % (A/THR CL), 1415.0-1450.0 s
 static constexpr CoreSample REPLAY_T3[] = {
     {1415.2, 1, 46.4}, {1415.5, 1, 46.6}, {1415.7, 1, 46.9}, {1416.0, 1, 47.1}, {1416.3, 1, 47.4}, {1416.5, 1, 47.7},
     {1416.8, 1, 47.9}, {1417.1, 1, 48.2}, {1417.3, 1, 48.4}, {1417.6, 1, 48.7}, {1417.9, 1, 48.9}, {1418.1, 1, 49.2},
@@ -56,7 +56,7 @@ static constexpr CoreSample REPLAY_T3[] = {
     {1448.6, 1, 80.2}, {1448.8, 1, 80.2}, {1449.1, 1, 80.1}, {1449.3, 1, 80.0}, {1449.6, 1, 79.9}, {1449.9, 1, 79.9},
 };
 
-// S6: S6 (s6_main1.log), engine 4 relight at 11300 ft/298 kt, MSFS throttle at idle, 495.0-527.0 s
+// S6: engine 4 relight at 11300 ft/298 kt, MSFS throttle at idle, 495.0-527.0 s
 static constexpr CoreSample REPLAY_S6[] = {
     {495.0, 3, 46.8}, {495.5, 3, 47.3}, {496.0, 3, 47.8}, {496.5, 3, 48.3}, {497.1, 3, 48.8}, {497.6, 3, 49.3}, {498.1, 3, 49.9},
     {498.6, 3, 50.3}, {499.1, 3, 50.9}, {499.6, 3, 51.4}, {500.1, 3, 51.9}, {500.6, 3, 52.4}, {501.1, 3, 52.9}, {501.6, 3, 53.4},
@@ -69,7 +69,7 @@ static constexpr CoreSample REPLAY_S6[] = {
     {523.6, 1, 87.6}, {524.1, 1, 87.9}, {524.6, 1, 90.0}, {525.1, 1, 91.4}, {525.6, 1, 92.2}, {526.1, 1, 92.6}, {526.6, 1, 92.8},
 };
 
-// S3: S3 (s3_tank1.log, 0.1 s samples), engine 1 relight at FL100/255 kt, MSFS throttle at idle, 1580.0-1602.0 s
+// S3: 0.1 s samples, engine 1 relight at FL100/255 kt, MSFS throttle at idle, 1580.0-1602.0 s
 static constexpr CoreSample REPLAY_S3[] = {
     {1580.0, 2, 52.2}, {1580.1, 2, 52.3}, {1580.2, 2, 52.4}, {1580.3, 2, 52.5}, {1580.4, 2, 52.6}, {1580.5, 2, 52.7},
     {1580.6, 2, 52.8}, {1580.7, 2, 52.9}, {1580.8, 2, 53.1}, {1580.9, 2, 53.1}, {1581.0, 2, 53.2}, {1581.2, 2, 53.3},

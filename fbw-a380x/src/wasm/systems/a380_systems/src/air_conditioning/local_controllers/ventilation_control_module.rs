@@ -304,8 +304,7 @@ struct BulkVentilationControlSystem {
 }
 
 impl BulkVentilationControlSystem {
-    /// A380 FCOM PRO-ABN-ECAM-10-21-10 COND BULK CARGO DUCT OVHT (a380_fcom.txt l.132368): "There is a bulk cargo duct
-    /// overheat when the air temperature inside the duct exceeds 70 deg C."
+    /// COND BULK CARGO DUCT OVHT: the air in the bulk cargo duct is above 70 deg C.
     const DUCT_OVERHEAT_LIMIT_DEG_C: f64 = 70.;
     // Design choice: the confirmation time of the trim air duct overheat monitor (trim_air_drive_device.rs)
     const DUCT_OVERHEAT_CONFIRMATION_TIME: Duration = Duration::from_millis(1200);
@@ -335,8 +334,8 @@ impl BulkVentilationControlSystem {
         duct_temperature: ThermodynamicTemperature,
         pressurization_overhead: &impl PressurizationOverheadShared,
     ) {
-        // Bulk cargo duct overheat: above 70 deg C for the confirmation time, over once back below 70 deg C ("WHEN
-        // BULK CARGO DUCT OVHT OUT : BULK HEATER ... ON", a380_fcom.txt l.132401-132402)
+        // Bulk cargo duct overheat: above 70 deg C for the confirmation time, over once back below 70 deg C (the
+        // procedure then sets the bulk heater back ON)
         if duct_temperature
             > ThermodynamicTemperature::new::<degree_celsius>(Self::DUCT_OVERHEAT_LIMIT_DEG_C)
         {
@@ -444,7 +443,7 @@ impl OverpressureReliefValveDump {
         }
     }
 
-    /// The VCM reports the failed valve (COND CABIN AIR EXTRACT VLV FAULT, a380_fcom.txt l.136032-136040)
+    /// The VCM reports the failed valve (COND CABIN AIR EXTRACT VLV FAULT)
     fn has_failed(&self) -> bool {
         self.failure.is_active()
     }

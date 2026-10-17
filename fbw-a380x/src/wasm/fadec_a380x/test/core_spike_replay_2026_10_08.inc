@@ -1,13 +1,13 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-// Generated from the SimConnect recording of the A380X sim test of 2026-10-08 (blip2.log, every sample, 0.0632 s apart on average).
+// Generated from a SimConnect recording of an A380X sim test (every sample, 0.0632 s apart on average).
 // Engine 4 quick relight at FL150/240 kt, A/THR CL, MSFS throttle held at idle until 285.0 s. Each sample: t (recording clock, s),
 // A32NX_ENGINE_STATE (FBW: 1 ON, 2 STARTING), TURB ENG N2:4 (MSFS core) and TURB ENG N1:4 (MSFS fan), percent. The MSFS fan lags
 // the core jump at 274.0 s: in the sample where the core jumps 57.7 to 60.9 %, N1 only goes 22.2 to 22.4 %; it reaches 59.7 % at
 // 276.6 s.
 
-// B2: blip2.log T2, 268.0-300.0 s
+// B2: 268.0-300.0 s
 static constexpr CoreFanSample REPLAY_B2[] = {
     {268.000, 2, 52.0, 18.7}, {268.063, 2, 52.0, 18.8}, {268.126, 2, 52.1, 18.8}, {268.190, 2, 52.2, 18.9},
     {268.253, 2, 52.2, 18.9}, {268.316, 2, 52.3, 18.9}, {268.379, 2, 52.3, 18.9}, {268.442, 2, 52.4, 19.0},

@@ -99,10 +99,9 @@ impl OutflowValveControlModule {
             acp: AutomaticControlPartition::new(outflow_valve_id),
             sop: SafetyAndOverridePartition::new(),
             epp: EmergencyPressurizationPartition::new(context, outflow_valve_id),
-            // Each A380 outflow valve is driven by a single electrical motor (A380 FCOM DSC-21-30-10,
-            // a380_fcom.txt:7357), controlled by its outflow valve controller in auto and in manual mode
-            // (7316-7319), supplied by DC 1/2 or DC ESS (8122-8125). The A320 manual motor on the DC BAT
-            // busbar (a bus the A380 does not have) therefore gets the controller supplies too.
+            // Each A380 outflow valve has a single electrical motor, controlled by its outflow valve controller in
+            // auto and in manual mode and supplied by DC 1/2 or DC ESS. The A320 manual motor on the DC BAT busbar (a
+            // bus the A380 does not have) therefore gets the controller supplies too.
             outflow_valve: OutflowValve::new(powered_by.to_vec(), powered_by.to_vec()),
             fault: None,
         }
@@ -298,13 +297,10 @@ impl SimulationElement for AutomaticControlPartition {
     }
 }
 
-/// The manual pressurization targets. A380 FCOM DSC-21-30-20 CABIN ALT MODE pb-sw MAN (a380_fcom.txt:7422-7425): "The
-/// cabin altitude target must be manually selected via the CABIN ALT TRGT selector. The cabin altitude target remains
-/// steady at the current value until the flight crew manually selects a new cabin altitude target." DSC-21-30-40
-/// MANUAL OPERATION (l.8012-8015): "When any manual pressurization mode is activated, if no altitude or cabin vertical
-/// speed is selected on the CAB ALT TRGT selector or the V/S TRGT selector: The cabin altitude remains steady, and The
-/// cabin vertical speed is set at 0 ft/min." Default V/S to reach a selected altitude (l.8020-8024): -300 ft/min in
-/// descent, 500 ft/min in climb.
+/// The manual pressurization targets. In MAN the cabin altitude target is selected on the CABIN ALT TRGT selector and
+/// stays at the current value until the crew selects a new one; with no altitude or vertical speed selected, the cabin
+/// altitude stays steady and the cabin vertical speed is 0 ft/min. Default V/S to reach a selected altitude: -300
+/// ft/min in descent, 500 ft/min in climb.
 ///
 /// Design choice: the cockpit selectors give absolute values (A380_Cockpit_Behavior.xml), so a selector counts as
 /// "selected" once it turns after its MAN mode was engaged (a turn in the same update as the engagement counts too);
@@ -365,7 +361,7 @@ struct SafetyAndOverridePartition {
     vertical_speed_target: ManualTarget<Velocity>,
 
     // flyPad failure: the manual pressurization mode is failed, the MAN selections have no effect (CAB PRESS MAN CTL
-    // FAULT, a380_fcom.txt l.135534-135580)
+    // FAULT)
     manual_control_failure: Failure,
 }
 

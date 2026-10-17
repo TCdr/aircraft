@@ -168,12 +168,10 @@ impl A380TiltingGearsFactory {
 
 struct A380HydraulicReservoirFactory {}
 impl A380HydraulicReservoirFactory {
-    /// A380 FCOM DSC-29-10 HYDRAULIC FLUID RESERVOIR (a380_fcom.txt l.60986): "The total volume of the reservoir is
-    /// 31.70 US Gal." (about 120 l)
+    /// Total volume of the reservoir: 31.70 US gal (about 120 l)
     const RESERVOIR_TOTAL_VOLUME_GALLON: f64 = 31.70;
 
-    /// A380 FCOM PRO-ABN HYD G (Y) RSVR LEVEL LO (a380_fcom.txt l.155270): "There are less than 2.6 US Gal of hydraulic
-    /// fluid in the green (yellow) hydraulic reservoir."
+    /// RSVR LEVEL LO below 2.6 US gal in the reservoir
     const RESERVOIR_LOW_LEVEL_GALLON: f64 = 2.6;
 
     fn new_green_reservoir(context: &mut InitContext) -> Reservoir {
@@ -217,13 +215,11 @@ impl A380HydraulicReservoirFactory {
 
 pub struct A380HydraulicCircuitFactory {}
 impl A380HydraulicCircuitFactory {
-    // Engine pump section pressure switch. A380 FCOM PRO-ABN HYD G (Y) ENG 1 OR 2 (3 OR 4) PMP A OR B PRESS LO
-    // (a380_fcom.txt l.155038): "Engine 1 or 2 (3 or 4) pump pressure is below 2 500 PSI". The FCOM gives no reset
-    // value: the high threshold stays the one of the system pressure switch.
+    // Engine pump section pressure switch: PMP A OR B PRESS LO below 2 500 PSI. No reset value is published: the high
+    // threshold stays the one of the system pressure switch.
     const MIN_PRESS_EDP_SECTION_LO_HYST: f64 = 2500.0;
     const MIN_PRESS_EDP_SECTION_HI_HYST: f64 = 3700.0;
-    // Electric pump section pressure switch. A380 FCOM PRO-ABN HYD G (Y) ELEC PMP A OR (B) FAULT (a380_fcom.txt
-    // l.154993): "The electric pump pressure is below 1 885 PSI". Same high threshold as above.
+    // Electric pump section pressure switch: ELEC PMP A OR (B) FAULT below 1 885 PSI. Same high threshold as above.
     const MIN_PRESS_ELEC_PUMP_SECTION_LO_HYST: f64 = 1885.0;
     const MIN_PRESS_ELEC_PUMP_SECTION_HI_HYST: f64 = 3700.0;
     // Pump sections of the electric pumps A and B in each circuit (A380ElectricPumpId::into_pump_section_index)
@@ -272,8 +268,8 @@ impl A380HydraulicCircuitFactory {
         Self::with_electric_pump_pressure_switches(circuit)
     }
 
-    /// The electric pump sections have their own pressure switch setting (1 885 PSI, l.154993), the engine pump
-    /// sections keep the circuit's one (2 500 PSI, l.155038).
+    /// The electric pump sections have their own pressure switch setting (1 885 PSI), the engine pump sections keep
+    /// the circuit's one (2 500 PSI).
     fn with_electric_pump_pressure_switches(circuit: HydraulicCircuit) -> HydraulicCircuit {
         Self::ELEC_PUMP_SECTION_INDEXES
             .iter()
@@ -427,7 +423,7 @@ impl A380AileronFactory {
     const MAX_FLOW_PRECISION_PER_ACTUATOR_PERCENT: f64 = 10.;
 
     // 427XP - AC ESS = AlternatingCurrentEssentialShed on the A380.
-    // All EHAs are powered via the AC ESS busbar after an all engine flameout (A380 FCOM a380_fcom.txt:54735).
+    // All EHAs are powered via the AC ESS busbar after an all engine flameout.
     const MIDDLE_PANEL_EHA_BUS: ElectricalBusType =
         ElectricalBusType::AlternatingCurrentEssentialShed;
     // 247XP - AC EHA
@@ -615,7 +611,7 @@ impl A380SpoilerFactory {
     const MAX_FLOW_PRECISION_PER_ACTUATOR_PERCENT: f64 = 20.;
 
     // 427XP - AC ESS = AlternatingCurrentEssentialShed on the A380.
-    // A380 FCOM a380_fcom.txt:54783-54784: spoiler 6 operates as an EHA powered by the AC ESS busbar.
+    // Spoiler 6 operates as an EHA powered by the AC ESS busbar.
     const SPOILER_6_EBHA_BUS: ElectricalBusType =
         ElectricalBusType::AlternatingCurrentEssentialShed;
 
@@ -770,7 +766,7 @@ impl A380ElevatorFactory {
     // 247XP - AC EHA
     const LEFT_OUTWARD_PANEL_EHA_BUS: ElectricalBusType = AC_EHA_BUS;
     // 427XP - AC ESS = AlternatingCurrentEssentialShed on the A380.
-    // All EHAs are powered via the AC ESS busbar after an all engine flameout (A380 FCOM a380_fcom.txt:54622).
+    // All EHAs are powered via the AC ESS busbar after an all engine flameout.
     const RIGHT_OUTWARD_PANEL_EHA_BUS: ElectricalBusType =
         ElectricalBusType::AlternatingCurrentEssentialShed;
     // 427XP - AC ESS
@@ -1630,18 +1626,16 @@ impl A380GearSystemFactory {
     }
 }
 
-/// Hydraulic supply of the main gear assemblies of the model, A380 FCOM DSC-32-10-20 (a380_fcom.txt l.78605-78614):
-/// "The GREEN hydraulic system powers the extension/retraction of the NLG and the WLG, the operation of the NLG and the
-/// WLG doors. The YELLOW hydraulic system powers the extension/retraction of the BLG, the operation of the BLG doors."
+/// Hydraulic supply of the main gear assemblies of the model: GREEN extends and retracts the NLG and the WLG and
+/// operates their doors, YELLOW the BLG and its doors.
 ///
 /// Simplification: the model has one left and one right main gear assembly, each standing for the wing and the body
 /// gear of that side (the wing gears are animated with them), and one door assembly per side (the BLG doors). Each main
 /// assembly therefore needs GREEN (WLG) and YELLOW (BLG): it gets the lower of the two pressures, and takes half of its
-/// fluid from each system. This gives the FCOM results:
-/// - YELLOW lost: "The BLG and the WLG remain extended, BLG doors will remain closed. Even if the GREEN hydraulic power
-///   is available, the WLG will not retract" (l.82497-82506).
-/// - YELLOW or GREEN lost: "Landing gear extension is performed by gravity" (HYD G(Y) SYS PRESS LO, l.155567).
-/// - GREEN lost: the NLG and the WLG remain extended (l.82508-82514).
+/// fluid from each system. This gives the aircraft's results:
+/// - YELLOW lost: the BLG and the WLG remain extended and the BLG doors closed, even with GREEN available.
+/// - YELLOW or GREEN lost: the landing gear extends by gravity.
+/// - GREEN lost: the NLG and the WLG remain extended.
 ///
 /// Not modelled: with GREEN lost the BLG retracts, with YELLOW lost the NLG retracts (the common LGCIU moves the gears
 /// only when all the doors are open).
@@ -1743,7 +1737,7 @@ impl SimulationElement for A380EhaInhibitPlaceholder {
 pub(super) struct A380Hydraulic {
     eha_backup_inhibit_logic: A380EhaInhibitPlaceholder,
     nose_steering: SteeringActuator,
-    /// GREEN in normal NWS, the steering LEHGS in alternate NWS (A380 FCOM l.80569-80610)
+    /// GREEN in normal NWS, the steering LEHGS in alternate NWS
     nose_wheel_steering_supply: NoseWheelSteeringSupply,
     body_wheel_steering_left: SteeringActuator,
     body_wheel_steering_right: SteeringActuator,
@@ -1881,16 +1875,15 @@ impl A380Hydraulic {
 
     const EDP_CONTROL_POWER_BUS1: ElectricalBusType = ElectricalBusType::DirectCurrentEssential;
 
-    /// Nitrogen pre-charge of the ALTN brake accumulator, psi. The FCOM gives no value. Design choice: the pre-charge of
+    /// Nitrogen pre-charge of the ALTN brake accumulator, psi. Design choice (no published value): the pre-charge of
     /// the hydraulic system accumulators of this model (A380HydraulicCircuitFactory, 2 612 psi) instead of the A320
     /// 1 000 psi of a 3 000 psi system: from a charged accumulator one park brake application reaches the full
-    /// pressure of about 3 600 psi (A380 FCOM l.80262-80263) and leaves the accumulator out of the amber arc of the
-    /// triple pressure indicator (0-3 840 psi, l.81552); with 1 000 psi the brakes stopped near 3 100 psi.
+    /// pressure of about 3 600 psi and leaves the accumulator out of the amber arc of the triple pressure indicator
+    /// (0-3 840 psi); with 1 000 psi the brakes stopped near 3 100 psi.
     const ALTERNATE_BRAKE_ACCUMULATOR_GAS_PRE_CHARGE: f64 = 2612.0;
 
-    /// Full brake pressure, psi: A380 FCOM DSC-32-10-30-30 l.80149 "at full pressure (about 3 600 PSI)", l.80262-80263
-    /// "showing about 3 600 PSI on triple indicator", l.80394; l.79950 "Alternate braking performance is equivalent to
-    /// normal braking performance". The brakes of both circuits reach it at their full deflection.
+    /// Full brake pressure, about 3 600 psi (park brake and ultimate braking); alternate braking performs as normal
+    /// braking. The brakes of both circuits reach it at their full deflection.
     const FULL_BRAKE_PRESSURE_PSI: f64 = 3600.0;
 
     // Refresh rate of core hydraulic simulation
@@ -2555,8 +2548,8 @@ impl A380Hydraulic {
     }
 
     /// The body wheel steering takes the yellow auxiliary section while a yellow electric pump runs in automatic mode
-    /// (pushback or towing: "only ... (BWS) is pressurized", FCOM l.61045-61046), else the yellow system section
-    /// (engine pumps, or electric pumps in manual mode).
+    /// (pushback or towing: only the BWS is pressurized), else the yellow system section (engine pumps, or electric
+    /// pumps in manual mode).
     fn is_body_wheel_steering_on_yellow_auxiliary(&self) -> bool {
         self.yellow_circuit_controller
             .is_any_epump_routed_to_auxiliary()
@@ -2626,8 +2619,7 @@ impl A380Hydraulic {
 
         self.tilting_gears.update(context);
 
-        // A380 FCOM DSC-32-10-40 (a380_fcom.txt l.80569-80572): "In normal NWS: The GREEN system supplies hydraulic
-        // power"; the alternate NWS uses the steering LEHGS. The BWS stays on YELLOW (l.80699).
+        // GREEN supplies the normal NWS; the alternate NWS uses the steering LEHGS. The BWS stays on YELLOW.
         self.nose_wheel_steering_supply.update(
             self.brake_steer_computer.nose_wheel_steering_mode(),
             self.green_circuit.system_section(),
@@ -2791,8 +2783,8 @@ impl A380Hydraulic {
         self.green_circuit
             .update_system_actuator_volumes(&mut self.braking_circuit_norm);
 
-        // Normal NWS takes its fluid from GREEN; the steering LEHGS of the alternate NWS has its own reservoir
-        // (A380 FCOM l.80585-80587), not modelled.
+        // Normal NWS takes its fluid from GREEN; the steering LEHGS of the alternate NWS has its own reservoir, not
+        // modelled.
         if self.nose_wheel_steering_supply.is_supplied_by_green() {
             self.green_circuit
                 .update_system_actuator_volumes(&mut self.nose_steering);
@@ -3592,12 +3584,10 @@ impl GearSystemController for A380GearHydraulicController {
 /// Hydraulic circuit valves of one A380 system: fire shutoff valves, leak measurement valve and the auxiliary selector
 /// valves of the electric pump sections.
 ///
-/// A380 FCOM DSC-29-10 ELECTRIC PUMPS (a380_fcom.txt l.61045-61046): "When the green (yellow) electric pumps operate
-/// automatically, only cargo door actuation (BWS) is pressurized." l.61052-61057: "When the yellow electric pumps are
-/// started manually, the YELLOW hydraulic system powers all the systems", "When the green electric pumps are started
-/// manually, the GREEN hydraulic system powers all the systems, except the cargo door actuation."
-/// So an electric pump in automatic mode is routed to the auxiliary section (green: cargo doors, yellow: BWS), a pump
-/// in manual mode to the system section.
+/// Electric pumps running automatically only pressurize the cargo door actuation (green) or the BWS (yellow); started
+/// manually, the yellow pumps power the whole YELLOW system and the green pumps the whole GREEN system except the
+/// cargo door actuation. So an electric pump in automatic mode is routed to the auxiliary section, a pump in manual
+/// mode to the system section.
 struct A380HydraulicCircuitController {
     circuit_id: HydraulicColor,
     should_open_fire_shutoff_valve: [bool; 2],
@@ -3714,7 +3704,7 @@ impl HydraulicCircuitController for A380HydraulicCircuitController {
     fn should_route_pump_to_auxiliary(&self, pump_index: usize) -> bool {
         // If it's an engine section (<4) we can't route to aux. Else it's a pump elec section (>=4) so
         //   we route it once the selector valve is set, only while that pump runs in automatic mode
-        //   (a pump in manual mode pressurises the system section, FCOM l.61052-61057).
+        //   (a pump in manual mode pressurises the system section).
         pump_index >= 4
             && self.routing_epump_sections_to_aux.output()
             && self.epump_in_auto_mode[pump_index - 4]
@@ -3877,8 +3867,8 @@ impl A380EngineDrivenPumpController {
         }
     }
 
-    /// Engine pump disconnection supply, A380 FCOM DSC-29-40 ELECTRICAL SUPPLY table:
-    /// engine 1 pumps DC 2, engine 2 pumps DC 1, engine 3 pumps DC 2, engine 4 pumps DC 1.
+    /// Engine pump disconnection supply: engine 1 pumps DC 2, engine 2 pumps DC 1, engine 3 pumps DC 2, engine 4
+    /// pumps DC 1.
     fn disconnection_power_supply(engine_num: usize) -> ElectricalBusType {
         match engine_num {
             1 | 3 => ElectricalBusType::DirectCurrent(2),
@@ -3944,10 +3934,9 @@ impl A380EngineDrivenPumpController {
             should_pressurise_if_powered = false;
         }
 
-        // A380 FCOM DSC-70-80-30-20 (a380_fcom.txt l.112570-112571): "During a windmilling engine
-        // start, the FADEC disconnects both hydraulic pumps in order to increase the relight
-        // envelope." Design choice: both pumps of the engine are depressurised (off-loaded) for the
-        // start; the clutch of the ENG PUMPS DISC pb is not used, it cannot be reconnected in flight.
+        // During a windmilling start the FADEC disconnects both hydraulic pumps to widen the relight envelope. Design
+        // choice: both pumps of the engine are depressurised (off-loaded) for the start; the clutch of the ENG PUMPS
+        // DISC pb is not used, it cannot be reconnected in flight.
         if self.engine_windmill_start {
             should_pressurise_if_powered = false;
         }
@@ -3977,10 +3966,9 @@ impl A380EngineDrivenPumpController {
                 .pump_section_switch_pressurised(self.pump_id.into_pump_section_index());
     }
 
-    /// ENG PMP pb-sw FAULT light. A380 FCOM DSC-29-20 (a380_fcom.txt l.61286-61299): pump failed or must be
-    /// depressurised, with HYD ENG PMP PRESS LO, SYS OVHT, SYS TEMP EXCESS HI, RSVR LEVEL LO or RSVR AIR PRESS LO.
-    /// "The FAULT light goes off, when the flight crew selects OFF. However, in case of an overheat, the FAULT light
-    /// will remain on, until the overheat disappears." The PRESS LO, LEVEL LO and AIR PRESS LO terms need the pb-sw at
+    /// ENG PMP pb-sw FAULT light: pump failed or to be depressurised, with HYD ENG PMP PRESS LO, SYS OVHT, SYS TEMP
+    /// EXCESS HI, RSVR LEVEL LO or RSVR AIR PRESS LO. It goes off when the crew selects OFF, except for an overheat,
+    /// which keeps it on until the overheat is gone: the PRESS LO, LEVEL LO and AIR PRESS LO terms need the pb-sw at
     /// AUTO, the overheat term does not.
     fn has_any_fault(&self) -> bool {
         self.has_pressure_low_fault
@@ -3989,11 +3977,10 @@ impl A380EngineDrivenPumpController {
             || self.has_overheat_fault
     }
 
-    /// ENG PMP A+B DISC pb FAULT light. A380 FCOM DSC-29-20 (a380_fcom.txt l.61319-61330): with HYD RSVR LEVEL LO,
-    /// "HYD G(Y) SYS OVHT (If pump depressurization failed)" or SYS TEMP EXCESS HI; "The FAULT light goes off, when the
-    /// crew selects DISC." PRO-ABN HYD SYS OVHT (l.155465-155470): "If turning off G (Y) ENG 1 (3) PMP A or B is not
-    /// successful: ... DISC". The low level lights it whatever the ENG PMP pb-sw position.
-    /// SYS TEMP EXCESS HI is not modelled (the reservoir has a single overheat state).
+    /// ENG PMP A+B DISC pb FAULT light: with HYD RSVR LEVEL LO, a SYS OVHT whose pump depressurisation failed (the
+    /// procedure then asks for DISC), or SYS TEMP EXCESS HI; it goes off when the crew selects DISC. The low level
+    /// lights it whatever the ENG PMP pb-sw position. SYS TEMP EXCESS HI is not modelled (the reservoir has a single
+    /// overheat state).
     fn has_disc_fault(&self) -> bool {
         (self.is_reservoir_level_low
             || (self.has_overheat_fault && self.is_depressurisation_unsuccessful))
@@ -4218,11 +4205,10 @@ fn is_any_engine_running(engines: [&impl Engine; 4]) -> bool {
         && engines[3].oil_pressure_is_low())
 }
 
-/// Whether the cargo door actuation has no hydraulic power. FCOM DSC-29-10: the cargo door actuation is powered only
-/// by the green electric pumps in automatic mode, and the green electric pumps are inhibited as soon as engine 1 or 2
-/// runs. FCOM DSC-52-30-40-10: the door operation is also inhibited in taxi and flight and with engines 3 and 4
-/// running (the actuator is then isolated by a valve). Design choice: the door operation is inhibited with any engine
-/// running (oil pressure placeholder), which covers both cases on ground.
+/// Whether the cargo door actuation has no hydraulic power. Only the green electric pumps in automatic mode power the
+/// cargo door actuation, and they are inhibited as soon as engine 1 or 2 runs; the door operation is also inhibited in
+/// taxi and flight and with engines 3 and 4 running (the actuator is then isolated by a valve). Design choice: the door
+/// operation is inhibited with any engine running (oil pressure placeholder), which covers both cases on ground.
 struct A380CargoDoorOperationInhibition {
     inhibited_id: VariableIdentifier,
     is_inhibited: bool,
@@ -4277,11 +4263,10 @@ struct A380ElectricPumpController {
 }
 impl A380ElectricPumpController {
     /// How long the pump section pressure must stay low, with the pump commanded, before it is a pump failure (ELEC
-    /// PMP pb-sw FAULT light). The FCOM gives no time (PRO-ABN HYD G (Y) ELEC PMP A OR (B) FAULT, a380_fcom.txt
-    /// l.154989-154993: "The electric pump pressure is below 1 885 PSI"). Design choice: the same 3 s as the FWS
-    /// confirmation of the HYD_*_EPUMP_LOW_PRESS signal for that ECAM alert (FwsCore.ts yellowAPumpLoPressConfNode),
-    /// which the FAULT light goes with (DSC-29-20 l.61383-61385). A pump that starts on ground takes about 2 s to
-    /// raise its section above the pressure switch, which must not light the FAULT.
+    /// PMP pb-sw FAULT light, below 1 885 PSI). Design choice (no published time): the same 3 s as the FWS confirmation
+    /// of the HYD_*_EPUMP_LOW_PRESS signal for that ECAM alert (FwsCore.ts yellowAPumpLoPressConfNode), which the FAULT
+    /// light goes with. A pump that starts on ground takes about 2 s to raise its section above the pressure switch,
+    /// which must not light the FAULT.
     const PRESSURE_LOW_FAULT_CONFIRMATION_TIME: Duration = Duration::from_secs(3);
 
     fn new(
@@ -4332,9 +4317,8 @@ impl A380ElectricPumpController {
         // Overheat state of the previous update: it is what the HSMU monitors before commanding the pump
         self.update_overheat(pump_status, reservoir);
 
-        // A380 FCOM DSC-29-10 (a380_fcom.txt l.61059): "In the case of an overheat, the HSMU automatically switches
-        // off the affected electric pump." Design choice: the pump is off while its overheat is detected, it can run
-        // again once cooled (the ECAM procedure then asks for the ELEC PMP pb-sw OFF).
+        // The HSMU switches off an overheating electric pump. Design choice: the pump is off while its overheat is
+        // detected, it can run again once cooled (the ECAM procedure then asks for the ELEC PMP pb-sw OFF).
         self.should_pressurise = (self.is_in_manual_mode || self.is_in_auto_mode)
             && !overhead_panel.epump_button_off_is_off(self.pump_id)
             && !self.is_inhibited(engines, lgciu)
@@ -4351,11 +4335,10 @@ impl A380ElectricPumpController {
         self.update_low_level(reservoir, overhead_panel);
     }
 
-    /// A380 FCOM DSC-29-20 ELEC PMP ON pb (a380_fcom.txt l.61350-61354): "When the electric pumps operate in automatic
-    /// mode, any action on the ELEC PMP ON pb is disregarded", "When the electric pumps operate in manual mode, the
-    /// automatic mode is disregarded (e.g. cargo door actuation)."
-    /// So the mode that started first is kept: the ON pb starts the manual mode only while the pump does not run in
-    /// automatic mode, and the automatic request is ignored while the pump is in manual mode.
+    /// In automatic mode any action on the ELEC PMP ON pb is disregarded; in manual mode the automatic mode is
+    /// disregarded (e.g. cargo door actuation). So the mode that started first is kept: the ON pb starts the manual
+    /// mode only while the pump does not run in automatic mode, and the automatic request is ignored while the pump is
+    /// in manual mode.
     fn update_operating_mode(
         &mut self,
         overhead_panel: &A380HydraulicOverheadPanel,
@@ -4370,10 +4353,8 @@ impl A380ElectricPumpController {
             auto_logic.should_auto_run_pump(self.pump_id) && !self.is_in_manual_mode;
     }
 
-    /// A380 FCOM DSC-29-10 ELECTRIC PUMPS (a380_fcom.txt:61020-61026): "Two electric pumps can provide hydraulic power
-    /// on ground only. The green (yellow) electric pumps can pressurize the GREEN (YELLOW) hydraulic system, if the
-    /// engines 1 and 2 (3 and 4) are not running." "Because of the variable frequency of the engine generators, the
-    /// green (yellow) electric pumps are inhibited as soon as the engine 1 or 2 (3 or 4) is running."
+    /// The electric pumps work on ground only, and the green (yellow) pumps are inhibited as soon as engine 1 or 2
+    /// (3 or 4) runs, because of the variable frequency of the engine generators.
     /// Design choices: an engine runs when its oil pressure is not low (the placeholder signal used before), and the
     /// green pumps read LGCIU 1, the yellow pumps LGCIU 2 for "on ground" (both main gears compressed).
     fn is_inhibited(&self, engines: [&impl Engine; 4], lgciu: &impl LgciuWeightOnWheels) -> bool {
@@ -4431,13 +4412,10 @@ impl A380ElectricPumpController {
             reservoir.is_low_level() && !overhead_panel.epump_button_off_is_off(self.pump_id);
     }
 
-    /// ELEC PMP pb-sw FAULT light. A380 FCOM DSC-29-20 (a380_fcom.txt l.61379-61398): "The pump is failed, or the pump
-    /// must be stopped because of a hydraulic system failure", with HYD ELEC PMP FAULT, and HYD SYS OVHT, SYS TEMP
-    /// EXCESS HI, RSVR LEVEL LO, RSVR AIR PRESS LO "(on ground, with engines OFF)"; "The FAULT light goes off, when the
-    /// flight crew selects OFF. However, in case of an overheat, the FAULT light will remain on, until the overheat
-    /// disappears." PRO-ABN HYD ELEC PMP FAULT (l.154989-154993): pump failed, motor above 180 C or pressure below
-    /// 1 885 PSI. "Engines OFF" is all engines off, as the procedures (l.155237, l.155462): "If on ground, and all
-    /// engines are off: G(Y) ELEC PMP A and B ... OFF".
+    /// ELEC PMP pb-sw FAULT light: the pump is failed (motor above 180 °C or pressure below 1 885 PSI), or must be
+    /// stopped for a system failure (SYS OVHT, SYS TEMP EXCESS HI, RSVR LEVEL LO, RSVR AIR PRESS LO) on the ground with
+    /// all engines off, as the procedures that turn the pumps off. It goes off when the crew selects OFF, except for an
+    /// overheat, which keeps it on until the overheat is gone.
     fn has_any_fault(&self) -> bool {
         let pump_failure = self.has_pressure_low_fault || self.has_overheat_fault;
         let system_failure = self.has_low_level_fault
@@ -4559,7 +4537,7 @@ impl BodyWheelSteeringController {
     }
 
     fn update(&mut self, context: &UpdateContext, nose_steering_angle: Angle, available: bool) {
-        // A failed or uncontrolled BWS stays centred and locked (A380 FCOM l.80696-80698, l.162636)
+        // A failed or uncontrolled BWS stays centred and locked
         if available
             && context.ground_speed().get::<knot>() < Self::MAX_BODY_STEERING_SPEED_ENABLING_KNOT
         {
@@ -4748,7 +4726,7 @@ impl A380HydraulicBrakeSteerComputerUnit {
 
     const AUTOBRAKE_GEAR_RETRACTION_DURATION_S: f64 = 3.;
 
-    /// A380 FCOM BASIC AUTO BRK ARMING (a380_fcom.txt l.79029): "At least two PRIMs are available"
+    /// The basic AUTO BRK needs at least two PRIMs
     const MIN_HEALTHY_PRIMS_FOR_AUTOBRAKE: usize = 2;
 
     const PILOT_INPUT_DETECTION_TRESHOLD: f64 = 0.2;
@@ -4818,11 +4796,9 @@ impl A380HydraulicBrakeSteerComputerUnit {
         }
     }
 
-    /// A380 FCOM DSC-32-10-30-20 BASIC AUTO BRK ARMING (a380_fcom.txt l.79021-79035): "The basic AUTO BRK is armed
-    /// when: ... A-SKID is available (normal and alternate modes); At least two PRIMs are available (the PRIMs provide
-    /// the basic AUTO BRK with the ground spoilers extension command); At least one ADIRU is available (in NAV mode)".
-    /// Alternate braking: "A-SKID is available, AUTO BRK is available" (l.79942-79944); emergency braking (EBCU) has no
-    /// A-SKID and no AUTO BRK (l.80040-80049).
+    /// The basic AUTO BRK arms with A-SKID available (normal and alternate braking), at least two PRIMs (they give it
+    /// the ground spoiler extension command) and at least one ADIRU in NAV. Alternate braking keeps A-SKID and AUTO
+    /// BRK; emergency braking (EBCU) has neither.
     fn allow_autobrake_arming(&self, adirs: &impl AdirsMeasurementOutputs) -> bool {
         let a_skid_available = matches!(
             self.pedal_braking_mode,
@@ -4840,10 +4816,10 @@ impl A380HydraulicBrakeSteerComputerUnit {
     }
 
     /// The normal braking has its hydraulic power while the GREEN system pressure switch is pressurised (the model
-    /// supplies the normal braking of all the gears from GREEN, see brake_steer_faults.rs; the FCOM gives no
-    /// switching pressure, the A320 values 1 305 / 2 176 psi were replaced by the GREEN system pressure switch of this
-    /// 5 000 psi model, 2 900 / 3 700 psi, MIN_PRESS_PRESSURISED_*). As before, the normal braking comes back only with
-    /// the pedals released.
+    /// supplies the normal braking of all the gears from GREEN, see brake_steer_faults.rs). Design choice (no published
+    /// switching pressure): the GREEN system pressure switch of this 5 000 psi model, 2 900 / 3 700 psi
+    /// (MIN_PRESS_PRESSURISED_*), in place of the A320 1 305 / 2 176 psi. The normal braking comes back only with the
+    /// pedals released.
     fn update_normal_braking_availability(&mut self, normal_braking_hydraulic_pressurised: bool) {
         if normal_braking_hydraulic_pressurised
             && (self.left_brake_pilot_input.get::<ratio>() < Self::PILOT_INPUT_DETECTION_TRESHOLD
@@ -4864,16 +4840,15 @@ impl A380HydraulicBrakeSteerComputerUnit {
             .set_pressure_limit(full_brake_pressure);
 
         let alternate_brake_pressure_limit = if self.parking_brake_demand {
-            // "The parking brake is set on the BLG brakes, at full pressure (about 3 600 PSI)" (A380 FCOM l.80149);
-            // with the pedals depressed "the highest commanded pressure between PARK BRK, normal brake, and alternate
-            // brake will always apply" (l.80271-80273): the park brake pressure is the highest one.
+            // The parking brake applies full pressure (about 3 600 PSI) on the BLG brakes; with the pedals pressed the
+            // highest commanded pressure applies, so the park brake pressure is the highest one.
             full_brake_pressure
         } else if self.pedal_braking_mode == PedalBrakingMode::Emergency {
             // Emergency braking (EBCU, no A-SKID): A-SKID sw OFF, or the BCS lost normal and alternate braking.
-            // EBCU landing law 1 000 psi, take-off law 1 700 psi (A380 FCOM l.80043-80047, EmergencyBrakeLaw)
+            // EBCU landing law 1 000 psi, take-off law 1 700 psi (EmergencyBrakeLaw)
             self.emergency_brake_law.pressure_limit()
         } else {
-            // Alternate braking: "equivalent to normal braking performance" (l.79950)
+            // Alternate braking performs as normal braking
             full_brake_pressure
         };
 
@@ -4937,9 +4912,9 @@ impl A380HydraulicBrakeSteerComputerUnit {
         self.should_disable_auto_brake_when_retracting
             .update(context, is_in_flight_gear_lever_up);
 
-        // A380 FCOM DSC-32-10-30-10 (a380_fcom.txt l.78779): "Manual braking is only available on ground". Design
-        // choice: on ground as soon as one main gear is compressed (LGCIU 1 or 2), so that a touchdown on one side
-        // does not delay the pedal braking; the park brake (ultimate braking) and the AUTO BRK are not affected.
+        // Manual braking is only available on the ground. Design choice: on the ground as soon as one main gear is
+        // compressed (LGCIU 1 or 2), so that a touchdown on one side does not delay the pedal braking; the park brake
+        // (ultimate braking) and the AUTO BRK are not affected.
         let main_gear_on_ground = lgciu1.left_gear_compressed(true)
             || lgciu1.right_gear_compressed(true)
             || lgciu2.left_gear_compressed(true)
@@ -4952,7 +4927,7 @@ impl A380HydraulicBrakeSteerComputerUnit {
         let autobrake_demand = self.autobrake_controller.brake_output();
 
         if is_in_flight_gear_lever_up {
-            // Retraction braking is a normal braking function (A380 FCOM l.78871-78872)
+            // Retraction braking is a normal braking function
             if self.should_disable_auto_brake_when_retracting.output()
                 || self.braking_faults.normal_braking_failed()
             {
@@ -4977,11 +4952,9 @@ impl A380HydraulicBrakeSteerComputerUnit {
 
                 self.alternate_brake_outputs.set_no_demands();
             } else if self.parking_brake_demand {
-                // The park brake applies the full pressure on the alternate circuit (ultimate braking, l.80148-80149).
-                // "There is no need to set PARK BRK to OFF to recover pedal braking"; "If PARK BRK is set to ON and
-                // pedal is depressed by the flight crew, the highest commanded pressure between PARK BRK, normal
-                // brake, and alternate brake will always apply on each gear" (A380 FCOM l.80270-80273): the pedals
-                // still brake on the normal circuit. "AUTO BRK is not available" with the PARK BRK ON (l.80162).
+                // The park brake applies the full pressure on the alternate circuit (ultimate braking). The pedals
+                // still brake on the normal circuit, without setting PARK BRK OFF: on each gear the highest commanded
+                // pressure applies. AUTO BRK is not available with the PARK BRK ON.
                 self.alternate_brake_outputs.set_max_demands();
 
                 if self.pedal_braking_mode == PedalBrakingMode::Normal {
@@ -4994,15 +4967,15 @@ impl A380HydraulicBrakeSteerComputerUnit {
                 self.norm_brake_outputs.set_no_demands();
 
                 match self.pedal_braking_mode {
-                    // BRAKES PEDAL BRAKING FAULT: "Pedal braking is not available" (A380 FCOM l.160552)
+                    // BRAKES PEDAL BRAKING FAULT: no pedal braking
                     PedalBrakingMode::None => self.alternate_brake_outputs.set_no_demands(),
-                    // Alternate braking with A-SKID: "AUTO BRK is available" (l.79942-79944), the pilot overrides
-                    // the autobrake as on the normal circuit
+                    // Alternate braking with A-SKID keeps the AUTO BRK, the pilot overrides the autobrake as on the
+                    // normal circuit
                     PedalBrakingMode::Alternate => self.alternate_brake_outputs.set_brake_demands(
                         left_pedal_demand.max(autobrake_demand),
                         right_pedal_demand.max(autobrake_demand),
                     ),
-                    // Emergency braking (EBCU): no AUTO BRK (l.80049); Normal is the green branch above
+                    // Emergency braking (EBCU): no AUTO BRK; Normal is the green branch above
                     PedalBrakingMode::Emergency | PedalBrakingMode::Normal => self
                         .alternate_brake_outputs
                         .set_brake_demands(left_pedal_demand, right_pedal_demand),
@@ -5063,10 +5036,9 @@ impl A380HydraulicBrakeSteerComputerUnit {
             nose_steering_feedback,
         );
 
-        // A380 FCOM DSC-32-30-10 (a380_fcom.txt l.80959): "A-SKID sw OFF does not cut off NWS" (also l.79122): unlike
-        // the A320 A/SKID & N/W STRG switch, the A380 A-SKID switch does not gate the steering.
+        // Unlike the A320 A/SKID & N/W STRG switch, the A380 A-SKID switch does not cut off the steering.
         // Without NWS (all engines shut down, both NWS modes or both SCS failed) the SCS commands nothing and the nose
-        // wheels caster ("the nose landing gear is free to caster", l.163025-163027).
+        // wheels caster.
         let nose_wheel_steering_available =
             self.steering_control.nose_wheel_steering_mode() != NoseWheelSteeringMode::Off;
         self.final_steering_position_request =
@@ -5175,15 +5147,14 @@ struct A380BrakingForce {
     is_light_beacon_on: bool,
 }
 impl A380BrakingForce {
-    /// The brake pressure of the full brake force: the full brake pressure, about 3 600 psi (A380 FCOM l.80149)
+    /// The brake pressure of the full brake force: the full brake pressure, about 3 600 psi
     const REFERENCE_PRESSURE_FOR_MAX_FORCE: f64 = A380Hydraulic::FULL_BRAKE_PRESSURE_PSI;
 
     const FLAPS_BREAKPOINTS: [f64; 3] = [0., 50., 100.];
 
     /// Brake force ratio [0:1] of one brake circuit: sqrt(pressure / full brake pressure). The square root gives a bit
-    /// more punch to the lower brake pressures (like the 1 000 psi of the EBCU landing law) than a linear formula. It
-    /// is the former 50 * sqrt(pressure) / 2 538 psi of the A320 pressures (0.99 at 2 538 psi), normalised to the full
-    /// brake pressure of the A380.
+    /// more punch to the lower brake pressures (like the 1 000 psi of the EBCU landing law) than a linear formula, as
+    /// the A320 formula (50 * sqrt(pressure) / 2 538 psi), normalised to the full brake pressure of the A380.
     fn force_from_pressure(pressure: Pressure) -> f64 {
         (pressure.get::<psi>().max(0.) / Self::REFERENCE_PRESSURE_FOR_MAX_FORCE).sqrt()
     }
@@ -7489,14 +7460,12 @@ impl From<f64> for A380GravityExtensionSwitchPosition {
     }
 }
 
-/// The two Free Fall Control Modules (FFCM) of the landing gear gravity extension, A380 FCOM DSC-32-40-10
-/// (a380_fcom.txt l.82413-82434): with the L/G GRVTY sw DOWN, "The commands are sequenced by a timer and sent in
-/// chronological order to: 1. The cut-out valves to isolate the retraction actuators from the hydraulic power 2. The
-/// retraction actuators to activate the gravity mode ... 3. The landing gear door uplocks ... 4. The landing gear
-/// uplocks (NLG and WLG, then BLG) ... 5. The total duration of gravity extension from L/G GRVTY sw on down to last gear
-/// downlock is 70 s in absence of failure."
+/// The two Free Fall Control Modules (FFCM) of the landing gear gravity extension. With the L/G GRVTY sw DOWN a timer
+/// sequences the commands: 1. the cut-out valves isolate the retraction actuators, 2. the retraction actuators go to
+/// gravity mode, 3. the door uplocks open, 4. the gear uplocks open (NLG and WLG, then BLG). Without failure the last
+/// gear downlocks 70 s after the sw is set DOWN.
 ///
-/// The FCOM gives only the total. Design choice for the steps 3 and 4: in the model the doors take about 20 s to fall
+/// Only that total is published. Design choice for the steps 3 and 4: in the model the doors take about 20 s to fall
 /// open and the gears about 25 s to fall to their downlock, so the door uplocks open after 25 s and the gear uplocks
 /// after 45 s: the last gear downlocks about 70 s after the sw is set DOWN. The model releases all the gear uplocks
 /// together (one main gear assembly per side stands for its WLG and BLG).
@@ -9399,7 +9368,7 @@ mod tests {
             /// Charges the yellow brake accumulator with the yellow electric pump A, then stops the
             /// pump. The accumulator starts empty in 1 % of the test runs (empty after maintenance,
             /// BrakeAccumulatorCharacteristics): a test that relies on its stored pressure calls this
-            /// first, like the A320 test bed (FBW #7794).
+            /// first, like the A320 test bed.
             fn load_brake_accumulator(mut self) -> Self {
                 // Design choice: "charged" is 90 % of the regulated pressure; the accumulator only
                 // needs to hold enough for the brake applications of the test.
@@ -10537,7 +10506,7 @@ mod tests {
             assert_lt!(test_bed.yellow_pressure(), Pressure::new::<psi>(1500.));
         }
 
-        /// FCOM DSC-29-40: the engine 3 pump disconnection is supplied by DC 2, the engine 4 one by DC 1.
+        /// The engine 3 pump disconnection is supplied by DC 2, the engine 4 one by DC 1.
         #[test]
         fn yellow_edp_disconnection_engine_3_on_dc_2_engine_4_on_dc_1() {
             let mut test_bed = test_bed_on_ground_with()
@@ -10569,7 +10538,7 @@ mod tests {
         }
 
         #[test]
-        fn edp_disconnection_power_supply_matches_fcom() {
+        fn edp_disconnection_supply_is_dc_2_for_engines_1_3_and_dc_1_for_2_4() {
             assert_eq!(
                 A380EngineDrivenPumpController::disconnection_power_supply(1),
                 ElectricalBusType::DirectCurrent(2)
@@ -10715,9 +10684,8 @@ mod tests {
             assert!(!test_bed.is_yellow_epump_a_press_low());
         }
 
-        /// A380 FCOM DSC-29-20 ELEC PMP pb-sw (a380_fcom.txt l.61379-61385): the FAULT light means "The pump is
-        /// failed", with HYD G(Y) ELEC PMP A(B) FAULT. The pressure of a pump that has just started is not a failure:
-        /// no FAULT light while the ELEC PMP ON pb builds up the pressure, on ground with the engines off.
+        /// The pressure of a pump that has just started is not a failure: no ELEC PMP FAULT light while the ELEC PMP
+        /// ON pb builds up the pressure, on ground with the engines off.
         #[test]
         fn yellow_elec_pump_no_fault_light_while_pressure_builds_up_at_pump_start() {
             let mut test_bed = test_bed_on_ground_with()
@@ -10748,10 +10716,9 @@ mod tests {
             assert_gt!(test_bed.yellow_pressure(), Pressure::new::<psi>(4500.));
         }
 
-        /// A380 FCOM PRO-ABN HYD G (Y) ELEC PMP A OR (B) FAULT (a380_fcom.txt l.154989-154993): "The electric pump
-        /// pressure is below 1 885 PSI". A low pressure that persists still lights the FAULT, after the confirmation
-        /// time. Engine 1 runs so that the reservoir low level does not light it (DSC-29-20 l.61390-61392: "on ground,
-        /// with engines OFF"), only the pump low pressure does; engine 1 does not inhibit the yellow pumps.
+        /// A pump pressure below 1 885 PSI that persists lights the FAULT, after the confirmation time. Engine 1 runs
+        /// so that the reservoir low level does not light it (that term is for the ground with engines off), only the
+        /// pump low pressure does; engine 1 does not inhibit the yellow pumps.
         #[test]
         fn yellow_elec_pump_fault_light_when_pressure_stays_low() {
             let mut test_bed = test_bed_on_ground_with_engine_1_running()
@@ -10780,7 +10747,7 @@ mod tests {
             assert!(test_bed.is_yellow_epump_a_press_low());
             assert!(test_bed.yellow_epump_a_has_fault());
 
-            // "The FAULT light goes off, when the flight crew selects OFF" (a380_fcom.txt l.61397)
+            // The FAULT light goes off when the crew selects OFF
             test_bed = test_bed
                 .set_yellow_e_pump_a_off(true)
                 .run_waiting_for(Duration::from_millis(100));
@@ -10809,9 +10776,8 @@ mod tests {
             None
         }
 
-        /// A380 FCOM PRO-ABN HYD ENG 1 PMP A PRESS LO (a380_fcom.txt l.155038): the engine pump pressure is low below
-        /// 2 500 PSI. The pump pb-sw is set OFF and the pump section pressure decays: the switch must not trip before
-        /// the pressure is under 2 500 PSI (it tripped at 2 900 PSI before).
+        /// The engine pump pressure is low below 2 500 PSI. The pump pb-sw is set OFF and the pump section pressure
+        /// decays: the switch must not trip before the pressure is under 2 500 PSI.
         #[test]
         fn engine_pump_section_pressure_switch_trips_below_2500_psi() {
             let mut test_bed = test_bed_on_ground_with()
@@ -10833,9 +10799,8 @@ mod tests {
             assert_lt!(trip_pressure, Pressure::new::<psi>(2520.));
         }
 
-        /// A380 FCOM PRO-ABN HYD ELEC PMP A FAULT (a380_fcom.txt l.154993): the electric pump pressure is low below
-        /// 1 885 PSI. The pump is stopped and its section pressure decays: the switch must not trip before the pressure
-        /// is under 1 885 PSI (it tripped at 2 900 PSI before).
+        /// The electric pump pressure is low below 1 885 PSI. The pump is stopped and its section pressure decays: the
+        /// switch must not trip before the pressure is under 1 885 PSI.
         #[test]
         fn electric_pump_section_pressure_switch_trips_below_1885_psi() {
             let mut test_bed = test_bed_on_ground_with()
@@ -10857,8 +10822,7 @@ mod tests {
             assert_lt!(trip_pressure, Pressure::new::<psi>(1905.));
         }
 
-        /// The engine pump overheat is written for the FWS (HYD SYS OVHT, a380_fcom.txt l.155436-155437: "an engine
-        /// pump case drain temperature is above 120 C")
+        /// The engine pump overheat (case drain above 120 °C) is written for the FWS (HYD SYS OVHT)
         #[test]
         fn engine_pump_overheat_is_written() {
             let mut test_bed = test_bed_on_ground_with()
@@ -11030,8 +10994,8 @@ mod tests {
         }
 
         #[test]
-        // Park brake on: the yellow accumulator brakes, and the pedals still brake on green (A380 FCOM l.80270-80273),
-        // also once the accumulator is empty
+        // Park brake on: the yellow accumulator brakes, and the pedals still brake on green, also once the accumulator
+        // is empty
         fn brake_logic_green_backup_emergency() {
             // The test starts with the yellow brake accumulator charged: without
             // load_brake_accumulator it failed in the 1 % of runs where the accumulator starts empty
@@ -11045,7 +11009,7 @@ mod tests {
 
             // Setting on ground with yellow side hydraulics off
             // This should prevent yellow accumulator to fill. The yellow electric pumps are only inhibited by
-            // engines 3 and 4 (FCOM DSC-29-10), so they stay off here.
+            // engines 3 and 4, so they stay off here.
             test_bed = test_bed
                 .start_eng1(Ratio::new::<percent>(100.))
                 .start_eng2(Ratio::new::<percent>(100.))
@@ -11136,9 +11100,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-20-220 BTV ARMING (l.79398-79404) "No ECAM warning affects landing distances"; LIM-32
-        // (l.188646) "BTV cannot be used in the case of ECAM alert that impact the landing performance". The FWS lists
-        // BTV in STATUS INOP SYS for ENG 2(3) SHUT DOWN, TWO ENGS OUT and the ENG 2(3) REVERSER failures.
+        // BTV cannot be used with an ECAM alert that impacts the landing performance: the FWS lists BTV in STATUS INOP
+        // SYS for ENG 2(3) SHUT DOWN, TWO ENGS OUT and the ENG 2(3) REVERSER failures.
         fn btv_does_not_arm_while_an_ecam_alert_lists_btv_inop() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -11156,8 +11119,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-20-220 BTV DISARMING note (l.79433-79436): "if any arming condition is lost ... The
-        // auto-brake reverts to BRK HI mode"
+        // When an arming condition is lost the auto-brake reverts to BRK HI
         fn armed_btv_reverts_to_brk_hi_when_an_ecam_alert_lists_btv_inop() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -11178,8 +11140,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-10-30: the 10 s in flight disarming is "for RTO mode only"; "A landing AUTO BRK mode can be
-        // armed in flight, and on ground"
+        // The 10 s in-flight disarming is for the RTO mode only; a landing mode can be armed in flight and on ground
         fn autobrakes_landing_mode_armed_on_ground_stays_armed_after_take_off() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -11413,8 +11374,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM BRAKES AUTO BRK FAULT (l.159949-159954, PDF p.5447-5448): the failed autobrake reports the fault
-        // and cannot be armed (STATUS INOP SYS AUTO BRK)
+        // BRAKES AUTO BRK FAULT: the failed autobrake reports the fault and cannot be armed (STATUS INOP SYS AUTO BRK)
         fn failed_autobrake_reports_fault_and_cannot_be_armed() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -11442,7 +11402,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.79071-79073: "the RTO mode does not activate below 40 kt"
+        // The RTO mode does not activate below 40 kt
         fn autobrakes_rto_does_not_activate_below_40_knots() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -11746,10 +11706,8 @@ mod tests {
             assert!(!test_bed.query(|a| a.is_green_epump_b_controller_pressurising()));
         }
 
-        // A380 FCOM DSC-29-10 ELECTRIC PUMPS (a380_fcom.txt:61020-61026): "Two electric pumps can provide hydraulic
-        // power on ground only. The green (yellow) electric pumps can pressurize the GREEN (YELLOW) hydraulic system,
-        // if the engines 1 and 2 (3 and 4) are not running." "the green (yellow) electric pumps are inhibited as soon
-        // as the engine 1 or 2 (3 or 4) is running."
+        // The electric pumps work on ground only, and the green (yellow) pumps are inhibited as soon as engine 1 or 2
+        // (3 or 4) runs.
         #[test]
         fn controller_yellow_epumps_run_with_only_engines_1_and_2_running() {
             let mut test_bed = test_bed_on_ground_with()
@@ -12140,14 +12098,10 @@ mod tests {
             );
         }
 
-        /// A380 FCOM DSC-27-20-20 (a380_fcom.txt l.56783-56806):
-        /// ARS: "In CONF 1+F, the Auto Retraction System (ARS) automatically retracts the flaps ...
-        /// The resulting configuration is CONF 1. The ARS activates, when the aircraft reaches a
-        /// speed of 212 kt, and if still in CONF 1+F."
-        /// AES: "In CONF 1, the Auto Extension System (AES) automatically extends the flaps ...
-        /// The AES activates, when the speed goes below 205 kt, and if still in CONF 1."
-        /// Whole aircraft: lever 0 -> 1 at the gate, take-off in CONF 1+F, climb through 212 kt
-        /// (to 240 kt as in the user report), then back below 205 kt.
+        /// In CONF 1+F the auto retraction system (ARS) retracts the flaps to CONF 1 at 212 kt; in CONF 1 the auto
+        /// extension system (AES) extends them again below 205 kt.
+        /// Whole aircraft: lever 0 -> 1 at the gate, take-off in CONF 1+F, climb through 212 kt (to 240 kt as in the
+        /// user report), then back below 205 kt.
         #[test]
         fn flaps_auto_retraction_and_extension_after_a_conf_1_plus_f_takeoff() {
             let mut test_bed = test_bed_on_ground_with()
@@ -12211,7 +12165,6 @@ mod tests {
 
         /// Flight loaded in the air with the FLAPS lever already at 1 (no lever movement by the
         /// crew): above 212 kt the SFCC must select CONF 1, below 205 kt CONF 1+F
-        /// (A380 FCOM DSC-27-20-20, a380_fcom.txt l.56783-56806).
         #[rstest]
         #[case(240., FLAPS_CONF_INDEX_CONF1)]
         #[case(190., FLAPS_CONF_INDEX_CONF1F)]
@@ -12403,7 +12356,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-30-10: "A-SKID sw OFF does not cut off NWS"
+        // The A-SKID sw OFF does not cut off the NWS
         fn nose_steering_still_steers_when_a_skid_off() {
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
@@ -12623,9 +12576,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-40-20 (l.82497-82506): YELLOW failed, L/G lever UP: "The BLG and the WLG remain extended,
-        // BLG doors will remain closed". Not modelled: "The NLG retracts" (the common LGCIU moves the gears only when
-        // all the doors are open).
+        // YELLOW failed, L/G lever UP: the BLG and the WLG remain extended, the BLG doors closed. Not modelled: the NLG
+        // retracts (the common LGCIU moves the gears only when all the doors are open).
         fn gear_retraction_with_yellow_lost_keeps_the_main_gears_extended_and_their_doors_closed() {
             let mut test_bed = in_flight_gear_down_with_system_lost(HydraulicColor::Yellow);
 
@@ -12644,7 +12596,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-40-20 (l.82508-82514): GREEN failed, L/G lever UP: "The NLG and the WLG remain extended"
+        // GREEN failed, L/G lever UP: the NLG and the WLG remain extended
         fn gear_retraction_with_green_lost_keeps_the_nose_and_wing_gears_extended() {
             let mut test_bed = in_flight_gear_down_with_system_lost(HydraulicColor::Green);
 
@@ -12656,8 +12608,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM HYD G(Y) SYS PRESS LO (l.155563-155567): "Landing gear extension is performed by gravity"; the BLG
-        // is on YELLOW (l.78610-78614)
+        // HYD G(Y) SYS PRESS LO: the landing gear extends by gravity; the BLG is on YELLOW
         fn gear_extension_with_yellow_lost_needs_gravity_extension_for_the_main_gears() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -12687,8 +12638,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-40-10 (l.82432-82434): "The total duration of gravity extension from L/G GRVTY sw on down
-        // to last gear downlock is 70 s in absence of failure"
+        // Without failure the last gear downlocks 70 s after the L/G GRVTY sw is set DOWN
         fn gravity_extension_takes_about_70_seconds() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -12955,8 +12905,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM BRAKES NORM BRK FAULT (l.160331-160332) and alternate braking (l.79942-79950): the pedals brake
-        // through the alternate circuit with A-SKID, at full pressure
+        // BRAKES NORM BRK FAULT: the pedals brake through the alternate circuit with A-SKID, at full pressure
         fn normal_braking_fault_brakes_on_the_alternate_circuit() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BrakeNormalBraking);
@@ -12979,8 +12928,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.78886-78887: the EBCU takes over when the normal and the alternate braking modes fail; no
-        // A-SKID, limited pressure: before the take-off the take-off brake law, 1 700 psi (l.80043-80045)
+        // The EBCU takes over when the normal and the alternate braking fail: no A-SKID, limited pressure; before the
+        // take-off the take-off brake law, 1 700 psi
         fn normal_and_alternate_braking_faults_leave_emergency_braking() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BrakeNormalBraking);
@@ -12999,8 +12948,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.80043-80047: emergency braking is limited to 1 000 psi at landing (landing brake law), and the
-        // PARK BRK handle ON reverts to the take-off brake law (1 700 psi)
+        // Emergency braking is limited to 1 000 psi at landing (landing brake law), and the PARK BRK handle ON reverts
+        // to the take-off brake law (1 700 psi)
         fn emergency_braking_uses_landing_law_after_a_flight_until_park_brake_on() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BrakeNormalBraking);
@@ -13043,8 +12992,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM BRAKES PEDAL BRAKING FAULT (l.160525, l.160550-160559): no pedal braking, the PARK BRK handle
-        // still brakes
+        // BRAKES PEDAL BRAKING FAULT: no pedal braking, the PARK BRK handle still brakes
         fn all_braking_modes_failed_leave_only_the_parking_brake() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BrakeNormalBraking);
@@ -13072,8 +13020,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM BRAKES ALTN BRK FAULT, BRAKES EMER BRK FAULT: "the normal ... braking remains available"
-        // (l.159848-159850, l.160184-160185)
+        // BRAKES ALTN BRK FAULT and EMER BRK FAULT keep the normal braking
         fn alternate_and_emergency_braking_faults_keep_normal_braking() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BrakeAlternateBraking);
@@ -13090,9 +13037,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-10-30-30 PARKING BRAKE (l.80262-80263): "the brakes of the BLG are applied, showing about
-        // 3 600 PSI on triple indicator with BLG accumulators normally filled"; ULTIMATE BRAKING (l.80149): "at full
-        // pressure (about 3 600 PSI)"
+        // The park brake applies about 3 600 PSI on the BLG brakes with the accumulators normally filled, the full
+        // pressure of the ultimate braking
         fn park_brake_applies_about_3600_psi() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running()
                 .set_park_brake(false)
@@ -13118,8 +13064,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.80149: full brake pressure is about 3 600 psi; l.79950: "Alternate braking performance is
-        // equivalent to normal braking performance". Full pedal deflection gives the full brake pressure in normal
+        // Full pedal deflection gives the full brake pressure, about 3 600 psi, in normal braking as in alternate
         // braking (the A320 value was 2 538 psi).
         fn full_pedal_normal_braking_applies_about_3600_psi() {
             let mut test_bed =
@@ -13153,10 +13098,9 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.80262-80263 (about 3 600 psi with the accumulators normally filled) and the triple pressure
-        // indicator (l.81547-81553): green arc 4 872-5 000 psi, amber arc 0-3 840 psi ("press the ACCUS REINFLATE pb
-        // ... before towing/push-back"). One park brake application from a charged accumulator, with no hydraulic
-        // pressure, reaches the full pressure and leaves the accumulator out of the amber arc.
+        // The triple pressure indicator: green arc 4 872-5 000 psi, amber arc 0-3 840 psi (reinflate the accumulators
+        // before towing). One park brake application from a charged accumulator, with no hydraulic pressure, reaches
+        // the full pressure (about 3 600 psi) and leaves the accumulator out of the amber arc.
         fn one_park_brake_application_on_a_charged_accumulator_stays_out_of_the_amber_arc() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running()
                 .set_park_brake(false)
@@ -13184,10 +13128,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-10-30-30 (l.80270-80273): "There is no need to set PARK BRK to OFF to recover pedal braking"
-        // and "If PARK BRK is set to ON and pedal is depressed by the flight crew, the highest commanded pressure between
-        // PARK BRK, normal brake, and alternate brake will always apply on each gear": the pedals still brake on the
-        // normal circuit with the park brake on (the A320 model only used it below 507 psi of park brake pressure).
+        // The pedals still brake on the normal circuit with the park brake on, without PARK BRK OFF: on each gear the
+        // highest commanded pressure applies (the A320 model only used it below 507 psi of park brake pressure).
         fn pedals_brake_on_the_normal_circuit_with_the_park_brake_on() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running()
                 .set_park_brake(true)
@@ -13230,8 +13172,8 @@ mod tests {
         #[rstest]
         #[case::normal_braking(true)]
         #[case::emergency_braking_a_skid_off(false)]
-        // A380 FCOM DSC-32-10-30-10 (l.78779): "Manual braking is only available on ground": no pedal braking in flight
-        // with the gear down, in normal braking and in emergency braking (A-SKID sw OFF)
+        // Manual braking is only available on the ground: no pedal braking in flight with the gear down, in normal
+        // braking and in emergency braking (A-SKID sw OFF)
         fn pedals_do_not_brake_in_flight_with_the_gear_down(#[case] anti_skid_on: bool) {
             let mut test_bed = in_flight_gear_down()
                 .set_anti_skid(anti_skid_on)
@@ -13250,7 +13192,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.78779: manual braking comes back on the ground (touchdown)
+        // Manual braking comes back on the ground (touchdown)
         fn pedals_brake_again_after_touchdown() {
             let mut test_bed = in_flight_gear_down()
                 .set_left_brake(Ratio::new::<percent>(100.))
@@ -13268,9 +13210,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM DSC-32-10-30-20 BASIC AUTO BRK ARMING (l.79021-79035): "A-SKID is available (normal and alternate
-        // modes)": the AUTO BRK arms in alternate braking (BRAKES NORM BRK FAULT, alternate braking "AUTO BRK is
-        // available", l.79942-79944)
+        // The AUTO BRK needs A-SKID, which alternate braking keeps: it arms in alternate braking (BRAKES NORM BRK
+        // FAULT)
         fn autobrake_arms_in_alternate_braking() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -13289,8 +13230,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM alternate braking (l.79942-79944): "A-SKID is available, AUTO BRK is available": the autobrake
-        // brakes on the alternate circuit when the normal braking is lost
+        // Alternate braking keeps A-SKID and AUTO BRK: the autobrake brakes on the alternate circuit when the normal
+        // braking is lost
         fn autobrake_brakes_on_the_alternate_circuit_in_alternate_braking() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -13331,8 +13272,7 @@ mod tests {
         #[rstest]
         #[case::prims_1_and_2_lost(1, 2)]
         #[case::prims_2_and_3_lost(2, 3)]
-        // A380 FCOM BASIC AUTO BRK ARMING (l.79029-79031): "At least two PRIMs are available. The PRIMs provide the
-        // basic AUTO BRK with the ground spoilers extension command"
+        // The basic AUTO BRK needs two PRIMs: they give it the ground spoiler extension command
         fn autobrake_does_not_arm_with_less_than_two_prims(
             #[case] first_lost_prim: usize,
             #[case] second_lost_prim: usize,
@@ -13354,7 +13294,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.79029: two PRIMs are enough
+        // Two PRIMs are enough
         fn autobrake_arms_with_one_prim_lost() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -13372,8 +13312,8 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.80571-80572: "In normal NWS: The GREEN system supplies hydraulic power" (B19). With the engines
-        // 1 and 2 only, YELLOW is not pressurised and the nose wheels steer on GREEN.
+        // GREEN supplies the normal NWS. With the engines 1 and 2 only, YELLOW is not pressurised and the nose wheels
+        // steer on GREEN.
         fn nose_steering_steers_on_green_with_engines_1_and_2_only() {
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
@@ -13395,8 +13335,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM l.80589 "If the GREEN hydraulic supply fails, the alternate NWS activates automatically";
-        // l.80610 "The maximum alternate NWS rate is 10 degrees per second"
+        // Without GREEN the alternate NWS takes over at once, at 10 degrees per second at most
         fn nose_steering_reverts_to_alternate_at_10_deg_per_s_without_green() {
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
@@ -13420,7 +13359,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM STEER NORM N/W STEER FAULT: "Alternate nose wheel steering is still available" (l.163126)
+        // STEER NORM N/W STEER FAULT: the alternate nose wheel steering is still available
         fn normal_nws_fault_reverts_to_alternate_nws() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::NoseWheelSteeringNormal);
@@ -13434,8 +13373,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM STEER N/W STEER FAULT: "The normal and alternate nose wheel steering modes are failed" and "the
-        // nose landing gear is free to caster" (l.163012, l.163025-163027)
+        // STEER N/W STEER FAULT: both NWS modes are failed and the nose landing gear casters
         fn nose_wheels_do_not_steer_with_both_nws_modes_failed() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::NoseWheelSteeringNormal);
@@ -13449,8 +13387,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM STEER CTL 1(2) FAULT: "The NWS and the BWS are still available" (l.162848); N/W + B/W STEER
-        // FAULT: "SCS 1 and SCS 2 are failed" (l.162869)
+        // STEER CTL 1(2) FAULT: the NWS and the BWS are still available; N/W + B/W STEER FAULT: both SCS failed
         fn one_steering_control_system_is_enough_both_failed_lose_the_steering() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::SteeringControlSystem(1));
@@ -13472,8 +13409,7 @@ mod tests {
         }
 
         #[test]
-        // A380 FCOM STEER B/W STEER FAULT: "The body wheel steering is failed in the centered and locked position"
-        // (l.162636)
+        // STEER B/W STEER FAULT: the body wheel steering is failed centred and locked
         fn body_wheel_steering_fault_keeps_the_body_wheels_centred() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BodyWheelSteering);
@@ -13500,9 +13436,8 @@ mod tests {
             );
         }
 
-        // FCOM DSC-29-10 P 3/10: the green electric pumps, the only power of the cargo door actuation, are
-        // inhibited as soon as engine 1 or 2 runs. FCOM DSC-52-30-40-10 P 2/4: an inhibited door is isolated
-        // from the hydraulics, "there is no power to open the door".
+        // The green electric pumps, the only power of the cargo door actuation, are inhibited as soon as engine 1 or 2
+        // runs; an inhibited door is isolated from the hydraulics and cannot be opened.
         #[test]
         fn cargo_door_operation_is_inhibited_with_an_engine_running() {
             let mut test_bed = test_bed_on_ground_with()
@@ -13619,8 +13554,8 @@ mod tests {
             );
         }
 
-        /// A380 FCOM DSC-29-10 (a380_fcom.txt l.61042-61046): the yellow electric pumps start automatically when BWS
-        /// is required for pushback or towing, and then "only ... (BWS) is pressurized".
+        /// The yellow electric pumps start automatically when the BWS is required for pushback or towing, and then
+        /// pressurize the BWS only.
         #[test]
         fn yellow_epump_buildup_only_bws_section_when_pushback_turns_nose_more_than_20_degrees() {
             let mut test_bed = test_bed_on_ground_with()
@@ -13892,7 +13827,7 @@ mod tests {
             })
         }
 
-        /// A380 FCOM DSC-29-10 (a380_fcom.txt l.60986): "The total volume of the reservoir is 31.70 US Gal."
+        /// The total volume of the reservoir is 31.70 US gal.
         #[test]
         fn reservoir_total_volume_is_31_70_us_gallons() {
             let test_bed = test_bed_on_ground_with()
@@ -13912,7 +13847,7 @@ mod tests {
             );
         }
 
-        /// A380 FCOM PRO-ABN HYD G (Y) RSVR LEVEL LO (a380_fcom.txt l.155270): "less than 2.6 US Gal".
+        /// RSVR LEVEL LO below 2.6 US gal.
         #[test]
         fn reservoir_level_low_below_2_6_us_gallons() {
             let mut test_bed = test_bed_on_ground_with()
@@ -13934,8 +13869,7 @@ mod tests {
             assert!(test_bed.is_green_reservoir_level_low());
         }
 
-        /// A380 FCOM DSC-29-20 ENG PMP pb-sw (a380_fcom.txt l.61286-61299): FAULT with HYD SYS OVHT; "in case of an
-        /// overheat, the FAULT light will remain on, until the overheat disappears" (also with the pb-sw OFF).
+        /// ENG PMP pb-sw FAULT with HYD SYS OVHT: it stays on, also with the pb-sw OFF, until the overheat is gone.
         #[test]
         fn eng_pump_fault_on_overheat_and_stays_on_when_off() {
             let mut test_bed = test_bed_on_ground_with_engine_1_running();
@@ -13954,8 +13888,8 @@ mod tests {
             assert!(test_bed.green_edp_has_fault());
         }
 
-        /// A380 FCOM DSC-29-20 ENG PMP A+B DISC pb (a380_fcom.txt l.61319-61326): FAULT with HYD RSVR LEVEL LO, also
-        /// once the ENG PMP pb-sw are OFF (the PRO-ABN procedure turns them OFF first).
+        /// ENG PMP A+B DISC pb FAULT with HYD RSVR LEVEL LO, also once the ENG PMP pb-sw are OFF (the procedure turns
+        /// them OFF first).
         #[test]
         fn eng_pumps_disc_fault_on_reservoir_low_level_with_pumps_off() {
             let mut test_bed = test_bed_on_ground_with()
@@ -13975,9 +13909,8 @@ mod tests {
             assert!(test_bed.eng1_pumps_disc_has_fault());
         }
 
-        /// A380 FCOM DSC-29-20 ENG PMP A+B DISC pb (a380_fcom.txt l.61326): "HYD G(Y) SYS OVHT (If pump
-        /// depressurization failed)". PRO-ABN HYD SYS OVHT (l.155460-155467): ENG PMP A and B OFF, "If turning off
-        /// G (Y) ENG 1 (3) PMP A or B is not successful: G(Y) ENG 1(3) PMP A+B ... DISC".
+        /// ENG PMP A+B DISC pb FAULT with a SYS OVHT whose pump depressurisation failed: the procedure sets the ENG PMP
+        /// A and B OFF, and DISC if that did not work.
         #[test]
         fn eng_pumps_disc_fault_on_overheat_only_if_depressurisation_failed() {
             let mut test_bed = test_bed_on_ground_with_engine_1_running();
@@ -14018,15 +13951,14 @@ mod tests {
             assert!(test_bed.is_edp_1a_overheating());
             assert!(test_bed.eng1_pumps_disc_has_fault());
 
-            // The FAULT light goes off when DISC is selected (FCOM l.61330)
+            // The FAULT light goes off when DISC is selected
             test_bed = test_bed
                 .set_disconnect_engine_edp(1)
                 .run_waiting_for(Duration::from_secs(1));
             assert!(!test_bed.eng1_pumps_disc_has_fault());
         }
 
-        /// A380 FCOM DSC-29-20 ELEC PMP pb-sw (a380_fcom.txt l.61390-61392): FAULT with "HYD G(Y) RSVR LEVEL LO (on
-        /// ground, with engines OFF)".
+        /// ELEC PMP pb-sw FAULT with HYD G(Y) RSVR LEVEL LO, on the ground with the engines off.
         #[test]
         fn elec_pump_fault_on_reservoir_low_level_only_on_ground_with_engines_off() {
             let mut test_bed = test_bed_in_flight_with()
@@ -14053,8 +13985,7 @@ mod tests {
             assert!(test_bed.green_epump_a_has_fault());
         }
 
-        /// A380 FCOM DSC-29-20 ELEC PMP pb-sw (a380_fcom.txt l.61386, l.61397-61398): FAULT with "HYD G(Y) SYS OVHT
-        /// (on ground, with engines OFF)".
+        /// ELEC PMP pb-sw FAULT with HYD G(Y) SYS OVHT, on the ground with the engines off.
         #[test]
         fn elec_pump_fault_on_system_overheat_only_on_ground_with_engines_off() {
             let mut test_bed = test_bed_on_ground_with_engine_1_running();
@@ -14078,8 +14009,7 @@ mod tests {
             assert!(test_bed.green_epump_b_has_fault());
         }
 
-        /// A380 FCOM DSC-29-10 (a380_fcom.txt l.61059): "In the case of an overheat, the HSMU automatically switches
-        /// off the affected electric pump."
+        /// The HSMU switches off an overheating electric pump.
         #[test]
         fn hsmu_switches_off_overheated_elec_pump() {
             let mut test_bed = test_bed_on_ground_with()
@@ -14099,7 +14029,7 @@ mod tests {
             assert!(!test_bed.query(|a| a.is_green_epump_a_controller_pressurising()));
             assert!(test_bed.green_epump_a_has_fault());
 
-            // The FAULT light stays on with the pb-sw OFF while the overheat lasts (FCOM l.61397-61398)
+            // The FAULT light stays on with the pb-sw OFF while the overheat lasts
             test_bed = test_bed
                 .set_green_e_pump_a_off(true)
                 .run_waiting_for(Duration::from_secs(1));
@@ -14107,8 +14037,7 @@ mod tests {
             assert!(test_bed.green_epump_a_has_fault());
         }
 
-        /// A380 FCOM DSC-29-10 (a380_fcom.txt l.61055-61057): "When the green electric pumps are started manually, the
-        /// GREEN hydraulic system powers all the systems, except the cargo door actuation."
+        /// The green electric pumps started manually power the whole GREEN system except the cargo door actuation.
         #[test]
         fn green_elec_pumps_in_manual_mode_pressurise_system_not_cargo_doors() {
             let mut test_bed = test_bed_on_ground_with()
@@ -14135,9 +14064,8 @@ mod tests {
             assert!(!test_bed.is_cargo_fwd_door_locked_up());
         }
 
-        /// A380 FCOM DSC-29-20 ELEC PMP ON pb (a380_fcom.txt l.61350-61351): "When the electric pumps operate in
-        /// automatic mode, any action on the ELEC PMP ON pb is disregarded" (per pump). Once the automatic mode ends,
-        /// the manual mode pressurises the whole yellow system (l.61052-61054).
+        /// In automatic mode the ELEC PMP ON pb is disregarded (per pump). Once the automatic mode ends, the manual mode
+        /// pressurises the whole yellow system.
         #[test]
         fn yellow_elec_pump_on_pb_disregarded_while_running_in_auto_mode() {
             let mut test_bed = test_bed_on_ground_with()
@@ -14192,8 +14120,7 @@ mod tests {
             assert_gt!(test_bed.yellow_pressure(), Pressure::new::<psi>(2500.));
         }
 
-        /// A380 FCOM DSC-29-10 (a380_fcom.txt l.61052-61054): "When the yellow electric pumps are started manually,
-        /// the YELLOW hydraulic system powers all the systems" (BWS included).
+        /// The yellow electric pumps started manually power the whole YELLOW system (BWS included).
         #[test]
         fn yellow_elec_pumps_in_manual_mode_pressurise_system_and_bws_on_pushback() {
             let mut test_bed = test_bed_on_ground_with()
@@ -14219,8 +14146,8 @@ mod tests {
             );
         }
 
-        /// With engines 3 and 4 running the yellow electric pumps are inhibited (FCOM l.61025-61027): the BWS keeps
-        /// the yellow system section of the engine pumps when it steers in taxi.
+        /// With engines 3 and 4 running the yellow electric pumps are inhibited: the BWS keeps the yellow system
+        /// section of the engine pumps when it steers in taxi.
         #[test]
         fn body_wheel_steering_on_yellow_system_with_engines_running() {
             let mut test_bed = test_bed_on_ground_with()

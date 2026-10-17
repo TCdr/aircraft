@@ -12,8 +12,8 @@ pub(super) struct FlapsChannel {
     demanded_angle: Angle,
     feedback_angle: Angle,
 
-    /// The flyPad failure of this flap channel: "the flap system 1(2) is failed", only one flap motor remains
-    /// available and the flaps operate at half speed (F/CTL FLAP SYS 1(2) FAULT, a380_fcom.txt l.147527-147540)
+    /// The flyPad failure of this flap channel: the flap system is failed, only one flap motor remains and the flaps
+    /// operate at half speed (F/CTL FLAP SYS 1(2) FAULT)
     motor_control_failure: Failure,
 }
 impl FlapsChannel {

@@ -14,17 +14,16 @@
  * (N3, N1, fuel flow, EGT) and its logic (state machine, igniters, oil) do not see it. One instance per engine. No MSFS SDK
  * dependency: tested natively (test/run_tests.sh, test/core_spike_guard_test.cpp).
  *
- * What MSFS does (sim tests of 2026-10-06, s1.log T2/T3, s3_tank1.log, s6_main1.log): after a relight MSFS accelerates the core
- * at about 1 %/s in its start mode. When the core reaches the low idle of engines.cfg (low_idle_n2 = 60 % corrected, 58.1-59.5 %
- * at the recorded temperatures), MSFS ends its start and takes the core speed from its fuel flow controller
- * (corrected_n2_from_ff_table). That controller has saturated meanwhile (fuel_flow_controller_p = 3.7 on the A380X against 1 on
- * the A32NX, with a much steeper table), so the core jumps within 0.3-0.5 s to the top of the table, 100 % corrected (96.9-99.2 %
- * recorded, exactly 100 / 60 times the start end value), stays there 1.7-6 s until the lagging MSFS N1 catches up with its
- * commanded N1, then runs down to the speed of its throttle in 3-8 s. It happens with the MSFS throttle at idle (relight ended
- * in STARTING/RESTARTING, the throttle held by EngineStartThrottleHold) as with the throttle in CL (auto relight, engine ON).
- * The A32NX shows no such jump (sim test 2026-10-06 S1 T1: max 15 %/s with the throttle rising, 0.2 % above engine 2).
- * A real engine does not do this: the FADEC "stabilizes the engine at idle speed" at the end of an in-flight start (A380 FCOM
- * DSC-70-30, a380_fcom.txt l.113578), and accelerates from there.
+ * What MSFS does (measured in the sim): after a relight MSFS accelerates the core at about 1 %/s in its start mode. When the
+ * core reaches the low idle of engines.cfg (low_idle_n2 = 60 % corrected, 58.1-59.5 % at the recorded temperatures), MSFS ends
+ * its start and takes the core speed from its fuel flow controller (corrected_n2_from_ff_table). That controller has saturated
+ * meanwhile (fuel_flow_controller_p = 3.7 on the A380X against 1 on the A32NX, with a much steeper table), so the core jumps
+ * within 0.3-0.5 s to the top of the table, 100 % corrected (96.9-99.2 % recorded, exactly 100 / 60 times the start end
+ * value), stays there 1.7-6 s until the lagging MSFS N1 catches up with its commanded N1, then runs down to the speed of its
+ * throttle in 3-8 s. It happens with the MSFS throttle at idle (relight ended in STARTING/RESTARTING, the throttle held by
+ * EngineStartThrottleHold) as with the throttle in CL (auto relight, engine ON). The A32NX shows no such jump (max 15 %/s with
+ * the throttle rising, 0.2 % above engine 2). A real engine does not do this: the FADEC stabilizes the engine at idle at the
+ * end of an in-flight start, and accelerates from there.
  *
  * Design (the engines.cfg values are left alone: they shape the whole MSFS engine response and the A/THR tuning):
  * - Detection: the MSFS core rises faster than SNAP_DETECTION_RATE from a speed in the low idle band. A normal acceleration
@@ -38,16 +37,16 @@
  *   Once MSFS has settled (falls less than SETTLED_MAX_FALL in SETTLED_WINDOW), or after MAX_FILTER_SECONDS, the guarded value
  *   rises towards the MSFS value at the acceleration rate.
  * - The jump ends for each value when MSFS has come down from its peak (or after MAX_FILTER_SECONDS) and is back at or below
- *   the guarded value: from then on the MSFS value is used unchanged. The MSFS fan lags the core (sim test 2026-10-08, blip2.log:
- *   in the sample where the core jumps 57.7 to 60.9 % the fan only goes 22.2 to 22.4 %, and creeps up to 59.7 % in 2.6 s), so
- *   while MSFS still rises the guarded value uses the MSFS value whenever it is not above the allowed one. If the fan never rises
+ *   the guarded value: from then on the MSFS value is used unchanged. The MSFS fan lags the core (measured in the sim: in the
+ *   sample where the core jumps 57.7 to 60.9 % the fan only goes 22.2 to 22.4 %, and creeps up to 59.7 % in 2.6 s), so while
+ *   MSFS still rises the guarded value uses the MSFS value whenever it is not above the allowed one. If the fan never rises
  *   above the guarded value, the N1 jump ends with the N3 jump.
  * The MSFS thrust itself follows the MSFS N1 and is not changed by this guard.
  */
 class CoreSpikeGuard_A380X {
  public:
   /// Design choice: the MSFS core rise that counts as the end-of-start jump: well above any normal acceleration (11 %/s A380X,
-  /// 15 %/s A32NX, sim tests 2026-10-06) and well below the jump (94-157 %/s in the 0.1 s samples of s3_tank1.log).
+  /// 15 %/s A32NX, measured in the sim) and well below the jump (94-157 %/s in 0.1 s samples).
   static constexpr double SNAP_DETECTION_RATE_PERCENT_PER_SECOND = 40.0;
   /// Design choice: the smallest rise in one frame that counts, so that the rate of a very short frame cannot trigger it.
   static constexpr double SNAP_MIN_STEP_PERCENT = 0.5;
@@ -57,7 +56,7 @@ class CoreSpikeGuard_A380X {
   static constexpr double SNAP_START_MAX_N3_PERCENT = 70.0;
   /// Design choice: the N3 acceleration while the jump is filtered: from idle to the climb N3 (about 62 to 85 %) in about 6 s, a
   /// little below the MSFS acceleration with the throttle rising after a start (about 6 %/s on average, 61 to 85 % in 4.1 s,
-  /// s1.log T2) so that the guarded N3 does not run ahead of the speed MSFS settles at (T3: the MSFS jump lasted 6.3 s).
+  /// measured in the sim) so that the guarded N3 does not run ahead of the speed MSFS settles at (one MSFS jump lasted 6.3 s).
   static constexpr double N3_ACCELERATION_PERCENT_PER_SECOND = 4.0;
   /// Design choice: the N1 acceleration while the jump is filtered, the same as the N1 target rise after an in-flight start
   /// (fbw_common EngineStartThrottleHold::ACCELERATION_N1_PERCENT_PER_SECOND).

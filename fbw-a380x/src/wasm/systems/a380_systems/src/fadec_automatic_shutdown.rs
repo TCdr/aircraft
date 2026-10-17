@@ -1,36 +1,29 @@
 //! The engine shutdowns that the FADEC of an A380 engine commands by itself: FADEC overheat and
-//! overthrust protection (A380 FCOM ENG 1(2)(3)(4) FAIL, a380_fcom.txt l.171719-171720: "In the
-//! case of FADEC overheat or overthrust protection activation, the FADEC indicates the reason of
-//! the failure").
+//! overthrust protection (ENG 1(2)(3)(4) FAIL, where the FADEC shows the reason).
 //!
-//! - FADEC overheat (flyPad "Engine n FADEC overheat (engine shutdown)"): "In the case of a FADEC
-//!   OVHT : The FADEC automatically shuts down the engine." (l.171781-171782). It is not the FADEC
-//!   TEMP HI of the flyPad "Engine n FADEC overheat" failure (l.171683-171693, crew awareness, no
-//!   shutdown, engine_control_failure.rs).
+//! - FADEC overheat (flyPad "Engine n FADEC overheat (engine shutdown)"): the FADEC shuts the engine
+//!   down (FADEC OVHT). It is not the FADEC TEMP HI of the flyPad "Engine n FADEC overheat" failure
+//!   (crew awareness, no shutdown, engine_control_failure.rs).
 //! - Overthrust (flyPad "Engine n overthrust (thrust control lost)"): the engine thrust is above the
-//!   commanded thrust. DSC-70-20-20 OVERTHRUST PROTECTION (l.111447-111462): "If FADEC detects an
-//!   overthrust on an engine: - The FADEC shuts down the affected engine, when the aircraft is on
-//!   ground and the throttle levers are in IDLE detent or in the reverser position (e.g. if the
-//!   overthrust is detected at touchdown or during a rejected takeoff) - The FADEC reduces the thrust
-//!   of the affected engine, when the aircraft is in flight below 15 000 ft. There is no overthrust
-//!   protection above 15 000 ft, or when the aircraft speed is above M 0.4." The shutdown is the ENG
-//!   FAIL "THRUST CTL LOST" case (l.171797-171800), and with the in-flight thrust reduction it is
-//!   the CTL SYS FAULT "Fuel cutback following overthrust detection" (l.171321, DSC-70-90
-//!   l.112856-112858), which also lights the ENG MASTER FAULT light (l.112856).
+//!   commanded thrust. The FADEC shuts the engine down on the ground with the levers in the IDLE
+//!   detent or in reverse (e.g. an overthrust at touchdown or during a rejected takeoff), and
+//!   reduces its thrust in flight below 15 000 ft; there is no protection above 15 000 ft or above
+//!   M 0.4. The shutdown is the ENG FAIL "THRUST CTL LOST" case, and the in-flight thrust reduction
+//!   the CTL SYS FAULT fuel cutback, which also lights the ENG MASTER FAULT light.
 //!
 //! The shutdown cuts the engine fuel ([`systems::engine::engine_failure::EngineFailure`]): the FADEC
-//! makes no automatic relight on a cut engine (the ENG FAIL procedure of these cases has no AUTO
-//! RELIGHT line and ends with ENG MASTER OFF, l.171783-171808).
+//! makes no automatic relight on a cut engine (the ENG FAIL procedure of these cases has no auto
+//! relight and ends with the ENG MASTER OFF).
 //!
-//! Design choices (the FCOM gives no figure):
+//! Design choices (no published figure):
 //! - A shutdown stays (latched) until the failure is removed and the ENG MASTER is OFF: the engine
 //!   does not relight while the cause is there, and the crew restarts it with a MASTER OFF then ON.
 //! - The overthrust itself (the excess thrust) is not modelled: the failure is the FADEC detecting
 //!   it. In flight below 15 000 ft and M 0.4 the FADEC reduces the thrust to the commanded thrust,
 //!   which leaves the modelled thrust as it is and gives the CTL SYS FAULT fuel cutback; above, the
 //!   protection does nothing.
-//! - The protection acts only on a running engine; the levers "in IDLE detent or in the reverser
-//!   position" are the TLA at or below 1 degree, as the A380 start sequence takes the idle.
+//! - The protection acts only on a running engine; the levers in the IDLE detent or in reverse are
+//!   the TLA at or below 1 degree, as the A380 start sequence takes the idle.
 
 use systems::{
     failures::{Failure, FailureType},
@@ -68,7 +61,7 @@ pub struct FadecAutomaticShutdown {
     overthrust_cutback: bool,
 }
 impl FadecAutomaticShutdown {
-    /// "There is no overthrust protection above 15 000 ft, or when the aircraft speed is above M 0.4"
+    /// No overthrust protection above 15 000 ft or above M 0.4
     const OVERTHRUST_PROTECTION_MAX_ALTITUDE_FEET: f64 = 15_000.;
     const OVERTHRUST_PROTECTION_MAX_MACH: f64 = 0.4;
     /// The thrust levers in the IDLE detent or in the reverse range (design choice, see the module)
@@ -126,9 +119,7 @@ impl FadecAutomaticShutdown {
         self.reason != FadecShutdownReason::None
     }
 
-    /// The overthrust protection has shut the engine down: the ENG MASTER FAULT light (DSC-70-90
-    /// l.112856-112858, "The overthrust protection is active and the FADEC automatically shut downs
-    /// the engine").
+    /// The overthrust protection has shut the engine down: the ENG MASTER FAULT light.
     pub fn overthrust_shutdown(&self) -> bool {
         self.reason == FadecShutdownReason::ThrustControlLost
     }

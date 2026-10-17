@@ -16,20 +16,19 @@
  * so that MSFS does not give the real thrust pulse that CoreSpikeGuard_A380X only hides from the FADEC indications. One instance per
  * engine. No MSFS SDK dependency: tested natively (test/run_tests.sh, test/msfs_core_limiter_test.cpp).
  *
- * What MSFS does (sim test 2026-10-08, blip2.log, engine 4 quick relight at FL150/240 kt; the same in s1.log T2, s3_tank1.log,
- * s6_main1.log, b1_inflight.log, cs1.log, tests_0909.log): the in-flight MSFS start accelerates the core at 1 %/s. At 273.94 s the
- * core reaches low_idle_n2 = 60.0 % corrected (engines.cfg) and MSFS ends its start: within 0.5 s the core goes 57.7 -> 96.2 %
- * (100 % corrected, the top of corrected_n2_from_ff_table), stays there 2.3 s, then runs down to 58.4 % by 284 s. Nothing of FBW
- * changes in that instant: MSFS throttle 0 (EngineStartThrottleHold), commanded N1 23.9 %, starter, combustion and fuel valve
- * unchanged, FBW state STARTING until 274.8 s. The MSFS fan follows (22 -> 59.7 % at 276.6 s) and the thrust of engine 4 goes
- * -2 100 -> +11 800 lb and back by 284 s. The MSFS idle target at throttle 0 is about 61 % corrected (the core settles at
- * 60.7-61.2 % corrected), so the start ends at idle: the jump comes from the state of the MSFS fuel flow controller
- * (fuel_flow_controller_p 3.7 / i 0.01 / iboundary 1 on the A380X), wound up while the start held the core below its target.
- * It unwinds only while the core is above the target (the 2.3 s at 100 %). Ground starts (APU bleed) end without it (blip1.log:
- * 60.1 -> 66.4 -> 63.1 %), and so do the A32NX in-flight starts (overshoot.log: 68.7 -> 71.2 %, fuel_flow_controller_p 1).
+ * What MSFS does (measured in the sim, engine 4 quick relight at FL150/240 kt, and in several other in-flight relights): the
+ * in-flight MSFS start accelerates the core at 1 %/s. When the core reaches low_idle_n2 = 60.0 % corrected (engines.cfg) MSFS
+ * ends its start: within 0.5 s the core goes 57.7 -> 96.2 % (100 % corrected, the top of corrected_n2_from_ff_table), stays
+ * there 2.3 s, then runs down to 58.4 % about 10 s later. Nothing of FBW changes in that instant: MSFS throttle 0
+ * (EngineStartThrottleHold), commanded N1 23.9 %, starter, combustion and fuel valve unchanged, FBW state STARTING. The MSFS
+ * fan follows (22 -> 59.7 % in 2.7 s) and the thrust of engine 4 goes -2 100 -> +11 800 lb and back within 10 s. The MSFS idle
+ * target at throttle 0 is about 61 % corrected (the core settles at 60.7-61.2 % corrected), so the start ends at idle: the
+ * jump comes from the state of the MSFS fuel flow controller (fuel_flow_controller_p 3.7 / i 0.01 / iboundary 1 on the
+ * A380X), wound up while the start held the core below its target. It unwinds only while the core is above the target (the
+ * 2.3 s at 100 %). Ground starts (APU bleed) end without it (60.1 -> 66.4 -> 63.1 %), and so do the A32NX in-flight starts
+ * (68.7 -> 71.2 %, fuel_flow_controller_p 1).
  *
- * What a real engine does: A380 FCOM DSC-70-30 IN FLIGHT (a380_fcom.txt l.113575-113580): "When N2 is above 58.4 %: Engine start
- * valve closes ... FADEC stabilizes the engine at idle speed."
+ * What a real engine does: above 58.4 % N2 the start valve closes and the FADEC stabilizes the engine at idle.
  *
  * Design (the engines.cfg values are left alone: they shape the whole MSFS engine response and the A/THR tuning):
  * - Detection: the same as CoreSpikeGuard_A380X (the MSFS core rises faster than 40 %/s from 45-70 %), in flight only. A normal
@@ -52,28 +51,28 @@
  */
 class MsfsCoreLimiter_A380X {
  public:
-  /// Design choice: the hold level above the FBW idle N3 (L:A32NX_ENGINE_IDLE_N3, 61.2 % at FL150 in blip2.log, where MSFS idles at
-  /// 58.4-58.9 %): about 10 % of core above the MSFS idle target. The fuel flow controller unwinds the faster the higher the core is
-  /// held, and it must have unwound before EngineStartThrottleHold releases the throttle (10 s after the start end, 285 s in
-  /// blip2.log): otherwise the rest of the jump comes with the acceleration to the climb. In the engine model of the test
+  /// Design choice: the hold level above the FBW idle N3 (L:A32NX_ENGINE_IDLE_N3, 61.2 % at FL150 in the sim, where MSFS idles
+  /// at 58.4-58.9 %): about 10 % of core above the MSFS idle target. The fuel flow controller unwinds the faster the higher the
+  /// core is held, and it must have unwound before EngineStartThrottleHold releases the throttle (10 s after the start end):
+  /// otherwise the rest of the jump comes with the acceleration to the climb. In the engine model of the test
   /// (msfs_core_limiter_test.cpp) 3 % unwinds in 26 s and gives a climb overshoot to 95 % (core) with the throttle released after
-  /// 11 s, 8 % unwinds in 14 s and gives none. Held there the engine gives about +2 600 to +3 300 lb (blip2.log 279-280 s: core 70.9
-  /// to 73.7 % corrected) instead of the +11 800 lb of the jump, over the -2 100 lb of an idling engine.
+  /// 11 s, 8 % unwinds in 14 s and gives none. Held there the engine gives about +2 600 to +3 300 lb (measured in the sim: core
+  /// 70.9 to 73.7 % corrected) instead of the +11 800 lb of the jump, over the -2 100 lb of an idling engine.
   static constexpr double HOLD_MARGIN_PERCENT = 8.0;
   /// Design choice: the core acceleration the ceiling allows, about the fastest normal MSFS acceleration of the A380X (11 %/s
-  /// recorded, sim tests 2026-10-06) and of the order of the certified engine acceleration (14 CFR 33.73(b) / CS-E 745: flight idle
+  /// measured in the sim) and of the order of the certification acceleration of an engine (flight idle
   /// to 95 % takeoff thrust in 5 s or less: about 7 %/s of N3).
   static constexpr double ACCELERATION_PERCENT_PER_SECOND = 10.0;
   /// Design choice: MSFS asks for more than the speed reached once its fan is this far below its commanded N1 (both corrected). At
-  /// idle the fan settles within 0.5 % of the command (blip2.log 283-285 s: 24.3-25.1 % against 23.9 %).
+  /// idle the fan settles within 0.5 % of the command (measured: 24.3-25.1 % against 23.9 %).
   static constexpr double ACCELERATION_DEMAND_MARGIN_PERCENT = 2.0;
   /// Design choice: MSFS counts as no longer pushing the core up once it stays within this margin of the ceiling.
   static constexpr double RELEASE_MARGIN_PERCENT = 0.3;
   /// Design choice: how long MSFS must stay at or below the ceiling before the limiter ends.
   static constexpr double RELEASE_CONFIRM_SECONDS = 1.0;
-  /// Design choice (no recorded value: the unwinding under the limiter is only known from the sim test): the longest hold, about
-  /// twice the 14 s the engine model of the test needs at HOLD_MARGIN_PERCENT. After it the ceiling rises at the acceleration rate:
-  /// the rest of the jump, if any, comes at a normal acceleration rate instead of 100 %/s.
+  /// Design choice (no recorded value: the unwinding under the limiter is only known from the engine model): the longest hold,
+  /// about twice the 14 s the engine model of the test needs at HOLD_MARGIN_PERCENT. After it the ceiling rises at the
+  /// acceleration rate: the rest of the jump, if any, comes at a normal acceleration rate instead of 100 %/s.
   static constexpr double MAX_HOLD_SECONDS = 30.0;
 
   struct Inputs {

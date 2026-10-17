@@ -173,8 +173,8 @@ pub struct A380AutobrakeController {
     external_deactivation_event_id: VariableIdentifier,
 
     auto_brk_fault_id: VariableIdentifier,
-    /// The autobrake is failed (flyPad failure 32113): BRAKES AUTO BRK FAULT, "e.g. RTO pb failed, AUTO BRK selector
-    /// failed, position of spoilers not available" (A380 FCOM l.159953-159954)
+    /// The autobrake is failed (flyPad failure 32113): BRAKES AUTO BRK FAULT (e.g. RTO pb failed, AUTO BRK selector
+    /// failed, spoiler position not available)
     autobrake_failure: Failure,
 
     deceleration_governor: AutobrakeDecelerationGovernor,
@@ -342,8 +342,7 @@ impl A380AutobrakeController {
             && !self.should_disarm(context)
     }
 
-    /// A380 FCOM DSC-32-10-30-20 (a380_fcom.txt l.79071-79073): "the RTO mode does not activate below 40 kt. If the
-    /// flight crew selects the RTO mode by error above 40 kt during the landing roll, the RTO mode will activate."
+    /// The RTO mode does not activate below 40 kt; selected by error above 40 kt during the landing roll, it activates.
     /// The speed only gates the activation: an RTO braking that is already active continues down to the stop.
     fn rto_activation_speed_condition(&self, context: &UpdateContext) -> bool {
         self.mode != A380AutobrakeMode::RTO
@@ -443,13 +442,11 @@ impl A380AutobrakeController {
             || (self.deceleration_governor.is_engaged()
                 && (self.external_deactivation_event && self.mode != A380AutobrakeMode::RTO))
             || (context.is_sim_ready() && !self.arming_is_allowed_by_bcu)
-            // A failed autobrake cannot be armed: STATUS INOP SYS AUTO BRK (BRAKES AUTO BRK FAULT, A380 FCOM PDF
-            // p.5448)
+            // A failed autobrake cannot be armed: STATUS INOP SYS AUTO BRK (BRAKES AUTO BRK FAULT)
             || self.autobrake_failure.is_active()
             || self.spoilers_retracted_during_this_update()
-            // A380 FCOM DSC-32-10-30 BASIC AUTO BRK DISARMING (a380_fcom.txt l.79081): "The aircraft is in flight for
-            // more than 10 s (for RTO mode only)"; "A landing AUTO BRK mode can be armed in flight, and on ground"
-            // (l.80928-80929): a landing mode armed on the ground stays armed after take-off.
+            // Only the RTO mode disarms after 10 s in flight; a landing mode can be armed in flight and on the ground,
+            // so a landing mode armed on the ground stays armed after take-off.
             || (self.mode == A380AutobrakeMode::RTO && self.should_disarm_after_time_in_flight.output())
             || (self.mode == A380AutobrakeMode::RTO
                 && self.should_reject_rto_mode_after_time_in_flight.output())
@@ -739,12 +736,10 @@ impl AutobrakeRunwayOverrunProtection {
 
     /// The ROP maximum braking after this update.
     ///
-    /// A380 FCOM DSC-32-10-30-20 ROP (a380_fcom.txt l.79800-79813): "ROP applies maximum braking limited by A-SKID
-    /// (independently of BTV or basic autobrake mode)". "The detection of an overrun situation is reversible. If the
-    /// maximum braking application and the deceleration rate allow ROP to compute a landing distance shorter than the
-    /// remaining runway length, ROP deactivates. ROP returns to armed state. The previously selected autobrake mode is
-    /// active again." "When ROP is active, the flight crew can disconnect the maximum braking only by overriding the
-    /// braking with a brake pedal application. In this situation, the flight crew reverts to pedal braking."
+    /// ROP applies the maximum braking limited by A-SKID, whatever the autobrake mode. The overrun detection is
+    /// reversible: when the maximum braking and the deceleration give a landing distance shorter than the remaining
+    /// runway, ROP returns to armed and the selected autobrake mode is active again. The crew can only disconnect the
+    /// maximum braking by overriding it with the pedals, which reverts to pedal braking.
     ///
     /// - The maximum braking stops with the autobrake (the pedal override disarms it) or when the runway end is lost,
     ///   at any speed.
@@ -1556,12 +1551,11 @@ impl SimulationElement for BtvDecelScheduler {
             raw_feet_exit_length_arinc.ssm(),
         );
 
-        // A380 FCOM DSC-32-20-220 BTV ARMING (a380_fcom.txt l.79398-79404): "No ECAM warning affects landing distances",
-        // and LIM-32 (l.188646): "BTV cannot be used in the case of ECAM alert that impact the landing performance".
-        // The FCDC BTV LOST covers the flight control, hydraulic, electrical, ADIRU and OANS losses; the FWS adds the
-        // alerts that list BTV in STATUS INOP SYS on their own (ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER
-        // failures, FwsCore engineOutBtvInop / reverserBtvInop). Design choice: both act the same way, BTV does not arm
-        // and an armed BTV reverts to BRK HI (l.79434-79436: "if any arming condition is lost ... reverts to BRK HI").
+        // BTV cannot be used with an ECAM alert that impacts the landing performance. The FCDC BTV LOST covers the
+        // flight control, hydraulic, electrical, ADIRU and OANS losses; the FWS adds the alerts that list BTV in
+        // STATUS INOP SYS on their own (ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER failures, FwsCore
+        // engineOutBtvInop / reverserBtvInop). Design choice: both act the same way, BTV does not arm and an armed
+        // BTV reverts to BRK HI (as when any arming condition is lost).
         let fcdc_btv_lost: bool = reader.read(&self.btv_lost_id);
         let fws_btv_inop: bool = reader.read(&self.fws_btv_inop_id);
         self.btv_lost = fcdc_btv_lost || fws_btv_inop;
@@ -1637,9 +1631,8 @@ mod runway_overrun_protection_tests {
     }
 
     #[test]
-    // A380 FCOM l.79807-79810: "If the maximum braking application and the deceleration rate allow ROP to compute a
-    // landing distance shorter than the remaining runway length, ROP deactivates ... The previously selected autobrake
-    // mode is active again."
+    // When the maximum braking and the deceleration give a landing distance shorter than the remaining runway, ROP
+    // deactivates and the selected autobrake mode is active again
     fn rop_reverts_when_the_stopping_distance_is_shorter_than_the_remaining_runway() {
         assert!(!max_braking(braking_inputs()));
     }
@@ -1671,8 +1664,8 @@ mod runway_overrun_protection_tests {
     }
 
     #[test]
-    // A380 FCOM l.79811-79812: the pedal override (it disarms the autobrake) disconnects the maximum braking, also
-    // below the ROW/ROP arming speed (the maximum braking stayed latched there)
+    // The pedal override (it disarms the autobrake) disconnects the maximum braking, also below the ROW/ROP arming
+    // speed (the maximum braking stayed latched there)
     fn rop_releases_the_maximum_braking_when_the_autobrake_disengages_at_low_speed() {
         assert!(!max_braking(RopBrakingInputs {
             rop_operative: false,
@@ -1692,7 +1685,7 @@ mod runway_overrun_protection_tests {
     }
 
     #[test]
-    // A380 FCOM l.79800-79803: ROP applies the maximum braking when an overrun is detected
+    // ROP applies the maximum braking when an overrun is detected
     fn rop_starts_the_maximum_braking_when_an_overrun_is_detected() {
         let armed = RopBrakingInputs {
             was_braking: false,
