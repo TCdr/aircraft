@@ -12,7 +12,7 @@ import {
   innerTanksQtyLoLines,
   InnerTanksQtyLoInputs,
   isInnerTanksQtyLo,
-  ROUND8_FUEL_PHASE_INHIBITION,
+  FUEL_FEED_BALANCE_PHASE_INHIBITION,
   SeenAllOffSincePulse,
   WING_FEED_PUMPS_FAULT_STATUS,
   wingFeedPumpsFaultLines,
@@ -20,7 +20,7 @@ import {
   WingsBalanceMonitor,
   wingsBalancedLines,
   wingsNotBalancedLines,
-} from './FwsFuelAlertsRound8';
+} from './FwsFuelFeedBalanceAlerts';
 
 /* The source texts (importing the EcamMessages tables in a test fails on a circular import, see FwsCdsDuFault.spec.ts) */
 const messagesDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
@@ -70,7 +70,7 @@ const pumpsOff = (): FeedTankPumpFlags => ({
 });
 const NONE = [false, false, false, false];
 
-describe('FUEL L(R) WING FEED PMPs FAULT (A380 FCOM l.151700-151704)', () => {
+describe('FUEL L(R) WING FEED PMPs FAULT', () => {
   it('is raised when both pumps of feed tanks 1 and 2 are faulty, and replaces their MAIN + STBY PMPs FAULT', () => {
     const alerts = feedPumpAlertsWithWings(
       [pumpsFailed(), pumpsFailed(), pumpsOn(), pumpsOn()],
@@ -126,8 +126,8 @@ describe('FUEL L(R) WING FEED PMPs FAULT (A380 FCOM l.151700-151704)', () => {
     expect(failed.tanks[0].mainAndStbyFault).toBe(true);
   });
 
-  it('is a master caution on the FUEL page, inhibited in phases 4-7, 9, 10 (PDF p.5216)', () => {
-    expect(ROUND8_FUEL_PHASE_INHIBITION.wingFeedPumpsFault).toEqual([4, 5, 6, 7, 9, 10]);
+  it('is a master caution on the FUEL page, inhibited in phases 4-7, 9, 10', () => {
+    expect(FUEL_FEED_BALANCE_PHASE_INHIBITION.wingFeedPumpsFault).toEqual([4, 5, 6, 7, 9, 10]);
     for (const [id, side] of [
       ['281800070', 0],
       ['281800071', 1],
@@ -153,7 +153,7 @@ function inputs(overrides: Partial<FuelProcedureInputs> = {}): FuelProcedureInpu
   };
 }
 
-describe('FUEL L(R) WING FEED PMPs FAULT procedure (l.151757-151873)', () => {
+describe('FUEL L(R) WING FEED PMPs FAULT procedure', () => {
   it.each([0, 1] as const)('side %i: one shown and one checked flag per item of ata28.ts', (side) => {
     const lines = wingFeedPumpsFaultLines(inputs(), side, false);
     const id = side === 0 ? '281800070' : '281800071';
@@ -240,7 +240,7 @@ function balanceInputs(overrides: Partial<WingsBalanceInputs> = {}): WingsBalanc
   };
 }
 
-describe('FUEL WINGS NOT BALANCED / WINGS BALANCED (l.154808-154919, l.154594-154616)', () => {
+describe('FUEL WINGS NOT BALANCED / WINGS BALANCED', () => {
   it('in flight: more than 6 600 lb (2 994 kg) between feed tanks 1 and 4 triggers, 2 990 kg does not', () => {
     expect(
       new WingsBalanceMonitor().update(balanceInputs({ feedKg: [17_010, 20_000, 20_000, 20_000] })).notBalanced,
@@ -356,9 +356,9 @@ describe('FUEL WINGS NOT BALANCED / WINGS BALANCED (l.154808-154919, l.154594-15
     expect(lines.checked.slice(7)).toEqual([false, true, true, true, true, false, true]);
   });
 
-  it('both alerts are master cautions on the FUEL page, inhibited in phases 3-7, 9, 10 (PDF p.5294, p.5289)', () => {
-    expect(ROUND8_FUEL_PHASE_INHIBITION.wingsNotBalanced).toEqual([3, 4, 5, 6, 7, 9, 10]);
-    expect(ROUND8_FUEL_PHASE_INHIBITION.wingsBalanced).toEqual([3, 4, 5, 6, 7, 9, 10]);
+  it('both alerts are master cautions on the FUEL page, inhibited in phases 3-7, 9, 10', () => {
+    expect(FUEL_FEED_BALANCE_PHASE_INHIBITION.wingsNotBalanced).toEqual([3, 4, 5, 6, 7, 9, 10]);
+    expect(FUEL_FEED_BALANCE_PHASE_INHIBITION.wingsBalanced).toEqual([3, 4, 5, 6, 7, 9, 10]);
     expect(alertBlock('281800100')).toContain('simVarIsActive: this.fws.fuelWingsNotBalanced');
     expect(alertBlock('281800098')).toContain('simVarIsActive: this.fws.fuelWingsBalanced');
     expect(alertBlock('281800100')).toContain("['280400002']"); // DELAY T.O on the ground
@@ -377,7 +377,7 @@ function qtyLoInputs(overrides: Partial<InnerTanksQtyLoInputs> = {}): InnerTanks
   };
 }
 
-describe('FUEL INR TKs QTY LO (l.151124-151127)', () => {
+describe('FUEL INR TKs QTY LO', () => {
   it('FOB above 110 200 lb (49 986 kg) and an inner tank below 11 200 lb (5 080 kg), ZFW/ZFCG entered', () => {
     expect(isInnerTanksQtyLo(qtyLoInputs())).toBe(true);
     expect(isInnerTanksQtyLo(qtyLoInputs({ fobKg: 49_980 }))).toBe(false);
@@ -394,7 +394,7 @@ describe('FUEL INR TKs QTY LO (l.151124-151127)', () => {
 
   it('procedure IF REFUEL NOT PLANNED : AUTO GND XFR ON, INFO EACH INR TK : 5100 KG MIN FOR T.O, phases 3-11', () => {
     expect(innerTanksQtyLoLines().show).toHaveLength(itemCount('281800051'));
-    expect(ROUND8_FUEL_PHASE_INHIBITION.innerTanksQtyLo).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(FUEL_FEED_BALANCE_PHASE_INHIBITION.innerTanksQtyLo).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(alertBlock('281800051')).toContain("info: () => ['280200012']");
     expect(ecamIndex).toContain("280200012: '\\x1b<3mEACH INR TK : 5100 KG MIN FOR T.O'");
   });

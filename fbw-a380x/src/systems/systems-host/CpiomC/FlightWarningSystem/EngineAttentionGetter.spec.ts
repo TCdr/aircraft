@@ -20,18 +20,18 @@ const normal: EngineAttentionGetterInputs = {
   reverserIndicationAmber: false,
 };
 
-/* A380 FCOM DSC-70-90 ATTENTION GETTING BOX, a380_fcom.txt l.112876-112904 (FCOM audit T2-44, row B17) */
+/* Engine attention getting box */
 describe('engine amber attention getting box: the other amber and red indications', () => {
   it('no box with normal indications', () => {
     expect(hasOtherAmberOrRedEngineIndication(normal)).toBe(false);
   });
 
-  it('the oil pressure in red at or below 25 PSI (l.113385)', () => {
+  it('the oil pressure in red at or below 25 PSI', () => {
     expect(hasOtherAmberOrRedEngineIndication({ ...normal, oilPressurePsi: 25 })).toBe(true);
     expect(hasOtherAmberOrRedEngineIndication({ ...normal, oilPressurePsi: 26 })).toBe(false);
   });
 
-  it('the oil temperature in amber above 177 °C (l.113371)', () => {
+  it('the oil temperature in amber above 177 °C', () => {
     expect(hasOtherAmberOrRedEngineIndication({ ...normal, oilTemperatureCelsius: 178 })).toBe(true);
     expect(hasOtherAmberOrRedEngineIndication({ ...normal, oilTemperatureCelsius: 177 })).toBe(false);
   });
@@ -50,7 +50,7 @@ describe('engine amber attention getting box: the other amber and red indication
   });
 });
 
-/* A380 FCOM DSC-70-90 REV 2(3) INDICATIONS, a380_fcom.txt l.113134-113142 */
+/* REV 2(3) indications */
 describe('amber REV 2(3) indication', () => {
   it('on ground: the lever in the reverse range and the reverse mode not available', () => {
     expect(isReverserIndicationAmber(true, -10, true, false)).toBe(true);

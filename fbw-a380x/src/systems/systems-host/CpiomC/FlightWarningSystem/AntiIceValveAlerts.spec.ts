@@ -34,8 +34,6 @@ function alertsAfter(input: AntiIceValveInputs, seconds: number): AntiIceValveAl
   return alerts;
 }
 
-/* A380 FCOM PRO-ABN-ECAM-10-30 A-ICE ENG 1(2)(3)(4) VLV CLOSED, a380_fcom.txt l.156377: "The ENG 1(2)(3)(4) anti-ice
- * valve is abnormally closed." */
 describe('A-ICE ENG 1(2)(3)(4) VLV CLOSED', () => {
   const engine3PbOnValveClosed = (engineRunning: boolean) =>
     inputs({
@@ -58,7 +56,6 @@ describe('A-ICE ENG 1(2)(3)(4) VLV CLOSED', () => {
   });
 });
 
-/* A-ICE ENG 1(2)(3)(4) VLV OPEN, l.156508: "The ENG 1(2)(3)(4) anti-ice valve is abnormally open." */
 describe('A-ICE ENG 1(2)(3)(4) VLV OPEN', () => {
   it('triggers when a valve stays open with its pb OFF', () => {
     const input = inputs({
@@ -70,8 +67,7 @@ describe('A-ICE ENG 1(2)(3)(4) VLV OPEN', () => {
   });
 });
 
-/* A-ICE L(R) WING VLV CLOSED / OPEN / PRESS HI / PRESS LO (l.156743-157053), on the AICU monitoring of the systems
- * model */
+/* A-ICE L(R) WING VLV CLOSED / OPEN / PRESS HI / PRESS LO, on the AICU monitoring of the systems model */
 describe('A-ICE L(R) WING VLV alerts', () => {
   it('follow the AICU monitoring flags of their wing after the confirmation time', () => {
     const input = inputs({
@@ -92,7 +88,6 @@ describe('A-ICE L(R) WING VLV alerts', () => {
   });
 });
 
-/* A-ICE L(R) WING VLV OPEN procedure, l.156871-156896 */
 describe('A-ICE L(R) WING VLV OPEN lines', () => {
   const controls: WingBleedControls = {
     onGround: true,
@@ -139,7 +134,6 @@ describe('A-ICE L(R) WING VLV OPEN lines', () => {
   });
 });
 
-/* A-ICE L(R) WING VLV PRESS LO procedure, l.156982-156998, and STATUS l.157052-157053 */
 describe('A-ICE L(R) WING VLV PRESS LO lines', () => {
   it('shows WING A-ICE OFF on ground, THRUST INCREASE then IF NOT SUCCESSFUL in flight', () => {
     expect(wingPressLoLines(true, true)).toEqual({

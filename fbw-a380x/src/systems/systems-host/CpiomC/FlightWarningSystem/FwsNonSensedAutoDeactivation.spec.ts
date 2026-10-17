@@ -10,10 +10,6 @@ import {
   NonSensedProcAutoDeactivation,
 } from './FwsNonSensedAutoDeactivation';
 
-/*
- * A380 FCOM DSC-31-40-10 (a380_fcom.txt l.71859-71860): "A not-sensed ABN PROC is automatically deactivated 15 minutes
- * after the last engine shutdown, or 10 minutes after aircraft electrical power-up."
- */
 const MINUTE = 60 * 1000;
 const STEP = 500;
 
@@ -37,7 +33,7 @@ function run(
 }
 
 describe('Automatic deactivation of the not-sensed ABN PROCs', () => {
-  it('uses the FCOM delays: 15 min after the last engine shutdown, 10 min after power-up', () => {
+  it('uses the delays: 15 min after the last engine shutdown, 10 min after power-up', () => {
     expect(DEACTIVATION_AFTER_LAST_ENGINE_SHUTDOWN_MS).toBe(15 * MINUTE);
     expect(DEACTIVATION_AFTER_POWER_UP_MS).toBe(10 * MINUTE);
   });

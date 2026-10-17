@@ -232,7 +232,7 @@ export class FwsFlightPhases {
       SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'number'),
       SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_DERATE', 'number'),
     );
-    // each engine judged on its own thrust lever (FwsTakeoffPower)
+    // each engine judged on its own thrust lever
     const twoEnginesTOPowerSignal = twoEnginesTakeoffPowerSignal([eng1TLA, eng2TLA, eng3TLA, eng4TLA], flexTempSet);
 
     const twoEnginesTOPower =

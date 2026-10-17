@@ -21,7 +21,7 @@ describe('A380X FWS take-off power signal', () => {
     expect(engineTakeoffPowerSignal(IDLE, true)).toBe(false);
   });
 
-  // A380 FCOM DSC-22-FG-50-30 l.11406-11408: a derated takeoff is made at the FLX-MCT detent, as a FLEX takeoff
+  // A derated takeoff is made at the FLX-MCT detent, as a FLEX takeoff
   it('takes the FLX/MCT detent as take-off power with a FLEX TEMP or a derate', () => {
     expect(reducedTakeoffThrustSet(60, 0)).toBe(true);
     expect(reducedTakeoffThrustSet(0.1, 0)).toBe(true);

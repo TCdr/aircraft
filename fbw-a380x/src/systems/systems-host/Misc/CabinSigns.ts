@@ -6,22 +6,16 @@ import { Arinc429Register, Arinc429WordData } from '@flybywiresim/fbw-sdk';
 import { readCabinAltitudeFt } from './CabinOxygenMasks';
 
 /*
- * The cabin FASTEN SEAT BELT and NO SMOKING signs.
- * A380 FCOM DSC-33-50-10 SIGNS, SEAT BELTS sw (a380_fcom.txt l.84053-84069):
- * - ON: "The FASTEN SEAT BELT signs and the RETURN TO SEAT signs come on in the cabin."
- * - AUTO: "The FASTEN SEAT BELT signs and the RETURN TO SEAT signs come on automatically in the cabin, when: The slats
- *   are extended, or The main landing gear is extended." (l.84059-84063)
- * - OFF: "The FASTEN SEAT BELT signs and the RETURN TO SEAT signs go off in the cabin."
+ * The cabin FASTEN SEAT BELT and NO SMOKING signs. The SEAT BELTS sw drives the FASTEN SEAT BELT and RETURN TO SEAT
+ * signs, the NO SMOKING sw the NO SMOKING and EXIT signs; both switches work alike:
+ * - ON: the signs come on.
+ * - AUTO: the signs come on while the slats or the main landing gear are extended.
+ * - OFF: the signs go off.
+ * An excessive cabin altitude (above the higher of 9 550 ft and the landing field elevation + 1 000 ft) turns all these
+ * signs on, whatever the switch positions.
  * The FASTEN SEAT BELT signs are the sim's A:CABIN SEATBELTS ALERT SWITCH (read by the FWS SIGNS memos).
  * The NO SMOKING signs: L:A32NX_NO_SMOKING_MEMO (the signs are on, read by the T.O and LDG memos of the FWS and by
- * the cabin chime of sound.xml). A380 FCOM DSC-33-50-10 SIGNS, NO SMOKING sw (a380_fcom.txt l.84079-84098):
- * - ON: "The NO SMOKING signs and the EXIT signs come on in the cabin."
- * - AUTO: "The NO SMOKING signs and the EXIT signs come on automatically in the cabin, when: The slats are extended, or
- *   The main landing gear is extended." (l.84083-84087)
- * - OFF: "The NO SMOKING signs and the EXIT signs go off in the cabin."
- * - Note (l.84095-84098): "In the case of excessive cabin altitude (i.e. if the cabin altitude exceeds the maximum of:
- *   9 550 ft and the landing field elevation + 1 000 ft), then the NO SMOKING signs, the FASTEN SEAT BELT signs, and the
- *   EXIT signs come on in the cabin, regardless of the position of the SEAT BELT sw and of the NO SMOKING sw."
+ * the cabin chime of sound.xml).
  * The signs are a CIDS function; the CIDS is not modelled, so this module stands in for it.
  */
 
@@ -35,14 +29,14 @@ export enum CabinSignsSwitchPosition {
 /** L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position */
 export { CabinSignsSwitchPosition as NoSmokingSwitchPosition };
 
-/** "the maximum of: 9 550 ft and the landing field elevation + 1 000 ft" (l.84095-84096) */
+/** The cabin altitude is excessive above the higher of 9 550 ft and the landing field elevation + 1 000 ft */
 const EXCESSIVE_CABIN_ALTITUDE_MIN_FT = 9550;
 const EXCESSIVE_CABIN_ALTITUDE_ABOVE_LANDING_FIELD_FT = 1000;
 
 /**
  * @param cabinAltitudeFt the cabin altitude, null without a valid value
  * @param landingFieldElevationFt the landing field elevation, null without a valid value (then 9 550 ft applies)
- * @returns the cabin altitude is excessive (l.84095-84096)
+ * @returns the cabin altitude is excessive
  */
 export function isCabinAltitudeExcessive(
   cabinAltitudeFt: number | null,
@@ -70,7 +64,7 @@ export type SeatBeltsSignsInputs = CabinSignsInputs;
 
 /**
  * The SEAT BELTS and NO SMOKING sw work alike: ON, AUTO on slats or main gear extended, OFF; an excessive cabin altitude
- * turns both signs on regardless of the switch (l.84059-84063, l.84083-84087, l.84095-84098).
+ * turns both signs on regardless of the switch.
  * @returns the signs of the switch are on
  */
 function areCabinSignsOn(inputs: CabinSignsInputs): boolean {
@@ -98,8 +92,8 @@ export function areSeatBeltsSignsOn(inputs: SeatBeltsSignsInputs): boolean {
 const SEAT_BELTS_TOGGLE_SETTLE_TIME_MS = 1000;
 
 /**
- * The slats are extended: no SFCC with a valid slat/flap actual position word reports them retracted (bit 12, the bit the
- * FWS reads for "slats retracted").
+ * The slats are extended: no SFCC with a valid slat/flap actual position word reports them retracted (bit 12, the bit
+ * the FWS reads for "slats retracted").
  * @param sfccWords the slat/flap actual position words of SFCC 1 and 2
  */
 export function areSlatsExtended(sfccWords: readonly Arinc429WordData[]): boolean {

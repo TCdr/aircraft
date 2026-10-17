@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * What the EMER CANC pb of the ECP has cancelled (A380 FCOM DSC-31-40-20 P 5):
+ * What the EMER CANC pb of the ECP has cancelled:
  * - a caution is cancelled for the remainder of the flight, even if its triggering conditions occur again; the STATUS
  *   page lists it under CANCELLED CAUTION, and RCL pressed for more than 3 s brings it back if it is still active,
  * - a warning only loses its audio indicator and MASTER WARN light: its procedure stays on the EWD, and if the warning is

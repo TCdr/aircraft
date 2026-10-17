@@ -19,42 +19,39 @@ import {
 } from './FuelTransferSchedule';
 
 /*
- * The A380 alternate fuel transfers after a transfer pump failure (A380 FCOM DSC-28-40 ALTERNATE TRANSFERS,
- * a380_fcom.txt l.59681-59846): "When a failure affects the fuel system (eg: pump or valve failure), the FQMS remains
- * capable of performing automatic transfers. Depending on the failure: Normal transfers remain available, or Normal
- * transfers are lost. Alternate automatic transfers takeover." (l.59686-59691). The failures of the simulation are pump
- * failures: CASE 4 (INR TK PMP, MID TK PMP failed) and CASE 5 (OUTR TK PMP failed). CASES 1, 2, 3 and 6 follow transfer
- * valve failures, which the simulation has not.
+ * The A380 alternate fuel transfers after a transfer pump failure: the FQMS keeps transferring automatically, by
+ * alternate transfers when the normal ones are lost. The simulation only has pump failures: the gallery functionality
+ * swap (INR TK PMP, MID TK PMP failed) and the gravity transfer from the outer tanks (OUTR TK PMP failed). The other
+ * alternate transfers follow transfer valve failures, which the simulation does not have.
  */
 
-/** A gravity transfer from an outer tank with a failed pump is in progress (CASE 5): FUEL NORM XFR FAULT */
+/** A gravity transfer from an outer tank with a failed pump is in progress: FUEL NORM XFR FAULT */
 export const OUTR_TK_GRAVITY_XFR_IN_PROGRESS_VAR = 'L:A380X_FUEL_ALTN_OUTR_TK_GRAVITY_XFR_IN_PROGRESS';
 
 /**
- * "The transfer starts when the lowest feed tank quantity goes below 28 660 lb. Thus the transfer from the outer tanks to
- * the feed tanks occurs before the transfer from the trim tank." (CASE 5, l.59835-59836)
+ * The outer tank gravity transfer starts when the lowest feed tank goes below this quantity, so it comes before the
+ * transfer from the trim tank.
  */
 export const OUTER_GRAVITY_START_LOWEST_FEED_TANK_LB = 28_660;
 
 /**
- * The gravity flow out of an outer tank, in gallons per hour (design choice: the FCOM gives no rate; the 500 gal/h of the
- * gravity lines of the MSFS fuel system, flight_model.cfg Line.142-145)
+ * The gravity flow out of an outer tank, in gallons per hour. Design choice: no rate is published; this is the
+ * 500 gal/h of the gravity lines of the MSFS fuel system (flight_model.cfg Line.142-145).
  */
 export const OUTER_TANK_GRAVITY_RATE_GAL_PER_H = 500;
 
 /**
- * The main transfer rate from an inner or mid tank, in pounds per hour per feed tank: "approximately 22 050 lb/h per
- * feed tank" (l.59276). Both tanks of the pair pump into the forward gallery: one tank gives half of it.
+ * The main transfer rate from an inner or mid tank, in pounds per hour per feed tank (approximate published value).
+ * Both tanks of the pair pump into the forward gallery: one tank gives half of it.
  */
 export const MAIN_TRANSFER_RATE_LB_PER_H_PER_FEED_TANK = 22_050;
 
 /**
- * CASE 5: GRAVITY TRANSFER FROM THE OUTER TANKS (l.59830-59846): "The FUEL L(R) OUTR TK PMP FAULT alert is triggered.
- * The transfers from the outer tanks are done by gravity. All the other transfers are normal. The transfer starts when the
- * lowest feed tank quantity goes below 28 660 lb [...] Simultaneously, the FUEL NORM XFR FAULT alert is triggered. The
- * ECAM procedure requests to open the emergency outer tank transfer valves. Fuel transfers from the outer tanks: To feed
- * tanks 1 and 4, via the forward gallery, and via the emergency outer tank transfer valves - To feed tanks 2 and 3, via
- * the aft gallery."
+ * Gravity transfer from the outer tanks: with FUEL L(R) OUTR TK PMP FAULT the outer tank fuel goes by gravity, all
+ * the other transfers stay normal. It starts below OUTER_GRAVITY_START_LOWEST_FEED_TANK_LB, together with FUEL NORM
+ * XFR FAULT, whose procedure opens the emergency outer tank transfer valves. The outer tank fuel then goes to feed
+ * tanks 1 and 4 through the forward gallery and the emergency valves, and to feed tanks 2 and 3 through the aft
+ * gallery.
  * The flow into feed tanks 1 and 4 is the MSFS gravity line of the emergency outer tank transfer valves
  * (CpiomF/FuelEmerOuterTransfer, EMER OUTR TK XFR pb-sw); this transfer is the flow into feed tank 2 (left outer tank)
  * and 3 (right outer tank). In flight only, as the other automatic transfers; it stops when the outer tank is empty or
@@ -92,7 +89,7 @@ const OUTER_GRAVITY_ROUTES = [
   { outer: RIGHT_OUTER_TANK, feedTank: FEED_TANK_3 },
 ];
 
-/** The fuel moves of the CASE 5 gravity transfers over one update (MSFS tanks moved directly: no such MSFS line) */
+/** The fuel moves of the outer tank gravity transfers over one update (MSFS tanks moved directly: no such MSFS line) */
 export function outerTankGravityMoves(
   running: readonly [boolean, boolean],
   levels: TankLevels,
@@ -113,7 +110,7 @@ export interface ForwardGalleryPump {
   readonly pump: number;
   /** The MSFS tank (Tank.N) */
   readonly tank: number;
-  /** The circuit of the aft pump of the same tank (its pb-sw), which takes over (CASE 4) */
+  /** The circuit of the aft pump of the same tank (its pb-sw), which takes over when the fwd pump fails */
   readonly aftPumpCircuit: number;
 }
 
@@ -141,13 +138,12 @@ export const MAIN_TRANSFER_FEED_TANK_VALVES: readonly { feedTank: number; valves
 ];
 
 /**
- * CASE 4: GALLERY FUNCTIONALITY SWAP (l.59820-59828): "The FUEL L(R) INR(MID) TK FWD PMP FAULT caution is triggered. For
- * the affected tank: Main transfers and load alleviation transfers from/to the outer tanks are done via the aft gallery
- * [...] All the other transfers are normal."
+ * Gallery functionality swap: with FUEL L(R) INR(MID) TK FWD PMP FAULT, the main and load alleviation transfers of the
+ * affected tank go through the aft gallery; all the other transfers stay normal.
  * The MSFS main transfers run the fwd pumps of both inner (mid) tanks into the forward gallery; a failed fwd pump is held
  * off (CpiomF/FuelPumpsAndValves), so the fuel of its tank would stay there. When the FQMS commands a failed fwd pump on,
  * the aft pump of its tank (pb-sw ON) takes over: the fuel moves from that tank into the feed tanks that receive the main
- * transfer, at half the FCOM rate per feed tank (the share of one of the two tanks pumping). The MSFS tanks are moved
+ * transfer, at half the main rate per feed tank (the share of one of the two tanks pumping). The MSFS tanks are moved
  * directly (the aft gallery lines are used by other transfers).
  * @param substitutedTanks the inner or mid tanks whose failed fwd pump the FQMS commands on and whose aft pump can run
  * @param receivingFeedTanks the feed tanks receiving the main transfer (open inlet valve)

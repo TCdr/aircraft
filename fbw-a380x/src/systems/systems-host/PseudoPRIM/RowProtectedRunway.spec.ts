@@ -6,19 +6,18 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { shouldProtectDetectedRunway } from './RowProtectedRunway';
 
-/* A380 FCOM DSC-32-10-30-20 ROW ARMING PHASE (a380_fcom.txt l.79512-79519) */
 describe('A380X ROW protected runway', () => {
-  it('basic auto-brake or pedal braking: the detected runway is protected from 500 ft (l.79512-79514)', () => {
+  it('basic auto-brake or pedal braking: the detected runway is protected from 500 ft', () => {
     expect(shouldProtectDetectedRunway(480, false, 'EDDF25C', 'EDDF25L')).toBe(true);
     expect(shouldProtectDetectedRunway(400, false, null, 'EDDF25L')).toBe(true);
   });
 
-  it('BTV: the selected runway stays protected between 500 ft and 300 ft (l.79516-79518)', () => {
+  it('BTV: the selected runway stays protected between 500 ft and 300 ft', () => {
     expect(shouldProtectDetectedRunway(480, true, 'EDDF25C', 'EDDF25L')).toBe(false);
     expect(shouldProtectDetectedRunway(340, true, 'EDDF25C', 'EDDF25L')).toBe(false);
   });
 
-  it('BTV: the detection "is performed only at 300 ft" (l.79516)', () => {
+  it('BTV: the detection "is performed only at 300 ft"', () => {
     expect(shouldProtectDetectedRunway(305, true, 'EDDF25C', 'EDDF25L')).toBe(true);
   });
 

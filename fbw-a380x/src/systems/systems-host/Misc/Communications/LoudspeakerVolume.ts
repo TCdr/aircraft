@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The loudspeaker volume control knobs of the glareshield (CAPT and F/O).
- * A380 FCOM DSC-23-20 LOUDSPEAKER VOLUME CONTROL PANEL (a380_fcom.txt l.49203-49222):
- * - fully anticlockwise: "The two onside loudspeakers are OFF."
- * - else: "The two onside loudspeakers are on. The volume is adjusted by turning the knob."
- * - "The volume control knobs of the loudspeakers adjust the volume of voice communication messages, but cannot adjust
- *   the volume of Flight Warning System (FWS) and Aircraft Environment Surveillance System (SURV) audio messages."
+ * The loudspeaker volume control knobs of the glareshield (CAPT and F/O):
+ * - fully anticlockwise: the two onside loudspeakers are off.
+ * - else: the two onside loudspeakers are on, the knob sets their volume.
+ * - The knobs set the volume of voice communications only, never of the FWS and SURV audio messages.
  * The sim has a single audio output and no headset: the onside knob of the active AMU (CAPT, or F/O when the user sits
  * on the right or AMU 1 fails) scales the COM receive volumes set by the RMP. The FWS and SURV sounds do not use the COM
  * volumes and are not affected. Design choice: the knobs start fully clockwise (100 %) at each flight load, so that the

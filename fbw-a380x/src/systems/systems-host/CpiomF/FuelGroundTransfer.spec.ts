@@ -34,7 +34,7 @@ const ready: GroundTransferInputs = {
   fuelCanMove: () => true,
 };
 
-describe('automatic ground transfer (A380 FCOM DSC-28-50-20, a380_fcom.txt l.60564-60585)', () => {
+describe('automatic ground transfer', () => {
   it('nothing while the AUTO GND XFR pb-sw is released', () => {
     expect(new GroundTransferLogic().update({ ...ready, pbOn: false })).toBe(GroundTransferState.Off);
   });
@@ -45,7 +45,7 @@ describe('automatic ground transfer (A380 FCOM DSC-28-50-20, a380_fcom.txt l.605
     expect(logic.getDirection()).toBe(GroundTransferDirection.FromTrimTank);
     expect(logic.update({ ...ready, cgPercent: 40 })).toBe(GroundTransferState.InProgress);
     expect(logic.update({ ...ready, cgPercent: GROUND_CG_TARGET_PERCENT })).toBe(GroundTransferState.Completed);
-    // Completed until the pb-sw is released ("AUTO GND XFR ... OFF", l.149234)
+    // Completed until the pb-sw is released (AUTO GND XFR ... OFF)
     expect(logic.update({ ...ready, cgPercent: 42 })).toBe(GroundTransferState.Completed);
     expect(logic.update({ ...ready, pbOn: false })).toBe(GroundTransferState.Off);
   });
@@ -62,12 +62,12 @@ describe('automatic ground transfer (A380 FCOM DSC-28-50-20, a380_fcom.txt l.605
     expect(logic.update({ ...ready, fuelCanMove: () => false })).toBe(GroundTransferState.Completed);
   });
 
-  it('cannot start without all the transfer pumps on or without the FMS ZFW / ZFCG (FAULT, l.149283-149301)', () => {
+  it('cannot start without all the transfer pumps on or without the FMS ZFW / ZFCG (FAULT)', () => {
     expect(new GroundTransferLogic().update({ ...ready, allTransferPumpsOn: false })).toBe(GroundTransferState.Fault);
     expect(new GroundTransferLogic().update({ ...ready, cgPercent: null })).toBe(GroundTransferState.Fault);
   });
 
-  it('is aborted when two engines are running (l.60585, l.149278-149281), one engine is allowed', () => {
+  it('is aborted when two engines are running, one engine is allowed', () => {
     const logic = new GroundTransferLogic();
     expect(logic.update({ ...ready, enginesRunning: 1 })).toBe(GroundTransferState.InProgress);
     expect(logic.update({ ...ready, enginesRunning: 2 })).toBe(GroundTransferState.Fault);
@@ -76,7 +76,7 @@ describe('automatic ground transfer (A380 FCOM DSC-28-50-20, a380_fcom.txt l.605
     expect(logic.update(ready)).toBe(GroundTransferState.InProgress);
   });
 
-  it('the pb-sw light: on while pressed, flashing when aborted (l.58206-58209)', () => {
+  it('the pb-sw light: on while pressed, flashing when aborted', () => {
     expect(isAutoGndXfrPbLightOn(GroundTransferState.Off, 0)).toBe(false);
     expect(isAutoGndXfrPbLightOn(GroundTransferState.InProgress, 0.7)).toBe(true);
     expect(isAutoGndXfrPbLightOn(GroundTransferState.Completed, 0.7)).toBe(true);
@@ -85,7 +85,7 @@ describe('automatic ground transfer (A380 FCOM DSC-28-50-20, a380_fcom.txt l.605
   });
 });
 
-describe('ground transfer fuel moves (l.60575-60577)', () => {
+describe('ground transfer fuel moves', () => {
   const levels = (quantities: Partial<Record<number, number>>): TankLevels => {
     const tanks = [LEFT_INNER_TANK, RIGHT_INNER_TANK, LEFT_MID_TANK, RIGHT_MID_TANK, TRIM_TANK];
     return {

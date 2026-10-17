@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 
 /*
- * The wiring of the FCOM gap batch T2-16 FUEL alerts, read from the source text (as FwsAbnormalSensedItems.spec.ts:
+ * The wiring of the FUEL alerts, read from the source text (as FwsAbnormalSensedItems.spec.ts:
  * importing the EcamMessages tables in a test fails on a circular import).
  */
 const read = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8');
@@ -30,9 +30,9 @@ function ata28ItemCount(id: string): number {
   return (block.match(/\{ name: /g) ?? []).length;
 }
 
-describe('FCOM gap batch T2-16 FUEL alert wiring', () => {
+describe('FUEL CG, weight and tank alert wiring', () => {
   it.each(['281800023', '281800024', '281800025', '281800026', '281800102', '281800103'])(
-    '%s FEED TK(s) LEVEL LO shows and ticks the TRIM TK FEED and XFR lines (FCOM l.149913-149923)',
+    '%s FEED TK(s) LEVEL LO shows and ticks the TRIM TK FEED and XFR lines',
     (id) => {
       const block = alertBlock(id);
       expect(block).toContain('...this.feedTankLevelLoTransferLines().show');
@@ -52,7 +52,7 @@ describe('FCOM gap batch T2-16 FUEL alert wiring', () => {
     }
   });
 
-  it('FUEL EXCESS AFT CG is a master warning (PDF p.5164)', () => {
+  it('FUEL EXCESS AFT CG is a master warning', () => {
     const block = abnormalSensed.slice(abnormalSensed.indexOf('      281800022: {'));
     expect(block.slice(0, block.indexOf('\n      },'))).toContain('failure: 3,');
   });

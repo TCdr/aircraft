@@ -344,14 +344,13 @@ export class LegacyTcasComputer implements Instrument {
 
     this.activeXpdr = SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number');
     // The TCAS of the selected SURV system: SYS 1 on AC ESS (400XP, the AC_ESS_SHED variable), SYS 2 on AC 4
-    // (A380 FCOM DSC-34-20-100, a380_fcom.txt:92741-92743).
     this.tcasPower = isXpdrTcasPowered(
       selectedSurvSystem(this.activeXpdr),
       SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', 'boolean') > 0,
       SimVar.GetSimVarValue('L:A32NX_ELEC_AC_4_BUS_IS_POWERED', 'boolean') > 0,
     );
-    // The TCAS of a SURV system is lost with its XPDR: SURV XPDR 1(2) FAULT lists TCAS 1(2) as INOP SYS
-    // (A380 FCOM a380_fcom.txt:167311-167322). L:A32NX_XPDR_n_FAILED is published by Transponder.ts.
+    // The TCAS of a SURV system is lost with its XPDR: SURV XPDR 1(2) FAULT lists TCAS 1(2) as INOP SYS.
+    // L:A32NX_XPDR_n_FAILED is published by Transponder.ts.
     this.selectedXpdrFailed =
       SimVar.GetSimVarValue(`L:A32NX_XPDR_${selectedSurvSystem(this.activeXpdr)}_FAILED`, 'bool') > 0;
     // MSFS has only one transponder, driven as the transponder of the selected system (Transponder.ts)
@@ -380,19 +379,17 @@ export class LegacyTcasComputer implements Instrument {
     this.isSlewActive = !!SimVar.GetSimVarValue('IS SLEW ACTIVE', 'boolean');
     this.simRate = SimVar.GetGlobalVarValue('SIMULATION RATE', 'number');
     this.gpwsWarning = !!SimVar.GetSimVarValue('L:A32NX_GPWS_Warning_Active', 'boolean');
-    // Automatic TA ONLY selection (A380 FCOM DSC-34-20-40-10, a380_fcom.txt l.90525-90536, TcasAutoTaOnly.ts)
     this.autoTaOnly = isTcasAutoTaOnly({
       windshearWarning: isReactiveWindshearWarningActive(),
       stallWarning: isFwsStallWarningActive(),
       emergencyElectricalConfiguration: isEmergencyElectricalConfiguration(),
     });
 
-    // TRAF pb of each EFIS CP, written by the FCU (A380 FCOM DSC-34-20-40-20 ND)
+    // TRAF pb light of each EFIS CP, written by the FCU
     this.trafficLeftEfisFilter = SimVar.GetSimVarValue(trafPbLightVar('L'), 'bool') > 0;
     this.trafficRightEfisFilter = SimVar.GetSimVarValue(trafPbLightVar('R'), 'bool') > 0;
 
-    // With ALT RPTG OFF the TCAS is in standby too (A380 FCOM DSC-34-20-50-20 P 7: TCAS STBY message on the ND, TCAS
-    // STBY memo).
+    // With ALT RPTG OFF the TCAS is in standby too (TCAS STBY message on the ND, TCAS STBY memo)
     this.tcasMode.setVar(
       this.xpdrStatus === XpdrMode.STBY || !this.xpdrAltReporting.get() || !this.tcasPower || this.tcasFault.getVar()
         ? TcasMode.STBY
@@ -407,13 +404,13 @@ export class LegacyTcasComputer implements Instrument {
    * Set inhibition level
    */
   private updateInhibitions(): void {
-    // Automatic TA ONLY (a380_fcom.txt l.90525-90536): the TAWS warnings (gpwsWarning, also inhibits the TA aural),
+    // Automatic TA ONLY: the TAWS warnings (gpwsWarning, also inhibits the TA aural),
     // the windshear and stall warnings and the emergency electrical configuration (autoTaOnly), below 1 000 ft
     // (raInhibitedLow).
     // TODO FIXME: Less magic numbers, Use constants defined in TcasConstants
     // The low-altitude inhibitions have a hysteresis (TcasConstants): RAs are inhibited below 900 ft AGL in
-    // descent and 1 100 ft AGL in climb (the FCOM's "below 1 000 ft +-100 ft"), the TA aural below 400 ft in
-    // descent and 600 ft in climb (A380 FCTM, Supplementary Information, TCAS).
+    // descent and 1 100 ft AGL in climb (below 1 000 ft +-100 ft), the TA aural below 400 ft in descent and 600 ft
+    // in climb.
     if (!this.radioAlt.isFailureWarning() && !this.radioAlt.isNoComputedData()) {
       if (
         this.raInhibitedLow
@@ -1304,7 +1301,7 @@ export class LegacyTcasComputer implements Instrument {
         break;
     }
 
-    // A TCAS alert selects the TRAF pb of both EFIS CPs, so that the NDs show the intruders (FCOM DSC-34-20-40-20 ND)
+    // A TCAS alert selects the TRAF pb of both EFIS CPs, so that the NDs show the intruders
     for (const side of trafPbsToAutoSelect(
       previousAdvisoryState,
       this.advisoryState,

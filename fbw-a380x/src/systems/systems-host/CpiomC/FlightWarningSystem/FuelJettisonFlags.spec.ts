@@ -11,7 +11,7 @@ const lvars =
   (name: string): number =>
     on.includes(name) ? 1 : 0;
 
-describe('readFuelJettisonFlags (FWS inputs from the FQMS, A380 FCOM PRO-ABN-ECAM-10-28)', () => {
+describe('readFuelJettisonFlags (FWS inputs from the FQMS)', () => {
   it('gives real booleans for the L:vars that are on', () => {
     const flags = readFuelJettisonFlags(
       lvars(['L:A380X_FUEL_JETTISON_L_VALVE_FAULT', 'L:A380X_OVHD_FUEL_JETTISON_ARM_PB_IS_ON']),
@@ -23,7 +23,7 @@ describe('readFuelJettisonFlags (FWS inputs from the FQMS, A380 FCOM PRO-ABN-ECA
   });
 
   // FwsCore combines the faults with SubscribableMapFunctions.or(), which only counts `true` (input.includes(true)):
-  // fed with the number 1, FUEL JETTISON FAULT and its STATUS INOP SYS JETTISON never came on (sim test 2026-10-02)
+  // fed with the number 1, FUEL JETTISON FAULT and its STATUS INOP SYS JETTISON never came on (seen in the sim)
   it.each([
     ['one valve stuck closed', ['L:A380X_FUEL_JETTISON_L_VALVE_FAULT']],
     ['both valves stuck closed', ['L:A380X_FUEL_JETTISON_L_VALVE_FAULT', 'L:A380X_FUEL_JETTISON_R_VALVE_FAULT']],

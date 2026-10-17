@@ -8,7 +8,7 @@ import { A380xVhfProvider } from './A380xVhfProvider';
 
 const acr = readFileSync(resolve(__dirname, 'Acr.ts'), 'utf-8');
 
-describe('A380X ACR VHF 3 data mode (COM VHF 3 DATALINK FAULT, A380 FCOM l.137608)', () => {
+describe('A380X ACR VHF 3 data mode (COM VHF 3 DATALINK FAULT)', () => {
   it('carries the datalink when VHF 3 is in DATA mode on the RMP and not failed', () => {
     expect(
       new A380xVhfProvider(

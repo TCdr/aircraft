@@ -36,8 +36,8 @@ const procedure = (inputs: Partial<FuelCgProcedureInputs> = {}): FuelCgProcedure
   ...inputs,
 });
 
-describe('A380X FUEL CG and weight alerts (FCOM PRO-ABN-ECAM-10-28, LIM-11)', () => {
-  it('has the FCOM flight phase inhibitions (PDF p.5151, 5154, 5156, 5164, 5283)', () => {
+describe('A380X FUEL CG and weight alerts', () => {
+  it('has the flight phase inhibitions', () => {
     const onlyPhase8 = [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12];
     expect(FUEL_CG_WEIGHT_PHASE_INHIBITION.cgAtFwdLimit).toEqual(onlyPhase8);
     expect(FUEL_CG_WEIGHT_PHASE_INHIBITION.cgDataDisagree).toEqual(onlyPhase8);
@@ -46,7 +46,7 @@ describe('A380X FUEL CG and weight alerts (FCOM PRO-ABN-ECAM-10-28, LIM-11)', ()
     expect(FUEL_CG_WEIGHT_PHASE_INHIBITION.cgOutOfRange).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 
-  describe('LIM-11 CG limits (PDF p.6223)', () => {
+  describe('CG limits', () => {
     it('the limit lines go by increasing weight from 260 t to MTOW (560 t)', () => {
       for (const limit of [FLIGHT_FWD_CG_LIMIT, TAKEOFF_FWD_CG_LIMIT, TAKEOFF_AFT_CG_LIMIT]) {
         expect(limit[0].weightKg).toBe(260_000);
@@ -71,14 +71,14 @@ describe('A380X FUEL CG and weight alerts (FCOM PRO-ABN-ECAM-10-28, LIM-11)', ()
     });
   });
 
-  it('CG AT FWD LIMIT: the FQMS CG forward of the flight forward limit (l.149333-149334)', () => {
+  it('CG AT FWD LIMIT: the FQMS CG forward of the flight forward limit', () => {
     expect(isCgAtFwdLimit({ grossWeightKg: 500_000, cgPercentMac: 34 })).toBe(true);
     expect(isCgAtFwdLimit({ grossWeightKg: 500_000, cgPercentMac: 36 })).toBe(false);
     expect(isCgAtFwdLimit({ grossWeightKg: 350_000, cgPercentMac: 28.5 })).toBe(false);
     expect(isCgAtFwdLimit({ grossWeightKg: null, cgPercentMac: 20 })).toBe(false);
   });
 
-  describe('CG OUT OF RANGE (l.149495-149499)', () => {
+  describe('CG OUT OF RANGE', () => {
     const inputs = (overrides: Partial<CgOutOfRangeInputs> = {}): CgOutOfRangeInputs => ({
       engModeIgnStart: false,
       enginesRunning: 0,
@@ -118,7 +118,7 @@ describe('A380X FUEL CG and weight alerts (FCOM PRO-ABN-ECAM-10-28, LIM-11)', ()
       });
     });
 
-    it('lines: DELAY ENG START and AUTO GND XFR ON, or DELAY T.O (l.149522-149529)', () => {
+    it('lines: DELAY ENG START and AUTO GND XFR ON, or DELAY T.O', () => {
       const engineStart = { active: true, takeoffLimitsAtEngineStart: true, alternateCgAbove54: false };
       expect(cgOutOfRangeLines(engineStart, procedure({ autoGroundTransferOn: true }))).toEqual({
         show: [true, true, false],
@@ -129,7 +129,7 @@ describe('A380X FUEL CG and weight alerts (FCOM PRO-ABN-ECAM-10-28, LIM-11)', ()
     });
   });
 
-  describe('EXCESS AFT CG (l.149756-149757)', () => {
+  describe('EXCESS AFT CG', () => {
     it('triggers above a WBBC CG of 50 % in automatic mode, and stays after TRIM TK XFR FWD', () => {
       const monitor = new ExcessAftCgMonitor();
       expect(monitor.update(49, true)).toBe(false);
@@ -140,7 +140,7 @@ describe('A380X FUEL CG and weight alerts (FCOM PRO-ABN-ECAM-10-28, LIM-11)', ()
       expect(monitor.update(null, true)).toBe(false);
     });
 
-    it('lines: TRIM TK FEED AUTO if isolated, TRIM TK XFR FWD, then OUTR TK XFR MAN (l.149783-149824)', () => {
+    it('lines: TRIM TK FEED AUTO if isolated, TRIM TK XFR FWD, then OUTR TK XFR MAN', () => {
       const isolated = excessAftCgLines(procedure({ trimTankFeed: TrimTankFeedSelector.Isol }));
       expect(isolated.show.slice(0, 2)).toEqual([true, true]);
       expect(isolated.checked.slice(0, 2)).toEqual([false, false]);
@@ -166,7 +166,7 @@ describe('A380X FUEL CG and weight alerts (FCOM PRO-ABN-ECAM-10-28, LIM-11)', ()
     });
   });
 
-  it('CG AT FWD LIMIT lines: pumped or gravity forward transfer, under IF NO TRIM TK COLD FUEL (l.149358-149386)', () => {
+  it('CG AT FWD LIMIT lines: pumped or gravity forward transfer, under IF NO TRIM TK COLD FUEL', () => {
     const pumped = cgAtFwdLimitLines(procedure({ trimTankFeed: TrimTankFeedSelector.Isol }));
     expect(pumped.show).toEqual([true, true, true, true, true, true, false, false]);
     expect(pumped.checked.slice(0, 3)).toEqual([true, true, true]);
@@ -175,7 +175,7 @@ describe('A380X FUEL CG and weight alerts (FCOM PRO-ABN-ECAM-10-28, LIM-11)', ()
     expect(gravity.checked[0]).toBe(false);
   });
 
-  it('CG DATA DISAGREE above 8 % MAC between the FQMS and the WBBC (l.149433-149434)', () => {
+  it('CG DATA DISAGREE above 8 % MAC between the FQMS and the WBBC', () => {
     expect(isCgDataDisagree({ grossWeightKg: 1, cgPercentMac: 30 }, { grossWeightKg: 1, cgPercentMac: 38.5 })).toBe(
       true,
     );
@@ -187,7 +187,7 @@ describe('A380X FUEL CG and weight alerts (FCOM PRO-ABN-ECAM-10-28, LIM-11)', ()
     );
   });
 
-  it('WEIGHT DATA DISAGREE above 198 400 lb between the FQMS and the WBBC (l.154375-154376)', () => {
+  it('WEIGHT DATA DISAGREE above 198 400 lb between the FQMS and the WBBC', () => {
     const wbbc = { grossWeightKg: 450_000, cgPercentMac: null };
     expect(isWeightDataDisagree({ grossWeightKg: 450_000 + 198_500 * KG_PER_LB, cgPercentMac: 38 }, wbbc)).toBe(true);
     expect(isWeightDataDisagree({ grossWeightKg: 450_000 - 198_300 * KG_PER_LB, cgPercentMac: 38 }, wbbc)).toBe(false);

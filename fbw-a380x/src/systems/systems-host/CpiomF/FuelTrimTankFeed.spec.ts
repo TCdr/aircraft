@@ -16,7 +16,7 @@ import {
 } from './FuelTrimTankFeed';
 import { LEFT_INNER_TANK, RIGHT_INNER_TANK, TRIM_TANK } from './FuelTransferSchedule';
 
-describe('TRIM TK FEED selector (A380 FCOM DSC-28-20, a380_fcom.txt l.58044-58061)', () => {
+describe('TRIM TK FEED selector', () => {
   it('reads AUTO (0, the L:var at flight load), OPEN (1) and ISOL (2)', () => {
     expect(trimTankFeedSelector(0)).toBe(TrimTankFeedSelector.Auto);
     expect(trimTankFeedSelector(1)).toBe(TrimTankFeedSelector.Open);
@@ -24,7 +24,7 @@ describe('TRIM TK FEED selector (A380 FCOM DSC-28-20, a380_fcom.txt l.58044-5806
     expect(trimTankFeedSelector(7)).toBe(TrimTankFeedSelector.Auto);
   });
 
-  it('OPEN: gravity transfer to the inner tanks, with the pitch attitude below 3° (l.149384-149386)', () => {
+  it('OPEN: gravity transfer to the inner tanks, with the pitch attitude below 3°', () => {
     expect(isTrimTankGravityTransfer(TrimTankFeedSelector.Open, 2.5)).toBe(true);
     expect(isTrimTankGravityTransfer(TrimTankFeedSelector.Open, 3)).toBe(false);
     expect(isTrimTankGravityTransfer(TrimTankFeedSelector.Auto, 0)).toBe(false);

@@ -20,8 +20,8 @@ function alertBlock(id: string): string {
   return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
 }
 
-describe('A-ICE ICE DETECTED and SEVERE ICE DETECTED (A380 FCOM l.156579-156607, l.157282-157300)', () => {
-  it('SEVERE ICE DETECTED needs the WING A-ICE off (l.61810-61811, l.157289)', () => {
+describe('A-ICE ICE DETECTED and SEVERE ICE DETECTED', () => {
+  it('SEVERE ICE DETECTED needs the WING A-ICE off', () => {
     expect(isSevereIceDetected(true, false)).toBe(true);
     expect(isSevereIceDetected(true, true)).toBe(false);
     expect(isSevereIceDetected(false, false)).toBe(false);
@@ -32,7 +32,7 @@ describe('A-ICE ICE DETECTED and SEVERE ICE DETECTED (A380 FCOM l.156579-156607,
     expect(antiIceItemsChecked([true, true, true, true], false)).toEqual([true, true, true, true, false]);
   });
 
-  it('both are active in flight phase 8 only (PDF p.5344, p.5365)', () => {
+  it('both are active in flight phase 8 only', () => {
     expect(ICE_DETECTED_PHASE_INHIBITION).toEqual([1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]);
   });
 

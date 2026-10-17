@@ -14,7 +14,6 @@ import {
 } from './FwsFuelLeakLpValveAlerts';
 import { FwcFlightPhase } from './FwsFlightPhases';
 
-/* A380 FCOM PRO-ABN-ECAM-10-28 FUEL ENG 1(2)(3)(4) LP VLV FAULT, a380_fcom.txt l.149688-149739 */
 describe('FUEL ENG 1(2)(3)(4) LP VLV FAULT', () => {
   it('triggers on ground for a valve abnormally closed (engine start) or abnormally open (engine shutdown)', () => {
     expect(isEngLpValveFault(true, false, true)).toBe(true);
@@ -50,7 +49,7 @@ describe('FUEL ENG 1(2)(3)(4) LP VLV FAULT', () => {
     expect(flags.leakDetectionFault).toBe(false);
   });
 
-  it('is inhibited in the phases of the FCOM figures (PDF p.5162, p.5222, p.5224)', () => {
+  it('is inhibited in the phases of the aircraft', () => {
     expect(FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.engLpValveFault).toEqual([4, 5, 6, 7, 8, 9, 10]);
     expect(FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.leakDetFault).toEqual([1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]);
     expect(FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.leakDetected).toEqual([1, 3, 4, 5, 6, 7, 9, 10, 11, 12]);

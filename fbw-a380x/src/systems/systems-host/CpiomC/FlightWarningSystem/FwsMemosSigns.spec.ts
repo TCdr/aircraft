@@ -36,9 +36,8 @@ function shownSignsMemos(memos: FwsMemos, flightPhase: number): string[] {
 
 const ALL_PHASES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-/* A380 FCOM DSC-33-50-10 SIGNS MEMO (a380_fcom.txt l.84110-84118) */
 describe('A380X SEAT BELTS, NO SMOKING and SIGNS ON memos', () => {
-  it('"The flight crew sets the SEAT BELTS sw to ON": SEAT BELTS memo, SIGNS ON in phases 2, 9 and 10 (l.84112-84114)', () => {
+  it('"The flight crew sets the SEAT BELTS sw to ON": SEAT BELTS memo, SIGNS ON in phases 2, 9 and 10', () => {
     const fws = fakeFws();
     const memos = new FwsMemos(fws);
     fws.seatBeltsSwitchOn.set(true);
@@ -47,7 +46,7 @@ describe('A380X SEAT BELTS, NO SMOKING and SIGNS ON memos', () => {
     }
   });
 
-  it('"The flight crew sets the NO SMOKING sw to ON": NO SMOKING memo, SIGNS ON in phases 2, 9 and 10 (l.84116-84118)', () => {
+  it('"The flight crew sets the NO SMOKING sw to ON": NO SMOKING memo, SIGNS ON in phases 2, 9 and 10', () => {
     const fws = fakeFws();
     const memos = new FwsMemos(fws);
     fws.noSmokingSwitchOn.set(true);
@@ -72,7 +71,7 @@ describe('A380X SEAT BELTS, NO SMOKING and SIGNS ON memos', () => {
     }
   });
 
-  it('has the NO SMOKING and SIGNS ON texts, and no NO MOBILE memo (not in this FCOM)', () => {
+  it('has the NO SMOKING and SIGNS ON texts, and no NO MOBILE memo (not on this aircraft)', () => {
     // read from the source: importing EcamMessages/index.ts in a test fails (circular import, FwsCdsDuFault.spec.ts)
     const ecamMessages = readFileSync(
       resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),

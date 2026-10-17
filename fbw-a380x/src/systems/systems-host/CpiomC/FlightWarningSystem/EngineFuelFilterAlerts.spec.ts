@@ -14,7 +14,6 @@ import {
 
 const running: EngineFuelFilterInputs = { masterOn: true, engineState: FadecEngineState.On, fuelFilterClogged: false };
 
-/* A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FUEL FILTER CLOGGED, a380_fcom.txt l.171988 */
 describe('ENG FUEL FILTER CLOGGED', () => {
   it('triggers when the fuel filter of a running engine is clogged', () => {
     expect(engineFuelFilterClogged({ ...running, fuelFilterClogged: true })).toBe(true);
@@ -28,7 +27,7 @@ describe('ENG FUEL FILTER CLOGGED', () => {
     expect(engineFuelFilterClogged({ ...running, fuelFilterClogged: true, masterOn: false })).toBe(false);
   });
 
-  it('is inhibited in phases 3 to 10 (FCOM PDF page 5783)', () => {
+  it('is inhibited in phases 3 to 10', () => {
     expect(FUEL_FILTER_CLOGGED_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });
@@ -49,7 +48,7 @@ describe('FWS fuel filter alerts', () => {
     return source.slice(start, source.indexOf(`\n${indent}},`, start));
   }
 
-  /* FCOM l.171992-171996, PDF p.5783: the only indication is the ENGINE SD page (no aural, no MASTER CAUT) */
+  /* The only indication is the ENGINE SD page (no aural, no MASTER CAUT) */
   it.each([1, 2, 3, 4])('ENG %d FUEL FILTER CLOGGED: amber, crew awareness, ENGINE SD page', (engine) => {
     const id = 701800033 + engine - 1;
     const alert = block(abnormalSensed, id);

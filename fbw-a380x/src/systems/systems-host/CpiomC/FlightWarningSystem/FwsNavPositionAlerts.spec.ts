@@ -12,7 +12,7 @@ import {
 const ils = { frequency: 109.5, course: 254 };
 const otherIls = { frequency: 110.3, course: 254 };
 
-describe('NAV FM / GPS POS DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10)', () => {
+describe('NAV FM / GPS POS DISAGREE', () => {
   it('follows the FMS condition', () => {
     const alerts = new FwsNavPositionAlerts();
     alerts.update(0.1, true, ils, ils);
@@ -21,12 +21,12 @@ describe('NAV FM / GPS POS DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10)', () => {
     expect(alerts.fmGpsPosDisagree.get()).toBe(false);
   });
 
-  it('is inhibited in the phases of the FCOM figure', () => {
+  it('is inhibited in the phases of the aircraft', () => {
     expect(FM_GPS_POS_DISAGREE_PHASE_INHIBITION).toEqual([1, 3, 4, 5, 6, 12]);
   });
 });
 
-describe('NAV LS TUNING DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10)', () => {
+describe('NAV LS TUNING DISAGREE', () => {
   it('compares the frequency and the course of the two MMRs', () => {
     expect(isLsTuningDifferent(ils, { ...ils })).toBe(false);
     expect(isLsTuningDifferent(ils, otherIls)).toBe(true);

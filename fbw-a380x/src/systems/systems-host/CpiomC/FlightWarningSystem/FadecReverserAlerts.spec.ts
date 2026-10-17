@@ -104,7 +104,7 @@ describe('ENG 2(3) reverser alerts', () => {
     expect(isReverserInoperative(false, false, false, true, false)).toBe(true);
   });
 
-  /* FCOM audit T2-44 (row B25): ENG 2(3) REVERSER INHIBITED, l.173571-173617, and REVERSER MINOR FAULT, l.173668-173685 */
+  /* ENG 2(3) REVERSER INHIBITED and REVERSER MINOR FAULT */
   it('makes the reverser inoperative when it is inhibited by maintenance (INOP SYS ENG 2(3) REVERSER, BTV)', () => {
     expect(isReverserInoperative(false, false, false, false, true)).toBe(true);
   });
@@ -115,10 +115,10 @@ describe('ENG 2(3) reverser alerts', () => {
     }
   });
 
-  it('REVERSER INHIBITED and MINOR FAULT: no audio, no master light, the inhibitions of the FCOM figures', () => {
+  it('REVERSER INHIBITED and MINOR FAULT: no audio, no master light, the inhibitions of the aircraft', () => {
     expect(REVERSER_MAINTENANCE_ALERTS_LEVEL).toBe(1);
     expect(REVERSER_INHIBITED_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
-    // "Displayed, after landing": phases 1 to 10 inhibited
+    // Shown only after landing: phases 1 to 10 inhibited
     expect(REVERSER_MINOR_FAULT_PHASE_INHIBITION).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });
@@ -158,7 +158,7 @@ describe('FwsAbnormalSensed wiring of the FADEC, thrust lever and reverser alert
     );
   });
 
-  it('uses the FCOM flight phase inhibitions', () => {
+  it('uses the flight phase inhibitions', () => {
     expect(block(701800013)).toContain('flightPhaseInhib: FADEC_FAULT_PHASE_INHIBITION,');
     expect(block(701800130)).toContain('flightPhaseInhib: THR_LEVER_FAULT_PHASE_INHIBITION,');
     expect(block(701800149)).toContain('flightPhaseInhib: REVERSER_UNLOCKED_PHASE_INHIBITION,');

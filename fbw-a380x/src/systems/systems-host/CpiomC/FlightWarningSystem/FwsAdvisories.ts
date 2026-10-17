@@ -9,26 +9,17 @@ import { vibrationClassName } from '../../../instruments/src/SD/Pages/Engine/ele
 import { cabinVsPulses } from '@shared/CabinPressureIndications';
 
 /*
- * ECAM advisories (A380 FCOM DSC-31-40-10 ADVISORY, a380_fcom.txt l.72199-72342):
- * l.72203-72206 "An advisory indicates that a monitored parameter from an aircraft system is going outside from its
- * normal operational range but has not reached a level that would trigger an alert. An advisory is triggered when the
- * affected parameter pulses in green on the applicable SD page."
- * l.72215-72229 "When there is an advisory condition for a system, the SD displays the applicable page, as follows:
- * - If the SD displays a flight phase page: If there is an advisory condition, the SD automatically displays the
- *   associated system display page, and the associated pushbutton on the ECP comes on.
- * - If the SD displays a page that has been manually selected by the flight crew, the associated pushbutton on the ECP
- *   flashes until the fight crew presses it.
- * - If the SD displays a system display page following an ECAM alert or following a flight crew manual selection, there
- *   is no indication on the EWD and on SD until the flight crew clears the procedure or the SD displays the system pages
- *   associated to the flight phase.
- * - If the EWD displays memos and/or limitations, an [ADV] indication appears, and pulses at the bottom right of the
- *   screen."
- * l.72237-72241 "The EWD no longer displays the [ADV] indication, when: The flight crew presses the associated pushbutton
- * on the ECP, or The parameter, source of the advisory indication, returns to its defined operational range."
- * l.72244 "Engines, pressurization, and APU systems have ECAM advisory conditions."
+ * ECAM advisories: a monitored parameter is leaving its normal range without reaching an alert level; the parameter
+ * pulses in green on its SD page.
+ * - SD on a flight phase page: the SD shows the advisory page and its ECP pushbutton comes on.
+ * - SD on a page the crew selected: the ECP pushbutton of the advisory page flashes until the crew presses it.
+ * - SD on the page of an ECAM alert: no advisory indication until the procedure is cleared.
+ * - EWD showing memos and/or limitations: a pulsing ADV indication at the bottom right, until the crew presses the
+ *   pushbutton or the parameter is back in range.
+ * Engines, pressurization and APU have advisory conditions.
  *
  * The conditions are those for which the SD pages pulse (the same functions): ENGINE oil quantity, oil temperature and
- * rotor vibrations (l.72259-72278), CAB PRESS cabin vertical speed (l.72306-72312). Not done: the nacelle temperature,
+ * rotor vibrations, CAB PRESS cabin vertical speed. Not done: the nacelle temperature,
  * the APU OIL LVL LO advisories, which the SD pages do not pulse yet, and the delta P and cabin altitude advisories, which
  * the CAB PRESS and CRUISE pages pulse (CabinPressureIndications) but which need the flight phase and a state here.
  */
@@ -47,11 +38,11 @@ export interface EngineAdvisoryInputs {
 }
 
 /**
- * Whether an engine parameter pulses on the ENGINE page: oil quantity (l.72259-72267), oil temperature above 163 C
- * (l.72271-72272), rotor vibration above 5 units (l.72274-72277). The oil quantity limit is the 1.2 qt of the ENGINE page
- * (DSC-70-90, OilIndications); the advisory table says 4 quarts (l.72261)
+ * Whether an engine parameter pulses on the ENGINE page: oil quantity, oil temperature above 163 C, rotor vibration
+ * above 5 units. The oil quantity limit is the 1.2 qt of the ENGINE page (OilIndications), although the advisory table
+ * of the aircraft documentation says 4 qt.
  */
-export function engineAdvisory(engine: EngineAdvisoryInputs): boolean {
+function engineAdvisory(engine: EngineAdvisoryInputs): boolean {
   return (
     oilQuantityPulses(engine.oilQuantityQt, engine.thrustLeverAngle, engine.autothrustMode) ||
     oilTemperatureClass(engine.oilTemperatureCelsius) === 'FillPulse' ||
@@ -61,14 +52,13 @@ export function engineAdvisory(engine: EngineAdvisoryInputs): boolean {
   );
 }
 
-/** The parameters of the advisories */
 export interface AdvisoryInputs {
   engines: EngineAdvisoryInputs[];
   cabinVerticalSpeedFtMin: number;
 }
 
 /**
- * The SD pages that have an advisory condition, in the order of the FCOM table (engines, then pressurization)
+ * The SD pages that have an advisory condition, engines first, then pressurization (the first one is shown)
  * @param inputs the monitored parameters
  */
 export function advisoryPages(inputs: AdvisoryInputs): SdPages[] {
@@ -82,10 +72,9 @@ export function advisoryPages(inputs: AdvisoryInputs): SdPages[] {
   return pages;
 }
 
-/** Half period of the flashing ECP pushbutton, ms. Design choice: 1 Hz, the FCOM gives no rate. */
+/** Half period of the flashing ECP pushbutton, ms. Design choice: 1 Hz, no documented rate. */
 const PB_FLASH_HALF_PERIOD_MS = 500;
 
-/** What the SD shows, for the advisory display */
 export interface AdvisorySdState {
   /** The page selected with the ECP (L:A32NX_ECAM_SD_CURRENT_PAGE_INDEX), SdPages.None in flight phase mode */
   selectedPage: SdPages;
@@ -93,21 +82,19 @@ export interface AdvisorySdState {
   alertPageShown: boolean;
   /** The EWD shows memos and/or limitations (no procedure or checklist) */
   ewdShowsMemos: boolean;
-  /** A running time, ms (flashing) */
+  /** A running time, ms, for the flashing */
   timeMs: number;
 }
 
-/** The outputs of the advisory display */
 export interface AdvisoryDisplay {
   /** The page the SD shows automatically in flight phase mode, SdPages.None if none */
   automaticPage: SdPages;
   /** The ECP pushbutton the advisory lights at this time (steady or flashing), SdPages.None if none */
   litPushbutton: SdPages;
-  /** The ADV indication of the EWD */
   ewdAdvIndication: boolean;
 }
 
-/** The ECAM advisory display: automatic page, ECP pushbutton light and EWD ADV indication (see the FCOM above) */
+/** The ECAM advisory display: automatic page, ECP pushbutton light and EWD ADV indication (rules at the top) */
 export class FwsAdvisoryDisplay {
   /** The advisory pages whose ECP pushbutton the crew has pressed, until the parameter is back in range */
   private readonly acknowledged = new Set<SdPages>();
@@ -131,7 +118,7 @@ export class FwsAdvisoryDisplay {
 
     const none: AdvisoryDisplay = { automaticPage: SdPages.None, litPushbutton: SdPages.None, ewdAdvIndication: false };
     if (pages.length === 0 || sd.alertPageShown) {
-      // l.72222-72224: no indication while the SD shows the page of an ECAM alert
+      // no indication while the SD shows the page of an ECAM alert
       return none;
     }
 

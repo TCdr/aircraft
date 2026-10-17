@@ -4,12 +4,12 @@
 import { FuelMove, LEFT_INNER_TANK, moveFuel, RIGHT_INNER_TANK, TankLevels, TRIM_TANK } from './FuelTransferSchedule';
 
 /*
- * The TRIM TK FEED selector of the FUEL overhead panel (A380 FCOM DSC-28-20, a380_fcom.txt l.58044-58061):
- * - AUTO: "The trim tank transfers are automatic."
- * - ISOL: "The trim tank forward transfer stops and the trim tank transfer line is isolated. The following valves close to
- *   isolate the transfer line: The trim tank isolation valve, The trim tank inlet valves, The trim pipe isolation valves."
- * - OPEN: "The following valves open, to allow gravity transfer from the trim tank to the inner tanks: Trim tank inlet
- *   valves, Trim pipe isolation valve connected to the aft gallery, Inner tank aft inlet valves."
+ * The TRIM TK FEED selector of the FUEL overhead panel:
+ * - AUTO: the trim tank transfers are automatic.
+ * - ISOL: the forward transfer from the trim tank stops; the trim tank isolation valve, the trim tank inlet valves and
+ *   the trim pipe isolation valves close to isolate the transfer line.
+ * - OPEN: the trim tank inlet valves, the trim pipe isolation valve of the aft gallery and the inner tank aft inlet
+ *   valves open, for a gravity transfer from the trim tank to the inner tanks.
  * The cockpit model has no TRIM TK FEED selector: its L:var is set from outside the cockpit (simulation limitation).
  */
 
@@ -38,17 +38,16 @@ export function trimTankFeedSelector(value: number): TrimTankFeedSelector {
 }
 
 /**
- * The gravity flow from the trim tank to the inner tanks, in gallons per hour (design choice: the FCOM gives no rate; two
+ * The gravity flow from the trim tank to the inner tanks, in gallons per hour (design choice: no documented rate; two
  * trim tank inlet valves at the 500 gal/h of the gravity lines of the MSFS fuel system, flight_model.cfg Line.142-145)
  */
 export const TRIM_TANK_GRAVITY_RATE_GAL_PER_H = 1_000;
 
 /**
- * The pitch attitude below which the fuel flows by gravity out of the trim tank, in degrees: "If only a gravity forward
- * transfer is possible: PITCH ATT < 3° FOR GRVTY FWD XFR, TRIM TK FEED ... OPEN" (PRO-ABN-ECAM-10-28 FUEL CG AT FWD
- * LIMIT, l.149384-149386; design choice: no flow at a higher pitch)
+ * The pitch attitude below which the fuel flows by gravity out of the trim tank, in degrees: the FUEL CG AT FWD LIMIT
+ * procedure asks for a pitch below 3° for a gravity forward transfer (design choice: no flow at a higher pitch)
  */
-export const TRIM_TANK_GRAVITY_MAX_PITCH_DEG = 3;
+const TRIM_TANK_GRAVITY_MAX_PITCH_DEG = 3;
 
 /**
  * Whether the trim tank fuel flows by gravity to the inner tanks: TRIM TK FEED OPEN, the pitch attitude below 3°, fuel in

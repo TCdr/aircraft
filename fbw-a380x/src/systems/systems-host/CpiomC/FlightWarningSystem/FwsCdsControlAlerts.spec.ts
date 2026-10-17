@@ -14,9 +14,8 @@ import {
 } from './FwsCdsControlAlerts';
 
 /*
- * CDS & AUTO FLT FCU SWITCHED OFF, EFIS CP and KCCU alerts (A380 FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt l.157559-157842,
- * l.158064-158102). The EcamMessages tables and FwsAbnormalSensed are read from the source text (importing them in a
- * test fails, see FwsCdsDuFault.spec.ts).
+ * CDS & AUTO FLT FCU SWITCHED OFF, EFIS CP and KCCU alerts. The EcamMessages tables and FwsAbnormalSensed are read
+ * from the source text (importing them in a test fails, see FwsCdsDuFault.spec.ts).
  */
 const messagesDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
 const ata31Procedures = readFileSync(resolve(messagesDir, 'AbnormalSensed/ata31-32-33.ts'), 'utf-8');
@@ -40,7 +39,7 @@ const NONE_FAILED: EfisControlInputs = {
   backupPowered: [true, true],
 };
 
-describe('EFIS CP alerts (FCOM l.157708-157794, l.158064-158102)', () => {
+describe('EFIS CP alerts', () => {
   it('raises nothing without a failure', () => {
     const alerts = efisControlAlerts(NONE_FAILED);
     expect(alerts.controlPanelFault).toEqual([false, false]);
@@ -100,7 +99,7 @@ describe('EFIS CP alerts (FCOM l.157708-157794, l.158064-158102)', () => {
   });
 });
 
-describe('KCCU alerts (FCOM l.157621-157697, l.157800-157841)', () => {
+describe('KCCU alerts', () => {
   it('raises CURSOR CTL FAULT for a failed cursor control device', () => {
     expect(kccuAlerts({ cursorControlDeviceFailed: true, keyboardFailed: false })).toEqual({
       cursorControlFault: true,
@@ -126,16 +125,16 @@ describe('KCCU alerts (FCOM l.157621-157697, l.157800-157841)', () => {
   });
 });
 
-describe('Flight phase inhibitions of the FCOM figures', () => {
-  it('inhibits FCU SWITCHED OFF in phases 2 to 7 and 9 to 11 (PDF page 5375)', () => {
+describe('Flight phase inhibitions of the aircraft', () => {
+  it('inhibits FCU SWITCHED OFF in phases 2 to 7 and 9 to 11', () => {
     expect(FCU_SWITCHED_OFF_PHASE_INHIBITION).toEqual([2, 3, 4, 5, 6, 7, 9, 10, 11]);
   });
 
-  it('inhibits the EFIS CP alerts in phases 4 to 7 and 10 (PDF pages 5380, 5382, 5391)', () => {
+  it('inhibits the EFIS CP alerts in phases 4 to 7 and 10', () => {
     expect(EFIS_CTL_PHASE_INHIBITION).toEqual([4, 5, 6, 7, 10]);
   });
 
-  it('inhibits the KCCU alerts in phases 3 to 7, 9 and 10 (PDF pages 5377, 5378, 5383)', () => {
+  it('inhibits the KCCU alerts in phases 3 to 7, 9 and 10', () => {
     expect(KCCU_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 9, 10]);
   });
 });
@@ -197,14 +196,14 @@ describe('FWS wiring of the CDS control alerts', () => {
     }
   });
 
-  it('gives the EFIS CTL PNL procedures the FCU backup line (l.157773, l.158080)', () => {
+  it('gives the EFIS CTL PNL procedures the FCU backup line', () => {
     expect(entry(ata31Procedures, '311800004', '  ')).toContain("name: 'USE CAPT MFD FCU BKUP'");
     expect(entry(ata31Procedures, '311800005', '  ')).toContain("name: 'USE F/O MFD FCU BKUP'");
     expect(entry(ata31Procedures, '311800006', '  ')).toContain("name: 'USE MFD FCU BKUP'");
   });
 });
 
-describe('CDS DU NOT MONITORED titles (FCOM DSC-31-15-90, l.63264)', () => {
+describe('CDS DU NOT MONITORED titles', () => {
   it('names the EWD, F/O PFD and F/O ND alerts without a CAPT prefix', () => {
     expect(entry(ata31Procedures, '311800009', '  ')).toContain(
       "title: '\\x1b<4m\\x1b4mCDS\\x1bm EWD DU NOT MONITORED',",

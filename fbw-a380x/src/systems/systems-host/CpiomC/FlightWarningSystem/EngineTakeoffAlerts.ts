@@ -4,31 +4,25 @@
 import { FadecEngineState } from './EngineFailAlerts';
 
 /*
- * A380X FWS engine alerts before take-off (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt):
+ * A380X FWS engine alerts before take-off:
  *
- * - ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628. l.172611-172614: "On ground, the engine oil temperature is less than
- *   50 °C: 30 s after the engine is running, or After the flight crew presses T.O CONFIG pb, or After the flight crew
- *   sets the takeoff power." Lines l.172627-172628: "THR LEVER 1(2)(3)(4) ... IDLE", "DELAY T.O FOR WARM UP".
- *   FCOM PDF page 5802: amber caution (MASTER CAUT, SC), ENGINE SD page, inhibited in phases 1 and 4 to 12.
- * - ENG THR LEVERS NOT SET, l.175146-175184. l.175152-175156: "Displayed during takeoff when either: one throttle lever
- *   is set between CL and FLEX MCT, or in case of disagreement between the thrust lever position and the takeoff thrust
- *   mode selected by the FADECs." Lines l.175175-175182: "If TOGA selected on FMS and thrust levers are at or below
- *   FLX/MCT: ALL THR LEVERS ... TOGA"; "If derate or flex takeoff selected on FMS and thrust levers are below FLX/MCT:
- *   THR LEVERS ... MCT/FLEX"; "If derated takeoff selected on FMS and thrust levers at TOGA: THR LEVERS ... MCT/FLEX".
- *   FCOM PDF page 5860: amber caution (MASTER CAUT, SC), inhibited in phases 1 and 4 to 12.
- *   Design choice: FBW has no derated take-off, so the derate case (TOGA not allowed) is left out.
+ * - ENG 1(2)(3)(4) OIL TEMP LO: on ground, the engine oil temperature is below 50 °C, 30 s after the engine runs, or
+ *   after the crew presses the T.O CONFIG pb or sets the takeoff power. Lines THR LEVER 1(2)(3)(4) IDLE and DELAY T.O
+ *   FOR WARM UP. Amber caution (MASTER CAUT, SC), ENGINE SD page, inhibited in phases 1 and 4 to 12.
+ * - ENG THR LEVERS NOT SET: during takeoff, one thrust lever is between CL and FLX/MCT, or the lever position disagrees
+ *   with the takeoff thrust mode of the FADECs. TOGA mode with the levers at or below FLX/MCT: ALL THR LEVERS TOGA;
+ *   FLEX or derated takeoff with the levers below FLX/MCT, or derated takeoff with the levers at TOGA: THR LEVERS
+ *   MCT/FLEX. Amber caution (MASTER CAUT, SC), inhibited in phases 1 and 4 to 12.
  */
 
-/** ENG OIL TEMP LO flight phase inhibition (FCOM PDF page 5802): shown in phases 2 and 3 only */
+/** Shown in phases 2 and 3 only */
 export const OIL_TEMP_LO_PHASE_INHIBITION = [1, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-/** ENG THR LEVERS NOT SET flight phase inhibition (FCOM PDF page 5860): shown in phases 2 and 3 only */
+/** Shown in phases 2 and 3 only */
 export const THR_LEVERS_NOT_SET_PHASE_INHIBITION = [1, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-/** l.172611: "the engine oil temperature is less than 50 °C" */
-export const OIL_TEMP_LO_THRESHOLD_CELSIUS = 50;
+const OIL_TEMP_LO_THRESHOLD_CELSIUS = 50;
 
-/** l.172612: "30 s after the engine is running" */
 const OIL_TEMP_LO_RUNNING_DELAY_MS = 30_000;
 
 export interface OilTemperatureLowInputs {
@@ -47,7 +41,7 @@ export interface OilTemperatureLowInputs {
  *
  * The oil temperature is monitored once the engine has been running (FADEC state ON) for 30 s, or earlier once the
  * crew pressed the T.O CONFIG pb or set the take-off power. Design choice: a T.O CONFIG press arms the monitor until the
- * engine stops (the FCOM says "after the flight crew presses", not "while").
+ * engine stops (the condition is "after the crew presses", not "while").
  */
 export class OilTemperatureLowMonitor {
   private runningTimeMs = 0;
@@ -91,12 +85,12 @@ const FLX_MCT_DETENT_TLA = 35;
 const TOGA_DETENT_TLA = 45;
 
 /** The thrust lever is at CL or between CL and FLX/MCT */
-export function isLeverBetweenClAndFlxMct(tlaDegrees: number): boolean {
+function isLeverBetweenClAndFlxMct(tlaDegrees: number): boolean {
   return tlaDegrees >= CL_DETENT_TLA && tlaDegrees < FLX_MCT_DETENT_TLA;
 }
 
 /** The thrust lever is at FLX/MCT (up to TOGA) */
-export function isLeverAtFlxMct(tlaDegrees: number): boolean {
+function isLeverAtFlxMct(tlaDegrees: number): boolean {
   return tlaDegrees >= FLX_MCT_DETENT_TLA && tlaDegrees < TOGA_DETENT_TLA;
 }
 
@@ -123,8 +117,7 @@ export interface ThrustLeversNotSetInputs {
 
 /**
  * The lines of ENG THR LEVERS NOT SET: 0 ALL THR LEVERS TOGA (TOGA mode), 1 THR LEVERS MCT/FLEX (FLEX or derated
- * mode: l.175178-175182 "If derate or flex takeoff selected on FMS and thrust levers are below FLX/MCT ... If derated
- * takeoff selected on FMS and thrust levers at TOGA: THR LEVERS ... MCT/FLEX")
+ * mode)
  */
 export function thrLeversNotSetItemsShown(flexOrDerateTakeoffMode: boolean): boolean[] {
   return [!flexOrDerateTakeoffMode, flexOrDerateTakeoffMode];
@@ -132,10 +125,9 @@ export function thrLeversNotSetItemsShown(flexOrDerateTakeoffMode: boolean): boo
 
 /**
  * ENG THR LEVERS NOT SET: a thrust lever of a running engine is at CL or between CL and FLX/MCT, at FLX/MCT while
- * the FADECs are in TOGA mode, or at TOGA for a derated takeoff (l.175181-175184: "If derated takeoff selected on FMS and
- * thrust levers at TOGA ... TOGA thrust rating is not allowed when a derate takeoff is performed"). The phase inhibition
- * limits it to the phases 2 and 3; a lever below CL (taxi) is not a take-off setting. Design choice: only the levers of
- * running engines (FADEC state ON) count, as the A32NX FWC (engine core at or above minimum idle).
+ * the FADECs are in TOGA mode, or at TOGA for a derated takeoff (TOGA thrust is not allowed with a derate). The phase
+ * inhibition limits it to the phases 2 and 3; a lever below CL (taxi) is not a take-off setting. Design choice: only
+ * the levers of running engines (FADEC state ON) count, as the A32NX FWC (engine core at or above minimum idle).
  */
 export function isThrustLeversNotSet(inputs: ThrustLeversNotSetInputs): boolean {
   const derate = inputs.derateTakeoffMode === true;

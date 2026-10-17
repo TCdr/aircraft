@@ -15,7 +15,6 @@ import {
 /** The TPIS measurement of the normal 217.5 PSI */
 const normal = () => new Array<number>(TIRE_COUNT).fill(220);
 
-/* A380 FCOM PRO-ABN-ECAM-10-32 WHEEL TIRE PRESS LO, a380_fcom.txt l.163270-163311 (FCOM audit T2-44, row B27) */
 describe('WHEEL TIRE PRESS LO', () => {
   it('no alert with the normal pressures', () => {
     expect(isWheelTirePressLo(normal(), 1)).toBe(false);
@@ -47,7 +46,7 @@ describe('WHEEL TIRE PRESS LO', () => {
     expect(isWheelTirePressLo(new Array<number>(TIRE_COUNT).fill(0), 1)).toBe(false);
   });
 
-  it('single chime, MASTER CAUT, phases 3 to 7 and 10 inhibited (PDF page 5539)', () => {
+  it('single chime, MASTER CAUT, phases 3 to 7 and 10 inhibited', () => {
     expect(WHEEL_TIRE_PRESS_LO_ALERT).toBe(320800063);
     expect(WHEEL_TIRE_PRESS_LO_LEVEL).toBe(2);
     expect(WHEEL_TIRE_PRESS_LO_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 10]);

@@ -9,8 +9,8 @@ import { isApproachCapabilityDowngradedByRa } from './AutoFlightAlerts';
 /* The wiring is read from the source text, as FwsAbnormalSensedItems.spec.ts does (EcamMessages import cycle). */
 const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
 
-describe('AUTO FLT APPROACH CAPABILITY DOWNGRADED (A380 FCOM l.136343-136416)', () => {
-  it('"The RA B is failed" (l.136370), not with a second RA failed (NAV RA SYS dual faults)', () => {
+describe('AUTO FLT APPROACH CAPABILITY DOWNGRADED', () => {
+  it('"The RA B is failed", not with a second RA failed (NAV RA SYS dual faults)', () => {
     expect(isApproachCapabilityDowngradedByRa(false, true, false)).toBe(true);
     expect(isApproachCapabilityDowngradedByRa(false, false, false)).toBe(false);
     expect(isApproachCapabilityDowngradedByRa(true, false, false)).toBe(false);
@@ -18,7 +18,7 @@ describe('AUTO FLT APPROACH CAPABILITY DOWNGRADED (A380 FCOM l.136343-136416)', 
     expect(isApproachCapabilityDowngradedByRa(false, true, true)).toBe(false);
   });
 
-  it('is wired: phases 2, 8, 9 (PDF p.4790), master caution, CAT 3 DUAL inop and CAT 3 SINGLE ONLY', () => {
+  it('is wired: phases 2, 8, 9, master caution, CAT 3 DUAL inop and CAT 3 SINGLE ONLY', () => {
     const start = abnormalSensed.indexOf('    220800006: {');
     expect(start).toBeGreaterThan(0);
     const block = abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));

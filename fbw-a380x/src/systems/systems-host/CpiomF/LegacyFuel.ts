@@ -74,7 +74,7 @@ export class LegacyFuel implements Instrument {
 
   private refuelInProgress = false;
 
-  /** Fuel jettison in progress: all fuel transfers stop (A380 FCOM DSC-28-40, FuelJettison) */
+  /** Fuel jettison in progress: all fuel transfers stop */
   private jettisonInProgress = false;
 
   private hasInit = false;
@@ -277,24 +277,23 @@ export class LegacyFuel implements Instrument {
       this.refuelInProgress = false;
       this.checkEmptyTriggers();
     } else if (manualTransferInProgress) {
-      // A380 FCOM PRO-ABN-ECAM-10-28 (a380_fcom.txt l.151103-151104): "As long as the INR TK XFR pb-sw is set to MAN,
-      // all automatic transfers are inhibited". They start again from all their triggers off (CpiomF/FuelManualTransfer).
+      // While an INR TK XFR pb-sw is in MAN, all the automatic transfers are inhibited. They start again from all their
+      // triggers off (FuelManualTransfer).
     } else if (!onGround && totalDtSinceLastUpdate > 0) {
       this.checkEmptyTriggers();
 
       const cgTargetStart = this.calculateCGTarget(this.aircraftWeightInLBS.get() / 1000);
       const cgTargetStop = cgTargetStart - 1;
 
-      // The main transfer thresholds, reduced when the remaining time to destination is less than 90 min (A380 FCOM
-      // DSC-28-30, a380_fcom.txt l.59243-59255, CpiomF/FuelTransferSchedule)
+      // The main transfer thresholds are reduced when the remaining time to destination is less than 90 min
       const th = mainTransferThresholds(
         remainingTimeToDestinationMin(
           FM_REMAINING_FLIGHT_TIME_VARS.map((name) => SimVar.GetSimVarValue(name, 'number')),
         ),
       );
 
-      // TRIM TK FEED ISOL: "The trim tank forward transfer stops and the trim tank transfer line is isolated" (DSC-28-20,
-      // l.58044-58053): no transfer out of the trim tank starts, the running ones stop (CpiomF/FuelTrimTankFeed)
+      // TRIM TK FEED ISOL isolates the trim tank transfer line: no transfer out of the trim tank starts, the running
+      // ones stop
       const trimTankIsolated =
         trimTankFeedSelector(SimVar.GetSimVarValue(TRIM_TK_FEED_SELECTOR_VAR, 'number')) === TrimTankFeedSelector.Isol;
       if (trimTankIsolated) {
@@ -664,7 +663,7 @@ export class LegacyFuel implements Instrument {
   }
   /**
    * TRIM TK FEED ISOL: switches the trim tank transfer triggers off, stops the trim tank pumps and closes the trim line
-   * valves (CpiomF/FuelTrimTankFeed isolateTrimTank); the trim tank transfers to the feed tanks are no longer active
+   * valves; the trim tank transfers to the feed tanks are no longer active
    */
   private isolateTrimTankTransfers(): void {
     if (!this.keyEventManager) {

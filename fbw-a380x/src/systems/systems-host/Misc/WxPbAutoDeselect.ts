@@ -4,24 +4,21 @@
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
 
 /**
- * The EFIS CP WX pb after landing, A380 FCOM DSC-34-20-30 (a380_fcom.txt l.92444-92447): "ON GROUND, AFTER LANDING:
- * 60 s after touchdown, the WX pb on the EFIS CP is automatically deselected and the WXR automatically turns off."
- * (also l.89271-89272: "The WXR is turned off: Automatically, after landing"). The WXR transmits while an ND asks for
- * the weather (ndwxr), so deselecting the pbs also turns the radar off.
+ * The EFIS CP WX pb after landing: 60 s after touchdown the WX pbs are deselected and the WXR turns off. The WXR
+ * transmits while an ND asks for the weather (ndwxr), so deselecting the pbs also turns the radar off.
  *
- * Design choices (not in the FCOM): the touchdown is the first frame on ground after a frame in flight (no count after
- * a spawn on the ground); a lift-off before the 60 s (touch and go, bounce) cancels the count; the deselection is done
- * once, so the crew can select the WX pb again on ground.
+ * Design choices: the touchdown is the first frame on ground after a frame in flight (no count after a spawn on the
+ * ground); a lift-off before the 60 s (touch and go, bounce) cancels the count; the deselection is done once, so the
+ * crew can select the WX pb again on ground.
  */
 
-/** "60 s after touchdown" (a380_fcom.txt l.92446) */
-export const WX_PB_AUTO_DESELECT_DELAY_SECONDS = 60;
+const WX_PB_AUTO_DESELECT_DELAY_SECONDS = 60;
 
 /** The overlay of an EFIS CP while its WX pb is selected (L:A380X_EFIS_{L,R}_ACTIVE_OVERLAY: 0 none, 1 WX, 2 TERR) */
-export const EFIS_OVERLAY_WX = 1;
+const EFIS_OVERLAY_WX = 1;
 
 /** The L:var of the overlay selected on one EFIS CP */
-export function efisOverlayVar(side: 'L' | 'R'): string {
+function efisOverlayVar(side: 'L' | 'R'): string {
   return `L:A380X_EFIS_${side}_ACTIVE_OVERLAY`;
 }
 

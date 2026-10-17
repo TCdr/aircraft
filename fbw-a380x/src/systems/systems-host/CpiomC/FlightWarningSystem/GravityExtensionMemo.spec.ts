@@ -10,7 +10,6 @@ import {
   isGravityExtensionMemoShown,
 } from './GravityExtensionMemo';
 
-/* A380 FCOM DSC-32-20-180 MEMO, a380_fcom.txt l.82307 (FCOM audit T2-44, row B32) */
 describe('L/G GRVTY EXTN memo', () => {
   it('shows once the gears are down and locked with the L/G GRVTY sw at DOWN', () => {
     expect(isGravityExtensionMemoShown(2, true)).toBe(true);
@@ -21,7 +20,7 @@ describe('L/G GRVTY EXTN memo', () => {
     expect(isGravityExtensionMemoShown(0, true)).toBe(false);
   });
 
-  it('is inhibited in the phases 3 to 7 (figure of PDF page 2870)', () => {
+  it('is inhibited in the phases 3 to 7', () => {
     expect(GRAVITY_EXTENSION_MEMO_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7]);
   });
 

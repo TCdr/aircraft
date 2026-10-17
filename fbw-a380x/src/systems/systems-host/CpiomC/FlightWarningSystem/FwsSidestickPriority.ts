@@ -3,12 +3,9 @@
 
 /*
  * The PRIORITY LEFT / PRIORITY RIGHT synthetic voices of the A380 FWS.
- * - a380_fcom.txt l.55350, 55363 (DSC-27-10-20 SIDESTICK PRIORITY light): "The Captain presses their sidestick pb. The
- *   PRIORITY LEFT callout is triggered." / "The First Officer presses their sidestick pb. The PRIORITY RIGHT callout
- *   is triggered."
- * - a380_fcom.txt l.73621-73623 (DSC-31-40-20 audio indicators): Priority Left / Right "Sounds 1 time".
- * - a380_fcom.txt l.55303: "If both flight crewmembers press their sidestick pb, the last pilot to press gets the
- *   priority."
+ * - The Captain pressing their sidestick pb triggers PRIORITY LEFT, the First Officer PRIORITY RIGHT.
+ * - Each voice sounds once.
+ * - If both pilots press their sidestick pb, the last one to press gets the priority.
  *
  * The voices are triggered from the sidestick pbs (L:A32NX_PRIORITY_TAKEOVER:1 and :2): the PRIMs do not send the
  * sidestick priority to the FWS in the sim.
@@ -18,7 +15,7 @@
  *   disconnect pb, and a short press to disconnect the autopilot (or to stop the cavalry charge) must not call it.
  * - While a GPWS alert is active, the voice waits.
  *
- * Not done: the DUAL INPUT voice (a380_fcom.txt l.55338, 73614). The F/O sidestick sends no input in the sim
+ * Not done: the DUAL INPUT voice. The F/O sidestick sends no input in the sim
  * (FlyByWireInterface.cpp, fo_pitch_stick_pos = 0) and the A380X FCDC sends no sidestick position, so a dual input
  * cannot be seen.
  */

@@ -10,8 +10,7 @@ import { selectSfccPositionWord } from './SfccWordSelection';
 const word = (value: number, ssm = Arinc429SignStatusMatrix.NormalOperation) =>
   new Arinc429Word(Arinc429Word.getRawWord(value, ssm));
 
-/* A380 FCOM DSC-27-10-10 SFCC (a380_fcom.txt l.54523): "Any slats or flaps control unit can provide the position of all
- * the slats and flaps." */
+/* Any slat or flap control unit can give the position of all the slats and flaps */
 describe('A380X FWS slat/flap position source', () => {
   it('reads SFCC 1 while it gives the position', () => {
     expect(selectSfccPositionWord(word(1), false, word(2), false).value).toBe(1);

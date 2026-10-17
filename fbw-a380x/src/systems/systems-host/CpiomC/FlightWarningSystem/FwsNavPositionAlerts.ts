@@ -4,25 +4,20 @@
 import { Subject } from '@microsoft/msfs-sdk';
 
 /*
- * NAV FM / GPS POS DISAGREE and NAV LS TUNING DISAGREE of the FWS (A380 FCOM PRO-ABN-ECAM-10-34-10).
+ * NAV FM / GPS POS DISAGREE and NAV LS TUNING DISAGREE of the FWS.
  *
- * NAV FM / GPS POS DISAGREE (a380_fcom.txt l.164817-164870): "A discrepancy is detected between FMS and GPS position",
- * with the latitude-dependent thresholds of l.164826-164832. The FMS computes the condition (fmgc
- * navigation/FmPosition.ts, A380_FM_POSITION_CONFIG) and sends it as L:A32NX_FM_GPS_POS_DISAGREE. Single chime and
- * MASTER CAUT; flight phase inhibition read on the FCOM PDF (Docs/airbus-a380-fcom_compress.pdf) page 5578: inhibited in
- * the phases 1, 3, 4, 5, 6 and 12. ACFT POS ... CHECK (l.164858); STATUS INFO "FLS: RAW ONLY" (l.164866-164868).
+ * NAV FM / GPS POS DISAGREE: the FMS and GPS positions differ by more than a latitude-dependent threshold. The FMS
+ * computes the condition (fmgc navigation/FmPosition.ts, A380_FM_POSITION_CONFIG) and sends it as
+ * L:A32NX_FM_GPS_POS_DISAGREE. Single chime and MASTER CAUT; ACFT POS ... CHECK; STATUS INFO FLS : RAW ONLY.
  *
- * NAV LS TUNING DISAGREE (a380_fcom.txt l.165669-165708): "a discrepancy between both MMRs, on one of the following
- * parameters: Approach mode (ILS mode, FLS mode, ILS/FLS mode, or GLS mode), frequency/channel, or course". The MMRs
- * are the sim NAV 3 and NAV 4 receivers, which have no approach mode: the frequency and the course are compared. Single
- * chime and MASTER CAUT; flight phase inhibition, PDF page 5603: shown in the phases 8 and 9 only. Crew awareness;
- * STATUS INOP SYS APPR & LDG: CAT 2, GLS AUTOLAND (l.165700-165708).
+ * NAV LS TUNING DISAGREE: the two MMRs differ in approach mode (ILS, FLS, ILS/FLS or GLS), frequency/channel or course.
+ * The MMRs are the sim NAV 3 and NAV 4 receivers, which have no approach mode: the frequency and the course are
+ * compared. Single chime and MASTER CAUT, shown in the phases 8 and 9 only. Crew awareness; STATUS INOP SYS APPR & LDG:
+ * CAT 2, GLS AUTOLAND.
  */
 
-/** NAV FM / GPS POS DISAGREE flight phase inhibition (FCOM PDF page 5578) */
 export const FM_GPS_POS_DISAGREE_PHASE_INHIBITION = [1, 3, 4, 5, 6, 12];
 
-/** NAV LS TUNING DISAGREE flight phase inhibition (FCOM PDF page 5603) */
 export const LS_TUNING_DISAGREE_PHASE_INHIBITION = [1, 2, 3, 4, 5, 6, 7, 10, 11, 12];
 
 /** STATUS of NAV FM / GPS POS DISAGREE: INFO FLS : RAW ONLY (EcamInfos) */
@@ -32,8 +27,8 @@ export const FM_GPS_POS_DISAGREE_INFO = '340200021';
 export const LS_TUNING_DISAGREE_INOP_SYS_APPR_LDG = ['220300027', '220300010'];
 
 /**
- * Design choice, no FCOM value: the two MMRs must stay differently tuned for 3 s, so that the FMS tuning both receivers
- * one after the other (two key events, applied by the sim in the next frames) cannot trigger the alert.
+ * Design choice, no aircraft value: the two MMRs must stay differently tuned for 3 s, so that the FMS tuning both
+ * receivers one after the other (two key events, applied by the sim in the next frames) cannot trigger the alert.
  */
 export const LS_TUNING_DISAGREE_CONFIRM_S = 3;
 
@@ -67,10 +62,8 @@ export function isLsTuningDifferent(mmr1: MmrTuning, mmr2: MmrTuning): boolean {
 
 /** The NAV FM / GPS POS DISAGREE and NAV LS TUNING DISAGREE conditions. One instance in FwsCore. */
 export class FwsNavPositionAlerts {
-  /** NAV FM / GPS POS DISAGREE */
   public readonly fmGpsPosDisagree = Subject.create(false);
 
-  /** NAV LS TUNING DISAGREE */
   public readonly lsTuningDisagree = Subject.create(false);
 
   /** How long the two MMRs have been tuned differently, in seconds */

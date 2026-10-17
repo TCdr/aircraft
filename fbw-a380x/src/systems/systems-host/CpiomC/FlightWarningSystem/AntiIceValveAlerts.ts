@@ -4,7 +4,7 @@
 import { Subject } from '@microsoft/msfs-sdk';
 
 /*
- * The anti-ice valve alerts of the A380X FWS (A380 FCOM PRO-ABN-ECAM-10-30, a380_fcom.txt l.156370-157010):
+ * The anti-ice valve alerts of the A380X FWS:
  * A-ICE ENG 1(2)(3)(4) VLV CLOSED / VLV OPEN and A-ICE L(R) WING VLV CLOSED / VLV OPEN / VLV PRESS HI / VLV PRESS LO.
  *
  * The valves are those of the systems model (a380_systems ice_rain_protection.rs): the engine anti-ice valves
@@ -14,28 +14,22 @@ import { Subject } from '@microsoft/msfs-sdk';
 
 /** The ECAM alert ids (texts in EcamMessages/AbnormalSensed/ata29-30.ts) */
 export const ANTI_ICE_VALVE_ALERT_IDS = {
-  /** A-ICE ENG 1(2)(3)(4) VLV CLOSED */
   engineValveClosed: ['300800010', '300800011', '300800012', '300800013'],
-  /** A-ICE ENG 1(2)(3)(4) VLV OPEN */
   engineValveOpen: ['300800014', '300800015', '300800016', '300800017'],
-  /** A-ICE L(R) WING VLV CLOSED */
   wingValveClosed: ['300800018', '300800019'],
-  /** A-ICE L(R) WING VLV OPEN */
   wingValveOpen: ['300800020', '300800021'],
-  /** A-ICE L(R) WING VLV PRESS HI */
   wingPressHi: ['300800022', '300800023'],
-  /** A-ICE L(R) WING VLV PRESS LO */
   wingPressLo: ['300800024', '300800025'],
 };
 
-/** INOP SYS ENG 1(2)(3)(4) A-ICE (A-ICE ENG VLV CLOSED STATUS, l.156422-156426) and WING A-ICE */
+/** INOP SYS ENG 1(2)(3)(4) A-ICE (STATUS of A-ICE ENG VLV CLOSED) and WING A-ICE */
 export const ENGINE_ANTI_ICE_INOP_SYS = ['300300010', '300300011', '300300012', '300300013'];
 export const WING_ANTI_ICE_INOP_SYS = '300300001';
 /** LIMITATIONS AVOID ICING CONDs (ALL PHASES, on the ECAM and the PFD) */
 export const AVOID_ICING_LIMITATION = '300400001';
 
 /**
- * Design choice (no FCOM value): the time a valve disagreement must last before the alert, longer than the 2 s the
+ * Design choice (no published value): the time a valve disagreement must last before the alert, longer than the 2 s the
  * valves of the systems model take to transit (the FAULT light shows the transit).
  */
 export const ANTI_ICE_VALVE_CONFIRM_TIME_SECONDS = 5;
@@ -79,8 +73,8 @@ class ConfirmedCondition {
 /**
  * The anti-ice valve alerts.
  *
- * Design choice: A-ICE ENG VLV CLOSED ("The ENG 1(2)(3)(4) anti-ice valve is abnormally closed", l.156377) needs the
- * engine running: without engine air the valve closes (as the A320 valve, DSC-30-30-10), a pb ON before the engine
+ * Design choice: A-ICE ENG VLV CLOSED (the valve is abnormally closed) needs the engine running: without engine air
+ * the valve closes (as the A320 valve), a pb ON before the engine
  * start lights the FAULT light only. The wing conditions come from the AICU monitoring of the systems model.
  */
 export class AntiIceValveAlerts {
@@ -165,11 +159,11 @@ export interface WingBleedControls {
 }
 
 /**
- * The lines of A-ICE L(R) WING VLV OPEN (l.156871-156896), in the order of the procedure items of ata29-30.ts.
- * "Before takeoff and after landing: To avoid overheating the slats on the affected side, the bleed sources must be
- * closed": 0 X BLEED CLOSE, 1 PACK 1(2) OFF, 2 ENG 1(3) BLEED OFF, 3 ENG 2(4) BLEED OFF, 4 APU BLEED OFF (left wing
- * only), 5 BLEEDS/ PACK/ WING A-ICE AVAIL IN FLT (before takeoff). "When the aircraft is in flight, all bleed systems can
- * be turned on again": 6 ENG 1(3) BLEED ON, 7 ENG 2(4) BLEED ON, 8 PACK 1(2) ON, 9 X BLEED AUTO.
+ * The lines of A-ICE L(R) WING VLV OPEN, in the order of the procedure items of ata29-30.ts.
+ * On ground the bleed sources of the affected side are closed so the slats do not overheat: 0 X BLEED CLOSE, 1 PACK
+ * 1(2) OFF, 2 ENG 1(3) BLEED OFF, 3 ENG 2(4) BLEED OFF, 4 APU BLEED OFF (left wing only), 5 BLEEDS/ PACK/ WING A-ICE
+ * AVAIL IN FLT (before takeoff). In flight all bleed systems can be turned on again: 6 ENG 1(3) BLEED ON, 7 ENG 2(4)
+ * BLEED ON, 8 PACK 1(2) ON, 9 X BLEED AUTO.
  * @param controls the bleed controls of the wing
  * @param leftWing the procedure of the left wing
  * @returns the items to show and the items checked
@@ -200,8 +194,8 @@ export function wingValveOpenLines(
 }
 
 /**
- * The lines of A-ICE L(R) WING VLV PRESS LO (l.156982-156998), in the order of the procedure items of ata29-30.ts.
- * "On ground": 0 WING A-ICE OFF, 1 AVOID ICING CONDs. "In flight": 2 THRUST INCREASE, 3 IF NOT SUCCESSFUL (crew
+ * The lines of A-ICE L(R) WING VLV PRESS LO, in the order of the procedure items of ata29-30.ts.
+ * On ground: 0 WING A-ICE OFF, 1 AVOID ICING CONDs. In flight: 2 THRUST INCREASE, 3 IF NOT SUCCESSFUL (crew
  * validated), 4 WING A-ICE OFF, 5 AVOID ICING CONDs.
  * @param onGround the aircraft is on ground
  * @param wingAntiIcePbOn the WING ANTI ICE pb is ON
@@ -216,11 +210,11 @@ export function wingPressLoLines(onGround: boolean, wingAntiIcePbOn: boolean): {
 }
 
 /** The IF NOT SUCCESSFUL item of A-ICE L(R) WING VLV PRESS LO (wingPressLoLines) */
-export const WING_PRESS_LO_NOT_SUCCESSFUL_ITEM = 3;
+const WING_PRESS_LO_NOT_SUCCESSFUL_ITEM = 3;
 
 /**
- * Whether the wing anti-ice is failed for the STATUS and LIMITATIONS of A-ICE L(R) WING VLV PRESS LO: "WING A-ICE (On
- * ground, or if wing anti-ice is failed)" (l.157052-157053); it is failed once the crew validated IF NOT SUCCESSFUL.
+ * Whether the wing anti-ice is failed for the STATUS and LIMITATIONS of A-ICE L(R) WING VLV PRESS LO, which list WING
+ * A-ICE on ground or with the wing anti-ice failed; it is failed once the crew validated IF NOT SUCCESSFUL.
  * @param onGround the aircraft is on ground
  * @param itemsChecked the items of the procedure the crew checked
  */

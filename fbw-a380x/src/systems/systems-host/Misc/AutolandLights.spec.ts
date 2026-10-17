@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { isAutolandLightLit } from './AutolandLights';
 
-describe('AUTOLAND light (A380 FCOM DSC-22-FG-80-100)', () => {
+describe('AUTOLAND light', () => {
   it('stays dark without warning and without press', () => {
     for (let t = 0; t < 3000; t += 100) {
       expect(isAutolandLightLit(false, false, t)).toBe(false);

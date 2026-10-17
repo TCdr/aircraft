@@ -29,8 +29,8 @@ export function transponderFailureKey(system: SurvSystem): number {
 }
 
 /**
- * Whether the XPDR/TCAS of a surveillance system is powered.
- * A380 FCOM DSC-34-20-100 (a380_fcom.txt:92741-92743): SURV SYS 1 (XPDR/TCAS) = 115 V AC ESS, SURV SYS 2 = 115 V AC 4.
+ * Whether the XPDR/TCAS of a surveillance system is powered: SURV SYS 1 (XPDR/TCAS) by 115 V AC ESS, SURV SYS 2 by
+ * 115 V AC 4.
  * @param system the surveillance system
  * @param acEssPowered whether the AC ESS busbar (400XP) is powered
  * @param ac4Powered whether the AC 4 busbar is powered
@@ -59,8 +59,8 @@ export function isTransponderOperative(
 
 /**
  * Whether the TCAS function of a surveillance system is inoperative.
- * A380 FCOM SURV XPDR 1(2) FAULT (a380_fcom.txt:167281-167322): with the XPDR function of SURV SYS 1(2) failed, the
- * STATUS lists XPDR 1(2) and TCAS 1(2) as INOP SYS. MSFS runs one TCAS computer (LegacyTcasComputer,
+ * SURV XPDR 1(2) FAULT: with the XPDR function of SURV SYS 1(2) failed, the STATUS lists XPDR 1(2) and TCAS 1(2) as
+ * INOP SYS. MSFS runs one TCAS computer (LegacyTcasComputer,
  * L:A32NX_TCAS_FAULT) as the TCAS of the selected system, so its fault is the TCAS fault of the selected system only.
  * @param system the surveillance system
  * @param selectedSystem the XPDR & TCAS system in use (L:A32NX_TRANSPONDER_SYSTEM)

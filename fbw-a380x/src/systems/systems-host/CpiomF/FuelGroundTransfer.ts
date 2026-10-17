@@ -14,12 +14,6 @@ import {
   TRIM_TANK,
 } from './FuelTransferSchedule';
 
-/*
- * The A380 automatic ground transfer (A380 FCOM DSC-28-50-20 AUTOMATIC GROUND TRANSFER, a380_fcom.txt l.60564-60585;
- * DSC-28-20 AUTO GND XFR pb-sw, l.58187-58209; PRO-ABN-ECAM-10-28 FUEL AUTO GND XFR COMPLETED and FAULT,
- * l.149220-149305).
- */
-
 /** The AUTO GND XFR pb-sw: 1 pressed (ON), 0 released */
 export const AUTO_GND_XFR_PB_IS_ON_VAR = 'L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_IS_ON';
 /** The light of the AUTO GND XFR pb-sw: on while selected, flashing when the FQMS aborts */
@@ -31,17 +25,17 @@ export const AUTO_GND_XFR_COMPLETED_VAR = 'L:A380X_FUEL_AUTO_GND_XFR_COMPLETED';
 /** The FQMS aborted the automatic ground transfer, or it could not start (FUEL AUTO GND XFR FAULT) */
 export const AUTO_GND_XFR_FAULT_VAR = 'L:A380X_FUEL_AUTO_GND_XFR_FAULT';
 
-/** "the ground CG target of 39.5%" (l.60568) */
+/** The ground CG target, % MAC */
 export const GROUND_CG_TARGET_PERCENT = 39.5;
 
 /**
- * The transfer rate of the trim tank pumps (design choice: the FCOM gives none for the ground transfer, which "is complete
- * in less than 25 min", l.60580; the rate of the trim tank transfers in flight, l.59524), in pounds per hour
+ * The transfer rate of the trim tank pumps, in pounds per hour. Design choice: the aircraft has no published rate for
+ * the ground transfer, which completes in less than 25 min: the rate of the trim tank transfers in flight.
  */
 export const GROUND_TRANSFER_RATE_LB_PER_H = 44_100;
 
 /** The flashing period of the pb-sw light when the FQMS aborts the ground transfer, in seconds (design choice) */
-export const AUTO_GND_XFR_FAULT_FLASH_PERIOD_S = 1;
+const AUTO_GND_XFR_FAULT_FLASH_PERIOD_S = 1;
 
 export enum GroundTransferState {
   /** AUTO GND XFR pb-sw released */
@@ -71,9 +65,8 @@ export interface GroundTransferInputs {
   /** All the transfer pump pb-sws are ON */
   readonly allTransferPumpsOn: boolean;
   /**
-   * The gross weight CG computed by the FQMS, in % MAC, null when it computes none (no ZFW / ZFCG entered in the FMS:
-   * "An automatic ground transfer is not possible, if the flight crew did not enter the ZFW and ZFCG in the FMS",
-   * l.149294-149297)
+   * The gross weight CG computed by the FQMS, in % MAC, null when it computes none: without the ZFW and ZFCG entered in
+   * the FMS no automatic ground transfer is possible
    */
   readonly cgPercent: number | null;
   /** A refuel, a jettison or a manual transfer is in progress */
@@ -84,15 +77,14 @@ export interface GroundTransferInputs {
 
 /**
  * The automatic ground transfer of the FQMS:
- * - The flight crew starts and stops it with the AUTO GND XFR pb-sw (l.60582). It "will redistribute the fuel, to obtain
- *   the ground CG target (+/- 1%), based on the final ZFW / ZFCG values entered in the FMS. The ground CG target will only
- *   be reached when this is achievable with the current ZFW, ZFCG and FOB." (l.60571-60574): the fuel moves until the CG
- *   reaches 39.5 %, or until no more fuel can move that way (design choice: then the transfer has completed too).
- * - "All the transfer pumps must be on to perform the automatic ground transfer [...] It is inhibited as soon as at least
- *   two engines are running." (l.60583-60585); FUEL AUTO GND XFR FAULT: "The automatic ground transfer cannot start or
- *   complete, or two engines have been started before the end" (l.149252-149253), the pb-sw light flashes (l.58206-58209).
+ * - The flight crew starts and stops it with the AUTO GND XFR pb-sw. It moves fuel to reach the ground CG target
+ *   (+/- 1 %) from the ZFW / ZFCG entered in the FMS, when the current ZFW, ZFCG and FOB allow it: the fuel moves until
+ *   the CG reaches 39.5 %, or until no more fuel can move that way (design choice: then the transfer has completed
+ *   too).
+ * - It needs all the transfer pumps on and stops as soon as two engines run. FUEL AUTO GND XFR FAULT: the transfer
+ *   cannot start or complete, or two engines started before its end; the pb-sw light then flashes.
  *   Design choice: a refuel, a jettison or a manual transfer in progress, or the aircraft in flight, abort it too.
- * - FUEL AUTO GND XFR COMPLETED, "AUTO GND XFR ... OFF" (l.149220-149234): the result stays until the pb-sw is released.
+ * - FUEL AUTO GND XFR COMPLETED (AUTO GND XFR ... OFF): the result stays until the pb-sw is released.
  */
 export class GroundTransferLogic {
   private state = GroundTransferState.Off;
@@ -149,8 +141,8 @@ const WING_TANK_PAIRS: readonly (readonly [number, number])[] = [
 ];
 
 /**
- * Whether fuel can still move in a direction: out of the trim tank into a pair of wing tanks with room, or out of a pair
- * of wing tanks with fuel into the trim tank with room
+ * Whether fuel can still move in a direction: out of the trim tank into a pair of wing tanks with room, or out of a
+ * pair of wing tanks with fuel into the trim tank with room
  */
 export function groundTransferCanMove(levels: TankLevels, direction: GroundTransferDirection): boolean {
   if (direction === GroundTransferDirection.FromTrimTank) {
@@ -164,12 +156,11 @@ export function groundTransferCanMove(levels: TankLevels, direction: GroundTrans
 }
 
 /**
- * The fuel moves of the ground transfer over one update. "Fuel transfers from(to) the trim tank to(from) a pair of
- * symmetric tanks. This enables the lateral balance of the aircraft to be maintained. If a fuel imbalance exists at the
- * start of the automatic ground transfer, it will be corrected during the transfer sequence." (l.60575-60577): into the
- * pair, the lighter tank is filled first; out of the pair, the heavier tank is emptied first. The MSFS fuel system has no
- * line into the trim tank from the wing tanks, so the fuel moves between the MSFS tanks directly (as CpiomF/FuelJettison
- * removes the jettisoned fuel).
+ * The fuel moves of the ground transfer over one update. Fuel moves between the trim tank and a pair of symmetric
+ * tanks, which keeps the lateral balance and corrects an imbalance present at the start: into the pair, the lighter
+ * tank is filled first; out of the pair, the heavier tank is emptied first. The MSFS fuel system has no
+ * line into the trim tank from the wing tanks, so the fuel moves between the MSFS tanks directly (as
+ * CpiomF/FuelJettison removes the jettisoned fuel).
  * @param direction the direction of the transfer
  * @param levels the tank levels, updated with the moves
  * @param poundsPerGallon the fuel density
@@ -215,7 +206,7 @@ export function groundTransferMoves(
 
 /**
  * The light of the AUTO GND XFR pb-sw: on while the pb-sw is pressed (in progress or completed), flashing when the FQMS
- * aborted the transfer ("If the FQMS aborts the automatic ground transfer, the light flashes", l.58207)
+ * aborted the transfer
  * @param state the ground transfer state
  * @param timeS a running time, in seconds, for the flashing
  */

@@ -52,29 +52,29 @@ function only(active: Partial<AvionicsNetworkAlerts>): AvionicsNetworkAlerts {
   return { ...NO_ALERT, ...active };
 }
 
-describe('AVIONICS NETWORK switch alerts (FCOM DSC-42-20, PRO-ABN-ECAM-10-42)', () => {
-  it('no failure, or a single switch failure (maintenance message only, l.94972): no alert', () => {
+describe('AVIONICS NETWORK switch alerts', () => {
+  it('no failure, or a single switch failure (maintenance message only): no alert', () => {
     expect(alerts([])).toEqual(NO_ALERT);
     expect(alerts([3])).toEqual(NO_ALERT);
     expect(alerts([19])).toEqual(NO_ALERT);
   });
 
-  it('two switches on the same network: DOUBLE SWITCH FAULT (l.169461)', () => {
+  it('two switches on the same network: DOUBLE SWITCH FAULT', () => {
     expect(alerts([1, 2])).toEqual(only({ doubleSwitchFault: true }));
     expect(alerts([13, 19])).toEqual(only({ doubleSwitchFault: true }));
   });
 
-  it('three or more switches on the same network: MULTIPLE SWITCH FAULT (REDUNDANCY DEGRADED) (l.169791)', () => {
+  it('three or more switches on the same network: MULTIPLE SWITCH FAULT (REDUNDANCY DEGRADED)', () => {
     expect(alerts([1, 2, 9])).toEqual(only({ multipleSwitchFaultRedundancyDegraded: true }));
     expect(alerts([...AFDX_SWITCHES_NETWORK_B])).toEqual(only({ multipleSwitchFaultRedundancyDegraded: true }));
   });
 
-  it('switches failed on both networks: MULTIPLE SWITCH FAULT (NETWORK DEGRADED) (l.169708)', () => {
+  it('switches failed on both networks: MULTIPLE SWITCH FAULT (NETWORK DEGRADED)', () => {
     expect(alerts([1, 11])).toEqual(only({ multipleSwitchFaultNetworkDegraded: true }));
     expect(alerts([4, 5, 6, 17])).toEqual(only({ multipleSwitchFaultNetworkDegraded: true }));
   });
 
-  it('all 16 switches failed: ALL SWITCHES FAULT only (l.169111)', () => {
+  it('all 16 switches failed: ALL SWITCHES FAULT only', () => {
     expect(alerts([...AFDX_SWITCHES_NETWORK_A, ...AFDX_SWITCHES_NETWORK_B])).toEqual(only({ allSwitchesFault: true }));
     // one switch left: the networks are degraded, not all lost
     expect(alerts([...AFDX_SWITCHES_NETWORK_A, 11, 12, 13, 14, 15, 16, 17])).toEqual(
@@ -83,21 +83,21 @@ describe('AVIONICS NETWORK switch alerts (FCOM DSC-42-20, PRO-ABN-ECAM-10-42)', 
   });
 });
 
-describe('AVIONICS NETWORK IOM alerts (FCOM DSC-42-20, PRO-ABN-ECAM-10-42)', () => {
-  it('a single IOM failure (maintenance message only, l.95026): no alert', () => {
+describe('AVIONICS NETWORK IOM alerts', () => {
+  it('a single IOM failure (maintenance message only): no alert', () => {
     expect(alerts([], ['A1'])).toEqual(NO_ALERT);
   });
 
-  it('two IOMs of different pairs: DOUBLE IOM FAULT (l.169429)', () => {
+  it('two IOMs of different pairs: DOUBLE IOM FAULT', () => {
     expect(alerts([], ['A1', 'A3'])).toEqual(only({ doubleIomFault: true }));
   });
 
-  it('three or more IOMs, one per pair: MULTIPLE IOM FAULT (REDUNDANCY DEGRADED) (l.169670)', () => {
+  it('three or more IOMs, one per pair: MULTIPLE IOM FAULT (REDUNDANCY DEGRADED)', () => {
     expect(alerts([], ['A1', 'A4', 'A6'])).toEqual(only({ multipleIomFaultRedundancyDegraded: true }));
     expect(alerts([], ['A2', 'A3', 'A6', 'A7'])).toEqual(only({ multipleIomFaultRedundancyDegraded: true }));
   });
 
-  it('a pair of IOMs failed: MULTIPLE IOM FAULT (NETWORK DEGRADED) only (l.169521)', () => {
+  it('a pair of IOMs failed: MULTIPLE IOM FAULT (NETWORK DEGRADED) only', () => {
     expect(alerts([], ['A1', 'A2'])).toEqual(only({ multipleIomFaultNetworkDegraded: true }));
     expect(alerts([], ['A7', 'A8', 'A1', 'A3'])).toEqual(only({ multipleIomFaultNetworkDegraded: true }));
   });
@@ -131,8 +131,8 @@ describe('AVIONICS NETWORK failure inputs', () => {
   });
 });
 
-describe('AVIONICS NETWORK alert wiring and FCOM flight phase inhibitions', () => {
-  it('uses the inhibitions of the FCOM figures (PDF p.5701, 5708, 5709, 5711, 5715, 5716, 5718)', () => {
+describe('AVIONICS NETWORK alert wiring and flight phase inhibitions', () => {
+  it('uses the inhibitions of the aircraft', () => {
     expect(ALL_SWITCHES_FAULT_PHASE_INHIBITION).toEqual([4, 5, 6, 7, 9, 10]);
     expect(DOUBLE_FAULT_PHASE_INHIBITION).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(MULTIPLE_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 9, 10]);
@@ -149,7 +149,7 @@ describe('AVIONICS NETWORK alert wiring and FCOM flight phase inhibitions', () =
     expect(fwsCore).toContain('avionicsNetworkAlerts({');
   });
 
-  it('lists the limitations of ALL SWITCHES FAULT (l.169311-169320) in index.ts', () => {
+  it('lists the limitations of ALL SWITCHES FAULT in index.ts', () => {
     for (const id of [...ALL_SWITCHES_FAULT_LIMITATIONS_ALL_PHASES, ...ALL_SWITCHES_FAULT_LIMITATIONS_APPR_LDG]) {
       expect(messageIndex.indexOf(`  ${id}: '\\x1b<`), id).toBeGreaterThan(0);
     }

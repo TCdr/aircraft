@@ -21,7 +21,6 @@ const AUTO: WxrSurvKnobState = {
   altitudeFeet: 12340,
 };
 
-/* A380 FCOM DSC-34-20-30-20 ELEVN knob and GAIN knob (a380_fcom.txt l.89693-89729) */
 describe('SURV panel GAIN knob', () => {
   it('pulled: manual GAIN, 50 % by default; pushed: AUTO GAIN', () => {
     expect(wxrSurvKnobWrites('GAIN', 'PULL', AUTO)).toEqual({ gainMan: true, gain: 50 });
@@ -67,12 +66,12 @@ describe('SURV panel ELEVN knob', () => {
     expect(wxrSurvKnobWrites('ELEVN', 'INC', AUTO)).toEqual({});
   });
 
-  it('does nothing in MAP mode (the ELEVN/TILT option list is not available, l.89943-89944)', () => {
+  it('does nothing in MAP mode (the ELEVN/TILT option list is not available)', () => {
     expect(wxrSurvKnobWrites('ELEVN', 'PULL', { ...AUTO, modeMap: true })).toEqual({});
   });
 });
 
-describe('SURV panel WXR knobs with the WXR OFF (l.89820-89823)', () => {
+describe('SURV panel WXR knobs with the WXR OFF', () => {
   it('do nothing', () => {
     const off = { ...AUTO, wxrOff: true };
     expect(wxrSurvKnobWrites('GAIN', 'PULL', off)).toEqual({});

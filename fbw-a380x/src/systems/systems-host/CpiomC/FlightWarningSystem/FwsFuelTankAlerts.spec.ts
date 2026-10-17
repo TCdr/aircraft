@@ -37,15 +37,15 @@ const procedure = (inputs: Partial<FuelTankProcedureInputs> = {}): FuelTankProce
   ...inputs,
 });
 
-describe('A380X FUEL tank alerts (FCOM PRO-ABN-ECAM-10-28)', () => {
-  it('has the FCOM flight phase inhibitions (PDF p.5158, 5179, 5258, 5198, 5241, 5251, 5269)', () => {
+describe('A380X FUEL tank alerts', () => {
+  it('has the flight phase inhibitions', () => {
     expect(FUEL_TANK_PHASE_INHIBITION.collectorCellNotFull).toEqual([1, 3, 4, 5, 6, 7, 9, 10, 11, 12]);
     expect(FUEL_TANK_PHASE_INHIBITION.feedTankTempHi).toEqual([3, 4, 5, 6, 7, 9, 10]);
     expect(FUEL_TANK_PHASE_INHIBITION.tempLo).toEqual([3, 4, 5, 6, 7, 9, 10, 11, 12]);
     expect(FUEL_TANK_PHASE_INHIBITION.manXfrCompleted).toEqual([3, 4, 5, 6, 7, 9, 10]);
   });
 
-  describe('COLLECTOR CELL 1(2)(3)(4) NOT FULL (l.149560-149568)', () => {
+  describe('COLLECTOR CELL 1(2)(3)(4) NOT FULL', () => {
     const cells = (cell2: Partial<CollectorCellAlertInputs>): CollectorCellAlertInputs[] =>
       [0, 1, 2, 3].map((index) => ({
         quantityKg: 1_300,
@@ -82,14 +82,14 @@ describe('A380X FUEL tank alerts (FCOM PRO-ABN-ECAM-10-28)', () => {
     });
   });
 
-  it('FEED TK TEMP HI above 53 °C (l.150383); DELAY T.O on ground, ENG PARAMETERS in flight (l.150410-150426)', () => {
+  it('FEED TK TEMP HI above 53 °C; DELAY T.O on ground, ENG PARAMETERS in flight', () => {
     expect(isFeedTankTempHi(53)).toBe(false);
     expect(isFeedTankTempHi(54)).toBe(true);
     expect(feedTankTempHiLines(true).show).toEqual([true, false, false, false]);
     expect(feedTankTempHiLines(false).show).toEqual([false, true, true, true]);
   });
 
-  describe('TEMP LO (l.153448)', () => {
+  describe('TEMP LO', () => {
     const tanks = (overrides: Partial<TempLoTankInputs> = {}): TempLoTankInputs => ({
       outer: [
         { temperatureC: -30, quantityKg: 8_000 },
@@ -156,7 +156,7 @@ describe('A380X FUEL tank alerts (FCOM PRO-ABN-ECAM-10-28)', () => {
     });
   });
 
-  describe('MAN XFR COMPLETED (l.151086, l.152837, l.153233, l.153832)', () => {
+  describe('MAN XFR COMPLETED', () => {
     const tanks = (overrides: Partial<ManualTransferCompletedInputs>): ManualTransferCompletedInputs => ({
       innerTanksHoldFuel: true,
       midTanksHoldFuel: true,
@@ -199,7 +199,7 @@ describe('A380X FUEL tank alerts (FCOM PRO-ABN-ECAM-10-28)', () => {
     });
   });
 
-  it('FEED TK LEVEL LO transfer lines: shown for the tanks with fuel, ticked from the XFR pb-sws (l.149913-149923)', () => {
+  it('FEED TK LEVEL LO transfer lines: shown for the tanks with fuel, ticked from the XFR pb-sws', () => {
     const tanks: FeedTankLevelLoTransferInputs = {
       trimTankGravityXfrInProgress: true,
       outerTanksHoldFuel: true,

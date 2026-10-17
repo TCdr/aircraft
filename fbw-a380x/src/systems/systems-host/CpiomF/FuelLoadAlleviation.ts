@@ -22,52 +22,44 @@ import {
 } from './FuelTransferSchedule';
 
 /*
- * The A380 load alleviation transfers (A380 FCOM DSC-28-30 LOAD ALLEVIATION TRANSFER, a380_fcom.txt l.59425-59576):
- * "1. After takeoff: Transfer to the outer tanks, until the outer tanks are full 2. Before landing: - Transfer from the
- * trim tank, until the trim tank is empty - Transfer from the outer tanks, until the outer tanks are half-empty"
- * (l.59437-59441).
+ * The A380 load alleviation transfers: after takeoff, fuel goes to the outer tanks until they are full; before landing,
+ * the trim tank is emptied, then the outer tanks are brought down to half full.
  */
 
-/** "The FOB is greater than 110 200 lb" (l.59448) */
-export const LOAD_ALLEVIATION_TO_OUTER_MIN_FOB_LB = 110_200;
+const LOAD_ALLEVIATION_TO_OUTER_MIN_FOB_LB = 110_200;
 
-/** "approximately 44 100 lb/h per outer tank" (l.59470) */
+/** Per outer tank */
 export const TO_OUTER_TANKS_RATE_LB_PER_H = 44_100;
 
-/** "The transfer rate from the trim tank is approximately 44 100 lb/h" (l.59524) */
 export const FROM_TRIM_TANK_RATE_LB_PER_H = 44_100;
 
-/** "The transfer rate from the outer tanks is approximately 33 050 lb/h per outer tank" (l.59576) */
+/** Per outer tank */
 export const FROM_OUTER_TANKS_RATE_LB_PER_H = 33_050;
 
-/** "the fuel quantity in any outer tank is greater than 8 800 lb", "each outer tank reaches 8 800 lb" (l.59529, l.59548) */
-export const OUTER_TANK_HALF_FULL_LB = 8_800;
+const OUTER_TANK_HALF_FULL_LB = 8_800;
 
 /**
- * The remaining time to destination (RTD) thresholds of a load alleviation transfer before landing: it starts when "The
- * RTD has been below [startBelowMin] min, for 3 min", stops when "The RTD goes above [startBelowMin] min" and "resumes
- * when the RTD goes below [resumeBelowMin] min"
+ * The remaining time to destination (RTD) thresholds of a load alleviation transfer before landing: it starts once the
+ * RTD has been below startBelowMin for 3 min, stops when the RTD goes above startBelowMin (a flight plan change) and
+ * resumes when the RTD goes below resumeBelowMin.
  */
 interface RtdThresholds {
   startBelowMin: number;
   resumeBelowMin: number;
 }
 
-/** Trim tank: 80 min for 3 min, resumes below 78 min (l.59474-59479, l.59496-59501) */
 const FROM_TRIM_RTD: RtdThresholds = { startBelowMin: 80, resumeBelowMin: 78 };
 
-/** Outer tanks: 30 min for 3 min, resumes below 28 min (l.59528-59533, l.59549-59552) */
 const FROM_OUTER_RTD: RtdThresholds = { startBelowMin: 30, resumeBelowMin: 28 };
 
-/** "The RTD has been below 80 (30) min, for 3 min" (l.59478, l.59532) */
-export const RTD_CONFIRM_TIME_S = 180;
+/** How long the RTD must stay below the start threshold */
+const RTD_CONFIRM_TIME_S = 180;
 
-/** "The altitude goes below FL 245, if it was previously above FL 255" (l.59479, l.59533), in feet */
-export const DESCENT_ALTITUDE_HIGH_FT = 25_500;
-export const DESCENT_ALTITUDE_LOW_FT = 24_500;
+/** The transfers before landing also start at a descent below FL 245 after having been above FL 255 */
+const DESCENT_ALTITUDE_HIGH_FT = 25_500;
+const DESCENT_ALTITUDE_LOW_FT = 24_500;
 
 export interface LoadAlleviationInputs {
-  /** The aircraft is in flight */
   readonly inFlight: boolean;
   /** The fuel on board, in pounds */
   readonly fobLb: number;
@@ -79,7 +71,6 @@ export interface LoadAlleviationInputs {
   readonly pressureAltitudeFt: number;
   /** The fuel in the left and right outer tanks, in pounds */
   readonly outerTanksLb: readonly [number, number];
-  /** The trim tank is empty */
   readonly trimTankEmpty: boolean;
   /** The TRIM TK FEED selector is in ISOL (CpiomF/FuelTrimTankFeed) */
   readonly trimTankIsolated: boolean;
@@ -128,8 +119,8 @@ class BeforeLandingTransferStart {
     if (!this.started && (this.rtdBelowTimeS >= RTD_CONFIRM_TIME_S || descentBelowFl245)) {
       this.started = true;
     }
-    // "This can happen if the FMS flight plan modification leads to a new RTD above 80 (30) min. In this case, the
-    // transfer resumes when the RTD goes below 78 (28) min." (l.59499-59501, l.59551-59552)
+    // A flight plan change can raise the RTD above the start threshold: the transfer then waits for the resume
+    // threshold
     if (rtdMin !== null && rtdMin > this.thresholds.startBelowMin) {
       this.suspendedByRtd = true;
     } else if (rtdMin !== null && rtdMin < this.thresholds.resumeBelowMin) {
@@ -141,16 +132,15 @@ class BeforeLandingTransferStart {
 
 /**
  * When the load alleviation transfers run (FQMS logic). All three are in flight only and start again at each flight.
- * - To the outer tanks: "when: The FOB is greater than 110 200 lb - The outer tanks are not full - The aircraft is in
- *   flight. The load alleviation transfer stops, when the outer tanks are full." (l.59447-59452). Design choice: not once
- *   a transfer before landing has started (a FOB above 110 200 lb at landing would otherwise send the fuel back and forth).
- * - From the trim tank: when the RTD is less than 78 min (l.59474-59479), stops when the trim tank is empty, "The TRIM TK
- *   FEED sw is set to ISOL, or The RTD goes above 80 min" (l.59494-59497).
- * - From the outer tanks: when the RTD is less than 28 min "and the fuel quantity in any outer tank is greater than
- *   8 800 lb" (l.59528-59533), stops when "The fuel quantity in each outer tank reaches 8 800 lb (i.e. half-full), or The
- *   RTD goes above 30 min" (l.59547-59549).
- * The RTD is the remaining flight time of the FMS (CpiomF/FuelTransferSchedule): without a flight plan, only the descent
- * below FL 245 starts the transfers before landing.
+ * - To the outer tanks: in flight with a FOB above 110 200 lb, until the outer tanks are full. Design choice: not
+ *   once a transfer before landing has started (a FOB above 110 200 lb at landing would otherwise send the fuel back
+ *   and forth).
+ * - From the trim tank: stops when the trim tank is empty, the TRIM TK FEED selector is in ISOL, or the RTD goes above
+ *   80 min.
+ * - From the outer tanks: while any outer tank holds more than 8 800 lb (half full), stops when each outer tank is down
+ *   to 8 800 lb or the RTD goes above 30 min.
+ * The RTD is the remaining flight time of the FMS (CpiomF/FuelTransferSchedule): without a flight plan, only the
+ * descent below FL 245 starts the transfers before landing.
  */
 export class LoadAlleviationTransferLogic {
   private wasAboveFl255 = false;
@@ -223,18 +213,16 @@ const SIDES = [
 ];
 
 /**
- * The fuel moves of the load alleviation transfers over one update. The MSFS fuel system has no route from the galleries
- * into the outer tanks and none out of the trim tank into the mid tanks, so these transfers move the fuel between the
- * MSFS tanks directly, at the FCOM rates (as CpiomF/FuelJettison removes the jettisoned fuel). Each side of the wing
- * feeds its own outer tank, and an outer tank its own side (design choice: lateral balance).
- * - To the outer tanks, "via the forward galley, from the: Inner tanks, or Mid tanks, when the inner tanks are empty"
- *   (l.59454-59456), with the fwd pump of that tank, or its aft pump when the fwd pump cannot run ("CASE 4: GALLERY
- *   FUNCTIONALITY SWAP [...] Main transfers and load alleviation transfers from/to the outer tanks are done via the aft
- *   gallery", l.59820-59826).
- * - From the trim tank, with the trim tank pumps (half the rate with one), "to the: Feed tanks, or Mid tanks, if the feed
- *   tanks are full, or Inner tanks, if the feed tanks and mid tanks are full" (l.59487-59491).
- * - From each outer tank above 8 800 lb, with its pump, down to 8 800 lb, to the feed tanks, mid tank, inner tank of its
- *   side (l.59540-59548).
+ * The fuel moves of the load alleviation transfers over one update. The MSFS fuel system has no route from the
+ * galleries into the outer tanks and none out of the trim tank into the mid tanks, so these transfers move the fuel
+ * between the MSFS tanks directly, at the aircraft rates (as CpiomF/FuelJettison removes the jettisoned fuel). Each
+ * side of the wing feeds its own outer tank, and an outer tank its own side (design choice: lateral balance).
+ * - To the outer tanks, from the inner tanks, or the mid tanks once the inner tanks are empty, with the fwd pump of
+ *   that tank, or its aft pump when the fwd pump cannot run (the aircraft then swaps the transfer to the aft gallery).
+ * - From the trim tank, with the trim tank pumps (half the rate with one), to the feed tanks, then the mid tanks once
+ *   the feed tanks are full, then the inner tanks.
+ * - From each outer tank above 8 800 lb, with its pump, down to 8 800 lb, to the feed tanks, mid tank, inner tank of
+ *   its side.
  * @param transfers the transfers that run
  * @param levels the tank levels, updated with the moves
  * @param pumps which pumps can run

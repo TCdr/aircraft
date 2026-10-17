@@ -44,14 +44,14 @@ function fakeFws(): { fws: FwsCore; subjects: Record<string, Subject<boolean>> }
   return { fws, subjects };
 }
 
-describe('ELEC AC ESS BUS FAULT STATUS (A380 FCOM PRO-ABN-ECAM-10-24, l.139256-139289)', () => {
-  it('has the FCOM LIMITATIONS, APPR AND LDG (l.139263)', () => {
+describe('ELEC AC ESS BUS FAULT STATUS', () => {
+  it('has the LIMITATIONS, APPR AND LDG', () => {
     expect(ELEC_AC_ESS_BUS_FAULT_STATUS.limitationsApprLdg.map((k) => text('EcamLimitations', k))).toEqual([
       'SLATS SLOW',
     ]);
   });
 
-  it('has the FCOM INOP SYS, ALL PHASES column in order (l.139271-139280)', () => {
+  it('has the INOP SYS, ALL PHASES column in order', () => {
     expect(ELEC_AC_ESS_BUS_FAULT_STATUS.inopSysAllPhases.map((k) => text('EcamInopSys', k))).toEqual([
       'ADR 1',
       'GPS 1',
@@ -66,7 +66,7 @@ describe('ELEC AC ESS BUS FAULT STATUS (A380 FCOM PRO-ABN-ECAM-10-24, l.139256-1
     ]);
   });
 
-  it('has the FCOM INOP SYS, APPR & LDG column in order (l.139271-139275)', () => {
+  it('has the INOP SYS, APPR & LDG column in order', () => {
     expect(ELEC_AC_ESS_BUS_FAULT_STATUS.inopSysApprLdg.map((k) => text('EcamInopSys', k))).toEqual([
       'SLAT SYS 1',
       'CAT 2',
@@ -76,7 +76,7 @@ describe('ELEC AC ESS BUS FAULT STATUS (A380 FCOM PRO-ABN-ECAM-10-24, l.139256-1
     ]);
   });
 
-  it('has the FCOM REDUND LOSS in order (l.139284-139289)', () => {
+  it('has the REDUND LOSS in order', () => {
     expect(ELEC_AC_ESS_BUS_FAULT_STATUS.redundLoss.map((k) => text('EcamInopSys', k))).toEqual([
       'RA SYS C',
       'FEED TK 3 STBY PMP',
@@ -105,7 +105,7 @@ describe('ELEC AC ESS BUS FAULT STATUS (A380 FCOM PRO-ABN-ECAM-10-24, l.139256-1
     expect(active('340300024')).toBe(true);
   });
 
-  it('does not repeat TAWS 1 / XPDR 1 as GPWS 1, TERR SYS 1 and ADS-B RPTG 1 (not in the FCOM STATUS, l.139267-139280)', () => {
+  it('does not repeat TAWS 1 / XPDR 1 as GPWS 1, TERR SYS 1 and ADS-B RPTG 1 (not on the real STATUS page)', () => {
     const { fws, subjects } = fakeFws();
     const inopSys = new FwsInopSys(fws).inopSys;
     const active = (key: string) => inopSys[key].simVarIsActive.get();

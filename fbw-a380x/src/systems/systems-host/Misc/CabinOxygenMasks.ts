@@ -5,14 +5,12 @@ import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
 import { Arinc429Register, Arinc429WordData } from '@flybywiresim/fbw-sdk';
 
 /**
- * The automatic release of the cabin oxygen masks by the oxygen system control unit (OSCU). A380 FCOM DSC-35-30-10: the
- * containers "automatically open to release the masks, when: The cabin altitude is above 13 800 ft" (a380_fcom.txt
- * l.93310, l.93332-93333), as the MASK MAN ON pb does (l.93396); the PAX SYS ON light comes on, "Oxygen flows toward the
- * passenger masks" (l.93408-93410). The automatic release is supplied by DC ESS (DSC-35-50, l.93707).
+ * The automatic release of the cabin oxygen masks by the oxygen system control unit (OSCU): above 13 800 ft cabin
+ * altitude the containers open and release the masks, as the MASK MAN ON pb does, the PAX SYS ON light comes on and
+ * oxygen flows to the passenger masks. The automatic release is supplied by DC ESS.
  */
 
-/** "The cabin altitude is above 13 800 ft" (a380_fcom.txt l.93333) */
-export const CABIN_MASKS_RELEASE_ALTITUDE_FT = 13800;
+const CABIN_MASKS_RELEASE_ALTITUDE_FT = 13800;
 
 /** Releases the masks once, when the cabin altitude goes above 13 800 ft (the crew can reset them afterwards). */
 export class CabinMaskAutoRelease {

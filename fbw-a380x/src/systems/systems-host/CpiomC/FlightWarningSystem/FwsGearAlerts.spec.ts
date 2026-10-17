@@ -95,7 +95,7 @@ describe('LGCIS vote (as the A32NX FWC)', () => {
   });
 });
 
-describe('L/G CTL 1(2)(1+2) FAULT (A380 FCOM l.160908, l.160939-160940)', () => {
+describe('L/G CTL 1(2)(1+2) FAULT', () => {
   it('an LGCIS is failed with its system fault bit or without valid words', () => {
     expect(lgcisFault(lgcis(GEAR_DOWN))).toBe(false);
     expect(lgcisFault(lgcis({ ...GEAR_DOWN, fault: true }))).toBe(true);
@@ -134,7 +134,7 @@ describe('L/G CTL 1(2)(1+2) FAULT (A380 FCOM l.160908, l.160939-160940)', () => 
   });
 });
 
-describe('L/G GEAR NOT LOCKED DOWN: lever DOWN and a gear not downlocked after about 60 s (l.161245-161246)', () => {
+describe('L/G GEAR NOT LOCKED DOWN: lever DOWN and a gear not downlocked after about 60 s', () => {
   const noseStuck: GearState = { leverDown: true, down: [true, true, false], up: NONE, doorClosed: ALL };
 
   it('not before 60 s, then on', () => {
@@ -159,7 +159,7 @@ describe('L/G GEAR NOT LOCKED DOWN: lever DOWN and a gear not downlocked after a
     expect(alerts.gearNotLockedDown.get()).toBe(false);
   });
 
-  it('the gravity extension lines show after 120 s (l.161276)', () => {
+  it('the gravity extension lines show after 120 s', () => {
     const alerts = run(new FwsGearAlerts(), 61 + 119, noseStuck);
     expect(alerts.notLockedDownGravityDue.get()).toBe(false);
     run(alerts, 1, noseStuck);
@@ -171,7 +171,7 @@ describe('L/G GEAR NOT LOCKED DOWN: lever DOWN and a gear not downlocked after a
   });
 });
 
-describe('L/G GEAR NOT LOCKED UP: lever UP and a gear not locked up after about 40 s (l.161360-161361)', () => {
+describe('L/G GEAR NOT LOCKED UP: lever UP and a gear not locked up after about 40 s', () => {
   const noseHanging: GearState = {
     leverDown: false,
     down: [false, false, true],
@@ -215,7 +215,7 @@ describe('L/G GEAR NOT LOCKED UP: lever UP and a gear not locked up after about 
   });
 });
 
-describe('L/G DOORS NOT CLOSED (l.161061-161062)', () => {
+describe('L/G DOORS NOT CLOSED', () => {
   const doorOpenGearDown: GearState = { ...GEAR_DOWN, doorClosed: [true, false, true] };
 
   it('a door not closed 30 s after the gear stopped', () => {
@@ -227,7 +227,7 @@ describe('L/G DOORS NOT CLOSED (l.161061-161062)', () => {
     expect(alerts.doorsNotClosed.get()).toBe(false);
   });
 
-  it('not after a gravity extension: the L/G doors remain open (l.82399)', () => {
+  it('not after a gravity extension: the L/G doors remain open', () => {
     expect(run(new FwsGearAlerts(), 40, doorOpenGearDown, doorOpenGearDown, false, true).doorsNotClosed.get()).toBe(
       false,
     );
@@ -274,7 +274,7 @@ describe('L/G DOORS NOT CLOSED (l.161061-161062)', () => {
   });
 });
 
-describe('L/G SYSTEM DISAGREE (l.162504-162506)', () => {
+describe('L/G SYSTEM DISAGREE', () => {
   it('a sensor of LGCIS 1 differs from the redundant sensor of LGCIS 2', () => {
     const noseDownlockDamaged: GearState = { ...GEAR_DOWN, down: [true, true, false] };
     expect(lgcisSensorDisagree(lgcis(GEAR_DOWN), lgcis(GEAR_DOWN))).toBe(false);

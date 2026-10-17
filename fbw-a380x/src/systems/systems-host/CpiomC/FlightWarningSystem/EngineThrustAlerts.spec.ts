@@ -12,7 +12,6 @@ import {
   thrustLossItemsChecked,
 } from './EngineThrustAlerts';
 
-/* A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, a380_fcom.txt l.173388-173390 */
 describe('ENG 1(2)(3)(4) THRUST LOSS', () => {
   it('triggers on the engine whose max THR is 10 % lower than at least two other engines', () => {
     // engine 2 with the max thrust miscalculation of the FADEC (85 %)
@@ -44,7 +43,7 @@ describe('ENG 1(2)(3)(4) THRUST LOSS', () => {
     expect(thrustLossItemsChecked(true, false)).toEqual([true, true]);
   });
 
-  it('is shown in phase 3 only (FCOM PDF page 5822)', () => {
+  it('is shown in phase 3 only', () => {
     const shown = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter(
       (phase) => !THRUST_LOSS_PHASE_INHIBITION.includes(phase),
     );
@@ -52,7 +51,6 @@ describe('ENG 1(2)(3)(4) THRUST LOSS', () => {
   });
 });
 
-/* A380 FCOM PRO-ABN-ECAM-10-70 ENG T.O THRUST DISAGREE, a380_fcom.txt l.175060 */
 describe('ENG T.O THRUST DISAGREE', () => {
   it('triggers when the FADECs do not all have the same take-off mode', () => {
     // FADEC 4 without the FLEX TEMP: TOGA (0), the others FLEX (1)
@@ -65,7 +63,7 @@ describe('ENG T.O THRUST DISAGREE', () => {
     expect(isTakeoffThrustDisagree([0, 0, 0, 0])).toBe(false);
   });
 
-  it('is shown in phases 2 and 11 only (FCOM PDF page 5857)', () => {
+  it('is shown in phases 2 and 11 only', () => {
     const shown = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter(
       (phase) => !TO_THRUST_DISAGREE_PHASE_INHIBITION.includes(phase),
     );
@@ -94,7 +92,7 @@ describe('FWS wiring of the engine thrust alerts', () => {
     expect(abnormalSensed).toContain('simVarIsActive: this.fws.takeoffThrustDisagree');
   });
 
-  it('shows the THRUST LOSS lines of the FCOM', () => {
+  it('shows the THRUST LOSS lines of the aircraft', () => {
     for (const engine of [1, 2, 3, 4]) {
       const code = 701800132 + engine;
       const procedure = ata70.slice(ata70.indexOf(`${code}: {`), ata70.indexOf(`${code + 1}: {`));

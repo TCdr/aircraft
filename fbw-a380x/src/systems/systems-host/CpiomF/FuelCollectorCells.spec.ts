@@ -22,7 +22,7 @@ function run(
   return quantityKg;
 }
 
-describe('A380 feed tank collector cell (FCOM DSC-28-10 l.57265-57271)', () => {
+describe('A380 feed tank collector cell', () => {
   it('starts full and stays full while a feed tank pump runs', () => {
     const cell = new CollectorCell();
     const feed = { kg: 20_000 };
@@ -37,7 +37,7 @@ describe('A380 feed tank collector cell (FCOM DSC-28-10 l.57265-57271)', () => {
     expect(cell.update({ feedTankKg: 900, pumpRunning: true, engineRunning: true }, 1)).toBe(900);
   });
 
-  it('empties when the engine is fed by gravity, its pumps lost (FCOM l.138086-138093 collector cell depletion)', () => {
+  it('empties when the engine is fed by gravity, its pumps lost (collector cell depletion)', () => {
     const cell = new CollectorCell();
     const feed = { kg: 20_000 };
     cell.update({ feedTankKg: feed.kg, pumpRunning: false, engineRunning: true }, 0);

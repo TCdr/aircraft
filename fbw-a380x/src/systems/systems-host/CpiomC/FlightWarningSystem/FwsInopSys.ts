@@ -27,7 +27,7 @@ export interface FwsInopSysDict {
 export class FwsInopSys {
   public readonly subscriptions: Subscription[] = [];
 
-  // The G (Y) HYD SYS lost: low pressure, or both engines of its side out (ENG TWO ENGS OUT ON SAME SIDE, FwsCore)
+  // G (Y) HYD SYS inop covers low pressure and both engines of its side out (ENG TWO ENGS OUT ON SAME SIDE, FwsCore)
   public readonly partSplrs = MappedSubject.create(
     SubscribableMapFunctions.or(),
     this.fws.greenHydSysInop,
@@ -43,7 +43,7 @@ export class FwsInopSys {
     this.fws.yellowHydSysInop,
   );
 
-  /** GEN 1+3, 1+4, 2+3, 2+4: ENG TWO ENGS OUT ON OPPOSITE SIDE STATUS (FCOM l.175620-175621, EngineFailAlerts.ts) */
+  /** GEN 1+3, 1+4, 2+3, 2+4 lines of the ENG TWO ENGS OUT ON OPPOSITE SIDE STATUS (EngineFailAlerts.ts) */
   private readonly oppositeSideGenPair = MappedSubject.create(
     ([gen1, gen2, gen3, gen4]) => {
       const pair = oppositeSideGeneratorPair([gen1, gen2, gen3, gen4]);
@@ -68,9 +68,9 @@ export class FwsInopSys {
 
   /** INOP SYS shown on SD */
   /**
-   * A SURV SYS 1 item that the ELEC AC ESS BUS FAULT STATUS already covers: with the AC ESS busbar lost, the FCOM STATUS
-   * lists TAWS 1 (APPR & LDG) and XPDR 1 (ALL PHASES) but neither GPWS 1, TERR SYS 1 nor ADS-B RPTG 1 (A380 FCOM
-   * PRO-ABN-ECAM-10-24, a380_fcom.txt:139267-139280), so these are not shown while that alert is active.
+   * A SURV SYS 1 item that the ELEC AC ESS BUS FAULT STATUS already covers: with the AC ESS busbar lost, the STATUS
+   * lists TAWS 1 (APPR & LDG) and XPDR 1 (ALL PHASES) but neither GPWS 1, TERR SYS 1 nor ADS-B RPTG 1, so these are not
+   * shown while that alert is active.
    * @param failed the item's own condition
    * @returns the item's condition, false while the ELEC AC ESS BUS FAULT alert is active
    */
@@ -83,8 +83,8 @@ export class FwsInopSys {
   }
 
   inopSys: FwsInopSysDict = {
-    // ENG n IGN A+B FAULT STATUS INOP SYS ALL PHASES: ENG n IGNITION; ENG n IGN A(B) FAULT MORE INFO REDUND LOSS: ENG n IGN
-    // A(B) (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt l.172254-172255, 172289)
+    // ENG n IGN A+B FAULT STATUS INOP SYS ALL PHASES: ENG n IGNITION; ENG n IGN A(B) FAULT MORE INFO REDUND LOSS: ENG n
+    // IGN A(B)
     740300002: { simVarIsActive: this.fws.engineIgnAPlusBFault[0], phase: FwsInopSysPhases.AllPhases },
     740300003: { simVarIsActive: this.fws.engineIgnAPlusBFault[1], phase: FwsInopSysPhases.AllPhases },
     740300004: { simVarIsActive: this.fws.engineIgnAPlusBFault[2], phase: FwsInopSysPhases.AllPhases },
@@ -98,7 +98,7 @@ export class FwsInopSys {
     740300012: { simVarIsActive: this.fws.engineIgnBFault[2], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
     740300013: { simVarIsActive: this.fws.engineIgnBFault[3], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
     280300001: {
-      // JETTISON (A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON FAULT, STATUS)
+      // JETTISON (FUEL JETTISON FAULT STATUS)
       simVarIsActive: this.fws.fuelJettisonFault,
       phase: FwsInopSysPhases.AllPhases,
     },
@@ -207,9 +207,8 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
     },
     230300015: {
-      // STBY RAD NAV, ALL PHASES: COM RMP 1+2 FAULT "(If RMPs 1+2 are failed)" and COM RMP 1+2+3 FAULT (A380 FCOM
-      // PRO-ABN-ECAM-10-23, a380_fcom.txt l.137400-137415, 137470-137473). Only RMP 1 and 2 control the standby radio
-      // navigation (l.47426): with RMPs 1+3 (2+3) failed, it stays available via RMP 2 (1) (l.137405-137406).
+      // STBY RAD NAV, ALL PHASES: COM RMP 1+2 FAULT (with RMPs 1+2 failed) and COM RMP 1+2+3 FAULT. Only RMP 1 and 2
+      // control the standby radio navigation: with RMPs 1+3 (2+3) failed, it stays available via RMP 2 (1).
       simVarIsActive: MappedSubject.create(
         ([rmp1Failed, rmp2Failed]) => rmp1Failed && rmp2Failed,
         this.fws.rmp1Fault,
@@ -480,7 +479,7 @@ export class FwsInopSys {
       redundancyLoss: true,
     },
     270300016: {
-      // TAIL STRIKE DET: TAIL STRIKE DET FAULT STATUS, INOP SYS APPR (FCOM PDF page 5097), see FwsTailStrikeAlerts
+      // TAIL STRIKE DET: TAIL STRIKE DET FAULT STATUS, INOP SYS APPR, see FwsTailStrikeAlerts
       simVarIsActive: this.fws.tailStrikeDetFault,
       phase: FwsInopSysPhases.ApprLdg,
     },
@@ -568,8 +567,8 @@ export class FwsInopSys {
       simVarIsActive: this.fws.eng4HydraulicInop,
       phase: FwsInopSysPhases.AllPhases,
     },
-    // HYD G(Y) ENG 1(2)(3)(4) PMP A(B) PRESS LO STATUS (A380 FCOM l.155077-155091, HydPumpStatus.ts): INOP SYS ALL PHASES
-    // with at least two pumps of the system failed, MORE INFO REDUND LOSS with one
+    // HYD G(Y) ENG 1(2)(3)(4) PMP A(B) PRESS LO STATUS (HydPumpStatus.ts): INOP SYS ALL PHASES with at least two pumps
+    // of the system failed, MORE INFO REDUND LOSS with one
     290300005: { simVarIsActive: this.fws.enginePumpInopSys[0], phase: FwsInopSysPhases.AllPhases },
     290300006: { simVarIsActive: this.fws.enginePumpInopSys[1], phase: FwsInopSysPhases.AllPhases },
     290300007: { simVarIsActive: this.fws.enginePumpInopSys[2], phase: FwsInopSysPhases.AllPhases },
@@ -578,7 +577,7 @@ export class FwsInopSys {
     290300010: { simVarIsActive: this.fws.enginePumpInopSys[5], phase: FwsInopSysPhases.AllPhases },
     290300011: { simVarIsActive: this.fws.enginePumpInopSys[6], phase: FwsInopSysPhases.AllPhases },
     290300012: { simVarIsActive: this.fws.enginePumpInopSys[7], phase: FwsInopSysPhases.AllPhases },
-    // HYD G(Y) ELEC PMP A(B) FAULT STATUS (A380 FCOM l.155025-155028, HydPumpStatus.ts): MORE INFO REDUND LOSS
+    // HYD G(Y) ELEC PMP A(B) FAULT STATUS (HydPumpStatus.ts): MORE INFO REDUND LOSS
     290300001: {
       simVarIsActive: this.fws.elecPumpRedundLoss[0],
       phase: FwsInopSysPhases.AllPhases,
@@ -649,8 +648,7 @@ export class FwsInopSys {
       simVarIsActive: this.fws.fws2Failed,
       phase: FwsInopSysPhases.AllPhases,
     },
-    // CDS ... DU FAULT STATUS, INOP SYS ALL PHASES (A380 FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt:157972-157978): one line
-    // per failed DU; the FCOM lists none for the SD DU.
+    // CDS ... DU FAULT STATUS, INOP SYS ALL PHASES: one line per failed DU; the aircraft lists none for the SD DU.
     310300005: {
       // EWD DU
       simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.Ewd],
@@ -686,9 +684,9 @@ export class FwsInopSys {
       simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoMfd],
       phase: FwsInopSysPhases.AllPhases,
     },
-    // CDS EFIS CP and KCCU alerts STATUS, INOP SYS ALL PHASES (A380 FCOM PRO-ABN-ECAM-10-31), see FwsCdsControlAlerts
+    // CDS EFIS CP and KCCU alerts STATUS, INOP SYS ALL PHASES, see FwsCdsControlAlerts
     310300012: {
-      // CAPT EFIS CTL PNL: EFIS CTL PNL FAULT (l.157794), CAPT+F/O EFIS CTL PNLs FAULT (l.158101)
+      // CAPT EFIS CTL PNL: EFIS CTL PNL FAULT, CAPT+F/O EFIS CTL PNLs FAULT
       simVarIsActive: this.fws.efisCtlPnlInop[0],
       phase: FwsInopSysPhases.AllPhases,
     },
@@ -698,7 +696,7 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
     },
     310300014: {
-      // CAPT EFIS CTL: EFIS BKUP CTL FAULT (l.157742)
+      // CAPT EFIS CTL: EFIS BKUP CTL FAULT
       simVarIsActive: this.fws.efisBkupCtlFault[0],
       phase: FwsInopSysPhases.AllPhases,
     },
@@ -708,7 +706,7 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
     },
     310300016: {
-      // CAPT CCD: CURSOR CTL FAULT (l.157656)
+      // CAPT CCD: CURSOR CTL FAULT
       simVarIsActive: this.fws.kccuCursorCtlFault[0],
       phase: FwsInopSysPhases.AllPhases,
     },
@@ -718,7 +716,7 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
     },
     310300018: {
-      // CAPT CCD+KBD: CURSOR CTL+KEYBOARD FAULT (l.157697)
+      // CAPT CCD+KBD: CURSOR CTL+KEYBOARD FAULT
       simVarIsActive: this.fws.kccuCursorCtlKeyboardFault[0],
       phase: FwsInopSysPhases.AllPhases,
     },
@@ -728,7 +726,7 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
     },
     310300020: {
-      // CAPT KBD: KEYBOARD FAULT (l.157838)
+      // CAPT KBD: KEYBOARD FAULT
       simVarIsActive: this.fws.kccuKeyboardFault[0],
       phase: FwsInopSysPhases.AllPhases,
     },
@@ -737,7 +735,7 @@ export class FwsInopSys {
       simVarIsActive: this.fws.kccuKeyboardFault[1],
       phase: FwsInopSysPhases.AllPhases,
     },
-    // RECORDER alerts STATUS, INOP SYS ALL PHASES (l.158900, 158925, 158950, 158979), see FwsRecorderAlerts
+    // RECORDER alerts STATUS, INOP SYS ALL PHASES, see FwsRecorderAlerts
     310300022: {
       // RECORDER ACCELMTR
       simVarIsActive: this.fws.recorderAccelmtrFault,
@@ -759,15 +757,14 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
     },
     330300001: {
-      // EMER EXIT LT: CABIN EMER EXIT LT FAULT (l.163345), see FwsEmerExitLightAlerts
+      // EMER EXIT LT: CABIN EMER EXIT LT FAULT, see FwsEmerExitLightAlerts
       simVarIsActive: this.fws.cabinEmerExitLtFault,
       phase: FwsInopSysPhases.AllPhases,
     },
     320300007: {
-      // BTV, also with ENG 2(3) SHUT DOWN and the TWO ENGS OUT cautions (A380 FCOM l.172781, 175443, 175620)
-      // and with the reverser of the engine 2 or 3 inoperative (REVERSER CTL FAULT, FAULT, LOCKED, THR LEVER 2(3)
-      // FAULT: STATUS INOP SYS BTV at A380 FCOM l.173359, 173488, 173569, 173613, 173666). The alert part also stops the
-      // BTV arming (FwsCore btvInopByAlert, L:A32NX_FWC_1_BTV_INOP)
+      // BTV, also with ENG 2(3) SHUT DOWN and the TWO ENGS OUT cautions, and with the reverser of the engine 2 or 3
+      // inoperative (REVERSER CTL FAULT, FAULT, LOCKED, THR LEVER 2(3) FAULT). The alert part also stops the BTV arming
+      // (FwsCore btvInopByAlert, L:A32NX_FWC_1_BTV_INOP)
       simVarIsActive: MappedSubject.create(
         ([btvLost, engineOut, reverserInop]) => btvLost || engineOut || reverserInop,
         this.fws.btvLost,
@@ -777,7 +774,7 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.ApprLdg,
     },
     220300028: {
-      // CAT 3 DUAL: ENG 1(2)(3)(4) SHUT DOWN with the APU off (A380 FCOM l.172783)
+      // CAT 3 DUAL: ENG 1(2)(3)(4) SHUT DOWN with the APU off
       simVarIsActive: this.fws.engineShutDownCat3SingleOnly,
       phase: FwsInopSysPhases.ApprLdg,
     },
@@ -793,10 +790,8 @@ export class FwsInopSys {
       notActiveWhenItemActive: ['320300022'],
     },
     // GPWS and TERR SYS of one SURV system both failed: TAWS SYS 1(2) replaces them (SURV TAWS 1(2) FAULT STATUS,
-    // A380 FCOM l.166837-166842, FwsSurvAlerts tawsFunctionFaults)
+    // FwsSurvAlerts tawsFunctionFaults)
     // GPWS 1(2)(1+2), TERR SYS 1(2)(1+2) and TAWS SYS 1(2)(1+2) are APPR & LDG items of their SURV ... FAULT STATUS
-    // (A380 FCOM PRO-ABN-ECAM-10-34-20, l.166464-166466, 166495-166498, 166839-166842, 166877-166880, 167037-167039,
-    // 167078-167080)
     340300001: {
       // GPWS 1
       simVarIsActive: this.notWithAcEssBusFault(this.fws.gpws1Failed),
@@ -1064,7 +1059,7 @@ export class FwsInopSys {
       notActiveWhenItemActive: ['700300003'],
     },
 
-    // ENG 1(2)(3)(4) THR LEVER FAULT, INOP SYS ALL PHASES ENG 1(2)(3)(4) THR LEVER (A380 FCOM l.173326)
+    // ENG 1(2)(3)(4) THR LEVER FAULT, INOP SYS ALL PHASES ENG 1(2)(3)(4) THR LEVER
     700300050: {
       simVarIsActive: this.fws.thrLeverFault[0],
       phase: FwsInopSysPhases.AllPhases,
@@ -1081,7 +1076,7 @@ export class FwsInopSys {
       simVarIsActive: this.fws.thrLeverFault[3],
       phase: FwsInopSysPhases.AllPhases,
     },
-    // ENG 1(2)(3)(4) FADEC FAULT, INOP SYS ALL PHASES ENG 1(2)(3)(4) A/THR "If A/THR engaged" (A380 FCOM l.171599)
+    // ENG 1(2)(3)(4) FADEC FAULT, INOP SYS ALL PHASES ENG 1(2)(3)(4) A/THR, only with the A/THR engaged
     220300014: {
       simVarIsActive: this.fws.fadecAthrInop[0],
       phase: FwsInopSysPhases.AllPhases,
@@ -1109,38 +1104,37 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.ApprLdg,
     },
 
-    // ELEC AC ESS BUS FAULT, REDUND LOSS (A380 FCOM PRO-ABN-ECAM-10-24 l.139282-139289), see
-    // ELEC_AC_ESS_BUS_FAULT_STATUS. RA SYS C (l.139284) is the 340300024 entry above: the RA 3 is supplied by the
-    // AC ESS busbar (a380_systems navigation.rs) and reports a failure warning without power.
+    // ELEC AC ESS BUS FAULT, REDUND LOSS, see ELEC_AC_ESS_BUS_FAULT_STATUS. RA SYS C is the 340300024 entry above: the
+    // RA 3 is supplied by the AC ESS busbar (a380_systems navigation.rs) and reports a failure warning without power.
     // PACK 1 CTL 1 and PACK 2 CTL 1 are also the REDUND LOSS of AIR PACK 1(2) CTL 1(2) FAULT, whose redundLoss in
     // FwsAbnormalSensed is not shown (only these entries reach the STATUS page): a pack controller fault condition
     // would be added to the same entries.
     280300003: {
-      // FEED TK 3 STBY PMP (l.139285)
+      // FEED TK 3 STBY PMP
       simVarIsActive: this.fws.elecAcEssBusFault,
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,
     },
     280300004: {
-      // TRIM TK L PMP (l.139286)
+      // TRIM TK L PMP
       simVarIsActive: this.fws.elecAcEssBusFault,
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,
     },
     740300001: {
-      // ENG 1+2+3+4 IGN A (l.139287)
+      // ENG 1+2+3+4 IGN A
       simVarIsActive: this.fws.elecAcEssBusFault,
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,
     },
     210300001: {
-      // PACK 1 CTL 1 (l.139288)
+      // PACK 1 CTL 1
       simVarIsActive: this.fws.elecAcEssBusFault,
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,
     },
     210300003: {
-      // PACK 2 CTL 1 (l.139289)
+      // PACK 2 CTL 1
       simVarIsActive: this.fws.elecAcEssBusFault,
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,

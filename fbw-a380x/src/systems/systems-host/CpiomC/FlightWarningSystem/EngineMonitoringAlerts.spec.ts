@@ -45,7 +45,6 @@ const notOpenOnGround = {
   firePbReleased: false,
 };
 
-/* A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) HP FUEL VLV FAULT, a380_fcom.txt l.172172-172226 */
 describe('ENG n HP FUEL VLV FAULT', () => {
   it('is active while the FADEC reports an abnormal valve position', () => {
     expect(isHpFuelVlvFaultActive(HpFuelValveFault.None)).toBe(false);
@@ -75,7 +74,7 @@ describe('ENG n HP FUEL VLV FAULT', () => {
     expect(hpFuelVlvFaultItems({ ...shutdown, onGround: false }).show[6]).toBe(false);
   });
 
-  it('is an amber caution with single chime and MASTER CAUT, inhibited as on the FCOM figure (PDF page 5789)', () => {
+  it('is an amber caution with single chime and MASTER CAUT, inhibited as on the aircraft', () => {
     expect(HP_FUEL_VLV_FAULT_LEVEL).toBe(2);
     expect(HP_FUEL_VLV_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 9, 10]);
   });
@@ -98,7 +97,7 @@ describe('ENG n HP FUEL VLV FAULT', () => {
 describe('FADEC fault crew awareness alerts', () => {
   const byVariable = (variable: string) => ENGINE_MONITORING_ALERTS.find((alert) => alert.variable === variable);
 
-  it('have the ata70 keys and flight phase inhibitions of the FCOM figures', () => {
+  it('have the ata70 keys and flight phase inhibitions of the aircraft', () => {
     expect(byVariable('FUEL_STRAINER_CLOGGED')).toEqual({
       variable: 'FUEL_STRAINER_CLOGGED',
       engine1Key: 701800045,
@@ -143,11 +142,10 @@ describe('FADEC fault crew awareness alerts', () => {
   });
 });
 
-/* FCOM audit T2-44 (row B25): the FADEC fault alerts of the flyPad failures of T2-20 */
 describe('CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS and OIL SYS CONTAMINATION', () => {
   const byVariable = (variable: string) => ENGINE_MONITORING_ALERTS.find((alert) => alert.variable === variable);
 
-  it('are crew awareness alerts (CTL VLV, FADEC IDENT) and cautions (CONTAMINATION) as on the FCOM figures', () => {
+  it('are crew awareness alerts (CTL VLV, FADEC IDENT) and cautions (CONTAMINATION) as on the aircraft', () => {
     expect(byVariable('CTL_VLV_FAULT')).toEqual({
       variable: 'CTL_VLV_FAULT',
       engine1Key: 701800005,
@@ -203,7 +201,6 @@ describe('CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS and OIL SYS CONTAMINATION',
   });
 });
 
-/* A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) CTL SYS FAULT, a380_fcom.txt l.171310-171445 */
 describe('ENG n CTL SYS FAULT', () => {
   const noTrigger = {
     controlSystemFault: false,
@@ -230,7 +227,7 @@ describe('ENG n CTL SYS FAULT', () => {
     expect(ctlSysFaultItems(cutback, false, true, false)).toEqual({ show: [true, true], checked: [true, true] });
   });
 
-  it('is a caution with single chime and MASTER CAUT, phases 5 and 6 inhibited (PDF page 5765)', () => {
+  it('is a caution with single chime and MASTER CAUT, phases 5 and 6 inhibited', () => {
     expect(CTL_SYS_FAULT_LEVEL).toBe(2);
     expect(CTL_SYS_FAULT_PHASE_INHIBITION).toEqual([5, 6]);
   });
@@ -242,14 +239,13 @@ describe('ENG n CTL SYS FAULT', () => {
   });
 });
 
-/* A380 FCOM PRO-ABN-ECAM-10-70 ENG TYPE DISAGREE, a380_fcom.txt l.175642-175655 */
 describe('ENG TYPE DISAGREE', () => {
   it('triggers when the thrust rating of any engine differs', () => {
     expect(isEngineTypeDisagree([false, false, false, false])).toBe(false);
     expect(isEngineTypeDisagree([false, false, true, false])).toBe(true);
   });
 
-  it('is the ata70 alert 701800161, a caution with phases 3 to 12 inhibited (PDF page 5873)', () => {
+  it('is the ata70 alert 701800161, a caution with phases 3 to 12 inhibited', () => {
     expect(ENG_TYPE_DISAGREE_KEY).toBe(701800161);
     expect(block(ENG_TYPE_DISAGREE_KEY)).toContain("mENG\\x1bm TYPE DISAGREE',");
     expect(ENG_TYPE_DISAGREE_LEVEL).toBe(2);

@@ -7,11 +7,10 @@ import { Subject } from '@microsoft/msfs-sdk';
 /**
  * Trigger logic of the L/G alerts of the FWS that are made from the two landing gear control and indicating systems
  * (LGCIS 1 and 2, the LGCIU discrete words of the common Rust landing gear): L/G CTL 1(2)(1+2) FAULT, GEAR NOT LOCKED
- * DOWN, GEAR NOT LOCKED UP, DOORS NOT CLOSED and SYSTEM DISAGREE (A380 FCOM PRO-ABN-ECAM-10-32, a380_fcom.txt
- * l.160902-162516). The model has three gears (nose, left, right; the wing gears follow the body gears), so each
- * "per gear" bit below exists three times.
+ * DOWN, GEAR NOT LOCKED UP, DOORS NOT CLOSED and SYSTEM DISAGREE. The model has three gears (nose, left, right; the
+ * wing gears follow the body gears), so each "per gear" bit below exists three times.
  *
- * LGCIU discrete words (fbw-common/src/wasm/systems/systems/src/landing_gear/mod.rs, discrete_word_1..4):
+ * LGCIU discrete words (fbw-common landing_gear/mod.rs, discrete_word_1..4):
  * - word 1 bits 11/12/13: left/right/nose gear not uplocked and the lever not down
  * - word 1 bits 14/15/16: left/right/nose gear not downlocked and the lever down
  * - word 1 bits 17/18/19: left/right/nose door not closed and locked
@@ -31,52 +30,41 @@ export interface LgciuWords {
   word4: Arinc429WordData;
 }
 
-/** Bits of word 1: gear not uplocked with the lever not down (left, right, nose) */
+// Word 1 (see the word list at the top of the file; per gear bits in the order left, right, nose)
 const NOT_UPLOCKED_LEVER_UP_BITS = [11, 12, 13];
-/** Bits of word 1: gear not downlocked with the lever down (left, right, nose) */
 const NOT_DOWNLOCKED_LEVER_DOWN_BITS = [14, 15, 16];
-/** Bits of word 1: gear door not closed and locked (left, right, nose) */
 const DOOR_NOT_CLOSED_BITS = [17, 18, 19];
-/** Bits of word 1: gear downlocked (left, right, nose) */
 const DOWNLOCKED_BITS = [23, 24, 25];
-/** Bit of word 1: gear lever down */
 const LEVER_DOWN_BIT = 29;
-/** Bits of word 3: gear not uplocked (left, right, nose) */
+// Word 3
 const NOT_UPLOCKED_BITS = [11, 12, 13];
-/** Bits of word 3: gear door fully open (left, right, nose) */
 const DOOR_FULLY_OPEN_BITS = [25, 26, 27];
 
-/**
- * L/G GEAR NOT LOCKED DOWN: "one or more landing gears are not downlocked after approximately 60 s"
- * (a380_fcom.txt l.161245-161246).
- */
-export const GEAR_NOT_LOCKED_DOWN_DELAY_S = 60;
-/**
- * L/G GEAR NOT LOCKED UP: "one or more landing gears are not locked up after approximately 40 s"
- * (a380_fcom.txt l.161360-161361).
- */
-export const GEAR_NOT_LOCKED_UP_DELAY_S = 40;
+/** L/G GEAR NOT LOCKED DOWN: a gear is still not downlocked about 60 s after the lever went down */
+const GEAR_NOT_LOCKED_DOWN_DELAY_S = 60;
+/** L/G GEAR NOT LOCKED UP: a gear is still not locked up about 40 s after the lever went up */
+const GEAR_NOT_LOCKED_UP_DELAY_S = 40;
 /**
  * L/G GEAR NOT LOCKED UP stays until the gears are locked up again for this time (design choice: the 5 s of the
  * A32NX GEAR NOT UPLOCKED reset, PseudoFWC gearLockedUpFor5Seconds), so it survives the L/G LEVER DOWN of its procedure.
  */
-export const GEAR_LOCKED_UP_RESET_S = 5;
+const GEAR_LOCKED_UP_RESET_S = 5;
 /**
- * L/G GEAR NOT LOCKED DOWN shows the gravity extension lines "IF L/G STILL NOT DOWN AFTER 120 S"
- * (a380_fcom.txt l.161276). Design choice: counted from the alert onset.
+ * L/G GEAR NOT LOCKED DOWN shows the gravity extension lines when the gear is still not down after 120 s.
+ * Design choice: counted from the alert onset.
  */
-export const GEAR_NOT_LOCKED_DOWN_GRAVITY_DELAY_S = 120;
+const GEAR_NOT_LOCKED_DOWN_GRAVITY_DELAY_S = 120;
 /**
- * L/G DOORS NOT CLOSED: the FCOM gives no time (l.161061-161062). Design choice: a door is not closed 30 s after the
+ * L/G DOORS NOT CLOSED: no time is published. Design choice: a door is not closed 30 s after the
  * gear stopped moving (all gears locked up or all locked down). 30 s is the LGCIU transit fault time
  * (MAX_TRANSITION_DURATION in landing_gear/mod.rs), longer than any door closing after a normal gear cycle.
  */
-export const DOORS_NOT_CLOSED_DELAY_S = 30;
+const DOORS_NOT_CLOSED_DELAY_S = 30;
 /**
- * L/G SYSTEM DISAGREE: the FCOM gives no time (l.162504-162506). Design choice: the two LGCIS disagree for 5 s, so the
+ * L/G SYSTEM DISAGREE: no time is published. Design choice: the two LGCIS disagree for 5 s, so the
  * small time skew of two sensors passing their target during a normal gear cycle never triggers it.
  */
-export const SYSTEM_DISAGREE_DELAY_S = 5;
+const SYSTEM_DISAGREE_DELAY_S = 5;
 
 /**
  * A bit of an LGCIU word, or null when the word is not valid (failure warning or no computed data).
@@ -126,10 +114,10 @@ function anyGearVoted(
 }
 
 /**
- * Whether one LGCIS is failed for the FWS: L/G CTL 1(2) FAULT "LGCIS 1 or LGCIS 2 is failed" (a380_fcom.txt l.160908),
- * L/G CTL 1+2 FAULT "both failed, or the FWS receives invalid data from both LGCIS" (l.160939-160940). The LGCIU sets
- * its system fault bit (word 4 bit 29, also the spare control fault bit word 2 bit 29) after an internal error or a gear
- * transit of more than 30 s; without power all its words are failure warnings.
+ * Whether one LGCIS is failed for the FWS: L/G CTL 1(2) FAULT when one LGCIS is failed, L/G CTL 1+2 FAULT when both
+ * are failed or both send invalid data. The LGCIU sets its system fault bit (word 4 bit 29, also the spare control
+ * fault bit word 2 bit 29) after an internal error or a gear transit of more than 30 s; without power all its words
+ * are failure warnings.
  * @param words the words of that LGCIS
  * @returns whether that LGCIS is failed
  */
@@ -162,11 +150,11 @@ export function splitLgcisFaults(lgcis1Fault: boolean, lgcis2Fault: boolean): Lg
 }
 
 /**
- * L/G SYSTEM DISAGREE condition before its confirm time: "The position sensed by any proximity sensor of LGCIS 1 is not
- * consistent with the position sensed by the redundant proximity sensor of LGCIS 2" (a380_fcom.txt l.162504-162506).
- * Each LGCIS reads its own proximity sensors (the flyPad "Proximity sensor damage ... #1 / #2" failures). Compared: the
- * gear uplock, gear downlock, door closed and door fully open sensors. Both LGCIS must give valid words. The derived
- * bits that include the gear lever (word 1 bits 11-16) and the shock absorber bits are not compared (design choice).
+ * L/G SYSTEM DISAGREE condition before its confirm time: a proximity sensor of LGCIS 1 senses another position than
+ * the redundant sensor of LGCIS 2. Each LGCIS reads its own proximity sensors (the flyPad "Proximity sensor
+ * damage ... #1 / #2" failures). Compared: the gear uplock, gear downlock, door closed and door fully open sensors.
+ * Both LGCIS must give valid words. The derived bits that include the gear lever (word 1 bits 11-16) and the shock
+ * absorber bits are not compared (design choice).
  * @param lgcis1 the words of LGCIS 1
  * @param lgcis2 the words of LGCIS 2
  * @returns whether a sensor pair disagrees
@@ -230,9 +218,8 @@ const NO_LG_RETRACTION = '320400006';
 const AVOID_EXCESS_G_LOAD = '320400007';
 
 /**
- * Speed above 250 kt or M .55, the L/G door speed of the L/G procedures ("If speed is above 250 kt/M .55",
- * a380_fcom.txt l.161387). Design choice: the current speed, not the speed when the alert came up (l.161109, 161119), so
- * the lines follow the speed reduction.
+ * Speed above 250 kt or M .55, the L/G door speed of the L/G procedures. Design choice: the current speed, not the
+ * speed when the alert came up, so the lines follow the speed reduction.
  * @param casKt the computed airspeed in knots
  * @param mach the Mach number
  * @returns whether the speed is above 250 kt or M .55
@@ -242,9 +229,8 @@ export function aboveGearDoorSpeed(casKt: number, mach: number): boolean {
 }
 
 /**
- * Lines of L/G CTL 1+2 FAULT (ata31-32-33.ts 320800035: [MFD SURV] GPWS OFF, NO L/G RETRACTION). NO L/G RETRACTION:
- * "If one engine is running and if all L/Gs are already locked down when the alert is activated" (a380_fcom.txt
- * l.160955-160958).
+ * Lines of L/G CTL 1+2 FAULT (ata31-32-33.ts 320800035: [MFD SURV] GPWS OFF, NO L/G RETRACTION). NO L/G RETRACTION
+ * shows when an engine is running and all L/Gs were already locked down when the alert came up.
  * @param gearDownAtFailure all L/Gs were locked down when the alert came up
  * @param engineRunning at least one engine is running
  * @returns which lines show
@@ -254,7 +240,7 @@ export function lgCtl12Items(gearDownAtFailure: boolean, engineRunning: boolean)
 }
 
 /**
- * ECAM limitations of L/G CTL 1+2 FAULT, ALL PHASES (a380_fcom.txt l.160974-160980): NO L/G RETRACTION if all L/Gs were
+ * ECAM limitations of L/G CTL 1+2 FAULT, ALL PHASES: NO L/G RETRACTION if all L/Gs were
  * locked down when the failure appeared, else MAX SPEED 220 KT and L/G GRVTY EXTN ONLY for the gravity extension
  * (design choice: one or the other, as the L/G is either down already or still to be extended by gravity).
  * @param gearDownAtFailure all L/Gs were locked down when the alert came up
@@ -265,7 +251,7 @@ export function lgCtl12Limitations(gearDownAtFailure: boolean): string[] {
 }
 
 /**
- * PFD limitations of L/G CTL 1+2 FAULT: "For L/G gravity extension: MAX SPEED : 220KT" (a380_fcom.txt l.160982-160987).
+ * PFD limitations of L/G CTL 1+2 FAULT: MAX SPEED 220 KT for the gravity extension.
  * @param gearDownAtFailure all L/Gs were locked down when the alert came up
  * @returns the EcamLimitations keys
  */
@@ -275,9 +261,9 @@ export function lgCtl12PfdLimitations(gearDownAtFailure: boolean): string[] {
 
 /**
  * Lines of L/G GEAR NOT LOCKED DOWN (ata31-32-33.ts 320800039: L/G (AFTER 60 S) RECYCLE, FOR L/G GRVTY EXTN : MAX SPEED
- * 220 KT, L/G LEVER UP, L/G GRVTY DOWN, L/G LEVER DOWN, LDG WITH ABNORM L/G PROC APPLY), a380_fcom.txt l.161267-161308:
- * the recycle "In flight", the gravity extension "IF L/G STILL NOT DOWN AFTER 120 S", the LDG WITH ABNORM L/G PROC
- * "IF GRVTY EXTN NOT SUCCESSFUL" (after the lever is down again with the gravity extension selected).
+ * 220 KT, L/G LEVER UP, L/G GRVTY DOWN, L/G LEVER DOWN, LDG WITH ABNORM L/G PROC APPLY): the recycle in flight, the
+ * gravity extension when the L/G is still not down after 120 s, LDG WITH ABNORM L/G PROC when the gravity extension
+ * did not work (after the lever is down again with the gravity extension selected).
  * @param inFlight the aircraft is in flight
  * @param gravityDue the alert has been active for 120 s
  * @param gravityExtensionDone the L/G GRVTY switch is DOWN and the lever DOWN again
@@ -305,10 +291,9 @@ export function gearNotLockedDownChecked(recycled: boolean, leverDown: boolean, 
 
 /**
  * Lines of L/G GEAR NOT LOCKED UP (ata31-32-33.ts 320800040: SPEED REDUCE BELOW 250/.55, L/G LEVER RECYCLE, L/G LEVER
- * DOWN, MAX SPEED : 250/.55, FUEL CONSUMPT INCREASD, FMS PRED UNRELIABLE, AVOID EXCESS G LOAD), a380_fcom.txt
- * l.161386-161401: "If the landing gear is not locked up, and any landing gear door is not closed" the speed and recycle
- * lines, "IF NOT SUCCESSFUL" (after the recycle) L/G LEVER DOWN and MAX SPEED; "If ... all landing gear doors are
- * closed" AVOID EXCESS G LOAD. The fuel lines (STATUS INFO, l.161450) show in flight.
+ * DOWN, MAX SPEED : 250/.55, FUEL CONSUMPT INCREASD, FMS PRED UNRELIABLE, AVOID EXCESS G LOAD): with a door not
+ * closed, the speed and recycle lines, then L/G LEVER DOWN and MAX SPEED once the recycle did not work; with all doors
+ * closed, AVOID EXCESS G LOAD. The fuel lines (STATUS INFO) show in flight.
  * @param inFlight the aircraft is in flight
  * @param doorOpen at least one L/G door is not closed
  * @param aboveSpeed the speed is above 250 kt or M .55
@@ -341,8 +326,8 @@ export function gearNotLockedUpChecked(aboveSpeed: boolean, recycled: boolean, l
 }
 
 /**
- * ECAM and PFD limitations of L/G GEAR NOT LOCKED UP, ALL PHASES: "If the landing gear is down locked and at least one
- * landing gear door is not closed: MAX SPEED : 250/.55, AVOID EXCESS G LOAD" (a380_fcom.txt l.161421-161435).
+ * ECAM and PFD limitations of L/G GEAR NOT LOCKED UP, ALL PHASES: MAX SPEED 250/.55 and AVOID EXCESS G LOAD when the
+ * gear is downlocked with at least one door not closed.
  * @param allDownlocked all gears are locked down
  * @param doorOpen at least one L/G door is not closed
  * @returns the EcamLimitations keys
@@ -354,9 +339,9 @@ export function gearNotLockedUpLimitations(allDownlocked: boolean, doorOpen: boo
 /**
  * Lines of L/G DOORS NOT CLOSED (ata31-32-33.ts 320800036, 12 lines: [0] NO L/G RETRACTION and [1] MAX SPEED for a BLG
  * door not folded, [2] MAX SPEED and [3] L/G RECYCLE below 250/.55, [4] SPEED REDUCE, [5] L/G RECYCLE and [6] MAX SPEED
- * above 250/.55, [7..9] the L/G RETRACTN RQRD lines, [10] FUEL CONSUMPT and [11] FMS PRED), a380_fcom.txt
- * l.161100-161134. The BLG door folding is not modelled and the [7..9] lines are not in this FCOM issue, so they never
- * show. The fuel lines (STATUS INFO, l.161180) show in flight with an engine running.
+ * above 250/.55, [7..9] the L/G RETRACTN RQRD lines, [10] FUEL CONSUMPT and [11] FMS PRED). The BLG door folding is
+ * not modelled and the [7..9] lines have no published condition, so they never show. The fuel lines (STATUS INFO)
+ * show in flight with an engine running.
  * @param inFlight the aircraft is in flight
  * @param aboveSpeed the speed is above 250 kt or M .55
  * @param engineRunning at least one engine is running
@@ -380,7 +365,7 @@ export function doorsNotClosedChecked(aboveSpeed: boolean, recycled: boolean): b
 }
 
 /**
- * ECAM and PFD limitations of L/G DOORS NOT CLOSED: "If in flight: MAX SPEED: 250/.55" (a380_fcom.txt l.161158-161166).
+ * ECAM and PFD limitations of L/G DOORS NOT CLOSED: MAX SPEED 250/.55 in flight.
  * @param inFlight the aircraft is in flight
  * @returns the EcamLimitations keys
  */
@@ -390,40 +375,31 @@ export function doorsNotClosedLimitations(inFlight: boolean): string[] {
 
 /** The L/G alert conditions of the FWS, made from the two LGCIS. One instance in FwsCore. */
 export class FwsGearAlerts {
-  /** L/G CTL 1 FAULT (a380_fcom.txt l.160902-160921) */
   public readonly lgCtl1Fault = Subject.create(false);
 
-  /** L/G CTL 2 FAULT (a380_fcom.txt l.160902-160921) */
   public readonly lgCtl2Fault = Subject.create(false);
 
-  /** L/G CTL 1+2 FAULT (a380_fcom.txt l.160933-161049) */
   public readonly lgCtl12Fault = Subject.create(false);
 
-  /** L/G GEAR NOT LOCKED DOWN (a380_fcom.txt l.161239-161344) */
   public readonly gearNotLockedDown = Subject.create(false);
 
-  /** L/G GEAR NOT LOCKED UP (a380_fcom.txt l.161354-161477) */
   public readonly gearNotLockedUp = Subject.create(false);
 
-  /** L/G DOORS NOT CLOSED (a380_fcom.txt l.161055-161207) */
   public readonly doorsNotClosed = Subject.create(false);
 
-  /** L/G SYSTEM DISAGREE (a380_fcom.txt l.162498-162516) */
   public readonly systemDisagree = Subject.create(false);
 
   /** At least one gear door not closed (for the GEAR NOT LOCKED UP lines and STATUS) */
   public readonly anyDoorNotClosed = Subject.create(false);
 
-  /** All gears locked down for the FWS */
   public readonly allGearsDownlocked = Subject.create(false);
 
-  /** The gear lever is down for the FWS */
   public readonly leverDown = Subject.create(false);
 
-  /** All L/Gs were locked down when L/G CTL 1+2 FAULT came up: NO L/G RETRACTION (a380_fcom.txt l.160955-160958) */
+  /** All L/Gs were locked down when L/G CTL 1+2 FAULT came up: NO L/G RETRACTION */
   public readonly ctl12WithGearDown = Subject.create(false);
 
-  /** GEAR NOT LOCKED DOWN has been active for 120 s: the gravity extension lines show (a380_fcom.txt l.161276) */
+  /** GEAR NOT LOCKED DOWN has been active for 120 s: the gravity extension lines show */
   public readonly notLockedDownGravityDue = Subject.create(false);
 
   /** The lever was recycled since GEAR NOT LOCKED DOWN came up */
@@ -479,7 +455,7 @@ export class FwsGearAlerts {
     this.lgCtl2Fault.set(faults.ctl2);
     this.lgCtl12Fault.set(faults.ctl12);
     if (faults.ctl12 && !ctl12WasActive) {
-      // "If all L/Gs are already locked down when the failure appears" (l.160955, l.160978)
+      // Latched at the onset: the NO L/G RETRACTION / gravity extension choice depends on the gear at the failure
       this.ctl12WithGearDown.set(allDownlocked);
     } else if (!faults.ctl12) {
       this.ctl12WithGearDown.set(false);
@@ -515,7 +491,7 @@ export class FwsGearAlerts {
     this.notLockedUpRecycled.set(this.notLockedUpRecycle.update(notLockedUp, leverDown));
 
     // DOORS NOT CLOSED: a door not closed 30 s after the gears stopped in a locked position. Not after a gravity
-    // extension (design choice): "the L/G doors remain open" then (a380_fcom.txt l.82399), as expected.
+    // extension (design choice): the L/G doors stay open after a gravity extension, as expected.
     const gearStopped = (leverDown && allDownlocked) || (!leverDown && allUplocked);
     const doorsNotClosed = this.doorsConfirm.write(
       gearStopped && anyDoorNotClosed && !gravityExtensionSelected,
@@ -524,7 +500,6 @@ export class FwsGearAlerts {
     this.doorsNotClosed.set(doorsNotClosed);
     this.doorsRecycled.set(this.doorsRecycle.update(doorsNotClosed, leverDown));
 
-    // SYSTEM DISAGREE
     this.systemDisagree.set(this.disagreeConfirm.write(lgcisSensorDisagree(lgcis1, lgcis2), deltaTimeMs));
   }
 }

@@ -4,18 +4,13 @@
 /*
  * A380X ELEC (ATA 24) alerts of the battery, external power, RAT generator and TR monitoring failures (flyPad ATA 24):
  * ELEC BAT 1(2)(ESS) FAULT, ELEC APU BAT FAULT, ELEC BAT 1(2)(ESS)(APU) OFF, ELEC EXT PWR 1(2)(3)(4) FAULT,
- * ELEC RAT FAULT, ELEC TR 1(2)(ESS) MONITORING FAULT and ELEC DRIVE 1(2)(3)(4) DISC FAULT. Also the STATUS (INOP SYS, INFO) lines of the generator, TR
- * and APU alerts of FwsElecAlerts (FCOM gap report 2026-10-08, A380X row #30).
- *
- * Source: A380 FCOM PRO-ABN-ECAM-10-24 "ELEC" (KAL fleet, 16 AUG 11). "l." = line of the text copy
- * references/manuals/a380_fcom.txt; the flight phase inhibitions and master lights are figures, read from
- * airbus-a380-fcom_compress.pdf ("PDF p.").
+ * ELEC RAT FAULT, ELEC TR 1(2)(ESS) MONITORING FAULT and ELEC DRIVE 1(2)(3)(4) DISC FAULT. Also the STATUS (INOP SYS,
+ * INFO) lines of the generator, TR and APU alerts of FwsElecAlerts.
  *
  * The Rust electrical system (a380_systems/src/electrical) simulates the failures and publishes what the aircraft
  * detects: the BAT pb-sw FAULT lights, L:A32NX_ELEC_EXT_PWR_n_FAULT, L:A32NX_ELEC_RAT_FAULT and
- * L:A32NX_ELEC_ENG_GEN_n_DRIVE_DISC_FAULT. The TR monitoring
- * failures change nothing in the electrical network (the TRs keep working), so the FWS reads them from the flyPad
- * failures directly (design choice).
+ * L:A32NX_ELEC_ENG_GEN_n_DRIVE_DISC_FAULT. Design choice: the TR monitoring failures change nothing in the electrical
+ * network (the TRs keep working), so the FWS reads them from the flyPad failures directly.
  */
 
 import { Subject } from '@microsoft/msfs-sdk';
@@ -41,11 +36,9 @@ export const TR_MONITORING_FAILURES: Three<number> = [
 ];
 
 /**
- * Flight phase inhibitions (FCOM figures).
- * ELEC APU BAT FAULT (PDF p.4870), ELEC BAT 1(2)(ESS) FAULT (p.4876), ELEC BAT 1(2)(ESS)(APU) OFF (p.4878): phases 3 to
- * 7, 9 and 10, master caution and SC. ELEC EXT PWR 1(2)(3)(4) FAULT (p.4943): phases 3 to 10. ELEC RAT FAULT (p.4952):
- * phases 3 to 11. ELEC TR 1(2)(ESS) MONITORING FAULT (p.4963): phases 2 to 11. These three have no master light and no
- * audio. ELEC DRIVE 1(2)(3)(4) DISC FAULT (p.4917): phases 2 to 11, master caution and SC.
+ * Flight phases in which the alerts are inhibited. `battery` covers ELEC (APU) BAT FAULT and ELEC BAT ... OFF (master
+ * caution and SC); EXT PWR FAULT, RAT FAULT and TR MONITORING FAULT have no master light and no audio; DRIVE DISC FAULT
+ * has master caution and SC.
  */
 export const ELEC_SYSTEM_PHASE_INHIBITION: {
   battery: number[];
@@ -69,15 +62,14 @@ export interface ElecSystemInputs {
   batPbAuto: Four<boolean>;
   /** ELEC APU TR FAULT is active (its procedure may ask APU BAT OFF) */
   apuTrFault: boolean;
-  /** EXT PWR 1-4 fault reported by its GGPCU (L:A32NX_ELEC_EXT_PWR_n_FAULT) */
+  /** EXT PWR 1-4 fault reported by its GGPCU */
   extPwrFault: Four<boolean>;
-  /** EXT PWR 1-4 pb ON */
   extPwrPbOn: Four<boolean>;
-  /** RAT generator fault (L:A32NX_ELEC_RAT_FAULT) */
+  /** RAT generator fault */
   ratFault: boolean;
   /** TR 1, TR 2, TR ESS monitoring function failed (flyPad failures) */
   trMonitoringFailed: Three<boolean>;
-  /** Disconnection function of DRIVE 1-4 failed (L:A32NX_ELEC_ENG_GEN_n_DRIVE_DISC_FAULT) */
+  /** Disconnection function of DRIVE 1-4 failed */
   driveDiscFault: Four<boolean>;
   /** APU available: the "If APU off" lines of the generator alert STATUS */
   apuAvailable: boolean;
@@ -109,33 +101,27 @@ export function readElecSystemInputs(
 
 /** One flag per alert, true while its triggering condition is met */
 export interface ElecSystemAlertFlags {
-  /** ELEC BAT 1 FAULT, ELEC BAT 2 FAULT, ELEC BAT ESS FAULT, ELEC APU BAT FAULT */
+  /** BAT 1, BAT 2, BAT ESS, APU BAT */
   batFault: Four<boolean>;
-  /** ELEC BAT 1 OFF, ELEC BAT 2 OFF, ELEC BAT ESS OFF, ELEC APU BAT OFF */
+  /** BAT 1, BAT 2, BAT ESS, APU BAT */
   batOff: Four<boolean>;
-  /** ELEC EXT PWR 1(2)(3)(4) FAULT */
   extPwrFault: Four<boolean>;
-  /** ELEC RAT FAULT */
   ratFault: boolean;
-  /** ELEC TR 1(2)(ESS) MONITORING FAULT */
   trMonitoringFault: Three<boolean>;
-  /** ELEC DRIVE 1(2)(3)(4) DISC FAULT */
   driveDiscFault: Four<boolean>;
 }
 
 /**
  * The triggering conditions.
- * - BAT ... FAULT (l.139503-139514, l.139306-139316): "BAT 1, BAT 2, or BAT ESS is failed", "The APU battery is
- *   failed". The BCRU detects the failure and lights the pb-sw FAULT light (DSC-24-20 l.50623): the alert follows it.
- * - BAT ... OFF (l.139566): "BAT 1, BAT 2, BAT ESS, or APU BAT is abnormally OFF". Design choices for
- *   "abnormally": not while the battery has its FAULT (its procedure asks BAT ... OFF), not the APU BAT while ELEC APU
- *   TR FAULT is active (its procedure asks APU BAT OFF, l.139454), and not while all four batteries are OFF together
- *   (the securing of the aircraft, l.127839, and the battery check, "ALL BAT pb-sw ... OFF then ON", l.118642).
- * - EXT PWR ... FAULT (l.142243): "The external power unit, or its associated GGPCU, is failed".
- * - RAT FAULT (l.142549-142560): "The RAT is failed" (the RAT generator; no RAT uplock or heater in the simulation).
- * - TR ... MONITORING FAULT (l.142895): "The monitoring function of TR 1(2)(ESS) is failed".
- * - DRIVE ... DISC FAULT (l.141156): "The disconnection function of the engine generator from its assigned engine
- *   failed".
+ * - BAT ... FAULT: the BCRU detects the battery failure and lights the pb-sw FAULT light; the alert follows the light.
+ * - BAT ... OFF: a battery is abnormally OFF. Design choices for "abnormally": not while the battery has its FAULT
+ *   (its procedure asks BAT ... OFF), not the APU BAT while ELEC APU TR FAULT is active (its procedure asks APU BAT
+ *   OFF), and not while all four batteries are OFF together (securing the aircraft, and the battery check that sets
+ *   all BAT pb-sw OFF then ON).
+ * - EXT PWR ... FAULT: the external power unit or its GGPCU is failed.
+ * - RAT FAULT: the RAT generator is failed (no RAT uplock or heater in the simulation).
+ * - TR ... MONITORING FAULT: the monitoring function of the TR is failed.
+ * - DRIVE ... DISC FAULT: the function that disconnects the engine generator from its engine failed.
  */
 export function elecSystemAlertFlags(i: ElecSystemInputs): ElecSystemAlertFlags {
   const allBatteriesOff = i.batPbAuto.every((auto) => !auto);
@@ -152,7 +138,7 @@ export function elecSystemAlertFlags(i: ElecSystemInputs): ElecSystemAlertFlags 
 }
 
 /**
- * The "EXT PWR 1(2)(3)(4) P/B ... RECYCLE" line (l.142250): done once the pb has been set OFF, then ON again, while
+ * The "EXT PWR 1(2)(3)(4) P/B ... RECYCLE" line: done once the pb has been set OFF, then ON again, while
  * the alert is active. Design choice: an alert that ends and comes back starts with the line not done.
  */
 export class PushButtonRecycleMonitor {
@@ -185,8 +171,8 @@ const BAT_INOP_SYS: Four<string> = ['240300005', '240300006', '240300007', '2403
 const BAT_1_2_INOP_SYS = '240300008';
 
 /**
- * INOP SYS of ELEC BAT 1(2)(ESS) FAULT and ELEC APU BAT FAULT: "BAT 1 (2)(ESS)", "BAT 1+2 (If BAT 1 and BAT 2 Fault)"
- * (l.139544-139549), "APU BAT" (l.139348-139349).
+ * INOP SYS of ELEC BAT 1(2)(ESS) FAULT and ELEC APU BAT FAULT: the faulty battery, or BAT 1+2 when BAT 1 and BAT 2
+ * are both faulty.
  * @param bat 0 to 3 for BAT 1, BAT 2, BAT ESS, APU BAT
  * @param batFault the BAT FAULT alerts, in the same order
  */
@@ -197,71 +183,65 @@ export function batteryFaultInopSys(bat: number, batFault: readonly boolean[]): 
   return [BAT_INOP_SYS[bat]];
 }
 
-/** INFO of ELEC APU BAT FAULT: "If APU TR is failed: APU BAT START NOT AVAIL" (l.139351-139353) */
+/** INFO of ELEC APU BAT FAULT: APU BAT START NOT AVAIL when the APU TR is failed too */
 export function apuBatFaultInfo(apuTrFault: boolean): string[] {
   return apuTrFault ? ['240200001'] : [];
 }
 
-/** INFO of ELEC APU TR FAULT: "If APU BAT is failed: APU START NOT AVAIL" (l.139482-139484) */
+/** INFO of ELEC APU TR FAULT: APU START NOT AVAIL when the APU BAT is failed too */
 export function apuTrFaultInfo(apuBatFault: boolean): string[] {
   return apuBatFault ? ['240200002'] : [];
 }
 
-/** INOP SYS EXT PWR 1, 2, 3, 4 (l.142257-142261) */
+/** INOP SYS EXT PWR 1, 2, 3, 4 */
 export const EXT_PWR_INOP_SYS: Four<string> = ['240300016', '240300017', '240300018', '240300019'];
 
-/** INOP SYS RAT (l.142595-142598) */
 export const RAT_INOP_SYS = '240300029';
 
 /** INOP SYS GEN 1, 2, 3, 4 */
 export const ENG_GEN_INOP_SYS: Four<string> = ['240300010', '240300011', '240300012', '240300013'];
 
-/** INOP SYS APU GEN A, APU GEN B (l.139428-139432) */
+/** INOP SYS APU GEN A, APU GEN B */
 export const APU_GEN_INOP_SYS: [string, string] = ['240300014', '240300015'];
 
-/** INOP SYS TR 1, TR 2, TR ESS (l.142875-142879) */
+/** INOP SYS TR 1, TR 2, TR ESS */
 export const TR_INOP_SYS: Three<string> = ['240300034', '240300035', '240300036'];
 
-/** INOP SYS APU TR (l.139479-139480) */
 export const APU_TR_INOP_SYS = '240300004';
 
 /**
- * STATUS APPR & LDG INOP SYS of ELEC GEN 1(2)(3)(4) FAULT (l.142365-142369), ELEC GEN 1(2)(3)(4) OFF
- * (l.142427-142431) and ELEC DRIVE 1(2)(3)(4) DISCONNECTED (l.141225-141229): "CAT 3 DUAL (If APU off)".
+ * STATUS APPR & LDG INOP SYS of ELEC GEN 1(2)(3)(4) FAULT, ELEC GEN 1(2)(3)(4) OFF and ELEC DRIVE 1(2)(3)(4)
+ * DISCONNECTED: CAT 3 DUAL when the APU is off.
  */
 export function engineGeneratorLostApprLdg(apuAvailable: boolean): string[] {
   return apuAvailable ? [] : ['220300028'];
 }
 
-/** STATUS INFO of the same alerts: "If APU off: CAT 3 SINGLE ONLY" (l.142374, l.142436, l.141234) */
+/** STATUS INFO of the same alerts: CAT 3 SINGLE ONLY when the APU is off */
 export function engineGeneratorLostInfo(apuAvailable: boolean): string[] {
   return apuAvailable ? [] : ['220200016'];
 }
 
 /** The state of these alerts in FwsCore, refreshed by update() every FWS cycle */
 export class ElecSystemAlerts {
-  /** ELEC BAT 1 FAULT, ELEC BAT 2 FAULT, ELEC BAT ESS FAULT, ELEC APU BAT FAULT */
+  /** BAT 1, BAT 2, BAT ESS, APU BAT */
   public readonly batFault = Array.from(Array(4), () => Subject.create(false));
 
-  /** ELEC BAT 1 OFF, ELEC BAT 2 OFF, ELEC BAT ESS OFF, ELEC APU BAT OFF */
+  /** BAT 1, BAT 2, BAT ESS, APU BAT */
   public readonly batOff = Array.from(Array(4), () => Subject.create(false));
 
   /** BAT 1, BAT 2, BAT ESS, APU BAT pb-sw in AUTO, for the BAT ... OFF and BAT ... ON lines */
   public readonly batPbAuto = [true, true, true, true];
 
-  /** ELEC EXT PWR 1(2)(3)(4) FAULT */
   public readonly extPwrFault = Array.from(Array(4), () => Subject.create(false));
 
   /** The EXT PWR ... RECYCLE line of each EXT PWR FAULT is done */
   public readonly extPwrRecycled = [false, false, false, false];
 
-  /** ELEC RAT FAULT */
   public readonly ratFault = Subject.create(false);
 
-  /** ELEC TR 1(2)(ESS) MONITORING FAULT */
   public readonly trMonitoringFault = Array.from(Array(3), () => Subject.create(false));
 
-  /** ELEC DRIVE 1(2)(3)(4) DISC FAULT */
   public readonly driveDiscFault = Array.from(Array(4), () => Subject.create(false));
 
   /** ELEC APU TR FAULT active, for the INFO of ELEC APU BAT FAULT */
@@ -310,7 +290,7 @@ export function elecSystemAbnormalItems(a: ElecSystemAlerts): { [key: number]: E
       flightPhaseInhib: ELEC_SYSTEM_PHASE_INHIBITION.battery,
       simVarIsActive: a.batFault[bat],
       notActiveWhenItemActive: [],
-      // BAT ... OFF (l.139541, l.139343)
+      // BAT ... OFF
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!a.batPbAuto[bat]],
       inopSysAllPhases: () => batteryFaultInopSys(bat, a.batFaultStates()),
@@ -325,10 +305,10 @@ export function elecSystemAbnormalItems(a: ElecSystemAlerts): { [key: number]: E
       flightPhaseInhib: ELEC_SYSTEM_PHASE_INHIBITION.battery,
       simVarIsActive: a.batOff[bat],
       notActiveWhenItemActive: [],
-      // Design choice (not in the FCOM), as ELEC GEN OFF: 5 s, so that setting the batteries ON one after the other
-      // (cockpit preparation) does not flash this alert
+      // Design choice, as ELEC GEN OFF: 5 s, so that setting the batteries ON one after the other (cockpit
+      // preparation) does not flash this alert
       monitorConfirmTime: 5,
-      // BAT ... ON (l.139575)
+      // BAT ... ON
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [a.batPbAuto[bat]],
       failure: 2,
@@ -341,12 +321,12 @@ export function elecSystemAbnormalItems(a: ElecSystemAlerts): { [key: number]: E
       flightPhaseInhib: ELEC_SYSTEM_PHASE_INHIBITION.extPwrFault,
       simVarIsActive: a.extPwrFault[n],
       notActiveWhenItemActive: [],
-      // EXT PWR ... RECYCLE (l.142250)
+      // EXT PWR ... RECYCLE
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [a.extPwrRecycled[n]],
       inopSysAllPhases: () => [EXT_PWR_INOP_SYS[n]],
       failure: 1,
-      // The FCOM shows no SD page for this alert (PDF p.4943)
+      // This alert calls no SD page
       sysPage: SdPages.None,
     };
   });
@@ -355,7 +335,7 @@ export function elecSystemAbnormalItems(a: ElecSystemAlerts): { [key: number]: E
     flightPhaseInhib: ELEC_SYSTEM_PHASE_INHIBITION.ratFault,
     simVarIsActive: a.ratFault,
     notActiveWhenItemActive: [],
-    // Crew awareness (l.142592); RAT NOT LOCKED UP and HEATER FAULT are not simulated
+    // Crew awareness only; RAT NOT LOCKED UP and HEATER FAULT are not simulated
     whichItemsToShow: () => [],
     whichItemsChecked: () => [],
     inopSysAllPhases: () => [RAT_INOP_SYS],
@@ -368,7 +348,7 @@ export function elecSystemAbnormalItems(a: ElecSystemAlerts): { [key: number]: E
       flightPhaseInhib: ELEC_SYSTEM_PHASE_INHIBITION.trMonitoringFault,
       simVarIsActive: a.trMonitoringFault[tr],
       notActiveWhenItemActive: [],
-      // Crew awareness (l.142907), no STATUS
+      // Crew awareness only, no STATUS
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
       failure: 1,
@@ -381,7 +361,7 @@ export function elecSystemAbnormalItems(a: ElecSystemAlerts): { [key: number]: E
       flightPhaseInhib: ELEC_SYSTEM_PHASE_INHIBITION.driveDiscFault,
       simVarIsActive: a.driveDiscFault[drive],
       notActiveWhenItemActive: [],
-      // Crew awareness (l.141168), no STATUS
+      // Crew awareness only, no STATUS
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
       failure: 2,

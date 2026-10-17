@@ -19,7 +19,7 @@ function run(
   return pushes;
 }
 
-/* A380 FCOM DSC-34-20-30 (a380_fcom.txt l.92444-92447): 60 s after touchdown, the WX pb is automatically deselected */
+/* 60 s after touchdown, the WX pb is automatically deselected */
 describe('WX pb deselected 60 s after touchdown', () => {
   it('both WX pbs pushed once, 60 s after touchdown', () => {
     const logic = new WxPbAutoDeselectLogic();

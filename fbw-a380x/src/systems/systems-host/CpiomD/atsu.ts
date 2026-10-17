@@ -34,8 +34,7 @@ export class AtsuSystem {
     this.aoc = new Aoc(this.bus, false);
     this.atsuFmsClient = new AtsuFmsClient(this.bus);
 
-    // Both SCIs lost: "The AOC is inoperative. It can no longer send and receive messages to/from the ground."
-    // (A380 FCOM COM NSS/AVNCS DATA XFR FAULT, a380_fcom.txt l.169947)
+    // Both SCIs lost: the AOC is inoperative and can no longer exchange messages with the ground
     [A380Failure.Sci1, A380Failure.Sci2].forEach((failure, index) =>
       this.failuresConsumer.register(failure, (active) => {
         this.sciFailed[index] = active;

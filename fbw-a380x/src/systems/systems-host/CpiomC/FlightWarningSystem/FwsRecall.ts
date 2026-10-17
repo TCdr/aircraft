@@ -3,18 +3,13 @@
 
 /*
  * RCL and RCL LAST pbs of the ECAM control panel.
- *
- * A380 FCOM DSC-31-40-20 (ECAM - CONTROLS AND INDICATORS, a380_fcom.txt l.73420-73435):
- * - RCL LAST pb: "Cancels the last CLEAR pb action on an alert."
- * - RCL pb: "When pressed, all alerts previously performed and still active, and all not-sensed ABN PROC that are
- *   still active appear on the EWD." / "When pressed for more than three seconds, all alerts that were previously
- *   cancelled via the EMER CANC pb or cleared or inhibited by the current aircraft flight phase appear on the EWD." /
- *   "Note: When there is no alert to recall, NORMAL appears for 3 seconds."
- *
- * Before, both pbs wrote the same L:var and each press brought back one alert, the oldest one.
+ * - RCL LAST pb: cancels the last CLEAR pb action on an alert.
+ * - RCL pb: brings back on the EWD every alert already performed and still active and every still active not-sensed
+ *   ABN PROC. Held for more than 3 s, it also brings back the alerts cancelled with the EMER CANC pb, cleared, or
+ *   inhibited by the current flight phase. With no alert to recall, NORMAL appears for 3 s.
  */
 
-/** NORMAL on the EWD after a RCL press with no alert to recall, in ms (FCOM l.73433: "for 3 seconds") */
+/** NORMAL on the EWD after a RCL press with no alert to recall, in ms */
 export const RECALL_NORMAL_MEMO_MS = 3_000;
 
 /**
@@ -85,10 +80,10 @@ export function recallAll(recallable: readonly string[]): RecallResult {
 }
 
 /**
- * The RCL pb pressed for more than 3 s shows the alerts "inhibited by the current aircraft flight phase" (FCOM
- * l.73429-73431). Design choice: the override lasts until the flight phase changes (the FCOM gives no end), as the
- * A320 FWC does. It replaces a memory node whose reset pulse was cleared before it was read, so the override set by
- * any RCL press never ended (the T.O INHIBIT / LDG INHIBIT memos stayed off for the rest of the flight).
+ * The RCL pb pressed for more than 3 s shows the alerts inhibited by the current flight phase. Design choice: the
+ * override lasts until the flight phase changes (the aircraft documentation gives no end), as the A320 FWC does. A
+ * memory node is not used: its reset pulse was cleared before it was read, so the override never ended (the T.O
+ * INHIBIT / LDG INHIBIT memos stayed off for the rest of the flight).
  */
 export class FlightPhaseInhibitOverride {
   /** The flight phase in which the long RCL press was made, null without override */

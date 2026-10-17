@@ -27,9 +27,8 @@ const levers = (tlaDegrees: number[], overrides: Partial<ThrustLeverAboveIdleInp
 const activeEngines = (monitor: ThrustLeverAboveIdleMonitor) =>
   [0, 1, 2, 3].filter((engineIndex) => monitor.isActive(engineIndex)).map((engineIndex) => engineIndex + 1);
 
-/* A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER ABOVE IDLE, a380_fcom.txt l.173271-173292 */
 describe('A380X ENG THR LEVER ABOVE IDLE', () => {
-  it('"One thrust lever is above idle and at least one thrust reverser lever is in reverse detent" (l.173277)', () => {
+  it('"One thrust lever is above idle and at least one thrust reverser lever is in reverse detent"', () => {
     const monitor = new ThrustLeverAboveIdleMonitor();
     monitor.update(levers([CLIMB, REVERSE, REVERSE, IDLE]));
     expect(activeEngines(monitor)).toEqual([1]);
@@ -37,7 +36,7 @@ describe('A380X ENG THR LEVER ABOVE IDLE', () => {
     expect(activeEngines(monitor)).toEqual([3]);
   });
 
-  it('"at least one thrust lever on the other engines is at idle", during the reversers de-selection (l.173278-173280)', () => {
+  it('"at least one thrust lever on the other engines is at idle", during the reversers de-selection', () => {
     const monitor = new ThrustLeverAboveIdleMonitor();
     monitor.update(levers([IDLE, REVERSE, REVERSE, IDLE]));
     expect(activeEngines(monitor)).toEqual([]);
@@ -58,7 +57,7 @@ describe('A380X ENG THR LEVER ABOVE IDLE', () => {
     expect(activeEngines(monitor)).toEqual([]);
   });
 
-  it('"The auto-idle protection is active." (l.173281), for the outboard engines only', () => {
+  it('"The auto-idle protection is active.", for the outboard engines only', () => {
     const monitor = new ThrustLeverAboveIdleMonitor();
     monitor.update(levers([IDLE, IDLE, IDLE, IDLE], { fadecAutoIdle: [false, false, false, true] }));
     expect(activeEngines(monitor)).toEqual([4]);
@@ -85,12 +84,12 @@ describe('A380X ENG THR LEVER ABOVE IDLE', () => {
     expect(activeEngines(monitor)).toEqual([]);
   });
 
-  it('is a red MASTER WARN alert inhibited in the flight phases 1, 6, 7 and 12 (FCOM PDF page 5819)', () => {
+  it('is a red MASTER WARN alert inhibited in the flight phases 1, 6, 7 and 12', () => {
     expect(THR_LEVER_ABOVE_IDLE_LEVEL).toBe(3);
     expect(THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION).toEqual([1, 6, 7, 12]);
   });
 
-  it('"In addition, a dual RETARD callout triggers." (l.173285): two RETARD, then none', () => {
+  it('"In addition, a dual RETARD callout triggers.": two RETARD, then none', () => {
     const callout = new DualRetardCallout();
     const calls: number[] = [];
     for (let step = 0; step < 50; step++) {
@@ -122,7 +121,7 @@ describe('A380X ENG THR LEVER ABOVE IDLE wiring', () => {
   );
   const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
 
-  it.each([1, 2, 3, 4])('ENG %i: red title and THR LEVER n ... IDLE (l.173292)', (engine) => {
+  it.each([1, 2, 3, 4])('ENG %i: red title and THR LEVER n ... IDLE', (engine) => {
     const id = 701800161 + engine;
     const start = ata70.indexOf(`  ${id}: {`);
     expect(start).toBeGreaterThan(0);

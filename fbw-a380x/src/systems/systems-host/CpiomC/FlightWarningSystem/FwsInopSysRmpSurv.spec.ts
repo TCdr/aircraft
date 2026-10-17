@@ -8,7 +8,7 @@ import { Subject } from '@microsoft/msfs-sdk';
 import type { FwsCore } from './FwsCore';
 import { FwsInopSys, FwsInopSysPhases } from './FwsInopSys';
 
-/* The EcamInopSys table is read from the source text (EcamMessages/index.ts import cycle, see FwsElecAlertsStatus.spec.ts) */
+/* The EcamInopSys table is read as text (EcamMessages/index.ts import cycle, see FwsElecAlertsStatus.spec.ts) */
 const ecamMessages = readFileSync(
   resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
   'utf-8',
@@ -58,15 +58,14 @@ function shownItems(inopSys: FwsInopSys, keys: string[]): string[] {
 const STBY_RAD_NAV = '230300015';
 const RMP_ITEMS = ['230300009', '230300010', '230300011', '230300012', '230300013', '230300014', '230300016'];
 
-/* A380 FCOM PRO-ABN-ECAM-10-23 COM RMP 1+2(1+3)(2+3) FAULT and COM RMP 1+2+3 FAULT STATUS (a380_fcom.txt l.137400-137415, 137455-137473) */
 describe('A380X INOP SYS STBY RAD NAV of the RMP failures', () => {
-  it('is the FCOM text, under ALL PHASES (l.137412-137415, 137470-137473)', () => {
+  it('is the aircraft text, under ALL PHASES', () => {
     const { fws } = fakeFws();
     expect(inopSysText(STBY_RAD_NAV)).toBe('STBY RAD NAV');
     expect(new FwsInopSys(fws).inopSys[STBY_RAD_NAV]?.phase).toBe(FwsInopSysPhases.AllPhases);
   });
 
-  it('"STBY RAD NAV (If RMPs 1+2 are failed)": shown with RMP 1+2 (l.137400-137403, 137414-137415)', () => {
+  it('"STBY RAD NAV (If RMPs 1+2 are failed)": shown with RMP 1+2', () => {
     const { fws, subjects } = fakeFws();
     const inopSys = new FwsInopSys(fws);
     subjects.rmp1Fault.set(true);
@@ -74,7 +73,7 @@ describe('A380X INOP SYS STBY RAD NAV of the RMP failures', () => {
     expect(shownItems(inopSys, [...RMP_ITEMS, STBY_RAD_NAV])).toEqual(['230300012', STBY_RAD_NAV]);
   });
 
-  it('"If RMPs 1+3(2+3) are failed: STBY RAD NAV is available via RMP 2(1)" (l.137405-137406)', () => {
+  it('"If RMPs 1+3(2+3) are failed: STBY RAD NAV is available via RMP 2(1)"', () => {
     for (const [first, second] of [
       ['rmp1Fault', 'rmp3Fault'],
       ['rmp2Fault', 'rmp3Fault'],
@@ -96,7 +95,7 @@ describe('A380X INOP SYS STBY RAD NAV of the RMP failures', () => {
     }
   });
 
-  it('COM RMP 1+2+3 FAULT STATUS: RMP 1+2+3 and STBY RAD NAV (l.137470-137473); the VHF 1+2+3 and HF 1+2 lines stay', () => {
+  it('COM RMP 1+2+3 FAULT STATUS: RMP 1+2+3 and STBY RAD NAV; the VHF 1+2+3 and HF 1+2 lines stay', () => {
     const { fws, subjects } = fakeFws();
     const inopSys = new FwsInopSys(fws);
     subjects.rmp1Fault.set(true);
@@ -112,8 +111,6 @@ describe('A380X INOP SYS STBY RAD NAV of the RMP failures', () => {
   });
 });
 
-/* A380 FCOM PRO-ABN-ECAM-10-34-20 SURV GPWS / TAWS / TERR SYS FAULT STATUS (a380_fcom.txt l.166462-166466, 166495-166498,
- * 166839-166842, 166877-166880, 167034-167039, 167075-167080) */
 describe('A380X SURV GPWS, TERR SYS and TAWS INOP SYS lines', () => {
   it.each([
     ['340300001', 'GPWS 1', 'SURV GPWS 1(2) FAULT: APPR & LDG, GPWS 1(2) (l.166462-166466)'],

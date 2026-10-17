@@ -27,7 +27,7 @@ const levels = (quantities: [number, number][]): TankLevels => ({
   capacityGal: new Map(quantities.map(([tank]) => [tank, 8_000])),
 });
 
-describe('CASE 5: gravity transfer from the outer tanks (A380 FCOM DSC-28-40, a380_fcom.txt l.59830-59846)', () => {
+describe('CASE 5: gravity transfer from the outer tanks', () => {
   it('starts with the outer tank pump failed when the lowest feed tank goes below 28 660 lb', () => {
     const logic = new OuterTankGravityTransferLogic();
     expect(logic.update(true, [true, false], [false, false], OUTER_GRAVITY_START_LOWEST_FEED_TANK_LB + 1)).toEqual([
@@ -65,7 +65,7 @@ describe('CASE 5: gravity transfer from the outer tanks (A380 FCOM DSC-28-40, a3
   });
 });
 
-describe('CASE 4: gallery functionality swap (l.59820-59828)', () => {
+describe('CASE 4: gallery functionality swap', () => {
   it('moves the fuel of the tank with the failed fwd pump into the receiving feed tanks, half the rate each', () => {
     const tanks = levels([
       [LEFT_INNER_TANK, 5_000],

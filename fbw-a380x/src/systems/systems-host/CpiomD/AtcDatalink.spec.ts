@@ -24,9 +24,8 @@ vi.mock('@datalink/atc', () => ({
 }));
 
 /*
- * A380 FCOM PRO-SUP-46 AIR TRAFFIC CONTROL (ATC) RESET (a380_fcom.txt l.184518-184557): "ATC RESET ... PULL", "After
- * 1 s: ATC RESET ... PUSH"; "Following an ATC reset: All current CPDLC and ADS connections are lost - Mailbox messages
- * are lost".
+ * ATC reset: the crew pulls the ATC RESET pb, then pushes it after 1 s. All the CPDLC and ADS connections and the
+ * mailbox messages are lost.
  */
 describe('ATC RESET pb', () => {
   afterEach(() => {

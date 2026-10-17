@@ -15,7 +15,7 @@ export interface A380FeedTankLeak {
 }
 
 /** The feed tank leaks: Tank.2 Feed1, Tank.5 Feed2, Tank.6 Feed3, Tank.9 Feed4 */
-export const A380_FEED_TANK_LEAKS: readonly A380FeedTankLeak[] = [
+const A380_FEED_TANK_LEAKS: readonly A380FeedTankLeak[] = [
   { feedTank: 1, failure: A380Failure.FuelFeedTank1Leak, msfsTank: 2 },
   { feedTank: 2, failure: A380Failure.FuelFeedTank2Leak, msfsTank: 5 },
   { feedTank: 3, failure: A380Failure.FuelFeedTank3Leak, msfsTank: 6 },
@@ -23,9 +23,8 @@ export const A380_FEED_TANK_LEAKS: readonly A380FeedTankLeak[] = [
 ];
 
 /**
- * Design choice (no FCOM rate): a leaking feed tank loses 6 000 kg/h, a fast leak (A380 FCOM PRO-ABN-ECAM-10-28 FUEL
- * LEAK DET FAULT, a380_fcom.txt l.151978-151979: "detection of fast leaks (more than 4 tons per hour)"). The fast leak
- * detection then finds it after about 20 min.
+ * Design choice (the real leak rate is not known): a leaking feed tank loses 6 000 kg/h, a fast leak (more than 4 t/h).
+ * The fast leak detection then finds it after about 20 min.
  */
 export const FEED_TANK_LEAK_RATE_KG_PER_HOUR = 6_000;
 
@@ -64,17 +63,14 @@ interface FuelSample {
 }
 
 /**
- * The FQMS fuel system leak detection (A380 FCOM DSC-28-40 FUEL LEAK DETECTION, a380_fcom.txt l.60239-60312):
- * - Slow leak detection (l.60298-60302): "compares the BLOCK fuel with the sum of the FOB and the Fuel Used. If the
- *   difference is greater than 15 450 lb, the ECAM triggers the FUEL LEAK DETECTED alert."
- * - Fast leak detection (l.60306-60310): "compares the Fuel Used during the previous 30 min, with the delta FOB during
- *   the previous 30 min. If the difference is greater than 4 400 lb, the ECAM triggers the FUEL LEAK DETECTED alert."
- * - Inhibition (l.60286-60297): "inhibited in the case of: - Engine shutdown [...] - Fuel jettison in progress [...] If
- *   the fuel system leak detection is inhibited, the ECAM triggers the FUEL LEAK DET FAULT alert. The slow leak
- *   detection is lost until the end of the flight. The fast leak detection is recovered if the inhibition conditions
- *   are no longer true."
+ * The FQMS fuel system leak detection:
+ * - Slow leak detection: FUEL LEAK DETECTED when the BLOCK fuel exceeds FOB + fuel used by more than 15 450 lb.
+ * - Fast leak detection: FUEL LEAK DETECTED when the FOB decrease over the previous 30 min exceeds the fuel used over
+ *   the same 30 min by more than 4 400 lb.
+ * - Inhibition (an engine shut down, a fuel jettison in progress): FUEL LEAK DET FAULT. The slow leak detection is
+ *   then lost until the end of the flight; the fast leak detection comes back when the inhibition ends.
  *
- * Design choices (the FCOM does not define them):
+ * Design choices (the real system's are not known):
  * - The BLOCK fuel is the FOB + fuel used when the four engines first run (the fuel used counters restart at each
  *   engine start on the ground): the detection starts then, and stops without a fault on the ground once an engine is
  *   shut down (end of flight).
@@ -85,13 +81,10 @@ interface FuelSample {
  *   abnormal flight attitude.
  */
 export class FuelLeakDetection {
-  /** l.60302 */
   public static readonly SLOW_LEAK_THRESHOLD_KG = 15_450 * KG_PER_LB;
 
-  /** l.60310 */
   public static readonly FAST_LEAK_THRESHOLD_KG = 4_400 * KG_PER_LB;
 
-  /** l.60306-60307: "during the previous 30 min" */
   public static readonly FAST_LEAK_WINDOW_S = 30 * 60;
 
   /** Design choice: one history sample a minute */

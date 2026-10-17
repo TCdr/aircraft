@@ -21,7 +21,7 @@ import {
 
 const lb = (gallons: number) => gallons * LEGACY_THRESHOLD_POUNDS_PER_GALLON;
 
-describe('main transfer thresholds (A380 FCOM DSC-28-30, a380_fcom.txt l.59243-59255)', () => {
+describe('main transfer thresholds', () => {
   it('keeps the normal thresholds of LegacyFuel: 43 100 lb (FEED TK 1 and 4) and 45 950 lb (FEED TK 2 and 3)', () => {
     expect(mainTransferThresholds(null)).toBe(NORMAL_MAIN_TRANSFER_THRESHOLDS);
     expect(mainTransferThresholds(90)).toBe(NORMAL_MAIN_TRANSFER_THRESHOLDS);

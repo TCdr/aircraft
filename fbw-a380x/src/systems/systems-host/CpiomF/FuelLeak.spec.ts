@@ -57,8 +57,8 @@ class Flight {
   }
 }
 
-describe('FQMS fuel leak detection (A380 FCOM DSC-28-40 FUEL LEAK DETECTION)', () => {
-  it('has the FCOM thresholds: 15 450 lb for the slow detection, 4 400 lb over 30 min for the fast one', () => {
+describe('FQMS fuel leak detection (FUEL LEAK DETECTION)', () => {
+  it('has the thresholds: 15 450 lb for the slow detection, 4 400 lb over 30 min for the fast one', () => {
     expect(FuelLeakDetection.SLOW_LEAK_THRESHOLD_KG).toBeCloseTo(15_450 * KG_PER_LB, 6);
     expect(FuelLeakDetection.FAST_LEAK_THRESHOLD_KG).toBeCloseTo(4_400 * KG_PER_LB, 6);
     expect(FuelLeakDetection.FAST_LEAK_WINDOW_S).toBe(1800);

@@ -23,7 +23,6 @@ function run(monitor: ApuBleedValvePositionMonitor, inputs: ApuBleedValveInputs,
 
 const normal: ApuBleedValveInputs = { apuRunning: true, valveOpen: true, valveCommandedOpen: true };
 
-/* A380 FCOM PRO-ABN-ECAM-10-36 AIR APU BLEED FAULT, a380_fcom.txt l.167685-167734 (FCOM audit T2-44, row B18) */
 describe('AIR APU BLEED FAULT: APU bleed valve abnormally open (closed)', () => {
   it('no fault while the valve follows the ECB', () => {
     const monitor = run(new ApuBleedValvePositionMonitor(), normal, 30);
@@ -61,7 +60,7 @@ describe('AIR APU BLEED FAULT: APU bleed valve abnormally open (closed)', () => 
   });
 });
 
-describe('AIR APU BLEED FAULT lines (PDF page 5665)', () => {
+describe('AIR APU BLEED FAULT lines', () => {
   it('abnormally open: APU BLEED VLV NOT CLOSED only', () => {
     expect(apuBleedFaultItems({ abnormallyOpen: true, aboveFl225: true, apuBleedPbOn: true }).show).toEqual([
       false,

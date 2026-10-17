@@ -63,7 +63,7 @@ export const LOAD_ALLEVIATION_TO_OUTR_TKS_VAR = 'L:A380X_FUEL_LOAD_ALLEVIATION_X
 /** The load alleviation transfer from the trim tank is in progress */
 export const LOAD_ALLEVIATION_FROM_TRIM_TK_VAR = 'L:A380X_FUEL_LOAD_ALLEVIATION_XFR_FROM_TRIM_TK';
 /** The load alleviation transfer from the outer tanks is in progress */
-export const LOAD_ALLEVIATION_FROM_OUTR_TKS_VAR = 'L:A380X_FUEL_LOAD_ALLEVIATION_XFR_FROM_OUTR_TKS';
+const LOAD_ALLEVIATION_FROM_OUTR_TKS_VAR = 'L:A380X_FUEL_LOAD_ALLEVIATION_XFR_FROM_OUTR_TKS';
 
 /** The MSFS tanks of the A380 (flight_model.cfg Tank.1-11) */
 const A380_TANKS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -76,14 +76,14 @@ export interface TransferPumpCommands {
 
 /**
  * The automatic fuel transfers of the FQMS simulation (CPIOM-F) that the MSFS fuel triggers of CpiomF/LegacyFuel do not
- * make, by moving fuel between the MSFS tanks at the FCOM rates (the MSFS fuel system has no line for them):
+ * make, by moving fuel between the MSFS tanks at the aircraft rates (the MSFS fuel system has no line for them):
  * - the load alleviation transfers (CpiomF/FuelLoadAlleviation),
  * - the automatic ground transfer and the AUTO GND XFR pb-sw (CpiomF/FuelGroundTransfer),
  * - the gravity transfer from the trim tank, TRIM TK FEED OPEN (CpiomF/FuelTrimTankFeed),
  * - the alternate transfers after a transfer pump failure, CASE 4 and 5 (CpiomF/FuelAlternateTransfers).
- * A fuel jettison or a refuel stops them all (as LegacyFuel does). A manual transfer stops the automatic ones: "As long as
- * the INR TK XFR pb-sw is set to MAN, all automatic transfers are inhibited" (A380 FCOM PRO-ABN-ECAM-10-28, a380_fcom.txt
- * l.151103-151104); the gravity transfer selected by the flight crew goes on.
+ * A fuel jettison or a refuel stops them all (as LegacyFuel does). A manual transfer stops the automatic ones (with the
+ * INR TK XFR pb-sw in MAN all automatic transfers are inhibited); the gravity transfer selected by the flight crew goes
+ * on.
  */
 export class FuelAutomaticTransfers implements Instrument {
   /** The update period, in milliseconds (as LegacyFuel) */
@@ -248,7 +248,7 @@ export class FuelAutomaticTransfers implements Instrument {
     };
   }
 
-  /** "All the transfer pumps must be on" (l.60583): the pb-sws of the 12 transfer pumps (fwd, aft, outer, trim) */
+  /** The ground transfer needs all transfer pumps on: the pb-sws of the 12 transfer pumps (fwd, aft, outer, trim) */
   private allTransferPumpPbsOn(): boolean {
     const aftCircuits = [L_INR_TK_AFT_PUMP, R_INR_TK_AFT_PUMP, L_MID_TK_AFT_PUMP, R_MID_TK_AFT_PUMP].map(
       ({ circuit }) => circuit,

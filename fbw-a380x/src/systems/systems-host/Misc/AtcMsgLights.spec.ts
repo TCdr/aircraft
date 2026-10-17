@@ -9,7 +9,7 @@ import { ATC_MSG_LIGHT_VAR, isAtcMsgLightLit } from './AtcMsgLights';
 const COCKPIT_MODEL =
   '../../../base/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/attachments/flybywire/Part_Interior_Cockpit/model';
 
-describe('ATC MSG lights (A380 FCOM DSC-46-10-20-70, l.101229-101230: flashes at 2 Hz)', () => {
+describe('ATC MSG lights (flashes at 2 Hz)', () => {
   it('stays dark without a waiting message', () => {
     for (let t = 0; t < 2000; t += 50) {
       expect(isAtcMsgLightLit(false, t)).toBe(false);
@@ -35,7 +35,7 @@ describe('ATC MSG lights (A380 FCOM DSC-46-10-20-70, l.101229-101230: flashes at
     expect(flashes).toBe(2);
   });
 
-  it('stays dark in takeoff and landing, flashes again after (A380 FCOM l.95755, l.101523)', () => {
+  it('stays dark in takeoff and landing, flashes again after', () => {
     // FWS phases 3 to 7 (takeoff) and 9 to 10 (landing)
     for (const phase of [3, 4, 5, 6, 7, 9, 10]) {
       expect(isAtcMsgLightLit(true, 0, phase)).toBe(false);

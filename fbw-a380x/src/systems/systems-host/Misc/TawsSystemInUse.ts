@@ -9,22 +9,19 @@ export interface WxrTawsSystemsState {
   taws1Failed: boolean;
   /** The TAWS surveillance function (GPWS and TERR SYS) of SYS 2 is failed */
   taws2Failed: boolean;
-  /** The WXR of SYS 1 is failed */
   wxr1Failed: boolean;
-  /** The WXR of SYS 2 is failed */
   wxr2Failed: boolean;
 }
 
 /**
  * The SURV system that provides the TAWS functions (L:A32NX_TAWS_SYS_IN_USE). Normally the selected WXR/TAWS system.
  *
- * A380 FCOM PRO-ABN SURV TAWS 1(2) FAULT (a380_fcom.txt l.166806, l.166816-166824): with the TAWS (GPWS and TERR SYS) of
- * the selected SYS failed, the crew selects the other SYS for WXR & TAWS when its WXR is operative; "If the WXR on SYS 2
- * is failed ... An automatic reconfiguration has occurred: WXR surveillance function is on SYS 1(2), TAWS surveillance
- * function is on SYS 2(1)." The MFD SURV STATUS & SWITCHING page then shows TAWS 2(1) IN USE (DSC-34-20-60-50,
- * l.91789-91792).
- * Design choice: the reconfiguration needs an operative TAWS on the other SYS (with both TAWS failed it is SURV TAWS 1+2
- * FAULT, l.166844-166850, and nothing is gained).
+ * SURV TAWS 1(2) FAULT: with the TAWS (GPWS and TERR SYS) of the selected SYS failed, the crew selects the other SYS
+ * for WXR & TAWS when its WXR is operative. When the WXR of the other SYS is failed, an automatic reconfiguration keeps
+ * the WXR surveillance function on the selected SYS and puts the TAWS surveillance function on the other SYS. The MFD
+ * SURV STATUS & SWITCHING page then shows TAWS 2(1) IN USE.
+ * Design choice: the reconfiguration needs an operative TAWS on the other SYS (with both TAWS failed it is SURV TAWS
+ * 1+2 FAULT, and nothing is gained).
  * @param state the selected system and the failures of both systems
  * @returns the TAWS system in use, 0 when no system is selected
  */

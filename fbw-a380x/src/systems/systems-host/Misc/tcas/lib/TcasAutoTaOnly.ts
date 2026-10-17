@@ -12,10 +12,9 @@ export interface TcasAutoTaOnlyInputs {
 }
 
 /**
- * Automatic selection of the TA ONLY mode (A380 FCOM DSC-34-20-40-10, a380_fcom.txt l.90525-90536): "The TA ONLY mode is
- * automatically selected, if: One of the following alerts is triggered: Windshear, Stall, TAWS. The TCAS returns to
- * TA/RA mode, when the alert is finished. [...] The aircraft is in emergency electrical configuration."
- * The TAWS alerts (they also inhibit the TA aural) and the "below 1 000 ft +-100 ft" condition are handled by
+ * Automatic selection of the TA ONLY mode: during a windshear, stall or TAWS alert (the TCAS returns to TA/RA when the
+ * alert ends) and in emergency electrical configuration.
+ * The TAWS alerts (they also inhibit the TA aural) and the below 1000 ft (+-100 ft) condition are handled by
  * LegacyTcasComputer.updateInhibitions itself.
  * @param inputs the windshear / stall warnings and the electrical configuration
  * @returns true when the TCAS must be in TA ONLY mode (all RAs inhibited) for one of these reasons

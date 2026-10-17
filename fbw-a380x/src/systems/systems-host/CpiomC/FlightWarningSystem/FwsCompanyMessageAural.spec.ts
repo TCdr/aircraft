@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { FwsCompanyMessageAural, isCompanyMessageAuralInhibited } from './FwsCompanyMessageAural';
 import { FwcFlightPhase } from './FwsFlightPhases';
 
-describe('A380 COMPANY MESSAGE voice (a380_fcom.txt l.73651-73652, 108111-108120)', () => {
+describe('A380 COMPANY MESSAGE voice', () => {
   it('is said once for each new unread company message', () => {
     const aural = new FwsCompanyMessageAural();
     const counts = [0, 1, 1, 2, 1, 0, 1];
@@ -35,7 +35,7 @@ describe('A380 COMPANY MESSAGE voice (a380_fcom.txt l.73651-73652, 108111-108120
 });
 
 describe('COMPANY MESSAGE voice inhibition', () => {
-  it('below 10 000 ft in flight phase 8 (l.108111-108116)', () => {
+  it('below 10 000 ft in flight phase 8', () => {
     expect(isCompanyMessageAuralInhibited(FwcFlightPhase.AtOrAbove1500FeetTo800Feet, 9_999)).toBe(true);
     expect(isCompanyMessageAuralInhibited(FwcFlightPhase.AtOrAbove1500FeetTo800Feet, 10_000)).toBe(false);
     expect(isCompanyMessageAuralInhibited(FwcFlightPhase.AtOrAbove1500FeetTo800Feet, null)).toBe(true);
