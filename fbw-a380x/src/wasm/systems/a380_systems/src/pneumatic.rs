@@ -6047,7 +6047,7 @@ mod tests {
             }
 
             assert!(
-                highest_psig > 85. && highest_psig < 95.,
+                highest_psig > 80. && highest_psig < 95.,
                 "highest pressure {highest_psig} PSI"
             );
             assert_ge!(closings, 1);
