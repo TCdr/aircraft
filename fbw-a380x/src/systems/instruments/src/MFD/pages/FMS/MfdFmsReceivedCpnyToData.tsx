@@ -12,7 +12,7 @@ import {
   UnitType,
   VNode,
 } from '@microsoft/msfs-sdk';
-import { CompanyTakeoffDataUplink, NXDataStore } from '@flybywiresim/fbw-sdk';
+import { CompanyTakeoffDataUplink, formatTakeoffDerate, NXDataStore } from '@flybywiresim/fbw-sdk';
 
 import { AbstractMfdPageProps } from '../../MFD';
 import { FmsFlightPlanPage } from '../common/FmsFlightPlanPage';
@@ -93,7 +93,8 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
     this.weightUnit,
   );
 
-  private readonly thrustIndex = this.current.map((u) => (u ? (u.thrust === 'FLEX' ? 1 : 0) : null));
+  /** The index of the TOGA, FLEX and DERATED options */
+  private readonly thrustIndex = this.current.map((u) => (u ? ['TOGA', 'FLEX', 'DERATED'].indexOf(u.thrust) : null));
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -116,7 +117,7 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
         }
       }, true),
       this.runwayUplinks.sub((uplinks) => {
-        this.thrustLabels.set(uplinks.map((u) => (u.thrust === 'FLEX' ? `FLEX ${u.flexTemperature}` : 'TOGA')));
+        this.thrustLabels.set(uplinks.map((u) => MfdFmsReceivedCpnyToData.thrustLabel(u)));
         this.selectedThrust.set(uplinks.length > 0 ? 0 : null);
       }, true),
       this.current.sub(() => this.onNewData(), true),
@@ -135,6 +136,18 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
     this.insertDisabled.set(!check?.insertable);
     this.runwayDisagree.set(check?.runwayDisagree ?? false);
     this.towDisagree.set(check?.towDisagree ?? false);
+  }
+
+  /** The label of the takeoff thrust list: TOGA, FLEX and its temperature, or DRT and its level */
+  private static thrustLabel(uplink: CompanyTakeoffDataUplink): string {
+    switch (uplink.thrust) {
+      case 'FLEX':
+        return `FLEX ${uplink.flexTemperature}`;
+      case 'DERATED':
+        return `DRT ${formatTakeoffDerate(uplink.derate ?? 0)}`;
+      default:
+        return 'TOGA';
+    }
   }
 
   /** An altitude in feet, with the flight level format above the transition altitude left to the PERF page */

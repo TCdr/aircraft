@@ -6,6 +6,7 @@ import {
   LineupAngle,
   RunwayCondition,
   TakeoffAntiIceSetting,
+  TakeoffDerateResult,
   TakeoffPerfomanceError,
   TakeoffPerformanceCalculator,
   TakeoffPerformanceEstimate,
@@ -61,6 +62,8 @@ const vec2Cache = Vec2Math.create();
  *   the VMCA and VMCG of the FBW A380X speed tables, as its FMS uses them: the FCOM gives no A380 values.
  * - the runway length needed below the shortest runway of the charts, and where V1, VR and 35 ft are reached (see
  *   {@link calculateTakeoffDistances}).
+ * - the derated takeoff levels D04 to D24: the TOGA weight limit at the OAT times the derated thrust ratio, and lower
+ *   minimum control speeds (see {@link derateResults}).
  */
 export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCalculator {
   /** The FBW A380X structural MTOW in kg (airframe.json5) */
@@ -77,6 +80,9 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
 
   /** A380 FCOM PER-TOF-TOC-OCD */
   public readonly maxTailwind = 10;
+
+  /** The derated takeoff levels D04 to D24, as their thrust reduction in percent: 4 % of the maximum thrust each */
+  public readonly derateLevels = [4, 8, 12, 16, 20, 24];
 
   /** The flat rating temperature TREF, and TMAXFLEX, as ISA deviations (A380 FCOM PER-TOF-THR-FLX) */
   private static readonly TREF_ISA_DEVIATION = 15;
@@ -161,6 +167,8 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     result.v2 = undefined;
     result.stabTrim = undefined;
     result.estimates = [];
+    result.derate = undefined;
+    result.derates = undefined;
     result.error = this.checkInputs(result, cg);
     if (result.error !== TakeoffPerfomanceError.None) {
       return result;
@@ -179,15 +187,10 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
       result.estimates.push(TakeoffPerformanceEstimate.Temperature);
     }
 
-    // The weight limit depends on the lift-off speed through the wind and slope corrections, so on the weight itself
-    let mtow = tow;
-    for (let i = 0; i < 3; i++) {
-      const limit = this.weightLimit(params.adjustedTora, wind, slope, pressureAlt, oat, conf, speedCg, mtow);
-      if (limit === undefined) {
-        result.error = TakeoffPerfomanceError.RunwayLengthOutsideData;
-        return result;
-      }
-      mtow = limit;
+    const mtow = this.iteratedWeightLimit(result, speedCg, 1);
+    if (mtow === undefined) {
+      result.error = TakeoffPerfomanceError.RunwayLengthOutsideData;
+      return result;
     }
     result.mtow = Math.floor(mtow);
     if (tow > result.mtow) {
@@ -195,21 +198,22 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
       return result;
     }
 
-    // A380 FCOM PER-TOF-TOR-SRS P 1-2: V2 >= 1.13 VS1G and >= 1.10 VMCA, VR >= 1.05 VMCA, V1 >= VMCG
-    const vmca = A380SpeedsUtils.getVmca(pressureAlt);
-    const vmcg = A380SpeedsUtils.getVmcg(pressureAlt);
-    const v2StallMin = Math.ceil(1.13 * A380842TakeoffPerformanceCalculator.vs1g(conf, speedCg, tow));
-    const v2 = Math.max(v2StallMin, Math.ceil(1.1 * vmca));
-    result.v2 = v2;
-    if (v2 > v2StallMin) {
+    const speeds = A380842TakeoffPerformanceCalculator.takeoffSpeeds(conf, speedCg, tow, pressureAlt, 1);
+    result.v2 = speeds.v2;
+    result.vR = speeds.vR;
+    result.v1 = speeds.v1;
+    if (speeds.v2AtControlSpeedFloor) {
       result.estimates.push(TakeoffPerformanceEstimate.V2);
     }
-    result.vR = Math.max(Math.round(v2 * A380842TakeoffPerformanceCalculator.VR_TO_V2), Math.ceil(1.05 * vmca));
-    result.v1 = Math.min(
-      result.vR,
-      Math.max(Math.round(result.vR * A380842TakeoffPerformanceCalculator.V1_TO_VR), Math.ceil(vmcg)),
-    );
     result.estimates.push(TakeoffPerformanceEstimate.VR, TakeoffPerformanceEstimate.V1);
+
+    // Not limited by forceToga, which only stops the FLEX calculation: FLEX is not permitted on a contaminated runway,
+    // a derate is
+    result.derates = this.derateResults(result, speedCg);
+    result.derate = result.derates[result.derates.length - 1]?.level;
+    if (result.derate !== undefined) {
+      result.estimates.push(TakeoffPerformanceEstimate.Derate);
+    }
 
     // FLEX: the highest temperature from TREF (and above the OAT) up to TMAXFLEX at which the TOW is still possible
     if (!forceToga) {
@@ -279,7 +283,7 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
   }
 
   /**
-   * The runway distances of a calculated takeoff at TOGA or at a FLEX temperature.
+   * The runway distances of a calculated takeoff at TOGA, at a FLEX temperature or at a derated level.
    *
    * The required length is the runway length at which the take-off weight limit of the charts equals the TOW: it
    * includes all the regulatory limitations and margins of the charts. Where it is shorter than the charts, it is
@@ -293,6 +297,7 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
   calculateTakeoffDistances(
     result: TakeoffPerformanceResult,
     flex: number | undefined,
+    derate?: number,
   ): TakeoffRunwayDistances | undefined {
     if (result.error !== TakeoffPerfomanceError.None || result.v2 === undefined) {
       return undefined;
@@ -304,10 +309,16 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     ) {
       return undefined;
     }
+    const derated = derate !== undefined ? result.derates?.find((d) => d.level === derate) : undefined;
+    // A derate cannot be combined with FLEX
+    if (derate !== undefined && (derated === undefined || flex !== undefined)) {
+      return undefined;
+    }
     const temperature = flex ?? inputs.oat;
+    const thrustRatio = derate !== undefined ? A380842TakeoffPerformanceCalculator.derateThrustRatio(derate) : 1;
     const cg = inputs.cg ?? A380842TakeoffPerformanceCalculator.DEFAULT_CG;
     const limitAt = (length: number) =>
-      this.weightLimit(
+      (this.weightLimit(
         length,
         inputs.wind,
         inputs.slope,
@@ -317,10 +328,11 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
         cg,
         inputs.tow,
         true,
-      ) ?? 0;
+      ) ?? 0) * thrustRatio;
 
     const distances: TakeoffRunwayDistances = {
       flex,
+      derate,
       available: params.adjustedTora,
       required: undefined,
       requiredEstimated: false,
@@ -347,6 +359,7 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     const belowData = this.equivalentLength(required, inputs, params.pressureAlt, temperature, cg) < lengths[0];
     const estimated =
       belowData ||
+      derated !== undefined ||
       inputs.wind !== 0 ||
       inputs.slope !== 0 ||
       temperature - params.isaTemp > A380842TakeoffPerformanceCalculator.TREF_ISA_DEVIATION;
@@ -358,15 +371,110 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
       distances,
       estimateTakeoffRunDistances(
         required,
-        result.v1,
-        result.vR,
-        result.v2,
+        derated?.v1 ?? result.v1,
+        derated?.vR ?? result.vR,
+        derated?.v2 ?? result.v2,
         params.pressureAlt,
         inputs.oat,
         inputs.wind,
       ),
     );
     return distances;
+  }
+
+  /**
+   * The derated levels the TOW permits, the shallowest first. A derate is a certified lower takeoff rating, not an
+   * assumed temperature: its thrust is the maximum takeoff thrust at the OAT less the level, and the weight limit
+   * goes with the thrust, as above the flat rating temperature.
+   */
+  private derateResults(result: TakeoffPerformanceResult, cg: number): TakeoffDerateResult[] {
+    const { inputs, params } = result;
+    const derates: TakeoffDerateResult[] = [];
+    for (const level of this.derateLevels) {
+      const thrustRatio = A380842TakeoffPerformanceCalculator.derateThrustRatio(level);
+      const limit = this.iteratedWeightLimit(result, cg, thrustRatio);
+      // A deeper level only lowers the limit further
+      if (limit === undefined || Math.floor(limit) < inputs.tow) {
+        break;
+      }
+      const speeds = A380842TakeoffPerformanceCalculator.takeoffSpeeds(
+        inputs.conf,
+        cg,
+        inputs.tow,
+        params.pressureAlt,
+        A380842TakeoffPerformanceCalculator.derateControlSpeedRatio(thrustRatio),
+      );
+      const estimates = [
+        TakeoffPerformanceEstimate.Derate,
+        TakeoffPerformanceEstimate.VR,
+        TakeoffPerformanceEstimate.V1,
+      ];
+      if (speeds.v2AtControlSpeedFloor) {
+        estimates.push(TakeoffPerformanceEstimate.V2);
+      }
+      derates.push({ level, mtow: Math.floor(limit), v1: speeds.v1, vR: speeds.vR, v2: speeds.v2, estimates });
+    }
+    return derates;
+  }
+
+  /** The maximum takeoff thrust less a derated level (thrust reduction in percent) */
+  private static derateThrustRatio(level: number): number {
+    return 1 - level / 100;
+  }
+
+  /**
+   * Design choice: the minimum control speeds of a derate are the TOGA ones x sqrt(thrust ratio). A minimum control
+   * speed balances the yaw moment of the outer engine's thrust against the rudder side force, which grows with V².
+   */
+  private static derateControlSpeedRatio(thrustRatio: number): number {
+    return Math.sqrt(thrustRatio);
+  }
+
+  /**
+   * The take-off weight limit at the OAT and a thrust ratio, or undefined when the runway is shorter than the data.
+   * The limit depends on the lift-off speed through the wind and slope corrections, so on the weight itself.
+   */
+  private iteratedWeightLimit(result: TakeoffPerformanceResult, cg: number, thrustRatio: number): number | undefined {
+    const { inputs, params } = result;
+    let mtow = inputs.tow;
+    for (let i = 0; i < 3; i++) {
+      const limit = this.weightLimit(
+        params.adjustedTora,
+        inputs.wind,
+        inputs.slope,
+        params.pressureAlt,
+        inputs.oat,
+        inputs.conf,
+        cg,
+        mtow,
+      );
+      if (limit === undefined) {
+        return undefined;
+      }
+      mtow = limit * thrustRatio;
+    }
+    return mtow;
+  }
+
+  /**
+   * V2 is the higher of 1.13 VS1G and 1.10 VMCA; VR and V1 keep the ratios of the takeoff results example, with VR at
+   * least 1.05 VMCA and V1 at least VMCG.
+   * @param controlSpeedRatio the minimum control speeds relative to the TOGA ones (1 at TOGA)
+   */
+  private static takeoffSpeeds(
+    conf: number,
+    cg: number,
+    tow: number,
+    pressureAlt: number,
+    controlSpeedRatio: number,
+  ): { v1: number; vR: number; v2: number; v2AtControlSpeedFloor: boolean } {
+    const vmca = A380SpeedsUtils.getVmca(pressureAlt) * controlSpeedRatio;
+    const vmcg = A380SpeedsUtils.getVmcg(pressureAlt) * controlSpeedRatio;
+    const v2StallMin = Math.ceil(1.13 * A380842TakeoffPerformanceCalculator.vs1g(conf, cg, tow));
+    const v2 = Math.max(v2StallMin, Math.ceil(1.1 * vmca));
+    const vR = Math.max(Math.round(v2 * A380842TakeoffPerformanceCalculator.VR_TO_V2), Math.ceil(1.05 * vmca));
+    const v1 = Math.min(vR, Math.max(Math.round(vR * A380842TakeoffPerformanceCalculator.V1_TO_VR), Math.ceil(vmcg)));
+    return { v1, vR, v2, v2AtControlSpeedFloor: v2 > v2StallMin };
   }
 
   /** The limits themselves are within limits (the envelope at the structural MTOW included) */

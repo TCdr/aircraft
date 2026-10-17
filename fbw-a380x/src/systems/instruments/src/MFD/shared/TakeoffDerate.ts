@@ -36,6 +36,18 @@ export function takeoffDerateThrustReduction(
   return (derated + 1) * THRUST_REDUCTION_PERCENT_PER_LEVEL;
 }
 
+/**
+ * @param thrustReduction a thrust reduction in percent (4 for D04 ... 24 for D24)
+ * @returns its derated level, or null when it is not one of the levels
+ */
+export function takeoffDeratedOfThrustReduction(thrustReduction: number | null | undefined): TakeoffDerated | null {
+  if (thrustReduction === null || thrustReduction === undefined) {
+    return null;
+  }
+  const level = thrustReduction / THRUST_REDUCTION_PERCENT_PER_LEVEL - 1;
+  return Number.isInteger(level) && level >= 0 && level < TAKEOFF_DERATE_LEVELS.length ? level : null;
+}
+
 /** Writes the derate of the active flight plan for the FADECs (L:A32NX_AIRLINER_TO_DERATE). */
 export function writeTakeoffDerate(
   powerSetting: TakeoffPowerSetting | null | undefined,
