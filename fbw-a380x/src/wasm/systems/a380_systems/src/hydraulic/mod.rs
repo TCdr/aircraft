@@ -3941,11 +3941,11 @@ fn is_any_engine_running(engines: [&impl Engine; 4]) -> bool {
         && engines[3].oil_pressure_is_low())
 }
 
-/// Whether the cargo door actuation has no hydraulic power. FCOM DSC-29-10: the cargo door actuation is powered only
-/// by the green electric pumps in automatic mode, and the green electric pumps are inhibited as soon as engine 1 or 2
-/// runs. FCOM DSC-52-30-40-10: the door operation is also inhibited in taxi and flight and with engines 3 and 4
-/// running (the actuator is then isolated by a valve). The electric pump controllers stop the pumps with any engine
-/// running (placeholder), which covers all these cases, so the same rule is used here.
+/// Whether the cargo door actuation has no hydraulic power. Only the green electric pumps in automatic mode power the
+/// cargo door actuation, and they are inhibited as soon as engine 1 or 2 runs; the door operation is also inhibited in
+/// taxi and flight and with engines 3 and 4 running (the actuator is then isolated by a valve). The electric pump
+/// controllers stop the pumps with any engine running (placeholder), which covers all these cases, so the same rule is
+/// used here.
 struct A380CargoDoorOperationInhibition {
     inhibited_id: VariableIdentifier,
     is_inhibited: bool,
@@ -11541,9 +11541,8 @@ mod tests {
             );
         }
 
-        // FCOM DSC-29-10 P 3/10: the green electric pumps, the only power of the cargo door actuation, are
-        // inhibited as soon as engine 1 or 2 runs. FCOM DSC-52-30-40-10 P 2/4: an inhibited door is isolated
-        // from the hydraulics, "there is no power to open the door".
+        // The green electric pumps, the only power of the cargo door actuation, are inhibited as soon as engine 1 or 2
+        // runs; an inhibited door is isolated from the hydraulics and cannot be opened.
         #[test]
         fn cargo_door_operation_is_inhibited_with_an_engine_running() {
             let mut test_bed = test_bed_on_ground_with()
