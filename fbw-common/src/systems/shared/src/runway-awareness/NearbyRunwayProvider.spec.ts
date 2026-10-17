@@ -163,8 +163,8 @@ describe('NearbyRunwayProvider', () => {
   });
 
   it('keeps the departure airport after take-off with more heliports than the list size closer to the aircraft', async () => {
-    // 3 NM north of RJTT after take-off, over a city with 30 heliports within 1.5 NM (2026-10-11 sim test: the A380X
-    // VD airport count went from 1 to 0 a few NM after take-off from RJTT)
+    // 3 NM north of RJTT after take-off, over a city with 30 heliports within 1.5 NM (sim test: the A380X VD airport
+    // count went from 1 to 0 a few NM after take-off from RJTT)
     const latitude = RJTT.latitude + 3 / 60;
     const longitude = RJTT.longitude;
 

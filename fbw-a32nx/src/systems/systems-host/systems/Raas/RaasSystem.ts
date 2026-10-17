@@ -9,9 +9,9 @@ import { RAAS_CLIP_LENGTHS } from './RaasClips';
 export type RaasSetting = 'OFF' | 'FEET' | 'METERS';
 
 /**
- * The Runway Awareness and Advisory System, an option of the A320's Honeywell EGPWS (A320 FCOM GEN "RAAS",
- * PRO-NOR-SOP-11 "TAKEOFF RUNWAY....CONFIRM"). The advisories come from the Honeywell product description; the
- * runways come from the sim's airport database, and the voice is played word by word from WAV clips.
+ * The Runway Awareness and Advisory System, an option of the A320's Honeywell EGPWS (the takeoff runway is confirmed
+ * with it in the before takeoff checks). The advisories follow the Honeywell product description; the runways come
+ * from the sim's airport database, and the voice is played word by word from WAV clips.
  */
 export class RaasSystem implements Instrument {
   public static readonly SETTING_KEY = 'CONFIG_A32NX_RAAS';
@@ -70,8 +70,8 @@ export class RaasSystem implements Instrument {
 
   public onUpdate(): void {
     const now = Date.now();
-    // RAAS runs whenever the EGPWS is powered (Honeywell 060-4564-001 4.1.1), whatever its GPWS modes: the GPWS SYS
-    // FAULT output also comes on for a glideslope (mode 5) fault on the ground. The EGPWC is on AC BUS 1.
+    // RAAS runs whenever the EGPWS is powered, whatever its GPWS modes: the GPWS SYS FAULT output also comes on
+    // for a glideslope (mode 5) fault on the ground. The EGPWC is on AC BUS 1.
     const available =
       this.setting !== 'OFF' &&
       SimVar.GetSimVarValue('L:A32NX_ELEC_AC_1_BUS_IS_POWERED', SimVarValueType.Bool) &&
