@@ -335,14 +335,13 @@ export class LegacyTcasComputer implements Instrument {
 
     this.activeXpdr = SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number');
     // The TCAS of the selected SURV system: SYS 1 on AC ESS (400XP, the AC_ESS_SHED variable), SYS 2 on AC 4
-    // (A380 FCOM DSC-34-20-100, a380_fcom.txt:92741-92743).
     this.tcasPower = isXpdrTcasPowered(
       selectedSurvSystem(this.activeXpdr),
       SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', 'boolean') > 0,
       SimVar.GetSimVarValue('L:A32NX_ELEC_AC_4_BUS_IS_POWERED', 'boolean') > 0,
     );
-    // The TCAS of a SURV system is lost with its XPDR: SURV XPDR 1(2) FAULT lists TCAS 1(2) as INOP SYS
-    // (A380 FCOM a380_fcom.txt:167311-167322). L:A32NX_XPDR_n_FAILED is published by Transponder.ts.
+    // The TCAS of a SURV system is lost with its XPDR: SURV XPDR 1(2) FAULT lists TCAS 1(2) as INOP SYS.
+    // L:A32NX_XPDR_n_FAILED is published by Transponder.ts.
     this.selectedXpdrFailed =
       SimVar.GetSimVarValue(`L:A32NX_XPDR_${selectedSurvSystem(this.activeXpdr)}_FAILED`, 'bool') > 0;
     // MSFS has only one transponder, driven as the transponder of the selected system (Transponder.ts)

@@ -292,9 +292,8 @@ impl A380FuelSystem {
                 },
             ),
             A380FuelPump::Feed2Main => (
-                // Feed 2 main pump: AC ESS (400XP = AlternatingCurrentEssentialShed) and DC ESS,
-                // A380 FCOM a380_fcom.txt:60819-60823;
-                // AC ESS BUS FAULT: FEED TK 2 MAIN PMP inop (139277)
+                // Feed 2 main pump: AC ESS (400XP = AlternatingCurrentEssentialShed) and DC ESS;
+                // AC ESS BUS FAULT makes it inop
                 3,
                 FuelPumpProperties {
                     powered_by: ElectricalBusType::AlternatingCurrentEssentialShed, // TODO: + DC ESS
@@ -318,9 +317,8 @@ impl A380FuelSystem {
                 },
             ),
             A380FuelPump::Feed3Stby => (
-                // Feed 3 stby pump: AC ESS (400XP = AlternatingCurrentEssentialShed) and DC ESS,
-                // A380 FCOM a380_fcom.txt:60819-60823;
-                // AC ESS BUS FAULT: FEED TK 3 STBY PMP redundancy loss (139285)
+                // Feed 3 stby pump: AC ESS (400XP = AlternatingCurrentEssentialShed) and DC ESS;
+                // AC ESS BUS FAULT costs its redundancy
                 6,
                 FuelPumpProperties {
                     powered_by: ElectricalBusType::AlternatingCurrentEssentialShed, // TODO: + DC ESS
@@ -424,9 +422,8 @@ impl A380FuelSystem {
                 },
             ),
             A380FuelPump::TrimLeft => (
-                // Trim left pump: AC ESS (400XP = AlternatingCurrentEssentialShed) and DC ESS,
-                // A380 FCOM a380_fcom.txt:60850;
-                // AC ESS BUS FAULT: TRIM TK L PMP redundancy loss (139286)
+                // Trim left pump: AC ESS (400XP = AlternatingCurrentEssentialShed) and DC ESS;
+                // AC ESS BUS FAULT costs its redundancy
                 19,
                 FuelPumpProperties {
                     powered_by: ElectricalBusType::AlternatingCurrentEssentialShed, // TODO: + DC ESS

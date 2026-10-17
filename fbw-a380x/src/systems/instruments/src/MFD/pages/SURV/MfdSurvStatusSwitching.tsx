@@ -36,8 +36,8 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
   private readonly sub = this.props.bus.getSubscriber<MfdSimvars & MfdSurvEvents>();
 
   /**
-   * TCAS 1 inoperative (systems host Transponder.ts): XPDR 1 failed or unpowered (A380 FCOM SURV XPDR 1 FAULT STATUS,
-   * a380_fcom.txt:167311-167322), or SYS 1 selected and the TCAS computer faulty
+   * TCAS 1 inoperative (systems host Transponder.ts): XPDR 1 failed or unpowered, or SYS 1 selected and the TCAS
+   * computer faulty
    */
   private readonly tcas1Failed = ConsumerSubject.create(this.sub.on('tcas1Failed'), false);
 

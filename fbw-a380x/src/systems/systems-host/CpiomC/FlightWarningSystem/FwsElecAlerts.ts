@@ -5,11 +5,7 @@
  * A380X ELEC (ATA 24) alert conditions, computed from the electrical network state the Rust electrical system
  * (a380_systems/src/electrical) publishes as L:vars.
  *
- * Source: A380 FCOM PRO-ABN-ECAM-10-24 "ELEC" (KAL fleet, 16 AUG 11). Line numbers refer to the text copy
- * references/manuals/a380_fcom.txt; the flight phase inhibitions are figures and are read from the PDF
- * (airbus-a380-fcom_compress.pdf, page numbers given in FwsAbnormalSensed next to each alert).
- *
- * The FCOM gives one triggering condition per alert ("The AC 1 busbar is lost", "The TR 1 is failed"...). Where the
+ * The aircraft has one triggering condition per alert (the AC 1 busbar is lost, TR 1 is failed...). Where the
  * simulation only publishes the result of a failure (a busbar without power, a TR without output), the condition
  * here is that result, gated so that it only fires when the failed part should be working. Every such gate is a
  * design choice and is commented where it is made.
@@ -43,7 +39,7 @@ export interface ElecNetworkInputs {
   driveConnected: Four<boolean>;
   /** Engine 1-4 running (engine state ON) */
   engineRunning: Four<boolean>;
-  /** ENG 1-4 FIRE pb released (switches the generator off, FCOM DSC-26) */
+  /** ENG 1-4 FIRE pb released (it switches the generator off) */
   engineFirePbReleased: Four<boolean>;
   /** APU available */
   apuAvailable: boolean;
@@ -53,33 +49,21 @@ export interface ElecNetworkInputs {
   busTiePbAuto: boolean;
 }
 
-/** One flag per alert of this batch, true while its triggering condition is met */
+/** One flag per alert, true while its triggering condition is met */
 export interface ElecAlertFlags {
-  /** ELEC AC BUS 1(2)(3)(4) FAULT */
   acBusFault: Four<boolean>;
-  /** ELEC AC ESS BUS FAULT */
   acEssBusFault: boolean;
-  /** ELEC AC ESS BUS ALTN */
   acEssBusAltn: boolean;
-  /** ELEC DC BUS 1(2) FAULT */
   dcBusFault: Two<boolean>;
-  /** ELEC DC ESS BUS FAULT */
   dcEssBusFault: boolean;
-  /** ELEC EMER CONFIG */
   emerConfig: boolean;
-  /** ELEC GEN 1(2)(3)(4) FAULT */
   genFault: Four<boolean>;
-  /** ELEC GEN 1(2)(3)(4) OFF */
   genOff: Four<boolean>;
-  /** ELEC DRIVE 1(2)(3)(4) DISCONNECTED */
   driveDisconnected: Four<boolean>;
-  /** ELEC APU GEN A(B) FAULT */
   apuGenFault: Two<boolean>;
   /** ELEC TR 1(2)(ESS) FAULT, in the order TR 1, TR 2, TR ESS */
   trFault: [boolean, boolean, boolean];
-  /** ELEC APU TR FAULT */
   apuTrFault: boolean;
-  /** ELEC BUS TIE OFF */
   busTieOff: boolean;
 }
 
@@ -133,13 +117,13 @@ export class ElecAlertLogic {
   public update(i: ElecNetworkInputs): ElecAlertFlags {
     const anyAcBusPowered = i.acBusPowered.some((powered) => powered);
 
-    // A busbar counts as "lost" (FCOM triggering condition) only while the AC network itself is up, i.e. at least one
+    // A busbar counts as lost only while the AC network itself is up, i.e. at least one
     // AC busbar is powered. Design choice: with all four AC busbars off the aircraft is either unpowered on the ground
     // (batteries only, FWS phase 1/12) or in ELEC EMER CONFIG, whose procedure covers the lost busbars.
     const busLost = (powered: boolean): boolean => anyAcBusPowered && !powered;
 
     for (const e of ENGINES) {
-      // "The applicable engine generator is failed" (FCOM l.142310). The simulation gives no generator health word,
+      // GEN FAULT: the engine generator is failed. The simulation gives no generator health word,
       // only its output: the generator counts as failed when it gives no normal output although it should (engine
       // running, GEN pb-sw ON, drive connected, ENG FIRE pb not released: each of these switches it off on purpose).
       const shouldWork = i.engineRunning[e] && i.engGenPbOn[e] && i.driveConnected[e] && !i.engineFirePbReleased[e];
@@ -154,32 +138,27 @@ export class ElecAlertLogic {
     }
 
     return {
-      // FCOM l.137660, l.137879, l.138686, l.139006: "The AC 1(2)(3)(4) busbar is lost."
       acBusFault: i.acBusPowered.map(busLost) as Four<boolean>,
-      // FCOM l.139164: "The AC ESS busbar is lost."
       acEssBusFault: busLost(i.acEssBusPowered),
-      // FCOM l.139138: "The emergency network is supplied via the AC 4 busbar." (contactor 3XC2 closed)
+      // AC ESS BUS ALTN: the emergency network is supplied by the AC 4 busbar (contactor 3XC2 closed)
       acEssBusAltn: i.acEssFedByAc4 && i.acEssBusPowered,
-      // FCOM l.139737, l.140571: "The DC 1(2) busbar is lost."
       dcBusFault: i.dcBusPowered.map(busLost) as Two<boolean>,
-      // FCOM l.140764: "The DC ESS busbar is lost."
       dcEssBusFault: busLost(i.dcEssBusPowered),
-      // FCOM l.141558: "The AC 1, AC 2, AC 3, and AC 4 busbars are lost."
       emerConfig: !anyAcBusPowered,
       genFault: [...this.genFaultMemory] as Four<boolean>,
-      // FCOM l.142394: "The GEN 1(2)(3)(4) pb-sw is abnormally set to OFF." Abnormal = with its engine running and the
+      // GEN OFF: the GEN pb-sw is abnormally OFF. Abnormal = with its engine running and the
       // drive connected (design choice: with the drive released, DRIVE DISCONNECTED asks for GEN OFF itself), and
       // not because the generator failed (the GEN FAULT procedure asks for GEN OFF).
       genOff: ENGINES.map(
         (e) => !i.engGenPbOn[e] && i.engineRunning[e] && i.driveConnected[e] && !this.genFaultMemory[e],
       ) as Four<boolean>,
-      // FCOM l.141185: "The engine generator disconnects from its assigned engine while the engine generator was
-      // operating." Operating = engine running (design choice, the FCOM gives no other criterion).
+      // DRIVE DISCONNECTED: the generator disconnects from its engine while it was operating. Operating = engine
+      // running (design choice, no other criterion is given).
       driveDisconnected: ENGINES.map((e) => !i.driveConnected[e] && i.engineRunning[e]) as Four<boolean>,
-      // FCOM l.139372: "The APU GEN A(B) is failed." The APU generators give their output whatever their pb-sw (it
+      // The APU generators give their output whatever their pb-sw (it
       // only drives the line contactor), so a running APU without normal generator output means a failed generator.
       apuGenFault: i.apuGenPotentialNormal.map((normal) => i.apuAvailable && !normal) as Two<boolean>,
-      // FCOM l.142828: "The TR 1(2)(ESS) is failed.": no normal output although its AC supply is powered.
+      // TR FAULT: no normal output although its AC supply is powered.
       // Supplies as in a380_systems/src/electrical/alternating_current.rs: TR 1 from AC 2, TR 2 from AC 3 (or from
       // external power in ground servicing), TR ESS from AC ESS.
       trFault: [
@@ -187,9 +166,8 @@ export class ElecAlertLogic {
         (i.acBusPowered[2] || i.tr2FedByExtPwr) && !i.trPotentialNormal[1],
         i.acEssBusPowered && !i.trPotentialNormal[2],
       ],
-      // FCOM l.139444: "The APU TR is failed." The APU TR is supplied by AC 4.
+      // The APU TR is supplied by AC 4.
       apuTrFault: i.acBusPowered[3] && !i.trPotentialNormal[3],
-      // FCOM l.139592: "The BUS TIE pb-sw is abnormally set to OFF."
       busTieOff: !i.busTiePbAuto,
     };
   }
@@ -223,20 +201,20 @@ export class OffThenOnSensor {
   }
 }
 
-/** FL 230, the altitude that selects the descent branch of the ELEC EMER CONFIG procedure (FCOM l.141704, l.141776) */
+/** FL 230, the altitude that selects the descent branch of the ELEC EMER CONFIG procedure */
 const EMER_CONFIG_BRANCH_ALTITUDE_FT = 23_000;
 
-/** The state the ELEC EMER CONFIG procedure lines depend on (FCOM l.141646 to l.141818) */
+/** The state the ELEC EMER CONFIG procedure lines depend on */
 export class ElecEmerConfigProcedureState {
   private wasActive = false;
 
-  /** "If the alert triggers at or below FL 230" (FCOM l.141704), false: "above FL 230 or the altitude is not valid" */
+  /** The alert triggered at or below FL 230; false above FL 230 or without a valid altitude */
   public triggeredAtOrBelowFl230 = false;
 
-  /** First "ALL GENs ... OFF THEN ON" (FCOM l.141655) */
+  /** First ALL GENs ... OFF THEN ON */
   public readonly firstGensReset = new OffThenOnSensor();
 
-  /** Second "ALL GENs ... OFF THEN ON", after BUS TIE OFF (FCOM l.141663 to l.141671) */
+  /** Second ALL GENs ... OFF THEN ON, after BUS TIE OFF */
   public readonly secondGensReset = new OffThenOnSensor();
 
   /**
@@ -273,13 +251,13 @@ export class ElecEmerConfigProcedureState {
   }
 }
 
-/** 42 000 lb (FCOM l.137909), the 19 000 kg of the procedure text */
+/** 42 000 lb, the 19 000 kg of the procedure text */
 const FEED_TANK_EMER_OUTR_XFR_THRESHOLD_KG = 19_000;
 
 /**
- * "If fuel quantity in feed tank 1 and 4 is below 42 000 lb" (FCOM l.137909, l.139053, l.139203, l.139781...).
- * Read as: each of feed tanks 1 and 4 holds less than 19 000 kg (design choice, the FCOM wording does not say
- * whether the sum or each tank is meant; each tank is the literal reading).
+ * The procedure condition "fuel quantity in feed tank 1 and 4 below 42 000 lb". Design choice: each of feed tanks 1 and
+ * 4 holds less than 19 000 kg (the wording does not say whether the sum or each tank is meant; each tank is the literal
+ * reading).
  */
 export function feedTanks1And4BelowEmerOutrXfrThreshold(feedTank1Kg: number, feedTank4Kg: number): boolean {
   return feedTank1Kg < FEED_TANK_EMER_OUTR_XFR_THRESHOLD_KG && feedTank4Kg < FEED_TANK_EMER_OUTR_XFR_THRESHOLD_KG;
@@ -298,42 +276,39 @@ export interface ElecAlertStatus {
 }
 
 /**
- * STATUS of ELEC AC ESS BUS FAULT, A380 FCOM PRO-ABN-ECAM-10-24 (16 AUG 11), l.139256-139289 (FCOM P 39/134), in
- * FCOM order. The text copy runs the two INOP SYS columns side by side: the left column (l.139271-139280) is ALL
- * PHASES, the right one (l.139271-139275) is APPR & LDG. The "MORE INFO" at l.139277 is the heading of the
- * STATUS MORE INFO part that holds REDUND LOSS, not an item.
+ * STATUS of ELEC AC ESS BUS FAULT, in the order of the real STATUS page.
  * Shared, never mutated: FwsAbnormalSensed returns these arrays as they are.
  */
 export const ELEC_AC_ESS_BUS_FAULT_STATUS: ElecAlertStatus = {
-  // SLATS SLOW (l.139263)
+  // SLATS SLOW
   limitationsApprLdg: ['290400001'],
   inopSysAllPhases: [
-    '340300004', // ADR 1 (l.139271)
-    '340300050', // GPS 1 (l.139272)
-    '340300037', // WXR 1 (l.139273)
-    '340300053', // XPDR 1 (l.139274)
-    '340300011', // TCAS 1 (l.139275)
-    '230300022', // HF 1 (l.139276)
-    '280300002', // FEED TK 2 MAIN PMP (l.139277)
-    '300300008', // STBY PITOT HEATG (l.139278)
-    '300300002', // L WINDSHIELD HEATG (l.139279)
-    '310300004', // DFDR (l.139280)
+    '340300004', // ADR 1
+    '340300050', // GPS 1
+    '340300037', // WXR 1
+    '340300053', // XPDR 1
+    '340300011', // TCAS 1
+    '230300022', // HF 1
+    '280300002', // FEED TK 2 MAIN PMP
+    '300300008', // STBY PITOT HEATG
+    '300300002', // L WINDSHIELD HEATG
+    '310300004', // DFDR
   ],
   inopSysApprLdg: [
-    '290100005', // SLAT SYS 1 (l.139271)
-    '220300027', // CAT 2 (l.139272)
-    '220300010', // GLS AUTOLAND (l.139273)
-    '340300054', // LS 1 (l.139274)
-    '340300055', // TAWS 1 (l.139275)
+    '290100005', // SLAT SYS 1
+    '220300027', // CAT 2
+    '220300010', // GLS AUTOLAND
+    '340300054', // LS 1
+    '340300055', // TAWS 1
   ],
   // The STATUS page only shows REDUND LOSS from FwsInopSys (redundancyLoss items); the EwdAbnormalItem.redundLoss
   // field is never read by FwsCore. FwsInopSys holds one entry per key below.
   redundLoss: [
-    '340300024', // RA SYS C (l.139284)
-    '280300003', // FEED TK 3 STBY PMP (l.139285)
-    '280300004', // TRIM TK L PMP (l.139286)
-    '740300001', // ENG 1+2+3+4 IGN A (l.139287)
-    '210300001', // PACK 1 CTL 1 (l.139288)
-    '210300003', // PACK 2 CTL 1 (l.139289)
+    '340300024', // RA SYS C
+    '280300003', // FEED TK 3 STBY PMP
+    '280300004', // TRIM TK L PMP
+    '740300001', // ENG 1+2+3+4 IGN A
+    '210300001', // PACK 1 CTL 1
+    '210300003', // PACK 2 CTL 1
   ],
 };

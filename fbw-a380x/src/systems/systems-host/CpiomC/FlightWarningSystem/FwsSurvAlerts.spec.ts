@@ -104,7 +104,7 @@ describe('SURV TCAS per system', () => {
   });
 });
 
-describe('SURV XPDR 1(2) FAULT (FCOM a380_fcom.txt:167281-167322)', () => {
+describe('SURV XPDR 1(2) FAULT', () => {
   it('XPDR 1 failed: TCAS 1 inop, XPDR 1 FAULT active, TCAS 1 FAULT suppressed', () => {
     // SYS 2 selected: the sim TCAS is fine, TCAS 1 is still lost with XPDR 1
     const a = survAlerts({ ...nominal, selected: 2, xpdr1Failed: true });

@@ -1440,8 +1440,8 @@ impl PneumaticValve for CrossBleedValve {
 }
 impl SimulationElement for CrossBleedValve {
     fn receive_power(&mut self, buses: &impl ElectricalBuses) {
-        // A380 FCOM DSC-36-30 (a380_fcom.txt:94500-94505): each crossbleed valve is supplied by DC 1/2 or DC ESS.
-        // The manual control uses the DC ESS supply (the A320 DC ESS SHED busbar does not exist on the A380).
+        // Each crossbleed valve is supplied by DC 1/2 or DC ESS. The manual control uses the DC ESS
+        // supply (the A320 DC ESS SHED busbar does not exist on the A380).
         self.is_powered_for_manual_control =
             buses.is_powered(ElectricalBusType::DirectCurrentEssential);
         self.is_powered_for_automatic_control =
@@ -3444,9 +3444,8 @@ mod tests {
         assert!(!test_bed.cross_bleed_valves_are_open());
     }
 
-    /// A380 FCOM DSC-36-30 (a380_fcom.txt:94500-94505): the crossbleed valves are also supplied by DC ESS, so the
-    /// XBLEED selector still opens them manually with DC 2 lost (before, manual control used the A320 DC ESS SHED
-    /// busbar, which the A380 does not have, and was never powered).
+    /// The crossbleed valves are also supplied by DC ESS, so the XBLEED selector still opens them
+    /// manually with DC 2 lost (the A320 DC ESS SHED busbar does not exist on the A380).
     #[test]
     fn cross_bleed_valve_opens_manually_on_dc_ess() {
         let mut test_bed = test_bed_with()

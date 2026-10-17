@@ -7,7 +7,7 @@ import { AnsuSupplies, isAnsuPowered, isNssAvncsAvailable } from './AnsuLogic';
 const none: AnsuSupplies = { ac1: false, ac2: false, acEss: false, acEmer: false, dcHot1: false, dcHot2: false };
 const only = (supply: keyof AnsuSupplies): AnsuSupplies => ({ ...none, [supply]: true });
 
-describe('A380 ANSU power supplies (FCOM DSC-46-20-70)', () => {
+describe('A380 ANSU power supplies', () => {
   it('powers NSS AVNCS ANSU 1 from AC 2 or BAT 2', () => {
     expect(isAnsuPowered('nss-avncs', 1, only('ac2'))).toBe(true);
     expect(isAnsuPowered('nss-avncs', 1, only('dcHot2'))).toBe(true);
@@ -30,7 +30,7 @@ describe('A380 ANSU power supplies (FCOM DSC-46-20-70)', () => {
   });
 });
 
-describe('A380 NSS AVNCS ANSU redundancy (FCOM DSC-46-20-30)', () => {
+describe('A380 NSS AVNCS ANSU redundancy', () => {
   it('keeps the NSS AVNCS applications with ANSU 1 failed: ANSU 2 takes over', () => {
     expect(isNssAvncsAvailable(false, true)).toBe(true);
   });

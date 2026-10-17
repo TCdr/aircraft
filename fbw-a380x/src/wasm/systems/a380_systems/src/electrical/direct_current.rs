@@ -225,9 +225,7 @@ impl A380DirectCurrentElectrical {
         electricity.flow(&self.inter_bus_line_contactors[1], &self.dc_bus_1);
         electricity.flow(&self.inter_bus_line_contactors[1], &self.dc_bus_2);
 
-        // A failed battery is disconnected from its DC busbar: A380 FCOM DSC-24-20 BAT pb-sw FAULT,
-        // "The charging or discharging current of the battery is abnormal. The battery automatically
-        // disconnects from its associated DC busbar." (a380_fcom.txt:50623-50624)
+        // A failed battery (abnormal charge or discharge current, BAT pb-sw FAULT) disconnects from its DC busbar
         let [bat_1_failed, bat_2_failed, bat_ess_failed, bat_apu_failed] =
             [1, 2, 3, 4].map(|number| self.battery_has_fault(number));
 
@@ -393,7 +391,7 @@ impl A380DirectCurrentElectrical {
 
     /// Whether battery `number` (1 = BAT 1, 2 = BAT 2, 3 = BAT ESS, 4 = APU BAT) is failed. Its BCRU (or,
     /// for the APU battery, its charge control) detects the failure at once: it opens the battery line
-    /// contactor and lights the FAULT light of the BAT pb-sw (A380 FCOM DSC-24-20, a380_fcom.txt:50623).
+    /// contactor and lights the FAULT light of the BAT pb-sw.
     pub fn battery_has_fault(&self, number: usize) -> bool {
         self.battery_failures[number - 1].is_active()
     }

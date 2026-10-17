@@ -47,9 +47,9 @@ export class FwsInopSys {
 
   /** INOP SYS shown on SD */
   /**
-   * A SURV SYS 1 item that the ELEC AC ESS BUS FAULT STATUS already covers: with the AC ESS busbar lost, the FCOM STATUS
-   * lists TAWS 1 (APPR & LDG) and XPDR 1 (ALL PHASES) but neither GPWS 1, TERR SYS 1 nor ADS-B RPTG 1 (A380 FCOM
-   * PRO-ABN-ECAM-10-24, a380_fcom.txt:139267-139280), so these are not shown while that alert is active.
+   * A SURV SYS 1 item that the ELEC AC ESS BUS FAULT STATUS already covers: with the AC ESS busbar lost, the STATUS
+   * lists TAWS 1 (APPR & LDG) and XPDR 1 (ALL PHASES) but neither GPWS 1, TERR SYS 1 nor ADS-B RPTG 1, so these are not
+   * shown while that alert is active.
    * @param failed the item's own condition
    * @returns the item's condition, false while the ELEC AC ESS BUS FAULT alert is active
    */
@@ -793,38 +793,37 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.ApprLdg,
     },
 
-    // ELEC AC ESS BUS FAULT, REDUND LOSS (A380 FCOM PRO-ABN-ECAM-10-24 l.139282-139289), see
-    // ELEC_AC_ESS_BUS_FAULT_STATUS. RA SYS C (l.139284) is the 340300024 entry above: the RA 3 is supplied by the
-    // AC ESS busbar (a380_systems navigation.rs) and reports a failure warning without power.
+    // ELEC AC ESS BUS FAULT, REDUND LOSS, see ELEC_AC_ESS_BUS_FAULT_STATUS. RA SYS C is the 340300024 entry above: the
+    // RA 3 is supplied by the AC ESS busbar (a380_systems navigation.rs) and reports a failure warning without power.
     // PACK 1 CTL 1 and PACK 2 CTL 1 are also the REDUND LOSS of AIR PACK 1(2) CTL 1(2) FAULT, whose redundLoss in
     // FwsAbnormalSensed is not shown (only these entries reach the STATUS page): a pack controller fault condition
     // would be added to the same entries.
     280300003: {
-      // FEED TK 3 STBY PMP (l.139285)
+      // FEED TK 3 STBY PMP
       simVarIsActive: this.fws.elecAcEssBusFault,
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,
     },
     280300004: {
-      // TRIM TK L PMP (l.139286)
+      // TRIM TK L PMP
       simVarIsActive: this.fws.elecAcEssBusFault,
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,
     },
     740300001: {
-      // ENG 1+2+3+4 IGN A (l.139287)
+      // ENG 1+2+3+4 IGN A
       simVarIsActive: this.fws.elecAcEssBusFault,
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,
     },
     210300001: {
-      // PACK 1 CTL 1 (l.139288)
+      // PACK 1 CTL 1
       simVarIsActive: this.fws.elecAcEssBusFault,
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,
     },
     210300003: {
-      // PACK 2 CTL 1 (l.139289)
+      // PACK 2 CTL 1
       simVarIsActive: this.fws.elecAcEssBusFault,
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,
