@@ -18,8 +18,7 @@ const inputs = (overrides: Partial<ConfigSidestickFaultInputs>): ConfigSidestick
   ...overrides,
 });
 
-/* A320 FCOM DSC-27-20-10 (l.41078-41079): "If one sidestick was deactivated on ground, the CONFIG L(R) SIDESTICK FAULT
-   alert is triggered at takeoff power application, or during the TO CONFIG test."; PRO-ABN-CONFIG (l.74286-74298). */
+/* A sidestick deactivated on the ground: the warning at takeoff power or during the TO CONFIG test */
 describe('CONFIG L(R) SIDESTICK FAULT (BY TAKE OVER)', () => {
   it('nothing with both sidesticks active, at the TO CONFIG test or at takeoff power', () => {
     const logic = new ConfigSidestickFault();
@@ -72,7 +71,7 @@ describe('CONFIG L(R) SIDESTICK FAULT (BY TAKE OVER)', () => {
     ]);
   });
 
-  it('is inhibited in flight phases 5 to 8 (FCOM PDF page 4519)', () => {
+  it('is inhibited in flight phases 5 to 8', () => {
     expect(CONFIG_SIDESTICK_FAULT_PHASE_INHIBITION).toEqual([5, 6, 7, 8]);
   });
 
@@ -89,6 +88,6 @@ describe('CONFIG L(R) SIDESTICK FAULT (BY TAKE OVER)', () => {
     const fwc = pseudoFwcSource();
     expect(fwc).toContain('leftSidestickDeactivated: sidestickInputs.leftSidestickDeactivated');
     expect(fwc).toContain('toConfigTest: this.toConfigTestHeldMin1s5Pulse.get()');
-    expect(fwc).toContain('this.pitchTrimNotTo.get() ||\r\n      this.sidestickDeactivatedBeforeTakeoff');
+    expect(fwc).toMatch(/this\.pitchTrimNotTo\.get\(\) \|\|\r?\n {6}this\.sidestickDeactivatedBeforeTakeoff/);
   });
 });

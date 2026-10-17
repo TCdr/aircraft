@@ -28,7 +28,7 @@ function statusWord(bits: number[], valid = true): SfccStatusWord {
   return { bitValueOr: (bit, valueIfInvalid) => (valid ? bits.includes(bit) : valueIfInvalid) };
 }
 
-describe('F/CTL FLAP(SLAT) SYS 1(2) FAULT (A320 FCOM PRO-ABN-F_CTL)', () => {
+describe('F/CTL FLAP(SLAT) SYS 1(2) FAULT', () => {
   it('raises nothing without a channel fault', () => {
     expect(slatFlapChannelFaults(statusWord([17, 28, 29]), statusWord([17, 28, 29]))).toEqual({
       flapSysFault: [false, false],
@@ -36,13 +36,13 @@ describe('F/CTL FLAP(SLAT) SYS 1(2) FAULT (A320 FCOM PRO-ABN-F_CTL)', () => {
     });
   });
 
-  it('raises FLAP SYS 1(2) FAULT on the flap fault bit 12 of SFCC 1(2) (l.83227)', () => {
+  it('raises FLAP SYS 1(2) FAULT on the flap fault bit 12 of SFCC 1(2)', () => {
     expect(slatFlapChannelFaults(statusWord([12]), statusWord([])).flapSysFault).toEqual([true, false]);
     expect(slatFlapChannelFaults(statusWord([]), statusWord([12])).flapSysFault).toEqual([false, true]);
     expect(slatFlapChannelFaults(statusWord([12]), statusWord([])).slatSysFault).toEqual([false, false]);
   });
 
-  it('raises SLAT SYS 1(2) FAULT on the slat fault bit 11 of SFCC 1(2) (l.84331)', () => {
+  it('raises SLAT SYS 1(2) FAULT on the slat fault bit 11 of SFCC 1(2)', () => {
     expect(slatFlapChannelFaults(statusWord([11]), statusWord([])).slatSysFault).toEqual([true, false]);
     expect(slatFlapChannelFaults(statusWord([]), statusWord([11])).slatSysFault).toEqual([false, true]);
   });
@@ -54,11 +54,11 @@ describe('F/CTL FLAP(SLAT) SYS 1(2) FAULT (A320 FCOM PRO-ABN-F_CTL)', () => {
     });
   });
 
-  it('is inhibited in phases 3, 4, 5, 7 and 8 (FCOM PDF pages 5175 and 5230)', () => {
+  it('is inhibited in phases 3, 4, 5, 7 and 8', () => {
     expect(SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
   });
 
-  it('shows the FLAP SYS 1 FAULT STATUS with the APPR PROC GPWS FLAP MODE OFF (l.83240-83245)', () => {
+  it('shows the FLAP SYS 1 FAULT STATUS with the APPR PROC GPWS FLAP MODE OFF', () => {
     const status = flapSysFaultStatus(1);
     expect(statusTexts(status.left)).toEqual([
       'APPR PROC:',
@@ -69,12 +69,12 @@ describe('F/CTL FLAP(SLAT) SYS 1(2) FAULT (A320 FCOM PRO-ABN-F_CTL)', () => {
     expect(status.inopSys).toEqual([]);
   });
 
-  it('shows the FLAP SYS 2 FAULT STATUS without APPR PROC (l.83240-83245)', () => {
+  it('shows the FLAP SYS 2 FAULT STATUS without APPR PROC', () => {
     const status = flapSysFaultStatus(2);
     expect(statusTexts(status.left)).toEqual(['ENG 2 APPR IDLE ONLY', 'FLAPS SLOW']);
   });
 
-  it('shows SLATS SLOW for SLAT SYS 1(2) FAULT (l.84341)', () => {
+  it('shows SLATS SLOW for SLAT SYS 1(2) FAULT', () => {
     expect(statusTexts(slatSysFaultStatus().left)).toEqual(['SLATS SLOW']);
   });
 });
@@ -112,8 +112,7 @@ describe('PseudoFWC F/CTL FLAP(SLAT) SYS 1(2) FAULT', () => {
   });
 });
 
-/* A320 FCOM DSC-27-30-10 (l.41397-41398): "Two slat flap control computers (SFCCs), each containing one slat channel and
-   one flap channel". */
+/* Two SFCCs, each with one slat channel and one flap channel: each position word has two sources. */
 describe('FWC flap and slat position source', () => {
   const word = (name: string, valid: boolean) => ({ name, isNormalOperation: () => valid });
 

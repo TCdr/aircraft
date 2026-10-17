@@ -6,25 +6,20 @@ import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A320Failure } from '@failures';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { StatusLines } from './CondStatus';
-import { FwcAlertItem, NO_STATUS, cautionItem } from './FwcAlertItem';
+import { FwcAlertItem, NO_STATUS, awarenessItem, cautionItem } from './FwcAlertItem';
 
 /*
- * The ATA 23 COMMUNICATIONS alerts and memo of the A320 FWC (A320 FCOM, a320_fcom.txt; the title colours and the flight
- * phase inhibition figures are images, read on the FCOM PDF "A320 Neo FCOM_1.pdf", page given at each one):
- * - COM CIDS 1 + 2 FAULT (PRO-ABN-COM l.73578-73603, PDF p.4488): "This alert triggers when there is a total loss of
- *   CIDS"; crew awareness; STATUS INOP SYS CIDS.
- * - COM SINGLE PTT STUCK (l.73725-73785, PDF p.4492-4493, the standard of MSN 01767-08541 and most later ones): "any PTT
- *   transmission selector is jammed in the transmit position for more than 40 s (VHF) or for more than 180 s (HF)";
- *   ACP1 VHF 1(2)(3) TX DESELECT, IF UNSUCCESSFUL: ACP2 ..., IF UNSUCCESSFUL: ACP3 ...; "When the ACP linked to the
- *   faulty PTT is detected, the previous ECAM actions are replaced by": AUDIO SWTG DO NOT USE, ON AFFECTED ACP: ALL TX
- *   KEYS DO NOT USE, ON ALL OTHER ACP: VHF 1(2)(3) TX RESELECT; STATUS AUDIO SWTG DO NOT USE, INOP SYS SINGLE PTT.
- * - COM VHF 1(2)(3) EMITTING (l.73797-73829, PDF p.4496): "the alert triggers when the transmitter emits more than 30 s
- *   or 60 s depending on aircraft configuration"; the procedure is crew notes (release the PTT, deselect the TX key,
- *   pull the VHF C/B), no ECAM action line.
- * - COM VHF 3 DATA FAULT (l.73841-73865, PDF p.4497): "data communication via VHF 3 are inoperative"; crew awareness;
- *   STATUS INOP SYS VHF 3 DATA.
- * - AUDIO 3 XFRD memo (DSC-23-50 l.36144-36150): "This memo appears in green, if the AUDIO SWITCHING selector is not on
- *   NORM".
+ * The ATA 23 COMMUNICATIONS alerts and memo of the A320 FWC:
+ * - COM CIDS 1 + 2 FAULT: total loss of the CIDS; crew awareness; STATUS INOP SYS CIDS.
+ * - COM SINGLE PTT STUCK (the standard of MSN 01767-08541 and most later ones): a PTT transmission selector jammed in
+ *   transmit for more than 40 s (VHF) or 180 s (HF); ACP1 VHF 1(2)(3) TX DESELECT, IF UNSUCCESSFUL: ACP2 ..., IF
+ *   UNSUCCESSFUL: ACP3 ...; once the ACP of the faulty PTT is detected, these lines are replaced by AUDIO SWTG DO NOT
+ *   USE, ON AFFECTED ACP: ALL TX KEYS DO NOT USE, ON ALL OTHER ACP: VHF 1(2)(3) TX RESELECT; STATUS AUDIO SWTG DO NOT
+ *   USE, INOP SYS SINGLE PTT.
+ * - COM VHF 1(2)(3) EMITTING: a transmitter emits more than 30 s or 60 s depending on the aircraft configuration; the
+ *   procedure is crew notes (release the PTT, deselect the TX key, pull the VHF C/B), no ECAM action line.
+ * - COM VHF 3 DATA FAULT: data communication through VHF 3 is lost; crew awareness; STATUS INOP SYS VHF 3 DATA.
+ * - AUDIO 3 XFRD memo: green, when the AUDIO SWITCHING selector is not on NORM.
  *
  * Inputs: the flyPad failures 23007 (VHF 3), 23008/23009 (CIDS directors), 23017/23018 (CAPT, F/O PTT stuck in
  * transmit) and 23020-23022 (VHF transmitter stuck emitting); the transmission key of ACP 1 and 2
@@ -32,7 +27,7 @@ import { FwcAlertItem, NO_STATUS, cautionItem } from './FwcAlertItem';
  * VHF 1 on DC ESS, VHF 2 on DC 2, VHF 3 on DC 1), the VHF 3 DATA mode (A:COM ACTIVE FREQUENCY:3 = 0, as atsu.ts) and the
  * AUDIO SWITCHING selector (L:KNOB_OVHD_AUDIOSWITCH_Position, 1 = NORM).
  * Not simulated: HF 1(2) EMITTING and the HF TX lines (the A32NX has no HF), ACP 3 and the third occupant PTT (no
- * failure, the ACP3 line is still shown as in the FCOM), COM ACARS FAULT (the A32NX has an ATSU, not an ACARS MU: its
+ * failure, the ACP3 line is still shown), COM ACARS FAULT (the A32NX has an ATSU, not an ACARS MU: its
  * failure is DATALINK ATSU FAULT, Logic/DatalinkAlerts).
  *
  * Design choices:
@@ -41,34 +36,34 @@ import { FwcAlertItem, NO_STATUS, cautionItem } from './FwcAlertItem';
  *   (the transmission stopped after a DESELECT on it).
  * - The ACP DESELECT lines are sensed (gone once the ACP has no TX key on that VHF), the next ACP comes after the IF
  *   UNSUCCESSFUL line once the previous one is done; the RESELECT line is gone once the other ACP has the key again.
- * - VHF EMITTING uses 60 s, the longer of the two FCOM times, so that SINGLE PTT STUCK (40 s) comes first with a stuck
+ * - VHF EMITTING uses 60 s, the longer of the two times, so that SINGLE PTT STUCK (40 s) comes first with a stuck
  *   PTT, as its procedure ends the emission. A VHF emits when it is supplied and not failed (23005-23007), and VHF 3 in
  *   DATA mode does not take voice from a PTT.
  * - VHF 3 DATA FAULT: VHF 3 failed (23007) in DATA mode (the supply loss is in the ELEC alerts).
- * - CIDS 1 + 2 FAULT and VHF 3 DATA FAULT are crew awareness: level 1 (FCOM DSC-31 l.45551-45556). SINGLE PTT STUCK
+ * - CIDS 1 + 2 FAULT and VHF 3 DATA FAULT are crew awareness: level 1. SINGLE PTT STUCK
  *   (procedure) and VHF EMITTING (crew action) are level 2.
- * - The memo has the flight phase inhibition of the VHF3 VOICE memo: 3, 4, 5, 7, 8 (the FCOM memo page gives none).
+ * - The memo has the flight phase inhibition of the VHF3 VOICE memo: 3, 4, 5, 7, 8 (none is documented for it).
  */
 
-/** The flight phase inhibitions, from the figures of the FCOM PDF ("A320 Neo FCOM_1.pdf") */
+/** The flight phase inhibitions */
 export const COM_PHASE_INHIBITION = {
-  /** COM CIDS 1 + 2 FAULT, page 4488 */
+  /** COM CIDS 1 + 2 FAULT */
   cidsFault: [3, 4, 5, 7, 8],
-  /** COM SINGLE PTT STUCK, page 4492 */
+  /** COM SINGLE PTT STUCK */
   singlePttStuck: [3, 4, 5, 7, 8],
-  /** COM VHF 1(2)(3) EMITTING, page 4496 */
+  /** COM VHF 1(2)(3) EMITTING */
   vhfEmitting: [3, 4, 5, 7, 8],
-  /** COM VHF 3 DATA FAULT, page 4497 */
+  /** COM VHF 3 DATA FAULT */
   vhf3DataFault: [3, 4, 5, 7, 8],
   /** AUDIO 3 XFRD memo, as the VHF3 VOICE memo (design choice, see above) */
   audio3XfrdMemo: [3, 4, 5, 7, 8],
 };
 
-/** "jammed in the transmit position for more than 40 s (VHF)" (l.73735-73736), in seconds */
-export const PTT_STUCK_TIME_S = 40;
+/** A PTT jammed in transmit for more than this (VHF) is SINGLE PTT STUCK, in seconds */
+const PTT_STUCK_TIME_S = 40;
 
-/** "the transmitter emits more than 30 s or 60 s depending on aircraft configuration" (l.73806-73807), in seconds */
-export const VHF_EMITTING_TIME_S = 60;
+/** A transmitter emitting more than this is VHF EMITTING (30 s or 60 s depending on the aircraft), in seconds */
+const VHF_EMITTING_TIME_S = 60;
 
 /** The alert keys, the first digits of their EwdMessages codes */
 export const COM_CIDS_FAULT_KEY = '2300010';
@@ -77,8 +72,7 @@ export const COM_SINGLE_PTT_STUCK_KEY = '2300020';
 export const COM_VHF_EMITTING_KEYS = ['2300030', '2300040', '2300050'];
 export const COM_VHF3_DATA_FAULT_KEY = '2300060';
 
-/** The AUDIO 3 XFRD memo key and code */
-export const AUDIO_3_XFRD_MEMO_KEY = '0000568';
+/** The AUDIO 3 XFRD memo code (memo key 0000568) */
 export const AUDIO_3_XFRD_MEMO_CODE = '000056801';
 
 /** The SINGLE PTT STUCK lines (index in its codes): the ACP lines have one line per VHF, VHF 1 first */
@@ -98,7 +92,7 @@ export const PttStuckLines = {
 } as const;
 
 /** STATUS codes (StatusMessages) */
-export const ComStatusCodes = {
+const ComStatusCodes = {
   audioSwitchingDoNotUse: '230400001',
   cids: '230300001',
   singlePtt: '230300002',
@@ -128,7 +122,7 @@ export interface CommunicationInputs {
   audioSwitchingNorm: boolean;
 }
 
-/** COM CIDS 1 + 2 FAULT: "a total loss of CIDS" */
+/** COM CIDS 1 + 2 FAULT: total loss of the CIDS */
 export function cidsFaultAlert(inputs: CommunicationInputs): boolean {
   return inputs.cidsFailed[0] && inputs.cidsFailed[1];
 }
@@ -224,27 +218,17 @@ export class ComTransmissionMonitor {
 }
 
 /** The STATUS lines */
-export const comStatus = {
-  /** COM CIDS 1 + 2 FAULT: INOP SYS CIDS (l.73598-73602) */
+const comStatus = {
+  /** COM CIDS 1 + 2 FAULT: INOP SYS CIDS */
   cidsFault: (): StatusLines => ({ left: [], inopSys: [ComStatusCodes.cids] }),
-  /** COM SINGLE PTT STUCK: AUDIO SWTG DO NOT USE, INOP SYS SINGLE PTT (l.73781-73786) */
+  /** COM SINGLE PTT STUCK: AUDIO SWTG DO NOT USE, INOP SYS SINGLE PTT */
   singlePttStuck: (): StatusLines => ({
     left: [ComStatusCodes.audioSwitchingDoNotUse],
     inopSys: [ComStatusCodes.singlePtt],
   }),
-  /** COM VHF 3 DATA FAULT: INOP SYS VHF 3 DATA (l.73860-73864) */
+  /** COM VHF 3 DATA FAULT: INOP SYS VHF 3 DATA */
   vhf3DataFault: (): StatusLines => ({ left: [], inopSys: [ComStatusCodes.vhf3Data] }),
 };
-
-/** A level 1 caution (crew awareness): amber, no MASTER CAUTION, no aural, no SD page (FCOM l.45551-45556) */
-function awarenessItem(
-  key: string,
-  active: Subject<boolean>,
-  flightPhaseInhib: number[],
-  status: () => StatusLines,
-): FwcAlertItem {
-  return { ...cautionItem(key, 1, active, flightPhaseInhib, () => [0], EcamSysPage.NONE, status), failure: 1 };
-}
 
 /** The part of the failures consumer the alerts use */
 export type ComFailuresSource = Pick<FailuresConsumer, 'register' | 'update' | 'isActive'>;
@@ -283,7 +267,7 @@ export class CommunicationAlerts {
 
   private readonly vhf3DataFault = Subject.create(false);
 
-  /** AUDIO 3 XFRD, for the PseudoFWC memos (key AUDIO_3_XFRD_MEMO_KEY) */
+  /** AUDIO 3 XFRD, for the PseudoFWC memos (key 0000568) */
   public readonly audio3Xfrd = Subject.create(false);
 
   /** The AUDIO SWITCHING selector is on NORM (ELEC DC ESS BUS FAULT: AUDIO SWTG SELECT, Logic/ElecBusAlerts) */
@@ -349,8 +333,10 @@ export class CommunicationAlerts {
   public readonly ewdFailures: Record<string, FwcAlertItem> = {
     [COM_CIDS_FAULT_KEY]: awarenessItem(
       COM_CIDS_FAULT_KEY,
+      1,
       this.cidsFault,
       COM_PHASE_INHIBITION.cidsFault,
+      () => [0],
       comStatus.cidsFault,
     ),
     [COM_SINGLE_PTT_STUCK_KEY]: cautionItem(
@@ -367,8 +353,10 @@ export class CommunicationAlerts {
     [COM_VHF_EMITTING_KEYS[2]]: this.vhfEmittingItem(2),
     [COM_VHF3_DATA_FAULT_KEY]: awarenessItem(
       COM_VHF3_DATA_FAULT_KEY,
+      1,
       this.vhf3DataFault,
       COM_PHASE_INHIBITION.vhf3DataFault,
+      () => [0],
       comStatus.vhf3DataFault,
     ),
   };

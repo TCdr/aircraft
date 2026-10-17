@@ -17,7 +17,7 @@ const normal: ToConfigSystemStatusInputs = {
   rightTankPumps1And2LoPr: false,
 };
 
-/* A320 FCOM DSC-31-15: the TO CONFIG test triggers FUEL R(L) TK PUMP 1+2 LO PR; T.O CONFIG NORMAL only without it. */
+/* The TO CONFIG test triggers FUEL R(L) TK PUMP 1+2 LO PR; T.O CONFIG NORMAL only without it. */
 describe('T.O CONFIG NORMAL system conditions', () => {
   it('is normal with every system normal', () => {
     expect(isToConfigSystemStatusNormal(normal)).toBe(true);

@@ -82,21 +82,21 @@ const shownText = (alerts: CommunicationAlerts, key: string) => {
   return formatEwdMessages(codes).map((line) => visible(line).trim());
 };
 
-/* A320 FCOM PRO-ABN-COM (a320_fcom.txt l.73578-73865), DSC-23-50 AUDIO 3 XFRD (l.36144-36150) */
-describe('COM alerts and AUDIO 3 XFRD memo (FCOM gap batch T2-42)', () => {
-  it('COM CIDS 1 + 2 FAULT: "a total loss of CIDS" (l.73584)', () => {
+/* The COMMUNICATIONS alerts and the AUDIO 3 XFRD memo */
+describe('COM alerts and AUDIO 3 XFRD memo', () => {
+  it('COM CIDS 1 + 2 FAULT on a total loss of the CIDS', () => {
     expect(cidsFaultAlert(normal)).toBe(false);
     expect(cidsFaultAlert({ ...normal, cidsFailed: [true, false] })).toBe(false);
     expect(cidsFaultAlert({ ...normal, cidsFailed: [true, true] })).toBe(true);
   });
 
-  it('COM VHF 3 DATA FAULT: VHF 3 failed in DATA mode (l.73847)', () => {
+  it('COM VHF 3 DATA FAULT: VHF 3 failed in DATA mode', () => {
     expect(vhf3DataFaultAlert(normal)).toBe(false);
     expect(vhf3DataFaultAlert({ ...normal, vhfFailed: [false, false, true] })).toBe(true);
     expect(vhf3DataFaultAlert({ ...normal, vhfFailed: [false, false, true], vhf3DataMode: false })).toBe(false);
   });
 
-  it('AUDIO 3 XFRD: the AUDIO SWITCHING selector is not on NORM (l.36149-36150)', () => {
+  it('AUDIO 3 XFRD: the AUDIO SWITCHING selector is not on NORM', () => {
     expect(audio3XfrdMemo(normal)).toBe(false);
     expect(audio3XfrdMemo({ ...normal, audioSwitchingNorm: false })).toBe(true);
   });
@@ -127,7 +127,7 @@ describe('COM alerts and AUDIO 3 XFRD memo (FCOM gap batch T2-42)', () => {
     expect(vhfTransmitting({ ...normal, vhfStuckEmitting: [false, false, true] })).toEqual([false, false, true]);
   });
 
-  it('SINGLE PTT STUCK after 40 s with a VHF TX key (l.73735-73736), VHF EMITTING after 60 s (l.73806-73807)', () => {
+  it('SINGLE PTT STUCK after 40 s with a VHF TX key, VHF EMITTING after 60 s', () => {
     const monitor = new ComTransmissionMonitor();
     const stuck = { ...normal, pttStuck: [true, false] as [boolean, boolean] };
     run(monitor, stuck, 39.5);
@@ -243,7 +243,7 @@ describe('COM alerts and AUDIO 3 XFRD memo (FCOM gap batch T2-42)', () => {
     expect(alerts.audioSwitchingNorm).toBe(false);
   });
 
-  it('the E/WD texts, levels and FCOM PDF flight phase inhibitions (p.4488, 4492, 4496, 4497)', () => {
+  it('the E/WD texts, levels and flight phase inhibitions', () => {
     const alerts = new CommunicationAlerts(new TestFailures());
     const expected: [string, number, string][] = [
       [COM_CIDS_FAULT_KEY, 1, 'COM CIDS 1+2 FAULT'],

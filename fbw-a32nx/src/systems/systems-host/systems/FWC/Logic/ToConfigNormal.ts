@@ -17,10 +17,9 @@ export interface ToConfigSystemStatusInputs {
 }
 
 /**
- * Whether the system part of the T.O CONFIG test is normal. A320 FCOM DSC-31-15 CONFIGURATION WARNINGS
- * (a320_fcom.txt l.46021-46048): the TO CONFIG test triggers, among others, "FUEL R(L) TK PUMP 1+2 LO PR (A)",
- * "HYD G(Y) ENG 1(2) PUMP LO PR (A)", "HYD G(Y)(B) SYS LO PR (A)" and the ELEC GEN alerts; DSC-31-30 (l.46827-46832):
- * T.O CONFIG NORMAL only when no such alert is triggered. The two wing tank pump alerts were left out.
+ * Whether the system part of the T.O CONFIG test is normal. The T.O CONFIG test triggers, among others, FUEL R(L) TK
+ * PUMP 1+2 LO PR, HYD G(Y) ENG 1(2) PUMP LO PR, HYD G(Y)(B) SYS LO PR and the ELEC GEN alerts; T.O CONFIG NORMAL is
+ * shown only when no such alert is triggered.
  * @param inputs the system conditions
  * @returns true when no system condition prevents T.O CONFIG NORMAL
  */

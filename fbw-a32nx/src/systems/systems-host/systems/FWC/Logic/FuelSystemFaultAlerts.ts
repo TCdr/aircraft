@@ -5,22 +5,18 @@ import { Subject } from '@microsoft/msfs-sdk';
 import { NXLogicConfirmNode } from '@flybywiresim/fbw-sdk';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { StatusLines } from './CondStatus';
-import { FwcAlertItem, cautionItem } from './FwcAlertItem';
+import { FwcAlertItem, cautionItem, readBool } from './FwcAlertItem';
 
 /*
- * FUEL cautions of the fuel system faults, A320 FCOM PRO-ABN-FUEL. The flight phase inhibitions are figures, read on the
- * 2019 FCOM PDF:
- * - FUEL APU LP VALVE FAULT (a320_fcom.txt l.85254-85270): "This alert triggers when the valve position disagrees with
- *   the selected position." Crew awareness. Phases 3, 4, 5, 7, 8 (PDF page 5270). From the systems WASM
- *   (fuel/apu_lp_valve.rs, L:A32NX_FUEL_APU_LP_VALVE_FAULT).
- * - FUEL F. USED/FOB DISAGREE (l.85857-85874): "This alert triggers when the difference between the initial FOB and the
- *   actual FOB + fuel used is significant." Line: FUEL LEAK PROC ... APPLY. Shown in phase 6 only (PDF page 5286).
- * - FUEL L (R) OUTER XFR CLOSED (l.86094-86120) and OPEN (l.86132-86156), from the systems host
- *   (Fuel/FuelLevelSensing). Phases 3, 4, 5, 7, 8 (PDF pages 5298 and 5299).
- * - FUEL L (R) WING TK OVERFLOW, jet pump variant (l.86625-86681), from the systems host (Fuel/FuelLevelSensing).
- *   Phases 3, 4, 5, 7, 8 (PDF page 5319).
- * - FUEL LO LVL DET FAULT (l.86683-86704): "This alert triggers when both low level sensors are failed." "Maintenance
- *   action is due. Crew awareness." Phases 3, 4, 5, 7, 8, 9 (PDF page 5322).
+ * FUEL cautions of the fuel system faults, with their inhibited flight phases:
+ * - FUEL APU LP VALVE FAULT: the valve position disagrees with the selected position. Crew awareness. Phases 3, 4, 5,
+ *   7, 8. From the systems WASM (fuel/apu_lp_valve.rs, L:A32NX_FUEL_APU_LP_VALVE_FAULT).
+ * - FUEL F. USED/FOB DISAGREE: the initial FOB differs significantly from the actual FOB + fuel used. Line: FUEL LEAK
+ *   PROC ... APPLY. Shown in phase 6 only.
+ * - FUEL L (R) OUTER XFR CLOSED and OPEN, from the systems host (Fuel/FuelLevelSensing). Phases 3, 4, 5, 7, 8.
+ * - FUEL L (R) WING TK OVERFLOW, jet pump variant, from the systems host (Fuel/FuelLevelSensing). Phases 3, 4, 5, 7, 8.
+ * - FUEL LO LVL DET FAULT: both low level sensors are failed. Maintenance action, crew awareness. Phases 3, 4, 5, 7, 8,
+ *   9.
  */
 
 export const FuelSystemFaultKeys = {
@@ -41,22 +37,22 @@ export const FUEL_USED_FOB_DISAGREE_PHASE_INHIBITION = [1, 2, 3, 4, 5, 7, 8, 9, 
 export const LOW_LEVEL_DETECTION_FAULT_PHASE_INHIBITION = [3, 4, 5, 7, 8, 9];
 
 /**
- * Design choice (the FCOM says "significant", with no value): FOB + fuel used is lower than the initial FOB by more than
- * this, in kg. It is the 1 500 kg of the SD fuel imbalance advisory (FCOM DSC-28-20, l.43246-43250), far above what the
+ * Design choice (the aircraft documentation says "significant", with no value): FOB + fuel used is lower than the
+ * initial FOB by more than this, in kg. It is the 1 500 kg of the SD fuel imbalance advisory, far above what the
  * APU burns in flight without being counted in the fuel used (about 120 kg/h).
  */
-export const FUEL_USED_FOB_DISAGREE_KG = 1_500;
+const FUEL_USED_FOB_DISAGREE_KG = 1_500;
 
 /** Design choice: the disagreement must last this long, in seconds (the fuel quantity indications move in turns) */
 export const FUEL_USED_FOB_DISAGREE_CONFIRM_S = 60;
 
 /** The STATUS codes (StatusMessages) of these alerts */
-export const FUEL_SYSTEM_FAULT_STATUS = {
-  /** OUTER XFR CLOSED (l.86120): L (R) OUTER TK UNUSABLE */
+const FUEL_SYSTEM_FAULT_STATUS = {
+  /** OUTER XFR CLOSED: L (R) OUTER TK UNUSABLE */
   outerTankUnusable: ['280200004', '280200005'],
-  /** OUTER XFR OPEN (l.86154-86156): INOP SYS L (R) CELL VALVE */
+  /** OUTER XFR OPEN: INOP SYS L (R) CELL VALVE */
   cellValve: ['280300011', '280300012'],
-  /** WING TK OVERFLOW (l.86677-86681): INOP SYS CTR TK L (R) XFR */
+  /** WING TK OVERFLOW: INOP SYS CTR TK L (R) XFR */
   centreTankTransfer: ['280300008', '280300009'],
 } as const;
 
@@ -72,9 +68,9 @@ export interface WingOverflowProcedureInputs {
 }
 
 /**
- * The lines of FUEL L (R) WING TK OVERFLOW, jet pump variant (l.86644-86658): 0 title, 1 -CTR TK XFR OFF, 2 .IF
+ * The lines of FUEL L (R) WING TK OVERFLOW, jet pump variant: 0 title, 1 -CTR TK XFR OFF, 2 .IF
  * UNSUCCESSFUL:, 3 -FUEL X FEED ON, 4 -TK PUMP 1 OFF, 5 -TK PUMP 2 OFF, 6 .WHEN CTR TK EMPTY:, 7 -TK PUMP 1 ON, 8 -TK
- * PUMP 2 ON, 9 -FUEL X FEED OFF. The IF UNSUCCESSFUL part ("IF UNSUCCESSFUL and if center tank not empty") is shown once
+ * PUMP 2 ON, 9 -FUEL X FEED OFF. The IF UNSUCCESSFUL part (only with fuel in the centre tank) is shown once
  * the CTR TK XFR pb-sw is OFF and the overflow goes on with fuel in the centre tank; an action line goes once it is done.
  */
 export function wingOverflowLines(inputs: WingOverflowProcedureInputs): (number | null)[] {
@@ -105,10 +101,10 @@ export interface FuelSystemFaultInputs {
 }
 
 /**
- * The initial FOB of F. USED/FOB DISAGREE, the "FOB at engine start" of [QRH] FUEL LEAK (l.84858: "The sum of FOB and FU
- * significantly less than FOB at engine start"): on the ground it follows the FOB + fuel used (refuelling; the fuel used
- * restarts at each engine start on the ground, so it is the FOB at engine start), in flight it is kept. Design choice:
- * fuel added in flight (the flyPad) raises it, as it is no leak.
+ * The initial FOB of F. USED/FOB DISAGREE, the FOB at engine start of the FUEL LEAK procedure (a leak shows as FOB +
+ * fuel used significantly below the FOB at engine start): on the ground it follows the FOB + fuel used (refuelling;
+ * the fuel used restarts at each engine start on the ground, so it is the FOB at engine start), in flight it is kept.
+ * Design choice: fuel added in flight (the flyPad) raises it, as it is no leak.
  */
 export function nextInitialFob(
   initialFobKg: number | null,
@@ -233,8 +229,6 @@ export class FuelSystemFaultAlerts {
 }
 
 /* Acquisition (not unit tested: SimVar reads only) */
-
-const readBool = (name: string): boolean => SimVar.GetSimVarValue(name, 'bool') > 0;
 
 /**
  * Reads the inputs of the fuel system faults from the simvars.

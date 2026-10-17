@@ -41,8 +41,7 @@ function monitorAfter(...steps: [EngineFailInputs, number][]): EngineFailMonitor
   return monitor;
 }
 
-/* A320 FCOM PRO-ABN-ENG ENG 1(2) FAIL, a320_fcom.txt l.79767: "This alert triggers when the engine core speed is below
- * idle, with the ENG MASTER lever set to ON, and ENG FIRE pb not pushed." */
+/* ENG 1(2) FAIL: the engine core speed is below idle, with the ENG MASTER lever ON and the ENG FIRE pb not pushed */
 describe('ENG 1(2) FAIL trigger', () => {
   it('triggers when a running engine falls below idle with its master ON', () => {
     expect(monitorAfter([running, 10], [flamedOut, 1]).isActive).toBe(true);
@@ -71,15 +70,14 @@ describe('ENG 1(2) FAIL trigger', () => {
     expect(monitorAfter([running, 10], [flamedOut, 5], [running, 1]).isActive).toBe(false);
   });
 
-  /* l.79851: "The 30 s countdown starts as soon as the ENG 1(2) FAIL alert is triggered." */
+  /* the 30 s countdown starts when ENG 1(2) FAIL triggers */
   it('counts the 30 s of the relight attempt from the trigger of the alert', () => {
     expect(monitorAfter([running, 10], [flamedOut, 29]).relightWaitElapsed).toBe(false);
     expect(monitorAfter([running, 10], [flamedOut, 30.5]).relightWaitElapsed).toBe(true);
   });
 });
 
-/* l.81066-81067: "This alert triggers when ENG master is at off in phases 3 to 8, or ENG FIRE pb is pushed in phases 1,
- * 2, 9 and 10." */
+/* ENG 1(2) SHUT DOWN: ENG master at OFF in phases 3 to 8, or ENG FIRE pb pushed in phases 1, 2, 9 and 10 */
 describe('ENG 1(2) SHUT DOWN trigger', () => {
   it('triggers with the master OFF in phases 3 to 8 only', () => {
     for (let phase = 1; phase <= 10; phase++) {
@@ -98,7 +96,7 @@ describe('ENG 1(2) SHUT DOWN trigger', () => {
   });
 });
 
-/* l.79797-79881 */
+/* ENG 1(2) FAIL procedure */
 describe('ENG 1(2) FAIL procedure lines', () => {
   it('in flight: ENG MODE SEL IGN, THR LEVER IDLE and the 30 s condition during the relight attempt', () => {
     expect(
@@ -138,7 +136,7 @@ const shutDownInputs: EngineShutDownLineInputs = {
   reverserUnlocked: false,
 };
 
-/* l.81087-81123 */
+/* ENG 1(2) SHUT DOWN procedure */
 describe('ENG 1(2) SHUT DOWN procedure lines', () => {
   it('without wing anti-ice nor fire: ENG MODE SEL IGN, IF NO FUEL LEAK: IMBALANCE MONITOR, TCAS MODE SEL TA', () => {
     expect(engineShutDownLines(shutDownInputs)).toEqual([0, 4, 5, 6, 7]);
@@ -175,7 +173,7 @@ describe('ENG 1(2) SHUT DOWN procedure lines', () => {
     ).toEqual([0, 5, 6]);
   });
 
-  /* l.81114-81116: "If REV unlocked: IF BUFFET: MAX SPEED ... 240 KT", after TCAS MODE SEL TA */
+  /* If REV unlocked: IF BUFFET: MAX SPEED 240 KT, after TCAS MODE SEL TA */
   it('with a reverser unlocked: IF BUFFET: MAX SPEED 240 KT', () => {
     expect(engineShutDownLines({ ...shutDownInputs, reverserUnlocked: true })).toEqual([0, 4, 5, 6, 7, 11, 12]);
     expect(engineShutDownLines({ ...shutDownInputs, reverserUnlocked: true, firePbPushed: true })).toEqual([
@@ -184,7 +182,7 @@ describe('ENG 1(2) SHUT DOWN procedure lines', () => {
   });
 });
 
-/* l.81168-81264 */
+/* ENG 1(2) SHUT DOWN STATUS */
 describe('ENG 1(2) SHUT DOWN STATUS', () => {
   it('engine 1 without fire: IF PERF PERMITS X BLEED OPEN, CONSIDER ENG 1 RELIGHT, CAT 3 SINGLE ONLY; INOP SYS', () => {
     const status = engineShutDownStatus(1, false, false, false);
@@ -223,8 +221,8 @@ describe('ENG 1(2) SHUT DOWN STATUS', () => {
     expect(page.right).toContain('WING A. ICE');
   });
 
-  /* l.81172-81173 and the APPR PROC l.81177-81236, "1, 2, or 3 doors not stowed (CFM), or reverse detected unlocked
-     (IAE/PW)" branch: the reverser of the FBW failure is unlocked, not deployed */
+  /* REV unlocked: the APPR PROC of the "1, 2 or 3 doors not stowed or reverser detected unlocked" case: the reverser
+   * of the FBW failure is unlocked, not deployed */
   it('with a reverser unlocked: MAX SPEED 300/.78 and the APPR PROC IF BUFFET lines', () => {
     const status = engineShutDownStatus(1, false, false, true);
     const left = formatStatusPage(status.left, status.inopSys).left.split('\r');
@@ -285,7 +283,7 @@ describe('PseudoFWC wiring of ENG 1(2) FAIL / SHUT DOWN', () => {
     expect(landAsap).toContain('eng1Fail || eng2Fail || eng1ShutDown || eng2ShutDown');
   });
 
-  it('inhibits ALL ENGINES FAILURE in the FCOM phases 1-4 and 8-10', () => {
+  it('inhibits ALL ENGINES FAILURE in the flight phases 1-4 and 8-10', () => {
     expect(block('7700027')).toContain('flightPhaseInhib: [1, 2, 3, 4, 8, 9, 10],');
   });
 

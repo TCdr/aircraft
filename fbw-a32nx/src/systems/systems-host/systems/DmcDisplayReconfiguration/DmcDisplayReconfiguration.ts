@@ -43,7 +43,7 @@ export interface DisplayUnitSources {
  * (PFD/ND simvar publishers, EwdSimvarPublisher, SDSimvarPublisher), so that a DU this module counts as available is
  * the DU the gauge shows as ON.
  */
-export const A320_DISPLAY_UNIT_SOURCES: Readonly<Record<DisplayUnitId, DisplayUnitSources>> = {
+const A320_DISPLAY_UNIT_SOURCES: Readonly<Record<DisplayUnitId, DisplayUnitSources>> = {
   PFD_L: { failure: pfdDisplayUnitFailure(1), powerVar: 'L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', potentiometer: 88 },
   ND_L: { failure: ndDisplayUnitFailure(1), powerVar: 'L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', potentiometer: 89 },
   UPPER_ECAM: {
@@ -69,12 +69,12 @@ const ECP_STS_BIT = 13;
 /**
  * Whether a system page pb (or STS) of the ECAM control panel is pushed now: the ECP outputs a key as pressed while it
  * is held (Ecp.ts, PRESSED/RELEASED H events). STS is read from its hardwired discrete too: it still works with the ECAM
- * control panel failed (A320 FCOM DSC-31-30 l.46834-46836).
+ * control panel failed.
  * @param systemSwitchWord L:A32NX_ECP_SYSTEM_SWITCH_WORD
  * @param warningSwitchWord L:A32NX_ECP_WARNING_SWITCH_WORD
  * @param stsDiscretePushed L:A32NX_ECP_DISCRETE_OUT_STS
  */
-export function isSystemPagePbPushed(
+function isSystemPagePbPushed(
   systemSwitchWord: Arinc429Register,
   warningSwitchWord: Arinc429Register,
   stsDiscretePushed: boolean,
@@ -90,7 +90,7 @@ export function isSystemPagePbPushed(
 export type DisplayUnitFailureStates = Pick<FailuresConsumer, 'update' | 'isActive'>;
 
 /**
- * The DU reconfiguration part of the DMCs (A320 FCOM DSC-31-05-60 RECONFIGURING DUS, see DisplayReconfiguration.ts):
+ * The DU reconfiguration part of the DMCs (see DisplayReconfiguration.ts):
  * computes the picture of each DU from the DU availability, the ECAM/ND XFR selector, the PFD/ND XFR pbs and the ECAM
  * control panel, and writes it in the DU picture L:vars read by the cockpit model (the glass each DU shows), and whether
  * each picture is shown on another DU (its gauge then keeps drawing). Writes the PFD/ND XFR
@@ -134,7 +134,6 @@ export class DmcDisplayReconfiguration {
   }
 
   /**
-   * One DMC update.
    * @param dt the time since the last update, in milliseconds
    */
   public update(dt: number): void {

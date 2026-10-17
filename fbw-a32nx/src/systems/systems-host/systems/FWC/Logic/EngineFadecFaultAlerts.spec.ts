@@ -75,8 +75,8 @@ const alertsWith = (overrides: Partial<EngineFadecFaultInputs>, failures = new T
   return alerts;
 };
 
-/* A320 FCOM PRO-ABN-ENG, a320_fcom.txt; inhibition figures of the 2019 FCOM PDF */
-describe('ENG FADEC fault alerts (FCOM gap batch T2-37)', () => {
+/* The FADEC fault alerts */
+describe('ENG FADEC fault alerts', () => {
   it('reads the variables engine_monitoring_fault.rs writes', () => {
     expect(Object.values(FADEC_FAULT_VARIABLES).sort()).toEqual(
       [
@@ -103,21 +103,21 @@ describe('ENG FADEC fault alerts (FCOM gap batch T2-37)', () => {
     }
   });
 
-  it('has the flight phase inhibitions of the FCOM figures', () => {
+  it('has the aircraft flight phase inhibitions', () => {
     expect(FADEC_FAULT_PHASE_INHIBITION).toEqual({
-      fuelCtlFault: [4, 5, 7, 8], // page 2271
-      fuelReturnValve: [3, 4, 5, 7, 8], // page 2273
-      ctlValveFault: [4, 5, 7, 8], // page 2253
-      compressorVane: [4, 5, 7, 8], // page 2252
-      bothCompressorVanes: [3, 4, 5, 7, 8], // page 2251
-      bleedStatusFault: [3, 4, 5, 7, 8], // pages 2247, 2249
-      revInhibited: [3, 4, 5, 6, 7, 8, 9], // page 2287
-      revIsolFault: [3, 4, 5, 6, 7], // page 2288
-      vibSysFault: [3, 4, 5, 6, 7, 8, 9], // page 2319
+      fuelCtlFault: [4, 5, 7, 8],
+      fuelReturnValve: [3, 4, 5, 7, 8],
+      ctlValveFault: [4, 5, 7, 8],
+      compressorVane: [4, 5, 7, 8],
+      bothCompressorVanes: [3, 4, 5, 7, 8],
+      bleedStatusFault: [3, 4, 5, 7, 8],
+      revInhibited: [3, 4, 5, 6, 7, 8, 9],
+      revIsolFault: [3, 4, 5, 6, 7],
+      vibSysFault: [3, 4, 5, 6, 7, 8, 9],
     });
   });
 
-  it('ENG 1(2) FUEL CTL FAULT: level 2, ENGINE page, the on ground lines and AVOID RAPID THR CHANGES (l.80132-80142)', () => {
+  it('ENG 1(2) FUEL CTL FAULT: level 2, ENGINE page, the on ground lines and AVOID RAPID THR CHANGES', () => {
     expect(throttleIdleFaultLines(true)).toEqual([0, 1, 2, 3]);
     expect(throttleIdleFaultLines(false)).toEqual([0, 3]);
 
@@ -144,7 +144,7 @@ describe('ENG FADEC fault alerts (FCOM gap batch T2-37)', () => {
     expect(shownLines(alerts, key)).toEqual(['ENG 2 FUEL CTL FAULT', 'AVOID RAPID THR CHANGES']);
   });
 
-  it('ENG 1(2) FUEL RETURN VALVE: level 1, VALVE NOT OPEN when failed closed, VALVE NOT CLOSED when failed open (l.80213-80221)', () => {
+  it('ENG 1(2) FUEL RETURN VALVE: level 1, VALVE NOT OPEN when failed closed, VALVE NOT CLOSED when failed open', () => {
     expect(fuelReturnValveLines(true, false)).toEqual([0, 1]);
     expect(fuelReturnValveLines(false, true)).toEqual([0, 2]);
 
@@ -161,7 +161,7 @@ describe('ENG FADEC fault alerts (FCOM gap batch T2-37)', () => {
     expect(shownLines(open, key)).toEqual(['ENG 1 FUEL RETURN VALVE', 'VALVE NOT CLOSED']);
   });
 
-  it('ENG 1(2) CTL VALVE FAULT: level 2, MAX N2 96 % and STATUS MAX ENG n N2 96 % (l.79464, l.79485)', () => {
+  it('ENG 1(2) CTL VALVE FAULT: level 2, MAX N2 96 % and STATUS MAX ENG n N2 96 %', () => {
     const key = FADEC_FAULT_KEYS.ctlValveFault[0];
     const alerts = alertsWith({ faults: faults({ clearanceControlValves: true }) });
     const item = alerts.ewdFailures[key];
@@ -172,7 +172,7 @@ describe('ENG FADEC fault alerts (FCOM gap batch T2-37)', () => {
     expect(visible(formatStatusPage(item.statusInfo(), item.inopSys()).left)).toBe('MAX ENG 1 N2.......96 %');
   });
 
-  it('ENG 1(2) COMPRESSOR VANE: level 2, the FUEL CTL FAULT lines (l.79413-79421)', () => {
+  it('ENG 1(2) COMPRESSOR VANE: level 2, the FUEL CTL FAULT lines', () => {
     const key = FADEC_FAULT_KEYS.compressorVane[0];
     const alerts = alertsWith({ faults: faults({ compressorVanes: true }), onGround: true, flightPhase: 9 });
     const item = alerts.ewdFailures[key];
@@ -188,7 +188,7 @@ describe('ENG FADEC fault alerts (FCOM gap batch T2-37)', () => {
     expect(visible(formatStatusPage(item.statusInfo(), item.inopSys()).left)).toBe('AVOID RAPID THR CHANGES');
   });
 
-  it('ENG 1+2 COMPRESSOR VANE: level 1, one vane control channel lost on both engines (l.79376-79378)', () => {
+  it('ENG 1+2 COMPRESSOR VANE: level 1, one vane control channel lost on both engines', () => {
     expect(bothCompressorVanesAlert(faults({ compressorVaneChannel: true }))).toBe(false);
     expect(bothCompressorVanesAlert(faults({}, { compressorVaneChannel: true }))).toBe(false);
     expect(bothCompressorVanesAlert(faults({ compressorVaneChannel: true }, { compressorVaneChannel: true }))).toBe(
@@ -205,7 +205,7 @@ describe('ENG FADEC fault alerts (FCOM gap batch T2-37)', () => {
     expect(shownLines(both, BOTH_COMPRESSOR_VANES_KEY)).toEqual(['ENG 1+2 COMPRESSOR VANE']);
   });
 
-  it('ENG 1(2) BLEED STATUS FAULT: HI GND IDLE and PACK OFF before T.O. on ground, ENG MODE SEL IGN with ENG ANTI ICE on (l.79336-79346)', () => {
+  it('ENG 1(2) BLEED STATUS FAULT: HI GND IDLE and PACK OFF before T.O. on ground, ENG MODE SEL IGN with ENG ANTI ICE on', () => {
     expect(bleedStatusFaultLines(false, 6, false)).toEqual([0]);
     expect(bleedStatusFaultLines(false, 6, true)).toEqual([0, 2]);
     expect(bleedStatusFaultLines(true, 2, false)).toEqual([0, 1, 3]);
@@ -232,7 +232,7 @@ describe('ENG FADEC fault alerts (FCOM gap batch T2-37)', () => {
     expect(visible(formatStatusPage(item.statusInfo(), item.inopSys()).left)).toBe('ENG 2 HI GND IDLE');
   });
 
-  it('ENG 1(2) REV INHIBITED: level 1, STATUS INOP SYS REVERSER 1(2) (l.80700-80715)', () => {
+  it('ENG 1(2) REV INHIBITED: level 1, STATUS INOP SYS REVERSER 1(2)', () => {
     const key = FADEC_FAULT_KEYS.revInhibited[1];
     const alerts = alertsWith({ faults: faults({}, { reverserInhibited: true }) });
     const item = alerts.ewdFailures[key];
@@ -243,7 +243,7 @@ describe('ENG FADEC fault alerts (FCOM gap batch T2-37)', () => {
     expect(visible(formatStatusPage(item.statusInfo(), item.inopSys()).right)).toContain('REVERSER 2');
   });
 
-  it('ENG 1(2) REV ISOL FAULT: level 1, title only (l.80737-80743)', () => {
+  it('ENG 1(2) REV ISOL FAULT: level 1, title only', () => {
     const key = FADEC_FAULT_KEYS.revIsolFault[0];
     const alerts = alertsWith({ faults: faults({ reverserShutoffValve: true }) });
     const item = alerts.ewdFailures[key];
@@ -254,7 +254,7 @@ describe('ENG FADEC fault alerts (FCOM gap batch T2-37)', () => {
     expect(item.inopSys()).toEqual([]);
   });
 
-  it('ENG VIB SYS FAULT: level 1, from the flyPad failure of the vibration monitoring unit (l.82025)', () => {
+  it('ENG VIB SYS FAULT: level 1, from the flyPad failure of the vibration monitoring unit', () => {
     const failures = new TestFailures();
     const alerts = alertsWith({}, failures);
     expect(failures.registered).toEqual([A320Failure.EngineVibrationMonitoringUnit]);

@@ -4,23 +4,19 @@
 import { Subject } from '@microsoft/msfs-sdk';
 
 /*
- * ELEC alerts of the electrical system failures modelled in Rust (A320 FCOM PRO-ABN-ELEC, a320_fcom.txt):
- * - ELEC BAT 1(2) FAULT, l.76136-76175: "This alert triggers when the charging current increases at an abnormal rate."
- *   "Battery contactor is opened automatically by the battery charge limiter." Crew awareness. STATUS: APU BAT START NOT
- *   AVAIL, INOP SYS BAT 1(2).
- * - ELEC BCL 1(2) FAULT, l.76215-76252: "This alert triggers when the battery charge limiter 1(2) is failed." Crew
- *   awareness. STATUS: APU BAT START NOT AVAIL, INOP SYS BCL 1(2).
- * - ELEC GEN 1(2) OR APU GEN OVERLOAD, l.77964-77988: "This alert triggers when the load of one generator is above 100%
- *   of rated output." GALY/CAB ... OFF. STATUS: INOP SYS GALY/CAB.
- * - ELEC IDG 1(2) OIL LO PR/OVHT, l.78147-78199: "The alert ELEC IDG 1(2) OIL LO PR triggers when the IDG 1(2) oil
- *   pressure is low. The alert ELEC IDG 1(2) OIL OVHT triggers when the IDG 1(2) outlet oil temperature rises above
- *   180 °C." IDG (AFFECTED) ... OFF. STATUS: CAT 3 SINGLE ONLY; INOP SYS MAIN GALLEY (only if APU GEN is not online),
- *   GEN 1(2), CAT 3 DUAL.
- * - ELEC STATIC INV FAULT, l.78201-78213: "The alert triggers when the static inverter is failed." Crew awareness.
+ * ELEC alerts of the electrical system failures modelled in Rust:
+ * - ELEC BAT 1(2) FAULT: the charging current increases at an abnormal rate; the battery charge limiter opens the
+ *   battery contactor. Crew awareness. STATUS: APU BAT START NOT AVAIL, INOP SYS BAT 1(2).
+ * - ELEC BCL 1(2) FAULT: the battery charge limiter 1(2) is failed. Crew awareness. STATUS: APU BAT START NOT AVAIL,
+ *   INOP SYS BCL 1(2).
+ * - ELEC GEN 1(2) OR APU GEN OVERLOAD: the load of one generator is above 100 % of its rated output. GALY/CAB ... OFF.
+ *   STATUS: INOP SYS GALY/CAB.
+ * - ELEC IDG 1(2) OIL LO PR/OVHT: low IDG oil pressure, or IDG outlet oil temperature above 180 °C. IDG (AFFECTED) ...
+ *   OFF. STATUS: CAT 3 SINGLE ONLY; INOP SYS MAIN GALLEY (only if APU GEN is not online), GEN 1(2), CAT 3 DUAL.
+ * - ELEC STATIC INV FAULT: the static inverter is failed. Crew awareness.
  *
- * The flight phase inhibitions are images, read on the 2019 FCOM PDF (Docs/A320 Neo FCOM_1.pdf): BAT FAULT page 4649,
- * BCL FAULT page 4651, GEN OVERLOAD page 4745 and STATIC INV FAULT page 4759 inhibited in phases 3, 4, 5, 7 and 8; IDG
- * OIL LO PR/OVHT page 4756 in phases 1, 4, 5, 7, 8 and 10. All are amber cautions (titles in amber in the FCOM).
+ * Flight phase inhibitions: BAT FAULT, BCL FAULT, GEN OVERLOAD and STATIC INV FAULT in phases 3, 4, 5, 7 and 8; IDG OIL
+ * LO PR/OVHT in phases 1, 4, 5, 7, 8 and 10. All are amber cautions.
  */
 
 export const BAT_FAULT_PHASE_INHIBITION = [3, 4, 5, 7, 8];
@@ -29,7 +25,7 @@ export const GEN_OVERLOAD_PHASE_INHIBITION = [3, 4, 5, 7, 8];
 export const IDG_OIL_PHASE_INHIBITION = [1, 4, 5, 7, 8, 10];
 export const STATIC_INV_FAULT_PHASE_INHIBITION = [3, 4, 5, 7, 8];
 
-/** A320 FCOM PRO-ABN-ELEC l.78158-78159 and DSC-24-20 l.37133: the IDG oil outlet overheat threshold */
+/** The IDG oil outlet overheat threshold */
 export const IDG_OIL_OVERHEAT_CELSIUS = 180;
 
 /** The electrical system state the alerts need, from the Rust electrical system (see Acquisition/ElecSystemAcquisition) */
@@ -69,7 +65,7 @@ export interface ElecSystemAlertStates {
 /**
  * The alert conditions. Design choices: a generator overload is only monitored while the generator supplies the network
  * (its line contactor closed), as an unpowered generator has no load; the IDG oil alerts need a connected IDG, as the
- * FCOM IDG pb (DSC-24-20 l.37135) "extinguishes when the IDG is disconnected".
+ * IDG pb light goes out when the IDG is disconnected.
  */
 export function elecSystemAlertStates(inputs: ElecSystemInputs): ElecSystemAlertStates {
   const pair = (fn: (index: 0 | 1) => boolean): [boolean, boolean] => [fn(0), fn(1)];
@@ -124,25 +120,24 @@ export interface ElecSystemStatus {
 /** APU BAT START NOT AVAIL */
 const APU_BAT_START_NOT_AVAIL = '240200201';
 
-/** STATUS of ELEC BAT 1(2) FAULT (FCOM l.76173-76175) */
+/** STATUS of ELEC BAT 1(2) FAULT */
 export function batFaultStatus(batteryNumber: 1 | 2): ElecSystemStatus {
   return { left: [APU_BAT_START_NOT_AVAIL], inopSys: [batteryNumber === 1 ? '240300201' : '240300202'] };
 }
 
-/** STATUS of ELEC BCL 1(2) FAULT (FCOM l.76250-76252) */
+/** STATUS of ELEC BCL 1(2) FAULT */
 export function bclFaultStatus(bclNumber: 1 | 2): ElecSystemStatus {
   return { left: [APU_BAT_START_NOT_AVAIL], inopSys: [bclNumber === 1 ? '240300203' : '240300204'] };
 }
 
-/** STATUS of ELEC GEN 1(2) OR APU GEN OVERLOAD (FCOM l.77986-77988): INOP SYS GALY/CAB */
+/** STATUS of ELEC GEN 1(2) OR APU GEN OVERLOAD: INOP SYS GALY/CAB */
 export function genOverloadStatus(): ElecSystemStatus {
   return { left: [], inopSys: ['240300205'] };
 }
 
 /**
- * STATUS of ELEC IDG 1(2) OIL LO PR/OVHT (FCOM l.78185-78199): CAT 3 SINGLE ONLY; INOP SYS MAIN GALLEY (only if the APU
- * GEN is not online), GEN 1(2), CAT 3 DUAL. The FCOM note "If available, the APU may be started and the APU GEN used." is
- * not a STATUS line.
+ * STATUS of ELEC IDG 1(2) OIL LO PR/OVHT: CAT 3 SINGLE ONLY; INOP SYS MAIN GALLEY (only if the APU GEN is not online),
+ * GEN 1(2), CAT 3 DUAL. Starting the APU and using the APU GEN is a crew note, not a STATUS line.
  */
 export function idgOilStatus(idgNumber: 1 | 2, apuGenOnline: boolean): ElecSystemStatus {
   const inopSys = apuGenOnline ? [] : ['240300001'];
@@ -150,12 +145,12 @@ export function idgOilStatus(idgNumber: 1 | 2, apuGenOnline: boolean): ElecSyste
   return { left: ['220200001'], inopSys };
 }
 
-/** The E/WD lines of ELEC IDG 1(2) OIL LO PR (or OVHT): title, IDG 1(2) OFF (FCOM l.78165) */
+/** The E/WD lines of ELEC IDG 1(2) OIL LO PR (or OVHT): title, IDG 1(2) OFF */
 export function idgOilLines(): number[] {
   return [0, 1];
 }
 
-/** The E/WD lines of ELEC GEN 1(2) / APU GEN OVERLOAD: title, GALY/CAB OFF until done (FCOM l.77980) */
+/** The E/WD lines of ELEC GEN 1(2) / APU GEN OVERLOAD: title, GALY/CAB OFF until done */
 export function genOverloadLines(galyAndCabOff: boolean): (number | null)[] {
   return [0, galyAndCabOff ? null : 1];
 }

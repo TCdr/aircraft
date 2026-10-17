@@ -38,7 +38,7 @@ const supplied = { acBus1Powered: true, circuitBreakerPulled: false, atsuFailed:
 /** The C/B bit of a column of row L of 121VU */
 const column = (n: number) => 1 << (n - 1);
 
-/* The flyPad ATSU failures (A320 FCOM PRO-ABN-DATALINK, a320_fcom.txt l.74467-74531) */
+/* The flyPad ATSU failures and the DATALINK alerts */
 describe('ATSU failures', () => {
   it('the supplied ATSU runs its router, ATC and AOC functions', () => {
     expect(atsuRunStates(supplied)).toEqual({
@@ -93,7 +93,7 @@ describe('ATSU failures', () => {
   });
 });
 
-/* The ATSU reset by its C/Bs (A320 FCOM PRO-ABN-ABN-RESET, a320_fcom.txt l.67769-67796) */
+/* The ATSU reset by its C/Bs */
 describe('ATSU reset by the C/Bs L15 and L16 on 121VU', () => {
   it('reads the C/Bs L15 and L16 of row L only', () => {
     expect(atsuCircuitBreakerPulled(0)).toBe(false);
@@ -135,7 +135,7 @@ describe('ATSU reset by the C/Bs L15 and L16 on 121VU', () => {
   });
 });
 
-/* The DCDU, its screens and the MCDU print (FCOM DSC-46-10-10 l.59032-59056, PRO-ABN-ABN-RESET l.67771) */
+/* The DCDU, its screens and the MCDU print */
 describe('datalink cockpit interface states', () => {
   const noFailure = { dcdu1Failed: false, dcdu2Failed: false, printerFailed: false };
 

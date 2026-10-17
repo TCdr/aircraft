@@ -265,8 +265,8 @@ export const FwsAuralsList: Record<string, FwsAural> = {
   },
 
   // Sidestick priority voices (Logic/SidestickPriorityAurals): WAV clips of tools/fws-voice/generate.py, played by the
-  // sound.xml Wave Data entries. The FCOM gives no priority among the FWC synthetic voices: design choice, below the
-  // radio height callouts and the ROW/ROP, PITCH and SPEED voices.
+  // sound.xml Wave Data entries. Design choice: the aircraft documents no priority among the FWC synthetic voices,
+  // so they rank below the radio height callouts and the ROW/ROP, PITCH and SPEED voices.
   priorityLeft: {
     localVarName: 'A32NX_FWS_AUDIO_PRIORITY_LEFT',
     length: FWS_VOICE_CLIP_LENGTHS.priorityLeft,
@@ -285,7 +285,7 @@ export const FwsAuralsList: Record<string, FwsAural> = {
     priority: -2,
     type: FwsAuralWarningType.SyntheticVoice,
   },
-  // WINDSHEAR said three times (one clip), at the reactive windshear warning (a320_fcom.txt l.34229, 45713).
+  // WINDSHEAR said three times (one clip), at the reactive windshear warning.
   // Highest priority of the synthetic voices: a windshear needs immediate action.
   windshear: {
     localVarName: 'A32NX_FWS_AUDIO_WINDSHEAR',
@@ -335,8 +335,8 @@ export class FwsSoundManager {
     sub.on('enqueueSound').handle((s) => this.enqueueSound(s));
     sub.on('dequeueSound').handle((s) => this.dequeueSound(s));
 
-    // No FWC working (both failed or unpowered): the aural alerts and callouts are lost (A320 FCOM PRO-ABN-FWS FWS
-    // FWC 1 + 2 FAULT, line 86806), including the one being played (a continuous sound would otherwise go on).
+    // No FWC working (both failed or unpowered): the aural alerts and callouts are lost, including the one being
+    // played (a continuous sound would otherwise go on).
     this.startupCompleted.sub((completed) => {
       if (!completed) {
         this.silenceAll();

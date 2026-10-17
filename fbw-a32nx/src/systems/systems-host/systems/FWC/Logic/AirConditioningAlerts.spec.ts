@@ -22,7 +22,6 @@ import {
 import { ewdLines, ewdTexts, pseudoFwcItem, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
 
-/* A320 FCOM DSC-21-10-50 l.8642: "RAM AIR ON : This memo appears in green, if the RAM AIR pb-sw is ON." */
 describe('RAM AIR ON memo', () => {
   it('is shown with the RAM AIR pb-sw ON only', () => {
     expect(isRamAirOnMemoShown(true)).toBe(true);
@@ -40,11 +39,10 @@ describe('RAM AIR ON memo', () => {
   });
 });
 
-/* FCOM PRO-ABN-CAB_PR l.73186-73187: "This alert triggers when the LDG ELEV selector is set to AUTO and the landing field
-   elevation of the FMGS is not available.", listed after FMGC failures only (DSC-22_20-90-10 l.26801, l.26904).
-   User decision 2026-10-15: not available = no FMGC sends the word at all, not "no destination yet" (SSM NCD). */
+/* The alert triggers when the LDG ELEV selector is at AUTO and the landing field elevation of the FMGS is not
+   available. Design choice: not available = no FMGC sends the word at all, not "no destination yet" (SSM NCD). */
 describe('CAB PR LDG ELEV FAULT', () => {
-  // The raw L:A32NX_FM1(2)_LANDING_ELEVATION values recorded in the sim on 2026-10-15
+  // The raw L:A32NX_FM1(2)_LANDING_ELEVATION values recorded in the sim
   const FMGC_NOT_STARTED = 0; // SSM failure warning, the first ~6 s after power-up
   const NO_DESTINATION = 4294967296; // SSM no computed data
   const DESTINATION_ENTERED = 13975420928; // SSM normal operation
@@ -137,7 +135,7 @@ describe('CAB PR LDG ELEV FAULT', () => {
     expect(isLandingElevationFault({ ...inputs, cpcOperative: false }, true)).toBe(false);
   });
 
-  it('shows LDG ELEV ADJUST, is a caution on the PRESS page, shown in phases 1, 2 and 6 only (FCOM PDF p.4475)', () => {
+  it('shows LDG ELEV ADJUST, is a caution on the PRESS page, shown in phases 1, 2 and 6 only', () => {
     const alerts = new CabinPressureAlerts();
     alerts.update(inputs, LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS);
     const item = alerts.ewdFailures[LDG_ELEV_FAULT_KEY];
@@ -154,8 +152,6 @@ describe('CAB PR LDG ELEV FAULT', () => {
   });
 });
 
-/* FCOM PRO-ABN-CAB_PR STATUS: EXCESS CAB ALT l.73131-73132, SAFETY VALVE OPEN l.73330-73346, SYS 1(2) FAULT
-   l.73379-73383, SYS 1+2 FAULT l.73443-73459. */
 describe('CAB PR STATUS', () => {
   it('EXCESS CAB ALT: MAX FL 100/MEA-MORA', () => {
     expect(statusLines(excessCabinAltitudeStatus()).left).toEqual(['MAX FL.....100/MEA-MORA']);
@@ -191,7 +187,7 @@ describe('CAB PR STATUS', () => {
     expect(page.right).toEqual([]);
   });
 
-  it('MAN CAB PR CTL is an amber underlined title (2019 FCOM PDF page 2105), the targets blue', () => {
+  it('MAN CAB PR CTL is an amber underlined title, the targets blue', () => {
     const status = cpc1And2FaultStatus();
     const left = formatStatusPage(status.left, status.inopSys).left.split('\r');
     expect(left[0]).toBe('\x1b<4m\x1b4mMAN CAB PR CTL\x1bm');
@@ -209,8 +205,8 @@ describe('CAB PR STATUS', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-CAB_PR CAB PR SAFETY VALVE OPEN (l.73299-73313): "IF DIFF PR ABV 8 PSI: MODE SEL MAN, MAN V/S CTL AS
-   RQRD, IF UNSUCCESSFUL: A/C FL REDUCE"; "IF DIFF PR BELOW 0 PSI: EXPECT HI CAB RATE, A/C V/S REDUCE". */
+/* IF DIFF PR ABV 8 PSI: MODE SEL MAN, MAN V/S CTL AS RQRD, IF UNSUCCESSFUL: A/C FL REDUCE.
+   IF DIFF PR BELOW 0 PSI: EXPECT HI CAB RATE, A/C V/S REDUCE. */
 describe('CAB PR SAFETY VALVE OPEN lines', () => {
   const shown = (deltaPressure: number, excessPressure = false, auto = true) =>
     safetyValveOpenLines(deltaPressure, excessPressure, auto).filter((line) => line !== null);

@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { fireDetectionFaultAlerts } from './FireDetectionFaults';
 
-describe('ENG 1(2) / APU fire detection fault cautions (A320 FCOM DSC-26-20-10, PRO-ABN-ENG, PRO-ABN-APU)', () => {
+describe('ENG 1(2) / APU fire detection fault cautions', () => {
   it('shows no caution with both loops healthy', () => {
     expect(fireDetectionFaultAlerts(false, false, false)).toEqual({
       loopAFault: false,

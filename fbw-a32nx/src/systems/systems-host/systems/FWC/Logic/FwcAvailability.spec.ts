@@ -21,7 +21,7 @@ const normal: FwcInputs = { fwc1Failed: false, fwc2Failed: false, fwc1Powered: t
 // eslint-disable-next-line no-control-regex
 const visibleText = (lines: string[]) => lines.map((line) => line.replace(/\x1b[^m]*m/g, '').trim());
 
-describe('A320 FWC 1 / FWC 2 availability (FCOM DSC-31-05-30, PRO-ABN-FWS)', () => {
+describe('A320 FWC 1 / FWC 2 availability', () => {
   it('has both FWCs working and no alert in normal operation', () => {
     expect(computeFwcAvailability(normal)).toEqual({
       fwc1Operative: true,
@@ -90,7 +90,7 @@ describe('A320 FWC 1 / FWC 2 availability (FCOM DSC-31-05-30, PRO-ABN-FWS)', () 
   });
 });
 
-describe('FWS FWC 1(2) FAULT STATUS page (FCOM PRO-ABN-FWS)', () => {
+describe('FWS FWC 1(2) FAULT STATUS page', () => {
   it('lists CAT 3 SINGLE ONLY, and CAT 3 DUAL and the failed FWC in the INOP SYS', () => {
     const fwc1 = fwcFaultStatus(1);
     const page1 = formatStatusPage(fwc1.info, fwc1.inopSys);
@@ -125,7 +125,7 @@ describe('FWC alert codes', () => {
   );
 });
 
-describe('FWS FWC 1+2 FAULT E/WD (FCOM PRO-ABN-FWS)', () => {
+describe('FWS FWC 1+2 FAULT E/WD', () => {
   it('shows FWC 1 FAULT and FWC 2 FAULT under the FWS title', () => {
     expect(visibleText(formatEwdMessages([FWC_FAULT_EWD_CODES.fwc1]))).toEqual(['FWS FWC 1 FAULT']);
     expect(visibleText(formatEwdMessages([FWC_FAULT_EWD_CODES.fwc2]))).toEqual(['FWS FWC 2 FAULT']);

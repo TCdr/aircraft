@@ -23,7 +23,7 @@ import {
   tankPumpPbIsOnVar,
 } from './FuelPumpsAndValves';
 
-describe('A320 wing tank pump low pressure (FCOM DSC-28-20 L (R) TK PUMPS 1(2) pb-sw)', () => {
+describe('A320 wing tank pump low pressure', () => {
   it('is not low with the pump ON and delivering', () => {
     expect(isTankPumpLowPressure(true, true, 25)).toBe(false);
   });
@@ -121,7 +121,7 @@ describe('A320 fuel pump and valve failures', () => {
     expect(commands).toEqual(['PUMP 3 OFF']);
     runFuelSystem();
     system.update(200);
-    // OFF selected: no low pressure (the FAULT light "does not come on when OFF is selected")
+    // OFF selected: no low pressure (the FAULT light does not come on when OFF is selected)
     expect(SimVar.GetSimVarValue(tankPumpLowPressureVar(3), 'Bool')).toBe(false);
   });
 
@@ -176,7 +176,7 @@ describe('A320 fuel pump and valve failures', () => {
   });
 });
 
-describe('A320 centre tank transfer valve (FCOM DSC-28-10 CENTER TANK FUEL TRANSFER, jet pump variant)', () => {
+describe('A320 centre tank transfer valve', () => {
   it('is open as far as the less open of its two MSFS valves in series, in AUTO', () => {
     expect(centreTransferValveOpenRatio(1, 1, false)).toBe(1);
     expect(centreTransferValveOpenRatio(1, 0, false)).toBe(0);
@@ -345,7 +345,7 @@ describe('A320 centre tank transfer valve failures', () => {
   });
 });
 
-/* A320 FCOM DSC-28-20 BOXED INDICATIONS and TOTAL FUEL INDICATION (a320_fcom.txt l.43222, l.43341-43345) */
+/* The boxed centre tank quantity and the half-boxed FOB */
 describe('A320 centre tank transfer valve failed closed', () => {
   it('is set by a confirmed NOT FULLY OPEN', () => {
     expect(isCentreTransferValveFailedClosed(false, true, 0)).toBe(true);

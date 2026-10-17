@@ -8,18 +8,16 @@ import { StatusLines } from './CondStatus';
 import { FwcAlertItem, NO_STATUS, cautionItem } from './FwcAlertItem';
 
 /*
- * The DOOR cautions of the A320 (FCOM PRO-ABN-DOOR, a320_fcom.txt l.74575-74861): "This alert triggers when the
- * L(R) FWD(AFT) cabin door (emergency exit door, FWD(AFT) cargo door) is not detected closed by the proximity sensors."
- * - In flight (l.74648-74680, 74723-74755, 74798-74830): "IF ABN CAB V/S: MAX FL ... 100/MEA-MORA", STATUS "IF ABN CAB
- *   V/S: MAX FL ... 100/MEA-MORA".
- * - On ground (l.74692-74711, 74767-74786, 74842-74861): crew awareness, title only.
- * Flight phase inhibition (FCOM PDF pages 4533-4548, the same for every door and both variants): shown in phases 2, 3, 6
- * and 9.
+ * The DOOR cautions of the A320: a cabin door (emergency exit, cargo door) not detected closed by the proximity
+ * sensors.
+ * - In flight: IF ABN CAB V/S: MAX FL 100/MEA-MORA, and the same in the STATUS.
+ * - On ground: crew awareness, title only.
+ * Shown in flight phases 2, 3, 6 and 9 (the same for every door and both variants).
  * The doors of the sim: the four passenger/service doors (MSFS interactive points 0 L FWD, 1 R FWD, 2 L AFT, 3 R AFT),
  * the overwing emergency exits (points 6 L, 7 R; the A320 ECAM has one EMER EXIT title per side) and the two cargo doors
  * (their lock, L:A32NX_FWD(AFT)_DOOR_CARGO_LOCKED, from the Rust cargo door). A failed proximity sensor (flyPad ATA 52
  * failure) does not detect its door closed either (@shared/DoorProximitySensors). The avionics doors (DOOR L(R)(FWD)(AFT)
- * AVIONICS, l.74575-74636) are not in the sim.
+ * AVIONICS) are not in the sim.
  */
 
 export const DOOR_PHASE_INHIBITION = [1, 4, 5, 7, 8, 10];
@@ -58,21 +56,21 @@ export function isInteractivePointNotClosed(openPercent: number): boolean {
 }
 
 /**
- * The lines of a DOOR caution: 0 title; in flight 1 .IF ABN CAB V/S:, 2 MAX FL 100/MEA-MORA (l.74667-74669)
+ * The lines of a DOOR caution: 0 title; in flight 1 .IF ABN CAB V/S:, 2 MAX FL 100/MEA-MORA
  * @param inFlight the aircraft is in flight (the in flight variant of the caution)
  */
-export function doorAlertLines(inFlight: boolean): (number | null)[] {
+function doorAlertLines(inFlight: boolean): (number | null)[] {
   return [0, inFlight ? 1 : null, inFlight ? 2 : null];
 }
 
 /** The STATUS codes of the DOOR cautions (StatusMessages): IF ABN CAB V/S: then MAX FL 100/MEA-MORA */
-export const DoorStatusCodes = {
+const DoorStatusCodes = {
   ifAbnormalCabinVs: '520500001',
   maxFl100: '520400001',
 } as const;
 
-/** The STATUS of a DOOR caution in flight (l.74677-74680): IF ABN CAB V/S: MAX FL 100/MEA-MORA */
-export function doorAlertStatus(inFlight: boolean): StatusLines {
+/** The STATUS of a DOOR caution in flight: IF ABN CAB V/S: MAX FL 100/MEA-MORA */
+function doorAlertStatus(inFlight: boolean): StatusLines {
   return inFlight ? { left: [DoorStatusCodes.ifAbnormalCabinVs, DoorStatusCodes.maxFl100], inopSys: [] } : NO_STATUS();
 }
 

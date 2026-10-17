@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /** The APU start of the ALL ENGINES FAILURE procedure applies below FL 250 */
-export const APU_START_MAX_PRESSURE_ALTITUDE_FT = 25_000;
+const APU_START_MAX_PRESSURE_ALTITUDE_FT = 25_000;
 
 /**
- * Whether the "-APU ... START" line of ENG ALL ENGINES FAILURE is shown. A320 FCOM PRO-ABN-ENG ALL ENGINES FAILURE:
- * "APU (BELOW FL 250) ..... START". The line was gated on a radio altitude below 2 500 ft, which hid it for most of an
- * all engines failure in flight. The 24-character ECAM line has no room for "(BELOW FL 250)", so the condition gates
- * the line, as the FWC does with the other conditional lines.
+ * Whether the "-APU ... START" line of ENG ALL ENGINES FAILURE is shown. The procedure asks for an APU start below
+ * FL 250 (pressure altitude, not radio altitude). The 24-character ECAM line has no room for "(BELOW FL 250)", so the
+ * condition gates the line, as the FWC does with the other conditional lines.
  * @param apuMasterOn the APU MASTER SW is ON
  * @param apuAvail the APU is available
  * @param pressureAltitudeFt the ADR pressure altitude, null when no ADR is valid
@@ -24,8 +23,7 @@ export function isApuStartLineShown(
 
 /**
  * The lines of ENG ALL ENGINES FAILURE (EwdMessages 7700027xx), in display order. One OPT RELIGHT SPD line: 270/.77,
- * the value of the A320neo with LEAP-1A engines (Air Arabia A320 QRH 18-Aug-21 ABN-19.01A ALL ENG FAIL, A6-ATA to ATF;
- * the CFM56 aircraft of the same QRH use 300/.77).
+ * the value of the A320neo with LEAP-1A engines (CFM56 aircraft use 300/.77).
  */
 export const ALL_ENGINES_FAILURE_CODES = [
   '770002701', // ALL ENGINES FAILURE (title)
@@ -50,8 +48,8 @@ export interface AllEnginesFailureLineInputs {
 
 /**
  * The lines of ENG ALL ENGINES FAILURE shown now, as indexes into ALL_ENGINES_FAILURE_CODES.
- * "-FAC 1 OFF THEN ON" has no condition (A320 FCOM PRO-ABN-ENG, a320_fcom.txt l.79144-79146: the FAC 1 reset recovers
- * the characteristic speeds on the PFD and the rudder trim): the reset cannot be seen done and the line stays.
+ * "-FAC 1 OFF THEN ON" has no condition (the FAC 1 reset recovers the characteristic speeds on the PFD and the rudder
+ * trim): the reset cannot be seen done and the line stays.
  * @param inputs the conditions of the conditional lines
  * @returns the indexes of the lines shown, in display order
  */
@@ -71,18 +69,18 @@ export function allEnginesFailureLines(inputs: AllEnginesFailureLineInputs): num
 }
 
 /**
- * The STATUS of ENG ALL ENGINES FAILURE (A320 FCOM PRO-ABN-ENG, a320_fcom.txt l.79177-79239), in the order of the FCOM
- * page. Its codes (StatusMessages 70x07x) come first on the STATUS page: the other alerts of an all engines failure (ELEC
- * EMER CONFIG, HYD G+Y SYS LO PR...) give some of the same lines, which the page then shows once, at this place.
- * - Limitations (l.79183-79195): MIN RAT SPEED 140 KT, MAX SPEED 320/.77, MAX BRK PR 1000 PSI, MANEUVER WITH CARE, FUEL
+ * The STATUS of ENG ALL ENGINES FAILURE, in the order of the real procedure. Its codes (StatusMessages 70x07x) come
+ * first on the STATUS page: the other alerts of an all engines failure (ELEC EMER CONFIG, HYD G+Y SYS LO PR...)
+ * give some of the same lines, which the page then shows once, at this place.
+ * - Limitations: MIN RAT SPEED 140 KT, MAX SPEED 320/.77, MAX BRK PR 1000 PSI, MANEUVER WITH CARE, FUEL
  *   GRVTY FEED, AVOID NEGATIVE G FACTOR, APPR PROC: FOR LDG USE FLAP 2, WHEN CONF 2 AND VAPP: L/G GRVTY EXTN AS RQRD.
- * - Information (l.79202-79208): ALTN LAW: PROT LOST, WHEN L/G DN: DIRECT LAW, BRK Y ACCU PR ONLY, SLATS SLOW, FLS
+ * - Information: ALTN LAW: PROT LOST, WHEN L/G DN: DIRECT LAW, BRK Y ACCU PR ONLY, SLATS SLOW, FLS
  *   LIMITED TO F-APP + RAW.
- * - INOP SYS (l.79210-79234): G+Y HYD, F/CTL PROT, STABILIZER, R AIL, REVERSER 1+2, ADR 2+3, IR 2+3, RA 1+2,
+ * - INOP SYS: G+Y HYD, F/CTL PROT, STABILIZER, R AIL, REVERSER 1+2, ADR 2+3, IR 2+3, RA 1+2,
  *   SPLR 1+2+4+5, ELAC 2, SEC 2+3, FLAPS, YAW DAMPER, A/CALL OUT, AP 1+2, A/THR, FUEL PUMPS, ANTI SKID, N/W STRG
- *   ("N/W. STEER" on the FCOM page, the ECAM text of the other alerts), AUTO BRK, CAT 2, L/G RETRACT, CAB PR 1+2, PACK 1+2.
+ *   (the ECAM text of the other alerts), AUTO BRK, CAT 2, L/G RETRACT, CAB PR 1+2, PACK 1+2.
  */
-export const ALL_ENGINES_FAILURE_STATUS = {
+const ALL_ENGINES_FAILURE_STATUS = {
   left: [
     '700400070',
     '700400071',

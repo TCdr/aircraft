@@ -17,10 +17,8 @@ function run(alert: ThrustLockedAlert, thrustLocked: boolean, seconds: number): 
   return repeats;
 }
 
-/* A320 FCOM PRO-ABN-ENG ENG THRUST LOCKED l.81966-81967: "This alert triggers when thrust levers are not moved within
-   5 s, following an unvoluntary disconnection of the A/THR (or disconnection through the FCU pb)." DSC-22_30-90
-   l.32844-32846: "ECAM "ENG THRUST LOCKED" flashes every 5 s", "A single chime sounds and the Master Caution light
-   flashes every 5 s." */
+/* ENG THRUST LOCKED: triggers when the thrust levers are not moved within 5 s of an involuntary A/THR disconnection;
+   the title flashes, the single chime and the MASTER CAUTION repeat every 5 s. */
 describe('ENG THRUST LOCKED', () => {
   it('triggers after 5 s of thrust lock, and stops when the levers are moved', () => {
     const alert = new ThrustLockedAlert();
@@ -37,7 +35,7 @@ describe('ENG THRUST LOCKED', () => {
     expect(run(alert, true, 21)).toEqual([10, 15, 20]);
   });
 
-  it('shows THR LEVERS MOVE and a flashing title, in phases 5, 6 and 7 only (FCOM PDF page 5126)', () => {
+  it('shows THR LEVERS MOVE and a flashing title, in phases 5, 6 and 7 only', () => {
     const alert = new ThrustLockedAlert();
     run(alert, true, 6);
     const item = alert.ewdFailures[THRUST_LOCKED_KEY];

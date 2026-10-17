@@ -36,9 +36,8 @@ function run(inputs: WingAntiIceInputs, seconds: number, alerts = new WingAntiIc
 
 const active = (alerts: WingAntiIceAlerts, key: string) => alerts.ewdFailures[key].simVarIsActive.get();
 
-/* A320 FCOM PRO-ABN-W_A_ICE WING A.ICE SYS FAULT (l.96642-96643): "This alert triggers when the WING ANTI ICE pb-sw is set
-   to ON and one wing anti ice valve remains closed." DSC-30-20-20 (l.44297-44299): the FAULT light and the ECAM caution
-   also come on when a low pressure is detected. */
+/* WING A.ICE SYS FAULT: the WING ANTI ICE pb-sw is ON and one wing anti ice valve remains closed. The FAULT light and
+   the ECAM caution also come on with a low pressure. */
 describe('WING A.ICE SYS FAULT', () => {
   const leftClosed: WingAntiIceInputs = { ...on, sides: [{ ...openWing, valveClosed: true }, openWing] };
 
@@ -57,7 +56,7 @@ describe('WING A.ICE SYS FAULT', () => {
     expect(active(run({ ...leftClosed, valvesCommandedOpen: false }, 20), WingAntiIceAlertKeys.sysFault)).toBe(false);
   });
 
-  it('asks THRUST INCREASE, then WING ANTI ICE OFF (MSN 08557 and later variant, FCOM PDF page 5846)', () => {
+  it('asks THRUST INCREASE, then WING ANTI ICE OFF', () => {
     const item = run(leftClosed, 10).ewdFailures[WingAntiIceAlertKeys.sysFault];
     expect(ewdLines(item)).toEqual([
       'WING A.ICE SYS FAULT',
@@ -69,7 +68,7 @@ describe('WING A.ICE SYS FAULT', () => {
     expect(WING_ANTI_ICE_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
   });
 
-  it('STATUS: AVOID ICING CONDITIONS, the severe ice lines; INOP SYS WING A. ICE (l.96667-96686)', () => {
+  it('STATUS: AVOID ICING CONDITIONS, the severe ice lines; INOP SYS WING A. ICE', () => {
     const item = run(leftClosed, 10).ewdFailures[WingAntiIceAlertKeys.sysFault];
     const page = statusLines({ left: item.statusInfo(), inopSys: item.inopSys() });
     expect(page.left).toEqual([
@@ -82,8 +81,8 @@ describe('WING A.ICE SYS FAULT', () => {
     expect(page.right).toEqual(['INOP SYS', 'WING A. ICE']);
   });
 
-  /* l.96698-96718: WING A.ICE SYS FAULT (THE WING ANTI-ICE IS TURNED ON AFTER ONE ENGINE SHUTDOWN OR AFTER THE LOSS OF
-     ONE BLEED): "X BLEED ... OPEN". */
+  /* WING A.ICE SYS FAULT with the wing anti ice turned on after one engine shutdown or the loss of one bleed: X BLEED
+     OPEN. */
   it('without the bleed of the closed wing: the X BLEED OPEN variant instead', () => {
     const noBleed: WingAntiIceInputs = {
       ...on,
@@ -99,7 +98,7 @@ describe('WING A.ICE SYS FAULT', () => {
   });
 });
 
-/* l.96443-96454: WING A.ICE L(R) HI PR: pb-sw ON and a high duct pressure; THRUST LIM PENALTY; STATUS THRUST LIM PENALTY,
+/* WING A.ICE L(R) HI PR: pb-sw ON and a high duct pressure; THRUST LIM PENALTY; STATUS THRUST LIM PENALTY,
    INOP SYS WAI REGUL. */
 describe('WING A.ICE L(R) HI PR', () => {
   const rightHigh: WingAntiIceInputs = { ...on, sides: [openWing, { ...openWing, highPressure: true }] };

@@ -4,23 +4,21 @@
 import { Subject } from '@microsoft/msfs-sdk';
 
 /*
- * The HYD cautions and warnings of the A320 FWC with their procedure and STATUS lines (A320 FCOM PRO-ABN-HYD,
- * a320_fcom.txt l.86976-88880), except RAT FAULT (PseudoFWC). The triggers come from the Rust hydraulic system
- * (a320_systems hydraulic/mod.rs and the common hydraulic/mod.rs):
+ * The HYD cautions and warnings of the A320 FWC with their procedure and STATUS lines, except RAT FAULT (PseudoFWC).
+ * The triggers come from the Rust hydraulic system (a320_systems hydraulic/mod.rs and the common hydraulic/mod.rs):
  * - the system section pressure switches L:A32NX_HYD_{GREEN,BLUE,YELLOW}_SYSTEM_1_SECTION_PRESSURE_SWITCH (1450 PSI,
- *   1750 PSI to reset, factories.rs MIN_PRESS_PRESSURISED_*: the FCOM SYS LO PR thresholds, l.88257-88258), read by
+ *   1750 PSI to reset, factories.rs MIN_PRESS_PRESSURISED_*: the aircraft SYS LO PR thresholds), read by
  *   PseudoFWC into its *SysAbnormalLowPressure subjects (which also give twoHydraulicsOut);
  * - the pump low pressure discretes L:A32NX_HYD_{GREEN,YELLOW}_EDPUMP_LOW_PRESS (pump section below 1740 PSI, 2200 PSI
- *   to reset, the FCOM 1750/2200 PSI of l.87320-87321) and L:A32NX_HYD_{BLUE,YELLOW}_EPUMP_LOW_PRESS (1450/1750 PSI,
- *   l.86986-86987, l.87693-87694); they are only set while the pump is commanded (pb AUTO/ON);
- * - the reservoir switches L:A32NX_HYD_{color}_RESERVOIR_LEVEL_IS_LOW, _AIR_PRESSURE_IS_LOW (22/25 PSI, l.87074) and
+ *   to reset; the aircraft uses 1750/2200 PSI) and L:A32NX_HYD_{BLUE,YELLOW}_EPUMP_LOW_PRESS (1450/1750 PSI); they are
+ *   only set while the pump is commanded (pb AUTO/ON);
+ * - the reservoir switches L:A32NX_HYD_{color}_RESERVOIR_LEVEL_IS_LOW, _AIR_PRESSURE_IS_LOW (22/25 PSI) and
  *   _OVHT, and the electric pump overheat L:A32NX_HYD_{BLUE,YELLOW}_EPUMP_OVHT;
  * - the PTU: L:A32NX_HYD_PTU_SHAFT_RPM and the G and Y system pressures.
  *
- * The flight phase inhibition figures, the alert levels and the title colours are images that the FCOM text dump drops:
- * the values in PseudoFWC are general Airbus knowledge [GK], marked there as design choices, except the two notes that
- * the text keeps (phase 3 only for the ELEC PUMP OVHT, l.86992 and l.87703; G(Y) RSVR LO LVL inhibited for the first
- * 15 s of phase 5, l.87528 and l.88044).
+ * Design choice: the flight phase inhibitions, alert levels and title colours in PseudoFWC follow the usual Airbus
+ * values (none documented in text here), except two documented rules: ELEC PUMP OVHT is shown in phase 3 only, and
+ * G(Y) RSVR LO LVL is inhibited for the first 15 s of phase 5.
  *
  * Not modelled (design choices): the SECONDARY FAILURES lines (*F/CTL, *WHEEL), the option lines of the STATUS (STEEP
  * APPR, GLS AUTOLAND), the A321 lines and the "If sys lost by RSVR LO AIR PR / RSVR OVHT" recovery lines of the dual
@@ -129,30 +127,30 @@ export interface PumpLowPressureState {
   yellowEngPumpLoPr: boolean;
 }
 
-/** l.88800-88801: on ground, the PTU does not run with more than 650 PSI between the G and Y systems */
-export const PTU_FAULT_DIFFERENTIAL_PRESSURE_PSI = 650;
+/** On ground, the PTU does not run with more than 650 PSI between the G and Y systems */
+const PTU_FAULT_DIFFERENTIAL_PRESSURE_PSI = 650;
 
 /** Design choice: below this shaft speed the PTU is taken as not running (it runs at some thousand RPM) */
-export const PTU_STOPPED_RPM = 200;
+const PTU_STOPPED_RPM = 200;
 
 /**
  * The pump LO PR triggers. Rust sets the low pressure discretes only while the pump is commanded, so they go when the
  * crew does the "pump ... OFF" action: the trigger is kept until the pb is set back to AUTO (ON), as the ECAM keeps the
- * alert and shows "x SYS LO PR" after the action (FCOM DSC-31-25-20 ECAM sequence example, a320_fcom.txt l.46444-46445).
+ * alert and shows "x SYS LO PR" after the action.
  *
- * - ENG 1(2) PUMP LO PR: "The pump pressure is low (inhibited on the ground, when the engine is stopped)" (DSC-29-20
- *   FAULT light, l.43801-43802). Design choice: also not with the ENG MASTER OFF, the ENG 1(2) SHUT DOWN STATUS lists
- *   G ENG 1 (Y ENG 2) PUMP (FWC/Logic/EngineFailAlerts).
+ * - ENG 1(2) PUMP LO PR: the pump pressure is low, inhibited on ground with the engine stopped. Design choice: also
+ *   not with the ENG MASTER OFF, the ENG 1(2) SHUT DOWN STATUS lists G ENG 1 (Y ENG 2) PUMP
+ *   (FWC/Logic/EngineFailAlerts).
  * - B ELEC PUMP LO PR: the Rust discrete already has the conditions of the pump (AUTO, AC powered, in flight or an
- *   engine running, DSC-29-20 l.43815-43819); the kept trigger ends on ground with both engines stopped.
- * - Y ELEC PUMP LO PR: "the yellow system pressure < 1450 PSI with Y ELEC PUMP pb at ON, Y ENG PUMP and PTU not
- *   available" (l.87693-87697): the Rust discrete (pump commanded, yellow system below 1450 PSI). The kept trigger ends
- *   when the yellow system is pressurised again.
+ *   engine running); the kept trigger ends on ground with both engines stopped.
+ * - Y ELEC PUMP LO PR: the yellow system below 1450 PSI with the Y ELEC PUMP pb ON and the Y ENG PUMP and PTU not
+ *   available: the Rust discrete (pump commanded, yellow system below 1450 PSI). The kept trigger ends when the yellow
+ *   system is pressurised again.
  * @param inputs the hydraulic state
  * @param previous the triggers of the last update
  * @returns the triggers
  */
-export function pumpLowPressureTriggers(inputs: HydraulicInputs, previous: PumpLowPressureState): PumpLowPressureState {
+function pumpLowPressureTriggers(inputs: HydraulicInputs, previous: PumpLowPressureState): PumpLowPressureState {
   const engine1PumpMonitored = inputs.engine1MasterOn && (inputs.engine1Running || !inputs.onGround);
   const engine2PumpMonitored = inputs.engine2MasterOn && (inputs.engine2Running || !inputs.onGround);
   const blueElecPumpMonitored = !inputs.onGround || inputs.engine1Running || inputs.engine2Running;
@@ -173,17 +171,16 @@ export function pumpLowPressureTriggers(inputs: HydraulicInputs, previous: PumpL
 }
 
 /**
- * HYD PTU FAULT (l.88798-88804): "On ground, PTU does not run if the differential pressure is higher than 650 PSI
- * between G and Y system, or in flight, PTU at AUTO position does not run when G or Y reservoir level is low, and G or Y
- * system pressure is low."
+ * HYD PTU FAULT: on ground, the PTU does not run with more than 650 PSI between the G and Y systems; in flight, the
+ * PTU at AUTO does not run with a G or Y reservoir low level and a G or Y system low pressure.
  * Design choice: on ground the PTU is expected to run with the PTU pb at AUTO and both ENG MASTERs ON (with one master
- * ON and the parking brake set it is inhibited on purpose for the first engine start, DSC-29-20 l.43857 and
- * a320_systems hydraulic/mod.rs A320PowerTransferUnitController). The note l.88810-88812 (last engine started within
- * 40 s of a cargo door operation) is this case. The in-flight part is taken as written.
+ * ON and the parking brake set it is inhibited on purpose for the first engine start, see a320_systems
+ * hydraulic/mod.rs A320PowerTransferUnitController). The documented case of the last engine started within 40 s of a
+ * cargo door operation is this case. The in-flight part is taken as documented.
  * @param inputs the hydraulic state
  * @returns the PTU FAULT trigger
  */
-export function ptuFaultTrigger(inputs: HydraulicInputs): boolean {
+function ptuFaultTrigger(inputs: HydraulicInputs): boolean {
   if (!inputs.ptuPbAuto) {
     return false;
   }
@@ -207,30 +204,29 @@ export function ptuFaultTrigger(inputs: HydraulicInputs): boolean {
  * @param pumps the pump LO PR triggers (pumpLowPressureTriggers)
  * @returns the triggers
  */
-export function hydraulicAlertTriggers(inputs: HydraulicInputs, pumps: PumpLowPressureState): HydraulicAlertConditions {
+function hydraulicAlertTriggers(inputs: HydraulicInputs, pumps: PumpLowPressureState): HydraulicAlertConditions {
   const { green, blue, yellow } = inputs;
   return {
     ...pumps,
-    // l.86988, l.87699: "This alert triggers when the blue (yellow) electric pump overheats."
     blueElecPumpOvht: inputs.blueElecPumpOverheat,
     yellowElecPumpOvht: inputs.yellowElecPumpOverheat,
-    // l.87074-87075, l.87427-87428, l.87927-87928: reservoir air pressure below 22 PSI (25 PSI to reset)
+    // Reservoir air pressure below 22 PSI (25 PSI to reset)
     blueRsvrLoAirPr: blue.reservoirLowAirPressure,
     greenRsvrLoAirPr: green.reservoirLowAirPressure,
     yellowRsvrLoAirPr: yellow.reservoirLowAirPressure,
-    // l.87164, l.87524, l.88040: fluid quantity below 2.4 l (blue), 3.5 l (green, yellow)
+    // Fluid quantity below 2.4 l (blue), 3.5 l (green, yellow)
     blueRsvrLoLvl: blue.reservoirLowLevel,
     greenRsvrLoLvl: green.reservoirLowLevel,
     yellowRsvrLoLvl: yellow.reservoirLowLevel,
-    // l.87237, l.87605, l.88150: fluid temperature above 93 degC (88 degC to reset)
+    // Fluid temperature above 93 degC (88 degC to reset)
     blueRsvrOvht: blue.reservoirOverheat,
     greenRsvrOvht: green.reservoirOverheat,
     yellowRsvrOvht: yellow.reservoirOverheat,
-    // FCOM DSC-31-15 HYD G(Y)(B) SYS LO PR (A), l.46044: the system pressure below 1450 PSI (1750 PSI to reset)
+    // System pressure below 1450 PSI (1750 PSI to reset)
     blueSysLoPr: blue.lowPressure,
     greenSysLoPr: green.lowPressure,
     yellowSysLoPr: yellow.lowPressure,
-    // l.88257-88258, l.88438-88439, l.88625-88626: both systems below 1450 PSI
+    // Both systems below 1450 PSI
     blueYellowSysLoPr: blue.lowPressure && yellow.lowPressure,
     greenBlueSysLoPr: green.lowPressure && blue.lowPressure,
     greenYellowSysLoPr: green.lowPressure && yellow.lowPressure,
@@ -241,22 +237,20 @@ export function hydraulicAlertTriggers(inputs: HydraulicInputs, pumps: PumpLowPr
 /**
  * The alerts shown, from the confirmed triggers: the priorities between the HYD alerts.
  *
- * - A dual SYS LO PR warning replaces the alerts of its two systems: its procedure covers the causes ("If blue sys lost
- *   by ELEC PUMP LO PR", "If sys lost by RSVR LO AIR PR", "If sys lost by RSVR OVHT", l.88286, l.88344, l.88353) and
- *   sends back to the single failure procedure when a system recovers (l.88304-88306, l.88483-88485, l.88666-88668).
- *   Design choice: with the three systems low, one dual warning only, G+Y first, then G+B (the FCOM has no triple
- *   failure); the third system keeps its single alerts.
- * - x SYS LO PR is the associated procedure of the reservoir and pump alerts of its system ("ASSOCIATED PROCEDURES: B
- *   SYS LO PR", l.87000-87002; "The second part of the message on the E/WD changes to B SYS LO PR", l.46445): it is shown
- *   as a line of these alerts, and alone only without them.
- * - The G(Y) reservoir procedures include the ENG 1(2) PUMP LO PR line (l.87438, l.87534, l.87613, l.87961, l.88073,
- *   l.88181): the pump LO PR alert is not shown with a reservoir alert of its system. Design choice: the same for the
- *   B ELEC PUMP LO PR (the blue reservoir procedures turn the pump off).
- * - ELEC PUMP LO PR and ELEC PUMP OVHT are one procedure ("LO PR or OVHT", l.86976, l.87683): OVHT is shown.
+ * - A dual SYS LO PR warning replaces the alerts of its two systems: its procedure covers the causes (system lost by
+ *   ELEC PUMP LO PR, RSVR LO AIR PR or RSVR OVHT) and sends back to the single failure procedure when a system
+ *   recovers. Design choice: with the three systems low, one dual warning only, G+Y first, then G+B (no triple
+ *   failure procedure exists); the third system keeps its single alerts.
+ * - x SYS LO PR is the associated procedure of the reservoir and pump alerts of its system (the second part of the
+ *   E/WD message changes to x SYS LO PR): it is shown as a line of these alerts, and alone only without them.
+ * - The G(Y) reservoir procedures include the ENG 1(2) PUMP LO PR line: the pump LO PR alert is not shown with a
+ *   reservoir alert of its system. Design choice: the same for the B ELEC PUMP LO PR (the blue reservoir procedures
+ *   turn the pump off).
+ * - ELEC PUMP LO PR and ELEC PUMP OVHT are one procedure: OVHT is shown.
  * @param confirmed the confirmed triggers
  * @returns the alerts to show
  */
-export function shownHydraulicAlerts(confirmed: HydraulicAlertConditions): HydraulicAlertConditions {
+function shownHydraulicAlerts(confirmed: HydraulicAlertConditions): HydraulicAlertConditions {
   const greenYellowSysLoPr = confirmed.greenYellowSysLoPr;
   const greenBlueSysLoPr = confirmed.greenBlueSysLoPr && !greenYellowSysLoPr;
   const blueYellowSysLoPr = confirmed.blueYellowSysLoPr && !greenYellowSysLoPr && !greenBlueSysLoPr;
@@ -317,12 +311,12 @@ export function shownHydraulicAlerts(confirmed: HydraulicAlertConditions): Hydra
 }
 
 /**
- * The confirmation times, s. Design choices (the FCOM gives none): 5 s for the pressure alerts, so that the pressure
+ * The confirmation times, s. Design choices (none documented): 5 s for the pressure alerts, so that the pressure
  * build-up of a pump started with its engine (the blue electric pump starts when an engine reaches idle) gives no alert,
  * and for the PTU FAULT on ground, which must not come while the PTU starts to run in the second engine start; none for
  * the reservoir and overheat switches, which have their own hysteresis.
  */
-export const HYDRAULIC_ALERT_CONFIRM_SECONDS: Record<HydraulicAlert, number> = {
+const HYDRAULIC_ALERT_CONFIRM_SECONDS: Record<HydraulicAlert, number> = {
   blueElecPumpLoPr: 5,
   blueElecPumpOvht: 0,
   yellowElecPumpLoPr: 5,
@@ -349,8 +343,8 @@ export const HYDRAULIC_ALERT_CONFIRM_SECONDS: Record<HydraulicAlert, number> = {
 
 const HYDRAULIC_ALERTS = Object.keys(HYDRAULIC_ALERT_CONFIRM_SECONDS) as HydraulicAlert[];
 
-/** l.87528, l.88044: "The HYD G (Y) RSVR LO LVL alert is inhibited for the first 15 s of flight phase 5." */
-export const RSVR_LO_LVL_PHASE_5_INHIBITION_SECONDS = 15;
+/** HYD G (Y) RSVR LO LVL is inhibited for the first 15 s of flight phase 5 */
+const RSVR_LO_LVL_PHASE_5_INHIBITION_SECONDS = 15;
 
 /** The hydraulic state with all systems normal, before the first update */
 const NORMAL_SYSTEM: HydSystemInputs = {
@@ -449,7 +443,7 @@ export class HydraulicAlertMonitor {
     return this.pumpTriggers;
   }
 
-  /** LAND ASAP (red) of the dual SYS LO PR warnings (l.88281, l.88462, l.88646) */
+  /** LAND ASAP (red) of the dual SYS LO PR warnings */
   public get landAsapRed(): boolean {
     return (
       this.alerts.blueYellowSysLoPr.get() || this.alerts.greenBlueSysLoPr.get() || this.alerts.greenYellowSysLoPr.get()
@@ -466,14 +460,14 @@ export class HydraulicAlertMonitor {
 /** The line index when shown, else null */
 const lineIf = (shown: boolean, index: number): number | null => (shown ? index : null);
 
-/** HYD B ELEC PUMP LO PR / OVHT, l.86996-87004: 0 title, 1 -BLUE ELEC PUMP OFF, 2 B SYS LO PR, 3 FUEL, 4 FMS */
+/** HYD B ELEC PUMP LO PR / OVHT: 0 title, 1 -BLUE ELEC PUMP OFF, 2 B SYS LO PR, 3 FUEL, 4 FMS */
 export function blueElecPumpLines(inputs: HydraulicInputs): (number | null)[] {
   const sysLoPr = inputs.blue.lowPressure;
   return [0, lineIf(inputs.blueElecPumpPbAuto, 1), lineIf(sysLoPr, 2), lineIf(sysLoPr, 3), lineIf(sysLoPr, 4)];
 }
 
 /**
- * HYD Y ELEC PUMP LO PR / OVHT, l.87721-87737: 0 title, 1 -YELLOW ELEC PUMP OFF, 2 Y SYS LO PR, 3 BRK Y ACCU PR
+ * HYD Y ELEC PUMP LO PR / OVHT: 0 title, 1 -YELLOW ELEC PUMP OFF, 2 Y SYS LO PR, 3 BRK Y ACCU PR
  * MONITOR, 4 FUEL, 5 FMS
  */
 export function yellowElecPumpLines(inputs: HydraulicInputs): (number | null)[] {
@@ -489,20 +483,20 @@ export function yellowElecPumpLines(inputs: HydraulicInputs): (number | null)[] 
 }
 
 /**
- * HYD G ENG 1 PUMP LO PR (l.87327, PTU operative; l.87365-87368, PTU inoperative): 0 title, 1 -GREEN ENG 1 PUMP OFF,
+ * HYD G ENG 1 PUMP LO PR (PTU operative or inoperative): 0 title, 1 -GREEN ENG 1 PUMP OFF,
  * 2 G SYS LO PR. The PTU inoperative variant is the one with the green system lost.
  */
 export function greenEnginePumpLines(inputs: HydraulicInputs): (number | null)[] {
   return [0, lineIf(inputs.greenEnginePumpPbAuto, 1), lineIf(inputs.green.lowPressure, 2)];
 }
 
-/** HYD Y ENG 2 PUMP LO PR (l.87818; l.87856-87859): 0 title, 1 -YELLOW ENG 2 PUMP OFF, 2 Y SYS LO PR */
+/** HYD Y ENG 2 PUMP LO PR: 0 title, 1 -YELLOW ENG 2 PUMP OFF, 2 Y SYS LO PR */
 export function yellowEnginePumpLines(inputs: HydraulicInputs): (number | null)[] {
   return [0, lineIf(inputs.yellowEnginePumpPbAuto, 1), lineIf(inputs.yellow.lowPressure, 2)];
 }
 
 /**
- * HYD B RSVR LO AIR PR, l.87083-87090: 0 title, 1 .IF PRESS FLUCTUATES:, 2 -BLUE ELEC PUMP OFF, 3 B SYS LO PR, 4 FUEL,
+ * HYD B RSVR LO AIR PR: 0 title, 1 .IF PRESS FLUCTUATES:, 2 -BLUE ELEC PUMP OFF, 3 B SYS LO PR, 4 FUEL,
  * 5 FMS
  */
 export function blueReservoirLowAirPressureLines(inputs: HydraulicInputs): (number | null)[] {
@@ -518,7 +512,7 @@ export function blueReservoirLowAirPressureLines(inputs: HydraulicInputs): (numb
 }
 
 /**
- * HYD G RSVR LO AIR PR, l.87434-87444: 0 title, 1 .IF PRESS FLUCTUATES:, 2 -PTU OFF, 3 -GREEN ENG 1 PUMP OFF,
+ * HYD G RSVR LO AIR PR: 0 title, 1 .IF PRESS FLUCTUATES:, 2 -PTU OFF, 3 -GREEN ENG 1 PUMP OFF,
  * 4 G ENG 1 PUMP LO PR, 5 G SYS LO PR, 6 FUEL, 7 FMS
  */
 export function greenReservoirLowAirPressureLines(inputs: HydraulicInputs): (number | null)[] {
@@ -536,10 +530,10 @@ export function greenReservoirLowAirPressureLines(inputs: HydraulicInputs): (num
 }
 
 /**
- * HYD Y RSVR LO AIR PR, l.87948-87967: 0 title, 1 .IF PRESS FLUCTUATES:, 2 -PTU OFF, 3 -YELLOW ENG 2 PUMP OFF,
+ * HYD Y RSVR LO AIR PR: 0 title, 1 .IF PRESS FLUCTUATES:, 2 -PTU OFF, 3 -YELLOW ENG 2 PUMP OFF,
  * 4 -YELLOW ELEC PUMP OFF, 5 BRK Y ACCU PR MONITOR, 6 Y ENG 2 PUMP LO PR, 7 Y SYS LO PR, 8 FUEL, 9 FMS.
- * Design choice: BRK Y ACCU PR MONITOR (a check for the loss of the system and of the accumulator by a pipe rupture,
- * l.87955-87959) once the yellow system pressure is low.
+ * Design choice: BRK Y ACCU PR MONITOR (a check for the loss of the system and of the accumulator by a pipe rupture)
+ * once the yellow system pressure is low.
  */
 export function yellowReservoirLowAirPressureLines(inputs: HydraulicInputs): (number | null)[] {
   const sysLoPr = inputs.yellow.lowPressure;
@@ -557,13 +551,13 @@ export function yellowReservoirLowAirPressureLines(inputs: HydraulicInputs): (nu
   ];
 }
 
-/** HYD B RSVR LO LVL, l.87170-87175: 0 title, 1 -BLUE ELEC PUMP OFF, 2 B SYS LO PR, 3 FUEL, 4 FMS */
+/** HYD B RSVR LO LVL: 0 title, 1 -BLUE ELEC PUMP OFF, 2 B SYS LO PR, 3 FUEL, 4 FMS */
 export function blueReservoirLowLevelLines(inputs: HydraulicInputs): (number | null)[] {
   return blueElecPumpLines(inputs);
 }
 
 /**
- * HYD G RSVR LO LVL (l.87532-87540) and HYD G RSVR OVHT (l.87611-87619): 0 title, 1 -PTU OFF, 2 -GREEN ENG 1 PUMP OFF,
+ * HYD G RSVR LO LVL and HYD G RSVR OVHT: 0 title, 1 -PTU OFF, 2 -GREEN ENG 1 PUMP OFF,
  * 3 G ENG 1 PUMP LO PR, 4 G SYS LO PR, 5 FUEL, 6 FMS
  */
 export function greenReservoirLines(inputs: HydraulicInputs): (number | null)[] {
@@ -580,7 +574,7 @@ export function greenReservoirLines(inputs: HydraulicInputs): (number | null)[] 
 }
 
 /**
- * HYD Y RSVR LO LVL (l.88062-88079) and HYD Y RSVR OVHT (l.88170-88187): 0 title, 1 -PTU OFF, 2 -YELLOW ENG 2 PUMP
+ * HYD Y RSVR LO LVL and HYD Y RSVR OVHT: 0 title, 1 -PTU OFF, 2 -YELLOW ENG 2 PUMP
  * OFF, 3 -YELLOW ELEC PUMP OFF, 4 BRK Y ACCU PR MONITOR, 5 Y ENG 2 PUMP LO PR, 6 Y SYS LO PR, 7 FUEL, 8 FMS
  */
 export function yellowReservoirLines(inputs: HydraulicInputs): (number | null)[] {
@@ -598,13 +592,13 @@ export function yellowReservoirLines(inputs: HydraulicInputs): (number | null)[]
   ];
 }
 
-/** HYD B RSVR OVHT, l.87243-87248: 0 title, 1 -BLUE ELEC PUMP OFF, 2 B SYS LO PR, 3 FUEL, 4 FMS */
+/** HYD B RSVR OVHT: 0 title, 1 -BLUE ELEC PUMP OFF, 2 B SYS LO PR, 3 FUEL, 4 FMS */
 export function blueReservoirOverheatLines(inputs: HydraulicInputs): (number | null)[] {
   return blueElecPumpLines(inputs);
 }
 
 /**
- * HYD PTU FAULT, l.88814-88815: 0 title, 1 -PTU OFF ("If green or yellow reservoir low level and system low press").
+ * HYD PTU FAULT: 0 title, 1 -PTU OFF ("If green or yellow reservoir low level and system low press").
  * The condition is the in-flight trigger.
  */
 export function ptuFaultLines(inputs: HydraulicInputs): (number | null)[] {
@@ -629,7 +623,7 @@ const blueLostByElecPump = (inputs: HydraulicInputs, pumps: PumpLowPressureState
   pumps.blueElecPumpLoPr;
 
 /**
- * HYD B+Y SYS LO PR, l.88281-88302 (LAND ASAP is the special line): 0 title, 1 -YELLOW ELEC PUMP ON ("If yellow sys lost
+ * HYD B+Y SYS LO PR (LAND ASAP is the special line): 0 title, 1 -YELLOW ELEC PUMP ON ("If yellow sys lost
  * by ENG 2 PUMP LO PR"), 2 -RAT MAN ON, 3 MIN RAT SPD 140 KT ("If blue sys lost by ELEC PUMP LO PR"), 4 -AFFECTED PUMPS
  * OFF, 5 MAX SPEED 320/.77, 6 MANEUVER WITH CARE, 7 FOR GA: MAX PITCH 15 DEG, 8 FUEL, 9 FMS.
  * Design choice: AFFECTED PUMPS OFF until the BLUE ELEC PUMP and the YELLOW ENG 2 PUMP pbs are off.
@@ -651,7 +645,7 @@ export function blueYellowSysLoPrLines(inputs: HydraulicInputs, pumps: PumpLowPr
 }
 
 /**
- * HYD G+B SYS LO PR, l.88462-88472: 0 title, 1 -RAT MAN ON, 2 MIN RAT SPD 140 KT ("If blue sys lost by ELEC PUMP LO
+ * HYD G+B SYS LO PR: 0 title, 1 -RAT MAN ON, 2 MIN RAT SPD 140 KT ("If blue sys lost by ELEC PUMP LO
  * PR"), 3 -AFFECTED PUMPS OFF, 4 MANEUVER WITH CARE, 5 FOR GA: MAX PITCH 15 DEG, 6 FUEL, 7 FMS
  */
 export function greenBlueSysLoPrLines(inputs: HydraulicInputs, pumps: PumpLowPressureState): (number | null)[] {
@@ -669,7 +663,7 @@ export function greenBlueSysLoPrLines(inputs: HydraulicInputs, pumps: PumpLowPre
 }
 
 /**
- * HYD G+Y SYS LO PR, l.88646-88656: 0 title, 1 -PTU OFF, 2 -AFFECTED PUMPS OFF, 3 -YELLOW ELEC PUMP ON ("If yellow sys
+ * HYD G+Y SYS LO PR: 0 title, 1 -PTU OFF, 2 -AFFECTED PUMPS OFF, 3 -YELLOW ELEC PUMP ON ("If yellow sys
  * lost by ENG 2 PUMP LO PR"), 4 MANEUVER WITH CARE, 5 FUEL, 6 FMS
  */
 export function greenYellowSysLoPrLines(inputs: HydraulicInputs, pumps: PumpLowPressureState): (number | null)[] {
@@ -685,7 +679,7 @@ export function greenYellowSysLoPrLines(inputs: HydraulicInputs, pumps: PumpLowP
 }
 
 /** StatusMessages codes of the HYD alerts */
-export const HYD_STATUS = {
+const HYD_STATUS = {
   // Limitations, procedures and conditions (left column)
   minRatSpd: '290400001',
   maxSpeed320: '290400002',
@@ -774,13 +768,13 @@ export interface HydAlertStatus {
   inopSys: string[];
 }
 
-/** The STATUS of a lost blue system (l.87201-87208): LDG DIST PROC, FUEL, FMS, SLATS SLOW, CAT 3 SINGLE ONLY */
+/** The STATUS of a lost blue system: LDG DIST PROC, FUEL, FMS, SLATS SLOW, CAT 3 SINGLE ONLY */
 const BLUE_LOST: HydAlertStatus = {
   left: [S.ldgDistProc, S.fuelConsumptIncrsd, S.fmsPredUnreliable, S.slatsSlow, S.cat3SingleOnly],
   inopSys: [S.blueHyd, S.splr3, S.cat3Dual, S.bElecPump],
 };
 
-/** The STATUS of a lost green system (l.87567-87577) */
+/** The STATUS of a lost green system */
 const GREEN_LOST: HydAlertStatus = {
   left: [
     S.lgGrvtyExtn,
@@ -794,7 +788,7 @@ const GREEN_LOST: HydAlertStatus = {
   inopSys: [S.greenHyd, S.splr15, S.cat3Dual, S.autoBrk, S.normBrk, S.lgRetract, S.reverser1, S.yawDamper1],
 };
 
-/** The STATUS of a lost yellow system (l.88105-88113) */
+/** The STATUS of a lost yellow system */
 const YELLOW_LOST: HydAlertStatus = {
   left: [S.ldgDistProc, S.fuelConsumptIncrsd, S.fmsPredUnreliable, S.flapsSlow, S.cat3SingleOnly],
   inopSys: [S.yellowHyd, S.splr24, S.cat3Dual, S.nwStrg, S.reverser2, S.yawDamper2],
@@ -807,20 +801,20 @@ const withLines = (status: HydAlertStatus, left: string[], inopSys: string[] = [
 
 /** The STATUS of the HYD alerts. The line order of the page is the order of the StatusMessages codes. */
 export const hydraulicStatus = {
-  /** HYD B ELEC PUMP LO PR (l.87030-87046), without the "IF BLUE OVHT OUT" lines of the overheat */
+  /** HYD B ELEC PUMP LO PR, without the "IF BLUE OVHT OUT" lines of the overheat */
   blueElecPumpLoPr: (): HydAlertStatus => BLUE_LOST,
-  /** HYD B ELEC PUMP OVHT (l.87030-87046) */
+  /** HYD B ELEC PUMP OVHT */
   blueElecPumpOvht: (): HydAlertStatus =>
     withLines(BLUE_LOST, [S.apprProcHydLoPr, S.ifBlueOvhtOut, S.blueElecPumpAuto]),
-  /** HYD B RSVR LO AIR PR (l.87116-87136) */
+  /** HYD B RSVR LO AIR PR */
   blueRsvrLoAirPr: (): HydAlertStatus =>
     withLines(BLUE_LOST, [S.apprProcHydLoPr, S.blueElecPumpAuto, S.ifSysNotRecovered]),
-  /** HYD B RSVR LO LVL (l.87201-87209), with EMER GEN */
+  /** HYD B RSVR LO LVL, with EMER GEN */
   blueRsvrLoLvl: (): HydAlertStatus => withLines(BLUE_LOST, [], [S.emerGen]),
-  /** HYD B RSVR OVHT (l.87274-87291) */
+  /** HYD B RSVR OVHT */
   blueRsvrOvht: (): HydAlertStatus =>
     withLines(BLUE_LOST, [S.apprProcHydLoPr, S.ifBlueOvhtOut, S.blueElecPumpAuto, S.ifSysNotRecovered]),
-  /** HYD G ENG 1 PUMP LO PR: PTU operative l.87333-87335, PTU inoperative (green lost) l.87394-87405 */
+  /** HYD G ENG 1 PUMP LO PR, with the PTU operative or inoperative (green lost) */
   greenEngPumpLoPr: (greenLost: boolean): HydAlertStatus =>
     greenLost
       ? {
@@ -828,20 +822,20 @@ export const hydraulicStatus = {
           inopSys: [...GREEN_LOST.inopSys, S.ptu, S.gEng1Pump],
         }
       : { left: [], inopSys: [S.gEng1Pump] },
-  /** HYD G RSVR LO AIR PR (l.87471-87496) */
+  /** HYD G RSVR LO AIR PR */
   greenRsvrLoAirPr: (): HydAlertStatus =>
     withLines(GREEN_LOST, [S.apprProcHydLoPr, S.greenEngPumpOn, S.ifHydNotRecovered]),
-  /** HYD G RSVR LO LVL (l.87567-87577) */
+  /** HYD G RSVR LO LVL */
   greenRsvrLoLvl: (): HydAlertStatus => GREEN_LOST,
-  /** HYD G RSVR OVHT (l.87646-87665) */
+  /** HYD G RSVR OVHT */
   greenRsvrOvht: (): HydAlertStatus =>
     withLines(GREEN_LOST, [S.apprProcHydLoPr, S.ifGreenOvhtOut, S.greenEngPumpOn, S.ifHydNotRecovered]),
-  /** HYD Y ELEC PUMP LO PR (l.87763-87782), without the overheat lines (l.87770-87771) */
+  /** HYD Y ELEC PUMP LO PR, without the overheat lines */
   yellowElecPumpLoPr: (): HydAlertStatus => withLines(YELLOW_LOST, [], [S.yElecPump]),
-  /** HYD Y ELEC PUMP OVHT (l.87763-87782) */
+  /** HYD Y ELEC PUMP OVHT */
   yellowElecPumpOvht: (): HydAlertStatus =>
     withLines(YELLOW_LOST, [S.apprProcHydLoPr, S.ifYellowOvhtOut, S.yellowEngPumpOn, S.ptuAuto], [S.yElecPump]),
-  /** HYD Y ENG 2 PUMP LO PR: PTU operative l.87824-87826, PTU inoperative (yellow lost) l.87889-87898 */
+  /** HYD Y ENG 2 PUMP LO PR, with the PTU operative or inoperative (yellow lost) */
   yellowEngPumpLoPr: (yellowLost: boolean): HydAlertStatus =>
     yellowLost
       ? {
@@ -849,21 +843,21 @@ export const hydraulicStatus = {
           inopSys: [...YELLOW_LOST.inopSys, S.ptu, S.yEng2Pump],
         }
       : { left: [], inopSys: [S.yEng2Pump] },
-  /** HYD Y RSVR LO AIR PR (l.87996-88012) */
+  /** HYD Y RSVR LO AIR PR */
   yellowRsvrLoAirPr: (): HydAlertStatus =>
     withLines(YELLOW_LOST, [S.apprProcHydLoPr, S.yellowEngPumpOn, S.ifSysNotRecovered]),
-  /** HYD Y RSVR LO LVL (l.88105-88113), with CARGO DOOR */
+  /** HYD Y RSVR LO LVL, with CARGO DOOR */
   yellowRsvrLoLvl: (): HydAlertStatus => withLines(YELLOW_LOST, [], [S.cargoDoor]),
-  /** HYD Y RSVR OVHT (l.88213-88229) */
+  /** HYD Y RSVR OVHT */
   yellowRsvrOvht: (): HydAlertStatus =>
     withLines(YELLOW_LOST, [S.apprProcHydLoPr, S.ifYellowOvhtOut, S.yellowEngPumpOn, S.ifSysNotRecovered]),
-  /** HYD B (G, Y) SYS LO PR alone. Design choice: the STATUS of the lost system (this FCOM has no own procedure) */
+  /** HYD B (G, Y) SYS LO PR alone. Design choice: the STATUS of the lost system (no own procedure is documented) */
   blueSysLoPr: (): HydAlertStatus => BLUE_LOST,
   greenSysLoPr: (): HydAlertStatus => GREEN_LOST,
   yellowSysLoPr: (): HydAlertStatus => YELLOW_LOST,
   /**
-   * HYD B+Y SYS LO PR (l.88334-88405): the APPR PROC and IF HYD NOT RECOVERED titles are not shown for a dual LO LVL
-   * (l.88343, l.88364-88365); MIN RAT SPD "If B PUMP LO PR" (l.88335).
+   * HYD B+Y SYS LO PR: the APPR PROC and IF HYD NOT RECOVERED titles are not shown for a dual LO LVL; MIN RAT SPD
+   * only if the blue system is lost by the B ELEC PUMP LO PR.
    */
   blueYellowSysLoPr: (inputs: HydraulicInputs, pumps: PumpLowPressureState): HydAlertStatus => {
     const dualLowLevel = inputs.blue.reservoirLowLevel && inputs.yellow.reservoirLowLevel;
@@ -896,7 +890,7 @@ export const hydraulicStatus = {
       ],
     };
   },
-  /** HYD G+B SYS LO PR (l.88516-88593) */
+  /** HYD G+B SYS LO PR */
   greenBlueSysLoPr: (inputs: HydraulicInputs, pumps: PumpLowPressureState): HydAlertStatus => {
     const dualLowLevel = inputs.green.reservoirLowLevel && inputs.blue.reservoirLowLevel;
     return {
@@ -938,7 +932,7 @@ export const hydraulicStatus = {
       ],
     };
   },
-  /** HYD G+Y SYS LO PR (l.88699-88759) */
+  /** HYD G+Y SYS LO PR */
   greenYellowSysLoPr: (inputs: HydraulicInputs): HydAlertStatus => {
     const dualLowLevel = inputs.green.reservoirLowLevel && inputs.yellow.reservoirLowLevel;
     return {
@@ -977,8 +971,8 @@ export const hydraulicStatus = {
       ],
     };
   },
-  /** HYD PTU FAULT (l.88833-88837): INOP SYS PTU */
+  /** HYD PTU FAULT: INOP SYS PTU */
   ptuFault: (): HydAlertStatus => ({ left: [], inopSys: [S.ptu] }),
-  /** HYD RAT FAULT (l.88876-88880): INOP SYS RAT */
+  /** HYD RAT FAULT: INOP SYS RAT */
   ratFault: (): HydAlertStatus => ({ left: [], inopSys: [S.rat] }),
 };

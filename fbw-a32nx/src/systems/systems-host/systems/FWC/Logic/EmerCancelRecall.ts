@@ -2,34 +2,29 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * EMER CANC and RCL pbs of the A320 ECAM control panel (FCOM DSC-31-30, a320_fcom.txt):
+ * EMER CANC and RCL pbs of the A320 ECAM control panel:
  *
- * (3) RCL pb, l.46754-46766: "When pressed, the E/WD displays all alerts previously cleared via the CLR pb that are still
- * active." / "When pressed for more than 3 s, the E/WD displays: All alerts previously cleared via the CLR pb that are
- * still active, All alerts previously cancelled via the EMER CANC pb." / "Note: 1. If there is no alert to recall, the
- * "NORMAL" message appears for 3 s on the E/WD. 2. This action on the RCL pb also suppresses the flight phase inhibition
- * function until the next flight phase."
+ * RCL pb: a press shows again on the E/WD the alerts cleared with CLR that are still active; held for more than 3 s, it
+ * also shows the alerts cancelled with EMER CANC. With nothing to recall, NORMAL appears for 3 s on the E/WD. A RCL
+ * press also suppresses the flight phase inhibition until the next flight phase.
  *
- * (7) EMER CANC pb, l.46809-46823: "Warnings: Cancels (stops) an aural warning for as long as the failure condition
- * continues, Extinguishes the MASTER WARNINGS lights, Does not affect the ECAM message display. Cautions: Cancels any
- * present caution (single chime, MASTER CAUTION lights, ECAM message) for the rest of the flight." / "The flight crew can
- * press the RCL pb for more than 3 s in order to restore all the alerts previously canceled via the EMER CANC pb. All the
- * alerts previously canceled via the EMER CANC pb automatically reappear on the E/WD in flight phase 1 or 2, immediately
- * after the alignment of IRs 1 and 2."
+ * EMER CANC pb: on a warning, it stops the aural for as long as the failure condition lasts and puts the MASTER WARN
+ * lights out, without changing the E/WD. On a caution, it cancels the caution (single chime, MASTER CAUTION lights, E/WD
+ * message) for the rest of the flight. RCL held for more than 3 s restores the cancelled alerts, and they come back
+ * automatically in flight phase 1 or 2, right after IRs 1 and 2 are aligned.
  *
- * STATUS page, DSC-31-20 l.46193: "(5) Cancelled caution: White"; l.46233-46235: the STS reminder needs a STATUS page that
- * "displays message other than "CANCELLED CAUTION" or MAINTENANCE status".
+ * STATUS page: the cancelled cautions are listed in white under CANCELLED CAUTION; a STATUS page with only CANCELLED
+ * CAUTION (or maintenance status) does not give the STS reminder.
  *
- * Before, the PseudoFWC computed the EMER CANC pulse and never read it, and a RCL press with nothing to recall showed
- * nothing. The A380X FWS has the same rules (FwsRecall, FwsEmerCancel); this is the A320 version.
+ * The A380X FWS has the same rules (FwsRecall, FwsEmerCancel); this is the A320 version.
  */
 
 import { CANCELLED_CAUTION_STATUS_CODE } from '@shared/StatusMessages';
 
-/** l.46759: the RCL pb "pressed for more than 3 s" */
-export const RECALL_LONG_PRESS_SECONDS = 3;
+/** The RCL pb held this long is the long press, in seconds */
+const RECALL_LONG_PRESS_SECONDS = 3;
 
-/** l.46763: "the "NORMAL" message appears for 3 s on the E/WD" */
+/** NORMAL shows this long on the E/WD after a RCL press with nothing to recall, in seconds */
 export const RECALL_NORMAL_SECONDS = 3;
 
 /** The E/WD memo code of NORMAL (EwdMessages '000000001') */
@@ -106,10 +101,10 @@ export interface DisplayedAlert {
 export type EmerCancelAction = { kind: 'silenceWarnings' } | { kind: 'cancelCaution'; key: string } | { kind: 'none' };
 
 /**
- * What one EMER CANC press does. Design choice (the FCOM gives the effect on a warning and on a caution, not which one a
- * press acts on): while a warning has its aural or MASTER WARN on, the press stops them (all active warnings, as one aural
- * and one light are shared); otherwise it cancels the first caution of the E/WD, one caution per press, as the A380X FWS
- * does (EMER CANC on the alert at the top of the EWD).
+ * What one EMER CANC press does. Design choice (the aircraft rules give the effect on a warning and on a caution, not
+ * which one a press acts on): while a warning has its aural or MASTER WARN on, the press stops them (all active
+ * warnings, as one aural and one light are shared); otherwise it cancels the first caution of the E/WD, one caution
+ * per press, as the A380X FWS does (EMER CANC on the alert at the top of the EWD).
  * @param warningAttentionGettersOn a warning has its aural (CRC, C-chord, cavalry charge) or MASTER WARN light on
  * @param displayedAlerts the alerts of the E/WD left column, in display order
  */
@@ -198,8 +193,8 @@ export function cancelledCautionStatusCodes(titleCodes: readonly (string | undef
 }
 
 /**
- * l.46822-46823: the cancelled alerts "automatically reappear on the E/WD in flight phase 1 or 2, immediately after the
- * alignment of IRs 1 and 2": true in the update both IRs become aligned (NAV) during phase 1 or 2.
+ * The cancelled alerts come back automatically in flight phase 1 or 2, right after IRs 1 and 2 are aligned: true in the
+ * update both IRs become aligned (NAV) during phase 1 or 2.
  */
 export class IrAlignmentRestore {
   private bothAligned = false;

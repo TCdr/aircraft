@@ -17,7 +17,7 @@ beforeEach(() => {
 const AUTO_BRK_OFF_GREEN = '000002204';
 const REAC_WS_DET_FAULT = '220024001';
 
-/* A320 FCOM DSC-32-30-20 (l.51662): "AUTO BRK OFF : This memo appears in green if the auto brake is failed." */
+/* The green AUTO BRK OFF memo shows while the auto brake has failed */
 describe('the whole FWC: green AUTO BRK OFF memo', () => {
   it('shows AUTO BRK OFF on the memo column while the BSCU reports the autobrake failed, in cruise', () => {
     const { fwc, bus } = createFwc();
@@ -35,7 +35,7 @@ describe('the whole FWC: green AUTO BRK OFF memo', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-AUTO_FLT (l.71712): "This alert triggers when the reactive windshear function is lost." */
+/* AUTO FLT REAC W/S DET FAULT: the reactive windshear function is lost */
 describe('the whole FWC: AUTO FLT REAC W/S DET FAULT', () => {
   it('shows REAC W/S DET FAULT in cruise when the three IRs fail', () => {
     const { fwc, bus } = createFwc();

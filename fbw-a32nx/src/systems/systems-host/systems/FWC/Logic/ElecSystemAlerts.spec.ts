@@ -35,7 +35,7 @@ const normal: ElecSystemInputs = {
   staticInverterFault: false,
 };
 
-describe('ELEC system alerts (A320 FCOM PRO-ABN-ELEC)', () => {
+describe('ELEC system alerts', () => {
   it('raises nothing in the normal state', () => {
     expect(elecSystemAlertStates(normal)).toEqual({
       batFault: [false, false],
@@ -48,15 +48,15 @@ describe('ELEC system alerts (A320 FCOM PRO-ABN-ELEC)', () => {
     });
   });
 
-  it('BAT 1(2) FAULT follows the BCL abnormal charge detection (l.76146)', () => {
+  it('BAT 1(2) FAULT follows the BCL abnormal charge detection', () => {
     expect(elecSystemAlertStates({ ...normal, bclBatteryFault: [false, true] }).batFault).toEqual([false, true]);
   });
 
-  it('BCL 1(2) FAULT follows the BCL failure (l.76225)', () => {
+  it('BCL 1(2) FAULT follows the BCL failure', () => {
     expect(elecSystemAlertStates({ ...normal, bclFault: [true, false] }).bclFault).toEqual([true, false]);
   });
 
-  it('IDG 1(2) OIL LO PR follows the GCU low pressure signal of a connected IDG (l.78157)', () => {
+  it('IDG 1(2) OIL LO PR follows the GCU low pressure signal of a connected IDG', () => {
     expect(elecSystemAlertStates({ ...normal, idgOilLowPressure: [true, false] }).idgOilLowPressure).toEqual([
       true,
       false,
@@ -67,7 +67,7 @@ describe('ELEC system alerts (A320 FCOM PRO-ABN-ELEC)', () => {
     ).toEqual([false, false]);
   });
 
-  it('IDG 1(2) OIL OVHT triggers above 180 °C on a connected IDG (l.78158-78159)', () => {
+  it('IDG 1(2) OIL OVHT triggers above 180 °C on a connected IDG', () => {
     expect(elecSystemAlertStates({ ...normal, idgOilOutletTemperature: [180, 181] }).idgOilOverheat).toEqual([
       false,
       true,
@@ -78,7 +78,7 @@ describe('ELEC system alerts (A320 FCOM PRO-ABN-ELEC)', () => {
     ).toEqual([false, false]);
   });
 
-  it('GEN 1(2) OVERLOAD triggers when a supplying generator is above 100 % (l.77974)', () => {
+  it('GEN 1(2) OVERLOAD triggers when a supplying generator is above 100 %', () => {
     expect(elecSystemAlertStates({ ...normal, engineGeneratorLoadNormal: [true, false] }).genOverload).toEqual([
       false,
       true,
@@ -100,7 +100,7 @@ describe('ELEC system alerts (A320 FCOM PRO-ABN-ELEC)', () => {
     ).toBe(true);
   });
 
-  it('STATIC INV FAULT follows the inverter fault output (l.78211)', () => {
+  it('STATIC INV FAULT follows the inverter fault output', () => {
     expect(elecSystemAlertStates({ ...normal, staticInverterFault: true }).staticInverterFault).toBe(true);
   });
 
@@ -112,7 +112,7 @@ describe('ELEC system alerts (A320 FCOM PRO-ABN-ELEC)', () => {
     expect(monitor.idgOilOverheat[0].get()).toBe(false);
   });
 
-  it('is inhibited in the flight phases of the FCOM figures (2019 PDF pages 4649, 4651, 4745, 4756, 4759)', () => {
+  it('is inhibited in the aircraft flight phases', () => {
     expect(BAT_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
     expect(BCL_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
     expect(GEN_OVERLOAD_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
@@ -122,27 +122,27 @@ describe('ELEC system alerts (A320 FCOM PRO-ABN-ELEC)', () => {
 });
 
 describe('ELEC system alert procedures and STATUS', () => {
-  it('IDG OIL LO PR/OVHT: IDG (AFFECTED) OFF (l.78165)', () => {
+  it('IDG OIL LO PR/OVHT: IDG (AFFECTED) OFF', () => {
     expect(idgOilLines()).toEqual([0, 1]);
   });
 
-  it('GEN OVERLOAD: GALY/CAB OFF until done (l.77980)', () => {
+  it('GEN OVERLOAD: GALY/CAB OFF until done', () => {
     expect(genOverloadLines(false)).toEqual([0, 1]);
     expect(genOverloadLines(true)).toEqual([0, null]);
   });
 
-  it('BAT and BCL FAULT: APU BAT START NOT AVAIL, INOP SYS BAT 1(2) / BCL 1(2) (l.76175, l.76252)', () => {
+  it('BAT and BCL FAULT: APU BAT START NOT AVAIL, INOP SYS BAT 1(2) / BCL 1(2)', () => {
     expect(batFaultStatus(1)).toEqual({ left: ['240200201'], inopSys: ['240300201'] });
     expect(batFaultStatus(2)).toEqual({ left: ['240200201'], inopSys: ['240300202'] });
     expect(bclFaultStatus(1)).toEqual({ left: ['240200201'], inopSys: ['240300203'] });
     expect(bclFaultStatus(2)).toEqual({ left: ['240200201'], inopSys: ['240300204'] });
   });
 
-  it('GEN OVERLOAD: INOP SYS GALY/CAB (l.77988)', () => {
+  it('GEN OVERLOAD: INOP SYS GALY/CAB', () => {
     expect(genOverloadStatus()).toEqual({ left: [], inopSys: ['240300205'] });
   });
 
-  it('IDG OIL: CAT 3 SINGLE ONLY; MAIN GALLEY only without the APU GEN, GEN 1(2), CAT 3 DUAL (l.78185-78199)', () => {
+  it('IDG OIL: CAT 3 SINGLE ONLY; MAIN GALLEY only without the APU GEN, GEN 1(2), CAT 3 DUAL', () => {
     expect(idgOilStatus(1, false)).toEqual({ left: ['220200001'], inopSys: ['240300001', '240300002', '220300001'] });
     expect(idgOilStatus(2, true)).toEqual({ left: ['220200001'], inopSys: ['240300003', '220300001'] });
   });

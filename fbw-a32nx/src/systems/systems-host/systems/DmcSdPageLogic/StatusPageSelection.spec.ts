@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { SdPages } from '../../../shared/src/SdPages';
 import { isShownPageDeselectedByItsPb, isStatusPageClearedByClr } from './StatusPageSelection';
 
-describe('SD STATUS page selection with an overflowing STATUS page (FCOM DSC-31-20 l.46196-46199, DSC-31-30)', () => {
+describe('SD STATUS page selection with an overflowing STATUS page', () => {
   it('CLR removes the STATUS page selected with STS, on its last page only', () => {
     expect(isStatusPageClearedByClr(true, true, false, false)).toBe(true);
     // a next page: the push scrolls the page (FWC), the SD keeps the STATUS page

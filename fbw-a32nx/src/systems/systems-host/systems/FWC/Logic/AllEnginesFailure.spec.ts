@@ -13,7 +13,7 @@ import {
 import { pseudoFwcItem, statusLines } from './FwcAlertSpecHelpers';
 import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
 
-/* A320 FCOM PRO-ABN-ENG ALL ENGINES FAILURE: "APU (BELOW FL 250) ..... START". */
+/* The procedure asks for an APU start below FL 250 only. */
 describe('ALL ENGINES FAILURE: APU START line', () => {
   it('is shown below FL 250 with the APU off, also far above 2 500 ft RA', () => {
     expect(isApuStartLineShown(false, false, 20_000)).toBe(true);
@@ -37,7 +37,7 @@ describe('ALL ENGINES FAILURE: APU START line', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-AIR PACK 1(2) OFF: each pack is checked against its own bleed. */
+/* PACK 1(2) OFF: each pack is checked against its own bleed. */
 describe('PACK 2 OFF bleed availability', () => {
   it('reads the ENG 2 BLEED pb', () => {
     const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
@@ -45,7 +45,7 @@ describe('PACK 2 OFF bleed availability', () => {
   });
 });
 
-/* Air Arabia A320 QRH 18-Aug-21 ABN-19.01A ALL ENG FAIL: OPTIMUM RELIGHT SPEED 270/0.77 for the LEAP-1A neo. */
+/* OPTIMUM RELIGHT SPEED is 270/0.77 for the LEAP-1A neo. */
 describe('ALL ENGINES FAILURE: lines', () => {
   const allShown = {
     emerElecPwrManOnPushed: false,
@@ -83,7 +83,7 @@ describe('ALL ENGINES FAILURE: lines', () => {
     expect(lines).toContain('DIVERSION');
   });
 
-  /* A320 FCOM PRO-ABN-ENG ALL ENGINES FAILURE (a320_fcom.txt l.79144-79146): "FAC 1 ..... OFF THEN ON", no condition. */
+  /* The FAC 1 OFF THEN ON line has no condition. */
   it('always shows -FAC 1 OFF THEN ON, also with FAC 1 healthy', () => {
     const lines = text(
       allEnginesFailureLines({
@@ -103,9 +103,8 @@ describe('ALL ENGINES FAILURE: lines', () => {
   });
 });
 
-/* A320 FCOM PRO-ABN-ENG ENG ALL ENGINES FAILURE STATUS (a320_fcom.txt l.79177-79239). */
 describe('ALL ENGINES FAILURE STATUS', () => {
-  it('shows the FCOM limitations, approach procedure and information, in the FCOM order', () => {
+  it('shows the limitations, approach procedure and information, in the aircraft order', () => {
     expect(statusLines(allEnginesFailureStatus()).left).toEqual([
       'MIN RAT SPEED....140 KT',
       'MAX SPEED.......320/.77',
@@ -125,7 +124,7 @@ describe('ALL ENGINES FAILURE STATUS', () => {
     ]);
   });
 
-  it('shows the FCOM INOP SYS list', () => {
+  it('shows the INOP SYS list', () => {
     expect(statusLines(allEnginesFailureStatus()).right).toEqual([
       'INOP SYS',
       'G+Y HYD',

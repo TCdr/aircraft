@@ -60,15 +60,15 @@ const vhfVoice = {
   hf: DatalinkStatusCode.NotInstalled,
 };
 
-/* A320 FCOM PRO-ABN-DATALINK (a320_fcom.txt l.74467-74531) and DSC-46-10-40-60 (l.59467-59468) */
-describe('DATALINK alerts and COMPANY DATALINK STBY memo (FCOM gap batch T2-37)', () => {
-  it('DATALINK ATSU FAULT triggers on the failed ATSU initialization of a supplied ATSU (l.74477-74478)', () => {
+/* The DATALINK alerts and the COMPANY DATALINK STBY memo */
+describe('DATALINK alerts and COMPANY DATALINK STBY memo', () => {
+  it('DATALINK ATSU FAULT triggers on the failed ATSU initialization of a supplied ATSU', () => {
     expect(datalinkAtsuFaultAlert(working)).toBe(false);
     expect(datalinkAtsuFaultAlert({ ...working, atsuFailed: true })).toBe(true);
     expect(datalinkAtsuFaultAlert({ ...working, atsuFailed: true, atsuSupplied: false })).toBe(false);
   });
 
-  it('DATALINK COMPANY FAULT triggers on the failed AOC function of a working ATSU (l.74517)', () => {
+  it('DATALINK COMPANY FAULT triggers on the failed AOC function of a working ATSU', () => {
     expect(datalinkCompanyFaultAlert(working)).toBe(false);
     expect(datalinkCompanyFaultAlert({ ...working, aocFailed: true })).toBe(true);
     // ATSU FAULT already lists DATA COMPANY in its STATUS
@@ -76,7 +76,7 @@ describe('DATALINK alerts and COMPANY DATALINK STBY memo (FCOM gap batch T2-37)'
     expect(datalinkCompanyFaultAlert({ ...working, aocFailed: true, atsuSupplied: false })).toBe(false);
   });
 
-  it('COMPANY DATALINK STBY: AOC air-ground communication temporarily unavailable, but not lost (l.59467-59468)', () => {
+  it('COMPANY DATALINK STBY: AOC air-ground communication temporarily unavailable, but not lost', () => {
     expect(airGroundLinkAvailable(vhfData)).toBe(true);
     expect(airGroundLinkAvailable(vhfVoice)).toBe(false);
     expect(airGroundLinkAvailable({ ...vhfVoice, vhf: DatalinkStatusCode.Inop })).toBe(false);
@@ -119,7 +119,7 @@ describe('DATALINK alerts and COMPANY DATALINK STBY memo (FCOM gap batch T2-37)'
     expect([atsuFault.get(), companyFault.get(), alerts.companyDatalinkStby.get()]).toEqual([false, false, false]);
   });
 
-  it('DATALINK ATSU FAULT: level 1, ATSU INIT FAULT, STATUS INOP SYS ATSU and DATA COMPANY (FCOM PDF page 2135)', () => {
+  it('DATALINK ATSU FAULT: level 1, ATSU INIT FAULT, STATUS INOP SYS ATSU and DATA COMPANY', () => {
     const item = new DatalinkAlerts(new TestFailures()).ewdFailures[DATALINK_ATSU_FAULT_KEY];
     expect(item.failure).toBe(1);
     expect(item.sysPage).toBe(-1); // SdPages.NONE
@@ -133,7 +133,7 @@ describe('DATALINK alerts and COMPANY DATALINK STBY memo (FCOM gap batch T2-37)'
     expect(right).toEqual(['INOP SYS', 'ATSU', 'DATA COMPANY']);
   });
 
-  it('DATALINK COMPANY FAULT: level 1, STATUS INOP SYS DATA COMPANY (FCOM PDF page 2136)', () => {
+  it('DATALINK COMPANY FAULT: level 1, STATUS INOP SYS DATA COMPANY', () => {
     const item = new DatalinkAlerts(new TestFailures()).ewdFailures[DATALINK_COMPANY_FAULT_KEY];
     expect(item.failure).toBe(1);
     expect(item.sysPage).toBe(-1);

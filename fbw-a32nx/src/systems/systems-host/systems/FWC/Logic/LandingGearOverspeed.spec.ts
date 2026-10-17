@@ -12,7 +12,7 @@ const gearUpAndLocked: VleGearPositionInputs = {
   gearDoorNotClosed: false,
 };
 
-/* A320 FCOM PRO-ABN-OVERSPEED: OVER SPEED VLE "with L/G not uplocked or L/G doors not closed" */
+/* OVER SPEED VLE: above VLE with the L/G not uplocked or the L/G doors not closed */
 describe('OVER SPEED VLE gear condition', () => {
   it('is false with the gear locked up and the doors closed', () => {
     expect(isGearNotUplockedForVle(gearUpAndLocked)).toBe(false);
@@ -26,7 +26,7 @@ describe('OVER SPEED VLE gear condition', () => {
     expect(isGearNotUplockedForVle({ ...gearUpAndLocked, gearDoorNotClosed: true })).toBe(true);
   });
 
-  // 2026-10-11 sim test: DC EMER CONFIG (DC 1 + DC 2 + DC ESS) at FL180, 290 kt, gear up: red OVER SPEED -VLE
+  // Seen in the sim: DC EMER CONFIG (DC 1 + DC 2 + DC ESS) at FL180, 290 kt, gear up gave a false red OVER SPEED -VLE
   it('is false with both LGCIUs lost (no uplock position: the FWC cannot see the gear not uplocked)', () => {
     expect(
       isGearNotUplockedForVle({ gearLockedUp: false, uplockPositionAvailable: false, gearDoorNotClosed: false }),

@@ -4,9 +4,8 @@
 import { SdPages } from '../../../shared/src/SdPages';
 
 /**
- * Whether a CLR push removes the STATUS page selected with the STS pb (A320 FCOM DSC-31-30 l.46772-46773), once no
- * alert is shown on the E/WD. A push that shows the next page of an overflowing STATUS page does not remove it
- * (DSC-31-20 l.46196-46199): the FWC scrolls the page instead.
+ * Whether a CLR push removes the STATUS page selected with the STS pb, once no alert is shown on the E/WD. A push that
+ * shows the next page of an overflowing STATUS page does not remove it: the FWC scrolls the page instead.
  * @param clearPush a CLR push (one update)
  * @param statusSelected whether the STATUS page is shown because the STS pb selected it
  * @param ewdAlertShown whether an alert is shown on the E/WD (the push is for the E/WD)
@@ -24,8 +23,7 @@ export function isStatusPageClearedByClr(
 
 /**
  * Whether a push of the pb of the page the SD shows deselects it (back to the flight phase page). The STS pb pushed
- * again does (DSC-31-30 l.46772-46773), except with one ECAM display: the push shows the next STATUS page then
- * (l.46775-46779), the FWC pages it.
+ * again does, except with one ECAM display: the push then shows the next STATUS page, the FWC pages it.
  * @param pushedPage the page of the pushed pb, the page the SD shows
  * @param singleDisplay whether only one ECAM display is on (L:A32NX_ECAM_SINGLE_DISPLAY)
  */

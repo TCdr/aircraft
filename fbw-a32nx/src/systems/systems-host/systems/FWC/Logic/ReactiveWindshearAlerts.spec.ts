@@ -21,8 +21,8 @@ const healthy: ReactiveWindshearAlertInputs = {
   adrTripleFaultAlert: false,
 };
 
-/* A320 FCOM PRO-ABN-AUTO_FLT AUTO FLT REAC W/S DET FAULT (l.71701-71739): "This alert triggers when the reactive
-   windshear function is lost"; crew awareness; STATUS INOP SYS REAC W/S DET. */
+/* AUTO FLT REAC W/S DET FAULT: triggers when the reactive windshear function is lost; crew awareness; STATUS INOP SYS
+   REAC W/S DET. */
 describe('AUTO FLT REAC W/S DET FAULT', () => {
   it('nothing with the FACs and the ADIRS healthy', () => {
     expect(reactiveWindshearFunctionLost(healthy)).toBe(false);
@@ -65,7 +65,7 @@ describe('AUTO FLT REAC W/S DET FAULT', () => {
     expect(statusLines(reacWsDetFaultStatus())).toEqual({ left: [], right: ['INOP SYS', 'REAC W/S DET'] });
   });
 
-  it('is inhibited in flight phases 3, 4, 5 and 8 (FCOM PDF page 4421)', () => {
+  it('is inhibited in flight phases 3, 4, 5 and 8', () => {
     expect(REAC_WS_DET_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 8]);
   });
 

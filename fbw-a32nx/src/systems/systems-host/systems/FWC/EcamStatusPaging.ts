@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * With one ECAM display, the STS pb pushed again within this time after its release shows the next STATUS page (A320
- * FCOM DSC-31-30 STS pb, a320_fcom.txt l.46775-46779: "by releasing the pushbutton and pushing it again (before 2 s
- * have elapsed)").
+ * With one ECAM display, the STS pb released and pushed again within this time shows the next STATUS page.
  */
-export const STATUS_NEXT_PAGE_PUSH_SECONDS = 2;
+const STATUS_NEXT_PAGE_PUSH_SECONDS = 2;
 
 export interface EcamStatusPagingInputs {
   /** How many pages the STATUS page has (statusPageCount), 1 at least */
@@ -42,15 +40,14 @@ export interface EcamStatusPagingOutputs {
 }
 
 /**
- * The page of the STATUS page that the SD shows (A320 FCOM):
- * - DSC-31-20 l.46196-46199: an arrow shows that the page overflows; the CLR pb scrolls the display to view the
- *   overflow. A CLR push that clears an E/WD alert is for the E/WD (DSC-31-15 l.45899-45902); on the last page, CLR
- *   removes the STATUS page (DSC-31-30 l.46772-46773, EcamStatus and DmcSdPageLogic).
- * - DSC-31-30 l.46775-46779, one ECAM display: the STS pb shows the STATUS page while held; released and pushed again
- *   within 2 s, it shows the next page, if any (design choice: no wrap to the first page, as "if any" reads); a push
- *   after 2 s shows the first page.
- * - Design choice: with two ECAM displays, an STS push shows the first page (or removes the page, l.46772-46773); the
- *   page also starts from the first one each time the SD shows the STATUS page again.
+ * The page of the STATUS page that the SD shows:
+ * - An arrow shows that the page overflows; the CLR pb scrolls the display to view the overflow. A CLR push that
+ *   clears an E/WD alert is for the E/WD; on the last page, CLR removes the STATUS page (EcamStatus and
+ *   DmcSdPageLogic).
+ * - One ECAM display: the STS pb shows the STATUS page while held; released and pushed again within 2 s, it shows
+ *   the next page, if any (design choice: no wrap to the first page); a push after 2 s shows the first page.
+ * - Design choice: with two ECAM displays, an STS push shows the first page (or removes the page); the page also
+ *   starts from the first one each time the SD shows the STATUS page again.
  */
 export class EcamStatusPaging {
   private pageIndex = 0;
@@ -83,7 +80,6 @@ export class EcamStatusPaging {
     }
     this.ewdAlertDisplayedBefore = inputs.ewdAlertDisplayed;
 
-    // An STS push
     const statusPush = inputs.statusPushed && !this.previousStatusPushed;
     this.previousStatusPushed = inputs.statusPushed;
     if (statusPush) {

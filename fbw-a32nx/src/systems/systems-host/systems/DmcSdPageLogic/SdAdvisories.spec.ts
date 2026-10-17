@@ -45,7 +45,7 @@ function engineInputs(engine1: Partial<EngineAdvisoryInputs>): SdAdvisoryInputs[
   return [{ ...normalEngine, ...engine1 }, normalEngine];
 }
 
-describe('ECAM advisories (A320 FCOM DSC-31-20 l.46122-46126, PRO-ABN-ABN-ADV)', () => {
+describe('ECAM advisories', () => {
   it('no parameter out of its normal range: no advisory page', () => {
     expect(new SdAdvisoryMonitor().update(normalInputs(), 0.02)).toBe(SdPages.NONE);
   });
@@ -144,7 +144,7 @@ describe('ECAM advisories (A320 FCOM DSC-31-20 l.46122-46126, PRO-ABN-ABN-ADV)',
     expect(monitor.update(normalInputs({ apuFlapNotClosed: true, apuMasterOn: true }), 0.02)).toBe(SdPages.NONE);
   });
 
-  it('several advisories: the page shown stays while its advisory lasts, else the FCOM list order', () => {
+  it('several advisories: the page shown stays while its advisory lasts, else the advisory list order', () => {
     const monitor = new SdAdvisoryMonitor();
     expect(monitor.update(normalInputs({ engines: engineInputs({ oilQuantityQt: 3 }) }), 0.02)).toBe(SdPages.ENG);
     // an ELEC advisory comes in: the ENG page stays
@@ -156,7 +156,7 @@ describe('ECAM advisories (A320 FCOM DSC-31-20 l.46122-46126, PRO-ABN-ABN-ADV)',
     ).toBe(SdPages.ENG);
     // the ENG advisory is over: the ELEC page
     expect(monitor.update(normalInputs({ idgOilTemperaturesCelsius: [150, 80] }), 0.02)).toBe(SdPages.ELEC);
-    // both new at once: APU first, as in the FCOM list
+    // both new at once: APU first, the order of the advisory list
     expect(
       new SdAdvisoryMonitor().update(normalInputs({ apuEgtCelsius: 650, idgOilTemperaturesCelsius: [150, 80] }), 0.02),
     ).toBe(SdPages.APU);

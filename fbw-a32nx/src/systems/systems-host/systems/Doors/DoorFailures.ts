@@ -43,11 +43,10 @@ const CDLS_FAULT_VAR = 'L:A32NX_CDLS_FAULT';
  * Publishes the ATA 52 door failures of the A32NX for the model behaviours and the instruments:
  * - Door proximity sensors: L:A32NX_DOOR_{door}_PROX_SENSOR_FAULT, read by the DOOR cautions (FWC/Logic/DoorAlerts.ts)
  *   and the SD DOOR/OXY page through @shared/DoorProximitySensors: a failed sensor no longer detects its door closed
- *   (FCOM PRO-ABN-DOOR, a320_fcom.txt l.74659-74660 "not detected closed by the proximity sensors").
- * - Cockpit door locking system (CDLS), FCOM DSC-52-40-20 (l.61662-61663, 61673-61675, 61682-61684): the strike
- *   (upper, mid, lower latch) and pressure sensor (CHAN 1, 2) status lights of the CKPT DOOR CONT overhead panel, each
- *   "On: The corresponding ... is faulty"; the pedestal COCKPIT DOOR FAULT light "comes on when a system failure has
- *   been identified (Example : Latch, pressure sensors, control unit)" (L:A32NX_CDLS_FAULT).
+ *   (the door is not detected closed by the proximity sensors).
+ * - Cockpit door locking system (CDLS): the strike (upper, mid, lower latch) and pressure sensor (CHAN 1, 2) status
+ *   lights of the CKPT DOOR CONT overhead panel, each on when its part is faulty; the pedestal COCKPIT DOOR FAULT light
+ *   comes on when a system failure is identified (latch, pressure sensors, control unit) (L:A32NX_CDLS_FAULT).
  * Design choice: the failures only light the indications; the door itself has no latch or decompression model in the
  * sim (the pedestal COCKPIT DOOR switch opens and closes it, L:A32NX_COCKPIT_DOOR_LOCKED).
  */

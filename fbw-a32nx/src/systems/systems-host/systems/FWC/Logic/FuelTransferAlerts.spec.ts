@@ -22,8 +22,7 @@ const normal: FuelTransferInputs = {
   rightWingTanksKg: 6200,
 };
 
-/* A320 FCOM PRO-ABN-FUEL FUEL AUTO TRANSFER FAULT (l.85361-85363): "the CTR TK quantity > 250 kg (550 lb) and Left or
-   right wing tanks quantity < 5 000 kg (11 000 lb)". */
+/* More than 250 kg in the centre tank and less than 5 000 kg in the left or right wing tanks. */
 describe('FUEL AUTO TRANSFER FAULT', () => {
   it('triggers with fuel in the centre tank and a wing below 5 000 kg', () => {
     expect(isAutoTransferFault(normal)).toBe(false);
@@ -50,8 +49,7 @@ describe('FUEL AUTO TRANSFER FAULT', () => {
   });
 });
 
-/* FCOM PRO-ABN-FUEL FUEL CTR TK XFR OFF (l.85806-85817): "both CTR TK L XFR pb-sw and CTR TK R XFR pb-sw at OFF when the
-   system is in automatic mode"; "CTR TK L XFR ... ON, CTR TK R XFR ... ON". */
+/* Both CTR TK XFR pb-sw OFF with the system in automatic mode; the lines ask for CTR TK L XFR ON, CTR TK R XFR ON. */
 describe('FUEL CTR TK XFR OFF', () => {
   const off = { ...normal, centreLeftTransferOn: false, centreRightTransferOn: false };
 
@@ -61,7 +59,7 @@ describe('FUEL CTR TK XFR OFF', () => {
     expect(isCentreTankTransferOff({ ...off, centreLeftTransferOn: true })).toBe(false);
   });
 
-  it('asks for both pb-sw ON, shown in phases 2 and 6 only (FCOM PDF page 5284)', () => {
+  it('asks for both pb-sw ON, shown in phases 2 and 6 only', () => {
     const alerts = new FuelTransferAlerts();
     alerts.update(off);
     const item = alerts.ewdFailures[FuelTransferAlertKeys.centreTankTransferOff];

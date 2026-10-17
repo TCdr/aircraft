@@ -47,7 +47,6 @@ function item(alerts: FuelSystemFaultAlerts, key: string) {
   return alerts.ewdFailures[key];
 }
 
-/* A320 FCOM PRO-ABN-FUEL FUEL APU LP VALVE FAULT (a320_fcom.txt l.85264) */
 describe('FUEL APU LP VALVE FAULT', () => {
   it('triggers from the APU LP valve position monitoring, crew awareness', () => {
     const alerts = new FuelSystemFaultAlerts();
@@ -58,7 +57,6 @@ describe('FUEL APU LP VALVE FAULT', () => {
   });
 });
 
-/* FCOM PRO-ABN-FUEL FUEL F. USED/FOB DISAGREE (l.85866-85874) */
 describe('FUEL F. USED/FOB DISAGREE', () => {
   it('keeps the initial FOB from the ground and raises it with fuel added in flight', () => {
     expect(nextInitialFob(null, 10_000, 0, true)).toBe(10_000);
@@ -100,7 +98,6 @@ describe('FUEL F. USED/FOB DISAGREE', () => {
   });
 });
 
-/* FCOM PRO-ABN-FUEL FUEL L (R) OUTER XFR CLOSED (l.86104-86120) and OPEN (l.86142-86156) */
 describe('FUEL L (R) OUTER XFR CLOSED / OPEN', () => {
   it('gives OUTER XFR CLOSED with L (R) OUTER TK UNUSABLE on the E/WD and the STATUS', () => {
     const alerts = new FuelSystemFaultAlerts();
@@ -124,7 +121,6 @@ describe('FUEL L (R) OUTER XFR CLOSED / OPEN', () => {
   });
 });
 
-/* FCOM PRO-ABN-FUEL FUEL L (R) WING TK OVERFLOW, jet pump variant (l.86638-86681) */
 describe('FUEL L (R) WING TK OVERFLOW', () => {
   it('asks for CTR TK XFR OFF first', () => {
     const alerts = new FuelSystemFaultAlerts();
@@ -160,7 +156,6 @@ describe('FUEL L (R) WING TK OVERFLOW', () => {
   });
 });
 
-/* FCOM PRO-ABN-FUEL FUEL LO LVL DET FAULT (l.86696) */
 describe('FUEL LO LVL DET FAULT', () => {
   it('triggers when both low level sensors are failed only', () => {
     const alerts = new FuelSystemFaultAlerts();

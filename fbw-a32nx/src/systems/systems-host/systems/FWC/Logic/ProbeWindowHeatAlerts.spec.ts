@@ -38,7 +38,6 @@ const activeKeys = (inputs: ProbeWindowHeatInputs) => {
   return PROBE_WINDOW_HEAT_ALERTS.filter((alert) => alert.isActive(alerts)).map((alert) => alert.key);
 };
 
-/* A320 FCOM PRO-ABN-A-ICE (a320_fcom.txt l.68344-69240, 2019 PDF pages 1975-1996) */
 describe('ANTI ICE probe and window heat cautions', () => {
   it('raises no caution without a fault', () => {
     expect(activeKeys(NO_PROBE_WINDOW_HEAT_FAULT)).toEqual([]);
@@ -71,7 +70,7 @@ describe('ANTI ICE probe and window heat cautions', () => {
     expect(activeKeys({ ...NO_PROBE_WINDOW_HEAT_FAULT, windowHeatFault: [true, false] })).toEqual(['3001274']);
   });
 
-  it('the flight phase inhibition of the FCOM figures: 4, 5, 8 for the pitot pairs, 3, 4, 5, 7, 8 for the others', () => {
+  it('the flight phase inhibitions: 4, 5, 8 for the pitot pairs, 3, 4, 5, 7, 8 for the others', () => {
     PROBE_WINDOW_HEAT_ALERTS.forEach((alert) => {
       const pitotPair = ['3001201', '3001202', '3001203', '3001204'].includes(alert.key);
       expect(alert.phaseInhibition).toEqual(pitotPair ? [4, 5, 8] : [3, 4, 5, 7, 8]);
@@ -80,7 +79,7 @@ describe('ANTI ICE probe and window heat cautions', () => {
 });
 
 describe('ANTI ICE CAPT(F/O) probe lines', () => {
-  it('AIR DATA SWTG CAPT 3 until the selector is at CAPT 3 (PDF page 1984)', () => {
+  it('AIR DATA SWTG CAPT 3 until the selector is at CAPT 3', () => {
     const captPitot = PROBE_WINDOW_HEAT_ALERTS.find((alert) => alert.key === '3001221')!;
     expect(captPitot.lines(withComputers([{ pitot: true }]))).toEqual([0, 1]);
     expect(captPitot.lines(withComputers([{ pitot: true }], { airDataSwitching: 0 }))).toEqual([0]);
@@ -96,7 +95,7 @@ describe('ANTI ICE pitot pair and ALL PITOT lines', () => {
     expect(adrToSwitchOff(withComputers([{ pitot: true, aoa: true }, { pitot: true }]), [1, 2])).toBe(1);
   });
 
-  it('CAPT + F/O PITOT: ADR 2 OFF with ADR 3 on (l.68533), IF ICING EXPECTED lines with ADR 3 off', () => {
+  it('CAPT + F/O PITOT: ADR 2 OFF with ADR 3 on, IF ICING EXPECTED lines with ADR 3 off', () => {
     const inputs = withComputers([{ pitot: true }, { pitot: true }]);
     expect(pitotPairLines(inputs, [1, 2], 3)).toEqual([PITOT_LINE.title, PITOT_LINE.adr2Off]);
     // Done: the line goes
@@ -115,7 +114,7 @@ describe('ANTI ICE pitot pair and ALL PITOT lines', () => {
     expect(pitotStatus(inputs, [1, 2])).toEqual({ info: [], inopSys: ['300300010', '300300011'] });
   });
 
-  it('ALL PITOT: ADR 3 OFF, then IF ICING EXPECTED ADR 2 OFF and UNREL SPD PROC (PDF page 1976)', () => {
+  it('ALL PITOT: ADR 3 OFF, then IF ICING EXPECTED ADR 2 OFF and UNREL SPD PROC', () => {
     const inputs = withComputers([{ pitot: true }, { pitot: true }, { pitot: true }]);
     expect(allPitotLines(inputs)).toEqual([
       PITOT_LINE.title,

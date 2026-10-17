@@ -15,16 +15,15 @@ const text = (prefix: string, lines: (number | null)[]) =>
       .map((line) => `${prefix}${(line + 1).toString().padStart(2, '0')}`),
   ).join(' | ');
 
-/* A320 FCOM PRO-ABN-APU APU AUTO (EMER) SHUT DOWN, a320_fcom.txt l.71082-71114 */
 describe('APU AUTO (EMER) SHUT DOWN', () => {
-  it('AUTO SHUT DOWN for an automatic shutdown other than a fire (l.71092-71093)', () => {
+  it('AUTO SHUT DOWN for an automatic shutdown other than a fire', () => {
     expect(apuShutdownAlerts({ autoShutdown: true, emergencyShutdown: false, apuFireWarning: false })).toEqual({
       autoShutdown: true,
       emergencyShutdown: false,
     });
   });
 
-  it('EMER SHUT DOWN with the APU FIRE pb pushed or an APU fire on ground (l.71094-71100)', () => {
+  it('EMER SHUT DOWN with the APU FIRE pb pushed or an APU fire on ground', () => {
     expect(apuShutdownAlerts({ autoShutdown: false, emergencyShutdown: true, apuFireWarning: false })).toEqual({
       autoShutdown: false,
       emergencyShutdown: true,
@@ -38,14 +37,14 @@ describe('APU AUTO (EMER) SHUT DOWN', () => {
     });
   });
 
-  it('MASTER SW OFF until done (l.71106)', () => {
+  it('MASTER SW OFF until done', () => {
     expect(text('4900101', apuShutdownLines(true))).toBe(
       '\x1b<4m\x1b4mAPU\x1bm AUTO SHUT DOWN | \x1b<5m -MASTER SW..........OFF',
     );
     expect(text('4900102', apuShutdownLines(false))).toBe('\x1b<4m\x1b4mAPU\x1bm EMER SHUT DOWN');
   });
 
-  it('STATUS INOP SYS APU (l.71110-71114)', () => {
+  it('STATUS INOP SYS APU', () => {
     expect(formatStatusPage([], APU_SHUTDOWN_INOP_SYS).right).toBe('\x1b<7m\x1b4mINOP SYS\x1bm\r\x1b<4mAPU');
   });
 

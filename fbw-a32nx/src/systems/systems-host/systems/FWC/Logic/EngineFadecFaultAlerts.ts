@@ -6,68 +6,62 @@ import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A320Failure } from '@failures';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { StatusLines } from './CondStatus';
-import { FwcAlertItem, NO_STATUS, alertCodes, cautionItem } from './FwcAlertItem';
+import { FwcAlertItem, awarenessItem, cautionItem } from './FwcAlertItem';
 
 /*
- * FADEC fault alerts of the A320 FWC (A320 FCOM PRO-ABN-ENG, a320_fcom.txt) that the FCOM gap audit found missing. The
- * FADEC reports the faults; their flyPad failures (systems engine/engine_monitoring_fault.rs) have no effect on the
- * engine model, except REV INHIBITED (the reverser does not deploy, a320_systems lib.rs):
- * - ENG 1(2) FUEL CTL FAULT (l.80112-80165): "The Fuel Metering Valve (FMV) position is failed, or The FMV command is
- *   failed, or The FMV position feedback is failed" (l.80122-80126).
- * - ENG 1(2) FUEL RETURN VALVE (l.80197-80232): "the fuel return valve is failed in closed, or in open position"
- *   (l.80207); VALVE NOT OPEN / VALVE NOT CLOSED, crew awareness (l.80213-80221).
- * - ENG 1(2) CTL VALVE FAULT (l.79445-79486): BSV, HPTC or RACC failed (l.79455-79459); "MAX N2 ... 96 %" (l.79464),
- *   STATUS "MAX ENG (AFFECTED) N2 ... 96 %" (l.79485).
- * - ENG 1(2) COMPRESSOR VANE (l.79396-79444): "either Variable Bleed Valve (VBV) or Variable Stator Vane (VSV) is
- *   failed" (l.79406-79407).
- * - ENG 1+2 COMPRESSOR VANE (l.79366-79395): "loss of the redundancy (i.e. one channel is detected faulty) of the
- *   compressor vane (i.e. VBV, VSV) control system on both engines" (l.79376-79378), crew awareness (l.79384).
- * - ENG 1(2) BLEED STATUS FAULT, in flight (l.79241-79297) and on ground (l.79298-79365): "the status of one of the
- *   following valves is not received by the FADEC active channel" (l.79252); STATUS ENG 1(2) HI GND IDLE (l.79286,
- *   l.79354).
- * - ENG 1(2) REV INHIBITED (l.80690-80726): "the reverser is inhibited by maintenance action" (l.80700), crew
- *   awareness (l.80707), STATUS INOP SYS REVERSER 1(2) (l.80711-80715).
- * - ENG 1(2) REV ISOL FAULT (l.80727-80754): "the thrust reverser shut off valve is failed in open position"
- *   (l.80737), crew awareness (l.80743).
- * - ENG VIB SYS FAULT (l.82015-82029): "the vibration detection system is failed" (l.82025), crew awareness. Its
+ * FADEC fault alerts of the A320 FWC. The FADEC reports the faults; their flyPad failures (systems
+ * engine/engine_monitoring_fault.rs) have no effect on the engine model, except REV INHIBITED (the reverser does not
+ * deploy, a320_systems lib.rs):
+ * - ENG 1(2) FUEL CTL FAULT: the fuel metering valve (FMV) position, its command or its position feedback is failed.
+ * - ENG 1(2) FUEL RETURN VALVE: the fuel return valve is failed closed or open; VALVE NOT OPEN / VALVE NOT CLOSED, crew
+ *   awareness.
+ * - ENG 1(2) CTL VALVE FAULT: BSV, HPTC or RACC failed; MAX N2 ... 96 %, STATUS MAX ENG (AFFECTED) N2 ... 96 %.
+ * - ENG 1(2) COMPRESSOR VANE: the variable bleed valve (VBV) or variable stator vane (VSV) is failed.
+ * - ENG 1+2 COMPRESSOR VANE: one channel of the compressor vane (VBV, VSV) control is faulty on both engines (loss of
+ *   redundancy), crew awareness.
+ * - ENG 1(2) BLEED STATUS FAULT, in flight and on ground: the FADEC active channel does not receive the status of one
+ *   of its valves; STATUS ENG 1(2) HI GND IDLE.
+ * - ENG 1(2) REV INHIBITED: the reverser is inhibited by a maintenance action, crew awareness, STATUS INOP SYS
+ *   REVERSER 1(2).
+ * - ENG 1(2) REV ISOL FAULT: the thrust reverser shut off valve is failed open, crew awareness.
+ * - ENG VIB SYS FAULT: the vibration detection system is failed, crew awareness. Its
  *   failure is the TS only flyPad failure "Engine vibration monitoring unit (EVMU)" (77010).
  *
- * Alert level (FCOM DSC-31 l.45551-45556): "Level 1 ... Amber caution : Requires crew monitoring: Failures leading to a
- * loss of redundancy or system degradation", "Caution message (amber) on E/WD generally without procedure", no aural,
- * no SD page call. The crew awareness alerts without procedure are level 1; the alerts with a procedure (FUEL CTL FAULT,
- * CTL VALVE FAULT, COMPRESSOR VANE, BLEED STATUS FAULT) are level 2 cautions with the ENGINE SD page, as the other ENG
- * cautions.
+ * Alert levels: level 1 is an amber caution for crew monitoring (loss of redundancy or system degradation), generally
+ * without procedure, no aural, no SD page call. The crew awareness alerts without procedure are level 1; the alerts with
+ * a procedure (FUEL CTL FAULT, CTL VALVE FAULT, COMPRESSOR VANE, BLEED STATUS FAULT) are level 2 cautions with the
+ * ENGINE SD page, as the other ENG cautions.
  *
  * Design choices:
- * - FUEL CTL FAULT and COMPRESSOR VANE: "Depending on the type of failure, one of the above two messages is displayed"
- *   (l.80142, l.79417): AVOID RAPID THR CHANGES or ENG (AFFECTED) SLOW RESPONSE. The engine model keeps its normal
- *   response with these failures, so the message is AVOID RAPID THR CHANGES (STATUS the same, l.79441, l.80162).
- * - The FCOM conditions ("On ground:", "If ENG ANTI ICE on:", "BEFORE T.O.:") are evaluated by the FWC and not shown,
- *   as for ENG 1(2) SENSOR FAULT (Logic/EngineMonitoringAlerts). BEFORE T.O. is the flight phases 1 and 2 (the alert is
- *   inhibited from phase 3).
- * - BLEED STATUS FAULT HI GND IDLE ("FADEC increases minimum idle as if valves were opened", l.79336-79337): the line
+ * - FUEL CTL FAULT and COMPRESSOR VANE show, depending on the type of failure, AVOID RAPID THR CHANGES or ENG
+ *   (AFFECTED) SLOW RESPONSE. The engine model keeps its normal response with these failures, so the message is AVOID
+ *   RAPID THR CHANGES (STATUS the same).
+ * - The procedure conditions ("On ground:", "If ENG ANTI ICE on:", "BEFORE T.O.:") are evaluated by the FWC and not
+ *   shown, as for ENG 1(2) SENSOR FAULT (Logic/EngineMonitoringAlerts). BEFORE T.O. is the flight phases 1 and 2 (the
+ *   alert is inhibited from phase 3).
+ * - BLEED STATUS FAULT HI GND IDLE (the FADEC raises the minimum idle as if the valves were open): the line
  *   and the STATUS information are shown, the idle of the engine model does not change.
  */
 
-/** The flight phase inhibitions, from the figures of the 2019 FCOM PDF (page given at each one) */
+/** The flight phase inhibitions */
 export const FADEC_FAULT_PHASE_INHIBITION = {
-  /** ENG 1(2) FUEL CTL FAULT, page 2271 */
+  /** ENG 1(2) FUEL CTL FAULT */
   fuelCtlFault: [4, 5, 7, 8],
-  /** ENG 1(2) FUEL RETURN VALVE, page 2273 */
+  /** ENG 1(2) FUEL RETURN VALVE */
   fuelReturnValve: [3, 4, 5, 7, 8],
-  /** ENG 1(2) CTL VALVE FAULT, page 2253 */
+  /** ENG 1(2) CTL VALVE FAULT */
   ctlValveFault: [4, 5, 7, 8],
-  /** ENG 1(2) COMPRESSOR VANE, page 2252 */
+  /** ENG 1(2) COMPRESSOR VANE */
   compressorVane: [4, 5, 7, 8],
-  /** ENG 1+2 COMPRESSOR VANE, page 2251 */
+  /** ENG 1+2 COMPRESSOR VANE */
   bothCompressorVanes: [3, 4, 5, 7, 8],
-  /** ENG 1(2) BLEED STATUS FAULT, page 2247 (in flight) and page 2249 (on ground) */
+  /** ENG 1(2) BLEED STATUS FAULT, the same in flight and on ground */
   bleedStatusFault: [3, 4, 5, 7, 8],
-  /** ENG 1(2) REV INHIBITED, page 2287 */
+  /** ENG 1(2) REV INHIBITED */
   revInhibited: [3, 4, 5, 6, 7, 8, 9],
-  /** ENG 1(2) REV ISOL FAULT, page 2288 */
+  /** ENG 1(2) REV ISOL FAULT */
   revIsolFault: [3, 4, 5, 6, 7],
-  /** ENG VIB SYS FAULT, page 2319 */
+  /** ENG VIB SYS FAULT */
   vibSysFault: [3, 4, 5, 6, 7, 8, 9],
 };
 
@@ -166,7 +160,7 @@ export interface EngineFadecFaultInputs {
 }
 
 /**
- * The lines of ENG 1(2) FUEL CTL FAULT (l.80132-80140) and ENG 1(2) COMPRESSOR VANE (l.79413-79421), by index in their
+ * The lines of ENG 1(2) FUEL CTL FAULT and ENG 1(2) COMPRESSOR VANE, by index in their
  * codes: 0 title, 1 -THR LEVER n IDLE, 2 -ENG MASTER n OFF (both "On ground:"), 3 AVOID RAPID THR CHANGES.
  */
 export function throttleIdleFaultLines(onGround: boolean): number[] {
@@ -174,8 +168,8 @@ export function throttleIdleFaultLines(onGround: boolean): number[] {
 }
 
 /**
- * The lines of ENG 1(2) FUEL RETURN VALVE (l.80213-80221): 0 title, 1 VALVE NOT OPEN ("The valve is failed closed"),
- * 2 VALVE NOT CLOSED ("The valve is failed open").
+ * The lines of ENG 1(2) FUEL RETURN VALVE: 0 title, 1 VALVE NOT OPEN (the valve is failed closed), 2 VALVE NOT CLOSED
+ * (the valve is failed open).
  */
 export function fuelReturnValveLines(failedClosed: boolean, failedOpen: boolean): number[] {
   const lines = [0];
@@ -189,9 +183,8 @@ export function fuelReturnValveLines(failedClosed: boolean, failedOpen: boolean)
 }
 
 /**
- * The lines of ENG 1(2) BLEED STATUS FAULT, by index in its codes: 0 title, 1 HI GND IDLE (on ground, l.79336), 2 -ENG
- * MODE SEL IGN ("If ENG ANTI ICE on", in flight and on ground, l.79339-79340), 3 -PACK n OFF ("BEFORE T.O.", on ground,
- * l.79345-79346).
+ * The lines of ENG 1(2) BLEED STATUS FAULT, by index in its codes: 0 title, 1 HI GND IDLE (on ground), 2 -ENG MODE SEL
+ * IGN ("If ENG ANTI ICE on", in flight and on ground), 3 -PACK n OFF ("BEFORE T.O.", on ground).
  * @param onGround the aircraft is on ground
  * @param flightPhase the FWC flight phase
  * @param engineAntiIceOn the ENG ANTI ICE pb of the affected engine is ON
@@ -210,45 +203,22 @@ export function bleedStatusFaultLines(onGround: boolean, flightPhase: number, en
   return lines;
 }
 
-/** ENG 1+2 COMPRESSOR VANE: one channel of the vane control is lost on both engines (l.79376-79378) */
+/** ENG 1+2 COMPRESSOR VANE: one channel of the vane control is lost on both engines */
 export function bothCompressorVanesAlert(faults: [EngineFadecFaults, EngineFadecFaults]): boolean {
   return faults[0].compressorVaneChannel && faults[1].compressorVaneChannel;
 }
 
 /** The STATUS lines of the alerts of one engine (index 0 or 1) */
 export const fadecFaultStatus = {
-  /** FUEL CTL FAULT and COMPRESSOR VANE: AVOID RAPID THR CHANGES (l.80162, l.79441) */
+  /** FUEL CTL FAULT and COMPRESSOR VANE: AVOID RAPID THR CHANGES */
   avoidRapidThrustChanges: (): StatusLines => ({ left: [AVOID_RAPID_THR_CHANGES], inopSys: [] }),
-  /** CTL VALVE FAULT: MAX ENG n N2 96 % (l.79485) */
+  /** CTL VALVE FAULT: MAX ENG n N2 96 % */
   ctlValveFault: (index: number): StatusLines => ({ left: [MAX_ENG_N2_96[index]], inopSys: [] }),
-  /** BLEED STATUS FAULT: ENG n HI GND IDLE (l.79286, l.79354) */
+  /** BLEED STATUS FAULT: ENG n HI GND IDLE */
   bleedStatusFault: (index: number): StatusLines => ({ left: [ENG_HI_GND_IDLE[index]], inopSys: [] }),
-  /** REV INHIBITED: INOP SYS REVERSER n (l.80711-80715) */
+  /** REV INHIBITED: INOP SYS REVERSER n */
   revInhibited: (index: number): StatusLines => ({ left: [], inopSys: [INOP_SYS_REVERSER[index]] }),
 };
-
-/** A level 1 caution (crew awareness without procedure): amber, no aural, no SD page (FCOM l.45551-45556) */
-function awarenessItem(
-  key: string,
-  lineCount: number,
-  active: Subject<boolean>,
-  flightPhaseInhib: number[],
-  lines: () => number[] = () => [0],
-  status: () => StatusLines = NO_STATUS,
-): FwcAlertItem {
-  return {
-    flightPhaseInhib,
-    simVarIsActive: active,
-    whichCodeToReturn: lines,
-    codesToReturn: alertCodes(key, lineCount),
-    memoInhibit: () => false,
-    failure: 1,
-    sysPage: EcamSysPage.NONE,
-    side: 'LEFT',
-    inopSys: () => status().inopSys,
-    statusInfo: () => status().left,
-  };
-}
 
 /** The part of the failures consumer the alerts use */
 export type EngineFadecFaultFailuresSource = Pick<FailuresConsumer, 'register' | 'update' | 'isActive'>;

@@ -21,9 +21,8 @@ interface VhfTransceiver {
  * Applies the ATA 23 radio communication failures (RMP 1/2, VHF 1/2/3) of the A32NX.
  *
  * - RMP 1/2: publishes L:A32NX_RMP_{L,R}_FAILED. The RMP instrument then blanks both frequency displays and stops
- *   reacting to its keys and knobs, the model behaviours switch its green key lights and SEL off (A320 FCOM DSC-23-60
- *   failure cases, a320_fcom.txt:36229-36231). The other RMP can still tune every VHF (FCOM DSC-23-10-20,
- *   a320_fcom.txt:35042 "If one RMP fails, the remaining one controls all the VHF transceivers").
+ *   reacting to its keys and knobs, the model behaviours switch its green key lights and SEL off. The other RMP can
+ *   still tune every VHF: one RMP controls all the VHF transceivers when the other fails.
  *   As with an RMP switched off, a NAV key left on still holds the FMGC navaid tuning (NavaidTuner reads the NAV key
  *   only; that code is shared with the A380X).
  * - VHF 1/2/3: switches the MSFS COM 1/2/3 circuit off, so the radio neither receives nor transmits. Its supply stays

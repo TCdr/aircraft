@@ -47,12 +47,12 @@ function active(inputs: Partial<BrakeSystemAlertInputs>): string[] {
     .map(([name]) => name);
 }
 
-describe('BRAKES and WHEEL cautions of the brake control units (A320 FCOM PRO-ABN-BRAKES, PRO-ABN-WHEEL)', () => {
+describe('BRAKES and WHEEL cautions of the brake control units', () => {
   it('raises nothing with a healthy brake system', () => {
     expect(active({})).toEqual([]);
   });
 
-  it('SYS 1(2) FAULT when one BSCU channel is failed (l.72884)', () => {
+  it('SYS 1(2) FAULT when one BSCU channel is failed', () => {
     expect(active({ bscu1Lost: true })).toEqual(['sys1Fault']);
     expect(active({ bscu2Lost: true })).toEqual(['sys2Fault']);
   });
@@ -61,7 +61,7 @@ describe('BRAKES and WHEEL cautions of the brake control units (A320 FCOM PRO-AB
     expect(active({ bscu1Lost: true, bscu1PowerLost: true })).toEqual([]);
   });
 
-  it('A/SKID N/WS FAULT instead of SYS 1 + SYS 2 when both BSCU channels are failed (l.72327)', () => {
+  it('A/SKID N/WS FAULT instead of SYS 1 + SYS 2 when both BSCU channels are failed', () => {
     expect(active({ bscu1Lost: true, bscu2Lost: true })).toEqual(['antiSkidNwsFault']);
     // one failed, one unpowered: still both channels lost
     expect(active({ bscu1Lost: true, bscu2Lost: true, bscu2PowerLost: true })).toEqual(['antiSkidNwsFault']);
@@ -71,35 +71,35 @@ describe('BRAKES and WHEEL cautions of the brake control units (A320 FCOM PRO-AB
     expect(active({ bscu1Lost: true, bscu2Lost: true, bscu1PowerLost: true, bscu2PowerLost: true })).toEqual([]);
   });
 
-  it('A/SKID N/WS FAULT on a loss of normal braking with Y HYD SYS LO PRESS (l.72326)', () => {
+  it('A/SKID N/WS FAULT on a loss of normal braking with Y HYD SYS LO PRESS', () => {
     expect(active({ normalBrakingFailed: true, yellowLowPressure: true })).toEqual(['antiSkidNwsFault']);
   });
 
-  it('A/SKID N/WS OFF with the switch OFF, the FAULT title when there is also a fault (l.72328)', () => {
+  it('A/SKID N/WS OFF with the switch OFF, the FAULT title when there is also a fault', () => {
     expect(active({ antiSkidSwitchOff: true })).toEqual(['antiSkidNwsOff']);
     expect(active({ antiSkidSwitchOff: true, bscu1Lost: true, bscu2Lost: true })).toEqual(['antiSkidNwsFault']);
   });
 
-  it('NORM BRK FAULT when the normal braking function is lost (l.72686)', () => {
+  it('NORM BRK FAULT when the normal braking function is lost', () => {
     expect(active({ normalBrakingFailed: true })).toEqual(['normBrkFault']);
   });
 
-  it('ALTN BRK FAULT when the alternate braking function is lost (l.72395), not for a DC ESS BUS loss', () => {
+  it('ALTN BRK FAULT when the alternate braking function is lost, not for a DC ESS BUS loss', () => {
     expect(active({ abcuLost: true })).toEqual(['altnBrkFault']);
     expect(active({ abcuLost: true, abcuPowerLost: true })).toEqual([]);
   });
 
-  it('NORM + ALTN FAULT replaces NORM BRK, ALTN BRK and A/SKID N/WS when both functions are lost (l.72640)', () => {
+  it('NORM + ALTN FAULT replaces NORM BRK, ALTN BRK and A/SKID N/WS when both functions are lost', () => {
     expect(active({ normalBrakingFailed: true, abcuLost: true })).toEqual(['normAndAltnFault']);
     expect(active({ bscu1Lost: true, bscu2Lost: true, abcuLost: true })).toEqual(['normAndAltnFault']);
     expect(active({ normalBrakingFailed: true, abcuLost: true, abcuPowerLost: true })).toEqual(['normAndAltnFault']);
-    // The existing A/SKID N/WS OFF TODO: inhibited by NORM + ALTN FAULT
+    // A/SKID N/WS OFF is inhibited by NORM + ALTN FAULT
     expect(active({ normalBrakingFailed: true, abcuLost: true, antiSkidSwitchOff: true })).toEqual([
       'normAndAltnFault',
     ]);
   });
 
-  it('AUTO BRK FAULT when the autobrake failed after being armed (l.72473)', () => {
+  it('AUTO BRK FAULT when the autobrake failed after being armed', () => {
     expect(active({ autobrakeFailedAfterArmed: true })).toEqual(['autoBrkFault']);
   });
 
@@ -108,14 +108,14 @@ describe('BRAKES and WHEEL cautions of the brake control units (A320 FCOM PRO-AB
     expect(active({ autobrakeFailedAfterArmed: true, antiSkidSwitchOff: true })).toEqual(['antiSkidNwsOff']);
   });
 
-  it('WHEEL N/W STRG FAULT when the nose wheel steering system is failed (l.96350)', () => {
+  it('WHEEL N/W STRG FAULT when the nose wheel steering system is failed', () => {
     expect(active({ noseWheelSteeringFailed: true })).toEqual(['nwStrgFault']);
     expect(active({ noseWheelSteeringFailed: true, antiSkidSwitchOff: true })).toEqual(['antiSkidNwsOff']);
   });
 
-  it('WHEEL HYD SEL FAULT when the BSCU reports the brake normal selector valve failed (l.96304-96305)', () => {
+  it('WHEEL HYD SEL FAULT when the BSCU reports the brake normal selector valve failed', () => {
     expect(active({ normalSelectorValveFailed: true })).toEqual(['hydSelFault']);
-    // A/SKID & N/W STRG KEEP ON stays (l.96336), phases of the FCOM PDF figure (page 5834)
+    // A/SKID & N/W STRG KEEP ON stays
     expect(hydSelFaultLines()).toEqual([0, 1]);
     expect(HYD_SEL_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
   });
@@ -126,12 +126,12 @@ describe('BRAKES and WHEEL cautions of the brake control units (A320 FCOM PRO-AB
 const visible = (text: string) => text.replace(/\x1b(<\d+m|4m|m)/g, '').split('\r');
 
 describe('BRAKES and WHEEL STATUS', () => {
-  it('A/SKID N/WS: BRK Y ACCU PR ONLY only with the yellow system in low pressure (l.72358-72360)', () => {
+  it('A/SKID N/WS: BRK Y ACCU PR ONLY only with the yellow system in low pressure', () => {
     expect(visible(formatStatusPage(antiSkidNwsStatus(false).left, []).left)).not.toContain('BRK Y ACCU PR ONLY');
     expect(visible(formatStatusPage(antiSkidNwsStatus(true).left, []).left)).toContain('BRK Y ACCU PR ONLY');
   });
 
-  it('shows the FCOM lines in the FCOM order', () => {
+  it('shows the procedure lines in the aircraft order', () => {
     const page = (status: { left: string[]; inopSys: string[] }) => {
       const texts = formatStatusPage(status.left, status.inopSys);
       return {
@@ -160,7 +160,7 @@ describe('BRAKES and WHEEL STATUS', () => {
 });
 
 describe('BRAKES and WHEEL wiring', () => {
-  it('EWD titles and lines have the FCOM wording', () => {
+  it('EWD titles and lines have the aircraft wording', () => {
     const lines = (codes: string[]) => formatEwdMessages(codes).map((line) => visible(line).join('').trim());
     expect(lines(['320041001', '320041002'])).toEqual(['BRAKES NORM + ALTN FAULT', 'PARK BRK ONLY']);
     expect(lines(['320040001', '320040002'])).toEqual(['BRAKES A/SKID N/WS FAULT', 'MAX BRK PR......1000PSI']);
@@ -214,9 +214,7 @@ describe('BRAKES and WHEEL wiring', () => {
   });
 });
 
-/* A320 FCOM DSC-32-30-20 MEMO DISPLAY (l.51657-51662): "AUTO BRK LO/MED/MAX : This memo appears in green, depending on
-   the selection of the AUTO BRK pb"; "AUTO BRK OFF : This memo appears in green if the auto brake is failed". */
-describe('AUTO BRK memo (A320 FCOM DSC-32-30-20)', () => {
+describe('AUTO BRK memo', () => {
   const memo = (phase: number, mode: number, failed: boolean) => {
     const line = autoBrakeMemoLine(phase, mode, failed);
     return line === null ? null : formatEwdMessages([AUTO_BRK_MEMO_CODES[line]])[0];
@@ -240,7 +238,7 @@ describe('AUTO BRK memo (A320 FCOM DSC-32-30-20)', () => {
     }
   });
 
-  it('gives no amber AUTO BRK OFF memo, aural or MASTER CAUT at an autobrake disarm (not in this FCOM)', () => {
+  it('gives no amber AUTO BRK OFF memo, aural or MASTER CAUT at an autobrake disarm', () => {
     const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
     expect(fwc).not.toContain("'320000001'");
     expect(fwc).not.toContain("enqueueSound('autoBrakeOff')");

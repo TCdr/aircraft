@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * ANTI ICE ENG 1(2) VALVE CLSD and ANTI ICE ENG 1(2) VALVE OPEN (A320 FCOM PRO-ABN-A-ICE, a320_fcom.txt l.68779-68857):
- * "This alert triggers when the valve is abnormally closed" / "... abnormally open". Their flight phase inhibition
- * figures (2019 FCOM PDF pages 1985-1986) inhibit both cautions in phases 3, 4, 5, 7 and 8.
+ * ANTI ICE ENG 1(2) VALVE CLSD and ANTI ICE ENG 1(2) VALVE OPEN: the valve is abnormally closed / open. Both cautions
+ * are inhibited in flight phases 3, 4, 5, 7 and 8.
  *
  * The valve is the engine anti-ice valve of the systems model (systems ice_rain_protection engine_anti_ice.rs): it opens
- * with the ENG ANTI ICE pb-sw ON when the engine supplies air, and without electrical power (FCOM DSC-30-30-10
- * l.44351-44358).
+ * with the ENG ANTI ICE pb-sw ON when the engine supplies air, and without electrical power.
  */
 
 /**
- * Design choice (no FCOM value): the time the valve position must disagree with the pb-sw before the caution, longer
- * than the 2 s the valve takes to transit (the FAULT light "comes on briefly as valve transits", FCOM DSC-30-30-20
- * l.44394).
+ * Design choice (no documented value): the time the valve position must disagree with the pb-sw before the caution,
+ * longer than the 2 s the valve takes to transit (the pb-sw FAULT light comes on briefly while the valve transits).
  */
 export const ENGINE_ANTI_ICE_VALVE_CONFIRM_TIME_SECONDS = 5;
 
@@ -30,8 +27,8 @@ export interface EngineAntiIceValveInputs {
 /**
  * The engine anti-ice valve cautions of one engine.
  *
- * Design choice: VALVE CLSD is only abnormal with the engine running, since the valve "automatically closes, if air is
- * unavailable (engine not running)" (DSC-30-30-10 l.44354): a pb-sw ON before the engine start lights the FAULT light of
+ * Design choice: VALVE CLSD is only abnormal with the engine running, since the valve closes automatically when no air
+ * is available (engine not running): a pb-sw ON before the engine start lights the FAULT light of
  * the pb-sw, not the caution. VALVE OPEN needs no running engine: the valve only opens without engine air when it is
  * jammed open.
  */
@@ -59,7 +56,7 @@ export class EngineAntiIceValveMonitor {
 }
 
 /** The STATUS lines of the engine anti-ice valve cautions (see StatusMessages) */
-export const ENGINE_ANTI_ICE_STATUS_CODES = {
+const ENGINE_ANTI_ICE_STATUS_CODES = {
   /** AVOID ICING CONDITIONS (the line of the ENG SHUT DOWN STATUS) */
   avoidIcing: '700400001',
   thrustLimPenalty: '300400001',
@@ -68,7 +65,7 @@ export const ENGINE_ANTI_ICE_STATUS_CODES = {
 };
 
 /**
- * The STATUS of ANTI ICE ENG n VALVE CLSD (l.68815-68817): AVOID ICING CONDITIONS, INOP SYS ENG n A. ICE
+ * The STATUS of ANTI ICE ENG n VALVE CLSD: AVOID ICING CONDITIONS, INOP SYS ENG n A. ICE
  * @param engine 1 or 2
  */
 export function engineAntiIceValveClosedStatus(engine: 1 | 2): { statusInfo: string[]; inopSys: string[] } {
@@ -78,7 +75,7 @@ export function engineAntiIceValveClosedStatus(engine: 1 | 2): { statusInfo: str
   };
 }
 
-/** The STATUS of ANTI ICE ENG n VALVE OPEN (l.68855): THRUST LIM PENALTY */
+/** The STATUS of ANTI ICE ENG n VALVE OPEN: THRUST LIM PENALTY */
 export function engineAntiIceValveOpenStatus(): { statusInfo: string[]; inopSys: string[] } {
   return { statusInfo: [ENGINE_ANTI_ICE_STATUS_CODES.thrustLimPenalty], inopSys: [] };
 }

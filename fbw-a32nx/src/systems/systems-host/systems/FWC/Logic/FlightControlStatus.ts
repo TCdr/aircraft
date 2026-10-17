@@ -4,12 +4,12 @@
 import { StatusLines } from './CondStatus';
 
 /*
- * The STATUS page content of the A320 F/CTL alerts (FCOM PRO-ABN-F_CTL STATUS figures, a320_fcom.txt line numbers at
- * each function). The FWC collects the codes of all active alerts and shows each code once, in the order of
- * StatusMessages, so the alerts of one failure (e.g. L ELEV FAULT and ALTN LAW) share their common lines.
+ * The STATUS page content of the F/CTL alerts. The FWC collects the codes of all active alerts and shows each code
+ * once, in the order of StatusMessages, so the alerts of one failure (e.g. L ELEV FAULT and ALTN LAW) share their
+ * common lines.
  *
- * Not shown: STEEP APPR, GLS AUTOLAND (options) and "This line is replaced by FOR LDG : USE FLAP 3 when CONF 3 is
- * selected" (a reminder variant).
+ * Not shown: STEEP APPR, GLS AUTOLAND (options) and the FOR LDG : USE FLAP 3 reminder variant shown once CONF 3 is
+ * selected.
  */
 
 /** The F/CTL STATUS codes (StatusMessages): 27 04 limitations, 27 05 conditions, 27 02 information, 27 03 INOP SYS */
@@ -78,7 +78,7 @@ const S = FlightControlStatusCodes;
 const ALTN_LAW_APPROACH = [S.apprProc, S.forLandingUseFlap3, S.gpwsLandingFlap3On, S.apprSpdVref10, S.ldgDistProcApply];
 
 /**
- * F/CTL ALTN LAW STATUS, l.82568-82608: MAX SPEED 320 KT (320/.77 if dual hydraulic system low pressure), SPD BRK (IF L
+ * F/CTL ALTN LAW STATUS: MAX SPEED 320 KT (320/.77 if dual hydraulic system low pressure), SPD BRK (IF L
  * OR R ELEVATOR FAULT) DO NOT USE, APPR PROC (FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD VREF+10, LDG DIST PROC
  * APPLY), "ALTN LAW: PROT LOST", "WHEN L/G DN: DIRECT LAW" (no AP) or "WHEN L/G DN AND AP OFF: DIRECT LAW" (AP
  * engaged); INOP SYS F/CTL PROT.
@@ -98,7 +98,7 @@ export function altnLawStatus(
       ...(leftOrRightElevatorFault ? [S.speedBrakeDoNotUse] : []),
       ...ALTN_LAW_APPROACH,
       S.altnLawProtLost,
-      // the long FCOM line "WHEN L/G DN AND AP OFF: DIRECT LAW" is two lines, the second the DIRECT LAW line
+      // the long line "WHEN L/G DN AND AP OFF: DIRECT LAW" is two lines, the second the DIRECT LAW line
       ...(apEngaged ? [S.whenLgDownAndApOff, S.directLaw] : [S.whenLgDownDirectLaw]),
     ],
     inopSys: [S.fctlProt],
@@ -106,7 +106,7 @@ export function altnLawStatus(
 }
 
 /**
- * F/CTL DIRECT LAW STATUS, l.82687-82703: MAX SPEED 320/.77, MANEUVER WITH CARE, USE SPD BRK WITH CARE, APPR PROC (FOR
+ * F/CTL DIRECT LAW STATUS: MAX SPEED 320/.77, MANEUVER WITH CARE, USE SPD BRK WITH CARE, APPR PROC (FOR
  * LDG USE FLAP 3, GPWS LDG FLAP 3 ON, MAN PITCH TRIM USE, APPR SPD VREF+10, LDG DIST PROC APPLY), DIRECT LAW; INOP SYS
  * F/CTL PROT.
  * @returns the STATUS codes
@@ -130,7 +130,7 @@ export function directLawStatus(): StatusLines {
 }
 
 /**
- * F/CTL ELAC 1(2) FAULT (ONE COMPUTER FAILED) STATUS, l.82768-82780: CAT 3 SINGLE ONLY, FUEL CONSUMPT INCRSD, FMS PRED
+ * F/CTL ELAC 1(2) FAULT (ONE COMPUTER FAILED) STATUS: CAT 3 SINGLE ONLY, FUEL CONSUMPT INCRSD, FMS PRED
  * UNRELIABLE; INOP SYS ELAC 1(2), CAT 3 DUAL.
  * @param elac the failed ELAC
  * @returns the STATUS codes
@@ -143,7 +143,7 @@ export function elacFaultStatus(elac: 1 | 2): StatusLines {
 }
 
 /**
- * F/CTL ELAC 1(2) FAULT (BOTH COMPUTERS FAILED) STATUS, l.82874-82894: MAX SPEED 320 KT, APPR PROC (FOR LDG USE FLAP 3,
+ * F/CTL ELAC 1(2) FAULT (BOTH COMPUTERS FAILED) STATUS: MAX SPEED 320 KT, APPR PROC (FOR LDG USE FLAP 3,
  * GPWS LDG FLAP 3 ON, APPR SPD VREF+10 KT, LDG DIST PROC APPLY), ALTN LAW: PROT LOST, WHEN L/G DOWN: DIRECT LAW, FUEL
  * CONSUMPT INCRSD, FMS PRED UNRELIABLE; INOP SYS F/CTL PROT, L+R AIL, ELAC 1+2, AP 1+2, CAT 2.
  * @returns the STATUS codes
@@ -163,7 +163,7 @@ export function elac12FaultStatus(): StatusLines {
 }
 
 /**
- * F/CTL ELAC 1(2) PITCH FAULT STATUS, l.82930-82938: CAT 3 SINGLE ONLY; INOP SYS ELAC PITCH (if ELAC 1 and 2 PITCH
+ * F/CTL ELAC 1(2) PITCH FAULT STATUS: CAT 3 SINGLE ONLY; INOP SYS ELAC PITCH (if ELAC 1 and 2 PITCH
  * FAULT), CAT 3 DUAL.
  * @param bothPitchFaults ELAC 1 PITCH FAULT and ELAC 2 PITCH FAULT
  * @returns the STATUS codes
@@ -176,7 +176,7 @@ export function elacPitchFaultStatus(bothPitchFaults: boolean): StatusLines {
 }
 
 /**
- * F/CTL ELEV SERVO FAULT STATUS, l.82971-82975: CAT 3 SINGLE ONLY; INOP SYS CAT 3 DUAL.
+ * F/CTL ELEV SERVO FAULT STATUS: CAT 3 SINGLE ONLY; INOP SYS CAT 3 DUAL.
  * @returns the STATUS codes
  */
 export function elevServoFaultStatus(): StatusLines {
@@ -184,7 +184,7 @@ export function elevServoFaultStatus(): StatusLines {
 }
 
 /**
- * F/CTL L(R) ELEV FAULT STATUS, l.83566-83580: MAX SPEED 320 KT, MANEUVER WITH CARE, SPD BRK DO NOT USE, FOR GA: MAX
+ * F/CTL L(R) ELEV FAULT STATUS: MAX SPEED 320 KT, MANEUVER WITH CARE, SPD BRK DO NOT USE, FOR GA: MAX
  * PITCH 15 DEG, APPR PROC (FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD VREF+10 KT, LDG DIST PROC APPLY), ALTN LAW:
  * PROT LOST, WHEN L/G DN: DIRECT LAW; INOP SYS F/CTL PROT, L (R) ELEV, ELAC PITCH, AP 1+2, CAT 2.
  * @param side the lost elevator
@@ -206,7 +206,7 @@ export function elevatorFaultStatus(side: 'L' | 'R'): StatusLines {
 }
 
 /**
- * F/CTL L+R ELEV FAULT STATUS, l.83643-83660: MAX SPEED 320/.77, SPD BRK DO NOT USE, APPR PROC (FOR LDG USE FLAP 3,
+ * F/CTL L+R ELEV FAULT STATUS: MAX SPEED 320/.77, SPD BRK DO NOT USE, APPR PROC (FOR LDG USE FLAP 3,
  * GPWS LDG FLAP 3 ON, MAN PITCH TRIM USE, APPR SPD VREF+10, LDG DIST PROC APPLY), PITCH MECH BACK UP, ROLL DIRECT LAW;
  * INOP SYS L+R ELEV, ELAC PITCH, AP 1+2, CAT 2.
  * @returns the STATUS codes
@@ -230,7 +230,7 @@ export function leftAndRightElevatorFaultStatus(): StatusLines {
 }
 
 /**
- * F/CTL L(R) AIL FAULT STATUS, l.83486-83496: FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE; INOP SYS L (R) AIL.
+ * F/CTL L(R) AIL FAULT STATUS: FUEL CONSUMPT INCRSD, FMS PRED UNRELIABLE; INOP SYS L (R) AIL.
  * @param side the lost aileron
  * @returns the STATUS codes
  */
@@ -261,7 +261,7 @@ function spoilerInopSys(spoilers: readonly boolean[]): string[] {
 }
 
 /**
- * F/CTL SPLR FAULT STATUS, l.84599-84630: SPD BRK DO NOT USE (if spoilers 3+4 affected); INOP SYS SPLR (affected), SPD
+ * F/CTL SPLR FAULT STATUS: SPD BRK DO NOT USE (if spoilers 3+4 affected); INOP SYS SPLR (affected), SPD
  * BRK (if spoilers 2+3+4 affected). The "one or more spoilers fully extended" lines have no model input.
  * Design choice: the spoilers 3 and 4 are one speed brake pair (Fcdc.cpp spoiler34Avail), so "3+4 affected" is one of
  * them faulty; "2+3+4 affected" is spoiler 2 and one of 3 or 4 faulty.
@@ -277,7 +277,7 @@ export function spoilerFaultStatus(spoilerFaults: readonly boolean[]): StatusLin
 }
 
 /**
- * F/CTL SEC 1(2)(3) FAULT STATUS, l.83812-83853, for the set of failed SECs (each SEC FAULT alert gives the same lines):
+ * F/CTL SEC 1(2)(3) FAULT STATUS, for the set of failed SECs (each SEC FAULT alert gives the same lines):
  * - SPD BRK DO NOT USE if SEC 1 is affected;
  * - if SEC 1 + 2 + 3 fail: FOR LDG USE FLAP 3, APPR SPD VREF+10 KT (the ALTN LAW alert gives the law lines);
  * - LDG DIST PROC APPLY. Design choice: shown for any SEC fault, the lost ground spoilers lengthen the landing;
@@ -312,7 +312,7 @@ export function secFaultStatus(sec1: boolean, sec2: boolean, sec3: boolean): Sta
 }
 
 /**
- * F/CTL FCDC 1(2) FAULT STATUS, l.83007-83011: INOP SYS FCDC 1(2).
+ * F/CTL FCDC 1(2) FAULT STATUS: INOP SYS FCDC 1(2).
  * @param fcdc the failed FCDC
  * @returns the STATUS codes
  */
@@ -321,7 +321,7 @@ export function fcdcFaultStatus(fcdc: 1 | 2): StatusLines {
 }
 
 /**
- * F/CTL FCDC 1+2 FAULT STATUS, l.83069-83073: F/CTL INDICATIONS LOST; INOP SYS FCDC 1 + 2.
+ * F/CTL FCDC 1+2 FAULT STATUS: F/CTL INDICATIONS LOST; INOP SYS FCDC 1 + 2.
  * @returns the STATUS codes
  */
 export function fcdc12FaultStatus(): StatusLines {

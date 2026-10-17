@@ -36,9 +36,8 @@ class TestFailures implements PredictiveWindshearFailuresSource {
 // eslint-disable-next-line no-control-regex
 const visible = (text: string) => text.replace(/\x1b(<\d+m|4m|m)/g, '');
 
-/* A320 FCOM PRO-ABN-NAV NAV PRED W/S DET FAULT, a320_fcom.txt l.93716-93740 */
 describe('NAV PRED W/S DET FAULT', () => {
-  it('triggers when the predictive windshear function is lost (l.93726)', () => {
+  it('triggers when the predictive windshear function is lost', () => {
     expect(predWsDetFaultAlert({ predictiveWindshearFailed: true })).toBe(true);
     expect(predWsDetFaultAlert({ predictiveWindshearFailed: false })).toBe(false);
   });
@@ -62,7 +61,7 @@ describe('NAV PRED W/S DET FAULT', () => {
     expect(item.simVarIsActive.get()).toBe(false);
   });
 
-  it('is crew awareness (level 1, l.93732) without SD page, inhibited in phases 3, 4, 5, 8 (FCOM PDF page 5673)', () => {
+  it('is crew awareness without SD page, inhibited in phases 3, 4, 5, 8', () => {
     const item = new PredictiveWindshearAlerts(new TestFailures()).ewdFailures[PRED_WS_DET_FAULT_KEY];
     expect(item.failure).toBe(1);
     expect(item.sysPage).toBe(-1); // SdPages.NONE
@@ -71,7 +70,7 @@ describe('NAV PRED W/S DET FAULT', () => {
     expect(item.whichCodeToReturn()).toEqual([0]);
   });
 
-  it('E/WD title NAV PRED W/S DET FAULT and STATUS INOP SYS PRED W/S DET (l.93736-93740)', () => {
+  it('E/WD title NAV PRED W/S DET FAULT and STATUS INOP SYS PRED W/S DET', () => {
     const item = new PredictiveWindshearAlerts(new TestFailures()).ewdFailures[PRED_WS_DET_FAULT_KEY];
     expect(item.codesToReturn).toEqual(['340090001']);
     expect(visible(formatEwdMessages(item.codesToReturn)[0]).trim()).toBe('NAV PRED W/S DET FAULT');

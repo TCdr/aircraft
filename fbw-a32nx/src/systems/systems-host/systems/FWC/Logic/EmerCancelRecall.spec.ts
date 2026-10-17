@@ -29,7 +29,7 @@ const hold = (pb: RecallPushbutton, seconds: number) => {
   return pulses.length;
 };
 
-/* A320 FCOM DSC-31-30 (3) RCL pb, a320_fcom.txt l.46754-46766 */
+/* RCL pb */
 describe('RCL pb', () => {
   it('held for more than 3 s gives one long press, a short press none', () => {
     const pb = new RecallPushbutton();
@@ -42,7 +42,7 @@ describe('RCL pb', () => {
     expect(hold(pb, 3.2)).toBe(1);
   });
 
-  it('shows NORMAL for 3 s when there is no alert to recall (l.46763)', () => {
+  it('shows NORMAL for 3 s when there is no alert to recall', () => {
     expect(isNothingToRecall(0, 0)).toBe(true);
     expect(isNothingToRecall(1, 0)).toBe(false);
     expect(isNothingToRecall(0, 1)).toBe(false);
@@ -57,16 +57,16 @@ describe('RCL pb', () => {
   });
 });
 
-/* A320 FCOM DSC-31-30 (7) EMER CANC pb, l.46809-46823 */
+/* EMER CANC pb */
 describe('EMER CANC pb', () => {
   const caution = (key: string) => ({ key, level: 2 });
   const warning = (key: string) => ({ key, level: 3 });
 
-  it('stops the aurals and MASTER WARN of the warnings while they sound (l.46811-46813)', () => {
+  it('stops the aurals and MASTER WARN of the warnings while they sound', () => {
     expect(emerCancelAction(true, [warning('W'), caution('C')])).toEqual({ kind: 'silenceWarnings' });
   });
 
-  it('otherwise cancels the first caution of the E/WD, one per press (l.46815-46816, design choice)', () => {
+  it('otherwise cancels the first caution of the E/WD, one per press', () => {
     expect(emerCancelAction(false, [warning('W'), caution('C1'), caution('C2')])).toEqual({
       kind: 'cancelCaution',
       key: 'C1',
@@ -93,7 +93,7 @@ describe('EMER CANC pb', () => {
     expect(memory.isSilencedWarning('W')).toBe(false);
   });
 
-  it('RCL for more than 3 s restores the cancelled cautions; the active ones come back (l.46820-46821)', () => {
+  it('RCL for more than 3 s restores the cancelled cautions; the active ones come back', () => {
     const memory = new EmerCancelMemory();
     memory.cancelCaution('C1');
     memory.cancelCaution('C2');
@@ -102,7 +102,7 @@ describe('EMER CANC pb', () => {
     expect(memory.cancelledCautions).toEqual([]);
   });
 
-  it('restores them automatically in phase 1 or 2 once IRs 1 and 2 are aligned (l.46821-46823)', () => {
+  it('restores them automatically in phase 1 or 2 once IRs 1 and 2 are aligned', () => {
     const restore = new IrAlignmentRestore();
     expect(restore.update(2, true, false)).toBe(false);
     expect(restore.update(2, true, true)).toBe(true);
@@ -120,7 +120,7 @@ describe('EMER CANC pb', () => {
   });
 });
 
-/* A320 FCOM DSC-31-20 l.46193 "(5) Cancelled caution: White", l.46221-46222 blank line between blocks */
+/* STATUS page: the cancelled cautions in white, a blank line between blocks */
 describe('STATUS CANCELLED CAUTION', () => {
   it('the FWC sends the CANCELLED CAUTION code then the E/WD titles', () => {
     expect(cancelledCautionStatusCodes([])).toEqual([]);

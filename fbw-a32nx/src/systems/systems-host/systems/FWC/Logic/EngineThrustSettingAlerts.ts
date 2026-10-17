@@ -2,23 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * Thrust setting alerts of the A320 (A320 FCOM PRO-ABN-ENG):
+ * Thrust setting alerts of the A320:
  *
- * - ENG 1(2) THR LEVER ABV IDLE, a320_fcom.txt l.81632-81666. l.81642-81645: "This alert triggers when: One thrust
- *   lever is above idle while the other thrust lever is in the reverse detent at landing. One thrust lever is above
- *   idle while the other thrust lever is at idle, at reverser deselection during landing roll." l.81665: "The
- *   repetitive "RETARD-RETARD" synthetic voice is triggered at landing." l.81666: "THR LEVER (AFFECTED ENGINE) ...
- *   IDLE". The 2019 FCOM PDF page 2309 shows a red title with the master warning lights, inhibited in the flight
- *   phases 1, 5 and 10. No STATUS.
- * - ENG SAT ABOVE FLEX TEMP, l.80984-81000. l.80994: "This alert is triggered when the SAT is above the FLEX TEMP.";
- *   l.81000: "T.O DATA ... CHECK". The PDF page 2295 shows an amber title, inhibited in every flight phase except 2.
- *   No STATUS.
+ * - ENG 1(2) THR LEVER ABV IDLE: at landing, one thrust lever is above idle while the other is in the reverse detent;
+ *   or, at the reverser deselection during the landing roll, one lever is above idle while the other is at idle. The
+ *   repetitive RETARD-RETARD synthetic voice sounds at landing. THR LEVER (AFFECTED ENGINE) ... IDLE. A red warning
+ *   with the master warning lights, inhibited in the flight phases 1, 5 and 10. No STATUS.
+ * - ENG SAT ABOVE FLEX TEMP: the SAT is above the FLEX TEMP; T.O DATA ... CHECK. An amber caution, shown in flight
+ *   phase 2 only. No STATUS.
  */
 
-/** ENG 1(2) THR LEVER ABV IDLE flight phase inhibition (2019 FCOM PDF page 2309) */
+/** ENG 1(2) THR LEVER ABV IDLE flight phase inhibition */
 export const THR_LEVER_ABV_IDLE_PHASE_INHIBITION = [1, 5, 10];
 
-/** ENG SAT ABOVE FLEX TEMP flight phase inhibition (2019 FCOM PDF page 2295): shown in phase 2 only */
+/** ENG SAT ABOVE FLEX TEMP flight phase inhibition: shown in phase 2 only */
 export const SAT_ABOVE_FLEX_TEMP_PHASE_INHIBITION = [1, 3, 4, 5, 6, 7, 8, 9, 10];
 
 /*
@@ -28,7 +25,7 @@ export const SAT_ABOVE_FLEX_TEMP_PHASE_INHIBITION = [1, 3, 4, 5, 6, 7, 8, 9, 10]
 const REVERSE_TLA_BELOW_DEGREES = -4.3;
 const ABOVE_IDLE_TLA_FROM_DEGREES = 2.6;
 
-/** The RETARD-RETARD voice of THR LEVER ABV IDLE sounds above this speed (DSC-31-10 l.45786) */
+/** The RETARD-RETARD voice of THR LEVER ABV IDLE sounds above this speed */
 const RETARD_CALLOUT_MIN_SPEED_KNOTS = 40;
 
 export function isThrustLeverInReverse(tlaDegrees: number): boolean {
@@ -45,10 +42,10 @@ export function isThrustLeverAtIdle(tlaDegrees: number): boolean {
 
 /**
  * The landing roll of the THR LEVER ABV IDLE triggers: on ground in the FWC flight phases 8 (touchdown to 80 kt) and 9
- * (80 kt to the second engine shutdown). Design choice: the FCOM says "at landing" and "during landing roll" without a
- * phase; these are the two ground phases after the touchdown.
+ * (80 kt to the second engine shutdown). Design choice: the alert is documented "at landing" and "during landing roll"
+ * without a phase; these are the two ground phases after the touchdown.
  */
-export function isLandingRoll(onGround: boolean, flightPhase: number): boolean {
+function isLandingRoll(onGround: boolean, flightPhase: number): boolean {
   return onGround && (flightPhase === 8 || flightPhase === 9);
 }
 
@@ -64,8 +61,8 @@ export interface ThrustLeverAboveIdleInputs {
  *
  * The second trigger ("at reverser deselection") needs the memory of a reverse selection: it is armed when a thrust
  * lever is in the reverse range during the landing roll, and disarmed once no lever is in reverse or above idle (the
- * deselection is finished with both levers at idle), or when the landing roll ends. Design choice: the FCOM gives no
- * time for "at reverser deselection"; this keeps the alert away from a normal taxi with one lever above idle.
+ * deselection is finished with both levers at idle), or when the landing roll ends. Design choice: no
+ * time is documented for "at reverser deselection"; this keeps the alert away from a normal taxi with one lever above idle.
  */
 export class ThrustLeverAboveIdleMonitor {
   private reverserDeselectionArmed = false;
@@ -99,9 +96,8 @@ export class ThrustLeverAboveIdleMonitor {
   }
 
   /**
-   * The repetitive "RETARD-RETARD" synthetic voice (l.81665). DSC-31-10 l.45786-45787: "At least one Thrust Lever above
-   * IDLE after touchdown", duration "Above 40 kt, PERMANENT", cancelled when "All Thrust levers are set to IDLE or
-   * REVERSE" (the alert then ends). Design choice: the 40 kt are the computed airspeed of the ADR the FWC reads.
+   * The repetitive RETARD-RETARD synthetic voice: at least one thrust lever above IDLE after touchdown, permanent above
+   * 40 kt, cancelled when all thrust levers are at IDLE or REVERSE (the alert then ends). Design choice: the 40 kt are the computed airspeed of the ADR the FWC reads.
    */
   isRetardCalloutRequired(computedAirspeedKnots: number): boolean {
     return (this.active[0] || this.active[1]) && computedAirspeedKnots > RETARD_CALLOUT_MIN_SPEED_KNOTS;

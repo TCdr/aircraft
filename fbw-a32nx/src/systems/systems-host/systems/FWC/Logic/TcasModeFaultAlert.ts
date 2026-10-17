@@ -9,31 +9,28 @@ import { StatusLines } from './CondStatus';
 import { FwcAlertItem, cautionItem } from './FwcAlertItem';
 
 /*
- * AUTO FLT TCAS MODE FAULT of the A320 FWC (A320 FCOM PRO-ABN-AUTO_FLT, a320_fcom.txt l.71942-71970; the title colour
- * and the flight phase inhibition figure are images, read on the FCOM PDF "A320 Neo FCOM_1.pdf" p.4431-4432):
- * - "This alert triggers when the TCAS flight guidance mode is inoperative" (l.71952).
- * - Procedure (l.71958-71960): FOR TCAS ALERT: AP+FD OFF, FLY MANUALLY TCAS ORDER.
- * - STATUS (l.71964-71968): INOP SYS AP/FD TCAS.
- * - DSC-22_30-70-85 (l.30499-30503): "The TCAS mode is not available, when: ... The TCAS mode is failed (AUTO FLT TCAS
- *   MODE FAULT)".
+ * AUTO FLT TCAS MODE FAULT of the A320 FWC:
+ * - Triggers when the TCAS flight guidance mode is inoperative.
+ * - Procedure: FOR TCAS ALERT: AP+FD OFF, FLY MANUALLY TCAS ORDER.
+ * - STATUS: INOP SYS AP/FD TCAS.
+ * - With this fault the FG TCAS mode is not available.
  *
  * The flyPad failure of the FG TCAS mode (A320Failure.TcasModeFailure, 22012) makes the TCAS mode of both FMGCs
  * unavailable (the C++ fbw module blanks the TCAS bus they read, fmgc/FmgcTcasBusInput.h).
  *
  * Design choices:
  * - The FWC shows the alert while the flight guidance can report it: at least one FMGC sends its discrete word 1.
- * - An amber caution with a procedure: level 2 (FCOM DSC-31 l.45527-45545), no SD page. The procedure lines are not
+ * - An amber caution with a procedure: level 2, no SD page. The procedure lines are not
  *   sensed (they apply to a coming TCAS alert).
  */
 
-/** AUTO FLT TCAS MODE FAULT flight phase inhibition (FCOM PDF page 4431) */
-export const TCAS_MODE_FAULT_PHASE_INHIBITION = [3, 4, 5, 7, 8];
+const TCAS_MODE_FAULT_PHASE_INHIBITION = [3, 4, 5, 7, 8];
 
 /** The alert key, the first digits of its EwdMessages codes */
 export const TCAS_MODE_FAULT_KEY = '2200300';
 
 /** STATUS INOP SYS AP/FD TCAS (StatusMessages) */
-export const INOP_SYS_AP_FD_TCAS = '220300011';
+const INOP_SYS_AP_FD_TCAS = '220300011';
 
 /** AUTO FLT TCAS MODE FAULT: the FG TCAS mode is failed and a flight guidance is there to report it */
 export function tcasModeFaultAlert(tcasModeFailed: boolean, fmgcAvailable: boolean): boolean {
@@ -41,7 +38,7 @@ export function tcasModeFaultAlert(tcasModeFailed: boolean, fmgcAvailable: boole
 }
 
 /** The STATUS: INOP SYS AP/FD TCAS */
-export function tcasModeFaultStatus(): StatusLines {
+function tcasModeFaultStatus(): StatusLines {
   return { left: [], inopSys: [INOP_SYS_AP_FD_TCAS] };
 }
 

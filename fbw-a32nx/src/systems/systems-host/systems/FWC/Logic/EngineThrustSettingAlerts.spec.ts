@@ -24,7 +24,7 @@ function monitorAfter(...steps: { phase: number; tla: [number, number]; onGround
   return monitor;
 }
 
-/* A320 FCOM PRO-ABN-ENG ENG 1(2) THR LEVER ABV IDLE, a320_fcom.txt l.81642-81645 */
+/* ENG 1(2) THR LEVER ABV IDLE */
 describe('ENG 1(2) THR LEVER ABV IDLE', () => {
   it('triggers for the lever above idle while the other lever is in reverse at landing', () => {
     const monitor = monitorAfter({ phase: 8, tla: [CLIMB, REVERSE] });
@@ -60,19 +60,19 @@ describe('ENG 1(2) THR LEVER ABV IDLE', () => {
     expect(bothReverse.isActive(0) || bothReverse.isActive(1)).toBe(false);
   });
 
-  it('sounds the repetitive RETARD-RETARD above 40 kt only (DSC-31-10 l.45786)', () => {
+  it('sounds the repetitive RETARD-RETARD above 40 kt only', () => {
     const monitor = monitorAfter({ phase: 8, tla: [CLIMB, REVERSE] });
     expect(monitor.isRetardCalloutRequired(60)).toBe(true);
     expect(monitor.isRetardCalloutRequired(30)).toBe(false);
     expect(monitorAfter({ phase: 8, tla: [IDLE, REVERSE] }).isRetardCalloutRequired(60)).toBe(false);
   });
 
-  it('is inhibited in the flight phases of the FCOM figure (PDF page 2309)', () => {
+  it('is inhibited in the aircraft flight phases', () => {
     expect(THR_LEVER_ABV_IDLE_PHASE_INHIBITION).toEqual([1, 5, 10]);
   });
 });
 
-/* A320 FCOM PRO-ABN-ENG ENG SAT ABOVE FLEX TEMP, a320_fcom.txt l.80994 */
+/* ENG SAT ABOVE FLEX TEMP */
 describe('ENG SAT ABOVE FLEX TEMP', () => {
   it('triggers when the SAT is above the FLEX TEMP', () => {
     expect(isSatAboveFlexTemp({ flexTemperatureCelsius: 25, staticAirTemperatureCelsius: 26 })).toBe(true);
@@ -87,7 +87,7 @@ describe('ENG SAT ABOVE FLEX TEMP', () => {
     expect(isSatAboveFlexTemp({ flexTemperatureCelsius: 25, staticAirTemperatureCelsius: null })).toBe(false);
   });
 
-  it('is shown in flight phase 2 only (PDF page 2295)', () => {
+  it('is shown in flight phase 2 only', () => {
     expect(SAT_ABOVE_FLEX_TEMP_PHASE_INHIBITION).toEqual([1, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });
