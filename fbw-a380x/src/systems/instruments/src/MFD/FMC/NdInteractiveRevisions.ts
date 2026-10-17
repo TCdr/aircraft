@@ -60,7 +60,7 @@ class NdDuplicateEntry extends Error {
 }
 
 /**
- * The FMS side of the interactive ND (A380 FCOM DSC-31-20-30-90): the revisions the flight crew makes on the NDs (DIR TO,
+ * The FMS side of the interactive ND: the revisions the flight crew makes on the NDs (DIR TO,
  * INSERT NEXT WPT, DELETE, INSERT / ERASE of the temporary flight plan), the waypoints the flight crew enters with the
  * KCCU, and the state of the temporary flight plan for the ND buttons and the DIRECT TO page.
  */
@@ -99,7 +99,7 @@ export class NdInteractiveRevisions<P extends FlightPlanPerformanceData> {
         break;
       }
       case 'insertNextWpt': {
-        // The revised waypoint may be the FROM waypoint (FCOM P 16)
+        // The revised waypoint may be the FROM waypoint
         const planIndex = fps.hasTemporary ? FlightPlanIndex.Temporary : FlightPlanIndex.Active;
         const index = this.legIndexOf(request.revised, planIndex, true);
         if (index === null) {
@@ -137,8 +137,6 @@ export class NdInteractiveRevisions<P extends FlightPlanPerformanceData> {
     }
     this.publishState();
   }
-
-  // ------------------------------------------------------------------------------------------ DIR TO
 
   /**
    * DIR TO a target: a flight plan waypoint as a DIR TO its leg, else the database (or pilot) element; a new temporary
@@ -185,7 +183,7 @@ export class NdInteractiveRevisions<P extends FlightPlanPerformanceData> {
 
   /**
    * The default course of CRS IN (from the preceding flight plan waypoint to the target) or CRS OUT (from the target to
-   * the following one), magnetic (FCOM DSC-31-20-30-90 P 11)
+   * the following one), magnetic
    */
   private defaultCourse(legIndex: number, option: NdDirectToOption): NdDirectToCourse | null {
     const plan = this.fms.flightPlanInterface.active;
@@ -206,8 +204,6 @@ export class NdInteractiveRevisions<P extends FlightPlanPerformanceData> {
     const course = magVar !== null ? MagVar.trueToMagnetic(trueCourse, magVar) : trueCourse;
     return { course: Math.round(course) % 360, isTrue: magVar === null };
   }
-
-  // ------------------------------------------------------------------------------------------ elements and entries
 
   /**
    * The index of the flight plan leg that ends at the element, from the active leg (or the FROM leg) up to the missed
@@ -272,7 +268,7 @@ export class NdInteractiveRevisions<P extends FlightPlanPerformanceData> {
   }
 
   /**
-   * A KCCU entry of a waypoint field (FCOM P 10, P 17): the same entry formats as the MFD (WaypointEntryUtils). The
+   * A KCCU entry of a waypoint field: the same entry formats as the MFD (WaypointEntryUtils). The
    * DUPLICATE page of the ND chooses among the places that are not unique; a wrong entry shows the FMS message.
    */
   private async resolve(side: 'L' | 'R', requestId: number, text: string, chosen: string[]): Promise<void> {
@@ -338,8 +334,6 @@ export class NdInteractiveRevisions<P extends FlightPlanPerformanceData> {
     };
     return shim as unknown as FmsDataInterface & FmsDisplayInterface;
   }
-
-  // ------------------------------------------------------------------------------------------ state
 
   /** The waypoints of the active flight plan for the DIRECT TO list: the XF legs from the active leg to the missed approach */
   private directToWaypoints(): NdInteractiveElement[] {

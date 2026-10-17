@@ -1808,7 +1808,7 @@ export class FmcAircraftInterface {
     { key: string; prediction: AlternateFuelPrediction | null }
   >();
 
-  /** The default ALTN time of a flight plan (FCOM FUEL&LOAD page: ALTN fuel and time), in ms, or null */
+  /** The default ALTN time of a flight plan (FUEL&LOAD page), in ms, or null */
   public getAlternateTime(fpIndex: number): number | null {
     const prediction = this.alternatePredictions.get(fpIndex)?.prediction;
     return prediction ? prediction.time * 1000 : null;
@@ -1820,7 +1820,7 @@ export class FmcAircraftInterface {
       const fp = this.flightPlanService.get(fpIndex);
       const pd = fp.performanceData;
       const hasAlternate = fp.alternateDestinationAirport !== undefined;
-      // Calculate alternate fuel: the FCOM default computation (CI 0, FL220 below 200 NM, else FL310), needs the ZFW
+      // Calculate alternate fuel: the default computation (CI 0, FL220 below 200 NM, else FL310), needs the ZFW
       const prediction = hasAlternate ? this.predictAlternate(fp, fpIndex) : null;
       pd.calculatedAlternateFuel.set(
         hasAlternate ? (prediction !== null ? Math.ceil(Units.poundToKilogram(prediction.fuel) / 100) / 10 : null) : 0,
@@ -1843,7 +1843,7 @@ export class FmcAircraftInterface {
   }
 
   /**
-   * The default ALTN fuel and time (A380 FCOM DSC-22-FMS-20-30, FUEL&LOAD page), from the primary destination to the
+   * The default ALTN fuel and time of the FUEL&LOAD page, from the primary destination to the
    * landing at the alternate, over the alternate flight plan distance (the direct distance without an alternate route),
    * with the ALTN wind of the WIND page and the weight at the destination (ZFW + MIN FUEL AT DEST).
    */

@@ -97,7 +97,7 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
   private readonly tableHeaderDisplay = this.tmpyActive.map((exists) => (exists ? 'none' : 'flex'));
 
   // History Wind
-  // A380 FCOM l.42171: the CRZ FL and FL 250, 150 and 050
+  // The history wind rows: the CRZ FL and FL 250, 150 and 050
   private static readonly NUM_HISTORY_WIND_ENTRIES = MAX_HISTORY_WIND_ROWS;
   private static readonly HISTORY_WIND_ENTRIES_ARRAY = Array.from(
     { length: MfdFmsWindPage.NUM_HISTORY_WIND_ENTRIES },
@@ -284,7 +284,7 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
       ),
   );
 
-  /** SAT row of the CRZ tab: one SAT at the cruise flight level, A380 FCOM l.42335-42345 */
+  /** SAT row of the CRZ tab: one SAT at the cruise flight level */
   private readonly cruiseTemperatureFlightLevel = Subject.create<number | null>(null);
   private readonly cruiseTemperature = Subject.create<number | null>(null);
   private readonly cruiseTemperatureIsPilotEntered = Subject.create(false);

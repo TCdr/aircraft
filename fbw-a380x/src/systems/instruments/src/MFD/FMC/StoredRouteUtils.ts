@@ -12,7 +12,7 @@ import { FmsDataInterface } from '@fmgc/flightplanning/interface/FmsDataInterfac
 import { getApproachName } from '../shared/utils';
 import { maxStoredRouteElements, StoredRoute, StoredRouteProcedures } from './PilotStoredElements';
 
-/** One element of a route summary: waypoints in green big font, airways and procedures in small white font (FCOM). */
+/** One element of a route summary: waypoints in green big font, airways and procedures in small white font. */
 export interface RouteSummaryToken {
   text: string;
   kind: 'waypoint' | 'via';
@@ -21,9 +21,9 @@ export interface RouteSummaryToken {
 const directVia = 'DCT';
 
 /**
- * Builds a stored route from a flight plan (FCOM DATA / ROUTE page, NEW ROUTE function: a copy of the active or a
+ * Builds a stored route from a flight plan (DATA / ROUTE page, NEW ROUTE function: a copy of the active or a
  * secondary flight plan). Only the first {@link maxStoredRouteElements} en-route elements are kept.
- * @returns the route and whether elements were dropped (FCOM: SOME REVISIONS NOT STORED)
+ * @returns the route and whether elements were dropped (SOME REVISIONS NOT STORED)
  */
 export function buildStoredRouteFromPlan(
   plan: ReadonlyFlightPlan,
@@ -135,12 +135,12 @@ export function toCoRoute(route: StoredRoute) {
 }
 
 /**
- * The route summary of the FCOM (DATA / ROUTE and ROUTE SELECTION pages): read left to right, waypoints in green big
+ * The route summary (DATA / ROUTE and ROUTE SELECTION pages): read left to right, waypoints in green big
  * font, airways and procedures in small white font; direct legs are indicated with DIR, a runway with RWY, and for an
  * approach only its first waypoint and its name are shown.
  */
 export function routeSummaryTokens(route: StoredRoute): RouteSummaryToken[] {
-  // The summary is a list of (VIA, TO) pairs, as in the FCOM figures (DSC-22-FMS-20-30 P 83, 85, 89): a runway is
+  // The summary is a list of (VIA, TO) pairs, as on the reference pages: a runway is
   // RWY + runway, a procedure is its name + its last waypoint, an airway is its name + the exit waypoint, a direct leg
   // is DIR + the waypoint, and an approach is its name + its first waypoint.
   const tokens: RouteSummaryToken[] = [];
@@ -188,7 +188,7 @@ export function routeSummaryTokens(route: StoredRoute): RouteSummaryToken[] {
     pair(p.arrivalIdent, starFixes[starFixes.length - 1]?.ident?.toString());
   }
   if (p.approachViaIdent) {
-    // FCOM: the VIA part of a procedure is indicated with DIR
+    // The VIA part of a procedure is indicated with DIR
     pair('DIR', undefined);
   }
   if (p.approachIdent || p.approachFirstWaypointIdent) {

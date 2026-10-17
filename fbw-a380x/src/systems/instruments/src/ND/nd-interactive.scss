@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-// Interactive ND (A380 FCOM DSC-31-20-30-90): positions from the FCOM figures on the 768 x 1024 display unit
+// Interactive ND: positions taken from the aircraft display pictures, on the 768 x 1024 display unit
 
 .nd-interactive {
   position: absolute;
@@ -30,7 +30,7 @@
   }
 }
 
-// The list of the elements under the cursor, and the revision list of an element (P 4-5)
+// The list of the elements under the cursor, and the revision list of an element
 .nd-interactive-menu {
   position: absolute;
   min-width: 230px;
@@ -68,7 +68,7 @@
   }
 }
 
-// The pages (DIRECT TO P 6, INSERT NEXT WPT P 15-17, DUPLICATE P 10), over the lower part of the display
+// The pages (DIRECT TO, INSERT NEXT WPT, DUPLICATE), over the lower part of the display
 .nd-interactive-page {
   position: absolute;
   left: 0;
@@ -79,7 +79,6 @@
   background-color: black;
 }
 
-// A label and its waypoint field (the target of DIRECT TO, the NEXT WPT)
 .nd-interactive-dirto-target,
 .nd-interactive-next-target {
   position: absolute;
@@ -108,7 +107,6 @@
   border: 2px solid #a0a0a0;
   cursor: pointer;
 
-  // The KCCU keyboard writes in the field
   &.nd-interactive-focused {
     border-color: #0ff;
   }
@@ -167,7 +165,7 @@
   cursor: pointer;
 }
 
-// The CRS entry field, next to the selected CRS IN or CRS OUT option (P 11)
+// The CRS entry field, next to the selected CRS IN or CRS OUT option
 .nd-interactive-course {
   position: absolute;
   left: 150px;
@@ -185,7 +183,7 @@
   top: 137px;
 }
 
-// INSERT NEXT WPT: the revised waypoint and its latitude/longitude (P 15-16)
+// INSERT NEXT WPT: the revised waypoint and its latitude/longitude
 .nd-interactive-revised {
   position: absolute;
   left: 19px;
@@ -200,7 +198,6 @@
   white-space: nowrap;
 }
 
-// DUPLICATE (P 10): the header and the rows, three columns
 .nd-interactive-duplicate-rows {
   position: absolute;
   left: 19px;
@@ -250,7 +247,6 @@
   left: 392px;
 }
 
-// The buttons of the pages and of the temporary flight plan
 .nd-interactive-button {
   position: absolute;
   pointer-events: auto;
@@ -274,7 +270,7 @@
   height: 40px;
 }
 
-// INSERT / ERASE of the temporary flight plan (P 12, P 23), either side of the aircraft
+// INSERT / ERASE of the temporary flight plan, either side of the aircraft
 .nd-interactive-tmpy {
   top: 547px;
   width: 135px;

@@ -65,7 +65,7 @@ const DEFAULT_CLIP = new Path2D(
 const DASHES = [15, 12];
 const NO_DASHES = [];
 
-/** A click on the map of an interactive ND (A380 FCOM DSC-31-20-30-90) */
+/** A click on the map of an interactive ND */
 export interface NdMapClick {
   /** The click position on the display */
   clientX: number;

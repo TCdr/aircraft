@@ -16,7 +16,6 @@ import { parsePlaceDistance, placeDistancePosition } from '@fmgc/flightplanning/
 /** A PLACE/DIST waypoint created on a flight plan, with where it goes (see PlaceDistance.ts) */
 export interface PlaceDistWaypoint {
   waypoint: Fix;
-  /** The index of the place waypoint in the flight plan */
   placeLegIndex: number;
   /** The signed distance along the flight plan, NM: negative before the place */
   distance: number;
@@ -70,13 +69,13 @@ export class WaypointEntryUtils {
 
   /**
    * Creates a PLACE/DIST waypoint on a flight plan: the waypoint at DIST from the PLACE waypoint of the flight plan, on
-   * the leg after it (or before it with a negative DIST). See PlaceDistance.ts for the FCOM rules.
+   * the leg after it (or before it with a negative DIST). See PlaceDistance.ts for the rules.
    * @param fms the FMS
    * @param entry the PLACE/DIST entry
    * @param elements the elements of the flight plan the waypoint is entered on
    * @param fromIndex the first flight plan index where the place is looked for
    * @param stored whether the created waypoint is stored
-   * @param revisedLegIndex when set, the place must be this waypoint (A380 FCOM: PLACE / WPT DISAGREE otherwise)
+   * @param revisedLegIndex when set, the place must be this waypoint (A380: PLACE / WPT DISAGREE otherwise)
    * @throws FmsError FORMAT ERROR, NOT IN DATABASE, ENTRY OUT OF RANGE or PLACE / WPT DISAGREE
    */
   static createPlaceDistWaypoint(

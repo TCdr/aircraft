@@ -8,7 +8,7 @@ import { NXDataStore } from '@flybywiresim/fbw-sdk';
  * Keeps the pilot stored elements database (waypoints, NAVAIDs, routes and runways) from one sim session to the next,
  * when the flypad setting KEEP_PILOT_STORED_ELEMENTS is enabled.
  *
- * The A380 FCOM (DSC-22-FMS, pilot-stored elements database) deletes all the pilot-stored elements when all the FMCs are
+ * The A380 FMS deletes all the pilot-stored elements when all the FMCs are
  * shut down, which is what happens without the setting: the elements are kept in the browser storage, which lives as long
  * as the sim session. With the setting, a copy is kept in the sim persistent storage, and put back in the browser storage
  * at the start of the next session, before the FMS reads it.
@@ -70,7 +70,7 @@ export class PilotStoredElementsPersistence {
         if (this.enabled) {
           this.save();
         } else {
-          // Back to the FCOM behaviour: nothing is kept for the next session
+          // Back to the aircraft behaviour: nothing is kept for the next session
           SetStoredData(PilotStoredElementsPersistence.PERSISTENT_KEY, '');
           this.lastSaved = null;
         }

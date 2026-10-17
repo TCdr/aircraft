@@ -2405,10 +2405,9 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   }
 
   /**
-   * Inserts a PLACE/DIST waypoint (A320 FCOM l.13512: "defined by a distance from a place, along the F-PLN"; entry on
-   * the F-PLN, LAT REV NEXT WPT, l.23669-23674): the waypoint goes on the flight plan path at DIST from the first flight
-   * plan waypoint named PLACE from the FROM waypoint on, after it (or before it with a negative DIST), whatever line the
-   * entry was made on. See PlaceDistance.ts.
+   * Inserts a PLACE/DIST waypoint (a distance from a place along the F-PLN, entered on the F-PLN or LAT REV NEXT WPT):
+   * the waypoint goes on the flight plan path at DIST from the first flight plan waypoint named PLACE from the FROM
+   * waypoint on, after it (or before it with a negative DIST), whatever line the entry was made on (PlaceDistance.ts).
    */
   private insertPlaceDistanceWaypoint(
     entry: string,
@@ -5013,9 +5012,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
   /**
    * Modifies the active flight plan to go direct to a specific waypoint, not necessarily in the flight plan
-   */
-  /**
-   * Modifies the active flight plan to go direct to a waypoint
    * @param waypoint the DIR TO waypoint
    * @param withAbeam DIR TO with the ABEAM PTS function
    * @param interceptCourse the radial of the RADIAL IN or RADIAL OUT function

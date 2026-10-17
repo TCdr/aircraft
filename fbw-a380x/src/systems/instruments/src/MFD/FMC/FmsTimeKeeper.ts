@@ -7,8 +7,8 @@ import { Arinc429Word, NXDataStore, NXLogicConfirmNode } from '@flybywiresim/fbw
 import { ADIRS } from '../shared/Adirs';
 
 /**
- * The time reference of the PERM DATA SETUP (POSITION / TIME page): what the FMS shows where the A380 FCOM
- * (DSC-22-FMS-20-30, POSITION / REPORT and POSITION / MONITOR pages) says "UTC time (or flight time)".
+ * The time reference of the PERM DATA SETUP (POSITION / TIME page): what the FMS shows where the POSITION / REPORT and
+ * POSITION / MONITOR pages show the UTC time (or the flight time).
  */
 export enum FmsTimeReference {
   FlightTime,

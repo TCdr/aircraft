@@ -225,7 +225,7 @@ export class MfdComponent
 
     const isCaptainSide = this.props.captOrFo === 'CAPT';
 
-    // The DATA revision of an airport on the ND of this side (A380 FCOM DSC-31-20-30-90 P 19): its DATA / AIRPORT page
+    // The DATA revision of an airport on the ND of this side opens its DATA / AIRPORT page
     this.subs.push(
       this.props.bus
         .getSubscriber<NdInteractiveEvents>()
@@ -380,7 +380,7 @@ export class MfdComponent
       );
     }
 
-    // FMS pages use the display frame of the FCOM figures (A380 FCOM DSC-22-FMS-20-30), see common/style.scss
+    // FMS pages use the display frame measured on the reference figures, see common/style.scss
     this.activePageRef.getOrDefault()?.classList.toggle('sys-fms', uri.sys === 'fms');
 
     FSComponent.render(this.activeHeader, this.activeHeaderRef.getOrDefault());

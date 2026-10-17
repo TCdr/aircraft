@@ -3,6 +3,7 @@ import {
   NumberFormatter,
   NumberUnitSubject,
   Subject,
+  Subscribable,
   Unit,
   UnitFamily,
   UnitType,
@@ -119,8 +120,8 @@ export class MfdFmsFplnArr extends FmsFlightPlanPage<MfdFmsFplnArrProps> {
       }
 
       if (flightPlan.availableApproaches?.length > 0) {
-        // FCOM DSC-22-FMS-20-30 ARRIVAL page, APPR LIST: the approaches are sorted by runway, and the last option of
-        // each runway group is the runway itself (e.g. 02C), which creates a default 5 NM leg on the runway axis.
+        // APPR LIST: the approaches are sorted by runway, and the last option of each runway group is the runway
+        // itself (e.g. 02C), which creates a default 5 NM leg on the runway axis.
         const appr: ButtonMenuItem[] = [];
         const pushRunwayOnly = (runwayIdent: string) =>
           appr.push({
@@ -427,96 +428,46 @@ export class MfdFmsFplnArr extends FmsFlightPlanPage<MfdFmsFplnArrProps> {
     this.subs.push(this.lengthUnit);
   }
 
+  /** A value of the SELECTED box, in the colour of the loaded flight plan */
+  private procValue(value: Subscribable<string>): VNode {
+    return <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>{value}</span>;
+  }
+
   render(): VNode {
     return (
       <>
         {super.render()}
         {/* begin page content */}
-        {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 13), page container coordinates */}
+        {/* Positions measured on the reference figure of the page, in page container coordinates */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas">
             <div class="mfd-fms-fpln-proc-frame" />
             {fcomAt(14, 35, <span class="mfd-label mfd-fms-fpln-proc-frame-title">SELECTED ARRIVAL</span>)}
             {fcomAt(65, 18, <span class="mfd-label">TO</span>)}
-            {fcomAt(
-              65,
-              63,
-              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
-                {this.toIcao}
-              </span>,
-            )}
+            {fcomAt(65, 63, this.procValue(this.toIcao))}
             {fcomAt(45, 192, <span class="mfd-label">LS</span>)}
-            {fcomAt(
-              85,
-              192,
-              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
-                {this.approachLsIdent}
-              </span>,
-            )}
+            {fcomAt(85, 192, this.procValue(this.approachLsIdent))}
             {fcomAt(45, 362, <span class="mfd-label">RWY</span>)}
-            {fcomAt(
-              85,
-              362,
-              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
-                {this.rwyIdent}
-              </span>,
-            )}
+            {fcomAt(85, 362, this.procValue(this.rwyIdent))}
             {fcomAt(45, 480, <span class="mfd-label">LENGTH</span>)}
             {fcomRight(85, 620, [
-              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
-                {this.rwyLength.asUnit(this.lengthUnit).map((v) => this.lengthNumberFormatter(v))}
-              </span>,
+              this.procValue(this.rwyLength.asUnit(this.lengthUnit).map((v) => this.lengthNumberFormatter(v))),
               <span class="mfd-label-unit mfd-unit-trailing">
                 {this.lengthUnit.map((v) => this.distanceUnitFormatter(v))}
               </span>,
             ])}
             {fcomAt(45, 628, <span class="mfd-label">CRS</span>)}
-            {fcomAt(85, 624, [
-              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
-                {this.rwyCrs}
-              </span>,
-              <span class="mfd-label-unit mfd-unit-trailing">°</span>,
-            ])}
+            {fcomAt(85, 624, [this.procValue(this.rwyCrs), <span class="mfd-label-unit mfd-unit-trailing">°</span>])}
             {fcomAt(127, 18, <span class="mfd-label">APPR</span>)}
-            {fcomAt(
-              164,
-              18,
-              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
-                {this.approachName}
-              </span>,
-            )}
+            {fcomAt(164, 18, this.procValue(this.approachName))}
             {fcomAt(127, 192, <span class="mfd-label">FREQ/CHAN</span>)}
-            {fcomAt(
-              164,
-              192,
-              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
-                {this.approachLsFrequencyChannel}
-              </span>,
-            )}
+            {fcomAt(164, 192, this.procValue(this.approachLsFrequencyChannel))}
             {fcomAt(127, 362, <span class="mfd-label">VIA</span>)}
-            {fcomAt(
-              164,
-              362,
-              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
-                {this.via}
-              </span>,
-            )}
+            {fcomAt(164, 362, this.procValue(this.via))}
             {fcomAt(127, 496, <span class="mfd-label">STAR</span>)}
-            {fcomAt(
-              164,
-              496,
-              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
-                {this.star}
-              </span>,
-            )}
+            {fcomAt(164, 496, this.procValue(this.star))}
             {fcomAt(127, 630, <span class="mfd-label">TRANS</span>)}
-            {fcomAt(
-              164,
-              630,
-              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
-                {this.trans}
-              </span>,
-            )}
+            {fcomAt(164, 630, this.procValue(this.trans))}
             {fcomAt(
               229,
               10,
