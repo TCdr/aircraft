@@ -26,7 +26,7 @@ const input: ClosestAirportPredictionInput = {
   tropopause: 36_089,
 };
 
-/** The former page computation: the whole distance flown level at the CRZ FL */
+/** Comparison baseline: the whole distance flown level at the CRZ FL */
 function levelOnly(distance: number) {
   return Predictions.levelFlightStep(
     A380AircraftConfig,
@@ -42,7 +42,7 @@ function levelOnly(distance: number) {
   );
 }
 
-describe('CLOSEST AIRPORTS time and EFOB: cruise at the CRZ FL, then a continuous descent (A380 FCOM l.27701-27713)', () => {
+describe('CLOSEST AIRPORTS time and EFOB: cruise at the CRZ FL, then a continuous descent', () => {
   it('descends from FL370 to sea level over about 3 NM per 1000 ft', () => {
     const descent = idleDescentToAirport(A380AircraftConfig, input, input.fuelOnBoard);
     expect(descent.distance).toBeGreaterThan(90);

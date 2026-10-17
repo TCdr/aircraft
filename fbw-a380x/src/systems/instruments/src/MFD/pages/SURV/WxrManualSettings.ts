@@ -16,7 +16,7 @@ export type WxrManualSetting = keyof typeof WXR_MANUAL_SETTING_VARS;
 /**
  * Power-up: no manual GAIN, TILT or ELEVN value is entered. Done once when the MFD starts, because an L:var nobody has
  * written yet reads 0, and 0 is a valid entry: the first manual selection then kept 0 (TILT +0.0° on ground, ELEVN 0,
- * GAIN 0) instead of the FCOM default.
+ * GAIN 0) instead of the default.
  */
 export function initWxrManualSettings(write: (name: string, value: number) => void): void {
   Object.values(WXR_MANUAL_SETTING_VARS).forEach((name) => write(name, WXR_NO_ENTRY));
@@ -24,9 +24,8 @@ export function initWxrManualSettings(write: (name: string, value: number) => vo
 
 /**
  * The value a manual setting takes when the flight crew selects its manual mode (GAIN MAN, ELEVN or TILT), or null to
- * keep the value already entered. A380 FCOM DSC-34-20-30-20-10 (ELEVN and GAIN knobs): "The default ELEVN value is the
- * current aircraft altitude. The default TILT value is: On ground: +3.00°, In flight: 0°", "The default GAIN value is
- * 50 %"; the SURV/CONTROLS page of the MFD follows them.
+ * keep the value already entered. Defaults: ELEVN = current aircraft altitude, TILT = +3.00° on ground and 0° in
+ * flight, GAIN = 50 %; the SURV/CONTROLS page of the MFD follows them.
  */
 export function wxrManualDefaultOnSelection(
   setting: WxrManualSetting,

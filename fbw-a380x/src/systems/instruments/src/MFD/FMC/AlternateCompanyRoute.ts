@@ -3,21 +3,19 @@
 
 import type { Fix as CoRouteFix } from '@simbridge/Coroute/Fix';
 import { Fix } from '@flybywiresim/fbw-sdk';
-import { distanceTo } from 'msfs-geo';
+import { nearestFix } from './AtcRouteClearance';
 
 /**
- * The alternate company route of the INIT page (A380 FCOM DSC-22-FMS-20-30 ALTERNATE ROUTE ENTRY FIELD,
- * a380_fcom.txt l.36743-36775): a company route from the primary destination to the alternate destination, from the
- * pilot stored routes or the navigation database company routes (SimBridge).
+ * The alternate company route of the INIT page: a company route from the primary destination to the alternate
+ * destination, from the pilot stored routes or the navigation database company routes (SimBridge).
  */
 
 /** Why an ALTN RTE entry is refused, null when it is accepted */
 export type AlternateRouteEntryError = 'NOT_ALLOWED' | 'NOT_IN_DATABASE' | 'DEST_ALTN_CPNY_RTE_DISAGREE' | null;
 
 /**
- * Whether the crew can enter an alternate company route: "The flight crew can not enter the alternate company route
- * (on the ACTIVE / INIT page) when: No primary destination is defined, or A temporary flight plan is pending."
- * (l.36770-36773)
+ * Whether the crew can enter an alternate company route (ACTIVE / INIT page): not without a primary destination, and
+ * not while a temporary flight plan is pending.
  * @param primaryDestinationIcao the destination of the flight plan
  * @param temporaryPending a temporary flight plan is pending
  * @returns true when the ALTN RTE field takes an entry
@@ -30,9 +28,8 @@ export function isAlternateRouteEntryAllowed(
 }
 
 /**
- * The check of an ALTN RTE entry: unknown route NOT IN DATABASE; DEST / ALTN CPNY RTE DISAGREE (Type I, FCOM
- * DSC-22-FMS-20-110 l.45310-45316): "The flight crew tried to enter an alternate company route, and the origin airport
- * of the alternate company route does not match the destination airport of the primary flight plan."
+ * The check of an ALTN RTE entry: an unknown route is NOT IN DATABASE; a route that does not start at the destination
+ * of the primary flight plan is DEST / ALTN CPNY RTE DISAGREE (type I message).
  * @param route the route found for the entered ident, undefined when none
  * @param primaryDestinationIcao the destination of the flight plan
  * @returns the error, null when the route can be inserted
@@ -59,8 +56,7 @@ export interface InsertedAlternateRoute {
 
 /**
  * The text of the ALTN RTE field: the inserted route while the plan keeps its alternate, else NONE when a primary
- * destination is defined ("If a primary destination is defined, and no alternate route has been selected, then the
- * Alternate Route field displays NONE.", l.36761-36762), else empty.
+ * destination is defined, else empty.
  * @param inserted the alternate company route inserted into the plan, null when none
  * @param alternateIcao the alternate destination of the plan
  * @param hasPrimaryDestination a primary destination is defined
@@ -99,13 +95,7 @@ export async function alternateRouteFixes(
       continue;
     }
     const hint = { lat: Number(entry.pos_lat), long: Number(entry.pos_long) };
-    const nearest =
-      Number.isFinite(hint.lat) && Number.isFinite(hint.long)
-        ? candidates.reduce((best, fix) =>
-            distanceTo(fix.location, hint) < distanceTo(best.location, hint) ? fix : best,
-          )
-        : candidates[0];
-    fixes.push(nearest);
+    fixes.push(nearestFix(candidates, Number.isFinite(hint.lat) && Number.isFinite(hint.long) ? hint : null));
   }
   return fixes;
 }

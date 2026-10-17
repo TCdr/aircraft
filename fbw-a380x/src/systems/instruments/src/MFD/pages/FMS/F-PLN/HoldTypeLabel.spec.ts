@@ -13,7 +13,7 @@ const hold = (type: HoldType): HoldData => ({
   time: 1,
 });
 
-describe('HOLD page hold type label (A380 FCOM l.36376-36392)', () => {
+describe('HOLD page hold type label', () => {
   it('shows DATABASE once the flight crew selects the database hold', () => {
     expect(holdTypeLabel(hold(HoldType.Database), hold(HoldType.Computed))).toBe('DATABASE HOLD AT ');
   });

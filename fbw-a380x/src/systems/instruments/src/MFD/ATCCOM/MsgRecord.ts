@@ -15,8 +15,8 @@ import {
 } from '@datalink/common';
 
 /**
- * The status of a recorded message (FCOM DSC-46-10-20-30 P 28-29): the response of the flight crew to an uplink message,
- * OPEN when a downlink or a response message is not acknowledged, '' for a downlink message and for an uplink message
+ * The status of a recorded message: the flight crew response to an uplink message, OPEN
+ * when a downlink or a response message is not acknowledged, '' for a downlink message and for an uplink message
  * without response
  */
 export type MsgRecordStatus = '' | 'AFFIRM' | 'NEGATIVE' | 'OPEN' | 'ROGER' | 'STANDBY' | 'UNABLE' | 'WILCO';
@@ -66,7 +66,7 @@ function sortKey(timestamp: AtsuTimestamp | null | undefined): number {
 
 /** The text of a message element: its template with the entered values */
 function elementText(direction: AtsuMessageDirection, element: CpdlcMessageElement): string {
-  // Without the @ markers of the freetext variable fields (Hoppie "CLRD TO @CYVR@"): the A380 font draws @ as a triangle
+  // No @ markers of the freetext variable fields (Hoppie "CLRD TO @CYVR@"): the A380 font draws @ as a triangle
   const values = element.Content.map((entry) => (entry.Value ?? '').replace(/@/g, ''));
   const catalog = direction === AtsuMessageDirection.Uplink ? CpdlcMessagesUplink : CpdlcMessagesDownlink;
   let text = catalog[element.TypeId]?.[0][0] ?? '';
@@ -182,7 +182,6 @@ export function isDialogueOpen(dialogue: CpdlcMessage): boolean {
   return expected === CpdlcMessageExpectedResponseType.Yes && last.ComStatus !== AtsuMessageComStatus.Failed;
 }
 
-/** The lines of a text in lines of the given length, words kept whole (a word longer than a line is cut) */
 /**
  * The printed lines of recorded messages (MSG RECORD PRINT ALL and ZOOM PRINT): for each message, its time, origin and
  * status as on the MSG RECORD/LIST page, then its text, and an empty line between the messages
@@ -203,6 +202,7 @@ export function msgRecordPrintLines(entries: readonly MsgRecordEntry[], length =
   return lines;
 }
 
+/** The lines of a text in lines of the given length, words kept whole (a word longer than a line is cut) */
 export function wrapMsgRecordText(text: string, length: number): string[] {
   const lines: string[] = [];
   let line = '';
@@ -231,7 +231,7 @@ export function wrapMsgRecordText(text: string, length: number): string[] {
   return lines;
 }
 
-/** The message line of the list (FCOM figure): the start of the message, >>> when the message continues */
+/** The message line of the list: the start of the message, >>> when the message continues */
 export function msgRecordListLine(text: string, length: number): string {
   if (text.length <= length) {
     return text;

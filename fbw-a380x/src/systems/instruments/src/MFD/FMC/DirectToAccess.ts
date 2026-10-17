@@ -4,9 +4,8 @@
 import { FlightPlanLegFlags } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 
 /**
- * INSERT OR ERASE TMPY F-PLN FIRST (A380 FCOM DSC-22-FMS-20-110, a380_fcom.txt l.45663, l.45667-45670): "A temporary
- * flight plan (that is not created by a direct to) is pending, and the flight crew tries to access the direct to revision
- * via the KCCU." The DIR key then does not open the DIRECT TO page.
+ * INSERT OR ERASE TMPY F-PLN FIRST: the DIR key does not open the DIRECT TO page while a temporary flight plan that
+ * is not a direct to is pending.
  * A temporary flight plan of a direct to starts with the turning point (T-P) of the direct to, the FROM leg of the
  * temporary flight plan (FlightPlanService.temporaryInsert).
  * @param hasTemporary a temporary flight plan is pending

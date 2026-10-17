@@ -9,13 +9,11 @@ import { Predictions } from '@fmgc/guidance/vnav/Predictions';
 /*
  * Time and fuel to an airport of the CLOSEST AIRPORTS page.
  *
- * A380 FCOM DSC-22-FMS-10-40-80 CLOSEST AIRPORTS (a380_fcom.txt l.27701-27713): "The fuel and time predictions are based
- * on: - The great circle distance and bearing to the airport - The effective winds (default values, or values entered by
- * the flight crew) - The current delta ISA - A flight from the current position to the ground, based on: A computed cruise
- * distance, flown at an optimum cruise Mach (based on the current CRZ FL, GW, and CI) in managed speed control [...]
- * A continuous descent from the CRZ FL to the airport elevation."
+ * The predictions use the great circle distance to the airport, the effective winds (default or entered), the current
+ * delta ISA, and a flight from the present position to the ground: a cruise at the CRZ FL at an optimum cruise Mach
+ * (CRZ FL, GW and CI) in managed speed, then a continuous descent from the CRZ FL to the airport elevation.
  *
- * The FCOM does not say how the descent is computed. Design choices:
+ * How the descent is computed is not specified. Design choices:
  * - the descent is an idle descent at the managed descent speed (CAS / Mach), limited to 250 kt below 10 000 ft, in
  *   steps of 2 000 ft with the VNAV engine and flight models (the idle N1 of the VNAV descent, with its margin), without
  *   a deceleration or an approach;

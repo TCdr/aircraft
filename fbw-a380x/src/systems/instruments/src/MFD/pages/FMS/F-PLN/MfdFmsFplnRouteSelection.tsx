@@ -27,7 +27,7 @@ export const alternateRouteSelectionUriExtra = 'altn';
 const noTokens: RouteSummaryToken[] = [];
 
 /**
- * ROUTE SELECTION page (A380 FCOM DSC-22-FMS-20-30 "ROUTE SELECTION PAGE"): the company routes of the FROM/TO (or
+ * ROUTE SELECTION page: the company routes of the FROM/TO (or
  * TO/ALTN) city pair from the pilot stored elements database and the navigation database (SimBridge company routes),
  * with their summary; INSERT inserts the selected route into the flight plan (a TO/ALTN route into the alternate
  * flight plan) and displays the INIT page.
@@ -52,7 +52,7 @@ export class MfdFmsFplnRouteSelection extends FmsFlightPlanPage<MfdFmsFplnRouteS
 
   private readonly nextDisabled = this.selectedRoute.map((i) => i === null || i >= this.routes.length - 1);
 
-  /** An alternate route cannot be entered while a temporary flight plan is pending (FCOM l.36770-36773) */
+  /** An alternate route cannot be entered while a temporary flight plan is pending */
   private readonly insertDisabled = MappedSubject.create(
     ([i, tmpy]) => i === null || (this.isAlternateSelection && tmpy),
     this.selectedRoute,
@@ -65,7 +65,7 @@ export class MfdFmsFplnRouteSelection extends FmsFlightPlanPage<MfdFmsFplnRouteS
     super.onAfterRender(node);
 
     this.subs.push(
-      // The FCOM page title has no flight plan prefix (DSC-22-FMS-20-30 P 324)
+      // The page title has no flight plan prefix
       this.props.mfd.uiService.activeUri.sub(() => this.activePageTitle.set('ROUTE SELECTION'), true),
       this.previousDisabled,
       this.nextDisabled,
@@ -133,7 +133,7 @@ export class MfdFmsFplnRouteSelection extends FmsFlightPlanPage<MfdFmsFplnRouteS
     }
   }
 
-  /** FCOM INSERT: inserts the selected company route and displays the INIT page. */
+  /** INSERT: inserts the selected company route and displays the INIT page. */
   private async insertSelectedRoute(): Promise<void> {
     const index = this.selectedRoute.get();
     const route = index !== null ? this.routes[index] : undefined;
@@ -152,8 +152,7 @@ export class MfdFmsFplnRouteSelection extends FmsFlightPlanPage<MfdFmsFplnRouteS
     return (
       <>
         {super.render()}
-        {/* begin page content */}
-        {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 324), page container coordinates (display y - 143) */}
+        {/* Positions measured on the reference figure, page container coordinates (display y - 143) */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas">
             {fcomCentre(
@@ -169,7 +168,7 @@ export class MfdFmsFplnRouteSelection extends FmsFlightPlanPage<MfdFmsFplnRouteS
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_routeSelectionDropdown`}
                 selectedIndex={this.selectedRoute}
                 values={this.routeIdents}
-                freeTextAllowed={false} // FCOM COMPANY ROUTE LIST: chosen in the list or with the scroll buttons
+                freeTextAllowed={false} // COMPANY ROUTE LIST: chosen in the list or with the scroll buttons
                 containerStyle="width: 249px;"
                 alignLabels="center"
                 numberOfDigitsForInputField={10}
@@ -201,7 +200,7 @@ export class MfdFmsFplnRouteSelection extends FmsFlightPlanPage<MfdFmsFplnRouteS
               </div>,
             )}
             <RouteSummaryDisplay tokens={this.summary} left={103} top={208} lines={11} bottomPadding={19} />
-            {/* FCOM: RETURN displays the previous page without selecting the displayed company route */}
+            {/* RETURN displays the previous page without selecting the displayed company route */}
             {fcomAt(
               790,
               4,

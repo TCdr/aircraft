@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { FlightPlanLegFlags } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { isDirectToKeyBlockedByTemporary } from './DirectToAccess';
 
-describe('INSERT OR ERASE TMPY F-PLN FIRST on the KCCU DIR key (A380 FCOM l.45663, l.45667-45670)', () => {
+describe('INSERT OR ERASE TMPY F-PLN FIRST on the KCCU DIR key', () => {
   it('opens the DIRECT TO page without a temporary flight plan', () => {
     expect(isDirectToKeyBlockedByTemporary(false, undefined)).toBe(false);
   });

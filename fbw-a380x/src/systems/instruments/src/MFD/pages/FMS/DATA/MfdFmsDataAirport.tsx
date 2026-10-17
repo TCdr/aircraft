@@ -38,7 +38,7 @@ enum AirportPanel {
   PilotStored,
 }
 
-/** The data lines of a runway (FCOM DSC-22-FMS-20-30 P 53 and P 55) */
+/** The data lines of a runway */
 class RunwayDataDisplay {
   readonly ident = Subject.create('');
 
@@ -66,11 +66,11 @@ class RunwayDataDisplay {
   ): void {
     this.ident.set(ident);
     this.coordinates.set(coordinateToString(lat, long, false));
-    // FCOM figures: the elevation is displayed with one decimal (490.0FT)
+    // The elevation is displayed with one decimal (490.0FT)
     this.elevation.set(elevationFeet.toFixed(1));
     this.length.set(lengthFeet.toFixed(0));
     this.course.set((Math.round(course) % 360).toFixed(0).padStart(3, '0'));
-    // FCOM P 54: the letter T indicates that the course is defined in the TRUE north reference
+    // The letter T marks a course defined in the TRUE north reference
     this.courseTrue.set(courseTrue ? 'T' : '');
     this.lsIdent.set(lsIdent ?? '');
   }
@@ -88,7 +88,7 @@ interface DatabaseRunway {
   readonly lsIdent?: string;
 }
 
-/** FCOM P 59: the new runway function shows the latitude as ----.-- and the longitude as -----.-- */
+/** New runway function: the empty latitude and longitude fields show these dashes */
 class NewRunwayLatitudeFormat extends LatitudeDmsFormat {
   public readonly placeholder = '----.--';
 }
@@ -98,12 +98,12 @@ class NewRunwayLongitudeFormat extends LongitudeDmsFormat {
 }
 
 /**
- * DATA / AIRPORT page (A380 FCOM DSC-22-FMS-20-30 P 47-61): navigation database airports and runways, and the pilot
- * stored runways (display, deletion and new runway function). Positions from the FCOM figures (P 52, P 53, P 55,
- * P 56, P 59) in page container coordinates (display y - 143).
+ * DATA / AIRPORT page: navigation database airports and runways, and the pilot stored runways (display, deletion
+ * and new runway function). Positions measured on the reference figures of the page, in page container coordinates
+ * (display y - 143).
  */
 export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
-  /** The runway list of a database airport shows 8 runway buttons per column (P 52) */
+  /** The runway list of a database airport shows 8 runway buttons per column */
   private static readonly runwaysPerColumn = 8;
 
   private readonly pilotStoredElements = this.props.fmcService.master.pilotStoredElements;
@@ -111,8 +111,6 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
   private readonly selectedPageIndex = Subject.create<number>(AirportPanel.Database);
 
   private readonly showReturnButton = Subject.create(false);
-
-  // ---- DATABASE ARPTs ---------------------------------------------------------------------------------------------
 
   private readonly databaseIdent = Subject.create<string | null>(null);
 
@@ -146,8 +144,6 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     this.selectedDatabaseRunway,
     this.databaseRunways,
   );
-
-  // ---- PILOT STORED RWYs ------------------------------------------------------------------------------------------
 
   /** The pilot stored airports (idents of the airports of the stored runways) */
   private readonly storedAirports = ArraySubject.create<string>([]);
@@ -189,8 +185,6 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
 
   private readonly deleteAllDialogVisible = Subject.create(false);
 
-  // ---- new runway function ----------------------------------------------------------------------------------------
-
   private readonly newAirportIdent = Subject.create<string | null>(null);
 
   private readonly newRunwayIdent = Subject.create<string | null>(null);
@@ -208,7 +202,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
 
   private readonly newLsIdent = Subject.create<string | null>(null);
 
-  /** FCOM P 60: all data (except the landing system) is needed to define a new runway */
+  /** All data except the landing system is needed to define a new runway */
   private readonly storeDisabled = MappedSubject.create(
     (values) => values.some((v) => v === null),
     this.newAirportIdent,
@@ -259,21 +253,19 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
 
   private handleUriExtra(extra: string): void {
     const parts = extra.split('/');
-    // FCOM P 54: RETURN displays the page that was displayed before (the menu bar entry has no previous page)
+    // RETURN displays the page that was displayed before (the menu bar entry has no previous page)
     const arptIndex = parts.indexOf('arpt');
     this.showReturnButton.set(parts.includes(showReturnButtonUriExtra) || arptIndex >= 0);
     if (arptIndex >= 0 && parts[arptIndex + 1]) {
-      // DATA AIRPORT from the ARPT menu of the ALTERNATE or CLOSEST AIRPORTS page (P 50)
+      // DATA AIRPORT from the ARPT menu of the ALTERNATE or CLOSEST AIRPORTS page
       this.onDatabaseIdentEntered(parts[arptIndex + 1]);
     } else if (parts.includes('pilot-stored')) {
       this.selectedPageIndex.set(AirportPanel.PilotStored);
     }
   }
 
-  // ---- DATABASE ARPTs ---------------------------------------------------------------------------------------------
-
   /**
-   * FCOM P 52: an airport created by the flight crew opens the PILOT STORED RWYs panel with its runways; an airport that
+   * A crew created airport opens the PILOT STORED RWYs panel with its runways; an airport that
    * is neither in the navigation database nor pilot created opens the new runway function.
    */
   private async onDatabaseIdentEntered(ident: string | null): Promise<void> {
@@ -316,7 +308,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     );
   }
 
-  /** The runway buttons of the runway list: ident, length and LS when a landing system exists (P 52) */
+  /** The runway buttons of the runway list: ident, length and LS when a landing system exists */
   private renderRunwayList(): void {
     const list = this.runwayListRef.getOrDefault();
     if (!list) {
@@ -369,8 +361,6 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     }
   }
 
-  // ---- PILOT STORED RWYs ------------------------------------------------------------------------------------------
-
   private refreshStoredRunways(): void {
     const runways = this.pilotStoredElements.runways.get();
     this.storedAirports.set([...new Set(runways.map((r) => r.airportIdent))]);
@@ -393,7 +383,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
       this.selectedStoredAirport.set(null);
       return;
     }
-    // FCOM P 56: the ranking of the displayed runway and the total number of pilot stored runways
+    // The ranking of the displayed runway and the total number of pilot stored runways
     this.storedRunwayNumber.set(`${(index! + 1).toFixed(0)}/${runways.length.toFixed(0)}`);
     this.selectedStoredAirport.set(this.storedAirports.getArray().indexOf(runway.airportIdent));
     this.storedRunwayData.set(
@@ -408,7 +398,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     );
   }
 
-  /** FCOM P 55: the airport ident list displays all airports that are associated with the pilot stored runways */
+  /** The airport ident list displays all airports that have pilot stored runways */
   private onStoredAirportSelected(airportIndex: number | null): void {
     const ident = airportIndex !== null ? this.storedAirports.getArray()[airportIndex] : undefined;
     const runwayIndex = this.pilotStoredElements.runways.get().findIndex((r) => r.airportIdent === ident);
@@ -425,7 +415,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     }
   }
 
-  /** FCOM P 57-58: stored runways cannot be used by the FMS yet, so they are always deleted */
+  /** Stored runways cannot be used by the FMS yet, so they are always deleted */
   private deleteDisplayedStoredRunway(): void {
     this.deleteOneDialogVisible.set(false);
     const index = this.selectedStoredRunway.get();
@@ -440,8 +430,6 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     this.deleteAllDialogVisible.set(false);
     this.pilotStoredElements.deleteAllRunways();
   }
-
-  // ---- new runway function ----------------------------------------------------------------------------------------
 
   private openNewRunwayFunction(airportIdent: string | null): void {
     this.clearNewRunway();
@@ -466,7 +454,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     this.newRunwayMode.set(false);
   }
 
-  /** FCOM P 60 STORE RWY: stores the new runway in the pilot stored runways database (maximum 10 runways) */
+  /** STORE RWY: stores the new runway in the pilot stored runways database (maximum 10 runways) */
   private storeNewRunway(): void {
     const airportIdent = this.newAirportIdent.get();
     const ident = this.newRunwayIdent.get();
@@ -504,23 +492,20 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     );
   }
 
-  // ---- render -------------------------------------------------------------------------------------------------------
-
-  private numberField(
+  /** An entry field (number or text) whose left edge is at x, centred on y */
+  private inputField<T extends number | string>(
     y: number,
     x: number,
     width: number,
-    format: DataEntryFormat<number>,
-    value: Subject<number | null>,
-    disabled?: Subscribable<boolean>,
+    format: DataEntryFormat<T>,
+    value: Subject<T | null>,
   ): VNode {
     return fcomAt(
       y,
       x,
-      <InputField<number>
+      <InputField<number | string>
         dataEntryFormat={format}
         value={value}
-        disabled={disabled}
         containerStyle={`width: ${width}px;`}
         alignText="flex-start"
         errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
@@ -530,29 +515,19 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     );
   }
 
-  private textField(
-    y: number,
-    x: number,
-    width: number,
-    format: DataEntryFormat<string>,
-    value: Subject<string | null>,
-  ) {
+  /** A value followed by its unit, whose left edge is at x */
+  private static valueWithUnit(y: number, x: number, value: Subscribable<string>, unit: string): VNode {
     return fcomAt(
       y,
       x,
-      <InputField<string>
-        dataEntryFormat={format}
-        value={value}
-        containerStyle={`width: ${width}px;`}
-        alignText="flex-start"
-        errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-        hEventConsumer={this.props.mfd.hEventConsumer}
-        interactionMode={this.props.mfd.interactionMode}
-      />,
+      <>
+        <span class="mfd-value bigger">{value}</span>
+        <span class="mfd-label-unit mfd-unit-trailing">{unit}</span>
+      </>,
     );
   }
 
-  /** Runway data of a database runway (P 53, in the runway box) */
+  /** Runway data of a database runway, in the runway box */
   private renderDatabaseRunwayData(): VNode {
     const data = this.databaseRunwayData;
     return (
@@ -581,23 +556,9 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
         {fcomRight(414, 242, <span class="mfd-label">LAT/LONG</span>)}
         {fcomAt(414, 270, <span class="mfd-value bigger">{data.coordinates}</span>)}
         {fcomRight(475, 242, <span class="mfd-label">ELEVATION</span>)}
-        {fcomAt(
-          475,
-          280,
-          <>
-            <span class="mfd-value bigger">{data.elevation}</span>
-            <span class="mfd-label-unit mfd-unit-trailing">FT</span>
-          </>,
-        )}
+        {MfdFmsDataAirport.valueWithUnit(475, 280, data.elevation, 'FT')}
         {fcomRight(534, 242, <span class="mfd-label">LENGTH</span>)}
-        {fcomAt(
-          534,
-          298,
-          <>
-            <span class="mfd-value bigger">{data.length}</span>
-            <span class="mfd-label-unit mfd-unit-trailing">FT</span>
-          </>,
-        )}
+        {MfdFmsDataAirport.valueWithUnit(534, 298, data.length, 'FT')}
         {fcomRight(534, 561, <span class="mfd-label">CRS</span>)}
         {fcomAt(
           534,
@@ -622,7 +583,6 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     );
   }
 
-  /** DATABASE ARPTs panel (P 52) */
   private renderDatabasePanel(): VNode {
     return (
       <>
@@ -653,7 +613,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     );
   }
 
-  /** Runway data of a pilot stored runway (P 55, in the runway box) */
+  /** Runway data of a pilot stored runway, in the runway box */
   private renderStoredRunwayData(): VNode {
     const data = this.storedRunwayData;
     return (
@@ -663,39 +623,18 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
         {fcomRight(379, 242, <span class="mfd-label">LAT/LONG</span>)}
         {fcomAt(379, 269, <span class="mfd-value bigger">{data.coordinates}</span>)}
         {fcomRight(441, 242, <span class="mfd-label">ELEVATION</span>)}
-        {fcomAt(
-          441,
-          278,
-          <>
-            <span class="mfd-value bigger">{data.elevation}</span>
-            <span class="mfd-label-unit mfd-unit-trailing">FT</span>
-          </>,
-        )}
+        {MfdFmsDataAirport.valueWithUnit(441, 278, data.elevation, 'FT')}
         {fcomRight(500, 242, <span class="mfd-label">LENGTH</span>)}
-        {fcomAt(
-          500,
-          298,
-          <>
-            <span class="mfd-value bigger">{data.length}</span>
-            <span class="mfd-label-unit mfd-unit-trailing">FT</span>
-          </>,
-        )}
+        {MfdFmsDataAirport.valueWithUnit(500, 298, data.length, 'FT')}
         {fcomRight(500, 525, <span class="mfd-label">CRS</span>)}
-        {fcomAt(
-          500,
-          577,
-          <>
-            <span class="mfd-value bigger">{data.course}</span>
-            <span class="mfd-label-unit mfd-unit-trailing">°</span>
-          </>,
-        )}
+        {MfdFmsDataAirport.valueWithUnit(500, 577, data.course, '°')}
         {fcomRight(559, 242, <span class="mfd-label">LS IDENT</span>)}
         {fcomAt(559, 269, <span class="mfd-value bigger">{data.lsIdent}</span>)}
       </>
     );
   }
 
-  /** PILOT STORED RWYs panel with stored runways (P 55) */
+  /** PILOT STORED RWYs panel with stored runways */
   private renderStoredPanel(): VNode {
     return (
       <>
@@ -707,7 +646,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataAirportStoredDropdown`}
             selectedIndex={this.selectedStoredAirport}
             values={this.storedAirports}
-            freeTextAllowed={false} // FCOM PILOT STORED RWYS AIRPORT IDENT LIST: list only (typed idents go in the AIRPORT field)
+            freeTextAllowed={false} // AIRPORT IDENT LIST: list only (typed idents go in the AIRPORT field)
             containerStyle="width: 119px;"
             alignLabels="center"
             numberOfDigitsForInputField={4}
@@ -778,7 +717,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     );
   }
 
-  /** PILOT STORED RWYs panel without stored runway (P 56) */
+  /** PILOT STORED RWYs panel without stored runway */
   private renderNoStoredPanel(): VNode {
     return (
       <>
@@ -796,27 +735,26 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
     );
   }
 
-  /** New runway function (P 59-60) */
   private renderNewRunwayFunction(): VNode {
     return (
       <>
         {fcomRight(111, 310, <span class="mfd-label">ARPT IDENT</span>)}
-        {this.textField(111, 333, 90, new AirportFormat(), this.newAirportIdent)}
+        {this.inputField(111, 333, 90, new AirportFormat(), this.newAirportIdent)}
         <div class="mfd-data-airport-box" />
         {fcomRight(311, 86, <span class="mfd-label">RWY</span>)}
-        {this.textField(311, 110, 69, new RunwayDesignatorFormat(), this.newRunwayIdent)}
+        {this.inputField(311, 110, 69, new RunwayDesignatorFormat(), this.newRunwayIdent)}
         {fcomRight(381, 242, <span class="mfd-label">LAT/LONG</span>)}
-        {this.numberField(381, 269, 150, new NewRunwayLatitudeFormat(), this.newLatitude)}
+        {this.inputField(381, 269, 150, new NewRunwayLatitudeFormat(), this.newLatitude)}
         {fcomCentre(381, 442, <span class="mfd-label">/</span>)}
-        {this.numberField(381, 458, 170, new NewRunwayLongitudeFormat(), this.newLongitude)}
+        {this.inputField(381, 458, 170, new NewRunwayLongitudeFormat(), this.newLongitude)}
         {fcomRight(442, 242, <span class="mfd-label">ELEVATION</span>)}
-        {this.numberField(442, 269, 140, new ElevationFormat(), this.newElevation)}
+        {this.inputField(442, 269, 140, new ElevationFormat(), this.newElevation)}
         {fcomRight(502, 242, <span class="mfd-label">LENGTH</span>)}
-        {this.numberField(502, 269, 140, this.lengthFormat, this.newLength)}
+        {this.inputField(502, 269, 140, this.lengthFormat, this.newLength)}
         {fcomRight(502, 524, <span class="mfd-label">CRS</span>)}
-        {this.numberField(502, 551, 99, new BearingFormat(), this.newCourse)}
+        {this.inputField(502, 551, 99, new BearingFormat(), this.newCourse)}
         {fcomRight(561, 242, <span class="mfd-label">LS IDENT</span>)}
-        {this.textField(561, 269, 129, new NavaidIdentFormat('------'), this.newLsIdent)}
+        {this.inputField(561, 269, 129, new NavaidIdentFormat('------'), this.newLsIdent)}
         {fcomAt(561, 456, <span class="mfd-label">(OPTIONAL)</span>)}
         {fcomAt(
           728,
@@ -862,7 +800,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
         {super.render()}
         {/* begin page content */}
         <div class="mfd-page-container" style="position: relative;">
-          {/* Tab panels from y = 150 to 910 (P 56); their content is drawn in the overlays below */}
+          {/* Tab panels from y = 150 to 910; their content is drawn in the overlays below */}
           <TopTabNavigator
             pageTitles={Subject.create(['DATABASE ARPTs', 'PILOT STORED RWYs'])}
             selectedPageIndex={this.selectedPageIndex}
@@ -885,7 +823,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
           <div class="mfd-fcom-overlay" style={visibleWhen(storedNew)}>
             {this.renderNewRunwayFunction()}
           </div>
-          {/* P 52 / P 55: RETURN below the panels, not during the new runway function */}
+          {/* RETURN below the panels, not during the new runway function */}
           <div class="mfd-fcom-overlay" style={visibleWhen(this.newRunwayMode.map((v) => !v))}>
             <div style={visibleWhen(this.showReturnButton)}>
               {fcomAt(
@@ -899,7 +837,6 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
               )}
             </div>
           </div>
-          {/* P 57-58: confirmation windows */}
           <div class="mfd-data-airport-dialogs">
             <ConfirmationDialog
               visible={this.deleteOneDialogVisible}

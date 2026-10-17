@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-/** The message area of an ATIS request area (FCOM DSC-46-10-20-30 P 34): 44 characters on each of the four first lines,
+/** The message area of an ATIS request area: 44 characters on each of the four first lines,
  * 39 characters on the fifth line (215 characters) */
 export const ATIS_LIST_LINE_LENGTHS: readonly number[] = [44, 44, 44, 44, 39];
 
@@ -51,9 +51,9 @@ export function atisListLines(text: string): { lines: string[]; truncated: boole
 const PRINT_LINE_LENGTH = 64;
 
 /**
- * The printed ATIS message (PRINT, AUTO PRINT, PRINT ALL of the ATIS/LIST page, FCOM DSC-46-10-20-30 P 32-34): the
- * airport, the ATIS type, the version and the time, then the whole text. The FCOM gives no printout example: the lines
- * follow the FMS printouts.
+ * The printed ATIS message (PRINT, AUTO PRINT, PRINT ALL of the ATIS/LIST page): the airport, the ATIS type, the
+ * version and the time, then the whole text. Design choice: no real ATIS printout to copy, so the lines follow the FMS
+ * printouts.
  */
 export function atisPrintLines(icao: string, type: string, version: string, time: string, text: string): string[] {
   const lines = [`  ${icao} ${type} ATIS ${version || '-'}   ${time || '----'}`, ''];
@@ -67,7 +67,7 @@ export function atisPrintLines(icao: string, type: string, version: string, time
 }
 
 /**
- * The ATIS time indication (FCOM DSC-46-10-20-30 P 31): the time of the ATIS message conveyed by the uplink, as written
+ * The ATIS time indication: the time of the ATIS message conveyed by the uplink, as written
  * in the ATIS text (e.g. "JFK ATIS INFO O 1151Z"), or ---- when it is not available. It is not the time of reception.
  */
 export function atisTime(text: string): string {

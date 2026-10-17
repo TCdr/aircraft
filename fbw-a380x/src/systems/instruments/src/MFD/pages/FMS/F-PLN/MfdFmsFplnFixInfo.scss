@@ -1,11 +1,11 @@
 @import "../../../../MsfsAvionicsCommon/definitions";
 
-// FCOM DSC-22-FMS-20-30 P 139: tabs from y = 150, REF IDENT at y = 230, F-PLN INTERCEPT at y = 306
+// Tabs from y = 150, REF IDENT at y = 230, F-PLN INTERCEPT at y = 306
 .mfd-fms-fpln-fix-info-header {
   height: 0;
 }
 
-// FCOM DSC-22-FMS-20-30 P 139, tab page coordinates (display x - 21, display y - 198)
+// Tab page coordinates (display x - 21, display y - 198)
 .mfd-fms-fpln-fix-info-canvas {
   height: 100%;
 }

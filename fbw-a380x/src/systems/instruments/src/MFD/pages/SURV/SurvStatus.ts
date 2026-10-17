@@ -5,8 +5,7 @@
 export type SurvSystemNumber = 0 | 1 | 2;
 
 /**
- * Whether the XPDR of the selected XPDR/TCAS system is failed: the XPDR label of the SURV CONTROLS page is amber then
- * (A380 FCOM DSC-34-20-50-20 CONTROLS page, a380_fcom.txt l.91298-91301: "XPDR LABEL ... The XPDR is failed").
+ * Whether the XPDR of the selected XPDR/TCAS system is failed: the XPDR label of the SURV CONTROLS page is amber then.
  * @param transponderSystem L:A32NX_TRANSPONDER_SYSTEM: 0 = SYS 1, 1 = SYS 2
  * @param xpdr1Failed L:A32NX_XPDR_1_FAILED
  * @param xpdr2Failed L:A32NX_XPDR_2_FAILED
@@ -21,8 +20,8 @@ export function selectedTransponderFailed(
 }
 
 /**
- * The failed state of the three WXR functions of one SURV system on the STATUS & SWITCHING page (A380 FCOM
- * DSC-34-20-30-20, a380_fcom.txt l.90016-90049: WX DISPLAY, TURB and PRED W/S each show "failed on SURV SYS 1(2)").
+ * The failed state of the three WXR functions of one SURV system on the STATUS & SWITCHING page (WX DISPLAY, TURB
+ * and PRED W/S each show as failed on that SURV system).
  * The TURB and PWS functions are made by the radar of that system: the sim has no failure of its own for them, so they
  * fail with the WXR of the system (L:A32NX_WXR_n_FAILED: AESU reset or unpowered).
  * @param wxrSystemFailed L:A32NX_WXR_n_FAILED of the system
@@ -47,9 +46,8 @@ export function tawsSystem(wxrTawsSelected: number, tawsSystemInUse: number): Su
 }
 
 /**
- * The TAWS 1(2) IN USE indication of the STATUS & SWITCHING page (A380 FCOM DSC-34-20-60-50 P 6-7, a380_fcom.txt
- * l.91789-91792: "In the case of abnormal operation, indicates that the TAWS and the WXR functions are not provided by
- * the same SYS. The selected SYS provides the WXR function, and the other SYS provides the TAWS function.").
+ * The TAWS 1(2) IN USE indication of the STATUS & SWITCHING page: in abnormal operation the TAWS and the WXR
+ * functions do not come from the same SYS; the selected SYS provides the WXR, the other SYS the TAWS.
  * @param wxrTawsSelected L:A32NX_WXR_TAWS_SYS_SELECTED (the system of the WXR)
  * @param tawsSystemInUse L:A32NX_TAWS_SYS_IN_USE
  * @returns "TAWS n IN USE", or null when both functions come from the same system

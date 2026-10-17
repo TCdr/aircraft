@@ -32,7 +32,7 @@ export enum TakeoffPowerSetting {
   DERATED = 2,
 }
 
-/** The derated takeoff levels (FCOM DSC-70-20-40 l.111564-111565), as the index of the MFD list */
+/** The derated takeoff levels, as the index of the MFD list */
 export enum TakeoffDerated {
   D04 = 0,
   D08 = 1,
@@ -77,28 +77,31 @@ export class FmgcData {
     return sub.map((it) => (it !== null ? it.toFixed(0) : '-'.repeat(numberDashes)));
   }
 
+  /** The subject of a flight plan in a map, created (null) on first use */
+  private static subjectOfPlan<T>(
+    map: Map<FlightPlanIndex, Subject<T | null>>,
+    planIndex: FlightPlanIndex,
+  ): Subject<T | null> {
+    let subject = map.get(planIndex);
+    if (!subject) {
+      subject = Subject.create<T | null>(null);
+      map.set(planIndex, subject);
+    }
+    return subject;
+  }
+
   private readonly companyRouteIdents = new Map<FlightPlanIndex, Subject<string | null>>();
 
   /** The ident of the company route inserted into a flight plan, null when none (INIT page CPNY RTE field). */
   public companyRouteIdent(planIndex: FlightPlanIndex): Subject<string | null> {
-    let ident = this.companyRouteIdents.get(planIndex);
-    if (!ident) {
-      ident = Subject.create<string | null>(null);
-      this.companyRouteIdents.set(planIndex, ident);
-    }
-    return ident;
+    return FmgcData.subjectOfPlan(this.companyRouteIdents, planIndex);
   }
 
   private readonly alternateCompanyRoutes = new Map<FlightPlanIndex, Subject<InsertedAlternateRoute | null>>();
 
   /** The alternate company route inserted into a flight plan, null when none (INIT page ALTN RTE field). */
   public alternateCompanyRoute(planIndex: FlightPlanIndex): Subject<InsertedAlternateRoute | null> {
-    let route = this.alternateCompanyRoutes.get(planIndex);
-    if (!route) {
-      route = Subject.create<InsertedAlternateRoute | null>(null);
-      this.alternateCompanyRoutes.set(planIndex, route);
-    }
-    return route;
+    return FmgcData.subjectOfPlan(this.alternateCompanyRoutes, planIndex);
   }
 
   /**
@@ -108,8 +111,8 @@ export class FmgcData {
   public readonly fuelPlanningTrialBlockFuel = Subject.create<number | null>(null);
 
   /**
-   * JTSN GW (kg): the gross weight the FQMS stops the fuel jettison at (A380 FCOM DSC-22-FMS-20-30 FUEL&LOAD page,
-   * DSC-28-40 Fuel Jettison), sent to the FQMS as L:A380X_FMS_JETTISON_GW.
+   * JTSN GW (kg): the gross weight the FQMS stops the fuel jettison at (FUEL&LOAD page), sent to the FQMS as
+   * L:A380X_FMS_JETTISON_GW.
    */
   public readonly jettisonGrossWeight = Subject.create<number | null>(null);
 
@@ -501,7 +504,7 @@ export class FmgcDataService implements Fmgc {
       const efob = this.guidanceController?.vnavDriver?.getDestinationPrediction()?.estimatedFuelOnBoard; // in Pounds
       if (useFob && efob !== undefined) {
         // Before takeoff the predictions start from the FOB (BLOCK), which still holds the TAXI fuel: the fuel after
-        // landing is BLOCK - TAXI - TRIP (A380 FCOM DSC-22-FMS-20-30 FUEL&LOAD page: EXTRA and LW deduct the TAXI)
+        // landing is BLOCK - TAXI - TRIP (the FUEL&LOAD EXTRA and LW deduct the TAXI)
         const taxiFuel =
           this.getFlightPhase() < FmgcFlightPhase.Takeoff
             ? this.flightPlanService.get(forPlan).performanceData.taxiFuel.get() ?? 0

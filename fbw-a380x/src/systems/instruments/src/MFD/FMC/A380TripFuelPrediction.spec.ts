@@ -2,23 +2,19 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * The A380X VNAV fuel predictions (Predictions / EngineModel / FlightModel with A380AircraftConfig), which give the TRIP
- * fuel of the FUEL&LOAD page, against the engine the sim flies and against the A380 FCOM.
+ * The A380X VNAV fuel predictions (Predictions / EngineModel / FlightModel with A380AircraftConfig), which give the
+ * TRIP fuel of the FUEL&LOAD page, against the engine the sim flies and against the published A380 examples.
  *
- * A380 FCOM DSC-22-FMS (PERFORMANCE DATABASE): the FMS predictions use "the engine model, aerodynamic model, and
- * performance model" of the aircraft. Here the aircraft is the sim A380X: its thrust is the engines.cfg
- * n1_and_mach_on_thrust_table (read forwards by MSFS, bilinear in N1 and Mach) and its fuel flow is the FADEC
- * Polynomial_A380X::correctedFuelFlow (fadec_a380x, x 2.8). A recording of the sim (A380X, FL150, 240 kt, all four
- * engines, 2026-10-05) gave TURB ENG JET THRUST within 0.5 % of table 1506 read forwards at the recorded corrected N1,
- * and L:A32NX_ENGINE_FF within 0.5 % of the FADEC polynomial: thrust and fuel flow per N1 are the sim's.
+ * The FMS predictions use the engine, aerodynamic and performance models of the aircraft. Here the aircraft is the sim
+ * A380X: its thrust is the engines.cfg n1_and_mach_on_thrust_table (read forwards by MSFS, bilinear in N1 and Mach) and
+ * its fuel flow is the FADEC Polynomial_A380X::correctedFuelFlow (fadec_a380x, x 2.8). Measured in the sim (A380X,
+ * FL150, 240 kt, all four engines): TURB ENG JET THRUST within 0.5 % of table 1506 read forwards at the recorded
+ * corrected N1, and L:A32NX_ENGINE_FF within 0.5 % of the FADEC polynomial: thrust and fuel flow per N1 are the sim's.
  *
- * The cruise fuel flow was 4 to 7 % below what the FADEC burns at M.85 because the corrected N1 of a thrust was not the
- * N1 at which the engine gives that thrust between the table's Mach columns (EngineModel.reverseTableInterpolation).
- *
- * The FCOM IN-FLT PERF examples (the only A380 performance figures with numbers in our manuals, all heavy):
- * - PER-IFT-CLB-CMI P 1/2: 1200.0 klb, ISA+10, HD10, FL15 to FL350, CI 160 -> 0:26, 25960 lb, 190.5 NM
- * - PER-IFT-CRZ-CMI P 1/2: 1100.0 klb, ISA+10, FL350, ECON CI 160 -> ALL ENG FF 31889 lb/HR
- * - PER-IFT-HLD-HMI P 1/2: 940.0 klb, ISA+10, 1500 ft, GD + 25 kt (235 kt) -> Average FF 26200 lb/HR
+ * The published in-flight performance examples (the only A380 performance figures with numbers, all heavy):
+ * - climb: 1200.0 klb, ISA+10, HD10, FL15 to FL350, CI 160 -> 0:26, 25960 lb, 190.5 NM
+ * - cruise: 1100.0 klb, ISA+10, FL350, ECON CI 160 -> ALL ENG FF 31889 lb/HR
+ * - holding: 940.0 klb, ISA+10, 1500 ft, GD + 25 kt (235 kt) -> Average FF 26200 lb/HR
  * The remaining deviations from them are the sim A380X's own performance (same engine and drag models), not an FMS
  * error: the bands pin today's values, and a retune of the sim + FMS models must update them.
  */
@@ -239,7 +235,7 @@ function fadecCorrectedFuelFlow(): (cn1: number, mach: number, alt: number) => n
   };
 }
 
-/** The FCOM examples' conditions: ISA+10, 10 kt headwind, CI 160 (about 330 kt / M.85 from the FCOM TAS column) */
+/** The published examples' conditions: ISA+10, 10 kt headwind, CI 160 (about 330 kt / M.85 from their TAS column) */
 const FCOM_CONDITIONS: Conditions = { isaDeviation: 10, headwind: 10, cas: 330, mach: 0.85 };
 
 describe('A380X VNAV engine model = the sim engine', () => {
@@ -267,20 +263,19 @@ describe('A380X VNAV engine model = the sim engine', () => {
     ]) {
       const weight = weightKlb * 1_000;
       const predicted = levelFuelFlow(weight, altitude, 400, 0.85, isaDeviation);
-      // Before the fix: 4.5 %, 6.4 %, 4.1 % and 2.8 % below
       expect(predicted / engineFuelFlowAtMach(weight, altitude, 0.85, isaDeviation)).toBeCloseTo(1, 2);
     }
   });
 });
 
-describe('A380X VNAV predictions vs the FCOM IN-FLT PERF examples', () => {
-  it('holding at 940 klb, 1500 ft, 235 kt: about 4 % below the FCOM 26200 lb/h', () => {
+describe('A380X VNAV predictions vs the published in-flight performance examples', () => {
+  it('holding at 940 klb, 1500 ft, 235 kt: about 4 % below the published 26200 lb/h', () => {
     const ratio = levelFuelFlow(940_000, 1_500, 235, 0.85, 10) / 26_200;
     expect(ratio).toBeGreaterThan(0.95);
     expect(ratio).toBeLessThan(0.97);
   });
 
-  it('cruise at 1100 klb, FL350, M.85: about 5 % below the FCOM 31889 lb/h (8 % before the fix)', () => {
+  it('cruise at 1100 klb, FL350, M.85: about 5 % below the published 31889 lb/h', () => {
     const ratio = levelFuelFlow(1_100_000, 35_000, 330, 0.85, 10) / 31_889;
     expect(ratio).toBeGreaterThan(0.94);
     expect(ratio).toBeLessThan(0.96);
@@ -288,7 +283,7 @@ describe('A380X VNAV predictions vs the FCOM IN-FLT PERF examples', () => {
 
   it('climb at 1200 klb, FL15 to FL350: about 21 % too quick and 24 % too little fuel', () => {
     const result = climb(A380AircraftConfig, 1_500, 35_000, 1_200_000, FCOM_CONDITIONS);
-    // FCOM: 0:26, 25960 lb, 190.5 NM. The fuel per minute is right (about -4 %): the climb itself is too quick.
+    // Published: 0:26, 25960 lb, 190.5 NM. The fuel per minute is right (about -4 %): the climb itself is too quick.
     expect(result.time / 60 / 26).toBeGreaterThan(0.75);
     expect(result.time / 60 / 26).toBeLessThan(0.83);
     expect(result.fuel / 25_960).toBeGreaterThan(0.72);
@@ -316,11 +311,11 @@ describe('A380X VNAV predictions vs the FCOM IN-FLT PERF examples', () => {
     );
     const tonnes = (phase: Phase) => phase.fuel / TONNE_TO_LB;
 
-    // Climb 5.94 t / 14 min / 93 NM, cruise 13.64 t (13.00 t before the fix), descent 0.89 t / 18 min / 106 NM
+    // Climb 5.94 t / 14 min / 93 NM, cruise 13.64 t, descent 0.89 t / 18 min / 106 NM
     expect(tonnes(climbPhase)).toBeCloseTo(5.94, 1);
     expect(tonnes(cruisePhase)).toBeCloseTo(13.64, 1);
     expect(tonnes(descentPhase)).toBeCloseTo(0.89, 1);
-    // 19.83 t before the fix (SimBrief: 23.5 t for the real route)
+    // SimBrief: 23.5 t for the real route
     expect(tonnes(climbPhase) + tonnes(cruisePhase) + tonnes(descentPhase)).toBeCloseTo(20.47, 1);
   });
 });

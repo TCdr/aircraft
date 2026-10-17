@@ -82,8 +82,8 @@ export class InsertNextWptFromWindow extends DisplayComponent<InsertNextWptFromW
         );
       }
     } else if (WaypointEntryUtils.isPdFormat(text)) {
-      // PLACE/DIST (A380 FCOM l.24831-24836): the place must be the revised waypoint, the waypoint goes on the leg after it
-      // (or before it with a negative distance), see PlaceDistance.ts
+      // PLACE/DIST: the place must be the revised waypoint, the waypoint goes on the leg after it (or before it
+      // with a negative distance), see PlaceDistance.ts
       try {
         const revWpt = this.props.fmcService.master.revisedLegIndex.get();
         const isAltn = this.props.fmcService.master.revisedLegIsAltn.get() ?? false;

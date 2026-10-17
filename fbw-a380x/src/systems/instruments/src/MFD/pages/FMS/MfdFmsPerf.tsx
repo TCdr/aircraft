@@ -87,7 +87,7 @@ enum FlightPhaseTabIndex {
 }
 
 export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
-  /** FCOM DSC-22-FMS-20-30 P 34 / P 231: the tab panels span y = 266 to 890 of the display */
+  /** The tab panels span y = 266 to 890 of the display */
   private static readonly panelFrameStyle = 'flex: 0 0 auto; box-sizing: border-box; height: 624px;';
 
   /** T.O panel: origin of its content at display x = 12, y = 274 */
@@ -162,7 +162,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
   private readonly eoMaxFl = Subject.create<string>('---');
   private readonly eoMaxFlNotAvail = Subject.create<boolean>(false);
 
-  /** FCOM DSC-22-FMS-20-30 PERF page: in engine-out, the REC MAX label reads EO MAX in amber (EO maximum FL) */
+  /** In engine-out, the REC MAX label reads EO MAX in amber (EO maximum FL) */
   private readonly maxFlLabel = this.eoActive.map((eo) => (eo ? 'EO MAX' : 'REC MAX'));
 
   private readonly maxFlDisplay = MappedSubject.create(
@@ -372,13 +372,13 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
 
   private readonly toDeratedInputRef = FSComponent.createRef<HTMLDivElement>();
 
-  /** DERATED T.O levels: the six DOx levels of the engine (FCOM DSC-70-20-40 l.111564, MFD/shared/TakeoffDerate.ts) */
+  /** DERATED T.O levels: the six DOx levels of the engine (MFD/shared/TakeoffDerate.ts) */
   private readonly toDeratedThrustOptions = ArraySubject.create([...TAKEOFF_DERATE_LEVELS]);
 
-  /** T.O FLAPS lever positions (FCOM: 1, 2 or 3) */
+  /** T.O FLAPS lever positions (1, 2 or 3) */
   private readonly toFlapsLabels = ArraySubject.create(['1', '2', '3']);
 
-  /** DERATED CLB levels (FCOM: NONE and up to five derated climb levels) */
+  /** DERATED CLB levels (NONE and up to five derated climb levels) */
   private readonly climbDeratedLabels = ArraySubject.create(['NONE', '01', '02', '03', '04', '05']);
 
   private toThrustSettingChanged(newIndex: TakeoffPowerSetting) {
@@ -451,7 +451,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
   /** TOGA / FLEX / DERATED: selectable while the T.O panel accepts entries */
   private readonly toThrustSettingsDisabled = this.toPageInactive.map(takeoffThrustOptionsDisabled);
 
-  // FCOM DSC-22-FMS-20-30 PERF page: the CI field has no LRC / ECON mode selector
+  // The CI field has no LRC / ECON mode selector
   private readonly costIndexDisabled = MappedSubject.create(
     ([flightPhase, isActiveOrCopyOfActive]) => flightPhase >= FmgcFlightPhase.Descent && isActiveOrCopyOfActive,
     this.activeFlightPhase,
@@ -557,12 +557,10 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
 
   private crzTableModeLine3 = Subject.create<string | null>(null);
 
-  /** FCOM DSC-22-FMS-20-30 P 252: LRC Mach / speed of the CRZ panel (the non-limiting one is dashed) */
+  /** LRC Mach of the CRZ panel (the LRC is computed as a Mach: its speed is dashed) */
   private readonly lrcMach = Subject.create('.--');
 
-  private readonly lrcSpeed = Subject.create('---');
-
-  /** FCOM DSC-22-FMS-20-30 P 252: MAX TURB Mach / speed of the CRZ panel */
+  /** MAX TURB Mach / speed of the CRZ panel */
   private readonly maxTurbMach = Subject.create('.--');
 
   private readonly maxTurbSpeed = Subject.create('---');
@@ -1033,7 +1031,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
 
   /**
    * CLB tab: the time and distance from the present position to the predictions reference altitude (PRED TO), on the
-   * active flight plan (FCOM l.38020-38021, see PerfPredictionsToAltitude.ts)
+   * active flight plan (see PerfPredictionsToAltitude.ts)
    */
   private climbPredictionText(fpIndex: FlightPlanIndex): string {
     if (fpIndex !== FlightPlanIndex.Active) {
@@ -1048,9 +1046,9 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
   }
 
   /**
-   * DES tab: the time and distance from the present position to the predictions reference altitude, on the active flight
-   * plan. Without a flight crew entry, the reference altitude is the AFS CP selected altitude when it is below the
-   * aircraft (FCOM l.38719-38721, AUTOMATIC UPDATE).
+   * DES tab: the time and distance from the present position to the predictions reference altitude, on the active
+   * flight plan. Without a flight crew entry, the reference altitude is the AFS CP selected altitude when it is below
+   * the aircraft (automatic update).
    */
   private descentPredictionText(fpIndex: FlightPlanIndex): string {
     const fmc = this.props.fmcService.master;
@@ -1250,8 +1248,8 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
         }
       }
 
-      // LRC and MAX TURB (FCOM PER-IFT LONG RANGE CRUISE SPEED, PRO-SUP-91-40): at the cruise level, the Mach is
-      // displayed when it is the limiting target (CAS below the speed), otherwise the speed
+      // LRC and MAX TURB: at the cruise level, the Mach is displayed when it is the limiting target (CAS below the
+      // speed), otherwise the speed
       const crzLevel = this.crzFl.get();
       const grossWeightKg = this.props.fmcService.master.fmgc.getGrossWeightKg(fpIndex);
       if (crzLevel !== null && grossWeightKg !== null) {
@@ -1259,13 +1257,11 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
         const casOf = (mach: number) => UnitType.KNOT.convertFrom(AeroMath.machToCas(mach, pressure), UnitType.MPS);
         const lrc = longRangeCruiseMach(grossWeightKg, crzLevel * 100);
         this.lrcMach.set(lrc !== null ? `.${lrc.toFixed(2).split('.')[1]}` : '.--');
-        this.lrcSpeed.set('---');
         const turbMachLimiting = casOf(maxTurbulenceMach) <= maxTurbulenceSpeedKnots;
         this.maxTurbMach.set(turbMachLimiting ? `.${maxTurbulenceMach.toFixed(2).split('.')[1]}` : '.--');
         this.maxTurbSpeed.set(turbMachLimiting ? '---' : maxTurbulenceSpeedKnots.toFixed(0));
       } else {
         this.lrcMach.set('.--');
-        this.lrcSpeed.set('---');
         this.maxTurbMach.set('.--');
         this.maxTurbSpeed.set('---');
       }
@@ -1415,7 +1411,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
           {super.render()}
           {/* begin page content */}
           <div class="mfd-page-container" style="position: relative;">
-            {/* FCOM DSC-22-FMS-20-30 P 34 / P 289: CRZ, OPT and REC MAX at y = 179, the tabs from y = 228 */}
+            {/* CRZ, OPT and REC MAX at y = 179, the tabs from y = 228 */}
             <div class="mfd-fcom-canvas" style="flex: 0 0 78px;">
               {fcomAt(36, 24, <span class="mfd-label">CRZ</span>)}
               {fcomAt(
@@ -1463,7 +1459,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
               {...fcomTabBar}
             >
               <TopTabNavigatorPage containerStyle={MfdFmsPerf.panelStyle}>
-                {/* T.O (FCOM DSC-22-FMS-20-30 P 34 and P 231): panel coordinates (display x - 12, display y - 274) */}
+                {/* T.O: panel coordinates (display x - 12, display y - 274) */}
                 <div class="mfd-fcom-canvas">
                   {fcomAt(28, 17, <span class="mfd-label">RWY</span>)}
                   {fcomAt(28, 72, <span class="mfd-value bigger">{this.originRunwayIdent}</span>)}
@@ -1556,7 +1552,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                     />,
                   )}
 
-                  {/* P 231: speeds to be confirmed in yellow right of the entry fields, CONFIRM T.O SPDs button */}
+                  {/* Speeds to be confirmed in yellow right of the entry fields, CONFIRM T.O SPDs button */}
                   <div ref={this.vSpeedsConfirmationRef[0]}>
                     {fcomAt(104, 192, [
                       <span class="mfd-value tmpy">
@@ -1609,7 +1605,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                     )}
                   </div>
 
-                  {/* P 34: operating speeds F, S and green dot */}
+                  {/* Operating speeds F, S and green dot */}
                   <div ref={this.flapSpeedsRef[0]}>
                     {fcomAt(104, 270, <span class="mfd-label">F</span>)}
                     {fcomAt(104, 305, [
@@ -1645,7 +1641,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                   </div>
                   <div class="mfd-fms-perf-vline" style="left: 423px; top: 74px; height: 167px;" />
 
-                  {/* P 233: takeoff thrust option, FLEX temperature and derated level right of their label */}
+                  {/* Takeoff thrust option, FLEX temperature and derated level right of their label */}
                   {fcomAt(
                     156,
                     440,
@@ -1709,7 +1705,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                         }}
                         inactive={this.toPageInactive}
                         idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_deratedDropdown`}
-                        keyboardEntryAllowed // FCOM T.O DERATED: selected in the list or entered with the keyboard
+                        keyboardEntryAllowed // T.O DERATED: selected in the list or entered with the keyboard
                         errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
                         containerStyle="width: 90px;"
                         numberOfDigitsForInputField={3}
@@ -1747,7 +1743,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                     </ConfirmationDialog>
                   </div>
 
-                  {/* P 231, P 234-236: flaps, THS, packs and anti-ice settings */}
+                  {/* Flaps, THS, packs and anti-ice settings */}
                   {fcomAt(279, 8, <span class="mfd-label">FLAPS</span>)}
                   {fcomAt(279, 128, <span class="mfd-label">THS FOR</span>)}
                   {fcomAt(279, 284, <span class="mfd-label">PACKS</span>)}
@@ -1777,7 +1773,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                         }
                       }}
                       idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_flapDropdown`}
-                      keyboardEntryAllowed // FCOM T.O FLAPS SETTING: selected in the list or entered with the keyboard
+                      keyboardEntryAllowed // T.O FLAPS SETTING: selected in the list or entered with the keyboard
                       errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
                       containerStyle="width: 60px;"
                       numberOfDigitsForInputField={1}
@@ -1833,7 +1829,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                         );
                       }}
                       idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_packsDropdown`}
-                      freeTextAllowed={false} // FCOM T.O PACKS: selected in the list only
+                      freeTextAllowed={false} // T.O PACKS: selected in the list only
                       numberOfDigitsForInputField={8}
                       alignLabels="center"
                       containerStyle="width: 200px;"
@@ -1863,7 +1859,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                         );
                       }}
                       idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_antiIceDropdown`}
-                      freeTextAllowed={false} // FCOM T.O ANTI ICE: selected in the list only
+                      freeTextAllowed={false} // T.O ANTI ICE: selected in the list only
                       numberOfDigitsForInputField={10}
                       alignLabels="center"
                       containerStyle="width: 200px;"
@@ -1872,7 +1868,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                     />,
                   )}
 
-                  {/* P 231, P 237-241: thrust reduction, acceleration and noise */}
+                  {/* Thrust reduction, acceleration and noise */}
                   {fcomRight(388, 156, <span class="mfd-label">THR RED</span>)}
                   {fcomAt(
                     388,
@@ -2053,7 +2049,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                     )}
                   </div>
 
-                  {/* P 231: TRANS, EO ACCEL and CPNY T.O REQUEST at the bottom of the panel */}
+                  {/* TRANS, EO ACCEL and CPNY T.O REQUEST at the bottom of the panel */}
                   {fcomAt(587, 7, <span class="mfd-label">TRANS</span>)}
                   {fcomAt(
                     587,
@@ -2107,8 +2103,8 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                         560,
                         <Button
                           label={this.cpnyToButton.label}
-                          // FCOM DSC-22-FMS-20-30 P 34: displays the COMPANY T.O DATA REQUEST page, or the RECEIVED
-                          // COMPANY T.O DATA page once takeoff data is received
+                          // Displays the COMPANY T.O DATA REQUEST page, or the RECEIVED COMPANY T.O DATA page once
+                          // takeoff data is received
                           disabled={this.secActive}
                           onClick={() => this.props.mfd.uiService.navigateTo(this.cpnyToButton.target)}
                           buttonStyle="min-width: 174px; min-height: 60px;"
@@ -2165,7 +2161,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                         }
                       }}
                       idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_deratedClbDropdown`}
-                      keyboardEntryAllowed // FCOM DERATED CLIMB THRUST LIST: selected in the list or entered with the keyboard
+                      keyboardEntryAllowed // DERATED CLIMB THRUST: selected in the list or entered with the keyboard
                       errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
                       containerStyle="width: 125px;"
                       numberOfDigitsForInputField={4}
@@ -2294,7 +2290,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                   <div />
                   <div />
                 </div>
-                {/* FCOM DSC-22-FMS-20-30 P 244-246: the CLB panel has no THR RED / ACCEL / noise fields (T.O panel only) */}
+                {/* The CLB panel has no THR RED / ACCEL / noise fields (T.O panel only) */}
                 <div class="mfd-label-value-container" style="padding-left: 15px; margin-top: 15px;">
                   <span class="mfd-label mfd-spacing-right">CLB SPD LIM</span>
                   <div class="mfd-label-value-container">
@@ -2343,7 +2339,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                 </div>
               </TopTabNavigatorPage>
               <TopTabNavigatorPage containerStyle={`${MfdFmsPerf.panelFrameStyle} padding: 0;`}>
-                {/* CRZ (FCOM DSC-22-FMS-20-30 P 250-258 and P 289): panel coordinates (display x - 11, display y - 266) */}
+                {/* CRZ: panel coordinates (display x - 11, display y - 266) */}
                 <div class="mfd-fcom-canvas">
                   {fcomAt(34, 27, <span class="mfd-label">CI</span>)}
                   {fcomAt(
@@ -2374,7 +2370,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                   )}
                   {fcomLine(72, 5, 728)}
 
-                  {/* Speed mode table (P 251-253): MODE, MACH, SPD and predictions columns */}
+                  {/* Speed mode table: MODE, MACH, SPD and predictions columns */}
                   <div class="mfd-fms-perf-vline" style="left: 179px; top: 133px; height: 261px;" />
                   <div class="mfd-fms-perf-vline" style="left: 277px; top: 133px; height: 261px;" />
                   <div class="mfd-fms-perf-vline" style="left: 460px; top: 133px; height: 261px;" />
@@ -2382,7 +2378,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                   {fcomCentre(158, 85, <span class="mfd-label">MODE</span>)}
                   {fcomCentre(158, 226, <span class="mfd-label">MACH</span>)}
                   {fcomCentre(158, 367, <span class="mfd-label">SPD</span>)}
-                  {/* P 250-251: predictions reference label */}
+                  {/* Predictions reference label */}
                   <div ref={this.crzPredTdRef}>
                     {fcomCentre(158, 593, [
                       <span class="mfd-label mfd-spacing-right">PRED TO</span>,
@@ -2523,11 +2519,11 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                     <span class="mfd-label-unit mfd-unit-trailing">{this.crzTablePredLine2Unit}</span>,
                   ])}
 
-                  {/* P 252 / P 254: LRC and MAX TURB, for information (small font) */}
+                  {/* LRC and MAX TURB, for information (small font) */}
                   {fcomRight(329, 171, <span class="mfd-label">LRC</span>)}
                   {fcomRight(329, 251, <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.lrcMach}</span>)}
                   {fcomRight(329, 422, [
-                    <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.lrcSpeed}</span>,
+                    <span class={{ 'mfd-value': true, sec: this.secActive }}>---</span>,
                     <span class="mfd-label-unit mfd-unit-trailing">KT</span>,
                   ])}
                   {fcomRight(372, 171, <span class="mfd-label">MAX TURB</span>)}
@@ -2541,7 +2537,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                     <span class="mfd-label-unit mfd-unit-trailing">KT</span>,
                   ])}
 
-                  {/* P 258: destination data, CMS and STEP ALTs buttons */}
+                  {/* Destination data, CMS and STEP ALTs buttons */}
                   {fcomAt(594, 18, <span class="mfd-label">DEST</span>)}
                   {fcomAt(
                     594,
@@ -2779,7 +2775,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                 </div>
                 <div style="flex-grow: 1;" />
                 {/* fill space vertically */}
-                {/* FCOM DSC-22-FMS-20-30 PERF page, DES panel: TRANS FL (mirrors the APPR panel entry) and VERT DEV */}
+                {/* DES panel: TRANS FL (mirrors the APPR panel entry) and VERT DEV */}
                 <div class="mfd-fms-perf-appr-trans-vertdev">
                   <div class="mfd-label-value-container">
                     <span
@@ -3239,14 +3235,14 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
               </TopTabNavigatorPage>
             </TopTabNavigator>
             <div class="mfd-fms-perf-appr-footer">
-              {/* Holds the ACTIVATE APPR and CLEAR EO dialogs: every footer item is its own stacking context (transform),
-              so the dialogs' z-index only counts inside it; the item itself is lifted above the later footer items
-              (POS MONITOR, CLEAR EO, ACTIVATE APPR), which otherwise paint over the open dialog */}
+              {/* Holds the ACTIVATE APPR and CLEAR EO dialogs: every footer item is its own stacking context
+              (transform), so the dialogs' z-index only counts inside it; the item itself is lifted above the later
+              footer items (POS MONITOR, CLEAR EO, ACTIVATE APPR), which otherwise paint over the open dialog */}
               <div class="mfd-fms-perf-footer-item" style="left: 4px; z-index: 10;">
                 <Button
                   label="RETURN"
                   onClick={() =>
-                    // FCOM DSC-22-FMS-20-30 PERF page: RETURN displays the INIT page
+                    // RETURN displays the INIT page
                     this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/init`)
                   }
                   buttonStyle="min-width: 129px;"

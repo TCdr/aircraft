@@ -25,7 +25,7 @@ import { defaultTropopauseAlt } from '@shared/PerformanceConstants';
 
 interface MfdFmsFplnClosestAirportsProps extends AbstractMfdPageProps {}
 
-/** FCOM: the four closest airports, and up to three other airports entered by the flight crew */
+/** The four closest airports, and up to three other airports entered by the flight crew */
 const NUM_CLOSEST_AIRPORTS = 4;
 
 const NUM_OTHER_AIRPORTS = 3;
@@ -68,12 +68,12 @@ class AirportLine {
 }
 
 /**
- * CLOSEST AIRPORTS page (A380 FCOM DSC-22-FMS-20-30 "CLOSEST AIRPORTS PAGE"): the four closest airports, ranked by
+ * CLOSEST AIRPORTS page: the four closest airports, ranked by
  * distance from the aircraft present position, and up to three airports entered by the flight crew, with the direct
  * distance, bearing, time and EFOB. Time and EFOB are only computed in the cruise phase.
  *
- * The predictions are a cruise at the CRZ FL then a continuous descent to the airport elevation (FCOM l.27701-27713, see
- * ClosestAirportPrediction.ts). The default effective wind is the INIT trip wind.
+ * The predictions are a cruise at the CRZ FL then a continuous descent to the airport elevation (see
+ * see ClosestAirportPrediction.ts). The default effective wind is the INIT trip wind.
  */
 export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClosestAirportsProps> {
   private readonly closestLines = Array.from({ length: NUM_CLOSEST_AIRPORTS }, () => new AirportLine());
@@ -93,7 +93,7 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
   private readonly lineSubscriptions: Subscription[] = [];
 
   protected onNewData(): void {
-    // Data refreshed every second
+    // Nothing to do: update() runs every second (onAfterRender)
   }
 
   public onAfterRender(node: VNode): void {
@@ -149,7 +149,8 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
       return;
     }
 
-    line.effectiveWind.set(this.effectiveWind(line));
+    const effectiveWind = this.effectiveWind(line);
+    line.effectiveWind.set(effectiveWind);
     const distance = distanceTo(ppos, line.location);
     const magVar = MagVar.get(ppos);
     const trueBearing = bearingTo(ppos, line.location);
@@ -158,7 +159,7 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
     line.bearing.set(bearing.toFixed(0).padStart(3, '0'));
 
     // Design choice: an airport without an elevation in the nearby airports data is taken at sea level
-    const prediction = this.cruisePrediction(distance, this.effectiveWind(line), line.location.alt ?? 0);
+    const prediction = this.cruisePrediction(distance, effectiveWind, line.location.alt ?? 0);
     if (prediction) {
       line.time.set(this.props.fmcService.master.timeKeeper.formatEta(prediction.seconds));
       const efob =
@@ -180,7 +181,7 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
   }
 
   /**
-   * FCOM: time and EFOB are only computed in the CRZ phase
+   * Time and EFOB are only computed in the CRZ phase
    * @param distance the great circle distance to the airport, NM
    * @param tailWind the effective wind, kt, positive = tail wind
    * @param airportElevation the airport elevation, ft
@@ -246,7 +247,6 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
   }
 
   private deleteOtherAirport(index: number): void {
-    // The next airports move up one line
     for (let i = index; i < NUM_OTHER_AIRPORTS - 1; i++) {
       const next = this.otherLines[i + 1];
       this.otherLines[i].ident.set(next.ident.get());

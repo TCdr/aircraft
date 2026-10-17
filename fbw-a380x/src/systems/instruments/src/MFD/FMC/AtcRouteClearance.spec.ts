@@ -93,7 +93,7 @@ describe('ATC route clearance', () => {
     expect(latLongOf('TUDRA')).toBeNull();
   });
 
-  it('follows the airways between their waypoints (FCOM example CLEARED TO AMB VIA DIBAG UT210 TUDRA UT158 AMB)', async () => {
+  it('follows the airways between their waypoints (CLEARED TO AMB VIA DIBAG UT210 TUDRA UT158 AMB)', async () => {
     const clearance = routeClearanceOf(uplink('UM79', 'AMB', 'DIBAG UT210 TUDRA UT158 AMB'))!;
     const resolved = await resolveRouteClearance(clearance, 'LFBD', 'LFPG', DIBAG.location, false, db);
     expect(resolved.rejected).toEqual([]);

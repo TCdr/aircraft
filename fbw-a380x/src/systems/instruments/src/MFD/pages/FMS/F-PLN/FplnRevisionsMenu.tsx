@@ -39,8 +39,8 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
     revisedLeg.isXF() &&
     !BitFlags.isAny(revisedLeg.flags, FlightPlanLegFlags.DirectToTurningPoint);
 
-  // A380 FCOM l.25351-25352: "To insert an HM at P.POS, the flight crew performs the lateral revision on the flight plan
-  // FROM waypoint." (the active flight plan, in flight: on the ground the FROM waypoint is the departure)
+  // HOLD at P.POS: the crew revises the FROM waypoint of the flight plan (the active flight plan in flight; on the
+  // ground the FROM waypoint is the departure)
   const isPresentPositionHold =
     isFromLeg &&
     planIndex === FlightPlanIndex.Active &&
@@ -107,7 +107,7 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
     },
     {
       name: 'OFFSET',
-      // FCOM DSC-22-FMS-20-30 P 216: OFFSET page (entries inactive, no lateral offset guidance yet)
+      // OFFSET page (entries inactive, no lateral offset guidance yet)
       disabled: false,
       onPressed: () =>
         fpln.props.mfd.uiService.navigateTo(`fms/${fpln.props.mfd.uiService.activeUri.get().category}/f-pln-offset`),
@@ -121,7 +121,7 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
       onPressed: async () => {
         const fmc = fpln.props.fmcService.master;
         if (isPresentPositionHold && fmc) {
-          // HOLD at P.POS: the computed hold on the aircraft track (FCOM l.25374-25380, see PresentPositionHold.ts)
+          // HOLD at P.POS: the computed hold on the aircraft track (see PresentPositionHold.ts)
           const ppos = fmc.navigation.getPpos();
           if (!ppos) {
             return;
@@ -145,8 +145,7 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
           return;
         }
         if (revisedLeg && revisedLeg.isDiscontinuity === false && !revisedLeg.isHX()) {
-          // FCOM DSC-22-FMS-20-30 HOLD page, COMPUTED HOLD: 1 min leg below 14 000 ft, 1.5 min above, at the
-          // predicted altitude at the hold
+          // COMPUTED HOLD: 1 min leg below 14 000 ft, 1.5 min above, at the predicted altitude at the hold
           const predictedAltitude =
             planIndex === FlightPlanIndex.Active
               ? fpln.props.fmcService.master?.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(

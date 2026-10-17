@@ -20,7 +20,7 @@ const fuelTonnes = (overrides: Partial<AlternateFuelInputs> = {}) =>
   AlternateFuelPredictor.predict(A380AircraftConfig, inputs(overrides))!.fuel / TONNE_TO_LB;
 
 describe('AlternateFuelPredictor', () => {
-  it('uses FL220 below 200 NM and FL310 from 200 NM (FCOM)', () => {
+  it('uses FL220 below 200 NM and FL310 from 200 NM', () => {
     expect(AlternateFuelPredictor.predict(A380AircraftConfig, inputs({ distance: 199 }))?.cruiseAltitude).toBe(22_000);
     expect(AlternateFuelPredictor.predict(A380AircraftConfig, inputs({ distance: 200 }))?.cruiseAltitude).toBe(31_000);
   });

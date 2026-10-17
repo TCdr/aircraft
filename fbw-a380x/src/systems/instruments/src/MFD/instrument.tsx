@@ -99,7 +99,7 @@ class MfdInstrument implements FsInstrument {
       this.fmcCFailed,
     );
     // The ATIS messages are printed on the FMS printer (the cockpit printer on the pedestal); switched off or without
-    // AC 1 power it is not available (PRINTER NOT AVAIL, FCOM DSC-46-10-20-40 P 5)
+    // AC 1 power it is not available (PRINTER NOT AVAIL)
     const availablePrinter = () => {
       const printer = this.fmcService.master?.printer ?? null;
       return printer?.isAvailable() ? printer : null;
@@ -113,7 +113,7 @@ class MfdInstrument implements FsInstrument {
 
   public doInit(): void {
     this.backplane.init();
-    // The SURV/CONTROLS page's manual radar settings start with nothing entered (FCOM defaults at the first selection)
+    // The SURV/CONTROLS page's manual radar settings start with nothing entered (the defaults of a first selection)
     initWxrManualSettings((name, value) => SimVar.SetSimVarValue(name, SimVarValueType.Number, value));
 
     const mfd = document.getElementById('MFD_CONTENT');

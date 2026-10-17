@@ -83,13 +83,13 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
   );
 
   /**
-   * True while the entry fields are filled from the flight plan: these updates are not flight crew changes, and must not
-   * turn the hold into a modified hold (FCOM l.36388-36390: "As soon as the flight crew changes a parameter of a
-   * database, or computed hold, the hold becomes a modified hold").
+   * True while the entry fields are filled from the flight plan: these updates are not flight crew changes, and must
+   * not turn the hold into a modified hold (only a flight crew change of a parameter of a database or computed
+   * hold makes it a modified hold).
    */
   private fillingFromFlightPlan = false;
 
-  /** The database hold of the revised waypoint, null when the navigation database has none (DATABASE button disabled) */
+  /** The database hold of the revised waypoint, null when the database has none (DATABASE button disabled) */
   private readonly databaseHold = Subject.create<HoldData | null>(null);
 
   private readonly databaseButtonDisabled = this.databaseHold.map((hold) => hold === null);
@@ -120,8 +120,8 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
   }
 
   /**
-   * Looks up the database hold of the revised waypoint once per hold fix (DATABASE button, FCOM l.36446-36450: "If no
-   * database hold exists for the selected waypoint, the button cannot be selected.").
+   * Looks up the database hold of the revised waypoint once per hold fix (the DATABASE button cannot be selected
+   * when the selected waypoint has no database hold).
    * @param holdLegIndex the index of the hold leg
    * @param inboundCourse the course to the hold fix, to pick between several database holds
    */
@@ -159,7 +159,7 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
       .catch((e) => console.error(e));
   }
 
-  /** DATABASE button: the database hold replaces the displayed hold, in the temporary flight plan (FCOM l.36446-36449) */
+  /** DATABASE button: the database hold replaces the displayed one in the temporary F-PLN */
   private async selectDatabaseHold(): Promise<void> {
     const databaseHold = this.databaseHold.get();
     const revWptIdx = this.props.fmcService.master.revisedLegIndex.get();
@@ -180,10 +180,10 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
   }
 
   /**
-   * LAST EXIT time and EFOB (FCOM l.36440-36444, see HoldLastExit.ts): the EXTRA fuel of the FUEL&LOAD page burnt in the
-   * hold, from the arrival at the hold fix (or now, in the hold), for as long as it lasts at the holding fuel flow of the
-   * FINAL fuel (FinalHoldingPredictor). Design choice: dashes for a hold of the temporary, secondary or alternate flight
-   * plan, whose fuel predictions the FMS does not compute.
+   * LAST EXIT time and EFOB (see HoldLastExit.ts): the EXTRA fuel of the FUEL&LOAD page burnt in
+   * the hold, from the arrival at the hold fix (or now, in the hold), at the holding fuel flow of the FINAL fuel
+   * (FinalHoldingPredictor). Design choice: dashes for a hold of the temporary, secondary or alternate flight plan,
+   * whose fuel predictions the FMS does not compute.
    */
   private updateLastExit(): void {
     const fmc = this.props.fmcService.master;
@@ -230,12 +230,17 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
     this.lastExitEfob.set(lastExit !== null ? lastExit.fuelOnBoard * 1000 : NaN);
   }
 
-  private async modifyHold() {
-    const target = holdRevisionTarget(
+  /** The revised hold leg and flight plan the buttons and entries act on */
+  private revisionTarget() {
+    return holdRevisionTarget(
       this.props.fmcService.master.revisedLegIndex.get(),
       this.props.fmcService.master.revisedLegPlanIndex.get(),
       !!this.props.fmcService.master.revisedWaypoint(),
     );
+  }
+
+  private async modifyHold() {
+    const target = this.revisionTarget();
     if (target) {
       const revWptIdx = target.legIndex;
       const revPlanIdx = target.planIndex;
@@ -334,7 +339,7 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
       <>
         {super.render()}
         {/* begin page content */}
-        {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 186), page container coordinates */}
+        {/* Positions measured on the reference figure of the page, in page container coordinates */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-fpln-hold-canvas">
             <div class="mfd-fpln-hold-frame" />
@@ -453,11 +458,7 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
               <Button
                 label="COMPUTED"
                 onClick={() => {
-                  const target = holdRevisionTarget(
-                    this.props.fmcService.master.revisedLegIndex.get(),
-                    this.props.fmcService.master.revisedLegPlanIndex.get(),
-                    !!this.props.fmcService.master.revisedWaypoint(),
-                  );
+                  const target = this.revisionTarget();
                   if (target) {
                     this.props.flightPlanInterface.revertHoldToComputed(
                       target.legIndex,
@@ -477,7 +478,7 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
                   label="RETURN"
                   buttonStyle="min-width: 129px;"
                   onClick={() => {
-                    // FCOM DSC-22-FMS-20-30 HOLD page: RETURN displays the F-PLN page
+                    // RETURN displays the F-PLN page
                     this.props.fmcService.master.resetRevisedWaypoint();
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`,

@@ -20,7 +20,7 @@ const TEST_CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/.:()+*=<>';
 const TEST_WIDTH = 64;
 
 /**
- * The printer test page (design choice, the FCOM has no test page): the date and time, and a sliding character pattern
+ * The printer test page (design choice): the date and time, and a sliding character pattern
  * that shows every character of the printer at every column.
  * @param day the UTC day of the month
  * @param month the UTC month, 1 to 12
@@ -62,10 +62,10 @@ export function printerTestPage(day: number, month: number, year: number, utcSec
  * (A32NX_Interior_Printer.xml) feed, collect, page through and discard the sheets with the L:A32NX_PRINTER_PRINTING,
  * L:A32NX_PAGE_ID, L:A32NX_PAGES_PRINTED and L:A32NX_PRINT_PAGE_OFFSET variables, as in the A32NX.
  *
- * The printer is supplied by AC 1 (FCOM DSC-46-20-70 P 1, NSS AVNCS side printer) and has a control panel of push
- * buttons in the cockpit model (A380_Cockpit_Behavior.xml): ON/OFF (green light when on), SLEW, TEST and ABORT. The A380
- * FCOM does not describe these buttons; their functions are design choices, after the A32NX printer SLEW switch "used to
- * feed paper after having loaded a new roll" (A320 FCOM DSC-45-30 P 2).
+ * The printer is supplied by AC 1 (NSS AVNCS side printer) and has a control panel of push buttons in the cockpit model
+ * (A380_Cockpit_Behavior.xml): ON/OFF (green light when on), SLEW, TEST and ABORT. Design choice: the A380 documents do
+ * not describe these buttons; their functions follow the A320 printer, whose SLEW switch feeds paper after a new roll
+ * is loaded.
  */
 export class PedestalPrinter {
   /** The lines of one sheet: a longer page is printed on several sheets */
@@ -74,7 +74,7 @@ export class PedestalPrinter {
   /** The time a sheet takes to come out of the printer, before the next one */
   private static readonly SHEET_FEED_MS = 2500;
 
-  /** The AC 1 bus supplies the pedestal printer (FCOM DSC-46-20-70 P 1) */
+  /** The AC 1 bus supplies the pedestal printer */
   private static readonly POWER_VAR = 'L:A32NX_ELEC_AC_1_BUS_IS_POWERED';
 
   private readonly listener = RegisterViewListener('JS_LISTENER_SIMVARS', undefined, true);
@@ -94,7 +94,7 @@ export class PedestalPrinter {
   /**
    * Handles the control panel buttons (called by the FMS update loop). A button press is a request variable set to 1 by
    * the cockpit behaviour and cleared here.
-   * Design choices (not in the FCOM): ABORT drops the sheets waiting to be printed (the sheet coming out finishes);
+   * Design choices: ABORT drops the sheets waiting to be printed (the sheet coming out finishes);
    * TEST prints the printer test page; SLEW feeds out a blank sheet of paper; switching the printer off or losing AC 1
    * drops the waiting sheets too.
    */

@@ -1,7 +1,6 @@
 @import "../../../../MsfsAvionicsCommon/definitions";
 
-// Positions in panel coordinates (inside the tab panel padding), taken from the FCOM figures
-// (DSC-22-FMS-20-30 P 65-73)
+// Positions in panel coordinates (inside the tab panel padding), measured on the reference figures
 .mfd-data-navaid-canvas {
   position: relative;
   flex: 1;

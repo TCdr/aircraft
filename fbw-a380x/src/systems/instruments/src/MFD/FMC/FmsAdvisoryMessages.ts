@@ -27,7 +27,7 @@ import { NXSystemMessages, TypeIIMessage } from '../shared/NXSystemMessages';
 import type { FlightManagementComputer } from './FlightManagementComputer';
 import { isCheckApproachSelection, ManuallyTunedIls } from './CheckApproachSelection';
 
-/** The PFD reads this L:var to show CHECK APPR SEL on the FMA line 3 (A380 FCOM DSC-22-FG-80-80 l.19241) */
+/** The PFD reads this L:var to show CHECK APPR SEL on the FMA line 3 */
 const CHECK_APPR_SEL_PFD_VAR = 'L:A32NX_PFD_MSG_CHECK_APPR_SELECTION';
 
 /**
@@ -54,9 +54,8 @@ interface MessageQueue {
 }
 
 /**
- * CHECK DATABASE CYCLE (A380 FCOM DSC-22-FMS-20-110, a380_fcom.txt l.44998-45003): "The current date does not match the
- * effectivity of the active navigation database. This message is triggered when the flight crew enters a FROM/TO airport
- * or company route."
+ * CHECK DATABASE CYCLE: the current date is outside the validity of the active navigation database. Checked when the
+ * flight crew enters a FROM/TO airport or a company route.
  * @param fms the FMS that shows the message
  */
 export async function checkNavDatabaseCycle(fms: MessageQueue): Promise<void> {
@@ -72,7 +71,7 @@ export async function checkNavDatabaseCycle(fms: MessageQueue): Promise<void> {
 }
 
 /**
- * The type II FMS messages of the A380 FCOM message list (a380_fcom.txt l.44767-46377) that the FMS raises from its
+ * The type II FMS messages that the FMS raises from its
  * own data each cycle: each message is sent once when its condition starts and recalled when it ends (the flight crew
  * can clear it in between). Runs on FMC-A, which has the navigation.
  */
@@ -91,7 +90,6 @@ export class FmsAdvisoryMessages {
 
   private readonly checkApprSelLatch = new MessageTextLatch();
 
-  /** CHECK APPR SEL shown on the PFD */
   private checkApprSelOnPfd = false;
 
   private readonly engineOutSpeedLatch = new MessageTextLatch();
@@ -119,7 +117,7 @@ export class FmsAdvisoryMessages {
     const phase = this.fmc.fmgc.data.flightPhase.get();
     const navigation = this.fmc.navigation;
 
-    // CHECK APPR SEL (l.44966-44979): an ILS manually tuned on the POSITION/NAVAIDS page that does not correspond with
+    // CHECK APPR SEL: an ILS manually tuned on the POSITION/NAVAIDS page that does not correspond with
     // the approach of the flight plan, near the T/D, in descent, or in approach above 800 ft (CheckApproachSelection)
     const mmr = navigation.getNavaidTuner().getMmrRadioTuningStatus(1);
     const tunedIls: ManuallyTunedIls | null =
@@ -141,7 +139,7 @@ export class FmsAdvisoryMessages {
     this.apply(this.checkApprSelLatch, checkApprSel ? NXSystemMessages.checkApprSel : null);
     this.setCheckApprSelOnPfd(checkApprSel);
 
-    // AREA RNP IS XX.XX (l.44876-44881) / PROC RNP IS XX.XX (l.45916-45920)
+    // AREA RNP IS XX.XX / PROC RNP IS XX.XX
     const rnp = activeRnpMessage(navigation, flightPlanService);
     this.apply(
       this.rnpLatch,
@@ -152,13 +150,13 @@ export class FmsAdvisoryMessages {
           ),
     );
 
-    // CHECK IRS / ARPT POSITION (l.45028-45033), in the preflight phase (the IRS alignment on the ground)
+    // CHECK IRS / ARPT POSITION, in the preflight phase (the IRS alignment on the ground)
     this.apply(
       this.irsAirportLatch,
       isOriginIrsPositionDisagree(flightPlanService, phase) ? NXSystemMessages.checkIrsArptPosition : null,
     );
 
-    // EXPECT TURN AREA EXCEEDANCE (l.45384-45389): the aircraft will fly (the next leg) or is flying (the active leg) a
+    // EXPECT TURN AREA EXCEEDANCE: the aircraft will fly (the next leg) or is flying (the active leg) a
     // procedure turn that exceeds the excursion distance of the navigation database
     const guidance = this.fmc.guidanceController;
     const geometry = guidance?.activeGeometry;
@@ -171,13 +169,13 @@ export class FmsAdvisoryMessages {
         : null,
     );
 
-    // SPECIF NDB NOT AVAIL (l.46154-46157): the NDB of the NDB approach is deselected
+    // SPECIF NDB NOT AVAIL: the NDB of the NDB approach is deselected
     this.apply(
       this.specifiedNdbLatch,
       navigation.getNavaidTuner().getSpecifiedNdbMessage() ? NXSystemMessages.specifNdbNotAvail : null,
     );
 
-    // TIME TO EXIT (l.46252-46256): in the holding, the extra fuel at the primary destination (EFOB - MIN FUEL AT DEST)
+    // TIME TO EXIT: in the holding, the extra fuel at the primary destination (EFOB - MIN FUEL AT DEST)
     // is zero
     const activeLeg = flightPlanService.active.activeLeg;
     const inHolding = !!activeLeg && activeLeg.isDiscontinuity === false && activeLeg.isHX();
@@ -186,7 +184,7 @@ export class FmsAdvisoryMessages {
     const extraFuel = destEfob !== null && minDestFob !== null ? destEfob - minDestFob : null;
     this.apply(this.timeToExitLatch, isTimeToExitHolding(inHolding, extraFuel) ? NXSystemMessages.timeToExit : null);
 
-    // T.O TIME REACHED (l.46287-46291): the aircraft clock time reaches the ETT, shown until the takeoff or a new ETT
+    // T.O TIME REACHED: the aircraft clock time reaches the ETT, shown until the takeoff or a new ETT
     const ett = this.fmc.fmgc.data.estimatedTakeoffTime.get();
     const clock = SimVar.GetSimVarValue('E:ZULU TIME', 'seconds');
     if (phase === FmgcFlightPhase.Preflight && ett !== null && hasClockReachedTime(this.previousClock, clock, ett)) {
@@ -200,7 +198,7 @@ export class FmsAdvisoryMessages {
         : null,
     );
 
-    // CHECK EO SPD SETTING (l.45016, l.45020-45026): engine out, in CLIMB or CRUISE, not in ALT / ALT*, the selected speed
+    // CHECK EO SPD SETTING: engine out, in CLIMB or CRUISE, not in ALT / ALT*, the selected speed
     // target more than 10 kt from green dot
     const verticalMode: number = SimVar.GetSimVarValue('L:A32NX_FMA_VERTICAL_MODE', 'number');
     const selectedSpeed =
@@ -225,7 +223,7 @@ export class FmsAdvisoryMessages {
         : null,
     );
 
-    // NO NAV INTERCEPTION (l.45787, l.45791-45794): in HDG / TRK with NAV armed, the track does not intercept the active
+    // NO NAV INTERCEPTION: in HDG / TRK with NAV armed, the track does not intercept the active
     // leg before the TO waypoint
     const lateralMode: number = SimVar.GetSimVarValue('L:A32NX_FMA_LATERAL_MODE', 'number');
     const inFlight =
