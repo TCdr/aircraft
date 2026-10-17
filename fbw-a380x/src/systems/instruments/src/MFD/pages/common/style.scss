@@ -40,7 +40,7 @@
 .mfd-title-bar-text {
   color: #222222;
   font-size: 30px;
-  // FCOM figures: long titles (e.g. ACTIVE/F-PLN/EQUI-TIME POINT) stay on one line
+  // Long titles (e.g. ACTIVE/F-PLN/EQUI-TIME POINT) stay on one line
   white-space: nowrap;
 }
 
@@ -169,8 +169,7 @@
   font-size: 24px;
 }
 
-// Display frame of the FMS pages, measured on the full display figures of the A380 FCOM (DSC-22-FMS-20-30, e.g.
-// P 110 and P 392): title bar from y = 104 to 136, page area from y = 143 to the footer line at y = 961, MSG LIST
+// Display frame of the FMS pages, measured on full display pictures of the real pages: title bar from y = 104 to 136, page area from y = 143 to the footer line at y = 961, MSG LIST
 // button of 85 x 54 px and 40 px high entry fields (tab bar: fcomTabBar in FcomLayout.tsx).
 .sys-fms {
   .mfd-title-bar-container {
@@ -206,7 +205,7 @@
     }
   }
 
-  // Buttons grow around their label, never the other way round: the label keeps the lines of the FCOM figure (no
+  // Buttons grow around their label, never the other way round: the label keeps the lines of the reference figure (no
   // automatic wrapping) and the sizes given to a button are minimums. A one-line button is 44 px high, as the entry
   // fields.
   .mfd-button-label {
@@ -215,9 +214,9 @@
   }
 
   // One height for every entry field: 44 px with the frame (the cockpit renderer sizes every box with its frame and
-  // padding), the FCOM figures' 40 px widened by 2 px up and down, the content (value, dashes, boxes and units) centred
-  // in it. The text has no background of its own: the cockpit renderer paints the text box taller than the line,
-  // which would cover the top and bottom of the frame.
+  // padding), the reference figures' 40 px widened by 2 px up and down, the content (value, dashes, boxes and units)
+  // centred in it. The text has no background of its own: the cockpit renderer paints the text box taller than the
+  // line, which would cover the top and bottom of the frame.
   .mfd-input-field-container {
     box-sizing: border-box;
     height: 44px;
@@ -277,12 +276,12 @@
     font-size: 22.5px;
   }
 
-  // FCOM figures: labels are 13.9 px per character (22.5 px font)
+  // Labels are 13.9 px per character (22.5 px font), as on the reference figures
   .mfd-label {
     font-size: 22.5px;
   }
 
-  // FCOM figures: the option labels of the radio buttons are in small font
+  // The option labels of the radio buttons are in small font
   .mfd-radio-button {
     font-size: 22.5px;
 
@@ -298,7 +297,7 @@
     margin: 7px 11px 2px 9px;
   }
 
-  // FCOM figures: the tab panel frame is the same light grey on all sides (no outset shading)
+  // The tab panel frame is the same light grey on all sides (no outset shading)
   .mfd-top-tab-navigator-tab-content {
     border-style: solid;
     border-top-style: none;

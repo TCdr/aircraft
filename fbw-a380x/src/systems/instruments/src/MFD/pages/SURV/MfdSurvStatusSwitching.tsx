@@ -28,7 +28,7 @@ export enum StatusItemState {
   Failed = 2,
 }
 
-/** SURV / STATUS & SWITCHING page (A380 FCOM DSC-34-20-60-50 P 6-8), laid out on the FCOM figure */
+/** SURV / STATUS & SWITCHING page, laid out on the reference figure */
 export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitchingProps> {
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
   private readonly subs = [] as Subscription[];
@@ -36,8 +36,8 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
   private readonly sub = this.props.bus.getSubscriber<MfdSimvars & MfdSurvEvents>();
 
   /**
-   * TCAS 1 inoperative (systems host Transponder.ts): XPDR 1 failed or unpowered (A380 FCOM SURV XPDR 1 FAULT STATUS,
-   * a380_fcom.txt:167311-167322), or SYS 1 selected and the TCAS computer faulty
+   * TCAS 1 inoperative (systems host Transponder.ts): XPDR 1 failed or unpowered, or SYS 1 selected and the TCAS
+   * computer faulty
    */
   private readonly tcas1Failed = ConsumerSubject.create(this.sub.on('tcas1Failed'), false);
 
@@ -116,7 +116,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
     super.destroy();
   }
 
-  /** A SYS box of the page: SYS button on top of the frame, then groups of status items (FCOM DSC-34-20-60-50 P 6) */
+  /** A SYS box of the page: SYS button on top of the frame, then groups of status items */
   private sysBox(
     x: number,
     top: number,
@@ -169,7 +169,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
         <SurvStatusButton
           label={`SYS ${sys}`}
           active={active}
-          // A380 FCOM DSC-34-20-60-20: the SYS button selects that WXR/TAWS system (one is always selected)
+          // The SYS button selects that WXR/TAWS system (one is always selected)
           onClick={() => SimVar.SetSimVarValue('L:A32NX_WXR_TAWS_SYS_SELECTED', SimVarValueType.Number, one ? 1 : 2)}
         />,
         [
@@ -227,7 +227,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
       <>
         <ActivePageTitleBar activePage={Subject.create('STATUS & SWITCHING')} offset={Subject.create('')} />
         {/* begin page content */}
-        {/* Positions from the FCOM figure (DSC-34-20-60-50 P 6), page container coordinates (display y - 143) */}
+        {/* Positions measured on the reference figure, page container coordinates (display y - 143) */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-surv-status">
             {wxrTaws('1', 57, this.wxrTaws1Active)}

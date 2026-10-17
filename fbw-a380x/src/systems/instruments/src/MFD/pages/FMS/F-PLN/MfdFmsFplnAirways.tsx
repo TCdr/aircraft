@@ -29,7 +29,7 @@ import { PendingAirwayEntry } from '@fmgc/flightplanning/plans/ReadonlyPendingAi
 
 interface MfdFmsFplnAirwaysProps extends AbstractMfdPageProps {}
 
-/** FCOM DSC-22-FMS-20-30 AIRWAYS page: up to 31 airway segments, scrolled page by page */
+/** Up to 31 airway segments, scrolled page by page */
 const MAX_AIRWAY_SEGMENTS = 31;
 
 const AIRWAY_LINES_PER_PAGE = 10;
@@ -303,7 +303,7 @@ class AirwayLine extends DisplayComponent<AirwayLineProps> {
       a.fixes.some((f) => f.ident === fromFix.ident && f.icaoCode === fromFix.icaoCode),
     );
     if (!airway) {
-      // FCOM DSC-22-FMS-20-30 AIRWAYS page: the TO waypoint before the airway is not part of it
+      // The TO waypoint before the airway is not part of it
       this.props.fmc.addMessageToQueue(NXSystemMessages.awyWptDisagree, undefined, undefined);
       return null;
     }

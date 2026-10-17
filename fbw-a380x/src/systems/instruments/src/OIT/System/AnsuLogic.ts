@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-/** The two sides of the A380 network server system (NSS): NSS AVNCS and FLT OPS (A380 FCOM DSC-46-20-10-20). */
+/** The two sides of the A380 network server system (NSS): NSS AVNCS and FLT OPS. */
 export type AnsuType = 'nss-avncs' | 'flt-ops';
 
 export type AnsuIndex = 1 | 2;
@@ -14,18 +14,16 @@ export interface AnsuSupplies {
   acEss: boolean;
   /** The A380 AC EMER busbar (491XP), the AC_ESS variable. */
   acEmer: boolean;
-  /** The hot busbar of battery 1 (BAT 1). */
   dcHot1: boolean;
-  /** The hot busbar of battery 2 (BAT 2). */
   dcHot2: boolean;
 }
 
 /**
- * Whether an ANSU is powered. A380 FCOM DSC-46-20-70 (a380_fcom.txt:107796-107806):
+ * Whether an ANSU is powered:
  * - NSS AVNCS ANSU 1: AC 2 and BAT 2,
  * - NSS AVNCS ANSU 2: AC 1 or AC EMER and BAT 1,
  * - FLT OPS ANSU: AC ESS and BAT 1.
- * The battery is the backup supply of each unit (as modelled before this change): any of its supplies powers it.
+ * The battery is the backup supply of each unit: any of its supplies powers it.
  * @param type the NSS side of the unit
  * @param index the unit index (the FLT OPS side has one ANSU)
  * @param supplies the state of the busbars
@@ -39,9 +37,8 @@ export function isAnsuPowered(type: AnsuType, index: AnsuIndex, supplies: AnsuSu
 }
 
 /**
- * Whether the NSS AVNCS applications (AOC, eLogbook, maintenance) are available.
- * A380 FCOM DSC-46-20-30 (a380_fcom.txt:107931-107932): the AOC function is hosted by both ANSU 1 and ANSU 2; in the
- * case of an ANSU 1 failure, ANSU 2 provides it. Both ANSUs failed: the NSS AVNCS applications are lost.
+ * Whether the NSS AVNCS applications (AOC, eLogbook, maintenance) are available: both ANSU 1 and ANSU 2 host them,
+ * ANSU 2 takes over when ANSU 1 fails, and they are lost with both ANSUs.
  * @param ansu1Healthy whether NSS AVNCS ANSU 1 is healthy (powered, not failed, not reset, NSS master on)
  * @param ansu2Healthy whether NSS AVNCS ANSU 2 is healthy
  * @returns whether at least one NSS AVNCS ANSU hosts the applications

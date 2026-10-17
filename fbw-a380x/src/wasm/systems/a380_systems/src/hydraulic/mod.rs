@@ -387,7 +387,7 @@ impl A380AileronFactory {
     const MAX_FLOW_PRECISION_PER_ACTUATOR_PERCENT: f64 = 10.;
 
     // 427XP - AC ESS = AlternatingCurrentEssentialShed on the A380.
-    // All EHAs are powered via the AC ESS busbar after an all engine flameout (A380 FCOM a380_fcom.txt:54735).
+    // All EHAs are powered via the AC ESS busbar after an all engine flameout.
     const MIDDLE_PANEL_EHA_BUS: ElectricalBusType =
         ElectricalBusType::AlternatingCurrentEssentialShed;
     // 247XP - AC EHA
@@ -572,7 +572,7 @@ impl A380SpoilerFactory {
     const MAX_FLOW_PRECISION_PER_ACTUATOR_PERCENT: f64 = 20.;
 
     // 427XP - AC ESS = AlternatingCurrentEssentialShed on the A380.
-    // A380 FCOM a380_fcom.txt:54783-54784: spoiler 6 operates as an EHA powered by the AC ESS busbar.
+    // Spoiler 6 operates as an EHA powered by the AC ESS busbar.
     const SPOILER_6_EBHA_BUS: ElectricalBusType =
         ElectricalBusType::AlternatingCurrentEssentialShed;
 
@@ -727,7 +727,7 @@ impl A380ElevatorFactory {
     // 247XP - AC EHA
     const LEFT_OUTWARD_PANEL_EHA_BUS: ElectricalBusType = AC_EHA_BUS;
     // 427XP - AC ESS = AlternatingCurrentEssentialShed on the A380.
-    // All EHAs are powered via the AC ESS busbar after an all engine flameout (A380 FCOM a380_fcom.txt:54622).
+    // All EHAs are powered via the AC ESS busbar after an all engine flameout.
     const RIGHT_OUTWARD_PANEL_EHA_BUS: ElectricalBusType =
         ElectricalBusType::AlternatingCurrentEssentialShed;
     // 427XP - AC ESS

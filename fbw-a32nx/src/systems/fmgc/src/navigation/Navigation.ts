@@ -140,8 +140,6 @@ export class Navigation implements NavigationProvider {
     (_, i) => `L:A32NX_ADIRS_ADR_${i + 1}_STATIC_AIR_TEMPERATURE`,
   );
 
-  private isGpirsAvailable = false;
-
   /** The GPIRS position of each IR: the hybrid GPS/IRS position from the GPS receiver it selects */
   private static readonly gpirsLatitudeVars = Array.from(
     { length: 3 },
@@ -160,7 +158,6 @@ export class Navigation implements NavigationProvider {
     (_, i) => `L:A32NX_ADIRS_IR_${i + 1}_GPIRS_INTEGRITY_LIMIT`,
   );
 
-  /** The GPIRS longitude of each IR */
   private static readonly gpirsLongitudeVars = Array.from(
     { length: 3 },
     (_, i) => `L:A32NX_ADIRS_IR_${i + 1}_GPIRS_LONGITUDE`,
@@ -250,10 +247,10 @@ export class Navigation implements NavigationProvider {
   constructor(
     private readonly bus: EventBus,
     private flightPlanService: FlightPlanService,
-    private readonly positionConfig: Readonly<FmPositionConfig> = A320_FM_POSITION_CONFIG,
+    positionConfig: Readonly<FmPositionConfig> = A320_FM_POSITION_CONFIG,
   ) {
     this.requiredPerformance = new RequiredPerformance(this.bus, this.flightPlanService);
-    this.fmPosition = new FmPositionComputer(this.positionConfig);
+    this.fmPosition = new FmPositionComputer(positionConfig);
     this.navaidSelectionManager = new NavaidSelectionManager(this.flightPlanService, this);
     this.landingSystemSelectionManager = new LandingSystemSelectionManager(this.bus, this.flightPlanService, this);
     this.navaidTuner = new NavaidTuner(this.bus, this, this.navaidSelectionManager, this.landingSystemSelectionManager);
@@ -272,8 +269,8 @@ export class Navigation implements NavigationProvider {
       SimVar.SetSimVarValue('L:A32NX_FMGC_R_NAV_ACCURACY_HIGH', 'bool', v);
     }, true);
     this.gpsPrimary.sub((v) => this.publisher.pub('fms_nav_gps_primary', v, false, true), true);
-    // The GPS is selected again on the transition to the DONE phase (A380 FCOM DSC-22-FMS-20-30; the A320 FCOM does not
-    // say, the same is done)
+    // The GPS is selected again on the transition to the DONE phase (A380 rule; design choice: the A320 does the same,
+    // its documents say nothing)
     this.flightPhase.sub((phase) => phase === FmgcFlightPhase.Done && this.gpsDeselected.set(false));
     this.flightPhase.sub((phase) => phase === FmgcFlightPhase.Takeoff && this.updatePositionAtTakeoff());
     this.fmGpsPositionDisagree.sub(
@@ -329,11 +326,10 @@ export class Navigation implements NavigationProvider {
 
   /**
    * GPS mode: the estimated position uncertainty is the accuracy (figure of merit) of the GPIRS position. GPS PRIMARY
-   * also needs the integrity limit (HIL) within the required performance (A320 FCOM DSC-22_20: the FMS rejects the GPS
-   * mode when the GPIRS data does not comply with the HIL integrity criterion; A380 FCOM DSC-22-FMS-10-30-10: GPS
-   * PRIMARY = IRS/GPS mode and accuracy HIGH). Without the GPS (lost or deselected), the uncertainty is the one of the
-   * IRS/DME/DME, IRS/VOR/DME or IRS only mode (A320 FCOM DSC-22_20-20-20). The accuracy is HIGH when the uncertainty is
-   * within the required navigation performance.
+   * also needs the integrity limit (HIL) within the required performance, since the FMS rejects the GPS mode when the
+   * GPIRS data fails the HIL integrity criterion. Without the GPS (lost or deselected), the uncertainty is the one of
+   * the IRS/DME/DME, IRS/VOR/DME or IRS only mode. The accuracy is HIGH when the uncertainty is within the required
+   * navigation performance.
    */
   private updateCurrentPerformance(deltaTime: number): void {
     const rnp = this.requiredPerformance.activeRnp;
@@ -361,17 +357,14 @@ export class Navigation implements NavigationProvider {
     this.gpsPrimary.set(state.gpsPrimary);
   }
 
-  /** Whether the flight crew has deselected the GPS */
   public isGpsDeselected(): boolean {
     return this.gpsDeselected.get();
   }
 
-  /** Selects or deselects the GPS for the FMS position computation */
   public setGpsDeselected(deselected: boolean): void {
     this.gpsDeselected.set(deselected);
   }
 
-  /** The FM navigation mode: IRS/GPS, IRS/DME/DME, IRS/VOR/DME or IRS only */
   public getNavigationMode(): FmNavigationMode {
     return this.navigationMode;
   }
@@ -428,7 +421,6 @@ export class Navigation implements NavigationProvider {
         this.gpsPositions[i],
       );
     }
-    this.isGpirsAvailable = this.gpirs.some((g) => g.positionValid);
   }
 
   /**
@@ -467,7 +459,7 @@ export class Navigation implements NavigationProvider {
 
   /**
    * Updates the FM positions of FMS 1 and 2 (see FmPositionComputer). FMS 1 gives the FMS position used by the guidance
-   * and the displays. Without any IR position there is no FM position (A380 FCOM l.22913-22915); the sim position is then
+   * and the displays. Without any IR position there is no FM position; the sim position is then
    * kept for the functions that need one.
    * @param deltaTime the time since the last update, in milliseconds
    */
@@ -493,8 +485,7 @@ export class Navigation implements NavigationProvider {
   }
 
   /**
-   * After a position update, the estimated position uncertainty (A320 FCOM l.12446, A380 FCOM l.23040-23057) and the
-   * FMS position.
+   * After a position update, the estimated position uncertainty and the FMS position.
    * @param previousPosition the FMS position before the update
    * @param position the updated FMS position
    */
@@ -576,8 +567,7 @@ export class Navigation implements NavigationProvider {
   }
 
   /**
-   * The MIX IRS position of an FMS: the mean of the three IR positions, else the onside one, IR 3, the offside one (A380
-   * FCOM l.22702-22707; A320 FCOM DSC-22_20-20-10 MIX IRS POSITION).
+   * The MIX IRS position of an FMS: the mean of the three IR positions, else the onside one, IR 3, the offside one.
    * @param side the FMS, 1 or 2
    * @returns the position, null without an IR position
    */
@@ -594,7 +584,6 @@ export class Navigation implements NavigationProvider {
     return ir !== null ? this.irPositions[ir - 1] : null;
   }
 
-  /** The number of IRS used for the IRS position (3 with the MIX IRS position, else 1), 0 without one */
   public getIrsUsedCount(): 0 | 1 | 3 {
     return irsUsedCount(this.irPositions.filter((p) => p !== null).length);
   }

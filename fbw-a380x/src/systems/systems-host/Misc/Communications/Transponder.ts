@@ -48,11 +48,10 @@ export class Transponder implements Instrument {
 
   private readonly isAuto = ConsumerSubject.create(this.sub.on('mfd_xpdr_set_auto'), false);
   private readonly isAltReportingOn = ConsumerSubject.create(this.sub.on('mfd_xpdr_set_alt_reporting'), true);
-  /** XPDR mode ON (A380 FCOM DSC-34-20-40): the transponder replies as in flight, also on ground */
+  /** XPDR mode ON: the transponder replies as in flight, also on ground */
   private readonly isOn = ConsumerSubject.create(this.sub.on('mfd_xpdr_set_on'), false);
 
   private readonly msfsTransponderState = Subject.create(MsfsTransponderState.Off);
-  /** The single MSFS transponder. */
   private readonly msfsTransponderStateVar = 'TRANSPONDER STATE:1';
 
   /**
@@ -107,7 +106,7 @@ export class Transponder implements Instrument {
     );
     this.isInoperative.set(selectedSystem === 2 ? this.xpdr2Failed.get() : this.xpdr1Failed.get());
 
-    // Each system's TCAS: lost with its XPDR (A380 FCOM SURV XPDR 1(2) FAULT STATUS, a380_fcom.txt:167311-167322);
+    // Each system's TCAS: lost with its XPDR (SURV XPDR 1(2) FAULT lists TCAS 1(2) as INOP SYS);
     // the single sim TCAS computer (L:A32NX_TCAS_FAULT) is the TCAS of the selected system.
     const selectedTcasFault = SimVar.GetSimVarValue('L:A32NX_TCAS_FAULT', SimVarValueType.Bool) > 0;
     this.tcas1Failed.set(isTcasInoperative(1, selectedSystem, this.xpdr1Failed.get(), selectedTcasFault));

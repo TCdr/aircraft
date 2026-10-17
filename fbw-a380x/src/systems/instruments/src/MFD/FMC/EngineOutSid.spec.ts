@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { engineFailureCreatesEngineOutSid, engineOutSidIdent } from './EngineOutSid';
 
-describe('A380X engine-out SID (A380 FCOM DSC-22-FMS-10-60, l.30719-30751, l.30832-30849)', () => {
+describe('A380X engine-out SID', () => {
   it('shows the EOSID of the selected departure runway on the DEPARTURE page, NONE without one', () => {
     expect(engineOutSidIdent({ engineOutDepartureSegment: { procedureIdent: 'EO27R' } })).toBe('EO27R');
     expect(engineOutSidIdent({ engineOutDepartureSegment: { procedureIdent: undefined } })).toBe('NONE');

@@ -27,7 +27,7 @@ function profile(ready = true): PredictionsToAltitudeProfile & { asked: number[]
 
 const minutes = (seconds: number) => `+${(seconds / 60).toFixed(0).padStart(4, '0')}`;
 
-describe('PERF CLB / DES time and distance to the PRED TO altitude (A380 FCOM l.38020-38021, l.38713-38715)', () => {
+describe('PERF CLB / DES time and distance to the PRED TO altitude', () => {
   it('shows the time and distance to the reference altitude under the placeholder dashes', () => {
     const climb = profile();
     const text = predictionToAltitudeText(climb, 35_000, true, minutes);

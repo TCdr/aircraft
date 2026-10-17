@@ -354,8 +354,7 @@ export class TcasComputer {
     // TODO: Add more TA only conditions here (i.e Windshear warning active, stall)
     // TODO FIXME: Less magic numbers, Use constants defined in TcasConstants
     // The low-altitude inhibitions have a hysteresis (TcasConstants): RAs are inhibited below 900 ft AGL in
-    // descent and 1 100 ft AGL in climb (the FCOM's "below 1 000 ft +-100 ft"), the TA aural below 400 ft in
-    // descent and 600 ft in climb (A380 FCTM, Supplementary Information, TCAS).
+    // descent and 1 100 ft AGL in climb (1 000 ft +-100 ft), the TA aural below 400 ft in descent and 600 ft in climb.
     if (!this.radioAlt.isFailureWarning() && !this.radioAlt.isNoComputedData()) {
       if (
         this.raInhibitedLow
@@ -603,7 +602,7 @@ export class TcasComputer {
       if (!onGround) {
         // Workaround for MSFS live traffic, TODO: add option to disable
         if (traffic.groundSpeed >= 30 && TCAS.THREAT[this.tcasThreat] !== undefined) {
-          // THRT: the proximate and other intruders only while a TA or RA is present (FCOM DSC-34-SURV-60-20)
+          // THRT: the proximate and other intruders only while a TA or RA is present
           isDisplayed = isIntruderShownForTrafficSelector(
             this.tcasThreat === TcasThreat.THREAT,
             traffic.relativeAlt,

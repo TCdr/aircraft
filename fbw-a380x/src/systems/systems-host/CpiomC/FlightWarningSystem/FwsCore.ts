@@ -999,8 +999,8 @@ export class FwsCore {
   public readonly ac4BusPowered = Subject.create(false);
 
   /**
-   * The A380 AC ESS busbar (400XP, the AC_ESS_SHED variable). FCOM ELEC AC ESS BUS FAULT (a380_fcom.txt:139230,
-   * 139270-139286): ADR 1, XPDR/TCAS 1, WXR/TAWS 1, RA SYS C, PACK 1 CTL 1 and PACK 2 CTL 1 are lost with it.
+   * The A380 AC ESS busbar (400XP, the AC_ESS_SHED variable). ELEC AC ESS BUS FAULT: ADR 1, XPDR/TCAS 1, WXR/TAWS 1,
+   * RA SYS C, PACK 1 CTL 1 and PACK 2 CTL 1 are lost with it.
    */
   public readonly acESSBusPowered = Subject.create(false);
 
@@ -1031,31 +1031,24 @@ export class FwsCore {
   /** ELEC alert conditions from the electrical network state, see FwsElecAlerts */
   private readonly elecAlertLogic = new ElecAlertLogic();
 
-  /** ELEC AC BUS 1(2)(3)(4) FAULT */
   public readonly elecAcBusFault = Array.from(Array(4), () => Subject.create(false));
 
   public readonly elecAcEssBusFault = Subject.create(false);
 
   public readonly elecAcEssBusAltn = Subject.create(false);
 
-  /** ELEC DC BUS 1(2) FAULT */
   public readonly elecDcBusFault = Array.from(Array(2), () => Subject.create(false));
 
   public readonly elecDcEssBusFault = Subject.create(false);
 
-  /** ELEC GEN 1(2)(3)(4) FAULT */
   public readonly elecGenFault = Array.from(Array(4), () => Subject.create(false));
 
-  /** ELEC GEN 1(2)(3)(4) OFF */
   public readonly elecGenOff = Array.from(Array(4), () => Subject.create(false));
 
-  /** ELEC DRIVE 1(2)(3)(4) DISCONNECTED */
   public readonly elecDriveDisconnected = Array.from(Array(4), () => Subject.create(false));
 
-  /** ELEC APU GEN A(B) FAULT */
   public readonly elecApuGenFault = Array.from(Array(2), () => Subject.create(false));
 
-  /** ELEC TR 1(2)(ESS) FAULT */
   public readonly elecTrFault = Array.from(Array(3), () => Subject.create(false));
 
   public readonly elecApuTrFault = Subject.create(false);
@@ -1071,19 +1064,16 @@ export class FwsCore {
   /** APU GEN A(B) pb-sw ON, for the APU GEN A(B) ... OFF procedure lines */
   public readonly elecApuGenPbOn = Array.from(Array(2), () => Subject.create(true));
 
-  /** AC ESS FEED pb-sw in ALTN */
   public readonly elecAcEssFeedAltn = Subject.create(false);
 
-  /** APU BAT pb-sw in AUTO */
   public readonly elecApuBatAuto = Subject.create(false);
 
-  /** EMER OUTR TK XFR pb-sw ON */
   public readonly fuelEmerOutrTkXfrOn = Subject.create(false);
 
   /** Feed tanks 1 and 4 below 19 000 kg: the ELEC procedures then ask for EMER OUTR TK XFR ON */
   public readonly feedTanks1And4BelowEmerOutrXfrThreshold = Subject.create(false);
 
-  /** "During taxi-in, one minute after the FLAPS lever is set to 0" (FCOM PRO-ABN-ECAM-10-24, ELEC DC BUS 1(2) FAULT) */
+  /** During taxi-in, one minute after the FLAPS lever is set to 0 (a line of ELEC DC BUS 1(2) FAULT) */
   public readonly taxiInFlapsLever0For1Min = Subject.create(false);
 
   /* ELEC and FUEL alerts of the FCOM gap backlog round 8 (FwsElecAlertsRound8, FwsFuelAlertsRound8) */
@@ -2199,9 +2189,7 @@ export class FwsCore {
 
   /** NAV GPS 1 FAULT: the GPS receiver of MMR 1 has failed (FAULT mode), not the one of MMR 2 */
   public readonly gps1Faulty = Subject.create(false);
-  /** NAV GPS 2 FAULT */
   public readonly gps2Faulty = Subject.create(false);
-  /** NAV GPS 1+2 FAULT */
   public readonly gps1And2Faulty = Subject.create(false);
   /** NAV AIR DATA DISAGREE, ALL AIR DATA DISAGREE, AOA DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10) */
   public readonly airDataAlerts = new FwsAirDataAlerts();
@@ -2362,13 +2350,10 @@ export class FwsCore {
   /** TCAS of SURV SYS 2 inoperative: XPDR 2 failed, or SYS 2 selected and the (single) sim TCAS computer faulty */
   public readonly tcas2Inop = Subject.create(false);
 
-  /** SURV XPDR 1 FAULT (A380 FCOM a380_fcom.txt:167281-167322) */
   public readonly xpdr1Fault = Subject.create(false);
 
-  /** SURV XPDR 2 FAULT (A380 FCOM a380_fcom.txt:167281-167322) */
   public readonly xpdr2Fault = Subject.create(false);
 
-  /** SURV XPDR 1+2 FAULT (A380 FCOM a380_fcom.txt:167324-167362) */
   public readonly xpdr1And2Fault = Subject.create(false);
 
   /** The XPDR & TCAS ..... SYS 2 line of SURV TCAS 1 FAULT */
@@ -2450,7 +2435,7 @@ export class FwsCore {
   private readonly egpwcPresentLatitude = Arinc429Register.empty();
   private readonly egpwcPresentLongitude = Arinc429Register.empty();
 
-  /** The TAWS is operative, but the TERR function is not available (A380 FCOM DSC-34-20-60-140, TERR STBY). */
+  /** The TAWS is operative, but the TERR function is not available (TERR STBY). */
   public readonly terrStby = Subject.create(false);
 
   /** The WXR button of the SURV CONTROLS page is OFF. */
@@ -5691,7 +5676,7 @@ export class FwsCore {
       ),
     );
 
-    // ELEC alerts (FwsElecAlerts, A380 FCOM PRO-ABN-ECAM-10-24)
+    // ELEC alerts (FwsElecAlerts)
     const elecInputs = readElecNetworkInputs((name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool));
     // The combined busbar alerts replace the single ones they cover (FwsElecAlertsRound8)
     const elecFlags = combineElecBusFaults(this.elecAlertLogic.update(elecInputs));
@@ -6328,8 +6313,7 @@ export class FwsCore {
     this.tcasTaRa.set(tcasMode === 2);
     const tcasStandby = tcasMode === 0;
 
-    // Per-system XPDR and TCAS state. A380 FCOM SURV XPDR 1(2) FAULT (a380_fcom.txt:167311-167322): a failed XPDR
-    // 1(2) makes TCAS 1(2) inoperative too.
+    // Per-system XPDR and TCAS state: a failed XPDR 1(2) makes TCAS 1(2) inoperative too.
     this.xpdrTcasSystem.set(selectedSurvSystem(SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number')));
     const xpdrTcasSystem = this.xpdrTcasSystem.get();
     this.xpdr1Failed.set(SimVar.GetSimVarValue('L:A32NX_XPDR_1_FAILED', 'bool') > 0);
@@ -6337,7 +6321,7 @@ export class FwsCore {
     this.tcas1Inop.set(isTcasInoperative(1, xpdrTcasSystem, this.xpdr1Failed.get(), tcasFaulty));
     this.tcas2Inop.set(isTcasInoperative(2, xpdrTcasSystem, this.xpdr2Failed.get(), tcasFaulty));
 
-    // TCAS STBY needs the TCAS not faulty (a380_fcom.txt:166975): the sim TCAS fault includes the XPDR of the
+    // TCAS STBY needs the TCAS not faulty: the sim TCAS fault includes the XPDR of the
     // selected system failed.
     this.tcasStandby3sConfNode.write(!tcasFaulty && tcasStandby, deltaTime);
     this.tcasStandbyMemo3sConfNode.write(tcasStandby, deltaTime);
@@ -6360,7 +6344,7 @@ export class FwsCore {
       this.tcas1Inop.get() && !(flightPhase112 && this.tcas1AdrInopOrIrConfNode.read()),
       deltaTime,
     );
-    // SURV SYS 1 is on AC ESS (a380_fcom.txt:92741): with AC ESS lost, ELEC AC ESS BUS FAULT lists TCAS 1 itself
+    // SURV SYS 1 is on AC ESS: with AC ESS lost, ELEC AC ESS BUS FAULT lists TCAS 1 itself
     this.tcas1FaultCond.set(
       tcasFaultCondition(
         1,
@@ -6390,7 +6374,7 @@ export class FwsCore {
       this.tcas2Inop.get() && !(flightPhase112 && this.tcas2AdrInopOrIrConfNode.read()),
       deltaTime,
     );
-    // SURV SYS 2 is on AC 4 (a380_fcom.txt:92743)
+    // SURV SYS 2 is on AC 4
     this.tcas2FaultCond.set(
       tcasFaultCondition(
         2,
@@ -6406,7 +6390,7 @@ export class FwsCore {
     this.tcas2Fault.set(tcasAlerts.sys2);
     this.tcas1And2Fault.set(tcasAlerts.sys1And2);
 
-    // XPDR faults (a380_fcom.txt:167281-167362), not when the XPDR is only lost with its busbar (ELEC alerts)
+    // XPDR faults, not when the XPDR is only lost with its busbar (ELEC alerts)
     const xpdrAlerts = splitSurvFaults(
       xpdrFaultCondition(1, this.xpdr1Failed.get(), this.acESSBusPowered.get(), this.ac4BusPowered.get()),
       xpdrFaultCondition(2, this.xpdr2Failed.get(), this.acESSBusPowered.get(), this.ac4BusPowered.get()),
@@ -6456,7 +6440,7 @@ export class FwsCore {
     this.tawsWxrSelected.set(this.tawsWxrSelectedSimvar.get());
 
     // TERR STBY: the TAWS of the selected system is operative, but the TERR function cannot rely on the aircraft
-    // position (A380 FCOM DSC-34-20-20-10: system data such as the aircraft position; the TAWS takes it from ADIRU 1).
+    // position (the TAWS takes the aircraft position from ADIRU 1).
     const tawsSystem = this.tawsWxrSelected.get();
     const tawsOperative =
       (tawsSystem === 1 && taws1Powered && !this.gpws1Failed.get() && !this.terrSys1Failed.get()) ||
@@ -6469,12 +6453,12 @@ export class FwsCore {
         !(this.egpwcPresentLatitude.isNormalOperation() && this.egpwcPresentLongitude.isNormalOperation()),
     );
 
-    // WXR (A380 FCOM DSC-34-20-30-20). The WXR button OFF also sets PRED W/S and TURB to OFF: only the WXR OFF memo
+    // WXR: the WXR button OFF also sets PRED W/S and TURB to OFF: only the WXR OFF memo
     // shows then.
     this.wxrOff.set(SimVar.GetSimVarValue('L:A380X_WXR_OFF', SimVarValueType.Bool));
     this.wxrPredWsOff.set(!this.wxrOff.get() && SimVar.GetSimVarValue('L:A380X_WXR_PRED_WS_OFF', SimVarValueType.Bool));
     this.wxrTurbOff.set(!this.wxrOff.get() && SimVar.GetSimVarValue('L:A380X_WXR_TURB_OFF', SimVarValueType.Bool));
-    // On ground, the WX pb of an EFIS CP turns the WXR on if one engine is operative (P 1): the WXR ON memo.
+    // On ground, the WX pb of an EFIS CP turns the WXR on if one engine is operative: the WXR ON memo.
     const wxSelectedOnEfis =
       SimVar.GetSimVarValue('L:A380X_EFIS_L_ACTIVE_OVERLAY', SimVarValueType.Number) === 1 ||
       SimVar.GetSimVarValue('L:A380X_EFIS_R_ACTIVE_OVERLAY', SimVarValueType.Number) === 1;

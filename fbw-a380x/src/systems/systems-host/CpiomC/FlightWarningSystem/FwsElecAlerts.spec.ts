@@ -36,7 +36,7 @@ function anyFlag(flags: ReturnType<ElecAlertLogic['update']>): boolean {
   return Object.values(flags).some((v) => (Array.isArray(v) ? v.some((b) => b) : v));
 }
 
-describe('ElecAlertLogic (A380 FCOM PRO-ABN-ECAM-10-24)', () => {
+describe('ElecAlertLogic', () => {
   it('raises nothing on a healthy network', () => {
     expect(anyFlag(new ElecAlertLogic().update(normalFlight()))).toBe(false);
   });
@@ -133,7 +133,7 @@ describe('ElecAlertLogic (A380 FCOM PRO-ABN-ECAM-10-24)', () => {
     let flags = logic.update(i);
     expect(flags.genFault).toEqual([true, false, false, false]);
 
-    // Procedure action GEN 1 ... OFF (FCOM l.142349)
+    // Procedure action GEN 1 ... OFF
     i.engGenPbOn[0] = false;
     flags = logic.update(i);
     expect(flags.genFault[0]).toBe(true);
@@ -243,7 +243,7 @@ describe('OffThenOnSensor (procedure lines "... OFF THEN ON")', () => {
   });
 });
 
-describe('ElecEmerConfigProcedureState (FCOM l.141646 to l.141818)', () => {
+describe('ElecEmerConfigProcedureState', () => {
   it('latches the FL 230 branch when the alert triggers', () => {
     const s = new ElecEmerConfigProcedureState();
     s.update(true, 22_000, false, true, false);

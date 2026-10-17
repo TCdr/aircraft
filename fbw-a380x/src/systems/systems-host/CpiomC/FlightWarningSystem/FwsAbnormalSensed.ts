@@ -302,8 +302,8 @@ export class FwsAbnormalSensed {
   }
 
   /**
-   * ELEC GEN 1(2)(3)(4) FAULT, FCOM PRO-ABN-ECAM-10-24 l.142304, PDF p.4945 (master caution, SC).
-   * GEN x ... OFF (l.142349, the Impacted DU procedure: the texts have no "OFF THEN ON" reset line).
+   * ELEC GEN 1(2)(3)(4) FAULT (master caution, SC): GEN x ... OFF only, the procedure has no "OFF THEN ON" reset
+   * line.
    * @param gen 0 to 3 for GEN 1 to GEN 4
    */
   private elecGenFaultItem(gen: number): EwdAbnormalItem {
@@ -323,7 +323,7 @@ export class FwsAbnormalSensed {
   }
 
   /**
-   * ELEC GEN 1(2)(3)(4) OFF, FCOM l.142388, PDF p.4947 (master caution, SC): crew awareness, no procedure line.
+   * ELEC GEN 1(2)(3)(4) OFF (master caution, SC): crew awareness, no procedure line.
    * @param gen 0 to 3 for GEN 1 to GEN 4
    */
   private elecGenOffItem(gen: number): EwdAbnormalItem {
@@ -331,8 +331,7 @@ export class FwsAbnormalSensed {
       flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
       simVarIsActive: this.fws.elecGenOff[gen],
       notActiveWhenItemActive: ['240800055'],
-      // Design choice (not in the FCOM): 5 s, so that the GEN ... OFF THEN ON resets of other procedures do not
-      // flash this alert
+      // Design choice: 5 s, so that the GEN ... OFF THEN ON resets of other procedures do not flash this alert
       monitorConfirmTime: 5,
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
@@ -345,8 +344,8 @@ export class FwsAbnormalSensed {
   }
 
   /**
-   * ELEC DRIVE 1(2)(3)(4) DISCONNECTED, FCOM l.141179, PDF p.4918 (master caution, SC).
-   * The FCOM procedure is crew awareness only (l.141222): the GEN x OFF line of the text is hidden.
+   * ELEC DRIVE 1(2)(3)(4) DISCONNECTED (master caution, SC). The real procedure is crew awareness only: the GEN x OFF
+   * line of the text is hidden.
    * @param drive 0 to 3 for DRIVE 1 to DRIVE 4
    */
   private elecDriveDisconnectedItem(drive: number): EwdAbnormalItem {
@@ -365,7 +364,7 @@ export class FwsAbnormalSensed {
   }
 
   /**
-   * ELEC APU GEN A(B) FAULT, FCOM l.139366, PDF p.4872 (master caution, SC): APU GEN A(B) ... OFF (l.139412).
+   * ELEC APU GEN A(B) FAULT (master caution, SC): APU GEN A(B) ... OFF.
    * @param gen 0 for APU GEN A, 1 for APU GEN B
    */
   private elecApuGenFaultItem(gen: number): EwdAbnormalItem {
@@ -382,7 +381,7 @@ export class FwsAbnormalSensed {
   }
 
   /**
-   * ELEC TR 1(2)(ESS) FAULT, FCOM l.142822, PDF p.4961 (no master light, no audio): crew awareness.
+   * ELEC TR 1(2)(ESS) FAULT (no master light, no audio): crew awareness.
    * @param tr 0 for TR 1, 1 for TR 2, 2 for TR ESS
    */
   private elecTrFaultItem(tr: number): EwdAbnormalItem {
@@ -2738,30 +2737,28 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     // ATA 24 - ELECTRICAL
-    // Conditions: FwsElecAlerts. Source: A380 FCOM PRO-ABN-ECAM-10-24 (16 AUG 11), "FCOM l." = line of the text copy
-    // references/manuals/a380_fcom.txt; the flight phase inhibitions and the master light/audio come from the figures
-    // of airbus-a380-fcom_compress.pdf ("PDF p."). Procedure lines of the texts (ata24.ts) that the FCOM procedure does
-    // not contain are hidden (the texts were written from another FCOM standard: GENs resets, COMMERCIAL, CROSSFEED,
-    // "IR x MODE SEL" after landing instead of the FCOM "BEFORE LAST ENG STOP : ELEC EXT PWR ON").
+    // Conditions: FwsElecAlerts. Procedure lines of the texts (ata24.ts) that the real procedure does not contain are
+    // hidden (the texts were written from another standard: GENs resets, COMMERCIAL, CROSSFEED, "IR x MODE SEL" after
+    // landing instead of "BEFORE LAST ENG STOP : ELEC EXT PWR ON").
     240800002: {
-      // AC BUS 1 FAULT, FCOM l.137656, PDF p.4832
+      // AC BUS 1 FAULT
       flightPhaseInhib: [4, 5, 10],
       simVarIsActive: this.fws.elecAcBusFault[0],
       notActiveWhenItemActive: [],
-      // On ground: FOR ENG STOP : KEEP ENG 4 LAST (FCOM l.137672)
+      // On ground: FOR ENG STOP : KEEP ENG 4 LAST
       whichItemsToShow: () => [this.fws.aircraftOnGround.get()],
       whichItemsChecked: () => [false],
       failure: 2,
       sysPage: SdPages.ElecAc,
     },
     240800004: {
-      // AC BUS 2 FAULT, FCOM l.137875, PDF p.4838
+      // AC BUS 2 FAULT
       flightPhaseInhib: [4, 5, 10],
       simVarIsActive: this.fws.elecAcBusFault[1],
       notActiveWhenItemActive: [],
       whichItemsToShow: () => {
-        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // FCOM l.137909
-        // LDG DIST IMPACT ON WET/CONTAM RWY ONLY (FCOM l.137904), always
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
+        // LDG DIST IMPACT ON WET/CONTAM RWY ONLY, always
         return [false, false, false, true, lowFeedTanks, lowFeedTanks, lowFeedTanks, false, false];
       },
       whichItemsChecked: () => [
@@ -2779,12 +2776,12 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.ElecAc,
     },
     240800007: {
-      // AC BUS 3 FAULT, FCOM l.138682, PDF p.4855
+      // AC BUS 3 FAULT
       flightPhaseInhib: [4, 5, 10],
       simVarIsActive: this.fws.elecAcBusFault[2],
       notActiveWhenItemActive: [],
       whichItemsToShow: () => {
-        // On ground: BEFORE OPENING ANY CABIN DOOR: RESIDUAL DIFF PRESS CHECK, CABIN CREW ADVISE (FCOM l.138711)
+        // On ground: BEFORE OPENING ANY CABIN DOOR: RESIDUAL DIFF PRESS CHECK, CABIN CREW ADVISE
         const onGround = this.fws.aircraftOnGround.get();
         return [false, false, false, false, false, false, false, false, false, onGround, onGround, onGround];
       },
@@ -2793,14 +2790,14 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.ElecAc,
     },
     240800009: {
-      // AC BUS 4 FAULT, FCOM l.139000, PDF p.4863
+      // AC BUS 4 FAULT
       flightPhaseInhib: [4, 5, 10],
       simVarIsActive: this.fws.elecAcBusFault[3],
       notActiveWhenItemActive: [],
       whichItemsToShow: () => {
         const onGround = this.fws.aircraftOnGround.get();
-        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // FCOM l.139053
-        // On ground: FOR ENG STOP : KEEP ENG 1 LAST (l.139030); in flight: VENT AVNCS EXTRACT (l.139039)
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
+        // On ground: FOR ENG STOP : KEEP ENG 1 LAST; in flight: VENT AVNCS EXTRACT
         return [onGround, !onGround, true, true, true, true, lowFeedTanks, lowFeedTanks, lowFeedTanks];
       },
       whichItemsChecked: () => [
@@ -2818,7 +2815,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.ElecAc,
     },
     240800011: {
-      // AC ESS BUS ALTN, FCOM l.139130, PDF p.4866: crew awareness
+      // AC ESS BUS ALTN: crew awareness
       flightPhaseInhib: [4, 5, 6, 7, 8, 9, 10],
       simVarIsActive: this.fws.elecAcEssBusAltn,
       // Design choice: not when AC 4 takes over automatically after the loss of AC 1 (ELEC AC BUS 1 FAULT), nor when
@@ -2830,14 +2827,14 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.ElecAc,
     },
     240800012: {
-      // AC ESS BUS FAULT, FCOM l.139158, PDF p.4867
+      // AC ESS BUS FAULT
       flightPhaseInhib: [4, 5, 10],
       simVarIsActive: this.fws.elecAcEssBusFault,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => {
-        // IF NOT SUCCESSFUL (l.139193): the alert is still there with the AC ESS FEED pb-sw in ALTN
+        // IF NOT SUCCESSFUL: the alert is still there with the AC ESS FEED pb-sw in ALTN
         const notSuccessful = this.fws.elecAcEssFeedAltn.get();
-        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // FCOM l.139203
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
         return [
           true,
           notSuccessful,
@@ -2865,8 +2862,8 @@ export class FwsAbnormalSensed {
         false,
         false,
       ],
-      // STATUS (FCOM l.139256-139289), see ELEC_AC_ESS_BUS_FAULT_STATUS. The REDUND LOSS items are FwsInopSys
-      // entries active with this alert: the redundLoss field of this table never reaches the STATUS page.
+      // STATUS: see ELEC_AC_ESS_BUS_FAULT_STATUS. The REDUND LOSS items are FwsInopSys entries active with this alert:
+      // the redundLoss field of this table never reaches the STATUS page.
       limitationsApprLdg: () => ELEC_AC_ESS_BUS_FAULT_STATUS.limitationsApprLdg,
       inopSysAllPhases: () => ELEC_AC_ESS_BUS_FAULT_STATUS.inopSysAllPhases,
       inopSysApprLdg: () => ELEC_AC_ESS_BUS_FAULT_STATUS.inopSysApprLdg,
@@ -2876,12 +2873,12 @@ export class FwsAbnormalSensed {
     240800014: this.elecApuGenFaultItem(0),
     240800015: this.elecApuGenFaultItem(1),
     240800016: {
-      // APU TR FAULT, FCOM l.139442, PDF p.4874
+      // APU TR FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.elecApuTrFault,
       notActiveWhenItemActive: [],
-      // "If the APU is off, and the APU battery is on: WHEN APU NOT RQRD : APU BAT OFF" (FCOM l.139454). Design
-      // choice: shown with the APU off; the APU BAT line then shows ticked if the battery is already off.
+      // WHEN APU NOT RQRD : APU BAT OFF applies when the APU is off and the APU battery is on. Design choice: shown
+      // with the APU off; the APU BAT line then shows ticked if the battery is already off.
       whichItemsToShow: () => {
         const apuOff = this.fws.apuMasterSwitch.get() === 0;
         return [apuOff, apuOff];
@@ -2893,10 +2890,10 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.ElecDc,
     },
     240800019: {
-      // BUS TIE OFF, FCOM l.139586, PDF p.4879: crew awareness
+      // BUS TIE OFF: crew awareness
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.elecBusTieOff,
-      // Not when ELEC EMER CONFIG asks for BUS TIE OFF (FCOM l.141663)
+      // Not when ELEC EMER CONFIG asks for BUS TIE OFF
       notActiveWhenItemActive: ['240800055'],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
@@ -2904,14 +2901,14 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     240800026: {
-      // DC BUS 1 FAULT, FCOM l.139733, PDF p.4884
+      // DC BUS 1 FAULT
       flightPhaseInhib: [4, 5, 10],
       simVarIsActive: this.fws.elecDcBusFault[0],
       notActiveWhenItemActive: [],
       whichItemsToShow: () => {
-        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // FCOM l.139781
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
         return [
-          this.fws.taxiInFlapsLever0For1Min.get(), // FCOM l.139761
+          this.fws.taxiInFlapsLever0For1Min.get(), // FOR TAXI : FLAPS SELECT CONF 1+F
           true,
           true,
           false,
@@ -2941,14 +2938,14 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.ElecDc,
     },
     240800029: {
-      // DC BUS 2 FAULT, FCOM l.140567, PDF p.4903
+      // DC BUS 2 FAULT
       flightPhaseInhib: [4, 5, 10],
       simVarIsActive: this.fws.elecDcBusFault[1],
       notActiveWhenItemActive: [],
       whichItemsToShow: () => {
-        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // FCOM l.140620
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
         return [
-          this.fws.taxiInFlapsLever0For1Min.get(), // FCOM l.140595
+          this.fws.taxiInFlapsLever0For1Min.get(), // FOR TAXI : FLAPS SELECT CONF 1+F
           true,
           true,
           true,
@@ -2980,13 +2977,13 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.ElecDc,
     },
     240800030: {
-      // DC ESS BUS FAULT, FCOM l.140758, PDF p.4908
+      // DC ESS BUS FAULT
       flightPhaseInhib: [4, 5, 10],
       simVarIsActive: this.fws.elecDcEssBusFault,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => {
-        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // FCOM l.140819
-        // FOR TAXI : FLAPS SELECT CONF 1+F has no condition in this procedure (FCOM l.140788)
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
+        // FOR TAXI : FLAPS SELECT CONF 1+F has no condition in this procedure
         return [...Array(15).fill(true), lowFeedTanks, lowFeedTanks, lowFeedTanks, false, false];
       },
       whichItemsChecked: () => [
@@ -3019,19 +3016,19 @@ export class FwsAbnormalSensed {
     240800038: this.elecDriveDisconnectedItem(2),
     240800039: this.elecDriveDisconnectedItem(3),
     240800055: {
-      // EMER CONFIG, FCOM l.141552, PDF p.4929: master warning, CRC
+      // EMER CONFIG: master warning, CRC
       flightPhaseInhib: [1, 5, 10, 12],
       // Not while ENG ALL ENG FLAME OUT is shown: "This alert inhibits the ELEC EMER CONFIG alert." (FCOM l.173795)
       simVarIsActive: this.fws.elecEmerConfigAlert,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => {
         const proc = this.fws.elecEmerConfigProcedure;
-        // "If the flight crew did not activate the FIRE SMOKE/FUMES alert" (FCOM l.141654, l.141715)
+        // Lines shown only if the flight crew did not activate the FIRE SMOKE/FUMES alert
         const noSmoke = !this.fws.smokeFumesActivated.get();
-        // IF NOT SUCCESSFUL (l.141662): the alert is still there after the first GENs reset
+        // IF NOT SUCCESSFUL: the alert is still there after the first GENs reset
         const firstResetDone = proc.firstGensReset.isCompleted;
-        const lowFl = proc.triggeredAtOrBelowFl230; // l.141704 / l.141776
-        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // l.141817
+        const lowFl = proc.triggeredAtOrBelowFl230;
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
         return [
           true, // RAT MAN ON
           true, // MIN RAT SPEED
@@ -3044,7 +3041,7 @@ export class FwsAbnormalSensed {
           true, // ATC COM VOICE ONLY
           true, // VENT AVNCS EXTRACT
           // Design choice: the maximum flight level is taken as not restricted below FL 200 by another alert (the FWS
-          // has no such restriction yet), so the DESCENT/MAX FL lines show and "APU CONSIDER" (l.141726) does not
+          // has no such restriction yet), so the DESCENT/MAX FL lines show and APU CONSIDER does not
           lowFl, // DESCENT TO FL 200/MEA
           lowFl, // MAX FL
           lowFl && noSmoke, // WHEN BELOW FL 200 : APU
@@ -3060,10 +3057,10 @@ export class FwsAbnormalSensed {
           !lowFl, // MAX FL
           !lowFl && noSmoke, // WHEN BELOW FL 200 : APU
           false, // APU CONSIDER (maximum flight level restricted below FL 200)
-          false, // FUEL CONSUMPT INCRSD: STATUS INFO in the FCOM (l.142032), not a procedure line
+          false, // FUEL CONSUMPT INCRSD: a STATUS INFO, not a procedure line
           false, // FMS PRED UNRELIABLE: idem
-          false, // IF SEVERE ICE ACCRETION: LIMITATIONS / DEFERRED PROC in the FCOM (l.141866, l.141891)
-          true, // LDG PERF AFFECTED (l.141809)
+          false, // IF SEVERE ICE ACCRETION: LIMITATIONS / DEFERRED PROC, not procedure lines
+          true, // LDG PERF AFFECTED
           lowFeedTanks, // EMER OUTR TK XFR
         ];
       },
@@ -6289,9 +6286,8 @@ export class FwsAbnormalSensed {
       redundLoss: () => [''],
       info: () => [''],
     },
-    // GPS 1(2) FAULT, GPS 1+2 FAULT: the A380 FCOM gives no procedure (crew awareness); the flight phase inhibition is
-    // the one of the ADR faults (design choice). STATUS (FCOM PRO-ABN-ECAM-10-34-10): INOP SYS GPS 1(2), GPS 1+2 and,
-    // for APPR & LDG, BTV and ROW/ROP
+    // GPS 1(2) FAULT, GPS 1+2 FAULT: no procedure (crew awareness); design choice: the flight phase inhibition of the
+    // ADR faults. STATUS: INOP SYS GPS 1(2), GPS 1+2 and, for APPR & LDG, BTV and ROW/ROP
     340800034: {
       // GPS 1 FAULT
       flightPhaseInhib: [4, 5, 10],
@@ -6708,8 +6704,8 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     341800016: {
-      // TCAS 1 FAULT (A380 FCOM a380_fcom.txt:166882-166927). Not with XPDR 1 FAULT: a failed XPDR 1 makes TCAS 1
-      // inoperative, and SURV XPDR 1 FAULT lists TCAS 1 in its STATUS (a380_fcom.txt:167319-167320).
+      // TCAS 1 FAULT. Not with XPDR 1 FAULT: a failed XPDR 1 makes TCAS 1 inoperative, and SURV XPDR 1 FAULT lists TCAS
+      // 1 in its STATUS.
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas1Fault,
       notActiveWhenItemActive: ['341800061'],
@@ -6722,7 +6718,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     341800017: {
-      // TCAS 2 FAULT (A380 FCOM a380_fcom.txt:166882-166927). Not with XPDR 2 FAULT (see TCAS 1 FAULT).
+      // TCAS 2 FAULT. Not with XPDR 2 FAULT (see TCAS 1 FAULT).
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas2Fault,
       notActiveWhenItemActive: ['341800062'],
@@ -6735,8 +6731,8 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     341800018: {
-      // TCAS 1+2 FAULT (A380 FCOM a380_fcom.txt:166935-166958): crew awareness, STATUS TCAS 1+2 (FwsInopSys
-      // 340300029). Not with XPDR 1+2 FAULT, which lists TCAS 1+2 in its STATUS (a380_fcom.txt:167361-167362).
+      // TCAS 1+2 FAULT: crew awareness, STATUS TCAS 1+2 (FwsInopSys 340300029). Not with XPDR 1+2 FAULT, which lists
+      // TCAS 1+2 in its STATUS.
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas1And2Fault,
       notActiveWhenItemActive: ['341800063'],
@@ -6746,8 +6742,8 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     341800061: {
-      // XPDR 1 FAULT (A380 FCOM a380_fcom.txt:167281-167322): the XPDR function of SURV SYS 1 is failed. Caution
-      // (single chime, MASTER CAUT); flight phase inhibition as the TCAS FAULT alerts.
+      // XPDR 1 FAULT: the XPDR function of SURV SYS 1 is failed. Caution (single chime, MASTER CAUT); flight phase
+      // inhibition as the TCAS FAULT alerts.
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.xpdr1Fault,
       notActiveWhenItemActive: [],
@@ -6764,7 +6760,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     341800062: {
-      // XPDR 2 FAULT (A380 FCOM a380_fcom.txt:167281-167322): the XPDR function of SURV SYS 2 is failed
+      // XPDR 2 FAULT: the XPDR function of SURV SYS 2 is failed
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.xpdr2Fault,
       notActiveWhenItemActive: [],
@@ -6781,7 +6777,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     341800063: {
-      // XPDR 1+2 FAULT (A380 FCOM a380_fcom.txt:167324-167362): crew awareness, STATUS XPDR 1+2, TCAS 1+2
+      // XPDR 1+2 FAULT: crew awareness, STATUS XPDR 1+2, TCAS 1+2
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.xpdr1And2Fault,
       notActiveWhenItemActive: [],

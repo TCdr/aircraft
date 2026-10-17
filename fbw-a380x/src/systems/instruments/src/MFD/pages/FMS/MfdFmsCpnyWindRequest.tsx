@@ -14,9 +14,9 @@ import { isCpnyWindButtonDisabled } from './CpnyWindButtonRule';
 interface MfdFmsCpnyWindRequestProps extends AbstractMfdPageProps {}
 
 /**
- * COMPANY WIND DATA REQUEST page (A380 FCOM a380_fcom.txt l.42121-42128, free text option): free text sent with the
- * company wind request of the flight plan the page was opened from, and the SEND WIND REQUEST button (REQUEST
- * PENDING ... while the request is pending). The company ground station is SimBrief, through the AOC datalink: the
+ * COMPANY WIND DATA REQUEST page (free text option): free text sent with the company wind request of the flight
+ * plan the page was opened from, and the SEND WIND REQUEST button (REQUEST PENDING ... while the request is
+ * pending). The company ground station is SimBrief, through the AOC datalink: the
  * free text is kept on the page and not sent (SimBrief has no use for it).
  */
 export class MfdFmsCpnyWindRequest extends FmsFlightPlanPage<MfdFmsCpnyWindRequestProps> {
@@ -45,7 +45,7 @@ export class MfdFmsCpnyWindRequest extends FmsFlightPlanPage<MfdFmsCpnyWindReque
     super.onAfterRender(node);
 
     this.subs.push(
-      // The FCOM page title has no flight plan prefix
+      // This page title has no flight plan prefix
       this.props.mfd.uiService.activeUri.sub(() => this.activePageTitle.set('COMPANY WIND DATA REQUEST'), true),
       this.pending,
       this.sendLabel,
@@ -69,7 +69,7 @@ export class MfdFmsCpnyWindRequest extends FmsFlightPlanPage<MfdFmsCpnyWindReque
       <>
         {super.render()}
         <div class="mfd-page-container">
-          {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 42), page container coordinates */}
+          {/* Positions measured on the reference figure of the page, in page container coordinates */}
           <div class="mfd-fcom-canvas">
             {freeTextSendControls({
               freeText: this.freeText,

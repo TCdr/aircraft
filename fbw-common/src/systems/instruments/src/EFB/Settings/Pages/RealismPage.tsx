@@ -199,7 +199,7 @@ export const RealismPage = () => {
         </SettingItem>
       )}
 
-      {/* The A380 FCOM deletes the pilot-stored elements when all the FMCs are shut down: keeping them is not realistic */}
+      {/* The A380 deletes the pilot-stored elements when all the FMCs are shut down: keeping them is not realistic */}
       {aircraftContext.settingsPages.realism.keepPilotStoredElements && (
         <SettingItem name={t('Settings.Realism.KeepPilotStoredElements')} unrealistic>
           <Toggle value={keepPilotStoredElements} onToggle={(value) => setKeepPilotStoredElements(value)} />

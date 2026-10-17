@@ -1,15 +1,13 @@
 //! GPIRS: the hybrid GPS/inertial position that each IR of the ADIRUs computes from the GPS receiver it selects.
 //!
-//! A320 FCOM DSC-22_20 (FMGS position computation): "Each IRS computes a mixed IRS/GPS position called the GPIRS
-//! position. For this, each IRS can independently select their GPS source in order to maximize the availability of GPS
-//! data." "In nominal case, ADIRU1 selects GPS1 and ADIRU2 selects GPS2. The GPS selection by ADIRU3 depends on the
-//! position of the ATT HDG selector switch. If one of the GPS source is rejected by the ADIRUs, all ADIRUs will select
-//! the same GPS source."
+//! A320: each IRS computes a mixed IRS/GPS position (GPIRS) and selects its GPS source on its own, to maximize the GPS
+//! availability. Normally ADIRU 1 selects GPS 1 and ADIRU 2 selects GPS 2; the selection of ADIRU 3 depends on the
+//! ATT HDG selector. If the ADIRUs reject one GPS, they all select the other one.
 //!
-//! A380 FCOM DSC-22-FMS-10-30-10: "Each ADIRS computes a hybrid position, composed of the GPS and IRS position"; it does
-//! not detail the receiver selection, the A320 one is used for both aircraft.
+//! The A380 ADIRS also compute a hybrid GPS/IRS position, with no published receiver selection: the A320 one is used
+//! for both aircraft.
 //!
-//! The ADIRU 3 rule is a design choice (the FCOM does not detail it): GPS 2 with ATT HDG on F/O 3 (ADIRU 3 replaces
+//! The ADIRU 3 rule is a design choice (no published detail): GPS 2 with ATT HDG on F/O 3 (ADIRU 3 replaces
 //! ADIRU 2), else GPS 1. The inertial position of the simulated IRs does not drift, so the hybrid position is the GPS
 //! position of the selected receiver, with its accuracy (figure of merit) and its integrity limit.
 

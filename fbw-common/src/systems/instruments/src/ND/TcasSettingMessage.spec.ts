@@ -6,11 +6,8 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { ND_ZOOM_RANGE, TcasAdvisoryState, tcasSettingMessage } from './TcasSettingMessage';
 
-/*
- * A320 FCOM DSC-34-SURV-60-20 TCAS MESSAGES (a320_fcom.txt 56266-56273) and A380 FCOM DSC-31-20-30-100
- * (a380_fcom.txt 68708-68761): TCAS: CHANGE MODE / REDUCE RANGE / INCREASE RANGE, red for an RA, amber for a TA.
- * Before, the ND had none of them.
- */
+// The TCAS ND messages of both aircraft: TCAS: CHANGE MODE / REDUCE RANGE / INCREASE RANGE, red for an RA, amber for a
+// TA
 describe('TCAS ND setting message', () => {
   it('none without a TA or RA', () => {
     expect(tcasSettingMessage(TcasAdvisoryState.None, true, false, 160, false)).toBeUndefined();

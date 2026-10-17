@@ -626,8 +626,8 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     '342000001': {
-      // PRED W/S OFF: in green in flight phases 2 and 8, in amber in the takeoff and landing phases (A380 FCOM
-      // DSC-34-20-60-140 P 1-2, the colours as the A320 PRED W/S OFF memo)
+      // PRED W/S OFF: in green in flight phases 2 and 8, in amber in the takeoff and landing phases (the colours as the
+      // A320 PRED W/S OFF memo)
       flightPhaseInhib: [1, 12],
       simVarIsActive: this.fws.wxrPredWsOff,
       whichCodeToReturn: () => [this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 8 ? 1 : 0],

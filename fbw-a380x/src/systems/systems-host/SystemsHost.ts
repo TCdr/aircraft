@@ -108,7 +108,7 @@ class SystemsHost extends BaseInstrument {
   private readonly amu2 = new AudioManagementUnit(this.bus, 2, this.failuresConsumer);
   private readonly simAudioManager = new SimAudioManager(this.bus, this.amu1, this.amu2);
 
-  // XPDR 1 (SURV SYS 1, AC ESS) and XPDR 2 (SURV SYS 2, AC 4), A380 FCOM DSC-34-20-100 (a380_fcom.txt:92741-92743).
+  // XPDR 1 (SURV SYS 1) is powered by AC ESS, XPDR 2 (SURV SYS 2) by AC 4.
   // MSFS supports only one transponder (circuit 41): it acts as the transponder of the selected system.
   private readonly xpdr = new Transponder(
     this.bus,

@@ -66,7 +66,7 @@ function normal(): ElecSystemInputs {
   };
 }
 
-describe('ELEC BAT FAULT and BAT OFF conditions (A380 FCOM l.139306, l.139503, l.139566)', () => {
+describe('ELEC BAT FAULT and BAT OFF conditions', () => {
   it('raises no alert on a normal aircraft', () => {
     const flags = elecSystemAlertFlags(normal());
     expect(flags.batFault).toEqual([false, false, false, false]);
@@ -150,7 +150,7 @@ describe('ELEC EXT PWR, RAT and TR MONITORING FAULT conditions', () => {
   });
 });
 
-describe('EXT PWR ... RECYCLE line (A380 FCOM l.142250)', () => {
+describe('EXT PWR ... RECYCLE line', () => {
   it('is done once the pb has been set OFF then ON during the alert', () => {
     const monitor = new PushButtonRecycleMonitor();
     expect(monitor.update(true, true)).toBe(false);
@@ -169,7 +169,7 @@ describe('EXT PWR ... RECYCLE line (A380 FCOM l.142250)', () => {
 });
 
 describe('STATUS of the ELEC alerts', () => {
-  it('shows BAT 1+2 instead of BAT 1 and BAT 2 when both are failed (l.139548-139549)', () => {
+  it('shows BAT 1+2 instead of BAT 1 and BAT 2 when both are failed', () => {
     expect(batteryFaultInopSys(0, [true, false, false, false]).map((k) => text('EcamInopSys', k))).toEqual(['BAT 1']);
     expect(batteryFaultInopSys(0, [true, true, false, false]).map((k) => text('EcamInopSys', k))).toEqual(['BAT 1+2']);
     expect(batteryFaultInopSys(1, [true, true, false, false]).map((k) => text('EcamInopSys', k))).toEqual(['BAT 1+2']);
@@ -177,21 +177,21 @@ describe('STATUS of the ELEC alerts', () => {
     expect(batteryFaultInopSys(3, [false, false, false, true]).map((k) => text('EcamInopSys', k))).toEqual(['APU BAT']);
   });
 
-  it('shows the APU start INFOs only with the other APU DC source failed (l.139351-139353, l.139482-139484)', () => {
+  it('shows the APU start INFOs only with the other APU DC source failed', () => {
     expect(apuBatFaultInfo(false)).toEqual([]);
     expect(apuBatFaultInfo(true).map((k) => text('EcamInfos', k))).toEqual(['APU BAT START NOT AVAIL']);
     expect(apuTrFaultInfo(false)).toEqual([]);
     expect(apuTrFaultInfo(true).map((k) => text('EcamInfos', k))).toEqual(['APU START NOT AVAIL']);
   });
 
-  it('shows CAT 3 DUAL INOP and CAT 3 SINGLE ONLY for a lost engine generator with the APU off (l.142369, l.142374)', () => {
+  it('shows CAT 3 DUAL INOP and CAT 3 SINGLE ONLY for a lost engine generator with the APU off', () => {
     expect(engineGeneratorLostApprLdg(false).map((k) => text('EcamInopSys', k))).toEqual(['CAT 3 DUAL']);
     expect(engineGeneratorLostInfo(false).map((k) => text('EcamInfos', k))).toEqual(['CAT 3 SINGLE ONLY']);
     expect(engineGeneratorLostApprLdg(true)).toEqual([]);
     expect(engineGeneratorLostInfo(true)).toEqual([]);
   });
 
-  it('names the EXT PWR and RAT INOP SYS lines as the FCOM (l.142261, l.142598)', () => {
+  it('names the EXT PWR and RAT INOP SYS lines as the aircraft', () => {
     expect(EXT_PWR_INOP_SYS.map((k) => text('EcamInopSys', k))).toEqual([
       'EXT PWR 1',
       'EXT PWR 2',
@@ -203,7 +203,7 @@ describe('STATUS of the ELEC alerts', () => {
 });
 
 describe('ELEC alert entries (FwsAbnormalSensed)', () => {
-  it('uses the flight phase inhibitions of the FCOM figures (PDF p.4870, 4876, 4878, 4943, 4952, 4963, 4917)', () => {
+  it('uses the flight phase inhibitions of the aircraft', () => {
     expect(ELEC_SYSTEM_PHASE_INHIBITION).toEqual({
       battery: [3, 4, 5, 6, 7, 9, 10],
       extPwrFault: [3, 4, 5, 6, 7, 8, 9, 10],
@@ -306,8 +306,7 @@ describe('FwsAbnormalSensed and FwsCore wiring', () => {
     expect(core).toContain('this.elecSystemAlerts.update(');
   });
 
-  // FCOM gap report 2026-10-08 A380X row #30: the generator, TR and APU alerts had no STATUS
-  it('gives the generator, drive, APU generator and TR alerts their INOP SYS (l.142365, l.141225, l.139428, l.142875)', () => {
+  it('gives the generator, drive, APU generator and TR alerts their INOP SYS', () => {
     for (const name of ['elecGenFaultItem', 'elecGenOffItem']) {
       expect(helper(name)).toContain('inopSysAllPhases: () => [ENG_GEN_INOP_SYS[gen]],');
       expect(helper(name)).toContain('inopSysApprLdg: () => engineGeneratorLostApprLdg(this.fws.apuAvail.get()),');

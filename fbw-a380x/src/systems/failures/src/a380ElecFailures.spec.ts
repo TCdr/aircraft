@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { A380FailureDefinitions } from './a380';
 
-// The electrical failures test of a380.spec.ts (core/failures-a380x), on its own here: this branch has no a380.spec.ts.
+// The electrical failures checks of the A380X failure list, in their own spec file.
 
 /**
  * Reads the failure id -> Rust FailureType map from the `.with_failures([...])` call of the A380 systems wasm, as

@@ -207,10 +207,9 @@ impl A380 {
             landing_gear: LandingGear::new(context, true),
             pneumatic: A380Pneumatic::new(context),
             radio_altimeters: A380RadioAltimeters::new(context),
-            // The GPS receivers of MMR 1 and 2. A380 FCOM DSC-34-10-100 (a380_fcom.txt:87595-87605, column-garbled
-            // table): GPS 1 = AC EMER, which is AlternatingCurrentEssential on the A380 (491XP). GPS 2 stays on AC 2
-            // (the same table reads AC 3, not changed here)
-            // The A380 MMRs use satellite based augmentation (DIFF mode, A380 FCOM DSC-22-FMS-20-30)
+            // The GPS receivers of MMR 1 and 2: GPS 1 on AC EMER (491XP), AlternatingCurrentEssential on the A380.
+            // Design choice: GPS 2 stays on AC 2, although the aircraft documents give AC 3.
+            // The A380 MMRs use satellite based augmentation (DIFF mode)
             gps_1: GpsReceiver::new_with_augmentation(
                 context,
                 1,
@@ -225,8 +224,8 @@ impl A380 {
             ),
             gpirs: Gpirs::new(context),
             cds: A380ControlDisplaySystem::new(context),
-            // TAWS = SURV SYS 1 (WXR/TAWS) = 115 V AC ESS (A380 FCOM DSC-34-20-100, a380_fcom.txt:92742).
-            // AC ESS (400XP) is AlternatingCurrentEssentialShed, AlternatingCurrentEssential is AC EMER (491XP).
+            // TAWS = SURV SYS 1 (WXR/TAWS) = 115 V AC ESS. AC ESS (400XP) is AlternatingCurrentEssentialShed,
+            // AlternatingCurrentEssential is AC EMER (491XP).
             egpwc: EnhancedGroundProximityWarningComputer::new(
                 context,
                 ElectricalBusType::AlternatingCurrentEssentialShed,

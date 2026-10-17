@@ -84,7 +84,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('PilotStoredElements (A380 FCOM DSC-22-FMS-20-30, DATA pages)', () => {
+describe('PilotStoredElements (DATA pages)', () => {
   describe('NAVAIDs', () => {
     it('keeps 20 NAVAIDs and deletes the first created one when full', () => {
       const elements = new PilotStoredElements();
@@ -133,7 +133,7 @@ describe('PilotStoredElements (A380 FCOM DSC-22-FMS-20-30, DATA pages)', () => {
   });
 
   describe('runways', () => {
-    it('keeps 10 runways and deletes the first created one when full (P 60)', () => {
+    it('keeps 10 runways and deletes the first created one when full', () => {
       const elements = new PilotStoredElements();
       for (let i = 0; i <= maxPilotStoredRunways; i++) {
         elements.storeRunway(runway(`AP${i}`, '09'));
@@ -218,7 +218,7 @@ describe('PilotStoredElements (A380 FCOM DSC-22-FMS-20-30, DATA pages)', () => {
 });
 
 describe('PilotStoredElementsPersistence (flypad KEEP PILOT STORED ELEMENTS)', () => {
-  it('deletes the elements at the end of the session without the setting (FCOM)', () => {
+  it('deletes the elements at the end of the session without the setting', () => {
     new PilotStoredElements().storeNavaid(navaid('ABC'));
     vi.advanceTimersByTime(10_000);
     expect(simStorage.has(KEPT_COPY_KEY)).toBe(false);
