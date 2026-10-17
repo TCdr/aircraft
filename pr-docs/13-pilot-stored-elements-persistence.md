@@ -2,7 +2,6 @@
 
 - **Title:** `feat(a380x/mfd): keep the pilot stored elements across sim sessions (flypad setting)`
 - **Base:** `master` - **Branch:** `feature/a380/mfd/pilot-stored-elements-persistence`
-- **Commit:** `7636abc1c`
 - **Labels to request:** `A380X`, `MFD`, `EFB`, `QA A380 Only`
 - **Issue to open first:** *"A380X pilot stored waypoints and routes are lost when the sim is closed"*
 - **CHANGELOG line:** `1. [A380X/MFD] Add an optional setting to keep the pilot stored elements between sim sessions - @TCdr`
@@ -13,10 +12,11 @@ Fixes #[issue_no]
 
 ## Summary of Changes
 
-The A380 FCOM says "All the pilot-stored elements are deleted when all FMCs are shut down" (DSC-22-FMS); that stays the default. A new
-flypad realism setting, **Keep pilot stored elements** (off by default, marked unrealistic), saves the stored waypoints, navaids, routes and
-runways in the persistent storage (`SetStoredData A380X_PILOT_STORED_ELEMENTS`) and restores them at the next session, before the FMS
-loads them (a session sentinel tells a new session from a reload).
+The A380 FCOM (DSC-22-FMS) says "All the pilot-stored elements are deleted when all FMCs are shut down". This stays the default.
+
+A new flypad realism setting, **Keep pilot stored elements** (off by default, marked unrealistic), saves the stored waypoints, navaids,
+routes and runways in persistent storage (`SetStoredData A380X_PILOT_STORED_ELEMENTS`). The next session restores them before the FMS
+loads them; a session sentinel tells a new session from a reload.
 
 ## Cockpit API Changes
 
@@ -34,7 +34,7 @@ Discord username (if different from GitHub): **TO ADD**
 
 ## Testing instructions
 
-1. Setting off: store a waypoint, restart the sim: it is gone (FCOM).
+1. Setting off: store a waypoint, restart the sim: it is gone, as in the FCOM.
 2. Setting on: store waypoints, navaids, a route and a runway, restart the sim: they are back.
 
 <!-- DO NOT DELETE THIS -->

@@ -14,20 +14,6 @@
 
 Fixes #[issue_no]
 
-## Update 2026-09-22/23 (these parts are in PR 9's commits, not in this branch): VD weather along the cut, 30 s buffer fill
-
-- **On-path / off-path (FCOM DSC-34-20-30, WX display function) is NOT modelled.** It was tried (a third MapView per ND in the engine's TOP VIEW radar
-  mode for the off-path weather, hatched) and removed again on 2026-09-23: the engine runs one radar per aircraft and a view in the top-view mode changes
-  what the horizontal views deliver (rain at the aircraft's level came back over the whole range instead of as cells; the A32NX next to it was clean, and
-  so were the A380X's views without the top view). The A380X shows the same picture as the A32NX, from the beam views. The VD terrain gauge still has a
-  single view (water is entry 0 of its colour list, blue). The FCOM's envelope limits cannot be applied either: MSFS's radar has no altitude information.
-- **VD weather along the zero-width vertical cut (FCOM):** the same cut as the terrain (flight plan in managed modes, track otherwise, PR 9), sampled over
-  the 3.5 deg beam width instead of the 10 deg wedge; the columns stand on the ground (sea level) rather than on the plot bottom.
-- **30 s buffer fill (FCOM operational recommendations):** from the moment the radar starts transmitting (any ND with the WX overlay, radar not OFF, on the
-  ground too) the picture is revealed by one slow sweep over 30 s on both NDs; the VD shows its weather once the sweep passed the cut's direction.
-- MAP mode as PR 1 (from the ND's terrain pair). The SURV CONTROLS defaults (WXR AUTO, TURB AUTO, GAIN AUTO, MODE WX, WX ON VD ON, PRED W/S AUTO) match the
-  FCOM's "SURV DEFAULT SETTINGS".
-
 ## Summary of Changes
 
 Adds the weather radar to the A380X NDs with the native `ndwxr` gauge of the A32NX PR, and the weather to the VD.
@@ -44,9 +30,13 @@ Adds the weather radar to the A380X NDs with the native `ndwxr` gauge of the A32
   (`PRED WS` and `GAIN` are written by the SURV page too but nothing reads them: MSFS's radar has no predictive windshear or gain.)
 - **VD weather (WX ON VD):** the vertical MapView mode of MSFS is a single thin beam (and tilting it crashes the gauge), so the VD weather is
   stylised from the ND's own radar views: the texel columns near the heading line are rotated onto the range axis and drawn as cells (green and
-  yellow columns with rounded tops, a red core; no magenta: the real VD does not display turbulence, FCOM DSC-31-20-40-10). The heights are
+  yellow columns with rounded tops, a red core; no magenta: the real VD does not display turbulence, A380 FCOM DSC-31-20-40-10). The heights are
   fractions of the VD altitude span above the aircraft, placed on the ADR baro-corrected altitude like the VD's own symbol. Single-texel specks
   and radar sweep streaks are filtered.
+- **Not modelled:** on-path / off-path weather (A380 FCOM DSC-34-20-30, WX display function). A third MapView per ND in the engine's TOP VIEW
+  radar mode was tried for the off-path weather and dropped: the engine runs one radar per aircraft, and a top view changes what the horizontal
+  views deliver (rain at the aircraft's level over the whole range instead of cells). So the A380X shows the same picture as the A32NX, from the
+  beam views. The FCOM's envelope limits cannot be applied either: MSFS's radar has no altitude information.
 
 ## Cockpit API Changes
 
@@ -69,6 +59,15 @@ another range/overlay; the VD with WX ON VD; the SURV CONTROLS page next to the 
 
 The VD weather is an approximation (MSFS has no vertical weather data): the shapes are made from the horizontal radar image, they are not real
 cell heights. Say so in the review if you would rather not ship that part, the ND radar works without it.
+
+PR 9 builds on this one with:
+- VD weather along the zero-width vertical cut of the FCOM: the same cut as the terrain (flight plan in managed modes, track otherwise),
+  sampled over the 3.5 deg beam width instead of the 10 deg wedge; the columns stand on the ground (sea level) rather than on the plot bottom.
+- The 30 s buffer fill (FCOM operational recommendations): once the radar transmits (any ND with the WX overlay, radar not OFF, also on the
+  ground) one slow 30 s sweep reveals the picture on both NDs; the VD shows its weather once the sweep has passed the cut's direction.
+- MAP mode as in PR 1 (from the ND's terrain pair), and the SURV CONTROLS defaults (WXR AUTO, TURB AUTO, GAIN AUTO, MODE WX, WX ON VD ON,
+  PRED W/S AUTO) of the FCOM's "SURV DEFAULT SETTINGS".
+- A single view in the VD terrain gauge (water is entry 0 of its colour list, blue).
 
 Discord username (if different from GitHub): **TO ADD**
 

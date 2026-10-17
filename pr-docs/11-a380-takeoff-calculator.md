@@ -16,8 +16,8 @@ Fixes #[issue_no]
 The A380X flypad gets a takeoff calculator, and the MFD the FCOM company takeoff data function that receives its results.
 
 **Calculator (`a380x_takeoff.ts`, `a380x_takeoff_data.ts`)**
-- Weight limits from the Airbus A380 Aircraft Characteristics (1 Dec 2025), take-off weight limitation charts, Trent 900, ISA and ISA+15
-  (PDF p.135-139). The curves are vector paths and were extracted exactly: runway 1700-5100 m, airport altitude 0-8000 ft.
+- Weight limits from the Airbus A380 Aircraft Characteristics (1 Dec 2025), take-off weight limitation charts, Trent 900, ISA and ISA+15.
+  The curves are vector paths, extracted exactly: runway 1700-5100 m, airport altitude 0-8000 ft.
 - Corrections the charts do not give are FBW-model estimates, amber with an asterisk: temperature (W ~ sigma^k x thrust^j, fitted on the
   charts), FLEX (thrust ratio 1 at TREF to 0.6 at TMAXFLEX, FCOM 40 % maximum; checked on the FCOM example 560 t / 614 t -> FLEX 38),
   wind (50 % headwind / 150 % tailwind), slope, line-up (172.5 / 219.8 ft). A "Data" select switches to Airbus data only.

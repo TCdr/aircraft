@@ -3,17 +3,16 @@
 - **Title:** `feat(a32nx/mcdu): make the CPT and F/O MCDUs independent`
 - **Base:** `master` - **Branch:** `feature/a32nx-mcdu-independent` (built on `origin/master`, one branch for the whole feature)
 - **Commits:** `5be670f87` (independent screens), `62f3f2917` (keyboard entry, remote MCDU, ATSU status)
-- **Note on the second commit:** it changes `sendUpdate()` of the remote MCDU. On your local `master` that function has the debounced structure of the upstream
-  PR that fixes the missing arrows (`4f25f245c`), which is not in `origin/master`, so the commit was ported to the old structure. If that upstream PR is merged
-  before you open this one, rebase and resolve `A320_Neo_CDU_MainDisplay.ts` (the `sendUpdateToMcduServer` version of `master` is the right shape).
+- **Note on the second commit:** it changes `sendUpdate()` of the remote MCDU on the structure of `origin/master`. The upstream PR that fixes the missing
+  arrows (`4f25f245c`, not in `origin/master` yet) makes that function debounced. If that PR is merged before you open this one, rebase and resolve
+  `A320_Neo_CDU_MainDisplay.ts` (the debounced `sendUpdateToMcduServer` version is the right shape).
 - **Labels to request:** `A32NX`, `MCDU`, `Remote MCDU` (for the SimBridge part), `Extensive Testing Needed`
 - **Prerequisite:** a PR in `flybywiresim/aircraft-large-files` with the U change of the two screens in `A320_NEO_INTERIOR_LOD00.bin` (it is chunked:
-  `.bin.part01`), merged first; then this PR bumps the `large-files` submodule pointer (the guide/AGENTS only allows that when the task concerns those assets,
-  which it does).
+  `.bin.part01`), merged first; then this PR bumps the `large-files` submodule pointer (AGENTS.md allows that only when the change concerns those assets, as here).
 - **Issue to open first:** *"CPT and F/O MCDUs show the same thing"* - "The two MCDU screens mirror each other (same page, same scratchpad) because there is
   one MCDU gauge on one texture. They should be independent, sharing the FMS data."
   (the stable release has the same behaviour, so it qualifies for the changelog)
-- **CHANGELOG line:** `1. [A32NX/MCDU] Make the captain and first officer MCDUs independent, each with its own page, scratchpad and messages on the shared FMS data - @TCdr` - already added to `.github/CHANGELOG.md` in the commit of this PR
+- **CHANGELOG line:** `1. [A32NX/MCDU] Make the captain and first officer MCDUs independent, each with its own page, scratchpad and messages on the shared FMS data - @TCdr` - already in `.github/CHANGELOG.md` in the commit of this PR
 
 ---- paste from here ----
 
@@ -22,14 +21,14 @@ Fixes #[issue_no]
 ## Summary of Changes
 
 The two MCDU screens showed the same thing: there was one MCDU gauge on one texture and both screen meshes sampled all of it. This makes them independent
-without running the FMS twice. `A320_Neo_CDU_MainDisplay` is the aircraft's FMS (flight plan, guidance, EFIS symbols) as well as the MCDU display, and only one
-of it may exist. So both MCDUs are now two screens on that one FMS, the way the A380X does its two MFD screens (one gauge, one texture, both screens drawn into it):
+without running the FMS twice. `A320_Neo_CDU_MainDisplay` is both the aircraft's FMS (flight plan, guidance, EFIS symbols) and the MCDU display, and only one
+instance may exist. So the two MCDUs are two screens on that one FMS, as the A380X does its two MFD screens (one gauge, one texture, both screens drawn into it):
 
 - **Gauge and model:** the MCDU gauge is 2048x1024 and the two screen meshes each sample one half of it (the U of `SCREEN_MCDUL` runs 0..0.5, that of
-  `SCREEN_MCDUR` 0.5..1). The CPT MCDU is drawn in the left half, the F/O MCDU in the right half. Only 4 UV values per LOD change (LOD01 in this repo,
+  `SCREEN_MCDUR` 0.5..1): the CPT MCDU is drawn in the left half, the F/O MCDU in the right half. Only 4 UV values per LOD change (LOD01 in this repo,
   LOD00 in `aircraft-large-files`).
 - **F/O screen:** a Proxy over the FMS instance. The fields that belong to one screen (page being shown, LSK callbacks, scratchpad, message queue, key
-  handlers, DOM elements) are listed in `PER_SCREEN_KEYS` and the F/O screen has its own copy, everything else is forwarded to the FMS. Functions run with the
+  handlers, DOM elements) are listed in `PER_SCREEN_KEYS` and the F/O screen has its own copy; everything else is forwarded to the FMS. Functions run with the
   proxy as `this`, so an entry made on the F/O MCDU puts its pages, scratchpad messages and dialogs on the F/O screen. The CPT screen stays the real instance
   with its code path unchanged. The 88 legacy pages are unchanged (they already take the MCDU through `LegacyFmsPageInterface`).
 - **Keys and power:** the events of the F/O keys go to the F/O screen, checked against AC bus 2 (the CPT MCDU stays on AC ESS SHED).
@@ -59,9 +58,9 @@ texture is the precedent for the one-texture, two-screens technique.
 ## Additional context
 
 A second gauge instance for the F/O MCDU (with template / PART_ID changes in the model behaviour XML) was tried and does not work in MSFS: the second gauge never
-reached its screen and two of the behaviour changes blanked both screens. The one-texture approach avoids the screen routing question and needs no second FMS,
-and because both screens share one FMS nothing has to be synchronised between gauges. An earlier upstream attempt at the same idea, flybywiresim/a32nx#5383,
-was closed in 2022 (merge conflicts), its model change was never made; this PR makes it.
+reached its screen and two of the behaviour changes blanked both screens. The one-texture approach avoids the screen routing problem and needs no second FMS,
+so nothing has to be synchronised between gauges. An earlier upstream attempt at the same idea, flybywiresim/a32nx#5383,
+was closed in 2022 (merge conflicts) without its model change; this PR makes it.
 
 Discord username (if different from GitHub): **TO ADD**
 

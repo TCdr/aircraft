@@ -2922,7 +2922,7 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
 
 - A32NX_AIRLINER_TO_DERATE
   - Number (percent)
-  - The DOx derated takeoff of the MFD PERF T.O panel (DERATED D04, D08, D12, D16, D20, D24): the thrust reduction in percent (4 to 24), 0 when TOGA or FLEX is selected (A380 FCOM DSC-70-20-40 l.111561-111568). The FADECs (fadec_a380x TakeoffDerate_A380X.hpp) write the derated rating as the FLX limit and the FADEC models of the fbw module take their FLX path for it (TakeoffDerate.h); the E/WD shows the level in place of FLX, the FWS takes the FLX/MCT detent as take-off power and TOGA as ENG THR LEVERS NOT SET. Written by the MFD (MFD/shared/TakeoffDerate.ts)
+  - The DOx derated takeoff of the MFD PERF T.O panel (DERATED D04, D08, D12, D16, D20, D24): the thrust reduction in percent (4 to 24), 0 when TOGA or FLEX is selected (A380 FCOM DSC-70-20-40). The FADECs (fadec_a380x TakeoffDerate_A380X.hpp) write the derated rating as the FLX limit and the FADEC models of the fbw module take their FLX path for it (TakeoffDerate.h); the E/WD shows the level in place of FLX, the FWS takes the FLX/MCT detent as take-off power and TOGA as ENG THR LEVERS NOT SET. Written by the MFD (MFD/shared/TakeoffDerate.ts)
 
 - A32NX_ENGINE_{number}_FUEL_CUT
   - Bool
@@ -3116,14 +3116,14 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - {number}
     - 2
     - 3
-  - True when the FADEC detects a reverser failure that does not impair the reverser operation (flyPad failure 78051/78052): the reverser still deploys, for ENG 2(3) REVERSER MINOR FAULT (A380 FCOM l.173668-173676). Written by the systems WASM (a380_systems reverser)
+  - True when the FADEC detects a reverser failure that does not impair the reverser operation (flyPad failure 78051/78052): the reverser still deploys, for ENG 2(3) REVERSER MINOR FAULT. Written by the systems WASM (a380_systems reverser)
 
 - A32NX_REVERSER_{number}_INHIBITED
   - Bool
   - {number}
     - 2
     - 3
-  - True when the reverser is inhibited by maintenance action (flyPad failure 78061/78062): its locks do not release and it does not deploy, for ENG 2(3) REVERSER INHIBITED (A380 FCOM l.173571-173590). Written by the systems WASM (a380_systems reverser)
+  - True when the reverser is inhibited by maintenance action (flyPad failure 78061/78062): its locks do not release and it does not deploy, for ENG 2(3) REVERSER INHIBITED. Written by the systems WASM (a380_systems reverser)
 
 
 - A32NX_ENGINE_{number}_OIL_LEAK
@@ -3197,7 +3197,7 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 2
     - 3
     - 4
-  - True while the FADEC overthrust protection reduces the thrust of the engine in flight (overthrust failure 73320-73323, below 15 000 ft and M 0.4): ENG CTL SYS FAULT "Fuel cutback following overthrust detection" (A380 FCOM l.171321). Written by the systems WASM (a380_systems fadec_automatic_shutdown.rs)
+  - True while the FADEC overthrust protection reduces the thrust of the engine in flight (overthrust failure 73320-73323, below 15 000 ft and M 0.4): ENG CTL SYS FAULT "Fuel cutback following overthrust detection". Written by the systems WASM (a380_systems fadec_automatic_shutdown.rs)
 
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool
@@ -3344,13 +3344,13 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
 - A32NX_HYD_{SYSTEM}_{PUMP}_EDPUMP_OVHT
     - Boolean
     - The engine driven pump {PUMP} overheats. The FWS reads it as the "engine pump case drain temperature is above
-      120 C" term of HYD G (Y) SYS OVHT (FCOM PRO-ABN, a380_fcom.txt l.155436-155437)
+      120 C" term of HYD G (Y) SYS OVHT (FCOM PRO-ABN)
     - {SYSTEM}_{PUMP} = GREEN_1A, GREEN_1B, GREEN_2A, GREEN_2B, YELLOW_3A, YELLOW_3B, YELLOW_4A, YELLOW_4B
 
 - A32NX_HYD_{SYSTEM}_PUMP_{N}_SECTION_PRESSURE_SWITCH
     - Boolean
     - Pressure switch of the pump section {N}: 1 to 4 the engine pumps (not pressurised below 2 500 PSI, ENG PMP PRESS
-      LO, l.155038), 5 and 6 the electric pumps A and B (below 1 885 PSI, ELEC PMP FAULT, l.154993); both pressurised
+      LO), 5 and 6 the electric pumps A and B (below 1 885 PSI, ELEC PMP FAULT); both pressurised
       again above 3 700 PSI
     - {SYSTEM} = GREEN, YELLOW
 
