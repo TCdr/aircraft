@@ -19,6 +19,39 @@
         </Component>
     </Template>
 
+    <!-- WXR GAIN and ELEVN knobs of the SURV panel: push, pull
+         and turn send the H events A380X_WXR_#KNOB#_KNOB_PUSH / _PULL / _INC / _DEC, handled by the systems host
+         (systems-host/Misc/WxrSurvKnobs.ts), which sets the WXR settings of the MFD SURV/CONTROLS page. The cockpit model
+         has no turn or push/pull animation for these knobs (the VD AZIM knob has them): the knob node itself is used.
+            - NODE_ID       <no default>    the knob node
+            - KNOB          <no default>    GAIN or ELEVN
+            - TOOLTIP_NAME  <no default>    the knob name in the tooltips -->
+    <Template Name="FBW_A380X_WXR_SURV_Knob_Template">
+        <Component ID="#NODE_ID#" Node="#NODE_ID#">
+            <UseTemplate Name="ASOBO_GT_Knob_Infinite_PushPull">
+                <ANIM_NAME_KNOB>#NODE_ID#</ANIM_NAME_KNOB>
+                <ANIM_NAME_PUSHPULL>#NODE_ID#</ANIM_NAME_PUSHPULL>
+                <ANTICLOCKWISE_CODE>(&gt;H:A380X_WXR_#KNOB#_KNOB_DEC)</ANTICLOCKWISE_CODE>
+                <CLOCKWISE_CODE>(&gt;H:A380X_WXR_#KNOB#_KNOB_INC)</CLOCKWISE_CODE>
+                <PULL_CODE>(&gt;H:A380X_WXR_#KNOB#_KNOB_PULL)</PULL_CODE>
+                <PUSH_CODE>(&gt;H:A380X_WXR_#KNOB#_KNOB_PUSH)</PUSH_CODE>
+                <ANIMTIP_0>Increase WXR #TOOLTIP_NAME#</ANIMTIP_0>
+                <ANIMTIP_0_ON_CURSOR>TurnRight</ANIMTIP_0_ON_CURSOR>
+                <ANIMTIP_1>Decrease WXR #TOOLTIP_NAME#</ANIMTIP_1>
+                <ANIMTIP_1_ON_CURSOR>TurnLeft</ANIMTIP_1_ON_CURSOR>
+                <ANIMTIP_2>Push for AUTO WXR #TOOLTIP_NAME#</ANIMTIP_2>
+                <ANIMTIP_2_ON_CURSOR>DownArrow</ANIMTIP_2_ON_CURSOR>
+                <ANIMTIP_3>Pull for manual WXR #TOOLTIP_NAME#</ANIMTIP_3>
+                <ANIMTIP_3_ON_CURSOR>UpArrow</ANIMTIP_3_ON_CURSOR>
+                <CENTER_RADIUS>0</CENTER_RADIUS>
+                <COUNT>36</COUNT>
+                <WWISE_EVENT>QNHknob</WWISE_EVENT>
+                <WWISE_EVENT_1>QNHknob</WWISE_EVENT_1>
+                <WWISE_EVENT_2>QNHknob</WWISE_EVENT_2>
+            </UseTemplate>
+        </Component>
+    </Template>
+
     <Template Name="FBW_A380X_Components_Pedestal">
         <Component ID="Pedestal_Fwd">
             <!-- Throttle 1 -->
@@ -367,6 +400,28 @@
                     <WWISE_EVENT_2>lswitch</WWISE_EVENT_2>
                     <NORMALIZED_TIME_1>0.1</NORMALIZED_TIME_1>
                     <NORMALIZED_TIME_2>0.5</NORMALIZED_TIME_2>
+                </UseTemplate>
+
+                <!-- The GAIN and ELEVN knobs of the CAPT and F/O sides of the SURV panel: one set of WXR settings -->
+                <UseTemplate Name="FBW_A380X_WXR_SURV_Knob_Template">
+                    <NODE_ID>KNOB_CPT_WXR_GAIN</NODE_ID>
+                    <KNOB>GAIN</KNOB>
+                    <TOOLTIP_NAME>GAIN</TOOLTIP_NAME>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A380X_WXR_SURV_Knob_Template">
+                    <NODE_ID>KNOB_FO_WXR_GAIN</NODE_ID>
+                    <KNOB>GAIN</KNOB>
+                    <TOOLTIP_NAME>GAIN</TOOLTIP_NAME>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A380X_WXR_SURV_Knob_Template">
+                    <NODE_ID>KNOB_CPT_WXR_ELEV</NODE_ID>
+                    <KNOB>ELEVN</KNOB>
+                    <TOOLTIP_NAME>ELEVN/TILT</TOOLTIP_NAME>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A380X_WXR_SURV_Knob_Template">
+                    <NODE_ID>KNOB_FO_WXR_ELEV</NODE_ID>
+                    <KNOB>ELEVN</KNOB>
+                    <TOOLTIP_NAME>ELEVN/TILT</TOOLTIP_NAME>
                 </UseTemplate>
             </Component>
 

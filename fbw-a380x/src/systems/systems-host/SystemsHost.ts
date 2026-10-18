@@ -60,6 +60,7 @@ import { FGDataPublisher } from '../instruments/src/MsfsAvionicsCommon/providers
 import { AesuBusPublisher } from '../instruments/src/MsfsAvionicsCommon/providers/AesuBusPublisher';
 import { A380Failure } from '@failures';
 import { EfisTawsBridge } from './Misc/EfisTawsBridge';
+import { WxrSurvKnobs } from './Misc/WxrSurvKnobs';
 // FIXME should not import from ND!!
 import { FmsSymbolsPublisher } from '../instruments/src/ND/FmsSymbolsPublisher';
 // FIXME should not import from instruments
@@ -158,6 +159,9 @@ class SystemsHost extends BaseInstrument {
 
   private readonly efisTawsBridge = new EfisTawsBridge(this.bus, this, this.failuresConsumer);
 
+  /** The ELEVN and GAIN knobs of the SURV panel */
+  private readonly wxrSurvKnobs = new WxrSurvKnobs(this.bus);
+
   private readonly fmsMessagePublisher = new FmsMessagePublisher(this.bus);
 
   private readonly fws1ResetPbStatus = ConsumerSubject.create(this.sub.on('a380x_reset_panel_fws1'), false);
@@ -213,6 +217,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
+    this.backplane.addInstrument('WxrSurvKnobs', this.wxrSurvKnobs);
     this.backplane.addPublisher('RmpAmuBusPublisher', this.rmpAmuBusPublisher);
     this.backplane.addPublisher('PilotSeatPublisher', this.pilotSeatPublisher);
     this.backplane.addPublisher('PowerPublisher', this.powerPublisher);
