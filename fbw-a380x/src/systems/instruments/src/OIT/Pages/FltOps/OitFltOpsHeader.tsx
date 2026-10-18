@@ -123,13 +123,12 @@ export abstract class OitFltOpsHeader extends DisplayComponent<OitFltOpsHeaderPr
               disabled: true,
               separatorBelow: true,
             },
-            { label: 'T.O PERF', action: () => this.props.uiService.navigateTo('flt-ops/to-perf'), disabled: true },
+            { label: 'T.O PERF', action: () => this.props.uiService.navigateTo('flt-ops/to-perf') },
             {
               label: 'LOADSHEET',
               action: () => this.props.uiService.navigateTo('flt-ops/loadsheet'),
-              disabled: true,
             },
-            { label: 'LDG PERF', action: () => this.props.uiService.navigateTo('flt-ops/ldg-perf'), disabled: true },
+            { label: 'LDG PERF', action: () => this.props.uiService.navigateTo('flt-ops/ldg-perf') },
             {
               label: 'IN-FLT PERF',
               action: () => this.props.uiService.navigateTo('flt-ops/in-flt-perf'),

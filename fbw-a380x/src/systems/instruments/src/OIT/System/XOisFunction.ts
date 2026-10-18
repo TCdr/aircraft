@@ -22,6 +22,7 @@ const FLT_OPS_PAGE_URIS: readonly string[] = [
   'flt-ops/ldg-perf',
   'flt-ops/charts',
   'flt-ops/flt-folder',
+  'flt-ops/loadsheet',
 ];
 
 /** The FLT OPS Menu page, shown by the OIS MENU key */

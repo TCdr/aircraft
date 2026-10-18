@@ -4,7 +4,9 @@
 import { EventBus, FSComponent, VNode } from '@microsoft/msfs-sdk';
 import { OitFltOpsEfbOverlay } from './Pages/FltOps/OitFltOpsEfbOverlay';
 import { OitFltOpsMenuPage } from './Pages/FltOps/OitFltOpsMenuPage';
-import { OitFltOpsPerformance } from './Pages/FltOps/OitFltOpsPerformance';
+import { OitFltOpsTakeoffPerf } from './Pages/FltOps/Performance/OitFltOpsTakeoffPerf';
+import { OitFltOpsLandingPerf } from './Pages/FltOps/Performance/OitFltOpsLandingPerf';
+import { OitFltOpsLoadsheet } from './Pages/FltOps/Performance/OitFltOpsLoadsheet';
 import { OitFltOpsStatus } from './Pages/FltOps/OitFltOpsStatus';
 import { OitNotFound } from './Pages/OitNotFound';
 import { OitUiService } from './OitUiService';
@@ -37,9 +39,11 @@ export function fltOpsPageForUrl(
     case 'flt-ops/sts':
       return <OitFltOpsStatus bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/to-perf':
-      return <OitFltOpsPerformance bus={bus} uiService={uiService} container={container} />;
+      return <OitFltOpsTakeoffPerf bus={bus} uiService={uiService} container={container} />;
+    case 'flt-ops/loadsheet':
+      return <OitFltOpsLoadsheet bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/ldg-perf':
-      return <OitFltOpsPerformance bus={bus} uiService={uiService} container={container} />;
+      return <OitFltOpsLandingPerf bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/charts':
       return <OitFltOpsEfbOverlay bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/flt-folder':

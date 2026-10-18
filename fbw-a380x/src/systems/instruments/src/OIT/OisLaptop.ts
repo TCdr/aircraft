@@ -11,12 +11,14 @@ import {
   Subscribable,
   Subscription,
 } from '@microsoft/msfs-sdk';
-import { FailuresConsumer, FmsData } from '@flybywiresim/fbw-sdk';
+import { FailuresConsumer, FmsData, NXUnits } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import { OisInternalData } from './OisInternalPublisher';
 import { OitSimvars } from './OitSimvarPublisher';
 import { AruStartup, LaptopNetworkConnection } from './System/AnsuLogic';
 import { OisMessageToolbar } from './System/OisMessageToolbar';
+import { FltOpsPerformanceSession } from './System/Performance/FltOpsPerformanceSession';
+import { A380_CERTIFIED_WEIGHTS } from './System/Performance/A380PerformanceCalculators';
 
 type LaptopIndex = 1 | 2;
 
@@ -147,10 +149,14 @@ export class OisLaptopData {
   public readonly fromAirport = Subject.create<string | null>(null);
   public readonly toAirport = Subject.create<string | null>(null);
 
+  /** T.O PERF, LDG PERF and LOADSHEET */
+  public readonly performance = new FltOpsPerformanceSession(A380_CERTIFIED_WEIGHTS, () => NXUnits.metricWeight);
+
   /** EXIT SESSION: the STS page starts empty for the next flight */
   public reset(): void {
     this.fltNumber.set(null);
     this.fromAirport.set(null);
     this.toAirport.set(null);
+    this.performance.reset();
   }
 }

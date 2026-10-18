@@ -201,6 +201,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] FLT OPS menu bar: the FUNCTIONS list works (HOME, PREVIOUS, NEXT, HIDE / SHOW SWITCHING BAR, CLOSE APPLICATION, with their shortcuts), every application shows its name, and the switching bar shows the open applications and scrolls with its arrows - @TCdr
 1. [A380X/OIT] COMPANY COM report and request forms: INIT data, fuel figures, refuelling, loadsheet acceptance, departure / take-off / gate delay, delay code, ASR notification, ramp service, diversion, ETA and flight summary, pre-filled with the flight data the OIT has and sent to a station over the Hoppie network into the Outbox and Sent folders - @TCdr
 1. [A380X/OIT] The NSS AVNCS REFUEL application shows the fuel on board, the refuel state and the FQMS default ZFW / ZFCG, and sets on the ground the preselected fuel quantity of the automatic refuel and a ZFW / ZFCG of its own for its CG targeting - @TCdr
+1. [A380X/OIT] T.O PERF on the FLT OPS side: takeoff speeds, flaps, FLEX or derate and MTOW(perf) for a runway of the departure airport, and XCHECK WITH AVNCS against the FMS T.O page, the SD gross weight and the captain's QNH - @TCdr
+1. [A380X/OIT] LOADSHEET on the FLT OPS side: TOW/CG, LW/CG, underload and T.O THS from the ZFW/CG and the fuel, and a loadsheet that can be printed; its TOW and LW go to T.O PERF and LDG PERF - @TCdr
+1. [A380X/OIT] LDG PERF on the FLT OPS side: DISPATCH and IN-FLIGHT landing distance, stop margin, MLW(perf), VAPP and go-around gradient for a runway of the destination - @TCdr
 
 ## 2024.1.0
 
