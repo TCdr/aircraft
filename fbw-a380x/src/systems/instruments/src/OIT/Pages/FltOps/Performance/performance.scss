@@ -1,0 +1,260 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+@import "../../../../MsfsAvionicsCommon/definitions.scss";
+
+// The performance applications as on the laptop screens: grey panels with a title bar, compact rows
+
+.oit-perf-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding: 4px 6px;
+  font-size: 20px;
+  color: $display-white;
+  position: relative;
+}
+
+.oit-perf-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: row;
+}
+
+// Design choice: wide enough for a label, a list with its arrow and a unit
+.oit-perf-left {
+  display: flex;
+  flex-direction: column;
+  width: 590px;
+}
+
+.oit-perf-right {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  margin-left: 8px;
+}
+
+.oit-perf-panel {
+  display: flex;
+  flex-direction: column;
+  border: 2px solid $display-light-grey;
+  background-color: $display-background;
+  margin-bottom: 6px;
+}
+
+.oit-perf-panel.grow {
+  flex: 1 1 auto;
+}
+
+.oit-perf-panel-title {
+  background-color: $display-dark-grey;
+  color: $display-white;
+  font-size: 18px;
+  padding: 2px 8px;
+}
+
+.oit-perf-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 44px;
+  padding: 0px 4px;
+}
+
+.oit-perf-label {
+  font-size: 19px;
+  color: $display-white;
+  text-align: right;
+  width: 150px;
+  padding-right: 8px;
+}
+
+.oit-perf-label.big {
+  font-size: 24px;
+}
+
+.oit-perf-unit {
+  color: $display-cyan;
+  padding-left: 6px;
+}
+
+.oit-perf-text {
+  font-size: 19px;
+  color: $display-white;
+  padding: 0px 6px;
+}
+
+.oit-perf-value {
+  font-size: 24px;
+  color: $display-green;
+  padding: 0px 6px;
+}
+
+.oit-perf-value.big {
+  font-size: 30px;
+}
+
+.oit-perf-value.white {
+  color: $display-white;
+}
+
+.oit-perf-value.amber {
+  color: $display-amber;
+}
+
+.oit-perf-value.red {
+  color: $display-red;
+}
+
+.oit-perf-value.yellow {
+  color: $display-yellow;
+}
+
+.oit-perf-status-box {
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: center;
+  align-items: center;
+  font-size: 22px;
+}
+
+.oit-perf-tabs {
+  display: flex;
+  flex-direction: row;
+}
+
+.oit-perf-tab {
+  font-size: 18px;
+  padding: 6px 12px;
+  margin-right: 4px;
+  border: 2px solid $display-light-grey;
+  border-bottom: none;
+  color: $display-light-grey;
+}
+
+.oit-perf-tab.active {
+  color: $display-white;
+  background-color: $display-background;
+}
+
+.oit-perf-message-box {
+  height: 50px;
+  margin: 6px;
+  border: 2px solid $display-light-grey;
+  color: $display-green;
+  padding: 4px 8px;
+}
+
+.oit-perf-error-line {
+  display: flex;
+  flex-direction: row;
+  font-size: 20px;
+  padding: 3px 8px;
+}
+
+.oit-perf-error-stars {
+  color: $display-red;
+  width: 50px;
+}
+
+.oit-perf-bottom {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 56px;
+}
+
+.oit-perf-grid {
+  display: grid;
+  grid-auto-rows: 44px;
+  align-items: center;
+  padding: 6px 10px;
+}
+
+// LDG PERF RESULTS: RWY, the LW and MLW(perf) on top, the distances and speeds below the LW, FLAPS and VAPP on the right.
+// Design choice: column widths that hold the longest results (klbs weights, 4-digit distances) inside the panel
+.oit-perf-ldg-results {
+  grid-template-columns: 120px 140px 170px 1fr;
+  white-space: nowrap;
+}
+
+.oit-perf-ldg-label {
+  grid-column: span 2;
+  text-align: right;
+}
+
+.oit-perf-popup {
+  position: absolute;
+  left: 300px;
+  top: 220px;
+  width: 700px;
+  z-index: 50;
+  background-color: $display-background;
+  border: 3px solid $display-light-grey;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 16px;
+}
+
+.oit-perf-popup-title {
+  font-size: 26px;
+  text-align: center;
+  padding-bottom: 12px;
+}
+
+.oit-perf-report {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 18px;
+  white-space: pre;
+  color: $display-white;
+  padding: 6px 10px;
+}
+
+.oit-perf-not-available {
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  font-size: 28px;
+  color: $display-amber;
+}
+
+// The page classes set their own display, which a plain .hidden defined earlier does not outweigh (the RESULTS grid
+// before a computation, the XCHECK window before a crosscheck)
+.oit-perf-page .hidden {
+  display: none;
+}
+
+// Compact dropdowns and text boxes: the panels have many rows
+.oit-perf-page .mfd-dropdown-inner {
+  height: 36px;
+}
+
+.oit-perf-page .mfd-input-field-container {
+  height: 34px;
+  padding: 2px 2px;
+}
+
+// The boxes have their own widths: the text area that takes the click stays inside the frame instead of taking the
+// width of the longest entry
+.oit-perf-page .mfd-input-field-text-input-container {
+  min-width: 0 !important;
+}
+
+.oit-perf-page .mfd-input-field-text-input,
+.oit-perf-page .mfd-input-field-text-input.editing {
+  font-size: 21px !important;
+  line-height: 21px;
+}
+
+.oit-perf-page .mfd-dropdown-menu-element {
+  font-size: 19px;
+}
+
+.oit-perf-page .mfd-button {
+  font-size: 18px;
+}

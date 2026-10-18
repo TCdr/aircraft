@@ -58,19 +58,16 @@ export class OitFltOpsMenuPage extends DisplayComponent<OitFltOpsMenuPageProps> 
                 label={'T.O PERF'}
                 containerStyle="width: 300px; margin-bottom: 20px"
                 onClick={() => this.props.uiService.navigateTo('flt-ops/to-perf')}
-                disabled={Subject.create(true)}
               />
               <Button
                 label={'LOADSHEET'}
                 containerStyle="width: 300px; margin-bottom: 20px"
                 onClick={() => this.props.uiService.navigateTo('flt-ops/loadsheet')}
-                disabled={Subject.create(true)}
               />
               <Button
                 label={'LDG PERF'}
                 containerStyle="width: 300px; margin-bottom: 20px"
                 onClick={() => this.props.uiService.navigateTo('flt-ops/ldg-perf')}
-                disabled={Subject.create(true)}
               />
               <Button
                 label={'IN-FLT PERF'}
