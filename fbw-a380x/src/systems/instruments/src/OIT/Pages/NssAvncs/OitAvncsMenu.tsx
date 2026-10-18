@@ -28,6 +28,12 @@ export class OitAvncsMenu extends DestroyableComponent<OitAvncsMenuPageProps> {
               <OitFolder name={'OIS MENU'} initExpanded={true} hideFolderIcon>
                 <OitFolder name={'NSS AVNCS MENU'} initExpanded={true} hideFolderIcon>
                   <OitFile
+                    name={'LOGBOOK'}
+                    uiService={this.props.uiService}
+                    navigationTarget="nss-avncs/logbook"
+                    showFileSymbol={false}
+                  />
+                  <OitFile
                     name={'COMPANY COM'}
                     uiService={this.props.uiService}
                     navigationTarget="nss-avncs/company-com"
@@ -63,6 +69,12 @@ export class OitAvncsMenu extends DestroyableComponent<OitAvncsMenuPageProps> {
               </div>
               <div class="oit-avncs-navigator-right-center-buttons">
                 <span style="font-weight: bold;">NSS AVNCS MENU</span>
+                <Button
+                  label={'LOGBOOK'}
+                  onClick={() => this.props.uiService.navigateTo('nss-avncs/logbook')}
+                  buttonStyle="font-size: 28px; height: 40px;"
+                  containerStyle="margin-top: 25px;"
+                />
                 <Button
                   label={'COMPANY COM'}
                   onClick={() => this.props.uiService.navigateTo('nss-avncs/company-com')}

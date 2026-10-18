@@ -1,0 +1,355 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+@import "../../../../MsfsAvionicsCommon/definitions.scss";
+
+$logbook-link: #3d9bff;
+$logbook-list-background: #3a3c44;
+
+.oit-logbook-app {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin-top: 8px;
+  font-size: 24px;
+  color: $display-white;
+}
+
+// The fields have their own widths: the text area that takes the click stays inside the frame (the width of the
+// longest PILOT COMMENT would push the NAVIGATION column off the screen)
+.oit-logbook-app .mfd-input-field-text-input-container {
+  min-width: 0 !important;
+}
+
+// The logbook classes set their own display, which a plain .hidden defined earlier does not outweigh (the login dialog,
+// the release rows of another state)
+.oit-logbook-app .hidden {
+  display: none;
+}
+
+.oit-logbook-tabs {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  height: 44px;
+}
+
+.oit-logbook-tab {
+  padding: 6px 14px;
+  margin-right: 4px;
+  border: 2px solid $display-light-grey;
+  border-bottom: none;
+  background-color: $display-grey;
+  color: $display-white;
+  font-size: 24px;
+}
+
+.oit-logbook-tab.selected {
+  background-color: $display-background;
+  padding-bottom: 10px;
+}
+
+.oit-logbook-content {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  border: 2px solid $display-light-grey;
+  padding: 14px 16px;
+}
+
+.oit-logbook-frame {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  border: 1px solid $display-light-grey;
+  margin-top: 12px;
+  padding: 20px 14px 10px 14px;
+}
+
+.oit-logbook-frame-title {
+  position: absolute;
+  left: 8px;
+  top: -15px;
+  background-color: $display-background;
+  padding: 0px 6px;
+  font-size: 22px;
+}
+
+.oit-logbook-section {
+  position: relative;
+  border: 1px solid $display-light-grey;
+  padding: 20px 12px 12px 12px;
+  margin-top: 14px;
+}
+
+.oit-logbook-section-title {
+  position: absolute;
+  left: 6px;
+  top: -14px;
+  background-color: $display-background;
+  padding: 0px 4px;
+  font-size: 22px;
+}
+
+.oit-logbook-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.oit-logbook-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.oit-logbook-separator {
+  align-self: stretch;
+  border-top: 1px solid $display-light-grey;
+  margin: 10px 0px;
+}
+
+.oit-logbook-label {
+  text-align: right;
+  padding-right: 8px;
+  white-space: nowrap;
+}
+
+.oit-logbook-value-box {
+  border: 2px solid $display-light-grey;
+  padding: 3px 8px;
+  min-height: 37px;
+  color: $display-white;
+  display: flex;
+  align-items: center;
+}
+
+.oit-logbook-value-box.multiline {
+  align-items: flex-start;
+  min-height: 70px;
+  white-space: pre-wrap;
+}
+
+.oit-logbook-value-box.centered {
+  justify-content: center;
+}
+
+.oit-logbook-green {
+  color: $display-green;
+}
+
+.oit-logbook-amber {
+  color: $display-amber;
+}
+
+.oit-logbook-cyan {
+  color: $display-cyan;
+}
+
+.oit-logbook-magenta {
+  color: $display-magenta;
+}
+
+.oit-logbook-link {
+  color: $logbook-link;
+  text-decoration: underline;
+}
+
+.oit-logbook-grey {
+  color: $display-dark-grey;
+}
+
+// FMS values in magenta, crew entries in cyan
+.oit-logbook-avionics .mfd-input-field-text-input {
+  color: $display-magenta;
+}
+
+.oit-logbook-count-button {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 220px;
+}
+
+.oit-logbook-bottom-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.oit-logbook-table {
+  display: flex;
+  flex-direction: column;
+  border: 2px solid $display-light-grey;
+}
+
+.oit-logbook-table-header {
+  display: flex;
+  flex-direction: row;
+  background-color: $display-dark-grey;
+  color: $display-white;
+}
+
+.oit-logbook-table-row {
+  display: flex;
+  flex-direction: row;
+  border-top: 1px solid $display-light-grey;
+  height: 34px;
+  align-items: center;
+}
+
+.oit-logbook-table-cell {
+  padding: 0px 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border-right: 1px solid $display-light-grey;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.oit-logbook-table-cell.centered {
+  justify-content: center;
+}
+
+.oit-logbook-table-pager {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.oit-logbook-list {
+  display: flex;
+  flex-direction: column;
+  background-color: $logbook-list-background;
+  border: 2px inset $display-light-grey;
+  min-height: 120px;
+  overflow-y: auto;
+}
+
+// Each line keeps its height: a list longer than its box scrolls instead of squeezing the lines onto each other
+.oit-logbook-list-line {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.oit-logbook-list-line.selected {
+  background-color: $display-light-grey;
+  color: $display-background;
+}
+
+.oit-logbook-tickbox {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid $display-white;
+  margin-right: 8px;
+}
+
+.oit-logbook-tickbox.checked {
+  background-color: $display-white;
+  box-shadow: inset 0px 0px 0px 3px $display-background;
+}
+
+.oit-logbook-tickbox.disabled {
+  border-color: $display-dark-grey;
+}
+
+.oit-logbook-dialog-overlay {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 10;
+}
+
+.oit-logbook-dialog {
+  width: 720px;
+  border: 3px solid $display-white;
+  background-color: $display-background;
+  display: flex;
+  flex-direction: column;
+}
+
+.oit-logbook-dialog-title {
+  background: repeating-linear-gradient(45deg, $display-grey, $display-grey 3px, $display-dark-grey 3px, $display-dark-grey 6px);
+  padding: 2px 8px;
+  font-size: 20px;
+}
+
+.oit-logbook-dialog-body {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 20px 16px 20px;
+  font-size: 26px;
+}
+
+.oit-logbook-dialog-line {
+  padding-left: 60px;
+  margin-top: 6px;
+  white-space: pre-wrap;
+}
+
+.oit-logbook-report {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  max-height: 640px;
+  font-size: 20px;
+  padding: 0px 8px;
+}
+
+.oit-logbook-report-heading {
+  text-align: center;
+  font-size: 26px;
+  margin: 6px 0px 10px 0px;
+}
+
+.oit-logbook-report-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 4px 10px;
+  border-bottom: 2px solid $display-light-grey;
+  padding: 6px 0px;
+}
+
+.oit-logbook-report-key {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.oit-logbook-cockpit-areas {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  padding: 20px;
+}
+
+.oit-logbook-cockpit-area {
+  border: 2px solid $display-light-grey;
+  height: 110px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.oit-logbook-cockpit-area.selected {
+  border-color: $display-cyan;
+  color: $display-cyan;
+}
