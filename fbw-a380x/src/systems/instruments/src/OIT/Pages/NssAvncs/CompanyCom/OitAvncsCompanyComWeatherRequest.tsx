@@ -1,7 +1,7 @@
 //  Copyright (c) 2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
+import { FSComponent, VNode } from '@microsoft/msfs-sdk';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { AbstractOitAvncsPageProps } from '../../../OIT';
 import { RadioButtonGroup } from '../../../../MsfsAvionicsCommon/UiWidgets/RadioButtonGroup';
@@ -12,6 +12,9 @@ import { MAX_WEATHER_AIRPORTS, weatherRequestAirports } from '../../../System/Co
 
 interface OitAvncsCompanyComWeatherRequestProps extends AbstractOitAvncsPageProps {}
 
+/** The page of the drafts: the weather request of every flight phase */
+const WEATHER_REQUEST_PAGE = 'nss-avncs/company-com/weather';
+
 /**
  * COMPANY COM > Requests > Weather: the METAR or TAF of up to four airports, sent through the AOC; the report comes in
  * the inbox (the layout is an operator choice, see CompanyComRequests).
@@ -19,10 +22,15 @@ interface OitAvncsCompanyComWeatherRequestProps extends AbstractOitAvncsPageProp
 export class OitAvncsCompanyComWeatherRequest extends DestroyableComponent<OitAvncsCompanyComWeatherRequestProps> {
   private readonly requests = this.props.container.ansu.companyComRequests;
 
-  /** 0: METAR, 1: TAF */
-  private readonly reportType = Subject.create<number | null>(0);
+  /** The entries stay while COMPANY COM is open: the page is drawn again at each return to it */
+  private readonly drafts = this.props.container.ansu.pageDrafts;
 
-  private readonly airports = Array.from({ length: MAX_WEATHER_AIRPORTS }, () => Subject.create<string | null>(null));
+  /** 0: METAR, 1: TAF */
+  private readonly reportType = this.drafts.field<number | null>(WEATHER_REQUEST_PAGE, 'report type', 0);
+
+  private readonly airports = Array.from({ length: MAX_WEATHER_AIRPORTS }, (_, i) =>
+    this.drafts.field<string | null>(WEATHER_REQUEST_PAGE, `airport ${i}`, null),
+  );
 
   private send(): void {
     this.requests.requestWeather(

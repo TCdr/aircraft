@@ -20,7 +20,8 @@ import { CompanyComDownlinks } from './CompanyComDownlinks';
  * - Up to four airports per weather request, METAR or TAF (as the A32NX MCDU AOC WEATHER REQ page). No SIGMET: the
  *   datalink backend has none.
  * - The free text goes to one station (callsign), four lines of 24 characters, on the Hoppie network.
- * - The airline-only functions (INIT data, NOTAM, delays, ramp service...) stay disabled: there is no airline.
+ * - The other reports and requests (INIT data, delays, ramp service...) are plain forms sent as free texts
+ *   (CompanyComReports); NOTAM stays disabled: the datalink has no NOTAM source.
  */
 
 export const MAX_WEATHER_AIRPORTS = 4;
