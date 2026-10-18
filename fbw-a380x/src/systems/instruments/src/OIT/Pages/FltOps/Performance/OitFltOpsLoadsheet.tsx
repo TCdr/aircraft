@@ -43,6 +43,7 @@ import {
   predictedFuelDistribution,
   takeoffThsText,
 } from '../../../System/Performance/Loadsheet';
+import { applicationExportIdentifier } from '../../../System/OisExportBox';
 
 interface OitFltOpsLoadsheetProps extends AbstractOitFltOpsPageProps {}
 
@@ -54,7 +55,8 @@ const DEFAULT_PER_PAX_WEIGHT = 84;
 
 /**
  * LOADSHEET in REDUCED mode: the ZFW/CG and the fuel give the TOW/CG and LW/CG; LTS EDITION writes the loadsheet,
- * which can be printed. Sending it to the ground goes through the EXPORT BOX, which this OIS does not have.
+ * which can be printed (also with PRINT of the FUNCTIONS list) or exported: EXPORT puts it in the EXPORT BOX, from
+ * where the crew sends it to the ground.
  */
 export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps, LoadsheetResults> {
   protected readonly pageId = 'loadsheet';
@@ -276,6 +278,21 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
     }
   }
 
+  /** EXPORT: the loadsheet enters the EXPORT BOX of the laptop */
+  private exportReport(): void {
+    if (this.state.report.get() === null) {
+      return;
+    }
+    const identifier = applicationExportIdentifier(
+      'LOADSHEET',
+      this.sts.fltNumber.get() ?? '',
+      this.sts.fromAirport.get() ?? '',
+      this.sts.toAirport.get() ?? '',
+      this.simTime.get(),
+    );
+    this.props.container.laptop.exportBox.add(identifier, 'LOADSHEET', this.simTime.get());
+  }
+
   private showReport(lines: string[] | null): void {
     const element = this.reportRef.getOrDefault();
     if (element) {
@@ -303,6 +320,9 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
     // Results of other entries than the computed ones are not shown (the computation is deleted)
     const deleteResults = () => this.state.computation.set(null);
     const s = this.state;
+    this.props.uiService.registerPageFunctions({
+      print: { run: () => this.print(), available: this.tracked(s.report.map((lines) => lines !== null)) },
+    });
     this.subs.push(
       this.errorLines.sub((lines) => this.showErrorLines(this.errorListRef, lines), true),
       s.report.sub((lines) => this.showReport(lines), true),
@@ -637,7 +657,7 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
           <div ref={this.reportRef} class="oit-perf-report" />
         </div>
         <div class="oit-perf-bottom jend">
-          <Button label="EXPORT <F7>" onClick={() => {}} disabled={Subject.create(true)} />
+          <Button label="EXPORT <F7>" onClick={() => this.exportReport()} />
           <div style="width: 10px;" />
           <Button label="PRINT <Ctrl P>" onClick={() => this.print()} />
           <div style="width: 10px;" />

@@ -4,6 +4,7 @@
 import { Subject, Subscribable } from '@microsoft/msfs-sdk';
 import { isPageFunctionAvailable, OitPageFunctionName, OitPageFunctions } from './OitPageFunctions';
 import { FLT_FOLDER_URI, FLT_OPS_STS_URI, FltOpsOpenApplications } from './Pages/FltOps/FltOpsApplications';
+import { createNssAvncsOpenApplications } from './Pages/NssAvncs/NssAvncsApplications';
 
 export enum OitSystem {
   None = '',
@@ -40,6 +41,12 @@ export class OitUiService {
         this.fltOpsApplications.startSession([FLT_OPS_STS_URI]);
       }
     });
+    // The NSS AVNCS applications close at the log-off
+    this.nssAvncsLoginScreenVisible.sub((visible) => {
+      if (visible) {
+        this.nssAvncsApplications.reset();
+      }
+    });
   }
 
   public readonly activeUri = Subject.create<OitUriInformation>({
@@ -65,6 +72,9 @@ export class OitUiService {
 
   /** The open FLT OPS applications, for the switching bar */
   public readonly fltOpsApplications = new FltOpsOpenApplications();
+
+  /** The open NSS AVNCS applications, for the task bar */
+  public readonly nssAvncsApplications = createNssAvncsOpenApplications();
 
   /**
    * Full screen: the FLT OPS switching bar is hidden (HIDE SWITCHING BAR), or the NSS AVNCS application hides its

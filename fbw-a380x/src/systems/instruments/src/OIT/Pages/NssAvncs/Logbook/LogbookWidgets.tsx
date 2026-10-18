@@ -15,6 +15,7 @@ import { IconButton } from '../../../../MsfsAvionicsCommon/UiWidgets/IconButton'
 import { DataEntryFormat } from '../../../../MFD/pages/common/DataEntryFormats';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { OitAvncsContainer } from '../../../OitAvncsContainer';
+import { allRowsTicked } from './LogbookFlows';
 
 interface LogbookClickableProps extends ComponentProps {
   readonly class?: string | ToggleableClassNameRecord;
@@ -121,6 +122,8 @@ export class LogbookTable extends DestroyableComponent<LogbookTableProps> {
 
   private readonly onTickAllHandler = () => this.props.onTickAll?.();
 
+  private readonly allTicked = this.props.rows.map(allRowsTicked);
+
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
@@ -129,6 +132,7 @@ export class LogbookTable extends DestroyableComponent<LogbookTableProps> {
       this.pageCount,
       this.previousDisabled,
       this.nextDisabled,
+      this.allTicked,
       this.pageCount.sub((count) => {
         if (this.page.get() >= count) {
           this.page.set(count - 1);
@@ -200,7 +204,11 @@ export class LogbookTable extends DestroyableComponent<LogbookTableProps> {
           <div class="oit-logbook-table-header">
             {this.props.onTickAll !== undefined && (
               <div class="oit-logbook-table-cell centered" style="width: 40px;">
-                <span ref={this.headerTickRef} class="oit-logbook-tickbox checked" style="margin-right: 0px;" />
+                <span
+                  ref={this.headerTickRef}
+                  class={{ 'oit-logbook-tickbox': true, checked: this.allTicked }}
+                  style="margin-right: 0px;"
+                />
               </div>
             )}
             {this.props.columns.map((column) => (
