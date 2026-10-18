@@ -4,7 +4,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { GsxServicesPanel, gsxServiceStatus } from './GsxServicesPanel';
+import { GsxMenuBox, GsxServicesPanel, gsxServiceStatus } from './GsxServicesPanel';
 import { GsxRemoteState, GsxService, withTurnaroundMemory } from './GsxRemote';
 import { gsxTurnaround } from './gsxTurnaround';
 import { gsxPaxProgress } from './gsxPassengers';
@@ -227,5 +227,60 @@ describe('GSX baggage step of the Services page', () => {
     const rows = turnaroundRows([step('Catering', 'Catering', 'available', true)]);
 
     expect(rows.map((r) => r.name)).toEqual(['Catering']);
+  });
+});
+
+/** The blocks of a column that must keep their height: all but the grow spacer */
+const blocksOf = (column: Element): Element[] =>
+  Array.from(column.children).filter((child) => !child.classList.contains('grow'));
+
+describe('GSX panel in the card height of the Services page', () => {
+  it('keeps every block of the turnaround list at its height, so that the list scrolls', () => {
+    gsxTurnaround.clear();
+    const gsx = withTurnaroundMemory({
+      connected: true,
+      gsxRunning: true,
+      services: [step('Catering', 'Catering', 'available', true), step('Water', 'Water', 'available', true)],
+      menuShown: false,
+      menu: { title: '', entries: [], disabled: [] },
+      message: { text: 'Boarding complete', visible: true },
+    });
+    const container = document.createElement('div');
+    container.innerHTML = renderToStaticMarkup(<GsxServicesPanel linked onLinkChange={() => {}} gsx={gsx} />);
+    const list = container.querySelector('.overflow-y-auto');
+
+    expect(list).not.toBeNull();
+    const blocks = blocksOf(list!);
+    expect(blocks.length).toBe(3);
+    blocks.forEach((block) => expect(block.classList.contains('shrink-0')).toBe(true));
+  });
+
+  it('keeps the GSX menu blocks at their height, with the close link on its own line after the entries', () => {
+    const entries = [
+      'Request Deboarding',
+      'Request Catering service',
+      'Request Refueling',
+      'Request Boarding',
+      'Prepare for Push-back and Departure',
+      'Operate Jetway',
+      'Operate Stairs',
+      'Additional Services',
+      'Customize this Parking position',
+      'Reposition Aircraft',
+    ];
+    const container = document.createElement('div');
+    container.innerHTML = renderToStaticMarkup(
+      <GsxMenuBox menu={{ title: 'Activate Services at RJAA', entries, disabled: entries.map(() => false) }} />,
+    );
+    const box = container.firstElementChild!;
+    const blocks = blocksOf(box);
+
+    expect(box.classList.contains('shrink-0')).toBe(true);
+    blocks.forEach((block) => expect(block.classList.contains('shrink-0')).toBe(true));
+    const entryRow = blocks[2];
+    expect(Array.from(entryRow.querySelectorAll('button')).map((b) => b.textContent)).toEqual(entries);
+    const closeLink = blocks[3];
+    expect(closeLink.tagName).toBe('BUTTON');
+    expect(closeLink.textContent).toBe('CloseMenu');
   });
 });
