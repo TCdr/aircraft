@@ -136,6 +136,16 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit; no torn paper edge left in the slit between printouts - @TCdr
 1. [A380X/MODEL] No torn paper edge left in the pedestal printer slit between printouts - @TCdr
 1. [A380X/PRINTER] The pedestal printer control panel buttons are clickable: ON/OFF (green when on and AC 1 powered; switched off, the FMS and ATC COM prints show PRINTER NOT AVAIL), SLEW feeds paper, TEST prints a test page, ABORT cancels the waiting printouts - @TCdr
+1. [A32NX/A380X] GPS receivers in MMR 1 and 2: satellites of the GPS constellation, INIT/ACQ/NAV/FAULT modes, accuracy and integrity limit, GPS 1 and GPS 2 failures - @TCdr
+1. [A32NX/A380X] GPIRS position in the ADIRUs and GPS PRIMARY from the real GPS accuracy and integrity limit - @TCdr
+1. [A32NX/MCDU] GPS MONITOR page shows the data of each GPS receiver - @TCdr
+1. [A380X/MFD] POSITION / GPS page shows the data of each GPS receiver - @TCdr
+1. [A32NX/A380X] NAV GPS 1(2) FAULT alerts - @TCdr
+1. [A32NX/A380X] GPS receiver degraded modes TEST, ALTAID and AIDED, antenna masking in turns, DIFF mode on the A380X - @TCdr
+1. [A32NX/A380X] GPS deselection (MCDU SELECTED NAVAIDS, MFD POSITION/NAVAIDS) with the GPS (IS) DESELECTED message and the position uncertainty of the IRS/DME/DME, IRS/VOR/DME and IRS only modes - @TCdr
+1. [A32NX/ECAM] STATUS page filled by the FWC (INOP SYS, information), automatic STATUS page and STS reminder; GPS lines on both aircraft - @TCdr
+1. [A380X/FWS] ECAM raises the first ELEC alerts from the electrical network: AC BUS 1(2)(3)(4), AC ESS BUS, DC BUS 1(2), DC ESS BUS, GEN 1(2)(3)(4), APU GEN A(B), TR 1(2)(ESS) and APU TR FAULT, GEN OFF, DRIVE DISCONNECTED, BUS TIE OFF, AC ESS BUS ALTN and ELEC EMER CONFIG, with the flight phase inhibitions and sensed procedure lines - @TCdr
+1. [A380X/ELEC] The loads the aircraft puts on AC ESS (SURV SYS 1 XPDR/TCAS/TAWS/WXR, RA SYS C, slat motor, 427XP EHAs, feed 2 main/feed 3 stby/trim L pumps, pack controllers channel 1, F/O OIT, FLT OPS ANSU) are on the AC ESS busbar instead of AC EMER; XPDR 2 is wired (failure and AC 4 power of the selected XPDR system, MFD SURV status), NSS AVNCS ANSU 2 is built and takes over from ANSU 1; manual crossbleed control is powered by DC ESS; SURV TCAS 1/2 FAULT are per system (no false TCAS 2 FAULT with AC ESS lost, TCAS 2 on AC 4), TCAS 1(2) shows failed on the MFD SURV STATUS page with XPDR 1(2) failed, new SURV XPDR 1, 2 and 1+2 FAULT alerts - @TCdr
 1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
@@ -147,6 +157,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Company wind messages use the aircraft wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
 1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
 1. [A380X/PFD] The CAPT PFD now reads the CAPT side FMS data (FM messages, RNP, TO waypoint) instead of the F/O side's - @TCdr
+1. [A380X/ELEC] New flyPad failures BAT 1, BAT 2, BAT ESS, APU BAT, EXT PWR 1-4, RAT Generator, TR 1/TR 2/ESS TR Monitoring and DRIVE 1-4 Disconnect Function (ATA 24), with the BAT pb-sw FAULT light and the ECAM alerts ELEC BAT 1(2)(ESS) FAULT, APU BAT FAULT, BAT 1(2)(ESS)(APU) OFF, EXT PWR 1(2)(3)(4) FAULT, RAT FAULT, TR 1(2)(ESS) MONITORING FAULT and DRIVE 1(2)(3)(4) DISC FAULT; the GEN, DRIVE, APU GEN and TR alerts now list their INOP SYS on the STATUS page - @TCdr
 1. [A32NX/TCAS] TRAFFIC selector on THRT: the proximate and other intruders within 2700 ft above and below are now shown on the ND while a TA or RA is present, as on the aircraft (before only the TA/RA intruders were shown) - @TCdr
 1. [ND] TCAS: CHANGE MODE (ND in PLAN) and TCAS: REDUCE RANGE (ND range above 40 NM) are shown while a TA (amber) or an RA (red) cannot be seen on the ND; on the A380X also TCAS: INCREASE RANGE in ROSE-VOR/ROSE-LS with the ZOOM range in flight - @TCdr
 1. [A380X/SURV] Pressing the lit WXR/TAWS SYS 1 or SYS 2 pb (SURV panel or MFD SURV STATUS & SWITCHING) keeps that system selected instead of selecting none, which failed TERR and GPWS - @TCdr
@@ -162,6 +173,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] The COMPANY COM inbox lists the company messages received by the AOC instead of two test messages; displaying a message marks it read, and the COMPANY MSG memo goes once every message is read - @TCdr
 1. [A380X/MFD] System Message Area in the MFD header: CHECK FMS MESSAGE, NEW ATIS RECEIVED and ATIS SYS MSG while another application is shown - @TCdr
 1. [A380X/ATC] The ATC MSG pbs flash at 2 Hz, the RING sounds only if the message is not read within 15 s (5 s if urgent), and the KCCU MAILBOX key puts the cursor on the SD mailbox - @TCdr
+1. [A32NX/MCDU] New CHECK APPR SELECTION message when the F-PLN has a non ILS approach and an ILS is tuned manually on the RAD NAV page (cruise less than 100 NM from the T/D, descent or approach), as in the FCOM; it also sets the PFD FMA line 3 message - @TCdr
+1. [A32NX/A380X/FMS] The FM position is now the IRS position plus a bias that follows the GPIRS or the radio position and is kept in IRS only; without GPS PRIMARY the position is updated at takeoff to the runway plus the TO SHIFT, and the EPU follows the position updates - @TCdr
+1. [A32NX/MCDU] POSITION MONITOR shows the real FMGC 1 and 2, GPIRS or radio, MIX IRS and IRS positions with the navigation mode, PROG POSITION UPDATE AT works, and the IRS page shows the GPIRS position and accuracy of its ADIRU - @TCdr
+1. [A380X/MFD] POSITION/MONITOR shows the FMS 2, radio, GPIRS, GPS 1 and GPS 2 positions and the real navigation mode - @TCdr
+1. [A32NX/MCDU] New MCDU messages AREA RNP IS, PROCEDURE RNP IS, CHECK IRS/AIRPORT POS, IRS ONLY NAVIGATION, CHECK DATA BASE CYCLE, CHECK DEST DATA, CRZ FL ABOVE MAX FL and TIME TO EXIT - @TCdr
+1. [A380X/MFD] New FMS messages AREA RNP IS, PROC RNP IS, CHECK DATABASE CYCLE, CHECK IRS / ARPT POSITION, EXPECT TURN AREA EXCEEDANCE, SPECIF NDB NOT AVAIL, TIME TO EXIT, T.O TIME REACHED and ADJUST DESIRED TRK OR HDG - @TCdr
 
 ## 2024.1.0
 

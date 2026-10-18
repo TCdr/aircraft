@@ -107,7 +107,8 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 ### ATA 34 Navigation
 
-- MMR implementation including GPIRS position
+- MMR implementation: the GPS receivers, the GPIRS position, the GPS modes (TEST, ALTAID, AIDED, DIFF) and the GPS
+  deselection are modelled; the satellites come from the nominal 24-slot constellation, not from a real almanac
 - GLS
 
 ### ATA 34 Surveillance / TCAS / TAWS / WXR / XPDR

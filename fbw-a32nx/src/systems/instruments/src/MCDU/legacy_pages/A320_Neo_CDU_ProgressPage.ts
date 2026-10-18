@@ -9,8 +9,13 @@ import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { Column, FormatLine } from '../legacy/A320_Neo_CDU_Format';
 import { progOptimumFlightLevel } from '../legacy/OptimumFlightLevel';
+import { WaypointEntryUtils } from '@fmgc/flightplanning/WaypointEntryUtils';
+import { PendingPositionUpdate, positionUpdateAtLines } from './PositionMonitorFields';
 
 export class CDUProgressPage {
+  /** The position entered in POSITION UPDATE AT, waiting for the CONFIRM UPDATE AT [3R] */
+  private static pendingPositionUpdate: PendingPositionUpdate | null = null;
+
   static ShowPage(mcdu: LegacyFmsPageInterface) {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.ProgressPage;
@@ -148,6 +153,58 @@ export class CDUProgressPage {
       });
     };
 
+    // POSITION UPDATE AT [3L], CONFIRM UPDATE AT [3R] (see PositionMonitorFields)
+    if (gpsPrimary) {
+      CDUProgressPage.pendingPositionUpdate = null;
+    }
+    const [positionUpdateLabel, positionUpdateData] = positionUpdateAtLines(
+      gpsPrimary,
+      CDUProgressPage.pendingPositionUpdate,
+    );
+    mcdu.onLeftInput[2] = (input, scratchpadCallback) => {
+      if (gpsPrimary) {
+        mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+        scratchpadCallback();
+        return;
+      }
+      if (input === Keypad.clrValue) {
+        CDUProgressPage.pendingPositionUpdate = null;
+        CDUProgressPage.ShowPage(mcdu);
+        return;
+      }
+      WaypointEntryUtils.getOrCreateWaypoint(mcdu, input, false, 'ENTRY')
+        .then((fix) => {
+          if (!fix) {
+            mcdu.setScratchpadMessage(NXSystemMessages.notInDatabase);
+            scratchpadCallback();
+            return;
+          }
+          CDUProgressPage.pendingPositionUpdate = { ident: fix.ident, location: fix.location };
+          CDUProgressPage.ShowPage(mcdu);
+        })
+        .catch((err) => {
+          // Rethrow if error is not an FMS message to display
+          if (err.type === undefined) {
+            throw err;
+          }
+          mcdu.showFmsErrorMessage(err.type);
+          scratchpadCallback();
+        });
+    };
+    mcdu.onRightInput[2] = (_input, scratchpadCallback) => {
+      const pending = CDUProgressPage.pendingPositionUpdate;
+      if (pending === null) {
+        return;
+      }
+      // NOT ALLOWED while the aircraft position comes from the GPIRS
+      if (!mcdu.navigation.updatePositionAt(pending.location)) {
+        mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+        scratchpadCallback();
+      }
+      CDUProgressPage.pendingPositionUpdate = null;
+      CDUProgressPage.ShowPage(mcdu);
+    };
+
     let rnpCell = '{white}----{end}';
     const rnpSize = mcdu.navigation.requiredPerformance.manualRnp ? 'big' : 'small';
     const rnp = mcdu.navigation.requiredPerformance.activeRnp;
@@ -201,8 +258,8 @@ export class CDUProgressPage {
       [flCrz, flOpt + '\xa0\xa0\xa0\xa0' + flMaxText + '\xa0'],
       [''],
       ['<REPORT', vDevCell],
-      [gpsPrimary ? '' : '\xa0POSITION UPDATE AT'],
-      [gpsPrimary ? '' : '{small}*{end}[\xa0\xa0\xa0\xa0][color]cyan'],
+      positionUpdateLabel,
+      positionUpdateData,
       ['\xa0\xa0BRG / DIST'],
       [progBearingDist, `{small}{white}TO{end}{end}\xa0{cyan}${progWaypoint}{end}`],
       ['\xa0PREDICTIVE'],

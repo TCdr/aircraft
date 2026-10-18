@@ -3,6 +3,7 @@
 
 import { SelectedNavaid } from '@fmgc/navigation/Navigation';
 import { Coordinates } from 'msfs-geo';
+import { FmNavigationMode } from '@fmgc/navigation/PositionUncertainty';
 
 /**
  * An interface to a system providing FMS navigation.
@@ -31,6 +32,12 @@ export interface NavigationProvider {
    * @returns true if GPS primary is active.
    */
   getGpsPrimary(): boolean;
+
+  /** Whether the flight crew has deselected the GPS for the FMS position computation */
+  isGpsDeselected(): boolean;
+
+  /** Selects or deselects the GPS for the FMS position computation */
+  setGpsDeselected(deselected: boolean): void;
 
   /**
    * Get the pressure altitude
@@ -79,4 +86,48 @@ export interface NavigationProvider {
    * @returns true if a pilot RNP entry was performed or false if not
    */
   isPilotRnp(): boolean;
+
+  /** The FM navigation mode: IRS/GPS, IRS/DME/DME, IRS/VOR/DME or IRS only */
+  getNavigationMode(): FmNavigationMode;
+
+  /**
+   * The FM position of an FMS
+   * @param side the FMS, 1 or 2
+   * @returns the position, null without an inertial position
+   */
+  getFmPosition(side: 1 | 2): Coordinates | null;
+
+  /**
+   * The GPIRS position an FMS selects
+   * @param side the FMS, 1 or 2
+   * @returns the position, null when none is valid or the GPS is deselected
+   */
+  getGpirsPosition(side: 1 | 2): Coordinates | null;
+
+  /** The radio position, null outside the IRS/DME/DME and IRS/VOR/DME modes */
+  getRadioPosition(): Coordinates | null;
+
+  /**
+   * The position of a GPS receiver
+   * @param receiver the receiver, 1 or 2
+   * @returns the position, null when not valid
+   */
+  getGpsPosition(receiver: 1 | 2): Coordinates | null;
+
+  /**
+   * The MIX IRS position of an FMS (or the single IRS position it uses)
+   * @param side the FMS, 1 or 2
+   * @returns the position, null without an IR position
+   */
+  getMixIrsPosition(side: 1 | 2): Coordinates | null;
+
+  /** The number of IRS used for the IRS position (3 with the MIX IRS position, else 1), 0 without one */
+  getIrsUsedCount(): 0 | 1 | 3;
+
+  /**
+   * The manual FM position update
+   * @param position the position the aircraft overflies
+   * @returns false when not allowed (IRS/GPS mode, or no FM position)
+   */
+  updatePositionAt(position: Coordinates): boolean;
 }

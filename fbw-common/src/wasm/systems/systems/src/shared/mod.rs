@@ -1174,6 +1174,30 @@ impl Clamp for f64 {
     }
 }
 
+/// The number of days from 1 January 1970 to a date of the proleptic Gregorian calendar (H. Hinnant's
+/// days_from_civil algorithm): with the time of day, the UTC time in seconds since the Unix epoch.
+pub fn days_since_unix_epoch(year: i64, month: i64, day: i64) -> i64 {
+    let year = if month <= 2 { year - 1 } else { year };
+    let era = (if year >= 0 { year } else { year - 399 }) / 400;
+    let year_of_era = year - era * 400;
+    let day_of_year = (153 * (if month > 2 { month - 3 } else { month + 9 }) + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    era * 146_097 + day_of_era - 719_468
+}
+
+#[cfg(test)]
+mod days_since_unix_epoch_tests {
+    use super::days_since_unix_epoch;
+
+    #[test]
+    fn days_since_the_unix_epoch() {
+        assert_eq!(days_since_unix_epoch(1970, 1, 1), 0);
+        assert_eq!(days_since_unix_epoch(1993, 7, 1), 8_582);
+        assert_eq!(days_since_unix_epoch(2000, 3, 1), 11_017);
+        assert_eq!(days_since_unix_epoch(2026, 10, 1), 20_727);
+    }
+}
+
 #[cfg(test)]
 mod delayed_true_logic_gate_tests {
     use super::*;

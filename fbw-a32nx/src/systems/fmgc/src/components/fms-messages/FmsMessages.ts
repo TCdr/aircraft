@@ -30,6 +30,10 @@ import { EventBus } from '@microsoft/msfs-sdk';
 import { FMMessageTriggers } from './FmMessages';
 import { ClockIsTakeoffTime } from './ClockIsTakeoffTime';
 import { LateralDiscontinuityAhead } from './LateralDiscontinuityAhead';
+import { GpsIsDeselected } from './GpsIsDeselected';
+import { CheckApproachSelection } from './CheckApproachSelection';
+import { AreaRnp, ProcedureRnp } from './RnpMessages';
+import { CheckIrsAirportPosition, IrsOnlyNavigation } from './IrsPositionMessages';
 
 /**
  * This class manages Type II messages sent from the FMGC.
@@ -72,6 +76,12 @@ export class FmsMessages implements FmgcComponent {
     new StepDeleted(this.bus),
     new TooSteepPathAhead(),
     new LateralDiscontinuityAhead(),
+    new GpsIsDeselected(),
+    new CheckApproachSelection(),
+    new AreaRnp(),
+    new ProcedureRnp(),
+    new CheckIrsAirportPosition(),
+    new IrsOnlyNavigation(),
   ];
 
   constructor(private readonly bus: EventBus) {}

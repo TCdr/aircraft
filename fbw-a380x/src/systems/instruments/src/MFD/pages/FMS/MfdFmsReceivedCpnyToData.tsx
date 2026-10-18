@@ -20,8 +20,8 @@ import './MfdFmsReceivedCpnyToData.scss';
 const maxRunways = 4;
 
 /**
- * RECEIVED COMPANY T.O DATA page: the takeoff data received from the company
- * for up to four runways and two thrust settings per runway, with INSERT and CLEAR.
+ * RECEIVED COMPANY T.O DATA page: the takeoff data received from the company for up to four runways and two thrust
+ * settings per runway, with INSERT and CLEAR.
  *
  * No company takeoff data can be received in the simulation (see the COMPANY T.O DATA REQUEST page): the page shows
  * dashes, INSERT and CLEAR are inactive.

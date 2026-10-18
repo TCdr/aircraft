@@ -23,6 +23,7 @@ use systems::{
         GeneratorControlUnit, RamAirTurbine, StaticInverter, TransformerRectifier,
     },
     engine::Engine,
+    failures::{Failure, FailureType},
     overhead::{
         AutoOffFaultPushButton, FaultDisconnectReleasePushButton, FaultIndication,
         MomentaryPushButton, NormalAltnFaultPushButton, OnOffAvailablePushButton,
@@ -31,8 +32,8 @@ use systems::{
     shared::{
         update_iterator::MaxStepLoop, AdirsDiscreteOutputs, AuxiliaryPowerUnitElectrical,
         ElectricalBusType, ElectricalBuses, EmergencyElectricalRatPushButton,
-        EmergencyElectricalState, EngineFirePushButtons, LatchedTrueLogicGate, LgciuWeightOnWheels,
-        RamAirTurbineController,
+        EmergencyElectricalState, EmergencyGeneratorControlUnit, EngineFirePushButtons,
+        LatchedTrueLogicGate, LgciuWeightOnWheels, RamAirTurbineController,
     },
     simulation::{
         InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
@@ -42,6 +43,7 @@ use systems::{
 
 pub(super) struct A380Electrical {
     galley_is_shed_id: VariableIdentifier,
+    rat_fault_id: VariableIdentifier,
 
     alternating_current: A380AlternatingCurrentElectrical,
     direct_current: A380DirectCurrentElectrical,
@@ -54,6 +56,8 @@ pub(super) struct A380Electrical {
     gcu: GeneratorControlUnit,
     ram_air_turbine: RamAirTurbine,
     rat_controller: A380RamAirTurbineController,
+    /// flyPad failure of the RAT generator (the A380 emergency generator)
+    rat_generator_failure: Failure,
     tefo_condition: LatchedTrueLogicGate,
     emer_config: LatchedTrueLogicGate,
 }
@@ -71,6 +75,7 @@ impl A380Electrical {
     pub fn new(context: &mut InitContext) -> A380Electrical {
         A380Electrical {
             galley_is_shed_id: context.get_identifier("ELEC_GALLEY_IS_SHED".to_owned()),
+            rat_fault_id: context.get_identifier("ELEC_RAT_FAULT".to_owned()),
             alternating_current: A380AlternatingCurrentElectrical::new(context),
             direct_current: A380DirectCurrentElectrical::new(context),
             main_galley: MainGalley::new(),
@@ -90,6 +95,7 @@ impl A380Electrical {
                 Self::RAT_CONTROL_SOLENOID1_POWER_BUS,
                 Self::RAT_CONTROL_SOLENOID2_POWER_BUS,
             ),
+            rat_generator_failure: Failure::new(FailureType::EmergencyGenerator),
             tefo_condition: LatchedTrueLogicGate::default(),
             emer_config: LatchedTrueLogicGate::default(),
         }
@@ -141,7 +147,10 @@ impl A380Electrical {
             );
         }
 
-        self.emergency_gen.update(&self.gcu);
+        self.emergency_gen.update(&A380RatGeneratorControl {
+            gcu: &self.gcu,
+            generator_failed: self.rat_generator_failure.is_active(),
+        });
 
         self.alternating_current.update(
             electricity,
@@ -220,12 +229,25 @@ impl A380Electrical {
             .emergency_generator_contactor_is_closed()
     }
 
-    fn ac_emer_bus_is_powered(&self, electricity: &Electricity) -> bool {
-        self.alternating_current.ac_emer_bus_is_powered(electricity)
+    /// Whether the AC ESS busbar (400XP, `AlternatingCurrentEssentialShed`) is powered.
+    fn ac_ess_bus_is_powered(&self, electricity: &Electricity) -> bool {
+        self.alternating_current.ac_ess_bus_powered(electricity)
     }
 
     fn galley_is_shed(&self) -> bool {
         self.main_galley.is_shed() || self.secondary_galley.is_shed()
+    }
+
+    /// Whether battery `number` (1 = BAT 1, 2 = BAT 2, 3 = BAT ESS, 4 = APU BAT) is failed
+    fn battery_has_fault(&self, number: usize) -> bool {
+        self.direct_current.battery_has_fault(number)
+    }
+
+    /// ELEC RAT FAULT: the RAT generator fails in the case of an overload, a low or high voltage, a short-circuit...
+    /// Only the generator failure is simulated (no RAT uplock or heater): its control unit detects it at all times,
+    /// RAT stowed or deployed.
+    fn rat_has_fault(&self) -> bool {
+        self.rat_generator_failure.is_active()
     }
 
     #[cfg(test)]
@@ -307,12 +329,14 @@ impl SimulationElement for A380Electrical {
         self.emergency_gen.accept(visitor);
         self.ram_air_turbine.accept(visitor);
         self.rat_controller.accept(visitor);
+        self.rat_generator_failure.accept(visitor);
 
         visitor.visit(self);
     }
 
     fn write(&self, writer: &mut SimulatorWriter) {
-        writer.write(&self.galley_is_shed_id, self.galley_is_shed())
+        writer.write(&self.galley_is_shed_id, self.galley_is_shed());
+        writer.write(&self.rat_fault_id, self.rat_has_fault());
     }
 }
 
@@ -372,8 +396,9 @@ impl A380ElectricalOverheadPanel {
         electrical: &A380Electrical,
         electricity: &Electricity,
     ) {
+        // AC ESS FEED pb-sw FAULT: the AC ESS busbar is not supplied
         self.ac_ess_feed
-            .set_fault(!electrical.ac_emer_bus_is_powered(electricity));
+            .set_fault(!electrical.ac_ess_bus_is_powered(electricity));
 
         self.generators
             .iter_mut()
@@ -385,6 +410,15 @@ impl A380ElectricalOverheadPanel {
         self.idgs.iter_mut().enumerate().for_each(|(index, drive)| {
             drive.set_disconnected(!electrical.gen_drive_connected(index + 1))
         });
+
+        // BAT pb-sw FAULT light: on while the battery is failed. Design choice: it stays on in either pb-sw
+        // position, as the aircraft documents give no pb-sw condition.
+        self.batteries
+            .iter_mut()
+            .enumerate()
+            .for_each(|(index, battery)| {
+                battery.set_fault(electrical.battery_has_fault(index + 1));
+            });
     }
 
     pub fn external_power_is_available(&self, number: usize) -> bool {
@@ -495,6 +529,30 @@ impl SimulationElement for A380EmergencyElectricalOverheadPanel {
 impl EmergencyElectricalRatPushButton for A380EmergencyElectricalOverheadPanel {
     fn is_pressed(&self) -> bool {
         self.rat_and_emer_gen_man_on()
+    }
+}
+
+/// The RAT generator control as the emergency generator sees it: a failed RAT generator gives no output,
+/// so its line contactor stays open and the AC ESS busbar is not supplied by the RAT.
+struct A380RatGeneratorControl<'a> {
+    gcu: &'a GeneratorControlUnit,
+    generator_failed: bool,
+}
+impl EmergencyGeneratorControlUnit for A380RatGeneratorControl<'_> {
+    fn max_allowed_power(&self) -> Power {
+        if self.generator_failed {
+            Power::default()
+        } else {
+            self.gcu.max_allowed_power()
+        }
+    }
+
+    fn motor_speed(&self) -> AngularVelocity {
+        if self.generator_failed {
+            AngularVelocity::default()
+        } else {
+            self.gcu.motor_speed()
+        }
     }
 }
 
@@ -2874,13 +2932,39 @@ mod a380_electrical_circuit_tests {
     }
 
     #[test]
-    fn when_ac_emer_bus_is_unpowered_ac_ess_feed_has_fault() {
+    fn when_ac_ess_bus_is_unpowered_ac_ess_feed_has_fault() {
         let mut test_bed = test_bed_with()
             .airspeed(Velocity::default())
             .all_bats_off()
             .run();
 
         assert!(test_bed.ac_ess_feed_has_fault());
+    }
+
+    /// AC ESS FEED pb-sw FAULT: the AC ESS busbar is not supplied.
+    #[test]
+    fn ac_ess_busbar_failure_lights_the_ac_ess_feed_fault() {
+        let mut test_bed = test_bed_with()
+            .all_bats_auto()
+            .and()
+            .running_engines()
+            .failed_bus(ElectricalBusType::AlternatingCurrentEssentialShed)
+            .run();
+
+        assert!(test_bed.ac_ess_feed_has_fault());
+    }
+
+    /// An AC EMER busbar (491XP) failure leaves the AC ESS busbar supplied: no AC ESS FEED fault.
+    #[test]
+    fn ac_emer_busbar_failure_does_not_light_the_ac_ess_feed_fault() {
+        let mut test_bed = test_bed_with()
+            .all_bats_auto()
+            .and()
+            .running_engines()
+            .failed_bus(ElectricalBusType::AlternatingCurrentEssential)
+            .run();
+
+        assert!(!test_bed.ac_ess_feed_has_fault());
     }
 
     #[test]
@@ -3090,6 +3174,256 @@ mod a380_electrical_circuit_tests {
     #[case(2)]
     #[case(3)]
     #[case(4)]
+    fn failed_battery_has_fault_light(#[case] number: usize) {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .and()
+            .failed_battery(number)
+            .run();
+
+        assert!(test_bed.bat_has_fault(number));
+        for other in (1..=4).filter(|&other| other != number) {
+            assert!(!test_bed.bat_has_fault(other));
+        }
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    #[case(3)]
+    #[case(4)]
+    fn failed_battery_fault_light_stays_on_with_the_bat_push_button_off(#[case] number: usize) {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .failed_battery(number)
+            .and()
+            .bat_off(number)
+            .run();
+
+        assert!(test_bed.bat_has_fault(number));
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    #[case(3)]
+    #[case(4)]
+    fn failed_battery_is_disconnected_from_its_dc_busbar(#[case] bat: u8) {
+        // An empty battery is charged through its battery contactor, so its hot busbar is powered by the TR
+        // (when_battery_is_empty_and_dc_is_powered_hot_bus_powered); a failed battery stays disconnected.
+        let test_bed = test_bed_with()
+            .running_engines()
+            .empty_battery(bat)
+            .and()
+            .failed_battery(bat.into())
+            .run();
+
+        assert!(test_bed.hot_bus_output(bat).is_unpowered());
+    }
+
+    #[test]
+    fn failed_battery_1_is_disconnected_from_the_dc_ess_busbar_on_batteries_only() {
+        // distribution_batteries_only_with_ext_power_connected: DC ESS is supplied by BAT 1 and BAT ESS
+        let test_bed = test_bed_with()
+            .all_bats_auto()
+            .connected_external_power()
+            .on_the_ground()
+            .airspeed(Velocity::default())
+            .and()
+            .failed_battery(1)
+            .run();
+
+        assert!(test_bed
+            .dc_ess_bus_output()
+            .is_single(PotentialOrigin::Battery(3)));
+    }
+
+    #[test]
+    fn failed_battery_ess_is_disconnected_from_the_dc_ess_busbar_on_batteries_only() {
+        let test_bed = test_bed_with()
+            .all_bats_auto()
+            .connected_external_power()
+            .on_the_ground()
+            .airspeed(Velocity::default())
+            .and()
+            .failed_battery(3)
+            .run();
+
+        assert!(test_bed
+            .dc_ess_bus_output()
+            .is_single(PotentialOrigin::Battery(1)));
+    }
+
+    #[test]
+    fn failed_apu_battery_does_not_supply_the_dc_apu_busbar() {
+        let test_bed = test_bed_with()
+            .all_bats_auto()
+            .connected_external_power()
+            .on_the_ground()
+            .airspeed(Velocity::default())
+            .and()
+            .failed_battery(4)
+            .run();
+
+        assert!(test_bed.dc_apu_bus_output().is_unpowered());
+    }
+
+    #[test]
+    fn failed_rat_generator_does_not_supply_the_ac_ess_busbar() {
+        // As when_rat_and_emer_gen_man_on_push_button_is_pressed_at_an_earlier_time_in_case_of_ac_unavailable_
+        // emergency_generator_provides_power_immediately, with the RAT generator failed
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .and()
+            .flight_conditions_for_a_spinning_rat()
+            .failed_rat_generator()
+            .and()
+            .rat_and_emer_gen_man_on_pressed()
+            .run_waiting_for(Duration::from_secs(100))
+            .then_continue_with()
+            .gen_off(1)
+            .gen_off(2)
+            .gen_off(3)
+            .and()
+            .gen_off(4)
+            .run();
+
+        assert!(!test_bed
+            .ac_ess_bus_output()
+            .is_single(PotentialOrigin::EmergencyGenerator));
+        assert!(test_bed.rat_and_emer_gen_has_fault());
+    }
+
+    #[test]
+    fn failed_rat_generator_writes_rat_fault_with_the_rat_stowed() {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .and()
+            .failed_rat_generator()
+            .run();
+
+        assert!(test_bed.rat_fault());
+    }
+
+    #[test]
+    fn rat_fault_is_not_written_without_failure() {
+        let mut test_bed = test_bed_with().running_engines().run();
+
+        assert!(!test_bed.rat_fault());
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    #[case(3)]
+    #[case(4)]
+    fn failed_ext_pwr_does_not_close_its_contactor(#[case] number: usize) {
+        let mut test_bed = test_bed_with()
+            .connected_external_power()
+            .on_the_ground()
+            .airspeed(Velocity::default())
+            .ext_pwr_on(1)
+            .ext_pwr_on(2)
+            .ext_pwr_on(3)
+            .ext_pwr_on(4)
+            .and()
+            .failed_ext_pwr(number)
+            .run();
+
+        assert!(!test_bed.ext_pwr_contactor_closed(number));
+        for other in (1..=4).filter(|&other| other != number) {
+            assert!(test_bed.ext_pwr_contactor_closed(other));
+        }
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    #[case(3)]
+    #[case(4)]
+    fn failed_ext_pwr_writes_its_fault_while_connected(#[case] number: usize) {
+        let mut test_bed = test_bed_with()
+            .connected_external_power()
+            .on_the_ground()
+            .airspeed(Velocity::default())
+            .and()
+            .failed_ext_pwr(number)
+            .run();
+
+        assert!(test_bed.ext_pwr_fault(number));
+        for other in (1..=4).filter(|&other| other != number) {
+            assert!(!test_bed.ext_pwr_fault(other));
+        }
+    }
+
+    #[test]
+    fn failed_ext_pwr_does_not_write_its_fault_without_ground_power_unit() {
+        let mut test_bed = test_bed_with()
+            .on_the_ground()
+            .airspeed(Velocity::default())
+            .and()
+            .failed_ext_pwr(1)
+            .run();
+
+        assert!(!test_bed.ext_pwr_fault(1));
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    #[case(3)]
+    #[case(4)]
+    fn released_drive_pb_disconnects_the_generator(#[case] number: usize) {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .and()
+            .drive_released(number)
+            .run();
+
+        assert!(test_bed.gen_has_fault(number));
+        assert!(!test_bed.drive_disc_fault(number));
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    #[case(3)]
+    #[case(4)]
+    fn failed_drive_disconnect_function_ignores_the_drive_pb(#[case] number: usize) {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .failed_drive_disconnect(number)
+            .and()
+            .drive_released(number)
+            .run();
+
+        assert!(!test_bed.gen_has_fault(number));
+        assert!(test_bed
+            .ac_bus_output(number as u8)
+            .is_single(PotentialOrigin::EngineGenerator(number)));
+        assert!(test_bed.drive_disc_fault(number));
+    }
+
+    #[test]
+    fn failed_ext_pwr_1_does_not_supply_the_ground_service_busbar() {
+        // everything_off_ext_power_connected: EXT PWR 1 supplies the AC GND/FLT service busbar via 991PU6
+        let test_bed = test_bed_with()
+            .all_bats_off()
+            .connected_external_power()
+            .on_the_ground()
+            .airspeed(Velocity::default())
+            .and()
+            .failed_ext_pwr(1)
+            .run();
+
+        assert!(test_bed.ac_gnd_flt_service_bus_output().is_unpowered());
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    #[case(3)]
+    #[case(4)]
     fn when_gen_contactor_open_due_to_engine_fire_push_button_released_gen_push_button_has_fault(
         #[case] number: usize,
     ) {
@@ -3121,6 +3455,58 @@ mod a380_electrical_circuit_tests {
             .airspeed(Velocity::default())
             .run();
         assert!(test_bed.dc_named_bus_output("108PH").is_unpowered());
+    }
+
+    /// On the A380 the AC ESS busbar (400XP) is `AlternatingCurrentEssentialShed` and the AC EMER busbar (491XP) is
+    /// `AlternatingCurrentEssential` (the names come from the A320). The AC ESS loads are bound to the first, the AC
+    /// EMER loads to the second. When the AC ESS busbar is lost, AC EMER and AC ESS are lost.
+    #[test]
+    fn ac_ess_busbar_failure_loses_ac_ess_and_ac_emer_loads() {
+        let test_bed = test_bed_with()
+            .all_bats_auto()
+            .and()
+            .running_engines()
+            .failed_bus(ElectricalBusType::AlternatingCurrentEssentialShed)
+            .run();
+
+        assert!(test_bed.ac_ess_shed_bus_output().is_unpowered());
+        assert!(test_bed.ac_ess_bus_output().is_unpowered());
+        for i in 1..=4 {
+            assert!(test_bed.ac_bus_output(i).is_powered());
+        }
+    }
+
+    /// An AC EMER busbar (491XP) failure only removes the AC EMER loads: the AC ESS busbar (400XP) keeps its loads.
+    #[test]
+    fn ac_emer_busbar_failure_keeps_the_ac_ess_loads() {
+        let test_bed = test_bed_with()
+            .all_bats_auto()
+            .and()
+            .running_engines()
+            .failed_bus(ElectricalBusType::AlternatingCurrentEssential)
+            .run();
+
+        assert!(test_bed.ac_ess_bus_output().is_unpowered());
+        assert!(test_bed
+            .ac_ess_shed_bus_output()
+            .is_single(PotentialOrigin::EngineGenerator(1)));
+    }
+
+    /// With the static inverter supplying AC EMER (batteries only), the AC ESS busbar and its loads (e.g. the 427XP
+    /// EHAs, TAWS 1, XPDR 1) are unpowered, while the AC EMER loads (VOR 1, LS 1, GPS 1...) remain.
+    #[test]
+    fn static_inverter_powers_ac_emer_but_not_ac_ess() {
+        let test_bed = test_bed_with()
+            .all_bats_auto()
+            .on_the_ground()
+            .and()
+            .airspeed(Velocity::default())
+            .run();
+
+        assert!(test_bed
+            .ac_ess_bus_output()
+            .is_single(PotentialOrigin::StaticInverter));
+        assert!(test_bed.ac_ess_shed_bus_output().is_unpowered());
     }
 
     fn test_bed_with() -> A380ElectricalTestBed {
@@ -3756,6 +4142,11 @@ mod a380_electrical_circuit_tests {
             self
         }
 
+        fn failed_bus(mut self, bus_type: ElectricalBusType) -> Self {
+            self.test_bed.fail(FailureType::ElectricalBus(bus_type));
+            self
+        }
+
         fn failed_tr_2(mut self) -> Self {
             self.test_bed.fail(FailureType::TransformerRectifier(2));
             self
@@ -3768,6 +4159,32 @@ mod a380_electrical_circuit_tests {
 
         fn failed_tr_apu(mut self) -> Self {
             self.test_bed.fail(FailureType::TransformerRectifier(4));
+            self
+        }
+
+        fn failed_battery(mut self, number: usize) -> Self {
+            self.test_bed.fail(FailureType::Battery(number));
+            self
+        }
+
+        fn failed_ext_pwr(mut self, number: usize) -> Self {
+            self.test_bed.fail(FailureType::ExternalPower(number));
+            self
+        }
+
+        fn failed_rat_generator(mut self) -> Self {
+            self.test_bed.fail(FailureType::EmergencyGenerator);
+            self
+        }
+
+        fn failed_drive_disconnect(mut self, number: usize) -> Self {
+            self.test_bed
+                .fail(FailureType::GeneratorDriveDisconnect(number));
+            self
+        }
+
+        fn drive_released(mut self, number: usize) -> Self {
+            self.write_by_name(&format!("OVHD_ELEC_IDG_{number}_PB_IS_RELEASED"), true);
             self
         }
 
@@ -3998,6 +4415,33 @@ mod a380_electrical_circuit_tests {
 
         fn rat_and_emer_gen_has_fault(&mut self) -> bool {
             self.read_by_name("OVHD_EMER_ELEC_RAT_AND_EMER_GEN_HAS_FAULT")
+        }
+
+        fn bat_has_fault(&mut self, number: usize) -> bool {
+            let id = match number {
+                1 => "1",
+                2 => "2",
+                3 => "ESS",
+                4 => "APU",
+                _ => panic!("Unknown battery"),
+            };
+            self.read_by_name(&format!("OVHD_ELEC_BAT_{id}_PB_HAS_FAULT"))
+        }
+
+        fn rat_fault(&mut self) -> bool {
+            self.read_by_name("ELEC_RAT_FAULT")
+        }
+
+        fn drive_disc_fault(&mut self, number: usize) -> bool {
+            self.read_by_name(&format!("ELEC_ENG_GEN_{number}_DRIVE_DISC_FAULT"))
+        }
+
+        fn ext_pwr_fault(&mut self, number: usize) -> bool {
+            self.read_by_name(&format!("ELEC_EXT_PWR_{number}_FAULT"))
+        }
+
+        fn ext_pwr_contactor_closed(&mut self, number: usize) -> bool {
+            self.read_by_name(&format!("ELEC_CONTACTOR_990XG{number}_IS_CLOSED"))
         }
 
         fn galley_is_shed(&mut self) -> bool {

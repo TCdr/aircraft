@@ -16,6 +16,7 @@ import { EwdSimvars } from './shared/EwdSimvarPublisher';
 import { UpperDisplay } from './UpperDisplay';
 import { LowerLeftDisplay } from './LowerLeftDisplay';
 import { LowerRightDisplay } from './LowerRightDisplay';
+import { FormattedFwcText } from '../MsfsAvionicsCommon/FormattedFwcText';
 
 import './style.scss';
 
@@ -29,6 +30,9 @@ export class EwdComponent extends DisplayComponent<EwdProps> {
   private acEssBus = Subject.create(false);
 
   private ewdPotentiometer = Subject.create(0);
+
+  /** The STS reminder: STS, white and framed, at the bottom of the E/WD */
+  private readonly stsReminder = Subject.create('');
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -47,6 +51,13 @@ export class EwdComponent extends DisplayComponent<EwdProps> {
       .whenChanged()
       .handle((pot) => {
         this.ewdPotentiometer.set(pot);
+      });
+
+    sub
+      .on('ewdStsReminder')
+      .whenChanged()
+      .handle((reminder) => {
+        this.stsReminder.set(reminder ? "\x1b<7m\x1b'mSTS\x1bm" : '');
       });
   }
 
@@ -67,6 +78,7 @@ export class EwdComponent extends DisplayComponent<EwdProps> {
           <LowerLeftDisplay bus={this.props.bus} />
           <line class="Separator" x1="484" y1="540" x2="484" y2="730" />
           <LowerRightDisplay bus={this.props.bus} />
+          <FormattedFwcText bus={this.props.bus} message={this.stsReminder} x={460} y={757} />
         </svg>
       </DisplayUnit>
     );

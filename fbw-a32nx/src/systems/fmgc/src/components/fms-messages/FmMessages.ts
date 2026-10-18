@@ -198,4 +198,45 @@ export const FMMessageTypes: Readonly<Record<string, FMMessage>> = {
     color: 'Amber',
     clearable: true,
   },
+  GpsIsDeselected: {
+    id: 23,
+    text: 'GPS IS DESELECTED',
+    color: 'White',
+    clearable: true,
+  },
+  /** Type II amber */
+  CheckApproachSelection: {
+    id: 24,
+    text: 'CHECK APPR SELECTION',
+    color: 'Amber',
+    clearable: true,
+  },
+  /** Type II white, XX.XX is replaced by the RNP value */
+  AreaRnp: {
+    id: 25,
+    text: 'AREA RNP IS XX.XX',
+    color: 'White',
+    clearable: true,
+  },
+  /** Type II amber, XX.XX is replaced by the RNP value */
+  ProcedureRnp: {
+    id: 26,
+    text: 'PROCEDURE RNP IS XX.XX',
+    color: 'Amber',
+    clearable: true,
+  },
+  /** Type II amber */
+  CheckIrsAirportPosition: {
+    id: 27,
+    text: 'CHECK IRS/AIRPORT POS',
+    color: 'Amber',
+    clearable: true,
+  },
+  /** Type II amber */
+  IrsOnlyNavigation: {
+    id: 28,
+    text: 'IRS ONLY NAVIGATION',
+    color: 'Amber',
+    clearable: true,
+  },
 };

@@ -34,6 +34,7 @@ import { alternateRouteSelectionUriExtra } from './F-PLN/MfdFmsFplnRouteSelectio
 import { newRouteFromActiveUriExtra } from './DATA/MfdFmsDataRoute';
 import { routeFromCoRouteDto } from '../../FMC/StoredRouteUtils';
 import { StoredRoute } from '../../FMC/PilotStoredElements';
+import { checkNavDatabaseCycle } from '../../FMC/FmsAdvisoryMessages';
 import { NXSystemMessages } from '../../shared/NXSystemMessages';
 import { CompanyRoute } from '@flybywiresim/fbw-sdk';
 
@@ -353,6 +354,9 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
         this.loadedFlightPlanIndex.get(),
       );
 
+      // CHECK DATABASE CYCLE on a FROM/TO entry
+      void checkNavDatabaseCycle(this.props.fmcService.master);
+
       if (this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active) {
         this.props.fmcService.master.acInterface.updateFmsData();
         // Update once as the new flight plan has been created as we need these for MIN DEST EFOB in active.
@@ -403,6 +407,8 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
     }
 
     await fmc.insertCompanyRoute(route, this.loadedFlightPlanIndex.get());
+    // CHECK DATABASE CYCLE on a company route entry
+    void checkNavDatabaseCycle(fmc);
     return true;
   }
 

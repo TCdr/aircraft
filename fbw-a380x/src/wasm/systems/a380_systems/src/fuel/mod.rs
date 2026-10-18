@@ -292,10 +292,11 @@ impl A380FuelSystem {
                 },
             ),
             A380FuelPump::Feed2Main => (
-                // Feed 2 main pump
+                // Feed 2 main pump: AC ESS (400XP = AlternatingCurrentEssentialShed) and DC ESS;
+                // AC ESS BUS FAULT makes it inop
                 3,
                 FuelPumpProperties {
-                    powered_by: ElectricalBusType::AlternatingCurrentEssential, // TODO: + DC ESS
+                    powered_by: ElectricalBusType::AlternatingCurrentEssentialShed, // TODO: + DC ESS
                     consumption_current_ampere: 9.,
                 },
             ),
@@ -316,10 +317,11 @@ impl A380FuelSystem {
                 },
             ),
             A380FuelPump::Feed3Stby => (
-                // Feed 3 stby pump
+                // Feed 3 stby pump: AC ESS (400XP = AlternatingCurrentEssentialShed) and DC ESS;
+                // AC ESS BUS FAULT costs its redundancy
                 6,
                 FuelPumpProperties {
-                    powered_by: ElectricalBusType::AlternatingCurrentEssential, // TODO: + DC ESS
+                    powered_by: ElectricalBusType::AlternatingCurrentEssentialShed, // TODO: + DC ESS
                     consumption_current_ampere: 9.,
                 },
             ),
@@ -420,10 +422,11 @@ impl A380FuelSystem {
                 },
             ),
             A380FuelPump::TrimLeft => (
-                // Trim left pump
+                // Trim left pump: AC ESS (400XP = AlternatingCurrentEssentialShed) and DC ESS;
+                // AC ESS BUS FAULT costs its redundancy
                 19,
                 FuelPumpProperties {
-                    powered_by: ElectricalBusType::AlternatingCurrentEssential, // TODO: + DC ESS
+                    powered_by: ElectricalBusType::AlternatingCurrentEssentialShed, // TODO: + DC ESS
                     consumption_current_ampere: 5.,
                 },
             ),

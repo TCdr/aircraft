@@ -140,6 +140,8 @@ export const NXSystemMessages = {
   sqwkCodeNotValid: new TypeIMessage('SQWK CODE NOT VALID'),
   lrcInUse: new TypeIMessage('LRC MODE IN USE'),
   lateralDiscontinuityAhead: new TypeIIMessage('LATERAL DISCONTINUITY AHEAD', true),
+  // The GPS deselected, 80 NM before the T/D or in APPROACH phase (type II, white)
+  gpsDeselected: new TypeIIMessage('GPS DESELECTED'),
   listOf99InUse: new TypeIMessage('LIST OF 99 IN USE'),
   // A new pilot-stored waypoint rejected, the 50 of the database are used
   wptsMaxAllInUse: new TypeIMessage('50 WPTS MAX : ALL IN USE'),
@@ -150,6 +152,26 @@ export const NXSystemMessages = {
   someRevisionsNotStored: new TypeIMessage('SOME REVISIONS NOT STORED'),
   // A PLACE/DISTANCE waypoint whose PLACE is not the revised waypoint
   placeWptDisagree: new TypeIMessage('PLACE / WPT DISAGREE'),
+  // Message colours: white for the result of a flight crew entry and less important messages, amber for navigation
+  // and more important messages.
+  // A DIR TO with interception of an inbound/outbound radial is inserted
+  adjustDesiredTrkOrHdg: new TypeIIMessage('ADJUST DESIRED TRK OR HDG'),
+  // The pilot RNP is above the default RNP, no RNP in the navigation database for the active leg
+  areaRnpIs: new TypeIIMessage('AREA RNP IS XX.XX', false, 'XX.XX'),
+  // The pilot RNP is above the RNP of the navigation database for the active leg
+  procRnpIs: new TypeIIMessage('PROC RNP IS XX.XX', true, 'XX.XX'),
+  // The current date does not match the effectivity of the active navigation database
+  checkDatabaseCycle: new TypeIIMessage('CHECK DATABASE CYCLE'),
+  // At least one IRS position is 5 NM or more from the airport position
+  checkIrsArptPosition: new TypeIIMessage('CHECK IRS / ARPT POSITION', true),
+  // The procedure turn ahead exceeds the excursion distance of the navigation database
+  expectTurnAreaExceedance: new TypeIIMessage('EXPECT TURN AREA EXCEEDANCE', true),
+  // The NDB of the NDB approach is not available or deselected
+  specifNdbNotAvail: new TypeIIMessage('SPECIF NDB NOT AVAIL', true),
+  // The aircraft must leave the holding pattern immediately (extra fuel = 0 at destination)
+  timeToExit: new TypeIIMessage('TIME TO EXIT', true),
+  // The aircraft clock time reaches the ETT
+  toTimeReached: new TypeIIMessage('T.O TIME REACHED'),
 };
 
 export const NXFictionalMessages = {

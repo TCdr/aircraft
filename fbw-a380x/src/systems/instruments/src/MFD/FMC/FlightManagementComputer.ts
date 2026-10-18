@@ -63,6 +63,7 @@ import { ActiveUriInformation } from '../pages/common/MfdUiService';
 import { A380FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/A380FlightPlanPerformanceData';
 import { EfisInterface } from '@fmgc/efis/EfisInterface';
 import { Navigation } from '@fmgc/navigation/Navigation';
+import { A380_FM_POSITION_CONFIG } from '@fmgc/navigation/FmPosition';
 import { EfisSymbols } from '@fmgc/efis/EfisSymbols';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { NavigationDatabase, NavigationDatabaseBackend } from '@fmgc/NavigationDatabase';
@@ -78,6 +79,7 @@ import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
 import { clampFmcUpdateStep } from './FmcUpdateStep';
 import { FmsPrinter } from './FmsPrinter';
+import { FmsAdvisoryMessages } from './FmsAdvisoryMessages';
 import { AtcRouteClearanceLoader } from './AtcRouteClearanceLoader';
 import { RejectedAtcElement } from './AtcRouteClearance';
 import { FmsDatalinkConnection } from './FmsDatalinkConnection';
@@ -241,6 +243,9 @@ export class FlightManagementComputer implements FmcInterface {
 
   /** The FMS print functions (FMC-A, created with the first update, once the FMC is initialized) */
   #printer: FmsPrinter | null = null;
+
+  /** The type II FMS messages raised from the FMS data each cycle (FMC-A only, it has the navigation) */
+  #advisoryMessages: FmsAdvisoryMessages | null = null;
 
   get printer(): FmsPrinter | null {
     return this.#printer;
@@ -525,7 +530,8 @@ export class FlightManagementComputer implements FmcInterface {
     const db = new NavigationDatabase(this.bus, NavigationDatabaseBackend.Msfs);
     NavigationDatabaseService.activeDatabase = db;
 
-    this.#navigation = new Navigation(this.bus, this.flightPlanInterface);
+    // A380 FM/GPS POS DISAGREE thresholds and takeoff position update rule (see FmPosition.ts)
+    this.#navigation = new Navigation(this.bus, this.flightPlanInterface, A380_FM_POSITION_CONFIG);
     if (this.instance === FmcIndex.FmcA) {
       this.#sequencedWaypointRecorder = new SequencedWaypointRecorder(
         this.flightPlanInterface,
@@ -2119,6 +2125,8 @@ export class FlightManagementComputer implements FmcInterface {
         this.#printer ??= new FmsPrinter(this, this.bus);
         this.#printer.update();
         this.updateActiveFlightNumber();
+        this.#advisoryMessages ??= new FmsAdvisoryMessages(this);
+        this.#advisoryMessages.update();
       }
       this.updateFuelPlanning();
       this.loadActiveFlightPlanFuelAndApproachData();
@@ -2146,6 +2154,7 @@ export class FlightManagementComputer implements FmcInterface {
         this.acInterface.checkDestEfobBelowMinScratchPadMessage(throttledDt);
         this.acInterface.checkEngineOut();
         this.acInterface.checkLateralDiscontinuityAhead();
+        this.acInterface.checkGpsDeselected();
         const toFlaps = this.fmgc.getTakeoffFlapsSetting();
         this.acInterface.setTakeoffFlaps(toFlaps ?? null);
 
