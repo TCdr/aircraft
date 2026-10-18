@@ -27,6 +27,7 @@
   - [Navigation ATA 34](#navigation-ata-34)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
+  - [Information Systems ATA 46](#information-systems-ata-46)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
   - [Engines ATA 70](#engines-ata-70)
   - [Hydraulics](#hydraulics)
@@ -2045,6 +2046,21 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_IOM_<NAME>_AVAIL
   - Bool
   - Indicates if a specific IOM system is available
+
+## Information Systems ATA 46
+
+- A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE
+  - Bool
+  - The NSS DATA TO AVNCS pb-sw: 1 = normal (released, the NSS and the avionics exchange data both ways; the value of
+    every flight file), 0 = OFF (pressed in, OFF light; the SCIs pass data only from the avionics to the NSS) (A380 FCOM
+    DSC-46-20-20-80). OFF stops the AOC downlinks (messages and requests), the uplinks still come in (systems host
+    CpiomD/atsu.ts)
+
+- A32NX_NSS_ANSU_{index}_IS_HEALTHY
+  - Bool
+  - NSS AVNCS ANSU 1(2) healthy: powered, not failed (flyPad 46001, 46002), not reset (RESET panel NSS AVNCS), NSS master
+    on. Written by the OIT (AircraftNetworkServerUnit.ts); the AOC (systems host CpiomD/atsu.ts) runs while one of them
+    is healthy (A380 FCOM DSC-46-40-10-20: "In the case of an ANSU 1 failure, ANSU 2 provides the AOC application")
 
 ## Auxiliary Power Unit ATA 49
 
