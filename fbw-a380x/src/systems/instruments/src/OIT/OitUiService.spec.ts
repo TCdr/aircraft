@@ -6,10 +6,8 @@ import { OitUiService } from './OitUiService';
 import { OisLaptopData } from './OisLaptop';
 
 /*
- * A380 FCOM DSC-46-20-50-10 HOW TO EXIT THE OIS SESSION (a380_fcom.txt l.105900-105907): "exit the current session and
- * return to the Login page [...] The flight crew cannot exit the OIS session when the FLT FOLDER application is open."
- * PRO-NOR-SOP (l.127590-127591): "The exit session initializes again the FLT OPS STS page on the laptops for the next
- * flight."
+ * EXIT SESSION goes back to the Login page and clears the FLT OPS STS page of the laptops for the next flight; it is
+ * not possible while the FLT FOLDER application is open.
  */
 describe('OIS EXIT SESSION', () => {
   const sessionOn = (uri: string) => {

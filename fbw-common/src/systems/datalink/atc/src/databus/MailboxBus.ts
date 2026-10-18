@@ -23,9 +23,9 @@ import { isA380AtcAlertInhibited } from '../components/AtcAlertInhibition';
 
 /** Why the A380X mailbox does not take a new uplink message */
 export enum UplinkRejectionReason {
-  /** Five uplink messages wait for an answer (a380_fcom.txt l.96601-96606) */
+  /** Five uplink messages wait for an answer */
   MailboxFull,
-  /** Takeoff or landing: the ATC alerts are inhibited (a380_fcom.txt l.95755-95760) */
+  /** Takeoff or landing: the ATC alerts are inhibited */
   FlightPhase,
 }
 
@@ -51,10 +51,7 @@ class MailboxMessage {
 export class MailboxBus {
   private static MaxMailboxFileSize = 5;
 
-  /**
-   * A380 FCOM DSC-46-10-10-70 (a380_fcom.txt l.96601-96602): "The mailbox has a maximum capacity of: 5 uplink messages
-   * that have not been answered"
-   */
+  /** The A380X mailbox holds at most 5 uplink messages that have not been answered */
   private static MaxUnansweredUplinks = 5;
 
   private publisher: Publisher<AtsuMailboxMessages> = null;
@@ -228,14 +225,10 @@ export class MailboxBus {
   }
 
   /**
-   * @param bus the event bus
-   * @param atc the ATC function
-   * @param a380xMailbox the A380X mailbox rules. Else (the A32NX DCDU) all stays as before: the A320 FCOM has none.
-   * - The RING sounds only if the message is not read in time (A380 FCOM DSC-46-10-20-70, a380_fcom.txt
-   *   l.101232-101235: "Associated with a RING aural alert that sounds if the flight crew does not press the pushbutton
-   *   or read the message within: 15 s after the reception of a normal message, 5 s after the reception of an urgent
-   *   message."). The A32NX DCDU rings at once.
-   * - No RING in takeoff and landing (l.95755, 101523, see AtcAlertInhibition).
+   * @param a380xMailbox the A380X mailbox rules; false for the A32NX DCDU, which has none of them:
+   * - The RING sounds only if the crew has not read the message 15 s after a normal message, 5 s after an urgent one.
+   *   The A32NX DCDU rings at once.
+   * - No RING in takeoff and landing (see AtcAlertInhibition).
    * - A new uplink is rejected (newUplinkRejection) in takeoff and landing, and when five uplinks wait for an answer.
    */
   constructor(
@@ -477,7 +470,7 @@ export class MailboxBus {
     });
   }
 
-  /** Whether the ATC MSG alerts of the A380X are inhibited now by the flight phase (a380_fcom.txt l.95755, 101523) */
+  /** Whether the ATC MSG alerts of the A380X are inhibited now by the flight phase (takeoff and landing) */
   private alertsInhibited(): boolean {
     return this.a380xMailbox && isA380AtcAlertInhibited(this.atc.digitalInputs.FwcFlightPhase);
   }
@@ -519,10 +512,9 @@ export class MailboxBus {
   /**
    * Whether the A380X mailbox takes a new uplink of the ATC center. The ATC function discards a rejected uplink and
    * warns the ATC center with an automatic downlink (Atc.rejectUplink).
-   * - In takeoff and landing (a380_fcom.txt l.95759-95760): "If the aircraft receives a message during the inhibition
-   *   period, the ATC center is automatically warned of the uplink message rejection."
-   * - With five unanswered uplinks (l.96601-96606), a sixth one that requires an answer "cannot be inserted in the
-   *   mailbox". An uplink that needs no answer is of the third category (l.96610-96611) and keeps the file rules.
+   * - In takeoff and landing, during the alert inhibition.
+   * - With five unanswered uplinks, a sixth one that requires an answer cannot enter the mailbox. An uplink that needs
+   *   no answer is in the category of the other messages and keeps the file rules.
    * @param message the first message of the new uplink block
    * @returns the reason of the rejection, or null when the mailbox takes the uplink (always on the A32NX DCDU)
    */

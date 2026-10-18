@@ -92,7 +92,7 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
     this.mailbox.markRead(uid);
   }
 
-  /** PRINT: the displayed message on the pedestal printer (CompanyComMailbox.printMessage) */
+  /** PRINT sends the displayed message to the pedestal printer */
   private printSelected(): void {
     const uid = this.selectedUid.get();
     if (uid !== null) {
@@ -176,8 +176,7 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
           <div>{this.toText}</div>
         </div>
         <div class="oit-ccom-inbox-msg-box">{this.messageText}</div>
-        {/* Manual print of a message (A380 FCOM DSC-46-40-10-20, a380_fcom.txt l.107938-107939). Design choice: below the
-            message, the FCOM has no figure of the inbox page */}
+        {/* Design choice: PRINT below the message, the real inbox page layout is not known */}
         <div class="fr" style="justify-content: flex-end; margin-top: 10px;">
           <Button label="PRINT" disabled={this.printDisabled} onClick={() => this.printSelected()} />
         </div>

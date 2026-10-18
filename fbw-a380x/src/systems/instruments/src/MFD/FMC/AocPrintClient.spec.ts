@@ -7,8 +7,7 @@ import { AocFmsMessages } from '@datalink/aoc';
 import { AocPrintClient, aocPrintLines } from './AocPrintClient';
 
 /*
- * A380 FCOM DSC-46-40-10-20 (a380_fcom.txt l.107938-107939): "The AOC can automatically print various received messages,
- * via the printer that is on the center pedestal. The flight crew can use this printer to manually print any message."
+ * AOC messages are printed on the pedestal printer: automatically when received, or on request of the flight crew.
  */
 describe('AOC message print on the pedestal printer', () => {
   it('prints an AOC message on the available printer', () => {

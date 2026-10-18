@@ -51,7 +51,7 @@ describe('A380 NSS AVNCS ANSU redundancy', () => {
   });
 });
 
-describe('A380 ARU start (FCOM DSC-46-20-10-20, a380_fcom.txt l.102249-102252: 2 minutes at power-up)', () => {
+describe('A380 ARU start: 2 minutes at power-up', () => {
   it('operates 2 minutes after the aircraft power-up, not before', () => {
     const aru = new AruStartup();
     // cold and dark at the flight load, the crew powers the aircraft later
@@ -79,7 +79,7 @@ describe('A380 ARU start (FCOM DSC-46-20-10-20, a380_fcom.txt l.102249-102252: 2
   });
 });
 
-describe('A380 laptop STANDALONE (FCOM DSC-46-20-40, a380_fcom.txt l.104922-104945)', () => {
+describe('A380 laptop STANDALONE', () => {
   it('is connected when started with the ARU operating', () => {
     const laptop = new LaptopNetworkConnection();
     expect(laptop.update(true, true)).toBe(false);
@@ -89,7 +89,7 @@ describe('A380 laptop STANDALONE (FCOM DSC-46-20-40, a380_fcom.txt l.104922-1049
     const laptop = new LaptopNetworkConnection();
     expect(laptop.update(true, false)).toBe(true);
     expect(laptop.update(true, true)).toBe(true);
-    // restart
+    // switched off, then on again
     expect(laptop.update(false, true)).toBe(false);
     expect(laptop.update(true, true)).toBe(false);
   });

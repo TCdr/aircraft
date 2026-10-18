@@ -155,10 +155,8 @@ export class CompanyComMailbox {
   }
 
   /**
-   * PRINT of a message: "The flight crew can use this printer to manually print any message." (A380 FCOM DSC-46-40-10-20,
-   * a380_fcom.txt l.107938-107939; DSC-46-40-20 PRINTER, l.107980-107981). The AOC prints on the pedestal printer: the
-   * aocPrintMessage text goes to the FMS printer of the MFD (MFD/FMC/AocPrintClient.ts), synced as it is another
-   * instrument.
+   * PRINT of a message: any message can be printed by hand. The AOC prints on the pedestal printer: the aocPrintMessage
+   * text goes to the FMS printer of the MFD (MFD/FMC/AocPrintClient.ts), synced as it is another instrument.
    * @param uid the AOC message id
    * @param formatDateTime the date and time format of the OIT
    * @returns whether the message was sent to the printer (false for an unknown message)

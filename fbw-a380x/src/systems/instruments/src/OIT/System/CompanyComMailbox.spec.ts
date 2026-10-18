@@ -145,7 +145,7 @@ describe('OIT COMPANY COM inbox', () => {
     expect(mailbox.messages.length).toBe(0);
   });
 
-  it('still receives the uplinks while the AOC downlinks are inhibited (NSS DATA TO AVNCS OFF, l.103225-103226)', () => {
+  it('still receives the uplinks while the AOC downlinks are inhibited (NSS DATA TO AVNCS OFF)', () => {
     const bus = new EventBus();
     const aoc = new Aoc(bus, false);
     aoc.initialize();
@@ -157,7 +157,7 @@ describe('OIT COMPANY COM inbox', () => {
     expect(mailbox.messages.getArray().map((e) => e.text)).toEqual(['GATE CHANGE B32']);
   });
 
-  it('PRINT sends the displayed message to the pedestal printer (DSC-46-40-10-20 l.107938-107939)', () => {
+  it('PRINT sends the displayed message to the pedestal printer', () => {
     const bus = new EventBus();
     const mailbox = new CompanyComMailbox(bus);
     mailbox.init();

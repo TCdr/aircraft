@@ -28,8 +28,7 @@ function downlink(uid: number): CpdlcMessage {
 
 /**
  * The parts of the ATC function the mailbox uses here; removeMessage calls back into the mailbox like the real one
- * @param a380xMailbox the A380X mailbox rules (A380 FCOM DSC-46-10-20-70 RING timing, DSC-46-10-10 flight phase
- * inhibition, DSC-46-10-10-70 capacity)
+ * @param a380xMailbox the A380X mailbox rules (RING timing, flight phase inhibition, capacity)
  */
 function setup(a380xMailbox = false) {
   const bus = new EventBus();
@@ -296,7 +295,7 @@ describe('MailboxBus RING timing', () => {
   });
 });
 
-describe('MailboxBus capacity (A380 FCOM DSC-46-10-10-70, a380_fcom.txt l.96601-96606: 5 unanswered uplinks)', () => {
+describe('MailboxBus capacity (5 unanswered uplinks)', () => {
   it('A380X: rejects a sixth uplink that requires an answer while five wait for one', () => {
     const { mailbox, receiveClearance, clearance } = setup(true);
     [1, 2, 3, 4].forEach(receiveClearance);
@@ -315,7 +314,7 @@ describe('MailboxBus capacity (A380 FCOM DSC-46-10-10-70, a380_fcom.txt l.96601-
     expect(mailbox.newUplinkRejection(clearance(6))).toBeNull();
   });
 
-  it('A380X: a new uplink that needs no answer is not of the five (third category, l.96610-96611)', () => {
+  it('A380X: a new uplink that needs no answer is not of the five (third category)', () => {
     const { mailbox, receiveClearance } = setup(true);
     [1, 2, 3, 4, 5].forEach(receiveClearance);
     const information = new CpdlcMessage();
@@ -337,7 +336,7 @@ describe('MailboxBus capacity (A380 FCOM DSC-46-10-10-70, a380_fcom.txt l.96601-
   });
 });
 
-describe('MailboxBus flight phase inhibition (A380 FCOM l.95755-95760, l.101523)', () => {
+describe('MailboxBus flight phase inhibition', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });

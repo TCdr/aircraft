@@ -2,14 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The OIS MENU and OIS XFR keys of the FLT OPS side of the OIT.
- * - A380 FCOM DSC-46-20-20-50 KEYBOARD AND POINTING DEVICE (a380_fcom.txt l.103028-103032): "OIS MENU KEY: On the FLT
- *   OPS side, when pressed, the OIT displays the FLT OPS Menu page. OIS XFR KEY: On the FLT OPS side, when pressed, the
- *   OIT displays the current display of the other OIT."
- * - DSC-46-20-30 X-OIS FUNCTION (l.104889-104895): "The X-OIS function enables one flight crewmember to display on his
- *   OIT the current display of the other OIT. The X-OIS function is available on the FLT OPS side only. [...] The
- *   X-OIS function can be deactivated by pressing again the OIS XFR key. When a flight crewmember presses the OIS XFR
- *   key, his OIT displays the display of the other OIT and the message "X-OIS Activated" appears on his OIT."
+ * The OIS MENU and OIS XFR keys of the FLT OPS side of the OIT. OIS MENU shows the FLT OPS Menu page. OIS XFR starts
+ * the X-OIS function (FLT OPS side only): the OIT shows the current display of the other OIT with the message "X-OIS
+ * Activated"; OIS XFR again ends it.
  *
  * Design choices:
  * - The two OITs share their current FLT OPS page through an L:var each (L:A380X_OIT_CAPT(FO)_FLT_OPS_PAGE, the page
@@ -20,7 +15,7 @@
  */
 
 /** The FLT OPS pages, by code (index + 1); code 0: no FLT OPS page known */
-export const FLT_OPS_PAGE_URIS: readonly string[] = [
+const FLT_OPS_PAGE_URIS: readonly string[] = [
   'flt-ops',
   'flt-ops/sts',
   'flt-ops/to-perf',
@@ -54,7 +49,6 @@ export class XOisFunction {
   /** The page of this OIT when X-OIS was activated */
   private ownUri = FLT_OPS_MENU_URI;
 
-  /** @returns whether X-OIS is active ("X-OIS Activated" shows) */
   public isActive(): boolean {
     return this.active;
   }
@@ -69,7 +63,6 @@ export class XOisFunction {
   }
 
   /**
-   * The OIS XFR key
    * @param currentUri the page this OIT shows
    * @param otherOitPageCode the page code of the other OIT
    * @returns the page to display now, or null to stay

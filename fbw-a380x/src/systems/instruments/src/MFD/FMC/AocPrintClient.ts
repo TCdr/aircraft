@@ -29,11 +29,10 @@ export function aocPrintLines(text: string): string[] {
 }
 
 /**
- * Prints the AOC messages on the cockpit printer on the pedestal: "The AOC can automatically print various received
- * messages, via the printer that is on the center pedestal. The flight crew can use this printer to manually print any
- * message." (A380 FCOM DSC-46-40-10-20, a380_fcom.txt l.107938-107939). The OIT COMPANY COM inbox PRINT button
- * publishes aocPrintMessage (OIT/System/CompanyComMailbox.ts); the MFD instrument prints it with the FMS printer of the
- * master FMC. Without an available printer nothing is printed (the FCOM gives no OIT indication for it).
+ * Prints the AOC messages on the cockpit printer on the pedestal (the AOC prints received messages there, and the
+ * flight crew can print any message). The OIT COMPANY COM inbox PRINT button publishes aocPrintMessage
+ * (OIT/System/CompanyComMailbox.ts); the MFD instrument prints it with the FMS printer of the master FMC. Without an
+ * available printer nothing is printed (no OIT indication is defined for it).
  */
 export class AocPrintClient {
   private readonly subscription: Subscription;

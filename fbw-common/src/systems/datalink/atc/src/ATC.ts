@@ -328,12 +328,9 @@ export class Atc {
   }
 
   /**
-   * @param bus the event bus
-   * @param synchronizedAoc whether the AOC data is synchronized with a remote instance
-   * @param synchronizedRouter whether the router data is synchronized with a remote instance
    * @param a380xMailbox the A380X mailbox rules (see MailboxBus): the RING of an uplink sounds only if the message is
    * not read in time, the ATC MSG alerts are inhibited in takeoff and landing, and the uplinks the mailbox cannot take
-   * are rejected with an automatic downlink. False: the A32NX DCDU, as before.
+   * are rejected with an automatic downlink. False: the A32NX DCDU.
    */
   constructor(bus: EventBus, synchronizedAoc: boolean, synchronizedRouter: boolean, a380xMailbox = false) {
     this.digitalInputs = new DigitalInputs(bus);
@@ -951,13 +948,9 @@ export class Atc {
 
   /**
    * Discards an uplink that the A380X mailbox does not take, and warns the ATC center with an automatic ERROR downlink
-   * (DM62) that refers to the uplink:
-   * - mailbox full, a380_fcom.txt l.96604-96606: "If another message is received, it cannot be inserted in the
-   *   mailbox, and an automatic downlink message will warn the ATC center that the message has been discarded because
-   *   mailbox maximum capacity has been reached."
-   * - flight phase, l.95759-95760: "If the aircraft receives a message during the inhibition period, the ATC center is
-   *   automatically warned of the uplink message rejection."
-   * The FCOM gives no text for these downlinks: the mailbox full one uses the FANS 1/A error information.
+   * (DM62) that refers to the uplink: when the mailbox is full, and when the uplink comes during the takeoff or landing
+   * inhibition. Design choice: the manual gives no text for these downlinks; the mailbox full one uses the FANS 1/A
+   * error information.
    * @param messages the uplink block (its first message identifies it)
    * @param reason why the mailbox does not take it
    */

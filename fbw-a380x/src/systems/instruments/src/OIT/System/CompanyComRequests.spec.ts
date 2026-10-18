@@ -34,7 +34,7 @@ function setup() {
   return { requests, weatherRequests, freeTexts, registered, aoc };
 }
 
-describe('COMPANY COM weather request (A380 FCOM DSC-46-40, a380_fcom.txt l.107844: TAF, METAR)', () => {
+describe('COMPANY COM weather request: TAF, METAR', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -104,7 +104,7 @@ describe('COMPANY COM weather request (A380 FCOM DSC-46-40, a380_fcom.txt l.1078
   });
 });
 
-describe('COMPANY COM free text (A380 FCOM DSC-46-40, a380_fcom.txt l.107841: free text)', () => {
+describe('COMPANY COM free text', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
