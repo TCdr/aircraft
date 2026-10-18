@@ -771,6 +771,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] After ENG MASTER OFF the N3 runs down more slowly from idle (45 % after about 10 s, stopped after about a minute), and setting the ENG MASTER back ON relights the engine while the N3 shown is above 45 % - @TCdr
 1. [HYD] The hydraulic cargo doors of both aircraft open fully and are held locked open once the pumps stop, instead of stopping and sagging at about 88 % (GSX loaders went through the door) - @TCdr
 1. [A380X/FWS] No more CAB PRESS caution and master caution when the aircraft is powered up with EXT PWR or the APU: a cabin pressure controller that is not powered yet no longer counts as failed - @TCdr
+1. [EFB] Services page: a long GSX menu scrolls inside the GSX card instead of running past it, and its close link no longer overlaps the last menu buttons - @TCdr
 
 ## 2024.1.0
 

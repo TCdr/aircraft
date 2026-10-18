@@ -17,6 +17,7 @@ import {
   M3_STATUS_TONES,
 } from '../../../UtilComponents/Material/Material';
 import {
+  GsxMenu,
   GsxRemoteState,
   GsxService,
   GsxServiceId,
@@ -194,7 +195,7 @@ const TurnaroundStep: FC<{
     action = t('Ground.Services.Stop');
   }
   return (
-    <div className={`flex flex-col ${last ? '' : 'mb-3'}`}>
+    <div className={`flex shrink-0 flex-col ${last ? '' : 'mb-3'}`}>
       <div className="flex flex-row items-start">
         <div className="mr-3 flex shrink-0 flex-col items-center">
           <span
@@ -238,6 +239,38 @@ const TurnaroundStep: FC<{
     </div>
   );
 };
+
+/** The open GSX menu: its title, one chip per entry, and the link that closes it, on its own line */
+export const GsxMenuBox: FC<{ menu: GsxMenu }> = ({ menu }) => (
+  // shrink-0 on every block: the sim browser shrinks flex items below their content, which pushed the chips over the
+  // close link and past the card instead of scrolling
+  <div className="mt-4 flex shrink-0 flex-col rounded-xl border border-m3-tonal bg-m3-card-low p-3">
+    <span className="shrink-0 text-xs font-bold uppercase tracking-widest text-m3-on-primary-container">
+      {t('Ground.Services.Gsx.Asks')}
+    </span>
+    <span className="mt-1 shrink-0 text-sm font-semibold">{menu.title}</span>
+    <div className="-m-1 mt-1 flex shrink-0 flex-row flex-wrap">
+      {menu.entries.map((entry, index) => (
+        <M3ActionChip
+          key={`${index}-${entry}`}
+          className="m-1 max-w-full truncate"
+          primary={index === 0}
+          disabled={menu.disabled[index]}
+          onClick={() => gsxRemote.pickMenu(index)}
+        >
+          {entry}
+        </M3ActionChip>
+      ))}
+    </div>
+    <button
+      type="button"
+      className="mt-2 shrink-0 self-end bg-transparent text-xs text-m3-muted hover:text-m3-on-primary-container"
+      onClick={() => gsxRemote.closeMenu()}
+    >
+      {t('Ground.Services.Gsx.CloseMenu')}
+    </button>
+  </div>
+);
 
 /**
  * The GSX card of the Services page: the link switch (greyed out until GSX is found), the turnaround timeline of the
@@ -328,7 +361,8 @@ export const GsxServicesPanel: FC<GsxServicesPanelProps> = ({ linked, onLinkChan
       {ready && (
         <M3Card className="min-h-0 flex-1">
           <M3SectionHeader title={t('Ground.Services.Turnaround')} />
-          {/* vertical scrolling only: nothing in the list is wider than the card */}
+          {/* vertical scrolling only: nothing in the list is wider than the card; its blocks are shrink-0 for the
+              same reason as the GSX menu's */}
           <div className="scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-4 pb-4">
             {turnaround.map((id, index) => (
               <TurnaroundStep
@@ -342,7 +376,7 @@ export const GsxServicesPanel: FC<GsxServicesPanelProps> = ({ linked, onLinkChan
                 }
               />
             ))}
-            <div className="-m-1 mt-2 flex flex-row flex-wrap">
+            <div className="-m-1 mt-2 flex shrink-0 flex-row flex-wrap">
               {EXTRA_SERVICES.map((id) => {
                 const s = service(id);
                 if (!s) {
@@ -365,38 +399,11 @@ export const GsxServicesPanel: FC<GsxServicesPanelProps> = ({ linked, onLinkChan
             </div>
             <div className="grow" />
             {gsx.message.visible && gsx.message.text && (
-              <M3Banner tone="active" className="mt-4">
+              <M3Banner tone="active" className="mt-4 shrink-0">
                 {gsx.message.text}
               </M3Banner>
             )}
-            {menuSettled && (
-              <div className="mt-4 flex flex-col rounded-xl border border-m3-tonal bg-m3-card-low p-3">
-                <span className="text-xs font-bold uppercase tracking-widest text-m3-on-primary-container">
-                  {t('Ground.Services.Gsx.Asks')}
-                </span>
-                <span className="mt-1 text-sm font-semibold">{gsx.menu.title}</span>
-                <div className="-m-1 mt-1 flex flex-row flex-wrap">
-                  {gsx.menu.entries.map((entry, index) => (
-                    <M3ActionChip
-                      key={`${index}-${entry}`}
-                      className="m-1"
-                      primary={index === 0}
-                      disabled={gsx.menu.disabled[index]}
-                      onClick={() => gsxRemote.pickMenu(index)}
-                    >
-                      {entry}
-                    </M3ActionChip>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  className="mt-2 self-end bg-transparent text-xs text-m3-muted hover:text-m3-on-primary-container"
-                  onClick={() => gsxRemote.closeMenu()}
-                >
-                  {t('Ground.Services.Gsx.CloseMenu')}
-                </button>
-              </div>
-            )}
+            {menuSettled && <GsxMenuBox menu={gsx.menu} />}
           </div>
         </M3Card>
       )}
