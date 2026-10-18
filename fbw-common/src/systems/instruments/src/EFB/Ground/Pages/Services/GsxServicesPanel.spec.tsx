@@ -75,6 +75,20 @@ describe('GSX refuelling status line of the Services page', () => {
   });
 });
 
+describe('GSX jetway status line of the Services page', () => {
+  it('leaves the docked jetway to the row ("Connected"), not "Done"', () => {
+    const docked = {
+      id: 'OperateJetways',
+      displayName: 'Jetway',
+      state: 'completed',
+      canTrigger: false,
+      detail: { phase: 'docked' },
+    } as GsxService;
+
+    expect(gsxServiceStatus(docked).text).toBe('');
+  });
+});
+
 /** The action chip (its text) of each turnaround step, by the step name */
 const turnaroundChips = (services: GsxService[]): Record<string, string | null> => {
   // as useGsxRemote gives it to the page: with the completions remembered in this turnaround
