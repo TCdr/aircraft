@@ -6,7 +6,14 @@ import { FLT_OPS_MENU_URI, XOisFunction, fltOpsPageCode, fltOpsPageUri } from '.
 
 describe('FLT OPS page codes of the OITs', () => {
   it('codes every FLT OPS page and back, 0 for other pages', () => {
-    for (const uri of ['flt-ops', 'flt-ops/sts', 'flt-ops/to-perf', 'flt-ops/ldg-perf', 'flt-ops/charts']) {
+    for (const uri of [
+      'flt-ops',
+      'flt-ops/sts',
+      'flt-ops/to-perf',
+      'flt-ops/ldg-perf',
+      'flt-ops/charts',
+      'flt-ops/loadsheet',
+    ]) {
       expect(fltOpsPageUri(fltOpsPageCode(uri))).toBe(uri);
     }
     expect(fltOpsPageCode('nss-avncs/company-com')).toBe(0);
