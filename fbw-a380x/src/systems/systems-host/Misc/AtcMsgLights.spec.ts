@@ -35,6 +35,17 @@ describe('ATC MSG lights (flashes at 2 Hz)', () => {
     expect(flashes).toBe(2);
   });
 
+  it('stays dark in takeoff and landing, flashes again after (A380 FCOM l.95755, l.101523)', () => {
+    // FWS phases 3 to 7 (takeoff) and 9 to 10 (landing)
+    for (const phase of [3, 4, 5, 6, 7, 9, 10]) {
+      expect(isAtcMsgLightLit(true, 0, phase)).toBe(false);
+    }
+    // taxi out, cruise, taxi in
+    for (const phase of [2, 8, 11]) {
+      expect(isAtcMsgLightLit(true, 0, phase)).toBe(true);
+    }
+  });
+
   it('is what the glareshield ATC MSG pbs show, not the steady waiting flag', () => {
     const glareshield = readFileSync(resolve(__dirname, COCKPIT_MODEL, 'behaviour/glareshield.xml'), 'utf-8');
     const lamps = glareshield.match(/<SEQ1_CODE>\(L:A3[^)]*ATC_MSG[^)]*\)<\/SEQ1_CODE>/g) ?? [];

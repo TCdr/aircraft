@@ -1,7 +1,15 @@
 //  Copyright (c) 2025 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { ArraySubject, DisplayComponent, FSComponent, Subject, Subscription, VNode } from '@microsoft/msfs-sdk';
+import {
+  ArraySubject,
+  DisplayComponent,
+  FSComponent,
+  Subject,
+  SubscribableMapFunctions,
+  Subscription,
+  VNode,
+} from '@microsoft/msfs-sdk';
 import { AbstractOitFltOpsPageProps } from '../../OIT';
 import { DropdownMenu } from '../../../MsfsAvionicsCommon/UiWidgets/DropdownMenu';
 import { InputField } from '../../../MsfsAvionicsCommon/UiWidgets/InputField';
@@ -15,8 +23,18 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
   private readonly subs = [] as Subscription[];
 
+  /**
+   * A380 FCOM DSC-46-20-40 LAPTOP OPERATED AS A STAND-ALONE (a380_fcom.txt l.104944-104945): "When a laptop is operated
+   * as a stand-alone, (i.e. not connected to the network), "SYNCHRONIZATION NOT AVAIL" appears on the FLT OPS STS page."
+   */
+  private readonly hideSynchronizationNotAvail = this.props.container.laptop.standalone.map(
+    SubscribableMapFunctions.not(),
+  );
+
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
+
+    this.subs.push(this.hideSynchronizationNotAvail);
   }
 
   public destroy(): void {
@@ -65,6 +83,10 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
             <div class="oit-flt-ops-sts-line">
               <div class="oit-flt-ops-sts-line-left oit-label bigger">OIS VERSION</div>
               <div class="oit-flt-ops-sts-line-right oit-label bigger">20-JAN 25 V1.0</div>
+            </div>
+            <div class={{ 'oit-flt-ops-sts-line': true, hidden: this.hideSynchronizationNotAvail }}>
+              <div class="oit-flt-ops-sts-line-left oit-label bigger" />
+              <div class="oit-flt-ops-sts-line-right oit-label bigger amber">SYNCHRONIZATION NOT AVAIL</div>
             </div>
           </div>
           <div class="oit-flt-ops-sts-lower">

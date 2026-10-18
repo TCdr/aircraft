@@ -12,12 +12,22 @@ import {
   AtsuMessageDirection,
   AtsuMessageType,
   CpdlcMessage,
+  CpdlcMessageExpectedResponseType,
   DclMessage,
   MailboxSnapshotBlock,
   OclMessage,
 } from '../../../common/src';
 import { Atc } from '../ATC';
 import { UplinkMessageStateMachine } from '../components/UplinkMessageStateMachine';
+import { isA380AtcAlertInhibited } from '../components/AtcAlertInhibition';
+
+/** Why the A380X mailbox does not take a new uplink message */
+export enum UplinkRejectionReason {
+  /** Five uplink messages wait for an answer (a380_fcom.txt l.96601-96606) */
+  MailboxFull,
+  /** Takeoff or landing: the ATC alerts are inhibited (a380_fcom.txt l.95755-95760) */
+  FlightPhase,
+}
 
 class MailboxMessage {
   public MessageId: number = 0;
@@ -41,6 +51,12 @@ class MailboxMessage {
 export class MailboxBus {
   private static MaxMailboxFileSize = 5;
 
+  /**
+   * A380 FCOM DSC-46-10-10-70 (a380_fcom.txt l.96601-96602): "The mailbox has a maximum capacity of: 5 uplink messages
+   * that have not been answered"
+   */
+  private static MaxUnansweredUplinks = 5;
+
   private publisher: Publisher<AtsuMailboxMessages> = null;
 
   private subscriber: EventSubscriber<AtsuMailboxMessages> = null;
@@ -61,7 +77,7 @@ export class MailboxBus {
 
   private atcRingInterval: number = null;
 
-  /** The first ring of an unread uplink, when the RING waits for the reading time (delayedFirstRing) */
+  /** The first ring of an unread uplink, when the RING waits for the reading time (a380xMailbox) */
   private atcRingTimeout: number = null;
 
   /** When the planned first ring sounds, ms (Date.now), or null */
@@ -214,14 +230,18 @@ export class MailboxBus {
   /**
    * @param bus the event bus
    * @param atc the ATC function
-   * @param delayedFirstRing the RING sounds only if the message is not read in time, the A380X mailbox: the flight
-   * crew has 15 s after a normal message and 5 s after an urgent one to press the pb or read the message. Else (the
-   * A32NX DCDU) the RING sounds at once: the A320 has no RING timing.
+   * @param a380xMailbox the A380X mailbox rules. Else (the A32NX DCDU) all stays as before: the A320 FCOM has none.
+   * - The RING sounds only if the message is not read in time (A380 FCOM DSC-46-10-20-70, a380_fcom.txt
+   *   l.101232-101235: "Associated with a RING aural alert that sounds if the flight crew does not press the pushbutton
+   *   or read the message within: 15 s after the reception of a normal message, 5 s after the reception of an urgent
+   *   message."). The A32NX DCDU rings at once.
+   * - No RING in takeoff and landing (l.95755, 101523, see AtcAlertInhibition).
+   * - A new uplink is rejected (newUplinkRejection) in takeoff and landing, and when five uplinks wait for an answer.
    */
   constructor(
     private readonly bus: EventBus,
     atc: Atc,
-    private readonly delayedFirstRing = false,
+    private readonly a380xMailbox = false,
   ) {
     this.atc = atc;
 
@@ -457,6 +477,68 @@ export class MailboxBus {
     });
   }
 
+  /** Whether the ATC MSG alerts of the A380X are inhibited now by the flight phase (a380_fcom.txt l.95755, 101523) */
+  private alertsInhibited(): boolean {
+    return this.a380xMailbox && isA380AtcAlertInhibited(this.atc.digitalInputs.FwcFlightPhase);
+  }
+
+  /** One RING, unless the flight phase inhibits it: the ring interval goes on and rings again after the inhibition */
+  private ring(): void {
+    if (!this.alertsInhibited()) {
+      this.atc.digitalOutputs.activateAtcRing();
+    }
+  }
+
+  /**
+   * @param message an uplink of the ATC center
+   * @returns whether the uplink requires an answer (WILCO/UNABLE, AFFIRM/NEGATIVE, ROGER or a Y message) that has not
+   * been sent yet
+   */
+  private static isUnansweredUplink(message: CpdlcMessage): boolean {
+    const expected = message.Content[0]?.ExpectedResponse;
+    const answerRequired =
+      expected !== undefined &&
+      expected !== CpdlcMessageExpectedResponseType.NotRequired &&
+      expected !== CpdlcMessageExpectedResponseType.No;
+    const answerSent =
+      message.Response !== null &&
+      message.Response !== undefined &&
+      (message.Response.ComStatus === AtsuMessageComStatus.Sending ||
+        message.Response.ComStatus === AtsuMessageComStatus.Sent);
+    return answerRequired && !answerSent;
+  }
+
+  /** The uplink blocks in the mailbox (shown or waiting for a place) that wait for an answer */
+  private unansweredUplinkCount(): number {
+    return [...this.uplinkMessages, ...this.bufferedUplinkMessages].filter((block) => {
+      const message = this.atc.messages().find((element) => element.UniqueMessageID === block[0].MessageId);
+      return message !== undefined && MailboxBus.isUnansweredUplink(message as CpdlcMessage);
+    }).length;
+  }
+
+  /**
+   * Whether the A380X mailbox takes a new uplink of the ATC center. The ATC function discards a rejected uplink and
+   * warns the ATC center with an automatic downlink (Atc.rejectUplink).
+   * - In takeoff and landing (a380_fcom.txt l.95759-95760): "If the aircraft receives a message during the inhibition
+   *   period, the ATC center is automatically warned of the uplink message rejection."
+   * - With five unanswered uplinks (l.96601-96606), a sixth one that requires an answer "cannot be inserted in the
+   *   mailbox". An uplink that needs no answer is of the third category (l.96610-96611) and keeps the file rules.
+   * @param message the first message of the new uplink block
+   * @returns the reason of the rejection, or null when the mailbox takes the uplink (always on the A32NX DCDU)
+   */
+  public newUplinkRejection(message: CpdlcMessage): UplinkRejectionReason | null {
+    if (!this.a380xMailbox) {
+      return null;
+    }
+    if (this.alertsInhibited()) {
+      return UplinkRejectionReason.FlightPhase;
+    }
+    if (MailboxBus.isUnansweredUplink(message) && this.unansweredUplinkCount() >= MailboxBus.MaxUnansweredUplinks) {
+      return UplinkRejectionReason.MailboxFull;
+    }
+    return null;
+  }
+
   private validateNotificationCondition() {
     // check if the ring tone is still needed
     let unreadMessages = false;
@@ -512,13 +594,10 @@ export class MailboxBus {
     }
 
     // call the first ring tone
-    this.atc.digitalOutputs.activateAtcRing();
+    this.ring();
 
     // start the ring tone interval
-    this.atcRingInterval = window.setInterval(
-      () => this.atc.digitalOutputs.activateAtcRing(),
-      this.estimateRingInterval(),
-    );
+    this.atcRingInterval = window.setInterval(() => this.ring(), this.estimateRingInterval());
   }
 
   /**
@@ -526,7 +605,7 @@ export class MailboxBus {
    * @param urgent the message is urgent
    */
   private setupIntervals(urgent: boolean) {
-    if (!this.delayedFirstRing) {
+    if (!this.a380xMailbox) {
       this.startRinging();
       return;
     }

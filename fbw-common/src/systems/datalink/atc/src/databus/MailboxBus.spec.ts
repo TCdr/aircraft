@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventBus } from '@microsoft/msfs-sdk';
 import {
   AtsuMailboxMessages,
+  AtsuMessageComStatus,
   AtsuMessageDirection,
   AtsuMessageType,
   CpdlcMessage,
@@ -13,7 +14,7 @@ import {
   MailboxStatusMessage,
 } from '../../../common/src';
 import { Atc } from '../ATC';
-import { MailboxBus } from './MailboxBus';
+import { MailboxBus, UplinkRejectionReason } from './MailboxBus';
 
 /** A prepared downlink, as the MFD ATC COM pages hand it to the mailbox */
 function downlink(uid: number): CpdlcMessage {
@@ -27,9 +28,10 @@ function downlink(uid: number): CpdlcMessage {
 
 /**
  * The parts of the ATC function the mailbox uses here; removeMessage calls back into the mailbox like the real one
- * @param delayedFirstRing the A380X RING timing: no ring before the reading time
+ * @param a380xMailbox the A380X mailbox rules (A380 FCOM DSC-46-10-20-70 RING timing, DSC-46-10-10 flight phase
+ * inhibition, DSC-46-10-10-70 capacity)
  */
-function setup(delayedFirstRing = false) {
+function setup(a380xMailbox = false) {
   const bus = new EventBus();
   let messages: CpdlcMessage[] = [];
   let rings = 0;
@@ -45,7 +47,7 @@ function setup(delayedFirstRing = false) {
     },
     currentStation: () => 'EDYY',
     updateShownMessageInMailbox: () => {},
-    digitalInputs: { addDataCallback: () => {} },
+    digitalInputs: { addDataCallback: () => {}, FwcFlightPhase: 0 },
     digitalOutputs: {
       activateButton: () => {},
       resetButton: () => {},
@@ -54,7 +56,7 @@ function setup(delayedFirstRing = false) {
     },
   } as unknown as Atc;
   // removeMessage above only runs once the mailbox exists
-  const mailbox = new MailboxBus(bus, atc, delayedFirstRing);
+  const mailbox = new MailboxBus(bus, atc, a380xMailbox);
 
   const statuses: MailboxStatusMessage[] = [];
   const shown: number[] = [];
@@ -87,7 +89,39 @@ function setup(delayedFirstRing = false) {
   const resync = () => publisher.pub('mailboxResyncRequest', true, true, false);
   // the flight crew reads a message on the mailbox
   const read = (uid: number) => publisher.pub('readMessage', uid, true, false);
-  return { mailbox, publisher, send, receive, cancel, resync, read, statuses, shown, snapshots, rings: () => rings };
+  // an uplink that requires an answer (CLIMB TO, WILCO/UNABLE), as the ATC function hands it to the mailbox
+  const clearance = (uid: number) => {
+    const message = downlink(uid);
+    message.Direction = AtsuMessageDirection.Uplink;
+    message.Content.push(CpdlcMessagesUplink.UM20[1].deepCopy());
+    return message;
+  };
+  const receiveClearance = (uid: number) => {
+    const message = clearance(uid);
+    messages.push(message);
+    mailbox.enqueue([message]);
+    return message;
+  };
+  // the A380 FWS flight phase (FwcFlightPhase)
+  const setFlightPhase = (phase: number) => {
+    (atc.digitalInputs as unknown as { FwcFlightPhase: number }).FwcFlightPhase = phase;
+  };
+  return {
+    mailbox,
+    publisher,
+    send,
+    receive,
+    cancel,
+    resync,
+    read,
+    statuses,
+    shown,
+    snapshots,
+    rings: () => rings,
+    clearance,
+    receiveClearance,
+    setFlightPhase,
+  };
 }
 
 describe('MailboxBus downlink file (FILE FULL)', () => {
@@ -257,6 +291,89 @@ describe('MailboxBus RING timing', () => {
   it('A32NX DCDU: rings at once, as before', () => {
     const { mailbox, receive, rings } = setup();
     mailbox.powerUp();
+    receive(1);
+    expect(rings()).toBe(1);
+  });
+});
+
+describe('MailboxBus capacity (A380 FCOM DSC-46-10-10-70, a380_fcom.txt l.96601-96606: 5 unanswered uplinks)', () => {
+  it('A380X: rejects a sixth uplink that requires an answer while five wait for one', () => {
+    const { mailbox, receiveClearance, clearance } = setup(true);
+    [1, 2, 3, 4].forEach(receiveClearance);
+    expect(mailbox.newUplinkRejection(clearance(5))).toBeNull();
+    receiveClearance(5);
+    expect(mailbox.newUplinkRejection(clearance(6))).toBe(UplinkRejectionReason.MailboxFull);
+  });
+
+  it('A380X: takes the new uplink again once one of the five is answered', () => {
+    const { mailbox, receiveClearance, clearance } = setup(true);
+    const first = receiveClearance(1);
+    [2, 3, 4, 5].forEach(receiveClearance);
+    const wilco = new CpdlcMessage();
+    wilco.ComStatus = AtsuMessageComStatus.Sent;
+    first.Response = wilco;
+    expect(mailbox.newUplinkRejection(clearance(6))).toBeNull();
+  });
+
+  it('A380X: a new uplink that needs no answer is not of the five (third category, l.96610-96611)', () => {
+    const { mailbox, receiveClearance } = setup(true);
+    [1, 2, 3, 4, 5].forEach(receiveClearance);
+    const information = new CpdlcMessage();
+    information.Direction = AtsuMessageDirection.Uplink;
+    information.Content.push(CpdlcMessagesUplink.UM162[1].deepCopy());
+    expect(mailbox.newUplinkRejection(information)).toBeNull();
+  });
+
+  it('A380X: uplinks that need no answer do not fill the five', () => {
+    const { mailbox, receive, clearance } = setup(true);
+    [1, 2, 3, 4, 5].forEach((uid) => receive(uid));
+    expect(mailbox.newUplinkRejection(clearance(6))).toBeNull();
+  });
+
+  it('A32NX DCDU: never rejects, the sixth uplink waits for a place as before', () => {
+    const { mailbox, receiveClearance, clearance } = setup();
+    [1, 2, 3, 4, 5].forEach(receiveClearance);
+    expect(mailbox.newUplinkRejection(clearance(6))).toBeNull();
+  });
+});
+
+describe('MailboxBus flight phase inhibition (A380 FCOM l.95755-95760, l.101523)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('A380X: rejects a new uplink in takeoff (FWS phase 4) and landing (FWS phase 9), takes it in cruise', () => {
+    const { mailbox, clearance, setFlightPhase } = setup(true);
+    setFlightPhase(4);
+    expect(mailbox.newUplinkRejection(clearance(1))).toBe(UplinkRejectionReason.FlightPhase);
+    setFlightPhase(9);
+    expect(mailbox.newUplinkRejection(clearance(1))).toBe(UplinkRejectionReason.FlightPhase);
+    setFlightPhase(8);
+    expect(mailbox.newUplinkRejection(clearance(1))).toBeNull();
+  });
+
+  it('A380X: no RING during takeoff for a message received before it, the RING comes back after it', () => {
+    const { mailbox, receive, rings, setFlightPhase } = setup(true);
+    mailbox.powerUp();
+    setFlightPhase(2);
+    receive(1);
+    setFlightPhase(3);
+    vi.advanceTimersByTime(60000);
+    expect(rings()).toBe(0);
+    setFlightPhase(8);
+    vi.advanceTimersByTime(15000);
+    expect(rings()).toBe(1);
+  });
+
+  it('A32NX DCDU: the flight phase changes nothing', () => {
+    const { mailbox, receive, rings, clearance, setFlightPhase } = setup();
+    mailbox.powerUp();
+    setFlightPhase(4);
+    expect(mailbox.newUplinkRejection(clearance(1))).toBeNull();
     receive(1);
     expect(rings()).toBe(1);
   });

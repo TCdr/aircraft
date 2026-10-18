@@ -179,6 +179,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] POSITION/MONITOR shows the FMS 2, radio, GPIRS, GPS 1 and GPS 2 positions and the real navigation mode - @TCdr
 1. [A32NX/MCDU] New MCDU messages AREA RNP IS, PROCEDURE RNP IS, CHECK IRS/AIRPORT POS, IRS ONLY NAVIGATION, CHECK DATA BASE CYCLE, CHECK DEST DATA, CRZ FL ABOVE MAX FL and TIME TO EXIT - @TCdr
 1. [A380X/MFD] New FMS messages AREA RNP IS, PROC RNP IS, CHECK DATABASE CYCLE, CHECK IRS / ARPT POSITION, EXPECT TURN AREA EXCEEDANCE, SPECIF NDB NOT AVAIL, TIME TO EXIT, T.O TIME REACHED and ADJUST DESIRED TRK OR HDG - @TCdr
+1. [A380X/ATC] The ATC MSG lights and RING are inhibited in takeoff and landing; an uplink received then, or a sixth one while five wait for an answer, is rejected with an automatic ERROR downlink to the ATC center - @TCdr
+1. [A380X/OIS] The laptop shows STANDALONE and SYNCHRONIZATION NOT AVAIL when started before the ARU (2 min after power-up) or without the FLT OPS network - @TCdr
+1. [A380X/OIS] The OIS MENU key shows the FLT OPS menu and the OIS XFR key shows the other OIT's page (X-OIS) - @TCdr
+1. [A380X/OIS] COMPANY COM weather request (METAR/TAF) and free text pages, sent through the AOC - @TCdr
 
 ## 2024.1.0
 

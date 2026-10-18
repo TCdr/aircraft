@@ -39,6 +39,7 @@ interface SimVars {
   msfsVhf3Powered: number;
   msfsTransponderCode: number;
   msfsCompanyMessageCount: number;
+  msfsFwcFlightPhase: number;
   msfsAtcMessageButtonActive: boolean;
   msfsAtcMessageButtonPressed: number;
 }
@@ -68,6 +69,7 @@ export enum SimVarSources {
   vhf3Powered = 'L:A32NX_ELEC_DC_1_BUS_IS_POWERED',
   transponderCode = 'TRANSPONDER CODE:1',
   companyMessageCount = 'L:A32NX_COMPANY_MSG_COUNT',
+  fwcFlightPhase = 'L:A32NX_FWC_FLIGHT_PHASE',
   atcMessageButtonActive = 'L:A32NX_DCDU_ATC_MSG_WAITING',
   atcMessageButtonPressed = 'L:A32NX_DCDU_ATC_MSG_ACK',
 }
@@ -103,6 +105,7 @@ export class SimVarHandling extends SimVarPublisher<SimVars> {
     ['msfsVhf3Powered', { name: SimVarSources.vhf3Powered, type: SimVarValueType.Number }],
     ['msfsTransponderCode', { name: SimVarSources.transponderCode, type: SimVarValueType.Number }],
     ['msfsCompanyMessageCount', { name: SimVarSources.companyMessageCount, type: SimVarValueType.Number }],
+    ['msfsFwcFlightPhase', { name: SimVarSources.fwcFlightPhase, type: SimVarValueType.Number }],
     ['msfsAtcMessageButtonActive', { name: SimVarSources.atcMessageButtonActive, type: SimVarValueType.Bool }],
     ['msfsAtcMessageButtonPressed', { name: SimVarSources.atcMessageButtonPressed, type: SimVarValueType.Number }],
   ]);
@@ -204,6 +207,9 @@ export class SimVarHandling extends SimVarPublisher<SimVars> {
     this.subscriber
       .on('msfsCompanyMessageCount')
       .handle((count: number) => this.datalinkPublisher.pub('companyMessageCount', count, false, false));
+    this.subscriber
+      .on('msfsFwcFlightPhase')
+      .handle((phase: number) => this.datalinkPublisher.pub('fwcFlightPhase', phase, false, false));
     this.subscriber
       .on('msfsAtcMessageButtonActive')
       .handle((active: boolean) => this.datalinkPublisher.pub('atcMessageButtonActive', active, false, false));
