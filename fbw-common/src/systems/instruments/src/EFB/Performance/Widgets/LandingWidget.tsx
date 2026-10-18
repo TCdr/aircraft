@@ -282,7 +282,9 @@ export const LandingWidget = () => {
       overweightProcedure: inFlight && overweightProcedure,
     };
     const perf = calculator.calculateLandingPerformance(inputs);
-    if (perf.error === LandingPerformanceError.None) {
+    // This page has no display for figures extrapolated beyond the tailwind limit: it keeps stopping there
+    const error = perf.tailwindExtrapolated ? 'MaximumTailwind' : perf.error;
+    if (error === LandingPerformanceError.None) {
       dispatch(setLandingValues({ result: perf }));
       // BTV: the exits of the runway, from the airport database of the OANS
       if (features.btv && selectedRunway !== undefined && isValidIcao(icao)) {
@@ -296,7 +298,7 @@ export const LandingWidget = () => {
       dispatch(setLandingValues({ result: undefined }));
       const formatWeight = (kg: number) => Math.round(weightUnit === 'lb' ? Units.kilogramToPound(kg) : kg).toFixed(0);
       toast.error(
-        subReplacements(t(`Performance.Landing.Calc.Errors.${perf.error}`), {
+        subReplacements(t(`Performance.Landing.Calc.Errors.${error}`), {
           mlw: formatWeight(calculator.mlw),
           mtow: formatWeight(calculator.mtow),
           oew: formatWeight(calculator.oew),
