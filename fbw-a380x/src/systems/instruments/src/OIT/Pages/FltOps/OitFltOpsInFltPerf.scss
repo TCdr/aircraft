@@ -1,0 +1,151 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+@import "../../../MsfsAvionicsCommon/definitions";
+
+// IN-FLT PERF: module selector, CONDITIONS / SPECIFIC DATA / RESULTS panels. The rules on the class names the
+// T.O PERF / LDG PERF / LOADSHEET pages also use are scoped to this page, so that each page keeps its own sizes
+
+.oit-in-flt-perf.oit-perf-page {
+  margin-top: 6px;
+}
+
+.oit-perf-modules {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 6px;
+}
+
+.oit-perf-panels {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+}
+
+.oit-in-flt-perf .oit-perf-left {
+  display: flex;
+  flex-direction: column;
+  width: 590px;
+  margin-right: 10px;
+}
+
+.oit-in-flt-perf .oit-perf-panel {
+  display: flex;
+  flex-direction: column;
+  border: 2px solid $display-light-grey;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+}
+
+.oit-in-flt-perf .oit-perf-panel-title {
+  font-size: 20px;
+  color: $display-white;
+  background-color: $display-grey;
+  padding: 3px 10px;
+  margin-bottom: 6px;
+}
+
+.oit-perf-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 58px;
+  padding: 0 10px;
+}
+
+.oit-perf-line.hidden {
+  display: none;
+}
+
+.oit-perf-line-label {
+  width: 290px;
+  padding-right: 20px;
+  text-align: right;
+  font-size: 22px;
+  color: $display-white;
+}
+
+.oit-in-flt-perf .oit-perf-unit {
+  font-size: 20px;
+  color: $display-cyan;
+  margin-left: 10px;
+}
+
+.oit-perf-status {
+  flex: 1 1 auto;
+  justify-content: center;
+  align-items: center;
+  font-size: 22px;
+  color: $display-white;
+  margin-bottom: 0;
+}
+
+.oit-perf-results {
+  flex: 1 1 auto;
+  margin-bottom: 0;
+}
+
+.oit-perf-results-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.oit-perf-results-content.hidden {
+  display: none;
+}
+
+.oit-perf-results-title {
+  font-size: 24px;
+  color: $display-white;
+  text-align: center;
+  padding: 8px 0 14px 0;
+}
+
+.oit-perf-results-section.hidden {
+  display: none;
+}
+
+.oit-perf-results-subtitle {
+  font-size: 22px;
+  color: $display-white;
+  text-decoration: underline;
+  padding: 6px 10px;
+}
+
+.oit-perf-result-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 50px;
+}
+
+.oit-perf-result-label {
+  width: 330px;
+  padding-left: 120px;
+  font-size: 22px;
+  color: $display-white;
+}
+
+.oit-perf-result-value {
+  font-size: 22px;
+  color: $display-green;
+}
+
+.oit-perf-result-label.bold,
+.oit-perf-result-value.bold {
+  font-weight: bold;
+}
+
+.oit-perf-errors {
+  font-size: 20px;
+  color: $display-white;
+  white-space: pre-line;
+  padding: 0 10px;
+}
+
+.oit-perf-bottom-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 6px;
+}

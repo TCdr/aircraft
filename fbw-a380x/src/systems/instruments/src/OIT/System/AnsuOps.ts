@@ -10,6 +10,7 @@ import { CompanyComDownlinks } from './CompanyComDownlinks';
 import { CompanyComReports } from './CompanyComReports';
 import { OisMessageToolbar } from './OisMessageToolbar';
 import { TechLogbookStore } from './TechLogbookStore';
+import { formatOisDateTime, OIS_MONTHS } from './OisDateTime';
 import { OitPageDrafts } from './OitPageDrafts';
 
 export class AnsuOps extends AircraftNetworkServerUnit {
@@ -195,15 +196,10 @@ export class AnsuOps extends AircraftNetworkServerUnit {
     }
   }
 
-  static months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  static months = OIS_MONTHS;
 
   static formatDateTime(t: number | null): string {
-    if (t === null) {
-      return '------ --:--';
-    }
-
-    const date = new Date(t);
-    return `${String(date.getUTCDate()).padStart(2, '0')}-${AnsuOps.months[date.getUTCMonth()]} ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
+    return formatOisDateTime(t);
   }
 
   reset(): void {
