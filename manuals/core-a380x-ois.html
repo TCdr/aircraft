@@ -1,0 +1,138 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X OIS: NSS AVNCS and FLT OPS applications - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X OIS: NSS AVNCS and FLT OPS applications</h1>
+<div class="subtitle">The A380X Onboard Information System (the OIT screens beside the pilots) gets working menu bars, a message toolbar and task bars, COMPANY COM folders and report forms, REFUEL, the technical LOGBOOK, T.O PERF, LOADSHEET, LDG PERF, LOAD BOX, EXPORT BOX and IN-FLT PERF ATMO, and the NSS DATA TO AVNCS switch is read the right way round</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>The OITs on the lateral side panels (OIT SIDE switch: NSS AVNCS or FLT OPS), laptop keyboard or ACD; the NSS DATA TO AVNCS pb-sw on the overhead NSS panel</span>
+<b>Branch</b><span><code>core/a380x-ois</code>, based on <code>master</code> (FlyByWire master 76db0aef1); independent. It holds the NSS DATA TO AVNCS polarity fix only. The OIS applications (sections 2 to 7) are merged on <code>develop</code> but not on a core branch yet: they build on the IMA/datalink system model (X-OIS page codes) and the OIS exit / AOC fixes, which only the <code>core/fcom-gap-fixes</code> archive holds, and on the COMPANY COM inbox (core/a380x-atccom-datalink), ANSU 2 (core/a380x-elec), the ACD keys (core/a380x-cockpit) and the shared A380 performance calculators (core/efb-performance).</span>
+<b>Status</b><span>All features sim-tested by the user on 2026-10-18 in one combined install (tests T1 NSS AVNCS, T4 REFUEL ZF entry and COMPANY COM forms, T5 LOADSHEET chain / print title / entries kept, T6 LOGBOOK deferral with the polarity fix; T.O PERF and IN-FLT PERF ATMO typing through T5): OK. The REFUEL ZF entry only writes its variables: the fuel system side that reads them is on a separate branch, not merged.</span>
+<b>Pictures</b><span>From the OIT browser harness (the built OIT instrument of the tested tree, 1333 x 1000), 2026-10-18.</span>
+</div>
+<div class="toc"><div>1. NSS DATA TO AVNCS pb-sw read the right way round</div><div>2. Menu bars, message toolbar, switching bar and task bar</div><div>3. COMPANY COM folders, report and request forms</div><div>4. REFUEL</div><div>5. T.O PERF, LOADSHEET and LDG PERF</div><div>6. Technical LOGBOOK</div><div>7. LOAD BOX, EXPORT BOX and IN-FLT PERF ATMO</div></div>
+<h2>1. NSS DATA TO AVNCS pb-sw read the right way round</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Overhead NSS panel, NSS DATA TO AVNCS pb-sw &nbsp;|&nbsp; <b>Status:</b> On core/a380x-ois and develop. Sim-tested 2026-10-18: OK (logbook ground link works with the pb-sw in its normal position).</div>
+<h3>What it is for</h3>
+<p>The pb-sw variable <code>L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE</code> is 1 in its normal (released) position and 0 when pressed in (OFF light). The OIT read it the other way round, so it treated the data link to the avionics as OFF in normal use: one-way, avionics to NSS only. On the aircraft only OFF does that: the AOC can no longer send and the logbook loses its ground link.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No visible change on master alone.</td><td>On master no OIT function is paused by this switch yet; the effect shows with the logbook ground link of the OIS applications.</td><td>None.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Leave the NSS DATA TO AVNCS pb-sw in its normal position; press it (OFF) to cut the data link to the avionics.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>With the OIS applications: NSS DATA TO AVNCS normal, LOGBOOK > UPDATE.</td><td>The synchronisation with the ground completes (no "Synchronization with ground failed").</td></tr><tr><td>2</td><td>Press NSS DATA TO AVNCS (OFF light), LOGBOOK > UPDATE.</td><td>The synchronisation fails: no ground link.</td></tr></table>
+<h2>2. Menu bars, message toolbar, switching bar and task bar</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Top and bottom bars of both OIS domains &nbsp;|&nbsp; <b>Status:</b> On develop (not yet on a core branch: it needs the IMA/datalink model and the OIS exit of the core/fcom-gap-fixes archive). Sim-tested by the user 2026-10-18 in the combined OIS install: OK.</div>
+<h3>What it is for</h3>
+<p>The two OIS domains now have the menu bars the FCOM describes:</p>
+<ul><li><b>FLT OPS</b>: MENU, the active application name in cyan, FUNCTIONS (HOME, PREVIOUS, NEXT, PRINT, STORE, UPDATE, UNDO, REDO, HELP, HIDE / SHOW SWITCHING BAR, CLOSE APPLICATION with their shortcuts; an item is enabled only when the application has that function), the MSG counter, its list and CLEAR. At the bottom the <b>switching bar</b> shows the open applications in opening order, the active one highlighted, with scroll arrows; HIDE SWITCHING BAR (F11) gives the full screen.</li><li><b>NSS AVNCS</b>: NSS AVNCS MENU, MAXIMIZE / MINIMIZE (full screen without the navigation tree), MSG and CLEAR; line 2 HOME, BACK, FORWARD, PRINT (pedestal printer, on the pages that can print), UPDATE, HELP (greyed) and CLOSE (closes the application). At the bottom the <b>task bar</b> shows the open applications (LOGBOOK, COMPANY COM, REFUEL, A380X SYSTEMS) in opening order; a key shows its application where it was left. All applications close at the log-off.</li><li>A company message received posts a notification on both domains; reading the message removes it; selecting it on the NSS AVNCS side opens the message.</li></ul>
+<div class="row"><figure><img src="img/ois/h_avncs_menu.png"><figcaption><b>Figure 1.</b> NSS AVNCS menu page: LOGBOOK, COMPANY COM and REFUEL</figcaption></figure><figure><img src="img/ois/chain_2_functions.png"><figcaption><b>Figure 2.</b> FLT OPS FUNCTIONS list on LOADSHEET: PRINT enabled once a loadsheet is generated, the greyed items have no function there</figcaption></figure></div>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>UPDATE, UNDO, REDO and HELP of FUNCTIONS are greyed.</td><td>They are greyed in the FCOM figures too.</td><td>None.</td></tr><tr><td>HOME goes to the application home page, not to the FLT OPS MENU.</td><td>As the FCOM function list.</td><td>Use MENU > FLT OPS MENU or the OIS MENU key.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Open applications from the menu; switch between them with the switching bar (FLT OPS) or the task bar (NSS AVNCS).</li><li>Use FUNCTIONS (FLT OPS) or the line-2 buttons (NSS AVNCS) for PRINT, CLOSE and full screen.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>NSS AVNCS: open COMPANY COM, then LOGBOOK, then REFUEL.</td><td>The task bar shows COMPANY COM, LOGBOOK, REFUEL in this order, the active one highlighted.</td></tr><tr><td>2</td><td>CLOSE on LOGBOOK.</td><td>LOGBOOK leaves the task bar, the menu page shows.</td></tr><tr><td>3</td><td>FLT OPS: open T.O PERF and LOADSHEET, open FUNCTIONS.</td><td>The switching bar shows both; HIDE SWITCHING BAR hides it, SHOW brings it back.</td></tr></table>
+<h2>3. COMPANY COM folders, report and request forms</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> NSS AVNCS > COMPANY COM &nbsp;|&nbsp; <b>Status:</b> On develop (not yet on a core branch: it needs the IMA/datalink model and the OIS exit of the core/fcom-gap-fixes archive). Sim-tested by the user 2026-10-18 in the combined OIS install: OK.</div>
+<h3>What it is for</h3>
+<p>COMPANY COM opens on its Inbox and counts the unread Inbox messages and the Outbox messages. The Outbox holds what was sent until the network confirms it, then it moves to Sent. The airline forms (INIT Data, Fuel Figures, Refuelling, Loadsheet Acceptance, Departure / Take Off / Gate Delay, Delay Code, ASR, Ramp Service, Diversion, ETA, Flight Summary) are plain forms pre-filled with the flight data the OIT has and sent as a free text to a station (COMPANY without one) over the Hoppie network.</p>
+<figure><img src="img/ois/persist_form_after_return.png" style="width:70%"><figcaption><b>Figure 3.</b> DEPARTURE DELAY form: amber boxes are mandatory, cyan dashes optional; the entries stay while COMPANY COM is open</figcaption></figure>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The forms are a design of ours.</td><td>The AOC is customised by each airline and the FCOM shows no form.</td><td>None.</td></tr><tr><td>NOTAM request stays greyed.</td><td>The datalink has no NOTAM source.</td><td>None.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>COMPANY COM > Pre-flight / In-flight / Post-flight > Requests or Reports > the form.</li><li>Fill the amber boxes, check the pre-filled values, SEND. Follow it in Outbox, then Sent.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Hoppie connected: send a Departure Delay with a station and a new ETD.</td><td>It shows in the Outbox, then in Sent; the station receives the text.</td></tr><tr><td>2</td><td>Leave the form, open the Inbox, come back to the form.</td><td>The entries are still there.</td></tr></table>
+<h2>4. REFUEL</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> NSS AVNCS > REFUEL &nbsp;|&nbsp; <b>Status:</b> On develop (not yet on a core branch: it needs the IMA/datalink model and the OIS exit of the core/fcom-gap-fixes archive). Sim-tested by the user 2026-10-18 in the combined OIS install: OK.</div>
+<h3>What it is for</h3>
+<p>Shows the fuel on board, the preselected fuel quantity (PFQ) and the refuel state, and on the ground sets a new PFQ for the automatic refuel. A ZF data box takes a ZFW / ZFCG of its own for the CG targeting (ZFW 270-373 t, ZFCG 23-48 %, both needed), written to <code>L:A32NX_FUEL_REFUEL_ZFW</code> (kg) and <code>L:A32NX_FUEL_REFUEL_ZFCG</code> (% MAC); FQMS DEFAULT clears it (0).</p>
+<figure><img src="img/ois/item5_refuel_after_set.png" style="width:70%"><figcaption><b>Figure 4.</b> REFUEL after SET of a ZFW 300 t / ZFCG 36.5 % entry</figcaption></figure>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The ZF entry does not change the refuel yet.</td><td>The fuel system side that reads it (FQMS CG targeting with the REFUEL ZF data, FUEL REFUEL DATA / FMS DISAGREE) is on a separate branch, not merged.</td><td>None.</td></tr><tr><td>No entry in flight.</td><td>Design choice: refuel is a ground function.</td><td>None.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>On the ground: NEW PFQ, SET. For the ZF data: ZFW and ZFCG, SET; FQMS DEFAULT to remove them.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>On the ground, NEW PFQ 150000 kg, SET.</td><td>PRESELECTED (PFQ) shows 150000 KG.</td></tr><tr><td>2</td><td>ZFW 300000, ZFCG 36.5, SET; then FQMS DEFAULT.</td><td>REFUEL ENTRY shows 300000 KG / 36.5 %, then nothing.</td></tr></table>
+<h2>5. T.O PERF, LOADSHEET and LDG PERF</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> FLT OPS > MENU > T.O PERF / LOADSHEET / LDG PERF &nbsp;|&nbsp; <b>Status:</b> On develop (not yet on a core branch: it needs the IMA/datalink model and the OIS exit of the core/fcom-gap-fixes archive). Sim-tested by the user 2026-10-18 in the combined OIS install: OK.</div>
+<h3>What it is for</h3>
+<ul><li><b>T.O PERF</b>: CONDITIONS, a runway of the departure airport, COMPUTE: speeds, flaps, FLEX or derate, MTOW(perf), from the shared A380 takeoff calculator (the flyPad's). XCHECK WITH AVNCS compares them with the FMS T.O page, the SD gross weight and the captain's QNH and lists the discrepancies in amber.</li><li><b>LOADSHEET</b> (REDUCED mode): TOW/CG, LW/CG, underload and T.O THS from the ZFW/CG and the fuel; LTS EDITION, GENERATE, PRINT (titled LOADSHEET) and EXPORT to the EXPORT BOX. Its TOW and LW go to T.O PERF and LDG PERF.</li><li><b>LDG PERF</b>: DISPATCH and IN-FLIGHT landing distance, stop margin, MLW(perf), VAPP and go-around data for a runway of the destination.</li><li>The entries and results stay while the application is open.</li></ul>
+<div class="row"><figure><img src="img/ois/toflow_computed.png"><figcaption><b>Figure 5.</b> T.O PERF computed at LFBO RWY 14</figcaption></figure><figure><img src="img/ois/toflow_xcheck.png"><figcaption><b>Figure 6.</b> XCHECK WITH AVNCS with nothing in the FMS: every item in amber</figcaption></figure></div>
+<div class="row"><figure><img src="img/ois/gen_3_after_generate.png"><figcaption><b>Figure 7.</b> LOADSHEET after GENERATE</figcaption></figure><figure><img src="img/ois/ldgflow_computed.png"><figcaption><b>Figure 8.</b> LDG PERF computed</figcaption></figure></div>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Only REDUCED loadsheet entry, single runway computation.</td><td>The DETAILED mode and MULTIPLE RWY are not built.</td><td>Enter the ZFW/CG and fuel as REDUCED.</td></tr><tr><td>Nothing goes to the FMS.</td><td>As on the aircraft: XCHECK only compares.</td><td>Enter the values in the MFD.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>FLT OPS STS: flight number and airports. LOADSHEET: ZFW/CG and fuel, COMPUTE, LTS EDITION, GENERATE.</li><li>T.O PERF: conditions and runway (TOW comes from the loadsheet), COMPUTE, then XCHECK WITH AVNCS.</li><li>LDG PERF: conditions and runway, COMPUTE.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>LOADSHEET: ZFW 300 t / 36.2 %, fuel, COMPUTE, GENERATE, PRINT.</td><td>The loadsheet prints titled LOADSHEET.</td></tr><tr><td>2</td><td>T.O PERF after the loadsheet.</td><td>TOW is the loadsheet TOW (yellow); COMPUTE gives speeds and FLEX.</td></tr><tr><td>3</td><td>Switch to another application and back.</td><td>Entries and results are still there.</td></tr></table>
+<h2>6. Technical LOGBOOK</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> NSS AVNCS > LOGBOOK &nbsp;|&nbsp; <b>Status:</b> On develop (not yet on a core branch: it needs the IMA/datalink model and the OIS exit of the core/fcom-gap-fixes archive). Sim-tested by the user 2026-10-18 in the combined OIS install: OK.</div>
+<h3>What it is for</h3>
+<p>The electronic technical logbook: STATUS (release, open / deferred / temporary / cabin items), LOGBOOK ENTRY (ECAM alerts, cabin items, system & function, cockpit interface, keyword, free text), HISTORY and FLIGHT DATA; PIC ACCEPT with the acceptance report and CLOSE FLIGHT with the closure report; UPDATE / GIVE BACK TO GROUND synchronise with a simulated ground. Design choice: the ground defers some defects by ATA chapter (MEL B/C/D, CDL, OTHER) with an expiry and rectifies the others. The logbook is kept across flights; STATUS, the acceptance report and FLIGHT DATA print with their titles.</p>
+<div class="row"><figure><img src="img/ois/lb_status.png"><figcaption><b>Figure 9.</b> STATUS</figcaption></figure><figure><img src="img/ois/lb_entry.png"><figcaption><b>Figure 10.</b> LOGBOOK ENTRY</figcaption></figure></div>
+<div class="row"><figure><img src="img/ois/lb_after_ground_update.png"><figcaption><b>Figure 11.</b> After UPDATE with the ground</figcaption></figure><figure><img src="img/ois/lb_deferred.png"><figcaption><b>Figure 12.</b> DEFERRED ITEMS: a defect deferred under the MEL with its expiry</figcaption></figure></div>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The ground is simulated.</td><td>There is no maintenance organisation behind the logbook.</td><td>None.</td></tr><tr><td>Some UX gaps: the password field may need a second click, NIL is not clickable, PERSONAL ID is not kept between signatures.</td><td>Known, not fixed yet.</td><td>Click the field again.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Open LOGBOOK, sign in with a personal ID and password.</li><li>Check STATUS and the items, open the flight, PIC ACCEPT. Record defects in LOGBOOK ENTRY; CLOSE FLIGHT at the end; UPDATE to synchronise with the ground.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Record a defect (e.g. COCKPIT INTERFACE), GIVE BACK TO GROUND / UPDATE.</td><td>The defect is deferred (DEFERRED ITEMS with an expiry) or rectified (HISTORY).</td></tr><tr><td>2</td><td>PRINT on STATUS.</td><td>The printer prints LOGBOOK STATUS.</td></tr></table>
+<h2>7. LOAD BOX, EXPORT BOX and IN-FLT PERF ATMO</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> FLT OPS > MENU > LOAD BOX / EXPORT BOX / IN-FLT PERF &nbsp;|&nbsp; <b>Status:</b> On develop (not yet on a core branch: it needs the IMA/datalink model and the OIS exit of the core/fcom-gap-fixes archive). Sim-tested by the user 2026-10-18 in the combined OIS install: OK.</div>
+<h3>What it is for</h3>
+<ul><li><b>LOAD BOX</b>: the flight folder sent from the ground, here your SimBrief OFP of the flyPad, with its loading status per laptop; LOAD loads the ticked items.</li><li><b>EXPORT BOX</b>: items to send to the ground (a loaded flight folder, an exported loadsheet), GND tick and SEND; on the ground the gatelink sends them, else they wait in the outbox.</li><li><b>IN-FLT PERF ATMO</b>: speed conversions (IAS, Mach, TAS, GS), ISA information, true altitude and low altitude temperature corrections. The FCOM describes only ATMO; CLB, CRZ, DES, HLD and PLAN are greyed.</li></ul>
+<div class="row"><figure><img src="img/ois/before_loadbox.png"><figcaption><b>Figure 13.</b> LOAD BOX (no SimBrief OFP loaded in the flyPad)</figcaption></figure><figure><img src="img/ois/chain_3_exportbox.png"><figcaption><b>Figure 14.</b> EXPORT BOX with an exported loadsheet</figcaption></figure></div>
+<figure><img src="img/ois/persist_atmo_after_return.png" style="width:60%"><figcaption><b>Figure 15.</b> IN-FLT PERF ATMO</figcaption></figure>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Every airport has a gatelink.</td><td>Design choice: no airport database of gatelinks.</td><td>None.</td></tr><tr><td>GROSS WGHT of ATMO is not used.</td><td>No ATMO computation needs it; the field is kept for the FCOM layout.</td><td>None.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Load a SimBrief OFP in the flyPad, LOAD BOX > REFRESH LOAD BOX, tick it, LOAD.</li><li>EXPORT BOX: tick GND, SEND (on the ground).</li><li>IN-FLT PERF > ATMO: conditions and specific data, COMPUTE.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>ATMO: SPEED, MACH 0.85, FL350 with the FCOM example conditions, COMPUTE.</td><td>The results match the FCOM example.</td></tr><tr><td>2</td><td>LOADSHEET EXPORT, then EXPORT BOX, tick GND, SEND on the ground.</td><td>Status SENT (GND) with date and time.</td></tr></table>
+</body></html>
