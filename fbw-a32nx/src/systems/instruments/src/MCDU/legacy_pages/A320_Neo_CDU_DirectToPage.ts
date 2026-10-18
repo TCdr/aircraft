@@ -2,35 +2,54 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { CDUFlightPlanPage, Markers } from './A320_Neo_CDU_FlightPlanPage';
-import { Fix } from '@flybywiresim/fbw-sdk';
+import { Fix, MagVar } from '@flybywiresim/fbw-sdk';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { Column, FormatLine, FormatTemplate } from '../legacy/A320_Neo_CDU_Format';
 import { NXFictionalMessages, NXSystemMessages } from '../messages/NXSystemMessages';
 import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
 import { Wait } from '@microsoft/msfs-sdk';
 import { WaypointEntryUtils } from '@fmgc/flightplanning/WaypointEntryUtils';
+import { FmsError } from '@fmgc/FmsError';
+import {
+  defaultRadialInTrueCourse,
+  DirectToFunction,
+  DirectToRadial,
+  parseDirectToRadial,
+} from '../legacy/DirectToRadial';
 
 export class CDUDirectToPage {
-  static ShowPage(mcdu: LegacyFmsPageInterface, directWaypoint?: Fix, wptsListIndex = 0) {
+  /**
+   * @param directWaypoint the DIR TO waypoint, once the DIR TO temporary flight plan exists
+   * @param directToFunction the DIRECT TO / INTERCEPT function of the DIR TO temporary flight plan (DirectToRadial.ts)
+   * @param radial the radial of the RADIAL IN or RADIAL OUT function
+   */
+  static ShowPage(
+    mcdu: LegacyFmsPageInterface,
+    directWaypoint?: Fix,
+    wptsListIndex = 0,
+    directToFunction = DirectToFunction.Direct,
+    radial?: DirectToRadial,
+  ) {
     const plan = mcdu.flightPlanService.active;
 
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.DirectToPage;
     mcdu.returnPageCallback = () => {
-      CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex);
+      CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial);
     };
 
     mcdu.activeSystem = 'FMGC';
 
     mcdu.SelfPtr = setTimeout(() => {
       if (mcdu.page.Current === mcdu.page.DirectToPage) {
-        CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex);
+        CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial);
       }
     }, mcdu.PageTimeout.Medium);
 
     const title = [new Column(17, plan.flightNumber.get() ?? '', Column.small, Column.right)];
 
-    const header = this.renderHeader(directWaypoint);
+    const defaultRadialIn = directWaypoint ? CDUDirectToPage.defaultRadialIn(mcdu, directWaypoint) : null;
+    const header = this.renderHeader(directWaypoint, directToFunction, radial, defaultRadialIn);
 
     const numRows = directWaypoint === undefined ? 5 : 4;
     const firstRowIndex = directWaypoint === undefined ? 1 : 2;
@@ -108,17 +127,32 @@ export class CDUDirectToPage {
     };
 
     if (directWaypoint !== undefined) {
-      mcdu.onLeftInput[1] = (_, scratchpadCallback) => {
-        mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
-        scratchpadCallback();
+      // ABEAM PTS: the flight plan waypoints up to the DIR TO waypoint are replaced by their abeam points
+      mcdu.onLeftInput[1] = (value, scratchpadCallback) => {
+        if (value !== '') {
+          mcdu.setScratchpadMessage(NXSystemMessages.formatError);
+          scratchpadCallback();
+          return;
+        }
+        CDUDirectToPage.applyFunction(mcdu, directWaypoint, wptsListIndex, DirectToFunction.AbeamPoints);
       };
-      mcdu.onRightInput[0] = (_, scratchpadCallback) => {
-        mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
-        scratchpadCallback();
+      // RADIAL IN: the entered radial, or the default radial in when the field is selected without an entry
+      mcdu.onRightInput[0] = (value, scratchpadCallback) => {
+        const radialIn = CDUDirectToPage.radialOf(mcdu, value, defaultRadialIn);
+        if (!radialIn) {
+          scratchpadCallback();
+          return;
+        }
+        CDUDirectToPage.applyFunction(mcdu, directWaypoint, wptsListIndex, DirectToFunction.RadialIn, radialIn);
       };
-      mcdu.onRightInput[1] = (_, scratchpadCallback) => {
-        mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
-        scratchpadCallback();
+      // RADIAL OUT: the entered radial
+      mcdu.onRightInput[1] = (value, scratchpadCallback) => {
+        const radialOut = CDUDirectToPage.radialOf(mcdu, value, null);
+        if (!radialOut) {
+          scratchpadCallback();
+          return;
+        }
+        CDUDirectToPage.applyFunction(mcdu, directWaypoint, wptsListIndex, DirectToFunction.RadialOut, radialOut);
       };
     }
 
@@ -172,14 +206,14 @@ export class CDUDirectToPage {
     if (wptsListIndex < waypointsAndMarkers.length - 5) {
       mcdu.onUp = () => {
         wptsListIndex++;
-        CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex);
+        CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial);
       };
       up = true;
     }
     if (wptsListIndex > 0) {
       mcdu.onDown = () => {
         wptsListIndex--;
-        CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex);
+        CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial);
       };
       down = true;
     }
@@ -187,7 +221,95 @@ export class CDUDirectToPage {
     mcdu.setTemplate([FormatLine(...title), ...header, ...scrollText]);
   }
 
-  private static renderHeader(directToWaypoint?: Fix): string[][] {
+  /**
+   * Rebuilds the DIR TO temporary flight plan with another DIRECT TO / INTERCEPT function
+   */
+  private static applyFunction(
+    mcdu: LegacyFmsPageInterface,
+    directWaypoint: Fix,
+    wptsListIndex: number,
+    directToFunction: DirectToFunction,
+    radial?: DirectToRadial,
+  ) {
+    const interceptCourse =
+      radial && (directToFunction === DirectToFunction.RadialIn || directToFunction === DirectToFunction.RadialOut)
+        ? { course: radial.course, isTrue: radial.isTrue, inbound: directToFunction === DirectToFunction.RadialIn }
+        : undefined;
+
+    mcdu.eraseTemporaryFlightPlan(() => {
+      mcdu
+        .directToWaypoint(directWaypoint, directToFunction === DirectToFunction.AbeamPoints, interceptCourse)
+        .then(() => {
+          CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial);
+        })
+        .catch((err) => {
+          mcdu.logTroubleshootingError(err);
+          mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
+          console.error(err);
+        });
+    });
+  }
+
+  /**
+   * The radial of a RADIAL IN / RADIAL OUT entry, or the default radial when the field is selected without an entry
+   * @returns the radial, or null after showing the scratchpad message of a wrong entry
+   */
+  private static radialOf(
+    mcdu: LegacyFmsPageInterface,
+    value: string,
+    defaultRadial: DirectToRadial | null,
+  ): DirectToRadial | null {
+    if (value === '') {
+      if (defaultRadial === null) {
+        mcdu.setScratchpadMessage(NXSystemMessages.formatError);
+      }
+      return defaultRadial;
+    }
+    try {
+      return parseDirectToRadial(value);
+    } catch (e) {
+      if (e instanceof FmsError) {
+        mcdu.showFmsErrorMessage(e.type);
+        return null;
+      }
+      throw e;
+    }
+  }
+
+  /** The default RADIAL IN (magnetic) when the DIR TO waypoint is a waypoint of the active flight plan */
+  private static defaultRadialIn(mcdu: LegacyFmsPageInterface, directWaypoint: Fix): DirectToRadial | null {
+    const plan = mcdu.flightPlanService.active;
+    const targetIndex = plan.allLegs.findIndex(
+      (it, index) =>
+        index >= plan.activeLegIndex && it.isDiscontinuity === false && it.terminatesWithWaypoint(directWaypoint),
+    );
+    if (targetIndex < 0) {
+      return null;
+    }
+    const trueCourse = defaultRadialInTrueCourse(plan.allLegs, targetIndex);
+    if (trueCourse === null) {
+      return null;
+    }
+    const magVar = MagVar.getForFix(directWaypoint);
+    return magVar === null
+      ? { course: Math.round(trueCourse) % 360, isTrue: true }
+      : { course: Math.round(MagVar.trueToMagnetic(trueCourse, magVar)) % 360, isTrue: false };
+  }
+
+  private static formatRadial(radial: DirectToRadial): string {
+    return `${radial.course.toFixed(0).padStart(3, '0')}${radial.isTrue ? 'T' : ''}°`;
+  }
+
+  /**
+   * The DIR TO waypoint and the DIRECT TO / INTERCEPT functions: the selected function in yellow (it is part of the
+   * DIR TO temporary flight plan), the others selectable in cyan, the default radial in in small font.
+   */
+  private static renderHeader(
+    directToWaypoint: Fix | undefined,
+    directToFunction: DirectToFunction,
+    radial: DirectToRadial | undefined,
+    defaultRadialIn: DirectToRadial | null,
+  ): string[][] {
     if (!directToWaypoint) {
       return FormatTemplate([
         [new Column(1, 'DIR TO', Column.small)],
@@ -195,11 +317,32 @@ export class CDUDirectToPage {
       ]);
     }
 
+    let radialInCell = new Column(21, '[ ]°', Column.right, Column.cyan);
+    if (directToFunction === DirectToFunction.RadialIn && radial) {
+      radialInCell = new Column(21, CDUDirectToPage.formatRadial(radial), Column.right, Column.yellow);
+    } else if (defaultRadialIn) {
+      radialInCell = new Column(
+        21,
+        CDUDirectToPage.formatRadial(defaultRadialIn),
+        Column.right,
+        Column.cyan,
+        Column.small,
+      );
+    }
+    const radialOutCell =
+      directToFunction === DirectToFunction.RadialOut && radial
+        ? new Column(21, CDUDirectToPage.formatRadial(radial), Column.right, Column.yellow)
+        : new Column(21, '[ ]°', Column.right, Column.cyan);
+    const abeamCell =
+      directToFunction === DirectToFunction.AbeamPoints
+        ? new Column(1, 'ABEAM PTS', Column.yellow)
+        : new Column(0, '*ABEAM PTS', Column.cyan);
+
     return FormatTemplate([
       [new Column(1, 'DIR TO', Column.small), new Column(13, 'RADIAL IN', Column.small)],
-      [new Column(0, `*${directToWaypoint.ident}`, Column.cyan), new Column(21, '[ ]°', Column.right, Column.inop)],
+      [new Column(0, `*${directToWaypoint.ident}`, Column.cyan), radialInCell],
       [new Column(1, 'WITH', Column.small), new Column(13, 'RADIAL OUT', Column.small)],
-      [new Column(0, `*ABEAM PTS`, Column.inop), new Column(21, '[ ]°', Column.right, Column.inop)],
+      [abeamCell, radialOutCell],
     ]);
   }
 }

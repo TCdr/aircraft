@@ -30,6 +30,7 @@ export enum TakeoffPowerSetting {
   DERATED = 2,
 }
 
+/** The derated takeoff levels, as the index of the MFD list */
 export enum TakeoffDerated {
   D01 = 0,
   D02 = 1,
@@ -66,12 +67,44 @@ export enum ClimbDerated {
 export const LOWEST_FUEL_ESTIMATE_KGS = Units.poundToKilogram(A380AircraftConfig.vnavConfig.LOWEST_FUEL_ESTIMATE);
 
 /**
+ * Holding fuel flow of the FINAL fuel default, in tonnes per minute (30 min = 6 t). The aircraft leaves the FINAL
+ * default to the company fuel policy; the EXTRA time is the EXTRA fuel at the same flow.
+ */
+export const FINAL_HOLDING_FUEL_FLOW_T_PER_MIN = 0.2;
+
+/**
  * Temporary place for data which is found nowhere else. Not associated to flight plans right now, which should be the case for some of these values
  */
 export class FmgcData {
   static fmcFormatValue(sub: Subscribable<number | null>, numberDashes = 3) {
     return sub.map((it) => (it !== null ? it.toFixed(0) : '-'.repeat(numberDashes)));
   }
+
+  /** The subject of a flight plan in a map, created (null) on first use */
+  private static subjectOfPlan<T>(
+    map: Map<FlightPlanIndex, Subject<T | null>>,
+    planIndex: FlightPlanIndex,
+  ): Subject<T | null> {
+    let subject = map.get(planIndex);
+    if (!subject) {
+      subject = Subject.create<T | null>(null);
+      map.set(planIndex, subject);
+    }
+    return subject;
+  }
+
+  private readonly companyRouteIdents = new Map<FlightPlanIndex, Subject<string | null>>();
+
+  /** The ident of the company route inserted into a flight plan, null when none (INIT page CPNY RTE field). */
+  public companyRouteIdent(planIndex: FlightPlanIndex): Subject<string | null> {
+    return FmgcData.subjectOfPlan(this.companyRouteIdents, planIndex);
+  }
+
+  /**
+   * FUEL PLANNING: the trial BLOCK fuel (tonnes) that the predictions of the active flight plan use as fuel on board
+   * while no BLOCK is entered (FlightManagementComputer.updateFuelPlanning).
+   */
+  public readonly fuelPlanningTrialBlockFuel = Subject.create<number | null>(null);
 
   public readonly flightPhase = Subject.create(FmgcFlightPhase.Preflight);
 
@@ -249,7 +282,9 @@ export class FmgcDataService implements Fmgc {
       const fqmsFob = this.fqmsFob.get().valueOr(null);
       fob = fqmsFob !== null ? fqmsFob / 1000 : null;
     } else {
-      fob = this.flightPlanService.get(forPlan).performanceData.blockFuel.get();
+      fob =
+        this.flightPlanService.get(forPlan).performanceData.blockFuel.get() ??
+        (forPlan === FlightPlanIndex.Active ? this.data.fuelPlanningTrialBlockFuel.get() : null);
     }
     return fob;
   }
@@ -457,7 +492,13 @@ export class FmgcDataService implements Fmgc {
     if (forPlan === FlightPlanIndex.Active) {
       const efob = this.guidanceController?.vnavDriver?.getDestinationPrediction()?.estimatedFuelOnBoard; // in Pounds
       if (useFob && efob !== undefined) {
-        return Units.poundToKilogram(efob) / 1000.0;
+        // Before takeoff the predictions start from the FOB (BLOCK), which still holds the TAXI fuel: the fuel after
+        // landing is BLOCK - TAXI - TRIP (the FUEL&LOAD EXTRA and LW deduct the TAXI)
+        const taxiFuel =
+          this.getFlightPhase() < FmgcFlightPhase.Takeoff
+            ? this.flightPlanService.get(forPlan).performanceData.taxiFuel.get() ?? 0
+            : 0;
+        return Units.poundToKilogram(efob) / 1000.0 - taxiFuel;
       }
     }
     return null;

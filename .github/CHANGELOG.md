@@ -108,11 +108,45 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] Make flightdeck lighting panel-state and time-of-day aware. Adjust existing values. @CameronCarlyon (YouBaconMeCrazy)
 1. [FMS] Limit step descent guidance to -1000fpm - @Jonny23787 (Jonathan), @BlueberryKing (BlueberryKing)
 1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
+1. [A380X/MFD] Make the SURV CONTROLS page (WXR, TCAS), the STATUS & SWITCHING WXR and XPDR/TCAS selection and the pedestal SURV panel buttons work - @TCdr
+1. [A380X/FWS] Sense the WXR & TAWS and XPDR & TCAS lines of the ECAM procedures and add the CABIN CREW line to the ECAM LINE-UP checklist - @TCdr
+1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
+1. [A380X/FMS] 50 pilot-stored waypoints: the oldest one not used in a flight plan is replaced, 50 WPTS MAX : ALL IN USE when all are used - @TCdr
+1. [A380X/MFD] Add the ATC COM pages (connect, ATIS, message record, request, report, emergency) and the SD mailbox per the A380 FCOM - @TCdr
+1. [ATSU] Show SEND FAILED on a message sent without an active ATC center, instead of nothing - @TCdr
+1. [A380X/FMS] Fix datalink not connected with the flight number entered on the INIT page (ATC logon and messages failing), FMS DATALINK NOT AVAIL message - @TCdr
+1. [ATSU] ACARS provider (Hoppie, BeyondATC, SayIntentions) found again when started late or restarted, and connected even when the TELEX connection fails; the provider setting is no longer reset after 5 minutes - @TCdr
+1. [A380X/ATC] LOAD-SEC3 button of the ATC mailbox: a route clearance or a crossing constraint (altitude, speed, time) received by CPDLC is loaded in SEC 3, with the rejected elements on the REJECTED ATC INFO page - @TCdr
+1. [A380X/MFD] Print the FMS pages on the pedestal printer paper, torn-off sheets on the pedestal or the CPT pull-out table - @TCdr
+1. [A380X/ATCCOM] Print from the SD ATC mailbox and from the MFD ATC COM MSG RECORD pages - @TCdr
+1. [A380X/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit - @TCdr
+1. [A32NX/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit; no torn paper edge left in the slit between printouts - @TCdr
+1. [A380X/MODEL] No torn paper edge left in the pedestal printer slit between printouts - @TCdr
+1. [A380X/PRINTER] The pedestal printer control panel buttons are clickable: ON/OFF (green when on and AC 1 powered; switched off, the FMS and ATC COM prints show PRINTER NOT AVAIL), SLEW feeds paper, TEST prints a test page, ABORT cancels the waiting printouts - @TCdr
 1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
 1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
+1. [A380X/MFD] The default alternate cruise level now follows the aircraft rules (FL 220 below 200 NM, FL 310 from 200 NM) instead of the A320 rule - @TCdr
+1. [A380X/MFD] The WIND page CRZ tab now has a working SAT entry at the cruise flight level - @TCdr
+1. [A380X/MFD] The history winds of the WIND page now show the CRZ FL and FL 250, 150 and 050 as on the aircraft, and the stored history winds are kept when the storage key changes - @TCdr
+1. [A380X/MFD] Company wind messages use the aircraft wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
+1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
+1. [A32NX/TCAS] TRAFFIC selector on THRT: the proximate and other intruders within 2700 ft above and below are now shown on the ND while a TA or RA is present, as on the aircraft (before only the TA/RA intruders were shown) - @TCdr
+1. [ND] TCAS: CHANGE MODE (ND in PLAN) and TCAS: REDUCE RANGE (ND range above 40 NM) are shown while a TA (amber) or an RA (red) cannot be seen on the ND; on the A380X also TCAS: INCREASE RANGE in ROSE-VOR/ROSE-LS with the ZOOM range in flight - @TCdr
+1. [A380X/SURV] Pressing the lit WXR/TAWS SYS 1 or SYS 2 pb (SURV panel or MFD SURV STATUS & SWITCHING) keeps that system selected instead of selecting none, which failed TERR and GPWS - @TCdr
+1. [A380X/TCAS] The EFIS CP TRAF pb now shows all the traffic on the ND (it was ignored), and a TCAS TA or RA selects it automatically - @TCdr
+1. [A32NX/MCDU] PLACE/DIST waypoints (for example LMG/-15) can be entered on the F-PLN page and as LAT REV NEXT WPT: the PDnn waypoint goes on the flight plan path at that distance after (or before, negative distance) the flight plan waypoint, without a discontinuity - @TCdr
+1. [A380X/MFD] INSERT NEXT WPT accepts PLACE/DIST waypoints of the revised waypoint (PLACE / WPT DISAGREE for another place, ENTRY OUT OF RANGE beyond the neighbouring waypoint) - @TCdr
+1. [A32NX/MCDU] HOLD from the LAT REV at PPOS (the FROM waypoint) creates a hold at the present position on the aircraft track, instead of a hold at the waypoint behind the aircraft - @TCdr
+1. [A380X/MFD] The HOLD revision of the FROM waypoint creates a hold at P.POS on the aircraft track, as on the aircraft (it was greyed out) - @TCdr
+1. [A32NX/MCDU] DIR TO page: ABEAM PTS, RADIAL IN (with the default inbound radial of a flight plan waypoint) and RADIAL OUT now build the DIR TO temporary flight plan instead of NOT YET IMPLEMENTED - @TCdr
+1. [A32NX/MCDU] The PROG page OPT FL is the best specific range level for the gross weight (long range cruise table), never above REC MAX, instead of the REC MAX rounded down - @TCdr
+1. [A380X/MFD] PERF page CLB and DES tabs show the time and distance to the PRED TO altitude instead of dashes - @TCdr
+1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan - @TCdr
+1. [A380X/OIT] The COMPANY COM inbox lists the company messages received by the AOC instead of two test messages; displaying a message marks it read, and the COMPANY MSG memo goes once every message is read - @TCdr
+1. [A380X/MFD] System Message Area in the MFD header: CHECK FMS MESSAGE, NEW ATIS RECEIVED and ATIS SYS MSG while another application is shown - @TCdr
 
 ## 2024.1.0
 

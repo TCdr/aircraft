@@ -2,7 +2,7 @@
 import { UplinkedWindEntry, UplinkedWindLevel, WindUplinkMessage } from '@datalink/common';
 import { FlightPlan } from './FlightPlan';
 import { MathUtils } from '@flybywiresim/fbw-sdk';
-import { FlightPlanWindEntry, WindVector } from '../data/wind';
+import { FlightPlanWindEntry, FlightPlanWindEntryFlags, WindVector } from '../data/wind';
 import { PendingCruiseWind } from './PendingWindUplink';
 import { FmgcFlightPhase } from '../../../../shared/src/flightphase';
 import { FpmConfig } from '../FpmConfig';
@@ -107,7 +107,7 @@ export class PendingWindUplinkParser {
               const pendingEntry = {
                 altitude: uplinkedEntry.flightLevel * 100,
                 vector: this.createVecFromDeg(windAtFix),
-                flags: 0,
+                flags: FlightPlanWindEntryFlags.EnteredAsFlightLevel,
               };
 
               const existingFixWinds = acc.find(
@@ -207,7 +207,7 @@ export class PendingWindUplinkParser {
     return {
       vector: this.createVecFromDeg(wind),
       altitude: wind.flightLevel * 100,
-      flags: 0,
+      flags: FlightPlanWindEntryFlags.EnteredAsFlightLevel,
     };
   }
 

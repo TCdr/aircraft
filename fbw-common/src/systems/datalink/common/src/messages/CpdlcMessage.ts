@@ -185,7 +185,7 @@ export class CpdlcMessage extends AtsuMessage {
         message += this.Response.serialize(format);
       }
     } else if (format === AtsuMessageSerializationFormat.Printer) {
-      message += `${this.Timestamp.mailboxTimestamp()} ${this.Direction === AtsuMessageDirection.Uplink ? 'FROM' : 'TO'} ${this.Station}}\n`;
+      message += `${this.Timestamp.mailboxTimestamp()} ${this.Direction === AtsuMessageDirection.Uplink ? 'FROM' : 'TO'} ${this.Station}\n`;
 
       lines.forEach((line) => {
         line = line.replace(/@/gi, '');

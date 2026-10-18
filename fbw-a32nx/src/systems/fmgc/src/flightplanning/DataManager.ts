@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -16,6 +16,8 @@ export enum PilotWaypointType {
   Pbd = 1,
   Pbx = 2,
   LatLon = 3,
+  /** PLACE/DIST: a distance from a flight plan waypoint, along the flight plan */
+  Pd = 4,
 }
 
 type SerializedWaypoint = {
@@ -29,6 +31,8 @@ type SerializedWaypoint = {
   pbdPlace?: Fix;
   pbdBearing?: DegreesMagnetic;
   pbdDistance?: NauticalMiles;
+  pdPlace?: Fix;
+  pdDistance?: NauticalMiles;
 };
 
 type LatLonWaypoint = {
@@ -56,7 +60,16 @@ type PbdWaypoint = {
   pbdDistance: NauticalMiles;
 };
 
-export type PilotWaypoint = LatLonWaypoint | PbxWaypoint | PbdWaypoint;
+type PdWaypoint = {
+  type: PilotWaypointType.Pd;
+  storedIndex: number;
+  waypoint: Waypoint;
+  pdPlace: Fix;
+  /** Signed distance along the flight plan, NM: negative before the place */
+  pdDistance: NauticalMiles;
+};
+
+export type PilotWaypoint = LatLonWaypoint | PbxWaypoint | PbdWaypoint | PdWaypoint;
 
 export enum LatLonFormatType {
   UserSetting = 'user-setting',
@@ -67,6 +80,19 @@ export enum LatLonFormatType {
 export interface DataManagerOptions {
   /** The format to use for lat/lon waypoint idents. Defaults to {@link LatLonFormatType.UserSetting}. */
   latLonFormat: LatLonFormatType;
+  /**
+   * The size of the pilot-stored waypoints database and the rule when it is full: the first created waypoint that is not
+   * used by the flight plans is deleted, and the creation is rejected only when all of them are used (A380: 50
+   * waypoints). Without it: 99 waypoints, and the creation is rejected when they are all stored (LIST OF 99 IN USE).
+   */
+  storedWaypointLimit: StoredWaypointLimit;
+}
+
+export interface StoredWaypointLimit {
+  /** The number of pilot-stored waypoints */
+  max: number;
+  /** Whether a waypoint is used by a flight plan, and cannot be deleted */
+  inUse: (waypoint: Waypoint) => boolean;
 }
 
 export interface DataManagerSyncEvents {
@@ -85,6 +111,9 @@ export class DataManager {
 
   private storedWaypoints: PilotWaypoint[] = [];
 
+  /** The indexes of the stored waypoints, the first created first */
+  private creationOrder: number[] = [];
+
   private latLonExtendedFormat = false;
 
   constructor(
@@ -100,6 +129,8 @@ export class DataManager {
       this.storedWaypoints = JSON.parse(stored).map((wp: SerializedWaypoint, index: number) =>
         wp ? this.deserializeWaypoint(wp, index) : undefined,
       );
+      // The creation order is not stored: the index order
+      this.creationOrder = this.storedWaypoints.map((wp, index) => (wp ? index : -1)).filter((index) => index >= 0);
     }
 
     switch (this.options?.latLonFormat) {
@@ -194,18 +225,50 @@ export class DataManager {
           pbdBearing: wp.pbdBearing,
           pbdDistance: wp.pbdDistance,
         };
+      case PilotWaypointType.Pd:
+        if (wp.pdPlace === undefined || wp.pdDistance === undefined) {
+          throw new Error('[DataManager](deserializeWaypoint) Serialized PD waypoint did not have required data');
+        }
+
+        return {
+          type: PilotWaypointType.Pd,
+          storedIndex,
+          waypoint: WaypointFactory.fromLocation(ident, coordinates),
+          pdPlace: wp.pdPlace,
+          pdDistance: wp.pdDistance,
+        };
     }
   }
 
   private generateStoredWaypointIndex() {
-    for (let i = 0; i < 99; i++) {
+    const limit = this.options?.storedWaypointLimit;
+    const max = limit?.max ?? 99;
+    for (let i = 0; i < max; i++) {
       if (!this.storedWaypoints[i]) {
         return i;
       }
     }
 
-    // TODO, delete oldest unused waypoint, only error if 99 in use
+    // The database is full: the first created waypoint that is not used by a flight plan makes room
+    if (limit) {
+      const oldest = this.creationOrder.find(
+        (index) => index < max && this.storedWaypoints[index] && !limit.inUse(this.storedWaypoints[index].waypoint),
+      );
+      if (oldest !== undefined) {
+        this.removeStoredWaypoint(oldest);
+        return oldest;
+      }
+    }
+
     throw new FmsError(FmsErrorType.ListOf99InUse);
+  }
+
+  /** Deletes a stored waypoint that no flight plan uses */
+  private removeStoredWaypoint(index: number): void {
+    delete this.storedWaypoints[index];
+    this.creationOrder = this.creationOrder.filter((i) => i !== index);
+    this.updateLocalStorage();
+    this.bus.getPublisher<DataManagerSyncEvents>().pub('delete_stored_waypoint', index, true);
   }
 
   private updateLocalStorage() {
@@ -217,6 +280,8 @@ export class DataManager {
 
   public storeWaypoint(wp: PilotWaypoint, index: number, updateStorage = true, notify = true) {
     this.storedWaypoints[index] = wp;
+    this.creationOrder = this.creationOrder.filter((i) => i !== index);
+    this.creationOrder.push(index);
 
     if (updateStorage) {
       this.updateLocalStorage();
@@ -241,6 +306,7 @@ export class DataManager {
     }
 
     delete this.storedWaypoints[index];
+    this.creationOrder = this.creationOrder.filter((i) => i !== index);
 
     if (updateStorage) {
       this.updateLocalStorage();
@@ -449,6 +515,42 @@ export class DataManager {
       pbdPlace: origin,
       pbdBearing: magneticBearing,
       pbdDistance: distance,
+    };
+
+    if (stored) {
+      this.storeWaypoint(waypoint, index);
+    }
+
+    return waypoint;
+  }
+
+  /**
+   * Creates a PLACE/DIST waypoint, named PDnn
+   * @param place the place waypoint of the flight plan
+   * @param distance the signed distance along the flight plan, NM (negative: before the place)
+   * @param coordinates the position of the waypoint on the flight plan (see placeDistancePosition)
+   * @param stored whether the waypoint is stored
+   * @param ident the ident of the waypoint, if undefined it is generated
+   */
+  public createPlaceDistWaypoint(
+    place: Fix,
+    distance: NauticalMiles,
+    coordinates: Coordinates,
+    stored = false,
+    ident?: string,
+  ): PdWaypoint {
+    const index = stored ? this.generateStoredWaypointIndex() : -1;
+
+    if (ident === undefined) {
+      ident = `PD${(index + 1).toFixed(0).padStart(2, '0')}`;
+    }
+
+    const waypoint: PdWaypoint = {
+      type: PilotWaypointType.Pd,
+      storedIndex: index,
+      waypoint: WaypointFactory.fromLocation(ident, coordinates),
+      pdPlace: place,
+      pdDistance: distance,
     };
 
     if (stored) {

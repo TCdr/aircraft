@@ -92,6 +92,12 @@ class MfdInstrument implements FsInstrument {
       this.fmcBFailed,
       this.fmcCFailed,
     );
+    // The ATIS messages are printed on the FMS printer (the cockpit printer on the pedestal); switched off or without
+    // AC 1 power it is not available (PRINTER NOT AVAIL)
+    this.atcService.connectPrinter(() => {
+      const printer = this.fmcService.master?.printer ?? null;
+      return printer?.isAvailable() ? printer : null;
+    });
 
     this.doInit();
   }

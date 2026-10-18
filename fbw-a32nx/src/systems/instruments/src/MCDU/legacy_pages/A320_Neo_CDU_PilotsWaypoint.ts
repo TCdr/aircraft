@@ -57,6 +57,12 @@ export class CDUPilotsWaypoint {
           template[7][0] = 'PLACE-BRG\xa0\xa0/PLACE-BRG';
           template[8][0] = `{green}${storedWp.pbxPlace1.ident.substr(0, 5).padStart(5, '\xa0')}-${CDUPilotsWaypoint.formatBearing(storedWp.pbxBearing1)}\xa0/${storedWp.pbxPlace2.ident.substr(0, 5).padStart(5, '\xa0')}-${CDUPilotsWaypoint.formatBearing(storedWp.pbxBearing2)}{end}`;
           break;
+        case PilotWaypointType.Pd:
+          // [3L] PLACE/DIST, as the waypoint was defined
+          template[4][0] = `{green}{small}${CDUPilotsWaypoint.formatLatLong(storedWp.waypoint.location)}{end}{end}`;
+          template[5][0] = 'PLACE\xa0\xa0/DIST';
+          template[6][0] = `{green}${storedWp.pdPlace.ident.padEnd(7, '\xa0')}/${storedWp.pdDistance < 0 ? '-' : ''}${Math.abs(storedWp.pdDistance).toFixed(1)}{end}`;
+          break;
         default:
       }
     }

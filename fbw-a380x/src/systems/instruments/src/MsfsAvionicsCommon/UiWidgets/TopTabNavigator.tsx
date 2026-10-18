@@ -18,6 +18,7 @@ interface TopTabElementProps extends ComponentProps {
   selectedTextColor: string;
   isHighlighted: boolean;
   height: number; // height of tab bar element
+  fontSize?: number; // in pixels, overrides the size derived from the height
   slantedEdgeAngle: number; // in degrees
   smallFont: boolean;
   onClick: () => void;
@@ -83,7 +84,7 @@ class TopTabElement extends DisplayComponent<TopTabElementProps> {
           ref={this.textRef}
           class={`mfd-top-tab-navigator-bar-element-label${this.props.isSelected ? ' active' : ''}`}
           // eslint-disable-next-line max-len
-          style={`font-size: ${this.props.smallFont ? Math.round(this.props.height * 0.58) : Math.round(this.props.height * 0.66)}px;`}
+          style={`font-size: ${this.props.fontSize ?? (this.props.smallFont ? Math.round(this.props.height * 0.58) : Math.round(this.props.height * 0.66))}px;`}
         >
           {this.props.title}
         </span>
@@ -153,6 +154,8 @@ interface TopTabNavigatorProps {
   tabBarHeight?: number;
   /** in degrees, vertical line equals 0° */
   tabBarSlantedEdgeAngle?: number;
+  /** in pixels, font size of the tab titles (default derived from the tab bar height) */
+  tabFontSize?: number;
   /** in pixels */
   additionalRightSpace?: number;
   /** Index of tab to be highlighted with green text color instead of white (e.g. used for PERF page) */
@@ -231,6 +234,7 @@ export class TopTabNavigator extends DisplayComponent<TopTabNavigatorProps> {
             onClick={() => this.onPageChange(index)}
             isHighlighted={this.props.highlightedTab ? this.props.highlightedTab?.get() === index : false}
             smallFont={this.pageTitles.get().filter((title) => title.length > 0).length > 2}
+            fontSize={this.props.tabFontSize}
           />,
           this.navigatorBarRef.instance,
         );
@@ -289,6 +293,7 @@ export class TopTabNavigator extends DisplayComponent<TopTabNavigatorProps> {
                     onClick={() => this.onPageChange(index)}
                     isHighlighted={false}
                     smallFont={this.pageTitles.get().filter((title) => title.length > 0).length > 2}
+                    fontSize={this.props.tabFontSize}
                   />
                 ),
             )}

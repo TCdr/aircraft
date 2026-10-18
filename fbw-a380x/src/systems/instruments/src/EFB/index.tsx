@@ -50,6 +50,7 @@ render(
           autoStepClimb: true,
           pilotAvatars: false,
           eclSoftKeys: true,
+          keepPilotStoredElements: true,
         },
         sim: {
           cones: false,

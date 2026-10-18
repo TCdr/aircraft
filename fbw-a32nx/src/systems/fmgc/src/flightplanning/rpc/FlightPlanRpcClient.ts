@@ -27,7 +27,8 @@ import { FlightPlan } from '../plans/FlightPlan';
 import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { FlightPlanBatch } from '@fmgc/flightplanning/plans/FlightPlanBatch';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
-import { PropagatedWindEntry, WindEntry, WindVector } from '../data/wind';
+import { HistoryWindEntry, PropagatedWindEntry, WindEntry, WindVector } from '../data/wind';
+import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
 
 export type FunctionsOnlyAndUnwrapPromises<T> = {
   [k in keyof T as T[k] extends (...args: any) => Promise<any> ? k : never]: T[k] extends (
@@ -351,6 +352,23 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     return this.callFunctionViaRpc('nextWaypoint', atIndex, waypoint, planIndex, alternate);
   }
 
+  insertPlaceDistanceWaypoint(
+    placeLegIndex: number,
+    waypoint: Fix,
+    distance: number,
+    planIndex?: number,
+    alternate?: boolean,
+  ): Promise<void> {
+    return this.callFunctionViaRpc(
+      'insertPlaceDistanceWaypoint',
+      placeLegIndex,
+      waypoint,
+      distance,
+      planIndex,
+      alternate,
+    );
+  }
+
   newDest(atIndex: number, airportIdent: string, planIndex?: number, alternate?: boolean): Promise<void> {
     return this.callFunctionViaRpc('newDest', atIndex, airportIdent, planIndex, alternate);
   }
@@ -377,8 +395,17 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     targetLegIndex: number,
     withAbeam: boolean,
     planIndex: number,
+    interceptCourse?: DirectToInterceptCourse,
   ): Promise<void> {
-    return this.callFunctionViaRpc('directToLeg', ppos, trueTrack, targetLegIndex, withAbeam, planIndex);
+    return this.callFunctionViaRpc(
+      'directToLeg',
+      ppos,
+      trueTrack,
+      targetLegIndex,
+      withAbeam,
+      planIndex,
+      interceptCourse,
+    );
   }
 
   directToWaypoint(
@@ -387,8 +414,17 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     waypoint: Fix,
     withAbeam: boolean,
     planIndex: number,
+    interceptCourse?: DirectToInterceptCourse,
   ): Promise<void> {
-    return this.callFunctionViaRpc('directToWaypoint', ppos, trueTrack, waypoint, withAbeam, planIndex);
+    return this.callFunctionViaRpc(
+      'directToWaypoint',
+      ppos,
+      trueTrack,
+      waypoint,
+      withAbeam,
+      planIndex,
+      interceptCourse,
+    );
   }
 
   addOrEditManualHold(
@@ -404,10 +440,19 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
       at,
       desiredHold,
       modifiedHold,
-      desiredHold,
+      defaultHold,
       planIndex,
       alternate,
     );
+  }
+
+  holdAtPresentPosition(
+    ppos: Coordinates,
+    trueTrack: Degrees,
+    desiredHold: HoldData,
+    defaultHold: HoldData,
+  ): Promise<number> {
+    return this.callFunctionViaRpc('holdAtPresentPosition', ppos, trueTrack, desiredHold, defaultHold);
   }
 
   revertHoldToComputed(at: number, planIndex: number, alternate: boolean): Promise<void> {
@@ -606,10 +651,10 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
 
   /** @inheritdoc */
   public tryEraseEngineOutSid(): Promise<boolean> {
-    return this.callFunctionViaRpc('tryActivateEngineOutSid');
+    return this.callFunctionViaRpc('tryEraseEngineOutSid');
   }
 
-  getHistoryWindsEntries(sortByAltitudeAscending?: boolean): Promise<Readonly<WindEntry>[]> {
+  getHistoryWindsEntries(sortByAltitudeAscending?: boolean): Promise<Readonly<HistoryWindEntry>[]> {
     return this.callFunctionViaRpc('getHistoryWindsEntries', sortByAltitudeAscending);
   }
   insertHistoryWinds(): Promise<boolean> {

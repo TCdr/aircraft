@@ -1,0 +1,29 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// Positions measured on the reference figure of the page, in page container coordinates
+.mfd-llxing-origin-box {
+  position: absolute;
+  top: 72px;
+  left: 310px;
+  width: 304px;
+  height: 112px;
+  border: 2px solid $display-light-grey;
+  box-sizing: border-box;
+}
+
+.mfd-llxing-checkbox {
+  width: 26px;
+  height: 26px;
+  border: 1px solid $display-light-grey;
+  box-sizing: border-box;
+  cursor: pointer;
+
+  &.checked {
+    background-color: $display-cyan;
+  }
+}
+
+// LAT / LONG options in small font
+.mfd-llxing-radio .mfd-radio-button {
+  font-size: 22.5px;
+}

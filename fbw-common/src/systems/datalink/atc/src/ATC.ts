@@ -703,6 +703,11 @@ export class Atc {
 
     if (message.Station === '') {
       if (this.currentAtc === '') {
+        // No active ATC center: the downlink cannot be transmitted, so the mailbox shows SEND FAILED as for a
+        // transmission failure
+        if ((message as CpdlcMessage).MailboxRelevantMessage) {
+          this.mailboxBus.updateMessageStatus(message.UniqueMessageID, MailboxStatusMessage.SendFailed);
+        }
         return AtsuStatusCodes.NoAtc;
       }
       message.Station = this.currentAtc;

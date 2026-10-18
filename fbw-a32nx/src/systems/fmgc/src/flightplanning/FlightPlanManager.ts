@@ -114,6 +114,7 @@ export class FlightPlanManager<P extends FlightPlanPerformanceData> {
               this.config?.NUM_CRUISE_WIND_LEVELS ?? 0,
               this.config?.NUM_DESCENT_WIND_LEVELS ?? 0,
               this.config?.SORT_CLIMB_WIND_DESCENDING ?? true,
+              this.config?.ALTERNATE_CRUISE_LEVEL_RULE ?? 'A320',
             );
 
             this.set(intIndex, newPlan);
@@ -220,6 +221,7 @@ export class FlightPlanManager<P extends FlightPlanPerformanceData> {
       this.time.get(),
       this.config?.DRAFT_ON_WIND_EDIT ?? false,
       this.config?.SORT_CLIMB_WIND_DESCENDING ?? true,
+      this.config?.ALTERNATE_CRUISE_LEVEL_RULE ?? 'A320',
     );
     if (flags !== undefined) {
       this.plans[index].flags |= flags;

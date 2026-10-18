@@ -1,11 +1,12 @@
 // @ts-strict-ignore
-//  Copyright (c) 2022 FlyByWire Simulations
+//  Copyright (c) 2022-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, EventSubscriber, Publisher } from '@microsoft/msfs-sdk';
 import {
   AtsuStatusCodes,
   AtsuMailboxMessages,
+  AtsuMessageComStatus,
   MailboxStatusMessage,
   AtsuMessage,
   AtsuMessageDirection,
@@ -58,6 +59,17 @@ export class MailboxBus {
 
   private poweredUp: boolean = false;
 
+  /** The FMS answers a LOAD-SEC3 request within this time, or the mailbox shows LOAD NOT AVAIL */
+  private static LoadTimeoutMs = 30000;
+
+  /** The message the FMS is loading in the third secondary flight plan (LOAD-SEC3), if any */
+  private loadingMessageId: number | null = null;
+
+  /** The message of the last loading result (LOAD OK, LOAD PARTIAL, LOAD FAILED or LOAD NOT AVAIL), if any */
+  private loadedMessageId: number | null = null;
+
+  private loadTimeout: number | null = null;
+
   private uploadMessagesToMailbox(messages: CpdlcMessage[]): void {
     if (messages.length !== 0) {
       switch (messages[0].Type) {
@@ -91,6 +103,20 @@ export class MailboxBus {
         this.lastClosedMessage = [messages[idx], new Date().getTime()];
       }
 
+      this.leaveFile(messages, backlog, uid, uplink);
+    }
+
+    return idx !== -1;
+  }
+
+  /**
+   * Takes a message block out of the mailbox file (at most MaxMailboxFileSize open messages per direction) and moves
+   * the messages waiting for a place into it. A full downlink file shows FILE FULL until it has a place again.
+   */
+  private leaveFile(messages: MailboxMessage[][], backlog: MailboxMessage[][], uid: number, uplink: boolean): void {
+    const idx = messages.findIndex((elem) => elem[0].MessageId === uid);
+    if (idx !== -1) {
+      const downlinkFileWasFull = !uplink && backlog.length !== 0;
       messages.splice(idx, 1);
       if (uplink) {
         this.validateNotificationCondition();
@@ -122,9 +148,11 @@ export class MailboxBus {
           this.uploadMessagesToMailbox(mailboxMessages);
         }
       }
-    }
 
-    return idx !== -1;
+      if (downlinkFileWasFull && backlog.length === 0) {
+        this.publisher.pub('systemStatus', MailboxStatusMessage.NoMessage, true, false);
+      }
+    }
   }
 
   constructor(
@@ -134,21 +162,26 @@ export class MailboxBus {
     this.atc = atc;
 
     this.atc.digitalInputs.addDataCallback('onAtcMessageButtonPressed', () => this.cleanupNotifications());
+    this.atc.digitalInputs.addDataCallback('routeClearanceLoaded', (uid, status) =>
+      this.onRouteClearanceLoaded(uid, status),
+    );
     this.publisher = this.bus.getPublisher<AtsuMailboxMessages>();
     this.subscriber = this.bus.getSubscriber<AtsuMailboxMessages>();
 
+    // A deleted message (e.g. a prepared downlink cancelled on the A380X SD mailbox) also leaves the mailbox file:
+    // otherwise its place stayed taken, and five of them made the file full for good (FILE FULL)
     this.subscriber.on('deleteMessage').handle((uid: number) => {
-      let idx = this.uplinkMessages.findIndex((elem) => elem[0].MessageId === uid);
-      if (idx > -1) {
-        this.uplinkMessages[idx].forEach((message) => {
-          this.atc.removeMessage(message.MessageId);
-        });
-      } else {
-        idx = this.downlinkMessages.findIndex((elem) => elem[0].MessageId === uid);
-        if (idx > -1) {
-          this.downlinkMessages[idx].forEach((message) => {
-            this.atc.removeMessage(message.MessageId);
-          });
+      const files: [MailboxMessage[][], MailboxMessage[][], boolean][] = [
+        [this.uplinkMessages, this.bufferedUplinkMessages, true],
+        [this.downlinkMessages, this.bufferedDownlinkMessages, false],
+      ];
+      for (const [messages, backlog, uplink] of files) {
+        const block = messages.find((elem) => elem[0].MessageId === uid);
+        if (block !== undefined) {
+          // removeMessage comes back here through dequeue(): the block may already have left the file then
+          block.forEach((message) => this.atc.removeMessage(message.MessageId));
+          this.leaveFile(messages, backlog, uid, uplink);
+          return;
         }
       }
     });
@@ -200,7 +233,13 @@ export class MailboxBus {
         const message = this.atc.messages().find((element) => element.UniqueMessageID === uid);
         if (message !== undefined) {
           const cpdlcMessage = message as CpdlcMessage;
-          if (cpdlcMessage.Response && cpdlcMessage.SemanticResponseRequired) {
+          // A response prepared by the FMS (confirm message) or by the flight crew (e.g. UNABLE DUE TO WEATHER)
+          if (
+            cpdlcMessage.Response &&
+            (cpdlcMessage.SemanticResponseRequired ||
+              cpdlcMessage.Response.ComStatus === AtsuMessageComStatus.Open ||
+              cpdlcMessage.Response.ComStatus === AtsuMessageComStatus.Failed)
+          ) {
             this.atc.sendExistingResponse(uid);
           }
         }
@@ -232,6 +271,33 @@ export class MailboxBus {
           }
         }, 4500);
       }
+    });
+
+    this.subscriber.on('loadMessage').handle((uid: number) => {
+      if (!this.poweredUp || uid === this.loadingMessageId) return;
+
+      // LOAD NOT AVAIL when the loading is not possible, including while another loading is in progress
+      if (this.loadingMessageId !== null) {
+        this.updateMessageStatus(uid, MailboxStatusMessage.FlightplanLoadingUnavailable);
+        return;
+      }
+
+      const message = this.atc.messages().find((element) => element.UniqueMessageID === uid);
+      if (message === undefined || message.Type !== AtsuMessageType.CPDLC) return;
+
+      // The result of the previous loading disappears when another loading is requested
+      if (this.loadedMessageId !== null && this.loadedMessageId !== uid && this.isLoadResult(this.loadedMessageId)) {
+        this.updateMessageStatus(this.loadedMessageId, MailboxStatusMessage.NoMessage);
+      }
+      this.loadedMessageId = null;
+
+      this.loadingMessageId = uid;
+      this.updateMessageStatus(uid, MailboxStatusMessage.FlightplanLoadingSecondary);
+      this.loadTimeout = window.setTimeout(
+        () => this.onRouteClearanceLoaded(uid, MailboxStatusMessage.FlightplanLoadingUnavailable),
+        MailboxBus.LoadTimeoutMs,
+      );
+      this.atc.digitalOutputs.sendLoadRouteClearance(message as CpdlcMessage);
     });
 
     this.subscriber.on('closeMessage').handle((uid: number) => {
@@ -490,6 +556,33 @@ export class MailboxBus {
         this.publisher.pub('deleteMessage', uid, true, false);
       }
     }
+  }
+
+  /**
+   * The answer of the FMS to a LOAD-SEC3 request (or its time out)
+   * @param uid the loaded message
+   * @param status LOAD OK, LOAD PARTIAL, LOAD FAILED or LOAD NOT AVAIL
+   */
+  private onRouteClearanceLoaded(uid: number, status: MailboxStatusMessage): void {
+    if (uid !== this.loadingMessageId) return;
+
+    if (this.loadTimeout !== null) {
+      clearTimeout(this.loadTimeout);
+      this.loadTimeout = null;
+    }
+    this.loadingMessageId = null;
+    this.loadedMessageId = uid;
+    this.updateMessageStatus(uid, status);
+  }
+
+  private isLoadResult(uid: number): boolean {
+    const status = this.currentMessageStatus(uid);
+    return (
+      status === MailboxStatusMessage.FlightplanLoadSecondary ||
+      status === MailboxStatusMessage.FlightplanLoadPartial ||
+      status === MailboxStatusMessage.FlightplanLoadFailed ||
+      status === MailboxStatusMessage.FlightplanLoadingUnavailable
+    );
   }
 
   public updateMessageStatus(uid: number, status: MailboxStatusMessage): void {

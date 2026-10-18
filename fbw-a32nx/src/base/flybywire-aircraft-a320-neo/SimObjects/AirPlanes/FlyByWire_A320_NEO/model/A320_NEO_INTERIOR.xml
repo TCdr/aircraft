@@ -696,9 +696,33 @@
                     <NODE_ID>PAPER_DISCARD</NODE_ID>
                 </UseTemplate>
 
-                <UseTemplate Name="FBW_Airbus_PAPER_TORN">
-                    <NODE_ID>PRINT_TORN</NODE_ID>
-                </UseTemplate>
+                <!-- The torn paper edge left in the slit between printouts is not shown: the paper only comes out of
+                the slit while printing (PAPER_PRINTER) -->
+                <Component ID="PRINT_TORN" Node="PRINT_TORN">
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>0</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+
+                <!-- The paper door of the printer: a click on the door or on its handle opens or closes it (the door
+                swings up about its forward edge, PRINTER_DOOR, frames 0 closed to 100 open), showing the paper roll -->
+                <Component ID="PRINTER_DOOR" Node="PRINTER_DOOR_PANEL">
+                    <UseTemplate Name="ASOBO_GT_Anim_Code">
+                        <ANIM_NAME>PRINTER_DOOR</ANIM_NAME>
+                        <ANIM_LAG>70</ANIM_LAG>
+                        <ANIM_CODE>(L:A32NX_PRINTER_DOOR, Bool) 100 *</ANIM_CODE>
+                    </UseTemplate>
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+                        <LEFT_SINGLE_CODE>(L:A32NX_PRINTER_DOOR, Bool) ! (&gt;L:A32NX_PRINTER_DOOR, Bool)</LEFT_SINGLE_CODE>
+                        <TOOLTIPID>Open or close the printer paper door</TOOLTIPID>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PRINTER_DOOR_HANDLE" Node="PRINTER_DOOR_HANDLE">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+                        <LEFT_SINGLE_CODE>(L:A32NX_PRINTER_DOOR, Bool) ! (&gt;L:A32NX_PRINTER_DOOR, Bool)</LEFT_SINGLE_CODE>
+                        <TOOLTIPID>Open or close the printer paper door</TOOLTIPID>
+                    </UseTemplate>
+                </Component>
             </Component>
 
             <!-- EMERGENCY GEAR EXTENSION -->
