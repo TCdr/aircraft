@@ -6,7 +6,6 @@ import { AbstractOitAvncsPageProps } from '../../../OIT';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { AnsuOps } from '../../../System/AnsuOps';
 import { CompanyComInboxEntry } from '../../../System/CompanyComMailbox';
-import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 
 interface OitAvncsCompanyComInboxProps extends AbstractOitAvncsPageProps {}
 
@@ -40,7 +39,7 @@ function inboxDetailsTexts(
 
 /**
  * The COMPANY COM inbox: the AOC uplink messages, newest first. Clicking a message displays it and marks it read; the
- * COMPANY MSG memo goes when every message is read.
+ * COMPANY MSG memo goes when every message is read. PRINT of the menu bar prints the displayed message.
  */
 export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompanyComInboxProps> {
   private readonly sci = this.props.container.ansu.sci;
@@ -50,7 +49,7 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
   private readonly messageContainerRef = FSComponent.createRef<HTMLDivElement>();
 
   /** The AOC id of the displayed message */
-  private readonly selectedUid = Subject.create<number | null>(null);
+  private readonly selectedUid = this.mailbox.displayedUid;
 
   private lines: { uid: number; line: OitAvncsCompanyComMessageLine; selected: Subject<boolean> }[] = [];
 
@@ -62,14 +61,18 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
   private readonly messageText = Subject.create('');
 
   /** PRINT needs a displayed message */
-  private readonly printDisabled = this.selectedUid.map((uid) => uid === null);
+  private readonly printable = this.selectedUid.map((uid) => uid !== null);
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
+    this.props.uiService.registerPageFunctions({
+      print: { run: () => this.printSelected(), available: this.printable },
+    });
+
     this.subscriptions.push(
       this.toText,
-      this.printDisabled,
+      this.printable,
       this.mailbox.messages.sub(() => this.refresh(), true),
       this.selectedUid.sub((selectedUid) => {
         this.lines.forEach((l) => l.selected.set(l.uid === selectedUid));
@@ -88,8 +91,7 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
    * @param uid the AOC message id
    */
   private select(uid: number): void {
-    this.selectedUid.set(uid);
-    this.mailbox.markRead(uid);
+    this.mailbox.display(uid);
   }
 
   /** PRINT sends the displayed message to the pedestal printer */
@@ -115,11 +117,6 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
     this.destroyLines();
     while (container.firstChild) {
       container.removeChild(container.firstChild);
-    }
-
-    // The displayed message was deleted by the AOC
-    if (this.selectedUid.get() !== null && this.selectedEntry() === null) {
-      this.selectedUid.set(null);
     }
 
     for (const message of this.mailbox.messages.getArray()) {
@@ -176,10 +173,6 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
           <div>{this.toText}</div>
         </div>
         <div class="oit-ccom-inbox-msg-box">{this.messageText}</div>
-        {/* Design choice: PRINT below the message, the real inbox page layout is not known */}
-        <div class="fr" style="justify-content: flex-end; margin-top: 10px;">
-          <Button label="PRINT" disabled={this.printDisabled} onClick={() => this.printSelected()} />
-        </div>
         <div style="flex-grow: 1" />
       </>
     );

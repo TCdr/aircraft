@@ -177,10 +177,63 @@ describe('OIT COMPANY COM inbox', () => {
     expect(printed.length).toBe(1);
   });
 
-  it('the inbox page has the PRINT button', () => {
+  it('the inbox page prints the displayed message with PRINT of the menu bar', () => {
     const page = readFileSync(resolve(__dirname, '../Pages/NssAvncs/CompanyCom/OitAvncsCompanyComInbox.tsx'), 'utf-8');
-    expect(page).toContain('label="PRINT"');
+    expect(page).toContain('print: { run: () => this.printSelected(), available: this.printable }');
     expect(page).toContain('this.mailbox.printMessage(uid, AnsuOps.formatDateTime)');
+  });
+
+  it('counts the messages not read yet for the Inbox folder', () => {
+    const bus = new EventBus();
+    const mailbox = new CompanyComMailbox(bus);
+    mailbox.init();
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', uplink('A', 1));
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', uplink('B', 2));
+    expect(mailbox.unreadCount.get()).toBe(2);
+
+    mailbox.display(2);
+    expect(mailbox.displayedUid.get()).toBe(2);
+    expect(mailbox.unreadCount.get()).toBe(1);
+
+    bus.getPublisher<any>().pub('aocDeleteMessage', 2);
+    expect(mailbox.displayedUid.get()).toBeNull();
+    expect(mailbox.unreadCount.get()).toBe(1);
+  });
+
+  it('announces each new unread uplink once, and when it is read or deleted', () => {
+    const bus = new EventBus();
+    const mailbox = new CompanyComMailbox(bus);
+    mailbox.init();
+    const announced: number[] = [];
+    const handled: number[] = [];
+    mailbox.onNewUplink((entry) => announced.push(entry.uid));
+    mailbox.onUplinkHandled((uid) => handled.push(uid));
+
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', uplink('A', 1));
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', uplink('A CHANGED', 1));
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', uplink('B', 2));
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', uplink('C', 3));
+    const alreadyRead = uplink('READ ELSEWHERE', 4);
+    alreadyRead.Confirmed = true;
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', alreadyRead);
+    expect(announced).toEqual([1, 2, 3]);
+
+    // read on this OIT, read on the other OIT (the AOC sends it back read), deleted
+    mailbox.display(1);
+    const readOnOtherOit = uplink('B', 2);
+    readOnOtherOit.Confirmed = true;
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', readOnOtherOit);
+    bus.getPublisher<any>().pub('aocDeleteMessage', 3);
+    expect(handled).toEqual([1, 2, 3]);
+
+    // the end of the flight deletes the whole mailbox
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', uplink('D', 5));
+    mailbox.display(5);
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', uplink('E', 6));
+    bus.getPublisher<any>().pub('aocResetData', true);
+    expect(handled).toEqual([1, 2, 3, 5, 6]);
+    expect(mailbox.displayedUid.get()).toBeNull();
+    expect(mailbox.messages.length).toBe(0);
   });
 
   it('is the inbox page of the OIT, with no hard-coded test message left', () => {

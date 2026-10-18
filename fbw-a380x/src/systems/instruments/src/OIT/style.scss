@@ -134,6 +134,17 @@
   text-align: left;
   border: 4px outset $display-light-grey;
   background-color: $display-mfd-darker-grey;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.mfd-dropdown-menu-element.with-shortcut {
+  display: flex;
+  justify-content: space-between;
+}
+
+.mfd-dropdown-menu-shortcut {
+  margin-left: 40px;
 }
 
 .oit-label {

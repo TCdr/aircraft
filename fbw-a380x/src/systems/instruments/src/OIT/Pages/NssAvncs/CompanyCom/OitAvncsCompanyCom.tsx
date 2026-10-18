@@ -65,10 +65,19 @@ export class OitAvncsCompanyCom extends DestroyableComponent<OitAvncsCompanyComP
     super.onAfterRender(node);
 
     this.subscriptions.push(
+      // The application opens on a page of its own (OitUiService start pages)
       this.props.uiService.activeUri.sub((uri) => {
         this.activeUriChanged(uri);
-      }),
+      }, true),
     );
+  }
+
+  destroy(): void {
+    // The folder pages listen to the mailbox, which outlives this page
+    if (this.activePage.instance instanceof DisplayComponent) {
+      this.activePage.instance.destroy();
+    }
+    super.destroy();
   }
 
   render(): VNode {
@@ -78,8 +87,13 @@ export class OitAvncsCompanyCom extends DestroyableComponent<OitAvncsCompanyComP
         <OitAvncsSubHeader title={'COMPANY COM'} uiService={this.props.uiService} />
         <div class="oit-page-container">
           <div class="oit-avncs-navigator-container">
-            <div class="oit-avncs-navigator-left">
-              <OitAvncsCompanyComMenu bus={this.props.bus} uiService={this.props.uiService} />
+            {/* MAXIMIZE: full screen, without the navigation tree */}
+            <div class={{ 'oit-avncs-navigator-left': true, hidden: this.props.uiService.fullScreen }}>
+              <OitAvncsCompanyComMenu
+                bus={this.props.bus}
+                uiService={this.props.uiService}
+                ansu={this.props.container.ansu}
+              />
             </div>
             <div class="oit-avncs-navigator-right oit-centered" ref={this.activePageRef} />
           </div>

@@ -16,6 +16,7 @@ import { OitAvncsCompanyComFlightLog } from './Pages/NssAvncs/CompanyCom/OitAvnc
 import { OitAvncsCompanyComInbox } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyComInbox';
 import { OitAvncsCompanyComWeatherRequest } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyComWeatherRequest';
 import { OitAvncsCompanyComFreeText } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyComFreeText';
+import { OitAvncsCompanyComDownlinkFolder } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyComDownlinkFolder';
 import { OitAvncsFbwSystems } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystems';
 import { OitAvncsFbwSystemsGenericDebug } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystemsGenericDebug';
 import { OitAvncsFbwSystemsAppLdgCap } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystemsAppLdgCap';
@@ -77,6 +78,10 @@ export function avncsCompanyComPageForUrl(
   switch (url) {
     case 'nss-avncs/company-com/inbox':
       return <OitAvncsCompanyComInbox bus={bus} uiService={uiService} container={container} />;
+    case 'nss-avncs/company-com/outbox':
+      return <OitAvncsCompanyComDownlinkFolder bus={bus} uiService={uiService} container={container} folder="outbox" />;
+    case 'nss-avncs/company-com/sent':
+      return <OitAvncsCompanyComDownlinkFolder bus={bus} uiService={uiService} container={container} folder="sent" />;
     case 'nss-avncs/company-com/pre-flight/flight-log':
       return <OitAvncsCompanyComFlightLog bus={bus} uiService={uiService} container={container} />;
     case 'nss-avncs/company-com/in-flight/flight-log':

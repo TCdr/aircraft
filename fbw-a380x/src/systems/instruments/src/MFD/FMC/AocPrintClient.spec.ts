@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '@microsoft/msfs-sdk';
 import { AocFmsMessages } from '@datalink/aoc';
+import { A380AocPrintEvents } from '@shared/AocPrintout';
 import { AocPrintClient, aocPrintLines } from './AocPrintClient';
 
 /*
@@ -16,6 +17,20 @@ describe('AOC message print on the pedestal printer', () => {
     const client = new AocPrintClient(bus, () => ({ printText: (title, body) => printed.push({ title, body }) }));
     bus.getPublisher<AocFmsMessages>().pub('aocPrintMessage', 'SUBJECT : FREE TEXT KLAX\n\nHELLO CREW');
     expect(printed).toEqual([{ title: 'AOC MESSAGE', body: ['SUBJECT : FREE TEXT KLAX', '', 'HELLO CREW'] }]);
+    client.destroy();
+  });
+
+  it('prints an OIS printout under its own title, and under AOC MESSAGE without one', () => {
+    const bus = new EventBus();
+    const printed: { title: string; body: readonly string[] }[] = [];
+    const client = new AocPrintClient(bus, () => ({ printText: (title, body) => printed.push({ title, body }) }));
+    const publisher = bus.getPublisher<A380AocPrintEvents>();
+    publisher.pub('aocPrintMessage', { title: 'LOADSHEET', text: 'LOADSHEET FINAL\nZFW 300.0' });
+    publisher.pub('aocPrintMessage', { text: 'HELLO CREW' });
+    expect(printed).toEqual([
+      { title: 'LOADSHEET', body: ['LOADSHEET FINAL', 'ZFW 300.0'] },
+      { title: 'AOC MESSAGE', body: ['HELLO CREW'] },
+    ]);
     client.destroy();
   });
 

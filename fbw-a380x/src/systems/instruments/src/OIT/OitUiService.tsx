@@ -1,7 +1,9 @@
 //  Copyright (c) 2025 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { Subject } from '@microsoft/msfs-sdk';
+import { Subject, Subscribable } from '@microsoft/msfs-sdk';
+import { isPageFunctionAvailable, OitPageFunctionName, OitPageFunctions } from './OitPageFunctions';
+import { FLT_FOLDER_URI, FLT_OPS_STS_URI, FltOpsOpenApplications } from './Pages/FltOps/FltOpsApplications';
 
 export enum OitSystem {
   None = '',
@@ -19,11 +21,26 @@ export interface OitUriInformation {
   extra?: string; // Can be used for deep-linking within a page
 }
 
+/**
+ * The page an application opens on, for the applications whose own URI has no page: COMPANY COM opens on its Inbox
+ * (Design choice: the folder the AOC puts the received messages in).
+ */
+const APPLICATION_START_PAGES: Readonly<Record<string, string>> = {
+  'nss-avncs/company-com': 'nss-avncs/company-com/inbox',
+};
+
 /*
  * Handles navigation (and potentially other aspects) for OIT pages
  */
 export class OitUiService {
-  constructor(public captOrFo: 'CAPT' | 'FO') {}
+  constructor(public captOrFo: 'CAPT' | 'FO') {
+    // The FLT OPS STS application starts automatically after the login
+    this.fltOpsLoginScreenVisible.sub((visible) => {
+      if (!visible) {
+        this.fltOpsApplications.startSession([FLT_OPS_STS_URI]);
+      }
+    });
+  }
 
   public readonly activeUri = Subject.create<OitUriInformation>({
     uri: '',
@@ -38,6 +55,27 @@ export class OitUiService {
   public readonly fltOpsLoginScreenVisible = Subject.create(true);
   public readonly nssAvncsLoginScreenVisible = Subject.create(true);
 
+  private readonly _backAvailable = Subject.create(false);
+  /** There is a previously displayed page (BACK, PREVIOUS) */
+  public readonly backAvailable = this._backAvailable as Subscribable<boolean>;
+
+  private readonly _forwardAvailable = Subject.create(false);
+  /** There is a page displayed before the last BACK (FORWARD, NEXT) */
+  public readonly forwardAvailable = this._forwardAvailable as Subscribable<boolean>;
+
+  /** The open FLT OPS applications, for the switching bar */
+  public readonly fltOpsApplications = new FltOpsOpenApplications();
+
+  /**
+   * Full screen: the FLT OPS switching bar is hidden (HIDE SWITCHING BAR), or the NSS AVNCS application hides its
+   * navigation tree and the task bar (MAXIMIZE)
+   */
+  public readonly fullScreen = Subject.create(false);
+
+  private readonly _pageFunctions = Subject.create<OitPageFunctions>({});
+  /** The functions of the menu bars the displayed page has (see OitPageFunctions) */
+  public readonly pageFunctions = this._pageFunctions as Subscribable<OitPageFunctions>;
+
   public parseUri(uri: string): OitUriInformation {
     const uriParts = uri.split('/');
     return {
@@ -50,12 +88,14 @@ export class OitUiService {
 
   /**
    * Navigate to OIT page.
-   * @param uri The URI to navigate to. Use URI 'back' for returning to previous page.
+   * @param requestedUri The URI to navigate to. Use URI 'back' for returning to previous page. An application without
+   * a page of its own opens on its start page (e.g. COMPANY COM on its Inbox).
    * Sometimes (e.g. for nss-avncs/company-com), another local navigator will handle the sub-navigation.
    */
-  public navigateTo(uri: string): void {
+  public navigateTo(requestedUri: string): void {
     let nextUri: string;
 
+    const uri = APPLICATION_START_PAGES[requestedUri] ?? requestedUri;
     const forceReloadUrls: string[] = [];
     if (uri === this.activeUri.get().uri && !forceReloadUrls.includes(uri)) {
       // Same URL, don't navigate. Except for some URLs defined in forceReloadUrls
@@ -88,15 +128,57 @@ export class OitUiService {
       nextUri = uri;
     }
 
-    const parsedUri = this.parseUri(nextUri);
-    this.activeUri.set(parsedUri);
+    this.showPage(nextUri);
+  }
+
+  /**
+   * Displays the current page again, as new: UPDATE of the NSS AVNCS side reads the avionics parameters again
+   */
+  public reloadActivePage(): void {
+    this.showPage(this.activeUri.get().uri);
+  }
+
+  /**
+   * The displayed page tells which functions of the menu bars it has; until it does, they are greyed
+   * @param functions the functions of the page
+   */
+  public registerPageFunctions(functions: OitPageFunctions): void {
+    this._pageFunctions.set(functions);
+  }
+
+  /**
+   * A function of the menu bars on the displayed page
+   * @param name the function
+   * @returns whether the page did it (false when the page does not have it, or cannot use it now)
+   */
+  public runPageFunction(name: OitPageFunctionName): boolean {
+    const functions = this._pageFunctions.get();
+    if (!isPageFunctionAvailable(functions, name)) {
+      return false;
+    }
+    functions[name]?.run();
+    return true;
+  }
+
+  private showPage(uri: string): void {
+    // The new page registers its own functions while it renders
+    this._pageFunctions.set({});
+    this.updateNavigationAvailability();
+    this.activeUri.set(this.parseUri(uri));
+  }
+
+  private updateNavigationAvailability(): void {
+    this._backAvailable.set(this.canGoBack());
+    this._forwardAvailable.set(this.canGoForward());
   }
 
   public resetFltOpsSession(): void {
     this.navigationStack[0] = 'flt-ops';
     this.navigationStack.length = 1;
     this.navigationForwardStack.length = 0;
-    this.activeUri.set(this.parseUri('flt-ops'));
+    this.fltOpsApplications.reset();
+    this.fullScreen.set(false);
+    this.showPage('flt-ops');
     this.fltOpsLoginScreenVisible.set(true);
   }
 
@@ -113,12 +195,12 @@ export class OitUiService {
 
   /**
    * EXIT SESSION of the FLT OPS MENU page or of the MENU button: back to the Login page, not possible while the FLT
-   * FOLDER application is open. The exit clears the FLT OPS STS page of the laptops for the next flight: the registered
-   * handlers clear the laptop data.
+   * FOLDER application is open (displayed or on the switching bar). The exit clears the FLT OPS STS page of the laptops
+   * for the next flight: the registered handlers clear the laptop data.
    * @returns whether the session was exited (false while the FLT FOLDER is open)
    */
   public exitFltOpsSession(): boolean {
-    if (this.activeUri.get().uri === 'flt-ops/flt-folder') {
+    if (this.activeUri.get().uri === FLT_FOLDER_URI || this.fltOpsApplications.isOpen(FLT_FOLDER_URI)) {
       return false;
     }
     this.fltOpsSessionExitHandlers.forEach((handler) => handler());

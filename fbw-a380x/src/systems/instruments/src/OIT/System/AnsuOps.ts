@@ -6,6 +6,8 @@ import { AircraftNetworkServerUnit } from './AircraftNetworkServerUnit';
 import { NXLogicConfirmNode, UpdateThrottler } from '@flybywiresim/fbw-sdk';
 import { CompanyComMailbox } from './CompanyComMailbox';
 import { CompanyComRequests } from './CompanyComRequests';
+import { CompanyComDownlinks } from './CompanyComDownlinks';
+import { OisMessageToolbar } from './OisMessageToolbar';
 
 export class AnsuOps extends AircraftNetworkServerUnit {
   private lastUpdateTime: number | undefined = undefined;
@@ -45,15 +47,24 @@ export class AnsuOps extends AircraftNetworkServerUnit {
   /** The COMPANY COM inbox (AOC uplink messages), kept here so that it lives across the OIT page changes */
   public readonly companyCom = new CompanyComMailbox(this.bus);
 
+  /** The COMPANY COM Outbox and Sent folders: the downlinks sent from this OIT */
+  public readonly companyComDownlinks = new CompanyComDownlinks(this.bus, () => this.sci.zuluTime.get());
+
   /** The COMPANY COM weather request and free text (AOC downlinks), kept here across the OIT page changes */
-  public readonly companyComRequests = new CompanyComRequests(this.bus);
+  public readonly companyComRequests = new CompanyComRequests(this.bus, this.companyComDownlinks);
+
+  /** The message toolbar of the NSS AVNCS menu bar of this OIT */
+  public readonly messageToolbar = new OisMessageToolbar();
 
   /** @inheritdoc */
   init(): void {
     super.init();
 
     this.companyCom.init();
+    this.companyComDownlinks.init();
     this.companyComRequests.init();
+    this.companyCom.onNewUplink((entry) => this.messageToolbar.postAocNotification(entry.uid, entry.subject));
+    this.companyCom.onUplinkHandled((uid) => this.messageToolbar.removeAocNotification(uid));
 
     this.subscriptions.push(
       this.sci.parkBrakeSet.sub((v) => {

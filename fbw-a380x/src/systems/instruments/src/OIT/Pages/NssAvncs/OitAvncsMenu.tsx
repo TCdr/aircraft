@@ -33,13 +33,7 @@ export class OitAvncsMenu extends DestroyableComponent<OitAvncsMenuPageProps> {
                     navigationTarget="nss-avncs/company-com"
                     showFileSymbol={false}
                   />
-                  <OitFile
-                    name={'REFUEL'}
-                    uiService={this.props.uiService}
-                    navigationTarget="nss-avncs/refuel"
-                    showFileSymbol={false}
-                    disabled={true}
-                  />
+                  <OitFile name={'REFUEL'} uiService={this.props.uiService} showFileSymbol={false} disabled={true} />
                 </OitFolder>
                 <OitFolder name={'UTILITIES'} initExpanded={true} hideFolderIcon>
                   <OitFile
@@ -51,7 +45,7 @@ export class OitAvncsMenu extends DestroyableComponent<OitAvncsMenuPageProps> {
                 </OitFolder>
               </OitFolder>
             </div>
-            <div class="it-avncs-navigator-right">
+            <div class="oit-avncs-navigator-right">
               <div class="oit-avncs-navigator-right-exit-ois">
                 <Button
                   label={'EXIT OIS'}
