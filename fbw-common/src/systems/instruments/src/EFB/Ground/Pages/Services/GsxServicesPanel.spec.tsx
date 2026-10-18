@@ -48,6 +48,33 @@ describe('GSX boarding status line of the Services page', () => {
   });
 });
 
+/** The GSX refuelling with the flyPad fuel sync on: GSX's own progress is 100 % from the start */
+const refuelling: GsxService = {
+  id: 'Refueling',
+  displayName: 'Refuel',
+  state: 'performing',
+  stateText: 'Refueling',
+  canTrigger: false,
+  progressText: '100%',
+};
+
+describe('GSX refuelling status line of the Services page', () => {
+  it("shows the flyPad's refuelling progress and time left instead of GSX's own", () => {
+    const status = gsxServiceStatus(refuelling, null, { progress: 0.25, minutesLeft: 12 });
+
+    expect(status.text).toBe('Refueling 25% · 12 Minutes');
+    expect(status.progress).toBeCloseTo(0.25);
+  });
+
+  it('shows the progress alone until the time left is measured', () => {
+    expect(gsxServiceStatus(refuelling, null, { progress: 0, minutesLeft: null }).text).toBe('Refueling 0%');
+  });
+
+  it("keeps GSX's own progress without a flyPad one", () => {
+    expect(gsxServiceStatus(refuelling).text).toBe('Refueling 100%');
+  });
+});
+
 /** The action chip (its text) of each turnaround step, by the step name */
 const turnaroundChips = (services: GsxService[]): Record<string, string | null> => {
   // as useGsxRemote gives it to the page: with the completions remembered in this turnaround

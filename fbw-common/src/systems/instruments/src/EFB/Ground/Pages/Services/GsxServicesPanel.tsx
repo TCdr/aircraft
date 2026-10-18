@@ -95,15 +95,23 @@ export async function triggerGsxService(service: GsxServiceId, name: string): Pr
   return ok;
 }
 
+/** A refuelling the flyPad pumps (GSX fuel sync): its progress 0 to 1 and whole minutes left (null until measured) */
+export interface FlypadRefuelStatus {
+  progress: number;
+  minutesLeft: number | null;
+}
+
 /**
  * The status line of a GSX service, shown under its button: what GSX does with it, and its progress
  * @param service the service, undefined when GSX does not list it
  * @param pax the flyPad's passenger counter of the boarding or deboarding (gsxPaxProgress), in place of GSX's own
+ * @param refuel the flyPad's refuelling progress and time left, in place of GSX's own (gsxRefuelProgress)
  * @returns the text (empty when idle) and the progress 0 to 1 (null without one)
  */
 export function gsxServiceStatus(
   service: GsxService | undefined,
   pax: GsxPaxProgress | null = null,
+  refuel: FlypadRefuelStatus | null = null,
 ): { text: string; progress: number | null } {
   if (!service) {
     return { text: '', progress: null };
@@ -133,6 +141,11 @@ export function gsxServiceStatus(
     const counter = `${pax.current}/${pax.total}`;
     text = text ? `${text} ${counter}` : counter;
     return { text, progress: pax.total > 0 && service.state !== 'completed' ? pax.current / pax.total : null };
+  }
+  if (refuel !== null) {
+    const timeLeft = refuel.minutesLeft !== null ? ` · ${refuel.minutesLeft} ${t('Ground.Fuel.Minutes')}` : '';
+    const refuelText = `${Math.round(refuel.progress * 100)}%${timeLeft}`;
+    return { text: text ? `${text} ${refuelText}` : refuelText, progress: refuel.progress };
   }
   if (service.progressText && (service.state === 'performing' || service.state === 'completing')) {
     text = text ? `${text} ${service.progressText}` : service.progressText;
