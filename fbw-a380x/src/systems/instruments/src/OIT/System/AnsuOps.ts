@@ -9,6 +9,7 @@ import { CompanyComRequests } from './CompanyComRequests';
 import { CompanyComDownlinks } from './CompanyComDownlinks';
 import { CompanyComReports } from './CompanyComReports';
 import { OisMessageToolbar } from './OisMessageToolbar';
+import { TechLogbookStore } from './TechLogbookStore';
 import { OitPageDrafts } from './OitPageDrafts';
 
 export class AnsuOps extends AircraftNetworkServerUnit {
@@ -64,6 +65,9 @@ export class AnsuOps extends AircraftNetworkServerUnit {
   /** The message toolbar of the NSS AVNCS menu bar of this OIT */
   public readonly messageToolbar = new OisMessageToolbar();
 
+  /** The technical logbook, kept here across the OIT page changes; it reuses the flight log values */
+  public readonly techLogbook = new TechLogbookStore(this.bus, this.sci, this);
+
   /** @inheritdoc */
   init(): void {
     super.init();
@@ -74,6 +78,7 @@ export class AnsuOps extends AircraftNetworkServerUnit {
     this.companyComReports.init();
     this.companyCom.onNewUplink((entry) => this.messageToolbar.postAocNotification(entry.uid, entry.subject));
     this.companyCom.onUplinkHandled((uid) => this.messageToolbar.removeAocNotification(uid));
+    this.techLogbook.init();
 
     this.subscriptions.push(
       this.sci.parkBrakeSet.sub((v) => {
@@ -111,6 +116,7 @@ export class AnsuOps extends AircraftNetworkServerUnit {
     }
 
     this.updateOooiTimes(deltaTime);
+    this.techLogbook.update(this.sci.zuluTime.get());
   }
 
   private updateOooiTimes(deltaTime: number): void {

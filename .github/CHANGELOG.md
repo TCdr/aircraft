@@ -204,6 +204,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] T.O PERF on the FLT OPS side: takeoff speeds, flaps, FLEX or derate and MTOW(perf) for a runway of the departure airport, and XCHECK WITH AVNCS against the FMS T.O page, the SD gross weight and the captain's QNH - @TCdr
 1. [A380X/OIT] LOADSHEET on the FLT OPS side: TOW/CG, LW/CG, underload and T.O THS from the ZFW/CG and the fuel, and a loadsheet that can be printed; its TOW and LW go to T.O PERF and LDG PERF - @TCdr
 1. [A380X/OIT] LDG PERF on the FLT OPS side: DISPATCH and IN-FLIGHT landing distance, stop margin, MLW(perf), VAPP and go-around gradient for a runway of the destination - @TCdr
+1. [A380X/OIT] New technical logbook (LOGBOOK) on the NSS AVNCS side: STATUS, LOGBOOK ENTRY (ECAM alerts of the flight, cabin items, system & function, cockpit area, keyword and free text), HISTORY and FLIGHT DATA pages, the open, deferred, temporary and cabin item lists, the maintenance release report, PIC ACCEPT with the acceptance report and CLOSE FLIGHT with the closure report; at UPDATE the simulated ground maintenance defers some reported items (MEL, CDL, OTHER) and rectifies the others; the logbook is kept across flights and can be printed - @TCdr
 
 ## 2024.1.0
 
