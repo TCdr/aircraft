@@ -5,6 +5,7 @@
 // dispatch required landing distances (CONF FULL and CONF 3, with the autoland increments).
 
 import {
+  isTailwindBeyondLimit,
   LandingBrakingMode,
   LandingComputationType,
   LandingConf,
@@ -805,6 +806,7 @@ export class A320251NLandingCalculator implements LandingPerformanceCalculator {
         inputs.reverseThrust &&
         this.reverseThrustAvailable(inputs.type, inputs.runwayCondition, conf, inputs.brakingMode),
       estimates: [],
+      tailwindExtrapolated: isTailwindBeyondLimit(inputs.headwind, this.maxTailwind),
     };
     if (result.error !== LandingPerformanceError.None) {
       return result;
@@ -889,9 +891,6 @@ export class A320251NLandingCalculator implements LandingPerformanceCalculator {
     }
     if (pressureAlt > this.maxPressureAlt) {
       return LandingPerformanceError.MaximumPressureAlt;
-    }
-    if (inputs.headwind < -this.maxTailwind) {
-      return LandingPerformanceError.MaximumTailwind;
     }
     if (Math.abs(inputs.slope) > A320251NLandingCalculator.MAX_SLOPE) {
       return LandingPerformanceError.MaximumRunwaySlope;
