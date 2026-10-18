@@ -1,7 +1,7 @@
 //  Copyright (c) 2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
+import { FSComponent, VNode } from '@microsoft/msfs-sdk';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { AbstractOitAvncsPageProps } from '../../../OIT';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
@@ -16,6 +16,9 @@ import {
 
 interface OitAvncsCompanyComFreeTextProps extends AbstractOitAvncsPageProps {}
 
+/** The page of the drafts: the Free Text of every flight phase */
+const FREE_TEXT_PAGE = 'nss-avncs/company-com/free-text';
+
 /** Maximum characters of a station callsign */
 const STATION_LENGTH = 8;
 
@@ -26,9 +29,14 @@ const STATION_LENGTH = 8;
 export class OitAvncsCompanyComFreeText extends DestroyableComponent<OitAvncsCompanyComFreeTextProps> {
   private readonly requests = this.props.container.ansu.companyComRequests;
 
-  private readonly station = Subject.create<string | null>(null);
+  /** The entries stay while COMPANY COM is open: the page is drawn again at each return to it */
+  private readonly drafts = this.props.container.ansu.pageDrafts;
 
-  private readonly lines = Array.from({ length: FREE_TEXT_LINES }, () => Subject.create<string | null>(null));
+  private readonly station = this.drafts.field<string | null>(FREE_TEXT_PAGE, 'station', null);
+
+  private readonly lines = Array.from({ length: FREE_TEXT_LINES }, (_, i) =>
+    this.drafts.field<string | null>(FREE_TEXT_PAGE, `line ${i}`, null),
+  );
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);

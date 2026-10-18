@@ -1,7 +1,7 @@
 //  Copyright (c) 2025 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
+import { FSComponent, VNode } from '@microsoft/msfs-sdk';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { AbstractOitAvncsPageProps } from '../../OIT';
 import { OitAvncsSubHeader } from './OitAvncsSubHeader';
@@ -33,7 +33,12 @@ export class OitAvncsMenu extends DestroyableComponent<OitAvncsMenuPageProps> {
                     navigationTarget="nss-avncs/company-com"
                     showFileSymbol={false}
                   />
-                  <OitFile name={'REFUEL'} uiService={this.props.uiService} showFileSymbol={false} disabled={true} />
+                  <OitFile
+                    name={'REFUEL'}
+                    uiService={this.props.uiService}
+                    navigationTarget="nss-avncs/refuel"
+                    showFileSymbol={false}
+                  />
                 </OitFolder>
                 <OitFolder name={'UTILITIES'} initExpanded={true} hideFolderIcon>
                   <OitFile
@@ -66,7 +71,6 @@ export class OitAvncsMenu extends DestroyableComponent<OitAvncsMenuPageProps> {
                 />
                 <Button
                   label={'REFUEL'}
-                  disabled={Subject.create(true)}
                   onClick={() => this.props.uiService.navigateTo('nss-avncs/refuel')}
                   buttonStyle="font-size: 28px; height: 40px;"
                 />
