@@ -25,4 +25,18 @@ describe('flyPad Services page button states', () => {
     state = reducer(state, setServiceDoorButtonState(ACTIVE));
     expect(state.serviceDoor2ButtonState).toBe(CALLED);
   });
+
+  it('the aft left doors (A380X MAIN 4L and 5L) have their own states', async () => {
+    const {
+      default: reducer,
+      setBoarding1DoorButtonState,
+      setBoarding4DoorButtonState,
+      setBoarding5DoorButtonState,
+    } = await import('./groundServicePage');
+    let state = reducer(undefined, setBoarding4DoorButtonState(CALLED));
+    state = reducer(state, setBoarding5DoorButtonState(ACTIVE));
+    // the jet bridge and the stairs disable the MAIN 1L switch only
+    state = reducer(state, setBoarding1DoorButtonState(DISABLED));
+    expect([state.boarding4DoorButtonState, state.boarding5DoorButtonState]).toEqual([CALLED, ACTIVE]);
+  });
 });

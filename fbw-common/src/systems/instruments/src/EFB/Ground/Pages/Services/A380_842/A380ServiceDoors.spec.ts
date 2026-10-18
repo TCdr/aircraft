@@ -12,6 +12,9 @@ const a380Base = 'fbw-a380x/src/base/flybywire-aircraft-a380-842';
 const doorAnimations = fromRoot(`${a380Base}/ModelBehaviorDefs/fbw_a380x/Templates/Anims_Door.xml`);
 const flightModel = fromRoot(`${a380Base}/SimObjects/AirPlanes/FlyByWire_A380X/common/config/flight_model.cfg`);
 const payloadDrawing = fromRoot('fbw-common/src/systems/instruments/src/EFB/Assets/A380SeatOutlineBg.tsx');
+const gsxProfile = fromRoot(
+  `${a380Base}/SimObjects/AirPlanes/FlyByWire_A380X/presets/flybywire/FlyByWire_A380_842/config/GSX.cfg`,
+);
 const servicesLabels: Record<string, string> = JSON.parse(
   fromRoot('fbw-common/src/systems/instruments/src/EFB/Localization/data/en.json'),
 ).Ground.Services;
@@ -94,6 +97,19 @@ describe('A380X flyPad Services doors', () => {
     // a main exit (type 0) on the right at Z = -32 ft, 28 ft forward of MAIN 5R
     const point7 = interactivePoint(7);
     expect([point7.z, point7.x > 0, point7.type]).toEqual([-32, true, 0]);
+  });
+
+  it('every passenger door GSX boards at has a switch, so a door GSX opened can be closed from the page', () => {
+    // GSX.cfg [exitN]: the code is the K:TOGGLE_AIRCRAFT_EXIT exit GSX opens, the name the door
+    const gsxExits = [...gsxProfile.matchAll(/^\[exit\d+\][^[]*?^code = (\d+)\s*^name = Door (\w+)/gm)].map(
+      ([, code, door]) => ({ door, exit: Number(code) }),
+    );
+    expect(gsxExits.map((exit) => exit.door)).toEqual(['M1L', 'M2L', 'M4L', 'M5L']);
+    for (const gsxExit of gsxExits) {
+      const door = doors.find(([, serviceDoor]) => serviceDoor.door === gsxExit.door);
+      expect(door, `a ${gsxExit.door} switch`).toBeDefined();
+      expect(door[1].exit).toBe(gsxExit.exit);
+    }
   });
 
   it('the forward cargo door is the first cargo point of flight_model.cfg, exit = point + 1', () => {

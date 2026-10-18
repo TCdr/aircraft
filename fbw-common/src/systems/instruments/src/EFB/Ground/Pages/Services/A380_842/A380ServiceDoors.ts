@@ -30,7 +30,8 @@ export interface A380ServiceDoor {
  * "Main 4 R". The catering truck is served at this door. MAIN 4R is point 7 (Z = -32 ft; M4R = ID 7, TOGGLE_ID 8).
  *
  * A switch here only moves its door (K:TOGGLE_AIRCRAFT_EXIT): the door a sim ground vehicle docks at comes from the
- * interactive points of flight_model.cfg (and GSX's from GSX.cfg), which the page does not change.
+ * interactive points of flight_model.cfg (and GSX's from GSX.cfg), which the page does not change. Every door GSX
+ * boards at has a switch, so that a door GSX opened can be closed here.
  */
 export const A380_SERVICE_DOORS = {
   main1L: {
@@ -58,6 +59,24 @@ export const A380_SERVICE_DOORS = {
     labelKey: 'Ground.Services.DoorUpper1L',
     planformLabel: 'U1L',
     planformAt: 125,
+  },
+  main4L: {
+    door: 'M4L',
+    interactivePoint: 6,
+    exit: 7,
+    labelKey: 'Ground.Services.DoorMain4L',
+    planformLabel: '4 L',
+    planformAt: 472,
+    planformArtId: 'MID-AFT_L_Door',
+  },
+  main5L: {
+    door: 'M5L',
+    interactivePoint: 8,
+    exit: 9,
+    labelKey: 'Ground.Services.DoorMain5L',
+    planformLabel: '5 L',
+    planformAt: 569,
+    planformArtId: 'AFT_L_Door',
   },
   main4R: {
     door: 'M4R',
