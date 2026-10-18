@@ -3,9 +3,18 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { DistanceLabel } from '../../Performance/Widgets/RunwayVisualizationWidget';
 import { Runway } from '../../Performance/Data/Runways';
-import { LandingFlapsConfig, LandingRunwayConditions } from '../../../../../shared/src/performance/landing';
+import {
+  LandingAntiIce,
+  LandingApproachType,
+  LandingBrakingMode,
+  LandingComputationType,
+  LandingConf,
+  LandingGoAroundConf,
+  LandingPerformanceResult,
+  LandingRunwayCondition,
+} from '../../../../../shared/src/performance/landing';
+import { DescentAntiIce, DescentPerformanceResult, DescentType } from '../../../../../shared/src/performance/descent';
 import {
   LineupAngle,
   RunwayCondition,
@@ -18,30 +27,38 @@ interface TPerformanceLanding {
   availableRunways: Runway[];
   selectedRunwayIndex: number;
   runwayHeading?: number;
+  /** Landing distance available in metres */
   runwayLength?: number;
   elevation?: number;
   slope?: number;
+  /** A380: the go-around altitude in feet, when entered */
+  goAroundAltitude?: number;
 
-  runwayCondition: LandingRunwayConditions;
+  computationType: LandingComputationType;
+  runwayCondition: LandingRunwayCondition;
   windDirection?: number;
   windMagnitude?: number;
   windEntry?: string;
   temperature?: number;
   pressure?: number;
+  antiIce: LandingAntiIce;
+  airConditioning: boolean;
 
   weight?: number;
-  overweightProcedure: boolean;
-  approachSpeed?: number;
-  flaps: LandingFlapsConfig;
-  reverseThrust: boolean;
-
-  maxAutobrakeLandingDist: number;
-  mediumAutobrakeLandingDist: number;
-  lowAutobrakeLandingDist: number;
-  runwayVisualizationLabels: DistanceLabel[];
-  runwayNumber: number;
-  displayedRunwayLength: number;
+  conf: LandingConf;
+  goAroundConf?: LandingGoAroundConf;
+  approachType: LandingApproachType;
+  /** The go-around gradient in %, the minimum when undefined */
+  goAroundGradient?: number;
+  /** VLS+ in knots, the wind increment when undefined */
+  speedIncrement?: number;
   autoland: boolean;
+  glideSlope: number;
+  brakingMode: LandingBrakingMode;
+  reverseThrust: boolean;
+  overweightProcedure: boolean;
+
+  result?: LandingPerformanceResult;
 }
 
 export enum TakeoffCoGPositions {
@@ -74,11 +91,54 @@ interface TPerformanceTakeoff {
   forceToga?: boolean;
   cg?: number;
 
+  /** A380: thrust reduction, acceleration and engine-out acceleration altitudes in feet, when entered */
+  thrustReductionAltitude?: number;
+  accelerationAltitude?: number;
+  engineOutAccelerationAltitude?: number;
+  /** A380: the noise procedure parameters (altitude in feet, speed in knots, N1 in %) */
+  noiseEnabled?: boolean;
+  noiseEndAltitude?: number;
+  noiseSpeed?: number;
+  noiseN1?: number;
+  /** A380: the thrust of the takeoff run: a FLEX temperature, null for TOGA, undefined for the maximum FLEX */
+  selectedFlex?: number | null;
+  /** A32NX: the TOGA result of the calculation, with its own speeds */
+  togaResult?: TakeoffPerformanceResult;
+
   result?: TakeoffPerformanceResult;
+}
+
+interface TPerformanceDescent {
+  type: DescentType;
+  /** Pressure altitudes in feet */
+  initialAltitude?: number;
+  targetAltitude?: number;
+  /** The waypoint of the active flight plan the target altitude and distance are taken from (undefined: entries) */
+  targetWaypoint?: string;
+  /** Speed schedule: undefined for the standard one of the aircraft (ECON: the FMS managed one) */
+  mach?: number;
+  cas?: number;
+  limitCas?: number;
+  limitAltitude?: number;
+  /** GIVEN V/S in feet per minute */
+  verticalSpeed?: number;
+  speedBrakes: boolean;
+  /** kg */
+  weight?: number;
+  isaDeviation?: number;
+  /** Wind component in knots, negative for a tailwind, and the entry */
+  headwind?: number;
+  windEntry?: string;
+  antiIce: DescentAntiIce;
+  fuelFactor?: number;
+  /** DESCENT CHECK: the distance to the target in NM */
+  distanceToTarget?: number;
+  result?: DescentPerformanceResult;
 }
 
 interface TPerformanceState {
   landing: TPerformanceLanding;
+  descent: TPerformanceDescent;
   takeoff: TPerformanceTakeoff;
 }
 
@@ -87,28 +147,22 @@ export const initialState: TPerformanceState = {
     icao: '',
     availableRunways: [],
     selectedRunwayIndex: -1,
-    windDirection: undefined,
-    windMagnitude: undefined,
-    windEntry: undefined,
-    weight: undefined,
-    runwayHeading: undefined,
-    approachSpeed: undefined,
-    flaps: LandingFlapsConfig.Full,
-    runwayCondition: LandingRunwayConditions.Dry,
-    reverseThrust: false,
-    elevation: undefined,
-    slope: undefined,
-    temperature: undefined,
-    pressure: undefined,
-    overweightProcedure: false,
-    runwayLength: undefined,
+    computationType: LandingComputationType.InFlight,
+    runwayCondition: LandingRunwayCondition.Dry,
+    antiIce: LandingAntiIce.Off,
+    airConditioning: true,
+    conf: LandingConf.Full,
+    approachType: LandingApproachType.Normal,
     autoland: false,
-    runwayNumber: 0,
-    displayedRunwayLength: 0,
-    maxAutobrakeLandingDist: 0,
-    mediumAutobrakeLandingDist: 0,
-    lowAutobrakeLandingDist: 0,
-    runwayVisualizationLabels: [],
+    glideSlope: 3,
+    brakingMode: LandingBrakingMode.Manual,
+    reverseThrust: false,
+    overweightProcedure: false,
+  },
+  descent: {
+    type: DescentType.Standard,
+    speedBrakes: false,
+    antiIce: DescentAntiIce.Off,
   },
   takeoff: {
     availableRunways: [],
@@ -135,6 +189,14 @@ const performanceSlice = createSlice({
     clearLandingValues: (state) => {
       state.landing = initialState.landing;
     },
+    setDescentValues: (state, action: PayloadAction<Partial<TPerformanceDescent>>) => {
+      Object.keys(action.payload).forEach((key) => {
+        state.descent[key] = action.payload[key];
+      });
+    },
+    clearDescentValues: (state) => {
+      state.descent = initialState.descent;
+    },
     setTakeoffValues: (state, action: PayloadAction<Partial<TPerformanceTakeoff>>) => {
       Object.keys(action.payload).forEach((key) => {
         state.takeoff[key] = action.payload[key];
@@ -146,6 +208,13 @@ const performanceSlice = createSlice({
   },
 });
 
-export const { setLandingValues, clearLandingValues, setTakeoffValues, clearTakeoffValues } = performanceSlice.actions;
+export const {
+  setLandingValues,
+  clearLandingValues,
+  setDescentValues,
+  clearDescentValues,
+  setTakeoffValues,
+  clearTakeoffValues,
+} = performanceSlice.actions;
 
 export default performanceSlice.reducer;

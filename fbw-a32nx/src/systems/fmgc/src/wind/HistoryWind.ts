@@ -6,11 +6,22 @@ import { MathUtils } from '@flybywiresim/fbw-sdk';
 import { FlightPhaseManagerEvents } from '../flightphase';
 import { FmgcFlightPhase } from '../../../shared/src/flightphase';
 import { WindUtils } from '../guidance/vnav/wind/WindUtils';
-import { WindEntry } from '../flightplanning/data/wind';
+import { HistoryWindEntry, WindEntry, WindVector } from '../flightplanning/data/wind';
+import { historyWindRows, HistoryWindRowsRule } from './historyWindRows';
 
 export class HistoryWind {
-  private static readonly LOCALSTORAGE_KEY: string =
-    (process.env.AIRCRAFT_PROJECT_PREFIX?.toUpperCase() ?? 'UNK') + '.HistoryWinds';
+  private static readonly AIRCRAFT_PREFIX: string = process.env.AIRCRAFT_PROJECT_PREFIX?.toUpperCase() ?? 'UNK';
+
+  public static readonly LOCALSTORAGE_KEY: string = HistoryWind.AIRCRAFT_PREFIX + '.HistoryWinds';
+
+  /**
+   * The keys the history winds were stored under before they moved to {@link LOCALSTORAGE_KEY}, by aircraft prefix.
+   * Winds stored under such a key are converted and moved to the new key the first time they are read.
+   */
+  public static readonly LEGACY_LOCALSTORAGE_KEYS: Readonly<Record<string, string>> = {
+    A32NX: 'FBW.HistoryWinds',
+    A380X: 'FBW.A380X.HistoryWinds',
+  };
 
   private readonly sub = this.bus.getSubscriber<NavigationEvents & FlightPhaseManagerEvents>();
 
@@ -39,7 +50,21 @@ export class HistoryWind {
 
   private readonly historyWinds: (WindEntry | null)[] = Array(this.defaultRecordedWind.length + 1).fill(null);
 
-  constructor(private readonly bus: EventBus) {
+  /** {@link LOCALSTORAGE_KEY} of the aircraft of this FMS */
+  private get storageKey(): string {
+    return this.aircraftPrefix + '.HistoryWinds';
+  }
+
+  /**
+   * @param bus the event bus
+   * @param rowsRule which history winds getRecordedWinds lists, see FpmConfig.HISTORY_WIND_ROWS_RULE
+   * @param aircraftPrefix the aircraft whose storage keys are used (AIRCRAFT_PROJECT_PREFIX by default)
+   */
+  constructor(
+    private readonly bus: EventBus,
+    private readonly rowsRule: HistoryWindRowsRule = 'A320',
+    private readonly aircraftPrefix: string = HistoryWind.AIRCRAFT_PREFIX,
+  ) {
     this.altitude.sub(this.handleAltitudeChange.bind(this));
     this.sub.on('fmgc_flight_phase').handle(this.handleFlightPhaseChange.bind(this));
     for (let i = 0; i < this.defaultRecordedWind.length; i++) {
@@ -110,7 +135,7 @@ export class HistoryWind {
     this.syncToLocalStorage();
   }
 
-  public getRecordedWinds(cruiseLevel: number | null, sortAscending = true): Readonly<WindEntry>[] {
+  public getRecordedWinds(cruiseLevel: number | null, sortAscending = true): Readonly<HistoryWindEntry>[] {
     const historyWinds = this.historyWinds.filter((wind) => wind !== null).sort((a, b) => a.altitude! - b.altitude!);
     const interpolationSourceWinds = historyWinds.filter(
       (entry) => entry.vector.direction !== undefined && entry.vector.magnitude !== undefined,
@@ -132,15 +157,89 @@ export class HistoryWind {
         vector: { direction: undefined, magnitude: undefined },
       });
     }
-    return historyWinds.sort((a, b) => (sortAscending ? a.altitude! - b.altitude! : b.altitude! - a.altitude!));
+    historyWinds.sort((a, b) => (sortAscending ? a.altitude! - b.altitude! : b.altitude! - a.altitude!));
+
+    if (this.rowsRule === 'A380') {
+      const recordedCruise = this.historyWinds[this.defaultRecordedWind.length] ?? null;
+      // A cruise at a fixed level (e.g. FL 250) is listed once, with the measured cruise wind
+      const listed =
+        recordedCruise !== null
+          ? historyWinds.filter((wind) => wind === recordedCruise || wind.altitude !== recordedCruise.altitude)
+          : historyWinds;
+      return historyWindRows(listed, cruiseLevel, recordedCruise?.altitude ?? null);
+    }
+
+    return historyWinds;
   }
 
   private syncToLocalStorage() {
-    localStorage.setItem(HistoryWind.LOCALSTORAGE_KEY, JSON.stringify(this.historyWinds));
+    localStorage.setItem(this.storageKey, JSON.stringify(this.historyWinds));
+  }
+
+  /**
+   * Converts a wind vector stored as a Vec2 [x, y] (x = speed * cos(direction), y = speed * sin(direction)) to a
+   * {@link WindVector}. A Float64Array is serialised as an object with the keys "0" and "1", an array as itself.
+   * @param stored the vector as it was read from local storage
+   * @returns the vector with its direction in radians and its magnitude in knots, or undefined if it is not a Vec2
+   */
+  private static windVectorFromStoredVec2(stored: unknown): WindVector | undefined {
+    const { 0: x, 1: y } = (stored ?? {}) as Record<number, unknown>;
+    if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) {
+      return undefined;
+    }
+
+    // atan2 gives -180..180 deg; recorded winds use 0..360 deg, which the wind interpolation relies on
+    const direction = Math.atan2(y, x);
+    return { direction: direction < 0 ? direction + 2 * Math.PI : direction, magnitude: Math.hypot(x, y) };
+  }
+
+  /**
+   * Moves the history winds stored under the legacy key to the current key, converting their vectors.
+   * Nothing happens if the current key already holds winds.
+   */
+  private migrateLegacyLocalStorage() {
+    const legacyKey = HistoryWind.LEGACY_LOCALSTORAGE_KEYS[this.aircraftPrefix];
+    if (legacyKey === undefined) {
+      return;
+    }
+    if (localStorage.getItem(this.storageKey) !== null) {
+      // Already moved (or recorded under the new key since): the legacy winds are not needed any more
+      localStorage.removeItem(legacyKey);
+      return;
+    }
+
+    const legacyString = localStorage.getItem(legacyKey);
+    if (legacyString === null) {
+      return;
+    }
+
+    try {
+      const legacyWinds = JSON.parse(legacyString);
+
+      if (Array.isArray(legacyWinds) && legacyWinds.length === this.historyWinds.length) {
+        const converted = legacyWinds.map((wind): WindEntry | null => {
+          const vector = HistoryWind.windVectorFromStoredVec2(wind?.vector);
+          // A recorded cruise wind without a level was stored with NaN, which JSON turns into null: drop it.
+          // Recorded winds have their level rounded to 100 ft; the legacy keys hold the cruise altitude unrounded.
+          return vector !== undefined && typeof wind.altitude === 'number'
+            ? { altitude: Math.round(wind.altitude / 100) * 100, vector }
+            : null;
+        });
+        localStorage.setItem(this.storageKey, JSON.stringify(converted));
+      } else {
+        console.log(`[FMS/History Winds] Legacy history winds with invalid format: "${legacyString}"`);
+      }
+    } catch (e) {
+      console.log(`[FMS/History Winds] Error converting legacy history winds from local storage: ${e}`);
+    }
+
+    localStorage.removeItem(legacyKey);
   }
 
   private syncFromLocalStorage() {
-    const historyWindsString = localStorage.getItem(HistoryWind.LOCALSTORAGE_KEY);
+    this.migrateLegacyLocalStorage();
+
+    const historyWindsString = localStorage.getItem(this.storageKey);
     if (historyWindsString === null) {
       return;
     }

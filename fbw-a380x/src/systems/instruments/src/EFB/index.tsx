@@ -7,6 +7,10 @@ import { AircraftContext, EfbWrapper, syncSettingsFromPersistentStorage } from '
 import { A380FailureDefinitions } from '../../../failures';
 import { AutomaticCallOutsPage } from './Pages/AutomaticCallOutsPage';
 import { a380xSyncedSettings } from './settingsSync';
+import { A380842TakeoffPerformanceCalculator } from '@shared/performance/a380x_takeoff';
+import { A380842LandingPerformanceCalculator } from '@shared/performance/a380x_landing';
+import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
+import { FmsDescentPerformanceCalculator } from '@fmgc/performance/FmsDescentPerformanceCalculator';
 
 import './Efb.scss';
 import { EventBus } from '@microsoft/msfs-sdk';
@@ -21,8 +25,16 @@ render(
   <AircraftContext.Provider
     value={{
       performanceCalculators: {
-        takeoff: null,
-        landing: null,
+        takeoff: new A380842TakeoffPerformanceCalculator(),
+        landing: new A380842LandingPerformanceCalculator(),
+        descent: new FmsDescentPerformanceCalculator(A380AircraftConfig, {
+          standardSchedule: { mach: 0.85, cas: 300, limitCas: 250, limitAltitude: 10_000 },
+          mmo: 0.89,
+          vmo: 340,
+          maxAltitude: 43_100,
+          oew: 300_006,
+          mtow: 510_000,
+        }),
       },
       pushbackPage: {
         turnIndicatorTuningDefault: 1.35,
@@ -50,6 +62,8 @@ render(
           autoStepClimb: true,
           pilotAvatars: false,
           eclSoftKeys: true,
+          keepPilotStoredElements: true,
+          companyDatalinkReplyTime: true,
         },
         sim: {
           cones: false,

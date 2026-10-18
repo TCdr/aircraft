@@ -81,6 +81,38 @@ export class InsertNextWptFromWindow extends DisplayComponent<InsertNextWptFromW
           this.props.fmcService.master.revisedLegIsAltn.get() ?? undefined,
         );
       }
+    } else if (WaypointEntryUtils.isPdFormat(text)) {
+      // PLACE/DIST: the place must be the revised waypoint, the waypoint goes on the leg after it (or before it
+      // with a negative distance), see PlaceDistance.ts
+      try {
+        const revWpt = this.props.fmcService.master.revisedLegIndex.get();
+        const isAltn = this.props.fmcService.master.revisedLegIsAltn.get() ?? false;
+        const plan = isAltn
+          ? this.props.flightPlanInterface.get(revWptPlanIndex).alternateFlightPlan
+          : this.props.flightPlanInterface.get(revWptPlanIndex);
+        if (revWpt !== null && plan) {
+          const placeDist = WaypointEntryUtils.createPlaceDistWaypoint(
+            this.props.fmcService.master,
+            text,
+            plan.allLegs,
+            revWpt,
+            true,
+            revWpt,
+          );
+          await this.props.flightPlanInterface.insertPlaceDistanceWaypoint(
+            placeDist.placeLegIndex,
+            placeDist.waypoint,
+            placeDist.distance,
+            revWptPlanIndex,
+            isAltn,
+          );
+        }
+      } catch (msg: unknown) {
+        if (msg instanceof FmsError) {
+          this.props.fmcService.master.showFmsErrorMessage(msg.type);
+        }
+      }
+      this.props.visible.set(false);
     } else {
       try {
         const wpt = await WaypointEntryUtils.getOrCreateWaypoint(this.props.fmcService.master, text, true, undefined);

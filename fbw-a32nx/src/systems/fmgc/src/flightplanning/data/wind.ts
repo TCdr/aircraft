@@ -9,6 +9,11 @@ export interface WindEntry {
   altitude: number | undefined;
 }
 
+/** A history wind; set when the entry is in the CRZ FL slot of the A380 history winds, see historyWindRows */
+export interface HistoryWindEntry extends WindEntry {
+  isCruiseLevel?: boolean;
+}
+
 export interface FlightPlanWindEntry extends WindEntry {
   flags: number;
 }
@@ -35,6 +40,8 @@ export type PropagatedWindEntry = WindEntry & {
 
 export enum FlightPlanWindEntryFlags {
   InsertedFromHistory = 1 << 0,
+  /** Entered as a flight level (NNN or FLNNN) or uplinked at a flight level */
+  EnteredAsFlightLevel = 1 << 1,
 }
 
 export const extractWindSpeedFromVector = (vector: WindVector, zeroIfUndefined = false) =>

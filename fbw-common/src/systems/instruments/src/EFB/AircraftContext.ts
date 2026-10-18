@@ -3,12 +3,14 @@
 //  SPDX-License-Identifier: GPL-3.0
 
 import { createContext } from 'react';
+import { DescentPerformanceCalculator } from '../../../shared/src/performance/descent';
 import { LandingPerformanceCalculator } from '../../../shared/src/performance/landing';
 import { TakeoffPerformanceCalculator } from '../../../shared/src/performance/takeoff';
 
 interface PerformanceCalculators {
   takeoff: TakeoffPerformanceCalculator | null;
   landing: LandingPerformanceCalculator | null;
+  descent: DescentPerformanceCalculator | null;
 }
 
 interface PushbackPage {
@@ -45,6 +47,10 @@ interface RealismOptions {
   autoStepClimb: boolean;
   pilotAvatars: boolean;
   eclSoftKeys: boolean;
+  /** Keeping the MFD pilot stored elements from one sim session to the next (A380X) */
+  keepPilotStoredElements: boolean;
+  /** The reply time of the company datalink requests of the FMS (A380X: F-PLN, wind and takeoff data) */
+  companyDatalinkReplyTime: boolean;
 }
 
 interface SimOptions {
@@ -76,6 +82,7 @@ export const AircraftContext = createContext<AircraftEfbContext>({
   performanceCalculators: {
     takeoff: null,
     landing: null,
+    descent: null,
   },
   pushbackPage: {
     turnIndicatorTuningDefault: 0,
@@ -102,6 +109,8 @@ export const AircraftContext = createContext<AircraftEfbContext>({
       autoStepClimb: false,
       pilotAvatars: false,
       eclSoftKeys: false,
+      keepPilotStoredElements: false,
+      companyDatalinkReplyTime: false,
     },
     sim: {
       cones: false,

@@ -1,0 +1,11 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// Positions in page container coordinates
+.mfd-rejected-atc-column {
+  position: absolute;
+  top: 19px;
+  left: 362px;
+  height: 628px;
+  width: 0;
+  border-left: 1px solid $display-light-grey;
+}

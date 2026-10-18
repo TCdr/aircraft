@@ -10,6 +10,16 @@ import { FmsDisplayInterface } from '@fmgc/flightplanning/interface/FmsDisplayIn
 import { Coordinates } from 'msfs-geo';
 import { FmsDataInterface } from '@fmgc/flightplanning/interface/FmsDataInterface';
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
+import { ReadonlyFlightPlanElement } from '@fmgc/flightplanning/legs/ReadonlyFlightPlanLeg';
+import { parsePlaceDistance, placeDistancePosition } from '@fmgc/flightplanning/PlaceDistance';
+
+/** A PLACE/DIST waypoint created on a flight plan, with where it goes (see PlaceDistance.ts) */
+export interface PlaceDistWaypoint {
+  waypoint: Fix;
+  placeLegIndex: number;
+  /** The signed distance along the flight plan, NM: negative before the place */
+  distance: number;
+}
 
 export class WaypointEntryUtils {
   /**
@@ -38,6 +48,7 @@ export class WaypointEntryUtils {
       return fms.createPlaceBearingPlaceBearingWaypoint(place1, bearing1, place2, bearing2, stored, ident).waypoint;
     }
     if (WaypointEntryUtils.isPdFormat(place)) {
+      // A PLACE/DIST waypoint is defined along a flight plan: see createPlaceDistWaypoint (insertion revisions)
       throw new FmsError(FmsErrorType.NotYetImplemented);
     } else if (WaypointEntryUtils.isPbdFormat(place)) {
       const [wp, bearing, dist] = await WaypointEntryUtils.parsePbd(fms, place);
@@ -54,6 +65,39 @@ export class WaypointEntryUtils {
     }
 
     throw new FmsError(FmsErrorType.FormatError);
+  }
+
+  /**
+   * Creates a PLACE/DIST waypoint on a flight plan: the waypoint at DIST from the PLACE waypoint of the flight plan, on
+   * the leg after it (or before it with a negative DIST). See PlaceDistance.ts for the rules.
+   * @param fms the FMS
+   * @param entry the PLACE/DIST entry
+   * @param elements the elements of the flight plan the waypoint is entered on
+   * @param fromIndex the first flight plan index where the place is looked for
+   * @param stored whether the created waypoint is stored
+   * @param revisedLegIndex when set, the place must be this waypoint (A380: PLACE / WPT DISAGREE otherwise)
+   * @throws FmsError FORMAT ERROR, NOT IN DATABASE, ENTRY OUT OF RANGE or PLACE / WPT DISAGREE
+   */
+  static createPlaceDistWaypoint(
+    fms: FmsDataInterface,
+    entry: string,
+    elements: readonly ReadonlyFlightPlanElement[],
+    fromIndex: number,
+    stored: boolean,
+    revisedLegIndex?: number,
+  ): PlaceDistWaypoint {
+    const placeDistance = parsePlaceDistance(entry);
+    const position = placeDistancePosition(elements, placeDistance, fromIndex, revisedLegIndex);
+    const waypoint = fms.createPlaceDistWaypoint(
+      position.place,
+      placeDistance.distance,
+      position.location,
+      stored,
+    )?.waypoint;
+    if (!waypoint) {
+      throw new FmsError(FmsErrorType.ListOf99InUse);
+    }
+    return { waypoint, placeLegIndex: position.placeLegIndex, distance: placeDistance.distance };
   }
 
   /**

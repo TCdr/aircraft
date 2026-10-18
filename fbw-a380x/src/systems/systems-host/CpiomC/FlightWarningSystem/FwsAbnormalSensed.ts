@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2025 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -93,6 +93,11 @@ export class FwsAbnormalSensed {
   private readonly pub = this.fws.bus.getPublisher<FwsEvents>();
 
   private readonly subscriptions: Subscription[] = [];
+
+  /** Whether the XPDR & TCAS system selected on the SURV panel (L:A32NX_TRANSPONDER_SYSTEM, 0 = SYS 1) is the given one. */
+  private xpdrTcasSystemIs(system: 1 | 2): boolean {
+    return SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') === system - 1;
+  }
 
   public readonly abnormalShown = Subject.create(false);
 
@@ -3786,8 +3791,8 @@ export class FwsAbnormalSensed {
         this.fws.airKnob.get() === 0,
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_ADR_1_PB_IS_ON', 'Bool'),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_ADR_2_PB_IS_ON', 'Bool'),
-        true,
-        true,
+        this.fws.tawsWxrSelected.get() === 1,
+        this.xpdrTcasSystemIs(1),
         true,
         true,
         SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_1_MODE_SELECTOR_KNOB', 'number') === 0,
@@ -3818,8 +3823,8 @@ export class FwsAbnormalSensed {
         this.fws.airKnob.get() === 1,
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_ADR_1_PB_IS_ON', 'Bool'),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_ADR_3_PB_IS_ON', 'Bool'),
-        true,
-        true,
+        this.fws.tawsWxrSelected.get() === 2,
+        this.xpdrTcasSystemIs(2),
         true,
         true,
         SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_1_MODE_SELECTOR_KNOB', 'number') === 0,
@@ -3850,8 +3855,8 @@ export class FwsAbnormalSensed {
         this.fws.airKnob.get() === 1,
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_ADR_2_PB_IS_ON', 'Bool'),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_ADR_3_PB_IS_ON', 'Bool'),
-        true,
-        true,
+        this.fws.tawsWxrSelected.get() === 1,
+        this.xpdrTcasSystemIs(1),
         true,
         true,
         SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_3_MODE_SELECTOR_KNOB', 'number') === 0,
@@ -3994,8 +3999,8 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [true, true, true, true, true],
       whichItemsChecked: () => [
         this.fws.attKnob.get() === 0,
-        true,
-        true,
+        this.fws.tawsWxrSelected.get() === 1,
+        this.xpdrTcasSystemIs(1),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_1_PB_IS_ON', 'Bool'),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_2_PB_IS_ON', 'Bool'),
       ],
@@ -4019,8 +4024,8 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [true, true, true, true, true, true],
       whichItemsChecked: () => [
         this.fws.attKnob.get() === 1,
-        true,
-        true,
+        this.fws.tawsWxrSelected.get() === 2,
+        this.xpdrTcasSystemIs(2),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_1_PB_IS_ON', 'Bool'),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_3_PB_IS_ON', 'Bool'),
         true,
@@ -4047,8 +4052,8 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [true, true, true, true, true],
       whichItemsChecked: () => [
         this.fws.attKnob.get() === 1,
-        true,
-        true,
+        this.fws.tawsWxrSelected.get() === 1,
+        this.xpdrTcasSystemIs(1),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_2_PB_IS_ON', 'Bool'),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_3_PB_IS_ON', 'Bool'),
       ],
@@ -4240,8 +4245,8 @@ export class FwsAbnormalSensed {
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas1Fault,
       notActiveWhenItemActive: [],
-      whichItemsToShow: () => [false], // TODO replace with SURV SYS logic once implemented
-      whichItemsChecked: () => [false],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.xpdrTcasSystemIs(2)],
       failure: 2,
       sysPage: SdPages.None,
     },
@@ -4250,8 +4255,8 @@ export class FwsAbnormalSensed {
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas2Fault,
       notActiveWhenItemActive: [],
-      whichItemsToShow: () => [false],
-      whichItemsChecked: () => [false],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.xpdrTcasSystemIs(1)],
       failure: 2,
       sysPage: SdPages.None,
     },

@@ -1,6 +1,7 @@
 // Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
-import { TurnDirection, WaypointDescriptor } from '@flybywiresim/fbw-sdk';
+import { MagVar, TurnDirection, WaypointDescriptor } from '@flybywiresim/fbw-sdk';
+import { presentPositionComputedHold } from '@fmgc/flightplanning/plans/PresentPositionHold';
 import { HoldType } from '@fmgc/flightplanning/data/flightplan';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { MfdFmsFpln } from './MfdFmsFpln';
@@ -38,9 +39,18 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
     revisedLeg.isXF() &&
     !BitFlags.isAny(revisedLeg.flags, FlightPlanLegFlags.DirectToTurningPoint);
 
+  // HOLD at P.POS: the crew revises the FROM waypoint of the flight plan (the active flight plan in flight; on the
+  // ground the FROM waypoint is the departure)
+  const isPresentPositionHold =
+    isFromLeg &&
+    planIndex === FlightPlanIndex.Active &&
+    !altnFlightPlan &&
+    type !== FplnRevisionsMenuType.Departure &&
+    type !== FplnRevisionsMenuType.Runway;
+
   return [
     {
-      name: planIndex >= FlightPlanIndex.FirstSecondary ? '\xa0' : 'FROM P.POS DIR TO',
+      name: planIndex >= FlightPlanIndex.FirstSecondary ? '\xa0' : 'FROM P.POS DIR TO *',
       disabled:
         altnFlightPlan ||
         legIndex >= (fpln.loadedFlightPlan?.firstMissedApproachLegIndex ?? Infinity) ||
@@ -96,8 +106,9 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
         fpln.props.mfd.uiService.navigateTo(`fms/${fpln.props.mfd.uiService.activeUri.get().category}/f-pln-arrival`),
     },
     {
-      name: '(N/A) OFFSET',
-      disabled: true,
+      name: 'OFFSET',
+      // OFFSET page (entries inactive, no lateral offset guidance yet)
+      disabled: false,
       onPressed: () =>
         fpln.props.mfd.uiService.navigateTo(`fms/${fpln.props.mfd.uiService.activeUri.get().category}/f-pln-offset`),
     },
@@ -106,13 +117,46 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
       disabled:
         type === FplnRevisionsMenuType.Discontinuity ||
         type === FplnRevisionsMenuType.TooSteepPath ||
-        isFromLeg || // TODO should be allowed at FROM but we don't support PPOS holds yet.
-        !isLegTerminatingAtDatabaseFix,
+        (isFromLeg ? !isPresentPositionHold : !isLegTerminatingAtDatabaseFix),
       onPressed: async () => {
+        const fmc = fpln.props.fmcService.master;
+        if (isPresentPositionHold && fmc) {
+          // HOLD at P.POS: the computed hold on the aircraft track (see PresentPositionHold.ts)
+          const ppos = fmc.navigation.getPpos();
+          if (!ppos) {
+            return;
+          }
+          const trueTrack: number = SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree');
+          const magVar = MagVar.get(ppos.lat, ppos.long);
+          const computedHold = presentPositionComputedHold(
+            magVar === null ? trueTrack : MagVar.trueToMagnetic(trueTrack, magVar),
+            SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
+          );
+          const holdIndex = await fmc.flightPlanInterface.holdAtPresentPosition(
+            ppos,
+            trueTrack,
+            { ...computedHold },
+            computedHold,
+          );
+          fmc.revisedLegIndex.set(holdIndex);
+          fpln.props.mfd.uiService.navigateTo(
+            `fms/${fpln.props.mfd.uiService.activeUri.get().category}/${lateralRevisionHoldPage}`,
+          );
+          return;
+        }
         if (revisedLeg && revisedLeg.isDiscontinuity === false && !revisedLeg.isHX()) {
-          const alt = revisedLeg.definition.altitude1
-            ? revisedLeg.definition.altitude1
-            : SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet');
+          // COMPUTED HOLD: 1 min leg below 14 000 ft, 1.5 min above, at the predicted altitude at the hold
+          const predictedAltitude =
+            planIndex === FlightPlanIndex.Active
+              ? fpln.props.fmcService.master?.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(
+                  legIndex,
+                )?.altitude
+              : undefined;
+          const alt =
+            predictedAltitude ??
+            (revisedLeg.definition.altitude1
+              ? revisedLeg.definition.altitude1
+              : SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'));
 
           const previousLeg = fpln.props.fmcService.master?.flightPlanInterface.active.maybeElementAt(legIndex - 1);
 
@@ -186,7 +230,11 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
         revisedLeg.isDiscontinuity ||
         fpln.props.fmcService.master.flightPlanInterface.get(planIndex).alternateDestinationAirport === undefined,
       onPressed: () => {
-        const cruiseLevel = fpln.props.fmcService.master?.computeAlternateCruiseLevel(planIndex) ?? 100;
+        const cruiseLevel = fpln.props.fmcService.master?.computeAlternateCruiseLevel(planIndex);
+        if (cruiseLevel === undefined) {
+          // No destination or alternate airport: ENABLE ALTN is disabled then, nothing to enable
+          return;
+        }
         fpln.props.fmcService.master?.flightPlanInterface.enableAltn(legIndex, cruiseLevel, planIndex);
         fpln.props.fmcService.master?.acInterface.updateFmsData();
         fpln.props.fmcService.master?.acInterface.calculateFinalAndAlternateFuel(planIndex);
@@ -210,7 +258,7 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
         ),
     },
     {
-      name: '(N/A) CMS',
+      name: 'CMS',
       disabled:
         true ||
         altnFlightPlan ||

@@ -82,6 +82,7 @@ export const OitEfbWrapper: React.FC<OitEfbWrapperProps> = ({ eventBus }) => {
         performanceCalculators: {
           takeoff: null,
           landing: null,
+          descent: null,
         },
         pushbackPage: {
           turnIndicatorTuningDefault: 1.35,
@@ -109,6 +110,8 @@ export const OitEfbWrapper: React.FC<OitEfbWrapperProps> = ({ eventBus }) => {
             pilotAvatars: false,
             eclSoftKeys: true,
             autoStepClimb: true,
+            keepPilotStoredElements: true,
+            companyDatalinkReplyTime: true,
           },
           sim: {
             cones: false,

@@ -26,6 +26,11 @@
   display: none;
 }
 
+// The TCAS message ("TA ONLY", "TCAS") stays at the left of its line at the bottom of the ND, as the shared
+// TcasWxrMessages component draws it: on the A320 ND, TA ONLY sits at the bottom left of centre, and the bottom centre
+// is the FM message line (GPS PRIMARY...). No centring here: the sim renderer (Coherent GT) applies a CSS text-anchor
+// but not a CSS transform on SVG text, so a centring rule left the text half outside its box (seen in the sim).
+
 .mode-range-change {
   font-size: 35px;
 }

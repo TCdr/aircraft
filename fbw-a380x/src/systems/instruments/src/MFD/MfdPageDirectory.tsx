@@ -21,6 +21,8 @@ import {
   activeFlightPlanHoldUri,
   fixInfoUri,
   dirToUri,
+  routeSelectionPage,
+  cpnyFplnRequestPage,
 } from './shared/utils';
 
 // Page imports
@@ -38,6 +40,9 @@ import { MfdNotFound } from './pages/FMS/MfdNotFound';
 import { MfdFmsPerf } from './pages/FMS/MfdFmsPerf';
 import { MfdFmsPositionIrs } from './pages/FMS/POSITION/MfdFmsPositionIrs';
 import { MfdFmsPositionNavaids } from './pages/FMS/POSITION/MfdFmsPositionNavaids';
+import { MfdFmsPositionGps } from './pages/FMS/POSITION/MfdFmsPositionGps';
+import { MfdFmsPositionReport } from './pages/FMS/POSITION/MfdFmsPositionReport';
+import { MfdFmsPositionTime } from './pages/FMS/POSITION/MfdFmsPositionTime';
 import { MfdAtccomConnect } from './pages/ATCCOM/MfdAtccomConnect';
 import { MfdAtccomMsgRecord } from './pages/ATCCOM/MfdAtccomMsgRecord';
 import { MfdAtccomMsgRecordAll } from './pages/ATCCOM/MfdAtccomMsgRecordAll';
@@ -60,9 +65,26 @@ import { MfdFmsFplnFixInfo } from './pages/FMS/F-PLN/MfdFmsFplnFixInfo';
 import { MfdFmsPositionMonitor } from './pages/FMS/POSITION/MfdFmsPositionMonitor';
 import { MfdSurvStatusSwitching } from './pages/SURV/MfdSurvStatusSwitching';
 import { MfdFmsDataAirport } from './pages/FMS/DATA/MfdFmsDataAirport';
+import { MfdFmsDataWaypoint } from './pages/FMS/DATA/MfdFmsDataWaypoint';
+import { MfdFmsDataNavaid } from './pages/FMS/DATA/MfdFmsDataNavaid';
+import { MfdFmsDataRoute } from './pages/FMS/DATA/MfdFmsDataRoute';
+import { MfdFmsFplnRouteSelection } from './pages/FMS/F-PLN/MfdFmsFplnRouteSelection';
+import { MfdFmsFplnCpnyFplnReq } from './pages/FMS/F-PLN/MfdFmsFplnCpnyFplnReq';
+import { MfdFmsFplnClosestAirports } from './pages/FMS/F-PLN/MfdFmsFplnClosestAirports';
+import { MfdFmsFplnAlternate } from './pages/FMS/F-PLN/MfdFmsFplnAlternate';
+import { MfdFmsFplnEquiTimePoint } from './pages/FMS/F-PLN/MfdFmsFplnEquiTimePoint';
+import { MfdFmsFplnOffset } from './pages/FMS/F-PLN/MfdFmsFplnOffset';
+import { MfdFmsDataPrinter } from './pages/FMS/DATA/MfdFmsDataPrinter';
+import { cpnyToRequestPage, MfdFmsCpnyToRequest } from './pages/FMS/MfdFmsCpnyToRequest';
+import { MfdFmsReceivedCpnyToData } from './pages/FMS/MfdFmsReceivedCpnyToData';
+import { cpnyFplnReportPage, MfdFmsFreeTextSend, transferToMailboxPage } from './pages/FMS/MfdFmsFreeTextSend';
+import { MfdFmsSecRejectedAtcInfo, rejectedAtcInfoPage } from './pages/FMS/SEC/MfdFmsSecRejectedAtcInfo';
+import { MfdFmsFplnLlXingTimeMkr } from './pages/FMS/F-PLN/MfdFmsFplnLlXingTimeMkr';
 import { AtcDatalinkSystem } from './ATCCOM/AtcDatalinkSystem';
 import { MfdFmsSecIndex } from './pages/FMS/SEC/MfdFmsSecIndex';
 import { MfdFmsWindPage } from './pages/FMS/MfdFmsWindPage';
+import { MfdFmsCpnyWindRequest } from './pages/FMS/MfdFmsCpnyWindRequest';
+import { cpnyWindRequestPage } from './pages/FMS/CpnyWindButtonUtils';
 
 export function pageForUrl(
   url: string,
@@ -101,9 +123,23 @@ export function pageForUrl(
     case fmsActivePagePrefix + windPage:
     case fmsSec1PagePrefix + windPage:
     case fmsSec2PagePrefix + windPage:
+    case fmsSec3PagePrefix + windPage:
       return (
         <MfdFmsWindPage
           pageTitle="WIND"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case fmsActivePagePrefix + cpnyWindRequestPage:
+    case fmsSec1PagePrefix + cpnyWindRequestPage:
+    case fmsSec2PagePrefix + cpnyWindRequestPage:
+    case fmsSec3PagePrefix + cpnyWindRequestPage:
+      return (
+        <MfdFmsCpnyWindRequest
+          pageTitle="COMPANY WIND DATA REQUEST"
           bus={bus}
           mfd={mfd}
           fmcService={fmcService}
@@ -225,7 +261,7 @@ export function pageForUrl(
     case secIndexPageUri:
       return (
         <MfdFmsSecIndex
-          pageTitle="SEC INDEX"
+          pageTitle="INDEX"
           bus={bus}
           mfd={mfd}
           fmcService={fmcService}
@@ -262,6 +298,36 @@ export function pageForUrl(
           flightPlanInterface={fmcService.master.flightPlanInterface}
         />
       );
+    case 'fms/position/gps':
+      return (
+        <MfdFmsPositionGps
+          pageTitle="GPS"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/position/report':
+      return (
+        <MfdFmsPositionReport
+          pageTitle="REPORT"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/position/time':
+      return (
+        <MfdFmsPositionTime
+          pageTitle="TIME"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
     case dataStatusUri:
       return (
         <MfdFmsDataStatus
@@ -276,6 +342,189 @@ export function pageForUrl(
       return (
         <MfdFmsDataAirport
           pageTitle="AIRPORT"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/data/waypoint':
+      return (
+        <MfdFmsDataWaypoint
+          pageTitle="WAYPOINT"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/data/navaid':
+      return (
+        <MfdFmsDataNavaid
+          pageTitle="NAVAID"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/data/route':
+      return (
+        <MfdFmsDataRoute
+          pageTitle="ROUTE"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/active/' + routeSelectionPage:
+    case 'fms/sec1/' + routeSelectionPage:
+    case 'fms/sec2/' + routeSelectionPage:
+    case 'fms/sec3/' + routeSelectionPage:
+      return (
+        <MfdFmsFplnRouteSelection
+          pageTitle="ROUTE SELECTION"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/active/f-pln-ll-xing-time-mkr':
+    case 'fms/sec1/f-pln-ll-xing-time-mkr':
+    case 'fms/sec2/f-pln-ll-xing-time-mkr':
+    case 'fms/sec3/f-pln-ll-xing-time-mkr':
+      return (
+        <MfdFmsFplnLlXingTimeMkr
+          pageTitle="F-PLN/LL XING-TIME MKR"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/active/' + cpnyToRequestPage:
+      return (
+        <MfdFmsCpnyToRequest
+          pageTitle="COMPANY T.O DATA REQUEST"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/active/received-cpny-to-data':
+      return (
+        <MfdFmsReceivedCpnyToData
+          pageTitle="RECEIVED COMPANY T.O DATA"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/active/' + cpnyFplnReportPage:
+      return (
+        <MfdFmsFreeTextSend
+          pageTitle="COMPANY F-PLN REPORT"
+          title="COMPANY F-PLN REPORT"
+          sendLabel="SEND REPORT<br />TO CPNY *"
+          returnUri={() => 'fms/active/f-pln'}
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/sec1/' + transferToMailboxPage:
+    case 'fms/sec2/' + transferToMailboxPage:
+    case 'fms/sec3/' + transferToMailboxPage:
+      return (
+        <MfdFmsFreeTextSend
+          pageTitle="TRANSFER TO MAILBOX"
+          title="TRANSFER TO MAILBOX"
+          sendLabel="XFER<br />TO MAILBOX *"
+          returnUri={() => `${secIndexPageUri}/${mfd.uiService.activeUri.get().category.substring(3)}`}
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/sec3/' + rejectedAtcInfoPage:
+      return (
+        <MfdFmsSecRejectedAtcInfo
+          pageTitle="REJECTED ATC INFO"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/data/printer':
+      return (
+        <MfdFmsDataPrinter
+          pageTitle="PRINTER"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/active/f-pln-offset':
+    case 'fms/sec1/f-pln-offset':
+    case 'fms/sec2/f-pln-offset':
+    case 'fms/sec3/f-pln-offset':
+      return (
+        <MfdFmsFplnOffset
+          pageTitle="F-PLN/OFFSET"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/active/f-pln-equi-time-point':
+      return (
+        <MfdFmsFplnEquiTimePoint
+          pageTitle="F-PLN/EQUI-TIME POINT"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/active/f-pln-alternate':
+    case 'fms/sec1/f-pln-alternate':
+    case 'fms/sec2/f-pln-alternate':
+    case 'fms/sec3/f-pln-alternate':
+      return (
+        <MfdFmsFplnAlternate
+          pageTitle="F-PLN/ALTERNATE"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/active/f-pln-closest-airports':
+      return (
+        <MfdFmsFplnClosestAirports
+          pageTitle="F-PLN/CLOSEST AIRPORTS"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case 'fms/active/' + cpnyFplnRequestPage:
+    case 'fms/sec1/' + cpnyFplnRequestPage:
+    case 'fms/sec2/' + cpnyFplnRequestPage:
+    case 'fms/sec3/' + cpnyFplnRequestPage:
+      return (
+        <MfdFmsFplnCpnyFplnReq
+          pageTitle="COMPANY F-PLN REQUEST"
           bus={bus}
           mfd={mfd}
           fmcService={fmcService}

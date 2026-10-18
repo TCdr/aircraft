@@ -1,3 +1,4 @@
+import { FmsPrinter } from './FmsPrinter';
 import { FmsErrorType } from '@fmgc/FmsError';
 import { FmsDataInterface } from '@fmgc/flightplanning/interface/FmsDataInterface';
 import { FmsDisplayInterface } from '@fmgc/flightplanning/interface/FmsDisplayInterface';
@@ -9,11 +10,24 @@ import { FmcAircraftInterface } from './FmcAircraftInterface';
 import { MfdDisplayInterface } from '../MFD';
 import { FmgcDataService } from './fmgc';
 import { TypeIMessage, TypeIIMessage } from '../shared/NXSystemMessages';
-import { EfisSide, Fix, FMMessage, Waypoint } from '@flybywiresim/fbw-sdk';
+import {
+  CompanyTakeoffDataRequestContent,
+  CompanyTakeoffDataUplink,
+  EfisSide,
+  Fix,
+  FMMessage,
+  NearbyFacility,
+  Waypoint,
+} from '@flybywiresim/fbw-sdk';
+import { CompanyTakeoffData } from './CompanyTakeoffData';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { DataManager } from '@fmgc/flightplanning/DataManager';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FlightPlanInterface } from '@fmgc/flightplanning/FlightPlanInterface';
+import { FmsTimeKeeper } from './FmsTimeKeeper';
+import { SequencedWaypointRecord } from './SequencedWaypointRecorder';
+import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
+import { TimeConstraint } from './TimeConstraint';
 
 export enum FmcOperatingModes {
   Master,
@@ -70,6 +84,12 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
    */
   get navigation(): NavigationProvider;
 
+  /** The airports around the aircraft present position (nearby facility monitor of the navigation), unsorted */
+  getNearbyAirports(): readonly Readonly<NearbyFacility>[];
+
+  /** Static air temperature in degrees Celsius, or null if not available */
+  getStaticAirTemperature(): number | null;
+
   /**
    * Navaid tuner
    */
@@ -112,6 +132,34 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
    * Returns whether active flight plan exists with a city pair
    */
   get hasActiveFlightPlanWithCityPair(): Subject<boolean>;
+
+  /** FUEL PLANNING: the computed minimum BLOCK fuel in tonnes, until confirmed */
+  readonly fuelPlanningBlockFuel: Subscribable<number | null>;
+
+  /** FUEL PLANNING: the computation is running */
+  readonly fuelPlanningInProgress: Subscribable<boolean>;
+
+  /** Starts the FUEL PLANNING: predictions with trial BLOCK fuels until the minimum BLOCK is found */
+  startFuelPlanning(): void;
+
+  /** Company takeoff data: the request and the received data */
+  readonly companyTakeoffData: CompanyTakeoffData;
+
+  /** The takeoff data of the FMS, as in a company takeoff data request */
+  companyTakeoffDataRequestContent(): CompanyTakeoffDataRequestContent;
+
+  /** Whether received company takeoff data can be inserted, and whether its TOW disagrees with the active one */
+  checkCompanyTakeoffData(uplink: CompanyTakeoffDataUplink): {
+    insertable: boolean;
+    runwayDisagree: boolean;
+    towDisagree: boolean;
+  };
+
+  /** INSERT: the received company takeoff data updates the T.O panel of the PERF page */
+  insertCompanyTakeoffData(uplink: CompanyTakeoffDataUplink): boolean;
+
+  /** Enters the computed minimum BLOCK fuel in the BLOCK entry field */
+  confirmFuelPlanning(): void;
 
   /**
    * Returns currently revised waypoint as Fix
@@ -174,6 +222,12 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
    * @returns The recommended maxium flight level (in hundreds of feet). If grossweight is not available or if the flightplan is not active, null is returned.
    */
   getRecMaxFlightLevel(forplan?: FlightPlanIndex, grossWeight?: number): number | null;
+
+  /**
+   * The alternates planned by the company for a destination (the alternates of the SimBrief OFP, when it is for this
+   * destination), used as the database alternates of the ALTERNATE page (a maximum of 6)
+   */
+  getCompanyAlternates(destinationIcao: string): string[];
 
   /** as altitude */
   getRecMaxAltitude(forPlan?: FlightPlanIndex, grossWeight?: number): number | null;
@@ -317,6 +371,30 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
    */
   computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined;
 
+  /** The time constraint (RTA) of the active flight plan (only one time constraint in the flight plan) */
+  readonly timeConstraint: Subject<TimeConstraint | null>;
+
+  /** UTC, block / flight times and the PERM DATA SETUP time reference (POSITION / TIME page). */
+  get timeKeeper(): FmsTimeKeeper;
+
+  /**
+   * The last sequenced navigation database or pilot stored waypoint with the data recorded there, for the
+   * POSITION / REPORT page; null when nothing has been sequenced yet.
+   */
+  get lastSequencedWaypoint(): SequencedWaypointRecord | null;
+
+  /** Pilot stored NAVAIDs and company routes (DATA / NAVAID and DATA / ROUTE pages). */
+  get pilotStoredElements(): PilotStoredElements;
+
+  /** The FMS print functions (DATA / PRINTER page); null until the FMS is initialized */
+  get printer(): FmsPrinter | null;
+
+  /**
+   * Inserts a company route (navigation database or pilot stored) into a flight plan, with its procedures
+   * (ROUTE SELECTION page INSERT button).
+   */
+  insertCompanyRoute(route: StoredRoute, intoPlan: FlightPlanIndex): Promise<void>;
+
   /**
    * Calling this function with a message should display the message in the FMS' message area,
    * such as the scratchpad or a dedicated error line. The FMS error type given should be translated
@@ -375,6 +453,9 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
    * Get a subscribable which indicates whether a wind uplink request is in progress.
    */
   getCpnyWindUplinkInProgress(): Subscribable<boolean>;
+
+  /** The flight plan of the pending company wind request, null without one */
+  getCpnyWindRequestedForPlan(): Subscribable<FlightPlanIndex | null>;
 
   setApproachWindDirection(value: number | null, forPlan: number): void;
   setApproachWindSpeed(value: number | null, forPlan: number): void;

@@ -31,6 +31,8 @@ import { FuelPredictions } from '@fmgc/flightplanning/fuel/FuelPredictions';
 import { WindEntry } from '@fmgc/flightplanning/data/wind';
 import { Accessible } from '@microsoft/msfs-sdk';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
+import { UplinkTakeoffData } from './UplinkTakeoffData';
+import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
 
 export type LskCallback = (
   /** The scratchpad content when the LSK was pressed. */
@@ -98,6 +100,8 @@ interface LegacyFmsPageDrawingInterface {
 }
 
 interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterface {
+  /** The takeoff data uplink (UPLINK TO DATA pages) */
+  readonly uplinkTakeoffData: UplinkTakeoffData;
   getFlightPlan(index: FlightPlanIndex): ReturnType<FlightPlanInterface['get']>;
   getAlternateFlightPlan(index: FlightPlanIndex): ReturnType<FlightPlanInterface['get']>['alternateFlightPlan'];
   eraseTemporaryFlightPlan(callback?: typeof EmptyCallback.Void): void;
@@ -106,8 +110,8 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   setScratchpadMessage(message: McduMessage): void;
   logTroubleshootingError(msg: any): void;
   onToRwyChanged(): void;
-  directToWaypoint(waypoint: Fix): Promise<void>;
-  directToLeg(legIndex: number): Promise<void>;
+  directToWaypoint(waypoint: Fix, withAbeam?: boolean, interceptCourse?: DirectToInterceptCourse): Promise<void>;
+  directToLeg(legIndex: number, withAbeam?: boolean, interceptCourse?: DirectToInterceptCourse): Promise<void>;
   toggleWaypointOverfly(index, fpIndex, forAlternate, callback?: typeof EmptyCallback.Void): void;
   insertWaypoint(
     newWaypointTo,
@@ -124,6 +128,8 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   trySetZeroFuelWeightZFWCG(s: string, forPlan: FlightPlanIndex): boolean;
   /** @deprecated use getGrossWeight */
   getGW(): number;
+  /** The gross weight in tonnes, or null when not available */
+  getGrossWeight(): number | null;
   getCG(): number;
   getFOB(forPlan: FlightPlanIndex): number | undefined;
   trySetRouteFinalFuel(s: string, forPlan: FlightPlanIndex): boolean;

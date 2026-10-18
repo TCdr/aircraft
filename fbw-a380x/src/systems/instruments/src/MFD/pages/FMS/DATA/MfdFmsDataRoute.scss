@@ -1,0 +1,11 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// Positions are set in MfdFmsDataRoute.tsx
+.mfd-data-route-dialogs {
+  position: absolute;
+  top: 260px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+}

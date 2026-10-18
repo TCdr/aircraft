@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
+import { descentTargetWaypoints } from '@fmgc/performance/DescentTargetWaypoints';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
 import {
@@ -39,6 +40,17 @@ import {
   UpdateThrottler,
   VerticalPathCheckpoint,
   Waypoint,
+  NearbyFacility,
+  CompanyTakeoffDataLinkMessage,
+  CompanyTakeoffDataRequestContent,
+  CompanyTakeoffDataUplink,
+  CompanyDatalinkDelay,
+  answerFmsDescentDataRequests,
+  answerFmsLandingDataRequests,
+  FmsDescentDataContent,
+  FmsLandingDataContent,
+  fmsQnhToHectopascal,
+  LandingConf,
 } from '@flybywiresim/fbw-sdk';
 import {
   isTypeIIMessage,
@@ -53,6 +65,9 @@ import { bearingTo, Coordinates } from 'msfs-geo';
 import { FmsDisplayInterface } from '@fmgc/flightplanning/interface/FmsDisplayInterface';
 import { MfdDisplayInterface } from '../MFD';
 import { FmcIndex } from './FmcServiceInterface';
+import { uplinkedAlternateWindLevelDiffers } from '@fmgc/flightplanning/plans/AlternateCruiseLevel';
+import { CompanyReplyHold } from './CompanyReplyHold';
+import { CompanyRequestTimeout } from './CompanyRequestTimeout';
 import { FmsErrorType } from '@fmgc/FmsError';
 import { FpmConfigs } from '@fmgc/flightplanning/FpmConfig';
 import { FlightPhaseManager, FlightPhaseManagerEvents } from '@fmgc/flightphase';
@@ -73,6 +88,16 @@ import { SimBriefUplinkAdapter } from '@fmgc/flightplanning/uplink/SimBriefUplin
 import { FlightPlanChangeNotifier } from '@fmgc/flightplanning/sync/FlightPlanChangeNotifier';
 import { FlightPlanUtils } from '@fmgc/flightplanning/FlightPlanUtils';
 import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
+import { FmsTimeKeeper } from './FmsTimeKeeper';
+import { clampFmcUpdateStep } from './FmcUpdateStep';
+import { CompanyTakeoffData } from './CompanyTakeoffData';
+import { TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
+import { FmsPrinter } from './FmsPrinter';
+import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
+import { TimeConstraint } from './TimeConstraint';
+import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
+import { toCoRoute } from './StoredRouteUtils';
+import { CoRouteUplinkAdapter } from '@fmgc/flightplanning/uplink/CoRouteUplinkAdapter';
 import { allFmcInop, allFmcResetsPulled } from './FmcResetPanel';
 import { AtsuStatusCodes } from '@datalink/common';
 import { AtsuToFmsEvents, FmsToAtsuEvents, WindUplinkResponse } from '@providers/FmsAtsuBusPublisher';
@@ -81,6 +106,7 @@ import { formatWindRequest } from '@fmgc/flightplanning/uplink/WindUplinkUtilts'
 import { FmsToDatalinkSubsystemEvents } from '../../../../shared/src/publishers/A380XFmsAtcBusPublisher';
 import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvents';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
+import { engineFailureCreatesEngineOutSid } from './EngineOutSid';
 
 export interface FmsErrorMessage {
   message: McduMessage;
@@ -120,7 +146,11 @@ export class FlightManagementComputer implements FmcInterface {
     this.#mfdReference = value;
 
     if (value) {
-      this.dataManager = new DataManager(this.bus, value, { latLonFormat: LatLonFormatType.ExtendedFormat });
+      this.dataManager = new DataManager(this.bus, value, {
+        latLonFormat: LatLonFormatType.ExtendedFormat,
+        // The pilot-stored waypoints database holds 50 waypoints
+        storedWaypointLimit: { max: 50, inUse: (waypoint) => this.isWaypointInFlightPlans(waypoint) },
+      });
     }
   }
 
@@ -193,11 +223,101 @@ export class FlightManagementComputer implements FmcInterface {
     return this.#navigation;
   }
 
+  public getNearbyAirports(): readonly Readonly<NearbyFacility>[] {
+    return this.#navigation?.getNearbyAirports() ?? [];
+  }
+
+  public getStaticAirTemperature(): number | null {
+    return this.#navigation?.getStaticAirTemperature() ?? null;
+  }
+
   get navaidTuner() {
     if (this.instance !== FmcIndex.FmcA) {
       throw new Error('Multiple navaid tuners not supported!');
     }
     return this.#navigation.getNavaidTuner();
+  }
+
+  readonly #timeKeeper = new FmsTimeKeeper();
+
+  get timeKeeper(): FmsTimeKeeper {
+    return this.#timeKeeper;
+  }
+
+  #sequencedWaypointRecorder: SequencedWaypointRecorder | null = null;
+
+  /** The FMS print functions (FMC-A, created with the first update, once the FMC is initialized) */
+  #printer: FmsPrinter | null = null;
+
+  get printer(): FmsPrinter | null {
+    return this.#printer;
+  }
+
+  get lastSequencedWaypoint() {
+    return this.#sequencedWaypointRecorder?.lastSequencedWaypoint ?? null;
+  }
+
+  readonly #pilotStoredElements = new PilotStoredElements();
+
+  get pilotStoredElements(): PilotStoredElements {
+    return this.#pilotStoredElements;
+  }
+
+  async insertCompanyRoute(route: StoredRoute, intoPlan: FlightPlanIndex): Promise<void> {
+    try {
+      await CoRouteUplinkAdapter.uplinkFlightPlanFromCoRoute(this, intoPlan, this.#flightPlanService, toCoRoute(route));
+      await this.#flightPlanService.uplinkInsert(intoPlan);
+    } finally {
+      // The route is inserted at once, there is no received flight plan waiting for insertion
+      this.cpnyFplnAvailable.set(false);
+      this.cpnyFplnUplinkInProgress.set(false);
+    }
+
+    // The uplink adapter only inserts the en-route part; the procedures of the route are selected afterwards
+    const p = route.procedures;
+    const fps = this.flightPlanInterface;
+    const trySet = async (action: () => Promise<unknown>, what: string) => {
+      try {
+        await action();
+      } catch (e) {
+        console.warn(`[FMS] Company route ${route.ident}: could not select ${what}:`, e);
+      }
+    };
+    if (p.originRunwayIdent) {
+      await trySet(() => fps.setOriginRunway(p.originRunwayIdent!, intoPlan), 'the origin runway');
+    }
+    if (p.departureDatabaseId) {
+      await trySet(() => fps.setDepartureProcedure(p.departureDatabaseId, intoPlan), 'the departure');
+    }
+    if (p.departureTransitionDatabaseId) {
+      await trySet(
+        () => fps.setDepartureEnrouteTransition(p.departureTransitionDatabaseId, intoPlan),
+        'the departure transition',
+      );
+    }
+    if (p.destinationRunwayIdent) {
+      await trySet(() => fps.setDestinationRunway(p.destinationRunwayIdent!, intoPlan), 'the destination runway');
+    }
+    if (p.arrivalDatabaseId) {
+      await trySet(() => fps.setArrival(p.arrivalDatabaseId, intoPlan), 'the arrival');
+    }
+    if (p.arrivalTransitionDatabaseId) {
+      await trySet(
+        () => fps.setArrivalEnrouteTransition(p.arrivalTransitionDatabaseId, intoPlan),
+        'the arrival transition',
+      );
+    }
+    if (p.approachDatabaseId) {
+      await trySet(() => fps.setApproach(p.approachDatabaseId, intoPlan), 'the approach');
+    }
+    if (p.approachViaDatabaseId) {
+      await trySet(() => fps.setApproachVia(p.approachViaDatabaseId, intoPlan), 'the approach via');
+    }
+
+    this.fmgc.data.companyRouteIdent(intoPlan).set(route.ident);
+    if (intoPlan === FlightPlanIndex.Active) {
+      this.acInterface.updateFmsData();
+    }
   }
 
   private efisSymbolsLeft!: EfisSymbols<number>;
@@ -255,6 +375,29 @@ export class FlightManagementComputer implements FmcInterface {
 
   public hasActiveFlightPlanWithCityPair = Subject.create<boolean>(false);
 
+  /**
+   * FUEL PLANNING: the minimum BLOCK fuel in tonnes, BLOCK = TAXI + TRIP + RTE RSV +
+   * MIN FUEL AT DEST, until the flight crew confirms it or enters a BLOCK.
+   */
+  public readonly fuelPlanningBlockFuel = Subject.create<number | null>(null);
+
+  /** True while the FUEL PLANNING iterates on trial BLOCK fuels, until the minimum BLOCK is found */
+  public readonly fuelPlanningInProgress = Subject.create(false);
+
+  private fuelPlanningIterations = 0;
+
+  /** The last predictions read by the fuel planning, to use each computation once */
+  private fuelPlanningLastProfile: object | null = null;
+
+  /** The destination EFOB of the last predictions with the current trial fuel, in kg */
+  private fuelPlanningLastDestFuelKg: number | null = null;
+
+  /**
+   * The destination fuel the VNAV starts from when it has no estimate (CruiseToDescentCoordinator), in pounds: a
+   * prediction still at this value is not a prediction yet.
+   */
+  private static readonly VNAV_DEFAULT_DESTINATION_FUEL_LB = 4000;
+
   private readonly legacyFmsIsHealthy = Subject.create(false);
 
   private wasReset = false;
@@ -309,12 +452,27 @@ export class FlightManagementComputer implements FmcInterface {
 
   private simBriefOfp: ISimbriefData | null = null;
 
+  /** Company F-PLN request: NO COMPANY REPLY when no response is received within 4 min */
+  private static readonly CPNY_FPLN_REPLY_TIMEOUT_MS = 4 * 60_000;
+
+  /** Company wind replies wait for the datalink reply time of their request (flyPad realism setting) */
+  private readonly cpnyWindReplyHold = new CompanyReplyHold();
+
+  /** Company takeoff data: the request and the received data, from the flypad calculator */
+  public readonly companyTakeoffData: CompanyTakeoffData;
+
   private lastUpdateTime: number | null = 0;
 
   private readonly cpnyFplnAvailable = Subject.create(false);
   private readonly cpnyFplnRequestedForPlan = Subject.create<FlightPlanIndex | null>(null);
   private readonly cpnyFplnUplinkInProgress = Subject.create(false);
   private readonly cpnyWindUplinkInProgress = Subject.create(false);
+
+  /** The flight plan of the pending company wind request, null without one */
+  private readonly cpnyWindRequestedForPlan = Subject.create<FlightPlanIndex | null>(null);
+
+  /** NO COMPANY REPLY 4 min after a company wind request without an answer */
+  private readonly cpnyWindRequestTimeout = new CompanyRequestTimeout();
   private readonly uplinkRequestInProgress = MappedSubject.create(
     SubscribableMapFunctions.or(),
     this.cpnyFplnUplinkInProgress,
@@ -366,6 +524,15 @@ export class FlightManagementComputer implements FmcInterface {
     NavigationDatabaseService.activeDatabase = db;
 
     this.#navigation = new Navigation(this.bus, this.flightPlanInterface);
+    if (this.instance === FmcIndex.FmcA) {
+      this.#sequencedWaypointRecorder = new SequencedWaypointRecorder(
+        this.flightPlanInterface,
+        this.#navigation,
+        () => this.#navigation.getStaticAirTemperature(),
+        () => ({ direction: this.#navigation.getWindDirection(), speed: this.#navigation.getWindSpeed() }),
+        () => this.fmgc.getFOB(),
+      );
+    }
 
     // FIXME implement sync between FMCs and also let FMC-B and FMC-C compute
     this.flightPlanInterface.createFlightPlans();
@@ -404,6 +571,37 @@ export class FlightManagementComputer implements FmcInterface {
     // one FMC.
     if (this.operatingMode === FmcOperatingModes.Master) {
       this.#msfsFlightPlanSync = new MsfsFlightPlanSync(this.bus, this.flightPlanInterface);
+    }
+
+    this.companyTakeoffData = new CompanyTakeoffData(
+      this.bus,
+      this.instance === FmcIndex.FmcA,
+      () => this.companyTakeoffDataRequestContent(),
+      (message) => {
+        switch (message) {
+          case CompanyTakeoffDataLinkMessage.Received:
+            this.addMessageToQueue(
+              NXSystemMessages.cpnyToDataReceivedPendingInsertion,
+              () => this.companyTakeoffData.uplinks.get().length === 0,
+              undefined,
+            );
+            break;
+          case CompanyTakeoffDataLinkMessage.Invalid:
+            this.addMessageToQueue(NXSystemMessages.receivedCpnyToDataNotValid, undefined, undefined);
+            break;
+          case CompanyTakeoffDataLinkMessage.NoReply:
+            this.addMessageToQueue(NXSystemMessages.noCompanyReply, undefined, undefined);
+            break;
+        }
+      },
+    );
+
+    // The landing data for the flypad landing calculator, from one FMC
+    if (this.instance === FmcIndex.FmcA) {
+      this.subs.push(
+        answerFmsLandingDataRequests(this.bus, () => this.fmsLandingDataContent()),
+        answerFmsDescentDataRequests(this.bus, () => this.fmsDescentDataContent()),
+      );
     }
 
     this.#navigation.init();
@@ -520,7 +718,7 @@ export class FlightManagementComputer implements FmcInterface {
       }),
       this.atsuBusSubscriber
         .on('wind_uplink_response')
-        .handle((response) => this.onCompanyWindUplinkResponseReceived(response)),
+        .handle((response) => this.deliverCompanyWindUplinkResponse(response)),
 
       this.bus
         .getSubscriber<FlightPlanOperationEvents>()
@@ -552,7 +750,8 @@ export class FlightManagementComputer implements FmcInterface {
         .on('simTimeHiFreq')
         .atFrequency(5)
         .handle((time) => {
-          this.onUpdate(time - (this.lastUpdateTime ?? 0));
+          // The first step and the steps after a pause or a sim-rate jump are limited for the dt-based code
+          this.onUpdate(clampFmcUpdateStep(this.lastUpdateTime ?? 0, time));
           this.lastUpdateTime = time;
         }),
     );
@@ -648,6 +847,26 @@ export class FlightManagementComputer implements FmcInterface {
     this.latLongStoredWaypoints = [];
     this.pbdStoredWaypoints = [];
     this.pbxStoredWaypoints = [];
+  }
+
+  /**
+   * Whether a waypoint is part of the active, temporary or secondary flight plans (a pilot-stored waypoint that cannot
+   * be deleted to make room in the pilot-stored elements database)
+   * @param waypoint the waypoint
+   * @returns true when a flight plan uses it
+   */
+  private isWaypointInFlightPlans(waypoint: Waypoint): boolean {
+    const fps = this.flightPlanInterface;
+    const plans = [
+      fps.hasActive ? fps.active : undefined,
+      fps.hasTemporary ? fps.temporary : undefined,
+      ...[1, 2, 3].map((sec) => (fps.hasSecondary(sec) ? fps.secondary(sec) : undefined)),
+    ];
+    return plans.some(
+      (plan) =>
+        plan !== undefined &&
+        plan.allLegs.some((leg) => leg.isDiscontinuity === false && leg.terminatesWithWaypoint(waypoint)),
+    );
   }
 
   /**
@@ -758,6 +977,113 @@ export class FlightManagementComputer implements FmcInterface {
   }
 
   /**
+   * Starts the fuel planning computation. The TRIP fuel comes from the predictions of the flight plan, which need a
+   * fuel on board: they run with a trial BLOCK fuel, replaced by the resulting minimum BLOCK until both agree.
+   */
+  public startFuelPlanning(): void {
+    const plan = this.flightPlanInterface.active;
+    if (!plan.originAirport || !plan.destinationAirport) {
+      return;
+    }
+    const pd = plan.performanceData;
+    const distance = Avionics.Utils.computeGreatCircleDistance(
+      plan.originAirport.location,
+      plan.destinationAirport.location,
+    );
+    // First trial: about 20 kg per NM for the trip
+    const trial = (pd.taxiFuel.get() ?? 0) + (pd.minimumDestinationFuelOnBoard.get() ?? 0) + (distance * 21) / 1000;
+    this.fuelPlanningIterations = 0;
+    this.fuelPlanningBlockFuel.set(null);
+    this.setFuelPlanningTrial(trial);
+    this.fuelPlanningInProgress.set(true);
+  }
+
+  /** The flight crew confirms the computed minimum BLOCK fuel: it appears in the BLOCK entry field. */
+  public confirmFuelPlanning(): void {
+    const block = this.fuelPlanningBlockFuel.get();
+    this.stopFuelPlanning();
+    if (block !== null) {
+      this.flightPlanInterface.setPerformanceData('blockFuel', block, FlightPlanIndex.Active);
+    }
+  }
+
+  /** The next predictions are computed with this BLOCK fuel, in tonnes */
+  private setFuelPlanningTrial(trial: number): void {
+    this.fuelPlanningLastDestFuelKg = null;
+    this.fmgc.data.fuelPlanningTrialBlockFuel.set(trial);
+  }
+
+  private stopFuelPlanning(): void {
+    this.fuelPlanningInProgress.set(false);
+    this.fuelPlanningBlockFuel.set(null);
+    this.fmgc.data.fuelPlanningTrialBlockFuel.set(null);
+  }
+
+  private updateFuelPlanning(): void {
+    if (!this.fuelPlanningInProgress.get() && this.fuelPlanningBlockFuel.get() === null) {
+      return;
+    }
+    const pd = this.flightPlanInterface.active.performanceData;
+    // Only before engine start and without a BLOCK entry; the computed BLOCK disappears when the crew enters one
+    if (this.enginesWereStarted.get() || pd.blockFuel.get() !== null || !this.hasActiveFlightPlanWithCityPair.get()) {
+      this.stopFuelPlanning();
+      return;
+    }
+    if (!this.fuelPlanningInProgress.get()) {
+      return;
+    }
+
+    const trial = this.fmgc.data.fuelPlanningTrialBlockFuel.get();
+    const profile = this.guidanceController.vnavDriver.mcduProfile;
+    const startFuel = profile?.checkpoints[0]?.remainingFuelOnBoard;
+    const destPred = this.guidanceController.vnavDriver.getDestinationPrediction();
+    // Each computation of the predictions once, and only those computed with the current trial fuel
+    if (
+      trial === null ||
+      !profile ||
+      profile === this.fuelPlanningLastProfile ||
+      !destPred ||
+      startFuel === undefined ||
+      Math.abs(Units.poundToKilogram(startFuel) - trial * 1000) > 50
+    ) {
+      return;
+    }
+    this.fuelPlanningLastProfile = profile;
+
+    // The destination EFOB of the first computations with a new fuel on board can still be the VNAV starting estimate:
+    // use it once two computations in a row agree (else the TRIP is the trial fuel itself, and the BLOCK runs away)
+    const destFuelKg = Units.poundToKilogram(destPred.estimatedFuelOnBoard);
+    const previousDestFuelKg = this.fuelPlanningLastDestFuelKg;
+    this.fuelPlanningLastDestFuelKg = destFuelKg;
+    if (
+      Math.abs(destPred.estimatedFuelOnBoard - FlightManagementComputer.VNAV_DEFAULT_DESTINATION_FUEL_LB) < 1 ||
+      previousDestFuelKg === null ||
+      Math.abs(destFuelKg - previousDestFuelKg) > 50
+    ) {
+      return;
+    }
+
+    const trip = trial * 1000 - destFuelKg;
+    const block =
+      ((pd.taxiFuel.get() ?? 0) * 1000 +
+        trip +
+        (this.getRouteReserveFuel(FlightPlanIndex.Active, trip) ?? 0) +
+        (pd.minimumDestinationFuelOnBoard.get() ?? 0) * 1000) /
+      1000;
+    this.fuelPlanningIterations++;
+    if (Math.abs(block - trial) < 0.1) {
+      // The minimum BLOCK, rounded up to the 0.1 t of the entry field
+      this.fuelPlanningBlockFuel.set(Math.ceil(block * 10) / 10);
+      this.fuelPlanningInProgress.set(false);
+    } else if (this.fuelPlanningIterations >= 8) {
+      console.warn('[FMS] FUEL PLANNING: the minimum BLOCK does not converge, no result');
+      this.stopFuelPlanning();
+    } else {
+      this.setFuelPlanningTrial(block);
+    }
+  }
+
+  /**
    * Returns the estimated route reserve fuel. If a pilot entry for route reserve fuel exists, it will be used.
    * Otherwise it is calculated based upon the route reserve fuel percentage and the trip fuel, if any.
    * @returns the route reserve fuel in kg, or null if it cannot be calculated due to missing data.
@@ -795,6 +1121,15 @@ export class FlightManagementComputer implements FmcInterface {
   public getRecMaxFlightLevel(forplan = FlightPlanIndex.Active, grossWeight?: number): number | null {
     const recMax = this.getRecMaxAltitude(forplan, grossWeight);
     return recMax !== null ? recMax / 100 : null;
+  }
+
+  /** @inheritdoc */
+  public getCompanyAlternates(destinationIcao: string): string[] {
+    const ofp = this.simBriefOfp;
+    if (!ofp || ofp.destination?.icao !== destinationIcao) {
+      return [];
+    }
+    return (ofp.alternates ?? (ofp.alternate?.icao ? [ofp.alternate.icao] : [])).slice(0, 6);
   }
 
   /** @inheritdoc */
@@ -941,10 +1276,20 @@ export class FlightManagementComputer implements FmcInterface {
       throw new Error('No Navigraph username provided');
     }
 
-    this.simBriefOfp = await SimBriefUplinkAdapter.downloadOfpForUserID(navigraphUsername, overrideSimBriefUserID);
+    // Only one request at a time (guard above); the button shows REQUEST PENDING... until the flight plan is received
+    this.cpnyFplnRequestedForPlan.set(intoPlan);
+    this.cpnyFplnUplinkInProgress.set(true);
+
+    const ofp = await this.receiveCompanyFlightPlan(navigraphUsername, overrideSimBriefUserID);
+    if (ofp === null) {
+      this.cpnyFplnRequestedForPlan.set(null);
+      this.cpnyFplnUplinkInProgress.set(false);
+      this.addMessageToQueue(NXSystemMessages.noCompanyReply, undefined, undefined);
+      return;
+    }
+    this.simBriefOfp = ofp;
 
     try {
-      this.cpnyFplnRequestedForPlan.set(intoPlan);
       await SimBriefUplinkAdapter.uplinkFlightPlanFromSimbrief(
         this,
         this.#flightPlanService,
@@ -961,6 +1306,33 @@ export class FlightManagementComputer implements FmcInterface {
       this.addMessageToQueue(NXSystemMessages.receivedCpnyFplnNotValid, undefined, undefined);
       this.onUplinkDone(false);
     }
+  }
+
+  /**
+   * The answer of the company ground station (SimBrief) to a flight plan request: the OFP, delivered after the datalink
+   * reply time of the flypad setting, or null without an answer within 4 min (download failed or too slow).
+   */
+  private receiveCompanyFlightPlan(
+    navigraphUsername: string | undefined,
+    overrideSimBriefUserID: string,
+  ): Promise<ISimbriefData | null> {
+    const notBefore = Date.now() + CompanyDatalinkDelay.replyDelayMs();
+    const download = SimBriefUplinkAdapter.downloadOfpForUserID(navigraphUsername, overrideSimBriefUserID).catch(
+      (e) => {
+        // The ground station does not answer: NO COMPANY REPLY at the timeout
+        console.error('[FMS] Company F-PLN request: no SimBrief OFP', e);
+        return new Promise<never>(() => {});
+      },
+    );
+
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(null), FlightManagementComputer.CPNY_FPLN_REPLY_TIMEOUT_MS);
+      download.then(async (ofp) => {
+        await CompanyDatalinkDelay.waitForDelivery(notBefore);
+        clearTimeout(timeout);
+        resolve(ofp);
+      });
+    });
   }
 
   getCpnyFplnUplinkInProgress(): Subscribable<boolean> {
@@ -994,8 +1366,31 @@ export class FlightManagementComputer implements FmcInterface {
         true,
         false,
       );
+      this.cpnyWindReplyHold.requested(flightPlanIndex);
+      this.cpnyWindRequestTimeout.start(flightPlanIndex, () => this.onCompanyWindRequestTimedOut(flightPlanIndex));
+      this.cpnyWindRequestedForPlan.set(flightPlanIndex);
       this.cpnyWindUplinkInProgress.set(true);
     }
+  }
+
+  /** Delivers a company wind uplink once the datalink reply time of its request has passed (flyPad realism setting) */
+  private async deliverCompanyWindUplinkResponse(response: WindUplinkResponse): Promise<void> {
+    await this.cpnyWindReplyHold.whenDeliverable(response.flightPlan);
+    if (!this.cpnyWindRequestTimeout.settle(response.flightPlan)) {
+      // Too late: NO COMPANY REPLY was already given, the request is over
+      return;
+    }
+    this.onCompanyWindUplinkResponseReceived(response);
+  }
+
+  /** No answer within 4 min: NO COMPANY REPLY, the request is over */
+  private onCompanyWindRequestTimedOut(planIndex: FlightPlanIndex): void {
+    if (this.flightPlanInterface.has(planIndex)) {
+      this.flightPlanInterface.get(planIndex).pendingWindUplink.onUplinkAborted();
+    }
+    this.addMessageToQueue(NXSystemMessages.noCompanyReply);
+    this.cpnyWindUplinkInProgress.set(false);
+    this.cpnyWindRequestedForPlan.set(null);
   }
 
   async insertCpnyWind(flightPlanIndex: number): Promise<void> {
@@ -1007,12 +1402,8 @@ export class FlightManagementComputer implements FmcInterface {
     const plan = this.flightPlanInterface.get(flightPlanIndex);
 
     // CHECK ALTN WIND
-    const uplinkAlternateCruiseLevel = plan.pendingWindUplink.alternateWind?.altitude;
-    const computedAlternateCruiseLevel = plan.getAlternateCruiseLevel();
     if (
-      uplinkAlternateCruiseLevel !== undefined &&
-      computedAlternateCruiseLevel !== undefined &&
-      Math.round(uplinkAlternateCruiseLevel) !== Math.round(computedAlternateCruiseLevel)
+      uplinkedAlternateWindLevelDiffers(plan.pendingWindUplink.alternateWind?.altitude, plan.getAlternateCruiseLevel())
     ) {
       this.addMessageToQueue(NXSystemMessages.checkAltnWind);
     }
@@ -1061,6 +1452,11 @@ export class FlightManagementComputer implements FmcInterface {
       this.simBriefOfp?.weights.passengerCount !== undefined ? Number(this.simBriefOfp?.weights?.passengerCount) : null,
     );
 
+    // COMPANY F-PLN REQUEST: before engine start, performance data come with the flight plan
+    if (!this.enginesWereStarted.get() && this.simBriefOfp) {
+      this.insertCompanyFuelData(intoPlan, this.simBriefOfp);
+    }
+
     this.cpnyFplnAvailable.set(false);
     this.cpnyFplnRequestedForPlan.set(null);
   }
@@ -1079,6 +1475,44 @@ export class FlightManagementComputer implements FmcInterface {
   }
   getCpnyFplnRequestedForPlan(): Subscribable<FlightPlanIndex | null> {
     return this.cpnyFplnRequestedForPlan;
+  }
+
+  /**
+   * The fuel figures of the company flight plan (the SimBrief OFP) into the FUEL&LOAD page, as if entered by the crew:
+   * TAXI, RTE RSV (the OFP contingency), ALTN and FINAL (the OFP final reserve). Not the BLOCK: the FUEL PLANNING
+   * function computes it from these and the FMS TRIP.
+   */
+  private insertCompanyFuelData(planIndex: FlightPlanIndex, ofp: ISimbriefData): void {
+    const tonnes = (value: number | string | undefined): number | null => {
+      const n = Number(value);
+      if (value === undefined || value === '' || !Number.isFinite(n) || n < 0) {
+        return null;
+      }
+      return (ofp.units === 'lbs' ? Units.poundToKilogram(n) : n) / 1000;
+    };
+    /** To the 0.1 t of the entry fields */
+    const nearest = (t: number | null) => (t !== null ? Math.round(t * 10) / 10 : null);
+
+    const taxi = nearest(tonnes(ofp.fuel.taxi));
+    if (taxi !== null) {
+      this.flightPlanInterface.setPerformanceData('pilotTaxiFuel', taxi, planIndex);
+    }
+    const routeReserve = nearest(tonnes(ofp.fuel.contingency));
+    if (routeReserve !== null) {
+      this.flightPlanInterface.setPerformanceData('pilotRouteReserveFuel', routeReserve, planIndex);
+      this.flightPlanInterface.setPerformanceData('pilotRouteReserveFuelPercentage', null, planIndex);
+    }
+    const alternate = this.flightPlanInterface.get(planIndex).alternateDestinationAirport
+      ? nearest(tonnes(ofp.alternate?.burn))
+      : null;
+    if (alternate !== null) {
+      this.flightPlanInterface.setPerformanceData('pilotAlternateFuel', alternate, planIndex);
+    }
+    const final = nearest(tonnes(ofp.fuel.reserve));
+    if (final !== null) {
+      this.flightPlanInterface.setPerformanceData('pilotFinalHoldingFuel', final, planIndex);
+      this.flightPlanInterface.setPerformanceData('pilotFinalHoldingTime', null, planIndex);
+    }
   }
 
   /**
@@ -1257,29 +1691,180 @@ export class FlightManagementComputer implements FmcInterface {
     return activeZfwCg !== null && secondaryZfwCg !== null ? Math.abs(activeZfwCg - secondaryZfwCg) : null;
   }
 
+  /** @inheritdoc */
+  public readonly timeConstraint = Subject.create<TimeConstraint | null>(null);
+
+  /**
+   * The takeoff data of the FMS, as in a company takeoff data request (COMPANY T.O DATA REQUEST page): from the active
+   * flight plan and the load data
+   */
+  public companyTakeoffDataRequestContent(): CompanyTakeoffDataRequestContent {
+    const plan = this.flightPlanInterface.hasActive ? this.flightPlanInterface.active : null;
+    const pd = plan?.performanceData;
+    const power = pd?.takeoffPowerSetting?.get();
+    return {
+      departure: plan?.originAirport?.ident ?? null,
+      tow: this.getTakeoffWeight(FlightPlanIndex.Active),
+      // The T.O CG entered in THS FOR, if any (the ZFW CG is not the T.O CG)
+      cg: pd?.takeoffThsFor?.get() ?? null,
+      oat: this.getStaticAirTemperature(),
+      runways: plan?.originRunway
+        ? [
+            {
+              runway: plan.originRunway.ident.substring(4),
+              windDirection: null,
+              windSpeed: null,
+              qnh: Math.round(SimVar.GetSimVarValue('KOHLSMAN SETTING MB:1', 'millibars')),
+              runwayCondition: 0,
+              thrust:
+                power === TakeoffPowerSetting.FLEX
+                  ? 'FLEX'
+                  : power === TakeoffPowerSetting.DERATED
+                    ? 'DERATED'
+                    : power === TakeoffPowerSetting.TOGA
+                      ? 'TOGA'
+                      : null,
+              flaps: pd?.takeoffFlaps.get() ?? null,
+              shift: pd?.takeoffShift.get() ?? null,
+              toLimit: null,
+            },
+          ]
+        : [],
+    };
+  }
+
+  /**
+   * The landing data of the FMS for the flypad landing calculator: the destination of the active flight plan, the
+   * predicted landing weight, and the destination conditions and landing configuration of the PERF APPR page
+   */
+  public fmsLandingDataContent(): FmsLandingDataContent {
+    const plan = this.flightPlanInterface.hasActive ? this.flightPlanInterface.active : null;
+    const pd = plan?.performanceData;
+    return {
+      destination: plan?.destinationAirport?.ident ?? null,
+      runway: plan?.destinationRunway ? plan.destinationRunway.ident.substring(4) : null,
+      landingWeight: plan ? this.getLandingWeight(FlightPlanIndex.Active) : null,
+      qnh: fmsQnhToHectopascal(pd?.approachQnh.get() ?? null),
+      oat: pd?.approachTemperature.get() ?? null,
+      windDirection: pd?.approachWindDirection.get() ?? null,
+      windSpeed: pd?.approachWindMagnitude.get() ?? null,
+      conf: pd ? (pd.approachFlapsThreeSelected.get() ? LandingConf.Conf3 : LandingConf.Full) : null,
+    };
+  }
+
+  /**
+   * The descent data of the FMS for the flypad descent calculator: cruise level, destination, distance to it, gross
+   * weight, and the managed descent speeds and speed limit of the active flight plan
+   */
+  public fmsDescentDataContent(): FmsDescentDataContent {
+    const plan = this.flightPlanInterface.hasActive ? this.flightPlanInterface.active : null;
+    const pd = plan?.performanceData;
+    const cruiseLevel = pd?.cruiseFlightLevel.get() ?? null;
+    return {
+      cruiseAltitude: cruiseLevel !== null ? cruiseLevel * 100 : null,
+      destination: plan?.destinationAirport?.ident ?? null,
+      destinationElevation: plan?.destinationAirport?.location.alt ?? null,
+      distanceToDestination: plan ? this.fmgc.getDistanceToDestination() : null,
+      grossWeight: this.fmgc.getGrossWeightKg(),
+      costIndex: pd?.costIndex.get() ?? null,
+      managedMach: plan ? this.fmgc.getManagedDescentSpeedMach() : null,
+      managedCas: plan ? this.fmgc.getManagedDescentSpeed() : null,
+      speedLimitCas: pd?.descentSpeedLimitSpeed.get() ?? null,
+      speedLimitAltitude: pd?.descentSpeedLimitAltitude.get() ?? null,
+      waypoints: plan ? descentTargetWaypoints(plan, this.fmgc.getDistanceToDestination()) : [],
+    };
+  }
+
+  /**
+   * Whether received company takeoff data can be inserted (RECEIVED COMPANY T.O DATA page): the departure airport and
+   * runway of the active flight plan, a TOW not more than 2 t below or 7 t above
+   * the FMS one, and the takeoff speeds, TOW, T.O CG, wind, runway condition, baro setting and temperature in the data.
+   * @returns whether it can be inserted, whether the runway is not the active one (amber), and whether the TOW disagrees
+   *   with the FMS one (amber, with UPLINK/ACTIVE TOW DISAGREE on the active runway)
+   */
+  public checkCompanyTakeoffData(uplink: CompanyTakeoffDataUplink): {
+    insertable: boolean;
+    runwayDisagree: boolean;
+    towDisagree: boolean;
+  } {
+    const plan = this.flightPlanInterface.hasActive ? this.flightPlanInterface.active : null;
+    const runwayMatches =
+      plan !== null &&
+      plan.originAirport?.ident === uplink.departure &&
+      plan.originRunway !== undefined &&
+      plan.originRunway.ident.substring(4) === uplink.runway;
+    const fmsTow = this.getTakeoffWeight(FlightPlanIndex.Active);
+    const towAgrees =
+      fmsTow !== null && fmsTow !== undefined && uplink.tow >= fmsTow - 2_000 && uplink.tow <= fmsTow + 7_000;
+    const complete = uplink.v1 !== null && uplink.vr !== null && uplink.cg !== null;
+    return {
+      insertable: runwayMatches && towAgrees && complete && this.flightPhase.get() < FmgcFlightPhase.Takeoff,
+      runwayDisagree: !runwayMatches,
+      towDisagree: !towAgrees,
+    };
+  }
+
+  /**
+   * INSERT: the received company takeoff data updates the T.O panel of the PERF page with the takeoff speeds, flaps
+   * setting, takeoff thrust, takeoff shift, thrust reduction and acceleration altitudes and noise parameters. The T.O
+   * CG is not inserted: the flight crew enters it in THS FOR.
+   */
+  public insertCompanyTakeoffData(uplink: CompanyTakeoffDataUplink): boolean {
+    if (!this.checkCompanyTakeoffData(uplink).insertable) {
+      this.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
+      return false;
+    }
+    const plan = FlightPlanIndex.Active;
+    this.flightPlanInterface.setPerformanceData('v1', uplink.v1, plan);
+    SimVar.SetSimVarValue('L:AIRLINER_V1_SPEED', 'Knots', uplink.v1);
+    this.flightPlanInterface.setPerformanceData('vr', uplink.vr, plan);
+    SimVar.SetSimVarValue('L:AIRLINER_VR_SPEED', 'Knots', uplink.vr);
+    this.flightPlanInterface.setPerformanceData('v2', uplink.v2, plan);
+    SimVar.SetSimVarValue('L:AIRLINER_V2_SPEED', 'Knots', uplink.v2);
+    this.flightPlanInterface.setPerformanceData('takeoffFlaps', uplink.flaps as 1 | 2 | 3, plan);
+    this.acInterface.setTakeoffFlaps(uplink.flaps);
+    if (uplink.thrust === 'FLEX' && uplink.flexTemperature !== null) {
+      this.flightPlanInterface.setPerformanceData('flexTakeoffTemperature', uplink.flexTemperature, plan);
+      this.flightPlanInterface.setPerformanceData('takeoffPowerSetting', TakeoffPowerSetting.FLEX, plan);
+      // 0 means no FLEX, 0.1 a FLEX temperature of 0
+      SimVar.SetSimVarValue(
+        'L:A32NX_AIRLINER_TO_FLEX_TEMP',
+        'Number',
+        uplink.flexTemperature === 0 ? 0.1 : uplink.flexTemperature,
+      );
+    } else {
+      this.flightPlanInterface.setPerformanceData('takeoffPowerSetting', TakeoffPowerSetting.TOGA, plan);
+      SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', 0);
+    }
+    this.flightPlanInterface.setPerformanceData('takeoffShift', uplink.shift, plan);
+    if (uplink.thrustReductionAltitude !== null) {
+      this.flightPlanInterface.setPerformanceData('pilotThrustReductionAltitude', uplink.thrustReductionAltitude, plan);
+    }
+    if (uplink.accelerationAltitude !== null) {
+      this.flightPlanInterface.setPerformanceData('pilotAccelerationAltitude', uplink.accelerationAltitude, plan);
+    }
+    if (uplink.engineOutAccelerationAltitude !== null) {
+      this.flightPlanInterface.setPerformanceData(
+        'pilotEngineOutAccelerationAltitude',
+        uplink.engineOutAccelerationAltitude,
+        plan,
+      );
+    }
+    if (uplink.noise !== null) {
+      this.flightPlanInterface.setPerformanceData('noiseEnabled', true, plan);
+      this.flightPlanInterface.setPerformanceData('noiseEndAltitude', uplink.noise.endAltitude, plan);
+      this.flightPlanInterface.setPerformanceData('noiseSpeed', uplink.noise.speed, plan);
+      this.flightPlanInterface.setPerformanceData('noiseN1', uplink.noise.n1, plan);
+    }
+    this.companyTakeoffData.remove(uplink);
+    return true;
+  }
+
   computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined {
-    const plan = this.#flightPlanService.get(forPlan);
-    if (!plan) {
-      return undefined;
-    }
-
-    if (!plan.destinationAirport || !plan.alternateDestinationAirport) {
-      return undefined;
-    }
-
-    // TODO use actual flight plan distance rather than great circle distance
-    const distance = Avionics.Utils.computeGreatCircleDistance(
-      plan.destinationAirport.location,
-      plan.alternateDestinationAirport.location,
-    );
-
-    if (distance > 300) {
-      return 310;
-    } else if (distance > 150) {
-      return 220;
-    }
-
-    return 100;
+    // The plan applies the A380 rule of FpmConfigs.A380 (AlternateCruiseLevel.ts)
+    return this.#flightPlanService.has(forPlan)
+      ? this.#flightPlanService.get(forPlan).getAlternateCruiseLevel()
+      : undefined;
   }
 
   private checkDestination(oldDestination: string) {
@@ -1313,8 +1898,15 @@ export class FlightManagementComputer implements FmcInterface {
       case FmsErrorType.NotYetImplemented:
         this.addMessageToQueue(NXFictionalMessages.notYetImplemented, undefined, undefined);
         break;
+      case FmsErrorType.ListOf99InUse:
+        // The A380 pilot-stored waypoints database holds 50 waypoints, all used by the flight plans
+        this.addMessageToQueue(NXSystemMessages.wptsMaxAllInUse, undefined, undefined);
+        break;
       case FmsErrorType.NotAllowed:
         this.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
+        break;
+      case FmsErrorType.PlaceWaypointDisagree:
+        this.addMessageToQueue(NXSystemMessages.placeWptDisagree, undefined, undefined);
         break;
       default:
         break;
@@ -1331,9 +1923,10 @@ export class FlightManagementComputer implements FmcInterface {
   /**
    * Duplicate implementation, because WaypointEntryUtils needs one parameter with both DataInterface and DisplayInterface
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async createNewWaypoint(ident: string): Promise<Waypoint | undefined> {
-    // TODO navigate to DATA/NAVAID --> PILOT STORED NAVAIDS --> NEW NAVAID
+    // DATA / WAYPOINT page: the PILOT STORED WPTs panel opens with the new waypoint function for an ident that is
+    // neither in the navigation database nor pilot created
+    this.mfdReference?.uiService.navigateTo(`fms/data/waypoint/new/${ident}/withReturn`);
     return undefined;
   }
 
@@ -1421,6 +2014,16 @@ export class FlightManagementComputer implements FmcInterface {
     ident?: string,
   ): PilotWaypoint | null {
     return this.dataManager?.createPlaceBearingDistWaypoint(place, bearing, distance, stored, ident) ?? null;
+  }
+
+  createPlaceDistWaypoint(
+    place: Fix,
+    distance: NauticalMiles,
+    coordinates: Coordinates,
+    stored?: boolean,
+    ident?: string,
+  ): PilotWaypoint | null {
+    return this.dataManager?.createPlaceDistWaypoint(place, distance, coordinates, stored, ident) ?? null;
   }
 
   getStoredWaypointsByIdent(ident: string): PilotWaypoint[] {
@@ -1648,6 +2251,10 @@ export class FlightManagementComputer implements FmcInterface {
     return this.cpnyWindUplinkInProgress;
   }
 
+  getCpnyWindRequestedForPlan(): Subscribable<FlightPlanIndex | null> {
+    return this.cpnyWindRequestedForPlan;
+  }
+
   private checkDestData(): void {
     if (!this.destDataEntered.get()) {
       this.addMessageToQueue(NXSystemMessages.enterDestData);
@@ -1700,6 +2307,13 @@ export class FlightManagementComputer implements FmcInterface {
 
     if (throttledDt !== -1) {
       this.navigation.update(throttledDt);
+      this.#timeKeeper.update(throttledDt);
+      this.#sequencedWaypointRecorder?.update();
+      if (this.instance === FmcIndex.FmcA) {
+        this.#printer ??= new FmsPrinter(this, this.bus);
+        this.#printer.update();
+      }
+      this.updateFuelPlanning();
       this.loadActiveFlightPlanFuelAndApproachData();
       if (this.flightPlanInterface.hasActive) {
         const flightPhase = this.flightPhase.get();
@@ -1971,6 +2585,17 @@ export class FlightManagementComputer implements FmcInterface {
     // Delete time constraints
     // no-op
 
+    // EOSID temporary flight plan, before the diversion point, in the takeoff phase below the thrust reduction altitude
+    if (
+      engineFailureCreatesEngineOutSid(
+        this.flightPhaseManager.phase,
+        SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
+        activePlan.performanceData.thrustReductionAltitude.get(),
+      )
+    ) {
+      this.flightPlanInterface.tryActivateEngineOutSid().catch((e) => console.error(e));
+    }
+
     // Display PERF page
     this.mfdReference?.uiService.navigateTo('fms/active/perf');
   }
@@ -2188,6 +2813,7 @@ export class FlightManagementComputer implements FmcInterface {
       }
     }
     this.cpnyWindUplinkInProgress.set(false);
+    this.cpnyWindRequestedForPlan.set(null);
   }
 
   // Deletes all the company wind uplinks or draft winds from flightplans which wind modification is disabled starting in descent phase (active & secs copy of active)

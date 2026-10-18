@@ -113,12 +113,37 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] The angle of attack vanes of the three multifunction probes on the nose (one left, two right) follow the angle of attack - @TCdr
 1. [A380X] All 52 overhead RESET panel buttons are clickable with their label as tooltip, and the three side slip probe vanes on the nose follow the side slip angle - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
+1. [A380X/MFD] Make the SURV CONTROLS page (WXR, TCAS), the STATUS & SWITCHING WXR and XPDR/TCAS selection and the pedestal SURV panel buttons work - @TCdr
+1. [A380X/FWS] Sense the WXR & TAWS and XPDR & TCAS lines of the ECAM procedures and add the CABIN CREW line to the ECAM LINE-UP checklist - @TCdr
+1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
+1. [A380X/FMS] 50 pilot-stored waypoints: the oldest one not used in a flight plan is replaced, 50 WPTS MAX : ALL IN USE when all are used - @TCdr
+1. [EFB] Add the A380 landing calculator and rework the A320 one: dispatch and in-flight landing distances of the aircraft, FMS data import, BTV exit advice on the A380 - @TCdr
+1. [EFB] Replace the top of descent calculator with a descent calculator: ECON, standard, given V/S and emergency descents from the FMS performance model, descent profile and descent check - @TCdr
+1. [EFB] Descent calculator: a waypoint of the FMS flight plan as the target, with its altitude constraint and its distance along the route - @TCdr
+1. [A380X/EFB] Landing calculator: BTV braking mode, landing at the BTV DRY or WET line - @TCdr
 1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
 1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
 1. [A380X/OIT] The keys of the captain and F/O Additional Control Devices beside the OITs (OIS XFR, OIS MENU, ESC, ENTER, arrows) work, with sharp lit legends and larger click areas - @TCdr
+1. [A380X/MFD] The default alternate cruise level now follows the aircraft rules (FL 220 below 200 NM, FL 310 from 200 NM) instead of the A320 rule - @TCdr
+1. [A380X/MFD] The WIND page CRZ tab now has a working SAT entry at the cruise flight level - @TCdr
+1. [A380X/MFD] The history winds of the WIND page now show the CRZ FL and FL 250, 150 and 050 as on the aircraft, and the stored history winds are kept when the storage key changes - @TCdr
+1. [A380X/MFD] Company wind messages use the aircraft wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
+1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
+1. [A32NX/TCAS] TRAFFIC selector on THRT: the proximate and other intruders within 2700 ft above and below are now shown on the ND while a TA or RA is present, as on the aircraft (before only the TA/RA intruders were shown) - @TCdr
+1. [ND] TCAS: CHANGE MODE (ND in PLAN) and TCAS: REDUCE RANGE (ND range above 40 NM) are shown while a TA (amber) or an RA (red) cannot be seen on the ND; on the A380X also TCAS: INCREASE RANGE in ROSE-VOR/ROSE-LS with the ZOOM range in flight - @TCdr
+1. [A380X/SURV] Pressing the lit WXR/TAWS SYS 1 or SYS 2 pb (SURV panel or MFD SURV STATUS & SWITCHING) keeps that system selected instead of selecting none, which failed TERR and GPWS - @TCdr
+1. [A380X/TCAS] The EFIS CP TRAF pb now shows all the traffic on the ND (it was ignored), and a TCAS TA or RA selects it automatically - @TCdr
+1. [A32NX/MCDU] PLACE/DIST waypoints (for example LMG/-15) can be entered on the F-PLN page and as LAT REV NEXT WPT: the PDnn waypoint goes on the flight plan path at that distance after (or before, negative distance) the flight plan waypoint, without a discontinuity - @TCdr
+1. [A380X/MFD] INSERT NEXT WPT accepts PLACE/DIST waypoints of the revised waypoint (PLACE / WPT DISAGREE for another place, ENTRY OUT OF RANGE beyond the neighbouring waypoint) - @TCdr
+1. [A32NX/MCDU] HOLD from the LAT REV at PPOS (the FROM waypoint) creates a hold at the present position on the aircraft track, instead of a hold at the waypoint behind the aircraft - @TCdr
+1. [A380X/MFD] The HOLD revision of the FROM waypoint creates a hold at P.POS on the aircraft track, as on the aircraft (it was greyed out) - @TCdr
+1. [A32NX/MCDU] DIR TO page: ABEAM PTS, RADIAL IN (with the default inbound radial of a flight plan waypoint) and RADIAL OUT now build the DIR TO temporary flight plan instead of NOT YET IMPLEMENTED - @TCdr
+1. [A32NX/MCDU] The PROG page OPT FL is the best specific range level for the gross weight (long range cruise table), never above REC MAX, instead of the REC MAX rounded down - @TCdr
+1. [A380X/MFD] PERF page CLB and DES tabs show the time and distance to the PRED TO altitude instead of dashes - @TCdr
+1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan - @TCdr
 
 ## 2024.1.0
 

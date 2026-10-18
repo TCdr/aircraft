@@ -89,24 +89,26 @@ export const NXSystemMessages = {
   checkZfw: new TypeIIMessage('CHECK ZFW', true),
   comFplnReceivedPendingInsertion: new TypeIIMessage('COMPANY F-PLN RECEIVED\nWAITING FOR INSERTION', false),
   comWindRecievedPendingInsertionActive: new TypeIIMessage(
-    'COMPANY WIND RECIEVED\nWAITING FOR INSERTION IN ACTIVE',
+    'COMPANY WIND DATA RECEIVED\nWAITING FOR INSERTION IN ACTIVE',
     false,
   ),
+  // Company takeoff data messages
+  cpnyToDataReceivedPendingInsertion: new TypeIIMessage('COMPANY T.O DATA RECEIVED\nWAITING FOR INSERTION'),
+  receivedCpnyToDataNotValid: new TypeIIMessage('RECEIVED COMPANY T.O DATA NOT VALID'),
   comWindRecievedPendingInsertionInSecondary: new TypeIIMessage(
-    'COMPANY WIND RECIEVED\nWAITING FOR INSERTION IN SEC X',
+    'COMPANY WIND DATA RECEIVED\nWAITING FOR INSERTION IN SEC X',
     false,
     'X',
   ),
   comWindUplinkPending: new TypeIIMessage('COMPANY WIND UPLINK PENDING', true),
-  comDatalinkNotAvail: new TypeIMessage('COM DATALINK NOT AVAIL'), // TODO
+  comDatalinkNotAvail: new TypeIMessage('COM DATALINK NOT AVAIL'),
   cstrDelUpToWpt: new TypeIIMessage('CONSTRAINTS BEFORE WWWWW : DELETED', false, 'WWWWW'),
   destEfobBelowMin: new TypeIIMessage('DEST EFOB BELOW MIN', true),
-  draftWindsInserted: new TypeIMessage('DRAFT WINDS INSERTED'),
+  draftWindsInserted: new TypeIMessage('DRAFT WIND INSERTED'),
   enterDestData: new TypeIIMessage('ENTER DEST DATA', true),
   EntryNotInList: new TypeIMessage('ENTRY NOT IN LIST'),
   entryOutOfRange: new TypeIMessage('ENTRY OUT OF RANGE'),
   formatError: new TypeIMessage('FORMAT ERROR'),
-  fmsDatalinkNotAvail: new TypeIIMessage('FMS DATALINK NOT AVAIL'), // TODO
   fplnElementRetained: new TypeIMessage('F-PLN ELEMENT RETAINED'), // TODO
   initializeZfwOrZfwCg: new TypeIIMessage('INITIALIZE ZFW / ZFWCG', true),
   newAccAlt: new TypeIIMessage('NEW ACCEL ALT: HHHHH', false, 'HHHHH'),
@@ -118,8 +120,8 @@ export const NXSystemMessages = {
   notInDatabase: new TypeIMessage('NOT IN DATABASE'),
   notTransmittedToAcr: new TypeIIMessage('NOT TRANSMITTED TO ACR', false),
   receivedCpnyFplnNotValid: new TypeIIMessage('RECEIVED COMPANY F-PLN NOT VALID', false),
-  receivedCpnyWindNotValid: new TypeIIMessage('RECEIVED COMPANY WIND NOT VALID', false),
-  rwyLsDisagree: new TypeIIMessage('RUNWAY / LS DISAGREE', true), // TODO
+  receivedCpnyWindNotValid: new TypeIIMessage('RECEIVED COMPANY WIND DATA NOT VALID', false),
+  rwyLsDisagree: new TypeIIMessage('RUNWAY / LS DISAGREE', true),
   setHoldSpeed: new TypeIIMessage('SET HOLD SPD'),
   tdReached: new TypeIIMessage('T/D REACHED'),
   spdLimExceeded: new TypeIIMessage('SPD LIMIT EXCEEDED', true),
@@ -135,6 +137,14 @@ export const NXSystemMessages = {
   sqwkCodeNotValid: new TypeIMessage('SQWK CODE NOT VALID'),
   lrcInUse: new TypeIMessage('LRC MODE IN USE'),
   lateralDiscontinuityAhead: new TypeIIMessage('LATERAL DISCONTINUITY AHEAD', true),
+  listOf99InUse: new TypeIMessage('LIST OF 99 IN USE'),
+  // A new pilot-stored waypoint rejected, the 50 of the database are used
+  wptsMaxAllInUse: new TypeIMessage('50 WPTS MAX : ALL IN USE'),
+  pilotRtesListFull: new TypeIMessage('PILOT RTEs LIST FULL'),
+  rteIdentAlreadyUsed: new TypeIMessage('RTE IDENT ALREADY USED'),
+  someRevisionsNotStored: new TypeIMessage('SOME REVISIONS NOT STORED'),
+  // A PLACE/DISTANCE waypoint whose PLACE is not the revised waypoint
+  placeWptDisagree: new TypeIMessage('PLACE / WPT DISAGREE'),
 };
 
 export const NXFictionalMessages = {

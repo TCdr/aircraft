@@ -18,6 +18,7 @@ import {
 } from '@microsoft/msfs-sdk';
 import { InputField, InteractionMode } from './InputField';
 import { DropdownFieldFormat } from '../../MFD/pages/common/DataEntryFormats';
+import { raiseFcomItem } from './raiseFcomItem';
 import { EfisSide } from '@flybywiresim/fbw-sdk';
 
 interface DropdownMenuProps extends ComponentProps {
@@ -218,6 +219,8 @@ export class DropdownMenu extends DisplayComponent<DropdownMenuProps> {
 
     this.subs.push(
       this.dropdownIsOpened.sub((opened) => {
+        raiseFcomItem(this.topRef.instance, opened);
+
         this.onDropdownOpenedCallback?.();
         this.onDropdownOpenedCallback = undefined;
 
