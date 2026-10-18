@@ -593,7 +593,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
         break;
       case 'PRINT':
         // The message on the cockpit printer (PRINTING in the information messages area)
-        this.publisher.pub('printMessage', uid, true, false);
+        this.publishToAtc('printMessage', uid);
         break;
       default:
         break;

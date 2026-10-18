@@ -35,7 +35,6 @@ interface MailboxInternals {
   blocks: Subject<{ uid: number }[]>;
   visibleUid: Subject<number | null>;
   onButton(index: number): void;
-  printNotAvail: Subject<boolean>;
 }
 
 /**
@@ -126,11 +125,9 @@ describe('ATC mailbox clients: with the SD DU off, the F/O DU RECONF P/B brings 
     // PRINT (fifth button of a clearance) on the SD DU's mailbox while its DU is off: nothing happens
     sdDu.onButton(4);
     expect(printed).toEqual([]);
-    expect(sdDu.printNotAvail.get()).toBe(false);
-    // on the F/O ND DU's mailbox, the active one: PRINT is handled (without a cockpit printer it answers PRINT NOT
-    // AVAIL instead of printing the message)
+    // on the F/O ND DU's mailbox, the active one: the message is printed
     foNd.onButton(4);
-    expect(foNd.printNotAvail.get()).toBe(true);
+    expect(printed).toEqual([1]);
   });
 
   it('asks for the mailbox file when it starts and when it becomes active', () => {
