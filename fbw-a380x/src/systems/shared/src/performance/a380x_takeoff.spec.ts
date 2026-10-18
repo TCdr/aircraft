@@ -275,6 +275,94 @@ describe('A380842TakeoffPerformanceCalculator', () => {
     });
   });
 
+  describe('derated takeoff (D04 to D24, 4 % of the maximum takeoff thrust each)', () => {
+    const levels = (overrides: Partial<Inputs>) => calculate(overrides).derates!.map((d) => d.level);
+
+    it('scales the TOGA weight limit with the derated thrust', () => {
+      const result = calculate({ tow: 400_000 });
+      expect(result.derates!.map((d) => d.level)).toEqual([4, 8, 12, 16, 20, 24]);
+      for (const derate of result.derates!) {
+        expect(Math.abs(derate.mtow - result.mtow! * (1 - derate.level / 100))).toBeLessThanOrEqual(2);
+      }
+    });
+
+    it('gives the deepest level whose weight limit still covers the TOW', () => {
+      // sea level, 3000 m: 577.0 t at TOGA, 461.6 t at D20, 438.5 t at D24
+      const result = calculate({ tow: 450_000 });
+      expect(result.error).toBe(TakeoffPerfomanceError.None);
+      expect(result.derate).toBe(20);
+      expect(result.derates!.map((d) => d.level)).toEqual([4, 8, 12, 16, 20]);
+      expect(result.estimates).toContain(TakeoffPerformanceEstimate.Derate);
+      expect(calculate({ tow: 400_000 }).derate).toBe(24);
+    });
+
+    it('gives no derate when only TOGA covers the TOW', () => {
+      // 1800 m at sea level: 456.9 t at TOGA, 438.6 t at D04
+      const result = calculate({ tora: 1800, tow: 450_000 });
+      expect(result.error).toBe(TakeoffPerfomanceError.None);
+      expect(result.derate).toBeUndefined();
+      expect(result.derates).toEqual([]);
+      expect(result.estimates).not.toContain(TakeoffPerformanceEstimate.Derate);
+    });
+
+    it('applies at the actual OAT, the thrust loss above the flat rating temperature included', () => {
+      const hot = calculate({ tow: 400_000, oat: 45 });
+      const d12 = hot.derates!.find((d) => d.level === 12)!;
+      expect(Math.abs(d12.mtow - hot.mtow! * 0.88)).toBeLessThanOrEqual(2);
+      expect(levels({ tow: 450_000, oat: 45 }).length).toBeLessThan(levels({ tow: 450_000 }).length);
+    });
+
+    it('is calculated when FLEX is not (TOGA forced, as on a contaminated runway)', () => {
+      const result = calculate({ tow: 450_000, forceToga: true });
+      expect(result.flex).toBeUndefined();
+      expect(result.derate).toBe(20);
+    });
+
+    it('lowers the V1 floor with the minimum control speeds when VMCG limits V1', () => {
+      const overrides = { tow: 320_000, conf: 1 };
+      const toga = calculate(overrides);
+      const vmcg = A380SpeedsUtils.getVmcg(toga.params.pressureAlt);
+      // the TOGA V1 is on its VMCG floor at this weight
+      expect(toga.v1).toBe(Math.ceil(vmcg));
+      const d24 = toga.derates!.find((d) => d.level === 24)!;
+      expect(d24.v1).toBeLessThan(toga.v1!);
+      expect(d24.v1).toBeGreaterThanOrEqual(vmcg * Math.sqrt(0.76));
+      expect(d24.estimates).toEqual(
+        expect.arrayContaining([TakeoffPerformanceEstimate.Derate, TakeoffPerformanceEstimate.V1]),
+      );
+    });
+
+    it('keeps the stall speed minimum of V2 and never raises a speed', () => {
+      for (const overrides of [{ tow: 320_000, conf: 1 }, { tow: 450_000 }]) {
+        const i = { ...DEFAULTS, ...overrides };
+        const result = calculate(overrides);
+        const confs = [undefined, ApproachConf.CONF_1F, ApproachConf.CONF_2, ApproachConf.CONF_3];
+        const vs1g = SpeedsLookupTables.getApproachVls(confs[i.conf]!, i.cg!, i.tow) / 1.23;
+        for (const derate of result.derates!) {
+          expect(derate.v2).toBeGreaterThanOrEqual(1.13 * vs1g);
+          expect(derate.v2).toBeLessThanOrEqual(result.v2!);
+          expect(derate.vR).toBeLessThanOrEqual(result.vR!);
+          expect(derate.v1).toBeLessThanOrEqual(result.v1!);
+          expect(derate.v1).toBeLessThanOrEqual(derate.vR);
+        }
+      }
+    });
+
+    it('needs more runway at a deeper level, and gives no distances for a level not permitted or with FLEX', () => {
+      const result = calculate({ tow: 450_000 });
+      const toga = calculator.calculateTakeoffDistances(result, undefined)!;
+      const d08 = calculator.calculateTakeoffDistances(result, undefined, 8)!;
+      const d20 = calculator.calculateTakeoffDistances(result, undefined, 20)!;
+      expect(d08.derate).toBe(8);
+      expect(d08.required!).toBeGreaterThan(toga.required!);
+      expect(d20.required!).toBeGreaterThan(d08.required!);
+      expect(d20.required!).toBeLessThanOrEqual(d20.available);
+      expect(d20.requiredEstimated).toBe(true);
+      expect(calculator.calculateTakeoffDistances(result, undefined, 24)).toBeUndefined();
+      expect(calculator.calculateTakeoffDistances(result, result.flex, 8)).toBeUndefined();
+    });
+  });
+
   describe('optimum configuration', () => {
     // Without wind and slope the weight limit does not depend on the configuration (a tie); with a tailwind it does,
     // through the lift-off speed

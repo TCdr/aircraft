@@ -170,6 +170,22 @@ export enum TakeoffPerformanceEstimate {
   Slope = 'Slope',
   /** The OAT is above the temperatures of the manufacturer data. */
   Temperature = 'Temperature',
+  /** The derated takeoff weight limits, and the minimum control speeds of a lower thrust. */
+  Derate = 'Derate',
+}
+
+/** One derated takeoff level the TOW permits, for the calculators that support a derate. */
+export interface TakeoffDerateResult {
+  /** The level as its thrust reduction in percent: 4 for D04 ... 24 for D24. */
+  level: number;
+  /** The take-off weight limit at this level, in kg. */
+  mtow: number;
+  /** The takeoff speeds at this level, in knots. */
+  v1: number;
+  vR: number;
+  v2: number;
+  /** The results of this level that are estimates. */
+  estimates: TakeoffPerformanceEstimate[];
 }
 
 export interface TakeoffPerformanceResult {
@@ -202,6 +218,11 @@ export interface TakeoffPerformanceResult {
 
   /** The results that are estimates, for the calculators that tell them apart from the manufacturer data. */
   estimates?: TakeoffPerformanceEstimate[];
+
+  /** The deepest derated takeoff level the TOW permits (thrust reduction in percent), when the calculator has one. */
+  derate?: number;
+  /** The derated takeoff levels the TOW permits, the shallowest first. */
+  derates?: TakeoffDerateResult[];
 }
 
 /**
@@ -211,6 +232,8 @@ export interface TakeoffPerformanceResult {
 export interface TakeoffRunwayDistances {
   /** The FLEX temperature of the distances in °C, or undefined for TOGA. */
   flex: number | undefined;
+  /** The derated takeoff level of the distances (thrust reduction in percent), or undefined without a derate. */
+  derate?: number;
   /** The runway length available for the takeoff run: the TORA without the line-up allowance. */
   available: number;
   /**
@@ -380,13 +403,17 @@ export interface TakeoffPerformanceCalculator {
   /** Maximum tailwind in knots. */
   readonly maxTailwind: number;
 
+  /** For the calculators that support a derated takeoff: its levels, as their thrust reduction in percent. */
+  readonly derateLevels?: readonly number[];
+
   /**
-   * For the calculators that can give them: the runway distances of a calculated takeoff, at TOGA or at a FLEX
-   * temperature (for a FLEX lower than the maximum one of the result, a FLEX simulation). Undefined when the result
-   * has an error, or the FLEX temperature is outside the possible range.
+   * For the calculators that can give them: the runway distances of a calculated takeoff, at TOGA, at a FLEX
+   * temperature (for a FLEX lower than the maximum one of the result, a FLEX simulation) or at a derated level.
+   * Undefined when the result has an error, or the FLEX temperature or the derated level is not possible.
    */
   calculateTakeoffDistances?(
     result: TakeoffPerformanceResult,
     flex: number | undefined,
+    derate?: number,
   ): TakeoffRunwayDistances | undefined;
 }
