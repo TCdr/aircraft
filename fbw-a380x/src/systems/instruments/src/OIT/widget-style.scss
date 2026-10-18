@@ -583,12 +583,19 @@
   align-self: center;
 }
 
+// The text area takes the click that selects the field: it fills the whole frame, so that a field showing nothing
+// (no placeholder on the laptop screens) can still be selected
 .mfd-input-field-text-input-container {
   display: flex;
   flex: 1;
   flex-direction: row;
-  align-self: center;
+  align-self: stretch;
   align-items: center;
+}
+
+// The width the field takes from its digit count must not push the arrow out of the frame of a narrower list
+.mfd-dropdown-inner .mfd-input-field-text-input-container {
+  min-width: 0 !important;
 }
 
 .mfd-mouse-cursor {

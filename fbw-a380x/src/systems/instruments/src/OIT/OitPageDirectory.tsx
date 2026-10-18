@@ -17,6 +17,8 @@ import { OitAvncsCompanyComInbox } from './Pages/NssAvncs/CompanyCom/OitAvncsCom
 import { OitAvncsCompanyComWeatherRequest } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyComWeatherRequest';
 import { OitAvncsCompanyComFreeText } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyComFreeText';
 import { OitAvncsCompanyComDownlinkFolder } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyComDownlinkFolder';
+import { OitAvncsCompanyComReportForm } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyComReportForm';
+import { OitAvncsRefuel } from './Pages/NssAvncs/Refuel/OitAvncsRefuel';
 import { OitAvncsFbwSystems } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystems';
 import { OitAvncsFbwSystemsGenericDebug } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystemsGenericDebug';
 import { OitAvncsFbwSystemsAppLdgCap } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystemsAppLdgCap';
@@ -62,6 +64,8 @@ export function avncsPageForUrl(
       return <OitAvncsCompanyCom bus={bus} uiService={uiService} container={container} />;
     case 'nss-avncs/a380x-systems':
       return <OitAvncsFbwSystems bus={bus} uiService={uiService} container={container} />;
+    case 'nss-avncs/refuel':
+      return <OitAvncsRefuel bus={bus} uiService={uiService} container={container} />;
 
     default:
       return <OitNotFound uiService={uiService} />;
@@ -95,6 +99,21 @@ export function avncsCompanyComPageForUrl(
     case 'nss-avncs/company-com/in-flight/free-text':
     case 'nss-avncs/company-com/post-flight/free-text':
       return <OitAvncsCompanyComFreeText bus={bus} uiService={uiService} container={container} />;
+    case 'nss-avncs/company-com/pre-flight/init-data':
+    case 'nss-avncs/company-com/pre-flight/fuel-figures':
+    case 'nss-avncs/company-com/pre-flight/refuelling':
+    case 'nss-avncs/company-com/pre-flight/loadsheet-acceptance':
+    case 'nss-avncs/company-com/pre-flight/departure-delay':
+    case 'nss-avncs/company-com/pre-flight/take-off-delay':
+    case 'nss-avncs/company-com/pre-flight/delay-code':
+    case 'nss-avncs/company-com/pre-flight/asr-notification':
+    case 'nss-avncs/company-com/in-flight/ramp-service':
+    case 'nss-avncs/company-com/in-flight/diversion':
+    case 'nss-avncs/company-com/in-flight/eta':
+    case 'nss-avncs/company-com/post-flight/asr-notification':
+    case 'nss-avncs/company-com/post-flight/flight-summary':
+    case 'nss-avncs/company-com/post-flight/gate-delay':
+      return <OitAvncsCompanyComReportForm bus={bus} uiService={uiService} container={container} url={url} />;
 
     default:
       return <OitNotFound uiService={uiService} />;

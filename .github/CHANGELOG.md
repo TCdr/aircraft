@@ -778,6 +778,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] The message counter, message list and CLEAR of the NSS AVNCS and FLT OPS menu bars show company message notifications; selecting one on the NSS AVNCS side opens the message - @TCdr
 1. [A380X/OIT] NSS AVNCS menu bar: MAXIMIZE / MINIMIZE, PRINT (Inbox, Outbox, Sent messages), UPDATE and CLOSE work - @TCdr
 1. [A380X/OIT] FLT OPS menu bar: the FUNCTIONS list works (HOME, PREVIOUS, NEXT, HIDE / SHOW SWITCHING BAR, CLOSE APPLICATION, with their shortcuts), every application shows its name, and the switching bar shows the open applications and scrolls with its arrows - @TCdr
+1. [A380X/OIT] COMPANY COM report and request forms: INIT data, fuel figures, refuelling, loadsheet acceptance, departure / take-off / gate delay, delay code, ASR notification, ramp service, diversion, ETA and flight summary, pre-filled with the flight data the OIT has and sent to a station over the Hoppie network into the Outbox and Sent folders - @TCdr
+1. [A380X/OIT] The NSS AVNCS REFUEL application shows the fuel on board, the refuel state and the FQMS default ZFW / ZFCG, and sets on the ground the preselected fuel quantity of the automatic refuel and a ZFW / ZFCG of its own for its CG targeting - @TCdr
 
 ## 2024.1.0
 
