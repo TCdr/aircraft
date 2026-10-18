@@ -774,6 +774,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Services page: a long GSX menu scrolls inside the GSX card instead of running past it, and its close link no longer overlaps the last menu buttons - @TCdr
 1. [EFB] The A380X flyPad Services page has switches and planform markers for the MAIN 4L and MAIN 5L doors, so a rear left door GSX opened for boarding can be closed from the flyPad - @TCdr
 1. [A380X/PRESS] No more red CAB PRESS EXCESS RESIDUAL DIFF PRESS warning at power-up on a high pressure day: the outflow valve controllers start from the first ADIRS ambient pressure instead of moving to it from the standard pressure - @TCdr
+1. [A380X/OIT] COMPANY COM opens on its Inbox, counts the unread Inbox messages and the Outbox messages, and has working Outbox and Sent folders for the weather requests and free texts sent from the OIT - @TCdr
+1. [A380X/OIT] The message counter, message list and CLEAR of the NSS AVNCS and FLT OPS menu bars show company message notifications; selecting one on the NSS AVNCS side opens the message - @TCdr
+1. [A380X/OIT] NSS AVNCS menu bar: MAXIMIZE / MINIMIZE, PRINT (Inbox, Outbox, Sent messages), UPDATE and CLOSE work - @TCdr
+1. [A380X/OIT] FLT OPS menu bar: the FUNCTIONS list works (HOME, PREVIOUS, NEXT, HIDE / SHOW SWITCHING BAR, CLOSE APPLICATION, with their shortcuts), every application shows its name, and the switching bar shows the open applications and scrolls with its arrows - @TCdr
 
 ## 2024.1.0
 

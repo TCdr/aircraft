@@ -16,6 +16,7 @@ import { A380Failure } from '@failures';
 import { OisInternalData } from './OisInternalPublisher';
 import { OitSimvars } from './OitSimvarPublisher';
 import { AruStartup, LaptopNetworkConnection } from './System/AnsuLogic';
+import { OisMessageToolbar } from './System/OisMessageToolbar';
 
 type LaptopIndex = 1 | 2;
 
@@ -46,6 +47,21 @@ export class OisLaptop implements Instrument {
   private readonly _standalone = Subject.create(false);
   /** The laptop operates as a stand-alone: STANDALONE on the Login page, SYNCHRONIZATION NOT AVAIL on the STS page */
   public readonly standalone = this._standalone as Subscribable<boolean>;
+
+  /** The message toolbar of the FLT OPS menu bar, run by the laptop: it starts empty at each laptop start */
+  public readonly messageToolbar = new OisMessageToolbar();
+
+  /**
+   * A company message notification pushed from the NSS AVNCS side. It reaches a running laptop connected to the FLT OPS
+   * network only.
+   * @param aocUid the AOC message id
+   * @param subject its subject line
+   */
+  public receiveAocNotification(aocUid: number, subject: string): void {
+    if (this._isHealthy.get() && !this._standalone.get()) {
+      this.messageToolbar.postAocNotification(aocUid, subject);
+    }
+  }
 
   private readonly laptopSwitchedOn = ConsumerSubject.create(
     this.sub.on(this.index === 1 ? 'laptopCaptPowered' : 'laptopFoPowered'),
@@ -80,6 +96,11 @@ export class OisLaptop implements Instrument {
     this.subscriptions.push(
       this.sub.on('synchroAvncs').handle(() => this.synchroAvionics()),
       this._isHealthy.sub((v) => SimVar.SetSimVarValue(this.isHealthySimVar, SimVarValueType.Bool, v)),
+      this._isHealthy.sub((healthy) => {
+        if (!healthy) {
+          this.messageToolbar.clear();
+        }
+      }),
     );
 
     this.subscriptions.push(this.fltNumberBus, this.fromAirportBus, this.toAirportBus, this.simTime);

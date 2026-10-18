@@ -1,27 +1,33 @@
 //  Copyright (c) 2025 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { EventBus, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
+import { EventBus, FSComponent, VNode } from '@microsoft/msfs-sdk';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { OitFolder, OitFile } from '../OitAvncsFolderNavigator';
 import { OitUiService } from '../../../OitUiService';
+import { AnsuOps } from '../../../System/AnsuOps';
 
 interface OitAvncsCompanyComMenuProps {
   readonly bus: EventBus;
   readonly uiService: OitUiService;
+  readonly ansu: AnsuOps;
 }
 
 export class OitAvncsCompanyComMenu extends DestroyableComponent<OitAvncsCompanyComMenuProps> {
   // Make sure to collect all subscriptions in this.subscriptions, otherwise page navigation doesn't work.
 
-  private readonly inboxCount = Subject.create(2);
-  private readonly outboxCount = Subject.create(0);
+  /** Design choice: the Inbox counts the messages not read yet, as the COMPANY MSG memo does */
+  private readonly inboxLabel = this.props.ansu.companyCom.unreadCount.map((count) => `Inbox (${count})`);
 
-  private readonly inboxLabel = this.inboxCount.map((count) => `Inbox (${count})`);
-  private readonly outboxLabel = this.outboxCount.map((count) => `Outbox (${count})`);
+  /** The Outbox counts the messages waiting there (sending or not sent) */
+  private readonly outboxLabel = this.props.ansu.companyComDownlinks.outbox.map(
+    (outbox) => `Outbox (${outbox.length})`,
+  );
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
+
+    this.subscriptions.push(this.inboxLabel, this.outboxLabel);
   }
 
   render(): VNode {
@@ -32,8 +38,12 @@ export class OitAvncsCompanyComMenu extends DestroyableComponent<OitAvncsCompany
           uiService={this.props.uiService}
           navigationTarget="nss-avncs/company-com/inbox"
         />
-        <OitFile name={this.outboxLabel} uiService={this.props.uiService} disabled={true} />
-        <OitFile name={'Sent'} uiService={this.props.uiService} disabled={true} />
+        <OitFile
+          name={this.outboxLabel}
+          uiService={this.props.uiService}
+          navigationTarget="nss-avncs/company-com/outbox"
+        />
+        <OitFile name={'Sent'} uiService={this.props.uiService} navigationTarget="nss-avncs/company-com/sent" />
         <OitFolder name={'Pre-flight'} initExpanded={true} hideFolderOpener={true}>
           <OitFile name={'INIT Data'} uiService={this.props.uiService} disabled={true} />
           {/* Weather and Free Text use the AOC backend (CompanyComRequests); the airline functions stay disabled */}

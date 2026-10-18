@@ -85,6 +85,10 @@ export abstract class OitAvncsContainer extends DisplayComponent<OitAvncsContain
 
     this.subscriptions.push(
       this.uiService.activeUri.sub((uri) => {
+        // The menu page is not an application: back to the normal screen
+        if (!uri.page) {
+          this.uiService.fullScreen.set(false);
+        }
         this.activeUriChanged(uri);
       }),
       this.ansuPowered.sub((powered) => {
@@ -147,9 +151,17 @@ export abstract class OitAvncsContainer extends DisplayComponent<OitAvncsContain
     return (
       <div ref={this.topRef} class={{ 'oit-main': true, hidden: this.hideContainer }}>
         <div class={{ 'oit-page-container': true, hidden: this.hideContent }}>
-          <OitAvncsHeader bus={this.props.bus} uiService={this.uiService} avncsOrFltOps={this.props.avncsOrFltOps} />
+          <OitAvncsHeader
+            bus={this.props.bus}
+            uiService={this.uiService}
+            avncsOrFltOps={this.props.avncsOrFltOps}
+            ansu={this.props.ansu}
+          />
           <div ref={this.activePageRef} class="mfd-navigator-container" />
-          <OitAvncsFooter uiService={this.uiService} avncsOrFltOps={this.props.avncsOrFltOps} />
+          {/* MAXIMIZE: full screen, without the task bar */}
+          <div class={{ hidden: this.uiService.fullScreen }}>
+            <OitAvncsFooter uiService={this.uiService} avncsOrFltOps={this.props.avncsOrFltOps} />
+          </div>
         </div>
         <OitAvncsLogin bus={this.props.bus} uiService={this.uiService} captOrFo={this.props.captOrFo} />
         <OitAvncsLoadingScreen bus={this.props.bus} captOrFo={this.props.captOrFo} />

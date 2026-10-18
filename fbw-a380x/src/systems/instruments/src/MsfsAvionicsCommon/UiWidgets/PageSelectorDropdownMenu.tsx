@@ -7,16 +7,19 @@ import {
   FSComponent,
   Subject,
   Subscribable,
+  SubscribableUtils,
   Subscription,
   VNode,
 } from '@microsoft/msfs-sdk';
 import { TriangleDown } from './shapes';
 
 type PageSelectorMenuItem = {
-  label: string;
+  label: string | Subscribable<string>;
   action(): void;
-  disabled?: boolean;
+  disabled?: boolean | Subscribable<boolean>;
   separatorBelow?: boolean;
+  /** The keyboard shortcut written at the right of the item */
+  shortcut?: string;
 };
 
 interface PageSelectorDropdownMenuProps extends ComponentProps {
@@ -42,8 +45,12 @@ export class PageSelectorDropdownMenu extends DisplayComponent<PageSelectorDropd
 
   private readonly dropdownIsOpened = Subject.create(false);
 
+  private static isDisabled(item: PageSelectorMenuItem): boolean {
+    return SubscribableUtils.isSubscribable(item.disabled) ? item.disabled.get() : item.disabled === true;
+  }
+
   private onMenuItemClick(val: PageSelectorMenuItem) {
-    if (!val.disabled) {
+    if (!PageSelectorDropdownMenu.isDisabled(val)) {
       val.action();
       this.dropdownIsOpened.set(false);
     }
@@ -138,9 +145,21 @@ export class PageSelectorDropdownMenu extends DisplayComponent<PageSelectorDropd
             (el, idx) => (
               <span
                 id={`${this.props.idPrefix}_${idx}`}
-                class={`mfd-dropdown-menu-element${el.disabled ? ' disabled' : ''}${el.separatorBelow ? ' separator' : ''}`}
+                class={{
+                  'mfd-dropdown-menu-element': true,
+                  disabled: el.disabled ?? false,
+                  separator: el.separatorBelow ?? false,
+                  'with-shortcut': el.shortcut !== undefined,
+                }}
               >
-                {el.label}
+                {el.shortcut !== undefined ? (
+                  <>
+                    <span>{el.label}</span>
+                    <span class="mfd-dropdown-menu-shortcut">{el.shortcut}</span>
+                  </>
+                ) : (
+                  el.label
+                )}
               </span>
             ),
             this,
