@@ -42,6 +42,44 @@
       | BRT   | 1     |
       | DIM   | 2     |
 
+- A32NX_RESET_PANEL_{name}
+    - Bool
+    - True when the reset button {name} of the overhead RESET panels is pulled (computer reset). Written by the
+      cockpit button (CB_{name} in the cockpit model; SLATS2 uses the model node CB_SLAT2)
+    - {name} read by the avionics (ResetPanelPublisher, FMC)
+        - ARPT_NAV
+        - FMC_A
+        - FMC_B
+        - FMC_C
+        - FWS1
+        - FWS2
+        - AESU1
+        - AESU2
+        - NSS_AVNCS
+        - NSS_FLT_OPS
+    - {name} wired in the cockpit only, not read by any system yet
+        - AICU1, AICU2
+        - ATC
+        - AVS1, AVS2
+        - BSCS1, BSCS2
+        - CIDS1, CIDS2, CIDS3
+        - CPCS1, CPCS2
+        - DSMS
+        - DTLNKROUTER
+        - ENG1_EIPM2, ENG2_EIPM1, ENG3_EIPM2, ENG4_EIPM1
+        - ESS_TR, TR1, TR_2A
+        - FLAPS1, FLAPS2
+        - FQMS1, FQMS2
+        - GCU
+        - LGCIS1, LGCIS2
+        - PACK1_CTL, PACK2_CTL
+        - PAX_BBAND
+        - SCS1, SCS2
+        - SDF1, SDF2, SDF3
+        - SLATS1, SLATS2
+        - TCS1, TCS2
+        - VCS1, VCS2
+
 - A32NX_OVHD_{name}_PB_IS_AVAILABLE
     - Bool
     - True when the push button's AVAIL light should illuminate
@@ -1737,6 +1775,13 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_IOM_<NAME>_AVAIL
   - Bool
   - Indicates if a specific IOM system is available
+
+- A380X_ACD_{side}_{key}
+  - Bool
+  - Set to 1 by a press of the key of the Additional Control Device (the 8-key pad beside the OIT, A380 FCOM
+    DSC-46-20-20-60), never reset; the key itself goes to the OIT as H:A380X_LAPTOP_KEYBOARD_L(R)_<key> (keyboard.xml)
+  - {side} = CPT or FO
+  - {key} = OIS_XFR, OIS_MENU, ESC, ENTER, UP, DOWN, LEFT or RIGHT
 
 ## Auxiliary Power Unit ATA 49
 
