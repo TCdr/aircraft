@@ -4218,6 +4218,8 @@
                                 <TOGGLE_SIMVAR>L:A32NX_NSS_MASTER_OFF</TOGGLE_SIMVAR>
                                 <DOWN_CODE>(L:A32NX_NSS_MASTER_OFF, Bool) !</DOWN_CODE>
                                 <SEQ_POWERED>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                                <!-- SMOKE light: smoke in the NSS, also with the NSS power cut off -->
+                                <SEQ1_CODE>(L:A32NX_SMOKE_NSS_DETECTED, Bool)</SEQ1_CODE>
                                 <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                                 <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                                 <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>

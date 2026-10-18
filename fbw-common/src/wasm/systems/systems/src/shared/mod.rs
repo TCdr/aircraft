@@ -1150,6 +1150,8 @@ pub enum SmokeDetectionZone {
     AftAvionics,
     /// The A380 In Flight Entertainment (IFE) bay
     InFlightEntertainmentBay,
+    /// The A380 Network Server System (NSS) bay
+    NetworkServerSystem,
 }
 
 impl Display for SmokeDetectionZone {
@@ -1166,6 +1168,7 @@ impl Display for SmokeDetectionZone {
             SmokeDetectionZone::RightUpperAvionics => "R_UPPER_AVNCS",
             SmokeDetectionZone::AftAvionics => "AFT_AVNCS",
             SmokeDetectionZone::InFlightEntertainmentBay => "IFE_BAY",
+            SmokeDetectionZone::NetworkServerSystem => "NSS",
         };
         write!(f, "{}", name)
     }
