@@ -74,10 +74,10 @@ function shownStateBefore(gsxReady: boolean, services: GsxService[], button: But
 }
 
 /** Runs the hook once (a static render) and gives back what it returned */
-function runHook(): ReturnType<typeof useGsxServiceLink<Button>> {
+function runHook(refuelTargetKg: number | null = null): ReturnType<typeof useGsxServiceLink<Button>> {
   let result: ReturnType<typeof useGsxServiceLink<Button>> | undefined;
   const Probe = () => {
-    result = useGsxServiceLink(LINKS, false);
+    result = useGsxServiceLink(LINKS, false, refuelTargetKg);
     return null;
   };
   renderToStaticMarkup(<Probe />);
@@ -140,5 +140,23 @@ describe('useGsxServiceLink', () => {
     fake.gsx = gsxState(true, []);
 
     expect(runHook().shownLook(Button.BaggageTruck, 'inactive')).toBe('hidden');
+  });
+
+  it("shows the flyPad's refuelling progress while the flyPad refuel runs, GSX's own otherwise", () => {
+    fake.linkSetting = 1;
+    fake.gsx = gsxState(true, [
+      {
+        id: GsxServiceId.Refueling,
+        displayName: 'Refuel',
+        state: 'performing',
+        stateText: 'Refueling',
+        canTrigger: false,
+        detail: { fuel: { current: 1000, target: 1010, unit: 'kg', startTotal: 40000, aircraftTotal: 41000 } },
+        progressText: '99%',
+      },
+    ]);
+
+    expect(runHook(50000).gsxStatus(Button.FuelTruck).text).toBe('Refueling 10%');
+    expect(runHook().gsxStatus(Button.FuelTruck).text).toBe('Refueling 99%');
   });
 });

@@ -151,9 +151,11 @@ export const A380Services: React.FC = () => {
 
   const eventBus = useEventBus();
   const pub = eventBus.getPublisher<GPUControlEvents>();
+  const [fuelDesiredKg] = useSimVar('L:A32NX_FUEL_DESIRED', 'Kilograms', 1_000);
+  const [refuelStartedByUser] = useSimVar('L:A32NX_REFUEL_STARTED_BY_USR', 'Bool', 1_000);
   // GSX link: the service buttons request the GSX services (GSX Remote API) instead of the sim ground vehicles; GSX
   // loads the baggage with the boarding, on the GSX panel
-  const gsxLink = useGsxServiceLink(GSX_LINKS, !!gpuAvail);
+  const gsxLink = useGsxServiceLink(GSX_LINKS, !!gpuAvail, refuelStartedByUser ? fuelDesiredKg : null);
   const { gsx, gsxLinked, setGsxLink } = gsxLink;
 
   // Wheel Chocks and Cones

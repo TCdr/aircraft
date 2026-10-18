@@ -1,9 +1,18 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { useEffect, useRef } from 'react';
 import { usePersistentNumberProperty } from '@flybywiresim/fbw-sdk-react';
-import { GsxServiceId, gsxRequestable, gsxServiceLook, useGsxRemote } from './GsxRemote';
+import {
+  GsxServiceId,
+  gsxRefuelFuelKg,
+  gsxRefuelProgress,
+  gsxRequestable,
+  gsxServiceLook,
+  useGsxRemote,
+} from './GsxRemote';
 import { gsxServiceStatus, triggerGsxService } from './GsxServicesPanel';
+import { RefuelTimeLeft } from './refuelTimeLeft';
 import { equipmentStillThere, useReleasePending } from './releasePending';
 import type { ServiceLook } from './ServicesLayout';
 
@@ -38,8 +47,13 @@ export interface GsxButtonLinks<B extends number> {
  * state, named as the GSX looks), so each page passes `SERVICE_LOOKS[state]` as the sim look of a button.
  * @param links the page's buttons that GSX serves
  * @param gpuPowered external power is available (a released GPU is gone only once it no longer powers the aircraft)
+ * @param refuelTargetKg the total fuel of the flyPad refuel while it runs (GSX fuel sync), else null
  */
-export function useGsxServiceLink<B extends number>(links: GsxButtonLinks<B>, gpuPowered: boolean) {
+export function useGsxServiceLink<B extends number>(
+  links: GsxButtonLinks<B>,
+  gpuPowered: boolean,
+  refuelTargetKg: number | null = null,
+) {
   const [gsxLinkSetting, setGsxLinkSetting] = usePersistentNumberProperty('GSX_SERVICES_LINK', 0);
   const [, setGsxFuelSync] = usePersistentNumberProperty('GSX_FUEL_SYNC', 0);
   const [, setGsxPayloadSync] = usePersistentNumberProperty('GSX_PAYLOAD_SYNC', 0);
@@ -51,6 +65,26 @@ export function useGsxServiceLink<B extends number>(links: GsxButtonLinks<B>, gp
 
   const linkedService = (button: B) => (gsxReady ? links.serviceOf[button] : undefined);
   const serviceState = (id: GsxServiceId) => gsx.services.find((s) => s.id === id);
+
+  const refuelTimeLeft = useRef(new RefuelTimeLeft());
+  const refuelFuel = gsxRefuelFuelKg(serviceState(GsxServiceId.Refueling));
+  useEffect(() => {
+    if (refuelFuel === null) {
+      refuelTimeLeft.current.reset();
+    } else {
+      refuelTimeLeft.current.update(Date.now(), refuelFuel.nowKg);
+    }
+  }, [refuelFuel?.nowKg]);
+
+  const flypadRefuel = (id: GsxServiceId) => {
+    if (id !== GsxServiceId.Refueling || refuelTargetKg === null || refuelFuel === null) {
+      return null;
+    }
+    const progress = gsxRefuelProgress(serviceState(id), refuelTargetKg);
+    return progress === null
+      ? null
+      : { progress, minutesLeft: refuelTimeLeft.current.minutesLeft(refuelFuel.nowKg, refuelTargetKg) };
+  };
 
   // Linking also turns on the flyPad's GSX fuel and payload syncs (Settings > 3rd party), so the fuel and the
   // passengers follow the GSX services
@@ -69,7 +103,7 @@ export function useGsxServiceLink<B extends number>(links: GsxButtonLinks<B>, gp
       return NO_GSX_STATUS;
     }
     const service = serviceState(id);
-    return { ...gsxServiceStatus(service), requestable: gsxRequestable(service) };
+    return { ...gsxServiceStatus(service, null, flypadRefuel(id)), requestable: gsxRequestable(service) };
   };
 
   /** How a button looks: the GSX state of its service while linked, otherwise its sim look */
