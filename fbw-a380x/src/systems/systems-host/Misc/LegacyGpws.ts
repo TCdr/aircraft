@@ -11,6 +11,7 @@ import {
 import { EventBus, SimVarValueType } from '@microsoft/msfs-sdk';
 import { FwsSoundManagerControlEvents } from '../CpiomC/FlightWarningSystem/FwsSoundManager';
 import { GpwsMode2 } from './GpwsMode2';
+import { isFwsStallWarningActive, isReactiveWindshearWarningActive } from './SurvAlertPriority';
 
 type ModesType = {
   current: number;
@@ -41,6 +42,15 @@ export class LegacyGpws {
     const terrFailed =
       selected === 1 || selected === 2 ? SimVar.GetSimVarValue(`L:A32NX_TERR_${selected}_FAILED`, 'Bool') > 0 : true;
     return !(SimVar.GetSimVarValue('L:A32NX_GPWS_TERR_OFF', 'Bool') > 0) && !terrFailed;
+  }
+
+  /**
+   * Stall and windshear alerts have priority over the GPWS visual and aural alerts: the FWS STALL warning or the
+   * reactive WINDSHEAR warning.
+   * @returns true while one of them is on, the GPWS modes then give no alert
+   */
+  static isStallOrWindshearWarningActive(): boolean {
+    return isReactiveWindshearWarningActive() || isFwsStallWarningActive();
   }
 
   /**
@@ -340,8 +350,8 @@ export class LegacyGpws {
       this.GPWSMode3(this.modes[2], radioAlt.value, phase);
       this.GPWSMode4(this.modes[3], radioAlt.value, Airspeed, FlapsInLandingConfig, gearExtended, phase);
       this.GPWSMode5(this.modes[4], radioAlt.value);
-      // Stall or windshear alerts override the GPWS visual and aural alerts: the windshear part
-      if (SimVar.GetSimVarValue('L:A32NX_REACTIVE_WINDSHEAR_WARNING', 'Bool') > 0) {
+      // Stall and windshear alerts have priority over the GPWS alerts
+      if (LegacyGpws.isStallOrWindshearWarningActive()) {
         this.modes.forEach((mode) => {
           mode.current = 0;
         });

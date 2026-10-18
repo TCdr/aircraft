@@ -326,34 +326,51 @@ describe('GPWS mode 2 and mode 5 aurals', () => {
     expect(soundsFor(4, 2)).toEqual([soundList.glideslope_loud.name]);
   });
 
+  /** The mode 5 state, 2.5 dots below the glide slope at 500 ft, with or without the windshear / stall warnings */
+  const mode5StateWith = (windshear: boolean, stallFws1: boolean, stallFws2 = false) => {
+    vi.stubGlobal('Simplane', { getVerticalSpeed: () => -800 });
+    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation(() => Promise.resolve());
+    // FWS discrete word 126, bit 17 = STALL warning (FwsCore.ts)
+    const fwsWord126 = (stall: boolean) =>
+      Arinc429Word.getRawWord(stall ? 1 << 16 : 0, Arinc429SignStatusMatrix.NormalOperation);
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => {
+      switch (name) {
+        case 'L:A32NX_RA_1_RADIO_ALTITUDE':
+          return Arinc429Word.getRawWord(500, Arinc429SignStatusMatrix.NormalOperation);
+        case 'L:A32NX_WXR_TAWS_SYS_SELECTED':
+          return 1;
+        case 'L:A32NX_RADIO_RECEIVER_GS_IS_VALID':
+          return 1;
+        case 'L:A32NX_RADIO_RECEIVER_GS_DEVIATION':
+          return -1; // 2.5 dots below the glide slope
+        case 'L:A32NX_REACTIVE_WINDSHEAR_WARNING':
+          return windshear ? 1 : 0;
+        case 'L:A32NX_FWC_1_DISCRETE_WORD_126':
+          return fwsWord126(stallFws1);
+        case 'L:A32NX_FWC_2_DISCRETE_WORD_126':
+          return fwsWord126(stallFws2);
+        case 'GEAR TOTAL PCT EXTENDED':
+          return 100;
+        default:
+          return 0;
+      }
+    });
+    const gpws = new LegacyGpws(new EventBus(), {
+      addPeriodicSound: () => {},
+      removePeriodicSound: () => {},
+    } as unknown as LegacySoundManager);
+    gpws.gpws(125);
+    return gpws.modes[4].current;
+  };
+
+  it('a STALL warning of either FWS removes the GPWS alerts', () => {
+    expect(mode5StateWith(false, false)).toBeGreaterThan(0);
+    expect(mode5StateWith(false, true)).toBe(0);
+    expect(mode5StateWith(false, false, true)).toBe(0);
+  });
+
   it('a reactive windshear warning removes the GPWS alerts', () => {
-    const run = (windshear: boolean) => {
-      vi.stubGlobal('Simplane', { getVerticalSpeed: () => -800 });
-      vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation(() => Promise.resolve());
-      vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => {
-        switch (name) {
-          case 'L:A32NX_RA_1_RADIO_ALTITUDE':
-            return Arinc429Word.getRawWord(500, Arinc429SignStatusMatrix.NormalOperation);
-          case 'L:A32NX_WXR_TAWS_SYS_SELECTED':
-            return 1;
-          case 'L:A32NX_RADIO_RECEIVER_GS_IS_VALID':
-            return 1;
-          case 'L:A32NX_RADIO_RECEIVER_GS_DEVIATION':
-            return -1; // 2.5 dots below the glide slope
-          case 'L:A32NX_REACTIVE_WINDSHEAR_WARNING':
-            return windshear ? 1 : 0;
-          default:
-            return 0;
-        }
-      });
-      const gpws = new LegacyGpws(new EventBus(), {
-        addPeriodicSound: () => {},
-        removePeriodicSound: () => {},
-      } as unknown as LegacySoundManager);
-      gpws.gpws(125);
-      return gpws.modes[4].current;
-    };
-    expect(run(false)).toBeGreaterThan(0);
-    expect(run(true)).toBe(0);
+    expect(mode5StateWith(false, false)).toBeGreaterThan(0);
+    expect(mode5StateWith(true, false)).toBe(0);
   });
 });
