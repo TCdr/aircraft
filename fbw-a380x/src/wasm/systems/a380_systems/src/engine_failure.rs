@@ -223,6 +223,8 @@ pub fn a380_engine_start_schedule() -> EngineStartSchedule {
         monitors_in_flight_start_air: true,
         // EGT limit during the ground start.
         start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(745.),
+        // EGT limit during an in-flight relight.
+        relight_egt_limit: Some(ThermodynamicTemperature::new::<degree_celsius>(865.)),
         // Two more automatic attempts after a crank; after the third the start is aborted.
         automatic_start_attempts: 3,
         // Design choice: the dry crank that clears the fuel vapours after a start fault lasts 30 s.
@@ -1050,6 +1052,11 @@ mod tests {
             assert_eq!(schedule.start_valve_close_n2.get::<percent>(), 58.4);
             assert_eq!(schedule.start_abort_inhibition_n2.get::<percent>(), 58.4);
             assert_eq!(schedule.start_egt_limit.get::<degree_celsius>(), 745.);
+            // 865 °C in a relight
+            let relight_egt_limit = schedule
+                .relight_egt_limit
+                .map_or(0., |limit| limit.get::<degree_celsius>());
+            assert!((relight_egt_limit - 865.).abs() < 1e-6);
             assert_eq!(schedule.automatic_start_attempts, 3);
             assert_eq!(schedule.starter_time_limit, Some(Duration::from_secs(300)));
             assert!(schedule.continuous_ignition_uses_both_igniters);
