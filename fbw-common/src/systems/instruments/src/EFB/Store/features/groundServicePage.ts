@@ -16,6 +16,10 @@ interface ButtonSelectionState {
   boarding1DoorButtonState: ServiceButtonState;
   boarding2DoorButtonState: ServiceButtonState;
   boarding3DoorButtonState: ServiceButtonState;
+  /** The A380X MAIN 4L, where GSX also boards (the A32NX has none) */
+  boarding4DoorButtonState: ServiceButtonState;
+  /** The A380X MAIN 5L, where GSX also boards (the A32NX has none) */
+  boarding5DoorButtonState: ServiceButtonState;
   serviceDoorButtonState: ServiceButtonState;
   /** A second service door switch: the A380X MAIN 4R (the A32NX has none) */
   serviceDoor2ButtonState: ServiceButtonState;
@@ -34,6 +38,8 @@ let initialState: ButtonSelectionState = {
   boarding1DoorButtonState: ServiceButtonState.DISABLED,
   boarding2DoorButtonState: ServiceButtonState.DISABLED,
   boarding3DoorButtonState: ServiceButtonState.DISABLED,
+  boarding4DoorButtonState: ServiceButtonState.DISABLED,
+  boarding5DoorButtonState: ServiceButtonState.DISABLED,
   serviceDoorButtonState: ServiceButtonState.DISABLED,
   serviceDoor2ButtonState: ServiceButtonState.DISABLED,
   cargo1DoorButtonState: ServiceButtonState.DISABLED,
@@ -68,7 +74,9 @@ const setInitialState = () => {
       SimVar.GetSimVarValue('A:INTERACTIVE POINT OPEN:3', 'Percent over 100') === 1.0
         ? ServiceButtonState.ACTIVE
         : ServiceButtonState.INACTIVE,
-    // the Services page sets it from its door (A380X interactive point 7) when it opens
+    // the Services page sets these from their doors (A380X interactive points 6, 8 and 7) when it opens
+    boarding4DoorButtonState: ServiceButtonState.INACTIVE,
+    boarding5DoorButtonState: ServiceButtonState.INACTIVE,
     serviceDoor2ButtonState: ServiceButtonState.INACTIVE,
     fuelTruckButtonState:
       SimVar.GetSimVarValue('A:INTERACTIVE POINT OPEN:9', 'Percent over 100') === 1.0
@@ -109,6 +117,12 @@ export const buttonsSlice = createSlice({
     setBoarding3DoorButtonState: (state, action: PayloadAction<ServiceButtonState>) => {
       state.boarding3DoorButtonState = action.payload;
     },
+    setBoarding4DoorButtonState: (state, action: PayloadAction<ServiceButtonState>) => {
+      state.boarding4DoorButtonState = action.payload;
+    },
+    setBoarding5DoorButtonState: (state, action: PayloadAction<ServiceButtonState>) => {
+      state.boarding5DoorButtonState = action.payload;
+    },
     setServiceDoorButtonState: (state, action: PayloadAction<ServiceButtonState>) => {
       state.serviceDoorButtonState = action.payload;
     },
@@ -146,6 +160,8 @@ export const {
   setBoarding1DoorButtonState,
   setBoarding2DoorButtonState,
   setBoarding3DoorButtonState,
+  setBoarding4DoorButtonState,
+  setBoarding5DoorButtonState,
   setServiceDoorButtonState,
   setServiceDoor2ButtonState,
   setCargo1DoorButtonState,
