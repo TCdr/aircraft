@@ -221,6 +221,11 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
     }
 
     FSComponent.render(this.activePage, this.activePageRef?.getOrDefault());
+
+    // A page that exists opens its application on the switching bar
+    if (!(this.activePage.instance instanceof OitNotFound)) {
+      this.uiService.fltOpsApplications.show(uri.uri);
+    }
   }
 
   public destroy(): void {
@@ -237,9 +242,12 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
       <>
         <div ref={this.topRef} class={{ 'oit-main': true, hidden: this.hideContainer }}>
           <div class={{ 'oit-page-container': true, hidden: this.hideContent }}>
-            <OitFltOpsHeader uiService={this.uiService} avncsOrFltOps={this.props.avncsOrFltOps} />
+            <OitFltOpsHeader uiService={this.uiService} messageToolbar={this.props.laptop.messageToolbar} />
             <div ref={this.activePageRef} class="mfd-navigator-container" />
-            <OitFltOpsFooter uiService={this.uiService} avncsOrFltOps={this.props.avncsOrFltOps} />
+            {/* HIDE SWITCHING BAR: full screen */}
+            <div class={{ hidden: this.uiService.fullScreen }}>
+              <OitFltOpsFooter uiService={this.uiService} avncsOrFltOps={this.props.avncsOrFltOps} />
+            </div>
             <div class={{ 'oit-x-ois-message': true, hidden: this.hideXOisMessage }}>X-OIS Activated</div>
           </div>
           <OitFltOpsLogin

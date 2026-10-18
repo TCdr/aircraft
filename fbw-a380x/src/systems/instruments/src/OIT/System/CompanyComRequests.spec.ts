@@ -12,6 +12,7 @@ import {
   freeTextMessage,
   weatherRequestAirports,
 } from './CompanyComRequests';
+import { CompanyComDownlinks, CompanyComDownlinkStatus } from './CompanyComDownlinks';
 
 /**
  * The OIT requests, with the AOC side of the bus
@@ -19,7 +20,9 @@ import {
  */
 function setup() {
   const bus = new EventBus();
-  const requests = new CompanyComRequests(bus);
+  const downlinks = new CompanyComDownlinks(bus, () => 0);
+  downlinks.init();
+  const requests = new CompanyComRequests(bus, downlinks);
   requests.init();
 
   const sub = bus.getSubscriber<FmsAocMessages>();
@@ -31,7 +34,7 @@ function setup() {
   sub.on('aocRegisterWeatherMessages').handle((messages) => registered.push(messages));
 
   const aoc = bus.getPublisher<AocFmsMessages>();
-  return { requests, weatherRequests, freeTexts, registered, aoc };
+  return { requests, weatherRequests, freeTexts, registered, aoc, downlinks };
 }
 
 describe('COMPANY COM weather request: TAF, METAR', () => {
@@ -98,9 +101,35 @@ describe('COMPANY COM weather request: TAF, METAR', () => {
   });
 
   it('sends nothing without an airport', () => {
-    const { requests, weatherRequests } = setup();
+    const { requests, weatherRequests, downlinks } = setup();
     expect(requests.requestWeather([], true)).toBe(false);
     expect(weatherRequests).toHaveLength(0);
+    expect(downlinks.downlinks.get()).toEqual([]);
+  });
+
+  it('keeps the request in the Outbox until the ground acknowledges it, then in Sent', () => {
+    const { requests, weatherRequests, aoc, downlinks } = setup();
+    requests.requestWeather(['LFPG', 'EGLL'], true);
+    expect(downlinks.outbox.get().map((d) => [d.subject, d.text, d.status])).toEqual([
+      ['WEATHER REQUEST METAR', 'LFPG EGLL', CompanyComDownlinkStatus.Sending],
+    ]);
+
+    aoc.pub('aocRequestSentToGround', weatherRequests[0].requestId);
+    expect(downlinks.outbox.get()).toEqual([]);
+    expect(downlinks.sent.get().map((d) => d.subject)).toEqual(['WEATHER REQUEST METAR']);
+
+    // no report afterwards: the request was sent all the same
+    vi.advanceTimersByTime(COMPANY_COM_REQUEST_TIMEOUT_MS);
+    expect(downlinks.sent.get()).toHaveLength(1);
+  });
+
+  it('leaves an unanswered request in the Outbox, NOT SENT', () => {
+    const { requests, downlinks } = setup();
+    requests.requestWeather(['LFPG'], false);
+    vi.advanceTimersByTime(COMPANY_COM_REQUEST_TIMEOUT_MS);
+    expect(downlinks.outbox.get().map((d) => [d.subject, d.status])).toEqual([
+      ['WEATHER REQUEST TAF', CompanyComDownlinkStatus.NotSent],
+    ]);
   });
 });
 
@@ -137,5 +166,20 @@ describe('COMPANY COM free text', () => {
     requests.sendFreeText(freeTextMessage('DLH400', ['AGAIN']));
     aoc.pub('aocTransmissionResponse', { requestId: freeTexts[1].requestId, status: AtsuStatusCodes.ComFailed });
     expect(requests.freeTextStatus.get()).toBe(CompanyComRequestStatus.Failed);
+  });
+
+  it('puts the free text in Sent once transmitted, in the Outbox when it failed', () => {
+    const { requests, freeTexts, aoc, downlinks } = setup();
+    requests.sendFreeText(freeTextMessage('DLH400', ['HELLO']));
+    expect(downlinks.outbox.get().map((d) => [d.subject, d.to, d.text])).toEqual([['FREE TEXT', 'DLH400', 'HELLO']]);
+    aoc.pub('aocTransmissionResponse', { requestId: freeTexts[0].requestId, status: AtsuStatusCodes.Ok });
+    expect(downlinks.sent.get().map((d) => d.text)).toEqual(['HELLO']);
+
+    requests.sendFreeText(freeTextMessage('DLH400', ['AGAIN']));
+    aoc.pub('aocTransmissionResponse', { requestId: freeTexts[1].requestId, status: AtsuStatusCodes.ComFailed });
+    expect(downlinks.outbox.get().map((d) => [d.text, d.status])).toEqual([
+      ['AGAIN', CompanyComDownlinkStatus.NotSent],
+    ]);
+    expect(downlinks.sent.get()).toHaveLength(1);
   });
 });

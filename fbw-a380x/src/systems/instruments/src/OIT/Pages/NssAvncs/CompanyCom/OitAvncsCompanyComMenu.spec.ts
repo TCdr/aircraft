@@ -26,9 +26,19 @@ describe('COMPANY COM menu', () => {
     );
   });
 
+  it('opens the Outbox and Sent folders', () => {
+    expect(targets).toEqual(expect.arrayContaining(['nss-avncs/company-com/outbox', 'nss-avncs/company-com/sent']));
+  });
+
   it('has a page for every file it opens', () => {
     for (const target of targets) {
       expect(directory).toContain(`case '${target}':`);
     }
+  });
+
+  it('counts the Inbox and Outbox from the mailbox, not fixed numbers', () => {
+    expect(menu).toContain('this.props.ansu.companyCom.unreadCount');
+    expect(menu).toContain('this.props.ansu.companyComDownlinks.outbox');
+    expect(menu).not.toMatch(/Count = Subject\.create\(\d+\)/);
   });
 });

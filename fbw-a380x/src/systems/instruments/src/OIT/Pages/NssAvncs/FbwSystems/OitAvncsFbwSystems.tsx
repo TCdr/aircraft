@@ -78,7 +78,8 @@ export class OitAvncsFbwSystems extends DestroyableComponent<OitAvncsFbwSystemsP
         <OitAvncsSubHeader title={'A380X SYSTEMS'} uiService={this.props.uiService} />
         <div class="oit-page-container">
           <div class="oit-avncs-navigator-container">
-            <div class="oit-avncs-navigator-left">
+            {/* MAXIMIZE: full screen, without the navigation tree */}
+            <div class={{ 'oit-avncs-navigator-left': true, hidden: this.props.uiService.fullScreen }}>
               <OitAvncsFbwSystemsMenu bus={this.props.bus} uiService={this.props.uiService} />
             </div>
             <div class="oit-avncs-navigator-right oit-centered" ref={this.activePageRef} />

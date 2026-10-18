@@ -4,6 +4,7 @@
 import { AocFmsMessages, FmsAocMessages } from '@datalink/aoc';
 import { AtsuMessageNetwork, AtsuStatusCodes, FreetextMessage, WeatherMessage } from '@datalink/common';
 import { EventBus, Subject, Subscribable, Subscription } from '@microsoft/msfs-sdk';
+import { CompanyComDownlinks } from './CompanyComDownlinks';
 
 /*
  * The weather request and the free text of the COMPANY COM application of the OIT (AOC). The operators customise the
@@ -13,6 +14,7 @@ import { EventBus, Subject, Subscribable, Subscription } from '@microsoft/msfs-s
  * The AOC of the systems host (fbw-common datalink, the same backend as the A32NX MCDU AOC pages) sends them: the OIT
  * publishes the requests on the event bus as the A32NX FMS client does (aocRequestWeather, aocSendFreetextMessage), and
  * hands a received weather report back to the AOC (aocRegisterWeatherMessages), which puts it in the COMPANY COM inbox.
+ * Each request also goes into the Outbox, and into Sent once the ground acknowledges it (CompanyComDownlinks).
  *
  * Design choices (customised by the operators, no common layout):
  * - Up to four airports per weather request, METAR or TAF (as the A32NX MCDU AOC WEATHER REQ page). No SIGMET: the
@@ -93,13 +95,25 @@ export class CompanyComRequests {
 
   private freeTextTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  /** The Outbox / Sent entries of the request in progress */
+  private weatherDownlinkId: number | null = null;
+
+  private freeTextDownlinkId: number | null = null;
+
   private readonly _weatherStatus = Subject.create(CompanyComRequestStatus.None);
   public readonly weatherStatus = this._weatherStatus as Subscribable<CompanyComRequestStatus>;
 
   private readonly _freeTextStatus = Subject.create(CompanyComRequestStatus.None);
   public readonly freeTextStatus = this._freeTextStatus as Subscribable<CompanyComRequestStatus>;
 
-  constructor(private readonly bus: EventBus) {}
+  /**
+   * @param bus the bus of the OIT
+   * @param downlinks the Outbox and Sent folders the requests go into
+   */
+  constructor(
+    private readonly bus: EventBus,
+    private readonly downlinks: CompanyComDownlinks,
+  ) {}
 
   public init(): void {
     const sub = this.bus.getSubscriber<AocFmsMessages>();
@@ -107,6 +121,9 @@ export class CompanyComRequests {
       sub.on('aocRequestSentToGround').handle((requestId) => {
         if (requestId === this.weatherRequestId) {
           this._weatherStatus.set(CompanyComRequestStatus.Sent);
+          if (this.weatherDownlinkId !== null) {
+            this.downlinks.markSent(this.weatherDownlinkId);
+          }
         }
       }),
       sub.on('aocWeatherResponse').handle((response) => {
@@ -137,6 +154,11 @@ export class CompanyComRequests {
     const requestId = this.nextRequestId++;
     this.weatherRequestId = requestId;
     this._weatherStatus.set(CompanyComRequestStatus.Sending);
+    this.weatherDownlinkId = this.downlinks.recordDownlink({
+      subject: `WEATHER REQUEST ${metar ? 'METAR' : 'TAF'}`,
+      to: '',
+      text: airports.join(' '),
+    });
     this.weatherTimeout = setTimeout(
       () => this.endWeather(CompanyComRequestStatus.Failed),
       COMPANY_COM_REQUEST_TIMEOUT_MS,
@@ -159,6 +181,11 @@ export class CompanyComRequests {
     const requestId = this.nextRequestId++;
     this.freeTextRequestId = requestId;
     this._freeTextStatus.set(CompanyComRequestStatus.Sending);
+    this.freeTextDownlinkId = this.downlinks.recordDownlink({
+      subject: 'FREE TEXT',
+      to: message.Station,
+      text: message.Message,
+    });
     this.freeTextTimeout = setTimeout(
       () => this.endFreeText(CompanyComRequestStatus.Failed),
       COMPANY_COM_REQUEST_TIMEOUT_MS,
@@ -183,6 +210,8 @@ export class CompanyComRequests {
       this.weatherTimeout = null;
     }
     this.weatherRequestId = null;
+    this.endDownlink(this.weatherDownlinkId, status);
+    this.weatherDownlinkId = null;
     this._weatherStatus.set(status);
   }
 
@@ -192,7 +221,25 @@ export class CompanyComRequests {
       this.freeTextTimeout = null;
     }
     this.freeTextRequestId = null;
+    this.endDownlink(this.freeTextDownlinkId, status);
+    this.freeTextDownlinkId = null;
     this._freeTextStatus.set(status);
+  }
+
+  /**
+   * A failed request stays in the Outbox; a request the ground acknowledged before the failure stays in Sent
+   * @param downlinkId the Outbox / Sent entry of the request, null without one
+   * @param status how the request ended
+   */
+  private endDownlink(downlinkId: number | null, status: CompanyComRequestStatus): void {
+    if (downlinkId === null) {
+      return;
+    }
+    if (status === CompanyComRequestStatus.Failed) {
+      this.downlinks.markNotSent(downlinkId);
+    } else {
+      this.downlinks.markSent(downlinkId);
+    }
   }
 
   public destroy(): void {

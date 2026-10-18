@@ -70,6 +70,10 @@ class OitInstrument implements FsInstrument {
     this.backplane.addInstrument('nssAnsu2', this.avncsAnsu2, true);
     this.backplane.addInstrument('fltOpsAnsu', this.fltOpsAnsu, true);
 
+    // The company message notifications also reach the FLT OPS message toolbar, through the NSS AVNCS
+    this.avncsAnsu.companyCom.onNewUplink((entry) => this.laptop.receiveAocNotification(entry.uid, entry.subject));
+    this.avncsAnsu.companyCom.onUplinkHandled((uid) => this.laptop.messageToolbar.removeAocNotification(uid));
+
     this.doInit();
   }
 

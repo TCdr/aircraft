@@ -195,6 +195,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIS] COMPANY COM weather request (METAR/TAF) and free text pages, sent through the AOC - @TCdr
 1. [A380X/OIT] EXIT SESSION of the FLT OPS MENU page returns to the login page and clears the FLT OPS STS page (not while the FLT FOLDER is open) - @TCdr
 1. [A380X/AOC] The OIT COMPANY COM inbox can print a message on the pedestal printer - @TCdr
+1. [A380X/OIT] COMPANY COM opens on its Inbox, counts the unread Inbox messages and the Outbox messages, and has working Outbox and Sent folders for the weather requests and free texts sent from the OIT - @TCdr
+1. [A380X/OIT] The message counter, message list and CLEAR of the NSS AVNCS and FLT OPS menu bars show company message notifications; selecting one on the NSS AVNCS side opens the message - @TCdr
+1. [A380X/OIT] NSS AVNCS menu bar: MAXIMIZE / MINIMIZE, PRINT (Inbox, Outbox, Sent messages), UPDATE and CLOSE work - @TCdr
+1. [A380X/OIT] FLT OPS menu bar: the FUNCTIONS list works (HOME, PREVIOUS, NEXT, HIDE / SHOW SWITCHING BAR, CLOSE APPLICATION, with their shortcuts), every application shows its name, and the switching bar shows the open applications and scrolls with its arrows - @TCdr
 
 ## 2024.1.0
 

@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, Subscription } from '@microsoft/msfs-sdk';
-import { AocFmsMessages } from '@datalink/aoc';
+import { A380AocPrintEvents, AocPrintout } from '@shared/AocPrintout';
 import { AtcComPrinter } from '../ATCCOM/AtcDatalinkSystem';
 import { wrapMsgRecordText } from '../ATCCOM/MsgRecord';
 
 /** The printed width of the cockpit printer, as the ATC COM printouts */
 const PRINT_WIDTH = 64;
+
+/** The title of a printout that does not give its own */
+const AOC_MESSAGE_TITLE = 'AOC MESSAGE';
 
 /**
  * The lines of an AOC printout: the text lines, the long ones wrapped to the printer width, the empty ones kept as
@@ -31,8 +34,9 @@ export function aocPrintLines(text: string): string[] {
 /**
  * Prints the AOC messages on the cockpit printer on the pedestal (the AOC prints received messages there, and the
  * flight crew can print any message). The OIT COMPANY COM inbox PRINT button publishes aocPrintMessage
- * (OIT/System/CompanyComMailbox.ts); the MFD instrument prints it with the FMS printer of the master FMC. Without an
- * available printer nothing is printed (no OIT indication is defined for it).
+ * (OIT/System/CompanyComMailbox.ts), the other OIS applications publish their printouts with their own title; the MFD
+ * instrument prints them with the FMS printer of the master FMC. Without an available printer nothing is printed (no
+ * OIT indication is defined for it).
  */
 export class AocPrintClient {
   private readonly subscription: Subscription;
@@ -46,9 +50,12 @@ export class AocPrintClient {
     private readonly printer: () => AtcComPrinter | null,
   ) {
     this.subscription = bus
-      .getSubscriber<AocFmsMessages>()
+      .getSubscriber<A380AocPrintEvents>()
       .on('aocPrintMessage')
-      .handle((text) => this.printer()?.printText('AOC MESSAGE', aocPrintLines(text)));
+      .handle((message) => {
+        const printout: AocPrintout = typeof message === 'string' ? { text: message } : message;
+        this.printer()?.printText(printout.title ?? AOC_MESSAGE_TITLE, aocPrintLines(printout.text));
+      });
   }
 
   public destroy(): void {

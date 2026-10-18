@@ -10,7 +10,7 @@ import {
   AtsuTimestamp,
   Conversion,
 } from '@datalink/common';
-import { ArraySubject, EventBus, Subscription } from '@microsoft/msfs-sdk';
+import { ArraySubject, EventBus, Subject, Subscribable, Subscription } from '@microsoft/msfs-sdk';
 
 /**
  * The COMPANY COM inbox of the OIT (AOC application): the AOC uplink messages, newest first. The AOC application tells
@@ -20,6 +20,9 @@ import { ArraySubject, EventBus, Subscription } from '@microsoft/msfs-sdk';
  * The AOC (fbw-common datalink, run by the systems host) owns the messages: it publishes every new or changed message
  * (aocResynchronize*Message) and every deleted one (aocDeleteMessage), and counts the unread uplinks for the COMPANY
  * MSG memo. Displaying a message on the OIT sends aocMessageRead back to the AOC, which marks it read.
+ *
+ * A new unread uplink is announced to the message toolbars of the OIT (onNewUplink); once it is read or deleted, on
+ * either OIT, its notification goes (onUplinkHandled).
  */
 
 export interface CompanyComInboxEntry {
@@ -126,7 +129,44 @@ export class CompanyComMailbox {
   /** The inbox, newest first */
   public readonly messages = ArraySubject.create<CompanyComInboxEntry>([]);
 
-  constructor(private readonly bus: EventBus) {}
+  private readonly _unreadCount = Subject.create(0);
+  /** The messages the flight crew has not displayed yet, the count of the Inbox folder */
+  public readonly unreadCount = this._unreadCount as Subscribable<number>;
+
+  private readonly _displayedUid = Subject.create<number | null>(null);
+  /** The message the Inbox displays, kept while the crew looks at other pages */
+  public readonly displayedUid = this._displayedUid as Subscribable<number | null>;
+
+  private readonly newUplinkHandlers: ((entry: CompanyComInboxEntry) => void)[] = [];
+
+  private readonly uplinkHandledHandlers: ((uid: number) => void)[] = [];
+
+  constructor(private readonly bus: EventBus) {
+    this.messages.sub(() => this._unreadCount.set(this.messages.getArray().filter((m) => !m.read).length));
+  }
+
+  /**
+   * @param handler called with each new unread uplink message
+   */
+  public onNewUplink(handler: (entry: CompanyComInboxEntry) => void): void {
+    this.newUplinkHandlers.push(handler);
+  }
+
+  /**
+   * @param handler called with the AOC id of an unread message that was read or deleted
+   */
+  public onUplinkHandled(handler: (uid: number) => void): void {
+    this.uplinkHandledHandlers.push(handler);
+  }
+
+  /**
+   * The Inbox displays a message, which marks it read
+   * @param uid the AOC message id
+   */
+  public display(uid: number): void {
+    this._displayedUid.set(uid);
+    this.markRead(uid);
+  }
 
   /** Starts listening to the AOC */
   public init(): void {
@@ -135,7 +175,7 @@ export class CompanyComMailbox {
       sub.on('aocResynchronizeFreetextMessage').handle((data) => this.onMessage(data)),
       sub.on('aocResynchronizeWeatherMessage').handle((data) => this.onMessage(data)),
       sub.on('aocDeleteMessage').handle((uid) => this.onDeleted(uid)),
-      sub.on('aocResetData').handle(() => this.messages.clear()),
+      sub.on('aocResetData').handle(() => this.onReset()),
     );
   }
 
@@ -150,6 +190,7 @@ export class CompanyComMailbox {
       return;
     }
     this.messages.set(upsertInboxEntry(entries, { ...entries[index], read: true }));
+    this.notifyUplinkHandled(uid);
     // To the AOC in the systems host (another instrument): synced
     this.bus.getPublisher<FmsAocMessages>().pub('aocMessageRead', uid, true, false);
   }
@@ -177,15 +218,46 @@ export class CompanyComMailbox {
 
   private onMessage(data: AtsuMessage): void {
     const entry = inboxEntryOf(Conversion.messageDataToMessage(data));
-    if (entry !== null) {
-      this.messages.set(upsertInboxEntry(this.messages.getArray(), entry));
+    if (entry === null) {
+      return;
+    }
+    const known = this.messages.getArray().find((e) => e.uid === entry.uid);
+    this.messages.set(upsertInboxEntry(this.messages.getArray(), entry));
+    if (known === undefined && !entry.read) {
+      this.newUplinkHandlers.forEach((handler) => handler(entry));
+    } else if (known !== undefined && !known.read && entry.read) {
+      // read on the other OIT (or the MCDU)
+      this.notifyUplinkHandled(entry.uid);
     }
   }
 
   private onDeleted(uid: number): void {
     const entries = this.messages.getArray();
-    if (entries.some((e) => e.uid === uid)) {
-      this.messages.set(entries.filter((e) => e.uid !== uid));
+    const deleted = entries.find((e) => e.uid === uid);
+    if (deleted === undefined) {
+      return;
     }
+    this.messages.set(entries.filter((e) => e.uid !== uid));
+    if (this._displayedUid.get() === uid) {
+      this._displayedUid.set(null);
+    }
+    if (!deleted.read) {
+      this.notifyUplinkHandled(uid);
+    }
+  }
+
+  /** The AOC deletes the whole mailbox at the end of each flight */
+  private onReset(): void {
+    const unread = this.messages
+      .getArray()
+      .filter((e) => !e.read)
+      .map((e) => e.uid);
+    this.messages.clear();
+    this._displayedUid.set(null);
+    unread.forEach((uid) => this.notifyUplinkHandled(uid));
+  }
+
+  private notifyUplinkHandled(uid: number): void {
+    this.uplinkHandledHandlers.forEach((handler) => handler(uid));
   }
 }
