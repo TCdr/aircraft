@@ -112,9 +112,16 @@ export const A320Services: React.FC = () => {
   const [gpuAvail] = useSimVar('L:A32NX_EXT_PWR_AVAIL:1', 'bool', 200);
   const [fuelingActive] = useSimVar('A:INTERACTIVE POINT OPEN:9', 'Percent over 100', 100);
   const [asuActive, setAsuActive] = useSimVar('L:A32NX_ASU_TURNED_ON', 'Bool', 100);
+  const [fuelDesiredGallons] = useSimVar('L:A32NX_FUEL_TOTAL_DESIRED', 'Number', 1_000);
+  const [fuelKgPerGallon] = useSimVar('FUEL WEIGHT PER GALLON', 'kilograms', 1_000);
+  const [refuelStartedByUser] = useSimVar('L:A32NX_REFUEL_STARTED_BY_USR', 'Bool', 1_000);
   // GSX link: the service buttons request the GSX services (GSX Remote API) instead of the sim ground vehicles; GSX
   // loads the baggage with the boarding, on the GSX panel
-  const gsxLink = useGsxServiceLink(GSX_LINKS, !!gpuAvail);
+  const gsxLink = useGsxServiceLink(
+    GSX_LINKS,
+    !!gpuAvail,
+    refuelStartedByUser ? fuelDesiredGallons * fuelKgPerGallon : null,
+  );
   const { gsx, gsxLinked, setGsxLink } = gsxLink;
 
   // Wheel Chocks and Cones

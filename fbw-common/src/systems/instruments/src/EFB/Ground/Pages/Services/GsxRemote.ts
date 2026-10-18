@@ -40,6 +40,19 @@ export interface GsxService {
   progress?: { current: number; total: number; unit: string };
   /** Compact progress, e.g. 120/180 or 42 % */
   progressText?: string;
+  /** GSX's detail of the service: the fuel of a refuelling */
+  detail?: { fuel?: GsxFuelDetail };
+}
+
+/** The fuel of a GSX refuelling, in GSX's unit (lb or kg, the GSX setting) */
+export interface GsxFuelDetail {
+  /** Fuel pumped so far, and GSX's own target for it */
+  current: number;
+  target: number;
+  unit: string;
+  /** The aircraft's total fuel when the refuelling started, and now */
+  startTotal: number;
+  aircraftTotal: number;
 }
 
 /** The GSX menu: the questions GSX asks, e.g. the operator to use */
@@ -422,4 +435,40 @@ export function gsxServiceProgress(service: GsxService | undefined): number | nu
     return Math.min(1, service.progress.current / service.progress.total);
   }
   return null;
+}
+
+const KG_PER_LB = 0.45359237;
+
+/**
+ * The aircraft's total fuel of a GSX refuelling now and at its start, in kg
+ * @returns null outside the refuelling or in a unit GSX does not report in kg or lb
+ */
+export function gsxRefuelFuelKg(service: GsxService | undefined): { startKg: number; nowKg: number } | null {
+  const fuel = service?.detail?.fuel;
+  if (!fuel || (service.state !== 'performing' && service.state !== 'completing')) {
+    return null;
+  }
+  const kgPerUnit = /^kgs?$/i.test(fuel.unit) ? 1 : /^lbs?$/i.test(fuel.unit) ? KG_PER_LB : null;
+  if (kgPerUnit === null) {
+    return null;
+  }
+  return { startKg: fuel.startTotal * kgPerUnit, nowKg: fuel.aircraftTotal * kgPerUnit };
+}
+
+/**
+ * The progress of a GSX refuelling towards the flyPad fuel target, 0 to 1. With the flyPad fuel sync the flyPad pumps
+ * the fuel: GSX does not know the target and keeps its own just above what was pumped, so its progress reads 100 %.
+ * @param flypadTargetKg the total fuel the flyPad refuels to
+ * @returns null outside the refuelling, without GSX's fuel detail, or with no fuel to load
+ */
+export function gsxRefuelProgress(service: GsxService | undefined, flypadTargetKg: number): number | null {
+  const fuel = gsxRefuelFuelKg(service);
+  if (fuel === null) {
+    return null;
+  }
+  const toLoadKg = flypadTargetKg - fuel.startKg;
+  if (toLoadKg <= 0) {
+    return null;
+  }
+  return Math.min(1, Math.max(0, (fuel.nowKg - fuel.startKg) / toLoadKg));
 }
