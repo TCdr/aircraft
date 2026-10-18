@@ -2,7 +2,7 @@
 //  SPDX-License-Identifier: GPL-3.0
 
 import { EfisSide } from '@flybywiresim/fbw-sdk';
-import { EventBus, SimVarDefinition, SimVarPublisher, SimVarValueType } from '@microsoft/msfs-sdk';
+import { EventBus, SimVarPublisher, SimVarPublisherEntry, SimVarValueType } from '@microsoft/msfs-sdk';
 
 export type OitSimvars = {
   coldDark: number;
@@ -37,7 +37,7 @@ export type InternalKbdKeyEvent = {
 
 /** A publisher to poll and publish nav/com simvars. */
 export class OitSimvarPublisher extends SimVarPublisher<OitSimvars> {
-  private static simvars = new Map<keyof OitSimvars, SimVarDefinition>([
+  private static simvars = new Map<keyof OitSimvars, SimVarPublisherEntry<any>>([
     ['coldDark', { name: 'L:A32NX_COLD_AND_DARK_SPAWN', type: SimVarValueType.Number }],
     ['elec', { name: 'L:A32NX_ELEC_AC_2_BUS_IS_POWERED', type: SimVarValueType.Bool }],
     // F/O OIT supply: AC ESS. The A380 AC ESS busbar (400XP) is the AC_ESS_SHED variable; AC_ESS is the A380 AC EMER
@@ -55,7 +55,11 @@ export class OitSimvarPublisher extends SimVarPublisher<OitSimvars> {
     ['laptopCaptPowered', { name: 'L:A380X_SWITCH_LAPTOP_POWER_LEFT', type: SimVarValueType.Bool }],
     ['laptopFoPowered', { name: 'L:A380X_SWITCH_LAPTOP_POWER_RIGHT', type: SimVarValueType.Bool }],
     ['nssMasterOff', { name: 'L:A32NX_NSS_MASTER_OFF', type: SimVarValueType.Bool }],
-    ['nssDataToAvncsOff', { name: 'L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE', type: SimVarValueType.Bool }],
+    // The pb-sw L:var is 1 in its normal (released) position and 0 when pressed in (OFF light)
+    [
+      'nssDataToAvncsOff',
+      { name: 'L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE', type: SimVarValueType.Bool, map: (v) => !v },
+    ],
     ['parkBrakeSet', { name: 'L:A32NX_PARK_BRAKE_LEVER_POS', type: SimVarValueType.Bool }],
     ['cabinDoorOpen', { name: 'INTERACTIVE POINT OPEN:0', type: SimVarValueType.PercentOver100 }],
     ['hydGreenPressurized', { name: 'L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE_SWITCH', type: SimVarValueType.Bool }],
