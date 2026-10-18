@@ -183,6 +183,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIS] The laptop shows STANDALONE and SYNCHRONIZATION NOT AVAIL when started before the ARU (2 min after power-up) or without the FLT OPS network - @TCdr
 1. [A380X/OIS] The OIS MENU key shows the FLT OPS menu and the OIS XFR key shows the other OIT's page (X-OIS) - @TCdr
 1. [A380X/OIS] COMPANY COM weather request (METAR/TAF) and free text pages, sent through the AOC - @TCdr
+1. [A380X/OIT] EXIT SESSION of the FLT OPS MENU page returns to the login page and clears the FLT OPS STS page (not while the FLT FOLDER is open) - @TCdr
+1. [A380X/AOC] The OIT COMPANY COM inbox can print a message on the pedestal printer - @TCdr
 
 ## 2024.1.0
 

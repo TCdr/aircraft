@@ -101,11 +101,11 @@ export class OitFltOpsMenuPage extends DisplayComponent<OitFltOpsMenuPageProps> 
             </div>
           </div>
           <div style="flex-grow: 1" />
+          {/* A380 FCOM DSC-46-20-50-10 (a380_fcom.txt l.105903-105905): back to the Login page */}
           <Button
             label={'EXIT SESSION'}
             containerStyle="width: 300px; margin-bottom: 20px; align-self: flex-end;"
-            onClick={() => {}}
-            disabled={Subject.create(true)}
+            onClick={() => this.props.uiService.exitFltOpsSession()}
           />
         </div>
         {/* end page content */}

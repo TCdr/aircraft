@@ -125,4 +125,11 @@ export class OisLaptopData {
   public readonly fltNumber = Subject.create<string | null>(null);
   public readonly fromAirport = Subject.create<string | null>(null);
   public readonly toAirport = Subject.create<string | null>(null);
+
+  /** The FLT OPS STS page data of a new session: nothing entered (EXIT SESSION, OitUiService.exitFltOpsSession) */
+  public reset(): void {
+    this.fltNumber.set(null);
+    this.fromAirport.set(null);
+    this.toAirport.set(null);
+  }
 }

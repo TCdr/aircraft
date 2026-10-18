@@ -100,6 +100,33 @@ export class OitUiService {
     this.fltOpsLoginScreenVisible.set(true);
   }
 
+  /** What the end of an OIS session clears, registered by the FLT OPS container (the laptop data) */
+  private readonly fltOpsSessionExitHandlers: (() => void)[] = [];
+
+  /**
+   * Registers what an EXIT SESSION clears
+   * @param handler called at each EXIT SESSION
+   */
+  public onFltOpsSessionExit(handler: () => void): void {
+    this.fltOpsSessionExitHandlers.push(handler);
+  }
+
+  /**
+   * EXIT SESSION of the FLT OPS MENU page or of the MENU button (A380 FCOM DSC-46-20-50-10, a380_fcom.txt
+   * l.105900-105907): "exit the current session and return to the Login page", and "The flight crew cannot exit the OIS
+   * session when the FLT FOLDER application is open". The exit "initializes again the FLT OPS STS page on the laptops
+   * for the next flight" (PRO-NOR-SOP, l.127590-127591): the registered handlers clear the laptop data.
+   * @returns whether the session was exited (false while the FLT FOLDER is open)
+   */
+  public exitFltOpsSession(): boolean {
+    if (this.activeUri.get().uri === 'flt-ops/flt-folder') {
+      return false;
+    }
+    this.fltOpsSessionExitHandlers.forEach((handler) => handler());
+    this.resetFltOpsSession();
+    return true;
+  }
+
   /*
    * Whether one can navigate back
    */

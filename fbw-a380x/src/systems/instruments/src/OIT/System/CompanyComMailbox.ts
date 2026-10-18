@@ -105,6 +105,20 @@ export function upsertInboxEntry(
   return updated;
 }
 
+/**
+ * The printed text of an inbox message: its subject, sender and reception time, then the message.
+ * @param entry the message
+ * @param formatDateTime the date and time format of the OIT (AnsuOps.formatDateTime)
+ * @returns the text, one line per printed line (the printer wraps the long lines)
+ */
+export function aocPrintText(entry: CompanyComInboxEntry, formatDateTime: (utcMs: number) => string): string {
+  const header = [`SUBJECT : ${entry.subject}`, `FROM : ${entry.from || '<unknown>'}`];
+  if (entry.receivedAt !== null) {
+    header.push(`RECEIVED : ${formatDateTime(entry.receivedAt)}`);
+  }
+  return [...header, '', entry.text].join('\n');
+}
+
 /** The OIT COMPANY COM inbox, fed by the AOC */
 export class CompanyComMailbox {
   private readonly subscriptions: Subscription[] = [];
@@ -138,6 +152,24 @@ export class CompanyComMailbox {
     this.messages.set(upsertInboxEntry(entries, { ...entries[index], read: true }));
     // To the AOC in the systems host (another instrument): synced
     this.bus.getPublisher<FmsAocMessages>().pub('aocMessageRead', uid, true, false);
+  }
+
+  /**
+   * PRINT of a message: "The flight crew can use this printer to manually print any message." (A380 FCOM DSC-46-40-10-20,
+   * a380_fcom.txt l.107938-107939; DSC-46-40-20 PRINTER, l.107980-107981). The AOC prints on the pedestal printer: the
+   * aocPrintMessage text goes to the FMS printer of the MFD (MFD/FMC/AocPrintClient.ts), synced as it is another
+   * instrument.
+   * @param uid the AOC message id
+   * @param formatDateTime the date and time format of the OIT
+   * @returns whether the message was sent to the printer (false for an unknown message)
+   */
+  public printMessage(uid: number, formatDateTime: (utcMs: number) => string): boolean {
+    const entry = this.messages.getArray().find((e) => e.uid === uid);
+    if (!entry) {
+      return false;
+    }
+    this.bus.getPublisher<AocFmsMessages>().pub('aocPrintMessage', aocPrintText(entry, formatDateTime), true, false);
+    return true;
   }
 
   public destroy(): void {
