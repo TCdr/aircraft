@@ -219,6 +219,9 @@ export const A380Failure = Object.freeze({
   FirstOfficerLaptop: 46005,
   CaptainOit: 46006,
   FirstOfficerOit: 46007,
+  // The Secure Communication Interfaces between the NSS and the avionics: both SCIs failed stop the AOC (CpiomD/atsu.ts)
+  Sci1: 46008,
+  Sci2: 46009,
 });
 
 export const A380FailureDefinitions: FailureDefinition[] = [
@@ -428,4 +431,6 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [46, A380Failure.FirstOfficerLaptop, 'F/O Laptop'],
   [46, A380Failure.CaptainOit, 'Captain OIT'],
   [46, A380Failure.FirstOfficerOit, 'F/O OIT'],
+  [46, A380Failure.Sci1, 'SCI 1 (NSS / avionics secure communication interface)'],
+  [46, A380Failure.Sci2, 'SCI 2 (NSS / avionics secure communication interface)'],
 ];

@@ -116,9 +116,9 @@ class SystemsHost extends BaseInstrument {
   );
 
   private readonly simVarHandling = new SimVarHandling(this.bus);
-  private readonly atsu = new AtsuSystem(this.bus);
+  private readonly atsu = new AtsuSystem(this.bus, this.failuresConsumer);
   private readonly atc = new AtcDatalink(this.bus);
-  private readonly acr = new Acr(this.bus);
+  private readonly acr = new Acr(this.bus, this.failuresConsumer);
 
   private readonly btv = new BrakeToVacate(this.bus, this);
 

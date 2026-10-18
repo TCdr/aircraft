@@ -1,5 +1,13 @@
 {
   "index": "./instrument.tsx",
   "name": "SDv2",
-  "isInteractive": true
+  "isInteractive": true,
+  "extraDeps": [
+    "../MsfsAvionicsCommon",
+    "../EWD/elements/FormattedFwcText.tsx",
+    "../../../shared/src",
+    "/fbw-a380x/src/systems/failures",
+    "/fbw-common/src/systems/datalink/common",
+    "/fbw-common/src/systems/instruments/src/MsfsAvionicsCommon"
+  ]
 }

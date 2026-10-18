@@ -194,7 +194,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIS] The OIS MENU key shows the FLT OPS menu and the OIS XFR key shows the other OIT's page (X-OIS) - @TCdr
 1. [A380X/OIS] COMPANY COM weather request (METAR/TAF) and free text pages, sent through the AOC - @TCdr
 1. [A380X/OIT] EXIT SESSION of the FLT OPS MENU page returns to the login page and clears the FLT OPS STS page (not while the FLT FOLDER is open) - @TCdr
-1. [A380X/AOC] The OIT COMPANY COM inbox can print a message on the pedestal printer - @TCdr
+1. [A380X/AOC] The AOC runs on the NSS AVNCS ANSUs instead of AC 1, NSS DATA TO AVNCS OFF stops its downlinks (uplinks still received), and the OIT COMPANY COM inbox can print a message on the pedestal printer - @TCdr
+1. [A380X/DATALINK] A failed VHF 3 now stops the datalink (CPDLC, AOC) as COM VHF 3 DATALINK FAULT says - @TCdr
 1. [A380X/OIT] COMPANY COM opens on its Inbox, counts the unread Inbox messages and the Outbox messages, and has working Outbox and Sent folders for the weather requests and free texts sent from the OIT - @TCdr
 1. [A380X/OIT] The message counter, message list and CLEAR of the NSS AVNCS and FLT OPS menu bars show company message notifications; selecting one on the NSS AVNCS side opens the message - @TCdr
 1. [A380X/OIT] NSS AVNCS menu bar: MAXIMIZE / MINIMIZE, PRINT (Inbox, Outbox, Sent messages, logbook pages), UPDATE and CLOSE work, and the task bar shows the open applications - @TCdr
