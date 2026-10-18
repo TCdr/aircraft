@@ -500,6 +500,7 @@ struct EmergencyPressurizationPartition {
     exterior_vertical_speed: LowPassFilter<Velocity>,
     differential_pressure: Pressure,
     is_initialised: bool,
+    had_adirs_ambient_pressure: bool,
     epp_emergency_signals: EppEmergencySignals,
 
     outflow_valve_controller: OutflowValveController,
@@ -529,6 +530,7 @@ impl EmergencyPressurizationPartition {
             ),
             differential_pressure: Pressure::default(),
             is_initialised: false,
+            had_adirs_ambient_pressure: false,
             epp_emergency_signals: EppEmergencySignals::new(context, outflow_valve_id),
 
             outflow_valve_controller: OutflowValveController::new(
@@ -587,8 +589,14 @@ impl EmergencyPressurizationPartition {
         adirs: &impl AdirsToAirCondInterface,
     ) {
         let (_, adirs_ambient_pressure) = self.adirs_values_calculation(adirs);
+        // Without ADIRS data the ambient pressure is the standard sea level pressure, not a measurement. Filtering from
+        // it to the first ADIRS value (in a cold and dark aircraft: when the AC buses come on) would show a cabin
+        // differential pressure that is not there, so the filter starts from the ADIRS value.
+        let adirs_ambient_pressure_arrived =
+            adirs_ambient_pressure.is_some() && !self.had_adirs_ambient_pressure;
+        self.had_adirs_ambient_pressure = adirs_ambient_pressure.is_some();
 
-        self.exterior_flight_altitude = if !self.is_initialised {
+        self.exterior_flight_altitude = if !self.is_initialised || adirs_ambient_pressure_arrived {
             self.exterior_pressure
                 .reset(adirs_ambient_pressure.unwrap_or(Pressure::new::<hectopascal>(Air::P_0)));
             self.is_initialised = true;

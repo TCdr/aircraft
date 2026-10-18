@@ -773,6 +773,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] No more CAB PRESS caution and master caution when the aircraft is powered up with EXT PWR or the APU: a cabin pressure controller that is not powered yet no longer counts as failed - @TCdr
 1. [EFB] Services page: a long GSX menu scrolls inside the GSX card instead of running past it, and its close link no longer overlaps the last menu buttons - @TCdr
 1. [EFB] The A380X flyPad Services page has switches and planform markers for the MAIN 4L and MAIN 5L doors, so a rear left door GSX opened for boarding can be closed from the flyPad - @TCdr
+1. [A380X/PRESS] No more red CAB PRESS EXCESS RESIDUAL DIFF PRESS warning at power-up on a high pressure day: the outflow valve controllers start from the first ADIRS ambient pressure instead of moving to it from the standard pressure - @TCdr
 
 ## 2024.1.0
 
