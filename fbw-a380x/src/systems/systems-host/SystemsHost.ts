@@ -17,6 +17,8 @@ import {
 } from '@microsoft/msfs-sdk';
 import { LegacyGpws } from './Misc/LegacyGpws';
 import { LegacyFuel } from './CpiomF/LegacyFuel';
+import { AtcMsgLights } from './Misc/AtcMsgLights';
+import { CdsReconfiguration } from './Misc/CdsReconfiguration';
 import { LegacySoundManager } from './Misc/LegacySoundManager';
 import { LegacyTcasComputer } from './Misc/tcas/components/LegacyTcasComputer';
 import { VhfRadio } from './Misc/Communications/VhfRadio';
@@ -191,6 +193,10 @@ class SystemsHost extends BaseInstrument {
   //FIXME add some deltatime functionality to backplane instruments so we dont have to pass SystemHost
   private readonly legacyFuel = new LegacyFuel(this.bus, this);
 
+  private readonly atcMsgLights = new AtcMsgLights();
+
+  private readonly cdsReconfiguration = new CdsReconfiguration(this.bus, this.failuresConsumer);
+
   /**
    * "mainmenu" = 0
    * "loading" = 1
@@ -211,6 +217,8 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('SimAudioManager', this.simAudioManager);
     this.backplane.addInstrument('Xpndr1', this.xpdr1, true);
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
+    this.backplane.addInstrument('AtcMsgLights', this.atcMsgLights);
+    this.backplane.addInstrument('CdsReconfiguration', this.cdsReconfiguration);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
     this.backplane.addPublisher('RmpAmuBusPublisher', this.rmpAmuBusPublisher);

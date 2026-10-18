@@ -108,6 +108,19 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] Make flightdeck lighting panel-state and time-of-day aware. Adjust existing values. @CameronCarlyon (YouBaconMeCrazy)
 1. [FMS] Limit step descent guidance to -1000fpm - @Jonny23787 (Jonathan), @BlueberryKing (BlueberryKing)
 1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
+1. [A32NX/ND] Add a native weather radar display on the ROSE and ARC pages, controlled by the WX SYS and MODE knobs - @TCdr
+1. [A380X/ND] Add the weather radar to the ND and the weather to the VD, following the EFIS WX overlay and the SURV CONTROLS WXR settings - @TCdr
+1. [ND] Add a TERR ON ND terrain display that works without SimBridge, and a terrain profile on the A380X VD - @TCdr
+1. [ND] Show the selected weather radar mode (WX, WX+T, TURB, MAP) on the ROSE and ARC pages - @TCdr
+1. [ND] Fewer stutters with the weather radar and TERR ON ND: the map views nothing shows are paused - @TCdr
+1. [A380X/CDS] With the CAPT (F/O) PFD and MFD DUs failed, the DU RECONF pb now cycles the ND DU from the PFD through the EWD and the SD and back to the PFD (FCOM DSC-31-15-20; also the EWD and the SD on the ND DU when only the MFD DU or the SD DU is failed); the EWD (SD) is never shown on both sides at once - @TCdr
+1. [A380X/CDS] With the CAPT (F/O) PFD and MFD DUs failed, the DU RECONF pb now cycles the ND DU from the PFD through the EWD and the SD and back to the PFD (also the EWD and the SD on the ND DU when only the MFD DU or the SD DU is failed); the EWD (SD) is never shown on both sides at once; the SD on the ND DU brings the ATC mailbox with it, so with the SD DU off the F/O DU RECONF pb gives the ATC mailbox - @TCdr
+1. [A380X/CDS] Display unit reconfiguration: a failed or switched-off PFD display unit moves the PFD to the ND display unit, a lost EWD display unit moves the EWD to the SD display unit, the PFD/ND pushbuttons exchange the PFD and ND, and the DU RECONF pushbuttons work for the displays that can be moved - @TCdr
+1. [A32NX/EIS] Display unit reconfiguration of the aircraft: a lost upper ECAM display unit (failed or switched off) moves the E/WD to the lower one, a lost PFD display unit moves the PFD to the ND display unit, the ECAM/ND XFR selector moves the SD (or the E/WD with both ECAM display units lost) to an ND with ECAM ON ND on the lower ECAM display unit, the PFD/ND XFR pushbuttons swap the PFD and the ND, and holding a system page pushbutton shows the SD on the remaining ECAM display unit - @TCdr
+1. [A32NX/ECAM] The SWITCHG PNL memo comes on for the ECAM/ND XFR selector only together with a PFD/ND XFR pushbutton, as on the aircraft (the EIS DMC selector alone still shows it) - @TCdr
+1. [A380X/EFB] New flyPad failures for the 8 display units (CAPT/F/O PFD, ND, MFD, EWD, SD): the failed display unit goes blank and the ECAM shows CDS ... DU FAULT with its procedure and INOP SYS - @TCdr
+1. [A32NX/EFB] flyPad failures: the CAPT and F/O ND and the upper and lower ECAM display units can be failed (ATA 31); a failed display unit goes blank like a failed PFD, with no weather or terrain drawn on a failed ND - @TCdr
+1. [A32NX/ND] The weather radar returns and the terrain are no longer drawn on an ND that is switched off or in its self-test - @TCdr
 1. [A380X/MFD] Make the SURV CONTROLS page (WXR, TCAS), the STATUS & SWITCHING WXR and XPDR/TCAS selection and the pedestal SURV panel buttons work - @TCdr
 1. [A380X/FWS] Sense the WXR & TAWS and XPDR & TCAS lines of the ECAM procedures and add the CABIN CREW line to the ECAM LINE-UP checklist - @TCdr
 1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
@@ -133,6 +146,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] The history winds of the WIND page now show the CRZ FL and FL 250, 150 and 050 as on the aircraft, and the stored history winds are kept when the storage key changes - @TCdr
 1. [A380X/MFD] Company wind messages use the aircraft wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
 1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
+1. [A380X/PFD] The CAPT PFD now reads the CAPT side FMS data (FM messages, RNP, TO waypoint) instead of the F/O side's - @TCdr
 1. [A32NX/TCAS] TRAFFIC selector on THRT: the proximate and other intruders within 2700 ft above and below are now shown on the ND while a TA or RA is present, as on the aircraft (before only the TA/RA intruders were shown) - @TCdr
 1. [ND] TCAS: CHANGE MODE (ND in PLAN) and TCAS: REDUCE RANGE (ND range above 40 NM) are shown while a TA (amber) or an RA (red) cannot be seen on the ND; on the A380X also TCAS: INCREASE RANGE in ROSE-VOR/ROSE-LS with the ZOOM range in flight - @TCdr
 1. [A380X/SURV] Pressing the lit WXR/TAWS SYS 1 or SYS 2 pb (SURV panel or MFD SURV STATUS & SWITCHING) keeps that system selected instead of selecting none, which failed TERR and GPWS - @TCdr
@@ -147,6 +161,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan - @TCdr
 1. [A380X/OIT] The COMPANY COM inbox lists the company messages received by the AOC instead of two test messages; displaying a message marks it read, and the COMPANY MSG memo goes once every message is read - @TCdr
 1. [A380X/MFD] System Message Area in the MFD header: CHECK FMS MESSAGE, NEW ATIS RECEIVED and ATIS SYS MSG while another application is shown - @TCdr
+1. [A380X/ATC] The ATC MSG pbs flash at 2 Hz, the RING sounds only if the message is not read within 15 s (5 s if urgent), and the KCCU MAILBOX key puts the cursor on the SD mailbox - @TCdr
 
 ## 2024.1.0
 

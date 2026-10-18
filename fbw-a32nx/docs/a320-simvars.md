@@ -37,6 +37,7 @@
   - [ATC (ATA 34)](#atc-ata-34)
   - [Radio Altimeter (ATA 34)](#radio-altimeter-ata-34)
   - [GPWS / TAWS (ATA 34)](#gpws--taws-ata-34)
+  - [Weather Radar (ATA 34)](#weather-radar-ata-34)
   - [ROW / ROP / OANS (ATA 34)](#row--rop--oans-ata-34)
   - [Electronic Flight Bag (ATA 46)](#electronic-flight-bag-ata-46)
   - [Non-Systems Related](#non-systems-related)
@@ -4077,6 +4078,68 @@ Use the `A32NXDisplayManagementPublisher` for these in A32NX code.
      | 21  | Altitude below baro minimum |
 
 
+### Display Units
+
+- `L:A32NX_ND_{side}_DU_SHOWING_PICTURE`
+  - Bool
+  - Written by nd.html: 1 while the ND display unit is ON and shows the ND picture (powered, brightness above 0,
+    self-test done, not failed from the flyPad), 0 otherwise. The native weather/terrain gauge (ndwxr) draws nothing
+    while it is 0. It is 1 too while the ND is shown on another DU (DU reconfiguration, see
+    `L:A32NX_EIS_PICTURE_{picture}_ON_OTHER_DU`).
+  - {side}
+    - L
+    - R
+
+- `L:A32NX_EIS_DU_{du}_PICTURE`
+  - Enum
+  - Written by the DMC logic of the systems host (DmcDisplayReconfiguration): the picture the display unit shows
+    (A320 FCOM DSC-31-05-60 DU reconfiguration). Read by the cockpit model: each DU has one glass per picture it can
+    show (the overlay glasses carry the material of that picture's texture), and only the glass of this value is shown.
+    Value | Meaning
+    --- | ---
+    0 | The DU's own picture (PFD, ND, E/WD on the upper and SD on the lower ECAM DU): the normal configuration
+    1 | PFD of the DU's side
+    2 | ND of the DU's side
+    3 | E/WD
+    4 | SD
+    5 | ECAM ON ND message (lower ECAM DU while the SD is on an ND)
+    6 | Blank: the DU is failed, unpowered or switched off with its brightness knob
+  - {du}
+    - PFD_L
+    - ND_L
+    - UPPER_ECAM
+    - LOWER_ECAM
+    - ND_R
+    - PFD_R
+
+- `L:A32NX_EIS_PICTURE_{picture}_ON_OTHER_DU`
+  - Bool
+  - Written by the DMC logic of the systems host: 1 while the picture is shown on a DU other than its own one and that
+    DU is available (e.g. the PFD on the ND DU with the PFD DU failed). The gauge of the picture then draws it whatever
+    the state of its own DU.
+  - {picture}
+    - PFD_L
+    - ND_L
+    - EWD
+    - SD
+    - ND_R
+    - PFD_R
+
+- `L:A32NX_EFIS_{side}_PFD_ND_XFR`
+  - Bool
+  - Written by the DMC logic of the systems host: 1 while the PFD/ND XFR pb of that side has cross-changed the PFD and
+    ND images (toggled by each push, back to 0 when the PFD DU fails, is switched off or comes back). Read by the FWC
+    for the SWITCHING PNL memo.
+  - {side}
+    - L
+    - R
+
+- `H:A32NX_EFIS_{side}_PFD_ND_XFR_PUSHED`
+  - Sent by the PFD/ND XFR pb of that side console (cockpit behaviour).
+  - {side}
+    - L
+    - R
+
 ### ECP
 
 Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
@@ -4513,6 +4576,41 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 - A32NX_GPWS_FLAPS3
     - Boolean
     - Indicates whether the GPWS LDG FLAP 3 pushbutton is ON
+
+## Weather Radar (ATA 34)
+
+- A32NX_EGPWC_ND_{side}_TERRAIN_MIN_ELEVATION / A32NX_EGPWC_ND_{side}_TERRAIN_MAX_ELEVATION
+    - Feet
+    - The lower and upper figures of the TERR ON ND peaks box of each ND, written by the ndwxr gauge from the SimBridge
+      terrain thresholds; -1 hides the box (terrain not selected, not a map page, or no current SimBridge figures)
+    - {side}
+        - L
+        - R
+
+- A32NX_EGPWC_ND_{side}_TERRAIN_MIN_ELEVATION_MODE / A32NX_EGPWC_ND_{side}_TERRAIN_MAX_ELEVATION_MODE
+    - Enum (TerrainLevelMode)
+    - The colour level of the matching peaks box figure
+    - | Value | Description                  |
+      |:-----:|:----------------------------:|
+      | 0     | Peaks mode (green)           |
+      | 1     | Warning level (yellow on ND) |
+      | 2     | Caution level (red on ND)    |
+
+- A32NX_WXR_ND_{side}_MODE
+    - Enum
+    - The weather radar's indication on the ND, published by the ndwxr gauge on the map pages (ROSE ILS / VOR / NAV or ARC): the mode
+      while the radar is selected, WXR OFF while it is switched off (0 while the terrain takes the radar's place, or off the map pages)
+      Value | Meaning
+      --- | ---
+      0 | None
+      1 | WX
+      2 | WX+T
+      3 | TURB
+      4 | MAP
+      5 | WXR OFF
+    - {side}
+        - L
+        - R
 
 ## ROW / ROP / OANS (ATA 34)
 

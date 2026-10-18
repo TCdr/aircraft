@@ -140,7 +140,6 @@ export class CompanyComMailbox {
     this.bus.getPublisher<FmsAocMessages>().pub('aocMessageRead', uid, true, false);
   }
 
-  /** Stops listening to the AOC */
   public destroy(): void {
     this.subscriptions.forEach((s) => s.destroy());
     this.subscriptions.length = 0;

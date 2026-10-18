@@ -22,6 +22,7 @@ import {
 // FIXME should not import from instruments
 import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/FwsPublisher';
 import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
+import { DisplayUnitID } from '@shared/CdsDisplayUnits';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -3626,6 +3627,86 @@ export class FwsAbnormalSensed {
       failure: 1,
       sysPage: SdPages.None,
       redundLoss: () => ['310300003'],
+    },
+    311800013: {
+      // CDS CAPT PFD DU FAULT: SC, MASTER CAUT. The INOP SYS of its STATUS are in FwsInopSys (310300005-011).
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptPfd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800013].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800013].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800014: {
+      // CDS CAPT ND DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptNd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800014].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800014].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800015: {
+      // CDS CAPT MFD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptMfd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800015].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800015].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800016: {
+      // CDS EWD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.Ewd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800016].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800016].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800017: {
+      // CDS SD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.Sd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800017].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800017].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800018: {
+      // CDS F/O PFD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoPfd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800018].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800018].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800019: {
+      // CDS F/O ND DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoNd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800019].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800019].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800020: {
+      // CDS F/O MFD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoMfd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800020].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800020].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
     },
     // ATA 32 - LANDING GEAR & BRAKES
     320800008: {

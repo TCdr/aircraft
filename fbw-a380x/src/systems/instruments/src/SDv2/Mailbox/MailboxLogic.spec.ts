@@ -1,11 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   AtsuMessageComStatus,
   AtsuMessageDirection,
   CpdlcMessage,
+  CpdlcMessageMonitoringState,
   CpdlcMessagesDownlink,
   CpdlcMessagesUplink,
   MailboxStatusMessage,
@@ -13,12 +16,16 @@ import {
 
 import {
   buildResponse,
+  MAILBOX_TOP_ON_DU,
   MailboxBlock,
   mailboxButtons,
   mailboxLines,
   mailboxMessageStyle,
   mailboxStatus,
   pageCount,
+  queueFromMailboxFile,
+  resyncedStatus,
+  resyncedVisibleUid,
 } from './MailboxLogic';
 
 /**
@@ -217,5 +224,88 @@ describe('ATC mailbox', () => {
     expect(mailboxLines(block(message(AtsuMessageDirection.Uplink, 'UM169', 'CONTACT MONTREAL CENTER')))).toEqual([
       [{ text: 'CONTACT MONTREAL CENTER', kind: 'text' }],
     ]);
+  });
+});
+
+describe('mailbox queue rebuilt from the mailbox file (SD drawn on another DU: resync)', () => {
+  /**
+   * An uplink message with a unique id
+   * @param uid the unique message id
+   * @returns the message
+   */
+  const uplink = (uid: number) => {
+    const msg = message(AtsuMessageDirection.Uplink, 'UM20', 'FL350');
+    msg.UniqueMessageID = uid;
+    return msg;
+  };
+  const fileBlock = (uid: number, status = MailboxStatusMessage.NoMessage) => ({ messages: [uplink(uid)], status });
+  const noReply = () => null;
+
+  it('builds the whole queue, in the order of the file, for a client that starts empty', () => {
+    const { blocks, nextArrival } = queueFromMailboxFile([], [fileBlock(3), fileBlock(1), fileBlock(2)], 0, noReply);
+    expect(blocks.map((b) => b.uid)).toEqual([3, 1, 2]);
+    expect(blocks.map((b) => b.arrival)).toEqual([0, 1, 2]);
+    expect(nextArrival).toBe(3);
+    expect(blocks.every((b) => b.response === -1 && b.page === 0 && b.dueTo === null)).toBe(true);
+  });
+
+  it('keeps the selections of the flight crew of a block it already had, and drops a block no longer in the file', () => {
+    const kept: MailboxBlock = { ...block(uplink(1), 0), uid: 1, page: 1, lastPageSeen: 1, dueTo: 'weather' };
+    const gone: MailboxBlock = { ...block(uplink(2)), uid: 2 };
+    const { blocks } = queueFromMailboxFile([kept, gone], [fileBlock(1), fileBlock(4)], 10, noReply);
+    expect(blocks.map((b) => b.uid)).toEqual([1, 4]);
+    expect(blocks[0]).toMatchObject({ response: 0, page: 1, lastPageSeen: 1, dueTo: 'weather', arrival: 0 });
+    expect(blocks[1].arrival).toBe(10);
+  });
+
+  it('gives a new uplink block the request it replies to', () => {
+    const replyTo = { time: '1200Z', clearance: false };
+    const { blocks } = queueFromMailboxFile([], [fileBlock(1)], 0, () => replyTo);
+    expect(blocks[0].replyTo).toBe(replyTo);
+  });
+
+  it('takes the information of the file, else the monitoring, else MFD FOR MODIF of this client', () => {
+    const msg = uplink(1);
+    expect(resyncedStatus(MailboxStatusMessage.Sending, msg, null)).toBe(MailboxStatusMessage.Sending);
+    expect(resyncedStatus(MailboxStatusMessage.NoMessage, msg, MailboxStatusMessage.FmsDisplayForModification)).toBe(
+      MailboxStatusMessage.FmsDisplayForModification,
+    );
+    expect(resyncedStatus(MailboxStatusMessage.NoMessage, msg, MailboxStatusMessage.Sent)).toBe(
+      MailboxStatusMessage.NoMessage,
+    );
+    msg.MessageMonitoring = CpdlcMessageMonitoringState.Monitoring;
+    expect(resyncedStatus(MailboxStatusMessage.NoMessage, msg, null)).toBe(MailboxStatusMessage.Monitoring);
+    msg.MessageMonitoring = CpdlcMessageMonitoringState.Cancelled;
+    expect(resyncedStatus(MailboxStatusMessage.NoMessage, msg, null)).toBe(MailboxStatusMessage.MonitoringCancelled);
+  });
+
+  it('displays the message the active client displayed, else its own, else the first one', () => {
+    const { blocks } = queueFromMailboxFile([], [fileBlock(1), fileBlock(2), fileBlock(3)], 0, noReply);
+    expect(resyncedVisibleUid(blocks, 2, 3)).toBe(2);
+    expect(resyncedVisibleUid(blocks, 9, 3)).toBe(3);
+    expect(resyncedVisibleUid(blocks, -1, null)).toBe(1);
+    expect(resyncedVisibleUid([], -1, 3)).toBeNull();
+  });
+});
+
+describe('ATC mailbox position on the DU (KCCU cursor)', () => {
+  it('draws every SDv2 gauge (with the mailbox) at 0,0 on a 768 x 1024 DU, so the mailbox cursor offset holds', () => {
+    const panelCfg = join(
+      __dirname,
+      '../../../../../base/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/attachments/flybywire',
+      'Part_Interior_Cockpit/panel/panel.cfg',
+    );
+    const blocks = readFileSync(panelCfg, 'utf-8')
+      .split(/^\[VCockpit\d+\]/m)
+      .slice(1);
+    const sdv2Blocks = blocks.filter((block) => /A380X\/SDv2\//.test(block));
+    // the SD DU and both ND DUs (CDS reconfiguration)
+    expect(sdv2Blocks).toHaveLength(3);
+    for (const block of sdv2Blocks) {
+      expect(block).toMatch(/^pixel_size=768,1024\s*$/m);
+      expect(block).toMatch(/^htmlgauge\d+=A380X\/SDv2\/[^,]+,\s*0,0,768,1024\s*$/m);
+    }
+    // the bottom 256 px of the SD
+    expect(MAILBOX_TOP_ON_DU).toBe(1024 - 256);
   });
 });

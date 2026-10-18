@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { DisplayUnit } from './displayUnit';
-import React from 'react';
+import React, { useState } from 'react';
 import { render } from '@instruments/common/index';
-import { useSimVar } from '@flybywiresim/fbw-sdk-react';
+import { FailuresConsumer, useSimVar, useUpdate } from '@flybywiresim/fbw-sdk-react';
+import { LOWER_ECAM_DISPLAY_UNIT_FAILURE } from '../MsfsAvionicsCommon/displayUnitFailures';
+import { pictureOnOtherDuVar } from '@shared/DisplayReconfiguration';
 
 import { PagesContainer } from './PagesContainer';
 
@@ -28,8 +30,36 @@ const Idle = () => {
   );
 };
 
+/** Receives the flyPad failures: the lower ECAM display unit failure blanks the SD. */
+const failuresConsumer = new FailuresConsumer();
+
+/** The lower ECAM display unit, blank while its flyPad failure is active (the SDv2 layer does the same). */
+const SdDisplayUnit: React.FC = ({ children }) => {
+  const [failed, setFailed] = useState(false);
+  // the SD shown on another DU (DU reconfiguration): drawn even with the lower ECAM DU lost
+  const [shownOnOtherDu] = useSimVar(pictureOnOtherDuVar('SD'), 'number', 100);
+
+  useUpdate(() => {
+    failuresConsumer.update();
+    // React skips the re-render when the value is unchanged
+    setFailed(failuresConsumer.isActive(LOWER_ECAM_DISPLAY_UNIT_FAILURE));
+  });
+
+  return (
+    <DisplayUnit
+      electricitySimvar="L:A32NX_ELEC_AC_2_BUS_IS_POWERED"
+      potentiometerIndex={93}
+      normDmc={1}
+      failed={failed}
+      shownOnOtherDu={shownOnOtherDu > 0}
+    >
+      {children}
+    </DisplayUnit>
+  );
+};
+
 render(
-  <DisplayUnit electricitySimvar="L:A32NX_ELEC_AC_2_BUS_IS_POWERED" potentiometerIndex={93} normDmc={1}>
+  <SdDisplayUnit>
     <Idle />
-  </DisplayUnit>,
+  </SdDisplayUnit>,
 );

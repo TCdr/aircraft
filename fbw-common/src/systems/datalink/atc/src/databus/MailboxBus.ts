@@ -13,6 +13,7 @@ import {
   AtsuMessageType,
   CpdlcMessage,
   DclMessage,
+  MailboxSnapshotBlock,
   OclMessage,
 } from '../../../common/src';
 import { Atc } from '../ATC';
@@ -32,6 +33,9 @@ class MailboxMessage {
   public Status: MailboxStatusMessage = MailboxStatusMessage.NoMessage;
 
   public Direction: AtsuMessageDirection = null;
+
+  /** The order in which the block entered the mailbox file (first message of a block only), for mailboxSnapshot */
+  public UploadOrder = 0;
 }
 
 export class MailboxBus {
@@ -57,6 +61,12 @@ export class MailboxBus {
 
   private atcRingInterval: number = null;
 
+  /** The first ring of an unread uplink, when the RING waits for the reading time (delayedFirstRing) */
+  private atcRingTimeout: number = null;
+
+  /** When the planned first ring sounds, ms (Date.now), or null */
+  private atcRingDueTime: number | null = null;
+
   private poweredUp: boolean = false;
 
   /** The FMS answers a LOAD-SEC3 request within this time, or the mailbox shows LOAD NOT AVAIL */
@@ -69,6 +79,51 @@ export class MailboxBus {
   private loadedMessageId: number | null = null;
 
   private loadTimeout: number | null = null;
+
+  /** The counter behind MailboxMessage.UploadOrder */
+  private uploadCounter = 0;
+
+  /** The message the active mailbox client displays (its last visibleMessage), -1 when none */
+  private visibleMessageId = -1;
+
+  /**
+   * Gives a block its place in the order of the mailbox file, when it enters the file (also again after a RECALL)
+   * @param block the messages of the block
+   */
+  private markUpload(block: MailboxMessage[]): void {
+    if (block.length !== 0) {
+      block[0].UploadOrder = ++this.uploadCounter;
+    }
+  }
+
+  /**
+   * Publishes the whole mailbox file (mailboxSnapshot): every block of the uplink and downlink files in the order it
+   * entered the mailbox, with its information, the displayed message and the current ATC center. A mailbox client that
+   * starts late, or takes the mailbox over from another client, rebuilds its queue from it: the clients otherwise only
+   * learn the mailbox from incremental events (new message, update, delete).
+   */
+  private publishSnapshot(): void {
+    const blocks: MailboxSnapshotBlock[] = [...this.uplinkMessages, ...this.downlinkMessages]
+      .filter((block) => block.length !== 0)
+      .sort((a, b) => a[0].UploadOrder - b[0].UploadOrder)
+      .map((block) => ({
+        uid: block[0].MessageId,
+        messages: block
+          .map((entry) => this.atc.messages().find((message) => message.UniqueMessageID === entry.MessageId))
+          .filter((message) => message !== undefined) as CpdlcMessage[],
+        status: block[0].Status,
+      }))
+      // a client identifies a block by its first message (as update() and the incremental events do)
+      .filter((block) => block.messages.length !== 0 && block.messages[0].UniqueMessageID === block.uid)
+      .map(({ messages, status }) => ({ messages, status }));
+
+    this.publisher.pub(
+      'mailboxSnapshot',
+      { blocks, visibleUid: this.visibleMessageId, activeAtc: this.atc.currentStation() },
+      true,
+      false,
+    );
+  }
 
   private uploadMessagesToMailbox(messages: CpdlcMessage[]): void {
     if (messages.length !== 0) {
@@ -135,7 +190,7 @@ export class MailboxBus {
 
             // pushed a new inbound message
             if (!data.MessageRead) {
-              this.setupIntervals();
+              this.setupIntervals(data.PriorityMessage === true);
             }
 
             if ((message as CpdlcMessage).MailboxRelevantMessage) {
@@ -143,6 +198,7 @@ export class MailboxBus {
             }
           }
         });
+        this.markUpload(messages[messages.length - 1]);
 
         if (mailboxMessages.length !== 0) {
           this.uploadMessagesToMailbox(mailboxMessages);
@@ -155,9 +211,17 @@ export class MailboxBus {
     }
   }
 
+  /**
+   * @param bus the event bus
+   * @param atc the ATC function
+   * @param delayedFirstRing the RING sounds only if the message is not read in time, the A380X mailbox: the flight
+   * crew has 15 s after a normal message and 5 s after an urgent one to press the pb or read the message. Else (the
+   * A32NX DCDU) the RING sounds at once: the A320 has no RING timing.
+   */
   constructor(
     private readonly bus: EventBus,
     atc: Atc,
+    private readonly delayedFirstRing = false,
   ) {
     this.atc = atc;
 
@@ -345,6 +409,8 @@ export class MailboxBus {
           this.recallMessageId = messages[0].UniqueMessageID;
 
           this.uploadMessagesToMailbox(messages);
+          // the recalled message enters the mailbox again, at the end of the queue
+          this.markUpload(this.lastClosedMessage[0]);
           if (this.lastClosedMessage[0][0].Direction === AtsuMessageDirection.Downlink) {
             this.downlinkMessages.push(this.lastClosedMessage[0]);
           } else {
@@ -376,9 +442,18 @@ export class MailboxBus {
     });
 
     this.subscriber.on('visibleMessage').handle((uid: number) => {
+      // remembered also while unpowered: it is what the mailbox shows, for the next mailboxSnapshot
+      this.visibleMessageId = uid;
       if (!this.poweredUp) return;
 
       this.atc.updateShownMessageInMailbox(uid, uid === this.recallMessageId);
+    });
+
+    // A mailbox client that starts late, or takes the mailbox over from another one, rebuilds its queue from the file
+    this.subscriber.on('mailboxResyncRequest').handle(() => {
+      if (!this.poweredUp) return;
+
+      this.publishSnapshot();
     });
   }
 
@@ -419,9 +494,19 @@ export class MailboxBus {
       clearInterval(this.atcRingInterval);
       this.atcRingInterval = null;
     }
+    this.clearRingTimeout();
   }
 
-  private setupIntervals() {
+  private clearRingTimeout(): void {
+    if (this.atcRingTimeout !== null) {
+      clearTimeout(this.atcRingTimeout);
+      this.atcRingTimeout = null;
+    }
+    this.atcRingDueTime = null;
+  }
+
+  /** Rings now, then again at the ring interval while a message is unread */
+  private startRinging(): void {
     if (this.atcRingInterval) {
       clearInterval(this.atcRingInterval);
     }
@@ -436,6 +521,40 @@ export class MailboxBus {
     );
   }
 
+  /**
+   * A new unread uplink message entered the mailbox file
+   * @param urgent the message is urgent
+   */
+  private setupIntervals(urgent: boolean) {
+    if (!this.delayedFirstRing) {
+      this.startRinging();
+      return;
+    }
+
+    // A380X: the RING waits for the reading time of the message, 5 s urgent, 15 s normal
+    const readingTime = urgent ? 5000 : 15000;
+    if (this.atcRingInterval) {
+      // already ringing for an older unread message: an urgent one rings at its shorter interval from now on
+      if (this.estimateRingInterval() < readingTime) {
+        return;
+      }
+      clearInterval(this.atcRingInterval);
+      this.atcRingInterval = null;
+    }
+    const dueTime = Date.now() + readingTime;
+    if (this.atcRingDueTime !== null && this.atcRingDueTime <= dueTime) {
+      // the ring of an earlier message comes first
+      return;
+    }
+    this.clearRingTimeout();
+    this.atcRingDueTime = dueTime;
+    this.atcRingTimeout = window.setTimeout(() => {
+      this.atcRingTimeout = null;
+      this.atcRingDueTime = null;
+      this.startRinging();
+    }, readingTime);
+  }
+
   public powerUp(): void {
     this.recallMessageId = undefined;
     this.poweredUp = true;
@@ -448,6 +567,7 @@ export class MailboxBus {
 
   public reset() {
     this.recallMessageId = undefined;
+    this.visibleMessageId = -1;
     this.publisher.pub('resetSystem', true, true, false);
   }
 
@@ -475,14 +595,16 @@ export class MailboxBus {
       mailboxBlocks[0].Direction === AtsuMessageDirection.Downlink &&
       this.downlinkMessages.length < MailboxBus.MaxMailboxFileSize
     ) {
+      this.markUpload(mailboxBlocks);
       this.downlinkMessages.push(mailboxBlocks);
     } else if (
       mailboxBlocks[0].Direction === AtsuMessageDirection.Uplink &&
       this.uplinkMessages.length < MailboxBus.MaxMailboxFileSize
     ) {
+      this.markUpload(mailboxBlocks);
       this.uplinkMessages.push(mailboxBlocks);
       this.atc.digitalOutputs.activateButton();
-      this.setupIntervals();
+      this.setupIntervals(mailboxBlocks.some((block) => block.PriorityMessage === true));
     } else {
       if (mailboxBlocks[0].Direction === AtsuMessageDirection.Downlink) {
         this.bufferedDownlinkMessages.push(mailboxBlocks);

@@ -12,6 +12,11 @@ type DisplayUnitProps = {
   potentiometerIndex: number;
   normDmc: number;
   failed?: boolean;
+  /**
+   * Whether the DMC shows the SD on another DU that is available (DU reconfiguration): the SD is then drawn whatever
+   * the state of the lower ECAM DU (Design choice: no self-test of its own there).
+   */
+  shownOnOtherDu?: boolean;
 };
 
 enum DisplayUnitState {
@@ -72,6 +77,7 @@ export const DisplayUnit: React.FC<DisplayUnitProps> = (props) => {
   useEffect(() => {
     if (state !== DisplayUnitState.Off && props.failed) {
       setState(DisplayUnitState.Off);
+      timer.current = null;
     } else if (state === DisplayUnitState.On && (potentiometer === 0 || electricityState === 0)) {
       setState(DisplayUnitState.Standby);
       timer.current = 10;
@@ -85,7 +91,12 @@ export const DisplayUnit: React.FC<DisplayUnitProps> = (props) => {
       setState(DisplayUnitState.Off);
       timer.current = null;
     }
-  }, [timer.current, state, potentiometer, electricityState]);
+    // props.failed is a dependency too: without it, a failure (or its end) alone would not change the state
+  }, [timer.current, state, potentiometer, electricityState, props.failed]);
+
+  if (props.shownOnOtherDu) {
+    return <div style={{ display: 'block' }}>{props.children}</div>;
+  }
 
   if (state === DisplayUnitState.Selftest) {
     return (

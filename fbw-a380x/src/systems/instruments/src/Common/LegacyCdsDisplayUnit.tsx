@@ -2,6 +2,8 @@
 import React, { forwardRef, PropsWithChildren, useCallback, useEffect, useRef, useState } from 'react';
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { DcElectricalBus } from '@shared/electrical';
+import { DisplayUnitID, displayUnitDisplayVar, displayUnitFailedVar } from '@shared/CdsDisplayUnits';
+import { normalDisplayOf, resolveDisplay } from '@shared/CdsReconfiguration';
 import { useSimVar } from './simVars';
 import { useUpdate } from './hooks';
 
@@ -10,16 +12,7 @@ import './pixels.scss';
 
 import './CdsDisplayUnit.scss';
 
-export enum DisplayUnitID {
-  CaptPfd,
-  CaptNd,
-  CaptMfd,
-  FoPfd,
-  FoNd,
-  FoMfd,
-  Ewd,
-  Sd,
-}
+export { DisplayUnitID };
 
 const DisplayUnitToDCBus: { [k in DisplayUnitID]: DcElectricalBus[] } = {
   [DisplayUnitID.CaptPfd]: [DcElectricalBus.DcEss],
@@ -44,7 +37,13 @@ const DisplayUnitToPotentiometer: { [k in DisplayUnitID]: number } = {
 };
 
 interface DisplayUnitProps {
+  /** The DU of the display (its normal DU): the display is the normal display of this DU */
   displayUnitId: DisplayUnitID;
+  /**
+   * The DU this gauge draws on when it is a hosted gauge (CDS reconfiguration, MsfsAvionicsCommon/HostedDisplay.ts, e.g.
+   * the SD on the ND DU): its power, brightness knob and failure apply. Without it, the DU of displayUnitId.
+   */
+  hostDisplayUnitId?: DisplayUnitID;
   failed?: boolean;
   hideBootTestScreens?: boolean;
 }
@@ -65,28 +64,40 @@ function BacklightBleed(props) {
 }
 
 export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<DisplayUnitProps>>(
-  ({ displayUnitId, failed, hideBootTestScreens, children }, ref) => {
+  ({ displayUnitId, hostDisplayUnitId, failed: failedProp, hideBootTestScreens, children }, ref) => {
+    const physicalDisplayUnit = hostDisplayUnitId ?? displayUnitId;
+    // The DU's own flyPad failure, published by the FSComponent instrument of the same DU (CdsDisplayUnit; for the SD,
+    // SDv2 shares the DU with this legacy SD; for a hosted gauge, the DU's own gauge)
+    const [displayUnitFailed] = useSimVar(displayUnitFailedVar(physicalDisplayUnit), 'Bool', 200);
+    const failed = !!failedProp || displayUnitFailed > 0;
     const [coldDark] = useSimVar('L:A32NX_COLD_AND_DARK_SPAWN' /* TODO 380 simvar */, 'Bool', 200);
-    const [state, setState] = useState(coldDark ? DisplayUnitState.Off : DisplayUnitState.Standby);
+    // A hosted gauge starts when its display moves onto a DU that is already running: no power-up from Off (design
+    // choice, as CdsDisplayUnit: the DU does not boot again because it shows another display)
+    const [state, setState] = useState(
+      coldDark && hostDisplayUnitId === undefined ? DisplayUnitState.Off : DisplayUnitState.Standby,
+    );
     const [timer, setTimer] = useState<number | null>(null);
     const thalesBootupEndTime = useRef<number | null>(null);
 
     const [potentiometer] = useSimVar(
-      `LIGHT POTENTIOMETER:${DisplayUnitToPotentiometer[displayUnitId]}`,
+      `LIGHT POTENTIOMETER:${DisplayUnitToPotentiometer[physicalDisplayUnit]}`,
       'percent over 100',
       200,
     );
     const [electricityState0] = useSimVar(
-      `L:A32NX_ELEC_${DisplayUnitToDCBus[displayUnitId][0]}_BUS_IS_POWERED` /* TODO 380 simvar */,
+      `L:A32NX_ELEC_${DisplayUnitToDCBus[physicalDisplayUnit][0]}_BUS_IS_POWERED` /* TODO 380 simvar */,
       'bool',
       200,
     );
     const [electricityState1] = useSimVar(
-      `L:A32NX_ELEC_${DisplayUnitToDCBus[displayUnitId][1]}_BUS_IS_POWERED` /* TODO 380 simvar */,
+      `L:A32NX_ELEC_${DisplayUnitToDCBus[physicalDisplayUnit][1]}_BUS_IS_POWERED` /* TODO 380 simvar */,
       'bool',
       200,
     );
     const [homeCockpit] = useSimVar('L:A32NX_HOME_COCKPIT_ENABLED', 'bool', 200);
+    // The DU shows another display (CDS reconfiguration, e.g. the EWD on the SD DU): this one draws nothing
+    const [duDisplay] = useSimVar(displayUnitDisplayVar(physicalDisplayUnit), 'number', 200);
+    const shown = resolveDisplay(physicalDisplayUnit, duDisplay) === normalDisplayOf(displayUnitId);
 
     useUpdate(
       useCallback(
@@ -127,6 +138,8 @@ export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<
     useEffect(() => {
       if (state !== DisplayUnitState.Off && failed) {
         setState(DisplayUnitState.Off);
+        // stop a boot or standby countdown, which would switch the DU back on
+        setTimer(null);
       } else if (
         state === DisplayUnitState.On &&
         (potentiometer === 0 || (electricityState0 === 0 && electricityState1 === 0))
@@ -157,7 +170,11 @@ export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<
         setState(DisplayUnitState.Off);
         setTimer(null);
       }
-    }, [timer, state, potentiometer, electricityState0, electricityState1]);
+    }, [timer, state, potentiometer, electricityState0, electricityState1, failed]);
+
+    if (!shown) {
+      return <></>;
+    }
 
     if (window.ACE_ENGINE_HANDLE) {
       return (

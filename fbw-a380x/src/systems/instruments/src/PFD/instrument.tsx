@@ -1,11 +1,13 @@
 // @ts-strict-ignore
 import { Clock, FSComponent, HEventPublisher, InstrumentBackplane, Subject } from '@microsoft/msfs-sdk';
 import { ArincEventBus, EfisSide } from '@flybywiresim/fbw-sdk';
-import { getDisplayIndex } from '../MsfsAvionicsCommon/CdsDisplayUnit';
+import { HostedDisplayGate, hostDisplayUnitOf } from '../MsfsAvionicsCommon/HostedDisplay';
+import { CdsDisplay } from '@shared/CdsReconfiguration';
 import { DmcPublisher } from '../MsfsAvionicsCommon/providers/DmcPublisher';
 import { ExtendedClockEventProvider } from '../MsfsAvionicsCommon/providers/ExtendedClockProvider';
 import { FmsDataPublisher } from '../MsfsAvionicsCommon/providers/FmsDataPublisher';
 import { PFDComponent } from './PFD';
+import { getDisplayIndex } from './shared/PfdDisplayIndex';
 import { AdirsValueProvider } from './shared/AdirsValueProvider';
 import { ArincValueProvider } from './shared/ArincValueProvider';
 import { PFDSimvarPublisher } from './shared/PFDSimvarPublisher';
@@ -44,7 +46,13 @@ class A380X_PFD extends BaseInstrument {
 
   private readonly dmcPublisher = new DmcPublisher(this.bus);
 
-  private readonly fmsDataPublisher: FmsDataPublisher;
+  /**
+   * The EFIS side whose FMS data this PFD reads (L:A32NX_EFIS_<side>_..., L:A32NX_FMGC_<side>_RNP): set in
+   * connectedCallback, from the gauge's panel.cfg URL
+   */
+  private readonly fmsDataSide = Subject.create<EfisSide>('L');
+
+  private readonly fmsDataPublisher = new FmsDataPublisher(this.bus, this.fmsDataSide);
 
   private readonly fwsPublisher = new FwcPublisher(this.bus);
 
@@ -78,12 +86,14 @@ class A380X_PFD extends BaseInstrument {
 
   private readonly efisCpBusPublisher = new FcuEfisCpBusPublisher(this.bus);
 
+  /**
+   * The run gate when this gauge is the PFD drawn on the ND DU (CDS reconfiguration, panel.cfg hostDu): it starts and
+   * runs only while the PFD is shown there. Null for the PFD DU's own gauge. Made in connectedCallback.
+   */
+  private hostedGate: HostedDisplayGate | null = null;
+
   constructor() {
     super();
-
-    const side: EfisSide = getDisplayIndex() === 1 ? 'L' : 'R';
-    const stateSubject = Subject.create<'L' | 'R'>(side);
-    this.fmsDataPublisher = new FmsDataPublisher(this.bus, stateSubject);
 
     this.backplane.addInstrument('Clock', this.clock);
     this.backplane.addInstrument('ExtendedClock', this.extendedClockProvider);
@@ -126,6 +136,27 @@ class A380X_PFD extends BaseInstrument {
   public connectedCallback(): void {
     super.connectedCallback();
 
+    // The side of the PFD comes from the gauge URL, which the gauge only has from here on, not in its constructor.
+    this.fmsDataSide.set(getDisplayIndex() === 1 ? 'L' : 'R');
+
+    // Whether this gauge is a hosted one comes from its panel.cfg URL, known only from here on: the sim creates the
+    // gauge element (this constructor) before it gives it its url attribute and puts it into the panel. Read too early,
+    // the hosted PFD would take the ND's URL (no hostDu) and run, never hidden, as the PFD DU's own gauge.
+    const hostDisplayUnit = hostDisplayUnitOf('PFD');
+    this.hostedGate =
+      hostDisplayUnit === null
+        ? null
+        : new HostedDisplayGate(hostDisplayUnit, CdsDisplay.Pfd, 'PFD_CONTENT', () => this.startInstrument());
+
+    if (this.hostedGate) {
+      this.hostedGate.update();
+    } else {
+      this.startInstrument();
+    }
+  }
+
+  /** Starts the PFD: at once for the PFD DU's own gauge, when first shown for a hosted gauge */
+  private startInstrument(): void {
     this.backplane.init();
     this.primChoiceProvider.init();
 
@@ -140,6 +171,10 @@ class A380X_PFD extends BaseInstrument {
    */
   public Update(): void {
     super.Update();
+
+    if (this.hostedGate && !this.hostedGate.update()) {
+      return;
+    }
 
     this.backplane.onUpdate();
   }

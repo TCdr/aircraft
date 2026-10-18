@@ -12,7 +12,8 @@ export class AtcDatalink {
 
   private readonly atc: Atc;
   constructor(private readonly bus: EventBus) {
-    this.atc = new Atc(this.bus, false, false);
+    // the A380X RING waits for the reading time of the message
+    this.atc = new Atc(this.bus, false, false, true);
     this.available.sub((available: boolean) => {
       if (available) {
         this.atc.powerUp();
