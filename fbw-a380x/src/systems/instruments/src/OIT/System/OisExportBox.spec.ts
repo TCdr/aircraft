@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { exportStatusText, OisExportBox } from './OisExportBox';
+import { applicationExportIdentifier, exportStatusText, OisExportBox } from './OisExportBox';
 
 const EXPORTED = Date.UTC(2008, 11, 19, 7, 57);
 const LATER = Date.UTC(2008, 11, 19, 8, 55);
@@ -64,5 +64,23 @@ describe('EXPORT BOX', () => {
     expect(box.items.get().map((item) => item.source)).toEqual(['LOADSHEET']);
     box.removeAll();
     expect(box.items.get()).toHaveLength(0);
+  });
+});
+
+describe('export of an application', () => {
+  it('names the data after the application and the flight, as the FLT FOLDER export', () => {
+    const dateMs = Date.UTC(2008, 11, 19, 7, 57);
+    expect(applicationExportIdentifier('LOADSHEET', 'AIB110', 'ICN', 'LAX', dateMs)).toBe(
+      'LOADSHEET AIB110 ICN-LAX 19-DEC-08',
+    );
+  });
+
+  it('enters the EXPORT BOX not sent, an export of the same data again replacing the older one', () => {
+    const box = new OisExportBox();
+    box.add('LOADSHEET AIB110 ICN-LAX 19-DEC-08', 'LOADSHEET', 1000);
+    box.add('LOADSHEET AIB110 ICN-LAX 19-DEC-08', 'LOADSHEET', 2000);
+    expect(box.items.get().map((item) => [item.source, item.dateMs, item.status.state])).toEqual([
+      ['LOADSHEET', 2000, 'NOT SENT'],
+    ]);
   });
 });

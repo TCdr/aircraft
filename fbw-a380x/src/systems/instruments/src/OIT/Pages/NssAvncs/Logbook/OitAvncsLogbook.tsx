@@ -9,7 +9,7 @@ import { OitUriInformation } from '../../../OitUiService';
 import { avncsLogbookPageForUrl } from '../../../OitPageDirectory';
 import { OitAvncsLogbookDialog } from './OitAvncsLogbookDialog';
 import { LogbookClickable } from './LogbookWidgets';
-import { LOGBOOK_URI, isPrintableLogbookPage, logbookPrintout, syncDialog, syncResultDialog } from './LogbookFlows';
+import { LOGBOOK_URI, logbookPageFunctions, logbookPrintout, syncDialog, syncResultDialog } from './LogbookFlows';
 
 import './logbook.scss';
 
@@ -56,13 +56,10 @@ export class OitAvncsLogbook extends DestroyableComponent<OitAvncsLogbookProps> 
 
   private readonly tabSelected = TABS.map((_, index) => this.selectedTab.map((t) => t === index));
 
-  private readonly printDisabled = this.props.uiService.activeUri.map((uri) => !isPrintableLogbookPage(uri.uri));
-
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
     this.subscriptions.push(
-      this.printDisabled,
       ...this.tabSelected,
       this.props.uiService.activeUri.sub((uri) => this.activeUriChanged(uri), true),
       this.props.uiService.nssAvncsLoginScreenVisible.sub((visible) => {
@@ -127,6 +124,8 @@ export class OitAvncsLogbook extends DestroyableComponent<OitAvncsLogbookProps> 
     if (!uri.uri.startsWith(LOGBOOK_URI.application)) {
       return;
     }
+    // Each navigation drops the functions of the page shown before
+    this.props.uiService.registerPageFunctions(logbookPageFunctions(uri.uri, () => this.print()));
     const pageUri = uri.uri === LOGBOOK_URI.application ? LOGBOOK_URI.status : uri.uri;
     this.selectedTab.set(tabOf(pageUri));
     this.destroyActivePage();
@@ -144,13 +143,7 @@ export class OitAvncsLogbook extends DestroyableComponent<OitAvncsLogbookProps> 
   render(): VNode {
     return (
       <>
-        <OitAvncsSubHeader
-          title={'LOGBOOK'}
-          uiService={this.props.uiService}
-          onPrint={() => this.print()}
-          printDisabled={this.printDisabled}
-          onClose={() => this.props.uiService.navigateTo('nss-avncs')}
-        />
+        <OitAvncsSubHeader title={'LOGBOOK'} uiService={this.props.uiService} />
         <div class="oit-page-container">
           <div class="oit-logbook-app">
             <div class="oit-logbook-tabs">

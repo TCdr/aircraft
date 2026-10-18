@@ -3,6 +3,7 @@
 
 import { AocPrintout } from '@shared/AocPrintout';
 import { OitUiService } from '../../../OitUiService';
+import { OitPageFunctions } from '../../../OitPageFunctions';
 import {
   LogbookAcceptanceProblem,
   acceptanceProblems,
@@ -200,6 +201,25 @@ export function isPrintableLogbookPage(uri: string): boolean {
     uri === LOGBOOK_URI.acceptanceReport ||
     uri === LOGBOOK_URI.flightData
   );
+}
+
+/**
+ * The functions of the NSS AVNCS menu bar on a logbook page: PRINT on the pages that can be printed. UPDATE is the
+ * menu bar's own (the page shows again with fresh avionics parameters).
+ * @param uri the URI shown
+ * @param print prints the page shown
+ * @returns the functions of the page
+ */
+export function logbookPageFunctions(uri: string, print: () => void): OitPageFunctions {
+  return isPrintableLogbookPage(uri) ? { print: { run: print } } : {};
+}
+
+/**
+ * @param rows the rows of a table with tick boxes
+ * @returns whether the tick-all box of the header shows ticked: every row ticked, and at least one row
+ */
+export function allRowsTicked(rows: readonly { readonly ticked?: boolean }[]): boolean {
+  return rows.length > 0 && rows.every((row) => row.ticked === true);
 }
 
 /**

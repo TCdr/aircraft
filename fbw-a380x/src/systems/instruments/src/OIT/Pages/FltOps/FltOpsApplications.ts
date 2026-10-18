@@ -60,7 +60,8 @@ export const FLT_OPS_SWITCHING_BAR_KEYS = 5;
 /**
  * The open applications of the FLT OPS side, in the order they were opened, as the switching bar at the bottom shows
  * them with the active one highlighted. Displaying a page of an application opens it; CLOSE APPLICATION closes the
- * active one; the arrows scroll the bar when more applications are open than it has keys.
+ * active one; the arrows scroll the bar when more applications are open than it has keys. The task bar of the NSS AVNCS
+ * side works the same way, with its own applications.
  */
 export class FltOpsOpenApplications {
   private readonly _open = Subject.create<readonly string[]>([]);
@@ -91,14 +92,21 @@ export class FltOpsOpenApplications {
     this.firstShown,
   );
 
-  constructor(private readonly keys = FLT_OPS_SWITCHING_BAR_KEYS) {}
+  /**
+   * @param keys the keys of the bar
+   * @param applicationOf the application of a page URI, null for a page outside the applications (the menu page)
+   */
+  constructor(
+    private readonly keys = FLT_OPS_SWITCHING_BAR_KEYS,
+    private readonly applicationOf: (uri: string) => string | null = fltOpsApplicationOf,
+  ) {}
 
   /**
    * A page is displayed: its application opens (at the end of the bar) when it was not open, and becomes active.
    * @param uri the displayed page
    */
   public show(uri: string): void {
-    const application = fltOpsApplicationOf(uri);
+    const application = this.applicationOf(uri);
     if (application === null) {
       this._active.set(null);
       return;

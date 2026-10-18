@@ -14,7 +14,7 @@
  *   follow each other. Deactivating X-OIS (OIS XFR again, or OIS MENU) brings that page back, or the menu.
  */
 
-/** The FLT OPS pages, by code (index + 1); code 0: no FLT OPS page known */
+/** The FLT OPS pages, by code (index + 1); code 0: no FLT OPS page known. A new page goes at the end: codes never change */
 const FLT_OPS_PAGE_URIS: readonly string[] = [
   'flt-ops',
   'flt-ops/sts',
@@ -23,6 +23,9 @@ const FLT_OPS_PAGE_URIS: readonly string[] = [
   'flt-ops/charts',
   'flt-ops/flt-folder',
   'flt-ops/loadsheet',
+  'flt-ops/in-flt-perf',
+  'flt-ops/load-box',
+  'flt-ops/export-box',
 ];
 
 /** The FLT OPS Menu page, shown by the OIS MENU key */

@@ -1,30 +1,16 @@
 //  Copyright (c) 2025 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import {
-  DisplayComponent,
-  FSComponent,
-  Subscribable,
-  SubscribableMapFunctions,
-  Subscription,
-  VNode,
-} from '@microsoft/msfs-sdk';
+import { DisplayComponent, FSComponent, SubscribableMapFunctions, Subscription, VNode } from '@microsoft/msfs-sdk';
 import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { OitUiService } from '../../OitUiService';
 import { PageFunctionAvailability } from '../../OitPageFunctions';
+import { NSS_AVNCS_MENU_URI } from './NssAvncsApplications';
 
 interface OitAvncsSubHeaderProps {
   title: string;
   readonly uiService: OitUiService;
-  /** PRINT of the application, disabled when not given */
-  readonly onPrint?: () => void;
-  readonly printDisabled?: Subscribable<boolean>;
-  /** CLOSE of the application, disabled when not given */
-  readonly onClose?: () => void;
 }
-
-/** The NSS AVNCS Menu page, where no application is open */
-const NSS_AVNCS_MENU_URI = 'nss-avncs';
 
 /*
  * Line 2 of the NSS AVNCS menu bar: the active application, then HOME, BACK, FORWARD, PRINT, UPDATE, HELP, CLOSE
@@ -46,6 +32,12 @@ export abstract class OitAvncsSubHeader extends DisplayComponent<OitAvncsSubHead
     if (!this.props.uiService.runPageFunction('update')) {
       this.props.uiService.reloadActivePage();
     }
+  }
+
+  /** CLOSE: the application closes (it leaves the task bar), back to the menu page */
+  private close(): void {
+    this.props.uiService.nssAvncsApplications.closeActive();
+    this.props.uiService.navigateTo(NSS_AVNCS_MENU_URI);
   }
 
   public onAfterRender(node: VNode): void {
@@ -87,8 +79,8 @@ export abstract class OitAvncsSubHeader extends DisplayComponent<OitAvncsSubHead
         />
         <Button
           label={'PRINT'}
-          disabled={this.props.onPrint ? this.props.printDisabled ?? false : this.print.disabled}
-          onClick={() => (this.props.onPrint ? this.props.onPrint() : this.props.uiService.runPageFunction('print'))}
+          disabled={this.print.disabled}
+          onClick={() => this.props.uiService.runPageFunction('print')}
           buttonStyle="width: 130px; font-size: 28px; height: 50px; margin-left: 10px;"
         />
         <Button
@@ -106,9 +98,7 @@ export abstract class OitAvncsSubHeader extends DisplayComponent<OitAvncsSubHead
         <Button
           label={'CLOSE'}
           disabled={this.onMenuPage}
-          onClick={() =>
-            this.props.onClose ? this.props.onClose() : this.props.uiService.navigateTo(NSS_AVNCS_MENU_URI)
-          }
+          onClick={() => this.close()}
           buttonStyle="width: 130px; font-size: 28px; height: 50px; margin-left: 10px;"
         />
         <div style="flex-grow: 1;" />

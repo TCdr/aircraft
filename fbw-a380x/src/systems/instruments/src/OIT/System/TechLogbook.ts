@@ -298,6 +298,22 @@ export function formatLogbookDateTime(time: number | null): string {
   return `${formatLogbookDate(time)} ${formatLogbookMinutes(minutesOfDay(time))}`;
 }
 
+/** Pounds per kilogram, as the weight unit setting of the aircraft converts */
+const POUNDS_PER_KG = 2.204625;
+
+/**
+ * The fuel on board in the unit of the aircraft weight setting, as the COMPANY COM flight log shows it
+ * @param kg the fuel on board, null when unknown
+ * @param metric the weights are shown in kg
+ * @returns tonnes (T) or thousands of pounds (KLB) with one decimal, '-----' when unknown
+ */
+export function logbookFuelText(kg: number | null, metric: boolean): string {
+  if (kg === null) {
+    return '-----';
+  }
+  return metric ? `${(kg / 1000).toFixed(1)} T` : `${((kg * POUNDS_PER_KG) / 1000).toFixed(1)} KLB`;
+}
+
 /**
  * A duration or a time of day as HH:MM (the hours can exceed 24 for total times).
  * @param minutes the minutes, null when unknown
