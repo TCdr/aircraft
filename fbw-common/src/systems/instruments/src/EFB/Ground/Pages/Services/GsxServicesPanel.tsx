@@ -23,6 +23,7 @@ import {
   GsxServiceLook,
   gsxRemote,
   gsxServiceLook,
+  gsxDocked,
   gsxServiceProgress,
   gsxTurnaroundAction,
 } from './GsxRemote';
@@ -131,7 +132,8 @@ export function gsxServiceStatus(
         text = t('Ground.Services.Gsx.Status.Leaving');
         break;
       case 'completed':
-        text = t('Ground.Services.Gsx.Status.Done');
+        // a docked jetway or stairs reads as connected on its row
+        text = gsxDocked(service) ? '' : t('Ground.Services.Gsx.Status.Done');
         break;
       default:
         break;
