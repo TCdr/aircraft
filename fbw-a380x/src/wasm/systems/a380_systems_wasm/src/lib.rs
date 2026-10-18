@@ -425,6 +425,18 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         ),
         (26_046, FailureType::CargoFireBottleLowPressure(1)),
         (26_047, FailureType::CargoFireBottleLowPressure(2)),
+        (
+            26_049,
+            FailureType::Smoke(SmokeDetectionZone::NetworkServerSystem),
+        ),
+        (
+            26_050,
+            FailureType::SmokeDetector(SmokeDetectionZone::NetworkServerSystem, 1),
+        ),
+        (
+            26_051,
+            FailureType::SmokeDetector(SmokeDetectionZone::NetworkServerSystem, 2),
+        ),
         // SFCC flap and slat channels (hydraulic::sfcc): F/CTL FLAP(SLAT) SYS 1(2) FAULT
         (27_010, FailureType::SlatFlapControlComputerFlapChannel(1)),
         (27_011, FailureType::SlatFlapControlComputerFlapChannel(2)),

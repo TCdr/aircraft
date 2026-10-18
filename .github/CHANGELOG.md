@@ -319,6 +319,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/PRESS] Automatic pressurization keeps the cabin differential pressure in the normal range in cruise above the FMS cruise FL or after an FMS reset, instead of drifting to the 9 PSI pressure limiter - @TCdr
 1. [A380X/FWS] No more CAB PRESS caution and master caution when the aircraft is powered up with EXT PWR or the APU: a cabin pressure controller that is not powered yet no longer counts as failed - @TCdr
 1. [A380X/PRESS] No more red CAB PRESS EXCESS RESIDUAL DIFF PRESS warning at power-up on a high pressure day: the outflow valve controllers start from the first ADIRS ambient pressure instead of moving to it from the standard pressure - @TCdr
+1. [A380X/FIRE] New flyPad failures for NSS smoke and its two smoke detectors; NSS smoke lights the SMOKE light of the NSS MASTER pb - @TCdr
 
 ## 2024.1.0
 

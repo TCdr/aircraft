@@ -1427,12 +1427,13 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_SMOKE_{zone}_DETECTED
     - Bool
     - {zone} = FWD_CARGO, AFT_CARGO, BULK_CARGO, L_MAIN_AVNCS, R_MAIN_AVNCS, L_UPPER_AVNCS, R_UPPER_AVNCS, AFT_AVNCS,
-      IFE_BAY
+      IFE_BAY, NSS (network server system)
     - True when the Smoke Detection Function (SDF) detects smoke in the compartment: both detectors sense it, or one does
       and the other is failed (A380 FCOM DSC-26-50-10 / DSC-26-60-10 DETECTION LOGIC; systems
       fire_protection/smoke_detection.rs). The smoke comes from the flyPad failures "<compartment> smoke"
-    - Read by the FWS for the SMOKE ... SMOKE warnings (the main / upper avionics bay logic is in the FWS), and by the
-      AGENT TO FWD (AFT) pb SMOKE lights for the cargo compartments
+    - Read by the FWS for the SMOKE ... SMOKE warnings (the main / upper avionics bay logic is in the FWS), by the
+      AGENT TO FWD (AFT) pb SMOKE lights for the cargo compartments, and by the SMOKE light of the NSS MASTER sw for the
+      NSS (A380 FCOM DSC-46-20-20-87, no ECAM alert)
 
 - A32NX_SMOKE_{zone}_DET_FAULT
     - Bool

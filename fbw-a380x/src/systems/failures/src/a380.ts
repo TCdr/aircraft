@@ -187,6 +187,9 @@ export const A380Failure = Object.freeze({
   IfeBaySmokeDetector2: 26045,
   CargoFireBottle1LowPressure: 26046,
   CargoFireBottle2LowPressure: 26047,
+  NssSmoke: 26049,
+  NssSmokeDetector1: 26050,
+  NssSmokeDetector2: 26051,
 
   Prim1: 27000,
   Prim2: 27001,
@@ -756,6 +759,10 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   // The bottle loses its agent: SMOKE FWD and AFT CARGO BOTTLES FAULT (systems fire_protection/cargo_fire_extinguishing.rs)
   [26, A380Failure.CargoFireBottle1LowPressure, 'Cargo fire bottle 1 low pressure'],
   [26, A380Failure.CargoFireBottle2LowPressure, 'Cargo fire bottle 2 low pressure'],
+  // The SMOKE light of the NSS MASTER sw, no ECAM alert
+  [26, A380Failure.NssSmoke, 'Network server system (NSS) smoke'],
+  [26, A380Failure.NssSmokeDetector1, 'Network server system (NSS) smoke detector 1'],
+  [26, A380Failure.NssSmokeDetector2, 'Network server system (NSS) smoke detector 2'],
 
   [27, A380Failure.Prim1, 'PRIM 1'],
   [27, A380Failure.Prim2, 'PRIM 2'],
