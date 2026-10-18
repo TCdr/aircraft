@@ -28,6 +28,11 @@ export abstract class OitAvncsFooter extends DestroyableComponent<OitAvncsFooter
           onClick={() => this.props.uiService.navigateTo('nss-avncs/company-com')}
           buttonStyle="width: 225px; font-size: 28px; height: 50px;"
         />
+        <Button
+          label={'LOGBOOK'}
+          onClick={() => this.props.uiService.navigateTo('nss-avncs/logbook')}
+          buttonStyle="width: 225px; font-size: 28px; height: 50px;"
+        />
         <div style="flex-grow: 1" />
       </div>
     );
