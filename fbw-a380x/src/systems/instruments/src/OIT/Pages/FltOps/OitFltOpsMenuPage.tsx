@@ -73,7 +73,6 @@ export class OitFltOpsMenuPage extends DisplayComponent<OitFltOpsMenuPageProps> 
                 label={'IN-FLT PERF'}
                 containerStyle="width: 300px; margin-bottom: 20px"
                 onClick={() => this.props.uiService.navigateTo('flt-ops/in-flt-perf')}
-                disabled={Subject.create(true)}
               />
             </div>
             <div class="oit-flt-ops-menu-column">
@@ -87,13 +86,11 @@ export class OitFltOpsMenuPage extends DisplayComponent<OitFltOpsMenuPageProps> 
                 label={'LOAD BOX'}
                 containerStyle="width: 300px; margin-bottom: 20px"
                 onClick={() => this.props.uiService.navigateTo('flt-ops/load-box')}
-                disabled={Subject.create(true)}
               />
               <Button
                 label={'EXPORT BOX'}
                 containerStyle="width: 300px; margin-bottom: 20px"
                 onClick={() => this.props.uiService.navigateTo('flt-ops/export-box')}
-                disabled={Subject.create(true)}
               />
             </div>
           </div>

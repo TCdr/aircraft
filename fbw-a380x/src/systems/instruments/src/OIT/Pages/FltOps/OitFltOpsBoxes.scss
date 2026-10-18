@@ -1,0 +1,158 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+@import "../../../MsfsAvionicsCommon/definitions";
+
+// LOAD BOX and EXPORT BOX tables
+
+.oit-box-page {
+  margin-top: 10px;
+}
+
+.oit-box-table {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  border: 2px solid $display-light-grey;
+  overflow: hidden;
+}
+
+.oit-box-row {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 60px;
+  border-bottom: 1px solid $display-light-grey;
+}
+
+.oit-box-row.hidden {
+  display: none;
+}
+
+.oit-box-header {
+  min-height: 70px;
+}
+
+.oit-box-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 4px;
+  font-size: 22px;
+  color: $display-white;
+  border-right: 1px solid $display-light-grey;
+}
+
+.oit-box-cell.left {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.oit-box-cell.green {
+  color: $display-green;
+}
+
+.oit-box-cell.blue {
+  color: $display-dark-blue;
+}
+
+.oit-box-link {
+  color: $display-cyan;
+  text-decoration: underline;
+  justify-content: flex-start;
+}
+
+.oit-box-tick-column {
+  width: 70px;
+}
+
+.oit-box-bin-column {
+  width: 100px;
+  border-right: none;
+}
+
+.oit-box-bin-all {
+  font-size: 18px;
+  margin-left: 4px;
+}
+
+.oit-box-tick {
+  width: 30px;
+  height: 30px;
+  background-color: $display-white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.oit-box-tick.disabled {
+  background-color: $display-dark-grey;
+}
+
+.oit-load-box-identifier {
+  flex: 1 1 auto;
+}
+
+.oit-load-box-column {
+  width: 175px;
+}
+
+.oit-export-box-identifier {
+  width: 400px;
+}
+
+.oit-export-box-date {
+  width: 120px;
+  white-space: pre-line;
+}
+
+.oit-export-box-source {
+  width: 170px;
+}
+
+.oit-export-box-status {
+  flex: 1 1 auto;
+}
+
+.oit-box-bottom-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 10px;
+  min-height: 60px;
+}
+
+.oit-export-box-footer {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 15px 10px 15px;
+}
+
+.oit-box-popup {
+  position: absolute;
+  left: 280px;
+  top: 220px;
+  width: 760px;
+  border: 4px solid $display-white;
+  background-color: $display-background;
+  padding: 0 0 15px 0;
+}
+
+.oit-box-popup.hidden {
+  display: none;
+}
+
+.oit-box-popup-title {
+  font-size: 22px;
+  color: $display-white;
+  background-color: $display-grey;
+  padding: 4px 10px;
+}
+
+.oit-box-popup-text {
+  font-size: 22px;
+  color: $display-white;
+  padding: 15px 20px;
+}

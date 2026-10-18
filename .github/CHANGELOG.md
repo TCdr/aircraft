@@ -784,6 +784,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] LOADSHEET on the FLT OPS side: TOW/CG, LW/CG, underload and T.O THS from the ZFW/CG and the fuel, and a loadsheet that can be printed; its TOW and LW go to T.O PERF and LDG PERF - @TCdr
 1. [A380X/OIT] LDG PERF on the FLT OPS side: DISPATCH and IN-FLIGHT landing distance, stop margin, MLW(perf), VAPP and go-around gradient for a runway of the destination - @TCdr
 1. [A380X/OIT] New technical logbook (LOGBOOK) on the NSS AVNCS side: STATUS, LOGBOOK ENTRY (ECAM alerts of the flight, cabin items, system & function, cockpit area, keyword and free text), HISTORY and FLIGHT DATA pages, the open, deferred, temporary and cabin item lists, the maintenance release report, PIC ACCEPT with the acceptance report and CLOSE FLIGHT with the closure report; at UPDATE the simulated ground maintenance defers some reported items (MEL, CDL, OTHER) and rectifies the others; the logbook is kept across flights and can be printed - @TCdr
+1. [A380X/OIT] New FLT OPS LOAD BOX: lists the flight folder of your SimBrief OFP sent from the ground and loads it into the laptops, with the loading status of each laptop - @TCdr
+1. [A380X/OIT] New FLT OPS EXPORT BOX: the loaded flight folder can be sent to the ground over the gatelink on the ground, or kept in the outbox until the gatelink is available - @TCdr
+1. [A380X/OIT] New FLT OPS IN-FLT PERF application with its ATMO module: speed conversions (IAS, Mach, TAS, GS), ISA information, true altitude and low altitude temperature corrections - @TCdr
 
 ## 2024.1.0
 
