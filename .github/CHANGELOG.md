@@ -163,6 +163,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan - @TCdr
 1. [GPU] External power becomes available as soon as the sim's ground power does (GSX GPU, sim GPU or jetway power connected after the flight is loaded), without waiting for the GPU door animation - @TCdr
 1. [EFB] Taxi page on the A380: taxiways narrower than 25 m (code F) or limited to a smaller wingspan in the airport map are avoided by the suggested route, marked on the map and flagged in a cleared route; widths without data show as not verified; an airport check gives the share of the taxi lines under 25 m and warns when no route to the departure runway entry is wide enough (A380 AC 3-3-3: code 4E aerodromes only under specific conditions) - @TCdr
+1. [EFB] Services page: a long GSX menu scrolls inside the GSX card instead of running past it, and its close link no longer overlaps the last menu buttons - @TCdr
 
 ## 2024.1.0
 
