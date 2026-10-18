@@ -1,0 +1,120 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X OIS and ATC datalink system model - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X OIS and ATC datalink system model</h1>
+<div class="subtitle">The IMA / datalink model the OIS applications build on: ATC MSG lights and RING inhibited in takeoff and landing with the uplinks rejected then, the ARU start of the FLT OPS network (STANDALONE), the OIS MENU and OIS XFR keys (X-OIS), COMPANY COM weather request and free text, EXIT SESSION, and printing a COMPANY COM message</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>The OITs (FLT OPS and NSS AVNCS sides), the laptop keyboards (OIS MENU, OIS XFR), the ATC MSG pbs and the SD ATC mailbox</span>
+<b>Branch</b><span><code>core/a380x-ois-datalink</code>, based on <code>master</code> (FlyByWire master 76db0aef1) with <code>core/printer</code>, <code>core/a380x-mailbox-du-reconf</code> and <code>core/a380x-elec</code> merged in: the AOC print goes through the FMS printer of core/printer, the ATC MSG lights of core/a380x-mailbox-du-reconf, the ARU start reads the ANSUs of core/a380x-elec. <code>core/a380x-ois</code> is stacked on it. It holds the OIS and ATC mailbox parts of the IMA/datalink model (83f832d77) and the OIS / AOC part of 30af1a232, both from the <code>core/fcom-gap-fixes</code> archive. Left out: the NSS smoke failures and SMOKE light of 83f832d77 (they build on the smoke detection of <code>core/a380x-elec-fuel-alerts</code>) and the systems host side of the AOC, GPWS / TCAS priorities, WXR knobs, ATC RESET and relight EGT of 30af1a232 (other scopes, on develop only).</span>
+<b>Status</b><span>Not sim-tested on this branch. On develop the OIS MENU and OIS XFR keys (X-OIS) were seen working in the sim with the ACD keys (2026-10-17) and the OIS applications built on this model passed their sim tests (2026-10-18). The ATC MSG inhibition and uplink rejection: vitest specs only.</span>
+<b>Pictures</b><span>No pictures: the X-OIS message, STANDALONE and the forms are small additions to stock OIT pages.</span>
+</div>
+<div class="toc"><div>1. ATC MSG lights and RING inhibited in takeoff and landing</div><div>2. ARU start: STANDALONE and SYNCHRONIZATION NOT AVAIL</div><div>3. OIS MENU and OIS XFR keys (X-OIS)</div><div>4. COMPANY COM weather request and free text</div><div>5. EXIT SESSION</div><div>6. Printing a COMPANY COM message</div></div>
+<h2>1. ATC MSG lights and RING inhibited in takeoff and landing</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Glareshield ATC MSG pbs, ATC mailbox on the SD &nbsp;|&nbsp; <b>Status:</b> Not sim-tested on this branch; vitest specs pass (check-only OIT, MFD, SystemsHost, SDv2).</div>
+<h3>What it is for</h3>
+<p>During takeoff and landing the ATC MSG pb lights and the RING stay off. An uplink received then, or a sixth uplink that needs an answer while five already wait for one, is rejected: the ATC center gets an automatic ERROR downlink. A message that already waits flashes again after the phase.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>An uplink waits, FWS phase 3 to 7 (takeoff power to 1500 ft) or 9 to 10 (800 ft to 80 kt)</td><td>ATC MSG lights dark, no RING.</td></tr><tr><td>A new uplink arrives in those phases</td><td>It is not shown; the center receives ERROR.</td></tr><tr><td>After the phase, a message still waits</td><td>The ATC MSG lights flash again.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Taxi is not inhibited.</td><td>Design choice: the manual names taxiing in one sentence only; inhibiting the taxi would reject the taxi and departure clearances. Same phases as the COMPANY MSG memo inhibition.</td><td>None.</td></tr><tr><td>A32NX unchanged.</td><td>The rules are behind the A380X mailbox flag of the shared ATC datalink.</td><td>None.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to do: the inhibition follows the FWS flight phase.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Hoppie connected, logged on: have the center send a message during the takeoff roll.</td><td>No ATC MSG light, no RING; the center receives an ERROR message.</td></tr><tr><td>2</td><td>Have a message sent before takeoff power and leave it unread through the takeoff.</td><td>The lights stop at takeoff power and flash again above 1500 ft.</td></tr></table>
+<h2>2. ARU start: STANDALONE and SYNCHRONIZATION NOT AVAIL</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> OIT FLT OPS side: Login page and FLT OPS STS page &nbsp;|&nbsp; <b>Status:</b> Not sim-tested on this branch; vitest specs pass (check-only OIT, MFD, SystemsHost, SDv2).</div>
+<h3>What it is for</h3>
+<p>The laptops connect to the FLT OPS network through the ARU, which operates 2 minutes after the FLT OPS ANSU is powered. A laptop started before that, or without the network, works as a stand-alone: STANDALONE on its Login page and SYNCHRONIZATION NOT AVAIL on the FLT OPS STS page.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The ARU follows the FLT OPS ANSU.</td><td>Design choice: the ARU supply and failures are not modelled.</td><td>None.</td></tr><tr><td>A laptop started before the ARU stays a stand-alone.</td><td>As the manual: restart it once the ARU operates.</td><td>Log off and start the laptop again.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>After a power-up, wait 2 minutes before starting the laptops.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Cold and dark, power up, start the FLT OPS laptop at once.</td><td>Login page: STANDALONE.</td></tr><tr><td>2</td><td>Wait 2 minutes, restart the laptop.</td><td>No STANDALONE; FLT OPS STS without SYNCHRONIZATION NOT AVAIL.</td></tr></table>
+<h2>3. OIS MENU and OIS XFR keys (X-OIS)</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Laptop keyboards (and the ACD keys with core/a380x-cockpit): OIS MENU, OIS XFR &nbsp;|&nbsp; <b>Status:</b> Seen working in the sim on develop with the ACD keys (2026-10-17). Not sim-tested on this branch; vitest specs pass (check-only OIT, MFD, SystemsHost, SDv2).</div>
+<h3>What it is for</h3>
+<p>OIS MENU shows the FLT OPS menu. OIS XFR starts X-OIS: the OIT shows the FLT OPS page of the other OIT with "X-OIS Activated", and follows it; OIS XFR again (or OIS MENU) ends it.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>X-OIS shows the other OIT's page, with this OIT's own laptop data.</td><td>Design choice: the two OITs share only the page code (L:A380X_OIT_CAPT/FO_FLT_OPS_PAGE); the synced bus does not reach the other OIT of the same VCockpit.</td><td>None.</td></tr><tr><td>The ACD keys need core/a380x-cockpit.</td><td>The ACD legends and click areas are there.</td><td>Use the laptop keyboard keys.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Press OIS XFR to see the other side's FLT OPS page; press it again to come back.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>F/O OIT on T.O PERF, CAPT OIT on the menu: CAPT presses OIS XFR.</td><td>CAPT OIT shows T.O PERF with "X-OIS Activated".</td></tr><tr><td>2</td><td>CAPT presses OIS XFR again.</td><td>CAPT OIT back on its menu.</td></tr></table>
+<h2>4. COMPANY COM weather request and free text</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> NSS AVNCS > COMPANY COM &nbsp;|&nbsp; <b>Status:</b> Not sim-tested on this branch; vitest specs pass (check-only OIT, MFD, SystemsHost, SDv2).</div>
+<h3>What it is for</h3>
+<p>COMPANY COM gets a METAR / TAF request page and a free text page, sent through the AOC (Hoppie network); the answers come into the Inbox.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No NOTAM request.</td><td>The datalink has no NOTAM source.</td><td>None.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>COMPANY COM > Requests > Weather: enter the airports, tick METAR / TAF, SEND.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Hoppie connected: request the METAR of the departure airport.</td><td>The answer arrives in the Inbox.</td></tr></table>
+<h2>5. EXIT SESSION</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> OIT FLT OPS MENU page &nbsp;|&nbsp; <b>Status:</b> Not sim-tested on this branch; vitest specs pass (check-only OIT, MFD, SystemsHost, SDv2).</div>
+<h3>What it is for</h3>
+<p>EXIT SESSION returns to the Login page and clears the FLT OPS STS page for the next flight. It is not available while the FLT FOLDER is open.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>None known.</td><td>-</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Close the FLT FOLDER, then FLT OPS MENU > EXIT SESSION.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Enter a flight number on FLT OPS STS, then EXIT SESSION.</td><td>Login page; after the login FLT OPS STS is empty.</td></tr><tr><td>2</td><td>Open the FLT FOLDER, back to the menu.</td><td>EXIT SESSION greyed.</td></tr></table>
+<h2>6. Printing a COMPANY COM message</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> NSS AVNCS > COMPANY COM > Inbox, pedestal printer &nbsp;|&nbsp; <b>Status:</b> Not sim-tested on this branch; vitest specs pass (check-only OIT, MFD, SystemsHost, SDv2).</div>
+<h3>What it is for</h3>
+<p>PRINT under a displayed Inbox message prints it (subject, sender, reception time, text) on the pedestal printer, through the FMS printer of the MFD. The AOC also gets a downlink inhibition (no messages sent, uplinks still received) for the NSS DATA TO AVNCS pb-sw.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>NSS DATA TO AVNCS OFF does not stop the AOC downlinks yet.</td><td>The systems host part that reads the pb-sw (and hosts the AOC on the ANSUs) builds on avionics network alerts that are on develop only.</td><td>None.</td></tr><tr><td>No print while the printer is off or unpowered.</td><td>The FMS printer answers PRINTER NOT AVAIL.</td><td>Switch the printer on.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Inbox > select a message > PRINT.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Receive a company message, open it in the Inbox, PRINT.</td><td>The pedestal printer prints it.</td></tr><tr><td>2</td><td>No message selected.</td><td>PRINT greyed.</td></tr></table>
+</body></html>
