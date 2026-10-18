@@ -103,3 +103,32 @@ export function areRamAirInletsOpen(ramAirPbOn: boolean, diffPressurePsi: number
 export function ramAirMemoIndex(onGround: boolean, anyEngineRunning: boolean): 0 | 1 {
   return onGround && !anyEngineRunning ? 0 : 1;
 }
+
+/**
+ * The CPCS applications of the four CPIOM B that report a failure while their CPIOM B is powered. An unpowered CPIOM B
+ * also sends a failure word, but it has not failed: at a power-up (EXT PWR, APU) the CPIOM B buses come back one after
+ * the other. The other CPIOM B applications (AGS, TCS, VCS) are monitored the same way.
+ * @param cpcsFailureWarnings the CPCS discrete word of CPIOM B1 to B4 is in failure warning
+ * @param cpiomsPowered the bus of CPIOM B1 to B4 is powered
+ */
+export function failedPoweredCpcsCount(
+  cpcsFailureWarnings: readonly boolean[],
+  cpiomsPowered: readonly boolean[],
+): number {
+  return cpcsFailureWarnings.filter((failureWarning, index) => failureWarning && cpiomsPowered[index]).length;
+}
+
+/**
+ * CAB PRESS AUTO CTL FAULT: all four CPCS applications have failed (powered, see failedPoweredCpcsCount), or all four
+ * OCSM automatic partitions have failed.
+ * @param cpcsFailureWarnings the CPCS discrete word of CPIOM B1 to B4 is in failure warning
+ * @param cpiomsPowered the bus of CPIOM B1 to B4 is powered
+ * @param ocsmAutoFailures the automatic partition of OCSM 1 to 4 has failed
+ */
+export function isCabPressAutoCtlFault(
+  cpcsFailureWarnings: readonly boolean[],
+  cpiomsPowered: readonly boolean[],
+  ocsmAutoFailures: readonly boolean[],
+): boolean {
+  return failedPoweredCpcsCount(cpcsFailureWarnings, cpiomsPowered) === 4 || ocsmAutoFailures.every((failed) => failed);
+}

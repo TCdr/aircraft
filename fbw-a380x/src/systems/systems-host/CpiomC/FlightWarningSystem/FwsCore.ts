@@ -191,6 +191,8 @@ import { FwsNavAlerts, adrFaultyForNavAlerts, readSideDisplayData } from './FwsN
 import {
   areRamAirInletsOpen,
   ExcessNegativeDiffPressMonitor,
+  failedPoweredCpcsCount,
+  isCabPressAutoCtlFault,
   isDiffPressHi,
   isLdgElevnFault,
   ramAirMemoIndex,
@@ -5539,17 +5541,25 @@ export class FwsCore {
       SimVar.GetSimVarValue('L:A32NX_PRESS_OCSM_4_AUTO_PARTITION_FAILURE', SimVarValueType.Bool) > 0,
     );
 
-    // FIX ME Faults should be inhibited in case of all CPC words FW to handle unpowered states.
-    // Currently these are set as FW if cpiom/cpc is unpowered or normally failed so it's not possible to distinugish between the two cases.
+    const cpcsFailureWarnings = [
+      this.cpiomBCpcsAppDiscreteWord1.isFailureWarning(),
+      this.cpiomBCpcsAppDiscreteWord2.isFailureWarning(),
+      this.cpiomBCpcsAppDiscreteWord3.isFailureWarning(),
+      this.cpiomBCpcsAppDiscreteWord4.isFailureWarning(),
+    ];
+    const cpiomBsPowered = [
+      this.dc1BusPowered.get(),
+      this.dc108PhBusPowered.get(),
+      this.dc108PhBusPowered.get(),
+      this.dc2BusPowered.get(),
+    ];
     this.ocsmAutoCtlFault.set(
-      (this.cpiomBCpcsAppDiscreteWord1.isFailureWarning() &&
-        this.cpiomBCpcsAppDiscreteWord2.isFailureWarning() &&
-        this.cpiomBCpcsAppDiscreteWord3.isFailureWarning() &&
-        this.cpiomBCpcsAppDiscreteWord4.isFailureWarning()) ||
-        (this.ocsm1AutoFailure.get() &&
-          this.ocsm2AutoFailure.get() &&
-          this.ocsm3AutoFailure.get() &&
-          this.ocsm4AutoFailure.get()),
+      isCabPressAutoCtlFault(cpcsFailureWarnings, cpiomBsPowered, [
+        this.ocsm1AutoFailure.get(),
+        this.ocsm2AutoFailure.get(),
+        this.ocsm3AutoFailure.get(),
+        this.ocsm4AutoFailure.get(),
+      ]),
     );
 
     const ocsm1Channel1Failure =
@@ -5574,24 +5584,7 @@ export class FwsCore {
     this.ocsm3Failure.set(ocsm3Channel1Failure && ocsm3Channel2Failure);
     this.ocsm4Failure.set(ocsm4Channel1Failure && ocsm4Channel2Failure);
 
-    let numberOfCpcsFaults = 0;
-    if (this.cpiomBCpcsAppDiscreteWord1.isFailureWarning()) {
-      numberOfCpcsFaults++;
-    }
-
-    if (this.cpiomBCpcsAppDiscreteWord2.isFailureWarning()) {
-      numberOfCpcsFaults++;
-    }
-
-    if (this.cpiomBCpcsAppDiscreteWord3.isFailureWarning()) {
-      numberOfCpcsFaults++;
-    }
-
-    if (this.cpiomBCpcsAppDiscreteWord4.isFailureWarning()) {
-      numberOfCpcsFaults++;
-    }
-
-    this.pressRedundLost.set(numberOfCpcsFaults > 1);
+    this.pressRedundLost.set(failedPoweredCpcsCount(cpcsFailureWarnings, cpiomBsPowered) > 1);
 
     this.pressSysFault.set(
       this.ocsm1Failure.get() && this.ocsm2Failure.get() && this.ocsm3Failure.get() && this.ocsm4Failure.get(),

@@ -8,6 +8,8 @@ import {
   areRamAirInletsOpen,
   diffPressHiItemsToShow,
   ExcessNegativeDiffPressMonitor,
+  failedPoweredCpcsCount,
+  isCabPressAutoCtlFault,
   isDiffPressHi,
   isLdgElevnFault,
   ldgElevnFaultItemsToShow,
@@ -124,5 +126,35 @@ describe('RAM AIR memo', () => {
     expect(messageIndex).toContain("'210000003': '\\x1b<4mRAM AIR',");
     expect(memos).toContain('simVarIsActive: this.fws.ramAirInletsOpen,');
     expect(memos).toContain("codesToReturn: ['210000002', '210000003'],");
+  });
+});
+
+describe('CAB PRESS CTL REDUNDANCY LOST and AUTO CTL FAULT: CPCS applications of the CPIOM B', () => {
+  const ALL_POWERED = [true, true, true, true];
+
+  it('counts a failed CPCS application only while its CPIOM B is powered', () => {
+    expect(failedPoweredCpcsCount([true, true, false, false], ALL_POWERED)).toBe(2);
+    expect(failedPoweredCpcsCount([true, true, false, false], [true, false, true, true])).toBe(1);
+  });
+
+  it('raises no redundancy loss while the CPIOM B come back one after the other at an EXT PWR power-up', () => {
+    // B1 and B4 (DC 1 and DC 2) not powered yet: their words read failure, they did not fail
+    const unpoweredFailureWords = [true, false, false, true];
+    expect(failedPoweredCpcsCount(unpoweredFailureWords, [false, true, true, false])).toBe(0);
+  });
+
+  it('has an AUTO CTL FAULT when all four powered CPCS applications or all four OCSM automatic partitions fail', () => {
+    expect(isCabPressAutoCtlFault([true, true, true, true], ALL_POWERED, [false, false, false, false])).toBe(true);
+    expect(isCabPressAutoCtlFault([false, false, false, false], ALL_POWERED, [true, true, true, true])).toBe(true);
+    expect(isCabPressAutoCtlFault([true, true, true, false], ALL_POWERED, [false, false, false, false])).toBe(false);
+  });
+
+  it('has no AUTO CTL FAULT while the CPIOM B are not powered', () => {
+    expect(
+      isCabPressAutoCtlFault([true, true, true, true], [false, false, false, false], [false, false, false, false]),
+    ).toBe(false);
+    expect(
+      isCabPressAutoCtlFault([true, true, true, true], [true, true, true, false], [false, false, false, false]),
+    ).toBe(false);
   });
 });
