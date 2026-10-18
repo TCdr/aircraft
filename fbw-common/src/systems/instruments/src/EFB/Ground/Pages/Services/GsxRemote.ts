@@ -40,8 +40,8 @@ export interface GsxService {
   progress?: { current: number; total: number; unit: string };
   /** Compact progress, e.g. 120/180 or 42 % */
   progressText?: string;
-  /** GSX's detail of the service: the fuel of a refuelling */
-  detail?: { fuel?: GsxFuelDetail };
+  /** GSX's detail of the service: the jetway or stairs phase (also once completed), the fuel of a refuelling */
+  detail?: { phase?: string; fuel?: GsxFuelDetail };
 }
 
 /** The fuel of a GSX refuelling, in GSX's unit (lb or kg, the GSX setting) */
@@ -387,10 +387,32 @@ export function gsxServiceLook(service: GsxService | undefined): GsxServiceLook 
       return service.waiting ? 'called' : 'active';
     case 'completing':
       return 'released';
+    case 'completed':
+      return gsxDocked(service) ? 'active' : 'inactive';
     default:
       return 'inactive';
   }
 }
+
+const isJetwayOrStairs = (service: GsxService): boolean =>
+  service.id === GsxServiceId.OperateJetways || service.id === GsxServiceId.OperateStairs;
+
+/**
+ * The jetway or stairs is docked. Each trigger docks or undocks it, and GSX 4 reports either move as completed; only
+ * its phase says which move was done.
+ */
+export const gsxDocked = (service: GsxService | undefined): boolean =>
+  service !== undefined &&
+  isJetwayOrStairs(service) &&
+  service.state === 'completed' &&
+  service.detail?.phase === 'docked';
+
+/**
+ * GSX 4 sends no canTrigger once a jetway or stairs move is completed, yet accepts the next trigger; a docked one
+ * reads as connected instead (gsxServiceLook)
+ */
+const retriggerableJetwayOrStairs = (service: GsxService): boolean =>
+  isJetwayOrStairs(service) && service.state === 'completed' && !gsxDocked(service);
 
 /**
  * The action chip of a turnaround step: Request while GSX offers the service, Stop while it runs and GSX lets it be
@@ -403,7 +425,9 @@ export function gsxServiceLook(service: GsxService | undefined): GsxServiceLook 
  */
 export function gsxTurnaroundAction(service: GsxService): 'request' | 'stop' | null {
   const look = gsxServiceLook(service);
-  const requestable = typeof service.canTrigger === 'boolean' ? service.canTrigger : service.state === 'available';
+  const requestable =
+    retriggerableJetwayOrStairs(service) ||
+    (typeof service.canTrigger === 'boolean' ? service.canTrigger : service.state === 'available');
   if (look === 'inactive') {
     return requestable ? 'request' : null;
   }

@@ -159,4 +159,21 @@ describe('useGsxServiceLink', () => {
     expect(runHook(50000).gsxStatus(Button.FuelTruck).text).toBe('Refueling 10%');
     expect(runHook().gsxStatus(Button.FuelTruck).text).toBe('Refueling 99%');
   });
+
+  it('shows a docked GSX jetway connected with Release, though GSX reports it completed and the sim does not see it', () => {
+    fake.linkSetting = 1;
+    fake.gsx = gsxState(true, [
+      {
+        id: GsxServiceId.OperateJetways,
+        displayName: 'Jetway',
+        state: 'completed',
+        canTrigger: false,
+        detail: { phase: 'docked' },
+      } as GsxService,
+    ]);
+    const link = runHook();
+
+    expect(link.shownLook(Button.JetBridge, 'inactive')).toBe('active');
+    expect(link.gsxStatus(Button.JetBridge).text).toBe('');
+  });
 });

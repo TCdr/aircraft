@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { GsxService, gsxRefuelProgress, gsxRequestable, gsxTurnaroundAction } from './GsxRemote';
+import { GsxService, gsxRefuelProgress, gsxRequestable, gsxServiceLook, gsxTurnaroundAction } from './GsxRemote';
 
 const service = (state: string, canTrigger?: boolean): GsxService =>
   ({ id: 'Catering', displayName: 'Catering', state, canTrigger }) as GsxService;
@@ -32,6 +32,29 @@ describe('GSX turnaround step action', () => {
     expect(gsxTurnaroundAction(service('requested', false))).toBeNull();
     expect(gsxTurnaroundAction(service('completing', false))).toBeNull();
     expect(gsxTurnaroundAction(service('unavailable', false))).toBeNull();
+  });
+});
+
+describe('GSX jetway and stairs', () => {
+  // GSX 4 reports them completed without canTrigger after a dock and after an undock alike; the phase tells which
+  const operated = (id: string, state: string, phase?: string): GsxService =>
+    ({ id, displayName: id, state, canTrigger: false, detail: phase ? { phase } : undefined }) as GsxService;
+
+  it('look connected once docked, with no Request', () => {
+    expect(gsxServiceLook(operated('OperateJetways', 'completed', 'docked'))).toBe('active');
+    expect(gsxRequestable(operated('OperateJetways', 'completed', 'docked'))).toBe(false);
+  });
+
+  it('offer Request again once undocked: GSX accepts the next trigger though it sends no canTrigger', () => {
+    expect(gsxServiceLook(operated('OperateJetways', 'completed', 'undocked'))).toBe('inactive');
+    expect(gsxRequestable(operated('OperateJetways', 'completed', 'undocked'))).toBe(true);
+    expect(gsxRequestable(operated('OperateStairs', 'completed', 'undocked'))).toBe(true);
+  });
+
+  it('offer no Request while GSX operates them or does not have them', () => {
+    expect(gsxRequestable(operated('OperateJetways', 'performing', 'docking'))).toBe(false);
+    expect(gsxRequestable(operated('OperateJetways', 'requested'))).toBe(false);
+    expect(gsxRequestable(operated('OperateJetways', 'unavailable'))).toBe(false);
   });
 });
 
