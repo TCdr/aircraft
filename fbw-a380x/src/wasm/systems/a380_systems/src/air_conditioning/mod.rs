@@ -2902,6 +2902,10 @@ mod tests {
                 .value()
         }
 
+        fn cabin_delta_pressure_word(&mut self) -> Arinc429Word<Pressure> {
+            self.read_arinc429_by_name("PRESS_CABIN_DELTA_PRESSURE_B1")
+        }
+
         fn cabin_target_vertical_speed(&mut self) -> Velocity {
             Velocity::new::<foot_per_minute>(
                 self.read_arinc429_by_name("PRESS_CABIN_VS_TARGET_B1")
@@ -3103,6 +3107,36 @@ mod tests {
 
     mod a380_pressurization_tests {
         use super::*;
+
+        #[test]
+        fn no_residual_diff_pressure_when_the_adirs_ambient_pressure_comes_on_a_high_pressure_day()
+        {
+            // The ADIRUs need AC power: in a cold and dark aircraft their ambient pressure arrives only when EXT PWR
+            // comes on, after the outflow valve controllers and the CPCS have started
+            let high_pressure_day = Pressure::new::<hectopascal>(1030.);
+            let mut test_bed = test_bed()
+                .command_ambient_pressure_fault(true)
+                .on_ground()
+                .ambient_pressure_of(high_pressure_day)
+                .command_packs_on_off(false)
+                .iterate(20);
+            assert!(!test_bed.cabin_delta_pressure_word().is_normal_operation());
+
+            test_bed = test_bed.command_ambient_pressure_fault(false);
+            for _ in 0..50 {
+                test_bed = test_bed.iterate_with_delta(1, Duration::from_millis(100));
+                let delta_pressure = test_bed.cabin_delta_pressure_word();
+                if delta_pressure.is_normal_operation() {
+                    assert!(
+                        delta_pressure.value().get::<psi>()
+                            < A380PressurizationConstants::EXCESSIVE_RESIDUAL_PRESSURE_WARNING,
+                        "cabin delta pressure {} psi",
+                        delta_pressure.value().get::<psi>()
+                    );
+                }
+                assert!(!test_bed.cpcs_discrete_word_bit(18));
+            }
+        }
 
         #[test]
         fn conversion_from_pressure_to_altitude_works() {

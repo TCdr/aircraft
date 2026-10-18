@@ -318,6 +318,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FIRE] Smoke Detection Function for the cargo compartments, the avionics bays and the IFE bay with new flyPad failures: their SMOKE warnings and SMOKE DET FAULT cautions, and the FWD+AFT CARGO BTL 1(2) FAULT cautions; the AGENT TO FWD/AFT pbs now discharge the two cargo fire bottles (SMOKE, DISCH and BTL lights) - @TCdr
 1. [A380X/PRESS] Automatic pressurization keeps the cabin differential pressure in the normal range in cruise above the FMS cruise FL or after an FMS reset, instead of drifting to the 9 PSI pressure limiter - @TCdr
 1. [A380X/FWS] No more CAB PRESS caution and master caution when the aircraft is powered up with EXT PWR or the APU: a cabin pressure controller that is not powered yet no longer counts as failed - @TCdr
+1. [A380X/PRESS] No more red CAB PRESS EXCESS RESIDUAL DIFF PRESS warning at power-up on a high pressure day: the outflow valve controllers start from the first ADIRS ambient pressure instead of moving to it from the standard pressure - @TCdr
 
 ## 2024.1.0
 
