@@ -207,6 +207,8 @@ pub fn a320_engine_start_schedule() -> EngineStartSchedule {
         // stays a ground start fault.
         monitors_in_flight_start_air: false,
         start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(725.),
+        // No published A320 relight EGT limit: not monitored.
+        relight_egt_limit: None,
         // A standard automatic start, one starter cycle, makes up to three start attempts.
         automatic_start_attempts: 3,
         // Design choice: a dry crank that clears the fuel vapours lasts at least 30 s; the length
