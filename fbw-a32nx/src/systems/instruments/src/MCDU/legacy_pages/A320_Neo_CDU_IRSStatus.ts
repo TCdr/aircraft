@@ -5,6 +5,7 @@ import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { SimVarValueType } from '@microsoft/msfs-sdk';
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { FmsFormatters } from '../legacy/FmsFormatters';
+import { NO_POSITION_TEXT } from './PositionMonitorFields';
 
 export class CDUIRSStatus {
   private static frozen = false;
@@ -119,14 +120,24 @@ export class CDUIRSStatus {
   private static readonly irWindDirection = Arinc429Register.empty();
   private static readonly irWindSpeed = Arinc429Register.empty();
   private static readonly gpirsCoordinates: Coordinates = { lat: 0, long: 0 };
+  private static readonly gpirsLatitude = Arinc429Register.empty();
+  private static readonly gpirsLongitude = Arinc429Register.empty();
+  private static readonly gpirsFigureOfMerit = Arinc429Register.empty();
+
+  /** The GPIRS figure of merit word is in NM, the page shows it in feet */
+  private static readonly FEET_PER_NM = 6076.12;
 
   static ShowPage(mcdu: LegacyFmsPageInterface, index: 1 | 2 | 3, frozenTime?: string): void {
     if (!this.frozen) {
       mcdu.clearDisplay();
       this.populateIrData(index);
-      // TODO hookup GPIRS to calculated position from FM when implemented
-      this.gpirsCoordinates.lat = SimVar.GetSimVarValue('GPS POSITION LAT', 'degree latitude');
-      this.gpirsCoordinates.long = SimVar.GetSimVarValue('GPS POSITION LON', 'degree longitude');
+      // [5L] GPIRS: the hybrid GPS/IRS position of this ADIRU; [4R] GPIRS ACCUR: its figure of merit
+      this.gpirsLatitude.setFromSimVar(`L:A32NX_ADIRS_IR_${index}_GPIRS_LATITUDE`);
+      this.gpirsLongitude.setFromSimVar(`L:A32NX_ADIRS_IR_${index}_GPIRS_LONGITUDE`);
+      this.gpirsFigureOfMerit.setFromSimVar(`L:A32NX_ADIRS_IR_${index}_GPIRS_FIGURE_OF_MERIT`);
+      const gpirsValid = this.gpirsLatitude.isNormalOperation() && this.gpirsLongitude.isNormalOperation();
+      this.gpirsCoordinates.lat = this.gpirsLatitude.value;
+      this.gpirsCoordinates.long = this.gpirsLongitude.value;
       this.frozen = frozenTime !== undefined;
       mcdu.setTemplate([
         [`IRS${index} ${this.frozen ? `FROZEN {small}AT{end} ${frozenTime}` : ''}`],
@@ -159,10 +170,16 @@ export class CDUIRSStatus {
           this.irWindDirection.isInvalid() || this.irWindSpeed.isInvalid()
             ? '---°/--[color]white'
             : `${Math.round(this.irWindDirection.value)}°/${Math.round(this.irWindSpeed.value)}[color]green`,
-          '200FT[color]green',
+          gpirsValid && this.gpirsFigureOfMerit.isNormalOperation()
+            ? `${Math.round(this.gpirsFigureOfMerit.value * this.FEET_PER_NM)}FT[color]green`
+            : '----[color]white',
         ],
         ['GPIRS POSITION'],
-        [`${coordinateToString(this.gpirsCoordinates, false)}[color]green`],
+        [
+          gpirsValid
+            ? `${coordinateToString(this.gpirsCoordinates, false)}[color]green`
+            : `${NO_POSITION_TEXT}[color]white`,
+        ],
         ['', ''],
         [this.frozen ? '{UNFREEZE[color]cyan' : '{FREEZE[color]cyan', 'NEXT IRS>'],
       ]);

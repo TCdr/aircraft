@@ -91,10 +91,8 @@ export abstract class OitFltOpsHeader extends DisplayComponent<OitFltOpsHeaderPr
             },
             {
               label: 'EXIT SESSION',
-              action: () => {
-                this.props.uiService.navigateTo('flt-ops');
-                this.props.uiService.fltOpsLoginScreenVisible.set(true);
-              },
+              // Does nothing while the FLT FOLDER is open
+              action: () => this.props.uiService.exitFltOpsSession(),
               disabled: false,
             },
           ]}

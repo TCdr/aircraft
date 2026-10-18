@@ -44,6 +44,16 @@ pub enum FailureType {
     TransformerRectifier(usize),
     StaticInverter,
     ElectricalBus(ElectricalBusType),
+    /// Battery n is failed (A380: 1 = BAT 1, 2 = BAT 2, 3 = BAT ESS, 4 = APU BAT): its charge
+    /// control disconnects it from its DC busbar and lights its FAULT light
+    Battery(usize),
+    /// External power unit n, or its generator control unit, is failed: it cannot supply the network
+    ExternalPower(usize),
+    /// The emergency generator (A380: the RAT generator) gives no output
+    EmergencyGenerator,
+    /// The disconnection function of engine generator drive n failed: its DRIVE pb no longer
+    /// disconnects the generator from the engine
+    GeneratorDriveDisconnect(usize),
     // ATA26
     SetOnFire(FireDetectionZone),
     FireDetectionLoop(FireDetectionLoopID, FireDetectionZone),
@@ -65,6 +75,8 @@ pub enum FailureType {
     RadioAntennaInterrupted(usize),
     RadioAntennaDirectCoupling(usize),
     EnhancedGroundProximityWarningSystemComputer,
+    /// The GPS receiver of MMR 1 or 2
+    Gps(usize),
 }
 
 pub struct Failure {

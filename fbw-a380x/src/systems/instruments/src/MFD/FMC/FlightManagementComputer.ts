@@ -76,6 +76,7 @@ import { ActiveUriInformation } from '../pages/common/MfdUiService';
 import { A380FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/A380FlightPlanPerformanceData';
 import { EfisInterface } from '@fmgc/efis/EfisInterface';
 import { Navigation } from '@fmgc/navigation/Navigation';
+import { A380_FM_POSITION_CONFIG } from '@fmgc/navigation/FmPosition';
 import { EfisSymbols } from '@fmgc/efis/EfisSymbols';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { NavigationDatabase, NavigationDatabaseBackend } from '@fmgc/NavigationDatabase';
@@ -93,6 +94,10 @@ import { clampFmcUpdateStep } from './FmcUpdateStep';
 import { CompanyTakeoffData } from './CompanyTakeoffData';
 import { TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FmsPrinter } from './FmsPrinter';
+import { FmsAdvisoryMessages } from './FmsAdvisoryMessages';
+import { AtcRouteClearanceLoader } from './AtcRouteClearanceLoader';
+import { RejectedAtcElement } from './AtcRouteClearance';
+import { FmsDatalinkConnection } from './FmsDatalinkConnection';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
@@ -231,6 +236,12 @@ export class FlightManagementComputer implements FmcInterface {
     return this.#navigation?.getStaticAirTemperature() ?? null;
   }
 
+  /** The aircraft position, null before the first navigation update (0/0) */
+  private knownPresentPosition(): Coordinates | null {
+    const ppos = this.#navigation.getPpos();
+    return ppos && (ppos.lat !== 0 || ppos.long !== 0) ? ppos : null;
+  }
+
   get navaidTuner() {
     if (this.instance !== FmcIndex.FmcA) {
       throw new Error('Multiple navaid tuners not supported!');
@@ -249,8 +260,35 @@ export class FlightManagementComputer implements FmcInterface {
   /** The FMS print functions (FMC-A, created with the first update, once the FMC is initialized) */
   #printer: FmsPrinter | null = null;
 
+  /** The type II FMS messages raised from the FMS data each cycle (FMC-A only, it has the navigation) */
+  #advisoryMessages: FmsAdvisoryMessages | null = null;
+
   get printer(): FmsPrinter | null {
     return this.#printer;
+  }
+
+  /** Connects the datalink networks with the flight number of the active flight plan (FMC-A) */
+  readonly #datalinkConnection =
+    this.instance === FmcIndex.FmcA
+      ? new FmsDatalinkConnection(this.bus, () =>
+          this.addMessageToQueue(
+            NXSystemMessages.fmsDatalinkNotAvail,
+            () => this.#datalinkConnection?.isAvailable ?? true,
+            undefined,
+          ),
+        )
+      : null;
+
+  /** The last flight number of the active flight plan sent to the aircraft systems */
+  #activeFlightNumber: string | null = null;
+
+  /** Loads the route clearances of the ATC mailbox in SEC 3 (FMC-A) */
+  #atcRouteClearance: AtcRouteClearanceLoader<A380FlightPlanPerformanceData> | null = null;
+
+  private static readonly noRejectedAtcElements = Subject.create<readonly RejectedAtcElement[]>([]);
+
+  get atcRejectedElements(): Subscribable<readonly RejectedAtcElement[]> {
+    return this.#atcRouteClearance?.rejectedElements ?? FlightManagementComputer.noRejectedAtcElements;
   }
 
   get lastSequencedWaypoint() {
@@ -523,7 +561,8 @@ export class FlightManagementComputer implements FmcInterface {
     const db = new NavigationDatabase(this.bus, NavigationDatabaseBackend.Msfs);
     NavigationDatabaseService.activeDatabase = db;
 
-    this.#navigation = new Navigation(this.bus, this.flightPlanInterface);
+    // A380 FM/GPS POS DISAGREE thresholds and takeoff position update rule (see FmPosition.ts)
+    this.#navigation = new Navigation(this.bus, this.flightPlanInterface, A380_FM_POSITION_CONFIG);
     if (this.instance === FmcIndex.FmcA) {
       this.#sequencedWaypointRecorder = new SequencedWaypointRecorder(
         this.flightPlanInterface,
@@ -532,6 +571,12 @@ export class FlightManagementComputer implements FmcInterface {
         () => ({ direction: this.#navigation.getWindDirection(), speed: this.#navigation.getWindSpeed() }),
         () => this.fmgc.getFOB(),
       );
+      this.#atcRouteClearance = new AtcRouteClearanceLoader(this.bus, this, {
+        presentPosition: () => this.knownPresentPosition(),
+        // RTA NOT ALLOWED IN EO / IN GA: no RTA with an engine out or in go around
+        rtaAllowed: () => !this.fmgc.data.engineOut.get() && this.flightPhase.get() !== FmgcFlightPhase.GoAround,
+        beforeCruise: () => this.flightPhase.get() < FmgcFlightPhase.Cruise,
+      });
     }
 
     // FIXME implement sync between FMCs and also let FMC-B and FMC-C compute
@@ -1567,11 +1612,18 @@ export class FlightManagementComputer implements FmcInterface {
     const zfwCgDiff = this.computeZfwCgDiffToSecondary(index);
     const oldDestination = this.#flightPlanService.active?.destinationAirport;
 
+    // The time constraints go with their flight plans
+    const secondaryPlanIndex = FlightPlanIndex.FirstSecondary + index - 1;
+    const secondaryRta = this.secondaryTimeConstraint(secondaryPlanIndex);
+    const activeRta = this.timeConstraint.get();
+
     if (this.#flightPlanService.hasActive) {
       await this.#flightPlanService.activeAndSecondarySwap(index, !this.enginesWereStarted.get());
+      this.setSecondaryTimeConstraint(secondaryPlanIndex, activeRta);
     } else {
       await this.#flightPlanService.secondaryActivate(index, !this.enginesWereStarted.get());
     }
+    this.timeConstraint.set(secondaryRta);
 
     await this.onSecondaryActivated(zfwDiff, zfwCgDiff, oldDestination);
   }
@@ -1633,6 +1685,8 @@ export class FlightManagementComputer implements FmcInterface {
 
     if (forPlan === FlightPlanIndex.Active) {
       await this.onActiveFlightNumberChanged(flightNumber);
+      // A flight number entered again connects the datalink networks again, e.g. after a failed connection
+      this.#datalinkConnection?.reconnect();
     }
 
     return callback(true);
@@ -1669,6 +1723,23 @@ export class FlightManagementComputer implements FmcInterface {
 
     // Send to the sim for third party stuff.
     SimVar.SetSimVarValue('ATC FLIGHT NUMBER', 'string', flightNumber, 'FMC');
+  }
+
+  /**
+   * Follows the flight number of the active flight plan, whatever its source (INIT page entry, company flight plan
+   * uplink, SEC activation, flight number already there when the aircraft is loaded): sends it to the aircraft systems
+   * and connects the datalink networks with it.
+   */
+  private updateActiveFlightNumber(): void {
+    const flightNumber =
+      (this.#flightPlanService.hasActive && this.#flightPlanService.active.flightNumber.get()) || null;
+    if (flightNumber !== this.#activeFlightNumber) {
+      this.#activeFlightNumber = flightNumber;
+      if (flightNumber !== null) {
+        void this.onActiveFlightNumberChanged(flightNumber);
+      }
+    }
+    this.#datalinkConnection?.update(flightNumber);
   }
 
   private computeZfwDiffToSecondary(secIndex: number): number | null {
@@ -1858,6 +1929,34 @@ export class FlightManagementComputer implements FmcInterface {
     }
     this.companyTakeoffData.remove(uplink);
     return true;
+  }
+
+  /** The time constraints of the secondary flight plans (one per flight plan), by flight plan object */
+  readonly #secondaryTimeConstraints = new WeakMap<object, TimeConstraint>();
+
+  /** @inheritdoc */
+  public readonly secondaryTimeConstraintsVersion = Subject.create(0);
+
+  /** @inheritdoc */
+  public secondaryTimeConstraint(planIndex: number): TimeConstraint | null {
+    if (planIndex < FlightPlanIndex.FirstSecondary || !this.#flightPlanService.has(planIndex)) {
+      return null;
+    }
+    return this.#secondaryTimeConstraints.get(this.#flightPlanService.get(planIndex)) ?? null;
+  }
+
+  /** @inheritdoc */
+  public setSecondaryTimeConstraint(planIndex: number, rta: TimeConstraint | null): void {
+    if (planIndex < FlightPlanIndex.FirstSecondary || !this.#flightPlanService.has(planIndex)) {
+      return;
+    }
+    const plan = this.#flightPlanService.get(planIndex);
+    if (rta) {
+      this.#secondaryTimeConstraints.set(plan, rta);
+    } else {
+      this.#secondaryTimeConstraints.delete(plan);
+    }
+    this.secondaryTimeConstraintsVersion.set(this.secondaryTimeConstraintsVersion.get() + 1);
   }
 
   computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined {
@@ -2312,6 +2411,9 @@ export class FlightManagementComputer implements FmcInterface {
       if (this.instance === FmcIndex.FmcA) {
         this.#printer ??= new FmsPrinter(this, this.bus);
         this.#printer.update();
+        this.updateActiveFlightNumber();
+        this.#advisoryMessages ??= new FmsAdvisoryMessages(this);
+        this.#advisoryMessages.update();
       }
       this.updateFuelPlanning();
       this.loadActiveFlightPlanFuelAndApproachData();
@@ -2339,6 +2441,7 @@ export class FlightManagementComputer implements FmcInterface {
         this.acInterface.checkDestEfobBelowMinScratchPadMessage(throttledDt);
         this.acInterface.checkEngineOut();
         this.acInterface.checkLateralDiscontinuityAhead();
+        this.acInterface.checkGpsDeselected();
         const toFlaps = this.fmgc.getTakeoffFlapsSetting();
         this.acInterface.setTakeoffFlaps(toFlaps ?? null);
 

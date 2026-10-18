@@ -106,6 +106,8 @@ export const NXSystemMessages = {
   destEfobBelowMin: new TypeIIMessage('DEST EFOB BELOW MIN', true),
   draftWindsInserted: new TypeIMessage('DRAFT WIND INSERTED'),
   enterDestData: new TypeIIMessage('ENTER DEST DATA', true),
+  // The data communication between the FMS and the Avionics Communication Router is not available
+  fmsDatalinkNotAvail: new TypeIIMessage('FMS DATALINK NOT AVAIL'),
   EntryNotInList: new TypeIMessage('ENTRY NOT IN LIST'),
   entryOutOfRange: new TypeIMessage('ENTRY OUT OF RANGE'),
   formatError: new TypeIMessage('FORMAT ERROR'),
@@ -120,6 +122,10 @@ export const NXSystemMessages = {
   notInDatabase: new TypeIMessage('NOT IN DATABASE'),
   notTransmittedToAcr: new TypeIIMessage('NOT TRANSMITTED TO ACR', false),
   receivedCpnyFplnNotValid: new TypeIIMessage('RECEIVED COMPANY F-PLN NOT VALID', false),
+  // The received ATC F-PLN (LOAD-SEC3 of the mailbox) loaded, partially loaded, or rejected
+  atcFplnInsertedSec3: new TypeIIMessage('ATC F-PLN INSERTED IN SEC 3', false),
+  atcFplnInsertedSec3Rejected: new TypeIIMessage('ATC F-PLN INSERTED IN SEC 3\nREJECTED INFO SEE SEC / INDEX', false),
+  receivedAtcMsgNotValid: new TypeIIMessage('RECEIVED ATC MSG NOT VALID', false),
   receivedCpnyWindNotValid: new TypeIIMessage('RECEIVED COMPANY WIND DATA NOT VALID', false),
   rwyLsDisagree: new TypeIIMessage('RUNWAY / LS DISAGREE', true),
   setHoldSpeed: new TypeIIMessage('SET HOLD SPD'),
@@ -137,14 +143,38 @@ export const NXSystemMessages = {
   sqwkCodeNotValid: new TypeIMessage('SQWK CODE NOT VALID'),
   lrcInUse: new TypeIMessage('LRC MODE IN USE'),
   lateralDiscontinuityAhead: new TypeIIMessage('LATERAL DISCONTINUITY AHEAD', true),
+  // The GPS deselected, 80 NM before the T/D or in APPROACH phase (type II, white)
+  gpsDeselected: new TypeIIMessage('GPS DESELECTED'),
   listOf99InUse: new TypeIMessage('LIST OF 99 IN USE'),
   // A new pilot-stored waypoint rejected, the 50 of the database are used
   wptsMaxAllInUse: new TypeIMessage('50 WPTS MAX : ALL IN USE'),
+  // A printer communication error while printing a report (type II, white)
+  printerNotAvail: new TypeIIMessage('PRINTER NOT AVAIL'),
   pilotRtesListFull: new TypeIMessage('PILOT RTEs LIST FULL'),
   rteIdentAlreadyUsed: new TypeIMessage('RTE IDENT ALREADY USED'),
   someRevisionsNotStored: new TypeIMessage('SOME REVISIONS NOT STORED'),
   // A PLACE/DISTANCE waypoint whose PLACE is not the revised waypoint
   placeWptDisagree: new TypeIMessage('PLACE / WPT DISAGREE'),
+  // Message colours: white for the result of a flight crew entry and less important messages, amber for navigation
+  // and more important messages.
+  // A DIR TO with interception of an inbound/outbound radial is inserted
+  adjustDesiredTrkOrHdg: new TypeIIMessage('ADJUST DESIRED TRK OR HDG'),
+  // The pilot RNP is above the default RNP, no RNP in the navigation database for the active leg
+  areaRnpIs: new TypeIIMessage('AREA RNP IS XX.XX', false, 'XX.XX'),
+  // The pilot RNP is above the RNP of the navigation database for the active leg
+  procRnpIs: new TypeIIMessage('PROC RNP IS XX.XX', true, 'XX.XX'),
+  // The current date does not match the effectivity of the active navigation database
+  checkDatabaseCycle: new TypeIIMessage('CHECK DATABASE CYCLE'),
+  // At least one IRS position is 5 NM or more from the airport position
+  checkIrsArptPosition: new TypeIIMessage('CHECK IRS / ARPT POSITION', true),
+  // The procedure turn ahead exceeds the excursion distance of the navigation database
+  expectTurnAreaExceedance: new TypeIIMessage('EXPECT TURN AREA EXCEEDANCE', true),
+  // The NDB of the NDB approach is not available or deselected
+  specifNdbNotAvail: new TypeIIMessage('SPECIF NDB NOT AVAIL', true),
+  // The aircraft must leave the holding pattern immediately (extra fuel = 0 at destination)
+  timeToExit: new TypeIIMessage('TIME TO EXIT', true),
+  // The aircraft clock time reaches the ETT
+  toTimeReached: new TypeIIMessage('T.O TIME REACHED'),
 };
 
 export const NXFictionalMessages = {
@@ -180,32 +210,27 @@ export function isTypeIIMessage(message: McduMessage): message is TypeIIMessage 
   return message instanceof TypeIIMessage;
 }
 
+/**
+ * The ATC COM messages: two lines of 33 characters, separated by a newline
+ */
 export const ATCCOMMessages = {
-  cancelAutoUpdateFirst: new ATCCOMMessage('CANCEL AUTO UPDATE FIRST'),
-  comDatalinkNotAvail: new ATCCOMMessage('COM DATALINK NOT AVAIL'),
-  datisGroundMsg: new ATCCOMMessage('D-ATIS GROUND MSG'),
-  datisNoReply: new ATCCOMMessage('D-ATIS NO REPLY'),
-  datisReceived: new ATCCOMMessage('D-ATIS RECEIVED'),
-  datisSendFailed: new ATCCOMMessage('D-ATIS SEND FAILED'),
-  datisUpdated: new ATCCOMMessage('D-ATIS UPDATED - READ AGAIN'),
-  datisUsedOffside: new ATCCOMMessage('D-ATIS USED OFFSIDE'),
+  atcComNotAvail: new ATCCOMMessage('ATC COM NOT AVAIL'),
+  atisUsedOffside: new ATCCOMMessage('ATIS USED OFFSIDE'),
+  comDatalinkNotAvail: new ATCCOMMessage('COM DATALINK NOT AVAIL\nCHECK RMP COM STATUS PAGE'),
+  deselectAutoUpdate: new ATCCOMMessage('DESELECT AUTO UPDATE'),
+  enterOrCheckFltNumber: new ATCCOMMessage('ENTER OR CHECK FLT NUMBER\nIN FMS INIT PAGE'),
   entryOutOfRange: new ATCCOMMessage('ENTRY OUT OF RANGE'),
+  fmsAcftPositionNotAvail: new ATCCOMMessage('FMS ACFT POSITION NOT AVAIL\nNOTIFICATION NOT AVAIL'),
   formatError: new ATCCOMMessage('FORMAT ERROR'),
-  identicalDatisRequest: new ATCCOMMessage('IDENTICAL D-ATIS REQUEST'),
+  identicalAtisRequest: new ATCCOMMessage('IDENTICAL ATIS REQUEST'),
   lastMsgElement: new ATCCOMMessage('LAST MSG ELEMENT'),
-  mailboxFull: new ATCCOMMessage('MAILBOX FULL - SEND OR CANCEL SOME MSG'),
-  msgAbortedActiveAtcDisconnected: new ATCCOMMessage('MSG ABORTED - ACTIVE ATC DISCONNECTED'),
-  msgAbortedNotSupportedByCurrentATC: new ATCCOMMessage('MSG ABORTED - NOT SUPPORTED BY CURRENT ATC'),
-  msgRecordLost: new ATCCOMMessage('MSG RECORD LOST'),
+  mailboxFull: new ATCCOMMessage('MAILBOX FULL\nSEND, CANCEL OR CLOSE SOME MSG'),
+  msgRecordPartlyLost: new ATCCOMMessage('MSG RECORD PARTLY LOST'),
   msgRecordUsedOffside: new ATCCOMMessage('MSG RECORD USED OFFSIDE'),
-  newDatisGroundMsg: new ATCCOMMessage('NEW D-ATIS GROUND MSG - READ AGAIN'),
-  noSysData: new ATCCOMMessage('NO SYS DATA'),
-  notifNotAvailAcftPosNotAvail: new ATCCOMMessage('NOTIFICATION NOT AVAIL - ACFT POSITION NOT AVAIL'),
-  notifNotAvailChckFltNbr: new ATCCOMMessage('NOTIFICATION NOT AVAIL - CHECK FLT NBR IN FMS INIT PAGE'),
-  notifNotAvailChckFromTo: new ATCCOMMessage('NOTIFICATION NOT AVAIL - CHECK FROM/TO IN FMS INIT PAGE'),
-  notifNotAvailWithThisAtcCtr: new ATCCOMMessage('NOTIFICATION NOT AVAIL - WITH THIS ATC CENTER'),
-  pleaseWaitUpdateInProgress: new ATCCOMMessage('PLEASE WAIT: UPDATE IN PROGRESS'),
+  newAtisReceived: new ATCCOMMessage('NEW ATIS RECEIVED'),
+  noFmsData: new ATCCOMMessage('NO FMS DATA'),
+  pleaseCheckNotification: new ATCCOMMessage('PLEASE CHECK NOTIFICATION THEN\nWAIT FOR ATC CONNECTION'),
+  pleaseWaitInProgress: new ATCCOMMessage('PLEASE WAIT : IN PROGRESS'),
   printerNotAvail: new ATCCOMMessage('PRINTER NOT AVAIL'),
-  printing: new ATCCOMMessage('PRINTING'),
-  sendingMaydayWillSwitchAdscToEmergency: new ATCCOMMessage('SENDING MAYDAY WILL SWITCH ADS-C TO EMERGENCY'),
+  sendingMaydayWillSwitchAdsToEmergency: new ATCCOMMessage('SENDING MAYDAY WILL SWITCH ADS\nTO EMERGENCY'),
 };

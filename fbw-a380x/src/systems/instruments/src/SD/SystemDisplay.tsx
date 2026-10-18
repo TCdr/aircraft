@@ -21,7 +21,12 @@ import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 
 import '../index.scss';
 
-export const SystemDisplay = () => {
+interface SystemDisplayProps {
+  /** The DU this gauge draws on when it is a hosted gauge (CDS reconfiguration: the SD on an ND DU) */
+  hostDisplayUnitId?: DisplayUnitID;
+}
+
+export const SystemDisplay = ({ hostDisplayUnitId }: SystemDisplayProps) => {
   // make sure this is in line with the enum in EcamSystemPages.ts
   const PAGES = {
     0: <EngPage />,
@@ -45,7 +50,11 @@ export const SystemDisplay = () => {
   const [pageToShow, _setPageToShow] = useSimVar('L:A32NX_ECAM_SD_PAGE_TO_SHOW', 'number');
 
   return (
-    <LegacyCdsDisplayUnit displayUnitId={DisplayUnitID.Sd} hideBootTestScreens={true}>
+    <LegacyCdsDisplayUnit
+      displayUnitId={DisplayUnitID.Sd}
+      hostDisplayUnitId={hostDisplayUnitId}
+      hideBootTestScreens={true}
+    >
       <g>{PAGES[pageToShow]}</g>
     </LegacyCdsDisplayUnit>
   );

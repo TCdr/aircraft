@@ -1,7 +1,14 @@
 //  Copyright (c) 2025 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { EventBus, FSComponent, SimVarValueType, SubscribableMapFunctions, VNode } from '@microsoft/msfs-sdk';
+import {
+  EventBus,
+  FSComponent,
+  SimVarValueType,
+  Subscribable,
+  SubscribableMapFunctions,
+  VNode,
+} from '@microsoft/msfs-sdk';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { OitUiService } from '../../OitUiService';
@@ -10,6 +17,8 @@ interface OitFltOpsLoginPageProps {
   readonly bus: EventBus;
   readonly uiService: OitUiService;
   readonly captOrFo: 'CAPT' | 'FO';
+  /** The laptop is not connected to the aircraft network (OisLaptop.standalone) */
+  readonly standalone: Subscribable<boolean>;
 }
 
 export class OitFltOpsLogin extends DestroyableComponent<OitFltOpsLoginPageProps> {
@@ -17,10 +26,13 @@ export class OitFltOpsLogin extends DestroyableComponent<OitFltOpsLoginPageProps
 
   private readonly hideLoginScreen = this.props.uiService.fltOpsLoginScreenVisible.map(SubscribableMapFunctions.not());
 
+  /** "STANDALONE" on the Login page: the laptop was started before the ARU, or is not connected to the network */
+  private readonly hideStandalone = this.props.standalone.map(SubscribableMapFunctions.not());
+
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    this.subscriptions.push(this.hideLoginScreen);
+    this.subscriptions.push(this.hideLoginScreen, this.hideStandalone);
   }
 
   render(): VNode {
@@ -33,6 +45,7 @@ export class OitFltOpsLogin extends DestroyableComponent<OitFltOpsLoginPageProps
           <div class="oit-login-page-sub-sub-heading">
             {this.props.captOrFo === 'CAPT' ? 'CAPTAIN' : 'FIRST OFFICER'}
           </div>
+          <div class={{ 'oit-login-page-standalone': true, hidden: this.hideStandalone }}>STANDALONE</div>
           <div class="oit-login-page-button-container">
             <Button label="PILOT" onClick={() => this.props.uiService.fltOpsLoginScreenVisible.set(false)} />
             <Button

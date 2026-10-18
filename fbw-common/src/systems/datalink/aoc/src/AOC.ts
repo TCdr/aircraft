@@ -22,6 +22,9 @@ import { DigitalOutputs } from './DigitalOutputs';
 export class Aoc {
   private poweredUp: boolean = false;
 
+  /** The AOC sends nothing to the ground (messages and requests), the uplinks still come in */
+  private downlinksInhibited: boolean = false;
+
   private messageCounter: number = 0;
 
   private digitalInputs: DigitalInputs = null;
@@ -78,6 +81,19 @@ export class Aoc {
     this.poweredUp = false;
   }
 
+  /**
+   * Inhibits the downlinks: the AOC can no longer send messages (and requests) to the ground but still receives the
+   * uplinks, as with the A380 NSS DATA TO AVNCS pb-sw OFF. Not used by the A32NX.
+   * @param inhibited whether the downlinks are inhibited
+   */
+  public setDownlinksInhibited(inhibited: boolean): void {
+    this.downlinksInhibited = inhibited;
+  }
+
+  private canSendDownlinks(): boolean {
+    return this.poweredUp && !this.downlinksInhibited;
+  }
+
   public initialize(): void {
     this.digitalInputs.initialize();
   }
@@ -88,7 +104,7 @@ export class Aoc {
   }
 
   private async sendMessage(message: AtsuMessage): Promise<AtsuStatusCodes> {
-    if (this.poweredUp) {
+    if (this.canSendDownlinks()) {
       return this.digitalOutputs.sendMessage(message, false).then((code) => {
         if (code === AtsuStatusCodes.Ok) this.insertMessages([message]);
         return code;
@@ -123,7 +139,7 @@ export class Aoc {
     icaos: string[],
     sentCallback: () => void,
   ): Promise<[AtsuStatusCodes, WeatherMessage]> {
-    if (!this.poweredUp) return [AtsuStatusCodes.ComFailed, null];
+    if (!this.canSendDownlinks()) return [AtsuStatusCodes.ComFailed, null];
     if (requestMetar) return this.digitalOutputs.receiveMetar(icaos, sentCallback);
     return this.digitalOutputs.receiveTaf(icaos, sentCallback);
   }
@@ -133,7 +149,7 @@ export class Aoc {
     type: AtisType,
     sentCallback: () => void,
   ): Promise<[AtsuStatusCodes, WeatherMessage]> {
-    if (!this.poweredUp) return [AtsuStatusCodes.ComFailed, null];
+    if (!this.canSendDownlinks()) return [AtsuStatusCodes.ComFailed, null];
     return this.digitalOutputs.receiveAtis(icao, type, sentCallback);
   }
 
@@ -177,7 +193,7 @@ export class Aoc {
     request: WindRequestMessage,
     sentCallback: () => void,
   ): Promise<[AtsuStatusCodes, WindUplinkMessage | null]> {
-    if (!this.poweredUp) return [AtsuStatusCodes.ComFailed, null];
+    if (!this.canSendDownlinks()) return [AtsuStatusCodes.ComFailed, null];
     return this.digitalOutputs.requestWinds(request, sentCallback);
   }
 }

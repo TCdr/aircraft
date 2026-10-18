@@ -68,10 +68,13 @@ export const NXSystemMessages = {
   awyWptMismatch: new TypeIMessage('AWY/WPT MISMATCH'),
   cancelAtisUpdate: new TypeIMessage('CANCEL UPDATE BEFORE'), // FIXME move out of FMS
   checkAltnWind: new TypeIIMessage('CHECK ALTN WIND'),
+  checkDataBaseCycle: new TypeIIMessage('CHECK DATA BASE CYCLE'),
+  checkDestData: new TypeIIMessage('CHECK DEST DATA', true),
   checkMinDestFob: new TypeIIMessage('CHECK MIN DEST FOB'),
   checkToData: new TypeIIMessage('CHECK TAKE OFF DATA', true),
   checkWeight: new TypeIIMessage('CHECK WEIGHT', true),
   comUnavailable: new TypeIMessage('COM UNAVAILABLE'), // FIXME move out of FMS
+  crzFlAboveMaxFl: new TypeIIMessage('CRZ FL ABOVE MAX FL'),
   cstrDelUpToWpt: new TypeIIMessage('CSTR DEL UP TO WWWWW', false, 'WWWWW'),
   databaseCodingError: new TypeIIMessage('DATABASE CODING ERROR'),
   dcduFileFull: new TypeIMessage('DCDU FILE FULL'), // FIXME move out of FMS
@@ -119,6 +122,7 @@ export const NXSystemMessages = {
   stepAhead: new TypeIIMessage('STEP AHEAD'),
   stepDeleted: new TypeIIMessage('STEP DELETED'),
   temporaryFplnExists: new TypeIMessage('TEMPORARY F-PLN EXISTS'),
+  timeToExit: new TypeIIMessage('TIME TO EXIT', true),
   windTempDataUplk: new TypeIIMessage('WIND/TEMP DATA UPLK'),
   windTempUplkPending: new TypeIIMessage('WIND/TEMP UPLK PENDING', true),
   noAnswerToRequest: new TypeIMessage('NO ANSWER TO REQUEST'),

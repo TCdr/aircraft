@@ -15,6 +15,7 @@ import {
   MappedSubject,
   Subject,
   Subscribable,
+  SubscribableArrayEventType,
   Subscription,
   VNode,
 } from '@microsoft/msfs-sdk';
@@ -37,6 +38,7 @@ import { InteractionMode } from '../MsfsAvionicsCommon/UiWidgets/InputField';
 import { AtcDatalinkSystem } from './ATCCOM/AtcDatalinkSystem';
 import { FlightPlanInterface } from '@fmgc/flightplanning/FlightPlanInterface';
 import { isKccuKeyActive } from '../MsfsAvionicsCommon/Kccu';
+import { MfdSystemMessageArea } from './shared/MfdSystemMessageArea';
 
 export const getDisplayIndex = () => {
   const url = document.getElementsByTagName('a380x-mfd')[0].getAttribute('url');
@@ -74,6 +76,9 @@ export interface MfdDisplayInterface {
   hEventConsumer: Consumer<[EfisSide, string]>;
 
   interactionMode: Subscribable<InteractionMode>;
+
+  /** The text of the System Message Area of the header, '' when empty (MfdSystemMessageArea) */
+  systemMessage: Subscribable<string>;
 
   openMessageList(): void;
 }
@@ -141,6 +146,11 @@ export class MfdComponent
   private activeHeader: VNode | null = null;
 
   private readonly messageListOpened = Subject.create<boolean>(false);
+
+  /** The System Message Area of the header */
+  private readonly systemMessageArea = new MfdSystemMessageArea();
+
+  public readonly systemMessage = this.systemMessageArea.text;
 
   private readonly duplicateNamesOpened = Subject.create<boolean>(false);
 
@@ -267,7 +277,9 @@ export class MfdComponent
               case 'NAVAID':
                 this.uiService.navigateTo('fms/position/navaids');
                 break;
-              case 'MAILBOX': // Move cursor to SD mail box
+              case 'MAILBOX':
+                // The cursor moves to the mailbox of the SD (SDv2/AtcMailbox): it leaves the MFD
+                this.mouseCursorRef.getOrDefault()?.hide();
                 break;
               case 'FPLN':
                 this.uiService.navigateTo('fms/active/f-pln/top');
@@ -282,12 +294,17 @@ export class MfdComponent
                 this.uiService.navigateTo('surv/controls');
                 break;
               case 'ATCCOM':
-                this.uiService.navigateTo('atccom/connect');
+                this.uiService.navigateTo('atccom/request');
                 break;
               case 'ND': // Move cursor to ND
                 break;
               case 'CLRINFO':
-                this.props.fmcService.master.clearLatestFmsErrorMessage();
+                // Clears the message of the displayed system: the ATC COM message area on an ATC COM page
+                if (this.uiService.activeUri.get().sys === 'atccom') {
+                  this.props.atcService.clearLatestAtcErrorMessage();
+                } else {
+                  this.props.fmcService.master.clearLatestFmsErrorMessage();
+                }
                 break;
               default:
                 break;
@@ -305,6 +322,54 @@ export class MfdComponent
     this.topRef.instance.addEventListener('mousemove', this.onMouseMoveHandler);
 
     this.subs.push(this.fmsDataKnob, this.fmcAIsHealthy, this.fmcBIsHealthy, this.activeFmsSource);
+
+    this.subscribeSystemMessageArea();
+
+    // MODIFY on a confirm message in the mailbox displays the REPORT/MODIFY page: on the MFD that displays an ATC COM
+    // page, else on the captain MFD
+    this.subs.push(
+      this.props.atcService.modifyRequests.sub(() => {
+        const otherSide = this.props.captOrFo === 'CAPT' ? 'R' : 'L';
+        const otherPage: string = SimVar.GetSimVarValue(`L:A380X_MFD_${otherSide}_ACTIVE_PAGE`, 'string') ?? '';
+        const ownAtccom = this.uiService.activeUri.get().sys === 'atccom';
+        if (ownAtccom || (!otherPage.startsWith('atccom') && this.props.captOrFo === 'CAPT')) {
+          this.uiService.navigateTo('atccom/report-modify/modify');
+        }
+      }),
+    );
+  }
+
+  /** Feeds the System Message Area: the application shown, the FMS message queue, the ATIS of the ATC COM */
+  private subscribeSystemMessageArea(): void {
+    const area = this.systemMessageArea;
+    this.subs.push(this.uiService.activeUri.sub((uri) => area.onApplicationShown(uri.sys), true));
+
+    // An amber FMS message is pending while it is in the FMS message queue and not cleared
+    this.subs.push(
+      this.props.fmcService.master.fmsErrors.sub((_, type, item, messages) => {
+        const added = (Array.isArray(item) ? item : [item]) as readonly (
+          | { backgroundColor: string; cleared: boolean }
+          | undefined
+        )[];
+        const newAmberMessage =
+          type === SubscribableArrayEventType.Added && added.some((m) => m?.backgroundColor === 'amber' && !m.cleared);
+        area.onFmsMessages(
+          newAmberMessage,
+          messages.some((m) => m.backgroundColor === 'amber' && !m.cleared),
+        );
+      }),
+    );
+
+    const atc = this.props.atcService;
+    const updateAtis = () =>
+      area.onAtis(
+        atc.atisAreas.map((areaSubject, index) => {
+          const version = atc.atisReport(index)?.Information ?? null;
+          return version !== null && version !== areaSubject.get().readVersion ? version : null;
+        }),
+        atc.atisAreas.map((areaSubject) => areaSubject.get().status),
+      );
+    this.subs.push(atc.atisReportsVersion.sub(updateAtis), ...atc.atisAreas.map((a) => a.sub(updateAtis)));
   }
 
   private onMouseMove(ev: MouseEvent) {
@@ -367,8 +432,8 @@ export class MfdComponent
       );
     }
 
-    // FMS pages use the display frame of the real pages, see common/style.scss
-    this.activePageRef.getOrDefault()?.classList.toggle('sys-fms', uri.sys === 'fms');
+    // FMS and ATC COM pages use the display frame of the reference figures, see common/style.scss
+    this.activePageRef.getOrDefault()?.classList.toggle('sys-fms', uri.sys === 'fms' || uri.sys === 'atccom');
 
     FSComponent.render(this.activeHeader, this.activeHeaderRef.getOrDefault());
     FSComponent.render(this.activePage, this.activePageRef?.getOrDefault());

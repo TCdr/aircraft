@@ -30,6 +30,7 @@ export enum TakeoffPowerSetting {
   DERATED = 2,
 }
 
+/** The derated takeoff levels, as the index of the MFD list */
 export enum TakeoffDerated {
   D01 = 0,
   D02 = 1,
@@ -79,16 +80,24 @@ export class FmgcData {
     return sub.map((it) => (it !== null ? it.toFixed(0) : '-'.repeat(numberDashes)));
   }
 
+  /** The subject of a flight plan in a map, created (null) on first use */
+  private static subjectOfPlan<T>(
+    map: Map<FlightPlanIndex, Subject<T | null>>,
+    planIndex: FlightPlanIndex,
+  ): Subject<T | null> {
+    let subject = map.get(planIndex);
+    if (!subject) {
+      subject = Subject.create<T | null>(null);
+      map.set(planIndex, subject);
+    }
+    return subject;
+  }
+
   private readonly companyRouteIdents = new Map<FlightPlanIndex, Subject<string | null>>();
 
   /** The ident of the company route inserted into a flight plan, null when none (INIT page CPNY RTE field). */
   public companyRouteIdent(planIndex: FlightPlanIndex): Subject<string | null> {
-    let ident = this.companyRouteIdents.get(planIndex);
-    if (!ident) {
-      ident = Subject.create<string | null>(null);
-      this.companyRouteIdents.set(planIndex, ident);
-    }
-    return ident;
+    return FmgcData.subjectOfPlan(this.companyRouteIdents, planIndex);
   }
 
   /**

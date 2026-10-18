@@ -11,6 +11,7 @@ Please keep all vars under the correct ATA chapter where they relate to aircraft
 - [A380X Private Local Vars](#a380x-private-local-vars)
   - [22 - Auto Flight](#22---auto-flight)
   - [23 - Communications](#23---communications)
+  - [46 - Information Systems](#46---information-systems)
   - [Sim Specific](#sim-specific)
 
 ## 22 - Auto Flight
@@ -229,6 +230,39 @@ Please keep all vars under the correct ATA chapter where they relate to aircraft
 - `L:FBW_VHF{vhf_index}_FREQUENCY`
     - ARINC429 - BCD VHF COM Frequency
     - The tuned frequency from the VHF radios.
+
+## 46 - Information Systems
+
+### Placeholder Types
+
+- `{side}` L or R
+
+### Local Vars
+
+- `L:A380X_ATCCOM_ADS_STATUS`
+    - Number
+    - The ADS status set on the MFD CONNECT/CONNECTION STATUS page, displayed by the ATC mailbox on the SD
+        - 0: ARMED
+        - 1: CONNECTED
+        - 2: OFF
+
+- `L:A380X_MFD_{side}_ATCCOM_MSG_RECORD_ZOOM`
+    - Boolean
+    - Indicates that the MFD displays a recorded message on the MSG RECORD/ZOOM page (the other MFD then cannot erase
+      the recorded messages: MSG RECORD USED OFFSIDE).
+
+- `L:A32NX_NSS_ANSU_{1,2}_IS_HEALTHY`, `L:A32NX_FLTOPS_ANSU_1_IS_HEALTHY`
+    - Boolean
+    - The NSS AVNCS ANSU 1/2 and the FLT OPS ANSU are powered, not failed (46001, 46002, 46003), not reset and the NSS
+      master is on. The NSS AVNCS applications run while either NSS AVNCS ANSU is healthy (ANSU 2 takes over from
+      ANSU 1).
+
+- `L:A380X_OIT_{CAPT,FO}_FLT_OPS_PAGE`
+    - Number
+    - The FLT OPS page the captain's / first officer's OIT shows (its own display, also while in X-OIS), read by the
+      other OIT for the X-OIS function (OIS XFR key, A380 FCOM DSC-46-20-30). OIT System/XOisFunction.ts page code:
+        - 0: no FLT OPS page
+        - 1: Menu, 2: STS, 3: T.O PERF, 4: LDG PERF, 5: NAV CHARTS, 6: FLT FOLDER
 
 ## Sim Specific
 

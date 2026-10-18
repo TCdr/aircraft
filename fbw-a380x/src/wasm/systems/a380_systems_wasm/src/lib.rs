@@ -151,6 +151,19 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (24_023, FailureType::Generator(4)),
         (24_030, FailureType::ApuGenerator(1)),
         (24_031, FailureType::ApuGenerator(2)),
+        (24_040, FailureType::Battery(1)),
+        (24_041, FailureType::Battery(2)),
+        (24_042, FailureType::Battery(3)), // BAT ESS
+        (24_043, FailureType::Battery(4)), // APU BAT
+        (24_050, FailureType::ExternalPower(1)),
+        (24_051, FailureType::ExternalPower(2)),
+        (24_052, FailureType::ExternalPower(3)),
+        (24_053, FailureType::ExternalPower(4)),
+        (24_060, FailureType::EmergencyGenerator), // RAT generator
+        (24_080, FailureType::GeneratorDriveDisconnect(1)),
+        (24_081, FailureType::GeneratorDriveDisconnect(2)),
+        (24_082, FailureType::GeneratorDriveDisconnect(3)),
+        (24_083, FailureType::GeneratorDriveDisconnect(4)),
         (
             24_100,
             FailureType::ElectricalBus(ElectricalBusType::AlternatingCurrent(1)),
@@ -425,6 +438,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_020, FailureType::RadioAntennaDirectCoupling(1)),
         (34_021, FailureType::RadioAntennaDirectCoupling(2)),
         (34_022, FailureType::RadioAntennaDirectCoupling(3)),
+        (34_040, FailureType::Gps(1)),
+        (34_041, FailureType::Gps(2)),
     ])
     .provides_aircraft_variable("ACCELERATION BODY X", "feet per second squared", 0)?
     .provides_aircraft_variable("ACCELERATION BODY Y", "feet per second squared", 0)?
@@ -478,6 +493,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("GPS GROUND SPEED", "Knots", 0)?
     .provides_aircraft_variable("GPS GROUND MAGNETIC TRACK", "Degrees", 0)?
     .provides_aircraft_variable("GPS GROUND TRUE TRACK", "Degrees", 0)?
+    .provides_aircraft_variable("PLANE ALTITUDE", "Feet", 0)?
     .provides_aircraft_variable("INCIDENCE ALPHA", "Degrees", 0)?
     .provides_aircraft_variable("INDICATED ALTITUDE", "Feet", 0)?
     .provides_aircraft_variable("INTERACTIVE POINT OPEN:0", "Percent", 0)?

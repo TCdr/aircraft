@@ -296,6 +296,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_011, FailureType::RadioAntennaInterrupted(2)),
         (34_020, FailureType::RadioAntennaDirectCoupling(1)),
         (34_021, FailureType::RadioAntennaDirectCoupling(2)),
+        (34_040, FailureType::Gps(1)),
+        (34_041, FailureType::Gps(2)),
         (
             34_030,
             FailureType::EnhancedGroundProximityWarningSystemComputer,
@@ -339,6 +341,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("GPS GROUND SPEED", "Knots", 0)?
     .provides_aircraft_variable("GPS GROUND MAGNETIC TRACK", "Degrees", 0)?
     .provides_aircraft_variable("GPS GROUND TRUE TRACK", "Degrees", 0)?
+    .provides_aircraft_variable("PLANE ALTITUDE", "Feet", 0)?
     .provides_aircraft_variable("INDICATED ALTITUDE", "Feet", 0)?
     .provides_aircraft_variable("INTERACTIVE POINT OPEN:0", "Percent", 0)?
     .provides_aircraft_variable("INTERACTIVE POINT OPEN", "Percent", 1)?

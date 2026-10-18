@@ -16,6 +16,7 @@ import { Fix, MagVar } from '@flybywiresim/fbw-sdk';
 import { bearingTo } from 'msfs-geo';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { DirectToCourseFormat } from '../../common/DataEntryFormats';
+import { NXSystemMessages } from '../../../shared/NXSystemMessages';
 
 interface MfdFmsFplnDirectToProps extends AbstractMfdPageProps {}
 
@@ -161,12 +162,11 @@ export class MfdFmsFplnDirectTo extends FmsFlightPlanPage<MfdFmsFplnDirectToProp
         : legs.findIndex(
             (it) => it instanceof FlightPlanLeg && it.terminationWaypoint()?.ident === this.manualWptIdent,
           );
-    const targetFix =
-      legs[targetIndex] instanceof FlightPlanLeg ? (legs[targetIndex] as FlightPlanLeg).terminationWaypoint() : null;
     const fixAt = (index: number) => {
       const leg = legs[index];
       return leg instanceof FlightPlanLeg ? leg.terminationWaypoint() : null;
     };
+    const targetFix = fixAt(targetIndex);
     const otherFix = option === DirectToOption.CRS_IN ? fixAt(targetIndex - 1) : fixAt(targetIndex + 1);
     if (targetIndex < 0 || !targetFix || !otherFix) {
       this.course.set(null);
@@ -384,6 +384,15 @@ export class MfdFmsFplnDirectTo extends FmsFlightPlanPage<MfdFmsFplnDirectToProp
               onClick={async () => {
                 SimVar.SetSimVarValue('K:A32NX.FMGC_DIR_TO_TRIGGER', 'number', 0);
                 this.props.flightPlanInterface.temporaryInsert();
+                // DIR TO with interception of an inbound/outbound radial: the crew gets ADJUST DESIRED TRK OR HDG
+                const option = this.directToOption.get();
+                if (option === DirectToOption.CRS_IN || option === DirectToOption.CRS_OUT) {
+                  this.props.fmcService.master.addMessageToQueue(
+                    NXSystemMessages.adjustDesiredTrkOrHdg,
+                    undefined,
+                    undefined,
+                  );
+                }
                 this.props.fmcService.master.guidanceController?.vnavDriver?.invalidateFlightPlanProfile();
                 this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`);
               }}

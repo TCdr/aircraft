@@ -8,12 +8,16 @@ use systems::{
     apu::ApuGenerator,
     electrical::{
         AlternatingCurrentElectricalSystem, Contactor, ElectricalBus, ElectricalElement,
-        Electricity, EmergencyGenerator, ExternalPowerSource, TransformerRectifier,
-        VariableFrequencyGenerator,
+        Electricity, EmergencyGenerator, EngineGeneratorPushButtons, ExternalPowerSource,
+        TransformerRectifier, VariableFrequencyGenerator,
     },
     engine::Engine,
+    failures::{Failure, FailureType},
     shared::{AuxiliaryPowerUnitElectrical, ElectricalBusType, EngineFirePushButtons},
-    simulation::{InitContext, SimulationElement, SimulationElementVisitor, UpdateContext},
+    simulation::{
+        InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
+        VariableIdentifier, Write,
+    },
 };
 use uom::si::{f64::Power, power::kilowatt};
 
@@ -130,10 +134,12 @@ impl A380AlternatingCurrentElectrical {
         // On the real aircraft there is a button inside the galley which is taken into
         // account when determining whether to close this contactor or not.
         // As we're not building a galley simulator, for now we assume the button is ON.
+        // The GGPCU of a failed EXT PWR 1 does not close its contactors either
         self.ext_pwr_to_ac_gnd_flt_service_bus_and_tr_2_contactor
             .close_when(
                 !self.ac_buses.iter().any(|b| electricity.is_powered(b))
-                    && electricity.is_powered(ext_pwr),
+                    && electricity.is_powered(ext_pwr)
+                    && !self.main_power_sources.ext_pwr_failed(1),
             );
         self.ac_bus_3_to_tr_2_contactor
             .close_when(electricity.is_powered(&self.ac_buses[2]));
@@ -216,10 +222,6 @@ impl A380AlternatingCurrentElectrical {
     pub fn emergency_generator_contactor_is_closed(&self) -> bool {
         self.emergency_gen_contactor.is_closed()
     }
-
-    pub fn ac_emer_bus_is_powered(&self, electricity: &Electricity) -> bool {
-        electricity.is_powered(&self.ac_emer_bus)
-    }
 }
 impl A380AlternatingCurrentElectricalSystem for A380AlternatingCurrentElectrical {
     fn ac_bus_powered(&self, electricity: &Electricity, number: usize) -> bool {
@@ -292,6 +294,13 @@ struct A380MainPowerSources {
     system_isolation_contactor: Contactor,
     apu_gen_contactors: [Contactor; 2],
     ext_pwr_contactors: [Contactor; 4],
+    /// flyPad failures of the external power units 1 to 4 (or their GGPCU)
+    ext_pwr_failures: [Failure; 4],
+    ext_pwr_fault_ids: [VariableIdentifier; 4],
+    ext_pwr_fault: [bool; 4],
+    /// flyPad failures of the disconnection function of the generator drives 1 to 4
+    drive_disc_failures: [Failure; 4],
+    drive_disc_fault_ids: [VariableIdentifier; 4],
 }
 impl A380MainPowerSources {
     // AC power priorities:
@@ -402,6 +411,14 @@ impl A380MainPowerSources {
             apu_gen_contactors: [1, 2].map(|id| Contactor::new(context, &format!("990XS{id}"))),
             ext_pwr_contactors: [1, 2, 3, 4]
                 .map(|id| Contactor::new(context, &format!("990XG{id}"))),
+            ext_pwr_failures: [1, 2, 3, 4].map(|id| Failure::new(FailureType::ExternalPower(id))),
+            ext_pwr_fault_ids: [1, 2, 3, 4]
+                .map(|id| context.get_identifier(format!("ELEC_EXT_PWR_{id}_FAULT"))),
+            ext_pwr_fault: [false; 4],
+            drive_disc_failures: [1, 2, 3, 4]
+                .map(|id| Failure::new(FailureType::GeneratorDriveDisconnect(id))),
+            drive_disc_fault_ids: [1, 2, 3, 4]
+                .map(|id| context.get_identifier(format!("ELEC_ENG_GEN_{id}_DRIVE_DISC_FAULT"))),
         }
     }
 
@@ -416,8 +433,13 @@ impl A380MainPowerSources {
         engines: [&impl Engine; 4],
         adirs: &impl AdirsDiscreteOutputs,
     ) {
+        // A failed disconnection function ignores the DRIVE pb (ELEC DRIVE 1(2)(3)(4) DISC FAULT)
+        let drive_buttons = A380DriveDisconnectControl {
+            overhead,
+            disconnect_failed: [0, 1, 2, 3].map(|i| self.drive_disc_failures[i].is_active()),
+        };
         for (gen, engine) in self.engine_gens.iter_mut().zip(engines) {
-            gen.update(context, engine, overhead, engine_fire_push_buttons);
+            gen.update(context, engine, &drive_buttons, engine_fire_push_buttons);
             electricity.supplied_by(gen);
         }
 
@@ -427,6 +449,18 @@ impl A380MainPowerSources {
 
         for ext_pwr in ext_pwrs {
             electricity.supplied_by(ext_pwr);
+        }
+
+        // ELEC EXT PWR 1(2)(3)(4) FAULT: the external power unit or its GGPCU is failed. Design choice: the GGPCU
+        // reports it while the external power unit is connected; without a ground power unit there is nothing to
+        // supply.
+        for ((fault, failure), ext_pwr) in self
+            .ext_pwr_fault
+            .iter_mut()
+            .zip(&self.ext_pwr_failures)
+            .zip(ext_pwrs)
+        {
+            *fault = failure.is_active() && ext_pwr.output_within_normal_parameters();
         }
 
         let powered_by = self.calc_ac_sources(ext_pwrs, overhead, apu, adirs);
@@ -562,7 +596,9 @@ impl A380MainPowerSources {
             .iter()
             .enumerate()
             .map(|(i, ext_pwr)| {
-                overhead.external_power_is_on(i + 1) && ext_pwr.output_within_normal_parameters()
+                overhead.external_power_is_on(i + 1)
+                    && ext_pwr.output_within_normal_parameters()
+                    && !self.ext_pwr_failed(i + 1)
             })
             .collect();
 
@@ -640,6 +676,11 @@ impl A380MainPowerSources {
     fn gen_drive_connected(&self, number: usize) -> bool {
         self.engine_gens[number - 1].is_drive_connected()
     }
+
+    /// Whether external power unit `number` (or its GGPCU) is failed: its GGPCU keeps its contactors open
+    fn ext_pwr_failed(&self, number: usize) -> bool {
+        self.ext_pwr_failures[number - 1].is_active()
+    }
 }
 impl SimulationElement for A380MainPowerSources {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
@@ -648,9 +689,42 @@ impl SimulationElement for A380MainPowerSources {
         accept_iterable!(self.bus_tie_contactors, visitor);
         accept_iterable!(self.apu_gen_contactors, visitor);
         accept_iterable!(self.ext_pwr_contactors, visitor);
+        accept_iterable!(self.ext_pwr_failures, visitor);
+        accept_iterable!(self.drive_disc_failures, visitor);
         self.system_isolation_contactor.accept(visitor);
 
         visitor.visit(self);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        for (id, fault) in self.ext_pwr_fault_ids.iter().zip(self.ext_pwr_fault) {
+            writer.write(id, fault);
+        }
+        // ELEC DRIVE 1(2)(3)(4) DISC FAULT: the disconnection function of the engine generator failed. Its monitoring
+        // detects it at all times.
+        for (id, failure) in self
+            .drive_disc_fault_ids
+            .iter()
+            .zip(&self.drive_disc_failures)
+        {
+            writer.write(id, failure.is_active());
+        }
+    }
+}
+
+/// The DRIVE and GEN pb-sw as the engine generators see them: the DRIVE pb of a drive whose disconnection
+/// function failed does not disconnect it.
+struct A380DriveDisconnectControl<'a> {
+    overhead: &'a A380ElectricalOverheadPanel,
+    disconnect_failed: [bool; 4],
+}
+impl EngineGeneratorPushButtons for A380DriveDisconnectControl<'_> {
+    fn engine_gen_push_button_is_on(&self, number: usize) -> bool {
+        self.overhead.engine_gen_push_button_is_on(number)
+    }
+
+    fn idg_push_button_is_released(&self, number: usize) -> bool {
+        self.overhead.idg_push_button_is_released(number) && !self.disconnect_failed[number - 1]
     }
 }
 

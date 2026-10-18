@@ -11,6 +11,8 @@ import {
   CpdlcMessage,
   FmgcDataBusTypes,
   FreetextMessage,
+  FwcDataBusTypes,
+  MailboxStatusMessage,
   PositionReportData,
   RmpDataBusTypes,
   SimVarSources,
@@ -41,6 +43,7 @@ export type AtcDigitalInputCallbacks = {
   cleanupMessages: () => void;
   resetAtisAutoUpdate: () => void;
   onAtcMessageButtonPressed: () => void;
+  routeClearanceLoaded: (uid: number, status: MailboxStatusMessage) => void;
 };
 
 export class DigitalInputs {
@@ -49,6 +52,7 @@ export class DigitalInputs {
       ClockDataBusTypes &
       FmgcDataBusTypes &
       FmsAtcMessages &
+      FwcDataBusTypes &
       RmpDataBusTypes &
       RouterAtcAocMessages
   > = null;
@@ -78,6 +82,7 @@ export class DigitalInputs {
     cleanupMessages: null,
     resetAtisAutoUpdate: null,
     onAtcMessageButtonPressed: null,
+    routeClearanceLoaded: null,
   };
 
   private atcMessageButtonActive: boolean;
@@ -118,6 +123,9 @@ export class DigitalInputs {
 
   public FlightPhase: AtsuFlightPhase = AtsuFlightPhase.Preflight;
 
+  /** The flight phase of the flight warning computer (A32NX) or system (A380X), 0 when unknown */
+  public FwcFlightPhase = 0;
+
   public FlightRoute: FmsRouteData;
 
   private resetData(): void {
@@ -157,6 +165,8 @@ export class DigitalInputs {
 
     this.FlightPhase = AtsuFlightPhase.Preflight;
 
+    this.FwcFlightPhase = 0;
+
     this.FlightRoute = {
       lastWaypoint: null,
       activeWaypoint: null,
@@ -177,6 +187,7 @@ export class DigitalInputs {
         ClockDataBusTypes &
         FmgcDataBusTypes &
         FmsAtcMessages &
+        FwcDataBusTypes &
         RmpDataBusTypes &
         RouterAtcAocMessages
     >();
@@ -314,6 +325,10 @@ export class DigitalInputs {
       }
     });
 
+    this.subscriber.on('fwcFlightPhase').handle((phase: number) => {
+      if (this.poweredUp) this.FwcFlightPhase = phase;
+    });
+
     this.subscriber.on('transponderCode').handle((code: number) => {
       if (this.poweredUp) this.TransponderCode = code;
     });
@@ -397,6 +412,11 @@ export class DigitalInputs {
           true,
           false,
         );
+      }
+    });
+    this.subscriber.on('atcRouteClearanceLoaded').handle((data) => {
+      if (this.callbacks.routeClearanceLoaded !== null) {
+        this.callbacks.routeClearanceLoaded(data.uid, data.status);
       }
     });
     this.subscriber

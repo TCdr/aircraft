@@ -558,8 +558,6 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
   /** LRC Mach of the CRZ panel (the LRC is computed as a Mach: its speed is dashed) */
   private readonly lrcMach = Subject.create('.--');
 
-  private readonly lrcSpeed = Subject.create('---');
-
   /** MAX TURB Mach / speed of the CRZ panel */
   private readonly maxTurbMach = Subject.create('.--');
 
@@ -1257,13 +1255,11 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
         const casOf = (mach: number) => UnitType.KNOT.convertFrom(AeroMath.machToCas(mach, pressure), UnitType.MPS);
         const lrc = longRangeCruiseMach(grossWeightKg, crzLevel * 100);
         this.lrcMach.set(lrc !== null ? `.${lrc.toFixed(2).split('.')[1]}` : '.--');
-        this.lrcSpeed.set('---');
         const turbMachLimiting = casOf(maxTurbulenceMach) <= maxTurbulenceSpeedKnots;
         this.maxTurbMach.set(turbMachLimiting ? `.${maxTurbulenceMach.toFixed(2).split('.')[1]}` : '.--');
         this.maxTurbSpeed.set(turbMachLimiting ? '---' : maxTurbulenceSpeedKnots.toFixed(0));
       } else {
         this.lrcMach.set('.--');
-        this.lrcSpeed.set('---');
         this.maxTurbMach.set('.--');
         this.maxTurbSpeed.set('---');
       }
@@ -2160,7 +2156,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                         }
                       }}
                       idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_deratedClbDropdown`}
-                      keyboardEntryAllowed // DERATED CLIMB THRUST LIST: selected in the list or entered with the keyboard
+                      keyboardEntryAllowed // DERATED CLIMB THRUST: selected in the list or entered with the keyboard
                       errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
                       containerStyle="width: 125px;"
                       numberOfDigitsForInputField={4}
@@ -2522,7 +2518,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                   {fcomRight(329, 171, <span class="mfd-label">LRC</span>)}
                   {fcomRight(329, 251, <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.lrcMach}</span>)}
                   {fcomRight(329, 422, [
-                    <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.lrcSpeed}</span>,
+                    <span class={{ 'mfd-value': true, sec: this.secActive }}>---</span>,
                     <span class="mfd-label-unit mfd-unit-trailing">KT</span>,
                   ])}
                   {fcomRight(372, 171, <span class="mfd-label">MAX TURB</span>)}

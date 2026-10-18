@@ -4,6 +4,7 @@ const tailwind = require('tailwindcss');
 const postCssColorFunctionalNotation = require('postcss-color-functional-notation');
 const postCssInset = require('postcss-inset');
 const { typecheckingPlugin } = require('#build-utils');
+const { hostedInstrumentPlugin } = require('./src/systems/instruments/buildSrc/hostedInstrument.cjs');
 
 /** @type { import('@synaptic-simulations/mach').MachConfig } */
 module.exports = {
@@ -29,14 +30,18 @@ module.exports = {
   ],
   instruments: [
     msfsAvionicsInstrument('Clock'),
-    msfsAvionicsInstrument('EWD'),
+    // EWD, ND, PFD and the SD (SDv2 + legacy SD): also drawn on another DU (CDS reconfiguration), with a scoped
+    // stylesheet (*-hosted.html/css)
+    // The hosted EWD and PFD never take the mouse (hostedInstrument.cjs mouseTransparentRule), the hosted SD only while
+    // shown (mouseOnlyWhenShownRule: its ATC mailbox on an ND DU); the ND does (OANS)
+    msfsAvionicsInstrument('EWD', 'instrument.tsx', true, { mouseTransparent: true }),
     msfsAvionicsInstrument('FCU'),
     msfsAvionicsInstrument('MFD'),
-    msfsAvionicsInstrument('ND'),
+    msfsAvionicsInstrument('ND', 'instrument.tsx', true),
     msfsAvionicsInstrument('OIT'),
-    msfsAvionicsInstrument('PFD'),
+    msfsAvionicsInstrument('PFD', 'instrument.tsx', true, { mouseTransparent: true }),
     msfsAvionicsInstrument('RMP'),
-    msfsAvionicsInstrument('SDv2'),
+    msfsAvionicsInstrument('SDv2', 'instrument.tsx', true, { mouseOnlyWhenShown: true }),
     msfsAvionicsInstrument('popup'),
 
     reactInstrument('BAT'),
@@ -44,33 +49,37 @@ module.exports = {
     reactInstrument('ISISlegacy'),
     reactInstrument('OITlegacy'),
     reactInstrument('RTPI'),
-    reactInstrument('SD'),
+    reactInstrument('SD', undefined, true, { mouseOnlyWhenShown: true }),
   ],
 };
 
-function msfsAvionicsInstrument(name, index = 'instrument.tsx') {
+function msfsAvionicsInstrument(name, index = 'instrument.tsx', hosted = false, hostedOptions = {}) {
+  const simulatorPackage = {
+    type: 'baseInstrument',
+    templateId: `A380X_${name}`,
+    mountElementId: `${name}_CONTENT`,
+    fileName: name.toLowerCase(),
+    imports: ['/JS/dataStorage.js'],
+  };
   return {
     name,
     index: `src/systems/instruments/src/${name}/${index}`,
-    simulatorPackage: {
-      type: 'baseInstrument',
-      templateId: `A380X_${name}`,
-      mountElementId: `${name}_CONTENT`,
-      fileName: name.toLowerCase(),
-      imports: ['/JS/dataStorage.js'],
-    },
+    simulatorPackage,
+    plugins: hosted ? [hostedInstrumentPlugin(name, simulatorPackage, hostedOptions)] : undefined,
   };
 }
 
-function reactInstrument(name, additionalImports) {
+function reactInstrument(name, additionalImports, hosted = false, hostedOptions = {}) {
+  const simulatorPackage = {
+    type: 'react',
+    isInteractive: false,
+    fileName: name.toLowerCase(),
+    imports: ['/JS/dataStorage.js', '/JS/fbw-a380x/A380X_Simvars.js', ...(additionalImports ?? [])],
+  };
   return {
     name,
     index: `src/systems/instruments/src/${name}/index.tsx`,
-    simulatorPackage: {
-      type: 'react',
-      isInteractive: false,
-      fileName: name.toLowerCase(),
-      imports: ['/JS/dataStorage.js', '/JS/fbw-a380x/A380X_Simvars.js', ...(additionalImports ?? [])],
-    },
+    simulatorPackage,
+    plugins: hosted ? [hostedInstrumentPlugin(name, simulatorPackage, hostedOptions)] : undefined,
   };
 }

@@ -24,6 +24,7 @@
   - [Landing Gear ATA 32](#landing-gear-ata-32)
   - [Lights ATA 33](#lights-ata-33)
   - [Surveillance ATA 34](#surveillance-ata-34)
+  - [Navigation ATA 34](#navigation-ata-34)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
@@ -90,7 +91,8 @@
 
 - A32NX_OVHD_{name}_PB_HAS_FAULT
     - Bool
-    - Indicates if the push button's FAULT light should illuminate
+    - Indicates if the push button's FAULT light should illuminate. ELEC_BAT_n: the battery is failed (flyPad failures
+      BAT 1, BAT 2, BAT ESS, APU BAT) and disconnected from its DC busbar; triggers ELEC BAT n FAULT (APU BAT FAULT)
     - {name}
         - APU_MASTER_SW
         - ELEC_BAT_1
@@ -1010,6 +1012,12 @@ The PRIMs perform the flight guidance and flight envelope functions.
         | Data       | 1      |
         | Emergency  | 2      |
 
+- `L:A380X_GLARESHIELD_ATC_MSG_LIGHT`
+    - Bool
+    - Read only!
+    - The two ATC MSG pb lights of the glareshield: flashing at 2 Hz (written on and off by the systems host) while
+      `L:A32NX_DCDU_ATC_MSG_WAITING` is set (A380 FCOM DSC-46-10-20-70).
+
 - `L:FBW_RMP_MODE_STANDBY_{vhf_index}`
     - Enum
     - Read only!
@@ -1026,10 +1034,10 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Bool
     - True when the contactor is CLOSED
     - {name}
-        - 3XB.1: Contactor between the static inverter and AC EMER BUS (AC ESS)
-        - 3XB.2: Contactor between AC ESS BUS (AC ESS SCHED) and AC EMER BUS (AC ESS)
-        - 3XC1: AC ESS feed contactor between AC BUS 1 and AC ESS BUS (AC ESS SCHED)
-        - 3XC2: AC ESS feed contactor between AC BUS 4 and AC ESS BUS (AC ESS SCHED)
+        - 3XB.1: Contactor between AC ESS BUS (400XP, variable AC_ESS_SHED) and AC EMER BUS (491XP, variable AC_ESS)
+        - 3XB.2: Contactor between the static inverter and AC EMER BUS (491XP, variable AC_ESS)
+        - 3XC1: AC ESS feed contactor between AC BUS 1 and AC ESS BUS (400XP, variable AC_ESS_SHED)
+        - 3XC2: AC ESS feed contactor between AC BUS 4 and AC ESS BUS (400XP, variable AC_ESS_SHED)
         - 5PB: Battery APU contactor
         - 5XE: Emergency generator contactor
         - 6PB3: Battery ESS contactor
@@ -1042,7 +1050,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - 14PH: Contactor from DC ESS BUS to DC EHA BUS
         - 900XU: System isolation contactor
         - 911XN: Contactor from AC BUS 3 to AC EHA BUS
-        - 911XH: Contactor from AC ESS BUS (AC ESS SCHED) to AC EHA BUS
+        - 911XH: Contactor from AC ESS BUS (400XP, variable AC_ESS_SHED) to AC EHA BUS
         - 970PN: Contactor from DC BUS 2 to DC GND/FLT SVC BUS
         - 970PN2: Contactor from DC BUS 2 to DC EHA BUS
         - 980PC: Inter bus line contactor between DC BUS 1 and DC BUS 2
@@ -1071,18 +1079,24 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_ELEC_{name}_BUS_IS_POWERED
     - Bool
     - True when the given bus is powered
+    - The AC ESS names come from the A320: on the A380 `AC_ESS_SHED` is the AC ESS busbar (400XP) and `AC_ESS` is
+      the AC EMER busbar (491XP). Failure 24105 (AC ESS) fails AC_ESS_SHED, failure 24104 (AC EMER) fails AC_ESS.
     - {name}
       - AC_1
       - AC_2
       - AC_3
       - AC_4
-      - AC_ESS
-      - AC_ESS_SCHED
-      - AC_247XP
+      - AC_ESS: AC EMER busbar (491XP), supplied by the AC ESS busbar or the static inverter
+      - AC_ESS_SHED: AC ESS busbar (400XP), supplied by AC 1, AC 4 (AC ESS FEED ALTN) or the emergency generator
+      - 247XP: AC EHA busbar
+      - AC_GND_FLT_SVC
       - DC_1
       - DC_2
       - DC_ESS
-      - DC_247PP
+      - 108PH: DC ESS in-flight sub-busbar
+      - 247PP: DC EHA busbar
+      - 309PP: DC APU busbar
+      - 502PP: refuel on battery busbar
       - DC_HOT_1
       - DC_HOT_2
       - DC_HOT_3
@@ -1226,6 +1240,35 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - 2
         - 3
         - 4
+
+- A32NX_ELEC_EXT_PWR_{number}_FAULT
+    - Bool
+    - Read only
+    - True when the GGPCU of external power {number} reports its external power unit (or itself) failed (flyPad
+      failure EXT PWR {number}), while the ground power unit is connected. The failed unit cannot supply the network.
+      Triggers ELEC EXT PWR {number} FAULT
+    - {number}
+        - 1
+        - 2
+        - 3
+        - 4
+
+- A32NX_ELEC_ENG_GEN_{number}_DRIVE_DISC_FAULT
+    - Bool
+    - Read only
+    - True when the disconnection function of generator drive {number} is failed (flyPad failure DRIVE {number}
+      Disconnect Function): its DRIVE pb no longer disconnects the generator. Triggers ELEC DRIVE {number} DISC FAULT
+    - {number}
+        - 1
+        - 2
+        - 3
+        - 4
+
+- A32NX_ELEC_RAT_FAULT
+    - Bool
+    - Read only
+    - True when the RAT generator is failed (flyPad failure RAT Generator), RAT stowed or deployed: it gives no output
+      to the AC ESS busbar. Triggers ELEC RAT FAULT
 
 ## Fire and Smoke Protection ATA 26
 
@@ -1615,6 +1658,58 @@ The PRIMs perform the flight guidance and flight envelope functions.
   - ArincWord852<>
   - Second CAN bus of the CDS on the first officer's side
 
+- A380X_CDS_{DU}_DU_FAILED
+  - Bool
+  - The display unit is failed (flyPad failure, ATA 31): it is blank. Written by the DU's instrument (CdsDisplayUnit);
+    the legacy SD reads the SD one, the ND weather radar / terrain gauge (ndwxr) the ND ones.
+  - {DU}
+    - CAPT_PFD
+    - CAPT_ND
+    - CAPT_MFD
+    - EWD
+    - SD
+    - FO_MFD
+    - FO_ND
+    - FO_PFD
+
+- A380X_CDS_{DU}_DU_DISPLAY
+  - Number
+  - The display the display unit shows after the CDS reconfiguration (A380 FCOM DSC-31-15-20). Written by the systems
+    host (Misc/CdsReconfiguration.ts); read by the display gauges of the DU (the DU's own gauge hides, a hosted gauge of
+    another display starts and runs only while shown) and, for the ND DUs, by the ND weather radar / terrain gauge
+    (ndwxr), which draws nothing while the ND DU shows another display. Stays 0 in normal operation.
+    - 0: its own display
+    - 1: PFD (on the ND DU: PFD DU lost, or PFD/ND pb)
+    - 2: ND (on the PFD DU: PFD/ND pb, or DU RECONF pb)
+    - 3: MFD (not drawn on another DU)
+    - 4: EWD (on the SD DU: EWD DU lost; on the ND DU: DU RECONF pb)
+    - 5: SD (on the ND DU: DU RECONF pb; with the ATC mailbox, see A380X_CDS_MAILBOX_DU)
+  - {DU}
+    - CAPT_PFD
+    - CAPT_ND
+    - CAPT_MFD
+    - EWD
+    - SD
+    - FO_MFD
+    - FO_ND
+    - FO_PFD
+  - A display unit is lost when it is failed (flyPad ATA 31), unpowered, or switched off with its brightness knob.
+    The PFD/ND pbs send `H:A380X_EFIS_L_PFD_ND_PUSHED` / `H:A380X_EFIS_R_PFD_ND_PUSHED` and the DU RECONF pbs
+    `H:A380X_EFIS_L_DU_RECONF_PUSHED` / `H:A380X_EFIS_R_DU_RECONF_PUSHED` (cockpit behaviour); the systems host keeps
+    their state.
+
+- A380X_CDS_MAILBOX_DU
+  - Number
+  - The display unit whose ATC mailbox (the bottom section of the SD) is the active mailbox client, the only one that
+    answers the flight crew and publishes to the ATC function (A380 FCOM PRO-ABN-ECAM-10-31: "If the SD DU is turned
+    OFF, use the F/O DU RECONF P/B for ATC mailbox"). Written by the systems host (Misc/CdsReconfiguration.ts); read
+    by every SDv2 gauge (the SD DU's own and the SD drawn on the ND DUs). The SD DU wins while it is operative and shows
+    the SD; else the ND DU that shows the SD; else none (no mailbox marks a new message as displayed or read).
+    - 0: the SD DU (normal operation, also before the systems host writes it)
+    - 1: the CAPT ND DU
+    - 4: the F/O ND DU
+    - -1: none (the SD is shown on no operative display unit)
+
 ## ECAM Control Panel ATA 31
 
 - A32NX_BTN_{button_name}
@@ -1840,6 +1935,119 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Written by the ABV / BLW buttons of the pedestal SURV panel, read and reset to 0 by the TCAS computer
     - 0 = no request, otherwise the wanted `L:A380X_TCAS_ALT_SELECT` plus one
 
+- A32NX_WXR_ND_{side}_MODE
+    - Enum
+    - The weather radar mode text shown on the ND, published by the ndwxr gauge only while the radar is selected on a map page (ROSE ILS / VOR / NAV or ARC),
+      0 otherwise. Shared with the A32NX. The A380X has no TURB-only mode.
+    - {side} = L or R
+    -   | State  | Number |
+        |--------|--------|
+        | None   | 0      |
+        | WX     | 1      |
+        | WX+T   | 2      |
+        | TURB   | 3      |
+        | MAP    | 4      |
+
+- A380X_VD_CUT_MODE
+    - Enum
+    - The vertical cut of the VD's terrain profile drawn by the ndwxr gauge, published by EfisTawsBridge (FCOM DSC-31-20-40-10):
+      0 = along the aircraft's track (selected lateral modes, or no usable flight plan), 1 = along the active flight plan (the vertices below)
+
+- A380X_VD_CUT_COUNT
+    - Number
+    - Number of vertices of the flight plan cut (2 to 32), 0 when the cut is along the track
+
+- A380X_VD_CUT_{index}_LAT / A380X_VD_CUT_{index}_LON
+    - Degrees
+    - Vertex {index} (0 to 31) of the flight plan cut: the start of every path vector, the midpoint of every turn, the end of the last vector
+      and a straight extension of 160 NM beyond it, from the vertex before the one closest to the aircraft over the next 200 NM
+
+- A380X_VD_CUT_TRACK_CHANGE_NM
+    - Number (NM)
+    - Distance along the cut at which the next track change is more than 3 degrees (the grey area of the VD), -1 when none
+
+- `L:A32NX_EGPWC_ND_{L,R}_TERRAIN_{MIN,MAX}_ELEVATION` and `..._ELEVATION_MODE`
+    - The TERR ON ND peaks box figures, written by the ndwxr gauge; same variables and values as on the A32NX, see
+      the GPWS / TAWS section of fbw-a32nx/docs/a320-simvars.md
+
+- `L:A32NX_TRANSPONDER_SYSTEM`
+    - Number
+    - The XPDR & TCAS system in use, set on the SURV panel and the MFD SURV STATUS & SWITCHING page: 0 = SYS 1, 1 = SYS 2
+    - MSFS has one transponder: it is driven as the transponder of the selected system (XPDR 1: failure 34003,
+      AC ESS; XPDR 2: failure 34004, AC 4)
+
+- `L:A32NX_XPDR_{1,2}_FAILED`
+    - Bool
+    - True when the transponder of SURV SYS 1/2 is failed (failure 34003/34004) or unpowered (SYS 1: AC ESS,
+      SYS 2: AC 4), whether it is selected or not. Shown on the MFD SURV STATUS & SWITCHING page
+
+- `L:A32NX_TCAS_{1,2}_FAILED`
+    - Bool
+    - True when the TCAS of SURV SYS 1/2 is inoperative: its XPDR is failed or unpowered (`L:A32NX_XPDR_{1,2}_FAILED`),
+      or the system is selected and the TCAS computer reports a fault (`L:A32NX_TCAS_FAULT`, the single sim TCAS is
+      the TCAS of the selected system). Shown on the MFD SURV STATUS & SWITCHING page
+
+## Navigation ATA 34
+
+- A32NX_FM_GPS_POS_DISAGREE
+    - Bool
+    - The FMS FM/GPS position disagree condition for the NAV FM / GPS POS DISAGREE alert: an FMS position more than the
+      FCOM latitude/longitude thresholds away from a GPS receiver position (FCOM PRO-ABN-ECAM-10-34-10). Written by the
+      FMS (fmgc navigation/FmPosition.ts), read by the FWS
+
+- A32NX_GPS_{number}_LATITUDE, A32NX_GPS_{number}_LONGITUDE
+    - Arinc429<Degrees>
+    - The position of the GPS receiver of MMR {number} (1 or 2): valid in NAV mode, no computed data in INIT and ACQ,
+      failure warning when off or failed
+
+- A32NX_GPS_{number}_ALTITUDE, A32NX_GPS_{number}_GROUND_SPEED, A32NX_GPS_{number}_TRUE_TRACK
+    - Arinc429<Feet>, Arinc429<Knots>, Arinc429<Degrees>
+    - The GPS altitude, ground speed and true track of the receiver
+
+- A32NX_GPS_{number}_HORIZONTAL_FIGURE_OF_MERIT
+    - Arinc429<Feet>
+    - The 95 % horizontal accuracy (HFOM) of the receiver position, from the geometry of the satellites tracked
+
+- A32NX_GPS_{number}_HORIZONTAL_INTEGRITY_LIMIT
+    - Arinc429<Nautical miles>
+    - The horizontal integrity limit (HIL) of the receiver position; no computed data with fewer than five satellites
+
+- A32NX_GPS_{number}_SATELLITES
+    - Arinc429<Number>
+    - The number of satellites tracked (in ACQ and NAV), from the nominal 24-slot GPS constellation at the sim UTC time
+
+- A32NX_GPS_{number}_MODE
+    - Number
+    - The receiver mode
+      | Value | Mode  |
+      |-------|-------|
+      | 0     | Off   |
+      | 1     | INIT  |
+      | 2     | ACQ   |
+      | 3     | NAV   |
+      | 4     | FAULT |
+      | 5     | TEST (self test at power up) |
+      | 6     | ALTAID (three satellites and the ADR altitude) |
+      | 7     | AIDED (coasting on the IR data, up to two minutes) |
+      | 8     | DIFF (satellite based augmentation) |
+
+- A32NX_ADIRS_IR_{number}_GPIRS_LATITUDE, A32NX_ADIRS_IR_{number}_GPIRS_LONGITUDE
+    - Arinc429<Degrees>
+    - The GPIRS (hybrid GPS/IRS) position of IR {number}: valid when the IR is in NAV and has a GPS receiver in NAV
+
+- A32NX_ADIRS_IR_{number}_GPIRS_FIGURE_OF_MERIT, A32NX_ADIRS_IR_{number}_GPIRS_INTEGRITY_LIMIT
+    - Arinc429<Nautical miles>
+    - The accuracy (HFOM) and the horizontal integrity limit (HIL) of the GPIRS position
+
+- A32NX_ADIRS_IR_{number}_GPIRS_SOURCE
+    - Number
+    - The GPS receiver the IR uses (1 or 2, 0 for none): GPS 1 for IR 1, GPS 2 for IR 2, IR 3 by the ATT HDG selector
+      (GPS 2 on F/O 3); when one receiver is rejected, every IR uses the other
+
+- A32NX_GNSS_UTC_UNIX_SECONDS
+    - Number (seconds)
+    - The sim UTC date and time as seconds since 1 January 1970 0000 UTC, for the GPS constellation
+
 ## Bleed Air ATA 36
 
 - A32NX_PNEU_ENG_{number}_INTERMEDIATE_TRANSDUCER_PRESSURE
@@ -1971,3 +2179,22 @@ The PRIMs perform the flight guidance and flight envelope functions.
   - If ground power is avail or not
   - {number}
         - 1 - 4
+
+- `L:A380X_PRINTER_DOOR`
+  - Bool
+  - The paper door of the pedestal printer is open (a click on the door or its latch toggles it; cockpit model
+    animation PRINTER_DOOR). No effect on printing.
+
+- `L:A380X_PRINTER_OFF`
+  - Bool
+  - The pedestal printer is switched off with the ON/OFF button of its control panel (0, the default, is on). The
+    green half of the ON/OFF button face (node PRINTER_ON_OFF_GREEN) is shown while the printer is on and AC 1 is
+    powered. While off or without AC 1, nothing is printed: the waiting sheets are dropped, the FMS shows PRINTER NOT
+    AVAIL on a print, and the ATC COM print functions show PRINTER NOT AVAIL.
+
+- `L:A380X_PRINTER_SLEW`, `L:A380X_PRINTER_TEST`, `L:A380X_PRINTER_ABORT`
+  - Bool
+  - Set to true by the SLEW, TEST and ABORT buttons of the pedestal printer control panel; the FMS printer sets them
+    back to false: SLEW feeds out a blank sheet, TEST prints the printer test page, ABORT drops the sheets waiting to be
+    printed (the sheet coming out finishes). Ignored while the printer is off or unpowered. Design choices: the A380
+    FCOM does not describe these buttons.

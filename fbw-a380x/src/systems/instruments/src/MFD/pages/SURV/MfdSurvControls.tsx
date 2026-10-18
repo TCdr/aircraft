@@ -18,7 +18,13 @@ import { ActivePageTitleBar } from '../common/ActivePageTitleBar';
 import { AbstractMfdPageProps } from '../../MFD';
 import { Footer } from '../common/Footer';
 import { InputField } from '../../../MsfsAvionicsCommon/UiWidgets/InputField';
-import { SquawkFormat, WxrElevationFormat, WxrGainFormat, WxrTiltFormat } from '../common/DataEntryFormats';
+import {
+  DataEntryFormat,
+  SquawkFormat,
+  WxrElevationFormat,
+  WxrGainFormat,
+  WxrTiltFormat,
+} from '../common/DataEntryFormats';
 import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { RadioButtonColor, RadioButtonGroup } from '../../../MsfsAvionicsCommon/UiWidgets/RadioButtonGroup';
 import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
@@ -119,7 +125,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
   );
 
   // WXR, TURB and MODE drive the ND weather radar, WX ON VD the VD's "NO TERR AND WX DATA" message. PRED W/S, GAIN and
-  // ELEVN/TILT only keep their state so far. All start at the page's default settings.
+  // ELEVN/TILT only keep their state. All start at the page's default settings.
   private readonly wxrAuto = Subject.create<boolean>(true);
 
   private readonly wxrPredWsAuto = Subject.create<boolean>(true);
@@ -399,6 +405,33 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
     return { visibility: visible.map((v) => (v ? 'inherit' : 'hidden')) };
   }
 
+  /** The entry field of a manual WXR setting (ELEVN, TILT or GAIN): a cleared value writes NO_ENTRY */
+  private wxrManualSettingField(
+    y: number,
+    x: number,
+    width: number,
+    format: DataEntryFormat<number>,
+    value: Subject<number | null>,
+    settingVar: string,
+  ): VNode {
+    return fcomAt(
+      y,
+      x,
+      <InputField<number>
+        dataEntryFormat={format}
+        value={value}
+        dataHandlerDuringValidation={async (v) =>
+          SimVar.SetSimVarValue(settingVar, SimVarValueType.Number, v ?? NO_ENTRY)
+        }
+        containerStyle={`width: ${width}px;`}
+        alignText="center"
+        errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+        hEventConsumer={this.props.mfd.hEventConsumer}
+        interactionMode={this.props.mfd.interactionMode}
+      />,
+    );
+  }
+
   private survButton(
     y: number,
     x: number,
@@ -422,8 +455,6 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
   }
 
   render(): VNode {
-    const errorHandler = (e: { type: FmsErrorType; details?: string }) =>
-      this.props.fmcService.master.showFmsErrorMessage(e.type, e.details);
     return (
       <>
         <ActivePageTitleBar activePage={Subject.create('CONTROLS')} offset={Subject.create('')} />
@@ -560,40 +591,17 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
             )}
             {/* ELEVN or TILT displays an entry field below the option list */}
             <div style={this.visibleIf(this.wxrElevationVisible)}>
-              {fcomAt(
+              {this.wxrManualSettingField(
                 588,
                 12,
-                <InputField<number>
-                  dataEntryFormat={this.wxrElevationFormat}
-                  value={this.wxrElevation}
-                  dataHandlerDuringValidation={async (v) =>
-                    SimVar.SetSimVarValue('L:A380X_WXR_ELEVN', SimVarValueType.Number, v ?? NO_ENTRY)
-                  }
-                  containerStyle="width: 142px;"
-                  alignText="center"
-                  errorHandler={errorHandler}
-                  hEventConsumer={this.props.mfd.hEventConsumer}
-                  interactionMode={this.props.mfd.interactionMode}
-                />,
+                142,
+                this.wxrElevationFormat,
+                this.wxrElevation,
+                'L:A380X_WXR_ELEVN',
               )}
             </div>
             <div style={this.visibleIf(this.wxrTiltVisible)}>
-              {fcomAt(
-                588,
-                12,
-                <InputField<number>
-                  dataEntryFormat={new WxrTiltFormat()}
-                  value={this.wxrTilt}
-                  dataHandlerDuringValidation={async (v) =>
-                    SimVar.SetSimVarValue('L:A380X_WXR_TILT', SimVarValueType.Number, v ?? NO_ENTRY)
-                  }
-                  containerStyle="width: 128px;"
-                  alignText="center"
-                  errorHandler={errorHandler}
-                  hEventConsumer={this.props.mfd.hEventConsumer}
-                  interactionMode={this.props.mfd.interactionMode}
-                />,
-              )}
+              {this.wxrManualSettingField(588, 12, 128, new WxrTiltFormat(), this.wxrTilt, 'L:A380X_WXR_TILT')}
             </div>
 
             {/* GAIN and MODE are not displayed while the WXR is off */}
@@ -608,22 +616,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
               )}
             </div>
             <div style={this.visibleIf(this.wxrGainFieldVisible)}>
-              {fcomAt(
-                591,
-                229,
-                <InputField<number>
-                  dataEntryFormat={new WxrGainFormat()}
-                  value={this.wxrGain}
-                  dataHandlerDuringValidation={async (v) =>
-                    SimVar.SetSimVarValue('L:A380X_WXR_GAIN', SimVarValueType.Number, v ?? NO_ENTRY)
-                  }
-                  containerStyle="width: 112px;"
-                  alignText="center"
-                  errorHandler={errorHandler}
-                  hEventConsumer={this.props.mfd.hEventConsumer}
-                  interactionMode={this.props.mfd.interactionMode}
-                />,
-              )}
+              {this.wxrManualSettingField(591, 229, 112, new WxrGainFormat(), this.wxrGain, 'L:A380X_WXR_GAIN')}
             </div>
             {fcomCentre(470, 662, <span class="mfd-label">WX ON VD</span>)}
             {this.survButton(528, 602, this.wxrOnVd, this.wxrFailed, 'AUTO', 'OFF', (v) =>

@@ -1,0 +1,153 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+/** The FM navigation modes, by decreasing priority */
+export enum FmNavigationMode {
+  IrsGps,
+  IrsDmeDme,
+  IrsVorDme,
+  IrsOnly,
+}
+
+/** The estimated position uncertainty after an IRS alignment, in NM */
+export const IRS_ALIGNMENT_UNCERTAINTY = 5;
+
+/** The estimated position uncertainty after a position update on ground, in NM (both aircraft) */
+const POSITION_UPDATE_ON_GROUND_UNCERTAINTY = 0.2;
+
+/**
+ * The radio position uncertainty of the aircraft, in NM, nearest and farthest navaids: IRS/DME/DME 0.27 to 0.37 NM,
+ * IRS/VOR/DME 0.30 to 0.42 NM, depending on the distance to the navaids
+ */
+const RADIO_UNCERTAINTY: Record<FmNavigationMode.IrsDmeDme | FmNavigationMode.IrsVorDme, [number, number]> = {
+  [FmNavigationMode.IrsDmeDme]: [0.27, 0.37],
+  [FmNavigationMode.IrsVorDme]: [0.3, 0.42],
+};
+
+/** The distance to the navaids at which the radio position uncertainty reaches its largest value, in NM (design choice) */
+const RADIO_UNCERTAINTY_RANGE = 100;
+
+/** The growth of the IRS only uncertainty: [duration in minutes, rate in NM/h] */
+const IRS_ONLY_GROWTH: readonly [number, number][] = [
+  [40, 6],
+  [50, 0],
+  [40, 4],
+  [45, 0],
+  [Infinity, 2],
+];
+
+/**
+ * The uncertainty of a radio position, from the distance to the farthest navaid used.
+ * @param mode IRS/DME/DME or IRS/VOR/DME
+ * @param distance the distance to the farthest navaid used, in NM
+ */
+export function radioPositionUncertainty(
+  mode: FmNavigationMode.IrsDmeDme | FmNavigationMode.IrsVorDme,
+  distance: number,
+): number {
+  const [nearest, farthest] = RADIO_UNCERTAINTY[mode];
+  const ratio = Math.min(Math.max(distance / RADIO_UNCERTAINTY_RANGE, 0), 1);
+  return nearest + (farthest - nearest) * ratio;
+}
+
+/**
+ * The uncertainty after some time in IRS only mode.
+ * @param initial the uncertainty when the IRS only mode started, in NM
+ * @param minutes the time in IRS only mode, in minutes
+ */
+export function irsOnlyPositionUncertainty(initial: number, minutes: number): number {
+  let uncertainty = initial;
+  let remaining = minutes;
+  for (const [duration, rate] of IRS_ONLY_GROWTH) {
+    const time = Math.min(remaining, duration);
+    uncertainty += (rate * time) / 60;
+    remaining -= time;
+    if (remaining <= 0) {
+      break;
+    }
+  }
+  return uncertainty;
+}
+
+export interface PositionUncertaintyState {
+  mode: FmNavigationMode;
+  /** The estimated position uncertainty (EPU), in NM */
+  uncertainty: number;
+}
+
+/**
+ * The FM navigation mode and the estimated position uncertainty: the FM position is updated with the GPS, else a DME
+ * pair, else a VOR/DME, else it is the IRS position alone, whose uncertainty grows with time.
+ */
+export class PositionUncertaintyEstimator {
+  private mode: FmNavigationMode | null = null;
+
+  private uncertainty: number | null = null;
+
+  private irsOnlyInitial = IRS_ALIGNMENT_UNCERTAINTY;
+
+  private irsOnlyMinutes = 0;
+
+  /**
+   * The EPU is the greater of the distance between the FMS position and the GPIRS (radio) position and the GPS (radio)
+   * position uncertainty: after a position update the FM position is away from the sensor position until it has
+   * approached it again.
+   * @param deltaTime the time since the last update, in milliseconds
+   * @param gpsUncertainty the uncertainty of the GPIRS position in use, null when the GPS is not used
+   * @param dmePairDistances the distances to the two DMEs of the DME pair in use, in NM, null without a DME pair
+   * @param vorDmeDistance the distance to the VOR/DME in use for navigation, in NM, null without one
+   * @param fmToGpirsDistance the distance between the FM position and the GPIRS position in use, in NM
+   * @param fmToRadioDistance the distance between the FM position and the radio position, in NM
+   */
+  update(
+    deltaTime: number,
+    gpsUncertainty: number | null,
+    dmePairDistances: readonly [number, number] | null,
+    vorDmeDistance: number | null,
+    fmToGpirsDistance = 0,
+    fmToRadioDistance = 0,
+  ): PositionUncertaintyState {
+    let mode: FmNavigationMode;
+    let uncertainty: number;
+    if (gpsUncertainty !== null) {
+      mode = FmNavigationMode.IrsGps;
+      uncertainty = Math.max(gpsUncertainty, fmToGpirsDistance);
+    } else if (dmePairDistances !== null) {
+      mode = FmNavigationMode.IrsDmeDme;
+      uncertainty = Math.max(radioPositionUncertainty(mode, Math.max(...dmePairDistances)), fmToRadioDistance);
+    } else if (vorDmeDistance !== null) {
+      mode = FmNavigationMode.IrsVorDme;
+      uncertainty = Math.max(radioPositionUncertainty(mode, vorDmeDistance), fmToRadioDistance);
+    } else {
+      mode = FmNavigationMode.IrsOnly;
+      if (this.mode !== FmNavigationMode.IrsOnly) {
+        // The IRS position drifts from where the last update left it
+        this.irsOnlyInitial = this.uncertainty ?? IRS_ALIGNMENT_UNCERTAINTY;
+        this.irsOnlyMinutes = 0;
+      }
+      this.irsOnlyMinutes += deltaTime / 60_000;
+      uncertainty = irsOnlyPositionUncertainty(this.irsOnlyInitial, this.irsOnlyMinutes);
+    }
+    this.mode = mode;
+    this.uncertainty = uncertainty;
+    return { mode, uncertainty };
+  }
+
+  /**
+   * A position update of the FM position (the update at takeoff, or a manual update).
+   * - On ground (the takeoff update, or a manual or automatic update) the EPU is set to 0.2 NM.
+   * - In flight in IRS only, the EPU becomes the previous EPU plus the distance between the update position and the FMS
+   *   position. In the GPS and radio modes the distance to the sensor position does it (update()).
+   * The IRS only uncertainty then grows again from the new value.
+   * @param onGround whether the aircraft is on ground
+   * @param updateDistance the distance between the update position and the FM position before the update, in NM
+   */
+  positionUpdate(onGround: boolean, updateDistance: number): void {
+    const updated = onGround
+      ? POSITION_UPDATE_ON_GROUND_UNCERTAINTY
+      : (this.uncertainty ?? IRS_ALIGNMENT_UNCERTAINTY) + updateDistance;
+    this.uncertainty = updated;
+    this.irsOnlyInitial = updated;
+    this.irsOnlyMinutes = 0;
+  }
+}

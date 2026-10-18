@@ -112,9 +112,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
 
   private readonly rtaMessageIdent = Subject.create('');
 
-  private readonly rtaMessageSuffix = Subject.create('');
-
-  /** RTA NOT ALLOWED IN EO, the panel is empty with this message */
+  /** RTA NOT ALLOWED IN EO: the panel is empty with this message */
   private readonly rtaPanelMessage = Subject.create('');
 
   private readonly rtaPanelVisible = this.rtaPanelMessage.map((m) => m === '');
@@ -1067,6 +1065,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
       this.rtaFieldStyle,
       this.props.fmcService.master.timeKeeper.utcSeconds.sub(() => this.updateRta()),
       this.props.fmcService.master.timeConstraint.sub(() => this.updateRta()),
+      this.props.fmcService.master.secondaryTimeConstraintsVersion.sub(() => this.updateRta()),
       this.selectedLegIndex.sub(() => this.updateRta()),
     );
 
@@ -1185,12 +1184,16 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     return `${hh.toFixed(0).padStart(2, '0')}:${mm.toFixed(0).padStart(2, '0')}:${ss.toFixed(0).padStart(2, '0')}`;
   }
 
+  /** The VNAV prediction at a leg of the loaded flight plan, when it is the active one */
+  private activePlanPrediction(legIndex: number) {
+    return this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active
+      ? this.props.fmcService.master.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
+      : undefined;
+  }
+
   /** The ETA at a leg of the active flight plan, seconds of the day (a flight time in preflight without ETT) */
   private rtaEtaSeconds(legIndex: number): number | null {
-    const pred =
-      this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active
-        ? this.props.fmcService.master.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
-        : undefined;
+    const pred = this.activePlanPrediction(legIndex);
     if (!pred || !Number.isFinite(pred.secondsFromPresent)) {
       return null;
     }
@@ -1221,36 +1224,25 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
 
     const legIndex = this.selectedLegIndex.get();
     const leg = legIndex !== null && plan ? plan.maybeElementAt(legIndex) : undefined;
-    const rta = fmc.timeConstraint.get();
+    const rta = this.loadedTimeConstraint();
     const rtaLegIndex =
       rta && plan
         ? plan.allLegs.findIndex((l) => isLeg(l) && l.definition.waypoint?.databaseId === rta.databaseId)
         : -1;
     const rtaOnSelected = rta !== null && legIndex !== null && rtaLegIndex === legIndex;
 
-    if (
-      leg &&
-      isLeg(leg) &&
-      (this.selectedLegIsAlternate || this.loadedFlightPlanIndex.get() !== FlightPlanIndex.Active)
-    ) {
+    if (leg && isLeg(leg) && (this.selectedLegIsAlternate || !this.canHoldRta())) {
       this.rtaMessage.set('RTA NOT ALLOWED AT');
       this.rtaMessageIdent.set(leg.ident);
-      this.rtaMessageSuffix.set('');
     } else if (rta && !rtaOnSelected) {
       this.rtaMessage.set('EXISTING RTA AT');
       this.rtaMessageIdent.set(rta.ident);
-      this.rtaMessageSuffix.set('');
     } else {
       this.rtaMessage.set('');
       this.rtaMessageIdent.set('');
-      this.rtaMessageSuffix.set('');
     }
 
-    // Waypoint distance and ETA (P 362)
-    const pred =
-      legIndex !== null && this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active
-        ? fmc.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
-        : undefined;
+    const pred = legIndex !== null ? this.activePlanPrediction(legIndex) : undefined;
     this.rtaDistance.set(
       pred && Number.isFinite(pred.distanceFromAircraft) ? Math.max(0, pred.distanceFromAircraft).toFixed(0) : '----',
     );
@@ -1334,7 +1326,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     const time = utcSeconds ?? this.rtaEtaSeconds(legIndex!);
     this.rtaTime.set(time);
     if (time !== null) {
-      this.props.fmcService.master.timeConstraint.set({
+      this.setLoadedTimeConstraint({
         ident: leg.ident,
         databaseId: leg.definition.waypoint.databaseId,
         type,
@@ -1345,10 +1337,36 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
   }
 
   private deleteRta(): void {
-    this.props.fmcService.master.timeConstraint.set(null);
+    this.setLoadedTimeConstraint(null);
     this.rtaType.set(null);
     this.rtaTime.set(null);
     this.updateRta();
+  }
+
+  /** Whether the loaded flight plan can hold an RTA: the active one, or a secondary one (e.g. an ATC F-PLN in SEC 3) */
+  private canHoldRta(): boolean {
+    const index = this.loadedFlightPlanIndex.get();
+    return index === FlightPlanIndex.Active || index >= FlightPlanIndex.FirstSecondary;
+  }
+
+  private loadedTimeConstraint(): TimeConstraint | null {
+    const index = this.loadedFlightPlanIndex.get();
+    if (this.selectedLegIsAlternate || !this.canHoldRta()) {
+      return null;
+    }
+    const fmc = this.props.fmcService.master;
+    return index === FlightPlanIndex.Active ? fmc.timeConstraint.get() : fmc.secondaryTimeConstraint(index);
+  }
+
+  /** Sets, or deletes with null, the RTA of the loaded flight plan */
+  private setLoadedTimeConstraint(rta: TimeConstraint | null): void {
+    const index = this.loadedFlightPlanIndex.get();
+    const fmc = this.props.fmcService.master;
+    if (index === FlightPlanIndex.Active) {
+      fmc.timeConstraint.set(rta);
+    } else if (index >= FlightPlanIndex.FirstSecondary) {
+      fmc.setSecondaryTimeConstraint(index, rta);
+    }
   }
 
   private renderRtaPanel(): VNode {
@@ -1363,9 +1381,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
             <span class="mfd-value bigger amber" style="margin-left: 16px;">
               {this.rtaMessageIdent}
             </span>,
-            <span class="mfd-label amber" style="margin-left: 16px;">
-              {this.rtaMessageSuffix}
-            </span>,
+            <span class="mfd-label amber" style="margin-left: 16px;" />,
           ])}
           {fcomRight(96, 217, <span class="mfd-label">RTA AT</span>)}
           {fcomAt(

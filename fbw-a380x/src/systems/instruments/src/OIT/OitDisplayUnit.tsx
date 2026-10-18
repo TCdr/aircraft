@@ -38,6 +38,7 @@ export enum OitDisplayUnitID {
 
 const DisplayUnitToDCBus: { [k in OitDisplayUnitID]: (DcElectricalBus | AcElectricalBus)[] } = {
   [OitDisplayUnitID.CaptOit]: [AcElectricalBus.Ac2, DcElectricalBus.Dc2],
+  // F/O OIT supply: AC ESS and DC 1 or DC ESS
   [OitDisplayUnitID.FoOit]: [AcElectricalBus.AcEss, DcElectricalBus.DcEssInFlight, DcElectricalBus.Dc1],
 };
 

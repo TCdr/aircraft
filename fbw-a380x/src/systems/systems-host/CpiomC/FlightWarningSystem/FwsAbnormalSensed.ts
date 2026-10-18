@@ -22,6 +22,19 @@ import {
 // FIXME should not import from instruments
 import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/FwsPublisher';
 import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
+import { ELEC_AC_ESS_BUS_FAULT_STATUS } from './FwsElecAlerts';
+import {
+  APU_GEN_INOP_SYS,
+  APU_TR_INOP_SYS,
+  apuTrFaultInfo,
+  ENG_GEN_INOP_SYS,
+  elecSystemAbnormalItems,
+  engineGeneratorLostApprLdg,
+  engineGeneratorLostInfo,
+  TR_INOP_SYS,
+} from './FwsElecSystemAlerts';
+import { isApFdTcasModeInop } from './FwsSurvAlerts';
+import { DisplayUnitID } from '@shared/CdsDisplayUnits';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -97,6 +110,102 @@ export class FwsAbnormalSensed {
   /** Whether the XPDR & TCAS system selected on the SURV panel (L:A32NX_TRANSPONDER_SYSTEM, 0 = SYS 1) is the given one. */
   private xpdrTcasSystemIs(system: 1 | 2): boolean {
     return SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') === system - 1;
+  }
+
+  /**
+   * ELEC GEN 1(2)(3)(4) FAULT (master caution, SC): GEN x ... OFF only, the procedure has no "OFF THEN ON" reset
+   * line.
+   * @param gen 0 to 3 for GEN 1 to GEN 4
+   */
+  private elecGenFaultItem(gen: number): EwdAbnormalItem {
+    return {
+      flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
+      simVarIsActive: this.fws.elecGenFault[gen],
+      // Design choice: ELEC EMER CONFIG has its own GENs procedure
+      notActiveWhenItemActive: ['240800055'],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.elecGenPbOn[gen].get()],
+      inopSysAllPhases: () => [ENG_GEN_INOP_SYS[gen]],
+      inopSysApprLdg: () => engineGeneratorLostApprLdg(this.fws.apuAvail.get()),
+      info: () => engineGeneratorLostInfo(this.fws.apuAvail.get()),
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    };
+  }
+
+  /**
+   * ELEC GEN 1(2)(3)(4) OFF (master caution, SC): crew awareness, no procedure line.
+   * @param gen 0 to 3 for GEN 1 to GEN 4
+   */
+  private elecGenOffItem(gen: number): EwdAbnormalItem {
+    return {
+      flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
+      simVarIsActive: this.fws.elecGenOff[gen],
+      notActiveWhenItemActive: ['240800055'],
+      // Design choice: 5 s, so that the GEN ... OFF THEN ON resets of other procedures do not flash this alert
+      monitorConfirmTime: 5,
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      inopSysAllPhases: () => [ENG_GEN_INOP_SYS[gen]],
+      inopSysApprLdg: () => engineGeneratorLostApprLdg(this.fws.apuAvail.get()),
+      info: () => engineGeneratorLostInfo(this.fws.apuAvail.get()),
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    };
+  }
+
+  /**
+   * ELEC DRIVE 1(2)(3)(4) DISCONNECTED (master caution, SC). The real procedure is crew awareness only: the GEN x OFF
+   * line of the text is hidden.
+   * @param drive 0 to 3 for DRIVE 1 to DRIVE 4
+   */
+  private elecDriveDisconnectedItem(drive: number): EwdAbnormalItem {
+    return {
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.elecDriveDisconnected[drive],
+      notActiveWhenItemActive: ['240800055'],
+      whichItemsToShow: () => [false],
+      whichItemsChecked: () => [!this.fws.elecGenPbOn[drive].get()],
+      inopSysAllPhases: () => [ENG_GEN_INOP_SYS[drive]],
+      inopSysApprLdg: () => engineGeneratorLostApprLdg(this.fws.apuAvail.get()),
+      info: () => engineGeneratorLostInfo(this.fws.apuAvail.get()),
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    };
+  }
+
+  /**
+   * ELEC APU GEN A(B) FAULT (master caution, SC): APU GEN A(B) ... OFF.
+   * @param gen 0 for APU GEN A, 1 for APU GEN B
+   */
+  private elecApuGenFaultItem(gen: number): EwdAbnormalItem {
+    return {
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.elecApuGenFault[gen],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.elecApuGenPbOn[gen].get()],
+      inopSysAllPhases: () => [APU_GEN_INOP_SYS[gen]],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    };
+  }
+
+  /**
+   * ELEC TR 1(2)(ESS) FAULT (no master light, no audio): crew awareness.
+   * @param tr 0 for TR 1, 1 for TR 2, 2 for TR ESS
+   */
+  private elecTrFaultItem(tr: number): EwdAbnormalItem {
+    return {
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.elecTrFault[tr],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      inopSysAllPhases: () => [TR_INOP_SYS[tr]],
+      failure: 1,
+      sysPage: SdPages.ElecDc,
+    };
   }
 
   public readonly abnormalShown = Subject.create(false);
@@ -1925,6 +2034,365 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.None,
     },
+    // ATA 24 - ELECTRICAL
+    // Conditions: FwsElecAlerts. Procedure lines of the texts (ata24.ts) that the real procedure does not contain are
+    // hidden (the texts were written from another standard: GENs resets, COMMERCIAL, CROSSFEED, "IR x MODE SEL" after
+    // landing instead of "BEFORE LAST ENG STOP : ELEC EXT PWR ON").
+    240800002: {
+      // AC BUS 1 FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecAcBusFault[0],
+      notActiveWhenItemActive: [],
+      // On ground: FOR ENG STOP : KEEP ENG 4 LAST
+      whichItemsToShow: () => [this.fws.aircraftOnGround.get()],
+      whichItemsChecked: () => [false],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800004: {
+      // AC BUS 2 FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecAcBusFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
+        // LDG DIST IMPACT ON WET/CONTAM RWY ONLY, always
+        return [false, false, false, true, lowFeedTanks, lowFeedTanks, lowFeedTanks, false, false];
+      },
+      whichItemsChecked: () => [
+        false,
+        false,
+        false,
+        false,
+        this.fws.fuelEmerOutrTkXfrOn.get(),
+        false,
+        false,
+        false,
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800007: {
+      // AC BUS 3 FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecAcBusFault[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        // On ground: BEFORE OPENING ANY CABIN DOOR: RESIDUAL DIFF PRESS CHECK, CABIN CREW ADVISE
+        const onGround = this.fws.aircraftOnGround.get();
+        return [false, false, false, false, false, false, false, false, false, onGround, onGround, onGround];
+      },
+      whichItemsChecked: () => Array(12).fill(false),
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800009: {
+      // AC BUS 4 FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecAcBusFault[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const onGround = this.fws.aircraftOnGround.get();
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
+        // On ground: FOR ENG STOP : KEEP ENG 1 LAST; in flight: VENT AVNCS EXTRACT
+        return [onGround, !onGround, true, true, true, true, lowFeedTanks, lowFeedTanks, lowFeedTanks];
+      },
+      whichItemsChecked: () => [
+        false,
+        false, // VENT AVNCS EXTRACT: no avionics ventilation pb-sw in the simulation
+        this.fws.airKnob.get() === 2, // AIR DATA SWTG F/O ON 3
+        this.fws.tawsWxrSelected.get() === 1,
+        this.xpdrTcasSystemIs(1),
+        false,
+        this.fws.fuelEmerOutrTkXfrOn.get(),
+        false,
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800011: {
+      // AC ESS BUS ALTN: crew awareness
+      flightPhaseInhib: [4, 5, 6, 7, 8, 9, 10],
+      simVarIsActive: this.fws.elecAcEssBusAltn,
+      // Design choice: not when AC 4 takes over automatically after the loss of AC 1 (ELEC AC BUS 1 FAULT), nor when
+      // the AC ESS busbar is lost anyway
+      notActiveWhenItemActive: ['240800002', '240800012'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800012: {
+      // AC ESS BUS FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecAcEssBusFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        // IF NOT SUCCESSFUL: the alert is still there with the AC ESS FEED pb-sw in ALTN
+        const notSuccessful = this.fws.elecAcEssFeedAltn.get();
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
+        return [
+          true,
+          notSuccessful,
+          notSuccessful,
+          notSuccessful,
+          notSuccessful,
+          notSuccessful,
+          lowFeedTanks,
+          lowFeedTanks,
+          lowFeedTanks,
+          false,
+          false,
+        ];
+      },
+      whichItemsChecked: () => [
+        this.fws.elecAcEssFeedAltn.get(),
+        false,
+        false,
+        false,
+        false,
+        false,
+        this.fws.fuelEmerOutrTkXfrOn.get(),
+        false,
+        false,
+        false,
+        false,
+      ],
+      // STATUS: see ELEC_AC_ESS_BUS_FAULT_STATUS. The REDUND LOSS items are FwsInopSys entries active with this alert:
+      // the redundLoss field of this table never reaches the STATUS page.
+      limitationsApprLdg: () => ELEC_AC_ESS_BUS_FAULT_STATUS.limitationsApprLdg,
+      inopSysAllPhases: () => ELEC_AC_ESS_BUS_FAULT_STATUS.inopSysAllPhases,
+      inopSysApprLdg: () => ELEC_AC_ESS_BUS_FAULT_STATUS.inopSysApprLdg,
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800014: this.elecApuGenFaultItem(0),
+    240800015: this.elecApuGenFaultItem(1),
+    240800016: {
+      // APU TR FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.elecApuTrFault,
+      notActiveWhenItemActive: [],
+      // WHEN APU NOT RQRD : APU BAT OFF applies when the APU is off and the APU battery is on. Design choice: shown
+      // with the APU off; the APU BAT line then shows ticked if the battery is already off.
+      whichItemsToShow: () => {
+        const apuOff = this.fws.apuMasterSwitch.get() === 0;
+        return [apuOff, apuOff];
+      },
+      whichItemsChecked: () => [false, !this.fws.elecApuBatAuto.get()],
+      inopSysAllPhases: () => [APU_TR_INOP_SYS],
+      info: () => apuTrFaultInfo(this.fws.elecSystemAlerts.batFault[3].get()),
+      failure: 1,
+      sysPage: SdPages.ElecDc,
+    },
+    240800019: {
+      // BUS TIE OFF: crew awareness
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.elecBusTieOff,
+      // Not when ELEC EMER CONFIG asks for BUS TIE OFF
+      notActiveWhenItemActive: ['240800055'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    240800026: {
+      // DC BUS 1 FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecDcBusFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
+        return [
+          this.fws.taxiInFlapsLever0For1Min.get(), // FOR TAXI : FLAPS SELECT CONF 1+F
+          true,
+          true,
+          false,
+          false,
+          true,
+          lowFeedTanks,
+          lowFeedTanks,
+          lowFeedTanks,
+          false,
+          false,
+        ];
+      },
+      whichItemsChecked: () => [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        this.fws.fuelEmerOutrTkXfrOn.get(),
+        false,
+        false,
+        false,
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.ElecDc,
+    },
+    240800029: {
+      // DC BUS 2 FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecDcBusFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
+        return [
+          this.fws.taxiInFlapsLever0For1Min.get(), // FOR TAXI : FLAPS SELECT CONF 1+F
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          false,
+          true,
+          lowFeedTanks,
+          lowFeedTanks,
+          lowFeedTanks,
+        ];
+      },
+      whichItemsChecked: () => [
+        false,
+        this.fws.airKnob.get() === 2, // AIR DATA SWTG F/O ON 3
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        this.fws.fuelEmerOutrTkXfrOn.get(),
+        false,
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.ElecDc,
+    },
+    240800030: {
+      // DC ESS BUS FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecDcEssBusFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
+        // FOR TAXI : FLAPS SELECT CONF 1+F has no condition in this procedure
+        return [...Array(15).fill(true), lowFeedTanks, lowFeedTanks, lowFeedTanks, false, false];
+      },
+      whichItemsChecked: () => [
+        false,
+        this.fws.airKnob.get() === 0, // AIR DATA SWTG CAPT ON 3
+        false,
+        false,
+        false,
+        false,
+        this.fws.tawsWxrSelected.get() === 2,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        this.fws.fuelEmerOutrTkXfrOn.get(),
+        false,
+        false,
+        false,
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.ElecDc,
+    },
+    240800036: this.elecDriveDisconnectedItem(0),
+    240800037: this.elecDriveDisconnectedItem(1),
+    240800038: this.elecDriveDisconnectedItem(2),
+    240800039: this.elecDriveDisconnectedItem(3),
+    240800055: {
+      // EMER CONFIG: master warning, CRC
+      flightPhaseInhib: [1, 5, 10, 12],
+      simVarIsActive: this.fws.elecEmerConfig,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const proc = this.fws.elecEmerConfigProcedure;
+        // Lines shown only if the flight crew did not activate the FIRE SMOKE/FUMES alert
+        const noSmoke = !this.fws.smokeFumesActivated.get();
+        // IF NOT SUCCESSFUL: the alert is still there after the first GENs reset
+        const firstResetDone = proc.firstGensReset.isCompleted;
+        const lowFl = proc.triggeredAtOrBelowFl230;
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get();
+        return [
+          true, // RAT MAN ON
+          true, // MIN RAT SPEED
+          noSmoke, // ALL GENs OFF THEN ON
+          noSmoke && firstResetDone, // IF NOT SUCCESSFUL
+          noSmoke && firstResetDone, // BUS TIE OFF
+          noSmoke && firstResetDone, // ALL GENs OFF THEN ON
+          true, // USE VHF 1 OR HF 1
+          true, // A/THR
+          true, // ATC COM VOICE ONLY
+          true, // VENT AVNCS EXTRACT
+          // Design choice: the maximum flight level is taken as not restricted below FL 200 by another alert (the FWS
+          // has no such restriction yet), so the DESCENT/MAX FL lines show and APU CONSIDER does not
+          lowFl, // DESCENT TO FL 200/MEA
+          lowFl, // MAX FL
+          lowFl && noSmoke, // WHEN BELOW FL 200 : APU
+          true, // SLATS SLOW
+          true, // L/G GRVTY EXTN ONLY
+          true, // AVOID ICING CONDs
+          true, // FOR SD : MAILBOX
+          true, // INR TKs NOT USABLE
+          true, // MID TKs NOT USABLE
+          true, // FEED TK 1
+          true, // FEED TK 4
+          !lowFl, // DESCENT TO FL 200/MEA
+          !lowFl, // MAX FL
+          !lowFl && noSmoke, // WHEN BELOW FL 200 : APU
+          false, // APU CONSIDER (maximum flight level restricted below FL 200)
+          false, // FUEL CONSUMPT INCRSD: a STATUS INFO, not a procedure line
+          false, // FMS PRED UNRELIABLE: idem
+          false, // IF SEVERE ICE ACCRETION: LIMITATIONS / DEFERRED PROC, not procedure lines
+          true, // LDG PERF AFFECTED
+          lowFeedTanks, // EMER OUTR TK XFR
+        ];
+      },
+      whichItemsChecked: () => {
+        const proc = this.fws.elecEmerConfigProcedure;
+        return [
+          this.fws.ratDeployed.get() > 0,
+          false,
+          proc.firstGensReset.isCompleted,
+          false,
+          this.fws.elecBusTieOff.get(),
+          proc.secondGensReset.isCompleted,
+          false,
+          !this.fws.autoThrustEngaged.get(),
+          false,
+          false, // VENT AVNCS EXTRACT: no avionics ventilation pb-sw in the simulation
+          ...Array(20).fill(false),
+        ];
+      },
+      failure: 3,
+      sysPage: SdPages.ElecAc,
+    },
+    240800061: this.elecGenFaultItem(0),
+    240800062: this.elecGenFaultItem(1),
+    240800063: this.elecGenFaultItem(2),
+    240800064: this.elecGenFaultItem(3),
+    240800065: this.elecGenOffItem(0),
+    240800066: this.elecGenOffItem(1),
+    240800067: this.elecGenOffItem(2),
+    240800068: this.elecGenOffItem(3),
+    240800081: this.elecTrFaultItem(0),
+    240800082: this.elecTrFaultItem(1),
+    240800083: this.elecTrFaultItem(2),
+    // BAT, APU BAT, EXT PWR, RAT, TR MONITORING, DRIVE DISC alerts of the electrical failures (FwsElecSystemAlerts)
+    ...elecSystemAbnormalItems(this.fws.elecSystemAlerts),
     // ATA 26 - FIRE PROTECTION
     260800001: {
       // APU FIRE
@@ -3627,6 +4095,86 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
       redundLoss: () => ['310300003'],
     },
+    311800013: {
+      // CDS CAPT PFD DU FAULT: SC, MASTER CAUT. The INOP SYS of its STATUS are in FwsInopSys (310300005-011).
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptPfd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800013].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800013].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800014: {
+      // CDS CAPT ND DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptNd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800014].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800014].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800015: {
+      // CDS CAPT MFD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptMfd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800015].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800015].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800016: {
+      // CDS EWD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.Ewd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800016].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800016].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800017: {
+      // CDS SD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.Sd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800017].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800017].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800018: {
+      // CDS F/O PFD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoPfd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800018].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800018].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800019: {
+      // CDS F/O ND DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoNd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800019].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800019].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800020: {
+      // CDS F/O MFD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoMfd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => EcamAbnormalProcedures[311800020].items.map(() => true),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800020].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
     // ATA 32 - LANDING GEAR & BRAKES
     320800008: {
       // BRAKES A_SKID OFF
@@ -3937,6 +4485,50 @@ export class FwsAbnormalSensed {
       redundLoss: () => [''],
       info: () => [''],
     },
+    // GPS 1(2) FAULT, GPS 1+2 FAULT: no procedure (crew awareness); design choice: the flight phase inhibition of the
+    // ADR faults. STATUS: INOP SYS GPS 1(2), GPS 1+2 and, for APPR & LDG, BTV and ROW/ROP
+    340800034: {
+      // GPS 1 FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.gps1Faulty,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => ['340300050'],
+      inopSysApprLdg: () => [''],
+      redundLoss: () => [''],
+      info: () => [''],
+    },
+    340800035: {
+      // GPS 2 FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.gps2Faulty,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => ['340300051'],
+      inopSysApprLdg: () => [''],
+      redundLoss: () => [''],
+      info: () => [''],
+    },
+    340800036: {
+      // GPS 1+2 FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.gps1And2Faulty,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => ['340300052'],
+      inopSysApprLdg: () => ['320300007', '320300022'],
+      redundLoss: () => [''],
+      info: () => [''],
+    },
     340800040: {
       // IR 1 FAULT
       flightPhaseInhib: [4, 5, 6, 9, 10],
@@ -4241,32 +4833,86 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     341800016: {
-      // TCAS 1 FAULT
+      // TCAS 1 FAULT. Not with XPDR 1 FAULT: a failed XPDR 1 makes TCAS 1 inoperative, and SURV XPDR 1 FAULT lists TCAS
+      // 1 in its STATUS.
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas1Fault,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [true],
-      whichItemsChecked: () => [this.xpdrTcasSystemIs(2)],
+      notActiveWhenItemActive: ['341800061'],
+      // XPDR & TCAS ..... SYS 2: if selected on SYS 1 and the XPDR/TCAS on SYS 2 is operative
+      whichItemsToShow: () => [this.fws.tcas1SwitchLine.isShown()],
+      whichItemsChecked: () => [this.fws.tcas1SwitchLine.isChecked(this.fws.xpdrTcasSystem.get())],
+      // STATUS: TCAS 1 (FwsInopSys 340300011), AP/FD TCAS MODE if the XPDR/TCAS is selected on SYS 1
+      inopSysAllPhases: () => [isApFdTcasModeInop(1, this.fws.xpdrTcasSystem.get()) ? '220300020' : null],
       failure: 2,
       sysPage: SdPages.None,
     },
     341800017: {
-      // TCAS 2 FAULT
+      // TCAS 2 FAULT. Not with XPDR 2 FAULT (see TCAS 1 FAULT).
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas2Fault,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [true],
-      whichItemsChecked: () => [this.xpdrTcasSystemIs(1)],
+      notActiveWhenItemActive: ['341800062'],
+      // XPDR & TCAS ..... SYS 1: if selected on SYS 2 and the XPDR/TCAS on SYS 1 is operative
+      whichItemsToShow: () => [this.fws.tcas2SwitchLine.isShown()],
+      whichItemsChecked: () => [this.fws.tcas2SwitchLine.isChecked(this.fws.xpdrTcasSystem.get())],
+      // STATUS: TCAS 2 (FwsInopSys 340300012), AP/FD TCAS MODE if the XPDR/TCAS is selected on SYS 2
+      inopSysAllPhases: () => [isApFdTcasModeInop(2, this.fws.xpdrTcasSystem.get()) ? '220300020' : null],
       failure: 2,
       sysPage: SdPages.None,
     },
     341800018: {
-      // TCAS 1+2 FAULT
+      // TCAS 1+2 FAULT: crew awareness, STATUS TCAS 1+2 (FwsInopSys 340300029). Not with XPDR 1+2 FAULT, which lists
+      // TCAS 1+2 in its STATUS.
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas1And2Fault,
+      notActiveWhenItemActive: ['341800063'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    341800061: {
+      // XPDR 1 FAULT: the XPDR function of SURV SYS 1 is failed. Caution (single chime, MASTER CAUT); flight phase
+      // inhibition as the TCAS FAULT alerts.
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.xpdr1Fault,
+      notActiveWhenItemActive: [],
+      // XPDR & TCAS ..... SYS 2: if selected on SYS 1 and XPDR 2 is operative
+      whichItemsToShow: () => [this.fws.xpdr1SwitchLine.isShown()],
+      whichItemsChecked: () => [this.fws.xpdr1SwitchLine.isChecked(this.fws.xpdrTcasSystem.get())],
+      // STATUS: XPDR 1, TCAS 1, AP/FD TCAS MODE if the XPDR/TCAS is selected on SYS 1
+      inopSysAllPhases: () => [
+        '340300053',
+        '340300011',
+        isApFdTcasModeInop(1, this.fws.xpdrTcasSystem.get()) ? '220300020' : null,
+      ],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    341800062: {
+      // XPDR 2 FAULT: the XPDR function of SURV SYS 2 is failed
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.xpdr2Fault,
+      notActiveWhenItemActive: [],
+      // XPDR & TCAS ..... SYS 1: if selected on SYS 2 and XPDR 1 is operative
+      whichItemsToShow: () => [this.fws.xpdr2SwitchLine.isShown()],
+      whichItemsChecked: () => [this.fws.xpdr2SwitchLine.isChecked(this.fws.xpdrTcasSystem.get())],
+      // STATUS: XPDR 2, TCAS 2, AP/FD TCAS MODE if the XPDR/TCAS is selected on SYS 2
+      inopSysAllPhases: () => [
+        '340300056',
+        '340300012',
+        isApFdTcasModeInop(2, this.fws.xpdrTcasSystem.get()) ? '220300020' : null,
+      ],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    341800063: {
+      // XPDR 1+2 FAULT: crew awareness, STATUS XPDR 1+2, TCAS 1+2
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.xpdr1And2Fault,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
+      inopSysAllPhases: () => ['340300057', '340300029'],
       failure: 2,
       sysPage: SdPages.None,
     },

@@ -1,21 +1,33 @@
 // @ts-strict-ignore
-//  Copyright (c) 2022 FlyByWire Simulations
+//  Copyright (c) 2022-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, EventSubscriber, Publisher } from '@microsoft/msfs-sdk';
 import {
   AtsuStatusCodes,
   AtsuMailboxMessages,
+  AtsuMessageComStatus,
   MailboxStatusMessage,
   AtsuMessage,
   AtsuMessageDirection,
   AtsuMessageType,
   CpdlcMessage,
+  CpdlcMessageExpectedResponseType,
   DclMessage,
+  MailboxSnapshotBlock,
   OclMessage,
 } from '../../../common/src';
 import { Atc } from '../ATC';
 import { UplinkMessageStateMachine } from '../components/UplinkMessageStateMachine';
+import { isA380AtcAlertInhibited } from '../components/AtcAlertInhibition';
+
+/** Why the A380X mailbox does not take a new uplink message */
+export enum UplinkRejectionReason {
+  /** Five uplink messages wait for an answer */
+  MailboxFull,
+  /** Takeoff or landing: the ATC alerts are inhibited */
+  FlightPhase,
+}
 
 class MailboxMessage {
   public MessageId: number = 0;
@@ -31,10 +43,16 @@ class MailboxMessage {
   public Status: MailboxStatusMessage = MailboxStatusMessage.NoMessage;
 
   public Direction: AtsuMessageDirection = null;
+
+  /** The order in which the block entered the mailbox file (first message of a block only), for mailboxSnapshot */
+  public UploadOrder = 0;
 }
 
 export class MailboxBus {
   private static MaxMailboxFileSize = 5;
+
+  /** The A380X mailbox holds at most 5 uplink messages that have not been answered */
+  private static MaxUnansweredUplinks = 5;
 
   private publisher: Publisher<AtsuMailboxMessages> = null;
 
@@ -56,7 +74,69 @@ export class MailboxBus {
 
   private atcRingInterval: number = null;
 
+  /** The first ring of an unread uplink, when the RING waits for the reading time (a380xMailbox) */
+  private atcRingTimeout: number = null;
+
+  /** When the planned first ring sounds, ms (Date.now), or null */
+  private atcRingDueTime: number | null = null;
+
   private poweredUp: boolean = false;
+
+  /** The FMS answers a LOAD-SEC3 request within this time, or the mailbox shows LOAD NOT AVAIL */
+  private static LoadTimeoutMs = 30000;
+
+  /** The message the FMS is loading in the third secondary flight plan (LOAD-SEC3), if any */
+  private loadingMessageId: number | null = null;
+
+  /** The message of the last loading result (LOAD OK, LOAD PARTIAL, LOAD FAILED or LOAD NOT AVAIL), if any */
+  private loadedMessageId: number | null = null;
+
+  private loadTimeout: number | null = null;
+
+  /** The counter behind MailboxMessage.UploadOrder */
+  private uploadCounter = 0;
+
+  /** The message the active mailbox client displays (its last visibleMessage), -1 when none */
+  private visibleMessageId = -1;
+
+  /**
+   * Gives a block its place in the order of the mailbox file, when it enters the file (also again after a RECALL)
+   * @param block the messages of the block
+   */
+  private markUpload(block: MailboxMessage[]): void {
+    if (block.length !== 0) {
+      block[0].UploadOrder = ++this.uploadCounter;
+    }
+  }
+
+  /**
+   * Publishes the whole mailbox file (mailboxSnapshot): every block of the uplink and downlink files in the order it
+   * entered the mailbox, with its information, the displayed message and the current ATC center. A mailbox client that
+   * starts late, or takes the mailbox over from another client, rebuilds its queue from it: the clients otherwise only
+   * learn the mailbox from incremental events (new message, update, delete).
+   */
+  private publishSnapshot(): void {
+    const blocks: MailboxSnapshotBlock[] = [...this.uplinkMessages, ...this.downlinkMessages]
+      .filter((block) => block.length !== 0)
+      .sort((a, b) => a[0].UploadOrder - b[0].UploadOrder)
+      .map((block) => ({
+        uid: block[0].MessageId,
+        messages: block
+          .map((entry) => this.atc.messages().find((message) => message.UniqueMessageID === entry.MessageId))
+          .filter((message) => message !== undefined) as CpdlcMessage[],
+        status: block[0].Status,
+      }))
+      // a client identifies a block by its first message (as update() and the incremental events do)
+      .filter((block) => block.messages.length !== 0 && block.messages[0].UniqueMessageID === block.uid)
+      .map(({ messages, status }) => ({ messages, status }));
+
+    this.publisher.pub(
+      'mailboxSnapshot',
+      { blocks, visibleUid: this.visibleMessageId, activeAtc: this.atc.currentStation() },
+      true,
+      false,
+    );
+  }
 
   private uploadMessagesToMailbox(messages: CpdlcMessage[]): void {
     if (messages.length !== 0) {
@@ -91,6 +171,20 @@ export class MailboxBus {
         this.lastClosedMessage = [messages[idx], new Date().getTime()];
       }
 
+      this.leaveFile(messages, backlog, uid, uplink);
+    }
+
+    return idx !== -1;
+  }
+
+  /**
+   * Takes a message block out of the mailbox file (at most MaxMailboxFileSize open messages per direction) and moves
+   * the messages waiting for a place into it. A full downlink file shows FILE FULL until it has a place again.
+   */
+  private leaveFile(messages: MailboxMessage[][], backlog: MailboxMessage[][], uid: number, uplink: boolean): void {
+    const idx = messages.findIndex((elem) => elem[0].MessageId === uid);
+    if (idx !== -1) {
+      const downlinkFileWasFull = !uplink && backlog.length !== 0;
       messages.splice(idx, 1);
       if (uplink) {
         this.validateNotificationCondition();
@@ -109,7 +203,7 @@ export class MailboxBus {
 
             // pushed a new inbound message
             if (!data.MessageRead) {
-              this.setupIntervals();
+              this.setupIntervals(data.PriorityMessage === true);
             }
 
             if ((message as CpdlcMessage).MailboxRelevantMessage) {
@@ -117,38 +211,54 @@ export class MailboxBus {
             }
           }
         });
+        this.markUpload(messages[messages.length - 1]);
 
         if (mailboxMessages.length !== 0) {
           this.uploadMessagesToMailbox(mailboxMessages);
         }
       }
-    }
 
-    return idx !== -1;
+      if (downlinkFileWasFull && backlog.length === 0) {
+        this.publisher.pub('systemStatus', MailboxStatusMessage.NoMessage, true, false);
+      }
+    }
   }
 
+  /**
+   * @param a380xMailbox the A380X mailbox rules; false for the A32NX DCDU, which has none of them:
+   * - The RING sounds only if the crew has not read the message 15 s after a normal message, 5 s after an urgent one.
+   *   The A32NX DCDU rings at once.
+   * - No RING in takeoff and landing (see AtcAlertInhibition).
+   * - A new uplink is rejected (newUplinkRejection) in takeoff and landing, and when five uplinks wait for an answer.
+   */
   constructor(
     private readonly bus: EventBus,
     atc: Atc,
+    private readonly a380xMailbox = false,
   ) {
     this.atc = atc;
 
     this.atc.digitalInputs.addDataCallback('onAtcMessageButtonPressed', () => this.cleanupNotifications());
+    this.atc.digitalInputs.addDataCallback('routeClearanceLoaded', (uid, status) =>
+      this.onRouteClearanceLoaded(uid, status),
+    );
     this.publisher = this.bus.getPublisher<AtsuMailboxMessages>();
     this.subscriber = this.bus.getSubscriber<AtsuMailboxMessages>();
 
+    // A deleted message (e.g. a prepared downlink cancelled on the A380X SD mailbox) also leaves the mailbox file:
+    // otherwise its place stayed taken, and five of them made the file full for good (FILE FULL)
     this.subscriber.on('deleteMessage').handle((uid: number) => {
-      let idx = this.uplinkMessages.findIndex((elem) => elem[0].MessageId === uid);
-      if (idx > -1) {
-        this.uplinkMessages[idx].forEach((message) => {
-          this.atc.removeMessage(message.MessageId);
-        });
-      } else {
-        idx = this.downlinkMessages.findIndex((elem) => elem[0].MessageId === uid);
-        if (idx > -1) {
-          this.downlinkMessages[idx].forEach((message) => {
-            this.atc.removeMessage(message.MessageId);
-          });
+      const files: [MailboxMessage[][], MailboxMessage[][], boolean][] = [
+        [this.uplinkMessages, this.bufferedUplinkMessages, true],
+        [this.downlinkMessages, this.bufferedDownlinkMessages, false],
+      ];
+      for (const [messages, backlog, uplink] of files) {
+        const block = messages.find((elem) => elem[0].MessageId === uid);
+        if (block !== undefined) {
+          // removeMessage comes back here through dequeue(): the block may already have left the file then
+          block.forEach((message) => this.atc.removeMessage(message.MessageId));
+          this.leaveFile(messages, backlog, uid, uplink);
+          return;
         }
       }
     });
@@ -200,7 +310,13 @@ export class MailboxBus {
         const message = this.atc.messages().find((element) => element.UniqueMessageID === uid);
         if (message !== undefined) {
           const cpdlcMessage = message as CpdlcMessage;
-          if (cpdlcMessage.Response && cpdlcMessage.SemanticResponseRequired) {
+          // A response prepared by the FMS (confirm message) or by the flight crew (e.g. UNABLE DUE TO WEATHER)
+          if (
+            cpdlcMessage.Response &&
+            (cpdlcMessage.SemanticResponseRequired ||
+              cpdlcMessage.Response.ComStatus === AtsuMessageComStatus.Open ||
+              cpdlcMessage.Response.ComStatus === AtsuMessageComStatus.Failed)
+          ) {
             this.atc.sendExistingResponse(uid);
           }
         }
@@ -232,6 +348,33 @@ export class MailboxBus {
           }
         }, 4500);
       }
+    });
+
+    this.subscriber.on('loadMessage').handle((uid: number) => {
+      if (!this.poweredUp || uid === this.loadingMessageId) return;
+
+      // LOAD NOT AVAIL when the loading is not possible, including while another loading is in progress
+      if (this.loadingMessageId !== null) {
+        this.updateMessageStatus(uid, MailboxStatusMessage.FlightplanLoadingUnavailable);
+        return;
+      }
+
+      const message = this.atc.messages().find((element) => element.UniqueMessageID === uid);
+      if (message === undefined || message.Type !== AtsuMessageType.CPDLC) return;
+
+      // The result of the previous loading disappears when another loading is requested
+      if (this.loadedMessageId !== null && this.loadedMessageId !== uid && this.isLoadResult(this.loadedMessageId)) {
+        this.updateMessageStatus(this.loadedMessageId, MailboxStatusMessage.NoMessage);
+      }
+      this.loadedMessageId = null;
+
+      this.loadingMessageId = uid;
+      this.updateMessageStatus(uid, MailboxStatusMessage.FlightplanLoadingSecondary);
+      this.loadTimeout = window.setTimeout(
+        () => this.onRouteClearanceLoaded(uid, MailboxStatusMessage.FlightplanLoadingUnavailable),
+        MailboxBus.LoadTimeoutMs,
+      );
+      this.atc.digitalOutputs.sendLoadRouteClearance(message as CpdlcMessage);
     });
 
     this.subscriber.on('closeMessage').handle((uid: number) => {
@@ -279,6 +422,8 @@ export class MailboxBus {
           this.recallMessageId = messages[0].UniqueMessageID;
 
           this.uploadMessagesToMailbox(messages);
+          // the recalled message enters the mailbox again, at the end of the queue
+          this.markUpload(this.lastClosedMessage[0]);
           if (this.lastClosedMessage[0][0].Direction === AtsuMessageDirection.Downlink) {
             this.downlinkMessages.push(this.lastClosedMessage[0]);
           } else {
@@ -310,10 +455,80 @@ export class MailboxBus {
     });
 
     this.subscriber.on('visibleMessage').handle((uid: number) => {
+      // remembered also while unpowered: it is what the mailbox shows, for the next mailboxSnapshot
+      this.visibleMessageId = uid;
       if (!this.poweredUp) return;
 
       this.atc.updateShownMessageInMailbox(uid, uid === this.recallMessageId);
     });
+
+    // A mailbox client that starts late, or takes the mailbox over from another one, rebuilds its queue from the file
+    this.subscriber.on('mailboxResyncRequest').handle(() => {
+      if (!this.poweredUp) return;
+
+      this.publishSnapshot();
+    });
+  }
+
+  /** Whether the ATC MSG alerts of the A380X are inhibited now by the flight phase (takeoff and landing) */
+  private alertsInhibited(): boolean {
+    return this.a380xMailbox && isA380AtcAlertInhibited(this.atc.digitalInputs.FwcFlightPhase);
+  }
+
+  /** One RING, unless the flight phase inhibits it: the ring interval goes on and rings again after the inhibition */
+  private ring(): void {
+    if (!this.alertsInhibited()) {
+      this.atc.digitalOutputs.activateAtcRing();
+    }
+  }
+
+  /**
+   * @param message an uplink of the ATC center
+   * @returns whether the uplink requires an answer (WILCO/UNABLE, AFFIRM/NEGATIVE, ROGER or a Y message) that has not
+   * been sent yet
+   */
+  private static isUnansweredUplink(message: CpdlcMessage): boolean {
+    const expected = message.Content[0]?.ExpectedResponse;
+    const answerRequired =
+      expected !== undefined &&
+      expected !== CpdlcMessageExpectedResponseType.NotRequired &&
+      expected !== CpdlcMessageExpectedResponseType.No;
+    const answerSent =
+      message.Response !== null &&
+      message.Response !== undefined &&
+      (message.Response.ComStatus === AtsuMessageComStatus.Sending ||
+        message.Response.ComStatus === AtsuMessageComStatus.Sent);
+    return answerRequired && !answerSent;
+  }
+
+  /** The uplink blocks in the mailbox (shown or waiting for a place) that wait for an answer */
+  private unansweredUplinkCount(): number {
+    return [...this.uplinkMessages, ...this.bufferedUplinkMessages].filter((block) => {
+      const message = this.atc.messages().find((element) => element.UniqueMessageID === block[0].MessageId);
+      return message !== undefined && MailboxBus.isUnansweredUplink(message as CpdlcMessage);
+    }).length;
+  }
+
+  /**
+   * Whether the A380X mailbox takes a new uplink of the ATC center. The ATC function discards a rejected uplink and
+   * warns the ATC center with an automatic downlink (Atc.rejectUplink).
+   * - In takeoff and landing, during the alert inhibition.
+   * - With five unanswered uplinks, a sixth one that requires an answer cannot enter the mailbox. An uplink that needs
+   *   no answer is in the category of the other messages and keeps the file rules.
+   * @param message the first message of the new uplink block
+   * @returns the reason of the rejection, or null when the mailbox takes the uplink (always on the A32NX DCDU)
+   */
+  public newUplinkRejection(message: CpdlcMessage): UplinkRejectionReason | null {
+    if (!this.a380xMailbox) {
+      return null;
+    }
+    if (this.alertsInhibited()) {
+      return UplinkRejectionReason.FlightPhase;
+    }
+    if (MailboxBus.isUnansweredUplink(message) && this.unansweredUplinkCount() >= MailboxBus.MaxUnansweredUplinks) {
+      return UplinkRejectionReason.MailboxFull;
+    }
+    return null;
   }
 
   private validateNotificationCondition() {
@@ -353,21 +568,62 @@ export class MailboxBus {
       clearInterval(this.atcRingInterval);
       this.atcRingInterval = null;
     }
+    this.clearRingTimeout();
   }
 
-  private setupIntervals() {
+  private clearRingTimeout(): void {
+    if (this.atcRingTimeout !== null) {
+      clearTimeout(this.atcRingTimeout);
+      this.atcRingTimeout = null;
+    }
+    this.atcRingDueTime = null;
+  }
+
+  /** Rings now, then again at the ring interval while a message is unread */
+  private startRinging(): void {
     if (this.atcRingInterval) {
       clearInterval(this.atcRingInterval);
     }
 
     // call the first ring tone
-    this.atc.digitalOutputs.activateAtcRing();
+    this.ring();
 
     // start the ring tone interval
-    this.atcRingInterval = window.setInterval(
-      () => this.atc.digitalOutputs.activateAtcRing(),
-      this.estimateRingInterval(),
-    );
+    this.atcRingInterval = window.setInterval(() => this.ring(), this.estimateRingInterval());
+  }
+
+  /**
+   * A new unread uplink message entered the mailbox file
+   * @param urgent the message is urgent
+   */
+  private setupIntervals(urgent: boolean) {
+    if (!this.a380xMailbox) {
+      this.startRinging();
+      return;
+    }
+
+    // A380X: the RING waits for the reading time of the message, 5 s urgent, 15 s normal
+    const readingTime = urgent ? 5000 : 15000;
+    if (this.atcRingInterval) {
+      // already ringing for an older unread message: an urgent one rings at its shorter interval from now on
+      if (this.estimateRingInterval() < readingTime) {
+        return;
+      }
+      clearInterval(this.atcRingInterval);
+      this.atcRingInterval = null;
+    }
+    const dueTime = Date.now() + readingTime;
+    if (this.atcRingDueTime !== null && this.atcRingDueTime <= dueTime) {
+      // the ring of an earlier message comes first
+      return;
+    }
+    this.clearRingTimeout();
+    this.atcRingDueTime = dueTime;
+    this.atcRingTimeout = window.setTimeout(() => {
+      this.atcRingTimeout = null;
+      this.atcRingDueTime = null;
+      this.startRinging();
+    }, readingTime);
   }
 
   public powerUp(): void {
@@ -382,6 +638,7 @@ export class MailboxBus {
 
   public reset() {
     this.recallMessageId = undefined;
+    this.visibleMessageId = -1;
     this.publisher.pub('resetSystem', true, true, false);
   }
 
@@ -409,14 +666,16 @@ export class MailboxBus {
       mailboxBlocks[0].Direction === AtsuMessageDirection.Downlink &&
       this.downlinkMessages.length < MailboxBus.MaxMailboxFileSize
     ) {
+      this.markUpload(mailboxBlocks);
       this.downlinkMessages.push(mailboxBlocks);
     } else if (
       mailboxBlocks[0].Direction === AtsuMessageDirection.Uplink &&
       this.uplinkMessages.length < MailboxBus.MaxMailboxFileSize
     ) {
+      this.markUpload(mailboxBlocks);
       this.uplinkMessages.push(mailboxBlocks);
       this.atc.digitalOutputs.activateButton();
-      this.setupIntervals();
+      this.setupIntervals(mailboxBlocks.some((block) => block.PriorityMessage === true));
     } else {
       if (mailboxBlocks[0].Direction === AtsuMessageDirection.Downlink) {
         this.bufferedDownlinkMessages.push(mailboxBlocks);
@@ -490,6 +749,33 @@ export class MailboxBus {
         this.publisher.pub('deleteMessage', uid, true, false);
       }
     }
+  }
+
+  /**
+   * The answer of the FMS to a LOAD-SEC3 request (or its time out)
+   * @param uid the loaded message
+   * @param status LOAD OK, LOAD PARTIAL, LOAD FAILED or LOAD NOT AVAIL
+   */
+  private onRouteClearanceLoaded(uid: number, status: MailboxStatusMessage): void {
+    if (uid !== this.loadingMessageId) return;
+
+    if (this.loadTimeout !== null) {
+      clearTimeout(this.loadTimeout);
+      this.loadTimeout = null;
+    }
+    this.loadingMessageId = null;
+    this.loadedMessageId = uid;
+    this.updateMessageStatus(uid, status);
+  }
+
+  private isLoadResult(uid: number): boolean {
+    const status = this.currentMessageStatus(uid);
+    return (
+      status === MailboxStatusMessage.FlightplanLoadSecondary ||
+      status === MailboxStatusMessage.FlightplanLoadPartial ||
+      status === MailboxStatusMessage.FlightplanLoadFailed ||
+      status === MailboxStatusMessage.FlightplanLoadingUnavailable
+    );
   }
 
   public updateMessageStatus(uid: number, status: MailboxStatusMessage): void {

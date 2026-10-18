@@ -23,8 +23,6 @@ import { fcomAt, fcomLine, fcomRight } from '../common/FcomLayout';
 import { CompanyTakeoffDataButton } from './MfdFmsCpnyToRequest';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { A380AltitudeUtils } from '@shared/OperatingAltitudes';
-import { AtsuStatusCodes } from '@datalink/common';
-import { FmsRouterMessages } from '@datalink/router';
 import {
   cpnyFplnRequestPage,
   routeSelectionPage,
@@ -36,6 +34,7 @@ import { alternateRouteSelectionUriExtra } from './F-PLN/MfdFmsFplnRouteSelectio
 import { newRouteFromActiveUriExtra } from './DATA/MfdFmsDataRoute';
 import { routeFromCoRouteDto } from '../../FMC/StoredRouteUtils';
 import { StoredRoute } from '../../FMC/PilotStoredElements';
+import { checkNavDatabaseCycle } from '../../FMC/FmsAdvisoryMessages';
 import { NXSystemMessages } from '../../shared/NXSystemMessages';
 import { CompanyRoute } from '@flybywiresim/fbw-sdk';
 
@@ -118,16 +117,6 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
     this.loadedFlightPlanIndex,
   );
 
-  /** The ROUTE SELECTION page lists the company routes of the FROM / TO city pair */
-  /**
-   * The (ALTN) RTE SEL buttons always display the ROUTE SELECTION page; only the route entries are limited (company
-   * route: PREFLIGHT phase, alternate route: a primary destination, both: no temporary flight plan). Without a city
-   * pair the page shows no route.
-   */
-  private readonly rteSelDisabled = this.cpnyRteDisabled.map((v) => v);
-
-  private readonly altnRteSelDisabled = this.tmpyActive.map((v) => v);
-
   private readonly altnRte = Subject.create<string | null>(null); // FIXME not found
 
   private readonly crzFl = Subject.create<number | null>(null);
@@ -202,30 +191,13 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
     super.onAfterRender(node);
     this.subs.push(this.cpnyToButton.subscription, this.cpnyToButton.label);
 
-    this.subs.push(
-      this.props.bus
-        .getSubscriber<FmsRouterMessages>()
-        .on('routerManagementResponse')
-        .handle((data) => {
-          this.routerResponseCallbacks.every((callback, index) => {
-            if (callback(data.status, data.requestId)) {
-              this.routerResponseCallbacks.splice(index, 1);
-              return false;
-            }
-            return true;
-          });
-        }),
-    );
-
     if (this.props.fmcService.master) {
       this.subs.push(
         this.flightNumber.sub((c) => {
+          // The FMS connects the datalink networks with the flight number of the active flight plan
           if (this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active) {
             if (c) {
-              this.connectToNetworks(c);
               this.props.fmcService.master.updateFlightNumber(c, this.loadedFlightPlanIndex.get(), () => {});
-            } else {
-              this.disconnectFromNetworks();
             }
             this.props.fmcService.master.acInterface.updateFmsData();
           }
@@ -244,8 +216,6 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
       this.tripWindDisabled,
       this.cpnyRteMandatory,
       this.cpnyRteDisabled,
-      this.rteSelDisabled,
-      this.altnRteSelDisabled,
       this.departureButtonDisabled,
       this.costIndexModeDisabled,
       this.crzTempDisabled,
@@ -388,6 +358,9 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
         this.loadedFlightPlanIndex.get(),
       );
 
+      // CHECK DATABASE CYCLE on a FROM/TO entry
+      void checkNavDatabaseCycle(this.props.fmcService.master);
+
       if (this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active) {
         this.props.fmcService.master.acInterface.updateFmsData();
         // Update once as the new flight plan has been created as we need these for MIN DEST EFOB in active.
@@ -398,9 +371,24 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
   }
 
   /**
-   * INIT page, COMPANY ROUTE ENTRY FIELD: a manual entry inserts the company route (pilot
-   * stored, or navigation database via SimBridge), which re-initializes the flight plan and sets the FROM / TO city
-   * pair; NOT IN DATABASE otherwise.
+   * The company route of the navigation database via SimBridge, undefined when it is unknown or SimBridge is not
+   * available
+   */
+  private static async fetchSimBridgeRoute(ident: string, logLabel: string): Promise<StoredRoute | undefined> {
+    try {
+      const result = await CompanyRoute.getCoRoute(ident);
+      if (result.success && result.data) {
+        return routeFromCoRouteDto(result.data);
+      }
+    } catch (e) {
+      console.warn(`[FMS] ${logLabel} not available:`, e);
+    }
+    return undefined;
+  }
+
+  /**
+   * COMPANY ROUTE field: a manual entry inserts the company route (pilot stored, or navigation database via
+   * SimBridge), which re-initializes the flight plan and sets the FROM / TO city pair; NOT IN DATABASE otherwise.
    */
   private async onCompanyRouteEntered(ident: string | null): Promise<boolean> {
     const fmc = this.props.fmcService.master;
@@ -415,14 +403,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
         ? fmc.pilotStoredElements.routesForCityPair(fromIcao, toIcao).find((r) => r.ident === ident)
         : undefined) ?? fmc.pilotStoredElements.findRoute(ident);
     if (!route) {
-      try {
-        const result = await CompanyRoute.getCoRoute(ident);
-        if (result.success && result.data) {
-          route = routeFromCoRouteDto(result.data);
-        }
-      } catch (e) {
-        console.warn('[FMS] Company route not available:', e);
-      }
+      route = await MfdFmsInit.fetchSimBridgeRoute(ident, 'Company route');
     }
     if (!route) {
       fmc.addMessageToQueue(NXSystemMessages.notInDatabase, undefined, undefined);
@@ -430,42 +411,9 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
     }
 
     await fmc.insertCompanyRoute(route, this.loadedFlightPlanIndex.get());
+    // CHECK DATABASE CYCLE on a company route entry
+    void checkNavDatabaseCycle(fmc);
     return true;
-  }
-
-  private requestId = 0;
-
-  private routerResponseCallbacks: ((code: AtsuStatusCodes, requestId: number) => boolean)[] = [];
-
-  private async connectToNetworks(callsign: string): Promise<AtsuStatusCodes> {
-    const publisher = this.props.bus.getPublisher<FmsRouterMessages>();
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
-      const disconnectRequestId = this.requestId++;
-      publisher.pub('routerDisconnect', disconnectRequestId, true, false);
-      this.routerResponseCallbacks.push((_code: AtsuStatusCodes, id: number) => {
-        if (id === disconnectRequestId) {
-          const connectRequestId = this.requestId++;
-          publisher.pub('routerConnect', { callsign, requestId: connectRequestId }, true, false);
-          this.routerResponseCallbacks.push((code: AtsuStatusCodes, id: number) => {
-            if (id === connectRequestId) resolve(code);
-            return id === connectRequestId;
-          });
-        }
-        return id === disconnectRequestId;
-      });
-    });
-  }
-
-  private async disconnectFromNetworks(): Promise<AtsuStatusCodes> {
-    const publisher = this.props.bus.getPublisher<FmsRouterMessages>();
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
-      const disconnectRequestId = this.requestId++;
-      publisher.pub('routerDisconnect', disconnectRequestId, true, false);
-      this.routerResponseCallbacks.push((code: AtsuStatusCodes, id: number) => {
-        if (id === disconnectRequestId) resolve(code);
-        return id === disconnectRequestId;
-      });
-    });
   }
 
   public destroy(): void {
@@ -492,6 +440,9 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
                   disabled={this.noFlightPlan}
                   dataHandlerDuringValidation={async (v) => {
                     this.props.flightPlanInterface.get(this.loadedFlightPlanIndex.get()).setFlightNumber(v!);
+                    // The flight plan's flight number does not change the plan version, so the page is not reloaded:
+                    // update the displayed value here, which also connects the datalink networks for the active plan
+                    this.flightNumber.set(v);
                   }}
                   mandatory={this.mandatoryAndActiveFpln}
                   readonlyValue={this.flightNumber}
@@ -634,7 +585,9 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
                 165,
                 369,
                 <Button
-                  disabled={this.rteSelDisabled}
+                  // The ROUTE SELECTION page lists the company routes of the city pair; RTE SEL follows the CPNY RTE
+                  // entry, ALTN RTE SEL is not available with a temporary flight plan
+                  disabled={this.cpnyRteDisabled}
                   label="RTE SEL"
                   onClick={() =>
                     this.props.mfd.uiService.navigateTo(
@@ -665,7 +618,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
                 369,
                 <Button
                   label="ALTN RTE SEL"
-                  disabled={this.altnRteSelDisabled}
+                  disabled={this.tmpyActive}
                   onClick={() =>
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/${routeSelectionPage}/${alternateRouteSelectionUriExtra}/${showReturnButtonUriExtra}`,

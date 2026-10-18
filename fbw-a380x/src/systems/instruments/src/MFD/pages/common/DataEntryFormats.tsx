@@ -1596,8 +1596,7 @@ export class LatitudeDmsFormat implements DataEntryFormat<number> {
     if (input === '') {
       return null;
     }
-    const value = parseDegreesMinutes(input, 'N', 'S', 90, this.requiredFormat);
-    return value;
+    return parseDegreesMinutes(input, 'N', 'S', 90, this.requiredFormat);
   }
 }
 
@@ -1855,39 +1854,6 @@ export class GlsSlopeFormat implements DataEntryFormat<number> {
     const value = -Math.abs(Number(input));
     if (value < -9.9) {
       throw getFormattedEntryOutOfRangeError('-9.9', '0', this.unit);
-    }
-    return value;
-  }
-}
-
-/** A number from a small set of allowed integers, e.g. the approach category (1, 2, 3) or the figure of merit (0-3). */
-export class SmallIntegerFormat implements DataEntryFormat<number> {
-  public readonly placeholder = '-';
-
-  public readonly maxDigits = 1;
-
-  constructor(
-    private readonly minValue: number,
-    private readonly maxValue: number,
-  ) {}
-
-  public format(value: number | null): FieldFormatTuple {
-    if (value === null || value === undefined) {
-      return [this.placeholder, null, null];
-    }
-    return [value.toFixed(0), null, null];
-  }
-
-  public async parse(input: string): Promise<number | null> {
-    if (input === '') {
-      return null;
-    }
-    if (!input.match(/^\d$/)) {
-      throw getFormattedFormatError('N');
-    }
-    const value = Number(input);
-    if (value < this.minValue || value > this.maxValue) {
-      throw getFormattedEntryOutOfRangeError(this.minValue.toString(), this.maxValue.toString());
     }
     return value;
   }
@@ -2683,7 +2649,7 @@ export class OffsetDistanceFormat implements DataEntryFormat<number> {
 
   public readonly unit = 'NM';
 
-  constructor(private readonly onSide: (side: 'L' | 'R') => void = () => {}) {}
+  constructor(private readonly onSide: (side: 'L' | 'R') => void) {}
 
   public format(value: number | null): FieldFormatTuple {
     if (value === null || value === undefined) {
@@ -2849,7 +2815,7 @@ export class DirectToCourseFormat implements DataEntryFormat<number> {
 
   constructor(
     private readonly isTrue: Subscribable<boolean>,
-    private readonly onTrue: (isTrue: boolean) => void = () => {},
+    private readonly onTrue: (isTrue: boolean) => void,
   ) {}
 
   public format(value: number | null): FieldFormatTuple {

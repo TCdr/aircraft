@@ -4,6 +4,8 @@
 import { Subject } from '@microsoft/msfs-sdk';
 import { AircraftNetworkServerUnit } from './AircraftNetworkServerUnit';
 import { NXLogicConfirmNode, UpdateThrottler } from '@flybywiresim/fbw-sdk';
+import { CompanyComMailbox } from './CompanyComMailbox';
+import { CompanyComRequests } from './CompanyComRequests';
 
 export class AnsuOps extends AircraftNetworkServerUnit {
   private lastUpdateTime: number | undefined = undefined;
@@ -40,9 +42,18 @@ export class AnsuOps extends AircraftNetworkServerUnit {
   public readonly blockTime = Subject.create<number | null>(null);
   public readonly flightTime = Subject.create<number | null>(null);
 
+  /** The COMPANY COM inbox (AOC uplink messages), kept here so that it lives across the OIT page changes */
+  public readonly companyCom = new CompanyComMailbox(this.bus);
+
+  /** The COMPANY COM weather request and free text (AOC downlinks), kept here across the OIT page changes */
+  public readonly companyComRequests = new CompanyComRequests(this.bus);
+
   /** @inheritdoc */
   init(): void {
     super.init();
+
+    this.companyCom.init();
+    this.companyComRequests.init();
 
     this.subscriptions.push(
       this.sci.parkBrakeSet.sub((v) => {

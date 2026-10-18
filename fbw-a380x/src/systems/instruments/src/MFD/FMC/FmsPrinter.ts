@@ -18,8 +18,10 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 import { AirlineModifiableInformation } from '@shared/AirlineModifiableInformation';
 
 import type { FlightManagementComputer } from './FlightManagementComputer';
+import { PedestalPrinter } from './PedestalPrinter';
+import { NXSystemMessages } from '../shared/NXSystemMessages';
 
-/** One printed page, sent to the flypad (the A380X cockpit printer has no paper to print on). */
+/** One printed page: printed on the pedestal printer, and kept on the flypad. */
 export interface FmsPrintPage {
   title: string;
   /** Sim UTC time of the print, in seconds of the day */
@@ -130,6 +132,8 @@ export class FmsPrinter {
 
   private readonly subs: Subscription[] = [];
 
+  private readonly pedestalPrinter = new PedestalPrinter();
+
   /** Fuel and time summary of the post-flight report */
   private startUp: { utc: number; fuelTonnes: number | null; weightTonnes: number | null } | null = null;
 
@@ -198,6 +202,7 @@ export class FmsPrinter {
 
   /** Called by the FMC update loop */
   public update(): void {
+    this.pedestalPrinter.update();
     this.flightPhase.set(this.fmc.fmgc.getFlightPhase());
     this.enginesRunning.set([1, 2, 3, 4].some((i) => SimVar.GetSimVarValue(`L:A32NX_ENGINE_N2:${i}`, 'number') > 20));
     const onGround = this.fmc.fmgc.isOnGround();
@@ -211,6 +216,15 @@ export class FmsPrinter {
 
   public destroy(): void {
     this.subs.forEach((s) => s.destroy());
+  }
+
+  /**
+   * Prints a page of another function (e.g. an ATC COM ATIS message) on the same printer, with the date and time header
+   * @param title the page title
+   * @param body the lines of the page, 64 characters at most
+   */
+  public printText(title: string, body: readonly string[]): void {
+    this.send(title, [...this.header(title), '', ...body, '', RULE]);
   }
 
   /** Flight plan initialization data (route, then performance data) */
@@ -577,9 +591,21 @@ export class FmsPrinter {
       .catch(() => {});
   }
 
+  /** Whether the cockpit printer can print (AC 1 powered, switched on with its ON/OFF button) */
+  public isAvailable(): boolean {
+    return this.pedestalPrinter.isAvailable();
+  }
+
   private send(title: string, lines: string[]): void {
+    // PRINTER NOT AVAIL (type II) when a report cannot be printed. Nothing is printed, so nothing is kept on the flypad
+    // either.
+    if (!this.pedestalPrinter.isAvailable()) {
+      this.fmc.addMessageToQueue(NXSystemMessages.printerNotAvail);
+      return;
+    }
     this.refreshDatabase();
     const page: FmsPrintPage = { title, utcSeconds: this.utc(), lines };
+    this.pedestalPrinter.print(lines);
     this.bus.getPublisher<FmsPrintEvents>().pub(FMS_PRINT_EVENT, page, true, false);
   }
 

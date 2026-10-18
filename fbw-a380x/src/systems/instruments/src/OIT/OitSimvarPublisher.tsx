@@ -25,6 +25,10 @@ export type OitSimvars = {
   cabinDoorOpen: number;
   hydGreenPressurized: boolean;
   hydYellowPressurized: boolean;
+  /** The FLT OPS page the captain's OIT shows (System/XOisFunction page code), for the X-OIS function */
+  fltOpsPageCapt: number;
+  /** The FLT OPS page the first officer's OIT shows */
+  fltOpsPageFo: number;
 };
 
 export type InternalKbdKeyEvent = {
@@ -36,7 +40,9 @@ export class OitSimvarPublisher extends SimVarPublisher<OitSimvars> {
   private static simvars = new Map<keyof OitSimvars, SimVarPublisherEntry<any>>([
     ['coldDark', { name: 'L:A32NX_COLD_AND_DARK_SPAWN', type: SimVarValueType.Number }],
     ['elec', { name: 'L:A32NX_ELEC_AC_2_BUS_IS_POWERED', type: SimVarValueType.Bool }],
-    ['elecFo', { name: 'L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', type: SimVarValueType.Bool }],
+    // F/O OIT supply: AC ESS. The A380 AC ESS busbar (400XP) is the AC_ESS_SHED variable; AC_ESS is the A380 AC EMER
+    // busbar (491XP).
+    ['elecFo', { name: 'L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', type: SimVarValueType.Bool }],
     ['potentiometerCaptain', { name: 'LIGHT POTENTIOMETER:78', type: SimVarValueType.Number }],
     ['potentiometerFo', { name: 'LIGHT POTENTIOMETER:79', type: SimVarValueType.Number }],
     ['oisDomainSwitchCapt', { name: 'L:A380X_SWITCH_OIT_SIDE_LEFT', type: SimVarValueType.Bool }],
@@ -61,6 +67,8 @@ export class OitSimvarPublisher extends SimVarPublisher<OitSimvars> {
       'hydYellowPressurized',
       { name: 'L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE_SWITCH', type: SimVarValueType.Bool },
     ],
+    ['fltOpsPageCapt', { name: 'L:A380X_OIT_CAPT_FLT_OPS_PAGE', type: SimVarValueType.Number }],
+    ['fltOpsPageFo', { name: 'L:A380X_OIT_FO_FLT_OPS_PAGE', type: SimVarValueType.Number }],
   ]);
 
   public constructor(bus: EventBus) {

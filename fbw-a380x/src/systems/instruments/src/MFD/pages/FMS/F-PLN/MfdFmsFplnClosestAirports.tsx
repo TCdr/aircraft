@@ -148,7 +148,8 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
       return;
     }
 
-    line.effectiveWind.set(this.effectiveWind(line));
+    const effectiveWind = this.effectiveWind(line);
+    line.effectiveWind.set(effectiveWind);
     const distance = distanceTo(ppos, line.location);
     const magVar = MagVar.get(ppos);
     const trueBearing = bearingTo(ppos, line.location);

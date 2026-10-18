@@ -27,6 +27,17 @@ import { SDSimvars } from './SDSimvarPublisher';
 
 export interface SDProps {
   readonly bus: EventBus;
+  /**
+   * The DU this gauge draws on when it is a hosted gauge (CDS reconfiguration: the SD on an ND DU,
+   * MsfsAvionicsCommon/HostedDisplay.ts)
+   */
+  readonly hostDisplayUnitId?: DisplayUnitID;
+  /**
+   * Whether the ATC mailbox of this gauge is the active mailbox client (L:A380X_CDS_MAILBOX_DU is this gauge's DU). Every
+   * SD gauge draws the mailbox (with the SD DU off, the crew moves the mailbox to the F/O ND DU with the DU RECONF pb),
+   * but only one at a time answers the flight crew and publishes to the ATC function.
+   */
+  readonly mailboxActive: Subscribable<boolean>;
 }
 
 export interface SdPageProps extends ComponentProps {
@@ -104,11 +115,19 @@ export class SD extends DestroyableComponent<SDProps> {
 
   render(): VNode | null {
     return (
-      <CdsDisplayUnit bus={this.props.bus} displayUnitId={DisplayUnitID.Sd}>
+      <CdsDisplayUnit
+        bus={this.props.bus}
+        displayUnitId={DisplayUnitID.Sd}
+        hostDisplayUnitId={this.props.hostDisplayUnitId}
+      >
         {this.sdPages}
         <div class="sd-content-area-blocker" style={{ visibility: this.anyPageVisibleStyle }} />
         <PermanentData bus={this.props.bus} />
-        <AtcMailbox bus={this.props.bus} />
+        <AtcMailbox
+          bus={this.props.bus}
+          active={this.props.mailboxActive}
+          cursorSide={this.props.hostDisplayUnitId === DisplayUnitID.FoNd ? 'FO' : 'CAPT'}
+        />
       </CdsDisplayUnit>
     );
   }

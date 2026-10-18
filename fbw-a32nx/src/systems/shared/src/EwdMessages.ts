@@ -250,6 +250,8 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['340004812', { text: '\x1b<4m IR 1+2+3 IN ALIGN' }],
   ['340014001', { group: 'NAV$9', text: ' RA 1 FAULT' }],
   ['340015001', { group: 'NAV$9', text: ' RA 2 FAULT' }],
+  ['340016501', { group: 'NAV$9', text: ' GPS 1 FAULT' }],
+  ['340017501', { group: 'NAV$9', text: ' GPS 2 FAULT' }],
   ['340050001', { group: 'NAV$9', text: ' TCAS FAULT' }],
   ['340050701', { group: 'NAV$9', text: ' TCAS STBY' }],
   ['340088001', { group: 'NAV$9', text: ' ATC/XPDR STBY' }],

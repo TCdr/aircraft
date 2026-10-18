@@ -101,6 +101,13 @@ import { WindUtils } from '@fmgc/guidance/vnav/wind/WindUtils';
 import { EngineOutControlEvents, EngineOutEvents } from '@fmgc/events/EngineOutEvents';
 import { FmsModule } from '@fmgc/modules/FmsModule';
 import { EngineOutMonitor } from '@fmgc/modules/EngineOutMonitor';
+import {
+  destinationDataMessages,
+  isNavDatabaseCycleCurrent,
+  isTimeToExitHolding,
+  MessageTextLatch,
+  utcCalendarDate,
+} from '@fmgc/components/fms-messages/FmsMessageConditions';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { A32NXFcuBusEvents } from '@shared/publishers/A32NXFcuBusPublisher';
 import { A32NXFgBusEvents } from '@shared/publishers/A32NXFGBusPublisher';
@@ -816,6 +823,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       this.updateMinimums();
       this.updateIlsCourse();
       this.updatePerfPageAltPredictions();
+      this.checkTimeToExit();
       // this.checkEfobBelowMin(deltaTime);
     }
 
@@ -1853,16 +1861,64 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   /* END OF FMS EVENTS */
   /* FMS CHECK ROUTINE */
 
+  /**
+   * ENTER DEST DATA when a destination QNH, temperature or wind is missing, CHECK DEST DATA when the wind on the PERF APPR
+   * page was received by uplink and not entered by the flight crew.
+   */
   private checkDestData() {
     const plan = this.getFlightPlan(FlightPlanIndex.Active);
-
-    this.addMessageToQueue(NXSystemMessages.enterDestData, () => {
-      return (
-        Number.isFinite(plan.performanceData.approachQnh.get()) &&
-        Number.isFinite(plan.performanceData.approachTemperature.get()) &&
-        plan.performanceData.isApproachWindPilotEntered
+    const destinationData = () => {
+      const pd = plan.performanceData;
+      return destinationDataMessages(
+        pd.approachQnh.get(),
+        pd.approachTemperature.get(),
+        pd.approachWindDirection.get(),
+        pd.approachWindMagnitude.get(),
+        pd.isApproachWindPilotEntered.get(),
       );
-    });
+    };
+
+    const messages = destinationData();
+    if (messages.enterDestData) {
+      this.addMessageToQueue(NXSystemMessages.enterDestData, () => !destinationData().enterDestData);
+    } else if (messages.checkDestData) {
+      this.addMessageToQueue(NXSystemMessages.checkDestData, () => !destinationData().checkDestData);
+    }
+  }
+
+  /**
+   * CHECK DATA BASE CYCLE: a FROM/TO or CO RTE is entered while today's date is outside the validity of the active
+   * navigation database.
+   */
+  private checkNavDatabaseCycle(): void {
+    const today = utcCalendarDate(
+      SimVar.GetSimVarValue('E:ZULU YEAR', 'number'),
+      SimVar.GetSimVarValue('E:ZULU MONTH OF YEAR', 'number'),
+      SimVar.GetSimVarValue('E:ZULU DAY OF MONTH', 'number'),
+    );
+    if (!isNavDatabaseCycleCurrent(today, this.navDbIdent)) {
+      this.addMessageToQueue(NXSystemMessages.checkDataBaseCycle);
+    }
+  }
+
+  private readonly timeToExitMessage = new MessageTextLatch();
+
+  /**
+   * TIME TO EXIT: in a holding (the active leg is a hold leg) with no extra fuel left, the aircraft must leave the
+   * holding now to keep the fuel reserves.
+   */
+  private checkTimeToExit(): void {
+    const activeLeg = this.flightPlanService.hasActive ? this.flightPlanService.active.activeLeg : undefined;
+    const inHolding = !!activeLeg && activeLeg.isDiscontinuity === false && activeLeg.isHX();
+    const extraFuel = this.getFuelPredComputation(FlightPlanIndex.Active).extraFuel;
+    const update = this.timeToExitMessage.update(
+      isTimeToExitHolding(inHolding, extraFuel) ? NXSystemMessages.timeToExit.text : null,
+    );
+    if (update?.action === 'send') {
+      this.addMessageToQueue(NXSystemMessages.timeToExit);
+    } else if (update?.action === 'recall') {
+      this.removeMessageFromQueue(NXSystemMessages.timeToExit.text);
+    }
   }
 
   private checkGWParams() {
@@ -2060,6 +2116,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
     this.setFromTo(from, to, forPlan)
       .then(() => {
+        this.checkNavDatabaseCycle();
         // TODO differentiate for sec
         this.getCoRouteList()
           .then(() => callback(true))
@@ -2274,6 +2331,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
               await this.flightPlanService.uplinkInsert();
 
               this.coRoute['routeNumber'] = coRouteNum;
+              this.checkNavDatabaseCycle();
             } else {
               this.setScratchpadMessage(NXSystemMessages.notInDatabase);
             }
@@ -3428,6 +3486,11 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     }
 
     plan.setPerformanceData('cruiseFlightLevel', flightLevelToInsert);
+    // CRZ FL ABOVE MAX FL: the entered cruise level is above the computed maximum level
+    const maxFl = this.getMaxFlCorrected();
+    if (maxFl !== null && flightLevelToInsert > maxFl) {
+      this.addMessageToQueue(NXSystemMessages.crzFlAboveMaxFl);
+    }
     if (newCrzAltMessage) {
       this.addMessageToQueue(
         NXSystemMessages.newCrzAlt.getModifiedMessage(flightLevelToInsert * 100),

@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
-import { MappedSubject, SubscribableMapFunctions, Subscription } from '@microsoft/msfs-sdk';
+import { MappedSubject, Subscribable, SubscribableMapFunctions, Subscription } from '@microsoft/msfs-sdk';
 import { FwsCore, FwsSuppressableItem } from './FwsCore';
+import { DisplayUnitID } from '@shared/CdsDisplayUnits';
 
 export enum FwsInopSysPhases {
   AllPhases,
@@ -46,6 +47,21 @@ export class FwsInopSys {
   }
 
   /** INOP SYS shown on SD */
+  /**
+   * A SURV SYS 1 item that the ELEC AC ESS BUS FAULT STATUS already covers: with the AC ESS busbar lost, the STATUS
+   * lists TAWS 1 (APPR & LDG) and XPDR 1 (ALL PHASES) but neither GPWS 1, TERR SYS 1 nor ADS-B RPTG 1, so these are not
+   * shown while that alert is active.
+   * @param failed the item's own condition
+   * @returns the item's condition, false while the ELEC AC ESS BUS FAULT alert is active
+   */
+  private notWithAcEssBusFault(failed: Subscribable<boolean>): MappedSubject<[boolean, boolean], boolean> {
+    return MappedSubject.create(
+      ([itemFailed, acEssBusFault]) => itemFailed && !acEssBusFault,
+      failed,
+      this.fws.elecAcEssBusFault,
+    );
+  }
+
   inopSys: FwsInopSysDict = {
     220300026: {
       // AUTOLAND
@@ -487,6 +503,42 @@ export class FwsInopSys {
       simVarIsActive: this.fws.fws2Failed,
       phase: FwsInopSysPhases.AllPhases,
     },
+    // CDS ... DU FAULT STATUS, INOP SYS ALL PHASES: one line per failed DU; the aircraft lists none for the SD DU.
+    310300005: {
+      // EWD DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.Ewd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300006: {
+      // CAPT PFD DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptPfd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300007: {
+      // F/O PFD DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoPfd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300008: {
+      // CAPT ND DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptNd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300009: {
+      // F/O ND DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoNd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300010: {
+      // CAPT MFD DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptMfd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300011: {
+      // F/O MFD DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoMfd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
     320300007: {
       // BTV
       simVarIsActive: this.fws.btvLost,
@@ -505,7 +557,7 @@ export class FwsInopSys {
     },
     340300001: {
       // GPWS 1
-      simVarIsActive: this.fws.gpws1Failed,
+      simVarIsActive: this.notWithAcEssBusFault(this.fws.gpws1Failed),
       phase: FwsInopSysPhases.AllPhases,
       notActiveWhenItemActive: ['340300003'],
     },
@@ -692,7 +744,7 @@ export class FwsInopSys {
     },
     340300039: {
       // TERR SYS 1
-      simVarIsActive: this.fws.terrSys1Failed,
+      simVarIsActive: this.notWithAcEssBusFault(this.fws.terrSys1Failed),
       phase: FwsInopSysPhases.AllPhases,
       notActiveWhenItemActive: ['340300044'],
     },
@@ -713,7 +765,7 @@ export class FwsInopSys {
     },
     340300041: {
       // ADS-B RPTG 1
-      simVarIsActive: this.fws.terrSys1Failed, // FIXME only if ADS-B OUT function uses GPIRS. Use terr sys failure status since it behaves similarly
+      simVarIsActive: this.notWithAcEssBusFault(this.fws.terrSys1Failed), // FIXME only if ADS-B OUT function uses GPIRS. Use terr sys failure status since it behaves similarly
       phase: FwsInopSysPhases.AllPhases,
       notActiveWhenItemActive: ['340300045'],
     },
@@ -776,6 +828,42 @@ export class FwsInopSys {
         this.fws.reverser3Inop,
       ),
       phase: FwsInopSysPhases.ApprLdg,
+    },
+
+    // ELEC AC ESS BUS FAULT, REDUND LOSS, see ELEC_AC_ESS_BUS_FAULT_STATUS. RA SYS C is the 340300024 entry above: the
+    // RA 3 is supplied by the AC ESS busbar (a380_systems navigation.rs) and reports a failure warning without power.
+    // PACK 1 CTL 1 and PACK 2 CTL 1 are also the REDUND LOSS of AIR PACK 1(2) CTL 1(2) FAULT, whose redundLoss in
+    // FwsAbnormalSensed is not shown (only these entries reach the STATUS page): a pack controller fault condition
+    // would be added to the same entries.
+    280300003: {
+      // FEED TK 3 STBY PMP
+      simVarIsActive: this.fws.elecAcEssBusFault,
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    280300004: {
+      // TRIM TK L PMP
+      simVarIsActive: this.fws.elecAcEssBusFault,
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    740300001: {
+      // ENG 1+2+3+4 IGN A
+      simVarIsActive: this.fws.elecAcEssBusFault,
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    210300001: {
+      // PACK 1 CTL 1
+      simVarIsActive: this.fws.elecAcEssBusFault,
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    210300003: {
+      // PACK 2 CTL 1
+      simVarIsActive: this.fws.elecAcEssBusFault,
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
     },
   };
 

@@ -2,23 +2,37 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { ComponentProps, DisplayComponent, EventBus, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
+import {
+  ComponentProps,
+  DisplayComponent,
+  EventBus,
+  FSComponent,
+  Subject,
+  Subscribable,
+  VNode,
+} from '@microsoft/msfs-sdk';
 import { DisplayUnit } from '../MsfsAvionicsCommon/displayUnit';
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
 import { UpperDisplay } from './UpperDisplay';
 import { LowerLeftDisplay } from './LowerLeftDisplay';
 import { LowerRightDisplay } from './LowerRightDisplay';
+import { FormattedFwcText } from '../MsfsAvionicsCommon/FormattedFwcText';
 
 import './style.scss';
 
 interface EwdProps extends ComponentProps {
   bus: EventBus;
   instrument: BaseInstrument;
+  /** The upper ECAM display unit has failed (flyPad failure): the DU is blank. */
+  failed: Subscribable<boolean>;
 }
 export class EwdComponent extends DisplayComponent<EwdProps> {
   private acEssBus = Subject.create(false);
 
   private ewdPotentiometer = Subject.create(0);
+
+  /** The STS reminder: STS, white and framed, at the bottom of the E/WD */
+  private readonly stsReminder = Subject.create('');
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -38,11 +52,25 @@ export class EwdComponent extends DisplayComponent<EwdProps> {
       .handle((pot) => {
         this.ewdPotentiometer.set(pot);
       });
+
+    sub
+      .on('ewdStsReminder')
+      .whenChanged()
+      .handle((reminder) => {
+        this.stsReminder.set(reminder ? "\x1b<7m\x1b'mSTS\x1bm" : '');
+      });
   }
 
   render(): VNode {
     return (
-      <DisplayUnit bus={this.props.bus} normDmc={1} brightness={this.ewdPotentiometer} powered={this.acEssBus}>
+      <DisplayUnit
+        bus={this.props.bus}
+        normDmc={1}
+        brightness={this.ewdPotentiometer}
+        powered={this.acEssBus}
+        failed={this.props.failed}
+        picture="EWD"
+      >
         <svg class="ewd-svg" version="1.1" viewBox="0 0 768 768" xmlns="http://www.w3.org/2000/svg">
           <UpperDisplay bus={this.props.bus} />
           <line class="Separator" x1="4" y1="520" x2="444" y2="520" />
@@ -50,6 +78,7 @@ export class EwdComponent extends DisplayComponent<EwdProps> {
           <LowerLeftDisplay bus={this.props.bus} />
           <line class="Separator" x1="484" y1="540" x2="484" y2="730" />
           <LowerRightDisplay bus={this.props.bus} />
+          <FormattedFwcText bus={this.props.bus} message={this.stsReminder} x={460} y={757} />
         </svg>
       </DisplayUnit>
     );

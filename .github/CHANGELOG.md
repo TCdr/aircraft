@@ -113,6 +113,19 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] The angle of attack vanes of the three multifunction probes on the nose (one left, two right) follow the angle of attack - @TCdr
 1. [A380X] All 52 overhead RESET panel buttons are clickable with their label as tooltip, and the three side slip probe vanes on the nose follow the side slip angle - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
+1. [A32NX/ND] Add a native weather radar display on the ROSE and ARC pages, controlled by the WX SYS and MODE knobs - @TCdr
+1. [A380X/ND] Add the weather radar to the ND and the weather to the VD, following the EFIS WX overlay and the SURV CONTROLS WXR settings - @TCdr
+1. [ND] Add a TERR ON ND terrain display that works without SimBridge, and a terrain profile on the A380X VD - @TCdr
+1. [ND] Show the selected weather radar mode (WX, WX+T, TURB, MAP) on the ROSE and ARC pages - @TCdr
+1. [ND] Fewer stutters with the weather radar and TERR ON ND: the map views nothing shows are paused - @TCdr
+1. [A380X/CDS] With the CAPT (F/O) PFD and MFD DUs failed, the DU RECONF pb now cycles the ND DU from the PFD through the EWD and the SD and back to the PFD (FCOM DSC-31-15-20; also the EWD and the SD on the ND DU when only the MFD DU or the SD DU is failed); the EWD (SD) is never shown on both sides at once - @TCdr
+1. [A380X/CDS] With the CAPT (F/O) PFD and MFD DUs failed, the DU RECONF pb now cycles the ND DU from the PFD through the EWD and the SD and back to the PFD (also the EWD and the SD on the ND DU when only the MFD DU or the SD DU is failed); the EWD (SD) is never shown on both sides at once; the SD on the ND DU brings the ATC mailbox with it, so with the SD DU off the F/O DU RECONF pb gives the ATC mailbox - @TCdr
+1. [A380X/CDS] Display unit reconfiguration: a failed or switched-off PFD display unit moves the PFD to the ND display unit, a lost EWD display unit moves the EWD to the SD display unit, the PFD/ND pushbuttons exchange the PFD and ND, and the DU RECONF pushbuttons work for the displays that can be moved - @TCdr
+1. [A32NX/EIS] Display unit reconfiguration of the aircraft: a lost upper ECAM display unit (failed or switched off) moves the E/WD to the lower one, a lost PFD display unit moves the PFD to the ND display unit, the ECAM/ND XFR selector moves the SD (or the E/WD with both ECAM display units lost) to an ND with ECAM ON ND on the lower ECAM display unit, the PFD/ND XFR pushbuttons swap the PFD and the ND, and holding a system page pushbutton shows the SD on the remaining ECAM display unit - @TCdr
+1. [A32NX/ECAM] The SWITCHG PNL memo comes on for the ECAM/ND XFR selector only together with a PFD/ND XFR pushbutton, as on the aircraft (the EIS DMC selector alone still shows it) - @TCdr
+1. [A380X/EFB] New flyPad failures for the 8 display units (CAPT/F/O PFD, ND, MFD, EWD, SD): the failed display unit goes blank and the ECAM shows CDS ... DU FAULT with its procedure and INOP SYS - @TCdr
+1. [A32NX/EFB] flyPad failures: the CAPT and F/O ND and the upper and lower ECAM display units can be failed (ATA 31); a failed display unit goes blank like a failed PFD, with no weather or terrain drawn on a failed ND - @TCdr
+1. [A32NX/ND] The weather radar returns and the terrain are no longer drawn on an ND that is switched off or in its self-test - @TCdr
 1. [A380X/MFD] Make the SURV CONTROLS page (WXR, TCAS), the STATUS & SWITCHING WXR and XPDR/TCAS selection and the pedestal SURV panel buttons work - @TCdr
 1. [A380X/FWS] Sense the WXR & TAWS and XPDR & TCAS lines of the ECAM procedures and add the CABIN CREW line to the ECAM LINE-UP checklist - @TCdr
 1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
@@ -121,6 +134,27 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Replace the top of descent calculator with a descent calculator: ECON, standard, given V/S and emergency descents from the FMS performance model, descent profile and descent check - @TCdr
 1. [EFB] Descent calculator: a waypoint of the FMS flight plan as the target, with its altitude constraint and its distance along the route - @TCdr
 1. [A380X/EFB] Landing calculator: BTV braking mode, landing at the BTV DRY or WET line - @TCdr
+1. [A380X/MFD] Add the ATC COM pages (connect, ATIS, message record, request, report, emergency) and the SD mailbox per the A380 FCOM - @TCdr
+1. [ATSU] Show SEND FAILED on a message sent without an active ATC center, instead of nothing - @TCdr
+1. [A380X/FMS] Fix datalink not connected with the flight number entered on the INIT page (ATC logon and messages failing), FMS DATALINK NOT AVAIL message - @TCdr
+1. [ATSU] ACARS provider (Hoppie, BeyondATC, SayIntentions) found again when started late or restarted, and connected even when the TELEX connection fails; the provider setting is no longer reset after 5 minutes - @TCdr
+1. [A380X/ATC] LOAD-SEC3 button of the ATC mailbox: a route clearance or a crossing constraint (altitude, speed, time) received by CPDLC is loaded in SEC 3, with the rejected elements on the REJECTED ATC INFO page - @TCdr
+1. [A380X/MFD] Print the FMS pages on the pedestal printer paper, torn-off sheets on the pedestal or the CPT pull-out table - @TCdr
+1. [A380X/ATCCOM] Print from the SD ATC mailbox and from the MFD ATC COM MSG RECORD pages - @TCdr
+1. [A380X/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit - @TCdr
+1. [A32NX/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit; no torn paper edge left in the slit between printouts - @TCdr
+1. [A380X/MODEL] No torn paper edge left in the pedestal printer slit between printouts - @TCdr
+1. [A380X/PRINTER] The pedestal printer control panel buttons are clickable: ON/OFF (green when on and AC 1 powered; switched off, the FMS and ATC COM prints show PRINTER NOT AVAIL), SLEW feeds paper, TEST prints a test page, ABORT cancels the waiting printouts - @TCdr
+1. [A32NX/A380X] GPS receivers in MMR 1 and 2: satellites of the GPS constellation, INIT/ACQ/NAV/FAULT modes, accuracy and integrity limit, GPS 1 and GPS 2 failures - @TCdr
+1. [A32NX/A380X] GPIRS position in the ADIRUs and GPS PRIMARY from the real GPS accuracy and integrity limit - @TCdr
+1. [A32NX/MCDU] GPS MONITOR page shows the data of each GPS receiver - @TCdr
+1. [A380X/MFD] POSITION / GPS page shows the data of each GPS receiver - @TCdr
+1. [A32NX/A380X] NAV GPS 1(2) FAULT alerts - @TCdr
+1. [A32NX/A380X] GPS receiver degraded modes TEST, ALTAID and AIDED, antenna masking in turns, DIFF mode on the A380X - @TCdr
+1. [A32NX/A380X] GPS deselection (MCDU SELECTED NAVAIDS, MFD POSITION/NAVAIDS) with the GPS (IS) DESELECTED message and the position uncertainty of the IRS/DME/DME, IRS/VOR/DME and IRS only modes - @TCdr
+1. [A32NX/ECAM] STATUS page filled by the FWC (INOP SYS, information), automatic STATUS page and STS reminder; GPS lines on both aircraft - @TCdr
+1. [A380X/FWS] ECAM raises the first ELEC alerts from the electrical network: AC BUS 1(2)(3)(4), AC ESS BUS, DC BUS 1(2), DC ESS BUS, GEN 1(2)(3)(4), APU GEN A(B), TR 1(2)(ESS) and APU TR FAULT, GEN OFF, DRIVE DISCONNECTED, BUS TIE OFF, AC ESS BUS ALTN and ELEC EMER CONFIG, with the flight phase inhibitions and sensed procedure lines - @TCdr
+1. [A380X/ELEC] The loads the aircraft puts on AC ESS (SURV SYS 1 XPDR/TCAS/TAWS/WXR, RA SYS C, slat motor, 427XP EHAs, feed 2 main/feed 3 stby/trim L pumps, pack controllers channel 1, F/O OIT, FLT OPS ANSU) are on the AC ESS busbar instead of AC EMER; XPDR 2 is wired (failure and AC 4 power of the selected XPDR system, MFD SURV status), NSS AVNCS ANSU 2 is built and takes over from ANSU 1; manual crossbleed control is powered by DC ESS; SURV TCAS 1/2 FAULT are per system (no false TCAS 2 FAULT with AC ESS lost, TCAS 2 on AC 4), TCAS 1(2) shows failed on the MFD SURV STATUS page with XPDR 1(2) failed, new SURV XPDR 1, 2 and 1+2 FAULT alerts - @TCdr
 1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
@@ -132,6 +166,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] The history winds of the WIND page now show the CRZ FL and FL 250, 150 and 050 as on the aircraft, and the stored history winds are kept when the storage key changes - @TCdr
 1. [A380X/MFD] Company wind messages use the aircraft wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
 1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
+1. [A380X/PFD] The CAPT PFD now reads the CAPT side FMS data (FM messages, RNP, TO waypoint) instead of the F/O side's - @TCdr
+1. [A380X/ELEC] New flyPad failures BAT 1, BAT 2, BAT ESS, APU BAT, EXT PWR 1-4, RAT Generator, TR 1/TR 2/ESS TR Monitoring and DRIVE 1-4 Disconnect Function (ATA 24), with the BAT pb-sw FAULT light and the ECAM alerts ELEC BAT 1(2)(ESS) FAULT, APU BAT FAULT, BAT 1(2)(ESS)(APU) OFF, EXT PWR 1(2)(3)(4) FAULT, RAT FAULT, TR 1(2)(ESS) MONITORING FAULT and DRIVE 1(2)(3)(4) DISC FAULT; the GEN, DRIVE, APU GEN and TR alerts now list their INOP SYS on the STATUS page - @TCdr
 1. [A32NX/TCAS] TRAFFIC selector on THRT: the proximate and other intruders within 2700 ft above and below are now shown on the ND while a TA or RA is present, as on the aircraft (before only the TA/RA intruders were shown) - @TCdr
 1. [ND] TCAS: CHANGE MODE (ND in PLAN) and TCAS: REDUCE RANGE (ND range above 40 NM) are shown while a TA (amber) or an RA (red) cannot be seen on the ND; on the A380X also TCAS: INCREASE RANGE in ROSE-VOR/ROSE-LS with the ZOOM range in flight - @TCdr
 1. [A380X/SURV] Pressing the lit WXR/TAWS SYS 1 or SYS 2 pb (SURV panel or MFD SURV STATUS & SWITCHING) keeps that system selected instead of selecting none, which failed TERR and GPWS - @TCdr
@@ -144,6 +180,21 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MCDU] The PROG page OPT FL is the best specific range level for the gross weight (long range cruise table), never above REC MAX, instead of the REC MAX rounded down - @TCdr
 1. [A380X/MFD] PERF page CLB and DES tabs show the time and distance to the PRED TO altitude instead of dashes - @TCdr
 1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan - @TCdr
+1. [A380X/OIT] The COMPANY COM inbox lists the company messages received by the AOC instead of two test messages; displaying a message marks it read, and the COMPANY MSG memo goes once every message is read - @TCdr
+1. [A380X/MFD] System Message Area in the MFD header: CHECK FMS MESSAGE, NEW ATIS RECEIVED and ATIS SYS MSG while another application is shown - @TCdr
+1. [A380X/ATC] The ATC MSG pbs flash at 2 Hz, the RING sounds only if the message is not read within 15 s (5 s if urgent), and the KCCU MAILBOX key puts the cursor on the SD mailbox - @TCdr
+1. [A32NX/MCDU] New CHECK APPR SELECTION message when the F-PLN has a non ILS approach and an ILS is tuned manually on the RAD NAV page (cruise less than 100 NM from the T/D, descent or approach), as in the FCOM; it also sets the PFD FMA line 3 message - @TCdr
+1. [A32NX/A380X/FMS] The FM position is now the IRS position plus a bias that follows the GPIRS or the radio position and is kept in IRS only; without GPS PRIMARY the position is updated at takeoff to the runway plus the TO SHIFT, and the EPU follows the position updates - @TCdr
+1. [A32NX/MCDU] POSITION MONITOR shows the real FMGC 1 and 2, GPIRS or radio, MIX IRS and IRS positions with the navigation mode, PROG POSITION UPDATE AT works, and the IRS page shows the GPIRS position and accuracy of its ADIRU - @TCdr
+1. [A380X/MFD] POSITION/MONITOR shows the FMS 2, radio, GPIRS, GPS 1 and GPS 2 positions and the real navigation mode - @TCdr
+1. [A32NX/MCDU] New MCDU messages AREA RNP IS, PROCEDURE RNP IS, CHECK IRS/AIRPORT POS, IRS ONLY NAVIGATION, CHECK DATA BASE CYCLE, CHECK DEST DATA, CRZ FL ABOVE MAX FL and TIME TO EXIT - @TCdr
+1. [A380X/MFD] New FMS messages AREA RNP IS, PROC RNP IS, CHECK DATABASE CYCLE, CHECK IRS / ARPT POSITION, EXPECT TURN AREA EXCEEDANCE, SPECIF NDB NOT AVAIL, TIME TO EXIT, T.O TIME REACHED and ADJUST DESIRED TRK OR HDG - @TCdr
+1. [A380X/ATC] The ATC MSG lights and RING are inhibited in takeoff and landing; an uplink received then, or a sixth one while five wait for an answer, is rejected with an automatic ERROR downlink to the ATC center - @TCdr
+1. [A380X/OIS] The laptop shows STANDALONE and SYNCHRONIZATION NOT AVAIL when started before the ARU (2 min after power-up) or without the FLT OPS network - @TCdr
+1. [A380X/OIS] The OIS MENU key shows the FLT OPS menu and the OIS XFR key shows the other OIT's page (X-OIS) - @TCdr
+1. [A380X/OIS] COMPANY COM weather request (METAR/TAF) and free text pages, sent through the AOC - @TCdr
+1. [A380X/OIT] EXIT SESSION of the FLT OPS MENU page returns to the login page and clears the FLT OPS STS page (not while the FLT FOLDER is open) - @TCdr
+1. [A380X/AOC] The OIT COMPANY COM inbox can print a message on the pedestal printer - @TCdr
 
 ## 2024.1.0
 

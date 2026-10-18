@@ -100,6 +100,32 @@ export class OitUiService {
     this.fltOpsLoginScreenVisible.set(true);
   }
 
+  /** What the end of an OIS session clears, registered by the FLT OPS container (the laptop data) */
+  private readonly fltOpsSessionExitHandlers: (() => void)[] = [];
+
+  /**
+   * Registers what an EXIT SESSION clears
+   * @param handler called at each EXIT SESSION
+   */
+  public onFltOpsSessionExit(handler: () => void): void {
+    this.fltOpsSessionExitHandlers.push(handler);
+  }
+
+  /**
+   * EXIT SESSION of the FLT OPS MENU page or of the MENU button: back to the Login page, not possible while the FLT
+   * FOLDER application is open. The exit clears the FLT OPS STS page of the laptops for the next flight: the registered
+   * handlers clear the laptop data.
+   * @returns whether the session was exited (false while the FLT FOLDER is open)
+   */
+  public exitFltOpsSession(): boolean {
+    if (this.activeUri.get().uri === 'flt-ops/flt-folder') {
+      return false;
+    }
+    this.fltOpsSessionExitHandlers.forEach((handler) => handler());
+    this.resetFltOpsSession();
+    return true;
+  }
+
   /*
    * Whether one can navigate back
    */

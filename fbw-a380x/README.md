@@ -35,7 +35,8 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 - Full separation into three synchronized FMCs and two FMSs (currently one FMC serving one FMS)
 - Accurate CI, OPT and REC MAX FL computation
 - NADP (see THR NOISE above)
-- ATC / datalink / CPDLC
+- ATC / datalink / CPDLC: the MFD ATC COM pages (connect, ATIS, message record, request, report, emergency) and the SD
+  mailbox work through the FBW ATSU and its ACARS providers; datalink functions outside those pages are not implemented
 - FCU BKUP
 - STEP ALTs: Optimum step calculation
 
@@ -78,7 +79,12 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 ### ATA 31 Indicating / Recording / ECAM / EFIS / Displays
 
-- CDS / displays (automatic) reconfiguration
+- CDS / display unit reconfiguration: partly implemented. Automatic (PFD to the ND DU, EWD to the SD DU), the PFD/ND
+  pb and the DU RECONF pb work (the EWD and the SD can be selected on the ND DUs), but the MFD is not drawn on another
+  DU and nothing is drawn on the MFD DUs (the DU RECONF pb skips them, so it does nothing when it acts on an MFD DU),
+  the SD on an ND DU has the ATC mailbox only while the SD DU is off or shows another display (with both, the ND DU's
+  mailbox mirrors the SD DU's displayed message and takes no input), the ND on the PFD DU has no weather radar or
+  terrain image (the native ndwxr gauges stay on the ND DUs), and the KCCU keys do not reconfigure the DUs
 - PFD backup scales
 - Interactive ND
 - Independent QNH
@@ -101,12 +107,14 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 ### ATA 34 Navigation
 
-- MMR implementation including GPIRS position
+- MMR implementation: the GPS receivers, the GPIRS position, the GPS modes (TEST, ALTAID, AIDED, DIFF) and the GPS
+  deselection are modelled; the satellites come from the nominal 24-slot constellation, not from a real almanac
 - GLS
 
 ### ATA 34 Surveillance / TCAS / TAWS / WXR / XPDR
 
-- Weather radar / WXR due to sim limitation
+- Weather radar: the native radar shows the sim's weather; the PRED W/S, GAIN and ELEVN/TILT settings do not change the
+  radar picture
 - TAWS obstacles
 
 ### ATA 34 ROW/ROP

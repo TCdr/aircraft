@@ -49,8 +49,10 @@ use systems::{
     engine::{reverser_thrust::ReverserForce, trent_engine::TrentEngine, EngineFireOverheadPanel},
     enhanced_gpwc::EnhancedGroundProximityWarningComputer,
     landing_gear::{LandingGear, LandingGearControlInterfaceUnitSet},
-    navigation::adirs::{
-        AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel,
+    navigation::{
+        adirs::{AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel},
+        gnss::GpsReceiver,
+        gpirs::Gpirs,
     },
     shared::ElectricalBusType,
     simulation::{
@@ -90,6 +92,9 @@ pub struct A380 {
     landing_gear: LandingGear,
     pneumatic: A380Pneumatic,
     radio_altimeters: A380RadioAltimeters,
+    gps_1: GpsReceiver,
+    gps_2: GpsReceiver,
+    gpirs: Gpirs,
     cds: A380ControlDisplaySystem,
     egpwc: EnhancedGroundProximityWarningComputer,
     icing_simulation: Icing,
@@ -145,10 +150,27 @@ impl A380 {
             landing_gear: LandingGear::new(context, true),
             pneumatic: A380Pneumatic::new(context),
             radio_altimeters: A380RadioAltimeters::new(context),
+            // The GPS receivers of MMR 1 and 2: MMR 1 on AC EMER (491XP, AlternatingCurrentEssential in this
+            // model), MMR 2 on AC 3. The A380 MMRs use satellite based augmentation (DIFF mode).
+            gps_1: GpsReceiver::new_with_augmentation(
+                context,
+                1,
+                ElectricalBusType::AlternatingCurrentEssential,
+                true,
+            ),
+            gps_2: GpsReceiver::new_with_augmentation(
+                context,
+                2,
+                ElectricalBusType::AlternatingCurrent(3),
+                true,
+            ),
+            gpirs: Gpirs::new(context),
             cds: A380ControlDisplaySystem::new(context),
+            // TAWS = SURV SYS 1 (WXR/TAWS) = 115 V AC ESS. AC ESS (400XP) is AlternatingCurrentEssentialShed,
+            // AlternatingCurrentEssential is AC EMER (491XP).
             egpwc: EnhancedGroundProximityWarningComputer::new(
                 context,
-                ElectricalBusType::AlternatingCurrentEssential,
+                ElectricalBusType::AlternatingCurrentEssentialShed,
                 vec![
                     Length::new::<nautical_mile>(0.0),
                     Length::new::<nautical_mile>(10.0),
@@ -251,6 +273,9 @@ impl Aircraft for A380 {
         );
 
         self.radio_altimeters.update(context);
+        self.gps_1.update(context);
+        self.gps_2.update(context);
+        self.gpirs.update();
 
         self.hydraulic.update(
             context,
@@ -385,6 +410,9 @@ impl SimulationElement for A380 {
         accept_iterable!(self.ext_pwrs, visitor);
         self.lgcius.accept(visitor);
         self.radio_altimeters.accept(visitor);
+        self.gps_1.accept(visitor);
+        self.gps_2.accept(visitor);
+        self.gpirs.accept(visitor);
         self.autobrake_panel.accept(visitor);
         self.hydraulic.accept(visitor);
         self.hydraulic_overhead.accept(visitor);
@@ -400,5 +428,59 @@ impl SimulationElement for A380 {
         self.reverse_thrust.accept(visitor);
 
         visitor.visit(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use systems::failures::FailureType;
+    use systems::simulation::{
+        test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
+        InitContext,
+    };
+
+    /// The four engines running, so that the four AC buses are powered by their generators
+    fn a380_with_engines_running() -> SimulationTestBed<A380> {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A380::new(context));
+        test_bed.set_on_ground(true);
+        for engine_number in 1..=4 {
+            test_bed.write_by_name(&format!("ENGINE_STATE:{}", engine_number), 1.);
+            for speed in ["ENGINE_N3", "ENGINE_N2", "TURB ENG CORRECTED N2"] {
+                test_bed.write_by_name(&format!("{}:{}", speed, engine_number), 80.);
+            }
+            test_bed.write_by_name(&format!("TURB ENG CORRECTED N1:{}", engine_number), 40.);
+        }
+        test_bed.run_multiple_frames(Duration::from_secs(10));
+        for bus in ["AC_2", "AC_3"] {
+            let powered: bool = test_bed.read_by_name(&format!("ELEC_{}_BUS_IS_POWERED", bus));
+            assert!(powered, "{bus} not powered");
+        }
+        test_bed
+    }
+
+    /// GPS 2 is the GPS part of MMR 2, supplied by AC 3
+    #[test]
+    fn gps_2_is_supplied_by_ac_3() {
+        const GPS_MODE_OFF: f64 = 0.;
+        let gps_2_mode =
+            |test_bed: &mut SimulationTestBed<A380>| -> f64 { test_bed.read_by_name("GPS_2_MODE") };
+
+        let mut test_bed = a380_with_engines_running();
+        test_bed.fail(FailureType::ElectricalBus(
+            ElectricalBusType::AlternatingCurrent(2),
+        ));
+        test_bed.run_with_delta(Duration::from_secs(1));
+        assert!(gps_2_mode(&mut test_bed) != GPS_MODE_OFF);
+
+        test_bed.unfail(FailureType::ElectricalBus(
+            ElectricalBusType::AlternatingCurrent(2),
+        ));
+        test_bed.fail(FailureType::ElectricalBus(
+            ElectricalBusType::AlternatingCurrent(3),
+        ));
+        test_bed.run_with_delta(Duration::from_secs(1));
+        assert_eq!(gps_2_mode(&mut test_bed), GPS_MODE_OFF);
     }
 }

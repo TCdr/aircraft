@@ -18,6 +18,7 @@ import { AttitudeIndicatorWarnings } from '@flybywiresim/pfd';
 import { AttitudeIndicatorWarningsA380 } from './AttitudeIndicatorWarningsA380';
 import { LinearDeviationIndicator } from './LinearDeviationIndicator';
 import { CdsDisplayUnit, DisplayUnitID } from '../MsfsAvionicsCommon/CdsDisplayUnit';
+import { hostDisplayUnitOf } from '../MsfsAvionicsCommon/HostedDisplay';
 import { LagFilter } from './PFDUtils';
 import { Arinc429Values } from './shared/ArincValueProvider';
 import { AltitudeIndicator, AltitudeIndicatorOfftape } from './AltitudeIndicator';
@@ -32,23 +33,10 @@ import { VerticalSpeedIndicator } from './VerticalSpeedIndicator';
 import './style.scss';
 import { PitchTrimDisplay } from './PitchTrimDisplay';
 import { PFDSimvars } from './shared/PFDSimvarPublisher';
+import { getDisplayIndex } from './shared/PfdDisplayIndex';
 
-export const getDisplayIndex = () => {
-  const url = Array.from(document.querySelectorAll('vcockpit-panel > *'))
-    .find((it) => it.tagName.toLowerCase() !== 'wasm-instrument')
-    .getAttribute('url');
-
-  const duId = url ? parseInt(url.substring(url.length - 1), 10) : -1;
-
-  switch (duId) {
-    case 0:
-      return 1;
-    case 3:
-      return 2;
-    default:
-      return 0;
-  }
-};
+// re-exported for the PFD components that import it from here
+export { getDisplayIndex };
 
 interface PFDProps extends ComponentProps {
   bus: ArincEventBus;
@@ -219,6 +207,7 @@ export class PFDComponent extends DisplayComponent<PFDProps> {
       <CdsDisplayUnit
         bus={this.props.bus}
         displayUnitId={getDisplayIndex() === 1 ? DisplayUnitID.CaptPfd : DisplayUnitID.FoPfd}
+        hostDisplayUnitId={hostDisplayUnitOf('PFD') ?? undefined}
         test={Subject.create(-1)}
         failed={Subject.create(false)}
       >

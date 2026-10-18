@@ -37,6 +37,7 @@
   - [ATC (ATA 34)](#atc-ata-34)
   - [Radio Altimeter (ATA 34)](#radio-altimeter-ata-34)
   - [GPWS / TAWS (ATA 34)](#gpws--taws-ata-34)
+  - [Weather Radar (ATA 34)](#weather-radar-ata-34)
   - [ROW / ROP / OANS (ATA 34)](#row--rop--oans-ata-34)
   - [Electronic Flight Bag (ATA 46)](#electronic-flight-bag-ata-46)
   - [Non-Systems Related](#non-systems-related)
@@ -1368,6 +1369,25 @@ These variables are the interface between the 3D model and the systems/code.
 
 ## EIS Display System
 
+- A32NX_ECAM_STATUS_{side}_LINE_{number}
+    - Number
+    - The lines of the ECAM STATUS page computed by the FWC, as codes of `StatusMessages` (0 for no line): information on
+      the left, inoperative systems (INOP SYS) on the right
+    - {side}
+        - LEFT
+        - RIGHT
+    - {number}
+        - 1 to 16
+
+- A32NX_ECAM_STATUS_NORMAL
+    - Bool
+    - True when the ECAM STATUS page is empty (NORMAL)
+
+- A32NX_EWD_STS_REMINDER
+    - Bool
+    - True when the STS reminder is shown at the bottom of the E/WD (STATUS page not empty, not shown, and no alert on the
+      E/WD)
+
 - A32NX_FCU_EFIS_{side}_NAVAID_{1|2}_MODE
     - Enum
     - Provides the selected NAVAID knob posiiton. For use systems, use the FCU discrete words instead.
@@ -1493,6 +1513,11 @@ These variables are the interface between the 3D model and the systems/code.
 - A32NX_PFD_MSG_CHECK_SPEED_MODE
     - Bool
     - Indicates if the CHECK SPEED MODE message is shown on the PFD
+
+- A32NX_PFD_MSG_CHECK_APPR_SELECTION
+    - Bool
+    - Indicates if the CHECK APPR SELECTION message is shown on the PFD (FMGC: a non ILS approach in the F-PLN with an
+      ILS manually tuned on the RAD NAV page, in cruise less than 100 NM from the T/D, in descent or in approach)
 
 - A32NX_PFD_LINEAR_DEVIATION_ACTIVE
     - Bool
@@ -1925,6 +1950,65 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_PUSH_TRUE_REF
     - Bool
     - True reference pushbutton status
+
+- A32NX_GPS_{number}_LATITUDE, A32NX_GPS_{number}_LONGITUDE
+    - Arinc429<Degrees>
+    - The position of the GPS receiver of MMR {number} (1 or 2): valid in NAV mode, no computed data in INIT and ACQ,
+      failure warning when off or failed
+
+- A32NX_GPS_{number}_ALTITUDE, A32NX_GPS_{number}_GROUND_SPEED, A32NX_GPS_{number}_TRUE_TRACK
+    - Arinc429<Feet>, Arinc429<Knots>, Arinc429<Degrees>
+    - The GPS altitude, ground speed and true track of the receiver
+
+- A32NX_GPS_{number}_HORIZONTAL_FIGURE_OF_MERIT
+    - Arinc429<Feet>
+    - The 95 % horizontal accuracy (HFOM) of the receiver position, from the geometry of the satellites tracked
+
+- A32NX_GPS_{number}_HORIZONTAL_INTEGRITY_LIMIT
+    - Arinc429<Nautical miles>
+    - The horizontal integrity limit (HIL) of the receiver position; no computed data with fewer than five satellites
+
+- A32NX_GPS_{number}_SATELLITES
+    - Arinc429<Number>
+    - The number of satellites tracked (in ACQ and NAV), from the nominal 24-slot GPS constellation at the sim UTC time
+
+- A32NX_GPS_{number}_MODE
+    - Number
+    - The receiver mode
+      | Value | Mode  |
+      |-------|-------|
+      | 0     | Off   |
+      | 1     | INIT  |
+      | 2     | ACQ   |
+      | 3     | NAV   |
+      | 4     | FAULT |
+      | 5     | TEST (self test at power up) |
+      | 6     | ALTAID (three satellites and the ADR altitude) |
+      | 7     | AIDED (coasting on the IR data, up to two minutes) |
+      | 8     | DIFF (satellite based augmentation, A380X only) |
+
+- A32NX_ADIRS_IR_{number}_GPIRS_LATITUDE, A32NX_ADIRS_IR_{number}_GPIRS_LONGITUDE
+    - Arinc429<Degrees>
+    - The GPIRS (hybrid GPS/IRS) position of IR {number}: valid when the IR is in NAV and has a GPS receiver in NAV
+
+- A32NX_ADIRS_IR_{number}_GPIRS_FIGURE_OF_MERIT, A32NX_ADIRS_IR_{number}_GPIRS_INTEGRITY_LIMIT
+    - Arinc429<Nautical miles>
+    - The accuracy (HFOM) and the horizontal integrity limit (HIL) of the GPIRS position
+
+- A32NX_ADIRS_IR_{number}_GPIRS_SOURCE
+    - Number
+    - The GPS receiver the IR uses (1 or 2, 0 for none): GPS 1 for IR 1, GPS 2 for IR 2, IR 3 by the ATT HDG selector
+      (GPS 2 on F/O 3); when one receiver is rejected, every IR uses the other
+
+- A32NX_FM_GPS_POS_DISAGREE
+    - Bool
+    - The FMS FM/GPS position disagree condition for the NAV FM/GPS POS DISAGREE caution: GPS PRIMARY active and an FM
+      position more than the FCOM latitude/longitude thresholds away from a GPS receiver position (FCOM
+      DSC-22_20-20-20). Written by the FMS (fmgc navigation/FmPosition.ts), read by the FWC
+
+- A32NX_GNSS_UTC_UNIX_SECONDS
+    - Number (seconds)
+    - The sim UTC date and time as seconds since 1 January 1970 0000 UTC, for the GPS constellation
 
 ## Radio Receivers
 
@@ -4077,6 +4161,68 @@ Use the `A32NXDisplayManagementPublisher` for these in A32NX code.
      | 21  | Altitude below baro minimum |
 
 
+### Display Units
+
+- `L:A32NX_ND_{side}_DU_SHOWING_PICTURE`
+  - Bool
+  - Written by nd.html: 1 while the ND display unit is ON and shows the ND picture (powered, brightness above 0,
+    self-test done, not failed from the flyPad), 0 otherwise. The native weather/terrain gauge (ndwxr) draws nothing
+    while it is 0. It is 1 too while the ND is shown on another DU (DU reconfiguration, see
+    `L:A32NX_EIS_PICTURE_{picture}_ON_OTHER_DU`).
+  - {side}
+    - L
+    - R
+
+- `L:A32NX_EIS_DU_{du}_PICTURE`
+  - Enum
+  - Written by the DMC logic of the systems host (DmcDisplayReconfiguration): the picture the display unit shows
+    (A320 FCOM DSC-31-05-60 DU reconfiguration). Read by the cockpit model: each DU has one glass per picture it can
+    show (the overlay glasses carry the material of that picture's texture), and only the glass of this value is shown.
+    Value | Meaning
+    --- | ---
+    0 | The DU's own picture (PFD, ND, E/WD on the upper and SD on the lower ECAM DU): the normal configuration
+    1 | PFD of the DU's side
+    2 | ND of the DU's side
+    3 | E/WD
+    4 | SD
+    5 | ECAM ON ND message (lower ECAM DU while the SD is on an ND)
+    6 | Blank: the DU is failed, unpowered or switched off with its brightness knob
+  - {du}
+    - PFD_L
+    - ND_L
+    - UPPER_ECAM
+    - LOWER_ECAM
+    - ND_R
+    - PFD_R
+
+- `L:A32NX_EIS_PICTURE_{picture}_ON_OTHER_DU`
+  - Bool
+  - Written by the DMC logic of the systems host: 1 while the picture is shown on a DU other than its own one and that
+    DU is available (e.g. the PFD on the ND DU with the PFD DU failed). The gauge of the picture then draws it whatever
+    the state of its own DU.
+  - {picture}
+    - PFD_L
+    - ND_L
+    - EWD
+    - SD
+    - ND_R
+    - PFD_R
+
+- `L:A32NX_EFIS_{side}_PFD_ND_XFR`
+  - Bool
+  - Written by the DMC logic of the systems host: 1 while the PFD/ND XFR pb of that side has cross-changed the PFD and
+    ND images (toggled by each push, back to 0 when the PFD DU fails, is switched off or comes back). Read by the FWC
+    for the SWITCHING PNL memo.
+  - {side}
+    - L
+    - R
+
+- `H:A32NX_EFIS_{side}_PFD_ND_XFR_PUSHED`
+  - Sent by the PFD/ND XFR pb of that side console (cockpit behaviour).
+  - {side}
+    - L
+    - R
+
 ### ECP
 
 Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
@@ -4514,6 +4660,41 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - Boolean
     - Indicates whether the GPWS LDG FLAP 3 pushbutton is ON
 
+## Weather Radar (ATA 34)
+
+- A32NX_EGPWC_ND_{side}_TERRAIN_MIN_ELEVATION / A32NX_EGPWC_ND_{side}_TERRAIN_MAX_ELEVATION
+    - Feet
+    - The lower and upper figures of the TERR ON ND peaks box of each ND, written by the ndwxr gauge from the SimBridge
+      terrain thresholds; -1 hides the box (terrain not selected, not a map page, or no current SimBridge figures)
+    - {side}
+        - L
+        - R
+
+- A32NX_EGPWC_ND_{side}_TERRAIN_MIN_ELEVATION_MODE / A32NX_EGPWC_ND_{side}_TERRAIN_MAX_ELEVATION_MODE
+    - Enum (TerrainLevelMode)
+    - The colour level of the matching peaks box figure
+    - | Value | Description                  |
+      |:-----:|:----------------------------:|
+      | 0     | Peaks mode (green)           |
+      | 1     | Warning level (yellow on ND) |
+      | 2     | Caution level (red on ND)    |
+
+- A32NX_WXR_ND_{side}_MODE
+    - Enum
+    - The weather radar's indication on the ND, published by the ndwxr gauge on the map pages (ROSE ILS / VOR / NAV or ARC): the mode
+      while the radar is selected, WXR OFF while it is switched off (0 while the terrain takes the radar's place, or off the map pages)
+      Value | Meaning
+      --- | ---
+      0 | None
+      1 | WX
+      2 | WX+T
+      3 | TURB
+      4 | MAP
+      5 | WXR OFF
+    - {side}
+        - L
+        - R
+
 ## ROW / ROP / OANS (ATA 34)
 
 - A32NX_ROW_ROP_WORD_1
@@ -4559,6 +4740,11 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - {number}
         - -1.0
         - 1.0
+
+- A32NX_PRINTER_DOOR
+    - Bool
+    - The paper door of the pedestal printer is open (a click on the door or its handle toggles it; cockpit
+      model animation PRINTER_DOOR). No effect on printing.
 
 ## Non-Systems Related
 
