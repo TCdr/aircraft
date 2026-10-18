@@ -90,12 +90,20 @@ export abstract class OitAvncsContainer extends DisplayComponent<OitAvncsContain
           this.uiService.fullScreen.set(false);
         }
         this.activeUriChanged(uri);
+        // A page that exists opens its application on the task bar
+        if (!(this.activePage.instance instanceof OitNotFound)) {
+          this.uiService.nssAvncsApplications.show(uri.uri);
+        }
       }),
       this.ansuPowered.sub((powered) => {
         if (!powered) {
+          // Design choice: the applications stop with the ANSUs that run them
+          this.uiService.nssAvncsApplications.reset();
           this.uiService.navigateTo('nss-avncs');
         }
       }),
+      // The pages of a closed application start empty at its next opening
+      this.uiService.nssAvncsApplications.open.sub((open) => this.props.ansu.pageDrafts.keepApplications(open)),
       this.nssAnsu1Healthy,
       this.nssAnsu2Healthy,
       this.ansuPowered,

@@ -18,6 +18,7 @@ import {
   changeTemporaryComment,
   closeFlight,
   closureFindings,
+  logbookFuelText,
   completeAcceptance,
   completeGroundUpdate,
   completeSending,
@@ -566,5 +567,13 @@ describe('technical logbook storage and printouts', () => {
     );
     expect(data).toContain('ICING : NIL (NO DE-ICING)');
     expect(data).toContain('TAKE OFF : 15:40 Z   LANDING : 17:30 Z');
+  });
+});
+
+describe('CLOSURE report fuel', () => {
+  it('shows the fuel in tonnes or thousands of pounds, as the weight setting', () => {
+    expect(logbookFuelText(123_400, true)).toBe('123.4 T');
+    expect(logbookFuelText(123_400, false)).toBe('272.1 KLB');
+    expect(logbookFuelText(null, false)).toBe('-----');
   });
 });

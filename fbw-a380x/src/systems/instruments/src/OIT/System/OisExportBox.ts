@@ -3,6 +3,7 @@
 
 import { Subject, Subscribable } from '@microsoft/msfs-sdk';
 import { formatOisDateTime } from './OisDateTime';
+import { oisDate } from './OisLoadBox';
 
 /*
  * The EXPORT BOX of the FLT OPS laptop: the data exported from the FLT FOLDER and the applications, waiting to be sent
@@ -43,6 +44,24 @@ export type ExportSendResult = 'sent' | 'no-com' | 'nothing';
  */
 export function exportStatusText(status: ExportStatus): string {
   return status.state === 'SENT' ? `SENT (${status.destination}) ${formatOisDateTime(status.timeMs)}` : 'NOT SENT';
+}
+
+/**
+ * @param application the application the data comes from (its SOURCE), e.g. LOADSHEET
+ * @param fltNumber the flight number of the FLT OPS STS page
+ * @param from the departure of the FLT OPS STS page
+ * @param to the destination of the FLT OPS STS page
+ * @param dateMs the export time, unix ms
+ * @returns its DATA IDENTIFIER, built as the one of the FLT FOLDER export: application, flight number, city pair, date
+ */
+export function applicationExportIdentifier(
+  application: string,
+  fltNumber: string,
+  from: string,
+  to: string,
+  dateMs: number,
+): string {
+  return `${application} ${fltNumber} ${from}-${to} ${oisDate(dateMs)}`;
 }
 
 export class OisExportBox {

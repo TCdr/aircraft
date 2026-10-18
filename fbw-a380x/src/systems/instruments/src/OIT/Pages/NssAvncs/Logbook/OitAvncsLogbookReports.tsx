@@ -3,6 +3,7 @@
 
 import { FSComponent, VNode } from '@microsoft/msfs-sdk';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
+import { NXUnits } from '@flybywiresim/fbw-sdk';
 import { AbstractOitAvncsPageProps } from '../../../OIT';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import {
@@ -14,6 +15,7 @@ import {
   formatLogbookDateTime,
   formatLogbookMinutes,
   itemsIn,
+  logbookFuelText,
 } from '../../../System/TechLogbook';
 import { AnsuOps } from '../../../System/AnsuOps';
 import { LOGBOOK_URI, askSignature } from './LogbookFlows';
@@ -32,15 +34,6 @@ function reportCell(key: string, value: string): VNode {
       <span class="oit-logbook-report-key">{key}</span> {value}
     </div>
   );
-}
-
-/**
- * The fuel on board in tonnes
- * @param kg the fuel on board
- * @returns the text
- */
-function fobText(kg: number | null): string {
-  return kg === null ? '-----' : `${(kg / 1000).toFixed(1)} T`;
 }
 
 /**
@@ -166,8 +159,8 @@ export class OitAvncsLogbookClosureReport extends DestroyableComponent<OitAvncsL
             {reportCell('OFF:', AnsuOps.formatDateTime(block.offTime))}
             {reportCell('ON:', AnsuOps.formatDateTime(block.onTime))}
             {reportCell('IN:', AnsuOps.formatDateTime(block.inTime))}
-            {reportCell('FOB OUT:', fobText(block.outFob))}
-            {reportCell('FOB IN:', fobText(block.inFob))}
+            {reportCell('FOB OUT:', logbookFuelText(block.outFob, NXUnits.metricWeight))}
+            {reportCell('FOB IN:', logbookFuelText(block.inFob, NXUnits.metricWeight))}
           </div>
           <div class="oit-logbook-report-grid">
             {reportCell('NIL DEFECT:', post.nilDefect ? 'YES' : 'NO')}
