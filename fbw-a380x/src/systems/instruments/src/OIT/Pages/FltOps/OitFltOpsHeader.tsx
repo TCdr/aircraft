@@ -132,15 +132,13 @@ export abstract class OitFltOpsHeader extends DisplayComponent<OitFltOpsHeaderPr
             {
               label: 'IN-FLT PERF',
               action: () => this.props.uiService.navigateTo('flt-ops/in-flt-perf'),
-              disabled: true,
               separatorBelow: true,
             },
             { label: 'FLT OPS STS', action: () => this.props.uiService.navigateTo('flt-ops/sts') },
-            { label: 'LOAD BOX', action: () => this.props.uiService.navigateTo('flt-ops/load-box'), disabled: true },
+            { label: 'LOAD BOX', action: () => this.props.uiService.navigateTo('flt-ops/load-box') },
             {
               label: 'EXPORT BOX',
               action: () => this.props.uiService.navigateTo('flt-ops/export-box'),
-              disabled: true,
               separatorBelow: true,
             },
             {

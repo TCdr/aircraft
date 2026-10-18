@@ -11,7 +11,7 @@ import {
   Subscribable,
   Subscription,
 } from '@microsoft/msfs-sdk';
-import { FailuresConsumer, FmsData, NXUnits } from '@flybywiresim/fbw-sdk';
+import { FailuresConsumer, FmsData, getSimBriefOfp, NXUnits } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import { OisInternalData } from './OisInternalPublisher';
 import { OitSimvars } from './OitSimvarPublisher';
@@ -19,6 +19,9 @@ import { AruStartup, LaptopNetworkConnection } from './System/AnsuLogic';
 import { OisMessageToolbar } from './System/OisMessageToolbar';
 import { FltOpsPerformanceSession } from './System/Performance/FltOpsPerformanceSession';
 import { A380_CERTIFIED_WEIGHTS } from './System/Performance/A380PerformanceCalculators';
+import { effExportIdentifier, OisLoadBox } from './System/OisLoadBox';
+import { OisExportBox } from './System/OisExportBox';
+import { InFltPerfAtmoSession } from './System/InFltPerfAtmoSession';
 
 type LaptopIndex = 1 | 2;
 
@@ -26,6 +29,11 @@ export class OisLaptop implements Instrument {
   private readonly subscriptions: Subscription[] = [];
 
   public readonly data = new OisLaptopData();
+
+  /** The data from the ground to load: the airline OFP (SimBrief) */
+  public readonly loadBox = new OisLoadBox(() => getSimBriefOfp());
+
+  public readonly exportBox = new OisExportBox();
 
   private readonly failureKey = this.index === 1 ? A380Failure.CaptainLaptop : A380Failure.FirstOfficerLaptop;
 
@@ -106,6 +114,16 @@ export class OisLaptop implements Instrument {
     );
 
     this.subscriptions.push(this.fltNumberBus, this.fromAirportBus, this.toAirportBus, this.simTime);
+
+    // The FLT FOLDER of the OIT is the flyPad, without its EXPORT FLIGHT FOLDER function: an EFF loaded into the
+    // laptop enters the EXPORT BOX as its before push back export.
+    this.subscriptions.push(
+      this.loadBox.loadedEff.sub((eff) => {
+        if (eff !== null) {
+          this.exportBox.add(effExportIdentifier(eff), 'FLT FOLDER', this.simTime.get());
+        }
+      }),
+    );
   }
 
   /** @inheritdoc */
@@ -135,6 +153,13 @@ export class OisLaptop implements Instrument {
     this._standalone.set(
       this.networkConnection.update(this._isHealthy.get(), aruOperating, this.aru.isFlightLoading()),
     );
+
+    // Design choice: every airport has a gatelink, reached on the ground through the network.
+    const gatelinkAvailable =
+      this._isHealthy.get() &&
+      !this._standalone.get() &&
+      SimVar.GetSimVarValue('SIM ON GROUND', SimVarValueType.Bool) > 0;
+    this.exportBox.update(gatelinkAvailable, now);
   }
 
   destroy() {
@@ -149,6 +174,9 @@ export class OisLaptopData {
   public readonly fromAirport = Subject.create<string | null>(null);
   public readonly toAirport = Subject.create<string | null>(null);
 
+  /** IN-FLT PERF ATMO */
+  public readonly inFltPerf = new InFltPerfAtmoSession();
+
   /** T.O PERF, LDG PERF and LOADSHEET */
   public readonly performance = new FltOpsPerformanceSession(A380_CERTIFIED_WEIGHTS, () => NXUnits.metricWeight);
 
@@ -157,6 +185,7 @@ export class OisLaptopData {
     this.fltNumber.set(null);
     this.fromAirport.set(null);
     this.toAirport.set(null);
+    this.inFltPerf.reset();
     this.performance.reset();
   }
 }
