@@ -770,6 +770,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/HYD] With only one electric pump on ground, the hydraulic pressure rises steadily to normal while the drooped flight controls re-centre, instead of saw-toothing between about 2 900 and 4 300 psi - @TCdr
 1. [A380X/ENG] After ENG MASTER OFF the N3 runs down more slowly from idle (45 % after about 10 s, stopped after about a minute), and setting the ENG MASTER back ON relights the engine while the N3 shown is above 45 % - @TCdr
 1. [HYD] The hydraulic cargo doors of both aircraft open fully and are held locked open once the pumps stop, instead of stopping and sagging at about 88 % (GSX loaders went through the door) - @TCdr
+1. [A380X/FWS] No more CAB PRESS caution and master caution when the aircraft is powered up with EXT PWR or the APU: a cabin pressure controller that is not powered yet no longer counts as failed - @TCdr
 
 ## 2024.1.0
 
