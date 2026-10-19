@@ -15,6 +15,7 @@
 #include "EngineControlA32NX.h"
 #include "EngineRatios.hpp"
 #include "FanBlockedStart_A32NX.hpp"
+#include "IdleControl_A32NX.hpp"
 #include "OilSystem_A32NX.hpp"
 #include "Polynomials_A32NX.hpp"
 #include "StartSequence_A32NX.hpp"
@@ -64,6 +65,7 @@ void EngineControl_A32NX::update() {
   const double idleN2             = simData.engineIdleN2->get();
 
   generateIdleParameters(pressureAltitude, mach, ambientTemperature, ambientPressure);
+  updateIdleSetting(pressureAltitude, mach, ambientTemperature, msfsHandlerPtr->getSimOnGround());
 
   double simN1highest = 0.0;
 
@@ -477,6 +479,21 @@ void EngineControl_A32NX::generateIdleParameters(double pressAltitude, double ma
   simData.engineIdleN2->set(idleN2);
   simData.engineIdleFF->set(idleFF);
   simData.engineIdleEGT->set(idleEGT);
+}
+
+void EngineControl_A32NX::updateIdleSetting(double pressAltitude, double mach, double ambientTemp, bool onGround) {
+  const bool engineBleedSupplies = simData.engineBleedPrValveOpen[L]->getAsBool() || simData.engineBleedPrValveOpen[R]->getAsBool();
+  const bool packsOn             = simData.packsState[L]->get() > 0.5 || simData.packsState[R]->get() > 0.5;
+  const bool nacelleAntiIce =
+      simData.simVarsDataPtr->data().engineAntiIce[L] > 0.5 || simData.simVarsDataPtr->data().engineAntiIce[R] > 0.5;
+  const IdleControl_A32NX::BleedDemand bleedDemand{packsOn && engineBleedSupplies, nacelleAntiIce,
+                                                   simData.wingAntiIce->getAsBool() && engineBleedSupplies};
+
+  const IdleControl_A32NX::IdleMode mode = IdleControl_A32NX::idleMode(onGround, simData.flapsHandleIndex->get());
+  const double idleSettingCN2 = Tables1502_A32NX::iCN2(pressAltitude, mach) + IdleControl_A32NX::idleCN2Increase(mode, bleedDemand);
+  const double idleSettingN1  = Tables1502_A32NX::cn1AtCN2(idleSettingCN2, mach) * sqrt(EngineRatios::theta2(0, ambientTemp));
+
+  simData.thrustLimitIdle->set(idleSettingN1);
 }
 
 EngineControl_A32NX::EngineState EngineControl_A32NX::engineStateMachine(int    engine,                  //
@@ -1272,7 +1289,6 @@ void EngineControl_A32NX::updateThrustLimits(double                  simulationT
   }
 
   // write limits ---------------------------------------------------------------------------------------------------
-  simData.thrustLimitIdle->set(simData.engineIdleN1->get());
   simData.thrustLimitToga->set(toga);
   simData.thrustLimitFlex->set(flex);
   simData.thrustLimitClimb->set(clb);

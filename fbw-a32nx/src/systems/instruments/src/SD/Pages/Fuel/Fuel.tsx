@@ -18,6 +18,7 @@ import {
 } from './FuelPumpValveIndications';
 import { wingImbalancePulse } from './FuelImbalanceIndication';
 import { FuelCell, FuelTemperatureIndication, fuelTemperatureIndication } from '@shared/FuelTemperature';
+import { FUEL_USED_DEGRADED_TEXT } from '@shared/FuelUsedAccuracy';
 import { isFuelOnBoardHalfBoxed, isOuterTankQuantityBoxed } from '@shared/FuelQuantityIndications';
 
 import './Fuel.scss';
@@ -54,6 +55,10 @@ export const FuelPage = () => {
 
   const leftFuelUsed = fuelForDisplay(leftConsumption, useMetric);
   const rightFuelUsed = fuelForDisplay(rightConsumption, useMetric);
+  // Fuel used of degraded accuracy after a loss of the fuel flow in flight (A32NX_FADEC.ts, FuelUsedAccuracy)
+  const [leftFuelUsedDegraded] = useSimVar('L:A32NX_FUEL_USED_DEGRADED:1', 'bool', 1000);
+  const [rightFuelUsedDegraded] = useSimVar('L:A32NX_FUEL_USED_DEGRADED:2', 'bool', 1000);
+  const totalFuelUsedDegraded = !!leftFuelUsedDegraded || !!rightFuelUsedDegraded;
 
   const [fuelWeightPerGallon] = useSimVar('FUEL WEIGHT PER GALLON', 'kilogram', 60_000);
 
@@ -88,8 +93,8 @@ export const FuelPage = () => {
         <text className="FuelUsed" x={300} y={50}>
           1+2
         </text>
-        <text className="UsedQuantity" x={301} y={76}>
-          {leftFuelUsed + rightFuelUsed}
+        <text className={totalFuelUsedDegraded ? 'UsedQuantity Degraded' : 'UsedQuantity'} x={301} y={76}>
+          {totalFuelUsedDegraded ? FUEL_USED_DEGRADED_TEXT : leftFuelUsed + rightFuelUsed}
         </text>
         <text className="Unit" textAnchor="middle" x={301} y={98}>
           {useMetric ? 'KG' : 'LBS'}
@@ -97,11 +102,23 @@ export const FuelPage = () => {
 
         {/* Left engine */}
         <line className="EngineLine" x1="200" y1="31" x2="250" y2="21" />
-        <EngineStatus x={160} y={41} engineNumber={1} fuelUsed={leftFuelUsed} />
+        <EngineStatus
+          x={160}
+          y={41}
+          engineNumber={1}
+          fuelUsed={leftFuelUsed}
+          fuelUsedDegraded={!!leftFuelUsedDegraded}
+        />
 
         {/* Right engine */}
         <line className="EngineLine" x1="400" y1="31" x2="350" y2="21" />
-        <EngineStatus x={440} y={41} engineNumber={2} fuelUsed={rightFuelUsed} />
+        <EngineStatus
+          x={440}
+          y={41}
+          engineNumber={2}
+          fuelUsed={rightFuelUsed}
+          fuelUsedDegraded={!!rightFuelUsedDegraded}
+        />
       </>
 
       {/* Wings */}
@@ -401,9 +418,10 @@ type EngineStatusProps = {
   y: number;
   engineNumber: number;
   fuelUsed: number;
+  fuelUsedDegraded: boolean;
 };
 
-const EngineStatus = ({ x, y, engineNumber, fuelUsed }: EngineStatusProps) => {
+const EngineStatus = ({ x, y, engineNumber, fuelUsed, fuelUsedDegraded }: EngineStatusProps) => {
   const [EngN2] = useSimVar(`TURB ENG N2:${engineNumber}`, 'Percent', 1000);
 
   return (
@@ -411,8 +429,8 @@ const EngineStatus = ({ x, y, engineNumber, fuelUsed }: EngineStatusProps) => {
       <text className={EngN2 > 15 ? 'EngineNumber EngineNumberOn' : 'EngineNumber EngineNumberOff'} x={x} y={y}>
         {engineNumber}
       </text>
-      <text className="UsedQuantity" x={x} y={y + 27}>
-        {fuelUsed}
+      <text className={fuelUsedDegraded ? 'UsedQuantity Degraded' : 'UsedQuantity'} x={x} y={y + 27}>
+        {fuelUsedDegraded ? FUEL_USED_DEGRADED_TEXT : fuelUsed}
       </text>
     </>
   );

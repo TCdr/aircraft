@@ -709,6 +709,38 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             78_051,
             FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::ReverserShutoffValve),
         ),
+        (
+            77_020,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::N1Discrepancy),
+        ),
+        (
+            77_021,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::N1Discrepancy),
+        ),
+        (
+            77_030,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::N2Discrepancy),
+        ),
+        (
+            77_031,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::N2Discrepancy),
+        ),
+        (
+            77_040,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::EgtDiscrepancy),
+        ),
+        (
+            77_041,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::EgtDiscrepancy),
+        ),
+        (
+            77_050,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FuelFlowDiscrepancy),
+        ),
+        (
+            77_051,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::FuelFlowDiscrepancy),
+        ),
         (78_000, FailureType::ReverserFault(1)),
         (78_001, FailureType::ReverserFault(2)),
         (78_010, FailureType::ReverserUnlocked(1)),

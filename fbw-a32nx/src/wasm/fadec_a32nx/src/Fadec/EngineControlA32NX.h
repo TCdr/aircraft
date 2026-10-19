@@ -225,6 +225,17 @@ class EngineControl_A32NX {
   void generateIdleParameters(double pressAltitude, double mach, double ambientTemp, double ambientPressure);
 
   /**
+   * @brief Sets the idle N1 the FADEC holds with the thrust lever at idle (the idle thrust limit): modulated or approach idle,
+   * see IdleControl_A32NX.hpp.
+   *
+   * @param pressAltitude The current pressure altitude of the aircraft in feet.
+   * @param mach The current Mach number of the aircraft.
+   * @param ambientTemp The current ambient temperature in degrees Celsius.
+   * @param onGround The aircraft is on the ground.
+   */
+  void updateIdleSetting(double pressAltitude, double mach, double ambientTemp, bool onGround);
+
+  /**
    * @brief Manages the state and state changes of the engine.
    *
    * @param engine The engine number (1 or 2).

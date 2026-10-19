@@ -1,0 +1,67 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+// Native unit test of the FADEC idle setting (src/Fadec/IdleControl_A32NX.hpp): run test/run_tests.sh. Modulated idle rises
+// with the engine bleed demand, approach idle (in flight, FLAPS lever not at 0) is above it whatever the bleed demand. Built
+// with -DWITHOUT_THE_FIX, the idle setting is the minimum idle in every case: the checks fail.
+
+#include <cstdio>
+
+#include "../src/Fadec/IdleControl_A32NX.hpp"
+
+using IdleControl_A32NX::BleedDemand;
+using IdleControl_A32NX::IdleMode;
+
+static int failures = 0;
+
+static void expect(const char* what, bool condition, double value) {
+  if (!condition) {
+    std::printf("FAIL %s (value %.3f)\n", what, value);
+    ++failures;
+  }
+}
+
+/// The idle setting above the minimum idle in corrected N2, percent
+static double idleCN2Increase(bool onGround, double flapsHandleIndex, const BleedDemand& bleed) {
+#ifdef WITHOUT_THE_FIX
+  (void)onGround;
+  (void)flapsHandleIndex;
+  (void)bleed;
+  return 0.0;
+#else
+  return IdleControl_A32NX::idleCN2Increase(IdleControl_A32NX::idleMode(onGround, flapsHandleIndex), bleed);
+#endif
+}
+
+static constexpr BleedDemand NO_BLEED{false, false, false};
+static constexpr BleedDemand PACKS{true, false, false};
+static constexpr BleedDemand ALL_BLEED{true, true, true};
+
+int main() {
+  // Mode selection: approach idle only in flight with the FLAPS lever out of 0
+  expect("in flight, FLAPS 0: modulated", IdleControl_A32NX::idleMode(false, 0) == IdleMode::MODULATED, 0);
+  expect("in flight, FLAPS 1: approach", IdleControl_A32NX::idleMode(false, 1) == IdleMode::APPROACH, 1);
+  expect("in flight, FLAPS FULL: approach", IdleControl_A32NX::idleMode(false, 4) == IdleMode::APPROACH, 4);
+  expect("on ground, FLAPS 3: modulated", IdleControl_A32NX::idleMode(true, 3) == IdleMode::MODULATED, 3);
+
+  // Modulated idle: the minimum idle without bleed demand, higher with each consumer
+  const double clean = idleCN2Increase(false, 0, NO_BLEED);
+  const double packs = idleCN2Increase(false, 0, PACKS);
+  const double allBleed = idleCN2Increase(false, 0, ALL_BLEED);
+  expect("modulated idle without bleed demand is the minimum idle", clean == 0.0, clean);
+  expect("modulated idle rises with the packs", packs > clean, packs);
+  expect("modulated idle rises with the anti-ice", allBleed > packs, allBleed);
+  expect("modulated idle on ground also follows the bleed demand", idleCN2Increase(true, 2, ALL_BLEED) == allBleed,
+         idleCN2Increase(true, 2, ALL_BLEED));
+
+  // Approach idle: the same whatever the bleed demand, above every modulated idle
+  const double approachClean = idleCN2Increase(false, 3, NO_BLEED);
+  const double approachAllBleed = idleCN2Increase(false, 3, ALL_BLEED);
+  expect("approach idle does not depend on the bleed demand", approachClean == approachAllBleed, approachAllBleed);
+  expect("approach idle is above modulated idle with every bleed consumer", approachClean > allBleed, approachClean);
+
+  if (failures == 0) {
+    std::printf("idle_control_test: all checks passed\n");
+  }
+  return failures == 0 ? 0 : 1;
+}

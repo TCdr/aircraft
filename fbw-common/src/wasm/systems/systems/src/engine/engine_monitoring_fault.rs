@@ -7,7 +7,8 @@
 //! - A320: ENG 1(2) FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT,
 //!   REV SWITCH FAULT, FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2
 //!   COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED (the aircraft also stops the reverser
-//!   deployment), REV ISOL FAULT.
+//!   deployment), REV ISOL FAULT; the N1, N2, EGT and FF discrepancies the DMC finds between the
+//!   FADEC data and the displayed value (amber CHECK on the E/WD).
 //! - A380: ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED,
 //!   MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT, CTL SYS FAULT, CTL VLV FAULT, FADEC IDENT
 //!   FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE.
@@ -69,6 +70,15 @@ pub enum EngineMonitoringFaultKind {
     /// lets hydraulic pressure to the HCU; the HCU still keeps the reverser actuators
     /// unpressurized, so no other effect.
     ReverserShutoffValve,
+    /// A320 ENG 1(2) N1 DISCREPANCY: the N1 the DMC displays differs from the FADEC-DMC bus value.
+    N1Discrepancy,
+    /// A320 ENG 1(2) N2 DISCREPANCY: the N2 the DMC displays differs from the FADEC-DMC bus value.
+    N2Discrepancy,
+    /// A320 ENG 1(2) EGT DISCREPANCY: the EGT the DMC displays differs from the FADEC-DMC bus value.
+    EgtDiscrepancy,
+    /// A320 ENG 1(2) FF DISCREPANCY: the fuel flow the DMC displays differs from the FADEC-DMC bus
+    /// value.
+    FuelFlowDiscrepancy,
     /// A380 ENG 1(2)(3)(4) FUEL STRAINER CLOGGED: pressure drop across the fuel strainer above
     /// 12 PSI.
     FuelStrainerClog,
@@ -122,6 +132,10 @@ impl EngineMonitoringFaultKind {
             EngineMonitoringFaultKind::BleedValveStatus => "BLEED_STATUS_FAULT",
             EngineMonitoringFaultKind::ReverserInhibited => "REVERSER_INHIBITED",
             EngineMonitoringFaultKind::ReverserShutoffValve => "REVERSER_SHUTOFF_VALVE_FAULT",
+            EngineMonitoringFaultKind::N1Discrepancy => "N1_DISCREPANCY",
+            EngineMonitoringFaultKind::N2Discrepancy => "N2_DISCREPANCY",
+            EngineMonitoringFaultKind::EgtDiscrepancy => "EGT_DISCREPANCY",
+            EngineMonitoringFaultKind::FuelFlowDiscrepancy => "FF_DISCREPANCY",
             EngineMonitoringFaultKind::FuelStrainerClog => "FUEL_STRAINER_CLOGGED",
             EngineMonitoringFaultKind::FuelFilterMonitoring => "FUEL_FILTER_MONITORING_FAULT",
             EngineMonitoringFaultKind::OilChip => "OIL_CHIP_DETECTED",
@@ -321,6 +335,10 @@ mod tests {
             EngineMonitoringFaultKind::BleedValveStatus,
             EngineMonitoringFaultKind::ReverserInhibited,
             EngineMonitoringFaultKind::ReverserShutoffValve,
+            EngineMonitoringFaultKind::N1Discrepancy,
+            EngineMonitoringFaultKind::N2Discrepancy,
+            EngineMonitoringFaultKind::EgtDiscrepancy,
+            EngineMonitoringFaultKind::FuelFlowDiscrepancy,
             EngineMonitoringFaultKind::FuelStrainerClog,
             EngineMonitoringFaultKind::FuelFilterMonitoring,
             EngineMonitoringFaultKind::OilChip,

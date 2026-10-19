@@ -31,3 +31,7 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS wing_tank_leak_test.cpp -o ../ob
 # must fail (the displayed N2 creeps faster at a higher frame rate).
 clang++ -std=c++20 -Wall -Wextra -Werror -Wno-unused-lambda-capture $FLAGS start_n2_floor_test.cpp -o ../obj/start_n2_floor_test
 ../obj/start_n2_floor_test
+# The idle setting (modulated idle with the bleed demand, approach idle with the flaps out): with WITHOUT_THE_FIX=1 it is the
+# minimum idle in every case and the test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS idle_control_test.cpp -o ../obj/idle_control_test
+../obj/idle_control_test
