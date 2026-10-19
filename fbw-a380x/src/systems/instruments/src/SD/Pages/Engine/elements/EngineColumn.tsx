@@ -1,5 +1,4 @@
 import { useSimVar } from '@instruments/common/simVars';
-import { useUpdate } from '@instruments/common/hooks';
 import { EngineNumber, IgnitionActive, Position } from '@instruments/common/types';
 import React, { FC, useEffect, useState } from 'react';
 import DecimalValues from './DecimalValues';
@@ -12,22 +11,15 @@ import { StartValveFault, nacelleTemperatureVisible, startParametersVisible } fr
 import { oilQuantityPulses, oilTemperatureClass } from '../OilIndications';
 import { n3ClassName, n3RedCrossShown, vibrationClassName } from './EngineVibration';
 import { NXUnits } from '@flybywiresim/fbw-sdk-react';
-import { areEngineParametersShown } from '../EngineParametersAvailability';
-import { fadecGroundPowerSupplies } from '../FadecGroundPower';
+import { areEngineParametersShown, areVibrationsShown } from '../EngineParametersAvailability';
 import { fuelFilterCloggedShown } from '../FuelFilterIndication';
+import { nacelleTemperaturePulses } from '../NacelleTemperature';
 
 interface EngineColumnProps {
-  anyEngineRunning: boolean;
   useMetric: boolean;
 }
 
-const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnProps> = ({
-  x,
-  y,
-  engine,
-  ignition,
-  anyEngineRunning,
-}) => {
+const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnProps> = ({ x, y, engine, ignition }) => {
   const [N2] = useSimVar(`L:A32NX_ENGINE_N2:${engine}`, 'number', 100); // TODO: Update with correct SimVars
   const [N3] = useSimVar(`L:A32NX_ENGINE_N3:${engine}`, 'number', 100); // TODO: Update with correct SimVars
   const [starterValveOpen] = useSimVar(`L:A32NX_PNEU_ENG_${engine}_STARTER_VALVE_OPEN`, 'number', 500); // TODO: Update with correct SimVars
@@ -46,23 +38,12 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   const [onGround] = useSimVar('SIM ON GROUND', 'bool', 500);
   const groundStart = !!onGround && (engineState === 2 || engineState === 3);
   const [n3RedCross, setN3RedCross] = useState(false);
-  // The aircraft network supplies the FADEC 15 min at power-up, 10 min after the FADEC GND PWR pb.
-  // The timers run in the SD instrument loop whatever page is shown (SD/index.tsx, FadecGroundPower); the page reads
-  // their result every frame and re-renders when it changes.
-  const fadecGroundPowerSupply = fadecGroundPowerSupplies[engine - 1];
-  const [fadecSuppliedByAircraftNetwork, setFadecSuppliedByAircraftNetwork] = useState(
-    fadecGroundPowerSupply.isSupplied,
-  );
-  useUpdate(() => setFadecSuppliedByAircraftNetwork(fadecGroundPowerSupply.isSupplied));
-  const [engineFirePbReleased] = useSimVar(`L:A32NX_FIRE_BUTTON_ENG${engine}`, 'bool', 500);
-
+  // The FADEC supply model of the systems WASM (a380_systems fadec_power.rs)
+  const [fadecSupplied] = useSimVar(`L:A32NX_FADEC_POWERED_ENG${engine}`, 'bool', 500);
   const [fadecNetworkLost] = useSimVar(`L:A32NX_ENGINE_${engine}_FADEC_FAULT`, 'bool', 500);
 
   const fadecPowered = areEngineParametersShown({
-    ignition: !!ignition,
-    anyEngineRunning,
-    fadecSuppliedByAircraftNetwork,
-    engineFirePbReleased: !!engineFirePbReleased,
+    fadecPowered: !!fadecSupplied,
     fadecNetworkLost: !!fadecNetworkLost,
   });
   // Only an N3 shown (FADEC powered, not XX) can latch the red cross (EngineVibration n3RedCrossShown).
@@ -78,6 +59,10 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   const [n1Vibration] = useSimVar(`L:A32NX_ENGINE_${engine}_N1_VIBRATION`, 'number', 250);
   const [n2Vibration] = useSimVar(`L:A32NX_ENGINE_${engine}_N2_VIBRATION`, 'number', 250);
   const [n3Vibration] = useSimVar(`L:A32NX_ENGINE_${engine}_N3_VIBRATION`, 'number', 250);
+  const [emuSupplied] = useSimVar(`L:A32NX_ENGINE_${engine}_EMU_SUPPLIED`, 'bool', 500);
+  const vibrationsShown = areVibrationsShown(fadecPowered, !!emuSupplied);
+
+  const [nacelleTemperature] = useSimVar(`L:A32NX_ENGINE_${engine}_NACELLE_TEMPERATURE`, 'number', 500);
 
   const [oilQuantity] = useSimVar(`L:A32NX_ENGINE_OIL_QTY:${engine}`, 'number', 500); // TODO: Update with correct SimVars
   // The oil quantity pulses below the 1.2 qt advisory, except at TOGA or in reverse,
@@ -148,7 +133,7 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
         x={x}
         y={y + 380}
         value={n1Vibration}
-        active={fadecPowered}
+        active={vibrationsShown}
         shift={-14}
         className={vibrationClassName(n1Vibration)}
       />
@@ -158,7 +143,7 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
         x={x}
         y={y + 416}
         value={n2Vibration}
-        active={fadecPowered}
+        active={vibrationsShown}
         shift={-14}
         className={vibrationClassName(n2Vibration)}
       />
@@ -168,7 +153,7 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
         x={x}
         y={y + 450}
         value={n3Vibration}
-        active={fadecPowered}
+        active={vibrationsShown}
         shift={-14}
         className={vibrationClassName(n3Vibration)}
       />
@@ -186,7 +171,14 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
         />
       )}
       {nacelleTemperatureVisible(!!starterValveOpen, ignition, !!igniterA, !!igniterB, hasStartValveFault) && (
-        <NacelleTemperatureGauge x={x} y={y + 536} engine={engine} active={fadecPowered} value={240} />
+        <NacelleTemperatureGauge
+          x={x}
+          y={y + 536}
+          engine={engine}
+          active={fadecPowered}
+          value={nacelleTemperature}
+          pulse={nacelleTemperaturePulses(nacelleTemperature)}
+        />
       )}
     </>
   );

@@ -238,6 +238,7 @@ class FadecSimData_A380X {
   NamedVariablePtr engineStartN3Hang[4];        // Bool - hung start or stall: the core speed hangs below idle
   NamedVariablePtr engineStartEgtOvershoot[4];  // Bool - hot start or stall: the start EGT overshoots
   NamedVariablePtr engineStartIgniters[4];      // Number - the igniters the start sequence energizes: bit 0 A, bit 1 B
+  NamedVariablePtr engineIgnitersSupplied[4];   // Number - the igniters with electrical supply: bit 0 A, bit 1 B (systems WASM)
   NamedVariablePtr engineStartSelector;       // Enum - ENG START selector: 0 crank, 1 norm, 2 ign start
   NamedVariablePtr engineFirePbReleased[4];   // Bool - ENG FIRE pb released: the FADEC is no longer supplied
   NamedVariablePtr engineIgniterA[4];         // Bool - igniter A energized (SD ENGINE page ignition indication)
@@ -474,6 +475,7 @@ class FadecSimData_A380X {
       engineStartN3Hang[i]       = dm->make_named_var(prefix + "START_N2_HANG", UNITS.Number, AUTO_READ);
       engineStartEgtOvershoot[i] = dm->make_named_var(prefix + "START_EGT_OVERSHOOT", UNITS.Number, AUTO_READ);
       engineStartIgniters[i]     = dm->make_named_var(prefix + "IGNITERS", UNITS.Number, AUTO_READ);
+      engineIgnitersSupplied[i]  = dm->make_named_var(prefix + "IGNITERS_SUPPLIED", UNITS.Number, AUTO_READ);
     }
     // XMLVAR_ENG_MODE_SEL has no A32NX_ prefix in the sim: noPrefix = true (last parameter), else L:A32NX_XMLVAR_ENG_MODE_SEL (always 0).
     engineStartSelector = dm->make_named_var("XMLVAR_ENG_MODE_SEL", UNITS.Number, AUTO_READ, 0.0, 0, true);

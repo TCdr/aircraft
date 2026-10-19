@@ -8,6 +8,7 @@ import {
   FadecGroundPowerInputs,
   FadecGroundPowerSupply,
   updateFadecGroundPowerSupplies,
+  writeFadecGroundPowerSupplies,
 } from './FadecGroundPower';
 
 function inputs(nowS: number, overrides: Partial<FadecGroundPowerInputs> = {}): FadecGroundPowerInputs {
@@ -59,9 +60,10 @@ describe('FADEC supply from the aircraft electrical network', () => {
 
 /*
  * The timers must follow the real power-up and pb times whatever SD page is shown: the SD instrument loop updates them
- * (updateFadecGroundPowerSupplies), the ENG page only reads them. Recorded cold and dark A380X: EXT PWR 1 powers AC 1 + AC
- * 2 at t=223 s (ENG page shown), APU GEN powers AC 3 + AC 4 at t=414 s (another page shown), the ENG page is next shown
- * at t=965 s. Timers that ran only while the ENG page is shown would count the ENG 3 + 4 15 min from t=965 s.
+ * (updateFadecGroundPowerSupplies) and writes them for the systems WASM. Recorded cold and dark A380X: EXT PWR 1
+ * powers AC 1 + AC 2 at t=223 s (ENG page shown), APU GEN powers AC 3 + AC 4 at t=414 s (another page shown), the ENG
+ * page is next shown at t=965 s. Timers that ran only while the ENG page is shown would count the ENG 3 + 4 15 min from
+ * t=965 s.
  */
 describe('FADEC supply timers with the ENG page not shown', () => {
   /** A fake sim: the SimVars the SD loop reads */
@@ -79,7 +81,7 @@ describe('FADEC supply timers with the ENG page not shown', () => {
     }
   }
 
-  /** What the ENG page shows: whether the aircraft network supplies each FADEC (engines 1 to 4) */
+  /** Whether the aircraft network supplies each FADEC (engines 1 to 4) */
   const engPageReads = (supplies: FadecGroundPowerSupply[]) => supplies.map((supply) => supply.isSupplied);
 
   it('counts the 15 min of each FADEC from the power-up of its AC bus, while another page is shown', () => {
@@ -122,5 +124,21 @@ describe('FADEC supply timers with the ENG page not shown', () => {
     expect(engPageReads(supplies)).toEqual([false, false, true, false]);
     runSdLoop(sim, PB_PRESS_S + FADEC_GND_PWR_PB_SUPPLY_S, 2200, supplies);
     expect(engPageReads(supplies)).toEqual([false, false, false, false]);
+  });
+});
+
+describe('FADEC supply timers for the systems WASM', () => {
+  it('writes whether the timer of each FADEC runs', () => {
+    const supplies = [1, 2, 3, 4].map(() => new FadecGroundPowerSupply());
+    supplies[0].update(inputs(100));
+    supplies[2].update(inputs(100));
+    const written = new Map<string, boolean>();
+    writeFadecGroundPowerSupplies((name, value) => written.set(name, value), supplies);
+    expect([...written]).toEqual([
+      ['L:A32NX_ENGINE_1_FADEC_GND_SUPPLY', true],
+      ['L:A32NX_ENGINE_2_FADEC_GND_SUPPLY', false],
+      ['L:A32NX_ENGINE_3_FADEC_GND_SUPPLY', true],
+      ['L:A32NX_ENGINE_4_FADEC_GND_SUPPLY', false],
+    ]);
   });
 });

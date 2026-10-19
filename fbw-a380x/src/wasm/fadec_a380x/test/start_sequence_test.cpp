@@ -113,6 +113,40 @@ static double highestHeldCoreSpeed(double startCorrectedN3, double deltaTime) {
   return highest;
 }
 
+/// The MSFS core of an OFF engine on the ground (EngineControl_A380X::update): before the fix MSFS alone, whose starter follows the
+/// ENG MASTER lever.
+static bool offCoreHeld(const OffEngineStarterInputs& inputs) {
+#ifdef WITHOUT_THE_FIX
+  (void)inputs;
+  return false;
+#else
+  return offCoreHeldAtRest(inputs);
+#endif
+}
+
+/// The MSFS starter acceleration recorded with an unpowered FADEC (EIPM 1 failed, ENG MASTER 2 ON at IGN START, APU bleed): the
+/// core went from 0 to 12 % N3 in 11 s.
+constexpr double RECORDED_UNPOWERED_CRANK_ACCELERATION = 12.0 / 11.0;
+/// The FADEC alternator powers the FADEC above this N3.
+constexpr double FADEC_ALTERNATOR_SUPPLY_N3 = 12.5;
+
+/// The highest MSFS core speed of an OFF engine whose ENG MASTER is ON for `seconds`, without starter motoring.
+static double highestUnmotoredCoreSpeed(double seconds, double deltaTime) {
+  RestingCore restingCore;
+  double      msfsCorrectedN3 = 0.0;
+  double      highest         = 0.0;
+  for (double time = 0.0; time < seconds; time += deltaTime) {
+    if (offCoreHeld({true, true, false, false, false, msfsCorrectedN3})) {
+      msfsCorrectedN3 = restingCore.hold(msfsCorrectedN3, deltaTime);
+    } else {
+      restingCore.release();
+    }
+    msfsCorrectedN3 += RECORDED_UNPOWERED_CRANK_ACCELERATION * deltaTime;  // MSFS turns the core until the next write
+    highest = (std::max)(highest, msfsCorrectedN3);
+  }
+  return highest;
+}
+
 int main() {
   // A starter failure (measured in the sim: ENG 1 starter shaft shear, APU bleed ON, ENG MASTER 1 ON at IGN START): the systems
   // WASM reports no starter motoring and the FADEC holds the core at rest, which the MSFS starter turns. It must stay below the
@@ -134,6 +168,21 @@ int main() {
     restingCore.release();
     expectNear("after a release the hold begins again at the MSFS speed", restingCore.hold(16.0, 1.0), 8.0);
   }
+
+  // An unpowered FADEC (both channels failed, or its EIPM failed) opens no start valve: no starter motoring. Measured in the sim
+  // before the fix: the MSFS starter (ENG MASTER lever) turned the core to 12.5 % N3, where the FADEC alternator powered the FADEC
+  // and it started the engine.
+  expect("unpowered FADEC, master ON: the core stays below the FADEC alternator speed",
+         highestUnmotoredCoreSpeed(30.0, 1.0 / 30.0) < FADEC_ALTERNATOR_SUPPLY_N3);
+  expect("unpowered FADEC, master ON: the core stays at rest", highestUnmotoredCoreSpeed(30.0, 1.0 / 30.0) < 1.0);
+  expect("ENG START at NORM, master ON: core held at rest", offCoreHeld({true, true, false, false, false, 0.0}));
+  // ...but not a core the start sequence motors, an engine MSFS burns in, the presets, a running core, in flight or master OFF
+  expect("wet or dry crank: the starter turns the core", !offCoreHeld({true, true, true, false, false, 15.0}));
+  expect("MSFS burns in the engine: not held", !offCoreHeld({true, true, false, true, false, 15.0}));
+  expect("aircraft presets: not held", !offCoreHeld({true, true, false, false, true, 0.0}));
+  expect("core above the starter engagement speed: not held", !offCoreHeld({true, true, false, false, false, 63.0}));
+  expect("in flight: not held (windmilling)", !offCoreHeld({false, true, false, false, false, 10.0}));
+  expect("master OFF: not held", !offCoreHeld({true, false, false, false, false, 0.0}));
 
   // A dry crank with the ENG MASTER OFF: the cockpit XML engages the MSFS starter, which is no ENG MASTER ON (the engine model
   // must not start or show fuel)

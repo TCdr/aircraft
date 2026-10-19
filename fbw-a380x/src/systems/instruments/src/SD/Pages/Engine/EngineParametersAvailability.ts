@@ -3,14 +3,12 @@
 
 /** What decides whether the ENG SD page shows the parameters of an engine (or XX) */
 export interface EngineParametersInputs {
-  ignition: boolean;
-  anyEngineRunning: boolean;
   /**
-   * The aircraft electrical network supplies the FADEC: 15 min at power-up, 10 min after the FADEC GND PWR pb
-   * (FadecGroundPower)
+   * A channel of the FADEC is powered and works (L:A32NX_FADEC_POWERED_ENGn, a380_systems fadec_power.rs): the FADEC
+   * alternator above 12.5 % N3, else the aircraft network that the EIPM switches to it (ground timers of
+   * FadecGroundPower, engine start, in flight, ENG FIRE pb not released)
    */
-  fadecSuppliedByAircraftNetwork: boolean;
-  engineFirePbReleased: boolean;
+  fadecPowered: boolean;
   /**
    * The FADEC cannot communicate via the avionics networks (L:A32NX_ENGINE_n_FADEC_FAULT, flyPad "Engine n FADEC
    * network link")
@@ -23,8 +21,13 @@ export interface EngineParametersInputs {
  * engine and sends the primary parameters to the EWD, but the ENG SD page loses that engine's parameters.
  */
 export function areEngineParametersShown(inputs: EngineParametersInputs): boolean {
-  const fadecPowered =
-    (inputs.ignition || inputs.anyEngineRunning || inputs.fadecSuppliedByAircraftNetwork) &&
-    !inputs.engineFirePbReleased;
-  return fadecPowered && !inputs.fadecNetworkLost;
+  return inputs.fadecPowered && !inputs.fadecNetworkLost;
+}
+
+/**
+ * Whether the ENG SD page shows the rotor vibrations of the engine: the engine monitoring unit (EMU) that measures them
+ * has its own supply (L:A32NX_ENGINE_n_EMU_SUPPLIED, AC 4 for engines 1 and 3, AC 2 for engines 2 and 4).
+ */
+export function areVibrationsShown(engineParametersShown: boolean, emuSupplied: boolean): boolean {
+  return engineParametersShown && emuSupplied;
 }

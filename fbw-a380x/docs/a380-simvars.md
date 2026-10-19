@@ -3012,6 +3012,62 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 3
     - 4
   - True when the FADEC of the engine cannot communicate via the avionics networks (flyPad failure 73010-73013): ENG 1(2)(3)(4) FADEC FAULT. The FADEC still controls the engine from its thrust lever, the PRIM (A/THR) orders no longer reach it (INOP SYS ENG n A/THR with the A/THR engaged) and the ENG SD page shows XX for the engine. Written by the systems WASM (a380_systems engine_control_failure.rs)
+- A32NX_FADEC_POWERED_ENG{number}
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while a channel of the FADEC is powered and works: the FADEC alternator above 12.5 % N3 (until N3 falls below 10.5 %), else the aircraft network that the EIPM switches to it (channel A on AC ESS, channel B on AC 3 for engines 1 and 3, AC 2 for engines 2 and 4): on the ground with the supply timers of the SD (A32NX_ENGINE_{number}_FADEC_GND_SUPPLY), with the ENG MASTER ON or the ENG START selector at CRANK or IGN START, or with any engine not OFF; always in flight; never with the ENG FIRE pb released or its EIPM failed (flyPad 73420 EIPM 1 for engines 2 and 4, 73421 EIPM 2 for engines 1 and 3). False: the ENG SD page shows XX and the engine neither cranks nor starts (start valve closed, MSFS core held at rest by the FADEC); an ENG MASTER already ON starts nothing once the FADEC is powered again. The A32NX name. Written by the systems WASM (a380_systems fadec_power.rs)
+- A32NX_ENGINE_{number}_FADEC_GND_SUPPLY
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the ground timer of the FADEC supply runs: 15 min from the aircraft power-up (AC bus of the engine powered), on the ground 10 min from the FADEC GND PWR pb ON. Written by the SD instrument (SD/Pages/Engine/FadecGroundPower.ts), read by the systems WASM
+- A32NX_ENGINE_{number}_FADEC_SELF_POWERED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC alternator supplies the FADEC (above 12.5 % N3, until N3 falls below 10.5 %). Written by the systems WASM (a380_systems fadec_power.rs)
+- A32NX_ENGINE_{number}_FADEC_CHANNEL_IN_CONTROL
+  - Number
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The EEC channel that controls the engine: 0 none (FADEC unpowered or both channels failed), 1 A, 2 B. It changes at each engine start; the other channel takes over when the channel in control fails or loses its supply (flyPad failures 73400-73403 channel A, 73410-73413 channel B; one failed channel raises ENG MINOR FAULT). Written by the systems WASM (a380_systems fadec_power.rs)
+- A32NX_ENGINE_{number}_IGNITERS_SUPPLIED
+  - Number
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The igniters with electrical supply: bit 0 igniter A (AC ESS), bit 1 igniter B (AC 3 for engines 1 and 3, AC 2 for engines 2 and 4). An igniter without supply is neither energized nor lights the engine. Written by the systems WASM (a380_systems fadec_power.rs), read by the FADEC
+- A32NX_ENGINE_{number}_EMU_SUPPLIED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the engine monitoring unit has its supply (AC 4 for engines 1 and 3, AC 2 for engines 2 and 4): without it the ENG SD page shows XX for the rotor vibrations. Written by the systems WASM (a380_systems fadec_power.rs)
+- A32NX_ENGINE_{number}_NACELLE_TEMPERATURE
+  - Number (°C)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The nacelle temperature on the ENG SD page (needle pulsing above 300 °C): the ambient temperature plus a quarter of the EGT above it, with a lag of 90 s when it heats up and 10 min when it cools down. Written by the systems WASM (a380_systems engine_nacelle_temperature.rs)
 
 - A32NX_ENGINE_{number}_FADEC_SYS_FAULT
   - Bool
@@ -3170,7 +3226,7 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 2
     - 3
     - 4
-  - True while the FADEC fault failure of the engine is active (flyPad failures 73110-73113 fuel strainer clog, 73120-73123 fuel filter monitoring, 79040-79043 oil chip, 73260-73263 FADEC minor fault, 73250-73253 overthrust protection, 73240-73243 pressure and temperature probes): the crew awareness alerts ENG FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT (FwsCore, EngineMonitoringAlerts.ts), no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73110-73113 fuel strainer clog, 73120-73123 fuel filter monitoring, 79040-79043 oil chip, 73260-73263 FADEC minor fault, 73250-73253 overthrust protection, 73240-73243 pressure and temperature probes): the crew awareness alerts ENG FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT (FwsCore, EngineMonitoringAlerts.ts), no effect on the engine. MINOR_FAULT is also true with one failed FADEC channel (see A32NX_ENGINE_{number}_FADEC_CHANNEL_IN_CONTROL). Written by the systems WASM (systems engine/engine_monitoring_fault.rs; MINOR_FAULT a380_systems fadec_power.rs)
 
 - A32NX_ENGINE_{number}_CTL_SYS_FAULT, _CTL_VLV_FAULT, _FADEC_IDENT_FAULT, _FUEL_SYS_CONTAMINATION, _OIL_SYS_CONTAMINATION, _TYPE_DISAGREE
   - Bool
