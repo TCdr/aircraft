@@ -782,6 +782,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] After ENG MASTER OFF the N3 runs down more slowly from idle (45 % after about 10 s, stopped after about a minute), and setting the ENG MASTER back ON relights the engine while the N3 shown is above 45 % - @TCdr
 1. [A32NX/MCDU] F-PLN and DIR TO distances stay blank instead of showing NaN while the flight plan is recomputed - @TCdr
 1. [FMS] Fixed VNAV predictions: the cruise acceleration now accounts for the aircraft weight, and the idle descent path no longer plans a speed change above the crossover altitude where the descent Mach already limits the speed - @TCdr
+1. [A32NX/MCDU] The PROG page OPT FL is the most economic level for the cost index, gross weight, temperature and wind, never above REC MAX and leaving at least 5 min of cruise, instead of the REC MAX rounded down - @TCdr
+1. [A32NX/FMS] ECON climb, cruise and descent speeds and Mach computed from the cost index, weight, cruise level, temperature and, in cruise, the wind, instead of a fixed cost index table and M.78 - @TCdr
+1. [A380X/FMS] ECON climb, cruise and descent speeds and Mach computed from the cost index, weight, cruise level, temperature and, in cruise, the wind, instead of the fixed 310 kt / M.85 cruise target; LRC mode flies the LRC Mach - @TCdr
+1. [A380X/FMS] PERF page OPT FL from the cost index, gross weight, temperature and wind, with at least 15 min of cruise and until 15 NM before the T/D, instead of 96 % of the REC MAX - @TCdr
+1. [A380X/FMS] Without a cost index entry before the ZFW, the FMS sets the cost index of the previous flight (0 after a power-up) with the COST INDEX-NNN IN USE message, instead of CI 0 in LRC mode - @TCdr
 
 ## 2024.1.0
 

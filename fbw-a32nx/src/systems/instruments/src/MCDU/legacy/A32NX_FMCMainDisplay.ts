@@ -34,7 +34,17 @@ import {
 import { A32NX_Util } from '../../../../shared/src/A32NX_Util';
 import { EfisInterface } from '@fmgc/efis/EfisInterface';
 import { EfisSymbols } from '@fmgc/efis/EfisSymbols';
-import { A320AircraftConfig } from '@fmgc/flightplanning/A320AircraftConfig';
+import { A320AircraftConfig, A320EconParameters } from '@fmgc/flightplanning/A320AircraftConfig';
+import {
+  ComputationMemo,
+  EconSpeeds,
+  EconSpeedSet,
+  isaDeviationAt,
+  ISA_TROPOPAUSE_ALTITUDE,
+  roundToStep,
+  tonnesToPounds,
+} from '@fmgc/guidance/vnav/EconSpeeds';
+import { FlightModel } from '@fmgc/guidance/vnav/FlightModel';
 import { uplinkedAlternateWindLevelDiffers } from '@fmgc/flightplanning/plans/AlternateCruiseLevel';
 import { DataManager } from '@fmgc/flightplanning/DataManager';
 import { FlightPlanRpcServer } from '@fmgc/flightplanning/rpc/FlightPlanRpcServer';
@@ -43,7 +53,7 @@ import { A32NX_Core } from './A32NX_Core/A32NX_Core';
 import { A32NX_FuelPred, FuelPlanningPhases } from './A32NX_Core/A32NX_FuelPred';
 import { ADIRS } from './A32NX_Core/Adirs';
 import { A32NX_MessageQueue } from './A32NX_MessageQueue';
-import { NXSpeedsApp, NXSpeedsUtils } from './NXSpeeds';
+import { NXSpeedsApp, NXSpeedsUtils, vappTowerHeadwind } from './NXSpeeds';
 import { CDUIdentPage } from '../legacy_pages/A320_Neo_CDU_IdentPage';
 import { CDUNewWaypoint } from '../legacy_pages/A320_Neo_CDU_NewWaypoint';
 import { CDUPerformancePage } from '../legacy_pages/A320_Neo_CDU_PerformancePage';
@@ -76,6 +86,7 @@ import { AdfRadioTuningStatus, MmrRadioTuningStatus, VorRadioTuningStatus } from
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { FmsFormatters } from './FmsFormatters';
 import { progRecMaxFlightLevel, REC_MAX_FL_LVAR, recMaxFlightLevelLVarValue } from './RecMaxFlightLevel';
+import { ProgOptimumFlightLevelCache } from './OptimumFlightLevel';
 import { NavigationDatabase, NavigationDatabaseBackend } from '@fmgc/NavigationDatabase';
 import { FlightPhaseManager } from '@fmgc/flightphase';
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
@@ -219,7 +230,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   private _gwInitDisplayed = undefined;
   /* CPDLC Fields */
   private _destDataChecked = undefined;
-  private _towerHeadwind = undefined;
   private _EfobBelowMinClr = undefined;
   public simbriefOfp: ISimbriefData | undefined = undefined;
   public simbriefOfpState: SimbriefOfpState = SimbriefOfpState.NotLoaded;
@@ -255,6 +265,12 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   public managedSpeedDescend = 290;
   public managedSpeedDescendMach = 0.78;
   // private managedSpeedDescendMachIsPilotEntered = undefined;
+  /** Whether the managed speeds are the ECON speeds of the cost index model (not the fallback cost index table) */
+  private managedSpeedsAreEcon = false;
+  private readonly econSpeedsMemo = new ComputationMemo<EconSpeedSet | null>();
+  /** The OPT FL of the PROG page, null for dashes */
+  public optimumFlightLevel: number | null = null;
+  private readonly optimumFlightLevelCache = new ProgOptimumFlightLevelCache();
   private efisSymbolsLeft?: EfisSymbols<A320EfisNdRangeValue>;
   private efisSymbolsRight?: EfisSymbols<A320EfisNdRangeValue>;
   /**
@@ -687,7 +703,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     this._gwInitDisplayed = 0;
     /* CPDLC Fields */
     this._destDataChecked = false;
-    this._towerHeadwind = 0;
     this._EfobBelowMinClr = false;
     this.simbrief = {
       route: '',
@@ -735,6 +750,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     // this.managedSpeedCruiseMachIsPilotEntered = false;
     this.managedSpeedDescend = 290;
     this.managedSpeedDescendMach = 0.78;
+    this.managedSpeedsAreEcon = false;
+    this.optimumFlightLevel = null;
     // this.managedSpeedDescendMachIsPilotEntered = false;
     this.activeUnconfirmedBlockFuel = null;
     this.secUnconfirmedBlockFuel = null;
@@ -871,6 +888,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
     if (this.fuelPredUpdateThrottler.canUpdate(deltaTime) !== -1) {
       this.runFuelPredComputation(FlightPlanIndex.Active);
+      this.updateManagedSpeeds();
+      this.updateOptimumFlightLevel();
 
       if (this.flightPlanService.has(FlightPlanIndex.FirstSecondary)) {
         this.runFuelPredComputation(FlightPlanIndex.FirstSecondary);
@@ -1315,14 +1334,119 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   }
 
   private updateManagedSpeeds() {
+    // The descent profile is built on the ECON speeds: they stay frozen from the descent on
+    if (this.managedSpeedsAreEcon && this.flightPhaseManager.phase >= FmgcFlightPhase.Descent) {
+      return;
+    }
+    const econ = this.computeEconSpeeds();
+    this.managedSpeedsAreEcon = econ !== null;
+
     if (!this.managedSpeedClimbIsPilotEntered) {
-      this.managedSpeedClimb = this.getClbManagedSpeedFromCostIndex();
+      this.managedSpeedClimb = econ?.climbSpeed ?? this.getClbManagedSpeedFromCostIndex();
+      this.managedSpeedClimbMach = econ?.climbMach ?? 0.78;
     }
     if (!this.managedSpeedCruiseIsPilotEntered) {
-      this.managedSpeedCruise = this.getCrzManagedSpeedFromCostIndex();
+      this.managedSpeedCruise = econ?.cruiseSpeed ?? this.getCrzManagedSpeedFromCostIndex();
+      this.managedSpeedCruiseMach = econ?.cruiseMach ?? 0.78;
     }
 
-    this.managedSpeedDescend = this.getDesManagedSpeedFromCostIndex();
+    this.managedSpeedDescend = econ?.descentSpeed ?? this.getDesManagedSpeedFromCostIndex();
+    this.managedSpeedDescendMach = econ?.descentMach ?? 0.78;
+  }
+
+  /**
+   * ECON speeds from the cost index, cruise level, weights, temperature and, in cruise, the measured wind.
+   * @returns the speeds, or null without cost index, cruise level or gross weight
+   */
+  private computeEconSpeeds(): EconSpeedSet | null {
+    if (!this.flightPlanService.hasActive) {
+      return null;
+    }
+    const performanceData = this.flightPlanService.active.performanceData;
+    const costIndex = performanceData.costIndex.get();
+    const cruiseLevel = performanceData.cruiseFlightLevel.get();
+    const grossWeight = this.getGrossWeight();
+    if (costIndex === null || cruiseLevel === null || grossWeight === null) {
+      return null;
+    }
+
+    const cruiseAltitude = cruiseLevel * 100;
+    const inCruise = this.flightPhaseManager.phase === FmgcFlightPhase.Cruise;
+    // Design choice: the measured temperature and wind in cruise; before it, the CRZ TEMP entry and no wind
+    const cruiseTemperature = performanceData.cruiseTemperature.get();
+    const tropopause = this.tropo ?? ISA_TROPOPAUSE_ALTITUDE;
+    const isaDeviation = inCruise
+      ? this.measuredIsaDeviation()
+      : cruiseTemperature !== null
+        ? isaDeviationAt(cruiseAltitude, cruiseTemperature, tropopause)
+        : 0;
+    const cruiseHeadwind = inCruise ? -SimVar.GetSimVarValue('AIRCRAFT WIND Z', 'knots') : 0;
+    // The descent starts near the landing weight
+    const descentWeight = this.getFuelPredComputation(FlightPlanIndex.Active).landingWeight ?? grossWeight;
+    const segmentAltitude = EconSpeeds.speedSegmentAltitude(cruiseAltitude);
+
+    const memoInputs = [
+      costIndex,
+      cruiseLevel,
+      roundToStep(grossWeight, 1),
+      roundToStep(descentWeight, 1),
+      roundToStep(isaDeviation, 1),
+      roundToStep(cruiseHeadwind, 5),
+      tropopause,
+    ];
+    return this.econSpeedsMemo.get(memoInputs, () =>
+      EconSpeeds.computeEconSpeeds(A320AircraftConfig, A320EconParameters, {
+        costIndex,
+        cruiseAltitude,
+        climbWeight: tonnesToPounds(grossWeight),
+        cruiseWeight: tonnesToPounds(grossWeight),
+        descentWeight: tonnesToPounds(descentWeight),
+        isaDeviation,
+        climbHeadwind: 0,
+        cruiseHeadwind,
+        descentHeadwind: 0,
+        tropopause,
+        climbMinSpeed: FlightModel.getGreenDotSpeedCas(segmentAltitude, grossWeight * 1000),
+        cruiseMinSpeed: FlightModel.getGreenDotSpeedCas(cruiseAltitude, grossWeight * 1000),
+        descentMinSpeed: FlightModel.getGreenDotSpeedCas(segmentAltitude, descentWeight * 1000),
+      }),
+    );
+  }
+
+  /** ISA deviation of the measured temperature, at the ADR pressure altitude */
+  private measuredIsaDeviation(): number {
+    return isaDeviationAt(
+      this.getPressureAlt() ?? SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
+      SimVar.GetSimVarValue('AMBIENT TEMPERATURE', 'celsius'),
+      this.tropo ?? ISA_TROPOPAUSE_ALTITUDE,
+    );
+  }
+
+  private updateOptimumFlightLevel(): void {
+    const performanceData = this.flightPlanService.hasActive ? this.flightPlanService.active.performanceData : null;
+    if (
+      !performanceData ||
+      performanceData.zeroFuelWeightCenterOfGravity.get() === null ||
+      performanceData.blockFuel.get() === null
+    ) {
+      this.optimumFlightLevel = null;
+      return;
+    }
+    const distanceToDestination = this.getDistanceToDestination();
+    const inFlight = !this.isOnGround();
+    this.optimumFlightLevel = this.optimumFlightLevelCache.get({
+      grossWeight: this.getGrossWeight(),
+      recMaxFlightLevel: this.getMaxFlCorrected(),
+      engineOut: !(this.isAllEngineOn() || this.isOnGround()),
+      costIndex: performanceData.costIndex.get(),
+      // Design choice: the measured temperature and wind in flight, ISA and no wind on the ground
+      isaDeviation: inFlight ? this.measuredIsaDeviation() : 0,
+      headwind: inFlight ? -SimVar.GetSimVarValue('AIRCRAFT WIND Z', 'knots') : 0,
+      tropopause: this.tropo ?? ISA_TROPOPAUSE_ALTITUDE,
+      distanceToDestination: Number.isFinite(distanceToDestination) ? distanceToDestination : null,
+      currentAltitude: this.getPressureAlt() ?? SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
+      destinationElevation: this.getDestinationElevation(),
+    });
   }
 
   private updateManagedSpeed() {
@@ -1503,19 +1627,11 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
         plan.performanceData.zeroFuelWeight.get() +
         Math.max(0, (vnavPrediction.estimatedFuelOnBoard * 0.4535934) / 1000);
     }
-    // if pilot has set approach wind in MCDU we use it, otherwise fall back to current measured wind
-    if (
-      Number.isFinite(plan.performanceData.approachWindMagnitude.get()) &&
-      Number.isFinite(plan.performanceData.approachWindDirection.get())
-    ) {
-      this.approachSpeeds = new NXSpeedsApp(
-        weight,
-        plan.performanceData.approachFlapsThreeSelected.get(),
-        this._towerHeadwind,
-      );
-    } else {
-      this.approachSpeeds = new NXSpeedsApp(weight, plan.performanceData.approachFlapsThreeSelected.get());
-    }
+    this.approachSpeeds = new NXSpeedsApp(
+      weight,
+      plan.performanceData.approachFlapsThreeSelected.get(),
+      vappTowerHeadwind(this.arincHeadWindComponent),
+    );
     this.approachSpeeds.valid = this.flightPhaseManager.phase >= FmgcFlightPhase.Approach || Number.isFinite(weight);
     const pilotVapp = plan.performanceData.pilotVapp.get();
     this.approachVapp.set(!pilotVapp && this.approachSpeeds?.valid ? this.approachSpeeds.vapp : pilotVapp);

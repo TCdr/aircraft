@@ -21,9 +21,12 @@ import { Arinc429LocalVarConsumerSubject, Arinc429Word, Fix, Runway, Units } fro
 import { Feet } from 'msfs-geo';
 import { minGw } from '@shared/PerformanceConstants';
 import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
+import { isaDeviationAt } from '@fmgc/guidance/vnav/EconSpeeds';
+import type { EconSpeedSet } from '@fmgc/guidance/vnav/EconSpeeds';
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
 import { qnhToMillibar } from '../shared/QnhUtils';
 import { grossWeightCgFromFqmsOrWbbc } from './GrossWeightCgSource';
+import { A380EconSpeedCache, DescentEconSpeedFreeze } from './A380EconSpeeds';
 import type { InsertedAlternateRoute } from './AlternateCompanyRoute';
 
 export enum TakeoffPowerSetting {
@@ -226,6 +229,10 @@ export class FmgcDataService implements Fmgc {
   private readonly fqmsGwCg = Arinc429LocalVarConsumerSubject.create(this.sub.on('fqms_center_of_gravity_mac'));
   private readonly wbbcGwCg = Arinc429LocalVarConsumerSubject.create(this.sub.on('wbbc_center_of_gravity_mac'));
 
+  private readonly econSpeedCaches = new Map<FlightPlanIndex, A380EconSpeedCache>();
+
+  private readonly activePlanDescentFreeze = new DescentEconSpeedFreeze();
+
   constructor(
     private readonly bus: EventBus,
     private flightPlanService: FlightPlanService,
@@ -309,8 +316,68 @@ export class FmgcDataService implements Fmgc {
     return this.flightPlanService.active.performanceData.tropopause.get();
   }
 
+  /**
+   * ECON speeds of a flight plan, from its cost index, cruise level, weights, CRZ TEMP and, in cruise, the measured
+   * temperature and wind.
+   * @returns the speeds, or null without cost index, cruise level or gross weight
+   */
+  private getEconSpeeds(forPlan: FlightPlanIndex): EconSpeedSet | null {
+    if (!this.flightPlanService.has(forPlan)) {
+      return null;
+    }
+    const isActivePlan = forPlan === FlightPlanIndex.Active;
+    if (isActivePlan) {
+      return this.activePlanDescentFreeze.get(this.getFlightPhase() >= FmgcFlightPhase.Descent, () =>
+        this.computeEconSpeeds(forPlan),
+      );
+    }
+    return this.computeEconSpeeds(forPlan);
+  }
+
+  private computeEconSpeeds(forPlan: FlightPlanIndex): EconSpeedSet | null {
+    const isActivePlan = forPlan === FlightPlanIndex.Active;
+    const phase = this.getFlightPhase();
+    const pd = this.flightPlanService.get(forPlan).performanceData;
+    const cruiseFlightLevel = pd.cruiseFlightLevel.get();
+    const tropopause = pd.tropopause.get();
+    const inCruise = isActivePlan && phase === FmgcFlightPhase.Cruise;
+    const cruiseTemperature = pd.cruiseTemperature.get();
+    let isaDeviation = 0;
+    if (inCruise) {
+      isaDeviation = isaDeviationAt(
+        this.getPressureAlt() ?? SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
+        SimVar.GetSimVarValue('AMBIENT TEMPERATURE', 'celsius'),
+        tropopause,
+      );
+    } else if (cruiseFlightLevel !== null && cruiseTemperature !== null) {
+      isaDeviation = isaDeviationAt(cruiseFlightLevel * 100, cruiseTemperature, tropopause);
+    }
+    const zeroFuelWeight = pd.zeroFuelWeight.get();
+    const destinationFuel = isActivePlan ? this.getDestEFOB(true, forPlan) : null;
+
+    let cache = this.econSpeedCaches.get(forPlan);
+    if (!cache) {
+      cache = new A380EconSpeedCache();
+      this.econSpeedCaches.set(forPlan, cache);
+    }
+    return cache.get({
+      costIndex: pd.costIndex.get(),
+      costIndexMode: pd.costIndexMode?.get() ?? null,
+      cruiseFlightLevel,
+      grossWeight: this.getGrossWeight(forPlan),
+      descentWeight: zeroFuelWeight !== null && destinationFuel !== null ? zeroFuelWeight + destinationFuel : null,
+      isaDeviation,
+      cruiseHeadwind: inCruise ? -SimVar.GetSimVarValue('AIRCRAFT WIND Z', 'knots') : 0,
+      tropopause,
+    });
+  }
+
   /** in knots */
   getManagedClimbSpeed(forPlan = FlightPlanIndex.Active): number {
+    const econ = this.getEconSpeeds(forPlan);
+    if (econ !== null) {
+      return econ.climbSpeed;
+    }
     const ci = this.flightPlanService.get(forPlan).performanceData.costIndex.get();
     if (ci !== null) {
       const dCI = (ci / 999) ** 2;
@@ -320,14 +387,8 @@ export class FmgcDataService implements Fmgc {
   }
 
   /** in mach */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getManagedClimbSpeedMach(forPlan = FlightPlanIndex.Active): number {
-    /* // Assume FL270 as crossover point
-        const pressure = AeroMath.isaPressure(UnitType.METER.convertFrom(27_000, UnitType.FOOT));
-        const mach = AeroMath.casToMach(UnitType.MPS.convertFrom(this.getManagedClimbSpeed(), UnitType.KNOT), pressure);
-        return mach; */
-    // Return static mach number for now, ECON speed calculation is not mature enough
-    return 0.84;
+    return this.getEconSpeeds(forPlan)?.climbMach ?? 0.84;
   }
 
   /** in feet */
@@ -363,24 +424,13 @@ export class FmgcDataService implements Fmgc {
   }
 
   /** in knots */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getManagedCruiseSpeed(forPlan = FlightPlanIndex.Active): number {
-    return 310;
-    // FIXME need to rework the cost index based speed calculations
-    /* if (this.flightPlanService.has(FlightPlanIndex.Active)) {
-      const dCI = ((this.flightPlanService.active.performanceData.costIndex.get() ?? 100) / 999) ** 2;
-      return 290 * (1 - dCI) + 330 * dCI;
-      */
+    return this.getEconSpeeds(forPlan)?.cruiseSpeed ?? 310;
   }
 
   /** in mach */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getManagedCruiseSpeedMach(forPlan = FlightPlanIndex.Active): number {
-    /* const pressure = AeroMath.isaPressure(UnitType.METER.convertFrom(this.getCruiseAltitude() * 100, UnitType.FOOT));
-        const mach = AeroMath.casToMach(UnitType.MPS.convertFrom(this.getManagedCruiseSpeed(), UnitType.KNOT), pressure);
-        return mach; */
-    // Return static mach number for now, ECON speed calculation is not mature enough
-    return 0.85;
+    return this.getEconSpeeds(forPlan)?.cruiseMach ?? 0.85;
   }
 
   getClimbSpeedLimit(fpIndex = FlightPlanIndex.Active): SpeedLimit | null {
@@ -438,7 +488,10 @@ export class FmgcDataService implements Fmgc {
     if (preselectedDescentSpeed !== null) {
       return preselectedDescentSpeed;
     }
-    // TODO adapt for A380
+    const econ = this.getEconSpeeds(forPlan);
+    if (econ !== null) {
+      return econ.descentSpeed;
+    }
     if (this.flightPlanService.has(forPlan)) {
       const ci = pd.costIndex.get();
       if (ci !== null) {
@@ -451,12 +504,11 @@ export class FmgcDataService implements Fmgc {
 
   /** in mach */
   getManagedDescentSpeedMach(forPlan = FlightPlanIndex.Active): number {
-    /* // Assume FL270 as crossover point
-        const pressure = AeroMath.isaPressure(UnitType.METER.convertFrom(27_000, UnitType.FOOT));
-        const mach = AeroMath.casToMach(UnitType.MPS.convertFrom(this.getManagedClimbSpeed(), UnitType.KNOT), pressure);
-        return mach; */
-    // Return static mach number for now, ECON speed calculation is not mature enough
-    return this.flightPlanService.get(forPlan).performanceData.pilotManagedDescentMach.get() ?? 0.84;
+    return (
+      this.flightPlanService.get(forPlan).performanceData.pilotManagedDescentMach.get() ??
+      this.getEconSpeeds(forPlan)?.descentMach ??
+      0.84
+    );
   }
 
   /** in knots */

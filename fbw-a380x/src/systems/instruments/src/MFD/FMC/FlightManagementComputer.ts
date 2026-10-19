@@ -90,6 +90,10 @@ import { SimBriefUplinkAdapter } from '@fmgc/flightplanning/uplink/SimBriefUplin
 import { FlightPlanChangeNotifier } from '@fmgc/flightplanning/sync/FlightPlanChangeNotifier';
 import { FlightPlanUtils } from '@fmgc/flightplanning/FlightPlanUtils';
 import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
+import { distanceToTopOfDescent } from '@fmgc/components/fms-messages/TopOfDescentDistance';
+import { A380OptimumLevelCache } from './A380EconSpeeds';
+import { isaDeviationAt } from '@fmgc/guidance/vnav/EconSpeeds';
+import { CostIndexDefault } from './CostIndexDefault';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
 import { clampFmcUpdateStep } from './FmcUpdateStep';
 import { CompanyTakeoffData } from './CompanyTakeoffData';
@@ -513,6 +517,15 @@ export class FlightManagementComputer implements FmcInterface {
 
   private readonly cruiseMessageCheckThrotter = new UpdateThrottler(15000);
 
+  private readonly optimumFlightLevelThrottler = new UpdateThrottler(5000);
+
+  /** The OPT FL of the PERF page, null for dashes */
+  private optimumFlightLevel: number | null = null;
+
+  private readonly optimumLevelCache = new A380OptimumLevelCache();
+
+  private readonly costIndexDefault = new CostIndexDefault();
+
   private simBriefOfp: ISimbriefData | null = null;
 
   /** FCOM DSC-22-FMS company F-PLN request: NO COMPANY REPLY when no response is received within 4 min */
@@ -719,7 +732,7 @@ export class FlightManagementComputer implements FmcInterface {
       }, true),
       this.enginesWereStarted.sub((val) => {
         if (val) {
-          this.setCi0AndLrcIfActiveFlightplanHasNoCi();
+          this.setDefaultCostIndexIfNoneEntered();
         }
       }),
       this.legacyFmsIsHealthy.sub((v) => {
@@ -759,7 +772,7 @@ export class FlightManagementComputer implements FmcInterface {
       this.fmcInop.sub((value) => this.healythSimvar.set(!value), true),
       this.zeroFuelWeight.sub((zfw) => {
         if (zfw !== null) {
-          this.setCi0AndLrcIfActiveFlightplanHasNoCi();
+          this.setDefaultCostIndexIfNoneEntered();
         }
       }),
     );
@@ -1224,10 +1237,35 @@ export class FlightManagementComputer implements FmcInterface {
 
   /** @inheritdoc */
   public getOptFlightLevel(): number | null {
-    const recMax = this.getRecMaxFlightLevel();
-    return recMax != null && !this.fmgc.data.engineOut.get() && this.flightPhaseManager.phase <= FmgcFlightPhase.Cruise
-      ? Math.floor((0.96 * recMax) / 5) * 5
-      : null; // FIXME remove magic
+    return this.optimumFlightLevel;
+  }
+
+  private updateOptimumFlightLevel(): void {
+    if (!this.flightPlanInterface.hasActive || this.flightPhaseManager.phase > FmgcFlightPhase.Cruise) {
+      this.optimumFlightLevel = null;
+      return;
+    }
+    const pd = this.flightPlanInterface.active.performanceData;
+    const inFlight = !this.fmgc.isOnGround();
+    const tropopause = pd.tropopause.get();
+    const altitude = this.fmgc.getPressureAlt() ?? SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet');
+    // Design choice: the measured temperature and wind in flight, ISA and no wind on the ground
+    const isaDeviation = inFlight
+      ? isaDeviationAt(altitude, SimVar.GetSimVarValue('AMBIENT TEMPERATURE', 'celsius'), tropopause)
+      : 0;
+    this.optimumFlightLevel = this.optimumLevelCache.get({
+      costIndex: pd.costIndex.get(),
+      grossWeight: this.fmgc.getGrossWeight(),
+      recMaxFlightLevel: this.getRecMaxFlightLevel(),
+      engineOut: this.fmgc.data.engineOut.get(),
+      isaDeviation,
+      headwind: inFlight ? -SimVar.GetSimVarValue('AIRCRAFT WIND Z', 'knots') : 0,
+      tropopause,
+      distanceToDestination: this.fmgc.getDistanceToDestination(),
+      distanceToTopOfDescent: distanceToTopOfDescent(this.guidanceController),
+      currentAltitude: altitude,
+      destinationElevation: this.fmgc.getDestinationElevation(),
+    });
   }
 
   /** @inheritdoc */
@@ -2357,6 +2395,9 @@ export class FlightManagementComputer implements FmcInterface {
       }
 
       case FmgcFlightPhase.Done:
+        this.costIndexDefault.storeAtDone(
+          this.flightPlanInterface.hasActive ? this.flightPlanInterface.active.performanceData.costIndex.get() : null,
+        );
         this.flightPlanInterface
           .reset()
           .then(() => {
@@ -2548,6 +2589,9 @@ export class FlightManagementComputer implements FmcInterface {
 
       this.acInterface.checkSpeedLimit();
       this.acInterface.thrustReductionAccelerationChecks();
+      if (this.optimumFlightLevelThrottler.canUpdate(dt) !== -1) {
+        this.updateOptimumFlightLevel();
+      }
       if (this.cruiseMessageCheckThrotter.canUpdate(dt) !== -1) {
         if (this.flightPhaseManager.phase === FmgcFlightPhase.Cruise && !this.destDataCheckedInCruise) {
           const destPred = this.guidanceController.vnavDriver.getDestinationPrediction();
@@ -2856,13 +2900,14 @@ export class FlightManagementComputer implements FmcInterface {
     }
   }
 
-  private setCi0AndLrcIfActiveFlightplanHasNoCi(): void {
+  private setDefaultCostIndexIfNoneEntered(): void {
     if (this.flightPlanInterface.hasActive && this.flightPlanInterface.active.destinationAirport !== undefined) {
       const pd = this.flightPlanInterface.active.performanceData;
-      if (pd.costIndex.get() === null) {
-        pd.costIndex.set(0);
-        pd.costIndexMode.set(CostIndexMode.LRC);
-        this.addMessageToQueue(NXSystemMessages.lrcInUse);
+      const defaultCostIndex = this.costIndexDefault.defaultFor(pd.costIndex.get());
+      if (defaultCostIndex !== null) {
+        pd.costIndex.set(defaultCostIndex);
+        pd.costIndexMode.set(CostIndexMode.ECON);
+        this.addMessageToQueue(NXSystemMessages.costIndexInUse.getModifiedMessage(defaultCostIndex.toFixed(0)));
       }
     }
   }

@@ -107,6 +107,7 @@ export const NXSystemMessages = {
   comWindUplinkPending: new TypeIIMessage('COMPANY WIND UPLINK PENDING', true),
   comDatalinkNotAvail: new TypeIMessage('COM DATALINK NOT AVAIL'),
   cstrDelUpToWpt: new TypeIIMessage('CONSTRAINTS BEFORE WWWWW : DELETED', false, 'WWWWW'),
+  costIndexInUse: new TypeIMessage('COST INDEX-NNN IN USE', false, 'NNN'),
   destEfobBelowMin: new TypeIIMessage('DEST EFOB BELOW MIN', true),
   draftWindsInserted: new TypeIMessage('DRAFT WIND INSERTED'),
   enterDestData: new TypeIIMessage('ENTER DEST DATA', true),
@@ -145,7 +146,6 @@ export const NXSystemMessages = {
   navprimary: new TypeIIMessage('NAV PRIMARY'),
   navprimaryLost: new TypeIIMessage('NAV PRIMARY LOST', true),
   sqwkCodeNotValid: new TypeIMessage('SQWK CODE NOT VALID'),
-  lrcInUse: new TypeIMessage('LRC MODE IN USE'),
   lateralDiscontinuityAhead: new TypeIIMessage('LATERAL DISCONTINUITY AHEAD', true),
   // FCOM DSC-22-FMS-20-30: the GPS deselected, 80 NM before the T/D or in APPROACH phase (type II, white)
   gpsDeselected: new TypeIIMessage('GPS DESELECTED'),

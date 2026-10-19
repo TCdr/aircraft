@@ -1,4 +1,6 @@
 // @ts-strict-ignore
+import { Arinc429WordData } from '@flybywiresim/fbw-sdk';
+
 /**
  * Stall speed table
  * calls function(gross weight (t), landing gear) which returns CAS.
@@ -502,6 +504,15 @@ export class NXSpeedsApp {
     private isConf3: boolean,
     private wind = 0,
   ) {}
+}
+
+/**
+ * The tower headwind component the VAPP is computed with: the MAG WIND of the PERF APPR page projected on the
+ * destination runway, or 0 kt (the minimum VAPP wind correction) without the wind or the runway
+ * @param towerHeadwindComponent the FM approach headwind component word
+ */
+export function vappTowerHeadwind(towerHeadwindComponent: Arinc429WordData): number {
+  return towerHeadwindComponent.isNormalOperation() ? towerHeadwindComponent.value : 0;
 }
 
 export class NXSpeedsUtils {
