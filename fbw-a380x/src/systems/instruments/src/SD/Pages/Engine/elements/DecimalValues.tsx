@@ -1,4 +1,9 @@
 import React, { FC } from 'react';
+import { degradedAccuracyStrikePath, ROTOR_SPEED_STRUCK_DIGITS } from '../../../../MsfsAvionicsCommon/DegradedAccuracy';
+
+/** The size of an F25 digit on the SD */
+const DECIMAL_DIGIT_WIDTH = 14;
+const DECIMAL_DIGIT_HEIGHT = 18;
 
 interface DecimalValueProps {
   x: number;
@@ -10,6 +15,8 @@ interface DecimalValueProps {
   pulse?: boolean;
   /** The colour class of the value (default Green) */
   className?: string;
+  /** The accuracy of the value is degraded (ENG CTL SYS FAULT): its decimal digit is struck out */
+  accuracyDegraded?: boolean;
 }
 
 const DecimalValue: FC<DecimalValueProps> = ({
@@ -20,6 +27,7 @@ const DecimalValue: FC<DecimalValueProps> = ({
   shift = 0,
   pulse = false,
   className = 'Green',
+  accuracyDegraded = false,
 }) => {
   const colour = pulse ? `${className} FillPulse` : className;
   value = value < 0 ? 0 : value;
@@ -44,6 +52,18 @@ const DecimalValue: FC<DecimalValueProps> = ({
             {value.toFixed(1).toString().split('.')[1]}
           </tspan>
         </text>
+      )}
+      {active && accuracyDegraded && (
+        <path
+          className="Amber SW2 NoFill"
+          d={degradedAccuracyStrikePath(
+            shiftx + 22 + DECIMAL_DIGIT_WIDTH,
+            y,
+            DECIMAL_DIGIT_WIDTH,
+            DECIMAL_DIGIT_HEIGHT,
+            ROTOR_SPEED_STRUCK_DIGITS,
+          )}
+        />
       )}
     </>
   );

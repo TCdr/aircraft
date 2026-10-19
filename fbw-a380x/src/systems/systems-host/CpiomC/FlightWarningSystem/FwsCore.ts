@@ -143,7 +143,7 @@ import {
   isHpFuelVlvFaultActive,
 } from './EngineMonitoringAlerts';
 import { OilTemperatureLowMonitor, isFlexTakeoffMode, isThrustLeversNotSet } from './EngineTakeoffAlerts';
-import { isTakeoffThrustDisagree, isThrustLoss } from './EngineThrustAlerts';
+import { isEngineThrustLocked, isTakeoffThrustDisagree, isThrustLoss } from './EngineThrustAlerts';
 import {
   isEgtOverLimit,
   isEgtOverLimitAlertTriggered,
@@ -5479,7 +5479,10 @@ export class FwsCore {
     this.autoThrustLimited.set(this.autoThrustLimitedConfNode.read() && this.autoThrustLimitedDelayNode);
 
     // ENG THRUST LOCKED
-    this.engineThrustLocked = this.autoThrustModeMessage === AutoThrustModeMessage.ThrustLock;
+    this.engineThrustLocked = isEngineThrustLocked(
+      this.autoThrustModeMessage === AutoThrustModeMessage.ThrustLock,
+      [1, 2, 3, 4].map((engine) => SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_FADEC_THRUST_FROZEN`, 'bool') > 0),
+    );
 
     const engineThrustLockedAndAthrDisconnected5s = this.autoThrustDisconnected5SecondsConfNode.write(
       this.engineThrustLocked && !athrEngagedOrArmed,

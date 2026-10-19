@@ -794,6 +794,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FADEC] FADEC power: the FADEC alternator supplies both channels above 8 % N2, otherwise the aircraft network (DC ESS for channel A, DC 1/2 for channel B, always in flight); the igniters follow their AC supply (igniter A AC ESS / STAT INV, igniter B AC 1/2) - @TCdr
 1. [A380X/FADEC] The FADECs have their electrical supply: the FADEC alternator above 12.5 % N3, else the aircraft network through the EIPMs (ENG SD page XX and no engine start without it), two EEC channels with a change at each start and a takeover on a channel fault (MINOR FAULT), igniters, HP valve closure, reverser controllers and vibration monitoring on their buses, new flyPad failures for the EEC channels and the EIPMs - @TCdr
 1. [A380X/SD] The nacelle temperature on the ENGINE page follows the engine core temperature and pulses above 300 °C - @TCdr
+1. [A380X/FADEC] FADEC NORMAL and DEGRADED (N1) modes: the FADECs cross-check their air data with the ADIRUs and revert to N1 control when P0, PT or TAT is lost (all ADRs off and an engine SENSOR FAULT); the E/WD shows the N1 gauge instead of THR, the thrust is kept until the lever moves (ENG THRUST LOCKED) and the A/THR is lost with three or four degraded engines - @TCdr
+1. [A380X/EWD] The THR gauge now shows the engine thrust in percent of the TOGA thrust with the bleed off, from the N1, Mach and TAT, instead of a linear N1 scale - @TCdr
+1. [A380X/EWD] ENG CTL SYS FAULT strikes out the last digits of the N1 on the E/WD and of the N2, N3 and fuel flow on the SD ENG page (degraded accuracy) - @TCdr
 
 ## 2024.1.0
 

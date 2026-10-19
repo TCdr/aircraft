@@ -18,6 +18,11 @@ import {
   ThrottlePositionDonutComponent,
   ThrustTransientComponent,
 } from '../../MsfsAvionicsCommon/gauges';
+import { degradedAccuracyStrikePath, ROTOR_SPEED_STRUCK_DIGITS } from '../../MsfsAvionicsCommon/DegradedAccuracy';
+
+/** The size of an F20 digit on the E/WD */
+const SMALL_DIGIT_WIDTH = 12;
+const SMALL_DIGIT_HEIGHT = 15;
 
 interface N1Props {
   bus: EventBus;
@@ -52,6 +57,11 @@ export class N1 extends DisplayComponent<N1Props> {
   ).map((it) => it !== 0);
 
   private readonly n1Idle = ConsumerSubject.create(this.sub.on('n1Idle').withPrecision(1).whenChanged(), 0);
+
+  private readonly accuracyDegradedVisibility = ConsumerSubject.create(
+    this.sub.on(`ctl_sys_fault_${this.props.engine}`).whenChanged(),
+    false,
+  ).map((degraded) => (degraded ? 'inherit' : 'hidden'));
 
   private n1PercentSplit1 = this.n1.map((n1) => splitDecimals(n1)[0]);
   private n1PercentSplit2 = this.n1.map((n1) => splitDecimals(n1)[1]);
@@ -133,6 +143,17 @@ export class N1 extends DisplayComponent<N1Props> {
             <text class={this.n1ClassSmall} x={this.props.x + 36} y={this.props.y + 45}>
               {this.n1PercentSplit2}
             </text>
+            <path
+              class="AmberLine"
+              visibility={this.accuracyDegradedVisibility}
+              d={degradedAccuracyStrikePath(
+                this.props.x + 37,
+                this.props.y + 45,
+                SMALL_DIGIT_WIDTH,
+                SMALL_DIGIT_HEIGHT,
+                ROTOR_SPEED_STRUCK_DIGITS,
+              )}
+            />
             <text
               class="F26 Red"
               x={this.props.x + 40}
@@ -158,6 +179,17 @@ export class N1 extends DisplayComponent<N1Props> {
             <text class={this.n1ClassSmall} x={this.xDegraded + 76} y={this.props.y + 45}>
               {this.n1PercentSplit2}
             </text>
+            <path
+              class="AmberLine"
+              visibility={this.accuracyDegradedVisibility}
+              d={degradedAccuracyStrikePath(
+                this.xDegraded + 77,
+                this.props.y + 45,
+                SMALL_DIGIT_WIDTH,
+                SMALL_DIGIT_HEIGHT,
+                ROTOR_SPEED_STRUCK_DIGITS,
+              )}
+            />
             <text
               class="F26 Red"
               x={this.xDegraded + 80}

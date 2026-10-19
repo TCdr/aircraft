@@ -44,6 +44,13 @@ export interface BaseEwdSimvars {
   memo_right: number;
   nose_gear_compressed: boolean;
   engine_fire_pb: boolean;
+  /** the FADEC is in DEGRADED (N1) mode (fadec_a380x FadecAirData_A380X) */
+  fadec_degraded_mode: boolean;
+  /** ENG CTL SYS FAULT (systems WASM engine_monitoring_fault.rs): degraded accuracy of the engine values (DegradedAccuracy.ts) */
+  ctl_sys_fault: boolean;
+  /** the Mach and TAT the engine sensors measure (the sim air) */
+  engine_sensor_mach: number;
+  engine_sensor_tat: number;
   fws1_is_healthy: boolean;
   fws2_is_healthy: boolean;
   afdx_3_3_reachable: boolean;
@@ -67,7 +74,9 @@ type IndexedTopics =
   | 'memo_left'
   | 'memo_right'
   | 'nose_gear_compressed'
-  | 'engine_fire_pb';
+  | 'engine_fire_pb'
+  | 'fadec_degraded_mode'
+  | 'ctl_sys_fault';
 type EwdIndexedEvents = {
   [P in keyof Pick<BaseEwdSimvars, IndexedTopics> as IndexedEventType<P>]: BaseEwdSimvars[P];
 };
@@ -122,6 +131,13 @@ export class EwdSimvarPublisher extends SimVarPublisher<EwdSimvars> {
         { name: 'L:A32NX_LGCIU_#index#_NOSE_GEAR_COMPRESSED', type: SimVarValueType.Bool, indexed: true },
       ],
       ['engine_fire_pb', { name: 'L:A32NX_FIRE_BUTTON_ENG#index#', type: SimVarValueType.Bool, indexed: true }],
+      [
+        'fadec_degraded_mode',
+        { name: 'L:A32NX_ENGINE_#index#_FADEC_DEGRADED_MODE', type: SimVarValueType.Bool, indexed: true },
+      ],
+      ['ctl_sys_fault', { name: 'L:A32NX_ENGINE_#index#_CTL_SYS_FAULT', type: SimVarValueType.Bool, indexed: true }],
+      ['engine_sensor_mach', { name: 'A:AIRSPEED MACH', type: SimVarValueType.Number }],
+      ['engine_sensor_tat', { name: 'A:TOTAL AIR TEMPERATURE', type: SimVarValueType.Celsius }],
       ['fws1_is_healthy', { name: 'L:A32NX_FWS1_IS_HEALTHY', type: SimVarValueType.Bool }],
       ['fws2_is_healthy', { name: 'L:A32NX_FWS2_IS_HEALTHY', type: SimVarValueType.Bool }],
       ['afdx_3_3_reachable', { name: 'L:A32NX_AFDX_3_3_REACHABLE', type: SimVarValueType.Bool }],

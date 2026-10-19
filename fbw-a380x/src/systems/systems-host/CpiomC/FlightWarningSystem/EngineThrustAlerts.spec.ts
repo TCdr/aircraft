@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   THRUST_LOSS_PHASE_INHIBITION,
   TO_THRUST_DISAGREE_PHASE_INHIBITION,
+  isEngineThrustLocked,
   isTakeoffThrustDisagree,
   isThrustLoss,
   thrustLossItemsChecked,
@@ -100,5 +101,16 @@ describe('FWS wiring of the engine thrust alerts', () => {
       expect(procedure).toContain(`{ name: 'THR LEVER ${engine}', sensed: true, labelNotCompleted: 'IDLE' }`);
       expect(procedure).toContain(`{ name: 'ENG ${engine} MASTER', sensed: true, labelNotCompleted: 'OFF' }`);
     }
+  });
+});
+
+describe('ENG THRUST LOCKED', () => {
+  it('triggers on the A/THR thrust lock', () => {
+    expect(isEngineThrustLocked(true, [false, false, false, false])).toBe(true);
+  });
+
+  it('triggers when a FADEC in DEGRADED mode keeps the thrust of the reversion', () => {
+    expect(isEngineThrustLocked(false, [false, false, true, false])).toBe(true);
+    expect(isEngineThrustLocked(false, [false, false, false, false])).toBe(false);
   });
 });

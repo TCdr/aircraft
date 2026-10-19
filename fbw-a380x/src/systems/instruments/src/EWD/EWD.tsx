@@ -63,12 +63,22 @@ export class EngineWarningDisplay extends DestroyableComponent<{ bus: ArincEvent
     this.engSelectorPosition,
   );
 
+  /** The FADEC is in DEGRADED mode: N1 replaces THR as the primary engine parameter */
   private readonly n1Degraded = [
-    Subject.create(false),
-    Subject.create(false),
-    Subject.create(false),
-    Subject.create(false),
+    ConsumerSubject.create(this.sub.on('fadec_degraded_mode_1'), false),
+    ConsumerSubject.create(this.sub.on('fadec_degraded_mode_2'), false),
+    ConsumerSubject.create(this.sub.on('fadec_degraded_mode_3'), false),
+    ConsumerSubject.create(this.sub.on('fadec_degraded_mode_4'), false),
   ];
+
+  /** In DEGRADED mode the thrust rating modes are lost; design choice: the rating shows XX once no FADEC has one */
+  private readonly thrustRatingLost = MappedSubject.create(SubscribableMapFunctions.and(), ...this.n1Degraded);
+
+  private readonly thrustRatingAvailable = MappedSubject.create(
+    ([engineRunningOrIgnitionOn, ratingLost]) => engineRunningOrIgnitionOn && !ratingLost,
+    this.engineRunningOrIgnitionOn,
+    this.thrustRatingLost,
+  );
 
   private readonly normalChecklistsVisible = ConsumerSubject.create(this.sub.on('fws_show_normal_checklists'), false);
   private readonly normalChecklistsVisibleNotFailed = MappedSubject.create(
@@ -199,6 +209,9 @@ export class EngineWarningDisplay extends DestroyableComponent<{ bus: ArincEvent
       this.enginesNormalAttentionGettingBox,
       this.enginesAbnormalParametersAttentionGettingBox,
       ...this.engFirePb,
+      ...this.n1Degraded,
+      this.thrustRatingLost,
+      this.thrustRatingAvailable,
       this.memosLimitationVisible,
       this.failurePendingIndicationRequested,
       this.failurePendingIndicationVisibility,
@@ -250,7 +263,7 @@ export class EngineWarningDisplay extends DestroyableComponent<{ bus: ArincEvent
               <N1Limit
                 x={330}
                 y={30}
-                active={this.engineRunningOrIgnitionOn}
+                active={this.thrustRatingAvailable}
                 hidden={this.n1LimitHidden}
                 bus={this.props.bus}
               />
