@@ -887,6 +887,7 @@ void FlyByWireInterface::setupLocalVariables() {
     idEngineFadecTlaOverrideActive[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TLA_OVERRIDE_ACTIVE");
     idEngineFadecTlaOverride[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TLA_OVERRIDE");
     idEngineFadecFault[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_FAULT");
+    idEngineEiuFault[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_EIU_FAULT");
   }
 }
 
@@ -2776,10 +2777,11 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
        idEngineIdleN2->get(), fadecIndex == 0 ? idEngineStallN1Loss_1->get() : idEngineStallN1Loss_2->get()});
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = engineStartThrottle.loopCommandedN1;
 
-  // ENG FADEC FAULT (both channels lost): the A/THR orders no longer reach the FADEC, the A/THR loses the engine
-  // (A320 FCOM DSC-22_30-90, A/THR arming condition "Two FADECs operative")
-  fadecInputs[fadecIndex].in.fcu_input =
-      FadecFailureInputs::autothrustOrdersReceived(fcuBusOutputs, idEngineFadecFault[fadecIndex]->get() > 0.5);
+  // ENG FADEC FAULT (both channels lost) or ENG EIU FAULT: the A/THR orders no longer reach the FADEC, the A/THR loses the
+  // engine (A320 FCOM DSC-22_30-90, A/THR arming condition "Two FADECs operative")
+  fadecInputs[fadecIndex].in.fcu_input = FadecFailureInputs::autothrustOrdersReceived(
+      fcuBusOutputs, FadecFailureInputs::a320AutothrustOrdersLost(idEngineFadecFault[fadecIndex]->get() > 0.5,
+                                                                  idEngineEiuFault[fadecIndex]->get() > 0.5));
 
   if (fadecIndex == fadecDisabled) {
     simConnectInterface.setClientDataFadecData(fadecInputs[fadecIndex].in.data);

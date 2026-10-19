@@ -6,10 +6,12 @@ mod cargo_ventilation;
 mod electrical;
 mod engine_control_failure;
 mod engine_failure;
+mod engine_interface_unit;
 mod engine_malfunction;
 mod fire_protection;
 mod fuel;
 pub mod hydraulic;
+mod ignition_power_supply;
 mod navigation;
 mod oxygen;
 mod payload;
@@ -24,6 +26,7 @@ use self::{
     cargo_ventilation::A320AftCargoVentilation,
     engine_control_failure::A320EngineControlFailures,
     engine_failure::A320EngineFailures,
+    engine_interface_unit::A320EngineInterfaceUnits,
     engine_malfunction::A320EngineMalfunctions,
     fire_protection::A320FireProtection,
     fuel::A320Fuel,
@@ -140,6 +143,7 @@ pub struct A320 {
     engine_monitoring_faults: EngineMonitoringFaults<2>,
     engine_malfunctions: A320EngineMalfunctions,
     engine_control_failures: A320EngineControlFailures,
+    engine_interface_units: A320EngineInterfaceUnits,
     fire_protection: A320FireProtection,
     electrical: A320Electrical,
     power_consumption: A320PowerConsumption,
@@ -218,6 +222,7 @@ impl A320 {
             ),
             engine_malfunctions: A320EngineMalfunctions::new(context),
             engine_control_failures: A320EngineControlFailures::new(context),
+            engine_interface_units: A320EngineInterfaceUnits::new(context),
             fire_protection: A320FireProtection::new(context),
             electrical: A320Electrical::new(context),
             power_consumption: A320PowerConsumption::new(context),
@@ -270,8 +275,8 @@ impl A320 {
     }
 
     /// Per engine, the reverser does not deploy: the FADEC no longer commands it (thrust lever
-    /// fault, FADEC fault) or it is inhibited by maintenance action (ENG 1(2) REV INHIBITED, A320
-    /// FCOM PRO-ABN-ENG l.80700 "the reverser is inhibited by maintenance action", STATUS INOP SYS
+    /// fault, FADEC fault, EIU lost) or it is inhibited by maintenance action (ENG 1(2) REV
+    /// INHIBITED, A320 FCOM PRO-ABN-ENG l.80700 "the reverser is inhibited by maintenance action", STATUS INOP SYS
     /// REVERSER 1(2) l.80711-80715).
     fn reversers_deployment_inhibited(&self) -> [bool; 2] {
         let fadec_inhibited = self
@@ -356,6 +361,7 @@ impl Aircraft for A320 {
             context,
             &self.fuel,
             self.engine_control_failures.thrust_control_malfunctions(),
+            self.engine_interface_units.operative(),
         );
         self.engine_malfunctions.update(context);
 
@@ -377,8 +383,8 @@ impl Aircraft for A320 {
         self.gps_2.update(context);
         self.gpirs.update();
 
-        // The FADECs' reverser inhibitions of the previous update (thrust lever fault, FADEC fault)
-        // and the maintenance inhibition (ENG 1(2) REV INHIBITED)
+        // The FADECs' reverser inhibitions of the previous update (thrust lever fault, FADEC fault,
+        // EIU lost) and the maintenance inhibition (ENG 1(2) REV INHIBITED)
         self.hydraulic
             .set_reversers_deployment_inhibited(self.reversers_deployment_inhibited());
         self.hydraulic.update(
@@ -410,6 +416,7 @@ impl Aircraft for A320 {
             self.lgcius.lgciu1().left_and_right_gear_compressed(false)
                 || self.lgcius.lgciu2().left_and_right_gear_compressed(false),
             self.hydraulic.reversers_monitoring(),
+            self.engine_interface_units.operative(),
         );
 
         self.pneumatic.update_hydraulic_reservoir_spatial_volumes(
@@ -523,6 +530,7 @@ impl SimulationElement for A320 {
         self.engine_monitoring_faults.accept(visitor);
         self.engine_malfunctions.accept(visitor);
         self.engine_control_failures.accept(visitor);
+        self.engine_interface_units.accept(visitor);
         self.fire_protection.accept(visitor);
         self.electrical.accept(visitor);
         self.power_consumption.accept(visitor);
@@ -760,6 +768,10 @@ mod tests {
     #[test]
     fn the_reverser_inhibited_by_maintenance_gets_the_deployment_inhibition() {
         let mut test_bed = aircraft_with_engines_at_idle();
+        // The FADECs command the reversers with the aircraft data of their powered EIUs
+        test_bed.write_by_name("EXT_PWR_AVAIL:1", true);
+        test_bed.write_by_name("OVHD_ELEC_EXT_PWR_PB_IS_ON", true);
+        test_bed.run_with_delta(Duration::from_millis(50));
         assert_eq!(
             test_bed.query(|a| a.reversers_deployment_inhibited()),
             [false, false]

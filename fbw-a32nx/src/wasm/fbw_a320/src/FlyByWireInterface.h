@@ -682,6 +682,7 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idEngineFadecTlaOverrideActive[2];
   std::unique_ptr<LocalVariable> idEngineFadecTlaOverride[2];
   std::unique_ptr<LocalVariable> idEngineFadecFault[2];
+  std::unique_ptr<LocalVariable> idEngineEiuFault[2];
 
   void loadConfiguration();
   void setupLocalVariables();

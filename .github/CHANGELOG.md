@@ -831,6 +831,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FADEC] Engine idle follows the FADEC idle modes: modulated idle rises with the engine bleed demand (packs, anti-ice), approach idle with the flaps lever out of 0 for a quicker go-around spool-up - @TCdr
 1. [A32NX/EWD] N1 and N2 shown with amber dashes on the last digit with the engine core sensors failed, amber CHECK under N1, N2, EGT or FF with the new FADEC-DMC indication discrepancy failures (gone on DMC 3) - @TCdr
 1. [A32NX/SD] Fuel used shown with amber dashes on the ENG and FUEL pages once the fuel flow was lost in flight for more than 1 min, until the next engine start on ground - @TCdr
+1. [A32NX/FADEC] Engine Interface Units: flyPad failure per EIU (also lost with its DC supply) and the ENG 1(2) EIU FAULT caution with its STATUS; without its EIU the engine cannot be started or relit, its reverser and the A/THR are lost - @TCdr
+1. [A32NX/FADEC] FADEC power: the FADEC alternator supplies both channels above 8 % N2, otherwise the aircraft network (DC ESS for channel A, DC 1/2 for channel B, always in flight); the igniters follow their AC supply (igniter A AC ESS / STAT INV, igniter B AC 1/2) - @TCdr
 
 ## 2024.1.0
 

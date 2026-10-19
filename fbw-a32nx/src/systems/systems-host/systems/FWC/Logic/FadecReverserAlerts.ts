@@ -160,17 +160,20 @@ export interface ThrustLeverStatus {
  * THR LEVER DISAGREE STATUS, l.81738-81771: "WHEN SLATS OUT: ENG (AFFECTED) AT IDLE" (if the TLA is at or below MCT and
  * the slats are not extended), "ENG (affected) AVAIL MAX PWR: CLB", "ON GND ENG (affected) MAX PWR: IDLE"; INOP SYS
  * ENG 1(2) THR.
+ * With the onside EIU failed, "WHEN MN < 0.47" replaces "WHEN SLATS OUT": the FADEC no longer receives the slats
+ * position.
  * Design choice: "WHEN SLATS OUT" is shown while the FADEC has not yet selected idle.
  */
 export function thrustLeverStatus(
   engineNumber: 1 | 2,
   leverLost: boolean,
   rating: ThrustLeverRating,
+  onsideEiuFailed = false,
 ): ThrustLeverStatus {
   const engine1 = engineNumber === 1;
   const left: string[] = [];
   if (rating !== ThrustLeverRating.Idle) {
-    left.push('700500050', engine1 ? '700400052' : '700400053');
+    left.push(onsideEiuFailed ? '700500090' : '700500050', engine1 ? '700400052' : '700400053');
   }
   if (!leverLost) {
     left.push(engine1 ? '700400054' : '700400055', engine1 ? '700400056' : '700400057');

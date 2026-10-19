@@ -14,6 +14,8 @@
 //! - The reverse idle of a reverser deployment and the idle protection of an unlocked reverser
 //!   (DSC-70-70 l.63304-63321, ENG 1(2) REVERSE UNLOCKED l.80888-80889), and the idle protection
 //!   for the reverser feedback position (15 % / 78 %, [`ReverserIdleProtection`]).
+//! - The loss of the Engine Interface Unit (ENG 1(2) EIU FAULT, `engine_interface_unit`): no
+//!   reverser, and the slats position replaced by the Mach number ([`FadecApproachConfiguration`]).
 //!
 //! The result is the TLA the FADEC model uses (`ENGINE_n_FADEC_TLA_OVERRIDE*`, read by
 //! fbw_a320 FlyByWireInterface through FadecFailureInputs.h).
@@ -77,7 +79,7 @@ pub struct ThrustLeverConditions {
 /// - In flight, from the lever position at the detection (l.81835-81845): "TO or FLEX: FADEC
 ///   freezes TO or FLEX TO thrust until slat retraction. At slat retraction it selects CLB thrust.
 ///   Between IDLE and MCT: in manual thrust setting mode, engine rating freezes at CLB, or IDLE
-///   with slats extended" (the EIU Mach rule is not modelled: the EIU does not fail).
+///   with slats extended" (below M 0.47 without the EIU, see [`FadecApproachConfiguration`]).
 /// - "the FADEC will command idle thrust for the approach when slats are extended ... Thrust of
 ///   affected engine remains definitively at idle even for go around." (l.81856-81862).
 ///
@@ -290,6 +292,34 @@ impl ReverserIdleProtection {
     }
 }
 
+/// The approach configuration the thrust lever failure rules of the FADEC use: the slats position,
+/// which the FADEC receives through its EIU. Without the EIU the FADEC uses the Mach number: the
+/// approach below M 0.47, the slats retracted above M 0.55, the last state in between.
+#[derive(Default)]
+struct FadecApproachConfiguration {
+    below_approach_mach: bool,
+}
+impl FadecApproachConfiguration {
+    const APPROACH_BELOW_MACH: f64 = 0.47;
+    const SLATS_RETRACTED_ABOVE_MACH: f64 = 0.55;
+
+    fn update(&mut self, mach: f64) {
+        if mach < Self::APPROACH_BELOW_MACH {
+            self.below_approach_mach = true;
+        } else if mach > Self::SLATS_RETRACTED_ABOVE_MACH {
+            self.below_approach_mach = false;
+        }
+    }
+
+    fn slats_extended(&self, eiu_operative: bool, slats_extended: bool) -> bool {
+        if eiu_operative {
+            slats_extended
+        } else {
+            self.below_approach_mach
+        }
+    }
+}
+
 /// The FADEC of one engine: its channels, its thrust lever and the TLA it uses.
 struct A320EngineControl {
     fadec_channels: FadecChannels,
@@ -300,6 +330,8 @@ struct A320EngineControl {
     thrust_lever_disagree: Failure,
     thrust_lever: A320ThrustLeverFailure,
     fadec_tla: FadecThrustLeverAngle,
+    approach_configuration: FadecApproachConfiguration,
+    eiu_operative: bool,
 
     lever_tla_id: VariableIdentifier,
     thrust_lever_fault_id: VariableIdentifier,
@@ -319,6 +351,8 @@ impl A320EngineControl {
             )),
             thrust_lever: A320ThrustLeverFailure::default(),
             fadec_tla: FadecThrustLeverAngle::new(context, engine_number),
+            approach_configuration: FadecApproachConfiguration::default(),
+            eiu_operative: true,
             lever_tla_id: context.get_identifier(format!("AUTOTHRUST_TLA:{}", engine_number)),
             thrust_lever_fault_id: context
                 .get_identifier(format!("ENGINE_{}_THR_LEVER_FAULT", engine_number)),
@@ -334,9 +368,16 @@ impl A320EngineControl {
         &mut self,
         on_ground: bool,
         slats_extended: bool,
+        mach: f64,
         flex_active: bool,
+        eiu_operative: bool,
         reverser: &A320ReverserMonitoring,
     ) {
+        self.eiu_operative = eiu_operative;
+        self.approach_configuration.update(mach);
+        let slats_extended = self
+            .approach_configuration
+            .slats_extended(eiu_operative, slats_extended);
         self.thrust_lever.update(
             self.thrust_lever_resolvers.is_active(),
             self.thrust_lever_disagree.is_active(),
@@ -369,9 +410,12 @@ impl A320EngineControl {
         self.fadec_tla.set(self.lever_tla_deg, fadec_tla, auto_idle);
     }
 
-    /// The FADEC no longer commands the reverser: thrust lever fault or both channels lost.
+    /// The FADEC no longer commands the reverser: thrust lever fault, both channels lost or the EIU
+    /// lost.
     fn reverser_deployment_inhibited(&self) -> bool {
-        self.thrust_lever.lever_lost() || self.fadec_channels.both_channels_lost()
+        self.thrust_lever.lever_lost()
+            || self.fadec_channels.both_channels_lost()
+            || !self.eiu_operative
     }
 
     /// A malfunction of the thrust control, for the ENG FAULT light (FCOM DSC-70-90-20,
@@ -430,17 +474,32 @@ impl A320EngineControlFailures {
         }
     }
 
-    /// After the hydraulic system, whose reversers the FADECs monitor.
+    /// After the hydraulic system, whose reversers the FADECs monitor. `eius_operative`: per
+    /// engine, the EIU sends the aircraft data to the FADEC.
     pub fn update(
         &mut self,
-        _context: &UpdateContext,
+        context: &UpdateContext,
         on_ground: bool,
         reversers: [A320ReverserMonitoring; 2],
+        eius_operative: [bool; 2],
     ) {
         let slats_extended = self.flaps_handle_index > 0.5;
         let flex_active = (self.thrust_limit_type - THRUST_LIMIT_TYPE_FLEX).abs() < 0.5;
-        for (engine, reverser) in self.engines.iter_mut().zip(reversers.iter()) {
-            engine.update(on_ground, slats_extended, flex_active, reverser);
+        let mach = context.mach_number().0;
+        for ((engine, reverser), eiu_operative) in self
+            .engines
+            .iter_mut()
+            .zip(reversers.iter())
+            .zip(eius_operative)
+        {
+            engine.update(
+                on_ground,
+                slats_extended,
+                mach,
+                flex_active,
+                eiu_operative,
+                reverser,
+            );
         }
     }
 
@@ -694,6 +753,7 @@ mod tests {
         engine_control: A320EngineControlFailures,
         on_ground: bool,
         reversers: [A320ReverserMonitoring; 2],
+        eius_operative: [bool; 2],
     }
     impl TestAircraft {
         fn new(context: &mut InitContext) -> Self {
@@ -701,13 +761,18 @@ mod tests {
                 engine_control: A320EngineControlFailures::new(context),
                 on_ground: false,
                 reversers: [A320ReverserMonitoring::default(); 2],
+                eius_operative: [true; 2],
             }
         }
     }
     impl Aircraft for TestAircraft {
         fn update_after_power_distribution(&mut self, context: &UpdateContext) {
-            self.engine_control
-                .update(context, self.on_ground, self.reversers);
+            self.engine_control.update(
+                context,
+                self.on_ground,
+                self.reversers,
+                self.eius_operative,
+            );
         }
     }
     impl SimulationElement for TestAircraft {
@@ -949,6 +1014,46 @@ mod tests {
             [false, true]
         );
         assert!(read_bool(&mut test_bed, "ENGINE_2_FADEC_FAULT"));
+    }
+
+    #[test]
+    fn the_eiu_loss_inhibits_the_reverser_of_its_engine() {
+        let mut test_bed = test_bed(true, 0.);
+        test_bed.command(|a| a.eius_operative = [true, false]);
+        test_bed.run();
+        assert_eq!(
+            test_bed.query(|a| a.engine_control.reversers_deployment_inhibited()),
+            [false, true]
+        );
+    }
+
+    #[test]
+    fn without_its_eiu_the_fadec_takes_the_approach_from_the_mach_number() {
+        let mut test_bed = test_bed(false, 10.);
+        test_bed.command(|a| a.eius_operative = [false, true]);
+        test_bed.write_by_name("AIRSPEED MACH", 0.78);
+        test_bed.fail(FailureType::ThrustLeverResolvers(1));
+        test_bed.run();
+        assert_eq!(read_f64(&mut test_bed, "ENGINE_1_THR_LEVER_RATING"), 3.);
+
+        // between M 0.55 and M 0.47 the FADEC keeps the slats retracted state
+        test_bed.write_by_name("AIRSPEED MACH", 0.50);
+        test_bed.run();
+        assert_eq!(read_f64(&mut test_bed, "ENGINE_1_THR_LEVER_RATING"), 3.);
+
+        // below M 0.47, the approach although the slats are retracted: idle
+        test_bed.write_by_name("AIRSPEED MACH", 0.45);
+        test_bed.run();
+        assert_eq!(read_f64(&mut test_bed, "ENGINE_1_THR_LEVER_RATING"), 1.);
+    }
+
+    #[test]
+    fn with_its_eiu_the_fadec_takes_the_approach_from_the_slats() {
+        let mut test_bed = test_bed(false, 10.);
+        test_bed.write_by_name("AIRSPEED MACH", 0.45);
+        test_bed.fail(FailureType::ThrustLeverResolvers(1));
+        test_bed.run();
+        assert_eq!(read_f64(&mut test_bed, "ENGINE_1_THR_LEVER_RATING"), 3.);
     }
 
     #[test]

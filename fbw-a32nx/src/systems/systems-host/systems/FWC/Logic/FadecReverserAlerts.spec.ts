@@ -124,6 +124,14 @@ describe('ENG THR LEVER FAULT', () => {
   it('drops WHEN SLATS OUT once the engine is at idle', () => {
     expect(thrustLeverStatus(2, true, ThrustLeverRating.Idle).left).toEqual([]);
   });
+
+  it('says WHEN MN < 0.47 in place of WHEN SLATS OUT with the onside EIU failed', () => {
+    const status = thrustLeverStatus(2, true, ThrustLeverRating.Climb, true);
+    expect(status.left).toEqual(['700500090', '700400053']);
+    const page = formatStatusPage(status.left, status.inopSys);
+    expect(page.left).toContain('WHEN MN < 0.47:');
+    expect(page.left).not.toContain('WHEN SLATS OUT:');
+  });
 });
 
 describe('ENG THR LEVER DISAGREE', () => {

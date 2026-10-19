@@ -236,6 +236,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400050', { part: StatusPart.Limitation, text: 'THR LVR 1 NOT ABV IDLE' }],
   ['700400051', { part: StatusPart.Limitation, text: 'THR LVR 2 NOT ABV IDLE' }],
   ['700500050', { part: StatusPart.Condition, text: 'WHEN SLATS OUT:' }],
+  // The FADEC without its EIU takes the approach from the Mach number
+  ['700500090', { part: StatusPart.Condition, text: 'WHEN MN < 0.47:' }],
   ['700400052', { part: StatusPart.Limitation, text: 'ENG 1 AT IDLE' }],
   ['700400053', { part: StatusPart.Limitation, text: 'ENG 2 AT IDLE' }],
   ['700400054', { part: StatusPart.Limitation, text: 'ENG 1 AVAIL MAX PWR:CLB' }],
@@ -357,6 +359,13 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['780300002', { part: StatusPart.InopSys, text: 'REVERSER 2' }],
   ['730300001', { part: StatusPart.InopSys, text: 'ENG 1 THR' }],
   ['730300002', { part: StatusPart.InopSys, text: 'ENG 2 THR' }],
+  // 73 ENG 1(2) EIU FAULT INOP SYS, in its order (see FWC/Logic/EngineInterfaceUnitAlerts)
+  ['730300011', { part: StatusPart.InopSys, text: 'A/THR' }],
+  ['730300012', { part: StatusPart.InopSys, text: 'CAT 3' }],
+  ['730300013', { part: StatusPart.InopSys, text: 'REVERSER 1' }],
+  ['730300014', { part: StatusPart.InopSys, text: 'REVERSER 2' }],
+  ['730300015', { part: StatusPart.InopSys, text: 'ENG 1 START' }],
+  ['730300016', { part: StatusPart.InopSys, text: 'ENG 2 START' }],
   // 29 HYDRAULIC (FCOM PRO-ABN-HYD INOP SYS, see FWC/Logic/HydraulicAlerts), the FCOM lists merged in their order;
   // G ENG 1 PUMP and Y ENG 2 PUMP are the ENG 1(2) SHUT DOWN codes 290300001/2 below
   ['290300010', { part: StatusPart.InopSys, text: 'GREEN HYD' }],

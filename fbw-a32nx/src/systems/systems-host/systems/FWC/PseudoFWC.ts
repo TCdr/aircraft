@@ -161,6 +161,11 @@ import {
   sensorFaultLines,
 } from './Logic/EngineMonitoringAlerts';
 import {
+  EIU_FAULT_FLIGHT_PHASE_INHIBITION,
+  eiuFaultStatus,
+  isEiuFaultAlertActive,
+} from './Logic/EngineInterfaceUnitAlerts';
+import {
   ENG_LP_VALVE_OPEN_PHASE_INHIBITION,
   FQI_CHANNEL_FAULT_PHASE_INHIBITION,
   fuelLpValveFqiAlerts,
@@ -2234,6 +2239,12 @@ export class PseudoFWC {
 
   /** ENG 1(2) FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT */
   private readonly engineFadecAlternator = [Subject.create(false), Subject.create(false)];
+
+  /** The FADEC no longer receives the data of its EIU (L:A32NX_ENGINE_n_EIU_FAULT) */
+  private readonly engineEiuDataLost = [false, false];
+
+  /** ENG 1(2) EIU FAULT (see Logic/EngineInterfaceUnitAlerts) */
+  private readonly engineEiuFault = [Subject.create(false), Subject.create(false)];
 
   private readonly engineOvspdProtFault = [Subject.create(false), Subject.create(false)];
 
@@ -6181,6 +6192,13 @@ export class PseudoFWC {
       this.engineSensorFault[index].set(fault(SENSOR_FAULT.variable));
       this.engineOneTlaFault[index].set(fault(ONE_TLA_FAULT.variable));
       this.engineRevSwitchFault[index].set(fault(REV_SWITCH_FAULT.variable));
+      this.engineEiuDataLost[index] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_EIU_FAULT`, 'bool') > 0;
+      this.engineEiuFault[index].set(
+        isEiuFaultAlertActive(
+          this.engineEiuDataLost[index],
+          SimVar.GetSimVarValue(`L:A32NX_FADEC_POWERED_ENG${engine}`, 'bool') > 0,
+        ),
+      );
     }
 
     /* ENG 1(2) STALL, ENG 1(2) N1/N2/EGT OVER LIMIT (FCOM PRO-ABN-ENG, see Logic/EngineParameterAlerts) */
@@ -7335,6 +7353,22 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
+    };
+  }
+
+  /** ENG 1(2) EIU FAULT (see Logic/EngineInterfaceUnitAlerts): amber, crew awareness */
+  private engineEiuFaultAlertItem(engine: 1 | 2): EWDFailureItem {
+    return {
+      flightPhaseInhib: EIU_FAULT_FLIGHT_PHASE_INHIBITION,
+      simVarIsActive: this.engineEiuFault[engine - 1],
+      whichCodeToReturn: () => [0],
+      codesToReturn: [`770773${engine}01`],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      statusInfo: () => eiuFaultStatus(engine).left,
+      inopSys: () => eiuFaultStatus(engine).inopSys,
     };
   }
 
@@ -8861,8 +8895,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
-      inopSys: () => thrustLeverStatus(1, true, this.thrLeverRating[0]).inopSys,
-      statusInfo: () => thrustLeverStatus(1, true, this.thrLeverRating[0]).left,
+      inopSys: () => thrustLeverStatus(1, true, this.thrLeverRating[0], this.engineEiuDataLost[0]).inopSys,
+      statusInfo: () => thrustLeverStatus(1, true, this.thrLeverRating[0], this.engineEiuDataLost[0]).left,
     },
     7700541: {
       // ENG 1 THR LEVER DISAGREE (FCOM PRO-ABN-ENG l.81668-81771), phases 4 and 5 in thrLeverDisagreeShown
@@ -8889,8 +8923,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
-      inopSys: () => thrustLeverStatus(1, false, this.thrLeverRating[0]).inopSys,
-      statusInfo: () => thrustLeverStatus(1, false, this.thrLeverRating[0]).left,
+      inopSys: () => thrustLeverStatus(1, false, this.thrLeverRating[0], this.engineEiuDataLost[0]).inopSys,
+      statusInfo: () => thrustLeverStatus(1, false, this.thrLeverRating[0], this.engineEiuDataLost[0]).left,
     },
     7700551: {
       // ENG 1 REVERSE UNLOCKED (FCOM PRO-ABN-ENG l.80848-80910), inhibited in phase 8, phases 4 and 5 in
@@ -9010,8 +9044,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
-      inopSys: () => thrustLeverStatus(2, true, this.thrLeverRating[1]).inopSys,
-      statusInfo: () => thrustLeverStatus(2, true, this.thrLeverRating[1]).left,
+      inopSys: () => thrustLeverStatus(2, true, this.thrLeverRating[1], this.engineEiuDataLost[1]).inopSys,
+      statusInfo: () => thrustLeverStatus(2, true, this.thrLeverRating[1], this.engineEiuDataLost[1]).left,
     },
     7700542: {
       // ENG 2 THR LEVER DISAGREE (FCOM PRO-ABN-ENG l.81668-81771), phases 4 and 5 in thrLeverDisagreeShown
@@ -9038,8 +9072,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
-      inopSys: () => thrustLeverStatus(2, false, this.thrLeverRating[1]).inopSys,
-      statusInfo: () => thrustLeverStatus(2, false, this.thrLeverRating[1]).left,
+      inopSys: () => thrustLeverStatus(2, false, this.thrLeverRating[1], this.engineEiuDataLost[1]).inopSys,
+      statusInfo: () => thrustLeverStatus(2, false, this.thrLeverRating[1], this.engineEiuDataLost[1]).left,
     },
     7700552: {
       // ENG 2 REVERSE UNLOCKED (FCOM PRO-ABN-ENG l.80848-80910), inhibited in phase 8, phases 4 and 5 in
@@ -9216,6 +9250,8 @@ export class PseudoFWC {
     7707352: this.engineSensorFaultAlertItem(2),
     7707361: this.engineMonitoringAlertItem('7707361', ONE_TLA_FAULT, this.engineOneTlaFault[0]),
     7707362: this.engineMonitoringAlertItem('7707362', ONE_TLA_FAULT, this.engineOneTlaFault[1]),
+    7707731: this.engineEiuFaultAlertItem(1),
+    7707732: this.engineEiuFaultAlertItem(2),
     7707811: this.engineMonitoringAlertItem('7707811', REV_SWITCH_FAULT, this.engineRevSwitchFault[0]),
     7707812: this.engineMonitoringAlertItem('7707812', REV_SWITCH_FAULT, this.engineRevSwitchFault[1]),
     7707301: {
