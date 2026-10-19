@@ -252,6 +252,7 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> thrustLeverAngle_2;
   std::unique_ptr<LocalVariable> idEngineState[2];
   std::unique_ptr<LocalVariable> idEngineIdleN2;
+  std::unique_ptr<LocalVariable> idEngineIdleN1;
   std::unique_ptr<LocalVariable> idAutothrustN1_TLA_1;
   std::unique_ptr<LocalVariable> idAutothrustN1_TLA_2;
   std::unique_ptr<LocalVariable> idAutothrustReverse_1;

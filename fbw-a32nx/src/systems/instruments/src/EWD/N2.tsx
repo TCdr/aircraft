@@ -2,8 +2,17 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { ClockEvents, EventBus, DisplayComponent, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
+import {
+  ClockEvents,
+  EventBus,
+  DisplayComponent,
+  FSComponent,
+  MappedSubject,
+  Subject,
+  VNode,
+} from '@microsoft/msfs-sdk';
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
+import { lastDigitColor, lastDigitText } from './EngineIndicationAccuracy';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
 import { ExceedanceMemory, N2_RED_LIMIT_PERCENT, isGroundStartSequence, n2Color } from '@shared/EngineLimits';
 
@@ -28,6 +37,14 @@ export class N2 extends DisplayComponent<N2Props> {
 
   private n2Fract = Subject.create('');
 
+  private readonly n2AccuracyDegraded = Subject.create(false);
+
+  private readonly n2LastDigit = MappedSubject.create(
+    ([digit, degraded]) => lastDigitText(digit, degraded),
+    this.n2Fract,
+    this.n2AccuracyDegraded,
+  );
+
   private state: number = 0;
 
   private onGround = false;
@@ -44,6 +61,12 @@ export class N2 extends DisplayComponent<N2Props> {
 
   private readonly redCrossVisibility = Subject.create('hidden');
 
+  private readonly n2LastDigitClass = MappedSubject.create(
+    ([color, degraded]) => `Medium End ${lastDigitColor(color, degraded)}`,
+    this.n2Color,
+    this.n2AccuracyDegraded,
+  );
+
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
@@ -57,6 +80,11 @@ export class N2 extends DisplayComponent<N2Props> {
         this.inactiveVisibility.set(f ? 'hidden' : 'visible');
         this.activeVisibility.set(f ? 'visible' : 'hidden');
       });
+
+    sub
+      .on(`engine${this.props.engine}SensorFault`)
+      .whenChanged()
+      .handle((fault) => this.n2AccuracyDegraded.set(fault));
 
     sub
       .on(`engine${this.props.engine}N2`)
@@ -109,8 +137,8 @@ export class N2 extends DisplayComponent<N2Props> {
           <text class={this.n2Color.map((color) => `Large End ${color}`)} x={54} y={45}>
             .
           </text>
-          <text class={this.n2Color.map((color) => `Medium End ${color}`)} x={70} y={45}>
-            {this.n2Fract}
+          <text class={this.n2LastDigitClass} x={70} y={45}>
+            {this.n2LastDigit}
           </text>
           <g visibility={this.redCrossVisibility}>
             <path class="RedLine" d="M -4 28 l 12 12 m 0 -12 l -12 12" />

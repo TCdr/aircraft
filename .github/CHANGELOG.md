@@ -787,6 +787,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] New FLT OPS LOAD BOX: lists the flight folder of your SimBrief OFP sent from the ground and loads it into the laptops, with the loading status of each laptop - @TCdr
 1. [A380X/OIT] New FLT OPS EXPORT BOX: the loaded flight folder can be sent to the ground over the gatelink on the ground, or kept in the outbox until the gatelink is available - @TCdr
 1. [A380X/OIT] New FLT OPS IN-FLT PERF application with its ATMO module: speed conversions (IAS, Mach, TAS, GS), ISA information, true altitude and low altitude temperature corrections - @TCdr
+1. [A32NX/FADEC] Engine idle follows the FADEC idle modes: modulated idle rises with the engine bleed demand (packs, anti-ice), approach idle with the flaps lever out of 0 for a quicker go-around spool-up - @TCdr
+1. [A32NX/EWD] N1 and N2 shown with amber dashes on the last digit with the engine core sensors failed, amber CHECK under N1, N2, EGT or FF with the new FADEC-DMC indication discrepancy failures (gone on DMC 3) - @TCdr
+1. [A32NX/SD] Fuel used shown with amber dashes on the ENG and FUEL pages once the fuel flow was lost in flight for more than 1 min, until the next engine start on ground - @TCdr
 
 ## 2024.1.0
 
