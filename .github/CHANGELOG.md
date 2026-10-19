@@ -787,6 +787,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] New FLT OPS LOAD BOX: lists the flight folder of your SimBrief OFP sent from the ground and loads it into the laptops, with the loading status of each laptop - @TCdr
 1. [A380X/OIT] New FLT OPS EXPORT BOX: the loaded flight folder can be sent to the ground over the gatelink on the ground, or kept in the outbox until the gatelink is available - @TCdr
 1. [A380X/OIT] New FLT OPS IN-FLT PERF application with its ATMO module: speed conversions (IAS, Mach, TAS, GS), ISA information, true altitude and low altitude temperature corrections - @TCdr
+1. [A32NX/MCDU] F-PLN and DIR TO distances stay blank instead of showing NaN while the flight plan is recomputed - @TCdr
 
 ## 2024.1.0
 
