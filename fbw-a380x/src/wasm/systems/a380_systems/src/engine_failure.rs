@@ -64,7 +64,10 @@
 //!   that engine during it (hydraulic/mod.rs; design choice: the pumps are off-loaded, the clutch
 //!   disconnection of the ENG PUMPS DISC pb is not used, it cannot be undone in flight).
 
-use crate::fadec_automatic_shutdown::{FadecAutomaticShutdown, FadecShutdownInputs};
+use crate::{
+    fadec_automatic_shutdown::{FadecAutomaticShutdown, FadecShutdownInputs},
+    fadec_power::EngineElectricalSupply,
+};
 use std::time::Duration;
 use systems::{
     engine::{
@@ -313,6 +316,9 @@ struct HpFuelValveInputs {
     core_speed: Ratio,
     /// The aircraft presets start the engines at once, without start sequence.
     preset_quick_mode: bool,
+    /// The HP fuel valve closes with its electrical supply; without it, it stays where it is (it
+    /// still opens, which a flight loaded with the engines running needs at its first update).
+    closure_powered: bool,
 }
 
 /// The HP fuel valve of one engine: MSFS fuel valve 60 to 63 (see a380_systems_wasm), which feeds
@@ -336,8 +342,9 @@ struct HpFuelValveInputs {
 /// - on the ground, the FADEC start sequence at its fuel-on point, the quick relight, the aircraft
 ///   presets, and a flight loaded with the master ON (engine running).
 ///
-/// It then stays open until the master OFF or a fuel cut: a running engine keeps its fuel when the
-/// selector is set back to NORM, and its auto relight (DSC-70-80-30-20 AUTO RELIGHT) has fuel.
+/// It then stays open until the master OFF (with AC ESS, which supplies its closure) or a fuel cut:
+/// a running engine keeps its fuel when the selector is set back to NORM, and its auto relight
+/// (DSC-70-80-30-20 AUTO RELIGHT) has fuel.
 struct HpFuelValve {
     is_open: bool,
     /// None until the first update: a flight loaded with the master ON is a running engine.
@@ -377,7 +384,9 @@ impl HpFuelValve {
             || inputs.preset_quick_mode
             || flight_loaded_with_master_on;
 
-        self.is_open = inputs.master_switch_is_on && !inputs.fuel_is_cut && (self.is_open || opens);
+        let commanded_open = inputs.master_switch_is_on && (self.is_open || opens);
+        self.is_open =
+            !inputs.fuel_is_cut && (commanded_open || (self.is_open && !inputs.closure_powered));
     }
 
     fn is_closed(&self) -> bool {
@@ -513,6 +522,12 @@ impl A380EngineFailure {
         }
     }
 
+    /// The fuel of an engine whose FADEC is unpowered stays cut. Design choice: a running engine
+    /// whose FADEC loses both channels keeps running.
+    fn fadec_cannot_start(&self, supply: &EngineElectricalSupply) -> bool {
+        !supply.fadec_powered && !self.is_running()
+    }
+
     fn start_inputs(&self) -> EngineStartInputs {
         EngineStartInputs {
             master_switch_is_on: self.master_switch_is_on,
@@ -558,6 +573,7 @@ impl A380EngineFailure {
         envelope: &A380RelightEnvelope,
         lp_valve_starved: bool,
         start_schedule: &EngineStartSchedule,
+        supply: &EngineElectricalSupply,
     ) {
         // Before the start inputs: an overthrust shutdown lights the ENG MASTER FAULT light.
         self.fadec_shutdown.update(
@@ -570,6 +586,11 @@ impl A380EngineFailure {
         );
 
         let start_inputs = self.start_inputs();
+        self.start.set_powered_igniters(supply.igniters);
+        // The FADEC opens the start valve and runs the start: without power it commands nothing,
+        // and a FADEC that powers up with the ENG MASTER already ON (its alternator, a network
+        // supply back) starts only at the next ENG MASTER ON.
+        self.start.set_start_commands_lost(!supply.fadec_powered);
         self.start.update(context, start_schedule, &start_inputs);
 
         self.failure.update(
@@ -589,7 +610,8 @@ impl A380EngineFailure {
                 // FADEC shutdown (overheat, overthrust) keeps it cut, without an automatic relight.
                 start_sequence_fuel_cut: self.start.fuel_is_cut()
                     || self.hp_fuel_valve_failure.is_stuck_closed()
-                    || self.fadec_shutdown.fuel_is_cut(),
+                    || self.fadec_shutdown.fuel_is_cut()
+                    || self.fadec_cannot_start(supply),
                 ignition_available: self.start.ignition_is_available(),
                 automatic_continuous_ignition: false,
             },
@@ -607,6 +629,7 @@ impl A380EngineFailure {
                 ground_start_fuel_on: self.ground_start_fuel_on(),
                 core_speed: self.core_speed,
                 preset_quick_mode: self.preset_quick_mode,
+                closure_powered: supply.hp_valve_closure_powered,
             },
         );
         self.hp_fuel_valve_failure
@@ -705,8 +728,13 @@ impl A380EngineFailures {
     }
 
     /// After the fuel system, whose LP valve starvation (one per engine, engine 1 first) also cuts
-    /// the fuel.
-    pub fn update(&mut self, context: &UpdateContext, lp_valves_starved: [bool; 4]) {
+    /// the fuel, and after the FADEC supplies (engine 1 first).
+    pub fn update(
+        &mut self,
+        context: &UpdateContext,
+        lp_valves_starved: [bool; 4],
+        supplies: [EngineElectricalSupply; 4],
+    ) {
         let engines_out = self
             .engines
             .iter()
@@ -714,8 +742,10 @@ impl A380EngineFailures {
             .count();
         let envelope = A380RelightEnvelope::new(engines_out >= Self::MULTIPLE_ENGINES_OUT);
 
-        for (engine, starved) in self.engines.iter_mut().zip(lp_valves_starved) {
-            engine.update(context, &envelope, starved, &self.start_schedule);
+        for ((engine, starved), supply) in
+            self.engines.iter_mut().zip(lp_valves_starved).zip(supplies)
+        {
+            engine.update(context, &envelope, starved, &self.start_schedule, &supply);
         }
     }
 }
@@ -902,6 +932,7 @@ mod tests {
     mod aircraft {
         use super::super::*;
         use systems::{
+            engine::engine_start::Igniters,
             failures::FailureType,
             simulation::{
                 test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
@@ -912,18 +943,21 @@ mod tests {
         struct TestAircraft {
             engine_failures: A380EngineFailures,
             lp_valves_starved: [bool; 4],
+            supplies: [EngineElectricalSupply; 4],
         }
         impl TestAircraft {
             fn new(context: &mut InitContext) -> Self {
                 Self {
                     engine_failures: A380EngineFailures::new(context),
                     lp_valves_starved: [false; 4],
+                    supplies: [EngineElectricalSupply::default(); 4],
                 }
             }
         }
         impl Aircraft for TestAircraft {
             fn update_after_power_distribution(&mut self, context: &UpdateContext) {
-                self.engine_failures.update(context, self.lp_valves_starved);
+                self.engine_failures
+                    .update(context, self.lp_valves_starved, self.supplies);
             }
         }
         impl SimulationElement for TestAircraft {
@@ -1328,6 +1362,86 @@ mod tests {
             // The FADEC shuts the engine down from the master itself: no fuel cut, which it would
             // handle as an engine that cannot be restarted.
             assert!(!fuel_is_cut(&mut test_bed, 2));
+        }
+
+        #[test]
+        fn without_ac_ess_the_eng_master_off_does_not_close_the_hp_fuel_valve() {
+            let mut test_bed = engines_at_ground_idle_test_bed();
+            test_bed.command(|a| a.supplies[1].hp_valve_closure_powered = false);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", false);
+            run(&mut test_bed);
+            assert!(!hp_fuel_valve_is_closed(&mut test_bed, 2));
+
+            test_bed.command(|a| a.supplies[1].hp_valve_closure_powered = true);
+            run(&mut test_bed);
+            assert!(hp_fuel_valve_is_closed(&mut test_bed, 2));
+        }
+
+        #[test]
+        fn an_unpowered_fadec_does_not_start_its_engine() {
+            let mut test_bed = ground_test_bed();
+            test_bed.command(|a| a.supplies[2].fadec_powered = false);
+            automatic_start(&mut test_bed, 3);
+
+            assert!(fuel_is_cut(&mut test_bed, 3));
+            let phase: f64 = test_bed.read_by_name("ENGINE_3_START_PHASE");
+            assert_eq!(phase, 0.);
+            let start_valve_command: f64 = test_bed.read_by_name("ENGINE_3_START_VALVE_COMMAND");
+            assert_eq!(start_valve_command, 2., "closed");
+        }
+
+        #[test]
+        fn a_fadec_powered_up_with_the_master_already_on_does_not_start_its_engine() {
+            let mut test_bed = ground_test_bed();
+            test_bed.command(|a| a.supplies[1].fadec_powered = false);
+            automatic_start(&mut test_bed, 2);
+
+            // The FADEC alternator above 12.5 % N3 (or the network supply back)
+            test_bed.command(|a| a.supplies[1].fadec_powered = true);
+            run(&mut test_bed);
+            let phase: f64 = test_bed.read_by_name("ENGINE_2_START_PHASE");
+            assert_eq!(phase, 0.);
+            let hp_fuel_valve_closed: bool = test_bed.read_by_name("ENGINE_2_HP_FUEL_VALVE_CLOSED");
+            assert!(hp_fuel_valve_closed);
+            let start_valve_command: f64 = test_bed.read_by_name("ENGINE_2_START_VALVE_COMMAND");
+            assert_ne!(start_valve_command, 1.);
+
+            master_off_then_on(&mut test_bed, 2);
+            let phase: f64 = test_bed.read_by_name("ENGINE_2_START_PHASE");
+            assert_eq!(phase, 2.);
+        }
+
+        #[test]
+        fn an_unpowered_fadec_does_not_crank_its_engine_with_the_man_start_pb() {
+            let mut test_bed = ground_test_bed();
+            test_bed.command(|a| a.supplies[3].fadec_powered = false);
+            test_bed.write_by_name("ENGMANSTART4_TOGGLE", true);
+            run(&mut test_bed);
+
+            let phase: f64 = test_bed.read_by_name("ENGINE_4_START_PHASE");
+            assert_eq!(phase, 0.);
+            let start_valve_command: f64 = test_bed.read_by_name("ENGINE_4_START_VALVE_COMMAND");
+            assert_eq!(start_valve_command, 2.);
+        }
+
+        #[test]
+        fn a_running_engine_keeps_running_when_its_fadec_loses_both_channels() {
+            let mut test_bed = flying_test_bed();
+            test_bed.command(|a| a.supplies[0].fadec_powered = false);
+            run(&mut test_bed);
+            assert!(!fuel_is_cut(&mut test_bed, 1));
+        }
+
+        #[test]
+        fn a_first_ground_start_attempt_does_not_light_up_with_an_unsupplied_igniter_a() {
+            let mut test_bed = ground_test_bed();
+            test_bed.command(|a| a.supplies[3].igniters = Igniters { a: false, b: true });
+            automatic_start(&mut test_bed, 4);
+            assert!(fuel_is_cut(&mut test_bed, 4));
+            // The start sequence still commands igniter A: the FADEC hides an unsupplied igniter on the SD
+            // (IgniterSupply_A380X), and it does not light the engine.
+            let igniters: f64 = test_bed.read_by_name("ENGINE_4_IGNITERS");
+            assert_eq!(igniters, 1.);
         }
 
         #[test]

@@ -521,6 +521,7 @@ impl EngineStartSequence {
             self.continue_phase(context, schedule, inputs);
         }
         self.ground_quick_relight = on_ground
+            && !self.start_commands_lost
             && inputs.master_switch_is_on
             && !inputs.fire_push_button_is_released
             && inputs.engine_state != EngineState::On
@@ -1289,10 +1290,12 @@ impl EngineStartSequence {
 
     /// The FADEC no longer receives the start commands of the aircraft (ENG MASTER, ENG MODE
     /// selector, ENG MAN START), which reach it through the A320 Engine Interface Unit (ENG EIU
-    /// FAULT: the start of the engine is lost). Call it before [`Self::update`]. No start sequence
+    /// FAULT: the start of the engine is lost), or the FADEC has no power (no channel supplied, or
+    /// both channels failed). Call it before [`Self::update`]. No start sequence, no quick relight
     /// and no relight: the start valve stays closed, the fuel of an engine that does not run stays
     /// cut on the ground and no igniter is energized; the manual continuous ignition is lost. A
-    /// running engine keeps running.
+    /// running engine keeps running. An ENG MASTER set ON meanwhile starts nothing once the
+    /// commands are back: the start needs the next ENG MASTER ON.
     pub fn set_start_commands_lost(&mut self, lost: bool) {
         self.start_commands_lost = lost;
     }
@@ -1806,6 +1809,29 @@ mod tests {
         assert_eq!(test_bed.fault(), EngineStartFault::None);
     }
 
+    #[test]
+    fn an_igniter_without_supply_does_not_light_the_engine() {
+        let mut test_bed = StartTestBed::new()
+            .powered_igniters(IGNITER_B)
+            .automatic_start()
+            .n2(18.)
+            .and_run();
+        // The first automatic start commands igniter A, which has no supply. The command stays in
+        // L:A32NX_ENGINE_n_IGNITERS: the A380 FADEC hides an unsupplied igniter on the SD itself.
+        assert_eq!(test_bed.igniters(), IGNITER_A);
+        assert_eq!(test_bed.number("IGNITERS"), 1.);
+
+        test_bed = test_bed.core_at_light_up_speed();
+        assert!(test_bed.fuel_is_cut());
+        assert!(test_bed.ignition_is_available());
+    }
+
+    #[test]
+    fn no_ignition_is_available_without_the_supply_of_both_igniters() {
+        let test_bed = StartTestBed::new().powered_igniters(Igniters::NONE);
+        assert!(!test_bed.ignition_is_available());
+    }
+
     /// The A320 rule of the second igniter (FCOM DSC-70-80-30 l.63468-63471), no pre-start motoring.
     fn with_second_igniter_rule(test_bed: StartTestBed) -> StartTestBed {
         test_bed.with_schedule(|schedule| {
@@ -2300,6 +2326,23 @@ mod tests {
         assert!(test_bed.ground_quick_relight());
 
         let test_bed = test_bed.engine_state(EngineState::On).and_run();
+        assert!(!test_bed.ground_quick_relight());
+    }
+
+    #[test]
+    fn no_ground_quick_relight_without_the_start_commands() {
+        let test_bed = StartTestBed::new()
+            .with_schedule(with_a380_rules)
+            .selector(EngineModeSelector::Ignition)
+            .engine_state(EngineState::On)
+            .n2(70.)
+            .master(true)
+            .master(false)
+            .engine_state(EngineState::Shutting)
+            .n2(60.)
+            .start_commands_lost(true)
+            .and_run_for(Duration::from_secs(2))
+            .master(true);
         assert!(!test_bed.ground_quick_relight());
     }
 

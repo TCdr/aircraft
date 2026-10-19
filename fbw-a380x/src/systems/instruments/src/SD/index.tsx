@@ -7,7 +7,11 @@ import { SystemDisplay } from './SystemDisplay';
 import { render } from '../Common';
 import { renderTarget } from '../util';
 import { HostedDisplayGate, hostDisplayUnitOf } from '../MsfsAvionicsCommon/HostedDisplay';
-import { FADEC_SUPPLY_SAMPLE_INTERVAL_MS, updateFadecGroundPowerSupplies } from './Pages/Engine/FadecGroundPower';
+import {
+  FADEC_SUPPLY_SAMPLE_INTERVAL_MS,
+  updateFadecGroundPowerSupplies,
+  writeFadecGroundPowerSupplies,
+} from './Pages/Engine/FadecGroundPower';
 
 /** The DU this gauge draws on when it is the SD drawn on an ND DU (CDS reconfiguration, panel.cfg hostDu), else null */
 const hostDisplayUnit = hostDisplayUnitOf('SD');
@@ -30,15 +34,17 @@ if (renderTarget) {
   }
 }
 
-// The FADEC supply timers of the ENG page (FCOM DSC-70-20-10: 15 min at aircraft power-up, 10 min after the FADEC GND
-// PWR pb) run from the instrument loop, whatever SD page is shown and also while the gauge is hidden, so that they count
-// from the real power-up and pb times (FadecGroundPower). Sampled every FADEC_SUPPLY_SAMPLE_INTERVAL_MS of real time.
+// The FADEC supply timers (FCOM DSC-70-20-10: 15 min at aircraft power-up, 10 min after the FADEC GND PWR pb) run from
+// the instrument loop, whatever SD page is shown and also while the gauge is hidden, so that they count from the real
+// power-up and pb times (FadecGroundPower). Sampled every FADEC_SUPPLY_SAMPLE_INTERVAL_MS of real time. The systems
+// WASM decides with them whether the FADECs are powered.
 let lastFadecSupplySampleMs = 0;
 getRootElement().addEventListener('update', () => {
   const nowMs = Date.now();
   if (nowMs - lastFadecSupplySampleMs >= FADEC_SUPPLY_SAMPLE_INTERVAL_MS) {
     lastFadecSupplySampleMs = nowMs;
     updateFadecGroundPowerSupplies((name, unit) => SimVar.GetSimVarValue(name, unit));
+    writeFadecGroundPowerSupplies((name, value) => SimVar.SetSimVarValue(name, 'bool', value ? 1 : 0));
   }
 });
 

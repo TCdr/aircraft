@@ -10,12 +10,6 @@ export const EngPage = () => {
   // const sdacDatum = true;
   const [useMetric] = usePersistentSetting('CONFIG_USING_METRIC_UNIT');
   const [engSelectorPosition] = useSimVar('L:XMLVAR_ENG_MODE_SEL', 'Enum', 1000);
-  const [engine1State] = useSimVar('L:A32NX_ENGINE_STATE:1', 'enum', 500); // TODO: Update with correct SimVars
-  const [engine2State] = useSimVar('L:A32NX_ENGINE_STATE:2', 'enum', 500); // TODO: Update with correct SimVars
-  const [engine3State] = useSimVar('L:A32NX_ENGINE_STATE:3', 'enum', 500); // TODO: Update with correct SimVars
-  const [engine4State] = useSimVar('L:A32NX_ENGINE_STATE:4', 'enum', 500); // TODO: Update with correct SimVars
-  const engineState = [engine1State, engine2State, engine3State, engine4State];
-  const engineRunning = engineState.some((value) => value > 0); // TODO Implement FADEC SimVars once available
 
   return (
     <>
@@ -23,38 +17,10 @@ export const EngPage = () => {
         ENGINE
       </PageTitle>
 
-      <EngineColumn
-        x={67}
-        y={68}
-        engine={1}
-        ignition={engSelectorPosition === 2}
-        anyEngineRunning={engineRunning}
-        useMetric={useMetric}
-      />
-      <EngineColumn
-        x={230}
-        y={68}
-        engine={2}
-        ignition={engSelectorPosition === 2}
-        anyEngineRunning={engineRunning}
-        useMetric={useMetric}
-      />
-      <EngineColumn
-        x={543}
-        y={68}
-        engine={3}
-        ignition={engSelectorPosition === 2}
-        anyEngineRunning={engineRunning}
-        useMetric={useMetric}
-      />
-      <EngineColumn
-        x={701}
-        y={68}
-        engine={4}
-        ignition={engSelectorPosition === 2}
-        anyEngineRunning={engineRunning}
-        useMetric={useMetric}
-      />
+      <EngineColumn x={67} y={68} engine={1} ignition={engSelectorPosition === 2} useMetric={useMetric} />
+      <EngineColumn x={230} y={68} engine={2} ignition={engSelectorPosition === 2} useMetric={useMetric} />
+      <EngineColumn x={543} y={68} engine={3} ignition={engSelectorPosition === 2} useMetric={useMetric} />
+      <EngineColumn x={701} y={68} engine={4} ignition={engSelectorPosition === 2} useMetric={useMetric} />
 
       {/* labels */}
       <text x={388} y={68} className="F25 EndAlign White">

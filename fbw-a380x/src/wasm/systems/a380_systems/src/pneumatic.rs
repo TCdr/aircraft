@@ -3189,7 +3189,11 @@ mod tests {
             );
             self.pneumatic_overhead_panel
                 .update_fault_lights(&self.pneumatic);
-            self.engine_failures.update(context, [false; 4]);
+            self.engine_failures.update(
+                context,
+                [false; 4],
+                [crate::fadec_power::EngineElectricalSupply::default(); 4],
+            );
             self.air_conditioning.update(
                 context,
                 [

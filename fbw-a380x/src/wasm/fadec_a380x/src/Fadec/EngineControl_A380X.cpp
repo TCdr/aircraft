@@ -11,6 +11,7 @@
 #include "EgtFailureOffset_A380X.hpp"
 #include "EngineRatios.hpp"
 #include "FeedTankDraw_A380X.hpp"
+#include "IgniterSupply_A380X.hpp"
 #include "OilSystem_A380X.hpp"
 #include "Polynomials_A380X.hpp"
 #include "RelightStart_A380X.hpp"
@@ -200,7 +201,13 @@ void EngineControl_A380X::update() {
     }
 
     // the FADEC holds the MSFS core of a ground start without starter air at rest this frame (StartSequence_A380X::RestingCore)
-    bool coreHeldAtRestThisFrame = false;
+    bool       coreHeldAtRestThisFrame = false;
+    const auto holdCoreAtRest          = [&]() {
+      simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3 =
+          restingCore[engineIdx].hold(simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3, deltaTime);
+      simData.engineCorrectedN3DataPtr[engineIdx]->writeDataToSim();
+      coreHeldAtRestThisFrame = true;
+    };
     switch (static_cast<int>(engineState)) {
       case STARTING:
       case RESTARTING: {
@@ -224,10 +231,7 @@ void EngineControl_A380X::update() {
           // The start valve stuck closed, no starter air, or a starter failure: the systems WASM reports no starter motoring
           // (engine_start.rs update_starter_motoring), and the FADEC holds the MSFS core, which the MSFS starter would turn.
           if (StartSequence_A380X::coreHeldAtRest(startKeepsStarter, simData.engineStarterMotoring[engineIdx]->getAsBool())) {
-            simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3 =
-                restingCore[engineIdx].hold(simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3, deltaTime);
-            simData.engineCorrectedN3DataPtr[engineIdx]->writeDataToSim();
-            coreHeldAtRestThisFrame = true;
+            holdCoreAtRest();
           }
         }
         // A hung start or a stall hangs below idle; a hot start or a stall overshoots the EGT once lit
@@ -267,6 +271,16 @@ void EngineControl_A380X::update() {
         updateSecondaryParameters(engine, engineState, deltaTime, simOnGround, ambientTemperature, deltaN3);
         break;
     }
+    if (engineState == OFF && StartSequence_A380X::offCoreHeldAtRest({
+                                  simOnGround,                                            //
+                                  engineMasterStarter,                                    //
+                                  simData.engineStarterMotoring[engineIdx]->getAsBool(),  //
+                                  offEngineCombustion,                                    //
+                                  simData.fadecQuickMode->getAsBool(),                    //
+                                  msfsN3,                                                 //
+                              })) {
+      holdCoreAtRest();
+    }
     if (!coreHeldAtRestThisFrame) {
       restingCore[engineIdx].release();
     }
@@ -274,7 +288,7 @@ void EngineControl_A380X::update() {
     // The igniters the FADEC energizes, shown on the SD ENGINE page (A, B or A B): on the ground those of the start sequence
     // of the systems WASM (L:A32NX_ENGINE_n_IGNITERS), both in flight, for the continuous ignition, the quick relight and the
     // FADEC relight ignition above (IgniterSelection_A380X)
-    const IgniterSelection_A380X::Igniters igniters = igniterSelection[engineIdx].update({
+    const IgniterSelection_A380X::Igniters selectedIgniters = igniterSelection[engineIdx].update({
         simOnGround,                                                            //
         engineState == ON,                                                      //
         engineState == STARTING || engineState == RESTARTING,                   //
@@ -290,6 +304,8 @@ void EngineControl_A380X::update() {
         simData.simVarsDataPtr->data().ambientPrecipRate,           //
         simData.engineIdleN1->get(),                                //
     });
+    const IgniterSelection_A380X::Igniters igniters =
+        IgniterSupply_A380X::energized(selectedIgniters, static_cast<int>(simData.engineIgnitersSupplied[engineIdx]->get()));
     simData.engineIgniterA[engineIdx]->set(igniters.a ? 1.0 : 0.0);
     simData.engineIgniterB[engineIdx]->set(igniters.b ? 1.0 : 0.0);
   }

@@ -14,6 +14,8 @@ clang++ -std=c++20 -Wall -Wextra -Werror feed_tank_draw_test.cpp -o ../obj/feed_
 ../obj/feed_tank_draw_test
 clang++ -std=c++20 -Wall -Wextra -Werror igniter_selection_test.cpp -o ../obj/igniter_selection_test
 ../obj/igniter_selection_test
+clang++ -std=c++20 -Wall -Wextra -Werror igniter_supply_test.cpp -o ../obj/igniter_supply_test
+../obj/igniter_supply_test
 clang++ -std=c++20 -Wall -Wextra -Werror takeoff_derate_test.cpp -o ../obj/takeoff_derate_test
 ../obj/takeoff_derate_test
 clang++ -std=c++20 -Wall -Wextra -Werror shutdown_n3_rundown_test.cpp -o ../obj/shutdown_n3_rundown_test

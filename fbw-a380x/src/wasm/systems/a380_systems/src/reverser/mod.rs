@@ -7,7 +7,7 @@ use systems::{
         Engine,
     },
     failures::{Failure, FailureType},
-    shared::{ElectricalBusType, LgciuWeightOnWheels, ReverserPosition},
+    shared::{ElectricalBusType, ElectricalBuses, LgciuWeightOnWheels, ReverserPosition},
     simulation::{
         InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
         SimulatorWriter, UpdateContext, VariableIdentifier, Write,
@@ -67,6 +67,14 @@ pub struct A380ReverserController {
     /// The FADEC no longer commands a deployment (thrust lever fault: INOP SYS ENG 2(3) REVERSER,
     /// l.173326-173328). Set by the engine control failures (engine_control_failure.rs).
     deployment_inhibited: bool,
+
+    /// The ETRAC, the reverser controller: DC 1 for engine 2, DC 2 for engine 3.
+    etrac_bus: ElectricalBusType,
+    etrac_powered: bool,
+    /// The EIPM of the engine is failed (fadec_power.rs): it no longer supplies the thrust reverser
+    /// power unit (TRPU) when the second line of defense is cleared, so neither the second primary
+    /// lock nor the cowls move.
+    eipm_failed: bool,
 }
 impl A380ReverserController {
     const FIRST_LINE_OF_DEFENCE_TLA_ANGLE_DEGREE: f64 = -3.;
@@ -97,7 +105,15 @@ impl A380ReverserController {
             minor_fault: Failure::new(FailureType::ReverserMinorFault(engine_number)),
             inhibited: Failure::new(FailureType::ReverserInhibited(engine_number)),
             deployment_inhibited: false,
+
+            etrac_bus: ElectricalBusType::DirectCurrent(if engine_number == 2 { 1 } else { 2 }),
+            etrac_powered: false,
+            eipm_failed: false,
         }
+    }
+
+    pub fn set_eipm_failed(&mut self, failed: bool) {
+        self.eipm_failed = failed;
     }
 
     pub fn set_deployment_inhibited(&mut self, inhibited: bool) {
@@ -154,6 +170,7 @@ impl A380ReverserController {
         // TODO Should be a switch info from throttle assembly, using a TLA angle value as placeholder
         self.throttle_lever_angle.get::<degree>() <= Self::SECOND_LINE_OF_DEFENCE_TLA_ANGLE_DEGREE
             && lgciu.left_and_right_gear_compressed(false)
+            && !self.eipm_failed
     }
 
     /// A380 FCOM DSC-70-70 THIRD LINE OF DEFENSE (a380_fcom.txt l.112207-112218): "The third line of
@@ -188,7 +205,9 @@ impl A380ReverserController {
             && !self.fault.is_active()
             && !self.control_fault.is_active()
             && !self.inhibited.is_active()
-            && !self.deployment_inhibited;
+            && !self.deployment_inhibited
+            && self.etrac_powered
+            && !self.eipm_failed;
 
         let command_opening = self.throttle_lever_angle.get::<degree>()
             <= Self::OPENING_AUTHORIZATION_TLA_ANGLE_DEGREE;
@@ -262,6 +281,10 @@ impl SimulationElement for A380ReverserController {
     fn read(&mut self, reader: &mut SimulatorReader) {
         self.throttle_lever_angle = reader.read(&self.throttle_lever_angle_id);
     }
+
+    fn receive_power(&mut self, buses: &impl ElectricalBuses) {
+        self.etrac_powered = buses.is_powered(self.etrac_bus);
+    }
 }
 impl ElecReverserInterface for A380ReverserController {
     fn should_unlock_first(&self) -> bool {
@@ -324,10 +347,11 @@ pub struct A380Reversers {
     monitoring: [A380ReverserMonitoring; 2],
 }
 impl A380Reversers {
-    // TODO use correct electrical scheme
-    const REVERSER_2_ETRAC_SUPPLY_POWER_BUS: ElectricalBusType =
+    // Design choice: the supply table gives no bus for the actuation power that the EIPM switches
+    // to the reverser power unit; the buses of the tertiary lock system of the same reverser.
+    const REVERSER_2_ACTUATION_SUPPLY_POWER_BUS: ElectricalBusType =
         ElectricalBusType::AlternatingCurrent(2);
-    const REVERSER_3_ETRAC_SUPPLY_POWER_BUS: ElectricalBusType =
+    const REVERSER_3_ACTUATION_SUPPLY_POWER_BUS: ElectricalBusType =
         ElectricalBusType::AlternatingCurrent(4);
 
     const REVERSER_2_TERTIARY_LOCK_SUPPLY_POWER_BUS: ElectricalBusType =
@@ -348,11 +372,11 @@ impl A380Reversers {
 
             reversers: [
                 A380ReverserAssembly::new(
-                    Self::REVERSER_2_ETRAC_SUPPLY_POWER_BUS,
+                    Self::REVERSER_2_ACTUATION_SUPPLY_POWER_BUS,
                     Self::REVERSER_2_TERTIARY_LOCK_SUPPLY_POWER_BUS,
                 ),
                 A380ReverserAssembly::new(
-                    Self::REVERSER_3_ETRAC_SUPPLY_POWER_BUS,
+                    Self::REVERSER_3_ACTUATION_SUPPLY_POWER_BUS,
                     Self::REVERSER_3_TERTIARY_LOCK_SUPPLY_POWER_BUS,
                 ),
             ],
@@ -558,8 +582,8 @@ mod tests {
         }
     }
 
-    /// The reversers of engines 2 and 3 with their controllers, both engines running, AC 2 and AC 4
-    /// powered.
+    /// The reversers of engines 2 and 3 with their controllers, both engines running, AC 2, AC 4,
+    /// DC 1 and DC 2 powered.
     struct TestAircraft {
         updater_fixed_step: FixedStepLoop,
         engine_2: TrentEngine,
@@ -570,6 +594,9 @@ mod tests {
         powered_source_ac: TestElectricitySource,
         ac_2_bus: ElectricalBus,
         ac_4_bus: ElectricalBus,
+        dc_1_bus: ElectricalBus,
+        dc_2_bus: ElectricalBus,
+        dc_powered: bool,
     }
     impl TestAircraft {
         fn new(context: &mut InitContext) -> Self {
@@ -589,6 +616,9 @@ mod tests {
                 ),
                 ac_2_bus: ElectricalBus::new(context, ElectricalBusType::AlternatingCurrent(2)),
                 ac_4_bus: ElectricalBus::new(context, ElectricalBusType::AlternatingCurrent(4)),
+                dc_1_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(1)),
+                dc_2_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(2)),
+                dc_powered: true,
             }
         }
     }
@@ -603,6 +633,10 @@ mod tests {
             electricity.supplied_by(&self.powered_source_ac);
             electricity.flow(&self.powered_source_ac, &self.ac_2_bus);
             electricity.flow(&self.powered_source_ac, &self.ac_4_bus);
+            if self.dc_powered {
+                electricity.flow(&self.powered_source_ac, &self.dc_1_bus);
+                electricity.flow(&self.powered_source_ac, &self.dc_2_bus);
+            }
         }
 
         fn update_after_power_distribution(&mut self, context: &UpdateContext) {
@@ -703,6 +737,33 @@ mod tests {
         assert!(test_bed.position(0) < 0.01);
         assert!(!test_bed.flag("REVERSER_2_UNLOCKED"));
         assert!(!test_bed.flag("REVERSER_2_DEPLOYING"));
+    }
+
+    #[test]
+    fn reverser_without_etrac_supply_does_not_deploy() {
+        let mut test_bed = ReverserTestBed::new();
+        test_bed.test_bed.command(|a| a.dc_powered = false);
+        let test_bed = test_bed.levers(-20.).run_for(4.);
+        assert!(test_bed.position(0) < 0.01);
+        assert!(test_bed.position(1) < 0.01);
+    }
+
+    /// The EIPM supplies the thrust reverser power unit when the second line of defense is cleared.
+    #[test]
+    fn reverser_of_a_failed_eipm_neither_releases_its_second_lock_nor_deploys() {
+        let mut test_bed = ReverserTestBed::new();
+        test_bed
+            .test_bed
+            .command(|a| a.controllers[0].set_eipm_failed(true));
+        let test_bed = test_bed.levers(-20.).run_for(4.);
+        assert!(test_bed.position(0) < 0.01);
+        assert!(test_bed.position(1) > 0.99);
+        assert!(!test_bed
+            .test_bed
+            .query(|a| a.controllers[0].should_unlock_second()));
+        assert!(test_bed
+            .test_bed
+            .query(|a| a.controllers[1].should_unlock_second()));
     }
 
     #[test]

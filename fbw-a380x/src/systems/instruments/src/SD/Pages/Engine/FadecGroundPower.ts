@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The FADEC supply from the aircraft electrical network while the engine is not running, for the ENG SD page
- * (EngineParametersAvailability). A380 FCOM DSC-70-20-10 FADEC ELECTRICAL SUPPLY (a380_fcom.txt l.111401-111403): "The
- * aircraft electrical network supplies the FADEC for 15 min at aircraft power-up. The aircraft electrical network
- * supplies the FADEC for 10 min when the FADEC GND PWR pb is pressed." ENG FADEC GND PWR PANEL (l.112701-112704): "On
- * ground, the aircraft electrical network supplies the FADEC for 10 min, provided that: The ENG FIRE pb-sw is not
- * pressed, The FADEC is not self-powered." (the FIRE pb and the running engine stay in areEngineParametersShown).
+ * The ground timers of the FADEC supply from the aircraft electrical network, for the FADEC supply model of the systems
+ * WASM (a380_systems fadec_power.rs, which writes L:A32NX_FADEC_POWERED_ENGn for the ENG SD page). A380 FCOM
+ * DSC-70-20-10 FADEC ELECTRICAL SUPPLY (a380_fcom.txt l.111401-111403): "The aircraft electrical network supplies the
+ * FADEC for 15 min at aircraft power-up. The aircraft electrical network supplies the FADEC for 10 min when the FADEC
+ * GND PWR pb is pressed." ENG FADEC GND PWR PANEL (l.112701-112704): "On ground, the aircraft electrical network
+ * supplies the FADEC for 10 min, provided that: The ENG FIRE pb-sw is not pressed, The FADEC is not self-powered." (the
+ * FIRE pb and the FADEC alternator are in the systems WASM).
  *
  * Design choices:
  * - Aircraft power-up is the AC bus of the engine becoming powered (L:A32NX_ELEC_AC_n_BUS_IS_POWERED).
@@ -18,8 +19,9 @@
  *   APU GEN after AC 1 + AC 2 from EXT PWR 1) starts the 15 min of its FADECs later.
  * - The timers follow the real power-up and pb times whatever SD page is shown: the SD instrument loop (SD/index.tsx)
  *   samples the AC buses, the pbs and the sim time with updateFadecGroundPowerSupplies, also while the ENG page (a React
- *   page, unmounted while another page is shown) is not shown. The ENG page only reads isSupplied. The times are
- *   absolute sim times (E:ABSOLUTE TIME).
+ *   page, unmounted while another page is shown) is not shown, and writes the result for the systems WASM with
+ *   writeFadecGroundPowerSupplies (L:A32NX_ENGINE_n_FADEC_GND_SUPPLY). The times are absolute sim times
+ *   (E:ABSOLUTE TIME).
  */
 
 /** l.111401: 15 min at aircraft power-up */
@@ -131,4 +133,16 @@ export function updateFadecGroundPowerSupplies(
       onGround,
     });
   });
+}
+
+/**
+ * Writes whether each timer runs, for the FADEC supply model of the systems WASM.
+ * @param write sets one Bool L:var (SimVar.SetSimVarValue in the sim)
+ * @param supplies the timers to write, engine 1 first
+ */
+export function writeFadecGroundPowerSupplies(
+  write: (name: string, value: boolean) => void,
+  supplies: FadecGroundPowerSupply[] = fadecGroundPowerSupplies,
+): void {
+  supplies.forEach((supply, index) => write(`L:A32NX_ENGINE_${index + 1}_FADEC_GND_SUPPLY`, supply.isSupplied));
 }

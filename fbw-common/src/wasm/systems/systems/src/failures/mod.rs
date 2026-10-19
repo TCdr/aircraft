@@ -336,6 +336,9 @@ pub enum FailureType {
     FadecNetworkLink(usize),
     /// A FADEC failure of engine n affects the engine control (A380 ENG FADEC SYS FAULT)
     FadecSystem(usize),
+    /// The A380 engine interface and power management unit n (EIPM, one for two engines) no longer
+    /// switches the aircraft network to its FADECs and thrust reverser power unit
+    EngineInterfacePowerManagement(usize),
     /// Both resolvers of thrust lever n are lost (ENG THR LEVER FAULT)
     ThrustLeverResolvers(usize),
     /// The two resolvers of thrust lever n disagree (A320 ENG THR LEVER DISAGREE)

@@ -1,5 +1,6 @@
 import React, { FC } from 'react';
 import { GaugeComponent, GaugeMarkerComponent } from '@instruments/common/gauges';
+import { NACELLE_TEMPERATURE_ADVISORY_CELSIUS } from '../NacelleTemperature';
 
 interface NacelleTemperatureGaugeProps {
   x: number;
@@ -7,9 +8,11 @@ interface NacelleTemperatureGaugeProps {
   engine: number;
   active: boolean;
   value: number;
+  /** The needle pulses above the advisory limit (NacelleTemperature nacelleTemperaturePulses) */
+  pulse: boolean;
 }
 
-const NacelleTemperatureGauge: FC<NacelleTemperatureGaugeProps> = ({ x, y, engine, active, value }) => {
+const NacelleTemperatureGauge: FC<NacelleTemperatureGaugeProps> = ({ x, y, engine, active, value, pulse }) => {
   const radius = 45;
   const startAngle = -90;
   const endAngle = 90;
@@ -60,7 +63,7 @@ const NacelleTemperatureGauge: FC<NacelleTemperatureGaugeProps> = ({ x, y, engin
         {active && (
           <>
             <GaugeMarkerComponent
-              value={300}
+              value={NACELLE_TEMPERATURE_ADVISORY_CELSIUS}
               x={x}
               y={y}
               min={min}
@@ -81,7 +84,7 @@ const NacelleTemperatureGauge: FC<NacelleTemperatureGaugeProps> = ({ x, y, engin
               radius={radius}
               startAngle={startAngle}
               endAngle={endAngle}
-              className="GaugeIndicator Gauge LineRound SW4"
+              className={`GaugeIndicator Gauge LineRound SW4 ${pulse ? 'LinePulse' : ''}`}
               indicator
               halfIndicator
               multiplierInner={0.6}

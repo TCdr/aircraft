@@ -10,9 +10,11 @@ mod electrical;
 mod engine_control_failure;
 mod engine_failure;
 mod engine_malfunction;
+mod engine_nacelle_temperature;
 #[cfg(test)]
 mod engine_out_aircraft_tests;
 mod fadec_automatic_shutdown;
+mod fadec_power;
 mod fire_and_smoke_protection;
 mod fuel;
 pub mod hydraulic;
@@ -34,6 +36,8 @@ use self::{
     engine_control_failure::A380EngineControlFailures,
     engine_failure::A380EngineFailures,
     engine_malfunction::A380EngineMalfunctions,
+    engine_nacelle_temperature::A380EngineNacelles,
+    fadec_power::A380FadecPowerSupplies,
     fuel::A380Fuel,
     pneumatic::{A380Pneumatic, A380PneumaticOverheadPanel},
     structural_flex::A380StructuralFlex,
@@ -88,14 +92,14 @@ use systems::{
 
 /// The FADEC faults of the A380 FCOM that have no engine model effect (PRO-ABN-ECAM-10-70,
 /// a380_fcom.txt): ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP
-/// DETECTED, MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT, CTL SYS FAULT, CTL VLV FAULT, FADEC
-/// IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE (see
+/// DETECTED, OVERTHRUST PROT LOST, SENSOR FAULT, CTL SYS FAULT, CTL VLV FAULT, FADEC IDENT FAULT,
+/// FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE (see
 /// systems::engine::engine_monitoring_fault and the FWS EngineMonitoringAlerts.ts).
-const A380_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 12] = [
+/// MINOR FAULT, which a failed FADEC channel also raises, is in fadec_power.rs.
+const A380_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 11] = [
     EngineMonitoringFaultKind::FuelStrainerClog,
     EngineMonitoringFaultKind::FuelFilterMonitoring,
     EngineMonitoringFaultKind::OilChip,
-    EngineMonitoringFaultKind::MinorFault,
     EngineMonitoringFaultKind::OverthrustProtection,
     EngineMonitoringFaultKind::Sensors,
     EngineMonitoringFaultKind::ControlSystem,
@@ -141,6 +145,9 @@ pub struct A380 {
     engine_monitoring_faults: EngineMonitoringFaults<4>,
     engine_malfunctions: A380EngineMalfunctions,
     engine_control_failures: A380EngineControlFailures,
+    /// The supply of the FADECs, their EEC channels and the other engine loads
+    fadec_power: A380FadecPowerSupplies,
+    engine_nacelles: A380EngineNacelles,
     electrical: A380Electrical,
     power_consumption: A380PowerConsumption,
     ext_pwrs: [ExternalPowerSource; 4],
@@ -212,6 +219,8 @@ impl A380 {
             ),
             engine_malfunctions: A380EngineMalfunctions::new(context),
             engine_control_failures: A380EngineControlFailures::new(context),
+            fadec_power: A380FadecPowerSupplies::new(context),
+            engine_nacelles: A380EngineNacelles::new(context),
             electrical: A380Electrical::new(context),
             power_consumption: A380PowerConsumption::new(context),
             ext_pwrs: [1, 2, 3, 4].map(|i| ExternalPowerSource::new(context, i)),
@@ -465,10 +474,13 @@ impl Aircraft for A380 {
             A380Airframe::get_loadsheet(),
             &self.engine_fire_overhead,
         );
+        self.fadec_power.update(context);
+        self.engine_nacelles.update(context);
         // After the fuel system: the LP valve starvation also cuts the engine fuel.
         self.engine_failures.update(
             context,
             [1, 2, 3, 4].map(|engine_number| self.fuel.engine_is_starved(engine_number)),
+            self.fadec_power.engine_supplies(),
         );
         self.engine_malfunctions.update(context);
 
@@ -476,12 +488,14 @@ impl Aircraft for A380 {
         let reversers_deployment_inhibited = self
             .engine_control_failures
             .reversers_deployment_inhibited();
-        for (controller, inhibited) in self
+        for ((controller, inhibited), engine_number) in self
             .engine_reverser_control
             .iter_mut()
             .zip(reversers_deployment_inhibited)
+            .zip([2, 3])
         {
             controller.set_deployment_inhibited(inhibited);
+            controller.set_eipm_failed(self.fadec_power.eipm_failed(engine_number));
         }
         self.engine_reverser_control[0].update(
             &self.engine_2,
@@ -545,6 +559,8 @@ impl SimulationElement for A380 {
         self.engine_monitoring_faults.accept(visitor);
         self.engine_malfunctions.accept(visitor);
         self.engine_control_failures.accept(visitor);
+        self.fadec_power.accept(visitor);
+        self.engine_nacelles.accept(visitor);
         self.electrical.accept(visitor);
         self.power_consumption.accept(visitor);
         accept_iterable!(self.ext_pwrs, visitor);
