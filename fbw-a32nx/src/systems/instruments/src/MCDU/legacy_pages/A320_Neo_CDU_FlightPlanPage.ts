@@ -27,6 +27,7 @@ import { formatWindPredictionMagnitude, formatWindPredictionDirection } from '@f
 import { PseudoWaypoint } from '@fmgc/guidance/PseudoWaypoint';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { flightPlanDistanceCell } from './FlightPlanDistanceCell';
 
 export const Markers = {
   FPLN_DISCONTINUITY: ['---F-PLN DISCONTINUITY--'],
@@ -440,17 +441,10 @@ export class CDUFlightPlanPage {
         const fixAnnotation = wp.annotation;
 
         // Distance
-        let distance = '';
         // Active waypoint is live distance, others are distances in the flight plan
-        if (isActive) {
-          if (Number.isFinite(mcdu.guidanceController.activeLegCompleteLegPathDtg)) {
-            distance = Math.round(
-              Math.max(0, Math.min(9999, mcdu.guidanceController.activeLegCompleteLegPathDtg)),
-            ).toFixed(0);
-          }
-        } else if (distanceFromLastLine !== undefined) {
-          distance = Math.round(Math.max(0, Math.min(9999, distanceFromLastLine))).toFixed(0);
-        }
+        const distance = flightPlanDistanceCell(
+          isActive ? mcdu.guidanceController.activeLegCompleteLegPathDtg : distanceFromLastLine,
+        );
 
         let fpa = '';
         if (wp.definition.verticalAngle !== undefined) {
@@ -745,7 +739,7 @@ export class CDUFlightPlanPage {
           active: isActive ?? false,
           ident: pwp.mcduIdent || pwp.ident,
           color,
-          distance: distance !== undefined ? Math.round(Math.max(0, Math.min(9999, distance))).toFixed(0) : '',
+          distance: flightPlanDistanceCell(distance),
           spdColor,
           speedConstraint: speed,
           altColor,
