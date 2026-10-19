@@ -4874,6 +4874,27 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True when both FADEC channels of the engine are lost: ENG 1(2) FADEC FAULT. The engine data are lost (A32NX_FADEC_POWERED_ENG{number} false, E/WD and SD XX), the FADEC no longer receives the A/THR orders (the A/THR disconnects) and the reverser no longer deploys; the engine keeps following its thrust lever. Written by the systems WASM
 
+- A32NX_ENGINE_{number}_EIU_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the FADEC of the engine no longer receives the data of its Engine Interface Unit: EIU failed (flyPad failure 73400/73401) or not powered (EIU 1: DC BUS 1 or DC ESS BUS, EIU 2: DC ESS BUS). The start of the engine, the A/THR orders to its FADEC and its reverser are lost; ENG 1(2) EIU FAULT with a powered FADEC. Written by the systems WASM (a320_systems engine_interface_unit.rs), read by the FWC and fbw.wasm (FadecFailureInputs.h)
+
+- A32NX_FADEC_CHANNEL_A_POWERED_ENG{number}
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when FADEC channel A of the engine is supplied: by the FADEC alternator above 8 % N2, otherwise by the DC ESS BUS (always in flight; on the ground with the ENG MODE selector out of NORM, the ENG FADEC GND PWR pb ON or the power-up timer running). Written by the MCDU (A32NX_FADEC.ts)
+
+- A32NX_FADEC_CHANNEL_B_POWERED_ENG{number}
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - As A32NX_FADEC_CHANNEL_A_POWERED_ENG{number} for channel B, whose network supply is DC BUS 1 (engine 1) or DC BUS 2 (engine 2). A32NX_FADEC_POWERED_ENG{number} is true while a supplied channel is not failed; while it is false the systems WASM opens no start valve (no crank, no start; ENG MASTER already ON starts nothing once the FADEC is powered again)
+
 - A32NX_ENGINE_{number}_FADEC_HI_TEMP
   - Bool
   - {number}

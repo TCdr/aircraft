@@ -12,6 +12,8 @@
  *   bleed system demand.
  * - Approach idle, in flight with the FLAPS lever not at 0: a fixed margin above the minimum idle of the altitude, whatever the
  *   bleed demand, so that the engine accelerates quickly from idle to go-around thrust.
+ * - Approach idle also, on ground and in flight, when a FADEC no longer receives the data of its Engine Interface Unit (FLAPS
+ *   lever, ground / flight): the minimum idle is lost (ENG 1(2) EIU FAULT, STATUS "APPR IDLE ONLY").
  *
  * The minimum idle itself (Tables1502_A32NX::iCN2) stays the idle of the start sequence: a start ends there, then the thrust loop
  * takes the engine to the idle setting.
@@ -36,7 +38,10 @@ constexpr double WING_ANTI_ICE_IDLE_CN2_INCREASE_PERCENT   = 2.5;
 // level, so that approach idle is always the higher idle.
 constexpr double APPROACH_IDLE_CN2_INCREASE_PERCENT = 6.0;
 
-inline IdleMode idleMode(bool onGround, double flapsHandleIndex) {
+inline IdleMode idleMode(bool onGround, double flapsHandleIndex, bool eiuDataLost) {
+  if (eiuDataLost) {
+    return IdleMode::APPROACH;
+  }
   const bool flapsLeverAtZero = flapsHandleIndex < 0.5;
   return (onGround || flapsLeverAtZero) ? IdleMode::MODULATED : IdleMode::APPROACH;
 }

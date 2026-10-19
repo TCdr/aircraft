@@ -362,6 +362,10 @@ pub struct EngineStartSequence {
     continuous_ignition_armed: bool,
     continuous_ignition: bool,
     igniters: Igniters,
+    /// The igniters whose electrical supply is powered (see [`Self::set_powered_igniters`]).
+    powered_igniters: Igniters,
+    /// See [`Self::set_start_commands_lost`].
+    start_commands_lost: bool,
 
     fuel_cut: bool,
     starter_motoring: bool,
@@ -449,6 +453,8 @@ impl EngineStartSequence {
             continuous_ignition_armed: false,
             continuous_ignition: false,
             igniters: Igniters::NONE,
+            powered_igniters: Igniters::BOTH,
+            start_commands_lost: false,
             fuel_cut: false,
             starter_motoring: false,
             n2_hang: false,
@@ -488,7 +494,9 @@ impl EngineStartSequence {
             self.start_fault = EngineStartFault::None;
         }
 
-        if !on_ground {
+        if self.start_commands_lost || !on_ground {
+            // Without its start commands the FADEC no longer sees the ENG MASTER: no start, and a
+            // start in progress ends.
             // The start sequence, its automatic abort and the cranks are ground functions. In flight
             // the A320 FADEC always commands a starter-assisted air start and the A380 FADEC does
             // not abort an automatic start: see engine_failure for the relight.
@@ -525,13 +533,14 @@ impl EngineStartSequence {
 
         self.fuel_cut = on_ground
             && !inputs.preset_quick_mode
-            && match self.phase {
-                EngineStartPhase::Starting => !self.lit,
-                EngineStartPhase::AutomaticCrank
-                | EngineStartPhase::Aborted
-                | EngineStartPhase::WetCrank => true,
-                EngineStartPhase::None | EngineStartPhase::Motoring => false,
-            };
+            && (self.start_impossible(inputs)
+                || match self.phase {
+                    EngineStartPhase::Starting => !self.lit,
+                    EngineStartPhase::AutomaticCrank
+                    | EngineStartPhase::Aborted
+                    | EngineStartPhase::WetCrank => true,
+                    EngineStartPhase::None | EngineStartPhase::Motoring => false,
+                });
 
         let lit_start = self.phase == EngineStartPhase::Starting && self.lit;
         self.n2_hang = lit_start
@@ -551,6 +560,7 @@ impl EngineStartSequence {
             schedule.starter_engagement_max_n2,
         );
         self.start_valve_command = match self.phase {
+            _ if self.start_commands_lost => StartValveCommand::Closed,
             EngineStartPhase::None => StartValveCommand::FadecSchedule,
             EngineStartPhase::Motoring
             | EngineStartPhase::Starting
@@ -1156,6 +1166,9 @@ impl EngineStartSequence {
         if inputs.fire_push_button_is_released || !inputs.master_switch_is_on {
             return Igniters::NONE;
         }
+        if self.start_impossible(inputs) {
+            return Igniters::NONE;
+        }
         if on_ground && self.phase != EngineStartPhase::None {
             return self.ground_start_igniters(schedule, inputs);
         }
@@ -1173,6 +1186,11 @@ impl EngineStartSequence {
         Igniters::NONE
     }
 
+    /// Without the start commands an engine that does not run can neither start nor relight.
+    fn start_impossible(&self, inputs: &EngineStartInputs) -> bool {
+        self.start_commands_lost && inputs.engine_state != EngineState::On
+    }
+
     /// Manual selection: in flight the continuous ignition is on with the ENG MODE selector at
     /// IGN/START and the engine running. On the ground the ignition cuts off by itself after the
     /// start, so the crew sets the selector to NORM then back to IGN/START to turn it on.
@@ -1181,7 +1199,9 @@ impl EngineStartSequence {
     /// the conditions of the automatic selection come from the aircraft ([`EngineStartInputs::automatic_continuous_ignition`]). They need no
     /// NORM then IGN/START on the ground.
     fn continuous_ignition_is_on(&self, inputs: &EngineStartInputs, on_ground: bool) -> bool {
-        let manual_selection = inputs.mode_selector == EngineModeSelector::Ignition
+        // The ENG MODE selector reaches the FADEC with the start commands.
+        let manual_selection = !self.start_commands_lost
+            && inputs.mode_selector == EngineModeSelector::Ignition
             && (!on_ground || self.continuous_ignition_armed);
         inputs.master_switch_is_on
             && !inputs.fire_push_button_is_released
@@ -1189,21 +1209,46 @@ impl EngineStartSequence {
             && (manual_selection || inputs.automatic_continuous_ignition)
     }
 
-    /// The A320 continuous ignition uses one igniter, and both if it has failed (design choice:
+    /// The A320 continuous ignition uses one igniter, and both if it does not work (design choice:
     /// igniter A); the A380 continuous ignition uses both igniters.
     fn continuous_ignition_igniters(&self, schedule: &EngineStartSchedule) -> Igniters {
-        if schedule.continuous_ignition_uses_both_igniters || self.igniter_a_failure.is_active() {
+        if schedule.continuous_ignition_uses_both_igniters || !self.igniter_a_works() {
             Igniters::BOTH
         } else {
             Igniters::single(false)
         }
     }
 
+    /// An igniter works when it has not failed and its electrical supply is powered.
+    fn igniter_a_works(&self) -> bool {
+        self.powered_igniters.a && !self.igniter_a_failure.is_active()
+    }
+
+    fn igniter_b_works(&self) -> bool {
+        self.powered_igniters.b && !self.igniter_b_failure.is_active()
+    }
+
     fn working(&self, igniters: Igniters) -> Igniters {
         Igniters {
-            a: igniters.a && !self.igniter_a_failure.is_active(),
-            b: igniters.b && !self.igniter_b_failure.is_active(),
+            a: igniters.a && self.igniter_a_works(),
+            b: igniters.b && self.igniter_b_works(),
         }
+    }
+
+    /// The igniters whose electrical supply is powered (both until the aircraft sets them). An
+    /// igniter without power does not light the engine, as a failed one, but it is no IGN FAULT.
+    pub fn set_powered_igniters(&mut self, powered: Igniters) {
+        self.powered_igniters = powered;
+    }
+
+    /// The FADEC no longer receives the start commands of the aircraft (ENG MASTER, ENG MODE
+    /// selector, ENG MAN START), which reach it through the A320 Engine Interface Unit (ENG EIU
+    /// FAULT: the start of the engine is lost). Call it before [`Self::update`]. No start sequence
+    /// and no relight: the start valve stays closed, the fuel of an engine that does not run stays
+    /// cut on the ground and no igniter is energized; the manual continuous ignition is lost. A
+    /// running engine keeps running.
+    pub fn set_start_commands_lost(&mut self, lost: bool) {
+        self.start_commands_lost = lost;
     }
 
     /// The fuel of the engine is cut by the start sequence (start not lit yet, crank, abort).
@@ -1230,9 +1275,10 @@ impl EngineStartSequence {
             && self.pre_start_motoring_remaining > Duration::ZERO
     }
 
-    /// At least one igniter works: an in-flight relight can light up.
+    /// At least one igniter works and the FADEC receives the start commands: an in-flight relight
+    /// can light up.
     pub fn ignition_is_available(&self) -> bool {
-        !(self.igniter_a_failure.is_active() && self.igniter_b_failure.is_active())
+        !self.start_commands_lost && (self.igniter_a_works() || self.igniter_b_works())
     }
 
     /// The starter does not turn the engine: no starter-assisted relight in flight.
@@ -1603,6 +1649,20 @@ mod tests {
         fn failing(mut self, failure: FailureType) -> Self {
             self.fail(failure);
             self.and_run()
+        }
+
+        fn powered_igniters(mut self, powered: Igniters) -> Self {
+            self.command(|a: &mut TestAircraft| a.sequence.set_powered_igniters(powered));
+            self
+        }
+
+        fn start_commands_lost(mut self, lost: bool) -> Self {
+            self.command(|a: &mut TestAircraft| a.sequence.set_start_commands_lost(lost));
+            self
+        }
+
+        fn ignition_is_available(&self) -> bool {
+            self.query(|a| a.sequence.ignition_is_available())
         }
 
         fn phase(&self) -> EngineStartPhase {
@@ -2939,6 +2999,124 @@ mod tests {
             .automatic_start()
             .core_at_light_up_speed();
         assert!(!test_bed.query(|a| a.sequence.pre_start_motoring_in_progress()));
+        assert!(!test_bed.fuel_is_cut());
+    }
+
+    #[test]
+    fn an_unpowered_igniter_gives_no_light_up_and_no_ignition_fault() {
+        let mut test_bed = StartTestBed::new()
+            .powered_igniters(IGNITER_B)
+            .automatic_start()
+            .core_at_light_up_speed();
+        // the first attempt energizes igniter A, which has no power: no light up
+        assert_eq!(test_bed.igniters(), IGNITER_A);
+        assert!(test_bed.fuel_is_cut());
+        assert!(!test_bed.flag("IGNITER_A_FAULT"));
+
+        test_bed = test_bed.and_run_for(Duration::from_secs(19));
+        assert_eq!(test_bed.fault(), EngineStartFault::NoLightUp);
+
+        // the new attempt with both igniters lights up with igniter B
+        test_bed = test_bed.and_run_for(Duration::from_secs(30));
+        assert_eq!(test_bed.attempt(), 2);
+        assert!(!test_bed.fuel_is_cut());
+    }
+
+    #[test]
+    fn the_continuous_ignition_uses_both_igniters_when_igniter_a_has_no_power() {
+        let test_bed = StartTestBed::new()
+            .in_flight()
+            .powered_igniters(IGNITER_B)
+            .master(true)
+            .engine_state(EngineState::On)
+            .n2(80.)
+            .selector(EngineModeSelector::Ignition)
+            .and_run();
+        assert_eq!(test_bed.igniters(), Igniters::BOTH);
+    }
+
+    #[test]
+    fn without_a_powered_igniter_no_relight_is_available() {
+        let mut test_bed = StartTestBed::new().in_flight().and_run();
+        assert!(test_bed.ignition_is_available());
+        test_bed = test_bed.powered_igniters(IGNITER_A).and_run();
+        assert!(test_bed.ignition_is_available());
+        test_bed = test_bed.powered_igniters(Igniters::NONE).and_run();
+        assert!(!test_bed.ignition_is_available());
+    }
+
+    #[test]
+    fn without_the_start_commands_the_engine_does_not_start_on_the_ground() {
+        let mut test_bed = StartTestBed::new()
+            .start_commands_lost(true)
+            .automatic_start()
+            .core_at_light_up_speed();
+        assert_eq!(test_bed.phase(), EngineStartPhase::None);
+        assert_eq!(test_bed.valve_command(), StartValveCommand::Closed);
+        assert_eq!(test_bed.igniters(), Igniters::NONE);
+        assert!(test_bed.fuel_is_cut());
+
+        // the start commands come back: the next ENG MASTER ON starts the engine
+        test_bed = test_bed
+            .start_commands_lost(false)
+            .master(false)
+            .automatic_start();
+        assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
+        assert_eq!(test_bed.valve_command(), StartValveCommand::Open);
+    }
+
+    #[test]
+    fn a_start_in_progress_ends_when_the_start_commands_are_lost() {
+        let test_bed = StartTestBed::new()
+            .automatic_start()
+            .n2(18.)
+            .and_run()
+            .start_commands_lost(true)
+            .and_run();
+        assert_eq!(test_bed.phase(), EngineStartPhase::None);
+        assert_eq!(test_bed.valve_command(), StartValveCommand::Closed);
+        assert_eq!(test_bed.igniters(), Igniters::NONE);
+        assert!(test_bed.fuel_is_cut());
+    }
+
+    #[test]
+    fn without_the_start_commands_there_is_no_relight_in_flight() {
+        let test_bed = StartTestBed::new()
+            .in_flight()
+            .start_commands_lost(true)
+            .master(true)
+            .engine_state(EngineState::Restarting)
+            .n2(10.)
+            .and_run();
+        assert_eq!(test_bed.igniters(), Igniters::NONE);
+        assert_eq!(test_bed.valve_command(), StartValveCommand::Closed);
+        assert!(!test_bed.ignition_is_available());
+    }
+
+    #[test]
+    fn without_the_start_commands_a_running_engine_keeps_running_and_its_automatic_ignition() {
+        let mut test_bed = StartTestBed::new()
+            .in_flight()
+            .start_commands_lost(true)
+            .master(true)
+            .engine_state(EngineState::On)
+            .n2(80.)
+            .selector(EngineModeSelector::Ignition)
+            .and_run();
+        // the FADEC no longer sees the ENG MODE selector at IGN: no manual continuous ignition
+        assert!(!test_bed.fuel_is_cut());
+        assert_eq!(test_bed.igniters(), Igniters::NONE);
+        assert!(!test_bed.flag("CONTINUOUS_IGNITION"));
+
+        test_bed = test_bed
+            .with(|inputs| inputs.automatic_continuous_ignition = true)
+            .and_run();
+        assert_eq!(test_bed.igniters(), IGNITER_A);
+        assert!(test_bed.flag("CONTINUOUS_IGNITION"));
+
+        // on the ground too, the fuel of the running engine is not cut
+        test_bed.set_on_ground(true);
+        test_bed = test_bed.and_run();
         assert!(!test_bed.fuel_is_cut());
     }
 

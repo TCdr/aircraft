@@ -370,6 +370,9 @@ const EwdMessages = new Map<
   ['770731205', { text: '\x1b<4m HP FUEL POS SWT FAULT' }],
   ['770732101', { group: 'ENG$5', text: ' 1 FADEC ALTERNATOR' }],
   ['770732201', { group: 'ENG$5', text: ' 2 FADEC ALTERNATOR' }],
+  // ENG 1(2) EIU FAULT, FWC/Logic/EngineInterfaceUnitAlerts
+  ['770773101', { group: 'ENG$5', text: ' 1 EIU FAULT' }],
+  ['770773201', { group: 'ENG$5', text: ' 2 EIU FAULT' }],
   ['770733101', { group: 'ENG$5', text: ' 1 OVSPD PROT FAULT' }],
   ['770733201', { group: 'ENG$5', text: ' 2 OVSPD PROT FAULT' }],
   ['770734101', { group: 'ENG$5', text: ' 1 PROBES FAULT' }],

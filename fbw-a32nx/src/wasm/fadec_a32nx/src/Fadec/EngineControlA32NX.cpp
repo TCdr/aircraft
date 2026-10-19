@@ -489,7 +489,10 @@ void EngineControl_A32NX::updateIdleSetting(double pressAltitude, double mach, d
   const IdleControl_A32NX::BleedDemand bleedDemand{packsOn && engineBleedSupplies, nacelleAntiIce,
                                                    simData.wingAntiIce->getAsBool() && engineBleedSupplies};
 
-  const IdleControl_A32NX::IdleMode mode = IdleControl_A32NX::idleMode(onGround, simData.flapsHandleIndex->get());
+  // Design choice: one idle setting for both engines (one idle thrust limit), so an EIU lost on either engine gives both the
+  // approach idle.
+  const bool eiuDataLost = simData.engineEiuFault[L]->getAsBool() || simData.engineEiuFault[R]->getAsBool();
+  const IdleControl_A32NX::IdleMode mode = IdleControl_A32NX::idleMode(onGround, simData.flapsHandleIndex->get(), eiuDataLost);
   const double idleSettingCN2 = Tables1502_A32NX::iCN2(pressAltitude, mach) + IdleControl_A32NX::idleCN2Increase(mode, bleedDemand);
   const double idleSettingN1  = Tables1502_A32NX::cn1AtCN2(idleSettingCN2, mach) * sqrt(EngineRatios::theta2(0, ambientTemp));
 

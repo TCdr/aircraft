@@ -299,6 +299,9 @@ pub enum FailureType {
     ThrustLeverResolvers(usize),
     /// The two resolvers of thrust lever n disagree (A320 ENG THR LEVER DISAGREE)
     ThrustLeverResolverDisagree(usize),
+    /// The Engine Interface Unit of engine n no longer sends the aircraft data to its FADEC (A320
+    /// ENG EIU FAULT)
+    EngineInterfaceUnit(usize),
     /// The fuel filter of engine n is clogged: a crew awareness indication (engine::fuel_filter_failure)
     EngineFuelFilterClog(usize),
     /// The HP fuel shutoff valve of engine n sticks in its position (engine::hp_fuel_valve_failure)
