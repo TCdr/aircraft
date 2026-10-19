@@ -74,6 +74,7 @@ import {
 import { fcomAt, fcomCentre, fcomLine, fcomRight, fcomTabBar } from '../common/FcomLayout';
 import { longRangeCruiseMach, maxTurbulenceMach, maxTurbulenceSpeedKnots } from '../../FMC/CruiseSpeeds';
 import { TAKEOFF_DERATE_LEVELS, takeoffThrustOptionsDisabled, writeTakeoffDerate } from '../../shared/TakeoffDerate';
+import { CLIMB_DERATE_LEVELS } from '../../shared/ClimbDerate';
 
 interface MfdFmsPerfProps extends AbstractMfdPageProps {}
 
@@ -378,8 +379,8 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
   /** T.O FLAPS lever positions (1, 2 or 3) */
   private readonly toFlapsLabels = ArraySubject.create(['1', '2', '3']);
 
-  /** DERATED CLB levels (NONE and up to five derated climb levels) */
-  private readonly climbDeratedLabels = ArraySubject.create(['NONE', '01', '02', '03', '04', '05']);
+  /** DERATED CLB levels: NONE and the derated climb levels of the engine */
+  private readonly climbDeratedLabels = ArraySubject.create([...CLIMB_DERATE_LEVELS]);
 
   private toThrustSettingChanged(newIndex: TakeoffPowerSetting) {
     const fpIndex = this.loadedFlightPlanIndex.get();
@@ -2148,7 +2149,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                     <span class="mfd-label mfd-spacing-right">DERATED CLB</span>
                     <DropdownMenu
                       values={this.climbDeratedLabels}
-                      inactive={Subject.create(true)}
+                      inactive={this.clbPageInactive}
                       selectedIndex={this.climbDerated as Subscribable<ClimbDerated>}
                       onModified={(i, text) => {
                         const v = dropdownEntryIndex(this.climbDeratedLabels, i, text);

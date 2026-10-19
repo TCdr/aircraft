@@ -833,11 +833,10 @@ export enum CostIndexMode {
   ECON = 1,
 }
 
+/** The derated climb levels of the engine (the MFD list holds up to five, the A380 engine defines three) */
 export enum ClimbDerated {
   NONE = 0,
   D01 = 1,
   D02 = 2,
   D03 = 3,
-  D04 = 4,
-  D05 = 5,
 }

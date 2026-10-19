@@ -412,6 +412,7 @@ void FlyByWireInterface::setupLocalVariables() {
   }
 
   idEngineIdleN3 = std::make_unique<LocalVariable>("A32NX_ENGINE_IDLE_N3");
+  idEngineIdleN1 = std::make_unique<LocalVariable>("A32NX_ENGINE_IDLE_N1");
   idAutothrustStatus = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_STATUS");
   idAutothrustMode = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_MODE");
   idAutothrustModeMessage = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_MODE_MESSAGE");
@@ -3032,10 +3033,11 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   // In flight, an engine out or (re)starting is held at idle and accelerates from idle once it runs: without this the thrust loop
   // wound the MSFS throttle up during the start and MSFS took the engine to its N3 limit at the end (see EngineStartThrottleHold.h).
   // On the ground as soon as any main gear is compressed (ground starts are unchanged). The loop target is its N1 command of the
-  // previous frame.
+  // previous frame. The start ends at the minimum idle (MSFS at its throttle idle stop), not at the raised idle the FADEC may
+  // select (approach idle, bleed demand): the idle thrust limit can be higher.
   const EngineStartThrottleHold::Output engineStartThrottle = engineStartThrottleHolds[fadecIndex].update(
       {anyMainGearCompressed, idEngineState[fadecIndex]->get(), fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent,
-       fadecInputs[fadecIndex].in.input.thrust_limit_IDLE_percent, fadecOutputs[fadecIndex].N1_c_percent, sampleTime, engine_N2_percent,
+       idEngineIdleN1->get(), fadecOutputs[fadecIndex].N1_c_percent, sampleTime, engine_N2_percent,
        idEngineIdleN3->get(), idEngineStallN1Loss[fadecIndex]->get()});
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = engineStartThrottle.loopCommandedN1;
 

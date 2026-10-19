@@ -2924,6 +2924,18 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - Number (percent)
   - The DOx derated takeoff of the MFD PERF T.O panel (DERATED D04, D08, D12, D16, D20, D24): the thrust reduction in percent (4 to 24), 0 when TOGA or FLEX is selected (A380 FCOM DSC-70-20-40). The FADECs (fadec_a380x TakeoffDerate_A380X.hpp) write the derated rating as the FLX limit and the FADEC models of the fbw module take their FLX path for it (TakeoffDerate.h); the E/WD shows the level in place of FLX, the FWS takes the FLX/MCT detent as take-off power and TOGA as ENG THR LEVERS NOT SET. Written by the MFD (MFD/shared/TakeoffDerate.ts)
 
+- A32NX_AIRLINER_CLIMB_DERATE
+  - Number
+  - The DERATED CLB entry of the MFD PERF CLB panel of the active flight plan: the derated climb level 1 to 3 (DCL1 to DCL3), 0 for NONE. Written by the FMC (MFD/shared/ClimbDerate.ts), read by the FADECs (fadec_a380x DeratedClimb_A380X.hpp)
+
+- A32NX_FADEC_DERATED_CLIMB_LEVEL
+  - Number
+  - The derated climb level the FADECs apply, 1 to 3, 0 for none: the MFD selection, cancelled once the thrust levers leave the CL detent in flight after it was applied there (until a new MFD selection or the next flight). The CLB limit (A32NX_AUTOTHRUST_THRUST_LIMIT_CLB) is the maximum climb thrust reduced by 8, 16 or 24 %, washed out to the maximum climb thrust from 29 000, 25 000 or 21 000 ft up to 35 000 ft. The E/WD shows DCLB1 to DCLB3 in place of CLB. Written by the FADECs (fadec_a380x)
+
+- A32NX_AUTOTHRUST_THRUST_LIMIT_IDLE
+  - Number (percent N1)
+  - The idle the engines run at: the minimum idle (A32NX_ENGINE_IDLE_N1), raised by the FADEC idle setting (fadec_a380x IdleSetting_A380X.hpp): approach idle in flight with the FLAPS lever at 2, 3 or FULL or the landing gear down, and the normal idle raised for the packs, engine and wing anti-ice and a high oil temperature. The E/WD IDLE indication compares the N1 with it. A32NX_ENGINE_IDLE_N1 / _N3 stay the minimum idle, where the start sequence ends. Written by the FADECs (fadec_a380x)
+
 - A32NX_ENGINE_{number}_FUEL_CUT
   - Bool
   - {number}

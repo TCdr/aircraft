@@ -221,6 +221,10 @@ class FadecSimData_A380X {
   // LVars
   NamedVariablePtr airlinerToFlexTemp;  // Celsius
   NamedVariablePtr airlinerToDerate;    // Percent of thrust reduction of the DOx derated takeoff, 0 none (MFD PERF T.O)
+  NamedVariablePtr airlinerClimbDerate;               // Number - the DCLB derated climb level 1 to 3, 0 none (MFD PERF CLB)
+  NamedVariablePtr deratedClimbLevel;                 // Number - the derated climb level the FADECs apply, 0 none (E/WD rating)
+  NamedVariablePtr flapsHandleIndex;                  // Enum - FLAPS lever: 0, 1, 2, 3, 4 (FULL)
+  NamedVariablePtr lgciuLeftMainGearDownlocked[2];    // Bool - LGCIU 1 and 2
   NamedVariablePtr apuRpmPercent;       // Percent
   NamedVariablePtr engineEgt[4];        // Celsius
   NamedVariablePtr engineFF[4];         // kg/hour
@@ -559,6 +563,11 @@ class FadecSimData_A380X {
     refuelStartedByUser = dm->make_named_var("A32NX_REFUEL_STARTED_BY_USR", UNITS.Number, AUTO_READ);
     airlinerToFlexTemp  = dm->make_named_var("A32NX_AIRLINER_TO_FLEX_TEMP", UNITS.Number, AUTO_READ);
     airlinerToDerate    = dm->make_named_var("A32NX_AIRLINER_TO_DERATE", UNITS.Number, AUTO_READ);
+    airlinerClimbDerate            = dm->make_named_var("A32NX_AIRLINER_CLIMB_DERATE", UNITS.Number, AUTO_READ);
+    deratedClimbLevel              = dm->make_named_var("A32NX_FADEC_DERATED_CLIMB_LEVEL", UNITS.Number, AUTO_WRITE);
+    flapsHandleIndex               = dm->make_named_var("A32NX_FLAPS_HANDLE_INDEX", UNITS.Number, AUTO_READ);
+    lgciuLeftMainGearDownlocked[0] = dm->make_named_var("A32NX_LGCIU_1_LEFT_GEAR_DOWNLOCKED", UNITS.Bool, AUTO_READ);
+    lgciuLeftMainGearDownlocked[1] = dm->make_named_var("A32NX_LGCIU_2_LEFT_GEAR_DOWNLOCKED", UNITS.Bool, AUTO_READ);
     apuRpmPercent      = dm->make_named_var("A32NX_APU_N_RAW", UNITS.Number, AUTO_READ);
 
     fadecQuickMode = dm->make_named_var("A32NX_AIRCRAFT_PRESET_QUICK_MODE", UNITS.Number, AUTO_READ);
