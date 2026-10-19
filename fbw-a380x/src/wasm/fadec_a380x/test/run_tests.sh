@@ -18,6 +18,10 @@ clang++ -std=c++20 -Wall -Wextra -Werror igniter_supply_test.cpp -o ../obj/ignit
 ../obj/igniter_supply_test
 clang++ -std=c++20 -Wall -Wextra -Werror takeoff_derate_test.cpp -o ../obj/takeoff_derate_test
 ../obj/takeoff_derate_test
+clang++ -std=c++20 -Wall -Wextra -Werror derated_climb_test.cpp -o ../obj/derated_climb_test
+../obj/derated_climb_test
+clang++ -std=c++20 -Wall -Wextra -Werror idle_setting_test.cpp -o ../obj/idle_setting_test
+../obj/idle_setting_test
 clang++ -std=c++20 -Wall -Wextra -Werror shutdown_n3_rundown_test.cpp -o ../obj/shutdown_n3_rundown_test
 ../obj/shutdown_n3_rundown_test
 # With WITHOUT_THE_FIX=1 the start sequence test uses the FADEC decisions before the start sequence and must fail.

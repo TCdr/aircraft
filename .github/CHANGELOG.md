@@ -797,6 +797,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FADEC] FADEC NORMAL and DEGRADED (N1) modes: the FADECs cross-check their air data with the ADIRUs and revert to N1 control when P0, PT or TAT is lost (all ADRs off and an engine SENSOR FAULT); the E/WD shows the N1 gauge instead of THR, the thrust is kept until the lever moves (ENG THRUST LOCKED) and the A/THR is lost with three or four degraded engines - @TCdr
 1. [A380X/EWD] The THR gauge now shows the engine thrust in percent of the TOGA thrust with the bleed off, from the N1, Mach and TAT, instead of a linear N1 scale - @TCdr
 1. [A380X/EWD] ENG CTL SYS FAULT strikes out the last digits of the N1 on the E/WD and of the N2, N3 and fuel flow on the SD ENG page (degraded accuracy) - @TCdr
+1. [A380X/FADEC] Approach idle: in flight with the FLAPS lever at 2, 3 or FULL or the landing gear down the engines idle higher for a quick go-around acceleration; the normal idle now also rises with the packs, engine and wing anti-ice and a high oil temperature - @TCdr
+1. [A380X/FADEC] Derated climb: DERATED CLB on the MFD PERF CLB panel offers the three levels of the engine (01 to 03) and reduces the climb thrust by 8, 16 or 24 % with a washout to the maximum climb thrust at high altitude; the E/WD shows DCLB1 to DCLB3; NONE or moving the thrust levers out of the CL detent and back cancels it - @TCdr
 
 ## 2024.1.0
 

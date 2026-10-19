@@ -20,7 +20,10 @@ export class Idle extends DisplayComponent<IdleProps> {
 
   private readonly fwcFlightPhase = ConsumerSubject.create(this.sub.on('fwc_flight_phase').whenChanged(), 0);
 
-  private readonly n1Idle = ConsumerSubject.create(this.sub.on('n1Idle').withPrecision(1).whenChanged(), 0);
+  private readonly idleThrustLimitN1 = ConsumerSubject.create(
+    this.sub.on('thrust_limit_idle').withPrecision(1).whenChanged(),
+    0,
+  );
 
   private readonly visible = MappedSubject.create(
     ([e1, e2, e3, e4, fp, idle]) => (isIdleIndicationShown([e1, e2, e3, e4], idle, fp) ? 'inherit' : 'hidden'),
@@ -29,7 +32,7 @@ export class Idle extends DisplayComponent<IdleProps> {
     this.n1[2],
     this.n1[3],
     this.fwcFlightPhase,
-    this.n1Idle,
+    this.idleThrustLimitN1,
   );
 
   render() {

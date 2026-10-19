@@ -34,6 +34,8 @@ export interface BaseEwdSimvars {
   flex: number;
   /** the DOx derated takeoff of the MFD PERF T.O panel: thrust reduction in percent, 0 none */
   takeoffDerate: number;
+  /** the derated climb level the FADECs apply (DCLB1 to DCLB3), 0 none */
+  deratedClimbLevel: number;
   athrTogaWarning: boolean;
   cpiomB1AgsDiscreteRaw: number;
   cpiomB2AgsDiscreteRaw: number;
@@ -118,6 +120,7 @@ export class EwdSimvarPublisher extends SimVarPublisher<EwdSimvars> {
       ['n1Idle', { name: 'L:A32NX_ENGINE_IDLE_N1', type: SimVarValueType.Number }],
       ['flex', { name: 'L:A32NX_AIRLINER_TO_FLEX_TEMP', type: SimVarValueType.Number }],
       ['takeoffDerate', { name: 'L:A32NX_AIRLINER_TO_DERATE', type: SimVarValueType.Number }],
+      ['deratedClimbLevel', { name: 'L:A32NX_FADEC_DERATED_CLIMB_LEVEL', type: SimVarValueType.Number }],
       ['athrTogaWarning', { name: 'L:A32NX_AUTOTHRUST_THRUST_LEVER_WARNING_TOGA', type: SimVarValueType.Bool }],
       ['cpiomB1AgsDiscreteRaw', { name: 'L:A32NX_COND_CPIOM_B1_AGS_DISCRETE_WORD', type: SimVarValueType.Number }],
       ['cpiomB2AgsDiscreteRaw', { name: 'L:A32NX_COND_CPIOM_B2_AGS_DISCRETE_WORD', type: SimVarValueType.Number }],

@@ -118,6 +118,7 @@ import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvent
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
 import { engineFailureCreatesEngineOutSid } from './EngineOutSid';
 import { writeTakeoffDerate } from '../shared/TakeoffDerate';
+import { ClimbDerateOutput } from '../shared/ClimbDerate';
 
 export interface FmsErrorMessage {
   message: McduMessage;
@@ -201,6 +202,8 @@ export class FlightManagementComputer implements FmcInterface {
   }
 
   private fmsUpdateThrottler = new UpdateThrottler(FMS_CYCLE_TIME);
+
+  private readonly climbDerateOutput = new ClimbDerateOutput();
 
   private efisInterfaces = {
     L: new EfisInterface(
@@ -2522,6 +2525,7 @@ export class FlightManagementComputer implements FmcInterface {
         this.acInterface.checkGpsDeselected();
         const toFlaps = this.fmgc.getTakeoffFlapsSetting();
         this.acInterface.setTakeoffFlaps(toFlaps ?? null);
+        this.climbDerateOutput.write(this.flightPlanInterface.active.performanceData.climbDerated?.get());
 
         const thsFor = this.flightPlanInterface.active.performanceData.takeoffThsFor.get();
         if (thsFor) {

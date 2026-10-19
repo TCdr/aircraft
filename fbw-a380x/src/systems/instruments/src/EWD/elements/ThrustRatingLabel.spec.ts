@@ -7,16 +7,24 @@ import { thrustRatingModeLabel } from './ThrustRatingLabel';
 describe('E/WD thrust rating mode', () => {
   // 6 derated takeoff levels: D04, D08, D12, D16, D20, D24
   it('shows the derated takeoff level in place of FLX', () => {
-    expect(thrustRatingModeLabel(3, 4)).toBe('D04');
-    expect(thrustRatingModeLabel(3, 12)).toBe('D12');
-    expect(thrustRatingModeLabel(3, 24)).toBe('D24');
+    expect(thrustRatingModeLabel(3, 4, 0)).toBe('D04');
+    expect(thrustRatingModeLabel(3, 12, 0)).toBe('D12');
+    expect(thrustRatingModeLabel(3, 24, 0)).toBe('D24');
+  });
+
+  // 3 derated climb levels: DCLB1, DCLB2, DCLB3
+  it('shows the derated climb level in place of CLB', () => {
+    expect(thrustRatingModeLabel(1, 0, 1)).toBe('DCLB1');
+    expect(thrustRatingModeLabel(1, 0, 2)).toBe('DCLB2');
+    expect(thrustRatingModeLabel(1, 12, 3)).toBe('DCLB3');
   });
 
   it('keeps the other modes', () => {
-    expect(thrustRatingModeLabel(3, 0)).toBe('FLX');
-    expect(thrustRatingModeLabel(4, 12)).toBe('TOGA');
-    expect(thrustRatingModeLabel(1, 12)).toBe('CLB');
-    expect(thrustRatingModeLabel(2, 0)).toBe('MCT');
-    expect(thrustRatingModeLabel(0, 0)).toBe('');
+    expect(thrustRatingModeLabel(3, 0, 0)).toBe('FLX');
+    expect(thrustRatingModeLabel(4, 12, 2)).toBe('TOGA');
+    expect(thrustRatingModeLabel(1, 12, 0)).toBe('CLB');
+    expect(thrustRatingModeLabel(2, 0, 2)).toBe('MCT');
+    expect(thrustRatingModeLabel(3, 0, 2)).toBe('FLX');
+    expect(thrustRatingModeLabel(0, 0, 0)).toBe('');
   });
 });

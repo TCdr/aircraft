@@ -78,7 +78,7 @@ class IgniterSelection_A380X {
     double n1Percent;          // FBW N1 (A32NX_ENGINE_N1)
     double deltaTime;          // seconds since the previous update
     double precipitationRateMmPerHour;  // AMBIENT PRECIP RATE (rain; MSFS has no hail)
-    double idleN1Percent;               // the idle N1 of the FADEC (A32NX_ENGINE_IDLE_N1)
+    double idleN1Percent;               // the idle N1 the engine runs at (A32NX_AUTOTHRUST_THRUST_LIMIT_IDLE)
   };
 
   /**
