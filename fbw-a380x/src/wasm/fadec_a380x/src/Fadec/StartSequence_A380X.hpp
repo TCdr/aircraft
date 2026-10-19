@@ -23,6 +23,8 @@
  * - a start attempt whose fuel the start sequence cuts is still a start (STARTING), not a shutdown;
  * - on the ground, during such a start, a core whose starter does not get air (start valve stuck closed, no starter air,
  *   starter failure) is brought to rest by the FADEC (MSFS corrected N2), so that it does not turn;
+ * - on the ground, an engine that is OFF with its ENG MASTER ON is held at rest the same way while the start sequence does not
+ *   motor it: no start valve opens (unpowered FADEC, ENG START selector at NORM), so the starter gets no air;
  * - the ENG MASTER OFF stops the MSFS starter: a dry crank with the master OFF is not modelled on the A380X.
  *
  * No MSFS SDK dependency: tested natively (test/run_tests.sh).
@@ -84,6 +86,31 @@ inline bool engineMasterOn(bool simStarter, bool startSequenceCranks) {
  */
 inline bool coreHeldAtRest(bool startSequenceKeepsStarter, bool starterMotoring) {
   return startSequenceKeepsStarter && !starterMotoring;
+}
+
+/// The starter engages only below 25 % N2 (the HP N3 of the Trent): a faster core is no core the starter turns, e.g. an engine
+/// that runs at the load of a flight before the FADEC sees it ON.
+constexpr double STARTER_ENGAGEMENT_MAX_N3 = 25.0;
+
+/// What decides whether the MSFS starter of an OFF engine may turn its core (offCoreHeldAtRest).
+struct OffEngineStarterInputs {
+  bool   simOnGround;
+  bool   engineMasterOn;   // engineMasterOn(): the MSFS starter follows the ENG MASTER lever
+  bool   starterMotoring;  // L:A32NX_ENGINE_n_STARTER_MOTORING
+  bool   simCombustion;    // GENERAL ENG COMBUSTION: MSFS burns in the engine
+  bool   presetQuickMode;  // the aircraft presets set the MSFS core themselves
+  double msfsN3;
+};
+
+/**
+ * @brief On the ground the FADEC holds the core of an OFF engine at rest while its ENG MASTER is ON and the start sequence does
+ * not motor it. The FADEC opens the start valve: an unpowered FADEC, or both channels failed, or the ENG START
+ * selector at NORM, opens none, and the starter gets no air. MSFS would still turn the core with the starter that follows the
+ * lever, and the FADEC alternator would power the FADEC at 12.5 % N3 and start the engine.
+ */
+inline bool offCoreHeldAtRest(const OffEngineStarterInputs& inputs) {
+  return inputs.simOnGround && inputs.engineMasterOn && !inputs.starterMotoring && !inputs.simCombustion &&
+         !inputs.presetQuickMode && inputs.msfsN3 < STARTER_ENGAGEMENT_MAX_N3;
 }
 
 /// The MSFS corrected N3 of a core brought to rest: it runs down with the time constant.

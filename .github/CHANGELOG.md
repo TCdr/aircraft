@@ -792,6 +792,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] Fuel used shown with amber dashes on the ENG and FUEL pages once the fuel flow was lost in flight for more than 1 min, until the next engine start on ground - @TCdr
 1. [A32NX/FADEC] Engine Interface Units: flyPad failure per EIU (also lost with its DC supply) and the ENG 1(2) EIU FAULT caution with its STATUS; without its EIU the engine cannot be started or relit, its reverser and the A/THR are lost - @TCdr
 1. [A32NX/FADEC] FADEC power: the FADEC alternator supplies both channels above 8 % N2, otherwise the aircraft network (DC ESS for channel A, DC 1/2 for channel B, always in flight); the igniters follow their AC supply (igniter A AC ESS / STAT INV, igniter B AC 1/2) - @TCdr
+1. [A380X/FADEC] The FADECs have their electrical supply: the FADEC alternator above 12.5 % N3, else the aircraft network through the EIPMs (ENG SD page XX and no engine start without it), two EEC channels with a change at each start and a takeover on a channel fault (MINOR FAULT), igniters, HP valve closure, reverser controllers and vibration monitoring on their buses, new flyPad failures for the EEC channels and the EIPMs - @TCdr
+1. [A380X/SD] The nacelle temperature on the ENGINE page follows the engine core temperature and pulses above 300 °C - @TCdr
 
 ## 2024.1.0
 

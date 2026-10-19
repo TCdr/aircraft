@@ -336,6 +336,23 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
     expect(A380Failure.Reverser3ControlFault).toBe(78042);
   });
 
+  // The EEC channels and EIPMs of a380_systems fadec_power.rs
+  it('lists the FADEC channel and EIPM failures in ATA 73 with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      ...[1, 2, 3, 4].flatMap((engine): [number, string, string][] => [
+        [73400 + engine - 1, `FadecChannelA(${engine})`, `Engine ${engine} FADEC channel A`],
+        [73410 + engine - 1, `FadecChannelB(${engine})`, `Engine ${engine} FADEC channel B`],
+      ]),
+      [73420, 'EngineInterfacePowerManagement(1)', 'EIPM 1 (engines 2 and 4 FADEC and reverser 2 supply)'],
+      [73421, 'EngineInterfacePowerManagement(2)', 'EIPM 2 (engines 1 and 3 FADEC and reverser 3 supply)'],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, [73, id, name]]),
+    );
+  });
+
   // The labels say what systems engine/fuel_filter_failure.rs does with ids 73100-73103
   it('lists the engine fuel filter clog failures of the four engines in ATA 73', () => {
     const rustMap = readRustFailureMap();

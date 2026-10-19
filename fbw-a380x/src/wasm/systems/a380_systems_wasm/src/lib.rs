@@ -814,6 +814,17 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (73_031, FailureType::FadecOverheat(2)),
         (73_032, FailureType::FadecOverheat(3)),
         (73_033, FailureType::FadecOverheat(4)),
+        // The EEC channels and the EIPMs of a380_systems fadec_power.rs
+        (73_400, FailureType::FadecChannelA(1)),
+        (73_401, FailureType::FadecChannelA(2)),
+        (73_402, FailureType::FadecChannelA(3)),
+        (73_403, FailureType::FadecChannelA(4)),
+        (73_410, FailureType::FadecChannelB(1)),
+        (73_411, FailureType::FadecChannelB(2)),
+        (73_412, FailureType::FadecChannelB(3)),
+        (73_413, FailureType::FadecChannelB(4)),
+        (73_420, FailureType::EngineInterfacePowerManagement(1)),
+        (73_421, FailureType::EngineInterfacePowerManagement(2)),
         // The FADEC shutdowns of a380_systems fadec_automatic_shutdown.rs (ENG FAIL FADEC OVHT / THRUST CTL LOST)
         (73_310, FailureType::FadecOverheatShutdown(1)),
         (73_311, FailureType::FadecOverheatShutdown(2)),
