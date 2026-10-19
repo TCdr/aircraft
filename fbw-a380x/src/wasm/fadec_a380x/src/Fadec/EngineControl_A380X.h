@@ -9,6 +9,7 @@
 #include "CoreSpikeGuard_A380X.hpp"
 #include "EngineIgnition_A380X.hpp"
 #include "EngineOilFailures.hpp"
+#include "FadecAirData_A380X.hpp"
 #include "FadecSimData_A380X.hpp"
 #include "FuelConfiguration_A380X.h"
 #include "IgniterSelection_A380X.hpp"
@@ -38,6 +39,9 @@ class EngineControl_A380X {
 
   // FADEC simulation data
   FadecSimData_A380X simData{};
+
+  // Air data sources and NORMAL / DEGRADED mode of the four FADECs
+  FadecAirData_A380X airData{};
 
   // ATC ID for the aircraft used to load and store the fuel levels
   std::string atcId = "A380X";

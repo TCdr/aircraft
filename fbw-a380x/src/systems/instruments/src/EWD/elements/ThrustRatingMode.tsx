@@ -1,4 +1,4 @@
-import { Arinc429ConsumerSubject, ArincEventBus } from '@flybywiresim/fbw-sdk';
+import { AdrBusEvents, Arinc429ConsumerSubject, ArincEventBus } from '@flybywiresim/fbw-sdk';
 import { splitDecimals } from '../../MsfsAvionicsCommon/gauges';
 import {
   ConsumerSubject,
@@ -10,7 +10,8 @@ import {
 } from '@microsoft/msfs-sdk';
 import { Arinc429Values } from '../shared/ArincValueProvider';
 import { EwdSimvars } from '../shared/EwdSimvarPublisher';
-import { ThrustGauge } from './ThrustGauge';
+import { createThrustParameterAirData } from './ThrustGauge';
+import { thrustParameterPercent } from './ThrustParameter';
 import { thrustRatingModeLabel } from './ThrustRatingLabel';
 
 export class N1Limit extends DisplayComponent<{
@@ -44,7 +45,6 @@ export class N1Limit extends DisplayComponent<{
   );
 
   private readonly cpiomBAgsDiscrete = Arinc429ConsumerSubject.create(undefined);
-  private readonly thrustLimitIdle = ConsumerSubject.create(this.sub.on('thrust_limit_idle').whenChanged(), 0);
   private readonly thrustLimitToga = ConsumerSubject.create(this.sub.on('thrust_limit_toga').whenChanged(), 0);
   private readonly thrustLimitMax = MappedSubject.create(
     ([cpiomB, thrustLimitToga]) =>
@@ -54,11 +54,11 @@ export class N1Limit extends DisplayComponent<{
   );
 
   private readonly thrustLimitTHR = MappedSubject.create(
-    ([n1, thrustLimitIdle, thrustLimitMax]) =>
-      ThrustGauge.thrustPercentFromN1(n1, thrustLimitIdle, thrustLimitMax, 0.042),
+    ([n1, thrustLimitMax, airData]) =>
+      Math.min(100, thrustParameterPercent(n1, thrustLimitMax, airData.mach, airData.tatDegC)),
     this.N1ThrustLimit,
-    this.thrustLimitIdle,
     this.thrustLimitMax,
+    createThrustParameterAirData(this.props.bus.getSubscriber<EwdSimvars & AdrBusEvents>()),
   );
 
   private readonly activeHiddenElement = this.props.active.map((v) => !v);

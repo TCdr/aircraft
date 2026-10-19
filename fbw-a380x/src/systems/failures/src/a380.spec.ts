@@ -779,7 +779,7 @@ describe('A380X slat/flap channel and avionics network failures', () => {
         chapter,
       ]);
     const expected: [number, string, string, number][] = [
-      ...monitoring('ControlSystem', 73270, 'control system fault (alert only)', 73),
+      ...monitoring('ControlSystem', 73270, 'control system fault', 73),
       ...monitoring('ControlValve', 73280, 'control valve (cooling/HP turbine/discharge)', 73),
       ...monitoring('FadecIdent', 73290, 'FADEC engine identification', 73),
       ...monitoring('FuelSystemContamination', 73130, 'fuel filter bypass open (contamination)', 73),

@@ -14,6 +14,15 @@ import { NXUnits } from '@flybywiresim/fbw-sdk-react';
 import { areEngineParametersShown, areVibrationsShown } from '../EngineParametersAvailability';
 import { fuelFilterCloggedShown } from '../FuelFilterIndication';
 import { nacelleTemperaturePulses } from '../NacelleTemperature';
+import {
+  degradedAccuracyShown,
+  degradedAccuracyStrikePath,
+  FUEL_FLOW_STRUCK_DIGITS,
+} from '../../../../MsfsAvionicsCommon/DegradedAccuracy';
+
+/** The size of an F29 digit on the SD */
+const LARGE_DIGIT_WIDTH = 16;
+const LARGE_DIGIT_HEIGHT = 21;
 
 interface EngineColumnProps {
   useMetric: boolean;
@@ -52,6 +61,9 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   }, [N3, groundStart, fadecPowered]);
 
   const [fuelFlow] = useSimVar(`L:A32NX_ENGINE_FF:${engine}`, 'number', 100);
+  // ENG CTL SYS FAULT (systems WASM engine_monitoring_fault.rs): degraded accuracy of the engine values (DegradedAccuracy.ts)
+  const [ctlSysFault] = useSimVar(`L:A32NX_ENGINE_${engine}_CTL_SYS_FAULT`, 'bool', 500);
+  const accuracyDegraded = degradedAccuracyShown(!!ctlSysFault, fadecPowered);
   // The fuel filter clog failure (systems engine/fuel_filter_failure.rs) and the engine state (above), see FuelFilterIndication
   const [fuelFilterClogged] = useSimVar(`L:A32NX_ENGINE_${engine}_FUEL_FILTER_CLOGGED`, 'bool', 500);
 
@@ -78,11 +90,18 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
     <>
       <IgnitionBorder x={x} y={y} engine={engine} ignition={ignition} />
       {/* N2 */}
-      <DecimalValues x={x} y={y} value={N2} active={fadecPowered} />
+      <DecimalValues x={x} y={y} value={N2} active={fadecPowered} accuracyDegraded={accuracyDegraded} />
       <path className="White SW2" d={`M${engine > 2 ? x - 96 : x + 64},${y - 10} l 26, 0`} />
       {/* N3 */}
       <rect x={x - 55} y={y + 10} width={98} height={34} className={`LightGreyBox ${starting ? 'Show' : 'Hide'}`} />
-      <DecimalValues x={x} y={y + 38} value={N3} active={fadecPowered} className={n3ClassName(N3)} />
+      <DecimalValues
+        x={x}
+        y={y + 38}
+        value={N3}
+        active={fadecPowered}
+        className={n3ClassName(N3)}
+        accuracyDegraded={accuracyDegraded}
+      />
       {fadecPowered && n3RedCross && (
         <text x={x + 46} y={y + 38} className="Red F25 MiddleAlign">
           +
@@ -99,6 +118,12 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
         <text x={x + 30} y={y + 92} className="Green EndAlign F29">
           {Math.ceil(NXUnits.kgToUser(fuelFlow) / 10) * 10}
         </text>
+      )}
+      {accuracyDegraded && (
+        <path
+          className="Amber SW2 NoFill"
+          d={degradedAccuracyStrikePath(x + 31, y + 92, LARGE_DIGIT_WIDTH, LARGE_DIGIT_HEIGHT, FUEL_FLOW_STRUCK_DIGITS)}
+        />
       )}
       {/* FCOM DSC-70-90 FUEL FLOW: CLOGGED in amber below the fuel flow */}
       {fadecPowered && fuelFilterCloggedShown(!!fuelFilterClogged, engineState) && (

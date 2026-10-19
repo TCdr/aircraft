@@ -37,3 +37,5 @@ clang++ -std=c++20 -Wall -Wextra -Werror egt_failure_offset_test.cpp -o ../obj/e
 ../obj/egt_failure_offset_test
 clang++ -std=c++20 -Wall -Wextra -Werror -I../../../../../fbw-common/src/wasm/fadec_common/src oil_system_test.cpp -o ../obj/oil_system_test
 ../obj/oil_system_test
+clang++ -std=c++20 -Wall -Wextra -Werror air_data_selection_test.cpp -o ../obj/air_data_selection_test
+../obj/air_data_selection_test

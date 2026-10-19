@@ -3163,6 +3163,44 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 4
   - The thrust lever angle the FADEC uses while A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE_ACTIVE is true. Written by the systems WASM
 
+- A32NX_ENGINE_{number}_FADEC_DEGRADED_MODE
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the FADEC is in DEGRADED (N1) mode: its static pressure, total pressure or TAT is totally lost (no valid ADIRU nor engine source). The E/WD shows the N1 gauge in place of THR; three or four degraded FADECs disconnect the A/THR. Written by the FADEC WASM (FadecAirData_A380X.hpp), read by fbw.wasm (FadecDegradedMode.h)
+
+- A32NX_ENGINE_{number}_FADEC_{parameter}_SOURCE
+  - Enum
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - {parameter}
+    - P0
+    - PT
+    - TAT
+  - The air data source the FADEC uses for the parameter after the ADIRU / FADEC cross-validation. Written by the FADEC WASM (AirDataSelection_A380X.hpp)
+  - | State   | Value |
+    |---------|-------|
+    | Lost    | 0     |
+    | ADIRU 1 | 1     |
+    | ADIRU 2 | 2     |
+    | ADIRU 3 | 3     |
+    | Engine  | 4     |
+
+- A32NX_ENGINE_{number}_FADEC_THRUST_FROZEN
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC keeps the thrust of its reversion to the DEGRADED mode, until the thrust lever moves (ENG THRUST LOCKED). Written by fbw.wasm (FadecDegradedMode.h)
+
 - A32NX_ENGINE_{number}_FADEC_AUTO_IDLE
   - Bool
   - {number}

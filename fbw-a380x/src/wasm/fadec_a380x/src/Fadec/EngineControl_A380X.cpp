@@ -25,6 +25,7 @@ void EngineControl_A380X::initialize(MsfsHandler* msfsHandler) {
   this->msfsHandlerPtr = msfsHandler;
   this->dataManagerPtr = &msfsHandler->getDataManager();
   this->simData.initialize(dataManagerPtr);
+  this->airData.initialize(dataManagerPtr);
   fuelConfiguration.setConfigFilename(FILENAME_FADEC_CONF_DIRECTORY + atcId + FILENAME_FADEC_CONF_FILE_EXTENSION);
   LOG_INFO("Fadec::EngineControl_A380X::initialize() - initialized");
 }
@@ -60,6 +61,7 @@ void EngineControl_A380X::update() {
   const double idleN3             = simData.engineIdleN3->get();
 
   generateIdleParameters(pressureAltitude, mach, ambientTemperature, ambientPressure);
+  airData.update(ambientPressure, mach);
 
   // Update engine states
   for (int engine = 1; engine <= 4; engine++) {

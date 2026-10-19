@@ -407,6 +407,8 @@ void FlyByWireInterface::setupLocalVariables() {
     idEngineStallN1Loss[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_STALL_N1_LOSS");
     idEngineFadecMaxThr[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_MAX_THR");
     idEngineFadecTakeoffMode[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TAKEOFF_MODE");
+    idEngineFadecDegradedMode[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_DEGRADED_MODE");
+    idEngineFadecThrustFrozen[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_THRUST_FROZEN");
   }
 
   idEngineIdleN3 = std::make_unique<LocalVariable>("A32NX_ENGINE_IDLE_N3");
@@ -1549,7 +1551,8 @@ bool FlyByWireInterface::updatePrim(double sampleTime, int primIndex) {
     ra2Bus = raBusOutputs[1];
   }
 
-  bool athr_instinctive_disc = simConnectInterface.getSimInputThrottles().ATHR_disconnect || idAutothrustDisconnect->get() == 1;
+  bool athr_instinctive_disc = simConnectInterface.getSimInputThrottles().ATHR_disconnect || idAutothrustDisconnect->get() == 1 ||
+                               fadecsOrderAutothrustDisconnection();
   bool ap_instinctive_disc = simInputAutopilot.AP_disconnect;
 
   auto& modelInputs = prims[primIndex].externalInputs();
@@ -3046,6 +3049,8 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   // previous frame here.
   fadecInputs[fadecIndex].in.input.TLA_deg = FadecFailureInputs::thrustLeverAngleWithoutThrustLock(
       fadecInputs[fadecIndex].in.input.TLA_deg, fadecNetworkLost, fadecOutputs[fadecIndex].athr_control_active);
+  const double fadecLeverDeg = fadecInputs[fadecIndex].in.input.TLA_deg;
+  fadecInputs[fadecIndex].in.input.TLA_deg = degradedModeThrustLeverAngle(fadecIndex, fadecLeverDeg);
 
   // DOx derated takeoff: the FADEC model takes its FLX path, whose limit is the derated rating of the FADEC module
   // (TakeoffDerate.h). ENG T.O THRUST DISAGREE: the FADEC of the "FLEX TEMP not received" failure gets no FLEX TEMP (nor
@@ -3075,6 +3080,8 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
     // get output from model ------------------------------------------------------------------------------------------
     fadecOutputs[fadecIndex] = fadecs[fadecIndex].getExternalOutputs().out.output;
     fadecBusOutputs[fadecIndex] = fadecs[fadecIndex].getExternalOutputs().out.fadec_bus_output;
+    // the PRIMs get the lever position the FADEC measures, not the angle of a frozen thrust
+    fadecBusOutputs[fadecIndex].selected_tla_deg.Data = static_cast<real32_T>(fadecLeverDeg);
     idEngineFadecTakeoffMode[fadecIndex]->set(
         FadecThrustFailures::takeoffMode(fadecs[fadecIndex].getExternalOutputs().out.data_computed.is_FLX_active));
   }
@@ -3125,6 +3132,39 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
 
   // success
   return true;
+}
+
+void FlyByWireInterface::readFadecDegradedModes(bool degraded[]) {
+  for (int engine = 0; engine < FadecDegradedMode::ENGINES; engine++) {
+    degraded[engine] = idEngineFadecDegradedMode[engine]->get() > 0.5;
+  }
+}
+
+bool FlyByWireInterface::fadecsOrderAutothrustDisconnection() {
+  bool degraded[FadecDegradedMode::ENGINES];
+  readFadecDegradedModes(degraded);
+  bool autothrustEngagedLastFrame = false;
+  for (const base_prim_out_bus& prim : primsBusOutputs) {
+    autothrustEngagedLastFrame = autothrustEngagedLastFrame || Arinc429Utils::bitFromValueOr(prim.fg.ats_discrete_word, 11, false);
+  }
+  return FadecDegradedMode::autothrustDisconnectOrder(FadecDegradedMode::autothrustLost(degraded), autothrustEngagedLastFrame);
+}
+
+double FlyByWireInterface::degradedModeThrustLeverAngle(int fadecIndex, double leverDeg) {
+  bool degraded[FadecDegradedMode::ENGINES];
+  readFadecDegradedModes(degraded);
+  const athr_input& limits = fadecInputs[fadecIndex].in.input;
+  const bool flexLimitUsed = fadecs[fadecIndex].getExternalOutputs().out.data_computed.is_FLX_active;
+  const double tla = fadecThrustFreezes[fadecIndex].update(
+      {degraded[fadecIndex],
+       FadecDegradedMode::autothrustLost(degraded),
+       leverDeg,
+       fadecOutputs[fadecIndex].N1_c_percent,
+       static_cast<bool>(fadecOutputs[fadecIndex].athr_control_active),
+       {limits.thrust_limit_IDLE_percent, limits.thrust_limit_CLB_percent,
+        flexLimitUsed ? limits.thrust_limit_FLEX_percent : limits.thrust_limit_MCT_percent, limits.thrust_limit_TOGA_percent}});
+  idEngineFadecThrustFrozen[fadecIndex]->set(fadecThrustFreezes[fadecIndex].isFrozen());
+  return tla;
 }
 
 bool FlyByWireInterface::updateSpoilers(double sampleTime) {
