@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
 // Native unit test of the FADEC idle setting (src/Fadec/IdleControl_A32NX.hpp): run test/run_tests.sh. Modulated idle rises
-// with the engine bleed demand, approach idle (in flight, FLAPS lever not at 0) is above it whatever the bleed demand. Built
+// with the engine bleed demand, approach idle (in flight, FLAPS lever not at 0, or without the EIU data) is above it whatever the
+// bleed demand. Built
 // with -DWITHOUT_THE_FIX, the idle setting is the minimum idle in every case: the checks fail.
 
 #include <cstdio>
@@ -29,7 +30,7 @@ static double idleCN2Increase(bool onGround, double flapsHandleIndex, const Blee
   (void)bleed;
   return 0.0;
 #else
-  return IdleControl_A32NX::idleCN2Increase(IdleControl_A32NX::idleMode(onGround, flapsHandleIndex), bleed);
+  return IdleControl_A32NX::idleCN2Increase(IdleControl_A32NX::idleMode(onGround, flapsHandleIndex, false), bleed);
 #endif
 }
 
@@ -39,10 +40,13 @@ static constexpr BleedDemand ALL_BLEED{true, true, true};
 
 int main() {
   // Mode selection: approach idle only in flight with the FLAPS lever out of 0
-  expect("in flight, FLAPS 0: modulated", IdleControl_A32NX::idleMode(false, 0) == IdleMode::MODULATED, 0);
-  expect("in flight, FLAPS 1: approach", IdleControl_A32NX::idleMode(false, 1) == IdleMode::APPROACH, 1);
-  expect("in flight, FLAPS FULL: approach", IdleControl_A32NX::idleMode(false, 4) == IdleMode::APPROACH, 4);
-  expect("on ground, FLAPS 3: modulated", IdleControl_A32NX::idleMode(true, 3) == IdleMode::MODULATED, 3);
+  expect("in flight, FLAPS 0: modulated", IdleControl_A32NX::idleMode(false, 0, false) == IdleMode::MODULATED, 0);
+  expect("in flight, FLAPS 1: approach", IdleControl_A32NX::idleMode(false, 1, false) == IdleMode::APPROACH, 1);
+  expect("in flight, FLAPS FULL: approach", IdleControl_A32NX::idleMode(false, 4, false) == IdleMode::APPROACH, 4);
+  expect("on ground, FLAPS 3: modulated", IdleControl_A32NX::idleMode(true, 3, false) == IdleMode::MODULATED, 3);
+  // Without the EIU data only approach idle is available, on ground and in flight with the FLAPS lever at 0
+  expect("EIU data lost, in flight, FLAPS 0: approach", IdleControl_A32NX::idleMode(false, 0, true) == IdleMode::APPROACH, 0);
+  expect("EIU data lost, on ground: approach", IdleControl_A32NX::idleMode(true, 0, true) == IdleMode::APPROACH, 0);
 
   // Modulated idle: the minimum idle without bleed demand, higher with each consumer
   const double clean = idleCN2Increase(false, 0, NO_BLEED);

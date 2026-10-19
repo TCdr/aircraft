@@ -26,6 +26,12 @@ inline Bus autothrustOrdersReceived(const Bus& autothrustBus, bool fadecLinkLost
   return fadecLinkLost ? Bus{} : autothrustBus;
 }
 
+/// The A320 FADEC no longer gets the A/THR orders when it is lost (ENG FADEC FAULT, both channels) or when its Engine
+/// Interface Unit no longer sends it the aircraft data (ENG EIU FAULT: the A/THR control is lost).
+inline bool a320AutothrustOrdersLost(bool fadecFault, bool eiuFault) {
+  return fadecFault || eiuFault;
+}
+
 /// The thrust lever bands of the THRUST LOCK of the generated FADEC models (A380FadecComputer, FadecComputer): CL detent
 /// 24-26 deg, MCT detent 34-36 deg.
 constexpr double THRUST_LOCK_CL_BAND_LOW_DEG = 24.0;

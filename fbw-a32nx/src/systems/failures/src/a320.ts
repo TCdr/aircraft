@@ -406,6 +406,8 @@ export const A320Failure = Object.freeze({
   ThrustLever2Resolvers: 73041,
   ThrustLever1ResolverDisagree: 73050,
   ThrustLever2ResolverDisagree: 73051,
+  Eng1Eiu: 73400,
+  Eng2Eiu: 73401,
   Eng1FuelFilterClog: 73100,
   Eng2FuelFilterClog: 73101,
   ThrustLever1OneResolver: 73060,
@@ -884,6 +886,10 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [73, A320Failure.ThrustLever2Resolvers, 'Thrust lever 2 resolvers (both)'],
   [73, A320Failure.ThrustLever1ResolverDisagree, 'Thrust lever 1 resolver disagree'],
   [73, A320Failure.ThrustLever2ResolverDisagree, 'Thrust lever 2 resolver disagree'],
+  // ENG 1(2) EIU FAULT: the start of the engine, the A/THR and the reverser are lost (a320_systems
+  // engine_interface_unit.rs)
+  [73, A320Failure.Eng1Eiu, 'Engine 1 EIU'],
+  [73, A320Failure.Eng2Eiu, 'Engine 2 EIU'],
   // CLOG on the ENGINE SD page and ENG FUEL FILTER CLOG, no other effect (systems engine/fuel_filter_failure.rs)
   [73, A320Failure.Eng1FuelFilterClog, 'Engine 1 fuel filter clog'],
   [73, A320Failure.Eng2FuelFilterClog, 'Engine 2 fuel filter clog'],

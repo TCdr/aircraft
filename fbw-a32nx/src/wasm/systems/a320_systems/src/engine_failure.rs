@@ -55,6 +55,11 @@
 //!
 //! Pre-start motoring (dry cranking): the engine thermal state of
 //! [`A320EngineFailure::thermal_state`] sets the motoring time of the start sequence.
+//!
+//! The igniters follow their electrical supply (`ignition_power_supply`), and the start commands
+//! reach the FADEC through the Engine Interface Unit: with ENG 1(2) EIU FAULT the start of the
+//! engine is lost (`engine_interface_unit`). An unpowered FADEC (`L:A32NX_FADEC_POWERED_ENGn`, no
+//! channel supplied or both failed) does not open the start valve either: no crank, no start.
 
 use std::time::Duration;
 use systems::{
@@ -82,7 +87,7 @@ use uom::si::{
     velocity::knot,
 };
 
-use crate::fuel::A320Fuel;
+use crate::{fuel::A320Fuel, ignition_power_supply::A320IgnitionPowerSupply};
 
 pub struct A320RelightEnvelope;
 impl A320RelightEnvelope {
@@ -253,6 +258,7 @@ struct A320EngineFailure {
     engine_number: usize,
     failure: EngineFailure,
     start: EngineStartSequence,
+    ignition_power: A320IgnitionPowerSupply,
     /// The fan of the engine is blocked: no N1 rotation during a start (ENG 1(2) LOW N1)
     fan_blocked: Failure,
     fan_blocked_id: VariableIdentifier,
@@ -277,6 +283,7 @@ struct A320EngineFailure {
     engine_anti_ice_id: VariableIdentifier,
     igniter_a_active_id: VariableIdentifier,
     igniter_b_active_id: VariableIdentifier,
+    fadec_powered_id: VariableIdentifier,
 
     master_switch_is_on: bool,
     ignition_selector: EngineModeSelector,
@@ -290,6 +297,8 @@ struct A320EngineFailure {
     thrust_lever_angle_degrees: f64,
     preset_quick_mode: bool,
     engine_anti_ice_valve_open: bool,
+    /// A FADEC channel is supplied and works (A32NX_FADEC.ts): the FADEC can command the start.
+    fadec_powered: bool,
 }
 impl A320EngineFailure {
     fn new(context: &mut InitContext, engine_number: usize) -> Self {
@@ -320,7 +329,9 @@ impl A320EngineFailure {
                 .get_identifier(format!("FADEC_IGNITER_A_ACTIVE_ENG{}", engine_number)),
             igniter_b_active_id: context
                 .get_identifier(format!("FADEC_IGNITER_B_ACTIVE_ENG{}", engine_number)),
+            fadec_powered_id: context.get_identifier(format!("FADEC_POWERED_ENG{}", engine_number)),
             start: EngineStartSequence::new(context, engine_number),
+            ignition_power: A320IgnitionPowerSupply::new(engine_number),
             fan_blocked: Failure::new(FailureType::EngineFanBlocked(engine_number)),
             fan_blocked_id: context.get_identifier(format!("ENGINE_{}_FAN_BLOCKED", engine_number)),
             hp_fuel_valve: HpFuelValveFailure::new(context, engine_number),
@@ -338,6 +349,7 @@ impl A320EngineFailure {
             thrust_lever_angle_degrees: 0.,
             preset_quick_mode: false,
             engine_anti_ice_valve_open: false,
+            fadec_powered: false,
         }
     }
 
@@ -423,9 +435,16 @@ impl A320EngineFailure {
         fuel: &A320Fuel,
         start_schedule: &EngineStartSchedule,
         thrust_control_malfunction: bool,
+        eiu_operative: bool,
     ) {
         self.thrust_control_malfunction = thrust_control_malfunction;
         self.thermal_state = Self::thermal_state(self.egt, context.ambient_temperature());
+        self.start
+            .set_powered_igniters(self.ignition_power.powered_igniters());
+        // The FADEC opens the start valve: without its start commands (EIU) or without power it
+        // starts nothing.
+        self.start
+            .set_start_commands_lost(!eiu_operative || !self.fadec_powered);
         let start_inputs = self.start_inputs();
         self.start.update(context, start_schedule, &start_inputs);
         self.hp_fuel_valve.update(
@@ -470,6 +489,7 @@ impl SimulationElement for A320EngineFailure {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.failure.accept(visitor);
         self.start.accept(visitor);
+        self.ignition_power.accept(visitor);
         self.fan_blocked.accept(visitor);
         self.hp_fuel_valve.accept(visitor);
 
@@ -504,6 +524,7 @@ impl SimulationElement for A320EngineFailure {
         self.thrust_lever_angle_degrees = reader.read(&self.thrust_lever_angle_id);
         self.preset_quick_mode = reader.read(&self.preset_quick_mode_id);
         self.engine_anti_ice_valve_open = reader.read(&self.engine_anti_ice_id);
+        self.fadec_powered = reader.read(&self.fadec_powered_id);
     }
 }
 
@@ -523,14 +544,27 @@ impl A320EngineFailures {
     /// After the fuel system, whose LP valve starvation also cuts the fuel.
     /// `thrust_control_malfunctions`: per engine, a malfunction of the thrust control
     /// (`A320EngineControlFailures::thrust_control_malfunctions`), for the ENG FAULT light.
+    /// `eius_operative`: per engine, the EIU sends the start commands to the FADEC.
     pub fn update(
         &mut self,
         context: &UpdateContext,
         fuel: &A320Fuel,
         thrust_control_malfunctions: [bool; 2],
+        eius_operative: [bool; 2],
     ) {
-        for (engine, malfunction) in self.engines.iter_mut().zip(thrust_control_malfunctions) {
-            engine.update(context, fuel, &self.start_schedule, malfunction);
+        for ((engine, malfunction), eiu_operative) in self
+            .engines
+            .iter_mut()
+            .zip(thrust_control_malfunctions)
+            .zip(eius_operative)
+        {
+            engine.update(
+                context,
+                fuel,
+                &self.start_schedule,
+                malfunction,
+                eiu_operative,
+            );
         }
     }
 }
@@ -701,8 +735,10 @@ mod tests {
     mod aircraft {
         use super::super::*;
         use systems::{
+            electrical::{test::TestElectricitySource, ElectricalBus, Electricity},
             engine::{leap_engine::LeapEngine, EngineFireOverheadPanel},
             failures::FailureType,
+            shared::{ElectricalBusType, PotentialOrigin},
             simulation::{
                 test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
                 Aircraft,
@@ -716,6 +752,11 @@ mod tests {
             engines: [LeapEngine; 2],
             engine_failures: A320EngineFailures,
             thrust_control_malfunctions: [bool; 2],
+            eius_operative: [bool; 2],
+            ac_powered: bool,
+            ac_source: TestElectricitySource,
+            /// The supplies of the igniters (ignition_power_supply)
+            ac_buses: [ElectricalBus; 3],
         }
         impl TestAircraft {
             fn new(context: &mut InitContext) -> Self {
@@ -725,18 +766,47 @@ mod tests {
                     engines: [1, 2].map(|number| LeapEngine::new(context, number)),
                     engine_failures: A320EngineFailures::new(context),
                     thrust_control_malfunctions: [false; 2],
+                    eius_operative: [true; 2],
+                    ac_powered: true,
+                    ac_source: TestElectricitySource::powered(
+                        context,
+                        PotentialOrigin::EngineGenerator(1),
+                    ),
+                    ac_buses: [
+                        ElectricalBusType::AlternatingCurrent(1),
+                        ElectricalBusType::AlternatingCurrent(2),
+                        ElectricalBusType::AlternatingCurrentEssential,
+                    ]
+                    .map(|bus_type| ElectricalBus::new(context, bus_type)),
                 }
             }
         }
         impl Aircraft for TestAircraft {
+            fn update_before_power_distribution(
+                &mut self,
+                _: &UpdateContext,
+                electricity: &mut Electricity,
+            ) {
+                electricity.supplied_by(&self.ac_source);
+                if self.ac_powered {
+                    for bus in &self.ac_buses {
+                        electricity.flow(&self.ac_source, bus);
+                    }
+                }
+            }
+
             fn update_after_power_distribution(&mut self, context: &UpdateContext) {
                 self.fuel.update(
                     context,
                     &self.engine_fire_overhead,
                     [&self.engines[0], &self.engines[1]],
                 );
-                self.engine_failures
-                    .update(context, &self.fuel, self.thrust_control_malfunctions);
+                self.engine_failures.update(
+                    context,
+                    &self.fuel,
+                    self.thrust_control_malfunctions,
+                    self.eius_operative,
+                );
             }
         }
         impl SimulationElement for TestAircraft {
@@ -747,6 +817,9 @@ mod tests {
                     engine.accept(visitor);
                 }
                 self.engine_failures.accept(visitor);
+                for bus in &mut self.ac_buses {
+                    bus.accept(visitor);
+                }
                 visitor.visit(self);
             }
         }
@@ -765,6 +838,7 @@ mod tests {
                 test_bed.write_by_name(&format!("FUELSYSTEM VALVE SWITCH:{}", engine_number), true);
                 test_bed.write_by_name(&format!("ENGINE_STATE:{}", engine_number), 1.);
                 test_bed.write_by_name(&format!("ENGINE_N2:{}", engine_number), 80.);
+                test_bed.write_by_name(&format!("FADEC_POWERED_ENG{}", engine_number), true);
             }
             run(&mut test_bed);
             test_bed
@@ -953,6 +1027,7 @@ mod tests {
                     &format!("TURB ENG IGNITION SWITCH EX1:{}", engine_number),
                     2.,
                 );
+                test_bed.write_by_name(&format!("FADEC_POWERED_ENG{}", engine_number), true);
             }
             run(&mut test_bed);
             test_bed
@@ -1042,6 +1117,93 @@ mod tests {
             assert!(igniter_b);
             // the other engine is not affected
             assert!(!fuel_is_cut(&mut test_bed, 2));
+        }
+
+        /// Engine 1 flamed out in the windmill zone, ENG MODE IGN, ENG MASTER 1 cycled OFF then ON.
+        fn engine_1_windmill_relight(test_bed: &mut SimulationTestBed<TestAircraft>) {
+            test_bed.fail(FailureType::EngineFlameout(1));
+            run(test_bed);
+            test_bed.write_by_name("ENGINE_STATE:1", 4.);
+            test_bed.write_by_name("ENGINE_N2:1", 12.);
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 2.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", false);
+            run(test_bed);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+            run(test_bed);
+        }
+
+        #[test]
+        fn engine_1_relights_with_powered_igniters_and_its_eiu() {
+            let mut test_bed = flying_test_bed();
+            engine_1_windmill_relight(&mut test_bed);
+            assert!(!fuel_is_cut(&mut test_bed, 1));
+        }
+
+        #[test]
+        fn without_power_on_its_igniters_engine_1_does_not_relight() {
+            let mut test_bed = flying_test_bed();
+            test_bed.command(|a| a.ac_powered = false);
+            engine_1_windmill_relight(&mut test_bed);
+            assert!(fuel_is_cut(&mut test_bed, 1));
+        }
+
+        #[test]
+        fn without_its_eiu_engine_1_does_not_relight() {
+            let mut test_bed = flying_test_bed();
+            test_bed.command(|a| a.eius_operative = [false, true]);
+            engine_1_windmill_relight(&mut test_bed);
+            assert!(fuel_is_cut(&mut test_bed, 1));
+            // the running engine 2 keeps its fuel
+            assert!(!fuel_is_cut(&mut test_bed, 2));
+        }
+
+        #[test]
+        fn without_its_eiu_engine_1_does_not_start_on_the_ground() {
+            let mut test_bed = ground_test_bed();
+            test_bed.command(|a| a.eius_operative = [false, true]);
+            engine_1_automatic_start(&mut test_bed);
+            let command: f64 = test_bed.read_by_name("ENGINE_1_START_VALVE_COMMAND");
+            assert_eq!(command, 2.);
+            let phase: f64 = test_bed.read_by_name("ENGINE_1_START_PHASE");
+            assert_eq!(phase, 0.);
+            assert!(fuel_is_cut(&mut test_bed, 1));
+        }
+
+        #[test]
+        fn an_unpowered_fadec_neither_cranks_nor_starts_engine_1() {
+            let mut test_bed = ground_test_bed();
+            test_bed.write_by_name("FADEC_POWERED_ENG1", false);
+            engine_1_automatic_start(&mut test_bed);
+            let command: f64 = test_bed.read_by_name("ENGINE_1_START_VALVE_COMMAND");
+            assert_eq!(command, 2.);
+            let phase: f64 = test_bed.read_by_name("ENGINE_1_START_PHASE");
+            assert_eq!(phase, 0.);
+            assert!(fuel_is_cut(&mut test_bed, 1));
+
+            // powered again with the ENG MASTER already ON: no start before the next MASTER ON
+            test_bed.write_by_name("FADEC_POWERED_ENG1", true);
+            run(&mut test_bed);
+            let phase: f64 = test_bed.read_by_name("ENGINE_1_START_PHASE");
+            assert_eq!(phase, 0.);
+            let command: f64 = test_bed.read_by_name("ENGINE_1_START_VALVE_COMMAND");
+            assert_ne!(command, 1.);
+
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", false);
+            run(&mut test_bed);
+            engine_1_automatic_start(&mut test_bed);
+            let phase: f64 = test_bed.read_by_name("ENGINE_1_START_PHASE");
+            assert_eq!(phase, 2.);
+        }
+
+        #[test]
+        fn an_unpowered_fadec_does_not_crank_engine_2_with_the_man_start_pb() {
+            let mut test_bed = ground_test_bed();
+            test_bed.write_by_name("FADEC_POWERED_ENG2", false);
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:2", 0.);
+            test_bed.write_by_name("ENGMANSTART2_TOGGLE", true);
+            run(&mut test_bed);
+            let command: f64 = test_bed.read_by_name("ENGINE_2_START_VALVE_COMMAND");
+            assert_eq!(command, 2.);
         }
 
         #[test]

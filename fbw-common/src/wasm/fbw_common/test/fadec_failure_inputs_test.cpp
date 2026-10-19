@@ -52,6 +52,14 @@ static void aLostFadecReceivesADeadBus() {
   EXPECT(received.selected_flex_temp_deg.SSM == 0U);
 }
 
+// A320: a FADEC FAULT or an EIU FAULT cuts the A/THR orders of that FADEC
+static void anA320FadecLosesItsAutothrustOrdersWithItsEiu() {
+  using namespace FadecFailureInputs;
+  EXPECT(!a320AutothrustOrdersLost(false, false));
+  EXPECT(a320AutothrustOrdersLost(true, false));
+  EXPECT(a320AutothrustOrdersLost(false, true));
+}
+
 // A380 ENG FADEC FAULT: the frame where the lost link takes the A/THR control away gets an angle below the THRUST LOCK band
 static void theLostLinkFrameMovesTheLeverOutOfTheLockBands() {
   using namespace FadecFailureInputs;
@@ -86,6 +94,7 @@ int main() {
   overrideReplacesTheLever();
   autothrustOrdersReachAWorkingFadec();
   aLostFadecReceivesADeadBus();
+  anA320FadecLosesItsAutothrustOrdersWithItsEiu();
   theLostLinkFrameMovesTheLeverOutOfTheLockBands();
   theLeverIsKeptOtherwise();
   if (failures > 0) {
