@@ -210,8 +210,9 @@ class ThrustLimits_A380X {
    * @param packs A double representing the air conditioning status.
    * @param nacelle A double representing the nacelle anti-ice status.
    * @param wing A double representing the wing anti-ice status.
-   * @param thrustReductionPercent The derated takeoff (TO and GA types without flex temperature): the thrust reduction
-   * of the DOx level in percent, 0 for no derate (TakeoffDerate_A380X).
+   * @param thrustReductionPercent The derate, 0 for none: for the TO and GA types without flex temperature the thrust
+   * reduction of the DOx derated takeoff level (TakeoffDerate_A380X), for the CLB type the one of the derated climb
+   * (DeratedClimb_A380X), in percent of the rated thrust.
    * @return The N1 limit as a double.
    */
   static double limitN1(int    type,                         //
@@ -302,10 +303,10 @@ class ThrustLimits_A380X {
         b   = cn1Last - m * lp;
         cn1 = (m * ambientTemp) + b;
       }
-      if (type <= 1) {
-        // DOx derated takeoff (FCOM DSC-70-20-40 l.111561-111565): the rated thrust reduced by 4 to 24 %
-        cn1 = TakeoffDerate_A380X::deratedCorrectedN1(cn1, thrustReductionPercent);
-      }
+      // DOx derated takeoff (FCOM DSC-70-20-40 l.111561-111565) and DCLBx derated climb: the rated thrust reduced by
+      // up to 24 %. Design choice: the climb derate uses the static thrust table of the takeoff derate too, the
+      // engines.cfg shape of thrust against N1.
+      cn1 = TakeoffDerate_A380X::deratedCorrectedN1(cn1, thrustReductionPercent);
     }
 
     // Define bleed rating/ de-rating

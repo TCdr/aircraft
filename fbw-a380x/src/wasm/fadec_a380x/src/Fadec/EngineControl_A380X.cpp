@@ -304,7 +304,7 @@ void EngineControl_A380X::update() {
         simData.engineN1[engineIdx]->get(),                         //
         deltaTime,                                                  //
         simData.simVarsDataPtr->data().ambientPrecipRate,           //
-        simData.engineIdleN1->get(),                                //
+        selectedIdleN1,                                             //
     });
     const IgniterSelection_A380X::Igniters igniters =
         IgniterSupply_A380X::energized(selectedIgniters, static_cast<int>(simData.engineIgnitersSupplied[engineIdx]->get()));
@@ -316,15 +316,10 @@ void EngineControl_A380X::update() {
   updateFuel(deltaTime);
 
   // Update thrust limits while considering the current bleed air settings (packs, nai, wai)
-  const int packs = (simData.packsState[0]->get() || simData.packsState[1]->get()) ? 1 : 0;
-  const int nai   = (simData.simVarsDataPtr->data().engineAntiIce[E1] > 0.5     //
-                   || simData.simVarsDataPtr->data().engineAntiIce[E2] > 0.5  //
-                   || simData.simVarsDataPtr->data().engineAntiIce[E3] > 0.5  //
-                   || simData.simVarsDataPtr->data().engineAntiIce[E4] > 0.5)
-                        ? 1
-                        : 0;
-  const int wai   = simData.wingAntiIce->getAsInt64();
-  updateThrustLimits(msfsHandlerPtr->getSimulationTime(), pressureAltitude, ambientTemperature, ambientPressure, mach, packs, nai, wai);
+  const BleedDemand bleed             = currentBleedDemand();
+  const int         deratedClimbLevel = updateDeratedClimb();
+  updateThrustLimits(msfsHandlerPtr->getSimulationTime(), pressureAltitude, ambientTemperature, ambientPressure, mach, bleed.packs,
+                     bleed.nai, bleed.wai, deratedClimbLevel);
 
 #ifdef PROFILING
   profilerUpdate.stop();
@@ -512,18 +507,65 @@ void EngineControl_A380X::initializeFuelTanks(FLOAT64 timeStamp, UINT64 tickCoun
 }
 
 void EngineControl_A380X::generateIdleParameters(double pressAltitude, double mach, double ambientTemperature, double ambientPressure) {
-  const double idleCN1 = Table1502_A380X::iCN1(pressAltitude, mach, ambientTemperature);
-  const double idleN1  = idleCN1 * sqrt(EngineRatios::theta2(0, ambientTemperature));
-  const double idleN3  = Table1502_A380X::iCN3(pressAltitude, mach) * sqrt(EngineRatios::theta(ambientTemperature));
-  const double idleCFF = Polynomial_A380X::correctedFuelFlow(idleCN1, 0, pressAltitude);
-  const double idleFF =
-      idleCFF * Fadec::LBS_TO_KGS * EngineRatios::delta2(0, ambientPressure) * sqrt(EngineRatios::theta2(0, ambientTemperature));
+  const double idleCN3     = Table1502_A380X::iCN3(pressAltitude, mach);
+  const double sqrtTheta2  = sqrt(EngineRatios::theta2(0, ambientTemperature));
+  const double idleCN1     = Table1502_A380X::correctedN1OfCorrectedN3(idleCN3, mach);
+  const double idleN1      = idleCN1 * sqrtTheta2;
+  const double idleN3      = idleCN3 * sqrt(EngineRatios::theta(ambientTemperature));
+  const double idleCFF     = Polynomial_A380X::correctedFuelFlow(idleCN1, 0, pressAltitude);
+  const double idleFF      = idleCFF * Fadec::LBS_TO_KGS * EngineRatios::delta2(0, ambientPressure) * sqrtTheta2;
   const double idleEGT = Polynomial_A380X::correctedEGT(idleCN1, idleCFF, 0, pressAltitude) * EngineRatios::theta2(0, ambientTemperature);
+
+  // The engines run at the selected idle (approach idle, bleed demand, oil temperature): the idle thrust limit of the FADEC
+  // thrust loops. The idle N1, N3, FF and EGT stay those of the minimum idle schedule: the start sequence ends there, where
+  // MSFS takes the engine over at its throttle idle stop.
+  const double selectedIdleCN3 = idleCN3 + IdleSetting_A380X::correctedN3Increase(idleSettingInputs());
+  selectedIdleN1               = Table1502_A380X::correctedN1OfCorrectedN3(selectedIdleCN3, mach) * sqrtTheta2;
 
   simData.engineIdleN1->set(idleN1);
   simData.engineIdleN3->set(idleN3);
   simData.engineIdleFF->set(idleFF);
   simData.engineIdleEGT->set(idleEGT);
+}
+
+EngineControl_A380X::BleedDemand EngineControl_A380X::currentBleedDemand() {
+  const auto& simVars = simData.simVarsDataPtr->data();
+  const bool  nacelleAntiIce =
+      simVars.engineAntiIce[E1] > 0.5 || simVars.engineAntiIce[E2] > 0.5 || simVars.engineAntiIce[E3] > 0.5 || simVars.engineAntiIce[E4] > 0.5;
+  return {
+      (simData.packsState[0]->get() || simData.packsState[1]->get()) ? 1 : 0,
+      nacelleAntiIce ? 1 : 0,
+      static_cast<int>(simData.wingAntiIce->getAsInt64()),
+  };
+}
+
+IdleSetting_A380X::Inputs EngineControl_A380X::idleSettingInputs() {
+  const BleedDemand bleed                 = currentBleedDemand();
+  double            highestOilTemperature = simData.oilTempDataPtr[E1]->data().oilTemp;
+  for (int engineIdx = E2; engineIdx <= E4; engineIdx++) {
+    highestOilTemperature = std::max(highestOilTemperature, simData.oilTempDataPtr[engineIdx]->data().oilTemp);
+  }
+  return {
+      msfsHandlerPtr->getSimOnGround(),
+      static_cast<int>(simData.flapsHandleIndex->get()),
+      simData.lgciuLeftMainGearDownlocked[0]->getAsBool() || simData.lgciuLeftMainGearDownlocked[1]->getAsBool(),
+      bleed.packs == 1,
+      bleed.nai == 1,
+      bleed.wai == 1,
+      highestOilTemperature,
+  };
+}
+
+int EngineControl_A380X::updateDeratedClimb() {
+  const double highestTla = std::max({simData.engineTla[E1]->get(), simData.engineTla[E2]->get(), simData.engineTla[E3]->get(),
+                                      simData.engineTla[E4]->get()});
+  const int    level      = deratedClimb.update({
+      static_cast<int>(std::round(simData.airlinerClimbDerate->get())),
+      msfsHandlerPtr->getSimOnGround(),
+      DeratedClimb_A380X::leversInClimbDetent(highestTla),
+  });
+  simData.deratedClimbLevel->set(level);
+  return level;
 }
 
 EngineControl_A380X::EngineState EngineControl_A380X::engineStateMachine(int    engine,
@@ -1231,7 +1273,8 @@ void EngineControl_A380X::updateThrustLimits(double simulationTime,
                                              double mach,
                                              int    packs,
                                              int    nai,
-                                             int    wai) {
+                                             int    wai,
+                                             int    deratedClimbLevel) {
 #ifdef PROFILING
   profilerUpdateThrustLimits.start();
 #endif
@@ -1265,7 +1308,10 @@ void EngineControl_A380X::updateThrustLimits(double simulationTime,
     flex_to = ThrustLimits_A380X::limitN1(0, altitude, ambientTemperature, ambientPressure, 0, packs, nai, wai, latchedDerate);
     flex_ga = ThrustLimits_A380X::limitN1(1, altitude, ambientTemperature, ambientPressure, 0, packs, nai, wai, latchedDerate);
   }
-  double clb = ThrustLimits_A380X::limitN1(2, pressAltitude, ambientTemperature, ambientPressure, 0, packs, nai, wai);
+  // The derated climb only lowers the CLB rating: MCT and TOGA blend into the maximum climb thrust at altitude
+  const double maxClimb    = ThrustLimits_A380X::limitN1(2, pressAltitude, ambientTemperature, ambientPressure, 0, packs, nai, wai);
+  const double climbDerate = DeratedClimb_A380X::thrustReductionPercent(deratedClimbLevel, pressAltitude);
+  double       clb = ThrustLimits_A380X::limitN1(2, pressAltitude, ambientTemperature, ambientPressure, 0, packs, nai, wai, climbDerate);
   double mct = ThrustLimits_A380X::limitN1(3, pressAltitude, ambientTemperature, ambientPressure, 0, packs, nai, wai);
 
   // transition between TO and GA limit -----------------------------------------------------------------------------
@@ -1313,7 +1359,7 @@ void EngineControl_A380X::updateThrustLimits(double simulationTime,
 
   // adapt thrust limits
   if (pressureAltitude >= 25000) {
-    mct  = std::max(clb, mct + (clb - mct) * altitudeFactorHigh);
+    mct  = std::max(maxClimb, mct + (maxClimb - mct) * altitudeFactorHigh);
     toga = mct;
   } else {
     if (mct > toga) {
@@ -1325,7 +1371,7 @@ void EngineControl_A380X::updateThrustLimits(double simulationTime,
   }
 
   // write limits ---------------------------------------------------------------------------------------------------
-  simData.thrustLimitIdle->set(simData.engineIdleN1->get());
+  simData.thrustLimitIdle->set(selectedIdleN1);
   simData.thrustLimitToga->set(toga);
   simData.thrustLimitFlex->set(flex);
   simData.thrustLimitClimb->set(clb);

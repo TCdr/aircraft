@@ -14,7 +14,7 @@
  * This class contains methods and data used in the calculation of the corrected fan speed (CN1 and CN3).
  * The class has a 2D array `table` that contains values used in the calculation of the corrected fan speed.
  * Each row in the `table` represents a set of values. The columns represent different parameters used in the calculation.
- * The class also has two static methods `iCN3` and `iCN1` that calculate the corrected fan speed (CN3 and CN1) respectively.
+ * The class also has two static methods: `iCN3` the corrected core speed (CN3) at idle, and `correctedN1OfCorrectedN3` its corrected fan speed (CN1).
  *
  * TODO: extract the reusable code to a common library
  */
@@ -60,17 +60,13 @@ class Table1502_A380X {
   }
 
   /**
-   * @brief Calculates the corrected fan speed (CN1).
+   * @brief The corrected fan speed (CN1) of a corrected core speed (CN3) at idle, from table 1502.
    *
-   * @param pressureAltitude The pressure altitude in feet.
+   * @param cn3 The corrected core speed in percent.
    * @param mach The Mach number.
-   * @param ambientTemp The ambient temperature in degrees Celsius.
-   * @return The calculated corrected fan speed (CN1).
+   * @return The corrected fan speed (CN1) in percent.
    */
-  static double iCN1(double pressureAltitude, double mach, [[maybe_unused]] double ambientTemp) {
-    // Calculate the expected CN3 value
-    const double cn3 = iCN3(pressureAltitude, mach);
-
+  static double correctedN1OfCorrectedN3(double cn3, double mach) {
     // Find the row in the table that contains the CN3 value and store the index in i
     int i = 0;
     while (table1502[i][0] <= cn3 && i < 13) {

@@ -270,6 +270,7 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idAutothrustReverse[4];
   std::unique_ptr<LocalVariable> idEngineState[4];
   std::unique_ptr<LocalVariable> idEngineIdleN3;
+  std::unique_ptr<LocalVariable> idEngineIdleN1;
   std::unique_ptr<LocalVariable> idAutothrustThrustLimitType;
   std::unique_ptr<LocalVariable> idAutothrustThrustLimit;
   std::unique_ptr<LocalVariable> idAutothrustThrustLimitREV;

@@ -7,11 +7,13 @@
 #include "MsfsHandler.h"
 
 #include "CoreSpikeGuard_A380X.hpp"
+#include "DeratedClimb_A380X.hpp"
 #include "EngineIgnition_A380X.hpp"
 #include "EngineOilFailures.hpp"
 #include "FadecAirData_A380X.hpp"
 #include "FadecSimData_A380X.hpp"
 #include "FuelConfiguration_A380X.h"
+#include "IdleSetting_A380X.hpp"
 #include "IgniterSelection_A380X.hpp"
 #include "MsfsCoreLimiter_A380X.hpp"
 #include "StartSequence_A380X.hpp"
@@ -70,6 +72,11 @@ class EngineControl_A380X {
   // the DOx derated takeoff thrust reduction (percent), latched with the flex temperature
   double latchedDerate          = 0.0;
   double prevThrustLimitType    = 0.0;
+
+  DeratedClimb_A380X deratedClimb{};
+
+  // The idle N1 the engines run at (IdleSetting_A380X): the minimum idle N1 or higher
+  double selectedIdleN1 = 0.0;
 
   // FLX->CLB thrust limit transition
   bool   wasFlexActive;
@@ -209,6 +216,20 @@ class EngineControl_A380X {
    * @param ambientPressure The current ambient pressure in hPa.
    */
   void generateIdleParameters(FLOAT64 pressureAltitude, FLOAT64 mach, FLOAT64 ambientTemperature, FLOAT64 ambientPressure);
+
+  /// The engine bleed demand, each 0 or 1: a pack operating, an engine anti-ice valve open, the wing anti-ice on
+  struct BleedDemand {
+    int packs;
+    int nai;
+    int wai;
+  };
+  BleedDemand currentBleedDemand();
+
+  /// The aircraft state that selects the idle setting of the FADEC (IdleSetting_A380X)
+  IdleSetting_A380X::Inputs idleSettingInputs();
+
+  /// The derated climb level the FADEC applies, 0 for none; also published for the E/WD
+  int updateDeratedClimb();
 
   /**
    * @brief Manages the state and state changes of the engine.
@@ -371,6 +392,7 @@ class EngineControl_A380X {
    * @param packs The current state of the packs (0 or 1).
    * @param nai The current state of the NAI (0 or 1).
    * @param wai The current state of the WAI (0 or 1).
+   * @param deratedClimbLevel The derated climb level the FADEC applies (0 for none).
    */
   void updateThrustLimits(double simulationTime,
                           double pressureAltitude,
@@ -379,7 +401,8 @@ class EngineControl_A380X {
                           double mach,
                           int    packs,
                           int    nai,
-                          int    wai);
+                          int    wai,
+                          int    deratedClimbLevel);
 
   /**
    * @brief Updates the oil parameters. Quantity works atm, temperature doesn't.
