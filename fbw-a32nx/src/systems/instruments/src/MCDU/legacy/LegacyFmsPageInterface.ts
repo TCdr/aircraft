@@ -291,6 +291,8 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   managedSpeedCruiseMach: number;
   managedSpeedDescend: number;
   managedSpeedDescendMach: number;
+  /** The OPT FL of the PROG page, null for dashes */
+  readonly optimumFlightLevel: number | null;
   approachSpeeds?: NXSpeedsApp;
   constraintAlt: number;
   _activeCruiseFlightLevelDefaulToFcu: boolean;

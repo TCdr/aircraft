@@ -12,6 +12,7 @@ import {
   VnavDescentMode,
 } from '@fmgc/flightplanning/AircraftConfigTypes';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
+import type { EconAircraftParameters } from '@fmgc/guidance/vnav/EconSpeeds';
 import { FpmConfigs } from './FpmConfig';
 
 const lnavConfig: LnavConfig = {
@@ -153,4 +154,15 @@ export const A320AircraftConfig: AircraftConfig = {
   flightModelParameters: flightModelParams,
   fmSymbolConfig: fmsSymbolConfig,
   fpmConfig: FpmConfigs.A320_HONEYWELL_H4,
+};
+
+/**
+ * ECON speed model of the FMS.
+ * Design choice: TSFC 0.55 lb/h/lbf fits the specific range of the A320neo LRC cruise table within 3.5 % with the FMS
+ * drag model; the ECON limits are VMO - 10 kt and MMO - 0.02 (no margin is published).
+ */
+export const A320EconParameters: EconAircraftParameters = {
+  cruiseTsfc: 0.55,
+  maxSpeed: 340,
+  maxMach: 0.8,
 };
