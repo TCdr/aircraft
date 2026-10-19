@@ -68,9 +68,17 @@ class Tables1502_A32NX {
    * @return The expected CN1 value at idle.
    */
   static double iCN1(double pressureAltitude, double mach, [[maybe_unused]] double ambientTemp) {
-    // Calculate the expected CN2 value
-    const double cn2 = iCN2(pressureAltitude, mach);
+    return cn1AtCN2(iCN2(pressureAltitude, mach), mach);
+  }
 
+  /**
+   * @brief Calculates the corrected fan speed CN1 of a steady engine at a corrected core speed CN2.
+   *
+   * @param cn2 The corrected core speed in percent.
+   * @param mach The Mach number.
+   * @return The corrected fan speed CN1 in percent.
+   */
+  static double cn1AtCN2(double cn2, double mach) {
     // Find the row in the table that contains the CN2 value and store the index in i
     int i = 0;
     while (table1502[i][0] <= cn2 && i < 13) {

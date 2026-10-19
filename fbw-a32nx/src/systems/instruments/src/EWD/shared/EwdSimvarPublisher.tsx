@@ -46,6 +46,22 @@ export type EwdSimvars = {
   throttle2Position: number;
   fwcFlightPhase: number;
   idleN1: number;
+  /** The idle N1 the FADEC holds at idle thrust (modulated or approach idle), at or above the minimum idle idleN1 */
+  idleSettingN1: number;
+  /** The FADEC core sensors are failed: N1 and N2 of degraded accuracy (EngineIndicationAccuracy.ts) */
+  engine1SensorFault: boolean;
+  /** The DMC finds the displayed value differs from the FADEC data (EngineIndicationAccuracy.ts) */
+  engine1N1Discrepancy: boolean;
+  engine1N2Discrepancy: boolean;
+  engine1EgtDiscrepancy: boolean;
+  engine1FFDiscrepancy: boolean;
+  engine2SensorFault: boolean;
+  engine2N1Discrepancy: boolean;
+  engine2N2Discrepancy: boolean;
+  engine2EgtDiscrepancy: boolean;
+  engine2FFDiscrepancy: boolean;
+  /** L:A32NX_EIS_DMC_SWITCHING_KNOB: 0 CAPT 3, 1 NORM, 2 F/O 3 */
+  dmcSwitchingKnob: number;
   flexTemp: number;
   satRaw: number;
   totalFuel: number;
@@ -120,6 +136,18 @@ export enum EwdVars {
   throttle2Position = 'L:XMLVAR_Throttle2Position',
   fwcFlightPhase = 'L:A32NX_FWC_FLIGHT_PHASE',
   idleN1 = 'L:A32NX_ENGINE_IDLE_N1',
+  idleSettingN1 = 'L:A32NX_AUTOTHRUST_THRUST_LIMIT_IDLE',
+  engine1SensorFault = 'L:A32NX_ENGINE_1_SENSOR_FAULT',
+  engine1N1Discrepancy = 'L:A32NX_ENGINE_1_N1_DISCREPANCY',
+  engine1N2Discrepancy = 'L:A32NX_ENGINE_1_N2_DISCREPANCY',
+  engine1EgtDiscrepancy = 'L:A32NX_ENGINE_1_EGT_DISCREPANCY',
+  engine1FFDiscrepancy = 'L:A32NX_ENGINE_1_FF_DISCREPANCY',
+  engine2SensorFault = 'L:A32NX_ENGINE_2_SENSOR_FAULT',
+  engine2N1Discrepancy = 'L:A32NX_ENGINE_2_N1_DISCREPANCY',
+  engine2N2Discrepancy = 'L:A32NX_ENGINE_2_N2_DISCREPANCY',
+  engine2EgtDiscrepancy = 'L:A32NX_ENGINE_2_EGT_DISCREPANCY',
+  engine2FFDiscrepancy = 'L:A32NX_ENGINE_2_FF_DISCREPANCY',
+  dmcSwitchingKnob = 'L:A32NX_EIS_DMC_SWITCHING_KNOB',
   flexTemp = 'L:A32NX_AIRLINER_TO_FLEX_TEMP',
   satRaw = 'L:A32NX_ADIRS_ADR_1_STATIC_AIR_TEMPERATURE',
   totalFuel = 'L:A32NX_TOTAL_FUEL_QUANTITY',
@@ -194,6 +222,18 @@ export class EwdSimvarPublisher extends SimVarPublisher<EwdSimvars> {
     ['throttle2Position', { name: EwdVars.throttle2Position, type: SimVarValueType.Number }],
     ['fwcFlightPhase', { name: EwdVars.fwcFlightPhase, type: SimVarValueType.Enum }],
     ['idleN1', { name: EwdVars.idleN1, type: SimVarValueType.Number }],
+    ['idleSettingN1', { name: EwdVars.idleSettingN1, type: SimVarValueType.Number }],
+    ['engine1SensorFault', { name: EwdVars.engine1SensorFault, type: SimVarValueType.Bool }],
+    ['engine1N1Discrepancy', { name: EwdVars.engine1N1Discrepancy, type: SimVarValueType.Bool }],
+    ['engine1N2Discrepancy', { name: EwdVars.engine1N2Discrepancy, type: SimVarValueType.Bool }],
+    ['engine1EgtDiscrepancy', { name: EwdVars.engine1EgtDiscrepancy, type: SimVarValueType.Bool }],
+    ['engine1FFDiscrepancy', { name: EwdVars.engine1FFDiscrepancy, type: SimVarValueType.Bool }],
+    ['engine2SensorFault', { name: EwdVars.engine2SensorFault, type: SimVarValueType.Bool }],
+    ['engine2N1Discrepancy', { name: EwdVars.engine2N1Discrepancy, type: SimVarValueType.Bool }],
+    ['engine2N2Discrepancy', { name: EwdVars.engine2N2Discrepancy, type: SimVarValueType.Bool }],
+    ['engine2EgtDiscrepancy', { name: EwdVars.engine2EgtDiscrepancy, type: SimVarValueType.Bool }],
+    ['engine2FFDiscrepancy', { name: EwdVars.engine2FFDiscrepancy, type: SimVarValueType.Bool }],
+    ['dmcSwitchingKnob', { name: EwdVars.dmcSwitchingKnob, type: SimVarValueType.Enum }],
     ['flexTemp', { name: EwdVars.flexTemp, type: SimVarValueType.Number }],
     ['satRaw', { name: EwdVars.satRaw, type: SimVarValueType.Number }],
     ['totalFuel', { name: EwdVars.totalFuel, type: SimVarValueType.Number }],

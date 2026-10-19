@@ -428,6 +428,7 @@ void FlyByWireInterface::setupLocalVariables() {
   idEngineState[0] = std::make_unique<LocalVariable>("A32NX_ENGINE_STATE:1");
   idEngineState[1] = std::make_unique<LocalVariable>("A32NX_ENGINE_STATE:2");
   idEngineIdleN2 = std::make_unique<LocalVariable>("A32NX_ENGINE_IDLE_N2");
+  idEngineIdleN1 = std::make_unique<LocalVariable>("A32NX_ENGINE_IDLE_N1");
   idAutothrustN1_TLA_1 = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA_N1:1");
   idAutothrustN1_TLA_2 = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA_N1:2");
   idAutothrustReverse_1 = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_REVERSE:1");
@@ -2765,10 +2766,12 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
 
   // In flight, an engine out or (re)starting is held at idle and accelerates from idle once it runs: without this the thrust loop
   // wound the MSFS throttle up during the start and MSFS took the engine to its N2 limit at the end (see EngineStartThrottleHold.h).
-  // The loop target is its N1 command of the previous frame.
+  // The loop target is its N1 command of the previous frame. A start ends at the minimum idle (L:A32NX_ENGINE_IDLE_N1), which MSFS
+  // reaches at idle throttle; the idle thrust limit can be higher (bleed demand, approach idle) and is reached by the loop after the
+  // hold.
   const EngineStartThrottleHold::Output engineStartThrottle = engineStartThrottleHolds[fadecIndex].update(
       {fadecInputs[fadecIndex].in.data.on_ground != 0, idEngineState[fadecIndex]->get(),
-       fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent, fadecInputs[fadecIndex].in.input.thrust_limit_IDLE_percent,
+       fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent, idEngineIdleN1->get(),
        fadecOutputs[fadecIndex].N1_c_percent, sampleTime, fadecIndex == 0 ? simData.engine_N2_1_percent : simData.engine_N2_2_percent,
        idEngineIdleN2->get(), fadecIndex == 0 ? idEngineStallN1Loss_1->get() : idEngineStallN1Loss_2->get()});
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = engineStartThrottle.loopCommandedN1;

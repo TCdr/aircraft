@@ -109,7 +109,7 @@ class EngineStartThrottleHold {
     bool   onGround;        // the aircraft is on the ground (ground starts are left to the thrust loop)
     double engineState;     // L:A32NX_ENGINE_STATE:n
     double simCommandedN1;  // the MSFS commanded N1 as the thrust loop sees it, percent
-    double idleN1Limit;     // L:A32NX_AUTOTHRUST_THRUST_LIMIT_IDLE, percent
+    double idleN1Limit;     // the idle N1 a start ends at, percent (A32NX_ENGINE_IDLE_N1 / A380X A32NX_AUTOTHRUST_THRUST_LIMIT_IDLE)
     double loopTargetN1;    // the N1 target of the thrust loop (its N1_c output of the previous frame), percent
     double deltaTime;       // seconds
     double coreSpeed;       // the MSFS core speed TURB ENG N2:n (the A380X Trent N3), percent

@@ -441,6 +441,14 @@ export const A320Failure = Object.freeze({
   Reverser1ShutoffValveFailedOpen: 78050,
   Reverser2ShutoffValveFailedOpen: 78051,
   EngineVibrationMonitoringUnit: 77010,
+  Eng1N1Discrepancy: 77020,
+  Eng2N1Discrepancy: 77021,
+  Eng1N2Discrepancy: 77030,
+  Eng2N2Discrepancy: 77031,
+  Eng1EgtDiscrepancy: 77040,
+  Eng2EgtDiscrepancy: 77041,
+  Eng1FuelFlowDiscrepancy: 77050,
+  Eng2FuelFlowDiscrepancy: 77051,
   Atsu: 46000,
   AtsuAoc: 46001,
   Dcdu1: 46002,
@@ -890,8 +898,9 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [73, A320Failure.Eng2OverspeedProtection, 'Engine 2 overspeed protection'],
   [73, A320Failure.Eng1InletProbes, 'Engine 1 inlet probes (T12, P0, PT2)'],
   [73, A320Failure.Eng2InletProbes, 'Engine 2 inlet probes (T12, P0, PT2)'],
-  [73, A320Failure.Eng1Sensors, 'Engine 1 core sensors (PS3, T25, T3)'],
-  [73, A320Failure.Eng2Sensors, 'Engine 2 core sensors (PS3, T25, T3)'],
+  // SENSOR FAULT, and the N1 and N2 of the E/WD shown with degraded accuracy (amber dashes on the last digit)
+  [73, A320Failure.Eng1Sensors, 'Engine 1 core sensors (PS3, T25, T3, N1, N2)'],
+  [73, A320Failure.Eng2Sensors, 'Engine 2 core sensors (PS3, T25, T3, N1, N2)'],
   [73, A320Failure.ThrustLever1OneResolver, 'Thrust lever 1 one resolver'],
   [73, A320Failure.ThrustLever2OneResolver, 'Thrust lever 2 one resolver'],
   // FWC alerts only, the engine runs as before (systems engine/engine_monitoring_fault.rs): ENG FUEL CTL FAULT, FUEL
@@ -932,6 +941,16 @@ export const A320FailureDefinitions: FailureDefinition[] = [
 
   // ENG VIB SYS FAULT only: the vibrations stay on the ENGINE SD page (FWC Logic/EngineFadecFaultAlerts, TS only)
   [77, A320Failure.EngineVibrationMonitoringUnit, 'Engine vibration monitoring unit (EVMU)'],
+  // The DMC finds the displayed value differs from the FADEC data: amber CHECK under the E/WD indication, gone with the
+  // E/WD on DMC 3 (EIS DMC switching CAPT 3); the engine runs as before (systems engine/engine_monitoring_fault.rs)
+  [77, A320Failure.Eng1N1Discrepancy, 'Engine 1 N1 indication discrepancy (FADEC-DMC)'],
+  [77, A320Failure.Eng2N1Discrepancy, 'Engine 2 N1 indication discrepancy (FADEC-DMC)'],
+  [77, A320Failure.Eng1N2Discrepancy, 'Engine 1 N2 indication discrepancy (FADEC-DMC)'],
+  [77, A320Failure.Eng2N2Discrepancy, 'Engine 2 N2 indication discrepancy (FADEC-DMC)'],
+  [77, A320Failure.Eng1EgtDiscrepancy, 'Engine 1 EGT indication discrepancy (FADEC-DMC)'],
+  [77, A320Failure.Eng2EgtDiscrepancy, 'Engine 2 EGT indication discrepancy (FADEC-DMC)'],
+  [77, A320Failure.Eng1FuelFlowDiscrepancy, 'Engine 1 fuel flow indication discrepancy (FADEC-DMC)'],
+  [77, A320Failure.Eng2FuelFlowDiscrepancy, 'Engine 2 fuel flow indication discrepancy (FADEC-DMC)'],
 
   // ATSU (systems-host atsu.ts): the failed ATSU stops (no datalink), DATALINK ATSU FAULT; the AOC function failure stops
   // the company datalink only, DATALINK COMPANY FAULT (FWC Logic/DatalinkAlerts)

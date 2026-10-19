@@ -322,13 +322,13 @@ describe('A320 flyPad failures', () => {
         73,
         A320Failure.Eng1Sensors,
         'EngineMonitoringFault(1,EngineMonitoringFaultKind::Sensors)',
-        'Engine 1 core sensors (PS3, T25, T3)',
+        'Engine 1 core sensors (PS3, T25, T3, N1, N2)',
       ],
       [
         73,
         A320Failure.Eng2Sensors,
         'EngineMonitoringFault(2,EngineMonitoringFaultKind::Sensors)',
-        'Engine 2 core sensors (PS3, T25, T3)',
+        'Engine 2 core sensors (PS3, T25, T3, N1, N2)',
       ],
       [
         73,
@@ -422,6 +422,32 @@ describe('A320 flyPad failures', () => {
       expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, label]);
       const rustId = `${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')}`;
       expect(wasm).toContain(`(${rustId},FailureType::${rustFailure}),`);
+    }
+  });
+
+  // The labels say what systems engine/engine_monitoring_fault.rs and the E/WD do with each id: an amber CHECK under the
+  // indication, the engine runs as before
+  it('lists the FADEC-DMC indication discrepancy failures in ATA 77 with the Rust failure they trigger', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8')
+      .replace(/\s/g, '')
+      .replace(/,\)/g, ')');
+    const parameters: [string, string, string, number][] = [
+      ['N1', 'N1Discrepancy', 'N1', 77020],
+      ['N2', 'N2Discrepancy', 'N2', 77030],
+      ['Egt', 'EgtDiscrepancy', 'EGT', 77040],
+      ['FuelFlow', 'FuelFlowDiscrepancy', 'fuel flow', 77050],
+    ];
+    for (const [name, rustKind, text, firstId] of parameters) {
+      for (const engine of [1, 2]) {
+        const id = A320Failure[`Eng${engine}${name}Discrepancy` as keyof typeof A320Failure];
+        expect(id).toBe(firstId + engine - 1);
+        expect(label(id)).toEqual([77, id, `Engine ${engine} ${text} indication discrepancy (FADEC-DMC)`]);
+        const rustId = `${Math.floor(id / 1000)}_${String(id % 1000).padStart(3, '0')}`;
+        expect(wasm).toContain(
+          `(${rustId},FailureType::EngineMonitoringFault(${engine},EngineMonitoringFaultKind::${rustKind}))`,
+        );
+      }
     }
   });
 

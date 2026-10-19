@@ -828,6 +828,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FMS] [A380X/FMS] Predict the time, fuel and ETA at the destination and the alternate in the go-around phase (no vertical predictions on the missed approach legs), and start the take-off predictions at the aircraft once airborne - @TCdr
 1. [A380X/FMS] Add engine-out predictions: the EO MAX is computed from the aircraft performance, the drift down is predicted and shown as DRIFT DOWN TO FL on the PERF CRZ page, and the EO CRZ MODE (EO-LRC or EO-ECON) and the EO-GDOT speed type are selected and shown - @TCdr
 1. [A32NX/FMS] Add engine-out predictions: the drift down to the EO REC MAX and the EO LRC or cost index cruise speed are predicted, DRIFT DOWN is shown on the PERF CRZ page and EO LRC replaces the cost index - @TCdr
+1. [A32NX/FADEC] Engine idle follows the FADEC idle modes: modulated idle rises with the engine bleed demand (packs, anti-ice), approach idle with the flaps lever out of 0 for a quicker go-around spool-up - @TCdr
+1. [A32NX/EWD] N1 and N2 shown with amber dashes on the last digit with the engine core sensors failed, amber CHECK under N1, N2, EGT or FF with the new FADEC-DMC indication discrepancy failures (gone on DMC 3) - @TCdr
+1. [A32NX/SD] Fuel used shown with amber dashes on the ENG and FUEL pages once the fuel flow was lost in flight for more than 1 min, until the next engine start on ground - @TCdr
 
 ## 2024.1.0
 

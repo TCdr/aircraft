@@ -7,11 +7,13 @@ import {
   EventBus,
   DisplayComponent,
   FSComponent,
+  MappedSubject,
   Subject,
   Subscribable,
   VNode,
 } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
+import { lastDigitColor, lastDigitText } from './EngineIndicationAccuracy';
 import { ExceedanceMemory, N1_RED_LIMIT_PERCENT, isGroundStartSequence, n1Color } from '@shared/EngineLimits';
 import {
   GaugeComponent,
@@ -389,6 +391,14 @@ export class N1 extends DisplayComponent<N1Props> {
 
   private textN1Fract = Subject.create('');
 
+  private readonly n1AccuracyDegraded = Subject.create(false);
+
+  private readonly textN1LastDigit = MappedSubject.create(
+    ([digit, degraded]) => lastDigitText(digit, degraded),
+    this.textN1Fract,
+    this.n1AccuracyDegraded,
+  );
+
   private readonly gaugeStartAngle = Subject.create(220);
 
   /** The gauge scale in N1 % / 10 (see render) */
@@ -425,6 +435,12 @@ export class N1 extends DisplayComponent<N1Props> {
   private readonly n1Color = Subject.create('Green');
 
   private readonly n1IndicatorClass = Subject.create('GaugeIndicator Gauge');
+
+  private readonly n1LastDigitClass = MappedSubject.create(
+    ([color, degraded]) => `Standard End ${lastDigitColor(color, degraded)}`,
+    this.n1Color,
+    this.n1AccuracyDegraded,
+  );
 
   /** The red mark at the highest N1 reached above the red limit (FCOM DSC-70-90-40 N1 EXCEEDANCE) */
   private readonly n1Exceedance = new ExceedanceMemory(N1_RED_LIMIT_PERCENT);
@@ -472,6 +488,11 @@ export class N1 extends DisplayComponent<N1Props> {
         this.inactiveVisibility.set(f ? 'hidden' : 'visible');
         this.activeVisibility.set(f ? 'visible' : 'hidden');
       });
+
+    sub
+      .on(`engine${this.props.engine}SensorFault`)
+      .whenChanged()
+      .handle((fault) => this.n1AccuracyDegraded.set(fault));
 
     sub
       .on(`engine${this.props.engine}N1`)
@@ -532,8 +553,8 @@ export class N1 extends DisplayComponent<N1Props> {
           <text class={this.n1Color.map((color) => `Large End ${color}`)} x={56} y={46}>
             .
           </text>
-          <text class={this.n1Color.map((color) => `Standard End ${color}`)} x={72} y={46}>
-            {this.textN1Fract}
+          <text class={this.n1LastDigitClass} x={72} y={46}>
+            {this.textN1LastDigit}
           </text>
 
           <GaugeComponent

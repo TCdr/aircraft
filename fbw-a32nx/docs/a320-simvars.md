@@ -2567,7 +2567,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
 
 - A32NX_AUTOTHRUST_THRUST_LIMIT_IDLE
     - Number (% N1)
-    - Indicates the thrust limit N1 for IDLE
+    - Indicates the thrust limit N1 for IDLE: the idle setting of the FADEC, modulated idle (minimum idle raised by the engine bleed demand: packs, nacelle and wing anti-ice) in flight with the FLAPS lever at 0 and on ground, approach idle (higher, whatever the bleed demand) in flight with the FLAPS lever not at 0
 
 - A32NX_AUTOTHRUST_THRUST_LIMIT_CLB
     - Number (% N1)
@@ -2713,7 +2713,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
 
 - A32NX_ENGINE_IDLE_N1
     - Number (% N1)
-    - Expected idle N1 as a function of temperature and pressure
+    - Expected idle N1 as a function of temperature and pressure: the minimum idle, where a start ends (the idle setting is A32NX_AUTOTHRUST_THRUST_LIMIT_IDLE)
 
 - A32NX_ENGINE_IDLE_N2
     - Number (% N2)
@@ -2748,6 +2748,10 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_FUEL_USED:{index}
     - Number (Kg)
     - Fuel burnt by engine {index} on deltaTime
+
+- A32NX_FUEL_USED_DEGRADED:{index}
+    - Bool
+    - The fuel used of engine {index} is of degraded accuracy (amber dashes on the SD ENG and FUEL pages): its fuel flow was not valid (FADEC not powered) in flight for more than 1 min; reset at the next engine start on ground. Written by the MCDU A32NX_Core (A32NX_FADEC.ts)
 
 - A32NX_FUEL_LEFT_PRE
     - Number (lbs)
@@ -4757,7 +4761,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True while the FADEC fault failure of the engine is active (flyPad failures 73210/73211 FADEC alternator, 73220/73221 overspeed protection, 73230/73231 inlet probes, 73240/73241 core sensors, 73060/73061 thrust lever one resolver, 78030/78031 reverser permission switch): ENG 1(2) FADEC ALTERNATOR (engine running), OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT, no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73210/73211 FADEC alternator, 73220/73221 overspeed protection, 73230/73231 inlet probes, 73240/73241 core sensors (also the N1 and N2 of the E/WD with degraded accuracy: amber dashes on the last digit), 73060/73061 thrust lever one resolver, 78030/78031 reverser permission switch): ENG 1(2) FADEC ALTERNATOR (engine running), OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT, no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
 
 - A32NX_ENGINE_{number}_FUEL_CTL_FAULT, _FUEL_RETURN_VALVE_FAILED_CLOSED, _FUEL_RETURN_VALVE_FAILED_OPEN, _CTL_VALVE_FAULT, _COMPRESSOR_VANE_FAULT, _COMPRESSOR_VANE_CHANNEL_FAULT, _BLEED_STATUS_FAULT, _REVERSER_INHIBITED, _REVERSER_SHUTOFF_VALVE_FAULT
   - Bool
@@ -4765,6 +4769,13 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 1
     - 2
   - True while the FADEC fault failure of the engine is active (flyPad failures 73250/73251 fuel metering valve control, 73260/73261 fuel return valve failed closed, 73270/73271 fuel return valve failed open, 73280/73281 burner staging / clearance control valves, 73290/73291 compressor vanes, 73300/73301 compressor vane control one channel, 73310/73311 bleed valve status to FADEC, 78040/78041 reverser inhibited by maintenance, 78050/78051 reverser HCU shutoff valve failed open): ENG 1(2) FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2 COMPRESSOR VANE (channel fault on both engines), BLEED STATUS FAULT, REV INHIBITED, REV ISOL FAULT (FWC Logic/EngineFadecFaultAlerts). No effect on the engine; REVERSER_INHIBITED also stops the deployment of the reverser. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+
+- A32NX_ENGINE_{number}_N1_DISCREPANCY, _N2_DISCREPANCY, _EGT_DISCREPANCY, _FF_DISCREPANCY
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the indication discrepancy failure of the engine is active (flyPad failures 77020/77021 N1, 77030/77031 N2, 77040/77041 EGT, 77050/77051 fuel flow): the DMC finds the displayed value differs from the FADEC-DMC bus value, amber CHECK under the E/WD indication while the E/WD is not on DMC 3. No effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
 
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool

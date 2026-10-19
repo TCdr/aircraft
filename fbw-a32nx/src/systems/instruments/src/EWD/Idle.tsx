@@ -19,7 +19,7 @@ export class Idle extends DisplayComponent<IdleProps> {
 
   private engine2N1: number = 0;
 
-  private idleN1: number = 0;
+  private idleSettingN1: number = 0;
 
   private fwcFlightPhase: number = 0;
 
@@ -47,10 +47,10 @@ export class Idle extends DisplayComponent<IdleProps> {
       });
 
     sub
-      .on('idleN1')
+      .on('idleSettingN1')
       .whenChanged()
       .handle((n1) => {
-        this.idleN1 = n1;
+        this.idleSettingN1 = n1;
       });
 
     sub
@@ -65,7 +65,12 @@ export class Idle extends DisplayComponent<IdleProps> {
       .atFrequency(2)
       .handle((_t) => {
         // Both engines at idle in flight, with or without the autothrust (FCOM l.64203, EngineIndications.ts)
-        const showIdle = isIdleIndicationVisible(this.engine1N1, this.engine2N1, this.idleN1, this.fwcFlightPhase);
+        const showIdle = isIdleIndicationVisible(
+          this.engine1N1,
+          this.engine2N1,
+          this.idleSettingN1,
+          this.fwcFlightPhase,
+        );
 
         this.visibility.set(showIdle ? 'visible' : 'hidden');
 

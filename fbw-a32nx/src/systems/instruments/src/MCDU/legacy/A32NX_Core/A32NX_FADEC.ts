@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
+import { FuelUsedAccuracy } from '@shared/FuelUsedAccuracy';
+
 /*
  * The igniters (L:A32NX_FADEC_IGNITER_A/B_ACTIVE_ENGn) are now written by the systems WASM, with the start sequence and the
  * igniter failures (a320_systems engine_failure.rs, systems::engine::engine_start).
@@ -37,6 +39,7 @@ export class A32NX_FADEC {
   private dcEssPoweredInPreviousUpdate = false;
   private lastEngineState;
   private lastIgnitionState;
+  private readonly fuelUsedAccuracy = new FuelUsedAccuracy();
 
   constructor(private readonly engine: number) {}
 
@@ -60,6 +63,14 @@ export class A32NX_FADEC {
     }
     this.fadecTimer -= deltaTime / 1000;
     this.updateSimVars();
+    // The fuel used of the SD pages, of degraded accuracy after the fuel flow (sent by the powered FADEC) was lost in flight
+    const fuelUsedDegraded = this.fuelUsedAccuracy.update(
+      deltaTime / 1000,
+      this.isPowered(),
+      !!SimVar.GetSimVarValue('SIM ON GROUND', 'Bool'),
+      engineState,
+    );
+    SimVar.SetSimVarValue(`L:A32NX_FUEL_USED_DEGRADED:${this.engine}`, 'Bool', fuelUsedDegraded ? 1 : 0);
     this.dcEssPoweredInPreviousUpdate = dcEssIsPowered;
   }
 

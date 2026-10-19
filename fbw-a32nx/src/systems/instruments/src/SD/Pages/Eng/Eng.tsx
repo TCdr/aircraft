@@ -11,6 +11,7 @@ import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
 import { isStartIndicationShown } from './StartIndications';
 import { fuelFilterClogShown } from './EngFuelFilterIndication';
+import { FUEL_USED_DEGRADED_TEXT } from '@shared/FuelUsedAccuracy';
 import { N1_VIBRATION_ADVISORY_UNITS, N2_VIBRATION_ADVISORY_UNITS, vibrationClassName } from './EngVibration';
 
 import './Eng.scss';
@@ -312,6 +313,8 @@ const EngineColumn = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) =
   const [useMetric] = usePersistentSetting('CONFIG_USING_METRIC_UNIT');
   const [fuelUsed] = useSimVar(`L:A32NX_FUEL_USED:${engineNumber}`, 'number', 500);
   const displayedFuelUsed = useMetric ? Math.round(fuelUsed / 10) * 10 : Math.round(fuelUsed / 0.4535934 / 20) * 20;
+  // Fuel used of degraded accuracy after a loss of the fuel flow in flight (A32NX_FADEC.ts, FuelUsedAccuracy)
+  const [fuelUsedDegraded] = useSimVar(`L:A32NX_FUEL_USED_DEGRADED:${engineNumber}`, 'bool', 500);
   // The fuel filter clog failure (systems engine/fuel_filter_failure.rs) and the engine state, see EngFuelFilterIndication
   const [fuelFilterClogged] = useSimVar(`L:A32NX_ENGINE_${engineNumber}_FUEL_FILTER_CLOGGED`, 'bool', 500);
   const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engineNumber}`, 'number', 500);
@@ -349,8 +352,8 @@ const EngineColumn = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) =
 
   return (
     <SvgGroup x={x} y={y}>
-      <text x={x} y={y} className="FillGreen FontLarge TextCenter">
-        {displayedFuelUsed}
+      <text x={x} y={y} className={`${fuelUsedDegraded ? 'FillAmber' : 'FillGreen'} FontLarge TextCenter`}>
+        {fuelUsedDegraded ? FUEL_USED_DEGRADED_TEXT : displayedFuelUsed}
       </text>
       {/* FCOM DSC-70-90-40 FUEL FILTER CLOG INDICATION, below the fuel used */}
       <text

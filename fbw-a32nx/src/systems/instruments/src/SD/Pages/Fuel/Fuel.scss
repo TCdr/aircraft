@@ -51,6 +51,11 @@
     text-anchor: middle;
     stroke: $display-green;
     fill: $display-green;
+
+    &.Degraded {
+      stroke: $display-amber;
+      fill: $display-amber;
+    }
   }
 
   .ThickShape {

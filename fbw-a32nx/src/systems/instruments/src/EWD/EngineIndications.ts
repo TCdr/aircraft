@@ -19,7 +19,8 @@ import { ThrustLimitType } from '@shared/EngineLimits';
  *   (L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE, the rating mode shown on the EWD); the thrust reversers are selected when the
  *   thrust limit type is MREV (a thrust lever in the reverse range).
  * - In flight is FWC flight phases 5 (lift off) to 7 (approach), as before.
- * - At idle speed: N1 at most 2 % above the idle N1 of the current conditions (L:A32NX_ENGINE_IDLE_N1), as before.
+ * - At idle speed: N1 at most 2 % above the idle setting of the FADEC (L:A32NX_AUTOTHRUST_THRUST_LIMIT_IDLE: modulated
+ *   idle with the bleed demand, or approach idle with the flaps out).
  */
 
 /** l.64269-64273: the amber EGT limit line of the EGT gauge */

@@ -89,8 +89,9 @@ use systems::{
 /// FAULT (see systems::engine::engine_monitoring_fault and the FWC Logic/EngineMonitoringAlerts.ts),
 /// and FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE (ENG 1(2) and ENG 1+2),
 /// BLEED STATUS FAULT, REV INHIBITED, REV ISOL FAULT (FWC Logic/EngineFadecFaultAlerts.ts). REV
-/// INHIBITED also stops the reverser deployment (see `reversers_deployment_inhibited`).
-const A320_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 15] = [
+/// INHIBITED also stops the reverser deployment (see `reversers_deployment_inhibited`). The N1, N2,
+/// EGT and FF discrepancies put an amber CHECK under the E/WD indication.
+const A320_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 19] = [
     EngineMonitoringFaultKind::FadecAlternator,
     EngineMonitoringFaultKind::OverspeedProtection,
     EngineMonitoringFaultKind::InletProbes,
@@ -106,6 +107,10 @@ const A320_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 15] = [
     EngineMonitoringFaultKind::BleedValveStatus,
     EngineMonitoringFaultKind::ReverserInhibited,
     EngineMonitoringFaultKind::ReverserShutoffValve,
+    EngineMonitoringFaultKind::N1Discrepancy,
+    EngineMonitoringFaultKind::N2Discrepancy,
+    EngineMonitoringFaultKind::EgtDiscrepancy,
+    EngineMonitoringFaultKind::FuelFlowDiscrepancy,
 ];
 
 pub struct A320 {

@@ -5,6 +5,7 @@
 import { DisplayComponent, EventBus, FSComponent, VNode } from '@microsoft/msfs-sdk';
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { AFloor } from './AFloor';
+import { DiscrepancyCheck } from './DiscrepancyCheck';
 import { Egt } from './EGT';
 import { FF } from './FF';
 import { FOB } from './FOB';
@@ -33,6 +34,8 @@ export class UpperDisplay extends DisplayComponent<UpperDisplayProps> {
         <Layer x={0} y={96}>
           <N1 bus={this.props.bus} engine={1} x={234} y={0} />
           <N1 bus={this.props.bus} engine={2} x={534} y={0} />
+          <DiscrepancyCheck bus={this.props.bus} engine={1} parameter="N1" x={265} y={72} />
+          <DiscrepancyCheck bus={this.props.bus} engine={2} parameter="N1" x={565} y={72} />
           <text class="Large Center" x={387} y={26}>
             N1
           </text>
@@ -44,6 +47,8 @@ export class UpperDisplay extends DisplayComponent<UpperDisplayProps> {
         <Layer x={0} y={248}>
           <Egt bus={this.props.bus} engine={1} x={234} y={0} />
           <Egt bus={this.props.bus} engine={2} x={533} y={0} />
+          <DiscrepancyCheck bus={this.props.bus} engine={1} parameter="Egt" x={234} y={28} />
+          <DiscrepancyCheck bus={this.props.bus} engine={2} parameter="Egt" x={533} y={28} />
           <text class="Large Center" x={385} y={-16}>
             EGT
           </text>
@@ -55,6 +60,8 @@ export class UpperDisplay extends DisplayComponent<UpperDisplayProps> {
         <Layer x={0} y={275}>
           <N2 bus={this.props.bus} engine={1} x={192} y={0} />
           <N2 bus={this.props.bus} engine={2} x={493} y={0} />
+          <DiscrepancyCheck bus={this.props.bus} engine={1} parameter="N2" x={223} y={67} />
+          <DiscrepancyCheck bus={this.props.bus} engine={2} parameter="N2" x={524} y={67} />
           <text class="Large Center" x={386} y={33}>
             N2
           </text>
@@ -68,6 +75,8 @@ export class UpperDisplay extends DisplayComponent<UpperDisplayProps> {
         <Layer x={0} y={380}>
           <FF bus={this.props.bus} engine={1} x={273} y={0} metric={this.usingMetric} />
           <FF bus={this.props.bus} engine={2} x={576} y={0} metric={this.usingMetric} />
+          <DiscrepancyCheck bus={this.props.bus} engine={1} parameter="FF" x={238} y={22} />
+          <DiscrepancyCheck bus={this.props.bus} engine={2} parameter="FF" x={541} y={22} />
           <text class="Large Center" x={386} y={-10}>
             FF
           </text>

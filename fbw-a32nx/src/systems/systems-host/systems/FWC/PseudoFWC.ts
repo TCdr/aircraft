@@ -3922,7 +3922,8 @@ export class PseudoFWC {
     this.N1Eng2.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_N1:2', 'number'));
     this.N2Eng1.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_N2:1', 'number'));
     this.N2Eng2.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_N2:2', 'number'));
-    this.N1IdleEng.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_IDLE_N1', 'number'));
+    // The idle setting of the FADEC: an engine at modulated idle (bleed demand) or approach idle is not above idle
+    this.N1IdleEng.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT_IDLE', 'number'));
     // FIXME move out of acquisition to logic below
     const oneEngineAboveMinPower = this.engine1AboveIdle.get() || this.engine2AboveIdle.get();
     this.engineOnFor30Seconds.write(
