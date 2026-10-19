@@ -508,7 +508,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MCDU] HOLD from the LAT REV at PPOS (the FROM waypoint) creates a hold at the present position on the aircraft track, instead of a hold at the waypoint behind the aircraft - @TCdr
 1. [A380X/MFD] The HOLD revision of the FROM waypoint creates a hold at P.POS on the aircraft track, as on the aircraft (it was greyed out) - @TCdr
 1. [A32NX/MCDU] DIR TO page: ABEAM PTS, RADIAL IN (with the default inbound radial of a flight plan waypoint) and RADIAL OUT now build the DIR TO temporary flight plan instead of NOT YET IMPLEMENTED - @TCdr
-1. [A32NX/MCDU] The PROG page OPT FL is the best specific range level for the gross weight (long range cruise table), never above REC MAX, instead of the REC MAX rounded down - @TCdr
+1. [A32NX/MCDU] The PROG page OPT FL is the most economic level for the cost index, gross weight, temperature and wind, never above REC MAX and leaving at least 5 min of cruise, instead of the REC MAX rounded down - @TCdr
 1. [A380X/MFD] PERF page CLB and DES tabs show the time and distance to the PRED TO altitude instead of dashes - @TCdr
 1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan - @TCdr
 1. [A380X/FWS] BRAKES BTV FAULT no longer shows (with a single chime and MASTER CAUT) while engine 2 or 3 is not running, e.g. during the engine start on the ground: an inner engine out makes BTV inoperative through the ENG SHUT DOWN STATUS - @TCdr
@@ -799,6 +799,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/EWD] ENG CTL SYS FAULT strikes out the last digits of the N1 on the E/WD and of the N2, N3 and fuel flow on the SD ENG page (degraded accuracy) - @TCdr
 1. [A380X/FADEC] Approach idle: in flight with the FLAPS lever at 2, 3 or FULL or the landing gear down the engines idle higher for a quick go-around acceleration; the normal idle now also rises with the packs, engine and wing anti-ice and a high oil temperature - @TCdr
 1. [A380X/FADEC] Derated climb: DERATED CLB on the MFD PERF CLB panel offers the three levels of the engine (01 to 03) and reduces the climb thrust by 8, 16 or 24 % with a washout to the maximum climb thrust at high altitude; the E/WD shows DCLB1 to DCLB3; NONE or moving the thrust levers out of the CL detent and back cancels it - @TCdr
+1. [A32NX/FMS] ECON climb, cruise and descent speeds and Mach computed from the cost index, weight, cruise level, temperature and, in cruise, the wind, instead of a fixed cost index table and M.78 - @TCdr
+1. [A380X/FMS] ECON climb, cruise and descent speeds and Mach computed from the cost index, weight, cruise level, temperature and, in cruise, the wind, instead of the fixed 310 kt / M.85 cruise target; LRC mode flies the LRC Mach - @TCdr
+1. [A380X/FMS] PERF page OPT FL from the cost index, gross weight, temperature and wind, with at least 15 min of cruise and until 15 NM before the T/D, instead of 96 % of the REC MAX - @TCdr
+1. [A380X/FMS] Without a cost index entry before the ZFW, the FMS sets the cost index of the previous flight (0 after a power-up) with the COST INDEX-NNN IN USE message, instead of CI 0 in LRC mode - @TCdr
 
 ## 2024.1.0
 

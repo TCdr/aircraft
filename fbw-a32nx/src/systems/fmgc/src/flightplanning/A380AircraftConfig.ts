@@ -12,6 +12,7 @@ import {
   VnavDescentMode,
 } from '@fmgc/flightplanning/AircraftConfigTypes';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
+import type { EconAircraftParameters } from '@fmgc/guidance/vnav/EconSpeeds';
 import { FpmConfigs } from './FpmConfig';
 
 const lnavConfig: LnavConfig = {
@@ -180,4 +181,18 @@ export const A380AircraftConfig: AircraftConfig = {
   flightModelParameters: flightModelParams,
   fmSymbolConfig: fmsSymbolConfig,
   fpmConfig: FpmConfigs.A380,
+};
+
+/**
+ * ECON speed model of the FMS.
+ * Design choice: the clean drag polar of the FMS model has its best lift-to-drag ratio above Cl 0.7, which puts the
+ * maximum range Mach near M.72. This polar (maximum lift-to-drag ratio 19.9 at Cl 0.46) with TSFC 0.50 lb/h/lbf gives
+ * the maximum range Mach near M.82 and about 12.7 t/h at M.85, 450 t, FL350. The ECON limits are VMO - 10 kt and
+ * MMO - 0.02 (no margin is published).
+ */
+export const A380EconParameters: EconAircraftParameters = {
+  cruiseTsfc: 0.5,
+  dragPolar: [0.0115, 0, 0.055],
+  maxSpeed: 330,
+  maxMach: 0.87,
 };
