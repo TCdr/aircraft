@@ -54,3 +54,14 @@ export function isTakeoffThrustDisagree(takeoffModes: readonly number[]): boolea
 export function thrustLossItemsChecked(thrustLeverIdle: boolean, engineMasterOn: boolean): boolean[] {
   return [thrustLeverIdle, !engineMasterOn];
 }
+
+/**
+ * ENG THRUST LOCKED: the thrust is frozen on one or more engines after a failure or an involuntary A/THR disconnection,
+ * until the thrust levers move. The failure case: a FADEC that reverts to the DEGRADED (N1) mode keeps the thrust of the
+ * reversion (L:A32NX_ENGINE_n_FADEC_THRUST_FROZEN, fbw WASM FadecDegradedMode.h).
+ * @param athrThrustLock the A/THR shows THR LK
+ * @param fadecThrustFrozen the thrust each FADEC keeps frozen, index 0 = engine 1
+ */
+export function isEngineThrustLocked(athrThrustLock: boolean, fadecThrustFrozen: readonly boolean[]): boolean {
+  return athrThrustLock || fadecThrustFrozen.some((frozen) => frozen);
+}

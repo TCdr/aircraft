@@ -6,6 +6,7 @@
 #include "A380FadecComputer.h"
 #include "AirDataRejection.h"
 #include "Arinc429.h"
+#include "FadecDegradedMode.h"
 #include "FadecFailureInputs.h"
 #include "FadecThrustFailures.h"
 #include "TakeoffDerate.h"
@@ -118,6 +119,8 @@ class FlyByWireInterface {
   base_eec fadecBusOutputs[4];
   // MSFS throttle of an engine out or (re)starting in flight, and its acceleration from idle once it runs
   EngineStartThrottleHold engineStartThrottleHolds[4];
+  // The thrust kept after a reversion to the DEGRADED (N1) mode until the lever moves (FadecDegradedMode.h)
+  FadecDegradedMode::ThrustFreeze fadecThrustFreezes[4];
 
   base_ra_bus raBusOutputs[3] = {};
 
@@ -282,6 +285,9 @@ class FlyByWireInterface {
   // (FadecThrustFailures.h)
   std::unique_ptr<LocalVariable> idEngineFadecMaxThr[4];
   std::unique_ptr<LocalVariable> idEngineFadecTakeoffMode[4];
+  // The NORMAL / DEGRADED mode of each FADEC (fadec_a380x FadecAirData_A380X) and its frozen thrust (FadecDegradedMode.h)
+  std::unique_ptr<LocalVariable> idEngineFadecDegradedMode[4];
+  std::unique_ptr<LocalVariable> idEngineFadecThrustFrozen[4];
   std::unique_ptr<LocalVariable> idAutothrustStatus;
   std::unique_ptr<LocalVariable> idAutothrustMode;
   std::unique_ptr<LocalVariable> idAutothrustModeMessage;
@@ -737,6 +743,11 @@ class FlyByWireInterface {
 
   bool updateFlyByWire(double sampleTime);
   bool updateFadec(double sampleTime, int fadecIndex);
+  void readFadecDegradedModes(bool degraded[]);
+  // The A/THR disconnection the PRIMs get while three or four FADECs are in DEGRADED mode (FadecDegradedMode.h)
+  bool fadecsOrderAutothrustDisconnection();
+  // The thrust lever angle the FADEC model uses: the lever, or the angle of the thrust frozen by the DEGRADED mode
+  double degradedModeThrustLeverAngle(int fadecIndex, double leverDeg);
 
   bool updateRa(int raIndex);
 

@@ -9,10 +9,12 @@ import {
   ConsumerSubject,
   SubscribableMapFunctions,
   ClockEvents,
+  EventSubscriber,
 } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from '../shared/EwdSimvarPublisher';
 import { Arinc429Values } from '../shared/ArincValueProvider';
 import { AvailIndication } from './AvailIndication';
+import { thrustParameterAirData, thrustParameterPercent } from './ThrustParameter';
 
 import {
   GaugeComponent,
@@ -34,6 +36,29 @@ interface ThrustGaugeProps {
 }
 
 const METOTS_N1_LIMIT = 76.5;
+
+/** The Mach and TAT of the THR parameter (ThrustParameter.ts): the ADRs, else the engine sensors */
+export function createThrustParameterAirData(
+  sub: EventSubscriber<AdrBusEvents & EwdSimvars>,
+): Subscribable<{ mach: number; tatDegC: number }> {
+  return MappedSubject.create(
+    ([mach1, mach2, mach3, tat1, tat2, tat3, engineMach, engineTat]) =>
+      thrustParameterAirData(
+        [mach1.valueOr(null), mach2.valueOr(null), mach3.valueOr(null)],
+        [tat1.valueOr(null), tat2.valueOr(null), tat3.valueOr(null)],
+        engineMach,
+        engineTat,
+      ),
+    Arinc429LocalVarConsumerSubject.create(sub.on('adr_mach_1')),
+    Arinc429LocalVarConsumerSubject.create(sub.on('adr_mach_2')),
+    Arinc429LocalVarConsumerSubject.create(sub.on('adr_mach_3')),
+    Arinc429LocalVarConsumerSubject.create(sub.on('adr_total_air_temperature_1')),
+    Arinc429LocalVarConsumerSubject.create(sub.on('adr_total_air_temperature_2')),
+    Arinc429LocalVarConsumerSubject.create(sub.on('adr_total_air_temperature_3')),
+    ConsumerSubject.create(sub.on('engine_sensor_mach'), 0),
+    ConsumerSubject.create(sub.on('engine_sensor_tat'), 15),
+  );
+}
 
 export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
   private readonly sub = this.props.bus.getSubscriber<Arinc429Values & EwdSimvars & AdrBusEvents & ClockEvents>();
@@ -96,26 +121,24 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
     this.thrustLimitToga,
   );
 
-  private readonly thrIdleOffset = this.engineState.map((es) => (es === 1 ? 0.042 : 0));
+  private readonly airData = createThrustParameterAirData(this.sub);
 
-  private readonly throttleTarget = MappedSubject.create(
-    ([throttlePositionN1, thrustLimitIdle, thrustLimitMax, thrIdleOffset]) =>
-      ((throttlePositionN1 - thrustLimitIdle) / (thrustLimitMax - thrustLimitIdle)) * (1 - thrIdleOffset) +
-      thrIdleOffset,
-    this.throttlePositionN1,
-    this.thrustLimitIdle,
-    this.thrustLimitMax,
-    this.thrIdleOffset,
-  );
+  /** THR (percent) of an N1 */
+  private thrOf(n1: Subscribable<number>): Subscribable<number> {
+    return MappedSubject.create(
+      ([value, thrustLimitMax, airData]) =>
+        thrustParameterPercent(value, thrustLimitMax, airData.mach, airData.tatDegC),
+      n1,
+      this.thrustLimitMax,
+      this.airData,
+    );
+  }
 
-  private readonly autoThrottleTarget = MappedSubject.create(
-    ([n1Commanded, thrustLimitIdle, thrustLimitMax, thrIdleOffset]) =>
-      ((n1Commanded - thrustLimitIdle) / (thrustLimitMax - thrustLimitIdle)) * (1 - thrIdleOffset) + thrIdleOffset,
-    this.n1Commanded,
-    this.thrustLimitIdle,
-    this.thrustLimitMax,
-    this.thrIdleOffset,
-  );
+  private readonly idleThrustPercent = this.thrOf(this.thrustLimitIdle);
+
+  private readonly throttleTarget = this.thrOf(this.throttlePositionN1).map((thr) => thr / 100);
+
+  private readonly autoThrottleTarget = this.thrOf(this.n1Commanded).map((thr) => thr / 100);
 
   private readonly throttleTargetReverse = MappedSubject.create(
     ([throttlePositionN1, thrustLimitIdle, thrustLimitRev]) =>
@@ -125,29 +148,7 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
     this.thrustLimitRev,
   );
 
-  private readonly thrustPercent = MappedSubject.create(
-    ([n1, thrustLimitIdle, thrustLimitMax, thrIdleOffset]) =>
-      ThrustGauge.thrustPercentFromN1(n1, thrustLimitIdle, thrustLimitMax, thrIdleOffset),
-    this.n1,
-    this.thrustLimitIdle,
-    this.thrustLimitMax,
-    this.thrIdleOffset,
-  );
-
-  /** Expects values in percent 0-100, returns 0-100 */
-  public static thrustPercentFromN1(
-    n1: number,
-    thrustLimitIdle: number,
-    thrustLimitMax: number,
-    thrIdleOffset: number,
-  ) {
-    return (
-      Math.min(
-        1,
-        Math.max(0, (n1 - thrustLimitIdle) / (thrustLimitMax - thrustLimitIdle)) * (1 - thrIdleOffset) + thrIdleOffset,
-      ) * 100
-    );
-  }
+  private readonly thrustPercent = this.thrOf(this.n1).map((thr) => Math.min(100, thr));
 
   private readonly thrustPercentReverse = MappedSubject.create(
     ([n1, thrustLimitIdle, thrustLimitRev]) =>
@@ -201,17 +202,10 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
 
   // FIXME replace with actual available thrust when ACUTE is implemented
   private readonly maxThrustAvail = MappedSubject.create(
-    ([cas, thrustLimitIdle, thrustLimitMax, thrIdleOffset]) =>
-      cas < 35
-        ? Math.max(
-            thrIdleOffset * 100,
-            ThrustGauge.thrustPercentFromN1(METOTS_N1_LIMIT, thrustLimitIdle, thrustLimitMax, thrIdleOffset),
-          ) / 10
-        : 10,
+    ([cas, idleThr, metotsThr]) => (cas < 35 ? Math.max(idleThr, Math.min(100, metotsThr)) / 10 : 10),
     this.airspeed,
-    this.thrustLimitIdle,
-    this.thrustLimitMax,
-    this.thrIdleOffset,
+    this.idleThrustPercent,
+    this.thrOf(Subject.create(METOTS_N1_LIMIT)),
   );
 
   private radius = 64;
@@ -291,7 +285,7 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
               <GaugeThrustComponent
                 x={this.props.x}
                 y={this.props.y}
-                valueIdle={Subject.create(0.42)}
+                valueIdle={this.idleThrustPercent.map((thr) => thr / 10)}
                 valueMax={this.maxThrustAvail}
                 radius={this.radius}
                 startAngle={this.startAngle}
