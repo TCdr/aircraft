@@ -1666,6 +1666,10 @@ export class CDUPerformancePage {
 
   static formatCostIndexCell(plan: FlightPlan, mcdu: LegacyFmsPageInterface): string {
     let costIndexCell = '---';
+    // With a time constraint the managed speeds come from the RTA, not from the cost index
+    if (plan.performanceData.timeConstraint.get() !== null) {
+      return 'RTA CI[color]green';
+    }
     if (plan.destinationAirport !== undefined) {
       const costIndex = plan.performanceData.costIndex.get();
       if (costIndex !== null) {

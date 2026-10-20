@@ -26,7 +26,7 @@ Status legend:
 | ✅ | fms/\*/f-pln-duplicate-names | 1 | - |
 | ✅ | fms/\*/f-pln-cpny-f-pln-req | 1 | SEND F-PLN REQUEST downloads the SimBrief OFP (flight number, company route and free text are not sent) |
 | ✅ | fms/\*/f-pln-hold | 2 | last exit predictions, database holds |
-| ✅ | fms/\*/f-pln-vert-rev | 2 | RTA panel shown and stored (ETA, time error) but no RTA speed control (RTA SPD dashed, no TMPY), CMS, STEP ALTs OPT |
+| ✅ | fms/\*/f-pln-vert-rev | 2 | RTA speed control by an ECON speed bias (not the FMS RTA cost index), aircraft clock always valid, CMS, STEP ALTs OPT |
 | 🟨 | fms/\*/f-pln-rte-sel | 3 | alternate company routes are listed but cannot be inserted |
 | 🟨 | fms/\*/f-pln-offset | 3 | no lateral offset guidance: fields shown with the FCOM defaults but inactive |
 | ✅ | fms/\*/f-pln-fix-info | 3 | intecept predictions, abeam, insert as waypoint |

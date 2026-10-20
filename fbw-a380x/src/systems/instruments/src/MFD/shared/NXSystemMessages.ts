@@ -192,6 +192,16 @@ export const NXSystemMessages = {
   insertOrEraseTmpyFirst: new TypeIMessage('INSERT OR ERASE TMPY F-PLN FIRST'),
   // The received flight number of the up linked flight plan data is not valid
   receivedFltNumberNotValid: new TypeIIMessage('RECEIVED FLT NUMBER NOT VALID'),
+  // The FMS computes a new managed target speed to meet the time constraint (cleared after 15 s)
+  adjustingSpdDueToRta: new TypeIIMessage('ADJUSTING SPD DUE TO RTA'),
+  // In preflight, with an RTA, the flight crew tries to delete the FMS computed ETT
+  rtaAlreadyExisting: new TypeIMessage('RTA ALREADY EXISTING'),
+  // The RTA of the active flight plan was automatically deleted
+  rtaDeleted: new TypeIIMessage('RTA DELETED'),
+  // The fuel planning is started with an RTA in the flight plan
+  rtaNotConsideredForFuelPlanning: new TypeIIMessage('RTA NOT CONSIDERED FOR FUEL PLANNING'),
+  // The time constraint at the waypoint will be missed
+  timeErrorAt: new TypeIIMessage('TIME ERROR AT WWWWWWW', true, 'WWWWWWW'),
 };
 
 export const NXFictionalMessages = {

@@ -19,6 +19,7 @@ import {
 } from './FlightPlanPerformanceData';
 import { cloneWindVector, FlightPlanWindEntry, WindVector } from '../../data/wind';
 import { WindUtils } from '../../../guidance/vnav/wind/WindUtils';
+import { TimeConstraint } from '../../../guidance/vnav/rta/TimeConstraint';
 
 // TODO this should go to fbw-a380x/ once FMS is moved to fbw-common
 export class A380FlightPlanPerformanceData implements FlightPlanPerformanceData {
@@ -122,6 +123,7 @@ export class A380FlightPlanPerformanceData implements FlightPlanPerformanceData 
     cloned.approachFlapsThreeSelected.set(this.approachFlapsThreeSelected.get());
     cloned.estimatedTakeoffTime.set(this.estimatedTakeoffTime.get());
     cloned.estimatedTakeoffTimeExpired.set(this.estimatedTakeoffTimeExpired.get());
+    cloned.timeConstraint.set(this.timeConstraint.get());
 
     cloned.takeoffWeight?.set(this.takeoffWeight.get());
     cloned.paxNumber?.set(this.paxNumber.get());
@@ -872,6 +874,8 @@ export class A380FlightPlanPerformanceData implements FlightPlanPerformanceData 
 
   readonly estimatedTakeoffTimeExpired = Subject.create<boolean | null>(false);
 
+  readonly timeConstraint = Subject.create<TimeConstraint | null>(null);
+
   readonly paxNumber = Subject.create<number | null>(null);
 
   readonly takeoffPowerSetting = Subject.create<TakeoffPowerSetting>(TakeoffPowerSetting.TOGA);
@@ -986,6 +990,7 @@ export class A380FlightPlanPerformanceData implements FlightPlanPerformanceData 
       approachFlapsThreeSelected: this.approachFlapsThreeSelected.get(),
       estimatedTakeoffTime: this.estimatedTakeoffTime.get(),
       estimatedTakeoffTimeExpired: this.estimatedTakeoffTimeExpired.get(),
+      timeConstraint: this.timeConstraint.get(),
       paxNumber: this.paxNumber.get(),
       takeoffPowerSetting: this.takeoffPowerSetting.get(),
       takeoffDeratedSetting: this.takeoffDeratedSetting.get(),

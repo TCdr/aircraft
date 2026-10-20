@@ -29,6 +29,7 @@ import { FmsTimeKeeper } from './FmsTimeKeeper';
 import { SequencedWaypointRecord } from './SequencedWaypointRecorder';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
 import { TimeConstraint } from './TimeConstraint';
+import type { A380xRtaFunction } from './A380xRtaFunction';
 import { Coordinates } from 'msfs-geo';
 
 export enum FmcOperatingModes {
@@ -373,26 +374,23 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
    */
   computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined;
 
-  /** The time constraint (RTA) of the active flight plan (only one time constraint in the flight plan) */
-  readonly timeConstraint: Subject<TimeConstraint | null>;
+  /**
+   * The time constraint (RTA) of a flight plan (only one per flight plan), null without one; for the active flight
+   * plan, the one of the temporary flight plan when there is one
+   */
+  timeConstraintOf(planIndex: number): TimeConstraint | null;
+
+  /** Sets, or deletes with null, the RTA of a flight plan; the active flight plan goes through a temporary one */
+  setTimeConstraint(planIndex: number, rta: TimeConstraint | null): void;
+
+  /** The RTA function of the active flight plan: speed control, time error, messages */
+  get rtaFunction(): A380xRtaFunction;
 
   /**
    * The IRS alignment reference position of the POSITION / IRS Align On Other Reference panel, null while the IRS align
    * on the GPS position (IrsAlignReference.ts)
    */
   readonly irsAlignReferencePosition: Subject<Coordinates | null>;
-
-  /**
-   * The time constraint of a secondary flight plan (e.g. loaded with an ATC flight plan in SEC 3), null without one; it
-   * becomes the active one when the secondary flight plan is activated
-   */
-  secondaryTimeConstraint(planIndex: number): TimeConstraint | null;
-
-  /** Sets, or deletes with null, the time constraint of a secondary flight plan */
-  setSecondaryTimeConstraint(planIndex: number, rta: TimeConstraint | null): void;
-
-  /** Changes when the time constraint of a secondary flight plan changes */
-  readonly secondaryTimeConstraintsVersion: Subscribable<number>;
 
   /** UTC, block / flight times and the PERM DATA SETUP time reference (POSITION / TIME page). */
   get timeKeeper(): FmsTimeKeeper;

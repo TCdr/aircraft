@@ -41,6 +41,10 @@ import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { fcomAt, fcomCentre, fcomLine, fcomRight, fcomTabBar } from '../../common/FcomLayout';
 import { TimeConstraint, TimeConstraintType } from '../../../FMC/TimeConstraint';
 import { MfdFmsFplnVertRevCms } from './MfdFmsFplnVertRevCms';
+import { distanceToTopOfDescent } from '@fmgc/components/fms-messages/TopOfDescentDistance';
+import { rtaAllowedAt } from '@fmgc/guidance/vnav/rta/RtaFlightPlanInputs';
+import { A380_RTA_TOLERANCE, rtaTolerances } from '@fmgc/guidance/vnav/rta/RtaMissedMonitor';
+import { sameTimeConstraint, timeErrorSeconds } from '@fmgc/guidance/vnav/rta/TimeConstraint';
 
 interface MfdFmsFplnVertRevProps extends AbstractMfdPageProps {}
 
@@ -114,6 +118,9 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
 
   private readonly rtaMessageIdent = Subject.create('');
 
+  /** DELETED IN TMPY after EXISTING RTA AT, when the temporary flight plan replaces that RTA */
+  private readonly rtaMessageSuffix = Subject.create('');
+
   /** RTA NOT ALLOWED IN EO: the panel is empty with this message */
   private readonly rtaPanelMessage = Subject.create('');
 
@@ -142,6 +149,18 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
   private readonly rtaTimeErrorType = Subject.create('');
 
   private readonly rtaTimeErrorAmber = Subject.create(false);
+
+  /** The time error is in yellow (not amber) while a temporary flight plan is pending */
+  private readonly rtaTimeErrorAmberNotTmpy = MappedSubject.create(
+    ([amber, tmpy]) => amber && !tmpy,
+    this.rtaTimeErrorAmber,
+    this.tmpyActive,
+  );
+
+  /** Mach and CAS of the managed RTA speed */
+  private readonly rtaSpeedMach = Subject.create('.--');
+
+  private readonly rtaSpeedCas = Subject.create('---');
 
   /** Display state of the time error, with hysteresis (see updateRtaTimeError) */
   private rtaTimeErrorState: 'hidden' | 'green' | 'amber' = 'hidden';
@@ -1078,8 +1097,6 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
       this.rtaPanelVisible,
       this.rtaFieldStyle,
       this.props.fmcService.master.timeKeeper.utcSeconds.sub(() => this.updateRta()),
-      this.props.fmcService.master.timeConstraint.sub(() => this.updateRta()),
-      this.props.fmcService.master.secondaryTimeConstraintsVersion.sub(() => this.updateRta()),
       this.selectedLegIndex.sub(() => this.updateRta()),
     );
 
@@ -1198,10 +1215,42 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     return `${hh.toFixed(0).padStart(2, '0')}:${mm.toFixed(0).padStart(2, '0')}:${ss.toFixed(0).padStart(2, '0')}`;
   }
 
-  /** The VNAV prediction at a leg of the loaded flight plan, when it is the active one */
+  /**
+   * Whether the loaded flight plan is the active one or its temporary revision: entering an RTA on the active flight
+   * plan creates the temporary flight plan, which the page then loads
+   */
+  private loadedPlanRevisesActive(): boolean {
+    const index = this.loadedFlightPlanIndex.get();
+    return index === FlightPlanIndex.Active || index === FlightPlanIndex.Temporary;
+  }
+
+  /**
+   * The index in the active flight plan of a leg of the loaded flight plan. A temporary leg is found by its waypoint,
+   * as a lateral revision moves the leg indexes.
+   */
+  private activePlanLegIndex(legIndex: number): number | null {
+    if (this.loadedFlightPlanIndex.get() !== FlightPlanIndex.Temporary) {
+      return legIndex;
+    }
+    const leg = this.loadedFlightPlan?.maybeElementAt(legIndex);
+    const databaseId = leg && isLeg(leg) ? leg.definition.waypoint?.databaseId : undefined;
+    if (databaseId === undefined) {
+      return null;
+    }
+    const active = this.props.fmcService.master.flightPlanInterface.active;
+    const index = active.allLegs.findIndex(
+      (l, i) => i >= active.activeLegIndex && isLeg(l) && l.definition.waypoint?.databaseId === databaseId,
+    );
+    return index !== -1 ? index : null;
+  }
+
+  /** The VNAV prediction (of the active flight plan only) at a leg of the active flight plan or its temporary revision */
   private activePlanPrediction(legIndex: number) {
-    return this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active
-      ? this.props.fmcService.master.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
+    const activeLegIndex = this.loadedPlanRevisesActive() ? this.activePlanLegIndex(legIndex) : null;
+    return activeLegIndex !== null
+      ? this.props.fmcService.master.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(
+          activeLegIndex,
+        )
       : undefined;
   }
 
@@ -1211,11 +1260,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     if (!pred || !Number.isFinite(pred.secondsFromPresent)) {
       return null;
     }
-    if (this.inPreflight.get()) {
-      const ett = this.props.fmcService.master.fmgc.data.estimatedTakeoffTime.get();
-      return (ett ?? 0) + pred.secondsFromPresent;
-    }
-    return this.props.fmcService.master.timeKeeper.utcSeconds.get() + pred.secondsFromPresent;
+    return this.props.fmcService.master.rtaFunction.etaUtcSeconds(pred.secondsFromPresent);
   }
 
   private updateRta(): void {
@@ -1244,16 +1289,29 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
         ? plan.allLegs.findIndex((l) => isLeg(l) && l.definition.waypoint?.databaseId === rta.databaseId)
         : -1;
     const rtaOnSelected = rta !== null && legIndex !== null && rtaLegIndex === legIndex;
+    const fps = fmc.flightPlanInterface;
+    const activeRta = fps.hasActive ? fps.active.performanceData.timeConstraint.get() : null;
+    const replacedActiveRta =
+      this.loadedPlanRevisesActive() && fps.hasTemporary && activeRta && activeRta.databaseId !== rta?.databaseId
+        ? activeRta
+        : null;
 
-    if (leg && isLeg(leg) && (this.selectedLegIsAlternate || !this.canHoldRta())) {
+    if (leg && isLeg(leg) && legIndex !== null && !this.rtaAllowedOnSelected(legIndex)) {
       this.rtaMessage.set('RTA NOT ALLOWED AT');
       this.rtaMessageIdent.set(leg.ident);
+      this.rtaMessageSuffix.set('');
+    } else if (replacedActiveRta) {
+      this.rtaMessage.set('EXISTING RTA AT');
+      this.rtaMessageIdent.set(replacedActiveRta.ident);
+      this.rtaMessageSuffix.set('DELETED IN TMPY');
     } else if (rta && !rtaOnSelected) {
       this.rtaMessage.set('EXISTING RTA AT');
       this.rtaMessageIdent.set(rta.ident);
+      this.rtaMessageSuffix.set('');
     } else {
       this.rtaMessage.set('');
       this.rtaMessageIdent.set('');
+      this.rtaMessageSuffix.set('');
     }
 
     const pred = legIndex !== null ? this.activePlanPrediction(legIndex) : undefined;
@@ -1267,7 +1325,10 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
       this.rtaType.set(rta.type);
       this.rtaTime.set(rta.utcSeconds);
       this.rtaDeleteVisible.set(true);
+      this.updateRtaSpeed(rta, legIndex);
     } else {
+      this.rtaSpeedMach.set('.--');
+      this.rtaSpeedCas.set('---');
       this.rtaDeleteVisible.set(false);
       if (this.rtaType.get() === null) {
         this.rtaTime.set(null);
@@ -1284,9 +1345,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
       this.rtaTimeErrorType.set('');
       return;
     }
-    // Time error = ETA - RTA, over the day boundary
-    let error = eta - rta.utcSeconds;
-    error = ((((error + 43200) % 86400) + 86400) % 86400) - 43200;
+    const error = timeErrorSeconds(eta, rta.utcSeconds);
     const late = error > 0;
     const applicable =
       rta.type === TimeConstraintType.At ||
@@ -1294,11 +1353,8 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
       (rta.type === TimeConstraintType.AtOrAfter && !late);
     const magnitude = Math.abs(error);
 
-    // Not displayed below 7 s (shown from 10 s), green up to dT1, amber above dT1 until back below dT2;
-    // dT1 = 30 s and dT2 = 15 s up to 2 000 NM, then increased by 60 s per 1 000 NM
-    const extra = Math.max(0, distance - 2000) * 0.06;
-    const dT1 = 30 + extra;
-    const dT2 = 15 + extra;
+    // Not displayed below 7 s (shown from 10 s), green up to dT1 (missed), amber above dT1 until back below dT2
+    const { missedAboveSeconds: dT1, madeBelowSeconds: dT2 } = rtaTolerances(A380_RTA_TOLERANCE, distance);
     if (!applicable) {
       this.rtaTimeErrorState = 'hidden';
     } else if (this.rtaTimeErrorState === 'hidden') {
@@ -1336,6 +1392,11 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     if (!leg || !isLeg(leg) || type === null || !leg.definition.waypoint) {
       return;
     }
+    if (!this.rtaAllowedOnSelected(legIndex!)) {
+      this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
+      this.rtaType.set(null);
+      return;
+    }
     this.rtaType.set(type);
     const time = utcSeconds ?? this.rtaEtaSeconds(legIndex!);
     this.rtaTime.set(time);
@@ -1355,31 +1416,104 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     this.rtaType.set(null);
     this.rtaTime.set(null);
     this.updateRta();
+
+    // Below FL 100 (or the descent speed limit altitude) in descent or approach, the F-PLN page comes back
+    const phase = this.activeFlightPhase.get();
+    const limitAltitude = Math.max(
+      10_000,
+      this.loadedFlightPlan?.performanceData.descentSpeedLimitAltitude.get() ?? 10_000,
+    );
+    if (
+      this.loadedPlanRevisesActive() &&
+      (phase === FmgcFlightPhase.Descent || phase === FmgcFlightPhase.Approach) &&
+      SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet') < limitAltitude
+    ) {
+      this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`);
+    }
   }
 
-  /** Whether the loaded flight plan can hold an RTA: the active one, or a secondary one (e.g. an ATC F-PLN in SEC 3) */
+  /**
+   * Whether an RTA can be created on a waypoint of the loaded flight plan: not on the origin, the FROM waypoint, a
+   * missed approach or alternate waypoint; for the active flight plan (or its temporary revision), not in descent or
+   * approach, not in cruise less than 40 NM before the T/D, not in a hold with manual termination or its deceleration
+   */
+  private rtaAllowedOnSelected(legIndex: number): boolean {
+    const plan = this.loadedFlightPlan;
+    if (!plan || this.selectedLegIsAlternate || !this.canHoldRta() || !rtaAllowedAt(plan, legIndex)) {
+      return false;
+    }
+    if (!this.loadedPlanRevisesActive()) {
+      return true;
+    }
+    const fmc = this.props.fmcService.master;
+    const phase = this.activeFlightPhase.get();
+    const toTopOfDescent = fmc.guidanceController ? distanceToTopOfDescent(fmc.guidanceController) : null;
+    return !(
+      phase === FmgcFlightPhase.Descent ||
+      phase === FmgcFlightPhase.Approach ||
+      (phase === FmgcFlightPhase.Cruise && toTopOfDescent !== null && toTopOfDescent < 40) ||
+      fmc.acInterface.getHoldDecelReached()
+    );
+  }
+
+  /**
+   * RTA SPD: the managed speed of the current phase, moved by the RTA speed control; for an RTA of a pending temporary
+   * flight plan, the target speed after its insertion; dashed for a secondary flight plan (no predictions)
+   */
+  private updateRtaSpeed(rta: TimeConstraint, legIndex: number | null): void {
+    const fmc = this.props.fmcService.master;
+    const fps = fmc.flightPlanInterface;
+    const activeRta = fps.hasActive ? fps.active.performanceData.timeConstraint.get() : null;
+    const phase = this.activeFlightPhase.get();
+    let speeds: { cas: number; mach: number } | null = null;
+    if (this.loadedPlanRevisesActive()) {
+      if (!fps.hasTemporary && activeRta && sameTimeConstraint(activeRta, rta)) {
+        const fmgc = fmc.fmgc;
+        speeds =
+          phase >= FmgcFlightPhase.Descent
+            ? { cas: fmgc.getManagedDescentSpeed(), mach: fmgc.getManagedDescentSpeedMach() }
+            : phase === FmgcFlightPhase.Cruise
+              ? { cas: fmgc.getManagedCruiseSpeed(), mach: fmgc.getManagedCruiseSpeedMach() }
+              : { cas: fmgc.getManagedClimbSpeed(), mach: fmgc.getManagedClimbSpeedMach() };
+      } else {
+        const pred = legIndex !== null ? this.activePlanPrediction(legIndex) : undefined;
+        const pending =
+          pred && Number.isFinite(pred.secondsFromPresent)
+            ? fmc.rtaFunction.pendingRtaSpeeds(rta, pred.secondsFromPresent)
+            : null;
+        if (pending) {
+          speeds =
+            phase >= FmgcFlightPhase.Descent
+              ? { cas: pending.descentSpeed, mach: pending.descentMach }
+              : phase === FmgcFlightPhase.Cruise
+                ? { cas: pending.cruiseSpeed, mach: pending.cruiseMach }
+                : { cas: pending.climbSpeed, mach: pending.climbMach };
+        }
+      }
+    }
+    this.rtaSpeedMach.set(speeds ? speeds.mach.toFixed(2).replace('0.', '.') : '.--');
+    this.rtaSpeedCas.set(speeds ? Math.round(speeds.cas).toFixed(0) : '---');
+  }
+
+  /**
+   * Whether the loaded flight plan can hold an RTA: the active one or its temporary revision, or a secondary one (e.g.
+   * an ATC F-PLN in SEC 3)
+   */
   private canHoldRta(): boolean {
-    const index = this.loadedFlightPlanIndex.get();
-    return index === FlightPlanIndex.Active || index >= FlightPlanIndex.FirstSecondary;
+    return this.loadedPlanRevisesActive() || this.loadedFlightPlanIndex.get() >= FlightPlanIndex.FirstSecondary;
   }
 
   private loadedTimeConstraint(): TimeConstraint | null {
-    const index = this.loadedFlightPlanIndex.get();
     if (this.selectedLegIsAlternate || !this.canHoldRta()) {
       return null;
     }
-    const fmc = this.props.fmcService.master;
-    return index === FlightPlanIndex.Active ? fmc.timeConstraint.get() : fmc.secondaryTimeConstraint(index);
+    return this.props.fmcService.master.timeConstraintOf(this.loadedFlightPlanIndex.get());
   }
 
-  /** Sets, or deletes with null, the RTA of the loaded flight plan */
+  /** Sets, or deletes with null, the RTA of the loaded flight plan (through a temporary flight plan for the active one) */
   private setLoadedTimeConstraint(rta: TimeConstraint | null): void {
-    const index = this.loadedFlightPlanIndex.get();
-    const fmc = this.props.fmcService.master;
-    if (index === FlightPlanIndex.Active) {
-      fmc.timeConstraint.set(rta);
-    } else if (index >= FlightPlanIndex.FirstSecondary) {
-      fmc.setSecondaryTimeConstraint(index, rta);
+    if (this.canHoldRta()) {
+      this.props.fmcService.master.setTimeConstraint(this.loadedFlightPlanIndex.get(), rta);
     }
   }
 
@@ -1395,7 +1529,9 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
             <span class="mfd-value bigger amber" style="margin-left: 16px;">
               {this.rtaMessageIdent}
             </span>,
-            <span class="mfd-label amber" style="margin-left: 16px;" />,
+            <span class="mfd-label amber" style="margin-left: 16px;">
+              {this.rtaMessageSuffix}
+            </span>,
           ])}
           {fcomRight(96, 217, <span class="mfd-label">RTA AT</span>)}
           {fcomAt(
@@ -1425,7 +1561,9 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
           )}
           {fcomAt(96, 434, <span class="mfd-label">DIST</span>)}
           {fcomRight(96, 625, [
-            <span class="mfd-value bigger">{this.rtaDistance}</span>,
+            <span class={{ 'mfd-value': true, bigger: true, sec: this.secActive, tmpy: this.tmpyActive }}>
+              {this.rtaDistance}
+            </span>,
             <span class="mfd-label-unit mfd-unit-trailing">NM</span>,
           ])}
 
@@ -1454,7 +1592,13 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
 
           <div class="mfd-vert-rev-rta-vline" />
           {fcomAt(262, 9, <span class="mfd-label">ETA</span>)}
-          {fcomRight(262, 544, <span class="mfd-value bigger">{this.rtaEta}</span>)}
+          {fcomRight(
+            262,
+            544,
+            <span class={{ 'mfd-value': true, bigger: true, sec: this.secActive, tmpy: this.tmpyActive }}>
+              {this.rtaEta}
+            </span>,
+          )}
           {fcomLine(286, 9, 729)}
 
           {fcomAt(316, 9, <span class="mfd-label">RTA</span>)}
@@ -1503,11 +1647,18 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
           </div>
           {fcomLine(499, 9, 729)}
 
-          {/* Managed RTA speed: the FMS has no RTA speed control yet, so it is not computed */}
           {fcomAt(534, 246, <span class="mfd-label">RTA SPD</span>)}
-          {fcomRight(534, 545, <span class="mfd-value bigger">.--</span>)}
+          {fcomRight(
+            534,
+            545,
+            <span class={{ 'mfd-value': true, bigger: true, sec: this.secActive, tmpy: this.tmpyActive }}>
+              {this.rtaSpeedMach}
+            </span>,
+          )}
           {fcomRight(534, 670, [
-            <span class="mfd-value bigger">---</span>,
+            <span class={{ 'mfd-value': true, bigger: true, sec: this.secActive, tmpy: this.tmpyActive }}>
+              {this.rtaSpeedCas}
+            </span>,
             <span class="mfd-label-unit mfd-unit-trailing">KT</span>,
           ])}
           {fcomLine(620, 9, 729)}
@@ -1526,12 +1677,18 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
           {fcomRight(
             650,
             542,
-            <span class={{ 'mfd-value': true, bigger: true, amber: this.rtaTimeErrorAmber }}>{this.rtaTimeError}</span>,
+            <span
+              class={{ 'mfd-value': true, bigger: true, amber: this.rtaTimeErrorAmberNotTmpy, tmpy: this.tmpyActive }}
+            >
+              {this.rtaTimeError}
+            </span>,
           )}
           {fcomAt(
             650,
             574,
-            <span class={{ 'mfd-value': true, bigger: true, amber: this.rtaTimeErrorAmber }}>
+            <span
+              class={{ 'mfd-value': true, bigger: true, amber: this.rtaTimeErrorAmberNotTmpy, tmpy: this.tmpyActive }}
+            >
               {this.rtaTimeErrorType}
             </span>,
           )}
