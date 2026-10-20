@@ -104,7 +104,7 @@ export class IdlePathBuilder {
       );
       const currentSpeedTarget = Math.min(
         casTarget,
-        this.atmosphericConditions.computeCasFromMach(managedDescentSpeedMach, altitude),
+        this.atmosphericConditions.computeCasFromMach(altitude, managedDescentSpeedMach),
       );
       const canAccelerate = currentSpeedTarget > speed;
 
