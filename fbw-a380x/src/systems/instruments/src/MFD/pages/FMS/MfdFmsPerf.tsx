@@ -73,6 +73,7 @@ import {
 } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { fcomAt, fcomCentre, fcomLine, fcomRight, fcomTabBar } from '../common/FcomLayout';
 import { longRangeCruiseMach, maxTurbulenceMach, maxTurbulenceSpeedKnots } from '../../FMC/CruiseSpeeds';
+import { isCruiseSpeedLimitApplied, managedCruiseSecondsToReference } from '../../FMC/PerfCruiseSpeedTable';
 import { TAKEOFF_DERATE_LEVELS, takeoffThrustOptionsDisabled, writeTakeoffDerate } from '../../shared/TakeoffDerate';
 import { CLIMB_DERATE_LEVELS } from '../../shared/ClimbDerate';
 import { descentCabinRateField } from '@fmgc/guidance/vnav/descent/CabinRepressurization';
@@ -1045,6 +1046,31 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
   }
 
   /**
+   * @param distanceNm distance to the CRZ reference point (T/D or step) of the flight plan predictions
+   * @param fpIndex the flight plan of the page
+   * @returns the time and distance to the reference point at the managed cruise speed, null when not available
+   */
+  private managedCruisePrediction(distanceNm: number | undefined, fpIndex: FlightPlanIndex): string | null {
+    if (distanceNm === undefined) {
+      return null;
+    }
+    const fmgc = this.props.fmcService.master.fmgc;
+    const atmosphere = this.props.fmcService.master.guidanceController.atmosphericConditions;
+    const altitude = atmosphere.currentAltitude;
+    const managedCas = Math.min(
+      fmgc.getManagedCruiseSpeed(fpIndex),
+      atmosphere.computeCasFromMach(altitude, fmgc.getManagedCruiseSpeedMach(fpIndex)),
+    );
+    const seconds = managedCruiseSecondsToReference(
+      distanceNm,
+      atmosphere.computeTasFromCas(altitude, managedCas),
+      SimVar.GetSimVarValue('GPS GROUND SPEED', 'knots'),
+      atmosphere.currentTrueAirspeed,
+    );
+    return seconds !== null ? `${this.formatPredictionTime(seconds)}${distanceNm.toFixed(0).padStart(6, ' ')}` : null;
+  }
+
+  /**
    * CLB tab: the time and distance from the present position to the predictions reference altitude (PRED TO), on the
    * active flight plan (see PerfPredictionsToAltitude.ts)
    */
@@ -1311,10 +1337,17 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
             : '.--',
         );
 
-        // TODO add predictions
-        this.crzTableModeLine2.set(null);
-        this.crzTableSpdLine2.set(null);
-        this.crzTableMachLine2.set(null);
+        const fmgc = this.props.fmcService.master.fmgc;
+        const econSpeed = fmgc.getManagedCruiseSpeed(fpIndex);
+        if (isCruiseSpeedLimitApplied(fmgc.getClimbSpeedLimit(fpIndex), obs?.presentPosition.alt ?? 0, econSpeed)) {
+          this.crzTableModeLine2.set('ECON');
+          this.crzTableSpdLine2.set(econSpeed.toFixed(0));
+          this.crzTableMachLine2.set(`.${fmgc.getManagedCruiseSpeedMach(fpIndex).toFixed(2).split('.')[1]}`);
+        } else {
+          this.crzTableModeLine2.set(null);
+          this.crzTableSpdLine2.set(null);
+          this.crzTableMachLine2.set(null);
+        }
         this.crzTablePredLine2.set(null);
       } else {
         this.crzTableModeLine1.set('SELECTED');
@@ -1333,7 +1366,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
             ? `.${this.props.fmcService.master.fmgc.getManagedCruiseSpeedMach(fpIndex).toFixed(2).split('.')[1]}`
             : '.--',
         );
-        this.crzTablePredLine2.set(null);
+        this.crzTablePredLine2.set(this.managedCruisePrediction(crzPred?.distanceFromPresentPosition, fpIndex));
       }
     }
 
