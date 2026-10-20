@@ -668,8 +668,17 @@ export interface FlightPlanPerformanceData {
 
   hasSubscription(key: string): boolean;
 
-  pipeTo(other: FlightPlanPerformanceData, isBeforeEngineStart: boolean): void;
+  pipeTo(other: FlightPlanPerformanceData, isBeforeEngineStart: boolean, flightNumber?: FlightNumberLink): void;
 }
+
+/** The flight number of a flight plan and the one of its copy, which follows it while the copy is linked */
+export interface FlightNumberLink {
+  from: Subscribable<string | null>;
+  to: MutableSubscribable<string | null>;
+}
+
+/** The key under which a linked copy keeps the link of its flight number */
+export const FLIGHT_NUMBER_LINK_KEY = 'flightNumber';
 
 export type FlightPlanPerformanceDataProperties = {
   [K in keyof FlightPlanPerformanceData as FlightPlanPerformanceData[K] extends MutableSubscribable<any> | undefined

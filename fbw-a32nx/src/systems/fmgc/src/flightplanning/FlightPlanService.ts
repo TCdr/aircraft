@@ -144,29 +144,66 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
       // CopyOptions.CopyPredictions,
     );
 
-    const active = this.active;
     const sec = this.secondary(index);
 
-    active.performanceData.pipeTo(sec.performanceData, isBeforeEngineStart);
+    this.linkToActive(sec, isBeforeEngineStart);
 
     sec.flags = 0;
     sec.flags |= FlightPlanFlags.CopiedFromActive;
   }
 
-  async secondaryCopyFromSecondary(from: number, to: number, isBeforeEngineStart: boolean) {
+  private linkToActive(copy: FlightPlan<P>, isBeforeEngineStart: boolean): void {
+    const active = this.active;
+    active.performanceData.pipeTo(copy.performanceData, isBeforeEngineStart, {
+      from: active.flightNumber,
+      to: copy.flightNumber,
+    });
+  }
+
+  /** The secondary flight plans still linked to the active flight plan, with whether their weights are linked too */
+  private secondaryLinksToActive(): { plan: FlightPlan<P>; weightsLinked: boolean }[] {
+    const links: { plan: FlightPlan<P>; weightsLinked: boolean }[] = [];
+    for (let index = 1; index <= this.config.NUM_SECONDARY_FLIGHT_PLANS; index++) {
+      const plan = this.hasSecondary(index) ? this.secondary(index) : null;
+      if (plan?.performanceData.hasSubscription('cruiseFlightLevel')) {
+        links.push({ plan, weightsLinked: plan.performanceData.hasSubscription('zeroFuelWeight') });
+      }
+    }
+    return links;
+  }
+
+  /**
+   * Keeps the linked copies of the active flight plan linked across a modification that replaces the active flight
+   * plan by its revision; a modification that activates another flight plan makes them independent.
+   */
+  private keepActiveCopyLinksAcross(isRevisionOfActive: boolean, activeModification: () => void): void {
+    const links = this.config.KEEP_ACTIVE_COPY_LINKS ? this.secondaryLinksToActive() : [];
+
+    activeModification();
+
+    for (const { plan, weightsLinked } of links) {
+      if (this.flightPlanManager.get(plan.index) !== plan) {
+        // Replaced by the modification (swap)
+        continue;
+      }
+      if (isRevisionOfActive) {
+        this.linkToActive(plan, weightsLinked);
+      } else {
+        plan.performanceData.destroy();
+      }
+    }
+  }
+
+  async secondaryCopyFromSecondary(from: number, to: number, _isBeforeEngineStart: boolean) {
     // TODO copy predictions
     // We don't copy predictions for now because we don't have the computation of predictions for the secondary flight plan
     // To keep things consistent, we don't show predictions anywhere and we don't want to show any computed turn radii
+    // A copy of a secondary flight plan is independent of it: no link
     this.flightPlanManager.copy(
       FlightPlanIndex.FirstSecondary + (from - 1),
       FlightPlanIndex.FirstSecondary + (to - 1),
       // CopyOptions.CopyPredictions,
     );
-
-    const fromFpln = this.secondary(from);
-    const toFpln = this.secondary(to);
-
-    fromFpln.performanceData.pipeTo(toFpln.performanceData, isBeforeEngineStart);
   }
 
   async secondaryDelete(index: number) {
@@ -190,15 +227,19 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
       this.publishConstantMachSegmentAutoDeletion(ConstantMachSegmentDeletionReason.SecondaryActivated);
     }
 
-    this.persistActivePerfDataAcrossModification(isBeforeEngineStart, () => {
-      this.flightPlanManager.copy(FlightPlanIndex.FirstSecondary + index - 1, FlightPlanIndex.Active);
-    });
+    this.keepActiveCopyLinksAcross(false, () =>
+      this.persistActivePerfDataAcrossModification(isBeforeEngineStart, () => {
+        this.flightPlanManager.copy(FlightPlanIndex.FirstSecondary + index - 1, FlightPlanIndex.Active);
+      }),
+    );
   }
 
   async activeAndSecondarySwap(secIndex: number, isBeforeEngineStart: boolean): Promise<void> {
-    this.persistActivePerfDataAcrossModification(isBeforeEngineStart, () => {
-      this.flightPlanManager.swap(FlightPlanIndex.FirstSecondary + secIndex - 1, FlightPlanIndex.Active);
-    });
+    this.keepActiveCopyLinksAcross(false, () =>
+      this.persistActivePerfDataAcrossModification(isBeforeEngineStart, () => {
+        this.flightPlanManager.swap(FlightPlanIndex.FirstSecondary + secIndex - 1, FlightPlanIndex.Active);
+      }),
+    );
   }
 
   private persistActivePerfDataAcrossModification(isBeforeEngineStart: boolean, activeModification: () => void) {
@@ -310,7 +351,9 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
 
     temporaryPlan.wasModified = true;
 
-    this.flightPlanManager.copy(FlightPlanIndex.Temporary, FlightPlanIndex.Active, CopyOptions.IncludeFixInfos);
+    this.keepActiveCopyLinksAcross(true, () =>
+      this.flightPlanManager.copy(FlightPlanIndex.Temporary, FlightPlanIndex.Active, CopyOptions.IncludeFixInfos),
+    );
     this.flightPlanManager.delete(FlightPlanIndex.Temporary);
 
     // The constant Mach segment of the active flight plan is deleted when the alternate is inserted, not before

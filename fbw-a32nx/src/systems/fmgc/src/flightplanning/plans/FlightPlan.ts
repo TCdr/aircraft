@@ -17,6 +17,7 @@ import { CopyOptions } from '@fmgc/flightplanning/plans/CloningOptions';
 import { ImportedPerformanceData } from '@fmgc/flightplanning/uplink/SimBriefUplinkAdapter';
 import {
   DefaultPerformanceData,
+  FLIGHT_NUMBER_LINK_KEY,
   FlightPlanPerformanceData,
   FlightPlanPerformanceDataProperties,
 } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
@@ -795,6 +796,10 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
 
   setFlightNumber(flightNumber: string, notify = true) {
     this.flightNumber.set(flightNumber);
+
+    if (this.performanceData.hasSubscription(FLIGHT_NUMBER_LINK_KEY)) {
+      this.performanceData.destroy();
+    }
 
     if (notify) {
       this.sendEvent('flightPlan.setFlightNumber', {
