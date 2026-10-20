@@ -1395,6 +1395,8 @@ struct AirDataReference {
     airspeed_erroneous_failure: Failure,
     /// Erroneous angle of attack probe: the angle of attack reads high with a valid status
     angle_of_attack_erroneous_failure: Failure,
+    /// Failed angle of attack sensor, detected by the ADR: the angle of attack is lost, the other outputs stay valid
+    angle_of_attack_sensor_failure: Failure,
     /// The air data reference part fails: no valid output, FAULT light
     fault_failure: Failure,
     /// The ADIRU is supplied and its mode selector is not OFF
@@ -1522,6 +1524,9 @@ impl AirDataReference {
             angle_of_attack_erroneous_failure: Failure::new(
                 FailureType::AdrAngleOfAttackErroneous(number),
             ),
+            angle_of_attack_sensor_failure: Failure::new(FailureType::AdrAngleOfAttackSensorFault(
+                number,
+            )),
             fault_failure: Failure::new(FailureType::AdrFault(number)),
             is_energised: true,
             fault_warn_discrete: AdirsDiscreteOutput::new_adr(
@@ -1773,14 +1778,18 @@ impl AirDataReference {
                 simulator_data.true_airspeed * airspeed_ratio,
             );
 
-            self.angle_of_attack.set_value(
-                self.measured_angle_of_attack(simulator_data.angle_of_attack),
-                if computed_airspeed < Velocity::new::<knot>(Self::MINIMUM_CAS_FOR_AOA) {
-                    SignStatus::NoComputedData
-                } else {
-                    SignStatus::NormalOperation
-                },
-            );
+            if self.angle_of_attack_sensor_failure.is_active() {
+                self.angle_of_attack.set_failure_warning();
+            } else {
+                self.angle_of_attack.set_value(
+                    self.measured_angle_of_attack(simulator_data.angle_of_attack),
+                    if computed_airspeed < Velocity::new::<knot>(Self::MINIMUM_CAS_FOR_AOA) {
+                        SignStatus::NoComputedData
+                    } else {
+                        SignStatus::NormalOperation
+                    },
+                );
+            }
 
             self.total_air_temperature
                 .set_normal_operation_value(simulator_data.total_air_temperature);
@@ -1947,6 +1956,7 @@ impl SimulationElement for AirDataReference {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.airspeed_erroneous_failure.accept(visitor);
         self.angle_of_attack_erroneous_failure.accept(visitor);
+        self.angle_of_attack_sensor_failure.accept(visitor);
         self.fault_failure.accept(visitor);
 
         visitor.visit(self);
@@ -2075,6 +2085,8 @@ struct InertialReference {
     fault_failure: Failure,
     /// The heading reads wrong, with a valid status
     heading_erroneous_failure: Failure,
+    /// The pitch reads wrong, with a valid status
+    pitch_erroneous_failure: Failure,
 
     pitch: AdirsArinc429Data<Angle>,
     roll: AdirsArinc429Data<Angle>,
@@ -2156,6 +2168,9 @@ impl InertialReference {
     /// Heading error of an erroneous IR (design choice: no published failure values; 10 deg is well above the
     /// heading difference that the FWC IR DISAGREE monitoring of the A320 takes as a disagreement)
     const ERRONEOUS_HEADING_ERROR_DEGREES: f64 = 10.;
+    /// Pitch error of an erroneous IR (design choice: no published failure values; 10 deg is well above the 5 deg
+    /// attitude difference of the A320 CHECK ATT / NAV ATT DISCREPANCY)
+    const ERRONEOUS_PITCH_ERROR_DEGREES: f64 = 10.;
 
     fn new(
         context: &mut InitContext,
@@ -2188,6 +2203,7 @@ impl InertialReference {
             fast_alignment: false,
             fault_failure: Failure::new(FailureType::IrFault(number)),
             heading_erroneous_failure: Failure::new(FailureType::IrHeadingErroneous(number)),
+            pitch_erroneous_failure: Failure::new(FailureType::IrPitchErroneous(number)),
 
             pitch: AdirsArinc429Data::new_ir(context, number, Self::PITCH),
             roll: AdirsArinc429Data::new_ir(context, number, Self::ROLL),
@@ -2325,6 +2341,15 @@ impl InertialReference {
             (heading + Angle::new::<degree>(Self::ERRONEOUS_HEADING_ERROR_DEGREES)).normalised()
         } else {
             heading
+        }
+    }
+
+    /// The pitch this IR gives: the sim pitch, offset with an erroneous pitch
+    fn measured_pitch(&self, pitch: Angle) -> Angle {
+        if self.pitch_erroneous_failure.is_active() {
+            pitch + Angle::new::<degree>(Self::ERRONEOUS_PITCH_ERROR_DEGREES)
+        } else {
+            pitch
         }
     }
 
@@ -2512,7 +2537,8 @@ impl InertialReference {
         // Correct the signs so that they conform to standard aeronautical norms.
         let pitch = -simulator_data.pitch;
         let roll = -simulator_data.roll;
-        self.pitch.set_value(pitch, ssm);
+        // Only the pitch word is wrong with an erroneous pitch, the rates and accelerations stay right
+        self.pitch.set_value(self.measured_pitch(pitch), ssm);
         self.roll.set_value(roll, ssm);
 
         let p = -simulator_data.body_rotation_rate_z;
@@ -3091,6 +3117,7 @@ impl SimulationElement for InertialReference {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.fault_failure.accept(visitor);
         self.heading_erroneous_failure.accept(visitor);
+        self.pitch_erroneous_failure.accept(visitor);
 
         visitor.visit(self);
     }
@@ -4725,6 +4752,38 @@ mod tests {
     }
 
     #[test]
+    fn ir_pitch_erroneous_failure_offsets_the_pitch_with_a_valid_status() {
+        // The sim pitch is negative nose up, the IR pitch positive nose up
+        let mut test_bed = all_adirus_aligned_test_bed_with().pitch_of(Angle::new::<degree>(-3.));
+        test_bed.fail(FailureType::IrPitchErroneous(2));
+        test_bed.run();
+
+        let pitch_2 = test_bed.pitch(2);
+        assert!(pitch_2.is_normal_operation());
+        assert_about_eq!(pitch_2.value().get::<degree>(), 13.);
+        assert_about_eq!(test_bed.pitch(1).value().get::<degree>(), 3.);
+        assert_about_eq!(test_bed.pitch(3).value().get::<degree>(), 3.);
+        assert!(!test_bed.ir_fault_light_illuminated(2));
+        let body_longitudinal_acceleration = |test_bed: &mut AdirsTestBed, number| -> Ratio {
+            test_bed
+                .read_arinc429_by_name(&output_data_id(
+                    OutputDataType::Ir,
+                    number,
+                    InertialReference::BODY_LONGITUDINAL_ACC,
+                ))
+                .value()
+        };
+        assert_about_eq!(
+            body_longitudinal_acceleration(&mut test_bed, 2).get::<ratio>(),
+            body_longitudinal_acceleration(&mut test_bed, 1).get::<ratio>()
+        );
+
+        test_bed.unfail(FailureType::IrPitchErroneous(2));
+        test_bed.run();
+        assert_about_eq!(test_bed.pitch(2).value().get::<degree>(), 3.);
+    }
+
+    #[test]
     fn without_its_main_bus_the_adr_is_lost_and_the_ir_runs_on_the_battery() {
         let mut test_bed = all_adirus_aligned_test_bed_with()
             .after_the_power_settling_time()
@@ -5554,6 +5613,36 @@ mod tests {
                     0.0001
                 );
             }
+        }
+
+        #[rstest]
+        #[case(1)]
+        #[case(2)]
+        #[case(3)]
+        fn failed_angle_of_attack_sensor_loses_only_the_angle_of_attack_of_its_adr(
+            #[case] adiru_number: usize,
+        ) {
+            let mut test_bed =
+                all_adirus_aligned_test_bed_with().angle_of_attack_of(Angle::new::<degree>(3.));
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
+            test_bed.fail(FailureType::AdrAngleOfAttackSensorFault(adiru_number));
+            test_bed.run();
+
+            for number in 1..=3 {
+                let expected_ssm = if number == adiru_number {
+                    SignStatus::FailureWarning
+                } else {
+                    SignStatus::NormalOperation
+                };
+                assert_eq!(test_bed.angle_of_attack(number).ssm(), expected_ssm);
+                assert!(test_bed.computed_airspeed(number).is_normal_operation());
+                assert!(test_bed.altitude(number).is_normal_operation());
+                assert!(!test_bed.adr_fault_light_illuminated(number));
+            }
+
+            test_bed.unfail(FailureType::AdrAngleOfAttackSensorFault(adiru_number));
+            test_bed.run();
+            assert!(test_bed.angle_of_attack(adiru_number).is_normal_operation());
         }
 
         #[test]

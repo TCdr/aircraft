@@ -348,6 +348,7 @@ import {
 } from './Logic/LandingGearAlerts';
 import { GpwsAlerts, readGpwsInputs, TERR_STBY_MEMO_CODE } from './Logic/GpwsAlerts';
 import { PredictiveWindshearAlerts } from './Logic/PredictiveWindshearAlerts';
+import { NavSensorAlerts } from './Logic/NavSensorAlerts';
 import { EngineFadecFaultAlerts, readEngineFadecFaults } from './Logic/EngineFadecFaultAlerts';
 import { COMPANY_DATALINK_STBY_MEMO_CODES, DatalinkAlerts, DATALINK_PHASE_INHIBITION } from './Logic/DatalinkAlerts';
 import { readVentilationSystemInputs, VentilationAlerts } from './Logic/VentilationAlerts';
@@ -2192,6 +2193,9 @@ export class PseudoFWC {
   /** NAV PRED W/S DET FAULT, see Logic/PredictiveWindshearAlerts */
   private readonly predictiveWindshearAlerts = new PredictiveWindshearAlerts();
 
+  /** NAV ILS, AOA, static probe and ADS-B faults, NAV ATT, HDG and IAS DISCREPANCY, see Logic/NavSensorAlerts */
+  private readonly navSensorAlerts = new NavSensorAlerts();
+
   /** ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED, REV ISOL
    * FAULT, VIB SYS FAULT, see Logic/EngineFadecFaultAlerts */
   private readonly engineFadecFaultAlerts = new EngineFadecFaultAlerts();
@@ -2946,6 +2950,7 @@ export class PseudoFWC {
 
   init(): void {
     this.predictiveWindshearAlerts.init();
+    this.navSensorAlerts.init();
     this.engineFadecFaultAlerts.init();
     this.datalinkAlerts.init(this.bus);
     this.ventilationAlerts.init();
@@ -6101,6 +6106,11 @@ export class PseudoFWC {
     const heatAlerts = probeWindowHeatAlerts(this.probeWindowHeatInputs);
     PROBE_WINDOW_HEAT_ALERTS.forEach((alert, index) =>
       this.probeWindowHeatActive[index].set(alert.isActive(heatAlerts)),
+    );
+    this.navSensorAlerts.readAndUpdate(
+      deltaTime,
+      this.aircraftOnGround.get(),
+      this.probeWindowHeatInputs.probeHeatComputers,
     );
 
     /* AIR bleed leak, leak detection, HP valve and BMC cautions, from the Rust BMCs */
@@ -10538,6 +10548,7 @@ export class PseudoFWC {
     ...this.landingGearAlerts.ewdFailures,
     ...this.gpwsAlerts.ewdFailures,
     ...this.predictiveWindshearAlerts.ewdFailures,
+    ...this.navSensorAlerts.ewdFailures,
     ...this.engineFadecFaultAlerts.ewdFailures,
     ...this.datalinkAlerts.ewdFailures,
     ...this.ventilationAlerts.ewdFailures,

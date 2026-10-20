@@ -4,8 +4,6 @@
 import { EventBus, Instrument, Subject } from '@microsoft/msfs-sdk';
 import { Arinc429Word } from '@flybywiresim/fbw-sdk';
 
-import { getSupplier } from './AdirsValueProvider';
-
 /*
  * Side 1 / side 2 discrepancy messages of the EFIS:
  * - both PFDs show CHECK ATT when the pitch or the roll of the two sides differ by 5 degrees or more
@@ -69,11 +67,28 @@ export function isCheckHeadingShown(own: EfisSideAttitudeHeading, opposite: Efis
 }
 
 /**
- * Reads one ARINC IR value: its value when normal operation, null otherwise.
- * @param name the L:var of the IR word
+ * The ADIRU whose data an EFIS side displays, by the ATT HDG or AIR DATA switching selector (0 CAPT 3, 1 NORM, 2 F/O 3):
+ * 1 for the CAPT side, 2 for the F/O side, 3 when it is switched to that side. The same as getSupplier of
+ * AdirsValueProvider, in a .ts file so that the systems host (built without JSX) can use it too.
+ * @param side the EFIS side
+ * @param switchingSelector the position of the switching selector
+ * @returns the ADIRU number
+ */
+export function efisSideAdiru(side: 'L' | 'R', switchingSelector: number): 1 | 2 | 3 {
+  const adiru3ToCaptain = 0;
+  const adiru3ToFo = 2;
+  if (side === 'L') {
+    return switchingSelector === adiru3ToCaptain ? 3 : 1;
+  }
+  return switchingSelector === adiru3ToFo ? 3 : 2;
+}
+
+/**
+ * Reads one ARINC value: its value when normal operation, null otherwise (the display shows its flag instead).
+ * @param name the L:var of the word
  * @returns the value or null
  */
-function readIrValue(name: string): number | null {
+export function readNormalOperationValue(name: string): number | null {
   const word = Arinc429Word.fromSimVarValue(name);
   return word.isNormalOperation() ? word.value : null;
 }
@@ -84,12 +99,12 @@ function readIrValue(name: string): number | null {
  * @param side the EFIS side
  * @returns the displayed values
  */
-function readEfisSideAttitudeHeading(side: 'L' | 'R'): EfisSideAttitudeHeading {
-  const ir = getSupplier(side, SimVar.GetSimVarValue('L:A32NX_ATT_HDG_SWITCHING_KNOB', 'Enum'));
+export function readEfisSideAttitudeHeading(side: 'L' | 'R'): EfisSideAttitudeHeading {
+  const ir = efisSideAdiru(side, SimVar.GetSimVarValue('L:A32NX_ATT_HDG_SWITCHING_KNOB', 'Enum'));
   return {
-    pitchDegrees: readIrValue(`L:A32NX_ADIRS_IR_${ir}_PITCH`),
-    rollDegrees: readIrValue(`L:A32NX_ADIRS_IR_${ir}_ROLL`),
-    headingDegrees: readIrValue(`L:A32NX_ADIRS_IR_${ir}_HEADING`),
+    pitchDegrees: readNormalOperationValue(`L:A32NX_ADIRS_IR_${ir}_PITCH`),
+    rollDegrees: readNormalOperationValue(`L:A32NX_ADIRS_IR_${ir}_ROLL`),
+    headingDegrees: readNormalOperationValue(`L:A32NX_ADIRS_IR_${ir}_HEADING`),
   };
 }
 

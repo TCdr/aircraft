@@ -483,7 +483,7 @@ export function radioAltitudesDisagree(height1: number | null, height2: number |
  * The ADR comparison thresholds. Design choice: the A320 has no documented value, so these are the A380 values of the
  * ADR monitoring by the PRIMs (CAS 16 kt, AOA 3.6 deg in flight and 8 deg on ground).
  */
-const ADR_DISAGREE_CAS_THRESHOLD_KT = 16;
+export const ADR_DISAGREE_CAS_THRESHOLD_KT = 16;
 const ADR_DISAGREE_AOA_THRESHOLD_IN_FLIGHT_DEG = 3.6;
 const ADR_DISAGREE_AOA_THRESHOLD_ON_GROUND_DEG = 8;
 

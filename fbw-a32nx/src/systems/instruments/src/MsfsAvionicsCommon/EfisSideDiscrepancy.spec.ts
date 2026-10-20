@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
+import { getSupplier } from './AdirsValueProvider';
 import {
   EfisSideAttitudeHeading,
+  efisSideAdiru,
   headingDifferenceDegrees,
   isCheckAttitudeShown,
   isCheckHeadingShown,
@@ -52,5 +54,15 @@ describe('A32NX EFIS side 1 / side 2 discrepancy messages', () => {
   it('keeps attitude and heading apart', () => {
     expect(isCheckAttitudeShown(side(0, 0, 0), side(0, 0, 90))).toBe(false);
     expect(isCheckHeadingShown(side(0, 0, 90), side(20, 0, 90))).toBe(false);
+  });
+
+  it('takes the ADIRU of each side from the switching selector, as the displays do', () => {
+    // 0 CAPT 3, 1 NORM, 2 F/O 3
+    expect([0, 1, 2].map((selector) => efisSideAdiru('L', selector))).toEqual([3, 1, 1]);
+    expect([0, 1, 2].map((selector) => efisSideAdiru('R', selector))).toEqual([2, 2, 3]);
+    for (const selector of [0, 1, 2]) {
+      expect(efisSideAdiru('L', selector)).toBe(getSupplier('L', selector));
+      expect(efisSideAdiru('R', selector)).toBe(getSupplier('R', selector));
+    }
   });
 });
