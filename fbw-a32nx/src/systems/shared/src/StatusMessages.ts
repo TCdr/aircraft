@@ -206,13 +206,27 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['270400005', { part: StatusPart.Limitation, text: 'USE SPD BRK WITH CARE' }],
   ['270400006', { part: StatusPart.Limitation, text: 'FOR GA: MAX PITCH 15 DEG' }],
   ['270500001', { part: StatusPart.Condition, text: 'APPR PROC:' }],
+  // F/CTL SLATS AND FLAPS FAULT IN CONF 0, see FWC/Logic/SlatFlapLockAlerts
+  ['270400016', { part: StatusPart.Limitation, text: 'FOR LDG......USE FLAP 1' }],
   ['270400007', { part: StatusPart.Limitation, text: 'FOR LDG......USE FLAP 3' }],
+  // F/CTL FLAPS FAULT/LOCKED with the flaps beyond 3, see FWC/Logic/SlatFlapLockAlerts
+  ['270400015', { part: StatusPart.Limitation, text: 'FLAPS.....KEEP CONF FULL' }],
+  // APPR PROC of F/CTL FLAP SYS 1 FAULT (see FWC/Logic/SlatFlapChannelAlerts) and FLAPS FAULT/LOCKED
+  ['270400012', { part: StatusPart.Limitation, text: 'GPWS FLAP MODE......OFF' }],
   ['270400008', { part: StatusPart.Limitation, text: 'GPWS LDG FLAP 3......ON' }],
   ['270400009', { part: StatusPart.Limitation, text: 'MAN PITCH TRIM......USE' }],
+  // F/CTL STABILIZER JAM, see FWC/Logic/SidestickStabilizerAlerts
+  ['270500002', { part: StatusPart.Condition, text: 'IF MAN TRIM NOT AVAIL:' }],
+  ['270500003', { part: StatusPart.Condition, text: 'WHEN CONF 3 AND VAPP:' }],
+  ['270400013', { part: StatusPart.Limitation, text: 'L/G.................DN' }],
   ['270400010', { part: StatusPart.Limitation, text: 'APPR SPD.....VREF+10 KT' }],
+  // F/CTL FLAPS (SLATS) FAULT/LOCKED: the approach speed of the flaps/slats table
+  ['270400014', { part: StatusPart.Limitation, text: 'APPR SPD.........SEE QRH' }],
+  // F/CTL SLATS AND FLAPS FAULT IN CONF 0
+  ['270400017', { part: StatusPart.Limitation, text: 'APPR SPD.....VREF+60 KT' }],
+  ['270500004', { part: StatusPart.Condition, text: 'AT 300 FT AGL:' }],
+  ['270400018', { part: StatusPart.Limitation, text: 'TARGET SPD...VREF+50 KT' }],
   ['270400011', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
-  // APPR PROC of F/CTL FLAP SYS 1 FAULT, see FWC/Logic/SlatFlapChannelAlerts
-  ['270400012', { part: StatusPart.Limitation, text: 'GPWS FLAP MODE......OFF' }],
   // 22 AUTO FLIGHT (RUD TRV LIM SYS STATUS), see FWC/Logic/FacActuatorAlerts
   ['220400001', { part: StatusPart.Limitation, text: 'RUD WITH CARE ABV 160 KT' }],
   ['220400002', { part: StatusPart.Limitation, text: 'MAX X WIND FOR LDG 15 KT' }],
@@ -297,6 +311,10 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['240200201', { part: StatusPart.Information, text: 'APU BAT START NOT AVAIL' }],
   // 27 FLIGHT CONTROLS (INOP SYS), before CAT 3 DUAL as in ELAC 1(2) FAULT
   ['270300001', { part: StatusPart.InopSys, text: 'F/CTL PROT' }],
+  // F/CTL STABILIZER JAM, SLATS (FLAPS) FAULT/LOCKED, see FWC/Logic/SidestickStabilizerAlerts and SlatFlapLockAlerts
+  ['270300029', { part: StatusPart.InopSys, text: 'STABILIZER' }],
+  ['270300030', { part: StatusPart.InopSys, text: 'SLATS' }],
+  ['270300031', { part: StatusPart.InopSys, text: 'FLAPS' }],
   ['270300002', { part: StatusPart.InopSys, text: 'L+R ELEV' }],
   ['270300003', { part: StatusPart.InopSys, text: 'L ELEV' }],
   ['270300004', { part: StatusPart.InopSys, text: 'R ELEV' }],
@@ -322,6 +340,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['270300024', { part: StatusPart.InopSys, text: 'FCDC 1+2' }],
   ['270300025', { part: StatusPart.InopSys, text: 'FCDC 1' }],
   ['270300026', { part: StatusPart.InopSys, text: 'FCDC 2' }],
+  // F/CTL L (R) SIDESTICK FAULT, see FWC/Logic/SidestickStabilizerAlerts
+  ['270300032', { part: StatusPart.InopSys, text: 'L SIDESTICK' }],
+  ['270300033', { part: StatusPart.InopSys, text: 'R SIDESTICK' }],
   // 22 AUTO FLIGHT (YAW DAMPER / RUD TRIM / RUD TRV LIM SYS, before AP 1+2 as on the aircraft, see
   // FWC/Logic/FacActuatorAlerts)
   ['220300004', { part: StatusPart.InopSys, text: 'YAW DAMPER' }],

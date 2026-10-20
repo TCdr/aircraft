@@ -34,6 +34,14 @@ clang++ -std=c++20 -Wall -Wextra -I ../src/model \
   ../src/utils/PowerSupplyMonitor.cpp \
   -o ../obj/fmgc_tcas_mode_failure_test
 ../obj/fmgc_tcas_mode_failure_test
+# Sidestick, sidestick priority logic and stabilizer electrical control failures (flyPad 27019-27022): the ELAC and SEC
+# inputs, and the ELAC losing the pitch axis with the THS motor fault
+clang++ -std=c++20 -Wall -Wextra -I ../src/model \
+  flight_control_failure_inputs_test.cpp ../src/elac/Elac.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp \
+  ../src/utils/PowerSupplyMonitor.cpp ../src/utils/ConfirmNode.cpp ../src/utils/HysteresisNode.cpp ../src/utils/PulseNode.cpp \
+  ../src/utils/SRFlipFLop.cpp \
+  -o ../obj/flight_control_failure_inputs_test
+../obj/flight_control_failure_inputs_test
 # With WITHOUT_THE_FIX=1 the next tests use the logic before the fix and must fail
 FIX_FLAGS=""
 if [ "${WITHOUT_THE_FIX:-0}" = "1" ]; then

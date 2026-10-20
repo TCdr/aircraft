@@ -92,6 +92,11 @@ pub enum FailureType {
     /// The slat channel of SFCC n no longer controls its slat motor: the slats move at half speed on the
     /// other motor, and the SFCC reports a slat fault (F/CTL SLAT SYS n FAULT)
     SlatFlapControlComputerSlatChannel(usize),
+    /// The flap transmission of one wing moves apart from the other: when the flaps are driven, the SFCCs see the
+    /// asymmetry and apply the flap wing tip brakes, which lock the flaps where they are (F/CTL FLAPS LOCKED)
+    FlapTransmissionAsymmetry,
+    /// The same for the slat transmission and the slat wing tip brakes (F/CTL SLATS LOCKED)
+    SlatTransmissionAsymmetry,
     /// Smoke in a compartment: the smoke detectors of the compartment sense it (fire_protection::smoke_detection)
     Smoke(SmokeDetectionZone),
     /// Smoke detector n of a compartment is failed (fire_protection::smoke_detection)

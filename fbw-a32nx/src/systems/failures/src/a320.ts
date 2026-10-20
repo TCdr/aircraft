@@ -131,6 +131,23 @@ export const A320Failure = Object.freeze({
   Sfcc2FlapChannel: 27011,
   Sfcc1SlatChannel: 27012,
   Sfcc2SlatChannel: 27013,
+  // The flap (slat) transmission asymmetry makes the SFCCs apply the wing tip brakes once the surfaces move: the
+  // surfaces stay locked, F/CTL FLAPS (SLATS) LOCKED
+  FlapTransmissionAsymmetry: 27014,
+  SlatTransmissionAsymmetry: 27015,
+  // One wing tip brake (or its solenoid) failed, seen by the SFCCs: F/CTL FLAP (SLAT) TIP BRK FAULT
+  FlapWingTipBrake: 27016,
+  SlatWingTipBrake: 27017,
+  // The flap attachment failure detection sensor, seen by the SFCCs: F/CTL FLAP ATTACH SENSOR
+  FlapAttachmentSensor: 27018,
+  // The pitch and roll transducers of a sidestick (fbw_a320 failures/FlightControlFailureInputs.h): the sidestick
+  // sends nothing to the ELACs and SECs, F/CTL L (R) SIDESTICK FAULT
+  CaptSidestick: 27019,
+  FoSidestick: 27020,
+  // The sidestick priority logic circuit: the take over pbs no longer reach the computers, F/CTL SIDESTICK PRIORITY
+  SidestickPriorityLogic: 27021,
+  // The electrical control of the THS: the ELACs and SECs see a THS motor fault, F/CTL STABILIZER JAM
+  StabilizerElecControl: 27022,
 
   // ATA 28 (systems-host Fuel/FuelPumpsAndValves): a pump failure holds the MSFS pump switch off, the X FEED valve jam
   // holds the MSFS valve switch where the valve was, while the pb-sw selections still change
@@ -601,6 +618,15 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [27, A320Failure.Sfcc2FlapChannel, 'SFCC 2 flap channel'],
   [27, A320Failure.Sfcc1SlatChannel, 'SFCC 1 slat channel'],
   [27, A320Failure.Sfcc2SlatChannel, 'SFCC 2 slat channel'],
+  [27, A320Failure.FlapTransmissionAsymmetry, 'Flap transmission asymmetry'],
+  [27, A320Failure.SlatTransmissionAsymmetry, 'Slat transmission asymmetry'],
+  [27, A320Failure.FlapWingTipBrake, 'Flap wing tip brake'],
+  [27, A320Failure.SlatWingTipBrake, 'Slat wing tip brake'],
+  [27, A320Failure.FlapAttachmentSensor, 'Flap attachment sensor'],
+  [27, A320Failure.CaptSidestick, 'CAPT sidestick transducers'],
+  [27, A320Failure.FoSidestick, 'F/O sidestick transducers'],
+  [27, A320Failure.SidestickPriorityLogic, 'Sidestick priority logic'],
+  [27, A320Failure.StabilizerElecControl, 'Stabilizer electrical control'],
 
   [28, A320Failure.LeftTankPump1, 'L TK pump 1'],
   [28, A320Failure.LeftTankPump2, 'L TK pump 2'],

@@ -92,6 +92,8 @@ import {
   slatFlapChannelFaults,
   slatSysFaultStatus,
 } from './Logic/SlatFlapChannelAlerts';
+import { SlatFlapLockAlerts } from './Logic/SlatFlapLockAlerts';
+import { SidestickStabilizerAlerts } from './Logic/SidestickStabilizerAlerts';
 import { isApuAvailMemoShown, isApuBleedMemoShown } from './Logic/ApuMemos';
 import { isToConfigSystemStatusNormal } from './Logic/ToConfigNormal';
 import { isGearNotUplockedForVle } from './Logic/LandingGearOverspeed';
@@ -2200,6 +2202,13 @@ export class PseudoFWC {
    * FAULT, VIB SYS FAULT, see Logic/EngineFadecFaultAlerts */
   private readonly engineFadecFaultAlerts = new EngineFadecFaultAlerts();
 
+  /** F/CTL SLATS (FLAPS) FAULT/LOCKED, SLATS AND FLAPS FAULT IN CONF 0, SLAT (FLAP) TIP BRK FAULT, FLAP ATTACH SENSOR,
+   * see Logic/SlatFlapLockAlerts */
+  private readonly slatFlapLockAlerts = new SlatFlapLockAlerts();
+
+  /** F/CTL L(R) SIDESTICK FAULT, SIDESTICK PRIORITY, STABILIZER JAM, see Logic/SidestickStabilizerAlerts */
+  private readonly sidestickStabilizerAlerts = new SidestickStabilizerAlerts();
+
   /** DATALINK ATSU FAULT, DATALINK COMPANY FAULT, COMPANY DATALINK STBY memo, see Logic/DatalinkAlerts */
   private readonly datalinkAlerts = new DatalinkAlerts();
 
@@ -2952,6 +2961,8 @@ export class PseudoFWC {
     this.predictiveWindshearAlerts.init();
     this.navSensorAlerts.init();
     this.engineFadecFaultAlerts.init();
+    this.slatFlapLockAlerts.init();
+    this.sidestickStabilizerAlerts.init();
     this.datalinkAlerts.init(this.bus);
     this.ventilationAlerts.init();
     this.tcasModeFaultAlert.init();
@@ -5219,6 +5230,9 @@ export class PseudoFWC {
     const fcdc1DiscreteWord5 = Arinc429Word.fromSimVarValue('L:A32NX_FCDC_1_DISCRETE_WORD_5');
     const fcdc2DiscreteWord5 = Arinc429Word.fromSimVarValue('L:A32NX_FCDC_2_DISCRETE_WORD_5');
 
+    // F/CTL L(R) SIDESTICK FAULT, SIDESTICK PRIORITY, STABILIZER JAM, see Logic/SidestickStabilizerAlerts
+    this.sidestickStabilizerAlerts.update({ fcdc1Word1: fcdc1DiscreteWord1, fcdc2Word1: fcdc2DiscreteWord1 });
+
     // ELAC 1 FAULT computation
     const se1f =
       (fcdc1DiscreteWord1.bitValueOr(19, false) || fcdc2DiscreteWord1.bitValueOr(19, false)) &&
@@ -5406,10 +5420,16 @@ export class PseudoFWC {
     this.slatsAngle.set(SimVar.GetSimVarValue('L:A32NX_SLATS_IPPU_ANGLE', 'degrees'));
 
     // F/CTL FLAP(SLAT) SYS 1(2) FAULT, see Logic/SlatFlapChannelAlerts
-    const slatFlapChannels = slatFlapChannelFaults(
-      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_FLAP_SYSTEM_STATUS_WORD'),
-      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_FLAP_SYSTEM_STATUS_WORD'),
-    );
+    const sfcc1SystemStatusWord = Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_FLAP_SYSTEM_STATUS_WORD');
+    const sfcc2SystemStatusWord = Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_FLAP_SYSTEM_STATUS_WORD');
+    const slatFlapChannels = slatFlapChannelFaults(sfcc1SystemStatusWord, sfcc2SystemStatusWord);
+    // F/CTL SLATS (FLAPS) FAULT/LOCKED and the slat/flap part cautions, see Logic/SlatFlapLockAlerts
+    this.slatFlapLockAlerts.update({
+      sfcc1: sfcc1SystemStatusWord,
+      sfcc2: sfcc2SystemStatusWord,
+      slatsFppuAngle: this.slatsAngle.get(),
+      flapsFppuAngle: this.flapsAngle.get(),
+    });
     this.flapSys1Fault.set(slatFlapChannels.flapSysFault[0]);
     this.flapSys2Fault.set(slatFlapChannels.flapSysFault[1]);
     this.slatSys1Fault.set(slatFlapChannels.slatSysFault[0]);
@@ -10550,6 +10570,8 @@ export class PseudoFWC {
     ...this.predictiveWindshearAlerts.ewdFailures,
     ...this.navSensorAlerts.ewdFailures,
     ...this.engineFadecFaultAlerts.ewdFailures,
+    ...this.slatFlapLockAlerts.ewdFailures,
+    ...this.sidestickStabilizerAlerts.ewdFailures,
     ...this.datalinkAlerts.ewdFailures,
     ...this.ventilationAlerts.ewdFailures,
     ...this.tcasModeFaultAlert.ewdFailures,

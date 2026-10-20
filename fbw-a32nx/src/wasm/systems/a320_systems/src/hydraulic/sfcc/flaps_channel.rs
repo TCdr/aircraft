@@ -37,6 +37,7 @@ pub(super) struct FlapsChannel {
     /// The flyPad failure of this flap channel (F/CTL FLAP SYS 1(2) FAULT): the channel no longer drives its flap
     /// motor, the other motor moves the flaps at half speed
     motor_control_failure: Failure,
+    wing_tip_brakes_engaged: bool,
 
     conf1_flaps: Angle,
     conf1f_flaps: Angle,
@@ -81,6 +82,7 @@ impl FlapsChannel {
             motor_control_failure: Failure::new(FailureType::SlatFlapControlComputerFlapChannel(
                 num as usize,
             )),
+            wing_tip_brakes_engaged: false,
 
             conf1_flaps: Angle::new::<degree>(Self::FLAP_CONF1_FPPU_ANGLE),
             conf1f_flaps: Angle::new::<degree>(Self::FLAP_CONF1F_FPPU_ANGLE),
@@ -478,6 +480,16 @@ impl FlapsChannel {
         self.motor_control_failure.is_active()
     }
 
+    /// The flap wing tip brakes hold the transmission: the channel de-energises its pressure-off
+    /// brake and stops driving.
+    pub(super) fn set_wing_tip_brakes_engaged(&mut self, engaged: bool) {
+        self.wing_tip_brakes_engaged = engaged;
+    }
+
+    pub(super) fn wing_tip_brakes_engaged(&self) -> bool {
+        self.wing_tip_brakes_engaged
+    }
+
     #[cfg(test)]
     pub fn get_fap(&self, idx: usize) -> bool {
         self.fap[idx]
@@ -504,7 +516,7 @@ impl FlapsChannel {
 // are held in position and can't move.
 impl ValveBlock for FlapsChannel {
     fn get_pob_status(&self) -> SolenoidStatus {
-        if !self.is_powered_delayed.output() || self.is_failed() {
+        if !self.is_powered_delayed.output() || self.is_failed() || self.wing_tip_brakes_engaged {
             return SolenoidStatus::DeEnergised;
         }
 
@@ -519,7 +531,7 @@ impl ValveBlock for FlapsChannel {
     }
 
     fn get_command_status(&self) -> Option<ChannelCommand> {
-        if !self.is_powered_delayed.output() || self.is_failed() {
+        if !self.is_powered_delayed.output() || self.is_failed() || self.wing_tip_brakes_engaged {
             return None;
         }
 

@@ -105,8 +105,9 @@ describe('PseudoFWC F/CTL FLAP(SLAT) SYS 1(2) FAULT', () => {
   });
 
   it('reads both SFCC status words each cycle', () => {
-    expect(fwc).toContain("Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_FLAP_SYSTEM_STATUS_WORD'),");
-    expect(fwc).toContain("Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_FLAP_SYSTEM_STATUS_WORD'),");
+    expect(fwc).toContain("Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_FLAP_SYSTEM_STATUS_WORD');");
+    expect(fwc).toContain("Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_FLAP_SYSTEM_STATUS_WORD');");
+    expect(fwc).toContain('slatFlapChannelFaults(sfcc1SystemStatusWord, sfcc2SystemStatusWord);');
     expect(fwc).toContain('this.flapSys1Fault.set(slatFlapChannels.flapSysFault[0]);');
     expect(fwc).toContain('this.slatSys2Fault.set(slatFlapChannels.slatSysFault[1]);');
   });
