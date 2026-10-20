@@ -30,6 +30,7 @@ import { SequencedWaypointRecord } from './SequencedWaypointRecorder';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
 import { TimeConstraint } from './TimeConstraint';
 import type { A380xRtaFunction } from './A380xRtaFunction';
+import type { A380OptimumStepSearch } from './A380OptimumStep';
 import { Coordinates } from 'msfs-geo';
 
 export enum FmcOperatingModes {
@@ -385,6 +386,9 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
 
   /** The RTA function of the active flight plan: speed control, time error, messages */
   get rtaFunction(): A380xRtaFunction;
+
+  /** The optimum step point of the STEP ALTs panel */
+  readonly optimumStep: A380OptimumStepSearch;
 
   /**
    * The IRS alignment reference position of the POSITION / IRS Align On Other Reference panel, null while the IRS align

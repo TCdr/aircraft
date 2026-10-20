@@ -502,8 +502,21 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     );
   }
 
-  addOrUpdateCruiseStep(atIndex: number, toAltitude: number, planIndex?: FlightPlanIndex): Promise<void> {
-    return this.callFunctionViaRpc('addOrUpdateCruiseStep', atIndex, toAltitude, planIndex);
+  addOrUpdateCruiseStep(
+    atIndex: number,
+    toAltitude: number,
+    planIndex?: FlightPlanIndex,
+    distanceBeforeTermination?: number,
+    isOptimum?: boolean,
+  ): Promise<void> {
+    return this.callFunctionViaRpc(
+      'addOrUpdateCruiseStep',
+      atIndex,
+      toAltitude,
+      planIndex,
+      distanceBeforeTermination,
+      isOptimum,
+    );
   }
 
   removeCruiseStep(atIndex: number, planIndex?: FlightPlanIndex): Promise<void> {

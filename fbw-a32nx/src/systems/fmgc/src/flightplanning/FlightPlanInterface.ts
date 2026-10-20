@@ -390,7 +390,17 @@ export interface FlightPlanInterface<P extends FlightPlanPerformanceData = Fligh
     alternate?: boolean,
   ): Promise<void>;
 
-  addOrUpdateCruiseStep(atIndex: number, toAltitude: number, planIndex?: FlightPlanIndex): Promise<void>;
+  /**
+   * @param distanceBeforeTermination the step point is this far (NM) before the waypoint
+   * @param isOptimum the step is the optimum step point of the FMS
+   */
+  addOrUpdateCruiseStep(
+    atIndex: number,
+    toAltitude: number,
+    planIndex?: FlightPlanIndex,
+    distanceBeforeTermination?: number,
+    isOptimum?: boolean,
+  ): Promise<void>;
 
   removeCruiseStep(atIndex: number, planIndex?: FlightPlanIndex): Promise<void>;
 

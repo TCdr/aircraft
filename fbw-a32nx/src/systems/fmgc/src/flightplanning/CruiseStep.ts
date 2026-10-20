@@ -16,4 +16,8 @@ export type CruiseStepEntry = {
    * Whether the step should be ignored.
    */
   isIgnored: boolean;
+  /**
+   * Whether the step is the optimum step point computed by the FMS and inserted by the flight crew.
+   */
+  isOptimum?: boolean;
 };

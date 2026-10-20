@@ -41,9 +41,11 @@ export class StepAhead implements FMMessageSelector {
         continue;
       }
 
-      const legDistanceToEnd = leg.calculated.cumulativeDistanceToEndWithTransitions;
+      // An optimum step point is before its waypoint
+      const stepDistanceToEnd =
+        leg.calculated.cumulativeDistanceToEndWithTransitions + leg.cruiseStep.distanceBeforeTermination;
 
-      if (distanceToEnd - legDistanceToEnd < 20) {
+      if (distanceToEnd - stepDistanceToEnd < 20) {
         newState = true;
       }
     }

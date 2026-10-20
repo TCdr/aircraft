@@ -100,6 +100,9 @@ import { CompanyTakeoffData } from './CompanyTakeoffData';
 import { TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FmsPrinter } from './FmsPrinter';
 import { FmsAdvisoryMessages } from './FmsAdvisoryMessages';
+import { A380OptimumStepSearch } from './A380OptimumStep';
+import { computeFlsBeam, flsBeamInputs, FlsBeamPublisher } from './FlsBeam';
+import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { isValidA380FlightNumber } from '@fmgc/components/fms-messages/FmsMessageConditions';
 import { deleteConstraintsAboveCruiseLevel } from '@fmgc/flightplanning/plans/CruiseLevelConstraints';
 import { AtcRouteClearanceLoader } from './AtcRouteClearanceLoader';
@@ -1888,6 +1891,15 @@ export class FlightManagementComputer implements FmcInterface {
     return this.#flightPlanService.timeConstraintOf(planIndex);
   }
 
+  /** The optimum step point of the STEP ALTs panel */
+  public readonly optimumStep = new A380OptimumStepSearch(this);
+
+  #flsBeamPublisher: FlsBeamPublisher | null = null;
+
+  private get flsBeamPublisher(): FlsBeamPublisher {
+    return (this.#flsBeamPublisher ??= new FlsBeamPublisher(this.bus));
+  }
+
   /** @inheritdoc */
   public setTimeConstraint(planIndex: number, rta: TimeConstraint | null): void {
     this.#flightPlanService.setTimeConstraint(rta, planIndex);
@@ -2699,8 +2711,10 @@ export class FlightManagementComputer implements FmcInterface {
 
     if (!predictions || !this.flightPlanInterface.hasActive) {
       this.acInterface.transmitVerticalPath([], [], [], [], null);
+      this.flsBeamPublisher.publish(null);
       return;
     }
+    this.publishFlsBeam(plan, predictions);
 
     const targetProfile = this.guidanceController.vnavDriver.mcduProfile;
     const descentProfile = this.guidanceController.vnavDriver.descentProfile;
@@ -2790,6 +2804,20 @@ export class FlightManagementComputer implements FmcInterface {
       descentProfileVd,
       trackChangesSignificantlyAtDistance,
     );
+  }
+
+  private publishFlsBeam(
+    plan: ReadonlyFlightPlan<A380FlightPlanPerformanceData>,
+    predictions: ReadonlyMap<number, VerticalWaypointPrediction>,
+  ) {
+    const pd = plan.performanceData;
+    const inputs = flsBeamInputs(
+      plan,
+      predictions,
+      pd.approachTemperature.get(),
+      pd.approachQnh.get() !== null ? this.fmgc.getApproachQnh() : null,
+    );
+    this.flsBeamPublisher.publish(inputs ? computeFlsBeam(inputs) : null);
   }
 
   public enterEngineOut() {
