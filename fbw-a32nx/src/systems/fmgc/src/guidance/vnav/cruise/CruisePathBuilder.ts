@@ -20,6 +20,7 @@ import {
 } from '../profile/NavGeometryProfile';
 import { AtmosphericConditions } from '../AtmosphericConditions';
 import { VnavConfig } from '../VnavConfig';
+import { splitCruiseAtConstantMachSegment } from './ConstantMachSpeedProfile';
 
 export class CruisePathBuilder {
   constructor(
@@ -227,6 +228,7 @@ export class CruisePathBuilder {
     return true;
   }
 
+  /** A level cruise segment, at the constant Mach where it crosses the constant Mach segment (CMS) */
   private computeCruiseSegment(
     profile: NavGeometryProfile,
     sequence: TemporaryCheckpointSequence,
@@ -235,9 +237,59 @@ export class CruisePathBuilder {
     speed: Knots,
     reason: VerticalCheckpointReason = VerticalCheckpointReason.AtmosphericConditions,
   ) {
+    const { managedCruiseSpeedMach } = this.computationParametersObserver.get();
+    const pieces = splitCruiseAtConstantMachSegment(
+      sequence.lastCheckpoint.distanceFromStart,
+      targetDistanceFromStart,
+      profile.constantMachSegment,
+    );
+
+    for (let i = 0; i < pieces.length; i++) {
+      const { endDistanceFromStart, constantMach } = pieces[i];
+      const isLastPiece = i === pieces.length - 1;
+      const pieceSpeed =
+        constantMach !== null ? this.constantMachSpeed(sequence.lastCheckpoint.altitude, constantMach) : speed;
+      const pieceMach = constantMach ?? managedCruiseSpeedMach;
+
+      // A checkpoint holds the speed flown up to it and the waypoint predictions interpolate between checkpoints,
+      // so without this the new target would only be reached at the end of the piece.
+      if (i > 0) {
+        sequence.copyLastCheckpoint({
+          reason: VerticalCheckpointReason.ConstantMachSegmentBoundary,
+          speed: pieceSpeed,
+          mach: pieceMach,
+        });
+      }
+
+      this.computeLevelCruisePiece(
+        profile,
+        sequence,
+        config,
+        endDistanceFromStart,
+        pieceSpeed,
+        pieceMach,
+        isLastPiece ? reason : VerticalCheckpointReason.ConstantMachSegmentBoundary,
+      );
+    }
+  }
+
+  /** A CAS just above the one of the CMS Mach, so that the Mach is flown */
+  private constantMachSpeed(altitude: Feet, mach: Mach): Knots {
+    return this.atmosphericConditions.computeCasFromMach(altitude, mach) + 1;
+  }
+
+  private computeLevelCruisePiece(
+    profile: NavGeometryProfile,
+    sequence: TemporaryCheckpointSequence,
+    config: AircraftConfig,
+    targetDistanceFromStart: NauticalMiles,
+    speed: Knots,
+    mach: Mach,
+    reason: VerticalCheckpointReason,
+  ) {
     const MaxStepDistance = 50;
 
-    const { zeroFuelWeight, managedCruiseSpeedMach, tropoPause, perfFactor } = this.computationParametersObserver.get();
+    const { zeroFuelWeight, tropoPause, perfFactor } = this.computationParametersObserver.get();
 
     // Keep track of the state here instead of adding a checkpoint for every step to reduce the number of allocations
     const state = {
@@ -259,7 +311,7 @@ export class CruisePathBuilder {
         sequence.lastCheckpoint.altitude,
         Math.min(targetDistanceFromStart - state.distanceFromStart, MaxStepDistance),
         speed,
-        managedCruiseSpeedMach,
+        mach,
         zeroFuelWeight,
         state.remainingFuelOnBoard,
         headwind,
@@ -281,7 +333,7 @@ export class CruisePathBuilder {
         secondsFromPresent: state.secondsFromPresent,
         remainingFuelOnBoard: state.remainingFuelOnBoard,
         speed,
-        mach: managedCruiseSpeedMach,
+        mach,
         profilePhase: ProfilePhase.Cruise,
       });
     }

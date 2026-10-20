@@ -286,7 +286,7 @@ const vfeFS = [
   230, // Config 1
 ];
 
-const Vmo = 350;
+export const Vmo = 350;
 const Mmo = 0.82;
 
 /**

@@ -105,6 +105,8 @@ export interface InternalFmsSymbol {
   type: NdSymbolTypeFlags;
   typePwp?: NdPwpSymbolTypeFlags; // only for PWP
   constraints?: string[];
+  /** The constant Mach segment Mach, shown under the constraints, amber when the segment is predicted as missed */
+  constantMach?: { text: string; missed: boolean };
   altConstraint?: AltitudeConstraint;
   isAltitudeConstraintMet?: boolean;
   radials?: number[];

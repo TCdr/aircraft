@@ -35,6 +35,7 @@ import { FlightPlanIndex } from '../../flightplanning/FlightPlanManager';
 import { VnavConfig } from './VnavConfig';
 import { isLeg } from '../../flightplanning/legs/FlightPlanLeg';
 import { isStepDescentInitiation } from './StepDescentWindow';
+import { isConstantMachSpeedChange } from './cruise/ConstantMachSpeedProfile';
 import {
   interceptMarginToNextAltitudeConstraintNm,
   isInSpeedbrakeDecelerationSegment,
@@ -608,6 +609,10 @@ export class VnavDriver implements GuidanceComponent {
       }
 
       if (speedTargetType === ManagedSpeedType.Climb || speedTargetType === ManagedSpeedType.Cruise) {
+        if (isConstantMachSpeedChange(prevCheckpoint, checkpoint)) {
+          return prevCheckpoint.distanceFromStart;
+        }
+
         if (
           Math.min(
             checkpoint.speed,

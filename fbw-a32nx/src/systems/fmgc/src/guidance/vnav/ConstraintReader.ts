@@ -13,6 +13,11 @@ import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { MathUtils, ApproachType, ApproachWaypointDescriptor, WaypointConstraintType } from '@flybywiresim/fbw-sdk';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
+import { findConstantMachSegment } from '@fmgc/flightplanning/ConstantMachSegment';
+import {
+  GeographicConstantMachSegment,
+  geographicConstantMachSegment,
+} from '@fmgc/guidance/vnav/cruise/ConstantMachSpeedProfile';
 
 /**
  * This entire class essentially represents an interface to the flightplan.
@@ -27,6 +32,8 @@ export class ConstraintReader {
   public descentSpeedConstraints: MaxSpeedConstraint[] = [];
 
   public cruiseSteps: GeographicCruiseStep[] = [];
+
+  public constantMachSegment: GeographicConstantMachSegment | null = null;
 
   public totalFlightPlanDistance = 0;
 
@@ -65,6 +72,8 @@ export class ConstraintReader {
     let maxSpeed = Infinity;
 
     const plan = this.flightPlanService.active;
+
+    this.constantMachSegment = geographicConstantMachSegment(plan.allLegs, findConstantMachSegment(plan.allLegs));
 
     for (let i = 0; i < plan.firstMissedApproachLegIndex; i++) {
       const leg = plan.elementAt(i);
@@ -205,6 +214,7 @@ export class ConstraintReader {
     this.climbSpeedConstraints = [];
     this.descentSpeedConstraints = [];
     this.cruiseSteps = [];
+    this.constantMachSegment = null;
 
     this.totalFlightPlanDistance = 0;
     this.finalDescentAngle = -3;

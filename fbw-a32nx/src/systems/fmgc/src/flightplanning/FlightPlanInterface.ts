@@ -16,6 +16,7 @@ import { FlightPlanBatch } from '@fmgc/flightplanning/plans/FlightPlanBatch';
 import { FlightPlanContext } from '@fmgc/flightplanning/plans/BaseFlightPlan';
 import { WindEntry, HistoryWindEntry, PropagatedWindEntry, WindVector } from './data/wind';
 import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
+import { ConstantMachSegmentDeletionReason } from '@fmgc/flightplanning/ConstantMachSegment';
 
 /**
  * Interface for querying, modifying and creating flight plans.
@@ -392,6 +393,23 @@ export interface FlightPlanInterface<P extends FlightPlanPerformanceData = Fligh
   addOrUpdateCruiseStep(atIndex: number, toAltitude: number, planIndex?: FlightPlanIndex): Promise<void>;
 
   removeCruiseStep(atIndex: number, planIndex?: FlightPlanIndex): Promise<void>;
+
+  /**
+   * Creates or replaces the constant Mach segment (CMS), in the temporary flight plan when revising the active one
+   * @param endIndex the leg of the end waypoint, null when the segment ends at the top of descent
+   */
+  setConstantMachSegment(
+    startIndex: number,
+    endIndex: number | null,
+    mach: number,
+    planIndex?: FlightPlanIndex,
+  ): Promise<void>;
+
+  /** Deletes the constant Mach segment (CMS), in the temporary flight plan when revising the active one */
+  deleteConstantMachSegment(planIndex?: FlightPlanIndex): Promise<void>;
+
+  /** Deletes the constant Mach segment (CMS) of the active (and temporary) flight plan without a revision */
+  autoDeleteConstantMachSegment(reason: ConstantMachSegmentDeletionReason): Promise<void>;
 
   editLegDefinition(
     atIndex: number,

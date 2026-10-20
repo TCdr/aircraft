@@ -186,6 +186,7 @@ const engineModelParams: EngineModelParameters = {
 const fmsSymbolConfig: FMSymbolsConfig = {
   publishDepartureIdent: true,
   showRnpArLabel: true,
+  showConstantMachOnNd: true,
 };
 
 export const A380AircraftConfig: AircraftConfig = {

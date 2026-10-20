@@ -8,6 +8,7 @@ import { FlightPlanSegment } from '@fmgc/flightplanning/segments/FlightPlanSegme
 import { FlightPlanLegDefinition } from '@fmgc/flightplanning/legs/FlightPlanLegDefinition';
 import { HoldData } from '@fmgc/flightplanning/data/flightplan';
 import { CruiseStepEntry } from '@fmgc/flightplanning/CruiseStep';
+import { ConstantMachSegmentMarker } from '@fmgc/flightplanning/ConstantMachSegment';
 import { LegCalculations } from './FlightPlanLeg';
 
 export interface ReadonlyFlightPlanLeg {
@@ -48,6 +49,8 @@ export interface ReadonlyFlightPlanLeg {
   isVectors(): boolean;
 
   readonly cruiseStep: CruiseStepEntry | undefined;
+
+  readonly constantMachSegment: ConstantMachSegmentMarker | undefined;
 
   readonly pilotEnteredAltitudeConstraint: AltitudeConstraint | undefined;
 

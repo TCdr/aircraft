@@ -15,6 +15,7 @@ import { EventBus } from '@microsoft/msfs-sdk';
 import { TailwindComponent, WindVector } from '../../../flightplanning/data/wind';
 import { FlightPlanIndex } from '../../../flightplanning/FlightPlanManager';
 import { AircraftConfig } from '../../../flightplanning/AircraftConfigTypes';
+import type { GeographicConstantMachSegment } from '../cruise/ConstantMachSpeedProfile';
 
 export enum ProfilePhase {
   Climb,
@@ -50,6 +51,7 @@ export enum VerticalCheckpointReason {
   AltitudeConstraint = 'AltitudeConstraint',
   ContinueClimb = 'ContinueClimb',
   CrossingClimbSpeedLimit = 'CrossingClimbSpeedLimit',
+  ConstantMachSegmentBoundary = 'ConstantMachSegmentBoundary',
   SpeedConstraint = 'SpeedConstraint',
   CrossingFcuAltitudeClimb = 'FcuAltitudeClimb',
 
@@ -190,6 +192,10 @@ export class NavGeometryProfile extends BaseGeometryProfile {
 
   override get cruiseSteps(): GeographicCruiseStep[] {
     return this.constraintReader.cruiseSteps;
+  }
+
+  get constantMachSegment(): GeographicConstantMachSegment | null {
+    return this.constraintReader.constantMachSegment;
   }
 
   get totalFlightPlanDistance(): number {

@@ -29,6 +29,7 @@ import { FlightPlanBatch } from '@fmgc/flightplanning/plans/FlightPlanBatch';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
 import { HistoryWindEntry, PropagatedWindEntry, WindEntry, WindVector } from '../data/wind';
 import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
+import { ConstantMachSegmentDeletionReason } from '@fmgc/flightplanning/ConstantMachSegment';
 
 export type FunctionsOnlyAndUnwrapPromises<T> = {
   [k in keyof T as T[k] extends (...args: any) => Promise<any> ? k : never]: T[k] extends (
@@ -507,6 +508,23 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
 
   removeCruiseStep(atIndex: number, planIndex?: FlightPlanIndex): Promise<void> {
     return this.callFunctionViaRpc('removeCruiseStep', atIndex, planIndex);
+  }
+
+  setConstantMachSegment(
+    startIndex: number,
+    endIndex: number | null,
+    mach: number,
+    planIndex?: FlightPlanIndex,
+  ): Promise<void> {
+    return this.callFunctionViaRpc('setConstantMachSegment', startIndex, endIndex, mach, planIndex);
+  }
+
+  deleteConstantMachSegment(planIndex?: FlightPlanIndex): Promise<void> {
+    return this.callFunctionViaRpc('deleteConstantMachSegment', planIndex);
+  }
+
+  autoDeleteConstantMachSegment(reason: ConstantMachSegmentDeletionReason): Promise<void> {
+    return this.callFunctionViaRpc('autoDeleteConstantMachSegment', reason);
   }
 
   editLegDefinition(
