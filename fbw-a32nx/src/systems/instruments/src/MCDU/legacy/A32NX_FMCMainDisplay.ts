@@ -45,6 +45,8 @@ import {
   tonnesToPounds,
 } from '@fmgc/guidance/vnav/EconSpeeds';
 import { FlightModel } from '@fmgc/guidance/vnav/FlightModel';
+import { RtaSpeedEnvelope, rtaSpeedEnvelope } from '@fmgc/guidance/vnav/rta/RtaSpeedBias';
+import { A32nxRtaFunction } from './A32nxRtaFunction';
 import { uplinkedAlternateWindLevelDiffers } from '@fmgc/flightplanning/plans/AlternateCruiseLevel';
 import { DataManager } from '@fmgc/flightplanning/DataManager';
 import { FlightPlanRpcServer } from '@fmgc/flightplanning/rpc/FlightPlanRpcServer';
@@ -271,6 +273,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   /** Whether the managed speeds are the ECON speeds of the cost index model (not the fallback cost index table) */
   private managedSpeedsAreEcon = false;
   private readonly econSpeedsMemo = new ComputationMemo<EconSpeedSet | null>();
+  public readonly rtaFunction = new A32nxRtaFunction(this, () => this.simTime.get());
   /** The OPT FL of the PROG page, null for dashes */
   public optimumFlightLevel: number | null = null;
   private readonly optimumFlightLevelCache = new ProgOptimumFlightLevelCache();
@@ -904,6 +907,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
     if (this.fuelPredUpdateThrottler.canUpdate(deltaTime) !== -1) {
       this.runFuelPredComputation(FlightPlanIndex.Active);
+      this.rtaFunction.update();
       this.updateManagedSpeeds();
       this.updateOptimumFlightLevel();
 
@@ -1354,7 +1358,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     if (this.managedSpeedsAreEcon && this.flightPhaseManager.phase >= FmgcFlightPhase.Descent) {
       return;
     }
-    const econ = this.computeEconSpeeds();
+    const econ = this.rtaFunction.applySpeedBias(this.computeEconSpeeds(), this.computeRtaSpeedEnvelope());
     this.managedSpeedsAreEcon = econ !== null;
 
     if (!this.managedSpeedClimbIsPilotEntered) {
@@ -1427,6 +1431,25 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
         descentMinSpeed: FlightModel.getGreenDotSpeedCas(segmentAltitude, descentWeight * 1000),
       }),
     );
+  }
+
+  /** The speed range of the RTA speed control: green dot to VMO - 10 kt / MMO - 0.02 */
+  private computeRtaSpeedEnvelope(): RtaSpeedEnvelope | null {
+    const cruiseLevel = this.flightPlanService.hasActive
+      ? this.flightPlanService.active.performanceData.cruiseFlightLevel.get()
+      : null;
+    const grossWeight = this.getGrossWeight();
+    if (cruiseLevel === null || grossWeight === null) {
+      return null;
+    }
+    const cruiseAltitude = cruiseLevel * 100;
+    const descentWeight = this.getFuelPredComputation(FlightPlanIndex.Active).landingWeight ?? grossWeight;
+    const segmentAltitude = EconSpeeds.speedSegmentAltitude(cruiseAltitude);
+    return rtaSpeedEnvelope(A320EconParameters, cruiseAltitude, this.tropo ?? null, {
+      climb: FlightModel.getGreenDotSpeedCas(segmentAltitude, grossWeight * 1000),
+      cruise: FlightModel.getGreenDotSpeedCas(cruiseAltitude, grossWeight * 1000),
+      descent: FlightModel.getGreenDotSpeedCas(segmentAltitude, descentWeight * 1000),
+    });
   }
 
   /** ISA deviation of the measured temperature, at the ADR pressure altitude */
@@ -3428,6 +3451,10 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     }
 
     const plan = this.getFlightPlan(forPlan);
+    // The fuel planning is made without the time constraint
+    if (plan.performanceData.timeConstraint.get() !== null) {
+      this.addMessageToQueue(NXSystemMessages.blockIgnoresRta);
+    }
     const predictions = this.runFuelPredComputation(forPlan);
 
     const blockFuel =
@@ -5728,7 +5755,9 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     const zfwDiff = this.computeZfwDiffToSecondary(index);
     const oldDestination = this.currFlightPlanService.active?.destinationAirport;
 
-    await this.flightPlanService.secondaryActivate(index, !this.isAnEngineOn());
+    await this.rtaFunction.replaceFlightPlan(FlightPlanIndex.Active, () =>
+      this.flightPlanService.secondaryActivate(index, !this.isAnEngineOn()),
+    );
 
     await this.onSecondaryActivated(zfwDiff, oldDestination);
   }
@@ -6003,6 +6032,11 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     // If its not active or copy of active allow setting in any phase
     if (!activeOrCopyOfActive || this.getFlightPhase() === FmgcFlightPhase.Preflight) {
       if (text == Keypad.clrValue) {
+        // The ETT computed for the RTA can only be cleared by deleting the RTA
+        if (forPlan === FlightPlanIndex.Active && this.rtaFunction.isEttComputed) {
+          this.setScratchpadMessage(NXSystemMessages.rtaExists);
+          return;
+        }
         // If ETT has expired we don't show it on the RTA page, as such, ignore clearing if thats the case
         if (
           flightplan.performanceData.estimatedTakeoffTime.get() !== null &&
@@ -6046,6 +6080,9 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
                 forPlan,
               );
               this.flightPlanService.setPerformanceData('estimatedTakeoffTimeExpired', false, forPlan);
+              if (forPlan === FlightPlanIndex.Active) {
+                this.rtaFunction.onCrewEttEntered();
+              }
               if (forPlan === FlightPlanIndex.Active && this.ettCheckSub.isPaused) {
                 this.ettCheckSub.resume();
               }

@@ -38,6 +38,7 @@ import { HistoryWind } from '../wind/HistoryWind';
 import { FmgcFlightPhase } from '../../../shared/src/flightphase';
 import { FlightPlanOperationEvents } from '../events/FlightPlanOperationEvents';
 import { ConstantMachSegmentDeletionReason, findConstantMachSegment } from './ConstantMachSegment';
+import { sameTimeConstraint, TimeConstraint } from '../guidance/vnav/rta/TimeConstraint';
 
 export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanPerformanceData>
   implements FlightPlanInterface<P>
@@ -1072,6 +1073,35 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     const plan = this.flightPlanManager.get(planIndex);
 
     plan.setPerformanceData(key, value);
+  }
+
+  /**
+   * Sets, or deletes with null, the time constraint (RTA) of a flight plan. On both aircraft an RTA revision of the
+   * active flight plan goes through a temporary flight plan.
+   */
+  setTimeConstraint(rta: TimeConstraint | null, planIndex = FlightPlanIndex.Active): void {
+    const finalIndex = this.prepareDestructiveModification(planIndex);
+    this.flightPlanManager.get(finalIndex).setPerformanceData('timeConstraint', rta);
+  }
+
+  /** The RTA of a flight plan; for the active one, the RTA of the temporary flight plan when there is one */
+  timeConstraintOf(planIndex = FlightPlanIndex.Active): TimeConstraint | null {
+    const index = planIndex === FlightPlanIndex.Active && this.hasTemporary ? FlightPlanIndex.Temporary : planIndex;
+    return this.has(index) ? this.get(index).performanceData.timeConstraint.get() : null;
+  }
+
+  /**
+   * The automatic deletion of the RTA of the active flight plan: without a temporary flight plan, and also from a
+   * pending temporary flight plan that still holds it, so that its insertion does not bring it back
+   */
+  deleteActiveTimeConstraint(): void {
+    const rta = this.active.performanceData.timeConstraint.get();
+    this.active.setPerformanceData('timeConstraint', null);
+    const temporary = this.hasTemporary ? this.get(FlightPlanIndex.Temporary) : null;
+    const temporaryRta = temporary?.performanceData.timeConstraint.get() ?? null;
+    if (temporary && rta && temporaryRta && sameTimeConstraint(rta, temporaryRta)) {
+      temporary.setPerformanceData('timeConstraint', null);
+    }
   }
 
   async stringMissedApproach(

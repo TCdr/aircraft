@@ -109,6 +109,7 @@ import { allFmcInop, allFmcResetsPulled } from './FmcResetPanel';
 import { FmsDatalinkConnection } from './FmsDatalinkConnection';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
+import { A380xRtaFunction } from './A380xRtaFunction';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
 import { toCoRoute } from './StoredRouteUtils';
 import { alternateRouteFixes } from './AlternateCompanyRoute';
@@ -921,6 +922,7 @@ export class FlightManagementComputer implements FmcInterface {
 
   destroy() {
     this.flightPlanChangeNotifier.destroy();
+    this.#rtaFunction.destroy();
     this.#fmgc.destroy();
     for (const s of this.subs) {
       s.destroy();
@@ -1102,6 +1104,9 @@ export class FlightManagementComputer implements FmcInterface {
       return;
     }
     const pd = plan.performanceData;
+    if (pd.timeConstraint.get() !== null) {
+      this.addMessageToQueue(NXSystemMessages.rtaNotConsideredForFuelPlanning);
+    }
     const distance = Avionics.Utils.computeGreatCircleDistance(
       plan.originAirport.location,
       plan.destinationAirport.location,
@@ -1733,18 +1738,11 @@ export class FlightManagementComputer implements FmcInterface {
     const zfwCgDiff = this.computeZfwCgDiffToSecondary(index);
     const oldDestination = this.#flightPlanService.active?.destinationAirport;
 
-    // The time constraints go with their flight plans
-    const secondaryPlanIndex = FlightPlanIndex.FirstSecondary + index - 1;
-    const secondaryRta = this.secondaryTimeConstraint(secondaryPlanIndex);
-    const activeRta = this.timeConstraint.get();
-
     if (this.#flightPlanService.hasActive) {
       await this.#flightPlanService.activeAndSecondarySwap(index, !this.enginesWereStarted.get());
-      this.setSecondaryTimeConstraint(secondaryPlanIndex, activeRta);
     } else {
       await this.#flightPlanService.secondaryActivate(index, !this.enginesWereStarted.get());
     }
-    this.timeConstraint.set(secondaryRta);
 
     await this.onSecondaryActivated(zfwDiff, zfwCgDiff, oldDestination);
   }
@@ -1886,34 +1884,32 @@ export class FlightManagementComputer implements FmcInterface {
   }
 
   /** @inheritdoc */
-  public readonly timeConstraint = Subject.create<TimeConstraint | null>(null);
-
-  /** The time constraints of the secondary flight plans (one per flight plan), by flight plan object */
-  readonly #secondaryTimeConstraints = new WeakMap<object, TimeConstraint>();
-
-  /** @inheritdoc */
-  public readonly secondaryTimeConstraintsVersion = Subject.create(0);
-
-  /** @inheritdoc */
-  public secondaryTimeConstraint(planIndex: number): TimeConstraint | null {
-    if (planIndex < FlightPlanIndex.FirstSecondary || !this.#flightPlanService.has(planIndex)) {
-      return null;
-    }
-    return this.#secondaryTimeConstraints.get(this.#flightPlanService.get(planIndex)) ?? null;
+  public timeConstraintOf(planIndex: number): TimeConstraint | null {
+    return this.#flightPlanService.timeConstraintOf(planIndex);
   }
 
   /** @inheritdoc */
-  public setSecondaryTimeConstraint(planIndex: number, rta: TimeConstraint | null): void {
-    if (planIndex < FlightPlanIndex.FirstSecondary || !this.#flightPlanService.has(planIndex)) {
-      return;
-    }
-    const plan = this.#flightPlanService.get(planIndex);
-    if (rta) {
-      this.#secondaryTimeConstraints.set(plan, rta);
-    } else {
-      this.#secondaryTimeConstraints.delete(plan);
-    }
-    this.secondaryTimeConstraintsVersion.set(this.secondaryTimeConstraintsVersion.get() + 1);
+  public setTimeConstraint(planIndex: number, rta: TimeConstraint | null): void {
+    this.#flightPlanService.setTimeConstraint(rta, planIndex);
+  }
+
+  readonly #rtaFunction = new A380xRtaFunction({
+    flightPlanService: this.#flightPlanService,
+    guidanceController: () => this.#guidanceController,
+    flightPhase: () => this.flightPhase.get(),
+    engineOut: () => this.fmgc.data.engineOut.get(),
+    inManualHoldOrItsDeceleration: () => this.acInterface?.getHoldDecelReached() ?? false,
+    utcSeconds: () => this.#timeKeeper.utcSeconds.get(),
+    estimatedTakeoffTime: this.fmgc.data.estimatedTakeoffTime,
+    activeRtaSpeeds: () => this.fmgc.activeRtaSpeedRange(),
+    setRtaSpeedBias: (bias) => (this.fmgc.rtaSpeedBias = bias),
+    addMessageToQueue: (message, isResolved) => this.addMessageToQueue(message, isResolved),
+    removeMessageFromQueue: (text) => this.removeMessageFromQueue(text),
+  });
+
+  /** @inheritdoc */
+  get rtaFunction(): A380xRtaFunction {
+    return this.#rtaFunction;
   }
 
   /**
@@ -2591,6 +2587,7 @@ export class FlightManagementComputer implements FmcInterface {
         this.acInterface.updateIlsCourse(this.navigation.getNavaidTuner().getMmrRadioTuningStatus(1));
         this.acInterface.updatePerfSpeeds();
         this.acInterface.checkCruiseLevelChangeDueToFcu(throttledDt);
+        this.#rtaFunction.update();
         this.acInterface.updateManagedSpeed();
         this.acInterface.updateConstraints();
       } else {

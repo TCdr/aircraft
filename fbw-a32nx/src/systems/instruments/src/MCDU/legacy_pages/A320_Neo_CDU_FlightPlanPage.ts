@@ -28,6 +28,7 @@ import { PseudoWaypoint } from '@fmgc/guidance/PseudoWaypoint';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { flightPlanDistanceCell } from './FlightPlanDistanceCell';
+import { formatHhmmss } from '@fmgc/guidance/vnav/rta/TimeConstraint';
 
 export const Markers = {
   FPLN_DISCONTINUITY: ['---F-PLN DISCONTINUITY--'],
@@ -435,6 +436,19 @@ export class CDUFlightPlanPage {
         } else if (!isPageB && !inAlternate && fpIndex === targetPlan.originLegIndex) {
           timeCell = `{big}${mcdu.getTimePrediction(0, forPlan)}{end}`;
           timeColor = isEttValid ? 'magenta' : color;
+        }
+
+        // Time constraint: the predicted time with a magenta (made) or amber (missed) star, or the RTA in magenta
+        // without predictions
+        const rta = targetPlan.performanceData.timeConstraint.get();
+        if (!isPageB && !inAlternate && rta && rta.databaseId === wp.definition.waypoint?.databaseId) {
+          if (verticalWaypoint && Number.isFinite(verticalWaypoint.secondsFromPresent)) {
+            const missed = mcdu.rtaFunction.isPredictedMissed(rta, verticalWaypoint.secondsFromPresent);
+            timeCell = `{${missed ? 'amber' : 'magenta'}}*{end}${timeCell}`;
+          } else {
+            timeCell = `{big}${formatHhmmss(rta.utcSeconds).substring(0, 4)}{end}`;
+            timeColor = 'magenta';
+          }
         }
 
         // Fix Header

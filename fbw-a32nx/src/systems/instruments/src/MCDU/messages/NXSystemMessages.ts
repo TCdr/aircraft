@@ -66,6 +66,8 @@ export const NXSystemMessages = {
   aocSecFplnUplink: new TypeIIMessage('AOC SEC F-PLN UPLINK'),
   arptTypeAlreadyInUse: new TypeIMessage('ARPT/TYPE ALREADY USED'), // FIXME move out of FMS
   awyWptMismatch: new TypeIMessage('AWY/WPT MISMATCH'),
+  // the fuel planning does not take the time constraint into account
+  blockIgnoresRta: new TypeIIMessage('BLOCK IGNORES RTA'),
   cancelAtisUpdate: new TypeIMessage('CANCEL UPDATE BEFORE'), // FIXME move out of FMS
   checkAltnWind: new TypeIIMessage('CHECK ALTN WIND'),
   // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22532, l.22539-22541): II/W
@@ -114,6 +116,9 @@ export const NXSystemMessages = {
   // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22912-22918): II/W, "A printer communication error was
   // detected while printing a report. The printing was terminated." (the cockpit printer failure, legacy/McduPrinter)
   printerNotAvailable: new TypeIIMessage('PRINTER NOT AVAILABLE'),
+  rtaDeleted: new TypeIIMessage('RTA DELETED'),
+  // the crew tried to clear the takeoff time computed for the RTA
+  rtaExists: new TypeIMessage('RTA EXISTS'),
   rwyLsMismatch: new TypeIIMessage('RWY/LS MISMATCH', true),
   selectDesiredSystem: new TypeIMessage('SELECT DESIRED SYSTEM'), // FIXME move out of FMS (is part of MCDU itself)
   // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.23020-23028): I/W, the FUEL PRED FOB sensors selected
@@ -121,6 +126,8 @@ export const NXSystemMessages = {
   sensorIsInvalid: new TypeIMessage('SENSOR IS INVALID'),
   setHoldSpeed: new TypeIIMessage('SET HOLD SPEED'),
   setManagedSpeed: new TypeIIMessage('SET MANAGED SPEED'),
+  // the FMS changes the managed speed target to meet the RTA
+  settingSpdRta: new TypeIIMessage('SETTING SPD/RTA'),
   spdLimExceeded: new TypeIIMessage('SPD LIM EXCEEDED', true),
   systemBusy: new TypeIMessage('SYSTEM BUSY-TRY LATER'), // FIXME move out of FMS
   toSpeedTooLow: new TypeIIMessage('TO SPEEDS TOO LOW', true),
@@ -139,6 +146,7 @@ export const NXSystemMessages = {
   stepAhead: new TypeIIMessage('STEP AHEAD'),
   stepDeleted: new TypeIIMessage('STEP DELETED'),
   temporaryFplnExists: new TypeIMessage('TEMPORARY F-PLN EXISTS'),
+  timeErrorAt: new TypeIIMessage('TIME ERROR AT WWWWWWW', true, 'WWWWWWW'),
   // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.23095, l.23116-23118): II/A
   timeToExit: new TypeIIMessage('TIME TO EXIT', true),
   windTempDataUplk: new TypeIIMessage('WIND/TEMP DATA UPLK'),

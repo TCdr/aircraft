@@ -794,6 +794,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [FMS] The descent profile keeps the cabin within the maximum descent cabin rate (default -350 ft/min): a repressurization segment moves the T/D back when the idle descent is too short - @TCdr
 1. [A32NX/MCDU] PERF CRZ DES CABIN RATE can be entered (100 to 999 ft/min, CLR for the default) and shows the computed rate when it cannot be met, with the CABIN RATE EXCEEDED message - @TCdr
 1. [A380X/FMS] The PERF page DES CABIN RATE is used by the predictions (small font for the default or computed rate), with the CABIN RATE EXCEEDED message - @TCdr
+1. [A32NX/MCDU] RTA page: time constraint entry (HHMMSS, +HHMMSS, -HHMMSS) through a temporary flight plan, ETA, RTA ERROR, managed RTA speed and active speed mode, computed ETT; the F-PLN time column shows the RTA star and PERF shows RTA CI - @TCdr
+1. [A32NX/FMS] RTA speed control: the managed speeds move between green dot and VMO - 10 kt / MMO - 0.02 to meet the time constraint, with RTA DELETED, RTA EXISTS, BLOCK IGNORES RTA, SETTING SPD/RTA and TIME ERROR AT messages - @TCdr
+1. [A380X/FMS] RTA speed control on the RTA panel (RTA SPD), RTA changes through a temporary flight plan, automatic RTA deletion, computed ETT and the ADJUSTING SPD DUE TO RTA, RTA DELETED, TIME ERROR AT, RTA ALREADY EXISTING and RTA NOT CONSIDERED FOR FUEL PLANNING messages; the F-PLN shows the time constraint star - @TCdr
 
 ## 2024.1.0
 

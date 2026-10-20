@@ -14,7 +14,6 @@ import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performanc
 import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
 import { PilotWaypoint } from '@fmgc/flightplanning/DataManager';
 import { NXSystemMessages, TypeIIMessage } from '../shared/NXSystemMessages';
-import { TimeConstraint } from './TimeConstraint';
 import { AtcConstraintClearance, constraintClearanceOf } from './AtcConstraintClearance';
 import {
   REJECT_AWY_WPT_MISMATCH,
@@ -40,7 +39,6 @@ export interface AtcRouteClearanceFms<P extends FlightPlanPerformanceData> {
   readonly enginesWereStarted: Subscribable<boolean>;
   createLatLonWaypoint(coordinates: Coordinates, stored: boolean, ident?: string): PilotWaypoint | null;
   addMessageToQueue(message: TypeIIMessage, isResolved: undefined, onClear: undefined): void;
-  setSecondaryTimeConstraint(planIndex: number, rta: TimeConstraint | null): void;
 }
 
 /** The aircraft state the upload needs */
@@ -370,12 +368,15 @@ export class AtcRouteClearanceLoader<P extends FlightPlanPerformanceData> {
     }
     if (clearance.time) {
       if (this.aircraft.rtaAllowed() && leg.definition.waypoint) {
-        this.fms.setSecondaryTimeConstraint(ATC_PLAN_INDEX, {
-          ident: leg.ident,
-          databaseId: leg.definition.waypoint.databaseId,
-          type: clearance.time.type,
-          utcSeconds: clearance.time.utcSeconds,
-        });
+        fps.setTimeConstraint(
+          {
+            ident: leg.ident,
+            databaseId: leg.definition.waypoint.databaseId,
+            type: clearance.time.type,
+            utcSeconds: clearance.time.utcSeconds,
+          },
+          ATC_PLAN_INDEX,
+        );
         loaded++;
       } else if (time) {
         rejected.push({ ...time, error: REJECT_NOT_ALLOWED_IN_PHASE });

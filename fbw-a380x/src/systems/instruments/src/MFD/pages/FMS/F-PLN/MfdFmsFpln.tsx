@@ -527,6 +527,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
             overfly: leg.definition.overfly,
             annotation: annotation,
             etaOrSecondsFromPresent: this.predictionTimestamp(pred?.secondsFromPresent ?? 0),
+            timeConstraintStar: isAltn ? null : this.timeConstraintStar(leg, pred),
             transitionAltitude: useTransLevel ? transLevelAsAlt : transAlt,
             altitudePrediction: pred?.altitude ?? null,
             hasAltitudeConstraint: leg.altitudeConstraint !== undefined,
@@ -718,6 +719,30 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
         );
       }
     }
+  }
+
+  /**
+   * The star of a time constraint, left of the time prediction: magenta when the RTA is predicted as made, amber when
+   * missed; null when the leg has no RTA
+   */
+  private timeConstraintStar(
+    leg: FlightPlanLeg,
+    pred: { secondsFromPresent: number; distanceFromAircraft: number } | null | undefined,
+  ): 'respected' | 'missed' | null {
+    const rta = this.loadedFlightPlan?.performanceData.timeConstraint.get();
+    if (!rta || rta.databaseId !== leg.definition.waypoint?.databaseId) {
+      return null;
+    }
+    if (!pred || !Number.isFinite(pred.secondsFromPresent)) {
+      return 'respected';
+    }
+    const rtaFunction = this.props.fmcService.master.rtaFunction;
+    const missed = rtaFunction.isPredictedMissed(
+      rta,
+      rtaFunction.etaUtcSeconds(pred.secondsFromPresent),
+      Math.max(0, pred.distanceFromAircraft),
+    );
+    return missed ? 'missed' : 'respected';
   }
 
   private predictionTimestamp = (seconds: number) => {
@@ -1397,6 +1422,8 @@ export interface FplnLineWaypointDisplayData extends FplnLineTypeDiscriminator {
   overfly: boolean;
   annotation: string;
   etaOrSecondsFromPresent: number; // timestamp, will be printed to HH:mm
+  /** star of the time constraint of the waypoint, null without one */
+  timeConstraintStar?: 'respected' | 'missed' | null;
   transitionAltitude: number | null;
   altitudePrediction: number | null;
   hasAltitudeConstraint: boolean;
@@ -1546,6 +1573,8 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
   private readonly annotationText = Subject.create('');
   private readonly timeText = Subject.create('');
 
+  private readonly timeConstraintStar = Subject.create<'respected' | 'missed' | null>(null);
+
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
@@ -1691,7 +1720,7 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
       this.annotationText.set(data.annotation ?? '');
 
       // Format time to leg
-      // TODO: Time constraint.
+      this.timeConstraintStar.set(data.timeConstraintStar ?? null);
       if (this.props.globalLineColor.get() === FplnLineColor.Active) {
         if (data.etaOrSecondsFromPresent) {
           const date = new Date(data.etaOrSecondsFromPresent);
@@ -2097,6 +2126,14 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
             <div class="mfd-fms-fpln-line-annotation">{this.timeAnnotation}</div>
           )}
           <div ref={this.timeRef} class="mfd-fms-fpln-leg-lower-row">
+            <span
+              class={{
+                'mfd-fms-fpln-leg-constraint-respected': this.timeConstraintStar.map((star) => star === 'respected'),
+                'mfd-fms-fpln-leg-constraint-missed': this.timeConstraintStar.map((star) => star === 'missed'),
+              }}
+            >
+              {this.timeConstraintStar.map((star) => (star !== null ? '*' : ''))}
+            </span>
             {this.timeText}
           </div>
         </div>

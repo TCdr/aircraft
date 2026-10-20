@@ -34,6 +34,7 @@ import { Accessible } from '@microsoft/msfs-sdk';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { UplinkTakeoffData } from './UplinkTakeoffData';
 import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
+import { A32nxRtaFunction } from './A32nxRtaFunction';
 
 export type LskCallback = (
   /** The scratchpad content when the LSK was pressed. */
@@ -301,6 +302,7 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   progWaypointIdent: string | undefined;
   isTrueRefMode: boolean;
   readonly isEngineOutCondition: Accessible<boolean>;
+  readonly rtaFunction: A32nxRtaFunction;
 }
 
 /** This breaks some circular refs, and tells us what we need a shim for to wrap legacy pages in future. */
