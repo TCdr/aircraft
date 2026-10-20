@@ -7,6 +7,7 @@ import { FlightPlanLegDefinition } from '@fmgc/flightplanning/legs/FlightPlanLeg
 import { FixInfoData } from '@fmgc/flightplanning/plans/FixInfo';
 import { SerializedFlightPlan } from '@fmgc/flightplanning/plans/BaseFlightPlan';
 import { CruiseStepEntry } from '@fmgc/flightplanning/CruiseStep';
+import { ConstantMachSegmentMarker } from '@fmgc/flightplanning/ConstantMachSegment';
 import {
   FlightPlanPerformanceData,
   FlightPlanPerformanceDataProperties,
@@ -71,6 +72,11 @@ export interface FlightPlanLegCruiseStepEditEvent extends FlightPlanEditSyncEven
   cruiseStep: CruiseStepEntry | undefined;
 }
 
+export interface FlightPlanLegConstantMachSegmentEditEvent extends FlightPlanEditSyncEvent {
+  atIndex: number;
+  marker: ConstantMachSegmentMarker | undefined;
+}
+
 export interface FlightPlanSetFixInfoEntryEvent extends FlightPlanEditSyncEvent {
   index: 1 | 2 | 3 | 4;
   fixInfo: FixInfoData | null;
@@ -121,6 +127,7 @@ export interface FlightPlanEvents {
   'flightPlan.legDefinitionEdit': FlightPlanLegDefinitionEditEvent;
   'flightPlan.autoDeleteCruiseStep': FlightPlanEditSyncEvent;
   'flightPlan.setLegCruiseStep': FlightPlanLegCruiseStepEditEvent;
+  'flightPlan.setLegConstantMachSegment': FlightPlanLegConstantMachSegmentEditEvent;
   'flightPlan.setFixInfoEntry': FlightPlanSetFixInfoEntryEvent;
   'flightPlan.setFlightNumber': FlightPlanFlightNumberEditEvent;
   'flightPlan.pendingAirwaysEdit': FlightPlanPendingAirwaysEditEvent;

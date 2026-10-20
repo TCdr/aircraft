@@ -37,11 +37,15 @@ import { FlightPhaseManagerEvents } from '../flightphase';
 import { HistoryWind } from '../wind/HistoryWind';
 import { FmgcFlightPhase } from '../../../shared/src/flightphase';
 import { FlightPlanOperationEvents } from '../events/FlightPlanOperationEvents';
+import { ConstantMachSegmentDeletionReason, findConstantMachSegment } from './ConstantMachSegment';
 
 export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanPerformanceData>
   implements FlightPlanInterface<P>
 {
   private readonly flightPlanManager: FlightPlanManager<P>;
+
+  /** The temporary flight plan in which enabling the alternate deleted the constant Mach segment of the active one */
+  private temporaryWithoutConstantMachForAlternate: FlightPlan<P> | null = null;
 
   private readonly historyWinds = new HistoryWind(this.bus, this.config.HISTORY_WIND_ROWS_RULE);
 
@@ -181,6 +185,10 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
   }
 
   async secondaryActivate(index: number, isBeforeEngineStart: boolean) {
+    if (this.hasActive && findConstantMachSegment(this.active.allLegs) !== null) {
+      this.publishConstantMachSegmentAutoDeletion(ConstantMachSegmentDeletionReason.SecondaryActivated);
+    }
+
     this.persistActivePerfDataAcrossModification(isBeforeEngineStart, () => {
       this.flightPlanManager.copy(FlightPlanIndex.FirstSecondary + index - 1, FlightPlanIndex.Active);
     });
@@ -303,6 +311,12 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
 
     this.flightPlanManager.copy(FlightPlanIndex.Temporary, FlightPlanIndex.Active, CopyOptions.IncludeFixInfos);
     this.flightPlanManager.delete(FlightPlanIndex.Temporary);
+
+    // The constant Mach segment of the active flight plan is deleted when the alternate is inserted, not before
+    if (this.temporaryWithoutConstantMachForAlternate === temporaryPlan) {
+      this.publishConstantMachSegmentAutoDeletion(ConstantMachSegmentDeletionReason.AlternateEnabled);
+    }
+    this.temporaryWithoutConstantMachForAlternate = null;
   }
 
   async temporaryDelete(): Promise<void> {
@@ -724,6 +738,11 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
 
     const plan = this.flightPlanManager.get(finalIndex);
 
+    // No constant Mach segment can be defined on the alternate route
+    if (plan.deleteConstantMachSegment() && finalIndex === FlightPlanIndex.Temporary) {
+      this.temporaryWithoutConstantMachForAlternate = plan;
+    }
+
     await plan.enableAltn(atIndexInAlternate, cruiseLevel);
   }
 
@@ -773,6 +792,42 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     const plan = this.flightPlanManager.get(finalIndex);
 
     plan.removeCruiseStep(atIndex);
+  }
+
+  async setConstantMachSegment(
+    startIndex: number,
+    endIndex: number | null,
+    mach: number,
+    planIndex = FlightPlanIndex.Active,
+  ): Promise<void> {
+    const finalIndex = this.prepareDestructiveModification(planIndex);
+
+    this.flightPlanManager.get(finalIndex).setConstantMachSegment(startIndex, endIndex, mach);
+  }
+
+  async deleteConstantMachSegment(planIndex = FlightPlanIndex.Active): Promise<void> {
+    const finalIndex = this.prepareDestructiveModification(planIndex);
+
+    this.flightPlanManager.get(finalIndex).deleteConstantMachSegment();
+  }
+
+  async autoDeleteConstantMachSegment(reason: ConstantMachSegmentDeletionReason): Promise<void> {
+    let deleted = false;
+    for (const index of [FlightPlanIndex.Active, FlightPlanIndex.Temporary]) {
+      if (this.flightPlanManager.has(index) && this.flightPlanManager.get(index).deleteConstantMachSegment()) {
+        deleted = true;
+      }
+    }
+
+    if (deleted) {
+      this.publishConstantMachSegmentAutoDeletion(reason);
+    }
+  }
+
+  private publishConstantMachSegmentAutoDeletion(reason: ConstantMachSegmentDeletionReason) {
+    this.bus
+      .getPublisher<FlightPlanOperationEvents>()
+      .pub('fms_constant_mach_segment_auto_deleted', reason, false, false);
   }
 
   async editLegDefinition(

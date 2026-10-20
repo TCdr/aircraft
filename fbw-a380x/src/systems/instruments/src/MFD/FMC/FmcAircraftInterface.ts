@@ -37,7 +37,7 @@ import { AlternateFuelPrediction, AlternateFuelPredictor } from './AlternateFuel
 import { FinalHoldingPredictor, roundFuelUpToTenthTonne } from './FinalHoldingPredictor';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { MmrRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
-import { Vmcl, maxCertifiedFlightLevel, maxZfw } from '@shared/PerformanceConstants';
+import { Vmcl, Vmo, maxCertifiedFlightLevel, maxZfw } from '@shared/PerformanceConstants';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { GpsDeselectedMessageLogic } from '@fmgc/components/fms-messages/GpsDeselectedMessageLogic';
 import { distanceToTopOfDescent } from '@fmgc/components/fms-messages/TopOfDescentDistance';
@@ -61,6 +61,8 @@ import { FcuEfisCpBusEvents } from '@shared/publishers/EfisCpBusPublisher';
 import { PrimChoiceProvider } from '@shared/publishers/PrimChoiceProvider';
 import { PrimFgBusBaseEvents } from '@shared/publishers/PrimFgPublisher';
 import { qnhToMillibar } from '../shared/QnhUtils';
+import { findConstantMachSegment } from '@fmgc/flightplanning/ConstantMachSegment';
+import { managedCruiseSpeedAndMach } from '@fmgc/guidance/vnav/cruise/ConstantMachSpeedProfile';
 
 /**
  * Interface between FMS and rest of aircraft through SimVars and ARINC values (mostly data being sent here)
@@ -1069,12 +1071,20 @@ export class FmcAircraftInterface {
           break;
         }
         case FmgcFlightPhase.Cruise: {
-          let speed = this.fmgc.getManagedCruiseSpeed();
           const speedLimit = this.fmgc.getClimbSpeedLimit();
-          if (speedLimit !== null && SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet') < speedLimit.underAltitude) {
-            speed = Math.min(speed, speedLimit.speed);
-          }
-          [vPfd, isMach] = this.getManagedTargets(speed, this.fmgc.getManagedCruiseSpeedMach());
+          const activePlan = this.flightPlanService.active;
+          [vPfd, isMach] = this.getManagedTargets(
+            ...managedCruiseSpeedAndMach(
+              this.fmgc.getManagedCruiseSpeed(),
+              this.fmgc.getManagedCruiseSpeedMach(),
+              findConstantMachSegment(activePlan.allLegs),
+              activePlan.activeLegIndex,
+              Vmo,
+              speedLimit !== null && SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet') < speedLimit.underAltitude
+                ? speedLimit.speed
+                : null,
+            ),
+          );
           break;
         }
         case FmgcFlightPhase.Descent: {

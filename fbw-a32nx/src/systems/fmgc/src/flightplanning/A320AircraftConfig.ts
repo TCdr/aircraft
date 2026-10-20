@@ -159,6 +159,7 @@ const engineModelParams: EngineModelParameters = {
 const fmsSymbolConfig: FMSymbolsConfig = {
   publishDepartureIdent: false,
   showRnpArLabel: false,
+  showConstantMachOnNd: false,
 };
 
 export const A320AircraftConfig: AircraftConfig = {

@@ -89,7 +89,7 @@ export class WaypointLayer implements MapLayer<NdSymbol> {
         this.paintWaypoint(true, context, rx, ry, symbol);
       }
 
-      if (symbol.constraints) {
+      if (symbol.constraints || symbol.constantMach) {
         this.paintSymbolConstraints(context, rx, ry, symbol);
       }
     }
@@ -136,10 +136,14 @@ export class WaypointLayer implements MapLayer<NdSymbol> {
   private paintSymbolConstraints(context: CanvasRenderingContext2D, x: number, y: number, symbol: NdSymbol) {
     context.fillStyle = '#ff94ff';
 
-    for (let i = 0; i < symbol.constraints.length; i++) {
-      const line = symbol.constraints[i];
+    const constraints = symbol.constraints ?? [];
+    for (let i = 0; i < constraints.length; i++) {
+      PaintUtils.paintText(true, context, x + 15, y + 35 + 18 * i, constraints[i], '#ff94ff');
+    }
 
-      PaintUtils.paintText(true, context, x + 15, y + 35 + 18 * i, line, '#ff94ff');
+    if (symbol.constantMach) {
+      const color = symbol.constantMach.missed ? '#e68000' : '#ff94ff';
+      PaintUtils.paintText(true, context, x + 15, y + 35 + 18 * constraints.length, symbol.constantMach.text, color);
     }
   }
 

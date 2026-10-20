@@ -16,6 +16,7 @@ import { ProfilePhase, VerticalWaypointPrediction } from '@fmgc/guidance/vnav/pr
 import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { SegmentClass } from '@fmgc/flightplanning/segments/SegmentClass';
 import { CduRtaPage } from './CDU_RTA_Page';
+import { CDUConstantMachPage } from './A320_Neo_CDU_ConstantMachPage';
 
 export class CDUVerticalRevisionPage {
   /**
@@ -129,8 +130,10 @@ export class CDUVerticalRevisionPage {
     let r3Cell = canHaveAltConstraint ? '{cyan}[\xa0\xa0\xa0\xa0]*{end}' : '';
     let l3Title = '\xa0SPD CSTR';
     let l3Cell = '{cyan}*[\xa0\xa0\xa0]{end}';
-    let l4Title = 'MACH/START WPT[color]inop';
-    let l4Cell = `\xa0{inop}[\xa0]/{small}${waypointIdent}{end}{end}`;
+    // No constant Mach segment on the alternate route
+    const showConstantMach = !inAlternate && CDUConstantMachPage.isEntryAllowed(mcdu, forPlan);
+    let l4Title = '';
+    let l4Cell = showConstantMach ? '<CONSTANT MACH' : '';
     let r4Title = '';
     let r4Cell = '';
     let r5Cell = '';
@@ -194,6 +197,26 @@ export class CDUVerticalRevisionPage {
       }
 
       [r4Title, r4Cell] = this.formatAltErrorTitleAndValue(waypoint, verticalWaypoint);
+
+      mcdu.onLeftInput[3] = () => {
+        if (!showConstantMach) {
+          return;
+        }
+        CDUConstantMachPage.Return = () => {
+          CDUVerticalRevisionPage.ShowPage(
+            mcdu,
+            waypoint,
+            wpIndex,
+            verticalWaypoint,
+            undefined,
+            undefined,
+            undefined,
+            forPlan,
+            inAlternate,
+          );
+        };
+        CDUConstantMachPage.ShowPage(mcdu, wpIndex, forPlan);
+      }; // CONSTANT MACH
 
       if (
         performanceData.cruiseFlightLevel.get() &&
