@@ -2402,6 +2402,28 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
       | Alternate (ALTN circuit, A-SKID)        | 2     |
       | Emergency (ALTN circuit, EBCU, limited) | 3     |
 
+- A32NX_BRAKES_CTL_{number}_FAULT
+    - Bool
+    - True when braking control system {number} (1 or 2) is failed (flyPad failures 32120-32121, Rust
+      `hydraulic/brake_anti_skid_faults.rs`): BRAKES CTL 1(2) FAULT. Both failed: emergency braking
+
+- A32NX_BRAKES_RDC_CHANNEL_FAULTS
+    - Number (bit field)
+    - The failed channels of the remote data concentrators that carry the anti-skid of one main gear group (flyPad
+      failures 32122-32127): bit 0 RDC 1 (wing gears) channel A, bit 1 RDC 1 channel B, bit 2 RDC 2 (right body
+      gear) channel A, bit 3 RDC 2 channel B, bit 4 RDC 3 (left body gear) channel A, bit 5 RDC 3 channel B. Both
+      channels of an RDC failed: that gear group brakes without anti-skid (EBCU pressure law)
+
+- A32NX_BRAKES_RELEASED_PAIRS
+    - Number (bit field)
+    - Bit n set when brake pair n (bit 0 brakes 1/2 ... bit 7 brakes 15/16) is released in normal or alternate
+      braking because of its failed wheel tachometer (flyPad failures 32160-32167): BRAKES RELEASED
+
+- A32NX_BRAKES_RESIDUAL_PAIRS
+    - Number (bit field)
+    - Bit n set when brake pair n keeps a residual pressure from its leaking normal servo valve (flyPad failures
+      32170-32177): BRAKES RESIDUAL BRAKING
+
 - A32NX_BRAKES_AUTO_BRK_FAULT
     - Bool
     - True when the autobrake is failed (flyPad failure 32113, Rust `hydraulic/autobrakes.rs`): the autobrake cannot be

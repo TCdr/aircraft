@@ -16,6 +16,7 @@ import {
 } from '@microsoft/msfs-sdk';
 import { SdPages } from '@shared/EcamSystemPages';
 import { accuPressLoItems } from './FwsBrakeAlerts';
+import { partialAntiSkidInfo } from './FwsBrakeControlAlerts';
 import { diffPressHiItemsToShow, ldgElevnFaultItemsToShow } from './CabPressAlerts';
 import {
   BULK_CARGO_DUCT_OVHT_PHASE_INHIBITION,
@@ -7104,6 +7105,190 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Wheel,
       inopSysAllPhases: () => ['320300002'],
+    },
+    // BRAKES alerts of one BCS, gear group or brake pair (FwsBrakeControlAlerts.ts). The partial A-SKID alerts, BRAKES
+    // RELEASED and BRAKES RESIDUAL BRAKING have a single chime and the MASTER CAUT, the others neither.
+    320800002: {
+      // BRAKES A-SKID FAULT ON L + R BODY L/G
+      flightPhaseInhib: [4, 5, 6, 7],
+      simVarIsActive: this.fws.brakeControlAlerts.aSkidFaultOnLeftAndRightBodyLg,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsApprLdg: () => ['800400002'],
+      inopSysApprLdg: () => ['320300003', '320300002', '220300029'],
+      info: () => partialAntiSkidInfo('320200005', this.fws.oneEngineRunning.get()),
+    },
+    320800003: {
+      // BRAKES A-SKID FAULT ON LEFT BODY L/G
+      flightPhaseInhib: [4, 5, 6, 7],
+      simVarIsActive: this.fws.brakeControlAlerts.aSkidFaultOnLeftBodyLg,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsApprLdg: () => ['800400002'],
+      inopSysApprLdg: () => ['320300003', '320300002', '220300029'],
+      info: () => partialAntiSkidInfo('320200006', this.fws.oneEngineRunning.get()),
+    },
+    320800004: {
+      // BRAKES A-SKID FAULT ON RIGHT BODY L/G
+      flightPhaseInhib: [4, 5, 6, 7],
+      simVarIsActive: this.fws.brakeControlAlerts.aSkidFaultOnRightBodyLg,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsApprLdg: () => ['800400002'],
+      inopSysApprLdg: () => ['320300003', '320300002', '220300029'],
+      info: () => partialAntiSkidInfo('320200007', this.fws.oneEngineRunning.get()),
+    },
+    320800005: {
+      // BRAKES A-SKID FAULT ON WING+L BODY L/Gs
+      flightPhaseInhib: [4, 5, 6, 7],
+      simVarIsActive: this.fws.brakeControlAlerts.aSkidFaultOnWingAndLeftBodyLg,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsApprLdg: () => ['800400002'],
+      inopSysApprLdg: () => ['320300003', '320300002', '220300029'],
+      info: () => partialAntiSkidInfo('320200008', this.fws.oneEngineRunning.get()),
+    },
+    320800006: {
+      // BRAKES A-SKID FAULT ON WING+R BODY L/Gs
+      flightPhaseInhib: [4, 5, 6, 7],
+      simVarIsActive: this.fws.brakeControlAlerts.aSkidFaultOnWingAndRightBodyLg,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsApprLdg: () => ['800400002'],
+      inopSysApprLdg: () => ['320300003', '320300002', '220300029'],
+      info: () => partialAntiSkidInfo('320200009', this.fws.oneEngineRunning.get()),
+    },
+    320800007: {
+      // BRAKES A-SKID FAULT ON WING L/Gs
+      flightPhaseInhib: [4, 5, 6, 7],
+      simVarIsActive: this.fws.brakeControlAlerts.aSkidFaultOnWingLg,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsApprLdg: () => ['800400002'],
+      inopSysApprLdg: () => ['320300003', '320300002', '220300029'],
+      info: () => partialAntiSkidInfo('320200010', this.fws.oneEngineRunning.get()),
+    },
+    320800012: {
+      // BRAKES ALTN BRK PRESS MONITORING FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10, 11],
+      simVarIsActive: this.fws.brakeControlAlerts.altnBrkPressMonitoringFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+    },
+    320800015: {
+      // BRAKES CTL 1 FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.brakeControlAlerts.ctl1Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+      redundLoss: () => ['320300026'],
+    },
+    320800016: {
+      // BRAKES CTL 2 FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.brakeControlAlerts.ctl2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+      redundLoss: () => ['320300027'],
+    },
+    320800019: {
+      // BRAKES MINOR FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10, 11],
+      simVarIsActive: this.fws.brakeControlAlerts.minorFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    320800021: {
+      // BRAKES NORM BRK PRESS MONITORING FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10, 11],
+      simVarIsActive: this.fws.brakeControlAlerts.normBrkPressMonitoringFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+    },
+    320800025: {
+      // BRAKES RELEASED
+      flightPhaseInhib: [4, 5, 6, 7],
+      simVarIsActive: this.fws.brakeControlAlerts.released,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => this.fws.brakeControlAlerts.releasedItems,
+      whichItemsChecked: () => this.fws.brakeControlAlerts.releasedItems.map(() => false),
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsApprLdg: () => ['800400002'],
+      inopSysApprLdg: () => ['320300007'],
+    },
+    320800026: {
+      // BRAKES RESIDUAL BRAKING
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.brakeControlAlerts.residualBraking,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => this.fws.brakeControlAlerts.residualItems,
+      whichItemsChecked: () => this.fws.brakeControlAlerts.residualItems.map(() => false),
+      failure: 2,
+      sysPage: SdPages.Wheel,
+    },
+    320800027: {
+      // BRAKES SEL VLV JAMMED OPEN
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10, 11],
+      simVarIsActive: this.fws.brakeControlAlerts.selVlvJammedOpen,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+    },
+    320800028: {
+      // BRAKES SYS REDUNDANCY LOST
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10, 11],
+      simVarIsActive: this.fws.brakeControlAlerts.sysRedundancyLost,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => this.fws.brakeControlAlerts.redundancyItems,
+      whichItemsChecked: () => this.fws.brakeControlAlerts.redundancyItems.map(() => false),
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    320800029: {
+      // BRAKES SYS SAFETY TEST REQUIRED
+      flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      simVarIsActive: this.fws.brakeControlAlerts.sysSafetyTestRequired,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
     },
     320800060: {
       // STEER NORM N/W STEER FAULT
