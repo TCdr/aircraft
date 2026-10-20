@@ -13,6 +13,7 @@ import {
 } from './FlightPlanPerformanceData';
 import { cloneWindVector, FlightPlanWindEntry, WindVector } from '../../data/wind';
 import { WindUtils } from '../../../guidance/vnav/wind/WindUtils';
+import { TimeConstraint } from '../../../guidance/vnav/rta/TimeConstraint';
 
 // TODO this should remain in fbw-a32nx/ once FMS is moved to fbw-common
 export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData {
@@ -122,6 +123,7 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
     cloned.estimatedTakeoffTime.set(this.estimatedTakeoffTime.get());
     cloned.estimatedTakeoffTimeExpired.set(this.estimatedTakeoffTimeExpired.get());
     cloned.descentCabinRate?.set(this.descentCabinRate.get());
+    cloned.timeConstraint.set(this.timeConstraint.get());
 
     cloned.climbWindEntries.set(
       this.climbWindEntries.get().map(({ vector, ...rest }) => ({
@@ -868,6 +870,7 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
 
   /** The DES CABIN RATE entered by the flight crew, ft/min (negative), null without an entry */
   readonly descentCabinRate = Subject.create<number | null>(null);
+  readonly timeConstraint = Subject.create<TimeConstraint | null>(null);
 
   serialize(): SerializedFlightPlanPerformanceData {
     return {
@@ -946,6 +949,7 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
       estimatedTakeoffTime: this.estimatedTakeoffTime.get(),
       estimatedTakeoffTimeExpired: this.estimatedTakeoffTimeExpired.get(),
       descentCabinRate: this.descentCabinRate.get(),
+      timeConstraint: this.timeConstraint.get(),
     };
   }
 }

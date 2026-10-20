@@ -20,13 +20,15 @@ import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { Arinc429LocalVarConsumerSubject, Arinc429Word, Fix, Runway, Units } from '@flybywiresim/fbw-sdk';
 import { Feet } from 'msfs-geo';
 import { minGw } from '@shared/PerformanceConstants';
-import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
-import { isaDeviationAt } from '@fmgc/guidance/vnav/EconSpeeds';
+import { A380AircraftConfig, A380EconParameters } from '@fmgc/flightplanning/A380AircraftConfig';
+import { EconSpeeds, isaDeviationAt } from '@fmgc/guidance/vnav/EconSpeeds';
+import { applyRtaSpeedBias, RtaSpeedEnvelope, rtaSpeedEnvelope } from '@fmgc/guidance/vnav/rta/RtaSpeedBias';
 import type { EconSpeedSet } from '@fmgc/guidance/vnav/EconSpeeds';
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
 import { qnhToMillibar } from '../shared/QnhUtils';
 import { grossWeightCgFromFqmsOrWbbc } from './GrossWeightCgSource';
 import { A380EconSpeedCache, DescentEconSpeedFreeze } from './A380EconSpeeds';
+import { a380GreenDotSpeed } from './CruiseSpeeds';
 import type { InsertedAlternateRoute } from './AlternateCompanyRoute';
 
 export enum TakeoffPowerSetting {
@@ -236,6 +238,9 @@ export class FmgcDataService implements Fmgc {
 
   private readonly activePlanDescentFreeze = new DescentEconSpeedFreeze();
 
+  /** Speed bias of the RTA speed control on the managed speeds of the active flight plan (0: ECON speeds) */
+  public rtaSpeedBias = 0;
+
   constructor(
     private readonly bus: EventBus,
     private flightPlanService: FlightPlanService,
@@ -331,10 +336,48 @@ export class FmgcDataService implements Fmgc {
     const isActivePlan = forPlan === FlightPlanIndex.Active;
     if (isActivePlan) {
       return this.activePlanDescentFreeze.get(this.getFlightPhase() >= FmgcFlightPhase.Descent, () =>
-        this.computeEconSpeeds(forPlan),
+        this.withRtaSpeedBias(this.computeEconSpeeds(forPlan)),
       );
     }
     return this.computeEconSpeeds(forPlan);
+  }
+
+  /** The managed speeds of the active flight plan: the ECON speeds moved by the RTA speed bias */
+  private withRtaSpeedBias(econ: EconSpeedSet | null): EconSpeedSet | null {
+    const hasRta = this.flightPlanService.active.performanceData.timeConstraint.get() !== null;
+    const envelope = econ && hasRta ? this.activeRtaSpeedEnvelope() : null;
+    return econ && envelope ? applyRtaSpeedBias(econ, this.rtaSpeedBias, envelope) : econ;
+  }
+
+  /** The ECON speeds and the RTA speed range of the active flight plan, for the RTA speed control */
+  public activeRtaSpeedRange(): { econ: EconSpeedSet; envelope: RtaSpeedEnvelope } | null {
+    if (!this.flightPlanService.has(FlightPlanIndex.Active)) {
+      return null;
+    }
+    const econ = this.computeEconSpeeds(FlightPlanIndex.Active);
+    const envelope = econ ? this.activeRtaSpeedEnvelope() : null;
+    return econ && envelope ? { econ, envelope } : null;
+  }
+
+  /** The RTA speed range of the active flight plan: green dot to the VMO/MMO margins of the ECON speeds */
+  private activeRtaSpeedEnvelope(): RtaSpeedEnvelope | null {
+    const pd = this.flightPlanService.active.performanceData;
+    const cruiseFlightLevel = pd.cruiseFlightLevel.get();
+    const grossWeight = this.getGrossWeight();
+    if (cruiseFlightLevel === null || grossWeight === null) {
+      return null;
+    }
+    const cruiseAltitude = cruiseFlightLevel * 100;
+    const zeroFuelWeight = pd.zeroFuelWeight.get();
+    const destinationFuel = this.getDestEFOB(true);
+    const descentWeight =
+      zeroFuelWeight !== null && destinationFuel !== null ? zeroFuelWeight + destinationFuel : grossWeight;
+    const segmentAltitude = EconSpeeds.speedSegmentAltitude(cruiseAltitude);
+    return rtaSpeedEnvelope(A380EconParameters, cruiseAltitude, pd.tropopause.get(), {
+      climb: a380GreenDotSpeed(segmentAltitude, grossWeight),
+      cruise: a380GreenDotSpeed(cruiseAltitude, grossWeight),
+      descent: a380GreenDotSpeed(segmentAltitude, descentWeight),
+    });
   }
 
   private computeEconSpeeds(forPlan: FlightPlanIndex): EconSpeedSet | null {

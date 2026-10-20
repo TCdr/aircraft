@@ -811,6 +811,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] The PERF page DES CABIN RATE is used by the predictions (small font for the default or computed rate), with the CABIN RATE EXCEEDED message - @TCdr
 1. [A32NX/FMS] CONSTANT MACH page (VERT REV): a cruise segment flown at a crew Mach in managed speed and in the predictions, deleted at the end of the cruise, in engine out, or with the alternate or the SEC F-PLN activated (CONSTANT MACH DELETED) - @TCdr
 1. [A380X/FMS] CMS panel of the VERT REV page: constant Mach segment flown in managed speed and predictions, starred on the F-PLN, Mach under its waypoints on the ND, deleted at the end of the cruise (MACH SEGMENT DELETED), in EO or with the ALTN enabled - @TCdr
+1. [A32NX/MCDU] RTA page: time constraint entry (HHMMSS, +HHMMSS, -HHMMSS) through a temporary flight plan, ETA, RTA ERROR, managed RTA speed and active speed mode, computed ETT; the F-PLN time column shows the RTA star and PERF shows RTA CI - @TCdr
+1. [A32NX/FMS] RTA speed control: the managed speeds move between green dot and VMO - 10 kt / MMO - 0.02 to meet the time constraint, with RTA DELETED, RTA EXISTS, BLOCK IGNORES RTA, SETTING SPD/RTA and TIME ERROR AT messages - @TCdr
+1. [A380X/FMS] RTA speed control on the RTA panel (RTA SPD), RTA changes through a temporary flight plan, automatic RTA deletion, computed ETT and the ADJUSTING SPD DUE TO RTA, RTA DELETED, TIME ERROR AT, RTA ALREADY EXISTING and RTA NOT CONSIDERED FOR FUEL PLANNING messages; the F-PLN shows the time constraint star - @TCdr
 
 ## 2024.1.0
 

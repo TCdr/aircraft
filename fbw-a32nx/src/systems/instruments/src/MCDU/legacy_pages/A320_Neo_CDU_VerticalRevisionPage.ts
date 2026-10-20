@@ -13,7 +13,7 @@ import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { CDUInitPage } from './A320_Neo_CDU_InitPage';
 import { ProfilePhase, VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
-import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
+import { FlightPlanLeg, isLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { SegmentClass } from '@fmgc/flightplanning/segments/SegmentClass';
 import { CduRtaPage } from './CDU_RTA_Page';
 import { CDUConstantMachPage } from './A320_Neo_CDU_ConstantMachPage';
@@ -228,16 +228,15 @@ export class CDUVerticalRevisionPage {
       }
     }
 
-    // Disable RTA if ETT insertion not possible as nothing else is simulated for the time being
-    const allowRta =
-      !mainTargetPlan.isActiveOrCopiedFromActive() || mcdu.flightPhaseManager.phase === FmgcFlightPhase.Preflight;
+    // No RTA prompt on the VERT REV page of the alternate flight plan
+    const allowRta = !inAlternate;
 
     mcdu.setTemplate([
       ['VERT REV {small}AT{end}{green} ' + waypointIdent + '{end}'],
       [],
       [''],
       [speedLimitTitle, ''],
-      [speedLimitCell, `${allowRta ? '' : '{inop}'}RTA>`],
+      [speedLimitCell, allowRta ? 'RTA>' : ''],
       [l3Title, r3Title],
       [l3Cell, r3Cell],
       [l4Title, r4Title],
@@ -791,6 +790,13 @@ export class CDUVerticalRevisionPage {
         forPlan,
         inAlternate,
       );
+
+      // CLR on the F-PLN page also clears the time constraint of the waypoint
+      const rta = mcdu.flightPlanService.timeConstraintOf(forPlan);
+      const leg = mcdu.getFlightPlan(forPlan).maybeElementAt(legIndex);
+      if (!inAlternate && rta && isLeg(leg) && leg.definition.waypoint?.databaseId === rta.databaseId) {
+        mcdu.rtaFunction.setTimeConstraint(null, forPlan);
+      }
 
       mcdu.guidanceController?.vnavDriver.invalidateFlightPlanProfile();
 

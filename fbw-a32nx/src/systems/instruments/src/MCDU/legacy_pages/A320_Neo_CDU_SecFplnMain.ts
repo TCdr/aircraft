@@ -91,7 +91,9 @@ export class CDUSecFplnMain {
     // <COPY ACTIVE
     mcdu.onLeftInput[0] = async () => {
       try {
-        await mcdu.flightPlanService.secondaryCopyFromActive(1, !mcdu.isAnEngineOn());
+        await mcdu.rtaFunction.replaceFlightPlan(FlightPlanIndex.FirstSecondary, () =>
+          mcdu.flightPlanService.secondaryCopyFromActive(1, !mcdu.isAnEngineOn()),
+        );
       } catch (error) {
         console.error(error);
         mcdu.logTroubleshootingError(error);

@@ -66,6 +66,8 @@ export const NXSystemMessages = {
   aocSecFplnUplink: new TypeIIMessage('AOC SEC F-PLN UPLINK'),
   arptTypeAlreadyInUse: new TypeIMessage('ARPT/TYPE ALREADY USED'), // FIXME move out of FMS
   awyWptMismatch: new TypeIMessage('AWY/WPT MISMATCH'),
+  // the fuel planning does not take the time constraint into account
+  blockIgnoresRta: new TypeIIMessage('BLOCK IGNORES RTA'),
   cancelAtisUpdate: new TypeIMessage('CANCEL UPDATE BEFORE'), // FIXME move out of FMS
   checkAltnWind: new TypeIIMessage('CHECK ALTN WIND'),
   checkDataBaseCycle: new TypeIIMessage('CHECK DATA BASE CYCLE'),
@@ -108,12 +110,17 @@ export const NXSystemMessages = {
   onlySpdEntryAllowed: new TypeIMessage('ONLY SPD ENTRY ALLOWED'),
   // the cockpit printer failure stopped the print (legacy/McduPrinter)
   printerNotAvailable: new TypeIIMessage('PRINTER NOT AVAILABLE'),
+  rtaDeleted: new TypeIIMessage('RTA DELETED'),
+  // the crew tried to clear the takeoff time computed for the RTA
+  rtaExists: new TypeIMessage('RTA EXISTS'),
   rwyLsMismatch: new TypeIIMessage('RWY/LS MISMATCH', true),
   selectDesiredSystem: new TypeIMessage('SELECT DESIRED SYSTEM'), // FIXME move out of FMS (is part of MCDU itself)
   // the FUEL PRED FOB sensors selected (or the FF sensor of a FOB entry) are invalid
   sensorIsInvalid: new TypeIMessage('SENSOR IS INVALID'),
   setHoldSpeed: new TypeIIMessage('SET HOLD SPEED'),
   setManagedSpeed: new TypeIIMessage('SET MANAGED SPEED'),
+  // the FMS changes the managed speed target to meet the RTA
+  settingSpdRta: new TypeIIMessage('SETTING SPD/RTA'),
   spdLimExceeded: new TypeIIMessage('SPD LIM EXCEEDED', true),
   systemBusy: new TypeIMessage('SYSTEM BUSY-TRY LATER'), // FIXME move out of FMS
   toSpeedTooLow: new TypeIIMessage('TO SPEEDS TOO LOW', true),
@@ -131,6 +138,7 @@ export const NXSystemMessages = {
   stepAhead: new TypeIIMessage('STEP AHEAD'),
   stepDeleted: new TypeIIMessage('STEP DELETED'),
   temporaryFplnExists: new TypeIMessage('TEMPORARY F-PLN EXISTS'),
+  timeErrorAt: new TypeIIMessage('TIME ERROR AT WWWWWWW', true, 'WWWWWWW'),
   timeToExit: new TypeIIMessage('TIME TO EXIT', true),
   windTempDataUplk: new TypeIIMessage('WIND/TEMP DATA UPLK'),
   windTempUplkPending: new TypeIIMessage('WIND/TEMP UPLK PENDING', true),

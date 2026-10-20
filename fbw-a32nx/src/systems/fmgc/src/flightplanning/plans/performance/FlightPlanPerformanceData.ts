@@ -5,6 +5,7 @@
 
 import { MutableSubscribable, Subscribable } from '@microsoft/msfs-sdk';
 import { FlightPlanWindEntry, WindVector } from '../../data/wind';
+import { TimeConstraint } from '../../../guidance/vnav/rta/TimeConstraint';
 
 export interface FlightPlanPerformanceData {
   /**
@@ -572,6 +573,9 @@ export interface FlightPlanPerformanceData {
 
   readonly estimatedTakeoffTimeExpired: MutableSubscribable<boolean | null>;
 
+  /** The time constraint (RTA) of the flight plan, null if none */
+  readonly timeConstraint: MutableSubscribable<TimeConstraint | null>;
+
   // ----------------------------------------------
   // A380 specific
   // ----------------------------------------------
@@ -768,6 +772,7 @@ export interface SerializedFlightPlanPerformanceData {
 
   estimatedTakeoffTime: number | null;
   estimatedTakeoffTimeExpired: boolean | null;
+  timeConstraint?: TimeConstraint | null;
   // A380 specific
   paxNumber?: number | null;
   takeoffPowerSetting?: TakeoffPowerSetting | null;
