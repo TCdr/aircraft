@@ -2443,6 +2443,11 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Indicates to the FG if the FM vertical flight profile is valid, for vertical managed modes.
     - Internal to FM/FG communication
 
+- A32NX_FM_ENERGY_CIRCLE_DISTANCE
+    - Number (nautical miles)
+    - The energy circle radius for the NDs: the required distance to land on the descent profile from the present
+      altitude, in descent and approach with HDG or TRK engaged; 0 without an energy circle
+
 - A32NX_FG_REQUESTED_VERTICAL_MODE
     - Enum
     - Indicates the requested vertical mode in DES

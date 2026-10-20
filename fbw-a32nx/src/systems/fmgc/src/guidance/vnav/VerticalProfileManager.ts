@@ -45,6 +45,7 @@ import {
 } from './profile/NavGeometryProfile';
 import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
 import { EventBus } from '@microsoft/msfs-sdk';
+import { DescentCabinRateResult } from './descent/RepressurizationSegment';
 
 export class VerticalProfileManager {
   private takeoffPathBuilder: TakeoffPathBuilder;
@@ -70,6 +71,9 @@ export class VerticalProfileManager {
   mcduProfile: NavGeometryProfile | undefined;
 
   expediteProfile: SelectedGeometryProfile | undefined;
+
+  /** The cabin side of the descent profile (DES CABIN RATE, repressurization segment) */
+  descentCabinRate: DescentCabinRateResult | null = null;
 
   constructor(
     private readonly bus: EventBus,
@@ -106,6 +110,7 @@ export class VerticalProfileManager {
     this.ndProfile = undefined;
     this.mcduProfile = undefined;
     this.expediteProfile = undefined;
+    this.descentCabinRate = null;
   }
 
   // PROFILE COMPUTATIONS
@@ -222,6 +227,7 @@ export class VerticalProfileManager {
 
     descentProfile.checkpoints.push(...sequence.get(true).reverse());
 
+    this.descentCabinRate = this.managedDescentPathBuilder.lastDescentCabinRate;
     this.descentProfile = descentProfile;
     this.descentProfile.finalizeProfile();
   }

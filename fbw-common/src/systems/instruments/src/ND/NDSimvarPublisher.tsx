@@ -11,4 +11,6 @@ export type NDSimvars = GenericAdirsEvents &
     selectedHeading: Degrees;
     showSelectedHeading: boolean;
     absoluteTime: Seconds;
+    /** The energy circle radius from the FMS, NM, 0 without an energy circle */
+    energyCircleDistance: number;
   };

@@ -53,6 +53,8 @@ export interface VerticalProfileComputationParameters {
   preselectedCruiseSpeed: Knots;
   takeoffFlapsSetting?: FlapConf;
   estimatedDestinationFuel: Pounds | null;
+  /** The DES CABIN RATE entered by the flight crew, ft/min (negative), null without an entry */
+  descentCabinRate: FeetPerMinute | null;
 
   approachQnh: Millibar;
   approachTemperature: Celsius;
@@ -123,6 +125,7 @@ export class VerticalProfileComputationParametersObserver {
       preselectedCruiseSpeed: this.fmgc.getPreSelectedCruiseSpeed(),
       takeoffFlapsSetting: this.fmgc.getTakeoffFlapsSetting() ?? DefaultVerticalProfileParameters.flapsSetting,
       estimatedDestinationFuel: efobTonnes !== null ? UnitType.TONNE.convertTo(efobTonnes, UnitType.POUND) : null,
+      descentCabinRate: this.flightPlanService.active.performanceData.descentCabinRate?.get() ?? null,
 
       approachQnh: this.fmgc.getApproachQnh(),
       approachTemperature: this.fmgc.getApproachTemperature(),

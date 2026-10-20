@@ -121,6 +121,7 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
     cloned.approachFlapsThreeSelected.set(this.approachFlapsThreeSelected.get());
     cloned.estimatedTakeoffTime.set(this.estimatedTakeoffTime.get());
     cloned.estimatedTakeoffTimeExpired.set(this.estimatedTakeoffTimeExpired.get());
+    cloned.descentCabinRate?.set(this.descentCabinRate.get());
 
     cloned.climbWindEntries.set(
       this.climbWindEntries.get().map(({ vector, ...rest }) => ({
@@ -865,6 +866,9 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
 
   readonly estimatedTakeoffTimeExpired = Subject.create<boolean | null>(false);
 
+  /** The DES CABIN RATE entered by the flight crew, ft/min (negative), null without an entry */
+  readonly descentCabinRate = Subject.create<number | null>(null);
+
   serialize(): SerializedFlightPlanPerformanceData {
     return {
       cruiseFlightLevel: this.cruiseFlightLevel.get(),
@@ -941,6 +945,7 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
       alternateWind: this.alternateWind.get(),
       estimatedTakeoffTime: this.estimatedTakeoffTime.get(),
       estimatedTakeoffTimeExpired: this.estimatedTakeoffTimeExpired.get(),
+      descentCabinRate: this.descentCabinRate.get(),
     };
   }
 }

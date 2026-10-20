@@ -40,6 +40,13 @@ import {
   isInSpeedbrakeDecelerationSegment,
   isMoreDragMessageActive,
 } from './descent/MoreDragMessage';
+import { EnergyCirclePublisher } from './descent/EnergyCircle';
+import {
+  displayedDescentCabinRate,
+  DisplayedDescentCabinRate,
+  isCabinRateExceeded,
+  remainingDescentSeconds,
+} from './descent/CabinRepressurization';
 
 export class VnavDriver implements GuidanceComponent {
   version: number = 0;
@@ -80,6 +87,8 @@ export class VnavDriver implements GuidanceComponent {
 
   /** The MORE DRAG FMA message (L:A32NX_PFD_MSG_MORE_DRAG), descent/MoreDragMessage.ts */
   private moreDragMessageActive = false;
+
+  private readonly energyCirclePublisher = new EnergyCirclePublisher();
 
   constructor(
     private readonly bus: EventBus,
@@ -142,6 +151,7 @@ export class VnavDriver implements GuidanceComponent {
         this.updateDescentSpeedGuidance();
         this.descentGuidance.update(deltaTime, this.guidanceController.getAlongTrackDistanceToDestination());
         this.updateMoreDragMessage();
+        this.updateEnergyCircle();
       }
     } catch (e) {
       console.error('[FMS] Failed to calculate vertical profile. See exception below.');
@@ -217,7 +227,47 @@ export class VnavDriver implements GuidanceComponent {
 
       SimVar.SetSimVarValue('L:A32NX_FM_VERTICAL_PROFILE_AVAIL', 'Bool', false);
       this.prevMcduPredReadyToDisplay = false;
+      this.energyCirclePublisher.reset();
     }
+  }
+
+  private updateEnergyCircle(): void {
+    const { flightPhase, fcuLateralMode, presentPosition } = this.computationParametersObserver.get();
+    this.energyCirclePublisher.update(
+      this.acConfig.vnavConfig.ENERGY_CIRCLE,
+      {
+        flightPhase,
+        lateralMode: fcuLateralMode,
+        distanceToDestination: this.guidanceController.getAlongTrackDistanceToDestination(),
+      },
+      this.descentProfile?.checkpoints,
+      presentPosition.alt,
+    );
+  }
+
+  /** @returns null before the descent profile is computed */
+  getDescentCabinRateDisplay(): DisplayedDescentCabinRate | null {
+    const cabin = this.profileManager.descentCabinRate;
+    return cabin ? displayedDescentCabinRate(cabin.meanRate, cabin.maxRate) : null;
+  }
+
+  shouldShowCabinRateExceeded(): boolean {
+    const cabin = this.profileManager.descentCabinRate;
+    if (!cabin || !this.aircraftToDescentProfileRelation.isValid) {
+      return false;
+    }
+    return isCabinRateExceeded({
+      flightPhase: this.computationParametersObserver.get().flightPhase,
+      checkedPhases: this.acConfig.vnavConfig.CABIN_PRESSURIZATION.cabinRateExceededPhases,
+      distanceToDestination: this.guidanceController.getAlongTrackDistanceToDestination(),
+      cabinDescent: cabin.cabinDescent,
+      remainingDescentSeconds: remainingDescentSeconds(
+        cabin.descentSeconds,
+        cabin.descentDistance,
+        this.aircraftToDescentProfileRelation.distanceToTopOfDescent(),
+      ),
+      maxRate: cabin.maxRate,
+    });
   }
 
   /**
@@ -460,6 +510,7 @@ export class VnavDriver implements GuidanceComponent {
       numberOrNanChanged(this.lastParameters.managedDescentSpeedMach, newParameters.managedDescentSpeedMach) ||
       numberOrNanChanged(this.lastParameters.approachQnh, newParameters.approachQnh) ||
       numberOrNanChanged(this.lastParameters.approachTemperature, newParameters.approachTemperature) ||
+      numberOrNanChanged(this.lastParameters.descentCabinRate, newParameters.descentCabinRate) ||
       numberOrNanChanged(this.lastParameters.descentSpeedLimit?.speed, newParameters.descentSpeedLimit?.speed) ||
       numberOrNanChanged(
         this.lastParameters.descentSpeedLimit?.underAltitude,

@@ -21,6 +21,8 @@ export class AircraftToDescentProfileRelation {
 
   private geometricPathStart?: VerticalCheckpoint;
 
+  private repressurizationSegmentEnd?: VerticalCheckpoint;
+
   private distanceToEnd: NauticalMiles = 0;
 
   public totalFlightPlanDistance: number = 0;
@@ -36,6 +38,7 @@ export class AircraftToDescentProfileRelation {
     this.currentProfile = undefined;
     this.topOfDescent = undefined;
     this.geometricPathStart = undefined;
+    this.repressurizationSegmentEnd = undefined;
     this.distanceToEnd = 0;
     this.totalFlightPlanDistance = 0;
   }
@@ -61,6 +64,9 @@ export class AircraftToDescentProfileRelation {
 
     this.topOfDescent = topOfDescent;
     this.geometricPathStart = geometricPathStart;
+    this.repressurizationSegmentEnd = profile.findVerticalCheckpoint(
+      VerticalCheckpointReason.RepressurizationSegmentEnd,
+    );
 
     this.currentProfile = profile;
     this.totalFlightPlanDistance = profile.totalFlightPlanDistance;
@@ -99,8 +105,17 @@ export class AircraftToDescentProfileRelation {
     return null;
   }
 
+  /** Past the geometric path start, or on the repressurization segment, which is not flown at idle either */
   isOnGeometricPath(): boolean {
-    return this.distanceFromStart > this.geometricPathStart.distanceFromStart;
+    return this.distanceFromStart > this.geometricPathStart.distanceFromStart || this.isOnRepressurizationSegment();
+  }
+
+  private isOnRepressurizationSegment(): boolean {
+    return (
+      !!this.repressurizationSegmentEnd &&
+      this.isPastTopOfDescent() &&
+      this.distanceFromStart < this.repressurizationSegmentEnd.distanceFromStart
+    );
   }
 
   computeLinearDeviation(): Feet {

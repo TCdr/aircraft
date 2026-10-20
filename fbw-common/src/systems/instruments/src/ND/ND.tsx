@@ -48,6 +48,7 @@ import { WindIndicator } from './shared/WindIndicator';
 import { TerrainMapThresholds } from './TerrainMapThresholds';
 import { WxrModeLabel } from './WxrModeLabel';
 import { TrackLine } from './shared/TrackLine';
+import { EnergyCircle } from './shared/EnergyCircle';
 import { TrackBug } from './shared/TrackBug';
 import { GenericFcuEvents } from './types/GenericFcuEvents';
 import { ArincEventBus } from '../../../shared/src/ArincEventBus';
@@ -478,6 +479,12 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
             <SelectedHeadingBug bus={this.props.bus} rotationOffset={this.planeRotation} mode={this.currentPageMode} />
 
             <TrackLine bus={this.props.bus} isUsingTrackUpMode={this.isUsingTrackUpMode} />
+            <EnergyCircle
+              bus={this.props.bus}
+              ndMode={this.currentPageMode}
+              isUsingTrackUpMode={this.isUsingTrackUpMode}
+              dashed={this.props.mapOptions?.energyCircleDashed ?? false}
+            />
             <TrackBug bus={this.props.bus} isUsingTrackUpMode={this.isUsingTrackUpMode} ndMode={this.currentPageMode} />
 
             <WindIndicator bus={this.props.bus} />

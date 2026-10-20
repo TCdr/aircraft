@@ -82,6 +82,8 @@ export const NXSystemMessages = {
   crzFlAboveMaxFL: new TypeIIMessage('CRZ FL ABOVE MAX FL', false),
   cancelAtisUpdate: new TypeIMessage('CANCEL AUTO UPDATE FIRST'), // TODO
   checkAltnWind: new TypeIIMessage('CHECK ALTN WIND'),
+  // In cruise within 200 NM of the destination, the descent profile is too short for the maximum cabin rate
+  cabinRateExceeded: new TypeIIMessage('CABIN RATE EXCEEDED'),
   checkDestData: new TypeIIMessage('CHECK DEST DATA', true),
   // Type I: an alternate company route that does not start at the destination
   destAltnCpnyRteDisagree: new TypeIMessage('DEST / ALTN CPNY RTE DISAGREE'),

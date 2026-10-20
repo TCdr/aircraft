@@ -14,11 +14,20 @@ import { AltitudeConstraint, AltitudeDescriptor, ConstraintUtils, MathUtils } fr
 import { AircraftConfig } from '@fmgc/flightplanning/AircraftConfigTypes';
 import { IdlePathBuilder } from '@fmgc/guidance/vnav/descent/IdlePathBuilder';
 import { GeometricPathPlanner, PlannedGeometricSegment } from '@fmgc/guidance/vnav/descent/GeometricPathPlanner';
+import {
+  DescentCabinRateResult,
+  RepressurizationSegmentBuilder,
+} from '@fmgc/guidance/vnav/descent/RepressurizationSegment';
 
 export class DescentPathBuilder {
   private geometricPathBuilder: GeometricPathBuilder;
 
   private idlePathBuilder: IdlePathBuilder;
+
+  private readonly repressurizationSegmentBuilder: RepressurizationSegmentBuilder;
+
+  /** The cabin side of the last managed descent path built */
+  lastDescentCabinRate: DescentCabinRateResult | null = null;
 
   constructor(
     computationParametersObserver: VerticalProfileComputationParametersObserver,
@@ -26,6 +35,11 @@ export class DescentPathBuilder {
     private readonly acConfig: AircraftConfig,
   ) {
     this.idlePathBuilder = new IdlePathBuilder(computationParametersObserver, atmosphericConditions, this.acConfig);
+    this.repressurizationSegmentBuilder = new RepressurizationSegmentBuilder(
+      computationParametersObserver,
+      atmosphericConditions,
+      this.acConfig,
+    );
 
     this.geometricPathBuilder = new GeometricPathBuilder(
       computationParametersObserver,
@@ -95,7 +109,7 @@ export class DescentPathBuilder {
         );
 
         // Execute
-        geometricSequence.reset(geometricSequence.at(0));
+        geometricSequence.reset(geometricSequence.checkpoints[0]);
         this.geometricPathBuilder.executeGeometricSegments(geometricSequence, geometricSegments, profile, speedProfile);
 
         idleSequence.reset(geometricSequence.lastCheckpoint);
@@ -118,6 +132,11 @@ export class DescentPathBuilder {
 
     sequence.push(...geometricSequence.get());
     sequence.push(...idleSequence.get());
+
+    // A sub-path to a constraint (the geometric path builder) does not reach the cruise level
+    if (toDistance === -Infinity) {
+      this.lastDescentCabinRate = this.repressurizationSegmentBuilder.build(sequence, profile);
+    }
   }
 
   private isConstraintBelowCruisingAltitude(constraint: AltitudeConstraint, finalCruiseAltitude: Feet): boolean {
