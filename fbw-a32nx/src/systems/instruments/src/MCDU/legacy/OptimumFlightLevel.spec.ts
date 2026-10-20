@@ -6,6 +6,7 @@ import {
   progOptimumFlightLevel,
   ProgOptimumFlightLevelCache,
   ProgOptimumFlightLevelInputs,
+  progOptimumFlightLevelWeightsEntered,
 } from './OptimumFlightLevel';
 
 const inputs = (overrides: Partial<ProgOptimumFlightLevelInputs> = {}): ProgOptimumFlightLevelInputs => ({
@@ -48,6 +49,42 @@ describe('PROG page OPT FL', () => {
     expect(progOptimumFlightLevel(inputs({ grossWeight: null }))).toBeNull();
     expect(progOptimumFlightLevel(inputs({ recMaxFlightLevel: null }))).toBeNull();
     expect(progOptimumFlightLevel(inputs({ costIndex: null }))).toBeNull();
+  });
+});
+
+describe('PROG page OPT FL weight entries', () => {
+  it('needs the BLOCK fuel only before engine start', () => {
+    expect(
+      progOptimumFlightLevelWeightsEntered({ zeroFuelWeightCenterOfGravity: 32.3, blockFuel: null, anEngineOn: false }),
+    ).toBe(false);
+    expect(
+      progOptimumFlightLevelWeightsEntered({ zeroFuelWeightCenterOfGravity: 32.3, blockFuel: 9.5, anEngineOn: false }),
+    ).toBe(true);
+  });
+
+  it('is shown in cruise when ZFW/ZFWCG were entered on FUEL PRED with the engines running (no BLOCK entry)', () => {
+    expect(
+      progOptimumFlightLevelWeightsEntered({ zeroFuelWeightCenterOfGravity: 32.3, blockFuel: null, anEngineOn: true }),
+    ).toBe(true);
+    // CYUL-CYVR at FL340: GW 64.9 t, CI 10, REC MAX FL398, 828 NM to go
+    expect(
+      progOptimumFlightLevel(
+        inputs({
+          grossWeight: 64.9,
+          recMaxFlightLevel: 398,
+          costIndex: 10,
+          distanceToDestination: 828,
+          currentAltitude: 34_000,
+          destinationElevation: 14,
+        }),
+      ),
+    ).toBe(380);
+  });
+
+  it('shows dashes without the ZFWCG', () => {
+    expect(
+      progOptimumFlightLevelWeightsEntered({ zeroFuelWeightCenterOfGravity: null, blockFuel: 9.5, anEngineOn: true }),
+    ).toBe(false);
   });
 });
 

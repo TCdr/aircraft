@@ -88,7 +88,7 @@ import { AdfRadioTuningStatus, MmrRadioTuningStatus, VorRadioTuningStatus } from
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { FmsFormatters } from './FmsFormatters';
 import { progRecMaxFlightLevel, REC_MAX_FL_LVAR, recMaxFlightLevelLVarValue } from './RecMaxFlightLevel';
-import { ProgOptimumFlightLevelCache } from './OptimumFlightLevel';
+import { ProgOptimumFlightLevelCache, progOptimumFlightLevelWeightsEntered } from './OptimumFlightLevel';
 import { isSetGreenDotSpeed } from '../../PFD/FmaLine3Messages';
 import { VerticalMode } from '@shared/autopilot';
 import { VnavTrip, vnavTripPrediction } from './VnavTripPrediction';
@@ -1492,8 +1492,11 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     const performanceData = this.flightPlanService.hasActive ? this.flightPlanService.active.performanceData : null;
     if (
       !performanceData ||
-      performanceData.zeroFuelWeightCenterOfGravity.get() === null ||
-      performanceData.blockFuel.get() === null
+      !progOptimumFlightLevelWeightsEntered({
+        zeroFuelWeightCenterOfGravity: performanceData.zeroFuelWeightCenterOfGravity.get(),
+        blockFuel: performanceData.blockFuel.get(),
+        anEngineOn: this.isAnEngineOn(),
+      })
     ) {
       this.optimumFlightLevel = null;
       return;
