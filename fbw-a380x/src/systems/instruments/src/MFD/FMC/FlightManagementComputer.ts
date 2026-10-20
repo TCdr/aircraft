@@ -764,6 +764,7 @@ export class FlightManagementComputer implements FmcInterface {
       this.enginesWereStarted.sub((val) => {
         if (val) {
           this.setDefaultCostIndexIfNoneEntered();
+          this.unlinkSecondaryWeightsAtEngineStart();
         }
       }),
       this.legacyFmsIsHealthy.sub((v) => {
@@ -2964,6 +2965,15 @@ export class FlightManagementComputer implements FmcInterface {
       this.#flightPlanService.deleteApproachWind(forPlan);
     } else {
       this.#flightPlanService.setApproachWind(null, value, forPlan);
+    }
+  }
+
+  /** A copy of the active flight plan follows its ZFW, ZFWCG, minimum fuel at destination and BLOCK before engine start */
+  private unlinkSecondaryWeightsAtEngineStart(): void {
+    for (let index = 1; index <= FpmConfigs.A380.NUM_SECONDARY_FLIGHT_PLANS; index++) {
+      if (this.#flightPlanService.hasSecondary(index)) {
+        this.#flightPlanService.secondary(index).performanceData.unlinkBeforeEngineStartParameters();
+      }
     }
   }
 

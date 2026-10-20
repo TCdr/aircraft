@@ -48,6 +48,12 @@ export interface FpmConfig {
    */
   NUM_SECONDARY_FLIGHT_PLANS: number;
 
+  /**
+   * Whether a secondary flight plan copied from the active one stays linked to the active flight plan across its
+   * revisions (temporary flight plan inserted), and becomes independent when another flight plan is activated
+   */
+  KEEP_ACTIVE_COPY_LINKS: boolean;
+
   /** Whether to create draft wind entries upon editing a wind entry on the flightplan */
   DRAFT_ON_WIND_EDIT: boolean;
 
@@ -83,6 +89,7 @@ export class FpmConfigs {
     DIR_TO_ABEAM_POINT_IS_TO_WPT: true,
     PERSIST_TAXI_FUEL_ON_SEC_SWAP: true,
     NUM_SECONDARY_FLIGHT_PLANS: 3,
+    KEEP_ACTIVE_COPY_LINKS: true,
     NUM_CRUISE_WIND_LEVELS: 4,
     NUM_CLIMB_WIND_LEVELS: 5,
     SORT_CLIMB_WIND_DESCENDING: true,
@@ -104,6 +111,7 @@ export class FpmConfigs {
     DIR_TO_ABEAM_POINT_IS_TO_WPT: false,
     PERSIST_TAXI_FUEL_ON_SEC_SWAP: false,
     NUM_SECONDARY_FLIGHT_PLANS: 1,
+    KEEP_ACTIVE_COPY_LINKS: false,
     NUM_CRUISE_WIND_LEVELS: 4,
     NUM_CLIMB_WIND_LEVELS: 5,
     SORT_CLIMB_WIND_DESCENDING: false,

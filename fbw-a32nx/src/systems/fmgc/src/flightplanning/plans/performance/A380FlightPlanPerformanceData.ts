@@ -4,13 +4,14 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { MathUtils } from '@flybywiresim/fbw-sdk';
-import { MappedSubject, MutableSubscribable, Subject, Subscription } from '@microsoft/msfs-sdk';
+import { MappedSubject, MutableSubscribable, Subject, Subscribable, Subscription } from '@microsoft/msfs-sdk';
 import {
   ClimbDerated,
   CostIndexMode,
   DefaultPerformanceData,
+  FLIGHT_NUMBER_LINK_KEY,
+  FlightNumberLink,
   FlightPlanPerformanceData,
-  FlightPlanPerformanceDataProperties,
   SerializedFlightPlanPerformanceData,
   TakeoffAntiIce,
   TakeoffDerated,
@@ -23,7 +24,8 @@ import { TimeConstraint } from '../../../guidance/vnav/rta/TimeConstraint';
 
 // TODO this should go to fbw-a380x/ once FMS is moved to fbw-common
 export class A380FlightPlanPerformanceData implements FlightPlanPerformanceData {
-  private readonly subscriptions: Map<keyof FlightPlanPerformanceDataProperties & string, Subscription> = new Map();
+  /** The links of this flight plan, a copy of the active one, to the active flight plan (by parameter) */
+  private readonly subscriptions: Map<string, Subscription> = new Map();
 
   constructor(defaultTaxiFuel = 1.5) {
     this.defaultTaxiFuel.set(defaultTaxiFuel);
@@ -156,54 +158,74 @@ export class A380FlightPlanPerformanceData implements FlightPlanPerformanceData 
     return cloned;
   }
 
-  pipeTo(other: FlightPlanPerformanceData, isBeforeEngineStart: boolean): void {
-    this.pipe('cruiseFlightLevel', this.cruiseFlightLevel, other.cruiseFlightLevel);
-    this.pipe('cruiseTemperaturePilotEntry', this.cruiseTemperaturePilotEntry, other.cruiseTemperaturePilotEntry);
-    this.pipe('pilotTropopause', this.pilotTropopause, other.pilotTropopause);
-    this.pipe('costIndex', this.costIndex, other.costIndex);
-    this.pipe('pilotRouteReserveFuel', this.pilotRouteReserveFuel, other.pilotRouteReserveFuel);
-    this.pipe(
+  /**
+   * Links a copy of this flight plan to it: the linked parameters of the copy follow every change made here until the
+   * flight crew changes one of them in the copy (FlightPlan.setPerformanceData then breaks the whole link). The copy
+   * keeps the link, so each copy has a link of its own and a change made here does not break it.
+   * @param other the performance data of the copy
+   * @param isBeforeEngineStart whether the weights and fuel are linked too
+   * @param flightNumber the flight numbers of this flight plan and of the copy
+   */
+  pipeTo(other: FlightPlanPerformanceData, isBeforeEngineStart: boolean, flightNumber?: FlightNumberLink): void {
+    if (!(other instanceof A380FlightPlanPerformanceData)) {
+      return;
+    }
+
+    other.destroy();
+
+    // The ISA temperature is computed from the linked cruise flight level by each flight plan, it is not linked: its
+    // automatic update on the INIT page of the copy would break the link
+    other.pipe('cruiseFlightLevel', this.cruiseFlightLevel, other.cruiseFlightLevel);
+    other.pipe('cruiseTemperaturePilotEntry', this.cruiseTemperaturePilotEntry, other.cruiseTemperaturePilotEntry);
+    other.pipe('pilotTropopause', this.pilotTropopause, other.pilotTropopause);
+    other.pipe('costIndex', this.costIndex, other.costIndex);
+    other.pipe('costIndexMode', this.costIndexMode, other.costIndexMode);
+    other.pipe('pilotRouteReserveFuel', this.pilotRouteReserveFuel, other.pilotRouteReserveFuel);
+    other.pipe(
       'pilotRouteReserveFuelPercentage',
       this.pilotRouteReserveFuelPercentage,
       other.pilotRouteReserveFuelPercentage,
     );
-    this.pipe('pilotFinalHoldingFuel', this.pilotFinalHoldingFuel, other.pilotFinalHoldingFuel);
-    this.pipe('pilotFinalHoldingTime', this.pilotFinalHoldingTime, other.pilotFinalHoldingTime);
+    other.pipe('pilotFinalHoldingFuel', this.pilotFinalHoldingFuel, other.pilotFinalHoldingFuel);
+    other.pipe('pilotFinalHoldingTime', this.pilotFinalHoldingTime, other.pilotFinalHoldingTime);
+    other.pipe('paxNumber', this.paxNumber, other.paxNumber);
 
-    if (other.cruiseTemperatureIsaTemp) {
-      this.pipe('cruiseTemperatureIsaTemp', this.cruiseTemperatureIsaTemp, other.cruiseTemperatureIsaTemp);
-    }
-    if (other.paxNumber) {
-      this.pipe('paxNumber', this.paxNumber, other.paxNumber);
-    }
-
-    if (other.costIndexMode) {
-      this.pipe('costIndexMode', this.costIndexMode, other.costIndexMode);
+    if (flightNumber) {
+      other.pipe(FLIGHT_NUMBER_LINK_KEY, flightNumber.from, flightNumber.to);
     }
 
     if (isBeforeEngineStart) {
-      this.pipe('zeroFuelWeight', this.zeroFuelWeight, other.zeroFuelWeight);
-      this.pipe(
+      other.pipe('zeroFuelWeight', this.zeroFuelWeight, other.zeroFuelWeight);
+      other.pipe(
         'zeroFuelWeightCenterOfGravity',
         this.zeroFuelWeightCenterOfGravity,
         other.zeroFuelWeightCenterOfGravity,
       );
-      this.pipe(
+      other.pipe(
         'pilotMinimumDestinationFuelOnBoard',
         this.pilotMinimumDestinationFuelOnBoard,
         other.pilotMinimumDestinationFuelOnBoard,
       );
-      this.pipe('blockFuel', this.blockFuel, other.blockFuel);
-      this.pipe('estimatedTakeoffTime', this.estimatedTakeoffTime, other.estimatedTakeoffTime);
-      this.pipe('estimatedTakeoffTimeExpired', this.estimatedTakeoffTimeExpired, other.estimatedTakeoffTimeExpired);
+      other.pipe('blockFuel', this.blockFuel, other.blockFuel);
     }
   }
 
-  protected pipe<T>(
-    key: keyof FlightPlanPerformanceDataProperties & string,
-    from: MutableSubscribable<T>,
-    to: MutableSubscribable<T>,
-  ): void {
+  /** The weights and fuel of a linked copy follow the active flight plan only before engine start */
+  public unlinkBeforeEngineStartParameters(): void {
+    for (const key of A380FlightPlanPerformanceData.BEFORE_ENGINE_START_LINKS) {
+      this.subscriptions.get(key)?.destroy();
+      this.subscriptions.delete(key);
+    }
+  }
+
+  private static readonly BEFORE_ENGINE_START_LINKS = [
+    'zeroFuelWeight',
+    'zeroFuelWeightCenterOfGravity',
+    'pilotMinimumDestinationFuelOnBoard',
+    'blockFuel',
+  ] as const;
+
+  protected pipe<T>(key: string, from: Subscribable<T>, to: MutableSubscribable<T>): void {
     // Just in case we've somehow already linked this key to something, we destory the subscription first.
     this.subscriptions.get(key)?.destroy();
     this.subscriptions.set(key, from.pipe(to));
@@ -214,7 +236,7 @@ export class A380FlightPlanPerformanceData implements FlightPlanPerformanceData 
     this.subscriptions.clear();
   }
 
-  public hasSubscription(key: keyof FlightPlanPerformanceDataProperties & string): boolean {
+  public hasSubscription(key: string): boolean {
     return this.subscriptions.has(key);
   }
 
