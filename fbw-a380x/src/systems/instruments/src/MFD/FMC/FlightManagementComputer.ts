@@ -112,6 +112,7 @@ import { AtcRouteClearanceLoader } from './AtcRouteClearanceLoader';
 import { NdInteractiveRevisions } from './NdInteractiveRevisions';
 import { RejectedAtcElement } from './AtcRouteClearance';
 import { allFmcInop, allFmcResetsPulled } from './FmcResetPanel';
+import { ActivePlanCruiseAltitude, CRUISE_ALTITUDE_SIMVAR, NO_CRUISE_ALTITUDE } from './ActivePlanCruiseAltitude';
 import { FmsDatalinkConnection } from './FmsDatalinkConnection';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
@@ -208,6 +209,12 @@ export class FlightManagementComputer implements FmcInterface {
   private lastFlightPlanVersion: number | null = null;
 
   private readonly flightPlanChangeNotifier = new FlightPlanChangeNotifier(this.bus);
+
+  private readonly activePlanCruiseAltitude = new ActivePlanCruiseAltitude(
+    this.#flightPlanService,
+    () => this.flightPhaseManager.phase,
+  );
+
   #fmgc = new FmgcDataService(this.bus, this.flightPlanInterface);
 
   get fmgc() {
@@ -752,6 +759,10 @@ export class FlightManagementComputer implements FmcInterface {
     // When the active flight plan changes, re-pipe all related subjects
     this.subs.push(
       this.flightPlanChangeNotifier.flightPlanChanged.sub(() => this.onActiveFlightPlanChanged(), true),
+      this.flightPlanChangeNotifier.flightPlanChanged.sub(
+        () => this.activePlanCruiseAltitude.onFlightPlansChanged(),
+        true,
+      ),
       this.pilotEntryMinFuelBelowAltnPlusFinal,
     );
 
@@ -945,6 +956,7 @@ export class FlightManagementComputer implements FmcInterface {
     for (const s of this.subs) {
       s.destroy();
     }
+    this.activePlanCruiseAltitude.destroy();
   }
 
   public revisedWaypoint(): Fix | undefined {
@@ -1404,8 +1416,7 @@ export class FlightManagementComputer implements FmcInterface {
 
     SimVar.SetSimVarValue('L:A32NX_PFD_MSG_SET_HOLD_SPEED', 'bool', false);
 
-    // Reset SimVars
-    SimVar.SetSimVarValue('L:A32NX_AIRLINER_CRUISE_ALTITUDE', 'knots', -1);
+    SimVar.SetSimVarValue(CRUISE_ALTITUDE_SIMVAR, 'number', NO_CRUISE_ALTITUDE);
   }
 
   public clearLatestFmsErrorMessage() {
