@@ -311,11 +311,8 @@ export class MfdFmsFuelLoad extends FmsFlightPlanPage<MfdFmsFuelLoadProps> {
           const tripFuel = this.props.fmcService.master.getTripFuel(loadedfpIndex) ?? NaN;
           this.tripFuelWeight.set(tripFuel);
 
-          if (loadedfpIndex === FlightPlanIndex.Active) {
-            // TODO SEC predictions
-            const destPred = this.props.fmcService.master.guidanceController.vnavDriver.getDestinationPrediction();
-            this.tripFuelTime.set(getEtaFromUtcOrPresent(destPred?.secondsFromPresent, true));
-          }
+          const destPred = this.props.fmcService.master.fmgc.getDestinationPrediction(loadedfpIndex);
+          this.tripFuelTime.set(getEtaFromUtcOrPresent(destPred?.secondsFromPresent, true));
 
           const extraFuel = this.props.fmcService.master.getExtraFuel(loadedfpIndex);
           this.extraFuelWeight.set(extraFuel ?? NaN);
@@ -469,10 +466,11 @@ export class MfdFmsFuelLoad extends FmsFlightPlanPage<MfdFmsFuelLoadProps> {
     const fpIndex = hasFp ? this.loadedFlightPlanIndex.get() : null;
     this.destIcao.set(this.loadedFlightPlan?.destinationAirport?.ident ?? null);
 
-    // TODO SEC predictions
     const destPred =
-      hasFp && (fpIndex === FlightPlanIndex.Active || fpIndex === FlightPlanIndex.Temporary)
-        ? this.props.fmcService.master.guidanceController.vnavDriver.getDestinationPrediction()
+      fpIndex !== null
+        ? this.props.fmcService.master.fmgc.getDestinationPrediction(
+            fpIndex === FlightPlanIndex.Temporary ? FlightPlanIndex.Active : fpIndex,
+          )
         : null;
     // TODO Should display ETA if EET present
     this.destEta.set(

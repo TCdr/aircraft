@@ -30,6 +30,8 @@ import { grossWeightCgFromFqmsOrWbbc } from './GrossWeightCgSource';
 import { A380EconSpeedCache, DescentEconSpeedFreeze } from './A380EconSpeeds';
 import { a380GreenDotSpeed } from './CruiseSpeeds';
 import type { InsertedAlternateRoute } from './AlternateCompanyRoute';
+import type { SecondaryFlightPlanPredictions } from './SecondaryFlightPlanPredictions';
+import type { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 
 export enum TakeoffPowerSetting {
   TOGA = 0,
@@ -224,7 +226,60 @@ export class FmgcDataService implements Fmgc {
 
   public guidanceController: GuidanceController | undefined = undefined;
 
+  public secondaryPredictions: SecondaryFlightPlanPredictions | undefined = undefined;
+
   private readonly sub = this.bus.getSubscriber<FqmsBusEvents>();
+
+  /**
+   * @param forPlan a flight plan
+   * @returns the predictions at its legs (by leg index): the active VNAV profile for the active flight plan, the
+   * secondary flight plan predictions for SEC 1-3; null for the others or when not computed
+   */
+  getWaypointPredictions(forPlan = FlightPlanIndex.Active): ReadonlyMap<number, VerticalWaypointPrediction> | null {
+    if (forPlan === FlightPlanIndex.Active) {
+      return this.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions ?? null;
+    }
+    return forPlan >= FlightPlanIndex.FirstSecondary
+      ? this.secondaryPredictions?.waypointPredictions(forPlan) ?? null
+      : null;
+  }
+
+  /**
+   * @param forPlan a flight plan
+   * @returns the predictions at its destination (see getWaypointPredictions), null when not computed
+   */
+  getDestinationPrediction(forPlan = FlightPlanIndex.Active): VerticalWaypointPrediction | null {
+    if (forPlan === FlightPlanIndex.Active) {
+      return this.guidanceController?.vnavDriver?.getDestinationPrediction() ?? null;
+    }
+    return forPlan >= FlightPlanIndex.FirstSecondary
+      ? this.secondaryPredictions?.destinationPrediction(forPlan) ?? null
+      : null;
+  }
+
+  /**
+   * A secondary flight plan created on its INIT page (not copied from the active one) has its predictions computed with
+   * the aircraft on ground before engine start.
+   * @param forPlan a flight plan
+   * @returns whether its predictions start on ground before engine start, whatever the aircraft does
+   */
+  isPlanIndependentOfAircraft(forPlan = FlightPlanIndex.Active): boolean {
+    return (
+      forPlan >= FlightPlanIndex.FirstSecondary &&
+      this.flightPlanService.has(forPlan) &&
+      !this.flightPlanService.get(forPlan).isActiveOrCopiedFromActive()
+    );
+  }
+
+  /**
+   * @param forPlan a flight plan
+   * @returns the fuel on board the predictions of that flight plan start with, in tonnes
+   */
+  getPredictionStartFob(forPlan = FlightPlanIndex.Active): number | null {
+    return this.isPlanIndependentOfAircraft(forPlan)
+      ? this.flightPlanService.get(forPlan).performanceData.blockFuel.get()
+      : this.getFOB(forPlan);
+  }
 
   private readonly fqmsFob = Arinc429LocalVarConsumerSubject.create(this.sub.on('fqms_total_fuel_on_board'));
   private readonly fqmsGw = Arinc429LocalVarConsumerSubject.create(this.sub.on('fqms_gross_weight'));
@@ -592,17 +647,15 @@ export class FmgcDataService implements Fmgc {
   /** in tons */
   getDestEFOB(useFob: boolean, forPlan = FlightPlanIndex.Active): number | null {
     // Metric tons
-    if (forPlan === FlightPlanIndex.Active) {
-      const efob = this.guidanceController?.vnavDriver?.getDestinationPrediction()?.estimatedFuelOnBoard; // in Pounds
-      if (useFob && efob !== undefined) {
-        // Before takeoff the predictions start from the FOB (BLOCK), which still holds the TAXI fuel: the fuel after
-        // landing is BLOCK - TAXI - TRIP (A380 FCOM DSC-22-FMS-20-30 FUEL&LOAD page: EXTRA and LW deduct the TAXI)
-        const taxiFuel =
-          this.getFlightPhase() < FmgcFlightPhase.Takeoff
-            ? this.flightPlanService.get(forPlan).performanceData.taxiFuel.get() ?? 0
-            : 0;
-        return Units.poundToKilogram(efob) / 1000.0 - taxiFuel;
-      }
+    const efob = this.getDestinationPrediction(forPlan)?.estimatedFuelOnBoard; // in Pounds
+    if (useFob && efob !== undefined) {
+      // Before takeoff the predictions start from the FOB (BLOCK), which still holds the TAXI fuel: the fuel after
+      // landing is BLOCK - TAXI - TRIP (A380 FCOM DSC-22-FMS-20-30 FUEL&LOAD page: EXTRA and LW deduct the TAXI)
+      const taxiFuel =
+        this.getFlightPhase() < FmgcFlightPhase.Takeoff || this.isPlanIndependentOfAircraft(forPlan)
+          ? this.flightPlanService.get(forPlan).performanceData.taxiFuel.get() ?? 0
+          : 0;
+      return Units.poundToKilogram(efob) / 1000.0 - taxiFuel;
     }
     return null;
   }

@@ -297,13 +297,12 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
       this.destButtonLabel.set('------');
     }
 
-    // TODO SEC predictions
-    const destPred =
-      loadedFpIndex === FlightPlanIndex.Active
-        ? this.props.fmcService?.master?.guidanceController?.vnavDriver?.getDestinationPrediction()
-        : null;
+    const destPred = this.props.fmcService?.master?.fmgc.getDestinationPrediction(loadedFpIndex);
     if (destPred) {
-      this.destEfobAmber.set(this.props.fmcService.master.fmgc.data.destEfobBelowMinInActive.get());
+      this.destEfobAmber.set(
+        loadedFpIndex === FlightPlanIndex.Active &&
+          this.props.fmcService.master.fmgc.data.destEfobBelowMinInActive.get(),
+      );
       this.destTime.set(new Date(this.predictionTimestamp(destPred.secondsFromPresent)));
       this.destEfob.set(destPred.estimatedFuelOnBoard ?? NaN, UnitType.POUND);
     } else {
@@ -416,9 +415,8 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
       // Prepare sequencing of pseudo waypoints
       const pseudoWptMap = new Map<number, PseudoWaypoint>();
       const fpIndex = this.loadedFlightPlanIndex.get();
-      //TODO SEC or TMPY predictions
-      const isActive = fpIndex === FlightPlanIndex.Active;
-      if (isActive) {
+      //TODO TMPY predictions
+      if (fpIndex === FlightPlanIndex.Active) {
         // Insert pseudo waypoints from guidance controller
         this.props.fmcService?.master?.guidanceController?.pseudoWaypoints?.pseudoWaypoints?.forEach((wpt) =>
           pseudoWptMap.set(wpt.alongLegIndex, wpt),
@@ -427,13 +425,12 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
       lastDistanceFromStart = 0;
       const constantMachSegment = findConstantMachSegment(this.loadedFlightPlan.allLegs);
 
+      const predictions = this.props.fmcService?.master?.fmgc.getWaypointPredictions(fpIndex);
       for (let i = 0; i < jointFlightPlan.length; i++) {
         const leg = jointFlightPlan[i];
         const isAltn = i >= (this.loadedFlightPlan.allLegs.length ?? 0);
         let reduceDistanceBy = 0;
-        const pred = isActive
-          ? this.props.fmcService?.master?.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(i)
-          : null;
+        const pred = predictions?.get(i);
 
         const pwp = pseudoWptMap.get(i);
         if (pwp && pwp.displayedOnMcdu) {

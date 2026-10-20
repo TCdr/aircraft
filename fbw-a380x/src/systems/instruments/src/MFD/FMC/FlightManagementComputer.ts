@@ -103,6 +103,9 @@ import { FmsAdvisoryMessages } from './FmsAdvisoryMessages';
 import { A380OptimumStepSearch } from './A380OptimumStep';
 import { computeFlsBeam, flsBeamInputs, FlsBeamPublisher } from './FlsBeam';
 import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { FmsVdSafetyAltitudes } from './FmsVdSafetyAltitudes';
+import { SecondaryFlightPlanPredictions } from './SecondaryFlightPlanPredictions';
+import { isVdCutAlongTrack } from '@shared/VdVerticalCut';
 import { isValidA380FlightNumber } from '@fmgc/components/fms-messages/FmsMessageConditions';
 import { deleteConstraintsAboveCruiseLevel } from '@fmgc/flightplanning/plans/CruiseLevelConstraints';
 import { AtcRouteClearanceLoader } from './AtcRouteClearanceLoader';
@@ -252,6 +255,12 @@ export class FlightManagementComputer implements FmcInterface {
     return this.#navigation?.getStaticAirTemperature() ?? null;
   }
 
+  /** The aircraft position, null before the first navigation update (0/0) */
+  private knownPresentPosition(): Coordinates | null {
+    const ppos = this.#navigation.getPpos();
+    return ppos && (ppos.lat !== 0 || ppos.long !== 0) ? ppos : null;
+  }
+
   get navaidTuner() {
     if (this.instance !== FmcIndex.FmcA) {
       throw new Error('Multiple navaid tuners not supported!');
@@ -272,6 +281,8 @@ export class FlightManagementComputer implements FmcInterface {
 
   /** The type II FMS messages raised from the FMS data each cycle (FMC-A only, it has the navigation) */
   #advisoryMessages: FmsAdvisoryMessages | null = null;
+
+  #secondaryPredictions: SecondaryFlightPlanPredictions | null = null;
 
   get printer(): FmsPrinter | null {
     return this.#printer;
@@ -588,6 +599,8 @@ export class FlightManagementComputer implements FmcInterface {
       ),
   );
 
+  private readonly vdSafetyAltitudes = new FmsVdSafetyAltitudes(this.bus);
+
   private readonly atsuBusPublisher = this.bus.getPublisher<FmsToAtsuEvents>();
   private readonly datalinkBusPublisher = this.bus.getPublisher<FmsToDatalinkSubsystemEvents>();
   private readonly atsuBusSubscriber = this.bus.getSubscriber<AtsuToFmsEvents>();
@@ -719,6 +732,14 @@ export class FlightManagementComputer implements FmcInterface {
     this.flightPhaseManager.init();
     this.#guidanceController.init();
     this.fmgc.guidanceController = this.#guidanceController;
+    this.#secondaryPredictions = new SecondaryFlightPlanPredictions(
+      this.bus,
+      this.fmgc,
+      this.flightPlanInterface,
+      this.#guidanceController,
+      A380AircraftConfig,
+    );
+    this.fmgc.secondaryPredictions = this.#secondaryPredictions;
 
     this.initSimVars();
 
@@ -1060,26 +1081,25 @@ export class FlightManagementComputer implements FmcInterface {
   }
 
   public getTripFuel(forPlan = FlightPlanIndex.Active): number | null {
-    if (forPlan == FlightPlanIndex.Active) {
-      const destPred = this.guidanceController.vnavDriver.getDestinationPrediction();
-      if (destPred) {
-        const fob = this.fmgc.getFOB()! * 1_000;
-        const destFuelKg = Units.poundToKilogram(destPred.estimatedFuelOnBoard);
-        return fob - destFuelKg;
-      }
-    } // TODO SEC predictions
+    const destPred = this.fmgc.getDestinationPrediction(forPlan);
+    const startFob = this.fmgc.getPredictionStartFob(forPlan);
+    if (destPred && startFob !== null) {
+      return startFob * 1_000 - Units.poundToKilogram(destPred.estimatedFuelOnBoard);
+    }
     return null;
   }
 
   public getExtraFuel(forPlan = FlightPlanIndex.Active): number | null {
-    const destPred = this.guidanceController.vnavDriver.getDestinationPrediction();
-    if (forPlan === FlightPlanIndex.Active && destPred) {
+    const destPred = this.fmgc.getDestinationPrediction(forPlan);
+    if (destPred) {
       const pd = this.flightPlanInterface.get(forPlan).performanceData;
-      if (this.flightPhase.get() === FmgcFlightPhase.Preflight) {
+      const independentOfAircraft = this.fmgc.isPlanIndependentOfAircraft(forPlan);
+      if (this.flightPhase.get() === FmgcFlightPhase.Preflight || independentOfAircraft) {
         const trip = this.getTripFuel(forPlan);
         // EXTRA = BLOCK - TAXI - TRIP - MIN FUEL DEST - RTE RSV
         return Math.max(
-          (this.enginesWereStarted.get() ? this.fmgc.getFOB()! : pd.blockFuel.get() ?? 0) * 1000 -
+          (this.enginesWereStarted.get() && !independentOfAircraft ? this.fmgc.getFOB()! : pd.blockFuel.get() ?? 0) *
+            1000 -
             (pd.taxiFuel.get() ?? 0) * 1000 -
             trip! -
             (pd.minimumDestinationFuelOnBoard.get() ?? 0) * 1000 -
@@ -2608,6 +2628,19 @@ export class FlightManagementComputer implements FmcInterface {
       this.checkZfwParams();
       this.updateMessageQueue();
       this.updateVerticalPath();
+      this.vdSafetyAltitudes.update(throttledDt, {
+        position: this.knownPresentPosition(),
+        trueTrackDeg: SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree'),
+        alongTrack: isVdCutAlongTrack(
+          SimVar.GetSimVarValue('L:A32NX_FMA_LATERAL_MODE', SimVarValueType.Number),
+          SimVar.GetSimVarValue('L:A32NX_FMA_LATERAL_ARMED', SimVarValueType.Number),
+        ),
+        plan: this.flightPlanInterface.hasActive ? this.flightPlanInterface.active : null,
+        distanceToDestinationNm: this.guidanceController.getAlongTrackDistanceToDestination() ?? null,
+        epuNm: this.navigation.getEpe(),
+        rnpNm: this.navigation.getActiveRnp() ?? 0,
+      });
+      this.#secondaryPredictions?.update(throttledDt);
 
       this.acInterface.checkSpeedLimit();
       this.acInterface.thrustReductionAccelerationChecks();
@@ -2890,6 +2923,8 @@ export class FlightManagementComputer implements FmcInterface {
     this.mfdReference?.uiService.navigateTo('fms/data/status');
     this.navigation.resetState();
     this.acInterface.resetDestinationPredictions();
+    this.vdSafetyAltitudes.reset();
+    this.#secondaryPredictions?.reset();
     this.resetAtisAutoUpdate();
     this.irsAlignReferencePosition.set(null);
   }

@@ -13,7 +13,6 @@ import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { WindProfile } from '../wind/WindProfile';
 import { EventBus } from '@microsoft/msfs-sdk';
 import { TailwindComponent, WindVector } from '../../../flightplanning/data/wind';
-import { FlightPlanIndex } from '../../../flightplanning/FlightPlanManager';
 import { AircraftConfig } from '../../../flightplanning/AircraftConfigTypes';
 import type { GeographicConstantMachSegment } from '../cruise/ConstantMachSpeedProfile';
 
@@ -158,7 +157,7 @@ export interface GeographicCruiseStep {
 export class NavGeometryProfile extends BaseGeometryProfile {
   public waypointPredictions: Map<number, VerticalWaypointPrediction> = new Map();
 
-  readonly winds = new WindProfile(this.bus, this.flightPlanService, FlightPlanIndex.Active);
+  readonly winds = new WindProfile(this.bus, this.flightPlanService, this.constraintReader.planIndex);
 
   constructor(
     private readonly bus: EventBus,
@@ -236,10 +235,10 @@ export class NavGeometryProfile extends BaseGeometryProfile {
       return predictions;
     }
 
-    const activePlan = this.flightPlanService.active;
+    const plan = this.flightPlanService.get(this.constraintReader.planIndex);
 
-    for (let i = activePlan.activeLegIndex - 1; i < activePlan.firstMissedApproachLegIndex; i++) {
-      const leg = activePlan.maybeElementAt(i);
+    for (let i = plan.activeLegIndex - 1; i < plan.firstMissedApproachLegIndex; i++) {
+      const leg = plan.maybeElementAt(i);
 
       if (!leg || leg.isDiscontinuity === true) {
         continue;

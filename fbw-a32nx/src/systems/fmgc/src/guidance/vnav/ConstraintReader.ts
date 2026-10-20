@@ -18,6 +18,7 @@ import {
   GeographicConstantMachSegment,
   geographicConstantMachSegment,
 } from '@fmgc/guidance/vnav/cruise/ConstantMachSpeedProfile';
+import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 
 /**
  * This entire class essentially represents an interface to the flightplan.
@@ -42,7 +43,7 @@ export class ConstraintReader {
       return SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_DISTANCE_TO_END', 'nautical miles');
     }
 
-    return this.guidanceController.getAlongTrackDistanceToDestination();
+    return this.guidanceController.getAlongTrackDistanceToDestination(this.planIndex);
   }
 
   // If you change this property here, make sure you also reset it properly in `reset`
@@ -61,6 +62,8 @@ export class ConstraintReader {
   constructor(
     private flightPlanService: FlightPlanService,
     private guidanceController: GuidanceController,
+    /** The flight plan the constraints are read from: the active one, or a secondary one for its predictions */
+    public readonly planIndex = FlightPlanIndex.Active,
   ) {
     this.reset();
   }
@@ -71,7 +74,7 @@ export class ConstraintReader {
 
     let maxSpeed = Infinity;
 
-    const plan = this.flightPlanService.active;
+    const plan = this.flightPlanService.get(this.planIndex);
 
     this.constantMachSegment = geographicConstantMachSegment(plan.allLegs, findConstantMachSegment(plan.allLegs));
 
@@ -168,7 +171,7 @@ export class ConstraintReader {
   }
 
   private updateFinalAltitude(): void {
-    const plan = this.flightPlanService.active;
+    const plan = this.flightPlanService.get(this.planIndex);
 
     const approach = plan.approach;
 
@@ -226,7 +229,7 @@ export class ConstraintReader {
   private updateDistancesToEnd() {
     this.totalFlightPlanDistance = 0;
 
-    const plan = this.flightPlanService.active;
+    const plan = this.flightPlanService.get(this.planIndex);
 
     for (let i = Math.max(0, plan.activeLegIndex - 1); i < plan.firstMissedApproachLegIndex; i++) {
       const leg = plan.maybeElementAt(i);
@@ -240,7 +243,7 @@ export class ConstraintReader {
   }
 
   ignoreCruiseStep(waypointIndex: number) {
-    const leg = this.flightPlanService.active.maybeElementAt(waypointIndex);
+    const leg = this.flightPlanService.get(this.planIndex).maybeElementAt(waypointIndex);
 
     if (leg?.isDiscontinuity === false && leg?.cruiseStep) {
       leg.cruiseStep.isIgnored = true;
