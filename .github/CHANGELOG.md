@@ -826,6 +826,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] PERF page CRZ: time and distance to the T/D at the managed speed while flying a selected speed, and the ECON line when the speed limit lowers the managed speed - @TCdr
 1. [A380X/FMS] A SEC copied from the active flight plan stays linked to it per FCOM (flight number, CRZ FL and temperature, tropopause, cost index, route reserve, final fuel, passengers and, before engine start, ZFW, ZFWCG, min fuel at destination and BLOCK) until a crew entry in the SEC; a copy of a SEC is independent - @TCdr
 1. [A380X/FMS] The FMS goes into the CRZ phase at the CRZ FL however the active flight plan got it (CRZ FL entered in a temporary flight plan, SEC activation, company flight plan) - @TCdr
+1. [A380X/MFD] VERT REV RTA tab opened from the time of a F-PLN waypoint revises that waypoint, not the TO waypoint - @TCdr
 
 ## 2024.1.0
 
