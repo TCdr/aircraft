@@ -387,3 +387,33 @@ describe('the draft winds of a flight plan', () => {
     expect(fp.getDescentWindEntries().map((e) => e.altitude)).toEqual([8_000]);
   });
 });
+
+describe('the cruise steps of a flight plan', () => {
+  beforeAll(() => {
+    setupTestDatabase();
+  });
+
+  beforeEach(() => {
+    testFlightPlanService.reset(true);
+  });
+
+  it('stores an optimum step point a distance before its waypoint', async () => {
+    const fp = emptyFlightPlan();
+    await fp.setOriginAirport('CYVR');
+    await fp.setDestinationAirport('CYYZ');
+    const waypoint = await NavigationDatabaseService.activeDatabase.searchWaypoint('NOSUS');
+    await fp.insertWaypointBefore(1, waypoint[0]);
+
+    fp.addOrUpdateCruiseStep(1, 37_000, 12.5, true);
+    expect(fp.legElementAt(1).cruiseStep).toEqual({
+      distanceBeforeTermination: 12.5,
+      toAltitude: 37_000,
+      waypointIndex: 1,
+      isIgnored: false,
+      isOptimum: true,
+    });
+
+    fp.addOrUpdateCruiseStep(1, 39_000);
+    expect(fp.legElementAt(1).cruiseStep).toMatchObject({ distanceBeforeTermination: 0, isOptimum: false });
+  });
+});

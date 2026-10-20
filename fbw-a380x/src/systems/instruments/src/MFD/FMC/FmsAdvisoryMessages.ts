@@ -16,6 +16,7 @@ import {
 } from '@fmgc/components/fms-messages/FmsMessageConditions';
 import { isOriginIrsPositionDisagree } from '@fmgc/components/fms-messages/IrsPositionMessages';
 import { activeRnpMessage } from '@fmgc/components/fms-messages/RnpMessages';
+import { speedErrorWaypoint, waypointSpeedPredictions } from '@fmgc/components/fms-messages/VnavPathConditions';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { PILeg } from '@fmgc/guidance/lnav/legs/PI';
 import { distanceToTopOfDescent } from '@fmgc/components/fms-messages/TopOfDescentDistance';
@@ -97,6 +98,10 @@ export class FmsAdvisoryMessages {
   private readonly noNavInterceptionLatch = new MessageTextLatch();
 
   private readonly cabinRateExceededLatch = new MessageTextLatch();
+  private readonly speedErrorLatch = new MessageTextLatch();
+
+  /** The waypoint of the SPD ERROR AT message on display, null without one */
+  private speedErrorIdent: string | null = null;
 
   /** The clock (UTC seconds of the day) at the previous cycle, for T.O TIME REACHED */
   private previousClock: number | null = null;
@@ -251,6 +256,32 @@ export class FmsAdvisoryMessages {
     this.apply(
       this.cabinRateExceededLatch,
       guidance?.vnavDriver?.shouldShowCabinRateExceeded() ? NXSystemMessages.cabinRateExceeded : null,
+    );
+
+    this.updateSpeedError();
+  }
+
+  /**
+   * SPD ERROR AT XXXXXXX: a speed constraint ahead will be missed by more than 10 kt (see speedErrorWaypoint).
+   * Design choice: in lateral managed flight only, as on the A320: the predictions follow the flight plan.
+   */
+  private updateSpeedError(): void {
+    const vnavDriver = this.fmc.guidanceController?.vnavDriver;
+    const profile = vnavDriver?.mcduProfile;
+    const plan = this.fmc.flightPlanInterface.active;
+    this.speedErrorIdent =
+      profile?.isReadyToDisplay && vnavDriver?.isLatAutoControlActive()
+        ? speedErrorWaypoint(
+            waypointSpeedPredictions(profile.waypointPredictions, (index) => {
+              const leg = plan.maybeElementAt(index);
+              return leg && leg.isDiscontinuity === false ? leg.ident : undefined;
+            }),
+            this.speedErrorIdent,
+          )
+        : null;
+    this.apply(
+      this.speedErrorLatch,
+      this.speedErrorIdent !== null ? NXSystemMessages.spdErrorAt.getModifiedMessage(this.speedErrorIdent) : null,
     );
   }
 

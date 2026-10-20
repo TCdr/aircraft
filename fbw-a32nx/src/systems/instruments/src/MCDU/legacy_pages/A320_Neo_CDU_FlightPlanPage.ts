@@ -29,6 +29,7 @@ import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { flightPlanDistanceCell } from './FlightPlanDistanceCell';
 import { formatHhmmss } from '@fmgc/guidance/vnav/rta/TimeConstraint';
+import { destinationFuelAfterTaxi } from '../legacy/VnavTripPrediction';
 
 export const Markers = {
   FPLN_DISCONTINUITY: ['---F-PLN DISCONTINUITY--'],
@@ -1110,7 +1111,11 @@ export class CDUFlightPlanPage {
 
         const fmsGeometryProfile = forActiveOrTemporary ? mcdu.guidanceController?.vnavDriver.mcduProfile : undefined;
         if (fmsGeometryProfile && fmsGeometryProfile.isReadyToDisplay) {
-          const destEfob = fmsGeometryProfile.getRemainingFuelAtDestination();
+          const destEfob = destinationFuelAfterTaxi(
+            fmsGeometryProfile.getRemainingFuelAtDestination(),
+            targetPlan.performanceData.taxiFuel.get(),
+            mcdu.isFlying(),
+          );
 
           if (Number.isFinite(destEfob)) {
             destEFOBCell = (NXUnits.poundsToUser(destEfob) / 1000).toFixed(1);

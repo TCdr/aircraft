@@ -28,7 +28,7 @@ import { dropdownEntryIndex, onDropdownEntry } from '../../../../MsfsAvionicsCom
 import { Vmo } from '@shared/PerformanceConstants';
 import { isLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { RadioButtonColor, RadioButtonGroup } from '../../../../MsfsAvionicsCommon/UiWidgets/RadioButtonGroup';
-import { AltitudeDescriptor, WaypointConstraintType } from '@flybywiresim/fbw-sdk';
+import { AltitudeDescriptor, NXDataStore, WaypointConstraintType } from '@flybywiresim/fbw-sdk';
 import { IconButton } from '../../../../MsfsAvionicsCommon/UiWidgets/IconButton';
 import { FmgcData } from '../../../FMC/fmgc';
 import { CruiseStepEntry } from '@fmgc/flightplanning/CruiseStep';
@@ -45,6 +45,9 @@ import { distanceToTopOfDescent } from '@fmgc/components/fms-messages/TopOfDesce
 import { rtaAllowedAt } from '@fmgc/guidance/vnav/rta/RtaFlightPlanInputs';
 import { A380_RTA_TOLERANCE, rtaTolerances } from '@fmgc/guidance/vnav/rta/RtaMissedMonitor';
 import { sameTimeConstraint, timeErrorSeconds } from '@fmgc/guidance/vnav/rta/TimeConstraint';
+import { formatOptimumStepSavings, optimumStepAreaLabels } from '../../../FMC/A380OptimumStep';
+import { stepPointSecondsFromPresent } from '@fmgc/guidance/vnav/OptimumStep';
+import { FmsErrorType } from '@fmgc/FmsError';
 
 interface MfdFmsFplnVertRevProps extends AbstractMfdPageProps {}
 
@@ -272,6 +275,14 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
   private readonly stepAltsTimes = Array.from(Array(5), () => Subject.create<string>('--:--'));
   private readonly stepAltsIgnored = Array.from(Array(5), () => Subject.create<boolean>(false));
   private readonly stepAltsAboveMaxFl = Array.from(Array(5), () => Subject.create<boolean>(false));
+  /** The step is the inserted optimum step point: its waypoint field shows OPT */
+  private readonly stepAltsIsOptimum = Array.from(Array(5), () => Subject.create<boolean>(false));
+  private readonly stepAltsWptDisplay = Array.from(Array(5), (_, x) =>
+    this.stepAltsIsOptimum[x].map((optimum) => (optimum ? 'none' : 'block')),
+  );
+  private readonly stepAltsOptDisplay = Array.from(Array(5), (_, x) =>
+    this.stepAltsIsOptimum[x].map((optimum) => (optimum ? 'block' : 'none')),
+  );
   private readonly stepAltsMessage = Array.from(Array(5), () => Subject.create<string>(''));
   private readonly stepAltsMessageDisplay = Array.from(Array(5), (_, x) =>
     MappedSubject.create(SubscribableMapFunctions.or(), this.stepAltsIgnored[x], this.stepAltsAboveMaxFl[x]).map((i) =>
@@ -292,6 +303,28 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
 
   private readonly stepAltsScrollDownDisabled = Subject.create(true);
   private readonly stepAltsScrollUpDisabled = Subject.create(true);
+
+  // OPTIMUM STEP POINT area: the step altitude entry without a step in the flight plan, or the step climb searched
+  private readonly optimumStepEntry = Subject.create<number | null>(null);
+  private readonly optimumStepEntryDisplay = Subject.create<'flex' | 'none'>('none');
+  private readonly optimumStepFlightLevel = Subject.create<string>('---');
+  private readonly optimumStepFlightLevelDisplay = Subject.create<'flex' | 'none'>('flex');
+  private readonly optimumStepDistance = Subject.create<string>('');
+  private readonly optimumStepTime = Subject.create<string>('');
+  private readonly optimumStepFuelSign = Subject.create<string>('');
+  private readonly optimumStepFuelSaving = Subject.create<string>('');
+  private readonly optimumStepTimeSign = Subject.create<string>('');
+  private readonly optimumStepTimeSaving = Subject.create<string>('');
+  private readonly optimumStepPredictionsVisibility = Subject.create<'visible' | 'hidden'>('hidden');
+  private readonly optimumStepSavingsVisibility = Subject.create<'visible' | 'hidden'>('hidden');
+  private readonly optimumStepMessage = Subject.create<string>('NO OPTIMUM STEP FOUND');
+  private readonly optimumStepButtonLabel = Subject.create<'INSERT AS OPT' | 'NEW SEARCH' | null>(null);
+  private readonly optimumStepButtonVisible = this.optimumStepButtonLabel.map((label) => label !== null);
+  private readonly optimumStepButtonText = this.optimumStepButtonLabel.map((label) =>
+    label === 'INSERT AS OPT' ? 'INSERT\nAS OPT' : 'NEW\nSEARCH',
+  );
+  private readonly metricWeight = NXDataStore.getSetting('CONFIG_USING_METRIC_UNIT');
+  private readonly weightUnitText = this.metricWeight.map((metric) => (metric ? 'T' : 'KLB'));
 
   protected onNewData(): void {
     const pd = this.loadedFlightPlan?.performanceData;
@@ -682,22 +715,25 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
             this.stepAltsTimes[line].set('--:--');
             this.stepAltsIgnored[line].set(false);
             this.stepAltsAboveMaxFl[line].set(false);
+            this.stepAltsIsOptimum[line].set(false);
 
             break;
           }
 
-          const pred =
+          const profile =
             this.loadedFlightPlanIndex.get() < FlightPlanIndex.Uplink
-              ? this.props.fmcService?.master?.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(
-                  cruiseStepLegIndices[i],
-                )
+              ? this.props.fmcService?.master?.guidanceController?.vnavDriver?.mcduProfile
               : undefined;
+          const pred = profile?.waypointPredictions?.get(cruiseStepLegIndices[i]);
+          const step = cruiseSteps[i];
+          // An optimum step point is before its waypoint
           const wptEta = getEtaFromUtcOrPresent(
-            pred?.secondsFromPresent,
+            profile && pred
+              ? stepPointSecondsFromPresent(profile, pred.distanceFromStart, step.distanceBeforeTermination)
+              : undefined,
             this.activeFlightPhase.get() == FmgcFlightPhase.Preflight,
           );
           const wptIndex = this.availableWaypointsToLegIndex.indexOf(cruiseStepLegIndices[i]);
-          const step = cruiseSteps[i];
 
           this.stepAltsLineVisibility[line].set('visible');
           this.stepAltsWptIndices[line].set(wptIndex !== -1 ? wptIndex : null);
@@ -714,6 +750,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
             this.stepAltsTimes[line].set('--:--');
           }
           this.stepAltsIgnored[line].set(step.isIgnored);
+          this.stepAltsIsOptimum[line].set(step.isOptimum === true);
 
           const estGrossWeight = this.getEstimatedGrossWeightAtIndex(cruiseStepLegIndices[i]);
           this.stepAltsAboveMaxFl[line].set(
@@ -732,7 +769,85 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
             this.stepAltsMessage[line].set('');
           }
         }
+
+        this.updateOptimumStepArea(cruiseSteps.length > 0);
       }
+    }
+  }
+
+  /** The OPTIMUM STEP POINT area (not available for the secondary flight plans) */
+  private updateOptimumStepArea(hasSteps: boolean) {
+    const fmc = this.props.fmcService.master;
+    const planIndex = this.loadedFlightPlanIndex.get();
+    const area =
+      fmc && (planIndex === FlightPlanIndex.Active || planIndex === FlightPlanIndex.Temporary)
+        ? fmc.optimumStep.area(planIndex)
+        : null;
+    const target = area?.target ?? null;
+    const search = area?.search ?? null;
+
+    this.optimumStepEntryDisplay.set(area && !hasSteps ? 'flex' : 'none');
+    this.optimumStepFlightLevelDisplay.set(area && !hasSteps ? 'none' : 'flex');
+    this.optimumStepEntry.set(fmc?.optimumStep.stepAltitudeEntry ?? null);
+    this.optimumStepFlightLevel.set(target ? (target.toAltitude / 100).toFixed(0) : '---');
+
+    // The predictions and savings of the optimum found; an inserted optimum step point shows none
+    const labels = optimumStepAreaLabels(area, hasSteps);
+    const optimum = labels.showOptimum ? search?.optimum ?? null : null;
+    const anchor = search?.anchor ?? null;
+    const profile = fmc?.guidanceController?.vnavDriver?.mcduProfile;
+    const waypointPrediction = optimum && anchor ? profile?.waypointPredictions.get(anchor.legIndex) : undefined;
+    if (profile && anchor && waypointPrediction) {
+      this.setOptimumStepPredictions(
+        waypointPrediction.distanceFromAircraft - anchor.distanceBeforeTermination,
+        stepPointSecondsFromPresent(profile, waypointPrediction.distanceFromStart, anchor.distanceBeforeTermination),
+      );
+    } else {
+      this.optimumStepPredictionsVisibility.set('hidden');
+    }
+
+    if (optimum) {
+      const savings = formatOptimumStepSavings(optimum, this.metricWeight.get());
+      this.optimumStepFuelSign.set(savings.fuelSign);
+      this.optimumStepFuelSaving.set(savings.fuel);
+      this.optimumStepTimeSign.set(savings.timeSign);
+      this.optimumStepTimeSaving.set(savings.time);
+    }
+    this.optimumStepSavingsVisibility.set(optimum ? 'visible' : 'hidden');
+    this.optimumStepMessage.set(labels.message);
+    this.optimumStepButtonLabel.set(labels.button);
+  }
+
+  private setOptimumStepPredictions(distance: number, secondsFromPresent: number | undefined) {
+    this.optimumStepDistance.set(Math.max(0, Math.round(distance)).toFixed(0));
+    this.optimumStepTime.set(
+      getEtaFromUtcOrPresent(secondsFromPresent, this.activeFlightPhase.get() == FmgcFlightPhase.Preflight),
+    );
+    this.optimumStepPredictionsVisibility.set('visible');
+  }
+
+  private onOptimumStepAltitudeEntered(altitude: number | null) {
+    const fmc = this.props.fmcService.master;
+    const crzFl = this.crzFl.get();
+    // The step altitude is at least 100 ft above the cruise level
+    if (altitude !== null && (crzFl === null || altitude < crzFl * 100 + 100)) {
+      fmc?.showFmsErrorMessage(FmsErrorType.EntryOutOfRange);
+      return;
+    }
+    fmc?.optimumStep.enterStepAltitude(altitude);
+    this.updateCruiseSteps();
+  }
+
+  private onOptimumStepButton() {
+    const fmc = this.props.fmcService.master;
+    if (this.optimumStepButtonLabel.get() === 'INSERT AS OPT') {
+      fmc?.optimumStep
+        .insert(this.loadedFlightPlanIndex.get())
+        .then(() => this.updateCruiseSteps())
+        .catch(console.error);
+    } else {
+      fmc?.optimumStep.newSearch(this.loadedFlightPlanIndex.get());
+      this.updateCruiseSteps();
     }
   }
 
@@ -775,6 +890,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
           {
             distanceBeforeTermination: cruiseStep.distanceBeforeTermination,
             isIgnored: cruiseStep.isIgnored,
+            isOptimum: cruiseStep.isOptimum,
             toAltitude: cruiseStep.toAltitude,
             waypointIndex: cruiseStepLegIndex, // Fix waypointIndex
           },
@@ -1156,6 +1272,8 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
         this.stepAltsMessageDisplay[i],
         this.stepAltsNoMessageDisplay[i],
         this.stepAltsDistancesFormatted[i],
+        this.stepAltsWptDisplay[i],
+        this.stepAltsOptDisplay[i],
       );
     }
 
@@ -2023,7 +2141,21 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
                         {[0, 1, 2, 3, 4].map((li) => (
                           <>
                             <div class="fc aic jcc">
-                              <div style={{ visibility: this.stepAltsLineVisibility[li] }}>
+                              <div
+                                class="mfd-value"
+                                style={{
+                                  visibility: this.stepAltsLineVisibility[li],
+                                  display: this.stepAltsOptDisplay[li],
+                                }}
+                              >
+                                OPT
+                              </div>
+                              <div
+                                style={{
+                                  visibility: this.stepAltsLineVisibility[li],
+                                  display: this.stepAltsWptDisplay[li],
+                                }}
+                              >
                                 <DropdownMenu
                                   idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_stepAltWpt${li}`}
                                   selectedIndex={this.stepAltsWptIndices[li]}
@@ -2131,15 +2263,67 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
                       <div class="mfd-fms-fpln-labeled-box-label">
                         <span class="mfd-label">OPTIMUM STEP POINT</span>
                       </div>
-                      <div class="fr aic" style="margin: 25px 200px 0px 10px;">
-                        <span class="mfd-label" style="margin-right: 10px;">
-                          TO
-                        </span>
-                        <span class="mfd-label-unit mfd-unit-leading">FL</span>
-                        <span class={{ 'mfd-value': true, sec: this.secActive }}>---</span>
-                      </div>
-                      <div class="mfd-label" style="margin-top: 60px; margin-bottom: 30px;">
-                        NO OPTIMUM STEP FOUND
+                      <div class="mfd-fcom-canvas" style="margin: -15px; height: 152px;">
+                        {fcomAt(55, 10, <span class="mfd-label">TO</span>)}
+                        <div style={{ display: this.optimumStepEntryDisplay }}>
+                          {fcomAt(
+                            55,
+                            56,
+                            <InputField<number>
+                              dataEntryFormat={new AltitudeOrFlightLevelFormat(this.transitionAltitude)}
+                              value={this.optimumStepEntry}
+                              containerStyle="width: 153px;"
+                              alignText="center"
+                              tmpyActive={this.tmpyActive}
+                              onModified={(altitude) => this.onOptimumStepAltitudeEntered(altitude)}
+                              errorHandler={(e) => this.props.fmcService.master?.showFmsErrorMessage(e.type, e.details)}
+                              hEventConsumer={this.props.mfd.hEventConsumer}
+                              interactionMode={this.props.mfd.interactionMode}
+                            />,
+                          )}
+                        </div>
+                        <div style={{ display: this.optimumStepFlightLevelDisplay }}>
+                          {fcomAt(55, 60, [
+                            <span class="mfd-label-unit mfd-unit-leading">FL</span>,
+                            <span class={{ 'mfd-value': true, bigger: true, sec: this.secActive }}>
+                              {this.optimumStepFlightLevel}
+                            </span>,
+                          ])}
+                        </div>
+                        <div style={{ visibility: this.optimumStepPredictionsVisibility }}>
+                          {fcomRight(55, 566, [
+                            <span class="mfd-value bigger">{this.optimumStepDistance}</span>,
+                            <span class="mfd-label-unit mfd-unit-trailing">NM</span>,
+                          ])}
+                          {fcomAt(55, 615, <span class="mfd-value bigger">{this.optimumStepTime}</span>)}
+                        </div>
+                        {fcomCentre(88, 364, <span class="mfd-label">{this.optimumStepMessage}</span>)}
+                        <div style={{ visibility: this.optimumStepSavingsVisibility }}>
+                          {fcomAt(114, 97, [optimumStepDelta(), <span class="mfd-label">FUEL</span>])}
+                          {fcomAt(114, 187, <span class="mfd-value bigger">{this.optimumStepFuelSign}</span>)}
+                          {fcomRight(114, 332, [
+                            <span class="mfd-value bigger">{this.optimumStepFuelSaving}</span>,
+                            <span class="mfd-label-unit mfd-unit-trailing">{this.weightUnitText}</span>,
+                          ])}
+                          {fcomAt(114, 354, [optimumStepDelta(), <span class="mfd-label">TIME</span>])}
+                          {fcomAt(114, 438, <span class="mfd-value bigger">{this.optimumStepTimeSign}</span>)}
+                          {fcomAt(114, 467, <span class="mfd-value bigger">{this.optimumStepTimeSaving}</span>)}
+                        </div>
+                        {fcomRight(
+                          120,
+                          721,
+                          <Button
+                            label={
+                              <span class="fr aic">
+                                <span style="white-space: pre; text-align: center;">{this.optimumStepButtonText}</span>
+                                <span style="margin-left: 12px;">*</span>
+                              </span>
+                            }
+                            visible={this.optimumStepButtonVisible}
+                            onClick={() => this.onOptimumStepButton()}
+                            buttonStyle="min-width: 132px; min-height: 59px;"
+                          />,
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2183,4 +2367,17 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
       )
     );
   }
+}
+
+/**
+ * The delta sign of the savings labels, which the display font does not have. A plain function called in render, not a
+ * JSX component: FSComponent constructs every JSX function with new and calls render() on it, so a function returning
+ * a VNode throws and the whole MFD stays black.
+ */
+function optimumStepDelta(): VNode {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" style="margin-right: 2px;">
+      <path d="M7 2 L13 13 L1 13 Z" fill="none" stroke="#ffffff" stroke-width="1.5" />
+    </svg>
+  );
 }

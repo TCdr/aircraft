@@ -1846,14 +1846,15 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     this.incrementVersion();
   }
 
-  addOrUpdateCruiseStep(index: number, toAltitude: number) {
+  addOrUpdateCruiseStep(index: number, toAltitude: number, distanceBeforeTermination = 0, isOptimum = false) {
     const leg = this.legElementAt(index);
 
     leg.cruiseStep = {
-      distanceBeforeTermination: 0,
+      distanceBeforeTermination,
       toAltitude,
       waypointIndex: index,
       isIgnored: false,
+      isOptimum,
     };
     this.sendEvent('flightPlan.setLegCruiseStep', {
       syncClientID: this.context.syncClientID,

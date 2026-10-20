@@ -814,6 +814,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MCDU] RTA page: time constraint entry (HHMMSS, +HHMMSS, -HHMMSS) through a temporary flight plan, ETA, RTA ERROR, managed RTA speed and active speed mode, computed ETT; the F-PLN time column shows the RTA star and PERF shows RTA CI - @TCdr
 1. [A32NX/FMS] RTA speed control: the managed speeds move between green dot and VMO - 10 kt / MMO - 0.02 to meet the time constraint, with RTA DELETED, RTA EXISTS, BLOCK IGNORES RTA, SETTING SPD/RTA and TIME ERROR AT messages - @TCdr
 1. [A380X/FMS] RTA speed control on the RTA panel (RTA SPD), RTA changes through a temporary flight plan, automatic RTA deletion, computed ETT and the ADJUSTING SPD DUE TO RTA, RTA DELETED, TIME ERROR AT, RTA ALREADY EXISTING and RTA NOT CONSIDERED FOR FUEL PLANNING messages; the F-PLN shows the time constraint star - @TCdr
+1. [A32NX/MCDU] STEP ALTS page computes the optimum step point (OPT STEP) with its time and fuel savings, insertable as an (OPT) step - @TCdr
+1. [A380X/MFD] STEP ALTs panel computes the optimum step point with its fuel and time savings (NEW SEARCH, INSERT AS OPT) - @TCdr
+1. [A32NX/MCDU] NO VERT PATH INTERCEPT, SPD ERROR AT and SET GREEN DOT SPEED messages - @TCdr
+1. [A380X/MFD] SPD ERROR AT message when a speed constraint will be missed by more than 10 kt - @TCdr
+1. [A32NX/MCDU] Trip fuel and time on INIT B and FUEL PRED from the flight plan predictions (fuel table only before they exist) - @TCdr
+1. [A380X/ND] Vertical display shows the FLS beam of a non precision approach - @TCdr
 
 ## 2024.1.0
 

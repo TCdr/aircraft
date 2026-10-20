@@ -117,6 +117,7 @@ export const NXSystemMessages = {
   selectDesiredSystem: new TypeIMessage('SELECT DESIRED SYSTEM'), // FIXME move out of FMS (is part of MCDU itself)
   // the FUEL PRED FOB sensors selected (or the FF sensor of a FOB entry) are invalid
   sensorIsInvalid: new TypeIMessage('SENSOR IS INVALID'),
+  setGreenDotSpeed: new TypeIIMessage('SET GREEN DOT SPEED'),
   setHoldSpeed: new TypeIIMessage('SET HOLD SPEED'),
   setManagedSpeed: new TypeIIMessage('SET MANAGED SPEED'),
   // the FMS changes the managed speed target to meet the RTA

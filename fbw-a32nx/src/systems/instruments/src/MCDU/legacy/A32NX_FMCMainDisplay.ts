@@ -89,6 +89,10 @@ import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { FmsFormatters } from './FmsFormatters';
 import { progRecMaxFlightLevel, REC_MAX_FL_LVAR, recMaxFlightLevelLVarValue } from './RecMaxFlightLevel';
 import { ProgOptimumFlightLevelCache } from './OptimumFlightLevel';
+import { isSetGreenDotSpeed } from '../../PFD/FmaLine3Messages';
+import { VerticalMode } from '@shared/autopilot';
+import { VnavTrip, vnavTripPrediction } from './VnavTripPrediction';
+import { VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { NavigationDatabase, NavigationDatabaseBackend } from '@fmgc/NavigationDatabase';
 import { FlightPhaseManager } from '@fmgc/flightphase';
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
@@ -295,6 +299,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   private destinationLongitude = undefined;
   /** Speed in KCAS when the first engine failed during takeoff */
   private setManagedSpeedMessageActive = false;
+  private setGreenDotSpeedMessageActive = false;
   public perfClbPredToAltitudePilot = undefined;
   public perfDesPredToAltitudePilot = undefined;
 
@@ -1343,6 +1348,32 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     }
   }
 
+  /**
+   * SET GREEN DOT SPEED on the MCDU: the rule of the PFD message (isSetGreenDotSpeed) on the FMS data (engine-out in
+   * flight, the FMA vertical mode for ALT / ALT*)
+   */
+  private updateSetGreenDotSpeedMessage(): void {
+    const word5 = this.fmgcDiscreteWord5.get();
+    const verticalMode = SimVar.GetSimVarValue('L:A32NX_FMA_VERTICAL_MODE', 'number');
+    const fcuSelectedSpeed = Arinc429Word.fromSimVarValue('L:A32NX_FCU_SELECTED_AIRSPEED');
+    const active = isSetGreenDotSpeed({
+      engineOut: !this.isOnGround() && !this.isAllEngineOn(),
+      speedSelected: word5.isNormalOperation() && !(word5.bitValueOr(19, false) && !word5.bitValueOr(20, false)),
+      fcuSelectedSpeedKt: fcuSelectedSpeed.isNormalOperation() ? fcuSelectedSpeed.value : null,
+      greenDotKt: this.computedVgd > 0 ? this.computedVgd : null,
+      altOrAltStarActive: [
+        VerticalMode.ALT,
+        VerticalMode.ALT_CPT,
+        VerticalMode.ALT_CST,
+        VerticalMode.ALT_CST_CPT,
+      ].includes(verticalMode),
+    });
+    if (active && !this.setGreenDotSpeedMessageActive) {
+      this.addMessageToQueue(NXSystemMessages.setGreenDotSpeed, () => !this.setGreenDotSpeedMessageActive);
+    }
+    this.setGreenDotSpeedMessageActive = active;
+  }
+
   private getManagedTargets(v, m) {
     //const vM = _convertMachToKCas(m, _convertCtoK(Simplane.getAmbientTemperature()), SimVar.GetSimVarValue("AMBIENT PRESSURE", "millibar"));
     const vM = SimVar.GetGameVarValue('FROM MACH TO KIAS', 'number', m);
@@ -1489,6 +1520,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     let isMach = false;
 
     this.updateHoldingSpeed();
+    this.updateSetGreenDotSpeedMessage();
     this.clearCheckSpeedModeMessage();
 
     if (this.holdDecelReached) {
@@ -5606,7 +5638,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
     const alternateFuel = plan.performanceData.pilotAlternateFuel.get() ?? computations.alternateFuel;
 
-    // Route trip
+    // Route trip: from the VNAV predictions of the active flight plan, else from the fuel table
+    const vnavTrip = forPlan === FlightPlanIndex.Active ? this.activeVnavTrip() : null;
     const groundDistance = this.getDistanceToDestination(forPlan) ?? -1;
     const airDistance = A32NX_FuelPred.computeAirDistance(
       groundDistance,
@@ -5619,7 +5652,10 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
         ? SimVar.GetSimVarValue('PLANE ALTITUDE', 'Feet') / 100
         : plan.performanceData.cruiseFlightLevel.get();
 
-    if (20 <= airDistance && airDistance <= 3100 && 100 <= altToUse && altToUse <= 390) {
+    if (vnavTrip !== null) {
+      computations.tripFuel = vnavTrip.tripFuel;
+      computations.tripTime = vnavTrip.tripTime;
+    } else if (20 <= airDistance && airDistance <= 3100 && 100 <= altToUse && altToUse <= 390) {
       const deviation =
         (zfw + (finalHoldingFuel ?? 0) + (alternateFuel ?? 0) - A32NX_FuelPred.refWeight) *
         A32NX_FuelPred.computeNumbers(airDistance, altToUse, A32NX_FuelPred.computations.CORRECTIONS, false);
@@ -5697,6 +5733,21 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     this.updateAmberEfob();
 
     return computations;
+  }
+
+  /** The trip fuel and time of the active flight plan from the VNAV predictions, null before they exist */
+  private activeVnavTrip(): VnavTrip | null {
+    const profile = this.guidanceController?.vnavDriver.mcduProfile;
+    if (!profile?.isReadyToDisplay) {
+      return null;
+    }
+    const destination = this.guidanceController.vnavDriver.getDestinationPrediction();
+    const start = profile.findVerticalCheckpoint(VerticalCheckpointReason.PresentPosition) ?? profile.checkpoints[0];
+    return vnavTripPrediction(
+      start?.remainingFuelOnBoard,
+      destination?.estimatedFuelOnBoard,
+      destination?.secondsFromPresent,
+    );
   }
 
   public resetFuelPredComputation(forPlan: FlightPlanIndex): FuelPredComputations {

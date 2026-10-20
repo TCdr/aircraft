@@ -414,6 +414,22 @@ export class EconSpeeds {
   }
 
   /**
+   * Fuel of a cruise climb on top of the level flight fuel, in pounds: the engines give the work of the weight over the
+   * height at the cruise TSFC (excess thrust x TAS = weight x vertical speed).
+   * @param altitudeGain in feet
+   */
+  static climbFuel(
+    aircraft: EconAircraftParameters,
+    mach: number,
+    conditions: EconFlightConditions,
+    altitudeGain: number,
+  ): number {
+    const { theta } = EconSpeeds.atmosphere(conditions);
+    const feetPerHour = Common.machToTAS(mach, theta) * 6076.12;
+    return (EconSpeeds.tsfc(aircraft, mach, theta) * conditions.weight * Math.max(0, altitudeGain)) / feetPerHour;
+  }
+
+  /**
    * The climb (descent) speed of minimum cost for the altitude change. Climbing (descending) over a ground distance
    * replaces the same distance of cruise, so the cost per foot of altitude is
    * (cost per ground mile in climb - cost per ground mile in cruise) x ground distance per foot.
