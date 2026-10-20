@@ -180,6 +180,7 @@ import {
   VCS_CABIN_AIR_EXTRACT_VLV_FAULT_BIT,
 } from './FwsAirCondAlerts';
 import { ElecSystemAlerts, readElecSystemInputs } from './FwsElecSystemAlerts';
+import { FctlSensorAlerts } from './FwsFctlSensorAlerts';
 import { ElecDriveOilAlerts, readDriveOilInputs } from './FwsElecDriveOilAlerts';
 import {
   areDoorsInTakeoffConfig,
@@ -1354,6 +1355,9 @@ export class FwsCore {
 
   /** ELEC alerts of the battery, EXT PWR, RAT generator, TR monitoring and drive failures (FwsElecSystemAlerts) */
   public readonly elecSystemAlerts = new ElecSystemAlerts();
+
+  /** F/CTL alerts of the sidesticks, rudder pedals, rudder trim, spoilers and PRIM/SEC sensors (FwsFctlSensorAlerts) */
+  public readonly fctlSensorAlerts = new FctlSensorAlerts();
 
   /** ELEC DRIVE OIL LEVEL LO, OIL OVHT and OIL PRESS LO (FwsElecDriveOilAlerts) */
   public readonly elecDriveOilAlerts = new ElecDriveOilAlerts();
@@ -3123,6 +3127,7 @@ export class FwsCore {
     SubscribableMapFunctions.or(),
     this.engineOutBtvInop,
     this.reverserBtvInop,
+    this.fctlSensorAlerts.btvInop,
   );
   public readonly phase12561112Inhibition = [1, 2, 5, 6, 11, 12];
 
@@ -6722,6 +6727,18 @@ export class FwsCore {
     this.rudderTrimNotToAudio.set(rudderTrimConfigTestInPhase129 || rudderTrimConfigInPhase3or4or5);
     this.rudderTrimNotToWarning.set(rudderTrimConfigTestInPhase129 || this.rudderTrimConfigInPhase3or4or5Sr.read());
 
+    this.fctlSensorAlerts.update({
+      flightPhase,
+      toConfigTest: this.toConfigTestHeldMin1s5Pulse.get(),
+      taxiInFlapsLever0For1Min: this.taxiInFlapsLever0For1Min.get(),
+      primHealthy: [this.prim1Healthy.get(), this.prim2Healthy.get(), this.prim3Healthy.get()],
+      secHealthy: [this.sec1Healthy.get(), this.sec2Healthy.get(), this.sec3Healthy.get()],
+      captTakeoverPbPressed: SimVar.GetSimVarValue('L:A32NX_PRIORITY_TAKEOVER:1', SimVarValueType.Bool) > 0,
+      foTakeoverPbPressed: SimVar.GetSimVarValue('L:A32NX_PRIORITY_TAKEOVER:2', SimVarValueType.Bool) > 0,
+      deltaTimeSeconds: deltaTime / 1000,
+      isFailureActive: (failure) => this.failuresConsumer.isActive(failure),
+    });
+
     const validCas = [this.adr1Cas.get(), this.adr2Cas.get(), this.adr3Cas.get()].find((cas) =>
       cas.isNormalOperation(),
     );
@@ -7904,6 +7921,7 @@ export class FwsCore {
         pitchTrimFmsCgDisagree: this.pitchTrimMcduCgDisagree.get(),
         toFlapsFmsDisagree: this.flapsMcduDisagree.get(),
         toSpeedsAlert: !speeds,
+        sidestickDeactivatedByTakeover: this.fctlSensorAlerts.sidestickDeactivatedByTakeover(),
       });
 
       this.toConfigNormal.set(this.toConfigNormalConf.write(toConfigNormal, deltaTime));

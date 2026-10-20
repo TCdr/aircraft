@@ -26,14 +26,14 @@ import {
 export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
   // ATA 27: F/CTL
   271800001: {
-    title: '\x1b<4m\x1b4mCONFIG\x1bm L SIDESTICK FAULT (BY TAKE-OVER)',
+    title: '\x1b<2m\x1b4mCONFIG\x1bm L SIDESTICK FAULT (BY TAKE-OVER)',
     sensed: true,
-    items: [],
+    items: [{ name: 'L TAKEOVER', labelNotCompleted: 'DEPRESS', sensed: false }],
   },
   271800002: {
-    title: '\x1b<4m\x1b4mCONFIG\x1bm R SIDESTICK FAULT (BY TAKE-OVER)',
+    title: '\x1b<2m\x1b4mCONFIG\x1bm R SIDESTICK FAULT (BY TAKE-OVER)',
     sensed: true,
-    items: [],
+    items: [{ name: 'R TAKEOVER', labelNotCompleted: 'DEPRESS', sensed: false }],
   },
   271800003: {
     title: '\x1b<2m\x1b4mCONFIG\x1bm PITCH TRIM NOT IN T.O RANGE',
@@ -141,7 +141,10 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
   271800016: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm GND SPLRs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'LDG DIST AFFECTED', sensed: false },
+      { name: 'AUTO BRK : DO NOT USE', sensed: false },
+    ],
   },
   271800017: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm GND SPLRs NOT ARMED',
@@ -211,12 +214,18 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
   271800030: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm PART SPLRs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'FOR TAXI : FLAPS SELECT CONF 1+F', sensed: false },
+      { name: 'LDG DIST AFFECTED', sensed: false },
+    ],
   },
   271800031: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm MOST SPLRs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'FOR TAXI : FLAPS SELECT CONF 1+F', sensed: false },
+      { name: 'LDG DIST AFFECTED', sensed: false },
+    ],
   },
   271800032: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm PITCH TRIM/FMS/CG DISAGREE',
@@ -375,7 +384,10 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
   271800050: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm RUDDER PEDAL FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'AP : KEEP ON', sensed: false },
+      { name: 'LDG DIST AFFECTED', sensed: false },
+    ],
   },
   271800052: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm RUDDER PEDAL SENSOR FAULT',
@@ -454,7 +466,7 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
     ],
   },
   271800063: {
-    title: '\x1b<4m\x1b4mF/CTL\x1bm SPD BRKs FAULT',
+    title: '\x1b<4m\x1b4mF/CTL\x1bm SPEED BRAKES FAULT',
     sensed: true,
     items: [],
   },
@@ -556,6 +568,16 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
   },
   271800072: {
     title: '\x1b<4mTAIL STRIKE DET FAULT',
+    sensed: true,
+    items: [],
+  },
+  271800073: {
+    title: '\x1b<4m\x1b4mF/CTL\x1bm SIDESTICK PRIORITY FAULT',
+    sensed: true,
+    items: [],
+  },
+  271800074: {
+    title: '\x1b<4m\x1b4mF/CTL\x1bm DOUBLE RUDDER PRESS SENSOR FAULT',
     sensed: true,
     items: [],
   },
@@ -887,6 +909,31 @@ export const EcamDeferredProcAta27: { [n: number]: DeferredProcedure } = {
       { name: 'LDG PERF COMPUTATION', labelNotCompleted: 'CONFIRM', sensed: false },
       { name: 'INITIATE FLARE AT 50FT', sensed: false },
     ],
+  },
+  270700002: {
+    fromAbnormalProcs: ['271800016'],
+    title: 'GND SPLRs FAULT',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [{ name: 'LDG DIST COMPUTATION', labelNotCompleted: 'CONFIRM', sensed: false }],
+  },
+  270700003: {
+    fromAbnormalProcs: ['271800050'],
+    title: 'RUDDER PEDAL FAULT',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'LDG DIST COMPUTATION', labelNotCompleted: 'CONFIRM', sensed: false },
+      { name: 'AUTOLAND : RECOMMENDED', sensed: false },
+      { name: 'AUTO BRK : DO NOT USE', sensed: false },
+      { name: 'USE DIFF BRAKING AS RQRD', sensed: false },
+      { name: 'N/W STEER TILLER (< 70 KT)', labelNotCompleted: 'AS RQRD', sensed: false },
+      { name: 'REVERSER : SYMMETRIC USE ONLY', sensed: false },
+    ],
+  },
+  270700004: {
+    fromAbnormalProcs: ['271800031'],
+    title: 'MOST SPLRs FAULT',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [{ name: 'LDG DIST COMPUTATION', labelNotCompleted: 'CONFIRM', sensed: false }],
   },
   270700001: {
     fromAbnormalProcs: ['270900002'],

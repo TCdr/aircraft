@@ -42,6 +42,19 @@ FailuresConsumer::FailuresConsumer() {
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Prim1RudderActuatorControl, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Prim2RudderActuatorControl, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Prim3RudderActuatorControl, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::CaptSidestick, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::FoSidestick, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::RudderPedalTransducers, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::RudderTrimMotor1, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::RudderTrimMotor2, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::PrimWheelSpeedInputs, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::SpeedBrakesLever, false));
+  for (Failures spoiler : {Failures::LeftSpoiler1Actuator, Failures::LeftSpoiler2Actuator, Failures::LeftSpoiler3Actuator, Failures::LeftSpoiler4Actuator,
+                           Failures::LeftSpoiler5Actuator, Failures::LeftSpoiler6Actuator, Failures::LeftSpoiler7Actuator, Failures::LeftSpoiler8Actuator,
+                           Failures::RightSpoiler1Actuator, Failures::RightSpoiler2Actuator, Failures::RightSpoiler3Actuator, Failures::RightSpoiler4Actuator,
+                           Failures::RightSpoiler5Actuator, Failures::RightSpoiler6Actuator, Failures::RightSpoiler7Actuator, Failures::RightSpoiler8Actuator}) {
+    activeFailures.emplace(spoiler, false);
+  }
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng1MaxThrustMiscalculated, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng2MaxThrustMiscalculated, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng3MaxThrustMiscalculated, false));

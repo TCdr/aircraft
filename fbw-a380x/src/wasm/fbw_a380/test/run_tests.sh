@@ -55,3 +55,11 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src -I ../src/model prim_a
   ../src/model/A380SecComputer.cpp ../src/model/A380SecComputer_data.cpp ../src/model/A380LateralDirectLaw.cpp \
   ../src/model/A380PitchDirectLaw.cpp ../src/Arinc429Utils.cpp -o ../obj/prim_actuator_control_test
 ../obj/prim_actuator_control_test
+# Sidestick, rudder pedal, rudder trim motor, speed brakes lever, PRIM wheel speed and spoiler failures (flyPad ATA 27): the
+# inputs of the PRIMs and SECs and the spoiler orders (FlightControlInputFailures.h), with the generated A380PrimComputerFctl
+# model for the ground spoilers. With WITHOUT_THE_FIX=1 the inputs are the ones before the failures and the test must fail.
+# The PRIM model needs the generated law models, so the whole model folder is built, without -Werror: the generated code
+# has warnings of its own (unused variables, unhandled enum values).
+clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model flight_control_input_failures_test.cpp ../src/model/*.cpp \
+  -o ../obj/flight_control_input_failures_test
+../obj/flight_control_input_failures_test

@@ -31,12 +31,9 @@ export interface ToConfigState {
    * same test on the EWD.
    */
   readonly toSpeedsAlert: boolean;
+  /** CONFIG L(R) SIDESTICK FAULT (BY TAKE-OVER): a sidestick deactivated by a take-over (FwsFctlSensorAlerts) */
+  readonly sidestickDeactivatedByTakeover: boolean;
 }
-
-/*
- * Not checked: CONFIG L(R) SIDESTICK FAULT (BY TAKE-OVER). The FWS has its message (ata27.ts 271800001/2)
- * but no trigger: the sim has no sidestick take-over fault.
- */
 
 /**
  * Whether the T.O CONFIG test is successful (T.O CONFIG NORMAL): none of the alerts of the test is triggered.
@@ -55,6 +52,7 @@ export function isToConfigNormal(state: ToConfigState): boolean {
     !elecAlert &&
     !anyTrue(state.engineOilTempLo) &&
     !fmsDisagree &&
-    !state.toSpeedsAlert
+    !state.toSpeedsAlert &&
+    !state.sidestickDeactivatedByTakeover
   );
 }

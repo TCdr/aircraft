@@ -19,6 +19,7 @@ describe('A380 T.O CONFIG NORMAL', () => {
     pitchTrimFmsCgDisagree: false,
     toFlapsFmsDisagree: false,
     toSpeedsAlert: false,
+    sidestickDeactivatedByTakeover: false,
   };
 
   it('is shown with no alert of the list', () => {
@@ -48,6 +49,10 @@ describe('A380 T.O CONFIG NORMAL', () => {
     expect(isToConfigNormal({ ...normal, brakesHot: true })).toBe(false);
     expect(isToConfigNormal({ ...normal, toFlapsFmsDisagree: true })).toBe(false);
     expect(isToConfigNormal({ ...normal, toSpeedsAlert: true })).toBe(false);
+  });
+
+  it('is not shown with CONFIG L(R) SIDESTICK FAULT (BY TAKE-OVER)', () => {
+    expect(isToConfigNormal({ ...normal, sidestickDeactivatedByTakeover: true })).toBe(false);
   });
 
   it('FwsCore uses the A380 list, not the A320 GEN 1+2 potential check', () => {

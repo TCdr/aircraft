@@ -154,6 +154,7 @@ import {
   lgCtl12PfdLimitations,
 } from './FwsGearAlerts';
 import { directLawInfo, directLawInopSysAllPhases, lawInopSysApprLdg } from './FwsFctlAlerts';
+import { fctlSensorAbnormalItems, fctlSensorDeferredItems } from './FwsFctlSensorAlerts';
 import {
   ALL_ENG_FLAME_OUT_INHIBITED_PHASES,
   ENG_FAIL_FLIGHT_PHASE_INHIBITION,
@@ -4515,6 +4516,8 @@ export class FwsAbnormalSensed {
     ...this.smokeAlerts(),
 
     // ATA 27 - FLIGHT CONTROLS
+    // Sidestick, rudder pedal, rudder trim, spoiler and PRIM/SEC sensor alerts, see FwsFctlSensorAlerts
+    ...fctlSensorAbnormalItems(this.fws.fctlSensorAlerts),
     271800003: {
       // PITCH TRIM NOT IN TO RANGE
       flightPhaseInhib: [5, 6, 7, 8, 9, 10, 12],
@@ -9633,6 +9636,7 @@ export class FwsAbnormalSensed {
   };
 
   public ewdDeferredProcs: EwdAbnormalDict = {
+    ...fctlSensorDeferredItems(),
     210700001: {
       flightPhaseInhib: [],
       simVarIsActive: Subject.create(true),
