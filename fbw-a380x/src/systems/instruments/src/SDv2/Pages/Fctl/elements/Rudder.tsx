@@ -6,11 +6,11 @@ import {
   MappedSubject,
   Subject,
   Subscribable,
-  SubscribableMapFunctions,
 } from '@microsoft/msfs-sdk';
 import { EbhaActuatorIndication, ElecPowerSource, HydraulicPowerSource } from './ActuatorIndication';
 import { HORIZONTAL_MAX_DEFLECTION, HorizontalDeflectionIndication } from './HorizontalDeflectionIndicator';
 import { SDSimvars } from '../../../SDSimvarPublisher';
+import { actuatorFailedTopic, isEbhaOperative, isSurfaceControlled } from './ActuatorStatus';
 
 export enum RudderPosition {
   Upper = 'upper',
@@ -58,31 +58,59 @@ export class Rudder extends DisplayComponent<RudderProps> {
     false,
   );
 
-  private readonly powerSource1Avail = MappedSubject.create(
-    ([elecAcEssAvailable, hydYellowAvailable, hydGreenAvailable]) =>
-      this.props.position === RudderPosition.Upper
-        ? elecAcEssAvailable || hydYellowAvailable
-        : elecAcEssAvailable || hydGreenAvailable,
-    this.elecAcEssAvailable,
-    this.hydYellowAvailable,
-    this.hydGreenAvailable,
+  /** EBHA 1 is the top one of the rudder: YELLOW on the upper rudder, GREEN on the lower rudder */
+  private readonly ebha1Failed = ConsumerSubject.create(
+    this.props.bus.getSubscriber<SDSimvars>().on(actuatorFailedTopic(`${this.props.position}Rudder`, 1)),
+    false,
   );
 
-  private readonly powerSource2Avail = MappedSubject.create(
-    ([elecAcEhaAvailable, elecAc1Available, hydYellowAvailable, hydGreenAvailable]) =>
-      this.props.position === RudderPosition.Upper
-        ? elecAcEhaAvailable || hydGreenAvailable
-        : elecAc1Available || hydYellowAvailable,
-    this.elecAcEhaAvailable,
-    this.elecAc1Available,
-    this.hydYellowAvailable,
-    this.hydGreenAvailable,
+  private readonly ebha2Failed = ConsumerSubject.create(
+    this.props.bus.getSubscriber<SDSimvars>().on(actuatorFailedTopic(`${this.props.position}Rudder`, 2)),
+    false,
   );
+
+  private readonly ebha1ElecPartFailed = ConsumerSubject.create(
+    this.props.bus.getSubscriber<SDSimvars>().on(`${this.props.position}RudderActuator1ElecPartFailed`),
+    false,
+  );
+
+  private readonly ebha2ElecPartFailed = ConsumerSubject.create(
+    this.props.bus.getSubscriber<SDSimvars>().on(`${this.props.position}RudderActuator2ElecPartFailed`),
+    false,
+  );
+
+  private readonly ebha1HydAvailable =
+    this.props.position === RudderPosition.Upper ? this.hydYellowAvailable : this.hydGreenAvailable;
+
+  private readonly ebha2HydAvailable =
+    this.props.position === RudderPosition.Upper ? this.hydGreenAvailable : this.hydYellowAvailable;
+
+  private readonly ebha2ElecAvailable =
+    this.props.position === RudderPosition.Upper ? this.elecAcEhaAvailable : this.elecAc1Available;
 
   private readonly powerSourceAvail = MappedSubject.create(
-    SubscribableMapFunctions.or(),
-    this.powerSource1Avail,
-    this.powerSource2Avail,
+    ([
+      ebha1HydAvailable,
+      ebha2HydAvailable,
+      elecAcEssAvailable,
+      ebha2ElecAvailable,
+      ebha1Failed,
+      ebha2Failed,
+      ebha1ElecPartFailed,
+      ebha2ElecPartFailed,
+    ]) =>
+      isSurfaceControlled(
+        isEbhaOperative(ebha1HydAvailable, elecAcEssAvailable, ebha1Failed, ebha1ElecPartFailed),
+        isEbhaOperative(ebha2HydAvailable, ebha2ElecAvailable, ebha2Failed, ebha2ElecPartFailed),
+      ),
+    this.ebha1HydAvailable,
+    this.ebha2HydAvailable,
+    this.elecAcEssAvailable,
+    this.ebha2ElecAvailable,
+    this.ebha1Failed,
+    this.ebha2Failed,
+    this.ebha1ElecPartFailed,
+    this.ebha2ElecPartFailed,
   );
 
   render() {
@@ -103,10 +131,10 @@ export class Rudder extends DisplayComponent<RudderProps> {
             this.props.position === RudderPosition.Upper ? HydraulicPowerSource.Yellow : HydraulicPowerSource.Green
           }
           elecPowerSource={ElecPowerSource.AcEss}
-          hydPowerAvailable={
-            this.props.position === RudderPosition.Upper ? this.hydYellowAvailable : this.hydGreenAvailable
-          }
+          hydPowerAvailable={this.ebha1HydAvailable}
           elecPowerAvailable={this.elecAcEssAvailable}
+          actuatorFailed={this.ebha1Failed}
+          elecPartFailed={this.ebha1ElecPartFailed}
         />
         <EbhaActuatorIndication
           x={-60}
@@ -115,12 +143,10 @@ export class Rudder extends DisplayComponent<RudderProps> {
             this.props.position === RudderPosition.Upper ? HydraulicPowerSource.Green : HydraulicPowerSource.Yellow
           }
           elecPowerSource={this.props.position === RudderPosition.Upper ? ElecPowerSource.AcEha : ElecPowerSource.Ac1}
-          hydPowerAvailable={
-            this.props.position === RudderPosition.Upper ? this.hydGreenAvailable : this.hydYellowAvailable
-          }
-          elecPowerAvailable={
-            this.props.position === RudderPosition.Upper ? this.elecAcEhaAvailable : this.elecAc1Available
-          }
+          hydPowerAvailable={this.ebha2HydAvailable}
+          elecPowerAvailable={this.ebha2ElecAvailable}
+          actuatorFailed={this.ebha2Failed}
+          elecPartFailed={this.ebha2ElecPartFailed}
         />
       </g>
     );

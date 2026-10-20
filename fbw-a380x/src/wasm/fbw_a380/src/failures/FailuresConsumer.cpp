@@ -36,6 +36,12 @@ FailuresConsumer::FailuresConsumer() {
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Sec3, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fcdc1, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fcdc2, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Prim1ElevatorActuatorControl, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Prim2ElevatorActuatorControl, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Prim3ElevatorActuatorControl, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Prim1RudderActuatorControl, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Prim2RudderActuatorControl, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Prim3RudderActuatorControl, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng1MaxThrustMiscalculated, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng2MaxThrustMiscalculated, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng3MaxThrustMiscalculated, false));

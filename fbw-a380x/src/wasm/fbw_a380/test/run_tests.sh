@@ -49,3 +49,9 @@ clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model alpha_floor_mach_inhibi
   ../src/model/look2_binlxpw.cpp ../src/model/plook_binx.cpp ../src/model/binsearch_u32d.cpp \
   ../src/model/intrp3d_l_pw.cpp ../src/model/look2_iflf_binlxpw.cpp -o ../obj/alpha_floor_mach_inhibit_test
 ../obj/alpha_floor_mach_inhibit_test
+# F/CTL PRIM 1(2)(3) ELEVATOR (RUDDER) ACTUATOR FAULT: the PRIM gives up the actuator, the generated A380SecComputer model takes
+# it over (failures/PrimActuatorControlFailures.h). With WITHOUT_THE_FIX=1 the PRIM outputs are kept and the test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src -I ../src/model prim_actuator_control_test.cpp \
+  ../src/model/A380SecComputer.cpp ../src/model/A380SecComputer_data.cpp ../src/model/A380LateralDirectLaw.cpp \
+  ../src/model/A380PitchDirectLaw.cpp ../src/Arinc429Utils.cpp -o ../obj/prim_actuator_control_test
+../obj/prim_actuator_control_test

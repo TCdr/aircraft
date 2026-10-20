@@ -6,8 +6,8 @@ use crate::engine::engine_monitoring_fault::EngineMonitoringFaultKind;
 use crate::integrated_modular_avionics::core_processing_input_output_module::CpiomId;
 use crate::shared::{
     AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType, FireDetectionLoopID,
-    FireDetectionZone, GearActuatorId, HydraulicColor, LgciuId, ProximityDetectorId,
-    SmokeDetectionZone,
+    FireDetectionZone, FlightControlSurface, GearActuatorId, HydraulicColor, LgciuId,
+    ProximityDetectorId, SmokeDetectionZone,
 };
 use crate::simulation::SimulationElement;
 use rustc_hash::FxHashSet;
@@ -112,6 +112,16 @@ pub enum FailureType {
     /// Channel n (1 or 2) of the A320 smoke detection control unit (SDCU): with both channels failed the SDCU reports
     /// neither smoke nor a detector fault (SMOKE DET FAULT)
     SmokeDetectionControlUnitChannel(usize),
+    // ATA27 primary flight controls (A380: a380_systems hydraulic::flight_control_actuator_failures)
+    /// Actuator n (1 or 2) of a flight control surface no longer controls it: it loses its active mode and only
+    /// follows the surface. The other actuator of the surface takes over when it can. For the stabilizer, the
+    /// actuators are its hydraulic motors.
+    FlightControlActuator(FlightControlSurface, usize),
+    /// The electrical part of actuator n (1 or 2) of a flight control surface is failed: an EBHA can no longer work as
+    /// an EHA when its hydraulic system is lost
+    FlightControlActuatorElectricalPart(FlightControlSurface, usize),
+    /// The trimmable horizontal stabilizer is jammed: none of its motors can move it
+    StabilizerJammed,
     // ATA29
     ReservoirLeak(HydraulicColor),
     ReservoirAirLeak(HydraulicColor),

@@ -73,6 +73,7 @@ import { FwsNormalChecklists } from './FwsNormalChecklists';
 import { EwdAbnormalDict, EwdAbnormalItem, FwsAbnormalSensed } from './FwsAbnormalSensed';
 import { FwsAbnormalNonSensed } from './FwsAbnormalNonSensed';
 import { TailStrikeDetector, firstValidPitch } from './FwsTailStrikeAlerts';
+import { FctlActuatorAlertMonitor, readFctlActuatorFailures } from './FwsFctlActuatorAlerts';
 // FIXME should not import from instruments
 import { MfdSurvEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/MfdSurvPublisher';
 import { Mle, Mmo, VfeF1, VfeF1F, VfeF2, VfeF3, VfeFF, Vle, Vmo } from '@shared/PerformanceConstants';
@@ -1695,8 +1696,10 @@ export class FwsCore {
 
   public readonly rudderTrimPosition = Subject.create(0);
 
-  public readonly lowerRudderFault = Subject.create(false);
-  public readonly upperRudderFault = Subject.create(false);
+  public readonly fctlActuators = new FctlActuatorAlertMonitor();
+
+  public readonly lowerRudderFault = this.fctlActuators.lowerRudderFault;
+  public readonly upperRudderFault = this.fctlActuators.upperRudderFault;
 
   public readonly singleRudderFaultCondition = MappedSubject.create(
     SubscribableMapFunctions.or(),
@@ -6719,9 +6722,15 @@ export class FwsCore {
     this.rudderTrimNotToAudio.set(rudderTrimConfigTestInPhase129 || rudderTrimConfigInPhase3or4or5);
     this.rudderTrimNotToWarning.set(rudderTrimConfigTestInPhase129 || this.rudderTrimConfigInPhase3or4or5Sr.read());
 
-    // Rudder faults FIXME add
-    // this.lowerRudderFault.set();
-    // this.upperRudderFault.set();
+    const validCas = [this.adr1Cas.get(), this.adr2Cas.get(), this.adr3Cas.get()].find((cas) =>
+      cas.isNormalOperation(),
+    );
+    this.fctlActuators.update(
+      readFctlActuatorFailures((failure) => this.failuresConsumer.isActive(failure)),
+      [this.prim1Healthy.get(), this.prim2Healthy.get(), this.prim3Healthy.get()],
+      validCas ? validCas.value : null,
+      stabPos,
+    );
 
     // flaps lvr not zero
     this.flapsLeverNotZero.set(

@@ -16,6 +16,7 @@
   - [Flight Controls ATA 27](#flight-controls-ata-27)
     - [Flaps and Slats](#flaps-and-slats)
     - [Electronic Flight Control System EFCS](#electronic-flight-control-system-efcs)
+    - [Primary Surface Actuators](#primary-surface-actuators)
   - [Fuel (ATA 28)](#fuel-ata-28)
   - [Ice and Rain Protection ATA 30](#ice-and-rain-protection-ata-30)
   - [Indicating-Recording ATA 31](#indicating-recording-ata-31)
@@ -1657,6 +1658,27 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Arinc429<knots>
     - number: 1, 2 or 3
     - The speed associated with the stall warning
+
+### Primary Surface Actuators
+
+- A32NX_FCTL_{SURFACE}_ACTUATOR_{N}_FAILED
+    - Boolean
+    - Actuator {N} of the surface is failed (flyPad ATA 27 actuator failures); read by the SD F/CTL page
+    - {SURFACE} = LEFT_OUTER_AILERON, LEFT_MIDDLE_AILERON, LEFT_INNER_AILERON, RIGHT_INNER_AILERON,
+      RIGHT_MIDDLE_AILERON, RIGHT_OUTER_AILERON, LEFT_OUTER_ELEVATOR, LEFT_INNER_ELEVATOR, RIGHT_INNER_ELEVATOR,
+      RIGHT_OUTER_ELEVATOR, UPPER_RUDDER, LOWER_RUDDER, STABILIZER
+    - {N} = 1, 2: outer ailerons GREEN, YELLOW; mid ailerons YELLOW, EHA; inner ailerons GREEN, EHA; elevators the
+      hydraulic actuator (GREEN left, YELLOW right), EHA; upper rudder YELLOW, GREEN EBHA; lower rudder GREEN, YELLOW
+      EBHA; stabilizer GREEN, YELLOW hydraulic motor
+
+- A32NX_FCTL_{RUDDER}_RUDDER_ACTUATOR_{N}_ELEC_PART_FAILED
+    - Boolean
+    - The electrical part of EBHA {N} of the rudder is failed (no EHA mode)
+    - {RUDDER} = UPPER, LOWER
+
+- A32NX_FCTL_STABILIZER_JAMMED
+    - Boolean
+    - The stabilizer is jammed
 
 ### Flaps and Slats
 

@@ -1,4 +1,11 @@
-import { DisplayComponent, FSComponent, Subscribable, SubscribableMapFunctions } from '@microsoft/msfs-sdk';
+import {
+  DisplayComponent,
+  FSComponent,
+  MappedSubject,
+  Subject,
+  Subscribable,
+  SubscribableMapFunctions,
+} from '@microsoft/msfs-sdk';
 
 export enum ActuatorType {
   Conventional,
@@ -31,17 +38,31 @@ interface ActuatorIndicationProps {
   type: ActuatorType;
   powerSource: HydraulicPowerSource | ElecPowerSource;
   powerSourceAvailable: Subscribable<boolean>;
+  actuatorFailed?: Subscribable<boolean>;
+}
+
+/**
+ * @param failed the actuator (or a part of it) is failed
+ * @returns the visibility of its amber frame
+ */
+function failureFrameVisibility(failed: boolean): string {
+  return failed ? 'inherit' : 'hidden';
 }
 
 export class ActuatorIndication extends DisplayComponent<ActuatorIndicationProps> {
   private powerSourceInfoAvail = true;
-  private actuatorFailed = false;
+
+  private readonly actuatorFailed: Subscribable<boolean> = this.props.actuatorFailed ?? Subject.create(false);
 
   render() {
     return (
       <g transform={`translate(${this.props.x} ${this.props.y})`}>
         <path class="Grey Fill" d="m0,0 h 25 v 25 h-25 z" />
-        <path class={`Amber SW3 ${this.actuatorFailed ? '' : 'Hide'}`} d="m0,0 h 25 v 25 h-25 z" />
+        <path
+          class="Amber SW3 NoFill"
+          visibility={this.actuatorFailed.map(failureFrameVisibility)}
+          d="m0,0 h 25 v 25 h-25 z"
+        />
 
         {this.props.type === ActuatorType.Conventional && (
           <text
@@ -81,19 +102,37 @@ interface EbhaActuatorIndicationProps {
   elecPowerSource: ElecPowerSource;
   hydPowerAvailable: Subscribable<boolean>;
   elecPowerAvailable: Subscribable<boolean>;
+  actuatorFailed?: Subscribable<boolean>;
+  elecPartFailed?: Subscribable<boolean>;
 }
 
 export class EbhaActuatorIndication extends DisplayComponent<EbhaActuatorIndicationProps> {
   powerSourceInfoAvail = true;
-  actuatorHydPartFailed = false;
-  actuatorElecPartFailed = false;
+
+  private readonly actuatorFailed: Subscribable<boolean> = this.props.actuatorFailed ?? Subject.create(false);
+
+  private readonly elecPartFailed: Subscribable<boolean> = this.props.elecPartFailed ?? Subject.create(false);
 
   render() {
+    // A failed EBHA has the full amber frame; a failed part has the half frame on its side (hydraulic left, electric
+    // right). The hydraulic part alone cannot fail in the simulation.
     return (
       <g transform={`translate(${this.props.x} ${this.props.y})`}>
         <path class="Grey Fill" d="m0,0 h 40 v 25 h-40 z" />
-        <path class={`Amber SW3 LineRound ${this.actuatorHydPartFailed ? '' : 'Hide'}`} d="m20,0 h -20 v 25 h20" />
-        <path class={`Amber SW3 LineRound ${this.actuatorElecPartFailed ? '' : 'Hide'}`} d="m20,0 h 20 v 25 h-20" />
+        <path
+          class="Amber SW3 LineRound NoFill"
+          visibility={this.actuatorFailed.map(failureFrameVisibility)}
+          d="m20,0 h -20 v 25 h20"
+        />
+        <path
+          class="Amber SW3 LineRound NoFill"
+          visibility={MappedSubject.create(
+            ([actuatorFailed, elecPartFailed]) => failureFrameVisibility(actuatorFailed || elecPartFailed),
+            this.actuatorFailed,
+            this.elecPartFailed,
+          )}
+          d="m20,0 h 20 v 25 h-20"
+        />
 
         <text
           class={{

@@ -9,6 +9,13 @@ import {
   SwitchingPanelVSimVars,
 } from '../MsfsAvionicsCommon/SimVarTypes';
 import { UpdatableSimVarPublisher } from '../MsfsAvionicsCommon/UpdatableSimVarPublisher';
+import {
+  actuatorFailedTopic,
+  FCTL_ACTUATOR_SURFACES,
+  FctlActuatorFailedTopic,
+  FctlEbhaElecPartFailedTopic,
+  surfaceVariableName,
+} from './Pages/Fctl/elements/ActuatorStatus';
 
 // FIXME ideally migrate to singular publishers (split by source)
 export type BaseSDSimvars = AdirsSimVars &
@@ -97,7 +104,8 @@ export type BaseSDSimvars = AdirsSimVars &
     fwcFlightPhase: number;
     /** The ATC function runs (systems host CpiomD/AtcDatalink.ts), for the mailbox MAILBOX NOT AVAIL */
     atcFunctionAvailable: boolean;
-  };
+    stabilizerJammed: boolean;
+  } & { [topic in FctlActuatorFailedTopic | FctlEbhaElecPartFailedTopic]: boolean };
 
 type IndexedTopics =
   | 'condMainDeckTemp'
@@ -113,6 +121,31 @@ type SDIndexedEvents = {
 };
 
 export interface SDSimvars extends BaseSDSimvars, SDIndexedEvents {}
+
+/**
+ * The actuator failures of the primary flight control surfaces, published by the hydraulic system
+ * @returns the simvar definitions
+ */
+export function fctlActuatorFailureSimvars(): [keyof SDSimvars, SimVarPublisherEntry<boolean>][] {
+  const definitions: [keyof SDSimvars, SimVarPublisherEntry<boolean>][] = [];
+  for (const surface of FCTL_ACTUATOR_SURFACES) {
+    for (const actuator of [1, 2] as const) {
+      const variable = `L:A32NX_FCTL_${surfaceVariableName(surface)}_ACTUATOR_${actuator}`;
+      definitions.push([
+        actuatorFailedTopic(surface, actuator),
+        { name: `${variable}_FAILED`, type: SimVarValueType.Bool },
+      ]);
+      if (surface === 'upperRudder' || surface === 'lowerRudder') {
+        definitions.push([
+          `${surface}Actuator${actuator}ElecPartFailed`,
+          { name: `${variable}_ELEC_PART_FAILED`, type: SimVarValueType.Bool },
+        ]);
+      }
+    }
+  }
+  definitions.push(['stabilizerJammed', { name: 'L:A32NX_FCTL_STABILIZER_JAMMED', type: SimVarValueType.Bool }]);
+  return definitions;
+}
 
 /** A publisher to poll and publish nav/com simvars. */
 export class SDSimvarPublisher extends UpdatableSimVarPublisher<SDSimvars> {
@@ -247,6 +280,7 @@ export class SDSimvarPublisher extends UpdatableSimVarPublisher<SDSimvars> {
     ['lgciu1LeftGearCompressed', { name: 'L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', type: SimVarValueType.Bool }],
     ['flapsConfIndex', { name: 'L:A32NX_FLAPS_CONF_INDEX', type: SimVarValueType.Number }],
     ['fwcFlightPhase', { name: 'L:A32NX_FWC_FLIGHT_PHASE', type: SimVarValueType.Enum }],
+    ...fctlActuatorFailureSimvars(),
   ]);
 
   public constructor(bus: EventBus) {

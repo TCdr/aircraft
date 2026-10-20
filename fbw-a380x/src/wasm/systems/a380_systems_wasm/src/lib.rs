@@ -38,8 +38,8 @@ use systems::failures::FailureType;
 use systems::integrated_modular_avionics::core_processing_input_output_module::CpiomId;
 use systems::shared::{
     report_diagnostic, AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType,
-    FireDetectionLoopID, FireDetectionZone, GearActuatorId, HydraulicColor, LgciuId,
-    ProximityDetectorId, SmokeDetectionZone,
+    FireDetectionLoopID, FireDetectionZone, FlightControlSurface, GearActuatorId, HydraulicColor,
+    LgciuId, ProximityDetectorId, SmokeDetectionZone,
 };
 
 use systems_wasm::{MsfsSimulationBuilder, Variable};
@@ -455,6 +455,128 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             26_051,
             FailureType::SmokeDetector(SmokeDetectionZone::NetworkServerSystem, 2),
         ),
+        // Primary flight control actuators (hydraulic::flight_control_actuator_failures): actuator 1 and 2 of each surface
+        (
+            27_100,
+            FailureType::FlightControlActuator(FlightControlSurface::LeftOuterAileron, 1),
+        ),
+        (
+            27_101,
+            FailureType::FlightControlActuator(FlightControlSurface::LeftOuterAileron, 2),
+        ),
+        (
+            27_102,
+            FailureType::FlightControlActuator(FlightControlSurface::LeftMidAileron, 1),
+        ),
+        (
+            27_103,
+            FailureType::FlightControlActuator(FlightControlSurface::LeftMidAileron, 2),
+        ),
+        (
+            27_104,
+            FailureType::FlightControlActuator(FlightControlSurface::LeftInnerAileron, 1),
+        ),
+        (
+            27_105,
+            FailureType::FlightControlActuator(FlightControlSurface::LeftInnerAileron, 2),
+        ),
+        (
+            27_106,
+            FailureType::FlightControlActuator(FlightControlSurface::RightInnerAileron, 1),
+        ),
+        (
+            27_107,
+            FailureType::FlightControlActuator(FlightControlSurface::RightInnerAileron, 2),
+        ),
+        (
+            27_108,
+            FailureType::FlightControlActuator(FlightControlSurface::RightMidAileron, 1),
+        ),
+        (
+            27_109,
+            FailureType::FlightControlActuator(FlightControlSurface::RightMidAileron, 2),
+        ),
+        (
+            27_110,
+            FailureType::FlightControlActuator(FlightControlSurface::RightOuterAileron, 1),
+        ),
+        (
+            27_111,
+            FailureType::FlightControlActuator(FlightControlSurface::RightOuterAileron, 2),
+        ),
+        (
+            27_112,
+            FailureType::FlightControlActuator(FlightControlSurface::LeftOuterElevator, 1),
+        ),
+        (
+            27_113,
+            FailureType::FlightControlActuator(FlightControlSurface::LeftOuterElevator, 2),
+        ),
+        (
+            27_114,
+            FailureType::FlightControlActuator(FlightControlSurface::LeftInnerElevator, 1),
+        ),
+        (
+            27_115,
+            FailureType::FlightControlActuator(FlightControlSurface::LeftInnerElevator, 2),
+        ),
+        (
+            27_116,
+            FailureType::FlightControlActuator(FlightControlSurface::RightInnerElevator, 1),
+        ),
+        (
+            27_117,
+            FailureType::FlightControlActuator(FlightControlSurface::RightInnerElevator, 2),
+        ),
+        (
+            27_118,
+            FailureType::FlightControlActuator(FlightControlSurface::RightOuterElevator, 1),
+        ),
+        (
+            27_119,
+            FailureType::FlightControlActuator(FlightControlSurface::RightOuterElevator, 2),
+        ),
+        (
+            27_120,
+            FailureType::FlightControlActuator(FlightControlSurface::UpperRudder, 1),
+        ),
+        (
+            27_121,
+            FailureType::FlightControlActuator(FlightControlSurface::UpperRudder, 2),
+        ),
+        (
+            27_122,
+            FailureType::FlightControlActuator(FlightControlSurface::LowerRudder, 1),
+        ),
+        (
+            27_123,
+            FailureType::FlightControlActuator(FlightControlSurface::LowerRudder, 2),
+        ),
+        (
+            27_124,
+            FailureType::FlightControlActuatorElectricalPart(FlightControlSurface::UpperRudder, 1),
+        ),
+        (
+            27_125,
+            FailureType::FlightControlActuatorElectricalPart(FlightControlSurface::UpperRudder, 2),
+        ),
+        (
+            27_126,
+            FailureType::FlightControlActuatorElectricalPart(FlightControlSurface::LowerRudder, 1),
+        ),
+        (
+            27_127,
+            FailureType::FlightControlActuatorElectricalPart(FlightControlSurface::LowerRudder, 2),
+        ),
+        (
+            27_128,
+            FailureType::FlightControlActuator(FlightControlSurface::Stabilizer, 1),
+        ),
+        (
+            27_129,
+            FailureType::FlightControlActuator(FlightControlSurface::Stabilizer, 2),
+        ),
+        (27_130, FailureType::StabilizerJammed),
         (29_000, FailureType::ReservoirLeak(HydraulicColor::Green)),
         (29_001, FailureType::ReservoirLeak(HydraulicColor::Yellow)),
         (29_002, FailureType::ReservoirAirLeak(HydraulicColor::Green)),

@@ -74,6 +74,10 @@ use autobrakes::A380AutobrakeController;
 mod gear_secondary_doors;
 mod heading_control_steering;
 use heading_control_steering::HeadingControlFunction;
+mod flight_control_actuator_failures;
+use flight_control_actuator_failures::{
+    reconfigure_actuator_pair, reconfigure_ebha_pair, A380FlightControlActuatorFailures,
+};
 mod brake_steer_faults;
 use brake_steer_faults::{
     A380BrakingControlFaults, A380SteeringControlSystem, EmergencyBrakeLaw, NoseWheelSteeringMode,
@@ -1736,6 +1740,7 @@ impl SimulationElement for A380EhaInhibitPlaceholder {
 
 pub(super) struct A380Hydraulic {
     eha_backup_inhibit_logic: A380EhaInhibitPlaceholder,
+    flight_control_actuator_failures: A380FlightControlActuatorFailures,
     nose_steering: SteeringActuator,
     /// GREEN in normal NWS, the steering LEHGS in alternate NWS
     nose_wheel_steering_supply: NoseWheelSteeringSupply,
@@ -1906,6 +1911,7 @@ impl A380Hydraulic {
 
         A380Hydraulic {
             eha_backup_inhibit_logic: A380EhaInhibitPlaceholder::new(context),
+            flight_control_actuator_failures: A380FlightControlActuatorFailures::new(context),
             nose_steering: SteeringActuator::new(
                 context,
                 "NOSE_WHEEL",
@@ -2606,16 +2612,23 @@ impl A380Hydraulic {
         self.gear_system_gravity_extension_controller
             .update(context);
 
-        self.aileron_system_controller
-            .update(&self.eha_backup_inhibit_logic);
+        self.aileron_system_controller.update(
+            &self.eha_backup_inhibit_logic,
+            &self.flight_control_actuator_failures,
+        );
 
-        self.elevator_system_controller
-            .update(&self.eha_backup_inhibit_logic);
+        self.elevator_system_controller.update(
+            &self.eha_backup_inhibit_logic,
+            &self.flight_control_actuator_failures,
+        );
 
-        self.ths_system_controller.update();
+        self.ths_system_controller
+            .update(&self.flight_control_actuator_failures);
 
-        self.rudder_system_controller
-            .update(&self.eha_backup_inhibit_logic);
+        self.rudder_system_controller.update(
+            &self.eha_backup_inhibit_logic,
+            &self.flight_control_actuator_failures,
+        );
 
         self.tilting_gears.update(context);
 
@@ -3432,6 +3445,7 @@ impl SimulationElement for A380Hydraulic {
         self.flap_system.accept(visitor);
         self.slat_system.accept(visitor);
 
+        self.flight_control_actuator_failures.accept(visitor);
         self.elevator_system_controller.accept(visitor);
         self.aileron_system_controller.accept(visitor);
         self.rudder_system_controller.accept(visitor);
@@ -5684,12 +5698,61 @@ impl AileronSystemHydraulicController {
         &self.right_aileron_controllers[panel as usize][..]
     }
 
-    fn update(&mut self, eha_backup_placeholder: &A380EhaInhibitPlaceholder) {
+    fn update(
+        &mut self,
+        eha_backup_placeholder: &A380EhaInhibitPlaceholder,
+        actuator_failures: &A380FlightControlActuatorFailures,
+    ) {
         self.eha_backup_allowed = eha_backup_placeholder.is_allowed();
 
+        self.reconfigure_failed_actuators(actuator_failures);
         self.update_aileron_controllers_positions();
         self.update_aileron_controllers_modes();
         self.filter_dual_control();
+    }
+
+    /// The outer ailerons have two hydraulic actuators; on the mid and inner ailerons the second actuator is an EHA,
+    /// which can take over only when its electrical backup is allowed
+    fn reconfigure_failed_actuators(&mut self, failures: &A380FlightControlActuatorFailures) {
+        let outer_can_take_over = [true, true];
+        let with_eha_can_take_over = [true, self.eha_backup_allowed];
+
+        reconfigure_actuator_pair(
+            &mut self.left_outboard_solenoid_energized_from_fbw,
+            &mut self.left_outboard_position_requests_from_fbw,
+            failures.left_aileron_failed(AileronPanelPosition::Outward as usize),
+            outer_can_take_over,
+        );
+        reconfigure_actuator_pair(
+            &mut self.left_midboard_solenoid_energized_from_fbw,
+            &mut self.left_midboard_position_requests_from_fbw,
+            failures.left_aileron_failed(AileronPanelPosition::Middle as usize),
+            with_eha_can_take_over,
+        );
+        reconfigure_actuator_pair(
+            &mut self.left_inboard_solenoid_energized_from_fbw,
+            &mut self.left_inboard_position_requests_from_fbw,
+            failures.left_aileron_failed(AileronPanelPosition::Inward as usize),
+            with_eha_can_take_over,
+        );
+        reconfigure_actuator_pair(
+            &mut self.right_outboard_solenoid_energized_from_fbw,
+            &mut self.right_outboard_position_requests_from_fbw,
+            failures.right_aileron_failed(AileronPanelPosition::Outward as usize),
+            outer_can_take_over,
+        );
+        reconfigure_actuator_pair(
+            &mut self.right_midboard_solenoid_energized_from_fbw,
+            &mut self.right_midboard_position_requests_from_fbw,
+            failures.right_aileron_failed(AileronPanelPosition::Middle as usize),
+            with_eha_can_take_over,
+        );
+        reconfigure_actuator_pair(
+            &mut self.right_inboard_solenoid_energized_from_fbw,
+            &mut self.right_inboard_position_requests_from_fbw,
+            failures.right_aileron_failed(AileronPanelPosition::Inward as usize),
+            with_eha_can_take_over,
+        );
     }
 
     fn update_aileron_controllers_positions(&mut self) {
@@ -6159,11 +6222,46 @@ impl ElevatorSystemHydraulicController {
         &self.right_controllers[panel as usize][..]
     }
 
-    fn update(&mut self, eha_backup_placeholder: &A380EhaInhibitPlaceholder) {
+    fn update(
+        &mut self,
+        eha_backup_placeholder: &A380EhaInhibitPlaceholder,
+        actuator_failures: &A380FlightControlActuatorFailures,
+    ) {
         self.eha_backup_allowed = eha_backup_placeholder.is_allowed();
 
+        self.reconfigure_failed_actuators(actuator_failures);
         self.update_elevator_controllers_positions();
         self.update_elevator_controllers_solenoids();
+    }
+
+    /// The second actuator of each elevator is an EHA, which can take over only when its electrical backup is allowed
+    fn reconfigure_failed_actuators(&mut self, failures: &A380FlightControlActuatorFailures) {
+        let can_take_over = [true, self.eha_backup_allowed];
+
+        reconfigure_actuator_pair(
+            &mut self.left_outboard_solenoid_energized_from_fbw,
+            &mut self.left_outboard_position_requests_from_fbw,
+            failures.left_elevator_failed(ElevatorPanelPosition::Outward as usize),
+            can_take_over,
+        );
+        reconfigure_actuator_pair(
+            &mut self.left_inboard_solenoid_energized_from_fbw,
+            &mut self.left_inboard_position_requests_from_fbw,
+            failures.left_elevator_failed(ElevatorPanelPosition::Inward as usize),
+            can_take_over,
+        );
+        reconfigure_actuator_pair(
+            &mut self.right_outboard_solenoid_energized_from_fbw,
+            &mut self.right_outboard_position_requests_from_fbw,
+            failures.right_elevator_failed(ElevatorPanelPosition::Outward as usize),
+            can_take_over,
+        );
+        reconfigure_actuator_pair(
+            &mut self.right_inboard_solenoid_energized_from_fbw,
+            &mut self.right_inboard_position_requests_from_fbw,
+            failures.right_elevator_failed(ElevatorPanelPosition::Inward as usize),
+            can_take_over,
+        );
     }
 
     fn update_elevator_controllers_positions(&mut self) {
@@ -6457,7 +6555,13 @@ impl TrimmableHorizontalStabilizerSystemHydraulicController {
         &self.controllers
     }
 
-    fn update(&mut self) {
+    fn update(&mut self, actuator_failures: &A380FlightControlActuatorFailures) {
+        reconfigure_actuator_pair(
+            &mut self.solenoid_energized_from_fbw,
+            &mut self.position_requests_from_fbw,
+            actuator_failures.stabilizer_motor_failed(),
+            [true, true],
+        );
         self.update_ths_controllers_positions();
         self.update_ths_controllers_solenoids();
     }
@@ -6636,10 +6740,32 @@ impl RudderSystemHydraulicController {
         &self.rudder_controllers[panel as usize][..]
     }
 
-    fn update(&mut self, eha_backup_placeholder: &A380EhaInhibitPlaceholder) {
+    fn update(
+        &mut self,
+        eha_backup_placeholder: &A380EhaInhibitPlaceholder,
+        actuator_failures: &A380FlightControlActuatorFailures,
+    ) {
         self.eha_backup_allowed = eha_backup_placeholder.is_allowed();
+        self.reconfigure_failed_actuators(actuator_failures);
         self.update_rudder_controllers_positions();
         self.update_rudder_controllers_solenoids();
+    }
+
+    fn reconfigure_failed_actuators(&mut self, failures: &A380FlightControlActuatorFailures) {
+        reconfigure_ebha_pair(
+            &mut self.upper_hydraulic_mode_solenoid_energized_from_fbw,
+            &mut self.upper_electric_mode_solenoid_energized_from_fbw,
+            &mut self.upper_position_requests_from_fbw,
+            failures.rudder_failed(RudderPanelPosition::Upper as usize),
+            failures.rudder_electrical_part_failed(RudderPanelPosition::Upper as usize),
+        );
+        reconfigure_ebha_pair(
+            &mut self.lower_hydraulic_mode_solenoid_energized_from_fbw,
+            &mut self.lower_electric_mode_solenoid_energized_from_fbw,
+            &mut self.lower_position_requests_from_fbw,
+            failures.rudder_failed(RudderPanelPosition::Lower as usize),
+            failures.rudder_electrical_part_failed(RudderPanelPosition::Lower as usize),
+        );
     }
 
     fn update_rudder_controllers_positions(&mut self) {
@@ -7587,7 +7713,7 @@ mod tests {
             pneumatic::PressurizeableReservoir,
             shared::{
                 arinc429::{Arinc429Word, SignStatus},
-                EmergencyElectricalState, LgciuId, PotentialOrigin,
+                EmergencyElectricalState, FlightControlSurface, LgciuId, PotentialOrigin,
             },
             simulation::{
                 test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
@@ -14290,6 +14416,141 @@ mod tests {
                     .get::<ratio>(),
                 0.35
             );
+        }
+
+        fn green_and_yellow_pressurised_test_bed() -> A380HydraulicsTestBed {
+            test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .start_eng3(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(5))
+        }
+
+        #[test]
+        fn outer_aileron_with_both_actuators_failed_does_not_follow_its_order() {
+            let mut test_bed = green_and_yellow_pressurised_test_bed();
+            assert!(test_bed.is_green_pressure_switch_pressurised());
+            assert!(test_bed.is_yellow_pressure_switch_pressurised());
+
+            test_bed.fail(FailureType::FlightControlActuator(
+                FlightControlSurface::LeftOuterAileron,
+                1,
+            ));
+            test_bed.fail(FailureType::FlightControlActuator(
+                FlightControlSurface::LeftOuterAileron,
+                2,
+            ));
+            test_bed = test_bed
+                .reset_all_aileron_commands()
+                .set_aileron_panel_neutral(
+                    ActuatorSide::Left,
+                    AileronPanelPosition::Outward,
+                    AileronActuatorPosition::Outward,
+                )
+                .run_waiting_for(Duration::from_secs(2));
+
+            assert_lt!(
+                test_bed
+                    .get_left_aileron_panel_position(AileronPanelPosition::Outward)
+                    .get::<ratio>(),
+                0.1
+            );
+        }
+
+        #[test]
+        fn yellow_actuator_takes_over_the_order_of_the_failed_green_outer_aileron_actuator() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng3(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(5));
+            assert!(!test_bed.is_green_pressure_switch_pressurised());
+            assert!(test_bed.is_yellow_pressure_switch_pressurised());
+
+            test_bed.fail(FailureType::FlightControlActuator(
+                FlightControlSurface::LeftOuterAileron,
+                1,
+            ));
+            test_bed = test_bed
+                .reset_all_aileron_commands()
+                .set_aileron_panel_neutral(
+                    ActuatorSide::Left,
+                    AileronPanelPosition::Outward,
+                    AileronActuatorPosition::Outward,
+                )
+                .run_waiting_for(Duration::from_secs(2));
+
+            assert_gt!(
+                test_bed
+                    .get_left_aileron_panel_position(AileronPanelPosition::Outward)
+                    .get::<ratio>(),
+                0.35
+            );
+        }
+
+        #[test]
+        fn jammed_stabilizer_does_not_follow_its_order() {
+            let mut test_bed = green_and_yellow_pressurised_test_bed();
+            let initial_deflection_degrees: f64 = test_bed.read_by_name("HYD_FINAL_THS_DEFLECTION");
+
+            test_bed.fail(FailureType::StabilizerJammed);
+            test_bed.write_by_name("THS_YELLOW_SERVO_SOLENOID_ENERGIZED", true);
+            test_bed.write_by_name("THS_YELLOW_COMMANDED_POSITION", -6.);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(10));
+
+            let deflection_degrees: f64 = test_bed.read_by_name("HYD_FINAL_THS_DEFLECTION");
+            assert_lt!((deflection_degrees - initial_deflection_degrees).abs(), 0.1);
+        }
+
+        #[test]
+        fn yellow_motor_takes_over_the_order_of_the_failed_green_stabilizer_motor() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng3(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(5));
+
+            test_bed.fail(FailureType::FlightControlActuator(
+                FlightControlSurface::Stabilizer,
+                1,
+            ));
+            test_bed.write_by_name("THS_GREEN_SERVO_SOLENOID_ENERGIZED", true);
+            test_bed.write_by_name("THS_GREEN_COMMANDED_POSITION", -6.);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(20));
+
+            let deflection_degrees: f64 = test_bed.read_by_name("HYD_FINAL_THS_DEFLECTION");
+            assert_gt!(deflection_degrees, 5.5);
+        }
+
+        #[test]
+        fn green_ebha_takes_over_the_order_of_the_failed_yellow_upper_rudder_ebha() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(5));
+            assert!(test_bed.is_green_pressure_switch_pressurised());
+            assert!(!test_bed.is_yellow_pressure_switch_pressurised());
+
+            test_bed.fail(FailureType::FlightControlActuator(
+                FlightControlSurface::UpperRudder,
+                1,
+            ));
+            test_bed.write_by_name(
+                "UPPER_RUDDER_YELLOW_EBHA_HYDRAULIC_MODE_SOLENOID_ENERGIZED",
+                true,
+            );
+            test_bed.write_by_name("UPPER_RUDDER_YELLOW_EBHA_COMMANDED_POSITION", 10.);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(5));
+
+            // 10 deg of rudder is at 1/3 of the rudder travel, 0.5 is the neutral position
+            let position: f64 = test_bed.read_by_name("HYD_UPPER_RUD_DEFLECTION");
+            assert_lt!(position, 0.36);
         }
     }
 }

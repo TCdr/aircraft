@@ -10,6 +10,7 @@
 #include "FadecLgciu.h"
 #include "FlyByWireInterface.h"
 #include "interface/SimConnectData.h"
+#include "failures/PrimActuatorControlFailures.h"
 
 using namespace mINI;
 
@@ -1735,6 +1736,19 @@ bool FlyByWireInterface::updatePrim(double sampleTime, int primIndex) {
   primsDiscreteOutputs[primIndex] = prims[primIndex].getDiscreteOutputs();
   primsAnalogOutputs[primIndex] = prims[primIndex].getAnalogOutputs();
   primsBusOutputs[primIndex] = prims[primIndex].getBusOutputs();
+
+  static constexpr Failures elevatorActuatorControlFailures[3] = {
+      Failures::Prim1ElevatorActuatorControl, Failures::Prim2ElevatorActuatorControl, Failures::Prim3ElevatorActuatorControl};
+  static constexpr Failures rudderActuatorControlFailures[3] = {Failures::Prim1RudderActuatorControl, Failures::Prim2RudderActuatorControl,
+                                                                Failures::Prim3RudderActuatorControl};
+  if (failuresConsumer.isActive(elevatorActuatorControlFailures[primIndex])) {
+    PrimActuatorControlFailures::removeElevatorActuatorControl(primsDiscreteOutputs[primIndex], primsAnalogOutputs[primIndex],
+                                                               primsBusOutputs[primIndex]);
+  }
+  if (failuresConsumer.isActive(rudderActuatorControlFailures[primIndex])) {
+    PrimActuatorControlFailures::removeRudderActuatorControl(primsDiscreteOutputs[primIndex], primsAnalogOutputs[primIndex],
+                                                             primsBusOutputs[primIndex]);
+  }
 
   idPrimHealthy[primIndex]->set(primsDiscreteOutputs[primIndex].prim_healthy);
   idPrimApEngaged[primIndex]->set(primsDiscreteOutputs[primIndex].ap_engaged);
