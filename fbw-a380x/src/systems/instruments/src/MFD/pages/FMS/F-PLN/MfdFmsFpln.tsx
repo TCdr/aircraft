@@ -64,6 +64,7 @@ import { ReadonlyFlightPlanElement } from '@fmgc/flightplanning/legs/ReadonlyFli
 import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvents';
 import { findConstantMachSegment, isLegInConstantMachSegment } from '@fmgc/flightplanning/ConstantMachSegment';
 import { isConstantMachRespected } from '@fmgc/guidance/vnav/cruise/ConstantMachSpeedProfile';
+import { formatSpeedPrediction, isSameSpeedPrediction } from './FplnSpeedPrediction';
 import { ProfilePhase, VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { dirToUri, fixInfoUri, showReturnButtonUriExtra } from '../../../shared/utils';
 
@@ -1974,8 +1975,7 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
       isWaypoint(previousRow) &&
       data.speedPrediction &&
       previousRow.speedPrediction &&
-      ((data.speedPrediction >= 2 && Math.abs(previousRow.speedPrediction - data.speedPrediction) < 1) ||
-        (data.speedPrediction < 2 && Math.abs(previousRow.speedPrediction - data.speedPrediction) < 0.01)) &&
+      isSameSpeedPrediction(data.speedPrediction, previousRow.speedPrediction) &&
       !data.hasSpeedConstraint &&
       !(
         FplnLineFlags.AfterSpecial === (this.props.flags.get() & FplnLineFlags.AfterSpecial) ||
@@ -1990,9 +1990,7 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
     } else if (data.speedPrediction && Number.isFinite(data.speedPrediction) && data.speedPrediction > 0) {
       speedStr = (
         <span style="font-family: FBW-Display-EIS-A380-SlashedZero, monospace;">
-          {data.speedPrediction > 2
-            ? data.speedPrediction.toFixed(0)
-            : `.${data.speedPrediction.toFixed(2).split('.')[1]}`}
+          {formatSpeedPrediction(data.speedPrediction)}
         </span>
       );
     }
