@@ -10,6 +10,7 @@ import {
 } from '@microsoft/msfs-sdk';
 import { ActuatorIndication, ActuatorType, HydraulicPowerSource } from './ActuatorIndication';
 import { SDSimvars } from '../../../SDSimvarPublisher';
+import { isActuatorOperative, isSurfaceControlled } from './ActuatorStatus';
 import { MathUtils } from '@flybywiresim/fbw-sdk';
 
 interface PitchTrimProps {
@@ -35,7 +36,10 @@ export class PitchTrim extends DisplayComponent<PitchTrimProps> {
     Math.abs(thsPosition).toFixed(1).split('.'),
   );
 
-  private readonly thsJam = Subject.create(false);
+  private readonly thsJam = ConsumerSubject.create(
+    this.props.bus.getSubscriber<SDSimvars>().on('stabilizerJammed'),
+    false,
+  );
 
   private readonly hydGreenAvailable = ConsumerSubject.create(
     this.props.bus.getSubscriber<SDSimvars>().on(`greenPressureSwitch`),
@@ -47,10 +51,27 @@ export class PitchTrim extends DisplayComponent<PitchTrimProps> {
     false,
   );
 
+  private readonly greenMotorFailed = ConsumerSubject.create(
+    this.props.bus.getSubscriber<SDSimvars>().on('stabilizerActuator1Failed'),
+    false,
+  );
+
+  private readonly yellowMotorFailed = ConsumerSubject.create(
+    this.props.bus.getSubscriber<SDSimvars>().on('stabilizerActuator2Failed'),
+    false,
+  );
+
+  /** A jammed stabilizer keeps its motors: only the PITCH TRIM title shows the jam */
   private readonly hydraulicAvailable = MappedSubject.create(
-    SubscribableMapFunctions.or(),
+    ([hydGreenAvailable, greenMotorFailed, hydYellowAvailable, yellowMotorFailed]) =>
+      isSurfaceControlled(
+        isActuatorOperative(hydGreenAvailable, greenMotorFailed),
+        isActuatorOperative(hydYellowAvailable, yellowMotorFailed),
+      ),
     this.hydGreenAvailable,
+    this.greenMotorFailed,
     this.hydYellowAvailable,
+    this.yellowMotorFailed,
   );
 
   private readonly pitchTrimValueClass = this.hydraulicAvailable.map((hydraulicAvailable) =>
@@ -58,10 +79,9 @@ export class PitchTrim extends DisplayComponent<PitchTrimProps> {
   );
 
   private readonly pitchTrimTitleClass = MappedSubject.create(
-    ([hydGreenAvailable, hydYellowAvailable, thsJam]) =>
-      (hydGreenAvailable || hydYellowAvailable) && !thsJam ? 'F22 MiddleAlign LS1 White' : 'F22 MiddleAlign LS1 Amber',
-    this.hydGreenAvailable,
-    this.hydYellowAvailable,
+    ([hydraulicAvailable, thsJam]) =>
+      hydraulicAvailable && !thsJam ? 'F22 MiddleAlign LS1 White' : 'F22 MiddleAlign LS1 Amber',
+    this.hydraulicAvailable,
     this.thsJam,
   );
 
@@ -131,6 +151,7 @@ export class PitchTrim extends DisplayComponent<PitchTrimProps> {
           type={ActuatorType.Conventional}
           powerSource={HydraulicPowerSource.Green}
           powerSourceAvailable={this.hydGreenAvailable}
+          actuatorFailed={this.greenMotorFailed}
         />
         <ActuatorIndication
           x={-63}
@@ -138,6 +159,7 @@ export class PitchTrim extends DisplayComponent<PitchTrimProps> {
           type={ActuatorType.Conventional}
           powerSource={HydraulicPowerSource.Yellow}
           powerSourceAvailable={this.hydYellowAvailable}
+          actuatorFailed={this.yellowMotorFailed}
         />
       </g>
     );

@@ -12,6 +12,13 @@ enum class Failures {
   Sec3 = 27005,
   Fcdc1 = 27006,
   Fcdc2 = 27007,
+  // ATA 27: PRIM n has lost the capacity to control its elevator (rudder) actuator (see PrimActuatorControlFailures.h)
+  Prim1ElevatorActuatorControl = 27131,
+  Prim2ElevatorActuatorControl = 27132,
+  Prim3ElevatorActuatorControl = 27133,
+  Prim1RudderActuatorControl = 27134,
+  Prim2RudderActuatorControl = 27135,
+  Prim3RudderActuatorControl = 27136,
   // ATA 73: the FADEC of engine n computes a maximum thrust too low (ENG n THRUST LOSS, see FadecThrustFailures.h)
   Eng1MaxThrustMiscalculated = 73050,
   Eng2MaxThrustMiscalculated = 73051,

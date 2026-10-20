@@ -6,11 +6,11 @@ import {
   MappedSubject,
   Subject,
   Subscribable,
-  SubscribableMapFunctions,
 } from '@microsoft/msfs-sdk';
 import { ActuatorIndication, ActuatorType, ElecPowerSource, HydraulicPowerSource } from './ActuatorIndication';
 import { MIN_VERTICAL_DEFLECTION, VerticalDeflectionIndication } from './VerticalDeflectionIndication';
 import { SDSimvars } from '../../../SDSimvarPublisher';
+import { actuatorFailedTopic, isActuatorOperative, isSurfaceControlled } from './ActuatorStatus';
 
 export enum ElevatorSide {
   Left = 'left',
@@ -61,10 +61,30 @@ export class Elevator extends DisplayComponent<ElevatorProps> {
     false,
   );
 
+  private readonly hydActuatorFailed = ConsumerSubject.create(
+    this.props.bus
+      .getSubscriber<SDSimvars>()
+      .on(actuatorFailedTopic(`${this.props.side}${this.props.position}Elevator`, 1)),
+    false,
+  );
+
+  private readonly ehaFailed = ConsumerSubject.create(
+    this.props.bus
+      .getSubscriber<SDSimvars>()
+      .on(actuatorFailedTopic(`${this.props.side}${this.props.position}Elevator`, 2)),
+    false,
+  );
+
   private readonly powerAvail = MappedSubject.create(
-    SubscribableMapFunctions.or(),
+    ([hydPowerAvailable, hydActuatorFailed, elecPowerAvailable, ehaFailed]) =>
+      isSurfaceControlled(
+        isActuatorOperative(hydPowerAvailable, hydActuatorFailed),
+        isActuatorOperative(elecPowerAvailable, ehaFailed),
+      ),
     this.hydPowerAvailable,
+    this.hydActuatorFailed,
     this.elecPowerAvailable,
+    this.ehaFailed,
   );
 
   render() {
@@ -96,6 +116,7 @@ export class Elevator extends DisplayComponent<ElevatorProps> {
           type={ActuatorType.Conventional}
           powerSource={this.hydPowerSource}
           powerSourceAvailable={this.hydPowerAvailable}
+          actuatorFailed={this.hydActuatorFailed}
         />
         <ActuatorIndication
           x={actuatorIndicationX}
@@ -103,6 +124,7 @@ export class Elevator extends DisplayComponent<ElevatorProps> {
           type={ActuatorType.EHA}
           powerSource={this.elecPowerSource}
           powerSourceAvailable={this.elecPowerAvailable}
+          actuatorFailed={this.ehaFailed}
         />
       </g>
     );

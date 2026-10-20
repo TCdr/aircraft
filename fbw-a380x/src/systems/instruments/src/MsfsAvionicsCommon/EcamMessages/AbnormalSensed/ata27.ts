@@ -100,7 +100,7 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
   271800010: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm DOUBLE ELEVATOR FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'LDG PERF AFFECTED', sensed: false }],
   },
   271800011: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm ELEVATOR ACTUATOR FAULT',
@@ -156,32 +156,32 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
   271800019: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm L INR AILERON FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'LDG DIST AFFECTED', sensed: false }],
   },
   271800020: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm R INR AILERON FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'LDG DIST AFFECTED', sensed: false }],
   },
   271800021: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm L MID AILERON FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'LDG DIST AFFECTED', sensed: false }],
   },
   271800022: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm R MID AILERON FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'LDG DIST AFFECTED', sensed: false }],
   },
   271800023: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm L OUTR AILERON FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'LDG DIST AFFECTED', sensed: false }],
   },
   271800024: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm R OUTR AILERON FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'LDG DIST AFFECTED', sensed: false }],
   },
   271800025: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm L SIDESTICK FAULT',
@@ -487,7 +487,11 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
   271800068: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm STABILIZER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      // Shown when the stabilizer failed below 240 kt: it may then be locked far nose up
+      { name: 'STAB POS NOT AVAIL OR > 3.9° UP', condition: true, sensed: true },
+      { name: 'MAX SPEED : 260 KT', sensed: false, level: 1 },
+    ],
   },
   271800069: {
     title: '\x1b<2mOVERSPEED',
@@ -875,6 +879,15 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
 };
 
 export const EcamDeferredProcAta27: { [n: number]: DeferredProcedure } = {
+  270700101: {
+    fromAbnormalProcs: ['271800010'],
+    title: 'DOUBLE ELEVATOR FAULT',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'LDG PERF COMPUTATION', labelNotCompleted: 'CONFIRM', sensed: false },
+      { name: 'INITIATE FLARE AT 50FT', sensed: false },
+    ],
+  },
   270700001: {
     fromAbnormalProcs: ['270900002'],
     title: 'RUDDER TRIM RUNAWAY',

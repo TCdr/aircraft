@@ -783,3 +783,73 @@ describe('A380X FADEC shutdown and APU bleed valve failures', () => {
     ).toEqual(expected.map(([id, failureType, name, chapter]) => [id, failureType, [chapter, id, name]]));
   });
 });
+
+// The primary flight control actuators (a380_systems hydraulic/flight_control_actuator_failures.rs): actuator 1 and 2 of
+// each surface in the order of the Rust surface controllers, named after the hydraulic system or EHA of each actuator
+describe('A380X flight control actuator failures', () => {
+  it('lists them in ATA 27 with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const actuators: [string, string, string, string][] = [
+      ['LeftOuterAileron', 'L outer aileron', 'green actuator', 'yellow actuator'],
+      ['LeftMidAileron', 'L mid aileron', 'yellow actuator', 'EHA'],
+      ['LeftInnerAileron', 'L inner aileron', 'green actuator', 'EHA'],
+      ['RightInnerAileron', 'R inner aileron', 'green actuator', 'EHA'],
+      ['RightMidAileron', 'R mid aileron', 'yellow actuator', 'EHA'],
+      ['RightOuterAileron', 'R outer aileron', 'green actuator', 'yellow actuator'],
+      ['LeftOuterElevator', 'L outer elevator', 'green actuator', 'EHA'],
+      ['LeftInnerElevator', 'L inner elevator', 'green actuator', 'EHA'],
+      ['RightInnerElevator', 'R inner elevator', 'yellow actuator', 'EHA'],
+      ['RightOuterElevator', 'R outer elevator', 'yellow actuator', 'EHA'],
+      ['UpperRudder', 'Upper rudder', 'yellow EBHA', 'green EBHA'],
+      ['LowerRudder', 'Lower rudder', 'green EBHA', 'yellow EBHA'],
+    ];
+    const expected: [number, string, string][] = [
+      ...actuators.flatMap(([surface, label, first, second], index): [number, string, string][] => [
+        [27100 + 2 * index, `FlightControlActuator(FlightControlSurface::${surface},1)`, `${label} ${first}`],
+        [27101 + 2 * index, `FlightControlActuator(FlightControlSurface::${surface},2)`, `${label} ${second}`],
+      ]),
+      [
+        27124,
+        'FlightControlActuatorElectricalPart(FlightControlSurface::UpperRudder,1)',
+        'Upper rudder yellow EBHA electrical part',
+      ],
+      [
+        27125,
+        'FlightControlActuatorElectricalPart(FlightControlSurface::UpperRudder,2)',
+        'Upper rudder green EBHA electrical part',
+      ],
+      [
+        27126,
+        'FlightControlActuatorElectricalPart(FlightControlSurface::LowerRudder,1)',
+        'Lower rudder green EBHA electrical part',
+      ],
+      [
+        27127,
+        'FlightControlActuatorElectricalPart(FlightControlSurface::LowerRudder,2)',
+        'Lower rudder yellow EBHA electrical part',
+      ],
+      [27128, 'FlightControlActuator(FlightControlSurface::Stabilizer,1)', 'Stabilizer green hydraulic motor'],
+      [27129, 'FlightControlActuator(FlightControlSurface::Stabilizer,2)', 'Stabilizer yellow hydraulic motor'],
+      [27130, 'StabilizerJammed', 'Stabilizer jammed'],
+    ];
+    expect(
+      expected.map(([id]) => [id, rustMap.get(id), A380FailureDefinitions.find(([, listed]) => listed === id)]),
+    ).toEqual(expected.map(([id, failureType, name]) => [id, failureType, [27, id, name]]));
+  });
+
+  it('lists the PRIM actuator control failures in ATA 27 with the ids of the fbw module', () => {
+    const failureList = readFileSync(resolve(__dirname, '../../../wasm/fbw_a380/src/failures/FailureList.h'), 'utf8');
+    const primFailures: [string, number][] = [
+      ['Prim1ElevatorActuatorControl', A380Failure.Prim1ElevatorActuatorControl],
+      ['Prim2ElevatorActuatorControl', A380Failure.Prim2ElevatorActuatorControl],
+      ['Prim3ElevatorActuatorControl', A380Failure.Prim3ElevatorActuatorControl],
+      ['Prim1RudderActuatorControl', A380Failure.Prim1RudderActuatorControl],
+      ['Prim2RudderActuatorControl', A380Failure.Prim2RudderActuatorControl],
+      ['Prim3RudderActuatorControl', A380Failure.Prim3RudderActuatorControl],
+    ];
+    for (const [name, id] of primFailures) {
+      expect(failureList).toContain(`${name} = ${id},`);
+      expect(A380FailureDefinitions.find(([, listed]) => listed === id)?.[0]).toBe(27);
+    }
+  });
+});

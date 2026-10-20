@@ -6,7 +6,6 @@ import {
   MappedSubject,
   Subject,
   Subscribable,
-  SubscribableMapFunctions,
 } from '@microsoft/msfs-sdk';
 import {
   ActuatorIndication,
@@ -18,6 +17,7 @@ import {
 import { MIN_VERTICAL_DEFLECTION, VerticalDeflectionIndication } from './VerticalDeflectionIndication';
 import { SDSimvars } from '../../../SDSimvarPublisher';
 import { isAileronDroopSymbolShown } from './AileronDroop';
+import { actuatorFailedTopic, isActuatorOperative, isSurfaceControlled } from './ActuatorStatus';
 
 export enum AileronSide {
   Left = 'left',
@@ -64,6 +64,20 @@ export class Aileron extends DisplayComponent<AileronProps> {
 
   private readonly powerSource2Avail: ConsumerSubject<boolean>;
 
+  private readonly actuator1Failed = ConsumerSubject.create(
+    this.props.bus
+      .getSubscriber<SDSimvars>()
+      .on(actuatorFailedTopic(`${this.props.side}${this.props.position}Aileron`, 1)),
+    false,
+  );
+
+  private readonly actuator2Failed = ConsumerSubject.create(
+    this.props.bus
+      .getSubscriber<SDSimvars>()
+      .on(actuatorFailedTopic(`${this.props.side}${this.props.position}Aileron`, 2)),
+    false,
+  );
+
   private readonly powerAvail: Subscribable<boolean>;
 
   constructor(props: AileronProps) {
@@ -97,9 +111,15 @@ export class Aileron extends DisplayComponent<AileronProps> {
     );
 
     this.powerAvail = MappedSubject.create(
-      SubscribableMapFunctions.or(),
+      ([powerSource1Avail, actuator1Failed, powerSource2Avail, actuator2Failed]) =>
+        isSurfaceControlled(
+          isActuatorOperative(powerSource1Avail, actuator1Failed),
+          isActuatorOperative(powerSource2Avail, actuator2Failed),
+        ),
       this.powerSource1Avail,
+      this.actuator1Failed,
       this.powerSource2Avail,
+      this.actuator2Failed,
     );
   }
 
@@ -138,6 +158,7 @@ export class Aileron extends DisplayComponent<AileronProps> {
           type={ActuatorType.Conventional}
           powerSource={this.actuator1PowerSource}
           powerSourceAvailable={this.powerSource1Avail}
+          actuatorFailed={this.actuator1Failed}
         />
         <ActuatorIndication
           x={actuatorIndicationX}
@@ -145,6 +166,7 @@ export class Aileron extends DisplayComponent<AileronProps> {
           type={this.props.position === AileronPosition.Outboard ? ActuatorType.Conventional : ActuatorType.EHA}
           powerSource={this.actuator2PowerSource}
           powerSourceAvailable={this.powerSource2Avail}
+          actuatorFailed={this.actuator2Failed}
         />
       </g>
     );

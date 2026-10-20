@@ -205,6 +205,24 @@ pub enum GearActuatorId {
     GearDoorRight,
 }
 
+/// A primary flight control surface moved by its own actuators
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub enum FlightControlSurface {
+    LeftOuterAileron,
+    LeftMidAileron,
+    LeftInnerAileron,
+    RightInnerAileron,
+    RightMidAileron,
+    RightOuterAileron,
+    LeftOuterElevator,
+    LeftInnerElevator,
+    RightInnerElevator,
+    RightOuterElevator,
+    UpperRudder,
+    LowerRudder,
+    Stabilizer,
+}
+
 pub trait EngineCorrectedN1 {
     fn corrected_n1(&self) -> Ratio;
 }
