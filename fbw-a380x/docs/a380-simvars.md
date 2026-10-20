@@ -2109,6 +2109,23 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
   - Bool
   - The alternate gravity transfer from an outer tank with a failed pump runs (FCOM DSC-28-40 CASE 5: from the lowest feed tank below 28 660 lb, into FEED TK 2 (3), 500 gal/h); the FWS raises FUEL NORM XFR FAULT from it
 
+- A32NX_FUEL_QUANTITY_SYSTEM_FAULTS
+  - Number (bit field), written by the Rust fuel system whatever the power of the FQMS
+  - The faults of the fuel quantity measurement: bit 0-1 FQMS 1-2 (failed, or a CPIOM-F of its pair not available: FQMS 1 on CPIOM-F1 and F3, FQMS 2 on F2 and F4), bit 2-3 FQDC 1-2 (failed or unpowered), bit 4-5 the Alternate Gauging Processor of FQDC 1-2 (failed, or its FQDC failed)
+  - Both FQMS failed: the A32NX_FQMS_* words are failure warning, the FUEL SD page shows the FQDC (alternate gauging) quantities with their last two digits dashed
+
+- A32NX_FUEL_FQI_LOST_TANKS
+  - Number (bit field): bit n for the tank n of LEFT_OUTER, FEED_1, LEFT_MID, LEFT_INNER, FEED_2, FEED_3, RIGHT_INNER, RIGHT_MID, FEED_4, RIGHT_OUTER, TRIM
+  - The quantity indication probes of the tank are lost (flyPad failure): its A32NX_FQDC_{id}_{tank}_TANK_QUANTITY words are no computed data
+
+- A32NX_FUEL_GAUGING_DEGRADED_TANKS
+  - Number (bit field), the tanks as A32NX_FUEL_FQI_LOST_TANKS
+  - The gauging accuracy of the tank is degraded (flyPad failure): the FUEL SD page shows its quantity with the last two digits dashed (FUEL GAUGING FAULT)
+
+- A380X_FUEL_XFR_MAN_ONLY
+  - Bool, written by the systems host (CpiomF/FuelTransferFaults)
+  - The FQMS no longer makes automatic transfers and the flight crew transfers manually (FUEL MAN XFR PROCEDURE): both FQMS, both FQDCs or both AGPs failed, or the quantity of a feed tank lost. Once set in flight it stays for the rest of the flight; on ground it follows the failures
+
 - A380X_FUEL_{tank}_TANK_TEMPERATURE
   - Number in degrees Celsius
   - {tank}: LEFT_OUTER, FEED_1, LEFT_MID, LEFT_INNER, FEED_2, FEED_3, RIGHT_INNER, RIGHT_MID, FEED_4, RIGHT_OUTER, TRIM

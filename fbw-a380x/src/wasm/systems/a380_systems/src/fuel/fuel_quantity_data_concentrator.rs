@@ -1,12 +1,16 @@
-use super::{A380FuelPump, FuelLevel, FuelPumpStatus};
+use super::{fuel_tank_sensors::FuelTankSensors, A380FuelPump, FuelLevel, FuelPumpStatus};
 use crate::fuel::{A380FuelTankType, ArincFuelPumpStatusProvider, ArincFuelQuantityProvider};
 use enum_map::Enum;
 use systems::{
+    failures::{Failure, FailureType},
     shared::{
         arinc429::{Arinc429Word, SignStatus},
         ElectricalBusType, ElectricalBuses,
     },
-    simulation::{InitContext, SimulationElement, SimulatorWriter, VariableIdentifier, Write},
+    simulation::{
+        InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter,
+        VariableIdentifier, Write,
+    },
 };
 use uom::{
     si::{f64::*, mass::kilogram},
@@ -16,6 +20,10 @@ use uom::{
 pub(super) struct FuelQuantityDataConcentrator {
     powered_by: ElectricalBusType,
     is_powered: bool,
+    failure: Failure,
+    /// The Alternate Gauging Processor: its tank quantities are the ones written to the simulator; the FQMS gets the
+    /// tank sensor data through the Tank Signal Processors, which still work when it is failed
+    alternate_gauging_processor_failure: Failure,
 
     tank_quantity_identifiers: [VariableIdentifier; A380FuelTankType::LENGTH],
     tank_quantities: [Arinc429Word<Mass>; A380FuelTankType::LENGTH],
@@ -52,6 +60,10 @@ impl FuelQuantityDataConcentrator {
         Self {
             powered_by,
             is_powered: false,
+            failure: Failure::new(FailureType::FuelQuantityDataConcentrator(id)),
+            alternate_gauging_processor_failure: Failure::new(
+                FailureType::FuelAlternateGaugingProcessor(id),
+            ),
 
             // Fuel quantities as "calculated" by the AGP and published on an arinc 429 bus
             // These values are also used the FQMS because in the sim there only exists this value
@@ -68,8 +80,12 @@ impl FuelQuantityDataConcentrator {
         }
     }
 
-    pub(super) fn update(&mut self, fuel_levels: &(impl FuelLevel + FuelPumpStatus)) {
-        if !self.is_powered {
+    pub(super) fn update(
+        &mut self,
+        fuel_levels: &(impl FuelLevel + FuelPumpStatus),
+        tank_sensors: &FuelTankSensors,
+    ) {
+        if !self.is_healthy() {
             self.tank_quantities = Default::default();
             self.left_fuel_pump_running = Arinc429Word::default();
             self.right_fuel_pump_running = Arinc429Word::default();
@@ -100,6 +116,12 @@ impl FuelQuantityDataConcentrator {
             Arinc429Word::new(fuel_levels.right_outer_tank_quantity(), ssm);
         self.tank_quantities[A380FuelTankType::Trim.into_usize()] =
             Arinc429Word::new(fuel_levels.trim_tank_quantity(), ssm);
+        for tank in A380FuelTankType::iterator() {
+            if tank_sensors.is_quantity_lost(tank) {
+                self.tank_quantities[tank.into_usize()] =
+                    Arinc429Word::new(Mass::ZERO, SignStatus::NoComputedData);
+            }
+        }
 
         self.left_fuel_pump_running =
             Self::update_fuel_pump_state(fuel_levels, ssm, Self::LEFT_FUEL_PUMPS);
@@ -119,7 +141,11 @@ impl FuelQuantityDataConcentrator {
     }
 
     pub(super) fn is_healthy(&self) -> bool {
-        self.is_powered
+        self.is_powered && !self.failure.is_active()
+    }
+
+    pub(super) fn is_alternate_gauging_healthy(&self) -> bool {
+        self.is_healthy() && !self.alternate_gauging_processor_failure.is_active()
     }
 }
 impl ArincFuelQuantityProvider for FuelQuantityDataConcentrator {
@@ -137,21 +163,29 @@ impl ArincFuelPumpStatusProvider for FuelQuantityDataConcentrator {
     }
 }
 impl SimulationElement for FuelQuantityDataConcentrator {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.failure.accept(visitor);
+        self.alternate_gauging_processor_failure.accept(visitor);
+        visitor.visit(self);
+    }
+
     fn receive_power(&mut self, buses: &impl ElectricalBuses) {
         self.is_powered = buses.is_powered(self.powered_by);
     }
 
     fn write(&self, writer: &mut SimulatorWriter) {
+        let alternate_gauging_healthy = self.is_alternate_gauging_healthy();
         for (identifier, quantity) in self
             .tank_quantity_identifiers
             .iter()
             .zip(self.tank_quantities)
         {
-            writer.write_arinc429(
-                identifier,
-                quantity.value().get::<kilogram>(),
-                quantity.ssm(),
-            );
+            let ssm = if alternate_gauging_healthy {
+                quantity.ssm()
+            } else {
+                SignStatus::FailureWarning
+            };
+            writer.write_arinc429(identifier, quantity.value().get::<kilogram>(), ssm);
         }
     }
 }

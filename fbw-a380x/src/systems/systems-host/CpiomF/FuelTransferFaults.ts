@@ -1,0 +1,143 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+import { A380Failure } from '@failures';
+import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
+import {
+  FEED_TANK_NAMES,
+  FUEL_FQI_LOST_TANKS_VAR,
+  FUEL_QUANTITY_SYSTEM_FAULTS_VAR,
+  fuelQuantitySystemFaults,
+  isFqmsMonitoringLost,
+  isTankBitSet,
+} from '@shared/FuelQuantityMeasurement';
+import type { FailureStates } from './FuelPumpsAndValves';
+
+/** The FQMS makes no more automatic transfers, the flight crew transfers manually (FUEL MAN XFR PROCEDURE) */
+const FUEL_XFR_MAN_ONLY_VAR = 'L:A380X_FUEL_XFR_MAN_ONLY';
+
+/** What the transfer failures leave of the automatic and manual fuel transfers */
+export interface FuelTransferRestrictions {
+  /** The flight crew must transfer manually (FUEL MAN XFR PROCEDURE, FUEL XFR : MAN ONLY) */
+  manualTransferRequired: boolean;
+  /** The FQMS no longer makes automatic transfers; the manual transfers that are still possible work */
+  automaticTransfersLost: boolean;
+  /** The CG control transfers are inhibited: a transfer gallery is not usable */
+  cgTransfersInhibited: boolean;
+  /** No pumped transfer out of the outer tanks: the forward gallery is not usable; the outer tanks go by gravity */
+  outerPumpedTransferLost: boolean;
+  /** Neither gallery is usable: no transfer out of the inner, mid and trim tanks, automatic or manual */
+  innerMidTrimTransfersLost: boolean;
+  /** No automatic transfer out of the trim tank (damaged trim line, or its isolation valve closed) */
+  trimTankAutomaticTransfersInhibited: boolean;
+  /** The trim tank isolation valve stays closed: no pumped transfer out of the trim tank, only by gravity */
+  trimTankIsolationValveClosed: boolean;
+}
+
+export const NO_TRANSFER_RESTRICTION: Readonly<FuelTransferRestrictions> = {
+  manualTransferRequired: false,
+  automaticTransfersLost: false,
+  cgTransfersInhibited: false,
+  outerPumpedTransferLost: false,
+  innerMidTrimTransfersLost: false,
+  trimTankAutomaticTransfersInhibited: false,
+  trimTankIsolationValveClosed: false,
+};
+
+/** What the FQMS monitoring reads */
+export interface FuelTransferFaultInputs {
+  /** L:A32NX_FUEL_QUANTITY_SYSTEM_FAULTS */
+  quantitySystemFaultsWord: number;
+  /** L:A32NX_FUEL_FQI_LOST_TANKS */
+  fqiLostTanksWord: number;
+  onGround: boolean;
+  /**
+   * An inlet valve of the forward (aft) transfer gallery stuck open, the feed tank 1 fwd (aft) inlet valve in the
+   * simulation: that gallery is not usable
+   */
+  fwdGalleryInletValveOpen: boolean;
+  aftGalleryInletValveOpen: boolean;
+  trimTankIsolationValveClosed: boolean;
+  trimAndApuLineDamaged: boolean;
+}
+
+/**
+ * Whether the FQMS needs the flight crew to transfer manually: it can no longer measure or monitor the fuel quantities
+ * (both FQMS, both FQDCs or both AGPs failed), or the quantity of a feed tank is lost, so it cannot know when to
+ * transfer.
+ */
+export function isManualTransferRequired(i: FuelTransferFaultInputs): boolean {
+  return (
+    isFqmsMonitoringLost(fuelQuantitySystemFaults(i.quantitySystemFaultsWord)) ||
+    FEED_TANK_NAMES.some((tank) => isTankBitSet(i.fqiLostTanksWord, tank))
+  );
+}
+
+/**
+ * The fuel transfer restrictions of the transfer failures:
+ * - Manual transfer required (isManualTransferRequired): the automatic transfers stop. Once that happened in flight,
+ *   they stay stopped for the rest of the flight, even if the failures clear. Design choice: on ground they come back
+ *   with the failures cleared.
+ * - One transfer gallery not usable (an inlet valve stuck open): the CG control transfers are inhibited, the other
+ *   transfers go through the other gallery. With the forward gallery, the outer tanks go by gravity
+ *   (CpiomF/FuelAlternateTransfers). Design choice: the main transfers from the inner and mid tanks stay on the
+ *   simulated lines, which lead to the same feed tanks.
+ * - Both galleries not usable: the alternate transfers cannot solve it (FUEL NORM + ALTN XFR FAULT); the inner, mid
+ *   and trim tanks cannot be transferred, the outer tanks only go by gravity, and the automatic transfers stop.
+ * - The trim tank isolation valve stuck closed, or the trim and APU lines damaged: no automatic transfer out of the
+ *   trim tank. With the valve closed, the trim tank fuel only goes by gravity (TRIM TK FEED OPEN).
+ */
+export class FuelTransferFaultMonitor {
+  private manualTransferLatched = false;
+
+  public update(i: FuelTransferFaultInputs): FuelTransferRestrictions {
+    const required = isManualTransferRequired(i);
+    if (required && !i.onGround) {
+      this.manualTransferLatched = true;
+    } else if (i.onGround && !required) {
+      this.manualTransferLatched = false;
+    }
+    const manualTransferRequired = required || this.manualTransferLatched;
+    const bothGalleriesLost = i.fwdGalleryInletValveOpen && i.aftGalleryInletValveOpen;
+    return {
+      manualTransferRequired,
+      automaticTransfersLost: manualTransferRequired || bothGalleriesLost,
+      cgTransfersInhibited: i.fwdGalleryInletValveOpen || i.aftGalleryInletValveOpen,
+      outerPumpedTransferLost: i.fwdGalleryInletValveOpen,
+      innerMidTrimTransfersLost: bothGalleriesLost,
+      trimTankAutomaticTransfersInhibited: i.trimTankIsolationValveClosed || i.trimAndApuLineDamaged,
+      trimTankIsolationValveClosed: i.trimTankIsolationValveClosed,
+    };
+  }
+}
+
+/** The fuel transfer restrictions of the FQMS simulation, for CpiomF/LegacyFuel and CpiomF/FuelAutomaticTransfers */
+export interface FuelTransferRestrictionSource {
+  readonly restrictions: Readonly<FuelTransferRestrictions>;
+}
+
+/** Reads the transfer failures every update and writes FUEL_XFR_MAN_ONLY_VAR for the FWS */
+export class FuelTransferFaults implements Instrument, FuelTransferRestrictionSource {
+  private readonly monitor = new FuelTransferFaultMonitor();
+
+  public restrictions: Readonly<FuelTransferRestrictions> = NO_TRANSFER_RESTRICTION;
+
+  constructor(private readonly failures: FailureStates) {}
+
+  public init(): void {
+    // nothing to initialise: no restriction until the first update
+  }
+
+  public onUpdate(): void {
+    this.restrictions = this.monitor.update({
+      quantitySystemFaultsWord: SimVar.GetSimVarValue(FUEL_QUANTITY_SYSTEM_FAULTS_VAR, SimVarValueType.Number),
+      fqiLostTanksWord: SimVar.GetSimVarValue(FUEL_FQI_LOST_TANKS_VAR, SimVarValueType.Number),
+      onGround: SimVar.GetSimVarValue('SIM ON GROUND', SimVarValueType.Bool) > 0,
+      fwdGalleryInletValveOpen: this.failures.isActive(A380Failure.FuelFeedTank1FwdInletValveOpen),
+      aftGalleryInletValveOpen: this.failures.isActive(A380Failure.FuelFeedTank1AftInletValveOpen),
+      trimTankIsolationValveClosed: this.failures.isActive(A380Failure.FuelTrimTankIsolationValveClosed),
+      trimAndApuLineDamaged: this.failures.isActive(A380Failure.FuelTrimAndApuLineDamaged),
+    });
+    SimVar.SetSimVarValue(FUEL_XFR_MAN_ONLY_VAR, SimVarValueType.Bool, this.restrictions.manualTransferRequired);
+  }
+}

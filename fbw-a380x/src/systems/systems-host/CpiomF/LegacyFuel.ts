@@ -25,6 +25,7 @@ import {
   trimTankFeedSelector,
   TrimTankFeedSelector,
 } from './FuelTrimTankFeed';
+import { FuelTransferRestrictionSource, NO_TRANSFER_RESTRICTION } from './FuelTransferFaults';
 enum ValveState {
   Closed,
   Open,
@@ -85,7 +86,8 @@ export class LegacyFuel implements Instrument {
     setTransferPbAuto: (pbVar, auto) => SimVar.SetSimVarValue(pbVar, 'bool', auto),
     isPumpPbOn: (circuit) => SimVar.GetSimVarValue(`A:CIRCUIT CONNECTION ON:${circuit}`, 'bool') > 0,
     isTrimTankIsolated: () =>
-      trimTankFeedSelector(SimVar.GetSimVarValue(TRIM_TK_FEED_SELECTOR_VAR, 'number')) === TrimTankFeedSelector.Isol,
+      trimTankFeedSelector(SimVar.GetSimVarValue(TRIM_TK_FEED_SELECTOR_VAR, 'number')) === TrimTankFeedSelector.Isol ||
+      this.transferFaults.restrictions.trimTankIsolationValveClosed,
     isTriggerActive: (trigger) => this.triggerActive(trigger),
     setTriggerOff: (trigger) => this.keyEventManager?.triggerKey('FUELSYSTEM_TRIGGER_OFF', true, trigger),
     isPumpOn: (pump) => SimVar.GetSimVarValue(`A:FUELSYSTEM PUMP SWITCH:${pump}`, 'bool') > 0,
@@ -116,6 +118,7 @@ export class LegacyFuel implements Instrument {
   constructor(
     private readonly bus: EventBus,
     private readonly sysHost: BaseInstrument,
+    private readonly transferFaults: FuelTransferRestrictionSource = { restrictions: NO_TRANSFER_RESTRICTION },
   ) {
     KeyEventManager.getManager(bus).then((manager) => {
       this.keyEventManager = manager;
@@ -235,9 +238,11 @@ export class LegacyFuel implements Instrument {
     const onGround = SimVar.GetSimVarValue('SIM ON GROUND', 'bool');
     const jettisoning = SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_IN_PROGRESS', 'bool');
     // Jettison and refuel suspend the manual transfers; while one runs the automatic transfers are inhibited
+    const restrictions = this.transferFaults.restrictions;
     const manualTransferInProgress = this.manualTransfer.update(
       dt,
       jettisoning > 0 || this.jettisonInProgress || this.refuelStarted.get() || this.refuelInProgress,
+      restrictions,
     );
     if (!this.jettisonInProgress && jettisoning) {
       // Jettison start: all fuel transfers stop
@@ -295,9 +300,16 @@ export class LegacyFuel implements Instrument {
       // TRIM TK FEED ISOL isolates the trim tank transfer line: no transfer out of the trim tank starts, the running
       // ones stop
       const trimTankIsolated =
-        trimTankFeedSelector(SimVar.GetSimVarValue(TRIM_TK_FEED_SELECTOR_VAR, 'number')) === TrimTankFeedSelector.Isol;
+        trimTankFeedSelector(SimVar.GetSimVarValue(TRIM_TK_FEED_SELECTOR_VAR, 'number')) ===
+          TrimTankFeedSelector.Isol || restrictions.trimTankAutomaticTransfersInhibited;
       if (trimTankIsolated) {
         this.isolateTrimTankTransfers();
+      }
+      if (restrictions.cgTransfersInhibited) {
+        this.endCgControlTransfer();
+      }
+      if (restrictions.outerPumpedTransferLost) {
+        this.stopOuterTankPumps();
       }
 
       if (
@@ -597,25 +609,25 @@ export class LegacyFuel implements Instrument {
         }
       }
       if (
-        (this.feed1TankQty.get() < 1316 && !this.triggerActive(35)) ||
+        (this.feed1TankQty.get() < 1316 && !this.triggerActive(35) && !restrictions.outerPumpedTransferLost) ||
         (this.feed1TankQty.get() >= 1317 && this.triggerActive(35))
       ) {
         this.toggleTrigger(35);
       }
       if (
-        (this.feed2TankQty.get() < 1316 && !this.triggerActive(36)) ||
+        (this.feed2TankQty.get() < 1316 && !this.triggerActive(36) && !restrictions.outerPumpedTransferLost) ||
         (this.feed2TankQty.get() >= 1317 && this.triggerActive(36))
       ) {
         this.toggleTrigger(36);
       }
       if (
-        (this.feed4TankQty.get() < 1316 && !this.triggerActive(37)) ||
+        (this.feed4TankQty.get() < 1316 && !this.triggerActive(37) && !restrictions.outerPumpedTransferLost) ||
         (this.feed4TankQty.get() >= 1317 && this.triggerActive(37))
       ) {
         this.toggleTrigger(37);
       }
       if (
-        (this.feed3TankQty.get() < 1316 && !this.triggerActive(38)) ||
+        (this.feed3TankQty.get() < 1316 && !this.triggerActive(38) && !restrictions.outerPumpedTransferLost) ||
         (this.feed3TankQty.get() >= 1317 && this.triggerActive(38))
       ) {
         this.toggleTrigger(38);
@@ -644,20 +656,22 @@ export class LegacyFuel implements Instrument {
       ) {
         this.toggleTrigger(42);
       }
-      if (
-        (this.cgPercent.get().valueOr(0) > cgTargetStart &&
-          !this.triggerActive(43) &&
-          !this.triggerActive(34) &&
-          !trimTankIsolated) ||
-        (this.cgPercent.get().valueOr(Infinity) <= cgTargetStart - 0.1 && this.triggerActive(43))
-      ) {
-        this.toggleTrigger(43);
-      }
-      if (
-        (this.cgPercent.get().valueOr(Infinity) < cgTargetStop && !this.triggerActive(44)) ||
-        (this.cgPercent.get().valueOr(0) >= cgTargetStop + 0.1 && this.triggerActive(44))
-      ) {
-        this.toggleTrigger(44);
+      if (!restrictions.cgTransfersInhibited) {
+        if (
+          (this.cgPercent.get().valueOr(0) > cgTargetStart &&
+            !this.triggerActive(43) &&
+            !this.triggerActive(34) &&
+            !trimTankIsolated) ||
+          (this.cgPercent.get().valueOr(Infinity) <= cgTargetStart - 0.1 && this.triggerActive(43))
+        ) {
+          this.toggleTrigger(43);
+        }
+        if (
+          (this.cgPercent.get().valueOr(Infinity) < cgTargetStop && !this.triggerActive(44)) ||
+          (this.cgPercent.get().valueOr(0) >= cgTargetStop + 0.1 && this.triggerActive(44))
+        ) {
+          this.toggleTrigger(44);
+        }
       }
     }
   }
@@ -680,6 +694,27 @@ export class LegacyFuel implements Instrument {
     });
     for (let i = 1; i < 5; i++) {
       this.trimTransfersActiveForFeedTank.set(i, false);
+    }
+  }
+
+  /**
+   * Stops a CG control transfer in progress: its start trigger off, its end trigger (CGControlTransferEnd) fired. The
+   * trigger states are read back a few updates later, so the keys set the states rather than toggle them.
+   */
+  private endCgControlTransfer(): void {
+    if (!this.triggerActive(43)) {
+      return;
+    }
+    this.keyEventManager?.triggerKey('FUELSYSTEM_TRIGGER_OFF', true, 43);
+    this.keyEventManager?.triggerKey('FUELSYSTEM_TRIGGER_ON', true, 44);
+  }
+
+  /** Without the forward gallery the outer tank pumps cannot transfer: Pump.9 LeftOuterTankPump, Pump.14 Right */
+  private stopOuterTankPumps(): void {
+    for (const pump of [9, 14]) {
+      if (SimVar.GetSimVarValue(`A:FUELSYSTEM PUMP SWITCH:${pump}`, 'bool') > 0) {
+        this.keyEventManager?.triggerKey('FUELSYSTEM_PUMP_OFF', true, pump);
+      }
     }
   }
 

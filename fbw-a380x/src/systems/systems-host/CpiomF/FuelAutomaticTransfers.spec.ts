@@ -18,6 +18,7 @@ import {
 } from './FuelGroundTransfer';
 import { TRIM_TK_FEED_SELECTOR_VAR, TRIM_TK_GRAVITY_XFR_IN_PROGRESS_VAR } from './FuelTrimTankFeed';
 import { OUTR_TK_GRAVITY_XFR_IN_PROGRESS_VAR } from './FuelAlternateTransfers';
+import { FuelTransferRestrictions, NO_TRANSFER_RESTRICTION } from './FuelTransferFaults';
 
 const POUNDS_PER_GALLON = 6.7;
 
@@ -37,6 +38,10 @@ describe('FuelAutomaticTransfers', () => {
 
   let transfers: FuelAutomaticTransfers;
 
+  const transferFaults: { restrictions: Readonly<FuelTransferRestrictions> } = {
+    restrictions: NO_TRANSFER_RESTRICTION,
+  };
+
   /** Runs the transfers for a time, in seconds, at the update period */
   const run = (seconds: number) => {
     for (let ms = 0; ms < seconds * 1000; ms += FuelAutomaticTransfers.UPDATE_PERIOD_MS) {
@@ -48,6 +53,7 @@ describe('FuelAutomaticTransfers', () => {
     simVars.clear();
     failures.clear();
     commandedOn.clear();
+    transferFaults.restrictions = NO_TRANSFER_RESTRICTION;
     vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars.get(name) ?? 0);
     vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number | boolean) => {
       simVars.set(name, value);
@@ -67,6 +73,7 @@ describe('FuelAutomaticTransfers', () => {
       { deltaTime: FuelAutomaticTransfers.UPDATE_PERIOD_MS },
       { isActive: (failure) => failures.has(failure) },
       { isTransferPumpCommandedOn: (pump) => commandedOn.has(pump) },
+      transferFaults,
     );
   });
 
@@ -182,6 +189,63 @@ describe('FuelAutomaticTransfers', () => {
     expect(quantity(2)).toBeCloseTo(6_000 + oneMinuteGal, 1);
     expect(quantity(4)).toBeCloseTo(5_000 - oneMinuteGal, 1);
     expect(quantity(7)).toBe(5_000);
+  });
+
+  it('without the forward gallery the outer tanks go by gravity, as after an outer tank pump failure', () => {
+    transferFaults.restrictions = { ...NO_TRANSFER_RESTRICTION, outerPumpedTransferLost: true };
+    setQuantity(1, 2_000);
+    setQuantity(10, 2_000);
+    for (const feedTank of [2, 5, 6, 9]) {
+      setQuantity(feedTank, 4_000);
+    }
+    run(36);
+    expect(simVars.get(OUTR_TK_GRAVITY_XFR_IN_PROGRESS_VAR)).toBe(true);
+    expect(quantity(1)).toBeCloseTo(2_000 - 5, 3);
+    expect(quantity(10)).toBeCloseTo(2_000 - 5, 3);
+  });
+
+  it('the automatic transfers lost to the transfer failures stop the load alleviation and gravity transfers', () => {
+    transferFaults.restrictions = {
+      ...NO_TRANSFER_RESTRICTION,
+      manualTransferRequired: true,
+      automaticTransfersLost: true,
+    };
+    failures.add(A380Failure.FuelLeftOuterTankPump);
+    setQuantity(1, 1_000);
+    setQuantity(10, 1_000);
+    setQuantity(4, 10_000);
+    setQuantity(7, 10_000);
+    run(60);
+    expect(simVars.get(LOAD_ALLEVIATION_TO_OUTR_TKS_VAR)).toBe(false);
+    expect(simVars.get(OUTR_TK_GRAVITY_XFR_IN_PROGRESS_VAR)).toBe(false);
+    expect(quantity(1)).toBe(1_000);
+    expect(quantity(4)).toBe(10_000);
+  });
+
+  it('no load alleviation transfer out of the trim tank with the trim line damaged', () => {
+    transferFaults.restrictions = { ...NO_TRANSFER_RESTRICTION, trimTankAutomaticTransfersInhibited: true };
+    setQuantity(11, 3_000);
+    for (const feedTank of [2, 5, 6, 9]) {
+      setQuantity(feedTank, 4_000);
+    }
+    simVars.set('L:A32NX_FM1_REMAINING_FLIGHT_TIME', rtdWord(79));
+    run(190);
+    expect(simVars.get(LOAD_ALLEVIATION_FROM_TRIM_TK_VAR)).toBe(false);
+    expect(quantity(11)).toBe(3_000);
+  });
+
+  it('no gravity transfer out of the trim tank without both transfer galleries', () => {
+    transferFaults.restrictions = {
+      ...NO_TRANSFER_RESTRICTION,
+      automaticTransfersLost: true,
+      innerMidTrimTransfersLost: true,
+    };
+    setQuantity(11, 3_000);
+    simVars.set(TRIM_TK_FEED_SELECTOR_VAR, 1);
+    simVars.set('PLANE PITCH DEGREES', -2.5);
+    run(36);
+    expect(simVars.get(TRIM_TK_GRAVITY_XFR_IN_PROGRESS_VAR)).toBe(false);
+    expect(quantity(11)).toBe(3_000);
   });
 
   it('a jettison stops every transfer', () => {

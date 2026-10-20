@@ -623,27 +623,61 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800045: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FQI FAULT',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts fqiFaultItemsToShow
+    items: [
+      { name: 'FUEL XFR : MAN ONLY', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'FOB COMPUTED FROM FU', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'GWCG FROM WBBC', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'GW FROM WBBC', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'LAND ANSA', sensed: true, style: ChecklistLineStyle.LandAnsa },
+      { name: 'NO FQI AVAIL', sensed: true, condition: true },
+      { name: 'INR TKs NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'MID TKs NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'TRIM TK NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'USE TRIM TK XFR FOR CG IF NECESSARY', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'OUTR TKs PMPs', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'OUTR TK XFR', sensed: true, labelNotCompleted: 'MAN', level: 1 },
+    ],
   },
   281800046: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FQMS 1 FAULT',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts fuelManagementAbnormalItems
+    items: [{ name: 'FQMS 1', sensed: false, labelNotCompleted: 'RESET' }],
   },
   281800047: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FQMS 2 FAULT',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts fuelManagementAbnormalItems
+    items: [{ name: 'FQMS 2', sensed: false, labelNotCompleted: 'RESET' }],
   },
   281800048: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FQMS 1+2 FAULT',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts fuelManagementAbnormalItems
+    items: [
+      { name: 'FQMS 1+2 (ONE BY ONE)', sensed: false, labelNotCompleted: 'RESET' },
+      { name: 'WAIT FOR 1 MIN AFTER RESET', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'ALERT PERSISTS', sensed: false, condition: true },
+      { name: 'FQMS 1 RESET', sensed: false, labelNotCompleted: 'PULL', level: 1 },
+      { name: 'ALERT PERSISTS', sensed: false, condition: true },
+      { name: 'FQMS 1 RESET', sensed: false, labelNotCompleted: 'PUSH', level: 1 },
+      { name: 'FQMS 2 RESET', sensed: false, labelNotCompleted: 'PULL', level: 1 },
+      { name: 'ALERT PERSISTS', sensed: false, condition: true, level: 1 },
+      { name: 'FQMS 2 RESET', sensed: false, labelNotCompleted: 'PUSH', level: 2 },
+      { name: 'LOSS OF FUEL XFR INDICATIONS', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'ALTN GAUGING ONLY', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'FOB COMPUTED FROM FU', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'FUEL XFR : MAN ONLY', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'GW FROM WBBC', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'GWCG FROM WBBC', sensed: false, style: ChecklistLineStyle.Green },
+    ],
   },
   281800049: {
     title: '\x1b<4m\x1b4mFUEL\x1bm GAUGING FAULT',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts fuelManagementAbnormalItems: shown on ground only
+    items: [{ name: 'GAUGING MEDIUM DEGRADATION', sensed: false, style: ChecklistLineStyle.Green }],
   },
   281800050: {
     title: '\x1b<4m\x1b4mFUEL\x1bm INR TK MAN XFR COMPLETED',
@@ -1081,7 +1115,23 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800074: {
     title: '\x1b<4m\x1b4mFUEL\x1bm MAN XFR PROCEDURE',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts manXfrProcedureItemsToShow
+    items: [
+      { name: 'WAIT FOR WINGS BALANCING COMPLETION', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'WHEN ANY FEED TK < 13000 KG', sensed: true, condition: true },
+      { name: 'INR TK XFR', sensed: true, labelNotCompleted: 'MAN', level: 1 },
+      { name: 'WHEN ANY FEED TK FULL', sensed: true, condition: true },
+      { name: 'INR TK XFR', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
+      { name: 'L INR TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'R INR TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'WHEN ANY FEED TK < 13000 KG', sensed: true, condition: true },
+      { name: 'MID TK XFR', sensed: true, labelNotCompleted: 'MAN', level: 1 },
+      { name: 'WHEN ANY FEED TK FULL', sensed: true, condition: true },
+      { name: 'MID TK XFR', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
+      { name: 'WHEN ANY FEED TK < 13000 KG', sensed: true, condition: true },
+      { name: 'OUTR TK XFR', sensed: true, labelNotCompleted: 'MAN', level: 1 },
+      { name: 'TRIM TK XFR', sensed: true, labelNotCompleted: 'FWD' },
+    ],
   },
   281800075: {
     title: '\x1b<4m\x1b4mFUEL\x1bm MID TK MAN XFR COMPLETED',
@@ -1104,17 +1154,44 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800077: {
     title: '\x1b<4m\x1b4mFUEL\x1bm NORM + ALTN XFR FAULT',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts fuelManagementAbnormalItems
+    items: [
+      { name: 'XFR PMPs OFF', sensed: false, condition: true },
+      { name: 'ALL XFR PMPs', sensed: false, labelNotCompleted: 'RESELECT', level: 1 },
+      { name: 'FQMS 1+2 (ONE BY ONE)', sensed: false, labelNotCompleted: 'RESET' },
+      { name: 'INR TKs NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'MID TKs NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'TRIM TK NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'USE TRIM TK XFR FOR CG IF NECESSARY', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'FEED TK 1 + 4 < 15000 KG', sensed: true, condition: true },
+      { name: 'EMER OUTR TK XFR', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'EXPECT FEED TKS IMBALANCE', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'FUEL MAN BALANCING PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   281800078: {
     title: '\x1b<4m\x1b4mFUEL\x1bm NORM XFR FAULT',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts normXfrFaultItemsToShow
+    items: [
+      { name: 'FEED TK 1 FWD INLET VLV FAULT', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'FEED TK 1 AFT INLET VLV FAULT', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'FEED TK 1 + 4 < 15000 KG', sensed: true, condition: true },
+      { name: 'EMER OUTR TK XFR', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'EXPECT FEED TKS IMBALANCE', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'FUEL MAN BALANCING PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   281800079: {
     title: '\x1b<4m\x1b4mFUEL\x1bm OUTR TK XFR FAULT',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts fuelManagementAbnormalItems
+    items: [
+      { name: 'L OUTR TK PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'R OUTR TK PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'EXPECT FEED TKS IMBALANCE', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'FUEL MAN BALANCING PROC', sensed: false, labelNotCompleted: 'CONSIDER' },
+    ],
   },
   281800080: {
     title: '\x1b<4m\x1b4mFUEL\x1bm OUTR TK MAN XFR COMPLETED',
@@ -1148,7 +1225,11 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800085: {
     title: '\x1b<4m\x1b4mFUEL\x1bm SYS COMPONENT FAULT',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts fuelManagementAbnormalItems
+    items: [
+      { name: 'FQDC 1 AGP FAULT', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'FQDC 2 AGP FAULT', sensed: false, style: ChecklistLineStyle.Green },
+    ],
   },
   281800086: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TEMP LO',
@@ -1168,12 +1249,25 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800087: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM & APU LINES FAULT',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts fuelManagementAbnormalItems
+    items: [
+      { name: 'TRIM TK FEED', sensed: true, labelNotCompleted: 'ISOL' },
+      { name: 'TRIM TK L PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'TRIM TK R PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'TRIM TK NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
   },
   281800088: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK GRVTY FWD XFR FAULT',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts fuelManagementAbnormalItems
+    items: [
+      { name: 'EXCESS PITCH ATT', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'TRIM TK FEED', sensed: true, labelNotCompleted: 'AUTO' },
+      { name: 'PITCH ATT < 3° FOR GRVTY FWD XFR', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'TRIM TK FEED', sensed: true, labelNotCompleted: 'OPEN' },
+    ],
   },
   281800089: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK L PMP FAULT',
@@ -1213,7 +1307,23 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800094: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK XFR FAULT',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts trimTkXfrFaultItemsToShow
+    items: [
+      { name: 'TRIM TK ISOL VLV FAULT', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'TRIM TK L PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'TRIM TK R PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'TRIM TK XFR', sensed: true, labelNotCompleted: 'AUTO' },
+      { name: 'PITCH ATT < 3° FOR GRVTY FWD XFR', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'TRIM TK FEED', sensed: true, labelNotCompleted: 'OPEN' },
+      { name: 'TRIM TK : 2300 KG MAX NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'TRIM TK XFR', sensed: true, labelNotCompleted: 'AUTO' },
+      { name: 'TRIM TK FEED', sensed: true, labelNotCompleted: 'ISOL' },
+      { name: 'TRIM TK NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'DELAY T.O', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'INR TK XFR', sensed: true, labelNotCompleted: 'AUTO' },
+      { name: 'MID TK XFR', sensed: true, labelNotCompleted: 'AUTO' },
+      { name: 'TRIM TK XFR', sensed: true, labelNotCompleted: 'FWD' },
+    ],
   },
   281800095: {
     title: '\x1b<4m\x1b4mFUEL\x1bm WEIGHT & BALANCE BKUP FAULT',
@@ -1320,7 +1430,47 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800099: {
     title: '\x1b<4m\x1b4mFUEL\x1bm WINGS MAN BALANCING PROCEDURE',
     sensed: true,
-    items: [],
+    // FwsFuelManagementAlerts wingsManBalancingItemsToShow
+    items: [
+      { name: 'DELAY T.O', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'FEED TK 1 & 4 NOT BALANCED', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'TKS BALANCING : ONE PAIR AT A TIME', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'NO FUEL LEAK', sensed: false, condition: true },
+      { name: 'CROSSFEED 1', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'CROSSFEED 4', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'FEED TK 1 STBY PMP', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'FEED TK 1 MAIN PMP', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'FEED TK 4 STBY PMP', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'FEED TK 4 MAIN PMP', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'FEED TK 2 & 3 NOT BALANCED', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'TKS BALANCING : ONE PAIR AT A TIME', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'NO FUEL LEAK', sensed: false, condition: true },
+      { name: 'CROSSFEED 2', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'CROSSFEED 3', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'FEED TK 2 STBY PMP', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'FEED TK 2 MAIN PMP', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'FEED TK 3 STBY PMP', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'FEED TK 3 MAIN PMP', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'INR TKs NOT BALANCED', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'TKS BALANCING : ONE PAIR AT A TIME', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'NO FUEL LEAK', sensed: false, condition: true },
+      { name: 'WHEN ANY FEED TK < 15000 KG', sensed: true, condition: true, level: 1 },
+      { name: 'L INR TK AFT PMP', sensed: true, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'R INR TK AFT PMP', sensed: true, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'INR TK XFR', sensed: true, labelNotCompleted: 'MAN', level: 2 },
+      { name: 'MID TKs NOT BALANCED', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'TKS BALANCING : ONE PAIR AT A TIME', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'NO FUEL LEAK', sensed: false, condition: true },
+      { name: 'WHEN ANY FEED TK < 15000 KG', sensed: true, condition: true, level: 1 },
+      { name: 'L MID TK AFT PMP', sensed: true, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'R MID TK AFT PMP', sensed: true, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'MID TK XFR', sensed: true, labelNotCompleted: 'MAN', level: 2 },
+      { name: 'OUTR TKs NOT BALANCED', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'TKS BALANCING : ONE PAIR AT A TIME', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'NO FUEL LEAK', sensed: false, condition: true },
+      { name: 'WHEN ANY FEED TK < 15000 KG', sensed: true, condition: true, level: 1 },
+      { name: 'OUTR TK XFR', sensed: true, labelNotCompleted: 'MAN', level: 2 },
+    ],
   },
   281800100: {
     title: '\x1b<4m\x1b4mFUEL\x1bm WINGS NOT BALANCED',
