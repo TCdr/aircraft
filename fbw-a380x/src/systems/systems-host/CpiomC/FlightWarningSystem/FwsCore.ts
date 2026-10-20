@@ -230,7 +230,8 @@ import { isCabinEmerExitLightFault } from './FwsEmerExitLightAlerts';
 import { NonSensedProcAutoDeactivation } from './FwsNonSensedAutoDeactivation';
 import { isToConfigNormal } from './ToConfigNormal';
 import { EcamClearHistory, FlightPhaseInhibitOverride, recallAll, RECALL_NORMAL_MEMO_MS } from './FwsRecall';
-import { FwsGearAlerts } from './FwsGearAlerts';
+import { FwsGearAlerts, aboveGearDoorSpeed } from './FwsGearAlerts';
+import { FwsGearSteeringAlerts, readGearSteeringSystemInputs } from './FwsGearSteeringAlerts';
 import { FwsNavAlerts, adrFaultyForNavAlerts, readSideDisplayData } from './FwsNavAlerts';
 import { AntiIceValveAlerts, readAntiIceValveInputs } from './AntiIceValveAlerts';
 import { oxygenAlerts } from './OxygenAlerts';
@@ -2337,6 +2338,9 @@ export class FwsCore {
 
   /** L/G CTL FAULT, GEAR NOT LOCKED DOWN/UP, DOORS NOT CLOSED, SYSTEM DISAGREE */
   public readonly gearAlerts = new FwsGearAlerts();
+
+  /** L/G configuration monitoring and STEER equipment alerts */
+  public readonly gearSteeringAlerts = new FwsGearSteeringAlerts();
 
   /** NAV CAPT AND F/O ALT/ATT/HDG/BARO REF DISAGREE */
   public readonly navAlerts = new FwsNavAlerts();
@@ -5088,6 +5092,26 @@ export class FwsCore {
       },
       this.aircraftOnGround.get(),
       SimVar.GetSimVarValue('L:A32NX_LG_GRVTY_SWITCH_POS', 'number') === 2,
+    );
+    this.gearSteeringAlerts.update(
+      deltaTime,
+      readGearSteeringSystemInputs(
+        (name) => SimVar.GetSimVarValue(name, 'number'),
+        (failure) => this.failuresConsumer.isActive(failure),
+      ),
+      {
+        onGround: this.aircraftOnGround.get(),
+        gearLeverDown: SimVar.GetSimVarValue('L:A32NX_GEAR_HANDLE_POSITION', 'number') >= 0.5,
+        allGearsDownlocked: this.gearAlerts.allGearsDownlocked.get(),
+        oneEngineRunning: this.oneEngineRunning.get(),
+        allEngineMastersOff:
+          !this.engine1Master.get() &&
+          !this.engine2Master.get() &&
+          !this.engine3Master.get() &&
+          !this.engine4Master.get(),
+        aboveGearDoorSpeed: aboveGearDoorSpeed(this.computedAirSpeedToNearest2.get(), this.machSelectedFromAdr.get()),
+        groundSpeedKt: SimVar.GetSimVarValue('GPS GROUND SPEED', 'knots'),
+      },
     );
     const navTrueRef = SimVar.GetSimVarValue('L:A32NX_PUSH_TRUE_REF', 'bool') > 0;
     const navAirKnob = SimVar.GetSimVarValue('L:A32NX_AIR_DATA_SWITCHING_KNOB', 'enum');

@@ -147,6 +147,20 @@ pub enum FailureType {
     /// The uplock of a gear locks again once the gear has left it: its proximity sensors read the gear uplocked
     /// while the gear is down (A320 L/G GEAR UPLOCK FAULT)
     GearUplockStuckLocked(GearActuatorId),
+    /// The uplock of gear group n (A380: 1 nose, 2 left main, 3 right main gears) closed again behind the extended
+    /// gear: that gear cannot be retracted (A380 L/G GEAR UPLOCK FAULT)
+    GearUplockClosed(usize),
+    /// A wing or body gear bogie was not in its pitch attitude at the gear extension: the gears cannot be retracted
+    /// (A380 L/G BOGIE POSITION FAULT)
+    GearBogiePosition,
+    /// The gravity extension system failed its built-in test: L/G GRVTY does not release the uplocks (A380 LGERS,
+    /// L/G GRVTY EXTN FAULT)
+    GearGravityExtension,
+    /// The locking mechanism of body wheel steering n (1 left, 2 right) failed: that axle is not centred and locked
+    /// (A380 STEER B/W STEER NOT LOCKED)
+    BodyWheelSteeringLock(usize),
+    /// The steering does not receive the orders of the rudder pedals (A380 STEER PEDAL STEER CTL FAULT)
+    PedalSteeringControl,
     BrakeHydraulicLeak(HydraulicColor),
     BrakeAccumulatorGasLeak,
     /// Channel n (1 or 2) of the A320 brake and steering control unit (BSCU). The A320 brake model also uses

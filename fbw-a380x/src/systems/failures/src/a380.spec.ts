@@ -927,3 +927,45 @@ describe('A380X flight control actuator failures', () => {
     }
   });
 });
+
+// The L/G and steering monitoring failures: the Rust ones under the ids of the a380_systems_wasm map, the others read
+// by the FWS only (no Rust failure)
+describe('A380X L/G and steering monitoring failures', () => {
+  it('lists the Rust failures under their FailureType', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string][] = [
+      [32030, 'GearUplockClosed(1)'],
+      [32031, 'GearUplockClosed(2)'],
+      [32032, 'GearUplockClosed(3)'],
+      [32033, 'GearBogiePosition'],
+      [32034, 'GearGravityExtension'],
+      [32210, 'BodyWheelSteeringLock(1)'],
+      [32211, 'BodyWheelSteeringLock(2)'],
+      [32212, 'PedalSteeringControl'],
+    ];
+    expect(expected.map(([id]) => [id, rustMap.get(id), listedIds.includes(id)])).toEqual(
+      expected.map(([id, failureType]) => [id, failureType, true]),
+    );
+  });
+
+  it('lists the FWS-only failures in ATA 32 without a Rust failure', () => {
+    const rustMap = readRustFailureMap();
+    const fwsOnly = [
+      A380Failure.GearWeightOnWheels,
+      A380Failure.GearOleoPressureAbnormalNose,
+      A380Failure.GearOleoPressureAbnormalRightBody,
+      A380Failure.GearOleoPressureMonitoringNose,
+      A380Failure.GearOleoPressureMonitoringRightBody,
+      A380Failure.SteeringCaptTiller,
+      A380Failure.SteeringFoTiller,
+      A380Failure.SteeringLehgsOverheat,
+      A380Failure.SteeringNoseWheelDisconnection,
+      A380Failure.SteeringNormalSelectorValveJammedOpen,
+      A380Failure.SteeringAlternateSelectorValveJammedOpen,
+      A380Failure.SteeringBodyWheelSelectorValveJammedOpen,
+    ];
+    const chapterOf = (id: number) => A380FailureDefinitions.find(([, listed]) => listed === id)?.[0];
+
+    expect(fwsOnly.map((id) => [id, rustMap.has(id), chapterOf(id)])).toEqual(fwsOnly.map((id) => [id, false, 32]));
+  });
+});

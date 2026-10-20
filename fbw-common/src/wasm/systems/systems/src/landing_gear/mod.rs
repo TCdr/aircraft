@@ -642,6 +642,7 @@ pub struct LandingGearControlInterfaceUnitSet {
     coordinator: LandingGearControlCoordinator,
     lgcius: [LandingGearControlInterfaceUnit; 2],
     gear_handle_unit: LandingGearHandleUnit,
+    retraction_inhibited: bool,
 }
 impl LandingGearControlInterfaceUnitSet {
     pub fn new(
@@ -657,7 +658,14 @@ impl LandingGearControlInterfaceUnitSet {
                 LandingGearControlInterfaceUnit::new(context, LgciuId::Lgciu2, lgciu2_powered_by),
             ],
             gear_handle_unit: LandingGearHandleUnit::new(context),
+            retraction_inhibited: false,
         }
+    }
+
+    /// While the retraction is inhibited the LGCIUs keep the gear down: they do not take a gear lever UP selection
+    /// (A380: a gear not in its retraction configuration, L/G RETRACTION FAULT)
+    pub fn set_retraction_inhibited(&mut self, inhibited: bool) {
+        self.retraction_inhibited = inhibited;
     }
 
     /// `nose_wheel_steering_centered`: the nose wheel steering is centred, for the gear lever baulk lock (an
@@ -670,12 +678,17 @@ impl LandingGearControlInterfaceUnitSet {
         external_power_available: bool,
         nose_wheel_steering_centered: bool,
     ) {
+        let gear_handle = RetractionInhibitingGearHandle {
+            gear_handle: &self.gear_handle_unit,
+            retraction_inhibited: self.retraction_inhibited,
+        };
+
         self.coordinator.update(
             [
                 self.lgcius[LgciuId::Lgciu1 as usize].status(),
                 self.lgcius[LgciuId::Lgciu2 as usize].status(),
             ],
-            &self.gear_handle_unit,
+            &gear_handle,
         );
 
         self.lgcius[LgciuId::Lgciu1 as usize].update(
@@ -684,7 +697,7 @@ impl LandingGearControlInterfaceUnitSet {
             gear_system_sensors,
             external_power_available,
             nose_wheel_steering_centered,
-            &self.gear_handle_unit,
+            &gear_handle,
             self.coordinator.active_lgciu_id() == LgciuId::Lgciu1,
         );
         self.lgcius[LgciuId::Lgciu2 as usize].update(
@@ -693,7 +706,7 @@ impl LandingGearControlInterfaceUnitSet {
             gear_system_sensors,
             external_power_available,
             nose_wheel_steering_centered,
-            &self.gear_handle_unit,
+            &gear_handle,
             self.coordinator.active_lgciu_id() == LgciuId::Lgciu2,
         );
 
@@ -848,6 +861,22 @@ impl LandingGearHandle for LandingGearHandleUnit {
         self.lever_should_lock_down
     }
 }
+
+/// The gear lever as the LGCIUs take it: down while the retraction is inhibited
+struct RetractionInhibitingGearHandle<'a> {
+    gear_handle: &'a LandingGearHandleUnit,
+    retraction_inhibited: bool,
+}
+impl LandingGearHandle for RetractionInhibitingGearHandle<'_> {
+    fn gear_handle_is_down(&self) -> bool {
+        self.retraction_inhibited || self.gear_handle.gear_handle_is_down()
+    }
+
+    fn gear_handle_baulk_locked(&self) -> bool {
+        self.gear_handle.gear_handle_baulk_locked()
+    }
+}
+
 impl SimulationElement for LandingGearHandleUnit {
     fn read(&mut self, reader: &mut SimulatorReader) {
         let lever_down_req_raw: bool = reader.read(&self.gear_handle_position_requested_id);
@@ -1697,6 +1726,10 @@ mod tests {
         fn set_nose_wheel_steering_centered(&mut self, centered: bool) {
             self.nose_wheel_steering_centered = centered;
         }
+
+        fn set_retraction_inhibited(&mut self, inhibited: bool) {
+            self.lgcius.set_retraction_inhibited(inhibited);
+        }
     }
     impl Aircraft for TestGearAircraft {
         fn update_before_power_distribution(
@@ -1784,6 +1817,18 @@ mod tests {
         fn set_nose_wheel_steering_centered(mut self, centered: bool) -> Self {
             self.command(|a| a.set_nose_wheel_steering_centered(centered));
             self.run_one_tick()
+        }
+
+        fn set_retraction_inhibited(mut self, inhibited: bool) -> Self {
+            self.command(|a| a.set_retraction_inhibited(inhibited));
+            self
+        }
+
+        fn run_seconds(mut self, seconds: u64) -> Self {
+            for _ in 0..seconds {
+                self.run_with_delta(Duration::from_secs(1));
+            }
+            self
         }
     }
     impl TestBed for LgciusTestBed {
@@ -2160,6 +2205,50 @@ mod tests {
         assert_eq!(
             test_bed.query(|a| a.lgcius.lgciu1().status),
             LgciuStatus::Ok
+        );
+    }
+
+    #[test]
+    fn gear_stays_down_without_lgciu_fault_while_retraction_is_inhibited() {
+        let mut test_bed = test_bed_in_flight_with().set_gear_handle_down();
+        test_bed.set_on_ground(false);
+
+        test_bed = test_bed
+            .set_retraction_inhibited(true)
+            .set_gear_handle_up()
+            .run_seconds(40);
+
+        assert_eq!(test_bed.query(|a| a.gear_system.gear_position), 1);
+        assert_eq!(
+            test_bed.query(|a| a.gear_system.door_position),
+            TestGearSystem::UP_LOCK_TRESHOLD
+        );
+        assert!(test_bed.query(|a| a.lgcius.active_lgciu().gear_handle_is_down()));
+        assert_eq!(
+            test_bed.query(|a| a.lgcius.lgciu1().status),
+            LgciuStatus::Ok
+        );
+        assert_eq!(
+            test_bed.query(|a| a.lgcius.lgciu2().status),
+            LgciuStatus::Ok
+        );
+    }
+
+    #[test]
+    fn gear_retracts_once_retraction_is_no_longer_inhibited() {
+        let mut test_bed = test_bed_in_flight_with().set_gear_handle_down();
+        test_bed.set_on_ground(false);
+
+        test_bed = test_bed
+            .set_retraction_inhibited(true)
+            .set_gear_handle_up()
+            .run_seconds(5)
+            .set_retraction_inhibited(false)
+            .run_seconds(30);
+
+        assert_eq!(
+            test_bed.query(|a| a.gear_system.gear_position),
+            TestGearSystem::UP_LOCK_TRESHOLD
         );
     }
 

@@ -350,6 +350,8 @@ impl Aircraft for A380 {
 
         self.adcn.update();
         self.adcn_simvar_translation.update(&self.adcn);
+        self.lgcius
+            .set_retraction_inhibited(self.hydraulic.is_gear_retraction_inhibited());
         self.lgcius.update(
             context,
             &self.landing_gear,

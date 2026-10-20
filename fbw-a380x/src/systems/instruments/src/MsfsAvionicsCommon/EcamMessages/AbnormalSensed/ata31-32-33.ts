@@ -1146,7 +1146,13 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
   320800031: {
     title: '\x1b<4m\x1b4mL/G\x1bm ABNORM OLEO PRESS',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ON NOSE L/G', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ON L WING L/G', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ON R WING L/G', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ON L BODY L/G', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ON R BODY L/G', sensed: true, style: ChecklistLineStyle.Amber },
+    ],
   },
   320800032: {
     title: '\x1b<4m\x1b4mL/G\x1bm BOGIE POSITION FAULT',
@@ -1358,84 +1364,32 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   320800043: {
-    title: '\x1b<4m\x1b4mL/G\x1bm OLEO PRESS MONITORING FAULT',
+    title: '\x1b<4m\x1b4mL/G\x1bm OLEO PRESS MONITORING SYS FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ON NOSE L/G', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ON L WING L/G', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ON R WING L/G', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ON L BODY L/G', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ON R BODY L/G', sensed: true, style: ChecklistLineStyle.Amber },
+    ],
   },
   320800044: {
     title: '\x1b<4m\x1b4mL/G\x1bm RETRACTION FAULT',
     sensed: true,
     items: [
-      // If in flight
-
-      //If the body wheel steering is not locked:
-      //If speed is below 250 kt or M 0.55:
-
-      {
-        name: 'MAX SPEED : 250/.55',
-        sensed: false,
-      },
-      {
-        name: 'L/G: KEEP DOWN',
-        sensed: false,
-      },
-
-      //If speed is above 250 kt or M 0.55:
-      {
-        name: 'L/G: KEEP DOWN',
-        sensed: false,
-      },
-
-      {
-        name: 'MAX SPEED : 250/.55',
-        sensed: false,
-      },
-
-      // In all other cases:
-      // If speed is below 250 kt or M 0.55:
-      {
-        name: 'MAX SPEED : 250/.55',
-        sensed: false,
-      },
-      {
-        name: 'L/G',
-        sensed: true,
-        labelNotCompleted: 'RECYCLE',
-      },
-
-      // if not succesfull
-      {
-        name: 'L/G : KEEP DOWN',
-        sensed: false,
-      },
-
-      // If speed is above 250 kt or M 0.55:
-
-      {
-        name: 'MAX SPEED : 250/.55',
-        sensed: false,
-      },
-      {
-        name: 'L/G',
-        sensed: true,
-        labelNotCompleted: 'RECYCLE',
-      },
-      // IF NOT SUCCESSFUL
-      {
-        name: 'L/G : KEEP DOWN',
-        sensed: false,
-      },
-      {
-        name: 'MAX SPEED : 250/.55',
-        sensed: false,
-      },
-
-      // if at least one engine is running
-      {
-        name: 'FUEL CONSUMPT INCREASD',
-        sensed: false,
-      },
-      { ...FMS_PRED_UNRELIABLE_CHECKLIST_ITEM },
+      // In flight, speed below 250 kt or M 0.55:
+      { name: 'MAX SPEED : 250/.55', sensed: false },
+      // In flight, speed above 250 kt or M 0.55:
+      { name: 'SPEED', sensed: false, labelNotCompleted: 'REDUCE BELOW 250/.55' },
+      // In flight:
+      { name: 'L/G', sensed: true, labelNotCompleted: 'RECYCLE' },
+      { name: 'NOT SUCCESSFUL', condition: true, sensed: true },
+      { name: 'L/G : KEEP DOWN', sensed: false, level: 1 },
+      // Above 250 kt or M 0.55 only
+      { name: 'MAX SPEED : 250/.55', sensed: false, level: 1 },
+      // If at least one BLG door is not folded:
+      { name: 'MAX SPEED : 250/.55', sensed: false },
     ],
   },
   320800045: {
@@ -1534,7 +1488,7 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
         style: ChecklistLineStyle.Green,
       },
       {
-        name: 'FOR TOWING : ALL ENG MASTERS OFF',
+        name: 'IF TOW : ALL ENG MASTERS OFF',
         sensed: false,
       },
     ],
@@ -1554,7 +1508,7 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
         style: ChecklistLineStyle.Green,
       },
       {
-        name: 'FOR TOWING : ALL ENG MASTERS OFF',
+        name: 'IF TOW : ALL ENG MASTERS OFF',
         sensed: false,
       },
     ],
@@ -1575,7 +1529,7 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   320800062: {
-    title: '\x1b<4m\x1b4mSTEER\x1bm SEL VLV JAMMED OPEN',
+    title: '\x1b<4m\x1b4mSTEER\x1bm STEER SEL VLV JAMMED OPEN',
     sensed: true,
     items: [
       {
@@ -1586,7 +1540,7 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
       },
       {
         // If only the normal NW steering selector valve is stuck open
-        name: 'FOR TOWING : ALL ENG MASTERS OFF',
+        name: 'IF TOW : ALL ENG MASTERS OFF',
         sensed: false,
       },
       {
