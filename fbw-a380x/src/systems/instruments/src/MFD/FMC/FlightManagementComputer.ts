@@ -119,6 +119,8 @@ import { PendingWindUplinkParser } from '@fmgc/flightplanning/plans/PendingWindU
 import { formatWindRequest } from '@fmgc/flightplanning/uplink/WindUplinkUtilts';
 import { FmsToDatalinkSubsystemEvents } from '../../../../shared/src/publishers/A380XFmsAtcBusPublisher';
 import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvents';
+import { ConstantMachSegmentAutoDeletion } from '@fmgc/flightplanning/ConstantMachSegmentAutoDeletion';
+import { A380AnnouncedConstantMachDeletions } from '@fmgc/flightplanning/ConstantMachSegment';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
 import { engineFailureCreatesEngineOutSid } from './EngineOutSid';
 import { writeTakeoffDerate } from '../shared/TakeoffDerate';
@@ -717,6 +719,17 @@ export class FlightManagementComputer implements FmcInterface {
     this.initSimVars();
 
     this.flightPhaseManager.addOnPhaseChanged((prev, next) => this.onFlightPhaseChanged(prev, next));
+
+    const constantMachSegmentAutoDeletion = new ConstantMachSegmentAutoDeletion(
+      this.bus,
+      this.#flightPlanService,
+      A380AnnouncedConstantMachDeletions,
+      () => this.addMessageToQueue(NXSystemMessages.machSegmentDeleted, undefined, undefined),
+    );
+    this.flightPhaseManager.addOnPhaseChanged((prev, next) =>
+      constantMachSegmentAutoDeletion.onFlightPhaseChanged(prev, next),
+    );
+    this.subs.push(this.fmgc.data.engineOut.sub((eo) => constantMachSegmentAutoDeletion.onEngineOutChanged(eo)));
 
     // When the active flight plan changes, re-pipe all related subjects
     this.subs.push(

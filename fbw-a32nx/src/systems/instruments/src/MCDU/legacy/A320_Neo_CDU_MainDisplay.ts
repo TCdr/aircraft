@@ -240,6 +240,7 @@ export class A320_Neo_CDU_MainDisplay
     RTAPage: 86,
     UplinkToDataReq: 87,
     UplinkToData: 88,
+    ConstantMachPage: 89,
   };
 
   private mcduServerClient?: McduServerClient;

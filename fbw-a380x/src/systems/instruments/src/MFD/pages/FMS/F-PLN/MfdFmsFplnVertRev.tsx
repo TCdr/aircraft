@@ -40,6 +40,7 @@ import { ReadonlyFlightPlanLeg } from '@fmgc/flightplanning/legs/ReadonlyFlightP
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { fcomAt, fcomCentre, fcomLine, fcomRight, fcomTabBar } from '../../common/FcomLayout';
 import { TimeConstraint, TimeConstraintType } from '../../../FMC/TimeConstraint';
+import { MfdFmsFplnVertRevCms } from './MfdFmsFplnVertRevCms';
 
 interface MfdFmsFplnVertRevProps extends AbstractMfdPageProps {}
 
@@ -66,6 +67,7 @@ enum StepDisabledReason {
 }
 export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps> {
   private readonly selectedPageIndex = Subject.create(SelectedPage.RTA);
+  private readonly cmsPanelRef = FSComponent.createRef<MfdFmsFplnVertRevCms>();
   private availableWaypointsIdents: string[] = [];
   private readonly availableWaypoints = ArraySubject.create<string>([]);
   private initialLoadRevisedWaypointIndex = true;
@@ -328,6 +330,18 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     this.crzFl.set(pd?.cruiseFlightLevel.get() ?? null);
     this.updateConstraints();
     this.updateCruiseSteps();
+
+    if (this.selectedPageIndex.get() === SelectedPage.CMS) {
+      const fmc = this.props.fmcService.master;
+      this.cmsPanelRef
+        .getOrDefault()
+        ?.update(
+          this.loadedFlightPlan,
+          this.loadedFlightPlanIndex.get(),
+          fmc.revisedLegIndex.get(),
+          fmc.revisedLegIsAltn.get() ?? false,
+        );
+    }
   }
 
   public static isEligibleForVerticalRevision(
@@ -1685,11 +1699,13 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
                   </div>
                 </div>
               </TopTabNavigatorPage>
-              <TopTabNavigatorPage>
-                {/* CMS */}
-                <div style="display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                  <span class="mfd-label">NOT IMPLEMENTED</span>
-                </div>
+              <TopTabNavigatorPage containerStyle="padding: 0;">
+                <MfdFmsFplnVertRevCms
+                  ref={this.cmsPanelRef}
+                  fmcService={this.props.fmcService}
+                  mfd={this.props.mfd}
+                  tmpyActive={this.tmpyActive}
+                />
               </TopTabNavigatorPage>
               <TopTabNavigatorPage>
                 {/* ALT */}

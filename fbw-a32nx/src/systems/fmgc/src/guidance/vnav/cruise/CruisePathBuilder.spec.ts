@@ -27,6 +27,7 @@ function accelerationAtStartOfCruise(fuelOnBoard: Pounds) {
   const profile = {
     cruiseSteps: [],
     maxClimbSpeedConstraints: [],
+    constantMachSegment: null,
     distanceToPresentPosition: 0,
     winds: { getCruiseTailwind: () => 0 },
   } as unknown as NavGeometryProfile;

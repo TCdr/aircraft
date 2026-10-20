@@ -197,4 +197,7 @@ export interface FMSymbolsConfig {
 
   /** whether to show RNP label on ND for RNP AR approaches */
   showRnpArLabel: boolean;
+
+  /** whether the ND shows the constant Mach segment Mach under its waypoints, with the constraints */
+  showConstantMachOnNd: boolean;
 }

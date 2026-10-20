@@ -50,6 +50,8 @@ import { ConsumerValue, EventBus } from '@microsoft/msfs-sdk';
 import { FlightPhaseManagerEvents } from '@fmgc/flightphase';
 import { NavigationDatabaseService } from '../flightplanning/NavigationDatabaseService';
 import { NavGeometryProfile } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { findConstantMachSegment, isLegInConstantMachSegment } from '@fmgc/flightplanning/ConstantMachSegment';
+import { isConstantMachRespected } from '@fmgc/guidance/vnav/cruise/ConstantMachSpeedProfile';
 import { FlightPlanSegment } from '../flightplanning/segments/FlightPlanSegment';
 
 /**
@@ -333,6 +335,7 @@ export class EfisSymbols<T extends number> {
       if (symbolIdx !== -1) {
         const oldSymbol = symbols.splice(symbolIdx, 1)[0];
         symbol.constraints = symbol.constraints ?? oldSymbol.constraints;
+        symbol.constantMach = symbol.constantMach ?? oldSymbol.constantMach;
         symbol.direction = symbol.direction ?? oldSymbol.direction;
         symbol.length = symbol.length ?? oldSymbol.length;
         symbol.location = symbol.location ?? oldSymbol.location;
@@ -743,6 +746,11 @@ export class EfisSymbols<T extends number> {
 
     const ret: InternalFmsSymbol[] = [];
 
+    const constantMachSegment =
+      this.guidanceController.symbolConfig.showConstantMachOnNd && !isAlternate
+        ? findConstantMachSegment(flightPlan.allLegs)
+        : null;
+
     // FP legs
     for (let i = flightPlan.legCount - 1; i >= flightPlan.fromLegIndex && i >= 0; i--) {
       const isBeforeActiveLeg = i < flightPlan.activeLegIndex;
@@ -819,6 +827,7 @@ export class EfisSymbols<T extends number> {
 
       let type = NdSymbolTypeFlags.FlightPlan;
       const constraints = [];
+      let constantMach: InternalFmsSymbol['constantMach'];
       let direction;
 
       const isCourseReversal =
@@ -918,6 +927,16 @@ export class EfisSymbols<T extends number> {
         if (speedConstraint?.speed !== undefined) {
           constraints.push(formatConstraintSpeed(speedConstraint.speed));
         }
+
+        // The start waypoint does not show the CMS Mach. Design choice: the Mach is written M.NN, as on the PFD.
+        if (constantMachSegment !== null && isLegInConstantMachSegment(constantMachSegment, i)) {
+          constantMach = {
+            text: `M.${(constantMachSegment.mach * 100).toFixed(0).padStart(2, '0')}`,
+            missed:
+              flightPlan.index === FlightPlanIndex.Active &&
+              !isConstantMachRespected(waypointPredictions?.get(i)?.speed, constantMachSegment.mach),
+          };
+        }
       }
 
       if (VnavConfig.DEBUG_GUIDANCE && leg.calculated) {
@@ -941,6 +960,7 @@ export class EfisSymbols<T extends number> {
         location,
         type,
         constraints: constraints.length > 0 ? constraints : undefined,
+        constantMach,
         altConstraint: leg.altitudeConstraint,
         isAltitudeConstraintMet:
           predictions && predictions.waypointPredictions.has(i)
@@ -1167,6 +1187,7 @@ export class EfisSymbols<T extends number> {
         type: s.type,
         typePwp: s.typePwp,
         constraints: s.constraints,
+        constantMach: s.constantMach,
         radials: s.radials,
         radii: s.radii,
         distanceFromAirplane: s.distanceFromAirplane,

@@ -27,6 +27,7 @@ import { FlightPlanSegment } from '@fmgc/flightplanning/segments/FlightPlanSegme
 import { EnrouteSegment } from '@fmgc/flightplanning/segments/EnrouteSegment';
 import { HoldData } from '@fmgc/flightplanning/data/flightplan';
 import { CruiseStepEntry } from '@fmgc/flightplanning/CruiseStep';
+import { ConstantMachSegmentMarker } from '@fmgc/flightplanning/ConstantMachSegment';
 import { BitFlags } from '@microsoft/msfs-sdk';
 import { HoldUtils } from '@fmgc/flightplanning/data/hold';
 import { OriginSegment } from '@fmgc/flightplanning/segments/OriginSegment';
@@ -50,6 +51,7 @@ export interface SerializedFlightPlanLeg {
   defaultHold: HoldData | undefined;
   constraintType: WaypointConstraintType | undefined;
   cruiseStep: CruiseStepEntry | undefined;
+  constantMachSegment?: ConstantMachSegmentMarker;
   pilotEnteredAltitudeConstraint: AltitudeConstraint | undefined;
   pilotEnteredSpeedConstraint: SpeedConstraint | undefined;
   calculated: LegCalculations;
@@ -127,6 +129,8 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
 
   cruiseStep: CruiseStepEntry | undefined;
 
+  constantMachSegment: ConstantMachSegmentMarker | undefined;
+
   pilotEnteredAltitudeConstraint: AltitudeConstraint | undefined;
 
   pilotEnteredSpeedConstraint: SpeedConstraint | undefined;
@@ -147,6 +151,7 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
       modifiedHold: this.modifiedHold ? JSON.parse(JSON.stringify(this.modifiedHold)) : undefined,
       defaultHold: this.defaultHold ? JSON.parse(JSON.stringify(this.defaultHold)) : undefined,
       cruiseStep: this.cruiseStep ? JSON.parse(JSON.stringify(this.cruiseStep)) : undefined,
+      constantMachSegment: this.constantMachSegment ? { ...this.constantMachSegment } : undefined,
       constraintType: this.constraintType,
       pilotEnteredAltitudeConstraint: this.pilotEnteredAltitudeConstraint
         ? JSON.parse(JSON.stringify(this.pilotEnteredAltitudeConstraint))
@@ -187,6 +192,7 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
     leg.defaultHold = serialized.defaultHold;
     leg.constraintType = serialized.constraintType;
     leg.cruiseStep = serialized.cruiseStep;
+    leg.constantMachSegment = serialized.constantMachSegment;
     leg.pilotEnteredAltitudeConstraint = serialized.pilotEnteredAltitudeConstraint;
     leg.pilotEnteredSpeedConstraint = serialized.pilotEnteredSpeedConstraint;
     leg.calculated = serialized.calculated;
@@ -359,6 +365,7 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
     this.pilotEnteredSpeedConstraint = from.pilotEnteredSpeedConstraint;
     this.constraintType = from.constraintType;
     this.cruiseStep = from.cruiseStep;
+    this.constantMachSegment = from.constantMachSegment;
     this.cruiseWindEntries = from.cruiseWindEntries;
     /**
      * Don't copy holds. When we string the arrival to the upstream plan, the upstream plan may have a hold

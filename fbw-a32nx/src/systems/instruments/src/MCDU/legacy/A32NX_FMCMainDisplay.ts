@@ -53,7 +53,7 @@ import { A32NX_Core } from './A32NX_Core/A32NX_Core';
 import { A32NX_FuelPred, FuelPlanningPhases } from './A32NX_Core/A32NX_FuelPred';
 import { ADIRS } from './A32NX_Core/Adirs';
 import { A32NX_MessageQueue } from './A32NX_MessageQueue';
-import { NXSpeedsApp, NXSpeedsUtils, vappTowerHeadwind } from './NXSpeeds';
+import { NXSpeedsApp, NXSpeedsUtils, vappTowerHeadwind, Vmo } from './NXSpeeds';
 import { CDUIdentPage } from '../legacy_pages/A320_Neo_CDU_IdentPage';
 import { CDUNewWaypoint } from '../legacy_pages/A320_Neo_CDU_NewWaypoint';
 import { CDUPerformancePage } from '../legacy_pages/A320_Neo_CDU_PerformancePage';
@@ -113,6 +113,9 @@ import { WindUtils } from '@fmgc/guidance/vnav/wind/WindUtils';
 import { EngineOutControlEvents, EngineOutEvents } from '@fmgc/events/EngineOutEvents';
 import { FmsModule } from '@fmgc/modules/FmsModule';
 import { EngineOutMonitor } from '@fmgc/modules/EngineOutMonitor';
+import { ConstantMachSegmentAutoDeletion } from '@fmgc/flightplanning/ConstantMachSegmentAutoDeletion';
+import { A320AnnouncedConstantMachDeletions, findConstantMachSegment } from '@fmgc/flightplanning/ConstantMachSegment';
+import { managedCruiseSpeedAndMach } from '@fmgc/guidance/vnav/cruise/ConstantMachSpeedProfile';
 import {
   destinationDataMessages,
   isNavDatabaseCycleCurrent,
@@ -611,6 +614,19 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
     this.flightPhaseManager.init();
     this.flightPhaseManager.addOnPhaseChanged(this.onFlightPhaseChanged.bind(this));
+
+    const constantMachSegmentAutoDeletion = new ConstantMachSegmentAutoDeletion(
+      this.bus,
+      this.flightPlanService,
+      A320AnnouncedConstantMachDeletions,
+      () => this.addMessageToQueue(NXSystemMessages.constantMachDeleted),
+    );
+    this.flightPhaseManager.addOnPhaseChanged((prev, next) =>
+      constantMachSegmentAutoDeletion.onFlightPhaseChanged(prev, next),
+    );
+    this.subscriptions.push(
+      this.sub.on('fms_engine_out_active').handle((eo) => constantMachSegmentAutoDeletion.onEngineOutChanged(eo)),
+    );
 
     this.observableFlightPlanManager.activePlan.sub(async (_) => {
       await this.onActiveFlightPlanChanged();
@@ -1488,16 +1504,23 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
           break;
         }
         case FmgcFlightPhase.Cruise: {
-          let speed = this.managedSpeedCruise;
-
-          if (
+          const speedLimit =
             this.climbSpeedLimit !== undefined &&
             SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet') < this.climbSpeedLimitAlt
-          ) {
-            speed = Math.min(speed, this.climbSpeedLimit);
-          }
+              ? this.climbSpeedLimit
+              : null;
 
-          [vPfd, isMach] = this.getManagedTargets(speed, this.getManagedCruiseSpeedMach());
+          const activePlan = this.flightPlanService.active;
+          [vPfd, isMach] = this.getManagedTargets(
+            ...managedCruiseSpeedAndMach(
+              this.managedSpeedCruise,
+              this.getManagedCruiseSpeedMach(),
+              findConstantMachSegment(activePlan.allLegs),
+              activePlan.activeLegIndex,
+              Vmo,
+              speedLimit,
+            ),
+          );
           break;
         }
         case FmgcFlightPhase.Descent: {

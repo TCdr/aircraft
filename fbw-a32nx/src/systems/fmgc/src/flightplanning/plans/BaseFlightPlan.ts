@@ -53,6 +53,7 @@ import { procedureLegIdentAndAnnotation } from '@fmgc/flightplanning/legs/Flight
 import {
   FlightPlanEditSyncEvent,
   FlightPlanEvents,
+  FlightPlanLegConstantMachSegmentEditEvent,
   FlightPlanLegCruiseStepEditEvent,
   FlightPlanLegDefinitionEditEvent,
   FlightPlanLegFlagsEditEvent,
@@ -91,6 +92,7 @@ import {
   WindEntry,
 } from '../data/wind';
 import { EngineOutDepartureSegment } from '../segments/EngineOutDepartureSegment';
+import { ConstantMachSegmentMarker, findConstantMachSegment } from '../ConstantMachSegment';
 import { FlightPlanIndex } from '../FlightPlanManager';
 
 export interface FlightPlanContext {
@@ -163,6 +165,10 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
         this.handleSetLegCruiseStepSyncEvent(data as FlightPlanLegCruiseStepEditEvent);
         break;
       }
+      case 'SYNC_flightPlan.setLegConstantMachSegment': {
+        this.handleSetLegConstantMachSegmentSyncEvent(data as FlightPlanLegConstantMachSegmentEditEvent);
+        break;
+      }
       case 'SYNC_flightPlan.setFixInfoEntry': {
         this.handleSetPlanFixInfoEntry(data as FlightPlanSetFixInfoEntryEvent);
         break;
@@ -208,6 +214,12 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     const element = this.legElementAt(event.atIndex);
 
     element.cruiseStep = event.cruiseStep;
+
+    this.incrementVersion();
+  }
+
+  private handleSetLegConstantMachSegmentSyncEvent(event: FlightPlanLegConstantMachSegmentEditEvent): void {
+    this.legElementAt(event.atIndex).constantMachSegment = event.marker;
 
     this.incrementVersion();
   }
@@ -1909,6 +1921,61 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
         cruiseStep: element.cruiseStep,
       });
     }
+  }
+
+  /**
+   * Replaces the constant Mach segment (CMS) of the plan
+   * @param startIndex the leg of the start waypoint
+   * @param endIndex the leg of the end waypoint, null when the segment ends at the top of descent
+   * @param mach the Mach number flown in the segment
+   */
+  setConstantMachSegment(startIndex: number, endIndex: number | null, mach: number) {
+    this.clearConstantMachSegmentMarkers();
+
+    this.setLegConstantMachSegmentMarker(startIndex, { kind: 'start', mach, endsAtTopOfDescent: endIndex === null });
+    if (endIndex !== null) {
+      this.setLegConstantMachSegmentMarker(endIndex, { kind: 'end' });
+    }
+
+    this.incrementVersion();
+  }
+
+  /**
+   * Deletes the constant Mach segment (CMS) of the plan
+   * @returns whether the plan had a CMS
+   */
+  deleteConstantMachSegment(): boolean {
+    if (findConstantMachSegment(this.allLegs) === null) {
+      return false;
+    }
+
+    this.clearConstantMachSegmentMarkers();
+    this.incrementVersion();
+
+    return true;
+  }
+
+  private clearConstantMachSegmentMarkers() {
+    for (let i = 0; i < this.allLegs.length; i++) {
+      const element = this.allLegs[i];
+
+      if (element.isDiscontinuity === false && element.constantMachSegment) {
+        this.setLegConstantMachSegmentMarker(i, undefined);
+      }
+    }
+  }
+
+  private setLegConstantMachSegmentMarker(index: number, marker: ConstantMachSegmentMarker | undefined) {
+    this.legElementAt(index).constantMachSegment = marker;
+
+    this.sendEvent('flightPlan.setLegConstantMachSegment', {
+      syncClientID: this.context.syncClientID,
+      planIndex: this.index,
+      batchStack: this.context.batchStack,
+      forAlternate: this instanceof AlternateFlightPlan,
+      atIndex: index,
+      marker,
+    });
   }
 
   private setLastClbConstraintWaypoint(index: number) {

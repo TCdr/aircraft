@@ -147,6 +147,7 @@ export const NXSystemMessages = {
   navprimaryLost: new TypeIIMessage('NAV PRIMARY LOST', true),
   sqwkCodeNotValid: new TypeIMessage('SQWK CODE NOT VALID'),
   lateralDiscontinuityAhead: new TypeIIMessage('LATERAL DISCONTINUITY AHEAD', true),
+  machSegmentDeleted: new TypeIIMessage('MACH SEGMENT DELETED'),
   // FCOM DSC-22-FMS-20-30: the GPS deselected, 80 NM before the T/D or in APPROACH phase (type II, white)
   gpsDeselected: new TypeIIMessage('GPS DESELECTED'),
   listOf99InUse: new TypeIMessage('LIST OF 99 IN USE'),

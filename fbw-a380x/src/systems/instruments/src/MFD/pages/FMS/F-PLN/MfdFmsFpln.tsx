@@ -62,6 +62,9 @@ import {
 } from '@fmgc/flightplanning/data/wind';
 import { ReadonlyFlightPlanElement } from '@fmgc/flightplanning/legs/ReadonlyFlightPlanLeg';
 import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvents';
+import { findConstantMachSegment, isLegInConstantMachSegment } from '@fmgc/flightplanning/ConstantMachSegment';
+import { isConstantMachRespected } from '@fmgc/guidance/vnav/cruise/ConstantMachSpeedProfile';
+import { ProfilePhase, VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { dirToUri, fixInfoUri, showReturnButtonUriExtra } from '../../../shared/utils';
 
 interface MfdFmsFplnProps extends AbstractMfdPageProps {}
@@ -420,6 +423,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
         );
       }
       lastDistanceFromStart = 0;
+      const constantMachSegment = findConstantMachSegment(this.loadedFlightPlan.allLegs);
 
       for (let i = 0; i < jointFlightPlan.length; i++) {
         const leg = jointFlightPlan[i];
@@ -528,9 +532,13 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
             altitudeConstraint: leg.altitudeConstraint ?? null,
             altitudeConstraintIsRespected: pred?.isAltitudeConstraintMet ?? true,
             speedPrediction: pred?.speed ?? null,
-            hasSpeedConstraint: leg.speedConstraint !== undefined,
-            speedConstraint: leg.speedConstraint ?? null,
-            speedConstraintIsRespected: pred?.isSpeedConstraintMet ?? true,
+            ...speedConstraintOrConstantMach(
+              leg.speedConstraint,
+              pred,
+              !isAltn && constantMachSegment !== null && isLegInConstantMachSegment(constantMachSegment, i)
+                ? constantMachSegment.mach
+                : null,
+            ),
             efobPrediction: pred?.estimatedFuelOnBoard ? Units.poundToKilogram(pred?.estimatedFuelOnBoard) : NaN,
             windPrediction: pred?.windPrediction ?? null,
             trackFromLastWpt: derivedData.trackFromLastWpt,
@@ -884,6 +892,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
     }
   }
 
+  /** The speed prediction opens the SPD panel, or the CMS panel for a cruise waypoint */
   private goToSpeedConstraint(lineDataIndex: number) {
     const data = this.lineData[lineDataIndex];
     if (isWaypoint(data) && data.originalLegIndex !== null) {
@@ -901,8 +910,14 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
           this.loadedFlightPlanIndex.get(),
           data.isAltnWaypoint,
         );
+        const isCruiseWaypoint =
+          !data.isAltnWaypoint &&
+          this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active &&
+          this.props.fmcService.master.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(
+            data.originalLegIndex,
+          )?.profilePhase === ProfilePhase.Cruise;
         this.props.mfd.uiService.navigateTo(
-          `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-vert-rev/spd`,
+          `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-vert-rev/${isCruiseWaypoint ? 'cms' : 'spd'}`,
         );
       }
     }
@@ -1411,6 +1426,27 @@ interface FplnLineHoldDisplayData extends FplnLineTypeDiscriminator {
 }
 
 type FplnLineDisplayData = FplnLineWaypointDisplayData | FplnLineSpecialDisplayData | FplnLineHoldDisplayData;
+
+/** The star of the speed column: the speed constraint, or the CMS Mach on the waypoints of the segment */
+function speedConstraintOrConstantMach(
+  speedConstraint: SpeedConstraint | undefined,
+  prediction: VerticalWaypointPrediction | null | undefined,
+  constantMach: number | null,
+): Pick<FplnLineWaypointDisplayData, 'hasSpeedConstraint' | 'speedConstraint' | 'speedConstraintIsRespected'> {
+  if (constantMach !== null) {
+    return {
+      hasSpeedConstraint: true,
+      speedConstraint: { speed: constantMach },
+      speedConstraintIsRespected: isConstantMachRespected(prediction?.speed, constantMach),
+    };
+  }
+
+  return {
+    hasSpeedConstraint: speedConstraint !== undefined,
+    speedConstraint: speedConstraint ?? null,
+    speedConstraintIsRespected: prediction?.isSpeedConstraintMet ?? true,
+  };
+}
 
 function isWaypoint(object: FplnLineDisplayData): object is FplnLineWaypointDisplayData {
   return object?.type === FplnLineType.Waypoint;

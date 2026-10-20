@@ -261,10 +261,7 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
     {
       name: 'CMS',
       disabled:
-        true ||
-        altnFlightPlan ||
-        type === FplnRevisionsMenuType.Discontinuity ||
-        type === FplnRevisionsMenuType.TooSteepPath,
+        altnFlightPlan || type === FplnRevisionsMenuType.Discontinuity || type === FplnRevisionsMenuType.TooSteepPath,
       onPressed: () =>
         fpln.props.mfd.uiService.navigateTo(
           `fms/${fpln.props.mfd.uiService.activeUri.get().category}/f-pln-vert-rev/cms`,

@@ -361,6 +361,7 @@ export class CanvasMap extends DisplayComponent<CanvasMapProps> {
     const waypoints = this.symbols.filter(
       (it) =>
         it.constraints ||
+        it.constantMach ||
         (BitFlags.isAny(
           it.type,
           NdSymbolTypeFlags.Waypoint |
