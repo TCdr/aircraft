@@ -693,7 +693,7 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320800005: {
-    title: '\x1b<4m\x1b4mBRAKES\x1bm A-SKID FAULT ON WING + L BODY L/Gs',
+    title: '\x1b<4m\x1b4mBRAKES\x1bm A-SKID FAULT ON WING+L BODY L/Gs',
     sensed: true,
     items: [
       {
@@ -709,7 +709,7 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320800006: {
-    title: '\x1b<4m\x1b4mBRAKES\x1bm A-SKID FAULT ON WING + R BODY L/Gs',
+    title: '\x1b<4m\x1b4mBRAKES\x1bm A-SKID FAULT ON WING+R BODY L/Gs',
     sensed: true,
     items: [
       {
@@ -959,6 +959,87 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mBRAKES\x1bm RELEASED',
     sensed: true,
     items: [
+      // NORM: released in normal braking, ALTN: released in alternate braking
+      {
+        name: 'BRK 1/2 NORM RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 3/4 NORM RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 5/6 NORM RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 7/8 NORM RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 9/10 NORM RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 11/12 NORM RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 13/14 NORM RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 15/16 NORM RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 1/2 ALTN RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 3/4 ALTN RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 5/6 ALTN RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 7/8 ALTN RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 9/10 ALTN RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 11/12 ALTN RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 13/14 ALTN RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'BRK 15/16 ALTN RELEASED',
+        sensed: false,
+        style: ChecklistLineStyle.Amber,
+      },
       {
         name: 'LDG DIST AFFECTED',
         sensed: false,
@@ -1040,7 +1121,7 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
       },
       {
         // If RDC channel (2A+3A) is lost:
-        name: 'SYS B REDUNDANCY LOST ON L + R BODY',
+        name: 'SYS A REDUNDANCY LOST ON L + R BODY',
         sensed: true,
         style: ChecklistLineStyle.Amber,
       },
@@ -1705,6 +1786,90 @@ export const EcamDeferredProcAta313233: { [n: number]: DeferredProcedure } = {
         sensed: true,
         labelNotCompleted: 'DOWN',
         level: 1,
+      },
+    ],
+  },
+  320700002: {
+    fromAbnormalProcs: ['320800002'],
+    title: 'A-SKID FAULT ON L + R BODY L/G',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      {
+        name: 'LDG DIST COMPUTATION',
+        sensed: false,
+        labelNotCompleted: 'CONFIRM',
+      },
+    ],
+  },
+  320700003: {
+    fromAbnormalProcs: ['320800003'],
+    title: 'A-SKID FAULT ON LEFT BODY L/G',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      {
+        name: 'LDG DIST COMPUTATION',
+        sensed: false,
+        labelNotCompleted: 'CONFIRM',
+      },
+    ],
+  },
+  320700004: {
+    fromAbnormalProcs: ['320800004'],
+    title: 'A-SKID FAULT ON RIGHT BODY L/G',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      {
+        name: 'LDG DIST COMPUTATION',
+        sensed: false,
+        labelNotCompleted: 'CONFIRM',
+      },
+    ],
+  },
+  320700005: {
+    fromAbnormalProcs: ['320800005'],
+    title: 'A-SKID FAULT ON WING+L BODY L/Gs',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      {
+        name: 'LDG DIST COMPUTATION',
+        sensed: false,
+        labelNotCompleted: 'CONFIRM',
+      },
+    ],
+  },
+  320700006: {
+    fromAbnormalProcs: ['320800006'],
+    title: 'A-SKID FAULT ON WING+R BODY L/Gs',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      {
+        name: 'LDG DIST COMPUTATION',
+        sensed: false,
+        labelNotCompleted: 'CONFIRM',
+      },
+    ],
+  },
+  320700007: {
+    fromAbnormalProcs: ['320800007'],
+    title: 'A-SKID FAULT ON WING L/Gs',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      {
+        name: 'LDG DIST COMPUTATION',
+        sensed: false,
+        labelNotCompleted: 'CONFIRM',
+      },
+    ],
+  },
+  320700008: {
+    fromAbnormalProcs: ['320800025'],
+    title: 'RELEASED',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      {
+        name: 'LDG DIST COMPUTATION',
+        sensed: false,
+        labelNotCompleted: 'CONFIRM',
       },
     ],
   },

@@ -78,6 +78,11 @@ mod flight_control_actuator_failures;
 use flight_control_actuator_failures::{
     reconfigure_actuator_pair, reconfigure_ebha_pair, A380FlightControlActuatorFailures,
 };
+mod brake_anti_skid_faults;
+use brake_anti_skid_faults::{
+    brake_pair_is_on_left_side, A380BrakeAntiSkidFaults, BrakePairPressures, BrakingState,
+    BRAKE_PAIR_COUNT,
+};
 mod brake_steer_faults;
 use brake_steer_faults::{
     A380BrakingControlFaults, A380SteeringControlSystem, EmergencyBrakeLaw, NoseWheelSteeringMode,
@@ -2664,36 +2669,40 @@ impl A380Hydraulic {
         self.pushback_tug.update(context);
         self.bypass_pin.update(&self.pushback_tug);
 
-        for (brake_assembly, braking_pressure_norm, braking_pressure_altn, gear_position) in [
+        let brake_pairs = self
+            .brake_steer_computer
+            .brake_pair_pressures(&self.braking_circuit_norm, &self.braking_circuit_altn);
+        // Design choice: one pressure per brake assembly (gear), the mean of its two brake pairs, so a released or a
+        // residual braking pair heats the brakes of its gear at half its pressure difference
+        let gear_pressure = |first_pair: usize, second_pair: usize| {
+            (brake_pairs[first_pair].highest() + brake_pairs[second_pair].highest()) / 2.
+        };
+        for (brake_assembly, braking_pressure, gear_position) in [
             (
                 &mut self.left_wing_brake_assembly,
-                self.braking_circuit_norm.left_brake_pressure(),
-                self.braking_circuit_altn.left_brake_pressure(),
+                gear_pressure(0, 2),
                 self.gear_system.left_gear_position(),
             ),
             (
                 &mut self.left_body_brake_assembly,
-                self.braking_circuit_norm.left_brake_pressure(),
-                self.braking_circuit_altn.left_brake_pressure(),
+                gear_pressure(4, 6),
                 self.gear_system.left_gear_position(),
             ),
             (
                 &mut self.right_body_brake_assembly,
-                self.braking_circuit_norm.right_brake_pressure(),
-                self.braking_circuit_altn.right_brake_pressure(),
+                gear_pressure(5, 7),
                 self.gear_system.right_gear_position(),
             ),
             (
                 &mut self.right_wing_brake_assembly,
-                self.braking_circuit_norm.right_brake_pressure(),
-                self.braking_circuit_altn.right_brake_pressure(),
+                gear_pressure(1, 3),
                 self.gear_system.right_gear_position(),
             ),
         ] {
             brake_assembly.update(
                 context,
                 &self.brake_properties,
-                braking_pressure_norm.max(braking_pressure_altn),
+                braking_pressure,
                 false,
                 gear_position.get::<ratio>() > 0.25,
             );
@@ -2701,8 +2710,7 @@ impl A380Hydraulic {
 
         self.braking_force.update_forces(
             context,
-            &self.braking_circuit_norm,
-            &self.braking_circuit_altn,
+            &brake_pairs,
             engines[0],
             engines[1],
             &self.bypass_pin,
@@ -4699,6 +4707,8 @@ struct A380HydraulicBrakeSteerComputerUnit {
 
     /// BCS normal / alternate braking and EBCU faults, and the resulting braking mode of the pedals
     braking_faults: A380BrakingControlFaults,
+    /// BCS 1/2, gear group anti-skid and brake pair faults
+    anti_skid_faults: A380BrakeAntiSkidFaults,
     pedal_braking_mode: PedalBrakingMode,
     pedal_braking_mode_id: VariableIdentifier,
     /// EBCU pressure law of the emergency braking (take-off or landing law)
@@ -4777,6 +4787,7 @@ impl A380HydraulicBrakeSteerComputerUnit {
             anti_skid_activated: true,
 
             braking_faults: A380BrakingControlFaults::new(context),
+            anti_skid_faults: A380BrakeAntiSkidFaults::new(context),
             pedal_braking_mode: PedalBrakingMode::Normal,
             pedal_braking_mode_id: context.get_identifier("BRAKES_PEDAL_BRAKING_MODE".to_owned()),
             emergency_brake_law: EmergencyBrakeLaw::initial(context.is_in_flight()),
@@ -4812,12 +4823,13 @@ impl A380HydraulicBrakeSteerComputerUnit {
 
     /// The basic AUTO BRK arms with A-SKID available (normal and alternate braking), at least two PRIMs (they give it
     /// the ground spoiler extension command) and at least one ADIRU in NAV. Alternate braking keeps A-SKID and AUTO
-    /// BRK; emergency braking (EBCU) has neither.
+    /// BRK; emergency braking (EBCU) has neither. A gear group without anti-skid (partial A-SKID) loses the AUTO BRK
+    /// too.
     fn allow_autobrake_arming(&self, adirs: &impl AdirsMeasurementOutputs) -> bool {
         let a_skid_available = matches!(
             self.pedal_braking_mode,
             PedalBrakingMode::Normal | PedalBrakingMode::Alternate
-        );
+        ) && !self.anti_skid_faults.any_gear_group_anti_skid_lost();
         let healthy_prims = self
             .prims_healthy
             .iter()
@@ -4898,9 +4910,11 @@ impl A380HydraulicBrakeSteerComputerUnit {
         );
 
         self.update_normal_braking_availability(current_pressure.is_pressure_switch_pressurised());
-        self.pedal_braking_mode = self
-            .braking_faults
-            .pedal_braking_mode(self.normal_brakes_available, self.anti_skid_activated);
+        self.pedal_braking_mode = self.braking_faults.pedal_braking_mode(
+            self.normal_brakes_available,
+            self.anti_skid_activated,
+            self.anti_skid_faults.anti_skid_lost_on_all_gears(),
+        );
         let main_gears_in_flight = !(lgciu1.left_and_right_gear_compressed(true)
             || lgciu2.left_and_right_gear_compressed(true));
         self.emergency_brake_law = self
@@ -4925,6 +4939,13 @@ impl A380HydraulicBrakeSteerComputerUnit {
 
         self.should_disable_auto_brake_when_retracting
             .update(context, is_in_flight_gear_lever_up);
+
+        // Design choice: a leaking normal servo valve sees the GREEN supply on the ground or with the gear lever down,
+        // not in flight with the gear up (normal brake selector valve closed)
+        self.anti_skid_faults.update(
+            self.pedal_braking_mode,
+            self.normal_brakes_available && !is_in_flight_gear_lever_up,
+        );
 
         // Manual braking is only available on the ground. Design choice: on the ground as soon as one main gear is
         // compressed (LGCIU 1 or 2), so that a touchdown on one side does not delay the pedal braking; the park brake
@@ -5075,6 +5096,29 @@ impl A380HydraulicBrakeSteerComputerUnit {
         &self.norm_brake_outputs
     }
 
+    /// The pressure of each brake pair (index 0 = brakes 1/2), with the gear group and brake pair faults
+    fn brake_pair_pressures(
+        &self,
+        norm_brakes: &BrakeCircuit,
+        altn_brakes: &BrakeCircuit,
+    ) -> [BrakePairPressures; BRAKE_PAIR_COUNT] {
+        self.anti_skid_faults.brake_pair_pressures(
+            BrakePairPressures {
+                normal: norm_brakes.left_brake_pressure(),
+                alternate: altn_brakes.left_brake_pressure(),
+            },
+            BrakePairPressures {
+                normal: norm_brakes.right_brake_pressure(),
+                alternate: altn_brakes.right_brake_pressure(),
+            },
+            BrakingState {
+                pedal_braking_mode: self.pedal_braking_mode,
+                parking_brake_on: self.parking_brake_demand,
+                emergency_pressure_limit: self.emergency_brake_law.pressure_limit(),
+            },
+        )
+    }
+
     fn alternate_controller(&self) -> &impl BrakeCircuitController {
         &self.alternate_brake_outputs
     }
@@ -5099,6 +5143,7 @@ impl SimulationElement for A380HydraulicBrakeSteerComputerUnit {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.autobrake_controller.accept(visitor);
         self.braking_faults.accept(visitor);
+        self.anti_skid_faults.accept(visitor);
         self.steering_control.accept(visitor);
         visitor.visit(self);
     }
@@ -5172,6 +5217,23 @@ impl A380BrakingForce {
     fn force_from_pressure(pressure: Pressure) -> f64 {
         (pressure.get::<psi>().max(0.) / Self::REFERENCE_PRESSURE_FOR_MAX_FORCE).sqrt()
     }
+
+    /// Brake force ratio [0:1] of one side: the mean of its four brake pairs, each the sum of its NORM and ALTN
+    /// circuit forces
+    fn side_force(brake_pairs: &[BrakePairPressures; BRAKE_PAIR_COUNT], left_side: bool) -> f64 {
+        let force_sum: f64 = brake_pairs
+            .iter()
+            .enumerate()
+            .filter(|(pair, _)| brake_pair_is_on_left_side(*pair) == left_side)
+            .map(|(_, pressures)| {
+                (Self::force_from_pressure(pressures.normal)
+                    + Self::force_from_pressure(pressures.alternate))
+                .clamp(0., 1.)
+            })
+            .sum();
+        force_sum / (BRAKE_PAIR_COUNT / 2) as f64
+    }
+
     const FLAPS_PENALTY_PERCENT: [f64; 3] = [5., 5., 0.];
 
     pub fn new(context: &mut InitContext) -> Self {
@@ -5201,21 +5263,13 @@ impl A380BrakingForce {
     pub fn update_forces(
         &mut self,
         context: &UpdateContext,
-        norm_brakes: &BrakeCircuit,
-        altn_brakes: &BrakeCircuit,
+        brake_pairs: &[BrakePairPressures; BRAKE_PAIR_COUNT],
         engine1: &impl Engine,
         engine2: &impl Engine,
         bypass_pin: &BypassPin,
     ) {
-        let left_force_norm = Self::force_from_pressure(norm_brakes.left_brake_pressure());
-        let left_force_altn = Self::force_from_pressure(altn_brakes.left_brake_pressure());
-        self.left_braking_force = left_force_norm + left_force_altn;
-        self.left_braking_force = self.left_braking_force.clamp(0., 1.);
-
-        let right_force_norm = Self::force_from_pressure(norm_brakes.right_brake_pressure());
-        let right_force_altn = Self::force_from_pressure(altn_brakes.right_brake_pressure());
-        self.right_braking_force = right_force_norm + right_force_altn;
-        self.right_braking_force = self.right_braking_force.clamp(0., 1.);
+        self.left_braking_force = Self::side_force(brake_pairs, true);
+        self.right_braking_force = Self::side_force(brake_pairs, false);
 
         self.correct_with_flaps_state(context);
 
@@ -13197,6 +13251,152 @@ mod tests {
             );
         }
 
+        fn braking_force(test_bed: &mut A380HydraulicsTestBed, left_side: bool) -> f64 {
+            test_bed.read_by_name(if left_side {
+                "BRAKE LEFT FORCE FACTOR"
+            } else {
+                "BRAKE RIGHT FORCE FACTOR"
+            })
+        }
+
+        fn read_by_name_f64(test_bed: &mut A380HydraulicsTestBed, name: &str) -> f64 {
+            test_bed.read_by_name(name)
+        }
+
+        #[test]
+        // BRAKES CTL 1(2) FAULT: one BCS failed keeps the normal braking
+        fn one_bcs_failed_keeps_normal_braking() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::BrakingControlSystem(2));
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert!(!read_bool(&mut test_bed, "BRAKES_CTL_1_FAULT"));
+            assert!(read_bool(&mut test_bed, "BRAKES_CTL_2_FAULT"));
+            assert_eq!(pedal_braking_mode(&mut test_bed), 1.);
+        }
+
+        #[test]
+        // BRAKES A-SKID FAULT ON ALL L/G: BCS 1 and BCS 2 failed leave the emergency braking (EBCU)
+        fn both_bcs_failed_leave_emergency_braking() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::BrakingControlSystem(1));
+            test_bed.fail(FailureType::BrakingControlSystem(2));
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert_eq!(pedal_braking_mode(&mut test_bed), 3.);
+            assert_lt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(1800.)
+            );
+        }
+
+        #[test]
+        // The anti-skid lost on every gear group (both channels of the three RDCs) is the emergency braking too
+        fn anti_skid_lost_on_every_gear_group_leaves_emergency_braking() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            for rdc in 1..=3 {
+                for channel in 1..=2 {
+                    test_bed.fail(FailureType::BrakeRemoteDataConcentratorChannel(
+                        rdc, channel,
+                    ));
+                }
+            }
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert_eq!(
+                read_by_name_f64(&mut test_bed, "BRAKES_RDC_CHANNEL_FAULTS"),
+                63.
+            );
+            assert_eq!(pedal_braking_mode(&mut test_bed), 3.);
+        }
+
+        #[test]
+        // BRAKES A-SKID FAULT ON RIGHT BODY L/G: RDC 2 without both channels, the right body gear brakes in emergency
+        // braking (EBCU pressure law) while the other gears keep the normal braking
+        fn right_body_gear_without_anti_skid_brakes_less_on_the_right() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::BrakeRemoteDataConcentratorChannel(2, 1));
+            test_bed.fail(FailureType::BrakeRemoteDataConcentratorChannel(2, 2));
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert_eq!(
+                read_by_name_f64(&mut test_bed, "BRAKES_RDC_CHANNEL_FAULTS"),
+                12.
+            );
+            assert_eq!(pedal_braking_mode(&mut test_bed), 1.);
+            let left_force = braking_force(&mut test_bed, true);
+            let right_force = braking_force(&mut test_bed, false);
+            assert_gt!(left_force, 0.8);
+            assert_lt!(right_force, left_force * 0.92);
+            assert_gt!(right_force, left_force * 0.7);
+        }
+
+        #[test]
+        // BRAKES SYS REDUNDANCY LOST: one RDC channel failed keeps the anti-skid of its gear group
+        fn one_rdc_channel_failed_keeps_full_braking() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::BrakeRemoteDataConcentratorChannel(1, 1));
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert_eq!(
+                read_by_name_f64(&mut test_bed, "BRAKES_RDC_CHANNEL_FAULTS"),
+                1.
+            );
+            assert_gt!(braking_force(&mut test_bed, true), 0.8);
+            assert_eq!(
+                braking_force(&mut test_bed, true),
+                braking_force(&mut test_bed, false)
+            );
+        }
+
+        #[test]
+        // BRAKES RELEASED: the wheel tachometer of brakes 1/2 failed, the BCS releases the pair (left wing gear)
+        fn failed_tachometer_releases_its_brake_pair() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::BrakePairTachometer(1));
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert_eq!(read_by_name_f64(&mut test_bed, "BRAKES_RELEASED_PAIRS"), 1.);
+            let left_force = braking_force(&mut test_bed, true);
+            let right_force = braking_force(&mut test_bed, false);
+            assert_gt!(right_force, 0.8);
+            assert_lt!(left_force, right_force * 0.8);
+        }
+
+        #[test]
+        // On a gear group without anti-skid the EBCU brakes the pair of the failed tachometer: no BRAKES RELEASED
+        fn failed_tachometer_does_not_release_a_pair_braked_by_the_ebcu() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::BrakePairTachometer(1));
+            test_bed.fail(FailureType::BrakeRemoteDataConcentratorChannel(1, 1));
+            test_bed.fail(FailureType::BrakeRemoteDataConcentratorChannel(1, 2));
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert_eq!(read_by_name_f64(&mut test_bed, "BRAKES_RELEASED_PAIRS"), 0.);
+            assert_eq!(
+                braking_force(&mut test_bed, true),
+                braking_force(&mut test_bed, false)
+            );
+        }
+
+        #[test]
+        // BRAKES RESIDUAL BRAKING: the normal servo valve of brakes 3/4 (right wing gear) leaks without a braking
+        // command
+        fn leaking_servo_valve_keeps_a_residual_braking_on_its_pair() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running()
+                .set_park_brake(false)
+                .run_waiting_for(Duration::from_secs(2));
+            // Depending on the frame times, a little park brake pressure can stay on both sides after the release
+            let left_force_before_leak = braking_force(&mut test_bed, true);
+            test_bed.fail(FailureType::BrakePairServoValveLeak(2));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(2));
+
+            assert_eq!(read_by_name_f64(&mut test_bed, "BRAKES_RESIDUAL_PAIRS"), 2.);
+            let left_force = braking_force(&mut test_bed, true);
+            assert_lt!((left_force - left_force_before_leak).abs(), 0.001);
+            assert_gt!(braking_force(&mut test_bed, false) - left_force, 0.05);
+        }
+
         #[test]
         // The park brake applies about 3 600 PSI on the BLG brakes with the accumulators normally filled, the full
         // pressure of the ultimate braking
@@ -13388,6 +13588,26 @@ mod tests {
                 .run_waiting_for(Duration::from_secs(1));
 
             assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::L3);
+        }
+
+        #[test]
+        // A partial A-SKID fault (the wing gears without anti-skid) makes the AUTO BRK inoperative
+        fn autobrake_does_not_arm_with_a_gear_group_without_anti_skid() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(12));
+            test_bed.fail(FailureType::BrakeRemoteDataConcentratorChannel(1, 1));
+            test_bed.fail(FailureType::BrakeRemoteDataConcentratorChannel(1, 2));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(1));
+            assert_eq!(pedal_braking_mode(&mut test_bed), 1.);
+
+            test_bed = test_bed
+                .set_autobrake_l3()
+                .run_waiting_for(Duration::from_secs(1));
+
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::DISARM);
         }
 
         #[test]

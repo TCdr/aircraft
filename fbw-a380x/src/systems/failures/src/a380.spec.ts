@@ -149,6 +149,53 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
+  it('lists the BCS gear group and brake pair failures under the Rust failures of brake_anti_skid_faults.rs', () => {
+    const rustMap = readRustFailureMap();
+    const pairs = [
+      '1/2 (left wing gear)',
+      '3/4 (right wing gear)',
+      '5/6 (left wing gear)',
+      '7/8 (right wing gear)',
+      '9/10 (left body gear)',
+      '11/12 (right body gear)',
+      '13/14 (left body gear)',
+      '15/16 (right body gear)',
+    ];
+    const expected: [number, string, string][] = [
+      [32120, 'BrakingControlSystem(1)', 'Brakes control system 1 (BCS 1)'],
+      [32121, 'BrakingControlSystem(2)', 'Brakes control system 2 (BCS 2)'],
+      [32122, 'BrakeRemoteDataConcentratorChannel(1,1)', 'Brakes RDC 1 channel A (wing gears anti-skid)'],
+      [32123, 'BrakeRemoteDataConcentratorChannel(1,2)', 'Brakes RDC 1 channel B (wing gears anti-skid)'],
+      [32124, 'BrakeRemoteDataConcentratorChannel(2,1)', 'Brakes RDC 2 channel A (right body gear anti-skid)'],
+      [32125, 'BrakeRemoteDataConcentratorChannel(2,2)', 'Brakes RDC 2 channel B (right body gear anti-skid)'],
+      [32126, 'BrakeRemoteDataConcentratorChannel(3,1)', 'Brakes RDC 3 channel A (left body gear anti-skid)'],
+      [32127, 'BrakeRemoteDataConcentratorChannel(3,2)', 'Brakes RDC 3 channel B (left body gear anti-skid)'],
+      ...pairs.map((pair, index): [number, string, string] => [
+        32160 + index,
+        `BrakePairTachometer(${index + 1})`,
+        `Brakes ${pair.replace(' (', ' wheel tachometer (')}`,
+      ]),
+      ...pairs.map((pair, index): [number, string, string] => [
+        32170 + index,
+        `BrakePairServoValveLeak(${index + 1})`,
+        `Brakes ${pair.replace(' (', ' normal servo valve leak (')}`,
+      ]),
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[0], definitionOf(id)?.[2]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, 32, name]),
+    );
+  });
+
+  it('lists the FWS-only brake failures in ATA 32 without a Rust failure', () => {
+    const rustMap = readRustFailureMap();
+    const ids = [32130, 32131, 32132, 32133, 32134];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(ids.map((id) => [rustMap.has(id), definitionOf(id)?.[0]])).toEqual(ids.map(() => [false, 32]));
+  });
+
   it('lists the wing and engine anti-ice valve failures in ATA 30 with the Rust failures of ice_rain_protection.rs', () => {
     const rustMap = readRustFailureMap();
     const expected: [number, string, string][] = [

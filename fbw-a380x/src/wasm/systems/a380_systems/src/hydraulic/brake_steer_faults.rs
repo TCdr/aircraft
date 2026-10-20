@@ -123,16 +123,20 @@ impl A380BrakingControlFaults {
     /// - Else alternate braking, if the BCS alternate braking works.
     /// - Else emergency braking, if the EBCU works (the normal and the alternate braking failed).
     /// - Else no pedal braking (normal, alternate and emergency braking all failed).
+    ///
+    /// Without anti-skid on all the landing gears (both BCS failed, or every gear group lost its anti-skid, see
+    /// brake_anti_skid_faults.rs) the normal and the alternate braking are lost: the EBCU brakes.
     pub fn pedal_braking_mode(
         &self,
         normal_hydraulic_power_available: bool,
         anti_skid_on: bool,
+        anti_skid_lost_on_all_gears: bool,
     ) -> PedalBrakingMode {
         Self::braking_mode(
             normal_hydraulic_power_available,
             anti_skid_on,
-            self.normal_braking_failure.is_active(),
-            self.alternate_braking_failure.is_active(),
+            self.normal_braking_failure.is_active() || anti_skid_lost_on_all_gears,
+            self.alternate_braking_failure.is_active() || anti_skid_lost_on_all_gears,
             self.emergency_braking_failure.is_active(),
         )
     }

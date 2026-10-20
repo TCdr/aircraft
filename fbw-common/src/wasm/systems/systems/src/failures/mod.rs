@@ -246,6 +246,15 @@ pub enum FailureType {
     BodyWheelSteering,
     /// Steering control system n (A380 SCS 1 or 2)
     SteeringControlSystem(usize),
+    /// Braking control system n (A380 BCS 1 or 2); with both failed only the emergency braking (EBCU) is left
+    BrakingControlSystem(usize),
+    /// Channel c (1 A, 2 B) of the remote data concentrator n that carries the anti-skid of one main gear group (A380
+    /// RDC 1 wing gears, 2 right body gear, 3 left body gear); with both channels failed that group loses its anti-skid
+    BrakeRemoteDataConcentratorChannel(usize, usize),
+    /// The wheel tachometer of brake pair n (A380, 1 = brakes 1/2 to 8 = brakes 15/16): the BCS releases the pair
+    BrakePairTachometer(usize),
+    /// The normal servo valve of brake pair n leaks (A380, numbered as BrakePairTachometer): residual braking
+    BrakePairServoValveLeak(usize),
     // ATA34
     RadioAltimeter(usize),
     RadioAntennaInterrupted(usize),
