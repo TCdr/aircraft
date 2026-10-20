@@ -8,6 +8,7 @@
 
 #include "Arinc429Utils.h"
 #include "FadecLgciu.h"
+#include "FlightControlInputFailures.h"
 #include "FlyByWireInterface.h"
 #include "interface/SimConnectData.h"
 #include "failures/PrimActuatorControlFailures.h"
@@ -1597,11 +1598,15 @@ bool FlyByWireInterface::updatePrim(double sampleTime, int primIndex) {
   modelInputs.in.discrete_inputs.green_low_pressure = !idHydGreenPressurised->get();
   modelInputs.in.discrete_inputs.yellow_low_pressure = !idHydYellowPressurised->get();
 
-  modelInputs.in.analog_inputs.capt_pitch_stick_pos = -simInput.inputs[0];
-  modelInputs.in.analog_inputs.fo_pitch_stick_pos = 0;
-  modelInputs.in.analog_inputs.capt_roll_stick_pos = -simInput.inputs[1];
-  modelInputs.in.analog_inputs.fo_roll_stick_pos = 0;
-  modelInputs.in.analog_inputs.speed_brake_lever_pos = spoilersHandler->getIsArmed() ? -0.05 : spoilersHandler->getHandlePosition();
+  const FlightControlInputFailures::SidestickPositions sticks = FlightControlInputFailures::sidestickPositions(
+      -simInput.inputs[0], -simInput.inputs[1], failuresConsumer.isActive(Failures::CaptSidestick),
+      failuresConsumer.isActive(Failures::FoSidestick));
+  modelInputs.in.analog_inputs.capt_pitch_stick_pos = sticks.captPitch;
+  modelInputs.in.analog_inputs.fo_pitch_stick_pos = sticks.foPitch;
+  modelInputs.in.analog_inputs.capt_roll_stick_pos = sticks.captRoll;
+  modelInputs.in.analog_inputs.fo_roll_stick_pos = sticks.foRoll;
+  modelInputs.in.analog_inputs.speed_brake_lever_pos = FlightControlInputFailures::primSpeedBrakeLeverPosition(
+      spoilersHandler->getIsArmed(), spoilersHandler->getHandlePosition(), failuresConsumer.isActive(Failures::SpeedBrakesLever));
   modelInputs.in.analog_inputs.thr_lever_1_pos = thrustLeverAngle[0]->get();
   modelInputs.in.analog_inputs.thr_lever_2_pos = thrustLeverAngle[1]->get();
   modelInputs.in.analog_inputs.thr_lever_3_pos = thrustLeverAngle[2]->get();
@@ -1618,7 +1623,8 @@ bool FlyByWireInterface::updatePrim(double sampleTime, int primIndex) {
   modelInputs.in.analog_inputs.right_spoiler_pos_deg = -50. * rightSpoilerPosition;
   modelInputs.in.analog_inputs.rudder_1_pos_deg = -30. * rudder1Position;
   modelInputs.in.analog_inputs.rudder_2_pos_deg = -30. * rudder2Position;
-  modelInputs.in.analog_inputs.rudder_pedal_pos = -(simInput.inputs[2] + idRudderTrimActualPosition->get() / 30);
+  modelInputs.in.analog_inputs.rudder_pedal_pos = FlightControlInputFailures::rudderPedalOrder(
+      simInput.inputs[2], idRudderTrimActualPosition->get(), failuresConsumer.isActive(Failures::RudderPedalTransducers));
   modelInputs.in.analog_inputs.yellow_hyd_pressure_psi = idHydYellowSystemPressure->get();
   modelInputs.in.analog_inputs.green_hyd_pressure_psi = idHydGreenSystemPressure->get();
   modelInputs.in.analog_inputs.vert_acc_1_g = 0;
@@ -1627,10 +1633,15 @@ bool FlyByWireInterface::updatePrim(double sampleTime, int primIndex) {
   modelInputs.in.analog_inputs.lat_acc_1_g = 0;
   modelInputs.in.analog_inputs.lat_acc_2_g = 0;
   modelInputs.in.analog_inputs.lat_acc_3_g = 0;
-  modelInputs.in.analog_inputs.left_body_wheel_speed = idLeftBodyWheelSpeed_rpm->get() * 0.146189;
-  modelInputs.in.analog_inputs.left_wing_wheel_speed = idLeftWingWheelSpeed_rpm->get() * 0.146189;
-  modelInputs.in.analog_inputs.right_body_wheel_speed = idRightBodyWheelSpeed_rpm->get() * 0.146189;
-  modelInputs.in.analog_inputs.right_wing_wheel_speed = idRightWingWheelSpeed_rpm->get() * 0.146189;
+  const bool primWheelSpeedInputsFailed = failuresConsumer.isActive(Failures::PrimWheelSpeedInputs);
+  modelInputs.in.analog_inputs.left_body_wheel_speed =
+      FlightControlInputFailures::primWheelSpeed(idLeftBodyWheelSpeed_rpm->get() * 0.146189, primWheelSpeedInputsFailed);
+  modelInputs.in.analog_inputs.left_wing_wheel_speed =
+      FlightControlInputFailures::primWheelSpeed(idLeftWingWheelSpeed_rpm->get() * 0.146189, primWheelSpeedInputsFailed);
+  modelInputs.in.analog_inputs.right_body_wheel_speed =
+      FlightControlInputFailures::primWheelSpeed(idRightBodyWheelSpeed_rpm->get() * 0.146189, primWheelSpeedInputsFailed);
+  modelInputs.in.analog_inputs.right_wing_wheel_speed =
+      FlightControlInputFailures::primWheelSpeed(idRightWingWheelSpeed_rpm->get() * 0.146189, primWheelSpeedInputsFailed);
 
   modelInputs.in.bus_inputs.adr_1_bus = AirDataRejection::forFlightControls(adrBusOutputs[0], 0, airDataRejections);
   modelInputs.in.bus_inputs.adr_2_bus = AirDataRejection::forFlightControls(adrBusOutputs[1], 1, airDataRejections);
@@ -2149,10 +2160,13 @@ bool FlyByWireInterface::updateSec(double sampleTime, int secIndex) {
   secs[secIndex].modelInputs.in.discrete_inputs.green_low_pressure = !idHydGreenPressurised->get();
   secs[secIndex].modelInputs.in.discrete_inputs.yellow_low_pressure = !idHydYellowPressurised->get();
 
-  secs[secIndex].modelInputs.in.analog_inputs.capt_pitch_stick_pos = -simInput.inputs[0];
-  secs[secIndex].modelInputs.in.analog_inputs.fo_pitch_stick_pos = 0;
-  secs[secIndex].modelInputs.in.analog_inputs.capt_roll_stick_pos = -simInput.inputs[1];
-  secs[secIndex].modelInputs.in.analog_inputs.fo_roll_stick_pos = 0;
+  const FlightControlInputFailures::SidestickPositions sticks = FlightControlInputFailures::sidestickPositions(
+      -simInput.inputs[0], -simInput.inputs[1], failuresConsumer.isActive(Failures::CaptSidestick),
+      failuresConsumer.isActive(Failures::FoSidestick));
+  secs[secIndex].modelInputs.in.analog_inputs.capt_pitch_stick_pos = sticks.captPitch;
+  secs[secIndex].modelInputs.in.analog_inputs.fo_pitch_stick_pos = sticks.foPitch;
+  secs[secIndex].modelInputs.in.analog_inputs.capt_roll_stick_pos = sticks.captRoll;
+  secs[secIndex].modelInputs.in.analog_inputs.fo_roll_stick_pos = sticks.foRoll;
   secs[secIndex].modelInputs.in.analog_inputs.elevator_1_pos_deg = -30. * elevator1Position;
   secs[secIndex].modelInputs.in.analog_inputs.elevator_2_pos_deg = -30. * elevator2Position;
   secs[secIndex].modelInputs.in.analog_inputs.elevator_3_pos_deg = -30. * elevator3Position;
@@ -2167,7 +2181,8 @@ bool FlyByWireInterface::updateSec(double sampleTime, int secIndex) {
   secs[secIndex].modelInputs.in.analog_inputs.right_spoiler_2_pos_deg = -50. * rightSpoiler2Position;
   secs[secIndex].modelInputs.in.analog_inputs.rudder_1_pos_deg = -30. * rudder1Position;
   secs[secIndex].modelInputs.in.analog_inputs.rudder_2_pos_deg = -30. * rudder2Position;
-  secs[secIndex].modelInputs.in.analog_inputs.rudder_pedal_pos_deg = -(simInput.inputs[2] + idRudderTrimActualPosition->get() / 30);
+  secs[secIndex].modelInputs.in.analog_inputs.rudder_pedal_pos_deg = FlightControlInputFailures::rudderPedalOrder(
+      simInput.inputs[2], idRudderTrimActualPosition->get(), failuresConsumer.isActive(Failures::RudderPedalTransducers));
   secs[secIndex].modelInputs.in.analog_inputs.rudder_trim_actual_pos_deg = idRudderTrimActualPosition->get();
 
   if (secIndex == 0) {
@@ -2263,7 +2278,8 @@ bool FlyByWireInterface::updateFcdc(double sampleTime, int fcdcIndex) {
 
   if (afdxCommAvailable) {
     fcdcs[fcdcIndex].discreteInputs.noseGearPressed = idLgciuNoseGearCompressed[0]->get();
-    fcdcs[fcdcIndex].discreteInputs.spoilersArmed = spoilersHandler->getIsArmed() ? true : false;
+    fcdcs[fcdcIndex].discreteInputs.spoilersArmed = FlightControlInputFailures::fcdcGroundSpoilersArmed(
+        spoilersHandler->getIsArmed(), failuresConsumer.isActive(Failures::SpeedBrakesLever));
     fcdcs[fcdcIndex].discreteInputs.btvExitMissed = idBtvExitMissed->get();
     fcdcs[fcdcIndex].discreteInputs.simData = simData;
     fcdcs[fcdcIndex].discreteInputs.otherFcdcHealthy = fcdcsDiscreteOutputs[fcdcIndex == 0 ? 1 : 0].fcdcValid;
@@ -2295,7 +2311,8 @@ bool FlyByWireInterface::updateFcdc(double sampleTime, int fcdcIndex) {
     fcdcs[fcdcIndex].discreteInputs.btvState = idBtvState->get();
 
     // FIXME no speed_brake_lever_command_deg in prim out bus (where to get it from?)
-    fcdcs[fcdcIndex].analogInputs.spoilersLeverPos = spoilersHandler->getHandlePosition();
+    fcdcs[fcdcIndex].analogInputs.spoilersLeverPos = FlightControlInputFailures::fcdcSpeedBrakeLeverPosition(
+        spoilersHandler->getHandlePosition(), failuresConsumer.isActive(Failures::SpeedBrakesLever));
   }
 
   bool primSecReachable[3] = {fcdcIndex == 0 ? (idAfdx1_3Reachable->get() == 1 || idAfdx11_13Reachable->get() == 1)
@@ -2804,24 +2821,36 @@ bool FlyByWireInterface::updateServoSolenoidStatus() {
   idRightOutboardAileronSolenoidEnergized[1]->set(primsDiscreteOutputs[2].right_aileron_2_active_mode);
   idRightOutboardAileronCommandedPosition[1]->set(primsAnalogOutputs[2].right_aileron_2_pos_order_deg);
 
-  idLeftSpoilerCommandedPosition[0]->set(-secsAnalogOutputs[2].left_spoiler_1_pos_order_deg);
-  idRightSpoilerCommandedPosition[0]->set(-secsAnalogOutputs[2].right_spoiler_1_pos_order_deg);
-  idLeftSpoilerCommandedPosition[1]->set(-secsAnalogOutputs[1].left_spoiler_1_pos_order_deg);
-  idRightSpoilerCommandedPosition[1]->set(-secsAnalogOutputs[1].right_spoiler_1_pos_order_deg);
-  idLeftSpoilerCommandedPosition[2]->set(-secsAnalogOutputs[0].left_spoiler_1_pos_order_deg);
-  idRightSpoilerCommandedPosition[2]->set(-secsAnalogOutputs[0].right_spoiler_1_pos_order_deg);
-  idLeftSpoilerCommandedPosition[3]->set(-primsAnalogOutputs[2].left_spoiler_pos_order_deg);
-  idRightSpoilerCommandedPosition[3]->set(-primsAnalogOutputs[2].right_spoiler_pos_order_deg);
-  idLeftSpoilerCommandedPosition[4]->set(-primsAnalogOutputs[1].left_spoiler_pos_order_deg);
-  idRightSpoilerCommandedPosition[4]->set(-primsAnalogOutputs[1].right_spoiler_pos_order_deg);
+  const double leftSpoilerOrders[8] = {
+      -secsAnalogOutputs[2].left_spoiler_1_pos_order_deg, -secsAnalogOutputs[1].left_spoiler_1_pos_order_deg,
+      -secsAnalogOutputs[0].left_spoiler_1_pos_order_deg, -primsAnalogOutputs[2].left_spoiler_pos_order_deg,
+      -primsAnalogOutputs[1].left_spoiler_pos_order_deg,  -primsAnalogOutputs[0].left_spoiler_pos_order_deg,
+      -secsAnalogOutputs[1].left_spoiler_2_pos_order_deg, -secsAnalogOutputs[2].left_spoiler_2_pos_order_deg};
+  const double rightSpoilerOrders[8] = {
+      -secsAnalogOutputs[2].right_spoiler_1_pos_order_deg, -secsAnalogOutputs[1].right_spoiler_1_pos_order_deg,
+      -secsAnalogOutputs[0].right_spoiler_1_pos_order_deg, -primsAnalogOutputs[2].right_spoiler_pos_order_deg,
+      -primsAnalogOutputs[1].right_spoiler_pos_order_deg,  -primsAnalogOutputs[0].right_spoiler_pos_order_deg,
+      -secsAnalogOutputs[1].right_spoiler_2_pos_order_deg, -secsAnalogOutputs[2].right_spoiler_2_pos_order_deg};
+  const Failures leftSpoilerFailureIds[8] = {Failures::LeftSpoiler1Actuator, Failures::LeftSpoiler2Actuator, Failures::LeftSpoiler3Actuator,
+                                             Failures::LeftSpoiler4Actuator, Failures::LeftSpoiler5Actuator, Failures::LeftSpoiler6Actuator,
+                                             Failures::LeftSpoiler7Actuator, Failures::LeftSpoiler8Actuator};
+  const Failures rightSpoilerFailureIds[8] = {Failures::RightSpoiler1Actuator, Failures::RightSpoiler2Actuator, Failures::RightSpoiler3Actuator,
+                                              Failures::RightSpoiler4Actuator, Failures::RightSpoiler5Actuator, Failures::RightSpoiler6Actuator,
+                                              Failures::RightSpoiler7Actuator, Failures::RightSpoiler8Actuator};
+  FlightControlInputFailures::SpoilerFailures leftSpoilerFailures;
+  FlightControlInputFailures::SpoilerFailures rightSpoilerFailures;
+  for (int i = 0; i < 8; i++) {
+    leftSpoilerFailures[i] = failuresConsumer.isActive(leftSpoilerFailureIds[i]);
+    rightSpoilerFailures[i] = failuresConsumer.isActive(rightSpoilerFailureIds[i]);
+  }
+  for (int i = 0; i < 8; i++) {
+    idLeftSpoilerCommandedPosition[i]->set(
+        FlightControlInputFailures::spoilerCommand(leftSpoilerOrders[i], i, leftSpoilerFailures, rightSpoilerFailures));
+    idRightSpoilerCommandedPosition[i]->set(
+        FlightControlInputFailures::spoilerCommand(rightSpoilerOrders[i], i, rightSpoilerFailures, leftSpoilerFailures));
+  }
   idLeftSpoiler6EbhaElectronicEnable->set(primsDiscreteOutputs[0].left_spoiler_electronic_module_enable);
-  idLeftSpoilerCommandedPosition[5]->set(-primsAnalogOutputs[0].left_spoiler_pos_order_deg);
   idRightSpoiler6EbhaElectronicEnable->set(primsDiscreteOutputs[0].right_spoiler_electronic_module_enable);
-  idRightSpoilerCommandedPosition[5]->set(-primsAnalogOutputs[0].right_spoiler_pos_order_deg);
-  idLeftSpoilerCommandedPosition[6]->set(-secsAnalogOutputs[1].left_spoiler_2_pos_order_deg);
-  idRightSpoilerCommandedPosition[6]->set(-secsAnalogOutputs[1].right_spoiler_2_pos_order_deg);
-  idLeftSpoilerCommandedPosition[7]->set(-secsAnalogOutputs[2].left_spoiler_2_pos_order_deg);
-  idRightSpoilerCommandedPosition[7]->set(-secsAnalogOutputs[2].right_spoiler_2_pos_order_deg);
 
   idLeftInboardElevatorSolenoidEnergized[0]->set(primsDiscreteOutputs[2].elevator_1_active_mode ||
                                                  secsDiscreteOutputs[2].elevator_1_active_mode);
@@ -2890,7 +2919,10 @@ bool FlyByWireInterface::updateServoSolenoidStatus() {
   idRudderTrimCommandedPosition[1]->set(secsAnalogOutputs[2].rudder_trim_command_deg);
 
   // Simulate the two electric motors from the Pedal Feel and Trim Unit (PFTU), change zero-force position of the rudder pedals
-  if (secsDiscreteOutputs[0].rudder_trim_active_mode || secsDiscreteOutputs[2].rudder_trim_active_mode) {
+  if (FlightControlInputFailures::rudderTrimMoves(secsDiscreteOutputs[0].rudder_trim_active_mode, secsDiscreteOutputs[2].rudder_trim_active_mode,
+                                                  secsDiscreteOutputs[0].sec_healthy, secsDiscreteOutputs[2].sec_healthy,
+                                                  failuresConsumer.isActive(Failures::RudderTrimMotor1),
+                                                  failuresConsumer.isActive(Failures::RudderTrimMotor2))) {
     idRudderTrimActualPosition->set(secsAnalogOutputs[0].rudder_trim_command_deg + secsAnalogOutputs[2].rudder_trim_command_deg);
   }
 
@@ -2925,7 +2957,8 @@ bool FlyByWireInterface::updateFlyByWire(double sampleTime) {
   idSideStickPositionY->set(-1.0 * simInput.inputs[0]);
 
   // set rudder pedals position
-  idRudderPedalPosition->set(std::max(-100., std::min(100., (-100. * simInput.inputs[2]))));
+  idRudderPedalPosition->set(
+      FlightControlInputFailures::rudderPedalSteeringPercent(simInput.inputs[2], failuresConsumer.isActive(Failures::RudderPedalTransducers)));
   idRudderPedalAnimationPosition->set(
       std::max(-100., std::min(100., (-100. * (simInput.inputs[2] + idRudderTrimActualPosition->get() / 30.)))));
 
