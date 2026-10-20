@@ -6,6 +6,7 @@ import { EventBus, FSComponent, Subject } from '@microsoft/msfs-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { TimeConstraintType } from '@fmgc/guidance/vnav/rta/TimeConstraint';
 import { FmgcFlightPhase } from '@shared/flightphase';
+import { SegmentClass } from '@fmgc/flightplanning/segments/SegmentClass';
 import { MfdSimvars } from '../../../shared/MFDSimvarPublisher';
 import { NXSystemMessages } from '../../../shared/NXSystemMessages';
 import { MfdFmsFplnVertRev } from './MfdFmsFplnVertRev';
@@ -55,6 +56,8 @@ function climbFlightPlan(): any {
       ident,
       isDiscontinuity: false,
       isXF: () => true,
+      cruiseStep: undefined,
+      segment: { class: SegmentClass.Enroute },
       definition: withStandIns({ waypoint: withStandIns({ databaseId: `W    ${ident}` }) }),
     }),
   );
@@ -120,6 +123,7 @@ function renderVertRev(tab: string, revised?: RevisedWaypoint) {
       acInterface: withStandIns({ getHoldDecelReached: () => false }),
       guidanceController: undefined,
       timeConstraintOf: () => null,
+      engineOutActive: () => false,
       setTimeConstraint,
       addMessageToQueue,
     }),
@@ -164,11 +168,28 @@ describe('MfdFmsFplnVertRev', () => {
   }
 
   // The vertical revision applies to the waypoint whose prediction was clicked, not to the TO waypoint
-  for (const tab of ['rta', 'cms', 'spd', 'alt']) {
+  for (const tab of ['rta', 'cms', 'spd', 'alt', 'step-alts']) {
     it(`selects the revised waypoint on the ${tab} tab`, () => {
       expect(renderVertRev(tab, { legIndex: 5, temporary: false }).selectedWaypoint()).toBe('DENOX');
     });
   }
+
+  it('offers the revised waypoint as the start waypoint of a new step', () => {
+    const page = renderVertRev('step-alts', { legIndex: 5, temporary: false });
+
+    const newStepWaypointIndex: number | null = page.internals.stepAltsWptIndices[0].get();
+    expect(newStepWaypointIndex === null ? null : page.internals.availableWaypoints.get(newStepWaypointIndex)).toBe(
+      'DENOX',
+    );
+  });
+
+  it('offers the revised waypoint as the start waypoint of a new CMS', () => {
+    const page = renderVertRev('cms', { legIndex: 5, temporary: false });
+
+    const cmsPanel = page.internals.cmsPanelRef.instance;
+    const startIndex: number | null = cmsPanel.startSelectedIndex.get();
+    expect(startIndex === null ? null : cmsPanel.startValues.get(startIndex)).toBe('DENOX');
+  });
 
   // Entering an RTA on the active flight plan creates the temporary flight plan, which the page then loads: the next
   // entry (e.g. the time after the RTA type) goes to that temporary flight plan
