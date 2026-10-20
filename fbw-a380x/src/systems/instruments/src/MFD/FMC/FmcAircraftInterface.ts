@@ -1661,10 +1661,13 @@ export class FmcAircraftInterface {
     const [approachingCruiseStep, cruiseStepLegIndex] = MfdFmsFplnVertRev.nextCruiseStep(this.flightPlanService.active);
 
     if (approachingCruiseStep && !approachingCruiseStep.isIgnored && cruiseStepLegIndex) {
-      const distanceToStep =
+      const waypointDistance =
         this.fmc.guidanceController.vnavDriver.mcduProfile?.waypointPredictions.get(
           cruiseStepLegIndex,
         )?.distanceFromAircraft;
+      // An optimum step point is before its waypoint
+      const distanceToStep =
+        waypointDistance !== undefined ? waypointDistance - approachingCruiseStep.distanceBeforeTermination : undefined;
 
       if (
         distanceToStep !== undefined &&

@@ -35,6 +35,7 @@ import { GenericFmsEvents } from '../../../../../../../fbw-common/src/systems/in
 import { GenericFcuEvents } from '@flybywiresim/navigation-display';
 import { FGVars } from '../../MsfsAvionicsCommon/providers/FGDataPublisher';
 import { MfdSurvEvents } from '../../MsfsAvionicsCommon/providers/MfdSurvPublisher';
+import { FlsBeamDisplayConditions, isFlsBeamShown, paintFlsBeam } from './VdFlsBeam';
 
 export interface VerticalDisplayCanvasMapProps extends ComponentProps {
   bus: ArincEventBus;
@@ -48,6 +49,8 @@ export interface VerticalDisplayCanvasMapProps extends ComponentProps {
   shouldShowTrackLine: Subscribable<boolean>;
   selectedAltitude: Subscribable<number>;
   fpa: Subscribable<Arinc429WordData>;
+  flsBeamDisplayConditions: Subscribable<FlsBeamDisplayConditions>;
+  baroIsStd: Subscribable<boolean>;
 }
 
 export class VerticalDisplayCanvasMap extends DisplayComponent<VerticalDisplayCanvasMapProps> {
@@ -69,6 +72,8 @@ export class VerticalDisplayCanvasMap extends DisplayComponent<VerticalDisplayCa
   private readonly fmsConstraints = ConsumerSubject.create(this.sub.on('a32nx_fms_vertical_constraints'), []);
 
   private readonly fmsSymbols = ConsumerSubject.create(this.sub.on(`vdSymbols_${this.props.side}`), []);
+
+  private readonly flsBeam = ConsumerSubject.create(this.sub.on('a32nx_fms_vd_fls_beam'), null);
 
   private readonly pposLat = Arinc429LocalVarConsumerSubject.create(this.sub.on('latitude'), 0);
   private readonly pposLon = Arinc429LocalVarConsumerSubject.create(this.sub.on('longitude'), 0);
@@ -215,6 +220,17 @@ export class VerticalDisplayCanvasMap extends DisplayComponent<VerticalDisplayCa
       this.offsetDistance.get(),
     );
 
+    const flsBeam = this.flsBeam.get();
+    if (flsBeam && isFlsBeamShown(flsBeam, this.props.flsBeamDisplayConditions.get())) {
+      paintFlsBeam(
+        context,
+        flsBeam,
+        this.props.baroIsStd.get(),
+        (distance) => VerticalDisplayCanvasMap.distanceToX(distance, vdRange, this.offsetDistance.get()),
+        (altitude) => VerticalDisplayCanvasMap.altToY(altitude, verticalRange),
+      );
+    }
+
     this.pwpLayer.paintShadowLayer(
       context,
       this.props.vdRange.get(),
@@ -271,6 +287,9 @@ export class VerticalDisplayCanvasMap extends DisplayComponent<VerticalDisplayCa
         this.handleNewSymbols();
         this.handlePathFrame();
       }),
+      this.flsBeam.sub(() => this.handlePathFrame()),
+      this.props.flsBeamDisplayConditions.sub(() => this.handlePathFrame()),
+      this.props.baroIsStd.sub(() => this.handlePathFrame()),
     );
 
     this.subscriptions.push(
@@ -278,6 +297,7 @@ export class VerticalDisplayCanvasMap extends DisplayComponent<VerticalDisplayCa
       this.fmsDescentVdProfile,
       this.fmsConstraints,
       this.fmsSymbols,
+      this.flsBeam,
       this.pposLat,
       this.pposLon,
       this.baroCorrectedAltitude,

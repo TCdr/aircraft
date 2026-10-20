@@ -42,6 +42,7 @@ import { VD_PLOT_AREA, VdWxrElevnTiltMode, WXR_SETTING_NO_ENTRY, vdWxrElevnTiltL
 import { computeVdSurvMessages } from './VdSurvMessages';
 import { vdRadioAltitudeZone } from './VdRadioAltitudeZone';
 import { voteRadioAltitude } from '@shared/RadioAltimeterVoting';
+import { isApproachModeSelected } from './VdFlsBeam';
 
 export interface VerticalDisplayProps extends ComponentProps {
   bus: ArincEventBus;
@@ -282,6 +283,28 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
     this.targetAltitude,
     this.fcuEisDiscreteWord2,
   );
+
+  private readonly armedVerticalMode = ConsumerSubject.create(this.sub.on('fg.fma.verticalArmedBitmask'), 0);
+
+  private readonly flsBeamDisplayConditions = MappedSubject.create(
+    ([fcuDw, lateralMode, lateralArmed, verticalMode, verticalArmed, trackLine, ndMode, ndRange]) => ({
+      lsPressed: fcuDw.bitValueOr(14, false),
+      approachModeSelected: isApproachModeSelected(lateralMode, lateralArmed, verticalMode, verticalArmed),
+      alongFlightPlan: !trackLine,
+      ndMode,
+      ndRange,
+    }),
+    this.fcuEisDiscreteWord2,
+    this.activeLateralMode,
+    this.armedLateralMode,
+    this.activeVerticalMode,
+    this.armedVerticalMode,
+    this.shouldShowTrackLine,
+    this.ndMode,
+    this.ndRangeSetting,
+  );
+
+  private readonly baroIsStd = this.fcuEisDiscreteWord2.map((dw) => dw.bitValueOr(11, false));
 
   private readonly targetAltitudeTextVisibility = MappedSubject.create(
     ([alt, range, avail]) => ((alt < range[0] || alt > range[1]) && avail ? 'inherit' : 'hidden'),
@@ -607,6 +630,9 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
       this.terrInopFlagVisibility,
       this.wxrInopFlagVisibility,
       this.targetAltitudeFormatted,
+      this.armedVerticalMode,
+      this.flsBeamDisplayConditions,
+      this.baroIsStd,
     );
 
     // the native VD terrain and weather (ndwxr, vd_ra_zone.h) leave the column under the amber zone clear, as their
@@ -739,6 +765,8 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
           shouldShowTrackLine={this.shouldShowTrackLine}
           fpa={this.fpa}
           selectedAltitude={this.selectedAltitude}
+          flsBeamDisplayConditions={this.flsBeamDisplayConditions}
+          baroIsStd={this.baroIsStd}
         />
         <svg
           ref={this.labelSvgRef}

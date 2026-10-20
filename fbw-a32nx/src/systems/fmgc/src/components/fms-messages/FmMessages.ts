@@ -246,4 +246,18 @@ export const FMMessageTypes: Readonly<Record<string, FMMessage>> = {
     color: 'White',
     clearable: true,
   },
+  /** Type II amber */
+  NoVertPathIntercept: {
+    id: 30,
+    text: 'NO VERT PATH INTERCEPT',
+    color: 'Amber',
+    clearable: true,
+  },
+  /** Type II white, followed by the waypoint ident */
+  SpeedErrorAtWaypoint: {
+    id: 31,
+    text: 'SPD ERROR AT ',
+    color: 'White',
+    clearable: true,
+  },
 };

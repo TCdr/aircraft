@@ -3,14 +3,40 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
+import { NXUnits } from '@flybywiresim/fbw-sdk';
 import { NXFictionalMessages, NXSystemMessages } from '../messages/NXSystemMessages';
 import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { isaDeviationAt, ISA_TROPOPAUSE_ALTITUDE } from '@fmgc/guidance/vnav/EconSpeeds';
+import {
+  OptimumStep,
+  optimumStepAnchor,
+  OptimumStepTarget,
+  optimumStepTarget,
+  stepPointSecondsFromPresent,
+  stepProfileContext,
+  waypointDistancesAhead,
+} from '@fmgc/guidance/vnav/OptimumStep';
+import { FmgcFlightPhase } from '@shared/flightphase';
+import { A32NX_Util } from '../../../../shared/src/A32NX_Util';
+import {
+  A320OptimumStepCache,
+  A320OptimumStepState as OptimumStepState,
+  formatOptStepLine,
+} from '../legacy/A320OptimumStep';
 
 export class CDUStepAltsPage {
+  /** The step altitude entered without a waypoint, for the optimum step search when the flight plan has no step */
+  static optimumStepAltitude: number | null = null;
+
+  /** The cruise level of that entry: a new cruise level (or flight plan) ends it */
+  private static optimumStepCruiseLevel: number | null = null;
+
+  private static readonly optimumStepCache = new A320OptimumStepCache();
+
   static Return() {}
 
   static ShowPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex) {
@@ -41,20 +67,37 @@ export class CDUStepAltsPage {
 
     const fpIndex = isActivePlan ? FlightPlanIndex.Active : FlightPlanIndex.FirstSecondary;
 
+    // No optimum step in the secondary flight plan, none computed while a time constraint exists
+    const rtaExists = isActivePlan && plan.performanceData.timeConstraint.get() !== null;
+    const optimumStep = isActivePlan && !rtaExists ? CDUStepAltsPage.computeOptimumStep(mcdu) : null;
+    const optimumStepLine = formatOptStepLine(legsWithSteps.length > 0, optimumStep, rtaExists, (pounds) =>
+      (NXUnits.poundsToUser(pounds) / 1000).toFixed(1),
+    );
+    const stepLine = (index: number) =>
+      CDUStepAltsPage.formatStepClimbLine(
+        mcdu,
+        legsWithSteps,
+        index,
+        predictions,
+        transitionAltitude,
+        fpIndex,
+        optimumStep,
+      );
+
     mcdu.setTemplate([
       [
         `${!isActivePlan ? 'SEC ' : ''}STEP ALTS {small}FROM{end} {green}FL${plan.performanceData.cruiseFlightLevel.get() ?? ''}{end}`,
       ],
       ['\xa0ALT\xa0/\xa0WPT', 'DIST\xa0TIME'],
-      CDUStepAltsPage.formatStepClimbLine(mcdu, legsWithSteps, 0, predictions, transitionAltitude, fpIndex),
+      stepLine(0),
       [''],
-      CDUStepAltsPage.formatStepClimbLine(mcdu, legsWithSteps, 1, predictions, transitionAltitude, fpIndex),
+      stepLine(1),
       [''],
-      CDUStepAltsPage.formatStepClimbLine(mcdu, legsWithSteps, 2, predictions, transitionAltitude, fpIndex),
+      stepLine(2),
       [''],
-      CDUStepAltsPage.formatStepClimbLine(mcdu, legsWithSteps, 3, predictions, transitionAltitude, fpIndex),
-      [''],
-      CDUStepAltsPage.formatOptStepLine(legsWithSteps),
+      stepLine(3),
+      optimumStepLine.label,
+      optimumStepLine.data,
       [''],
       ['<RETURN'],
     ]);
@@ -71,7 +114,16 @@ export class CDUStepAltsPage {
         );
     }
 
-    mcdu.onLeftInput[4] = () => {};
+    mcdu.onLeftInput[4] = (value, scratchpadCallback) => {
+      if (value === Keypad.clrValue && CDUStepAltsPage.optimumStepAltitude !== null) {
+        CDUStepAltsPage.optimumStepAltitude = null;
+      } else if (value === '' && optimumStep?.optimum) {
+        CDUStepAltsPage.insertOptimumStep(mcdu, optimumStep.target, optimumStep.optimum, scratchpadCallback);
+      } else {
+        mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+        scratchpadCallback();
+      }
+    };
 
     mcdu.onLeftInput[5] = () => {
       CDUStepAltsPage.Return();
@@ -92,12 +144,80 @@ export class CDUStepAltsPage {
     return altitude;
   }
 
-  static formatOptStepLine(steps: FlightPlanLeg[]) {
-    if (steps.length > 0) {
-      return ['', ''];
+  /**
+   * The optimum step point of the active flight plan: for the first step ahead when it is a step climb, or without a
+   * step, for the step altitude entered alone. Computed when the F-PLN, CRZ FL, CI, ZFW and ZFWCG are entered.
+   */
+  static computeOptimumStep(mcdu: LegacyFmsPageInterface): OptimumStepState | null {
+    const plan = mcdu.getFlightPlan(FlightPlanIndex.Active);
+    const performanceData = plan.performanceData;
+    const profile = mcdu.guidanceController?.vnavDriver.mcduProfile;
+    const cruiseLevel = performanceData.cruiseFlightLevel.get();
+    if (cruiseLevel !== CDUStepAltsPage.optimumStepCruiseLevel) {
+      CDUStepAltsPage.optimumStepAltitude = null;
+    }
+    if (!profile || cruiseLevel === null) {
+      return null;
+    }
+    const context = stepProfileContext(profile, plan.allLegs, plan.activeLegIndex);
+    const target = context ? optimumStepTarget(context, cruiseLevel * 100, CDUStepAltsPage.optimumStepAltitude) : null;
+    if (!context || !target) {
+      return null;
     }
 
-    return ['{small}OPT STEP:{end}', '{small}ENTER ALT ONLY{end}'];
+    const costIndex = performanceData.costIndex.get();
+    const zeroFuelWeight = performanceData.zeroFuelWeight.get();
+    if (costIndex === null || zeroFuelWeight === null || performanceData.zeroFuelWeightCenterOfGravity.get() === null) {
+      return { target, optimum: null };
+    }
+    // Design choice: the measured temperature and wind in cruise; before it, the CRZ TEMP entry and no wind
+    const inCruise = mcdu.flightPhaseManager.phase === FmgcFlightPhase.Cruise;
+    const tropopause = mcdu.tropo ?? ISA_TROPOPAUSE_ALTITUDE;
+    const cruiseTemperature = performanceData.cruiseTemperature.get();
+    const isaDeviation = inCruise
+      ? A32NX_Util.getIsaTempDeviation()
+      : cruiseTemperature !== null
+        ? isaDeviationAt(cruiseLevel * 100, cruiseTemperature, tropopause)
+        : 0;
+    const optimum = CDUStepAltsPage.optimumStepCache.get(context, target, {
+      costIndex,
+      zeroFuelWeight,
+      isaDeviation,
+      headwind: inCruise ? -SimVar.GetSimVarValue('AIRCRAFT WIND Z', 'knots') : 0,
+      tropopause,
+    });
+    return { target, optimum };
+  }
+
+  /** Inserts the optimum step point in place of the step it optimises, a distance before the next waypoint */
+  static insertOptimumStep(
+    mcdu: LegacyFmsPageInterface,
+    target: OptimumStepTarget,
+    optimum: OptimumStep,
+    scratchpadCallback: () => void,
+  ) {
+    const plan = mcdu.getFlightPlan(FlightPlanIndex.Active);
+    const waypointDistances = waypointDistancesAhead(
+      mcdu.guidanceController?.vnavDriver.mcduProfile?.waypointPredictions,
+      plan.activeLegIndex,
+    );
+    const anchor = optimumStepAnchor(optimum.distance, waypointDistances, plan.allLegs, target.stepLegIndex);
+    if (!anchor) {
+      mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+      scratchpadCallback();
+      return;
+    }
+    if (target.stepLegIndex !== null && target.stepLegIndex !== anchor.legIndex) {
+      mcdu.flightPlanService.removeCruiseStep(target.stepLegIndex, FlightPlanIndex.Active);
+    }
+    mcdu.flightPlanService.addOrUpdateCruiseStep(
+      anchor.legIndex,
+      target.toAltitude,
+      FlightPlanIndex.Active,
+      anchor.distanceBeforeTermination,
+      true,
+    );
+    CDUStepAltsPage.optimumStepAltitude = null;
   }
 
   // TODO: I think it should not allow entries of step climbs after step descents, but I'm not sure if it rejects it entirely
@@ -112,6 +232,7 @@ export class CDUStepAltsPage {
     predictions: Map<number, VerticalWaypointPrediction>,
     transitionAltitude: number,
     forPlan: FlightPlanIndex,
+    optimumStep: OptimumStepState | null,
   ) {
     if (!legsWithSteps || index > legsWithSteps.length) {
       return [''];
@@ -129,13 +250,27 @@ export class CDUStepAltsPage {
       // 3. STEP AHEAD
       // 4. Distance and time<
 
+      // An inserted optimum step for which a better point is now found
+      const isNoLongerOptimal =
+        step.isOptimum === true &&
+        optimumStep?.target.isOptimum === true &&
+        optimumStep.optimum !== null &&
+        optimumStep.target.toAltitude === step.toAltitude;
+
       let lastColumn = '----\xa0----';
       if (this.checkIfStepAboveMaxFl(mcdu, step.toAltitude)) {
         lastColumn = 'ABOVE\xa0MAX[s-text]';
       } else if (step.isIgnored) {
         lastColumn = 'IGNORED\xa0[s-text]';
+      } else if (isNoLongerOptimal) {
+        lastColumn = 'NO\xa0OPTIMAL[s-text]';
       } else if (prediction) {
-        const { distanceFromAircraft, secondsFromPresent } = prediction;
+        // An optimum step point is before its waypoint
+        const distanceFromAircraft = prediction.distanceFromAircraft - step.distanceBeforeTermination;
+        const profile = mcdu.guidanceController?.vnavDriver.mcduProfile;
+        const secondsFromPresent = profile
+          ? stepPointSecondsFromPresent(profile, prediction.distanceFromStart, step.distanceBeforeTermination)
+          : prediction.secondsFromPresent;
 
         if (Number.isFinite(distanceFromAircraft) && Number.isFinite(secondsFromPresent)) {
           if (distanceFromAircraft < 20) {
@@ -150,7 +285,11 @@ export class CDUStepAltsPage {
       }
 
       return [
-        '{cyan}' + CDUStepAltsPage.formatFl(step.toAltitude, transitionAltitude) + '/' + waypoint.ident + '{end}',
+        '{cyan}' +
+          CDUStepAltsPage.formatFl(step.toAltitude, transitionAltitude) +
+          '/' +
+          (step.isOptimum ? '(OPT)' : waypoint.ident) +
+          '{end}',
         lastColumn,
       ];
     }
@@ -182,9 +321,28 @@ export class CDUStepAltsPage {
     const rawIdentInput = splitInputs[1];
 
     if (!rawIdentInput) {
-      // OPT STEP
-      mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
-      return false;
+      // A step altitude alone: the FMS searches its optimum step point (only without a step in the flight plan)
+      const cruiseLevel = mcdu.getFlightPlan(forPlan).performanceData.cruiseFlightLevel.get();
+      const optimumAltitude = this.tryParseAltitude(rawAltitudeInput);
+      if (!optimumAltitude) {
+        mcdu.setScratchpadMessage(NXSystemMessages.formatError);
+        scratchpadCallback();
+      } else if (
+        forPlan !== FlightPlanIndex.Active ||
+        stepLegs.length > 0 ||
+        cruiseLevel === null ||
+        optimumAltitude - cruiseLevel * 100 < 1000
+      ) {
+        mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+        scratchpadCallback();
+      } else {
+        CDUStepAltsPage.optimumStepAltitude = optimumAltitude;
+        CDUStepAltsPage.optimumStepCruiseLevel = cruiseLevel;
+        if (CDUStepAltsPage.checkIfStepAboveMaxFl(mcdu, optimumAltitude)) {
+          mcdu.addMessageToQueue(NXSystemMessages.stepAboveMaxFl);
+        }
+      }
+      return;
     }
 
     const alt = this.tryParseAltitude(rawAltitudeInput);
@@ -224,6 +382,7 @@ export class CDUStepAltsPage {
     }
 
     mcdu.flightPlanService.addOrUpdateCruiseStep(legIndex, alt, forPlan);
+    CDUStepAltsPage.optimumStepAltitude = null;
 
     if (CDUStepAltsPage.checkIfStepAboveMaxFl(mcdu, alt)) {
       mcdu.addMessageToQueue(NXSystemMessages.stepAboveMaxFl);

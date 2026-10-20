@@ -779,12 +779,18 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     plan.setPilotEnteredSpeedConstraintAt(atIndex, isDescentConstraint, speed);
   }
 
-  async addOrUpdateCruiseStep(atIndex: number, toAltitude: number, planIndex = FlightPlanIndex.Active): Promise<void> {
+  async addOrUpdateCruiseStep(
+    atIndex: number,
+    toAltitude: number,
+    planIndex = FlightPlanIndex.Active,
+    distanceBeforeTermination = 0,
+    isOptimum = false,
+  ): Promise<void> {
     const finalIndex = this.config.TMPY_ON_CONSTRAINT_EDIT ? this.prepareDestructiveModification(planIndex) : planIndex;
 
     const plan = this.flightPlanManager.get(finalIndex);
 
-    plan.addOrUpdateCruiseStep(atIndex, toAltitude);
+    plan.addOrUpdateCruiseStep(atIndex, toAltitude, distanceBeforeTermination, isOptimum);
   }
 
   async removeCruiseStep(atIndex: number, planIndex: FlightPlanIndex = FlightPlanIndex.Active): Promise<void> {

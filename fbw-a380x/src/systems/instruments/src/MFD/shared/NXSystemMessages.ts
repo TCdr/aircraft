@@ -138,6 +138,8 @@ export const NXSystemMessages = {
   setHoldSpeed: new TypeIIMessage('SET HOLD SPD'),
   tdReached: new TypeIIMessage('T/D REACHED'),
   spdLimExceeded: new TypeIIMessage('SPD LIMIT EXCEEDED', true),
+  // Design choice: white, as the A320 type II message (the A380 message table gives no colour)
+  spdErrorAt: new TypeIIMessage('SPD ERROR AT XXXXXXX', false, 'XXXXXXX'),
   toSpeedTooLow: new TypeIIMessage('T.O SPEED TOO LOW - CHECK TOW & T.O DATA', true),
   vToDisagree: new TypeIIMessage('V1/VR/V2 DISAGREE', true),
   xxxIsDeselected: new TypeIMessage('XXXX IS DESELECTED', false, 'XXXX'),
