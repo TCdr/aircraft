@@ -239,4 +239,11 @@ export const FMMessageTypes: Readonly<Record<string, FMMessage>> = {
     color: 'Amber',
     clearable: true,
   },
+  /** Type II white */
+  CabinRateExceeded: {
+    id: 29,
+    text: 'CABIN RATE EXCEEDED',
+    color: 'White',
+    clearable: true,
+  },
 };

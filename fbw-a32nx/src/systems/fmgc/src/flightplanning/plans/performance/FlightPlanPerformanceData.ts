@@ -648,8 +648,7 @@ export interface FlightPlanPerformanceData {
   readonly climbDerated?: MutableSubscribable<ClimbDerated | null>;
 
   /**
-   * The descent cabin rate setting in ft/min, or null if not set.
-   * A380 specific
+   * The descent cabin rate entered by the flight crew in ft/min, or null if not set.
    */
   readonly descentCabinRate?: MutableSubscribable<number | null>;
 

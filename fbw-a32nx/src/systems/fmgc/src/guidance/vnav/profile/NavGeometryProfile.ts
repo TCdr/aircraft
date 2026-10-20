@@ -69,6 +69,7 @@ export enum VerticalCheckpointReason {
   ContinueDescent = 'ContinueDescent',
   ContinueDescentArmed = 'ContinueDescentArmed',
   TopOfDescent = 'TopOfDescent',
+  RepressurizationSegmentEnd = 'RepressurizationSegmentEnd',
   CrossingDescentSpeedLimit = 'CrossingDescentSpeedLimit',
   IdlePathAtmosphericConditions = 'IdlePathAtmosphericConditions',
   IdlePathEnd = 'IdlePathEnd',

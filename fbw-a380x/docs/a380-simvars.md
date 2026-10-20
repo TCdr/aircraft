@@ -634,6 +634,11 @@
     - Bool
     - Indicates if the FMS predicted fuel at destination is below minimum.
 
+- A32NX_FM_ENERGY_CIRCLE_DISTANCE
+    - Number (nautical miles)
+    - The energy circle radius for the NDs: the required distance to descend and land on the descent profile from the
+      present altitude, in flight within 180 NM of the destination; 0 without an energy circle
+
 - A32NX_PFD_MSG_CHECK_APPR_SELECTION
     - Bool
     - Indicates if the CHECK APPR SEL message is shown on the PFD FMA (FMS: an ILS manually tuned on the

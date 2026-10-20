@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { FlapConf } from '@fmgc/guidance/vnav/common';
+import { FmgcFlightPhase } from '@shared/flightphase';
 import { FpmConfig } from './FpmConfig';
 
 export enum VnavDescentMode {
@@ -66,6 +67,30 @@ export interface VnavConfig {
    * The maximum operating Mach number
    */
   MMO: number;
+
+  /** When the FMS provides the energy circle (required distance to land) to the NDs */
+  ENERGY_CIRCLE: EnergyCircleRule;
+
+  /** The cabin pressure schedule the descent profile keeps to (DES CABIN RATE, repressurization segment) */
+  CABIN_PRESSURIZATION: CabinPressurizationModel;
+}
+
+export interface EnergyCircleRule {
+  /** The flight phases in which the energy circle is provided */
+  phases: readonly FmgcFlightPhase[];
+  /** Only while a selected lateral mode (HDG or TRK) is engaged */
+  selectedLateralModeOnly: boolean;
+  /** Only within this distance of the destination, NM; null for no distance limit */
+  maxDistanceToDestination: number | null;
+}
+
+export interface CabinPressurizationModel {
+  /** The maximum cabin differential pressure in cruise, psi */
+  maxDeltaPressure: number;
+  /** The highest cabin altitude in cruise, ft */
+  maxCabinAltitude: number;
+  /** The flight phases in which the FMS checks CABIN RATE EXCEEDED */
+  cabinRateExceededPhases: readonly FmgcFlightPhase[];
 }
 
 /** Only covers aircraft specific configs, no debug switches */

@@ -20,6 +20,7 @@ export type NDSimvars = AdirsSimVars &
     selectedHeading: Degrees;
     showSelectedHeading: boolean;
     absoluteTime: Seconds;
+    energyCircleDistance: number;
     wxrNdModeLeft: number;
     wxrNdModeRight: number;
     wxrGainMan: boolean;
@@ -48,6 +49,7 @@ export enum NDVars {
   selectedHeading = 'L:A32NX_FCU_HEADING_SELECTED',
   showSelectedHeading = 'L:A320_FCU_SHOW_SELECTED_HEADING',
   absoluteTime = 'E:ABSOLUTE TIME',
+  energyCircleDistance = 'L:A32NX_FM_ENERGY_CIRCLE_DISTANCE',
   wxrNdModeLeft = 'L:A32NX_WXR_ND_L_MODE',
   wxrNdModeRight = 'L:A32NX_WXR_ND_R_MODE',
   wxrGainMan = 'L:A380X_WXR_GAIN_MAN',
@@ -79,6 +81,7 @@ export class NDSimvarPublisher extends UpdatableSimVarPublisher<NDSimvars> {
     ['selectedHeading', { name: NDVars.selectedHeading, type: SimVarValueType.Degree }],
     ['showSelectedHeading', { name: NDVars.showSelectedHeading, type: SimVarValueType.Bool }],
     ['absoluteTime', { name: NDVars.absoluteTime, type: SimVarValueType.Seconds }],
+    ['energyCircleDistance', { name: NDVars.energyCircleDistance, type: SimVarValueType.Number }],
     ['wxrNdModeLeft', { name: NDVars.wxrNdModeLeft, type: SimVarValueType.Number }],
     ['wxrNdModeRight', { name: NDVars.wxrNdModeRight, type: SimVarValueType.Number }],
     ['wxrGainMan', { name: NDVars.wxrGainMan, type: SimVarValueType.Bool }],

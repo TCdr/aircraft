@@ -13,6 +13,7 @@ import {
 } from '@fmgc/flightplanning/AircraftConfigTypes';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import type { EconAircraftParameters } from '@fmgc/guidance/vnav/EconSpeeds';
+import { FmgcFlightPhase } from '@shared/flightphase';
 import { FpmConfigs } from './FpmConfig';
 
 const lnavConfig: LnavConfig = {
@@ -32,6 +33,19 @@ const vnavConfig: VnavConfig = {
   LIM_PSEUDO_WPT_LABEL: '(LIM)',
   VMO: 350,
   MMO: 0.82,
+  ENERGY_CIRCLE: {
+    phases: [FmgcFlightPhase.Descent, FmgcFlightPhase.Approach],
+    selectedLateralModeOnly: true,
+    maxDistanceToDestination: null,
+  },
+  CABIN_PRESSURIZATION: {
+    // The values of the cabin pressure controller model of the a320_systems crate
+    maxDeltaPressure: 8.06,
+    maxCabinAltitude: 8000,
+    // Design choice: checked before the descent only. Once the cabin has started its descent the FMS has no
+    // theoretical cabin altitude to compare with any more.
+    cabinRateExceededPhases: [FmgcFlightPhase.Climb, FmgcFlightPhase.Cruise],
+  },
 };
 
 const flightModelParams: FlightModelParameters = {

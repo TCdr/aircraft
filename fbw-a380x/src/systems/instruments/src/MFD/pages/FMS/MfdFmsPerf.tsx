@@ -74,6 +74,7 @@ import {
 import { fcomAt, fcomCentre, fcomLine, fcomRight, fcomTabBar } from '../common/FcomLayout';
 import { longRangeCruiseMach, maxTurbulenceMach, maxTurbulenceSpeedKnots } from '../../FMC/CruiseSpeeds';
 import { TAKEOFF_DERATE_LEVELS, takeoffThrustOptionsDisabled, writeTakeoffDerate } from '../../shared/TakeoffDerate';
+import { descentCabinRateField } from '@fmgc/guidance/vnav/descent/CabinRepressurization';
 
 interface MfdFmsPerfProps extends AbstractMfdPageProps {}
 
@@ -625,6 +626,8 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
   // DES page subjects, refs and methods
   private readonly descentCabinRate = Subject.create<number | null>(null);
 
+  private readonly descentCabinRateIsPilotEntered = Subject.create<boolean>(false);
+
   private readonly desManagedSpdTarget = Subject.create<number | null>(null);
 
   private readonly desManagedMachTarget = Subject.create<number | null>(null);
@@ -853,7 +856,18 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
     this.noiseSpeed.set(pd?.noiseSpeed ? pd.noiseSpeed.get() : null);
     this.noiseEnabled.set(pd?.noiseEnabled?.get() ?? false);
     this.climbDerated.set(pd?.climbDerated ? pd.climbDerated.get() : null);
-    this.descentCabinRate.set(pd?.descentCabinRate ? pd.descentCabinRate.get() : null);
+    // The FMS computes the descent cabin rate for the active flight plan only
+    const isActiveOrTemporary =
+      this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active ||
+      this.loadedFlightPlanIndex.get() === FlightPlanIndex.Temporary;
+    const cabinRateField = descentCabinRateField(
+      pd?.descentCabinRate?.get(),
+      isActiveOrTemporary
+        ? this.props.fmcService.master?.guidanceController?.vnavDriver?.getDescentCabinRateDisplay() ?? null
+        : null,
+    );
+    this.descentCabinRate.set(cabinRateField.rate);
+    this.descentCabinRateIsPilotEntered.set(cabinRateField.isPilotEntered);
     this.climbPreselectedSpeed.set(pd?.preselectedClimbSpeed ? pd.preselectedClimbSpeed.get() : null);
     this.cruisePreselectedSpeed.set(pd?.preselectedCruiseSpeed ? pd.preselectedCruiseSpeed.get() : null);
   }
@@ -2643,6 +2657,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                         );
                       }}
                       inactive={this.crzPageInactive}
+                      enteredByPilot={this.descentCabinRateIsPilotEntered}
                       readonlyValue={this.descentCabinRate}
                       containerStyle="width: 175px;"
                       alignText="flex-end"

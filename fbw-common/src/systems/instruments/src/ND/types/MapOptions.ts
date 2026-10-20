@@ -11,4 +11,6 @@ export interface MapOptions {
   secondaryFlightPlanWaypointsInWhite: boolean;
   /** Highest selected ND range, in NM, at which the TCAS traffic is drawn. Defaults to every range. */
   trafficMaxRangeNm?: number;
+  /** Whether the energy circle is a dashed arc. Defaults to false (solid). */
+  energyCircleDashed?: boolean;
 }

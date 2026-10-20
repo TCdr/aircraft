@@ -896,7 +896,8 @@ export class A380FlightPlanPerformanceData implements FlightPlanPerformanceData 
 
   readonly climbDerated = Subject.create<ClimbDerated | null>(ClimbDerated.NONE);
 
-  readonly descentCabinRate = Subject.create<number | null>(-350);
+  /** The DES CABIN RATE entered by the flight crew, ft/min (negative), null without an entry */
+  readonly descentCabinRate = Subject.create<number | null>(null);
 
   /**
    * The wind entries for the climb segment entered by the pilot

@@ -298,7 +298,7 @@ class NDInstrument implements FsInstrument {
             terrainThresholdPaddingText={a380TerrainThresholdPadValue}
             rangeChangeMessage={a380NdRangeChange}
             modeChangeMessage={a380NdModeChange}
-            mapOptions={{ waypointBoxing: true, secondaryFlightPlanWaypointsInWhite: true }}
+            mapOptions={{ waypointBoxing: true, secondaryFlightPlanWaypointsInWhite: true, energyCircleDashed: true }}
             onMapClick={(click) => this.ndInteractiveRef.getOrDefault()?.onMapClick(click)}
             fmMessages={Object.values(NDFMMessageTypes)}
           />

@@ -790,6 +790,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FMS] CONSTANT MACH page (VERT REV): a cruise segment flown at a crew Mach in managed speed and in the predictions, deleted at the end of the cruise, in engine out, or with the alternate or the SEC F-PLN activated (CONSTANT MACH DELETED) - @TCdr
 1. [A380X/FMS] CMS panel of the VERT REV page: constant Mach segment flown in managed speed and predictions, starred on the F-PLN, Mach under its waypoints on the ND, deleted at the end of the cruise (MACH SEGMENT DELETED), in EO or with the ALTN enabled - @TCdr
 1. [A380X/MFD] F-PLN speed column: the ditto character only replaces a speed or Mach that shows the same value as the waypoint above, so a slowly changing speed is shown - @TCdr
+1. [ND] Energy circle: green arc of the required distance to land, A32NX in descent and approach in HDG/TRK, A380X dashed within 180 NM of the destination (ARC and ROSE NAV) - @TCdr
+1. [FMS] The descent profile keeps the cabin within the maximum descent cabin rate (default -350 ft/min): a repressurization segment moves the T/D back when the idle descent is too short - @TCdr
+1. [A32NX/MCDU] PERF CRZ DES CABIN RATE can be entered (100 to 999 ft/min, CLR for the default) and shows the computed rate when it cannot be met, with the CABIN RATE EXCEEDED message - @TCdr
+1. [A380X/FMS] The PERF page DES CABIN RATE is used by the predictions (small font for the default or computed rate), with the CABIN RATE EXCEEDED message - @TCdr
 
 ## 2024.1.0
 

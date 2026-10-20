@@ -98,6 +98,8 @@ export class FmsAdvisoryMessages {
 
   private readonly noNavInterceptionLatch = new MessageTextLatch();
 
+  private readonly cabinRateExceededLatch = new MessageTextLatch();
+
   /** The clock (UTC seconds of the day) at the previous cycle, for T.O TIME REACHED */
   private previousClock: number | null = null;
 
@@ -246,6 +248,11 @@ export class FmsAdvisoryMessages {
       )
         ? NXSystemMessages.noNavInterception
         : null,
+    );
+
+    this.apply(
+      this.cabinRateExceededLatch,
+      guidance?.vnavDriver?.shouldShowCabinRateExceeded() ? NXSystemMessages.cabinRateExceeded : null,
     );
   }
 
