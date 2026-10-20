@@ -20,8 +20,7 @@ import { FwcAlertItem, cautionItem, readBool } from './FwcAlertItem';
  *   engine bleed valve of the side of the closed wing valve is closed.
  * - WING A.ICE L(R) HI PR: the WING ANTI ICE pb-sw is ON and the pressure sensor downstream of the valve reads a high
  *   duct pressure; THRUST LIM PENALTY; STATUS THRUST LIM PENALTY, INOP SYS WAI REGUL.
- * Not modelled: WING A.ICE L(R) VALVE OPEN and OPEN ON GND. The Rust valves always follow their
- * controller (no valve failure), and the ground test closes them after 30 s, before the 35 s of OPEN ON GND.
+ * WING A.ICE L(R) VALVE OPEN and OPEN ON GND are in Logic/WingAntiIceValveOpenAlerts.
  * All are amber cautions that call the BLEED page, inhibited in phases 3, 4, 5, 7 and 8.
  */
 

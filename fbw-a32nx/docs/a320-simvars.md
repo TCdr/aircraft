@@ -450,20 +450,28 @@
       (FDU)"). The zone then gives no fire warning (A32NX_FIRE_DETECTED_* stays false)
     - Drives the ENG 1(2) / APU FIRE DET FAULT caution, which then replaces the LOOP A(B) FAULT cautions of the zone
 
-- A32NX_SMOKE_{FWD_CARGO | AFT_CARGO | AVIONICS}_DETECTED
+- A32NX_SMOKE_{FWD_CARGO | AFT_CARGO | AVIONICS | LAVATORY}_DETECTED
     - Bool
     - True when the smoke detection of the compartment gives the SMOKE warning (systems fire_protection/smoke_detection.rs):
       both detection loops sense the smoke, or one does and the other is inoperative (A320 FCOM DSC-26-50-10). The
       avionics ventilation duct detector after 5 s of smoke (DSC-26-30-10). The smoke comes from the flyPad failures
-      "Forward cargo smoke", "Aft cargo smoke", "Avionics smoke (ventilation extract duct)"
-    - Read by the FWC (SMOKE FWD (AFT) CARGO SMOKE, AVIONICS SMOKE), the CARGO SMOKE panel SMOKE lights, and for
-      AVIONICS the GEN 1 LINE SMOKE light and the BLOWER and EXTRACT FAULT lights
+      "Forward cargo smoke", "Aft cargo smoke", "Avionics smoke (ventilation extract duct)", "Lavatory smoke"
+    - Read by the FWC (SMOKE FWD (AFT) CARGO SMOKE, AVIONICS SMOKE, LAVATORY SMOKE), the CARGO SMOKE panel SMOKE
+      lights, and for AVIONICS the GEN 1 LINE SMOKE light and the BLOWER and EXTRACT FAULT lights
+    - Cargo and lavatory: always false while both SDCU channels are failed
 
-- A32NX_SMOKE_{FWD_CARGO | AFT_CARGO | AVIONICS}_DET_FAULT
+- A32NX_SMOKE_{FWD_CARGO | AFT_CARGO | AVIONICS | LAVATORY}_DET_FAULT
     - Bool
     - True when every smoke detector of the compartment is inoperative: flyPad failure or no electrical supply (cargo
-      loop 1: DC ESS SHED bus, loop 2: DC 2 bus; avionics: DC ESS bus)
-    - Drives the SMOKE FWD (AFT) CRG DET FAULT cautions
+      loop 1: DC ESS SHED bus, loop 2: DC 2 bus; avionics: DC ESS bus; lavatory: DC 1 bus)
+    - Drives the SMOKE FWD (AFT) CRG DET FAULT and SMOKE LAVATORY DET FAULT cautions
+    - Cargo and lavatory: always false while both SDCU channels are failed
+
+- A32NX_SMOKE_DETECTION_CONTROL_UNIT_FAULT
+    - Bool
+    - True when both channels of the smoke detection control unit (SDCU) are failed (flyPad failures "SDCU channel 1
+      (smoke detection)" and "SDCU channel 2 (smoke detection)"): no cargo or lavatory smoke is reported
+    - Drives the SMOKE DET FAULT caution
 
 - A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED
     - Bool
@@ -1278,6 +1286,13 @@
     - The cockpit door locking system has a failure (a latch, a pressure sensor or the control unit): the COCKPIT DOOR
       FAULT light of the pedestal comes on
     - Written by the systems host (Doors/DoorFailures.ts)
+
+- A32NX_PARK_BRAKE_FAULT
+    - Bool
+    - True when the parking brake pressure disagrees with the PARKING BRK handle: handle ON without the parking brake
+      valve open, or handle OFF with the parking brake pressure still applied (flyPad failure "Parking brake valve
+      jammed")
+    - Drives the BRAKES PARK BRK FAULT caution
 
 - A32NX_PARK_BRAKE_LEVER_POS
     - Bool
@@ -2836,6 +2851,13 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_COND_PACK_{index}_OUTLET_TEMPERATURE
     - Degree Celsius
     - Outlet temperature of the respective {1 or 2} pack
+
+- A32NX_COND_PACK_{index}_OVERHEAT
+    - Bool
+    - True while the compressor outlet of the respective {1 or 2} pack is overheated (flyPad failure "Pack 1(2) overheat
+      (compressor outlet)"): the ACSC closes the pack flow control valve and lights the PACK pb-sw FAULT light until the
+      compressor has cooled down without air flow
+    - Drives the AIR PACK 1(2) OVHT caution
 
 - A32NX_COND_{id}_TRIM_AIR_VALVE_POSITION
     - Percentage

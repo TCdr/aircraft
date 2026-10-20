@@ -514,6 +514,9 @@ struct GearSystemComponentAssembly {
     hydraulic_downlock: Option<HydraulicLock>,
 
     aerodynamic_model: AerodynamicModel,
+    /// A gear only: its uplock locks again once the gear has left it
+    uplock_stuck_locked: Option<Failure>,
+    uplock_locked_without_gear: bool,
 }
 impl GearSystemComponentAssembly {
     const OPENED_PROXIMITY_DETECTOR_MOUNTING_POSITION_RATIO: f64 = 1.;
@@ -531,8 +534,13 @@ impl GearSystemComponentAssembly {
         downlock_id: [ProximityDetectorId; 2],
         aerodynamic_model: AerodynamicModel,
     ) -> Self {
+        let component_id: GearSysComponentId = id.into();
+        let uplock_stuck_locked = match component_id {
+            GearSysComponentId::Gear => Some(Failure::new(FailureType::GearUplockStuckLocked(id))),
+            GearSysComponentId::Door => None,
+        };
         let mut obj = Self {
-            component_id: id.into(),
+            component_id,
             is_inverted_control,
             hydraulic_controller: GearSystemComponentHydraulicController::new(
                 id,
@@ -571,6 +579,8 @@ impl GearSystemComponentAssembly {
                 None
             },
             aerodynamic_model,
+            uplock_stuck_locked,
+            uplock_locked_without_gear: false,
         };
 
         obj.update_proximity_detectors();
@@ -601,6 +611,14 @@ impl GearSystemComponentAssembly {
 
     fn update_proximity_detectors(&mut self) {
         let position_normalized = self.position_normalized();
+        let uplock_failed = self
+            .uplock_stuck_locked
+            .as_ref()
+            .is_some_and(|failure| failure.is_active());
+        let gear_out_of_uplock = position_normalized.get::<ratio>()
+            > Self::UPLOCKED_PROXIMITY_DETECTOR_TRIG_DISTANCE_RATIO;
+        self.uplock_locked_without_gear =
+            uplock_failed && (self.uplock_locked_without_gear || gear_out_of_uplock);
 
         for sensor in &mut self.fully_opened_proximity_detectors {
             sensor.update(position_normalized);
@@ -662,8 +680,10 @@ impl GearSystemComponentAssembly {
         self.hydraulic_assembly.actuator(0)
     }
 
+    /// The proximity sensors sense the uplock locked: with the gear in it, or locked again without it (failure)
     fn is_sensor_uplock(&self, lgciu_id: LgciuId) -> bool {
         self.uplock_proximity_detectors[lgciu_id as usize].proximity_detected()
+            || self.uplock_locked_without_gear
     }
 
     fn is_sensor_fully_opened(&self, lgciu_id: LgciuId) -> bool {
@@ -685,6 +705,9 @@ impl SimulationElement for GearSystemComponentAssembly {
         accept_iterable!(self.uplock_proximity_detectors, visitor);
         accept_iterable!(self.fully_opened_proximity_detectors, visitor);
         self.hydraulic_controller.accept(visitor);
+        if let Some(failure) = self.uplock_stuck_locked.as_mut() {
+            failure.accept(visitor);
+        }
 
         visitor.visit(self);
     }
@@ -1241,7 +1264,14 @@ mod tests {
             }
         }
     }
-    impl SimulationElement for TestSingleGearAircraft {}
+    impl SimulationElement for TestSingleGearAircraft {
+        fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+            self.door_assembly.accept(visitor);
+            self.gear_assembly.accept(visitor);
+
+            visitor.visit(self);
+        }
+    }
 
     #[test]
     fn proximity_detector_active_when_at_position() {
@@ -1449,6 +1479,55 @@ mod tests {
 
         assert!(!test_bed.query(|a| a.is_door_sensor_fully_opened(LgciuId::Lgciu1)));
         assert!(!test_bed.query(|a| a.is_door_sensor_fully_opened(LgciuId::Lgciu2)));
+    }
+
+    #[test]
+    fn an_uplock_stuck_locked_reads_uplocked_while_the_gear_is_down() {
+        let mut test_bed = SimulationTestBed::new(|context| {
+            let gear_door = main_gear_door_right_assembly(context);
+
+            TestSingleGearAircraft::new(
+                Duration::from_millis(10),
+                gear_door,
+                main_gear_right_assembly(context, true),
+            )
+        });
+        test_bed.run_with_delta(Duration::from_millis(10));
+
+        assert!(test_bed.query(|a| a.is_gear_sensor_fully_opened(LgciuId::Lgciu1)));
+        assert!(!test_bed.query(|a| a.is_gear_sensor_uplock(LgciuId::Lgciu1)));
+
+        test_bed.fail(FailureType::GearUplockStuckLocked(GearActuatorId::GearNose));
+        test_bed.run_with_delta(Duration::from_millis(10));
+
+        assert!(test_bed.query(|a| a.is_gear_sensor_fully_opened(LgciuId::Lgciu1)));
+        assert!(test_bed.query(|a| a.is_gear_sensor_uplock(LgciuId::Lgciu1)));
+        assert!(test_bed.query(|a| a.is_gear_sensor_uplock(LgciuId::Lgciu2)));
+        assert!(!test_bed.query(|a| a.is_door_sensor_fully_opened(LgciuId::Lgciu1)));
+
+        test_bed.unfail(FailureType::GearUplockStuckLocked(GearActuatorId::GearNose));
+        test_bed.run_with_delta(Duration::from_millis(10));
+
+        assert!(!test_bed.query(|a| a.is_gear_sensor_uplock(LgciuId::Lgciu1)));
+    }
+
+    #[test]
+    fn a_gear_uplock_failure_does_not_lock_the_doors() {
+        let mut test_bed = SimulationTestBed::new(|context| {
+            let gear_door = main_gear_door_right_assembly(context);
+
+            TestSingleGearAircraft::new(
+                Duration::from_millis(10),
+                gear_door,
+                main_gear_right_assembly(context, true),
+            )
+        });
+        test_bed.fail(FailureType::GearUplockStuckLocked(GearActuatorId::GearNose));
+        test_bed.command(|a| a.command_doors_opening());
+        test_bed.run_with_delta(Duration::from_millis(4000));
+
+        assert!(!test_bed.query(|a| a.is_door_sensor_uplock(LgciuId::Lgciu1)));
+        assert!(test_bed.query(|a| a.is_door_sensor_fully_opened(LgciuId::Lgciu1)));
     }
 
     #[test]

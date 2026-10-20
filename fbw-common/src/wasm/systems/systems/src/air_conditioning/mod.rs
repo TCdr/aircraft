@@ -690,6 +690,9 @@ pub struct AirConditioningPack {
     outlet_temperature: LowPassFilter<f64>, // Degree Celsius
     outlet_air: Air,
     overheat_failure: Option<Failure>,
+    regulation_failure: Option<Failure>,
+    /// The outlet temperature the pack keeps while its regulation is failed, in deg C
+    unregulated_outlet_temperature: Option<f64>,
 }
 
 impl AirConditioningPack {
@@ -710,7 +713,22 @@ impl AirConditioningPack {
             outlet_temperature: LowPassFilter::new_with_init_value(Self::PACK_REACTION_TIME, 15.),
             outlet_air: Air::new(),
             overheat_failure: None,
+            regulation_failure: None,
+            unregulated_outlet_temperature: None,
         }
+    }
+
+    /// Adds a pack regulation failure: while it is active, the pack outlet temperature stays where it was when the
+    /// regulation failed
+    pub fn with_regulation_failure(mut self, failure_type: FailureType) -> Self {
+        self.regulation_failure = Some(Failure::new(failure_type));
+        self
+    }
+
+    fn regulation_is_failed(&self) -> bool {
+        self.regulation_failure
+            .as_ref()
+            .is_some_and(|failure| failure.is_active())
     }
 
     /// Adds a pack overheat failure: while it is active and the pack has an air flow, the pack outlet air heats up
@@ -737,8 +755,17 @@ impl AirConditioningPack {
     ) {
         self.outlet_air.set_flow_rate(pack_flow);
 
+        self.unregulated_outlet_temperature = if self.regulation_is_failed() {
+            self.unregulated_outlet_temperature
+                .or(Some(self.outlet_temperature.output()))
+        } else {
+            None
+        };
+
         let unfiltered_outlet_temperature = if self.is_overheating(pack_flow) {
             Self::OVERHEAT_OUTLET_TEMPERATURE_DEG_C
+        } else if let Some(unregulated) = self.unregulated_outlet_temperature {
+            unregulated
         } else if acsc_failure {
             if matches!(self.pack_id, Pack(1)) {
                 20.
@@ -768,6 +795,9 @@ impl OutletAir for AirConditioningPack {
 impl SimulationElement for AirConditioningPack {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         if let Some(failure) = self.overheat_failure.as_mut() {
+            failure.accept(visitor);
+        }
+        if let Some(failure) = self.regulation_failure.as_mut() {
             failure.accept(visitor);
         }
 

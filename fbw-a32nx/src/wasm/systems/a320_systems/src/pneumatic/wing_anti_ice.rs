@@ -13,6 +13,7 @@ use uom::si::{
 
 use systems::{
     accept_iterable,
+    failures::{Failure, FailureType},
     pneumatic::{
         valve::DefaultValve, valve::PneumaticExhaust, ControllablePneumaticValve,
         PneumaticContainer, PneumaticPipe, PneumaticValveSignal, WingAntiIcePushButtonMode,
@@ -77,6 +78,8 @@ pub struct WingAntiIceValveController {
     /// The leak detection of this side detects a wing leak: the wing anti-ice valve of the affected side closes
     /// automatically
     closed_by_leak_protection: bool,
+    /// The valve is failed open: it no longer follows this controller
+    valve_stuck_open: bool,
 }
 impl WingAntiIceValveController {
     const WAI_VALVE_MEAN_SETPOINT: f64 = 22.5;
@@ -90,6 +93,7 @@ impl WingAntiIceValveController {
             controller_signals_on: false,
             supplier_pressurized: false,
             closed_by_leak_protection: false,
+            valve_stuck_open: false,
         }
     }
 
@@ -119,12 +123,14 @@ impl WingAntiIceValveController {
         relay_signal: bool,
         supplier_pressurized: bool,
         wing_leak_detected: bool,
+        valve_stuck_open: bool,
     ) {
         self.update_setpoint(context);
 
         self.controller_signals_on = relay_signal;
         self.supplier_pressurized = supplier_pressurized;
         self.closed_by_leak_protection = wing_leak_detected;
+        self.valve_stuck_open = valve_stuck_open;
     }
 }
 
@@ -133,6 +139,9 @@ impl WingAntiIceValveController {
 // is what is returned from this implementation.
 impl ControllerSignal<WingAntiIceValveSignal> for WingAntiIceValveController {
     fn signal(&self) -> Option<WingAntiIceValveSignal> {
+        if self.valve_stuck_open {
+            return Some(WingAntiIceValveSignal::new(Ratio::new::<ratio>(1.)));
+        }
         // The leak protection closes the valve whatever the push button; the ON command stays, so the valve no longer
         // follows it and the WING pb FAULT light comes on (valve position differs from the commanded one)
         match self.controller_signals_on && !self.closed_by_leak_protection {
@@ -319,6 +328,7 @@ pub struct WingAntiIceSystem {
     wai_valve: DefaultValve,
     wai_consumer: WingAntiIceConsumer,
     wai_valve_controller: WingAntiIceValveController,
+    valve_stuck_open: Failure,
     wai_has_fault: bool,
     wai_high_pressure: bool,
     wai_low_pressure: bool,
@@ -374,6 +384,7 @@ impl WingAntiIceSystem {
             wai_valve: DefaultValve::new_closed(),
             wai_consumer: WingAntiIceConsumer::new(wai_pipe_volume),
             wai_valve_controller: WingAntiIceValveController::new(),
+            valve_stuck_open: Failure::new(FailureType::WingAntiIceValveStuckOpen(number)),
 
             wai_has_fault: false,
             wai_high_pressure: false,
@@ -422,6 +433,7 @@ impl WingAntiIceSystem {
             wai_relay.signals_on(),
             self.wai_bleed_pressurised,
             wing_leak_detected,
+            self.valve_stuck_open.is_active(),
         );
 
         self.wai_valve
@@ -522,6 +534,12 @@ impl WingAntiIceSystem {
     }
 }
 impl SimulationElement for WingAntiIceSystem {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.valve_stuck_open.accept(visitor);
+
+        visitor.visit(self);
+    }
+
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.wai_pressure_id, self.wai_consumer_pressure());
         writer.write(&self.wai_temperature_id, self.wai_consumer_temperature());

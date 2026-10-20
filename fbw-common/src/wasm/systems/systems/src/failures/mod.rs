@@ -45,9 +45,11 @@ pub enum FailureType {
     /// A380: pack flow valve n (1 and 2 on pack 1, 3 and 4 on pack 2) no longer follows its controller: it stays
     /// where it is (a380_systems pneumatic::PackComplex)
     PackFlowValveJammed(usize),
-    /// A380: the outlet air of pack n overheats while the pack has an air flow (pack outlet above 95 deg C)
+    /// A380: the outlet air of pack n overheats while the pack has an air flow (pack outlet above 95 deg C).
+    /// A320: the compressor outlet of pack n overheats while the pack has an air flow (AIR PACK n OVHT)
     PackOverheat(usize),
-    /// A380: pack n is in bypass mode, its performance is degraded (AIR PACK n REGUL FAULT)
+    /// Pack n is in bypass mode, its performance is degraded (AIR PACK n REGUL FAULT); A320: the bypass valve or the
+    /// ram air inlet of the pack, the pack outlet temperature is no longer regulated
     PackRegulation(usize),
     /// A380: the bulk cargo heater keeps heating whenever it is on: the bulk cargo duct air goes above 70 deg C
     BulkCargoDuctOverheat,
@@ -107,6 +109,9 @@ pub enum FailureType {
     /// Cargo fire extinguisher bottle n loses its agent: low pressure (A320 SMOKE CRG BTL FAULT, A380 SMOKE CARGO
     /// BOTTLES FAULT)
     CargoFireBottleLowPressure(usize),
+    /// Channel n (1 or 2) of the A320 smoke detection control unit (SDCU): with both channels failed the SDCU reports
+    /// neither smoke nor a detector fault (SMOKE DET FAULT)
+    SmokeDetectionControlUnitChannel(usize),
     // ATA29
     ReservoirLeak(HydraulicColor),
     ReservoirAirLeak(HydraulicColor),
@@ -118,6 +123,9 @@ pub enum FailureType {
     LgciuInternalError(LgciuId),
     GearProxSensorDamage(ProximityDetectorId),
     GearActuatorJammed(GearActuatorId),
+    /// The uplock of a gear locks again once the gear has left it: its proximity sensors read the gear uplocked
+    /// while the gear is down (A320 L/G GEAR UPLOCK FAULT)
+    GearUplockStuckLocked(GearActuatorId),
     BrakeHydraulicLeak(HydraulicColor),
     BrakeAccumulatorGasLeak,
     /// Channel n (1 or 2) of the A320 brake and steering control unit (BSCU). The A320 brake model also uses
@@ -128,6 +136,9 @@ pub enum FailureType {
     /// The A320 brake normal selector valve is failed open: full green pressure at the entry of the normal servovalves
     /// (WHEEL HYD SEL FAULT)
     BrakeNormalSelectorValve,
+    /// The A320 parking brake valve no longer follows the PARKING BRK handle: the parking brake pressure stays applied
+    /// or released (BRAKES PARK BRK FAULT)
+    ParkingBrakeValveJammed,
     /// Tyre n has a slow leak (A320 TPIS: 1 to 4 the main wheels from left to right, 5 and 6 the left and right nose
     /// wheels)
     TyreDeflated(usize),
@@ -142,6 +153,8 @@ pub enum FailureType {
     WingAntiIceValvesStuckClosed(usize),
     /// The outer wing anti-ice valve of wing n (1 left, 2 right) stays open and no longer regulates (A380)
     WingAntiIceOuterValveStuckOpen(usize),
+    /// The wing anti-ice valve of wing n (1 left, 2 right) stays open (A320: a320_systems pneumatic::wing_anti_ice)
+    WingAntiIceValveStuckOpen(usize),
     /// Probe heat computer n (1 CAPT, 2 F/O, 3 STBY) is failed (A320: a320_systems probe_window_heat.rs)
     ProbeHeatComputer(usize),
     /// The heater of probe p (1 pitot, 2 L static, 3 R static, 4 AOA, 5 TAT) of probe heat computer n is failed

@@ -82,6 +82,9 @@ const EwdGroups: Record<string, string> = {
   // the same)
   'VENT$1': '\x1b<4m\x1b4mVENT\x1bm',
   'COM$1': '\x1b<4m\x1b4mCOM\x1bm',
+  // EIS DMC and RECORDER alerts, see FWC/Logic/EisRecorderAlerts (added last: the group title codes stay the same)
+  'EIS$1': '\x1b<4m\x1b4mEIS\x1bm',
+  'RECORDER$1': '\x1b<4m\x1b4mRECORDER\x1bm',
 };
 /* eslint-enable prettier/prettier */
 
@@ -238,6 +241,14 @@ const EwdMessages = new Map<
   ['260018001', { group: 'SMOKE$4', text: ' AFT CRG DET FAULT' }],
   ['260019001', { group: 'SMOKE$4', text: ' FWD CRG BTL 1 FAULT' }],
   ['260019101', { group: 'SMOKE$4', text: ' AFT CRG BTL 1 FAULT' }],
+  // SMOKE LAVATORY SMOKE, LAVATORY DET FAULT and DET FAULT, see FWC/Logic/LavatorySmokeAlerts
+  ['260031001', { group: 'SMOKE$4', text: ' LAVATORY SMOKE' }],
+  ['260031002', { text: '\x1b<5m -CKPT/CAB COM.ESTABLISH' }],
+  ['260033001', { group: 'SMOKE$4', text: ' DET FAULT' }],
+  ['260033002', { text: '\x1b<7m  .IF NO LIVE STOCK:' }],
+  ['260033003', { text: '\x1b<5m -AFT ISOL VALVE.....OFF' }],
+  ['260033004', { text: '\x1b<5m -PAX SYS............OFF' }],
+  ['260032001', { group: 'SMOKE$4', text: ' LAVATORY DET FAULT' }],
   // The AVIONICS SMOKE alert asks for the paper SMOKE / FUMES / AVNCS SMOKE procedure
   ['260030001', { group: 'AVIONICS SMOKE$1', text: '' }],
   ['260030002', { text: '\x1b<5m -SMOKE/FUMES PROC.APPLY' }],
@@ -356,6 +367,15 @@ const EwdMessages = new Map<
   // ENG 1(2) FUEL FILTER CLOG: crew awareness, no procedure line
   ['770730101', { group: 'ENG$5', text: ' 1 FUEL FILTER CLOG' }],
   ['770730201', { group: 'ENG$5', text: ' 2 FUEL FILTER CLOG' }],
+  // ENG 1(2) N1 or N2 or EGT or FF DISCREPANCY, crew awareness, see FWC/Logic/EngineIndicationDiscrepancyAlerts
+  ['770811001', { group: 'ENG$5', text: ' 1 N1 DISCREPANCY' }],
+  ['770811101', { group: 'ENG$5', text: ' 1 N2 DISCREPANCY' }],
+  ['770811201', { group: 'ENG$5', text: ' 1 EGT DISCREPANCY' }],
+  ['770811301', { group: 'ENG$5', text: ' 1 FF DISCREPANCY' }],
+  ['770812001', { group: 'ENG$5', text: ' 2 N1 DISCREPANCY' }],
+  ['770812101', { group: 'ENG$5', text: ' 2 N2 DISCREPANCY' }],
+  ['770812201', { group: 'ENG$5', text: ' 2 EGT DISCREPANCY' }],
+  ['770812301', { group: 'ENG$5', text: ' 2 FF DISCREPANCY' }],
   // ENG 1(2) HP FUEL VALVE, FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH
   // FAULT, lines by FWC/Logic/EngineMonitoringAlerts
   ['770731101', { group: 'ENG$5', text: ' 1 HP FUEL VALVE' }],
@@ -1203,6 +1223,18 @@ const EwdMessages = new Map<
   ['320048002', { text: '\x1b<5m -A/SKID N/WS....KEEP ON' }],
   // WHEEL TYRE LO PR, crew awareness, see FWC/Logic/TyrePressureAlerts
   ['320049001', { group: 'WHEEL$1', text: ' TYRE LO PR' }],
+  // BRAKES PARK BRK FAULT and L/G GEAR UPLOCK FAULT, see FWC/Logic/BrakeGearFaultAlerts
+  ['320050001', { group: 'BRAKES$1', text: ' PARK BRK FAULT' }],
+  ['320050002', { text: '\x1b<4mBRK PRESS STILL APPLIED' }],
+  ['320050003', { text: '\x1b<4mBRK PRESS RELEASED' }],
+  ['320050004', { text: '\x1b<5m -PARK BRK...........OFF' }],
+  ['320050005', { text: '\x1b<7m .BEFORE ENG SHUT DOWN:' }],
+  ['320050006', { text: '\x1b<5m -CHOCKS........CONSIDER' }],
+  ['320051001', { group: 'L/G$4', text: ' GEAR UPLOCK FAULT' }],
+  ['320051002', { text: '\x1b<5m -L/G..........KEEP DOWN' }],
+  ['320051003', { text: '\x1b<5m MAX SPEED.......280/.67' }],
+  ['320051004', { text: '\x1b<5m FUEL CONSUMPT INCRSD' }],
+  ['320051005', { text: '\x1b<5m FMS PRED UNRELIABLE' }],
   ['280014501', { group: 'FUEL$1', text: ' L+R WING TK LO LVL' }],
   ['280014502', { text: '\x1b<5m -FUEL MODE SEL......MAN' }],
   ['280014503', { text: '\x1b<5m -L TK PUMP 1.........ON' }],
@@ -1354,6 +1386,9 @@ const EwdMessages = new Map<
   ['280024109', { text: '\x1b<5m -R TK PUMP 2.........ON' }],
   ['280024110', { text: '\x1b<5m -FUEL X FEED........OFF' }],
   ['280024201', { group: 'FUEL$3', text: ' LO LVL DET FAULT' }],
+  // FUEL IDG 1(2) COOL FAULT, crew awareness, see FWC/Logic/IdgCoolingAlerts
+  ['280026001', { group: 'FUEL$3', text: ' IDG 1 COOL FAULT' }],
+  ['280026101', { group: 'FUEL$3', text: ' IDG 2 COOL FAULT' }],
   // FUEL L (R) OUTER (INNER) TK HI TEMP and LO TEMP, see FWC/Logic/FuelTemperatureAlerts
   ['280024301', { group: 'FUEL$3', text: ' L OUTER TK HI TEMP' }],
   ['280024302', { text: '\x1b<5m -GALLEY.............OFF' }],
@@ -1427,6 +1462,17 @@ const EwdMessages = new Map<
   ['216120202', { text: '\x1b<5m -PACK 1.............OFF' }],
   ['216120301', { group: 'AIR$4', text: ' PACK 2 FAULT' }],
   ['216120302', { text: '\x1b<5m -PACK 2.............OFF' }],
+  // AIR PACK 1(2) OVHT and REGUL FAULT, see FWC/Logic/AirPackAlerts
+  ['216121101', { group: 'AIR$4', text: ' PACK 1 OVHT' }],
+  ['216121102', { text: '\x1b<5m -PACK 1.............OFF' }],
+  ['216121103', { text: '\x1b<7m  .WHEN PACK OVHT OUT:' }],
+  ['216121104', { text: '\x1b<5m -PACK 1..............ON' }],
+  ['216121201', { group: 'AIR$4', text: ' PACK 2 OVHT' }],
+  ['216121202', { text: '\x1b<5m -PACK 2.............OFF' }],
+  ['216121203', { text: '\x1b<7m  .WHEN PACK OVHT OUT:' }],
+  ['216121204', { text: '\x1b<5m -PACK 2..............ON' }],
+  ['216121301', { group: 'AIR$4', text: ' PACK 1 REGUL FAULT' }],
+  ['216121401', { group: 'AIR$4', text: ' PACK 2 REGUL FAULT' }],
   // 36 PNEUMATIC leak, leak detection, HP valve and BMC cautions, lines by FWC/Logic/BleedLeakMonitoringAlerts; codes =
   // alert key (3612xxx) + line number
   // L(R) WING LEAK and ENG 1(2) BLEED LEAK (the APU BLEED line is shown for the left side only)
@@ -1747,6 +1793,24 @@ const EwdMessages = new Map<
   ['300011202', { text: '\x1b<5m THRUST LIM PENALTY' }],
   ['300011301', { group: 'WING A.ICE$2', text: ' R HI PR' }],
   ['300011302', { text: '\x1b<5m THRUST LIM PENALTY' }],
+  // WING A.ICE L(R) VALVE OPEN and OPEN ON GND, see FWC/Logic/WingAntiIceValveOpenAlerts
+  ['300011401', { group: 'WING A.ICE$2', text: ' L VALVE OPEN' }],
+  ['300011402', { text: '\x1b<5m WAI AVAIL IN FLT' }],
+  ['300011403', { text: '\x1b<5m -ENG 1 BLEED.........ON' }],
+  ['300011404', { text: '\x1b<5m -WING ANTI ICE..AS RQRD' }],
+  ['300011405', { text: '\x1b<5m THRUST LIM PENALTY' }],
+  ['300011406', { text: '\x1b<5m -ENG 1 BLEED........OFF' }],
+  ['300011407', { text: '\x1b<5m -X BLEED...........SHUT' }],
+  ['300011408', { text: '\x1b<5m -APU BLEED..........OFF' }],
+  ['300011501', { group: 'WING A.ICE$2', text: ' R VALVE OPEN' }],
+  ['300011502', { text: '\x1b<5m WAI AVAIL IN FLT' }],
+  ['300011503', { text: '\x1b<5m -ENG 2 BLEED.........ON' }],
+  ['300011504', { text: '\x1b<5m -WING ANTI ICE..AS RQRD' }],
+  ['300011505', { text: '\x1b<5m THRUST LIM PENALTY' }],
+  ['300011506', { text: '\x1b<5m -ENG 2 BLEED........OFF' }],
+  ['300011507', { text: '\x1b<5m -X BLEED...........SHUT' }],
+  ['300011601', { group: 'WING A.ICE$2', text: ' OPEN ON GND' }],
+  ['300011602', { text: '\x1b<5m -WING ANTI ICE......OFF' }],
   // DOOR cautions, see FWC/Logic/DoorAlerts
   ['520010101', { group: 'DOOR$2', text: ' L FWD CABIN' }],
   ['520010102', { text: '\x1b<7m   .IF ABN CAB V/S:' }],
@@ -1825,6 +1889,23 @@ const EwdMessages = new Map<
   ['310052014', { text: '\x1b<4mSTATUS' }],
   ['310052015', { text: '\x1b<4mA/CALL OUT' }],
   ['310052016', { text: '\x1b<4mMEMO' }],
+  // EIS DMC 1(2)(3) FAULT, DMC/FWC COM FAULT, FWS SDAC 1(2) and 1+2 FAULT, RECORDER DFDR and SYS FAULT, see
+  // FWC/Logic/EisRecorderAlerts
+  ['310066001', { group: 'FWS$2', text: ' SDAC 1+2 FAULT' }],
+  ['310066002', { text: '\x1b<5m -MONITOR OVERHEAD PANEL' }],
+  ['310066003', { text: '\x1b<7mECAM ENG FUEL F/CTL' }],
+  ['310066004', { text: '\x1b<7mWHEEL (L/G POS IND)' }],
+  ['310066005', { text: '\x1b<7mSYS PAGES AVAIL' }],
+  ['310060001', { group: 'EIS$1', text: ' DMC 1 FAULT' }],
+  ['310060002', { text: '\x1b<5m -EIS DMC SWITCH..CAPT 3' }],
+  ['310061001', { group: 'EIS$1', text: ' DMC 2 FAULT' }],
+  ['310061002', { text: '\x1b<5m -EIS DMC SWITCH...F/O 3' }],
+  ['310062001', { group: 'EIS$1', text: ' DMC 3 FAULT' }],
+  ['310063001', { group: 'EIS$1', text: ' DMC/FWC COM FAULT' }],
+  ['310064001', { group: 'FWS$1', text: ' SDAC 1 FAULT' }],
+  ['310065001', { group: 'FWS$1', text: ' SDAC 2 FAULT' }],
+  ['310067001', { group: 'RECORDER$1', text: ' DFDR FAULT' }],
+  ['310068001', { group: 'RECORDER$1', text: ' SYS FAULT' }],
   ['216129101', { group: 'AIR$7', text: ' COND CTL 1-A FAULT' }],
   ['216129701', { group: 'AIR$7', text: ' COND CTL 1-B FAULT' }],
   ['216129401', { group: 'AIR$7', text: ' COND CTL 2-A FAULT' }],

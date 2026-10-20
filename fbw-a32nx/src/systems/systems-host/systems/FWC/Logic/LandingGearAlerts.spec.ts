@@ -119,7 +119,8 @@ describe('L/G SYS DISAGREE', () => {
   it('the L/G alerts are wired in the PseudoFWC', () => {
     const fwc = pseudoFwcSource();
     expect(fwc).toContain('...this.landingGearAlerts.ewdFailures');
-    expect(fwc).toContain('this.landingGearAlerts.update(readLandingGearInputs(');
+    expect(fwc).toContain('const landingGearInputs = readLandingGearInputs(this.gearNotUplockedWarning.get());');
+    expect(fwc).toContain('this.landingGearAlerts.update(landingGearInputs,');
   });
 });
 

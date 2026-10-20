@@ -34,6 +34,12 @@ export const A320Failure = Object.freeze({
   AftCargoExtractionFan: 21025,
   // The Rust failure of a320_systems cargo_ventilation.rs: the valves model gives the FAULT light and the FWC alert
   AftCargoIsolationValvesStuckClosed: 21026,
+  // a320_systems air conditioning: the compressor overheat closes the pack (AIR PACK 1(2) OVHT); the regulation failure
+  // freezes the pack outlet temperature (AIR PACK 1(2) REGUL FAULT)
+  Pack1Overheat: 21027,
+  Pack2Overheat: 21028,
+  Pack1Regulation: 21029,
+  Pack2Regulation: 21030,
 
   Fac1Failure: 22000,
   Fac2Failure: 22001,
@@ -117,6 +123,11 @@ export const A320Failure = Object.freeze({
   AvionicsSmoke: 26018,
   AvionicsSmokeDetector: 26019,
   CargoFireBottleLowPressure: 26020,
+  // a320_systems fire_protection.rs: the lavatory smoke detection and the two SDCU channels
+  LavatorySmoke: 26021,
+  LavatorySmokeDetector: 26022,
+  SmokeDetectionControlUnitChannel1: 26023,
+  SmokeDetectionControlUnitChannel2: 26024,
 
   Elac1Failure: 27000,
   Elac2Failure: 27001,
@@ -179,6 +190,9 @@ export const A320Failure = Object.freeze({
   // A leaking wing tank loses fuel (FADEC CrossFeedBurn_A32NX.hpp wingTankLeakPounds): FUEL F. USED/FOB DISAGREE
   LeftWingTankLeak: 28016,
   RightWingTankLeak: 28017,
+  // TS only, the FWC reads them (FWC/Logic/IdgCoolingAlerts.ts): FUEL IDG 1(2) COOL FAULT
+  Idg1FuelCoolingCommand: 28018,
+  Idg2FuelCoolingCommand: 28019,
 
   GreenReservoirLeak: 29000,
   BlueReservoirLeak: 29001,
@@ -203,6 +217,15 @@ export const A320Failure = Object.freeze({
   EcamControlPanel: 31006,
   Fwc1: 31007,
   Fwc2: 31008,
+  // TS only, the FWC reads them (FWC/Logic/EisRecorderAlerts.ts)
+  Dmc1: 31009,
+  Dmc2: 31010,
+  Dmc3: 31011,
+  DmcFwcBuses: 31012,
+  Sdac1: 31013,
+  Sdac2: 31014,
+  Dfdr: 31015,
+  Fdiu: 31016,
 
   LgciuPowerSupply1: 32000,
   LgciuPowerSupply2: 32001,
@@ -229,6 +252,10 @@ export const A320Failure = Object.freeze({
   GearActuatorJammedGearDoorNose: 32023,
   GearActuatorJammedGearDoorLeft: 32024,
   GearActuatorJammedGearDoorRight: 32025,
+  // The uplock locks again without the gear (systems hydraulic/landing_gear.rs): L/G GEAR UPLOCK FAULT
+  GearUplockStuckLockedNose: 32030,
+  GearUplockStuckLockedLeft: 32031,
+  GearUplockStuckLockedRight: 32032,
 
   GreenBrakeHydraulicLeak: 32100,
   YellowBrakeHydraulicLeak: 32101,
@@ -241,6 +268,7 @@ export const A320Failure = Object.freeze({
   Autobrake: 32204,
   NoseWheelSteering: 32205,
   BrakeNormalSelectorValve: 32210,
+  ParkingBrakeValveJammed: 32220,
   // The tyre pressure indicating system (a320_systems tyre_pressure.rs): main wheels 1-4 left to right, nose L and R
   MainTyre1Deflated: 32300,
   MainTyre2Deflated: 32301,
@@ -260,6 +288,8 @@ export const A320Failure = Object.freeze({
   Eng2AntiIceValveStuckClosed: 30001,
   Eng1AntiIceValveStuckOpen: 30010,
   Eng2AntiIceValveStuckOpen: 30011,
+  LeftWingAntiIceValveStuckOpen: 30020,
+  RightWingAntiIceValveStuckOpen: 30021,
   // ATA 30 probe and window heat (a320_systems probe_window_heat.rs)
   CaptProbeHeatComputer: 30100,
   FoProbeHeatComputer: 30101,
@@ -523,6 +553,10 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [21, A320Failure.AvionicsSkinInletValveStuckOpen, 'Avionics ventilation skin inlet valve stuck open'],
   [21, A320Failure.AftCargoExtractionFan, 'AFT cargo ventilation extraction fan'],
   [21, A320Failure.AftCargoIsolationValvesStuckClosed, 'AFT cargo ventilation isolation valves stuck closed'],
+  [21, A320Failure.Pack1Overheat, 'Pack 1 overheat (compressor outlet)'],
+  [21, A320Failure.Pack2Overheat, 'Pack 2 overheat (compressor outlet)'],
+  [21, A320Failure.Pack1Regulation, 'Pack 1 temperature regulation (bypass valve)'],
+  [21, A320Failure.Pack2Regulation, 'Pack 2 temperature regulation (bypass valve)'],
 
   [22, A320Failure.Fac1Failure, 'FAC 1'],
   [22, A320Failure.Fac2Failure, 'FAC 2'],
@@ -606,6 +640,12 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [26, A320Failure.AvionicsSmokeDetector, 'Avionics smoke detector'],
   // The cargo fire bottle loses its agent: SMOKE FWD and AFT CRG BTL 1 FAULT, nothing left to discharge
   [26, A320Failure.CargoFireBottleLowPressure, 'Cargo fire bottle low pressure'],
+  // SMOKE LAVATORY SMOKE, SMOKE LAVATORY DET FAULT; both SDCU channels failed: SMOKE DET FAULT, no cargo or lavatory
+  // smoke reported
+  [26, A320Failure.LavatorySmoke, 'Lavatory smoke'],
+  [26, A320Failure.LavatorySmokeDetector, 'Lavatory smoke detector'],
+  [26, A320Failure.SmokeDetectionControlUnitChannel1, 'SDCU channel 1 (smoke detection)'],
+  [26, A320Failure.SmokeDetectionControlUnitChannel2, 'SDCU channel 2 (smoke detection)'],
 
   [27, A320Failure.Elac1Failure, 'ELAC 1'],
   [27, A320Failure.Elac2Failure, 'ELAC 2'],
@@ -646,6 +686,8 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [28, A320Failure.RightWingTankLowLevelSensor, 'R wing tank low level sensor'],
   [28, A320Failure.LeftWingTankLeak, 'L wing tank leak'],
   [28, A320Failure.RightWingTankLeak, 'R wing tank leak'],
+  [28, A320Failure.Idg1FuelCoolingCommand, 'IDG 1 fuel cooling (fuel recirculation command)'],
+  [28, A320Failure.Idg2FuelCoolingCommand, 'IDG 2 fuel cooling (fuel recirculation command)'],
 
   [29, A320Failure.GreenReservoirLeak, 'Green reservoir leak'],
   [29, A320Failure.BlueReservoirLeak, 'Blue reservoir leak'],
@@ -670,6 +712,14 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [31, A320Failure.EcamControlPanel, 'ECAM Control Panel'],
   [31, A320Failure.Fwc1, 'FWC 1'],
   [31, A320Failure.Fwc2, 'FWC 2'],
+  [31, A320Failure.Dmc1, 'DMC 1'],
+  [31, A320Failure.Dmc2, 'DMC 2'],
+  [31, A320Failure.Dmc3, 'DMC 3'],
+  [31, A320Failure.DmcFwcBuses, 'DMC to FWC data buses'],
+  [31, A320Failure.Sdac1, 'SDAC 1'],
+  [31, A320Failure.Sdac2, 'SDAC 2'],
+  [31, A320Failure.Dfdr, 'DFDR (flight data recorder)'],
+  [31, A320Failure.Fdiu, 'FDIU (recorder system)'],
 
   [32, A320Failure.LgciuPowerSupply1, 'LGCIU 1 Power supply'],
   [32, A320Failure.LgciuPowerSupply2, 'LGCIU 2 Power supply'],
@@ -695,6 +745,9 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [32, A320Failure.GearActuatorJammedGearDoorNose, 'Nose gear door jammed actuator'],
   [32, A320Failure.GearActuatorJammedGearDoorLeft, 'Main left gear door jammed actuator'],
   [32, A320Failure.GearActuatorJammedGearDoorRight, 'Main right gear door jammed actuator'],
+  [32, A320Failure.GearUplockStuckLockedNose, 'Nose gear uplock stuck locked'],
+  [32, A320Failure.GearUplockStuckLockedLeft, 'Main left gear uplock stuck locked'],
+  [32, A320Failure.GearUplockStuckLockedRight, 'Main right gear uplock stuck locked'],
 
   [32, A320Failure.GreenBrakeHydraulicLeak, 'Green brakes circuit leak'],
   [32, A320Failure.YellowBrakeHydraulicLeak, 'Yellow brakes circuit leak'],
@@ -706,6 +759,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [32, A320Failure.Autobrake, 'Autobrake'],
   [32, A320Failure.NoseWheelSteering, 'Nose wheel steering'],
   [32, A320Failure.BrakeNormalSelectorValve, 'Brake normal selector valve failed open'],
+  [32, A320Failure.ParkingBrakeValveJammed, 'Parking brake valve jammed'],
   [32, A320Failure.MainTyre1Deflated, 'Main wheel 1 tyre slow leak (left outer)'],
   [32, A320Failure.MainTyre2Deflated, 'Main wheel 2 tyre slow leak (left inner)'],
   [32, A320Failure.MainTyre3Deflated, 'Main wheel 3 tyre slow leak (right inner)'],
@@ -724,6 +778,8 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [30, A320Failure.Eng2AntiIceValveStuckClosed, 'Engine 2 anti-ice valve stuck closed'],
   [30, A320Failure.Eng1AntiIceValveStuckOpen, 'Engine 1 anti-ice valve stuck open'],
   [30, A320Failure.Eng2AntiIceValveStuckOpen, 'Engine 2 anti-ice valve stuck open'],
+  [30, A320Failure.LeftWingAntiIceValveStuckOpen, 'Left wing anti-ice valve stuck open'],
+  [30, A320Failure.RightWingAntiIceValveStuckOpen, 'Right wing anti-ice valve stuck open'],
   // ANTI ICE CAPT(F/O)(STBY) PROBES, ... PITOT OR L(R) STAT OR AOA, CAPT(F/O) TAT, the PITOT combinations,
   // L(R) WINDSHIELD, L + R WINDSHIELD and L(R) WINDOW
   [30, A320Failure.CaptProbeHeatComputer, 'CAPT probe heat computer'],

@@ -2478,7 +2478,14 @@ struct A320HydraulicBrakeSteerComputerUnit {
     brake_fan_running: bool,
 
     autobrake_controller: A320AutobrakeController,
+    /// The parking brake valve is open: the yellow pressure goes to the alternate brakes. It follows the PARKING BRK
+    /// handle unless it is jammed.
     parking_brake_demand: bool,
+    parking_brake_handle_on: bool,
+    parking_brake_valve_jammed: Failure,
+    parking_brake_fault_id: VariableIdentifier,
+    /// The parking brake pressure disagrees with the PARKING BRK handle (BRAKES PARK BRK FAULT)
+    parking_brake_fault: bool,
 
     /// BSCU channels 1 and 2, ABCU and their failures
     control_units: A320BrakeControlUnits,
@@ -2586,6 +2593,10 @@ impl A320HydraulicBrakeSteerComputerUnit {
             main_wheel_speed: Velocity::default(),
 
             parking_brake_demand: true,
+            parking_brake_handle_on: true,
+            parking_brake_valve_jammed: Failure::new(FailureType::ParkingBrakeValveJammed),
+            parking_brake_fault_id: context.get_identifier("PARK_BRAKE_FAULT".to_owned()),
+            parking_brake_fault: false,
             left_brake_pilot_input: Ratio::new::<ratio>(0.0),
             right_brake_pilot_input: Ratio::new::<ratio>(0.0),
             norm_brake_outputs: A320BrakeSystemOutputs::new(),
@@ -2710,6 +2721,11 @@ impl A320HydraulicBrakeSteerComputerUnit {
         right_brake_temperature_sensors: &[TemperatureSensor; 2],
         adirs: &impl AdirsMeasurementOutputs,
     ) {
+        if !self.parking_brake_valve_jammed.is_active() {
+            self.parking_brake_demand = self.parking_brake_handle_on;
+        }
+        self.parking_brake_fault = self.parking_brake_disagrees_with_handle(alternate_circuit);
+
         self.control_units.update(
             lgciu1.gear_handle_is_down(),
             adirs,
@@ -2813,6 +2829,23 @@ impl A320HydraulicBrakeSteerComputerUnit {
         }
     }
 
+    /// The handle is ON with the parking brake valve closed, or OFF with the parking brake pressure still applied
+    /// (high enough to hold the aircraft: the emergency braking threshold). Design choice: with the handle ON the valve
+    /// is compared, not the pressure, so that an empty accumulator gives BRAKES PARK BRK LO PR alone.
+    fn parking_brake_disagrees_with_handle(&self, alternate_circuit: &BrakeCircuit) -> bool {
+        let pressure_applied = self.parking_brake_demand
+            && alternate_circuit
+                .left_brake_pressure()
+                .max(alternate_circuit.right_brake_pressure())
+                .get::<psi>()
+                >= Self::MIN_PRESSURE_PARK_BRAKE_EMERGENCY;
+        if self.parking_brake_handle_on {
+            !self.parking_brake_demand
+        } else {
+            pressure_applied
+        }
+    }
+
     fn update_steering_demands(
         &mut self,
         context: &UpdateContext,
@@ -2906,11 +2939,12 @@ impl SimulationElement for A320HydraulicBrakeSteerComputerUnit {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.autobrake_controller.accept(visitor);
         self.control_units.accept(visitor);
+        self.parking_brake_valve_jammed.accept(visitor);
         visitor.visit(self);
     }
 
     fn read(&mut self, reader: &mut SimulatorReader) {
-        self.parking_brake_demand = reader.read(&self.park_brake_lever_pos_id);
+        self.parking_brake_handle_on = reader.read(&self.park_brake_lever_pos_id);
 
         let main_wheel_rpm = self
             .main_wheel_rpm_ids
@@ -2961,6 +2995,7 @@ impl SimulationElement for A320HydraulicBrakeSteerComputerUnit {
         }
 
         writer.write(&self.brake_fan_running_identifier, self.brake_fan_running);
+        writer.write(&self.parking_brake_fault_id, self.parking_brake_fault);
     }
 }
 impl SteeringController for A320HydraulicBrakeSteerComputerUnit {
@@ -9524,6 +9559,81 @@ mod tests {
                 .set_left_brake(Ratio::new::<percent>(100.))
                 .set_right_brake(Ratio::new::<percent>(100.))
                 .run_waiting_for(Duration::from_secs(5))
+        }
+
+        /// On the ground, engines running, yellow accumulator charged, parking brake set
+        fn test_bed_parked_with_engines_running() -> A320HydraulicsTestBed {
+            test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .load_brake_accumulator()
+                .set_cold_dark_inputs()
+                .run_one_tick()
+                .start_eng1(Ratio::new::<percent>(100.))
+                .start_eng2(Ratio::new::<percent>(100.))
+                .set_park_brake(true)
+                .run_waiting_for(Duration::from_secs(15))
+        }
+
+        #[test]
+        fn a_healthy_parking_brake_follows_its_handle_without_fault() {
+            let mut test_bed = test_bed_parked_with_engines_running();
+
+            assert!(!brake_flag(&mut test_bed, "PARK_BRAKE_FAULT"));
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(1500.)
+            );
+
+            test_bed = test_bed
+                .set_park_brake(false)
+                .run_waiting_for(Duration::from_secs(5));
+
+            assert!(!brake_flag(&mut test_bed, "PARK_BRAKE_FAULT"));
+            assert_lt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+        }
+
+        #[test]
+        // BRAKES PARK BRK FAULT, handle OFF: BRK PRESS STILL APPLIED
+        fn a_parking_brake_valve_jammed_open_keeps_the_brakes_applied_with_the_handle_off() {
+            let mut test_bed = test_bed_parked_with_engines_running();
+            test_bed.fail(FailureType::ParkingBrakeValveJammed);
+            test_bed = test_bed
+                .set_park_brake(false)
+                .run_waiting_for(Duration::from_secs(5));
+
+            assert!(brake_flag(&mut test_bed, "PARK_BRAKE_FAULT"));
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(1500.)
+            );
+        }
+
+        #[test]
+        // BRAKES PARK BRK FAULT, handle ON: BRK PRESS RELEASED
+        fn a_parking_brake_valve_jammed_closed_gives_no_pressure_with_the_handle_on() {
+            let mut test_bed = test_bed_parked_with_engines_running()
+                .set_park_brake(false)
+                .run_waiting_for(Duration::from_secs(5));
+            test_bed.fail(FailureType::ParkingBrakeValveJammed);
+            test_bed = test_bed
+                .set_park_brake(true)
+                .run_waiting_for(Duration::from_secs(5));
+
+            assert!(brake_flag(&mut test_bed, "PARK_BRAKE_FAULT"));
+            assert_lt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+
+            test_bed = test_bed
+                .set_park_brake(false)
+                .run_waiting_for(Duration::from_secs(1));
+
+            assert!(!brake_flag(&mut test_bed, "PARK_BRAKE_FAULT"));
         }
 
         #[test]

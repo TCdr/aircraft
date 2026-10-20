@@ -31,6 +31,9 @@ export function alertCodes(key: string, lineCount: number): string[] {
 /** No STATUS line */
 export const NO_STATUS = (): StatusLines => ({ left: [], inopSys: [] });
 
+/** One INOP SYS line and nothing in the left column */
+export const inopSysOnly = (code: string) => (): StatusLines => ({ left: [], inopSys: [code] });
+
 /**
  * An amber caution (level 2) of the E/WD left side.
  * @param key the 7-digit alert key, the first digits of its EwdMessages codes

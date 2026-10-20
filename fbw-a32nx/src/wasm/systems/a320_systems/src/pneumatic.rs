@@ -5862,6 +5862,53 @@ pub mod tests {
         }
 
         #[test]
+        fn a_wing_anti_ice_valve_stuck_open_stays_open_with_the_push_button_off() {
+            let altitude = Length::new::<foot>(2000.);
+
+            let mut test_bed = test_bed_with()
+                .holding_eng1()
+                .holding_eng2()
+                .mach_number(MachNumber(0.35))
+                .in_isa_atmosphere(altitude)
+                .and_stabilize();
+            test_bed.set_lgciu_on_ground(false);
+            test_bed.fail(FailureType::WingAntiIceValveStuckOpen(1));
+
+            test_bed = test_bed
+                .wing_anti_ice_push_button(WingAntiIcePushButtonMode::Off)
+                .and_stabilize();
+
+            assert!(!test_bed.left_valve_closed());
+            assert!(test_bed.right_valve_closed());
+            assert!(!test_bed.wing_anti_ice_system_selected());
+            // The valve no longer follows the push button: FAULT light
+            assert!(test_bed.wing_anti_ice_has_fault());
+        }
+
+        #[test]
+        fn a_wing_anti_ice_valve_stuck_open_stays_open_after_the_ground_test() {
+            let altitude = Length::new::<foot>(500.);
+
+            let mut test_bed = test_bed_with()
+                .idle_eng1()
+                .idle_eng2()
+                .in_isa_atmosphere(altitude)
+                .and_stabilize();
+            test_bed.set_lgciu_on_ground(true);
+            test_bed.fail(FailureType::WingAntiIceValveStuckOpen(2));
+
+            test_bed = test_bed
+                .wing_anti_ice_push_button(WingAntiIcePushButtonMode::On)
+                .and_stabilize()
+                .and_stabilize();
+
+            // The 30 s ground test is over: the healthy valve is closed again
+            assert!(!test_bed.wing_anti_ice_system_on());
+            assert!(test_bed.left_valve_closed());
+            assert!(!test_bed.right_valve_closed());
+        }
+
+        #[test]
         fn wing_anti_ice_when_precooler_not_pressurized() {
             let altitude = Length::new::<foot>(500.);
 

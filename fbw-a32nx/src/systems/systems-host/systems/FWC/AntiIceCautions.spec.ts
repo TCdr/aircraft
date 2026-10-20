@@ -105,12 +105,15 @@ function setHealthyCruise(bus: EventBus): void {
   simvars.set('L:A32NX_OVHD_PRESS_MODE_SEL_PB_IS_AUTO', 1);
   simvars.set('L:A32NX_SWITCH_TCAS_Position', 2);
   simvars.set('L:A32NX_TRANSPONDER_MODE', 1);
-  // other alerts whose default (0) would raise them (FUEL CTR TK XFR OFF, DOOR FWD/AFT CARGO, CAB PR LDG ELEV FAULT)
+  // other alerts whose default (0) would raise them (FUEL CTR TK XFR OFF, DOOR FWD/AFT CARGO, CAB PR LDG ELEV FAULT,
+  // WING A.ICE L(R) VALVE OPEN)
   simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_L_XFR_PB_IS_ON', 1);
   simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_R_XFR_PB_IS_ON', 1);
   simvars.set('L:A32NX_FWD_DOOR_CARGO_LOCKED', 1);
   simvars.set('L:A32NX_AFT_DOOR_CARGO_LOCKED', 1);
   simvars.set('L:A32NX_FM1_LANDING_ELEVATION', normalWord());
+  simvars.set('L:A32NX_PNEU_WING_ANTI_ICE_1_VALVE_CLOSED', 1);
+  simvars.set('L:A32NX_PNEU_WING_ANTI_ICE_2_VALVE_CLOSED', 1);
 }
 
 /** The real PseudoFWC, both FWCs powered and started */
@@ -140,6 +143,39 @@ const statusLines = (side: 'LEFT' | 'RIGHT') =>
   Array.from({ length: 20 }, (_, i) => writes.get(statusLineVar(side, i + 1))).filter((code) => !!code);
 
 const ENG_A_ICE = '000026001';
+
+/* AIR PACK 1 OVHT next to the AIR PACK 1 OFF caution of the PseudoFWC, in the same cruise harness */
+describe('A32NX AIR PACK 1 OVHT in cruise', () => {
+  const PACK_1_OVHT = '216121101';
+  const PACK_1_OFF = '216120701';
+
+  it('keeps PACK 1 OFF away while the overheat procedure has the pack OFF, until the crew sets it ON again', () => {
+    const { fwc, bus } = createFwc();
+    setHealthyCruise(bus);
+    // fuel in the wing tanks: no wing tank low level alert during the cooling minute
+    simvars.set('FUEL TANK LEFT MAIN QUANTITY', 1000);
+    simvars.set('FUEL TANK RIGHT MAIN QUANTITY', 1000);
+    simvars.set('FUEL WEIGHT PER GALLON', 3);
+    run(fwc, 5);
+    expect(ewdLines('LEFT')).toEqual([]);
+
+    simvars.set('L:A32NX_COND_PACK_1_OVERHEAT', 1);
+    run(fwc, 1);
+    expect(ewdLines('LEFT')).toEqual([PACK_1_OVHT, '216121102']);
+
+    // PACK 1 OFF, then the compressor cools down and its FAULT light goes off
+    simvars.set('L:A32NX_OVHD_COND_PACK_1_PB_IS_ON', 0);
+    simvars.set('L:A32NX_COND_PACK_1_OVERHEAT', 0);
+    run(fwc, 65);
+    expect(ewdLines('LEFT')).toEqual(expect.arrayContaining([PACK_1_OVHT, '216121103', '216121104']));
+    expect(ewdLines('LEFT')).not.toContain(PACK_1_OFF);
+
+    simvars.set('L:A32NX_OVHD_COND_PACK_1_PB_IS_ON', 1);
+    run(fwc, 1);
+    expect(ewdLines('LEFT')).not.toContain(PACK_1_OVHT);
+    expect(ewdLines('LEFT')).not.toContain(PACK_1_OFF);
+  });
+});
 
 /* ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN, on the engine anti-ice valve of the systems model
  * (L:A32NX_PNEU_ENG_n_ANTI_ICE_VALVE_OPEN) */

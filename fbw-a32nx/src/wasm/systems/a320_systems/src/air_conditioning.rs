@@ -10,6 +10,7 @@ use systems::{
         PackFlowControllers, PressurizationConstants, PressurizationOverheadShared, TrimAirSystem,
         VcmShared, ZoneType,
     },
+    failures::FailureType,
     overhead::{
         AutoManFaultPushButton, NormalOnPushButton, OnOffFaultPushButton, OnOffPushButton,
         SpringLoadedSwitch, ValueKnob,
@@ -363,8 +364,10 @@ impl A320AirConditioningSystem {
             ],
             mixer_unit: MixerUnit::new(cabin_zones),
             packs: [
-                AirConditioningPack::new(context, Pack(1)),
-                AirConditioningPack::new(context, Pack(2)),
+                AirConditioningPack::new(context, Pack(1))
+                    .with_regulation_failure(FailureType::PackRegulation(1)),
+                AirConditioningPack::new(context, Pack(2))
+                    .with_regulation_failure(FailureType::PackRegulation(2)),
             ],
             trim_air_system: TrimAirSystem::new(
                 context,
@@ -2411,6 +2414,21 @@ mod tests {
                     .trim_air_system
                     .trim_air_pressure_regulating_valve_is_open(1)
             })
+        }
+
+        #[test]
+        fn a_pack_with_a_failed_regulation_keeps_its_outlet_temperature() {
+            let mut test_bed = test_bed_with_cockpit_hot_and_cabin_cold(false);
+            let [pack_1_before, _] = pack_outlet_temperatures(&test_bed);
+
+            test_bed.fail(FailureType::PackRegulation(1));
+            test_bed.write_by_name("OVHD_COND_CKPT_SELECTOR_KNOB", SELECTOR_AT_18_C);
+            test_bed = test_bed.iterate(SETTLING_TIME_S);
+
+            let [cockpit_demand, _, _] = zone_duct_demands(&test_bed);
+            let [pack_1_after, _] = pack_outlet_temperatures(&test_bed);
+            assert_gt!(pack_1_before - cockpit_demand, 3.);
+            assert_about_eq!(pack_1_after, pack_1_before, PACK_OUTLET_TOLERANCE_C);
         }
 
         #[test]

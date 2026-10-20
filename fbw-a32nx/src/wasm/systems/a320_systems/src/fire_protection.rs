@@ -16,11 +16,14 @@
 //!
 //! Also the smoke protection: the forward and aft cargo smoke detection of the SDCU and the cargo fire bottle, and the
 //! smoke detector of the avionics ventilation duct, see [`systems::fire_protection::smoke_detection`]. The aft cargo
-//! smoke closes the aft cargo ventilation (see `aft_cargo_smoke_detected`). Not modelled: the lavatory smoke detection.
+//! smoke closes the aft cargo ventilation (see `aft_cargo_smoke_detected`). The lavatory smoke detectors also report to
+//! the SDCU; with both SDCU channels failed, neither the cargo nor the lavatory smoke is reported (SMOKE DET FAULT).
 
 use std::time::Duration;
 
 use systems::{
+    accept_iterable,
+    failures::{Failure, FailureType},
     fire_protection::{
         cargo_fire_extinguishing::CargoFireExtinguishing,
         smoke_detection::{SmokeDetection, SmokeDetectionFaultLogic, SmokeDetectionZoneConfig},
@@ -73,6 +76,9 @@ pub(super) struct A320FireProtection {
     forward_cargo_smoke_detection: SmokeDetection<2>,
     aft_cargo_smoke_detection: SmokeDetection<2>,
     avionics_smoke_detection: SmokeDetection<1>,
+    lavatory_smoke_detection: SmokeDetection<1>,
+    smoke_detection_control_unit_channels: [Failure; 2],
+    smoke_detection_control_unit_fault_id: VariableIdentifier,
     cargo_fire_extinguishing: CargoFireExtinguishing<2, 1>,
 }
 
@@ -200,6 +206,22 @@ impl A320FireProtection {
                     fault_logic: SmokeDetectionFaultLogic::AllDetectorsInoperative,
                 },
             ),
+            // The lavatory detectors stand for one detector. Design choice: on the DC BUS 1, the bus whose loss puts
+            // LAV DET in the INOP SYS of the electrical procedures (DC BUS 1 FAULT).
+            lavatory_smoke_detection: SmokeDetection::new(
+                context,
+                SmokeDetectionZoneConfig {
+                    zone: SmokeDetectionZone::Lavatory,
+                    detectors_powered_by: [ElectricalBusType::DirectCurrent(1)],
+                    confirmation_time: Duration::ZERO,
+                    fault_logic: SmokeDetectionFaultLogic::AllDetectorsInoperative,
+                },
+            ),
+            smoke_detection_control_unit_channels: [1, 2].map(|channel| {
+                Failure::new(FailureType::SmokeDetectionControlUnitChannel(channel))
+            }),
+            smoke_detection_control_unit_fault_id: context
+                .get_identifier("SMOKE_DETECTION_CONTROL_UNIT_FAULT".to_owned()),
             // One cargo fire bottle with two discharge heads, one for each compartment. The FWD / AFT DISCH pbs write
             // L:A32NX_CARGOSMOKE_FWD(AFT)_DISCHARGED.
             cargo_fire_extinguishing: CargoFireExtinguishing::new(
@@ -233,10 +255,23 @@ impl A320FireProtection {
 
         self.set_zone_on_fire.update(self.agent_discharged);
 
-        self.forward_cargo_smoke_detection.update(context);
-        self.aft_cargo_smoke_detection.update(context);
+        // The avionics smoke detector does not report through the SDCU
+        let sdcu_available = !self.smoke_detection_control_unit_failed();
+        self.forward_cargo_smoke_detection
+            .update_with_detection_unit(context, sdcu_available);
+        self.aft_cargo_smoke_detection
+            .update_with_detection_unit(context, sdcu_available);
+        self.lavatory_smoke_detection
+            .update_with_detection_unit(context, sdcu_available);
         self.avionics_smoke_detection.update(context);
         self.cargo_fire_extinguishing.update(context);
+    }
+
+    /// Both channels of the SDCU are failed (SMOKE DET FAULT)
+    fn smoke_detection_control_unit_failed(&self) -> bool {
+        self.smoke_detection_control_unit_channels
+            .iter()
+            .all(|channel| channel.is_active())
     }
 
     /// An APU fire is detected while on the ground: the ECB shuts the APU down
@@ -258,6 +293,8 @@ impl SimulationElement for A320FireProtection {
         self.forward_cargo_smoke_detection.accept(visitor);
         self.aft_cargo_smoke_detection.accept(visitor);
         self.avionics_smoke_detection.accept(visitor);
+        self.lavatory_smoke_detection.accept(visitor);
+        accept_iterable!(self.smoke_detection_control_unit_channels, visitor);
         self.cargo_fire_extinguishing.accept(visitor);
 
         visitor.visit(self);
@@ -301,6 +338,11 @@ impl SimulationElement for A320FireProtection {
         writer.write(
             &self.external_horn_id,
             self.fire_detection_unit.apu_fire_on_ground(),
+        );
+
+        writer.write(
+            &self.smoke_detection_control_unit_fault_id,
+            self.smoke_detection_control_unit_failed(),
         );
 
         // Only written when discharging: the AGENT pb (cockpit behaviour XML) writes this variable too
@@ -359,10 +401,12 @@ mod tests {
         lgciu: TestLgciu,
 
         dc_ess_source: TestElectricitySource,
+        dc_1_source: TestElectricitySource,
         dc_2_source: TestElectricitySource,
         dc_bat_source: TestElectricitySource,
         dc_ess_bus: ElectricalBus,
         dc_ess_shed_bus: ElectricalBus,
+        dc_1_bus: ElectricalBus,
         dc_2_bus: ElectricalBus,
         dc_bat_bus: ElectricalBus,
     }
@@ -376,6 +420,10 @@ mod tests {
                     context,
                     PotentialOrigin::TransformerRectifier(3),
                 ),
+                dc_1_source: TestElectricitySource::powered(
+                    context,
+                    PotentialOrigin::TransformerRectifier(1),
+                ),
                 dc_2_source: TestElectricitySource::powered(
                     context,
                     PotentialOrigin::TransformerRectifier(2),
@@ -386,6 +434,7 @@ mod tests {
                     context,
                     ElectricalBusType::DirectCurrentEssentialShed,
                 ),
+                dc_1_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(1)),
                 dc_2_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(2)),
                 dc_bat_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrentBattery),
             }
@@ -398,10 +447,12 @@ mod tests {
             electricity: &mut Electricity,
         ) {
             electricity.supplied_by(&self.dc_ess_source);
+            electricity.supplied_by(&self.dc_1_source);
             electricity.supplied_by(&self.dc_2_source);
             electricity.supplied_by(&self.dc_bat_source);
             electricity.flow(&self.dc_ess_source, &self.dc_ess_bus);
             electricity.flow(&self.dc_ess_source, &self.dc_ess_shed_bus);
+            electricity.flow(&self.dc_1_source, &self.dc_1_bus);
             electricity.flow(&self.dc_2_source, &self.dc_2_bus);
             electricity.flow(&self.dc_bat_source, &self.dc_bat_bus);
         }
@@ -1073,10 +1124,14 @@ mod tests {
     fn no_smoke_warning_and_no_detection_fault_when_healthy() {
         let mut test_bed = test_bed().run_for(Duration::from_secs(10));
 
-        for zone in ["FWD_CARGO", "AFT_CARGO", "AVIONICS"] {
+        for zone in ["FWD_CARGO", "AFT_CARGO", "AVIONICS", "LAVATORY"] {
             assert!(!smoke_detected(&mut test_bed, zone));
             assert!(!smoke_detection_fault(&mut test_bed, zone));
         }
+        assert!(!read_bool(
+            &mut test_bed,
+            "SMOKE_DETECTION_CONTROL_UNIT_FAULT"
+        ));
     }
 
     #[test]
@@ -1139,6 +1194,81 @@ mod tests {
 
         assert!(smoke_detection_fault(&mut test_bed, "FWD_CARGO"));
         assert!(smoke_detection_fault(&mut test_bed, "AFT_CARGO"));
+    }
+
+    #[test]
+    fn lavatory_smoke_gives_the_lavatory_smoke_warning() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::Smoke(SmokeDetectionZone::Lavatory));
+        test_bed = test_bed.and_run();
+
+        assert!(smoke_detected(&mut test_bed, "LAVATORY"));
+        assert!(!smoke_detected(&mut test_bed, "FWD_CARGO"));
+    }
+
+    #[test]
+    fn a_failed_lavatory_detector_gives_the_lav_det_fault_and_no_smoke_warning() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::SmokeDetector(SmokeDetectionZone::Lavatory, 1));
+        test_bed.fail(FailureType::Smoke(SmokeDetectionZone::Lavatory));
+        test_bed = test_bed.and_run();
+
+        assert!(smoke_detection_fault(&mut test_bed, "LAVATORY"));
+        assert!(!smoke_detected(&mut test_bed, "LAVATORY"));
+    }
+
+    #[test]
+    fn one_failed_sdcu_channel_keeps_the_smoke_detection() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::SmokeDetectionControlUnitChannel(1));
+        test_bed.fail(FailureType::Smoke(SmokeDetectionZone::AftCargo));
+        test_bed.fail(FailureType::Smoke(SmokeDetectionZone::Lavatory));
+        test_bed = test_bed.and_run();
+
+        assert!(!read_bool(
+            &mut test_bed,
+            "SMOKE_DETECTION_CONTROL_UNIT_FAULT"
+        ));
+        assert!(smoke_detected(&mut test_bed, "AFT_CARGO"));
+        assert!(smoke_detected(&mut test_bed, "LAVATORY"));
+    }
+
+    #[test]
+    fn both_failed_sdcu_channels_give_the_smoke_det_fault_and_report_no_cargo_or_lavatory_smoke() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::SmokeDetectionControlUnitChannel(1));
+        test_bed.fail(FailureType::SmokeDetectionControlUnitChannel(2));
+        test_bed.fail(FailureType::Smoke(SmokeDetectionZone::AftCargo));
+        test_bed.fail(FailureType::Smoke(SmokeDetectionZone::Lavatory));
+        test_bed.fail(FailureType::SmokeDetector(
+            SmokeDetectionZone::ForwardCargo,
+            1,
+        ));
+        test_bed.fail(FailureType::SmokeDetector(
+            SmokeDetectionZone::ForwardCargo,
+            2,
+        ));
+        test_bed = test_bed.and_run();
+
+        assert!(read_bool(
+            &mut test_bed,
+            "SMOKE_DETECTION_CONTROL_UNIT_FAULT"
+        ));
+        for zone in ["FWD_CARGO", "AFT_CARGO", "LAVATORY"] {
+            assert!(!smoke_detected(&mut test_bed, zone));
+            assert!(!smoke_detection_fault(&mut test_bed, zone));
+        }
+    }
+
+    #[test]
+    fn both_failed_sdcu_channels_keep_the_avionics_smoke_detection() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::SmokeDetectionControlUnitChannel(1));
+        test_bed.fail(FailureType::SmokeDetectionControlUnitChannel(2));
+        test_bed.fail(FailureType::Smoke(SmokeDetectionZone::Avionics));
+        test_bed = test_bed.run_for(Duration::from_secs(6));
+
+        assert!(smoke_detected(&mut test_bed, "AVIONICS"));
     }
 
     #[test]
