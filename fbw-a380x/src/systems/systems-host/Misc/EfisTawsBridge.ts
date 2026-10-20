@@ -37,7 +37,7 @@ import {
   Subject,
   Subscription,
 } from '@microsoft/msfs-sdk';
-import { ArmedLateralMode, isArmed, LateralMode } from '@shared/autopilot';
+import { isVdCutAlongTrack } from '@shared/VdVerticalCut';
 // FIXME should not import from instruments
 import { ResetPanelSimvars } from '../../instruments/src/MsfsAvionicsCommon/providers/ResetPanelPublisher';
 // FIXME should not import from ND!!!
@@ -172,14 +172,7 @@ export class EfisTawsBridge implements Instrument {
   private readonly activeLateralMode = ConsumerSubject.create(this.sub.on('fg.fma.lateralMode'), 0);
   private readonly armedLateralMode = ConsumerSubject.create(this.sub.on('fg.fma.lateralArmedBitmask'), 0);
   private readonly shouldShowTrackLine = MappedSubject.create(
-    ([active, armed]) =>
-      (active === LateralMode.NONE ||
-        active === LateralMode.HDG ||
-        active === LateralMode.TRACK ||
-        active === LateralMode.RWY ||
-        active === LateralMode.RWY_TRACK ||
-        active === LateralMode.GA_TRACK) &&
-      !isArmed(armed, ArmedLateralMode.NAV),
+    ([active, armed]) => isVdCutAlongTrack(active, armed),
     this.activeLateralMode,
     this.armedLateralMode,
   );

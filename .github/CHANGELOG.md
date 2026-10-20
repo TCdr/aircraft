@@ -820,6 +820,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] SPD ERROR AT message when a speed constraint will be missed by more than 10 kt - @TCdr
 1. [A32NX/MCDU] Trip fuel and time on INIT B and FUEL PRED from the flight plan predictions (fuel table only before they exist) - @TCdr
 1. [A380X/ND] Vertical display shows the FLS beam of a non precision approach - @TCdr
+1. [A380X/ND] The VD shows the safety altitudes along the vertical cut: grid MORA, or the MSA near an airport with a selected procedure, as a magenta profile with QNH or as the highest value with STD - @TCdr
+1. [A380X/ND] VD messages CHECK ALT (CAPT and F/O altitudes disagree) and SAFETY ALTS PARTLY DISPLAYED - @TCdr
+1. [A380X/FMS] Predictions for the secondary flight plans (SEC 1-3) on the F-PLN and FUEL&LOAD pages: times, altitudes, speeds, EFOB, TRIP and EXTRA fuel - @TCdr
+1. [A380X/FMS] PERF page CRZ: time and distance to the T/D at the managed speed while flying a selected speed, and the ECON line when the speed limit lowers the managed speed - @TCdr
 
 ## 2024.1.0
 

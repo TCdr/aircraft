@@ -52,4 +52,18 @@ export interface MfdSurvEvents {
   a32nx_fms_vd_track_change_distance: number | null;
   /** (FMS -> VD) The FLS beam of the active flight plan, null without one */
   a32nx_fms_vd_fls_beam: FlsBeam | null;
+  /** (FMS -> CDS) The safety altitudes along the vertical cut of the VD, ahead of the aircraft */
+  a380x_fms_vd_safety_altitudes: VdSafetyAltitudeSegment[];
+}
+
+export type VdSafetyAltitudeType = 'MORA' | 'MSA';
+
+/** A stretch of the vertical cut with one safety altitude. Flight plan discontinuities have none. */
+export interface VdSafetyAltitudeSegment {
+  /** Distance from the aircraft along the cut, in nm */
+  startNm: number;
+  endNm: number;
+  /** In feet (QNH reference); null where the database has no value */
+  altitudeFt: number | null;
+  type: VdSafetyAltitudeType;
 }

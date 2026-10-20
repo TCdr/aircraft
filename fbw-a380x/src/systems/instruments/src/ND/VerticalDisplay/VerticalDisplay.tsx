@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 import {
   Arinc429LocalVarConsumerSubject,
+  Arinc429Word,
   ArincEventBus,
   EfisNdMode,
   EfisRecomputingReason,
@@ -43,6 +44,8 @@ import { computeVdSurvMessages } from './VdSurvMessages';
 import { vdRadioAltitudeZone } from './VdRadioAltitudeZone';
 import { voteRadioAltitude } from '@shared/RadioAltimeterVoting';
 import { isApproachModeSelected } from './VdFlsBeam';
+import { drawVdSafetyAltitudes } from './VdSafetyAltitudes';
+import { isVdCheckAltShown, readVdSideAltitude } from './VdCheckAlt';
 
 export interface VerticalDisplayProps extends ComponentProps {
   bus: ArincEventBus;
@@ -483,6 +486,51 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
   );
   private readonly wxrElevnTiltLineVisibility = this.wxrElevnTiltLinePath.map((d) => (d ? 'inherit' : 'hidden'));
 
+  private readonly fmsSafetyAltitudes = ConsumerSubject.create(this.sub.on('a380x_fms_vd_safety_altitudes'), []);
+
+  /** The grid MORA / MSA profile or highest value (see VdSafetyAltitudes); hidden with the VD data */
+  private readonly safetyAltitudes = MappedSubject.create(
+    ([segments, vdRange, verticalRange, efisWord2, alt, vdAvailable]) =>
+      drawVdSafetyAltitudes({
+        segments: vdAvailable ? segments : [],
+        vdRangeNm: vdRange,
+        verticalRange,
+        baroStd: efisWord2.bitValueOr(11, false),
+        aircraftAltitudeFt: alt.isNormalOperation() ? alt.value : null,
+        plot: VD_PLOT_AREA,
+      }),
+    this.fmsSafetyAltitudes,
+    this.vdRange,
+    this.verticalRange,
+    this.fcuEisDiscreteWord2,
+    this.baroCorrectedAltitude,
+    this.vdAvailable,
+  );
+
+  private readonly safetyAltitudeProfilePath = this.safetyAltitudes.map((d) => d.profilePath);
+
+  /** At most a label at the start of the profile and two type changes along it are drawn */
+  private readonly safetyAltitudeTypeLabels = [0, 1, 2].map((i) => this.safetyAltitudes.map((d) => d.typeLabels[i]));
+
+  private readonly highestSafetyAltitude = this.safetyAltitudes.map((d) => d.highest);
+
+  private readonly highestSafetyAltitudeVisibility = this.highestSafetyAltitude.map((h) =>
+    h !== null ? 'inherit' : 'hidden',
+  );
+
+  /** Upper part of the VD when the aircraft is below the highest safety altitude, lower part otherwise */
+  private readonly highestSafetyAltitudeTransform = this.highestSafetyAltitude.map((h) =>
+    h !== null ? `translate(${h.x.toFixed(1)} ${h.upper ? 802 : 958})` : '',
+  );
+
+  private readonly safetyAltsPartlyDisplayedVisibility = this.safetyAltitudes.map((d) =>
+    d.partlyDisplayed ? 'inherit' : 'hidden',
+  );
+
+  private readonly checkAltShown = Subject.create(false);
+
+  private readonly checkAltRef = FSComponent.createRef<SVGTextElement>();
+
   /** TERR SYS OFF takes the terrain and the weather away (the weather cannot be located without the terrain) */
   private readonly noTerrAndWxDataAvailFlagCondition = this.survMessages.map((m) => m.noTerrAndWxDataAvailable);
 
@@ -633,6 +681,34 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
       this.armedVerticalMode,
       this.flsBeamDisplayConditions,
       this.baroIsStd,
+      this.fmsSafetyAltitudes,
+      this.safetyAltitudes,
+      this.safetyAltitudeProfilePath,
+      ...this.safetyAltitudeTypeLabels,
+      this.highestSafetyAltitude,
+      this.highestSafetyAltitudeVisibility,
+      this.highestSafetyAltitudeTransform,
+      this.safetyAltsPartlyDisplayedVisibility,
+    );
+
+    this.subscriptions.push(
+      this.sub
+        .on('realTime')
+        .atFrequency(1)
+        .handle(() => {
+          const airDataKnob = SimVar.GetSimVarValue('L:A32NX_AIR_DATA_SWITCHING_KNOB', SimVarValueType.Number);
+          this.checkAltShown.set(
+            isVdCheckAltShown(
+              readVdSideAltitude(true, Arinc429Word.fromSimVarValue, airDataKnob),
+              readVdSideAltitude(false, Arinc429Word.fromSimVarValue, airDataKnob),
+            ),
+          );
+        }),
+      this.checkAltShown.sub((shown) => {
+        this.checkAltRef.instance.style.visibility = shown ? 'inherit' : 'hidden';
+        // removed while hidden, so that it flashes again at the next appearance
+        this.checkAltRef.instance.classList.toggle('Blink9Seconds', shown);
+      }, true),
     );
 
     // the native VD terrain and weather (ndwxr, vd_ra_zone.h) leave the column under the amber zone clear, as their
@@ -752,6 +828,33 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
   render(): VNode {
     return (
       <>
+        {/* Under the canvas: the flight path and the FLS beam are drawn over the safety altitudes */}
+        <svg class="vd-svg" viewBox="0 0 768 1024" xmlns="http://www.w3.org/2000/svg" style={{ display: this.visible }}>
+          <defs>
+            <clipPath id="VdSafetyAltitudeMask">
+              <path d="m 150,1000 v-200 h540 v200 z" />
+            </clipPath>
+          </defs>
+          <g clip-path="url(#VdSafetyAltitudeMask)" visibility={this.vdDataVisibility}>
+            <path
+              d={this.safetyAltitudeProfilePath}
+              fill="none"
+              class="Magenta"
+              stroke-width="2"
+              stroke-dasharray="8 6"
+            />
+            <g transform={this.highestSafetyAltitudeTransform} visibility={this.highestSafetyAltitudeVisibility}>
+              <line x1="0" y1="2" x2="0" y2="38" class="Magenta" stroke-width="2" />
+              <text x="5" y="16" class="Magenta FontSmallest">
+                {this.highestSafetyAltitude.map((h) => h?.type ?? '')}
+              </text>
+              <text x="5" y="36" class="Magenta FontSmall">
+                {this.highestSafetyAltitude.map((h) => (h ? `>${h.thousands}` : ''))}
+                <tspan class="FontSmallest">{this.highestSafetyAltitude.map((h) => h?.hundreds ?? '')}</tspan>
+              </text>
+            </g>
+          </g>
+        </svg>
         <VerticalDisplayCanvasMap
           ref={this.canvasMapRef}
           bus={this.props.bus}
@@ -780,6 +883,20 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
               <path d="m 0,1000 v-200 h130 v200 z" />
             </clipPath>
           </defs>
+          <g visibility={this.vdDataVisibility}>
+            {this.safetyAltitudeTypeLabels.map((label) => (
+              <text
+                // clear of the range origin '0' label
+                x={label.map((l) => (l ? l.x - (l.anchor === 'end' ? 8 : 0) : 0))}
+                y={797}
+                text-anchor={label.map((l) => l?.anchor ?? 'start')}
+                class="Magenta FontSmallest"
+                visibility={label.map((l) => (l ? 'inherit' : 'hidden'))}
+              >
+                {label.map((l) => l?.text ?? '')}
+              </text>
+            ))}
+          </g>
           <g clip-path="url(#AltitudeTapeMask)">
             <line x1="105" x2="105" y1="800" y2="1000" stroke={this.lineColor} stroke-width="2" />
             {[0, 1, 2, 3, 4, 5, 6, 7].map((_, index) => {
@@ -954,6 +1071,18 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
             style={{ visibility: this.trajNotAvailFlagVisibility }}
           >
             TRAJ NOT AVAIL
+          </text>
+          {/* Design choice: no documented colour or place; amber as the other degraded data messages of the VD */}
+          <text
+            x={422}
+            y={862}
+            class="Amber FontSmall MiddleAlign shadow"
+            style={{ visibility: this.safetyAltsPartlyDisplayedVisibility }}
+          >
+            SAFETY ALTS PARTLY DISPLAYED
+          </text>
+          <text ref={this.checkAltRef} x={422} y={832} class="Amber FontSmall MiddleAlign shadow">
+            CHECK ALT
           </text>
         </svg>
       </>
