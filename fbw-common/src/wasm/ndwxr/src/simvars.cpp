@@ -34,6 +34,8 @@ NamedVar g_adirsVerticalSpeed[3] = {{"A32NX_ADIRS_IR_1_VERTICAL_SPEED"},
 // its own failure (EfisTawsBridge.ts).
 NamedVar g_wxrTawsSelected{"A32NX_WXR_TAWS_SYS_SELECTED"};
 NamedVar g_wxrFailed[2] = {{"A32NX_WXR_1_FAILED"}, {"A32NX_WXR_2_FAILED"}};
+// The turbulence detection of each system (EfisTawsBridge.ts)
+NamedVar g_wxrTurbFailed[2] = {{"A32NX_WXR_1_TURB_FAILED"}, {"A32NX_WXR_2_TURB_FAILED"}};
 
 // The TERR side of the same two systems (EfisTawsBridge.ts).
 NamedVar g_terrFailed[2] = {{"A32NX_TERR_1_FAILED"}, {"A32NX_TERR_2_FAILED"}};
@@ -204,11 +206,14 @@ bool radarSelected(const Instance& instance) {
 double radarMode() {
 #ifdef A380X
   // The SURV CONTROLS page has a WX/MAP button and a TURB AUTO/OFF button: TURB
-  // AUTO adds turbulence to the precipitation. There is no turbulence-only mode.
+  // AUTO adds turbulence to the precipitation, unless the turbulence detection of
+  // the selected system is failed. There is no turbulence-only mode.
   if (g_wxrModeMap.read() != 0.0) {
     return kWxrModeMap;
   }
-  return g_wxrTurbOff.read() != 0.0 ? kWxrModeWx : kWxrModeWxTurb;
+  const int system = static_cast<int>(g_wxrTawsSelected.read());
+  const bool turbFailed = (system == 1 || system == 2) && g_wxrTurbFailed[system - 1].read() != 0.0;
+  return a380TurbulenceShown(g_wxrTurbOff.read() != 0.0, turbFailed) ? kWxrModeWxTurb : kWxrModeWx;
 #else
   return g_wxrMode.read();
 #endif

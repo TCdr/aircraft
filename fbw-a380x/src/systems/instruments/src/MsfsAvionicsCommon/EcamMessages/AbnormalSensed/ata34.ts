@@ -438,7 +438,13 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800026: {
     title: '\x1b<4m\x1b4mNAV\x1bm FM / IR POS DISAGREE',
     sensed: true,
-    items: [], // not implemented
+    items: [
+      {
+        name: 'ACFT POS',
+        sensed: false,
+        labelNotCompleted: 'CHECK',
+      },
+    ],
   },
   340800027: {
     title: '\x1b<4m\x1b4mNAV\x1bm GLS 1 CAPABILITY LOST',
@@ -493,17 +499,17 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800037: {
     title: '\x1b<4m\x1b4mNAV\x1bm ILS 1 FAULT',
     sensed: true,
-    items: [], // not implemented
+    items: [],
   },
   340800038: {
     title: '\x1b<4m\x1b4mNAV\x1bm ILS 2 FAULT',
     sensed: true,
-    items: [], // not implemented
+    items: [],
   },
   340800039: {
     title: '\x1b<4m\x1b4mNAV\x1bm ILS 1+2 FAULT',
     sensed: true,
-    items: [], // not implemented
+    items: [],
   },
   340800040: {
     title: '\x1b<4m\x1b4mNAV\x1bm IR 1 FAULT',
@@ -701,17 +707,17 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800046: {
     title: '\x1b<4m\x1b4mNAV\x1bm LS 1 FAULT',
     sensed: true,
-    items: [], // not implemented
+    items: [],
   },
   340800047: {
     title: '\x1b<4m\x1b4mNAV\x1bm LS 2 FAULT',
     sensed: true,
-    items: [], // not implemented
+    items: [],
   },
   340800048: {
     title: '\x1b<4m\x1b4mNAV\x1bm LS 1+2 FAULT',
     sensed: true,
-    items: [], // not implemented
+    items: [],
   },
   340800049: {
     title: '\x1b<4m\x1b4mNAV\x1bm LS TUNING DISAGREE',
@@ -806,29 +812,91 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     ],
   },
   340800063: {
-    title: '\x1b<4m\x1b4mNAV\x1bm RESIDUAL AIR SPEED',
+    title: '\x1b<4m\x1b4mNAV\x1bm RESIDUAL AIR SPEED ON ADR 1',
     sensed: true,
-    items: [], // error model not implemented
+    items: [],
+  },
+  340800073: {
+    title: '\x1b<4m\x1b4mNAV\x1bm RESIDUAL AIR SPEED ON ADR 2',
+    sensed: true,
+    items: [],
+  },
+  340800074: {
+    title: '\x1b<4m\x1b4mNAV\x1bm RESIDUAL AIR SPEED ON ADR 3',
+    sensed: true,
+    items: [],
   },
   340800064: {
     title: '\x1b<4m\x1b4mNAV\x1bm SIDESLIP PROBE 1 FAULT',
     sensed: true,
-    items: [], // not implemented
+    items: [],
   },
   340800065: {
     title: '\x1b<4m\x1b4mNAV\x1bm SIDESLIP PROBE 2 FAULT',
     sensed: true,
-    items: [], // not implemented
+    items: [],
   },
   340800066: {
     title: '\x1b<4m\x1b4mNAV\x1bm SIDESLIP PROBE 3 FAULT',
     sensed: true,
-    items: [], // not implemented
+    items: [],
   },
   340800067: {
     title: '\x1b<4m\x1b4mNAV\x1bm STATIC PROBE FAULT',
     sensed: true,
-    items: [], // not implemented
+    // The obstructed probes of each ADR, then the information line
+    items: [
+      {
+        name: 'L ADR 1 STAT PROBE',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'R ADR 1 STAT PROBE',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'L+R ADR 1 STAT PROBE',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'L ADR 2 STAT PROBE',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'R ADR 2 STAT PROBE',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'L+R ADR 2 STAT PROBE',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'L ADR 3 STAT PROBE',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'R ADR 3 STAT PROBE',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'L+R ADR 3 STAT PROBE',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'IAS/ALT MAYBE NOT RELIABLE',
+        sensed: true,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
   },
   340800068: {
     title: '\x1b<4m\x1b4mNAV\x1bm TAT PROBE 1 FAULT',
@@ -917,6 +985,218 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   },
   341800037: {
     title: '\x1b<4m\x1b4mSURV\x1bm XPDR STBY',
+    sensed: true,
+    items: [],
+  },
+  341800029: {
+    title: '\x1b<4m\x1b4mSURV\x1bm SYS 1 FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'WXR & TAWS',
+        sensed: true,
+        labelNotCompleted: 'SYS 2',
+      },
+      {
+        name: 'XPDR & TCAS',
+        sensed: true,
+        labelNotCompleted: 'SYS 2',
+      },
+    ],
+  },
+  341800030: {
+    title: '\x1b<4m\x1b4mSURV\x1bm SYS 2 FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'WXR & TAWS',
+        sensed: true,
+        labelNotCompleted: 'SYS 1',
+      },
+      {
+        name: 'XPDR & TCAS',
+        sensed: true,
+        labelNotCompleted: 'SYS 1',
+      },
+    ],
+  },
+  341800031: {
+    title: '\x1b<4m\x1b4mSURV\x1bm SYS 1+2 FAULT',
+    sensed: true,
+    items: [],
+  },
+  341800032: {
+    title: '\x1b<4m\x1b4mSURV\x1bm SYS DEGRADED',
+    sensed: true,
+    items: [
+      {
+        name: 'USE SURV SYS CTL PNL FOR SWITCHING',
+        sensed: true,
+        style: ChecklistLineStyle.Cyan,
+      },
+      {
+        name: 'WXR / TAWS & XPDR / TCAS',
+        sensed: true,
+        labelNotCompleted: 'ON SAME SYS',
+      },
+    ],
+  },
+  341800033: {
+    title: '\x1b<4m\x1b4mSURV\x1bm WXR 1 FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'WXR & TAWS',
+        sensed: true,
+        labelNotCompleted: 'SYS 2',
+      },
+    ],
+  },
+  341800034: {
+    title: '\x1b<4m\x1b4mSURV\x1bm WXR 2 FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'WXR & TAWS',
+        sensed: true,
+        labelNotCompleted: 'SYS 1',
+      },
+    ],
+  },
+  341800035: {
+    title: '\x1b<4m\x1b4mSURV\x1bm WXR 1+2 FAULT',
+    sensed: true,
+    items: [
+      {
+        name: '[MFD SURV] STATUS & SWTG PAGE',
+        sensed: false,
+        labelNotCompleted: 'CHECK',
+      },
+      {
+        name: 'WXR & TAWS',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
+  },
+  341800036: {
+    title: '\x1b<4m\x1b4mSURV\x1bm TURB 1 FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'WXR & TAWS',
+        sensed: true,
+        labelNotCompleted: 'SYS 2',
+      },
+      {
+        name: '[MFD SURV] STATUS & SWTG PAGE',
+        sensed: false,
+        labelNotCompleted: 'CHECK',
+      },
+      {
+        name: 'WXR & TAWS',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
+  },
+  341800038: {
+    title: '\x1b<4m\x1b4mSURV\x1bm TURB 2 FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'WXR & TAWS',
+        sensed: true,
+        labelNotCompleted: 'SYS 1',
+      },
+      {
+        name: '[MFD SURV] STATUS & SWTG PAGE',
+        sensed: false,
+        labelNotCompleted: 'CHECK',
+      },
+      {
+        name: 'WXR & TAWS',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
+  },
+  341800039: {
+    title: '\x1b<4m\x1b4mSURV\x1bm TURB 1+2 FAULT',
+    sensed: true,
+    items: [
+      {
+        name: '[MFD SURV] STATUS & SWTG PAGE',
+        sensed: false,
+        labelNotCompleted: 'CHECK',
+      },
+      {
+        name: 'WXR & TAWS',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
+  },
+  341800040: {
+    title: '\x1b<4m\x1b4mSURV\x1bm PRED W/S 1 FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'WXR & TAWS',
+        sensed: true,
+        labelNotCompleted: 'SYS 2',
+      },
+      {
+        name: '[MFD SURV] STATUS & SWTG PAGE',
+        sensed: false,
+        labelNotCompleted: 'CHECK',
+      },
+      {
+        name: 'WXR & TAWS',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
+  },
+  341800041: {
+    title: '\x1b<4m\x1b4mSURV\x1bm PRED W/S 2 FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'WXR & TAWS',
+        sensed: true,
+        labelNotCompleted: 'SYS 1',
+      },
+      {
+        name: '[MFD SURV] STATUS & SWTG PAGE',
+        sensed: false,
+        labelNotCompleted: 'CHECK',
+      },
+      {
+        name: 'WXR & TAWS',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
+  },
+  341800042: {
+    title: '\x1b<4m\x1b4mSURV\x1bm PRED W/S 1+2 FAULT',
+    sensed: true,
+    items: [
+      {
+        name: '[MFD SURV] STATUS & SWTG PAGE',
+        sensed: false,
+        labelNotCompleted: 'CHECK',
+      },
+      {
+        name: 'WXR & TAWS',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
+  },
+  341800043: {
+    title: '\x1b<4m\x1b4mSURV\x1bm REACTIVE W/S DET FAULT',
     sensed: true,
     items: [],
   },

@@ -843,6 +843,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Add the FUEL alerts of the fuel quantity measurement (FQDC, FQI, FQMS, GAUGING, SYS COMPONENT) and of the fuel transfers (MAN XFR PROCEDURE, WINGS MAN BALANCING PROCEDURE, NORM XFR, NORM + ALTN XFR, OUTR TK XFR, TRIM TK XFR, TRIM TK GRVTY FWD XFR, TRIM & APU LINES), with their flyPad failures - @TCdr
 1. [A380X/FWS] FUEL refuel, ground transfer, APU feed and overflow alerts: ABNORM AUTO REFUEL DISTRIBUTION, APU FEED FAULT, APU FEED VLV NOT CLOSED, AUTO GND XFR COMPLETED, AUTO GND XFR FAULT, PREDICTED CG OUT OF T.O RANGE, REFUEL / DEFUEL SYS FAULT, REFUEL DATA / FMS DISAGREE, REFUEL FAULT, TRIM TK OVERFLOW, WEIGHT & BALANCE BKUP FAULT and WING TK OVERFLOW, with new flyPad fuel failures (APU feed valves, refuel system, refuel isolation valves, tank inlet valves stuck open, WBBC 1 and 2) - @TCdr
 1. [A380X/FUEL] The APU feed valves now open with the APU MASTER pb-sw and close with it OFF or the APU FIRE pb pushed; an APU feed valve jammed closed starves the APU - @TCdr
+1. [A380X/FWS] NAV LS 1(2)(1+2) FAULT, NAV ILS 1(2)(1+2) FAULT, NAV FM / IR POS DISAGREE, NAV STATIC PROBE FAULT, NAV ADR 1+2+3 DATA DEGRADED, NAV SIDESLIP PROBE 1(2)(3) FAULT and NAV RESIDUAL AIR SPEED ON ADR 1(2)(3) alerts, with new flyPad failures (MMR, ILS receiver, static and sideslip probes) - @TCdr
+1. [A380X/FWS] SURV SYS 1(2)(1+2) FAULT, SURV SYS DEGRADED, SURV WXR, TURB and PRED W/S 1(2)(1+2) FAULT and SURV REACTIVE W/S DET FAULT alerts, with new flyPad failures (SURV SYS, WXR functions, SURV link, reactive windshear detection); a failed TURB function removes the magenta turbulence from the ND - @TCdr
 
 ## 2024.1.0
 

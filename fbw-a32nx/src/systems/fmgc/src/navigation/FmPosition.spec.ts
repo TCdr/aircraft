@@ -17,6 +17,7 @@ import {
   FmPositionInputs,
   irsUsedCount,
   isFmGpsPositionDisagree,
+  isFmIrPositionDisagree,
   longitudeDifference,
   navigationModeText,
   positionOffset,
@@ -302,6 +303,35 @@ describe('FM position computation (FmPositionComputer)', () => {
     const a380 = new FmPositionComputer(A380_FM_POSITION_CONFIG);
     a380.update(inputs({ gpsPositions: [gpirs1, farGps], gpsPrimary: false }));
     expect(a380.isFmGpsDisagree).toBe(true);
+  });
+
+  it('flags FM/IR POS DISAGREE after a manual update far from the IR positions, not in GPS PRIMARY', () => {
+    const computer = new FmPositionComputer(A380_FM_POSITION_CONFIG);
+    const irsOnly = { navigationMode: FmNavigationMode.IrsOnly, gpirsPositions: [null, null, null], gpsPrimary: false };
+    computer.update(inputs(irsOnly));
+    expect(computer.isFmIrDisagree).toBe(false);
+    // 6 NM north of the IR positions
+    expect(computer.manualUpdate({ lat: 45 + 6 / 60, long: 7 })).toBe(true);
+    computer.update(inputs(irsOnly));
+    expect(computer.isFmIrDisagree).toBe(true);
+    computer.update(inputs({ ...irsOnly, gpsPrimary: true }));
+    expect(computer.isFmIrDisagree).toBe(false);
+  });
+
+  it('compares each FM position with each valid IR position', () => {
+    const fm = [{ lat: 45, long: 7 }];
+    expect(isFmIrPositionDisagree(fm, [{ lat: 45 + 4 / 60, long: 7 }, null], 5)).toBe(false);
+    expect(
+      isFmIrPositionDisagree(
+        fm,
+        [
+          { lat: 45 + 4 / 60, long: 7 },
+          { lat: 45 - 6 / 60, long: 7 },
+        ],
+        5,
+      ),
+    ).toBe(true);
+    expect(isFmIrPositionDisagree(fm, [null, null, null], 5)).toBe(false);
   });
 
   it('uses no GPIRS position when the GPS is deselected', () => {

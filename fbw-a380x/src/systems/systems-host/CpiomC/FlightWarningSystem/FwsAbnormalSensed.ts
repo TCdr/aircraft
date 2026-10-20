@@ -146,9 +146,31 @@ import { gpwsFaultItemsToShow, isApFdTcasModeInop } from './FwsSurvAlerts';
 import {
   FM_GPS_POS_DISAGREE_INFO,
   FM_GPS_POS_DISAGREE_PHASE_INHIBITION,
+  FM_IR_POS_DISAGREE_PHASE_INHIBITION,
   LS_TUNING_DISAGREE_INOP_SYS_APPR_LDG,
   LS_TUNING_DISAGREE_PHASE_INHIBITION,
 } from './FwsNavPositionAlerts';
+import {
+  ADR_DATA_DEGRADED_PHASE_INHIBITION,
+  ILS_FAULT_INOP_SYS_APPR_LDG,
+  LS_FAULT_INOP_SYS_APPR_LDG,
+  LS_ILS_FAULT_PHASE_INHIBITION,
+  RESIDUAL_AIR_SPEED_PHASE_INHIBITION,
+  SIDESLIP_PROBE_FAULT_PHASE_INHIBITION,
+  SIDESLIP_PROBE_INOP_SYS,
+  STATIC_PROBE_FAULT_INFO,
+  STATIC_PROBE_FAULT_PHASE_INHIBITION,
+  staticProbeInopSys,
+  staticProbeLines,
+} from './FwsNavSensorAlerts';
+import {
+  PRED_WS_FAULT_PHASE_INHIBITION,
+  REACTIVE_WS_DET_FAULT_PHASE_INHIBITION,
+  SURV_INOP_SYS,
+  SURV_SYS_DEGRADED_PHASE_INHIBITION,
+  SURV_SYS_FAULT_PHASE_INHIBITION,
+  WXR_TURB_FAULT_PHASE_INHIBITION,
+} from './FwsSurvSystemAlerts';
 import { cabinDoorNotClosedAlertId, cargoDoorNotClosedAlertId } from './DoorAlerts';
 import {
   aboveGearDoorSpeed,
@@ -7887,6 +7909,169 @@ export class FwsAbnormalSensed {
       redundLoss: () => [],
       info: () => [],
     },
+    // NAV landing system and air data probe alerts (FwsNavSensorAlerts.ts): SC and MASTER CAUT, crew awareness;
+    // NAV SIDESLIP PROBE FAULT without aural or master light
+    340800026: {
+      // NAV FM / IR POS DISAGREE (FwsNavPositionAlerts): ACFT POS ... CHECK
+      flightPhaseInhib: FM_IR_POS_DISAGREE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navPositionAlerts.fmIrPosDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    340800046: {
+      // LS 1 FAULT
+      flightPhaseInhib: LS_ILS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.ls1Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => LS_FAULT_INOP_SYS_APPR_LDG.ls1,
+    },
+    340800047: {
+      // LS 2 FAULT
+      flightPhaseInhib: LS_ILS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.ls2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => LS_FAULT_INOP_SYS_APPR_LDG.ls2,
+    },
+    340800048: {
+      // LS 1+2 FAULT
+      flightPhaseInhib: LS_ILS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.ls1And2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => LS_FAULT_INOP_SYS_APPR_LDG.ls1And2,
+    },
+    340800037: {
+      // ILS 1 FAULT
+      flightPhaseInhib: LS_ILS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.ils1Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => ILS_FAULT_INOP_SYS_APPR_LDG.ils1,
+    },
+    340800038: {
+      // ILS 2 FAULT
+      flightPhaseInhib: LS_ILS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.ils2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => ILS_FAULT_INOP_SYS_APPR_LDG.ils2,
+    },
+    340800039: {
+      // ILS 1+2 FAULT
+      flightPhaseInhib: LS_ILS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.ils1And2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => ILS_FAULT_INOP_SYS_APPR_LDG.ils1And2,
+    },
+    340800064: {
+      // SIDESLIP PROBE 1 FAULT
+      flightPhaseInhib: SIDESLIP_PROBE_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.sideslipProbeFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [SIDESLIP_PROBE_INOP_SYS[0]],
+    },
+    340800065: {
+      // SIDESLIP PROBE 2 FAULT
+      flightPhaseInhib: SIDESLIP_PROBE_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.sideslipProbeFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [SIDESLIP_PROBE_INOP_SYS[1]],
+    },
+    340800066: {
+      // SIDESLIP PROBE 3 FAULT
+      flightPhaseInhib: SIDESLIP_PROBE_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.sideslipProbeFault[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [SIDESLIP_PROBE_INOP_SYS[2]],
+    },
+    340800063: {
+      // RESIDUAL AIR SPEED ON ADR 1
+      flightPhaseInhib: RESIDUAL_AIR_SPEED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.residualAirSpeed[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    340800073: {
+      // RESIDUAL AIR SPEED ON ADR 2
+      flightPhaseInhib: RESIDUAL_AIR_SPEED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.residualAirSpeed[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    340800074: {
+      // RESIDUAL AIR SPEED ON ADR 3
+      flightPhaseInhib: RESIDUAL_AIR_SPEED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.residualAirSpeed[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    340800067: {
+      // STATIC PROBE FAULT: the obstructed probes of each ADR, IAS/ALT MAYBE NOT RELIABLE
+      flightPhaseInhib: STATIC_PROBE_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.staticProbeFault,
+      notActiveWhenItemActive: ['340800007'],
+      whichItemsToShow: () => [...staticProbeLines(this.fws.navSensorAlerts.staticProbes), true],
+      whichItemsChecked: () => new Array(10).fill(false),
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => staticProbeInopSys(this.fws.navSensorAlerts.staticProbes),
+      info: () => [STATIC_PROBE_FAULT_INFO],
+    },
+    340800007: {
+      // ADR 1+2+3 DATA DEGRADED: USE STBY INSTRUMENTS, [MFD SURV] ALT RPTG ... OFF
+      flightPhaseInhib: ADR_DATA_DEGRADED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navSensorAlerts.adrDataDegraded,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, !this.fws.xpdrAltReportingRequest.get()],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
     340800040: {
       // IR 1 FAULT
       flightPhaseInhib: [4, 5, 6, 9, 10],
@@ -8237,7 +8422,7 @@ export class FwsAbnormalSensed {
       // 1 in its STATUS.
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas1Fault,
-      notActiveWhenItemActive: ['341800061'],
+      notActiveWhenItemActive: ['341800061', '341800029', '341800031'],
       // XPDR & TCAS ..... SYS 2: if selected on SYS 1 and the XPDR/TCAS on SYS 2 is operative
       whichItemsToShow: () => [this.fws.tcas1SwitchLine.isShown()],
       whichItemsChecked: () => [this.fws.tcas1SwitchLine.isChecked(this.fws.xpdrTcasSystem.get())],
@@ -8250,7 +8435,7 @@ export class FwsAbnormalSensed {
       // TCAS 2 FAULT. Not with XPDR 2 FAULT (see TCAS 1 FAULT).
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas2Fault,
-      notActiveWhenItemActive: ['341800062'],
+      notActiveWhenItemActive: ['341800062', '341800030', '341800031'],
       // XPDR & TCAS ..... SYS 1: if selected on SYS 2 and the XPDR/TCAS on SYS 1 is operative
       whichItemsToShow: () => [this.fws.tcas2SwitchLine.isShown()],
       whichItemsChecked: () => [this.fws.tcas2SwitchLine.isChecked(this.fws.xpdrTcasSystem.get())],
@@ -8264,7 +8449,7 @@ export class FwsAbnormalSensed {
       // TCAS 1+2 in its STATUS.
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas1And2Fault,
-      notActiveWhenItemActive: ['341800063'],
+      notActiveWhenItemActive: ['341800063', '341800031'],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
       failure: 2,
@@ -8275,7 +8460,7 @@ export class FwsAbnormalSensed {
       // inhibition as the TCAS FAULT alerts.
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.xpdr1Fault,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['341800029', '341800031'],
       // XPDR & TCAS ..... SYS 2: if selected on SYS 1 and XPDR 2 is operative
       whichItemsToShow: () => [this.fws.xpdr1SwitchLine.isShown()],
       whichItemsChecked: () => [this.fws.xpdr1SwitchLine.isChecked(this.fws.xpdrTcasSystem.get())],
@@ -8292,7 +8477,7 @@ export class FwsAbnormalSensed {
       // XPDR 2 FAULT: the XPDR function of SURV SYS 2 is failed
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.xpdr2Fault,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['341800030', '341800031'],
       // XPDR & TCAS ..... SYS 1: if selected on SYS 2 and XPDR 1 is operative
       whichItemsToShow: () => [this.fws.xpdr2SwitchLine.isShown()],
       whichItemsChecked: () => [this.fws.xpdr2SwitchLine.isChecked(this.fws.xpdrTcasSystem.get())],
@@ -8309,7 +8494,7 @@ export class FwsAbnormalSensed {
       // XPDR 1+2 FAULT: crew awareness, STATUS XPDR 1+2, TCAS 1+2
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.xpdr1And2Fault,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['341800031'],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
       inopSysAllPhases: () => ['340300057', '340300029'],
@@ -8330,7 +8515,7 @@ export class FwsAbnormalSensed {
       // TERR SYS 1 FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 10],
       simVarIsActive: this.fws.terrSys1FaultCond,
-      notActiveWhenItemActive: ['341800022'],
+      notActiveWhenItemActive: ['341800022', '341800029', '341800031'],
       whichItemsToShow: () => [
         !this.fws.terrSys2Failed.get(),
         this.fws.terrSys2Failed.get(),
@@ -8345,7 +8530,7 @@ export class FwsAbnormalSensed {
       // TERR SYS 2 FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 10],
       simVarIsActive: this.fws.terrSys2FaultCond,
-      notActiveWhenItemActive: ['341800022'],
+      notActiveWhenItemActive: ['341800022', '341800030', '341800031'],
       whichItemsToShow: () => [
         !this.fws.terrSys1Failed.get(),
         this.fws.terrSys1Failed.get(),
@@ -8364,7 +8549,7 @@ export class FwsAbnormalSensed {
         this.fws.terrSys1FaultCond,
         this.fws.terrSys2FaultCond,
       ),
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['341800031'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [this.fws.tawsTerrOff.get()],
       inopSysApprLdg: () => ['340300044'],
@@ -8375,7 +8560,7 @@ export class FwsAbnormalSensed {
       // TAWS 1 FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 10],
       simVarIsActive: this.fws.taws1FaultCond,
-      notActiveWhenItemActive: ['341800025'],
+      notActiveWhenItemActive: ['341800025', '341800029', '341800031'],
       whichItemsToShow: () => [
         this.fws.tawsWxrSelected.get() === 1 && !this.fws.taws2Failed.get(),
         this.fws.taws2Failed.get(),
@@ -8389,7 +8574,7 @@ export class FwsAbnormalSensed {
       // TAWS 2 FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 10],
       simVarIsActive: this.fws.taws2FaultCond,
-      notActiveWhenItemActive: ['341800025'],
+      notActiveWhenItemActive: ['341800025', '341800030', '341800031'],
       whichItemsToShow: () => [
         this.fws.tawsWxrSelected.get() === 2 && !this.fws.taws1Failed.get(),
         this.fws.taws1Failed.get(),
@@ -8407,7 +8592,7 @@ export class FwsAbnormalSensed {
         this.fws.taws1FaultCond,
         this.fws.taws2FaultCond,
       ),
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['341800031'],
       whichItemsToShow: () => [true, true],
       whichItemsChecked: () => [this.fws.tawsTerrOff.get(), this.fws.tawsGpwsOff.get()],
       inopSysApprLdg: () => ['340300048'],
@@ -8419,7 +8604,7 @@ export class FwsAbnormalSensed {
       // FwsInopSys.
       flightPhaseInhib: [3, 4, 5, 6, 7, 10, 11],
       simVarIsActive: this.fws.gpws1FaultCond,
-      notActiveWhenItemActive: ['341800028'],
+      notActiveWhenItemActive: ['341800028', '341800029', '341800031'],
       whichItemsToShow: () =>
         gpwsFaultItemsToShow(
           1,
@@ -8435,7 +8620,7 @@ export class FwsAbnormalSensed {
       // SURV GPWS 2 FAULT, as GPWS 1
       flightPhaseInhib: [3, 4, 5, 6, 7, 10, 11],
       simVarIsActive: this.fws.gpws2FaultCond,
-      notActiveWhenItemActive: ['341800028'],
+      notActiveWhenItemActive: ['341800028', '341800030', '341800031'],
       whichItemsToShow: () =>
         gpwsFaultItemsToShow(
           2,
@@ -8455,7 +8640,7 @@ export class FwsAbnormalSensed {
         this.fws.gpws1FaultCond,
         this.fws.gpws2FaultCond,
       ),
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['341800031'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [this.fws.tawsGpwsOff.get()],
       failure: 2,
@@ -8470,6 +8655,183 @@ export class FwsAbnormalSensed {
       whichItemsChecked: () => [],
       failure: 2,
       sysPage: SdPages.None,
+    },
+    // SURV system and WXR function alerts, SURV REACTIVE W/S DET FAULT (FwsSurvSystemAlerts.ts)
+    341800029: {
+      // SURV SYS 1 FAULT
+      flightPhaseInhib: SURV_SYS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.survSys1Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [
+        this.fws.survSystemAlerts.otherWxrOperative(0) && !this.fws.taws2Failed.get(),
+        !this.fws.xpdr2Failed.get(),
+      ],
+      whichItemsChecked: () => [this.fws.tawsWxrSelected.get() === 2, this.fws.xpdrTcasSystem.get() === 2],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [
+        SURV_INOP_SYS.wxr[0],
+        SURV_INOP_SYS.xpdr[0],
+        SURV_INOP_SYS.tcas[0],
+        // As the aircraft STATUS: AP/FD TCAS MODE while this system gives the WXR/TAWS or the XPDR/TCAS
+        this.fws.tawsWxrSelected.get() === 1 || this.fws.xpdrTcasSystem.get() === 1 ? SURV_INOP_SYS.apFdTcasMode : null,
+      ],
+      inopSysApprLdg: () => [SURV_INOP_SYS.taws[0]],
+    },
+    341800030: {
+      // SURV SYS 2 FAULT
+      flightPhaseInhib: SURV_SYS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.survSys2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [
+        this.fws.survSystemAlerts.otherWxrOperative(1) && !this.fws.taws1Failed.get(),
+        !this.fws.xpdr1Failed.get(),
+      ],
+      whichItemsChecked: () => [this.fws.tawsWxrSelected.get() === 1, this.fws.xpdrTcasSystem.get() === 1],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [
+        SURV_INOP_SYS.wxr[1],
+        SURV_INOP_SYS.xpdr[1],
+        SURV_INOP_SYS.tcas[1],
+        // As the aircraft STATUS: AP/FD TCAS MODE while this system gives the WXR/TAWS or the XPDR/TCAS
+        this.fws.tawsWxrSelected.get() === 2 || this.fws.xpdrTcasSystem.get() === 2 ? SURV_INOP_SYS.apFdTcasMode : null,
+      ],
+      inopSysApprLdg: () => [SURV_INOP_SYS.taws[1]],
+    },
+    341800031: {
+      // SURV SYS 1+2 FAULT
+      flightPhaseInhib: SURV_SYS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.survSys1And2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [SURV_INOP_SYS.wxr[2], SURV_INOP_SYS.xpdr[2], SURV_INOP_SYS.tcas[2]],
+      inopSysApprLdg: () => [SURV_INOP_SYS.taws[2]],
+    },
+    341800032: {
+      // SURV SYS DEGRADED: WXR / TAWS & XPDR / TCAS ... ON SAME SYS
+      flightPhaseInhib: SURV_SYS_DEGRADED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.survSysDegraded,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, this.fws.tawsWxrSelected.get() === this.fws.xpdrTcasSystem.get()],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [SURV_INOP_SYS.survSysDegraded],
+    },
+    341800033: {
+      // SURV WXR 1 FAULT
+      flightPhaseInhib: WXR_TURB_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.wxr1Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [this.fws.survSystemAlerts.otherWxrOperative(0)],
+      whichItemsChecked: () => [this.fws.tawsWxrSelected.get() === 2],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [SURV_INOP_SYS.wxr[0]],
+    },
+    341800034: {
+      // SURV WXR 2 FAULT
+      flightPhaseInhib: WXR_TURB_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.wxr2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [this.fws.survSystemAlerts.otherWxrOperative(1)],
+      whichItemsChecked: () => [this.fws.tawsWxrSelected.get() === 1],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [SURV_INOP_SYS.wxr[1]],
+    },
+    341800035: {
+      // SURV WXR 1+2 FAULT
+      flightPhaseInhib: WXR_TURB_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.wxr1And2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => this.fws.survSystemAlerts.wxr1And2FaultItemsToShow(),
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [SURV_INOP_SYS.wxr[2]],
+    },
+    341800036: {
+      // SURV TURB 1 FAULT
+      flightPhaseInhib: WXR_TURB_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.turb1Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => this.fws.survSystemAlerts.turbFaultItemsToShow(0),
+      whichItemsChecked: () => [this.fws.tawsWxrSelected.get() === 2, false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [SURV_INOP_SYS.turb[0]],
+    },
+    341800038: {
+      // SURV TURB 2 FAULT
+      flightPhaseInhib: WXR_TURB_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.turb2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => this.fws.survSystemAlerts.turbFaultItemsToShow(1),
+      whichItemsChecked: () => [this.fws.tawsWxrSelected.get() === 1, false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [SURV_INOP_SYS.turb[1]],
+    },
+    341800039: {
+      // SURV TURB 1+2 FAULT
+      flightPhaseInhib: WXR_TURB_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.turb1And2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [SURV_INOP_SYS.turb[2]],
+    },
+    341800040: {
+      // SURV PRED W/S 1 FAULT
+      flightPhaseInhib: PRED_WS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.predWs1Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => this.fws.survSystemAlerts.predWsFaultItemsToShow(0),
+      whichItemsChecked: () => [this.fws.tawsWxrSelected.get() === 2, false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => [SURV_INOP_SYS.predWs[0]],
+    },
+    341800041: {
+      // SURV PRED W/S 2 FAULT
+      flightPhaseInhib: PRED_WS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.predWs2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => this.fws.survSystemAlerts.predWsFaultItemsToShow(1),
+      whichItemsChecked: () => [this.fws.tawsWxrSelected.get() === 1, false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => [SURV_INOP_SYS.predWs[1]],
+    },
+    341800042: {
+      // SURV PRED W/S 1+2 FAULT
+      flightPhaseInhib: PRED_WS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.predWs1And2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => [SURV_INOP_SYS.predWs[2]],
+    },
+    341800043: {
+      // SURV REACTIVE W/S DET FAULT: no aural, no master light. Not with the alerts whose STATUS already lists
+      // REACTIVE W/S DET (NAV ADR 1+2+3 FAULT, ALL AIR DATA DISAGREE, AOA DISAGREE, RA SYS A+B+C FAULT).
+      flightPhaseInhib: REACTIVE_WS_DET_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.survSystemAlerts.reactiveWsDetFault,
+      notActiveWhenItemActive: ['340800008', '340800010', '340800014', '340800062'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => [SURV_INOP_SYS.reactiveWsDet],
     },
     // ATA 30 - ICE AND RAIN PROTECTION
     300800001: {

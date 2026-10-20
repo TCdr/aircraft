@@ -20,18 +20,6 @@ export function selectedTransponderFailed(
 }
 
 /**
- * The failed state of the three WXR functions of one SURV system on the STATUS & SWITCHING page (WX DISPLAY, TURB
- * and PRED W/S each show as failed on that SURV system).
- * The TURB and PWS functions are made by the radar of that system: the sim has no failure of its own for them, so they
- * fail with the WXR of the system (L:A32NX_WXR_n_FAILED: AESU reset or unpowered).
- * @param wxrSystemFailed L:A32NX_WXR_n_FAILED of the system
- * @returns the failed state of WX DISPLAY, TURB and PRED W/S
- */
-export function wxrFunctionsFailed(wxrSystemFailed: boolean): { wxDisplay: boolean; turb: boolean; predWs: boolean } {
-  return { wxDisplay: wxrSystemFailed, turb: wxrSystemFailed, predWs: wxrSystemFailed };
-}
-
-/**
  * The SURV system that provides the TAWS functions (L:A32NX_TAWS_SYS_IN_USE, systems host EfisTawsBridge), the
  * selected WXR/TAWS system when it is not written yet.
  * @param wxrTawsSelected L:A32NX_WXR_TAWS_SYS_SELECTED

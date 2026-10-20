@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { Coordinates, placeBearingDistance } from 'msfs-geo';
+import { Coordinates, distanceTo, placeBearingDistance } from 'msfs-geo';
 import { FmNavigationMode } from '@fmgc/navigation/PositionUncertainty';
 
 /*
@@ -243,6 +243,29 @@ export function isFmGpsPositionDisagree(
   return false;
 }
 
+/**
+ * Design choice: Airbus gives no number for the "significant drift" of NAV FM / IR POS DISAGREE. 5 NM is more than
+ * two hours of the 2 NM/h IRS drift specification. The IRS do not drift in the sim, so the difference is the bias of
+ * the FM position (a manual position update, a takeoff update with a takeoff shift, the GPS error).
+ */
+const FM_IR_DISAGREE_THRESHOLD_NM = 5;
+
+/**
+ * Whether an FM position and an IR position disagree: either FM position is farther than the threshold from any valid
+ * IR position.
+ * @param fmPositions the FM positions (FMS 1 and 2)
+ * @param irPositions the IR positions (IR 1, 2 and 3), null when not valid
+ * @param thresholdNm the threshold, in NM
+ * @returns true when one FM position and one IR position differ by more than the threshold
+ */
+export function isFmIrPositionDisagree(
+  fmPositions: readonly Coordinates[],
+  irPositions: readonly (Coordinates | null)[],
+  thresholdNm: number,
+): boolean {
+  return fmPositions.some((fm) => irPositions.some((ir) => ir !== null && distanceTo(fm, ir) > thresholdNm));
+}
+
 /** The order in which FMS 1 and FMS 2 select a GPIRS position: onside, GPIRS 3, offside */
 const GPIRS_SELECTION_ORDERS: Readonly<Record<1 | 2, readonly [number, number, number]>> = {
   1: [1, 3, 2],
@@ -355,6 +378,8 @@ export class FmPositionComputer {
 
   private disagree = false;
 
+  private irDisagree = false;
+
   private lastInputs: FmPositionInputs | null = null;
 
   /** @param config what differs between the A320 and the A380 */
@@ -368,6 +393,11 @@ export class FmPositionComputer {
   /** The NAV FM/GPS POS DISAGREE condition */
   public get isFmGpsDisagree(): boolean {
     return this.disagree;
+  }
+
+  /** The NAV FM / IR POS DISAGREE condition (A380), inhibited in GPS PRIMARY */
+  public get isFmIrDisagree(): boolean {
+    return this.irDisagree;
   }
 
   /**
@@ -415,7 +445,7 @@ export class FmPositionComputer {
   }
 
   /**
-   * Updates the FM positions and the FM/GPS POS DISAGREE condition.
+   * Updates the FM positions and the FM/GPS and FM/IR POS DISAGREE conditions.
    * @param inputs the inputs
    */
   public update(inputs: FmPositionInputs): void {
@@ -438,6 +468,10 @@ export class FmPositionComputer {
       inertialValid &&
       (!this.config.fmGpsDisagreeNeedsGpsPrimary || inputs.gpsPrimary) &&
       isFmGpsPositionDisagree(this.fmPositions, inputs.gpsPositions, this.config.fmGpsDisagreeThreshold);
+    this.irDisagree =
+      inertialValid &&
+      !inputs.gpsPrimary &&
+      isFmIrPositionDisagree(this.fmPositions, inputs.irPositions, FM_IR_DISAGREE_THRESHOLD_NM);
   }
 
   /**

@@ -191,6 +191,8 @@ export class Navigation implements NavigationProvider {
   /** The NAV FM/GPS POS DISAGREE condition, sent to the FWC/FWS */
   private readonly fmGpsPositionDisagree = Subject.create(false);
 
+  private readonly fmIrPositionDisagree = Subject.create(false);
+
   /** The GPIRS data of IR 1, 2 and 3, read at each update */
   private readonly gpirs: [GpirsData, GpirsData, GpirsData] = [1, 2, 3].map(() => ({
     positionValid: false,
@@ -275,6 +277,10 @@ export class Navigation implements NavigationProvider {
     this.flightPhase.sub((phase) => phase === FmgcFlightPhase.Takeoff && this.updatePositionAtTakeoff());
     this.fmGpsPositionDisagree.sub(
       (v) => SimVar.SetSimVarValue('L:A32NX_FM_GPS_POS_DISAGREE', SimVarValueType.Bool, v),
+      true,
+    );
+    this.fmIrPositionDisagree.sub(
+      (v) => SimVar.SetSimVarValue('L:A32NX_FM_IR_POS_DISAGREE', SimVarValueType.Bool, v),
       true,
     );
     this.windDirection.sub((v) => this.publisher.pub('fms_nav_wind_direction', v, false, true), true);
@@ -480,6 +486,7 @@ export class Navigation implements NavigationProvider {
     this.ppos.lat = position.lat;
     this.ppos.long = position.long;
     this.fmGpsPositionDisagree.set(this.fmPosition.isFmGpsDisagree);
+    this.fmIrPositionDisagree.set(this.fmPosition.isFmIrDisagree);
 
     this.nearbyAirportMonitor.setLocation(this.ppos.lat, this.ppos.long);
   }

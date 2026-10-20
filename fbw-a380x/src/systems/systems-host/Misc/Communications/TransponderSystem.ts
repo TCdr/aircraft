@@ -41,11 +41,12 @@ export function isXpdrTcasPowered(system: SurvSystem, acEssPowered: boolean, ac4
 }
 
 /**
- * Whether the transponder of a surveillance system can work: powered and not failed.
+ * Whether the transponder of a surveillance system can work: powered, not failed, and its SURV system not lost.
  * @param system the surveillance system
  * @param acEssPowered whether the AC ESS busbar (400XP) is powered
  * @param ac4Powered whether the AC 4 busbar is powered
  * @param isFailureActive whether a failure is active
+ * @param survSystemLost whether the whole SURV system is lost (AESU failed or reset, SurvSystemFailures.ts)
  * @returns whether the transponder of that system is operative
  */
 export function isTransponderOperative(
@@ -53,8 +54,13 @@ export function isTransponderOperative(
   acEssPowered: boolean,
   ac4Powered: boolean,
   isFailureActive: (failure: number) => boolean,
+  survSystemLost: boolean,
 ): boolean {
-  return isXpdrTcasPowered(system, acEssPowered, ac4Powered) && !isFailureActive(transponderFailureKey(system));
+  return (
+    isXpdrTcasPowered(system, acEssPowered, ac4Powered) &&
+    !isFailureActive(transponderFailureKey(system)) &&
+    !survSystemLost
+  );
 }
 
 /**

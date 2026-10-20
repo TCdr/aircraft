@@ -278,6 +278,8 @@ pub enum FailureType {
     Gps(usize),
     /// The ILS receiver of MMR 1 or 2: no localiser and glideslope (navigation::ils)
     IlsReceiver(usize),
+    /// MMR 1 or 2 fails as a whole: its ILS receiver (navigation::ils) and its GPS receiver (navigation::gnss)
+    MultiModeReceiver(usize),
     /// The total pressure (pitot) input of ADR n is erroneous: its airspeed and Mach read low, with a valid status.
     /// The ADR does not see it; only a comparison with the other air data sources (PRIM monitoring) can detect it.
     AdrAirspeedErroneous(usize),

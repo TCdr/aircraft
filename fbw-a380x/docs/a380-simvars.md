@@ -2644,6 +2644,16 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - Normally the selected WXR/TAWS system (`L:A32NX_WXR_TAWS_SYS_SELECTED`); the other system after the automatic reconfiguration of SURV TAWS 1(2) FAULT (the TAWS of the selected system failed, the WXR of the other system failed, its TAWS operative), shown as TAWS 1(2) IN USE on the MFD SURV STATUS & SWITCHING page
     - Read by the GPWS, the FWS (TERR STBY), the MFD SURV pages and the ND/VD terrain (ndwxr)
 
+- `L:A32NX_WXR_{1,2}_TURB_FAILED`
+    - Bool
+    - The turbulence detection of SURV SYS 1 (2) is failed: its flyPad failure, or the system lost (SURV SYS failure, AESU reset) or unpowered. Written by the systems host (EfisTawsBridge)
+    - Read by the FWS (SURV TURB 1(2)(1+2) FAULT), the MFD SURV STATUS & SWITCHING page and the ND radar (ndwxr: no magenta turbulence from a failed system)
+
+- `L:A32NX_WXR_{1,2}_PRED_WS_FAILED`
+    - Bool
+    - The predictive windshear function of SURV SYS 1 (2) is failed, as `L:A32NX_WXR_{1,2}_TURB_FAILED`. Written by the systems host (EfisTawsBridge)
+    - Read by the FWS (SURV PRED W/S 1(2)(1+2) FAULT) and the MFD SURV STATUS & SWITCHING page
+
 - `L:A380X_TCAS_ALERT_LEVEL`
     - Enum
     - The TCAS alert level selected on the MFD SURV CONTROLS page, mirrored by the TCAS computer for the pedestal SURV panel lights
@@ -2755,6 +2765,11 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - The FMS FM/GPS position disagree condition for the NAV FM / GPS POS DISAGREE alert: an FMS position more than the
       FCOM latitude/longitude thresholds away from a GPS receiver position (FCOM PRO-ABN-ECAM-10-34-10). Written by the
       FMS (fmgc navigation/FmPosition.ts), read by the FWS
+
+- A32NX_FM_IR_POS_DISAGREE
+    - Bool
+    - The FMS FM/IR position disagree condition for the NAV FM / IR POS DISAGREE alert: an FMS position more than 5 NM
+      from a valid IR position, not in GPS PRIMARY. Written by the FMS (fmgc navigation/FmPosition.ts), read by the FWS
 
 - A32NX_PRIM_ADR_{number}_REJECTED
     - Bool

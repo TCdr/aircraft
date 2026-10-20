@@ -5,6 +5,19 @@ import { Arinc429Word } from '../arinc429';
 import { ReactiveWindshearDetection } from './ReactiveWindshearDetection';
 
 /**
+ * Whether the reactive windshear detection can run: at least one of its computers healthy and the function not failed.
+ * @param computersHealthy whether each computer that runs the detection is healthy
+ * @param detectionFailed whether the detection function itself is failed (A380 flyPad failure)
+ * @returns whether the detection is available
+ */
+export function isReactiveWindshearDetectionAvailable(
+  computersHealthy: readonly boolean[],
+  detectionFailed: boolean,
+): boolean {
+  return !detectionFailed && computersHealthy.some((healthy) => healthy);
+}
+
+/**
  * Runs the reactive windshear detection (ReactiveWindshearDetection) of an aircraft in its systems host, on the
  * ADIRS, radio altimeter, landing gear and flaps lever data both aircraft share, and writes the warning to
  * L:A32NX_REACTIVE_WINDSHEAR_WARNING (red WINDSHEAR on the PFDs, AttitudeIndicatorWarnings).
@@ -26,10 +39,12 @@ export class ReactiveWindshearComputer {
   /**
    * @param computerHealthyVars the L:vars of the computers that run the detection (true when healthy)
    * @param minimumWarningDurationS how long the warning stays at least (A320 15 s, A380 0 s)
+   * @param isDetectionFailed whether the detection function itself is failed
    */
   constructor(
     private readonly computerHealthyVars: readonly string[],
     minimumWarningDurationS: number,
+    private readonly isDetectionFailed: () => boolean = () => false,
   ) {
     this.detection = new ReactiveWindshearDetection(minimumWarningDurationS);
   }
@@ -48,7 +63,10 @@ export class ReactiveWindshearComputer {
       onGround:
         SimVar.GetSimVarValue('L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', 'bool') > 0 ||
         SimVar.GetSimVarValue('L:A32NX_LGCIU_1_RIGHT_GEAR_COMPRESSED', 'bool') > 0,
-      computerAvailable: this.computerHealthyVars.some((v) => SimVar.GetSimVarValue(v, 'bool') > 0),
+      computerAvailable: isReactiveWindshearDetectionAvailable(
+        this.computerHealthyVars.map((v) => SimVar.GetSimVarValue(v, 'bool') > 0),
+        this.isDetectionFailed(),
+      ),
       flapsLeverOutOfZero: SimVar.GetSimVarValue('L:A32NX_FLAPS_HANDLE_INDEX', 'number') >= 1,
       radioAltitudeFt: ReactiveWindshearComputer.radioAltitude(),
       trueAirspeedKt: ReactiveWindshearComputer.adiruValue('L:A32NX_ADIRS_ADR_#_TRUE_AIRSPEED'),

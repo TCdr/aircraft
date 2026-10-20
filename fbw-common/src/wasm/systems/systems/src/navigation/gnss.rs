@@ -424,6 +424,8 @@ impl NavigationStep {
 pub struct GpsReceiver {
     number: usize,
     failure: Failure,
+    /// The MMR that hosts this receiver fails as a whole
+    mmr_failure: Failure,
     powered_by: ElectricalBusType,
     is_powered: bool,
     /// Whether the receiver uses satellite based augmentation (DIFF mode)
@@ -530,6 +532,7 @@ impl GpsReceiver {
         Self {
             number,
             failure: Failure::new(FailureType::Gps(number)),
+            mmr_failure: Failure::new(FailureType::MultiModeReceiver(number)),
             powered_by,
             is_powered: false,
             sbas_capable,
@@ -606,7 +609,7 @@ impl GpsReceiver {
             return;
         }
 
-        if self.failure.is_active() {
+        if self.has_failed() {
             self.mode = GpsReceiverMode::Fault;
             return;
         }
@@ -809,7 +812,7 @@ impl GpsReceiver {
     }
 
     pub fn has_failed(&self) -> bool {
-        self.failure.is_active()
+        self.failure.is_active() || self.mmr_failure.is_active()
     }
 
     /// The status of the data words: valid in the navigation modes, functional test during the self test, no computed
@@ -901,6 +904,7 @@ impl GpsReceiver {
 impl SimulationElement for GpsReceiver {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.failure.accept(visitor);
+        self.mmr_failure.accept(visitor);
         visitor.visit(self);
     }
 
@@ -1519,6 +1523,19 @@ mod tests {
 
         // repaired: it starts again with the self test
         bed.unfail(FailureType::Gps(1));
+        bed = bed.run_for(1);
+        assert_eq!(bed.mode(), GpsReceiverMode::Test);
+    }
+
+    #[test]
+    fn a_failed_mmr_takes_its_gps_receiver_with_it() {
+        let mut bed = GpsTestBed::new(StartState::Cruise).run_for(1);
+        bed.fail(FailureType::MultiModeReceiver(1));
+        bed = bed.run_for(1);
+        assert_eq!(bed.mode(), GpsReceiverMode::Fault);
+        assert_eq!(bed.latitude().ssm(), SignStatus::FailureWarning);
+
+        bed.unfail(FailureType::MultiModeReceiver(1));
         bed = bed.run_for(1);
         assert_eq!(bed.mode(), GpsReceiverMode::Test);
     }

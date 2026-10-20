@@ -154,6 +154,12 @@ static void testRangeFraction() {
   expectNear("limit 0", wxRangeFraction(0.0f, 80.0f), 0.0f, 1e-6f);
 }
 
+static void testTurbulenceShown() {
+  expectTrue("TURB AUTO, detection working: turbulence shown", a380TurbulenceShown(false, false));
+  expectTrue("TURB OFF: no turbulence", !a380TurbulenceShown(true, false));
+  expectTrue("detection failed: no turbulence", !a380TurbulenceShown(false, true));
+}
+
 int main() {
   testGainPercentToDb();
   testEffectiveGain();
@@ -164,6 +170,7 @@ int main() {
   testTiltGroundRange();
   testDisplayRangeLimit();
   testRangeFraction();
+  testTurbulenceShown();
   if (failures == 0) {
     std::printf("wxr_controls_test: all passed\n");
   }
