@@ -13,6 +13,7 @@ import {
 } from '@fmgc/flightplanning/AircraftConfigTypes';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import type { EconAircraftParameters } from '@fmgc/guidance/vnav/EconSpeeds';
+import { FmgcFlightPhase } from '@shared/flightphase';
 import { FpmConfigs } from './FpmConfig';
 
 const lnavConfig: LnavConfig = {
@@ -32,6 +33,19 @@ const vnavConfig: VnavConfig = {
   LIM_PSEUDO_WPT_LABEL: '(SPDLIM)',
   VMO: 340,
   MMO: 0.89,
+  ENERGY_CIRCLE: {
+    // Design choice: airborne phases only. The rule itself is the distance to the destination; on the ground there is
+    // no descent to show.
+    phases: [FmgcFlightPhase.Climb, FmgcFlightPhase.Cruise, FmgcFlightPhase.Descent, FmgcFlightPhase.Approach],
+    selectedLateralModeOnly: false,
+    maxDistanceToDestination: 180,
+  },
+  CABIN_PRESSURIZATION: {
+    // The values of the A380 pressurization model of the a380_systems crate
+    maxDeltaPressure: 8.6,
+    maxCabinAltitude: 7500,
+    cabinRateExceededPhases: [FmgcFlightPhase.Cruise],
+  },
 };
 
 const flightModelParams: FlightModelParameters = {

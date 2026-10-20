@@ -34,6 +34,7 @@ import { GpsIsDeselected } from './GpsIsDeselected';
 import { CheckApproachSelection } from './CheckApproachSelection';
 import { AreaRnp, ProcedureRnp } from './RnpMessages';
 import { CheckIrsAirportPosition, IrsOnlyNavigation } from './IrsPositionMessages';
+import { CabinRateExceeded } from './CabinRateExceeded';
 
 /**
  * This class manages Type II messages sent from the FMGC.
@@ -82,6 +83,7 @@ export class FmsMessages implements FmgcComponent {
     new ProcedureRnp(),
     new CheckIrsAirportPosition(),
     new IrsOnlyNavigation(),
+    new CabinRateExceeded(),
   ];
 
   constructor(private readonly bus: EventBus) {}

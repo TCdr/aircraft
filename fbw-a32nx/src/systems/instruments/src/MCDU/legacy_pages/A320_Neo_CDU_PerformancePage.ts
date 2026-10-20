@@ -6,7 +6,7 @@ import { ApproachUtils, NXUnits, RunwayUtils, ApproachType } from '@flybywiresim
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { CDUStepAltsPage } from './A320_Neo_CDU_StepAltsPage';
 import { CDUUplinkTakeoffDataPages } from './A320_Neo_CDU_UplinkTakeoffDataPages';
-import { NXFictionalMessages, NXSystemMessages } from '../messages/NXSystemMessages';
+import { NXSystemMessages } from '../messages/NXSystemMessages';
 import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { FlightPlanIndex } from '../../../../fmgc/src/flightplanning/FlightPlanManager';
@@ -14,6 +14,7 @@ import { BitFlags } from '@microsoft/msfs-sdk';
 import { FlightPlanFlags } from '@fmgc/flightplanning/plans/FlightPlanFlags';
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
+import { descentCabinRateField, parseDescentCabinRateEntry } from '@fmgc/guidance/vnav/descent/CabinRepressurization';
 
 export class CDUPerformancePage {
   private static _timer: number = 0;
@@ -721,7 +722,7 @@ export class CDUPerformancePage {
       ? CDUPerformancePage.formatToReasonDistanceAndTime(mcdu, forPlan)
       : ['', '', '', ''];
 
-    const desCabinRateCell = shouldShowCabinRate ? '{small}-350{end}' : '';
+    const desCabinRateCell = shouldShowCabinRate ? CDUPerformancePage.formatDescentCabinRateCell(mcdu, targetPlan) : '';
 
     const cruiseLevel = targetPlan.performanceData.cruiseFlightLevel.get();
     const shouldShowStepAltsOption =
@@ -782,9 +783,12 @@ export class CDUPerformancePage {
     }
 
     if (shouldShowCabinRate) {
-      mcdu.onRightInput[3] = () => {
-        // DES CABIN RATE
-        mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
+      mcdu.onRightInput[3] = (value, scratchpadCallback) => {
+        if (CDUPerformancePage.trySetDescentCabinRate(mcdu, value, forPlan)) {
+          CDUPerformancePage.ShowCRZPage(mcdu, forPlan);
+        } else {
+          scratchpadCallback();
+        }
       };
     }
 
@@ -835,6 +839,37 @@ export class CDUPerformancePage {
       bottomRowLabels,
       bottomRowCells,
     ]);
+  }
+
+  private static formatDescentCabinRateCell(mcdu: LegacyFmsPageInterface, plan: FlightPlan): string {
+    const field = descentCabinRateField(
+      plan.performanceData.descentCabinRate?.get(),
+      mcdu.guidanceController?.vnavDriver?.getDescentCabinRateDisplay() ?? null,
+    );
+    return field.isPilotEntered ? `${field.rate}` : `{small}${field.rate}{end}`;
+  }
+
+  /** A DES CABIN RATE entry, or CLR back to the default rate */
+  private static trySetDescentCabinRate(
+    mcdu: LegacyFmsPageInterface,
+    value: string,
+    forPlan: FlightPlanIndex,
+  ): boolean {
+    if (value === Keypad.clrValue) {
+      mcdu.flightPlanService.setPerformanceData('descentCabinRate', null, forPlan);
+      return true;
+    }
+
+    const entry = parseDescentCabinRateEntry(value);
+    if ('error' in entry) {
+      mcdu.setScratchpadMessage(
+        entry.error === 'range' ? NXSystemMessages.entryOutOfRange : NXSystemMessages.formatError,
+      );
+      return false;
+    }
+
+    mcdu.flightPlanService.setPerformanceData('descentCabinRate', entry.rate, forPlan);
+    return true;
   }
 
   static ShowDESPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, confirmAppr = false) {

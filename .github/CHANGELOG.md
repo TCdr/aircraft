@@ -805,6 +805,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Without a cost index entry before the ZFW, the FMS sets the cost index of the previous flight (0 after a power-up) with the COST INDEX-NNN IN USE message, instead of CI 0 in LRC mode - @TCdr
 1. [A32NX/MCDU] F-PLN and DIR TO distances stay blank instead of showing NaN while the flight plan is recomputed - @TCdr
 1. [FMS] Fixed VNAV predictions: the cruise acceleration now accounts for the aircraft weight, and the idle descent path no longer plans a speed change above the crossover altitude where the descent Mach already limits the speed - @TCdr
+1. [ND] Energy circle: green arc of the required distance to land, A32NX in descent and approach in HDG/TRK, A380X dashed within 180 NM of the destination (ARC and ROSE NAV) - @TCdr
+1. [FMS] The descent profile keeps the cabin within the maximum descent cabin rate (default -350 ft/min): a repressurization segment moves the T/D back when the idle descent is too short - @TCdr
+1. [A32NX/MCDU] PERF CRZ DES CABIN RATE can be entered (100 to 999 ft/min, CLR for the default) and shows the computed rate when it cannot be met, with the CABIN RATE EXCEEDED message - @TCdr
+1. [A380X/FMS] The PERF page DES CABIN RATE is used by the predictions (small font for the default or computed rate), with the CABIN RATE EXCEEDED message - @TCdr
 
 ## 2024.1.0
 
