@@ -113,8 +113,14 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['210500004', { part: StatusPart.Condition, text: 'DURING FINAL APPR:' }],
   ['210400009', { part: StatusPart.Limitation, text: 'MAN V/S CTL.....FULL UP' }],
   ['210400010', { part: StatusPart.Limitation, text: 'V/S CTL.........FULL UP' }],
+  // AIR PACK 1(2) OVHT, see FWC/Logic/AirPackAlerts
+  ['210500005', { part: StatusPart.Condition, text: 'WHEN PACK OVHT OUT:' }],
+  ['210400011', { part: StatusPart.Limitation, text: 'PACK 1...............ON' }],
+  ['210400012', { part: StatusPart.Limitation, text: 'PACK 2...............ON' }],
   // 30 ICE AND RAIN PROTECTION (WING A.ICE L(R) HI PR), see FWC/Logic/WingAntiIceAlerts
   ['300400001', { part: StatusPart.Limitation, text: 'THRUST LIM PENALTY' }],
+  // WING A.ICE L(R) VALVE OPEN and OPEN ON GND, see FWC/Logic/WingAntiIceValveOpenAlerts
+  ['300200001', { part: StatusPart.Information, text: 'WAI AVAIL IN FLT' }],
   // 32 LANDING GEAR (GEAR NOT UPLOCKED, DOORS NOT CLOSED), see FWC/Logic/LandingGearAlerts
   ['320400001', { part: StatusPart.Limitation, text: 'MAX SPEED.......280/.67' }],
   ['320400002', { part: StatusPart.Limitation, text: 'MAX SPEED.......250/.60' }],
@@ -131,6 +137,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['240400102', { part: StatusPart.Limitation, text: 'L/G..........GRVTY EXTN' }],
   // 32 LANDING GEAR (NORM + ALTN FAULT STATUS), see FWC/Logic/BrakeSystemAlerts
   ['320400090', { part: StatusPart.Limitation, text: 'PARK BRK ONLY' }],
+  // L/G GEAR UPLOCK FAULT, see FWC/Logic/BrakeGearFaultAlerts
+  ['320400091', { part: StatusPart.Limitation, text: 'L/G...........KEEP DOWN' }],
   // 29 HYDRAULIC (STATUS), see FWC/Logic/HydraulicAlerts: limitations, then the APPR PROC block, then the procedures,
   // as on the STATUS pages
   ['290400001', { part: StatusPart.Limitation, text: 'MIN RAT SPD......140 KT' }],
@@ -494,6 +502,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   // 31 INDICATING/RECORDING (FWS FWC 1(2) FAULT)
   ['310300001', { part: StatusPart.InopSys, text: 'FWC 1' }],
   ['310300002', { part: StatusPart.InopSys, text: 'FWC 2' }],
+  // FWS SDAC 1+2 FAULT and RECORDER DFDR FAULT, see FWC/Logic/EisRecorderAlerts
+  ['310300003', { part: StatusPart.InopSys, text: 'SDAC 1+2' }],
+  ['310300004', { part: StatusPart.InopSys, text: 'DFDR' }],
   // 26 FIRE PROTECTION (ENG 1(2) FIRE LOOP A(B) FAULT / FIRE DET FAULT)
   ['260300001', { part: StatusPart.InopSys, text: 'ENG 1 LOOP A' }],
   ['260300002', { part: StatusPart.InopSys, text: 'ENG 1 LOOP B' }],
@@ -507,6 +518,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   // SMOKE FWD (AFT) CRG DET FAULT STATUS
   ['260300010', { part: StatusPart.InopSys, text: 'FWD CRG DET' }],
   ['260300011', { part: StatusPart.InopSys, text: 'AFT CRG DET' }],
+  // SMOKE DET FAULT, see FWC/Logic/LavatorySmokeAlerts
+  ['260300012', { part: StatusPart.InopSys, text: 'SMOKE DET' }],
   // 28 FUEL
   ['280300001', { part: StatusPart.InopSys, text: 'L TK PUMP 1' }],
   ['280300002', { part: StatusPart.InopSys, text: 'L TK PUMP 2' }],
@@ -626,6 +639,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['240300160', { part: StatusPart.InopSys, text: 'B ELEC PUMP' }],
   ['240300161', { part: StatusPart.InopSys, text: 'Y ELEC PUMP' }],
   ['240300162', { part: StatusPart.InopSys, text: 'ENG 2 START' }],
+  // AIR PACK 1 REGUL FAULT, next to PACK 2 REGUL that it shares with the ELEC alerts, see FWC/Logic/AirPackAlerts
+  ['210300019', { part: StatusPart.InopSys, text: 'PACK 1 REGUL' }],
   ['240300163', { part: StatusPart.InopSys, text: 'PACK 2 REGUL' }],
   ['240300164', { part: StatusPart.InopSys, text: 'CAB PR 1' }],
   ['240300165', { part: StatusPart.InopSys, text: 'CAB PR 2' }],

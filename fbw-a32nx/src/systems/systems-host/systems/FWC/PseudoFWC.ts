@@ -361,6 +361,16 @@ import {
   CommunicationAlerts,
   readComSystemInputs,
 } from './Logic/CommunicationAlerts';
+import { AirPackAlerts } from './Logic/AirPackAlerts';
+import { LavatorySmokeAlerts, readLavatorySmokeInputs } from './Logic/LavatorySmokeAlerts';
+import { IdgCoolingAlerts } from './Logic/IdgCoolingAlerts';
+import { EisRecorderAlerts } from './Logic/EisRecorderAlerts';
+import { WingAntiIceValveOpenAlerts, readWingAntiIceValveOpenInputs } from './Logic/WingAntiIceValveOpenAlerts';
+import { BrakeGearFaultAlerts, readBrakeGearFaultInputs } from './Logic/BrakeGearFaultAlerts';
+import {
+  EngineIndicationDiscrepancyAlerts,
+  readEngineDiscrepancyInputs,
+} from './Logic/EngineIndicationDiscrepancyAlerts';
 import { autoPilotOffInvoluntaryStatus, autoThrustOffInvoluntaryStatus } from './Logic/AutoFlightStatus';
 import {
   alertStatus,
@@ -2222,6 +2232,28 @@ export class PseudoFWC {
    * Logic/CommunicationAlerts */
   private readonly communicationAlerts = new CommunicationAlerts();
 
+  /** AIR PACK 1(2) OVHT and REGUL FAULT, see Logic/AirPackAlerts */
+  private readonly airPackAlerts = new AirPackAlerts();
+
+  /** SMOKE LAVATORY SMOKE, LAVATORY DET FAULT and DET FAULT, see Logic/LavatorySmokeAlerts */
+  private readonly lavatorySmokeAlerts = new LavatorySmokeAlerts();
+
+  /** FUEL IDG 1(2) COOL FAULT, see Logic/IdgCoolingAlerts */
+  private readonly idgCoolingAlerts = new IdgCoolingAlerts();
+
+  /** EIS DMC 1(2)(3) FAULT, DMC/FWC COM FAULT, FWS SDAC 1(2) / 1+2 FAULT, RECORDER DFDR / SYS FAULT, see
+   * Logic/EisRecorderAlerts */
+  private readonly eisRecorderAlerts = new EisRecorderAlerts();
+
+  /** WING A.ICE L(R) VALVE OPEN and OPEN ON GND, see Logic/WingAntiIceValveOpenAlerts */
+  private readonly wingAntiIceValveOpenAlerts = new WingAntiIceValveOpenAlerts();
+
+  /** BRAKES PARK BRK FAULT and L/G GEAR UPLOCK FAULT, see Logic/BrakeGearFaultAlerts */
+  private readonly brakeGearFaultAlerts = new BrakeGearFaultAlerts();
+
+  /** ENG 1(2) N1 or N2 or EGT or FF DISCREPANCY, see Logic/EngineIndicationDiscrepancyAlerts */
+  private readonly engineIndicationDiscrepancyAlerts = new EngineIndicationDiscrepancyAlerts();
+
   /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
   private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
 
@@ -2967,6 +2999,9 @@ export class PseudoFWC {
     this.ventilationAlerts.init();
     this.tcasModeFaultAlert.init();
     this.communicationAlerts.init();
+    this.airPackAlerts.init();
+    this.idgCoolingAlerts.init();
+    this.eisRecorderAlerts.init();
 
     Promise.all([
       KeyEventManager.getManager(this.bus),
@@ -4987,13 +5022,23 @@ export class PseudoFWC {
     this.packOffBleedAvailable2.write((eng2Bleed === 1 && !eng2BleedPbFault) || !crossbleedFullyClosed, deltaTime);
     this.packOffNotFailed1Status.set(
       this.packOffNotFailed1.write(
-        !this.pack1On.get() && !pack1Fault && this.packOffBleedAvailable1.read() && this.fwcFlightPhase.get() === 6,
+        !this.pack1On.get() &&
+          !pack1Fault &&
+          // an overheated pack is OFF by its own procedure: AIR PACK 1 OVHT, not PACK 1 OFF
+          !this.airPackAlerts.isOverheatAlertActive(0) &&
+          this.packOffBleedAvailable1.read() &&
+          this.fwcFlightPhase.get() === 6,
         deltaTime,
       ),
     );
     this.packOffNotFailed2Status.set(
       this.packOffNotFailed2.write(
-        !this.pack2On.get() && !pack2Fault && this.packOffBleedAvailable2.read() && this.fwcFlightPhase.get() === 6,
+        !this.pack2On.get() &&
+          !pack2Fault &&
+          // an overheated pack is OFF by its own procedure: AIR PACK 2 OVHT, not PACK 2 OFF
+          !this.airPackAlerts.isOverheatAlertActive(1) &&
+          this.packOffBleedAvailable2.read() &&
+          this.fwcFlightPhase.get() === 6,
         deltaTime,
       ),
     );
@@ -6058,7 +6103,8 @@ export class PseudoFWC {
     );
     this.wingAntiIceAlerts.update(readWingAntiIceInputs(), deltaTime / 1000);
     this.doorAlerts.update(readDoorsNotClosed(), this.aircraftOnGround.get());
-    this.landingGearAlerts.update(readLandingGearInputs(this.gearNotUplockedWarning.get()), deltaTime / 1000);
+    const landingGearInputs = readLandingGearInputs(this.gearNotUplockedWarning.get());
+    this.landingGearAlerts.update(landingGearInputs, deltaTime / 1000);
     this.gpwsAlerts.update(readGpwsInputs());
     this.predictiveWindshearAlerts.update();
     this.engineFadecFaultAlerts.update({
@@ -6080,6 +6126,16 @@ export class PseudoFWC {
       this.fmgc1DiscreteWord1.get().isNormalOperation() || this.fmgc2DiscreteWord1.get().isNormalOperation(),
     );
     this.communicationAlerts.update(readComSystemInputs(), deltaTime / 1000);
+    this.airPackAlerts.update();
+    this.lavatorySmokeAlerts.update(readLavatorySmokeInputs());
+    this.idgCoolingAlerts.update();
+    this.eisRecorderAlerts.update(this.dmcSwitchingKnob.get(), this.fwcFlightPhase.get(), deltaTime / 1000);
+    this.wingAntiIceValveOpenAlerts.update(
+      readWingAntiIceValveOpenInputs(this.aircraftOnGround.get(), this.fwcFlightPhase.get()),
+      deltaTime / 1000,
+    );
+    this.brakeGearFaultAlerts.update(readBrakeGearFaultInputs(landingGearInputs.lgcius));
+    this.engineIndicationDiscrepancyAlerts.update(readEngineDiscrepancyInputs(this.dmcSwitchingKnob.get()));
 
     /* ENG 1(2) OIL LO PR, OIL HI TEMP, OIL FILTER CLOG (see Logic/EngineOilAlerts) */
     // The oil pressure and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
@@ -10576,6 +10632,13 @@ export class PseudoFWC {
     ...this.ventilationAlerts.ewdFailures,
     ...this.tcasModeFaultAlert.ewdFailures,
     ...this.communicationAlerts.ewdFailures,
+    ...this.airPackAlerts.ewdFailures,
+    ...this.lavatorySmokeAlerts.ewdFailures,
+    ...this.idgCoolingAlerts.ewdFailures,
+    ...this.eisRecorderAlerts.ewdFailures,
+    ...this.wingAntiIceValveOpenAlerts.ewdFailures,
+    ...this.brakeGearFaultAlerts.ewdFailures,
+    ...this.engineIndicationDiscrepancyAlerts.ewdFailures,
     2161291: {
       // COND CTL 1-A FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9],

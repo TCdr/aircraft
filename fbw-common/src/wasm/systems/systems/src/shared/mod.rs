@@ -1157,6 +1157,8 @@ pub enum SmokeDetectionZone {
     BulkCargo,
     /// The A320 avionics ventilation air extraction duct
     Avionics,
+    /// The A320 lavatories: a smoke detector in the air extraction duct of each lavatory, on the SDCU
+    Lavatory,
     LeftMainAvionics,
     RightMainAvionics,
     LeftUpperAvionics,
@@ -1176,6 +1178,7 @@ impl Display for SmokeDetectionZone {
             SmokeDetectionZone::AftCargo => "AFT_CARGO",
             SmokeDetectionZone::BulkCargo => "BULK_CARGO",
             SmokeDetectionZone::Avionics => "AVIONICS",
+            SmokeDetectionZone::Lavatory => "LAVATORY",
             SmokeDetectionZone::LeftMainAvionics => "L_MAIN_AVNCS",
             SmokeDetectionZone::RightMainAvionics => "R_MAIN_AVNCS",
             SmokeDetectionZone::LeftUpperAvionics => "L_UPPER_AVNCS",

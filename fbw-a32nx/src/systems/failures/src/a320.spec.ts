@@ -653,4 +653,103 @@ describe('A320 flyPad failures', () => {
     expect(failureList).toContain('SidestickPriorityLogic = 27021,');
     expect(failureList).toContain('StabilizerElecControl = 27022,');
   });
+
+  // The FWC alerts of these failures: AIR PACK 1(2) OVHT and REGUL FAULT, SMOKE LAVATORY SMOKE / DET FAULT and SMOKE DET
+  // FAULT, WING A.ICE L(R) VALVE OPEN and OPEN ON GND, L/G GEAR UPLOCK FAULT, BRAKES PARK BRK FAULT
+  it('lists the pack, smoke detection, wing anti-ice, uplock and parking brake failures with their Rust failure', () => {
+    const expected: [number, number, string, string, string][] = [
+      [21, 21027, 'Pack1Overheat', 'PackOverheat(1)', 'Pack 1 overheat (compressor outlet)'],
+      [21, 21028, 'Pack2Overheat', 'PackOverheat(2)', 'Pack 2 overheat (compressor outlet)'],
+      [21, 21029, 'Pack1Regulation', 'PackRegulation(1)', 'Pack 1 temperature regulation (bypass valve)'],
+      [21, 21030, 'Pack2Regulation', 'PackRegulation(2)', 'Pack 2 temperature regulation (bypass valve)'],
+      [26, 26021, 'LavatorySmoke', 'Smoke(SmokeDetectionZone::Lavatory)', 'Lavatory smoke'],
+      [26, 26022, 'LavatorySmokeDetector', 'SmokeDetector(SmokeDetectionZone::Lavatory,1)', 'Lavatory smoke detector'],
+      [
+        26,
+        26023,
+        'SmokeDetectionControlUnitChannel1',
+        'SmokeDetectionControlUnitChannel(1)',
+        'SDCU channel 1 (smoke detection)',
+      ],
+      [
+        26,
+        26024,
+        'SmokeDetectionControlUnitChannel2',
+        'SmokeDetectionControlUnitChannel(2)',
+        'SDCU channel 2 (smoke detection)',
+      ],
+      [
+        30,
+        30020,
+        'LeftWingAntiIceValveStuckOpen',
+        'WingAntiIceValveStuckOpen(1)',
+        'Left wing anti-ice valve stuck open',
+      ],
+      [
+        30,
+        30021,
+        'RightWingAntiIceValveStuckOpen',
+        'WingAntiIceValveStuckOpen(2)',
+        'Right wing anti-ice valve stuck open',
+      ],
+      [
+        32,
+        32030,
+        'GearUplockStuckLockedNose',
+        'GearUplockStuckLocked(GearActuatorId::GearNose)',
+        'Nose gear uplock stuck locked',
+      ],
+      [
+        32,
+        32031,
+        'GearUplockStuckLockedLeft',
+        'GearUplockStuckLocked(GearActuatorId::GearLeft)',
+        'Main left gear uplock stuck locked',
+      ],
+      [
+        32,
+        32032,
+        'GearUplockStuckLockedRight',
+        'GearUplockStuckLocked(GearActuatorId::GearRight)',
+        'Main right gear uplock stuck locked',
+      ],
+      [32, 32220, 'ParkingBrakeValveJammed', 'ParkingBrakeValveJammed', 'Parking brake valve jammed'],
+    ];
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8')
+      .replace(/\s/g, '')
+      .replace(/,\)/g, ')');
+    for (const [chapter, id, key, rustFailure, label] of expected) {
+      expect((A320Failure as Record<string, number>)[key]).toBe(id);
+      expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, label]);
+      const rustId = `${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')}`;
+      expect(wasm).toContain(`(${rustId},FailureType::${rustFailure})`);
+    }
+  });
+
+  // TS only failures, read by the FWC: FUEL IDG 1(2) COOL FAULT, EIS DMC 1(2)(3) FAULT, EIS DMC/FWC COM FAULT,
+  // FWS SDAC 1(2) / 1+2 FAULT, RECORDER DFDR FAULT and RECORDER SYS FAULT
+  it('lists the IDG fuel cooling, DMC, SDAC and recorder failures, TS only, with the FWC module that reads them', () => {
+    const host = resolve(__dirname, '../../systems-host/systems/FWC/Logic');
+    const idgCooling = readFileSync(resolve(host, 'IdgCoolingAlerts.ts'), 'utf8');
+    const eisRecorder = readFileSync(resolve(host, 'EisRecorderAlerts.ts'), 'utf8');
+    const expected: [number, number, string, string, string][] = [
+      [28, 28018, 'Idg1FuelCoolingCommand', 'IDG 1 fuel cooling (fuel recirculation command)', idgCooling],
+      [28, 28019, 'Idg2FuelCoolingCommand', 'IDG 2 fuel cooling (fuel recirculation command)', idgCooling],
+      [31, 31009, 'Dmc1', 'DMC 1', eisRecorder],
+      [31, 31010, 'Dmc2', 'DMC 2', eisRecorder],
+      [31, 31011, 'Dmc3', 'DMC 3', eisRecorder],
+      [31, 31012, 'DmcFwcBuses', 'DMC to FWC data buses', eisRecorder],
+      [31, 31013, 'Sdac1', 'SDAC 1', eisRecorder],
+      [31, 31014, 'Sdac2', 'SDAC 2', eisRecorder],
+      [31, 31015, 'Dfdr', 'DFDR (flight data recorder)', eisRecorder],
+      [31, 31016, 'Fdiu', 'FDIU (recorder system)', eisRecorder],
+    ];
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    for (const [chapter, id, key, name, consumer] of expected) {
+      expect((A320Failure as Record<string, number>)[key]).toBe(id);
+      expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, name]);
+      expect(consumer).toContain(`A320Failure.${key}`);
+      expect(wasm).not.toContain(`(${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')},`);
+    }
+  });
 });

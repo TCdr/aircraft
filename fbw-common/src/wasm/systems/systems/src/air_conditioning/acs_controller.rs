@@ -238,7 +238,9 @@ impl<const ZONES: usize, const ENGINES: usize> AirConditioningSystemController<Z
     }
 
     pub fn pack_fault_determination(&self) -> bool {
-        self.pack_flow_controller.fcv_fault_determination() || self.both_channels_failure()
+        self.pack_flow_controller.fcv_fault_determination()
+            || self.pack_flow_controller.compressor_overheat()
+            || self.both_channels_failure()
     }
 
     /// The pack flow control valve position disagrees with the commanded position (one of the PACK 1(2) FAULT
@@ -849,6 +851,14 @@ pub struct PackFlowController<const ENGINES: usize> {
     fcv_failed_closed_monitor: DelayedTrueLogicGate,
     inlet_pressure_below_min: DelayedTrueLogicGate,
     engine_start_closure: DelayedFalseLogicGate,
+
+    pack_overheat_id: VariableIdentifier,
+    compressor_overheat_failure: Failure,
+    compressor_heating: DelayedTrueLogicGate,
+    compressor_cooling: DelayedTrueLogicGate,
+    /// The compressor outlet temperature is above the overheat limit (AIR PACK 1(2) OVHT): the pack flow control
+    /// valve closes and the PACK pb-sw FAULT light comes on until it cools down
+    compressor_overheat: bool,
 }
 
 impl<const ENGINES: usize> PackFlowController<ENGINES> {
@@ -866,6 +876,12 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
     const FCV_FAILED_OPEN_TIME_LIMIT: Duration = Duration::from_secs(30);
     const FCV_FAILED_CLOSED_TIME_LIMIT: Duration = Duration::from_secs(17);
     const INLET_PRESSURE_BELOW_MIN_TIME: Duration = Duration::from_secs(5);
+    /// Design choice (no published value): with the overheat failure, the compressor outlet goes above its 260 deg C
+    /// limit this long after the pack flow starts
+    const COMPRESSOR_OVERHEAT_DELAY: Duration = Duration::from_secs(20);
+    /// Design choice (no published value): the compressor outlet is back below its limit this long after the pack
+    /// flow stops
+    const COMPRESSOR_COOLING_DELAY: Duration = Duration::from_secs(30);
     // On ground the pack valves reopen 30 s after an engine start, to avoid another pack closure cycle during the
     // second engine start
     const ENGINE_START_REOPENING_DELAY_ON_GROUND: Duration = Duration::from_secs(30);
@@ -894,6 +910,15 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
             engine_start_closure: DelayedFalseLogicGate::new(
                 Self::ENGINE_START_REOPENING_DELAY_ON_GROUND,
             ),
+
+            pack_overheat_id: context
+                .get_identifier(format!("COND_PACK_{}_OVERHEAT", pack_id.to_index() + 1)),
+            compressor_overheat_failure: Failure::new(FailureType::PackOverheat(
+                pack_id.to_index() + 1,
+            )),
+            compressor_heating: DelayedTrueLogicGate::new(Self::COMPRESSOR_OVERHEAT_DELAY),
+            compressor_cooling: DelayedTrueLogicGate::new(Self::COMPRESSOR_COOLING_DELAY),
+            compressor_overheat: false,
         }
     }
 
@@ -912,10 +937,10 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
         pressurization_overhead: &impl PressurizationOverheadShared,
         is_enabled: bool,
     ) {
-        // TODO: Add overheat protection
         self.is_enabled = is_enabled;
         self.flow_demand = self.flow_demand_determination(aircraft_state, acs_overhead, pneumatic);
         self.update_pressure_condition(context, pneumatic);
+        self.update_compressor_overheat(context, pneumatic);
         self.fcv_open_allowed = self.fcv_open_allowed_determination(
             context,
             aircraft_state,
@@ -1036,7 +1061,29 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
             // The valve closes when the FIRE pb of the engine on the related side is pressed
             && !engine_fire_push_buttons.is_released(onside_engine_number)
             && !pressurization_overhead.ditching_is_on()
-        // && ! pack 1 overheat
+            && !self.compressor_overheat
+    }
+
+    fn update_compressor_overheat(
+        &mut self,
+        context: &UpdateContext,
+        pneumatic: &impl PackFlowValveState,
+    ) {
+        let pack_has_flow = pneumatic.pack_flow_valve_is_open(self.id + 1);
+        self.compressor_heating.update(
+            context,
+            pack_has_flow && self.compressor_overheat_failure.is_active(),
+        );
+        self.compressor_cooling.update(context, !pack_has_flow);
+        if self.compressor_heating.output() {
+            self.compressor_overheat = true;
+        } else if self.compressor_cooling.output() {
+            self.compressor_overheat = false;
+        }
+    }
+
+    fn compressor_overheat(&self) -> bool {
+        self.compressor_overheat
     }
 
     fn update_timer(&mut self, context: &UpdateContext) {
@@ -1105,8 +1152,15 @@ impl<const ENGINES: usize> ControllerSignal<PackFlowValveSignal> for PackFlowCon
 }
 
 impl<const ENGINES: usize> SimulationElement for PackFlowController<ENGINES> {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.compressor_overheat_failure.accept(visitor);
+
+        visitor.visit(self);
+    }
+
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.pack_flow_id, self.flow_demand);
+        writer.write(&self.pack_overheat_id, self.compressor_overheat);
     }
 }
 
@@ -4125,6 +4179,42 @@ mod acs_controller_tests {
 
             assert!(!test_bed.pack_1_has_fault());
             assert!(!test_bed.pack_2_has_fault());
+        }
+
+        #[test]
+        fn a_pack_compressor_overheat_closes_its_pack_until_it_cools_down() {
+            fn pack_overheat(test_bed: &mut ACSCTestBed, pack: usize) -> bool {
+                test_bed.read_by_name(&format!("COND_PACK_{pack}_OVERHEAT"))
+            }
+
+            let mut test_bed = test_bed()
+                .with()
+                .both_packs_on()
+                .and()
+                .engine_idle()
+                .iterate_with_delta(20, Duration::from_secs(1));
+            assert!(test_bed.query(|a| a.pneumatic.pack_flow_valve_is_open(1)));
+
+            test_bed.fail(FailureType::PackOverheat(1));
+            test_bed = test_bed.iterate_with_delta(19, Duration::from_secs(1));
+            assert!(!pack_overheat(&mut test_bed, 1));
+
+            test_bed = test_bed.iterate_with_delta(3, Duration::from_secs(1));
+            assert!(pack_overheat(&mut test_bed, 1));
+            assert!(!pack_overheat(&mut test_bed, 2));
+            assert!(test_bed.pack_1_has_fault());
+            assert!(!test_bed.pack_2_has_fault());
+
+            test_bed = test_bed.iterate_with_delta(5, Duration::from_secs(1));
+            assert!(!test_bed.query(|a| a.pneumatic.pack_flow_valve_is_open(1)));
+            assert!(test_bed.query(|a| a.pneumatic.pack_flow_valve_is_open(2)));
+
+            // PACK 1 OFF: the overheat goes after the cooling time, the valve stays closed
+            test_bed.command_pack_1_pb_position(false);
+            test_bed = test_bed.iterate_with_delta(32, Duration::from_secs(1));
+            assert!(!pack_overheat(&mut test_bed, 1));
+            assert!(!test_bed.pack_1_has_fault());
+            assert!(!test_bed.query(|a| a.pneumatic.pack_flow_valve_is_open(1)));
         }
 
         #[test]
