@@ -1221,7 +1221,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     // If extra parameter for activeUri is given, navigate to flight phase sub-page
     switch (this.props.mfd.uiService.activeUri.get().extra) {
       case 'rta':
-        this.initialLoadRevisedWaypointIndex = false;
+        this.initialLoadRevisedWaypointIndex = true;
         this.selectedPageIndex.set(SelectedPage.RTA);
         break;
       case 'spd':

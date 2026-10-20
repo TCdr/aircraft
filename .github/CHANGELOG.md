@@ -803,6 +803,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] SPD ERROR AT message when a speed constraint will be missed by more than 10 kt - @TCdr
 1. [A32NX/MCDU] Trip fuel and time on INIT B and FUEL PRED from the flight plan predictions (fuel table only before they exist) - @TCdr
 1. [A380X/ND] Vertical display shows the FLS beam of a non precision approach - @TCdr
+1. [A380X/MFD] VERT REV RTA tab opened from the time of a F-PLN waypoint revises that waypoint, not the TO waypoint - @TCdr
 
 ## 2024.1.0
 
