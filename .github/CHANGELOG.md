@@ -781,6 +781,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/HYD] With only one electric pump on ground, the hydraulic pressure rises steadily to normal while the drooped flight controls re-centre, instead of saw-toothing between about 2 900 and 4 300 psi - @TCdr
 1. [A380X/ENG] After ENG MASTER OFF the N3 runs down more slowly from idle (45 % after about 10 s, stopped after about a minute), and setting the ENG MASTER back ON relights the engine while the N3 shown is above 45 % - @TCdr
 1. [A32NX/MCDU] F-PLN and DIR TO distances stay blank instead of showing NaN while the flight plan is recomputed - @TCdr
+1. [FMS] Fixed VNAV predictions: the cruise acceleration now accounts for the aircraft weight, and the idle descent path no longer plans a speed change above the crossover altitude where the descent Mach already limits the speed - @TCdr
 
 ## 2024.1.0
 
