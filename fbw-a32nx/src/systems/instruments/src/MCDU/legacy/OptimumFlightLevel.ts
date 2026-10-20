@@ -44,6 +44,24 @@ export interface ProgOptimumFlightLevelInputs {
   destinationElevation: number;
 }
 
+/** The weight entries of the FMS gross weight */
+export interface ProgOptimumFlightLevelWeightEntries {
+  /** % MAC, or null when not entered */
+  zeroFuelWeightCenterOfGravity: number | null;
+  /** tonnes, or null when not entered */
+  blockFuel: number | null;
+  anEngineOn: boolean;
+}
+
+/**
+ * Whether the crew has entered the weights the OPT FL is computed from. The BLOCK fuel counts only before engine
+ * start: after it the gross weight uses the fuel quantity, and INIT B (the only page to enter BLOCK) is replaced by
+ * FUEL PRED, so a flight set up with the engines running never gets a BLOCK entry.
+ */
+export function progOptimumFlightLevelWeightsEntered(entries: ProgOptimumFlightLevelWeightEntries): boolean {
+  return entries.zeroFuelWeightCenterOfGravity !== null && (entries.anEngineOn || entries.blockFuel !== null);
+}
+
 /**
  * The OPT FL of the MCDU PROG page: the most economic level for the cost index, weight, temperature and wind (minimum
  * trip cost per ground mile at the ECON Mach of each level), not above the REC MAX, and leaving at least 5 min of
