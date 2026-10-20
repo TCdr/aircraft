@@ -206,8 +206,8 @@ impl From<NoseWheelSteeringMode> for f64 {
 }
 
 /// The two Steering Control Systems (SCS 1 and 2, one active and one backup) with the faults of the steering equipment
-/// (flyPad failures 32200-32204). The SCS chooses the NWS mode and enables the body wheel steering (BWS); it reports
-/// the faults to the FWS.
+/// (flyPad failures 32200-32204 and 32210-32212). The SCS chooses the NWS mode and enables the body wheel steering
+/// (BWS); it reports the faults to the FWS.
 pub struct A380SteeringControlSystem {
     norm_nws_fault_id: VariableIdentifier,
     altn_nws_fault_id: VariableIdentifier,
@@ -215,6 +215,8 @@ pub struct A380SteeringControlSystem {
     scs_1_fault_id: VariableIdentifier,
     scs_2_fault_id: VariableIdentifier,
     nws_mode_id: VariableIdentifier,
+    bws_not_locked_id: VariableIdentifier,
+    pedal_steering_fault_id: VariableIdentifier,
 
     /// Normal NWS failed: the normal selector valve isolates the NWS from GREEN (STEER NORM N/W STEER FAULT)
     normal_nws_failure: Failure,
@@ -224,6 +226,11 @@ pub struct A380SteeringControlSystem {
     bws_failure: Failure,
     scs_1_failure: Failure,
     scs_2_failure: Failure,
+    /// Left and right BWS locking mechanisms: a failed one leaves its axle not centred and locked (STEER B/W STEER
+    /// NOT LOCKED), which prevents the gear retraction
+    bws_lock_failures: [Failure; 2],
+    /// The SCS no longer receives the rudder pedal orders, only the tillers steer (STEER PEDAL STEER CTL FAULT)
+    pedal_steering_failure: Failure,
 
     nose_wheel_steering_mode: NoseWheelSteeringMode,
 }
@@ -236,12 +243,17 @@ impl A380SteeringControlSystem {
             scs_1_fault_id: context.get_identifier("STEERING_SCS_1_FAULT".to_owned()),
             scs_2_fault_id: context.get_identifier("STEERING_SCS_2_FAULT".to_owned()),
             nws_mode_id: context.get_identifier("STEERING_NWS_MODE".to_owned()),
+            bws_not_locked_id: context.get_identifier("STEERING_BWS_NOT_LOCKED".to_owned()),
+            pedal_steering_fault_id: context.get_identifier("STEERING_PEDAL_CTL_FAULT".to_owned()),
 
             normal_nws_failure: Failure::new(FailureType::NoseWheelSteeringNormal),
             alternate_nws_failure: Failure::new(FailureType::NoseWheelSteeringAlternate),
             bws_failure: Failure::new(FailureType::BodyWheelSteering),
             scs_1_failure: Failure::new(FailureType::SteeringControlSystem(1)),
             scs_2_failure: Failure::new(FailureType::SteeringControlSystem(2)),
+            bws_lock_failures: [1, 2]
+                .map(|side| Failure::new(FailureType::BodyWheelSteeringLock(side))),
+            pedal_steering_failure: Failure::new(FailureType::PedalSteeringControl),
 
             nose_wheel_steering_mode: NoseWheelSteeringMode::Off,
         }
@@ -295,6 +307,14 @@ impl A380SteeringControlSystem {
     pub fn is_body_wheel_steering_available(&self) -> bool {
         self.is_steering_controlled() && !self.bws_failure.is_active()
     }
+
+    pub fn is_body_wheel_steering_locked(&self) -> bool {
+        !self.bws_lock_failures.iter().any(Failure::is_active)
+    }
+
+    pub fn is_pedal_steering_available(&self) -> bool {
+        !self.pedal_steering_failure.is_active()
+    }
 }
 impl SimulationElement for A380SteeringControlSystem {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
@@ -303,6 +323,10 @@ impl SimulationElement for A380SteeringControlSystem {
         self.bws_failure.accept(visitor);
         self.scs_1_failure.accept(visitor);
         self.scs_2_failure.accept(visitor);
+        for failure in &mut self.bws_lock_failures {
+            failure.accept(visitor);
+        }
+        self.pedal_steering_failure.accept(visitor);
         visitor.visit(self);
     }
 
@@ -316,6 +340,14 @@ impl SimulationElement for A380SteeringControlSystem {
         writer.write(&self.scs_1_fault_id, self.scs_1_failure.is_active());
         writer.write(&self.scs_2_fault_id, self.scs_2_failure.is_active());
         writer.write(&self.nws_mode_id, f64::from(self.nose_wheel_steering_mode));
+        writer.write(
+            &self.bws_not_locked_id,
+            !self.is_body_wheel_steering_locked(),
+        );
+        writer.write(
+            &self.pedal_steering_fault_id,
+            self.pedal_steering_failure.is_active(),
+        );
     }
 }
 

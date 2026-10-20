@@ -739,6 +739,16 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             32_025,
             FailureType::GearActuatorJammed(GearActuatorId::GearDoorRight),
         ),
+        // L/G and steering monitoring (a380_systems hydraulic/gear_steering_monitoring.rs and the
+        // SCS of brake_steer_faults.rs)
+        (32_030, FailureType::GearUplockClosed(1)),
+        (32_031, FailureType::GearUplockClosed(2)),
+        (32_032, FailureType::GearUplockClosed(3)),
+        (32_033, FailureType::GearBogiePosition),
+        (32_034, FailureType::GearGravityExtension),
+        (32_210, FailureType::BodyWheelSteeringLock(1)),
+        (32_211, FailureType::BodyWheelSteeringLock(2)),
+        (32_212, FailureType::PedalSteeringControl),
         // Brakes: the model feeds the NORM circuit from the GREEN system and the ALTN circuit (with
         // its accumulator) from the YELLOW system. On the real aircraft the ALTN brakes use the LEHGS
         // and accumulators.

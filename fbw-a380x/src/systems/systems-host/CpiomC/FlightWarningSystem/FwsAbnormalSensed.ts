@@ -164,6 +164,7 @@ import {
   lgCtl12Limitations,
   lgCtl12PfdLimitations,
 } from './FwsGearAlerts';
+import { gearSteeringAbnormalItems } from './FwsGearSteeringAlerts';
 import { directLawInfo, directLawInopSysAllPhases, lawInopSysApprLdg } from './FwsFctlAlerts';
 import { fctlSensorAbnormalItems, fctlSensorDeferredItems } from './FwsFctlSensorAlerts';
 import {
@@ -7553,6 +7554,7 @@ export class FwsAbnormalSensed {
       failure: 1,
       sysPage: SdPages.Wheel,
     },
+    ...gearSteeringAbnormalItems(this.fws.gearSteeringAlerts),
 
     // ATA 34 - NAVIGATION
     340800001: {

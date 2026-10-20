@@ -92,6 +92,9 @@ use brake_steer_faults::{
 #[cfg(test)]
 use systems::hydraulic::PressureSwitchState;
 
+mod gear_steering_monitoring;
+use gear_steering_monitoring::A380GearSteeringMonitoring;
+
 const AC_EHA_BUS: ElectricalBusType = ElectricalBusType::AlternatingCurrentNamed("247XP");
 
 struct A380TiltingGearsFactory {}
@@ -1850,6 +1853,7 @@ pub(super) struct A380Hydraulic {
 
     tilting_gears: A380TiltingGears,
     aux_gear_doors: A380AuxiliaryGearDoorSet,
+    gear_steering_monitoring: A380GearSteeringMonitoring,
 }
 impl A380Hydraulic {
     const FLAP_FPPU_TO_SURFACE_ANGLE_BREAKPTS: [f64; 12] = [
@@ -2263,6 +2267,7 @@ impl A380Hydraulic {
             tilting_gears: A380TiltingGearsFactory::new_a380_tilt_assembly(context),
 
             aux_gear_doors: A380AuxiliaryGearDoorSet::new(context),
+            gear_steering_monitoring: A380GearSteeringMonitoring::new(context),
         }
     }
 
@@ -2379,6 +2384,11 @@ impl A380Hydraulic {
         self.rudder.aerodynamic_torques_up_down()
     }
 
+    /// The LGCIS do not retract the gear out of its retraction configuration (L/G RETRACTION FAULT)
+    pub fn is_gear_retraction_inhibited(&self) -> bool {
+        self.gear_steering_monitoring.is_retraction_inhibited()
+    }
+
     #[cfg(test)]
     fn nose_wheel_steering_pin_is_inserted(&self) -> bool {
         self.bypass_pin.is_nose_wheel_steering_pin_inserted()
@@ -2416,7 +2426,9 @@ impl A380Hydraulic {
             adirs,
             lgcius.lgciu1(),
             lgcius.lgciu2(),
-            &self.gear_system_gravity_extension_controller,
+            &self
+                .gear_steering_monitoring
+                .gravity_extension(&self.gear_system_gravity_extension_controller),
         );
 
         self.ths.update(
@@ -2648,6 +2660,12 @@ impl A380Hydraulic {
             &self.brake_steer_computer,
             &self.pushback_tug,
             &self.bypass_pin,
+        );
+        self.gear_steering_monitoring.update(
+            lgcius.active_lgciu(),
+            lgcius.gear_handle_is_down(),
+            self.nose_steering.position_feedback(),
+            self.brake_steer_computer.is_body_wheel_steering_locked(),
         );
 
         self.update_body_wheel_steering(context);
@@ -3481,6 +3499,7 @@ impl SimulationElement for A380Hydraulic {
         self.tilting_gears.accept(visitor);
 
         self.aux_gear_doors.accept(visitor);
+        self.gear_steering_monitoring.accept(visitor);
 
         visitor.visit(self);
     }
@@ -5019,6 +5038,10 @@ impl A380HydraulicBrakeSteerComputerUnit {
         }
     }
 
+    fn is_body_wheel_steering_locked(&self) -> bool {
+        self.steering_control.is_body_wheel_steering_locked()
+    }
+
     fn update_steering_demands(
         &mut self,
         context: &UpdateContext,
@@ -5033,7 +5056,9 @@ impl A380HydraulicBrakeSteerComputerUnit {
             self.autopilot_nosewheel_demand.get::<ratio>() * Self::AUTOPILOT_STEERING_INPUT_GAIN,
         );
 
-        let steer_angle_from_pedals = if self.tiller_pedal_disconnect {
+        let steer_angle_from_pedals = if self.tiller_pedal_disconnect
+            || !self.steering_control.is_pedal_steering_available()
+        {
             Angle::new::<degree>(0.)
         } else {
             self.pedal_input_map
@@ -8228,6 +8253,8 @@ mod tests {
 
                 self.adirus.update(context);
 
+                self.lgcius
+                    .set_retraction_inhibited(self.hydraulics.is_gear_retraction_inhibited());
                 self.lgcius.update(
                     context,
                     &self.landing_gear,
@@ -13801,6 +13828,7 @@ mod tests {
 
             assert!(read_bool(&mut test_bed, "STEERING_BWS_FAULT"));
             assert_ge!(test_bed.nose_steering_position().get::<degree>(), 40.);
+            assert!(!read_bool(&mut test_bed, "STEERING_BWS_NOT_LOCKED"));
             assert_lt!(
                 test_bed
                     .get_left_body_steering_steering_ratio()
@@ -13815,6 +13843,132 @@ mod tests {
                     .abs(),
                 0.01
             );
+        }
+
+        #[test]
+        // STEER PEDAL STEER CTL FAULT: the rudder pedals no longer steer, the tillers still do
+        fn pedal_steering_control_fault_leaves_only_the_tillers() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::PedalSteeringControl);
+            test_bed = test_bed
+                .set_ground_speed(Velocity::new::<knot>(15.))
+                .set_rudder_input(Ratio::new::<ratio>(1.))
+                .run_waiting_for(Duration::from_secs(10));
+
+            assert!(read_bool(&mut test_bed, "STEERING_PEDAL_CTL_FAULT"));
+            assert_lt!(test_bed.nose_steering_position().get::<degree>().abs(), 0.5);
+
+            test_bed = test_bed
+                .set_ground_speed(Velocity::new::<knot>(5.))
+                .set_tiller_demand(Ratio::new::<ratio>(1.))
+                .run_waiting_for(Duration::from_secs(10));
+            assert_ge!(test_bed.nose_steering_position().get::<degree>(), 40.);
+        }
+
+        #[rstest]
+        #[case::body_wheel_steering_lock(
+            FailureType::BodyWheelSteeringLock(1),
+            "STEERING_BWS_NOT_LOCKED"
+        )]
+        #[case::uplock_closed(FailureType::GearUplockClosed(2), "LG_UPLOCK_FAULT")]
+        #[case::bogie_position(FailureType::GearBogiePosition, "LG_BOGIE_POSITION_FAULT")]
+        // A gear out of its retraction configuration does not retract: L/G RETRACTION FAULT, and the LGCIS stay
+        // healthy (no L/G CTL FAULT after the 30 s gear transit time)
+        fn gears_out_of_retraction_configuration_stay_down(
+            #[case] failure: FailureType,
+            #[case] fault_variable: &str,
+        ) {
+            let mut test_bed = in_flight_gear_down().run_waiting_for(Duration::from_secs(20));
+            assert!(test_bed.is_all_gears_really_down());
+
+            test_bed.fail(failure);
+            test_bed = test_bed.run_one_tick();
+            assert!(read_bool(&mut test_bed, fault_variable));
+
+            // The LGCIS never take the lever UP: the doors do not even start to open
+            test_bed = test_bed
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(3));
+            assert!(test_bed.is_all_doors_really_up());
+
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(37));
+            assert!(test_bed.is_all_gears_really_down());
+            assert!(read_bool(&mut test_bed, "LG_RETRACTION_FAULT"));
+            assert_eq!(test_bed.gear_system_state(), GearSystemState::AllDownLocked);
+        }
+
+        #[test]
+        // L/G RETRACTION FAULT stays with the lever down again; a lever recycle in the retraction configuration
+        // retracts the gears and clears it
+        fn gears_retract_after_a_lever_recycle_once_back_in_retraction_configuration() {
+            let mut test_bed = in_flight_gear_down().run_waiting_for(Duration::from_secs(20));
+            test_bed.fail(FailureType::BodyWheelSteeringLock(2));
+            test_bed = test_bed
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(5))
+                .set_gear_lever_down()
+                .run_waiting_for(Duration::from_secs(5));
+            assert!(read_bool(&mut test_bed, "LG_RETRACTION_FAULT"));
+
+            test_bed.unfail(FailureType::BodyWheelSteeringLock(2));
+            test_bed = test_bed
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(30));
+            assert!(test_bed.is_all_gears_really_up());
+            assert!(!read_bool(&mut test_bed, "LG_RETRACTION_FAULT"));
+        }
+
+        #[test]
+        // L/G GRVTY EXTN FAULT: the LGERS failed its test, the L/G GRVTY sw releases no uplock
+        fn failed_gravity_extension_does_not_extend_the_gears() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs_f64(25.));
+            assert!(test_bed.is_all_gears_really_up());
+
+            test_bed.fail(FailureType::GearGravityExtension);
+            test_bed = test_bed
+                .set_green_ed_pump(false)
+                .activate_emergency_gear_extension()
+                .run_waiting_for(Duration::from_secs_f64(80.));
+
+            assert!(read_bool(&mut test_bed, "LG_GRVTY_EXTN_FAULT"));
+            assert!(test_bed.is_all_doors_really_up());
+            assert!(test_bed.is_all_gears_really_up());
+        }
+
+        #[test]
+        // STEER N/W STEER ANGLE LIMIT EXCEEDED: a tow turns the nose wheels beyond 73.5 degrees
+        fn towing_beyond_the_nose_wheel_angle_limit_is_detected() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .set_pushback_state(true)
+                .set_pushback_angle(AngularVelocity::new::<degree_per_second>(0.5))
+                .run_waiting_for(Duration::from_secs(5));
+            assert_lt!(
+                test_bed.nose_steering_position().get::<degree>().abs(),
+                73.5
+            );
+            assert!(!read_bool(
+                &mut test_bed,
+                "STEERING_NWS_ANGLE_LIMIT_EXCEEDED"
+            ));
+
+            test_bed = test_bed
+                .set_pushback_angle(AngularVelocity::new::<degree_per_second>(10.))
+                .run_waiting_for(Duration::from_secs(5));
+            assert_gt!(
+                test_bed.nose_steering_position().get::<degree>().abs(),
+                73.5
+            );
+            assert!(read_bool(
+                &mut test_bed,
+                "STEERING_NWS_ANGLE_LIMIT_EXCEEDED"
+            ));
         }
 
         // The green electric pumps, the only power of the cargo door actuation, are inhibited as soon as engine 1 or 2

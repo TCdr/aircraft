@@ -2448,6 +2448,40 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
       | Normal (GREEN, 15 deg/s)                 | 1     |
       | Alternate (steering LEHGS, 10 deg/s)     | 2     |
 
+- A32NX_STEERING_BWS_NOT_LOCKED
+    - Bool
+    - True when a body wheel steering locking mechanism is failed (flyPad failures 32210-32211, Rust
+      `hydraulic/brake_steer_faults.rs`): that axle is not centred and locked and the gear does not retract; read by
+      the FWS for STEER B/W STEER NOT LOCKED
+
+- A32NX_STEERING_PEDAL_CTL_FAULT
+    - Bool
+    - True when the SCS no longer receives the rudder pedal orders (flyPad failure 32212): only the tillers steer;
+      read by the FWS for STEER PEDAL STEER CTL FAULT
+
+- A32NX_STEERING_NWS_ANGLE_LIMIT_EXCEEDED
+    - Bool
+    - True while the nose wheel steering angle is beyond 73.5 degrees (a tight tow turn); read by the FWS for STEER
+      N/W STEER ANGLE LIMIT EXCEEDED
+
+- A32NX_LG_{fault}_FAULT
+    - Bool
+    - Landing gear faults of the LGCIS (Rust `hydraulic/gear_steering_monitoring.rs`); read by the FWS for the L/G
+      alerts
+    - {fault}
+        - UPLOCK: an uplock closed behind its extended gear (flyPad failures 32030-32032)
+        - BOGIE_POSITION: a bogie out of its pitch attitude with the gear down (flyPad failure 32033)
+        - GRVTY_EXTN: the gravity extension system (LGERS) failed its test, the L/G GRVTY sw releases no uplock
+          (flyPad failure 32034)
+        - RETRACTION: the gear lever was set UP out of the retraction configuration (L/G RETRACTION FAULT); stays
+          until the gears are locked up or the aircraft is on ground
+
+- A32NX_LG_RETRACTION_INHIBITED
+    - Bool
+    - True while the LGCIS keep the gears down: the lever is UP with a gear out of its retraction configuration
+      (shock absorber not extended, nose wheel not centred, body wheel steering not locked, bogie or uplock fault).
+      The LGCIUs then take the lever as DOWN; a lever recycle is a new retraction attempt
+
 - A32NX_BTV_STATE
     - Boolean
     - Indicates the current state of the BTV system
