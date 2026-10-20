@@ -828,6 +828,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] The FMS goes into the CRZ phase at the CRZ FL however the active flight plan got it (CRZ FL entered in a temporary flight plan, SEC activation, company flight plan) - @TCdr
 1. [A380X/MFD] VERT REV RTA tab opened from the time of a F-PLN waypoint revises that waypoint, not the TO waypoint - @TCdr
 1. [A380X/MFD] F-PLN speed column: the ditto character only replaces a speed or Mach that shows the same value as the waypoint above, so a slowly changing speed is shown - @TCdr
+1. [A380X/MFD] VERT REV STEP ALTs: opened from the altitude of a cruise waypoint, the new step starts at that waypoint - @TCdr
 
 ## 2024.1.0
 
