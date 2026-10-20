@@ -65,6 +65,7 @@ import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvent
 import { findConstantMachSegment, isLegInConstantMachSegment } from '@fmgc/flightplanning/ConstantMachSegment';
 import { isConstantMachRespected } from '@fmgc/guidance/vnav/cruise/ConstantMachSpeedProfile';
 import { formatSpeedPrediction, isSameSpeedPrediction } from './FplnSpeedPrediction';
+import { altitudePredictionPanel, isPredictedCruiseWaypoint } from './VertRevPredictionAccess';
 import { ProfilePhase, VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { dirToUri, fixInfoUri, showReturnButtonUriExtra } from '../../../shared/utils';
 
@@ -949,6 +950,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
     }
   }
 
+  /** The altitude prediction opens the ALT panel, or the STEP ALTs panel for a cruise waypoint */
   private goToAltitudeConstraint(lineDataIndex: number) {
     const data = this.lineData[lineDataIndex];
     if (isWaypoint(data) && data.originalLegIndex !== null) {
@@ -966,8 +968,15 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
           this.loadedFlightPlanIndex.get(),
           data.isAltnWaypoint,
         );
+        const isCruiseWaypoint = isPredictedCruiseWaypoint(
+          this.loadedFlightPlanIndex.get(),
+          data.isAltnWaypoint,
+          this.props.fmcService.master.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(
+            data.originalLegIndex,
+          )?.profilePhase,
+        );
         this.props.mfd.uiService.navigateTo(
-          `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-vert-rev/alt`,
+          `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-vert-rev/${altitudePredictionPanel(isCruiseWaypoint)}`,
         );
       }
     }

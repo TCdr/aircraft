@@ -264,6 +264,9 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
   /** If set to true, a re-layouting of the lines is forced, e.g. if an entry in the middle was deleted. */
   private forceRebuildList = false;
 
+  /** The start waypoint field of the new step line still has to take its default, the revised waypoint */
+  private newStepWaypointPending = true;
+
   private readonly stepAltsLineVisibility = Array.from(Array(5), () => Subject.create<'visible' | 'hidden'>('hidden'));
   private readonly stepLinesPredictionsVisibility = Array.from(Array(5), () =>
     Subject.create<'visible' | 'hidden'>('hidden'),
@@ -705,11 +708,13 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
           const line = i - this.stepAltsStartAtStepIndex.get();
 
           if (!(i in cruiseSteps)) {
-            if (this.forceRebuildList) {
-              this.stepAltsWptIndices[line].set(null);
+            const revisedLegIndex = this.selectedLegIndex.get();
+            if (this.forceRebuildList || (this.newStepWaypointPending && revisedLegIndex !== null)) {
+              this.stepAltsWptIndices[line].set(this.newStepDefaultWaypoint(revisedLegIndex, cruiseStepLegIndices));
               this.stepAltsWptIndices[line].notify();
               this.stepAltsAltitude[line].set(null);
               this.forceRebuildList = false;
+              this.newStepWaypointPending = revisedLegIndex === null;
             }
             this.stepLinesPredictionsVisibility[line].set('hidden');
             this.stepAltsLineVisibility[line].set('visible');
@@ -775,6 +780,21 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
         this.updateOptimumStepArea(cruiseSteps.length > 0);
       }
     }
+  }
+
+  /**
+   * The default start waypoint of a new step: the revised waypoint, unless it already has a step
+   * @returns its index in the waypoint list, or null
+   */
+  private newStepDefaultWaypoint(
+    revisedLegIndex: number | null,
+    cruiseStepLegIndices: readonly (number | null)[],
+  ): number | null {
+    if (revisedLegIndex === null || cruiseStepLegIndices.includes(revisedLegIndex)) {
+      return null;
+    }
+    const wptIndex = this.availableWaypointsToLegIndex.indexOf(revisedLegIndex);
+    return wptIndex !== -1 ? wptIndex : null;
   }
 
   /** The OPTIMUM STEP POINT area (not available for the secondary flight plans) */
@@ -1238,7 +1258,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
         this.selectedPageIndex.set(SelectedPage.ALT);
         break;
       case 'step-alts':
-        this.initialLoadRevisedWaypointIndex = false;
+        this.initialLoadRevisedWaypointIndex = true;
         this.selectedPageIndex.set(SelectedPage.STEP_ALTS);
         break;
 
@@ -1310,6 +1330,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
         }
 
         if (val === SelectedPage.STEP_ALTS) {
+          this.newStepWaypointPending = true;
           this.stepsAltsClockSub?.resume();
         } else {
           this.stepsAltsClockSub?.pause();
