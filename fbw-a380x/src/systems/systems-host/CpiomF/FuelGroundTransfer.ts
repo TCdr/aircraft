@@ -73,6 +73,8 @@ export interface GroundTransferInputs {
   readonly otherTransferInProgress: boolean;
   /** Fuel can still move in the direction of the transfer (CpiomF/FuelGroundTransfer groundTransferCanMove) */
   readonly fuelCanMove: (direction: GroundTransferDirection) => boolean;
+  /** The FQMS detects a wing or trim tank overflow (CpiomF/FuelOverflow) */
+  readonly overflowDetected: boolean;
 }
 
 /**
@@ -84,6 +86,7 @@ export interface GroundTransferInputs {
  * - It needs all the transfer pumps on and stops as soon as two engines run. FUEL AUTO GND XFR FAULT: the transfer
  *   cannot start or complete, or two engines started before its end; the pb-sw light then flashes.
  *   Design choice: a refuel, a jettison or a manual transfer in progress, or the aircraft in flight, abort it too.
+ * - A wing or trim tank overflow aborts it (FUEL AUTO GND XFR FAULT with FUEL WING / TRIM TK OVERFLOW).
  * - FUEL AUTO GND XFR COMPLETED (AUTO GND XFR ... OFF): the result stays until the pb-sw is released.
  */
 export class GroundTransferLogic {
@@ -109,7 +112,11 @@ export class GroundTransferLogic {
     }
 
     const possible =
-      inputs.onGround && inputs.enginesRunning < 2 && inputs.allTransferPumpsOn && !inputs.otherTransferInProgress;
+      inputs.onGround &&
+      inputs.enginesRunning < 2 &&
+      inputs.allTransferPumpsOn &&
+      !inputs.otherTransferInProgress &&
+      !inputs.overflowDetected;
     if (!possible || inputs.cgPercent === null) {
       this.state = GroundTransferState.Fault;
       return this.state;

@@ -32,6 +32,7 @@ const ready: GroundTransferInputs = {
   cgPercent: 42,
   otherTransferInProgress: false,
   fuelCanMove: () => true,
+  overflowDetected: false,
 };
 
 describe('automatic ground transfer', () => {
@@ -74,6 +75,12 @@ describe('automatic ground transfer', () => {
     expect(logic.update({ ...ready, enginesRunning: 0 })).toBe(GroundTransferState.Fault);
     expect(logic.update({ ...ready, pbOn: false })).toBe(GroundTransferState.Off);
     expect(logic.update(ready)).toBe(GroundTransferState.InProgress);
+  });
+
+  it('is aborted by a wing or trim tank overflow (FUEL AUTO GND XFR FAULT)', () => {
+    const logic = new GroundTransferLogic();
+    expect(logic.update(ready)).toBe(GroundTransferState.InProgress);
+    expect(logic.update({ ...ready, overflowDetected: true })).toBe(GroundTransferState.Fault);
   });
 
   it('the pb-sw light: on while pressed, flashing when aborted', () => {

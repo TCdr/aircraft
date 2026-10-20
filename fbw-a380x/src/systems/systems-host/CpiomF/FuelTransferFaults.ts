@@ -12,6 +12,9 @@ import {
   isTankBitSet,
 } from '@shared/FuelQuantityMeasurement';
 import type { FailureStates } from './FuelPumpsAndValves';
+import { FUEL_XFR_PB_IS_AUTO_VARS } from './FuelManualTransfer';
+import { EMER_OUTR_TK_XFR_PB_IS_ON_VAR } from './FuelEmerOuterTransfer';
+import { L_WING_TK_OVERFLOW_VAR, R_WING_TK_OVERFLOW_VAR } from './FuelOverflow';
 
 /** The FQMS makes no more automatic transfers, the flight crew transfers manually (FUEL MAN XFR PROCEDURE) */
 const FUEL_XFR_MAN_ONLY_VAR = 'L:A380X_FUEL_XFR_MAN_ONLY';
@@ -59,6 +62,10 @@ export interface FuelTransferFaultInputs {
   aftGalleryInletValveOpen: boolean;
   trimTankIsolationValveClosed: boolean;
   trimAndApuLineDamaged: boolean;
+  /** The FQMS detects a left or right wing tank overflow (CpiomF/FuelOverflow) */
+  wingTankOverflow: boolean;
+  /** A manual transfer is selected: an OUTR/MID/INR TK XFR pb-sw in MAN, TRIM TK XFR in FWD or EMER OUTR TK XFR ON */
+  manualTransferSelected: boolean;
 }
 
 /**
@@ -86,12 +93,23 @@ export function isManualTransferRequired(i: FuelTransferFaultInputs): boolean {
  *   and trim tanks cannot be transferred, the outer tanks only go by gravity, and the automatic transfers stop.
  * - The trim tank isolation valve stuck closed, or the trim and APU lines damaged: no automatic transfer out of the
  *   trim tank. With the valve closed, the trim tank fuel only goes by gravity (TRIM TK FEED OPEN).
+ * - A wing tank overflow while no manual transfer was selected: an automatic transfer overflowed the tank, so the
+ *   transfers become manual (FUEL WING TK OVERFLOW: FUEL XFR : MAN ONLY, then FUEL MAN XFR PROCEDURE). With a manual
+ *   transfer selected when the overflow started, the crew sets the transfers back to AUTO instead.
  */
 export class FuelTransferFaultMonitor {
   private manualTransferLatched = false;
 
+  private wingTankOverflow = false;
+
+  private manualTransferAtWingTankOverflow = false;
+
   public update(i: FuelTransferFaultInputs): FuelTransferRestrictions {
-    const required = isManualTransferRequired(i);
+    if (i.wingTankOverflow && !this.wingTankOverflow) {
+      this.manualTransferAtWingTankOverflow = i.manualTransferSelected;
+    }
+    this.wingTankOverflow = i.wingTankOverflow;
+    const required = isManualTransferRequired(i) || (i.wingTankOverflow && !this.manualTransferAtWingTankOverflow);
     if (required && !i.onGround) {
       this.manualTransferLatched = true;
     } else if (i.onGround && !required) {
@@ -137,6 +155,12 @@ export class FuelTransferFaults implements Instrument, FuelTransferRestrictionSo
       aftGalleryInletValveOpen: this.failures.isActive(A380Failure.FuelFeedTank1AftInletValveOpen),
       trimTankIsolationValveClosed: this.failures.isActive(A380Failure.FuelTrimTankIsolationValveClosed),
       trimAndApuLineDamaged: this.failures.isActive(A380Failure.FuelTrimAndApuLineDamaged),
+      wingTankOverflow: [L_WING_TK_OVERFLOW_VAR, R_WING_TK_OVERFLOW_VAR].some(
+        (overflowVar) => SimVar.GetSimVarValue(overflowVar, SimVarValueType.Bool) > 0,
+      ),
+      manualTransferSelected:
+        FUEL_XFR_PB_IS_AUTO_VARS.some((pbVar) => !(SimVar.GetSimVarValue(pbVar, SimVarValueType.Bool) > 0)) ||
+        SimVar.GetSimVarValue(EMER_OUTR_TK_XFR_PB_IS_ON_VAR, SimVarValueType.Bool) > 0,
     });
     SimVar.SetSimVarValue(FUEL_XFR_MAN_ONLY_VAR, SimVarValueType.Bool, this.restrictions.manualTransferRequired);
   }

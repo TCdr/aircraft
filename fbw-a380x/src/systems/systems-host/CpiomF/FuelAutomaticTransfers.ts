@@ -41,6 +41,7 @@ import {
   GroundTransferState,
   isAutoGndXfrPbLightOn,
 } from './FuelGroundTransfer';
+import { isFuelOverflowDetected } from './FuelOverflow';
 import {
   isTrimTankGravityTransfer,
   TRIM_TK_FEED_SELECTOR_VAR,
@@ -174,6 +175,7 @@ export class FuelAutomaticTransfers implements Instrument {
     );
     const groundState = this.groundTransfer.update({
       pbOn,
+      overflowDetected: isFuelOverflowDetected((name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool)),
       onGround,
       enginesRunning: [1, 2, 3, 4].filter(
         (engine) => SimVar.GetSimVarValue(`GENERAL ENG COMBUSTION:${engine}`, SimVarValueType.Bool) > 0,

@@ -38,6 +38,24 @@ static FUEL_TANK_POSITIONS: LazyLock<[Vector3<f64>; A380FuelTankType::LENGTH]> =
         .into_array()
     });
 
+/// The gross weight CG, in MAC, of a zero fuel weight and its CG with the fuel of the given tank
+/// quantities (the FQMS CG computation of `FuelMeasuringApplication`).
+pub(super) fn gross_weight_center_of_gravity(
+    loadsheet: &LoadsheetInfo,
+    zero_fuel_weight: Mass,
+    zero_fuel_weight_cg: Ratio,
+    tank_quantities: impl Iterator<Item = (A380FuelTankType, Mass)>,
+) -> Ratio {
+    let mut total_mass = zero_fuel_weight.get::<kilogram>();
+    let mut total_moment =
+        FuelMeasuringApplication::cg_mac_to_arm(loadsheet, zero_fuel_weight_cg) * total_mass;
+    for (tank, quantity) in tank_quantities {
+        total_mass += quantity.get::<kilogram>();
+        total_moment += FUEL_TANK_POSITIONS[tank.into_usize()].x * quantity.get::<kilogram>();
+    }
+    FuelMeasuringApplication::arm_to_cg_mac(loadsheet, total_moment / total_mass)
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 enum AlternateOption<T> {
     #[default]

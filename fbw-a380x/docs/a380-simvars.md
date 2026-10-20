@@ -2124,7 +2124,7 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
 
 - A380X_FUEL_XFR_MAN_ONLY
   - Bool, written by the systems host (CpiomF/FuelTransferFaults)
-  - The FQMS no longer makes automatic transfers and the flight crew transfers manually (FUEL MAN XFR PROCEDURE): both FQMS, both FQDCs or both AGPs failed, or the quantity of a feed tank lost. Once set in flight it stays for the rest of the flight; on ground it follows the failures
+  - The FQMS no longer makes automatic transfers and the flight crew transfers manually (FUEL MAN XFR PROCEDURE): both FQMS, both FQDCs or both AGPs failed, the quantity of a feed tank lost, or a wing tank overflow while no manual transfer was selected. Once set in flight it stays for the rest of the flight; on ground it follows the failures
 
 - A380X_FUEL_{tank}_TANK_TEMPERATURE
   - Number in degrees Celsius
@@ -2140,11 +2140,50 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
 
 - A380X_WBBC_GROSS_WEIGHT
   - Arinc429<Kilogram>
-  - The gross weight of the Weight and Balance Backup Computer (CpiomF/WeightBalanceBackup): from the first slats and flaps retraction in flight, the simulator's aerodynamic weight, after a slats/flaps extension the takeoff GW minus the fuel used; no computed data on ground and before the retraction. The FWS compares it with the FQMS GW (FUEL WEIGHT DATA DISAGREE above 198 400 lb)
+  - The gross weight of the Weight and Balance Backup Computer (CpiomF/WeightBalanceBackup): from the first slats and flaps retraction in flight, the simulator's aerodynamic weight, after a slats/flaps extension the takeoff GW minus the fuel used; no computed data on ground and before the retraction. The FWS compares it with the FQMS GW (FUEL WEIGHT DATA DISAGREE above 198 400 lb). Failure warning while both WBBCs are failed (flyPad failures WBBC 1 and 2): FUEL WEIGHT & BALANCE BKUP FAULT
 
 - A380X_WBBC_CENTER_OF_GRAVITY_MAC
   - Arinc429<Percent>
   - The WBBC CG: the simulator's CG (A32NX_AIRFRAME_GW_CG_PERCENT_MAC) while the slats and flaps are retracted in flight, no computed data otherwise. FUEL EXCESS AFT CG above 50 % in automatic transfer mode, FUEL CG DATA DISAGREE above 8 % from the FQMS CG; the FMS uses it when the FQMS CG is not available
+
+- A380X_FUEL_APU_FEED_ABNORMALLY_CLOSED
+  - Bool
+  - True when the APU LP valve or the APU isolation valve stays closed for 5 s while both are commanded open (APU MASTER pb-sw ON, APU FIRE pb in): a jammed valve (flyPad failure). Gives FUEL APU FEED FAULT; the APU gets no fuel (systems a380 fuel/apu_feed.rs). Written by systems-host CpiomF/FuelApuFeed, which opens and closes the MSFS valves 50 and 51
+
+- A380X_FUEL_APU_FEED_ABNORMALLY_OPEN
+  - Bool
+  - True when an APU feed valve stays open for 5 s while both are commanded closed (APU MASTER pb-sw OFF or APU FIRE pb pushed): FUEL APU FEED VLV NOT CLOSED. Written by systems-host CpiomF/FuelApuFeed
+
+- A380X_FUEL_{side}_WING_TK_OVERFLOW / A380X_FUEL_TRIM_TK_OVERFLOW
+  - Bool
+  - {side}: L, R
+  - True when the surge tank holds more than 1 730 lb (wing) or 524 lb (trim): FUEL WING TK OVERFLOW, FUEL TRIM TK OVERFLOW. The FQMS then stops the refuel and the automatic ground transfer. Written by systems-host CpiomF/FuelOverflow
+
+- A380X_FUEL_{tank}_SURGE_TK_FUEL_LB
+  - Number (pounds)
+  - {tank}: L, R, TRIM
+  - The fuel in the surge tank: with the inlet valve of the outer (trim) tank stuck open (flyPad failure), fuel pushed by a refuel or by the transfer pumps of other tanks spills from the full tank at 44 100 lb/h (taken from the pumped tanks), and drains back at 4 400 lb/h once the tank has room. Written by systems-host CpiomF/FuelOverflow
+
+- A380X_FUEL_REFUEL_FAULT
+  - Bool
+  - True while the refuel system is failed (flyPad failure: any refuel stops at once) or after an overflow stopped a refuel, until the overflow is gone: FUEL REFUEL FAULT. Written by systems-host CpiomF/FuelRefuelFaults
+
+- A380X_FUEL_REFUEL_{side}_ISOL_VALVE_FAULT
+  - Bool
+  - {side}: L, R
+  - True while the refuel isolation valve is failed (flyPad failure, no effect on the refuel): FUEL REFUEL / DEFUEL SYS FAULT. Written by systems-host CpiomF/FuelRefuelFaults
+
+- A32NX_FQMS_PREDICTED_GROSS_WEIGHT
+  - Arinc429<Kilogram>
+  - The gross weight at the end of the refuel: the refuel ZFW (A32NX_AIRFRAME_ZFW_DESIRED) plus the preselected fuel (A32NX_FUEL_DESIRED). No computed data while the FQMS does not compute. Written by the systems WASM (fuel/cpiom_f/refuel_prediction.rs)
+
+- A32NX_FQMS_PREDICTED_CENTER_OF_GRAVITY_MAC
+  - Arinc429<Percent>
+  - The gross weight CG at the end of the refuel: the preselected fuel distributed as the automatic refuel does, with the refuel ZFW and ZFCG. FUEL PREDICTED CG OUT OF T.O RANGE when outside the takeoff CG limits during a refuel. Written by the systems WASM
+
+- A32NX_FQMS_REFUEL_DISTRIBUTION_DEVIATION
+  - Arinc429<Kilogram>
+  - The largest difference between a tank quantity and the standard distribution of the fuel on board. FUEL ABNORM AUTO REFUEL DISTRIBUTION above 900 lb after a refuel. Written by the systems WASM
 
 - A32NX_FM{number}_REMAINING_FLIGHT_TIME
   - Arinc429<Seconds>

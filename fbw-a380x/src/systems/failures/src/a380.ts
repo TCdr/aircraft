@@ -402,6 +402,21 @@ export const A380Failure = Object.freeze({
   FuelJettisonValveRightStuckClosed: 28001,
   FuelJettisonValveLeftStuckOpen: 28002,
   FuelJettisonValveRightStuckOpen: 28003,
+  // CpiomF/FuelApuFeed: a jam holds the APU feed valve where it is; closed while the APU MASTER is ON, it starves the APU
+  FuelApuIsolationValveJammed: 28500,
+  FuelApuLpValveJammed: 28501,
+  // CpiomF/FuelRefuelFaults: the refuel system failure stops any refuel; the refuel isolation valves have no effect in
+  // flight (FUEL REFUEL / DEFUEL SYS FAULT)
+  FuelRefuelSystem: 28510,
+  FuelRefuelLeftIsolationValve: 28511,
+  FuelRefuelRightIsolationValve: 28512,
+  // CpiomF/FuelOverflow: fuel pushed into the full tank spills into its surge tank (FUEL WING / TRIM TK OVERFLOW)
+  FuelLeftOuterTankInletValveStuckOpen: 28520,
+  FuelRightOuterTankInletValveStuckOpen: 28521,
+  FuelTrimTankInletValveStuckOpen: 28522,
+  // CpiomF/WeightBalanceBackup: both WBBCs failed, no backup GW and CG (FUEL WEIGHT & BALANCE BKUP FAULT)
+  Wbbc1: 28530,
+  Wbbc2: 28531,
   // Systems-host CpiomF/FuelPumpsAndValves: a feed pump failure holds the MSFS pump switch off, a crossfeed valve jam
   // holds the MSFS valve switch where the valve was, while the pb-sw selections still change
   FuelFeedTank1MainPump: 28010,
@@ -1283,6 +1298,16 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [28, A380Failure.FuelJettisonValveRightStuckClosed, 'Jettison valve R stuck closed'],
   [28, A380Failure.FuelJettisonValveLeftStuckOpen, 'Jettison valve L stuck open'],
   [28, A380Failure.FuelJettisonValveRightStuckOpen, 'Jettison valve R stuck open'],
+  [28, A380Failure.FuelApuIsolationValveJammed, 'APU fuel isolation valve jammed in place'],
+  [28, A380Failure.FuelApuLpValveJammed, 'APU LP fuel valve jammed in place'],
+  [28, A380Failure.FuelRefuelSystem, 'Refuel system'],
+  [28, A380Failure.FuelRefuelLeftIsolationValve, 'Refuel L isolation valve'],
+  [28, A380Failure.FuelRefuelRightIsolationValve, 'Refuel R isolation valve'],
+  [28, A380Failure.FuelLeftOuterTankInletValveStuckOpen, 'L outer tank inlet valve stuck open'],
+  [28, A380Failure.FuelRightOuterTankInletValveStuckOpen, 'R outer tank inlet valve stuck open'],
+  [28, A380Failure.FuelTrimTankInletValveStuckOpen, 'Trim tank inlet valve stuck open'],
+  [28, A380Failure.Wbbc1, 'WBBC 1'],
+  [28, A380Failure.Wbbc2, 'WBBC 2'],
   [28, A380Failure.FuelFeedTank1MainPump, 'Feed tank 1 main pump'],
   [28, A380Failure.FuelFeedTank1StbyPump, 'Feed tank 1 standby pump'],
   [28, A380Failure.FuelFeedTank2MainPump, 'Feed tank 2 main pump'],

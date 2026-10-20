@@ -314,6 +314,7 @@ import {
   fuelTempLoLines,
   manualTransferCompletedLines,
 } from './FwsFuelTankAlerts';
+import { fuelRefuelAlertEntries } from './FwsFuelRefuelAlerts';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -6209,6 +6210,8 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Fuel,
     },
+    // Refuel, ground transfer, APU feed, overflow and WBBC alerts (FwsFuelRefuelAlerts)
+    ...fuelRefuelAlertEntries(this.fws.fuelRefuelAlerts),
     281800072: {
       // LEAK DET FAULT (FwsFuelLeakLpValveAlerts): crew awareness, no master light
       flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.leakDetFault,

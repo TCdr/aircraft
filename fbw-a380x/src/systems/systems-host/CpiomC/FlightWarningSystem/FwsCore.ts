@@ -233,6 +233,7 @@ import { isToConfigNormal } from './ToConfigNormal';
 import { EcamClearHistory, FlightPhaseInhibitOverride, recallAll, RECALL_NORMAL_MEMO_MS } from './FwsRecall';
 import { FwsGearAlerts, aboveGearDoorSpeed } from './FwsGearAlerts';
 import { FwsGearSteeringAlerts, readGearSteeringSystemInputs } from './FwsGearSteeringAlerts';
+import { FwsFuelRefuelAlerts, readFuelRefuelInputs } from './FwsFuelRefuelAlerts';
 import { FwsNavAlerts, adrFaultyForNavAlerts, readSideDisplayData } from './FwsNavAlerts';
 import { AntiIceValveAlerts, readAntiIceValveInputs } from './AntiIceValveAlerts';
 import { oxygenAlerts } from './OxygenAlerts';
@@ -2342,6 +2343,9 @@ export class FwsCore {
 
   /** L/G configuration monitoring and STEER equipment alerts */
   public readonly gearSteeringAlerts = new FwsGearSteeringAlerts();
+
+  /** FUEL alerts of the refuel, ground transfer, APU feed, overflows and WBBC (FwsFuelRefuelAlerts.ts) */
+  public readonly fuelRefuelAlerts = new FwsFuelRefuelAlerts();
 
   /** NAV CAPT AND F/O ALT/ATT/HDG/BARO REF DISAGREE */
   public readonly navAlerts = new FwsNavAlerts();
@@ -7317,6 +7321,18 @@ export class FwsCore {
       this.crossFeedValveFault[index].set(valve.abnormal);
       this.crossFeedValveClosed[index].set(valve.closed);
     });
+
+    this.fuelRefuelAlerts.update(
+      readFuelRefuelInputs(
+        (name) => SimVar.GetSimVarValue(name, SimVarValueType.Number),
+        this.aircraftOnGround.get(),
+        [this.engine1Running, this.engine2Running, this.engine3Running, this.engine4Running].filter((running) =>
+          running.get(),
+        ).length,
+        Object.values(this.transferPumpFlags).every((pump) => pump.pbOn),
+      ),
+      this.fuelTankProcedureInputs,
+    );
 
     // WXR: the WXR button OFF also sets PRED W/S and TURB to OFF: only the WXR OFF memo
     // shows then.

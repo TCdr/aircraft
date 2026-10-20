@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
-import { Arinc429Register, Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
+import { Arinc429Register, Arinc429SignStatusMatrix, Arinc429Word, FailuresConsumer } from '@flybywiresim/fbw-sdk';
+import { A380Failure } from '@failures';
 
 /*
  * The Weight and Balance Backup Computer (WBBC):
@@ -88,11 +89,31 @@ export function slatsAndFlapsRetractedFromSfcc(word: Arinc429Word): boolean | nu
   return word.bitValueOr(12, false) && word.bitValueOr(19, false);
 }
 
+/**
+ * The SSM of the WBBC outputs: failure warning when both WBBCs are failed (FUEL WEIGHT & BALANCE BKUP FAULT), no
+ * computed data while not computing
+ * @param wbbc1Failed WBBC 1 is failed
+ * @param wbbc2Failed WBBC 2 is failed
+ * @param value the computed value, null when not computed
+ */
+export function wbbcOutputSsm(
+  wbbc1Failed: boolean,
+  wbbc2Failed: boolean,
+  value: number | null,
+): Arinc429SignStatusMatrix {
+  if (wbbc1Failed && wbbc2Failed) {
+    return Arinc429SignStatusMatrix.FailureWarning;
+  }
+  return value === null ? Arinc429SignStatusMatrix.NoComputedData : Arinc429SignStatusMatrix.NormalOperation;
+}
+
 /** Writes the WBBC gross weight and CG */
 export class WeightBalanceBackup implements Instrument {
   private readonly computer = new WeightBalanceBackupComputer();
 
   private readonly output = Arinc429Register.empty();
+
+  constructor(private readonly failures: Pick<FailuresConsumer, 'isActive'>) {}
 
   public init(): void {
     // nothing to initialise: the WBBC starts at the slats and flaps retraction
@@ -117,10 +138,13 @@ export class WeightBalanceBackup implements Instrument {
   }
 
   private write(name: string, value: number | null): void {
-    this.output.setValue(value ?? 0);
-    this.output.setSsm(
-      value === null ? Arinc429SignStatusMatrix.NoComputedData : Arinc429SignStatusMatrix.NormalOperation,
+    const ssm = wbbcOutputSsm(
+      this.failures.isActive(A380Failure.Wbbc1),
+      this.failures.isActive(A380Failure.Wbbc2),
+      value,
     );
+    this.output.setValue(ssm === Arinc429SignStatusMatrix.NormalOperation ? value ?? 0 : 0);
+    this.output.setSsm(ssm);
     this.output.writeToSimVar(name);
   }
 }

@@ -1,4 +1,5 @@
 mod fuel_measuring;
+mod refuel_prediction;
 
 use super::{A380FuelTankType, SetFuelLevel};
 use crate::{
@@ -8,6 +9,7 @@ use crate::{
 use bitflags::{bitflags, Flags};
 use enum_map::Enum;
 use fuel_measuring::FuelMeasuringApplication;
+use refuel_prediction::RefuelPrediction;
 use serde::Deserialize;
 use serde_with::{serde_as, DisplayFromStr};
 use std::{collections::HashMap, time::Duration};
@@ -735,6 +737,7 @@ pub(super) struct A380FuelQuantityManagementSystem {
     total_fuel_onboard_id: VariableIdentifier,
     total_aircraft_weight_id: VariableIdentifier,
     center_of_gravity_id: VariableIdentifier,
+    refuel_prediction: RefuelPrediction,
 
     fqms_status_word_id: VariableIdentifier,
     fqms_status_word: FQMSDiscreteFlags,
@@ -780,6 +783,7 @@ impl A380FuelQuantityManagementSystem {
             total_fuel_onboard_id: context.get_identifier("FQMS_TOTAL_FUEL_ON_BOARD".to_owned()),
             total_aircraft_weight_id: context.get_identifier("FQMS_GROSS_WEIGHT".to_owned()),
             center_of_gravity_id: context.get_identifier("FQMS_CENTER_OF_GRAVITY_MAC".to_owned()),
+            refuel_prediction: RefuelPrediction::new(context),
 
             fqms_status_word_id: context.get_identifier("FQMS_STATUS_WORD".to_owned()),
             fqms_status_word: Default::default(),
@@ -832,6 +836,12 @@ impl A380FuelQuantityManagementSystem {
 
         self.fuel_measuring_application
             .update(loadsheet, selected_fqdc, fms_zfw, fms_zfwcg);
+        self.refuel_prediction.update(
+            &mut self.refuel_application,
+            &self.integrated_refuel_panel,
+            fuel_system,
+            loadsheet,
+        );
     }
 
     /// Each FQMS runs on a pair of CPIOM-F, a command lane and a monitor lane: FQMS 1 on CPIOM-F1 and F3, FQMS 2
@@ -858,6 +868,7 @@ impl A380FuelQuantityManagementSystem {
         self.fms_zero_fuel_weights = Default::default();
         self.fms_zero_fuel_weight_cgs = Default::default();
         self.fqms_status_word = Default::default();
+        self.refuel_prediction.reset();
     }
 
     #[expect(dead_code)]
@@ -920,6 +931,7 @@ impl A380FuelQuantityManagementSystem {
 }
 impl SimulationElement for A380FuelQuantityManagementSystem {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.refuel_prediction.accept(visitor);
         self.refuel_application.accept(visitor);
         self.integrated_refuel_panel.accept(visitor);
         for failure in &mut self.channel_failures {

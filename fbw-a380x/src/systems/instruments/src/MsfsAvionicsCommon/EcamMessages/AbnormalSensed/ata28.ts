@@ -112,7 +112,10 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800001: {
     title: '\x1b<4m\x1b4mFUEL\x1bm ABNORM AUTO REFUEL DISTRIBUTION',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'WHEN REFUEL COMPLETED (AUTO RCL)', sensed: true, condition: true },
+      { name: 'AUTO GND XFR', sensed: true, labelNotCompleted: 'ON', level: 1 },
+    ],
   },
   281800002: {
     title: '\x1b<4m\x1b4mFUEL\x1bm ALL FEED TKs LEVEL LO',
@@ -158,7 +161,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800003: {
     title: '\x1b<4m\x1b4mFUEL\x1bm APU FEED FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800004: {
     title: '\x1b<4m\x1b4mFUEL\x1bm APU FEED VLV NOT CLOSED',
@@ -168,12 +171,28 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800005: {
     title: '\x1b<4m\x1b4mFUEL\x1bm AUTO GND XFR COMPLETED',
     sensed: true,
-    items: [],
+    items: [{ name: 'AUTO GND XFR', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800006: {
     title: '\x1b<4m\x1b4mFUEL\x1bm AUTO GND XFR FAULT',
     sensed: true,
-    items: [],
+    items: [
+      // FwsFuelRefuelAlerts autoGndXfrFaultLines
+      { name: 'TWO OR MORE ENGs RUNNING', sensed: true, condition: true },
+      { name: 'INHIBITED BY SECOND ENG START', sensed: false, style: ChecklistLineStyle.Green, level: 1 },
+      { name: 'GW & GWCG', sensed: false, labelNotCompleted: 'CHECK', level: 1 },
+      { name: 'AUTO GND XFR', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'AUTO GND XFR FAILED', sensed: true, condition: true },
+      { name: 'NO ZFW OR ZFWCG IN FMS', sensed: true, condition: true, level: 1 },
+      { name: 'FMS ZFW OR ZFWCG VALUES', sensed: true, labelNotCompleted: 'INITIALIZE', level: 2 },
+      { name: 'ALL TKs PMPs', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'ALL CROSSFEEDS', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'OUTR TK XFR', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
+      { name: 'MID TK XFR', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
+      { name: 'INR TK XFR', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
+      { name: 'TRIM TK XFR', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
+      { name: 'TRIM TK FEED', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
+    ],
   },
   281800007: {
     title: '\x1b<4m\x1b4mFUEL\x1bm CG AT FWD LIMIT',
@@ -1205,17 +1224,27 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800081: {
     title: '\x1b<4m\x1b4mFUEL\x1bm PREDICTED CG OUT OF T.O RANGE',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'WHEN REFUEL COMPLETED (AUTO RCL)', sensed: true, condition: true },
+      { name: 'AUTO GND XFR', sensed: true, labelNotCompleted: 'ON', level: 1 },
+    ],
   },
   281800082: {
     title: '\x1b<4m\x1b4mFUEL\x1bm REFUEL / DEFUEL SYS FAULT',
     sensed: true,
-    items: [],
+    items: [
+      // The failed valve
+      { name: 'REFUEL L ISOL VLV FAULT', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'REFUEL R ISOL VLV FAULT', sensed: false, style: ChecklistLineStyle.Green },
+    ],
   },
   281800083: {
     title: '\x1b<4m\x1b4mFUEL\x1bm REFUEL DATA / FMS DISAGREE',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'REFUEL DATA', sensed: false, labelNotCompleted: 'CONFIRM' },
+      { name: 'FMS FUEL & LOAD', sensed: false, labelNotCompleted: 'CONFIRM' },
+    ],
   },
   281800084: {
     title: '\x1b<4m\x1b4mFUEL\x1bm REFUEL FAULT',
@@ -1302,7 +1331,7 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800093: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK OVERFLOW',
     sensed: true,
-    items: [],
+    items: [{ name: 'TRIM TK XFR', sensed: true, labelNotCompleted: 'FWD' }],
   },
   281800094: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK XFR FAULT',
@@ -1347,7 +1376,18 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800097: {
     title: '\x1b<4m\x1b4mFUEL\x1bm WING TK OVERFLOW',
     sensed: true,
-    items: [],
+    items: [
+      // FwsFuelRefuelAlerts wingTkOverflowLines
+      { name: 'DELAY T.O', sensed: false, style: ChecklistLineStyle.Cyan }, // On ground before takeoff
+      { name: 'MAN XFR SELECTED', sensed: true, condition: true },
+      { name: 'OUTR TK XFR', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
+      { name: 'EMER OUTR TK XFR', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'TRIM TK XFR', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
+      { name: 'INR TK XFR', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
+      { name: 'MID TK XFR', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
+      { name: 'NO MAN XFR SELECTED', sensed: true, condition: true },
+      { name: 'FUEL XFR : MAN ONLY', sensed: false, style: ChecklistLineStyle.Green, level: 1 },
+    ],
   },
   281800098: {
     title: '\x1b<4m\x1b4mFUEL\x1bm WINGS BALANCED',
