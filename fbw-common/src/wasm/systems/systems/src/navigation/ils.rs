@@ -46,6 +46,8 @@ pub struct MultiModeReceiverShim {
     /// MMR 1 is also switched off in the sim by the systems host
     /// (NavigationReceiverFailures), as the FBW module reads NAV 3 directly.
     failure: Failure,
+    /// The whole MMR fails, its ILS receiver with it (NAV LS 1(2)(1+2) FAULT on the A380)
+    mmr_failure: Failure,
 
     frequency_id: VariableIdentifier,
     nav_valid_id: VariableIdentifier,
@@ -77,6 +79,7 @@ impl MultiModeReceiverShim {
             glideslope_valid: false,
             glideslope_deviation: Angle::default(),
             failure: Failure::new(FailureType::IlsReceiver(number)),
+            mmr_failure: Failure::new(FailureType::MultiModeReceiver(number)),
 
             frequency_id: context.get_identifier(format!("NAV FREQUENCY:{nav_index}")),
             nav_valid_id: context.get_identifier(format!("NAV HAS NAV:{nav_index}")),
@@ -190,12 +193,13 @@ impl InstrumentLandingSystemBus for MultiModeReceiverShim {
 impl SimulationElement for MultiModeReceiverShim {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.failure.accept(visitor);
+        self.mmr_failure.accept(visitor);
         visitor.visit(self);
     }
 
     fn read(&mut self, reader: &mut crate::simulation::SimulatorReader) {
         // A failed receiver receives nothing
-        let receives = !self.failure.is_active();
+        let receives = !self.failure.is_active() && !self.mmr_failure.is_active();
         self.frequency = reader.read(&self.frequency_id);
         let nav_valid: bool = reader.read(&self.nav_valid_id);
         let loc_valid: bool = reader.read(&self.loc_valid_id);
@@ -340,6 +344,24 @@ mod tests {
         test_bed.run();
         assert!(read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
         assert!(read_flag(&mut test_bed, "MMR_2_GS_IS_VALID"));
+    }
+
+    #[test]
+    fn a_failed_mmr_gives_no_localiser_and_glideslope() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        test_bed.fail(FailureType::MultiModeReceiver(1));
+        test_bed.run();
+        test_bed.run();
+
+        assert!(!read_flag(&mut test_bed, "MMR_1_LOC_IS_VALID"));
+        assert!(!read_flag(&mut test_bed, "MMR_1_GS_IS_VALID"));
+        assert!(test_bed.query(|a| a.mmr_1.localizer_deviation().is_no_computed_data()));
+        assert!(read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
+
+        test_bed.unfail(FailureType::MultiModeReceiver(1));
+        test_bed.run();
+        test_bed.run();
+        assert!(read_flag(&mut test_bed, "MMR_1_LOC_IS_VALID"));
     }
 
     struct SingleMmrAircraft {

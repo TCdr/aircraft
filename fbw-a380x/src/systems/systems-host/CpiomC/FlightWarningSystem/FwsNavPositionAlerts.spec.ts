@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FM_GPS_POS_DISAGREE_PHASE_INHIBITION,
+  FM_IR_POS_DISAGREE_PHASE_INHIBITION,
   FwsNavPositionAlerts,
   isLsTuningDifferent,
   LS_TUNING_DISAGREE_PHASE_INHIBITION,
@@ -12,12 +13,27 @@ import {
 const ils = { frequency: 109.5, course: 254 };
 const otherIls = { frequency: 110.3, course: 254 };
 
+describe('NAV FM / IR POS DISAGREE', () => {
+  it('follows the FMS condition', () => {
+    const alerts = new FwsNavPositionAlerts();
+    alerts.update(0.1, false, ils, ils, true);
+    expect(alerts.fmIrPosDisagree.get()).toBe(true);
+    expect(alerts.fmGpsPosDisagree.get()).toBe(false);
+    alerts.update(0.1, false, ils, ils, false);
+    expect(alerts.fmIrPosDisagree.get()).toBe(false);
+  });
+
+  it('is shown in cruise only', () => {
+    expect(FM_IR_POS_DISAGREE_PHASE_INHIBITION).toEqual([1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]);
+  });
+});
+
 describe('NAV FM / GPS POS DISAGREE', () => {
   it('follows the FMS condition', () => {
     const alerts = new FwsNavPositionAlerts();
-    alerts.update(0.1, true, ils, ils);
+    alerts.update(0.1, true, ils, ils, false);
     expect(alerts.fmGpsPosDisagree.get()).toBe(true);
-    alerts.update(0.1, false, ils, ils);
+    alerts.update(0.1, false, ils, ils, false);
     expect(alerts.fmGpsPosDisagree.get()).toBe(false);
   });
 
@@ -36,13 +52,13 @@ describe('NAV LS TUNING DISAGREE', () => {
 
   it('confirms the difference for 3 s and resets when the tuning agrees again', () => {
     const alerts = new FwsNavPositionAlerts();
-    alerts.update(2, false, ils, otherIls);
+    alerts.update(2, false, ils, otherIls, false);
     expect(alerts.lsTuningDisagree.get()).toBe(false);
-    alerts.update(1, false, ils, otherIls);
+    alerts.update(1, false, ils, otherIls, false);
     expect(alerts.lsTuningDisagree.get()).toBe(true);
-    alerts.update(0.1, false, ils, ils);
+    alerts.update(0.1, false, ils, ils, false);
     expect(alerts.lsTuningDisagree.get()).toBe(false);
-    alerts.update(2.9, false, ils, otherIls);
+    alerts.update(2.9, false, ils, otherIls, false);
     expect(alerts.lsTuningDisagree.get()).toBe(false);
   });
 

@@ -12,6 +12,7 @@ import { MfdSurvEvents } from '../../../instruments/src/MsfsAvionicsCommon/provi
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import { isTcasInoperative, isTransponderOperative, selectedSurvSystem } from './TransponderSystem';
+import { isSurvSystemLost } from '../SurvSystemFailures';
 
 // FIXME implement the rest of the transponder and it's ARINC bus interface
 
@@ -98,8 +99,18 @@ export class Transponder implements Instrument {
     const ac4 = this.ac4Powered.get();
     const isFailureActive = (failure: number) => this.failuresConsumer.isActive(failure);
     // Each system's own state (powered and not failed), shown on the MFD SURV STATUS & SWITCHING page
-    this.xpdr1Failed.set(!isTransponderOperative(1, acEss, ac4, isFailureActive));
-    this.xpdr2Failed.set(!isTransponderOperative(2, acEss, ac4, isFailureActive));
+    const surv1Lost = isSurvSystemLost(
+      1,
+      isFailureActive,
+      SimVar.GetSimVarValue('L:A32NX_RESET_PANEL_AESU1', 'bool') > 0,
+    );
+    const surv2Lost = isSurvSystemLost(
+      2,
+      isFailureActive,
+      SimVar.GetSimVarValue('L:A32NX_RESET_PANEL_AESU2', 'bool') > 0,
+    );
+    this.xpdr1Failed.set(!isTransponderOperative(1, acEss, ac4, isFailureActive, surv1Lost));
+    this.xpdr2Failed.set(!isTransponderOperative(2, acEss, ac4, isFailureActive, surv2Lost));
 
     const selectedSystem = selectedSurvSystem(
       SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', SimVarValueType.Number),

@@ -207,4 +207,13 @@ inline float wxRangeFraction(float limitNm, float rangeNmForMode) {
   return std::fmax(limitNm, 0.0f) / rangeNmForMode;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// TURB
+
+// Whether the A380X radar adds the turbulence (magenta) to the precipitation: TURB AUTO on the SURV CONTROLS page and
+// the turbulence detection of the selected SURV system not failed (L:A32NX_WXR_n_TURB_FAILED).
+inline bool a380TurbulenceShown(bool turbOff, bool turbFailed) {
+  return !turbOff && !turbFailed;
+}
+
 }  // namespace ndwxr

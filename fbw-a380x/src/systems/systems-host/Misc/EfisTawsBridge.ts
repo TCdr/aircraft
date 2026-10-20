@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { A380Failure } from '@failures';
+import { isSurvSystemLost, wxrFunctionsFailed } from './SurvSystemFailures';
 import {
   a380EfisRangeSettings,
   IrBusEvents,
@@ -484,6 +485,10 @@ export class EfisTawsBridge implements Instrument {
   private readonly gpws2Failed = Subject.create(false);
   private readonly wxr1Failed = Subject.create(true);
   private readonly wxr2Failed = Subject.create(true);
+  private readonly wxr1TurbulenceFailed = Subject.create(true);
+  private readonly wxr2TurbulenceFailed = Subject.create(true);
+  private readonly wxr1PredictiveWindshearFailed = Subject.create(true);
+  private readonly wxr2PredictiveWindshearFailed = Subject.create(true);
 
   /** The SURV system that provides the TAWS functions (TawsSystemInUse.ts), L:A32NX_TAWS_SYS_IN_USE */
   private readonly tawsSystemInUse = Subject.create<0 | 1 | 2>(0);
@@ -526,6 +531,22 @@ export class EfisTawsBridge implements Instrument {
       this.gpws2Failed.sub((v) => SimVar.SetSimVarValue('L:A32NX_GPWS_2_FAILED', SimVarValueType.Bool, v), true),
       this.wxr1Failed.sub((v) => SimVar.SetSimVarValue('L:A32NX_WXR_1_FAILED', SimVarValueType.Bool, v), true),
       this.wxr2Failed.sub((v) => SimVar.SetSimVarValue('L:A32NX_WXR_2_FAILED', SimVarValueType.Bool, v), true),
+      this.wxr1TurbulenceFailed.sub(
+        (v) => SimVar.SetSimVarValue('L:A32NX_WXR_1_TURB_FAILED', SimVarValueType.Bool, v),
+        true,
+      ),
+      this.wxr2TurbulenceFailed.sub(
+        (v) => SimVar.SetSimVarValue('L:A32NX_WXR_2_TURB_FAILED', SimVarValueType.Bool, v),
+        true,
+      ),
+      this.wxr1PredictiveWindshearFailed.sub(
+        (v) => SimVar.SetSimVarValue('L:A32NX_WXR_1_PRED_WS_FAILED', SimVarValueType.Bool, v),
+        true,
+      ),
+      this.wxr2PredictiveWindshearFailed.sub(
+        (v) => SimVar.SetSimVarValue('L:A32NX_WXR_2_PRED_WS_FAILED', SimVarValueType.Bool, v),
+        true,
+      ),
       this.tawsSystemInUse.sub(
         (v) => SimVar.SetSimVarValue('L:A32NX_TAWS_SYS_IN_USE', SimVarValueType.Number, v),
         true,
@@ -735,28 +756,24 @@ export class EfisTawsBridge implements Instrument {
 
     const tawsWxrSelected = SimVar.GetSimVarValue('L:A32NX_WXR_TAWS_SYS_SELECTED', SimVarValueType.Number);
     const extremeLatitude = this.validIrMaintWord.get()?.bitValueOr(15, false) ?? false;
+    const isFailureActive = (failure: number) => this.failuresConsumer.isActive(failure);
+    const surv1Lost = isSurvSystemLost(1, isFailureActive, this.aesu1ResetPulled.get());
+    const surv2Lost = isSurvSystemLost(2, isFailureActive, this.aesu2ResetPulled.get());
     this.terr1Failed.set(
-      this.failuresConsumer.isActive(A380Failure.Terr1) ||
-        this.aesu1ResetPulled.get() ||
-        !this.acEssPowered.get() ||
-        extremeLatitude,
+      isFailureActive(A380Failure.Terr1) || surv1Lost || !this.acEssPowered.get() || extremeLatitude,
     );
-    this.terr2Failed.set(
-      this.failuresConsumer.isActive(A380Failure.Terr2) ||
-        this.aesu2ResetPulled.get() ||
-        !this.ac4Powered.get() ||
-        extremeLatitude,
-    );
+    this.terr2Failed.set(isFailureActive(A380Failure.Terr2) || surv2Lost || !this.ac4Powered.get() || extremeLatitude);
     // FIXME add GPWS failure conditions for: FLAPS pos not avail
-    this.gpws1Failed.set(
-      this.failuresConsumer.isActive(A380Failure.Gpws1) || this.aesu1ResetPulled.get() || !this.acEssPowered.get(),
-    );
-    this.gpws2Failed.set(
-      this.failuresConsumer.isActive(A380Failure.Gpws2) || this.aesu2ResetPulled.get() || !this.ac4Powered.get(),
-    );
-    // There is no WXR failure of its own yet: like GPWS, each WXR is out while its AESU is reset or unpowered.
-    this.wxr1Failed.set(this.aesu1ResetPulled.get() || !this.acEssPowered.get());
-    this.wxr2Failed.set(this.aesu2ResetPulled.get() || !this.ac4Powered.get());
+    this.gpws1Failed.set(isFailureActive(A380Failure.Gpws1) || surv1Lost || !this.acEssPowered.get());
+    this.gpws2Failed.set(isFailureActive(A380Failure.Gpws2) || surv2Lost || !this.ac4Powered.get());
+    const wxr1 = wxrFunctionsFailed(1, isFailureActive, surv1Lost, this.acEssPowered.get());
+    const wxr2 = wxrFunctionsFailed(2, isFailureActive, surv2Lost, this.ac4Powered.get());
+    this.wxr1Failed.set(wxr1.wxDisplay);
+    this.wxr2Failed.set(wxr2.wxDisplay);
+    this.wxr1TurbulenceFailed.set(wxr1.turbulence);
+    this.wxr2TurbulenceFailed.set(wxr2.turbulence);
+    this.wxr1PredictiveWindshearFailed.set(wxr1.predictiveWindshear);
+    this.wxr2PredictiveWindshearFailed.set(wxr2.predictiveWindshear);
 
     // The TAWS can come from the other SYS than the selected one (automatic reconfiguration, TawsSystemInUse.ts): the
     // terrain on the ND and VD follows the TAWS system in use

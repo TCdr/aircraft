@@ -881,6 +881,11 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_080, FailureType::IrFault(1)),
         (34_081, FailureType::IrFault(2)),
         (34_082, FailureType::IrFault(3)),
+        // MMR n as a whole (its ILS and GPS receivers), and its ILS receiver alone (navigation::ils, gnss)
+        (34_100, FailureType::MultiModeReceiver(1)),
+        (34_101, FailureType::MultiModeReceiver(2)),
+        (34_102, FailureType::IlsReceiver(1)),
+        (34_103, FailureType::IlsReceiver(2)),
         // Avionics network (systems::integrated_modular_avionics): AFDX switches by their number,
         // IOMs A1-A8 as 42_101-42_108, CPIOMs as 42_2xy (x = letter A..G as 0..6, y = number)
         (42_001, FailureType::AvionicsFullDuplexSwitch(1)),

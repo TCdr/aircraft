@@ -49,18 +49,23 @@ describe('A380 XPDR/TCAS power (SYS 1 = AC ESS, SYS 2 = AC 4)', () => {
 
 describe('A380 XPDR operative state', () => {
   it('fails XPDR 1 only with failure 34003', () => {
-    expect(isTransponderOperative(1, true, true, failures(A380Failure.Transponder1))).toBe(false);
-    expect(isTransponderOperative(1, true, true, failures(A380Failure.Transponder2))).toBe(true);
+    expect(isTransponderOperative(1, true, true, failures(A380Failure.Transponder1), false)).toBe(false);
+    expect(isTransponderOperative(1, true, true, failures(A380Failure.Transponder2), false)).toBe(true);
   });
 
   it('fails XPDR 2 only with failure 34004', () => {
-    expect(isTransponderOperative(2, true, true, failures(A380Failure.Transponder2))).toBe(false);
-    expect(isTransponderOperative(2, true, true, failures(A380Failure.Transponder1))).toBe(true);
+    expect(isTransponderOperative(2, true, true, failures(A380Failure.Transponder2), false)).toBe(false);
+    expect(isTransponderOperative(2, true, true, failures(A380Failure.Transponder1), false)).toBe(true);
+  });
+
+  it('fails the XPDR of a lost SURV system (AESU failed or reset)', () => {
+    expect(isTransponderOperative(1, true, true, failures(), true)).toBe(false);
+    expect(isTransponderOperative(2, true, true, failures(), false)).toBe(true);
   });
 
   it('keeps XPDR 2 working when XPDR 1 is failed and AC ESS is lost', () => {
-    expect(isTransponderOperative(2, false, true, failures(A380Failure.Transponder1))).toBe(true);
-    expect(isTransponderOperative(1, false, true, failures())).toBe(false);
+    expect(isTransponderOperative(2, false, true, failures(A380Failure.Transponder1), false)).toBe(true);
+    expect(isTransponderOperative(1, false, true, failures(), false)).toBe(false);
   });
 });
 

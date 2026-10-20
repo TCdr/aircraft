@@ -20,7 +20,7 @@ import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
 import { SurvStatusButton } from '../../../MsfsAvionicsCommon/UiWidgets/SurvStatusButton';
 import { SurvStatusItem } from '../../../MsfsAvionicsCommon/UiWidgets/SurvStatusItem';
 import { fcomAt, fcomCentre } from '../common/FcomLayout';
-import { tawsInUseText, tawsSystem, wxrFunctionsFailed } from './SurvStatus';
+import { tawsInUseText, tawsSystem } from './SurvStatus';
 
 interface MfdSurvStatusSwitchingProps extends AbstractMfdPageProps {}
 
@@ -45,10 +45,10 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
 
   private readonly wxr1Failed = ConsumerSubject.create(this.sub.on('wxr1Failed'), false);
 
-  /** TURB and PRED W/S of SYS 1 fail with its WXR (SurvStatus.ts wxrFunctionsFailed) */
-  private readonly turb1Failed = this.wxr1Failed.map((failed) => wxrFunctionsFailed(failed).turb);
+  /** The WXR functions of SYS 1 (systems host EfisTawsBridge): each fails on its own, all with the system */
+  private readonly turb1Failed = ConsumerSubject.create(this.sub.on('wxr1TurbFailed'), false);
 
-  private readonly predWs1Failed = this.wxr1Failed.map((failed) => wxrFunctionsFailed(failed).predWs);
+  private readonly predWs1Failed = ConsumerSubject.create(this.sub.on('wxr1PredWsFailed'), false);
 
   /** XPDR 1 failed or unpowered (systems host Transponder.ts) */
   private readonly xpdr1Failed = ConsumerSubject.create(this.sub.on('xpdr1Failed'), false);
@@ -59,9 +59,9 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
 
   private readonly wxr2Failed = ConsumerSubject.create(this.sub.on('wxr2Failed'), false);
 
-  private readonly turb2Failed = this.wxr2Failed.map((failed) => wxrFunctionsFailed(failed).turb);
+  private readonly turb2Failed = ConsumerSubject.create(this.sub.on('wxr2TurbFailed'), false);
 
-  private readonly predWs2Failed = this.wxr2Failed.map((failed) => wxrFunctionsFailed(failed).predWs);
+  private readonly predWs2Failed = ConsumerSubject.create(this.sub.on('wxr2PredWsFailed'), false);
 
   private readonly terr2Failed = ConsumerSubject.create(this.sub.on('terr2Failed'), false);
 

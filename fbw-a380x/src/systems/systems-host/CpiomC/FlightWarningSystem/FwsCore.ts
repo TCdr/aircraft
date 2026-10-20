@@ -238,6 +238,8 @@ import { FwsNavAlerts, adrFaultyForNavAlerts, readSideDisplayData } from './FwsN
 import { AntiIceValveAlerts, readAntiIceValveInputs } from './AntiIceValveAlerts';
 import { oxygenAlerts } from './OxygenAlerts';
 import { FwsNavPositionAlerts } from './FwsNavPositionAlerts';
+import { FwsNavSensorAlerts, readNavSensorAlertInputs } from './FwsNavSensorAlerts';
+import { FwsSurvSystemAlerts, readSurvSystemAlertInputs } from './FwsSurvSystemAlerts';
 import {
   areRamAirInletsOpen,
   ExcessNegativeDiffPressMonitor,
@@ -2352,6 +2354,12 @@ export class FwsCore {
 
   /** NAV FM / GPS POS DISAGREE and NAV LS TUNING DISAGREE (see FwsNavPositionAlerts) */
   public readonly navPositionAlerts = new FwsNavPositionAlerts();
+
+  /** NAV LS / ILS FAULT, STATIC PROBE FAULT, ADR 1+2+3 DATA DEGRADED, SIDESLIP PROBE FAULT, RESIDUAL AIR SPEED */
+  public readonly navSensorAlerts = new FwsNavSensorAlerts();
+
+  /** SURV SYS, WXR, TURB, PRED W/S FAULT, SURV SYS DEGRADED and SURV REACTIVE W/S DET FAULT */
+  public readonly survSystemAlerts = new FwsSurvSystemAlerts();
 
   public isAllGearDownlocked = false;
 
@@ -4947,6 +4955,18 @@ export class FwsCore {
     this.adr3Faulty.set(
       adrFaultyForNavAlerts(adr3Fault, this.ac2BusPowered.get(), this.dc1BusPowered.get(), flightPhase112),
     );
+    const readSimVar = (name: string, unit: string) => SimVar.GetSimVarValue(name, unit);
+    const isFailureActive = (failure: number) => this.failuresConsumer.isActive(failure);
+    this.navSensorAlerts.update(readNavSensorAlertInputs(readSimVar, isFailureActive, this.aircraftOnGround.get()));
+    this.survSystemAlerts.update(
+      readSurvSystemAlertInputs(
+        readSimVar,
+        isFailureActive,
+        [this.acESSBusPowered.get(), this.ac4BusPowered.get()],
+        [adr1Fault, adr2Fault, adr3Fault],
+        [this.ir1Fault.get(), this.ir2Fault.get(), this.ir3Fault.get()],
+      ),
+    );
     this.airDataAlerts.update(readAirDataAlertInputs((name, unit) => SimVar.GetSimVarValue(name, unit)));
 
     // GPS receivers: GPS_n_MODE 4 is FAULT (a failure prevents the receiver from transmitting valid data)
@@ -5130,7 +5150,7 @@ export class FwsCore {
       readSideDisplayData(false, (name) => Arinc429Word.fromSimVarValue(name), navAirKnob, navAttKnob, navTrueRef),
       navTrueRef,
     );
-    // The FMS sends the FM/GPS position disagree condition; MMR 1 and 2 are the sim NAV 3 and NAV 4 receivers
+    // The FMS sends the FM/GPS and FM/IR position disagree conditions; MMR 1 and 2 are the sim NAV 3 and 4 radios
     this.navPositionAlerts.update(
       deltaTime / 1000,
       SimVar.GetSimVarValue('L:A32NX_FM_GPS_POS_DISAGREE', 'bool') > 0,
@@ -5142,6 +5162,7 @@ export class FwsCore {
         frequency: SimVar.GetSimVarValue('NAV ACTIVE FREQUENCY:4', 'MHz'),
         course: SimVar.GetSimVarValue('NAV OBS:4', 'degrees'),
       },
+      SimVar.GetSimVarValue('L:A32NX_FM_IR_POS_DISAGREE', 'bool') > 0,
     );
     const parkBrakeSet = SimVar.GetSimVarValue('L:A32NX_PARK_BRAKE_LEVER_POS', 'Number') === 1;
     this.parkBrakeSet.set(parkBrakeSet);

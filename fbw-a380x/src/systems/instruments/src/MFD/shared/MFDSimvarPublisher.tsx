@@ -43,6 +43,10 @@ export type MfdSimvars = {
   gpws2Failed: boolean;
   wxr1Failed: boolean;
   wxr2Failed: boolean;
+  wxr1TurbFailed: boolean;
+  wxr2TurbFailed: boolean;
+  wxr1PredWsFailed: boolean;
+  wxr2PredWsFailed: boolean;
   wxrOff: boolean;
   wxrTurbOff: boolean;
   wxrModeMap: boolean;
@@ -109,6 +113,10 @@ export enum MfdVars {
   gpws2Failed = 'L:A32NX_GPWS_2_FAILED',
   wxr1Failed = 'L:A32NX_WXR_1_FAILED',
   wxr2Failed = 'L:A32NX_WXR_2_FAILED',
+  wxr1TurbFailed = 'L:A32NX_WXR_1_TURB_FAILED',
+  wxr2TurbFailed = 'L:A32NX_WXR_2_TURB_FAILED',
+  wxr1PredWsFailed = 'L:A32NX_WXR_1_PRED_WS_FAILED',
+  wxr2PredWsFailed = 'L:A32NX_WXR_2_PRED_WS_FAILED',
   wxrOff = 'L:A380X_WXR_OFF',
   wxrTurbOff = 'L:A380X_WXR_TURB_OFF',
   wxrModeMap = 'L:A380X_WXR_MODE_MAP',
@@ -171,6 +179,10 @@ export class MfdSimvarPublisher extends SimVarPublisher<MfdSimvars> {
     ['gpws2Failed', { name: MfdVars.gpws2Failed, type: SimVarValueType.Bool }],
     ['wxr1Failed', { name: MfdVars.wxr1Failed, type: SimVarValueType.Bool }],
     ['wxr2Failed', { name: MfdVars.wxr2Failed, type: SimVarValueType.Bool }],
+    ['wxr1TurbFailed', { name: MfdVars.wxr1TurbFailed, type: SimVarValueType.Bool }],
+    ['wxr2TurbFailed', { name: MfdVars.wxr2TurbFailed, type: SimVarValueType.Bool }],
+    ['wxr1PredWsFailed', { name: MfdVars.wxr1PredWsFailed, type: SimVarValueType.Bool }],
+    ['wxr2PredWsFailed', { name: MfdVars.wxr2PredWsFailed, type: SimVarValueType.Bool }],
     ['wxrOff', { name: MfdVars.wxrOff, type: SimVarValueType.Bool }],
     ['wxrTurbOff', { name: MfdVars.wxrTurbOff, type: SimVarValueType.Bool }],
     ['wxrModeMap', { name: MfdVars.wxrModeMap, type: SimVarValueType.Bool }],

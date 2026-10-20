@@ -676,6 +676,40 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
       expected.map(([id, failureType, name]) => [id, failureType, name, 34]),
     );
   });
+
+  it('lists the MMR and ILS receiver failures in ATA 34 with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [34100, 'MultiModeReceiver(1)', 'MMR 1 (ILS 1 and GPS 1 receivers)'],
+      [34101, 'MultiModeReceiver(2)', 'MMR 2 (ILS 2 and GPS 2 receivers)'],
+      [34102, 'IlsReceiver(1)', 'ILS 1 receiver'],
+      [34103, 'IlsReceiver(2)', 'ILS 2 receiver'],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 34]),
+    );
+  });
+
+  it('lists the probe and SURV function failures the systems host and the FWS read in ATA 34', () => {
+    const ids = [
+      A380Failure.Adr1LeftStaticProbe,
+      A380Failure.Adr3RightStaticProbe,
+      A380Failure.SideslipProbe1,
+      A380Failure.SideslipProbe3,
+      A380Failure.SurvSystem1,
+      A380Failure.SurvSystem2,
+      A380Failure.WxrDisplay1,
+      A380Failure.WxrTurbulence2,
+      A380Failure.WxrPredictiveWindshear1,
+      A380Failure.SurvSystemLink,
+      A380Failure.ReactiveWindshearDetection,
+    ];
+    expect(ids.map((id) => A380FailureDefinitions.find(([, listedId]) => listedId === id)?.[0])).toEqual(
+      ids.map(() => 34),
+    );
+  });
 });
 
 describe('A380X slat/flap channel and avionics network failures', () => {
