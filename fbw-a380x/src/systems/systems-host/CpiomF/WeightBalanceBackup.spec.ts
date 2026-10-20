@@ -3,7 +3,12 @@
 
 import { describe, expect, it } from 'vitest';
 import { Arinc429Register, Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
-import { slatsAndFlapsRetractedFromSfcc, WbbcInputs, WeightBalanceBackupComputer } from './WeightBalanceBackup';
+import {
+  slatsAndFlapsRetractedFromSfcc,
+  WbbcInputs,
+  wbbcOutputSsm,
+  WeightBalanceBackupComputer,
+} from './WeightBalanceBackup';
 
 const climb = (inputs: Partial<WbbcInputs> = {}): WbbcInputs => ({
   onGround: false,
@@ -68,5 +73,17 @@ describe('A380 Weight and Balance Backup Computer', () => {
     expect(slatsAndFlapsRetractedFromSfcc(sfccWord([11, 12, 18, 19], Arinc429SignStatusMatrix.FailureWarning))).toBe(
       null,
     );
+  });
+});
+
+describe('A380 WBBC failures', () => {
+  it('both WBBCs failed: the outputs carry a failure warning (FUEL WEIGHT & BALANCE BKUP FAULT)', () => {
+    expect(wbbcOutputSsm(true, true, 500_000)).toBe(Arinc429SignStatusMatrix.FailureWarning);
+    expect(wbbcOutputSsm(true, true, null)).toBe(Arinc429SignStatusMatrix.FailureWarning);
+  });
+
+  it('one WBBC failed: the other one still computes', () => {
+    expect(wbbcOutputSsm(true, false, 500_000)).toBe(Arinc429SignStatusMatrix.NormalOperation);
+    expect(wbbcOutputSsm(false, true, null)).toBe(Arinc429SignStatusMatrix.NoComputedData);
   });
 });

@@ -29,6 +29,8 @@ function normal(): FuelTransferFaultInputs {
     aftGalleryInletValveOpen: false,
     trimTankIsolationValveClosed: false,
     trimAndApuLineDamaged: false,
+    wingTankOverflow: false,
+    manualTransferSelected: false,
   };
 }
 
@@ -92,6 +94,25 @@ describe('FuelTransferFaultMonitor', () => {
       innerMidTrimTransfersLost: true,
       outerPumpedTransferLost: true,
     });
+  });
+
+  it('a wing tank overflow during an automatic transfer makes the transfers manual for the rest of the flight', () => {
+    const monitor = new FuelTransferFaultMonitor();
+    expect(monitor.update({ ...normal(), wingTankOverflow: true })).toMatchObject({
+      manualTransferRequired: true,
+      automaticTransfersLost: true,
+    });
+    // The surge tank drained back in flight: still manual
+    expect(monitor.update(normal())).toMatchObject({ manualTransferRequired: true, automaticTransfersLost: true });
+    expect(monitor.update({ ...normal(), onGround: true })).toEqual(NO_TRANSFER_RESTRICTION);
+  });
+
+  it('a wing tank overflow during a manual transfer leaves the automatic transfers, even once set back to AUTO', () => {
+    const monitor = new FuelTransferFaultMonitor();
+    expect(monitor.update({ ...normal(), wingTankOverflow: true, manualTransferSelected: true })).toEqual(
+      NO_TRANSFER_RESTRICTION,
+    );
+    expect(monitor.update({ ...normal(), wingTankOverflow: true })).toEqual(NO_TRANSFER_RESTRICTION);
   });
 
   it('the trim tank: no automatic transfer with its isolation valve closed or its lines damaged', () => {

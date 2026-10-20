@@ -25,6 +25,9 @@ import { FuelTransferFaults } from './CpiomF/FuelTransferFaults';
 import { FuelCollectorCells } from './CpiomF/FuelCollectorCells';
 import { FuelTemperatures } from './CpiomF/FuelTankTemperatures';
 import { WeightBalanceBackup } from './CpiomF/WeightBalanceBackup';
+import { FuelApuFeed } from './CpiomF/FuelApuFeed';
+import { FuelOverflow } from './CpiomF/FuelOverflow';
+import { FuelRefuelFaults } from './CpiomF/FuelRefuelFaults';
 import { AutolandLights } from './Misc/AutolandLights';
 import { WxPbAutoDeselect } from './Misc/WxPbAutoDeselect';
 import { WxrSurvKnobs } from './Misc/WxrSurvKnobs';
@@ -246,7 +249,13 @@ class SystemsHost extends BaseInstrument {
 
   private readonly fuelTemperatures = new FuelTemperatures(this);
 
-  private readonly weightBalanceBackup = new WeightBalanceBackup();
+  private readonly weightBalanceBackup = new WeightBalanceBackup(this.failuresConsumer);
+
+  private readonly fuelApuFeed = new FuelApuFeed(this, this.failuresConsumer);
+
+  private readonly fuelOverflow = new FuelOverflow(this, this.failuresConsumer);
+
+  private readonly fuelRefuelFaults = new FuelRefuelFaults(this.failuresConsumer);
 
   /**
    * "mainmenu" = 0
@@ -285,6 +294,9 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('FuelCollectorCells', this.fuelCollectorCells);
     this.backplane.addInstrument('FuelTemperatures', this.fuelTemperatures);
     this.backplane.addInstrument('WeightBalanceBackup', this.weightBalanceBackup);
+    this.backplane.addInstrument('FuelApuFeed', this.fuelApuFeed);
+    this.backplane.addInstrument('FuelOverflow', this.fuelOverflow);
+    this.backplane.addInstrument('FuelRefuelFaults', this.fuelRefuelFaults);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
     this.backplane.addInstrument('PrimReactiveWindshear', new PrimReactiveWindshear());

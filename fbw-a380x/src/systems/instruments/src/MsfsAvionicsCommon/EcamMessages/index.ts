@@ -638,6 +638,9 @@ export const EcamInopSys: { [n: string]: string } = {
   270300052: '\x1b<4mRUDDER PEDAL',
   270300053: '\x1b<4mSPEED BRAKES',
   270300054: '\x1b<4mGND SPLRs',
+  // INOP SYS of the refuel and WBBC alerts (FwsFuelRefuelAlerts; FUEL AUTO GND XFR is 280300068)
+  280300080: '\x1b<4mREFUEL',
+  280300081: '\x1b<4mWBBC',
   280300001: '\x1b<4mJETTISON',
   280300002: '\x1b<4mFEED TK 2 MAIN PMP', // ELEC AC ESS BUS FAULT STATUS
   280300003: '\x1b<4mFEED TK 3 STBY PMP', // ELEC AC ESS BUS FAULT REDUND LOSS

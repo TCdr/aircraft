@@ -1,5 +1,6 @@
 // Note: Fuel system for now is still handled in MSFS. This is used for calculating fuel-related factors.
 
+mod apu_feed;
 mod cpiom_f;
 mod engine_lp_valves;
 mod fuel_quantity_data_concentrator;
@@ -8,6 +9,7 @@ use crate::{
     avionics_data_communication_network::A380AvionicsDataCommunicationNetwork,
     fuel::cpiom_f::A380FuelQuantityManagementSystem,
 };
+use apu_feed::ApuFeedLine;
 use engine_lp_valves::A380EngineLpFuelValves;
 use enum_map::{enum_map, Enum};
 use fuel_quantity_data_concentrator::FuelQuantityDataConcentrator;
@@ -172,6 +174,7 @@ pub(crate) struct A380Fuel {
     quantity_system_faults_id: VariableIdentifier,
     quantity_lost_tanks_id: VariableIdentifier,
     gauging_degraded_tanks_id: VariableIdentifier,
+    apu_feed: ApuFeedLine,
 }
 impl A380Fuel {
     pub(crate) fn new(context: &mut InitContext) -> Self {
@@ -185,6 +188,7 @@ impl A380Fuel {
             ]
             .map(|(i, powered_by)| FuelQuantityDataConcentrator::new(context, i, powered_by)),
             fuel_quantity_management_system: A380FuelQuantityManagementSystem::new(context),
+            apu_feed: ApuFeedLine::new(context),
             engine_lp_valves: A380EngineLpFuelValves::new(context),
             quantity_system_faults_id: context
                 .get_identifier("FUEL_QUANTITY_SYSTEM_FAULTS".to_owned()),
@@ -236,6 +240,11 @@ impl A380Fuel {
     pub(crate) fn feed_four_tank_has_fuel(&self) -> bool {
         self.fuel_system.tank_has_fuel(A380FuelTankType::FeedFour)
     }
+
+    /// Fuel reaches the APU: feed tank 4 has fuel and the APU feed line is not abnormally closed.
+    pub(crate) fn apu_has_fuel_supply(&self) -> bool {
+        self.apu_feed.supplies_fuel(self.feed_four_tank_has_fuel())
+    }
 }
 impl FuelPayload for A380Fuel {
     fn total_load(&self) -> Mass {
@@ -261,6 +270,7 @@ impl SimulationElement for A380Fuel {
         accept_iterable!(self.fuel_quantity_data_concentrators, visitor);
         self.fuel_quantity_management_system.accept(visitor);
         self.engine_lp_valves.accept(visitor);
+        self.apu_feed.accept(visitor);
 
         visitor.visit(self);
     }
