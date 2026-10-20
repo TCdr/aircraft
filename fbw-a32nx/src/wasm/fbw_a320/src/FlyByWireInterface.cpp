@@ -1399,7 +1399,7 @@ bool FlyByWireInterface::updateElac(double sampleTime, int elacIndex) {
   elacs[elacIndex].modelInputs.in.discrete_inputs.lgciu_2_right_main_gear_pressed = idLgciuRightMainGearCompressed[1]->get();
   elacs[elacIndex].modelInputs.in.discrete_inputs.lgciu_1_left_main_gear_pressed = idLgciuLeftMainGearCompressed[0]->get();
   elacs[elacIndex].modelInputs.in.discrete_inputs.lgciu_2_left_main_gear_pressed = idLgciuLeftMainGearCompressed[1]->get();
-  elacs[elacIndex].modelInputs.in.discrete_inputs.ths_motor_fault = false;
+  elacs[elacIndex].modelInputs.in.discrete_inputs.ths_motor_fault = failuresConsumer.isActive(Failures::StabilizerElecControl);
   elacs[elacIndex].modelInputs.in.discrete_inputs.sfcc_1_slats_out = false;
   elacs[elacIndex].modelInputs.in.discrete_inputs.sfcc_2_slats_out = false;
   elacs[elacIndex].modelInputs.in.discrete_inputs.l_ail_servo_failed = idAilFaultLeft[elacIndex]->get();
@@ -1408,17 +1408,20 @@ bool FlyByWireInterface::updateElac(double sampleTime, int elacIndex) {
   elacs[elacIndex].modelInputs.in.discrete_inputs.r_elev_servo_failed = idElevFaultRight[elacIndex]->get();
   elacs[elacIndex].modelInputs.in.discrete_inputs.ths_override_active = idThsOverrideActive->get();
   elacs[elacIndex].modelInputs.in.discrete_inputs.yellow_low_pressure = !idHydYellowPressurised->get();
-  elacs[elacIndex].modelInputs.in.discrete_inputs.capt_priority_takeover_pressed = idCaptPriorityButtonPressed->get();
-  elacs[elacIndex].modelInputs.in.discrete_inputs.fo_priority_takeover_pressed = idFoPriorityButtonPressed->get();
+  elacs[elacIndex].modelInputs.in.discrete_inputs.capt_priority_takeover_pressed =
+      takeoverPressedUnderFailure(idCaptPriorityButtonPressed->get());
+  elacs[elacIndex].modelInputs.in.discrete_inputs.fo_priority_takeover_pressed =
+      takeoverPressedUnderFailure(idFoPriorityButtonPressed->get());
   elacs[elacIndex].modelInputs.in.discrete_inputs.blue_low_pressure = !idHydBluePressurised->get();
   elacs[elacIndex].modelInputs.in.discrete_inputs.green_low_pressure = !idHydGreenPressurised->get();
   elacs[elacIndex].modelInputs.in.discrete_inputs.elac_engaged_from_switch = idElacPushbuttonPressed[elacIndex]->get();
   elacs[elacIndex].modelInputs.in.discrete_inputs.normal_powersupply_lost = false;
 
-  elacs[elacIndex].modelInputs.in.analog_inputs.capt_pitch_stick_pos = -simInput.inputs[0];
-  elacs[elacIndex].modelInputs.in.analog_inputs.fo_pitch_stick_pos = 0;
-  elacs[elacIndex].modelInputs.in.analog_inputs.capt_roll_stick_pos = -simInput.inputs[1];
-  elacs[elacIndex].modelInputs.in.analog_inputs.fo_roll_stick_pos = 0;
+  const SidestickPositions sidesticks = sidestickPositionsUnderFailures(simInput);
+  elacs[elacIndex].modelInputs.in.analog_inputs.capt_pitch_stick_pos = sidesticks.captPitch;
+  elacs[elacIndex].modelInputs.in.analog_inputs.fo_pitch_stick_pos = sidesticks.foPitch;
+  elacs[elacIndex].modelInputs.in.analog_inputs.capt_roll_stick_pos = sidesticks.captRoll;
+  elacs[elacIndex].modelInputs.in.analog_inputs.fo_roll_stick_pos = sidesticks.foRoll;
   double leftElevPos = -idLeftElevatorPosition->get();
   double rightElevPos = -idRightElevatorPosition->get();
   elacs[elacIndex].modelInputs.in.analog_inputs.left_elevator_pos_deg = leftElevPos * 30;
@@ -1533,7 +1536,7 @@ bool FlyByWireInterface::updateSec(double sampleTime, int secIndex) {
     secs[secIndex].modelInputs.in.discrete_inputs.pitch_not_avail_elac_2 = !elacsDiscreteOutputs[1].pitch_axis_ok;
     secs[secIndex].modelInputs.in.discrete_inputs.left_elev_not_avail_sec_opp = !secsDiscreteOutputs[oppSecIndex].left_elevator_ok;
     secs[secIndex].modelInputs.in.discrete_inputs.right_elev_not_avail_sec_opp = !secsDiscreteOutputs[oppSecIndex].right_elevator_ok;
-    secs[secIndex].modelInputs.in.discrete_inputs.ths_motor_fault = false;
+    secs[secIndex].modelInputs.in.discrete_inputs.ths_motor_fault = failuresConsumer.isActive(Failures::StabilizerElecControl);
     secs[secIndex].modelInputs.in.discrete_inputs.l_elev_servo_failed = idElevFaultLeft[secIndex]->get();
     secs[secIndex].modelInputs.in.discrete_inputs.r_elev_servo_failed = idElevFaultRight[secIndex]->get();
     secs[secIndex].modelInputs.in.discrete_inputs.ths_override_active = idThsOverrideActive->get();
@@ -1568,12 +1571,15 @@ bool FlyByWireInterface::updateSec(double sampleTime, int secIndex) {
     secs[secIndex].modelInputs.in.discrete_inputs.r_spoiler_2_servo_failed = false;
   }
 
-  secs[secIndex].modelInputs.in.discrete_inputs.capt_priority_takeover_pressed = idCaptPriorityButtonPressed->get();
-  secs[secIndex].modelInputs.in.discrete_inputs.fo_priority_takeover_pressed = idFoPriorityButtonPressed->get();
+  secs[secIndex].modelInputs.in.discrete_inputs.capt_priority_takeover_pressed =
+      takeoverPressedUnderFailure(idCaptPriorityButtonPressed->get());
+  secs[secIndex].modelInputs.in.discrete_inputs.fo_priority_takeover_pressed =
+      takeoverPressedUnderFailure(idFoPriorityButtonPressed->get());
 
+  const SidestickPositions sidesticks = sidestickPositionsUnderFailures(simInput);
   if (secIndex < 2) {
-    secs[secIndex].modelInputs.in.analog_inputs.capt_pitch_stick_pos = -simInput.inputs[0];
-    secs[secIndex].modelInputs.in.analog_inputs.fo_pitch_stick_pos = 0;
+    secs[secIndex].modelInputs.in.analog_inputs.capt_pitch_stick_pos = sidesticks.captPitch;
+    secs[secIndex].modelInputs.in.analog_inputs.fo_pitch_stick_pos = sidesticks.foPitch;
     double leftElevPos = -idLeftElevatorPosition->get();
     double rightElevPos = -idRightElevatorPosition->get();
     secs[secIndex].modelInputs.in.analog_inputs.left_elevator_pos_deg = leftElevPos * 30;
@@ -1590,8 +1596,8 @@ bool FlyByWireInterface::updateSec(double sampleTime, int secIndex) {
     secs[secIndex].modelInputs.in.analog_inputs.load_factor_acc_1_g = 0;
     secs[secIndex].modelInputs.in.analog_inputs.load_factor_acc_2_g = 0;
   }
-  secs[secIndex].modelInputs.in.analog_inputs.capt_roll_stick_pos = -simInput.inputs[1];
-  secs[secIndex].modelInputs.in.analog_inputs.fo_roll_stick_pos = 0;
+  secs[secIndex].modelInputs.in.analog_inputs.capt_roll_stick_pos = sidesticks.captRoll;
+  secs[secIndex].modelInputs.in.analog_inputs.fo_roll_stick_pos = sidesticks.foRoll;
   secs[secIndex].modelInputs.in.analog_inputs.spd_brk_lever_pos =
       spoilersHandler->getIsArmed() ? -0.05 : spoilersHandler->getHandlePosition();
   secs[secIndex].modelInputs.in.analog_inputs.thr_lever_1_pos = thrustLeverAngle_1->get();
@@ -2434,6 +2440,15 @@ FacActuatorMonitor::ActuatorFailures FlyByWireInterface::facActuatorFailuresOf(i
       failuresConsumer.isActive(isFac1 ? Failures::YawDamperActuator1 : Failures::YawDamperActuator2),
       failuresConsumer.isActive(isFac1 ? Failures::RudderTrimActuator1 : Failures::RudderTrimActuator2),
       failuresConsumer.isActive(isFac1 ? Failures::RudderTravelLimiterActuator1 : Failures::RudderTravelLimiterActuator2)};
+}
+
+SidestickPositions FlyByWireInterface::sidestickPositionsUnderFailures(const SimInput& simInput) {
+  return sidestickPositions(-simInput.inputs[0], -simInput.inputs[1], failuresConsumer.isActive(Failures::CaptSidestick),
+                            failuresConsumer.isActive(Failures::FoSidestick));
+}
+
+bool FlyByWireInterface::takeoverPressedUnderFailure(bool takeoverPbPressed) {
+  return priorityTakeoverPressed(takeoverPbPressed, failuresConsumer.isActive(Failures::SidestickPriorityLogic));
 }
 
 double FlyByWireInterface::sidestickNoseUpDeflectionDeg() {

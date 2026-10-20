@@ -629,4 +629,28 @@ describe('A320 flyPad failures', () => {
       'failuresConsumer.isActive(Failures::TcasMode)',
     );
   });
+
+  // F/CTL: the Rust slat/flap transmission failures (a320_systems hydraulic/sfcc wing tip brakes), the failures the
+  // fbw_a320 module applies to the ELAC and SEC inputs, and the SFCC part failures the FWC reads
+  // (Logic/SlatFlapLockAlerts)
+  it('lists the slat, flap, sidestick and stabilizer failures in ATA 27 with the code that consumes them', () => {
+    const definition = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(definition(A320Failure.FlapTransmissionAsymmetry)).toEqual([27, 27014, 'Flap transmission asymmetry']);
+    expect(definition(A320Failure.SlatTransmissionAsymmetry)).toEqual([27, 27015, 'Slat transmission asymmetry']);
+    expect(definition(A320Failure.FlapWingTipBrake)).toEqual([27, 27016, 'Flap wing tip brake']);
+    expect(definition(A320Failure.SlatWingTipBrake)).toEqual([27, 27017, 'Slat wing tip brake']);
+    expect(definition(A320Failure.FlapAttachmentSensor)).toEqual([27, 27018, 'Flap attachment sensor']);
+    expect(definition(A320Failure.CaptSidestick)).toEqual([27, 27019, 'CAPT sidestick transducers']);
+    expect(definition(A320Failure.FoSidestick)).toEqual([27, 27020, 'F/O sidestick transducers']);
+    expect(definition(A320Failure.SidestickPriorityLogic)).toEqual([27, 27021, 'Sidestick priority logic']);
+    expect(definition(A320Failure.StabilizerElecControl)).toEqual([27, 27022, 'Stabilizer electrical control']);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    expect(wasm).toContain('(27_014, FailureType::FlapTransmissionAsymmetry),');
+    expect(wasm).toContain('(27_015, FailureType::SlatTransmissionAsymmetry),');
+    const failureList = readFileSync(resolve(__dirname, '../../../wasm/fbw_a320/src/failures/FailureList.h'), 'utf8');
+    expect(failureList).toContain('CaptSidestick = 27019,');
+    expect(failureList).toContain('FoSidestick = 27020,');
+    expect(failureList).toContain('SidestickPriorityLogic = 27021,');
+    expect(failureList).toContain('StabilizerElecControl = 27022,');
+  });
 });

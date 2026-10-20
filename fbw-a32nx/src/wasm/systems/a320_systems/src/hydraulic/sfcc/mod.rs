@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use crate::systems::shared::arinc429::{Arinc429Word, SignStatus};
 use systems::accept_iterable;
+use systems::failures::FailureType;
 use systems::hydraulic::command_sensor_unit::CSU;
 use systems::hydraulic::flap_slat::ValveBlock;
 use systems::shared::{
@@ -23,8 +24,10 @@ mod test;
 mod flaps_channel;
 mod slats_channel;
 mod utils;
+mod wing_tip_brakes;
 use flaps_channel::FlapsChannel;
 use slats_channel::SlatsChannel;
+use wing_tip_brakes::WingTipBrakes;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum FlapsConf {
@@ -129,8 +132,9 @@ impl SlatFlapControlComputer {
         word.set_bit(12, self.flaps_channel.is_failed());
         word.set_bit(13, false);
         word.set_bit(14, false);
-        word.set_bit(15, false);
-        word.set_bit(16, false);
+        // Slat and flap wing tip brakes engaged: F/CTL SLATS(FLAPS) LOCKED
+        word.set_bit(15, self.slats_channel.wing_tip_brakes_engaged());
+        word.set_bit(16, self.flaps_channel.wing_tip_brakes_engaged());
         word.set_bit(17, current_detent == CSU::Conf0);
         word.set_bit(18, current_detent == CSU::Conf1);
         word.set_bit(19, current_detent == CSU::Conf2);
@@ -182,7 +186,7 @@ impl SlatFlapControlComputer {
             fppu_slats_angle > Angle::new::<degree>(327.4)
                 && fppu_slats_angle < Angle::new::<degree>(337.),
         );
-        word.set_bit(16, false);
+        word.set_bit(16, self.slats_channel.wing_tip_brakes_engaged());
         word.set_bit(17, false);
         word.set_bit(18, true);
         word.set_bit(
@@ -210,7 +214,7 @@ impl SlatFlapControlComputer {
             fppu_flaps_angle > Angle::new::<degree>(250.)
                 && fppu_flaps_angle < Angle::new::<degree>(254.),
         );
-        word.set_bit(24, false);
+        word.set_bit(24, self.flaps_channel.wing_tip_brakes_engaged());
         word.set_bit(25, false);
         word.set_bit(26, false);
         word.set_bit(27, false);
@@ -218,6 +222,11 @@ impl SlatFlapControlComputer {
         word.set_bit(29, false);
 
         word
+    }
+
+    fn set_wing_tip_brakes_engaged(&mut self, slats: bool, flaps: bool) {
+        self.slats_channel.set_wing_tip_brakes_engaged(slats);
+        self.flaps_channel.set_wing_tip_brakes_engaged(flaps);
     }
 
     fn get_flaps_config(&self) -> Option<FlapsConf> {
@@ -290,6 +299,8 @@ impl SimulationElement for SlatFlapControlComputer {
 
 pub struct SlatFlapComplex {
     sfcc: [SlatFlapControlComputer; 2],
+    slat_wing_tip_brakes: WingTipBrakes,
+    flap_wing_tip_brakes: WingTipBrakes,
 }
 
 impl SlatFlapComplex {
@@ -299,6 +310,8 @@ impl SlatFlapComplex {
                 SlatFlapControlComputer::new(context, 1, ElectricalBusType::DirectCurrentEssential),
                 SlatFlapControlComputer::new(context, 2, ElectricalBusType::DirectCurrent(2)),
             ],
+            slat_wing_tip_brakes: WingTipBrakes::new(FailureType::SlatTransmissionAsymmetry),
+            flap_wing_tip_brakes: WingTipBrakes::new(FailureType::FlapTransmissionAsymmetry),
         }
     }
 
@@ -313,6 +326,25 @@ impl SlatFlapComplex {
     ) {
         self.sfcc[0].update(context, flaps_feedback, slats_feedback, adirs, lgciu1);
         self.sfcc[1].update(context, flaps_feedback, slats_feedback, adirs, lgciu2);
+
+        let on_ground = lgciu1.left_and_right_gear_compressed(false)
+            || lgciu2.left_and_right_gear_compressed(false);
+        let slats_driven = self
+            .sfcc
+            .iter()
+            .any(|sfcc| sfcc.slats_channel.get_command_status().is_some());
+        let flaps_driven = self
+            .sfcc
+            .iter()
+            .any(|sfcc| sfcc.flaps_channel.get_command_status().is_some());
+        self.slat_wing_tip_brakes.update(slats_driven, on_ground);
+        self.flap_wing_tip_brakes.update(flaps_driven, on_ground);
+        for sfcc in self.sfcc.iter_mut() {
+            sfcc.set_wing_tip_brakes_engaged(
+                self.slat_wing_tip_brakes.is_engaged(),
+                self.flap_wing_tip_brakes.is_engaged(),
+            );
+        }
     }
 
     pub fn flap_pcu(&self, idx: usize) -> &impl ValveBlock {
@@ -326,6 +358,8 @@ impl SlatFlapComplex {
 impl SimulationElement for SlatFlapComplex {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         accept_iterable!(self.sfcc, visitor);
+        self.slat_wing_tip_brakes.accept(visitor);
+        self.flap_wing_tip_brakes.accept(visitor);
         visitor.visit(self);
     }
 }

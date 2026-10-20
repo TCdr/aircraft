@@ -37,6 +37,7 @@ pub(super) struct SlatsChannel {
     /// The flyPad failure of this slat channel (F/CTL SLAT SYS 1(2) FAULT): the channel no longer drives its slat
     /// motor, the other motor moves the slats at half speed
     motor_control_failure: Failure,
+    wing_tip_brakes_engaged: bool,
 
     kts_60: Velocity,
     conf1_slats: Angle,
@@ -92,6 +93,7 @@ impl SlatsChannel {
             motor_control_failure: Failure::new(FailureType::SlatFlapControlComputerSlatChannel(
                 num as usize,
             )),
+            wing_tip_brakes_engaged: false,
 
             // Set `sap` to false to match power-off state
             sap: [false; 7],
@@ -315,6 +317,16 @@ impl SlatsChannel {
         self.motor_control_failure.is_active()
     }
 
+    /// The slat wing tip brakes hold the transmission: the channel de-energises its pressure-off
+    /// brake and stops driving.
+    pub(super) fn set_wing_tip_brakes_engaged(&mut self, engaged: bool) {
+        self.wing_tip_brakes_engaged = engaged;
+    }
+
+    pub(super) fn wing_tip_brakes_engaged(&self) -> bool {
+        self.wing_tip_brakes_engaged
+    }
+
     #[cfg(test)]
     pub fn get_sap(&self, idx: usize) -> bool {
         self.sap[idx]
@@ -341,7 +353,7 @@ impl SlatsChannel {
 // are held in position and can't move.
 impl ValveBlock for SlatsChannel {
     fn get_pob_status(&self) -> SolenoidStatus {
-        if !self.is_powered_delayed.output() || self.is_failed() {
+        if !self.is_powered_delayed.output() || self.is_failed() || self.wing_tip_brakes_engaged {
             return SolenoidStatus::DeEnergised;
         }
 
@@ -356,7 +368,7 @@ impl ValveBlock for SlatsChannel {
     }
 
     fn get_command_status(&self) -> Option<ChannelCommand> {
-        if !self.is_powered_delayed.output() || self.is_failed() {
+        if !self.is_powered_delayed.output() || self.is_failed() || self.wing_tip_brakes_engaged {
             return None;
         }
 

@@ -250,6 +250,9 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (27_011, FailureType::SlatFlapControlComputerFlapChannel(2)),
         (27_012, FailureType::SlatFlapControlComputerSlatChannel(1)),
         (27_013, FailureType::SlatFlapControlComputerSlatChannel(2)),
+        // Slat and flap transmission asymmetry: the wing tip brakes lock the surfaces, F/CTL SLATS(FLAPS) LOCKED
+        (27_014, FailureType::FlapTransmissionAsymmetry),
+        (27_015, FailureType::SlatTransmissionAsymmetry),
         (26_012, FailureType::Smoke(SmokeDetectionZone::ForwardCargo)),
         (26_013, FailureType::Smoke(SmokeDetectionZone::AftCargo)),
         (

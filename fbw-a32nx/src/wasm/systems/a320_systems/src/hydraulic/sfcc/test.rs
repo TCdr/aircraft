@@ -3709,3 +3709,99 @@ fn no_slat_or_flap_fault_without_a_channel_failure() {
         Some(ChannelCommand::Extend)
     );
 }
+
+// F/CTL FLAPS (SLATS) LOCKED: an asymmetry of the flap (slat) transmission while the surfaces are driven makes the
+// SFCCs apply the wing tip brakes. Both channels stop driving the locked surfaces, the other surfaces still move, and
+// both SFCCs report the brakes in their status word (label 046 bits 15 and 16) and position word (bits 16 and 24).
+#[test]
+fn flap_asymmetry_while_flaps_move_applies_the_flap_wing_tip_brakes() {
+    let mut test_bed = test_bed_with().set_flaps_handle_position(0).run_one_tick();
+    test_bed.fail(FailureType::FlapTransmissionAsymmetry);
+    test_bed = test_bed
+        .set_flaps_handle_position(2)
+        .run_waiting_for(Duration::from_secs(1));
+
+    for idx in 0..2 {
+        assert_eq!(test_bed.get_flap_command(idx), None);
+        assert_eq!(test_bed.get_flap_pob(idx), SolenoidStatus::DeEnergised);
+        assert_eq!(test_bed.get_slat_command(idx), Some(ChannelCommand::Extend));
+    }
+    for num in 1..=2 {
+        assert!(test_bed.read_slat_flap_system_status_word(num).get_bit(16));
+        assert!(!test_bed.read_slat_flap_system_status_word(num).get_bit(15));
+        assert!(test_bed
+            .read_slat_flap_actual_position_word(num)
+            .get_bit(24));
+        assert!(!test_bed
+            .read_slat_flap_actual_position_word(num)
+            .get_bit(16));
+    }
+
+    // On the ground the brakes stay on while the asymmetry is there
+    test_bed = test_bed.run_waiting_for(Duration::from_secs(1));
+    assert!(test_bed.read_slat_flap_system_status_word(1).get_bit(16));
+}
+
+#[test]
+fn slat_asymmetry_while_slats_move_applies_the_slat_wing_tip_brakes() {
+    let mut test_bed = test_bed_with().set_flaps_handle_position(0).run_one_tick();
+    test_bed.fail(FailureType::SlatTransmissionAsymmetry);
+    test_bed = test_bed
+        .set_flaps_handle_position(2)
+        .run_waiting_for(Duration::from_secs(1));
+
+    for idx in 0..2 {
+        assert_eq!(test_bed.get_slat_command(idx), None);
+        assert_eq!(test_bed.get_slat_pob(idx), SolenoidStatus::DeEnergised);
+        assert_eq!(test_bed.get_flap_command(idx), Some(ChannelCommand::Extend));
+    }
+    for num in 1..=2 {
+        assert!(test_bed.read_slat_flap_system_status_word(num).get_bit(15));
+        assert!(!test_bed.read_slat_flap_system_status_word(num).get_bit(16));
+        assert!(test_bed
+            .read_slat_flap_actual_position_word(num)
+            .get_bit(16));
+    }
+}
+
+#[test]
+fn flap_asymmetry_is_seen_only_when_the_flaps_are_driven() {
+    let mut test_bed = test_bed_with()
+        .set_flaps_handle_position(0)
+        .run_waiting_for(Duration::from_secs(1));
+    test_bed.fail(FailureType::FlapTransmissionAsymmetry);
+    test_bed = test_bed.run_waiting_for(Duration::from_secs(1));
+
+    assert!(!test_bed.read_slat_flap_system_status_word(1).get_bit(16));
+
+    test_bed = test_bed
+        .set_flaps_handle_position(2)
+        .run_waiting_for(Duration::from_secs(1));
+    assert!(test_bed.read_slat_flap_system_status_word(1).get_bit(16));
+}
+
+#[test]
+fn wing_tip_brakes_stay_on_in_flight_and_release_on_ground_once_the_asymmetry_is_gone() {
+    let mut test_bed = test_bed_with()
+        .set_lgciu_on_ground(false)
+        .set_flaps_handle_position(0)
+        .run_one_tick();
+    test_bed.fail(FailureType::FlapTransmissionAsymmetry);
+    test_bed = test_bed
+        .set_flaps_handle_position(2)
+        .run_waiting_for(Duration::from_secs(1));
+    test_bed.unfail(FailureType::FlapTransmissionAsymmetry);
+    test_bed = test_bed
+        .set_flaps_handle_position(3)
+        .run_waiting_for(Duration::from_secs(1));
+
+    assert!(test_bed.read_slat_flap_system_status_word(1).get_bit(16));
+    assert_eq!(test_bed.get_flap_command(0), None);
+
+    test_bed = test_bed
+        .set_lgciu_on_ground(true)
+        .run_waiting_for(Duration::from_secs(1));
+
+    assert!(!test_bed.read_slat_flap_system_status_word(1).get_bit(16));
+    assert_eq!(test_bed.get_flap_command(0), Some(ChannelCommand::Extend));
+}

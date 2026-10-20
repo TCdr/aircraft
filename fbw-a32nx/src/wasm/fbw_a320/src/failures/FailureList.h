@@ -22,4 +22,10 @@ enum class Failures {
   Sec3 = 27004,
   Fcdc1 = 27005,
   Fcdc2 = 27006,
+  // The flight control failures of the ELAC and SEC inputs, see failures/FlightControlFailureInputs.h
+  CaptSidestick = 27019,
+  FoSidestick = 27020,
+  SidestickPriorityLogic = 27021,
+  // The electrical control of the THS (its electric motors): the ELACs and SECs see a THS motor fault
+  StabilizerElecControl = 27022,
 };

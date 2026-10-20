@@ -19,6 +19,7 @@
 #include "fac/Fac.h"
 #include "fac/FacActuatorMonitor.h"
 #include "failures/FailuresConsumer.h"
+#include "failures/FlightControlFailureInputs.h"
 #include "fcdc/Fcdc.h"
 #include "fcu/Fcu.h"
 #include "fmgc/AutolandWarning.h"
@@ -728,6 +729,12 @@ class FlyByWireInterface {
 
   /// The failed rudder actuators of a FAC (flyPad failures 22006-22011)
   FacActuatorMonitor::ActuatorFailures facActuatorFailuresOf(int facIndex);
+
+  /// The sidestick positions of the ELACs and SECs under the sidestick failures (flyPad 27019, 27020)
+  SidestickPositions sidestickPositionsUnderFailures(const SimInput& simInput);
+
+  /// The CAPT (F/O) take over pb as the ELACs and SECs receive it under the priority logic failure (flyPad 27021)
+  bool takeoverPressedUnderFailure(bool takeoverPbPressed);
 
   /// The sum of both sidestick pitch deflections from the ELAC bus, nose up positive, in degrees (0 without ELAC data)
   double sidestickNoseUpDeflectionDeg();
