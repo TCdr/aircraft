@@ -529,6 +529,10 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['340300006', { part: StatusPart.InopSys, text: 'ATC/XPDR 2' }],
   ['340300007', { part: StatusPart.InopSys, text: 'ADS-B RPTG 1' }],
   ['340300008', { part: StatusPart.InopSys, text: 'ADS-B RPTG 2' }],
+  // NAV ILS 1(2)(1+2) FAULT INOP SYS: kept above CAT 2 so the STATUS page lists the receiver first
+  ['340300036', { part: StatusPart.InopSys, text: 'ILS 1' }],
+  ['340300037', { part: StatusPart.InopSys, text: 'ILS 2' }],
+  ['340300038', { part: StatusPart.InopSys, text: 'ILS 1+2' }],
   // NAV LS TUNING DISAGREE INOP SYS
   ['340300009', { part: StatusPart.InopSys, text: 'CAT 2' }],
   // 74 IGNITION (ENG 1(2) IGN FAULT INOP SYS)

@@ -221,6 +221,9 @@ pub enum FailureType {
     AdrAirspeedErroneous(usize),
     /// The angle of attack probe of ADR n is erroneous: its angle of attack reads high, with a valid status
     AdrAngleOfAttackErroneous(usize),
+    /// The angle of attack sensor of ADR n is failed: the ADR detects it, its angle of attack is lost (failure warning)
+    /// and its other outputs stay valid
+    AdrAngleOfAttackSensorFault(usize),
     /// The air data reference part of ADIRU n fails: its outputs are lost (failure warning) and its FAULT light comes
     /// on (navigation::adirs)
     AdrFault(usize),
@@ -229,6 +232,8 @@ pub enum FailureType {
     IrFault(usize),
     /// The heading of IR n is erroneous: its magnetic and true headings are offset, with a valid status
     IrHeadingErroneous(usize),
+    /// The pitch of IR n is erroneous: it reads high, with a valid status
+    IrPitchErroneous(usize),
     // ATA42 integrated modular avionics (systems::integrated_modular_avionics)
     /// AFDX switch n (A380: 1 to 7 and 9 on network A, 11 to 17 and 19 on network B) is failed: it no
     /// longer routes the network messages

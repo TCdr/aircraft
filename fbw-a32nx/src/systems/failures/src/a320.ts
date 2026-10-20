@@ -277,6 +277,9 @@ export const A320Failure = Object.freeze({
   Egpwc: 34030,
   Transponder1: 34050,
   Transponder2: 34051,
+  // TS only: the ADS-B out function of the transponders (FWC/Logic/NavSensorAlerts.ts)
+  AdsbReporting1: 34052,
+  AdsbReporting2: 34053,
   // TS only: the TCAS computer (tcas/src/components/TcasComputer.ts)
   TcasComputer: 34060,
   // ADIRS (systems navigation/adirs.rs)
@@ -292,9 +295,15 @@ export const A320Failure = Object.freeze({
   Adr1AoaErroneous: 34100,
   Adr2AoaErroneous: 34101,
   Adr3AoaErroneous: 34102,
+  CaptAoaSensor: 34103,
+  FoAoaSensor: 34104,
+  StbyAoaSensor: 34105,
   Ir1HeadingErroneous: 34110,
   Ir2HeadingErroneous: 34111,
   Ir3HeadingErroneous: 34112,
+  Ir1PitchErroneous: 34113,
+  Ir2PitchErroneous: 34114,
+  Ir3PitchErroneous: 34115,
   // TS only: the predictive windshear function of the weather radar (FWC/Logic/PredictiveWindshearAlerts.ts)
   WxrPredictiveWindshear: 34120,
   // ATA 35 (a320_systems oxygen.rs)
@@ -324,6 +333,11 @@ export const A320Failure = Object.freeze({
   Adf2Receiver: 34151,
   Ils1Receiver: 34160,
   Ils2Receiver: 34161,
+  // TS only: the static pressure probes of the CAPT and F/O air data (FWC/Logic/NavSensorAlerts.ts)
+  CaptLeftStaticProbe: 34170,
+  CaptRightStaticProbe: 34171,
+  FoLeftStaticProbe: 34172,
+  FoRightStaticProbe: 34173,
   // ATA 36 (a320_systems pneumatic.rs)
   Eng1BleedValveStuckClosed: 36000,
   Eng2BleedValveStuckClosed: 36001,
@@ -720,6 +734,8 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Egpwc, 'EGPWC'],
   [34, A320Failure.Transponder1, 'ATC/XPDR 1'],
   [34, A320Failure.Transponder2, 'ATC/XPDR 2'],
+  [34, A320Failure.AdsbReporting1, 'ADS-B RPTG 1 (ADS-B out of ATC/XPDR 1)'],
+  [34, A320Failure.AdsbReporting2, 'ADS-B RPTG 2 (ADS-B out of ATC/XPDR 2)'],
   [34, A320Failure.TcasComputer, 'TCAS computer'],
   [34, A320Failure.Adr1Fault, 'ADR 1 (air data lost, FAULT light)'],
   [34, A320Failure.Adr2Fault, 'ADR 2 (air data lost, FAULT light)'],
@@ -733,9 +749,15 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Adr1AoaErroneous, 'ADR 1 angle of attack erroneous'],
   [34, A320Failure.Adr2AoaErroneous, 'ADR 2 angle of attack erroneous'],
   [34, A320Failure.Adr3AoaErroneous, 'ADR 3 angle of attack erroneous'],
+  [34, A320Failure.CaptAoaSensor, 'CAPT AOA sensor (ADR 1 angle of attack lost)'],
+  [34, A320Failure.FoAoaSensor, 'F/O AOA sensor (ADR 2 angle of attack lost)'],
+  [34, A320Failure.StbyAoaSensor, 'STBY AOA sensor (ADR 3 angle of attack lost)'],
   [34, A320Failure.Ir1HeadingErroneous, 'IR 1 heading erroneous'],
   [34, A320Failure.Ir2HeadingErroneous, 'IR 2 heading erroneous'],
   [34, A320Failure.Ir3HeadingErroneous, 'IR 3 heading erroneous'],
+  [34, A320Failure.Ir1PitchErroneous, 'IR 1 pitch erroneous'],
+  [34, A320Failure.Ir2PitchErroneous, 'IR 2 pitch erroneous'],
+  [34, A320Failure.Ir3PitchErroneous, 'IR 3 pitch erroneous'],
   [34, A320Failure.WxrPredictiveWindshear, 'Weather radar predictive windshear (PWS)'],
   [34, A320Failure.Vor1Receiver, 'VOR 1 receiver (no bearing)'],
   [34, A320Failure.Vor2Receiver, 'VOR 2 receiver (no bearing)'],
@@ -745,6 +767,10 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Adf2Receiver, 'ADF 2 receiver (no bearing)'],
   [34, A320Failure.Ils1Receiver, 'ILS 1 receiver (no LOC/GS on PFD 1)'],
   [34, A320Failure.Ils2Receiver, 'ILS 2 receiver (no LOC/GS on PFD 2)'],
+  [34, A320Failure.CaptLeftStaticProbe, 'CAPT left static probe'],
+  [34, A320Failure.CaptRightStaticProbe, 'CAPT right static probe'],
+  [34, A320Failure.FoLeftStaticProbe, 'F/O left static probe'],
+  [34, A320Failure.FoRightStaticProbe, 'F/O right static probe'],
 
   // The crew oxygen bottle loses 100 PSI/min: the DOOR/OXY page pressure pulses below 600 PSI, CKPT OXY amber below
   // 300 PSI, REGUL LO PR once the bottle is empty

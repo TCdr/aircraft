@@ -90,6 +90,21 @@ describe('A320 flyPad failures', () => {
     expect(label(A320Failure.WxrPredictiveWindshear)).toEqual([34, 34120, 'Weather radar predictive windshear (PWS)']);
   });
 
+  // TS only: the FWC reads them (FWC/Logic/NavSensorAlerts.ts), no Rust failure
+  it('lists the ADS-B reporting and static probe failures in ATA 34', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.AdsbReporting1)).toEqual([34, 34052, 'ADS-B RPTG 1 (ADS-B out of ATC/XPDR 1)']);
+    expect(label(A320Failure.AdsbReporting2)).toEqual([34, 34053, 'ADS-B RPTG 2 (ADS-B out of ATC/XPDR 2)']);
+    expect(label(A320Failure.CaptLeftStaticProbe)).toEqual([34, 34170, 'CAPT left static probe']);
+    expect(label(A320Failure.CaptRightStaticProbe)).toEqual([34, 34171, 'CAPT right static probe']);
+    expect(label(A320Failure.FoLeftStaticProbe)).toEqual([34, 34172, 'F/O left static probe']);
+    expect(label(A320Failure.FoRightStaticProbe)).toEqual([34, 34173, 'F/O right static probe']);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    for (const rustId of ['34_052', '34_053', '34_170', '34_171', '34_172', '34_173']) {
+      expect(wasm).not.toContain(`(${rustId},`);
+    }
+  });
+
   // The systems host (Navigation/NavigationReceiverFailures.ts) applies them, the ILS ones also the Rust MMR shims
   it('lists the radio navigation receiver failures in ATA 34 with the Rust ILS receiver failures', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
@@ -507,6 +522,11 @@ describe('A320 flyPad failures', () => {
       [34090, 'AdrAirspeedErroneous(1)', 'ADR 1 airspeed erroneous (pitot)'],
       [34102, 'AdrAngleOfAttackErroneous(3)', 'ADR 3 angle of attack erroneous'],
       [34110, 'IrHeadingErroneous(1)', 'IR 1 heading erroneous'],
+      [34103, 'AdrAngleOfAttackSensorFault(1)', 'CAPT AOA sensor (ADR 1 angle of attack lost)'],
+      [34104, 'AdrAngleOfAttackSensorFault(2)', 'F/O AOA sensor (ADR 2 angle of attack lost)'],
+      [34105, 'AdrAngleOfAttackSensorFault(3)', 'STBY AOA sensor (ADR 3 angle of attack lost)'],
+      [34113, 'IrPitchErroneous(1)', 'IR 1 pitch erroneous'],
+      [34115, 'IrPitchErroneous(3)', 'IR 3 pitch erroneous'],
     ];
     for (const [id, failureType, name] of expected) {
       expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([34, id, name]);
@@ -514,8 +534,8 @@ describe('A320 flyPad failures', () => {
         `(${Math.floor(id / 1000)}_${String(id % 1000).padStart(3, '0')}, FailureType::${failureType}),`,
       );
     }
-    const adirsFailures = A320FailureDefinitions.filter(([, id]) => id >= 34070 && id <= 34112);
-    expect(adirsFailures.length).toBe(15);
+    const adirsFailures = A320FailureDefinitions.filter(([, id]) => id >= 34070 && id <= 34115);
+    expect(adirsFailures.length).toBe(21);
   });
   // The labels say what a320_systems hydraulic/sfcc does with ids 27010-27013: the channel no longer drives its motor
   // (F/CTL FLAP(SLAT) SYS 1(2) FAULT)
