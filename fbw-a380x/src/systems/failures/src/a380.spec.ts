@@ -188,6 +188,33 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
+  it('lists the SFCC control unit, FLAPS lever and wing tip brake failures in ATA 27 with the Rust failures of sfcc', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [27200, 'SlatFlapControlComputerFlapControlUnit(1)', 'SFCC 1 flap control unit'],
+      [27201, 'SlatFlapControlComputerFlapControlUnit(2)', 'SFCC 2 flap control unit'],
+      [27202, 'SlatFlapControlComputerSlatControlUnit(1)', 'SFCC 1 slat control unit'],
+      [27203, 'SlatFlapControlComputerSlatControlUnit(2)', 'SFCC 2 slat control unit'],
+      [27204, 'FlapsLeverLink(1)', 'FLAPS lever link to SFCC 1'],
+      [27205, 'FlapsLeverLink(2)', 'FLAPS lever link to SFCC 2'],
+      [27206, 'FlapsLeverOutOfDetent', 'FLAPS lever jammed out of detent'],
+      [27207, 'FlapTransmissionAsymmetry', 'Flap transmission asymmetry'],
+      [27208, 'SlatTransmissionAsymmetry', 'Slat transmission asymmetry'],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 27]),
+    );
+  });
+
+  // The FWS reads these failures itself (FwsSlatFlapAlerts): no Rust system reacts to them
+  it('lists the overdue slat and flap maintenance tests in ATA 27, outside the Rust map', () => {
+    const rustMap = readRustFailureMap();
+    const ids = [27210, 27211, 27212, 27213, 27214, 27215];
+    expect(ids.filter((id) => !listedIds.includes(id) || rustMap.has(id))).toEqual([]);
+  });
+
   // The labels say what a380_systems engine_failure.rs does with ids 72000-72013
   it('lists the engine flameout and seizure failures of the four engines in ATA 72 Engine', () => {
     const rustMap = readRustFailureMap();

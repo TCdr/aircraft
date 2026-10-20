@@ -6,7 +6,7 @@ use systems::{
 };
 use uom::si::{angle::degree, f64::*};
 
-use super::{FlapsConf, SlatFlapControlComputerMisc};
+use super::{system_control::SystemControl, FlapsConf, SlatFlapControlComputerMisc};
 
 pub(super) struct SlatsChannel {
     demanded_angle: Angle,
@@ -15,6 +15,7 @@ pub(super) struct SlatsChannel {
     /// The flyPad failure of this slat channel: the slat system is failed, only one slat motor remains and the slats
     /// operate at half speed (F/CTL SLAT SYS 1(2) FAULT)
     motor_control_failure: Failure,
+    control: SystemControl,
 }
 impl SlatsChannel {
     pub(super) fn new(num: usize) -> Self {
@@ -24,13 +25,27 @@ impl SlatsChannel {
             motor_control_failure: Failure::new(FailureType::SlatFlapControlComputerSlatChannel(
                 num,
             )),
+            control: SystemControl::new(FailureType::SlatFlapControlComputerSlatControlUnit(num)),
         }
     }
 
-    /// The channel has lost the control of its slat motor (flyPad failure). It keeps sending its labels and reports the
-    /// fault in the slat/flap system status word (label 046 bit 11), read by the FWS (FwsCore slatSys1(2)Fault).
+    /// The slat system no longer drives its motor: the channel lost the control of the motor (flyPad failure), or both
+    /// slat control units are failed. It keeps sending its labels and reports the fault in the slat/flap system
+    /// status word (label 046 bit 11), read by the FWS (FwsCore slatSys1(2)Fault).
     pub(super) fn is_failed(&self) -> bool {
-        self.motor_control_failure.is_active()
+        self.motor_control_failure.is_active() || self.control.no_control_unit_left()
+    }
+
+    pub(super) fn control(&self) -> &SystemControl {
+        &self.control
+    }
+
+    pub(super) fn control_mut(&mut self) -> &mut SystemControl {
+        &mut self.control
+    }
+
+    fn drives_its_motor(&self) -> bool {
+        !self.is_failed() && !self.control.stops_the_motor()
     }
 
     // Returns a slat demanded angle in FPPU reference degree (feedback sensor)
@@ -69,7 +84,7 @@ impl SlatsChannel {
 // are held in position and can't move.
 impl ValveBlock for SlatsChannel {
     fn get_pob_status(&self) -> SolenoidStatus {
-        if self.is_failed() {
+        if !self.drives_its_motor() {
             return SolenoidStatus::DeEnergised;
         }
 
@@ -84,7 +99,7 @@ impl ValveBlock for SlatsChannel {
     }
 
     fn get_command_status(&self) -> Option<ChannelCommand> {
-        if self.is_failed() {
+        if !self.drives_its_motor() {
             return None;
         }
 
@@ -106,6 +121,7 @@ impl ValveBlock for SlatsChannel {
 impl SimulationElement for SlatsChannel {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.motor_control_failure.accept(visitor);
+        self.control.accept(visitor);
         visitor.visit(self);
     }
 }

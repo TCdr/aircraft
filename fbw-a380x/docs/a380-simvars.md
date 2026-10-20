@@ -1745,6 +1745,41 @@ The PRIMs perform the flight guidance and flight envelope functions.
       | 28  | Slat System Jam                             |
       | 29  | Flap System Jam                             |
 
+- A32NX_SFCC_{number}_SLAT_FLAP_SYSTEM_STATUS_WORD
+    - {number} is 1 or 2
+    - Slat/Flap system status discrete word of the SFCC bus output, adapted from the A320
+    - Arinc429<Discrete>
+    - | Bit |                 Description                 |
+      |:---:|:-------------------------------------------:|
+      | 11  | Slat Fault (slat motor n no longer driven)  |
+      | 12  | Flap Fault (flap motor n no longer driven)  |
+      | 13  | Slat Jam                                    |
+      | 14  | Flap Jam                                    |
+      | 15  | Slat WTB engaged                            |
+      | 16  | Flap WTB engaged                            |
+      | 17  | Lever in Config 0                           |
+      | 18  | Lever in Config 1                           |
+      | 19  | Lever in Config 2                           |
+      | 20  | Lever in Config 3                           |
+      | 21  | Lever in Config FULL                        |
+      | 22  | Flap Load Relief Engaged                    |
+      | 24  | Slat Alpha/Speed Lock Engaged               |
+      | 25  | Cruise Baulk Engaged                        |
+      | 26  | Flaps in Config 1 or Cruise Baulk           |
+      | 27  | Lever out of detent longer than 10 s        |
+      | 28  | Slat Data Valid                             |
+      | 29  | Flap Data Valid                             |
+
+- A32NX_SFCC_{number}_SLAT_FLAP_COMPONENT_STATUS_WORD
+    - {number} is 1 or 2
+    - Faults of the SFCC parts that the system status word does not carry
+    - Arinc429<Discrete>
+    - | Bit |                 Description                 |
+      |:---:|:-------------------------------------------:|
+      | 11  | Slat control unit (SLAT CTL n) failed       |
+      | 12  | Flap control unit (FLAP CTL n) failed       |
+      | 13  | FLAPS lever position not received           |
+
 - A32NX_FLAPS_CONF_INDEX
   - Number
   - Indicates the desired flap configuration index according to the table

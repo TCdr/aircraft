@@ -88,6 +88,17 @@ pub enum FailureType {
     /// The fire detection unit (FDU) channel of one zone is inoperative: no fire warning from that zone
     FireDetectionUnit(FireDetectionZone),
     // ATA27 slats and flaps (a320_systems / a380_systems hydraulic::sfcc)
+    /// A380: the flap control unit of SFCC n is failed: the flap control unit of the other SFCC controls both flap
+    /// motors and the flaps move at normal speed (F/CTL FLAP CTL n FAULT); with both failed, no flap motor is driven
+    SlatFlapControlComputerFlapControlUnit(usize),
+    /// A380: the same for the slat control unit of SFCC n (F/CTL SLAT CTL n FAULT)
+    SlatFlapControlComputerSlatControlUnit(usize),
+    /// A380: SFCC n no longer receives the FLAPS lever position: its slat and flap systems stop, the surfaces move at
+    /// half speed on the systems of the other SFCC (F/CTL FLAPS LEVER SYS n FAULT)
+    FlapsLeverLink(usize),
+    /// A380: the FLAPS lever is jammed between two detents: the SFCCs keep the configuration they had
+    /// (F/CTL FLAPS LEVER OUT OF DETENT)
+    FlapsLeverOutOfDetent,
     /// The flap channel of SFCC n no longer controls its flap motor: the flaps move at half speed on the
     /// other motor, and the SFCC reports a flap fault (F/CTL FLAP SYS n FAULT)
     SlatFlapControlComputerFlapChannel(usize),
