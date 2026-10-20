@@ -159,6 +159,7 @@ import {
   ThrustLeverAboveIdleMonitor,
 } from './EngineThrustLeverAlerts';
 import { selectSfccPositionWord } from './SfccWordSelection';
+import { SlatFlapAlertMonitor } from './FwsSlatFlapAlerts';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
 import { EngineStartFault, EngineStartPhase, isIgnitionMemoShown, StartValveFault } from './EngineStartAlerts';
 import {
@@ -1740,6 +1741,8 @@ export class FwsCore {
   );
   public readonly slatsJammed = Subject.create(false);
   public readonly slatsRetracted = Subject.create(false);
+
+  public readonly slatFlapControl = new SlatFlapAlertMonitor();
 
   public readonly speedBrakeCommand5sConfirm = new NXLogicConfirmNode(5, true);
 
@@ -4367,6 +4370,11 @@ export class FwsCore {
     this.slatsRetracted.set(
       this.slatFlapsSystem1ActualPositionWord.bitValueOr(12, false) ||
         this.slatFlapsSystem2ActualPositionWord.bitValueOr(12, false),
+    );
+    this.slatFlapControl.update(
+      [this.slatFlapsSystem1StatusWord, this.slatFlapsSystem2StatusWord],
+      this.slatFlapControl.readComponentStatusWords(),
+      (failure) => this.failuresConsumer.isActive(failure),
     );
 
     // FIXME move out of acquisition to logic below

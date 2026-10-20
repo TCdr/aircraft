@@ -711,17 +711,27 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
   272800014: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm FLAPS LEVER SYS 1 FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'SLATS SLOW', sensed: false },
+      { name: 'FLAPS SLOW', sensed: false },
+    ],
   },
   272800015: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm FLAPS LEVER SYS 2 FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'SLATS SLOW', sensed: false },
+      { name: 'FLAPS SLOW', sensed: false },
+    ],
   },
   272800016: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm FLAPS LOCKED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'FOR VFE : USE PFD', sensed: false },
+      { name: 'USE SELECTED SPEED', sensed: false },
+      { name: 'LDG PERF AFFECTED', sensed: false },
+    ],
   },
   272800019: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm SLAT CTL 1 FAULT',
@@ -807,7 +817,11 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
   272800024: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm SLATS LOCKED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'FOR VFE : USE PFD', sensed: false },
+      { name: 'USE SELECTED SPEED', sensed: false },
+      { name: 'LDG PERF AFFECTED', sensed: false },
+    ],
   },
   272800025: {
     title: '\x1b<4m\x1b4mF/CTL\x1bm SLATS TIP BRK TEST REQUIRED',
@@ -964,6 +978,29 @@ export const EcamDeferredProcAta27: { [n: number]: DeferredProcedure } = {
         sensed: false,
         level: 1,
       },
+    ],
+  },
+  270700301: {
+    fromAbnormalProcs: ['272800016'],
+    title: 'FLAPS LOCKED',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: '[MFD SURV] TAWS FLAP MODE', labelNotCompleted: 'OFF', sensed: true },
+      { name: 'FOR LDG : FLAP LVR 3', sensed: false },
+      { name: 'LDG PERF COMPUTATION', labelNotCompleted: 'CONFIRM', sensed: false },
+      { name: 'NO AUTOLAND', sensed: false },
+      { name: 'FOR GA : MAINTAIN S/F CONF', sensed: false },
+    ],
+  },
+  270700302: {
+    fromAbnormalProcs: ['272800024'],
+    title: 'SLATS LOCKED',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'FOR LDG : FLAP LVR 3', sensed: false },
+      { name: 'LDG PERF COMPUTATION', labelNotCompleted: 'CONFIRM', sensed: false },
+      { name: 'NO AUTOLAND', sensed: false },
+      { name: 'FOR GA : MAINTAIN S/F CONF', sensed: false },
     ],
   },
 };

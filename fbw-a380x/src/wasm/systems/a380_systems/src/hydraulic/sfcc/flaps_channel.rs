@@ -6,7 +6,7 @@ use systems::{
 };
 use uom::si::{angle::degree, f64::*};
 
-use super::{FlapsConf, SlatFlapControlComputerMisc};
+use super::{system_control::SystemControl, FlapsConf, SlatFlapControlComputerMisc};
 
 pub(super) struct FlapsChannel {
     demanded_angle: Angle,
@@ -15,6 +15,7 @@ pub(super) struct FlapsChannel {
     /// The flyPad failure of this flap channel: the flap system is failed, only one flap motor remains and the flaps
     /// operate at half speed (F/CTL FLAP SYS 1(2) FAULT)
     motor_control_failure: Failure,
+    control: SystemControl,
 }
 impl FlapsChannel {
     pub(super) fn new(num: usize) -> Self {
@@ -24,13 +25,27 @@ impl FlapsChannel {
             motor_control_failure: Failure::new(FailureType::SlatFlapControlComputerFlapChannel(
                 num,
             )),
+            control: SystemControl::new(FailureType::SlatFlapControlComputerFlapControlUnit(num)),
         }
     }
 
-    /// The channel has lost the control of its flap motor (flyPad failure). It keeps sending its labels and reports the
-    /// fault in the slat/flap system status word (label 046 bit 12), read by the FWS (FwsCore flapSys1(2)Fault).
+    /// The flap system no longer drives its motor: the channel lost the control of the motor (flyPad failure), or both
+    /// flap control units are failed. It keeps sending its labels and reports the fault in the slat/flap system
+    /// status word (label 046 bit 12), read by the FWS (FwsCore flapSys1(2)Fault).
     pub(super) fn is_failed(&self) -> bool {
-        self.motor_control_failure.is_active()
+        self.motor_control_failure.is_active() || self.control.no_control_unit_left()
+    }
+
+    pub(super) fn control(&self) -> &SystemControl {
+        &self.control
+    }
+
+    pub(super) fn control_mut(&mut self) -> &mut SystemControl {
+        &mut self.control
+    }
+
+    fn drives_its_motor(&self) -> bool {
+        !self.is_failed() && !self.control.stops_the_motor()
     }
 
     // Returns a flap demanded angle in FPPU reference degree (feedback sensor)
@@ -69,7 +84,7 @@ impl FlapsChannel {
 // are held in position and can't move.
 impl ValveBlock for FlapsChannel {
     fn get_pob_status(&self) -> SolenoidStatus {
-        if self.is_failed() {
+        if !self.drives_its_motor() {
             return SolenoidStatus::DeEnergised;
         }
 
@@ -84,7 +99,7 @@ impl ValveBlock for FlapsChannel {
     }
 
     fn get_command_status(&self) -> Option<ChannelCommand> {
-        if self.is_failed() {
+        if !self.drives_its_motor() {
             return None;
         }
 
@@ -106,6 +121,7 @@ impl ValveBlock for FlapsChannel {
 impl SimulationElement for FlapsChannel {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.motor_control_failure.accept(visitor);
+        self.control.accept(visitor);
         visitor.visit(self);
     }
 }

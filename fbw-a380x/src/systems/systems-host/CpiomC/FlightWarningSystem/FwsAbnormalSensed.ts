@@ -119,6 +119,16 @@ import {
   KCCU_PHASE_INHIBITION,
 } from './FwsCdsControlAlerts';
 import { RECORDER_ACCELMTR_PHASE_INHIBITION, RECORDER_PHASE_INHIBITION } from './FwsRecorderAlerts';
+import {
+  FLAPS_LEVER_OUT_OF_DETENT_PHASE_INHIBITION,
+  FLAPS_LEVER_SYS_FAULT_PHASE_INHIBITION,
+  FLAPS_SLATS_LOCKED_PHASE_INHIBITION,
+  FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION,
+  SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION,
+  controlUnitFaultStatus,
+  flapsLeverSysFaultStatus,
+  surfacesLockedStatus,
+} from './FwsSlatFlapAlerts';
 import { CABIN_EMER_EXIT_LT_PHASE_INHIBITION } from './FwsEmerExitLightAlerts';
 import {
   APU_GEN_INOP_SYS,
@@ -5272,6 +5282,165 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Fctl,
     },
+    // Slat and flap control units, FLAPS lever, wing tip brakes and maintenance tests, see FwsSlatFlapAlerts
+    272800004: {
+      // FLAP CTL 1 FAULT: crew awareness
+      flightPhaseInhib: FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.flapCtlFault[0],
+      notActiveWhenItemActive: ['272800008'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Fctl,
+      ...controlUnitFaultStatus('flaps', 0),
+    },
+    272800005: {
+      // FLAP CTL 2 FAULT: crew awareness
+      flightPhaseInhib: FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.flapCtlFault[1],
+      notActiveWhenItemActive: ['272800008'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Fctl,
+      ...controlUnitFaultStatus('flaps', 1),
+    },
+    272800019: {
+      // SLAT CTL 1 FAULT: crew awareness
+      flightPhaseInhib: FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.slatCtlFault[0],
+      notActiveWhenItemActive: ['272800023'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Fctl,
+      ...controlUnitFaultStatus('slats', 0),
+    },
+    272800020: {
+      // SLAT CTL 2 FAULT: crew awareness
+      flightPhaseInhib: FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.slatCtlFault[1],
+      notActiveWhenItemActive: ['272800023'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Fctl,
+      ...controlUnitFaultStatus('slats', 1),
+    },
+    272800009: {
+      // FLAP 1 SAFETY TEST REQUIRED: crew awareness
+      flightPhaseInhib: SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.flapSafetyTestRequired[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    272800010: {
+      // FLAP 2 SAFETY TEST REQUIRED: crew awareness
+      flightPhaseInhib: SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.flapSafetyTestRequired[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    272800011: {
+      // SLAT 1 SAFETY TEST REQUIRED: crew awareness
+      flightPhaseInhib: SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.slatSafetyTestRequired[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    272800012: {
+      // SLAT 2 SAFETY TEST REQUIRED: crew awareness
+      flightPhaseInhib: SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.slatSafetyTestRequired[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    272800013: {
+      // FLAPS LEVER OUT OF DETENT
+      flightPhaseInhib: FLAPS_LEVER_OUT_OF_DETENT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.flapsLeverOutOfDetent,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    272800014: {
+      // FLAPS LEVER SYS 1 FAULT
+      flightPhaseInhib: FLAPS_LEVER_SYS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.flapsLeverSysFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.Fctl,
+      ...flapsLeverSysFaultStatus(0),
+    },
+    272800015: {
+      // FLAPS LEVER SYS 2 FAULT
+      flightPhaseInhib: FLAPS_LEVER_SYS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.flapsLeverSysFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.Fctl,
+      ...flapsLeverSysFaultStatus(1),
+    },
+    272800016: {
+      // FLAPS LOCKED
+      flightPhaseInhib: FLAPS_SLATS_LOCKED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.flapsLocked,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true],
+      whichItemsChecked: () => [false, false, false],
+      failure: 2,
+      sysPage: SdPages.Fctl,
+      ...surfacesLockedStatus('flaps'),
+    },
+    272800024: {
+      // SLATS LOCKED
+      flightPhaseInhib: FLAPS_SLATS_LOCKED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.slatsLocked,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true],
+      whichItemsChecked: () => [false, false, false],
+      failure: 2,
+      sysPage: SdPages.Fctl,
+      ...surfacesLockedStatus('slats'),
+    },
+    272800025: {
+      // SLATS TIP BRK TEST REQUIRED: crew awareness
+      flightPhaseInhib: SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.slatsTipBrakeTestRequired,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    272800027: {
+      // FLAPS TIP BRK TEST REQUIRED: crew awareness
+      flightPhaseInhib: SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION,
+      simVarIsActive: this.fws.slatFlapControl.flapsTipBrakeTestRequired,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
     272800028: {
       // TO FLAPS FMS DISAGREE
       flightPhaseInhib: [1, 4, 5, 6, 7, 8, 9, 10, 12],
@@ -9755,6 +9924,26 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [true, true, true, true, true],
       whichItemsChecked: () => [false, false, false, false, false],
+      failure: 0,
+      sysPage: SdPages.None,
+    },
+    270700301: {
+      // FLAPS LOCKED FOR APPROACH: TAWS FLAP MODE OFF with the flaps short of their CONF 3 position
+      flightPhaseInhib: [],
+      simVarIsActive: Subject.create(true),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [!this.fws.flapsSuperiorTo17Deg.get(), true, true, true, true],
+      whichItemsChecked: () => [this.fws.tawsFlapModeOff.get(), false, false, false, false],
+      failure: 0,
+      sysPage: SdPages.None,
+    },
+    270700302: {
+      // SLATS LOCKED FOR APPROACH
+      flightPhaseInhib: [],
+      simVarIsActive: Subject.create(true),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true, true],
+      whichItemsChecked: () => [false, false, false, false],
       failure: 0,
       sysPage: SdPages.None,
     },

@@ -344,6 +344,29 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (27_011, FailureType::SlatFlapControlComputerFlapChannel(2)),
         (27_012, FailureType::SlatFlapControlComputerSlatChannel(1)),
         (27_013, FailureType::SlatFlapControlComputerSlatChannel(2)),
+        // SFCC control units, FLAPS lever and wing tip brakes (hydraulic::sfcc): F/CTL FLAP(SLAT) CTL 1(2) FAULT,
+        // FLAPS LEVER SYS 1(2) FAULT, FLAPS LEVER OUT OF DETENT, FLAPS (SLATS) LOCKED
+        (
+            27_200,
+            FailureType::SlatFlapControlComputerFlapControlUnit(1),
+        ),
+        (
+            27_201,
+            FailureType::SlatFlapControlComputerFlapControlUnit(2),
+        ),
+        (
+            27_202,
+            FailureType::SlatFlapControlComputerSlatControlUnit(1),
+        ),
+        (
+            27_203,
+            FailureType::SlatFlapControlComputerSlatControlUnit(2),
+        ),
+        (27_204, FailureType::FlapsLeverLink(1)),
+        (27_205, FailureType::FlapsLeverLink(2)),
+        (27_206, FailureType::FlapsLeverOutOfDetent),
+        (27_207, FailureType::FlapTransmissionAsymmetry),
+        (27_208, FailureType::SlatTransmissionAsymmetry),
         (26_019, FailureType::Smoke(SmokeDetectionZone::ForwardCargo)),
         (26_020, FailureType::Smoke(SmokeDetectionZone::AftCargo)),
         (26_021, FailureType::Smoke(SmokeDetectionZone::BulkCargo)),
