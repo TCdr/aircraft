@@ -789,6 +789,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Without a cost index entry before the ZFW, the FMS sets the cost index of the previous flight (0 after a power-up) with the COST INDEX-NNN IN USE message, instead of CI 0 in LRC mode - @TCdr
 1. [A32NX/FMS] CONSTANT MACH page (VERT REV): a cruise segment flown at a crew Mach in managed speed and in the predictions, deleted at the end of the cruise, in engine out, or with the alternate or the SEC F-PLN activated (CONSTANT MACH DELETED) - @TCdr
 1. [A380X/FMS] CMS panel of the VERT REV page: constant Mach segment flown in managed speed and predictions, starred on the F-PLN, Mach under its waypoints on the ND, deleted at the end of the cruise (MACH SEGMENT DELETED), in EO or with the ALTN enabled - @TCdr
+1. [A380X/MFD] F-PLN speed column: the ditto character only replaces a speed or Mach that shows the same value as the waypoint above, so a slowly changing speed is shown - @TCdr
 
 ## 2024.1.0
 
