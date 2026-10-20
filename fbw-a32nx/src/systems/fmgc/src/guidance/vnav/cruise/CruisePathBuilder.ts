@@ -114,7 +114,7 @@ export class CruisePathBuilder {
 
       const accelerationStep = this.levelAccelerationStep(
         config,
-        sequence.lastCheckpoint.distanceFromStart,
+        sequence.lastCheckpoint.remainingFuelOnBoard,
         sequence.lastCheckpoint.speed,
         speedTarget,
         headwind,
