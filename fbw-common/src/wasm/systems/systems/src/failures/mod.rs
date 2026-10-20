@@ -385,6 +385,17 @@ pub enum FailureType {
     /// The APU LP fuel valve is jammed in its position: it no longer follows the APU MASTER SW and
     /// the APU FIRE pushbutton (A320 a320_systems fuel/apu_lp_valve.rs)
     ApuLpValveJammed,
+    // ATA28 fuel quantity measurement (A380 a380_systems fuel)
+    /// Fuel Quantity Data Concentrator n is failed: no tank sensor data from it
+    FuelQuantityDataConcentrator(usize),
+    /// The fuel management and quantity function of FQMS n (its CPIOM-F pair) is failed
+    FuelQuantityManagementSystem(usize),
+    /// The Alternate Gauging Processor of FQDC n is failed: its alternate tank quantities are lost
+    FuelAlternateGaugingProcessor(usize),
+    /// The fuel quantity indication probes of tank n (aircraft tank order) are lost: its quantity is lost
+    FuelQuantityIndication(usize),
+    /// The fuel quantity indication of tank n (aircraft tank order) is degraded: less accurate
+    FuelGaugingDegraded(usize),
     // ATA78 thrust reversers (engine n)
     /// The thrust reverser of engine n is failed: it does not deploy
     ReverserFault(usize),

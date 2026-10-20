@@ -23,6 +23,7 @@ import {
   MID_TK_XFR_PB_IS_AUTO_VAR,
   NO_MANUAL_TRANSFER,
   OUTR_TK_XFR_PB_IS_AUTO_VAR,
+  possibleManualTransfers,
   R_INR_TK_AFT_PUMP,
   R_MID_TK_AFT_PUMP,
   R_OUTR_TK_PUMP,
@@ -30,6 +31,7 @@ import {
   TRIM_TK_R_PUMP,
   TRIM_TK_XFR_PB_IS_AUTO_VAR,
 } from './FuelManualTransfer';
+import { NO_TRANSFER_RESTRICTION } from './FuelTransferFaults';
 
 const A380X_DIR = join(__dirname, '../../../base/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X');
 const flightModel = readFileSync(join(A380X_DIR, 'common/config/flight_model.cfg'), 'utf-8');
@@ -219,6 +221,25 @@ describe('A380 manual transfer lineups (MANUAL TRANSFERS)', () => {
     expect(isOuterTransferByGravity(true, false, true)).toBe(true);
     expect(isOuterTransferByGravity(true, true, true)).toBe(false);
     expect(isOuterTransferByGravity(false, false, false)).toBe(false);
+  });
+
+  it('OUTR TK XFR MAN without the forward gallery: no pumped transfer (gravity through the emergency valves)', () => {
+    expect(manualTransferLineup(select({ outer: true }), ALL_PUMP_PBS_ON, false, true)).toEqual({
+      pumps: [],
+      valves: [],
+      junctions: [],
+    });
+  });
+
+  it('without both transfer galleries, nothing can leave the inner, mid and trim tanks', () => {
+    const all = { outer: true, mid: true, inner: true, trimForward: true };
+    expect(possibleManualTransfers(all, NO_TRANSFER_RESTRICTION)).toEqual(all);
+    expect(possibleManualTransfers(all, { ...NO_TRANSFER_RESTRICTION, innerMidTrimTransfersLost: true })).toEqual({
+      outer: true,
+      mid: false,
+      inner: false,
+      trimForward: false,
+    });
   });
 
   it('INR TK XFR MAN: the inner tank aft pumps, via the aft gallery, into the feed tanks', () => {
@@ -502,6 +523,29 @@ describe('FuelManualTransfer', () => {
     }
     expect(fuel.commands.filter((command) => command === 'PUMP 19 ON')).toHaveLength(1);
     expect([...fuel.pumpsOn]).toEqual([20]);
+  });
+
+  it('keeps the control without a selection once the automatic transfers are lost: everything stopped', () => {
+    const lost = { ...NO_TRANSFER_RESTRICTION, manualTransferRequired: true, automaticTransfersLost: true };
+    expect(transfer.update(100, false, lost)).toBe(true);
+    expect(fuel.commands).toEqual(['TRIGGER 1 OFF']);
+    expect(transfer.update(settle, false, lost)).toBe(true);
+    expect(fuel.pumpsOn.size).toBe(0);
+    expect(fuel.valvesOpen.has(11)).toBe(false);
+    for (let i = 0; i < 5; i++) {
+      expect(transfer.update(settle, false, lost)).toBe(true);
+    }
+
+    // The flight crew transfers manually: INR TK XFR MAN
+    fuel.lVars.set(INR_TK_XFR_PB_IS_AUTO_VAR, false);
+    expect(transfer.update(settle, false, lost)).toBe(true);
+    expect([...fuel.pumpsOn].sort((a, b) => a - b)).toEqual([17, 18]);
+
+    // Back to AUTO: the pumps stop, the automatic transfers stay lost
+    fuel.lVars.set(INR_TK_XFR_PB_IS_AUTO_VAR, true);
+    expect(transfer.update(settle, false, lost)).toBe(true);
+    expect(transfer.update(settle, false, lost)).toBe(true);
+    expect(fuel.pumpsOn.size).toBe(0);
   });
 
   it('is suspended by a fuel jettison or a refuel, and resumes after it', () => {

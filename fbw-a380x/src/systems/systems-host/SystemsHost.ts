@@ -21,6 +21,7 @@ import { FuelJettison } from './CpiomF/FuelJettison';
 import { FuelEmerOuterTransfer } from './CpiomF/FuelEmerOuterTransfer';
 import { FuelLeak } from './CpiomF/FuelLeak';
 import { FuelAutomaticTransfers } from './CpiomF/FuelAutomaticTransfers';
+import { FuelTransferFaults } from './CpiomF/FuelTransferFaults';
 import { FuelCollectorCells } from './CpiomF/FuelCollectorCells';
 import { FuelTemperatures } from './CpiomF/FuelTankTemperatures';
 import { WeightBalanceBackup } from './CpiomF/WeightBalanceBackup';
@@ -205,8 +206,10 @@ class SystemsHost extends BaseInstrument {
     this.fws2Failed,
   );
 
+  private readonly fuelTransferFaults = new FuelTransferFaults(this.failuresConsumer);
+
   //FIXME add some deltatime functionality to backplane instruments so we dont have to pass SystemHost
-  private readonly legacyFuel = new LegacyFuel(this.bus, this);
+  private readonly legacyFuel = new LegacyFuel(this.bus, this, this.fuelTransferFaults);
 
   private readonly fuelJettison = new FuelJettison(this.bus, this, this.failuresConsumer);
 
@@ -236,6 +239,7 @@ class SystemsHost extends BaseInstrument {
     this,
     this.failuresConsumer,
     this.fuelPumpsAndValves,
+    this.fuelTransferFaults,
   );
 
   private readonly fuelCollectorCells = new FuelCollectorCells(this);
@@ -263,6 +267,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('Amu2', this.amu2, true);
     this.backplane.addInstrument('SimAudioManager', this.simAudioManager);
     this.backplane.addInstrument('Xpndr', this.xpdr, true);
+    this.backplane.addInstrument('FuelTransferFaults', this.fuelTransferFaults);
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
     this.backplane.addInstrument('FuelJettison', this.fuelJettison);
     this.backplane.addInstrument('AutolandLights', this.autolandLights);

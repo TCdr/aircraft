@@ -2,10 +2,14 @@ use std::{collections::HashMap, time::Duration};
 
 use ntest::{assert_false, assert_true};
 use systems::{
-    electrical::Electricity, engine::EngineFireOverheadPanel, fuel::RefuelRate,
+    electrical::{test::TestElectricitySource, ElectricalBus, Electricity},
+    engine::EngineFireOverheadPanel,
+    failures::FailureType,
+    fuel::RefuelRate,
+    shared::{arinc429::Arinc429Word, PotentialOrigin},
     simulation::test::ReadByName,
 };
-use uom::si::mass::kilogram;
+use uom::si::{electric_potential::volt, f64::ElectricPotential, mass::kilogram};
 
 use super::*;
 use crate::{
@@ -19,6 +23,10 @@ struct FuelTestAircraft {
     acdn: A380AvionicsDataCommunicationNetwork,
     engine_fire_overhead: EngineFireOverheadPanel<4>,
     fuel: A380Fuel,
+    source: TestElectricitySource,
+    /// The buses of the FQDCs (501PP, DC 1) and of the CPIOM-F (108PH, 502PP)
+    fuel_measurement_buses: [ElectricalBus; 4],
+    fuel_measurement_powered: bool,
 }
 
 impl FuelTestAircraft {
@@ -27,6 +35,14 @@ impl FuelTestAircraft {
             acdn: A380AvionicsDataCommunicationNetwork::new(context),
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
             fuel: A380Fuel::new(context),
+            source: TestElectricitySource::powered(context, PotentialOrigin::EngineGenerator(1)),
+            fuel_measurement_buses: [
+                ElectricalBus::new(context, ElectricalBusType::Sub("501PP")),
+                ElectricalBus::new(context, ElectricalBusType::DirectCurrent(1)),
+                ElectricalBus::new(context, ElectricalBusType::DirectCurrentNamed("108PH")),
+                ElectricalBus::new(context, ElectricalBusType::DirectCurrentNamed("502PP")),
+            ],
+            fuel_measurement_powered: false,
         }
     }
 
@@ -43,8 +59,16 @@ impl Aircraft for FuelTestAircraft {
     fn update_before_power_distribution(
         &mut self,
         context: &UpdateContext,
-        _electricity: &mut Electricity,
+        electricity: &mut Electricity,
     ) {
+        if self.fuel_measurement_powered {
+            self.source
+                .power_with_potential(ElectricPotential::new::<volt>(28.));
+            electricity.supplied_by(&self.source);
+            for bus in &self.fuel_measurement_buses {
+                electricity.flow(&self.source, bus);
+            }
+        }
         self.acdn.update();
         self.fuel.update(
             context,
@@ -59,6 +83,9 @@ impl SimulationElement for FuelTestAircraft {
         self.acdn.accept(visitor);
         self.engine_fire_overhead.accept(visitor);
         self.fuel.accept(visitor);
+        for bus in &mut self.fuel_measurement_buses {
+            bus.accept(visitor);
+        }
 
         visitor.visit(self);
     }
@@ -252,6 +279,20 @@ impl FuelTestBed {
 
     fn tank_mass(&self, tank: usize) -> Mass {
         self.query(|a: &FuelTestAircraft| a.tank_mass(tank))
+    }
+
+    /// The FQDCs and the CPIOM-F powered, the FQMS self test done
+    fn with_fuel_measurement_powered(mut self) -> Self {
+        self.command(|a| a.fuel_measurement_powered = true);
+        self.run_multiple_frames(Duration::from_secs(31))
+    }
+
+    fn quantity_system_faults(&mut self) -> u32 {
+        self.read_by_name("FUEL_QUANTITY_SYSTEM_FAULTS")
+    }
+
+    fn feed_one_quantity_word(&mut self, source: &str) -> Arinc429Word<f64> {
+        self.read_arinc429_by_name(&format!("{source}_FEED_1_TANK_QUANTITY"))
     }
 }
 
@@ -700,4 +741,134 @@ fn spawn_high_fuel_load_desired_real_max_done() {
 
     assert_fuel_quantity_max(&test_bed);
     assert_false!(test_bed.refuel_status());
+}
+
+mod fuel_quantity_measurement {
+    use super::*;
+
+    const FQMS_1: u32 = 1 << 0;
+    const FQMS_2: u32 = 1 << 1;
+    const FQDC_1: u32 = 1 << 2;
+    const AGP_1: u32 = 1 << 4;
+    const AGP_2: u32 = 1 << 5;
+
+    fn powered_test_bed() -> FuelTestBed {
+        test_bed_with().fuel_high().with_fuel_measurement_powered()
+    }
+
+    #[test]
+    fn no_fault_when_powered() {
+        let mut test_bed = powered_test_bed();
+
+        assert_eq!(test_bed.quantity_system_faults(), 0);
+        assert!(test_bed
+            .feed_one_quantity_word("FQMS")
+            .is_normal_operation());
+        assert!(test_bed
+            .feed_one_quantity_word("FQDC_1")
+            .is_normal_operation());
+    }
+
+    #[test]
+    fn a_failed_fqdc_gives_no_data_and_the_fqms_uses_the_other_one() {
+        let mut test_bed = powered_test_bed();
+        test_bed.fail(FailureType::FuelQuantityDataConcentrator(1));
+        test_bed = test_bed.and_run();
+
+        assert_eq!(test_bed.quantity_system_faults(), FQDC_1 | AGP_1);
+        assert!(test_bed
+            .feed_one_quantity_word("FQDC_1")
+            .is_failure_warning());
+        assert!(test_bed
+            .feed_one_quantity_word("FQDC_2")
+            .is_normal_operation());
+        assert!(test_bed
+            .feed_one_quantity_word("FQMS")
+            .is_normal_operation());
+    }
+
+    #[test]
+    fn a_failed_alternate_gauging_processor_loses_its_quantities_only() {
+        let mut test_bed = powered_test_bed();
+        test_bed.fail(FailureType::FuelAlternateGaugingProcessor(2));
+        test_bed = test_bed.and_run();
+
+        assert_eq!(test_bed.quantity_system_faults(), AGP_2);
+        assert!(test_bed
+            .feed_one_quantity_word("FQDC_2")
+            .is_failure_warning());
+        assert!(test_bed
+            .feed_one_quantity_word("FQMS")
+            .is_normal_operation());
+    }
+
+    #[test]
+    fn lost_probes_lose_the_tank_quantity() {
+        let mut test_bed = powered_test_bed();
+        test_bed.fail(FailureType::FuelQuantityIndication(
+            A380FuelTankType::FeedOne.into_usize(),
+        ));
+        test_bed = test_bed.and_run();
+
+        let lost: u32 = test_bed.read_by_name("FUEL_FQI_LOST_TANKS");
+        assert_eq!(lost, 1 << A380FuelTankType::FeedOne.into_usize());
+        assert!(test_bed
+            .feed_one_quantity_word("FQDC_1")
+            .is_no_computed_data());
+        assert!(!test_bed
+            .feed_one_quantity_word("FQMS")
+            .is_normal_operation());
+        let feed_two: Arinc429Word<f64> =
+            test_bed.read_arinc429_by_name("FQMS_FEED_2_TANK_QUANTITY");
+        assert!(feed_two.is_normal_operation());
+    }
+
+    #[test]
+    fn degraded_gauging_is_flagged_per_tank() {
+        let mut test_bed = powered_test_bed();
+        test_bed.fail(FailureType::FuelGaugingDegraded(
+            A380FuelTankType::Trim.into_usize(),
+        ));
+        test_bed = test_bed.and_run();
+
+        let degraded: u32 = test_bed.read_by_name("FUEL_GAUGING_DEGRADED_TANKS");
+        assert_eq!(degraded, 1 << A380FuelTankType::Trim.into_usize());
+        let trim: Arinc429Word<f64> = test_bed.read_arinc429_by_name("FQMS_TRIM_TANK_QUANTITY");
+        assert!(trim.is_normal_operation());
+    }
+
+    #[test]
+    fn one_failed_fqms_leaves_the_other_one_working() {
+        let mut test_bed = powered_test_bed();
+        test_bed.fail(FailureType::FuelQuantityManagementSystem(2));
+        test_bed = test_bed.and_run();
+
+        assert_eq!(test_bed.quantity_system_faults(), FQMS_2);
+        assert!(test_bed
+            .feed_one_quantity_word("FQMS")
+            .is_normal_operation());
+    }
+
+    #[test]
+    fn the_loss_of_one_cpiom_of_its_pair_fails_the_fqms() {
+        let mut test_bed = powered_test_bed();
+        test_bed.fail(FailureType::CoreProcessingInputOutputModule('F', 3));
+        test_bed = test_bed.and_run();
+
+        assert_eq!(test_bed.quantity_system_faults(), FQMS_1);
+    }
+
+    #[test]
+    fn both_failed_fqms_give_no_quantities() {
+        let mut test_bed = powered_test_bed();
+        test_bed.fail(FailureType::FuelQuantityManagementSystem(1));
+        test_bed.fail(FailureType::FuelQuantityManagementSystem(2));
+        test_bed = test_bed.and_run();
+
+        assert_eq!(test_bed.quantity_system_faults(), FQMS_1 | FQMS_2);
+        assert!(test_bed.feed_one_quantity_word("FQMS").is_failure_warning());
+        assert!(test_bed
+            .feed_one_quantity_word("FQDC_1")
+            .is_normal_operation());
+    }
 }

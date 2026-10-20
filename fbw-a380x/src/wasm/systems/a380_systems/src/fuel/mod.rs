@@ -3,6 +3,7 @@
 mod cpiom_f;
 mod engine_lp_valves;
 mod fuel_quantity_data_concentrator;
+mod fuel_tank_sensors;
 use crate::{
     avionics_data_communication_network::A380AvionicsDataCommunicationNetwork,
     fuel::cpiom_f::A380FuelQuantityManagementSystem,
@@ -10,6 +11,7 @@ use crate::{
 use engine_lp_valves::A380EngineLpFuelValves;
 use enum_map::{enum_map, Enum};
 use fuel_quantity_data_concentrator::FuelQuantityDataConcentrator;
+use fuel_tank_sensors::FuelTankSensors;
 use nalgebra::Vector3;
 use systems::{
     accept_iterable,
@@ -17,7 +19,10 @@ use systems::{
     integrated_modular_avionics::AvionicsDataCommunicationNetwork,
     payload::LoadsheetInfo,
     shared::{arinc429::Arinc429Word, ElectricalBusType, EngineFirePushButtons},
-    simulation::{InitContext, SimulationElement, SimulationElementVisitor, UpdateContext},
+    simulation::{
+        InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
+        VariableIdentifier, Write,
+    },
 };
 use uom::si::f64::*;
 
@@ -131,16 +136,48 @@ enum A380FuelPump {
     TrimRight,
 }
 
+/// The faults of the fuel quantity measurement, as one bit each in FUEL_QUANTITY_SYSTEM_FAULTS
+#[derive(Clone, Copy)]
+struct FuelQuantitySystemFaults {
+    fqms: [bool; 2],
+    fqdc: [bool; 2],
+    alternate_gauging: [bool; 2],
+}
+impl FuelQuantitySystemFaults {
+    /// Bit 0-1 FQMS 1-2, bit 2-3 FQDC 1-2, bit 4-5 the Alternate Gauging Processor of FQDC 1-2
+    fn bits(&self) -> u32 {
+        [
+            self.fqms[0],
+            self.fqms[1],
+            self.fqdc[0],
+            self.fqdc[1],
+            self.alternate_gauging[0],
+            self.alternate_gauging[1],
+        ]
+        .iter()
+        .enumerate()
+        .fold(0, |bits, (bit, fault)| bits | ((*fault as u32) << bit))
+    }
+}
+
 pub(crate) struct A380Fuel {
     fuel_system: A380FuelSystem,
+    tank_sensors: FuelTankSensors,
     fuel_quantity_data_concentrators: [FuelQuantityDataConcentrator; 2],
     fuel_quantity_management_system: A380FuelQuantityManagementSystem,
     engine_lp_valves: A380EngineLpFuelValves,
+
+    // The maintenance monitoring of the fuel quantity measurement, read by the FWS. Written whatever the power of the
+    // FQMS, so that the FWS also sees the loss of both FQMS.
+    quantity_system_faults_id: VariableIdentifier,
+    quantity_lost_tanks_id: VariableIdentifier,
+    gauging_degraded_tanks_id: VariableIdentifier,
 }
 impl A380Fuel {
     pub(crate) fn new(context: &mut InitContext) -> Self {
         Self {
             fuel_system: A380FuelSystem::new(context),
+            tank_sensors: FuelTankSensors::new(),
             fuel_quantity_data_concentrators: [
                 // TODO: FQDC 1 is powered by 501PP (ESS BAT REFUEL BUS, i.e. HOT BUS BAT ESS) when refueling on battery
                 (1, ElectricalBusType::Sub("501PP")),
@@ -149,6 +186,23 @@ impl A380Fuel {
             .map(|(i, powered_by)| FuelQuantityDataConcentrator::new(context, i, powered_by)),
             fuel_quantity_management_system: A380FuelQuantityManagementSystem::new(context),
             engine_lp_valves: A380EngineLpFuelValves::new(context),
+            quantity_system_faults_id: context
+                .get_identifier("FUEL_QUANTITY_SYSTEM_FAULTS".to_owned()),
+            quantity_lost_tanks_id: context.get_identifier("FUEL_FQI_LOST_TANKS".to_owned()),
+            gauging_degraded_tanks_id: context
+                .get_identifier("FUEL_GAUGING_DEGRADED_TANKS".to_owned()),
+        }
+    }
+
+    fn quantity_system_faults(&self) -> FuelQuantitySystemFaults {
+        let [fqdc_1, fqdc_2] = &self.fuel_quantity_data_concentrators;
+        FuelQuantitySystemFaults {
+            fqms: self.fuel_quantity_management_system.channel_faults(),
+            fqdc: [!fqdc_1.is_healthy(), !fqdc_2.is_healthy()],
+            alternate_gauging: [
+                !fqdc_1.is_alternate_gauging_healthy(),
+                !fqdc_2.is_alternate_gauging_healthy(),
+            ],
         }
     }
 
@@ -161,7 +215,7 @@ impl A380Fuel {
     ) {
         let cpioms = ["F1", "F2", "F3", "F4"].map(|id| acdn.get_cpiom(id));
         for fqdc in &mut self.fuel_quantity_data_concentrators {
-            fqdc.update(&self.fuel_system);
+            fqdc.update(&self.fuel_system, &self.tank_sensors);
         }
         self.fuel_quantity_management_system.update(
             context,
@@ -203,11 +257,27 @@ impl FuelCG for A380Fuel {
 impl SimulationElement for A380Fuel {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.fuel_system.accept(visitor);
+        self.tank_sensors.accept(visitor);
         accept_iterable!(self.fuel_quantity_data_concentrators, visitor);
         self.fuel_quantity_management_system.accept(visitor);
         self.engine_lp_valves.accept(visitor);
 
         visitor.visit(self);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        writer.write(
+            &self.quantity_system_faults_id,
+            self.quantity_system_faults().bits(),
+        );
+        writer.write(
+            &self.quantity_lost_tanks_id,
+            self.tank_sensors.quantity_lost_tanks(),
+        );
+        writer.write(
+            &self.gauging_degraded_tanks_id,
+            self.tank_sensors.gauging_degraded_tanks(),
+        );
     }
 }
 

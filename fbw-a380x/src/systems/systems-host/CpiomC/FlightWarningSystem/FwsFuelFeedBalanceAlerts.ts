@@ -73,15 +73,18 @@ export function feedPumpAlertsWithWings(
   };
 }
 
-/** Imbalance thresholds of FUEL WINGS NOT BALANCED, in kg */
-const WINGS_IMBALANCE_KG = {
+/**
+ * Imbalance thresholds of FUEL WINGS NOT BALANCED, in kg. In flight the FQMS balances the inner, mid and outer tanks
+ * itself; with the FQMS failed, FUEL WINGS MAN BALANCING PROCEDURE uses them (FwsFuelManagementAlerts).
+ */
+export const WINGS_IMBALANCE_KG = {
   /** Between the symmetric feed tanks, on ground and in flight */
   feed: 6_600 * KG_PER_LB,
-  /** On ground only */
+  /** On ground only for WINGS NOT BALANCED */
   inner: 6_600 * KG_PER_LB,
-  /** On ground only */
+  /** On ground only for WINGS NOT BALANCED */
   mid: 5_500 * KG_PER_LB,
-  /** On ground only */
+  /** On ground only for WINGS NOT BALANCED */
   outer: 2_600 * KG_PER_LB,
 } as const;
 

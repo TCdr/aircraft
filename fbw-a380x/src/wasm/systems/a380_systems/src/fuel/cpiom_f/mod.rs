@@ -12,6 +12,7 @@ use serde::Deserialize;
 use serde_with::{serde_as, DisplayFromStr};
 use std::{collections::HashMap, time::Duration};
 use systems::{
+    failures::{Failure, FailureType},
     fuel::{self, FuelPayload, RefuelRate},
     payload::LoadsheetInfo,
     pneumatic::EngineState,
@@ -710,7 +711,9 @@ bitflags! {
 // TODO: implement AFDX communication (FMS data, pump states, valve states, etc.)
 pub(super) struct A380FuelQuantityManagementSystem {
     self_test_finished: DelayedTrueLogicGate,
-    cpioms_available: [bool; 4],
+    /// FQMS 1 and 2: one is active and the other in standby, the FQMS works while one of them is available
+    channels_available: [bool; 2],
+    channel_failures: [Failure; 2],
     fuel_measuring_application: FuelMeasuringApplication,
     refuel_application: RefuelApplication,
     integrated_refuel_panel: IntegratedRefuelPanel,
@@ -746,7 +749,9 @@ impl A380FuelQuantityManagementSystem {
         // CPIOM_COM_F2, CPIOM_MON_F4 [FQDC_2] -> 109PP 101PP 107PP
         Self {
             self_test_finished: DelayedTrueLogicGate::new(Self::SELF_TEST_DURATION),
-            cpioms_available: [false; 4],
+            channels_available: [false; 2],
+            channel_failures: [1, 2]
+                .map(|id| Failure::new(FailureType::FuelQuantityManagementSystem(id))),
             fuel_measuring_application: FuelMeasuringApplication::new(),
             refuel_application: RefuelApplication::new(context),
             integrated_refuel_panel: IntegratedRefuelPanel::new(
@@ -796,10 +801,13 @@ impl A380FuelQuantityManagementSystem {
         self.refuel_application
             .update(context, fuel_system, &mut self.integrated_refuel_panel);
 
-        self.cpioms_available = cpioms_available;
+        self.channels_available = Self::channels_available(
+            cpioms_available,
+            self.channel_failures.each_ref().map(Failure::is_active),
+        );
 
         self.self_test_finished
-            .update(context, cpioms_available.into_iter().any(|a| a));
+            .update(context, self.is_any_channel_available());
 
         if !self.self_test_finished.output() {
             self.reset();
@@ -824,6 +832,24 @@ impl A380FuelQuantityManagementSystem {
 
         self.fuel_measuring_application
             .update(loadsheet, selected_fqdc, fms_zfw, fms_zfwcg);
+    }
+
+    /// Each FQMS runs on a pair of CPIOM-F, a command lane and a monitor lane: FQMS 1 on CPIOM-F1 and F3, FQMS 2
+    /// on CPIOM-F2 and F4. Design choice: an FQMS is lost when either CPIOM of its pair is not available.
+    fn channels_available(cpioms_available: [bool; 4], channels_failed: [bool; 2]) -> [bool; 2] {
+        [
+            cpioms_available[0] && cpioms_available[2] && !channels_failed[0],
+            cpioms_available[1] && cpioms_available[3] && !channels_failed[1],
+        ]
+    }
+
+    fn is_any_channel_available(&self) -> bool {
+        self.channels_available.iter().any(|a| *a)
+    }
+
+    /// FQMS 1 and 2 not available
+    pub(super) fn channel_faults(&self) -> [bool; 2] {
+        self.channels_available.map(|available| !available)
     }
 
     fn reset(&mut self) {
@@ -896,6 +922,9 @@ impl SimulationElement for A380FuelQuantityManagementSystem {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.refuel_application.accept(visitor);
         self.integrated_refuel_panel.accept(visitor);
+        for failure in &mut self.channel_failures {
+            failure.accept(visitor);
+        }
         visitor.visit(self);
     }
 
@@ -920,7 +949,7 @@ impl SimulationElement for A380FuelQuantityManagementSystem {
 
     fn write(&self, writer: &mut SimulatorWriter) {
         // TODO: only CPIOM-F3 and CPIOM-F4 can provide data via ARINC 429
-        let is_powered = self.cpioms_available.iter().any(|a| *a);
+        let is_powered = self.is_any_channel_available();
         self.write_arinc429(
             writer,
             &self.total_fuel_onboard_id,

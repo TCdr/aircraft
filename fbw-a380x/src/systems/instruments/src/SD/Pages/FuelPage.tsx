@@ -16,6 +16,7 @@ import {
 } from './FuelGalleryFlow';
 import { WingImbalanceIndication } from './FuelImbalanceIndication';
 import {
+  A380FuelTankName,
   collectorCellQuantityVar,
   FUEL_TEMP_LO_C,
   fuelTankTemperatureVar,
@@ -23,6 +24,11 @@ import {
   isFeedTankTemperatureAbnormal,
   isTemperatureSensorImmersed,
 } from '@shared/FuelTankIndications';
+import {
+  degradedQuantityLeadingDigits,
+  FUEL_GAUGING_DEGRADED_TANKS_VAR,
+  isTankBitSet,
+} from '@shared/FuelQuantityMeasurement';
 
 export const FuelPage = () => {
   const CROSS_FEED_VALVE_CLOSED_THRESHOLD = 0.1;
@@ -837,8 +843,8 @@ export const FuelPage = () => {
     isCollectorCell1NotFull || isCollectorCell2NotFull || isCollectorCell3NotFull || isCollectorCell4NotFull;
 
   // Tanks
-  // We prioritize the values published by the FQMS and take the values provided by the FQDCs as a backup
-  // TODO: when we take the FQDC values show degraded indication (strike through)
+  // We prioritize the values published by the FQMS and take the values provided by the FQDCs as a backup: the
+  // alternate gauging, less accurate, shown with its last two digits dashed
   const fqmsLeftOuterTankWeight = useArinc429Var('L:A32NX_FQMS_LEFT_OUTER_TANK_QUANTITY', 1000);
   const fqmsFeed1TankWeight = useArinc429Var('L:A32NX_FQMS_FEED_1_TANK_QUANTITY', 1000);
   const fqmsLeftMidTankWeight = useArinc429Var('L:A32NX_FQMS_LEFT_MID_TANK_QUANTITY', 1000);
@@ -898,6 +904,10 @@ export const FuelPage = () => {
     fqdc1RightOuterTankWeight.valueOr(fqdc2RightOuterTankWeight.valueOr(null)),
   );
   const trimTankWeight = fqmsTrimTankWeight.valueOr(fqdc1TrimTankWeight.valueOr(fqdc2TrimTankWeight.valueOr(null)));
+
+  const [gaugingDegradedTanks] = useSimVar(FUEL_GAUGING_DEGRADED_TANKS_VAR, 'number', 1000);
+  const isDegraded = (tank: A380FuelTankName, fqmsWeight: { isNormalOperation(): boolean }) =>
+    !fqmsWeight.isNormalOperation() || isTankBitSet(gaugingDegradedTanks, tank);
 
   // Wing imbalance underlines, with the trigger of FUEL WINGS NOT BALANCED
   const [onGround] = useSimVar('SIM ON GROUND', 'bool', 1000);
@@ -974,6 +984,7 @@ export const FuelPage = () => {
         x={154}
         y={300}
         quantity={feed1TankWeight}
+        degraded={isDegraded('FEED_1', fqmsFeed1TankWeight)}
         hasFault={feed1TankWeight === null || feed1TankWeight < FEED_TANK_LOW_LEVEL_THRESHOLD_KG}
         underline={imbalance.feed[0]}
       />
@@ -1020,15 +1031,34 @@ export const FuelPage = () => {
       />
 
       {/* LEFT OUTER/MID/INNER */}
-      <TankQuantity x={102} y={434} quantity={leftOuterTankWeight} underline={imbalance.outer[0]} />
-      <TankQuantity x={202} y={430} quantity={leftMidTankWeight} underline={imbalance.mid[0]} />
-      <TankQuantity x={302} y={430} quantity={leftInnerTankWeight} underline={imbalance.inner[0]} />
+      <TankQuantity
+        x={102}
+        y={434}
+        quantity={leftOuterTankWeight}
+        degraded={isDegraded('LEFT_OUTER', fqmsLeftOuterTankWeight)}
+        underline={imbalance.outer[0]}
+      />
+      <TankQuantity
+        x={202}
+        y={430}
+        quantity={leftMidTankWeight}
+        degraded={isDegraded('LEFT_MID', fqmsLeftMidTankWeight)}
+        underline={imbalance.mid[0]}
+      />
+      <TankQuantity
+        x={302}
+        y={430}
+        quantity={leftInnerTankWeight}
+        degraded={isDegraded('LEFT_INNER', fqmsLeftInnerTankWeight)}
+        underline={imbalance.inner[0]}
+      />
 
       {/* FEED TANK 2 */}
       <TankQuantity
         x={322}
         y={288}
         quantity={feed2TankWeight}
+        degraded={isDegraded('FEED_2', fqmsFeed2TankWeight)}
         hasFault={feed2TankWeight === null || feed2TankWeight < FEED_TANK_LOW_LEVEL_THRESHOLD_KG}
         underline={imbalance.feed[1]}
       />
@@ -1072,6 +1102,7 @@ export const FuelPage = () => {
         x={528}
         y={288}
         quantity={feed3TankWeight}
+        degraded={isDegraded('FEED_3', fqmsFeed3TankWeight)}
         hasFault={feed3TankWeight === null || feed3TankWeight < FEED_TANK_LOW_LEVEL_THRESHOLD_KG}
         underline={imbalance.feed[2]}
       />
@@ -1111,15 +1142,34 @@ export const FuelPage = () => {
       />
 
       {/* RIGHT INNER/MID/OUTER */}
-      <TankQuantity x={548} y={430} quantity={rightInnerTankWeight} underline={imbalance.inner[1]} />
-      <TankQuantity x={648} y={430} quantity={rightMidTankWeight} underline={imbalance.mid[1]} />
-      <TankQuantity x={748} y={434} quantity={rightOuterTankWeight} underline={imbalance.outer[1]} />
+      <TankQuantity
+        x={548}
+        y={430}
+        quantity={rightInnerTankWeight}
+        degraded={isDegraded('RIGHT_INNER', fqmsRightInnerTankWeight)}
+        underline={imbalance.inner[1]}
+      />
+      <TankQuantity
+        x={648}
+        y={430}
+        quantity={rightMidTankWeight}
+        degraded={isDegraded('RIGHT_MID', fqmsRightMidTankWeight)}
+        underline={imbalance.mid[1]}
+      />
+      <TankQuantity
+        x={748}
+        y={434}
+        quantity={rightOuterTankWeight}
+        degraded={isDegraded('RIGHT_OUTER', fqmsRightOuterTankWeight)}
+        underline={imbalance.outer[1]}
+      />
 
       {/* FEED TANK 4 */}
       <TankQuantity
         x={696}
         y={300}
         quantity={feed4TankWeight}
+        degraded={isDegraded('FEED_4', fqmsFeed4TankWeight)}
         hasFault={feed4TankWeight === null || feed4TankWeight < FEED_TANK_LOW_LEVEL_THRESHOLD_KG}
         underline={imbalance.feed[3]}
       />
@@ -1440,7 +1490,7 @@ export const FuelPage = () => {
         <Valve x={386} y={540} open={!isTrimLineIsolated} normallyClosed />
 
         {/* TRIM TANK */}
-        <TankQuantity x={418} y={640} quantity={trimTankWeight} />
+        <TankQuantity x={418} y={640} quantity={trimTankWeight} degraded={isDegraded('TRIM', fqmsTrimTankWeight)} />
         <OuterOrTrimTankTemperature
           x={394}
           y={612}
@@ -1814,6 +1864,8 @@ interface TankQuantityProps extends Position {
   smallFont?: boolean;
   quantity: number | null;
   hasFault?: boolean;
+  /** Less accurate quantity: its last two digits dashed amber */
+  degraded?: boolean;
   /** Amber underline of the wing imbalance */
   underline?: boolean;
 }
@@ -1821,8 +1873,18 @@ interface TankQuantityProps extends Position {
 /** Approximate width of one character of the T4 (26 px) ECAM font, for the underline */
 const T4_CHARACTER_WIDTH = 15;
 
-const TankQuantity: FC<TankQuantityProps> = ({ x, y, smallFont = false, quantity, hasFault, underline = false }) => {
-  const displayText = quantity !== null ? Math.floor(NXUnits.kgToUser(quantity) / 20) * 20 : 'XX\xa0';
+const TankQuantity: FC<TankQuantityProps> = ({
+  x,
+  y,
+  smallFont = false,
+  quantity,
+  hasFault,
+  degraded = false,
+  underline = false,
+}) => {
+  const displayedValue = quantity !== null ? Math.floor(NXUnits.kgToUser(quantity) / 20) * 20 : null;
+  const displayText =
+    displayedValue === null ? 'XX\xa0' : degraded ? degradedQuantityLeadingDigits(displayedValue) : displayedValue;
 
   return (
     <>
@@ -1833,10 +1895,11 @@ const TankQuantity: FC<TankQuantityProps> = ({ x, y, smallFont = false, quantity
         textAnchor="end"
       >
         {displayText}
+        {degraded && displayedValue !== null && <tspan className="Amber">--</tspan>}
       </text>
       {underline && (
         <line
-          x1={x - String(displayText).length * T4_CHARACTER_WIDTH}
+          x1={x - (String(displayText).length + (degraded && displayedValue !== null ? 2 : 0)) * T4_CHARACTER_WIDTH}
           y1={y + 4}
           x2={x}
           y2={y + 4}

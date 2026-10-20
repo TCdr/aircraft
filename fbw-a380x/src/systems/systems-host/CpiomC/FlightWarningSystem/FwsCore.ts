@@ -119,6 +119,7 @@ import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { btvFaultCautionTriggered, FwsBrakeAlerts, readBrakeSteerInputs } from './FwsBrakeAlerts';
 import { FwsBrakeControlAlerts, readBrakeControlInputs } from './FwsBrakeControlAlerts';
+import { FuelManagementAlerts, readFuelManagementInputs } from './FwsFuelManagementAlerts';
 import { readFuelJettisonFlags } from './FuelJettisonFlags';
 import {
   EngineFailMonitor,
@@ -2367,6 +2368,9 @@ export class FwsCore {
 
   /** BRAKES alerts of one BCS, gear group or brake pair, and BCS crew awareness (FwsBrakeControlAlerts.ts) */
   public readonly brakeControlAlerts = new FwsBrakeControlAlerts();
+
+  /** FUEL alerts of the fuel quantity measurement and of the fuel transfers (FwsFuelManagementAlerts.ts) */
+  public readonly fuelManagementAlerts = new FuelManagementAlerts();
 
   public readonly lgNotDown = Subject.create(false);
 
@@ -7295,6 +7299,17 @@ export class FwsCore {
 
     // FUEL CG / weight alerts (FwsFuelCgWeightAlerts) and tank alerts (FwsFuelTankAlerts)
     this.updateFuelCgAndTankAlerts(readBool, tankKg, tankHasFuel, feedPumps, crossFeedPbs);
+    this.fuelManagementAlerts.update(
+      readFuelManagementInputs(
+        (name, unit) => SimVar.GetSimVarValue(name, unit),
+        (failure) => this.failuresConsumer.isActive(failure),
+        this.aircraftOnGround.get(),
+        [this.engine1Running, this.engine2Running, this.engine3Running, this.engine4Running].filter((running) =>
+          running.get(),
+        ).length,
+      ),
+      deltaTime / 1000,
+    );
 
     readCrossFeedValveFlags(readBool, (valve) =>
       SimVar.GetSimVarValue(`FUELSYSTEM VALVE OPEN:${valve}`, SimVarValueType.PercentOver100),

@@ -185,6 +185,7 @@ import {
 } from './EngineOilAlerts';
 import { FUEL_FILTER_CLOGGED_LEVEL, FUEL_FILTER_CLOGGED_PHASE_INHIBITION } from './EngineFuelFilterAlerts';
 import { apuBleedFaultItems } from './ApuBleedFaultAlerts';
+import { FUEL_MANAGEMENT_ALERT_IDS, fuelManagementAbnormalItems } from './FwsFuelManagementAlerts';
 import {
   WHEEL_TIRE_PRESS_LO_ALERT,
   WHEEL_TIRE_PRESS_LO_LEVEL,
@@ -6154,7 +6155,7 @@ export class FwsAbnormalSensed {
       // WINGS NOT BALANCED
       flightPhaseInhib: FUEL_FEED_BALANCE_PHASE_INHIBITION.wingsNotBalanced,
       simVarIsActive: this.fws.fuelWingsNotBalanced,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: [FUEL_MANAGEMENT_ALERT_IDS.wingsManBalancing.toString()],
       whichItemsToShow: () => wingsNotBalancedLines(this.fws.fuelFeedBalanceInputs, this.fws.wingsBalanceState).show,
       whichItemsChecked: () =>
         wingsNotBalancedLines(this.fws.fuelFeedBalanceInputs, this.fws.wingsBalanceState).checked,
@@ -6236,6 +6237,8 @@ export class FwsAbnormalSensed {
     },
     // CG / weight, collector cell, temperature and MAN XFR COMPLETED alerts
     ...this.fuelCgAndTankAlerts(),
+    // Fuel quantity measurement and fuel transfer alerts (FwsFuelManagementAlerts)
+    ...fuelManagementAbnormalItems(this.fws.fuelManagementAlerts),
     // ATA 29 - HYDRAULICS
     290800001: {
       // G ELEC PMP A FAULT

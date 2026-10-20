@@ -6,6 +6,8 @@
  * panel, on the MSFS fuel system of flight_model.cfg [FUEL_SYSTEM] (the Pump.N, Valve.N and Junction.N numbers below).
  */
 
+import { FuelTransferRestrictions, NO_TRANSFER_RESTRICTION } from './FuelTransferFaults';
+
 /** 1 (released) AUTO, 0 MAN */
 export const OUTR_TK_XFR_PB_IS_AUTO_VAR = 'L:A380X_OVHD_FUEL_OUTRTK_XFR_PB_IS_AUTO';
 /** 1 (released) AUTO, 0 MAN */
@@ -157,14 +159,19 @@ const TRIM_LINE_ISOLATION_VALVE_AFT = 45;
  * With the TRIM TK FEED selector in ISOL (CpiomF/FuelTrimTankFeed) the trim tank forward transfer stops and the trim
  * tank transfer line is isolated: the TRIM TK XFR FWD transfer stays selected (the automatic transfers still wait) but
  * its pumps do not run and the trim line stays closed.
+ *
+ * Without the forward gallery (CpiomF/FuelTransferFaults) the outer tank pumps cannot transfer: only the gravity
+ * transfer through the emergency outer tank transfer valves is left.
  * @param selection the selected manual transfers
  * @param isPumpPbOn whether the pb-sw of a pump is ON (its circuit connected)
- * @param trimTankIsolated whether the TRIM TK FEED selector is in ISOL
+ * @param trimTankIsolated whether the trim tank transfer line is closed (TRIM TK FEED in ISOL, or its isolation valve)
+ * @param outerPumpedTransferLost whether the forward gallery is not usable
  */
 export function manualTransferLineup(
   selection: ManualTransferSelection,
   isPumpPbOn: (pump: ManualTransferPump) => boolean,
   trimTankIsolated = false,
+  outerPumpedTransferLost = false,
 ): FuelLineup {
   const pumps: number[] = [];
   const valves: number[] = [];
@@ -177,7 +184,7 @@ export function manualTransferLineup(
     }
   };
 
-  if (selection.outer && isPumpPbOn(L_OUTR_TK_PUMP) && isPumpPbOn(R_OUTR_TK_PUMP)) {
+  if (selection.outer && !outerPumpedTransferLost && isPumpPbOn(L_OUTR_TK_PUMP) && isPumpPbOn(R_OUTR_TK_PUMP)) {
     runPumps(L_OUTR_TK_PUMP, R_OUTR_TK_PUMP);
     valves.push(...FEED_TANK_FWD_TRANSFER_VALVES_1);
     junctions.push(FWD_GALLERY_TO_FEED_TANK_VALVES_1, FEED_TANKS_2_3_JUNCTION_1_TO_VALVES_1_1);
@@ -221,6 +228,22 @@ export function isOuterTransferByGravity(
   return outerTransferMan && (!leftOuterPumpPbOn || !rightOuterPumpPbOn);
 }
 
+/**
+ * The selected manual transfers that the transfer failures leave possible: without both transfer galleries, nothing
+ * can leave the inner, mid and trim tanks.
+ * @param selection the selected manual transfers
+ * @param restrictions the transfer restrictions of the failures
+ */
+export function possibleManualTransfers(
+  selection: ManualTransferSelection,
+  restrictions: Readonly<FuelTransferRestrictions>,
+): ManualTransferSelection {
+  if (!restrictions.innerMidTrimTransfersLost) {
+    return selection;
+  }
+  return { ...selection, inner: false, mid: false, trimForward: false };
+}
+
 /** Identifies a lineup, to see when it changes */
 function lineupKey(lineup: FuelLineup): string {
   const sorted = (numbers: number[]) => numbers.slice().sort((a, b) => a - b);
@@ -252,7 +275,7 @@ export interface ManualTransferFuelSystem {
   junctionOption(junction: number): number;
   /** FUELSYSTEM_JUNCTION_SET */
   setJunction(junction: number, option: number): void;
-  /** TRIM TK FEED selector in ISOL (CpiomF/FuelTrimTankFeed); not isolated when not given */
+  /** The trim tank line closed: TRIM TK FEED in ISOL (CpiomF/FuelTrimTankFeed) or its isolation valve closed */
   isTrimTankIsolated?(): boolean;
 }
 
@@ -277,6 +300,10 @@ enum ManualTransferPhase {
  * When the last one is deselected, every transfer pump is stopped and every transfer valve closed, and the automatic
  * transfers start again from all their triggers off, as after a refuel. Fuel jettison and refuel suspend the manual
  * transfers.
+ *
+ * When the transfer failures stop the automatic transfers (CpiomF/FuelTransferFaults), the manual transfers keep the
+ * control with or without a selection: every transfer pump stays stopped and every transfer valve closed until the
+ * flight crew selects a manual transfer.
  */
 export class FuelManualTransfer {
   /** How long MSFS takes to apply the trigger, pump and valve commands, in milliseconds */
@@ -313,11 +340,16 @@ export class FuelManualTransfer {
   /**
    * @param deltaTimeMs the time since the last update, in milliseconds
    * @param suspended whether a fuel jettison or a refuel is in progress: no manual transfer then
+   * @param restrictions the transfer restrictions of the transfer failures
    * @returns whether the manual transfers control the transfer pumps and valves (the automatic transfers wait)
    */
-  public update(deltaTimeMs: number, suspended: boolean): boolean {
-    const selection = suspended ? NO_MANUAL_TRANSFER : this.readSelection();
-    const selected = isAnyManualTransferSelected(selection);
+  public update(
+    deltaTimeMs: number,
+    suspended: boolean,
+    restrictions: Readonly<FuelTransferRestrictions> = NO_TRANSFER_RESTRICTION,
+  ): boolean {
+    const selection = suspended ? NO_MANUAL_TRANSFER : possibleManualTransfers(this.readSelection(), restrictions);
+    const selected = isAnyManualTransferSelected(selection) || (!suspended && restrictions.automaticTransfersLost);
     this.settleTimeLeftMs -= deltaTimeMs;
 
     switch (this.phase) {
@@ -335,16 +367,16 @@ export class FuelManualTransfer {
           return true;
         }
         this.phase = ManualTransferPhase.Active;
-        return this.updateActive(selection, selected);
+        return this.updateActive(selection, selected, restrictions.outerPumpedTransferLost);
 
       case ManualTransferPhase.Active:
-        return this.updateActive(selection, selected);
+        return this.updateActive(selection, selected, restrictions.outerPumpedTransferLost);
 
       case ManualTransferPhase.Leaving:
         if (selected) {
           // Selected again before the end of the settle time
           this.phase = ManualTransferPhase.Active;
-          return this.updateActive(selection, selected);
+          return this.updateActive(selection, selected, restrictions.outerPumpedTransferLost);
         }
         if (this.settleTimeLeftMs > 0) {
           return true;
@@ -355,12 +387,17 @@ export class FuelManualTransfer {
     }
   }
 
-  private updateActive(selection: ManualTransferSelection, selected: boolean): boolean {
+  private updateActive(
+    selection: ManualTransferSelection,
+    selected: boolean,
+    outerPumpedTransferLost: boolean,
+  ): boolean {
     const lineup = selected
       ? manualTransferLineup(
           selection,
           ({ circuit }) => this.fuelSystem.isPumpPbOn(circuit),
           this.fuelSystem.isTrimTankIsolated?.() ?? false,
+          outerPumpedTransferLost,
         )
       : EMPTY_LINEUP;
     const key = lineupKey(lineup);

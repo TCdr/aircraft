@@ -57,6 +57,7 @@ import {
   OuterTankGravityTransferLogic,
   outerTankGravityMoves,
 } from './FuelAlternateTransfers';
+import { FuelTransferRestrictionSource, NO_TRANSFER_RESTRICTION } from './FuelTransferFaults';
 
 /** The load alleviation transfer to the outer tanks is in progress */
 export const LOAD_ALLEVIATION_TO_OUTR_TKS_VAR = 'L:A380X_FUEL_LOAD_ALLEVIATION_XFR_TO_OUTR_TKS';
@@ -83,7 +84,9 @@ export interface TransferPumpCommands {
  * - the alternate transfers after a transfer pump failure, CASE 4 and 5 (CpiomF/FuelAlternateTransfers).
  * A fuel jettison or a refuel stops them all (as LegacyFuel does). A manual transfer stops the automatic ones (with the
  * INR TK XFR pb-sw in MAN all automatic transfers are inhibited); the gravity transfer selected by the flight crew goes
- * on.
+ * on. The transfer failures (CpiomF/FuelTransferFaults) can stop the automatic transfers, inhibit the load alleviation
+ * transfer from the outer tanks (a transfer gallery not usable) and send the outer tanks by gravity (the forward
+ * gallery not usable).
  */
 export class FuelAutomaticTransfers implements Instrument {
   /** The update period, in milliseconds (as LegacyFuel) */
@@ -104,6 +107,7 @@ export class FuelAutomaticTransfers implements Instrument {
     private readonly sysHost: { deltaTime: number },
     private readonly failures: FailureStates,
     private readonly pumpCommands: TransferPumpCommands,
+    private readonly transferFaults: FuelTransferRestrictionSource = { restrictions: NO_TRANSFER_RESTRICTION },
   ) {}
 
   public init(): void {
@@ -132,12 +136,13 @@ export class FuelAutomaticTransfers implements Instrument {
     const manualTransfer = FUEL_XFR_PB_IS_AUTO_VARS.some(
       (pbVar) => !(SimVar.GetSimVarValue(pbVar, SimVarValueType.Bool) > 0),
     );
-    const automaticAllowed = !suspended && !manualTransfer;
+    const restrictions = this.transferFaults.restrictions;
+    const automaticAllowed = !suspended && !manualTransfer && !restrictions.automaticTransfersLost;
     const selector = trimTankFeedSelector(SimVar.GetSimVarValue(TRIM_TK_FEED_SELECTOR_VAR, SimVarValueType.Number));
     const moves: FuelMove[] = [];
 
     // Load alleviation transfers
-    const loadAlleviation: LoadAlleviationTransfers = this.loadAlleviation.update(
+    const scheduledLoadAlleviation: LoadAlleviationTransfers = this.loadAlleviation.update(
       {
         inFlight: !onGround,
         fobLb: A380_TANKS.reduce((sum, tank) => sum + (levels.quantityGal.get(tank) ?? 0), 0) * poundsPerGallon,
@@ -151,10 +156,13 @@ export class FuelAutomaticTransfers implements Instrument {
           (levels.quantityGal.get(RIGHT_OUTER_TANK) ?? 0) * poundsPerGallon,
         ],
         trimTankEmpty: isTankEmpty(levels, TRIM_TANK),
-        trimTankIsolated: selector === TrimTankFeedSelector.Isol,
+        trimTankIsolated: selector === TrimTankFeedSelector.Isol || restrictions.trimTankAutomaticTransfersInhibited,
       },
       deltaTimeS,
     );
+    const loadAlleviation: LoadAlleviationTransfers = restrictions.cgTransfersInhibited
+      ? { ...scheduledLoadAlleviation, fromOuterTanks: false }
+      : scheduledLoadAlleviation;
     if (automaticAllowed) {
       moves.push(...loadAlleviationMoves(loadAlleviation, levels, this.readPumps(), poundsPerGallon, deltaTimeS));
     }
@@ -172,7 +180,7 @@ export class FuelAutomaticTransfers implements Instrument {
       ).length,
       allTransferPumpsOn: this.allTransferPumpPbsOn(),
       cgPercent: cgWord.isNormalOperation() ? cgWord.value : null,
-      otherTransferInProgress: suspended || manualTransfer,
+      otherTransferInProgress: suspended || manualTransfer || restrictions.automaticTransfersLost,
       fuelCanMove: (direction) => groundTransferCanMove(levels, direction),
     });
     if (groundState === GroundTransferState.InProgress) {
@@ -181,7 +189,12 @@ export class FuelAutomaticTransfers implements Instrument {
 
     // TRIM TK FEED OPEN: gravity transfer from the trim tank
     const pitchDeg = -SimVar.GetSimVarValue('PLANE PITCH DEGREES', SimVarValueType.Degree);
-    const trimGravity = !suspended && isTrimTankGravityTransfer(selector, pitchDeg) && !isTankEmpty(levels, TRIM_TANK);
+    // Without both transfer galleries the trim tank fuel cannot reach the inner tanks
+    const trimGravity =
+      !suspended &&
+      !restrictions.innerMidTrimTransfersLost &&
+      isTrimTankGravityTransfer(selector, pitchDeg) &&
+      !isTankEmpty(levels, TRIM_TANK);
     if (trimGravity) {
       moves.push(...trimTankGravityMoves(levels, deltaTimeS));
     }
@@ -190,7 +203,10 @@ export class FuelAutomaticTransfers implements Instrument {
     const lowestFeedTankLb = Math.min(...FEED_TANKS.map((tank) => levels.quantityGal.get(tank) ?? 0)) * poundsPerGallon;
     const outerGravity = this.outerGravity.update(
       !onGround && automaticAllowed,
-      [this.isPumpFailed(9), this.isPumpFailed(14)],
+      [
+        this.isPumpFailed(9) || restrictions.outerPumpedTransferLost,
+        this.isPumpFailed(14) || restrictions.outerPumpedTransferLost,
+      ],
       [isTankEmpty(levels, LEFT_OUTER_TANK), isTankEmpty(levels, RIGHT_OUTER_TANK)],
       lowestFeedTankLb,
     );
