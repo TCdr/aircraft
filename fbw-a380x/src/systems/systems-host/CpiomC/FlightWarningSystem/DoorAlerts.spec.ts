@@ -66,9 +66,19 @@ describe('DOOR ... NOT CLOSED triggers', () => {
     expect(isCabinDoorNotClosed(1)).toBe(true);
   });
 
+  it('a passenger door whose position the DSMS does not know has no NOT CLOSED alert (POS DET FAULT instead)', () => {
+    expect(isCabinDoorNotClosed(1, true)).toBe(false);
+    expect(isCabinDoorNotClosed(1, false)).toBe(true);
+  });
+
   it('a cargo door is not closed unless its locked L:var is set', () => {
     expect(isCargoDoorNotClosed(1)).toBe(false);
     expect(isCargoDoorNotClosed(0)).toBe(true);
+  });
+
+  it('a cargo door has no NOT CLOSED alert with the three DSMS channels lost (DOOR POS DET FAULT inhibits it)', () => {
+    expect(isCargoDoorNotClosed(0, true)).toBe(false);
+    expect(isCargoDoorNotClosed(0, false)).toBe(true);
   });
 });
 

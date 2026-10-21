@@ -1,6 +1,7 @@
 import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { Position, CabinDoorProps } from '@instruments/common/types';
 import React from 'react';
+import { DSMS_VARS, isDoorBitSet } from '@shared/DoorsAndSlides';
 
 const CabinDoor: React.FC<Position & CabinDoorProps> = ({
   x,
@@ -15,12 +16,16 @@ const CabinDoor: React.FC<Position & CabinDoorProps> = ({
   const [openPercentage] = useSimVar(`INTERACTIVE POINT OPEN:${interactivePoint}`, 'percent', 1000);
   const doorOpen = openPercentage > 20;
   const armed = !doorOpen && slideArmed;
-  const validSDAC = true;
+  const [positionInvalidDoors] = useSimVar(DSMS_VARS.positionInvalid, 'number', 1000);
+  const [slideFaultDoors] = useSimVar(DSMS_VARS.slideFault, 'number', 1000);
+  // The DSMS no longer knows the door position: failed LDC, or no DSMS channel
+  const validSDAC = !isDoorBitSet(positionInvalidDoors, interactivePoint);
+  const slideFailed = isDoorBitSet(slideFaultDoors, interactivePoint);
 
   let slide = '';
   if (!validSDAC) {
     slide = 'XX';
-  } else if (armed) {
+  } else if (armed || slideFailed) {
     slide = 'S';
   }
 
@@ -43,9 +48,9 @@ const CabinDoor: React.FC<Position & CabinDoorProps> = ({
   }
   let doorNumberCss = 'Green';
   let doorRectCss = 'Green SW3 BackgroundFill';
-  let slideCss = 'White';
+  let slideCss = slideFailed ? 'Amber' : 'White';
   if (side === 'L') {
-    slideCss = 'White EndAlign';
+    slideCss = `${slideCss} EndAlign`;
   }
   if (!validSDAC) {
     doorNumberCss = 'Amber';

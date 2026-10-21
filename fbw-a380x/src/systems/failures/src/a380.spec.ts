@@ -39,6 +39,16 @@ describe('A380X flyPad failure definitions', () => {
     expect(listedIds.filter((id) => !enumIds.includes(id))).toEqual([]);
   });
 
+  it('keeps every definition list literal under 1 000 failures, which tsc can still type (TS2590 above)', () => {
+    const source = readFileSync(resolve(__dirname, 'a380.ts'), 'utf8');
+    const literals = source.split(': FailureDefinition[] = [').slice(1);
+    const sizes = literals.map(
+      (literal) => (literal.split('\n];')[0].match(/^\s*\[\d+, A380Failure\./gm) ?? []).length,
+    );
+    expect(sizes.reduce((sum, size) => sum + size, 0)).toBe(listedIds.length);
+    expect(sizes.filter((size) => size >= 1000)).toEqual([]);
+  });
+
   it('files every failure under the ATA chapter of its id', () => {
     const misfiled = A380FailureDefinitions.filter(([ata, id]) => Math.floor(id / 1000) !== ata);
     expect(misfiled).toEqual([]);

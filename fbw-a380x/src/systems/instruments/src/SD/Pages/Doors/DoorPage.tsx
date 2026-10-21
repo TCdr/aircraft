@@ -18,8 +18,7 @@ export const DoorPage = () => {
   const [engine3State] = useSimVar('L:A32NX_ENGINE_STATE:3', 'enum', 1000);
   const [engine4State] = useSimVar('L:A32NX_ENGINE_STATE:4', 'enum', 1000);
   const engineRunning = engine1State === 1 || engine2State === 1 || engine3State === 1 || engine4State === 1;
-  // The A380 has no SDAC: the door data comes from the DSMS, whose loss shows the doors not valid. The DSMS channels
-  // are not simulated, so the data is always valid.
+  // The A380 has no SDAC: each door shows its own DSMS validity (CabinDoor); the oxygen data is always valid
   const sdacActive = true;
   // The oxygen half-frames are shown on the ground only
   const [leftMainGearCompressed] = useSimVar('L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', 'bool', 1000);

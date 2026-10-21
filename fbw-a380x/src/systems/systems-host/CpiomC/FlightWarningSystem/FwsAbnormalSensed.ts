@@ -176,6 +176,7 @@ import {
   WXR_TURB_FAULT_PHASE_INHIBITION,
 } from './FwsSurvSystemAlerts';
 import { cabinDoorNotClosedAlertId, cargoDoorNotClosedAlertId } from './DoorAlerts';
+import { doorSystemAbnormalItems } from './FwsDoorSystemAlerts';
 import {
   aboveGearDoorSpeed,
   doorsNotClosedChecked,
@@ -8915,6 +8916,8 @@ export class FwsAbnormalSensed {
     },
     // DOOR MAIN 1L ... 5R, UPPER 1L ... 3R and FWD/AFT CARGO NOT CLOSED (520800017-034), see doorNotClosedAlerts()
     ...this.doorNotClosedAlerts(),
+    // DOOR alerts of the doors and slides management system and of the cockpit door (FwsDoorSystemAlerts)
+    ...doorSystemAbnormalItems(this.fws.doorSystemAlerts, this.fws),
     // A-ICE ENG and WING valve alerts (300800010-025), see antiIceValveAlerts()
     ...this.antiIceValveAlerts(),
     // A-ICE probe and window heat, ICE DET, CTL SYS, ENG VLV MONITORING and drain masts (300800026-056)
