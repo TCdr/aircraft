@@ -126,6 +126,7 @@ pub struct A380Pneumatic {
     overheat_ids: [VariableIdentifier; 4],
     overpressure_ids: [VariableIdentifier; 4],
     bleed_valve_disagree_ids: [VariableIdentifier; 4],
+    high_pressure_valve_not_open_ids: [VariableIdentifier; 4],
 
     cross_bleed_valves: [CrossBleedValve; 3],
     /// The CPIOM-A1 to A4 are available (avionics network): the crossbleed valves follow the X
@@ -196,10 +197,13 @@ impl A380Pneumatic {
             bleed_valve_disagree_ids: [1, 2, 3, 4].map(|engine| {
                 context.get_identifier(format!("PNEU_ENG_{}_PR_VALVE_DISAGREE", engine))
             }),
+            high_pressure_valve_not_open_ids: [1, 2, 3, 4].map(|engine| {
+                context.get_identifier(format!("PNEU_ENG_{}_HP_VALVE_NOT_OPEN", engine))
+            }),
             cross_bleed_valves: [
-                CrossBleedValve::new(context.get_identifier("PNEU_XBLEED_VALVE_L_OPEN".to_owned())),
-                CrossBleedValve::new(context.get_identifier("PNEU_XBLEED_VALVE_C_OPEN".to_owned())),
-                CrossBleedValve::new(context.get_identifier("PNEU_XBLEED_VALVE_R_OPEN".to_owned())),
+                CrossBleedValve::new(context, "L", 1),
+                CrossBleedValve::new(context, "C", 2),
+                CrossBleedValve::new(context, "R", 3),
             ],
             cpiom_a_available: [true; 4],
             cross_bleed_valve_automatic_control_lost: [false; 3],
@@ -387,8 +391,10 @@ impl A380Pneumatic {
                 overhead_panel.cross_bleed_mode(),
             );
             self.cross_bleed_valve_automatic_control_lost[index] = automatic_control_lost;
-            cross_bleed_valve
-                .update_open_amount(&CrossBleedValveCommand::new(signal, closed_by_leak))
+            cross_bleed_valve.update_open_amount(
+                context,
+                &CrossBleedValveCommand::new(signal, closed_by_leak),
+            )
         }
 
         for (index, (engine_system, cpiom_unit)) in self
@@ -637,6 +643,10 @@ impl SimulationElement for A380Pneumatic {
             writer.write(
                 &self.bleed_valve_disagree_ids[index],
                 unit.bleed_valve_position_disagrees(),
+            );
+            writer.write(
+                &self.high_pressure_valve_not_open_ids[index],
+                unit.high_pressure_valve_not_open(),
             );
         }
         for (id, lost) in self
@@ -903,8 +913,19 @@ fn new_leak_exhaust() -> PneumaticExhaust {
 /// 1(2) and HOT AIR 1(2) (design choice: the same rule for the pb-sw of the valves that the leak
 /// closes).
 ///
-/// Not simulated: the two loops of a zone and their failures (AIR LEAK DET FAULT).
+/// Each zone has a dual loop (LeakDetectionDualLoop): a zone whose detection is lost gives no
+/// leak, so no isolation (AIR LEAK DET FAULT).
 struct BleedLeakDetection {
+    pylon_loops: [LeakDetectionDualLoop; 4],
+    wing_loops: [LeakDetectionDualLoop; 4],
+    apu_loops: LeakDetectionDualLoop,
+    pack_loops: [LeakDetectionDualLoop; 2],
+    hot_air_loops: [LeakDetectionDualLoop; 2],
+    fwd_cargo_loops: LeakDetectionDualLoop,
+    /// No aft cargo duct leak is simulated: only its detection can be lost
+    aft_cargo_loops: LeakDetectionDualLoop,
+    detection_systems_failed: [Failure; 2],
+
     pylon_leak: [bool; 4],
     wing_leak: [bool; 4],
     pylon_leak_ids: [VariableIdentifier; 4],
@@ -933,6 +954,52 @@ impl BleedLeakDetection {
 
     fn new(context: &mut InitContext) -> Self {
         Self {
+            pylon_loops: [1, 2, 3, 4].map(|engine| {
+                LeakDetectionDualLoop::new(
+                    context,
+                    FailureType::EngineLeakDetectionDualLoop(engine),
+                    &format!("ENG_{}", engine),
+                )
+            }),
+            wing_loops: [1, 2, 3, 4].map(|zone| {
+                LeakDetectionDualLoop::new(
+                    context,
+                    FailureType::WingLeakDetectionDualLoop(zone),
+                    &format!("{}_WING", Self::WING_ZONE_NAMES[zone - 1]),
+                )
+            }),
+            apu_loops: LeakDetectionDualLoop::new(
+                context,
+                FailureType::ApuLeakDetectionDualLoop,
+                "APU",
+            ),
+            pack_loops: [1, 2].map(|pack| {
+                LeakDetectionDualLoop::new(
+                    context,
+                    FailureType::PackBayLeakDetectionDualLoop(pack),
+                    &format!("PACK_{}", pack),
+                )
+            }),
+            hot_air_loops: [1, 2].map(|number| {
+                LeakDetectionDualLoop::new(
+                    context,
+                    FailureType::HotAirLeakDetectionDualLoop(number),
+                    &format!("HOT_AIR_{}", number),
+                )
+            }),
+            fwd_cargo_loops: LeakDetectionDualLoop::new(
+                context,
+                FailureType::FwdCargoLeakDetectionDualLoop,
+                "FWD_CARGO",
+            ),
+            aft_cargo_loops: LeakDetectionDualLoop::new(
+                context,
+                FailureType::AftCargoLeakDetectionDualLoop,
+                "AFT_CARGO",
+            ),
+            detection_systems_failed: [1, 2]
+                .map(|system| Failure::new(FailureType::BleedLeakDetectionSystem(system))),
+
             pylon_leak: [false; 4],
             wing_leak: [false; 4],
             pylon_leak_ids: [1, 2, 3, 4]
@@ -974,24 +1041,24 @@ impl BleedLeakDetection {
             temperature
                 .is_some_and(|t| t.get::<degree_celsius>() > Self::OTHER_DUCTS_DETECTION_CELSIUS)
         };
-        self.apu_leak = held_detection(
+        self.apu_leak = self.apu_loops.leak(
             self.apu_leak,
             detects(apu_leaking_air),
             !overhead_panel.apu_bleed_is_on(),
         );
         for index in 0..2 {
-            self.pack_leak[index] = held_detection(
+            self.pack_leak[index] = self.pack_loops[index].leak(
                 self.pack_leak[index],
                 detects(pack_bay_leaking_air[index]),
                 !self.pack_pb_is_on[index],
             );
-            self.hot_air_leak[index] = held_detection(
+            self.hot_air_leak[index] = self.hot_air_loops[index].leak(
                 self.hot_air_leak[index],
                 detects(hot_air_duct_leaking_air[index]),
                 !self.hot_air_pb_is_on[index],
             );
         }
-        self.fwd_cargo_leak = held_detection(
+        self.fwd_cargo_leak = self.fwd_cargo_loops.leak(
             self.fwd_cargo_leak,
             detects(fwd_cargo_duct_leaking_air),
             !self.hot_air_pb_is_on[0],
@@ -1018,12 +1085,28 @@ impl BleedLeakDetection {
         engine_systems: &[EngineBleedAirSystem; 4],
         overhead_panel: &A380PneumaticOverheadPanel,
     ) {
+        let both_systems_failed = self
+            .detection_systems_failed
+            .iter()
+            .all(|failure| failure.is_active());
+        self.pylon_loops
+            .iter_mut()
+            .chain(self.wing_loops.iter_mut())
+            .chain(self.pack_loops.iter_mut())
+            .chain(self.hot_air_loops.iter_mut())
+            .chain([
+                &mut self.apu_loops,
+                &mut self.fwd_cargo_loops,
+                &mut self.aft_cargo_loops,
+            ])
+            .for_each(|dual_loop| dual_loop.update(both_systems_failed));
+
         let detects = |temperature: Option<ThermodynamicTemperature>, limit_celsius: f64| {
             temperature.is_some_and(|t| t.get::<degree_celsius>() > limit_celsius)
         };
         for (index, engine_system) in engine_systems.iter().enumerate() {
             let bleed_pb_is_off = !overhead_panel.engine_bleed_pb_is_auto(index + 1);
-            self.pylon_leak[index] = held_detection(
+            self.pylon_leak[index] = self.pylon_loops[index].leak(
                 self.pylon_leak[index],
                 detects(
                     engine_system.pylon_leaking_air_temperature(),
@@ -1031,7 +1114,7 @@ impl BleedLeakDetection {
                 ),
                 bleed_pb_is_off,
             );
-            self.wing_leak[index] = held_detection(
+            self.wing_leak[index] = self.wing_loops[index].leak(
                 self.wing_leak[index],
                 detects(
                     engine_system.wing_leaking_air_temperature(),
@@ -1057,6 +1140,19 @@ impl BleedLeakDetection {
     }
 }
 impl SimulationElement for BleedLeakDetection {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        accept_iterable!(self.pylon_loops, visitor);
+        accept_iterable!(self.wing_loops, visitor);
+        self.apu_loops.accept(visitor);
+        accept_iterable!(self.pack_loops, visitor);
+        accept_iterable!(self.hot_air_loops, visitor);
+        self.fwd_cargo_loops.accept(visitor);
+        self.aft_cargo_loops.accept(visitor);
+        accept_iterable!(self.detection_systems_failed, visitor);
+
+        visitor.visit(self);
+    }
+
     fn read(&mut self, reader: &mut SimulatorReader) {
         for index in 0..2 {
             self.pack_pb_is_on[index] = reader.read(&self.pack_pb_is_on_ids[index]);
@@ -1075,6 +1171,46 @@ impl SimulationElement for BleedLeakDetection {
             writer.write(&self.hot_air_leak_ids[index], self.hot_air_leak[index]);
         }
         writer.write(&self.fwd_cargo_leak_id, self.fwd_cargo_leak);
+    }
+}
+
+/// The dual detection loop of one duct zone: a loop on each of the two bleed leak detection
+/// systems. The zone keeps its detection while one loop works (one loop detecting with the other
+/// inoperative gives the leak). It is lost with both loops, or with both detection systems
+/// failed: the leak of the zone is then neither detected nor isolated (AIR LEAK DET FAULT).
+struct LeakDetectionDualLoop {
+    loops_lost: Failure,
+    is_lost: bool,
+    fault_id: VariableIdentifier,
+}
+impl LeakDetectionDualLoop {
+    /// `zone_name`: the zone in the LVar PNEU_<zone_name>_LEAK_DET_FAULT
+    fn new(context: &mut InitContext, loops_lost: FailureType, zone_name: &str) -> Self {
+        Self {
+            loops_lost: Failure::new(loops_lost),
+            is_lost: false,
+            fault_id: context.get_identifier(format!("PNEU_{}_LEAK_DET_FAULT", zone_name)),
+        }
+    }
+
+    fn update(&mut self, both_detection_systems_failed: bool) {
+        self.is_lost = self.loops_lost.is_active() || both_detection_systems_failed;
+    }
+
+    /// The leak signal of the zone (held_detection), none once the detection is lost
+    fn leak(&self, held: bool, detected: bool, pb_is_off: bool) -> bool {
+        !self.is_lost && held_detection(held, detected, pb_is_off)
+    }
+}
+impl SimulationElement for LeakDetectionDualLoop {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.loops_lost.accept(visitor);
+
+        visitor.visit(self);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        writer.write(&self.fault_id, self.is_lost);
     }
 }
 
@@ -1370,6 +1506,10 @@ struct CoreProcessingInputOutputModuleAUnit {
     /// The opening command sent to the bleed valve at the previous update, that the valve position
     /// read now follows
     bleed_valve_commanded_open: bool,
+    /// The HP valve stays closed while this unit commands it open (AIR ENG 1(2)(3)(4) HP VLV NOT
+    /// OPEN)
+    high_pressure_valve_not_open: DelayedTrueLogicGate,
+    high_pressure_valve_commanded_open: bool,
     high_pressure_valve_pid: PidController,
     pressure_regulating_valve_pid: PidController,
     /// The offset of the bleed valve pressure target that balances the airflow with the other
@@ -1387,6 +1527,8 @@ impl CoreProcessingInputOutputModuleAUnit {
     /// Design choice (as the A320 model): the bleed valve must stay out of its commanded position for
     /// 10 s before the FAULT light comes on.
     const BLEED_VALVE_POSITION_DISAGREE_CONFIRMATION: Duration = Duration::from_secs(10);
+    /// Design choice (as the A320 model): the HP valve must stay closed against its command for 5 s
+    const HIGH_PRESSURE_VALVE_NOT_OPEN_CONFIRMATION: Duration = Duration::from_secs(5);
 
     fn new(engine_number: usize) -> Self {
         Self {
@@ -1412,6 +1554,10 @@ impl CoreProcessingInputOutputModuleAUnit {
                 Self::BLEED_VALVE_POSITION_DISAGREE_CONFIRMATION,
             ),
             bleed_valve_commanded_open: false,
+            high_pressure_valve_not_open: DelayedTrueLogicGate::new(
+                Self::HIGH_PRESSURE_VALVE_NOT_OPEN_CONFIRMATION,
+            ),
+            high_pressure_valve_commanded_open: false,
             high_pressure_valve_pid: PidController::new(0.05, 0.05, 0., 0., 1., 50., 1.),
             pressure_regulating_valve_pid: PidController::new(
                 0.1,
@@ -1523,6 +1669,14 @@ impl CoreProcessingInputOutputModuleAUnit {
         self.bleed_valve_commanded_open =
             ControllerSignal::<PressureRegulatingValveSignal>::signal(self)
                 .is_some_and(|signal| signal.target_open_amount() > Ratio::default());
+
+        self.high_pressure_valve_not_open.update(
+            context,
+            self.high_pressure_valve_commanded_open && !sensors.high_pressure_valve_is_open(),
+        );
+        self.high_pressure_valve_commanded_open =
+            ControllerSignal::<HighPressureValveSignal>::signal(self)
+                .is_some_and(|signal| signal.target_open_amount() > Ratio::default());
     }
 
     /// The other engine of the side delivers more airflow than this one by `flow_excess_of_other`
@@ -1567,6 +1721,10 @@ impl CoreProcessingInputOutputModuleAUnit {
 
     fn bleed_valve_position_disagrees(&self) -> bool {
         self.bleed_valve_position_disagrees.output()
+    }
+
+    fn high_pressure_valve_not_open(&self) -> bool {
+        self.high_pressure_valve_not_open.output()
     }
 
     /// The FAULT light of the ENG BLEED pb-sw: bleed valve position disagreement, overpressure,
@@ -1713,6 +1871,11 @@ struct EngineBleedAirSystem {
     /// longer regulates the pressure: at high power the bleed overpressure and overheat follow.
     bleed_valve_stuck_closed: Failure,
     bleed_valve_stuck_open: Failure,
+    /// The HP valve stuck closed: at low engine power the IP stage alone no longer gives the bleed
+    /// pressure (AIR ENG 1(2)(3)(4) HP VLV NOT OPEN)
+    high_pressure_valve_stuck_closed: Failure,
+    /// The fan air valve stuck open: the precooler overcools the bleed air (AIR ENG BLEED TEMP LO)
+    fan_air_valve_stuck_open: Failure,
     /// A leak of the engine duct in the pylon, downstream of the bleed valve: the bleed valve
     /// closure isolates it
     pylon_leak: Failure,
@@ -1854,6 +2017,10 @@ impl EngineBleedAirSystem {
                 number,
             )),
             bleed_valve_stuck_open: Failure::new(FailureType::EngineBleedValveStuckOpen(number)),
+            high_pressure_valve_stuck_closed: Failure::new(FailureType::EngineHpValveStuckClosed(
+                number,
+            )),
+            fan_air_valve_stuck_open: Failure::new(FailureType::EngineFanAirValveStuckOpen(number)),
             pylon_leak: Failure::new(FailureType::EngineBleedLeak(number)),
             pylon_leak_exhaust: new_leak_exhaust(),
             pylon_leaking_air_temperature: None,
@@ -1891,8 +2058,15 @@ impl EngineBleedAirSystem {
         self.high_pressure_compression_chamber
             .update(&self.high_pressure_compression_chamber_controller);
 
-        self.high_pressure_valve
-            .update_open_amount(high_pressure_valve_controller);
+        if self.high_pressure_valve_stuck_closed.is_active() {
+            self.high_pressure_valve
+                .update_open_amount::<HighPressureValveSignal, _>(&FixedValveCommand(
+                    Ratio::default(),
+                ));
+        } else {
+            self.high_pressure_valve
+                .update_open_amount(high_pressure_valve_controller);
+        }
         match stuck_valve_open_amount(&self.bleed_valve_stuck_closed, &self.bleed_valve_stuck_open)
         {
             Some(open_amount) => self
@@ -1906,8 +2080,15 @@ impl EngineBleedAirSystem {
         }
         self.engine_starter_valve
             .update_open_amount(engine_starter_valve_controller);
-        self.fan_air_valve
-            .update_open_amount(fan_air_valve_controller);
+        if self.fan_air_valve_stuck_open.is_active() {
+            self.fan_air_valve
+                .update_open_amount::<FanAirValveSignal, _>(&FixedValveCommand(
+                    Ratio::new::<ratio>(1.),
+                ));
+        } else {
+            self.fan_air_valve
+                .update_open_amount(fan_air_valve_controller);
+        }
 
         self.intermediate_pressure_valve.update_move_fluid(
             context,
@@ -2107,6 +2288,10 @@ impl EngineBleedAirSystem {
         self.pressure_regulating_valve.is_open()
     }
 
+    fn high_pressure_valve_is_open(&self) -> bool {
+        self.high_pressure_valve.is_open()
+    }
+
     fn intermediate_pressure_transducer_pressure(&self) -> Option<Pressure> {
         self.intermediate_pressure_transducer.signal()
     }
@@ -2136,6 +2321,8 @@ impl SimulationElement for EngineBleedAirSystem {
 
         self.bleed_valve_stuck_closed.accept(visitor);
         self.bleed_valve_stuck_open.accept(visitor);
+        self.high_pressure_valve_stuck_closed.accept(visitor);
+        self.fan_air_valve_stuck_open.accept(visitor);
         self.pylon_leak.accept(visitor);
         self.wing_leak.accept(visitor);
 
@@ -2652,24 +2839,46 @@ impl SimulationElement for PackComplex {
 }
 
 /// This is a unique valve (and specific to the A320 probably) because it is controlled by two motors. One for manual control and one for automatic control
+///
+/// AIR XBLEED FAULT monitoring: the valve does not reach the position it is commanded to (stuck
+/// valve failures), or its manual control motor lost its supply.
 pub struct CrossBleedValve {
     valve_id: VariableIdentifier,
+    abnormal_position_id: VariableIdentifier,
+    manual_control_lost_id: VariableIdentifier,
 
     open_amount: Ratio,
     connector: PneumaticContainerConnector,
     is_powered_for_manual_control: bool,
     is_powered_for_automatic_control: bool,
+    stuck_closed: Failure,
+    stuck_open: Failure,
+    /// The last opening command a powered motor took, that the valve position must follow
+    commanded_open: Option<bool>,
+    abnormal_position: DelayedTrueLogicGate,
 }
 impl CrossBleedValve {
     const SPRING_CHARACTERISTIC: f64 = 1.;
+    /// Design choice (as the engine bleed valve monitoring): the valve must stay out of its
+    /// commanded position for 10 s
+    const ABNORMAL_POSITION_CONFIRMATION: Duration = Duration::from_secs(10);
 
-    pub fn new(valve_id: VariableIdentifier) -> Self {
+    /// The valve `name` (L, C or R) is crossbleed valve `number` (1 left, 2 center, 3 right)
+    pub fn new(context: &mut InitContext, name: &str, number: usize) -> Self {
         Self {
-            valve_id,
+            valve_id: context.get_identifier(format!("PNEU_XBLEED_VALVE_{}_OPEN", name)),
+            abnormal_position_id: context
+                .get_identifier(format!("PNEU_XBLEED_VALVE_{}_ABNORMAL_POSITION", name)),
+            manual_control_lost_id: context
+                .get_identifier(format!("PNEU_XBLEED_VALVE_{}_MANUAL_CONTROL_LOST", name)),
             open_amount: Ratio::new::<ratio>(0.),
             connector: PneumaticContainerConnector::new(),
             is_powered_for_manual_control: false,
             is_powered_for_automatic_control: false,
+            stuck_closed: Failure::new(FailureType::CrossBleedValveNumberStuckClosed(number)),
+            stuck_open: Failure::new(FailureType::CrossBleedValveNumberStuckOpen(number)),
+            commanded_open: None,
+            abnormal_position: DelayedTrueLogicGate::new(Self::ABNORMAL_POSITION_CONFIRMATION),
         }
     }
 
@@ -2679,7 +2888,10 @@ impl CrossBleedValve {
         container_one: &mut impl PneumaticContainer,
         container_two: &mut impl PneumaticContainer,
     ) {
-        if !self.is_powered_for_manual_control && !self.is_powered_for_automatic_control {
+        if !self.is_powered_for_manual_control
+            && !self.is_powered_for_automatic_control
+            && !self.is_stuck()
+        {
             self.set_open_amount_from_pressure_difference(
                 container_one.pressure() - container_two.pressure(),
             )
@@ -2699,16 +2911,45 @@ impl CrossBleedValve {
         );
     }
 
-    fn update_open_amount(&mut self, controller: &impl ControllerSignal<CrossBleedValveSignal>) {
+    fn is_stuck(&self) -> bool {
+        self.stuck_closed.is_active() || self.stuck_open.is_active()
+    }
+
+    fn update_open_amount(
+        &mut self,
+        context: &UpdateContext,
+        controller: &impl ControllerSignal<CrossBleedValveSignal>,
+    ) {
+        // Without any motor supply the valve follows the duct pressures: no command to monitor
+        if !self.is_powered_for_manual_control && !self.is_powered_for_automatic_control {
+            self.commanded_open = None;
+        }
         if let Some(signal) = controller.signal() {
             if signal.signal_type == CrossBleedValveSignalType::Manual
                 && self.is_powered_for_manual_control
                 || signal.signal_type == CrossBleedValveSignalType::Automatic
                     && self.is_powered_for_automatic_control
             {
-                self.open_amount = signal.target_open_amount()
+                self.open_amount = signal.target_open_amount();
+                self.commanded_open = Some(signal.target_open_amount() > Ratio::default());
             }
         }
+        if let Some(stuck_open_amount) =
+            stuck_valve_open_amount(&self.stuck_closed, &self.stuck_open)
+        {
+            self.open_amount = stuck_open_amount;
+        }
+
+        let is_open = self.is_open();
+        self.abnormal_position.update(
+            context,
+            self.commanded_open
+                .is_some_and(|commanded_open| commanded_open != is_open),
+        );
+    }
+
+    fn has_abnormal_position(&self) -> bool {
+        self.abnormal_position.output()
     }
 }
 impl PneumaticValve for CrossBleedValve {
@@ -2717,6 +2958,13 @@ impl PneumaticValve for CrossBleedValve {
     }
 }
 impl SimulationElement for CrossBleedValve {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.stuck_closed.accept(visitor);
+        self.stuck_open.accept(visitor);
+
+        visitor.visit(self);
+    }
+
     fn receive_power(&mut self, buses: &impl ElectricalBuses) {
         // Each crossbleed valve is supplied by DC 1/2 or DC ESS. The manual control uses the DC ESS
         // supply (the A320 DC ESS SHED busbar does not exist on the A380).
@@ -2728,6 +2976,11 @@ impl SimulationElement for CrossBleedValve {
 
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.valve_id, self.is_open());
+        writer.write(&self.abnormal_position_id, self.has_abnormal_position());
+        writer.write(
+            &self.manual_control_lost_id,
+            !self.is_powered_for_manual_control,
+        );
     }
 }
 
@@ -6314,6 +6567,218 @@ mod tests {
             run_seconds(&mut test_bed, 30);
             assert!(!flag(&mut test_bed, "PNEU_R_INR_WING_LEAK"));
             assert!(!fault_light(&mut test_bed, 3));
+        }
+
+        /// AIR ENG 1(2)(3)(4) HP VLV NOT OPEN: the HP valve stays closed against its command
+        #[test]
+        fn a_hp_valve_stuck_closed_is_reported_at_idle() {
+            let mut test_bed = four_engines_at_idle();
+            assert!(test_bed.hp_valve_is_open(1));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_HP_VALVE_NOT_OPEN"));
+
+            test_bed.fail(FailureType::EngineHpValveStuckClosed(1));
+            run_seconds(&mut test_bed, 3);
+            assert!(!test_bed.hp_valve_is_open(1));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_HP_VALVE_NOT_OPEN"));
+
+            run_seconds(&mut test_bed, 5);
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_HP_VALVE_NOT_OPEN"));
+            for engine in 2..=4 {
+                assert!(!flag(
+                    &mut test_bed,
+                    &format!("PNEU_ENG_{engine}_HP_VALVE_NOT_OPEN")
+                ));
+            }
+        }
+
+        fn four_engines_at_idle_in_descent() -> PneumaticTestBed {
+            let mut test_bed = test_bed_with()
+                .in_isa_atmosphere(Length::new::<foot>(10000.))
+                .mach_number(MachNumber(0.6))
+                .idle_eng1()
+                .idle_eng2()
+                .idle_eng3()
+                .idle_eng4()
+                .both_packs_auto()
+                .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto);
+            test_bed.set_on_ground(false);
+            run_seconds(&mut test_bed, 90);
+            test_bed
+        }
+
+        fn precooler_outlet_celsius(test_bed: &mut PneumaticTestBed, engine: usize) -> f64 {
+            test_bed
+                .precooler_outlet_temperature(engine)
+                .get::<degree_celsius>()
+        }
+
+        /// The path of AIR ENG BLEED TEMP LO ON BLEED 1(2)(3)(4): a fan air valve stuck open
+        /// overcools the bleed air below 150 °C
+        #[test]
+        fn a_fan_air_valve_stuck_open_overcools_the_bleed_air_below_150_c() {
+            let mut test_bed = four_engines_at_idle_in_descent();
+            assert!(test_bed.pr_valve_is_open(2));
+            assert_gt!(precooler_outlet_celsius(&mut test_bed, 2), 150.);
+
+            test_bed.fail(FailureType::EngineFanAirValveStuckOpen(2));
+            run_seconds(&mut test_bed, 60);
+
+            assert!(test_bed.pr_valve_is_open(2));
+            assert_lt!(precooler_outlet_celsius(&mut test_bed, 2), 150.);
+            assert_gt!(precooler_outlet_celsius(&mut test_bed, 3), 150.);
+        }
+
+        /// AIR XBLEED FAULT: a crossbleed valve that does not take its commanded position
+        #[test]
+        fn a_crossbleed_valve_stuck_closed_has_an_abnormal_position_when_commanded_open() {
+            let mut test_bed = test_bed_with()
+                .both_packs_auto()
+                .set_bleed_air_running()
+                .and_stabilize();
+            test_bed.fail(FailureType::CrossBleedValveNumberStuckClosed(2));
+            run_seconds(&mut test_bed, 5);
+            assert!(cross_bleed_valve_is_open(&mut test_bed, "L"));
+            assert!(!cross_bleed_valve_is_open(&mut test_bed, "C"));
+            assert!(!flag(
+                &mut test_bed,
+                "PNEU_XBLEED_VALVE_C_ABNORMAL_POSITION"
+            ));
+
+            run_seconds(&mut test_bed, 6);
+            assert!(flag(&mut test_bed, "PNEU_XBLEED_VALVE_C_ABNORMAL_POSITION"));
+            assert!(!flag(
+                &mut test_bed,
+                "PNEU_XBLEED_VALVE_L_ABNORMAL_POSITION"
+            ));
+            assert!(!flag(
+                &mut test_bed,
+                "PNEU_XBLEED_VALVE_R_ABNORMAL_POSITION"
+            ));
+        }
+
+        #[test]
+        fn a_crossbleed_valve_stuck_open_has_an_abnormal_position_with_the_selector_shut() {
+            let mut test_bed = four_engines_at_idle();
+            test_bed.fail(FailureType::CrossBleedValveNumberStuckOpen(3));
+            test_bed = test_bed.cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Shut);
+            run_seconds(&mut test_bed, 12);
+
+            assert!(cross_bleed_valve_is_open(&mut test_bed, "R"));
+            assert!(flag(&mut test_bed, "PNEU_XBLEED_VALVE_R_ABNORMAL_POSITION"));
+            assert!(!cross_bleed_valve_is_open(&mut test_bed, "L"));
+            assert!(!flag(
+                &mut test_bed,
+                "PNEU_XBLEED_VALVE_L_ABNORMAL_POSITION"
+            ));
+        }
+
+        #[test]
+        fn the_crossbleed_valves_lose_their_manual_control_without_dc_ess() {
+            let mut test_bed = four_engines_at_idle();
+            for valve in ["L", "C", "R"] {
+                assert!(!flag(
+                    &mut test_bed,
+                    &format!("PNEU_XBLEED_VALVE_{valve}_MANUAL_CONTROL_LOST")
+                ));
+            }
+
+            test_bed = test_bed.set_dc_ess_bus_power(false).and_run();
+            for valve in ["L", "C", "R"] {
+                assert!(flag(
+                    &mut test_bed,
+                    &format!("PNEU_XBLEED_VALVE_{valve}_MANUAL_CONTROL_LOST")
+                ));
+            }
+        }
+
+        /// AIR LEAK DET FAULT: with the dual loop of the zone lost, a leak there is neither
+        /// detected nor isolated
+        #[test]
+        fn a_leak_in_a_zone_with_its_dual_loop_lost_is_not_detected() {
+            let mut test_bed = four_engines_at_idle();
+            assert!(!flag(&mut test_bed, "PNEU_L_INR_WING_LEAK_DET_FAULT"));
+
+            test_bed.fail(FailureType::WingLeakDetectionDualLoop(2));
+            test_bed.fail(FailureType::WingBleedLeak(2));
+            run_seconds(&mut test_bed, 10);
+
+            assert!(flag(&mut test_bed, "PNEU_L_INR_WING_LEAK_DET_FAULT"));
+            assert!(!flag(&mut test_bed, "PNEU_L_INR_WING_LEAK"));
+            assert!(test_bed.pr_valve_is_open(2));
+            assert!(!fault_light(&mut test_bed, 2));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_LEAK_DET_FAULT"));
+            assert!(!flag(&mut test_bed, "PNEU_L_OUTR_WING_LEAK_DET_FAULT"));
+        }
+
+        #[test]
+        fn one_leak_detection_system_failed_keeps_the_detection_on_the_other_loop() {
+            let mut test_bed = four_engines_at_idle();
+            test_bed.fail(FailureType::BleedLeakDetectionSystem(1));
+            test_bed.fail(FailureType::HotAirDuctLeak(2));
+            run_seconds(&mut test_bed, 20);
+
+            assert!(flag(&mut test_bed, "PNEU_HOT_AIR_2_LEAK"));
+            assert!(!flag(&mut test_bed, "PNEU_HOT_AIR_2_LEAK_DET_FAULT"));
+        }
+
+        const LEAK_DETECTION_ZONES: [&str; 15] = [
+            "ENG_1",
+            "ENG_2",
+            "ENG_3",
+            "ENG_4",
+            "L_OUTR_WING",
+            "L_INR_WING",
+            "R_INR_WING",
+            "R_OUTR_WING",
+            "APU",
+            "PACK_1",
+            "PACK_2",
+            "HOT_AIR_1",
+            "HOT_AIR_2",
+            "FWD_CARGO",
+            "AFT_CARGO",
+        ];
+
+        #[test]
+        fn both_leak_detection_systems_failed_lose_the_detection_of_every_zone() {
+            let mut test_bed = four_engines_at_idle();
+            test_bed.fail(FailureType::BleedLeakDetectionSystem(1));
+            test_bed.fail(FailureType::BleedLeakDetectionSystem(2));
+            test_bed.fail(FailureType::PackBayLeak(1));
+            run_seconds(&mut test_bed, 20);
+
+            for zone in LEAK_DETECTION_ZONES {
+                assert!(
+                    flag(&mut test_bed, &format!("PNEU_{zone}_LEAK_DET_FAULT")),
+                    "{zone}"
+                );
+            }
+            assert!(!flag(&mut test_bed, "PNEU_PACK_1_LEAK"));
+            assert!(test_bed.left_pack_flow_valve_is_open(1));
+        }
+
+        #[rstest]
+        #[case(FailureType::WingLeakDetectionDualLoop(3), "R_INR_WING")]
+        #[case(FailureType::ApuLeakDetectionDualLoop, "APU")]
+        #[case(FailureType::PackBayLeakDetectionDualLoop(2), "PACK_2")]
+        #[case(FailureType::HotAirLeakDetectionDualLoop(1), "HOT_AIR_1")]
+        #[case(FailureType::FwdCargoLeakDetectionDualLoop, "FWD_CARGO")]
+        #[case(FailureType::AftCargoLeakDetectionDualLoop, "AFT_CARGO")]
+        fn each_dual_loop_failure_loses_its_zone_only(
+            #[case] failure: FailureType,
+            #[case] lost_zone: &str,
+        ) {
+            let mut test_bed = four_engines_at_idle();
+            test_bed.fail(failure);
+            test_bed.run();
+
+            for zone in LEAK_DETECTION_ZONES {
+                assert_eq!(
+                    flag(&mut test_bed, &format!("PNEU_{zone}_LEAK_DET_FAULT")),
+                    zone == lost_zone,
+                    "{zone}"
+                );
+            }
         }
     }
 }

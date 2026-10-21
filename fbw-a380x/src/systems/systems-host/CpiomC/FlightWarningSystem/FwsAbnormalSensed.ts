@@ -145,6 +145,7 @@ import {
 import { elecDriveOilAbnormalItems } from './FwsElecDriveOilAlerts';
 import { elecSupplyCentreAbnormalItems, elecSupplyCentreDeferredItems } from './FwsElecSupplyCentreAlerts';
 import { cabinSmokeAbnormalItems } from './FwsCabinSmokeAlerts';
+import { bleedLeakAbnormalItems } from './FwsBleedLeakAlerts';
 import { gpwsFaultItemsToShow, isApFdTcasModeInop } from './FwsSurvAlerts';
 import {
   FM_GPS_POS_DISAGREE_INFO,
@@ -1608,6 +1609,7 @@ export class FwsAbnormalSensed {
   public ewdAbnormalSensed: EwdAbnormalDict = {
     ...this.engineStartAlerts(),
     ...this.bleedMonitoringAlerts(),
+    ...bleedLeakAbnormalItems(this.fws.bleedLeakAlerts),
     ...this.engineMonitoringAlerts(),
     // ATA 21 - AIR CONDITIONING AND PRESSURIZATION
     211800001: {

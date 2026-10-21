@@ -48,6 +48,103 @@ export const EcamAbnormalSensedAta353642: { [n: number]: AbnormalProcedure } = {
   361800010: bleedLeak('L INR WING LEAK', 2),
   361800011: bleedLeak('R INR WING LEAK', 3),
   361800012: bleedLeak('R OUTR WING LEAK', 4),
+  // The leak, valve and temperature alerts below: systems-host CpiomC/FlightWarningSystem/FwsBleedLeakAlerts.ts
+  361800013: {
+    title: '\x1b<4m\x1b4mAIR\x1bm APU BLEED LEAK',
+    sensed: true,
+    items: [
+      // On ground, before any engine start
+      { name: 'ENG 1 MASTER LEVER', sensed: false, labelNotCompleted: 'KEEP OFF' },
+      { name: 'ENG 2 MASTER LEVER', sensed: false, labelNotCompleted: 'KEEP OFF' },
+      { name: 'ENG 3 MASTER LEVER', sensed: false, labelNotCompleted: 'KEEP OFF' },
+      { name: 'ENG 4 MASTER LEVER', sensed: false, labelNotCompleted: 'KEEP OFF' },
+      // If the APU bleed valve, or the APU isolation valve did not close automatically
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      // If two (or more) bleeds are inoperative
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'OFF' },
+      // In flight, if two bleeds on the same side are inoperative
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENGs A-ICE', sensed: false, labelNotCompleted: 'AS RQRD' },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan },
+      // When the leak is isolated
+      { name: 'AIR LEAK ISOLATED', sensed: false },
+    ],
+  },
+  361800014: {
+    title: '\x1b<2m\x1b4mAIR\x1bm BLEED LEAK',
+    sensed: true,
+    items: [{ name: 'XBLEED', sensed: true, labelNotCompleted: 'CLOSE' }],
+  },
+  361800015: engineBleedNotClosed(1),
+  361800016: engineBleedNotClosed(2),
+  361800017: engineBleedNotClosed(3),
+  361800018: engineBleedNotClosed(4),
+  361800019: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mAIR\x1bm ENG 1 HP VLV NOT OPEN',
+    sensed: true,
+    items: [],
+  },
+  361800020: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mAIR\x1bm ENG 2 HP VLV NOT OPEN',
+    sensed: true,
+    items: [],
+  },
+  361800021: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mAIR\x1bm ENG 3 HP VLV NOT OPEN',
+    sensed: true,
+    items: [],
+  },
+  361800022: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mAIR\x1bm ENG 4 HP VLV NOT OPEN',
+    sensed: true,
+    items: [],
+  },
+  361800023: engineBleedTempLo(1),
+  361800024: engineBleedTempLo(2),
+  361800025: engineBleedTempLo(3),
+  361800026: engineBleedTempLo(4),
+  361800027: hotAirDuctLeak('FWD CARGO DUCT LEAK', 1),
+  361800028: hotAirDuctLeak('HOT AIR 1 LEAK', 1),
+  361800029: hotAirDuctLeak('HOT AIR 2 LEAK', 2),
+  361800030: {
+    // crew awareness; the line of each duct whose leak detection is lost
+    title: '\x1b<4m\x1b4mAIR\x1bm LEAK DET FAULT',
+    sensed: true,
+    items: [
+      'ENG 1 BLEED',
+      'ENG 2 BLEED',
+      'ENG 3 BLEED',
+      'ENG 4 BLEED',
+      'L OUTR WING',
+      'L INR WING',
+      'R INR WING',
+      'R OUTR WING',
+      'APU BLEED',
+      'PACK 1',
+      'PACK 2',
+      'HOT AIR 1',
+      'HOT AIR 2',
+      'FWD CARGO DUCT',
+      'AFT CARGO DUCT',
+    ].map((duct) => ({ name: `ON ${duct}`, sensed: true, style: ChecklistLineStyle.Amber })),
+  },
+  361800031: packLeak(1),
+  361800032: packLeak(2),
+  361800033: {
+    title: '\x1b<4m\x1b4mAIR\x1bm XBLEED FAULT',
+    sensed: true,
+    items: [
+      // If the automatic control of one (or more) XBLEED valve is lost
+      { name: 'XBLEED MAN CTL ONLY', sensed: false, style: ChecklistLineStyle.Cyan },
+      // If the manual control of one (or more) XBLEED valve is lost
+      { name: 'XBLEED', sensed: true, labelNotCompleted: 'AUTO' },
+    ],
+  },
   // ATA 42 AVIONICS NETWORK. The alert logic is in systems-host CpiomC/FlightWarningSystem/AvionicsNetworkAlerts.ts.
   // The "(NETWORK DEGRADED)" / "(REDUNDANCY DEGRADED)" second title line is the first line of the procedure (the full
   // title does not fit the EWD line).
@@ -118,6 +215,86 @@ export const EcamAbnormalSensedAta353642: { [n: number]: AbnormalProcedure } = {
     items: [{ name: '(REDUNDANCY DEGRADED)', sensed: true, style: ChecklistLineStyle.Amber }],
   },
 };
+
+/**
+ * AIR ENG 1(2)(3)(4) BLEED NOT CLOSED: the engine bleed valve is not closed during the APU bleed supply or the engine
+ * start. The alert is recalled once the engine runs, so that the crew sets the bleed back ON.
+ * @param engine the engine number, 1 to 4
+ * @returns the procedure of that engine
+ */
+function engineBleedNotClosed(engine: number): AbnormalProcedure {
+  return {
+    title: `\x1b<4m\x1b4mAIR\x1bm ENG ${engine} BLEED NOT CLOSED`,
+    sensed: true,
+    items: [
+      { name: `ENG ${engine} BLEED`, sensed: true, labelNotCompleted: 'OFF' },
+      { name: `WHEN ENG ${engine} STARTED :`, sensed: true },
+      { name: `ENG ${engine} BLEED`, sensed: true, labelNotCompleted: 'ON', level: 1 },
+    ],
+  };
+}
+
+/**
+ * AIR ENG BLEED TEMP LO ON BLEED 1(2)(3)(4), one alert per bleed. The ENG BLEED OFF line is for one bleed LO TEMP,
+ * the WING A-ICE lines for more than one.
+ * @param engine the engine number, 1 to 4
+ * @returns the procedure of that bleed
+ */
+function engineBleedTempLo(engine: number): AbnormalProcedure {
+  return {
+    title: `\x1b<4m\x1b4mAIR\x1bm ENG BLEED TEMP LO ON BLEED ${engine}`,
+    sensed: true,
+    items: [
+      { name: 'ENG THRUST', sensed: false, labelNotCompleted: 'INCREASE' },
+      { name: 'IF NOT SUCCESSFUL :', sensed: true },
+      { name: `ENG ${engine} BLEED`, sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENGs A-ICE', sensed: false, labelNotCompleted: 'AS RQRD', level: 1 },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+    ],
+  };
+}
+
+/**
+ * AIR HOT AIR 1(2) LEAK and AIR FWD CARGO DUCT LEAK (a leak of the ducts of the hot-air valve 1).
+ * @param title the alert title after AIR
+ * @param hotAir the hot-air valve of the leaking ducts
+ * @returns the procedure
+ */
+function hotAirDuctLeak(title: string, hotAir: number): AbnormalProcedure {
+  return {
+    title: `\x1b<4m\x1b4mAIR\x1bm ${title}`,
+    sensed: true,
+    items: [
+      // If the hot-air valve did not close automatically
+      { name: `HOT AIR ${hotAir}`, sensed: true, labelNotCompleted: 'OFF' },
+      // When the leak is isolated
+      { name: 'AIR LEAK ISOLATED', sensed: false },
+    ],
+  };
+}
+
+/**
+ * AIR PACK 1(2) LEAK
+ * @param pack the pack number, 1 or 2
+ * @returns the procedure
+ */
+function packLeak(pack: number): AbnormalProcedure {
+  return {
+    title: `\x1b<4m\x1b4mAIR\x1bm PACK ${pack} LEAK`,
+    sensed: true,
+    items: [
+      // If the appropriate pack valves did not close automatically
+      { name: `PACK ${pack}`, sensed: true, labelNotCompleted: 'OFF' },
+      // In flight, if two bleeds on the same side are inoperative
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENGs A-ICE', sensed: false, labelNotCompleted: 'AS RQRD' },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan },
+      // When the leak is isolated
+      { name: 'AIR LEAK ISOLATED', sensed: false },
+    ],
+  };
+}
 
 /**
  * AIR ENG 1(2)(3)(4) BLEED FAULT. The "HP VLV NOT CLOSED" line is not listed (no HP valve failed open in the model);

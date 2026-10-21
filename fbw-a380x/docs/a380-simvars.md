@@ -3090,6 +3090,56 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     valve, A3/A4 for the center and right valves). The XBLEED selector OPEN/CLOSE still moves it. For AIR XBLEED FAULT
     ("Is no longer controlled automatically by the bleed controller")
 
+- A32NX_PNEU_XBLEED_VALVE_{valve}_ABNORMAL_POSITION
+  - Bool
+  - {valve}
+    - L
+    - C
+    - R
+  - The crossbleed valve is not in the position its motor was last commanded to, for 10 s (flyPad crossbleed valve stuck
+    failures). For AIR XBLEED FAULT ("Has an abnormal position"). Written by the systems WASM (a380_systems
+    pneumatic.rs)
+
+- A32NX_PNEU_XBLEED_VALVE_{valve}_MANUAL_CONTROL_LOST
+  - Bool
+  - {valve}
+    - L
+    - C
+    - R
+  - The manual control motor of the crossbleed valve has no supply (DC ESS): the XBLEED selector no longer moves it.
+    For AIR XBLEED FAULT (XBLEED ... AUTO)
+
+- A32NX_PNEU_ENG_{number}_HP_VALVE_NOT_OPEN
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The HP valve stays closed for 5 s while the CPIOM-A commands it open (flyPad HP valve stuck closed failure). For
+    AIR ENG 1(2)(3)(4) HP VLV NOT OPEN
+
+- A32NX_PNEU_{zone}_LEAK_DET_FAULT
+  - Bool
+  - {zone}
+    - ENG_1
+    - ENG_2
+    - ENG_3
+    - ENG_4
+    - L_OUTR_WING
+    - L_INR_WING
+    - R_INR_WING
+    - R_OUTR_WING
+    - APU
+    - PACK_1
+    - PACK_2
+    - HOT_AIR_1
+    - HOT_AIR_2
+    - FWD_CARGO
+    - AFT_CARGO
+  - The bleed leak detection of the duct zone is lost: both loops of the zone (flyPad dual loop failure), or both bleed
+    leak detection systems. A leak of the zone is then neither detected nor isolated. For AIR LEAK DET FAULT
+
 - A32NX_ASU_TURNED_ON
   - Bool
   - An HP ground air cart is connected and supplies air (flyPad Ground > Services, Air Starter Unit). Read by the systems

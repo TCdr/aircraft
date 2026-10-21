@@ -848,6 +848,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ELEC] Supply centre, ENMU and ELMU failures in the flyPad (a failed primary supply centre or ENMU sheds its galleys, a failed ENMU no longer connects the APU generator and external power of its side, ELMU FAULT light) and the ECAM alerts of the supply centres, network and load management, C/B monitoring, REMOTE C/B CTL, DC ESS BUS PART FAULT, F/CTL ACTUATOR PWR SUPPLY FAULT and ABNORMAL FLIGHT OPS SUPPLY - @TCdr
 1. [A380X/FWS] A-ICE probe and window heat cautions (ALL PROBES NOT DEICED, PITOT TAT AOA, STATIC, SIDESLIP and STBY probe HEATG FAULT, WINDSHIELD and WINDOW HEATG FAULT, ICE DET FAULT, CTL SYS FAULT, ENG VLV MONITORING FAULT, CABIN DRAIN MASTS HEATING FAULT) with their procedures and STATUS, on a new probe and window heat model with AICU channels and flyPad failures - @TCdr
 1. [A380X/FIRE] Smoke detection of the cabin areas with new flyPad failures: SMOKE MAIN (UPPER) (LOWER) DECK LAVATORY, FLT REST, AFT LWR CAB REST and CWS / RCC SMOKE warnings and DET FAULT cautions, AFT LWR CAB REST BTL 1(2) FAULT, FACILITIES DET FAULT and SAFETY TEST REQUIRED; the cargo fire bottles diverter valve and control failures give FWD (AFT) and FWD+AFT CARGOS BOTTLES FAULT and keep the agent out of the compartment - @TCdr
+1. [A380X/FWS] AIR APU BLEED LEAK, AIR PACK 1(2) LEAK, AIR HOT AIR 1(2) LEAK, AIR FWD CARGO DUCT LEAK and AIR BLEED LEAK alerts on the bleed leak detection - @TCdr
+1. [A380X/FWS] AIR LEAK DET FAULT alert, with flyPad failures of the leak detection loops of each bleed duct and of the two leak detection systems - @TCdr
+1. [A380X/FWS] AIR ENG 1(2)(3)(4) BLEED NOT CLOSED, AIR ENG 1(2)(3)(4) HP VLV NOT OPEN, AIR ENG BLEED TEMP LO and AIR XBLEED FAULT alerts, with flyPad HP valve, fan air valve and crossbleed valve failures - @TCdr
 
 ## 2024.1.0
 
