@@ -36,7 +36,8 @@ export function aocPrintLines(text: string): string[] {
  * flight crew can print any message). The OIT COMPANY COM inbox PRINT button publishes aocPrintMessage
  * (OIT/System/CompanyComMailbox.ts), the other OIS applications publish their printouts with their own title; the MFD
  * instrument prints them with the FMS printer of the master FMC. Without an available printer nothing is printed (no
- * OIT indication is defined for it).
+ * OIT indication is defined for it). The AOC also prints some received messages by itself (systems host
+ * CpiomD/AocAutoPrint.ts): those printouts carry the message id, told back once printed.
  */
 export class AocPrintClient {
   private readonly subscription: Subscription;
@@ -54,7 +55,15 @@ export class AocPrintClient {
       .on('aocPrintMessage')
       .handle((message) => {
         const printout: AocPrintout = typeof message === 'string' ? { text: message } : message;
-        this.printer()?.printText(printout.title ?? AOC_MESSAGE_TITLE, aocPrintLines(printout.text));
+        const printer = this.printer();
+        if (printer === null) {
+          return;
+        }
+        printer.printText(printout.title ?? AOC_MESSAGE_TITLE, aocPrintLines(printout.text));
+        // The AOC keeps the COMPANY MSG:PRNTR memo until its automatic printout is printed
+        if (printout.printId !== undefined) {
+          bus.getPublisher<A380AocPrintEvents>().pub('aocPrintoutPrinted', printout.printId, true, false);
+        }
       });
   }
 

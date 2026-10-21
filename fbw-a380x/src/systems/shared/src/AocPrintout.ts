@@ -6,6 +6,8 @@ export interface AocPrintout {
   readonly text: string;
   /** AOC MESSAGE when not given */
   readonly title?: string;
+  /** The AOC message id of an automatic printout, told back with aocPrintoutPrinted once printed */
+  readonly printId?: number;
 }
 
 /**
@@ -14,4 +16,6 @@ export interface AocPrintout {
  */
 export interface A380AocPrintEvents {
   aocPrintMessage: string | AocPrintout;
+  /** The printer printed the automatic printout of this AOC message */
+  aocPrintoutPrinted: number;
 }

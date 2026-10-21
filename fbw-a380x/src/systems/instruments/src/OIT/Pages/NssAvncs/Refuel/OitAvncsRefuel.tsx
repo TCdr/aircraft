@@ -20,6 +20,7 @@ import {
   parseRefuelZfData,
   refuelState,
 } from '../../../System/OisRefuel';
+import { notSentToAvionicsMessage } from '../../../System/NssAvionicsLink';
 
 interface OitAvncsRefuelProps extends AbstractOitAvncsPageProps {}
 
@@ -129,6 +130,17 @@ export class OitAvncsRefuel extends DestroyableComponent<OitAvncsRefuelProps> {
     );
   }
 
+  /**
+   * The FQMS is an avionics system: an entry reaches it only while the NSS can send to the avionics
+   * @param message where the page tells the crew that the entry was not sent
+   * @returns whether the entry can be sent
+   */
+  private checkFqmsReachable(message: Subject<string>): boolean {
+    const notSent = notSentToAvionicsMessage(this.sci.link.get());
+    message.set(notSent);
+    return notSent === '';
+  }
+
   private writeRefuelZfData(data: RefuelZfData): void {
     SimVar.SetSimVarValue('L:A32NX_FUEL_REFUEL_ZFW', 'number', data.zfwKg);
     SimVar.SetSimVarValue('L:A32NX_FUEL_REFUEL_ZFCG', 'number', data.zfcgPercentMac);
@@ -141,6 +153,9 @@ export class OitAvncsRefuel extends DestroyableComponent<OitAvncsRefuelProps> {
       this.zfDataMessage.set(error ?? '');
       return;
     }
+    if (!this.checkFqmsReachable(this.zfDataMessage)) {
+      return;
+    }
     this.writeRefuelZfData(data);
     this.zfwEntry.set(null);
     this.zfcgEntry.set(null);
@@ -149,6 +164,9 @@ export class OitAvncsRefuel extends DestroyableComponent<OitAvncsRefuelProps> {
 
   /** FQMS DEFAULT: the FQMS goes back to its default data */
   private clearRefuelZfData(): void {
+    if (!this.checkFqmsReachable(this.zfDataMessage)) {
+      return;
+    }
     this.writeRefuelZfData(REFUEL_ZF_DATA_CLEARED);
     this.zfDataMessage.set('');
   }
@@ -160,6 +178,9 @@ export class OitAvncsRefuel extends DestroyableComponent<OitAvncsRefuelProps> {
     const kg = parsePreselectedFuel(this.preselectedFuelEntry.get(), this.unit, capacityKg);
     if (kg === null) {
       this.entryMessage.set(`ENTRY OUT OF RANGE (0 - ${formatRefuelWeight(capacityKg, this.unit)})`);
+      return;
+    }
+    if (!this.checkFqmsReachable(this.entryMessage)) {
       return;
     }
     SimVar.SetSimVarValue('L:A32NX_FUEL_DESIRED', 'kilograms', kg);
