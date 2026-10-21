@@ -3193,7 +3193,15 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - The NSS DATA TO AVNCS pb-sw: 1 = normal (released, the NSS and the avionics exchange data both ways; the value of
     every flight file), 0 = OFF (pressed in, OFF light; the SCIs pass data only from the avionics to the NSS). OFF gives
     the FWS alert COM NSS DATA TO AVNCS XFR FAULT (A380 FCOM DSC-46-20-20-80, PRO-ABN-ECAM-10-46). OFF also stops the AOC
-    downlinks (messages and requests), the uplinks still come in (systems host CpiomD/atsu.ts)
+    downlinks (messages and requests), the uplinks still come in (systems host CpiomD/atsu.ts). With OFF (or both SCIs
+    lost) the COMPANY MSG memos and voice no longer reach the FWS, the eLogbook loses its ground link and the OIT REFUEL
+    entries no longer reach the FQMS
+
+- A32NX_COMPANY_MSG_PRNTR_COUNT
+  - Number
+  - The unread company messages that wait for their automatic printout on the pedestal printer (the AOC prints the
+    received weather reports by itself). Written by the systems host (CpiomD/AocAutoPrint.ts); above 0 the COMPANY MSG
+    memo reads COMPANY MSG:PRNTR (A380 FCOM DSC-46-40-20)
 
 - A32NX_NSS_ANSU_{index}_IS_HEALTHY
   - Bool

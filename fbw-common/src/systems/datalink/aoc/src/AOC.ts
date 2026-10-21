@@ -54,7 +54,12 @@ export class Aoc {
     this.digitalInputs.addDataCallback('registerMessages', (messages) => this.insertMessages(messages));
     this.digitalInputs.addDataCallback('messageRead', (messageId) => this.messageRead(messageId));
     this.digitalInputs.addDataCallback('removeMessage', (messageId) => this.removeMessage(messageId));
-    this.digitalInputs.addDataCallback('receivedFreetextMessage', (message) => this.insertMessages([message]));
+    this.digitalInputs.addDataCallback('receivedFreetextMessage', (message) => {
+      // A message the ground sends while the AOC is off never reaches the aircraft
+      if (this.poweredUp) {
+        this.insertMessages([message]);
+      }
+    });
     this.digitalInputs.addDataCallback('ignoreIncomingMessage', (uid: number) => {
       const index = this.messageQueueUplink.findIndex((message) => message.UniqueMessageID === uid);
       if (index !== -1) {
@@ -79,6 +84,8 @@ export class Aoc {
     this.messageQueueUplink = [];
     this.messageQueueDownlink = [];
     this.poweredUp = false;
+    // The cleared mailbox has no unread message left for the COMPANY MSG memo
+    this.updateMessageCount();
   }
 
   /**

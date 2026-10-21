@@ -4,7 +4,7 @@
 
 import { EcamMemos } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 import { GRAVITY_EXTENSION_MEMO, GRAVITY_EXTENSION_MEMO_PHASE_INHIBITION } from './GravityExtensionMemo';
-import { COMPANY_MSG_INHIBITED_FLIGHT_PHASES } from './FwsCompanyMessageAural';
+import { COMPANY_MSG_INHIBITED_FLIGHT_PHASES, companyMessageMemoIndex } from './FwsCompanyMessageAural';
 import {
   MappedSubject,
   MappedSubscribable,
@@ -775,11 +775,11 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     '460000001': {
-      // COMPANY MSG
+      // COMPANY MSG, COMPANY MSG:PRNTR
       flightPhaseInhib: [...COMPANY_MSG_INHIBITED_FLIGHT_PHASES],
       simVarIsActive: this.fws.compMesgCount.map((c) => c > 0),
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['460000001'],
+      whichCodeToReturn: () => [companyMessageMemoIndex(this.fws.compMesgWaitingPrintoutCount.get())],
+      codesToReturn: ['460000001', '460000002'],
       memoInhibit: () => false,
     },
     '709000001': {

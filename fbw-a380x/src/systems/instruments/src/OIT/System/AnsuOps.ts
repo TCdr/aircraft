@@ -12,6 +12,7 @@ import { OisMessageToolbar } from './OisMessageToolbar';
 import { TechLogbookStore } from './TechLogbookStore';
 import { formatOisDateTime, OIS_MONTHS } from './OisDateTime';
 import { OitPageDrafts } from './OitPageDrafts';
+import { linkDegradedToolbarText } from './NssAvionicsLink';
 
 export class AnsuOps extends AircraftNetworkServerUnit {
   private lastUpdateTime: number | undefined = undefined;
@@ -82,6 +83,12 @@ export class AnsuOps extends AircraftNetworkServerUnit {
     this.techLogbook.init();
 
     this.subscriptions.push(
+      this.sci.link.sub((link) => {
+        const text = linkDegradedToolbarText(link);
+        if (text !== null) {
+          this.messageToolbar.post(text);
+        }
+      }),
       this.sci.parkBrakeSet.sub((v) => {
         if (v) {
           this.parkBrakeOnTime.set(this.sci.zuluTime.get());

@@ -3,7 +3,8 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { EventBus } from '@microsoft/msfs-sdk';
-import { AtsuStatusCodes, FreetextMessage } from '../../common/src';
+import { AtsuMessageDirection, AtsuStatusCodes, FreetextMessage } from '../../common/src';
+import { RouterAtcAocMessages } from '../../router/src';
 import { Aoc } from './AOC';
 
 /** The private parts of the AOC the tests drive */
@@ -51,5 +52,52 @@ describe('AOC downlink inhibition', () => {
 
     aoc.setDownlinksInhibited(false);
     expect(await internals.sendMessage(new FreetextMessage())).toBe(AtsuStatusCodes.Ok);
+  });
+});
+
+describe('AOC company messages while the AOC is off', () => {
+  /**
+   * @param text the message
+   * @returns a company free text from the ground
+   */
+  function groundMessage(text: string): FreetextMessage {
+    const message = new FreetextMessage();
+    message.Direction = AtsuMessageDirection.Uplink;
+    message.Station = 'KLMOPS';
+    message.Message = text;
+    return message;
+  }
+
+  /** An AOC whose COMPANY MSG count the test reads */
+  function aocWithCount() {
+    const bus = new EventBus();
+    const aoc = new Aoc(bus, false);
+    aoc.initialize();
+    const counts: number[] = [];
+    (
+      aoc as unknown as { digitalOutputs: { setCompanyMessageCount: (count: number) => void } }
+    ).digitalOutputs.setCompanyMessageCount = (count) => counts.push(count);
+    const unreadCount = () => (counts.length > 0 ? counts[counts.length - 1] : 0);
+    return { aoc, router: bus.getPublisher<RouterAtcAocMessages>(), unreadCount };
+  }
+
+  it('receives the company messages only while powered', () => {
+    const { aoc, router, unreadCount } = aocWithCount();
+    router.pub('routerReceivedFreetextMessage', groundMessage('WHILE OFF'));
+    expect(unreadCount()).toBe(0);
+
+    aoc.powerUp();
+    router.pub('routerReceivedFreetextMessage', groundMessage('WHILE ON'));
+    expect(unreadCount()).toBe(1);
+  });
+
+  it('leaves no unread message for the COMPANY MSG memo once powered down', () => {
+    const { aoc, router, unreadCount } = aocWithCount();
+    aoc.powerUp();
+    router.pub('routerReceivedFreetextMessage', groundMessage('HELLO'));
+    expect(unreadCount()).toBe(1);
+
+    aoc.powerDown();
+    expect(unreadCount()).toBe(0);
   });
 });

@@ -1,12 +1,11 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { ConsumerSubject, EventBus, Subject, Subscribable, Subscription } from '@microsoft/msfs-sdk';
+import { EventBus, Subject, Subscribable, Subscription } from '@microsoft/msfs-sdk';
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { A380AocPrintEvents, AocPrintout } from '@shared/AocPrintout';
 import { FwsEvents } from '../../MsfsAvionicsCommon/providers/FwsPublisher';
 import { EcamAbnormalProcedures } from '../../MsfsAvionicsCommon/EcamMessages';
-import { OitSimvars } from '../OitSimvarPublisher';
 import { SecureCommunicationInterface } from './SecureCommunicationInterface';
 import {
   EcamAlertOccurrence,
@@ -88,9 +87,7 @@ const SEND_DURATION_MS = 3_000;
 export class TechLogbookStore {
   private readonly subscriptions: Subscription[] = [];
 
-  private readonly sub = this.bus.getSubscriber<OitSimvars & FwsEvents>();
-
-  private readonly nssDataToAvncsOff = ConsumerSubject.create(this.sub.on('nssDataToAvncsOff'), false);
+  private readonly sub = this.bus.getSubscriber<FwsEvents>();
 
   public readonly state = Subject.create<TechLogbookState>(createTechLogbook());
 
@@ -136,7 +133,6 @@ export class TechLogbookStore {
     }
 
     this.subscriptions.push(
-      this.nssDataToAvncsOff,
       this.sub.on('fws_abn_sensed_procedures').handle((procedures) => this.onEcamAlerts(procedures.map((p) => p.id))),
     );
 
@@ -206,11 +202,11 @@ export class TechLogbookStore {
   }
 
   /**
-   * The ground link of the logbook is lost with NSS DATA TO AVNCS OFF
+   * The logbook reaches the ground through the avionics: NSS DATA TO AVNCS OFF or both SCIs lost cut it
    * @returns whether the logbook reaches the ground station
    */
   private groundLinkAvailable(): boolean {
-    return !this.nssDataToAvncsOff.get();
+    return this.sci.canSendToAvionics.get();
   }
 
   /** UPDATE: takes the control on board (the ground releases the aircraft) */

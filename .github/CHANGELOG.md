@@ -852,6 +852,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] AIR LEAK DET FAULT alert, with flyPad failures of the leak detection loops of each bleed duct and of the two leak detection systems - @TCdr
 1. [A380X/FWS] AIR ENG 1(2)(3)(4) BLEED NOT CLOSED, AIR ENG 1(2)(3)(4) HP VLV NOT OPEN, AIR ENG BLEED TEMP LO and AIR XBLEED FAULT alerts, with flyPad HP valve, fan air valve and crossbleed valve failures - @TCdr
 1. [A380X/FWS] Door system alerts: per-door ACTUATOR, FLIGHT LOCK, LATCH MONITORING, POS DET and SLIDE FAULT, MAIN 1L(R) SLIDE LENGTHENING FAULT, DOOR POS DET FAULT, RESIDUAL DIFF PRESS DET FAULT and CKPT DOOR EMER OPENING IN PROGRESS, with their flyPad failures (ATA 52), the cockpit door emergency access sequence, and the door position and failed slide on the DOOR/OXY SD page - @TCdr
+1. [A380X/OIT] NSS DATA TO AVNCS OFF or both SCIs lost: the REFUEL entries no longer reach the FQMS and the NSS AVNCS message toolbar tells it; both SCIs lost also cut the eLogbook ground link and the avionics data (SYNCHRO AVIONICS keeps the FLT OPS STS entries) - @TCdr
+1. [A380X/FWS] No COMPANY MSG memo or COMPANY MESSAGE voice with NSS DATA TO AVNCS OFF or both SCIs lost - @TCdr
+1. [A380X/AOC] The AOC prints the received weather reports automatically on the pedestal printer, with the COMPANY MSG:PRNTR memo until they are printed or read - @TCdr
+1. [ATSU] The AOC no longer receives company messages while it is off, and no COMPANY MSG stays after it powers down - @TCdr
 1. [A380X/OIT] FLT OPS STS fills itself from the FMS flight number and city pair until a manual entry, and the CAPT and F/O laptops share it (manual entries, SYNCHRO AVIONICS, EXIT SESSION; not on a stand-alone laptop, and not after a network loss until both laptops are restarted); ACFT REGISTRATION shows the aircraft ATC ID and OIS VERSION the aircraft build - @TCdr
 
 ## 2024.1.0

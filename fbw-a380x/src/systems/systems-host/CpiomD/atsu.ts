@@ -5,6 +5,7 @@ import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { ClockEvents, EventBus, SimVarValueType } from '@microsoft/msfs-sdk';
 import { A380Failure } from '@failures';
 import { AtsuFmsClient } from './AtsuFmsClient';
+import { AocAutoPrint } from './AocAutoPrint';
 import {
   areAocDownlinksInhibited,
   isAocAvailable,
@@ -17,6 +18,8 @@ export class AtsuSystem {
   private readonly aoc: Aoc;
 
   private readonly atsuFmsClient: AtsuFmsClient;
+
+  private readonly aocAutoPrint: AocAutoPrint;
 
   /** NSS AVNCS ANSU 1 and ANSU 2 healthy (they host the AOC) */
   private readonly nssAvncsAnsuHealthy = [false, false];
@@ -33,6 +36,7 @@ export class AtsuSystem {
   ) {
     this.aoc = new Aoc(this.bus, false);
     this.atsuFmsClient = new AtsuFmsClient(this.bus);
+    this.aocAutoPrint = new AocAutoPrint(this.bus);
 
     // Both SCIs lost: the AOC is inoperative and can no longer exchange messages with the ground
     [A380Failure.Sci1, A380Failure.Sci2].forEach((failure, index) =>
@@ -76,5 +80,6 @@ export class AtsuSystem {
   public init(): void {
     this.aoc.initialize();
     this.atsuFmsClient.init();
+    this.aocAutoPrint.init();
   }
 }
