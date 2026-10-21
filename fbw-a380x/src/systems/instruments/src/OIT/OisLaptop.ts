@@ -11,19 +11,30 @@ import {
   Subscribable,
   Subscription,
 } from '@microsoft/msfs-sdk';
-import { FailuresConsumer, FmsData, getSimBriefOfp, NXUnits } from '@flybywiresim/fbw-sdk';
+import {
+  AircraftGithubVersionChecker,
+  FailuresConsumer,
+  FmsData,
+  getSimBriefOfp,
+  NXUnits,
+} from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
-import { OisInternalData } from './OisInternalPublisher';
 import { OitSimvars } from './OitSimvarPublisher';
-import { AruStartup, LaptopNetworkConnection } from './System/AnsuLogic';
+import { AruStartup, isNssAvncsAvailable, LaptopNetworkConnection } from './System/AnsuLogic';
 import { OisMessageToolbar } from './System/OisMessageToolbar';
 import { FltOpsPerformanceSession } from './System/Performance/FltOpsPerformanceSession';
 import { A380_CERTIFIED_WEIGHTS } from './System/Performance/A380PerformanceCalculators';
 import { effExportIdentifier, OisLoadBox } from './System/OisLoadBox';
 import { OisExportBox } from './System/OisExportBox';
 import { InFltPerfAtmoSession } from './System/InFltPerfAtmoSession';
-
-type LaptopIndex = 1 | 2;
+import {
+  FltOpsLaptopIndex,
+  FltOpsStatusFlight,
+  FltOpsStatusNetworkEvents,
+  FltOpsStatusSync,
+  fmsDataReachLaptop,
+  oisVersionLabel,
+} from './System/FltOpsStatusSync';
 
 export class OisLaptop implements Instrument {
   private readonly subscriptions: Subscription[] = [];
@@ -43,7 +54,7 @@ export class OisLaptop implements Instrument {
   public readonly isHealthy = this._isHealthy as Subscribable<boolean>;
   private readonly isHealthySimVar = `L:A32NX_FLTOPS_LAPTOP_${this.index.toFixed(0)}_IS_HEALTHY`;
 
-  private readonly sub = this.bus.getSubscriber<FmsData & OisInternalData & OitSimvars & ClockEvents>();
+  private readonly sub = this.bus.getSubscriber<FmsData & FltOpsStatusNetworkEvents & OitSimvars & ClockEvents>();
 
   private readonly simTime = ConsumerSubject.create(this.sub.on('simTime'), 0);
 
@@ -84,18 +95,49 @@ export class OisLaptop implements Instrument {
   private readonly fromAirportBus = ConsumerSubject.create(this.sub.on('fmsOrigin'), null);
   private readonly toAirportBus = ConsumerSubject.create(this.sub.on('fmsDestination'), null);
 
-  public synchroAvionics() {
-    this.data.fltNumber.set(this.fltNumberBus.get());
-    this.data.fromAirport.set(this.fromAirportBus.get());
-    this.data.toAirport.set(this.toAirportBus.get());
+  private readonly nssAnsu1Healthy = ConsumerSubject.create(this.sub.on('nssAnsu1Healthy'), false);
+  private readonly nssAnsu2Healthy = ConsumerSubject.create(this.sub.on('nssAnsu2Healthy'), false);
 
-    // Workaround since synced messages in the same VCockpit don't work
+  private readonly networkPublisher = this.bus.getPublisher<FltOpsStatusNetworkEvents>();
+
+  /** The FLT OPS STS page, shared with the laptop of the other OIT (another instrument: synced bus events) */
+  public readonly fltOpsStatus = new FltOpsStatusSync(this.index, this.data, {
+    sendPage: (message) => this.networkPublisher.pub('oisFltOpsStsPage', message, true, false),
+    requestPage: (sender) => this.networkPublisher.pub('oisFltOpsStsRequest', sender, true, false),
+  });
+
+  /** The OIS VERSION line of the FLT OPS STS page */
+  public readonly oisVersion = Subject.create('');
+
+  public synchroAvionics() {
+    this.fltOpsStatus.synchroAvionics(this.fmsFlight());
+
+    // The EFB overlay of the OIT reloads its flight plan on this L:var: synced bus events do not reach it, as it is in
+    // the same VCockpit
     SimVar.SetSimVarValue('L:A32NX_OIS_SYNCHRO_AVIONICS', SimVarValueType.Number, Math.random());
+  }
+
+  /** EXIT SESSION: this laptop starts again for the next flight, and so does the FLT OPS STS page of the other one */
+  public exitSession(): void {
+    this.data.reset();
+    this.fltOpsStatus.exitSession();
+  }
+
+  /** @returns the FMS flight, null when the FMS data do not reach this laptop */
+  private fmsFlight(): FltOpsStatusFlight | null {
+    const connected = this._isHealthy.get() && !this._standalone.get();
+    const nssAvncsAvailable = isNssAvncsAvailable(this.nssAnsu1Healthy.get(), this.nssAnsu2Healthy.get());
+    const anySciWorking =
+      !this.failuresConsumer.isActive(A380Failure.Sci1) || !this.failuresConsumer.isActive(A380Failure.Sci2);
+    if (!fmsDataReachLaptop(connected, nssAvncsAvailable, anySciWorking)) {
+      return null;
+    }
+    return { fltNumber: this.fltNumberBus.get(), from: this.fromAirportBus.get(), to: this.toAirportBus.get() };
   }
 
   constructor(
     private readonly bus: EventBus,
-    private readonly index: LaptopIndex,
+    private readonly index: FltOpsLaptopIndex,
     private readonly failuresConsumer: FailuresConsumer,
   ) {}
 
@@ -104,7 +146,8 @@ export class OisLaptop implements Instrument {
     this.failuresConsumer.register(this.failureKey);
 
     this.subscriptions.push(
-      this.sub.on('synchroAvncs').handle(() => this.synchroAvionics()),
+      this.sub.on('oisFltOpsStsPage').handle((message) => this.fltOpsStatus.receivePage(message)),
+      this.sub.on('oisFltOpsStsRequest').handle((sender) => this.fltOpsStatus.receiveRequest(sender)),
       this._isHealthy.sub((v) => SimVar.SetSimVarValue(this.isHealthySimVar, SimVarValueType.Bool, v)),
       this._isHealthy.sub((healthy) => {
         if (!healthy) {
@@ -113,7 +156,18 @@ export class OisLaptop implements Instrument {
       }),
     );
 
-    this.subscriptions.push(this.fltNumberBus, this.fromAirportBus, this.toAirportBus, this.simTime);
+    this.subscriptions.push(
+      this.fltNumberBus,
+      this.fromAirportBus,
+      this.toAirportBus,
+      this.nssAnsu1Healthy,
+      this.nssAnsu2Healthy,
+      this.simTime,
+    );
+
+    AircraftGithubVersionChecker.getBuildInfo('a380x')
+      .then((info) => this.oisVersion.set(oisVersionLabel(info)))
+      .catch(() => this.oisVersion.set(''));
 
     // The FLT FOLDER of the OIT is the flyPad, without its EXPORT FLIGHT FOLDER function: an EFF loaded into the
     // laptop enters the EXPORT BOX as its before push back export.
@@ -153,6 +207,10 @@ export class OisLaptop implements Instrument {
     this._standalone.set(
       this.networkConnection.update(this._isHealthy.get(), aruOperating, this.aru.isFlightLoading()),
     );
+    // The network state of a laptop running at the flight load settles in the first seconds: an early flicker must
+    // not count as a network loss, so the page starts once they are over
+    const statusPageRunning = this._isHealthy.get() && !this.aru.isFlightLoading();
+    this.fltOpsStatus.update(statusPageRunning, !this._standalone.get(), this.fmsFlight());
 
     // Design choice: every airport has a gatelink, reached on the ground through the network.
     const gatelinkAvailable =
@@ -180,7 +238,7 @@ export class OisLaptopData {
   /** T.O PERF, LDG PERF and LOADSHEET */
   public readonly performance = new FltOpsPerformanceSession(A380_CERTIFIED_WEIGHTS, () => NXUnits.metricWeight);
 
-  /** EXIT SESSION: the STS page starts empty for the next flight */
+  /** EXIT SESSION: the laptop data start again for the next flight */
   public reset(): void {
     this.fltNumber.set(null);
     this.fromAirport.set(null);

@@ -196,8 +196,8 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
       this.hideXOisMessage,
     );
 
-    // EXIT SESSION: the STS page starts empty for the next flight
-    this.uiService.onFltOpsSessionExit(() => this.laptopData.reset());
+    // EXIT SESSION: the laptops start again for the next flight
+    this.uiService.onFltOpsSessionExit(() => this.laptop.exitSession());
 
     this.uiService.navigateTo('flt-ops');
   }
