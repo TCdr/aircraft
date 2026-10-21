@@ -15,7 +15,10 @@ import { DropdownMenu } from '../../../MsfsAvionicsCommon/UiWidgets/DropdownMenu
 import { InputField } from '../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { AirportFormat, LongAlphanumericFormat } from '../../../MFD/pages/common/DataEntryFormats';
 import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
-import { OisInternalData } from '../../OisInternalPublisher';
+import { registrationList } from '../../System/FltOpsStatusSync';
+
+/** Design choice: the sim gives no manufacturer serial number (MSN): a fixed one */
+const MSN = '225';
 
 interface OitFltOpsStatusPageProps extends AbstractOitFltOpsPageProps {}
 
@@ -30,6 +33,8 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
   private readonly hideSynchronizationNotAvail = this.props.container.laptop.standalone.map(
     SubscribableMapFunctions.not(),
   );
+
+  private readonly registrations = registrationList(SimVar.GetSimVarValue('ATC ID', 'string'));
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -57,9 +62,9 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
               <div class="oit-flt-ops-sts-line-right oit-label bigger">
                 <DropdownMenu
                   idPrefix={`${this.props.uiService.captOrFo}_OIT_acftRegistration`}
-                  selectedIndex={Subject.create<number | null>(0)}
-                  values={ArraySubject.create(['F-FBWA'])}
-                  freeTextAllowed={false}
+                  selectedIndex={Subject.create<number | null>(this.registrations.length > 0 ? 0 : null)}
+                  values={ArraySubject.create(this.registrations)}
+                  freeTextAllowed={false} // OIT list, not an FMS field: list only
                   containerStyle="width: 600px;"
                   alignLabels="center"
                   numberOfDigitsForInputField={8}
@@ -70,7 +75,7 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
                 <div style="width: 40px;" />
                 <Button
                   label="SYNCHRO<br />AVIONICS"
-                  onClick={() => this.props.bus.getPublisher<OisInternalData>().pub('synchroAvncs', true, true, false)}
+                  onClick={() => this.props.container.laptop.synchroAvionics()}
                   containerStyle="width: 175px;"
                 />
                 <div style="flex-grow: 1" />
@@ -78,11 +83,11 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
             </div>
             <div class="oit-flt-ops-sts-line">
               <div class="oit-flt-ops-sts-line-left oit-label bigger">MSN</div>
-              <div class="oit-flt-ops-sts-line-right oit-label bigger cyan">225</div>
+              <div class="oit-flt-ops-sts-line-right oit-label bigger cyan">{MSN}</div>
             </div>
             <div class="oit-flt-ops-sts-line">
               <div class="oit-flt-ops-sts-line-left oit-label bigger">OIS VERSION</div>
-              <div class="oit-flt-ops-sts-line-right oit-label bigger">20-JAN 25 V1.0</div>
+              <div class="oit-flt-ops-sts-line-right oit-label bigger">{this.props.container.laptop.oisVersion}</div>
             </div>
             <div class={{ 'oit-flt-ops-sts-line': true, hidden: this.hideSynchronizationNotAvail }}>
               <div class="oit-flt-ops-sts-line-left oit-label bigger" />
@@ -97,6 +102,7 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
                   dataEntryFormat={new LongAlphanumericFormat()}
                   mandatory={Subject.create(true)}
                   value={this.props.container.laptopData.fltNumber}
+                  onModified={(value) => this.props.container.laptop.fltOpsStatus.enter('fltNumber', value)}
                   containerStyle="width: 600px; margin-right: 5px;"
                   alignText="center"
                   hEventConsumer={this.props.container.hEventConsumer}
@@ -114,6 +120,7 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
                   dataEntryFormat={new AirportFormat()}
                   mandatory={Subject.create(true)}
                   value={this.props.container.laptopData.fromAirport}
+                  onModified={(value) => this.props.container.laptop.fltOpsStatus.enter('fromAirport', value)}
                   containerStyle="width: 250px; margin-right: 5px;"
                   alignText="center"
                   hEventConsumer={this.props.container.hEventConsumer}
@@ -128,6 +135,7 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
                   dataEntryFormat={new AirportFormat()}
                   mandatory={Subject.create(true)}
                   value={this.props.container.laptopData.toAirport}
+                  onModified={(value) => this.props.container.laptop.fltOpsStatus.enter('toAirport', value)}
                   containerStyle="width: 250px; margin-right: 5px;"
                   alignText="center"
                   hEventConsumer={this.props.container.hEventConsumer}

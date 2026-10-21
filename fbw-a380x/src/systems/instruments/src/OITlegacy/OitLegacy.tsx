@@ -36,7 +36,6 @@ import {
   useSimVar,
 } from '@flybywiresim/fbw-sdk-react';
 import { ToastContainer } from 'react-toastify';
-import { OisInternalData } from '../OIT/OisInternalPublisher';
 import { simbriefDataFromFms } from './utils';
 
 export const getDisplayIndex = () => {
@@ -214,13 +213,8 @@ export const OitEfbPageWrapper: React.FC<OitEfbWrapperProps> = () => {
   }, [navigraphAuthInfo, synchroAvionics]);
 
   useEffect(() => {
-    const sub = bus.getSubscriber<FmsData & OisInternalData>();
+    const sub = bus.getSubscriber<FmsData>();
     const subs: Subscription[] = [];
-    subs.push(
-      sub.on('synchroAvncs').handle(() => {
-        updateSimBriefInfo(); // never triggers, because synced messages in the same VCockpit don't work
-      }),
-    );
     subs.push(
       sub
         .on('fmsOrigin')

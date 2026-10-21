@@ -210,6 +210,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] New FLT OPS EXPORT BOX: the loaded flight folder can be sent to the ground over the gatelink on the ground, or kept in the outbox until the gatelink is available - @TCdr
 1. [A380X/OIT] New FLT OPS IN-FLT PERF application with its ATMO module: speed conversions (IAS, Mach, TAS, GS), ISA information, true altitude and low altitude temperature corrections - @TCdr
 1. [ATSU] The AOC no longer receives company messages while it is off, and no COMPANY MSG stays after it powers down - @TCdr
+1. [A380X/OIT] FLT OPS STS fills itself from the FMS flight number and city pair until a manual entry, and the CAPT and F/O laptops share it (manual entries, SYNCHRO AVIONICS, EXIT SESSION; not on a stand-alone laptop, and not after a network loss until both laptops are restarted); ACFT REGISTRATION shows the aircraft ATC ID and OIS VERSION the aircraft build - @TCdr
 
 ## 2024.1.0
 
