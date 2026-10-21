@@ -197,6 +197,7 @@ import {
   isCabinDoorNotClosed,
   isCargoDoorNotClosed,
 } from './DoorAlerts';
+import { DoorSystemAlerts, readDoorSystemInputs } from './FwsDoorSystemAlerts';
 import {
   ElecAlertLogic,
   ElecEmerConfigProcedureState,
@@ -3434,6 +3435,9 @@ export class FwsCore {
 
   /** DOOR FWD(AFT) CARGO NOT CLOSED triggers, in CARGO_DOORS order */
   public readonly cargoDoorNotClosed = CARGO_DOORS.map(() => Subject.create(false));
+
+  /** DOOR alerts of the doors and slides management system and of the cockpit door, see FwsDoorSystemAlerts */
+  public readonly doorSystemAlerts = new DoorSystemAlerts();
 
   /** A-ICE ENG VLV CLOSED / OPEN, A-ICE L(R) WING VLV CLOSED / OPEN / PRESS HI / PRESS LO, see AntiIceValveAlerts */
   public readonly antiIceValveAlerts = new AntiIceValveAlerts();
@@ -7730,12 +7734,15 @@ export class FwsCore {
         SimVar.GetSimVarValue('L:FO_SLIDING_WINDOW', 'number') === 1,
     );
 
+    this.doorSystemAlerts.update(readDoorSystemInputs((name) => SimVar.GetSimVarValue(name, SimVarValueType.Number)));
     // Main deck (points 0-9) and upper deck (points 10-15) passenger doors, then the FWD and AFT cargo doors
     this.cabinDoorOpenRatios.forEach((openRatio, point) =>
-      this.cabinDoorNotClosed[point].set(isCabinDoorNotClosed(openRatio.get())),
+      this.cabinDoorNotClosed[point].set(
+        isCabinDoorNotClosed(openRatio.get(), this.doorSystemAlerts.positionInvalid[point]),
+      ),
     );
     this.cargoDoorLockedVars.forEach((locked, index) =>
-      this.cargoDoorNotClosed[index].set(isCargoDoorNotClosed(locked.get())),
+      this.cargoDoorNotClosed[index].set(isCargoDoorNotClosed(locked.get(), this.doorSystemAlerts.allChannelsLost)),
     );
 
     /* CABIN READY */

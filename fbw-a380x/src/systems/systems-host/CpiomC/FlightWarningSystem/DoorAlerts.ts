@@ -60,20 +60,24 @@ export function cargoDoorLockedVariable(door: CargoDoor): string {
 /**
  * Trigger of DOOR ... NOT CLOSED: the door is not closed and not locked. The sim passenger doors have no separate latch
  * or lock, so any opening counts (the Rust air conditioning reads the same points as open above 0).
+ * A door whose position the DSMS no longer knows (failed LDC, or no DSMS channel) has DOOR ... POS DET FAULT instead.
  * @param openRatio INTERACTIVE POINT OPEN of the door, in percent over 100 (0 = closed, 1 = fully open)
+ * @param positionInvalid the DSMS does not know the door position
  * @returns true if the door is not closed
  */
-export function isCabinDoorNotClosed(openRatio: number): boolean {
-  return openRatio > 0;
+export function isCabinDoorNotClosed(openRatio: number, positionInvalid = false): boolean {
+  return openRatio > 0 && !positionInvalid;
 }
 
 /**
+ * The DSMS monitors the cargo doors too: with its three channels lost, DOOR POS DET FAULT inhibits the cargo door alert.
  * @param lockedValue the cargo door's locked L:var (1 = closed and locked)
+ * @param dsmsLost the three DSMS channels are lost
  * @returns true if the cargo door is not closed and locked
  */
-export function isCargoDoorNotClosed(lockedValue: number): boolean {
+export function isCargoDoorNotClosed(lockedValue: number, dsmsLost = false): boolean {
   // `> 0` rather than a truthiness test: the L:var is read as a number
-  return !(lockedValue > 0);
+  return !(lockedValue > 0) && !dsmsLost;
 }
 
 /**

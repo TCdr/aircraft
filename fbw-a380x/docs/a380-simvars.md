@@ -33,6 +33,7 @@
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
   - [Information Systems ATA 46](#information-systems-ata-46)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
+  - [Doors ATA 52](#doors-ata-52)
   - [Engines ATA 70](#engines-ata-70)
   - [Hydraulics](#hydraulics)
   - [Sound Variables](#sound-variables)
@@ -3235,6 +3236,66 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - `Arinc429Word<Bool>`
   - The APU ECB detects a low APU oil level: on the ground with the APU not running (flyPad failure "APU oil level
     low", 49005; common ECB, see the A32NX doc). Shows the pulsing OIL LVL LO on the APU SD page (A380 FCOM DSC-49-20)
+
+## Doors ATA 52
+
+The doors and slides management system (DSMS, systems-host Misc/DoorsAndSlidesManagement.ts) publishes what it
+detects from the ATA 52 flyPad failures. A {DOORS} bit field has bit n set for the passenger door at sim interactive
+point n: 0-9 MAIN 1L, 1R ... 5L, 5R, 10-15 UPPER 1L, 1R ... 3L, 3R.
+
+- A32NX_DSMS_DOOR_ACTUATOR_FAULT
+  - {DOORS} bit field
+  - The opening/closing actuator of the door is failed (DOOR ... ACTUATOR FAULT)
+
+- A32NX_DSMS_FLIGHT_LOCK_FAULT
+  - {DOORS} bit field
+  - The flight lock actuator of the door is failed (DOOR ... FLIGHT LOCK FAULT)
+
+- A32NX_DSMS_FLIGHT_LOCK_ENGAGED
+  - {DOORS} bit field
+  - The flight lock locks the door handle: from 65 kt and below FL 240, released when the door is no longer monitored;
+    a failed flight lock actuator stays where it was
+
+- A32NX_DSMS_LATCH_MONITORING_FAULT
+  - {DOORS} bit field
+  - The LDC can no longer monitor the door latches (DOOR ... LATCH MONITORING FAULT)
+
+- A32NX_DSMS_LDC_FAULT
+  - {DOORS} bit field
+  - The local door controller (LDC) of the door is failed (DOOR ... POS DET FAULT, DOOR POS DET FAULT when all the
+    LDCs of one side are failed)
+
+- A32NX_DSMS_DOOR_POSITION_INVALID
+  - {DOORS} bit field
+  - The DSMS does not know the door position (failed LDC, or the three DSMS channels failed): the DOOR/OXY SD page
+    shows the door not valid and the FWS has no DOOR ... NOT CLOSED alert for it
+
+- A32NX_DSMS_SLIDE_FAULT
+  - {DOORS} bit field
+  - The escape slide is not ready or is failed (DOOR ... SLIDE FAULT, amber S on the DOOR/OXY SD page)
+
+- A32NX_DSMS_SLIDE_LENGTHENING_FAULT
+  - Bit field, bit 0 MAIN 1L, bit 1 MAIN 1R
+  - The sill height sensors are failed, no slide extension (DOOR MAIN 1L(R) SLIDE LENGTHENING FAULT)
+
+- A32NX_DSMS_CHANNELS_FAILED
+  - Number, 0 to 3
+  - The failed DSMS channels: 2 or 3 give DOOR POS DET FAULT; with 3 no door is monitored
+
+- A32NX_DSMS_RESIDUAL_PRESS_DET_FAULT
+  - Bool
+  - The ASPSU is failed: no residual cabin differential pressure detection at the doors (DOOR RESIDUAL DIFF PRESS DET
+    FAULT)
+
+- A32NX_COCKPIT_DOOR_SW_SELECTIONS
+  - Number
+  - Counts the CKPT DOOR sw selections to LOCK or UNLOCK (the switch is momentary)
+
+- A32NX_COCKPIT_DOOR_EMER_OPENING_IN_PROGRESS
+  - Bool
+  - The cabin crew entered the emergency access code (flyPad ATA 52 "Cockpit door emergency access request") and the
+    flight crew has not answered with the CKPT DOOR sw yet; without an answer the door unlocks by itself for 5 s after
+    30 s (L:A32NX_COCKPIT_DOOR_LOCKED). Drives DOOR CKPT DOOR EMER OPENING IN PROGRESS
 
 ## Engines ATA 70
   - L:A32NX_OVHD_FADEC_{ENG}
