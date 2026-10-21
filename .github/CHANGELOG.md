@@ -186,6 +186,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] EXIT SESSION of the FLT OPS MENU page returns to the login page and clears the FLT OPS STS page (not while the FLT FOLDER is open) - @TCdr
 1. [A380X/AOC] The AOC runs on the NSS AVNCS ANSUs instead of AC 1, NSS DATA TO AVNCS OFF stops its downlinks (uplinks still received), and the OIT COMPANY COM inbox can print a message on the pedestal printer - @TCdr
 1. [A380X/DATALINK] A failed VHF 3 now stops the datalink (CPDLC, AOC) as COM VHF 3 DATALINK FAULT says - @TCdr
+1. [ATSU] The AOC no longer receives company messages while it is off, and no COMPANY MSG stays after it powers down - @TCdr
 
 ## 2024.1.0
 
