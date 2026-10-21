@@ -83,6 +83,7 @@ impl A380AlternatingCurrentElectrical {
         engine_fire_push_buttons: &impl EngineFirePushButtons,
         engines: [&impl Engine; 4],
         adirs: &impl AdirsDiscreteOutputs,
+        network_management_units_failed: [bool; 2],
     ) {
         self.main_power_sources.update(
             context,
@@ -93,6 +94,7 @@ impl A380AlternatingCurrentElectrical {
             engine_fire_push_buttons,
             engines,
             adirs,
+            network_management_units_failed,
         );
 
         self.main_power_sources
@@ -456,6 +458,7 @@ impl A380MainPowerSources {
         engine_fire_push_buttons: &impl EngineFirePushButtons,
         engines: [&impl Engine; 4],
         adirs: &impl AdirsDiscreteOutputs,
+        network_management_units_failed: [bool; 2],
     ) {
         // A failed disconnection function ignores the DRIVE pb (ELEC DRIVE 1(2)(3)(4) DISC FAULT)
         let drive_buttons = A380DriveDisconnectControl {
@@ -487,7 +490,13 @@ impl A380MainPowerSources {
             *fault = failure.is_active() && ext_pwr.output_within_normal_parameters();
         }
 
-        let powered_by = self.calc_ac_sources(ext_pwrs, overhead, apu, adirs);
+        let powered_by = self.calc_ac_sources(
+            ext_pwrs,
+            overhead,
+            apu,
+            adirs,
+            network_management_units_failed,
+        );
 
         // Configure contactors
         for (i, (&power_source, (gen_contactor, ext_pwr_contactor))) in powered_by
@@ -610,7 +619,11 @@ impl A380MainPowerSources {
         overhead: &A380ElectricalOverheadPanel,
         apu: &impl AuxiliaryPowerUnitElectrical,
         adirs: &impl AdirsDiscreteOutputs,
+        network_management_units_failed: [bool; 2],
     ) -> [Option<ACBusPowerSource>; 4] {
+        // A failed ENMU no longer closes the contactors of its side: APU GEN A and EXT PWR 1+2 for ENMU 1, APU GEN B
+        // and EXT PWR 3+4 for ENMU 2 (ELEC ELEC NETWORK MANAGEMENT 1(2) FAULT). Design choice: its engine generator
+        // and bus tie contactors keep working, as the network has no frozen-contactor state.
         let gen_available: Vec<_> = self
             .engine_gens
             .iter()
@@ -623,11 +636,14 @@ impl A380MainPowerSources {
                 overhead.external_power_is_on(i + 1)
                     && ext_pwr.output_within_normal_parameters()
                     && !self.ext_pwr_failed(i + 1)
+                    && !network_management_units_failed[i / 2]
             })
             .collect();
 
         let apu_gen_available = [1, 2].map(|id| {
-            overhead.apu_generator_is_on(id) && apu.generator(id).output_within_normal_parameters()
+            overhead.apu_generator_is_on(id)
+                && apu.generator(id).output_within_normal_parameters()
+                && !network_management_units_failed[id - 1]
         });
 
         let in_flight = adirs.low_speed_warning_1(1) || adirs.low_speed_warning_1(3);

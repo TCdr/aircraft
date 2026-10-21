@@ -82,6 +82,13 @@ pub enum FailureType {
     /// The disconnection function of engine generator drive n failed: its DRIVE pb no longer
     /// disconnects the generator from the engine
     GeneratorDriveDisconnect(usize),
+    /// A380: some loads of primary electrical supply centre n are abnormally disconnected
+    ElectricalPrimarySupplyCentre(usize),
+    /// A380: electrical network management unit (ENMU) n is failed: it no longer connects or reconfigures the power
+    /// sources of its side
+    ElectricalNetworkManagementUnit(usize),
+    /// A380: the electrical load management unit (ELMU) is failed
+    ElectricalLoadManagementUnit,
     // ATA26
     SetOnFire(FireDetectionZone),
     FireDetectionLoop(FireDetectionLoopID, FireDetectionZone),

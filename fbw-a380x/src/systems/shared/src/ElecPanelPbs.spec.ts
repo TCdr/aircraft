@@ -34,4 +34,11 @@ describe('ELEC panel COMMERCIAL, COMMERCIAL 2 and ELMU pbs', () => {
       'L:A380X_OVHD_ELEC_ELMU_PB_IS_OFF',
     ]);
   });
+
+  it('light the ELMU FAULT legend from the ELMU failure of systems.wasm', () => {
+    const start = behaviour.indexOf('<NODE_ID>PUSH_OVHD_ELEC_ELMU</NODE_ID>');
+    const block = behaviour.slice(start, behaviour.indexOf('</UseTemplate>', start));
+    expect(block).toContain('<SEQ1_CODE>(L:A380X_OVHD_ELEC_ELMU_PB_HAS_FAULT, Bool)</SEQ1_CODE>');
+    expect(block).not.toContain('<SEQ1_EMISSIVE_DRIVES_VISIBILITY>False</SEQ1_EMISSIVE_DRIVES_VISIBILITY>');
+  });
 });

@@ -5,7 +5,7 @@ export const WD_NUM_LINES = 18;
 export const WD_LINE_CHARACTERS = 41; // Characters without the leading checkbox and the space after it
 
 import { EcamAbnormalSensedAta212223, EcamDeferredProcAta212223 } from './AbnormalSensed/ata21-22-23';
-import { EcamAbnormalSensedAta24 } from './AbnormalSensed/ata24';
+import { EcamAbnormalSensedAta24, EcamDeferredProcAta24 } from './AbnormalSensed/ata24';
 import { EcamAbnormalSensedAta26 } from './AbnormalSensed/ata26';
 import { EcamAbnormalSensedAta27, EcamDeferredProcAta27 } from './AbnormalSensed/ata27';
 import { EcamAbnormalSensedAta28 } from './AbnormalSensed/ata28';
@@ -216,6 +216,7 @@ export const EcamInfos: { [n: string]: string } = {
   230200001: '\x1b<3mSATCOM DATALINK AVAIL',
   240200001: '\x1b<3mAPU BAT START NOT AVAIL', // APU BAT FAULT STATUS, if APU TR is failed
   240200002: '\x1b<3mAPU START NOT AVAIL', // APU TR FAULT STATUS, if APU BAT is failed
+  240200101: '\x1b<3mLDG DIST COEF < 1.45 ON DRY RUNWAY', // ELEC DC ESS BUS PART FAULT STATUS
   260200001: '\x1b<3mBEFORE CARGO OPENING : PAX DISEMBARK',
   270200001: '\x1b<3mON DRY RWY ONLY : LDG DIST AFFECTED < 15%',
   270200301: '\x1b<3mFOR GA : MAINTAIN S/F CONF', // F/CTL FLAPS (SLATS) LOCKED STATUS
@@ -537,6 +538,11 @@ export const EcamInopSys: { [n: string]: string } = {
   240300040: '\x1b<4mGEN 1+4',
   240300041: '\x1b<4mGEN 2+3',
   240300042: '\x1b<4mGEN 2+4',
+  // ELEC DC ESS BUS PART FAULT STATUS
+  240300103: '\x1b<4mLOUDSPEAKERS',
+  // ELEC SECONDARY SUPPLY CENTER 1(2) FAN FAULT STATUS
+  240300104: '\x1b<4mELEC SEC CTR 1 FAN',
+  240300105: '\x1b<4mELEC SEC CTR 2 FAN',
   260300001: '\x1b<4mAPU FIRE DET',
   260300002: '\x1b<4mENG 1 BLEED',
   260300003: '\x1b<4mENG 2 BLEED',
@@ -1106,6 +1112,7 @@ export const EcamAbNormalSensedSubMenuVector: AbnormalNonSensedCategory[] = [
 /** All abnormal sensed procedures (alerts, via ECL) should be here. */
 export const EcamDeferredProcedures: { [n: string]: DeferredProcedure } = {
   ...EcamDeferredProcAta212223,
+  ...EcamDeferredProcAta24,
   ...EcamDeferredProcAta27,
   ...EcamDeferredProcAta2930,
   ...EcamDeferredProcAta313233,

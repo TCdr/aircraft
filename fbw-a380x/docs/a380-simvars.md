@@ -180,7 +180,18 @@
 - A380X_OVHD_ELEC_ELMU_PB_IS_OFF
     - Bool
     - True when the ELMU push button of the ELEC panel is OFF (default 0 = normal, pb in)
-    - Written by the cockpit behaviour only; nothing consumes it yet
+    - Written by the cockpit behaviour; read by the FWS (ELMU OFF line of ELEC LOAD MANAGEMENT FAULT)
+
+- A380X_OVHD_ELEC_ELMU_PB_HAS_FAULT
+    - Bool
+    - Read only
+    - True when the ELMU is failed (flyPad failure ELMU): FAULT light of the ELMU push button. Written by systems.wasm
+      (a380_systems electrical/distribution.rs)
+
+- A380X_REMOTE_CB_CTRL
+    - Bool
+    - True when the REMOTE C/B CTL push button of the maintenance ELEC panel is ON
+    - Written by the cockpit behaviour; read by the FWS (ELEC REMOTE C/B CTL ACTIVE)
 
 - A380X_OVHD_ELEC_BAT_SELECTOR_KNOB
     - Number
@@ -1430,7 +1441,8 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Bool
     - Read only
     - True when at least one galley is shed (no main AC busbar powered, GALY AND CAB pb OFF, the galleys of the left
-      (right) cabin side with COMMERCIAL 1 (2) pb OFF, or the main galleys when only one or two engine/APU generators
+      (right) cabin side with COMMERCIAL 1 (2) pb OFF or a failed primary supply centre 1 (2), the main galleys of the
+      left (right) side with a failed ENMU 1 (2), or the main galleys when only one or two engine/APU generators
       supply the main AC busbars, never with external power; a380_systems electrical/galley.rs)
 
 - A32NX_ELEC_GALLEY_IS_PARTIALLY_SHED

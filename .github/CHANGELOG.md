@@ -845,6 +845,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FUEL] The APU feed valves now open with the APU MASTER pb-sw and close with it OFF or the APU FIRE pb pushed; an APU feed valve jammed closed starves the APU - @TCdr
 1. [A380X/FWS] NAV LS 1(2)(1+2) FAULT, NAV ILS 1(2)(1+2) FAULT, NAV FM / IR POS DISAGREE, NAV STATIC PROBE FAULT, NAV ADR 1+2+3 DATA DEGRADED, NAV SIDESLIP PROBE 1(2)(3) FAULT and NAV RESIDUAL AIR SPEED ON ADR 1(2)(3) alerts, with new flyPad failures (MMR, ILS receiver, static and sideslip probes) - @TCdr
 1. [A380X/FWS] SURV SYS 1(2)(1+2) FAULT, SURV SYS DEGRADED, SURV WXR, TURB and PRED W/S 1(2)(1+2) FAULT and SURV REACTIVE W/S DET FAULT alerts, with new flyPad failures (SURV SYS, WXR functions, SURV link, reactive windshear detection); a failed TURB function removes the magenta turbulence from the ND - @TCdr
+1. [A380X/ELEC] Supply centre, ENMU and ELMU failures in the flyPad (a failed primary supply centre or ENMU sheds its galleys, a failed ENMU no longer connects the APU generator and external power of its side, ELMU FAULT light) and the ECAM alerts of the supply centres, network and load management, C/B monitoring, REMOTE C/B CTL, DC ESS BUS PART FAULT, F/CTL ACTUATOR PWR SUPPLY FAULT and ABNORMAL FLIGHT OPS SUPPLY - @TCdr
 
 ## 2024.1.0
 
