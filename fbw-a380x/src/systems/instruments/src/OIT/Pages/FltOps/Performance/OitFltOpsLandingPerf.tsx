@@ -2,17 +2,19 @@
 //  SPDX-License-Identifier: GPL-3.0
 
 import { FSComponent, MappedSubject, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
-import { LandingComputationType, LandingConf, LandingGoAroundConf, NXUnits } from '@flybywiresim/fbw-sdk';
+import { LandingComputationType, LandingConf, NXUnits } from '@flybywiresim/fbw-sdk';
+import { A380AocPrintEvents } from '@shared/AocPrintout';
 import { AbstractOitFltOpsPageProps } from '../../../OIT';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { OitPerfEntryFormat } from './OitPerfEntryFormat';
-import { OitPerfPageBase } from './OitPerfPageBase';
+import { OitPerfPageBase, RunwayTableColumn } from './OitPerfPageBase';
 import { OitPerfRunwaySelection } from './OitPerfRunwaySelection';
 import { A380_LANDING_CALCULATOR } from '../../../System/Performance/A380PerformanceCalculators';
 import { missingFltOpsStsFields } from '../../../System/Performance/FltOpsPerformanceSession';
 import {
   formatLength,
   formatWeight,
+  formatWindEntry,
   lengthUnitLabel,
   parseWeightEntry,
   runwayWind,
@@ -26,6 +28,7 @@ import {
   LANDING_BRAKING_OPTIONS,
   LANDING_COMPUTATION_OPTIONS,
   LANDING_CONF_OPTIONS,
+  LANDING_GO_AROUND_CONF_LABELS,
   LANDING_GO_AROUND_CONF_OPTIONS,
   LANDING_RUNWAY_CONDITIONS,
   LANDING_TECHNIQUE_OPTIONS,
@@ -35,22 +38,24 @@ import {
   missingLandingParameters,
   parseGoAroundGradientEntry,
 } from '../../../System/Performance/LandingPerformance';
+import { computeMultipleRunways, landingRunwayItems } from '../../../System/Performance/MultipleRunwayResults';
+import { itemsNotInComputation, reminderLines } from '../../../System/Performance/AircraftStatus';
+import { PrintoutEntry, landingPerfPrintout } from '../../../System/Performance/PerformancePrintouts';
 
 interface OitFltOpsLandingPerfProps extends AbstractOitFltOpsPageProps {}
 
-const GO_AROUND_CONF_LABELS: Record<LandingGoAroundConf, string> = {
-  [LandingGoAroundConf.Conf3]: '3',
-  [LandingGoAroundConf.Conf2]: '2',
-  [LandingGoAroundConf.Conf1F]: '1+F',
-};
-
-/** LDG PERF: SINGLE RWY COMPUTATION of the landing performance, DISPATCH or IN-FLIGHT */
+/**
+ * LDG PERF: SINGLE RWY COMPUTATION and MULTIPLE RWY COMPUTATION of the landing performance, DISPATCH or IN-FLIGHT, the
+ * AIRCRAFT STATUS and PRINT of the page.
+ */
 export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfProps, LandingResults> {
   protected readonly pageId = 'ldgPerf';
 
+  protected readonly application = 'LDG PERF';
+
   private readonly sts = this.props.container.laptopData;
 
-  private readonly state = this.sts.performance.landing;
+  private readonly state = this.session.landing;
 
   private readonly calculator = A380_LANDING_CALCULATOR;
 
@@ -118,8 +123,16 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
 
   protected readonly results = this.state.computation.map((c) => c?.results ?? null);
 
+  private readonly multiple = this.state.computationMode.map((mode) => mode === 'multiple');
+
   private readonly missingParameters = MappedSubject.create(
-    () => missingLandingParameters(this.state.conditions(), this.selection.runway.get()),
+    ([multiple, ticked]) => {
+      const missing = missingLandingParameters(this.state.conditions(), null).filter((p) => p !== 'RWY');
+      const runwayChosen = multiple ? ticked.length > 0 : this.selection.runway.get() !== null;
+      return runwayChosen ? missing : [...missing, 'RWY'];
+    },
+    this.multiple,
+    this.state.multipleRunways,
     this.state.wind,
     this.state.oat,
     this.state.qnh,
@@ -141,20 +154,79 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
 
   private readonly moreShown = this.state.moreShown;
 
+  /** The RWY list of the multiple results */
+  private readonly runwayItems = this.state.multipleComputation.map((runs) =>
+    runs !== null ? landingRunwayItems(runs, this.metric) : [],
+  );
+
+  private readonly shownRunway = this.state.computation.map(() => this.state.shownRunway());
+
   constructor(props: OitFltOpsLandingPerfProps) {
     super(props);
     if (this.missingStsFields.length === 0) {
-      this.sts.performance.onLandingPerfShown(this.sts.toAirport.get());
+      this.session.onLandingPerfShown(this.sts.toAirport.get());
+      this.takeLogbookStatus();
     }
   }
 
   private compute(): void {
-    const runway = this.selection.runway.get();
-    if (runway !== null) {
-      this.sts.performance.onLandingComputed(
-        computeLandingPerformance(this.calculator, this.state.conditions(), runway),
-      );
+    const conditions = this.state.conditions();
+    if (this.state.computationMode.get() === 'single') {
+      const runway = this.selection.runway.get();
+      if (runway !== null) {
+        this.session.onLandingComputed(computeLandingPerformance(this.calculator, conditions, runway));
+      }
+      return;
     }
+    const { shown, runs } = computeMultipleRunways(
+      this.selection.airport.get()?.runways ?? [],
+      this.state.multipleRunways.get(),
+      conditions.wind,
+      (runway) => computeLandingPerformance(this.calculator, conditions, runway),
+      (computed) => landingRunwayItems(computed, this.metric),
+    );
+    this.session.onLandingComputed(shown, runs);
+  }
+
+  /** PRINT: the page as shown (the conditions, the aircraft status, the results of the runway shown) */
+  private print(): void {
+    const computation = this.state.computation.get();
+    if (!computation || computation.results === null) {
+      return;
+    }
+    const s = this.state;
+    const wind = s.wind.get();
+    const runway = this.selection.airport.get()?.runways.find((r) => r.ident === computation.results!.runway);
+    const conditions: PrintoutEntry[] = [
+      ['COMPUTATION', LANDING_COMPUTATION_OPTIONS[s.computationType.get()].label],
+      ['WIND', wind !== null ? formatWindEntry(wind, runwayWind(wind, runway?.magneticBearing ?? null)) : ''],
+      ['OAT', `${s.oat.get() ?? ''} °C`],
+      ['QNH', `${s.qnh.get() ?? ''} hPa`],
+      ['RWY COND', LANDING_RUNWAY_CONDITIONS[s.runwayCondition.get() ?? 0].label],
+      ['A-ICE', LANDING_ANTI_ICE_OPTIONS[s.antiIce.get() ?? 0].label],
+      ['LDG CONF', LANDING_CONF_OPTIONS[s.conf.get()].label],
+      ['AIR COND', LANDING_AIR_COND_OPTIONS[s.airCond.get()].label],
+      ['APPR TYPE', LANDING_APPROACH_TYPE_OPTIONS[s.approachType.get()].label],
+      ['LDG TECHNIQUE', LANDING_TECHNIQUE_OPTIONS[s.technique.get()].label],
+      ['BRK MODE', LANDING_BRAKING_OPTIONS[s.braking.get()].label],
+    ];
+    const status = this.aircraftStatus.get();
+    this.props.bus.getPublisher<A380AocPrintEvents>().pub(
+      'aocPrintMessage',
+      landingPerfPrintout({
+        flightNumber: this.sts.fltNumber.get() ?? '',
+        airport: s.airport.get() ?? '',
+        conditions,
+        aircraftStatus: reminderLines(status, this.application).map((line) => line.text),
+        notInComputation: itemsNotInComputation(status, this.application),
+        results: computation.results,
+        errors: computation.errors,
+        runwayList: this.runwayItems.get().map((item) => item.label),
+        metric: this.metric,
+      }),
+      true,
+      false,
+    );
   }
 
   private clear(): void {
@@ -177,13 +249,20 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
       this.hideResults,
       this.hideErrors,
       this.computeDisabled,
+      this.multiple,
+      this.runwayItems,
+      this.shownRunway,
     );
     if (this.missingStsFields.length > 0) {
       return;
     }
 
+    this.props.uiService.registerPageFunctions({
+      print: { run: () => this.print(), available: this.tracked(this.results.map((r) => r !== null)) },
+    });
+
     // Results of other entries than the computed ones are not shown (the computation is deleted)
-    const deleteResults = () => this.state.computation.set(null);
+    const deleteResults = () => this.state.deleteResults();
     const s = this.state;
     this.subs.push(
       ...this.selection.follow(),
@@ -218,6 +297,8 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
         s.glideSlope,
         s.braking,
         s.runwayIdent,
+        s.computationMode,
+        s.multipleRunways,
       ].map((entry) => (entry as Subscribable<unknown>).sub(deleteResults)),
     );
   }
@@ -259,7 +340,8 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
         >
           {this.value('OVERWEIGHT LANDING', 'amber')}
         </div>
-        <div>
+        {/* The RWY list above the results names the runway of a MULTIPLE RWY COMPUTATION */}
+        <div class={{ invisible: this.multiple }}>
           {label('RWY')}
           {this.value(this.resultText((r) => r.runway))}
         </div>
@@ -309,7 +391,7 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
         <div>
           <span class={{ hidden: this.tracked(this.results.map((r) => !r?.goAroundConf)) }}>
             {label('GA CONF')}
-            {this.value(this.resultText((r) => (r.goAroundConf ? GO_AROUND_CONF_LABELS[r.goAroundConf] : '')))}
+            {this.value(this.resultText((r) => (r.goAroundConf ? LANDING_GO_AROUND_CONF_LABELS[r.goAroundConf] : '')))}
           </span>
         </div>
         {distanceCells(
@@ -335,6 +417,31 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
             'white',
           )}
         </div>
+        <div style="grid-column: span 4;">{this.value(this.notInComputationText(), 'amber')}</div>
+      </div>
+    );
+  }
+
+  /**
+   * The MULTIPLE RWY COMPUTATION panel: the LDA, slope and elevation of each runway.
+   * @returns the panel
+   */
+  private renderMultipleRunwayTable(): VNode {
+    const lengthUnit = lengthUnitLabel(this.metric);
+    const columns: RunwayTableColumn[] = [
+      { label: 'LDA ', unit: lengthUnit, width: 130, value: (rwy) => formatLength(rwy.landingLength, this.metric) },
+      { label: 'SLOPE ', unit: '%', width: 110, value: (rwy) => rwy.slope.toFixed(1) },
+      { label: 'ELEVN ', unit: 'ft', width: 130, value: (rwy) => rwy.elevation.toFixed(1) },
+    ];
+    return (
+      <div class={{ hidden: this.tracked(this.multiple.map((m) => !m)) }}>
+        {this.renderMultipleRunwayPanel(
+          this.selection,
+          this.state,
+          this.state.airportFromSts,
+          (icao) => this.session.onLandingAirportEntered(icao),
+          columns,
+        )}
       </div>
     );
   }
@@ -344,9 +451,9 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
     const runwayText = (pick: (rwy: PerformanceRunway) => string) =>
       this.tracked(this.selection.runway.map((rwy) => (rwy ? pick(rwy) : '')));
     return (
-      <div class="oit-perf-panel">
+      <div class={{ 'oit-perf-panel': true, hidden: this.multiple }}>
         {this.renderAirportRow(this.selection, this.state.airportFromSts, (icao) =>
-          this.sts.performance.onLandingAirportEntered(icao),
+          this.session.onLandingAirportEntered(icao),
         )}
         <div class="oit-perf-grid" style="grid-template-columns: repeat(3, 1fr); grid-auto-rows: 30px;">
           <div>
@@ -518,19 +625,31 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
                 ),
               )}
             </div>
-            <div class="oit-perf-panel grow">
-              <div class="oit-perf-status-box">NORMAL</div>
+            {/* The long CONDITIONS panel leaves room for four lines: the reminder area scrolls, as on the laptop */}
+            <div class="oit-perf-panel grow" style="max-height: 118px;">
+              {this.renderAircraftStatusReminder()}
             </div>
           </div>
           <div class="oit-perf-right">
-            <div class="oit-perf-tabs">
-              <div class="oit-perf-tab active">SINGLE RWY COMPUTATION &lt;F2&gt;</div>
-              <div class="oit-perf-tab">MULTIPLE RWY COMPUTATION &lt;Ctrl F2&gt;</div>
-            </div>
+            {this.renderRunwayComputationTabs(s)}
             {this.renderAirportPanel()}
+            {this.renderMultipleRunwayTable()}
             <div class="oit-perf-panel grow">
               <div class="oit-perf-panel-title">
                 {this.tracked(this.hideResults.map((hidden) => (hidden ? 'ERROR' : 'RESULTS')))}
+              </div>
+              <div
+                class={{
+                  'oit-perf-row': true,
+                  hidden: this.tracked(
+                    MappedSubject.create(([multiple, hidden]) => !multiple || hidden, this.multiple, this.hideResults),
+                  ),
+                }}
+              >
+                <span class="oit-perf-text">RWY</span>
+                {this.renderRunwayResultList('rwyResults', this.runwayItems, this.shownRunway, (ident) =>
+                  this.state.showRunwayResults(ident),
+                )}
               </div>
               {this.renderResults()}
               <div ref={this.errorListRef} class={{ hidden: this.hideErrors }} />
@@ -546,14 +665,14 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
           </div>
         </div>
         <div class="oit-perf-bottom">
-          <Button label="ACFT STS <F5>" onClick={() => {}} disabled={Subject.create(true)} />
-          <Button label="SYNCHRO LOGBOOK" onClick={() => {}} disabled={Subject.create(true)} />
+          {this.renderAircraftStatusButtons()}
           <div style="flex: 1 1 auto;" />
           <Button label="COMPUTE <F8>" onClick={() => this.compute()} disabled={this.computeDisabled} />
           <div style="width: 10px;" />
           <Button label="CLEAR <F6>" onClick={() => this.clear()} />
           <div style="flex: 1 1 auto;" />
         </div>
+        {this.renderAircraftStatusPanel()}
       </div>
     );
   }

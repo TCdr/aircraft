@@ -16,7 +16,6 @@ import {
   loadsheetReportLines,
   ltsEditionAllowed,
   percentMacToArm,
-  predictedFuelDistribution,
   takeoffThsText,
 } from './Loadsheet';
 
@@ -52,9 +51,8 @@ describe('LOADSHEET', () => {
 
   it('adds the fuel to the ZFW, and moves the CG with the fuel moment', () => {
     const zfwArm = percentMacToArm(36);
-    const tanks = LOADSHEET_FUEL_TANKS.map(() => 0);
-    tanks[TRIM_TANK_INDEX] = 1;
-    const fuelAtTrim = predictedFuelDistribution(140_000, tanks);
+    const fuelAtTrim = LOADSHEET_FUEL_TANKS.map(() => 0);
+    fuelAtTrim[TRIM_TANK_INDEX] = 140_000;
     expect(fuelArm(fuelAtTrim)).toBeCloseTo(LOADSHEET_FUEL_TANKS[TRIM_TANK_INDEX].arm, 9);
 
     const { results, errors } = computeLoadsheet(CONFIGURATION, LOADING, fuelAtTrim, 84, anyCg);
@@ -119,17 +117,15 @@ describe('LOADSHEET', () => {
     ]);
   });
 
-  it('predicts the fuel in the proportions of the tanks, or of their capacities when empty', () => {
-    const now = LOADSHEET_FUEL_TANKS.map((_, i) => (i === 1 || i === 8 ? 1000 : 0));
-    const predicted = predictedFuelDistribution(10_000, now);
-    expect(predicted[1]).toBe(5_000);
-    expect(predicted[8]).toBe(5_000);
-    const fromCapacities = predictedFuelDistribution(
-      100_000,
-      LOADSHEET_FUEL_TANKS.map(() => 0),
-    );
-    const totalGallons = LOADSHEET_FUEL_TANKS.reduce((sum, t) => sum + t.gallons, 0);
-    expect(fromCapacities[TRIM_TANK_INDEX]).toBeCloseTo((100_000 * 6260.3) / totalGallons, 6);
+  it('takes the DOW and DOCG of the DETAILED entries', () => {
+    const configuration = { ...CONFIGURATION, dryOperating: { dow: 300_177, docg: 35.9 } };
+    const { results } = computeLoadsheet(configuration, LOADING, FUEL_IN_FEED_2, 84, anyCg);
+    expect(results!.dow).toBe(300_177);
+    expect(results!.docg).toBe(35.9);
+    expect(results!.payload).toBe(360_000 - 300_177);
+    expect(computeLoadsheet(configuration, { ...LOADING, zfw: 300_100 }, FUEL_IN_FEED_2, 84, anyCg).errors).toEqual([
+      'ZFW below DOW',
+    ]);
   });
 
   it('gives the T.O THS for the TOW CG', () => {
