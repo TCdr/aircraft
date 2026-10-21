@@ -237,6 +237,7 @@ import { FwsGearSteeringAlerts, readGearSteeringSystemInputs } from './FwsGearSt
 import { FwsFuelRefuelAlerts, readFuelRefuelInputs } from './FwsFuelRefuelAlerts';
 import { FwsNavAlerts, adrFaultyForNavAlerts, readSideDisplayData } from './FwsNavAlerts';
 import { AntiIceValveAlerts, readAntiIceValveInputs } from './AntiIceValveAlerts';
+import { ProbeWindowHeatAlertMonitor, readProbeWindowHeatInputs } from './FwsProbeWindowHeatAlerts';
 import { oxygenAlerts } from './OxygenAlerts';
 import { FwsNavPositionAlerts } from './FwsNavPositionAlerts';
 import { FwsNavSensorAlerts, readNavSensorAlertInputs } from './FwsNavSensorAlerts';
@@ -3428,6 +3429,9 @@ export class FwsCore {
 
   /** A-ICE ENG VLV CLOSED / OPEN, A-ICE L(R) WING VLV CLOSED / OPEN / PRESS HI / PRESS LO, see AntiIceValveAlerts */
   public readonly antiIceValveAlerts = new AntiIceValveAlerts();
+
+  /** A-ICE probe and window heat, ICE DET, CTL SYS, ENG VLV MONITORING and drain mast alerts */
+  public readonly probeWindowHeat = new ProbeWindowHeatAlertMonitor();
 
   /** OXY CABIN BOTTLE PRESS LO, OXY CABIN VLV CLOSED, OXY CKPT BOTTLE PRESS LO, see OxygenAlerts */
   public readonly oxyCabinBottlePressLo = Subject.create(false);
@@ -7629,11 +7633,26 @@ export class FwsCore {
 
     /* ANTI ICE */
 
+    const enginesRunning = [this.engine1Running, this.engine2Running, this.engine3Running, this.engine4Running].map(
+      (running) => running.get(),
+    );
+    this.probeWindowHeat.update(
+      readProbeWindowHeatInputs({
+        aicuPowered: [this.dcESSBusPowered.get(), this.dc2BusPowered.get()],
+        antiIcePbsOn: [this.eng1AntiIce, this.eng2AntiIce, this.eng3AntiIce, this.eng4AntiIce, this.wingAntiIce].map(
+          (pb) => pb.get(),
+        ),
+        anyEngineRunning: enginesRunning.some((running) => running),
+        onGround: this.aircraftOnGround.get(),
+      }),
+      deltaTime / 1000,
+    );
+    const iceDetectionAvailable = this.probeWindowHeat.iceDetectionAvailable.get();
     const icePercentage = SimVar.GetSimVarValue('STRUCTURAL ICE PCT', 'percent over 100');
     const tat = SimVar.GetSimVarValue('TOTAL AIR TEMPERATURE', 'celsius');
     const inCloud = SimVar.GetSimVarValue('AMBIENT IN CLOUD', 'boolean');
     const iceDetected1 = this.iceDetectedTimer1.write(
-      icePercentage >= 0.1 && tat < 10 && !this.aircraftOnGround.get(),
+      iceDetectionAvailable && icePercentage >= 0.1 && tat < 10 && !this.aircraftOnGround.get(),
       deltaTime,
     );
     this.iceDetectedTimer2Status.set(
@@ -7644,7 +7663,10 @@ export class FwsCore {
       ),
     );
     this.iceSevereDetectedTimerStatus.set(
-      this.iceSevereDetectedTimer.write(icePercentage >= 0.5 && tat < 10 && !this.aircraftOnGround.get(), deltaTime),
+      this.iceSevereDetectedTimer.write(
+        iceDetectionAvailable && icePercentage >= 0.5 && tat < 10 && !this.aircraftOnGround.get(),
+        deltaTime,
+      ),
     );
     const iceNotDetected1 = this.iceNotDetTimer1.write(
       this.eng1AntiIce.get() ||
@@ -7655,16 +7677,12 @@ export class FwsCore {
       deltaTime,
     );
     this.iceNotDetTimer2Status.set(
-      this.iceNotDetTimer2.write(iceNotDetected1 && !(icePercentage >= 0.1 || (tat < 10 && inCloud === 1)), deltaTime),
-    );
-    this.antiIceValveAlerts.update(
-      readAntiIceValveInputs(
-        [this.engine1Running, this.engine2Running, this.engine3Running, this.engine4Running].map((running) =>
-          running.get(),
-        ),
+      this.iceNotDetTimer2.write(
+        iceDetectionAvailable && iceNotDetected1 && !(icePercentage >= 0.1 || (tat < 10 && inCloud === 1)),
+        deltaTime,
       ),
-      deltaTime / 1000,
     );
+    this.antiIceValveAlerts.update(readAntiIceValveInputs(enginesRunning), deltaTime / 1000);
 
     /* OXYGEN */
     this.paxOxyMasksDeployed.set(SimVar.GetSimVarValue('L:A32NX_OXYGEN_MASKS_DEPLOYED', 'Bool'));

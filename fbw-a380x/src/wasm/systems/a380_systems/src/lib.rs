@@ -25,6 +25,7 @@ mod oxygen;
 mod payload;
 mod pneumatic;
 mod power_consumption;
+mod probe_window_heat;
 mod reverser;
 mod structural_flex;
 
@@ -56,6 +57,7 @@ use navigation::{A380AirDataInertialReferenceSystemBuilder, A380RadioAltimeters}
 use oxygen::A380Oxygen;
 use payload::A380Payload;
 use power_consumption::A380PowerConsumption;
+use probe_window_heat::A380ProbeWindowHeat;
 use reverser::{A380ReverserController, A380Reversers};
 use uom::si::{f64::Length, length::nautical_mile};
 
@@ -73,7 +75,7 @@ use systems::{
         oil_failure::EngineOilFailures,
         reverser_thrust::ReverserForce,
         trent_engine::TrentEngine,
-        EngineFireOverheadPanel,
+        Engine, EngineFireOverheadPanel,
     },
     enhanced_gpwc::EnhancedGroundProximityWarningComputer,
     integrated_modular_avionics::AvionicsDataCommunicationNetwork,
@@ -168,6 +170,7 @@ pub struct A380 {
     egpwc: EnhancedGroundProximityWarningComputer,
     icing_simulation: Icing,
     ice_rain_protection: A380IceRainProtection,
+    probe_window_heat: A380ProbeWindowHeat,
     oxygen: A380Oxygen,
     structural_flex: A380StructuralFlex,
 
@@ -273,6 +276,7 @@ impl A380 {
 
             icing_simulation: Icing::new(context),
             ice_rain_protection: A380IceRainProtection::new(context),
+            probe_window_heat: A380ProbeWindowHeat::new(context),
             oxygen: A380Oxygen::new(context),
             structural_flex: A380StructuralFlex::new(context),
             engine_reverser_control: [
@@ -463,6 +467,17 @@ impl Aircraft for A380 {
             [1, 2, 3, 4].map(|engine| self.pneumatic.high_pressure_compressor_pressure(engine)),
             [self.lgcius.lgciu1(), self.lgcius.lgciu2()],
         );
+        self.probe_window_heat.update(
+            [
+                &self.engine_1,
+                &self.engine_2,
+                &self.engine_3,
+                &self.engine_4,
+            ]
+            .iter()
+            .any(|engine| engine.is_above_minimum_idle()),
+            [0, 1].map(|side| self.ice_rain_protection.window_heating_controlled(side)),
+        );
         self.oxygen.update(context);
 
         self.egpwc.update(&self.adirs, self.lgcius.lgciu1());
@@ -578,6 +593,7 @@ impl SimulationElement for A380 {
         self.egpwc.accept(visitor);
         self.icing_simulation.accept(visitor);
         self.ice_rain_protection.accept(visitor);
+        self.probe_window_heat.accept(visitor);
         self.oxygen.accept(visitor);
         self.structural_flex.accept(visitor);
 

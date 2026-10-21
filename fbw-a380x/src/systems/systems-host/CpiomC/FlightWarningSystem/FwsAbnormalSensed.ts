@@ -31,6 +31,7 @@ import {
 } from './FwsAirCondAlerts';
 import { isApproachCapabilityDowngradedByRa } from './AutoFlightAlerts';
 import { antiIceItemsChecked, ICE_DETECTED_PHASE_INHIBITION, isSevereIceDetected } from './AntiIceAlerts';
+import { probeWindowHeatAlerts, probeWindowHeatDeferredProcs } from './FwsProbeWindowHeatAlerts';
 import { abnormBleedConfigItems, abnormBleedConfigLimitations } from './AbnormBleedConfig';
 import {
   BLEED_ALERTS_FLIGHT_PHASE_INHIBITION,
@@ -8911,6 +8912,8 @@ export class FwsAbnormalSensed {
     ...this.doorNotClosedAlerts(),
     // A-ICE ENG and WING valve alerts (300800010-025), see antiIceValveAlerts()
     ...this.antiIceValveAlerts(),
+    // A-ICE probe and window heat, ICE DET, CTL SYS, ENG VLV MONITORING and drain masts (300800026-056)
+    ...probeWindowHeatAlerts(this.fws.probeWindowHeat),
     // ATA 35 OXYGEN, see OxygenAlerts.ts: CABIN VLV CLOSED has no audio and no master light
     [OXYGEN_ALERT_IDS.cabinBottlePressLo]: {
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
@@ -10365,6 +10368,7 @@ export class FwsAbnormalSensed {
   public ewdDeferredProcs: EwdAbnormalDict = {
     ...fctlSensorDeferredItems(),
     ...elecSupplyCentreDeferredItems(),
+    ...probeWindowHeatDeferredProcs(this.fws.probeWindowHeat),
     210700001: {
       flightPhaseInhib: [],
       simVarIsActive: Subject.create(true),
