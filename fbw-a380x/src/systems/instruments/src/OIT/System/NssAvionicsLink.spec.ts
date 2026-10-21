@@ -3,10 +3,11 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { EventBus } from '@microsoft/msfs-sdk';
+import { ClockEvents, EventBus } from '@microsoft/msfs-sdk';
 import { FailuresConsumer, FmsData } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { OisLaptop } from '../OisLaptop';
 import { OitSimvars } from '../OitSimvarPublisher';
 import { AnsuOps } from './AnsuOps';
 import {
@@ -155,6 +156,117 @@ describe('NSS AVNCS message toolbar', () => {
     expect(ansu.messageToolbar.shownText.get()).toContain('NSS DATA TO AVNCS INOP');
     bus.getPublisher<OitSimvars>().pub('nssDataToAvncsOff', false);
     expect(ansu.messageToolbar.count.get()).toBe(1);
+  });
+});
+
+describe('FMS data on the FLT OPS STS page', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /** @returns a running CAPT laptop on the FLT OPS network, an NSS AVNCS ANSU healthy, both SCIs working */
+  function setUp() {
+    const bus = new EventBus();
+    const failures = new Set<number>();
+    const sci = new SecureCommunicationInterface(bus, fakeFailures(failures));
+    sci.init();
+    sci.onUpdate();
+    const simVarValues: Record<string, number> = {
+      'L:A32NX_ELEC_DC_1_BUS_IS_POWERED': 1,
+      'L:A32NX_FLTOPS_ANSU_1_IS_HEALTHY': 1,
+    };
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVarValues[name] ?? 0);
+    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number) => {
+      simVarValues[name] = value;
+      return Promise.resolve();
+    });
+    // The laptop knows the SCI state from the NSS AVNCS side only
+    const laptop = new OisLaptop(bus, 1, fakeFailures(new Set()));
+    laptop.init();
+    laptop.connectAvionicsData(sci.canReceiveFromAvionics);
+    const simvars = bus.getPublisher<OitSimvars>();
+    simvars.pub('laptopCaptPowered', true);
+    simvars.pub('nssAnsu1Healthy', true);
+    const fms = bus.getPublisher<FmsData>();
+    fms.pub('fmsFlightNumber', 'AIB123');
+    // A flight loaded with the aircraft powered: the ARU operates and the laptop is connected at once; the FLT OPS STS
+    // page starts once the first seconds of the flight are over
+    const clock = bus.getPublisher<ClockEvents>();
+    clock.pub('simTime', 0);
+    laptop.onUpdate();
+    clock.pub('simTime', 10_000);
+    laptop.onUpdate();
+    const loseBothScis = (lost: boolean) => {
+      for (const sciFailure of [A380Failure.Sci1, A380Failure.Sci2]) {
+        if (lost) {
+          failures.add(sciFailure);
+        } else {
+          failures.delete(sciFailure);
+        }
+      }
+      sci.onUpdate();
+    };
+    return { laptop, fms, simvars, loseBothScis };
+  }
+
+  it('SYNCHRO AVIONICS keeps the entries while both SCIs are lost, and takes the FMS data once one is back', () => {
+    const { laptop, fms, loseBothScis } = setUp();
+    laptop.fltOpsStatus.enter('fltNumber', 'XX999');
+    fms.pub('fmsFlightNumber', 'AIB456');
+
+    loseBothScis(true);
+    laptop.synchroAvionics();
+    expect(laptop.data.fltNumber.get()).toBe('XX999');
+
+    loseBothScis(false);
+    laptop.synchroAvionics();
+    expect(laptop.data.fltNumber.get()).toBe('AIB456');
+  });
+
+  it('stops following the FMS while both SCIs are lost, not with only the NSS DATA TO AVNCS pb-sw OFF', () => {
+    const { laptop, fms, simvars, loseBothScis } = setUp();
+    expect(laptop.data.fltNumber.get()).toBe('AIB123');
+
+    loseBothScis(true);
+    fms.pub('fmsFlightNumber', 'AIB456');
+    laptop.onUpdate();
+    expect(laptop.data.fltNumber.get()).toBe('AIB123');
+
+    loseBothScis(false);
+    simvars.pub('nssDataToAvncsOff', true);
+    laptop.onUpdate();
+    expect(laptop.data.fltNumber.get()).toBe('AIB456');
+  });
+
+  it('does not reload the flight plan of the EFB overlay without the avionics data', () => {
+    const { laptop, loseBothScis } = setUp();
+    loseBothScis(true);
+    laptop.synchroAvionics();
+    expect(SimVar.SetSimVarValue).not.toHaveBeenCalledWith(
+      'L:A32NX_OIS_SYNCHRO_AVIONICS',
+      expect.anything(),
+      expect.anything(),
+    );
+
+    loseBothScis(false);
+    laptop.synchroAvionics();
+    expect(SimVar.SetSimVarValue).toHaveBeenCalledWith(
+      'L:A32NX_OIS_SYNCHRO_AVIONICS',
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('takes no FMS data at SYNCHRO AVIONICS without an NSS AVNCS server, though both SCIs work', () => {
+    const { laptop, fms, simvars } = setUp();
+    laptop.fltOpsStatus.enter('fltNumber', 'XX999');
+    fms.pub('fmsFlightNumber', 'AIB456');
+    simvars.pub('nssAnsu1Healthy', false);
+    laptop.synchroAvionics();
+    expect(laptop.data.fltNumber.get()).toBe('XX999');
+    expect(SimVar.SetSimVarValue).not.toHaveBeenCalledWith(
+      'L:A32NX_OIS_SYNCHRO_AVIONICS',
+      expect.anything(),
+      expect.anything(),
+    );
   });
 });
 

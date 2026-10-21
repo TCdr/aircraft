@@ -98,14 +98,14 @@ export class OisLaptop implements Instrument {
   private readonly nssAnsu1Healthy = ConsumerSubject.create(this.sub.on('nssAnsu1Healthy'), false);
   private readonly nssAnsu2Healthy = ConsumerSubject.create(this.sub.on('nssAnsu2Healthy'), false);
 
-  /** The avionics data reaches the FLT OPS side only through the NSS AVNCS side */
-  private avionicsDataAvailable: Subscribable<boolean> = Subject.create(true);
+  /** The avionics data reach the FLT OPS side only through the NSS AVNCS side */
+  private avionicsDataReachNss: Subscribable<boolean> = Subject.create(true);
 
   /**
-   * @param available whether the avionics data reaches the NSS AVNCS side
+   * @param available whether the avionics data reach the NSS AVNCS side
    */
   public connectAvionicsData(available: Subscribable<boolean>): void {
-    this.avionicsDataAvailable = available;
+    this.avionicsDataReachNss = available;
   }
 
   private readonly networkPublisher = this.bus.getPublisher<FltOpsStatusNetworkEvents>();
@@ -120,11 +120,12 @@ export class OisLaptop implements Instrument {
   public readonly oisVersion = Subject.create('');
 
   public synchroAvionics() {
-    // Without avionics data the STS page keeps its entries
-    if (!this.avionicsDataAvailable.get()) {
+    const fms = this.fmsFlight();
+    // Without the avionics data the STS page keeps its entries and the EFB overlay its flight plan
+    if (fms === null) {
       return;
     }
-    this.fltOpsStatus.synchroAvionics(this.fmsFlight());
+    this.fltOpsStatus.synchroAvionics(fms);
 
     // The EFB overlay of the OIT reloads its flight plan on this L:var: synced bus events do not reach it, as it is in
     // the same VCockpit
@@ -141,9 +142,7 @@ export class OisLaptop implements Instrument {
   private fmsFlight(): FltOpsStatusFlight | null {
     const connected = this._isHealthy.get() && !this._standalone.get();
     const nssAvncsAvailable = isNssAvncsAvailable(this.nssAnsu1Healthy.get(), this.nssAnsu2Healthy.get());
-    const anySciWorking =
-      !this.failuresConsumer.isActive(A380Failure.Sci1) || !this.failuresConsumer.isActive(A380Failure.Sci2);
-    if (!fmsDataReachLaptop(connected, nssAvncsAvailable, anySciWorking)) {
+    if (!fmsDataReachLaptop(connected, nssAvncsAvailable, this.avionicsDataReachNss.get())) {
       return null;
     }
     return { fltNumber: this.fltNumberBus.get(), from: this.fromAirportBus.get(), to: this.toAirportBus.get() };

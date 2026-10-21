@@ -51,11 +51,15 @@ export type FltOpsStatusField = keyof FltOpsStatusFields;
  * Design choice: a laptop off the network (stand-alone) gets no avionics data, as it gets no ECAM alerts.
  * @param connected the laptop runs and is connected to the FLT OPS network
  * @param nssAvncsAvailable an NSS AVNCS server runs
- * @param anySciWorking at least one SCI works
+ * @param avionicsDataReachNss the avionics data reach the NSS AVNCS side: at least one SCI works
  * @returns whether the FMS flight number and city pair reach the laptop
  */
-export function fmsDataReachLaptop(connected: boolean, nssAvncsAvailable: boolean, anySciWorking: boolean): boolean {
-  return connected && nssAvncsAvailable && anySciWorking;
+export function fmsDataReachLaptop(
+  connected: boolean,
+  nssAvncsAvailable: boolean,
+  avionicsDataReachNss: boolean,
+): boolean {
+  return connected && nssAvncsAvailable && avionicsDataReachNss;
 }
 
 /**
