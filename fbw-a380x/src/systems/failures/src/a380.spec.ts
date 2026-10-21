@@ -221,6 +221,44 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
+  it('lists the AICU, ice detector, probe, window and drain mast heating failures in ATA 30 with their Rust failures', () => {
+    const rustMap = readRustFailureMap();
+    const perAdr = (firstId: number, failureType: (adr: number) => string, name: string): [number, string, string][] =>
+      [1, 2, 3].map((adr) => [firstId + adr - 1, failureType(adr), `ADR ${adr} ${name}`]);
+    const expected: [number, string, string][] = [
+      ...[1, 2, 3, 4].map((engine): [number, string, string] => [
+        30119 + engine,
+        `EngineAntiIceValveMonitoring(${engine})`,
+        `Engine ${engine} anti-ice valve position monitoring`,
+      ]),
+      [30200, 'AntiIceControlUnitChannel(1,1)', 'Anti-ice control unit 1 channel A'],
+      [30201, 'AntiIceControlUnitChannel(1,2)', 'Anti-ice control unit 1 channel B'],
+      [30202, 'AntiIceControlUnitChannel(2,1)', 'Anti-ice control unit 2 channel A'],
+      [30203, 'AntiIceControlUnitChannel(2,2)', 'Anti-ice control unit 2 channel B'],
+      [30210, 'IceDetector(1)', 'Ice detector 1'],
+      [30211, 'IceDetector(2)', 'Ice detector 2'],
+      ...perAdr(30300, (adr) => `ProbeHeatComputer(${adr})`, 'probes automatic heating command'),
+      ...perAdr(30310, (adr) => `ProbeHeater(${adr},1)`, 'pitot TAT AOA probe heater'),
+      ...perAdr(30320, (adr) => `ProbeHeater(${adr},2)`, 'left static probe heater'),
+      ...perAdr(30330, (adr) => `ProbeHeater(${adr},3)`, 'right static probe heater'),
+      ...perAdr(30340, (adr) => `ProbeHeater(${adr},6)`, 'sideslip probe heater'),
+      [30350, 'ProbeHeater(4,1)', 'Standby pitot probe heater'],
+      [30351, 'ProbeHeater(4,2)', 'Standby static probes heater'],
+      [30400, 'WindshieldHeat(1)', 'Left windshield heating'],
+      [30401, 'WindshieldHeat(2)', 'Right windshield heating'],
+      [30410, 'WindowHeat(1)', 'Left sliding window heating'],
+      [30411, 'WindowHeat(2)', 'Right sliding window heating'],
+      [30420, 'WindowHeat(3)', 'Left fixed window heating'],
+      [30421, 'WindowHeat(4)', 'Right fixed window heating'],
+      [30500, 'DrainMastHeat', 'Cabin drain masts heating'],
+    ];
+    const nameOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), nameOf(id)?.[2], nameOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 30]),
+    );
+  });
+
   it('lists the oxygen failures in ATA 35 with the Rust failures of oxygen.rs', () => {
     const rustMap = readRustFailureMap();
     const expected: [number, string, string][] = [

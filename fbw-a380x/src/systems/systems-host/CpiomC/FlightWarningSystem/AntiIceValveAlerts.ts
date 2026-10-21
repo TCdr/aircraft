@@ -41,6 +41,8 @@ export interface EngineAntiIceValveInputs {
   valveOpen: boolean;
   /** The engine is running */
   engineRunning: boolean;
+  /** The AICU no longer monitors the valve position (A-ICE ENG VLV MONITORING FAULT instead) */
+  monitoringLost: boolean;
 }
 
 export interface WingAntiIceMonitoringInputs {
@@ -108,8 +110,12 @@ export class AntiIceValveAlerts {
   update(inputs: AntiIceValveInputs, deltaTimeSeconds: number): void {
     this.engineBleedPbAuto = inputs.engineBleedPbAuto;
     inputs.engines.forEach((engine, index) => {
-      this.engineClosed[index].update(engine.pbOn && !engine.valveOpen && engine.engineRunning, deltaTimeSeconds);
-      this.engineOpen[index].update(!engine.pbOn && engine.valveOpen, deltaTimeSeconds);
+      const monitored = !engine.monitoringLost;
+      this.engineClosed[index].update(
+        monitored && engine.pbOn && !engine.valveOpen && engine.engineRunning,
+        deltaTimeSeconds,
+      );
+      this.engineOpen[index].update(monitored && !engine.pbOn && engine.valveOpen, deltaTimeSeconds);
     });
     inputs.wings.forEach((wing, index) => {
       this.wingClosed[index].update(wing.abnormallyClosed, deltaTimeSeconds);
@@ -131,6 +137,7 @@ export function readAntiIceValveInputs(engineRunning: boolean[]): AntiIceValveIn
       pbOn: flag(`L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_${engine}_POSITION`),
       valveOpen: flag(`L:A32NX_PNEU_ENG_${engine}_ANTI_ICE_VALVE_OPEN`),
       engineRunning: engineRunning[engine - 1],
+      monitoringLost: flag(`L:A32NX_PNEU_ENG_${engine}_ANTI_ICE_MONITORING_FAULT`),
     })),
     wings: [1, 2].map((wing) => ({
       abnormallyClosed: flag(`L:A32NX_PNEU_WING_ANTI_ICE_${wing}_ABNORMALLY_CLOSED`),

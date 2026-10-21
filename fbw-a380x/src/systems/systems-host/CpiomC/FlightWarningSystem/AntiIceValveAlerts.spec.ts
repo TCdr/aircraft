@@ -19,7 +19,7 @@ const noWingFlag = { abnormallyClosed: false, abnormallyOpen: false, lowPressure
 
 function inputs(changes: Partial<AntiIceValveInputs> = {}): AntiIceValveInputs {
   return {
-    engines: [1, 2, 3, 4].map(() => ({ pbOn: false, valveOpen: false, engineRunning: true })),
+    engines: [1, 2, 3, 4].map(() => ({ pbOn: false, valveOpen: false, engineRunning: true, monitoringLost: false })),
     wings: [noWingFlag, noWingFlag],
     engineBleedPbAuto: [true, true, true, true],
     ...changes,
@@ -37,7 +37,12 @@ function alertsAfter(input: AntiIceValveInputs, seconds: number): AntiIceValveAl
 describe('A-ICE ENG 1(2)(3)(4) VLV CLOSED', () => {
   const engine3PbOnValveClosed = (engineRunning: boolean) =>
     inputs({
-      engines: [1, 2, 3, 4].map((engine) => ({ pbOn: engine === 3, valveOpen: false, engineRunning })),
+      engines: [1, 2, 3, 4].map((engine) => ({
+        pbOn: engine === 3,
+        valveOpen: false,
+        engineRunning,
+        monitoringLost: false,
+      })),
     });
 
   it('triggers when the valve of a running engine stays closed with its pb ON', () => {
@@ -59,11 +64,32 @@ describe('A-ICE ENG 1(2)(3)(4) VLV CLOSED', () => {
 describe('A-ICE ENG 1(2)(3)(4) VLV OPEN', () => {
   it('triggers when a valve stays open with its pb OFF', () => {
     const input = inputs({
-      engines: [1, 2, 3, 4].map((engine) => ({ pbOn: false, valveOpen: engine === 1, engineRunning: true })),
+      engines: [1, 2, 3, 4].map((engine) => ({
+        pbOn: false,
+        valveOpen: engine === 1,
+        engineRunning: true,
+        monitoringLost: false,
+      })),
     });
     const alerts = alertsAfter(input, ANTI_ICE_VALVE_CONFIRM_TIME_SECONDS + 1);
     expect(alerts.engineValveOpen.map((alert) => alert.get())).toEqual([true, false, false, false]);
     expect(alerts.engineValveClosed.map((alert) => alert.get())).toEqual([false, false, false, false]);
+  });
+});
+
+describe('A-ICE ENG VLV CLOSED and OPEN without the valve position monitoring', () => {
+  it('do not trigger: the AICU no longer knows the valve position', () => {
+    const input = inputs({
+      engines: [1, 2, 3, 4].map((engine) => ({
+        pbOn: engine === 2,
+        valveOpen: engine === 4,
+        engineRunning: true,
+        monitoringLost: true,
+      })),
+    });
+    const alerts = alertsAfter(input, ANTI_ICE_VALVE_CONFIRM_TIME_SECONDS + 1);
+    expect(alerts.engineValveClosed.map((alert) => alert.get())).toEqual([false, false, false, false]);
+    expect(alerts.engineValveOpen.map((alert) => alert.get())).toEqual([false, false, false, false]);
   });
 });
 

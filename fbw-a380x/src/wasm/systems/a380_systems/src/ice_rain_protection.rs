@@ -10,6 +10,10 @@
 //! WING ANTI ICE pb FAULT: a valve position that disagrees with the request (A-ICE L(R) WING VLV CLOSED / OPEN), or an
 //! open valve with a low pressure downstream (A-ICE L(R) WING VLV PRESS LO).
 //!
+//! Each AICU has two channels, A and B, sharing the AICU supply. One channel controls and another monitors each
+//! system: a valve whose control channel is lost goes to its unpowered position (an engine anti-ice valve opens, a wing
+//! anti-ice valve closes); a system whose monitoring channel is lost gives no more position alerts.
+//!
 //! Electrical supply: AICU 1 DC ESS, AICU 2 DC 2, outer valves DC 1, inner valves DC 2; engine anti-ice ENG 1 DC 2,
 //! ENG 2 DC 1, ENG 3 DC 2, ENG 4 DC 1.
 //!
@@ -31,14 +35,117 @@ use systems::{
     },
 };
 
+const AICU_1: usize = 0;
+const AICU_2: usize = 1;
+const CHANNEL_A: usize = 0;
+const CHANNEL_B: usize = 1;
+
+/// The AICU channel (AICU, channel) that controls the anti-ice valve of each engine
+const ENGINE_CONTROL_CHANNELS: [(usize, usize); 4] = [
+    (AICU_2, CHANNEL_A),
+    (AICU_1, CHANNEL_A),
+    (AICU_2, CHANNEL_B),
+    (AICU_1, CHANNEL_B),
+];
+/// The AICU channel that monitors the anti-ice valve of each engine
+const ENGINE_MONITORING_CHANNELS: [(usize, usize); 4] = [
+    (AICU_2, CHANNEL_B),
+    (AICU_1, CHANNEL_B),
+    (AICU_2, CHANNEL_A),
+    (AICU_1, CHANNEL_A),
+];
+
+/// The two Anti-Ice Control Units:
+/// - AICU 1 A: wing anti-ice control (outer valves), ENG 2 control, ENG 4 monitoring
+/// - AICU 1 B: wing anti-ice monitoring, ENG 2 monitoring, ENG 4 control, CAPT side window heating
+/// - AICU 2 A: wing anti-ice control (inner valves), ENG 1 control, ENG 3 monitoring
+/// - AICU 2 B: wing anti-ice monitoring, ENG 1 monitoring, ENG 3 control, F/O side window heating
+struct AntiIceControlUnits {
+    /// [AICU][channel]: the channel is failed (A-ICE CTL SYS FAULT)
+    channel_fault_ids: [[VariableIdentifier; 2]; 2],
+    channel_failures: [[Failure; 2]; 2],
+    powered_by: [ElectricalBusType; 2],
+    powered: [bool; 2],
+}
+impl AntiIceControlUnits {
+    fn new(context: &mut InitContext) -> Self {
+        Self {
+            channel_fault_ids: [1, 2].map(|aicu| {
+                ["A", "B"].map(|channel| {
+                    context.get_identifier(format!("AICU_{}_CHANNEL_{}_FAULT", aicu, channel))
+                })
+            }),
+            channel_failures: [1, 2].map(|aicu| {
+                [1, 2].map(|channel| {
+                    Failure::new(FailureType::AntiIceControlUnitChannel(aicu, channel))
+                })
+            }),
+            powered_by: [
+                ElectricalBusType::DirectCurrentEssential,
+                ElectricalBusType::DirectCurrent(2),
+            ],
+            powered: [false; 2],
+        }
+    }
+
+    fn channel_available(&self, (aicu, channel): (usize, usize)) -> bool {
+        self.powered[aicu] && !self.channel_failed((aicu, channel))
+    }
+
+    fn channel_failed(&self, (aicu, channel): (usize, usize)) -> bool {
+        self.channel_failures[aicu][channel].is_active()
+    }
+
+    /// AICU 1 A commands the outer valves, AICU 2 A the inner valves
+    fn wing_control_available(&self) -> [bool; 2] {
+        [
+            self.channel_available((AICU_1, CHANNEL_A)),
+            self.channel_available((AICU_2, CHANNEL_A)),
+        ]
+    }
+
+    fn wing_monitoring_available(&self) -> bool {
+        self.channel_available((AICU_1, CHANNEL_B)) || self.channel_available((AICU_2, CHANNEL_B))
+    }
+}
+impl SimulationElement for AntiIceControlUnits {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        for failure in self.channel_failures.iter_mut().flatten() {
+            failure.accept(visitor);
+        }
+
+        visitor.visit(self);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        for (ids, failures) in self.channel_fault_ids.iter().zip(&self.channel_failures) {
+            for (id, failure) in ids.iter().zip(failures) {
+                writer.write(id, failure.is_active());
+            }
+        }
+    }
+
+    fn receive_power(&mut self, buses: &impl ElectricalBuses) {
+        for (powered, bus) in self.powered.iter_mut().zip(self.powered_by) {
+            *powered = buses.is_powered(bus);
+        }
+    }
+}
+
 /// The ice protection of the A380: wing anti-ice and the four engine anti-ice valves
 pub struct A380IceRainProtection {
+    control_units: AntiIceControlUnits,
     wing_anti_ice: A380WingAntiIce,
     engine_anti_ice_valves: [EngineAntiIceValve; 4],
+    /// A-ICE ENG 1(2)(3)(4) VLV MONITORING FAULT
+    engine_valve_monitoring_fault_ids: [VariableIdentifier; 4],
+    engine_valve_monitoring_failures: [Failure; 4],
+    engine_valve_monitored: [bool; 4],
 }
 impl A380IceRainProtection {
     pub fn new(context: &mut InitContext) -> Self {
         Self {
+            control_units: AntiIceControlUnits::new(context),
             wing_anti_ice: A380WingAntiIce::new(context),
             // The engine anti-ice valve opens without power, as the A320 valve
             engine_anti_ice_valves: [
@@ -47,7 +154,18 @@ impl A380IceRainProtection {
                 EngineAntiIceValve::new(context, 3, ElectricalBusType::DirectCurrent(2)),
                 EngineAntiIceValve::new(context, 4, ElectricalBusType::DirectCurrent(1)),
             ],
+            engine_valve_monitoring_fault_ids: [1, 2, 3, 4].map(|engine| {
+                context.get_identifier(format!("PNEU_ENG_{}_ANTI_ICE_MONITORING_FAULT", engine))
+            }),
+            engine_valve_monitoring_failures: [1, 2, 3, 4]
+                .map(|engine| Failure::new(FailureType::EngineAntiIceValveMonitoring(engine))),
+            engine_valve_monitored: [true; 4],
         }
+    }
+
+    /// The window heating of the CAPT (0) or F/O (1) side is controlled: channel B of AICU 1 or AICU 2
+    pub fn window_heating_controlled(&self, side: usize) -> bool {
+        self.control_units.channel_available((side, CHANNEL_B))
     }
 
     /// * `bleed_duct_pressures` - the bleed duct pressure of each engine, downstream of its precooler
@@ -60,25 +178,57 @@ impl A380IceRainProtection {
         high_pressure_compressor_pressures: [Pressure; 4],
         lgciu: [&impl LgciuWeightOnWheels; 2],
     ) {
-        self.wing_anti_ice
-            .update(context, bleed_duct_pressures, lgciu);
-        for (valve, pressure) in self
+        self.wing_anti_ice.update(
+            context,
+            bleed_duct_pressures,
+            lgciu,
+            self.control_units.wing_control_available(),
+            self.control_units.wing_monitoring_available(),
+        );
+        for (engine, (valve, pressure)) in self
             .engine_anti_ice_valves
             .iter_mut()
             .zip(high_pressure_compressor_pressures)
+            .enumerate()
         {
+            // Design choice: an unpowered AICU is the supply interruption of A-ICE CTL SYS FAULT, which the FWS times,
+            // not a lost valve monitoring (no MONITORING FAULT on battery power only, before DC 2 is supplied)
+            let monitored = !self
+                .control_units
+                .channel_failed(ENGINE_MONITORING_CHANNELS[engine])
+                && !self.engine_valve_monitoring_failures[engine].is_active();
+            self.engine_valve_monitored[engine] = monitored;
+            valve.set_controller_state(
+                self.control_units
+                    .channel_available(ENGINE_CONTROL_CHANNELS[engine]),
+                monitored,
+            );
             valve.update(context, pressure);
         }
     }
 }
 impl SimulationElement for A380IceRainProtection {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.control_units.accept(visitor);
         self.wing_anti_ice.accept(visitor);
         for valve in self.engine_anti_ice_valves.iter_mut() {
             valve.accept(visitor);
         }
+        for failure in self.engine_valve_monitoring_failures.iter_mut() {
+            failure.accept(visitor);
+        }
 
         visitor.visit(self);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        for (id, monitored) in self
+            .engine_valve_monitoring_fault_ids
+            .iter()
+            .zip(self.engine_valve_monitored)
+        {
+            writer.write(id, !monitored);
+        }
     }
 }
 
@@ -189,9 +339,9 @@ struct A380WingAntiIce {
     high_pressure_ids: [VariableIdentifier; 2],
     thrust_lever_angle_ids: [VariableIdentifier; 4],
 
-    /// AICU 1 (outer valves) and AICU 2 (inner valves)
-    aicu_powered_by: [ElectricalBusType; 2],
-    aicu_powered: [bool; 2],
+    /// The control channel of AICU 1 (outer valves) and of AICU 2 (inner valves) is available
+    control_available: [bool; 2],
+    monitoring_available: bool,
     /// [wing][INNER, OUTER]
     valves: [[WingAntiIceValve; 2]; 2],
     /// Per wing: both valves stay closed, the outer valve stays open
@@ -239,11 +389,8 @@ impl A380WingAntiIce {
             thrust_lever_angle_ids: [1, 2, 3, 4]
                 .map(|engine| context.get_identifier(format!("AUTOTHRUST_TLA:{}", engine))),
 
-            aicu_powered_by: [
-                ElectricalBusType::DirectCurrentEssential,
-                ElectricalBusType::DirectCurrent(2),
-            ],
-            aicu_powered: [false; 2],
+            control_available: [false; 2],
+            monitoring_available: false,
             valves: [0, 1].map(|_| {
                 [
                     WingAntiIceValve::new(ElectricalBusType::DirectCurrent(2)),
@@ -270,7 +417,11 @@ impl A380WingAntiIce {
         context: &UpdateContext,
         bleed_duct_pressures: [Pressure; 4],
         lgciu: [&impl LgciuWeightOnWheels; 2],
+        control_available: [bool; 2],
+        monitoring_available: bool,
     ) {
+        self.control_available = control_available;
+        self.monitoring_available = monitoring_available;
         let on_ground =
             !(lgciu[0].left_gear_extended(false) || lgciu[1].right_gear_extended(false));
         self.update_control(context, on_ground);
@@ -353,11 +504,14 @@ impl A380WingAntiIce {
 
     /// AICU 1 commands the outer valves, AICU 2 the inner valves
     fn valve_commanded_open(&self, position: usize) -> bool {
-        let aicu = if position == OUTER { 0 } else { 1 };
-        self.commanded_open && self.aicu_powered[aicu]
+        let aicu = if position == OUTER { AICU_1 } else { AICU_2 };
+        self.commanded_open && self.control_available[aicu]
     }
 
     fn monitor_wing(&self, wing: usize, supply_pressure_psig: f64) -> WingAntiIceMonitoring {
+        if !self.monitoring_available {
+            return WingAntiIceMonitoring::default();
+        }
         let valves = &self.valves[wing];
         let commanded = [INNER, OUTER].map(|position| self.valve_commanded_open(position));
         // A valve that stays closed while the duct supplies air is abnormally closed; with too little air it is a low
@@ -449,12 +603,6 @@ impl SimulationElement for A380WingAntiIce {
             writer.write(&self.high_pressure_ids[wing], monitoring.high_pressure);
         }
     }
-
-    fn receive_power(&mut self, buses: &impl ElectricalBuses) {
-        for (powered, bus) in self.aicu_powered.iter_mut().zip(self.aicu_powered_by) {
-            *powered = buses.is_powered(bus);
-        }
-    }
 }
 
 #[cfg(test)]
@@ -507,6 +655,7 @@ mod tests {
         dc_1_bus: ElectricalBus,
         dc_2_bus: ElectricalBus,
         dc_1_powered: bool,
+        dc_2_powered: bool,
         /// The bleed duct and HP compressor pressure of every engine, over the ambient pressure
         bleed_duct_psig: f64,
         high_pressure_compressor_psig: f64,
@@ -521,6 +670,7 @@ mod tests {
                 dc_1_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(1)),
                 dc_2_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(2)),
                 dc_1_powered: true,
+                dc_2_powered: true,
                 bleed_duct_psig: 40.,
                 high_pressure_compressor_psig: 40.,
             }
@@ -534,7 +684,9 @@ mod tests {
         ) {
             electricity.supplied_by(&self.dc_source);
             electricity.flow(&self.dc_source, &self.dc_ess_bus);
-            electricity.flow(&self.dc_source, &self.dc_2_bus);
+            if self.dc_2_powered {
+                electricity.flow(&self.dc_source, &self.dc_2_bus);
+            }
             if self.dc_1_powered {
                 electricity.flow(&self.dc_source, &self.dc_1_bus);
             }
@@ -755,5 +907,70 @@ mod tests {
         assert!(flag(&mut test_bed, "PNEU_ENG_3_ANTI_ICE_VALVE_OPEN"));
         assert!(!flag(&mut test_bed, "PNEU_ENG_1_ANTI_ICE_VALVE_OPEN"));
         assert!(!flag(&mut test_bed, "PNEU_ENG_3_ANTI_ICE_FAULT"));
+    }
+
+    #[test]
+    fn a_failed_aicu_channel_is_reported_and_opens_the_engine_valve_it_controls() {
+        let mut test_bed = in_flight();
+        // AICU 1 A controls the ENG 2 valve and monitors the ENG 4 valve
+        test_bed.fail(FailureType::AntiIceControlUnitChannel(1, 1));
+        run_seconds(&mut test_bed, 3);
+
+        assert!(flag(&mut test_bed, "AICU_1_CHANNEL_A_FAULT"));
+        assert!(!flag(&mut test_bed, "AICU_1_CHANNEL_B_FAULT"));
+        assert!(flag(&mut test_bed, "PNEU_ENG_2_ANTI_ICE_VALVE_OPEN"));
+        assert!(flag(&mut test_bed, "PNEU_ENG_4_ANTI_ICE_MONITORING_FAULT"));
+        assert!(flag(&mut test_bed, "PNEU_ENG_4_ANTI_ICE_FAULT"));
+        assert!(!flag(&mut test_bed, "PNEU_ENG_2_ANTI_ICE_MONITORING_FAULT"));
+    }
+
+    #[test]
+    fn without_both_aicu_a_channels_the_wing_valves_stay_closed() {
+        let mut test_bed = in_flight();
+        test_bed.fail(FailureType::AntiIceControlUnitChannel(1, 1));
+        wing_anti_ice_push_button(&mut test_bed, true);
+        run_seconds(&mut test_bed, 3);
+        // The inner valves of AICU 2 still anti-ice slat 4
+        assert!(wing_anti_ice_on(&mut test_bed));
+
+        test_bed.fail(FailureType::AntiIceControlUnitChannel(2, 1));
+        run_seconds(&mut test_bed, 3);
+        assert!(!wing_anti_ice_on(&mut test_bed));
+    }
+
+    #[test]
+    fn without_both_aicu_b_channels_the_wing_valves_are_no_longer_monitored() {
+        let mut test_bed = in_flight();
+        test_bed.fail(FailureType::WingAntiIceValvesStuckClosed(1));
+        test_bed.fail(FailureType::AntiIceControlUnitChannel(1, 2));
+        test_bed.fail(FailureType::AntiIceControlUnitChannel(2, 2));
+        wing_anti_ice_push_button(&mut test_bed, true);
+        run_seconds(&mut test_bed, 3);
+
+        assert_eq!(wing_flags(&mut test_bed, 1), NO_FLAG);
+    }
+
+    #[test]
+    fn an_unpowered_aicu_is_not_a_lost_valve_monitoring() {
+        let mut test_bed = in_flight();
+        // AICU 2 (DC 2) monitors the ENG 1 and ENG 3 valves
+        test_bed.command(|a| a.dc_2_powered = false);
+        run_seconds(&mut test_bed, 3);
+
+        assert!(!flag(&mut test_bed, "PNEU_ENG_1_ANTI_ICE_MONITORING_FAULT"));
+        assert!(!flag(&mut test_bed, "PNEU_ENG_3_ANTI_ICE_MONITORING_FAULT"));
+        assert!(!flag(&mut test_bed, "AICU_2_CHANNEL_A_FAULT"));
+    }
+
+    #[test]
+    fn a_lost_valve_position_monitoring_is_reported_with_the_fault_light() {
+        let mut test_bed = in_flight();
+        test_bed.fail(FailureType::EngineAntiIceValveMonitoring(3));
+        run_seconds(&mut test_bed, 1);
+
+        assert!(flag(&mut test_bed, "PNEU_ENG_3_ANTI_ICE_MONITORING_FAULT"));
+        assert!(flag(&mut test_bed, "PNEU_ENG_3_ANTI_ICE_FAULT"));
+        assert!(!flag(&mut test_bed, "PNEU_ENG_1_ANTI_ICE_MONITORING_FAULT"));
+        assert!(!flag(&mut test_bed, "PNEU_ENG_3_ANTI_ICE_VALVE_OPEN"));
     }
 }

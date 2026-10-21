@@ -822,6 +822,204 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
       { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'ON' },
     ],
   },
+  // ATA 30 A-ICE probe and window heat, see FWS FwsProbeWindowHeatAlerts
+  300800026: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ALL PROBES 1 NOT DEICED',
+    sensed: true,
+    items: [
+      { name: 'PROBE & WINDOW HEAT', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'PROBES 1 STILL NOT DEICED', sensed: true, condition: true },
+      { name: 'AIR DATA SWTG', sensed: true, labelNotCompleted: 'CAPT ON 3', level: 1 },
+    ],
+  },
+  300800027: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ALL PROBES 2 NOT DEICED',
+    sensed: true,
+    items: [
+      { name: 'PROBE & WINDOW HEAT', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'PROBES 2 STILL NOT DEICED', sensed: true, condition: true },
+      { name: 'AIR DATA SWTG', sensed: true, labelNotCompleted: 'F/O ON 3', level: 1 },
+    ],
+  },
+  300800028: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ALL PROBES 3 NOT DEICED',
+    sensed: true,
+    items: [{ name: 'PROBE & WINDOW HEAT', sensed: true, labelNotCompleted: 'ON' }],
+  },
+  300800029: {
+    // The failed channels and the engine anti-ice they lose, then the procedure of a channel or power supply fault
+    title: '\x1b<4m\x1b4mA-ICE\x1bm CTL SYS FAULT',
+    sensed: true,
+    items: [
+      { name: 'CHANNEL 1A', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'CHANNEL 1B', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'CHANNEL 1 A+B', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'CHANNEL 2A', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'CHANNEL 2B', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'CHANNEL 2 A+B', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'ENG 1 A-ICE FAULT', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'ENG 2 A-ICE FAULT', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'ENG 3 A-ICE FAULT', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'ENG 4 A-ICE FAULT', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'AICU CHANNEL FAILED > 5 S', sensed: true, condition: true },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'AICU PWR INTERRUPTED > 2 S', sensed: true, condition: true },
+      { name: 'ALL ENGs & WING A-ICE', sensed: true, labelNotCompleted: 'ON THEN OFF', level: 1 },
+      { name: 'ENG & WING A-ICE', sensed: false, labelNotCompleted: 'AS RQRD', level: 1 },
+    ],
+  },
+  300800030: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 1 VLV MONITORING FAULT',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800031: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 2 VLV MONITORING FAULT',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800032: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 3 VLV MONITORING FAULT',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800033: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 4 VLV MONITORING FAULT',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800034: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ICE DET FAULT',
+    sensed: true,
+    items: [{ name: 'A-ICE', sensed: false, labelNotCompleted: 'AS RQRD' }],
+  },
+  300800035: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm L FIXED WINDOW HEATG FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800036: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm R FIXED WINDOW HEATG FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800037: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm L SLIDING WINDOW HEATG FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800038: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm R SLIDING WINDOW HEATG FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800039: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm L WINDSHIELD HEATG FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800040: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm R WINDSHIELD HEATG FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800041: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm L+R WINDSHIELDS HEATG FAULT',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800042: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm PITOT TAT AOA PROBE 1 HEATG FAULT',
+    sensed: true,
+    items: [{ name: 'AIR DATA SWTG', sensed: true, labelNotCompleted: 'CAPT ON 3' }],
+  },
+  300800043: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm PITOT TAT AOA PROBE 2 HEATG FAULT',
+    sensed: true,
+    items: [{ name: 'AIR DATA SWTG', sensed: true, labelNotCompleted: 'F/O ON 3' }],
+  },
+  300800044: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm PITOT TAT AOA PROBE 3 HEATG FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800045: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm PITOT TAT AOA 1+2 HEATG FAULT',
+    sensed: true,
+    items: [
+      { name: 'AIR DATA SWTG', sensed: true, labelNotCompleted: 'CAPT ON 3' },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
+  },
+  300800046: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm PITOT TAT AOA 1+3 HEATG FAULT',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800047: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm PITOT TAT AOA 2+3 HEATG FAULT',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800048: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm SIDESLIP PROBE 1 HEATING FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800049: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm SIDESLIP PROBE 2 HEATING FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800050: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm SIDESLIP PROBE 3 HEATING FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800051: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm STATIC PROBE 1 HEATING FAULT',
+    sensed: true,
+    items: [{ name: 'AIR DATA SWTG', sensed: true, labelNotCompleted: 'CAPT ON 3' }],
+  },
+  300800052: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm STATIC PROBE 2 HEATING FAULT',
+    sensed: true,
+    items: [{ name: 'AIR DATA SWTG', sensed: true, labelNotCompleted: 'F/O ON 3' }],
+  },
+  300800053: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm STATIC PROBE 3 HEATING FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800054: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm STBY PITOT PROBE HEATG FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800055: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm STBY STATIC PROBE HEATG FAULT',
+    sensed: true,
+    items: [],
+  },
+  300800056: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mCABIN\x1bm DRAIN MASTS HEATING FAULT',
+    sensed: true,
+    items: [],
+  },
 };
 
 /**
@@ -869,6 +1067,16 @@ export const EcamDeferredProcAta2930: { [n: number]: DeferredProcedure } = {
       { name: 'IF Y SYS OVHT OUT', sensed: true, condition: true },
       { name: 'Y ENG 3 PMP A AND B', sensed: true, labelNotCompleted: 'ON', level: 1 },
       { name: 'Y ENG 4 PMP A AND B', sensed: true, labelNotCompleted: 'ON', level: 1 },
+    ],
+  },
+  300700001: {
+    // Only with the wing anti-ice failed (FwsProbeWindowHeatAlerts)
+    fromAbnormalProcs: ['300800029'],
+    title: 'A-ICE CTL SYS FAULT',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'SEVERE ICE ACCRETION', sensed: false, condition: true },
+      { name: 'FOR LDG : FLAP LVR 3', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
     ],
   },
 };

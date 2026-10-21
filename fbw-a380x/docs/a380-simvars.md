@@ -2069,7 +2069,51 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
 
 - A32NX_PNEU_ENG_{number}_ANTI_ICE_FAULT
     - Bool
-    - The FAULT light of the ENG ANTI ICE pb: the valve position disagrees with the pb
+    - The FAULT light of the ENG ANTI ICE pb: the valve position disagrees with the pb, or it is no longer monitored
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_MONITORING_FAULT
+    - Bool
+    - The AICU no longer monitors the position of the engine anti-ice valve (its monitoring channel or the position
+      monitoring is failed): A-ICE ENG {number} VLV MONITORING FAULT
+
+- A32NX_AICU_{number}_CHANNEL_{channel}_FAULT
+    - Bool
+    - Channel {channel} (A or B) of anti-ice control unit {number} (1 or 2) is failed: A-ICE CTL SYS FAULT
+
+The probe and window heat, ice detectors and drain masts (a380_systems probe_window_heat.rs).
+
+- A32NX_MAN_PITOT_HEAT
+    - Bool
+    - The PROBE & WINDOW HEAT pb is ON: probes and windows heated before the engine start, and the backup heating of
+      the probes whose automatic heating is lost
+
+- A32NX_PROBE_HEAT_ADR_{number}_AUTO_HEAT_FAULT
+    - Bool
+    - ADIRU {number} no longer commands the automatic heating of its probes: A-ICE ALL PROBES {number} NOT DEICED
+
+- A32NX_PROBE_HEAT_ADR_{number}_PROBES_HEATED
+    - Bool
+    - All probes of ADR {number} (pitot TAT AOA, left and right static, sideslip) are heated
+
+- A32NX_PROBE_HEAT_ADR_{number}_PITOT_TAT_AOA_FAULT / _STATIC_FAULT / _SIDESLIP_FAULT
+    - Bool
+    - The heater of the pitot TAT AOA probe, of a static probe or of the sideslip probe of ADR {number} is failed
+
+- A32NX_PROBE_HEAT_STBY_PITOT_FAULT / A32NX_PROBE_HEAT_STBY_STATIC_FAULT
+    - Bool
+    - The heater of the standby pitot probe or of the standby static probes is failed
+
+- A32NX_WINDOW_HEAT_{side}_{window}_FAULT
+    - Bool
+    - The heating of a cockpit window is failed, {side} L or R, {window} WINDSHIELD, SLIDING_WINDOW or FIXED_WINDOW
+
+- A32NX_ICE_DETECTOR_{number}_FAULT
+    - Bool
+    - Ice detector {number} (1 or 2) is failed or unpowered
+
+- A32NX_DRAIN_MAST_HEAT_FAULT
+    - Bool
+    - The drain mast heaters of the water/waste system are failed: CABIN DRAIN MASTS HEATING FAULT
 
 - A380X_OVHD_FUEL_{tank}_XFR_PB_IS_AUTO
   - Bool

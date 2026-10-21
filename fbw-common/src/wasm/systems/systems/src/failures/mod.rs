@@ -197,14 +197,26 @@ pub enum FailureType {
     WingAntiIceOuterValveStuckOpen(usize),
     /// The wing anti-ice valve of wing n (1 left, 2 right) stays open (A320: a320_systems pneumatic::wing_anti_ice)
     WingAntiIceValveStuckOpen(usize),
-    /// Probe heat computer n (1 CAPT, 2 F/O, 3 STBY) is failed (A320: a320_systems probe_window_heat.rs)
+    /// Probe heat computer n (1 CAPT, 2 F/O, 3 STBY) is failed (A320: a320_systems probe_window_heat.rs).
+    /// A380 (a380_systems probe_window_heat.rs): ADIRU n no longer commands the automatic heating of its probes.
     ProbeHeatComputer(usize),
-    /// The heater of probe p (1 pitot, 2 L static, 3 R static, 4 AOA, 5 TAT) of probe heat computer n is failed
+    /// The heater of probe p (1 pitot, 2 L static, 3 R static, 4 AOA, 5 TAT) of probe heat computer n is failed.
+    /// A380: the probes of ADR n (1 the pitot TAT AOA probe, 2 L static, 3 R static, 6 sideslip), n = 4 the standby
+    /// probes (1 pitot, 2 static).
     ProbeHeater(usize, usize),
     /// The heating of windshield n (1 left, 2 right) is failed
     WindshieldHeat(usize),
-    /// The heating of cockpit side window n (1 left, 2 right) is failed
+    /// The heating of cockpit side window n (1 left, 2 right) is failed. A380: 1 left and 2 right sliding window,
+    /// 3 left and 4 right fixed window.
     WindowHeat(usize),
+    /// Channel c (1 A, 2 B) of the A380 anti-ice control unit n (AICU) is failed
+    AntiIceControlUnitChannel(usize, usize),
+    /// The position monitoring of the anti-ice valve of engine n is lost (A380)
+    EngineAntiIceValveMonitoring(usize),
+    /// Ice detector n is failed (A380)
+    IceDetector(usize),
+    /// The heaters of the cabin water/waste drain masts are failed (A380)
+    DrainMastHeat,
     // ATA35 (A380: a380_systems oxygen.rs)
     /// The cockpit oxygen bottle leaks: its pressure falls
     CockpitOxygenBottleLeak,

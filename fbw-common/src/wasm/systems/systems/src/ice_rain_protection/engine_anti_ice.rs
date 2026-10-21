@@ -30,6 +30,10 @@ pub struct EngineAntiIceValve {
     powered_by: ElectricalBusType,
     is_powered: bool,
     push_button_on: bool,
+    /// The controller channel of the valve solenoid works (A380: a channel of an anti-ice control unit)
+    control_available: bool,
+    /// The controller still monitors the valve position
+    monitoring_available: bool,
     /// 0 (closed) to 1 (open)
     open_amount: Ratio,
 
@@ -66,6 +70,8 @@ impl EngineAntiIceValve {
             powered_by,
             is_powered: false,
             push_button_on: false,
+            control_available: true,
+            monitoring_available: true,
             open_amount: Ratio::default(),
 
             stuck_closed: Failure::new(FailureType::EngineAntiIceValveStuckClosed(engine_number)),
@@ -77,8 +83,10 @@ impl EngineAntiIceValve {
     pub fn update(&mut self, context: &UpdateContext, supply_pressure: Pressure) {
         let air_available = (supply_pressure - context.ambient_pressure()).get::<psi>()
             > Self::MIN_SUPPLY_PRESSURE_PSIG;
-        // The energised solenoid holds the valve closed, so the valve opens when electrical power fails
-        let solenoid_holds_closed = self.is_powered && !self.push_button_on;
+        // The energised solenoid holds the valve closed, so the valve opens when electrical power or its controller
+        // fails
+        let solenoid_holds_closed =
+            self.is_powered && self.control_available && !self.push_button_on;
 
         let should_be_open = if self.stuck_closed.is_active() {
             false
@@ -110,10 +118,20 @@ impl EngineAntiIceValve {
         self.push_button_on
     }
 
+    /// For an aircraft whose valves have separate control and monitoring channels (A380 AICUs): without its control
+    /// channel the solenoid is no longer energised and the valve opens; without its monitoring the FAULT light comes on.
+    pub fn set_controller_state(&mut self, control_available: bool, monitoring_available: bool) {
+        self.control_available = control_available;
+        self.monitoring_available = monitoring_available;
+    }
+
     /// The FAULT light of the ENG ANTI ICE pb-sw: the valve position disagrees with the pb-sw selection, also while
-    /// the valve transits. The cockpit lamp has its own power (SEQ_POWERED of the pb-sw in the cockpit behaviour).
+    /// the valve transits, or the valve position is no longer monitored. The cockpit lamp has its own power
+    /// (SEQ_POWERED of the pb-sw in the cockpit behaviour).
     pub fn fault_light(&self) -> bool {
-        if self.push_button_on {
+        if !self.monitoring_available {
+            true
+        } else if self.push_button_on {
             !self.is_fully_open()
         } else {
             self.is_open()
@@ -304,6 +322,25 @@ mod tests {
         run_seconds(&mut test_bed, 3);
 
         assert!(valve_open(&mut test_bed));
+        assert!(fault_light(&mut test_bed));
+    }
+
+    #[test]
+    fn opens_when_its_control_channel_fails() {
+        let mut test_bed = test_bed(false, IDLE_SUPPLY_PRESSURE_PSIG);
+        test_bed.command(|a| a.valve.set_controller_state(false, true));
+        run_seconds(&mut test_bed, 3);
+
+        assert!(valve_open(&mut test_bed));
+    }
+
+    #[test]
+    fn lights_the_fault_light_when_its_position_is_no_longer_monitored() {
+        let mut test_bed = test_bed(false, IDLE_SUPPLY_PRESSURE_PSIG);
+        test_bed.command(|a| a.valve.set_controller_state(true, false));
+        run_seconds(&mut test_bed, 3);
+
+        assert!(!valve_open(&mut test_bed));
         assert!(fault_light(&mut test_bed));
     }
 }
