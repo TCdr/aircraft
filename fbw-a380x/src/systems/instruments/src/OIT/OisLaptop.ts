@@ -98,6 +98,16 @@ export class OisLaptop implements Instrument {
   private readonly nssAnsu1Healthy = ConsumerSubject.create(this.sub.on('nssAnsu1Healthy'), false);
   private readonly nssAnsu2Healthy = ConsumerSubject.create(this.sub.on('nssAnsu2Healthy'), false);
 
+  /** The avionics data reaches the FLT OPS side only through the NSS AVNCS side */
+  private avionicsDataAvailable: Subscribable<boolean> = Subject.create(true);
+
+  /**
+   * @param available whether the avionics data reaches the NSS AVNCS side
+   */
+  public connectAvionicsData(available: Subscribable<boolean>): void {
+    this.avionicsDataAvailable = available;
+  }
+
   private readonly networkPublisher = this.bus.getPublisher<FltOpsStatusNetworkEvents>();
 
   /** The FLT OPS STS page, shared with the laptop of the other OIT (another instrument: synced bus events) */
@@ -110,6 +120,10 @@ export class OisLaptop implements Instrument {
   public readonly oisVersion = Subject.create('');
 
   public synchroAvionics() {
+    // Without avionics data the STS page keeps its entries
+    if (!this.avionicsDataAvailable.get()) {
+      return;
+    }
     this.fltOpsStatus.synchroAvionics(this.fmsFlight());
 
     // The EFB overlay of the OIT reloads its flight plan on this L:var: synced bus events do not reach it, as it is in

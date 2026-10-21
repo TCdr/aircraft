@@ -41,6 +41,25 @@ describe('AOC message print on the pedestal printer', () => {
     client.destroy();
   });
 
+  it('tells the AOC once its automatic printout is printed, not without a printer', () => {
+    for (const [available, expected] of [
+      [true, [7]],
+      [false, []],
+    ] as const) {
+      const bus = new EventBus();
+      const printedIds: number[] = [];
+      bus
+        .getSubscriber<A380AocPrintEvents>()
+        .on('aocPrintoutPrinted')
+        .handle((id) => printedIds.push(id));
+      const client = new AocPrintClient(bus, () => (available ? { printText: () => {} } : null));
+      bus.getPublisher<A380AocPrintEvents>().pub('aocPrintMessage', { text: 'METAR EGLL', printId: 7 });
+      bus.getPublisher<A380AocPrintEvents>().pub('aocPrintMessage', { text: 'HELLO CREW' });
+      expect(printedIds).toEqual(expected);
+      client.destroy();
+    }
+  });
+
   it('wraps the long lines to the printer width', () => {
     const lines = aocPrintLines(`${'WORD '.repeat(20)}`);
     expect(lines.every((line) => line.length <= 64)).toBe(true);

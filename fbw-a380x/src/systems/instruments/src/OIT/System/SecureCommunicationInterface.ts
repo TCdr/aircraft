@@ -1,23 +1,57 @@
 // Copyright (c) 2025 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { ClockEvents, ConsumerSubject, EventBus, Instrument, MappedSubject, Subscription } from '@microsoft/msfs-sdk';
-import { AdrBusEvents, Arinc429LocalVarConsumerSubject, FmsData, FwcBusEvents } from '@flybywiresim/fbw-sdk';
+import {
+  ClockEvents,
+  ConsumerSubject,
+  EventBus,
+  Instrument,
+  MappedSubject,
+  Subject,
+  Subscribable,
+  Subscription,
+} from '@microsoft/msfs-sdk';
+import {
+  AdrBusEvents,
+  Arinc429LocalVarConsumerSubject,
+  FailuresConsumer,
+  FmsData,
+  FwcBusEvents,
+} from '@flybywiresim/fbw-sdk';
+import { A380Failure } from '@failures';
 import { ResetPanelSimvars } from '../../MsfsAvionicsCommon/providers/ResetPanelPublisher';
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
 import { OitSimvars } from '../OitSimvarPublisher';
+import { canReceiveFromAvionics, canSendToAvionics, NssAvionicsLink, nssAvionicsLink } from './NssAvionicsLink';
 
 export class SecureCommunicationInterface implements Instrument {
   private readonly subscriptions: Subscription[] = [];
 
+  /** Paused while no avionics data reaches the NSS: the NSS applications keep the last values they received */
   private readonly fromAircraftSubscriptions: Subscription[] = [];
-  private readonly toAircraftSubscriptions: Subscription[] = [];
 
   private readonly sub = this.bus.getSubscriber<
     ResetPanelSimvars & OitSimvars & FmsData & AdrBusEvents & FwcBusEvents & ClockEvents & FqmsBusEvents
   >();
 
   private readonly nssDataToAvncsOff = ConsumerSubject.create(this.sub.on('nssDataToAvncsOff'), false);
+
+  private readonly sciFailed = [Subject.create(false), Subject.create(false)];
+
+  private readonly _link = MappedSubject.create(
+    ([pbOff, sci1Failed, sci2Failed]) => nssAvionicsLink(pbOff, [sci1Failed, sci2Failed]),
+    this.nssDataToAvncsOff,
+    this.sciFailed[0],
+    this.sciFailed[1],
+  );
+  /** The data link between the NSS AVNCS side and the avionics */
+  public readonly link = this._link as Subscribable<NssAvionicsLink>;
+
+  /** The NSS applications can send to the avionics, and so to the ground */
+  public readonly canSendToAvionics = this._link.map(canSendToAvionics);
+
+  /** The avionics data reaches the NSS */
+  public readonly canReceiveFromAvionics = this._link.map(canReceiveFromAvionics);
 
   // Data from avionics
   public readonly zuluTime = ConsumerSubject.create(this.sub.on('simTime'), Date.now());
@@ -48,11 +82,20 @@ export class SecureCommunicationInterface implements Instrument {
     this.hydYellowPressurized,
   );
 
-  constructor(private readonly bus: EventBus) {}
+  constructor(
+    private readonly bus: EventBus,
+    private readonly failuresConsumer: FailuresConsumer,
+  ) {}
 
   /** @inheritdoc */
   init(): void {
-    this.subscriptions.push(this.nssDataToAvncsOff, this.zuluTime);
+    this.subscriptions.push(
+      this.nssDataToAvncsOff,
+      this.zuluTime,
+      this._link,
+      this.canSendToAvionics,
+      this.canReceiveFromAvionics,
+    );
 
     this.fromAircraftSubscriptions.push(
       this.fltNumber,
@@ -69,11 +112,18 @@ export class SecureCommunicationInterface implements Instrument {
       this.hydraulicsPressurized,
     );
 
-    this.nssDataToAvncsOff.sub((v) => this.toAircraftSubscriptions.forEach((s) => (v ? s.pause() : s.resume())));
+    this.subscriptions.push(
+      this.canReceiveFromAvionics.sub((receiving) =>
+        this.fromAircraftSubscriptions.forEach((s) => (receiving ? s.resume() : s.pause())),
+      ),
+    );
   }
 
   /** @inheritdoc */
-  onUpdate(): void {}
+  onUpdate(): void {
+    this.sciFailed[0].set(this.failuresConsumer.isActive(A380Failure.Sci1));
+    this.sciFailed[1].set(this.failuresConsumer.isActive(A380Failure.Sci2));
+  }
 
   destroy() {
     for (const s of this.subscriptions) {
@@ -81,10 +131,6 @@ export class SecureCommunicationInterface implements Instrument {
     }
 
     for (const s of this.fromAircraftSubscriptions) {
-      s.destroy();
-    }
-
-    for (const s of this.toAircraftSubscriptions) {
       s.destroy();
     }
   }

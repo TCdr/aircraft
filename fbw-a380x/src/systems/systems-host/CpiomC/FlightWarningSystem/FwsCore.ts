@@ -649,7 +649,16 @@ export class FwsCore {
 
   public readonly attKnob = Subject.create(0);
 
+  /** The unread company messages of the COMPANY MSG memo, 0 while the AOC alerts do not reach the FWS */
   public readonly compMesgCount = Subject.create(0);
+
+  /** The unread company messages that wait for their automatic printout, for COMPANY MSG:PRNTR */
+  public readonly compMesgWaitingPrintoutCount = Subject.create(0);
+
+  /** The unread company messages of the AOC, whether its alerts reach the FWS or not */
+  private aocUnreadMessageCount = 0;
+
+  private aocAlertsReachFws = true;
 
   public readonly landAsap = Subject.create(false);
 
@@ -5101,7 +5110,12 @@ export class FwsCore {
 
     /* COMPANY MESSAGE */
     if (
-      this.companyMessageAural.update(this.compMesgCount.get(), this.flightPhase.get(), this.adrPressureAltitude.get())
+      this.companyMessageAural.update(
+        this.aocUnreadMessageCount,
+        this.flightPhase.get(),
+        this.adrPressureAltitude.get(),
+        this.aocAlertsReachFws,
+      )
     ) {
       this.soundManager.enqueueSound('companyMessage');
     }
@@ -6426,7 +6440,6 @@ export class FwsCore {
     this.attKnob.set(attKnob);
     this.ir3UsedLeft = attKnob === 0; //FIXME: Should come from the CDS.
     this.ir3UsedRight = attKnob === 2;
-    this.compMesgCount.set(SimVar.GetSimVarValue('L:A32NX_COMPANY_MSG_COUNT', 'number'));
     this.fmsSwitchingKnob.set(SimVar.GetSimVarValue('L:A32NX_FMS_SWITCHING_KNOB', 'enum'));
     this.seatBelt.set(SimVar.GetSimVarValue('A:CABIN SEATBELTS ALERT SWITCH', 'bool'));
     this.ndXfrKnob.set(SimVar.GetSimVarValue('L:A32NX_ECAM_ND_XFR_SWITCHING_KNOB', 'enum'));
@@ -6508,6 +6521,11 @@ export class FwsCore {
     this.comAtcDatalinkFault.set(infoSys.atcDatalinkFault);
     this.comNssDataToAvncsXfrFault.set(infoSys.nssDataToAvncsXfrFault);
     this.comNssAvncsDataXfrFault.set(infoSys.nssAvncsDataXfrFault);
+    // The AOC raises its memos and voices through the SCIs, in the NSS to avionics direction that both alerts cut
+    this.aocAlertsReachFws = !infoSys.nssDataToAvncsXfrFault && !infoSys.nssAvncsDataXfrFault;
+    this.aocUnreadMessageCount = SimVar.GetSimVarValue('L:A32NX_COMPANY_MSG_COUNT', 'number');
+    this.compMesgCount.set(this.aocAlertsReachFws ? this.aocUnreadMessageCount : 0);
+    this.compMesgWaitingPrintoutCount.set(SimVar.GetSimVarValue('L:A32NX_COMPANY_MSG_PRNTR_COUNT', 'number'));
 
     /* FUEL */
     // Feed tanks 1 to 4 = MSFS tanks 2, 5, 6 and 9, each with its own 30 s confirmation (FeedTankLevelLoMonitor)

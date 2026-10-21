@@ -42,7 +42,7 @@ export class AircraftNetworkServerUnit implements Instrument {
     false,
   );
 
-  public readonly sci = new SecureCommunicationInterface(this.bus);
+  public readonly sci = new SecureCommunicationInterface(this.bus, this.failuresConsumer);
 
   constructor(
     protected readonly bus: EventBus,
@@ -54,6 +54,7 @@ export class AircraftNetworkServerUnit implements Instrument {
   /** @inheritdoc */
   init(): void {
     this.failuresConsumer.register(this.failureKey);
+    this.sci.init();
 
     this.subscriptions.push(
       this._isHealthy.sub((v) => SimVar.SetSimVarValue(this.isHealthySimVar, SimVarValueType.Bool, v), true),
@@ -63,6 +64,7 @@ export class AircraftNetworkServerUnit implements Instrument {
   /** @inheritdoc */
   onUpdate(): void {
     const failed = this.failuresConsumer.isActive(this.failureKey);
+    this.sci.onUpdate();
 
     // The A380 busbar names come from the A320: AC_ESS_SHED is the A380 AC ESS (400XP), AC_ESS the AC EMER (491XP)
     this.powered.set(
@@ -92,5 +94,6 @@ export class AircraftNetworkServerUnit implements Instrument {
     for (const s of this.subscriptions) {
       s.destroy();
     }
+    this.sci.destroy();
   }
 }
