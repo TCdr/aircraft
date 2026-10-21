@@ -1,7 +1,13 @@
 ﻿// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { AbnormalProcedure, ChecklistLineStyle, FMS_PRED_UNRELIABLE_CHECKLIST_ITEM } from '..';
+import {
+  AbnormalProcedure,
+  ChecklistLineStyle,
+  DeferredProcedure,
+  DeferredProcedureType,
+  FMS_PRED_UNRELIABLE_CHECKLIST_ITEM,
+} from '..';
 
 // Convention for IDs:
 // First two digits: ATA chapter
@@ -845,12 +851,12 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     ],
   },
   240800024: {
-    title: '\x1b<4m\x1b4mELEC\x1bm CABIN L SUPPLY CENTER OVHT DET FAULT',
+    title: '\x1b<4m\x1b4mELEC\x1bm CABIN L SUPPLY CTR OVHT DET FAULT',
     sensed: true,
     items: [],
   },
   240800025: {
-    title: '\x1b<4m\x1b4mELEC\x1bm CABIN R SUPPLY CENTER OVHT DET FAULT',
+    title: '\x1b<4m\x1b4mELEC\x1bm CABIN R SUPPLY CTR OVHT DET FAULT',
     sensed: true,
     items: [],
   },
@@ -1909,7 +1915,7 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     ],
   },
   240800060: {
-    title: '\x1b<4m\x1b4mELEC\x1bm  F/CTL ACTUATOR PWR SUPPLY FAULT',
+    title: '\x1b<4m\x1b4mELEC\x1bm F/CTL ACTUATOR PWR SUPPLY FAULT',
     sensed: true,
     items: [],
   },
@@ -2035,12 +2041,12 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   240800078: {
-    title: '\x1b<4m\x1b4mELEC\x1bm SECONDARY SUPPLY CENTER 1 REDUND LOST',
+    title: '\x1b<4m\x1b4mELEC\x1bm SECONDARY SUPPLY CTR 1 REDUND LOST',
     sensed: true,
     items: [],
   },
   240800079: {
-    title: '\x1b<4m\x1b4mELEC\x1bm SECONDARY SUPPLY CENTER 2 REDUND LOST',
+    title: '\x1b<4m\x1b4mELEC\x1bm SECONDARY SUPPLY CTR 2 REDUND LOST',
     sensed: true,
     items: [],
   },
@@ -2133,6 +2139,31 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
         name: 'APU BAT',
         sensed: true,
         labelNotCompleted: 'ON',
+      },
+    ],
+  },
+  240800092: {
+    title: '\x1b<4m\x1b4mELEC\x1bm SECONDARY SUPPLY CENTER 1 FAN FAULT',
+    sensed: true,
+    items: [],
+  },
+  240800093: {
+    title: '\x1b<4m\x1b4mELEC\x1bm SECONDARY SUPPLY CENTER 2 FAN FAULT',
+    sensed: true,
+    items: [],
+  },
+};
+
+export const EcamDeferredProcAta24: { [n: number]: DeferredProcedure } = {
+  240700001: {
+    fromAbnormalProcs: ['240800031'],
+    title: 'DC ESS BUS PART FAULT',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      {
+        name: 'LDG DIST COMPUTATION',
+        sensed: false,
+        labelNotCompleted: 'CONFIRM',
       },
     ],
   },

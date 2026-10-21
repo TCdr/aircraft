@@ -185,6 +185,7 @@ import {
 import { ElecSystemAlerts, readElecSystemInputs } from './FwsElecSystemAlerts';
 import { FctlSensorAlerts } from './FwsFctlSensorAlerts';
 import { ElecDriveOilAlerts, readDriveOilInputs } from './FwsElecDriveOilAlerts';
+import { ElecSupplyCentreAlerts, readElecSupplyCentreInputs } from './FwsElecSupplyCentreAlerts';
 import {
   areDoorsInTakeoffConfig,
   CABIN_DOORS,
@@ -1368,6 +1369,9 @@ export class FwsCore {
 
   /** ELEC DRIVE OIL LEVEL LO, OIL OVHT and OIL PRESS LO (FwsElecDriveOilAlerts) */
   public readonly elecDriveOilAlerts = new ElecDriveOilAlerts();
+
+  /** ELEC supply centre, network and load management, C/B monitoring alerts (FwsElecSupplyCentreAlerts) */
+  public readonly elecSupplyCentreAlerts = new ElecSupplyCentreAlerts();
 
   /* 26 - FIRE */
 
@@ -6324,6 +6328,14 @@ export class FwsCore {
         (name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool),
         elecInputs.engGenPbOn,
         this.apuAvail.get(),
+      ),
+    );
+    this.elecSupplyCentreAlerts.update(
+      readElecSupplyCentreInputs(
+        (name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool),
+        (failure) => this.failuresConsumer.isActive(failure),
+        this.aircraftOnGround.get(),
+        this.flightPhase.get(),
       ),
     );
 

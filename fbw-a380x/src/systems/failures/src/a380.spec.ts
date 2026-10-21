@@ -477,6 +477,39 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
     );
   });
 
+  // electrical/distribution.rs consumes 24200-24204; 24210-24225 are read by the FWS only (FwsElecSupplyCentreAlerts)
+  it('lists the supply centre, network management and C/B monitoring failures in ATA 24', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string | undefined, string][] = [
+      [24200, 'ElectricalPrimarySupplyCentre(1)', 'Primary Supply Center 1'],
+      [24201, 'ElectricalPrimarySupplyCentre(2)', 'Primary Supply Center 2'],
+      [24202, 'ElectricalNetworkManagementUnit(1)', 'ENMU 1'],
+      [24203, 'ElectricalNetworkManagementUnit(2)', 'ENMU 2'],
+      [24204, 'ElectricalLoadManagementUnit', 'ELMU'],
+      [24210, undefined, 'Secondary Supply Center 1'],
+      [24211, undefined, 'Secondary Supply Center 2'],
+      [24212, undefined, 'Secondary Supply Center 1 Communication'],
+      [24213, undefined, 'Secondary Supply Center 2 Communication'],
+      [24214, undefined, 'Secondary Supply Center 1 Redundancy'],
+      [24215, undefined, 'Secondary Supply Center 2 Redundancy'],
+      [24216, undefined, 'Secondary Supply Center 1 Fan'],
+      [24217, undefined, 'Secondary Supply Center 2 Fan'],
+      [24218, undefined, 'Cabin L Supply Center Overheat'],
+      [24219, undefined, 'Cabin R Supply Center Overheat'],
+      [24220, undefined, 'Cabin L Supply Center Overheat Detection'],
+      [24221, undefined, 'Cabin R Supply Center Overheat Detection'],
+      [24222, undefined, 'C/B Monitoring'],
+      [24223, undefined, 'EMER C/B Monitoring'],
+      [24224, undefined, 'C/B Tripped'],
+      [24225, undefined, 'DC ESS Part'],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 24]),
+    );
+  });
+
   // a380_systems pneumatic.rs: the stuck bleed valves and the bleed duct leaks of the four engines, wing zone n being the
   // wing section of engine n
   it('lists the bleed valve and bleed leak failures in ATA 36 under the ids of the Rust map', () => {

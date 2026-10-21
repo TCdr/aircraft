@@ -1,10 +1,12 @@
 mod alternating_current;
 mod direct_current;
+mod distribution;
 mod galley;
 
 use self::{
     alternating_current::A380AlternatingCurrentElectrical,
-    direct_current::A380DirectCurrentElectrical, galley::Galleys,
+    direct_current::A380DirectCurrentElectrical, distribution::A380PowerDistribution,
+    galley::Galleys,
 };
 pub(super) use direct_current::APU_START_MOTOR_BUS_TYPE;
 
@@ -48,6 +50,7 @@ pub(super) struct A380Electrical {
 
     alternating_current: A380AlternatingCurrentElectrical,
     direct_current: A380DirectCurrentElectrical,
+    distribution: A380PowerDistribution,
     galleys: Galleys,
     emergency_elec: EmergencyElectrical,
     emergency_gen: EmergencyGenerator,
@@ -80,6 +83,7 @@ impl A380Electrical {
             rat_fault_id: context.get_identifier("ELEC_RAT_FAULT".to_owned()),
             alternating_current: A380AlternatingCurrentElectrical::new(context),
             direct_current: A380DirectCurrentElectrical::new(context),
+            distribution: A380PowerDistribution::new(context),
             galleys: Galleys::new(),
             emergency_elec: EmergencyElectrical::new(),
             emergency_gen: EmergencyGenerator::new(
@@ -124,6 +128,7 @@ impl A380Electrical {
             engine_fire_push_buttons,
             engines,
             adirs,
+            self.distribution.network_management_units_failed(),
         );
 
         self.emergency_elec
@@ -177,8 +182,12 @@ impl A380Electrical {
             self.tefo_condition.output(),
         );
 
-        self.galleys
-            .update(electricity, &self.alternating_current, overhead);
+        self.galleys.update(
+            electricity,
+            &self.alternating_current,
+            overhead,
+            &self.distribution,
+        );
 
         // Update relay states
         let dc_ess_powered =
@@ -332,11 +341,16 @@ impl A380Electrical {
     pub fn in_emergency_elec(&self) -> bool {
         self.emergency_elec.is_in_emergency_elec()
     }
+
+    fn network_management_unit_failed(&self, number: usize) -> bool {
+        self.distribution.network_management_unit_failed(number)
+    }
 }
 impl SimulationElement for A380Electrical {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.alternating_current.accept(visitor);
         self.direct_current.accept(visitor);
+        self.distribution.accept(visitor);
         self.emergency_gen.accept(visitor);
         self.ram_air_turbine.accept(visitor);
         self.rat_controller.accept(visitor);
@@ -462,6 +476,16 @@ impl A380ElectricalOverheadPanel {
             .for_each(|(index, battery)| {
                 battery.set_fault(electrical.battery_has_fault(index + 1));
             });
+
+        // The EXT pb only requests the connection; ENMU 1 (2) closes the contactors of EXT 1+2 (3+4). A failed ENMU
+        // drops that request, so the pb shows AVAIL and not ON (ON = the external power supplies the network). Design
+        // choice: an external power unit already supplying when its ENMU fails is disconnected too (STATUS INOP EXT
+        // PWR), and stays off after the ENMU recovers until the pb is pushed again.
+        self.ext_pwrs
+            .iter_mut()
+            .enumerate()
+            .filter(|(index, _)| electrical.network_management_unit_failed(index / 2 + 1))
+            .for_each(|(_, ext_pwr)| ext_pwr.turn_off());
     }
 
     pub fn external_power_is_available(&self, number: usize) -> bool {
@@ -3074,6 +3098,184 @@ mod a380_electrical_circuit_tests {
     }
 
     #[rstest]
+    #[case(1)]
+    #[case(2)]
+    fn a_failed_primary_supply_centre_loses_the_galleys_of_its_side(#[case] number: usize) {
+        let mut test_bed = test_bed_with().running_engines().run();
+        assert!(!test_bed.galley_is_shed());
+
+        test_bed = test_bed.failed_primary_supply_centre(number).run();
+
+        assert!(test_bed.galley_is_shed());
+        assert!(test_bed.galley_is_partially_shed());
+    }
+
+    #[test]
+    fn both_primary_supply_centres_failed_lose_all_galleys() {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .and()
+            .failed_primary_supply_centre(1)
+            .and()
+            .failed_primary_supply_centre(2)
+            .run();
+
+        assert!(test_bed.galley_is_shed());
+        assert!(!test_bed.galley_is_partially_shed());
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    fn a_failed_network_management_unit_sheds_the_galleys_it_controls(#[case] number: usize) {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .and()
+            .failed_network_management_unit(number)
+            .run();
+
+        assert!(test_bed.galley_is_shed());
+        assert!(test_bed.galley_is_partially_shed());
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    fn a_failed_network_management_unit_does_not_connect_the_apu_generator_of_its_side(
+        #[case] number: usize,
+    ) {
+        let mut test_bed = test_bed_with()
+            .on_the_ground()
+            .airspeed(Velocity::default())
+            .running_apu()
+            .run();
+        assert!(test_bed.apu_gen_contactor_closed(1));
+        assert!(test_bed.apu_gen_contactor_closed(2));
+
+        test_bed = test_bed.failed_network_management_unit(number).run();
+
+        assert!(!test_bed.apu_gen_contactor_closed(number));
+        assert!(test_bed.apu_gen_contactor_closed(3 - number));
+    }
+
+    #[rstest]
+    #[case(1, [1, 2], [3, 4])]
+    #[case(2, [3, 4], [1, 2])]
+    fn a_failed_network_management_unit_does_not_connect_the_external_power_of_its_side(
+        #[case] number: usize,
+        #[case] own_side: [usize; 2],
+        #[case] other_side: [usize; 2],
+    ) {
+        let mut test_bed = test_bed_with()
+            .connected_external_power()
+            .on_the_ground()
+            .airspeed(Velocity::default())
+            .ext_pwr_on(1)
+            .ext_pwr_on(2)
+            .ext_pwr_on(3)
+            .ext_pwr_on(4)
+            .and()
+            .failed_network_management_unit(number)
+            .run();
+
+        for ext_pwr in own_side {
+            assert!(!test_bed.ext_pwr_contactor_closed(ext_pwr));
+        }
+        for ext_pwr in other_side {
+            assert!(test_bed.ext_pwr_contactor_closed(ext_pwr));
+        }
+    }
+
+    #[rstest]
+    #[case(1, [1, 2], [3, 4])]
+    #[case(2, [3, 4], [1, 2])]
+    fn external_power_pressed_after_its_network_management_unit_failed_shows_avail_and_does_not_connect(
+        #[case] number: usize,
+        #[case] own_side: [usize; 2],
+        #[case] other_side: [usize; 2],
+    ) {
+        let mut test_bed = test_bed_with()
+            .on_the_ground()
+            .airspeed(Velocity::default())
+            .running_apu()
+            .and()
+            .failed_network_management_unit(number)
+            .run();
+
+        test_bed = test_bed
+            .connected_external_power()
+            .ext_pwr_on(1)
+            .ext_pwr_on(2)
+            .ext_pwr_on(3)
+            .ext_pwr_on(4)
+            .run();
+
+        for ext_pwr in own_side {
+            assert!(!test_bed.ext_pwr_contactor_closed(ext_pwr));
+            assert!(!test_bed.ext_pwr_is_on(ext_pwr));
+        }
+        for ext_pwr in other_side {
+            assert!(test_bed.ext_pwr_contactor_closed(ext_pwr));
+            assert!(test_bed.ext_pwr_is_on(ext_pwr));
+        }
+        assert!(!test_bed.apu_gen_contactor_closed(number));
+    }
+
+    #[rstest]
+    #[case(1, [1, 2], [3, 4])]
+    #[case(2, [3, 4], [1, 2])]
+    fn external_power_supplying_when_its_network_management_unit_fails_disconnects_until_pressed_again(
+        #[case] number: usize,
+        #[case] own_side: [usize; 2],
+        #[case] other_side: [usize; 2],
+    ) {
+        let mut test_bed = test_bed_with()
+            .connected_external_power()
+            .on_the_ground()
+            .airspeed(Velocity::default())
+            .ext_pwr_on(1)
+            .ext_pwr_on(2)
+            .ext_pwr_on(3)
+            .ext_pwr_on(4)
+            .run();
+        for ext_pwr in 1..=4 {
+            assert!(test_bed.ext_pwr_contactor_closed(ext_pwr));
+        }
+
+        test_bed = test_bed.failed_network_management_unit(number).run();
+        for ext_pwr in own_side {
+            assert!(!test_bed.ext_pwr_contactor_closed(ext_pwr));
+            assert!(!test_bed.ext_pwr_is_on(ext_pwr));
+        }
+        for ext_pwr in other_side {
+            assert!(test_bed.ext_pwr_contactor_closed(ext_pwr));
+        }
+
+        test_bed = test_bed.recovered_network_management_unit(number).run();
+        for ext_pwr in own_side {
+            assert!(!test_bed.ext_pwr_contactor_closed(ext_pwr));
+        }
+
+        for ext_pwr in own_side {
+            test_bed = test_bed.ext_pwr_on(ext_pwr);
+        }
+        test_bed = test_bed.run();
+        for ext_pwr in own_side {
+            assert!(test_bed.ext_pwr_contactor_closed(ext_pwr));
+        }
+    }
+
+    #[test]
+    fn elmu_pb_fault_light_follows_the_load_management_unit_failure() {
+        let mut test_bed = test_bed_with().running_engines().run();
+        assert!(!test_bed.elmu_has_fault());
+
+        test_bed = test_bed.failed_load_management_unit().run();
+
+        assert!(test_bed.elmu_has_fault());
+    }
+
+    #[rstest]
     #[case(&[2, 3])]
     #[case(&[1, 2, 3, 4])]
     fn when_external_power_units_supply_no_galley_is_shed(#[case] ext_pwrs: &[usize]) {
@@ -4471,6 +4673,30 @@ mod a380_electrical_circuit_tests {
             self
         }
 
+        fn failed_primary_supply_centre(mut self, number: usize) -> Self {
+            self.test_bed
+                .fail(FailureType::ElectricalPrimarySupplyCentre(number));
+            self
+        }
+
+        fn failed_network_management_unit(mut self, number: usize) -> Self {
+            self.test_bed
+                .fail(FailureType::ElectricalNetworkManagementUnit(number));
+            self
+        }
+
+        fn recovered_network_management_unit(mut self, number: usize) -> Self {
+            self.test_bed
+                .unfail(FailureType::ElectricalNetworkManagementUnit(number));
+            self
+        }
+
+        fn failed_load_management_unit(mut self) -> Self {
+            self.test_bed
+                .fail(FailureType::ElectricalLoadManagementUnit);
+            self
+        }
+
         fn failed_drive_disconnect(mut self, number: usize) -> Self {
             self.test_bed
                 .fail(FailureType::GeneratorDriveDisconnect(number));
@@ -4772,6 +4998,18 @@ mod a380_electrical_circuit_tests {
 
         fn ext_pwr_contactor_closed(&mut self, number: usize) -> bool {
             self.read_by_name(&format!("ELEC_CONTACTOR_990XG{number}_IS_CLOSED"))
+        }
+
+        fn apu_gen_contactor_closed(&mut self, number: usize) -> bool {
+            self.read_by_name(&format!("ELEC_CONTACTOR_990XS{number}_IS_CLOSED"))
+        }
+
+        fn ext_pwr_is_on(&mut self, number: usize) -> bool {
+            self.read_by_name(&format!("OVHD_ELEC_EXT_PWR_{number}_PB_IS_ON"))
+        }
+
+        fn elmu_has_fault(&mut self) -> bool {
+            self.read_by_name("A380X_OVHD_ELEC_ELMU_PB_HAS_FAULT")
         }
 
         fn galley_is_shed(&mut self) -> bool {

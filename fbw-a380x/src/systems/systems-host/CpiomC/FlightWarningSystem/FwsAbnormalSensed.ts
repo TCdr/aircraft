@@ -142,6 +142,7 @@ import {
   TR_INOP_SYS,
 } from './FwsElecSystemAlerts';
 import { elecDriveOilAbnormalItems } from './FwsElecDriveOilAlerts';
+import { elecSupplyCentreAbnormalItems, elecSupplyCentreDeferredItems } from './FwsElecSupplyCentreAlerts';
 import { gpwsFaultItemsToShow, isApFdTcasModeInop } from './FwsSurvAlerts';
 import {
   FM_GPS_POS_DISAGREE_INFO,
@@ -3932,6 +3933,8 @@ export class FwsAbnormalSensed {
     ...elecSystemAbnormalItems(this.fws.elecSystemAlerts),
     // DRIVE OIL LEVEL LO, OIL OVHT, OIL PRESS LO (FwsElecDriveOilAlerts)
     ...elecDriveOilAbnormalItems(this.fws.elecDriveOilAlerts),
+    // Supply centre, network and load management, C/B monitoring alerts (FwsElecSupplyCentreAlerts)
+    ...elecSupplyCentreAbnormalItems(this.fws.elecSupplyCentreAlerts, this.fws),
     // ATA 26 - FIRE PROTECTION
     260800001: {
       // APU FIRE
@@ -10361,6 +10364,7 @@ export class FwsAbnormalSensed {
 
   public ewdDeferredProcs: EwdAbnormalDict = {
     ...fctlSensorDeferredItems(),
+    ...elecSupplyCentreDeferredItems(),
     210700001: {
       flightPhaseInhib: [],
       simVarIsActive: Subject.create(true),
