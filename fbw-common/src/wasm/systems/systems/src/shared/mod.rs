@@ -1167,7 +1167,7 @@ pub enum FireDetectionLoopID {
 }
 
 /// A compartment watched by smoke detectors: the A320 cargo compartments and avionics ventilation duct, the A380 cargo
-/// compartments and avionics bays
+/// compartments, avionics bays and cabin areas
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum SmokeDetectionZone {
     ForwardCargo,
@@ -1186,6 +1186,21 @@ pub enum SmokeDetectionZone {
     InFlightEntertainmentBay,
     /// The A380 Network Server System (NSS) bay
     NetworkServerSystem,
+    /// The A380 lavatories of the main (upper) (lower) deck: one smoke detector next to the air extraction vent of each
+    /// lavatory
+    MainDeckLavatory,
+    UpperDeckLavatory,
+    LowerDeckLavatory,
+    /// The A380 flight crew rest compartments 1 and 2
+    FlightCrewRest1,
+    FlightCrewRest2,
+    /// The A380 cabin crew rest compartment of the aft lower deck
+    AftLowerDeckCabinCrewRest,
+    /// The A380 In-Flight Entertainment control centers: the Cabin Work Stations (CWS) at the main and upper deck doors
+    /// 1L, the Remote Control Center (RCC) at the upper deck door 3R
+    MainDeck1LCabinWorkStation,
+    UpperDeck1LCabinWorkStation,
+    UpperDeck3RRemoteControlCenter,
 }
 
 impl Display for SmokeDetectionZone {
@@ -1204,6 +1219,15 @@ impl Display for SmokeDetectionZone {
             SmokeDetectionZone::AftAvionics => "AFT_AVNCS",
             SmokeDetectionZone::InFlightEntertainmentBay => "IFE_BAY",
             SmokeDetectionZone::NetworkServerSystem => "NSS",
+            SmokeDetectionZone::MainDeckLavatory => "MAIN_DECK_LAV",
+            SmokeDetectionZone::UpperDeckLavatory => "UPPER_DECK_LAV",
+            SmokeDetectionZone::LowerDeckLavatory => "LOWER_DECK_LAV",
+            SmokeDetectionZone::FlightCrewRest1 => "FLT_REST_1",
+            SmokeDetectionZone::FlightCrewRest2 => "FLT_REST_2",
+            SmokeDetectionZone::AftLowerDeckCabinCrewRest => "AFT_LWR_CAB_REST",
+            SmokeDetectionZone::MainDeck1LCabinWorkStation => "MAIN_1L_CWS",
+            SmokeDetectionZone::UpperDeck1LCabinWorkStation => "UPPER_1L_CWS",
+            SmokeDetectionZone::UpperDeck3RRemoteControlCenter => "UPPER_3R_RCC",
         };
         write!(f, "{}", name)
     }

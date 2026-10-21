@@ -147,12 +147,23 @@ impl<const C: usize, const B: usize> CargoFireExtinguishing<C, B> {
     }
 
     pub fn update(&mut self, context: &UpdateContext) {
+        self.update_with_reachable_compartments(context, [true; C]);
+    }
+
+    /// Like [`Self::update`], for bottles that can fail to reach a compartment (the A380 diverter valve stuck out of a
+    /// position, or the bottle control failed): the DISCH pb of a compartment the agent cannot reach fires nothing.
+    pub fn update_with_reachable_compartments(
+        &mut self,
+        context: &UpdateContext,
+        reachable: [bool; C],
+    ) {
         // The first DISCH pb pressed while a bottle is still full sets the heads / diverter valve to its compartment
         if self.target_compartment.is_none() && self.bottles.iter().any(|bottle| bottle.is_full()) {
             self.target_compartment = self
                 .discharge_pb_pressed
                 .iter()
-                .position(|&pressed| pressed);
+                .zip(reachable)
+                .position(|(&pressed, reachable)| pressed && reachable);
         }
 
         // Each bottle starts in the update after the one before it stopped discharging (discharged, or empty from a
@@ -213,6 +224,7 @@ mod tests {
 
     struct TestAircraft {
         extinguishing: CargoFireExtinguishing<2, 2>,
+        reachable: [bool; 2],
     }
     impl TestAircraft {
         fn new(context: &mut InitContext) -> Self {
@@ -222,12 +234,14 @@ mod tests {
                     ["FWD", "AFT"],
                     [Duration::from_secs(60), Duration::from_secs(600)],
                 ),
+                reachable: [true; 2],
             }
         }
     }
     impl Aircraft for TestAircraft {
         fn update_after_power_distribution(&mut self, context: &UpdateContext) {
-            self.extinguishing.update(context);
+            self.extinguishing
+                .update_with_reachable_compartments(context, self.reachable);
         }
     }
     impl SimulationElement for TestAircraft {
@@ -326,5 +340,23 @@ mod tests {
         assert!(!bottle_discharged(&mut test_bed, 1));
         // The second bottle still discharges
         assert!(bottle_discharged(&mut test_bed, 2));
+    }
+
+    #[test]
+    fn the_disch_pb_of_a_compartment_the_agent_cannot_reach_fires_nothing() {
+        let mut test_bed = test_bed();
+        test_bed.command(|a| a.reachable = [false, true]);
+        test_bed.write_by_name("CARGOSMOKE_FWD_DISCHARGED", true);
+        test_bed.run_with_delta(Duration::from_secs(100));
+
+        assert!(!agent_released(&mut test_bed, "FWD"));
+        assert!(!bottle_discharged(&mut test_bed, 1));
+
+        // The bottles are still full: the other compartment's pb discharges them
+        test_bed.write_by_name("CARGOSMOKE_AFT_DISCHARGED", true);
+        test_bed.run_with_delta(Duration::from_secs(61));
+
+        assert!(agent_released(&mut test_bed, "AFT"));
+        assert!(bottle_discharged(&mut test_bed, 1));
     }
 }

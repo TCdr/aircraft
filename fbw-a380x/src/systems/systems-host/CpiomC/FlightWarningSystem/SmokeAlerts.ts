@@ -7,9 +7,8 @@
  * L:A32NX_SMOKE_<zone>_DETECTED and L:A32NX_SMOKE_<zone>_DET_FAULT of the cargo compartments and the avionics / IFE
  * bays, L:A32NX_CARGOSMOKE_BOTTLE_<n>_LOW_PRESSURE of the two cargo bottles.
  * SMOKE DET FAULT from L:A32NX_SMOKE_DETECTION_FUNCTION_FAULT (the SDF failure), the cargo smoke TEST pb from
- * L:A32NX_FIRE_TEST_CARGO. Not fed (no detector modelled): the crew rests, lavatories, CWS / RCC, showers, facilities,
- * SAFETY TEST REQUIRED (no 50 h test history), and FWD (AFT) / FWD+AFT CARGO BOTTLES FAULT (diverter valve, bottle
- * control).
+ * L:A32NX_FIRE_TEST_CARGO. The cabin areas, the SDF status and the cargo bottles routing are in FwsCabinSmokeAlerts.ts;
+ * the showers are not modelled.
  */
 
 /** The "crew awareness" DET FAULT cautions */

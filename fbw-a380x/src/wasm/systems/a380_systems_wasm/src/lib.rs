@@ -605,6 +605,109 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             FailureType::FlightControlActuator(FlightControlSurface::Stabilizer, 2),
         ),
         (27_130, FailureType::StabilizerJammed),
+        (
+            26_052,
+            FailureType::Smoke(SmokeDetectionZone::MainDeckLavatory),
+        ),
+        (
+            26_053,
+            FailureType::SmokeDetector(SmokeDetectionZone::MainDeckLavatory, 1),
+        ),
+        (
+            26_054,
+            FailureType::Smoke(SmokeDetectionZone::UpperDeckLavatory),
+        ),
+        (
+            26_055,
+            FailureType::SmokeDetector(SmokeDetectionZone::UpperDeckLavatory, 1),
+        ),
+        (
+            26_056,
+            FailureType::Smoke(SmokeDetectionZone::LowerDeckLavatory),
+        ),
+        (
+            26_057,
+            FailureType::SmokeDetector(SmokeDetectionZone::LowerDeckLavatory, 1),
+        ),
+        (
+            26_058,
+            FailureType::Smoke(SmokeDetectionZone::FlightCrewRest1),
+        ),
+        (
+            26_059,
+            FailureType::SmokeDetector(SmokeDetectionZone::FlightCrewRest1, 1),
+        ),
+        (
+            26_060,
+            FailureType::SmokeDetector(SmokeDetectionZone::FlightCrewRest1, 2),
+        ),
+        (
+            26_061,
+            FailureType::Smoke(SmokeDetectionZone::FlightCrewRest2),
+        ),
+        (
+            26_062,
+            FailureType::SmokeDetector(SmokeDetectionZone::FlightCrewRest2, 1),
+        ),
+        (
+            26_063,
+            FailureType::SmokeDetector(SmokeDetectionZone::FlightCrewRest2, 2),
+        ),
+        (
+            26_064,
+            FailureType::Smoke(SmokeDetectionZone::AftLowerDeckCabinCrewRest),
+        ),
+        (
+            26_065,
+            FailureType::SmokeDetector(SmokeDetectionZone::AftLowerDeckCabinCrewRest, 1),
+        ),
+        (
+            26_066,
+            FailureType::SmokeDetector(SmokeDetectionZone::AftLowerDeckCabinCrewRest, 2),
+        ),
+        (26_067, FailureType::CrewRestFireBottle(1)),
+        (26_068, FailureType::CrewRestFireBottle(2)),
+        (
+            26_069,
+            FailureType::Smoke(SmokeDetectionZone::MainDeck1LCabinWorkStation),
+        ),
+        (
+            26_070,
+            FailureType::SmokeDetector(SmokeDetectionZone::MainDeck1LCabinWorkStation, 1),
+        ),
+        (
+            26_071,
+            FailureType::SmokeDetector(SmokeDetectionZone::MainDeck1LCabinWorkStation, 2),
+        ),
+        (
+            26_072,
+            FailureType::Smoke(SmokeDetectionZone::UpperDeck1LCabinWorkStation),
+        ),
+        (
+            26_073,
+            FailureType::SmokeDetector(SmokeDetectionZone::UpperDeck1LCabinWorkStation, 1),
+        ),
+        (
+            26_074,
+            FailureType::SmokeDetector(SmokeDetectionZone::UpperDeck1LCabinWorkStation, 2),
+        ),
+        (
+            26_075,
+            FailureType::Smoke(SmokeDetectionZone::UpperDeck3RRemoteControlCenter),
+        ),
+        (
+            26_076,
+            FailureType::SmokeDetector(SmokeDetectionZone::UpperDeck3RRemoteControlCenter, 1),
+        ),
+        (
+            26_077,
+            FailureType::SmokeDetector(SmokeDetectionZone::UpperDeck3RRemoteControlCenter, 2),
+        ),
+        (26_078, FailureType::CargoFireDiverterValvePosition(1)),
+        (26_079, FailureType::CargoFireDiverterValvePosition(2)),
+        (26_080, FailureType::CargoFireBottleControl),
+        (26_081, FailureType::SmokeDetectionFacilities),
+        (26_082, FailureType::SmokeDetectionSafetyTestOverdue),
         (29_000, FailureType::ReservoirLeak(HydraulicColor::Green)),
         (29_001, FailureType::ReservoirLeak(HydraulicColor::Yellow)),
         (29_002, FailureType::ReservoirAirLeak(HydraulicColor::Green)),
