@@ -187,6 +187,7 @@ import { FctlSensorAlerts } from './FwsFctlSensorAlerts';
 import { ElecDriveOilAlerts, readDriveOilInputs } from './FwsElecDriveOilAlerts';
 import { ElecSupplyCentreAlerts, readElecSupplyCentreInputs } from './FwsElecSupplyCentreAlerts';
 import { CabinSmokeAlerts, readCabinSmokeInputs } from './FwsCabinSmokeAlerts';
+import { BleedLeakAlerts, readBleedLeakAlertInputs } from './FwsBleedLeakAlerts';
 import {
   areDoorsInTakeoffConfig,
   CABIN_DOORS,
@@ -3264,6 +3265,9 @@ export class FwsCore {
 
   /** AIR L OUTR / L INR / R INR / R OUTR WING LEAK (BleedMonitoringAlerts isBleedLeak), in the order of the engines */
   public readonly wingBleedLeak = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** The leak detection, bleed valve and bleed temperature alerts (FwsBleedLeakAlerts) */
+  public readonly bleedLeakAlerts = new BleedLeakAlerts();
 
   public readonly apuStartSwitchSimvar = RegisteredSimVar.createBoolean(
     'L:A32NX_OVHD_APU_START_PB_IS_ON',
@@ -7506,6 +7510,22 @@ export class FwsCore {
       this.engineBleedLeak[engine].set(isBleedLeak(this.bleedMonitoringInputs, engine, false));
       this.wingBleedLeak[engine].set(isBleedLeak(this.bleedMonitoringInputs, engine, true));
     }
+    const hotAirValves = this.hotAirValveFlags();
+    this.bleedLeakAlerts.update(
+      readBleedLeakAlertInputs((name) => SimVar.GetSimVarValue(name, SimVarValueType.Number), {
+        bleedPbAuto: this.bleedMonitoringInputs.bleedPbAuto,
+        xbleedSelectorOpen: this.xBleedSelectorOpen.get(),
+        xbleedSelectorAuto: this.xBleedSelectorAuto.get(),
+        apuBleedPbOn: !!this.apuBleedPbOn.get(),
+        packPbOn: this.packPbsOn(),
+        hotAirValveOpen: hotAirValves.map((valve) => valve.open),
+        hotAirPbOn: hotAirValves.map((valve) => valve.pbOn),
+        engineRunning: this.bleedMonitoringInputs.engineRunning,
+        wingAntiIceOn: this.wingAntiIce.get(),
+        onGround: this.aircraftOnGround.get(),
+      }),
+      deltaTime,
+    );
 
     // AIR ABNORM BLEED CONFIG after ENG SHUT DOWN, ENG FIRE or ENG BLEED FAULT (AbnormBleedConfig)
     this.abnormBleedConfigInputs = {

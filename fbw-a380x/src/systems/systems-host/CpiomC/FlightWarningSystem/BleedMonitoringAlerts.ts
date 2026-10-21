@@ -59,12 +59,12 @@ export const BLEED_ALERTS_LEVEL = 2;
 /** INOP SYS ENG n BLEED (EcamInopSys), engine 1 first */
 export const ENG_BLEED_INOP_SYS = ['260300002', '260300003', '260300004', '260300005'];
 /** INOP SYS ENG n STARTER (EcamInopSys), engine 1 first */
-const ENG_STARTER_INOP_SYS = ['800300001', '800300002', '800300003', '800300004'];
+export const ENG_STARTER_INOP_SYS = ['800300001', '800300002', '800300003', '800300004'];
 export const APU_BLEED_INOP_SYS = '260300006';
-const PACK_INOP_SYS = ['210300009', '210300010'];
+export const PACK_INOP_SYS = ['210300009', '210300010'];
 
-const LEFT_ENGINES = [0, 1];
-const RIGHT_ENGINES = [2, 3];
+export const LEFT_ENGINES = [0, 1];
+export const RIGHT_ENGINES = [2, 3];
 
 /**
  * @param engine the engine index (0 to 3)

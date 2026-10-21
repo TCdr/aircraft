@@ -588,6 +588,52 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
     );
   });
 
+  // a380_systems pneumatic.rs: the HP, fan air and crossbleed valves, and the leak detection dual loops and systems
+  it('lists the HP, fan air and crossbleed valve and leak detection failures in ATA 36 under the ids of the Rust map', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [];
+    for (const engine of [1, 2, 3, 4]) {
+      expected.push(
+        [36020 + engine - 1, `EngineHpValveStuckClosed(${engine})`, `Engine ${engine} HP valve stuck closed`],
+        [36040 + engine - 1, `EngineFanAirValveStuckOpen(${engine})`, `Engine ${engine} fan air valve stuck open`],
+        [
+          36090 + engine - 1,
+          `EngineLeakDetectionDualLoop(${engine})`,
+          `Engine ${engine} pylon leak detection dual loop`,
+        ],
+      );
+    }
+    ['Left', 'Center', 'Right'].forEach((side, index) => {
+      expected.push(
+        [36050 + index, `CrossBleedValveNumberStuckClosed(${index + 1})`, `${side} crossbleed valve stuck closed`],
+        [36055 + index, `CrossBleedValveNumberStuckOpen(${index + 1})`, `${side} crossbleed valve stuck open`],
+      );
+    });
+    ['Left outer', 'Left inner', 'Right inner', 'Right outer'].forEach((zone, index) => {
+      expected.push([
+        36094 + index,
+        `WingLeakDetectionDualLoop(${index + 1})`,
+        `${zone} wing leak detection dual loop`,
+      ]);
+    });
+    expected.push(
+      [36100, 'ApuLeakDetectionDualLoop', 'APU bleed duct leak detection dual loop'],
+      [36101, 'PackBayLeakDetectionDualLoop(1)', 'Pack 1 bay leak detection dual loop'],
+      [36102, 'PackBayLeakDetectionDualLoop(2)', 'Pack 2 bay leak detection dual loop'],
+      [36103, 'HotAirLeakDetectionDualLoop(1)', 'Hot air 1 duct leak detection dual loop'],
+      [36104, 'HotAirLeakDetectionDualLoop(2)', 'Hot air 2 duct leak detection dual loop'],
+      [36105, 'FwdCargoLeakDetectionDualLoop', 'Forward cargo duct leak detection dual loop'],
+      [36106, 'AftCargoLeakDetectionDualLoop', 'Aft cargo duct leak detection dual loop'],
+      [36110, 'BleedLeakDetectionSystem(1)', 'Bleed leak detection system 1'],
+      [36111, 'BleedLeakDetectionSystem(2)', 'Bleed leak detection system 2'],
+    );
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 36]),
+    );
+  });
+
   // The labels say what systems engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs do with each id:
   // the HP fuel valve sticks, the other faults only raise their FWS alert
   it('lists the HP fuel valve and FADEC monitoring failures with the Rust failure they trigger', () => {

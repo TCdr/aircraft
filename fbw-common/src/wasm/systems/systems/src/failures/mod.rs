@@ -277,6 +277,27 @@ pub enum FailureType {
     ApuLeakDetectionLoop,
     /// The bleed monitoring computer n is failed
     BleedMonitoringComputer(usize),
+    /// Crossbleed valve n of the A380 (1 left, 2 center, 3 right) stays closed
+    CrossBleedValveNumberStuckClosed(usize),
+    /// Crossbleed valve n of the A380 (1 left, 2 center, 3 right) stays open
+    CrossBleedValveNumberStuckOpen(usize),
+    /// A380 bleed leak detection: both loops of a duct zone are lost, the leaks of that zone are no
+    /// longer detected. The engine n (pylon) ducts
+    EngineLeakDetectionDualLoop(usize),
+    /// The wing zone n ducts (1 left outer, 2 left inner, 3 right inner, 4 right outer)
+    WingLeakDetectionDualLoop(usize),
+    /// The APU bleed duct
+    ApuLeakDetectionDualLoop,
+    /// The bleed ducts of the pack n bay
+    PackBayLeakDetectionDualLoop(usize),
+    /// The hot-air ducts of the hot-air valve n
+    HotAirLeakDetectionDualLoop(usize),
+    /// The forward cargo bleed ducts
+    FwdCargoLeakDetectionDualLoop,
+    /// The aft cargo bleed ducts
+    AftCargoLeakDetectionDualLoop,
+    /// A380 bleed leak detection system n (1 or 2): one loop of every duct zone is lost
+    BleedLeakDetectionSystem(usize),
     /// The normal braking hydraulic equipment of all wheel groups (A380 BCS normal braking)
     BrakeNormalBraking,
     /// The alternate braking under brake control system control, all wheel groups (A380 BCS alternate braking)
