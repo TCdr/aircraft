@@ -89,9 +89,9 @@ impl SimulationElement for A380FireAndSmokeProtection {
     }
 }
 
-/// The compartments of the Smoke Detection Function (SDF) of the CIDS that are modelled: the cargo compartments, the
-/// avionics bays, the IFE bay and the NSS, each with two smoke detectors. Not modelled: the crew rests, lavatories,
-/// CWS / RCC and showers.
+/// The compartments of the Smoke Detection Function (SDF) of the CIDS with two smoke detectors: the cargo compartments,
+/// the avionics bays, the IFE bay and the NSS. The cabin areas are in A380_CABIN_SMOKE_DETECTION_ZONES and
+/// A380_LAVATORY_SMOKE_DETECTION_ZONES. Not modelled: the showers.
 ///
 /// The NSS smoke has no ECAM alert: it lights the SMOKE light of the NSS MASTER sw while smoke is detected
 /// (L:A32NX_SMOKE_NSS_DETECTED), with the SMOKE warning logic of the bays (both detectors, or one failed and the other
@@ -109,11 +109,145 @@ const A380_SMOKE_DETECTION_ZONES: [SmokeDetectionZone; 10] = [
     SmokeDetectionZone::NetworkServerSystem,
 ];
 
+/// The cabin areas of the SDF with two smoke detectors: the flight crew rests, the aft lower deck cabin crew rest and
+/// the IFE control centers (CWS / RCC). Design choice: two detectors as in the other compartments; the manuals give
+/// several detectors per compartment for the crew rests only.
+const A380_CABIN_SMOKE_DETECTION_ZONES: [SmokeDetectionZone; 6] = [
+    SmokeDetectionZone::FlightCrewRest1,
+    SmokeDetectionZone::FlightCrewRest2,
+    SmokeDetectionZone::AftLowerDeckCabinCrewRest,
+    SmokeDetectionZone::MainDeck1LCabinWorkStation,
+    SmokeDetectionZone::UpperDeck1LCabinWorkStation,
+    SmokeDetectionZone::UpperDeck3RRemoteControlCenter,
+];
+
+/// The lavatories of the SDF, one smoke detector in each lavatory. Design choice: the lavatories of a deck share one
+/// zone and one detector: the alerts name the deck, not the lavatory. That detector is on the DC ESS bus, as detector 1
+/// of the other compartments.
+const A380_LAVATORY_SMOKE_DETECTION_ZONES: [SmokeDetectionZone; 3] = [
+    SmokeDetectionZone::MainDeckLavatory,
+    SmokeDetectionZone::UpperDeckLavatory,
+    SmokeDetectionZone::LowerDeckLavatory,
+];
+
+/// Design choice (no published confirmation time): the smoke is confirmed at once.
+fn sdf_smoke_detection<const D: usize>(
+    context: &mut InitContext,
+    zone: SmokeDetectionZone,
+    detectors_powered_by: [ElectricalBusType; D],
+) -> SmokeDetection<D> {
+    SmokeDetection::new(
+        context,
+        SmokeDetectionZoneConfig {
+            zone,
+            detectors_powered_by,
+            confirmation_time: Duration::ZERO,
+            fault_logic: SmokeDetectionFaultLogic::AnyDetectorInoperativeOrDisagreeing,
+        },
+    )
+}
+
+/// Design choice (no published supply): detector 1 on the DC ESS bus and detector 2 on the DC 2 bus, as the fire
+/// detection loops A and B here.
+const SDF_DUAL_DETECTOR_SUPPLY: [ElectricalBusType; 2] = [
+    ElectricalBusType::DirectCurrentEssential,
+    ElectricalBusType::DirectCurrent(2),
+];
+
+/// A fire extinguishing bottle of the aft lower deck cabin crew rest compartment: its failure gives SMOKE AFT LWR CAB
+/// REST BTL 1(2) FAULT (L:A32NX_SMOKE_AFT_LWR_CAB_REST_BTL_<n>_FAULT). The cabin crew discharges the bottles from the
+/// compartment, which is not modelled.
+struct CrewRestFireBottle {
+    fault_id: VariableIdentifier,
+    failure: Failure,
+}
+
+impl CrewRestFireBottle {
+    fn new(context: &mut InitContext, number: usize) -> Self {
+        Self {
+            fault_id: context
+                .get_identifier(format!("SMOKE_AFT_LWR_CAB_REST_BTL_{}_FAULT", number)),
+            failure: Failure::new(FailureType::CrewRestFireBottle(number)),
+        }
+    }
+}
+
+impl SimulationElement for CrewRestFireBottle {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.failure.accept(visitor);
+
+        visitor.visit(self);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        writer.write(&self.fault_id, self.failure.is_active());
+    }
+}
+
+/// The routing of the two cargo fire bottles: the bottle control system and the diverter valve to the forward or the
+/// aft/bulk compartment. A failed position of the valve (SMOKE FWD (AFT) CARGO BOTTLES FAULT) or a failed control
+/// (SMOKE FWD+AFT CARGOS BOTTLES FAULT) leaves the bottles full when the AGENT TO pb of that compartment is pressed.
+/// Writes L:A32NX_CARGOSMOKE_DIVERTER_VALVE_FWD(AFT)_FAULT and L:A32NX_CARGOSMOKE_BOTTLE_CONTROL_FAULT for the FWS.
+struct CargoFireBottleRouting {
+    diverter_valve_fault_ids: [VariableIdentifier; 2],
+    control_fault_id: VariableIdentifier,
+
+    diverter_valve_position_failures: [Failure; 2],
+    control_failure: Failure,
+}
+
+impl CargoFireBottleRouting {
+    fn new(context: &mut InitContext) -> Self {
+        Self {
+            diverter_valve_fault_ids: ["FWD", "AFT"].map(|compartment| {
+                context.get_identifier(format!("CARGOSMOKE_DIVERTER_VALVE_{}_FAULT", compartment))
+            }),
+            control_fault_id: context.get_identifier("CARGOSMOKE_BOTTLE_CONTROL_FAULT".to_owned()),
+
+            diverter_valve_position_failures: [1, 2].map(|position| {
+                Failure::new(FailureType::CargoFireDiverterValvePosition(position))
+            }),
+            control_failure: Failure::new(FailureType::CargoFireBottleControl),
+        }
+    }
+
+    /// The forward and the aft/bulk compartments the agent can reach
+    fn reachable_compartments(&self) -> [bool; 2] {
+        let control_works = !self.control_failure.is_active();
+        [0, 1]
+            .map(|index| control_works && !self.diverter_valve_position_failures[index].is_active())
+    }
+}
+
+impl SimulationElement for CargoFireBottleRouting {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        accept_iterable!(self.diverter_valve_position_failures, visitor);
+        self.control_failure.accept(visitor);
+
+        visitor.visit(self);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        for (id, failure) in self
+            .diverter_valve_fault_ids
+            .iter()
+            .zip(&self.diverter_valve_position_failures)
+        {
+            writer.write(id, failure.is_active());
+        }
+        writer.write(&self.control_fault_id, self.control_failure.is_active());
+    }
+}
+
 /// The A380 Smoke Detection Function (SDF) of the CIDS: smoke detection in the avionics bays, the cargo compartments and
 /// the cabin areas, and the cargo fire extinguishing.
 struct SmokeDetectionFunction {
     zones: [SmokeDetection<2>; 10],
+    cabin_zones: [SmokeDetection<2>; 6],
+    lavatories: [SmokeDetection<1>; 3],
     cargo_fire_extinguishing: CargoFireExtinguishing<2, 2>,
+    cargo_bottle_routing: CargoFireBottleRouting,
+    crew_rest_bottles: [CrewRestFireBottle; 2],
 
     /// The SDF itself is failed: SMOKE DET FAULT, L:A32NX_SMOKE_DETECTION_FUNCTION_FAULT for the FWS (SmokeAlerts.ts).
     /// Smoke detection is lost in the avionics compartments (IFE center and NSS included), the cargo compartments and
@@ -121,6 +255,18 @@ struct SmokeDetectionFunction {
     /// keeps working.
     failure: Failure,
     fault_id: VariableIdentifier,
+
+    /// The SDF does not detect the cabin configuration and the cabin smoke detectors: SMOKE FACILITIES DET FAULT,
+    /// L:A32NX_SMOKE_FACILITIES_DET_FAULT. Design choice: the cabin areas (lavatories, crew rests, CWS / RCC) then report
+    /// neither smoke nor a detector fault, as with a failed SDF; INOP SYS FACILITIES SMK DET.
+    facilities_failure: Failure,
+    facilities_fault_id: VariableIdentifier,
+
+    /// SMOKE SAFETY TEST REQUIRED, L:A32NX_SMOKE_SAFETY_TEST_REQUIRED: the SDF did not perform its automatic safety
+    /// test (on ground, every 10 h) in the last 50 h. Design choice: this test history is not simulated, a failure
+    /// stands for the missed tests.
+    safety_test_overdue: Failure,
+    safety_test_required_id: VariableIdentifier,
 }
 
 impl SmokeDetectionFunction {
@@ -131,21 +277,12 @@ impl SmokeDetectionFunction {
 
     fn new(context: &mut InitContext) -> Self {
         Self {
-            // Design choice (no published supply or confirmation time): detector 1 on the DC ESS bus and detector 2
-            // on the DC 2 bus, as the fire detection loops A and B here.
-            zones: A380_SMOKE_DETECTION_ZONES.map(|zone| {
-                SmokeDetection::new(
-                    context,
-                    SmokeDetectionZoneConfig {
-                        zone,
-                        detectors_powered_by: [
-                            ElectricalBusType::DirectCurrentEssential,
-                            ElectricalBusType::DirectCurrent(2),
-                        ],
-                        confirmation_time: Duration::ZERO,
-                        fault_logic: SmokeDetectionFaultLogic::AnyDetectorInoperativeOrDisagreeing,
-                    },
-                )
+            zones: A380_SMOKE_DETECTION_ZONES
+                .map(|zone| sdf_smoke_detection(context, zone, SDF_DUAL_DETECTOR_SUPPLY)),
+            cabin_zones: A380_CABIN_SMOKE_DETECTION_ZONES
+                .map(|zone| sdf_smoke_detection(context, zone, SDF_DUAL_DETECTOR_SUPPLY)),
+            lavatories: A380_LAVATORY_SMOKE_DETECTION_ZONES.map(|zone| {
+                sdf_smoke_detection(context, zone, [ElectricalBusType::DirectCurrentEssential])
             }),
             // The AGENT TO FWD / AGENT TO AFT pbs write L:A32NX_CARGOSMOKE_FWD(AFT)_DISCHARGED; the AFT agent goes to
             // the aft/bulk compartment
@@ -157,32 +294,72 @@ impl SmokeDetectionFunction {
                     Self::CARGO_BOTTLE_2_DISCHARGE_DURATION,
                 ],
             ),
+            cargo_bottle_routing: CargoFireBottleRouting::new(context),
+            crew_rest_bottles: [1, 2].map(|number| CrewRestFireBottle::new(context, number)),
 
             failure: Failure::new(FailureType::SmokeDetectionFunction),
             fault_id: context.get_identifier("SMOKE_DETECTION_FUNCTION_FAULT".to_owned()),
+
+            facilities_failure: Failure::new(FailureType::SmokeDetectionFacilities),
+            facilities_fault_id: context.get_identifier("SMOKE_FACILITIES_DET_FAULT".to_owned()),
+
+            safety_test_overdue: Failure::new(FailureType::SmokeDetectionSafetyTestOverdue),
+            safety_test_required_id: context
+                .get_identifier("SMOKE_SAFETY_TEST_REQUIRED".to_owned()),
         }
     }
 
     fn update(&mut self, context: &UpdateContext) {
-        let available = !self.failure.is_active();
+        let available = self.is_available();
         for zone in self.zones.iter_mut() {
             zone.update_with_detection_unit(context, available);
         }
-        self.cargo_fire_extinguishing.update(context);
+        let cabin_available = available && !self.facilities_failure.is_active();
+        for zone in self.cabin_zones.iter_mut() {
+            zone.update_with_detection_unit(context, cabin_available);
+        }
+        for lavatory in self.lavatories.iter_mut() {
+            lavatory.update_with_detection_unit(context, cabin_available);
+        }
+        self.cargo_fire_extinguishing
+            .update_with_reachable_compartments(
+                context,
+                self.cargo_bottle_routing.reachable_compartments(),
+            );
+    }
+
+    fn is_available(&self) -> bool {
+        !self.failure.is_active()
     }
 }
 
 impl SimulationElement for SmokeDetectionFunction {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         accept_iterable!(self.zones, visitor);
+        accept_iterable!(self.cabin_zones, visitor);
+        accept_iterable!(self.lavatories, visitor);
         self.cargo_fire_extinguishing.accept(visitor);
+        self.cargo_bottle_routing.accept(visitor);
+        accept_iterable!(self.crew_rest_bottles, visitor);
         self.failure.accept(visitor);
+        self.facilities_failure.accept(visitor);
+        self.safety_test_overdue.accept(visitor);
 
         visitor.visit(self);
     }
 
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.fault_id, self.failure.is_active());
+        // A failed SDF reports neither of its own faults
+        let available = self.is_available();
+        writer.write(
+            &self.facilities_fault_id,
+            available && self.facilities_failure.is_active(),
+        );
+        writer.write(
+            &self.safety_test_required_id,
+            available && self.safety_test_overdue.is_active(),
+        );
     }
 }
 
@@ -1690,6 +1867,192 @@ mod a380_fire_and_smoke_protection_tests {
             assert!(!read_bool(
                 &mut test_bed,
                 "CARGOSMOKE_BOTTLE_1_LOW_PRESSURE"
+            ));
+        }
+
+        const CABIN_ZONES: [&str; 9] = [
+            "FLT_REST_1",
+            "FLT_REST_2",
+            "AFT_LWR_CAB_REST",
+            "MAIN_1L_CWS",
+            "UPPER_1L_CWS",
+            "UPPER_3R_RCC",
+            "MAIN_DECK_LAV",
+            "UPPER_DECK_LAV",
+            "LOWER_DECK_LAV",
+        ];
+
+        fn cabin_zone_types() -> Vec<SmokeDetectionZone> {
+            A380_CABIN_SMOKE_DETECTION_ZONES
+                .iter()
+                .chain(A380_LAVATORY_SMOKE_DETECTION_ZONES.iter())
+                .copied()
+                .collect()
+        }
+
+        #[test]
+        fn smoke_in_each_cabin_area_gives_its_own_smoke_warning_only() {
+            for (index, zone) in cabin_zone_types().into_iter().enumerate() {
+                let mut test_bed = test_bed();
+                test_bed.fail(FailureType::Smoke(zone));
+                test_bed = test_bed.and_double_run();
+
+                for (other_index, other_zone) in CABIN_ZONES.iter().enumerate() {
+                    assert_eq!(
+                        smoke_detected(&mut test_bed, other_zone),
+                        index == other_index
+                    );
+                    assert!(!smoke_detection_fault(&mut test_bed, other_zone));
+                }
+                for other_zone in ZONES {
+                    assert!(!smoke_detected(&mut test_bed, other_zone));
+                }
+            }
+        }
+
+        #[test]
+        fn a_failed_lavatory_detector_gives_the_det_fault_and_loses_the_smoke_detection() {
+            let mut test_bed = test_bed();
+            test_bed.fail(FailureType::SmokeDetector(
+                SmokeDetectionZone::UpperDeckLavatory,
+                1,
+            ));
+            test_bed.fail(FailureType::Smoke(SmokeDetectionZone::UpperDeckLavatory));
+            test_bed = test_bed.and_double_run();
+
+            assert!(smoke_detection_fault(&mut test_bed, "UPPER_DECK_LAV"));
+            assert!(!smoke_detected(&mut test_bed, "UPPER_DECK_LAV"));
+            assert!(!smoke_detection_fault(&mut test_bed, "MAIN_DECK_LAV"));
+        }
+
+        #[test]
+        fn one_failed_crew_rest_detector_gives_the_det_fault_and_keeps_the_smoke_detection() {
+            let mut test_bed = test_bed();
+            test_bed.fail(FailureType::SmokeDetector(
+                SmokeDetectionZone::AftLowerDeckCabinCrewRest,
+                2,
+            ));
+            test_bed = test_bed.and_double_run();
+            assert!(smoke_detection_fault(&mut test_bed, "AFT_LWR_CAB_REST"));
+
+            test_bed.fail(FailureType::Smoke(
+                SmokeDetectionZone::AftLowerDeckCabinCrewRest,
+            ));
+            test_bed = test_bed.and_double_run();
+            assert!(smoke_detected(&mut test_bed, "AFT_LWR_CAB_REST"));
+        }
+
+        #[test]
+        fn the_facilities_fault_loses_the_cabin_smoke_detection_only() {
+            let mut test_bed = test_bed();
+            test_bed.fail(FailureType::Smoke(SmokeDetectionZone::MainDeckLavatory));
+            test_bed.fail(FailureType::SmokeDetector(
+                SmokeDetectionZone::FlightCrewRest2,
+                1,
+            ));
+            test_bed.fail(FailureType::Smoke(SmokeDetectionZone::ForwardCargo));
+            test_bed = test_bed.and_double_run();
+            assert!(!read_bool(&mut test_bed, "SMOKE_FACILITIES_DET_FAULT"));
+            assert!(smoke_detected(&mut test_bed, "MAIN_DECK_LAV"));
+            assert!(smoke_detection_fault(&mut test_bed, "FLT_REST_2"));
+
+            test_bed.fail(FailureType::SmokeDetectionFacilities);
+            test_bed = test_bed.and_double_run();
+
+            assert!(read_bool(&mut test_bed, "SMOKE_FACILITIES_DET_FAULT"));
+            for zone in CABIN_ZONES {
+                assert!(!smoke_detected(&mut test_bed, zone));
+                assert!(!smoke_detection_fault(&mut test_bed, zone));
+            }
+            assert!(smoke_detected(&mut test_bed, "FWD_CARGO"));
+        }
+
+        #[test]
+        fn the_sdf_reports_a_missed_safety_test() {
+            let mut test_bed = test_bed().and_double_run();
+            assert!(!read_bool(&mut test_bed, "SMOKE_SAFETY_TEST_REQUIRED"));
+
+            test_bed.fail(FailureType::SmokeDetectionSafetyTestOverdue);
+            test_bed = test_bed.and_double_run();
+            assert!(read_bool(&mut test_bed, "SMOKE_SAFETY_TEST_REQUIRED"));
+        }
+
+        #[test]
+        fn a_failed_sdf_reports_neither_the_facilities_fault_nor_the_safety_test() {
+            let mut test_bed = test_bed();
+            test_bed.fail(FailureType::SmokeDetectionFacilities);
+            test_bed.fail(FailureType::SmokeDetectionSafetyTestOverdue);
+            test_bed.fail(FailureType::SmokeDetectionFunction);
+            test_bed = test_bed.and_double_run();
+
+            assert!(read_bool(&mut test_bed, "SMOKE_DETECTION_FUNCTION_FAULT"));
+            assert!(!read_bool(&mut test_bed, "SMOKE_FACILITIES_DET_FAULT"));
+            assert!(!read_bool(&mut test_bed, "SMOKE_SAFETY_TEST_REQUIRED"));
+        }
+
+        #[test]
+        fn a_failed_fwd_diverter_valve_position_keeps_the_agent_out_of_the_fwd_compartment() {
+            let mut test_bed = test_bed();
+            test_bed.fail(FailureType::CargoFireDiverterValvePosition(1));
+            test_bed = test_bed
+                .and_double_run()
+                .then()
+                .agent_into_cargo_compartment("FWD")
+                .run_with_delta_of(Duration::from_secs(61));
+
+            assert!(read_bool(
+                &mut test_bed,
+                "CARGOSMOKE_DIVERTER_VALVE_FWD_FAULT"
+            ));
+            assert!(!read_bool(
+                &mut test_bed,
+                "CARGOSMOKE_DIVERTER_VALVE_AFT_FAULT"
+            ));
+            assert!(!read_bool(&mut test_bed, "CARGOSMOKE_FWD_AGENT_RELEASED"));
+            assert!(!read_bool(&mut test_bed, "CARGOSMOKE_BOTTLE_1_DISCHARGED"));
+
+            test_bed = test_bed
+                .agent_into_cargo_compartment("AFT")
+                .run_with_delta_of(Duration::from_secs(61));
+            assert!(read_bool(&mut test_bed, "CARGOSMOKE_AFT_AGENT_RELEASED"));
+            assert!(read_bool(&mut test_bed, "CARGOSMOKE_BOTTLE_1_DISCHARGED"));
+        }
+
+        #[test]
+        fn a_failed_bottle_control_keeps_the_agent_out_of_both_compartments() {
+            let mut test_bed = test_bed();
+            test_bed.fail(FailureType::CargoFireBottleControl);
+            test_bed = test_bed
+                .and_double_run()
+                .then()
+                .agent_into_cargo_compartment("FWD")
+                .agent_into_cargo_compartment("AFT")
+                .run_with_delta_of(Duration::from_secs(61));
+
+            assert!(read_bool(&mut test_bed, "CARGOSMOKE_BOTTLE_CONTROL_FAULT"));
+            assert!(!read_bool(&mut test_bed, "CARGOSMOKE_FWD_AGENT_RELEASED"));
+            assert!(!read_bool(&mut test_bed, "CARGOSMOKE_AFT_AGENT_RELEASED"));
+            assert!(!read_bool(&mut test_bed, "CARGOSMOKE_BOTTLE_1_DISCHARGED"));
+        }
+
+        #[test]
+        fn a_failed_crew_rest_bottle_gives_its_bottle_fault() {
+            let mut test_bed = test_bed().and_double_run();
+            assert!(!read_bool(
+                &mut test_bed,
+                "SMOKE_AFT_LWR_CAB_REST_BTL_1_FAULT"
+            ));
+
+            test_bed.fail(FailureType::CrewRestFireBottle(2));
+            test_bed = test_bed.and_double_run();
+
+            assert!(read_bool(
+                &mut test_bed,
+                "SMOKE_AFT_LWR_CAB_REST_BTL_2_FAULT"
+            ));
+            assert!(!read_bool(
+                &mut test_bed,
+                "SMOKE_AFT_LWR_CAB_REST_BTL_1_FAULT"
             ));
         }
     }

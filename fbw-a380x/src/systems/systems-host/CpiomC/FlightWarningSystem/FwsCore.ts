@@ -186,6 +186,7 @@ import { ElecSystemAlerts, readElecSystemInputs } from './FwsElecSystemAlerts';
 import { FctlSensorAlerts } from './FwsFctlSensorAlerts';
 import { ElecDriveOilAlerts, readDriveOilInputs } from './FwsElecDriveOilAlerts';
 import { ElecSupplyCentreAlerts, readElecSupplyCentreInputs } from './FwsElecSupplyCentreAlerts';
+import { CabinSmokeAlerts, readCabinSmokeInputs } from './FwsCabinSmokeAlerts';
 import {
   areDoorsInTakeoffConfig,
   CABIN_DOORS,
@@ -1525,6 +1526,9 @@ export class FwsCore {
 
   /** L:A32NX_CARGOSMOKE_BOTTLE_1(2)_LOW_PRESSURE: SMOKE FWD+AFT CARGOS BTL 1(2) FAULT */
   public readonly cargoBottleLowPressure = [Subject.create(false), Subject.create(false)];
+
+  /** The SMOKE alerts of the cabin areas, the SDF status and the cargo bottles routing */
+  public readonly cabinSmokeAlerts = new CabinSmokeAlerts();
 
   /** The CAB FANS pb is ON (the smoke procedures switch it OFF) */
   public readonly cabFansOn = Subject.create(false);
@@ -7623,6 +7627,7 @@ export class FwsCore {
       ),
     );
     this.cabFansOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_VENT_CAB_FANS_PB_IS_ON', SimVarValueType.Bool) > 0);
+    this.cabinSmokeAlerts.update(readCabinSmokeInputs((name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool)));
 
     // The FIRE TEST pb, extended after its release when the flyPad setting is on
     this.fireTestPb.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ACTIVE', 'bool'));

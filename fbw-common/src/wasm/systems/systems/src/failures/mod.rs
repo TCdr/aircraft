@@ -127,6 +127,20 @@ pub enum FailureType {
     /// Cargo fire extinguisher bottle n loses its agent: low pressure (A320 SMOKE CRG BTL FAULT, A380 SMOKE CARGO
     /// BOTTLES FAULT)
     CargoFireBottleLowPressure(usize),
+    /// The diverter valve of the A380 cargo fire extinguishing cannot take its position n (1 forward, 2 aft/bulk): the
+    /// bottles cannot discharge into that compartment (SMOKE FWD (AFT) CARGO BOTTLES FAULT)
+    CargoFireDiverterValvePosition(usize),
+    /// The system that controls the A380 cargo fire extinguishing bottles is failed: they cannot discharge (SMOKE
+    /// FWD+AFT CARGOS BOTTLES FAULT)
+    CargoFireBottleControl,
+    /// Fire extinguishing bottle n of the A380 aft lower deck cabin crew rest compartment is failed (SMOKE AFT LWR CAB
+    /// REST BTL n FAULT)
+    CrewRestFireBottle(usize),
+    /// The A380 Smoke Detection Function does not detect the cabin configuration and the smoke detectors of the cabin
+    /// (SMOKE FACILITIES DET FAULT)
+    SmokeDetectionFacilities,
+    /// The A380 Smoke Detection Function missed its automatic safety tests (SMOKE SAFETY TEST REQUIRED)
+    SmokeDetectionSafetyTestOverdue,
     /// Channel n (1 or 2) of the A320 smoke detection control unit (SDCU): with both channels failed the SDCU reports
     /// neither smoke nor a detector fault (SMOKE DET FAULT)
     SmokeDetectionControlUnitChannel(usize),

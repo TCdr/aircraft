@@ -144,6 +144,7 @@ import {
 } from './FwsElecSystemAlerts';
 import { elecDriveOilAbnormalItems } from './FwsElecDriveOilAlerts';
 import { elecSupplyCentreAbnormalItems, elecSupplyCentreDeferredItems } from './FwsElecSupplyCentreAlerts';
+import { cabinSmokeAbnormalItems } from './FwsCabinSmokeAlerts';
 import { gpwsFaultItemsToShow, isApFdTcasModeInop } from './FwsSurvAlerts';
 import {
   FM_GPS_POS_DISAGREE_INFO,
@@ -4554,6 +4555,8 @@ export class FwsAbnormalSensed {
     },
     // SMOKE ... SMOKE / DET FAULT of the SDF compartments and FWD+AFT CARGOS BTL 1(2) FAULT, see smokeAlerts()
     ...this.smokeAlerts(),
+    // SMOKE alerts of the cabin areas, SAFETY TEST REQUIRED and the cargo BOTTLES FAULT
+    ...cabinSmokeAbnormalItems(this.fws.cabinSmokeAlerts),
 
     // ATA 27 - FLIGHT CONTROLS
     // Sidestick, rudder pedal, rudder trim, spoiler and PRIM/SEC sensor alerts, see FwsFctlSensorAlerts

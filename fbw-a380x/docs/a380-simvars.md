@@ -1584,7 +1584,8 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_SMOKE_{zone}_DETECTED
     - Bool
     - {zone} = FWD_CARGO, AFT_CARGO, BULK_CARGO, L_MAIN_AVNCS, R_MAIN_AVNCS, L_UPPER_AVNCS, R_UPPER_AVNCS, AFT_AVNCS,
-      IFE_BAY, NSS (network server system)
+      IFE_BAY, NSS (network server system), and the cabin areas: MAIN_DECK_LAV, UPPER_DECK_LAV, LOWER_DECK_LAV (one
+      detector per deck), FLT_REST_1, FLT_REST_2, AFT_LWR_CAB_REST, MAIN_1L_CWS, UPPER_1L_CWS, UPPER_3R_RCC
     - True when the Smoke Detection Function (SDF) detects smoke in the compartment: both detectors sense it, or one does
       and the other is failed (A380 FCOM DSC-26-50-10 / DSC-26-60-10 DETECTION LOGIC; systems
       fire_protection/smoke_detection.rs). The smoke comes from the flyPad failures "<compartment> smoke"
@@ -1623,6 +1624,33 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Bool
     - True when the cargo fire bottle lost its agent (flyPad failure "Cargo fire bottle 1(2) low pressure"); drives SMOKE
       FWD+AFT CARGO BTL 1(2) FAULT
+
+- A32NX_CARGOSMOKE_DIVERTER_VALVE_{FWD | AFT}_FAULT
+    - Bool
+    - True when the diverter valve of the cargo fire bottles cannot take its FWD (AFT) position (flyPad failure "Cargo
+      fire bottles diverter valve FWD (AFT) position"): the AGENT TO FWD (AFT) pb then fires nothing. Drives SMOKE FWD
+      (AFT) CARGO BOTTLES FAULT, or FWD+AFT CARGOS BOTTLES FAULT when both positions are failed
+
+- A32NX_CARGOSMOKE_BOTTLE_CONTROL_FAULT
+    - Bool
+    - True when the system that controls the cargo fire bottles is failed (flyPad failure "Cargo fire bottles control"):
+      neither AGENT pb fires the bottles. Drives SMOKE FWD+AFT CARGOS BOTTLES FAULT
+
+- A32NX_SMOKE_AFT_LWR_CAB_REST_BTL_{1 | 2}_FAULT
+    - Bool
+    - True when fire extinguishing bottle 1(2) of the aft lower deck cabin crew rest is failed (flyPad failure "Aft lower
+      deck cabin crew rest fire bottle 1(2)"); drives SMOKE AFT LWR CAB REST BTL 1(2) FAULT
+
+- A32NX_SMOKE_FACILITIES_DET_FAULT
+    - Bool
+    - True when the SDF does not detect the cabin configuration and the cabin smoke detectors (flyPad failure "Smoke
+      detection facilities (cabin configuration) of the SDF"): the cabin areas then report neither smoke nor a detector
+      fault. False while the SDF itself is failed. Drives SMOKE FACILITIES DET FAULT
+
+- A32NX_SMOKE_SAFETY_TEST_REQUIRED
+    - Bool
+    - True when the SDF missed its automatic safety tests (flyPad failure "SDF automatic safety test overdue"; the 50 h
+      test history is not simulated). False while the SDF itself is failed. Drives SMOKE SAFETY TEST REQUIRED
 
 ## Flight Controls (ATA 27)
 

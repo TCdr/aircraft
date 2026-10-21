@@ -1394,22 +1394,22 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   260800054: {
-    title: '\x1b<4m\x1b4mSMOKE\x1bm FWD LWR CAB REST BTL 1 FAULT',
+    title: '\x1b<4m\x1b4mSMOKE\x1bm AFT LWR CAB REST BTL 1 FAULT',
     sensed: true,
     items: [],
   },
   260800055: {
-    title: '\x1b<4m\x1b4mSMOKE\x1bm FWD LWR CAB REST BTL 2 FAULT',
+    title: '\x1b<4m\x1b4mSMOKE\x1bm AFT LWR CAB REST BTL 2 FAULT',
     sensed: true,
     items: [],
   },
   260800056: {
-    title: '\x1b<4m\x1b4mSMOKE\x1bm FWD LWR CAB REST DET FAULT',
+    title: '\x1b<4m\x1b4mSMOKE\x1bm AFT LWR CAB REST DET FAULT',
     sensed: true,
     items: [],
   },
   260800057: {
-    title: '\x1b<2m\x1b4mSMOKE\x1bm FWD LWR CAB REST SMOKE',
+    title: '\x1b<2m\x1b4mSMOKE\x1bm AFT LWR CAB REST SMOKE',
     sensed: true,
     items: [
       {
@@ -1436,7 +1436,7 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
     ],
   },
   260800058: {
-    title: '\x1b<4m\x1b4mSMOKE\x1bm MAIN 5L FLT REST DET FAULT',
+    title: '\x1b<4m\x1b4mSMOKE\x1bm FLT REST DET FAULT',
     sensed: true,
     items: [],
   },
@@ -1446,7 +1446,7 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   260800060: {
-    title: '\x1b<2m\x1b4mSMOKE\x1bm MAIN 5L FLT REST SMOKE',
+    title: '\x1b<2m\x1b4mSMOKE\x1bm FLT REST SMOKE',
     sensed: true,
     items: [
       {
@@ -1493,7 +1493,7 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   260800065: {
-    title: '\x1b<4m\x1b4mSMOKE\x1bm MAIN DECK LAVATORY SMOKE',
+    title: '\x1b<2m\x1b4mSMOKE\x1bm MAIN DECK LAVATORY SMOKE',
     sensed: true,
     items: [
       {
@@ -1504,7 +1504,7 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
     ],
   },
   260800066: {
-    title: '\x1b<4m\x1b4mSMOKE\x1bm UPPER DECK LAVATORY SMOKE',
+    title: '\x1b<2m\x1b4mSMOKE\x1bm UPPER DECK LAVATORY SMOKE',
     sensed: true,
     items: [
       {
@@ -1515,7 +1515,7 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
     ],
   },
   260800067: {
-    title: '\x1b<4m\x1b4mSMOKE\x1bm LOWER DECK LAVATORY SMOKE',
+    title: '\x1b<2m\x1b4mSMOKE\x1bm LOWER DECK LAVATORY SMOKE',
     sensed: true,
     items: [
       {
