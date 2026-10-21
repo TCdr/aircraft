@@ -3,11 +3,12 @@
 
 import PitchTrimUtils from '@shared/PitchTrimUtils';
 import { AocPrintout } from '@shared/AocPrintout';
-import { KG_PER_LB, missingParameterErrors } from './PerformanceEntries';
+import { formatWholeWeight, missingParameterErrors } from './PerformanceEntries';
 
 /*
- * LOADSHEET in REDUCED mode: the ZFW/CG (computed by the ground) and the fuel give the TOW/CG and the LW/CG, the
- * underload, the T.O THS and the loadsheet report (LTS EDITION). The weights are in kg, the CGs in % MAC.
+ * LOADSHEET: the ZFW/CG (entered in REDUCED mode, computed from the payload in DETAILED mode) and the fuel give the
+ * TOW/CG and the LW/CG, the underload, the T.O THS and the reduced loadsheet report (LTS EDITION). The weights are in
+ * kg, the CGs in % MAC.
  */
 
 /** The aircraft data of the loadsheet: the FBW A380X airframe (the weight and balance of its systems) */
@@ -68,23 +69,6 @@ export function percentMacToArm(percentMac: number): number {
 export const LOADSHEET_DOCG = armToPercentMac(LOADSHEET_AIRCRAFT.dowArm);
 
 /**
- * The predicted fuel distribution after refuelling (FUEL DISTR panel).
- *
- * Design choice: the FQMS CG targeting logic is not modelled; the predicted distribution keeps the proportions of the
- * fuel now in the tanks (the distribution of the last refuelling), or the proportions of the tank capacities when the
- * tanks are empty.
- * @param fob the fuel on board of the loadsheet, kg
- * @param tankFuel the fuel in each tank now, kg, in the order of LOADSHEET_FUEL_TANKS
- * @returns the predicted fuel in each tank, kg
- */
-export function predictedFuelDistribution(fob: number, tankFuel: readonly number[]): number[] {
-  const total = tankFuel.reduce((sum, kg) => sum + Math.max(0, kg), 0);
-  const weights = total > 0 ? tankFuel.map((kg) => Math.max(0, kg)) : LOADSHEET_FUEL_TANKS.map((tank) => tank.gallons);
-  const weightSum = weights.reduce((sum, w) => sum + w, 0);
-  return weights.map((w) => (fob * w) / weightSum);
-}
-
-/**
  * @param distribution the fuel in each tank, kg
  * @returns the arm of the fuel, feet forward of the reference datum
  */
@@ -106,6 +90,8 @@ export interface LoadsheetConfiguration {
   readonly mlw: number;
   /** The MLW is the MLW(perf) of LDG PERF (yellow) */
   readonly mlwFromLandingPerf: boolean;
+  /** The DOW (kg) and DOCG (% MAC) of the DETAILED entries; the default ones of the aircraft when not given */
+  readonly dryOperating?: { readonly dow: number; readonly docg: number };
 }
 
 /** The LOADING panel and the LMC; null for an empty field */
@@ -214,7 +200,8 @@ export function computeLoadsheet(
   // A total LMC changes the weights only, not the CGs
   const lmcWeight = loading.lmcPax * perPaxWeight + loading.lmcCargo;
   const zfw = loading.zfw! + lmcWeight;
-  if (zfw < LOADSHEET_AIRCRAFT.dow) {
+  const dow = configuration.dryOperating?.dow ?? LOADSHEET_AIRCRAFT.dow;
+  if (zfw < dow) {
     errors.push('ZFW below DOW');
   }
   if (errors.length > 0) {
@@ -240,9 +227,9 @@ export function computeLoadsheet(
 
   return {
     results: {
-      dow: LOADSHEET_AIRCRAFT.dow,
-      docg: LOADSHEET_DOCG,
-      payload: zfw - LOADSHEET_AIRCRAFT.dow,
+      dow,
+      docg: configuration.dryOperating?.docg ?? LOADSHEET_DOCG,
+      payload: zfw - dow,
       zfw,
       zfcg,
       takeoffFuel,
@@ -308,6 +295,18 @@ export const LTS_CAPT_INFO_NOTES_LINES = 5;
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 /**
+ * @param date the date of the report (UTC)
+ * @returns the DATE and TIME of a loadsheet, e.g. 05OCT26 and 1432
+ */
+export function ltsDateTime(date: Date): { readonly date: string; readonly time: string } {
+  const day = date.getUTCDate().toString().padStart(2, '0');
+  return {
+    date: `${day}${MONTHS[date.getUTCMonth()]}${(date.getUTCFullYear() % 100).toString().padStart(2, '0')}`,
+    time: `${date.getUTCHours().toString().padStart(2, '0')}${date.getUTCMinutes().toString().padStart(2, '0')}`,
+  };
+}
+
+/**
  * @param text a report line
  * @returns the line without its trailing spaces (String.prototype.trimEnd is missing in the sim browser)
  */
@@ -334,12 +333,10 @@ export function loadsheetReportLines(
   date: Date,
   metric: boolean,
 ): string[] {
-  const weight = (kg: number) => Math.round(metric ? kg : kg / KG_PER_LB).toFixed(0);
+  const weight = (kg: number) => formatWholeWeight(kg, metric);
   const column = (label: string, value: string) => `${label.padEnd(24)}${value.padStart(7)}`;
   const limit = (by: LoadsheetLimitedBy) => (results.limitedBy === by ? ' L' : '');
-  const day = date.getUTCDate().toString().padStart(2, '0');
-  const dateText = `${day}${MONTHS[date.getUTCMonth()]}${(date.getUTCFullYear() % 100).toString().padStart(2, '0')}`;
-  const time = `${date.getUTCHours().toString().padStart(2, '0')}${date.getUTCMinutes().toString().padStart(2, '0')}`;
+  const { date: dateText, time } = ltsDateTime(date);
 
   const lines = [
     `LOADSHEET ${edition.status}`,

@@ -19,13 +19,16 @@
   display: flex;
   flex: 1 1 auto;
   flex-direction: row;
+  min-height: 0;
 }
 
 // Design choice: wide enough for a label, a list with its arrow and a unit
 .oit-perf-left {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   width: 590px;
+  min-height: 0;
 }
 
 .oit-perf-right {
@@ -33,6 +36,7 @@
   flex: 1 1 auto;
   flex-direction: column;
   margin-left: 8px;
+  min-height: 0;
 }
 
 .oit-perf-panel {
@@ -45,6 +49,8 @@
 
 .oit-perf-panel.grow {
   flex: 1 1 auto;
+  // A long reminder area or RESULTS panel scrolls instead of pushing the bottom bar off the page
+  min-height: 0;
 }
 
 .oit-perf-panel-title {
@@ -111,22 +117,15 @@
   color: $display-yellow;
 }
 
-.oit-perf-status-box {
-  display: flex;
-  flex: 1 1 auto;
-  justify-content: center;
-  align-items: center;
-  font-size: 22px;
-}
-
 .oit-perf-tabs {
   display: flex;
   flex-direction: row;
 }
 
 .oit-perf-tab {
-  font-size: 18px;
-  padding: 6px 12px;
+  font-size: 17px;
+  white-space: nowrap;
+  padding: 6px 10px;
   margin-right: 4px;
   border: 2px solid $display-light-grey;
   border-bottom: none;
@@ -223,10 +222,155 @@
   color: $display-amber;
 }
 
+// MULTIPLE RWY COMPUTATION: the runway table, grey rows, a white tick box per row
+.oit-perf-rwy-table {
+  margin: 0px 8px 8px 8px;
+  font-size: 19px;
+}
+
+.oit-perf-rwy-table-body {
+  max-height: 186px;
+  overflow-y: auto;
+}
+
+.oit-perf-rwy-table-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 31px;
+  text-align: center;
+  color: $display-white;
+  background-color: $display-grey;
+  border-bottom: 1px solid $display-background;
+}
+
+.oit-perf-rwy-table-row.header,
+.oit-perf-rwy-table-row.ticked {
+  background-color: $display-dark-grey;
+}
+
+.oit-perf-rwy-tick-cell {
+  width: 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.oit-perf-rwy-tick {
+  width: 22px;
+  height: 22px;
+  background-color: $display-white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.oit-perf-rwy-table-row.header .oit-perf-rwy-tick {
+  display: none;
+}
+
+// The RWY list of the multiple results: the result of each runway in the colour of its takeoff or landing
+.oit-perf-page .mfd-dropdown-menu-element.green {
+  color: $display-green;
+}
+
+.oit-perf-page .mfd-dropdown-menu-element.amber {
+  color: $display-amber;
+}
+
+.oit-perf-page .mfd-dropdown-menu-element.red {
+  color: $display-red;
+}
+
+// The reminder area of the AIRCRAFT STATUS panel
+.oit-perf-reminder {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding: 4px 8px;
+  font-size: 19px;
+  overflow-y: auto;
+  white-space: nowrap;
+}
+
+.oit-perf-reminder.normal {
+  justify-content: center;
+  align-items: center;
+  font-size: 22px;
+}
+
+.oit-perf-reminder-line.title,
+.oit-perf-reminder-line.white {
+  color: $display-white;
+}
+
+.oit-perf-reminder-line.yellow {
+  color: $display-yellow;
+  padding-left: 12px;
+}
+
+.oit-perf-reminder-line.cyan {
+  color: $display-cyan;
+  padding-left: 12px;
+}
+
+// The AIRCRAFT STATUS panel over the page
+.oit-perf-acft-sts {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 4px;
+  bottom: 4px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background-color: $display-background;
+  border: 2px solid $display-light-grey;
+}
+
+.oit-perf-status-subpanel {
+  margin: 0px 6px 6px 6px;
+}
+
+.oit-perf-panel-title.disabled {
+  color: $display-light-grey;
+}
+
+.oit-perf-status-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 4px 8px;
+}
+
+.oit-perf-status-item {
+  font-size: 19px;
+  color: $display-yellow;
+  padding: 3px 6px;
+}
+
+.oit-perf-status-item.selected {
+  background-color: $display-grey;
+}
+
+.oit-perf-status-note {
+  min-height: 30px;
+  padding: 2px 10px;
+  font-size: 18px;
+  color: $display-amber;
+}
+
 // The page classes set their own display, which a plain .hidden defined earlier does not outweigh (the RESULTS grid
 // before a computation, the XCHECK window before a crosscheck)
 .oit-perf-page .hidden {
   display: none;
+}
+
+.oit-perf-page .invisible {
+  visibility: hidden;
+}
+
+// The views of LOADSHEET: a long report scrolls inside its panel
+.oit-perf-page > .fc {
+  min-height: 0;
 }
 
 // Compact dropdowns and text boxes: the panels have many rows
@@ -257,4 +401,59 @@
 
 .oit-perf-page .mfd-button {
   font-size: 18px;
+}
+
+// LOADSHEET PAYLOAD DISTR: the cabin sections (main deck, upper deck) and the cargo compartments, with their totals
+.oit-perf-distr-grid {
+  display: grid;
+  grid-template-columns: 80px repeat(4, 118px) 1fr;
+  grid-auto-rows: 66px;
+  align-items: end;
+}
+
+.oit-perf-distr-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.oit-perf-distr-label {
+  white-space: nowrap;
+  font-size: 15px;
+  color: $display-white;
+  padding-bottom: 2px;
+}
+
+.oit-perf-distr-row-label {
+  font-size: 19px;
+  color: $display-white;
+  padding-bottom: 8px;
+}
+
+// LOADSHEET MORE: the AGT information beside the primary results
+.oit-perf-more-lines {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding: 10px;
+  font-size: 20px;
+  color: $display-white;
+  white-space: pre;
+}
+
+.oit-perf-more-line.red {
+  color: $display-red;
+}
+
+// LTS EDITION: the DETAILED LTS / REDUCED LTS radio buttons
+.oit-perf-radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background-color: $display-white;
+  margin-right: 8px;
+}
+
+.oit-perf-radio.on {
+  background-color: $display-green;
 }

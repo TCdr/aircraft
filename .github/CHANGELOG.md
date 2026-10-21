@@ -213,6 +213,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] FLT OPS STS fills itself from the FMS flight number and city pair until a manual entry, and the CAPT and F/O laptops share it (manual entries, SYNCHRO AVIONICS, EXIT SESSION; not on a stand-alone laptop, and not after a network loss until both laptops are restarted); ACFT REGISTRATION shows the aircraft ATC ID and OIS VERSION the aircraft build - @TCdr
 1. [A380X/OIT] NSS DATA TO AVNCS OFF or both SCIs lost: the REFUEL entries no longer reach the FQMS and the NSS AVNCS message toolbar tells it; both SCIs lost also cut the eLogbook ground link and the avionics data (SYNCHRO AVIONICS keeps the FLT OPS STS entries) - @TCdr
 1. [A380X/AOC] The AOC prints the received weather reports automatically on the pedestal printer - @TCdr
+1. [A380X/OIT] T.O PERF and LDG PERF results can be printed with PRINT of the FUNCTIONS list, under the title of the application - @TCdr
+1. [A380X/OIT] MULTIPLE RWY COMPUTATION in T.O PERF and LDG PERF: tick the runways of the airport, compute them at once and pick each result in the colour-coded RWY list - @TCdr
+1. [A380X/OIT] LOADSHEET REFUEL ZF DATA (FQMS DEFAULT, NEW SET OF DATA with the data of the REFUEL application, LOADSHEET) and the fuel distribution of the FQMS CG targeting - @TCdr
+1. [A380X/OIT] LOADSHEET MORE panel: the TOCG warning and the automatic ground transfer to the CG limit and to the refuel target - @TCdr
+1. [A380X/OIT] LOADSHEET DETAILED mode: crew, passengers and cargo with their distribution in the cabin and the holds, and the detailed loadsheet with its edition number - @TCdr
+1. [A380X/OIT] ACFT STS and SYNCHRO LOGBOOK in T.O PERF, LDG PERF and LOADSHEET: the deferred MEL and CDL items of the logbook, with the items the computation cannot take into account - @TCdr
 
 ## 2024.1.0
 

@@ -66,6 +66,13 @@ export const LANDING_GO_AROUND_CONF_OPTIONS: readonly {
   { label: 'CONF 1+F', conf: LandingGoAroundConf.Conf1F },
 ];
 
+/** The go-around configuration of the RESULTS panel */
+export const LANDING_GO_AROUND_CONF_LABELS: Readonly<Record<LandingGoAroundConf, string>> = {
+  [LandingGoAroundConf.Conf3]: '3',
+  [LandingGoAroundConf.Conf2]: '2',
+  [LandingGoAroundConf.Conf1F]: '1+F',
+};
+
 /** AIR COND list */
 export const LANDING_AIR_COND_OPTIONS: readonly { readonly label: string; readonly on: boolean }[] = [
   { label: 'On (STD)', on: true },
