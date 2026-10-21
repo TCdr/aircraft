@@ -7,6 +7,7 @@ import {
   formatCrosswind,
   formatIsaDeviation,
   formatWeight,
+  formatWholeWeight,
   formatWindEntry,
   isaDeviation,
   parseQnhEntry,
@@ -99,5 +100,10 @@ describe('performance entries', () => {
     // 820 ft at QNH 1013: ISA 13.4 °C, so 15 °C is ISA +2 (the T.O PERF interface example)
     expect(formatIsaDeviation(isaDeviation(15, 820, 1013))).toBe('+2');
     expect(formatIsaDeviation(null)).toBe('---');
+  });
+
+  it('shows the whole weights of the reports in kg or lb', () => {
+    expect(formatWholeWeight(12_000.4, true)).toBe('12000');
+    expect(formatWholeWeight(1_000, false)).toBe('2205');
   });
 });

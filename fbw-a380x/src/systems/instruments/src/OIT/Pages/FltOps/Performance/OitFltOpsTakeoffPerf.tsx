@@ -3,19 +3,22 @@
 
 import { FSComponent, MappedSubject, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { Arinc429LocalVarConsumerSubject, NXUnits } from '@flybywiresim/fbw-sdk';
+import { A380AocPrintEvents } from '@shared/AocPrintout';
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
 import { AbstractOitFltOpsPageProps } from '../../../OIT';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { OitPerfEntryFormat } from './OitPerfEntryFormat';
-import { OitPerfPageBase } from './OitPerfPageBase';
+import { OitPerfPageBase, RunwayTableColumn } from './OitPerfPageBase';
 import { OitPerfRunwaySelection } from './OitPerfRunwaySelection';
 import { A380_TAKEOFF_CALCULATOR } from '../../../System/Performance/A380PerformanceCalculators';
 import { missingFltOpsStsFields } from '../../../System/Performance/FltOpsPerformanceSession';
 import {
   formatLength,
   formatWeight,
+  formatWindEntry,
   lengthUnitLabel,
   parseWeightEntry,
+  runwayWind,
   weightUnitLabel,
 } from '../../../System/Performance/PerformanceEntries';
 import { PerformanceRunway } from '../../../System/Performance/PerformanceRunways';
@@ -40,6 +43,9 @@ import {
   takeoffCrosscheckAvailable,
 } from '../../../System/Performance/TakeoffCrosscheck';
 import { readFmsTakeoffSelections } from '../../../System/Performance/FmsTakeoffDataReader';
+import { computeMultipleRunways, takeoffRunwayItems } from '../../../System/Performance/MultipleRunwayResults';
+import { itemsNotInComputation, reminderLines } from '../../../System/Performance/AircraftStatus';
+import { PrintoutEntry, takeoffPerfPrintout } from '../../../System/Performance/PerformancePrintouts';
 
 interface OitFltOpsTakeoffPerfProps extends AbstractOitFltOpsPageProps {}
 
@@ -48,13 +54,18 @@ const CROSSCHECK_ITEMS: CrosscheckItem[] = ['V1', 'VR', 'V2', 'FLAPS', 'TOW', 'T
 /** The EFIS control panel baro mode of QNH (0 STD, 1 QNH, 2 QFE) */
 const BARO_MODE_QNH = 1;
 
-/** T.O PERF: SINGLE RWY COMPUTATION of the takeoff performance, and XCHECK WITH AVNCS of the FMS T.O page */
+/**
+ * T.O PERF: SINGLE RWY COMPUTATION and MULTIPLE RWY COMPUTATION of the takeoff performance, XCHECK WITH AVNCS of the
+ * FMS T.O page, the AIRCRAFT STATUS and PRINT of the page.
+ */
 export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfProps, TakeoffResults> {
   protected readonly pageId = 'toPerf';
 
+  protected readonly application = 'T.O PERF';
+
   private readonly sts = this.props.container.laptopData;
 
-  private readonly state = this.sts.performance.takeoff;
+  private readonly state = this.session.takeoff;
 
   private readonly calculator = A380_TAKEOFF_CALCULATOR;
 
@@ -78,8 +89,16 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
 
   protected readonly results = this.state.computation.map((c) => c?.results ?? null);
 
+  private readonly multiple = this.state.computationMode.map((mode) => mode === 'multiple');
+
   private readonly missingParameters = MappedSubject.create(
-    () => missingTakeoffParameters(this.currentConditions(), this.selection.runway.get()),
+    ([multiple, ticked]) => {
+      const missing = missingTakeoffParameters(this.currentConditions(), null).filter((p) => p !== 'RWY');
+      const runwayChosen = multiple ? ticked.length > 0 : this.selection.runway.get() !== null;
+      return runwayChosen ? missing : [...missing, 'RWY'];
+    },
+    this.multiple,
+    this.state.multipleRunways,
     this.state.wind,
     this.state.oat,
     this.state.qnh,
@@ -111,24 +130,47 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
     this.props.bus.getSubscriber<FqmsBusEvents>().on('fqms_gross_weight'),
   );
 
+  /** The RWY list of the multiple results */
+  private readonly runwayItems = MappedSubject.create(
+    ([runs]) => (runs !== null ? takeoffRunwayItems(runs, this.thrustOption(), this.metric) : []),
+    this.state.multipleComputation,
+  );
+
+  private readonly shownRunway = this.state.computation.map(() => this.state.shownRunway());
+
   constructor(props: OitFltOpsTakeoffPerfProps) {
     super(props);
     if (this.missingStsFields.length === 0) {
-      this.sts.performance.onTakeoffPerfShown(this.sts.fromAirport.get());
+      this.session.onTakeoffPerfShown(this.sts.fromAirport.get());
+      this.takeLogbookStatus();
     }
+  }
+
+  private thrustOption() {
+    return this.thrustOptions[this.state.thrust.get()].option;
   }
 
   private currentConditions() {
-    return this.state.conditions(this.thrustOptions[this.state.thrust.get()].option);
+    return this.state.conditions(this.thrustOption());
   }
 
   private compute(): void {
-    const runway = this.selection.runway.get();
-    if (runway !== null) {
-      this.sts.performance.onTakeoffComputed(
-        computeTakeoffPerformance(this.calculator, this.currentConditions(), runway),
-      );
+    const conditions = this.currentConditions();
+    if (this.state.computationMode.get() === 'single') {
+      const runway = this.selection.runway.get();
+      if (runway !== null) {
+        this.session.onTakeoffComputed(computeTakeoffPerformance(this.calculator, conditions, runway));
+      }
+      return;
     }
+    const { shown, runs } = computeMultipleRunways(
+      this.selection.airport.get()?.runways ?? [],
+      this.state.multipleRunways.get(),
+      conditions.wind,
+      (runway) => computeTakeoffPerformance(this.calculator, conditions, runway),
+      (computed) => takeoffRunwayItems(computed, conditions.thrust, this.metric),
+    );
+    this.session.onTakeoffComputed(shown, runs);
   }
 
   /** XCHECK WITH AVNCS: reads the FMS T.O page, the SD gross weight and the captain's EFIS QNH */
@@ -160,6 +202,44 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
     this.crosscheckRunning = false;
   }
 
+  /** PRINT: the page as shown (the conditions, the aircraft status, the results of the runway shown) */
+  private print(): void {
+    const computation = this.state.computation.get();
+    if (!computation || computation.results === null) {
+      return;
+    }
+    const s = this.state;
+    const wind = s.wind.get();
+    const runway = this.selection.airport.get()?.runways.find((r) => r.ident === computation.results!.runway);
+    const conditions: PrintoutEntry[] = [
+      ['WIND', wind !== null ? formatWindEntry(wind, runwayWind(wind, runway?.magneticBearing ?? null)) : ''],
+      ['OAT', `${s.oat.get() ?? ''} °C`],
+      ['QNH', `${s.qnh.get() ?? ''} hPa`],
+      ['RWY COND', TAKEOFF_RUNWAY_CONDITIONS[s.runwayCondition.get() ?? 0].label],
+      ['A-ICE', TAKEOFF_ANTI_ICE_OPTIONS[s.antiIce.get() ?? 0].label],
+      ['CONF', TAKEOFF_CONF_OPTIONS[s.conf.get()].label],
+      ['AIR COND', TAKEOFF_AIR_COND_OPTIONS[s.airCond.get()].label],
+      ['THRUST', this.thrustOptions[s.thrust.get()].label],
+    ];
+    const status = this.aircraftStatus.get();
+    this.props.bus.getPublisher<A380AocPrintEvents>().pub(
+      'aocPrintMessage',
+      takeoffPerfPrintout({
+        flightNumber: this.sts.fltNumber.get() ?? '',
+        airport: s.airport.get() ?? '',
+        conditions,
+        aircraftStatus: reminderLines(status, this.application).map((line) => line.text),
+        notInComputation: itemsNotInComputation(status, this.application),
+        results: computation.results,
+        errors: computation.errors,
+        runwayList: this.runwayItems.get().map((item) => item.label),
+        metric: this.metric,
+      }),
+      true,
+      false,
+    );
+  }
+
   private clear(): void {
     this.state.clearEntries();
     this.state.tow.set(this.calculator.structuralMtow);
@@ -172,6 +252,7 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
     this.subs.push(
       ...this.selection.computedSubjects(),
       this.results,
+      this.multiple,
       this.missingParameters,
       this.errorLines,
       this.hideResults,
@@ -179,26 +260,37 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
       this.computeDisabled,
       this.crosscheckDisabled,
       this.grossWeight,
+      this.runwayItems,
+      this.shownRunway,
     );
     if (this.missingStsFields.length > 0) {
       return;
     }
 
+    this.props.uiService.registerPageFunctions({
+      print: { run: () => this.print(), available: this.tracked(this.results.map((r) => r !== null)) },
+    });
+
     // Results of other entries than the computed ones are not shown (the computation is deleted)
-    const deleteResults = () => this.state.computation.set(null);
+    const deleteResults = () => this.state.deleteResults();
+    const s = this.state;
     this.subs.push(
       ...this.selection.follow(),
       this.errorLines.sub((lines) => this.showErrorLines(this.errorListRef, lines), true),
-      this.state.wind.sub(deleteResults),
-      this.state.oat.sub(deleteResults),
-      this.state.qnh.sub(deleteResults),
-      this.state.runwayCondition.sub(deleteResults),
-      this.state.antiIce.sub(deleteResults),
-      this.state.tow.sub(deleteResults),
-      this.state.conf.sub(deleteResults),
-      this.state.airCond.sub(deleteResults),
-      this.state.thrust.sub(deleteResults),
-      this.state.runwayIdent.sub(deleteResults),
+      ...[
+        s.wind,
+        s.oat,
+        s.qnh,
+        s.runwayCondition,
+        s.antiIce,
+        s.tow,
+        s.conf,
+        s.airCond,
+        s.thrust,
+        s.runwayIdent,
+        s.computationMode,
+        s.multipleRunways,
+      ].map((entry) => (entry as Subscribable<unknown>).sub(deleteResults)),
       this.state.computation.sub(() => this.crosscheck.set(null)),
     );
   }
@@ -209,11 +301,21 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
     const speed = (pick: (r: TakeoffResults) => number | null) => this.resultText((r) => pick(r)?.toFixed(0) ?? '---');
     const label = (text: string) => <span class="oit-perf-text">{text}</span>;
     const unit = (text: string) => <span class="oit-perf-unit">{text}</span>;
+    const single = this.tracked(this.multiple.map((m) => !m));
+    // The RWY list of the multiple results takes the room of the runway ident
+    const columns = this.tracked(
+      this.multiple.map((m) => `grid-template-columns: ${m ? '260px 230px' : '200px 250px'} 1fr;`),
+    );
     return (
-      <div class={{ 'oit-perf-grid': true, hidden: this.hideResults }} style="grid-template-columns: 200px 250px 1fr;">
-        <div>
+      <div class={{ 'oit-perf-grid': true, hidden: this.hideResults }} style={columns}>
+        <div class="fr" style="align-items: center;">
           {label('RWY')}
-          {this.value(this.resultText((r) => r.runway))}
+          <span class={{ hidden: this.multiple }}>{this.value(this.resultText((r) => r.runway))}</span>
+          <span class={{ hidden: single }}>
+            {this.renderRunwayResultList('rwyResults', this.runwayItems, this.shownRunway, (ident) =>
+              this.state.showRunwayResults(ident),
+            )}
+          </span>
         </div>
         <div>
           <span class="oit-perf-label big" style="width: auto;">
@@ -280,6 +382,7 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
             'white',
           )}
         </div>
+        <div style="grid-column: 1 / span 3;">{this.value(this.notInComputationText(), 'amber')}</div>
       </div>
     );
   }
@@ -313,7 +416,7 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
     );
   }
 
-  private renderAirportPanel(): VNode {
+  private renderSingleRunwayPanel(): VNode {
     const lengthUnit = lengthUnitLabel(this.metric);
     const runwayText = (pick: (rwy: PerformanceRunway) => string) =>
       this.tracked(this.selection.runway.map((rwy) => (rwy ? pick(rwy) : '')));
@@ -325,9 +428,9 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
       </div>
     );
     return (
-      <div class="oit-perf-panel">
+      <div class={{ 'oit-perf-panel': true, hidden: this.multiple }}>
         {this.renderAirportRow(this.selection, this.state.airportFromSts, (icao) =>
-          this.sts.performance.onTakeoffAirportEntered(icao),
+          this.session.onTakeoffAirportEntered(icao),
         )}
         <div class="oit-perf-grid" style="grid-template-columns: 215px 165px 125px 1fr; grid-auto-rows: 30px;">
           {item(
@@ -377,6 +480,36 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
           )}
         </div>
         <div class="oit-perf-message-box" />
+      </div>
+    );
+  }
+
+  /**
+   * The MULTIPLE RWY COMPUTATION panel: the TORA of each runway, without clearway or stopway in the airport database.
+   * Design choice: View Details is greyed, the airport database has no obstacle.
+   * @returns the panel
+   */
+  private renderMultipleRunwayTable(): VNode {
+    const lengthUnit = lengthUnitLabel(this.metric);
+    const columns: RunwayTableColumn[] = [
+      { label: 'TORA ', unit: lengthUnit, width: 110, value: (rwy) => formatLength(rwy.takeoffLength, this.metric) },
+      { label: 'CWY ', unit: lengthUnit, width: 90, value: () => '0' },
+      { label: 'SWY ', unit: lengthUnit, width: 90, value: () => '0' },
+      { label: 'SLOPE ', unit: '%', width: 100, value: (rwy) => rwy.slope.toFixed(1) },
+      { label: 'ELEVN ', unit: 'ft', width: 110, value: (rwy) => rwy.elevation.toFixed(1) },
+    ];
+    return (
+      <div class={{ hidden: this.tracked(this.multiple.map((m) => !m)) }}>
+        {this.renderMultipleRunwayPanel(
+          this.selection,
+          this.state,
+          this.state.airportFromSts,
+          (icao) => this.session.onTakeoffAirportEntered(icao),
+          columns,
+          <div class="fr jend" style="padding: 0px 8px 6px 8px;">
+            <Button label="View Details" onClick={() => {}} disabled={Subject.create(true)} />
+          </div>,
+        )}
       </div>
     );
   }
@@ -466,16 +599,12 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
                 ),
               )}
             </div>
-            <div class="oit-perf-panel grow">
-              <div class="oit-perf-status-box">NORMAL</div>
-            </div>
+            <div class="oit-perf-panel grow">{this.renderAircraftStatusReminder()}</div>
           </div>
           <div class="oit-perf-right">
-            <div class="oit-perf-tabs">
-              <div class="oit-perf-tab active">SINGLE RWY COMPUTATION &lt;F2&gt;</div>
-              <div class="oit-perf-tab">MULTIPLE RWY COMPUTATION &lt;Ctrl F2&gt;</div>
-            </div>
-            {this.renderAirportPanel()}
+            {this.renderRunwayComputationTabs(s)}
+            {this.renderSingleRunwayPanel()}
+            {this.renderMultipleRunwayTable()}
             <div class="oit-perf-panel grow">
               <div class="oit-perf-panel-title">
                 {this.tracked(this.hideResults.map((hidden) => (hidden ? 'ERROR' : 'RESULTS')))}
@@ -494,8 +623,7 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
           </div>
         </div>
         <div class="oit-perf-bottom">
-          <Button label="ACFT STS <F5>" onClick={() => {}} disabled={Subject.create(true)} />
-          <Button label="SYNCHRO LOGBOOK" onClick={() => {}} disabled={Subject.create(true)} />
+          {this.renderAircraftStatusButtons()}
           <div style="flex: 1 1 auto;" />
           <Button label="COMPUTE <F8>" onClick={() => this.compute()} disabled={this.computeDisabled} />
           <div style="width: 10px;" />
@@ -509,6 +637,7 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
           <div style="flex: 1 1 auto;" />
         </div>
         {this.renderCrosscheckPopup()}
+        {this.renderAircraftStatusPanel()}
       </div>
     );
   }

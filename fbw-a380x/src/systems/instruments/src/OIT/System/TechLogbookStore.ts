@@ -71,7 +71,7 @@ export interface LogbookDialog {
 }
 
 /** The stored logbook, shared by both OITs and kept across flights: the NSS database is permanent */
-const STORAGE_KEY = 'OIS_TECH_LOGBOOK';
+export const TECH_LOGBOOK_STORAGE_KEY = 'OIS_TECH_LOGBOOK';
 
 /** Design choice: the duration of a synchronisation with the ground station, ms */
 const SYNC_DURATION_MS = 5_000;
@@ -126,7 +126,7 @@ export class TechLogbookStore {
   ) {}
 
   public init(): void {
-    const stored = parseTechLogbook(NXDataStore.getLegacy(STORAGE_KEY, ''));
+    const stored = parseTechLogbook(NXDataStore.getLegacy(TECH_LOGBOOK_STORAGE_KEY, ''));
     if (stored) {
       this.storedText = JSON.stringify(stored);
       this.state.set(stored);
@@ -137,7 +137,7 @@ export class TechLogbookStore {
     );
 
     // The other OIT changed the logbook
-    this.cancelStorageSubscription = NXDataStore.subscribeLegacy(STORAGE_KEY, (_key, value) => {
+    this.cancelStorageSubscription = NXDataStore.subscribeLegacy(TECH_LOGBOOK_STORAGE_KEY, (_key, value) => {
       if (value === undefined || value === this.storedText) {
         return;
       }
@@ -160,7 +160,7 @@ export class TechLogbookStore {
     }
     this.state.set(next);
     this.storedText = JSON.stringify(next);
-    NXDataStore.setLegacy(STORAGE_KEY, this.storedText);
+    NXDataStore.setLegacy(TECH_LOGBOOK_STORAGE_KEY, this.storedText);
   }
 
   /**

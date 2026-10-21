@@ -852,6 +852,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] AIR LEAK DET FAULT alert, with flyPad failures of the leak detection loops of each bleed duct and of the two leak detection systems - @TCdr
 1. [A380X/FWS] AIR ENG 1(2)(3)(4) BLEED NOT CLOSED, AIR ENG 1(2)(3)(4) HP VLV NOT OPEN, AIR ENG BLEED TEMP LO and AIR XBLEED FAULT alerts, with flyPad HP valve, fan air valve and crossbleed valve failures - @TCdr
 1. [A380X/FWS] Door system alerts: per-door ACTUATOR, FLIGHT LOCK, LATCH MONITORING, POS DET and SLIDE FAULT, MAIN 1L(R) SLIDE LENGTHENING FAULT, DOOR POS DET FAULT, RESIDUAL DIFF PRESS DET FAULT and CKPT DOOR EMER OPENING IN PROGRESS, with their flyPad failures (ATA 52), the cockpit door emergency access sequence, and the door position and failed slide on the DOOR/OXY SD page - @TCdr
+1. [A380X/OIT] T.O PERF and LDG PERF results can be printed with PRINT of the FUNCTIONS list, under the title of the application - @TCdr
+1. [A380X/OIT] MULTIPLE RWY COMPUTATION in T.O PERF and LDG PERF: tick the runways of the airport, compute them at once and pick each result in the colour-coded RWY list - @TCdr
+1. [A380X/OIT] LOADSHEET REFUEL ZF DATA (FQMS DEFAULT, NEW SET OF DATA with the data of the REFUEL application, LOADSHEET) and the fuel distribution of the FQMS CG targeting - @TCdr
+1. [A380X/OIT] LOADSHEET MORE panel: the TOCG warning and the automatic ground transfer to the CG limit and to the refuel target - @TCdr
+1. [A380X/OIT] LOADSHEET DETAILED mode: crew, passengers and cargo with their distribution in the cabin and the holds, and the detailed loadsheet with its edition number - @TCdr
+1. [A380X/OIT] ACFT STS and SYNCHRO LOGBOOK in T.O PERF, LDG PERF and LOADSHEET: the deferred MEL and CDL items of the logbook, with the items the computation cannot take into account - @TCdr
 1. [A380X/OIT] NSS DATA TO AVNCS OFF or both SCIs lost: the REFUEL entries no longer reach the FQMS and the NSS AVNCS message toolbar tells it; both SCIs lost also cut the eLogbook ground link and the avionics data (SYNCHRO AVIONICS keeps the FLT OPS STS entries) - @TCdr
 1. [A380X/FWS] No COMPANY MSG memo or COMPANY MESSAGE voice with NSS DATA TO AVNCS OFF or both SCIs lost - @TCdr
 1. [A380X/AOC] The AOC prints the received weather reports automatically on the pedestal printer, with the COMPANY MSG:PRNTR memo until they are printed or read - @TCdr

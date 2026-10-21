@@ -48,6 +48,15 @@ export function formatWeight(kg: number | null | undefined, metric: boolean): st
 }
 
 /**
+ * @param kg a weight in kg
+ * @param metric whether the weight is shown in kg (else lb)
+ * @returns the whole weight of the reports and the cargo fields, e.g. 12000
+ */
+export function formatWholeWeight(kg: number, metric: boolean): string {
+  return Math.round(metric ? kg : kg / KG_PER_LB).toFixed(0);
+}
+
+/**
  * @param metric whether the weights are shown in tonnes (else klbs)
  * @returns the unit label of the weights
  */
