@@ -847,6 +847,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/EWD] The FLEX temperature always shows in the FLEX thrust rating mode (it was hidden with the SAT more than 10 °C above it), not for a derated takeoff - @TCdr
 1. [A380X/EWD] No amber EGT limit with alpha floor active, and the EGT shows as the FADEC computes it instead of being capped at the limits - @TCdr
 1. [A32NX/FADEC] ENG 1(2) BLEED STATUS FAULT: on the ground the idle goes up to HI GND IDLE (as if every bleed and anti-ice valve were open), and the engine anti-ice no longer selects the continuous ignition of that engine by itself (ENG MODE selector to IGN) - @TCdr
+1. [A380X/FADEC] COND TEMP CTL FAULT with both pack controllers failed: the engines go to idle high at idle thrust, shown as the STATUS INFO ENG IDLE HI - @TCdr
 
 ## 2024.1.0
 

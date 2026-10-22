@@ -11,6 +11,7 @@ import {
   CABIN_AIR_EXTRACT_VLV_FAULT_PHASE_INHIBITION,
   COND_MONITORING_PHASE_INHIBITION,
   isCabinSelectorInPursSel,
+  condTempCtlFaultInfo,
   isCabPressManCtlFault,
   isCabPressSensorsFault,
   isPackRegulDegraded,
@@ -123,6 +124,22 @@ describe('A380X FWS AIR PACK 1(2) OVHT and REGUL FAULT', () => {
       'PACK 2 AVAIL ABOVE FL 290',
       'PACK 2 REGUL DEGRADED',
     ]);
+  });
+});
+
+describe('A380X FWS COND TEMP CTL FAULT', () => {
+  it('STATUS INFO ENG IDLE HI only when both pack controllers are failed', () => {
+    const infos = readFileSync(
+      resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
+      'utf-8',
+    );
+    const lines = (ids: string[]) => ids.map((id) => infos.match(new RegExp(`${id}: '\\\\x1b<3m(.*)'`))?.[1]);
+    expect(lines(condTempCtlFaultInfo([true, true, true, true]))).toEqual([
+      'ENG IDLE HI',
+      'FWD CRG TEMP REGUL DEGRADED',
+    ]);
+    expect(lines(condTempCtlFaultInfo([true, true, true, false]))).toEqual(['FWD CRG TEMP REGUL DEGRADED']);
+    expect(lines(condTempCtlFaultInfo([false, false, false, false]))).toEqual(['FWD CRG TEMP REGUL DEGRADED']);
   });
 });
 
