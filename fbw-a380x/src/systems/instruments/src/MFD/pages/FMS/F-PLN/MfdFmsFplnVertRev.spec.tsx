@@ -10,41 +10,10 @@ import { SegmentClass } from '@fmgc/flightplanning/segments/SegmentClass';
 import { MfdSimvars } from '../../../shared/MFDSimvarPublisher';
 import { NXSystemMessages } from '../../../shared/NXSystemMessages';
 import { MfdFmsFplnVertRev } from './MfdFmsFplnVertRev';
-
-/**
- * A stand-in for the FMC and display services: every property and call returns another stand-in, so that the page
- * builds without a running FMS
- * @returns the stand-in
- */
-function anything(): any {
-  return new Proxy(function () {}, {
-    get(_target, property) {
-      if (property === Symbol.toPrimitive) {
-        return () => 0;
-      }
-      if (property === Symbol.iterator) {
-        return [][Symbol.iterator].bind([]);
-      }
-      if (property === 'then') {
-        return undefined;
-      }
-      return anything();
-    },
-    apply: () => anything(),
-  });
-}
+import { anything, withStandIns } from './PageStandIns';
 
 // The MSFS Utils global, used by the dropdown menus
 (window as any).Utils = anything();
-
-/**
- * Adds stand-ins for every property the given object does not define
- * @param known the properties the test needs
- * @returns the object with stand-ins for the rest
- */
-function withStandIns<T extends object>(known: T): T {
-  return new Proxy(known, { get: (target: any, property) => (property in target ? target[property] : anything()) });
-}
 
 /**
  * A flight plan in climb: FROM waypoint, then the TO waypoint DET, then further waypoints
