@@ -299,7 +299,7 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
       { name: 'HUD : DO NOT USE', sensed: true, style: ChecklistLineStyle.Cyan },
       { name: 'FMS POSITION / GPS PAGE', sensed: false, labelNotCompleted: 'SELECT' },
       { name: 'AIR DATA (ADRs/STBY INSTR)', sensed: false, labelNotCompleted: 'XCHECK' },
-      { name: 'AT LEAST ONE AIR DATA IS RELIABLE', sensed: false, condition: true },
+      { name: 'AT LEAST ONE AIR DATA RELIABLE', sensed: false, condition: true },
       { name: 'RELIABLE AIR DATA', sensed: false, labelNotCompleted: 'USE', level: 1 },
       { name: 'NO AIR DATA RELIABLE', sensed: false, condition: true },
       { name: 'ADR 1+2+3 P/Bs', sensed: true, labelNotCompleted: 'OFF', level: 1 },
@@ -805,7 +805,7 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
                                   USE MAN PITCH TRIM
       */
       {
-        name: 'WHEN L/G DOWN AND & OFF : USE MAN PITCH TRIM',
+        name: 'L/G DN & AP OFF : USE MAN PITCH TRIM',
         sensed: false,
         style: ChecklistLineStyle.Green,
       },

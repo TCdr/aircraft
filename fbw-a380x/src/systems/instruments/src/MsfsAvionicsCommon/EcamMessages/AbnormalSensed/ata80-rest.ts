@@ -28,7 +28,7 @@ export const EcamAbnormalSensedAta80Rest: { [n: number]: AbnormalProcedure } = {
     sensed: false,
     items: [
       { name: 'CKPT / CABIN COM', sensed: false, labelNotCompleted: 'ESTABLISH' },
-      { name: 'LDG + EVAC POSSIBLE WITHIN 30 MIN', sensed: false, condition: true },
+      { name: 'LDG+EVAC POSSIBLE WITHIN 30 MIN', sensed: false, condition: true },
       { name: 'ATC', sensed: false, labelNotCompleted: 'NOTIFY', labelCompleted: 'NOTIFIED', level: 1 },
       { name: 'COMPANY', sensed: false, labelNotCompleted: 'NOTIFY', labelCompleted: 'NOTIFIED', level: 1 },
       { name: 'EVAC', sensed: false, labelNotCompleted: 'PREPARE', labelCompleted: 'PREPARED', level: 1 },
@@ -39,7 +39,7 @@ export const EcamAbnormalSensedAta80Rest: { [n: number]: AbnormalProcedure } = {
       { name: 'TRGT SPEED : PREFER LO IAS', sensed: false, level: 1 },
       { name: 'CABIN ALT MODE', sensed: true, labelNotCompleted: 'MAN', level: 1 },
       { name: 'DESCENT TO CAB ALT + 2500FT/MEA-MORA', sensed: false, level: 1 },
-      { name: 'WHEN ACFT ALT = CAB ALT + 2500FT/MEA-MORA', sensed: false, condition: true, level: 2 },
+      { name: 'WHEN ACFT ALT = CAB ALT + 2500 FT', sensed: false, condition: true, level: 2 },
       { name: 'ELEC GALLEY', sensed: true, labelNotCompleted: 'OFF', level: 3 },
       { name: 'ELEC PAX SYS', sensed: true, labelNotCompleted: 'OFF', level: 3 },
       { name: 'FUEL PERMITS', sensed: false, condition: true, level: 2 },
@@ -47,7 +47,8 @@ export const EcamAbnormalSensedAta80Rest: { [n: number]: AbnormalProcedure } = {
       { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'DOWN', level: 3 },
       { name: 'FUEL CONSUMPT INCRSD', sensed: false, level: 1 },
       { ...FMS_PRED_UNRELIABLE_CHECKLIST_ITEM, level: 1 }, // FIXME: doesn't seem to appear on ECAM
-      { name: 'DURING FURTHER DESCENT : MAINTAIN MAX DIFF PRESS 1 PSI', sensed: false, level: 1 }, // TODO: needs to be split across two lines
+      { name: 'DURING FURTHER DESCENT :', sensed: false, level: 1 },
+      { name: 'MAINTAIN MAX DIFF PRESS 1 PSI', sensed: false, level: 1 },
       { name: 'EVAC', sensed: false, labelNotCompleted: 'PREPARE', level: 1 },
     ],
   },
@@ -105,7 +106,7 @@ export const EcamAbnormalSensedAta80Rest: { [n: number]: AbnormalProcedure } = {
       { name: 'TRIM TK FEED', sensed: false, labelNotCompleted: 'ISOL', level: 1 },
       { name: 'SLATS / FLAPS', sensed: false, labelNotCompleted: 'MAX AVAIL', level: 1 },
       { name: 'TRGT SPEED : VLS UNTIL FLARE', sensed: false, level: 1 },
-      { name: 'FOR FLARE : OPT PITCH ATT 8° & MIN V/S', sensed: false, level: 1 },
+      { name: 'FOR FLARE : OPT PITCH 8° & MIN V/S', sensed: false, level: 1 },
       { name: 'AT 2000 FT AGL :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
       { name: 'ALL BLEEDS (ENG & APU)', sensed: false, labelNotCompleted: 'OFF', level: 1 },
       {
@@ -316,7 +317,8 @@ export const EcamDeferredProcAta80Rest: { [n: number]: DeferredProcedure } = {
     title: 'CKPT WINDOW CRACKED',
     type: DeferredProcedureType.AT_TOP_OF_DESCENT,
     items: [
-      { name: 'INTERNAL LAYER CRACKED OR NO DIAGNOSIS', sensed: false, condition: true },
+      { name: 'INTERNAL LAYER CRACKED', sensed: false, condition: true },
+      { name: 'OR NO DIAGNOSIS POSSIBLE', sensed: false, level: 1 },
       { name: 'CABIN ALT MODE', labelNotCompleted: 'AUTO', sensed: true, level: 1 },
     ],
   },

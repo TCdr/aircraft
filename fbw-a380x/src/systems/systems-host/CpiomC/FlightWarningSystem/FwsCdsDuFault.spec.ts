@@ -84,7 +84,7 @@ describe('CDS ... DU FAULT', () => {
       const names = [...procedure.matchAll(/name: '([^']*)'/g)].map((m) => m[1]);
       const expected = [`${name} DU`, 'NOT SUCCESSFUL', `${name} DU`, 'DU RECONF P/B AVAIL'];
       if (name === 'SD') {
-        expected.push('IF SD DU OFF : F/O DU RECONF P/B FOR ATC MAILBOX');
+        expected.push('IF SD DU OFF : F/O RECONF FOR MAILBOX');
       }
       expect(names, id).toEqual(expected);
     }

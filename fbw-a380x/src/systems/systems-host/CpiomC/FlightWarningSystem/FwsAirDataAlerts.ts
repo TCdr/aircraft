@@ -161,7 +161,7 @@ export class FwsAirDataAlerts {
       true, // HUD : DO NOT USE
       true, // FMS POSITION / GPS PAGE SELECT
       true, // AIR DATA (ADRs/STBY INSTR) XCHECK
-      true, // IF AT LEAST ONE AIR DATA IS RELIABLE
+      true, // IF AT LEAST ONE AIR DATA RELIABLE
       true, // RELIABLE AIR DATA USE
       true, // IF NO AIR DATA RELIABLE
       belowFl250, // ADR 1+2+3 P/Bs OFF

@@ -245,7 +245,7 @@ describe('Combined busbar alert procedures match their ata24.ts items', () => {
   it('AC BUS 1+2 & DC BUS 1 FAULT: ATC COM VOICE ONLY, AP SIDESTICK..., LDG DIST AFFECTED', () => {
     expect(shownNames('240800003', acBus12Dc1FaultLines())).toEqual([
       'ATC COM VOICE ONLY',
-      'AP : SIDESTICK LOCKING DEVICE NOT AVAIL',
+      'AP: SIDESTICK LOCKING DEVICE NOT AVAIL',
       'LDG DIST: AFFECTED',
     ]);
   });

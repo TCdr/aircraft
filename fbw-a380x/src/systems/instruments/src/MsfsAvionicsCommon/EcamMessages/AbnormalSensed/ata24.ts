@@ -52,7 +52,7 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
         style: ChecklistLineStyle.Cyan,
       },
       {
-        name: 'AP : SIDESTICK LOCKING DEVICE NOT AVAIL',
+        name: 'AP: SIDESTICK LOCKING DEVICE NOT AVAIL',
         sensed: false,
         style: ChecklistLineStyle.Green,
       },
@@ -998,7 +998,7 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
       },
       { ...FMS_PRED_UNRELIABLE_CHECKLIST_ITEM },
       {
-        name: 'IF SEVERE ICE ACCRETION : FLAP LEVER 3 FOR LDG',
+        name: 'SEVERE ICE ACCRETION : LDG FLAP LVR 3',
         sensed: false,
       },
       // if soft ga lost
@@ -1854,7 +1854,7 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
       },
       { ...FMS_PRED_UNRELIABLE_CHECKLIST_ITEM },
       {
-        name: 'IF SEVERE ICE ACCRETION: FLAP LEVER 3 FOR LDG',
+        name: 'SEVERE ICE ACCRETION : LDG FLAP LVR 3',
         sensed: false,
       },
       {
