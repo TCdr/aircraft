@@ -16,6 +16,7 @@
 #include "EngineRatios.hpp"
 #include "FanBlockedStart_A32NX.hpp"
 #include "IdleControl_A32NX.hpp"
+#include "N1LimitBleedCorrection_A32NX.hpp"
 #include "OilSystem_A32NX.hpp"
 #include "Polynomials_A32NX.hpp"
 #include "StartSequence_A32NX.hpp"
@@ -238,7 +239,11 @@ void EngineControl_A32NX::update() {
   const int packs = (simData.packsState[L]->get() > 0.5 || simData.packsState[R]->get() > 0.5) ? 1 : 0;
   const int nai = (simData.simVarsDataPtr->data().engineAntiIce[L] > 0.5 || simData.simVarsDataPtr->data().engineAntiIce[R] > 0.5) ? 1 : 0;
   const int wai = simData.wingAntiIce->getAsInt64();
-  updateThrustLimits(simTime, pressureAltitude, ambientTemperature, ambientPressure, mach, simN1highest, packs, nai, wai);
+  const bool eiuDataLost = simData.engineEiuFault[L]->getAsBool() || simData.engineEiuFault[R]->getAsBool();
+  const N1LimitBleedCorrection_A32NX::BleedConfiguration limitBleeds =
+      N1LimitBleedCorrection_A32NX::correctedFor({packs, nai, wai}, eiuDataLost);
+  updateThrustLimits(simTime, pressureAltitude, ambientTemperature, ambientPressure, mach, simN1highest, limitBleeds.packs,
+                     limitBleeds.nacelleAntiIce, limitBleeds.wingAntiIce);
 
 #ifdef PROFILING
   profilerUpdate.stop();
