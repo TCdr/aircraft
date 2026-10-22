@@ -67,6 +67,8 @@ import { isConstantMachRespected } from '@fmgc/guidance/vnav/cruise/ConstantMach
 import { formatSpeedPrediction, isSameSpeedPrediction } from './FplnSpeedPrediction';
 import { altitudePredictionPanel, isPredictedCruiseWaypoint } from './VertRevPredictionAccess';
 import { ProfilePhase, VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { cruisePredictionSpeedOrMach } from '../../../FMC/ManagedCruiseTarget';
+import { Vmo } from '@shared/PerformanceConstants';
 import { dirToUri, fixInfoUri, showReturnButtonUriExtra } from '../../../shared/utils';
 import { ToWaypointFromPresentPosition, activeLegLineTrackAndDistance } from './FplnActiveLegTrackDistance';
 
@@ -477,7 +479,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
             hasAltitudeConstraint: false, // TODO
             altitudeConstraint: null, // TODO
             altitudeConstraintIsRespected: true,
-            speedPrediction: pwp.flightPlanInfo?.speed ?? null,
+            speedPrediction: this.speedPrediction(pwp.flightPlanInfo),
             hasSpeedConstraint: (pwp.mcduIdent ?? pwp.ident) === '(SPDLIM)',
             speedConstraint: null, // TODO
             speedConstraintIsRespected: true,
@@ -566,7 +568,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
             hasAltitudeConstraint: leg.altitudeConstraint !== undefined,
             altitudeConstraint: leg.altitudeConstraint ?? null,
             altitudeConstraintIsRespected: pred?.isAltitudeConstraintMet ?? true,
-            speedPrediction: pred?.speed ?? null,
+            speedPrediction: this.speedPrediction(pred),
             ...speedConstraintOrConstantMach(
               leg.speedConstraint,
               pred,
@@ -752,6 +754,28 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
         );
       }
     }
+  }
+
+  /** In cruise, the speed or Mach the managed cruise target would be at that waypoint */
+  private speedPrediction(prediction: VerticalWaypointPrediction | undefined): number | null {
+    if (
+      prediction?.profilePhase !== ProfilePhase.Cruise ||
+      prediction.cas === undefined ||
+      prediction.mach === undefined
+    ) {
+      return prediction?.speed ?? null;
+    }
+    const atmosphere = this.props.fmcService.master?.guidanceController?.atmosphericConditions;
+    if (!atmosphere) {
+      return prediction.speed;
+    }
+    return cruisePredictionSpeedOrMach(
+      prediction.cas,
+      prediction.mach,
+      atmosphere.computeCasFromMach(prediction.altitude, prediction.mach),
+      this.loadedFlightPlan?.performanceData.cruiseFlightLevel.get() ?? null,
+      Vmo,
+    );
   }
 
   /**
