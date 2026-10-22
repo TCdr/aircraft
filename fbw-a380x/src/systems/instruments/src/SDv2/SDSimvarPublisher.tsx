@@ -16,6 +16,7 @@ import {
   FctlEbhaElecPartFailedTopic,
   surfaceVariableName,
 } from './Pages/Fctl/elements/ActuatorStatus';
+import { FctlSpoilerFailedTopic, SPOILER_NUMBERS, spoilerFailedTopic } from './Pages/Fctl/elements/SpoilerStatus';
 
 // FIXME ideally migrate to singular publishers (split by source)
 export type BaseSDSimvars = AdirsSimVars &
@@ -105,7 +106,7 @@ export type BaseSDSimvars = AdirsSimVars &
     /** The ATC function runs (systems host CpiomD/AtcDatalink.ts), for the mailbox MAILBOX NOT AVAIL */
     atcFunctionAvailable: boolean;
     stabilizerJammed: boolean;
-  } & { [topic in FctlActuatorFailedTopic | FctlEbhaElecPartFailedTopic]: boolean };
+  } & { [topic in FctlActuatorFailedTopic | FctlEbhaElecPartFailedTopic | FctlSpoilerFailedTopic]: boolean };
 
 type IndexedTopics =
   | 'condMainDeckTemp'
@@ -144,6 +145,23 @@ export function fctlActuatorFailureSimvars(): [keyof SDSimvars, SimVarPublisherE
     }
   }
   definitions.push(['stabilizerJammed', { name: 'L:A32NX_FCTL_STABILIZER_JAMMED', type: SimVarValueType.Bool }]);
+  return definitions;
+}
+
+/**
+ * The spoilers the flight control computers report failed (fbw module)
+ * @returns the simvar definitions
+ */
+export function fctlSpoilerFailureSimvars(): [keyof SDSimvars, SimVarPublisherEntry<boolean>][] {
+  const definitions: [keyof SDSimvars, SimVarPublisherEntry<boolean>][] = [];
+  for (const wing of ['left', 'right'] as const) {
+    for (const spoiler of SPOILER_NUMBERS) {
+      definitions.push([
+        spoilerFailedTopic(wing, spoiler),
+        { name: `L:A32NX_FCTL_${wing.toUpperCase()}_SPOILER_${spoiler}_FAILED`, type: SimVarValueType.Bool },
+      ]);
+    }
+  }
   return definitions;
 }
 
@@ -281,6 +299,7 @@ export class SDSimvarPublisher extends UpdatableSimVarPublisher<SDSimvars> {
     ['flapsConfIndex', { name: 'L:A32NX_FLAPS_CONF_INDEX', type: SimVarValueType.Number }],
     ['fwcFlightPhase', { name: 'L:A32NX_FWC_FLIGHT_PHASE', type: SimVarValueType.Enum }],
     ...fctlActuatorFailureSimvars(),
+    ...fctlSpoilerFailureSimvars(),
   ]);
 
   public constructor(bus: EventBus) {

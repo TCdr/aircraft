@@ -865,6 +865,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] FLT OPS STS fills itself from the FMS flight number and city pair until a manual entry, and the CAPT and F/O laptops share it (manual entries, SYNCHRO AVIONICS, EXIT SESSION; not on a stand-alone laptop, and not after a network loss until both laptops are restarted); ACFT REGISTRATION shows the aircraft ATC ID and OIS VERSION the aircraft build - @TCdr
 1. [A380X/VD] Fix the grey area starting at a waypoint where the route crosses north without turning - @TCdr
 1. [A32NX/FADEC] With an ENG 1(2) EIU FAULT the N1 limit (TOGA, FLX, MCT, CLB) is no longer corrected for the packs, engine and wing anti-ice - @TCdr
+1. [A380X/SD] F/CTL page: a spoiler is amber when it is lost (failed actuator, symmetric spoiler inhibited, its PRIM or SEC failed) or its own hydraulic system is lost (yellow for spoilers 1, 3, 5, 7, green for 2, 4, 6, 8; spoiler 6 also on AC ESS in flight) - @TCdr
+1. [A380X/SD] F/CTL page: the inner aileron, left outer and right inner elevator EHAs follow their AC EHA busbar instead of AC 1 - @TCdr
 
 ## 2024.1.0
 
