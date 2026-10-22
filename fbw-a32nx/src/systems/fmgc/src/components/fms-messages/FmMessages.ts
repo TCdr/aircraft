@@ -260,4 +260,11 @@ export const FMMessageTypes: Readonly<Record<string, FMMessage>> = {
     color: 'White',
     clearable: true,
   },
+  /** Type II amber */
+  MoreDrag: {
+    id: 32,
+    text: 'MORE DRAG',
+    color: 'Amber',
+    clearable: true,
+  },
 };

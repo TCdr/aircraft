@@ -145,7 +145,7 @@ export class FMA extends DisplayComponent<{
     this.props.bus.getArincSubscriber<Arinc429Values>().on('speedAr'),
   );
 
-  /** CHECK SPD MODE, set by the FMS (FlightManagementComputer triggerCheckSpeedModeMessage) */
+  /** CHECK SPD MODE, set by the FMS (MFD/FMC/CheckSpeedModeMessage.ts) */
   private readonly checkSpeedMode = ConsumerSubject.create(this.sub.on('checkSpeedMode'), false).map((it) => !!it);
 
   /* Inputs of CHECK EO SPD SETTING (FMADefinitions isCheckEoSpeedSetting) */

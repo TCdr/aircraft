@@ -9,13 +9,13 @@ import {
 } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 
 /**
- * The MORE DRAG message of the FMA (third line, middle and right columns), A320 FCOM DSC-22_30-100 FLIGHT MODE
- * ANNUNCIATOR (a320_fcom.txt l.33617-33623, l.33703-33710): "DES mode is engaged, idle is selected, and either: The
- * aircraft is above the vertical profile and the predicted intercept point of the theoretical profile is at less than
- * 2 NM from the next ALT CSTR, or In auto speed control and the aircraft enters a speedbrake decelerating segment."
- * DSC-22_30-70-50 (l.29949-29955): "MORE DRAG comes up on the PFD and the MCDU, and remains there as long as more drag
- * (speedbrakes) is still required" and "Whenever the intercept point is predicted to be close to a constrained
- * waypoint". Not done here: the MCDU scratchpad message.
+ * The MORE DRAG message of the FMA (third line, middle and right columns) and of the MCDU (amber, type II), A320 FCOM
+ * DSC-22_30-100 FLIGHT MODE ANNUNCIATOR (a320_fcom.txt l.33617-33623, l.33703-33710): "DES mode is engaged, idle is
+ * selected, and either: The aircraft is above the vertical profile and the predicted intercept point of the theoretical
+ * profile is at less than 2 NM from the next ALT CSTR, or In auto speed control and the aircraft enters a speedbrake
+ * decelerating segment." DSC-22_30-70-50 (l.29949-29955): "MORE DRAG comes up on the PFD and the MCDU, and remains
+ * there as long as more drag (speedbrakes) is still required" and "Whenever the intercept point is predicted to be
+ * close to a constrained waypoint".
  *
  * Design choices:
  * - "Idle is selected": the A/THR is in THR IDLE (L:A32NX_AUTOTHRUST_MODE), the thrust mode of DES with an idle path or

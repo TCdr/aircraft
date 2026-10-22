@@ -35,7 +35,7 @@ import { CheckApproachSelection } from './CheckApproachSelection';
 import { AreaRnp, ProcedureRnp } from './RnpMessages';
 import { CheckIrsAirportPosition, IrsOnlyNavigation } from './IrsPositionMessages';
 import { CabinRateExceeded } from './CabinRateExceeded';
-import { NoVertPathIntercept, SpeedErrorAtWaypoint } from './VnavPathMessages';
+import { MoreDrag, NoVertPathIntercept, SpeedErrorAtWaypoint } from './VnavPathMessages';
 
 /**
  * This class manages Type II messages sent from the FMGC.
@@ -87,6 +87,7 @@ export class FmsMessages implements FmgcComponent {
     new CabinRateExceeded(),
     new NoVertPathIntercept(),
     new SpeedErrorAtWaypoint(),
+    new MoreDrag(),
   ];
 
   constructor(private readonly bus: EventBus) {}

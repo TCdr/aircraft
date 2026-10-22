@@ -445,8 +445,8 @@ export function computeBC3Message(
   } else if (spdBrkMessage === SpeedBrakeMessage.RETRACT) {
     return BC3Messages.RETRACT_SPD_BRK;
   } else if (checkSpeedMode && !isAttExcessive) {
-    // A380 FCOM DSC-22-FG-80-80 l.19243, SELECTED SPEED/MACH PRIORITY l.12816-12826 (FMS: FlightManagementComputer
-    // triggerCheckSpeedModeMessage); placed as the A320 CHECK SPEED MODE (after MORE DRAG)
+    // A380 FCOM DSC-22-FG-80-80 l.19243, SELECTED SPEED/MACH PRIORITY l.12816-12826 (FMS:
+    // MFD/FMC/CheckSpeedModeMessage.ts); placed as the A320 CHECK SPEED MODE (after MORE DRAG)
     return BC3Messages.CHECK_SPD_MODE;
   } else if (checkApproachSelection) {
     // FMS message (MFD FmsAdvisoryMessages, CheckApproachSelection.ts); placed as the A320 CHECK APPR SELECTION

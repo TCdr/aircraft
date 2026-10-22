@@ -27,6 +27,7 @@ import { Coordinates } from 'msfs-geo';
 import { NXSystemMessages, TypeIIMessage } from '../shared/NXSystemMessages';
 import type { FlightManagementComputer } from './FlightManagementComputer';
 import { isCheckApproachSelection, ManuallyTunedIls } from './CheckApproachSelection';
+import { fmsSpeedBrakeMessage, readFmsSpeedBrakeData } from './FmsSpeedBrakeMessage';
 
 /** The PFD reads this L:var to show CHECK APPR SEL on the FMA line 3 (A380 FCOM DSC-22-FG-80-80 l.19241) */
 const CHECK_APPR_SEL_PFD_VAR = 'L:A32NX_PFD_MSG_CHECK_APPR_SELECTION';
@@ -101,6 +102,8 @@ export class FmsAdvisoryMessages {
 
   private readonly cabinRateExceededLatch = new MessageTextLatch();
   private readonly speedErrorLatch = new MessageTextLatch();
+
+  private readonly speedBrakeLatch = new MessageTextLatch();
 
   /** The waypoint of the SPD ERROR AT message on display, null without one */
   private speedErrorIdent: string | null = null;
@@ -261,6 +264,11 @@ export class FmsAdvisoryMessages {
     );
 
     this.updateSpeedError();
+
+    this.apply(
+      this.speedBrakeLatch,
+      fmsSpeedBrakeMessage(readFmsSpeedBrakeData(phase, altitude, navigation.getComputedAirspeed())),
+    );
   }
 
   /**

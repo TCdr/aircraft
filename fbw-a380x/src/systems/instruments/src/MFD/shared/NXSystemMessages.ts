@@ -89,6 +89,9 @@ export const NXSystemMessages = {
   destAltnCpnyRteDisagree: new TypeIMessage('DEST / ALTN CPNY RTE DISAGREE'),
   checkMinFuelAtDest: new TypeIIMessage('CHECK MIN FUEL AT DEST'),
   checkSpeedMode: new TypeIIMessage('CHECK SPD MODE'),
+  // Design choice: white, as on the PFD; no colour is published for these two and they do not concern the navigation
+  extendSpdBrk: new TypeIIMessage('EXTEND SPD BRK'),
+  retractSpdBrk: new TypeIIMessage('RETRACT SPD BRK'),
   /** A380 FCOM DSC-22-FMS-20-110 (a380_fcom.txt l.44966-44979), MFD and PFD (FmsAdvisoryMessages) */
   checkApprSel: new TypeIIMessage('CHECK APPR SEL'),
   checkToData: new TypeIIMessage('CHECK T.O. DATA', true),
