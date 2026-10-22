@@ -196,6 +196,8 @@ export const EcamInfos: { [n: string]: string } = {
   210200005: '\x1b<3mPACK 2 AVAIL ABOVE FL 290',
   210200006: '\x1b<3mPACK 1 REGUL DEGRADED',
   210200007: '\x1b<3mPACK 2 REGUL DEGRADED',
+  // COND TEMP CTL FAULT STATUS INFO, both pack controllers failed
+  210200008: '\x1b<3mENG IDLE HI',
   220200001: '\x1b<3mFMS 1 ON FMC-C',
   220200002: '\x1b<3mFMS 2 ON FMC-C',
   220200003: '\x1b<3mSTBY INSTRUMENTS NAV AVAIL',

@@ -1,7 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-// Native unit test of the idle setting of the FADEC (src/Fadec/IdleSetting_A380X.hpp): run test/run_tests.sh.
+// Native unit test of the idle setting of the FADEC (src/Fadec/IdleSetting_A380X.hpp): run test/run_tests.sh. Built with
+// -DWITHOUT_THE_FIX the idle ignores the lost pack controllers and their checks fail.
 
 #include <cmath>
 #include <cstdio>
@@ -25,7 +26,35 @@ using Inputs = IdleSetting_A380X::Inputs;
 
 /// In flight, FLAPS 0, gear up, no bleed, normal oil temperature
 static Inputs cleanInFlight() {
-  return {false, 0, false, false, false, false, 90.0};
+  return {false, 0, false, false, false, false, false, 90.0};
+}
+
+/// The idle increase with both pack controllers lost or not
+static double increaseWithPackControllers(Inputs in, bool packControllersLost) {
+#ifdef WITHOUT_THE_FIX
+  (void)packControllersLost;
+  in.packControllersLost = false;
+#else
+  in.packControllersLost = packControllersLost;
+#endif
+  return IdleSetting_A380X::correctedN3Increase(in);
+}
+
+static void testLostPackControllersGiveTheIdleOfTheHighestBleedDemand() {
+  const double highestBleedDemand = IdleSetting_A380X::PACKS_CN3_INCREASE + IdleSetting_A380X::NACELLE_ANTI_ICE_CN3_INCREASE +
+                                    IdleSetting_A380X::WING_ANTI_ICE_CN3_INCREASE;
+  expect(near(increaseWithPackControllers(cleanInFlight(), true), highestBleedDemand),
+         "pack controllers lost, in flight without bleed: idle high");
+  Inputs ground   = cleanInFlight();
+  ground.onGround = true;
+  ground.packs    = true;
+  expect(near(increaseWithPackControllers(ground, true), highestBleedDemand), "pack controllers lost, on the ground: idle high");
+  expect(near(increaseWithPackControllers(ground, false), IdleSetting_A380X::PACKS_CN3_INCREASE),
+         "pack controllers operating: the measured bleed demand");
+  Inputs approach             = cleanInFlight();
+  approach.flapsLeverPosition = 3;
+  expect(near(increaseWithPackControllers(approach, true), IdleSetting_A380X::APPROACH_IDLE_CN3_INCREASE),
+         "pack controllers lost in approach: approach idle stays the higher one");
 }
 
 static void testApproachIdleWithFlaps2Or3OrFullOrTheGearDown() {
@@ -102,6 +131,7 @@ int main() {
   testBleedDemandRaisesTheNormalIdle();
   testHighOilTemperatureRaisesTheNormalIdle();
   testApproachIdleTakesTheHighestOfTheTwo();
+  testLostPackControllersGiveTheIdleOfTheHighestBleedDemand();
 
   if (failures > 0) {
     std::printf("idle_setting_test: %d failure(s)\n", failures);

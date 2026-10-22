@@ -279,6 +279,7 @@ class FadecSimData_A380X {
   NamedVariablePtr fuelTrimPre;        // Pounds
   NamedVariablePtr fuelPumpState[4];
   NamedVariablePtr packsState[2];
+  NamedVariablePtr fdacChannelFailure[2][2];  // Bool - pack controller (FDAC) 1 and 2, channel 1 and 2
   NamedVariablePtr refuelRate;
   NamedVariablePtr refuelStartedByUser;
   NamedVariablePtr startState;
@@ -555,6 +556,10 @@ class FadecSimData_A380X {
 
     packsState[0]       = dm->make_named_var("A32NX_COND_PACK_1_IS_OPERATING", UNITS.Number, AUTO_READ);
     packsState[1]       = dm->make_named_var("A32NX_COND_PACK_2_IS_OPERATING", UNITS.Number, AUTO_READ);
+    fdacChannelFailure[0][0] = dm->make_named_var("A32NX_COND_FDAC_1_CHANNEL_1_FAILURE", UNITS.Bool, AUTO_READ);
+    fdacChannelFailure[0][1] = dm->make_named_var("A32NX_COND_FDAC_1_CHANNEL_2_FAILURE", UNITS.Bool, AUTO_READ);
+    fdacChannelFailure[1][0] = dm->make_named_var("A32NX_COND_FDAC_2_CHANNEL_1_FAILURE", UNITS.Bool, AUTO_READ);
+    fdacChannelFailure[1][1] = dm->make_named_var("A32NX_COND_FDAC_2_CHANNEL_2_FAILURE", UNITS.Bool, AUTO_READ);
     // STRUCTURAL DEICE SWITCH follows the wing anti-ice valves of the systems model (a380_systems ice_rain_protection.rs,
     // through the systems_wasm wing anti-ice aspect): the TOGA thrust takes the wing anti-ice bleed demand into account, not
     // during the takeoff wing anti-ice inhibition

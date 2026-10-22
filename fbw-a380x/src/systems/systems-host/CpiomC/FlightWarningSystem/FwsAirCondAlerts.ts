@@ -132,6 +132,17 @@ export function packRegulFaultInfo(pack: 1 | 2): string[] {
 }
 
 /**
+ * The STATUS INFO of COND TEMP CTL FAULT: FWD CRG TEMP REGUL DEGRADED, after ENG IDLE HI when both pack controllers are
+ * failed (the FADECs then hold the idle high, as they no longer know the bleed demand).
+ * @param fdacChannelFailures the two channels of FDAC 1 and of FDAC 2 (L:A32NX_COND_FDAC_{n}_CHANNEL_{m}_FAILURE)
+ * @returns the INFO ids
+ */
+export function condTempCtlFaultInfo(fdacChannelFailures: readonly boolean[]): string[] {
+  const bothPackControllersFailed = fdacChannelFailures.every((failed) => failed);
+  return bothPackControllersFailed ? ['210200008', '210200003'] : ['210200003'];
+}
+
+/**
  * COND BULK CARGO DUCT OVHT: above 70 deg C in the bulk cargo duct (VCS bit 25). SC, master caution, HEATER pb FAULT
  * light, COND SD page; active in phases 1, 2, 8, 11 and 12. The line is BULK HEATER ... OFF.
  */

@@ -550,6 +550,8 @@ IdleSetting_A380X::Inputs EngineControl_A380X::idleSettingInputs() {
       bleed.packs == 1,
       bleed.nai == 1,
       bleed.wai == 1,
+      simData.fdacChannelFailure[0][0]->getAsBool() && simData.fdacChannelFailure[0][1]->getAsBool() &&
+          simData.fdacChannelFailure[1][0]->getAsBool() && simData.fdacChannelFailure[1][1]->getAsBool(),
       highestOilTemperature,
   };
 }
