@@ -35,3 +35,6 @@ clang++ -std=c++20 -Wall -Wextra -Werror -Wno-unused-lambda-capture $FLAGS start
 # minimum idle in every case and the test must fail.
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS idle_control_test.cpp -o ../obj/idle_control_test
 ../obj/idle_control_test
+# The bleed corrections of the N1 limit, lost with the EIU data: with WITHOUT_THE_FIX=1 they stay and the test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS n1_limit_bleed_correction_test.cpp -o ../obj/n1_limit_bleed_correction_test
+../obj/n1_limit_bleed_correction_test

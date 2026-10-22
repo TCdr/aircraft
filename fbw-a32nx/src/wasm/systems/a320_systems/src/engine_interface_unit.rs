@@ -11,10 +11,13 @@
 //!   that FADEC, as for a FADEC FAULT;
 //! - its thrust reverser is lost;
 //! - the thrust lever failure rules of the FADEC use the Mach number in place of the slats position
-//!   (`engine_control_failure`).
+//!   (`engine_control_failure`);
+//! - only approach idle is available (`IdleControl_A32NX` of the fadec_a32nx module);
+//! - the N1 limit loses its bleed corrections (`N1LimitBleedCorrection_A32NX` of the fadec_a32nx
+//!   module).
 //!
-//! Not modelled: "only approach idle is available" (the FADEC has no idle selection to lose) and
-//! the loss of the bleed corrections of the N1 limit (one N1 limit is computed for both engines).
+//! The fadec_a32nx module computes one idle setting and one N1 limit for both engines: either EIU
+//! lost gives the approach idle and the uncorrected N1 limit to both.
 //!
 //! Supply: EIU 2 by the DC ESS BUS, which loses it. Design choice: EIU 1 by DC BUS 1 or the DC ESS
 //! BUS, as no single DC bus fault loses EIU 1.
