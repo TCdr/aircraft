@@ -746,6 +746,8 @@ export class FwsCore {
 
   public readonly fdac2Channel2Failure = Subject.create(false);
 
+  public readonly pack1And2CtlFault = Subject.create(false);
+
   public readonly pack1RedundLost = Subject.create(false);
 
   public readonly pack2RedundLost = Subject.create(false);
@@ -5846,6 +5848,13 @@ export class FwsCore {
     this.fdac2Channel2Failure.set(SimVar.GetSimVarValue('L:A32NX_COND_FDAC_2_CHANNEL_2_FAILURE', 'bool'));
 
     this.pack2Ctl2Fault.set(this.ac4BusPowered.get() && this.fdac2Channel2Failure.get());
+
+    this.pack1And2CtlFault.set(
+      this.fdac1Channel1Failure.get() &&
+        this.fdac1Channel2Failure.get() &&
+        this.fdac2Channel1Failure.get() &&
+        this.fdac2Channel2Failure.get(),
+    );
 
     this.populateCpiomBWords(
       this.cpiomBAgsAppDiscreteWord1,
