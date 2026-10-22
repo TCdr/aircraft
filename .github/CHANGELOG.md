@@ -878,6 +878,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] EXTEND SPD BRK and RETRACT SPD BRK also come up in the MFD message area, with the PFD messages - @TCdr
 1. [A380X/MFD] CHECK SPD MODE also comes up at the change from climb to cruise without a cruise speed preselection, and when the aircraft passes the start of a constant Mach segment in selected speed; it now stays on the MFD until the speed is managed - @TCdr
 1. [A380X/FMS] Managed cruise target per the CRZ FL: the ECON Mach above FL200 (it could target the ECON speed instead), the ECON speed at and below FL200; the F-PLN SPD column in cruise follows the same rule (it switched between speed and Mach from one waypoint to the next) - @TCdr
+1. [A380X/MFD] In flight, the active leg of the F-PLN page shows the direct track and the distance from the aircraft to the TO waypoint, counting down like the ND - @TCdr
 
 ## 2024.1.0
 
