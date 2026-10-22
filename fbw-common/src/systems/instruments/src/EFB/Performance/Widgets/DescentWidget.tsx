@@ -767,7 +767,9 @@ const StartDistance = ({ result, offset, onOffsetChange }: StartDistanceProps) =
           </span>
         </span>
       </div>
-      {note && <div className="text-base leading-tight">{note}</div>}
+      {/* The note line stays when empty: the chart above must keep its size, as the sim leaves a resized svg's
+          old text painted (a second T/D label after the slider comes back to the T/D) */}
+      <div className="text-base leading-tight">{note ?? <span>&nbsp;</span>}</div>
     </div>
   );
 };
