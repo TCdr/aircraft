@@ -543,6 +543,8 @@ IdleSetting_A380X::Inputs EngineControl_A380X::idleSettingInputs() {
   for (int engineIdx = E2; engineIdx <= E4; engineIdx++) {
     highestOilTemperature = std::max(highestOilTemperature, simData.oilTempDataPtr[engineIdx]->data().oilTemp);
   }
+  const bool packControllersLost = simData.fdac1Channel1Failure->getAsBool() && simData.fdac1Channel2Failure->getAsBool() &&
+                                   simData.fdac2Channel1Failure->getAsBool() && simData.fdac2Channel2Failure->getAsBool();
   return {
       msfsHandlerPtr->getSimOnGround(),
       static_cast<int>(simData.flapsHandleIndex->get()),
@@ -550,8 +552,7 @@ IdleSetting_A380X::Inputs EngineControl_A380X::idleSettingInputs() {
       bleed.packs == 1,
       bleed.nai == 1,
       bleed.wai == 1,
-      simData.fdacChannelFailure[0][0]->getAsBool() && simData.fdacChannelFailure[0][1]->getAsBool() &&
-          simData.fdacChannelFailure[1][0]->getAsBool() && simData.fdacChannelFailure[1][1]->getAsBool(),
+      packControllersLost,
       highestOilTemperature,
   };
 }

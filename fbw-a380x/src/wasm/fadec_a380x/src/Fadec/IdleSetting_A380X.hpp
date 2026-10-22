@@ -30,12 +30,12 @@ class IdleSetting_A380X {
  public:
   struct Inputs {
     bool   onGround;
-    int    flapsLeverPosition;  // L:A32NX_FLAPS_HANDLE_INDEX: 0, 1, 2, 3, 4 (FULL)
-    bool   landingGearDown;     // a main landing gear downlocked
-    bool   packs;               // a pack operating
-    bool   nacelleAntiIce;      // an engine anti-ice valve open
-    bool   wingAntiIce;         // the wing anti-ice valves open
-    bool   packControllersLost;  // both channels of both pack controllers (FDAC 1 and 2) failed
+    int    flapsLeverPosition;     // L:A32NX_FLAPS_HANDLE_INDEX: 0, 1, 2, 3, 4 (FULL)
+    bool   landingGearDown;        // a main landing gear downlocked
+    bool   packs;                  // a pack operating
+    bool   nacelleAntiIce;         // an engine anti-ice valve open
+    bool   wingAntiIce;            // the wing anti-ice valves open
+    bool   packControllersLost;    // both channels of both pack controllers (FDAC 1 and 2) failed
     double highestOilTemperature;  // Celsius, the hottest oil of the four engines
   };
 

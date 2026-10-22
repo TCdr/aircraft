@@ -23,7 +23,6 @@ import {
   CAB_PRESS_INHIBITED_BY_DOORS_PHASE_INHIBITION,
   CAB_PRESS_MAN_CTL_FAULT_PHASE_INHIBITION,
   CABIN_AIR_EXTRACT_VLV_FAULT_PHASE_INHIBITION,
-  condTempCtlFaultInfo,
   PACK_OVHT_PHASE_INHIBITION,
   PACK_REGUL_FAULT_PHASE_INHIBITION,
   PACK_VLV_FAULT_PHASE_INHIBITION,
@@ -2100,13 +2099,7 @@ export class FwsAbnormalSensed {
       whichItemsChecked: () => [false],
       failure: 1,
       sysPage: SdPages.Cond,
-      info: () =>
-        condTempCtlFaultInfo([
-          this.fws.fdac1Channel1Failure.get(),
-          this.fws.fdac1Channel2Failure.get(),
-          this.fws.fdac2Channel1Failure.get(),
-          this.fws.fdac2Channel2Failure.get(),
-        ]),
+      info: () => [this.fws.pack1And2CtlFault.get() ? '210200008' : null, '210200003'],
       inopSysAllPhases: () => ['210300023'],
     },
     211800042: {

@@ -9,7 +9,6 @@ import {
   CAB_PRESS_INHIBITED_BY_DOORS_PHASE_INHIBITION,
   CAB_PRESS_MAN_CTL_FAULT_PHASE_INHIBITION,
   CABIN_AIR_EXTRACT_VLV_FAULT_PHASE_INHIBITION,
-  condTempCtlFaultInfo,
   isCabPressManCtlFault,
   PACK_OVHT_PHASE_INHIBITION,
   PACK_REGUL_FAULT_PHASE_INHIBITION,
@@ -120,19 +119,27 @@ describe('A380X FWS AIR PACK 1(2) OVHT and REGUL FAULT', () => {
   });
 });
 
+/* The wiring is read from the source text, as ApuFaultAlerts.spec.ts does (EcamMessages import cycle). */
 describe('A380X FWS COND TEMP CTL FAULT', () => {
+  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+  const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
+  const infos = readFileSync(
+    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
+    'utf-8',
+  );
+
   it('STATUS INFO ENG IDLE HI only when both pack controllers are failed', () => {
-    const infos = readFileSync(
-      resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-      'utf-8',
+    const tempCtlFault = abnormalSensed.slice(abnormalSensed.indexOf('211800041: {'));
+    const entry = tempCtlFault.slice(0, tempCtlFault.indexOf('},'));
+    expect(entry).toContain("info: () => [this.fws.pack1And2CtlFault.get() ? '210200008' : null, '210200003'],");
+    expect(infos).toContain("210200008: '\\x1b<3mENG IDLE HI',");
+  });
+
+  it('both pack controllers are failed when the two channels of FDAC 1 and of FDAC 2 are failed', () => {
+    const update = fwsCore.slice(fwsCore.indexOf('this.pack1And2CtlFault.set('));
+    expect(update.slice(0, update.indexOf(');'))).toMatch(
+      /fdac1Channel1Failure\.get\(\) &&\s+this\.fdac1Channel2Failure\.get\(\) &&\s+this\.fdac2Channel1Failure\.get\(\) &&\s+this\.fdac2Channel2Failure\.get\(\)/,
     );
-    const lines = (ids: string[]) => ids.map((id) => infos.match(new RegExp(`${id}: '\\\\x1b<3m(.*)'`))?.[1]);
-    expect(lines(condTempCtlFaultInfo([true, true, true, true]))).toEqual([
-      'ENG IDLE HI',
-      'FWD CRG TEMP REGUL DEGRADED',
-    ]);
-    expect(lines(condTempCtlFaultInfo([true, true, true, false]))).toEqual(['FWD CRG TEMP REGUL DEGRADED']);
-    expect(lines(condTempCtlFaultInfo([false, false, false, false]))).toEqual(['FWD CRG TEMP REGUL DEGRADED']);
   });
 });
 
