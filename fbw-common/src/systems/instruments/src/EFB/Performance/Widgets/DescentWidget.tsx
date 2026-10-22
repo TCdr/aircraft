@@ -732,7 +732,9 @@ const StartDistance = ({ result, offset, onOffsetChange }: StartDistanceProps) =
         <span className="ml-4 mr-2 text-sm text-m3-muted">FPA</span>
         <Value text={gradient.toFixed(1)} unit="°" caution={steeper && !tooSteep} warning={tooSteep} />
       </div>
-      {note && <div className="leading-tight">{note}</div>}
+      {/* The note line stays when empty: the chart above must keep its size, as the sim leaves a resized svg's
+          old text painted (a second T/D label after the slider comes back to the T/D) */}
+      <div className="leading-tight">{note ?? <span className="text-sm">&nbsp;</span>}</div>
     </div>
   );
 };
