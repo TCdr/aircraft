@@ -136,6 +136,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan - @TCdr
 1. [A380X/VD] Fix the grey area starting at a waypoint where the route crosses north without turning - @TCdr
 1. [A380X/MFD] In flight, the active leg of the F-PLN page shows the direct track and the distance from the aircraft to the TO waypoint, counting down like the ND - @TCdr
+1. [A380X/MFD] F-PLN: the IMMEDIATE EXIT / RESUME HOLD button of a hold shows its label instead of [object Object] - @TCdr
 
 ## 2024.1.0
 

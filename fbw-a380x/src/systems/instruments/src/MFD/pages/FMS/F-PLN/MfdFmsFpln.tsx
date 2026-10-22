@@ -714,7 +714,13 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
               }}
             />
           );
-          FSComponent.render(node, this.linesDivRef.instance);
+          try {
+            FSComponent.render(node, this.linesDivRef.instance);
+          } catch (e) {
+            // A line that throws while the page opens would abort the page's setup: no line below it, no destination
+            // line and no refresh until the page is opened again
+            console.error(`F-PLN line ${drawIndex} not drawn: ${e}`);
+          }
           this.renderedFplnLines.push(lineRef);
         }
       }
@@ -2056,7 +2062,7 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
   private renderHoldExitLine(data: FplnLineHoldDisplayData): VNode {
     return (
       <Button
-        label={Subject.create(
+        label={
           <div style="display: flex; flex-direction: row; justify-content: space-between;">
             <span style="text-align: center; vertical-align: center; margin-right: 10px;">
               {data.immExit ? 'RESUME' : 'IMMEDIATE'}
@@ -2064,8 +2070,8 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
               {data.immExit ? 'HOLD' : 'EXIT'}
             </span>
             <span style="display: flex; align-items: center; justify-content: center;">*</span>
-          </div>,
-        )}
+          </div>
+        }
         onClick={() => {
           this.props.callbacks.onImmediateExitHold!();
         }}
