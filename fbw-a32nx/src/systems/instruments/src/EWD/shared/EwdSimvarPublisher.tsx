@@ -28,6 +28,8 @@ export type EwdSimvars = {
   engine1ReverserTransit: boolean;
   engine1ReverserDeployed: boolean;
   engine1State: number;
+  /** The phase of the start sequence (fadec_a32nx StartSequence_A32NX.hpp StartPhase) */
+  engine1StartPhase: number;
   engine2AntiIce: boolean;
   engine2EGT: number;
   engine2Fadec: boolean;
@@ -38,6 +40,7 @@ export type EwdSimvars = {
   engine2ReverserTransit: boolean;
   engine2ReverserDeployed: boolean;
   engine2State: number;
+  engine2StartPhase: number;
   wingAntiIce: boolean;
   apuBleedPressure: number;
   left1LandingGear: boolean;
@@ -119,6 +122,7 @@ export enum EwdVars {
   engine1ReverserTransit = 'L:A32NX_REVERSER_1_DEPLOYING',
   engine1ReverserDeployed = 'L:A32NX_REVERSER_1_DEPLOYED',
   engine1State = 'L:A32NX_ENGINE_STATE:1',
+  engine1StartPhase = 'L:A32NX_ENGINE_1_START_PHASE',
   engine2AntiIce = 'L:XMLVAR_Momentary_PUSH_OVHD_ANTIICE_ENG2_Pressed',
   engine2EGT = 'L:A32NX_ENGINE_EGT:2',
   engine2Fadec = 'L:A32NX_FADEC_POWERED_ENG2',
@@ -128,6 +132,7 @@ export enum EwdVars {
   engine2ReverserTransit = 'L:A32NX_REVERSER_2_DEPLOYING',
   engine2ReverserDeployed = 'L:A32NX_REVERSER_2_DEPLOYED',
   engine2State = 'L:A32NX_ENGINE_STATE:2',
+  engine2StartPhase = 'L:A32NX_ENGINE_2_START_PHASE',
   wingAntiIce = 'L:A32NX_PNEU_WING_ANTI_ICE_SYSTEM_SELECTED',
   apuBleedPressure = 'L:APU_BLEED_PRESSURE',
   left1LandingGear = 'L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED',
@@ -204,6 +209,7 @@ export class EwdSimvarPublisher extends SimVarPublisher<EwdSimvars> {
     ['engine1ReverserTransit', { name: EwdVars.engine1ReverserTransit, type: SimVarValueType.Bool }],
     ['engine1ReverserDeployed', { name: EwdVars.engine1ReverserDeployed, type: SimVarValueType.Bool }],
     ['engine1State', { name: EwdVars.engine1State, type: SimVarValueType.Enum }],
+    ['engine1StartPhase', { name: EwdVars.engine1StartPhase, type: SimVarValueType.Enum }],
     ['engine2AntiIce', { name: EwdVars.engine2AntiIce, type: SimVarValueType.Bool }],
     ['engine2EGT', { name: EwdVars.engine2EGT, type: SimVarValueType.Number }],
     ['engine2Fadec', { name: EwdVars.engine2Fadec, type: SimVarValueType.Bool }],
@@ -214,6 +220,7 @@ export class EwdSimvarPublisher extends SimVarPublisher<EwdSimvars> {
     ['engine2ReverserTransit', { name: EwdVars.engine2ReverserTransit, type: SimVarValueType.Bool }],
     ['engine2ReverserDeployed', { name: EwdVars.engine2ReverserDeployed, type: SimVarValueType.Bool }],
     ['engine2State', { name: EwdVars.engine2State, type: SimVarValueType.Enum }],
+    ['engine2StartPhase', { name: EwdVars.engine2StartPhase, type: SimVarValueType.Enum }],
     ['wingAntiIce', { name: EwdVars.wingAntiIce, type: SimVarValueType.Bool }],
     ['apuBleedPressure', { name: EwdVars.apuBleedPressure, type: SimVarValueType.PSI }],
     ['left1LandingGear', { name: EwdVars.left1LandingGear, type: SimVarValueType.Bool }],

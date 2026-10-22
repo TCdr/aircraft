@@ -13,6 +13,7 @@ import {
 } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
 import { lastDigitColor, lastDigitText } from './EngineIndicationAccuracy';
+import { isN2StartBoxVisible } from './EngineIndications';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
 import { ExceedanceMemory, N2_RED_LIMIT_PERCENT, isGroundStartSequence, n2Color } from '@shared/EngineLimits';
 
@@ -46,6 +47,8 @@ export class N2 extends DisplayComponent<N2Props> {
   );
 
   private state: number = 0;
+
+  private startPhase: number = 0;
 
   private onGround = false;
 
@@ -104,6 +107,13 @@ export class N2 extends DisplayComponent<N2Props> {
       });
 
     sub
+      .on(`engine${this.props.engine}StartPhase`)
+      .whenChanged()
+      .handle((phase) => {
+        this.startPhase = phase;
+      });
+
+    sub
       .on('left1LandingGear')
       .whenChanged()
       .handle((onGround) => {
@@ -114,7 +124,7 @@ export class N2 extends DisplayComponent<N2Props> {
       .on('realTime')
       .atFrequency(2)
       .handle((_t) => {
-        this.starting.set(this.n2 < 58.5 && (this.state === 2 || this.state === 3) ? 'visible' : 'hidden');
+        this.starting.set(isN2StartBoxVisible(this.n2, this.state, this.startPhase) ? 'visible' : 'hidden');
         this.n2Color.set(n2Color(this.n2));
         this.n2Exceedance.update(this.n2, isGroundStartSequence(this.state, this.onGround), this.fadecPowered);
         this.redCrossVisibility.set(this.n2Exceedance.exceeded ? 'visible' : 'hidden');

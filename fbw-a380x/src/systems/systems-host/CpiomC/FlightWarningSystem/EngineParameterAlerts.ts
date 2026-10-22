@@ -32,7 +32,7 @@ export function isStallAlertShown(engineStalled: boolean, stalledEngineCount: nu
 }
 
 export interface EngineOverLimitInputs {
-  /** The EGT shown on the EWD (EgtLimits displayedEgt) */
+  /** The EGT shown on the EWD: the FADEC EGT */
   displayedEgtDegrees: number;
   n1Percent: number;
   n3Percent: number;
@@ -51,7 +51,7 @@ export interface EngineOverLimitInputs {
  * to the takeoff only). The limits are those of the EWD gauge (EgtLimits.ts).
  */
 export function isEgtOverLimit(inputs: EngineOverLimitInputs): boolean {
-  if (egtLimitMarkVisible(inputs.thrustLimitType) && !inputs.alphaFloor) {
+  if (egtLimitMarkVisible(inputs.thrustLimitType, inputs.alphaFloor)) {
     return egtExceedanceShown(inputs.displayedEgtDegrees, EGT_LIMIT_C);
   }
   // In alpha floor the red line applies at once, whatever the thrust limit type.

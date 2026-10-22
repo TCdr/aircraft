@@ -11,8 +11,6 @@ import {
 export interface BaseEwdSimvars {
   engine_state: number;
   egt: number;
-  /** EGT offset of the engine failures (systems WASM, a380_systems engine_malfunction.rs) */
-  egt_offset: number;
   n1: number;
   n1_commanded: number;
   throttle_position_n1: number;
@@ -45,6 +43,8 @@ export interface BaseEwdSimvars {
   memo_left: number;
   memo_right: number;
   nose_gear_compressed: boolean;
+  /** LGCIU 1: the left body/wing gear is compressed */
+  left_main_gear_compressed: boolean;
   engine_fire_pb: boolean;
   /** the FADEC is in DEGRADED (N1) mode (fadec_a380x FadecAirData_A380X) */
   fadec_degraded_mode: boolean;
@@ -64,7 +64,6 @@ export interface BaseEwdSimvars {
 type IndexedTopics =
   | 'engine_state'
   | 'egt'
-  | 'egt_offset'
   | 'n1'
   | 'n1_commanded'
   | 'throttle_position_n1'
@@ -93,7 +92,6 @@ export class EwdSimvarPublisher extends SimVarPublisher<EwdSimvars> {
     const simvars: [keyof EwdSimvars, SimVarPublisherEntry<any>][] = [
       ['engine_state', { name: 'L:A32NX_ENGINE_STATE:#index#', type: SimVarValueType.Number, indexed: true }],
       ['egt', { name: 'L:A32NX_ENGINE_EGT:#index#', type: SimVarValueType.Number, indexed: true }],
-      ['egt_offset', { name: 'L:A32NX_ENGINE_#index#_EGT_OFFSET', type: SimVarValueType.Number, indexed: true }],
       ['n1', { name: 'L:A32NX_ENGINE_N1:#index#', type: SimVarValueType.Number, indexed: true }],
       [
         'n1_commanded',
@@ -133,6 +131,7 @@ export class EwdSimvarPublisher extends SimVarPublisher<EwdSimvars> {
         'nose_gear_compressed',
         { name: 'L:A32NX_LGCIU_#index#_NOSE_GEAR_COMPRESSED', type: SimVarValueType.Bool, indexed: true },
       ],
+      ['left_main_gear_compressed', { name: 'L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', type: SimVarValueType.Bool }],
       ['engine_fire_pb', { name: 'L:A32NX_FIRE_BUTTON_ENG#index#', type: SimVarValueType.Bool, indexed: true }],
       [
         'fadec_degraded_mode',

@@ -868,6 +868,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] F/CTL page: a spoiler is amber when it is lost (failed actuator, symmetric spoiler inhibited, its PRIM or SEC failed) or its own hydraulic system is lost (yellow for spoilers 1, 3, 5, 7, green for 2, 4, 6, 8; spoiler 6 also on AC ESS in flight) - @TCdr
 1. [A380X/SD] F/CTL page: the inner aileron, left outer and right inner elevator EHAs follow their AC EHA busbar instead of AC 1 - @TCdr
 1. [A380X/EWD] ECAM procedure lines that were cut at the edge of the E/WD now fit on their line, in the FCOM wording or its standard abbreviations - @TCdr
+1. [EWD] A thrust reverser unlocked in flight shows an amber REV that pulses for 9 s, then stays steady (green REV only on ground) - @TCdr
+1. [A380X/EWD] REV 2(3) shows amber on ground when the reverser lever is in the REV detent and the reverse mode is not available - @TCdr
+1. [A32NX/EWD] The grey box behind N2 also shows during a dry or wet crank and during the automatic crank after an aborted start - @TCdr
+1. [A380X/EWD] The FLEX temperature always shows in the FLEX thrust rating mode (it was hidden with the SAT more than 10 °C above it), not for a derated takeoff - @TCdr
+1. [A380X/EWD] No amber EGT limit with alpha floor active, and the EGT shows as the FADEC computes it instead of being capped at the limits - @TCdr
 
 ## 2024.1.0
 
