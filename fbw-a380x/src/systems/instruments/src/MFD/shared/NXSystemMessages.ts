@@ -89,6 +89,9 @@ export const NXSystemMessages = {
   destAltnCpnyRteDisagree: new TypeIMessage('DEST / ALTN CPNY RTE DISAGREE'),
   checkMinFuelAtDest: new TypeIIMessage('CHECK MIN FUEL AT DEST'),
   checkSpeedMode: new TypeIIMessage('CHECK SPD MODE'),
+  // Design choice: white, as on the PFD; no colour is published for these two and they do not concern the navigation
+  extendSpdBrk: new TypeIIMessage('EXTEND SPD BRK'),
+  retractSpdBrk: new TypeIIMessage('RETRACT SPD BRK'),
   /** Shown on the MFD and the PFD (FmsAdvisoryMessages) */
   checkApprSel: new TypeIIMessage('CHECK APPR SEL'),
   checkToData: new TypeIIMessage('CHECK T.O. DATA', true),

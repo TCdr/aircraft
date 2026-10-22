@@ -447,7 +447,7 @@ export function computeBC3Message(
   } else if (spdBrkMessage === SpeedBrakeMessage.RETRACT) {
     return BC3Messages.RETRACT_SPD_BRK;
   } else if (checkSpeedMode && !isAttExcessive) {
-    // Set by the FMS (FlightManagementComputer triggerCheckSpeedModeMessage); placed as the A320 CHECK SPEED MODE
+    // Set by the FMS (MFD/FMC/CheckSpeedModeMessage.ts); placed as the A320 CHECK SPEED MODE
     // (after MORE DRAG)
     return BC3Messages.CHECK_SPD_MODE;
   } else if (checkApproachSelection) {

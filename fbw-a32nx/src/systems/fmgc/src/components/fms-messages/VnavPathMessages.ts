@@ -87,3 +87,25 @@ export class NoVertPathIntercept implements FMMessageSelector {
     return wanted ? FMMessageUpdate.SEND : FMMessageUpdate.RECALL;
   }
 }
+
+/** MORE DRAG on the A320 MCDU, shown and removed with the PFD message */
+export class MoreDrag implements FMMessageSelector {
+  public message = FMMessageTypes.MoreDrag;
+
+  private guidanceController?: GuidanceController;
+
+  private shown = false;
+
+  init(_navigation: Navigation, guidanceController: GuidanceController): void {
+    this.guidanceController = guidanceController;
+  }
+
+  process(_deltaTime: number): FMMessageUpdate {
+    const wanted = this.guidanceController?.vnavDriver.isMoreDragRequired() ?? false;
+    if (wanted === this.shown) {
+      return FMMessageUpdate.NO_ACTION;
+    }
+    this.shown = wanted;
+    return wanted ? FMMessageUpdate.SEND : FMMessageUpdate.RECALL;
+  }
+}

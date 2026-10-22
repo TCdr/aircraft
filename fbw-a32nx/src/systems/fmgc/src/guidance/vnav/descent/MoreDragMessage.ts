@@ -9,10 +9,10 @@ import {
 } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 
 /**
- * The MORE DRAG message of the FMA (third line, middle and right columns): DES engaged with idle selected, and either
- * the aircraft is above the profile with the predicted intercept less than 2 NM from the next ALT CSTR, or the speed
- * is managed and the aircraft enters a speedbrake decelerating segment. It stays as long as the speedbrakes are still
- * needed. Not done here: the MCDU scratchpad message.
+ * The MORE DRAG message of the FMA (third line, middle and right columns) and of the MCDU (amber, type II): DES engaged
+ * with idle selected, and either the aircraft is above the profile with the predicted intercept less than 2 NM from the
+ * next ALT CSTR, or the speed is managed and the aircraft enters a speedbrake decelerating segment. It stays as long as
+ * the speedbrakes are still needed.
  *
  * Design choices:
  * - Idle selected: the A/THR is in THR IDLE (L:A32NX_AUTOTHRUST_MODE), the thrust mode of DES with an idle path or
