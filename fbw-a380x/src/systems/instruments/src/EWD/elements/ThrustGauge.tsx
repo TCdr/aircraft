@@ -14,6 +14,7 @@ import {
 import { EwdSimvars } from '../shared/EwdSimvarPublisher';
 import { Arinc429Values } from '../shared/ArincValueProvider';
 import { AvailIndication } from './AvailIndication';
+import { RevDisplay, RevIndication } from './RevIndication';
 import { thrustParameterAirData, thrustParameterPercent } from './ThrustParameter';
 
 import {
@@ -36,6 +37,8 @@ interface ThrustGaugeProps {
 }
 
 const METOTS_N1_LIMIT = 76.5;
+
+const REVERSER_ENGINES = [2, 3];
 
 /** The Mach and TAT of the THR parameter (ThrustParameter.ts): the ADRs, else the engine sensors */
 export function createThrustParameterAirData(
@@ -175,13 +178,22 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
 
   private readonly onGround = ConsumerSubject.create(this.sub.on('nose_gear_compressed_1').whenChanged(), true);
 
+  /** The reversers deploy on the main gear, before the nose gear touches down */
+  private readonly mainGearOnGround = ConsumerSubject.create(
+    this.sub.on('left_main_gear_compressed').whenChanged(),
+    true,
+  );
+
   private lastRealTime: number | null = null;
 
+  private readonly revIndication = new RevIndication();
+
+  private readonly revDisplay = Subject.create<RevDisplay>('hidden');
+
   private readonly availRevVisible = MappedSubject.create(
-    SubscribableMapFunctions.or(),
+    ([availVisible, revDisplay]) => availVisible || revDisplay !== 'hidden',
     this.availVisible,
-    this.revDeployed,
-    this.revDeploying,
+    this.revDisplay,
   );
 
   private readonly availRevText = this.availVisible.map((it) => (it ? 'AVAIL' : 'REV'));
@@ -237,6 +249,14 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
       });
       this.availVisible.set(availDisplay !== 'hidden');
       this.availPulse.set(availDisplay === 'pulse');
+      this.revDisplay.set(
+        this.revIndication.update(deltaS, {
+          inTransit: this.revDeploying.get(),
+          deployed: this.revDeployed.get(),
+          reverseSelected: REVERSER_ENGINES.includes(this.props.engine) && this.revSelected.get(),
+          onGround: this.mainGearOnGround.get(),
+        }),
+      );
     });
   }
 
@@ -306,7 +326,7 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
                 mesg={this.availRevText}
                 engineNumber={this.props.engine}
                 visible={this.availRevVisible}
-                revDoorOpen={this.revDeployed}
+                revDisplay={this.revDisplay}
                 availPulse={this.availPulse}
               />
               <ThrustTransientComponent
@@ -490,7 +510,7 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
                 mesg={this.availRevText}
                 engineNumber={this.props.engine}
                 visible={this.availRevVisible}
-                revDoorOpen={this.revDeployed}
+                revDisplay={this.revDisplay}
                 availPulse={this.availPulse}
               />
               <GaugeMarkerComponent
@@ -548,9 +568,20 @@ interface AvailRevProps {
   mesg: Subscribable<'AVAIL' | 'REV'>;
   engineNumber: number;
   visible: Subscribable<boolean>;
-  revDoorOpen: Subscribable<boolean>;
+  revDisplay: Subscribable<RevDisplay>;
   /** AVAIL pulses after a relight in flight */
   availPulse: Subscribable<boolean>;
+}
+
+function revColourClass(display: RevDisplay): string {
+  switch (display) {
+    case 'green':
+      return 'Green';
+    case 'amberPulse':
+      return 'RevTextPulse';
+    default:
+      return 'Amber';
+  }
 }
 
 class AvailRev extends DisplayComponent<AvailRevProps> {
@@ -564,7 +595,7 @@ class AvailRev extends DisplayComponent<AvailRevProps> {
         <rect x={this.props.x - 28} y={this.props.y - 13} width={90} height={24} class="DarkGreyBox BackgroundFill" />
         <g visibility={this.props.mesg.map((mesg) => (mesg === 'REV' ? 'inherit' : 'hidden'))}>
           <text
-            class={this.props.revDoorOpen.map((it) => `F26 Spread Centre ${it ? 'Green' : 'Amber'}`)}
+            class={this.props.revDisplay.map((display) => `F26 Spread Centre ${revColourClass(display)}`)}
             x={this.props.x - 25}
             y={this.props.y + 9}
           >

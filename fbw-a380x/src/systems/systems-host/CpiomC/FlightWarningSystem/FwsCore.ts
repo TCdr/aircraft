@@ -150,7 +150,7 @@ import {
   isN1N2OverLimit,
   isStallAlertShown,
 } from './EngineParameterAlerts';
-import { displayedEgt, EgtRedLineTimer } from '../../../instruments/src/EWD/elements/EgtLimits';
+import { EgtRedLineTimer } from '../../../instruments/src/EWD/elements/EgtLimits';
 import { isReverserInoperative, isReverserSelectedInFlight, thrLeverFaultInfo } from './FadecReverserAlerts';
 import {
   DualRetardCallout,
@@ -8061,9 +8061,7 @@ export class FwsCore {
     const egtExceeded = [false, false, false, false];
     for (let index = 0; index < 4; index++) {
       const engineNumber = index + 1;
-      const egt = SimVar.GetSimVarValue(`L:A32NX_ENGINE_EGT:${engineNumber}`, 'number');
-      const egtOffset = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_EGT_OFFSET`, 'number');
-      const displayedEgtDegrees = displayedEgt(egt, egtOffset, thrustLimitType);
+      const displayedEgtDegrees = SimVar.GetSimVarValue(`L:A32NX_ENGINE_EGT:${engineNumber}`, 'number');
       this.egtRedLineTimers[index].update(displayedEgtDegrees, deltaTime / 1000);
       const overLimitInputs = {
         displayedEgtDegrees,

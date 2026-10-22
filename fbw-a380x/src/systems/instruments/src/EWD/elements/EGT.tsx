@@ -10,16 +10,16 @@ import {
   ClockEvents,
 } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from '../shared/EwdSimvarPublisher';
+import { FGVars } from '../../MsfsAvionicsCommon/providers/FGDataPublisher';
+import { AutoThrustMode } from '@shared/autopilot';
 import { GaugeComponent, GaugeMarkerComponent, GaugeMaxEGTComponent } from '../../MsfsAvionicsCommon/gauges';
 import {
   EGT_RED_LINE_C,
   EgtRedLineTimer,
   ExceedanceMemory,
-  displayedEgt,
   egtColour,
   egtLimit,
   egtLimitMarkVisible,
-  isStartSequence,
 } from './EgtLimits';
 
 interface EGTProps {
@@ -31,14 +31,19 @@ interface EGTProps {
 }
 
 export class EGT extends DisplayComponent<EGTProps> {
-  private readonly sub = this.props.bus.getSubscriber<EwdSimvars & ClockEvents>();
+  private readonly sub = this.props.bus.getSubscriber<EwdSimvars & ClockEvents & FGVars>();
 
   /** FADEC thrust limit type (NONE 0, CLB 1, MCT 2, FLEX 3, TOGA 4, REVERSE 5), see EgtLimits.ts */
   private readonly thrustLimitType = ConsumerSubject.create(this.sub.on('thrust_limit_type').whenChanged(), 0);
 
+  /** The FADEC EGT, failure offset included (EgtLimits.ts) */
   private readonly egt = ConsumerSubject.create(
     this.sub.on(`egt_${this.props.engine}`).withPrecision(1).whenChanged(),
     0,
+  );
+
+  private readonly alphaFloorActive = ConsumerSubject.create(this.sub.on('fg.athr.mode'), AutoThrustMode.NONE).map(
+    (mode) => mode === AutoThrustMode.A_FLOOR,
   );
 
   private radius = 68;
@@ -56,12 +61,10 @@ export class EGT extends DisplayComponent<EGTProps> {
   private readonly redArcStartAngle =
     this.endAngle - ((this.endAngle - this.startAngle + 360) * (this.max - EGT_RED_LINE_C)) / (this.max - this.min);
 
-  private readonly amberVisible = this.thrustLimitType.map(egtLimitMarkVisible);
-
-  /** The EGT offset of the stall and EGT overtemperature failures (EgtLimits displayedEgt) */
-  private readonly egtOffset = ConsumerSubject.create(
-    this.sub.on(`egt_offset_${this.props.engine}`).withPrecision(1).whenChanged(),
-    0,
+  private readonly amberVisible = MappedSubject.create(
+    ([limitType, alphaFloor]) => egtLimitMarkVisible(limitType, alphaFloor),
+    this.thrustLimitType,
+    this.alphaFloorActive,
   );
 
   private readonly engineState = ConsumerSubject.create(
@@ -78,17 +81,8 @@ export class EGT extends DisplayComponent<EGTProps> {
     this.onGround,
   );
 
-  // EEC trims EGT to a max value; the failure offset is added on top (EgtLimits displayedEgt)
-  private readonly trimmedEGT = MappedSubject.create(
-    ([egt, egtOffset, limitType, state]) => displayedEgt(egt, egtOffset, limitType, isStartSequence(state)),
-    this.egt,
-    this.egtOffset,
-    this.thrustLimitType,
-    this.engineState,
-  );
-
   /** The needle stays on the scale; the digital value shows the EGT above its end */
-  private readonly needleEgt = this.trimmedEGT.map((egt) => Math.min(egt, this.max));
+  private readonly needleEgt = this.egt.map((egt) => Math.min(egt, this.max));
 
   /** How long the shown EGT has been at or above the red line, for the takeoff red rule (EgtLimits isEgtRed) */
   private readonly egtRedLineTimer = new EgtRedLineTimer();
@@ -99,11 +93,12 @@ export class EGT extends DisplayComponent<EGTProps> {
 
   /** The colour of the EGT shown (as the FWS ENG EGT OVER LIMIT alert reads it, EngineParameterAlerts.ts) */
   private readonly egtColour = MappedSubject.create(
-    ([egt, limitType, limit, seconds]) => egtColour(egt, limitType, limit, seconds),
-    this.trimmedEGT,
+    ([egt, limitType, limit, seconds, alphaFloor]) => egtColour(egt, limitType, limit, seconds, alphaFloor),
+    this.egt,
     this.thrustLimitType,
     this.egtLimit,
     this.secondsAtOrAboveRedLine,
+    this.alphaFloorActive,
   );
 
   /** The red mark at the highest EGT shown above the red line (FCOM DSC-70-90 EGT EXCEEDANCE) */
@@ -116,7 +111,7 @@ export class EGT extends DisplayComponent<EGTProps> {
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    this.trimmedEGT.sub((egt) => {
+    this.egt.sub((egt) => {
       // An engine start on ground (ENGINE_STATE Starting 2 or Restarting 3) takes the red mark away.
       const state = this.engineState.get();
       // Only an EGT shown (not XX: the engine parameters are available) can latch the red mark.
@@ -130,7 +125,7 @@ export class EGT extends DisplayComponent<EGTProps> {
     this.sub.on('simTime').handle((simTime) => {
       const deltaSeconds = this.lastSimTime === null ? 0 : Math.min(1, (simTime - this.lastSimTime) / 1000);
       this.lastSimTime = simTime;
-      this.egtRedLineTimer.update(this.trimmedEGT.get(), deltaSeconds);
+      this.egtRedLineTimer.update(this.egt.get(), deltaSeconds);
       this.secondsAtOrAboveRedLine.set(this.egtRedLineTimer.secondsAtOrAboveRedLine);
     });
   }
@@ -155,7 +150,7 @@ export class EGT extends DisplayComponent<EGTProps> {
           </g>
           <g visibility={this.props.active.map((it) => (it ? 'inherit' : 'hidden'))}>
             <text class={this.egtColour.map((col) => `Large End ${col}`)} x={this.props.x + 33} y={this.props.y + 11.7}>
-              {this.trimmedEGT.map((egt) => Math.round(egt))}
+              {this.egt.map((egt) => Math.round(egt))}
             </text>
             <GaugeComponent
               x={this.props.x}

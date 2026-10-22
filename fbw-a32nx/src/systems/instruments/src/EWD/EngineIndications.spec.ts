@@ -8,6 +8,7 @@ import {
   flexTemperatureText,
   isEgtLimitLineVisible,
   isIdleIndicationVisible,
+  isN2StartBoxVisible,
   isThrustLimitValueVisible,
 } from './EngineIndications';
 
@@ -68,5 +69,23 @@ describe('EWD engine indications', () => {
     expect(isIdleIndicationVisible(20, 20, 19.5, 8)).toBe(false);
     expect(isIdleIndicationVisible(20, 20, 19.5, 4)).toBe(false);
     expect(isIdleIndicationVisible(20, 40, 19.5, 6)).toBe(false);
+  });
+
+  it('shows the N2 grey box during a dry crank, a wet crank and the automatic crank after an abort', () => {
+    // ENG MODE CRANK + MAN START ON with the ENG MASTER OFF: engine OFF, start phase MOTORING
+    expect(isN2StartBoxVisible(20, 0, 1)).toBe(true);
+    // the automatic dry crank after an aborted start
+    expect(isN2StartBoxVisible(25, 2, 3)).toBe(true);
+    // wet crank: ENG MASTER ON in CRANK
+    expect(isN2StartBoxVisible(25, 0, 5)).toBe(true);
+  });
+
+  it('shows the N2 grey box during a start sequence until idle, not after it or after an abort', () => {
+    expect(isN2StartBoxVisible(40, 2, 2)).toBe(true);
+    expect(isN2StartBoxVisible(40, 3, 0)).toBe(true);
+    expect(isN2StartBoxVisible(58.5, 2, 2)).toBe(false);
+    expect(isN2StartBoxVisible(60, 1, 0)).toBe(false);
+    expect(isN2StartBoxVisible(10, 0, 4)).toBe(false);
+    expect(isN2StartBoxVisible(0, 0, 0)).toBe(false);
   });
 });

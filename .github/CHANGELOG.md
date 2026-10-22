@@ -841,6 +841,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FADEC] Approach idle: in flight with the FLAPS lever at 2, 3 or FULL or the landing gear down the engines idle higher for a quick go-around acceleration; the normal idle now also rises with the packs, engine and wing anti-ice and a high oil temperature - @TCdr
 1. [A380X/FADEC] Derated climb: DERATED CLB on the MFD PERF CLB panel offers the three levels of the engine (01 to 03) and reduces the climb thrust by 8, 16 or 24 % with a washout to the maximum climb thrust at high altitude; the E/WD shows DCLB1 to DCLB3; NONE or moving the thrust levers out of the CL detent and back cancels it - @TCdr
 1. [A32NX/FADEC] With an ENG 1(2) EIU FAULT the N1 limit (TOGA, FLX, MCT, CLB) is no longer corrected for the packs, engine and wing anti-ice - @TCdr
+1. [EWD] A thrust reverser unlocked in flight shows an amber REV that pulses for 9 s, then stays steady (green REV only on ground) - @TCdr
+1. [A380X/EWD] REV 2(3) shows amber on ground when the reverser lever is in the REV detent and the reverse mode is not available - @TCdr
+1. [A32NX/EWD] The grey box behind N2 also shows during a dry or wet crank and during the automatic crank after an aborted start - @TCdr
+1. [A380X/EWD] The FLEX temperature always shows in the FLEX thrust rating mode (it was hidden with the SAT more than 10 °C above it), not for a derated takeoff - @TCdr
+1. [A380X/EWD] No amber EGT limit with alpha floor active, and the EGT shows as the FADEC computes it instead of being capped at the limits - @TCdr
 
 ## 2024.1.0
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { thrustRatingModeLabel } from './ThrustRatingLabel';
+import { isFlexTemperatureShown, thrustRatingModeLabel } from './ThrustRatingLabel';
 
 describe('E/WD thrust rating mode', () => {
   // FCOM DSC-70-90 l.112943-112944: "6 derated takeoff levels are defined: D04, D08, D12, D16, D20, D24."
@@ -26,5 +26,17 @@ describe('E/WD thrust rating mode', () => {
     expect(thrustRatingModeLabel(2, 0, 2)).toBe('MCT');
     expect(thrustRatingModeLabel(3, 0, 2)).toBe('FLX');
     expect(thrustRatingModeLabel(0, 0, 0)).toBe('');
+  });
+
+  it('shows the flexible temperature in the FLEX thrust rating mode', () => {
+    expect(isFlexTemperatureShown(3, 50, 0)).toBe(true);
+    expect(isFlexTemperatureShown(3, -5, 0)).toBe(true);
+  });
+
+  it('shows no flexible temperature outside the FLEX mode, without one entered, or for a derated takeoff', () => {
+    expect(isFlexTemperatureShown(4, 50, 0)).toBe(false);
+    expect(isFlexTemperatureShown(1, 50, 0)).toBe(false);
+    expect(isFlexTemperatureShown(3, 0, 0)).toBe(false);
+    expect(isFlexTemperatureShown(3, 50, 8)).toBe(false);
   });
 });

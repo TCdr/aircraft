@@ -5,7 +5,6 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
-  displayedEgt,
   egtColour,
   egtExceedanceShown,
   egtLimit,
@@ -22,7 +21,6 @@ import {
   n1Exceeds,
   n3Exceeds,
   ThrustLimitType,
-  trimmedEgt,
 } from './EgtLimits';
 
 /* A380 FCOM DSC-70-90 EGT LIMIT / EGT RED LINE (a380_fcom.txt l.113170-113203): 970 °C amber, 1 002 °C red line */
@@ -35,7 +33,10 @@ describe('EWD EGT limits of the FCOM', () => {
   });
 });
 
-/* A380 FCOM DSC-70-90 EGT INDICATIONS / EGT LIMIT: no amber indication during takeoff or with the reversers selected. */
+/*
+ * A380 FCOM DSC-70-90 EGT INDICATIONS / EGT LIMIT: no amber indication during takeoff, with the reversers selected or
+ * with the alpha floor protection active.
+ */
 describe('EWD EGT limits from the thrust limit type', () => {
   it('is amber above the limit at MCT (the TLA of about 25 degrees made it green)', () => {
     expect(egtColour(970, ThrustLimitType.Mct)).toBe('Green');
@@ -55,21 +56,30 @@ describe('EWD EGT limits from the thrust limit type', () => {
   });
 
   it('shows the amber limit mark at MCT and CLB, not at FLEX, TOGA or reverse', () => {
-    expect(egtLimitMarkVisible(ThrustLimitType.Mct)).toBe(true);
-    expect(egtLimitMarkVisible(ThrustLimitType.Clb)).toBe(true);
-    expect(egtLimitMarkVisible(ThrustLimitType.Flex)).toBe(false);
-    expect(egtLimitMarkVisible(ThrustLimitType.Toga)).toBe(false);
-    expect(egtLimitMarkVisible(ThrustLimitType.Reverse)).toBe(false);
+    expect(egtLimitMarkVisible(ThrustLimitType.Mct, false)).toBe(true);
+    expect(egtLimitMarkVisible(ThrustLimitType.Clb, false)).toBe(true);
+    expect(egtLimitMarkVisible(ThrustLimitType.Flex, false)).toBe(false);
+    expect(egtLimitMarkVisible(ThrustLimitType.Toga, false)).toBe(false);
+    expect(egtLimitMarkVisible(ThrustLimitType.Reverse, false)).toBe(false);
   });
 
-  it('trims the EGT at the red line at FLEX/TOGA, at the limit otherwise', () => {
-    expect(trimmedEgt(990, ThrustLimitType.Toga)).toBe(990);
-    expect(trimmedEgt(1050, ThrustLimitType.Toga)).toBe(1002);
-    expect(trimmedEgt(1050, ThrustLimitType.Flex)).toBe(1002);
-    expect(trimmedEgt(990, ThrustLimitType.Mct)).toBe(970);
-    // the recorded EGT of a healthy engine (820-850 °C at takeoff, 720 °C in climb) is not trimmed
-    expect(trimmedEgt(850, ThrustLimitType.Toga)).toBe(850);
-    expect(trimmedEgt(720, ThrustLimitType.Clb)).toBe(720);
+  it('shows no amber limit mark and no amber EGT with the alpha floor protection active', () => {
+    expect(egtLimitMarkVisible(ThrustLimitType.Clb, true)).toBe(false);
+    expect(egtLimitMarkVisible(ThrustLimitType.Mct, true)).toBe(false);
+    expect(egtColour(980, ThrustLimitType.Clb, EGT_LIMIT_C, 0, true)).toBe('Green');
+  });
+
+  it('turns the EGT red at the red line at once in alpha floor, without the takeoff tolerance', () => {
+    expect(egtColour(1002, ThrustLimitType.Clb, EGT_LIMIT_C, 0, true)).toBe('Red');
+    expect(egtColour(1002, ThrustLimitType.Toga, EGT_LIMIT_C, 0, true)).toBe('Red');
+    expect(egtColour(1001, ThrustLimitType.Toga, EGT_LIMIT_C, 0, true)).toBe('Green');
+  });
+
+  it('the gauge hides the amber limit with alpha floor (autothrust mode A.FLOOR)', () => {
+    const gauge = readFileSync(resolve(__dirname, 'EGT.tsx'), 'utf-8');
+    expect(gauge).toContain("this.sub.on('fg.athr.mode')");
+    expect(gauge).toContain('mode === AutoThrustMode.A_FLOOR');
+    expect(gauge).toContain('egtLimitMarkVisible(limitType, alphaFloor)');
   });
 
   it('the gauge reads the thrust limit type, not the thrust lever angle', () => {
@@ -141,10 +151,10 @@ describe('EWD EGT time at or above the red line', () => {
     const gauge = readFileSync(resolve(__dirname, 'EGT.tsx'), 'utf-8');
     expect(gauge).toContain('new EgtRedLineTimer()');
     expect(gauge).toContain("this.sub.on('simTime')");
-    expect(gauge).toContain('egtColour(egt, limitType, limit, seconds)');
-    // the colour follows the shown (trimmed) EGT, as the FWS alert does
+    expect(gauge).toContain('egtColour(egt, limitType, limit, seconds, alphaFloor)');
+    // the colour follows the FADEC EGT as it is, as the FWS alert does
     expect(gauge).toMatch(
-      /readonly egtColour = MappedSubject\.create\(\s*\([^)]*\]\) => egtColour\([^)]*\),\s*this\.trimmedEGT,/,
+      /readonly egtColour = MappedSubject\.create\(\s*\([^)]*\]\) => egtColour\([^)]*\),\s*this\.egt,/,
     );
   });
 
@@ -155,22 +165,16 @@ describe('EWD EGT time at or above the red line', () => {
 });
 
 describe('EWD EGT with the engine failures (stage B4)', () => {
-  it('shows the trimmed EGT of a healthy engine', () => {
-    expect(displayedEgt(1000, 0, ThrustLimitType.Mct)).toBe(970);
-    expect(displayedEgt(800, 0, ThrustLimitType.Mct)).toBe(800);
-  });
-
-  it('adds the failure EGT offset on top of the EEC trim', () => {
-    // the FADEC EGT includes the offset: 1 020 = 720 healthy + 300
-    expect(displayedEgt(1020, 300, ThrustLimitType.Clb)).toBe(1020);
-    // healthy 1 000 is trimmed to 970, plus 300
-    expect(displayedEgt(1300, 300, ThrustLimitType.Clb)).toBe(1270);
-  });
-
-  it('a healthy engine never shows an EGT above the limits', () => {
-    expect(egtExceedanceShown(displayedEgt(1100, 0, ThrustLimitType.Clb), 970)).toBe(false);
-    expect(egtExceedanceShown(displayedEgt(1100, 0, ThrustLimitType.Toga), 1002)).toBe(false);
-    expect(isEgtRed(displayedEgt(1100, 0, ThrustLimitType.Clb), ThrustLimitType.Clb, 0)).toBe(false);
+  it('shows the FADEC EGT without an EEC trim: an EGT above the limits shows as it is', () => {
+    expect(egtExceedanceShown(1100, EGT_LIMIT_C)).toBe(true);
+    expect(isEgtRed(1100, ThrustLimitType.Clb, 0)).toBe(true);
+    const gauge = readFileSync(resolve(__dirname, 'EGT.tsx'), 'utf-8');
+    expect(gauge).toContain('{this.egt.map((egt) => Math.round(egt))}');
+    const fws = readFileSync(
+      resolve(__dirname, '../../../../systems-host/CpiomC/FlightWarningSystem/FwsCore.ts'),
+      'utf-8',
+    );
+    expect(fws).toMatch(/displayedEgtDegrees = SimVar\.GetSimVarValue\(`L:A32NX_ENGINE_EGT:/);
   });
 
   it('keeps the red mark at the highest EGT until the next engine start on ground', () => {
@@ -237,11 +241,7 @@ describe('EWD EGT limit during a start sequence', () => {
     expect(egtColour(760, ThrustLimitType.None)).toBe('Green');
   });
 
-  it('shows the start EGT without the EEC trim, so a relight above 865 °C shows', () => {
-    expect(displayedEgt(1000, 0, ThrustLimitType.Clb, true)).toBe(1000);
-    expect(displayedEgt(1000, 0, ThrustLimitType.Clb)).toBe(970);
-    expect(egtColour(displayedEgt(880, 0, ThrustLimitType.Clb, true), ThrustLimitType.Clb, egtLimit(3, false))).toBe(
-      'Amber',
-    );
+  it('turns a relight amber above 865 °C', () => {
+    expect(egtColour(880, ThrustLimitType.Clb, egtLimit(3, false))).toBe('Amber');
   });
 });

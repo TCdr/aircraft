@@ -50,7 +50,7 @@ const ENGINE_STATE_RESTARTING = 3;
  * @param engineState L:A32NX_ENGINE_STATE
  * @returns whether the engine is in a start sequence (start on ground or relight in flight)
  */
-export function isStartSequence(engineState: number): boolean {
+function isStartSequence(engineState: number): boolean {
   return engineState === ENGINE_STATE_STARTING || engineState === ENGINE_STATE_RESTARTING;
 }
 
@@ -70,13 +70,17 @@ export function egtLimit(engineState: number, onGround: boolean): number {
 
 /**
  * Whether the amber EGT limit applies. A380 FCOM DSC-70-90 EGT LIMIT: "The amber indication does not appear: During
- * takeoff, or When thrust reversers are selected [...]".
+ * takeoff, or When thrust reversers are selected [...]". Nor with the alpha floor protection active.
  * @param limitType the thrust limit type
+ * @param alphaFloorActive the alpha floor protection is active (autothrust mode A.FLOOR)
  * @returns true when the amber limit (line and amber colour) applies
  */
-export function egtLimitMarkVisible(limitType: number): boolean {
+export function egtLimitMarkVisible(limitType: number, alphaFloorActive: boolean): boolean {
   return (
-    limitType !== ThrustLimitType.Flex && limitType !== ThrustLimitType.Toga && limitType !== ThrustLimitType.Reverse
+    limitType !== ThrustLimitType.Flex &&
+    limitType !== ThrustLimitType.Toga &&
+    limitType !== ThrustLimitType.Reverse &&
+    !alphaFloorActive
   );
 }
 
@@ -132,10 +136,13 @@ export class EgtRedLineTimer {
 /**
  * Colour of the EGT value and needle (A380 FCOM DSC-70-90 EGT INDICATIONS): red as isEgtRed, amber above the EGT limit
  * where the amber limit applies.
+ * In alpha floor the red line applies at once, as for the ENG EGT OVER LIMIT alert (the takeoff tolerance applies to
+ * the takeoff only).
  * @param egt the EGT shown, in degrees Celsius
  * @param limitType the thrust limit type
  * @param limit the EGT limit (egtLimit), the normal one by default
  * @param secondsAtOrAboveRedLine how long the EGT has been at or above the red line (EgtRedLineTimer), 0 by default
+ * @param alphaFloorActive the alpha floor protection is active, false by default
  * @returns 'Red', 'Amber' or 'Green'
  */
 export function egtColour(
@@ -143,55 +150,25 @@ export function egtColour(
   limitType: number,
   limit = EGT_LIMIT_C,
   secondsAtOrAboveRedLine = 0,
+  alphaFloorActive = false,
 ): 'Red' | 'Amber' | 'Green' {
-  if (isEgtRed(egt, limitType, secondsAtOrAboveRedLine)) {
+  const redLineLimitType = alphaFloorActive ? ThrustLimitType.None : limitType;
+  if (isEgtRed(egt, redLineLimitType, secondsAtOrAboveRedLine)) {
     return 'Red';
   }
-  if (egt > limit && egtLimitMarkVisible(limitType)) {
+  if (egt > limit && egtLimitMarkVisible(limitType, alphaFloorActive)) {
     return 'Amber';
   }
   return 'Green';
 }
 
-/**
- * The EEC trims the EGT to a maximum value: the red line at take-off thrust (FLEX/TOGA), the EGT limit otherwise.
- * Design choice (kept from the upstream gauge, at the FCOM limits): the EGT polynomial of the FBW engine model can
- * overshoot in transients, a healthy engine must not show an exceedance for it. A healthy engine stays well below these
- * caps (recorded raw FADEC EGT: about 820-850 °C at N1 85-88 % at takeoff, about 720 °C at N1 76 % in climb), so the cap
- * only hides model spikes. At takeoff thrust a spike held at the 1 002 °C cap is not red before 20 s (isEgtRed). The
- * failure EGT offset is added on top of the trimmed EGT (displayedEgt).
- * @param egt the EGT in degrees Celsius
- * @param limitType the thrust limit type
- * @returns the trimmed EGT
- */
-export function trimmedEgt(egt: number, limitType: number): number {
-  return Math.min(isTakeoffThrust(limitType) ? EGT_RED_C : EGT_LIMIT_C, egt);
-}
-
 /*
- * Engine failures (stage B4, a380_systems engine_malfunction.rs): the stall and EGT overtemperature failures add an EGT
- * offset (L:A32NX_ENGINE_n_EGT_OFFSET) that the FADEC adds to its EGT. The EEC trim above stands for the normal EGT
- * control; the failure offset is what it cannot correct (design choice), so the gauge shows the trimmed EGT of the healthy
- * engine plus the offset, and an EGT above the limits becomes visible (A380 FCOM DSC-70-90 EGT INDICATIONS, a380_fcom.txt
- * l.113156-113207: amber above the EGT limit, red above the red line, a red mark at the highest value).
+ * Design choice: the EWD shows the FADEC EGT (L:A32NX_ENGINE_EGT:n) uncapped. The FADEC EGT follows its target through a
+ * first-order lag (no overshoot), and the healthy target stays below the limits at the thrust limits of the flight
+ * envelope. The stall and EGT overtemperature failures (a380_systems engine_malfunction.rs) add their EGT offset to the
+ * FADEC EGT, so an EGT above the limits shows (A380 FCOM DSC-70-90 EGT INDICATIONS, a380_fcom.txt l.113156-113207):
+ * amber above the EGT limit, red above the red line, a red mark at the highest value.
  */
-
-/**
- * The EGT that the EWD shows.
- * Design choice: during a start sequence the EEC trim does not apply (the start fuel schedule sets the EGT), so a hot
- * start or an overshooting relight shows above its start limit (egtLimit).
- * @param egt the FADEC EGT in degrees Celsius, failure offset included
- * @param egtOffset the failure EGT offset in degrees Celsius
- * @param limitType the thrust limit type
- * @param startSequence the engine is in a start sequence (isStartSequence); false by default
- * @returns the trimmed EGT of the healthy engine plus the failure offset
- */
-export function displayedEgt(egt: number, egtOffset: number, limitType: number, startSequence = false): number {
-  if (startSequence) {
-    return egt;
-  }
-  return trimmedEgt(egt - egtOffset, limitType) + egtOffset;
-}
 
 /**
  * @param displayed the EGT shown on the EWD

@@ -34,3 +34,18 @@ export function thrustRatingModeLabel(
   }
   return THRUST_LIMIT_TYPE_LABELS[thrustLimitType] ?? '';
 }
+
+/**
+ * The flexible temperature shows next to the thrust limit when the FLEX thrust rating mode is selected, whatever the
+ * static air temperature. A derated takeoff (same FADEC rating, its level in place of FLX) is not the FLEX mode.
+ * @param thrustLimitType L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE
+ * @param flexTemperature L:A32NX_AIRLINER_TO_FLEX_TEMP, 0 when none is entered
+ * @param takeoffDeratePercent L:A32NX_AIRLINER_TO_DERATE (0 none)
+ */
+export function isFlexTemperatureShown(
+  thrustLimitType: number,
+  flexTemperature: number,
+  takeoffDeratePercent: number,
+): boolean {
+  return thrustLimitType === FLEX_THRUST_LIMIT_TYPE && flexTemperature !== 0 && !(takeoffDeratePercent > 0);
+}

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { ThrustLimitType } from '@shared/EngineLimits';
+import { FadecEngineState } from './AvailIndication';
 
 /*
  * Display rules of the EWD engine indications, A320 FCOM DSC-70-90-40-50 (a320_fcom.txt):
@@ -84,4 +85,28 @@ export function isIdleIndicationVisible(
   const idle = idleN1 + IDLE_N1_MARGIN_PERCENT;
   const inFlight = fwcFlightPhase >= FWC_FLIGHT_PHASE_LIFT_OFF && fwcFlightPhase <= FWC_FLIGHT_PHASE_APPROACH;
   return engine1N1 <= idle && engine2N1 <= idle && inFlight;
+}
+
+/** L:A32NX_ENGINE_n_START_PHASE values of a crank (fadec_a32nx StartSequence_A32NX.hpp StartPhase) */
+const START_PHASE_MOTORING = 1;
+const START_PHASE_AUTOMATIC_CRANK = 3;
+const START_PHASE_WET_CRANK = 5;
+
+/** The grey background goes when the engine reaches idle: about 58.5 % N2 at ISA sea level */
+const N2_START_BOX_END_PERCENT = 58.5;
+
+/**
+ * The grey box behind the N2 value: an engine start sequence or a crank (dry, wet, or the automatic dry crank after an
+ * aborted start) is in progress.
+ * @param n2 the N2 in percent
+ * @param engineState L:A32NX_ENGINE_STATE
+ * @param startPhase L:A32NX_ENGINE_n_START_PHASE
+ */
+export function isN2StartBoxVisible(n2: number, engineState: number, startPhase: number): boolean {
+  const cranking =
+    startPhase === START_PHASE_MOTORING ||
+    startPhase === START_PHASE_AUTOMATIC_CRANK ||
+    startPhase === START_PHASE_WET_CRANK;
+  const startSequence = engineState === FadecEngineState.Starting || engineState === FadecEngineState.Restarting;
+  return cranking || (startSequence && n2 < N2_START_BOX_END_PERCENT);
 }
