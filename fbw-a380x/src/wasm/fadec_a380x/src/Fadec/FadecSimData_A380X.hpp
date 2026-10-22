@@ -266,6 +266,10 @@ class FadecSimData_A380X {
   NamedVariablePtr enginePreFF[4];  // kg/hour
   NamedVariablePtr engineState[4];
   NamedVariablePtr engineTimer[4];
+  NamedVariablePtr fdac1Channel1Failure;
+  NamedVariablePtr fdac1Channel2Failure;
+  NamedVariablePtr fdac2Channel1Failure;
+  NamedVariablePtr fdac2Channel2Failure;
   NamedVariablePtr fuelLeftOuterPre;   // Pounds
   NamedVariablePtr fuelFeedOnePre;     // Pounds
   NamedVariablePtr fuelLeftMidPre;     // Pounds
@@ -279,7 +283,6 @@ class FadecSimData_A380X {
   NamedVariablePtr fuelTrimPre;        // Pounds
   NamedVariablePtr fuelPumpState[4];
   NamedVariablePtr packsState[2];
-  NamedVariablePtr fdacChannelFailure[2][2];  // Bool - pack controller (FDAC) 1 and 2, channel 1 and 2
   NamedVariablePtr refuelRate;
   NamedVariablePtr refuelStartedByUser;
   NamedVariablePtr startState;
@@ -554,12 +557,13 @@ class FadecSimData_A380X {
     thrustLimitMct   = dm->make_named_var("A32NX_AUTOTHRUST_THRUST_LIMIT_MCT", UNITS.Number, AUTO_WRITE);
     thrustLimitToga  = dm->make_named_var("A32NX_AUTOTHRUST_THRUST_LIMIT_TOGA", UNITS.Number, AUTO_WRITE);
 
+    fdac1Channel1Failure = dm->make_named_var("A32NX_COND_FDAC_1_CHANNEL_1_FAILURE", UNITS.Bool, AUTO_READ);
+    fdac1Channel2Failure = dm->make_named_var("A32NX_COND_FDAC_1_CHANNEL_2_FAILURE", UNITS.Bool, AUTO_READ);
+    fdac2Channel1Failure = dm->make_named_var("A32NX_COND_FDAC_2_CHANNEL_1_FAILURE", UNITS.Bool, AUTO_READ);
+    fdac2Channel2Failure = dm->make_named_var("A32NX_COND_FDAC_2_CHANNEL_2_FAILURE", UNITS.Bool, AUTO_READ);
+
     packsState[0]       = dm->make_named_var("A32NX_COND_PACK_1_IS_OPERATING", UNITS.Number, AUTO_READ);
     packsState[1]       = dm->make_named_var("A32NX_COND_PACK_2_IS_OPERATING", UNITS.Number, AUTO_READ);
-    fdacChannelFailure[0][0] = dm->make_named_var("A32NX_COND_FDAC_1_CHANNEL_1_FAILURE", UNITS.Bool, AUTO_READ);
-    fdacChannelFailure[0][1] = dm->make_named_var("A32NX_COND_FDAC_1_CHANNEL_2_FAILURE", UNITS.Bool, AUTO_READ);
-    fdacChannelFailure[1][0] = dm->make_named_var("A32NX_COND_FDAC_2_CHANNEL_1_FAILURE", UNITS.Bool, AUTO_READ);
-    fdacChannelFailure[1][1] = dm->make_named_var("A32NX_COND_FDAC_2_CHANNEL_2_FAILURE", UNITS.Bool, AUTO_READ);
     // STRUCTURAL DEICE SWITCH follows the wing anti-ice valves of the systems model (a380_systems ice_rain_protection.rs,
     // through the systems_wasm wing anti-ice aspect): the TOGA thrust takes the bleed demand into account (A380 FCOM DSC-70
     // CONTROLS AND INDICATORS: BLEED SUPPLY lists the wing anti-ice), not during the takeoff wing anti-ice inhibition
