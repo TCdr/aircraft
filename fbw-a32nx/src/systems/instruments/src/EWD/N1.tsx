@@ -24,8 +24,20 @@ import {
 } from '../MsfsAvionicsCommon/gauges';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
 import { AvailIndication } from './AvailIndication';
+import { RevDisplay, RevIndication } from './RevIndication';
 
 import './style.scss';
+
+function revClassOf(display: RevDisplay): string {
+  switch (display) {
+    case 'green':
+      return 'Huge Center Green';
+    case 'amberPulse':
+      return 'Huge Center AmberTextPulse';
+    default:
+      return 'Huge Center Amber';
+  }
+}
 
 interface AvailRevProps {
   bus: EventBus;
@@ -46,6 +58,8 @@ export class AvailRev extends DisplayComponent<AvailRevProps> {
   private availClass = Subject.create('Huge End Green');
 
   private readonly availIndication = new AvailIndication();
+
+  private readonly revIndication = new RevIndication();
 
   private onGround = true;
 
@@ -138,16 +152,19 @@ export class AvailRev extends DisplayComponent<AvailRevProps> {
       });
       const availVisible = availDisplay !== 'hidden';
       this.availClass.set(availDisplay === 'pulse' ? 'Huge End GreenTextPulse' : 'Huge End Green');
-      const isVisible = availVisible || this.reverserInTransit || this.reverserDeployed || !this.fadec;
-      const revReady = this.fadec && this.reverserDeployed;
+      const revDisplay = this.revIndication.update(deltaS, {
+        inTransit: this.reverserInTransit,
+        deployed: this.reverserDeployed,
+        onGround: this.onGround,
+      });
+      const revShown = revDisplay !== 'hidden';
+      const isVisible = availVisible || revShown || !this.fadec;
 
       this.visibility.set(isVisible ? 'visible' : 'hidden');
       this.availVisible.set(availVisible ? 'visible' : 'hidden');
-      this.revVisible.set(
-        ((this.reverserInTransit || this.reverserDeployed) && !availVisible) || !this.fadec ? 'visible' : 'hidden',
-      );
+      this.revVisible.set((revShown && !availVisible) || !this.fadec ? 'visible' : 'hidden');
       this.revText.set(this.fadec ? 'REV' : 'XX');
-      this.revClass.set(revReady ? 'Huge Center Green' : 'Huge Center Amber');
+      this.revClass.set(this.fadec ? revClassOf(revDisplay) : 'Huge Center Amber');
     });
   }
 

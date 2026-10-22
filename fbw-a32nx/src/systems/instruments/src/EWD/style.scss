@@ -1,7 +1,8 @@
 @import "../MsfsAvionicsCommon/definitions";
 
-@mixin GenericPulsingFill($color) {
-  @keyframes pulsing {
+// Each colour needs its own keyframes name: keyframes of the same name override each other.
+@mixin GenericPulsingFill($color, $name: pulsing) {
+  @keyframes #{$name} {
       0%, 100% {
           fill: $color;
       }
@@ -9,7 +10,7 @@
           fill: scale-color($color, $lightness: -50%);
       }
   }
-  animation: pulsing 1s step-end infinite;
+  animation: $name 1s step-end infinite;
 }
 
 @mixin GenericPulsingStroke($color) {
@@ -125,6 +126,10 @@ animation: pulsingS 1s step-end infinite;
 
         &.GreenTextPulse {
             @include GenericPulsingFill($display-green);
+        }
+
+        &.AmberTextPulse {
+            @include GenericPulsingFill($display-amber, pulsing-amber);
         }
 
         &.Underline {

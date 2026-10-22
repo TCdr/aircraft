@@ -12,7 +12,7 @@ import { Arinc429Values } from '../shared/ArincValueProvider';
 import { EwdSimvars } from '../shared/EwdSimvarPublisher';
 import { createThrustParameterAirData } from './ThrustGauge';
 import { thrustParameterPercent } from './ThrustParameter';
-import { thrustRatingModeLabel } from './ThrustRatingLabel';
+import { isFlexTemperatureShown, thrustRatingModeLabel } from './ThrustRatingLabel';
 
 export class N1Limit extends DisplayComponent<{
   x: number;
@@ -25,7 +25,6 @@ export class N1Limit extends DisplayComponent<{
   private readonly N1LimitType = ConsumerSubject.create(this.sub.on('thrust_limit_type'), 0);
   private readonly N1ThrustLimit = ConsumerSubject.create(this.sub.on('thrust_limit'), 0);
   private readonly flexTemp = ConsumerSubject.create(this.sub.on('flex'), 0);
-  private readonly sat = Arinc429ConsumerSubject.create(this.sub.on('sat').withArinc429Precision(0));
   private readonly takeoffDerate = ConsumerSubject.create(this.sub.on('takeoffDerate'), 0);
   private readonly deratedClimbLevel = ConsumerSubject.create(this.sub.on('deratedClimbLevel'), 0);
   private readonly thrustRatingLabel = MappedSubject.create(
@@ -36,12 +35,11 @@ export class N1Limit extends DisplayComponent<{
   );
 
   private readonly displayFlexTemp = MappedSubject.create(
-    ([flexTemp, sat, N1LimitType, active]) => {
-      return active && flexTemp !== 0 && flexTemp >= sat.value - 10 && N1LimitType === 3;
-    },
+    ([flexTemp, N1LimitType, takeoffDerate, active]) =>
+      active && isFlexTemperatureShown(N1LimitType, flexTemp, takeoffDerate),
     this.flexTemp,
-    this.sat,
     this.N1LimitType,
+    this.takeoffDerate,
     this.props.active,
   );
 
