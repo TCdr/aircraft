@@ -746,6 +746,7 @@ export class PseudoWaypoints implements GuidanceComponent {
       ...checkpoint,
       windPrediction,
       speed: this.atmosphericConditions.casOrMach(checkpoint.speed, checkpoint.mach, checkpoint.altitude),
+      cas: checkpoint.speed,
       altitudeConstraint: undefined,
       speedConstraint: undefined, // TODO speed limit
       isAltitudeConstraintMet: false,
