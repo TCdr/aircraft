@@ -15,7 +15,8 @@
  * - Approach idle, for a rapid acceleration from idle to go-around thrust: in flight, with the FLAPS lever at 2, 3 or
  *   FULL, or with the landing gear extended.
  * - Normal idle in the other cases (in flight with FLAPS 0 or 1 and the gear retracted, or on the ground): it is raised
- *   for the bleed demand and a high oil temperature.
+ *   for the bleed demand and a high oil temperature. With both pack controllers failed the FADEC no longer knows the
+ *   bleed demand and takes the highest one (ENG IDLE HI), on the ground and in flight.
  * Reverse idle is the reverser's own (thrust lever in the reverse range).
  *
  * Design choice: the FADEC data gives no values, so the increases are chosen to be small and visible on the N1: approach
@@ -34,6 +35,7 @@ class IdleSetting_A380X {
     bool   packs;               // a pack operating
     bool   nacelleAntiIce;      // an engine anti-ice valve open
     bool   wingAntiIce;         // the wing anti-ice valves open
+    bool   packControllersLost;  // both channels of both pack controllers (FDAC 1 and 2) failed
     double highestOilTemperature;  // Celsius, the hottest oil of the four engines
   };
 
@@ -52,8 +54,9 @@ class IdleSetting_A380X {
 
   /// The increase of the normal idle, in percent of corrected N3
   static double normalIdleCN3Increase(const Inputs& in) {
-    const double bleedDemand = (in.packs ? PACKS_CN3_INCREASE : 0.0) + (in.nacelleAntiIce ? NACELLE_ANTI_ICE_CN3_INCREASE : 0.0) +
-                               (in.wingAntiIce ? WING_ANTI_ICE_CN3_INCREASE : 0.0);
+    const double bleedDemand = (in.packs || in.packControllersLost ? PACKS_CN3_INCREASE : 0.0) +
+                               (in.nacelleAntiIce || in.packControllersLost ? NACELLE_ANTI_ICE_CN3_INCREASE : 0.0) +
+                               (in.wingAntiIce || in.packControllersLost ? WING_ANTI_ICE_CN3_INCREASE : 0.0);
     const double oilFraction = std::clamp((in.highestOilTemperature - OIL_TEMPERATURE_RAISE_START) /
                                               (OIL_TEMPERATURE_RAISE_FULL - OIL_TEMPERATURE_RAISE_START),
                                           0.0, 1.0);

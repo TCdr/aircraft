@@ -881,6 +881,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] In flight, the active leg of the F-PLN page shows the direct track and the distance from the aircraft to the TO waypoint, counting down like the ND - @TCdr
 1. [A380X/MFD] F-PLN: the IMMEDIATE EXIT / RESUME HOLD button of a hold shows its label instead of [object Object] - @TCdr
 1. [A32NX/FADEC] ENG 1(2) BLEED STATUS FAULT: on the ground the idle goes up to HI GND IDLE (as if every bleed and anti-ice valve were open), and the engine anti-ice no longer selects the continuous ignition of that engine by itself (ENG MODE selector to IGN) - @TCdr
+1. [A380X/FADEC] COND TEMP CTL FAULT with both pack controllers failed: the engines go to idle high at idle thrust, shown as the STATUS INFO ENG IDLE HI - @TCdr
 
 ## 2024.1.0
 
