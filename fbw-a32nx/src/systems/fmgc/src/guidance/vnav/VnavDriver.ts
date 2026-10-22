@@ -86,7 +86,7 @@ export class VnavDriver implements GuidanceComponent {
 
   private prevMcduPredReadyToDisplay = false;
 
-  /** The MORE DRAG FMA message (L:A32NX_PFD_MSG_MORE_DRAG), descent/MoreDragMessage.ts */
+  /** The MORE DRAG message (L:A32NX_PFD_MSG_MORE_DRAG), descent/MoreDragMessage.ts */
   private moreDragMessageActive = false;
 
   private readonly energyCirclePublisher = new EnergyCirclePublisher();
@@ -306,6 +306,11 @@ export class VnavDriver implements GuidanceComponent {
       this.moreDragMessageActive = active;
       SimVar.SetSimVarValue('L:A32NX_PFD_MSG_MORE_DRAG', 'Bool', active);
     }
+  }
+
+  /** MORE DRAG is shown on the PFD and on the MCDU from the same condition */
+  isMoreDragRequired(): boolean {
+    return this.moreDragMessageActive;
   }
 
   isLatAutoControlActive(): boolean {

@@ -100,6 +100,7 @@ import { CompanyTakeoffData, companyTakeoffThrustSettings } from './CompanyTakeo
 import { TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FmsPrinter } from './FmsPrinter';
 import { FmsAdvisoryMessages } from './FmsAdvisoryMessages';
+import { CheckSpeedModeMessage } from './CheckSpeedModeMessage';
 import { A380OptimumStepSearch } from './A380OptimumStep';
 import { computeFlsBeam, flsBeamInputs, FlsBeamPublisher } from './FlsBeam';
 import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
@@ -292,6 +293,14 @@ export class FlightManagementComputer implements FmcInterface {
 
   /** The type II FMS messages raised from the FMS data each cycle (FMC-A only, it has the navigation) */
   #advisoryMessages: FmsAdvisoryMessages | null = null;
+
+  readonly #checkSpeedModeMessage = new CheckSpeedModeMessage({
+    isSpeedSelected: () => this.acInterface?.isAirspeedSelected() === true,
+    isSpeedManaged: () => this.acInterface?.isAirspeedManaged() ?? true,
+    queuedMessage: () => this.fmsErrors.getArray().find((it) => it.message === NXSystemMessages.checkSpeedMode),
+    addMessageToQueue: (message, onClear) => this.addMessageToQueue(message, undefined, onClear),
+    removeMessageFromQueue: (text) => this.removeMessageFromQueue(text),
+  });
 
   #secondaryPredictions: SecondaryFlightPlanPredictions | null = null;
 
@@ -2382,6 +2391,7 @@ export class FlightManagementComputer implements FmcInterface {
         if (prevPhase === FmgcFlightPhase.Climb && preselectedCruiseSpeed) {
           this.acInterface.activatePreSelSpeedMach(preselectedCruiseSpeed);
         }
+        this.#checkSpeedModeMessage.onFlightPhaseChanged(prevPhase, nextPhase, !!preselectedCruiseSpeed);
         break;
       }
 
@@ -2389,7 +2399,7 @@ export class FlightManagementComputer implements FmcInterface {
         this.removeMessageFromQueue(NXSystemMessages.newCrzAlt.text);
         this.checkDestData();
 
-        this.triggerCheckSpeedModeMessage(null);
+        this.#checkSpeedModeMessage.onFlightPhaseChanged(prevPhase, nextPhase, false);
 
         this.deleteWindUplinkOrDraftFromAllPlans();
 
@@ -2466,31 +2476,8 @@ export class FlightManagementComputer implements FmcInterface {
     }
   }
 
-  triggerCheckSpeedModeMessage(preselectedSpeed: number | null) {
-    const isSpeedSelected = this.acInterface.isAirspeedSelected() === true;
-    const hasPreselectedSpeed = preselectedSpeed !== null;
-
-    const checkSpeedModeMessageActive =
-      this.fmsErrors.getArray().filter((it) => it.message === NXSystemMessages.checkSpeedMode).length > 0;
-    if (!checkSpeedModeMessageActive && isSpeedSelected && !hasPreselectedSpeed) {
-      this.addMessageToQueue(
-        NXSystemMessages.checkSpeedMode,
-        () => !checkSpeedModeMessageActive,
-        () => {
-          SimVar.SetSimVarValue('L:A32NX_PFD_MSG_CHECK_SPEED_MODE', 'bool', false);
-        },
-      );
-      SimVar.SetSimVarValue('L:A32NX_PFD_MSG_CHECK_SPEED_MODE', 'bool', true);
-    }
-  }
-
-  clearCheckSpeedModeMessage() {
-    const checkSpeedModeMessageActive =
-      this.fmsErrors.getArray().filter((it) => it.message === NXSystemMessages.checkSpeedMode).length > 0;
-    if (checkSpeedModeMessageActive && (this.acInterface.isAirspeedManaged() ?? true)) {
-      this.removeMessageFromQueue(NXSystemMessages.checkSpeedMode.text);
-      SimVar.SetSimVarValue('L:A32NX_PFD_MSG_CHECK_SPEED_MODE', 'bool', false);
-    }
+  updateCheckSpeedModeMessage() {
+    this.#checkSpeedModeMessage.update(this.flightPlanInterface.hasActive ? this.flightPlanInterface.active : null);
   }
 
   resetAtisAutoUpdate() {

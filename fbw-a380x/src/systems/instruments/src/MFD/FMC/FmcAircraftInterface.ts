@@ -1058,7 +1058,7 @@ export class FmcAircraftInterface {
     let isMach = false;
     const phase = this.flightPhase.get();
     this.updateHoldingSpeed();
-    this.fmc.clearCheckSpeedModeMessage();
+    this.fmc.updateCheckSpeedModeMessage();
 
     if (this.holdDecelReached) {
       vPfd = this.holdSpeedTarget!;

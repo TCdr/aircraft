@@ -455,7 +455,7 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
 
   removeNdFmMessage(message: FMMessage, side: EfisSide): void;
 
-  clearCheckSpeedModeMessage(): void;
+  updateCheckSpeedModeMessage(): void;
 
   engineOutActive(): boolean;
 
