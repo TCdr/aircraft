@@ -516,17 +516,8 @@ export class ProcedureLinesGenerator {
           specialLine: clStyle === ChecklistLineStyle.Empty ? WdSpecialLine.Empty : undefined,
         });
 
-        if (isCondition && !item.sensed) {
-          // Insert CONFIRM <condition>, remove trailing colon
-          const itemName = item.name.endsWith(':') ? item.name.slice(0, -1) : item.name;
-          // Remove leading IF or WHEN from the condition name for the confirm line
-          const itemNameWithoutConditionHeader =
-            itemName.substring(0, 2) === 'IF'
-              ? itemName.substring(2)
-              : itemName.substring(0, 4) === 'WHEN'
-                ? itemName.substring(4)
-                : itemName;
-          const confirmText = `${item.level ? '\xa0'.repeat(item.level) : ''}CONFIRM ${itemNameWithoutConditionHeader}`;
+        if (isCondition && isChecklistCondition(item) && !item.sensed) {
+          const confirmText = ProcedureLinesGenerator.getChecklistConfirmText(item);
           lineData.push({
             abnormalProcedure: isAbnormalOrDeferred,
             activeProcedure: this.procedureIsActive.get(),
@@ -686,6 +677,21 @@ export class ProcedureLinesGenerator {
     }
 
     return text;
+  }
+
+  /**
+   * The CONFIRM line under a condition the FWS cannot sense: the condition without its IF / WHEN and its colon. The
+   * spaces around the removed words are trimmed too, they would push the line past the E/WD width.
+   */
+  public static getChecklistConfirmText(item: ChecklistCondition | TimedChecklistCondition) {
+    const itemName = item.name.endsWith(':') ? item.name.slice(0, -1) : item.name;
+    const itemNameWithoutConditionHeader =
+      itemName.substring(0, 2) === 'IF'
+        ? itemName.substring(2)
+        : itemName.substring(0, 4) === 'WHEN'
+          ? itemName.substring(4)
+          : itemName;
+    return `${item.level ? '\xa0'.repeat(item.level) : ''}CONFIRM ${itemNameWithoutConditionHeader.trim()}`;
   }
 
   private static getTimedItemLineText(

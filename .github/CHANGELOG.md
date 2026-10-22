@@ -867,6 +867,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FADEC] With an ENG 1(2) EIU FAULT the N1 limit (TOGA, FLX, MCT, CLB) is no longer corrected for the packs, engine and wing anti-ice - @TCdr
 1. [A380X/SD] F/CTL page: a spoiler is amber when it is lost (failed actuator, symmetric spoiler inhibited, its PRIM or SEC failed) or its own hydraulic system is lost (yellow for spoilers 1, 3, 5, 7, green for 2, 4, 6, 8; spoiler 6 also on AC ESS in flight) - @TCdr
 1. [A380X/SD] F/CTL page: the inner aileron, left outer and right inner elevator EHAs follow their AC EHA busbar instead of AC 1 - @TCdr
+1. [A380X/EWD] ECAM procedure lines that were cut at the edge of the E/WD now fit on their line, in the FCOM wording or its standard abbreviations - @TCdr
 
 ## 2024.1.0
 

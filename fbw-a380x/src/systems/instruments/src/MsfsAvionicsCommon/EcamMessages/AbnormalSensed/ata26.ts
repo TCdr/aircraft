@@ -847,7 +847,8 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
       {
         name: 'CREW OXY MASKS (IF RQRD)',
         sensed: false,
-        labelNotCompleted: 'USE / 100% / EMER',
+        labelNotCompleted: 'USE/100%/EMER',
+        colonIfCompleted: false,
       },
       {
         name: 'CAB FANS',
@@ -971,7 +972,8 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
       {
         name: 'CREW OXY MASKS (IF RQRD)',
         sensed: false,
-        labelNotCompleted: 'USE / 100% / EMER',
+        labelNotCompleted: 'USE/100%/EMER',
+        colonIfCompleted: false,
       },
       {
         name: 'CAB FANS',
@@ -1008,7 +1010,8 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
       {
         name: 'CREW OXY MASKS (IF RQRD)',
         sensed: false,
-        labelNotCompleted: 'USE / 100% / EMER',
+        labelNotCompleted: 'USE/100%/EMER',
+        colonIfCompleted: false,
       },
       {
         name: 'CAB FANS',
@@ -1045,7 +1048,8 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
       {
         name: 'CREW OXY MASKS (IF RQRD)',
         sensed: false,
-        labelNotCompleted: 'USE / 100% / EMER',
+        labelNotCompleted: 'USE/100%/EMER',
+        colonIfCompleted: false,
       },
       {
         name: 'CAB FANS',
@@ -1094,7 +1098,8 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
       {
         name: 'CREW OXY MASKS (IF RQRD)',
         sensed: false,
-        labelNotCompleted: 'USE / 100% / EMER',
+        labelNotCompleted: 'USE/100%/EMER',
+        colonIfCompleted: false,
       },
       {
         name: 'CAB FANS',
@@ -2028,7 +2033,8 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
       {
         name: 'CREW OXY MASKS (IF RQRD)',
         sensed: false,
-        labelNotCompleted: 'USE / 100% / EMER',
+        labelNotCompleted: 'USE/100%/EMER',
+        colonIfCompleted: false,
       },
       {
         name: 'CAB FANS',

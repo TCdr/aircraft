@@ -59,55 +59,6 @@ const DEFERRED_TITLE_PREFIX_CHARACTERS = 2;
 /* The line generator cuts the text after WD_LINE_CHARACTERS - 1 characters, the line component after one more */
 const LINE_CHARACTERS = WD_LINE_CHARACTERS - 2;
 
-/*
- * Items the E/WD already cuts, not touched here: the FBW procedure texts, then the ones of this fork. Each needs its
- * own split or abbreviation from the FCOM; a new item must fit.
- */
-const KNOWN_CUT_ITEMS = [
-  '211800021 WHEN DIFF PRESS<2PSI & FL<100/MEA-MORA',
-  '213800001 DIFF PR<2 PSI & FL < 100/MEA-MORA',
-  '213800002 DIFF PRESS < 1 PSI & FL < 100/MEA',
-  '213800017 WHEN DIFF PR < 2 PSI & FL < 100 / MEA',
-  '240800003 AP : SIDESTICK LOCKING DEVICE NOT AVAIL',
-  '240800027 IF SEVERE ICE ACCRETION : FLAP LEVER 3 FOR LDG',
-  '240800055 IF SEVERE ICE ACCRETION: FLAP LEVER 3 FOR LDG',
-  '260800030 CREW OXY MASKS (IF RQRD)',
-  '260800038 CREW OXY MASKS (IF RQRD)',
-  '260800039 CREW OXY MASKS (IF RQRD)',
-  '260800040 CREW OXY MASKS (IF RQRD)',
-  '260800041 CREW OXY MASKS (IF RQRD)',
-  '260900097 CREW OXY MASKS (IF RQRD)',
-  '320800036 WITHIN 10 S AFTER WING L/G LOCKED DOWN:',
-  '340800062 WHEN L/G DOWN AND & OFF : USE MAN PITCH TRIM',
-  '340900003 AT LEAST ONE AIR DATA RELIABLE :',
-  '700900001 FEED TK (AFFECTED ENG) MAIN PUMP',
-  '700900001 ENG (AFFECTED) MASTERS',
-  '700900001 ENG (AFFCTD) MASTERS (2 AT A TIME)',
-  '700900001 ENGs RELIGHT TRY REGULARLY : ENGs (AFFCTD) OFF 30s THEN ON',
-  '990900001 LDG + EVAC POSSIBLE WITHIN 30 MIN',
-  '990900001 WHEN ACFT ALT = CAB ALT + 2500FT/MEA-MORA',
-  '990900001 DURING FURTHER DESCENT : MAINTAIN MAX DIFF PRESS 1 PSI',
-
-  '280900001 TRIM TK NOT EMPTY & NO TRIM & APU LINE FAULT',
-  '311800017 IF SD DU OFF : F/O DU RECONF P/B FOR ATC MAILBOX',
-  '320900001 CG AFT SHIFT (50 PAX = 2% CG)',
-  '320900004 CG FWD SHIFT (50 PAX = 2% CG)',
-  '340800010 AT LEAST ONE AIR DATA IS RELIABLE',
-  '420800001 WHEN ANY FEED TK<13000 KG (AUTO RCL) :',
-  '700700003 GA PERF MAY NOT BE ACHIEVED WITH L/G DN',
-  '700900003 ALL ENGs (ONE BY ONE)',
-  '701800093 THR LEVER 1',
-  '701800094 THR LEVER 2',
-  '701800095 THR LEVER 3',
-  '701800096 THR LEVER 4',
-  '701800151 GLIDING DIST (NO WIND) : 2.5 NM/1000 FT',
-  '701800151 FLAP LEVER 3 (EXTN 4 MIN)',
-  '701800151 FOR FLARE : OPT PITCH ATT 8° & MIN V/S',
-  '701800151 GLIDING DIST (NO WIND) : 2.7 NM/1000 FT',
-  '990700001 INTERNAL LAYER CRACKED OR NO DIAGNOSIS',
-  '990900004 FOR FLARE : OPT PITCH ATT 8° & MIN V/S',
-];
-
 type ProcedureItem = AbnormalProcedure['items'][number];
 
 // eslint-disable-next-line no-control-regex
@@ -136,8 +87,7 @@ function itemLines(item: ProcedureItem, index: number): string[] {
       ProcedureLinesGenerator.getChecklistConditionText(item, index, done, state),
     );
     if (!item.sensed) {
-      const name = item.name.endsWith(':') ? item.name.slice(0, -1) : item.name;
-      lines.push(`${indent}CONFIRM ${name.replace(/^(IF|WHEN)/, '')}`);
+      lines.push(ProcedureLinesGenerator.getChecklistConfirmText(item));
     }
     return lines;
   }
@@ -196,8 +146,14 @@ describe('A380X ECAM lines fit the E/WD width', async () => {
   });
 
   it(`procedure lines have at most ${LINE_CHARACTERS} characters`, () => {
-    const tooLong = [...tooLongItems(abnormal), ...tooLongItems(deferred)];
-    expect(tooLong.filter((item) => !KNOWN_CUT_ITEMS.includes(item))).toEqual([]);
+    expect([...tooLongItems(abnormal), ...tooLongItems(deferred)]).toEqual([]);
+  });
+
+  it('the CONFIRM line of a condition keeps no space of its removed WHEN and colon', () => {
+    const condition = { name: 'WHEN ANY FEED TK<13000 KG (AUTO RCL) :', sensed: false, condition: true, level: 1 };
+    expect(ProcedureLinesGenerator.getChecklistConfirmText(condition)).toBe(
+      '\xa0CONFIRM ANY FEED TK<13000 KG (AUTO RCL)',
+    );
   });
 
   it(`normal checklist titles and lines have at most ${LINE_CHARACTERS} characters`, () => {

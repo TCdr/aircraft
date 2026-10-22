@@ -251,7 +251,7 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
         style: ChecklistLineStyle.Green,
       },
       {
-        name: 'IF SD DU OFF : F/O DU RECONF P/B FOR ATC MAILBOX',
+        name: 'IF SD DU OFF : F/O RECONF FOR MAILBOX',
         sensed: false,
         style: ChecklistLineStyle.Green,
       },
@@ -1240,7 +1240,7 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
         labelNotCompleted: 'DOWN',
       },
       {
-        name: 'WITHIN 10 S AFTER WING L/G LOCKED DOWN:',
+        name: 'WITHIN 10 S AFTER WING L/G LOCKED DN:',
         sensed: false,
       },
       {
@@ -1566,7 +1566,7 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
       { name: 'JETTISON ARM', sensed: false, labelNotCompleted: 'ON', level: 1 },
       { name: 'JETTISON ACTIVE', sensed: false, labelNotCompleted: 'ON', level: 1 },
       { name: 'OXYGEN CREW SUPPLY', sensed: false, labelNotCompleted: 'OFF' },
-      { name: 'CG AFT SHIFT (50 PAX = 2% CG)', sensed: false, labelNotCompleted: 'CONSIDER' },
+      { name: 'CG AFT SHIFT (50 PAX = 2%)', sensed: false, labelNotCompleted: 'CONSIDER' },
       { name: 'DISREGARD NORM APPR & LDG C/Ls', sensed: false },
       { name: 'SIGNS', sensed: true, labelNotCompleted: 'ON' },
       { name: 'CABIN & CKPT (LOOSE EQPT)', sensed: false, labelNotCompleted: 'SECURE', labelCompleted: 'SECURED' },
@@ -1683,7 +1683,7 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
       { name: 'CG > 37.5%', sensed: false, condition: true },
       { name: 'TRIM TK XFR', sensed: false, labelNotCompleted: 'FWD', level: 1 },
       { name: 'OUTER TK XFR', sensed: false, labelNotCompleted: 'AS RQRD', level: 1 },
-      { name: 'CG FWD SHIFT (50 PAX = 2% CG)', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      { name: 'CG FWD SHIFT (50 PAX = 2%)', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
       { name: 'LDG DIST AFFECTED', sensed: false },
     ],
   },

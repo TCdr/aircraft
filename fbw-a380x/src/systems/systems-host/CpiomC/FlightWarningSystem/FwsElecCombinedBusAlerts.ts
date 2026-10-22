@@ -201,7 +201,7 @@ function gravityCeilingBranch(shown: boolean, crossfeedsOff: boolean[]): [boolea
 export function acBus12Dc1FaultLines(): ProcedureLines {
   return procedureLines(
     [true, false], // ATC COM VOICE ONLY
-    [true, false], // AP : SIDESTICK LOCKING DEVICE NOT AVAIL
+    [true, false], // AP: SIDESTICK LOCKING DEVICE NOT AVAIL
     [false, false], // FUEL CONSUMPT INCRSD: not a line of this procedure
     [false, false], // FMS PRED UNRELIABLE: idem
     [true, false], // LDG DIST AFFECTED

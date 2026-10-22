@@ -174,7 +174,7 @@ export const EcamAbnormalSensedAta353642: { [n: number]: AbnormalProcedure } = {
       { name: 'JETTISON NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan },
       { name: 'L/G GRVTY EXTN ONLY', sensed: false, style: ChecklistLineStyle.Cyan },
       { name: 'LDG DIST AFFECTED', sensed: false, style: ChecklistLineStyle.Cyan },
-      { name: 'WHEN ANY FEED TK<13000 KG (AUTO RCL) :', sensed: false, condition: true },
+      { name: 'WHEN ANY FEED TK<13000 KG (AUTO RCL)', sensed: false, condition: true },
       { name: 'OUTR TK XFR', sensed: false, labelNotCompleted: 'MAN', level: 1 },
     ],
   },

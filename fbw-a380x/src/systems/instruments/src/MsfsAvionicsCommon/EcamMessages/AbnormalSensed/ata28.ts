@@ -1753,8 +1753,9 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
     items: [
       { name: 'FMS FUEL & LOAD PAGE', sensed: false, labelNotCompleted: 'SELECT' },
       { name: 'JETTISON GW', sensed: false, labelNotCompleted: 'ENTER' },
-      { name: 'TRIM TK NOT EMPTY & NO TRIM & APU LINE FAULT', sensed: false, condition: true },
-      { name: 'TRIM TK FEED', sensed: false, labelNotCompleted: 'AUTO', level: 1 },
+      { name: 'TRIM TK NOT EMPTY', sensed: false, condition: true },
+      { name: 'NO FUEL TRIM & APU LINE FAULT', sensed: false, condition: true, level: 1 },
+      { name: 'TRIM TK FEED', sensed: false, labelNotCompleted: 'AUTO', level: 2 },
       { name: 'JETTISON ARM', sensed: true, labelNotCompleted: 'ON' },
       { name: 'JETTISON ACTIVE', sensed: true, labelNotCompleted: 'ON' },
       { name: 'JETTISON & CG', sensed: false, labelNotCompleted: 'MONITOR' },

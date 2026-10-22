@@ -256,7 +256,7 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
         style: ChecklistLineStyle.Cyan,
       },
       {
-        name: 'WHEN DIFF PRESS<2PSI & FL<100/MEA-MORA',
+        name: 'WHEN DIFF PR<2 PSI & FL<100/MEA-MORA',
         sensed: true,
         condition: true,
       },
@@ -1051,7 +1051,7 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
         level: 1,
       },
       {
-        name: 'DIFF PR<2 PSI & FL < 100/MEA-MORA',
+        name: 'DIFF PR<2 PSI & FL<100/MEA-MORA',
         sensed: true,
         condition: true,
       },
@@ -1112,7 +1112,7 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
         style: ChecklistLineStyle.Cyan,
       },
       {
-        name: 'DIFF PRESS < 1 PSI & FL < 100/MEA',
+        name: 'DIFF PR<1 PSI & FL<100/MEA',
         sensed: true,
         condition: true,
       },
@@ -1384,7 +1384,7 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
         level: 1,
       },
       {
-        name: 'WHEN DIFF PR < 2 PSI & FL < 100 / MEA',
+        name: 'WHEN DIFF PR<2 PSI & FL<100/MEA',
         sensed: false,
         condition: true,
         level: 1,
