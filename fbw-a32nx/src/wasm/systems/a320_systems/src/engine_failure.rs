@@ -299,7 +299,7 @@ struct A320EngineFailure {
     preset_quick_mode: bool,
     engine_anti_ice_valve_open: bool,
     /// ENG 1(2) BLEED STATUS FAULT: the FADEC no longer receives the bleed and anti-ice valve positions
-    bleed_valve_status_lost: bool,
+    bleed_status_fault: bool,
     /// A FADEC channel is supplied and works (A32NX_FADEC.ts): the FADEC can command the start.
     fadec_powered: bool,
 }
@@ -354,7 +354,7 @@ impl A320EngineFailure {
             thrust_lever_angle_degrees: 0.,
             preset_quick_mode: false,
             engine_anti_ice_valve_open: false,
-            bleed_valve_status_lost: false,
+            bleed_status_fault: false,
             fadec_powered: false,
         }
     }
@@ -432,7 +432,7 @@ impl A320EngineFailure {
     /// models no engine anti-ice valve); the other conditions of the automatic selection are not
     /// modelled.
     fn automatic_continuous_ignition(&self) -> bool {
-        self.engine_anti_ice_valve_open && !self.bleed_valve_status_lost
+        self.engine_anti_ice_valve_open && !self.bleed_status_fault
     }
 
     fn update(
@@ -530,7 +530,7 @@ impl SimulationElement for A320EngineFailure {
         self.thrust_lever_angle_degrees = reader.read(&self.thrust_lever_angle_id);
         self.preset_quick_mode = reader.read(&self.preset_quick_mode_id);
         self.engine_anti_ice_valve_open = reader.read(&self.engine_anti_ice_id);
-        self.bleed_valve_status_lost = reader.read(&self.bleed_status_fault_id);
+        self.bleed_status_fault = reader.read(&self.bleed_status_fault_id);
         self.fadec_powered = reader.read(&self.fadec_powered_id);
     }
 }
