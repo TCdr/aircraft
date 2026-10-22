@@ -3,8 +3,8 @@
 
 // Native unit test of the FADEC idle setting (src/Fadec/IdleControl_A32NX.hpp): run test/run_tests.sh. Modulated idle rises
 // with the engine bleed demand, approach idle (in flight, FLAPS lever not at 0, or without the EIU data) is above it whatever the
-// bleed demand. Built
-// with -DWITHOUT_THE_FIX, the idle setting is the minimum idle in every case: the checks fail.
+// bleed demand, and on ground without the bleed valve status the idle is that of every valve open. Built with -DWITHOUT_THE_FIX,
+// the idle setting is the minimum idle in every case and ignores the lost valve status: the checks fail.
 
 #include <cstdio>
 
@@ -38,6 +38,18 @@ static constexpr BleedDemand NO_BLEED{false, false, false};
 static constexpr BleedDemand PACKS{true, false, false};
 static constexpr BleedDemand ALL_BLEED{true, true, true};
 
+/// The modulated idle increase with the bleed valve status lost or not (ENG 1(2) BLEED STATUS FAULT)
+static double modulatedIdleCN2Increase(bool onGround, bool bleedValveStatusLost, const BleedDemand& measured) {
+#ifdef WITHOUT_THE_FIX
+  (void)onGround;
+  (void)bleedValveStatusLost;
+  return IdleControl_A32NX::idleCN2Increase(IdleMode::MODULATED, measured);
+#else
+  return IdleControl_A32NX::idleCN2Increase(IdleMode::MODULATED,
+                                            IdleControl_A32NX::fadecBleedDemand(measured, onGround, bleedValveStatusLost));
+#endif
+}
+
 int main() {
   // Mode selection: approach idle only in flight with the FLAPS lever out of 0
   expect("in flight, FLAPS 0: modulated", IdleControl_A32NX::idleMode(false, 0, false) == IdleMode::MODULATED, 0);
@@ -63,6 +75,19 @@ int main() {
   const double approachAllBleed = idleCN2Increase(false, 3, ALL_BLEED);
   expect("approach idle does not depend on the bleed demand", approachClean == approachAllBleed, approachAllBleed);
   expect("approach idle is above modulated idle with every bleed consumer", approachClean > allBleed, approachClean);
+
+  // HI GND IDLE: without the bleed valve status, on ground the idle is that of every valve open, whatever the valves do
+  const double everyValveOpen = IdleControl_A32NX::idleCN2Increase(IdleMode::MODULATED, ALL_BLEED);
+  const double packsOnly = IdleControl_A32NX::idleCN2Increase(IdleMode::MODULATED, PACKS);
+  const double groundStatusLost = modulatedIdleCN2Increase(true, true, NO_BLEED);
+  expect("bleed valve status lost on ground: idle of every valve open", groundStatusLost == everyValveOpen, groundStatusLost);
+  const double groundStatusLostPacks = modulatedIdleCN2Increase(true, true, PACKS);
+  expect("bleed valve status lost on ground, packs on: idle of every valve open", groundStatusLostPacks == everyValveOpen,
+         groundStatusLostPacks);
+  const double flightStatusLost = modulatedIdleCN2Increase(false, true, NO_BLEED);
+  expect("bleed valve status lost in flight: idle of the measured demand", flightStatusLost == 0.0, flightStatusLost);
+  const double groundStatusKnown = modulatedIdleCN2Increase(true, false, PACKS);
+  expect("bleed valve status known on ground: idle of the measured demand", groundStatusKnown == packsOnly, groundStatusKnown);
 
   if (failures == 0) {
     std::printf("idle_control_test: all checks passed\n");

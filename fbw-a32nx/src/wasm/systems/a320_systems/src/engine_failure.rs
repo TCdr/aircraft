@@ -305,6 +305,7 @@ struct A320EngineFailure {
     thrust_lever_angle_id: VariableIdentifier,
     preset_quick_mode_id: VariableIdentifier,
     engine_anti_ice_id: VariableIdentifier,
+    bleed_status_fault_id: VariableIdentifier,
     igniter_a_active_id: VariableIdentifier,
     igniter_b_active_id: VariableIdentifier,
     fadec_powered_id: VariableIdentifier,
@@ -321,6 +322,8 @@ struct A320EngineFailure {
     thrust_lever_angle_degrees: f64,
     preset_quick_mode: bool,
     engine_anti_ice_valve_open: bool,
+    /// ENG 1(2) BLEED STATUS FAULT: the FADEC no longer receives the bleed and anti-ice valve positions
+    bleed_valve_status_lost: bool,
     /// A FADEC channel is supplied and works (A32NX_FADEC.ts): the FADEC can command the start.
     fadec_powered: bool,
 }
@@ -348,6 +351,8 @@ impl A320EngineFailure {
                 .get_identifier(format!("AUTOTHRUST_TLA:{}", engine_number)),
             preset_quick_mode_id: context.get_identifier("AIRCRAFT_PRESET_QUICK_MODE".to_owned()),
             engine_anti_ice_id: context.get_identifier(format!("ENG ANTI ICE:{}", engine_number)),
+            bleed_status_fault_id: context
+                .get_identifier(format!("ENGINE_{}_BLEED_STATUS_FAULT", engine_number)),
             // The SD ENG page shows the igniters (FCOM DSC-70-90-40 l.64587-64591).
             igniter_a_active_id: context
                 .get_identifier(format!("FADEC_IGNITER_A_ACTIVE_ENG{}", engine_number)),
@@ -373,6 +378,7 @@ impl A320EngineFailure {
             thrust_lever_angle_degrees: 0.,
             preset_quick_mode: false,
             engine_anti_ice_valve_open: false,
+            bleed_valve_status_lost: false,
             fadec_powered: false,
         }
     }
@@ -454,7 +460,7 @@ impl A320EngineFailure {
     /// models no engine anti-ice valve); the other conditions of the FCOM automatic selection (its
     /// list is a figure, not in the FCOM text) are not modelled.
     fn automatic_continuous_ignition(&self) -> bool {
-        self.engine_anti_ice_valve_open
+        self.engine_anti_ice_valve_open && !self.bleed_valve_status_lost
     }
 
     fn update(
@@ -552,6 +558,7 @@ impl SimulationElement for A320EngineFailure {
         self.thrust_lever_angle_degrees = reader.read(&self.thrust_lever_angle_id);
         self.preset_quick_mode = reader.read(&self.preset_quick_mode_id);
         self.engine_anti_ice_valve_open = reader.read(&self.engine_anti_ice_id);
+        self.bleed_valve_status_lost = reader.read(&self.bleed_status_fault_id);
         self.fadec_powered = reader.read(&self.fadec_powered_id);
     }
 }
@@ -1337,6 +1344,21 @@ mod tests {
             assert!(value);
             let value: bool = test_bed.read_by_name("ENGINE_2_CONTINUOUS_IGNITION");
             assert!(!value);
+        }
+
+        #[test]
+        fn without_the_bleed_valve_status_the_engine_anti_ice_selects_no_continuous_ignition() {
+            let mut test_bed = flying_test_bed();
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 1.);
+            test_bed.write_by_name("ENGINE_1_BLEED_STATUS_FAULT", true);
+            test_bed.write_by_name("ENG ANTI ICE:1", true);
+            test_bed.write_by_name("ENG ANTI ICE:2", true);
+            run(&mut test_bed);
+
+            let value: bool = test_bed.read_by_name("ENGINE_1_CONTINUOUS_IGNITION");
+            assert!(!value);
+            let value: bool = test_bed.read_by_name("ENGINE_2_CONTINUOUS_IGNITION");
+            assert!(value);
         }
 
         #[test]

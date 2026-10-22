@@ -235,11 +235,11 @@ class FadecSimData_A32NX {
   NamedVariablePtr fuelPumpState[2];
   NamedVariablePtr fuelRightPre;
   NamedVariablePtr packsState[2];
-  // The idle setting (IdleControl_A32NX.hpp): the FLAPS lever, the engine bleed supply and the EIU data (a320_systems
-  // engine_interface_unit.rs)
+  // The idle setting: the FLAPS lever, the engine bleed supply, the EIU data and the bleed valve status the FADEC receives
   NamedVariablePtr flapsHandleIndex;
   NamedVariablePtr engineBleedPrValveOpen[2];
   NamedVariablePtr engineEiuFault[2];
+  NamedVariablePtr engineBleedStatusFault[2];
   NamedVariablePtr refuelRate;
   NamedVariablePtr refuelStartedByUser;
   NamedVariablePtr startState;
@@ -431,6 +431,8 @@ class FadecSimData_A32NX {
     engineBleedPrValveOpen[R] = dm->make_named_var("A32NX_PNEU_ENG_2_PR_VALVE_OPEN", UNITS.Number, AUTO_READ);
     engineEiuFault[L]         = dm->make_named_var("A32NX_ENGINE_1_EIU_FAULT", UNITS.Number, AUTO_READ);
     engineEiuFault[R]         = dm->make_named_var("A32NX_ENGINE_2_EIU_FAULT", UNITS.Number, AUTO_READ);
+    engineBleedStatusFault[L] = dm->make_named_var("A32NX_ENGINE_1_BLEED_STATUS_FAULT", UNITS.Number, AUTO_READ);
+    engineBleedStatusFault[R] = dm->make_named_var("A32NX_ENGINE_2_BLEED_STATUS_FAULT", UNITS.Number, AUTO_READ);
     refuelRate          = dm->make_named_var("A32NX_EFB_REFUEL_RATE_SETTING", UNITS.Number, AUTO_READ);
     refuelStartedByUser = dm->make_named_var("A32NX_REFUEL_STARTED_BY_USR", UNITS.Number, AUTO_READ);
     wingTankLeak[L]     = dm->make_named_var("A32NX_FUEL_L_WING_TK_LEAK", UNITS.Number, AUTO_READ);

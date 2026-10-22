@@ -846,6 +846,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/EWD] The grey box behind N2 also shows during a dry or wet crank and during the automatic crank after an aborted start - @TCdr
 1. [A380X/EWD] The FLEX temperature always shows in the FLEX thrust rating mode (it was hidden with the SAT more than 10 °C above it), not for a derated takeoff - @TCdr
 1. [A380X/EWD] No amber EGT limit with alpha floor active, and the EGT shows as the FADEC computes it instead of being capped at the limits - @TCdr
+1. [A32NX/FADEC] ENG 1(2) BLEED STATUS FAULT: on the ground the idle goes up to HI GND IDLE (as if every bleed and anti-ice valve were open), and the engine anti-ice no longer selects the continuous ignition of that engine by itself (ENG MODE selector to IGN) - @TCdr
 
 ## 2024.1.0
 

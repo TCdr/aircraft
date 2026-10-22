@@ -494,11 +494,15 @@ void EngineControl_A32NX::updateIdleSetting(double pressAltitude, double mach, d
   const bool packsOn             = simData.packsState[L]->get() > 0.5 || simData.packsState[R]->get() > 0.5;
   const bool nacelleAntiIce =
       simData.simVarsDataPtr->data().engineAntiIce[L] > 0.5 || simData.simVarsDataPtr->data().engineAntiIce[R] > 0.5;
-  const IdleControl_A32NX::BleedDemand bleedDemand{packsOn && engineBleedSupplies, nacelleAntiIce,
-                                                   simData.wingAntiIce->getAsBool() && engineBleedSupplies};
+  const IdleControl_A32NX::BleedDemand measuredBleedDemand{packsOn && engineBleedSupplies, nacelleAntiIce,
+                                                           simData.wingAntiIce->getAsBool() && engineBleedSupplies};
 
-  // Design choice: one idle setting for both engines (one idle thrust limit), so an EIU lost on either engine gives both the
-  // approach idle.
+  // Design choice: one idle setting for both engines (one idle thrust limit), so an EIU or a bleed valve status lost on either
+  // engine sets the idle of both.
+  const bool bleedValveStatusLost =
+      simData.engineBleedStatusFault[L]->getAsBool() || simData.engineBleedStatusFault[R]->getAsBool();
+  const IdleControl_A32NX::BleedDemand bleedDemand =
+      IdleControl_A32NX::fadecBleedDemand(measuredBleedDemand, onGround, bleedValveStatusLost);
   const bool eiuDataLost = simData.engineEiuFault[L]->getAsBool() || simData.engineEiuFault[R]->getAsBool();
   const IdleControl_A32NX::IdleMode mode = IdleControl_A32NX::idleMode(onGround, simData.flapsHandleIndex->get(), eiuDataLost);
   const double idleSettingCN2 = Tables1502_A32NX::iCN2(pressAltitude, mach) + IdleControl_A32NX::idleCN2Increase(mode, bleedDemand);
