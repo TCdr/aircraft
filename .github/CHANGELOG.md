@@ -873,6 +873,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/EWD] The grey box behind N2 also shows during a dry or wet crank and during the automatic crank after an aborted start - @TCdr
 1. [A380X/EWD] The FLEX temperature always shows in the FLEX thrust rating mode (it was hidden with the SAT more than 10 °C above it), not for a derated takeoff - @TCdr
 1. [A380X/EWD] No amber EGT limit with alpha floor active, and the EGT shows as the FADEC computes it instead of being capped at the limits - @TCdr
+1. [A380X/MFD] PERF page CRZ: the MANAGED line shows the managed cruise speed or Mach (it showed the climb speed) with its speed restriction (SPD LIM, CMS, HOLD SPD, PROC SP, RTA), the ECON line whenever the managed speed differs from ECON, and the CLB SPD LIM / HOLD SPD / PROC SPD label below the table - @TCdr
+1. [A380X/FMS] Managed cruise target per the CRZ FL: the ECON Mach above FL200 (it could target the ECON speed instead), the ECON speed at and below FL200; the F-PLN SPD column in cruise follows the same rule (it switched between speed and Mach from one waypoint to the next) - @TCdr
 
 ## 2024.1.0
 

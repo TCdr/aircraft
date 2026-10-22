@@ -61,8 +61,23 @@ import { FcuEfisCpBusEvents } from '@shared/publishers/EfisCpBusPublisher';
 import { PrimChoiceProvider } from '@shared/publishers/PrimChoiceProvider';
 import { PrimFgBusBaseEvents } from '@shared/publishers/PrimFgPublisher';
 import { qnhToMillibar } from '../shared/QnhUtils';
-import { findConstantMachSegment } from '@fmgc/flightplanning/ConstantMachSegment';
-import { managedCruiseSpeedAndMach } from '@fmgc/guidance/vnav/cruise/ConstantMachSpeedProfile';
+import {
+  ConstantMachSegment,
+  findConstantMachSegment,
+  isLegInConstantMachSegment,
+} from '@fmgc/flightplanning/ConstantMachSegment';
+import { HoldType } from '@fmgc/flightplanning/data/flightplan';
+import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
+import { cruiseSpeedRestriction, ManagedCruiseSpeedInfo } from './PerfCruiseSpeedTable';
+import { managedCruiseTarget, ManagedCruiseTarget } from './ManagedCruiseTarget';
+
+/** A hold speed, with the limits that lowered it */
+interface HoldingSpeed {
+  speed: Knots;
+  icaoLimited: boolean;
+  /** lowered by the climb or descent speed limit */
+  speedLimited: boolean;
+}
 
 /**
  * Interface between FMS and rest of aircraft through SimVars and ARINC values (mostly data being sent here)
@@ -876,7 +891,7 @@ export class FmcAircraftInterface {
         FCU altitude or the exit fix. If FCU or constraint altitude is reached first, the rest of the
         pattern is assumed to be flown level at that altitude
         */
-  getHoldingSpeed(speedConstraint = null, altitude = null) {
+  getHoldingSpeed(speedConstraint = null, altitude = null): HoldingSpeed {
     const fcuAltitude = SimVar.GetSimVarValue('AUTOPILOT ALTITUDE LOCK VAR:3', 'feet');
     const alt = Math.max(fcuAltitude, altitude ? altitude : 0);
 
@@ -893,6 +908,7 @@ export class FmcAircraftInterface {
       kcas = Math.min(kcas, speedConstraint);
     }
 
+    const speedBeforeIcaoLimit = kcas;
     // apply icao limits
     if (alt < 14000) {
       kcas = Math.min(230, kcas);
@@ -903,7 +919,9 @@ export class FmcAircraftInterface {
     } else {
       kcas = this.fmgc.guidanceController?.atmosphericConditions.computeCasFromMach(alt, 0.83);
     }
+    const icaoLimited = kcas < speedBeforeIcaoLimit;
 
+    const speedBeforeSpeedLimit = kcas;
     // apply speed limit/alt
     if (this.flightPhase.get() <= FmgcFlightPhase.Cruise) {
       const climbSpeedLimit = this.fmgc.getClimbSpeedLimit();
@@ -917,9 +935,11 @@ export class FmcAircraftInterface {
       }
     }
 
+    const speedLimited = kcas < speedBeforeSpeedLimit;
+
     kcas = Math.max(kcas, SimVar.GetSimVarValue('L:A32NX_SPEEDS_VLS', 'number'));
 
-    return Math.ceil(kcas);
+    return { speed: Math.ceil(kcas), icaoLimited, speedLimited };
   }
 
   updateHoldingSpeed() {
@@ -937,10 +957,12 @@ export class FmcAircraftInterface {
 
     let enableHoldSpeedWarning = false;
     let holdSpeedTarget: number | null = null;
+    let holdingSpeed: HoldingSpeed | null = null;
     let holdDecelReached = this.holdDecelReached;
     // FIXME big hack until VNAV can do this
     if (currentLeg && currentLeg.isDiscontinuity === false && currentLeg.type === 'HM') {
-      holdSpeedTarget = this.getHoldingSpeed(currentLegConstraints.descentSpeed, currentLegConstraints.descentAltitude);
+      holdingSpeed = this.getHoldingSpeed(currentLegConstraints.descentSpeed, currentLegConstraints.descentAltitude);
+      holdSpeedTarget = holdingSpeed.speed;
       holdDecelReached = true;
       enableHoldSpeedWarning = this.isAirspeedSelected() ?? false;
       this.holdLegIndex = plan.activeLegIndex;
@@ -949,7 +971,8 @@ export class FmcAircraftInterface {
       const adirLong = ADIRS.getLongitude();
 
       if (adirLat && adirLong && adirLat.isNormalOperation() && adirLong.isNormalOperation()) {
-        holdSpeedTarget = this.getHoldingSpeed(nextLegConstraints.descentSpeed, nextLegConstraints.descentAltitude);
+        holdingSpeed = this.getHoldingSpeed(nextLegConstraints.descentSpeed, nextLegConstraints.descentAltitude);
+        holdSpeedTarget = holdingSpeed.speed;
 
         const dtg = this.fmgc.guidanceController?.activeLegDtg;
         // decel range limits are [3, 20] NM
@@ -976,6 +999,7 @@ export class FmcAircraftInterface {
       SimVar.SetSimVarValue('L:A32NX_FM_HOLD_DECEL', 'bool', this.holdDecelReached);
     }
 
+    this.activeHoldingSpeed = holdingSpeed;
     if (holdSpeedTarget !== this.holdSpeedTarget) {
       this.holdSpeedTarget = holdSpeedTarget;
       SimVar.SetSimVarValue('L:A32NX_FM_HOLD_SPEED', 'number', this.holdSpeedTarget ?? 0);
@@ -1016,6 +1040,8 @@ export class FmcAircraftInterface {
   private holdDecelReached = false;
 
   private holdSpeedTarget: number | null = null;
+
+  private activeHoldingSpeed: HoldingSpeed | null = null;
 
   private holdLegIndex: number | null = null;
 
@@ -1071,20 +1097,12 @@ export class FmcAircraftInterface {
           break;
         }
         case FmgcFlightPhase.Cruise: {
-          const speedLimit = this.fmgc.getClimbSpeedLimit();
-          const activePlan = this.flightPlanService.active;
-          [vPfd, isMach] = this.getManagedTargets(
-            ...managedCruiseSpeedAndMach(
-              this.fmgc.getManagedCruiseSpeed(),
-              this.fmgc.getManagedCruiseSpeedMach(),
-              findConstantMachSegment(activePlan.allLegs),
-              activePlan.activeLegIndex,
-              Vmo,
-              speedLimit !== null && SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet') < speedLimit.underAltitude
-                ? speedLimit.speed
-                : null,
-            ),
+          const target = this.activeCruiseTarget(
+            findConstantMachSegment(this.flightPlanService.active.allLegs),
+            this.appliedClimbSpeedLimit(),
           );
+          vPfd = target.cas;
+          isMach = target.mach !== null;
           break;
         }
         case FmgcFlightPhase.Descent: {
@@ -1124,6 +1142,99 @@ export class FmcAircraftInterface {
       }
       this.managedSpeedTargetIsMach = isMach;
     }
+  }
+
+  /** The managed cruise target of the active flight plan: climb speed limit, CMS, then ECON or RTA */
+  private activeCruiseTarget(segment: ConstantMachSegment | null, speedLimit: SpeedLimit | null): ManagedCruiseTarget {
+    const plan = this.flightPlanService.active;
+    return this.cruiseTarget(
+      this.fmgc.getManagedCruiseSpeed(),
+      this.fmgc.getManagedCruiseSpeedMach(),
+      plan.performanceData.cruiseFlightLevel.get(),
+      segment !== null && isLegInConstantMachSegment(segment, plan.activeLegIndex) ? segment.mach : null,
+      speedLimit?.speed ?? null,
+    );
+  }
+
+  /** The managed cruise target for ECON (or RTA) speeds, also for the ECON line and the secondary flight plans */
+  cruiseTarget(
+    econSpeed: Knots,
+    econMach: Mach,
+    cruiseFlightLevel: number | null,
+    constantMach: Mach | null = null,
+    speedLimit: Knots | null = null,
+  ): ManagedCruiseTarget {
+    return managedCruiseTarget({
+      econSpeed,
+      econMach,
+      cruiseFlightLevel,
+      constantMach,
+      speedLimit,
+      vmo: Vmo,
+      machToCas: (mach) => this.machToCasAtPresentPressure(mach),
+    });
+  }
+
+  /** The climb speed limit while the aircraft is below its altitude */
+  private appliedClimbSpeedLimit(): SpeedLimit | null {
+    const speedLimit = this.fmgc.getClimbSpeedLimit();
+    return speedLimit !== null && SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet') < speedLimit.underAltitude
+      ? speedLimit
+      : null;
+  }
+
+  /** The managed cruise target of the active flight plan and the restriction that sets it */
+  getManagedCruiseSpeedInfo(): ManagedCruiseSpeedInfo | null {
+    if (!this.flightPlanService.hasActive) {
+      return null;
+    }
+    const plan = this.flightPlanService.active;
+    // With a time constraint, the managed speeds are the RTA speeds and the ECON line shows the speeds without it
+    const rtaSpeedRange = plan.performanceData.timeConstraint.get() !== null ? this.fmgc.activeRtaSpeedRange() : null;
+    const econSpeed = rtaSpeedRange?.econ.cruiseSpeed ?? this.fmgc.getManagedCruiseSpeed();
+    const econMach = rtaSpeedRange?.econ.cruiseMach ?? this.fmgc.getManagedCruiseSpeedMach();
+    const cruiseFlightLevel = plan.performanceData.cruiseFlightLevel.get();
+    const econ = { econSpeed, econMach, econCas: this.cruiseTarget(econSpeed, econMach, cruiseFlightLevel).cas };
+    const rtaApplied = rtaSpeedRange !== null;
+
+    const hold = this.holdDecelReached ? this.activeHoldingSpeed : null;
+    if (hold !== null) {
+      const holdLeg = this.holdLegIndex !== null ? plan.maybeElementAt(this.holdLegIndex) : undefined;
+      const holdFix = holdLeg?.isDiscontinuity === false ? holdLeg : null;
+      const isProcedureHold = holdFix?.defaultHold?.type === HoldType.Database;
+      const restriction = cruiseSpeedRestriction({
+        speedLimitApplied: hold.speedLimited,
+        constantMachApplied: false,
+        hold: { isProcedureIcaoLimit: isProcedureHold && hold.icaoLimited },
+        rtaApplied,
+      });
+      return {
+        targetCas: hold.speed,
+        targetMach: null,
+        restriction,
+        speedLimit: restriction === 'SPD LIM' ? this.fmgc.getClimbSpeedLimit() : null,
+        holdWaypoint: holdFix?.ident ?? null,
+        ...econ,
+      };
+    }
+
+    const segment = findConstantMachSegment(plan.allLegs);
+    const speedLimit = this.appliedClimbSpeedLimit();
+    const target = this.activeCruiseTarget(segment, speedLimit);
+    const restriction = cruiseSpeedRestriction({
+      speedLimitApplied: target.speedLimitApplied,
+      constantMachApplied: isLegInConstantMachSegment(segment, plan.activeLegIndex),
+      hold: null,
+      rtaApplied,
+    });
+    return {
+      targetCas: target.cas,
+      targetMach: target.mach,
+      restriction,
+      speedLimit: restriction === 'SPD LIM' ? speedLimit : null,
+      holdWaypoint: null,
+      ...econ,
+    };
   }
 
   public invalidateManagedSpeed() {
@@ -1492,6 +1603,12 @@ export class FmcAircraftInterface {
   }
 
   getManagedTargets(v: number, m: number): [number, boolean] {
+    const vM = this.machToCasAtPresentPressure(m);
+    return vM !== null && v > vM ? [vM, true] : [v, false];
+  }
+
+  /** @returns null without valid air data */
+  private machToCasAtPresentPressure(mach: number): number | null {
     const sat = ADIRS.getStaticAirTemperature();
     const press = ADIRS.getCorrectedAverageStaticPressure();
 
@@ -1501,11 +1618,9 @@ export class FmcAircraftInterface {
       press !== undefined &&
       (press.isNormalOperation() || press.isFunctionalTest())
     ) {
-      const vM = MathUtils.convertMachToKCas(m, press.value);
-      return v > vM ? [vM, true] : [v, false];
-    } else {
-      return [v, false];
+      return MathUtils.convertMachToKCas(mach, press.value);
     }
+    return null;
   }
 
   // TODO/VNAV: Speed constraint

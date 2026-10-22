@@ -28,6 +28,9 @@ export interface VerticalWaypointPrediction {
   secondsFromPresent: Seconds;
   altitude: Feet;
   speed: Knots | Mach;
+  /** the CAS and Mach the speed was chosen from, for an aircraft that chooses by its own rule */
+  cas?: Knots;
+  mach?: Mach;
   altitudeConstraint: AltitudeConstraint;
   speedConstraint: SpeedConstraint;
   isAltitudeConstraintMet: boolean;
@@ -261,6 +264,8 @@ export class NavGeometryProfile extends BaseGeometryProfile {
         secondsFromPresent,
         altitude,
         speed: this.atmosphericConditions.casOrMach(speed, mach, altitude),
+        cas: speed,
+        mach,
         altitudeConstraint,
         isAltitudeConstraintMet: altitudeConstraint && isAltitudeConstraintMet(altitudeConstraint, altitude, 250),
         speedConstraint,

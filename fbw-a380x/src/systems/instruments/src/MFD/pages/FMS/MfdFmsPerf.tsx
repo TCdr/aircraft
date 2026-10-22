@@ -73,7 +73,14 @@ import {
 } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { fcomAt, fcomCentre, fcomLine, fcomRight, fcomTabBar } from '../common/FcomLayout';
 import { longRangeCruiseMach, maxTurbulenceMach, maxTurbulenceSpeedKnots } from '../../FMC/CruiseSpeeds';
-import { isCruiseSpeedLimitApplied, managedCruiseSecondsToReference } from '../../FMC/PerfCruiseSpeedTable';
+import {
+  cruiseSpeedRestrictionLabelTitle,
+  formatMach,
+  isEconLineShown,
+  ManagedCruiseSpeedInfo,
+  managedCruiseSecondsToReference,
+  managedTargetCells,
+} from '../../FMC/PerfCruiseSpeedTable';
 import { TAKEOFF_DERATE_LEVELS, takeoffThrustOptionsDisabled, writeTakeoffDerate } from '../../shared/TakeoffDerate';
 import { CLIMB_DERATE_LEVELS } from '../../shared/ClimbDerate';
 import { descentCabinRateField } from '@fmgc/guidance/vnav/descent/CabinRepressurization';
@@ -558,8 +565,6 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
 
   private readonly crzTablePredLine2Unit = this.crzTablePredLine2.map((it) => (it ? 'NM' : ''));
 
-  private crzTableModeLine3 = Subject.create<string | null>(null);
-
   /** LRC Mach of the CRZ panel (the LRC is computed as a Mach: its speed is dashed) */
   private readonly lrcMach = Subject.create('.--');
 
@@ -568,13 +573,39 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
 
   private readonly maxTurbSpeed = Subject.create('---');
 
-  private crzTableSpdLine3 = Subject.create<string | null>(null);
+  /** The speed restriction of the managed cruise speed, in small font below the MANAGED label (line 1 or 2) */
+  private readonly crzTableRestrictionLine1 = Subject.create<string | null>(null);
 
-  private readonly crzTableSpdLine3Unit = this.crzTableSpdLine3.map((it) => (it ? 'KT' : ''));
+  private readonly crzTableRestrictionLine2 = Subject.create<string | null>(null);
 
-  private crzTableMachLine3 = Subject.create<string | null>(null);
+  private readonly crzEconSpeed = Subject.create<string | null>(null);
 
-  private crzTablePredLine3 = Subject.create<string | null>(null);
+  private readonly crzEconMach = Subject.create<string | null>(null);
+
+  /** The table line the ECON line follows: the MANAGED line, line 1 or 2; null when the ECON line is hidden */
+  private readonly crzEconLineBelow = Subject.create<1 | 2 | null>(null);
+
+  private readonly crzEconLineBelowLine1Display = this.crzEconLineBelow.map((it) => (it === 1 ? 'block' : 'none'));
+
+  private readonly crzEconLineBelowLine2Display = this.crzEconLineBelow.map((it) => (it === 2 ? 'block' : 'none'));
+
+  private readonly crzInformationRowsDisplay = this.crzEconLineBelow.map((it) => (it === 2 ? 'none' : 'block'));
+
+  /** Speed restriction label below the table: CLB SPD LIM 250KT /FL100, HOLD SPD 260KT / AGN */
+  private readonly crzRestrictionLabelTitle = Subject.create<string | null>(null);
+
+  private readonly crzRestrictionLabelDisplay = this.crzRestrictionLabelTitle.map((it) => (it ? 'block' : 'none'));
+
+  private readonly crzRestrictionLabelSpeed = Subject.create<string | null>(null);
+
+  /** FL of the speed limit end altitude, null for a hold */
+  private readonly crzRestrictionLabelFlightLevel = Subject.create<string | null>(null);
+
+  private readonly crzRestrictionLabelFlightLevelDisplay = this.crzRestrictionLabelFlightLevel.map((it) =>
+    it !== null ? 'flex' : 'none',
+  );
+
+  private readonly crzRestrictionLabelWaypoint = Subject.create<string | null>(null);
 
   private readonly destAirportIdent = Subject.create<string>('----');
 
@@ -1010,7 +1041,11 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
       this.crzTablePredLine1Unit,
       this.crzTableSpdLine2Unit,
       this.crzTablePredLine2Unit,
-      this.crzTableSpdLine3Unit,
+      this.crzEconLineBelowLine1Display,
+      this.crzEconLineBelowLine2Display,
+      this.crzInformationRowsDisplay,
+      this.crzRestrictionLabelDisplay,
+      this.crzRestrictionLabelFlightLevelDisplay,
       this.desTableSpdLine2Unit,
       this.desTablePredLine2Unit,
       this.transFlToAlt,
@@ -1045,22 +1080,112 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
     return getEtaUtcOrFromPresent(secondsFromPresent, this.activeFlightPhase.get() == FmgcFlightPhase.Preflight);
   }
 
+  private crzEconLine(y: number): VNode[] {
+    return [
+      fcomRight(y, 171, <span class="mfd-label">ECON</span>),
+      fcomRight(y, 251, <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.crzEconMach}</span>),
+      fcomRight(y, 422, [
+        <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.crzEconSpeed}</span>,
+        <span class="mfd-label-unit mfd-unit-trailing">KT</span>,
+      ]),
+    ];
+  }
+
+  private crzInformationRows(lrcY: number, maxTurbY: number): VNode[] {
+    return [
+      fcomRight(lrcY, 171, <span class="mfd-label">LRC</span>),
+      fcomRight(lrcY, 251, <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.lrcMach}</span>),
+      fcomRight(lrcY, 422, [
+        <span class={{ 'mfd-value': true, sec: this.secActive }}>---</span>,
+        <span class="mfd-label-unit mfd-unit-trailing">KT</span>,
+      ]),
+      fcomRight(maxTurbY, 171, <span class="mfd-label">MAX TURB</span>),
+      fcomRight(maxTurbY, 251, <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.maxTurbMach}</span>),
+      fcomRight(maxTurbY, 422, [
+        <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.maxTurbSpeed}</span>,
+        <span class="mfd-label-unit mfd-unit-trailing">KT</span>,
+      ]),
+    ];
+  }
+
+  /** CRZ tab in the CRZ phase: SELECTED or MANAGED line, the restriction of the managed speed, the ECON line */
+  private updateCruiseSpeedTableInCruise(
+    fpIndex: FlightPlanIndex,
+    distanceToReferenceNm: number | undefined,
+    fcuSpeed: number | undefined,
+  ): void {
+    const info = this.managedCruiseSpeedInfo(fpIndex);
+    const managedCells = info ? managedTargetCells(info) : { speed: '---', mach: '.--' };
+    const managedLine = this.managedSpeedActive.get() ? 1 : 2;
+
+    if (managedLine === 1) {
+      this.crzTableModeLine1.set('MANAGED');
+      this.crzTableSpdLine1.set(managedCells.speed);
+      this.crzTableMachLine1.set(managedCells.mach);
+      this.crzTableRestrictionLine1.set(info?.restriction ?? null);
+      this.crzTableModeLine2.set(null);
+      this.crzTableSpdLine2.set(null);
+      this.crzTableMachLine2.set(null);
+      this.crzTablePredLine2.set(null);
+    } else {
+      const selectedMach = fcuSpeed !== undefined && fcuSpeed < 1 ? fcuSpeed : null;
+      this.crzTableModeLine1.set('SELECTED');
+      this.crzTableSpdLine1.set(selectedMach !== null ? '---' : fcuSpeed?.toFixed(0) ?? null);
+      this.crzTableMachLine1.set(selectedMach !== null ? formatMach(selectedMach) : null);
+      this.crzTableModeLine2.set('MANAGED');
+      this.crzTableSpdLine2.set(managedCells.speed);
+      this.crzTableMachLine2.set(managedCells.mach);
+      this.crzTableRestrictionLine2.set(info?.restriction ?? null);
+      this.crzTablePredLine2.set(info ? this.managedCruisePrediction(distanceToReferenceNm, info.targetCas) : null);
+    }
+
+    this.crzEconLineBelow.set(info !== null && isEconLineShown(info) ? managedLine : null);
+    this.crzEconSpeed.set(info ? info.econSpeed.toFixed(0) : null);
+    this.crzEconMach.set(info ? formatMach(info.econMach) : null);
+
+    const labelTitle = cruiseSpeedRestrictionLabelTitle(info?.restriction ?? null);
+    this.crzRestrictionLabelTitle.set(labelTitle);
+    if (info !== null && labelTitle !== null) {
+      const speedLimit = info.speedLimit;
+      this.crzRestrictionLabelSpeed.set((speedLimit?.speed ?? info.targetCas).toFixed(0));
+      this.crzRestrictionLabelFlightLevel.set(speedLimit ? (speedLimit.underAltitude / 100).toFixed(0) : null);
+      this.crzRestrictionLabelWaypoint.set(speedLimit ? null : info.holdWaypoint);
+    }
+  }
+
+  /** The speed restrictions exist on the active flight plan only, a secondary flight plan shows its ECON speed */
+  private managedCruiseSpeedInfo(fpIndex: FlightPlanIndex): ManagedCruiseSpeedInfo | null {
+    const acInterface = this.props.fmcService.master.acInterface;
+    if (fpIndex === FlightPlanIndex.Active) {
+      return acInterface.getManagedCruiseSpeedInfo();
+    }
+    const fmgc = this.props.fmcService.master.fmgc;
+    const econSpeed = fmgc.getManagedCruiseSpeed(fpIndex);
+    const econMach = fmgc.getManagedCruiseSpeedMach(fpIndex);
+    const econ = acInterface.cruiseTarget(econSpeed, econMach, this.crzFl.get());
+    return {
+      targetCas: econ.cas,
+      targetMach: econ.mach,
+      restriction: null,
+      speedLimit: null,
+      holdWaypoint: null,
+      econSpeed,
+      econMach,
+      econCas: econ.cas,
+    };
+  }
+
   /**
    * @param distanceNm distance to the CRZ reference point (T/D or step) of the flight plan predictions
-   * @param fpIndex the flight plan of the page
+   * @param managedCas CAS of the managed cruise target
    * @returns the time and distance to the reference point at the managed cruise speed, null when not available
    */
-  private managedCruisePrediction(distanceNm: number | undefined, fpIndex: FlightPlanIndex): string | null {
+  private managedCruisePrediction(distanceNm: number | undefined, managedCas: number): string | null {
     if (distanceNm === undefined) {
       return null;
     }
-    const fmgc = this.props.fmcService.master.fmgc;
     const atmosphere = this.props.fmcService.master.guidanceController.atmosphericConditions;
     const altitude = atmosphere.currentAltitude;
-    const managedCas = Math.min(
-      fmgc.getManagedCruiseSpeed(fpIndex),
-      atmosphere.computeCasFromMach(altitude, fmgc.getManagedCruiseSpeedMach(fpIndex)),
-    );
     const seconds = managedCruiseSecondsToReference(
       distanceNm,
       atmosphere.computeTasFromCas(altitude, managedCas),
@@ -1308,10 +1433,10 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
       }
 
       // Update CRZ speed table
-      this.crzTableModeLine3.set(null);
-      this.crzTableSpdLine3.set(null);
-      this.crzTableMachLine3.set(null);
-      this.crzTablePredLine3.set(null);
+      this.crzTableRestrictionLine1.set(null);
+      this.crzTableRestrictionLine2.set(null);
+      this.crzEconLineBelow.set(null);
+      this.crzRestrictionLabelTitle.set(null);
 
       if (this.activeFlightPhase.get() < FmgcFlightPhase.Cruise) {
         this.crzTableModeLine1.set('PRESEL');
@@ -1323,50 +1448,8 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
           `.${this.props.fmcService.master.fmgc.getManagedCruiseSpeedMach(fpIndex).toFixed(2).split('.')[1]}`,
         );
         this.crzTablePredLine2.set('--:--   ----');
-      } else if (this.managedSpeedActive.get()) {
-        this.crzTableModeLine1.set('MANAGED');
-        // TODO add speed restriction (ECON, SPD LIM, ...) in smaller font
-        this.crzTableSpdLine1.set(
-          obs && obs.fcuSpeed < 1
-            ? '---'
-            : this.props.fmcService.master.fmgc.getManagedClimbSpeed(fpIndex).toFixed(0) ?? null,
-        );
-        this.crzTableMachLine1.set(
-          obs && obs.fcuSpeed < 1
-            ? `.${this.props.fmcService.master.fmgc.getManagedCruiseSpeedMach(fpIndex).toFixed(2).split('.')[1]}`
-            : '.--',
-        );
-
-        const fmgc = this.props.fmcService.master.fmgc;
-        const econSpeed = fmgc.getManagedCruiseSpeed(fpIndex);
-        if (isCruiseSpeedLimitApplied(fmgc.getClimbSpeedLimit(fpIndex), obs?.presentPosition.alt ?? 0, econSpeed)) {
-          this.crzTableModeLine2.set('ECON');
-          this.crzTableSpdLine2.set(econSpeed.toFixed(0));
-          this.crzTableMachLine2.set(`.${fmgc.getManagedCruiseSpeedMach(fpIndex).toFixed(2).split('.')[1]}`);
-        } else {
-          this.crzTableModeLine2.set(null);
-          this.crzTableSpdLine2.set(null);
-          this.crzTableMachLine2.set(null);
-        }
-        this.crzTablePredLine2.set(null);
       } else {
-        this.crzTableModeLine1.set('SELECTED');
-        this.crzTableSpdLine1.set(obs && obs.fcuSpeed < 1 ? '---' : obs?.fcuSpeed.toFixed(0) ?? null);
-        this.crzTableMachLine1.set(obs && obs.fcuSpeed < 1 ? `.${obs.fcuSpeed.toFixed(2).split('.')[1]}` : null);
-
-        this.crzTableModeLine2.set('MANAGED');
-        // TODO add speed restriction (ECON, SPD LIM, ...) in smaller font
-        this.crzTableSpdLine2.set(
-          obs && obs.fcuSpeed < 1
-            ? '---'
-            : this.props.fmcService.master.fmgc.getManagedCruiseSpeed(fpIndex).toFixed(0) ?? null,
-        );
-        this.crzTableMachLine2.set(
-          obs && obs.fcuSpeed < 1
-            ? `.${this.props.fmcService.master.fmgc.getManagedCruiseSpeedMach(fpIndex).toFixed(2).split('.')[1]}`
-            : '.--',
-        );
-        this.crzTablePredLine2.set(this.managedCruisePrediction(crzPred?.distanceFromPresentPosition, fpIndex));
+        this.updateCruiseSpeedTableInCruise(fpIndex, crzPred?.distanceFromPresentPosition, obs?.fcuSpeed);
       }
     }
 
@@ -2539,6 +2622,9 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                     <span class="mfd-label-unit mfd-unit-trailing">{this.crzTablePredLine1Unit}</span>,
                   ])}
 
+                  {/* Design choice: no figure shows the restriction type; it sits in small font under MANAGED */}
+                  {fcomCentre(241, 85, <span class="mfd-label">{this.crzTableRestrictionLine1}</span>)}
+
                   {/* Line 2: MANAGED below PRESEL or SELECTED */}
                   {fcomAt(
                     271,
@@ -2567,23 +2653,46 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                     <span class="mfd-label-unit mfd-unit-trailing">{this.crzTablePredLine2Unit}</span>,
                   ])}
 
-                  {/* LRC and MAX TURB, for information (small font) */}
-                  {fcomRight(329, 171, <span class="mfd-label">LRC</span>)}
-                  {fcomRight(329, 251, <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.lrcMach}</span>)}
-                  {fcomRight(329, 422, [
-                    <span class={{ 'mfd-value': true, sec: this.secActive }}>---</span>,
-                    <span class="mfd-label-unit mfd-unit-trailing">KT</span>,
-                  ])}
-                  {fcomRight(372, 171, <span class="mfd-label">MAX TURB</span>)}
-                  {fcomRight(
-                    372,
-                    251,
-                    <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.maxTurbMach}</span>,
-                  )}
-                  {fcomRight(372, 422, [
-                    <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.maxTurbSpeed}</span>,
-                    <span class="mfd-label-unit mfd-unit-trailing">KT</span>,
-                  ])}
+                  {fcomCentre(298, 85, <span class="mfd-label">{this.crzTableRestrictionLine2}</span>)}
+
+                  {/*
+                    ECON, LRC and MAX TURB, for information (small font). Design choice: below SELECTED and MANAGED, the
+                    ECON line takes the space of the managed restriction type and LRC / MAX TURB close up to fit the table.
+                  */}
+                  <div style={{ display: this.crzEconLineBelowLine1Display }}>{this.crzEconLine(271)}</div>
+                  <div style={{ display: this.crzInformationRowsDisplay }}>{this.crzInformationRows(329, 372)}</div>
+                  <div style={{ display: this.crzEconLineBelowLine2Display }}>
+                    {this.crzEconLine(322)}
+                    {this.crzInformationRows(346, 370)}
+                  </div>
+
+                  {/* Speed restriction label. Design choice: its position, below the table, as on the CLB panel */}
+                  <div style={{ display: this.crzRestrictionLabelDisplay }}>
+                    {fcomAt(437, 21, [
+                      <span class="mfd-label" style="margin-right: 25px;">
+                        {this.crzRestrictionLabelTitle}
+                      </span>,
+                      <span class={{ 'mfd-value': true, bigger: true, sec: this.secActive }}>
+                        {this.crzRestrictionLabelSpeed}
+                      </span>,
+                      <span class="mfd-label-unit mfd-unit-trailing" style="margin-right: 30px;">
+                        KT
+                      </span>,
+                      <span class={{ 'mfd-value': true, bigger: true, sec: this.secActive }}>/</span>,
+                      <div
+                        class="mfd-label-value-container"
+                        style={{ display: this.crzRestrictionLabelFlightLevelDisplay }}
+                      >
+                        <span class="mfd-label-unit mfd-unit-leading">FL</span>
+                        <span class={{ 'mfd-value': true, bigger: true, sec: this.secActive }}>
+                          {this.crzRestrictionLabelFlightLevel}
+                        </span>
+                      </div>,
+                      <span class={{ 'mfd-value': true, bigger: true, sec: this.secActive }} style="margin-left: 15px;">
+                        {this.crzRestrictionLabelWaypoint}
+                      </span>,
+                    ])}
+                  </div>
 
                   {/* Destination data, CMS and STEP ALTs buttons */}
                   {fcomAt(594, 18, <span class="mfd-label">DEST</span>)}
