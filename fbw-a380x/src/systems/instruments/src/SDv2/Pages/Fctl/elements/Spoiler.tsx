@@ -9,6 +9,7 @@ import {
   SubscribableMapFunctions,
 } from '@microsoft/msfs-sdk';
 import { SDSimvars } from '../../../SDSimvarPublisher';
+import { isSpoilerPowered, spoilerFailedTopic, SpoilerNumber, spoilerHydraulicSystem } from './SpoilerStatus';
 
 const SCALE_HEIGHT = -35;
 
@@ -21,7 +22,7 @@ interface SpoilerProps {
   x: number;
   y: number;
   side: SpoilerSide;
-  position: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  position: SpoilerNumber;
   onGround: Subscribable<boolean>;
   bus: EventBus;
 }
@@ -50,7 +51,7 @@ export class Spoiler extends DisplayComponent<SpoilerProps> {
   );
 
   private readonly hydPowerAvailable = ConsumerSubject.create(
-    this.props.bus.getSubscriber<SDSimvars>().on(`greenPressureSwitch`),
+    this.props.bus.getSubscriber<SDSimvars>().on(`${spoilerHydraulicSystem(this.props.position)}PressureSwitch`),
     false,
   );
 
@@ -59,19 +60,26 @@ export class Spoiler extends DisplayComponent<SpoilerProps> {
     false,
   );
 
-  // On ground, elec motors only active if G HYD system is pressurized
-  private readonly powerAvail = MappedSubject.create(
-    ([hydPowerAvailable, elecPowerAvailable, onGround]) =>
-      onGround ? hydPowerAvailable : hydPowerAvailable || elecPowerAvailable,
+  private readonly reportedFailed = ConsumerSubject.create(
+    this.props.bus.getSubscriber<SDSimvars>().on(spoilerFailedTopic(this.props.side, this.props.position)),
+    false,
+  );
+
+  // Amber when the actuator has no power supply, or when the flight control computers report the spoiler failed
+  // (actuator failure, symmetric spoiler inhibited, computer lost)
+  private readonly spoilerOperative = MappedSubject.create(
+    ([hydPowerAvailable, elecPowerAvailable, onGround, reportedFailed]) =>
+      isSpoilerPowered(this.props.position, hydPowerAvailable, elecPowerAvailable, onGround) && !reportedFailed,
     this.hydPowerAvailable,
     this.elecPowerAvailable,
     this.props.onGround,
+    this.reportedFailed,
   );
 
   private readonly maxDeflectionVisible = MappedSubject.create(
-    ([powerAvail, deflectionInfoValid, onGround]) =>
-      onGround && deflectionInfoValid && powerAvail && this.props.position >= 3,
-    this.powerAvail,
+    ([spoilerOperative, deflectionInfoValid, onGround]) =>
+      onGround && deflectionInfoValid && spoilerOperative && this.props.position >= 3,
+    this.spoilerOperative,
     this.deflectionInfoValid,
     this.props.onGround,
   );
@@ -108,7 +116,11 @@ export class Spoiler extends DisplayComponent<SpoilerProps> {
         />
 
         <path
-          class={{ Fill: true, Green: this.powerAvail, Amber: this.powerAvail.map(SubscribableMapFunctions.not()) }}
+          class={{
+            Fill: true,
+            Green: this.spoilerOperative,
+            Amber: this.spoilerOperative.map(SubscribableMapFunctions.not()),
+          }}
           visibility={this.deflectionInfoValid.map((deflectionInfoValid) =>
             deflectionInfoValid ? 'inherit' : 'hidden',
           )}
@@ -119,7 +131,7 @@ export class Spoiler extends DisplayComponent<SpoilerProps> {
 
         <path
           class="Amber SW4 LineRound"
-          visibility={this.powerAvail.map((spoilersFailed) => (!spoilersFailed ? 'inherit' : 'hidden'))}
+          visibility={this.spoilerOperative.map((spoilerOperative) => (!spoilerOperative ? 'inherit' : 'hidden'))}
           d="m1,-2 v-31 M14,-2 v-31"
         />
 

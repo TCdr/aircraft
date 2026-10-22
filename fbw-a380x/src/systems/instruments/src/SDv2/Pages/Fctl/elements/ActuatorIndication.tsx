@@ -19,8 +19,8 @@ export enum HydraulicPowerSource {
 
 export enum ElecPowerSource {
   AcEss = 'acEss',
-  AcEha = 'ac1',
-  Ac1 = 'acEha',
+  AcEha = 'acEha',
+  Ac1 = 'ac1',
 }
 
 /**

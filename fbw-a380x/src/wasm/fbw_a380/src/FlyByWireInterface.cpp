@@ -10,6 +10,7 @@
 #include "FadecLgciu.h"
 #include "FlightControlInputFailures.h"
 #include "FlyByWireInterface.h"
+#include "SpoilerFailureIndication.h"
 #include "interface/SimConnectData.h"
 #include "failures/PrimActuatorControlFailures.h"
 
@@ -698,6 +699,8 @@ void FlyByWireInterface::setupLocalVariables() {
 
     idLeftSpoilerCommandedPosition[i] = std::make_unique<LocalVariable>("A32NX_LEFT_SPOILER_" + idString + "_COMMANDED_POSITION");
     idRightSpoilerCommandedPosition[i] = std::make_unique<LocalVariable>("A32NX_RIGHT_SPOILER_" + idString + "_COMMANDED_POSITION");
+    idLeftSpoilerFailed[i] = std::make_unique<LocalVariable>("A32NX_FCTL_LEFT_SPOILER_" + idString + "_FAILED");
+    idRightSpoilerFailed[i] = std::make_unique<LocalVariable>("A32NX_FCTL_RIGHT_SPOILER_" + idString + "_FAILED");
   }
   idLeftSpoiler6EbhaElectronicEnable = std::make_unique<LocalVariable>("A32NX_LEFT_SPOILER_6_EBHA_ELECTRONIC_ENABLE");
   idRightSpoiler6EbhaElectronicEnable = std::make_unique<LocalVariable>("A32NX_RIGHT_SPOILER_6_EBHA_ELECTRONIC_ENABLE");
@@ -2848,6 +2851,16 @@ bool FlyByWireInterface::updateServoSolenoidStatus() {
         FlightControlInputFailures::spoilerCommand(leftSpoilerOrders[i], i, leftSpoilerFailures, rightSpoilerFailures));
     idRightSpoilerCommandedPosition[i]->set(
         FlightControlInputFailures::spoilerCommand(rightSpoilerOrders[i], i, rightSpoilerFailures, leftSpoilerFailures));
+  }
+  const SpoilerFailureIndication::ComputerHealth primHealthy = {
+      primsDiscreteOutputs[0].prim_healthy, primsDiscreteOutputs[1].prim_healthy, primsDiscreteOutputs[2].prim_healthy};
+  const SpoilerFailureIndication::ComputerHealth secHealthy = {secsDiscreteOutputs[0].sec_healthy, secsDiscreteOutputs[1].sec_healthy,
+                                                               secsDiscreteOutputs[2].sec_healthy};
+  for (int i = 0; i < 8; i++) {
+    idLeftSpoilerFailed[i]->set(
+        SpoilerFailureIndication::spoilerFailed(i, leftSpoilerFailures, rightSpoilerFailures, primHealthy, secHealthy));
+    idRightSpoilerFailed[i]->set(
+        SpoilerFailureIndication::spoilerFailed(i, rightSpoilerFailures, leftSpoilerFailures, primHealthy, secHealthy));
   }
   idLeftSpoiler6EbhaElectronicEnable->set(primsDiscreteOutputs[0].left_spoiler_electronic_module_enable);
   idRightSpoiler6EbhaElectronicEnable->set(primsDiscreteOutputs[0].right_spoiler_electronic_module_enable);

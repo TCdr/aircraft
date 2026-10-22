@@ -63,3 +63,8 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src -I ../src/model prim_a
 clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model flight_control_input_failures_test.cpp ../src/model/*.cpp \
   -o ../obj/flight_control_input_failures_test
 ../obj/flight_control_input_failures_test
+# The spoilers shown failed on the F/CTL system display: actuator failures and the flight control computer of each spoiler
+# (SpoilerFailureIndication.h). With WITHOUT_THE_FIX=1 no spoiler is reported failed and the test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src spoiler_failure_indication_test.cpp \
+  -o ../obj/spoiler_failure_indication_test
+../obj/spoiler_failure_indication_test

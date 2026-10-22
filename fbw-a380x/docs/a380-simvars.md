@@ -1721,6 +1721,15 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Boolean
     - The stabilizer is jammed
 
+- A32NX_FCTL_{SIDE}_SPOILER_{N}_FAILED
+    - Boolean
+    - Spoiler {N} no longer responds to its orders: its actuator is failed (flyPad ATA 27 spoiler actuator failures),
+      the symmetric spoiler actuator is failed (spoilers 1 to 4, 7 and 8 are then inhibited), or its flight control
+      computer is not healthy (spoiler 1 and 8 SEC 3, 2 and 7 SEC 2, 3 SEC 1, 4 PRIM 3, 5 PRIM 2, 6 PRIM 1); written by
+      the fbw module, read by the SD F/CTL page
+    - {SIDE} = LEFT, RIGHT
+    - {N} = 1 (inboard) to 8 (outboard)
+
 ### Flaps and Slats
 
 - A32NX_{side}_FLAPS_{number}_POSITION_PERCENT
