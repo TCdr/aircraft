@@ -23,6 +23,7 @@ import {
 } from '@flybywiresim/flypad';
 import { useNavigraphAuthInfo } from '../../Apis/Navigraph/Components/Authentication';
 import { M3Button, M3Card, M3Chip } from '../../UtilComponents/Material/Material';
+import { flightLineProgress, plannedTimeOver } from './flightLineMarks';
 
 interface InformationEntryProps {
   title: string;
@@ -36,6 +37,29 @@ const InformationEntry = ({ title, info }: InformationEntryProps) => (
     <span className="truncate text-lg font-bold text-m3-text">{info}</span>
   </div>
 );
+
+interface FlightLineMarkProps {
+  name: string;
+  progress: number;
+  time: string;
+  flightPlanProgress: number;
+}
+
+const FlightLineMark = ({ name, progress, time, flightPlanProgress }: FlightLineMarkProps) => {
+  const passed = flightPlanProgress >= progress;
+  const textColor = passed ? 'text-m3-on-primary-container' : 'text-m3-muted';
+
+  return (
+    <div
+      className="absolute top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+      style={{ left: `${progress}%` }}
+    >
+      <span className={`text-xs font-bold tracking-widest ${textColor}`}>{name}</span>
+      <div className={`my-1 h-4 w-1 rounded-full ${passed ? 'bg-m3-on-primary-container' : 'bg-m3-text'}`} />
+      <span className={`text-xs font-bold ${textColor}`}>{time}</span>
+    </div>
+  );
+};
 
 export const FlightWidget = () => {
   const { data } = useAppSelector((state) => state.simbrief);
@@ -73,6 +97,13 @@ export const FlightWidget = () => {
     costInd,
     arrivingRunway,
     departingRunway,
+    departingPosLat,
+    departingPosLong,
+    arrivingPosLat,
+    arrivingPosLong,
+    taxiOutTime,
+    topOfClimb,
+    topOfDescent,
   } = data;
   const { flightPlanProgress } = useAppSelector((state) => state.flightProgress);
 
@@ -89,6 +120,19 @@ export const FlightWidget = () => {
 
   const std = new Date(parseInt(schedOut) * 1000);
   const schedOutParsed = `${std.getUTCHours().toString().padStart(2, '0')}${std.getUTCMinutes().toString().padStart(2, '0')}Z`;
+
+  const departure = { lat: departingPosLat, long: departingPosLong };
+  const arrival = { lat: arrivingPosLat, long: arrivingPosLong };
+  const flightLineMarks = [
+    { name: 'T/C', point: topOfClimb },
+    { name: 'T/D', point: topOfDescent },
+  ]
+    .filter((mark) => mark.point)
+    .map((mark) => ({
+      name: mark.name,
+      progress: flightLineProgress(departure, arrival, mark.point),
+      time: plannedTimeOver(schedOut, taxiOutTime, mark.point),
+    }));
 
   const flightLevel = cruiseAltitude / 100;
   const crzAlt = `FL${flightLevel.toString().padStart(3, '0')}`;
@@ -181,7 +225,7 @@ export const FlightWidget = () => {
             </div>
 
             {/* the scheduled times, the progress of the flight between them */}
-            <div className="mt-6 flex shrink-0 flex-row items-center">
+            <div className="mt-6 flex h-16 shrink-0 flex-row items-center">
               <span
                 className={`text-lg font-bold ${flightPlanProgress > 1 ? 'text-m3-on-primary-container' : 'text-m3-text'}`}
               >
@@ -189,6 +233,9 @@ export const FlightWidget = () => {
               </span>
               <div className="relative mx-6 flex h-1 flex-1 flex-row">
                 <div className="absolute inset-x-0 border-b-4 border-dashed border-m3-outline" />
+                {flightLineMarks.map((mark) => (
+                  <FlightLineMark key={mark.name} {...mark} flightPlanProgress={flightPlanProgress} />
+                ))}
                 <div className="relative bg-m3-primary" style={{ width: `${flightPlanProgress}%` }}>
                   {!!flightPlanProgress && (
                     <IconPlane
