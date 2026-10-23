@@ -315,7 +315,13 @@ export class CruisePathBuilder {
         zeroFuelWeight,
         state.remainingFuelOnBoard,
         headwind,
-        this.atmosphericConditions.isaDeviation,
+        profile.temperatures.getCruiseIsaDeviation(
+          state.distanceFromStart,
+          state.distanceFromStart - profile.distanceToPresentPosition,
+          sequence.lastCheckpoint.altitude,
+          this.atmosphericConditions.isaDeviation,
+          this.atmosphericConditions.currentAltitude,
+        ),
         tropoPause,
         perfFactor,
       );

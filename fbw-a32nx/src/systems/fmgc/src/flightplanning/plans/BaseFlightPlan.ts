@@ -91,6 +91,12 @@ import {
   PropagationType,
   WindEntry,
 } from '../data/wind';
+import {
+  cloneTemperatureEntry,
+  propagateTemperatureEntry,
+  PropagatedTemperatureEntry,
+  TemperatureEntry,
+} from '../data/temperature';
 import { EngineOutDepartureSegment } from '../segments/EngineOutDepartureSegment';
 import { ConstantMachSegmentMarker, findConstantMachSegment } from '../ConstantMachSegment';
 import { FlightPlanIndex } from '../FlightPlanManager';
@@ -119,6 +125,9 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
    */
   protected readonly draftCruiseWindEntries: Value<Map<number, WindEntry[]> | null> | undefined;
 
+  /** The temperature entries ride the wind draft: INSERT and WIND CANCEL apply to both. A null value is no entry. */
+  protected readonly draftCruiseTemperatureEntries: Value<Map<number, TemperatureEntry | null> | null> | undefined;
+
   protected constructor(
     protected readonly context: FlightPlanContext,
     public readonly index: number,
@@ -131,6 +140,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
 
     if (draftOnWindsOnWindEdit && index !== FlightPlanIndex.Temporary && index !== FlightPlanIndex.Uplink) {
       this.draftCruiseWindEntries = Value.create(null);
+      this.draftCruiseTemperatureEntries = Value.create(null);
     }
     this.wasModified = false;
   }
@@ -3294,6 +3304,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
 
   protected deleteCruiseDraftWindEntries(): boolean {
     if (this.draftCruiseWindEntries !== undefined) {
+      this.draftCruiseTemperatureEntries?.set(null);
       this.draftCruiseWindEntries.set(null);
       return true;
     }
@@ -3322,6 +3333,59 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
       }
       this.draftCruiseWindEntries.set(map);
     }
+
+    if (this.draftCruiseTemperatureEntries?.get() === null) {
+      const temperatureMap: Map<number, TemperatureEntry | null> = new Map();
+      for (let i = this.activeLegIndex; i < this.firstMissedApproachLegIndex; i++) {
+        const leg = this.maybeElementAt(i);
+        if (isLeg(leg)) {
+          temperatureMap.set(i, leg.cruiseTemperatureEntry ? cloneTemperatureEntry(leg.cruiseTemperatureEntry) : null);
+        }
+      }
+      this.draftCruiseTemperatureEntries.set(temperatureMap);
+    }
+  }
+
+  /** The temperature entry of a leg as the page shows it: the draft if one is being edited, else the inserted one */
+  private temperatureEntryOfLeg(legIndex: number): TemperatureEntry | undefined {
+    const draft = this.draftCruiseTemperatureEntries?.get();
+    if (draft && draft.has(legIndex)) {
+      return draft.get(legIndex) ?? undefined;
+    }
+    const element = this.maybeElementAt(legIndex);
+    return isLeg(element) ? element.cruiseTemperatureEntry : undefined;
+  }
+
+  /**
+   * The SAT entry that applies at a cruise waypoint: its own or the one propagated down-path from an earlier waypoint.
+   * @returns the entry, or null if no waypoint up to this one has one
+   */
+  propagateTemperatureAt(atIndex: number): PropagatedTemperatureEntry | null {
+    return propagateTemperatureEntry((i) => this.temperatureEntryOfLeg(i), atIndex);
+  }
+
+  /**
+   * Sets or clears the SAT entered at a cruise waypoint.
+   * @param entry the SAT and its altitude, or null to remove the entry of this waypoint
+   */
+  async setCruiseTemperatureEntry(atIndex: number, entry: TemperatureEntry | null, checkDraftConfig = true) {
+    const leg = this.maybeElementAt(atIndex);
+    if (!isLeg(leg) || !leg.isXF()) {
+      console.error('[FMS/FPM] Tried to set a cruise temperature entry at a non-XF leg at index', atIndex);
+      return;
+    }
+
+    if (checkDraftConfig) {
+      this.prepareCruiseWindDraftModification();
+    }
+
+    const draft = this.draftCruiseTemperatureEntries?.get() ?? null;
+    if (draft !== null) {
+      draft.set(atIndex, entry ? cloneTemperatureEntry(entry) : null);
+    } else {
+      leg.cruiseTemperatureEntry = entry ? cloneTemperatureEntry(entry) : undefined;
+    }
+    this.incrementVersion();
   }
 
   private static sortWindEntriesByAltitude(entries: PropagatedWindEntry[]) {

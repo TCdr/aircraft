@@ -19,6 +19,7 @@ import {
   FlightPlanPerformanceData,
 } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FlightPlanFlags } from './plans/FlightPlanFlags';
+import { TemperatureEntry } from './data/temperature';
 import { FlightPlanBatch } from '@fmgc/flightplanning/plans/FlightPlanBatch';
 import {
   WindEntry,
@@ -1130,6 +1131,14 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
   propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], planIndex = FlightPlanIndex.Active) {
     const plan = this.flightPlanManager.get(planIndex);
     return plan.propagateWindsAt(atIndex, result);
+  }
+
+  propagateTemperatureAt(atIndex: number, planIndex = FlightPlanIndex.Active) {
+    return this.flightPlanManager.get(planIndex).propagateTemperatureAt(atIndex);
+  }
+
+  setCruiseTemperatureEntry(atIndex: number, entry: TemperatureEntry | null, planIndex: number): Promise<void> {
+    return this.flightPlanManager.get(planIndex).setCruiseTemperatureEntry(atIndex, entry);
   }
 
   addCruiseWindEntry(atIndex: number, entry: WindEntry, planIndex: number): Promise<void> {

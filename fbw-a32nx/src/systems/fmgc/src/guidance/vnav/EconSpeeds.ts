@@ -334,6 +334,7 @@ export class EconSpeeds {
    * @param costIndex in kg/min
    * @param conditions the flight conditions; their altitude is ignored
    * @param minSpeedAt lowest speed (green dot) at an altitude in feet, in knots CAS
+   * @param atmosphereAt the wind and temperature expected at a level; the constant ones of the conditions without it
    * @returns the flight level (a multiple of 10, or the REC MAX), or null if no level fits
    */
   static optimumFlightLevel(
@@ -344,6 +345,7 @@ export class EconSpeeds {
     recMaxFlightLevel: number,
     minSpeedAt: (altitude: number) => number,
     trip: OptimumLevelTrip | null,
+    atmosphereAt?: (altitude: number) => { isaDeviation: number; headwind: number },
   ): number | null {
     if (
       !Number.isFinite(costIndex) ||
@@ -365,7 +367,7 @@ export class EconSpeeds {
     let bestAltitude: number | null = null;
     let bestCost = Infinity;
     for (const altitude of levels) {
-      const levelConditions = { ...conditions, altitude };
+      const levelConditions = { ...conditions, ...atmosphereAt?.(altitude), altitude };
       const mach = EconSpeeds.econCruiseMach(config, aircraft, costIndex, levelConditions, minSpeedAt(altitude));
       if (mach === null) {
         continue;

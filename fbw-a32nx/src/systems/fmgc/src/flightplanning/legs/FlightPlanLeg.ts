@@ -35,6 +35,7 @@ import { ReadonlyFlightPlanLeg } from '@fmgc/flightplanning/legs/ReadonlyFlightP
 import { v4 } from 'uuid';
 import { CopyOptions } from '@fmgc/flightplanning/plans/CloningOptions';
 import { cloneWindVector, WindEntry } from '../data/wind';
+import { TemperatureEntry } from '../data/temperature';
 
 /**
  * A serialized flight plan leg, to be sent across FMSes
@@ -56,6 +57,7 @@ export interface SerializedFlightPlanLeg {
   pilotEnteredSpeedConstraint: SpeedConstraint | undefined;
   calculated: LegCalculations;
   cruiseWindEntries: WindEntry[];
+  cruiseTemperatureEntry?: TemperatureEntry;
 }
 
 export enum FlightPlanLegFlags {
@@ -139,6 +141,9 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
 
   cruiseWindEntries: WindEntry[] = [];
 
+  /** The SAT entered at this cruise waypoint; it holds down-path until another waypoint has its own */
+  cruiseTemperatureEntry: TemperatureEntry | undefined = undefined;
+
   serialize(): SerializedFlightPlanLeg {
     return {
       uuid: this.uuid,
@@ -164,6 +169,7 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
         vector: cloneWindVector(entry.vector),
         altitude: entry.altitude,
       })),
+      cruiseTemperatureEntry: this.cruiseTemperatureEntry ? { ...this.cruiseTemperatureEntry } : undefined,
     };
   }
 
@@ -200,6 +206,9 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
       vector: entry.vector !== undefined ? cloneWindVector(entry.vector) : undefined,
       altitude: entry.altitude,
     }));
+    leg.cruiseTemperatureEntry = serialized.cruiseTemperatureEntry
+      ? { ...serialized.cruiseTemperatureEntry }
+      : undefined;
 
     return leg;
   }
@@ -367,6 +376,7 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
     this.cruiseStep = from.cruiseStep;
     this.constantMachSegment = from.constantMachSegment;
     this.cruiseWindEntries = from.cruiseWindEntries;
+    this.cruiseTemperatureEntry = from.cruiseTemperatureEntry;
     /**
      * Don't copy holds. When we string the arrival to the upstream plan, the upstream plan may have a hold
      * and the downstream leg doesn't, but the upstream leg is the one that's kept. In this case, we don't want to remove the hold

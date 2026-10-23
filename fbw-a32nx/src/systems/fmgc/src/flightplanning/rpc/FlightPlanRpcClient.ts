@@ -28,6 +28,7 @@ import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { FlightPlanBatch } from '@fmgc/flightplanning/plans/FlightPlanBatch';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
 import { HistoryWindEntry, PropagatedWindEntry, WindEntry, WindVector } from '../data/wind';
+import { PropagatedTemperatureEntry, TemperatureEntry } from '../data/temperature';
 import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
 import { ConstantMachSegmentDeletionReason } from '@fmgc/flightplanning/ConstantMachSegment';
 
@@ -620,6 +621,14 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
 
   propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], planIndex: number): PropagatedWindEntry[] {
     return this.propagateWindsAt(atIndex, result, planIndex);
+  }
+
+  propagateTemperatureAt(atIndex: number, planIndex: number): PropagatedTemperatureEntry | null {
+    return this.flightPlanManager.get(planIndex).propagateTemperatureAt(atIndex);
+  }
+
+  setCruiseTemperatureEntry(atIndex: number, entry: TemperatureEntry | null, planIndex: number): Promise<void> {
+    return this.callFunctionViaRpc('setCruiseTemperatureEntry', atIndex, entry, planIndex);
   }
 
   addCruiseWindEntry(atIndex: number, entry: WindEntry, planIndex: number): Promise<void> {

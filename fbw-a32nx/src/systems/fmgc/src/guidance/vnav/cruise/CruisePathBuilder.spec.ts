@@ -15,7 +15,9 @@ import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vna
 const CRUISE_ALTITUDE = 25_000;
 const START_OF_CRUISE_DISTANCE = 150;
 
-function accelerationAtStartOfCruise(fuelOnBoard: Pounds) {
+type CruiseIsaDeviation = (distanceFromStart: number, altitude: number, measured: number) => number;
+
+function cruiseSequence(fuelOnBoard: Pounds, isaDeviationAt: CruiseIsaDeviation = (_d, _alt, measured) => measured) {
   const parameters = {
     zeroFuelWeight: 130_000,
     cruiseAltitude: CRUISE_ALTITUDE,
@@ -30,6 +32,10 @@ function accelerationAtStartOfCruise(fuelOnBoard: Pounds) {
     constantMachSegment: null,
     distanceToPresentPosition: 0,
     winds: { getCruiseTailwind: () => 0 },
+    temperatures: {
+      getCruiseIsaDeviation: (distance: number, _a: number, altitude: number, measured: number) =>
+        isaDeviationAt(distance, altitude, measured),
+    },
   } as unknown as NavGeometryProfile;
   const speedProfile = { getTarget: () => 300 } as unknown as SpeedProfile;
 
@@ -52,7 +58,11 @@ function accelerationAtStartOfCruise(fuelOnBoard: Pounds) {
     speedProfile,
   );
 
-  const acceleration = sequence.get().find((checkpoint) => checkpoint.speed === 300);
+  return sequence.get();
+}
+
+function accelerationAtStartOfCruise(fuelOnBoard: Pounds) {
+  const acceleration = cruiseSequence(fuelOnBoard).find((checkpoint) => checkpoint.speed === 300);
 
   return acceleration.distanceFromStart - START_OF_CRUISE_DISTANCE;
 }
@@ -63,5 +73,20 @@ describe('CruisePathBuilder', () => {
     const heavyAccelerationDistance = accelerationAtStartOfCruise(40_000);
 
     expect(heavyAccelerationDistance).toBeGreaterThan(lightAccelerationDistance * 1.05);
+  });
+
+  it('flies the cruise with the temperature expected at the route, not the measured one', () => {
+    const flightTime = (isaDeviation: CruiseIsaDeviation) => {
+      const checkpoints = cruiseSequence(40_000, isaDeviation);
+      return checkpoints[checkpoints.length - 1].secondsFromPresent;
+    };
+
+    const measuredIsa = flightTime((_d, _alt, measured) => measured);
+    const hotRoute = flightTime(() => 20);
+    const coldRoute = flightTime(() => -20);
+
+    // A warm atmosphere gives more TAS at the same Mach
+    expect(hotRoute).toBeLessThan(measuredIsa);
+    expect(coldRoute).toBeGreaterThan(measuredIsa);
   });
 });
