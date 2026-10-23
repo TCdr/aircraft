@@ -60,6 +60,15 @@ import {
   TypeIIMessage,
   TypeIMessage,
 } from '../shared/NXSystemMessages';
+import { HXLeg } from '@fmgc/guidance/lnav/legs/HX';
+import {
+  selectUnfoldedHolds,
+  shiftDistanceForHolds,
+  unfoldHoldsInProfile,
+  unfoldHoldsInSymbols,
+  VdHold,
+  VdHoldCandidate,
+} from './VdHoldUnfold';
 import { DataManager, LatLonFormatType, PilotWaypoint } from '@fmgc/flightplanning/DataManager';
 import { bearingTo, Coordinates } from 'msfs-geo';
 import { isAlignReferenceLost } from './IrsAlignReference';
@@ -2734,7 +2743,11 @@ export class FlightManagementComputer implements FmcInterface {
       this.flsBeamPublisher.publish(null);
       return;
     }
-    this.publishFlsBeam(plan, predictions);
+    const unfoldedHolds = this.unfoldedHolds(plan, predictions);
+    this.efisSymbolsLeft.vdSymbolTransform = this.efisSymbolsRight.vdSymbolTransform = unfoldedHolds.length
+      ? (symbols) => unfoldHoldsInSymbols(symbols, unfoldedHolds)
+      : null;
+    this.publishFlsBeam(plan, predictions, unfoldedHolds);
 
     const targetProfile = this.guidanceController.vnavDriver.mcduProfile;
     const descentProfile = this.guidanceController.vnavDriver.descentProfile;
@@ -2818,17 +2831,41 @@ export class FlightManagementComputer implements FmcInterface {
     });
 
     this.acInterface.transmitVerticalPath(
-      targetProfileVd,
+      unfoldHoldsInProfile(targetProfileVd, unfoldedHolds),
       vdAltitudeConstraints,
-      actualProfileVd,
-      descentProfileVd,
-      trackChangesSignificantlyAtDistance,
+      unfoldHoldsInProfile(actualProfileVd, unfoldedHolds),
+      unfoldHoldsInProfile(descentProfileVd, unfoldedHolds),
+      trackChangesSignificantlyAtDistance === null
+        ? null
+        : shiftDistanceForHolds(trackChangesSignificantlyAtDistance, unfoldedHolds),
     );
+  }
+
+  private unfoldedHolds(
+    plan: ReadonlyFlightPlan<A380FlightPlanPerformanceData>,
+    predictions: ReadonlyMap<number, VerticalWaypointPrediction>,
+  ) {
+    const candidates: VdHoldCandidate[] = [];
+    this.guidanceController.activeGeometry?.legs.forEach((leg, legIndex) => {
+      const prediction = predictions.get(legIndex);
+      if (leg instanceof HXLeg && prediction) {
+        candidates.push({
+          legIndex,
+          ident: leg.ident,
+          distanceFromAircraft: prediction.distanceFromAircraft,
+          orbitLength: leg.unfoldedOrbitLength,
+          altitude: prediction.altitude,
+        });
+      }
+    });
+
+    return selectUnfoldedHolds(candidates, plan.activeLegIndex, this.acInterface.isAirspeedManaged() ?? true);
   }
 
   private publishFlsBeam(
     plan: ReadonlyFlightPlan<A380FlightPlanPerformanceData>,
     predictions: ReadonlyMap<number, VerticalWaypointPrediction>,
+    unfoldedHolds: readonly VdHold[],
   ) {
     const pd = plan.performanceData;
     const inputs = flsBeamInputs(
@@ -2837,6 +2874,12 @@ export class FlightManagementComputer implements FmcInterface {
       pd.approachTemperature.get(),
       pd.approachQnh.get() !== null ? this.fmgc.getApproachQnh() : null,
     );
+    if (inputs) {
+      inputs.missedApproachPoint.distanceFromAircraft = shiftDistanceForHolds(
+        inputs.missedApproachPoint.distanceFromAircraft,
+        unfoldedHolds,
+      );
+    }
     this.flsBeamPublisher.publish(inputs ? computeFlsBeam(inputs) : null);
   }
 

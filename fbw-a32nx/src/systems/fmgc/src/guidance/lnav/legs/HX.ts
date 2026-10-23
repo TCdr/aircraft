@@ -43,7 +43,7 @@ export enum HxLegGuidanceState {
 
 // TODO make sure IMM EXIT works during teardrop/parallel (proceed to HF via that entry then sequence the HM immediately)
 // TODO move HMLeg specific logic to HMLeg
-abstract class HXLeg extends XFLeg {
+export abstract class HXLeg extends XFLeg {
   // TODO consider different entries for initial state...
   // TODO make protected when done with DebugHXLeg
   public state: HxLegGuidanceState = HxLegGuidanceState.Inbound;
@@ -205,6 +205,11 @@ abstract class HXLeg extends XFLeg {
 
   get distance(): NauticalMiles {
     return 0; // 0 so no PWPs
+  }
+
+  /** Length of one full pattern, which the vertical display unfolds along its horizontal axis. */
+  get unfoldedOrbitLength(): NauticalMiles {
+    return 2 * this.computeLegDistance() + 2 * Math.PI * this.radius;
   }
 
   get inboundCourse(): Degrees {
