@@ -132,19 +132,18 @@
     "Active": "active",
     "ActiveFailure": "active failure",
     "ActiveFailures": "active failures",
-    "Comfort": {
-      "Title": "Comfort"
-    },
-    "Compact": {
-      "Title": "Compact"
-    },
-    "FailedTapToRestore": "Failed, tap to restore",
+    "ActiveFailuresTitle": "Active failures",
+    "AllResults": "All results",
+    "ClearSearch": "Clear the search",
     "Failure": "failure",
     "Failures": "failures",
     "FullSimulationOfTheFailuresBelowIsntYetGuaranteed": "Full simulation of the failures below isn't yet guaranteed.",
+    "NoActiveFailures": "No failure is active.",
+    "NoItemsFound": "No items found",
+    "RestoreAll": "Restore all",
+    "ResultsFor": "Results for",
     "Search": "Search",
-    "Title": "Failures",
-    "Working": "Working"
+    "Title": "Failures"
   },
   "Ground": {
     "Fuel": {

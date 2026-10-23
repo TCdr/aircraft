@@ -9,9 +9,8 @@ import { useHistory } from 'react-router';
 import { t } from '../../../Localization/translation';
 import { RemindersSection } from './RemindersSection';
 import { useFailuresOrchestrator } from '../../../failures-orchestrator-provider';
-import { findLatestSeenPathname } from '../../../Utils/routing';
 import { useAppDispatch } from '../../../Store/store';
-import { setSearchQuery } from '../../../Store/features/failuresPage';
+import { setSearchQuery, setSelection } from '../../../Store/features/failuresPage';
 import { M3ListRow } from '../../../UtilComponents/Material/Material';
 
 interface ActiveFailureCardProps {
@@ -31,19 +30,9 @@ const ActiveFailureCard: FC<ActiveFailureCardProps> = ({ ata, name }) => {
       status={`Active Failure${ata ? ` · ATA ${ata}` : ''}`}
       trailing={<ArrowRight size={18} className="text-m3-muted" />}
       onClick={() => {
-        dispatch(setSearchQuery(name.toUpperCase()));
-
-        const lastFailurePath = findLatestSeenPathname(history, '/failures');
-
-        if (!ata) {
-          history.push('/failures/compact');
-        }
-
-        if (!lastFailurePath || lastFailurePath.includes('comfort')) {
-          history.push(`/failures/comfort/${ata}`);
-        } else {
-          history.push('/failures/compact');
-        }
+        dispatch(setSearchQuery(''));
+        dispatch(setSelection('active'));
+        history.push('/failures');
       }}
     />
   );
