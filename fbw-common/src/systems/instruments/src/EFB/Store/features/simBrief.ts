@@ -6,6 +6,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { store, RootState } from '../store';
 import { IFuel, IWeights } from '../../../../../shared/src/Simbrief/simbriefInterface';
 import { getSimbriefData } from '../../../../../shared/src/Simbrief/simbriefParser';
+import { NavlogPoint, navlogPoint } from '../../Dashboard/Widgets/flightLineMarks';
 
 export interface SimbriefData {
   departingAirport: string;
@@ -48,6 +49,8 @@ export interface SimbriefData {
   route: string;
   loadsheet: string;
   costInd: string;
+  topOfClimb: NavlogPoint | null;
+  topOfDescent: NavlogPoint | null;
 }
 
 export const initialState: {
@@ -125,6 +128,8 @@ export const initialState: {
     schedOut: '',
     loadsheet: '',
     costInd: '',
+    topOfClimb: null,
+    topOfDescent: null,
   },
   payloadImported: false,
   fuelImported: false,
@@ -228,6 +233,8 @@ export async function fetchSimbriefDataAction(
     schedIn: returnedSimbriefData.times.schedIn,
     loadsheet: returnedSimbriefData.text,
     costInd: returnedSimbriefData.costIndex,
+    topOfClimb: navlogPoint(returnedSimbriefData.navlog, 'TOC'),
+    topOfDescent: navlogPoint(returnedSimbriefData.navlog, 'TOD'),
   });
 }
 
