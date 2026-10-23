@@ -1196,6 +1196,9 @@ export class EfisSymbols<T extends number> {
     this.syncer.sendEvent(this.syncEvent, ndSymbols);
   }
 
+  /** Rearranges the symbols along the vertical display axis, e.g. around an unfolded holding pattern. */
+  public vdSymbolTransform: ((symbols: VdSymbol[]) => VdSymbol[]) | null = null;
+
   private transmitVdSymbols(symbols: InternalFmsSymbol[]) {
     const vdSymbols: VdSymbol[] = symbols.map((s): VdSymbol => {
       return {
@@ -1213,7 +1216,9 @@ export class EfisSymbols<T extends number> {
         distanceFromAirplane: s.distanceFromAirplane,
       };
     });
-    this.bus.getPublisher<FmsData>().pub(`vdSymbols_${this.side}`, vdSymbols, true);
+    this.bus
+      .getPublisher<FmsData>()
+      .pub(`vdSymbols_${this.side}`, this.vdSymbolTransform ? this.vdSymbolTransform(vdSymbols) : vdSymbols, true);
   }
 }
 
