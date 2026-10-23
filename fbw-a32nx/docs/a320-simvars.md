@@ -2460,6 +2460,16 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Indicates to the FG if the FM vertical flight profile is valid, for vertical managed modes.
     - Internal to FM/FG communication
 
+- A32NX_FM_DESCENT_ANTI_ICE
+    - Enum
+    - The anti-ice state the descent predictions use: 0 none, 1 engine, 2 wing, 3 engine and wing
+    - Shared with the A380X
+
+- A32NX_FM_TOD_DISTANCE_TO_DESTINATION
+    - Nautical miles
+    - Along-track distance from the top of descent of the descent profile to the destination, -1 without a profile
+    - Shared with the A380X
+
 - A32NX_FM_ENERGY_CIRCLE_DISTANCE
     - Number (nautical miles)
     - The energy circle radius for the NDs: the required distance to land on the descent profile from the present

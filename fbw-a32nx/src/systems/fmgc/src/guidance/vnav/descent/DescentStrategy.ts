@@ -10,6 +10,7 @@ import {
   AircraftConfiguration as AircraftCtlSurfcConfiguration,
   DEFAULT_AIRCRAFT_CONTROL_SURFACE_CONFIG,
 } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
+import { antiIceIdleCn2Increase } from '@fmgc/guidance/vnav/descent/AntiIceIdle';
 import { EngineModel } from '@fmgc/guidance/vnav/EngineModel';
 import { Predictions, StepResults } from '@fmgc/guidance/vnav/Predictions';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
@@ -206,14 +207,19 @@ export class IdleDescentStrategy implements DescentStrategy {
     headwindComponent: number,
     config: Partial<AircraftCtlSurfcConfiguration> = this.defaultConfig,
   ): StepResults {
-    const { zeroFuelWeight, perfFactor, tropoPause } = this.observer.get();
+    const { zeroFuelWeight, perfFactor, tropoPause, engineAntiIce, wingAntiIce } = this.observer.get();
     const { flapConfig, gearExtended, speedbrakesExtended } = { ...this.defaultConfig, ...config };
 
     const midwayAltitude = (initialAltitude + finalAltitude) / 2;
     const computedMach = Math.min(this.atmosphericConditions.computeMachFromCas(midwayAltitude, speed), mach);
     const predictedN1 =
-      EngineModel.getIdleCorrectedN1(this.acConfig.engineModelParameters, midwayAltitude, computedMach, tropoPause) +
-      this.acConfig.vnavConfig.IDLE_N1_MARGIN;
+      EngineModel.getIdleCorrectedN1(
+        this.acConfig.engineModelParameters,
+        midwayAltitude,
+        computedMach,
+        tropoPause,
+        antiIceIdleCn2Increase(this.acConfig.vnavConfig, engineAntiIce, wingAntiIce),
+      ) + this.acConfig.vnavConfig.IDLE_N1_MARGIN;
 
     return Predictions.altitudeStep(
       this.acConfig,
@@ -243,13 +249,18 @@ export class IdleDescentStrategy implements DescentStrategy {
     headwindComponent: number,
     config: Partial<AircraftCtlSurfcConfiguration> = this.defaultConfig,
   ): StepResults {
-    const { zeroFuelWeight, perfFactor, tropoPause } = this.observer.get();
+    const { zeroFuelWeight, perfFactor, tropoPause, engineAntiIce, wingAntiIce } = this.observer.get();
     const { flapConfig, gearExtended, speedbrakesExtended } = { ...this.defaultConfig, ...config };
 
     const computedMach = Math.min(this.atmosphericConditions.computeMachFromCas(initialAltitude, speed), mach);
     const predictedN1 =
-      EngineModel.getIdleCorrectedN1(this.acConfig.engineModelParameters, initialAltitude, computedMach, tropoPause) +
-      this.acConfig.vnavConfig.IDLE_N1_MARGIN;
+      EngineModel.getIdleCorrectedN1(
+        this.acConfig.engineModelParameters,
+        initialAltitude,
+        computedMach,
+        tropoPause,
+        antiIceIdleCn2Increase(this.acConfig.vnavConfig, engineAntiIce, wingAntiIce),
+      ) + this.acConfig.vnavConfig.IDLE_N1_MARGIN;
 
     return Predictions.distanceStep(
       this.acConfig,
@@ -279,13 +290,18 @@ export class IdleDescentStrategy implements DescentStrategy {
     headwindComponent: number,
     config: Partial<AircraftCtlSurfcConfiguration> = this.defaultConfig,
   ): StepResults {
-    const { zeroFuelWeight, perfFactor, tropoPause } = this.observer.get();
+    const { zeroFuelWeight, perfFactor, tropoPause, engineAntiIce, wingAntiIce } = this.observer.get();
     const { flapConfig, gearExtended, speedbrakesExtended } = { ...this.defaultConfig, ...config };
 
     const computedMach = Math.min(this.atmosphericConditions.computeMachFromCas(initialAltitude, initialSpeed), mach);
     const predictedN1 =
-      EngineModel.getIdleCorrectedN1(this.acConfig.engineModelParameters, initialAltitude, computedMach, tropoPause) +
-      this.acConfig.vnavConfig.IDLE_N1_MARGIN;
+      EngineModel.getIdleCorrectedN1(
+        this.acConfig.engineModelParameters,
+        initialAltitude,
+        computedMach,
+        tropoPause,
+        antiIceIdleCn2Increase(this.acConfig.vnavConfig, engineAntiIce, wingAntiIce),
+      ) + this.acConfig.vnavConfig.IDLE_N1_MARGIN;
 
     const initialMach = Math.min(this.atmosphericConditions.computeMachFromCas(initialAltitude, initialSpeed), mach);
     const finalMach = Math.min(this.atmosphericConditions.computeMachFromCas(initialAltitude, finalSpeed), mach);

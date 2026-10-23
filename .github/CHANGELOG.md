@@ -817,6 +817,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Managed cruise target per the CRZ FL: the ECON Mach above FL200 (it could target the ECON speed instead), the ECON speed at and below FL200; the F-PLN SPD column in cruise follows the same rule (it switched between speed and Mach from one waypoint to the next) - @TCdr
 1. [A380X/MFD] F-PLN: the IMMEDIATE EXIT / RESUME HOLD button of a hold shows its label instead of [object Object] - @TCdr
 1. [A380X/ND] The vertical display unfolds the holding pattern along its horizontal axis when the FMS predictions include it - @TCdr
+1. [A32NX/FMS] [A380X/FMS] The descent predictions and the top of descent use the higher idle thrust of the engine and wing anti-ice when it is on - @TCdr
 
 ## 2024.1.0
 
