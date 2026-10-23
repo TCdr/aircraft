@@ -890,6 +890,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FMS] Add the SAT/ALT field to the CRZ WIND page: a temperature at a flight level can be entered at each cruise waypoint and holds down-path, and the cruise predictions use it - @TCdr
 1. [A380X/MFD] The SAT row of the WIND CRZ page takes an ALT and SAT for the selected waypoint and propagates it down-path, and the cruise predictions use it - @TCdr
 1. [A32NX/FMS] [A380X/FMS] The OPT FL uses the entered and propagated winds and temperatures at each level, also on the ground, in place of one measured wind and temperature - @TCdr
+1. [A32NX/MCDU] The descent profile intercept point (I/P) is a pseudo waypoint of the F-PLN page, with its time, speed and altitude - @TCdr
+1. [A380X/MFD] The time markers of the LL XING - TIME MKR page show as a pseudo waypoint on the F-PLN page and the ND, with TIME MARKER REACHED; several pseudo waypoints can share a leg of the F-PLN page - @TCdr
 
 ## 2024.1.0
 

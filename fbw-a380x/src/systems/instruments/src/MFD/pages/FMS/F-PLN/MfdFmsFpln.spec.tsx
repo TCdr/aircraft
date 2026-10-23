@@ -67,7 +67,7 @@ function flightPlanLeg(leg: CruiseLeg): FlightPlanLeg {
  * @param legs the legs after the FROM waypoint MOBAL
  * @returns the page
  */
-function renderCruiseWithHold(legs: CruiseLeg[]) {
+function renderCruiseWithHold(legs: CruiseLeg[], pseudoWaypoints: unknown[] = []) {
   const uiService = new Proxy(
     {
       activeUri: Subject.create({ uri: 'fms/active/f-pln', sys: 'fms', category: 'active', page: 'f-pln', extra: '' }),
@@ -140,7 +140,7 @@ function renderCruiseWithHold(legs: CruiseLeg[]) {
         getDestinationPrediction: () => ({ secondsFromPresent: 6 * 3600, estimatedFuelOnBoard: 25_000 }),
       }),
       guidanceController: withStandIns({
-        pseudoWaypoints: { pseudoWaypoints: [] },
+        pseudoWaypoints: { pseudoWaypoints },
         getAlongTrackDistanceToDestination: () => 2760,
       }),
       acInterface: withStandIns({ getHoldDecelReached: () => true, getLegHoldingSpeed: () => 236 }),
@@ -172,6 +172,8 @@ function renderCruiseWithHold(legs: CruiseLeg[]) {
         (ident: any) => ident.innerText,
       ),
     destination: (): string => internals.destButtonLabel.get(),
+    /** the page's data update (it runs every cycle in the sim) */
+    refresh: (): void => internals.onNewData(),
   };
 }
 
@@ -210,5 +212,46 @@ describe('MfdFmsFpln', () => {
 
     expect(page.idents()).toEqual(expect.arrayContaining(['TUDEP', 'N52W050']));
     expect(page.destination()).toBe('EGLL');
+  });
+
+  it('draws every pseudo waypoint of a leg in order of distance, before the waypoint', () => {
+    const pseudoWaypoint = (ident: string, distanceFromStart: number) => ({
+      ident,
+      alongLegIndex: 3,
+      displayedOnMcdu: true,
+      flightPlanInfo: { distanceFromStart, secondsFromPresent: 600, altitude: 25_000, speed: 0.78 },
+    });
+
+    const page = renderCruiseWithHold(holdAtAntovThenRoute, [
+      pseudoWaypoint('(1130)', 500),
+      pseudoWaypoint('(1115)', 400),
+    ]);
+
+    expect(page.idents()).toEqual([
+      'MOBAL',
+      'ANTOV',
+      'HOLD R',
+      'ANTOV',
+      '(1115)',
+      '(1130)',
+      'MIILS',
+      'TUDEP',
+      'N52W050',
+    ]);
+  });
+
+  it('draws a pseudo waypoint that appears after the page was rendered', () => {
+    const pseudoWaypoints: unknown[] = [];
+    const page = renderCruiseWithHold(holdAtAntovThenRoute, pseudoWaypoints);
+
+    pseudoWaypoints.push({
+      ident: '(1115)',
+      alongLegIndex: 3,
+      displayedOnMcdu: true,
+      flightPlanInfo: { distanceFromStart: 400, secondsFromPresent: 600, altitude: 25_000, speed: 0.78 },
+    });
+    page.refresh();
+
+    expect(page.idents()).toContain('(1115)');
   });
 });

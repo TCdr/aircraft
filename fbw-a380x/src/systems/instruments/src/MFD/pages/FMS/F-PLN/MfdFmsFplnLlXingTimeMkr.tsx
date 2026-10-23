@@ -25,21 +25,7 @@ import './MfdFmsFplnLlXingTimeMkr.scss';
 
 interface MfdFmsFplnLlXingTimeMkrProps extends AbstractMfdPageProps {}
 
-/** Up to 4 time markers */
-const maxTimeMarkers = 4;
-
 const secondsPerDay = 86_400;
-
-/** A time marker of the FMS (shared by both MFDs): its UTC in seconds of the day and the aural alert option */
-interface TimeMarker {
-  utc: Subject<number | null>;
-  aural: Subject<boolean>;
-}
-
-const timeMarkers: TimeMarker[] = Array.from({ length: maxTimeMarkers }, () => ({
-  utc: Subject.create<number | null>(null),
-  aural: Subject.create(false),
-}));
 
 /** A candidate start waypoint: its leg index and ident */
 interface StartWaypoint {
@@ -52,7 +38,7 @@ interface StartWaypoint {
  * series of latitudes (or longitudes) after a start waypoint and inserts them as waypoints in the temporary flight
  * plan, and defines up to 4 time markers (UTC or remaining time).
  *
- * Not modelled: the time marker pseudo waypoints on the ND and the aural alert.
+ * Not modelled: the aural alert.
  */
 export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingTimeMkrProps> {
   private startWaypoints: StartWaypoint[] = [];
@@ -89,20 +75,27 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
     i === FlightPlanIndex.Active ? 'inherit' : 'hidden',
   );
 
-  private readonly remainingTimes = timeMarkers.map(() => Subject.create<number | null>(null));
+  /** The markers of the FMS, shared with the FMCs of both MFDs through L:vars */
+  private readonly markerStore = this.props.fmcService.master.timeMarkers;
+
+  private readonly timeMarkers = this.markerStore.utc.map((utc, i) => ({ utc, aural: this.markerStore.aural[i] }));
+
+  private readonly remainingTimes = this.timeMarkers.map(() => Subject.create<number | null>(null));
 
   /** A new empty time marker line appears once the previous one is defined */
-  private readonly markerRowVisibility = timeMarkers.map((_, i) =>
+  private readonly markerRowVisibility = this.timeMarkers.map((_, i) =>
     MappedSubject.create(
       (utcs) => (i === 0 || utcs[i - 1] !== null || utcs[i] !== null ? 'inherit' : 'hidden'),
-      ...timeMarkers.map((m) => m.utc),
+      ...this.timeMarkers.map((m) => m.utc),
     ),
   );
 
   /** AURAL checkboxes are plain divs, FSComponent sets an onClick prop as a string attribute: wired after render */
-  private readonly auralCheckboxRefs = timeMarkers.map(() => FSComponent.createRef<HTMLDivElement>());
+  private readonly auralCheckboxRefs = this.timeMarkers.map(() => FSComponent.createRef<HTMLDivElement>());
 
-  private readonly auralClickHandlers = timeMarkers.map((marker) => () => marker.aural.set(!marker.aural.get()));
+  private readonly auralClickHandlers = this.timeMarkers.map(
+    (marker, i) => () => this.markerStore.setAural(i, !marker.aural.get()),
+  );
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -292,7 +285,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
 
   private updateRemainingTimes(): void {
     const now = this.props.fmcService.master.timeKeeper.utcSeconds.get();
-    timeMarkers.forEach((marker, i) => {
+    this.timeMarkers.forEach((marker, i) => {
       const utc = marker.utc.get();
       this.remainingTimes[i].set(utc !== null ? (((utc - now) % secondsPerDay) + secondsPerDay) % secondsPerDay : null);
     });
@@ -300,7 +293,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
 
   private renderTimeMarker(index: number): VNode {
     const y = 478 + index * 60;
-    const marker = timeMarkers[index];
+    const marker = this.timeMarkers[index];
     return (
       <div style={{ visibility: this.markerRowVisibility[index] }}>
         {index > 0 && fcomLine(y - 30, 58, 679)}
@@ -311,7 +304,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
             dataEntryFormat={new TimeHhMmSsFormat()}
             value={marker.utc}
             onModified={(v) => {
-              marker.utc.set(v);
+              this.markerStore.setUtc(index, v);
               this.updateRemainingTimes();
             }}
             containerStyle="width: 165px;"
@@ -329,7 +322,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
             value={this.remainingTimes[index]}
             onModified={(v) => {
               const now = this.props.fmcService.master.timeKeeper.utcSeconds.get();
-              marker.utc.set(v !== null ? (now + v) % secondsPerDay : null);
+              this.markerStore.setUtc(index, v !== null ? (now + v) % secondsPerDay : null);
               this.updateRemainingTimes();
             }}
             containerStyle="width: 165px;"
@@ -478,7 +471,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingT
               {fcomCentre(420, 166, <span class="mfd-label">UTC</span>)}
               {fcomCentre(420, 427, <span class="mfd-label">REMAINING TIME</span>)}
               {fcomCentre(420, 636, <span class="mfd-label">AURAL ALERT</span>)}
-              {timeMarkers.map((_, i) => this.renderTimeMarker(i))}
+              {this.timeMarkers.map((_, i) => this.renderTimeMarker(i))}
             </div>
 
             {/* RETURN (displays the F-PLN page) when no temporary flight plan exists */}

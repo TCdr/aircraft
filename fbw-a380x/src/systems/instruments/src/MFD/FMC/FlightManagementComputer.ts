@@ -133,6 +133,7 @@ import { FmsDatalinkConnection } from './FmsDatalinkConnection';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
 import { A380xRtaFunction } from './A380xRtaFunction';
+import { A380xTimeMarkers } from './A380xTimeMarkers';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
 import { toCoRoute } from './StoredRouteUtils';
 import { alternateRouteFixes } from './AlternateCompanyRoute';
@@ -693,6 +694,7 @@ export class FlightManagementComputer implements FmcInterface {
       a380EfisRangeSettings,
       A380AircraftConfig,
     );
+    this.#guidanceController.timeMarkers = this.#timeMarkers;
     this.efisSymbolsLeft = new EfisSymbols(
       this.bus,
       'L',
@@ -2011,6 +2013,17 @@ export class FlightManagementComputer implements FmcInterface {
     return this.#rtaFunction;
   }
 
+  readonly #timeMarkers = new A380xTimeMarkers({
+    utcSeconds: () => this.#timeKeeper.utcSeconds.get(),
+    predictionReferenceUtcSeconds: () => this.#rtaFunction.etaUtcSeconds(0),
+    addMessageToQueue: (message) => this.addMessageToQueue(message),
+  });
+
+  /** @inheritdoc */
+  get timeMarkers(): A380xTimeMarkers {
+    return this.#timeMarkers;
+  }
+
   /**
    * The takeoff data of the FMS, as in a company takeoff data request (COMPANY T.O DATA REQUEST page): from the active
    * flight plan and the load data
@@ -2608,6 +2621,7 @@ export class FlightManagementComputer implements FmcInterface {
     if (throttledDt !== -1) {
       this.navigation.update(throttledDt);
       this.#timeKeeper.update(throttledDt);
+      this.#timeMarkers.update();
       if (
         this.irsAlignReferencePosition.get() !== null &&
         isAlignReferenceLost(
