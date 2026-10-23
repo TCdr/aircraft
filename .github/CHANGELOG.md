@@ -885,6 +885,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Fix the wind field of the performance calculators refusing a direction typed without leading zeros (80/10 stopped at 80) - @TCdr
 1. [EFB] Failures page in one layout: ATA chapters on the left, failures with switches on the right, search results across chapters, an active failures list with Restore all - @TCdr
 1. [EFB] Show the planned top of climb and top of descent, with their times, on the dashboard flight line - @TCdr
+1. [A380X/ND] The vertical display unfolds the holding pattern along its horizontal axis when the FMS predictions include it - @TCdr
 
 ## 2024.1.0
 
