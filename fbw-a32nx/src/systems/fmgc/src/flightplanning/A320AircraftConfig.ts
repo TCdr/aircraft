@@ -33,6 +33,7 @@ const vnavConfig: VnavConfig = {
   MAXIMUM_FUEL_ESTIMATE: 40000,
   LOWEST_FUEL_ESTIMATE: -77161.8, // -35 tons
   LIM_PSEUDO_WPT_LABEL: '(LIM)',
+  INTERCEPT_POINT_ON_FPLN: true,
   VMO: 350,
   MMO: 0.82,
   ENERGY_CIRCLE: {

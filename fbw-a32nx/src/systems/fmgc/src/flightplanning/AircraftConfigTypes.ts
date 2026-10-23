@@ -66,6 +66,9 @@ export interface VnavConfig {
    */
   LIM_PSEUDO_WPT_LABEL: '(LIM)' | '(SPDLIM)';
 
+  /** Whether the descent profile intercept point (I/P) is a pseudo waypoint of the MCDU / MFD F-PLN page, not only of the ND */
+  INTERCEPT_POINT_ON_FPLN: boolean;
+
   /**
    * The maximum operating speed in knots
    */
