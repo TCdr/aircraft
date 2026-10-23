@@ -4,6 +4,7 @@
 import { A380AircraftConfig, A380EconParameters } from '@fmgc/flightplanning/A380AircraftConfig';
 import { CostIndexMode } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { Common } from '@fmgc/guidance/vnav/common';
+import { LevelAtmosphere } from '@fmgc/guidance/vnav/CruiseLevelAtmosphere';
 import {
   ComputationMemo,
   EconSpeeds,
@@ -53,6 +54,8 @@ export interface A380OptimumLevelData {
   isaDeviation: number;
   /** knots, negative for a tailwind */
   headwind: number;
+  /** The wind and temperature per level; the constant ISA deviation and headwind above are used without it */
+  atmosphere?: LevelAtmosphere;
   /** feet */
   tropopause: number | null;
   /** NM, null when unknown */
@@ -150,6 +153,7 @@ export function a380OptimumFlightLevel(data: A380OptimumLevelData): number | nul
           descentDistancePerThousandFeet: DESCENT_DISTANCE_PER_THOUSAND_FEET,
         }
       : null,
+    data.atmosphere ? (altitude) => data.atmosphere!.at(altitude) : undefined,
   );
   return optimum !== null ? Math.floor(optimum / 5) * 5 : null;
 }
@@ -212,6 +216,7 @@ export class A380OptimumLevelCache {
         data.engineOut,
         roundToStep(data.isaDeviation, 1),
         roundToStep(data.headwind, 5),
+        data.atmosphere?.key ?? null,
         data.tropopause,
         roundToStep(data.distanceToDestination, 10),
         beforeEndOfComputation,

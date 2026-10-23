@@ -14,6 +14,8 @@ import {
   WindEntry,
   WindVector,
 } from '@fmgc/flightplanning/data/wind';
+import { parseCruiseTemperatureEntry } from './CruiseTemperatureEntry';
+import { PropagatedTemperatureEntry, TemperatureEntry } from '@fmgc/flightplanning/data/temperature';
 import { BaseFlightPlan } from '@fmgc/flightplanning/plans/BaseFlightPlan';
 import { MathUtils } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
@@ -266,9 +268,9 @@ export class CDUWindPage {
 
     const template = [
       [isSec ? '\xa0SEC\xa0\xa0\xa0\xa0CRZ WIND\xa0\xa0\xa0\xa0\xa0\xa0\xa0\xa0' : 'CRZ WIND'],
-      ['', '', `AT {green}{big}${(leg.ident ?? '').padEnd(7, '\xa0')}{end}{end}`],
+      ['TRU WIND/ALT', `AT {green}{big}${(leg.ident ?? '').padEnd(7, '\xa0')}{end}{end}`],
       ['', ''],
-      ['TRU WIND/ALT', doesWindUplinkExist ? 'INSERT{sp}[color]cyan' : 'WIND/TEMP{sp}[color]amber'],
+      ['', doesWindUplinkExist ? 'INSERT{sp}[color]cyan' : 'WIND/TEMP{sp}[color]amber'],
       ['', requestButton],
       ['', ''],
       ['', ''],
@@ -282,7 +284,7 @@ export class CDUWindPage {
 
     if (isWindUplinkInProgress) {
       for (let i = 0; i < FpmConfigs.A320_HONEYWELL_H4.NUM_CRUISE_WIND_LEVELS; i++) {
-        template[i * 2 + 4][0] = `---°/---/-----`;
+        template[i * 2 + 2][0] = `---°/---/-----`;
       }
     } else if (
       doesCrzWindUplinkExist &&
@@ -308,10 +310,10 @@ export class CDUWindPage {
         const altitude = uplinkedAltitudes[i];
         const wind = windsAtRevisedLeg.find((wind) => wind.altitude === altitude);
 
-        template[i * 2 + 4][0] =
+        template[i * 2 + 2][0] =
           `${wind !== undefined ? formatWindVector(wind.vector) : CDUWindPage.EmptyWindVector}/${this.formatCruiseWindAltitude(altitude)}[color]green`;
 
-        mcdu.onLeftInput[i + 1] = async (_, scratchpadCallback) => {
+        mcdu.onLeftInput[i] = async (_, scratchpadCallback) => {
           mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
           scratchpadCallback();
           return;
@@ -326,20 +328,20 @@ export class CDUWindPage {
 
         switch (wind.type) {
           case PropagationType.Forward:
-            template[i * 2 + 4][0] =
+            template[i * 2 + 2][0] =
               `{small}${formatWindVector(wind.vector)}{end}/${this.formatCruiseWindAltitude(wind.altitude!)}[color]cyan`;
             break;
           case PropagationType.Entry:
-            template[i * 2 + 4][0] =
+            template[i * 2 + 2][0] =
               `${formatWindVector(wind.vector)}/${this.formatCruiseWindAltitude(wind.altitude!)}[color]cyan`;
             break;
           case PropagationType.Backward:
-            template[i * 2 + 4][0] = `[\xa0]°/[\xa0]/${this.formatCruiseWindAltitude(wind.altitude!)}[color]cyan`;
+            template[i * 2 + 2][0] = `[\xa0]°/[\xa0]/${this.formatCruiseWindAltitude(wind.altitude!)}[color]cyan`;
             break;
         }
 
         numEntries = i + 1;
-        mcdu.onLeftInput[i + 1] = async (value, scratchpadCallback) => {
+        mcdu.onLeftInput[i] = async (value, scratchpadCallback) => {
           try {
             if (value === Keypad.clrValue) {
               // Cannot delete a propagated wind entry
@@ -370,9 +372,9 @@ export class CDUWindPage {
       }
 
       if (numEntries < FpmConfigs.A320_HONEYWELL_H4.NUM_CRUISE_WIND_LEVELS) {
-        template[numEntries * 2 + 4][0] = '{cyan}[ ]°/[ ]/[{sp}{sp}{sp}]{end}';
+        template[numEntries * 2 + 2][0] = '{cyan}[ ]°/[ ]/[{sp}{sp}{sp}]{end}';
 
-        mcdu.onLeftInput[numEntries + 1] = async (value, scratchpadCallback) => {
+        mcdu.onLeftInput[numEntries] = async (value, scratchpadCallback) => {
           const entry = this.parseWindEntry(mcdu, value, NaN);
 
           if (entry === null) {
@@ -392,6 +394,36 @@ export class CDUWindPage {
         };
       }
     }
+
+    const temperature = plan.propagateTemperatureAt(nextSuitableLegIndex);
+    template[9][0] = 'SAT/ALT';
+    template[10][0] = this.formatCruiseTemperatureEntry(temperature);
+    mcdu.onLeftInput[4] = async (value, scratchpadCallback) => {
+      try {
+        if (value === Keypad.clrValue) {
+          // Cannot delete a propagated entry
+          if (temperature === null || temperature.type !== PropagationType.Entry) {
+            mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+            scratchpadCallback();
+            return;
+          }
+          await mcdu.flightPlanService.setCruiseTemperatureEntry(nextSuitableLegIndex, null, forPlan);
+        } else {
+          const entry = this.parseCruiseTemperatureEntryOrMessage(mcdu, value, temperature);
+          if (entry === null) {
+            scratchpadCallback();
+            return;
+          }
+          await mcdu.flightPlanService.setCruiseTemperatureEntry(nextSuitableLegIndex, entry, forPlan);
+        }
+
+        CDUWindPage.ShowCRZPage(mcdu, forPlan, nextSuitableLegIndex);
+      } catch (e) {
+        console.error('Error setting cruise temperature entry:', e);
+        mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
+        scratchpadCallback();
+      }
+    };
 
     mcdu.setTemplate(template);
 
@@ -451,11 +483,7 @@ export class CDUWindPage {
       mcdu.onDown = () => this.ShowCRZPage(mcdu, forPlan, previousCruiseLegIndex);
     }
 
-    // TODO temperature entries
-    mcdu.onNextPage = () => mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
-    mcdu.onPrevPage = () => mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
-
-    mcdu.setArrows(allowScrollingUp, allowScrollingDown, true, true);
+    mcdu.setArrows(allowScrollingUp, allowScrollingDown, false, false);
   }
 
   static ShowDESPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, page: number = 0) {
@@ -860,6 +888,29 @@ export class CDUWindPage {
     }
 
     return this.parseWindEntry(mcdu, input, grndAltitude);
+  }
+
+  private static formatCruiseTemperatureEntry(entry: PropagatedTemperatureEntry | null): string {
+    if (entry === null) {
+      return '{cyan}[\xa0]°/[\xa0\xa0\xa0]{end}';
+    }
+    const sign = entry.temperature < 0 ? '-' : '+';
+    const temperature = `${sign}${Math.abs(Math.round(entry.temperature)).toFixed(0).padStart(2, '0')}°`;
+    const text = `${temperature}/${this.formatCruiseWindAltitude(entry.altitude)}`;
+    return entry.type === PropagationType.Forward ? `{small}${text}{end}[color]cyan` : `${text}[color]cyan`;
+  }
+
+  private static parseCruiseTemperatureEntryOrMessage(
+    mcdu: LegacyFmsPageInterface,
+    input: string,
+    shown: PropagatedTemperatureEntry | null,
+  ): TemperatureEntry | null {
+    const result = parseCruiseTemperatureEntry(input, shown);
+    if ('error' in result) {
+      mcdu.setScratchpadMessage(NXSystemMessages[result.error]);
+      return null;
+    }
+    return result.entry;
   }
 
   private static parseWindVector(mcdu: LegacyFmsPageInterface, input: string): WindVector | null {

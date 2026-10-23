@@ -227,6 +227,9 @@ $wind-row-width: 465px;
 }
 
 .mfd-fms-wind-crz-temp-entry-container {
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: row;
   padding-top: 19px;

@@ -51,6 +51,7 @@ import {
   FmsLandingDataContent,
   fmsQnhToHectopascal,
   LandingConf,
+  MathUtils,
 } from '@flybywiresim/fbw-sdk';
 import {
   isTypeIIMessage,
@@ -102,6 +103,11 @@ import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
 import { distanceToTopOfDescent } from '@fmgc/components/fms-messages/TopOfDescentDistance';
 import { A380OptimumLevelCache } from './A380EconSpeeds';
 import { isaDeviationAt } from '@fmgc/guidance/vnav/EconSpeeds';
+import {
+  createLevelAtmosphere,
+  cruiseLevelAtmosphereInputsFromPlan,
+  recMaxAtRouteTemperature,
+} from '@fmgc/guidance/vnav/CruiseLevelAtmosphere';
 import { CostIndexDefault } from './CostIndexDefault';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
 import { clampFmcUpdateStep } from './FmcUpdateStep';
@@ -1306,6 +1312,33 @@ export class FlightManagementComputer implements FmcInterface {
     return this.optimumFlightLevel;
   }
 
+  /**
+   * The wind and temperature of the route per level for the OPT FL: the entered and propagated winds and SATs, on the
+   * ground too, and in flight the measurement fading into them.
+   */
+  private computeLevelAtmosphere(inFlight: boolean, tropopause: number | null, altitude: number) {
+    const plan = this.flightPlanInterface.active;
+    const cruiseLevel = plan.performanceData.cruiseFlightLevel.get();
+    const cruiseTemperature = plan.performanceData.cruiseTemperature.get();
+    const planIsaDeviation =
+      cruiseLevel !== null && cruiseTemperature !== null
+        ? isaDeviationAt(cruiseLevel * 100, cruiseTemperature, tropopause)
+        : null;
+    const measured = inFlight
+      ? {
+          altitude,
+          wind: {
+            direction: SimVar.GetSimVarValue('AMBIENT WIND DIRECTION', 'Degrees') * MathUtils.DEGREES_TO_RADIANS,
+            magnitude: SimVar.GetSimVarValue('AMBIENT WIND VELOCITY', 'Knots'),
+          },
+          isaDeviation: isaDeviationAt(altitude, SimVar.GetSimVarValue('AMBIENT TEMPERATURE', 'celsius'), tropopause),
+        }
+      : null;
+    return createLevelAtmosphere(
+      cruiseLevelAtmosphereInputsFromPlan(plan, plan.activeLegIndex, tropopause, planIsaDeviation, measured),
+    );
+  }
+
   private updateOptimumFlightLevel(): void {
     if (!this.flightPlanInterface.hasActive || this.flightPhaseManager.phase > FmgcFlightPhase.Cruise) {
       this.optimumFlightLevel = null;
@@ -1315,17 +1348,27 @@ export class FlightManagementComputer implements FmcInterface {
     const inFlight = !this.fmgc.isOnGround();
     const tropopause = pd.tropopause.get();
     const altitude = this.fmgc.getPressureAlt() ?? SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet');
-    // Design choice: the measured temperature and wind in flight, ISA and no wind on the ground
+    // Design choice: without wind and SAT entries the measured ones in flight, ISA and no wind on the ground
     const isaDeviation = inFlight
       ? isaDeviationAt(altitude, SimVar.GetSimVarValue('AMBIENT TEMPERATURE', 'celsius'), tropopause)
       : 0;
+    const atmosphere = this.computeLevelAtmosphere(inFlight, tropopause, altitude);
     this.optimumFlightLevel = this.optimumLevelCache.get({
       costIndex: pd.costIndex.get(),
       grossWeight: this.fmgc.getGrossWeight(),
-      recMaxFlightLevel: this.getRecMaxFlightLevel(),
+      recMaxFlightLevel: recMaxAtRouteTemperature(this.getRecMaxFlightLevel(), atmosphere, (routeIsaDeviation) => {
+        const grossWeightKg = this.fmgc.getGrossWeightKg();
+        return grossWeightKg
+          ? Math.min(
+              A380AltitudeUtils.calculateRecommendedMaxAltitude(grossWeightKg, routeIsaDeviation),
+              maxCertifiedAlt,
+            ) / 100
+          : null;
+      }),
       engineOut: this.fmgc.data.engineOut.get(),
       isaDeviation,
       headwind: inFlight ? -SimVar.GetSimVarValue('AIRCRAFT WIND Z', 'knots') : 0,
+      atmosphere,
       tropopause,
       distanceToDestination: this.fmgc.getDistanceToDestination(),
       distanceToTopOfDescent: distanceToTopOfDescent(this.guidanceController),

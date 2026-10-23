@@ -45,6 +45,7 @@ function buildCruise(constantMachSegment: GeographicConstantMachSegment | null) 
     constantMachSegment,
     distanceToPresentPosition: 0,
     winds: { getCruiseTailwind: () => 0 },
+    temperatures: { getCruiseIsaDeviation: (_d: number, _a: number, _alt: number, measured: number) => measured },
   } as unknown as NavGeometryProfile;
   const topOfClimb: VerticalCheckpoint = {
     reason: VerticalCheckpointReason.TopOfClimb,

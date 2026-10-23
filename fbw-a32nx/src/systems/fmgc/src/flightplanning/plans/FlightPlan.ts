@@ -481,6 +481,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
       );
       if (distanceTo(abeam.location, fix.location) < 100) {
         abeamLeg.cruiseWindEntries = leg.cruiseWindEntries.map((entry) => cloneWindEntry(entry));
+        abeamLeg.cruiseTemperatureEntry = leg.cruiseTemperatureEntry ? { ...leg.cruiseTemperatureEntry } : undefined;
       }
       if (this.index === FlightPlanIndex.Temporary) {
         abeamLeg.flags |= FlightPlanLegFlags.PendingDirectToAbeamPoint;
@@ -1305,6 +1306,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
         const leg = this.legElementAt(i);
 
         leg.cruiseWindEntries.length = 0;
+        leg.cruiseTemperatureEntry = undefined;
         this.syncCruiseWindChange(i);
       }
     }
@@ -1492,6 +1494,16 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
           if (draftEntries) {
             leg.cruiseWindEntries = this.filterDraftWindsByValidEntries(draftEntries, leg.cruiseWindEntries);
           }
+        }
+      }
+    }
+
+    const draftCruiseTemperature = this.draftCruiseTemperatureEntries?.get() ?? null;
+    if (draftCruiseTemperature !== null) {
+      for (let i = this.activeLegIndex; i < this.firstMissedApproachLegIndex; i++) {
+        const leg = this.maybeElementAt(i);
+        if (isLeg(leg) && draftCruiseTemperature.has(i)) {
+          leg.cruiseTemperatureEntry = draftCruiseTemperature.get(i) ?? undefined;
         }
       }
     }

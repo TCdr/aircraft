@@ -10,6 +10,7 @@ import {
   tonnesToPounds,
 } from '@fmgc/guidance/vnav/EconSpeeds';
 import { FlightModel } from '@fmgc/guidance/vnav/FlightModel';
+import { LevelAtmosphere } from '@fmgc/guidance/vnav/CruiseLevelAtmosphere';
 
 /** The OPT FL needs at least 5 min of cruise */
 const MIN_CRUISE_MINUTES = 5;
@@ -36,6 +37,8 @@ export interface ProgOptimumFlightLevelInputs {
   headwind: number;
   /** feet */
   tropopause: number;
+  /** The wind and temperature per level; the constant ISA deviation and headwind above are used without it */
+  atmosphere?: LevelAtmosphere;
   /** ground distance to the destination in NM, or null when unknown */
   distanceToDestination: number | null;
   /** feet */
@@ -105,6 +108,7 @@ export function progOptimumFlightLevel(inputs: ProgOptimumFlightLevelInputs): nu
     inputs.recMaxFlightLevel,
     (altitude) => FlightModel.getGreenDotSpeedCas(altitude, weightKg),
     trip,
+    inputs.atmosphere ? (altitude) => inputs.atmosphere!.at(altitude) : undefined,
   );
   return optimum !== null ? Math.floor(optimum / 5) * 5 : null;
 }
@@ -122,6 +126,7 @@ export class ProgOptimumFlightLevelCache {
         inputs.costIndex,
         roundToStep(inputs.isaDeviation, 1),
         roundToStep(inputs.headwind, 5),
+        inputs.atmosphere?.key ?? null,
         inputs.tropopause,
         roundToStep(inputs.distanceToDestination, 10),
         roundToStep(inputs.currentAltitude, 1000),
