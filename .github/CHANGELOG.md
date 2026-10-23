@@ -138,6 +138,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MCDU] The PROG page OPT FL is the best specific range level for the gross weight (long range cruise table), never above REC MAX, instead of the REC MAX rounded down - @TCdr
 1. [A380X/MFD] PERF page CLB and DES tabs show the time and distance to the PRED TO altitude instead of dashes - @TCdr
 1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan - @TCdr
+1. [EFB] Fix the wind field of the performance calculators refusing a direction typed without leading zeros (80/10 stopped at 80) - @TCdr
 
 ## 2024.1.0
 

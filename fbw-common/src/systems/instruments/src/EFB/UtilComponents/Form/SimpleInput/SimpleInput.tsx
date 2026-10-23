@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useAppDispatch } from '../../../Store/store';
 import { setOffsetY } from '../../../Store/features/keyboard';
 import { KeyboardWrapper } from '../../KeyboardWrapper';
+import { WIND_TYPING_REGEX } from '../../../Performance/Data/Utils';
 
 interface SimpleInputProps {
   placeholder?: string;
@@ -75,9 +76,8 @@ export const SimpleInput = (props: PropsWithChildren<SimpleInputProps>) => {
 
     if (props.wind) {
       originalValue = originalValue.toUpperCase();
-      const regex = /^(?:H|HD|TL|T|[-+])?\d{0,2}(?:\/\d{2})?$|^\d{1,5}$|^\d{3}\/\d{0,2}$/;
       if (
-        !regex.test(originalValue) ||
+        !WIND_TYPING_REGEX.test(originalValue) ||
         (!isNaN(Number(originalValue.slice(0, 3))) && Number(originalValue.slice(0, 3)) > 360)
       ) {
         originalValue = displayValue;
