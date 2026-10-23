@@ -11,4 +11,7 @@ export const isWindMagnitudeAndDirection = (input: string): boolean => {
   return magnitudeOnlyMatch !== null;
 };
 
+/** What the wind field accepts while typing: a partial entry such as "80/" or "080/1" must stay editable */
+export const WIND_TYPING_REGEX = /^(?:H|HD|TL|T|[-+])?\d{0,2}(?:\/\d{2})?$|^\d{1,5}$|^\d{1,3}\/\d{0,2}$/;
+
 export const isValidIcao = (icao: string): boolean => icao?.length === 4;
