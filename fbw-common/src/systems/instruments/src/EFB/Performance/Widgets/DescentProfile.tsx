@@ -4,6 +4,7 @@
 import React from 'react';
 import { DescentProfilePoint } from '@flybywiresim/fbw-sdk';
 import { t } from '../../Localization/translation';
+import { distanceTickStep } from './descentProfileAxis';
 
 const WIDTH = 820;
 const HEIGHT = 300;
@@ -11,6 +12,8 @@ const LEFT = 64;
 const RIGHT = 20;
 const TOP = 22;
 const BOTTOM = 40;
+/** Room for the longest point label ("Crossover FL290"); closer to the right edge it goes left of its point */
+const LABEL_ROOM = 130;
 
 const COLOURS = {
   path: '#22c55e',
@@ -55,11 +58,13 @@ export const DescentProfile = ({
   for (let a = bottom; a <= topRounded; a += topRounded - bottom > 20_000 ? 10_000 : 5000) {
     altitudeLines.push(a);
   }
-  const distanceStep = span > 150 ? 50 : span > 60 ? 20 : 10;
+  const distanceStep = distanceTickStep(span);
   const distanceTicks: number[] = [];
   for (let d = 0; d <= span; d += distanceStep) {
     distanceTicks.push(d);
   }
+
+  const topOfDescentLabelLeft = x(totalDistance) > WIDTH - RIGHT - LABEL_ROOM;
 
   const path = points
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(totalDistance - p.distance)} ${y(p.altitude)}`)
@@ -108,11 +113,12 @@ export const DescentProfile = ({
         <>
           <circle cx={x(totalDistance)} cy={y(points[0].altitude)} r={6} fill={COLOURS.path} />
           <text
-            x={x(totalDistance) + 8}
+            x={topOfDescentLabelLeft ? x(totalDistance) - 10 : x(totalDistance) + 8}
             y={y(points[0].altitude) - 8}
             fill={COLOURS.path}
             fontSize={16}
             fontWeight="bold"
+            textAnchor={topOfDescentLabelLeft ? 'end' : 'start'}
           >
             T/D {Math.round(totalDistance)} NM
           </text>
@@ -141,10 +147,17 @@ export const DescentProfile = ({
         .map((p) => {
           const px = x(totalDistance - p.distance);
           const py = y(p.altitude);
+          const labelLeft = px > WIDTH - RIGHT - LABEL_ROOM;
           return (
             <g key={`${p.event}${p.altitude}`}>
               <circle cx={px} cy={py} r={4.5} fill="none" stroke={COLOURS.event} strokeWidth={2} />
-              <text x={px + 7} y={py - 7} fill={COLOURS.event} fontSize={13}>
+              <text
+                x={labelLeft ? px - 9 : px + 7}
+                y={labelLeft ? py + 5 : py - 7}
+                fill={COLOURS.event}
+                fontSize={13}
+                textAnchor={labelLeft ? 'end' : 'start'}
+              >
                 {p.event === 'CROSSOVER'
                   ? `${t('Performance.TopOfDescent.Calc.Crossover')} FL${Math.round(p.altitude / 100)}`
                   : p.event}
