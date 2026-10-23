@@ -16,6 +16,7 @@ import { ReadonlyFlightPlanElement, ReadonlyFlightPlanLeg } from '@fmgc/flightpl
 import { ReadonlyPendingAirways } from '@fmgc/flightplanning/plans/ReadonlyPendingAirways';
 import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { PropagatedWindEntry } from '../data/wind';
+import { PropagatedTemperatureEntry } from '../data/temperature';
 
 export interface ReadonlyFlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerformanceData> {
   get index(): number;
@@ -129,4 +130,6 @@ export interface ReadonlyFlightPlan<P extends FlightPlanPerformanceData = Flight
   get performanceData(): P;
 
   propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], maxNumEntries: number): PropagatedWindEntry[];
+
+  propagateTemperatureAt(atIndex: number): PropagatedTemperatureEntry | null;
 }

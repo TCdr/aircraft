@@ -11,6 +11,7 @@ import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
 import { AltitudeConstraint, AltitudeDescriptor, SpeedConstraint } from '@flybywiresim/fbw-sdk';
 import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { WindProfile } from '../wind/WindProfile';
+import { TemperatureProfile } from '../temperature/TemperatureProfile';
 import { EventBus } from '@microsoft/msfs-sdk';
 import { TailwindComponent, WindVector } from '../../../flightplanning/data/wind';
 import { AircraftConfig } from '../../../flightplanning/AircraftConfigTypes';
@@ -161,6 +162,8 @@ export class NavGeometryProfile extends BaseGeometryProfile {
   public waypointPredictions: Map<number, VerticalWaypointPrediction> = new Map();
 
   readonly winds = new WindProfile(this.bus, this.flightPlanService, this.constraintReader.planIndex);
+
+  readonly temperatures = new TemperatureProfile(this.flightPlanService, this.constraintReader.planIndex);
 
   constructor(
     private readonly bus: EventBus,

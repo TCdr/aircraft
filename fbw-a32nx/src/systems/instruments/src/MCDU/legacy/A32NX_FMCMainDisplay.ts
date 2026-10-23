@@ -45,6 +45,12 @@ import {
   tonnesToPounds,
 } from '@fmgc/guidance/vnav/EconSpeeds';
 import { FlightModel } from '@fmgc/guidance/vnav/FlightModel';
+import {
+  createLevelAtmosphere,
+  cruiseLevelAtmosphereInputsFromPlan,
+  LevelAtmosphere,
+  recMaxAtRouteTemperature,
+} from '@fmgc/guidance/vnav/CruiseLevelAtmosphere';
 import { RtaSpeedEnvelope, rtaSpeedEnvelope } from '@fmgc/guidance/vnav/rta/RtaSpeedBias';
 import { A32nxRtaFunction } from './A32nxRtaFunction';
 import { uplinkedAlternateWindLevelDiffers } from '@fmgc/flightplanning/plans/AlternateCruiseLevel';
@@ -87,7 +93,12 @@ import {
 import { AdfRadioTuningStatus, MmrRadioTuningStatus, VorRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { FmsFormatters } from './FmsFormatters';
-import { progRecMaxFlightLevel, REC_MAX_FL_LVAR, recMaxFlightLevelLVarValue } from './RecMaxFlightLevel';
+import {
+  progRecMaxFlightLevel,
+  recMaxFlightLevel,
+  REC_MAX_FL_LVAR,
+  recMaxFlightLevelLVarValue,
+} from './RecMaxFlightLevel';
 import { ProgOptimumFlightLevelCache, progOptimumFlightLevelWeightsEntered } from './OptimumFlightLevel';
 import { isSetGreenDotSpeed } from '../../PFD/FmaLine3Messages';
 import { VerticalMode } from '@shared/autopilot';
@@ -1488,6 +1499,37 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     );
   }
 
+  /**
+   * The wind and temperature of the route per level for the OPT FL: the entered and propagated winds and SATs, on the
+   * ground too, and in flight the measurement fading into them.
+   */
+  private computeLevelAtmosphere(inFlight: boolean): LevelAtmosphere | undefined {
+    if (!this.flightPlanService.hasActive) {
+      return undefined;
+    }
+    const plan = this.flightPlanService.active;
+    const tropopause = this.tropo ?? ISA_TROPOPAUSE_ALTITUDE;
+    const cruiseLevel = plan.performanceData.cruiseFlightLevel.get();
+    const cruiseTemperature = plan.performanceData.cruiseTemperature.get();
+    const planIsaDeviation =
+      cruiseLevel !== null && cruiseTemperature !== null
+        ? isaDeviationAt(cruiseLevel * 100, cruiseTemperature, tropopause)
+        : null;
+    const measured = inFlight
+      ? {
+          altitude: this.getPressureAlt() ?? SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
+          wind: {
+            direction: SimVar.GetSimVarValue('AMBIENT WIND DIRECTION', 'Degrees') * MathUtils.DEGREES_TO_RADIANS,
+            magnitude: SimVar.GetSimVarValue('AMBIENT WIND VELOCITY', 'Knots'),
+          },
+          isaDeviation: this.measuredIsaDeviation(),
+        }
+      : null;
+    return createLevelAtmosphere(
+      cruiseLevelAtmosphereInputsFromPlan(plan, plan.activeLegIndex, tropopause, planIsaDeviation, measured),
+    );
+  }
+
   private updateOptimumFlightLevel(): void {
     const performanceData = this.flightPlanService.hasActive ? this.flightPlanService.active.performanceData : null;
     if (
@@ -1503,14 +1545,19 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     }
     const distanceToDestination = this.getDistanceToDestination();
     const inFlight = !this.isOnGround();
+    const atmosphere = this.computeLevelAtmosphere(inFlight);
+    const grossWeight = this.getGrossWeight();
     this.optimumFlightLevel = this.optimumFlightLevelCache.get({
-      grossWeight: this.getGrossWeight(),
-      recMaxFlightLevel: this.getMaxFlCorrected(),
+      grossWeight,
+      recMaxFlightLevel: recMaxAtRouteTemperature(this.getMaxFlCorrected(), atmosphere, (isaDeviation) =>
+        recMaxFlightLevel(isaDeviation, grossWeight),
+      ),
       engineOut: !(this.isAllEngineOn() || this.isOnGround()),
       costIndex: performanceData.costIndex.get(),
-      // Design choice: the measured temperature and wind in flight, ISA and no wind on the ground
+      // Design choice: without wind and SAT entries the measured ones in flight, ISA and no wind on the ground
       isaDeviation: inFlight ? this.measuredIsaDeviation() : 0,
       headwind: inFlight ? -SimVar.GetSimVarValue('AIRCRAFT WIND Z', 'knots') : 0,
+      atmosphere,
       tropopause: this.tropo ?? ISA_TROPOPAUSE_ALTITUDE,
       distanceToDestination: Number.isFinite(distanceToDestination) ? distanceToDestination : null,
       currentAltitude: this.getPressureAlt() ?? SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),

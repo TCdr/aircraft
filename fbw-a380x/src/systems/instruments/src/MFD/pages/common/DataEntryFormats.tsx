@@ -379,6 +379,24 @@ export class FlightLevelFormat extends SubscriptionCollector implements DataEntr
   }
 }
 
+/**
+ * A flight level field that stays as wide as its three digits while it is edited. FlightLevelFormat lets the field grow
+ * over its neighbours at the third digit, which takes it out of the layout of a row of fixed fields.
+ */
+export class FlightLevelFixedWidthFormat implements DataEntryFormat<number> {
+  public readonly maxDigits = 3;
+
+  public readonly maxOverflowDigits: number | undefined = undefined;
+
+  public format(value: number) {
+    return formatFlightLevel(value);
+  }
+
+  public async parse(input: string) {
+    return parseFlightLevel(input, 0, maxCertifiedAlt / 100);
+  }
+}
+
 export class WindAltitudeFormat extends SubscriptionCollector implements DataEntryFormat<number> {
   public readonly placeholder = '-----';
 

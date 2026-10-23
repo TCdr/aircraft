@@ -15,6 +15,7 @@ import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { FlightPlanBatch } from '@fmgc/flightplanning/plans/FlightPlanBatch';
 import { FlightPlanContext } from '@fmgc/flightplanning/plans/BaseFlightPlan';
 import { WindEntry, HistoryWindEntry, PropagatedWindEntry, WindVector } from './data/wind';
+import { PropagatedTemperatureEntry, TemperatureEntry } from './data/temperature';
 import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
 import { ConstantMachSegmentDeletionReason } from '@fmgc/flightplanning/ConstantMachSegment';
 
@@ -527,6 +528,21 @@ export interface FlightPlanInterface<P extends FlightPlanPerformanceData = Fligh
    * @param planIndex which flight plan index to do the propagation on
    */
   propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], planIndex: number): PropagatedWindEntry[];
+
+  /**
+   * The SAT entry that applies at a cruise waypoint (its own, or propagated down-path), or null if there is none.
+   * @param atIndex the index of the cruise leg
+   * @param planIndex which flight plan index to evaluate
+   */
+  propagateTemperatureAt(atIndex: number, planIndex: number): PropagatedTemperatureEntry | null;
+
+  /**
+   * Sets or clears the SAT entered at a cruise waypoint.
+   * @param atIndex the index of the cruise leg
+   * @param entry the SAT with its altitude, or null to remove the entry of this waypoint
+   * @param planIndex which flight plan index to edit
+   */
+  setCruiseTemperatureEntry(atIndex: number, entry: TemperatureEntry | null, planIndex: number): Promise<void>;
 
   /**
    * Adds a cruise wind entry at the specified leg.

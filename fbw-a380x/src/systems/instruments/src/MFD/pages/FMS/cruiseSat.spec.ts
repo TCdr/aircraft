@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { cruiseSatRow } from './cruiseSat';
+import { cruiseSatRow, editedWaypointSat, waypointSatRow } from './cruiseSat';
 
 // ALT/SAT pair at the cruise flight level, entered by the crew
 describe('CRZ tab SAT row', () => {
@@ -27,5 +27,39 @@ describe('CRZ tab SAT row after the cruise phase', () => {
 
   it('stays editable before the end of the cruise', () => {
     expect(cruiseSatRow(350, -52, false).satEditable).toBe(true);
+  });
+});
+
+describe('CRZ tab SAT row of a cruise waypoint', () => {
+  const planRow = cruiseSatRow(350, -52);
+
+  it('shows the SAT at the cruise flight level for a waypoint without an entry', () => {
+    expect(waypointSatRow(planRow, true, null)).toEqual({ flightLevel: 350, sat: -52, enteredByPilot: true });
+    expect(waypointSatRow(planRow, false, null).enteredByPilot).toBe(false);
+  });
+
+  it('shows the entry of the waypoint, or the one propagated from up-path', () => {
+    expect(waypointSatRow(planRow, true, { altitude: 37000, temperature: -58, enteredHere: true })).toEqual({
+      flightLevel: 370,
+      sat: -58,
+      enteredByPilot: true,
+    });
+    expect(
+      waypointSatRow(planRow, true, { altitude: 37000, temperature: -58, enteredHere: false }).enteredByPilot,
+    ).toBe(false);
+  });
+});
+
+describe('CRZ tab SAT entry', () => {
+  it('changes the SAT or the ALT of the row one at a time', () => {
+    const shown = { flightLevel: 350, sat: -52 };
+
+    expect(editedWaypointSat(shown, { sat: -55 })).toEqual({ altitude: 35000, temperature: -55 });
+    expect(editedWaypointSat(shown, { flightLevel: 370 })).toEqual({ altitude: 37000, temperature: -52 });
+  });
+
+  it('needs both values', () => {
+    expect(editedWaypointSat({ flightLevel: null, sat: null }, { sat: -55 })).toBeNull();
+    expect(editedWaypointSat({ flightLevel: 350, sat: null }, { flightLevel: 370 })).toBeNull();
   });
 });

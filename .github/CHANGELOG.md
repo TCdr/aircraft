@@ -887,6 +887,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Show the planned top of climb and top of descent, with their times, on the dashboard flight line - @TCdr
 1. [A380X/ND] The vertical display unfolds the holding pattern along its horizontal axis when the FMS predictions include it - @TCdr
 1. [A32NX/FMS] [A380X/FMS] The descent predictions and the top of descent use the higher idle thrust of the engine and wing anti-ice when it is on - @TCdr
+1. [A32NX/FMS] Add the SAT/ALT field to the CRZ WIND page: a temperature at a flight level can be entered at each cruise waypoint and holds down-path, and the cruise predictions use it - @TCdr
+1. [A380X/MFD] The SAT row of the WIND CRZ page takes an ALT and SAT for the selected waypoint and propagates it down-path, and the cruise predictions use it - @TCdr
+1. [A32NX/FMS] [A380X/FMS] The OPT FL uses the entered and propagated winds and temperatures at each level, also on the ground, in place of one measured wind and temperature - @TCdr
 
 ## 2024.1.0
 
