@@ -30,6 +30,7 @@ import { SequencedWaypointRecord } from './SequencedWaypointRecorder';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
 import { TimeConstraint } from './TimeConstraint';
 import type { A380xRtaFunction } from './A380xRtaFunction';
+import type { A380xTimeMarkers } from './A380xTimeMarkers';
 import type { A380OptimumStepSearch } from './A380OptimumStep';
 import { Coordinates } from 'msfs-geo';
 
@@ -386,6 +387,9 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
 
   /** The RTA function of the active flight plan: speed control, time error, messages */
   get rtaFunction(): A380xRtaFunction;
+
+  /** The time markers of the LL XING - TIME MKR page */
+  get timeMarkers(): A380xTimeMarkers;
 
   /** The optimum step point of the STEP ALTs panel */
   readonly optimumStep: A380OptimumStepSearch;

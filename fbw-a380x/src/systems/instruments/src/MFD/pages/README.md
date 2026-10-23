@@ -37,7 +37,7 @@ Status legend:
 | 🟨 | fms/active/cpny-to-request | 9 | no company takeoff data computation: SEND T.O REQUEST inactive |
 | 🟨 | fms/active/received-cpny-to-data | 9 | no received company takeoff data (dashes, INSERT / CLEAR inactive) |
 | 🟨 | fms/active/f-pln-equi-time-point | 9 | simplified times (cruise Mach TAS + entered wind), ETP not drawn on F-PLN / ND |
-| 🟨 | fms/\*/f-pln-ll-xing-time-mkr | 9 | time marker pseudo waypoints and aural alert not modelled |
+| 🟨 | fms/\*/f-pln-ll-xing-time-mkr | 9 | aural alert not modelled |
 |  |  |  |  |
 | ✅ | fms/position/irs | 1 | data sources inconsistent, ALIGN ON OTHER REF |
 | ✅ | fms/position/navaids | 2 | deselect glide, radio nav position (the radio nav mode is the tuned navaids) |

@@ -207,6 +207,8 @@ export const NXSystemMessages = {
   rtaNotConsideredForFuelPlanning: new TypeIIMessage('RTA NOT CONSIDERED FOR FUEL PLANNING'),
   // The time constraint at the waypoint will be missed
   timeErrorAt: new TypeIIMessage('TIME ERROR AT WWWWWWW', true, 'WWWWWWW'),
+  // A time marker of the LL XING - TIME MKR page is reached
+  timeMarkerReached: new TypeIIMessage('TIME MARKER REACHED'),
 };
 
 export const NXFictionalMessages = {

@@ -20,6 +20,7 @@ import {
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { AircraftConfig } from '@fmgc/flightplanning/AircraftConfigTypes';
 import { pathVectorLength } from './PathVector';
+import { timeMarkerDistancesFromStart, timeMarkerIdent } from './TimeMarkerPseudoWaypoints';
 
 const PWP_IDENT_TOC = '(T/C)';
 const PWP_IDENT_STEP_CLIMB = '(S/C)';
@@ -28,6 +29,7 @@ const PWP_IDENT_TOD = '(T/D)';
 const PWP_IDENT_DECEL = '(DECEL)';
 const PWP_IDENT_FLAP1 = '(FLAP1)';
 const PWP_IDENT_FLAP2 = '(FLAP2)';
+const PWP_IDENT_INTERCEPT = '(I/P)';
 
 const CHECKPOINTS_TO_PUT_IN_MCDU = new Set([
   VerticalCheckpointReason.TopOfClimb,
@@ -80,6 +82,8 @@ const isCheckpointForCdaPwp = (checkpoint: VerticalCheckpoint) => CDA_CHECKPOINT
 
 export class PseudoWaypoints implements GuidanceComponent {
   pseudoWaypoints: PseudoWaypoint[] = [];
+
+  private lastTimeMarkerSignature = '';
 
   constructor(
     private readonly flightPlanService: FlightPlanService,
@@ -163,6 +167,8 @@ export class PseudoWaypoints implements GuidanceComponent {
       }
     }
 
+    newPseudoWaypoints.push(...this.createTimeMarkerPseudoWaypoints(geometry, wptCount, navGeometryProfile));
+
     // Speed Changes
     const firstSpeedChange = this.guidanceController.vnavDriver.findNextSpeedChange();
 
@@ -217,6 +223,15 @@ export class PseudoWaypoints implements GuidanceComponent {
   }
 
   update(_: number) {
+    // A new or deleted time marker must show at once, not at the next profile or geometry update (up to 5 s later)
+    const timeMarkerSignature = (this.guidanceController.timeMarkers?.predictions() ?? [])
+      .map((marker) => marker.utcSeconds)
+      .join(',');
+    if (timeMarkerSignature !== this.lastTimeMarkerSignature) {
+      this.lastTimeMarkerSignature = timeMarkerSignature;
+      this.recompute();
+    }
+
     // Pass our pseudo waypoints to the GuidanceController
     this.guidanceController.currentPseudoWaypoints.length = 0;
 
@@ -580,25 +595,33 @@ export class PseudoWaypoints implements GuidanceComponent {
       case VerticalCheckpointReason.InterceptDescentProfileSelected:
         return {
           ident: 'Intercept point 1',
+          mcduIdent: PWP_IDENT_INTERCEPT,
           alongLegIndex,
           distanceFromLegTermination,
           efisSymbolFlag: NdSymbolTypeFlags.None,
           efisPwpSymbolFlag: NdPwpSymbolTypeFlags.PwpInterceptProfile,
           efisSymbolLla,
           distanceFromStart: checkpoint.distanceFromStart,
-          displayedOnMcdu: false,
+          displayedOnMcdu: this.acConfig.vnavConfig.INTERCEPT_POINT_ON_FPLN,
+          flightPlanInfo: this.acConfig.vnavConfig.INTERCEPT_POINT_ON_FPLN
+            ? this.formatFlightPlanInfo(checkpoint, geometryProfile)
+            : undefined,
           displayedOnNd: true,
         };
       case VerticalCheckpointReason.InterceptDescentProfileManaged:
         return {
           ident: 'Intercept point 2',
+          mcduIdent: PWP_IDENT_INTERCEPT,
           alongLegIndex,
           distanceFromLegTermination,
           efisSymbolFlag: NdSymbolTypeFlags.CyanColor,
           efisPwpSymbolFlag: NdPwpSymbolTypeFlags.PwpInterceptProfile,
           efisSymbolLla,
           distanceFromStart: checkpoint.distanceFromStart,
-          displayedOnMcdu: false,
+          displayedOnMcdu: this.acConfig.vnavConfig.INTERCEPT_POINT_ON_FPLN,
+          flightPlanInfo: this.acConfig.vnavConfig.INTERCEPT_POINT_ON_FPLN
+            ? this.formatFlightPlanInfo(checkpoint, geometryProfile)
+            : undefined,
           displayedOnNd: true,
         };
       case VerticalCheckpointReason.Decel:
@@ -702,6 +725,48 @@ export class PseudoWaypoints implements GuidanceComponent {
       displayedOnMcdu: false,
       displayedOnNd: true,
     };
+  }
+
+  private createTimeMarkerPseudoWaypoints(
+    geometry: Geometry,
+    wptCount: number,
+    geometryProfile: NavGeometryProfile,
+  ): PseudoWaypoint[] {
+    const markers = this.guidanceController.timeMarkers?.predictions() ?? [];
+    const pseudoWaypoints: PseudoWaypoint[] = [];
+
+    for (const { marker, distanceFromStart } of timeMarkerDistancesFromStart(markers, geometryProfile)) {
+      const position = this.pointFromEndOfPath(
+        geometry,
+        wptCount,
+        geometryProfile.totalFlightPlanDistance - distanceFromStart,
+        'time marker',
+      );
+      if (!position) {
+        continue;
+      }
+
+      const [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = position;
+      const checkpoint: VerticalCheckpoint = {
+        ...geometryProfile.interpolateEverythingFromStart(distanceFromStart),
+        reason: VerticalCheckpointReason.AtmosphericConditions,
+      };
+
+      pseudoWaypoints.push({
+        ident: timeMarkerIdent(marker.utcSeconds),
+        alongLegIndex,
+        distanceFromLegTermination,
+        efisSymbolFlag: NdSymbolTypeFlags.None,
+        efisPwpSymbolFlag: NdPwpSymbolTypeFlags.PwpTimeMarker,
+        efisSymbolLla,
+        distanceFromStart,
+        displayedOnMcdu: true,
+        flightPlanInfo: this.formatFlightPlanInfo(checkpoint, geometryProfile),
+        displayedOnNd: true,
+      });
+    }
+
+    return pseudoWaypoints;
   }
 
   private createDebugPwp(geometry: Geometry, wptCount: number, totalDistance: number): PseudoWaypoint | null {

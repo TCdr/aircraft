@@ -139,7 +139,10 @@ export class PseudoWaypointLayer implements MapLayer<NdSymbol> {
     } else if (symbol.typePwp & NdPwpSymbolTypeFlags.PwpDecel) {
       this.paintPath(context, x, y, DECEL_PATH);
     } else if (symbol.typePwp & NdPwpSymbolTypeFlags.PwpTimeMarker) {
+      // Green: information (the time marker is not a flight plan event the crew must act on)
+      context.strokeStyle = isColorLayer ? '#0f0' : '#000';
       this.paintCdaPoint(context, x, y, '', '#0f0');
+      PaintUtils.paintText(isColorLayer, context, x + 20, y + 6.5, timeMarkerLabel(symbol.ident), '#0f0');
     } else if (symbol.typePwp & NdPwpSymbolTypeFlags.PwpSpeedChange) {
       context.fillStyle = color;
       context.strokeStyle = 'none';
@@ -182,6 +185,9 @@ export class PseudoWaypointLayer implements MapLayer<NdSymbol> {
     context.closePath();
   }
 }
+
+/** The pseudo waypoint ident is (HHMM) or (HHMMSS); the symbol is labelled (HH:MM) */
+const timeMarkerLabel = (ident: string) => ident.replace(/^\((\d\d)(\d\d)\d*\)$/, '($1:$2)');
 
 const typeFlagToColor = (typeFlag: NdSymbolTypeFlags) => {
   if (typeFlag & NdSymbolTypeFlags.MagentaColor) {

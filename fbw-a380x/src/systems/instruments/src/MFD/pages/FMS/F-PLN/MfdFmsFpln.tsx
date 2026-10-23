@@ -256,6 +256,17 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
     );
   }
 
+  private lastRenderedPseudoWaypoints = '';
+
+  private pseudoWaypointSignature(): string {
+    const pseudoWaypoints = this.props.fmcService?.master?.guidanceController?.pseudoWaypoints?.pseudoWaypoints ?? [];
+
+    return pseudoWaypoints
+      .filter((it) => it.displayedOnMcdu)
+      .map((it) => `${it.alongLegIndex}${it.ident}`)
+      .join(',');
+  }
+
   protected onNewData(): void {
     if (!this.loadedFlightPlan) {
       return;
@@ -269,7 +280,14 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
     const activeLegIndexChanged = this.lastRenderedActiveLegIndex !== this.loadedFlightPlan.activeLegIndex;
     const fpVersionIncreased = this.lastRenderedFpVersion !== this.loadedFlightPlan.version;
     const listWasScrolled = this.lastRenderedDisplayLineIndex !== this.displayFplnFromLineIndex.get();
-    const onlyUpdatePredictions = !(activeLegIndexChanged || fpVersionIncreased || listWasScrolled);
+    // d) a pseudo waypoint appeared or went (e.g. a time marker): the lines no longer match the rendered ones
+    const pseudoWaypointsChanged = this.lastRenderedPseudoWaypoints !== this.pseudoWaypointSignature();
+    const onlyUpdatePredictions = !(
+      activeLegIndexChanged ||
+      fpVersionIncreased ||
+      listWasScrolled ||
+      pseudoWaypointsChanged
+    );
 
     // If we somehow ended up before the FROM waypoint, also update the internal state. Triggers a call of this function, so we can stop this call.
     if (this.displayFplnFromLineIndex.get() < this.loadedFlightPlan.activeLegIndex - 1) {
@@ -288,6 +306,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
 
     this.lastRenderedActiveLegIndex = this.loadedFlightPlan.activeLegIndex ?? null;
     this.lastRenderedFpVersion = this.loadedFlightPlan.version ?? null;
+    this.lastRenderedPseudoWaypoints = this.pseudoWaypointSignature();
     this.lastRenderedDisplayLineIndex = this.displayFplnFromLineIndex.get();
     const hasDestination = this.loadedFlightPlan.destinationAirport !== undefined;
     const loadedFpIndex = this.loadedFlightPlanIndex.get();
@@ -426,14 +445,16 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
       this.lineData.length = 0;
 
       // Prepare sequencing of pseudo waypoints
-      const pseudoWptMap = new Map<number, PseudoWaypoint>();
+      const pseudoWptMap = new Map<number, PseudoWaypoint[]>();
       const fpIndex = this.loadedFlightPlanIndex.get();
       //TODO TMPY predictions
       if (fpIndex === FlightPlanIndex.Active) {
         // Insert pseudo waypoints from guidance controller
-        this.props.fmcService?.master?.guidanceController?.pseudoWaypoints?.pseudoWaypoints?.forEach((wpt) =>
-          pseudoWptMap.set(wpt.alongLegIndex, wpt),
-        );
+        this.props.fmcService?.master?.guidanceController?.pseudoWaypoints?.pseudoWaypoints?.forEach((wpt) => {
+          const onLeg = pseudoWptMap.get(wpt.alongLegIndex) ?? [];
+          onLeg.push(wpt);
+          pseudoWptMap.set(wpt.alongLegIndex, onLeg);
+        });
       }
       lastDistanceFromStart = 0;
       const constantMachSegment = findConstantMachSegment(this.loadedFlightPlan.allLegs);
@@ -448,19 +469,23 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
         const leg = jointFlightPlan[i];
         const isAltn = i >= (this.loadedFlightPlan.allLegs.length ?? 0);
         const isActiveLeg = i === this.loadedFlightPlan.activeLegIndex;
-        let reduceDistanceBy = 0;
         const pred = predictions?.get(i);
 
-        const pwp = pseudoWptMap.get(i);
-        const pwpLineShown = pwp?.displayedOnMcdu === true;
-        if (pwp && pwp.displayedOnMcdu) {
-          reduceDistanceBy = (pwp.flightPlanInfo?.distanceFromStart ?? 0) - lastDistanceFromStart;
-          const plannedLegDistance = this.derivedFplnLegData[i].distanceFromLastWpt ?? reduceDistanceBy;
+        // Several pseudo waypoints (e.g. time markers) can lie on one leg
+        const legStartDistance = lastDistanceFromStart;
+        const pseudoWaypointsOnLeg = (pseudoWptMap.get(i) ?? [])
+          .filter((it) => it.displayedOnMcdu)
+          .sort((a, b) => (a.flightPlanInfo?.distanceFromStart ?? 0) - (b.flightPlanInfo?.distanceFromStart ?? 0));
+        const pwpLineShown = pseudoWaypointsOnLeg.length > 0;
+        for (const pwp of pseudoWaypointsOnLeg) {
+          const distanceFromLastLine = (pwp.flightPlanInfo?.distanceFromStart ?? 0) - lastDistanceFromStart;
+          const distanceFromLegStart = (pwp.flightPlanInfo?.distanceFromStart ?? 0) - legStartDistance;
+          const plannedLegDistance = this.derivedFplnLegData[i].distanceFromLastWpt ?? distanceFromLegStart;
           const pwpTrackAndDistance = activeLegLineTrackAndDistance({
             ...activeLegLiveValues,
-            planned: { track: this.derivedFplnLegData[i].trackFromLastWpt, distance: reduceDistanceBy },
-            isFirstLineOfActiveLeg: isActiveLeg,
-            plannedDistanceAfterLine: plannedLegDistance - reduceDistanceBy,
+            planned: { track: this.derivedFplnLegData[i].trackFromLastWpt, distance: distanceFromLastLine },
+            isFirstLineOfActiveLeg: isActiveLeg && pwp === pseudoWaypointsOnLeg[0],
+            plannedDistanceAfterLine: plannedLegDistance - distanceFromLegStart,
           });
           const data: FplnLineWaypointDisplayData = {
             type: FplnLineType.Waypoint,
@@ -492,6 +517,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
           lastDistanceFromStart = pwp.flightPlanInfo?.distanceFromStart ?? 0;
           this.lineData.push(data);
         }
+        const reduceDistanceBy = lastDistanceFromStart - legStartDistance;
 
         if (leg instanceof FlightPlanLeg && this.isPendingAbeamPoint(leg)) {
           // FCOM DSC-22-FMS-20-30 P 162: a pending DIRECT WITH ABEAM shows ABEAM PTS instead of its abeam points

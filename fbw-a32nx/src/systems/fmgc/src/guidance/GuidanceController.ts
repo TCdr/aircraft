@@ -16,6 +16,7 @@ import {
 import { Geometry } from '@fmgc/guidance/Geometry';
 import { PseudoWaypoint } from '@fmgc/guidance/PseudoWaypoint';
 import { PseudoWaypoints } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { TimeMarkerSource } from '@fmgc/guidance/lnav/TimeMarkerPseudoWaypoints';
 import { EfisVectors } from '@fmgc/efis/EfisVectors';
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { EfisState } from '@fmgc/guidance/FmsState';
@@ -86,6 +87,9 @@ export class GuidanceController {
   vnavDriver: VnavDriver;
 
   pseudoWaypoints: PseudoWaypoints;
+
+  /** The time markers of the crew, for the aircraft that have them */
+  timeMarkers: TimeMarkerSource | null = null;
 
   efisVectors: EfisVectors;
 
