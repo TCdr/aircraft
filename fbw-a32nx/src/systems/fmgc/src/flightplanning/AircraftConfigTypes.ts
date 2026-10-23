@@ -40,6 +40,14 @@ export interface VnavConfig {
   IDLE_N1_MARGIN: number;
 
   /**
+   * Percent of corrected core speed the FADEC adds to the descent idle while the engine anti-ice is on, and while
+   * the wing anti-ice is on. Same values as the FADEC idle setting of the aircraft, so the predicted and the
+   * flown idle thrust agree.
+   */
+  ENGINE_ANTI_ICE_IDLE_CN2_INCREASE: number;
+  WING_ANTI_ICE_IDLE_CN2_INCREASE: number;
+
+  /**
    * VNAV needs to make an initial estimate of the fuel on board at destination to compute the descent path.
    * We don't want this figure to be too large as it might crash the predictions. So we clamp it to this value.
    * This value is in lbs.

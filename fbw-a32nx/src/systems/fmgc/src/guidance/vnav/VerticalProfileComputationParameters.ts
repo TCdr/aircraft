@@ -6,6 +6,7 @@
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
 import { Fmgc } from '@fmgc/guidance/GuidanceController';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
+import { readEngineAntiIce, readWingAntiIce } from '@fmgc/guidance/vnav/descent/AntiIceIdle';
 import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { UnitType } from '@microsoft/msfs-sdk';
@@ -55,6 +56,9 @@ export interface VerticalProfileComputationParameters {
   estimatedDestinationFuel: Pounds | null;
   /** The DES CABIN RATE entered by the flight crew, ft/min (negative), null without an entry */
   descentCabinRate: FeetPerMinute | null;
+  /** An engine anti-ice is on: the FADEC raises the idle thrust of the descent */
+  engineAntiIce: boolean;
+  wingAntiIce: boolean;
 
   approachQnh: Millibar;
   approachTemperature: Celsius;
@@ -126,6 +130,8 @@ export class VerticalProfileComputationParametersObserver {
       takeoffFlapsSetting: this.fmgc.getTakeoffFlapsSetting() ?? DefaultVerticalProfileParameters.flapsSetting,
       estimatedDestinationFuel: efobTonnes !== null ? UnitType.TONNE.convertTo(efobTonnes, UnitType.POUND) : null,
       descentCabinRate: this.flightPlanService.active.performanceData.descentCabinRate?.get() ?? null,
+      engineAntiIce: readEngineAntiIce(),
+      wingAntiIce: readWingAntiIce(),
 
       approachQnh: this.fmgc.getApproachQnh(),
       approachTemperature: this.fmgc.getApproachTemperature(),
