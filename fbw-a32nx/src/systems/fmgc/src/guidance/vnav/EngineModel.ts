@@ -177,6 +177,7 @@ export class EngineModel {
     altitude: Feet,
     mach: Mach,
     tropoAltitude: Feet,
+    idleCn2Increase: number = 0,
   ): number {
     const delta = Common.getDelta(altitude, altitude > tropoAltitude);
     const iap = 1 / delta;
@@ -184,7 +185,7 @@ export class EngineModel {
     const lowMachCn2 = EngineModel.tableInterpolation(parameters.table1503, 0, iap);
     const highMachCn2 = EngineModel.tableInterpolation(parameters.table1504, 0, iap);
 
-    const cn2 = Common.interpolate(mach, 0, 0.9, lowMachCn2, highMachCn2);
+    const cn2 = Common.interpolate(mach, 0, 0.9, lowMachCn2, highMachCn2) + idleCn2Increase;
     const cn1 = EngineModel.tableInterpolation(parameters.table1502, cn2, mach);
 
     return cn1;

@@ -13,6 +13,7 @@ import { McduSpeedProfile, ManagedSpeedType } from '@fmgc/guidance/vnav/climb/Sp
 import { BaseGeometryProfile, PerfCrzToPrediction } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { FmgcFlightPhase } from '@shared/flightphase';
+import { antiIceStateChanged } from '@fmgc/guidance/vnav/descent/AntiIceIdle';
 import { LatchedDescentGuidance } from '@fmgc/guidance/vnav/descent/LatchedDescentGuidance';
 import { DescentGuidance } from '@fmgc/guidance/vnav/descent/DescentGuidance';
 import { AircraftToDescentProfileRelation } from '@fmgc/guidance/vnav/descent/AircraftToProfileRelation';
@@ -193,6 +194,8 @@ export class VnavDriver implements GuidanceComponent {
       this.decelPoint = this.profileManager.descentProfile.findVerticalCheckpoint(VerticalCheckpointReason.Decel);
     }
 
+    this.publishAntiIceDescentState(newParameters);
+
     if (this.profileManager.mcduProfile.isReadyToDisplay !== this.prevMcduPredReadyToDisplay) {
       SimVar.SetSimVarValue(
         'L:A32NX_FM_VERTICAL_PROFILE_AVAIL',
@@ -210,6 +213,19 @@ export class VnavDriver implements GuidanceComponent {
     this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
 
     this.version++;
+  }
+
+  /** The anti-ice state the descent predictions use and the along-track distance from the T/D to the destination */
+  private publishAntiIceDescentState({ engineAntiIce, wingAntiIce }: VerticalProfileComputationParameters): void {
+    SimVar.SetSimVarValue('L:A32NX_FM_DESCENT_ANTI_ICE', 'Enum', (engineAntiIce ? 1 : 0) + (wingAntiIce ? 2 : 0));
+    const distanceToTopOfDescent = this.aircraftToDescentProfileRelation.distanceToTopOfDescent();
+    SimVar.SetSimVarValue(
+      'L:A32NX_FM_TOD_DISTANCE_TO_DESTINATION',
+      'Nautical miles',
+      distanceToTopOfDescent === null
+        ? -1
+        : this.guidanceController.getAlongTrackDistanceToDestination() - distanceToTopOfDescent,
+    );
   }
 
   private reset() {
@@ -517,6 +533,7 @@ export class VnavDriver implements GuidanceComponent {
       numberOrNanChanged(this.lastParameters.approachQnh, newParameters.approachQnh) ||
       numberOrNanChanged(this.lastParameters.approachTemperature, newParameters.approachTemperature) ||
       numberOrNanChanged(this.lastParameters.descentCabinRate, newParameters.descentCabinRate) ||
+      antiIceStateChanged(this.lastParameters, newParameters) ||
       numberOrNanChanged(this.lastParameters.descentSpeedLimit?.speed, newParameters.descentSpeedLimit?.speed) ||
       numberOrNanChanged(
         this.lastParameters.descentSpeedLimit?.underAltitude,
