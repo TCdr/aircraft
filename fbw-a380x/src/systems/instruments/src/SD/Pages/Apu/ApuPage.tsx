@@ -9,6 +9,7 @@ import { ApuGenerator } from './elements/ApuGenerator';
 import Valve from '../../../Common/Valve';
 import { NXUnits } from '@flybywiresim/fbw-sdk-react';
 import { apuOilLevelLowIndicationShown } from '@shared/ApuOilLevelIndication';
+import { apuEgtRedArc } from './ApuEgtRedArc';
 
 export const ApuPage = () => {
   const [apuAvail] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'Bool', 1000);
@@ -338,6 +339,13 @@ const EgtGauge = ({ x, y }: ComponentPositionProps) => {
 
   const GAUGE_MARKING_START = GAUGE_START;
 
+  const redArc = apuEgtRedArc(apuEgtWarning.value, {
+    minValue: GAUGE_MIDDLE,
+    maxValue: GAUGE_MAX,
+    startAngle: GAUGE_MIDDLE_ANGLE,
+    endAngle: GAUGE_END,
+  });
+
   const gaugeMarkerClassName = 'SW3 White LineRound';
   const gaugeMarkerTextClassName = 'F22 LS1 White';
 
@@ -466,12 +474,9 @@ const EgtGauge = ({ x, y }: ComponentPositionProps) => {
               x={0}
               y={0}
               radius={GAUGE_RADIUS - 1}
-              startAngle={
-                GAUGE_END +
-                ((GAUGE_MAX - apuEgtWarning.value) / (GAUGE_MAX - GAUGE_MIDDLE)) * (GAUGE_END - GAUGE_MIDDLE_ANGLE)
-              }
+              startAngle={redArc.startAngle}
               endAngle={GAUGE_END}
-              visible={redLineShown}
+              visible={redLineShown && redArc.visible}
               className="SW6 Red NoFill"
             />
 
