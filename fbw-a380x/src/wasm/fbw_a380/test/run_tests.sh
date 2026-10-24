@@ -39,3 +39,7 @@ clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model alpha_floor_mach_inhibi
   ../src/model/look2_binlxpw.cpp ../src/model/plook_binx.cpp ../src/model/binsearch_u32d.cpp \
   ../src/model/intrp3d_l_pw.cpp ../src/model/look2_iflf_binlxpw.cpp -o ../obj/alpha_floor_mach_inhibit_test
 ../obj/alpha_floor_mach_inhibit_test
+# Thrust limit type after a FLEX takeoff: a lever a hair above the CL detent is still CL (the limit does not stay on FLX)
+clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model clb_limit_after_flex_takeoff_test.cpp \
+  ../src/model/A380FadecComputer.cpp ../src/model/A380FadecComputer_data.cpp -o ../obj/clb_limit_after_flex_takeoff_test
+../obj/clb_limit_after_flex_takeoff_test
