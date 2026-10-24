@@ -1,4 +1,4 @@
-// Copyright (c) 2023 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 #include <iostream>
@@ -66,10 +66,13 @@ bool LightingPresets_A380X::initialize_aircraft() {
   ecamUpperLightLevel = createLightPotentiometerVar(92);
   ecamLowerLightLevel = createLightPotentiometerVar(93);
 
-  pedFloodLightLevel     = createLightPotentiometerVar(76);
-  mainPnlFloodLightLevel = createLightPotentiometerVar(83);
-  integralLightLevel     = createLightPotentiometerVar(85);
-  ambientLightLevel      = createLightPotentiometerVar(7);
+  pedFloodLightLevel = createLightPotentiometerVar(76);
+  // Read and written in percent like the knob behaviour does, so the preset keeps its 0..100 scale
+  mainPnlFloodLightKnob =
+      dataManager->make_named_var("A380X_PED_LIGHTING_MIP_FLOOD_LT_KNOB", UNITS.Percent, UpdateMode::NO_AUTO_UPDATE, 0.0, 0, true);
+  integralLightLevel = createLightPotentiometerVar(85);
+  ambientLightKnob =
+      dataManager->make_named_var("A380X_PED_LIGHTING_AMBIENT_LT_KNOB", UNITS.Percent, UpdateMode::NO_AUTO_UPDATE, 0.0, 0, true);
 
   loadLightingPresetRequest->setAsInt64(0);
   saveLightingPresetRequest->setAsInt64(0);
@@ -112,10 +115,10 @@ void LightingPresets_A380X::readFromAircraft() {
   currentLightValues.ecamUpperLightLevel = ecamUpperLightLevel->readFromSim();
   currentLightValues.ecamLowerLightLevel = ecamLowerLightLevel->readFromSim();
 
-  currentLightValues.mainPnlFloodLightLevel = mainPnlFloodLightLevel->readFromSim();
+  currentLightValues.mainPnlFloodLightLevel = mainPnlFloodLightKnob->readFromSim();
   currentLightValues.integralLightLevel     = integralLightLevel->readFromSim();
   currentLightValues.pedFloodLightLevel     = pedFloodLightLevel->readFromSim();
-  currentLightValues.ambientLightLevel      = ambientLightLevel->readFromSim();
+  currentLightValues.ambientLightLevel      = ambientLightKnob->readFromSim();
 }
 
 void LightingPresets_A380X::applyToAircraft() {
@@ -148,9 +151,9 @@ void LightingPresets_A380X::applyToAircraft() {
   ecamLowerLightLevel->setAndWriteToSim(intermediateLightValues.ecamLowerLightLevel);
 
   pedFloodLightLevel->setAndWriteToSim(intermediateLightValues.pedFloodLightLevel);
-  mainPnlFloodLightLevel->setAndWriteToSim(intermediateLightValues.mainPnlFloodLightLevel);
+  mainPnlFloodLightKnob->setAndWriteToSim(intermediateLightValues.mainPnlFloodLightLevel);
   integralLightLevel->setAndWriteToSim(intermediateLightValues.integralLightLevel);
-  ambientLightLevel->setAndWriteToSim(intermediateLightValues.ambientLightLevel);
+  ambientLightKnob->setAndWriteToSim(intermediateLightValues.ambientLightLevel);
 }
 
 void LightingPresets_A380X::loadFromIni(const mINI::INIStructure& ini, const std::string& iniSectionName) {
