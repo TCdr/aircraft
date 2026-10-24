@@ -19,15 +19,25 @@ import {
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { Arinc429LocalVarConsumerSubject, Arinc429Word, Fix, Runway, Units } from '@flybywiresim/fbw-sdk';
 import { Feet } from 'msfs-geo';
-import { minGw } from '@shared/PerformanceConstants';
+import { maxCertifiedAlt, minGw } from '@shared/PerformanceConstants';
 import { A380AircraftConfig, A380EconParameters } from '@fmgc/flightplanning/A380AircraftConfig';
-import { EconSpeeds, isaDeviationAt } from '@fmgc/guidance/vnav/EconSpeeds';
+import {
+  ComputationMemo,
+  EconSpeeds,
+  isaDeviationAt,
+  ISA_TROPOPAUSE_ALTITUDE,
+  roundToStep,
+} from '@fmgc/guidance/vnav/EconSpeeds';
 import { applyRtaSpeedBias, RtaSpeedEnvelope, rtaSpeedEnvelope } from '@fmgc/guidance/vnav/rta/RtaSpeedBias';
 import type { EconSpeedSet } from '@fmgc/guidance/vnav/EconSpeeds';
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
 import { qnhToMillibar } from '../shared/QnhUtils';
 import { grossWeightCgFromFqmsOrWbbc } from './GrossWeightCgSource';
 import { A380EconSpeedCache, DescentEconSpeedFreeze } from './A380EconSpeeds';
+import { A380EngineOutCruiseMode, A380EngineOutResult, a380EngineOut } from './A380EngineOut';
+import { EngineOutProfileParameters } from '@fmgc/guidance/vnav/engineout/EngineOutPerformance';
+import { withEngineOutSpeeds } from '@fmgc/guidance/vnav/engineout/EngineOutSpeeds';
+import { A380AltitudeUtils } from '@shared/OperatingAltitudes';
 import { a380GreenDotSpeed } from './CruiseSpeeds';
 import type { InsertedAlternateRoute } from './AlternateCompanyRoute';
 import type { SecondaryFlightPlanPredictions } from '@fmgc/guidance/vnav/SecondaryFlightPlanPredictions';
@@ -194,6 +204,9 @@ export class FmgcData {
 
   /** Indicates OEI situation */
   public readonly engineOut = Subject.create(false);
+
+  /** The engine-out strategy of the cruise, selected in the EO CRZ MODE list of the PERF page */
+  public readonly engineOutCruiseMode = Subject.create<A380EngineOutCruiseMode>('EO-LRC');
 
   /** Fuel Penalty Factor in percentage between none and 999. Reset at done phase
    */
@@ -390,11 +403,66 @@ export class FmgcDataService implements Fmgc {
     }
     const isActivePlan = forPlan === FlightPlanIndex.Active;
     if (isActivePlan) {
-      return this.activePlanDescentFreeze.get(this.getFlightPhase() >= FmgcFlightPhase.Descent, () =>
-        this.withRtaSpeedBias(this.computeEconSpeeds(forPlan)),
-      );
+      return this.activePlanDescentFreeze.get(this.getFlightPhase() >= FmgcFlightPhase.Descent, () => {
+        const econ = this.withRtaSpeedBias(this.computeEconSpeeds(forPlan));
+        const engineOut = this.getEngineOut();
+        return econ !== null && engineOut !== null ? withEngineOutSpeeds(econ, engineOut.speeds) : econ;
+      });
     }
     return this.computeEconSpeeds(forPlan);
+  }
+
+  private readonly engineOutMemo = new ComputationMemo<A380EngineOutResult | null>();
+
+  /** The engine-out limits and speeds, null while no engine is out or without the data to compute them */
+  public getEngineOut(): A380EngineOutResult | null {
+    const grossWeight = this.getGrossWeight();
+    if (!this.data.engineOut.get() || grossWeight === null || !this.flightPlanService.has(FlightPlanIndex.Active)) {
+      return null;
+    }
+    const pd = this.flightPlanService.active.performanceData;
+    const tropopause = pd.tropopause.get() ?? ISA_TROPOPAUSE_ALTITUDE;
+    const isaDeviation = isaDeviationAt(
+      this.getPressureAlt() ?? SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
+      SimVar.GetSimVarValue('AMBIENT TEMPERATURE', 'celsius'),
+      tropopause,
+    );
+    const recMaxAltitude = Math.min(
+      A380AltitudeUtils.calculateRecommendedMaxAltitude(grossWeight * 1_000, isaDeviation),
+      maxCertifiedAlt,
+    );
+    const runningEngines = [1, 2, 3, 4].filter((index) => this.isEngineOn(index)).length;
+    const cruiseFlightLevel = pd.cruiseFlightLevel.get();
+    const cruiseMode = this.data.engineOutCruiseMode.get();
+    const costIndex = pd.costIndex.get() ?? 0;
+    return this.engineOutMemo.get(
+      [
+        roundToStep(grossWeight, 1),
+        roundToStep(isaDeviation, 1),
+        tropopause,
+        recMaxAltitude,
+        runningEngines,
+        cruiseFlightLevel,
+        cruiseMode,
+        costIndex,
+      ],
+      () =>
+        a380EngineOut({
+          grossWeight,
+          isaDeviation,
+          tropopause,
+          recMaxAltitude,
+          runningEngines,
+          cruiseFlightLevel,
+          cruiseMode,
+          costIndex,
+        }),
+    );
+  }
+
+  /** The engine-out limits of the vertical profile, null while no engine is out */
+  public getEngineOutProfile(): EngineOutProfileParameters | null {
+    return this.getEngineOut()?.profile ?? null;
   }
 
   /** The managed speeds of the active flight plan: the ECON speeds moved by the RTA speed bias */

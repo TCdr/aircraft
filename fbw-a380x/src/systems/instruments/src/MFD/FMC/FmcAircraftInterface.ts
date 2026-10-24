@@ -1110,6 +1110,12 @@ export class FmcAircraftInterface {
           );
           vPfd = target.cas;
           isMach = target.mach !== null;
+          // EO-GDOT: the open descent of an engine-out drift down flies the green dot speed
+          const greenDotSpeed = this.fmgc.data.greenDotSpeed.get();
+          if (engineOut && greenDotSpeed && this.masterPrimFgWord3.get().bitValueOr(14, false)) {
+            vPfd = greenDotSpeed;
+            isMach = false;
+          }
           break;
         }
         case FmgcFlightPhase.Descent: {

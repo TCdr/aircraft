@@ -59,6 +59,8 @@ export enum VerticalCheckpointReason {
   CrossingFcuAltitudeClimb = 'FcuAltitudeClimb',
 
   // Cruise
+  DriftDown = 'DriftDown',
+  DriftDownLevelOff = 'DriftDownLevelOff',
   StepClimb = 'StepClimb',
   TopOfStepClimb = 'TopOfStepClimb',
   StepDescent = 'StepDescent',
