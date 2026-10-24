@@ -21,3 +21,8 @@ clang++ -std=c++20 -Wall -Wextra -I ../src/model \
   ../src/utils/PulseNode.cpp ../src/utils/SRFlipFLop.cpp \
   -o ../obj/fac_actuator_failure_test
 ../obj/fac_actuator_failure_test
+# Thrust limit type after a FLX takeoff: a lever a hair above the CL detent is still CL (the limit does not stay on FLX)
+clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model \
+  clb_limit_after_flex_takeoff_test.cpp ../src/model/FadecComputer.cpp ../src/model/FadecComputer_data.cpp \
+  -o ../obj/clb_limit_after_flex_takeoff_test
+../obj/clb_limit_after_flex_takeoff_test

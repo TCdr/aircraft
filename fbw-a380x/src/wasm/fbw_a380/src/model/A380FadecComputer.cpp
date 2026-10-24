@@ -3,6 +3,11 @@
 #include "rtwtypes.h"
 #include <cmath>
 
+// Design choice: the thrust lever is an analog value, so it rarely rests at exactly 25.0 in the CL detent. A lever a hair above
+// the detent must still count as CL (limit type CLB, takeoff latch reset); 1 degree is the detent window the A/THR active range
+// check below already uses. Hand edit of the generated model: re-apply after a regeneration.
+static constexpr real_T CL_DETENT_TOLERANCE_DEG = 1.0;
+
 const base_arinc_429 A380FadecComputer_rtZbase_arinc_429{
   0U,
   0.0F
@@ -1078,8 +1083,8 @@ void A380FadecComputer::step()
   rtb_y_mv = (rtb_NOT1_f && (rtb_y_pg > A380FadecComputer_U.in.data.TAT_degC));
   A380FadecComputer_DWork.latch = ((rtb_y_mv && A380FadecComputer_U.in.data.on_ground &&
     (A380FadecComputer_U.in.input.TLA_deg == 35.0)) || A380FadecComputer_DWork.latch);
-  A380FadecComputer_DWork.latch = (((!A380FadecComputer_DWork.latch) || ((A380FadecComputer_U.in.input.TLA_deg != 25.0) &&
-    (A380FadecComputer_U.in.input.TLA_deg != 45.0))) && A380FadecComputer_DWork.latch);
+  A380FadecComputer_DWork.latch = (((!A380FadecComputer_DWork.latch) || ((std::abs(A380FadecComputer_U.in.input.TLA_deg - 25.0) >
+    CL_DETENT_TOLERANCE_DEG) && (A380FadecComputer_U.in.input.TLA_deg != 45.0))) && A380FadecComputer_DWork.latch);
   rtb_y_mv = ((rtb_y_mv && A380FadecComputer_U.in.data.on_ground) || ((!A380FadecComputer_U.in.data.on_ground) &&
     A380FadecComputer_DWork.latch));
   A380FadecComputer_TimeSinceCondition(A380FadecComputer_U.in.time.simulation_time,
@@ -1140,7 +1145,7 @@ void A380FadecComputer::step()
     } else if (N1_begin > 35.0) {
       rtb_type = athr_thrust_limit_type::TOGA;
       N1_begin = A380FadecComputer_U.in.input.thrust_limit_TOGA_percent;
-    } else if (N1_begin > 25.0) {
+    } else if (N1_begin > 25.0 + CL_DETENT_TOLERANCE_DEG) {
       if (!rtb_y_mv) {
         rtb_type = athr_thrust_limit_type::MCT;
         N1_begin = A380FadecComputer_U.in.input.thrust_limit_MCT_percent;
