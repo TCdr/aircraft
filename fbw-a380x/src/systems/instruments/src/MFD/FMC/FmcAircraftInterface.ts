@@ -33,7 +33,14 @@ import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { WindUtils } from '@fmgc/guidance/vnav/wind/WindUtils';
 import { isWindVectorComplete } from '@fmgc/flightplanning/data/wind';
-import { AlternateFuelPrediction, AlternateFuelPredictor } from './AlternateFuelPredictor';
+import { AlternateFuelPrediction, AlternateFuelPredictor } from '@fmgc/guidance/vnav/AlternateFuelPredictor';
+import {
+  alternateLegDistances,
+  alternateLegPredictions,
+  alternatePlanDistance,
+  alternateRouteDistance,
+} from '@fmgc/guidance/vnav/AlternateLegPredictions';
+import { ISA_TROPOPAUSE_ALTITUDE } from '@fmgc/guidance/vnav/EconSpeeds';
 import { FinalHoldingPredictor, roundFuelUpToTenthTonne } from './FinalHoldingPredictor';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { MmrRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
@@ -1965,6 +1972,35 @@ export class FmcAircraftInterface {
     return prediction ? prediction.time * 1000 : null;
   }
 
+  /**
+   * The predictions at the legs of the alternate flight plan (by leg index of the alternate flight plan): time, altitude,
+   * speed and EFOB along the alternate profile, from the predictions at the primary destination.
+   * @returns null when the alternate or the destination prediction is missing
+   */
+  public getAlternateLegPredictions(fpIndex: number): Map<number, VerticalWaypointPrediction> | null {
+    const prediction = this.alternatePredictions.get(fpIndex)?.prediction;
+    const destination = this.fmgc.getDestinationPrediction(fpIndex);
+    if (!prediction || !destination || !this.flightPlanService.has(fpIndex)) {
+      return null;
+    }
+    const fp = this.flightPlanService.get(fpIndex);
+    const pd = fp.performanceData;
+    const alternateFuel = pd.pilotAlternateFuel.get() ?? pd.calculatedAlternateFuel.get();
+    const wind = pd.alternateWind.get();
+    return alternateLegPredictions(
+      prediction,
+      alternateLegDistances(fp.alternateFlightPlan),
+      {
+        secondsFromPresent: destination.secondsFromPresent,
+        estimatedFuelOnBoard: destination.estimatedFuelOnBoard,
+        distanceFromStart: destination.distanceFromStart,
+      },
+      { fuel: alternateFuel !== null ? Units.kilogramToPound(alternateFuel * 1000) : null, time: null },
+      this.fmgc.getTropoPause() ?? ISA_TROPOPAUSE_ALTITUDE,
+      isWindVectorComplete(wind) ? wind : 0,
+    );
+  }
+
   calculateFinalAndAlternateFuel(fpIndex = FlightPlanIndex.Active) {
     const fpExists = this.flightPlanService.has(fpIndex);
     if (fpExists) {
@@ -2016,10 +2052,8 @@ export class FmcAircraftInterface {
     }
 
     const directDistance = distanceTo(destination.location, alternate.location);
-    const routeDistance = this.alternateRouteDistance(fp);
-    // A route distance out of proportion with the direct distance is not the alternate route (geometry not computed)
-    const distance =
-      routeDistance !== null && routeDistance <= 3 * directDistance + 20 ? routeDistance : directDistance;
+    const routeDistance = alternateRouteDistance(fp.alternateFlightPlan);
+    const distance = alternatePlanDistance(directDistance, routeDistance);
     const wind = pd.alternateWind.get();
     // The ALTN wind is always a vector object, with undefined fields when not entered
     const headwind = isWindVectorComplete(wind)
@@ -2031,6 +2065,7 @@ export class FmcAircraftInterface {
       pd.pilotMinimumDestinationFuelOnBoard.get() ??
       (pd.finalHoldingFuel.get() ?? 0) + (last ? Units.poundToKilogram(last.fuel) / 1000 : 0);
 
+    const approachSpeed = this.fmgc.getApproachSpeed();
     const key = [
       distance.toFixed(0),
       destination.location.alt?.toFixed(0),
@@ -2039,6 +2074,7 @@ export class FmcAircraftInterface {
       fuelAtDestination.toFixed(1),
       headwind.toFixed(0),
       this.fmgc.getTropoPause(),
+      approachSpeed,
     ].join('|');
     const cached = this.alternatePredictions.get(fpIndex);
     if (cached?.key === key) {
@@ -2054,26 +2090,10 @@ export class FmcAircraftInterface {
       headwind,
       // No tropopause: the predictor uses the ISA one
       tropopause: this.fmgc.getTropoPause() ?? undefined,
+      approachSpeed: approachSpeed > 0 ? approachSpeed : undefined,
     });
     this.alternatePredictions.set(fpIndex, { key, prediction });
     return prediction;
-  }
-
-  /**
-   * The distance of the alternate flight plan (computed legs), from the primary destination to the landing at the
-   * alternate (without its missed approach)
-   */
-  private alternateRouteDistance(fp: FlightPlan<FlightPlanPerformanceData>): number | null {
-    const alternatePlan = fp.alternateFlightPlan;
-    for (let i = alternatePlan.firstMissedApproachLegIndex - 1; i >= 0; i--) {
-      const element = alternatePlan.maybeElementAt(i);
-      const distance =
-        element?.isDiscontinuity === false ? element.calculated?.cumulativeDistanceWithTransitions : undefined;
-      if (distance !== undefined && Number.isFinite(distance) && distance > 0) {
-        return distance;
-      }
-    }
-    return null;
   }
 
   isInchesSelectedOnFcu(side: EfisSide): boolean {

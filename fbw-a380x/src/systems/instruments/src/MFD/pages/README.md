@@ -30,7 +30,7 @@ Status legend:
 | 🟨 | fms/\*/f-pln-rte-sel | 3 | alternate company routes are listed but cannot be inserted |
 | 🟨 | fms/\*/f-pln-offset | 3 | no lateral offset guidance: fields shown with the FCOM defaults but inactive |
 | ✅ | fms/\*/f-pln-fix-info | 3 | intecept predictions, abeam, insert as waypoint |
-| 🟨 | fms/\*/f-pln-alternate | 3 | database alternates from the SimBrief OFP (no navdata alternate records), no alternate company routes, simplified alternate fuel (level flight), selection is direct (no TMPY) |
+| 🟨 | fms/\*/f-pln-alternate | 3 | database alternates from the SimBrief OFP (no navdata alternate records), no alternate company routes, alternate fuel and F-PLN predictions from a climb, cruise and descent profile, selection is direct (no TMPY) |
 | 🟨 | fms/active/f-pln-closest-airports | 3 | simplified predictions (level flight at CRZ FL, no descent), default EFF WIND = INIT trip wind |
 | 🟨 | fms/\*/wind | 4 | no KCCU wheel scrolling on CRZ |
 | 🟨 | fms/\*/cpny-wind-request | 4 | free text kept on the page, not sent (the ground station is SimBrief) |

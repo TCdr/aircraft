@@ -35,6 +35,8 @@ import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { UplinkTakeoffData } from './UplinkTakeoffData';
 import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
 import { A32nxRtaFunction } from './A32nxRtaFunction';
+import { SecondaryFlightPlanPredictions } from '@fmgc/guidance/vnav/SecondaryFlightPlanPredictions';
+import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 
 export type LskCallback = (
   /** The scratchpad content when the LSK was pressed. */
@@ -242,6 +244,7 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   getHistoryWinds(cruiseLevel: number | null): Promise<Readonly<WindEntry>[]>;
   getTimePrediction(secondsFromPresent: number, forPlan: FlightPlanIndex): string;
   getTimePredictionHeader(forPlan: FlightPlanIndex): string;
+  getAlternateLegPredictions(forPlan: FlightPlanIndex): Map<number, VerticalWaypointPrediction> | null;
   clearEngineOutCondition(): void;
   isCostIndexModificationDisabled(plan: FlightPlan): boolean;
   confirmTakeoffData(): void;
@@ -253,6 +256,7 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   coRoute: any;
   flightPhaseManager: FlightPhaseManager;
   guidanceController?: GuidanceController;
+  secondaryPredictions?: SecondaryFlightPlanPredictions;
   dataManager?: DataManager;
   navigation?: Navigation;
   holdDecelReached: boolean;

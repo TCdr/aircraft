@@ -30,7 +30,7 @@ import { grossWeightCgFromFqmsOrWbbc } from './GrossWeightCgSource';
 import { A380EconSpeedCache, DescentEconSpeedFreeze } from './A380EconSpeeds';
 import { a380GreenDotSpeed } from './CruiseSpeeds';
 import type { InsertedAlternateRoute } from './AlternateCompanyRoute';
-import type { SecondaryFlightPlanPredictions } from './SecondaryFlightPlanPredictions';
+import type { SecondaryFlightPlanPredictions } from '@fmgc/guidance/vnav/SecondaryFlightPlanPredictions';
 import type { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 
 export enum TakeoffPowerSetting {
