@@ -894,6 +894,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] The time markers of the LL XING - TIME MKR page show as a pseudo waypoint on the F-PLN page and the ND, with TIME MARKER REACHED; several pseudo waypoints can share a leg of the F-PLN page - @TCdr
 1. [A32NX/FMS] Predictions for the secondary flight plan on the F-PLN pages (time, altitude, speed, EFOB, wind) with the FCOM rules: none for the descent, stopped at the top of descent or when the active leg diverges, computed once on ground for a SEC INIT - @TCdr
 1. [FMS] Predictions on the alternate flight plan of the F-PLN pages (time, altitude, speed, EFOB along a climb, cruise and descent from the destination); the A320 ALTN fuel and time use the alternate flight plan distance and are computed beyond the 200 NM table limit - @TCdr
+1. [EFB] The dashboard follows the flight: a strip with the times and a countdown for the current phase, advice on weather and crosswind, and the cards that matter at the gate, in flight and after landing (turnaround, fuel, payload, weather, checklist) - @TCdr
+1. [EFB] Weather page in Navigation (METAR / TAF of the flight's airports or any ICAO): decoded conditions with the flight category, the wind on the chosen runway, the cloud layers over the field and the TAF as a timeline; a TAF missing from the weather server can be loaded from the OFP - @TCdr
 
 ## 2024.1.0
 

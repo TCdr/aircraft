@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { Metar as FbwApiMetar } from '@flybywiresim/api-client';
+import { Metar as FbwApiMetar, Taf as FbwApiTaf } from '@flybywiresim/api-client';
 import { ConfigWeatherMap, NXDataStore } from '@flybywiresim/fbw-sdk';
 import { Metar as MsfsMetar } from '@microsoft/msfs-sdk';
 import { BeyondATCConnector, SayIntentionsConnector } from '../../../../datalink/router/src';
@@ -58,4 +58,14 @@ export const fetchRawMetarBySource = async (icao: string): Promise<string> => {
   }
 
   return response.metar;
+};
+
+export const fetchRawTafBySource = async (icao: string): Promise<string> => {
+  const source = NXDataStore.getSetting('CONFIG_TAF_SRC').get();
+  const response = await FbwApiTaf.get(icao, source);
+  if (!response.taf) {
+    throw new Error('No TAF available');
+  }
+
+  return response.taf;
 };
