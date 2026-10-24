@@ -1381,8 +1381,8 @@ export class FlightManagementComputer implements FmcInterface {
 
   /** @inheritdoc */
   public getEoMaxFlightLevel(): number | null {
-    const recMax = this.getRecMaxFlightLevel();
-    return recMax !== null ? Math.floor((0.8 * recMax) / 5) * 5 : null; // FIXME remove magic
+    const eoMax = this.fmgc.getEngineOut()?.profile.maximumAltitude;
+    return eoMax !== undefined ? Math.floor(eoMax / 100) : null;
   }
 
   /** @inheritdoc */
@@ -2950,9 +2950,6 @@ export class FlightManagementComputer implements FmcInterface {
   public enterEngineOut() {
     // Managed speed targets are handled in FmcAircraftInterface.updateManagedSpeed()
 
-    // Update drift-down altitude if in CRZ phase
-    // FIXME need to add drift-down PWP to fmsv2
-
     // Delete pre-selected speeds
     const activePlan = this.flightPlanInterface.active;
     activePlan.performanceData.preselectedClimbSpeed.set(null);
@@ -2995,7 +2992,7 @@ export class FlightManagementComputer implements FmcInterface {
   }
 
   public exitEngineOut() {
-    // Restore long-term guidance targets
+    this.fmgc.data.engineOutCruiseMode.set('EO-LRC');
   }
 
   public engineOutActive(): boolean {

@@ -45,6 +45,7 @@ import {
 } from './profile/NavGeometryProfile';
 import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
 import { GoAroundPathBuilder } from './goaround/GoAroundPathBuilder';
+import { appendDriftDownPath } from './engineout/DriftDownProfile';
 import { EventBus } from '@microsoft/msfs-sdk';
 import { DescentCabinRateResult } from './descent/RepressurizationSegment';
 
@@ -165,6 +166,10 @@ export class VerticalProfileManager {
         speedProfile,
         cruiseAltitude,
       );
+    }
+
+    if (flightPhase >= FmgcFlightPhase.Climb && flightPhase <= FmgcFlightPhase.Cruise) {
+      appendDriftDownPath(mcduProfile, this.observer.get());
     }
 
     if (

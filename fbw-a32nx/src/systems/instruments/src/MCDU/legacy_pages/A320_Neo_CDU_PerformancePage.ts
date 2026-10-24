@@ -1656,6 +1656,8 @@ export class CDUPerformancePage {
       ) {
         stepWaypoint = `{small}AT\xa0\xa0 {green}${nextLegWithStep.ident}{end}`;
         toReasonCell = `{white}{small}STEP TO{end} {green}FL${flightLevel}{end}`;
+      } else if (toPrediction.reason === 'DriftDown') {
+        toReasonCell = '{white}{small}DRIFT DOWN{end}';
       } else if (toPrediction.reason === 'TopOfDescent') {
         toReasonCell = `{white}{small}TO{end}\xa0{green}(T/D){end}`;
       }
@@ -1669,6 +1671,13 @@ export class CDUPerformancePage {
     // With a time constraint the managed speeds come from the RTA, not from the cost index
     if (plan.performanceData.timeConstraint.get() !== null) {
       return 'RTA CI[color]green';
+    }
+    if (
+      plan.isActiveOrCopiedFromActive() &&
+      mcdu.isEngineOutCondition.get() &&
+      !mcdu.isEngineOutCostIndexOverwritten()
+    ) {
+      return 'EO LRC[color]green';
     }
     if (plan.destinationAirport !== undefined) {
       const costIndex = plan.performanceData.costIndex.get();

@@ -1,6 +1,7 @@
 // Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 import { DropdownMenu } from '../../../MsfsAvionicsCommon/UiWidgets/DropdownMenu';
+import { driftDownFlightLevel } from '../../FMC/DriftDownFlightLevel';
 import { dropdownEntryIndex } from '../../../MsfsAvionicsCommon/UiWidgets/DropdownEntry';
 import { InputField } from '../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { TopTabNavigator, TopTabNavigatorPage } from '../../../MsfsAvionicsCommon/UiWidgets/TopTabNavigator';
@@ -95,6 +96,9 @@ enum FlightPhaseTabIndex {
   GoAround = 5,
 }
 
+/** Below this vertical speed the aircraft is in level flight, ft/min */
+const LEVEL_FLIGHT_VERTICAL_SPEED = 200;
+
 export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
   /** FCOM DSC-22-FMS-20-30 P 34 / P 231: the tab panels span y = 266 to 890 of the display */
   private static readonly panelFrameStyle = 'flex: 0 0 auto; box-sizing: border-box; height: 624px;';
@@ -187,6 +191,16 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
     this.recMaxFlNotAvail,
     this.eoMaxFlNotAvail,
   );
+
+  /** EO-GDOT or the EO CRZ MODE strategy, under the managed line of the CLB table */
+  private readonly clbManagedSpeedType = Subject.create<string | null>(null);
+
+  /** The EO CRZ MODE list of the CRZ panel */
+  private readonly engineOutCruiseModes = ArraySubject.create(['EO-ECON', 'EO-LRC']);
+
+  private readonly engineOutCruiseModeIndex = Subject.create<number | null>(1);
+
+  private readonly engineOutCruiseModeDisplay = this.eoActive.map((eo) => (eo ? 'block' : 'none'));
 
   private readonly flightPhasesSelectedPageIndex = Subject.create(FlightPhaseTabIndex.Takeoff);
 
@@ -909,6 +923,12 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
+    this.subs.push(
+      this.props.fmcService.master.fmgc.data.engineOutCruiseMode.sub(
+        (mode) => this.engineOutCruiseModeIndex.set(mode === 'EO-ECON' ? 0 : 1),
+        true,
+      ),
+    );
     this.subs.push(this.cpnyToButton.subscription, this.cpnyToButton.label);
 
     const sub = this.props.bus.getSubscriber<ClockEvents & MfdSimvars>();
@@ -1040,6 +1060,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
       this.clbTableSpdLine2Unit,
       this.clbTableSpdLine3Unit,
       this.crzTablePredLine1Unit,
+      this.engineOutCruiseModeDisplay,
       this.crzTableSpdLine2Unit,
       this.crzTablePredLine2Unit,
       this.crzEconLineBelowLine1Display,
@@ -1144,6 +1165,8 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
     this.crzEconSpeed.set(info ? info.econSpeed.toFixed(0) : null);
     this.crzEconMach.set(info ? formatMach(info.econMach) : null);
 
+    this.showEngineOutCruiseSpeedType(managedLine);
+
     const labelTitle = cruiseSpeedRestrictionLabelTitle(info?.restriction ?? null);
     this.crzRestrictionLabelTitle.set(labelTitle);
     if (info !== null && labelTitle !== null) {
@@ -1151,6 +1174,58 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
       this.crzRestrictionLabelSpeed.set((speedLimit?.speed ?? info.targetCas).toFixed(0));
       this.crzRestrictionLabelFlightLevel.set(speedLimit ? (speedLimit.underAltitude / 100).toFixed(0) : null);
       this.crzRestrictionLabelWaypoint.set(speedLimit ? null : info.holdWaypoint);
+    }
+  }
+
+  /** With an engine out, the third line of the CLB table gives the EO-ECON speed, for information */
+  private showEngineOutEconSpeed(fpIndex: FlightPlanIndex): void {
+    this.clbManagedSpeedType.set(fpIndex === FlightPlanIndex.Active ? this.engineOutManagedSpeedType() : null);
+    const engineOut = fpIndex === FlightPlanIndex.Active ? this.props.fmcService.master.fmgc.getEngineOut() : null;
+    if (engineOut === null || this.activeFlightPhase.get() < FmgcFlightPhase.Climb) {
+      return;
+    }
+    this.clbTableModeLine3.set('EO-ECON');
+    this.clbTableSpdLine3.set(engineOut.econSpeeds.cruiseSpeed.toFixed(0));
+    this.clbTableMachLine3.set(`.${engineOut.econSpeeds.cruiseMach.toFixed(2).split('.')[1]}`);
+  }
+
+  /**
+   * The type of the managed engine-out speed: EO-GDOT while the aircraft climbs or descends, else the strategy of EO CRZ
+   * MODE. Null while no engine is out.
+   */
+  private engineOutManagedSpeedType(): 'EO-GDOT' | 'EO-LRC' | 'EO-ECON' | null {
+    const fmgc = this.props.fmcService.master.fmgc;
+    if (fmgc.getEngineOut() === null) {
+      return null;
+    }
+    const verticalSpeed: number = SimVar.GetSimVarValue('VERTICAL SPEED', 'feet per minute');
+    return Math.abs(verticalSpeed) > LEVEL_FLIGHT_VERTICAL_SPEED ? 'EO-GDOT' : fmgc.data.engineOutCruiseMode.get();
+  }
+
+  /**
+   * With an engine out, the type of the managed speed takes the small font line under MANAGED, where the restriction
+   * type is shown otherwise, and EO-GDOT shows the green dot speed. Design choice: no figure shows where the type goes.
+   */
+  private showEngineOutCruiseSpeedType(managedLine: 1 | 2): void {
+    const type = this.engineOutManagedSpeedType();
+    if (type === null) {
+      return;
+    }
+    if (managedLine === 1) {
+      this.crzTableRestrictionLine1.set(type);
+    } else {
+      this.crzTableRestrictionLine2.set(type);
+    }
+    if (type === 'EO-GDOT') {
+      const greenDotSpeed = this.props.fmcService.master.fmgc.data.greenDotSpeed.get();
+      const speed = greenDotSpeed !== null ? greenDotSpeed.toFixed(0) : '---';
+      if (managedLine === 1) {
+        this.crzTableSpdLine1.set(speed);
+        this.crzTableMachLine1.set(null);
+      } else {
+        this.crzTableSpdLine2.set(speed);
+        this.crzTableMachLine2.set(null);
+      }
     }
   }
 
@@ -1345,6 +1420,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
         );
         this.clbTablePredLine3.set(null);
       }
+      this.showEngineOutEconSpeed(fpIndex);
     } else if (selectedTabIndex === FlightPhaseTabIndex.Cruise) {
       // Update CRZ prediction
       const crzPred =
@@ -1357,7 +1433,14 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
         this.crzPredTdRef.getOrDefault() &&
         this.crzPredStepAheadRef.getOrDefault()
       ) {
-        if (crzPred?.reason !== undefined && crzPred.reason === VerticalCheckpointReason.TopOfDescent) {
+        if (crzPred?.reason !== undefined && crzPred.reason === VerticalCheckpointReason.DriftDown) {
+          this.crzPredStepRef.instance.style.display = 'none';
+          this.crzPredTdRef.instance.style.display = 'none';
+          this.crzPredStepAheadRef.instance.style.display = 'none';
+          this.crzPredDriftDownRef.instance.style.display = 'block';
+          const driftDownAltitude = this.props.fmcService.master.fmgc.getEngineOut()?.profile.driftDownAltitude;
+          this.crzPredAltitudeTarget.set(driftDownFlightLevel(driftDownAltitude));
+        } else if (crzPred?.reason !== undefined && crzPred.reason === VerticalCheckpointReason.TopOfDescent) {
           this.crzPredStepRef.instance.style.display = 'none';
           this.crzPredDriftDownRef.instance.style.display = 'none';
           this.crzPredTdRef.instance.style.display = 'block';
@@ -2419,7 +2502,9 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                     <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.clbTableMachLine3}</span>
                   </div>
                   <div class="mfd-fms-perf-speed-table-cell" style="padding: 5px 15px 5px 15px;" />
-                  <div style="border-right: 1px solid lightgrey; height: 40px;" />
+                  <div style="border-right: 1px solid lightgrey; height: 40px; display: flex; justify-content: flex-end; align-items: center; padding-right: 15px;">
+                    <div class="mfd-label">{this.clbManagedSpeedType}</div>
+                  </div>
                   <div />
                   <div />
                   <div />
@@ -2502,6 +2587,30 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                       interactionMode={this.props.mfd.interactionMode}
                     />,
                   )}
+                  <div style={{ display: this.engineOutCruiseModeDisplay }}>
+                    {fcomAt(34, 300, <span class="mfd-label">CRZ MODE</span>)}
+                    {fcomAt(
+                      34,
+                      420,
+                      <DropdownMenu
+                        values={this.engineOutCruiseModes}
+                        selectedIndex={this.engineOutCruiseModeIndex}
+                        onModified={(i, text) => {
+                          const index = dropdownEntryIndex(this.engineOutCruiseModes, i, text);
+                          if (index !== null) {
+                            this.props.fmcService.master.fmgc.data.engineOutCruiseMode.set(
+                              index === 0 ? 'EO-ECON' : 'EO-LRC',
+                            );
+                          }
+                        }}
+                        idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_eoCrzModeDropdown`}
+                        containerStyle="width: 170px;"
+                        alignLabels="center"
+                        hEventConsumer={this.props.mfd.hEventConsumer}
+                        interactionMode={this.props.mfd.interactionMode}
+                      />,
+                    )}
+                  </div>
                   {fcomLine(72, 5, 728)}
 
                   {/* Speed mode table (P 251-253): MODE, MACH, SPD and predictions columns */}

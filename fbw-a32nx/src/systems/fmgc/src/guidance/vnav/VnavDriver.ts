@@ -2,6 +2,7 @@
 //  Copyright (c) 2023-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
+import { engineOutAwareConfig } from '@fmgc/guidance/vnav/engineout/EngineOutAwareConfig';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { VerticalMode, LateralMode, isArmed, ArmedLateralMode, AutoThrustMode } from '@shared/autopilot';
@@ -130,7 +131,10 @@ export class VnavDriver implements GuidanceComponent {
       this.atmosphericConditions,
       this.constraintReader,
       this.aircraftToDescentProfileRelation,
-      this.acConfig,
+      engineOutAwareConfig(
+        this.acConfig,
+        () => this.computationParametersObserver.get()?.engineOut?.performance.config ?? null,
+      ),
     );
   }
 
@@ -574,6 +578,7 @@ export class VnavDriver implements GuidanceComponent {
     }
 
     const todOrStep = this.profileManager.mcduProfile.findVerticalCheckpoint(
+      VerticalCheckpointReason.DriftDown,
       VerticalCheckpointReason.StepClimb,
       VerticalCheckpointReason.StepDescent,
       VerticalCheckpointReason.TopOfDescent,
