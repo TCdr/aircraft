@@ -59,7 +59,7 @@ interface WhatIfEntries {
 /** A source tag next to a live value, or the A/C button of a what-if entry */
 const SourceTag: FC<{ text: string }> = ({ text }) => (
   <span className="w-[74px] shrink-0 text-right">
-    <span className="rounded-full bg-m3-primary-container px-2 py-0.5 text-xs font-bold text-m3-on-primary-container">
+    <span className="rounded-sm bg-m3-primary-container px-2 py-0.5 text-xs font-bold text-m3-on-primary-container">
       {text}
     </span>
   </span>
@@ -70,7 +70,7 @@ const AircraftButton: FC<{ onClick: () => void }> = ({ onClick }) => (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-full bg-m3-tile px-2 py-0.5 text-xs font-bold text-m3-muted hover:text-m3-text"
+      className="rounded-sm bg-m3-tile px-2 py-0.5 text-xs font-bold text-m3-muted hover:text-m3-text"
     >
       {t('Performance.Buffet.Aircraft')}
     </button>
@@ -90,7 +90,7 @@ const FilterChip: FC<{ selected: boolean; onClick: () => void }> = ({ selected, 
   <button
     type="button"
     onClick={onClick}
-    className={`ml-2 flex h-9 shrink-0 flex-row items-center rounded-[10px] px-3.5 text-sm font-semibold ${
+    className={`ml-2 flex h-9 shrink-0 flex-row items-center rounded-sm px-3.5 text-sm font-semibold ${
       selected
         ? 'bg-m3-primary-container text-m3-on-primary-container'
         : 'border border-m3-outline bg-transparent text-m3-text'
@@ -135,7 +135,7 @@ const MarginTile: FC<{ name: string; value: string; note: string; tone: Tone }> 
     colour = 'text-m3-on-warn';
   }
   return (
-    <div className="flex shrink-0 flex-col rounded-xl border border-m3-tile bg-m3-card px-3.5 py-3">
+    <div className="flex shrink-0 flex-col rounded-sm border border-m3-tile bg-m3-card px-3.5 py-3">
       <PerfTitle>{name}</PerfTitle>
       <span className={`whitespace-nowrap text-4xl font-bold ${colour}`}>
         {value}

@@ -93,7 +93,7 @@ const Loading: React.FC<LoadingProps> = ({ onNewDeviceFlowParams }) => {
   return (
     <div className="flex flex-col items-center justify-center">
       <div
-        className="flex items-center justify-center rounded-2xl bg-m3-tile text-m3-muted"
+        className="flex items-center justify-center rounded bg-m3-tile text-m3-muted"
         style={{ width: '400px', height: '400px' }}
       >
         <CloudArrowDown className="animate-bounce" size={40} />
@@ -125,7 +125,7 @@ export const NavigraphAuthUI = () => {
   const hasQr = !!verificationUrl;
 
   return (
-    <div className="flex h-full w-full items-center justify-center overflow-x-hidden rounded-2xl bg-m3-card-low p-6">
+    <div className="flex h-full w-full items-center justify-center overflow-x-hidden rounded bg-m3-card-low p-6">
       <div className="flex flex-col items-center justify-center">
         <span className="flex text-m3-on-primary-container">
           <ShieldLock size={40} />
@@ -147,7 +147,7 @@ export const NavigraphAuthUI = () => {
         </p>
 
         <h1
-          className="mt-4 flex h-16 items-center justify-center rounded-xl border-2 border-m3-primary bg-m3-ground px-4 text-4xl font-bold tracking-wider text-m3-text"
+          className="mt-4 flex h-16 items-center justify-center rounded-sm border-2 border-m3-primary bg-m3-ground px-4 text-4xl font-bold tracking-wider text-m3-text"
           style={{ minWidth: '200px' }}
         >
           {displayAuthCode}
@@ -215,7 +215,7 @@ export const NavigraphAuthRedirectUI = () => {
   };
 
   return (
-    <div className="flex h-content-section-reduced items-center justify-center rounded-2xl bg-m3-card-low">
+    <div className="flex h-content-section-reduced items-center justify-center rounded bg-m3-card-low">
       <div className="flex flex-col items-center justify-center">
         <h1 className="text-2xl font-bold text-m3-text">
           {t('NavigationAndCharts.Navigraph.GoToThirdPartyOptions.Title')}

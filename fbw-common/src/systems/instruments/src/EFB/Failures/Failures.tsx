@@ -42,18 +42,20 @@ const NavItem: FC<NavItemProps> = ({ lead, title, count, activeCount, selected, 
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-h-[52px] w-full shrink-0 flex-row items-center rounded-xl py-2 pl-2 pr-3 text-left ${look}`}
+      className={`flex min-h-[52px] w-full shrink-0 flex-row items-center rounded-sm py-2 pl-2 pr-3 text-left ${look}`}
     >
       <span
-        className={`mr-3 flex h-9 w-10 shrink-0 items-center justify-center rounded-lg text-base font-bold ${leadLook}`}
+        className={`mr-3 flex h-9 w-10 shrink-0 items-center justify-center rounded-sm text-base font-bold ${leadLook}`}
       >
         {lead}
       </span>
-      <span className={`min-w-0 grow truncate text-sm ${selected ? 'font-bold' : 'font-semibold'} ${textLook}`}>
+      <span
+        className={`min-w-0 grow break-words text-sm leading-tight ${selected ? 'font-bold' : 'font-semibold'} ${textLook}`}
+      >
         {title}
       </span>
       {activeCount > 0 && (
-        <span className="ml-2 rounded-full bg-m3-error-container px-2 py-1 text-xs font-bold leading-none text-m3-on-error">
+        <span className="ml-2 rounded-sm bg-m3-error-container px-2 py-1 text-xs font-bold leading-none text-m3-on-error">
           {activeCount}
         </span>
       )}
@@ -152,7 +154,7 @@ export const Failures = () => {
     paneAction = failed.length > 0 && (
       <M3Button
         tone="danger"
-        className="!h-9 !rounded-xl !text-sm"
+        className="!h-9 !rounded-sm !text-sm"
         onClick={() => activeFailures.forEach((identifier) => deactivate(identifier))}
       >
         <ArrowCounterclockwise size={16} />
@@ -183,7 +185,7 @@ export const Failures = () => {
       <div className="mb-4 flex flex-row items-center">
         <h1 className="font-bold">{t('Failures.Title')}</h1>
         <TooltipWrapper text={t('Failures.FullSimulationOfTheFailuresBelowIsntYetGuaranteed')}>
-          <div className="ml-3 flex h-9 w-9 items-center justify-center rounded-full text-m3-on-warn">
+          <div className="ml-3 flex h-9 w-9 items-center justify-center rounded-sm text-m3-on-warn">
             <InfoCircle size={20} />
           </div>
         </TooltipWrapper>
@@ -209,7 +211,7 @@ export const Failures = () => {
               type="button"
               aria-label={t('Failures.ClearSearch')}
               onClick={() => dispatch(setSearchQuery(''))}
-              className="absolute right-1.5 top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-m3-tile text-m3-text"
+              className="absolute right-1.5 top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-sm bg-m3-tile text-m3-text"
             >
               <X size={18} />
             </button>
@@ -260,7 +262,7 @@ export const Failures = () => {
           >
             <div className="flex min-h-[2.25rem] flex-row items-center">
               <span className="text-2xl font-bold text-m3-text">{paneTitle}</span>
-              <span className="ml-3 rounded-full bg-m3-tile px-2 py-1 text-xs font-bold leading-none text-m3-muted">
+              <span className="ml-3 rounded-sm bg-m3-tile px-2 py-1 text-xs font-bold leading-none text-m3-muted">
                 {paneCount}
               </span>
               <div className="grow" />

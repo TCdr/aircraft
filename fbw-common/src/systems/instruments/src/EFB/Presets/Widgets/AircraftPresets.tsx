@@ -103,9 +103,9 @@ export const AircraftPresets = () => {
                 <span className="text-base font-bold text-current">{t('Presets.AircraftStates.Cancel')}</span>
               </M3Button>
             </div>
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-m3-tile">
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-sm bg-m3-tile">
               <div
-                className="h-2 rounded-full bg-m3-primary"
+                className="h-2 rounded-sm bg-m3-primary"
                 style={{ width: `${loadPresetProgress * 100}%`, transition: 'width 0.1s ease' }}
               />
             </div>
@@ -127,15 +127,15 @@ export const AircraftPresets = () => {
             <button
               type="button"
               key={index}
-              className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-3xl px-3 transition duration-100 ${
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-sm border px-3 transition duration-100 ${
                 index > 1 ? 'ml-3' : ''
-              } ${loading ? 'bg-m3-primary-container text-m3-on-primary-container' : 'bg-m3-card text-m3-text hover:bg-m3-tile'} ${
+              } ${loading ? 'border-m3-primary-container bg-m3-primary-container text-m3-on-primary-container' : 'border-m3-outline bg-m3-card text-m3-text hover:bg-m3-tile'} ${
                 disabled ? 'pointer-events-none opacity-40' : ''
               }`}
               onClick={() => handleLoadPreset(index)}
             >
               <span
-                className={`flex h-24 w-24 items-center justify-center rounded-full ${loading ? 'bg-m3-tonal' : 'bg-m3-tile'}`}
+                className={`flex h-24 w-24 items-center justify-center rounded-sm ${loading ? 'bg-m3-tonal' : 'bg-m3-tile'}`}
               >
                 {icon}
               </span>

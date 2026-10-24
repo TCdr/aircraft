@@ -26,14 +26,14 @@ $vertical-rail-width: 4px;
   position: absolute;
   width: 100%;
   height: $slider-height;
-  border-radius: 6px;
+  border-radius: 0;
 }
 .rc-slider-track {
   @apply bg-theme-highlight;
   position: absolute;
   left: 0;
   height: $slider-height;
-  border-radius: 6px;
+  border-radius: 0;
 }
 .rc-slider-handle {
   @apply bg-theme-highlight;
@@ -44,7 +44,7 @@ $vertical-rail-width: 4px;
   cursor: -webkit-grab;
   margin-top: -$slider-height;
   cursor: grab;
-  border-radius: 50%;
+  border-radius: 0;
   touch-action: pan-x;
 }
 .rc-slider-handle-dragging.rc-slider-handle-dragging.rc-slider-handle-dragging {

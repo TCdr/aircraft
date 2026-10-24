@@ -233,7 +233,7 @@ export const PushbackMap = () => {
     <>
       {/* Map Container */}
       <div
-        className="relative flex h-full grow flex-col overflow-hidden rounded-2xl"
+        className="relative flex h-full grow flex-col overflow-hidden rounded"
         onMouseDown={(e) => {
           setMouseDown(true);
           setDragStartCoords({ x: e.pageX, y: e.pageY });
@@ -307,7 +307,7 @@ export const PushbackMap = () => {
             <button
               type="button"
               onClick={() => handleCenterPlaneModeChange()}
-              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-m3-outline bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm border border-m3-outline bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
             >
               <IconPlane
                 className={`-rotate-90 text-m3-text ${centerPlaneMode ? 'fill-current' : ''}`}
@@ -320,7 +320,7 @@ export const PushbackMap = () => {
             <button
               type="button"
               onClick={() => handleZoomIn()}
-              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-m3-outline bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm border border-m3-outline bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
             >
               <ZoomIn size={40} />
             </button>
@@ -329,7 +329,7 @@ export const PushbackMap = () => {
             <button
               type="button"
               onClick={() => handleZoomOut()}
-              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-m3-outline bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm border border-m3-outline bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
             >
               <ZoomOut size={40} />
             </button>

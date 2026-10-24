@@ -204,26 +204,23 @@ const SlotPreview = ({ slot, tokens, language }: { slot: ColourSlot; tokens: M3T
         <>
           <div className="flex flex-row items-center">
             <span
-              className="flex h-10 items-center rounded-xl px-5 text-sm font-bold"
+              className="flex h-10 items-center rounded-sm px-5 text-sm font-bold"
               style={{ backgroundColor: tokens.primary, color: tokens['on-primary'] }}
             >
               {tt('Dashboard.YourFlight.ImportSimBriefData', language)}
             </span>
-            <span className="relative ml-4 h-6 w-12 shrink-0 rounded-full" style={{ backgroundColor: tokens.primary }}>
+            <span className="relative ml-4 h-6 w-12 shrink-0 rounded-sm" style={{ backgroundColor: tokens.primary }}>
               <span className="absolute left-[26px] top-0.5 h-5 w-5 rounded-full bg-white" />
             </span>
           </div>
-          <div className="mt-3.5 h-1 overflow-hidden rounded-full" style={{ backgroundColor: tokens.tile }}>
-            <div className="h-1 rounded-full" style={{ width: '62%', backgroundColor: tokens.primary }} />
+          <div className="mt-3.5 h-1 overflow-hidden rounded-sm" style={{ backgroundColor: tokens.tile }}>
+            <div className="h-1 rounded-sm" style={{ width: '62%', backgroundColor: tokens.primary }} />
           </div>
         </>
       ) : (
         <>
           <div className="flex flex-row items-center">
-            <div
-              className="flex flex-row overflow-hidden rounded-full"
-              style={{ border: `1px solid ${tokens.outline}` }}
-            >
+            <div className="flex flex-row overflow-hidden rounded-sm" style={{ border: `1px solid ${tokens.outline}` }}>
               {segment(tt('Settings.flyPad.Utc', language), true, true)}
               {segment(tt('Settings.flyPad.Local', language), false, false)}
             </div>
@@ -232,7 +229,7 @@ const SlotPreview = ({ slot, tokens, language }: { slot: ColourSlot; tokens: M3T
           </div>
           <div className="mt-3 flex flex-row">
             <span
-              className="flex h-9 items-center rounded-xl px-5 text-sm font-bold"
+              className="flex h-9 items-center rounded-sm px-5 text-sm font-bold"
               style={{ backgroundColor: tokens['primary-container'], color: tokens['on-primary-container'] }}
             >
               {tt('Dashboard.ImportantInformation.GoToPage', language)}
@@ -316,7 +313,7 @@ export const ColourWheelDialog = ({ slot, language, onClose }: ColourWheelDialog
   );
   const dot = (hex: string, className = '') => (
     <span
-      className={`block h-[22px] w-[22px] shrink-0 rounded-full border border-m3-outline ${className}`}
+      className={`block h-[22px] w-[22px] shrink-0 rounded-sm border border-m3-outline ${className}`}
       style={{ backgroundColor: hex }}
     />
   );
@@ -365,7 +362,7 @@ export const ColourWheelDialog = ({ slot, language, onClose }: ColourWheelDialog
                       setHexError(null);
                       setPick({ ...pick, same: true });
                     }}
-                    className={`ml-2.5 flex h-9 shrink-0 items-center rounded-xl px-3 ${
+                    className={`ml-2.5 flex h-9 shrink-0 items-center rounded-sm px-3 ${
                       pick.same
                         ? 'bg-m3-primary-container text-m3-on-primary-container'
                         : 'border border-m3-outline bg-transparent text-m3-text hover:bg-m3-tile'

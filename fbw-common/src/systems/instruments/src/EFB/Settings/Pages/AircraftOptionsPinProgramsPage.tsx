@@ -234,7 +234,7 @@ export const AircraftOptionsPinProgramsPage = () => {
 
           <SettingItem name={t('Settings.AutomaticCallOuts.Title')}>
             <M3Button
-              className="!h-10 !rounded-xl !text-sm"
+              className="!h-10 !rounded-sm !text-sm"
               onClick={() => history.push(`${basePinProgRoute}/${pathify('Automatic Call Outs')}`)}
             >
               {t('Settings.AircraftOptionsPinPrograms.Select')}

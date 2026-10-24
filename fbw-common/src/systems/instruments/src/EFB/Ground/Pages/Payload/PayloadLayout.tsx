@@ -108,7 +108,7 @@ export const PayloadLayout: FC<PayloadLayoutProps> = ({
   const cargoText = `${formatPayload(Units.kilogramToUser(totalCargo))} / ${formatPayload(Units.kilogramToUser(totalCargoDesired))} ${massUnit}`;
   const loaded = totalPax === totalPaxDesired && Math.abs(totalCargo - totalCargoDesired) < 1;
   const legend = (look: React.CSSProperties, text: string) => (
-    <span className="ml-2 inline-flex h-8 items-center rounded-lg border border-m3-outline px-3 text-xs text-m3-muted">
+    <span className="mr-2 inline-flex h-8 items-center rounded-sm border border-m3-outline px-3 text-xs text-m3-muted">
       <span className="mr-2 h-3 w-4 rounded-sm" style={look} />
       {text}
     </span>
@@ -116,6 +116,15 @@ export const PayloadLayout: FC<PayloadLayoutProps> = ({
 
   return (
     <M3Page
+      // the deck switch and the seat legend sit on the chip row, so the cabin card leaves the balance chart more height
+      leading={
+        <>
+          {deckSwitch && <div className="mr-4">{deckSwitch}</div>}
+          {legend({ backgroundColor: seatColours[1] }, t('Ground.Payload.Legend.Boarded'))}
+          {legend({ backgroundColor: seatColours[1], opacity: 0.4 }, t('Ground.Payload.Legend.Planned'))}
+          {legend({ border: `1px solid ${seatColours[0]}` }, t('Ground.Payload.Legend.Empty'))}
+        </>
+      }
       chips={
         <>
           <M3Chip tone={boardingStarted ? 'busy' : 'idle'} icon={<PeopleFill size={16} />}>
@@ -130,14 +139,7 @@ export const PayloadLayout: FC<PayloadLayoutProps> = ({
     >
       {/* the cabin: the drawing spans the card, the seat map is registered on the page width */}
       <M3Card low className="mb-4 shrink-0">
-        <div className="flex h-12 shrink-0 flex-row items-end px-4">
-          {deckSwitch}
-          <div className="grow" />
-          {legend({ backgroundColor: seatColours[1] }, t('Ground.Payload.Legend.Boarded'))}
-          {legend({ backgroundColor: seatColours[1], opacity: 0.4 }, t('Ground.Payload.Legend.Planned'))}
-          {legend({ border: `1px solid ${seatColours[0]}` }, t('Ground.Payload.Legend.Empty'))}
-        </div>
-        <div className="relative -mt-2 flex shrink-0 flex-col">{cabin}</div>
+        <div className="relative flex shrink-0 flex-col pt-2">{cabin}</div>
         <div className="-mt-4 flex shrink-0 flex-row items-end px-4 pb-4">{cargo}</div>
       </M3Card>
 
@@ -146,7 +148,7 @@ export const PayloadLayout: FC<PayloadLayoutProps> = ({
           {/* the table carries the LOAD title on its PLANNED / CURRENT header row */}
           {table}
           {showSimbrief && (
-            <M3ActionChip primary className="mt-3 !h-10 w-full !rounded-xl" onClick={onSimbrief}>
+            <M3ActionChip primary className="mt-3 !h-10 w-full !rounded-sm" onClick={onSimbrief}>
               <span className="flex flex-row items-center justify-center text-sm text-current">
                 <CloudArrowDown size={18} className="mr-2" />
                 {t('Ground.Payload.TT.FillPayloadFromSimbrief')}

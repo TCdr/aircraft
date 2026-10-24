@@ -71,7 +71,7 @@ export const SelectInput = (props: SelectInputProps) => {
   return (
     <div className="flex flex-row">
       <div
-        className={`relative ${props.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} rounded-xl border border-m3-outline bg-m3-ground text-m3-text ${props.className} ${' '}
+        className={`relative ${props.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} rounded-sm border border-m3-outline bg-m3-ground text-m3-text ${props.className} ${' '}
                 ${showDropdown && (props.dropdownOnTop ? '!rounded-t-none' : '!rounded-b-none')}`}
         onClick={handleToggleDropdown}
       >

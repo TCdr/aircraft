@@ -114,7 +114,7 @@ export const ChecklistItemComponent = ({ item, index }: ChecklistItemComponentPr
     >
       {item.item && isAnyItemType && (
         <div
-          className={`mr-4 box-border flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+          className={`mr-4 box-border flex h-8 w-8 shrink-0 items-center justify-center rounded-sm ${
             isAutoItem
               ? isItemCompleted
                 ? 'bg-m3-primary-container text-m3-on-primary-container'
@@ -133,7 +133,7 @@ export const ChecklistItemComponent = ({ item, index }: ChecklistItemComponentPr
           {isItemCompleted && !isAutoItem && <CheckLg size={20} />}
         </div>
       )}
-      {isLine && <div className="my-3 h-0.5 w-full rounded-full bg-m3-outline" />}
+      {isLine && <div className="my-3 h-0.5 w-full rounded-sm bg-m3-outline" />}
       {isSubListHeader && (
         <div className="flex w-full flex-row items-end pt-3">
           <div className="whitespace-nowrap text-base font-bold tracking-widest text-m3-muted">{item.item}</div>

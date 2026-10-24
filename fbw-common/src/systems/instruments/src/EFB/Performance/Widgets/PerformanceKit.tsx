@@ -123,11 +123,15 @@ export const PerfValue: FC<PerfValueProps> = ({
 
 /** A result as a tile: its name over its value */
 export const PerfResult: FC<{ name: ReactNode; className?: string }> = ({ name, className, children }) => (
-  <div className={`flex min-w-0 flex-1 flex-col rounded-xl bg-m3-card px-3 py-2 ${className ?? ''}`}>
+  // One height for every tile: the speed tiles' large values would otherwise make their row taller
+  <div className={`flex min-h-[4rem] min-w-0 flex-1 flex-col rounded-sm bg-m3-card px-3 py-2 ${className ?? ''}`}>
     <span className={`truncate ${eyebrow}`}>{name}</span>
     {children}
   </div>
 );
+
+/** The empty place of a tile an aircraft does not have: the same box as a tile, so the row's tiles keep one width */
+export const PerfResultFiller: FC = () => <div className="invisible min-h-[4rem] min-w-0 flex-1 px-3 py-2" />;
 
 /** A row of result tiles */
 export const PerfResultRow: FC<{ className?: string }> = ({ className, children }) => (
@@ -164,7 +168,7 @@ export const PerfFillFrom = <T extends string>({
     <button
       type="button"
       onClick={enabled ? onClick : undefined}
-      className={`flex h-10 flex-row items-center rounded-xl bg-m3-primary-container px-4 text-m3-on-primary-container transition duration-100 ${
+      className={`flex h-10 flex-row items-center rounded-sm bg-m3-primary-container px-4 text-m3-on-primary-container transition duration-100 ${
         enabled ? 'hover:brightness-110' : 'opacity-50'
       }`}
     >
@@ -187,4 +191,4 @@ export const PerfFillFrom = <T extends string>({
 
 /** A small button of a calculator: a stepper, a unit or data source toggle */
 export const PERF_SMALL_BUTTON =
-  'flex h-10 items-center justify-center rounded-xl border border-m3-outline bg-transparent text-m3-text';
+  'flex h-10 items-center justify-center rounded-sm border border-m3-outline bg-transparent text-m3-text';
