@@ -68,3 +68,7 @@ clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model flight_control
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src spoiler_failure_indication_test.cpp \
   -o ../obj/spoiler_failure_indication_test
 ../obj/spoiler_failure_indication_test
+# Thrust limit type after a derated or FLEX takeoff: a lever a hair above the CL detent is still CL (the limit does not stay on FLX)
+clang++ -std=c++20 -Wall -Wextra -Werror -I ../src -I ../src/model clb_limit_after_derate_takeoff_test.cpp \
+  ../src/model/A380FadecComputer.cpp ../src/model/A380FadecComputer_data.cpp -o ../obj/clb_limit_after_derate_takeoff_test
+../obj/clb_limit_after_derate_takeoff_test
