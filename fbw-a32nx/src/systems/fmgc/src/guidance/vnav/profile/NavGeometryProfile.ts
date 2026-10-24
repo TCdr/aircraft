@@ -161,6 +161,9 @@ export interface GeographicCruiseStep {
 export class NavGeometryProfile extends BaseGeometryProfile {
   public waypointPredictions: Map<number, VerticalWaypointPrediction> = new Map();
 
+  /** True when the profile only holds the time and the fuel at the destination: it must not be drawn as a path */
+  public isDestinationOnly = false;
+
   readonly winds = new WindProfile(this.bus, this.flightPlanService, this.constraintReader.planIndex);
 
   readonly temperatures = new TemperatureProfile(this.flightPlanService, this.constraintReader.planIndex);

@@ -12,6 +12,13 @@ import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryPro
 import { ProfilePhase, VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 
+/** Margin above the airport elevation for a wrong altimeter setting */
+const LIFT_OFF_ALTITUDE_MARGIN = 100;
+
+export function hasLiftedOff(presentAltitude: Feet, departureElevation: Feet): boolean {
+  return presentAltitude > departureElevation + LIFT_OFF_ALTITUDE_MARGIN;
+}
+
 export class TakeoffPathBuilder {
   constructor(
     private observer: VerticalProfileComputationParametersObserver,
@@ -19,9 +26,33 @@ export class TakeoffPathBuilder {
   ) {}
 
   buildTakeoffPath(profile: BaseGeometryProfile, config: AircraftConfig) {
-    this.addTakeoffRollCheckpoint(profile);
-    this.buildPathToThrustReductionAltitude(profile, config);
-    this.buildPathToAccelerationAltitude(profile, config);
+    const { presentPosition, departureElevation, thrustReductionAltitude, accelerationAltitude } = this.observer.get();
+
+    if (hasLiftedOff(presentPosition.alt, departureElevation)) {
+      this.addAirborneCheckpoint(profile);
+    } else {
+      this.addTakeoffRollCheckpoint(profile);
+    }
+
+    if (profile.lastCheckpoint.altitude < thrustReductionAltitude) {
+      this.buildPathToThrustReductionAltitude(profile, config);
+    }
+    if (profile.lastCheckpoint.altitude < accelerationAltitude) {
+      this.buildPathToAccelerationAltitude(profile, config);
+    }
+  }
+
+  /** Once airborne the profile starts at the aircraft, so the times and the fuel count from now and not from the lift-off */
+  private addAirborneCheckpoint(profile: BaseGeometryProfile) {
+    const { presentPosition, fuelOnBoard, managedClimbSpeedMach, v2Speed } = this.observer.get();
+
+    profile.addPresentPositionCheckpoint(
+      presentPosition,
+      fuelOnBoard,
+      managedClimbSpeedMach,
+      v2Speed,
+      ProfilePhase.Climb,
+    );
   }
 
   private addTakeoffRollCheckpoint(profile: BaseGeometryProfile) {

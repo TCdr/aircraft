@@ -44,11 +44,14 @@ import {
   VerticalCheckpointReason,
 } from './profile/NavGeometryProfile';
 import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
+import { GoAroundPathBuilder } from './goaround/GoAroundPathBuilder';
 import { EventBus } from '@microsoft/msfs-sdk';
 import { DescentCabinRateResult } from './descent/RepressurizationSegment';
 
 export class VerticalProfileManager {
   private takeoffPathBuilder: TakeoffPathBuilder;
+
+  private goAroundPathBuilder: GoAroundPathBuilder;
 
   private climbPathBuilder: ClimbPathBuilder;
 
@@ -85,6 +88,7 @@ export class VerticalProfileManager {
     private readonly acConfig: AircraftConfig,
   ) {
     this.takeoffPathBuilder = new TakeoffPathBuilder(observer, this.atmosphericConditions);
+    this.goAroundPathBuilder = new GoAroundPathBuilder(observer, this.atmosphericConditions);
     this.climbPathBuilder = new ClimbPathBuilder(observer, this.atmosphericConditions);
     this.cruisePathBuilder = new CruisePathBuilder(observer, this.atmosphericConditions);
     this.tacticalDescentPathBuilder = new TacticalDescentPathBuilder(
@@ -189,6 +193,36 @@ export class VerticalProfileManager {
 
     this.mcduProfile = mcduProfile;
     this.mcduProfile.finalizeProfile();
+  }
+
+  /**
+   * The go-around phase has no vertical predictions: the profile only gives the time and the fuel at the destination,
+   * for the destination and alternate predictions.
+   */
+  computeGoAroundMcduPath(): void {
+    const { presentPosition, fuelOnBoard, approachSpeed } = this.observer.get();
+
+    const goAroundProfile = new NavGeometryProfile(
+      this.bus,
+      this.flightPlanService,
+      this.constraintReader,
+      this.atmosphericConditions,
+      this.acConfig,
+    );
+    goAroundProfile.addPresentPositionCheckpoint(
+      presentPosition,
+      fuelOnBoard,
+      this.getManagedMachTarget(),
+      this.getVman(approachSpeed),
+      ProfilePhase.Climb,
+    );
+    this.goAroundPathBuilder.buildGoAroundPath(
+      goAroundProfile,
+      this.acConfig,
+      this.flightPlanService.active.destinationLegIndex,
+    );
+
+    this.mcduProfile = goAroundProfile;
   }
 
   computeDescentPath(): void {
@@ -308,15 +342,21 @@ export class VerticalProfileManager {
       ndProfile.resetAltitudeConstraints();
     }
 
-    // TODO: Handle Takeoff and Go arounds
+    if (flightPhase === FmgcFlightPhase.GoAround && this.fcuModes.isSpeedAutoControlActive()) {
+      speedProfile = new ExpediteSpeedProfile(cleanSpeed);
+    }
 
-    ndProfile.addPresentPositionCheckpoint(
-      presentPosition,
-      fuelOnBoard,
-      this.getManagedMachTarget(),
-      this.getVman(approachSpeed),
-      this.getProfilePhaseFromFlightPhase(flightPhase),
-    );
+    if (flightPhase < FmgcFlightPhase.Climb && this.fcuModes.isInTakeoffMode()) {
+      this.takeoffPathBuilder.buildTakeoffPath(ndProfile, this.acConfig);
+    } else {
+      ndProfile.addPresentPositionCheckpoint(
+        presentPosition,
+        fuelOnBoard,
+        this.getManagedMachTarget(),
+        this.getVman(approachSpeed),
+        this.getProfilePhaseFromFlightPhase(flightPhase),
+      );
+    }
 
     // Build path to FCU altitude
     if (this.fcuModes.isInTakeoffMode() || this.fcuModes.isInClimbingMode()) {
