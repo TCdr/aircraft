@@ -1878,6 +1878,15 @@ The PRIMs perform the flight guidance and flight envelope functions.
     | 28  | |
     | 29  | |
 
+- A32NX_FUEL_REFUEL_ZFW
+  - Number in kilogram
+  - The ZFW entered in the OIS REFUEL application, 0 when none; written by the OIS REFUEL page
+  - Taken by the FQMS only when both this and A32NX_FUEL_REFUEL_ZFCG are above 0. The CG targeting of the automatic refuel then uses whichever of this entry and the FMS ZFW/ZFWCG changed last; with no entry it uses A32NX_AIRFRAME_ZFW_DESIRED / _CG_PERCENT_MAC_DESIRED
+
+- A32NX_FUEL_REFUEL_ZFCG
+  - Number in percent MAC
+  - The ZFCG entered in the OIS REFUEL application, 0 when none; written by the OIS REFUEL page with A32NX_FUEL_REFUEL_ZFW
+
 - A32NX_FQMS_TOTAL_FUEL_ON_BOARD
   - Arinc429<Kilogram>
   - The total quantity of fuel in the tanks
