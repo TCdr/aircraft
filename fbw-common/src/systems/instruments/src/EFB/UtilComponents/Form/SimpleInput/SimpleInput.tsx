@@ -208,7 +208,7 @@ export const SimpleInput = (props: PropsWithChildren<SimpleInputProps>) => {
   return (
     <>
       <input
-        className={`px-3 py-1.5 ${props.fontSizeClassName ?? 'text-lg'} rounded-xl border border-m3-outline bg-m3-ground
+        className={`px-3 py-1.5 ${props.fontSizeClassName ?? 'text-lg'} rounded-sm border border-m3-outline bg-m3-ground
                     text-m3-text transition duration-100 placeholder:text-m3-muted focus-within:border-m3-primary focus-within:outline-none
                     ${props.className}
                     ${props.disabled && 'cursor-not-allowed opacity-50'}`}

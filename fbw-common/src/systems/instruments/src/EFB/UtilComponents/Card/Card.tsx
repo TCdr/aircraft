@@ -15,7 +15,9 @@ export const Card: React.FC<CardProps> = ({ title, childrenContainerClassName = 
   <div className={className}>
     {!!title && <h1 className="mb-4 text-2xl font-medium text-m3-text">{title}</h1>}
 
-    <div className={classNames(['rounded-2xl bg-m3-card p-4', childrenContainerClassName])}>{children}</div>
+    <div className={classNames(['rounded border border-m3-outline bg-m3-card p-4', childrenContainerClassName])}>
+      {children}
+    </div>
   </div>
 );
 

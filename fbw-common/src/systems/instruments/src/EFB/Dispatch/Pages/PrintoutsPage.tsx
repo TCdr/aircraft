@@ -51,7 +51,7 @@ export const PrintoutsPage = () => {
             {t('Dispatch.Printouts.Title')}
           </span>
           <div className="grow" />
-          <span className="rounded-full bg-m3-tile px-2 py-1 text-xs font-bold leading-none text-m3-muted">
+          <span className="rounded-sm bg-m3-tile px-2 py-1 text-xs font-bold leading-none text-m3-muted">
             {printouts.length}
           </span>
         </div>
@@ -63,12 +63,12 @@ export const PrintoutsPage = () => {
                 key={p.id}
                 type="button"
                 onClick={() => setSelectedId(p.id)}
-                className={`mb-1 flex min-h-[52px] w-full shrink-0 flex-row items-center rounded-xl px-3 py-2 text-left transition duration-100 ${
+                className={`mb-1 flex min-h-[52px] w-full shrink-0 flex-row items-center rounded-sm px-3 py-2 text-left transition duration-100 ${
                   selectedRow ? 'bg-m3-primary-container' : 'bg-transparent hover:bg-m3-tile'
                 }`}
               >
                 <span
-                  className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                  className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-sm ${
                     selectedRow ? 'bg-m3-primary text-m3-on-primary' : 'bg-m3-tile text-m3-muted'
                   }`}
                 >
@@ -94,11 +94,11 @@ export const PrintoutsPage = () => {
         </M3Button>
       </M3Card>
       {selected && (
-        <div className="scrollbar relative h-full min-w-0 flex-1 overflow-y-auto rounded-2xl bg-white p-6">
+        <div className="scrollbar relative h-full min-w-0 flex-1 overflow-y-auto rounded bg-white p-6">
           <button
             type="button"
             onClick={() => Printouts.remove(selected.id)}
-            className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-xl border border-gray-400 bg-white text-black transition duration-100 hover:border-m3-on-error hover:bg-m3-error-container hover:text-m3-on-error"
+            className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-sm border border-gray-400 bg-white text-black transition duration-100 hover:border-m3-on-error hover:bg-m3-error-container hover:text-m3-on-error"
           >
             <Trash size={20} />
           </button>

@@ -63,6 +63,7 @@ import {
   unitSelect,
   PerfFillFrom,
   PerfResult,
+  PerfResultFiller,
   PerfResultRow,
   PerfRow as Row,
   PerfSection as Section,
@@ -648,7 +649,7 @@ export const LandingWidget = () => {
 
   return (
     <div className="flex h-content-section-reduced flex-col overflow-hidden text-base text-m3-text">
-      <div className="mb-3 flex shrink-0 flex-row items-center">
+      <div className="mb-3 flex min-h-[2.625rem] shrink-0 flex-row items-center">
         <span className="mr-2 text-sm font-semibold text-m3-muted">{t('Performance.Landing.Airport')}</span>
         <SimpleInput
           className={`mr-3 w-24 text-center uppercase ${PERF_INPUT}`}
@@ -677,7 +678,8 @@ export const LandingWidget = () => {
         />
       </div>
 
-      <div className="mb-3 flex shrink-0 flex-row">
+      {/* The same input height on the take-off and landing pages, so their results panels match */}
+      <div className="mb-3 flex min-h-[19.625rem] shrink-0 flex-row">
         <Section className="mr-3 min-w-0 flex-1" title={t('Performance.Landing.Calc.SectionRunway')}>
           <Row label={t('Performance.Landing.Runway')}>
             <SelectInput
@@ -1293,18 +1295,18 @@ const ResultsPanel = ({
       <div className="mb-2 flex shrink-0 flex-row items-center">
         <PerfTitle>{t('Performance.Landing.Calc.Results')}</PerfTitle>
         {result?.overweight && (
-          <span className="ml-3 rounded-full bg-m3-warn-container px-3 py-1 text-xs font-bold leading-none text-m3-on-warn">
+          <span className="ml-3 rounded-sm bg-m3-warn-container px-3 py-1 text-xs font-bold leading-none text-m3-on-warn">
             {t('Performance.Landing.Calc.OverweightLanding')}
           </span>
         )}
         <div className="grow" />
-        <span className="rounded-full bg-m3-tile px-3 py-1 text-xs font-bold leading-none text-m3-text">
+        <span className="rounded-sm bg-m3-tile px-3 py-1 text-xs font-bold leading-none text-m3-text">
           {`RWY ${runway ?? '---'} · FLAPS ${flaps}${result?.inputs.type === LandingComputationType.InFlight ? ` · BRK ${brakingLabel}` : ''}`}
         </span>
       </div>
       {/* The wind above the crosswind maximum or the tailwind limit: the figures stay, for information */}
       {windAlert !== undefined && (windAlert.crosswindExceeded || windAlert.tailwindExceeded) && (
-        <div className="mb-2 flex shrink-0 flex-row items-center rounded-xl bg-m3-error-container px-3 py-2 text-m3-on-error">
+        <div className="mb-2 flex shrink-0 flex-row items-center rounded-sm bg-m3-error-container px-3 py-2 text-m3-on-error">
           <ExclamationTriangle size={20} className="mr-3 shrink-0" />
           <div className="mr-3 flex min-w-0 flex-1 flex-col">
             {windAlert.crosswindExceeded && (
@@ -1397,7 +1399,7 @@ const ResultsPanel = ({
               warning={result !== undefined && result.goAroundGradient < result.inputs.goAroundGradient}
             />
           </PerfResult>
-          <div className="min-w-0 flex-1" />
+          <PerfResultFiller />
         </PerfResultRow>
       )}
       <div className="grow" />

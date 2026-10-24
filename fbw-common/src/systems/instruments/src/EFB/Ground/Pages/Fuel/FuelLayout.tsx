@@ -70,7 +70,7 @@ interface FuelTankTableProps {
 
 /** The quantities of a group of tanks: a name, a bar, the quantity */
 export const FuelTankTable: FC<FuelTankTableProps> = ({ title, unit, tanks, className }) => (
-  <div className={`flex w-[264px] flex-col rounded-xl bg-m3-card px-4 py-3 ${className ?? ''}`}>
+  <div className={`flex w-[264px] flex-col rounded-sm bg-m3-card px-4 py-3 ${className ?? ''}`}>
     <div className="mb-1 flex flex-row items-center">
       <span className={eyebrow}>{title}</span>
       <div className="grow" />
@@ -92,7 +92,7 @@ export const FuelTankTable: FC<FuelTankTableProps> = ({ title, unit, tanks, clas
 
 /** The quantity of one tank as a tile: the tanks of a small aircraft, in a row as on the aircraft */
 export const FuelTankTile: FC<{ tank: FuelTank; unit: string; className?: string }> = ({ tank, unit, className }) => (
-  <div className={`flex min-w-0 flex-1 flex-col rounded-xl bg-m3-card px-4 py-3 ${className ?? ''}`}>
+  <div className={`flex min-w-0 flex-1 flex-col rounded-sm bg-m3-card px-4 py-3 ${className ?? ''}`}>
     <span className="truncate text-xs font-bold uppercase tracking-wide text-m3-muted">{tank.name}</span>
     <span className={`mt-1 text-xl font-bold ${tank.quantity > 0 ? '' : 'text-m3-muted'}`}>
       {formatFuel(tank.quantity)}
@@ -176,7 +176,7 @@ export const FuelRail: FC<FuelRailProps> = ({
             <span className={`text-xs leading-tight ${M3_STATUS_TONES[status.tone]}`}>{status.text}</span>
           </div>
           {eta !== '0' && (
-            <span className="shrink-0 whitespace-nowrap rounded-lg bg-m3-tile px-2 py-1 text-xs font-bold text-m3-muted">
+            <span className="shrink-0 whitespace-nowrap rounded-sm bg-m3-tile px-2 py-1 text-xs font-bold text-m3-muted">
               {`${eta} ${t('Ground.Fuel.Minutes')}`}
             </span>
           )}
@@ -216,7 +216,7 @@ export const FuelRail: FC<FuelRailProps> = ({
         </div>
 
         {showSimbrief && !started && (
-          <M3ActionChip primary className="mt-4 !h-10 w-full !rounded-xl" onClick={onSimbrief}>
+          <M3ActionChip primary className="mt-4 !h-10 w-full !rounded-sm" onClick={onSimbrief}>
             <span className="flex flex-row items-center justify-center text-sm text-current">
               <CloudArrowDown size={18} className="mr-2" />
               {t('Ground.Fuel.TT.FillBlockFuelFromSimBrief')}
@@ -232,7 +232,7 @@ export const FuelRail: FC<FuelRailProps> = ({
             onClick={onStartStop}
           >
             {started ? <StopFill size={22} /> : <PlayFill size={22} />}
-            <span className="text-lg text-current">
+            <span className="whitespace-nowrap text-base tracking-wide text-current">
               {started
                 ? t('Ground.Fuel.Stop')
                 : `${t(delta < 0 ? 'Ground.Fuel.StartDefuel' : 'Ground.Fuel.Start')} · ${deltaText}`}

@@ -61,7 +61,7 @@ export const TaxiFrequencyPanel: FC<TaxiFrequencyPanelProps> = ({ icao, origin, 
       // The look of the map buttons (TaxiMap)
       <button
         type="button"
-        className="absolute bottom-4 left-4 flex h-12 flex-row items-center space-x-2 rounded-xl border border-m3-outline bg-m3-ground px-4 text-m3-text hover:bg-m3-tile"
+        className="absolute bottom-4 left-4 flex h-12 flex-row items-center space-x-2 rounded-sm border border-m3-outline bg-m3-ground px-4 text-m3-text hover:bg-m3-tile"
         onClick={() => setOpen(true)}
       >
         <Broadcast size={18} />
@@ -91,7 +91,7 @@ export const TaxiFrequencyPanel: FC<TaxiFrequencyPanelProps> = ({ icao, origin, 
           <button
             type="button"
             aria-label="Close"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-transparent text-m3-muted hover:bg-m3-tile hover:text-m3-text"
+            className="flex h-8 w-8 items-center justify-center rounded-sm bg-transparent text-m3-muted hover:bg-m3-tile hover:text-m3-text"
             onClick={() => setOpen(false)}
           >
             <X size={22} />

@@ -10,6 +10,7 @@ import {
   liftTableMachRange,
   maxOperatingMach,
 } from '../Data/buffet';
+import { clearLabelIndex } from './buffetChartLabels';
 
 /** The drawing size (SVG units); the SVG scales to the card */
 export const BUFFET_CHART_WIDTH = 846;
@@ -25,6 +26,12 @@ const MACH_MIN = 0.5;
 const MACH_MAX = 0.9;
 const FL_MIN = 200;
 const FL_MAX = 450;
+/** The maximum operating altitude text sits this far above its line (middle of the text), in SVG units */
+const MAX_ALTITUDE_TEXT_RISE = 10;
+/** The line labels are written on their point: their middle is this far above it, in SVG units */
+const LINE_LABEL_MIDDLE_RISE = 4;
+/** The smallest distance between the middles of a line label and of that text: a 12 px text height and a gap */
+const LABEL_CLEARANCE = 24;
 
 /** The theme colours (CSS variables of Assets/Theme.css) */
 const COLOURS = {
@@ -210,9 +217,18 @@ export const BuffetChart = ({ data, weightTonnes, cg, lines, recMaxFl, point }: 
         lines.map((line) => {
           const boundary = buffetBoundary(data, line.loadFactor, cg, weightTonnes, FL_MIN, FL_MAX);
           const stroke = { stroke: line.colour };
+          // Kept off the maximum operating altitude text, which spans the left of the chart just above its line
+          const labelMiddles = boundary.lowSpeed.map((lowSpeedPoint) => y(lowSpeedPoint[1]) - LINE_LABEL_MIDDLE_RISE);
           const labelPoint =
             boundary.lowSpeed.length > 0
-              ? boundary.lowSpeed[Math.floor(boundary.lowSpeed.length * (line.labelAt ?? 0.5))]
+              ? boundary.lowSpeed[
+                  clearLabelIndex(
+                    labelMiddles,
+                    Math.floor(boundary.lowSpeed.length * (line.labelAt ?? 0.5)),
+                    y(maxAltitudeFl) - MAX_ALTITUDE_TEXT_RISE,
+                    LABEL_CLEARANCE,
+                  )
+                ]
               : undefined;
           return (
             <g key={`line${line.label}`}>

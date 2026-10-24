@@ -277,6 +277,21 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Fix the wind field of the performance calculators refusing a direction typed without leading zeros (80/10 stopped at 80) - @TCdr
 1. [EFB] Failures page in one layout: ATA chapters on the left, failures with switches on the right, search results across chapters, an active failures list with Restore all - @TCdr
 1. [EFB] Show the planned top of climb and top of descent, with their times, on the dashboard flight line - @TCdr
+1. [EFB] New flyPad look: square panels with title bars, denser fields, the payload seat legend on the page header, buffet line labels kept clear of the maximum altitude - @TCdr
+1. [A380X/ND] The vertical display unfolds the holding pattern along its horizontal axis when the FMS predictions include it - @TCdr
+1. [A32NX/FMS] [A380X/FMS] The descent predictions and the top of descent use the higher idle thrust of the engine and wing anti-ice when it is on - @TCdr
+1. [A32NX/FMS] Add the SAT/ALT field to the CRZ WIND page: a temperature at a flight level can be entered at each cruise waypoint and holds down-path, and the cruise predictions use it - @TCdr
+1. [A380X/MFD] The SAT row of the WIND CRZ page takes an ALT and SAT for the selected waypoint and propagates it down-path, and the cruise predictions use it - @TCdr
+1. [A32NX/FMS] [A380X/FMS] The OPT FL uses the entered and propagated winds and temperatures at each level, also on the ground, in place of one measured wind and temperature - @TCdr
+1. [A32NX/MCDU] The descent profile intercept point (I/P) is a pseudo waypoint of the F-PLN page, with its time, speed and altitude - @TCdr
+1. [A380X/MFD] The time markers of the LL XING - TIME MKR page show as a pseudo waypoint on the F-PLN page and the ND, with TIME MARKER REACHED; several pseudo waypoints can share a leg of the F-PLN page - @TCdr
+1. [A32NX/FMS] Predictions for the secondary flight plan on the F-PLN pages (time, altitude, speed, EFOB, wind) with the FCOM rules: none for the descent, stopped at the top of descent or when the active leg diverges, computed once on ground for a SEC INIT - @TCdr
+1. [FMS] Predictions on the alternate flight plan of the F-PLN pages (time, altitude, speed, EFOB along a climb, cruise and descent from the destination); the A320 ALTN fuel and time use the alternate flight plan distance and are computed beyond the 200 NM table limit - @TCdr
+1. [A32NX/FMS] [A380X/FMS] Predict the time, fuel and ETA at the destination and the alternate in the go-around phase (no vertical predictions on the missed approach legs), and start the take-off predictions at the aircraft once airborne - @TCdr
+1. [A380X/FMS] Add engine-out predictions: the EO MAX is computed from the aircraft performance, the drift down is predicted and shown as DRIFT DOWN TO FL on the PERF CRZ page, and the EO CRZ MODE (EO-LRC or EO-ECON) and the EO-GDOT speed type are selected and shown - @TCdr
+1. [A32NX/FMS] Add engine-out predictions: the drift down to the EO REC MAX and the EO LRC or cost index cruise speed are predicted, DRIFT DOWN is shown on the PERF CRZ page and EO LRC replaces the cost index - @TCdr
+1. [A380X/FUEL] The automatic refuel trim tank target follows the ZFW and ZFCG last entered, on the OIS REFUEL page or on the MFD FUEL & LOAD page, instead of always the payload ones - @TCdr
+1. [A380X] Cockpit lights: panels lit at a dusk or night start, lighting presets move the MAIN PNL FLOOD and AMBIENT knobs, a stronger main panel flood on its own circuits - @TCdr
 
 ## 2024.1.0
 

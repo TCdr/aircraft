@@ -55,6 +55,7 @@ import {
   PERF_SMALL_BUTTON,
   PerfFillFrom,
   PerfResult,
+  PerfResultFiller,
   PerfResultRow,
   PerfRow as Row,
   PerfSection as Section,
@@ -765,7 +766,7 @@ export const TakeoffWidget = () => {
 
   return (
     <div className="flex h-content-section-reduced flex-col overflow-hidden text-base text-m3-text">
-      <div className="mb-3 flex shrink-0 flex-row items-center">
+      <div className="mb-3 flex min-h-[2.625rem] shrink-0 flex-row items-center">
         <span className="mr-2 text-sm font-semibold text-m3-muted">{t('Performance.Takeoff.Airport')}</span>
         <SimpleInput
           className={`mr-3 w-24 text-center uppercase ${PERF_INPUT}`}
@@ -784,7 +785,8 @@ export const TakeoffWidget = () => {
         />
       </div>
 
-      <div className="mb-3 flex shrink-0 flex-row">
+      {/* The same input height on the take-off and landing pages, so their results panels match */}
+      <div className="mb-3 flex min-h-[19.625rem] shrink-0 flex-row">
         <Section className="mr-3 min-w-0 flex-1" title={t('Performance.Takeoff.Calc.SectionRunway')}>
           <Row label={t('Performance.Takeoff.Runway')}>
             <SelectInput
@@ -1356,7 +1358,7 @@ const ResultsPanel = ({
         <PerfTitle>{t('Performance.Takeoff.Calc.Results')}</PerfTitle>
         <div className="grow" />
         <span
-          className={`rounded-full bg-m3-tile px-3 py-1 text-xs font-bold leading-none ${
+          className={`rounded-sm bg-m3-tile px-3 py-1 text-xs font-bold leading-none ${
             flex !== undefined && isEstimate(TakeoffPerformanceEstimate.Flex) ? 'text-m3-on-warn' : 'text-m3-text'
           }`}
         >
@@ -1400,7 +1402,7 @@ const ResultsPanel = ({
             <Value text={`${result.stabTrim < 0 ? 'DN' : 'UP'}${Math.abs(result.stabTrim).toFixed(1)}`} />
           </PerfResult>
         ) : (
-          <div className="min-w-0 flex-1" />
+          <PerfResultFiller />
         )}
       </PerfResultRow>
       <PerfResultRow className="mb-2">

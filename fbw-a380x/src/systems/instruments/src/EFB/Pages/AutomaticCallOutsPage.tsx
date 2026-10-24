@@ -195,7 +195,7 @@ export const AutomaticCallOutsPage: React.FC = () => {
       </div>
       <SettingItem name={t('Settings.AutomaticCallOuts.ResetStandardConfig')}>
         <M3Button
-          className="!h-10 !rounded-xl !text-sm"
+          className="!h-10 !rounded-sm !text-sm"
           onClick={() => setAutoCallOuts(A380X_DEFAULT_RADIO_AUTO_CALL_OUTS)}
         >
           {t('Settings.AutomaticCallOuts.Reset')}

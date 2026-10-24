@@ -244,7 +244,7 @@ const TurnaroundStep: FC<{
 export const GsxMenuBox: FC<{ menu: GsxMenu }> = ({ menu }) => (
   // shrink-0 on every block: the sim browser shrinks flex items below their content, which pushed the chips over the
   // close link and past the card instead of scrolling
-  <div className="mt-4 flex shrink-0 flex-col rounded-xl border border-m3-tonal bg-m3-card-low p-3">
+  <div className="mt-4 flex shrink-0 flex-col rounded-sm border border-m3-tonal bg-m3-card-low p-3">
     <span className="shrink-0 text-xs font-bold uppercase tracking-widest text-m3-on-primary-container">
       {t('Ground.Services.Gsx.Asks')}
     </span>

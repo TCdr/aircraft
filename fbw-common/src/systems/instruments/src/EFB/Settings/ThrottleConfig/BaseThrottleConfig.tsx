@@ -222,7 +222,7 @@ export const BaseThrottleConfig: FC<BaseThrottleConfigProps> = ({
         {canConfigureDetent && (
           <button
             type="button"
-            className={`ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-m3-on-primary-container transition duration-100 ${
+            className={`ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-m3-on-primary-container transition duration-100 ${
               expertMode ? 'bg-m3-primary-container' : 'bg-transparent hover:bg-m3-tile'
             }`}
             onMouseDown={() => setExpertMode(!expertMode)}

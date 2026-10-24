@@ -110,16 +110,16 @@ export const CargoBar: React.FC<CargoBarProps> = ({
         <span className="text-xs text-m3-muted">{` / ${formatPayload(Units.kilogramToUser(station.weight))}`}</span>
       </span>
       <div
-        className="relative mt-1 h-3 cursor-pointer rounded-full bg-m3-tile"
+        className="relative mt-1 h-3 cursor-pointer rounded-sm bg-m3-tile"
         style={{ width: `${station.progressBarWidth}px` }}
         onClick={(e) => onClickCargo(cargoId, e)}
       >
         <div
-          className="pointer-events-none h-3 rounded-full bg-m3-primary"
+          className="pointer-events-none h-3 rounded-sm bg-m3-primary"
           style={{ width: `${fraction(cargo[cargoId]) * 100}%` }}
         />
         <span
-          className="pointer-events-none absolute h-5 w-1 rounded-full bg-m3-text"
+          className="pointer-events-none absolute h-5 w-1 rounded-sm bg-m3-text"
           style={{ top: '-4px', left: `${fraction(cargoDesired[cargoId]) * station.progressBarWidth - 2}px` }}
         />
       </div>

@@ -45,7 +45,7 @@ export const SelectionTabs = ({ tabs }: SelectionTabsProps) => (
       <NavLink
         key={tab.name}
         to={`/settings/${pathify(tab.name)}`}
-        className="group flex h-12 flex-row items-center rounded-xl px-3 text-m3-text transition duration-100 hover:bg-m3-tile"
+        className="group flex h-12 flex-row items-center rounded-sm px-3 text-m3-text transition duration-100 hover:bg-m3-tile"
         activeClassName={SETTINGS_TAB_ACTIVE_CLASS}
       >
         <span className="mr-3 flex text-m3-muted group-[.active]:text-m3-on-primary-container">

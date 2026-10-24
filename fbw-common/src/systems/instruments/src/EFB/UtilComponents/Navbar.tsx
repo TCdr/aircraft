@@ -16,7 +16,7 @@ interface NavbarProps {
 /** The tabs of a flyPad section, as the segmented control of the Material kit */
 export const Navbar = ({ tabs, className, onSelected, basePath }: NavbarProps) => (
   <nav className={`flex justify-between ${className}`}>
-    <div className="flex flex-row divide-x divide-m3-outline overflow-hidden rounded-full border border-m3-outline">
+    <div className="flex flex-row divide-x divide-m3-outline overflow-hidden rounded-sm border border-m3-outline">
       {tabs.map((tab, index) => (
         <NavLink
           onClick={() => onSelected?.(index)}

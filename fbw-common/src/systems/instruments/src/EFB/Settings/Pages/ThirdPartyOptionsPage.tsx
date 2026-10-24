@@ -23,7 +23,7 @@ import NavigraphIcon from '../../Assets/navigraph-logo-alone.svg';
 import { navigraphAuth } from '../../../navigraph';
 
 /** A Material button sized for a settings row (as tall as the text fields next to it) */
-const ROW_BUTTON = '!h-10 !rounded-xl !text-sm';
+const ROW_BUTTON = '!h-10 !rounded-sm !text-sm';
 
 export const ThirdPartyOptionsPage = () => {
   const history = useHistory();
