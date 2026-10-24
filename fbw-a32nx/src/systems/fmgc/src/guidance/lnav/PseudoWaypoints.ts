@@ -167,7 +167,9 @@ export class PseudoWaypoints implements GuidanceComponent {
       }
     }
 
-    newPseudoWaypoints.push(...this.createTimeMarkerPseudoWaypoints(geometry, wptCount, navGeometryProfile));
+    if (!navGeometryProfile.isDestinationOnly) {
+      newPseudoWaypoints.push(...this.createTimeMarkerPseudoWaypoints(geometry, wptCount, navGeometryProfile));
+    }
 
     // Speed Changes
     const firstSpeedChange = this.guidanceController.vnavDriver.findNextSpeedChange();
