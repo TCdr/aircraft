@@ -7,6 +7,7 @@ import { store, RootState } from '../store';
 import { IFuel, IWeights } from '../../../../../shared/src/Simbrief/simbriefInterface';
 import { getSimbriefData } from '../../../../../shared/src/Simbrief/simbriefParser';
 import { NavlogPoint, navlogPoint } from '../../Dashboard/Widgets/flightLineMarks';
+import { FuelPlanPoint, navlogFuelPlan } from '../../Dashboard/logic/fuelPlan';
 
 export interface SimbriefData {
   departingAirport: string;
@@ -31,6 +32,8 @@ export interface SimbriefData {
   weather: {
     avgWindDir: string;
     avgWindSpeed: string;
+    /** The TAFs of the plan's airports when the OFP was made, by ICAO */
+    tafs: Record<string, string>;
   };
   units: string;
   altIcao?: string;
@@ -51,6 +54,8 @@ export interface SimbriefData {
   costInd: string;
   topOfClimb: NavlogPoint | null;
   topOfDescent: NavlogPoint | null;
+  /** The planned fuel on board over the navlog fixes, in the OFP unit */
+  fuelPlan: FuelPlanPoint[];
 }
 
 export const initialState: {
@@ -115,6 +120,7 @@ export const initialState: {
     weather: {
       avgWindDir: '',
       avgWindSpeed: '',
+      tafs: {},
     },
     units: '',
     altIcao: '',
@@ -130,6 +136,7 @@ export const initialState: {
     costInd: '',
     topOfClimb: null,
     topOfDescent: null,
+    fuelPlan: [],
   },
   payloadImported: false,
   fuelImported: false,
@@ -220,6 +227,7 @@ export async function fetchSimbriefDataAction(
     weather: {
       avgWindDir: returnedSimbriefData.weather.avgWindDir.toString(),
       avgWindSpeed: returnedSimbriefData.weather.avgWindSpeed.toString(),
+      tafs: returnedSimbriefData.weather.tafs,
     },
     units: returnedSimbriefData.units,
     altIcao: returnedSimbriefData.alternate.icao,
@@ -235,6 +243,7 @@ export async function fetchSimbriefDataAction(
     costInd: returnedSimbriefData.costIndex,
     topOfClimb: navlogPoint(returnedSimbriefData.navlog, 'TOC'),
     topOfDescent: navlogPoint(returnedSimbriefData.navlog, 'TOD'),
+    fuelPlan: navlogFuelPlan(returnedSimbriefData.navlog),
   });
 }
 

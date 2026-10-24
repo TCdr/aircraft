@@ -37,6 +37,7 @@ import {
 } from '@flybywiresim/flypad';
 import { Error as ErrorIcon } from './Assets/Error';
 import { FailuresOrchestratorProvider } from './failures-orchestrator-provider';
+import { useDashboardLatches } from './Dashboard/useDashboardLatches';
 import { AlertModal, ModalContainer, ModalProvider, useModals } from './UtilComponents/Modals/Modals';
 import { M3Button } from './UtilComponents/Material/Material';
 import { FbwLogo } from './UtilComponents/FbwLogo';
@@ -440,6 +441,9 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
 
   // The pushback is steered with the rudder pedals and the sidestick from any flyPad page
   usePushbackControllerInput();
+
+  // Outside the power states: the flight events happen while the tablet is off too
+  useDashboardLatches();
 
   // Check if the aircraft is on the ground, tug not attached and stationary if not close all doors
   // This uses all available interactive point indices to close all doors - on the A80X there are 20 doors.

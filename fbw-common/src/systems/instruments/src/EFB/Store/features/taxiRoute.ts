@@ -35,6 +35,8 @@ interface TaxiRouteState {
   clearance: string;
   /** The route along the clearance is accepted (drawn solid); else the suggested route is a preview */
   accepted: boolean;
+  /** Length of the route the page shows, metres; the dashboard turns it into a taxi time */
+  routeLengthM?: number;
 }
 
 const initialState: TaxiRouteState = {

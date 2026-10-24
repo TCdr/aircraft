@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { INavlogFix } from '../../../../../shared/src/Simbrief/simbriefInterface';
-import { flightLineProgress, navlogPoint, plannedTimeOver } from './flightLineMarks';
+import { flightLineProgress, navlogPoint, plannedTimeOver, timeOverPoint } from './flightLineMarks';
 
 const fix = (ident: string, lat: string, long: string, timeTotal: string) =>
   ({ ident, pos_lat: lat, pos_long: long, time_total: timeTotal }) as INavlogFix;
@@ -59,5 +59,21 @@ describe('plannedTimeOver', () => {
 
   it('takes the taxi out time as SimBrief sends it (a string)', () => {
     expect(plannedTimeOver(schedOut, '900', { lat: 0, long: 0, secondsAfterTakeoff: 18960 })).toBe('2206Z');
+  });
+});
+
+describe('timeOverPoint', () => {
+  // 2026-10-23 16:35Z off block, 15 min taxi out, T/D 22 min after takeoff
+  const schedOut = `${Date.UTC(2026, 9, 23, 16, 35) / 1000}`;
+  const topOfDescent = { lat: 0, long: 0, secondsAfterTakeoff: 1320 };
+
+  it('is the planned time before takeoff', () => {
+    expect(timeOverPoint(schedOut, 900, topOfDescent, null)).toBe('1712Z');
+  });
+
+  it('counts from the actual takeoff once it is latched, whatever the off-block time and taxi', () => {
+    // took off 40 min late at 17:30Z
+    const takeoff = Date.UTC(2026, 9, 23, 17, 30) / 1000;
+    expect(timeOverPoint(schedOut, 900, topOfDescent, takeoff)).toBe('1752Z');
   });
 });

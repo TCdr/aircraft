@@ -26,6 +26,7 @@ import {
 } from '../FuelLayout';
 import { A320FuelPlanform } from './A320FuelPlanform';
 import { fuelFraction } from '../fuelFraction';
+import { a320RefuelMinutes } from '../refuelMinutes';
 
 interface FuelProps {
   simbriefDataLoaded: boolean;
@@ -47,8 +48,6 @@ export const A320Fuel: React.FC<FuelProps> = ({
   const OUTER_CELL_GALLONS = 228;
   const INNER_CELL_GALLONS = 1816;
   const CENTER_TANK_GALLONS = 2179;
-  const wingTotalRefuelTimeSeconds = 1020;
-  const CenterTotalRefuelTimeSeconds = 1200;
 
   const [galToKg] = useSimVar('FUEL WEIGHT PER GALLON', 'kilograms', 1_000);
   const outerCell = () => OUTER_CELL_GALLONS * galToKg * convertUnit;
@@ -231,25 +230,13 @@ export const A320Fuel: React.FC<FuelProps> = ({
   };
 
   const calculateEta = () => {
-    if (round(totalTarget) === totalCurrentGallon() || refuelRate === RefuelRateSetting.INSTANT) {
-      // instant
-      return ' 0';
-    }
-    let estimatedTimeSeconds = 0;
-    const totalWingFuel = TOTAL_FUEL_GALLONS - CENTER_TANK_GALLONS;
-    const differentialFuelWings = Math.abs(currentWingFuel() - targetWingFuel());
-    const differentialFuelCenter = Math.abs(centerTarget - centerCurrent);
-    const estimatedTimeSecondsWing = (differentialFuelWings / totalWingFuel) * wingTotalRefuelTimeSeconds;
-    const estimatedTimeSecondsCenter = (differentialFuelCenter / CENTER_TANK_GALLONS) * CenterTotalRefuelTimeSeconds;
-    estimatedTimeSeconds = Math.max(estimatedTimeSecondsWing, estimatedTimeSecondsCenter);
-    if (refuelRate === RefuelRateSetting.FAST) {
-      // fast
-      estimatedTimeSeconds /= 5;
-    }
-    if (estimatedTimeSeconds < 35) {
-      return ' 0.5';
-    }
-    return ` ${Math.round(estimatedTimeSeconds / 60)}`;
+    const minutes = a320RefuelMinutes({
+      instantOrAtTarget: round(totalTarget) === totalCurrentGallon() || refuelRate === RefuelRateSetting.INSTANT,
+      fastRate: refuelRate === RefuelRateSetting.FAST,
+      wingDifferenceGallons: Math.abs(currentWingFuel() - targetWingFuel()),
+      centerDifferenceGallons: Math.abs(centerTarget - centerCurrent),
+    });
+    return ` ${minutes}`;
   };
 
   const switchRefuelState = () => {

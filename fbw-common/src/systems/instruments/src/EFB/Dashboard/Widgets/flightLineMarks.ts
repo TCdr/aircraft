@@ -39,8 +39,25 @@ export const flightLineProgress = (departure: Coordinates, arrival: Coordinates,
   return Math.min(Math.max(progress, 0), 100);
 };
 
-/** The planned time over a point: the navlog counts from takeoff, so off-block time plus taxi out first */
-export const plannedTimeOver = (schedOut: string, taxiOutSeconds: number | string, point: NavlogPoint): string => {
-  const time = new Date((parseInt(schedOut, 10) + Number(taxiOutSeconds) + point.secondsAfterTakeoff) * 1000);
+const zuluTime = (unixSeconds: number): string => {
+  const time = new Date(unixSeconds * 1000);
   return `${time.getUTCHours().toString().padStart(2, '0')}${time.getUTCMinutes().toString().padStart(2, '0')}Z`;
 };
+
+/** The planned time over a point: the navlog counts from takeoff, so off-block time plus taxi out first */
+export const plannedTimeOver = (schedOut: string, taxiOutSeconds: number | string, point: NavlogPoint): string =>
+  zuluTime(parseInt(schedOut, 10) + Number(taxiOutSeconds) + point.secondsAfterTakeoff);
+
+/**
+ * The time over a point: counted from the actual takeoff once it is known, so a late departure moves the marks with
+ * the countdown; the planned time before takeoff.
+ */
+export const timeOverPoint = (
+  schedOut: string,
+  taxiOutSeconds: number | string,
+  point: NavlogPoint,
+  takeoffUnixSeconds: number | null,
+): string =>
+  takeoffUnixSeconds === null
+    ? plannedTimeOver(schedOut, taxiOutSeconds, point)
+    : zuluTime(takeoffUnixSeconds + point.secondsAfterTakeoff);

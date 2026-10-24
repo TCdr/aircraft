@@ -4,6 +4,7 @@
 
 import { AircraftGithubVersionChecker, NXDataStore, UniversalConfigProvider } from '@flybywiresim/fbw-sdk';
 import { ISimbriefData } from './simbriefInterface';
+import { ofpTafsByIcao } from './simbriefTafs';
 
 const SIMBRIEF_BASE_URL = 'https://www.simbrief.com/api/xml.fetcher.php';
 
@@ -177,6 +178,7 @@ export const simbriefDataParser = (simbriefJson: any): ISimbriefData => {
     weather: {
       avgWindDir: general.avg_wind_dir,
       avgWindSpeed: general.avg_wind_spd,
+      tafs: ofpTafsByIcao(weather),
     },
     text: text.plan_html.replace(/^<div [^>]+>/, '').replace(/<\/div>$/, ''),
   };
