@@ -6,6 +6,7 @@ import React, { FC } from 'react';
 import { InfoCircleFill } from 'react-bootstrap-icons';
 import { AirframeType } from '@flybywiresim/fbw-sdk-react';
 import { ScrollableContainer } from '../../UtilComponents/ScrollableContainer';
+import { useContentSectionHeight } from '../../ToolBar/useContentSectionHeight';
 import { M3Banner, M3Card, M3SectionHeader } from '../../UtilComponents/Material/Material';
 import { useAppSelector } from '../../Store/store';
 
@@ -18,13 +19,14 @@ const HelpItem: FC = ({ children }) => <li className="mt-2 text-base leading-snu
  * AFS CP (AFS control panel) of the A380.
  */
 export const PresetsHelp = () => {
+  const scrollHeight = useContentSectionHeight(0);
   const isA380 = useAppSelector((state) => state.config.airframeInfo?.variant) === AirframeType.A380_842;
   const fcu = isA380 ? 'AFS CP' : 'FCU';
   const fmsInterface = isA380 ? 'the MFD (with the KCCU)' : 'the MCDU';
 
   return (
     <div className="h-content-section-reduced overflow-hidden">
-      <ScrollableContainer height={54}>
+      <ScrollableContainer height={scrollHeight}>
         <div className="pr-5">
           <M3Card className="shrink-0 pb-4">
             <M3SectionHeader title="Lighting" />

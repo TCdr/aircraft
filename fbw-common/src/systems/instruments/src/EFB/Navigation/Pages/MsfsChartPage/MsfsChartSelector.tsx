@@ -20,6 +20,7 @@ import {
 import { BuiltInChartProvider, RunwayIdentifier } from '@microsoft/msfs-sdk';
 import { MsfsChartData, MsfsChartUtils, runwayDesignatorPriority } from './MsfsChartUtils';
 import { navigationTabs } from '../../Navigation';
+import { useContentSectionHeight } from '../../../ToolBar/useContentSectionHeight';
 
 interface MsfsChartSelectorProps {
   tab: NavigationTab.FAA | NavigationTab.LIDO;
@@ -44,6 +45,7 @@ export type OrganizedChart = {
 let currentOpId = 0;
 
 export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsChartSelectorProps) => {
+  const placeholderHeight = useContentSectionHeight(11.25);
   const NO_RUNWAY_NAME = 'Multiple Runways';
 
   const [runwaySet, setRunwaySet] = useState<(RunwayIdentifier | null)[]>([]);
@@ -175,8 +177,8 @@ export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsC
   if (loading) {
     return (
       <div
-        className="flex h-full items-center justify-center rounded-2xl bg-m3-card-low text-m3-muted"
-        style={{ height: '42.75rem' }}
+        className="flex h-full items-center justify-center rounded bg-m3-card-low text-m3-muted"
+        style={{ height: `${placeholderHeight}rem` }}
       >
         <CloudArrowDown className="animate-bounce" size={40} />
       </div>
@@ -186,8 +188,8 @@ export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsC
   if (!selectedTab.charts.length) {
     return (
       <div
-        className="flex h-full items-center justify-center rounded-2xl bg-m3-card-low text-m3-muted"
-        style={{ height: '42.75rem' }}
+        className="flex h-full items-center justify-center rounded bg-m3-card-low text-m3-muted"
+        style={{ height: `${placeholderHeight}rem` }}
       >
         <p className="text-center text-lg text-m3-muted">{t('NavigationAndCharts.ThereAreNoChartsToDisplay')}</p>
       </div>
@@ -205,7 +207,7 @@ export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsC
               </span>
               {item.charts.map((chart) => (
                 <div
-                  className="flex flex-row overflow-hidden rounded-xl bg-m3-tile"
+                  className="flex flex-row overflow-hidden rounded-sm bg-m3-tile"
                   onClick={() => handleChartClick(chart)}
                   key={chart.guid}
                 >
@@ -237,12 +239,12 @@ export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsC
                   <div className="m-2 flex flex-col">
                     <span className="text-base font-bold text-m3-text">{chart.name}</span>
                     <span>
-                      <span className="mr-auto mt-1 rounded-full bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
+                      <span className="mr-auto mt-1 rounded-sm bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
                         {chart.type.toUpperCase()}
                       </span>
                       {chart.runways.length > 1 &&
                         chart.runways.map((rw) => (
-                          <span className="ml-1 mr-auto mt-1 rounded-full bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
+                          <span className="ml-1 mr-auto mt-1 rounded-sm bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
                             {`RW${rw.number.padStart(2, '0')}${rw.designator}`}
                           </span>
                         ))}
@@ -257,7 +259,7 @@ export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsC
         <>
           {selectedTab.charts.map((chart) => (
             <div
-              className="flex w-full flex-row overflow-hidden rounded-xl bg-m3-tile"
+              className="flex w-full flex-row overflow-hidden rounded-sm bg-m3-tile"
               onClick={() => handleChartClick(chart)}
               key={chart.guid}
             >
@@ -288,7 +290,7 @@ export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsC
               </div>
               <div className="m-2 flex flex-col">
                 <span className="text-base font-bold text-m3-text">{chart.name}</span>
-                <span className="mr-auto mt-1 rounded-full bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
+                <span className="mr-auto mt-1 rounded-sm bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
                   {chart.type.toUpperCase()}
                 </span>
               </div>

@@ -21,9 +21,11 @@ import { QuickControls } from './QuickControls';
 interface StatusBarProps {
   batteryLevel: number;
   isCharging: boolean;
+  /** Time and device status only, for the end of the tab bar row when the tab bar is at the top */
+  compact?: boolean;
 }
 
-export const StatusBar = ({ batteryLevel, isCharging }: StatusBarProps) => {
+export const StatusBar = ({ batteryLevel, isCharging, compact = false }: StatusBarProps) => {
   const [currentUTC] = useSimVar('E:ZULU TIME', 'seconds');
   const [currentLocalTime] = useSimVar('E:LOCAL TIME', 'seconds');
   const [dayOfWeek] = useSimVar('E:ZULU DAY OF WEEK', 'number');
@@ -134,11 +136,64 @@ export const StatusBar = ({ batteryLevel, isCharging }: StatusBarProps) => {
     };
   }, []);
 
+  const clockTimes = (
+    <>
+      {(timeDisplayed === 'utc' || timeDisplayed === 'both') && (
+        <p className="whitespace-nowrap text-base font-semibold text-m3-text">{getZuluFormattedTime(currentUTC)}</p>
+      )}
+      {timeDisplayed === 'both' && <p className="text-base font-semibold text-m3-muted">·</p>}
+      {(timeDisplayed === 'local' || timeDisplayed === 'both') && (
+        <p className="whitespace-nowrap text-base font-semibold text-m3-muted">
+          {getLocalFormattedTime(currentLocalTime)}
+        </p>
+      )}
+    </>
+  );
+
+  const simRateIndicator = simRate !== 1 && (
+    <TooltipWrapper text={`Simulation Rate is currently ${simRate}x`}>
+      <div className="flex items-center space-x-2 text-m3-on-warn">
+        <p className="text-base font-bold text-current">{`${simRate > 1 ? simRate.toFixed(0) : simRate.toFixed(2)}x`}</p>
+        <FastForwardFill size={22} />
+      </div>
+    </TooltipWrapper>
+  );
+
+  const bridgeAndBattery = (
+    <>
+      <TooltipWrapper
+        text={simBridgeConnected ? t('StatusBar.TT.ConnectedToLocalApi') : t('StatusBar.TT.DisconnectedFromLocalApi')}
+      >
+        <div className={`flex ${simBridgeConnected ? 'text-m3-on-primary-container' : 'text-m3-muted'}`}>
+          {simBridgeConnected ? <Wifi size={22} /> : <WifiOff size={22} />}
+        </div>
+      </TooltipWrapper>
+
+      <BatteryStatus batteryLevel={batteryLevel} isCharging={isCharging} />
+    </>
+  );
+
+  const openTroubleshooting = () => {
+    hasTroubleshootingIssue && history.push(`/settings/${pathify('About')}/${pathify('Troubleshooting')}`);
+  };
+
+  if (compact) {
+    return (
+      <div
+        onClick={openTroubleshooting}
+        className={`flex h-full shrink-0 flex-row items-center space-x-4 pl-4 pr-4 ${hasTroubleshootingIssue ? 'bg-theme-statusbar-mismatch' : ''}`}
+      >
+        <div className="flex flex-row items-center space-x-2">{clockTimes}</div>
+        {simRateIndicator}
+        <QuickControls />
+        {bridgeAndBattery}
+      </div>
+    );
+  }
+
   return (
     <div
-      onClick={() => {
-        hasTroubleshootingIssue && history.push(`/settings/${pathify('About')}/${pathify('Troubleshooting')}`);
-      }}
+      onClick={openTroubleshooting}
       className={`fixed z-30 flex h-10 w-full items-center justify-between ${hasTroubleshootingIssue ? 'bg-theme-statusbar-mismatch' : 'bg-m3-card-low'} pl-6 pr-4 text-base font-semibold leading-none text-m3-text`}
     >
       <p className="text-base font-semibold text-m3-text">{`${dayName} ${monthName} ${dayOfMonth}`}</p>
@@ -156,15 +211,7 @@ export const StatusBar = ({ batteryLevel, isCharging }: StatusBarProps) => {
       )}
 
       <div className="absolute inset-x-0 mx-auto flex w-min flex-row items-center justify-center space-x-2">
-        {(timeDisplayed === 'utc' || timeDisplayed === 'both') && (
-          <p className="whitespace-nowrap text-base font-semibold text-m3-text">{getZuluFormattedTime(currentUTC)}</p>
-        )}
-        {timeDisplayed === 'both' && <p className="text-base font-semibold text-m3-muted">·</p>}
-        {(timeDisplayed === 'local' || timeDisplayed === 'both') && (
-          <p className="whitespace-nowrap text-base font-semibold text-m3-muted">
-            {getLocalFormattedTime(currentLocalTime)}
-          </p>
-        )}
+        {clockTimes}
       </div>
 
       <div className="flex items-center space-x-4">
@@ -179,8 +226,8 @@ export const StatusBar = ({ batteryLevel, isCharging }: StatusBarProps) => {
               <p className="text-base font-semibold text-m3-text">{departingAirport}</p>
               <p className="text-base font-semibold text-m3-muted">{schedOutParsed}</p>
             </div>
-            <div className="flex h-1 w-32 flex-row overflow-hidden rounded-full bg-m3-outline">
-              <div className="h-1 rounded-full bg-m3-primary" style={{ width: `${flightPlanProgress}%` }} />
+            <div className="flex h-1 w-32 flex-row overflow-hidden bg-m3-outline">
+              <div className="h-1 bg-m3-primary" style={{ width: `${flightPlanProgress}%` }} />
             </div>
             <div
               className={`${showSchedTimes ? '-translate-y-1/4' : 'translate-y-1/4'} flex flex-col space-y-1 transition duration-100`}
@@ -191,26 +238,11 @@ export const StatusBar = ({ batteryLevel, isCharging }: StatusBarProps) => {
           </div>
         )}
 
-        {simRate !== 1 && (
-          <TooltipWrapper text={`Simulation Rate is currently ${simRate}x`}>
-            <div className="flex items-center space-x-2 text-m3-on-warn">
-              <p className="text-base font-bold text-current">{`${simRate > 1 ? simRate.toFixed(0) : simRate.toFixed(2)}x`}</p>
-              <FastForwardFill size={22} />
-            </div>
-          </TooltipWrapper>
-        )}
+        {simRateIndicator}
 
         <QuickControls />
 
-        <TooltipWrapper
-          text={simBridgeConnected ? t('StatusBar.TT.ConnectedToLocalApi') : t('StatusBar.TT.DisconnectedFromLocalApi')}
-        >
-          <div className={`flex ${simBridgeConnected ? 'text-m3-on-primary-container' : 'text-m3-muted'}`}>
-            {simBridgeConnected ? <Wifi size={22} /> : <WifiOff size={22} />}
-          </div>
-        </TooltipWrapper>
-
-        <BatteryStatus batteryLevel={batteryLevel} isCharging={isCharging} />
+        {bridgeAndBattery}
       </div>
     </div>
   );

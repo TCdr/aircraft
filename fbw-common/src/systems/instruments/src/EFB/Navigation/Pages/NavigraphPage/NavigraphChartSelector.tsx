@@ -20,6 +20,7 @@ import {
   NavigraphChartTabTypeToIndex,
 } from '../../../Store/features/navigationPage';
 import { navigationTabs } from '../../Navigation';
+import { useContentSectionHeight } from '../../../ToolBar/useContentSectionHeight';
 
 interface NavigraphChartSelectorProps {
   selectedTab: OrganizedChart;
@@ -38,6 +39,7 @@ export type OrganizedChart = {
 };
 
 export const NavigraphChartSelector = ({ selectedTab, loading }: NavigraphChartSelectorProps) => {
+  const placeholderHeight = useContentSectionHeight(11.25);
   const NO_RUNWAY_NAME = 'NONE';
   const [runwaySet, setRunwaySet] = useState<Set<string>>(new Set());
   const [organizedCharts, setOrganizedCharts] = useState<RunwayOrganizedChart[]>([]);
@@ -115,8 +117,8 @@ export const NavigraphChartSelector = ({ selectedTab, loading }: NavigraphChartS
   if (loading) {
     return (
       <div
-        className="flex h-full items-center justify-center rounded-2xl bg-m3-card-low text-m3-muted"
-        style={{ height: '42.75rem' }}
+        className="flex h-full items-center justify-center rounded bg-m3-card-low text-m3-muted"
+        style={{ height: `${placeholderHeight}rem` }}
       >
         <CloudArrowDown className="animate-bounce" size={40} />
       </div>
@@ -126,8 +128,8 @@ export const NavigraphChartSelector = ({ selectedTab, loading }: NavigraphChartS
   if (!selectedTab.charts.length) {
     return (
       <div
-        className="flex h-full items-center justify-center rounded-2xl bg-m3-card-low text-m3-muted"
-        style={{ height: '42.75rem' }}
+        className="flex h-full items-center justify-center rounded bg-m3-card-low text-m3-muted"
+        style={{ height: `${placeholderHeight}rem` }}
       >
         <p className="text-center text-lg text-m3-muted">{t('NavigationAndCharts.ThereAreNoChartsToDisplay')}</p>
       </div>
@@ -145,7 +147,7 @@ export const NavigraphChartSelector = ({ selectedTab, loading }: NavigraphChartS
               </span>
               {item.charts.map((chart) => (
                 <div
-                  className="flex flex-row overflow-hidden rounded-xl bg-m3-tile"
+                  className="flex flex-row overflow-hidden rounded-sm bg-m3-tile"
                   onClick={() => handleChartClick(chart)}
                   key={chart.id}
                 >
@@ -193,7 +195,7 @@ export const NavigraphChartSelector = ({ selectedTab, loading }: NavigraphChartS
                   </div>
                   <div className="m-2 flex flex-col">
                     <span className="text-base font-bold text-m3-text">{chart.name}</span>
-                    <span className="mr-auto mt-1 rounded-full bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
+                    <span className="mr-auto mt-1 rounded-sm bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
                       {chart.index_number}
                     </span>
                   </div>
@@ -206,7 +208,7 @@ export const NavigraphChartSelector = ({ selectedTab, loading }: NavigraphChartS
         <>
           {selectedTab.charts.map((chart) => (
             <div
-              className="flex w-full flex-row overflow-hidden rounded-xl bg-m3-tile"
+              className="flex w-full flex-row overflow-hidden rounded-sm bg-m3-tile"
               onClick={() => handleChartClick(chart)}
               key={chart.id}
             >
@@ -255,7 +257,7 @@ export const NavigraphChartSelector = ({ selectedTab, loading }: NavigraphChartS
               </div>
               <div className="m-2 flex flex-col">
                 <span className="text-base font-bold text-m3-text">{chart.name}</span>
-                <span className="mr-auto mt-1 rounded-full bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
+                <span className="mr-auto mt-1 rounded-sm bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
                   {chart.index_number}
                 </span>
               </div>

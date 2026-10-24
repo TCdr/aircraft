@@ -42,7 +42,10 @@ import { M3Button } from './UtilComponents/Material/Material';
 import { FbwLogo } from './UtilComponents/FbwLogo';
 import { Tooltip } from './UtilComponents/TooltipWrapper';
 import { StatusBar } from './StatusBar/StatusBar';
-import { ToolBar } from './ToolBar/ToolBar';
+import { TabBar } from './ToolBar/TabBar';
+import { tabBarLayout, tabBarPositionClass } from './ToolBar/tabBarLayout';
+import { useTabBarPosition } from './ToolBar/useTabBarPosition';
+import { headerColoursClass, useHeaderColours } from './ToolBar/headerColours';
 import { Dashboard } from './Dashboard/Dashboard';
 import { Dispatch } from './Dispatch/Dispatch';
 import { Ground } from './Ground/Ground';
@@ -202,6 +205,9 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
   const [foUsingAutobrightness] = usePersistentNumberProperty('EFB_2_USING_AUTOBRIGHTNESS', 1);
   const usingAutobrightness = isCaptainEfb() ? captainUsingAutobrightness : foUsingAutobrightness;
   const [batteryLifeEnabled] = usePersistentNumberProperty('EFB_BATTERY_LIFE_ENABLED', 1);
+  const [tabBarPosition] = useTabBarPosition();
+  const [headerColours] = useHeaderColours();
+  const pageLayout = tabBarLayout(tabBarPosition);
 
   const dispatch = useAppDispatch();
 
@@ -477,14 +483,27 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
         <NavigraphAuthProvider>
           <ModalContainer />
           <PowerContext.Provider value={{ powerState, setPowerState }}>
-            <div className="bg-theme-body" style={{ transform: `translateY(-${offsetY}px)` }}>
+            <div
+              className={`bg-theme-body ${tabBarPositionClass(tabBarPosition)} ${headerColoursClass(headerColours)}`}
+              style={{ transform: `translateY(-${offsetY}px)` }}
+            >
               <Tooltip posX={posX} posY={posY} shown={shown} text={text} />
 
               <ToastContainer position="top-center" draggableDirection="y" limit={2} />
-              <StatusBar batteryLevel={batteryLevel.level} isCharging={dc2BusIsPowered === 1} />
+              {tabBarPosition === 'bottom' && (
+                <StatusBar batteryLevel={batteryLevel.level} isCharging={dc2BusIsPowered === 1} />
+              )}
+              <TabBar position={tabBarPosition}>
+                <StatusBar compact batteryLevel={batteryLevel.level} isCharging={dc2BusIsPowered === 1} />
+              </TabBar>
               <div className="flex flex-row">
-                <ToolBar />
-                <div className="h-screen w-screen pr-6 pt-14">
+                <div
+                  className="h-screen w-screen px-6"
+                  style={{
+                    paddingTop: `${pageLayout.contentTopRem}rem`,
+                    paddingBottom: `${pageLayout.contentBottomRem}rem`,
+                  }}
+                >
                   <Switch>
                     <Route exact path="/">
                       <Redirect to="/dashboard" />
@@ -559,7 +578,7 @@ export const ErrorFallback = ({ error, resetErrorBoundary }: ErrorFallbackProps)
 
           {/* What failed, to report it: the error, where it was thrown and in which components */}
           {error !== undefined && (
-            <div className="max-h-64 overflow-hidden rounded-2xl border border-m3-outline bg-m3-card px-4 py-3 font-mono text-sm leading-snug text-m3-text">
+            <div className="max-h-64 overflow-hidden rounded border border-m3-outline bg-m3-card px-4 py-3 font-mono text-sm leading-snug text-m3-text">
               <p className="whitespace-pre-wrap break-all font-mono text-sm text-current">
                 {error instanceof Error ? `${error.name}: ${error.message}` : String(error)}
               </p>

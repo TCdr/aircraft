@@ -111,3 +111,15 @@
     --m3-error-container: #ffdad6;
     --m3-on-error: #93000a;
 }
+
+/* Page body heights per tab bar position, on the flyPad root. Classes rather than inline custom properties, which the
+   sim's renderer does not reliably apply. The values must equal tabBarLayout(). */
+.efb-tabbar-bottom {
+    --efb-content-reduced: 49.5rem;
+    --efb-content-full: 52.75rem;
+}
+
+.efb-tabbar-top {
+    --efb-content-reduced: 52rem;
+    --efb-content-full: 55.25rem;
+}

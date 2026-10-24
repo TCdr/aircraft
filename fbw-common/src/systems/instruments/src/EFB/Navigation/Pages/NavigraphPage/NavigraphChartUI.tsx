@@ -13,11 +13,13 @@ import { useAppDispatch, useAppSelector } from '../../../Store/store';
 import { SelectGroup, SelectItem } from '../../../UtilComponents/Form/Select';
 import { SimpleInput } from '../../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { ScrollableContainer } from '../../../UtilComponents/ScrollableContainer';
+import { useContentSectionHeight } from '../../../ToolBar/useContentSectionHeight';
 import { ChartViewer } from '../../Navigation';
 import { navigraphCharts } from '../../../../navigraph';
 import { ChartCategory } from '@flybywiresim/fbw-sdk-react';
 
 export const NavigraphChartUI = () => {
+  const scrollHeight = useContentSectionHeight(14);
   const dispatch = useAppDispatch();
 
   const [statusBarInfo, setStatusBarInfo] = useState('');
@@ -111,10 +113,13 @@ export const NavigraphChartUI = () => {
   const simbriefDataLoaded = isSimbriefDataLoaded();
 
   return (
-    <div className="flex h-content-section-reduced w-full flex-row overflow-x-hidden rounded-lg">
+    <div className="flex h-content-section-reduced w-full flex-row overflow-x-hidden rounded-sm">
       <>
         {!isFullScreen && (
-          <div className="flex shrink-0 flex-col rounded-2xl bg-m3-card p-4" style={{ width: '450px' }}>
+          <div
+            className="flex shrink-0 flex-col rounded border border-m3-outline bg-m3-card p-4"
+            style={{ width: '450px' }}
+          >
             <div className="flex flex-row items-center justify-center">
               <SimpleInput
                 placeholder="ICAO"
@@ -178,7 +183,7 @@ export const NavigraphChartUI = () => {
                   </SelectItem>
                 ))}
               </SelectGroup>
-              <ScrollableContainer className="mt-4" height={40}>
+              <ScrollableContainer className="mt-4" height={scrollHeight}>
                 <NavigraphChartSelector selectedTab={organizedCharts[selectedTabType]} loading={loading} />
               </ScrollableContainer>
             </div>
