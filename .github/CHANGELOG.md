@@ -885,6 +885,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Fix the wind field of the performance calculators refusing a direction typed without leading zeros (80/10 stopped at 80) - @TCdr
 1. [EFB] Failures page in one layout: ATA chapters on the left, failures with switches on the right, search results across chapters, an active failures list with Restore all - @TCdr
 1. [EFB] Show the planned top of climb and top of descent, with their times, on the dashboard flight line - @TCdr
+1. [EFB] OFP page: a section menu jumps to each part of the SimBrief OFP - @TCdr
 1. [A380X/ND] The vertical display unfolds the holding pattern along its horizontal axis when the FMS predictions include it - @TCdr
 1. [A32NX/FMS] [A380X/FMS] The descent predictions and the top of descent use the higher idle thrust of the engine and wing anti-ice when it is on - @TCdr
 1. [A32NX/FMS] Add the SAT/ALT field to the CRZ WIND page: a temperature at a flight level can be entered at each cruise waypoint and holds down-path, and the cruise predictions use it - @TCdr
