@@ -105,14 +105,14 @@
         <!-- TEMPORARY A32NX VARIABLE MAPPING -->
 
         <Component ID="VARIABLE_MAPPING">
+            <!-- The ambient strips are spread over the cabin light circuits 1, 2 and 4, so the ambient knob switches all three. -->
             <Update Frequency="18">
                 (L:A32NX_OVHD_INTLT_ANN, number) (&gt;L:A380X_OVHD_INTLT_ANN, number)
 
-                (A:LIGHT POTENTIOMETER:7, Percent over 100) 0 &gt; if{
-                    1 1 (&gt;K:2:CABIN_LIGHTS_SET)
-                } els{
-                    1 0 (&gt;K:2:CABIN_LIGHTS_SET)
-                }
+                (A:LIGHT POTENTIOMETER:7, Percent over 100) 0 &gt; s0
+                1 l0 (&gt;K:2:CABIN_LIGHTS_SET)
+                2 l0 (&gt;K:2:CABIN_LIGHTS_SET)
+                4 l0 (&gt;K:2:CABIN_LIGHTS_SET)
 
                 (A:LIGHT POTENTIOMETER:7, Percent over 100) (&gt;O:PrevPot7Value)
                 (L:CPT_SLIDING_WINDOW) (L:FO_SLIDING_WINDOW) + 2 /
@@ -678,7 +678,7 @@
             </UseTemplate>
 
             <UseTemplate Name="ASOBO_LIGHTING_Potentiometer_Emissive_Template">
-                <NODE_ID>MAIN_PNL_FLOOD_LT_RH1F_BASE</NODE_ID>
+                <NODE_ID>MAIN_PNL_FLOOD_LT_RH1F</NODE_ID>
                 <POTENTIOMETER>83</POTENTIOMETER>
                 <EMISSIVE_CODE>(L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED, Bool)</EMISSIVE_CODE>
             </UseTemplate>
@@ -2295,6 +2295,27 @@
 
                 <UseTemplate Name="ASOBO_LIGHTING_Panel_Emissive_Template">
                     <NODE_ID>LIGHTS_OVHD_RIGHT</NODE_ID>
+                    <SIMVAR_INDEX>4</SIMVAR_INDEX>
+                    <POTENTIOMETER>85</POTENTIOMETER>
+                    <EMISSIVE_CODE>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</EMISSIVE_CODE>
+                </UseTemplate>
+
+                <UseTemplate Name="ASOBO_LIGHTING_Panel_Emissive_Template">
+                    <NODE_ID>KNOB_OVHD_BAT</NODE_ID>
+                    <SIMVAR_INDEX>4</SIMVAR_INDEX>
+                    <POTENTIOMETER>85</POTENTIOMETER>
+                    <EMISSIVE_CODE>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</EMISSIVE_CODE>
+                </UseTemplate>
+
+                <UseTemplate Name="ASOBO_LIGHTING_Panel_Emissive_Template">
+                    <NODE_ID>KNOB_OVHD_READ_LT</NODE_ID>
+                    <SIMVAR_INDEX>4</SIMVAR_INDEX>
+                    <POTENTIOMETER>85</POTENTIOMETER>
+                    <EMISSIVE_CODE>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</EMISSIVE_CODE>
+                </UseTemplate>
+
+                <UseTemplate Name="ASOBO_LIGHTING_Panel_Emissive_Template">
+                    <NODE_ID>OVHD_PANEL_MAINT_LABELS</NODE_ID>
                     <SIMVAR_INDEX>4</SIMVAR_INDEX>
                     <POTENTIOMETER>85</POTENTIOMETER>
                     <EMISSIVE_CODE>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</EMISSIVE_CODE>
