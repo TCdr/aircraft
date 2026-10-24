@@ -30,7 +30,13 @@ describe('cockpitLightLevels', () => {
     const levels = cockpitLightLevels(NIGHT, CRUISE);
     expect(levels.integral).toBeGreaterThanOrEqual(50);
     expect(levels.mainPanelFlood).toBeGreaterThanOrEqual(50);
-    expect(levels.pedestalFlood).toBeGreaterThanOrEqual(40);
+    expect(levels.pedestalFlood).toBeGreaterThanOrEqual(30);
+  });
+
+  it('keeps the night floods soft enough that the centre panel and pedestal top are not washed out', () => {
+    const levels = cockpitLightLevels(NIGHT, CRUISE);
+    expect(levels.mainPanelFlood).toBe(50);
+    expect(levels.pedestalFlood).toBe(35);
   });
 
   it('gets brighter as it gets darker', () => {

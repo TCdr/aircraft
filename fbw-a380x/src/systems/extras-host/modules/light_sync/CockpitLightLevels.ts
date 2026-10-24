@@ -22,8 +22,8 @@ const NIGHT_BRIGHTNESS = 40;
 // Design choice: night levels that keep the labels clearly readable and the panel faces lit without glare, the
 // ambient strips dimmer than the panel lights so they do not wash out the displays.
 const NIGHT_INTEGRAL_LEVEL = 70;
-const NIGHT_MAIN_PANEL_FLOOD_LEVEL = 60;
-const NIGHT_PEDESTAL_FLOOD_LEVEL = 50;
+const NIGHT_MAIN_PANEL_FLOOD_LEVEL = 50;
+const NIGHT_PEDESTAL_FLOOD_LEVEL = 35;
 const NIGHT_AMBIENT_LEVEL = 25;
 
 /**
