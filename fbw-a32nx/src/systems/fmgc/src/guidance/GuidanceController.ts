@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
+import { EngineOutProfileParameters } from '@fmgc/guidance/vnav/engineout/EngineOutPerformance';
 import {
   EfisSide,
   EfisNdMode,
@@ -79,6 +80,8 @@ export interface Fmgc {
   getDepartureElevation(): Feet | null;
   getDestinationElevation(): Feet;
   getPerformanceFactorPercent(): number | null;
+  /** The engine-out performance for the vertical profile, null while all engines run */
+  getEngineOutProfile?(): EngineOutProfileParameters | null;
 }
 
 export class GuidanceController {

@@ -45,6 +45,9 @@ import {
   roundToStep,
   tonnesToPounds,
 } from '@fmgc/guidance/vnav/EconSpeeds';
+import { EngineOutProfileParameters } from '@fmgc/guidance/vnav/engineout/EngineOutPerformance';
+import { withEngineOutSpeeds } from '@fmgc/guidance/vnav/engineout/EngineOutSpeeds';
+import { A320EngineOutResult, a320EngineOut } from './A320EngineOut';
 import { FlightModel } from '@fmgc/guidance/vnav/FlightModel';
 import {
   createLevelAtmosphere,
@@ -310,6 +313,11 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   /** Whether the managed speeds are the ECON speeds of the cost index model (not the fallback cost index table) */
   private managedSpeedsAreEcon = false;
   private readonly econSpeedsMemo = new ComputationMemo<EconSpeedSet | null>();
+
+  private readonly engineOutMemo = new ComputationMemo<A320EngineOutResult | null>();
+
+  /** The crew entered a cost index over EO LRC: the EO-ECON speed of that cost index is flown */
+  private engineOutCostIndexOverwritten = false;
   public readonly rtaFunction = new A32nxRtaFunction(this, () => this.simTime.get());
   /** The OPT FL of the PROG page, null for dashes */
   public optimumFlightLevel: number | null = null;
@@ -680,6 +688,11 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     );
     this.subscriptions.push(
       this.sub.on('fms_engine_out_active').handle((eo) => constantMachSegmentAutoDeletion.onEngineOutChanged(eo)),
+      this.sub.on('fms_engine_out_active').handle((eo) => {
+        if (!eo) {
+          this.engineOutCostIndexOverwritten = false;
+        }
+      }),
     );
 
     this.observableFlightPlanManager.activePlan.sub(async (_) => {
@@ -1435,7 +1448,11 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     if (this.managedSpeedsAreEcon && this.flightPhaseManager.phase >= FmgcFlightPhase.Descent) {
       return;
     }
-    const econ = this.rtaFunction.applySpeedBias(this.computeEconSpeeds(), this.computeRtaSpeedEnvelope());
+    let econ = this.rtaFunction.applySpeedBias(this.computeEconSpeeds(), this.computeRtaSpeedEnvelope());
+    const engineOut = this.getEngineOut();
+    if (econ !== null && engineOut !== null) {
+      econ = withEngineOutSpeeds(econ, engineOut.speeds);
+    }
     this.managedSpeedsAreEcon = econ !== null;
 
     if (!this.managedSpeedClimbIsPilotEntered) {
@@ -1449,6 +1466,50 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
     this.managedSpeedDescend = econ?.descentSpeed ?? this.getDesManagedSpeedFromCostIndex();
     this.managedSpeedDescendMach = econ?.descentMach ?? 0.78;
+  }
+
+  /** The engine-out performance, null while no engine is out or without the data to compute it */
+  private getEngineOut(): A320EngineOutResult | null {
+    const grossWeight = this.getGrossWeight();
+    if (!this.isEngineOutCondition.get() || grossWeight === null || !this.flightPlanService.hasActive) {
+      return null;
+    }
+    const performanceData = this.flightPlanService.active.performanceData;
+    const isaDeviation = this.measuredIsaDeviation();
+    const tropopause = this.tropo ?? ISA_TROPOPAUSE_ALTITUDE;
+    const recMaxFlightLevel = this.getMaxFlCorrected();
+    const costIndexOverwrite = this.engineOutCostIndexOverwritten ? performanceData.costIndex.get() : null;
+    const cruiseFlightLevel = performanceData.cruiseFlightLevel.get();
+    return this.engineOutMemo.get(
+      [
+        roundToStep(grossWeight, 1),
+        roundToStep(isaDeviation, 1),
+        tropopause,
+        recMaxFlightLevel,
+        costIndexOverwrite,
+        cruiseFlightLevel,
+      ],
+      () =>
+        a320EngineOut(
+          {
+            grossWeight,
+            isaDeviation,
+            tropopause,
+            engineOutRecMaxFlightLevel: recMaxFlightLevel,
+            costIndexOverwrite,
+          },
+          cruiseFlightLevel,
+        ),
+    );
+  }
+
+  /** The engine-out limits of the vertical profile, null while no engine is out */
+  public getEngineOutProfile(): EngineOutProfileParameters | null {
+    return this.getEngineOut()?.profile ?? null;
+  }
+
+  public isEngineOutCostIndexOverwritten(): boolean {
+    return this.engineOutCostIndexOverwritten;
   }
 
   /**
@@ -2314,6 +2375,9 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
         if (isFinite(value)) {
           if (value >= 0 && value < 1000) {
             this.flightPlanService.setPerformanceData('costIndex', value, forPlan);
+            if (this.isEngineOutCondition.get()) {
+              this.engineOutCostIndexOverwritten = true;
+            }
             this.updateManagedSpeeds();
             return true;
           } else {

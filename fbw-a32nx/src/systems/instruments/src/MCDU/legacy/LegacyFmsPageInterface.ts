@@ -247,6 +247,7 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   getAlternateLegPredictions(forPlan: FlightPlanIndex): Map<number, VerticalWaypointPrediction> | null;
   clearEngineOutCondition(): void;
   isCostIndexModificationDisabled(plan: FlightPlan): boolean;
+  isEngineOutCostIndexOverwritten(): boolean;
   confirmTakeoffData(): void;
   shouldShowConfirmTakeoffData(forPlan: FlightPlanIndex): boolean;
 

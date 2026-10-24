@@ -12,6 +12,7 @@ import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { UnitType } from '@microsoft/msfs-sdk';
 import { ArmedLateralMode, ArmedVerticalMode, LateralMode, VerticalMode } from '@shared/autopilot';
 import { FmgcFlightPhase } from '@shared/flightphase';
+import { EngineOutProfileParameters, limitCruiseAltitude } from '@fmgc/guidance/vnav/engineout/EngineOutPerformance';
 import { FlightPlanIndex } from '../../flightplanning/FlightPlanManager';
 
 export interface VerticalProfileComputationParameters {
@@ -59,6 +60,8 @@ export interface VerticalProfileComputationParameters {
   /** An engine anti-ice is on: the FADEC raises the idle thrust of the descent */
   engineAntiIce: boolean;
   wingAntiIce: boolean;
+  /** The performance of the aircraft with failed engines, null while all engines run */
+  engineOut: EngineOutProfileParameters | null;
 
   approachQnh: Millibar;
   approachTemperature: Celsius;
@@ -80,6 +83,7 @@ export class VerticalProfileComputationParametersObserver {
 
   update() {
     const efobTonnes = this.fmgc.getDestEFOB(false);
+    const engineOut = this.fmgc.getEngineOutProfile?.() ?? null;
     this.parameters = {
       presentPosition: this.getPresentPosition(),
 
@@ -119,9 +123,7 @@ export class VerticalProfileComputationParametersObserver {
         this.fmgc.getThrustReductionAltitude() ?? DefaultVerticalProfileParameters.thrustReductionAltitude,
       originTransitionAltitude: this.fmgc.getOriginTransitionAltitude(),
       // We do it this way because the cruise altitude is cleared in the MCDU once you start the descent
-      cruiseAltitude: this.flightPlanService.active.performanceData.cruiseFlightLevel.get()
-        ? this.flightPlanService.active.performanceData.cruiseFlightLevel.get() * 100
-        : this.parameters?.cruiseAltitude,
+      cruiseAltitude: this.cruiseAltitudeWithEngineOut(engineOut),
       climbSpeedLimit: this.fmgc.getClimbSpeedLimit(),
       descentSpeedLimit: this.fmgc.getDescentSpeedLimit(),
       flightPhase: this.fmgc.getFlightPhase(),
@@ -132,6 +134,7 @@ export class VerticalProfileComputationParametersObserver {
       descentCabinRate: this.flightPlanService.active.performanceData.descentCabinRate?.get() ?? null,
       engineAntiIce: readEngineAntiIce(),
       wingAntiIce: readWingAntiIce(),
+      engineOut,
 
       approachQnh: this.fmgc.getApproachQnh(),
       approachTemperature: this.fmgc.getApproachTemperature(),
@@ -158,6 +161,14 @@ export class VerticalProfileComputationParametersObserver {
       this.parameters.zeroFuelWeight = 134400;
       this.parameters.v2Speed = 126;
     }
+  }
+
+  /** The cruise level, or EO MAX when that is lower with failed engines */
+  private cruiseAltitudeWithEngineOut(engineOut: EngineOutProfileParameters | null): Feet {
+    // We do it this way because the cruise altitude is cleared in the MCDU once you start the descent
+    const cruiseFlightLevel = this.flightPlanService.active.performanceData.cruiseFlightLevel.get();
+    const cruiseAltitude = cruiseFlightLevel ? cruiseFlightLevel * 100 : this.parameters?.cruiseAltitude;
+    return limitCruiseAltitude(cruiseAltitude, engineOut);
   }
 
   private getPresentPosition(): LatLongAlt {

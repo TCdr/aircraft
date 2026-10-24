@@ -53,6 +53,7 @@ export class CruiseToDescentCoordinator {
     // - Repeat
     const startingPointIndex = profile.findLastVerticalCheckpointIndex(
       VerticalCheckpointReason.TopOfClimb,
+      VerticalCheckpointReason.DriftDownLevelOff,
       VerticalCheckpointReason.PresentPosition,
     );
 
@@ -122,7 +123,7 @@ export class CruiseToDescentCoordinator {
               profile,
               this.acConfig,
               startingPoint,
-              descentPath.at(0).distanceFromStart,
+              descentPath.checkpoints[0].distanceFromStart,
               stepClimbStrategy,
               stepDescentStrategy,
               speedProfile,
