@@ -899,6 +899,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FMS] Add engine-out predictions: the drift down to the EO REC MAX and the EO LRC or cost index cruise speed are predicted, DRIFT DOWN is shown on the PERF CRZ page and EO LRC replaces the cost index - @TCdr
 1. [A380X/FUEL] The automatic refuel trim tank target follows the ZFW and ZFCG last entered, on the OIS REFUEL page or on the MFD FUEL & LOAD page, instead of always the payload ones - @TCdr
 1. [A380X] Cockpit lights: panels lit at a dusk or night start, lighting presets move the MAIN PNL FLOOD and AMBIENT knobs, a stronger main panel flood on its own circuits - @TCdr
+1. [A32NX/FCU] Brighten the AP1, AP2, A/THR, LOC, APPR, EXPED, FD, LS and CSTR button lights - @TCdr
 
 ## 2024.1.0
 
