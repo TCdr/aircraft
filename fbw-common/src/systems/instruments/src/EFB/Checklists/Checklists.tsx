@@ -6,6 +6,7 @@ import React, { useEffect } from 'react';
 import { usePersistentNumberProperty } from '@flybywiresim/fbw-sdk-react';
 import { CheckLg, Link45deg } from 'react-bootstrap-icons';
 import { PromptModal, ScrollableContainer, t, useModals } from '@flybywiresim/flypad';
+import { useContentSectionHeight } from '../ToolBar/useContentSectionHeight';
 import { ChecklistJsonDefinition } from '@flybywiresim/checklists';
 import { ChecklistPage } from './ChecklistsPage';
 import { checklistMarkKind, firstRelevantUnmarkedChecklist } from './checklistMark';
@@ -119,6 +120,7 @@ export const setAutomaticItemStates = (aircraftChecklists: ChecklistJsonDefiniti
  * @brief The flyPad's Checklists page component.
  */
 export const Checklists = () => {
+  const scrollHeight = useContentSectionHeight(8);
   const { selectedChecklistIndex, checklists, aircraftChecklists } = useAppSelector(
     (state) => state.trackingChecklists,
   );
@@ -174,19 +176,19 @@ export const Checklists = () => {
     );
     if (kind === 'done') {
       return (
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-utility-green text-m3-ground">
+        <span className="flex h-7 w-7 items-center justify-center rounded-sm bg-utility-green text-m3-ground">
           <CheckLg size={16} />
         </span>
       );
     }
     if (kind === 'next') {
       return (
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-m3-primary text-m3-on-primary">
+        <span className="flex h-7 w-7 items-center justify-center rounded-sm bg-m3-primary text-m3-on-primary">
           <Link45deg size={18} />
         </span>
       );
     }
-    return <span className="box-border h-6 w-6 rounded-full border-2 border-m3-outline" />;
+    return <span className="box-border h-6 w-6 rounded-sm border-2 border-m3-muted" />;
   };
 
   /**
@@ -256,7 +258,7 @@ export const Checklists = () => {
       <div className="flex h-content-section-reduced flex-row overflow-hidden">
         <div className="mr-4 flex w-[340px] shrink-0 flex-col">
           <M3Card className="min-h-0 flex-1 p-2">
-            <ScrollableContainer innerClassName="space-y-1" height={46}>
+            <ScrollableContainer innerClassName="space-y-1" height={scrollHeight}>
               {aircraftChecklists.map((cl, index) => {
                 const selected = index === selectedChecklistIndex;
                 const counts = getItemCounts(index);
@@ -264,7 +266,7 @@ export const Checklists = () => {
                 return (
                   <div
                     key={cl.name}
-                    className={`flex h-12 w-full cursor-pointer flex-row items-center rounded-xl px-3 transition duration-100 ${
+                    className={`flex h-12 w-full cursor-pointer flex-row items-center rounded-sm px-3 transition duration-100 ${
                       selected ? 'bg-m3-primary-container' : 'hover:bg-m3-tile'
                     }`}
                     onClick={() => handleClick(index)}

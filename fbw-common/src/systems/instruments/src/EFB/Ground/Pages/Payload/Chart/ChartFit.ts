@@ -3,8 +3,8 @@
 
 import { CanvasConst } from './Constants';
 
-/** The smallest balance chart height, in px: the fixed height it had before it filled its card */
-export const PAYLOAD_CHART_MIN_HEIGHT = 280;
+/** The smallest balance chart height, in px: a card on the page with the tab bar at the bottom still holds it */
+export const PAYLOAD_CHART_MIN_HEIGHT = 200;
 
 /** The room left under the chart, in px: the bottom weight label (centred on the bottom line) and the unit under it */
 const BOTTOM_ROOM = 34;

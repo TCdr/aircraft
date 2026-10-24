@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { ScrollableContainer, t } from '@flybywiresim/flypad';
+import { useContentSectionHeight } from '../ToolBar/useContentSectionHeight';
 import { usePersistentNumberProperty } from '@flybywiresim/fbw-sdk-react';
 import { useAppSelector } from '../Store/store';
 import { ChecklistItemComponent } from './ChecklistItemComponent';
@@ -13,6 +14,7 @@ import { M3Card, M3Progress } from '../UtilComponents/Material/Material';
 
 /** The open checklist: its name and progress, its items, the completion button */
 export const ChecklistPage = () => {
+  const scrollHeight = useContentSectionHeight(15);
   const { selectedChecklistIndex, aircraftChecklists, checklists } = useAppSelector(
     (state) => state.trackingChecklists,
   );
@@ -41,7 +43,7 @@ export const ChecklistPage = () => {
       <div className="flex shrink-0 flex-row items-center">
         <span className="text-2xl font-bold text-m3-text">{aircraftChecklists[selectedChecklistIndex].name}</span>
         {!!autoFillChecklists && selectedChecklistIndex === firstRelevantUnmarkedIdx && (
-          <span className="ml-3 rounded-full bg-m3-primary-container px-2 py-1 text-xs font-bold uppercase leading-none text-m3-on-primary-container">
+          <span className="ml-3 rounded-sm bg-m3-primary-container px-2 py-1 text-xs font-bold uppercase leading-none text-m3-on-primary-container">
             {t('Checklists.CurrentFlightPhase')}
           </span>
         )}
@@ -51,7 +53,7 @@ export const ChecklistPage = () => {
       <M3Progress className="mb-3 mt-3 shrink-0" value={total > 0 ? done / total : 0} />
 
       <div className="min-h-0 flex-1">
-        <ScrollableContainer height={39}>
+        <ScrollableContainer height={scrollHeight}>
           {aircraftChecklists[selectedChecklistIndex].items.map((it, index) => (
             <ChecklistItemComponent key={it.item} item={it} index={index} />
           ))}

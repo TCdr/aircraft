@@ -10,6 +10,7 @@ import { Toggle } from '../../UtilComponents/Form/Toggle';
 import { SelectInput } from '../../UtilComponents/Form/SelectInput/SelectInput';
 import { t } from '../../Localization/translation';
 import { ScrollableContainer } from '../../UtilComponents/ScrollableContainer';
+import { useContentSectionHeight } from '../../ToolBar/useContentSectionHeight';
 import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { PromptModal, useModals } from '../../UtilComponents/Modals/Modals';
 import { TooltipWrapper } from '../../UtilComponents/TooltipWrapper';
@@ -18,6 +19,7 @@ import { M3_INPUT, M3Card, M3SectionHeader } from '../../UtilComponents/Material
 import { buildPresetSelectionOptions, PRESET_IDS } from './presetSelectionOptions';
 
 export const LightPresets = () => {
+  const scrollHeight = useContentSectionHeight(7);
   // Manage names for presets in EFB only and always map them to the
   // preset IDs used in the WASM implementation.
   const [storedNames, setStoredNames] = usePersistentProperty('LIGHT_PRESET_NAMES', '');
@@ -81,7 +83,7 @@ export const LightPresets = () => {
           }
         />
         <div className="min-h-0 flex-1 px-2">
-          <ScrollableContainer height={47}>
+          <ScrollableContainer height={scrollHeight}>
             {PRESET_IDS.map((i) => (
               <SinglePreset
                 key={i}
@@ -274,7 +276,7 @@ const SinglePreset = (props: SinglePresetParams) => {
 
   return (
     <div className="flex h-14 flex-row items-center px-2">
-      <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-m3-tile text-base font-bold text-m3-text">
+      <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-m3-tile text-base font-bold text-m3-text">
         {props.presetID}
       </span>
 
@@ -301,7 +303,7 @@ const SinglePreset = (props: SinglePresetParams) => {
         <div className="ml-3">
           <button
             type="button"
-            className={`flex h-10 items-center whitespace-nowrap rounded-xl bg-m3-primary-container px-4 text-sm font-bold text-m3-on-primary-container transition duration-100 hover:brightness-110 ${!isPowered && 'opacity-40'}`}
+            className={`flex h-10 items-center whitespace-nowrap rounded-sm bg-m3-primary-container px-4 text-sm font-bold text-m3-on-primary-container transition duration-100 hover:brightness-110 ${!isPowered && 'opacity-40'}`}
             onClick={() => handleLoad()}
           >
             <PlayFill size={14} className="mr-2" />
@@ -320,7 +322,7 @@ const SinglePreset = (props: SinglePresetParams) => {
         <div className="ml-2">
           <button
             type="button"
-            className={`flex h-10 items-center whitespace-nowrap rounded-xl border border-m3-outline bg-transparent px-4 text-sm font-bold text-m3-text transition duration-100 hover:bg-m3-tile ${!isPowered && 'opacity-40'}`}
+            className={`flex h-10 items-center whitespace-nowrap rounded-sm border border-m3-outline bg-transparent px-4 text-sm font-bold text-m3-text transition duration-100 hover:bg-m3-tile ${!isPowered && 'opacity-40'}`}
             onClick={() => handleSave()}
           >
             <Save size={14} className="mr-2" />
