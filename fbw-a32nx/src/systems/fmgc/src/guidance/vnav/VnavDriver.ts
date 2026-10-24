@@ -173,11 +173,10 @@ export class VnavDriver implements GuidanceComponent {
 
     this.currentMcduSpeedProfile?.update(this.constraintReader.distanceToPresentPosition);
 
-    // No predictions in go around phase
     if (newParameters.flightPhase !== FmgcFlightPhase.GoAround) {
       this.profileManager.computeTacticalMcduPath();
-    } else if (this.mcduProfile?.isReadyToDisplay) {
-      this.mcduProfile.invalidate();
+    } else {
+      this.profileManager.computeGoAroundMcduPath();
     }
 
     const newLegs = new Map(geometry?.legs ?? []);
@@ -196,13 +195,12 @@ export class VnavDriver implements GuidanceComponent {
 
     this.publishAntiIceDescentState(newParameters);
 
-    if (this.profileManager.mcduProfile.isReadyToDisplay !== this.prevMcduPredReadyToDisplay) {
-      SimVar.SetSimVarValue(
-        'L:A32NX_FM_VERTICAL_PROFILE_AVAIL',
-        'Bool',
-        this.profileManager.mcduProfile.isReadyToDisplay,
-      );
-      this.prevMcduPredReadyToDisplay = this.profileManager.mcduProfile.isReadyToDisplay;
+    // The FMGC offers CLB and DES only with a vertical path, which the go-around profile does not have
+    const isVerticalProfileAvailable =
+      this.profileManager.mcduProfile.isReadyToDisplay && !this.profileManager.mcduProfile.isDestinationOnly;
+    if (isVerticalProfileAvailable !== this.prevMcduPredReadyToDisplay) {
+      SimVar.SetSimVarValue('L:A32NX_FM_VERTICAL_PROFILE_AVAIL', 'Bool', isVerticalProfileAvailable);
+      this.prevMcduPredReadyToDisplay = isVerticalProfileAvailable;
     }
 
     this.updateLegSpeedPredictions();

@@ -2820,7 +2820,7 @@ export class FlightManagementComputer implements FmcInterface {
     const targetProfileVd: VerticalPathCheckpoint[] = [];
     const showFromLegIndex = Math.max(0, plan.activeLegIndex - 1);
 
-    if (targetProfile) {
+    if (targetProfile && !targetProfile.isDestinationOnly) {
       targetProfile.checkpoints.forEach((c) => {
         const currentDistance = targetProfile.distanceToPresentPosition;
 
