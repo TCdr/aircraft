@@ -346,7 +346,7 @@ export const TemperatureCorrectionWidget = () => {
                       <PerfValue text={corrected.toFixed(0)} unit="ft" primary big />
                       <div className="grow" />
                       {corrected > published && (
-                        <span className="rounded-full bg-m3-warn-container px-3 py-1 text-xs font-bold leading-none text-m3-on-warn">
+                        <span className="rounded-sm bg-m3-warn-container px-3 py-1 text-xs font-bold leading-none text-m3-on-warn">
                           {`+${(corrected - published).toFixed(0)} ft`}
                         </span>
                       )}

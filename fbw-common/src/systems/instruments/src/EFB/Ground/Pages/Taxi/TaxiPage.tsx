@@ -87,7 +87,7 @@ const Section: FC<{ title: string; badge?: string | null; badgeWarn?: boolean }>
       <div className="grow" />
       {badge && (
         <span
-          className={`ml-3 min-w-0 truncate rounded-full px-2 py-1 text-xs font-bold leading-none ${
+          className={`ml-3 min-w-0 truncate rounded-sm px-2 py-1 text-xs font-bold leading-none ${
             badgeWarn ? 'bg-m3-warn-container text-m3-on-warn' : 'bg-m3-tile text-m3-muted'
           }`}
         >

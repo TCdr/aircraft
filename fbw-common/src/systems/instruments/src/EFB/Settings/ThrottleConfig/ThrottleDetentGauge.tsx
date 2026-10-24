@@ -27,7 +27,7 @@ const at = (value: number): CSSProperties => ({
  */
 export const ThrottleDetentGauge: FC<ThrottleDetentGaugeProps> = ({ position, lowerBound, upperBound, showDetent }) => {
   const inDetent = showDetent && isThrottleInDetent(position, lowerBound, upperBound);
-  const markerClassName = `absolute -left-1 -right-1 h-1.5 rounded-full ${
+  const markerClassName = `absolute -left-1 -right-1 h-1.5 rounded-sm ${
     inDetent ? 'bg-m3-primary-light' : 'bg-m3-outline-strong'
   }`;
   const valueClassName = `absolute text-xs font-bold leading-none ${

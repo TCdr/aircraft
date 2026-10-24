@@ -4,10 +4,11 @@
 import React, { FC, ReactNode } from 'react';
 
 /**
- * The Material 3 kit of the flyPad: tonal surfaces and chips on the theme colours (Assets/Theme.css, the m3-* colours
- * of the Tailwind config). A tone is what a thing means: active (connected, open), busy (in progress, called),
- * warn (attention), or idle. Spacing is on the 4 px grid, with margins rather than flex gaps: the sim's rendering
- * engine (an old WebKit) ignores the gap property.
+ * The kit of the flyPad, in the look of airline flight-ops software: square bordered panels with a header bar, flat
+ * status boxes and rectangular controls on the theme colours (Assets/Theme.css, the m3-* colours of the Tailwind
+ * config). A tone is what a thing means: active (connected, open), busy (in progress, called), warn (attention), or
+ * idle. Spacing is on the 4 px grid, with margins rather than flex gaps: the sim's rendering engine (an old WebKit)
+ * ignores the gap property.
  */
 export type M3Tone = 'active' | 'busy' | 'warn' | 'idle';
 
@@ -46,7 +47,7 @@ const BAR_TONES: Record<M3Tone, string> = {
  * components bring their own border and background)
  */
 export const M3_INPUT =
-  '!rounded-xl !border !border-m3-outline !bg-m3-ground !text-m3-text focus-within:!border-m3-primary';
+  '!rounded-sm !border !border-m3-outline !bg-m3-ground !text-m3-text focus-within:!border-m3-primary';
 
 // ------------------------------------------------------------------------------------------ page and cards
 
@@ -56,13 +57,15 @@ interface M3PageProps {
   title?: string;
   /** The status chips on the right of the title */
   chips?: ReactNode;
+  /** Controls or a legend on the left of the chips, when there is no title */
+  leading?: ReactNode;
   className?: string;
 }
 
 /** A page: the title bar with its status chips (or the chips alone), then the content */
-export const M3Page: FC<M3PageProps> = ({ eyebrow, title, chips, className, children }) => (
+export const M3Page: FC<M3PageProps> = ({ eyebrow, title, chips, leading, className, children }) => (
   <div className={`flex h-content-section-reduced flex-col overflow-hidden text-m3-text ${className ?? ''}`}>
-    {(title || chips) && (
+    {(title || chips || leading) && (
       <div className="mb-4 flex shrink-0 flex-row items-center">
         {title && (
           <div className="flex flex-col">
@@ -72,6 +75,7 @@ export const M3Page: FC<M3PageProps> = ({ eyebrow, title, chips, className, chil
             <h1 className="text-3xl font-bold">{title}</h1>
           </div>
         )}
+        {leading && <div className="flex flex-row items-center">{leading}</div>}
         <div className="grow" />
         {chips && <div className="flex flex-row flex-wrap justify-end space-x-2">{chips}</div>}
       </div>
@@ -87,10 +91,10 @@ interface M3CardProps {
   style?: React.CSSProperties;
 }
 
-/** A tonal card */
+/** A panel: square corners and a thin border */
 export const M3Card: FC<M3CardProps> = ({ className, low, style, children }) => (
   <div
-    className={`flex min-h-0 flex-col overflow-hidden rounded-2xl ${low ? 'bg-m3-card-low' : 'bg-m3-card'} ${className ?? ''}`}
+    className={`flex min-h-0 flex-col overflow-hidden rounded border border-m3-outline ${low ? 'bg-m3-card-low' : 'bg-m3-card'} ${className ?? ''}`}
     style={style}
   >
     {children}
@@ -104,14 +108,12 @@ interface M3SectionHeaderProps {
   trailing?: ReactNode;
 }
 
-/** The header of a list card: an eyebrow title, the count badge on the right */
+/** The header bar of a panel: the title, the count badge on the right */
 export const M3SectionHeader: FC<M3SectionHeaderProps> = ({ title, badge, trailing }) => (
-  <div className="flex shrink-0 flex-row items-center px-4 pb-2 pt-4">
-    <span className="text-xs font-bold uppercase tracking-widest text-m3-muted">{title}</span>
+  <div className="flex h-9 shrink-0 flex-row items-center border-b border-m3-outline bg-m3-tile px-3">
+    <span className="text-xs font-extrabold uppercase tracking-widest text-m3-text">{title}</span>
     <div className="grow" />
-    {badge && (
-      <span className="rounded-full bg-m3-tile px-2 py-1 text-xs font-bold leading-none text-m3-muted">{badge}</span>
-    )}
+    {badge && <span className="text-xs font-bold uppercase leading-none tracking-wider text-m3-muted">{badge}</span>}
     {trailing && <span className="ml-2">{trailing}</span>}
   </div>
 );
@@ -158,21 +160,21 @@ export const M3ListRow: FC<M3ListRowProps> = ({
     onClick={disabled ? undefined : onClick}
   >
     <div className="flex min-h-[40px] flex-row items-center">
-      <span className={`mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${TILE_TONES[tone]}`}>
+      <span className={`mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-sm ${TILE_TONES[tone]}`}>
         {icon}
       </span>
       <div className="flex min-w-0 grow flex-col">
-        <span className="truncate text-base font-semibold leading-tight">{name}</span>
+        <span className="break-words text-base font-semibold leading-tight">{name}</span>
         {status && (
-          <span className={`truncate text-xs leading-tight ${M3_STATUS_TONES[statusTone ?? tone]}`}>{status}</span>
+          <span className={`break-words text-xs leading-tight ${M3_STATUS_TONES[statusTone ?? tone]}`}>{status}</span>
         )}
       </div>
       {trailing && <span className="ml-3 flex shrink-0 items-center">{trailing}</span>}
     </div>
     {progress !== undefined && progress !== null && (
-      <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-m3-tile">
+      <div className="mt-2 h-1 w-full overflow-hidden bg-m3-tile">
         <div
-          className={`h-1 rounded-full ${BAR_TONES[tone === 'idle' ? 'active' : tone]}`}
+          className={`h-1 ${BAR_TONES[tone === 'idle' ? 'active' : tone]}`}
           style={{ width: `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%` }}
         />
       </div>
@@ -188,10 +190,10 @@ interface M3ChipProps {
   className?: string;
 }
 
-/** A status chip (not a control) */
+/** A flat status box (not a control) */
 export const M3Chip: FC<M3ChipProps> = ({ tone, icon, className, children }) => (
   <span
-    className={`inline-flex h-9 items-center whitespace-nowrap rounded-xl px-4 text-sm font-semibold ${CHIP_TONES[tone]} ${className ?? ''}`}
+    className={`inline-flex h-8 items-center whitespace-nowrap rounded-sm px-3 text-sm font-bold ${CHIP_TONES[tone]} ${className ?? ''}`}
   >
     {icon && <span className="mr-2 flex items-center">{icon}</span>}
     {children}
@@ -223,7 +225,7 @@ export const M3ActionChip: FC<M3ActionChipProps> = ({ onClick, primary, disabled
     aria-label={rest['aria-label']}
     disabled={disabled}
     onClick={disabled ? undefined : onClick}
-    className={`h-8 shrink-0 whitespace-nowrap rounded-full px-3 text-sm font-semibold transition duration-100 ${
+    className={`h-8 shrink-0 whitespace-nowrap rounded-sm px-3 text-xs font-extrabold uppercase tracking-wider transition duration-100 ${
       primary
         ? 'bg-m3-tonal text-m3-primary-light hover:bg-m3-primary hover:text-m3-on-primary'
         : 'border border-m3-outline bg-transparent text-m3-text hover:border-m3-on-primary-container hover:text-m3-on-primary-container'
@@ -240,7 +242,7 @@ interface M3SwitchProps {
   'aria-label'?: string;
 }
 
-/** A Material switch, 48 x 24 */
+/** A switch, 48 x 24 */
 export const M3Switch: FC<M3SwitchProps> = ({ value, onToggle, disabled, ...rest }) => (
   <button
     type="button"
@@ -249,12 +251,12 @@ export const M3Switch: FC<M3SwitchProps> = ({ value, onToggle, disabled, ...rest
     aria-label={rest['aria-label']}
     disabled={disabled}
     onClick={() => !disabled && onToggle(!value)}
-    className={`relative box-border h-6 w-12 shrink-0 rounded-full transition duration-150 ${m3DisabledLook(disabled)} ${
+    className={`relative box-border h-6 w-12 shrink-0 rounded-sm transition duration-150 ${m3DisabledLook(disabled)} ${
       value ? 'bg-m3-primary' : 'border-2 border-m3-outline-strong bg-transparent'
     }`}
   >
     <span
-      className={`absolute rounded-full transition duration-150 ${
+      className={`absolute rounded-sm transition duration-150 ${
         value ? 'left-[26px] top-0.5 h-5 w-5 bg-white' : 'left-0.5 top-0.5 h-4 w-4 bg-m3-muted'
       }`}
     />
@@ -271,7 +273,7 @@ export interface M3SegmentOption {
 
 /** A segmented control: one of several states */
 export const M3Segmented: FC<{ options: M3SegmentOption[]; className?: string }> = ({ options, className }) => (
-  <div className={`flex flex-row overflow-hidden rounded-full border border-m3-outline ${className ?? ''}`}>
+  <div className={`flex flex-row overflow-hidden rounded-sm border border-m3-outline ${className ?? ''}`}>
     {options.map((option, index) => (
       <button
         key={index}
@@ -279,7 +281,7 @@ export const M3Segmented: FC<{ options: M3SegmentOption[]; className?: string }>
         aria-label={option['aria-label']}
         disabled={option.disabled}
         onClick={option.disabled ? undefined : option.onClick}
-        className={`flex h-11 flex-1 items-center justify-center space-x-2 text-sm font-semibold transition duration-100 ${m3DisabledLook(option.disabled)} ${
+        className={`flex h-10 flex-1 items-center justify-center space-x-2 text-sm font-bold transition duration-100 ${m3DisabledLook(option.disabled)} ${
           index > 0 ? 'border-l border-m3-outline' : ''
         } ${
           option.selected
@@ -300,21 +302,23 @@ interface M3ButtonProps {
   className?: string;
 }
 
-/** A large filled button for the main action of a card */
+/** A rectangular button for the main action of a panel */
 export const M3Button: FC<M3ButtonProps> = ({ onClick, tone = 'primary', disabled, className, children }) => {
-  const look = {
+  // a disabled button is a flat outlined box: fading the filled look left white text on pale blue in the light theme
+  const filledLook = {
     primary: 'bg-m3-primary text-m3-on-primary hover:brightness-110',
     warn: 'bg-m3-warn-container text-m3-on-warn hover:brightness-110',
     outline: 'border border-m3-outline bg-transparent text-m3-text hover:bg-m3-tile',
     tonal: 'bg-m3-primary-container text-m3-on-primary-container hover:brightness-110',
     danger: 'border border-m3-on-error bg-transparent text-m3-on-error hover:bg-m3-error-container',
   }[tone];
+  const look = disabled ? 'pointer-events-none border border-m3-outline bg-m3-tile text-m3-muted' : filledLook;
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
-      className={`flex h-14 items-center justify-center space-x-2 rounded-2xl px-4 text-lg font-bold transition duration-100 ${m3DisabledLook(disabled)} ${look} ${className ?? ''}`}
+      className={`flex h-12 items-center justify-center space-x-2 rounded-sm px-4 text-base font-extrabold uppercase tracking-wider transition duration-100 ${look} ${className ?? ''}`}
     >
       {children}
     </button>
@@ -336,7 +340,7 @@ export const M3IconButton: FC<M3IconButtonProps> = ({ onClick, disabled, selecte
     aria-label={rest['aria-label']}
     disabled={disabled}
     onClick={disabled ? undefined : onClick}
-    className={`flex h-12 flex-1 items-center justify-center rounded-xl border transition duration-100 ${m3DisabledLook(disabled)} ${
+    className={`flex h-12 flex-1 items-center justify-center rounded-sm border transition duration-100 ${m3DisabledLook(disabled)} ${
       selected
         ? 'border-m3-primary-container bg-m3-primary-container text-m3-on-primary-container'
         : 'border-m3-outline bg-transparent text-m3-text hover:bg-m3-tile'
@@ -348,9 +352,9 @@ export const M3IconButton: FC<M3IconButtonProps> = ({ onClick, disabled, selecte
 
 /** A thin progress bar */
 export const M3Progress: FC<{ value: number; tone?: M3Tone; className?: string }> = ({ value, tone, className }) => (
-  <div className={`h-1 w-full overflow-hidden rounded-full bg-m3-tile ${className ?? ''}`}>
+  <div className={`h-1 w-full overflow-hidden bg-m3-tile ${className ?? ''}`}>
     <div
-      className={`h-1 rounded-full ${BAR_TONES[tone ?? 'active']}`}
+      className={`h-1 ${BAR_TONES[tone ?? 'active']}`}
       style={{ width: `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%` }}
     />
   </div>
@@ -364,7 +368,7 @@ export const M3Banner: FC<{ tone: M3Tone; icon?: ReactNode; className?: string }
   children,
 }) => (
   <div
-    className={`flex flex-row items-center rounded-xl px-3 py-2 text-sm font-semibold ${CHIP_TONES[tone]} ${className ?? ''}`}
+    className={`flex flex-row items-center rounded-sm px-3 py-2 text-sm font-semibold ${CHIP_TONES[tone]} ${className ?? ''}`}
   >
     {icon && <span className="mr-2 flex shrink-0 items-center">{icon}</span>}
     <span className="grow text-sm font-semibold text-current">{children}</span>

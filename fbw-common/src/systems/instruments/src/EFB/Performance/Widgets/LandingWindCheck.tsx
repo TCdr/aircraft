@@ -129,7 +129,7 @@ export const LandingWindCheck = ({
   const status = (r: RankedRunway<Runway>, limits: LandingWindLimits) => {
     if (r.within) {
       return (
-        <span className="inline-flex h-7 items-center rounded-lg bg-m3-primary-container px-2 text-sm font-bold text-m3-on-primary-container">
+        <span className="inline-flex h-7 items-center rounded-sm bg-m3-primary-container px-2 text-sm font-bold text-m3-on-primary-container">
           <Check2 size={16} className="mr-1" />
           <span className="text-sm font-bold text-current">{t('Performance.Landing.Calc.WindCheck.Within')}</span>
         </span>
@@ -153,7 +153,7 @@ export const LandingWindCheck = ({
       );
     }
     return (
-      <span className="inline-flex h-7 items-center whitespace-nowrap rounded-lg bg-m3-error-container px-2 text-sm font-bold text-m3-on-error">
+      <span className="inline-flex h-7 items-center whitespace-nowrap rounded-sm bg-m3-error-container px-2 text-sm font-bold text-m3-on-error">
         {parts.join(' · ')}
       </span>
     );
@@ -168,7 +168,7 @@ export const LandingWindCheck = ({
     const headwind = Math.round(r.wind.headwind);
     const gustCross = Math.round(r.gustWind.crosswind);
     return (
-      <div key={r.runway.ident} className={`${COLUMNS} h-10 rounded-lg ${selected ? 'bg-m3-tile' : 'bg-m3-card'}`}>
+      <div key={r.runway.ident} className={`${COLUMNS} h-10 rounded-sm ${selected ? 'bg-m3-tile' : 'bg-m3-card'}`}>
         <span className={`${cell('w-16')} font-bold text-m3-text`}>{r.runway.ident}</span>
         <span className={`${cell('w-24')} text-m3-text`}>{`${formatDistance(r.runway.length)} ${distanceUnit}`}</span>
         <span className={`${cell('w-20')} text-m3-text`}>{`${headwind >= 0 ? 'H' : 'T'} ${Math.abs(headwind)}`}</span>
@@ -252,7 +252,7 @@ export const LandingWindCheck = ({
     const best = rankRunwaysByWind(altRunways, direction, metar.wind.speed_kts, metar.wind.gust_kts, limits)[0];
     alternateBody = (
       <>
-        <span className="rounded-lg bg-m3-ground px-3 py-1 font-mono text-sm text-m3-text">{alternate.raw}</span>
+        <span className="rounded-sm bg-m3-ground px-3 py-1 font-mono text-sm text-m3-text">{alternate.raw}</span>
         {best !== undefined ? (
           runwayRow(
             best,

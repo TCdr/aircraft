@@ -52,7 +52,7 @@ const QuickSettingsButton: FC<QuickSettingsButtonProps> = ({ onClick, danger, ch
     type="button"
     aria-label={rest['aria-label']}
     onClick={onClick}
-    className={`flex h-11 w-11 items-center justify-center rounded-xl border bg-m3-ground transition duration-100 ${
+    className={`flex h-11 w-11 items-center justify-center rounded-sm border bg-m3-ground transition duration-100 ${
       danger
         ? 'border-m3-on-error text-m3-on-error hover:bg-m3-error-container'
         : 'border-m3-outline text-m3-text hover:bg-m3-tile'
@@ -86,7 +86,7 @@ const QuickSettingsTile: FC<QuickSettingsTileProps> = ({ onClick, icon, name, st
   <button
     type="button"
     onClick={onClick}
-    className={`flex h-24 w-full flex-col items-start rounded-2xl p-3 text-left transition duration-100 ${QUICK_TILE_TONES[tone]}`}
+    className={`flex h-24 w-full flex-col items-start rounded p-3 text-left transition duration-100 ${QUICK_TILE_TONES[tone]}`}
   >
     <span className="flex shrink-0">{icon}</span>
     <span className="mt-2 text-sm font-bold leading-tight text-current">{name}</span>
@@ -318,7 +318,7 @@ export const QuickControlsPane = ({
       />
 
       <div
-        className="absolute z-40 flex flex-col rounded-3xl bg-m3-card p-5 shadow-2xl"
+        className="absolute z-40 flex flex-col rounded bg-m3-card p-5 shadow-2xl"
         style={{ top: '48px', right: '16px', width: '460px' }}
         onClick={keepClick}
       >
@@ -440,7 +440,7 @@ export const QuickControlsPane = ({
             </TooltipWrapper>
           )}
           <TooltipWrapper text={t('QuickControls.TT.Simrate')}>
-            <div className="ml-3 flex h-24 flex-1 flex-col rounded-2xl bg-m3-tile p-3 text-m3-text">
+            <div className="ml-3 flex h-24 flex-1 flex-col rounded bg-m3-tile p-3 text-m3-text">
               <span className="flex shrink-0">
                 <ClockHistory size={22} />
               </span>
@@ -450,7 +450,7 @@ export const QuickControlsPane = ({
                   type="button"
                   aria-label="-"
                   onClick={decreaseSimrate}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-m3-outline bg-transparent text-m3-text hover:bg-m3-card"
+                  className="flex h-7 w-7 items-center justify-center rounded-sm border border-m3-outline bg-transparent text-m3-text hover:bg-m3-card"
                 >
                   <Dash size={16} />
                 </button>
@@ -459,7 +459,7 @@ export const QuickControlsPane = ({
                   type="button"
                   aria-label="+"
                   onClick={increaseSimrate}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-m3-outline bg-transparent text-m3-text hover:bg-m3-card"
+                  className="flex h-7 w-7 items-center justify-center rounded-sm border border-m3-outline bg-transparent text-m3-text hover:bg-m3-card"
                 >
                   <Plus size={16} />
                 </button>
@@ -479,7 +479,7 @@ export const QuickControls = () => {
     <>
       <TooltipWrapper text={t('StatusBar.TT.QuickControls')}>
         <div
-          className={`flex h-8 w-11 items-center justify-center rounded-full transition duration-100 ${
+          className={`flex h-8 w-11 items-center justify-center rounded-sm transition duration-100 ${
             showQuickControlsPane
               ? 'bg-m3-primary-container text-m3-on-primary-container'
               : 'text-m3-text hover:bg-m3-tile'

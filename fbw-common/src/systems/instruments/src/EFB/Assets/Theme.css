@@ -46,20 +46,124 @@
     --color-statusbar-mismatch: #ff7f7f;
 }
 
-/* Material 3 tones of the flyPad (UtilComponents/Material): surfaces, outline, text, and the primary, warn and error
-   containers; one set per theme, the primary on the theme highlight */
+/* Dashboard panel header bars: one vivid colour per section, after iconic car colours, on the bar only (the panel
+   body stays neutral); the same in every theme, with a title colour that reads on its bar */
+:root {
+    /* Porsche Miami blue */
+    --section-flight-bar: #00a3d9;
+    --section-flight-title: #00253a;
+    /* British racing green */
+    --section-aircraftState-bar: #0b5e2b;
+    --section-aircraftState-title: #ffffff;
+    /* Ferrari Rosso Corsa */
+    --section-advisories-bar: #d40000;
+    --section-advisories-title: #ffffff;
+    /* Aston Martin tungsten grey */
+    --section-checklists-bar: #4a5459;
+    --section-checklists-title: #ffffff;
+    /* Lamborghini Arancio Borealis */
+    --section-fuel-bar: #ff6a13;
+    --section-fuel-title: #2a0f00;
+    /* Lamborghini Viola Parsifae */
+    --section-payload-bar: #5b2a86;
+    --section-payload-title: #ffffff;
+    /* Bugatti French racing blue */
+    --section-flightPlan-bar: #1f4fbf;
+    --section-flightPlan-title: #ffffff;
+    /* Tour de France yellow */
+    --section-destination-bar: #ffd700;
+    --section-destination-title: #2b2400;
+    /* Porsche Rubystone */
+    --section-cabin-bar: #c8186b;
+    --section-cabin-title: #ffffff;
+    /* Lamborghini Verde Mantis */
+    --section-turnaround-bar: #78c800;
+    --section-turnaround-title: #162600;
+}
+
+.dashboard-header-flight { background-color: var(--section-flight-bar); }
+.dashboard-header-flight .dashboard-header-title { color: var(--section-flight-title); }
+.dashboard-header-aircraftState { background-color: var(--section-aircraftState-bar); }
+.dashboard-header-aircraftState .dashboard-header-title { color: var(--section-aircraftState-title); }
+.dashboard-header-advisories { background-color: var(--section-advisories-bar); }
+.dashboard-header-advisories .dashboard-header-title { color: var(--section-advisories-title); }
+.dashboard-header-checklists { background-color: var(--section-checklists-bar); }
+.dashboard-header-checklists .dashboard-header-title { color: var(--section-checklists-title); }
+.dashboard-header-fuel { background-color: var(--section-fuel-bar); }
+.dashboard-header-fuel .dashboard-header-title { color: var(--section-fuel-title); }
+.dashboard-header-payload { background-color: var(--section-payload-bar); }
+.dashboard-header-payload .dashboard-header-title { color: var(--section-payload-title); }
+.dashboard-header-flightPlan { background-color: var(--section-flightPlan-bar); }
+.dashboard-header-flightPlan .dashboard-header-title { color: var(--section-flightPlan-title); }
+.dashboard-header-destination { background-color: var(--section-destination-bar); }
+.dashboard-header-destination .dashboard-header-title { color: var(--section-destination-title); }
+.dashboard-header-cabin { background-color: var(--section-cabin-bar); }
+.dashboard-header-cabin .dashboard-header-title { color: var(--section-cabin-title); }
+.dashboard-header-turnaround { background-color: var(--section-turnaround-bar); }
+.dashboard-header-turnaround .dashboard-header-title { color: var(--section-turnaround-title); }
+
+/* The soft header set (Settings > flyPad > Dashboard Header Colours): calm tints of the same hues, dark for the
+   blue and dark themes, light for the light theme */
+.efb-headers-soft {
+    --section-flight-bar: #16374f;
+    --section-flight-title: #8fd3ff;
+    --section-aircraftState-bar: #1f3a26;
+    --section-aircraftState-title: #9fd6a8;
+    --section-advisories-bar: #4a2814;
+    --section-advisories-title: #ffb27a;
+    --section-checklists-bar: #243a33;
+    --section-checklists-title: #9fdcc4;
+    --section-fuel-bar: #123d3d;
+    --section-fuel-title: #7fe0d6;
+    --section-payload-bar: #272f55;
+    --section-payload-title: #b3c2ff;
+    --section-flightPlan-bar: #33284f;
+    --section-flightPlan-title: #cdb9ff;
+    --section-destination-bar: #3b3416;
+    --section-destination-title: #e8d27a;
+    --section-cabin-bar: #43283a;
+    --section-cabin-title: #f3b8d2;
+    --section-turnaround-bar: #2f3a14;
+    --section-turnaround-title: #c7e07a;
+}
+
+:root.theme-light .efb-headers-soft {
+    --section-flight-bar: #d4e9f7;
+    --section-flight-title: #0b4f7a;
+    --section-aircraftState-bar: #dcefdd;
+    --section-aircraftState-title: #1e5c2b;
+    --section-advisories-bar: #fde1cc;
+    --section-advisories-title: #8a3f00;
+    --section-checklists-bar: #d8eee6;
+    --section-checklists-title: #1d5c47;
+    --section-fuel-bar: #d2efec;
+    --section-fuel-title: #0b5c55;
+    --section-payload-bar: #dde3fb;
+    --section-payload-title: #2e3f8f;
+    --section-flightPlan-bar: #e6ddfa;
+    --section-flightPlan-title: #4b2f99;
+    --section-destination-bar: #f1e9c4;
+    --section-destination-title: #665200;
+    --section-cabin-bar: #f6dce8;
+    --section-cabin-title: #8a2b57;
+    --section-turnaround-bar: #eef5d4;
+    --section-turnaround-title: #4a5c0b;
+}
+
+/* The panel colours of the flyPad kit (UtilComponents/Material): ground, panels, header bars (tile), borders, text,
+   and the primary, warn and error boxes; one set per theme, the primary on the theme highlight */
 :root,
   :root.theme-blue {
-    --m3-ground: #101216;
-    --m3-card: #1b1e24;
-    --m3-card-low: #16191e;
-    --m3-tile: #262a31;
-    --m3-outline: #44474e;
-    --m3-outline-strong: #5c6069;
-    --m3-text: #e3e5ea;
-    --m3-muted: #9aa0a8;
-    --m3-primary: #00a4ad;
-    --m3-on-primary: #061a1b;
+    --m3-ground: #0e1316;
+    --m3-card: #151c22;
+    --m3-card-low: #11171c;
+    --m3-tile: #1d2730;
+    --m3-outline: #2a3640;
+    --m3-outline-strong: #46545f;
+    --m3-text: #e6ecef;
+    --m3-muted: #8e9aa3;
+    --m3-primary: #38c6e8;
+    --m3-on-primary: #00303b;
     --m3-primary-container: #0f3d3f;
     --m3-on-primary-container: #7fd9e0;
     --m3-primary-light: #b2f0f4;
@@ -72,11 +176,11 @@
 
 :root.theme-dark {
     --m3-ground: #0b0d11;
-    --m3-card: #161a21;
-    --m3-card-low: #12151b;
-    --m3-tile: #222833;
-    --m3-outline: #3a4150;
-    --m3-outline-strong: #525a6b;
+    --m3-card: #14181e;
+    --m3-card-low: #101318;
+    --m3-tile: #1c222a;
+    --m3-outline: #2a313b;
+    --m3-outline-strong: #46505d;
     --m3-text: #e3e5ea;
     --m3-muted: #9aa0a8;
     --m3-primary: #3b82f6;
@@ -92,12 +196,12 @@
 }
 
 :root.theme-light {
-    --m3-ground: #e4e4e4;
-    --m3-card: #ffffff;
-    --m3-card-low: #f4f5f7;
-    --m3-tile: #e6e8ec;
-    --m3-outline: #c5c8ce;
-    --m3-outline-strong: #aeb2b9;
+    --m3-ground: #ffffff;
+    --m3-card: #f4f5f7;
+    --m3-card-low: #eceef1;
+    --m3-tile: #e6e9ed;
+    --m3-outline: #cfd5db;
+    --m3-outline-strong: #a9b1b9;
     --m3-text: #1b1e24;
     --m3-muted: #5f6670;
     --m3-primary: #1d6fe0;

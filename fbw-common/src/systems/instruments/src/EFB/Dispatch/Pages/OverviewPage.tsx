@@ -16,7 +16,7 @@ interface InformationEntryProps {
 /** A figure of the aircraft: its icon, its name, its value */
 const InformationEntry: FC<InformationEntryProps> = ({ children, title, info }) => (
   <div className="flex h-14 shrink-0 flex-row items-center px-4">
-    <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-m3-tile text-m3-on-primary-container">
+    <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-m3-tile text-m3-on-primary-container">
       {children}
     </span>
     <span className="grow truncate text-sm text-m3-muted">{title}</span>

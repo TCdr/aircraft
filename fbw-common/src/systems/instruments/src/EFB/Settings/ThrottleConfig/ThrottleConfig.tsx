@@ -412,7 +412,7 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
         <span className="text-2xl font-bold text-m3-text">{t('Settings.SimOptions.ThrottleDetents')}</span>
       </div>
 
-      <div className="mx-6 mt-2 flex shrink-0 flex-row items-center justify-between rounded-2xl bg-m3-card-low px-4 py-2">
+      <div className="mx-6 mt-2 flex shrink-0 flex-row items-center justify-between rounded bg-m3-card-low px-4 py-2">
         <div className="flex flex-row items-center">
           <span className="mr-3 text-sm font-semibold text-m3-text">{t('Settings.ThrottleConfig.TogaOnAxis')}</span>
           <Toggle value={!!togaOnAxis1} onToggle={(value) => setTogaOnAxis(value ? 1 : 0)} />

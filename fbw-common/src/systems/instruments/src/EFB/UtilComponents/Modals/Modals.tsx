@@ -54,7 +54,7 @@ interface AlertModalProps extends BaseModalProps {
  * colour: the flyPad stylesheet gives every p, div and span a 20 px size otherwise.
  */
 const ModalSurface: FC<BaseModalProps> = ({ title, bodyText, children }) => (
-  <div className="flex w-5/12 flex-col rounded-2xl border border-m3-outline bg-m3-card p-6">
+  <div className="flex w-5/12 flex-col rounded border border-m3-outline bg-m3-card p-6">
     <h1 className="text-lg font-bold text-m3-text">{title}</h1>
     <p className="mt-2 text-sm text-m3-muted">{bodyText}</p>
     <div className="mt-6 flex flex-row">{children}</div>

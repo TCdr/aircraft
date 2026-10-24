@@ -322,7 +322,7 @@ export const PushbackPage = () => {
             </TooltipWrapper>
             <TooltipWrapper text={t('Pushback.TT.SetReleaseParkingBrake')}>
               <div
-                className={`mt-3 flex cursor-pointer flex-row items-center rounded-xl px-3 py-2 text-sm font-semibold ${
+                className={`mt-3 flex cursor-pointer flex-row items-center rounded-sm px-3 py-2 text-sm font-semibold ${
                   parkingBrakeEngaged
                     ? 'bg-m3-error-container text-m3-on-error'
                     : 'border border-m3-outline text-m3-text'
@@ -476,7 +476,8 @@ export const PushbackPage = () => {
                 selected={tugCmdHdgFactor === 0}
                 className="w-full"
               >
-                <ArrowUp size={22} />
+                {/* Straight ahead in the direction the tug moves: back for a pushback */}
+                {tugCmdSpdFactor < 0 ? <ArrowDown size={22} /> : <ArrowUp size={22} />}
               </M3IconButton>
               <TooltipWrapper text={t('Pushback.TT.Right')}>
                 <M3IconButton

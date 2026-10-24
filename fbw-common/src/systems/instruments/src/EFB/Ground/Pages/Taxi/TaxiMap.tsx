@@ -426,7 +426,7 @@ export const TaxiMap = ({
   return (
     <div
       ref={container}
-      className="relative h-full w-full overflow-hidden rounded-2xl"
+      className="relative h-full w-full overflow-hidden rounded"
       onMouseDown={(e) => view && (drag.current = { x: e.clientX, y: e.clientY, view })}
       onMouseMove={(e) => {
         // Moves the drawn canvas only
@@ -449,14 +449,14 @@ export const TaxiMap = ({
       {lineFits && (
         // A380: the legend of the width marks
         <div
-          className="absolute left-4 top-4 flex flex-col space-y-1 rounded-xl border border-m3-outline bg-m3-ground px-3 py-2"
+          className="absolute left-4 top-4 flex flex-col space-y-1 rounded-sm border border-m3-outline bg-m3-ground px-3 py-2"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <span className="text-xs font-bold uppercase tracking-widest text-m3-muted">
             {t('Ground.Taxi.Width.Legend')}
           </span>
           <div className="flex flex-row items-center">
-            <div className="mr-2 h-1 w-6 shrink-0 rounded-full" style={{ backgroundColor: COLOURS.tooNarrow }} />
+            <div className="mr-2 h-1 w-6 shrink-0 rounded-sm" style={{ backgroundColor: COLOURS.tooNarrow }} />
             <span className="text-xs text-m3-text">{t('Ground.Taxi.Width.TooNarrow')}</span>
           </div>
           <div className="flex flex-row items-center">
@@ -478,7 +478,7 @@ export const TaxiMap = ({
             key={i}
             type="button"
             disabled={b.disabled}
-            className={`flex h-12 w-12 items-center justify-center rounded-xl border border-m3-outline bg-m3-ground ${
+            className={`flex h-12 w-12 items-center justify-center rounded-sm border border-m3-outline bg-m3-ground ${
               b.disabled ? 'text-m3-muted opacity-50' : 'text-m3-text hover:bg-m3-tile'
             }`}
             onMouseDown={(e) => e.stopPropagation()}
