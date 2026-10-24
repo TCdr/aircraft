@@ -460,6 +460,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
       const constantMachSegment = findConstantMachSegment(this.loadedFlightPlan.allLegs);
 
       const predictions = this.props.fmcService?.master?.fmgc.getWaypointPredictions(fpIndex);
+      const alternatePredictions = this.props.fmcService?.master?.acInterface.getAlternateLegPredictions(fpIndex);
       const activeLegLiveValues = {
         toWaypoint: this.toWaypointFromPresentPosition(),
         inFlight: !(this.props.fmcService.master?.fmgc.isOnGround() ?? true),
@@ -469,7 +470,7 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
         const leg = jointFlightPlan[i];
         const isAltn = i >= (this.loadedFlightPlan.allLegs.length ?? 0);
         const isActiveLeg = i === this.loadedFlightPlan.activeLegIndex;
-        const pred = predictions?.get(i);
+        const pred = isAltn ? alternatePredictions?.get(i - this.loadedFlightPlan.legCount) : predictions?.get(i);
 
         // Several pseudo waypoints (e.g. time markers) can lie on one leg
         const legStartDistance = lastDistanceFromStart;

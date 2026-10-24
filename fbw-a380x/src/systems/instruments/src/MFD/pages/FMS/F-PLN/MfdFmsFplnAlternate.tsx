@@ -20,7 +20,7 @@ import { routeSelectionPage, showReturnButtonUriExtra } from '../../../shared/ut
 import { alternateRouteSelectionUriExtra } from './MfdFmsFplnRouteSelection';
 
 import { fcomAt } from '../../common/FcomLayout';
-import { AlternateFuelPredictor } from '../../../FMC/AlternateFuelPredictor';
+import { AlternateFuelPredictor } from '@fmgc/guidance/vnav/AlternateFuelPredictor';
 import './MfdFmsFplnAlternate.scss';
 
 interface MfdFmsFplnAlternateProps extends AbstractMfdPageProps {}

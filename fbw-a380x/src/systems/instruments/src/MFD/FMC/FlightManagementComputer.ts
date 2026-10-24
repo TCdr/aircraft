@@ -120,7 +120,11 @@ import { A380OptimumStepSearch } from './A380OptimumStep';
 import { computeFlsBeam, flsBeamInputs, FlsBeamPublisher } from './FlsBeam';
 import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { FmsVdSafetyAltitudes } from './FmsVdSafetyAltitudes';
-import { SecondaryFlightPlanPredictions } from './SecondaryFlightPlanPredictions';
+import {
+  SecondaryFlightPlanPredictions,
+  SecondaryPlanParametersObserver,
+} from '@fmgc/guidance/vnav/SecondaryFlightPlanPredictions';
+import { a380SecondaryPlanData } from './A380SecondaryPlanData';
 import { isVdCutAlongTrack } from '@shared/VdVerticalCut';
 import { isValidA380FlightNumber } from '@fmgc/components/fms-messages/FmsMessageConditions';
 import { deleteConstraintsAboveCruiseLevel } from '@fmgc/flightplanning/plans/CruiseLevelConstraints';
@@ -761,10 +765,13 @@ export class FlightManagementComputer implements FmcInterface {
     this.fmgc.guidanceController = this.#guidanceController;
     this.#secondaryPredictions = new SecondaryFlightPlanPredictions(
       this.bus,
-      this.fmgc,
       this.flightPlanInterface,
       this.#guidanceController,
       A380AircraftConfig,
+      (planIndex, activeObserver) =>
+        new SecondaryPlanParametersObserver(this.fmgc, this.flightPlanInterface, planIndex, activeObserver, (index) =>
+          a380SecondaryPlanData(this.fmgc, this.flightPlanInterface, index),
+        ),
     );
     this.fmgc.secondaryPredictions = this.#secondaryPredictions;
 

@@ -892,6 +892,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FMS] [A380X/FMS] The OPT FL uses the entered and propagated winds and temperatures at each level, also on the ground, in place of one measured wind and temperature - @TCdr
 1. [A32NX/MCDU] The descent profile intercept point (I/P) is a pseudo waypoint of the F-PLN page, with its time, speed and altitude - @TCdr
 1. [A380X/MFD] The time markers of the LL XING - TIME MKR page show as a pseudo waypoint on the F-PLN page and the ND, with TIME MARKER REACHED; several pseudo waypoints can share a leg of the F-PLN page - @TCdr
+1. [A32NX/FMS] Predictions for the secondary flight plan on the F-PLN pages (time, altitude, speed, EFOB, wind) with the FCOM rules: none for the descent, stopped at the top of descent or when the active leg diverges, computed once on ground for a SEC INIT - @TCdr
+1. [FMS] Predictions on the alternate flight plan of the F-PLN pages (time, altitude, speed, EFOB along a climb, cruise and descent from the destination); the A320 ALTN fuel and time use the alternate flight plan distance and are computed beyond the 200 NM table limit - @TCdr
 
 ## 2024.1.0
 
