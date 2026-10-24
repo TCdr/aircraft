@@ -1,7 +1,10 @@
 use std::{collections::HashMap, time::Duration};
 
 use ntest::{assert_false, assert_true};
-use systems::{electrical::Electricity, fuel::RefuelRate, simulation::test::ReadByName};
+use systems::{
+    electrical::Electricity, fuel::RefuelRate, shared::arinc429::SignStatus,
+    simulation::test::ReadByName,
+};
 use uom::si::mass::kilogram;
 
 use super::*;
@@ -690,4 +693,88 @@ fn spawn_high_fuel_load_desired_real_max_done() {
 
     assert_fuel_quantity_max(&test_bed);
     assert_false!(test_bed.refuel_status());
+}
+
+fn refuel_application_zero_fuel_data(
+    mut test_bed: FuelTestBed,
+    zfw_kg: f64,
+    zfcg: f64,
+) -> FuelTestBed {
+    test_bed.write_by_name("FUEL_REFUEL_ZFW", zfw_kg);
+    test_bed.write_by_name("FUEL_REFUEL_ZFCG", zfcg);
+    test_bed.and_run()
+}
+
+fn fms_zero_fuel_data(mut test_bed: FuelTestBed, zfw_kg: f64, zfcg: f64) -> FuelTestBed {
+    for fms in [1, 2] {
+        test_bed.write_arinc429_by_name(
+            &format!("FM{fms}_ZERO_FUEL_WEIGHT"),
+            zfw_kg,
+            SignStatus::NormalOperation,
+        );
+        test_bed.write_arinc429_by_name(
+            &format!("FM{fms}_ZERO_FUEL_WEIGHT_CG"),
+            zfcg,
+            SignStatus::NormalOperation,
+        );
+    }
+    test_bed.and_run()
+}
+
+fn trim_tank_after_instant_refuel(test_bed: FuelTestBed) -> f64 {
+    test_bed
+        .trigger_instant_refuel()
+        .and_run()
+        .and_stabilize()
+        .tank_mass(A380FuelTankType::Trim as usize)
+        .get::<kilogram>()
+        .round()
+}
+
+// 100 t of fuel at a 300 t ZFW: the payload's 36.5 % ZFCG gives 8.5 t of trim fuel, a 40 % one 3.5 t.
+const TRIM_FUEL_AT_PAYLOAD_ZFCG_KG: f64 = 8500.;
+const TRIM_FUEL_AT_40_PERCENT_ZFCG_KG: f64 = 3500.;
+
+#[test]
+fn cg_targeting_uses_the_payload_zero_fuel_data_without_a_refuel_application_entry() {
+    let test_bed = fms_zero_fuel_data(test_bed_with().desired_fuel_100000(), 300000., 40.);
+
+    assert_eq!(
+        trim_tank_after_instant_refuel(test_bed),
+        TRIM_FUEL_AT_PAYLOAD_ZFCG_KG
+    );
+}
+
+#[test]
+fn cg_targeting_uses_the_refuel_application_zero_fuel_data() {
+    let test_bed =
+        refuel_application_zero_fuel_data(test_bed_with().desired_fuel_100000(), 300000., 40.);
+
+    assert_eq!(
+        trim_tank_after_instant_refuel(test_bed),
+        TRIM_FUEL_AT_40_PERCENT_ZFCG_KG
+    );
+}
+
+#[test]
+fn cg_targeting_uses_the_fms_zero_fuel_data_entered_after_the_refuel_application_ones() {
+    let test_bed =
+        refuel_application_zero_fuel_data(test_bed_with().desired_fuel_100000(), 300000., 40.);
+    let test_bed = fms_zero_fuel_data(test_bed, 300000., 36.5);
+
+    assert_eq!(
+        trim_tank_after_instant_refuel(test_bed),
+        TRIM_FUEL_AT_PAYLOAD_ZFCG_KG
+    );
+}
+
+#[test]
+fn cg_targeting_uses_the_refuel_application_zero_fuel_data_entered_after_the_fms_ones() {
+    let test_bed = fms_zero_fuel_data(test_bed_with().desired_fuel_100000(), 300000., 36.5);
+    let test_bed = refuel_application_zero_fuel_data(test_bed, 300000., 40.);
+
+    assert_eq!(
+        trim_tank_after_instant_refuel(test_bed),
+        TRIM_FUEL_AT_40_PERCENT_ZFCG_KG
+    );
 }
