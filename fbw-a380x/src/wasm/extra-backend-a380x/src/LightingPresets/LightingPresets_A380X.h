@@ -1,4 +1,4 @@
-// Copyright (c) 2023 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 #ifndef FLYBYWIRE_LIGHTINGPRESETS_H
@@ -48,9 +48,9 @@ struct LightingValues_A380X {
   FLOAT64 ecamLowerLightLevel;  // 93
 
   FLOAT64 pedFloodLightLevel;      // 76
-  FLOAT64 mainPnlFloodLightLevel;  // 83
+  FLOAT64 mainPnlFloodLightLevel;  // A380X_PED_LIGHTING_MIP_FLOOD_LT_KNOB
   FLOAT64 integralLightLevel;      // 85
-  FLOAT64 ambientLightLevel;       // 7
+  FLOAT64 ambientLightLevel;       // A380X_PED_LIGHTING_AMBIENT_LT_KNOB
 };
 
 /**
@@ -98,9 +98,11 @@ class LightingPresets_A380X : public LightingPresets {
   AircraftVariablePtr ecamLowerLightLevel;
 
   AircraftVariablePtr pedFloodLightLevel;
-  AircraftVariablePtr mainPnlFloodLightLevel;
+  // The cockpit behaviour copies these knobs onto potentiometers 83 and 7 many times a second (and the STORM light
+  // overrides them), so a preset has to move the knobs: a value written to the potentiometers is lost at once.
+  NamedVariablePtr    mainPnlFloodLightKnob;
   AircraftVariablePtr integralLightLevel;
-  AircraftVariablePtr ambientLightLevel;
+  NamedVariablePtr    ambientLightKnob;
 
   // THe current lighting values in the aircraft
   LightingValues_A380X currentLightValues{};

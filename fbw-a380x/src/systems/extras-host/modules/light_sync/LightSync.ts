@@ -14,6 +14,8 @@ import {
 } from '@microsoft/msfs-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 
+import { cockpitLightLevels } from './CockpitLightLevels';
+
 enum TimeOfDayState {
   Day = 1,
   DuskDawn = 2,
@@ -71,20 +73,14 @@ export class LightSync implements Instrument {
     const autoBrightness = this.getAutoBrightness();
     const startState = SimVar.GetSimVarValue('L:A32NX_START_STATE', 'Number');
 
-    const isNight = autoBrightness < 50;
-    const isColdAndDark = startState === 1 || startState === 2;
-
-    const ambientLtValue = isNight && isColdAndDark ? 20 : 0;
-    const pedFloodLtValue = isNight && isColdAndDark ? 20 : 0;
-    const mainPnlFloodLtValue = isNight ? 10 : 0;
-    const integralLtValue = isNight ? 15 : 0;
+    const levels = cockpitLightLevels(autoBrightness, startState);
 
     // OVHD Reading Lights
     this.setPotentiometer(96, 0); // Capt
     this.setPotentiometer(97, 0); // F/O
 
     // Glareshield
-    this.setPotentiometer(84, integralLtValue); // Int Lt
+    this.setPotentiometer(84, levels.integral); // Int Lt
     this.setPotentiometer(87, autoBrightness); // Lcd Brt
     this.setPotentiometer(10, 0); // table Cpt
     this.setPotentiometer(11, 0); // table F/O
@@ -111,10 +107,14 @@ export class LightSync implements Instrument {
     this.setRmpBrightness(3, autoBrightness); // rmpOvhdLightLevel
     this.setPotentiometer(92, autoBrightness); // ecamUpperLightLevel
     this.setPotentiometer(93, autoBrightness); // ecamLowerLightLevel
-    this.setPotentiometer(76, pedFloodLtValue); // pedFloodLightLevel
-    SimVar.SetSimVarValue('L:A380X_PED_LIGHTING_MIP_FLOOD_LT_KNOB', SimVarValueType.Number, mainPnlFloodLtValue / 100); // mainPnlFloodLightLevel
-    this.setPotentiometer(85, integralLtValue); // integralLightLevel
-    SimVar.SetSimVarValue('L:A380X_PED_LIGHTING_AMBIENT_LT_KNOB', SimVarValueType.Number, ambientLtValue / 100); // ambianceLightLevel
+    this.setPotentiometer(76, levels.pedestalFlood); // pedFloodLightLevel
+    SimVar.SetSimVarValue(
+      'L:A380X_PED_LIGHTING_MIP_FLOOD_LT_KNOB',
+      SimVarValueType.Number,
+      levels.mainPanelFlood / 100,
+    ); // mainPnlFloodLightLevel
+    this.setPotentiometer(85, levels.integral); // integralLightLevel
+    SimVar.SetSimVarValue('L:A380X_PED_LIGHTING_AMBIENT_LT_KNOB', SimVarValueType.Number, levels.ambient / 100); // ambianceLightLevel
   }
 
   public onUpdate(): void {}
