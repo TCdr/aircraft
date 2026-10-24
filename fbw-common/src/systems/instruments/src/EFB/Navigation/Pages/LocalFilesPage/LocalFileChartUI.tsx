@@ -9,6 +9,7 @@ import { Viewer } from '@flybywiresim/fbw-sdk-react';
 import { t } from '../../../Localization/translation';
 import { LocalFileChart, LocalFileChartSelector, LocalFileOrganizedCharts } from './LocalFileChartSelector';
 import { ScrollableContainer } from '../../../UtilComponents/ScrollableContainer';
+import { useContentSectionHeight } from '../../../ToolBar/useContentSectionHeight';
 import { SimpleInput } from '../../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { SelectGroup, SelectItem } from '../../../UtilComponents/Form/Select';
 import { useAppDispatch, useAppSelector } from '../../../Store/store';
@@ -22,6 +23,7 @@ interface LocalFileCharts {
 }
 
 export const LocalFileChartUI = () => {
+  const scrollHeight = useContentSectionHeight(14);
   const dispatch = useAppDispatch();
   const [statusBarInfo, setStatusBarInfo] = useState('');
   const [icaoAndNameDisagree, setIcaoAndNameDisagree] = useState(false);
@@ -146,10 +148,13 @@ export const LocalFileChartUI = () => {
   const simbriefDataLoaded = isSimbriefDataLoaded();
 
   return (
-    <div className="flex h-content-section-reduced w-full flex-row overflow-x-hidden rounded-lg">
+    <div className="flex h-content-section-reduced w-full flex-row overflow-x-hidden rounded-sm">
       <>
         {!isFullScreen && (
-          <div className="flex shrink-0 flex-col overflow-hidden rounded-2xl bg-m3-card p-4" style={{ width: '450px' }}>
+          <div
+            className="flex shrink-0 flex-col overflow-hidden rounded border border-m3-outline bg-m3-card p-4"
+            style={{ width: '450px' }}
+          >
             <div className="flex flex-row items-center justify-center">
               <SimpleInput
                 placeholder={t('NavigationAndCharts.LocalFiles.FileName')}
@@ -215,7 +220,7 @@ export const LocalFileChartUI = () => {
                 ))}
               </SelectGroup>
 
-              <ScrollableContainer className="mt-4" height={40}>
+              <ScrollableContainer className="mt-4" height={scrollHeight}>
                 <LocalFileChartSelector
                   selectedTab={organizedCharts[LocalChartCategoryToIndex[selectedTabType]]}
                   loading={loading}

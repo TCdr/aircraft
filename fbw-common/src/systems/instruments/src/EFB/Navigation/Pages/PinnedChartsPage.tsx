@@ -28,6 +28,7 @@ import { SelectGroup, SelectItem } from '../../UtilComponents/Form/Select';
 import { SelectInput } from '../../UtilComponents/Form/SelectInput/SelectInput';
 import { pathify } from '../../Utils/routing';
 import { ScrollableContainer } from '../../UtilComponents/ScrollableContainer';
+import { useContentSectionHeight } from '../../ToolBar/useContentSectionHeight';
 
 /**
  * The colour of the strip on top of a pinned chart card and of its arrow, in the Material tones: the chart category
@@ -54,7 +55,7 @@ export const PinnedChartCard = ({ pinnedChart, className, showDelete }: PinnedCh
     <>
       {showDelete ? (
         <div
-          className={`relative flex cursor-pointer flex-col flex-wrap overflow-hidden rounded-2xl bg-m3-error-container px-4 pb-3 pt-4 ${className}`}
+          className={`relative flex cursor-pointer flex-col flex-wrap overflow-hidden rounded bg-m3-error-container px-4 pb-3 pt-4 ${className}`}
           onClick={() => dispatch(removedPinnedChart({ chartId: pinnedChart.chartId }))}
           onMouseEnter={() => setCurrentTag('DEL')}
           onMouseLeave={() => setCurrentTag(tag)}
@@ -76,7 +77,7 @@ export const PinnedChartCard = ({ pinnedChart, className, showDelete }: PinnedCh
       ) : (
         <Link
           to={`/navigation/${pathify(provider)}`}
-          className={`relative flex flex-col flex-wrap overflow-hidden rounded-2xl bg-m3-card px-4 pb-3 pt-4 transition duration-100 hover:bg-m3-tile ${className}`}
+          className={`relative flex flex-col flex-wrap overflow-hidden rounded bg-m3-card px-4 pb-3 pt-4 transition duration-100 hover:bg-m3-tile ${className}`}
           onClick={() => {
             dispatch(editTabProperty({ tab, chartDimensions: { width: undefined, height: undefined } }));
             dispatch(
@@ -138,6 +139,7 @@ export enum PinSort {
 }
 
 export const PinnedChartUI = () => {
+  const scrollHeight = useContentSectionHeight(10);
   const dispatch = useAppDispatch();
 
   const { pinnedCharts } = useAppSelector((state) => state.navigationTab);
@@ -271,7 +273,7 @@ export const PinnedChartUI = () => {
   };
 
   return (
-    <div className="h-content-section-reduced space-y-4 rounded-2xl bg-m3-card-low p-4">
+    <div className="h-content-section-reduced space-y-4 rounded bg-m3-card-low p-4">
       <div className="space-y-4">
         {/* FIXME: The spacex4 is causing the keyboard to be shifted as well */}
         <div className="flex flex-row items-center space-x-4">
@@ -341,13 +343,13 @@ export const PinnedChartUI = () => {
             </SelectGroup>
           ) : (
             <>
-              <div className="flex grow items-center justify-center rounded-full border border-m3-outline px-6 py-2 text-base text-m3-muted">
+              <div className="flex grow items-center justify-center rounded-sm border border-m3-outline px-6 py-2 text-base text-m3-muted">
                 {t('NavigationAndCharts.PinnedCharts.ShowingChartsFromAllProviders')}
               </div>
               {editMode && (
                 <TooltipWrapper text={t('NavigationAndCharts.PinnedCharts.TT.RemoveAllPinnedCharts')}>
                   <div
-                    className="flex w-min shrink items-center justify-center rounded-xl border border-m3-on-error bg-transparent p-2 text-center text-m3-on-error transition duration-100 hover:bg-m3-error-container"
+                    className="flex w-min shrink items-center justify-center rounded-sm border border-m3-on-error bg-transparent p-2 text-center text-m3-on-error transition duration-100 hover:bg-m3-error-container"
                     onClick={removeAll}
                   >
                     <IconTrash />
@@ -392,7 +394,7 @@ export const PinnedChartUI = () => {
       </div>
 
       {searchedCharts.length > 0 ? (
-        <ScrollableContainer height={44}>
+        <ScrollableContainer height={scrollHeight}>
           <div className="grid auto-rows-auto grid-cols-4">
             {sortedCharts.map((pinnedChart, index) => (
               <div
@@ -406,8 +408,8 @@ export const PinnedChartUI = () => {
         </ScrollableContainer>
       ) : (
         <div
-          className="flex items-center justify-center rounded-2xl bg-m3-card text-lg text-m3-muted"
-          style={{ height: '44rem' }}
+          className="flex items-center justify-center rounded bg-m3-card text-lg text-m3-muted"
+          style={{ height: `${scrollHeight}rem` }}
         >
           {t('NavigationAndCharts.PinnedCharts.NoItemsFound')}
         </div>

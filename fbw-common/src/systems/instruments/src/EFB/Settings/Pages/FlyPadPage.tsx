@@ -16,6 +16,9 @@ import { keyboardLayoutOptions } from '../../UtilComponents/KeyboardWrapper';
 import { languageOptions, tt } from '../../Localization/translation';
 import { efbSetting, efbSimVar } from '../../Utils/efbIndex';
 import { ThemeSettings } from './ThemeSettings';
+import { TabBarPosition } from '../../ToolBar/tabBarLayout';
+import { useTabBarPosition } from '../../ToolBar/useTabBarPosition';
+import { HeaderColours, useHeaderColours } from '../../ToolBar/headerColours';
 
 export const FlyPadPage = () => {
   // the brightness of this tablet (see efbIndex)
@@ -27,6 +30,8 @@ export const FlyPadPage = () => {
   );
   const [autoOSK, setAutoOSK] = usePersistentNumberProperty('EFB_AUTO_OSK', 0);
   const [timeDisplayed, setTimeDisplayed] = usePersistentProperty('EFB_TIME_DISPLAYED', 'utc');
+  const [tabBarPosition, setTabBarPosition] = useTabBarPosition();
+  const [headerColours, setHeaderColours] = useHeaderColours();
   const [timeFormat, setTimeFormat] = usePersistentProperty('EFB_TIME_FORMAT', '24');
   const [showStatusBarFlightProgress, setShowStatusBarFlightProgress] = usePersistentNumberProperty(
     'EFB_SHOW_STATUSBAR_FLIGHTPROGRESS',
@@ -44,6 +49,16 @@ export const FlyPadPage = () => {
     { name: tt('Settings.flyPad.Utc', language), setting: 'utc' },
     { name: tt('Settings.flyPad.Local', language), setting: 'local' },
     { name: tt('Settings.flyPad.UtcAndLocal', language), setting: 'both' },
+  ];
+
+  const tabBarPositionButtons: { name: string; setting: TabBarPosition }[] = [
+    { name: tt('Settings.flyPad.TabBarPositionTop', language), setting: 'top' },
+    { name: tt('Settings.flyPad.TabBarPositionBottom', language), setting: 'bottom' },
+  ];
+
+  const headerColoursButtons: { name: string; setting: HeaderColours }[] = [
+    { name: tt('Settings.flyPad.HeaderColoursVivid', language), setting: 'vivid' },
+    { name: tt('Settings.flyPad.HeaderColoursSoft', language), setting: 'soft' },
   ];
 
   const timeFormatButtons: ButtonType[] = [
@@ -175,6 +190,34 @@ export const FlyPadPage = () => {
           </SettingItem>
         )}
       </SettingGroup>
+
+      <SettingItem name={tt('Settings.flyPad.TabBarPosition', language)}>
+        <SelectGroup>
+          {tabBarPositionButtons.map((button) => (
+            <SelectItem
+              key={button.setting}
+              onSelect={() => setTabBarPosition(button.setting)}
+              selected={tabBarPosition === button.setting}
+            >
+              {button.name}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SettingItem>
+
+      <SettingItem name={tt('Settings.flyPad.HeaderColours', language)}>
+        <SelectGroup>
+          {headerColoursButtons.map((button) => (
+            <SelectItem
+              key={button.setting}
+              onSelect={() => setHeaderColours(button.setting)}
+              selected={headerColours === button.setting}
+            >
+              {button.name}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SettingItem>
 
       <ThemeSettings language={language} />
     </SettingsPage>

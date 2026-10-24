@@ -22,6 +22,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../../../Store/store';
 import { navigationTabs } from '../../Navigation';
 import { getImageUrl, getPdfUrl } from './LocalFilesPage';
+import { useContentSectionHeight } from '../../../ToolBar/useContentSectionHeight';
 
 export type LocalFileChart = {
   fileName: string;
@@ -39,6 +40,7 @@ interface LocalFileChartSelectorProps {
 }
 
 export const LocalFileChartSelector = ({ selectedTab, loading }: LocalFileChartSelectorProps) => {
+  const placeholderHeight = useContentSectionHeight(11.25);
   const dispatch = useAppDispatch();
 
   const { chartId, selectedTabType } = useAppSelector((state) => state.navigationTab[NavigationTab.LOCAL_FILES]);
@@ -47,8 +49,8 @@ export const LocalFileChartSelector = ({ selectedTab, loading }: LocalFileChartS
   if (loading) {
     return (
       <div
-        className="flex h-full items-center justify-center rounded-2xl bg-m3-card-low text-m3-muted"
-        style={{ height: '42.75rem' }}
+        className="flex h-full items-center justify-center rounded bg-m3-card-low text-m3-muted"
+        style={{ height: `${placeholderHeight}rem` }}
       >
         <CloudArrowDown className="animate-bounce" size={40} />
       </div>
@@ -58,8 +60,8 @@ export const LocalFileChartSelector = ({ selectedTab, loading }: LocalFileChartS
   if (!selectedTab.charts.length) {
     return (
       <div
-        className="flex h-full items-center justify-center rounded-2xl bg-m3-card-low text-m3-muted"
-        style={{ height: '42.75rem' }}
+        className="flex h-full items-center justify-center rounded bg-m3-card-low text-m3-muted"
+        style={{ height: `${placeholderHeight}rem` }}
       >
         <p className="text-center text-lg text-m3-muted">{t('NavigationAndCharts.ThereAreNoChartsToDisplay')}</p>
       </div>
@@ -112,7 +114,7 @@ export const LocalFileChartSelector = ({ selectedTab, loading }: LocalFileChartS
     <div className="space-y-2">
       {selectedTab.charts.map((chart) => (
         <div
-          className="flex w-full flex-row overflow-hidden rounded-xl bg-m3-tile"
+          className="flex w-full flex-row overflow-hidden rounded-sm bg-m3-tile"
           onClick={() => handleChartClick(chart)}
           key={chart.fileName}
         >
@@ -175,7 +177,7 @@ export const LocalFileChartSelector = ({ selectedTab, loading }: LocalFileChartS
           </div>
           <div className="m-2 flex flex-col">
             <span>{chart.fileName}</span>
-            <span className="mr-auto mt-1 rounded-full bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
+            <span className="mr-auto mt-1 rounded-sm bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
               {chart.type}
             </span>
           </div>

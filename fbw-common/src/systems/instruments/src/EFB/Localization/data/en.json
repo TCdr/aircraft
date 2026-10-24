@@ -1280,6 +1280,12 @@
         "SecondaryNote": "Only its hue and colorfulness are used: the base sets its lightness.",
         "UsedOnBase": "Used on the $base base"
       },
+      "HeaderColours": "Dashboard Header Colours",
+      "HeaderColoursSoft": "Soft",
+      "HeaderColoursVivid": "Vivid",
+      "TabBarPosition": "Tab Bar Position",
+      "TabBarPositionBottom": "Bottom",
+      "TabBarPositionTop": "Top",
       "TimeDisplayed": "Time Displayed",
       "Title": "flyPad",
       "TwelveHours": "12h",

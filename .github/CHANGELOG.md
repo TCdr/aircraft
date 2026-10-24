@@ -278,6 +278,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Failures page in one layout: ATA chapters on the left, failures with switches on the right, search results across chapters, an active failures list with Restore all - @TCdr
 1. [EFB] Show the planned top of climb and top of descent, with their times, on the dashboard flight line - @TCdr
 1. [EFB] New flyPad look: square panels with title bars, denser fields, the payload seat legend on the page header, buffet line labels kept clear of the maximum altitude - @TCdr
+1. [EFB] Replace the left navigation rail with a full-width tab bar at the bottom or top of the flyPad (Settings > flyPad > Tab Bar Position) - @TCdr
+1. [EFB] Dashboard header colours: vivid or soft section colours on the dashboard panel titles (Settings > flyPad > Dashboard Header Colours) - @TCdr
 1. [A380X/ND] The vertical display unfolds the holding pattern along its horizontal axis when the FMS predictions include it - @TCdr
 1. [A32NX/FMS] [A380X/FMS] The descent predictions and the top of descent use the higher idle thrust of the engine and wing anti-ice when it is on - @TCdr
 1. [A32NX/FMS] Add the SAT/ALT field to the CRZ WIND page: a temperature at a flight level can be entered at each cruise waypoint and holds down-path, and the cruise predictions use it - @TCdr

@@ -11,6 +11,7 @@ import { ArrowLeft } from 'react-bootstrap-icons';
 import { t } from '../Localization/translation';
 import { AboutPage } from './Pages/AboutPage';
 import { ScrollableContainer } from '../UtilComponents/ScrollableContainer';
+import { useContentSectionHeight } from '../ToolBar/useContentSectionHeight';
 import { PageLink, PageRedirect, TabRoutes } from '../Utils/routing';
 import { M3Card } from '../UtilComponents/Material/Material';
 import { AircraftOptionsPinProgramsPage } from './Pages/AircraftOptionsPinProgramsPage';
@@ -83,7 +84,7 @@ const SettingsPageTitle = ({ name, backRoute }: SettingsPageProps) => {
               history.goBack();
             }
           }}
-          className="mr-3 flex h-10 w-10 items-center justify-center rounded-xl bg-m3-tile text-m3-text transition duration-100 hover:bg-m3-outline"
+          className="mr-3 flex h-10 w-10 items-center justify-center rounded-sm bg-m3-tile text-m3-text transition duration-100 hover:bg-m3-outline"
         >
           <ArrowLeft size={20} />
         </Link>
@@ -93,16 +94,20 @@ const SettingsPageTitle = ({ name, backRoute }: SettingsPageProps) => {
   );
 };
 
-export const SettingsPage: FC<SettingsPageProps> = ({ name, backRoute, children }) => (
-  <M3Card className="h-content-section-reduced w-full">
-    <SettingsPageTitle name={name} backRoute={backRoute} />
-    <div className="min-h-0 flex-1 px-6 pb-2">
-      <ScrollableContainer height={48} innerClassName="h-full">
-        <div className="h-full divide-y divide-m3-outline pr-5">{children}</div>
-      </ScrollableContainer>
-    </div>
-  </M3Card>
-);
+export const SettingsPage: FC<SettingsPageProps> = ({ name, backRoute, children }) => {
+  const scrollHeight = useContentSectionHeight(6);
+
+  return (
+    <M3Card className="h-content-section-reduced w-full">
+      <SettingsPageTitle name={name} backRoute={backRoute} />
+      <div className="min-h-0 flex-1 px-6 pb-2">
+        <ScrollableContainer height={scrollHeight} innerClassName="h-full">
+          <div className="h-full divide-y divide-m3-outline pr-5">{children}</div>
+        </ScrollableContainer>
+      </div>
+    </M3Card>
+  );
+};
 
 export const FullscreenSettingsPage: FC<SettingsPageProps> = ({ name, backRoute, children }) => (
   <M3Card className="h-content-section-reduced w-full">
@@ -133,7 +138,7 @@ export const SettingItem: FC<SettingItemProps> = ({
   children,
 }) => {
   const UnrealisticHint = () => (
-    <span className="ml-3 whitespace-nowrap rounded-full bg-m3-warn-container px-2 py-1 text-xs font-bold uppercase leading-none text-m3-on-warn">
+    <span className="ml-3 whitespace-nowrap rounded-sm bg-m3-warn-container px-2 py-1 text-xs font-bold uppercase leading-none text-m3-on-warn">
       {t('Settings.Unrealistic')}
     </span>
   );
