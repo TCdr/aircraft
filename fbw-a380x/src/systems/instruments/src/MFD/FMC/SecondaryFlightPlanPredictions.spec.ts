@@ -13,7 +13,7 @@ import {
   SecondaryPlanData,
   canComputeSecondaryPlanProfile,
   secondaryPlanParameters,
-} from './SecondaryFlightPlanPredictions';
+} from '@fmgc/guidance/vnav/SecondaryFlightPlanPredictions';
 import { FmgcDataService } from './fmgc';
 
 const LBS_PER_TONNE = 2204.62;
@@ -189,10 +189,10 @@ describe('SecondaryFlightPlanPredictions', () => {
     const service = { has: () => false } as unknown as FlightPlanService;
     const predictions = new SecondaryFlightPlanPredictions(
       new EventBus(),
-      {} as FmgcDataService,
       service,
       {} as never,
       { fpmConfig: { NUM_SECONDARY_FLIGHT_PLANS: 3 } } as never,
+      {} as never,
     );
     expect(predictions.destinationPrediction(FlightPlanIndex.FirstSecondary)).toBeNull();
     expect(predictions.waypointPredictions(FlightPlanIndex.FirstSecondary)).toBeNull();
@@ -203,10 +203,10 @@ describe('SecondaryFlightPlanPredictions', () => {
     const service = { has: () => true, get: () => plan } as unknown as FlightPlanService;
     const predictions = new SecondaryFlightPlanPredictions(
       new EventBus(),
-      {} as FmgcDataService,
       service,
       {} as never,
       { fpmConfig: { NUM_SECONDARY_FLIGHT_PLANS: 3 } } as never,
+      {} as never,
     );
     const destination = { secondsFromPresent: 600 } as VerticalWaypointPrediction;
     (predictions as unknown as { predictions: Map<number, unknown> }).predictions.set(FlightPlanIndex.FirstSecondary, {

@@ -41,6 +41,7 @@ import {
   EconSpeedSet,
   isaDeviationAt,
   ISA_TROPOPAUSE_ALTITUDE,
+  KG_PER_LB,
   roundToStep,
   tonnesToPounds,
 } from '@fmgc/guidance/vnav/EconSpeeds';
@@ -53,7 +54,10 @@ import {
 } from '@fmgc/guidance/vnav/CruiseLevelAtmosphere';
 import { RtaSpeedEnvelope, rtaSpeedEnvelope } from '@fmgc/guidance/vnav/rta/RtaSpeedBias';
 import { A32nxRtaFunction } from './A32nxRtaFunction';
-import { uplinkedAlternateWindLevelDiffers } from '@fmgc/flightplanning/plans/AlternateCruiseLevel';
+import {
+  alternateCruiseLevel as defaultAlternateCruiseLevel,
+  uplinkedAlternateWindLevelDiffers,
+} from '@fmgc/flightplanning/plans/AlternateCruiseLevel';
 import { DataManager } from '@fmgc/flightplanning/DataManager';
 import { FlightPlanRpcServer } from '@fmgc/flightplanning/rpc/FlightPlanRpcServer';
 import { Fmgc, GuidanceController } from '@fmgc/guidance/GuidanceController';
@@ -102,7 +106,23 @@ import {
 import { ProgOptimumFlightLevelCache, progOptimumFlightLevelWeightsEntered } from './OptimumFlightLevel';
 import { isSetGreenDotSpeed } from '../../PFD/FmaLine3Messages';
 import { VerticalMode } from '@shared/autopilot';
+import { isWindVectorComplete } from '@fmgc/flightplanning/data/wind';
 import { VnavTrip, vnavTripPrediction } from './VnavTripPrediction';
+import { AlternateFuelPrediction } from '@fmgc/guidance/vnav/AlternateFuelPredictor';
+import {
+  alternateLegDistances,
+  alternateLegPredictions,
+  alternatePlanDistance,
+  UNKNOWN_ALTERNATE_START,
+  alternateRouteDistance,
+} from '@fmgc/guidance/vnav/AlternateLegPredictions';
+import {
+  SecondaryFlightPlanPredictions,
+  SecondaryPlanParametersObserver,
+} from '@fmgc/guidance/vnav/SecondaryFlightPlanPredictions';
+import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { a320AlternatePrediction, alternateZeroFuelWeight } from './A320AlternatePrediction';
+import { a320SecondaryPlanData, a320SecondaryRules } from './A320SecondaryPlanData';
 import { VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { NavigationDatabase, NavigationDatabaseBackend } from '@fmgc/NavigationDatabase';
 import { FlightPhaseManager } from '@fmgc/flightphase';
@@ -273,6 +293,9 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     bearing: number;
     distance: number;
   };
+  /** The predictions of the secondary flight plan */
+  public secondaryPredictions?: SecondaryFlightPlanPredictions;
+
   public managedSpeedClimb = 290;
   private managedSpeedClimbIsPilotEntered = false;
   public managedSpeedClimbMach = 0.78;
@@ -598,6 +621,21 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     initComponents(this.bus, this.navigation, this.guidanceController, this.flightPlanService);
 
     this.guidanceController.init();
+    this.secondaryPredictions = new SecondaryFlightPlanPredictions(
+      this.bus,
+      this.flightPlanService,
+      this.guidanceController,
+      A320AircraftConfig,
+      (planIndex, activeObserver) =>
+        new SecondaryPlanParametersObserver(this, this.flightPlanService, planIndex, activeObserver, (index) =>
+          a320SecondaryPlanData(this.flightPlanService.get(index), this.getFOB(index), this.getTropoPause() ?? null, {
+            cruiseFlightLevel: this.flightPlanService.active.performanceData.cruiseFlightLevel.get(),
+            zeroFuelWeight: this.flightPlanService.active.performanceData.zeroFuelWeight.get(),
+            fuelOnBoard: this.getFOB(FlightPlanIndex.Active),
+          }),
+        ),
+      a320SecondaryRules(this.flightPlanService, () => this.flightPhaseManager.phase),
+    );
     this.efisSymbolsLeft.init();
     this.efisSymbolsRight.init();
     this.navigation.init();
@@ -941,6 +979,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
     if (this.guidanceController) {
       this.guidanceController.update(deltaTime);
+      this.secondaryPredictions?.update(deltaTime);
     }
 
     this.efisSymbolsLeft?.update();
@@ -5643,11 +5682,12 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       plan.alternateDestinationAirport &&
       !Number.isFinite(plan.performanceData.pilotAlternateFuel.get())
     ) {
-      const distanceToAlt = Avionics.Utils.computeGreatCircleDistance(
+      const directDistance = Avionics.Utils.computeGreatCircleDistance(
         plan.destinationAirport.location,
         plan.alternateDestinationAirport.location,
       );
-      const alternateCruiseLevel = this.computeAlternateCruiseLevel(forPlan);
+      const distanceToAlt = alternatePlanDistance(directDistance, alternateRouteDistance(plan.alternateFlightPlan));
+      const alternateCruiseLevel = defaultAlternateCruiseLevel(distanceToAlt, 'A320');
 
       if (distanceToAlt < 20) {
         computations.alternateFuel = 0;
@@ -5682,6 +5722,13 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
             A32NX_FuelPred.computations.TIME,
             true,
           );
+        } else {
+          // Design choice: beyond the FM tables (200 NM, FL290) the ALTN fuel and time come from the VNAV models
+          const model = this.alternateModelPrediction(forPlan, finalHoldingFuel);
+          if (model) {
+            computations.alternateFuel = (model.fuel * KG_PER_LB) / 1000;
+            computations.alternateTime = model.time / 60;
+          }
         }
       }
     }
@@ -5783,6 +5830,113 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     this.updateAmberEfob();
 
     return computations;
+  }
+
+  private readonly alternateModelCache = new Map<
+    FlightPlanIndex,
+    { key: string; prediction: AlternateFuelPrediction | null }
+  >();
+
+  /**
+   * The alternate flight plan prediction of a flight plan: climb, cruise and descent from the primary destination to
+   * the landing at the alternate, at the weight of the primary destination (ZFW and FINAL).
+   * @param finalHoldingFuel tonnes
+   * @returns null without a primary destination, alternate, ZFW or a distance of 20 NM or more
+   */
+  private alternateModelPrediction(forPlan: FlightPlanIndex, finalHoldingFuel: number): AlternateFuelPrediction | null {
+    const plan = this.getFlightPlan(forPlan);
+    const destination = plan.destinationAirport;
+    const alternate = plan.alternateDestinationAirport;
+    if (!destination || !alternate) {
+      return null;
+    }
+    const zeroFuelWeight = alternateZeroFuelWeight(plan.performanceData.zeroFuelWeight.get(), finalHoldingFuel);
+    const directDistance = Avionics.Utils.computeGreatCircleDistance(destination.location, alternate.location);
+    const distance = alternatePlanDistance(directDistance, alternateRouteDistance(plan.alternateFlightPlan));
+    if (distance < 20) {
+      return null;
+    }
+    const wind = plan.performanceData.alternateWind.get();
+    const headwind = isWindVectorComplete(wind)
+      ? -WindUtils.computeTailwindComponent(wind, bearingTo(destination.location, alternate.location))
+      : 0;
+    const approachTemperature = plan.performanceData.approachTemperature.get();
+    const destinationElevation = destination.location.alt ?? 0;
+    const isaDeviation =
+      approachTemperature !== null
+        ? isaDeviationAt(destinationElevation, approachTemperature, this.getTropoPause() ?? null)
+        : 0;
+    const inputs = {
+      distance,
+      destinationElevation,
+      alternateElevation: alternate.location.alt ?? 0,
+      zeroFuelWeight,
+      fuelAtDestination: finalHoldingFuel,
+      headwind,
+      tropopause: this.getTropoPause() ?? null,
+      isaDeviation,
+      approachSpeed: this.getApproachSpeed(),
+    };
+    const key = JSON.stringify([
+      distance.toFixed(0),
+      destinationElevation,
+      inputs.alternateElevation,
+      zeroFuelWeight.toFixed(1),
+      finalHoldingFuel.toFixed(2),
+      headwind.toFixed(0),
+      inputs.tropopause,
+      isaDeviation.toFixed(0),
+      inputs.approachSpeed,
+    ]);
+    const cached = this.alternateModelCache.get(forPlan);
+    if (cached?.key === key) {
+      return cached.prediction;
+    }
+    const prediction = a320AlternatePrediction(inputs);
+    this.alternateModelCache.set(forPlan, { key, prediction });
+    return prediction;
+  }
+
+  /**
+   * The predictions at the legs of the alternate flight plan (by leg index of the alternate flight plan): time, altitude,
+   * speed and EFOB, from the predictions at the primary destination. The profile is scaled to the ALTN fuel and time of
+   * the FUEL PRED page.
+   * @returns null when the alternate or the destination prediction is missing
+   */
+  public getAlternateLegPredictions(forPlan: FlightPlanIndex): Map<number, VerticalWaypointPrediction> | null {
+    const plan = this.getFlightPlan(forPlan);
+    const computations = this.getFuelPredComputation(forPlan);
+    const finalHoldingFuel = plan.performanceData.pilotFinalHoldingFuel.get() ?? computations.finalHoldingFuel ?? 0;
+    const prediction = this.alternateModelPrediction(forPlan, finalHoldingFuel);
+    if (!prediction) {
+      return null;
+    }
+    const destination = this.getDestinationPredictionOf(forPlan) ?? UNKNOWN_ALTERNATE_START;
+    const alternateFuel = plan.performanceData.pilotAlternateFuel.get() ?? computations.alternateFuel;
+    const wind = plan.performanceData.alternateWind.get();
+    return alternateLegPredictions(
+      prediction,
+      alternateLegDistances(plan.alternateFlightPlan),
+      destination,
+      {
+        fuel: alternateFuel !== null ? tonnesToPounds(alternateFuel) : null,
+        time: computations.alternateTime !== null ? computations.alternateTime * 60 : null,
+      },
+      this.getTropoPause() ?? ISA_TROPOPAUSE_ALTITUDE,
+      isWindVectorComplete(wind) ? wind : 0,
+    );
+  }
+
+  /** The VNAV prediction at the destination of the active, temporary or a secondary flight plan, null before it exists */
+  private getDestinationPredictionOf(forPlan: FlightPlanIndex): VerticalWaypointPrediction | null {
+    if (forPlan >= FlightPlanIndex.FirstSecondary) {
+      return this.secondaryPredictions?.destinationPrediction(forPlan) ?? null;
+    }
+    if (forPlan === FlightPlanIndex.Temporary) {
+      return null;
+    }
+    const profile = this.guidanceController?.vnavDriver.mcduProfile;
+    return profile?.isReadyToDisplay ? this.guidanceController.vnavDriver.getDestinationPrediction() ?? null : null;
   }
 
   /** The trip fuel and time of the active flight plan from the VNAV predictions, null before they exist */

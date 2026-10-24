@@ -327,7 +327,10 @@ export class CDUFlightPlanPage {
     const fmsGeometryProfile = forActiveOrTemporary ? mcdu.guidanceController.vnavDriver.mcduProfile : undefined;
     const vnavPredictionsMapByWaypoint = fmsGeometryProfile?.isReadyToDisplay
       ? fmsGeometryProfile.waypointPredictions
-      : null;
+      : forPlan >= FlightPlanIndex.FirstSecondary
+        ? mcdu.secondaryPredictions?.waypointPredictions(forPlan) ?? null
+        : null;
+    const alternatePredictionsMap = mcdu.getAlternateLegPredictions(forPlan);
 
     const rowsCount = Math.min(waypointsAndMarkers.length, maxNumRows);
 
@@ -406,8 +409,9 @@ export class CDUFlightPlanPage {
         const isFromLeg = !inAlternate && fpIndex === targetPlan.fromLegIndex;
 
         let verticalWaypoint = null;
-        // TODO: Alternate predictions
-        if (!inAlternate && vnavPredictionsMapByWaypoint) {
+        if (inAlternate) {
+          verticalWaypoint = alternatePredictionsMap?.get(fpIndex) ?? null;
+        } else if (vnavPredictionsMapByWaypoint) {
           verticalWaypoint = vnavPredictionsMapByWaypoint.get(fpIndex);
         }
 

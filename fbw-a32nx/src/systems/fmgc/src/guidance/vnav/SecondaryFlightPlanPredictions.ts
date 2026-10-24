@@ -6,7 +6,7 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
 import { AircraftConfig } from '@fmgc/flightplanning/AircraftConfigTypes';
-import { GuidanceController } from '@fmgc/guidance/GuidanceController';
+import { Fmgc, GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { VerticalProfileManager } from '@fmgc/guidance/vnav/VerticalProfileManager';
 import { AircraftToDescentProfileRelation } from '@fmgc/guidance/vnav/descent/AircraftToProfileRelation';
@@ -16,7 +16,6 @@ import {
 } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
-import { FmgcDataService } from './fmgc';
 
 /**
  * The predictions of the secondary flight plans: the FMS computes them with the same rules and assumptions as those of
@@ -103,35 +102,54 @@ export function secondaryPlanParameters(
 
 /**
  * @param parameters the computation parameters of a secondary flight plan
- * @returns whether its predictions can be computed: the conditions of the active flight plan predictions
+ * @returns what stops its predictions from being computed (the conditions of the active flight plan predictions)
  */
-export function canComputeSecondaryPlanProfile(parameters: VerticalProfileComputationParameters): boolean {
+export function missingSecondaryPlanInputs(parameters: VerticalProfileComputationParameters): string[] {
+  const missing: string[] = [];
   const approachSpeedsValid =
     parameters.cleanSpeed > 100 &&
     parameters.slatRetractionSpeed > 100 &&
     parameters.flapRetractionSpeed > 100 &&
     parameters.approachSpeed > 100;
   const takeoffParametersValid = parameters.thrustReductionAltitude > 0 && parameters.accelerationAltitude > 0;
-  return (
-    (parameters.flightPhase > FmgcFlightPhase.Takeoff || takeoffParametersValid) &&
-    approachSpeedsValid &&
-    Number.isFinite(parameters.zeroFuelWeight) &&
-    Number.isFinite(parameters.fuelOnBoard) &&
-    Number.isFinite(parameters.cruiseAltitude)
-  );
+  if (parameters.flightPhase <= FmgcFlightPhase.Takeoff && !takeoffParametersValid) {
+    missing.push('takeoff altitudes');
+  }
+  if (!approachSpeedsValid) {
+    missing.push('approach speeds');
+  }
+  if (!Number.isFinite(parameters.zeroFuelWeight)) {
+    missing.push('ZFW');
+  }
+  if (!Number.isFinite(parameters.fuelOnBoard)) {
+    missing.push('fuel on board');
+  }
+  if (!Number.isFinite(parameters.cruiseAltitude)) {
+    missing.push('cruise level');
+  }
+  return missing;
+}
+
+/**
+ * @param parameters the computation parameters of a secondary flight plan
+ * @returns whether its predictions can be computed
+ */
+export function canComputeSecondaryPlanProfile(parameters: VerticalProfileComputationParameters): boolean {
+  return missingSecondaryPlanInputs(parameters).length === 0;
 }
 
 /** The computation parameters of one secondary flight plan, for the shared VNAV path builders */
-class SecondaryPlanParametersObserver extends VerticalProfileComputationParametersObserver {
+export class SecondaryPlanParametersObserver extends VerticalProfileComputationParametersObserver {
   private secondaryParameters: VerticalProfileComputationParameters | undefined;
 
   constructor(
-    private readonly a380Fmgc: FmgcDataService,
-    private readonly plans: FlightPlanService,
+    fmgc: Fmgc,
+    plans: FlightPlanService,
     private readonly planIndex: number,
     private readonly activeObserver: VerticalProfileComputationParametersObserver,
+    private readonly planData: (planIndex: number) => SecondaryPlanData,
   ) {
-    super(a380Fmgc, plans);
+    super(fmgc, plans);
   }
 
   override update(): void {
@@ -139,39 +157,7 @@ class SecondaryPlanParametersObserver extends VerticalProfileComputationParamete
     if (!this.activeObserver) {
       return;
     }
-    const plan = this.plans.get(this.planIndex);
-    const pd = plan.performanceData;
-    const copiedFromActive = plan.isActiveOrCopiedFromActive();
-    const fmgc = this.a380Fmgc;
-    const cruiseFlightLevel = pd.cruiseFlightLevel.get();
-    this.secondaryParameters = secondaryPlanParameters(this.activeObserver.get(), {
-      copiedFromActive,
-      zeroFuelWeight: pd.zeroFuelWeight.get(),
-      fuelOnBoard: fmgc.getPredictionStartFob(this.planIndex),
-      cruiseAltitude: cruiseFlightLevel ? cruiseFlightLevel * 100 : null,
-      originElevation: plan.originRunway?.thresholdLocation?.alt ?? plan.originAirport?.location.alt ?? null,
-      destinationElevation:
-        plan.destinationRunway?.thresholdLocation?.alt ?? plan.destinationAirport?.location.alt ?? null,
-      originLocation: plan.originAirport?.location ?? null,
-      managedSpeeds: {
-        managedClimbSpeed: fmgc.getManagedClimbSpeed(this.planIndex),
-        managedClimbSpeedMach: fmgc.getManagedClimbSpeedMach(this.planIndex),
-        managedCruiseSpeed: fmgc.getManagedCruiseSpeed(this.planIndex),
-        managedCruiseSpeedMach: fmgc.getManagedCruiseSpeedMach(this.planIndex),
-        managedDescentSpeed: fmgc.getManagedDescentSpeed(this.planIndex),
-        managedDescentSpeedMach: fmgc.getManagedDescentSpeedMach(this.planIndex),
-      },
-      climbSpeedLimit: fmgc.getClimbSpeedLimit(this.planIndex),
-      descentSpeedLimit: fmgc.getDescentSpeedLimit(this.planIndex),
-      v2Speed: pd.v2.get(),
-      accelerationAltitude: pd.accelerationAltitude.get(),
-      thrustReductionAltitude: pd.thrustReductionAltitude.get(),
-      transitionAltitude: pd.transitionAltitude.get(),
-      preselectedClbSpeed: pd.preselectedClimbSpeed.get(),
-      preselectedCruiseSpeed: pd.preselectedCruiseSpeed.get(),
-      takeoffFlaps: pd.takeoffFlaps.get(),
-      descentCabinRate: pd.descentCabinRate?.get() ?? null,
-    });
+    this.secondaryParameters = secondaryPlanParameters(this.activeObserver.get(), this.planData(this.planIndex));
   }
 
   override get(): VerticalProfileComputationParameters {
@@ -181,6 +167,17 @@ class SecondaryPlanParametersObserver extends VerticalProfileComputationParamete
   override canComputeProfile(): boolean {
     return this.secondaryParameters !== undefined && canComputeSecondaryPlanProfile(this.secondaryParameters);
   }
+}
+
+/** What an aircraft adds to the rules of the secondary flight plan predictions */
+export interface SecondaryPredictionRules {
+  /**
+   * Whether the predictions of a secondary flight plan are computed now, kept as they are (the aircraft and the flight
+   * plan diverged), or removed.
+   */
+  gate?(planIndex: number): 'compute' | 'freeze' | 'clear';
+  /** Whether a computed prediction is displayed */
+  keep?(prediction: VerticalWaypointPrediction): boolean;
 }
 
 /** The predictions of one secondary flight plan, at the legs (by leg index), for one version of that flight plan */
@@ -202,6 +199,8 @@ export class SecondaryFlightPlanPredictions {
 
   private readonly predictions = new Map<number, ComputedPredictions>();
 
+  private readonly lastMissing = new Map<number, string>();
+
   private sinceLastCheckMs = 0;
 
   /** 0 for the first secondary flight plan */
@@ -209,10 +208,15 @@ export class SecondaryFlightPlanPredictions {
 
   constructor(
     private readonly bus: EventBus,
-    private readonly fmgc: FmgcDataService,
     private readonly flightPlanService: FlightPlanService,
     private readonly guidanceController: GuidanceController,
     private readonly acConfig: AircraftConfig,
+    /** The computation parameters of one secondary flight plan, from those of the active flight plan */
+    private readonly createObserver: (
+      planIndex: number,
+      activeObserver: VerticalProfileComputationParametersObserver,
+    ) => VerticalProfileComputationParametersObserver,
+    private readonly rules: SecondaryPredictionRules = {},
   ) {}
 
   public update(deltaTimeMs: number): void {
@@ -233,7 +237,20 @@ export class SecondaryFlightPlanPredictions {
       this.predictions.delete(planIndex);
       return;
     }
+    const gate = this.rules.gate?.(planIndex) ?? 'compute';
+    if (gate === 'clear') {
+      this.predictions.delete(planIndex);
+      return;
+    }
     const computed = this.predictions.get(planIndex);
+    if (gate === 'freeze') {
+      if (computed) {
+        // The frozen predictions stay displayed through the edits that do not change what they were computed from
+        computed.planVersion = this.flightPlanService.get(planIndex).version;
+        computed.ageMs = 0;
+      }
+      return;
+    }
     if (
       computed &&
       computed.planVersion === this.flightPlanService.get(planIndex).version &&
@@ -278,6 +295,16 @@ export class SecondaryFlightPlanPredictions {
       : null;
   }
 
+  /** The inputs a secondary flight plan lacks, logged once per change so a missing entry is not silent */
+  private reportMissingInputs(planIndex: number, observer: VerticalProfileComputationParametersObserver): void {
+    const parameters = observer.get();
+    const reason = parameters ? missingSecondaryPlanInputs(parameters).join(', ') : 'parameters';
+    if (this.lastMissing.get(planIndex) !== reason) {
+      this.lastMissing.set(planIndex, reason);
+      console.warn(`[FMS] No predictions for secondary flight plan ${planIndex}, missing: ${reason}`);
+    }
+  }
+
   private compute(planIndex: number): void {
     const plan = this.flightPlanService.get(planIndex);
     const geometry = this.guidanceController.getGeometryForFlightPlan(planIndex);
@@ -286,15 +313,14 @@ export class SecondaryFlightPlanPredictions {
       return;
     }
 
-    const observer = new SecondaryPlanParametersObserver(
-      this.fmgc,
-      this.flightPlanService,
+    const observer = this.createObserver(
       planIndex,
       this.guidanceController.verticalProfileComputationParametersObserver,
     );
     observer.update();
     if (!observer.canComputeProfile()) {
       this.predictions.delete(planIndex);
+      this.reportMissingInputs(planIndex, observer);
       return;
     }
 
@@ -313,7 +339,13 @@ export class SecondaryFlightPlanPredictions {
 
     const profile = profileManager.mcduProfile;
     if (profile?.isReadyToDisplay) {
-      this.predictions.set(planIndex, { planVersion: plan.version, legs: profile.waypointPredictions, ageMs: 0 });
+      const legs = new Map<number, VerticalWaypointPrediction>();
+      for (const [legIndex, prediction] of profile.waypointPredictions) {
+        if (this.rules.keep?.(prediction) ?? true) {
+          legs.set(legIndex, prediction);
+        }
+      }
+      this.predictions.set(planIndex, { planVersion: plan.version, legs, ageMs: 0 });
     } else {
       this.predictions.delete(planIndex);
     }
