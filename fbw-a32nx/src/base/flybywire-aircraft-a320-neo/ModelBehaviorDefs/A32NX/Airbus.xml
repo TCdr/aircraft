@@ -582,6 +582,8 @@
 
     <Template Name="A32NX_AUTOPILOT_Push_Active_Template">
         <DefaultTemplateParameters>
+            <!-- The light bars are dim in daylight at the material's own emissive strength -->
+            <FCU_LIGHT_GAIN>2</FCU_LIGHT_GAIN>
             <Condition Valid="ACTIVE_EMISSIVE_BUTTON">
                 <True>
                     <ACTIVE_NODE_ID>#NODE_ID#</ACTIVE_NODE_ID>
@@ -616,7 +618,7 @@
                     <UseTemplate Name="A32NX_GT_Emissive_Gauge">
                         <ALT_CODE>(L:A32NX_OVHD_INTLT_ANN) 0 == (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool) and</ALT_CODE>
                         <Condition Check="EMISSIVE_CODE_ACTIVE">
-                            <EMISSIVE_CODE>#EMISSIVE_CODE_ACTIVE#</EMISSIVE_CODE>
+                            <EMISSIVE_CODE>#EMISSIVE_CODE_ACTIVE# #FCU_LIGHT_GAIN# *</EMISSIVE_CODE>
                         </Condition>
                         <Condition Valid="EMISSIVE_CODE_ACTIVE_DRIVES_VISIBILITY">
                             <EMISSIVE_DRIVES_VISIBILITY>#EMISSIVE_CODE_ACTIVE_DRIVES_VISIBILITY#</EMISSIVE_DRIVES_VISIBILITY>

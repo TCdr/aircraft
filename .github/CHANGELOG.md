@@ -117,6 +117,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
 1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
 1. [A380X] Cockpit lights: panels lit at a dusk or night start, lighting presets move the MAIN PNL FLOOD and AMBIENT knobs, a stronger main panel flood on its own circuits - @TCdr
+1. [A32NX/FCU] Brighten the AP1, AP2, A/THR, LOC, APPR, EXPED, FD, LS and CSTR button lights - @TCdr
 
 ## 2024.1.0
 
