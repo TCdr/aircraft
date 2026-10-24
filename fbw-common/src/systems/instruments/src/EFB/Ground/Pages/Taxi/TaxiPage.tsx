@@ -305,6 +305,11 @@ export const TaxiPage = () => {
     const held = taxiRouteToHoldingPoint(route, airport.holdingLines);
     return { shownRoute: held.route, holdingPoint: held.holdingPoint };
   }, [route, departure, airport]);
+  const shownRouteLengthM = shownRoute ? shownRoute.length : undefined;
+  useEffect(() => {
+    set({ routeLengthM: shownRouteLengthM });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownRouteLengthM]);
   // A380: the taxiways of the route too narrow (a clearance that needs one is followed: the crew decides) or not verified
   const widthNames = (fit: TaxiLineFit) =>
     (shownRoute?.legs ?? [])

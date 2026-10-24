@@ -165,6 +165,8 @@ interface ITimes {
 interface IWeather {
   avgWindDir: number;
   avgWindSpeed: number;
+  /** The TAFs of the plan's airports when the OFP was made, by ICAO */
+  tafs: Record<string, string>;
 }
 
 interface Files {
@@ -247,6 +249,7 @@ export const EmptyISimbriefData = {
   weather: {
     avgWindDir: 0,
     avgWindSpeed: 0,
+    tafs: {},
   },
   text: '',
 };

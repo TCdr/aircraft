@@ -63,7 +63,11 @@ export async function getAirportMagVar(icao: string): Promise<number | null> {
 
 export async function getRunways(icao: string): Promise<Runway[]> {
   const airport = await getAirport(icao);
+  return runwaysOfAirport(airport, icao);
+}
 
+/** The runway ends of an airport already loaded with getAirport, sorted by ident */
+export function runwaysOfAirport(airport: RawAirport, icao: string): Runway[] {
   const runways: Runway[] = [];
 
   const magVar = Facilities.getMagVar(airport.lat, airport.lon);

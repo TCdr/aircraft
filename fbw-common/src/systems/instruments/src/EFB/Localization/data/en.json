@@ -42,55 +42,298 @@
     "Title": "Checklists"
   },
   "Dashboard": {
+    "Advice": {
+      "ActiveCount": "$count active",
+      "ActiveFailures": "$count active failure(s) on the aircraft",
+      "ApprDataMissing": "Approach data is not entered yet: destination QNH or minimums are missing",
+      "Category": {
+        "Failures": "FAIL",
+        "Fms": "FMS",
+        "Fuel": "FUEL",
+        "Ground": "GND",
+        "Ofp": "OFP",
+        "Weather": "WX",
+        "Wind": "WIND"
+      },
+      "Crosswind": {
+        "Certified": "Crosswind $crosswind kt on the runway at $icao, close to the $limit kt maximum certified",
+        "Demonstrated": "Crosswind $crosswind kt on the runway at $icao, close to the $limit kt maximum demonstrated",
+        "Recommended": "Crosswind $crosswind kt on the runway at $icao, close to the $limit kt maximum recommended for this runway condition"
+      },
+      "CrosswindExceeded": "Crosswind $crosswind kt on the runway at $icao is above the $limit kt maximum certified",
+      "FmsNotInitialised": "The flight management system has no flight plan yet",
+      "FuelUsedHigher": "The flight burned $delta $unit more fuel than planned",
+      "FuelUsedLower": "The flight burned $delta $unit less fuel than planned",
+      "Link": {
+        "Failures": "Failures",
+        "Flight": "Flight",
+        "Fuel": "Fuel",
+        "Ground": "Ground",
+        "ImportOfp": "Import SimBrief OFP",
+        "McduInit": "MCDU INIT page",
+        "McduPerfAppr": "MCDU PERF APPR page",
+        "MfdInit": "MFD FMS ACTIVE INIT page",
+        "MfdPerfAppr": "MFD FMS ACTIVE PERF APPR page",
+        "Performance": "Performance",
+        "Weather": "Weather"
+      },
+      "NoOfp": "No OFP is loaded: only live values are shown. Import a SimBrief OFP for the flight plan",
+      "StrongHeadwind": "Strong headwind on the route: average component $wind kt",
+      "StrongTailwind": "Strong tailwind on the route: average component $wind kt",
+      "ThunderstormLikely": "Thunderstorm at $icao around the arrival time: consider extra fuel or an alternate",
+      "ThunderstormPossible": "Thunderstorm possible at $icao around the arrival time",
+      "Title": "Advisories",
+      "TurnaroundLate": "The turnaround is running late against the scheduled departure"
+    },
+    "AircraftState": {
+      "Adirs": "ADIRS",
+      "AdirsAligned": "NAV",
+      "AdirsAlignedDetail": "Aligned",
+      "AdirsAligning": "ALIGN",
+      "AdirsOff": "OFF",
+      "AdirsOffDetail": "Not aligned",
+      "AlignMinutes": "Align $minutes min",
+      "Chocks": "Chocks",
+      "Doors": "Doors",
+      "DoorsClosed": "Closed",
+      "DoorsClosedDetail": "All doors closed",
+      "DoorsOpen": "$count open",
+      "Off": "OFF",
+      "On": "ON",
+      "ParkBrake": "Park brake",
+      "Placed": "Placed",
+      "Released": "Released",
+      "Removed": "Removed",
+      "Set": "Set",
+      "Power": {
+        "Apu": "APU",
+        "ApuDetail": "APU generator",
+        "Battery": "BAT",
+        "BatteryDetail": "Batteries only",
+        "EngineGen": "ENG GEN",
+        "EngineGenDetail": "Engine generators",
+        "ExtPwr": "EXT PWR",
+        "ExtPwrDetail": "GPU connected",
+        "ExtPwrUnits": "$online of $available connected",
+        "Off": "OFF",
+        "OffDetail": "No power",
+        "Title": "Power"
+      },
+      "Title": "Aircraft state"
+    },
+    "Cabin": {
+      "Announcements": "Announcements",
+      "Auto": "Auto",
+      "ChoosePreset": "Choose a preset",
+      "Music": "Music",
+      "Presets": "Presets",
+      "Title": "Cabin"
+    },
+    "Checklist": {
+      "DoneCount": "$done / $total done",
+      "Missed": "missed",
+      "Next": "next",
+      "NextPreview": "Next · $name",
+      "NotNeeded": "not needed",
+      "None": "No checklists",
+      "OpenAll": "Open checklists",
+      "OpenNext": "Open $name",
+      "Title": "Checklists"
+    },
+    "FlightPlan": {
+      "AvgWind": "Avg wind",
+      "FlightTime": "Flight time",
+      "Headwind": "$wind kt head",
+      "ShowRoute": "Full route",
+      "Tailwind": "$wind kt tail",
+      "Title": "Flight plan",
+      "Trip": "Trip"
+    },
+    "Fuel": {
+      "AltnFinal": "ALTN + FINAL",
+      "Efob": "EFOB $icao",
+      "Fob": "FOB",
+      "FuelFlow": "Fuel flow",
+      "Loaded": "Loaded",
+      "Planned": "planned",
+      "PlannedBlock": "Planned block",
+      "PlannedLanding": "Planned at landing",
+      "Title": "Fuel",
+      "TripAltn": "Trip · ALTN",
+      "VersusPlan": "$delta vs plan"
+    },
+    "GroundServices": {
+      "Attached": "Attached",
+      "Called": "Called",
+      "Connected": "Connected",
+      "Gpu": "GPU",
+      "JetBridge": "Jet bridge",
+      "Moving": "Moving",
+      "NotCalled": "Not called",
+      "NotConnected": "Not connected",
+      "Open": "Ground services",
+      "Pushback": "Pushback",
+      "Title": "Ground services"
+    },
     "ImportantInformation": {
-      "Checklists": {
-        "NoRelevantChecklists": "No Relevant Checklists",
-        "Title": "Checklists"
-      },
       "GoToPage": "Go to Page",
-      "Maintenance": {
-        "NoActiveFailures": "No Active Failures",
-        "Title": "Maintenance"
-      },
-      "PinnedCharts": {
-        "NoPinnedCharts": "No Pinned Charts",
-        "Title": "Pinned Charts"
-      },
       "TT": {
         "RearrangeWidgets": "Rearrange Widgets"
       },
       "Title": "Important Information",
       "Weather": {
         "AirPressure": "Air Pressure",
-        "DewPoint": "Dew Point",
         "IcaoInvalid": "ICAO invalid or no METAR available",
         "Loading": "Loading",
         "MetarParsingError": "Received METAR could not be parsed",
-        "NoIcaoProvided": "No ICAO provided",
-        "NotAvailableShort": "N/A",
         "Raw": "Raw",
-        "TT": {
-          "SwitchToIconView": "Switch to Icon View",
-          "SwitchToRawMetarView": "Switch to Raw METAR View"
-        },
         "Temperature": "Temperature",
-        "Title": "Weather",
-        "WindSpeed": "Wind Speed"
+        "Title": "Weather"
       }
     },
+    "Payload": {
+      "Cargo": "Cargo",
+      "Gw": "GW",
+      "Pax": "PAX",
+      "PaxOnBoard": "PAX on board",
+      "Title": "Payload",
+      "Zfw": "ZFW",
+      "ZfwCgField": "ZFWCG",
+      "ZfwPlan": "ZFW plan"
+    },
+    "Phase": {
+      "Approach": "APPROACH",
+      "Arrived": "ARRIVED",
+      "AtGate": "AT GATE",
+      "Climb": "CLIMB",
+      "Cruise": "CRUISE",
+      "Descent": "DESCENT",
+      "TaxiIn": "TAXI IN",
+      "TaxiOut": "TAXI OUT",
+      "Takeoff": "TAKEOFF"
+    },
+    "Service": {
+      "Boarding": "Boarding",
+      "BoardingCount": "Boarding · $done / $total",
+      "BoardingMinutes": "Boarding · $minutes min",
+      "Complete": "Complete",
+      "Deboarding": "Deboarding",
+      "DeboardingCount": "Deboarding · $done / $total",
+      "DeboardingMinutes": "Deboarding · $minutes min",
+      "Defueling": "Defueling",
+      "DefuelingMinutes": "Defueling · $minutes min",
+      "NoPlan": "No plan",
+      "NotStarted": "Not started",
+      "OnTheWay": "On the way",
+      "Refueling": "Refueling",
+      "RefuelingMinutes": "Refueling · $minutes min"
+    },
+    "State": {
+      "ColdDark": "COLD & DARK",
+      "EnginesRunning": "ENGINES RUNNING",
+      "Powered": "POWERED"
+    },
+    "Strip": {
+      "Aircraft": "Aircraft",
+      "Airports": "$from — $to",
+      "Alternate": "ALTN $icao",
+      "Altitude": "Altitude",
+      "AltitudeValue": "$feet ft",
+      "Close": "Close",
+      "CostIndex": "CI",
+      "Countdown": {
+        "Destination": "ARRIVAL",
+        "OffBlocks": "OFF-BLOCKS",
+        "Gate": "GATE",
+        "Runway": "RUNWAY",
+        "Tod": "T/D"
+      },
+      "CountdownIn": "$what in",
+      "Eta": "ETA",
+      "FlightLevel": "FL$level",
+      "FlightTime": "$time flight",
+      "ImportNextOfp": "Import next OFP",
+      "ImportOfp": "Import SimBrief OFP",
+      "LoadPreset": "Load preset",
+      "LocalTime": "Local time",
+      "NoOfp": "No OFP",
+      "NoOfpDetail": "Route, T/C, T/D and plan values need a SimBrief OFP.",
+      "NoOfpGate": "No flight plan loaded",
+      "Off": "off",
+      "OffBlocks": "Off blocks",
+      "On": "on",
+      "Phase": "Phase",
+      "Planned": "planned",
+      "Route": "Route",
+      "ShowAll": "Show all",
+      "Speed": "Speed",
+      "SpeedValue": "M.$mach · GS $groundSpeed",
+      "Sta": "STA",
+      "Stand": "Stand $stand",
+      "Std": "STD",
+      "Sunset": "Sunset",
+      "SunsetIn": "$time · in $left",
+      "Taxi": "taxi $minutes min",
+      "TaxiPlanned": "taxi $minutes min (plan)",
+      "Title": "Flight",
+      "TopOfClimb": "T/C",
+      "TopOfDescent": "T/D"
+    },
+    "Summary": {
+      "BlockTime": "Block time",
+      "FlightTime": "Flight time",
+      "FuelUsed": "Fuel used",
+      "LandingWeight": "Landing weight",
+      "Plan": "plan $value",
+      "Title": "Flight summary"
+    },
     "Title": "Dashboard",
+    "Turnaround": {
+      "Boarding": "Boarding",
+      "Cargo": "Cargo",
+      "DoorsClosed": "Doors closed",
+      "InProgress": "In progress",
+      "Pushback": "Pushback",
+      "Refuel": "Refuel",
+      "Title": "Turnaround"
+    },
+    "Weather": {
+      "Altn": "ALTN",
+      "Charts": "Charts",
+      "CrosswindField": "Crosswind",
+      "Dep": "DEP",
+      "Dest": "DEST",
+      "DestinationTitle": "Destination",
+      "GustDetail": "gust $wind kt",
+      "HeadwindField": "Headwind",
+      "IcaoPlaceholder": "ICAO",
+      "Knots": "$wind kt",
+      "Metar": "METAR",
+      "Reports": "METAR / TAF",
+      "NextLeg": "Next leg weather appears once the next OFP is imported.",
+      "NoAirport": "Type an airport for its weather",
+      "NoRunway": "No planned runway without an OFP: wind shown as reported.",
+      "NoTaf": "No TAF available",
+      "Runway": "RWY $runway",
+      "RunwayField": "Runway",
+      "Taf": "TAF",
+      "TailwindField": "Tailwind",
+      "Title": "Weather",
+      "TripTitle": "Trip weather",
+      "Verdict": {
+        "Crosswind": "X-wind $crosswind kt",
+        "NoReport": "No report",
+        "Ok": "OK",
+        "Thunderstorm": "TS forecast",
+        "ThunderstormProb": "TS possible"
+      },
+      "Worst": "Worst: $icao"
+    },
     "YourFlight": {
-      "Alternate": "Alternate",
-      "AverageWind": "Average Wind",
-      "CompanyRoute": "Company Route",
-      "CostIndex": "Cost Index",
-      "CruiseAlt": "Cruise Alt.",
       "ImportSimBriefData": "Import SimBrief Data",
       "ToastFuelPayloadImported": "Fuel & Payload imported!",
-      "Route": "Route",
       "SimBriefDataNotYetLoaded": "SimBrief data not yet loaded.",
       "Title": "Your Flight",
-      "ZFW": "ZFW",
       "NoImportDueToBoardingOrRefuel": "No import possible due to boarding or refuel in progress!",
       "ToastWrongAircraftType": "SimBrief - Invalid aircraft type detected. Check that aircraft type in SimBrief OFP is correct."
     }
@@ -496,7 +739,165 @@
     "ThereAreNoChartsToDisplay": "There are no charts to display.",
     "ThereIsNoChartToDisplay": "There is no chart to display.",
     "Title": "Navigation & Charts",
-    "To": "To"
+    "To": "To",
+    "Weather": {
+      "Altn": "ALTN",
+      "Decoded": {
+        "Category": "Flight category $category.",
+        "CeilingMark": "(ceiling)",
+        "Convective": {
+          "CB": "(cumulonimbus)",
+          "TCU": "(towering cumulus)"
+        },
+        "Gusts": "Gusts $gust kt.",
+        "Layer": {
+          "BKN": "broken at $height",
+          "FEW": "few clouds at $height",
+          "OVC": "overcast at $height",
+          "SCT": "scattered at $height",
+          "VV": "sky obscured, vertical visibility $height"
+        },
+        "NoCloud": "No significant cloud.",
+        "Observed": "Observed $time.",
+        "Qnh": "QNH $qnh.",
+        "Surface": "the surface",
+        "Temperature": "Temperature $temperature °C, dew point $dewPoint °C.",
+        "TemperatureOnly": "Temperature $temperature °C.",
+        "Visibility": "Visibility $visibility.",
+        "VisibilityOrMore": "Visibility $visibility or more.",
+        "Weather": "Present weather: $weather.",
+        "Wind": "Wind $direction° at $speed kt.",
+        "WindCalm": "Wind calm.",
+        "WindVariable": "Wind variable, $speed kt."
+      },
+      "Dep": "DEP",
+      "Dest": "DEST",
+      "Diagram": {
+        "Calm": "Calm: no component",
+        "Cross": "CROSSWIND",
+        "CrossLeft": "CROSSWIND LEFT",
+        "CrossRight": "CROSSWIND RIGHT",
+        "GustCross": "GUST CROSSWIND",
+        "Headwind": "HEADWIND",
+        "NoComponent": "Variable wind: no component",
+        "NoWind": "No wind reported",
+        "Scale": "scale $scale kt",
+        "Tailwind": "TAILWIND"
+      },
+      "Field": {
+        "Gusts": "Gusts $gust kt",
+        "Humidity": "Humidity $humidity %",
+        "LocalTime": "Local time",
+        "NoGusts": "No gusts",
+        "Sunset": "Sunset",
+        "TempDew": "Temp / dew",
+        "Utc": "UTC",
+        "Wind": "Wind"
+      },
+      "FromOfp": "From OFP",
+      "IcaoPlaceholder": "ICAO",
+      "LoadOfpTaf": "Load TAF from OFP",
+      "Loading": "Loading the weather...",
+      "Lt": "LT",
+      "Metar": "METAR",
+      "NoCeilingShort": "none",
+      "NoClouds": "No cloud layers reported",
+      "NoMetar": "No METAR available for $icao",
+      "NoStation": "Choose an airport of the flight or type an ICAO code",
+      "NoTaf": "No TAF available for $icao",
+      "Ofp": "OFP",
+      "Panel": {
+        "Taf": "TAF",
+        "Report": "Report",
+        "RunwayWind": "Runway wind",
+        "Sky": "Sky"
+      },
+      "Row": {
+        "Ceiling": "Ceiling",
+        "Visibility": "Visibility",
+        "Wind": "Wind"
+      },
+      "Runways": {
+        "NotAvailable": "Runways not available for this airport"
+      },
+      "Sky": {
+        "Ceiling": "CEILING",
+        "FieldElevation": "FIELD ELEVATION $elevation FT"
+      },
+      "Taf": "TAF",
+      "TafHeader": "$icao · TAF $time",
+      "TafValid": "Valid $from – $to · issued $age ago",
+      "Tile": {
+        "Calm": "Calm",
+        "Ceiling": "Ceiling",
+        "Cover": {
+          "BKN": "Broken clouds",
+          "FEW": "Few clouds",
+          "OVC": "Overcast",
+          "SCT": "Scattered clouds",
+          "VV": "Sky obscured"
+        },
+        "NoCloud": "No cloud",
+        "NoWeather": "No significant weather",
+        "Visibility": "Visibility"
+      },
+      "Timeline": {
+        "Forecast": "FORECAST",
+        "Scale": "worst case · 0 – $scale",
+        "Temporary": "TEMPO / PROB"
+      },
+      "Title": "Weather",
+      "Wx": {
+        "And": "and",
+        "Descriptor": {
+          "BC": "patches of",
+          "BL": "blowing",
+          "DR": "low drifting",
+          "FZ": "freezing",
+          "MI": "shallow",
+          "PR": "partial",
+          "SH": "showers of",
+          "TS": "thunderstorm with"
+        },
+        "DescriptorAlone": {
+          "BC": "patches",
+          "BL": "blowing",
+          "DR": "low drifting",
+          "FZ": "freezing",
+          "MI": "shallow",
+          "PR": "partial",
+          "SH": "showers",
+          "TS": "thunderstorm"
+        },
+        "Heavy": "heavy",
+        "Light": "light",
+        "Phenomenon": {
+          "BR": "mist",
+          "DS": "duststorm",
+          "DU": "dust",
+          "DZ": "drizzle",
+          "FC": "funnel cloud",
+          "FG": "fog",
+          "FU": "smoke",
+          "GR": "hail",
+          "GS": "small hail",
+          "HZ": "haze",
+          "IC": "ice crystals",
+          "PL": "ice pellets",
+          "PO": "dust whirls",
+          "PY": "spray",
+          "RA": "rain",
+          "SA": "sand",
+          "SG": "snow grains",
+          "SN": "snow",
+          "SQ": "squalls",
+          "SS": "sandstorm",
+          "UP": "unknown precipitation",
+          "VA": "volcanic ash"
+        },
+        "Vicinity": "$weather in the vicinity"
+      }
+    }
   },
   "Performance": {
     "Buffet": {

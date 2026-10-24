@@ -14,6 +14,7 @@ import {
   GsxServiceStates,
 } from '@flybywiresim/fbw-sdk-react';
 import { A380FuelOutline, t, useAppSelector, setFuelImported, useAppDispatch } from '@flybywiresim/flypad';
+import { fuelServiceStatus } from '../../../../Dashboard/logic/serviceStatus';
 import { M3Chip, M3Tone } from '../../../../UtilComponents/Material/Material';
 import {
   FuelHeadline,
@@ -24,6 +25,7 @@ import {
   formatFuel,
   RefuelRateSetting,
 } from '../FuelLayout';
+import { a380RefuelMinutes } from '../refuelMinutes';
 
 interface FuelProps {
   simbriefDataLoaded: boolean;
@@ -33,6 +35,9 @@ interface FuelProps {
   convertUnit: number;
   isOnGround: boolean;
 }
+/** The Fuel page treats a target within 10 kg as reached */
+const PAGE_FUEL_TOLERANCE_KG = 10;
+
 export const A380Fuel: React.FC<FuelProps> = ({
   simbriefDataLoaded,
   simbriefPlanRamp,
@@ -43,8 +48,6 @@ export const A380Fuel: React.FC<FuelProps> = ({
 }) => {
   const TOTAL_FUEL_GALLONS = 85471.7; // 323545.6 litres
   const FUEL_GALLONS_TO_KG = 3.039075693483925; // Check: MSFS fuel density is currently always fixed, if this changes this will need to read from the var.
-  const FAST_SPEED_FACTOR = 5.0;
-  const FUELRATE_TOTAL_GAL_SEC = 16.0;
   const TOTAL_MAX_FUEL_KG = TOTAL_FUEL_GALLONS * FUEL_GALLONS_TO_KG;
 
   const [eng1Running] = useSimVar('ENG COMBUSTION:1', 'Bool', 1_000);
@@ -153,18 +156,12 @@ export const A380Fuel: React.FC<FuelProps> = ({
   const convertToGallon = (curr: number) => curr * (1 / convertUnit) * (1 / FUEL_GALLONS_TO_KG);
 
   const calculateEta = () => {
-    if (isDesiredEqualTo(totalFuelWeightKg) || refuelRate === RefuelRateSetting.INSTANT) {
-      return ' 0';
-    }
-
-    const differentialFuel = Math.abs(convertToGallon(totalFuelWeightKg) - convertToGallon(fuelDesiredKg));
-    const factor = refuelRate === RefuelRateSetting.FAST ? FAST_SPEED_FACTOR : 1.0;
-    const estimatedTimeSeconds = differentialFuel / (FUELRATE_TOTAL_GAL_SEC * factor);
-
-    if (estimatedTimeSeconds < 35) {
-      return ' 0.5';
-    }
-    return ` ${Math.round(estimatedTimeSeconds / 60.0)}`;
+    const minutes = a380RefuelMinutes({
+      instantOrAtTarget: isDesiredEqualTo(totalFuelWeightKg) || refuelRate === RefuelRateSetting.INSTANT,
+      fastRate: refuelRate === RefuelRateSetting.FAST,
+      differenceGallons: Math.abs(convertToGallon(totalFuelWeightKg) - convertToGallon(fuelDesiredKg)),
+    });
+    return ` ${minutes}`;
   };
 
   const getSimbriefPlanRamp = () => {
@@ -194,13 +191,24 @@ export const A380Fuel: React.FC<FuelProps> = ({
     if (!isRefuelAllowed()) {
       return { text: t('Ground.Fuel.Unavailable'), tone: 'idle' };
     }
-    if (refuelStartedByUser) {
-      return {
-        text: fuelDesiredKg > totalFuelWeightKg ? t('Ground.Fuel.Refueling') : t('Ground.Fuel.Defueling'),
-        tone: 'busy',
-      };
+    // The GSX states stay with the page: its strings for them differ from the shared status
+    const shared = fuelServiceStatus({
+      gsxSync: false,
+      gsxRefuelState: 0,
+      startedByUser: !!refuelStartedByUser,
+      currentKg: totalFuelWeightKg,
+      targetKg: fuelDesiredKg,
+      startKg: totalFuelWeightKg,
+      minutesLeft: null,
+      toleranceKg: PAGE_FUEL_TOLERANCE_KG,
+    });
+    if (shared.kind === 'refueling') {
+      return { text: t('Ground.Fuel.Refueling'), tone: 'busy' };
     }
-    if (isDesiredEqualTo(totalFuelWeightKg)) {
+    if (shared.kind === 'defueling') {
+      return { text: t('Ground.Fuel.Defueling'), tone: 'busy' };
+    }
+    if (shared.kind === 'complete') {
       return { text: t('Ground.Fuel.Completed'), tone: 'active' };
     }
     if (gsxFuelSyncEnabled === 1) {

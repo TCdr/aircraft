@@ -43,13 +43,16 @@ import { LidoChartPage } from './Pages/MsfsChartPage/LidoChartPage';
 import { FaaChartPage } from './Pages/MsfsChartPage/FaaChartPage';
 import { ChartsClient, ChartView } from '@microsoft/msfs-sdk';
 import { MsfsChartPage } from './Pages/MsfsChartPage/MsfsChartUtils';
+import { WeatherPage } from './Pages/WeatherPage/WeatherPage';
 
-export const navigationTabs: (PageLink & { associatedTab: NavigationTab })[] = [
+/** The chart tabs have a chart provider; the weather tab has none. New tabs go last: pinned charts store tab indices */
+export const navigationTabs: (PageLink & { associatedTab?: NavigationTab })[] = [
   { name: 'LIDO', alias: '', component: <LidoChartPage />, associatedTab: NavigationTab.LIDO },
   { name: 'FAA', alias: '', component: <FaaChartPage />, associatedTab: NavigationTab.FAA },
   { name: 'Navigraph', alias: '', component: <NavigraphPage />, associatedTab: NavigationTab.NAVIGRAPH },
   { name: 'Local Files', alias: '', component: <LocalFilesPage />, associatedTab: NavigationTab.LOCAL_FILES },
   { name: 'Pinned Charts', alias: '', component: <PinnedChartUI />, associatedTab: NavigationTab.PINNED_CHARTS },
+  { name: 'Weather', alias: '', component: <WeatherPage /> },
 ];
 
 function createMsfsImageSupplier() {
@@ -70,6 +73,7 @@ export const Navigation = () => {
     navigationTabs[2].alias = t('NavigationAndCharts.Navigraph.Title');
     navigationTabs[3].alias = t('NavigationAndCharts.LocalFiles.Title');
     navigationTabs[4].alias = t('NavigationAndCharts.PinnedCharts.Title');
+    navigationTabs[5].alias = t('NavigationAndCharts.Weather.Title');
   }
 
   return (
@@ -81,11 +85,15 @@ export const Navigation = () => {
           tabs={navigationTabs}
           basePath="/navigation"
           onSelected={(index) => {
+            const tab = navigationTabs[index].associatedTab;
+            // The chart viewer state belongs to the chart tabs only
+            if (!tab) {
+              return;
+            }
             dispatch(setSelectedNavigationTabIndex(index));
             dispatch(setBoundingBox(undefined));
-            if (navigationTabs[index].associatedTab !== 'PINNED_CHARTS') {
-              const associatedTab = ChartProvider[navigationTabs[index].associatedTab];
-              dispatch(setProvider(associatedTab));
+            if (tab !== 'PINNED_CHARTS') {
+              dispatch(setProvider(ChartProvider[tab]));
             }
           }}
         />
@@ -314,12 +322,11 @@ export const ChartViewer = () => {
   if (!chartLinks.light && !chartLinks.dark) {
     return (
       <div
-        className={`relative flex items-center justify-center rounded-2xl bg-m3-card-low ${!isFullScreen && 'ml-6'}`}
-        style={{ width: `${isFullScreen ? '1278px' : '804px'}` }}
+        className={`relative flex min-w-0 flex-1 items-center justify-center rounded border border-m3-outline bg-m3-card-low ${!isFullScreen && 'ml-6'}`}
       >
         {isFullScreen && (
           <div
-            className="absolute right-6 top-6 flex h-11 flex-row items-center rounded-xl bg-m3-card px-4 text-m3-text transition duration-100 hover:bg-m3-tile"
+            className="absolute right-6 top-6 flex h-11 flex-row items-center rounded-sm bg-m3-card px-4 text-m3-text transition duration-100 hover:bg-m3-tile"
             onClick={() => dispatch(editTabProperty({ tab: currentTab, isFullScreen: false }))}
           >
             <FullscreenExit size={20} />
@@ -341,7 +348,7 @@ export const ChartViewer = () => {
 
   // noinspection PointlessBooleanExpressionJS
   return (
-    <div className={`relative ${!isFullScreen && 'ml-6'}`} style={{ width: `${isFullScreen ? '1278px' : '804px'}` }}>
+    <div className={`relative min-w-0 flex-1 ${!isFullScreen && 'ml-6'}`}>
       <TransformWrapper
         ref={transformRef}
         initialScale={chartPosition.scale}
@@ -362,7 +369,7 @@ export const ChartViewer = () => {
             style={{ display: loading ? 'none' : 'block' }}
           >
             {pagesViewable > 1 && (
-              <div className="absolute left-6 top-6 z-40 flex h-11 flex-row items-center overflow-hidden rounded-xl bg-m3-card">
+              <div className="absolute left-6 top-6 z-40 flex h-11 flex-row items-center overflow-hidden rounded-sm bg-m3-card">
                 <div
                   className={`flex h-11 w-11 cursor-pointer flex-row items-center justify-center text-m3-text transition duration-100 hover:bg-m3-tile ${currentPage === 1 && 'pointer-events-none opacity-40'}`}
                   onClick={() => dispatch(editTabProperty({ tab: currentTab, currentPage: currentPage - 1 }))}
@@ -382,7 +389,7 @@ export const ChartViewer = () => {
                       }),
                     );
                   }}
-                  className="h-9 w-14 !rounded-lg text-center"
+                  className="h-9 w-14 !rounded-sm text-center"
                 />
                 <div className="flex h-11 shrink-0 items-center px-2 text-base font-bold text-m3-text">{`of ${pagesViewable}`}</div>
                 <div
@@ -400,7 +407,7 @@ export const ChartViewer = () => {
                   <button
                     type="button"
                     onClick={handleRotateLeft}
-                    className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile ${planeInFocus && 'pointer-events-none opacity-40'}`}
+                    className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile ${planeInFocus && 'pointer-events-none opacity-40'}`}
                   >
                     <ArrowCounterclockwise size={22} />
                   </button>
@@ -409,7 +416,7 @@ export const ChartViewer = () => {
                   <button
                     type="button"
                     onClick={handleRotateRight}
-                    className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile ${planeInFocus && 'pointer-events-none opacity-40'}`}
+                    className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile ${planeInFocus && 'pointer-events-none opacity-40'}`}
                   >
                     <ArrowClockwise className="fill-current" size={22} />
                   </button>
@@ -461,7 +468,7 @@ export const ChartViewer = () => {
                         );
                       }
                     }}
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
                   >
                     <ArrowsExpand size={22} />
                   </button>
@@ -512,7 +519,7 @@ export const ChartViewer = () => {
                         );
                       }
                     }}
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
                   >
                     <ArrowsExpand className="rotate-90" size={22} />
                   </button>
@@ -531,7 +538,7 @@ export const ChartViewer = () => {
                         }),
                       );
                     }}
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
                   >
                     <XCircleFill size={22} />
                   </button>
@@ -541,7 +548,7 @@ export const ChartViewer = () => {
                   <button
                     type="button"
                     onClick={() => zoomIn()}
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
                   >
                     <Plus size={22} />
                   </button>
@@ -551,7 +558,7 @@ export const ChartViewer = () => {
                   <button
                     type="button"
                     onClick={() => zoomOut()}
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
                   >
                     <Dash size={22} />
                   </button>
@@ -559,7 +566,7 @@ export const ChartViewer = () => {
               </div>
               <div className="flex flex-col space-y-2">
                 <div
-                  className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
+                  className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
                   onClick={() => {
                     dispatch(editTabProperty({ tab: currentTab, isFullScreen: !isFullScreen }));
                     if (chartRef.current && ref.current) {
@@ -578,7 +585,7 @@ export const ChartViewer = () => {
 
                 {showDarkLightButton && (
                   <div
-                    className={`mt-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl transition duration-100 ${
+                    className={`mt-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm transition duration-100 ${
                       !usingLightTheme
                         ? 'bg-m3-primary-container text-m3-on-primary-container'
                         : 'bg-m3-card text-m3-text hover:bg-m3-tile'
@@ -592,7 +599,7 @@ export const ChartViewer = () => {
             </div>
 
             <div
-              className="grabbable no-scrollbar relative mx-auto flex h-full flex-row overflow-x-hidden overflow-y-scroll rounded-2xl bg-m3-card-low"
+              className="grabbable no-scrollbar relative mx-auto flex h-full flex-row overflow-x-hidden overflow-y-scroll rounded bg-m3-card-low"
               ref={ref}
             >
               <TransformComponent wrapperStyle={{ height: ref.current?.clientHeight, width: ref.current?.clientWidth }}>

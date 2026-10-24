@@ -9,7 +9,13 @@ import { ColorCode, MetarParserType } from '@flybywiresim/fbw-sdk-react';
  * Returns HTML with coloring for METAR parts marked with coloring hints.
  * ColorCode: src/systems/instruments/src/Common/metarTypes.ts
  */
-export const ColoredMetar = ({ metar }: { metar: MetarParserType }) => {
+export const ColoredMetar = ({
+  metar,
+  sizeClassName = 'text-lg',
+}: {
+  metar: MetarParserType;
+  sizeClassName?: string;
+}) => {
   const partsList = metar.raw_parts.map((metarPart, index) => {
     let style = '';
 
@@ -33,7 +39,7 @@ export const ColoredMetar = ({ metar }: { metar: MetarParserType }) => {
     }
 
     return (
-      <span key={metarPart} className={`text-lg ${style}`}>
+      <span key={metarPart} className={`${sizeClassName} ${style}`}>
         {metarPart}{' '}
       </span>
     );

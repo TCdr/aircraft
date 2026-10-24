@@ -295,6 +295,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FMS] Add engine-out predictions: the drift down to the EO REC MAX and the EO LRC or cost index cruise speed are predicted, DRIFT DOWN is shown on the PERF CRZ page and EO LRC replaces the cost index - @TCdr
 1. [A380X/FUEL] The automatic refuel trim tank target follows the ZFW and ZFCG last entered, on the OIS REFUEL page or on the MFD FUEL & LOAD page, instead of always the payload ones - @TCdr
 1. [A380X] Cockpit lights: panels lit at a dusk or night start, lighting presets move the MAIN PNL FLOOD and AMBIENT knobs, a stronger main panel flood on its own circuits - @TCdr
+1. [EFB] The dashboard follows the flight: a strip with the times and a countdown for the current phase, advice on weather and crosswind, and the cards that matter at the gate, in flight and after landing (turnaround, fuel, payload, weather, checklist) - @TCdr
+1. [EFB] Weather page in Navigation (METAR / TAF of the flight's airports or any ICAO): decoded conditions with the flight category, the wind on the chosen runway, the cloud layers over the field and the TAF as a timeline; a TAF missing from the weather server can be loaded from the OFP - @TCdr
 
 ## 2024.1.0
 
