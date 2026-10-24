@@ -53,3 +53,8 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS autoland_warning_test.cpp -o
 # FAC alpha floor: sidestick case and engine-out loss (A320 FCOM DSC-22_40-30)
 clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS alpha_floor_conditions_test.cpp -o ../obj/alpha_floor_conditions_test
 ../obj/alpha_floor_conditions_test
+# Thrust limit type after a FLX takeoff: a lever a hair above the CL detent is still CL (the limit does not stay on FLX)
+clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model $FIX_FLAGS \
+  clb_limit_after_flex_takeoff_test.cpp ../src/model/FadecComputer.cpp ../src/model/FadecComputer_data.cpp \
+  -o ../obj/clb_limit_after_flex_takeoff_test
+../obj/clb_limit_after_flex_takeoff_test
