@@ -159,6 +159,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] The contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
 1. [A380X/OANS] ARPT NOT IN ACTIVE F/PLN now shows in PLAN mode only, as on the aircraft (it also showed in ROSE NAV) - @TCdr
 1. [A380X/PRESS] Automatic pressurization keeps the cabin differential pressure in the normal range in cruise above the FMS cruise FL or after an FMS reset, instead of drifting to the 9 PSI pressure limiter - @TCdr
+1. [A380X/FADEC] After a FLEX takeoff the thrust limit goes to CLB when the thrust levers rest in the CL detent, also when a lever sits a hair above it; before, it could stay on FLX for the whole climb and hold the climb thrust low - @TCdr
 
 ## 2024.1.0
 
