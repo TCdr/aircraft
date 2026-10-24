@@ -1343,7 +1343,7 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
                 <div class="mfd-fms-wind-crz-temp-entry-container">
                   <InputField
                     alignText={'flex-start'}
-                    containerStyle="width:150px; min-width:150px; max-width:150px; flex:none; height:40px;"
+                    containerStyle="width:150px; height:40px;"
                     inactive={this.cruiseWindsInactive}
                     disabled={this.cruiseTemperatureDisabled}
                     onModified={(v) => this.onCruiseTemperatureModified({ flightLevel: v })}
@@ -1359,7 +1359,7 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
                   ></InputField>
                   <InputField<number, number, false>
                     alignText={'flex-start'}
-                    containerStyle="height:43px; width:113px; min-width:113px; max-width:113px; flex:none; margin-left: 70px;"
+                    containerStyle="width:113px; height:40px; margin-left:70px;"
                     inactive={this.cruiseWindsInactive}
                     disabled={this.cruiseTemperatureDisabled}
                     errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
