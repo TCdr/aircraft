@@ -315,18 +315,28 @@ impl RefuelApplication {
         }
     }
 
+    /// `cg_targeting_data` is the ZFW/ZFCG the CG targeting uses; without one, it uses the
+    /// payload's desired ZFW/ZFCG.
     pub fn update(
         &mut self,
         context: &UpdateContext,
         fuel_system: &mut (impl SetFuelLevel + FuelPayload),
         refuel_panel_input: &mut IntegratedRefuelPanel,
+        cg_targeting_data: Option<ZeroFuelData>,
     ) {
+        let (zero_fuel_weight, zero_fuel_weight_cg_percent_mac) = cg_targeting_data.map_or(
+            (
+                refuel_panel_input.target_zero_fuel_weight(),
+                refuel_panel_input.target_zero_fuel_weight_cg_mac(),
+            ),
+            |data| (data.weight, data.cg.get::<percent>()),
+        );
+
         // Automatic Refueling
         let desired_quantities = self.calculate_auto_refuel(
             refuel_panel_input.total_desired_fuel(),
-            // TODO FIXME: Add values from either MFD (or EFB)
-            refuel_panel_input.target_zero_fuel_weight(),
-            refuel_panel_input.target_zero_fuel_weight_cg_mac(),
+            zero_fuel_weight,
+            zero_fuel_weight_cg_percent_mac,
         );
 
         if !context.is_sim_ready() {
@@ -705,6 +715,75 @@ bitflags! {
     }
 }
 
+/// A zero fuel weight and its CG
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ZeroFuelData {
+    weight: Mass,
+    cg: Ratio,
+}
+impl ZeroFuelData {
+    /// The data, when both the weight and the CG are given
+    fn from_weight_and_cg(weight: Option<Mass>, cg: Option<Ratio>) -> Option<Self> {
+        Some(Self {
+            weight: weight?,
+            cg: cg?,
+        })
+    }
+
+    /// The data of an entry made as plain numbers, where zero or less means "not entered"
+    fn from_entry(weight_kg: f64, cg_percent_mac: f64) -> Option<Self> {
+        (weight_kg > 0. && cg_percent_mac > 0.).then(|| Self {
+            weight: Mass::new::<kilogram>(weight_kg),
+            cg: Ratio::new::<percent>(cg_percent_mac),
+        })
+    }
+}
+
+/// Selects the ZFW/ZFCG of the CG targeting from the REFUEL application and FMS entries.
+///
+/// The FQMS recomputes the refuel distribution with whichever ZFW/ZFCG it received last, so the
+/// latest entry wins. Without a REFUEL application entry the payload's desired ZFW/ZFCG keep
+/// standing in for the FMS and default values, as the sim always provides them.
+#[derive(Default)]
+struct RefuelZeroFuelDataSelector {
+    refuel_application_data: Option<ZeroFuelData>,
+    fms_data: Option<ZeroFuelData>,
+    refuel_application_data_is_latest: bool,
+}
+impl RefuelZeroFuelDataSelector {
+    fn update(
+        &mut self,
+        refuel_application_data: Option<ZeroFuelData>,
+        fms_data: Option<ZeroFuelData>,
+    ) {
+        if fms_data.is_some() && fms_data != self.fms_data {
+            self.refuel_application_data_is_latest = false;
+        }
+        // Checked after the FMS so that an entry from both in the same update favours the
+        // REFUEL application.
+        if refuel_application_data.is_some()
+            && refuel_application_data != self.refuel_application_data
+        {
+            self.refuel_application_data_is_latest = true;
+        }
+        self.refuel_application_data = refuel_application_data;
+        self.fms_data = fms_data;
+    }
+
+    /// The ZFW/ZFCG of the CG targeting, none when the payload's desired ones apply
+    fn cg_targeting_data(&self) -> Option<ZeroFuelData> {
+        match (self.refuel_application_data, self.fms_data) {
+            (Some(refuel), Some(fms)) => Some(if self.refuel_application_data_is_latest {
+                refuel
+            } else {
+                fms
+            }),
+            (Some(refuel), None) => Some(refuel),
+            (None, _) => None,
+        }
+    }
+}
+
 /// # A380 Fuel Quantity Management System (FQMS)
 ///
 /// Handles fuel quantity measurement, refueling, and pump state reporting.
@@ -730,6 +809,12 @@ pub(super) struct A380FuelQuantityManagementSystem {
     fms_zero_fuel_weights: [Option<Mass>; 2],
     fms_zero_fuel_weight_cg_ids: [VariableIdentifier; 2],
     fms_zero_fuel_weight_cgs: [Option<Ratio>; 2],
+
+    // Input from the OIS REFUEL application
+    refuel_application_zero_fuel_weight_id: VariableIdentifier,
+    refuel_application_zero_fuel_weight_cg_id: VariableIdentifier,
+    refuel_application_zero_fuel_data: Option<ZeroFuelData>,
+    refuel_zero_fuel_data_selector: RefuelZeroFuelDataSelector,
 
     // Output ARINC 429 backup signals (only outputed by CPIOM-F3 and CPIOM-F4)
     // TODO: currently we output the values from all FQMS' as it would be one
@@ -775,6 +860,13 @@ impl A380FuelQuantityManagementSystem {
                 .map(|id| context.get_identifier(format!("FM{id}_ZERO_FUEL_WEIGHT_CG"))),
             fms_zero_fuel_weight_cgs: Default::default(),
 
+            refuel_application_zero_fuel_weight_id: context
+                .get_identifier("FUEL_REFUEL_ZFW".to_owned()),
+            refuel_application_zero_fuel_weight_cg_id: context
+                .get_identifier("FUEL_REFUEL_ZFCG".to_owned()),
+            refuel_application_zero_fuel_data: None,
+            refuel_zero_fuel_data_selector: Default::default(),
+
             fuel_tank_quantities_id: A380FuelTankType::iterator()
                 .map(|tank| context.get_identifier(format!("FQMS_{tank}_QUANTITY")))
                 .collect::<Vec<_>>()
@@ -798,12 +890,24 @@ impl A380FuelQuantityManagementSystem {
         fqdcs: &[FuelQuantityDataConcentrator; 2],
         cpioms_available: [bool; 4],
     ) {
+        let (fms_zfw, zfw_status) = Self::get_fms_data_and_status(self.fms_zero_fuel_weights);
+        let (fms_zfwcg, zfwcg_status) =
+            Self::get_fms_data_and_status(self.fms_zero_fuel_weight_cgs);
+        self.refuel_zero_fuel_data_selector.update(
+            self.refuel_application_zero_fuel_data,
+            ZeroFuelData::from_weight_and_cg(fms_zfw, fms_zfwcg),
+        );
+
         // Currently this is excluded from the powered check to support
         // the current "legacy" refuel system implementation.
         // TODO: In the future this should be powered and the refuel panel
         // should be updated only when powered.
-        self.refuel_application
-            .update(context, fuel_system, &mut self.integrated_refuel_panel);
+        self.refuel_application.update(
+            context,
+            fuel_system,
+            &mut self.integrated_refuel_panel,
+            self.refuel_zero_fuel_data_selector.cg_targeting_data(),
+        );
 
         self.channels_available = Self::channels_available(
             cpioms_available,
@@ -830,9 +934,7 @@ impl A380FuelQuantityManagementSystem {
             selected_fqdc.get_right_fuel_pump_running_word(),
         ];
 
-        let (fms_zfw, flags1) = Self::get_fms_data_and_status(self.fms_zero_fuel_weights);
-        let (fms_zfwcg, flags2) = Self::get_fms_data_and_status(self.fms_zero_fuel_weight_cgs);
-        self.fqms_status_word = flags1 | flags2;
+        self.fqms_status_word = zfw_status | zfwcg_status;
 
         self.fuel_measuring_application
             .update(loadsheet, selected_fqdc, fms_zfw, fms_zfwcg);
@@ -957,6 +1059,11 @@ impl SimulationElement for A380FuelQuantityManagementSystem {
         {
             *zfwcg = reader.read_arinc429(id).normal_value();
         }
+
+        self.refuel_application_zero_fuel_data = ZeroFuelData::from_entry(
+            reader.read(&self.refuel_application_zero_fuel_weight_id),
+            reader.read(&self.refuel_application_zero_fuel_weight_cg_id),
+        );
     }
 
     fn write(&self, writer: &mut SimulatorWriter) {
@@ -1013,6 +1120,67 @@ impl SimulationElement for A380FuelQuantityManagementSystem {
             &self.fqms_status_word_id,
             self.fqms_status_word,
             is_powered,
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn data(weight_kg: f64, cg_percent_mac: f64) -> Option<ZeroFuelData> {
+        ZeroFuelData::from_entry(weight_kg, cg_percent_mac)
+    }
+
+    fn selector_after(
+        updates: &[(Option<ZeroFuelData>, Option<ZeroFuelData>)],
+    ) -> RefuelZeroFuelDataSelector {
+        let mut selector = RefuelZeroFuelDataSelector::default();
+        for (refuel_application_data, fms_data) in updates {
+            selector.update(*refuel_application_data, *fms_data);
+        }
+        selector
+    }
+
+    #[test]
+    fn an_entry_needs_both_a_weight_and_a_cg() {
+        assert_eq!(data(0., 36.5), None);
+        assert_eq!(data(300000., 0.), None);
+        assert_eq!(
+            ZeroFuelData::from_weight_and_cg(Some(Mass::new::<kilogram>(300000.)), None),
+            None
+        );
+        assert!(data(300000., 36.5).is_some());
+    }
+
+    #[test]
+    fn the_payload_data_apply_without_a_refuel_application_entry() {
+        let selector = selector_after(&[(None, data(300000., 36.5))]);
+
+        assert_eq!(selector.cg_targeting_data(), None);
+    }
+
+    #[test]
+    fn the_latest_entry_is_used() {
+        let refuel = data(310000., 40.);
+        let fms = data(300000., 36.5);
+
+        assert_eq!(
+            selector_after(&[(refuel, None)]).cg_targeting_data(),
+            refuel
+        );
+        assert_eq!(
+            selector_after(&[(refuel, None), (refuel, fms)]).cg_targeting_data(),
+            fms
+        );
+        assert_eq!(
+            selector_after(&[(None, fms), (refuel, fms)]).cg_targeting_data(),
+            refuel
+        );
+        // The FMS entry is cleared: the REFUEL application one is the only one left
+        assert_eq!(
+            selector_after(&[(refuel, None), (refuel, fms), (refuel, None)]).cg_targeting_data(),
+            refuel
         );
     }
 }
