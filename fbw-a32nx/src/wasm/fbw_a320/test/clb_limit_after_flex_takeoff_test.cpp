@@ -3,10 +3,11 @@
 
 // Native test of the thrust limit type after a FLX takeoff (run test/run_tests.sh): the generated FadecComputer, used as it is.
 //
-// Measured in the sim (A32NX, FLX takeoff, lever moved from the FLX/MCT detent to CL): the thrust limit type stayed FLX for 780 s
-// (to FL259) with the lever reading 25.0, and the climb limit stayed 5.4 % N1 below the real CLB limit the whole time. The type only
-// became CLB after the lever left the CL detent and came back. The FADEC compared the lever angle with 25.0 exactly: a lever resting
-// a hair above the detent (its position is an analog value) is not CL for the type selection, and it did not reset the flex latch.
+// Measured in the sim (A32NX, derated takeoff, lever moved from the FLX/MCT detent to CL): the thrust limit type stayed FLX for 780 s
+// (to FL259) with the lever reading 25.0, so the E/WD kept the takeoff rating label and, above about FL200, the climb limit was capped
+// at the FLX value. The type only became CLB after the lever left the CL detent and came back. The FADEC compared the lever angle
+// with 25.0 exactly: a lever resting a hair above the detent (its position is an analog value) is not CL for the type selection, and
+// it did not reset the flex latch.
 
 #include <cstdio>
 
