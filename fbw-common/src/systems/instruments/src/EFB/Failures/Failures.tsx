@@ -11,7 +11,8 @@ import { SimpleInput } from '../UtilComponents/Form/SimpleInput/SimpleInput';
 import { TooltipWrapper } from '../UtilComponents/TooltipWrapper';
 import { useFailuresOrchestrator } from '../failures-orchestrator-provider';
 import { setSearchQuery, setSelection } from '../Store/features/failuresPage';
-import { M3_INPUT, M3Button, M3Card, M3Chip, M3List } from '../UtilComponents/Material/Material';
+import { M3_INPUT, M3Button, M3Card, M3Chip } from '../UtilComponents/Material/Material';
+import { ScrollableContainer } from '../UtilComponents/ScrollableContainer';
 import { activeFailuresLabel, failuresCountLabel } from './activeFailuresLabel';
 import { FailureRow } from './FailureRow';
 import { failureMatchesSearch, FailuresSelection, groupByChapter, resolveSelection } from './failuresView';
@@ -114,6 +115,10 @@ const EmptyPane: FC<{ text: string }> = ({ text }) => (
   </div>
 );
 
+/** Height of the two cards (the tailwind content-section-reduced height) and of the chapter header of the right card, in rem */
+const CARD_HEIGHT = 54;
+const PANE_HEADER_HEIGHT = 7;
+
 export const Failures = () => {
   const dispatch = useAppDispatch();
   const { allFailures, activeFailures, deactivate } = useFailuresOrchestrator();
@@ -214,7 +219,7 @@ export const Failures = () => {
 
       <div className="flex h-content-section-reduced flex-row overflow-hidden">
         <M3Card className="mr-4 w-[340px] shrink-0">
-          <M3List className="p-2">
+          <ScrollableContainer height={CARD_HEIGHT} className="p-2" innerClassName="flex flex-col">
             {searching ? (
               <NavItem
                 lead={<Search size={18} />}
@@ -245,11 +250,14 @@ export const Failures = () => {
                 onClick={() => select(ata)}
               />
             ))}
-          </M3List>
+          </ScrollableContainer>
         </M3Card>
 
         <M3Card low className="min-w-0 grow">
-          <div className="flex shrink-0 flex-col px-5 pb-3.5 pt-4">
+          <div
+            className="flex shrink-0 flex-col overflow-hidden px-5 pb-3.5 pt-4"
+            style={{ height: `${PANE_HEADER_HEIGHT}rem` }}
+          >
             <div className="flex min-h-[2.25rem] flex-row items-center">
               <span className="text-2xl font-bold text-m3-text">{paneTitle}</span>
               <span className="ml-3 rounded-full bg-m3-tile px-2 py-1 text-xs font-bold leading-none text-m3-muted">
@@ -260,7 +268,14 @@ export const Failures = () => {
             </div>
             {paneDescription && <p className="mt-1 text-sm leading-snug text-m3-muted">{paneDescription}</p>}
           </div>
-          <M3List className="px-5 pb-5">{paneBody}</M3List>
+          <ScrollableContainer
+            key={String(selection)}
+            height={CARD_HEIGHT - PANE_HEADER_HEIGHT}
+            className="px-5"
+            innerClassName="pb-5"
+          >
+            {paneBody}
+          </ScrollableContainer>
         </M3Card>
       </div>
     </>
