@@ -97,6 +97,7 @@
   },
   "Dispatch": {
     "Ofp": {
+      "Sections": "Sections",
       "TT": {
         "IncreaseFontSize": "Increase Font Size",
         "ReduceFontSize": "Reduce Font Size"
