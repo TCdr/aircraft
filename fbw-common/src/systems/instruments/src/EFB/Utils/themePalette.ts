@@ -58,14 +58,14 @@ type BaseTokens = Omit<
 >;
 
 const GREY_BASE: BaseTokens = {
-  ground: '#101216',
-  card: '#1b1e24',
-  'card-low': '#16191e',
-  tile: '#262a31',
-  outline: '#44474e',
-  'outline-strong': '#5c6069',
-  text: '#e3e5ea',
-  muted: '#9aa0a8',
+  ground: '#0e1316',
+  card: '#151c22',
+  'card-low': '#11171c',
+  tile: '#1d2730',
+  outline: '#2a3640',
+  'outline-strong': '#46545f',
+  text: '#e6ecef',
+  muted: '#8e9aa3',
   'warn-container': '#3a2d0e',
   'on-warn': '#f2c14e',
   'error-container': '#4a1d1d',
@@ -74,11 +74,11 @@ const GREY_BASE: BaseTokens = {
 
 const BLACK_BASE: BaseTokens = {
   ground: '#0b0d11',
-  card: '#161a21',
-  'card-low': '#12151b',
-  tile: '#222833',
-  outline: '#3a4150',
-  'outline-strong': '#525a6b',
+  card: '#14181e',
+  'card-low': '#101318',
+  tile: '#1c222a',
+  outline: '#2a313b',
+  'outline-strong': '#46505d',
   text: '#e3e5ea',
   muted: '#9aa0a8',
   'warn-container': '#3a2d0e',
@@ -88,12 +88,12 @@ const BLACK_BASE: BaseTokens = {
 };
 
 const LIGHT_BASE: BaseTokens = {
-  ground: '#e4e4e4',
-  card: '#ffffff',
-  'card-low': '#f4f5f7',
-  tile: '#e6e8ec',
-  outline: '#c5c8ce',
-  'outline-strong': '#aeb2b9',
+  ground: '#ffffff',
+  card: '#f4f5f7',
+  'card-low': '#eceef1',
+  tile: '#e6e9ed',
+  outline: '#cfd5db',
+  'outline-strong': '#a9b1b9',
   text: '#1b1e24',
   muted: '#5f6670',
   'warn-container': '#fff0c2',
@@ -108,8 +108,8 @@ export const THEME_BASES: Record<ThemeBase, BaseTokens> = { grey: GREY_BASE, bla
 export const PRESET_TOKENS: Record<ThemePreset, M3Tokens> = {
   blue: {
     ...GREY_BASE,
-    primary: '#00a4ad',
-    'on-primary': '#061a1b',
+    primary: '#38c6e8',
+    'on-primary': '#00303b',
     'primary-container': '#0f3d3f',
     'on-primary-container': '#7fd9e0',
     'primary-light': '#b2f0f4',
