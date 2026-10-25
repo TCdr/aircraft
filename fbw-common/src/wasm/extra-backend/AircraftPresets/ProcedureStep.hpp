@@ -4,7 +4,6 @@
 #ifndef FLYBYWIRE_AIRCRAFT_PROCEDURESTEP_HPP
 #define FLYBYWIRE_AIRCRAFT_PROCEDURESTEP_HPP
 
-#include <fmt/core.h>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -105,8 +104,10 @@ class ProcedureStep {
    * @return the string representation of the ProcedureStep
    */
   std::string toString() const {
-    return fmt::format("Step: {} Type: {} Delay: {}\n ExpectedStateCheckCode: [{}]\n ActionCode: [{}]\n", description, toString(type),
-                       delayAfter, expectedStateCheckCode, actionCode);
+    std::ostringstream text;
+    text << "Step: " << description << " Type: " << toString(type) << " Delay: " << delayAfter
+         << "\n ExpectedStateCheckCode: [" << expectedStateCheckCode << "]\n ActionCode: [" << actionCode << "]\n";
+    return text.str();
   }
 };
 

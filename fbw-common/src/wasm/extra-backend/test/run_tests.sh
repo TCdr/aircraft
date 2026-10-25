@@ -8,3 +8,5 @@ clang++ -std=c++20 -Wall -Wextra -Werror preset_load_target_test.cpp -o ../obj/p
 ../obj/preset_load_target_test
 clang++ -std=c++20 -Wall -Wextra -Werror ini_write_test.cpp -o ../obj/ini_write_test
 ../obj/ini_write_test
+clang++ -std=c++20 -Wall -Wextra -Werror preset_runner_test.cpp -o ../obj/preset_runner_test
+../obj/preset_runner_test
