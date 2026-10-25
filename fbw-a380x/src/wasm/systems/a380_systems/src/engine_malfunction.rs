@@ -44,9 +44,12 @@
 //!   at cruise power (on the HP rotor), high HP vibrations can occur without airframe vibrations,
 //!   and the procedure (reduce the thrust of the affected engine above the advisory) brings the N3
 //!   back below it.
-//! - No overspeed failure: the red limits (N1 111 %, N2 118.7 %) are about 25 % above the TOGA N1
-//!   of the FBW engine, so the N1/N2 OVER LIMIT alert is not reachable by an indication offset of a
-//!   credible size.
+//! - Overspeed: a runaway of the rotors that the hydromechanical metering unit ends by closing the
+//!   HP shutoff valve (`fadec_automatic_shutdown.rs`, 5 s after the start). The MSFS rotor speeds
+//!   cannot be raised, so the runaway is the N1 indication +50 % and the N3 indication +30 % of
+//!   their value, building up with the time constant of the other drifting failures: about 63 % of
+//!   it at the trip, which is above the N1 red limit (111 %) at the takeoff N1 of 85-88 %. At idle
+//!   the indications rise less and the engine shuts down all the same.
 
 use systems::{
     engine::engine_malfunction::{
@@ -72,9 +75,8 @@ pub const A380_ENGINE_MALFUNCTION_PARAMETERS: EngineMalfunctionParameters =
         stall_n1_vibration_units: 2.,
         // Tuned on the EGT limits and the recorded EGT (see the module comment).
         overtemperature_egt_rise_at_full_n1_degrees_celsius: 350.,
-        // No overspeed failure on the A380 (see the module comment).
-        overspeed_n1_fraction: 0.,
-        overspeed_core_fraction: 0.,
+        overspeed_n1_fraction: 0.5,
+        overspeed_core_fraction: 0.3,
         overspeed_n1_ceiling_percent: None,
         overspeed_core_ceiling_percent: None,
         high_vibration_n1_units_at_full_speed: 7.,
@@ -273,13 +275,16 @@ mod tests {
     }
 
     #[test]
-    fn no_overspeed_on_the_a380() {
+    fn the_overspeed_runs_the_n1_indication_above_the_red_limit_before_the_hmu_trips() {
         let mut test_bed = engines_at_climb_thrust();
+        test_bed.write_by_name("TURB ENG N1:1", 88.);
         test_bed.fail(FailureType::EngineOverspeed(1));
-        run_for(&mut test_bed, Duration::from_secs(30));
+        run_for(&mut test_bed, Duration::from_secs(5));
 
         let n1_offset: f64 = test_bed.read_by_name("ENGINE_1_N1_OFFSET");
-        assert!(n1_offset.abs() < 1e-9);
+        let n3_offset: f64 = test_bed.read_by_name("ENGINE_1_N3_OFFSET");
+        assert!(88. + n1_offset > 111.);
+        assert!(n3_offset > 5.);
     }
 
     /// The raw FADEC EGT of a healthy A380X engine (recorded): about 720 degC at N1 76 % in
