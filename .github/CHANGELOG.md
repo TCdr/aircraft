@@ -910,6 +910,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FG] The autopilot disengages when the speed reaches 15 kt above VMO or Mach 0.04 above MMO; before, it stayed engaged at any overspeed - @TCdr
 1. [EFB] The dashboard follows the flight: a strip with the times and a countdown for the current phase, advice on weather and crosswind, and the cards that matter at the gate, in flight and after landing (turnaround, fuel, payload, weather, checklist) - @TCdr
 1. [EFB] Weather page in Navigation (METAR / TAF of the flight's airports or any ICAO): decoded conditions with the flight category, the wind on the chosen runway, the cloud layers over the field and the TAF as a timeline; a TAF missing from the weather server can be loaded from the OFP - @TCdr
+1. [A32NX/FADEC] At takeoff without a FLEX temperature, the FADEC selects TOGA thrust 8 s after the thrust levers are set between CL and TOGA (ENG THR LEVERS NOT SET), until the levers go back to CL or below - @TCdr
 
 ## 2024.1.0
 
