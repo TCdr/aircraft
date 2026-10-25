@@ -303,7 +303,10 @@ export class CDUUplinkTakeoffDataPages {
     mcdu.onNextPage = mcdu.onPrevPage;
 
     mcdu.leftInputDelay[5] = () => mcdu.getDelaySwitchPage();
-    mcdu.onLeftInput[5] = () => CDUUplinkTakeoffDataPages.ShowUplinkPage(mcdu, 0, false);
+    mcdu.onLeftInput[5] = () => {
+      const firstRunway = data.runways()[0];
+      CDUUplinkTakeoffDataPages.ShowUplinkPage(mcdu, 0, firstRunway !== undefined && data.opensOnFlexPage(firstRunway));
+    };
     if (canRequest) {
       mcdu.onRightInput[5] = () => {
         data.sendRequest(CDUUplinkTakeoffDataPages.requestContent(mcdu));
@@ -379,9 +382,15 @@ export class CDUUplinkTakeoffDataPages {
       `${value(text, dashes)}${'\xa0'.repeat(Math.max(1, SPEED_COLUMN - (text !== null && uplink ? text : dashes).length))}${speed(v)}`;
 
     if (runways.length > 1) {
-      mcdu.onPrevPage = () =>
-        CDUUplinkTakeoffDataPages.ShowUplinkPage(mcdu, (index + runways.length - 1) % runways.length, flex);
-      mcdu.onNextPage = () => CDUUplinkTakeoffDataPages.ShowUplinkPage(mcdu, (index + 1) % runways.length, flex);
+      // Another runway keeps this thrust rating when it received it, else shows the one it received
+      const showRunway = (i: number) =>
+        CDUUplinkTakeoffDataPages.ShowUplinkPage(
+          mcdu,
+          i,
+          data.find(runways[i], flex) !== undefined ? flex : data.opensOnFlexPage(runways[i]),
+        );
+      mcdu.onPrevPage = () => showRunway((index + runways.length - 1) % runways.length);
+      mcdu.onNextPage = () => showRunway((index + 1) % runways.length);
       mcdu.setArrows(false, false, true, true);
     }
     mcdu.rightInputDelay[3] = () => mcdu.getDelaySwitchPage();
