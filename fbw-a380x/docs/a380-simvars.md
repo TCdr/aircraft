@@ -171,6 +171,17 @@
 - A32NX_AIRCRAFT_PRESET_LOAD_EXPEDITE
     - Bool
     - When set to true the loading process will be expedited and the loading will be done as fast as possible
+    - Read once when the loading starts: changing it during a load has no effect on the running load
+
+- A380X_PRESET_SURV_REQUEST
+    - Number
+    - Set by the aircraft presets to ask the XPDR and TCAS settings of the MFD SURV page
+    - Will be reset to 0 by the systems host once applied
+    - | Value | Meaning                                   |
+      |-------|-------------------------------------------|
+      | 0     | No request                                |
+      | 1     | XPDR STBY, TCAS STBY                      |
+      | 2     | XPDR AUTO, ALT RPTG ON, TCAS TA/RA       |
 
 - A32NX_PUSHBACK_SYSTEM_ENABLED
     - Bool
