@@ -920,6 +920,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/F/CTL] Direct law after the loss of the three IRs, and the abnormal attitude law from 30 degrees angle of attack (was 37.5) - @TCdr
 1. [FMS] The approach phase engages at the DECEL point only below 9500 ft (A32NX, NAV or LOC) / 7200 ft (A380X, NAV) above the destination - @TCdr
 1. [A32NX/FMS] EXP DES flies 340 kt or M .80, whichever is lower, instead of keeping the last managed descent speed - @TCdr
+1. [FMS] FLS beam computed for both aircraft (anchor, course, slope) and sent to the flight guidance - @TCdr
 
 ## 2024.1.0
 

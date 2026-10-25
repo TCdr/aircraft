@@ -118,7 +118,9 @@ import { FmsPrinter } from './FmsPrinter';
 import { FmsAdvisoryMessages } from './FmsAdvisoryMessages';
 import { CheckSpeedModeMessage } from './CheckSpeedModeMessage';
 import { A380OptimumStepSearch } from './A380OptimumStep';
-import { computeFlsBeam, flsBeamInputs, FlsBeamPublisher } from './FlsBeam';
+import { vdFlsBeam, VdFlsBeamPublisher } from './FlsBeam';
+import { FlsBeamGeometry, flsBeamOfPlan, missedApproachPointLegIndex } from '@fmgc/navigation/fls/FlsBeam';
+import { FlsBeamPublisher } from '@fmgc/navigation/fls/FlsBeamPublisher';
 import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { FmsVdSafetyAltitudes } from './FmsVdSafetyAltitudes';
 import {
@@ -1991,11 +1993,13 @@ export class FlightManagementComputer implements FmcInterface {
   /** The optimum step point of the STEP ALTs panel */
   public readonly optimumStep = new A380OptimumStepSearch(this);
 
-  #flsBeamPublisher: FlsBeamPublisher | null = null;
+  #vdFlsBeamPublisher: VdFlsBeamPublisher | null = null;
 
-  private get flsBeamPublisher(): FlsBeamPublisher {
-    return (this.#flsBeamPublisher ??= new FlsBeamPublisher(this.bus));
+  private get vdFlsBeamPublisher(): VdFlsBeamPublisher {
+    return (this.#vdFlsBeamPublisher ??= new VdFlsBeamPublisher(this.bus));
   }
+
+  public readonly flsBeamPublisher = new FlsBeamPublisher();
 
   /** @inheritdoc */
   public setTimeConstraint(planIndex: number, rta: TimeConstraint | null): void {
@@ -2810,16 +2814,19 @@ export class FlightManagementComputer implements FmcInterface {
     const predictions = this.guidanceController.vnavDriver.mcduProfile?.waypointPredictions;
     const plan: ReadonlyFlightPlan<A380FlightPlanPerformanceData> = this.flightPlanInterface.active;
 
+    const flsBeam = flsBeamOfPlan(this.flightPlanInterface.hasActive ? plan : null);
+    this.flsBeamPublisher.publish(flsBeam, this.flightPhaseManager.phase);
+
     if (!predictions || !this.flightPlanInterface.hasActive) {
       this.acInterface.transmitVerticalPath([], [], [], [], null);
-      this.flsBeamPublisher.publish(null);
+      this.vdFlsBeamPublisher.publish(null);
       return;
     }
     const unfoldedHolds = this.unfoldedHolds(plan, predictions);
     this.efisSymbolsLeft.vdSymbolTransform = this.efisSymbolsRight.vdSymbolTransform = unfoldedHolds.length
       ? (symbols) => unfoldHoldsInSymbols(symbols, unfoldedHolds)
       : null;
-    this.publishFlsBeam(plan, predictions, unfoldedHolds);
+    this.publishVdFlsBeam(flsBeam, plan, predictions, unfoldedHolds);
 
     const targetProfile = this.guidanceController.vnavDriver.mcduProfile;
     const descentProfile = this.guidanceController.vnavDriver.descentProfile;
@@ -2934,25 +2941,21 @@ export class FlightManagementComputer implements FmcInterface {
     return selectUnfoldedHolds(candidates, plan.activeLegIndex, this.acInterface.isAirspeedManaged() ?? true);
   }
 
-  private publishFlsBeam(
+  private publishVdFlsBeam(
+    flsBeam: FlsBeamGeometry | null,
     plan: ReadonlyFlightPlan<A380FlightPlanPerformanceData>,
     predictions: ReadonlyMap<number, VerticalWaypointPrediction>,
     unfoldedHolds: readonly VdHold[],
   ) {
-    const pd = plan.performanceData;
-    const inputs = flsBeamInputs(
-      plan,
-      predictions,
-      pd.approachTemperature.get(),
-      pd.approachQnh.get() !== null ? this.fmgc.getApproachQnh() : null,
-    );
-    if (inputs) {
-      inputs.missedApproachPoint.distanceFromAircraft = shiftDistanceForHolds(
-        inputs.missedApproachPoint.distanceFromAircraft,
-        unfoldedHolds,
-      );
+    const mapPrediction = flsBeam ? predictions.get(missedApproachPointLegIndex(plan)) : undefined;
+    if (!flsBeam || !mapPrediction) {
+      this.vdFlsBeamPublisher.publish(null);
+      return;
     }
-    this.flsBeamPublisher.publish(inputs ? computeFlsBeam(inputs) : null);
+    const approachQnh = plan.performanceData.approachQnh.get() !== null ? this.fmgc.getApproachQnh() : null;
+    this.vdFlsBeamPublisher.publish(
+      vdFlsBeam(flsBeam, shiftDistanceForHolds(mapPrediction.distanceFromAircraft, unfoldedHolds), approachQnh),
+    );
   }
 
   public enterEngineOut() {

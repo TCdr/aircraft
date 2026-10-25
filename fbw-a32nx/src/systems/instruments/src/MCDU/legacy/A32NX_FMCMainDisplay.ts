@@ -177,6 +177,8 @@ import {
   parseFobEntry,
 } from '@fmgc/flightplanning/fuel/FobSensors';
 import { OverheadWaypointRecorder } from '../legacy_pages/ProgressReportFields';
+import { flsBeamOfPlan } from '@fmgc/navigation/fls/FlsBeam';
+import { FlsBeamPublisher } from '@fmgc/navigation/fls/FlsBeamPublisher';
 export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInterface, Fmgc {
   private static DEBUG_INSTANCE: FMCMainDisplay;
 
@@ -220,6 +222,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
   private readonly flightPhaseUpdateThrottler = new UpdateThrottler(800);
   private readonly fmsUpdateThrottler = new UpdateThrottler(250);
+  private readonly flsBeamPublisher = new FlsBeamPublisher();
   private readonly _progBrgDistUpdateThrottler = new UpdateThrottler(2000);
   private readonly fuelPredUpdateThrottler = new UpdateThrottler(5000);
   private readonly speedsUpdateThrottler = new UpdateThrottler(1000);
@@ -949,6 +952,10 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       this.updateThrustReductionAcceleration();
       this.updateTransitionAltitudeLevel();
       this.updateMinimums();
+      this.flsBeamPublisher.publish(
+        flsBeamOfPlan(this.flightPlanService.hasActive ? this.flightPlanService.active : null),
+        this.flightPhaseManager.phase,
+      );
       this.updateIlsCourse();
       this.updatePerfPageAltPredictions();
       this.updateRecMaxFlightLevel();
@@ -2610,7 +2617,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       course = SimVar.GetSimVarValue('NAV LOCALIZER:3', 'degrees');
     }
 
-    return SimVar.SetSimVarValue('L:A32NX_FM_LS_COURSE', 'number', course);
+    return SimVar.SetSimVarValue('L:A32NX_FM_LS_COURSE', 'number', this.flsBeamPublisher.lsCourse(course));
   }
 
   public async updateFlightNo(

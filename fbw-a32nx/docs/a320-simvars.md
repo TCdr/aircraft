@@ -1346,10 +1346,41 @@
     - ** DEPRECATED ** Do not use.
     - Number<Degrees | -1>
     - Landing system course. Values, in priority order:
+        - FLS course (magnetic) on an FLS approach whose F-LOC replaces the localizer
         - Pilot entered course
         - Database course
         - Course received from LOC when LOC available
         - -1 when invalid
+
+- A32NX_FM_FLS_BEAM_VALID
+    - Bool
+    - The FMS computes an FLS beam: a non precision approach with a beam is selected and the FMS is in descent or approach
+
+- A32NX_FM_FLS_ANCHOR_LAT
+    - Degrees
+    - Latitude of the FLS beam anchor point (threshold, end point or MAP), valid with A32NX_FM_FLS_BEAM_VALID
+
+- A32NX_FM_FLS_ANCHOR_LON
+    - Degrees
+    - Longitude of the FLS beam anchor point, valid with A32NX_FM_FLS_BEAM_VALID
+
+- A32NX_FM_FLS_ANCHOR_ALT
+    - Feet
+    - Indicated altitude (QNH) of the FLS beam anchor point: threshold elevation + threshold crossing height, corrected
+      for a destination temperature below ISA
+
+- A32NX_FM_FLS_COURSE
+    - Degrees (true)
+    - Course of the FLS beam: the final approach course
+
+- A32NX_FM_FLS_SLOPE
+    - Degrees
+    - Slope of the FLS beam (positive), indicated, corrected for a destination temperature below ISA
+
+- A32NX_FM_FLS_LATERAL
+    - Bool
+    - The F-LOC replaces the localizer (VOR, NDB, RNAV/GPS approaches); false on LOC and back course approaches, which
+      fly the real localizer with the F-G/S
 
 - A32NX_FMGC_FLIGHT_PHASE
     - Enum
