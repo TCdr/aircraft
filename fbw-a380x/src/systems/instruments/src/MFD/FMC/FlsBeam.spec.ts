@@ -5,7 +5,8 @@
 import { describe, expect, it } from 'vitest';
 import { ApproachType } from '@flybywiresim/fbw-sdk';
 import { placeBearingDistance } from 'msfs-geo';
-import { computeFlsBeam, FlsBeamInputs } from './FlsBeam';
+import { computeFlsBeam as computeFlsBeamGeometry, FlsBeamInputs } from '@fmgc/navigation/fls/FlsBeam';
+import { vdFlsBeam } from './FlsBeam';
 
 const threshold = { lat: 43.6, long: 1.37 };
 const runwayBearing = 330;
@@ -20,7 +21,6 @@ const vorApproach: FlsBeamInputs = {
     location: onFinal(0),
     altitude: 550,
     verticalAngle: -3,
-    distanceFromAircraft: 40,
   },
   runway: {
     ident: 'RW33L',
@@ -31,7 +31,12 @@ const vorApproach: FlsBeamInputs = {
     thresholdCrossingHeight: 50,
   },
   approachTemperature: null,
-  approachQnh: null,
+};
+
+/** the VD view of the beam, the MAP 40 NM ahead along the flight plan */
+const computeFlsBeam = (inputs: FlsBeamInputs) => {
+  const beam = computeFlsBeamGeometry(inputs);
+  return beam && vdFlsBeam(beam, 40, null);
 };
 
 describe('FLS beam', () => {
@@ -85,20 +90,15 @@ describe('FLS beam', () => {
     expect(beam).toMatchObject({ anchorDistance: 40, anchorAltitude: 550, ident: 'EP33L', anchorAtThreshold: false });
   });
 
-  it('is not computed for an ILS, NDB, IGS, LDA or SDF approach, nor for a final course 50° off the runway', () => {
-    for (const approachType of [
-      ApproachType.Ils,
-      ApproachType.Ndb,
-      ApproachType.Igs,
-      ApproachType.Lda,
-      ApproachType.Sdf,
-    ]) {
+  it('is not computed for an ILS, IGS, LDA or SDF approach, nor for a final course 50° off the runway', () => {
+    for (const approachType of [ApproachType.Ils, ApproachType.Igs, ApproachType.Lda, ApproachType.Sdf]) {
       expect(computeFlsBeam({ ...vorApproach, approachType })).toBe(null);
     }
     expect(computeFlsBeam({ ...vorApproach, finalCourse: runwayBearing + 51 })).toBe(null);
     expect(computeFlsBeam({ ...vorApproach, finalCourse: runwayBearing + 45 })).not.toBe(null);
     expect(computeFlsBeam({ ...vorApproach, approachType: ApproachType.Rnav })).not.toBe(null);
     expect(computeFlsBeam({ ...vorApproach, approachType: ApproachType.LocBackcourse })).not.toBe(null);
+    expect(computeFlsBeam({ ...vorApproach, approachType: ApproachType.Ndb })).not.toBe(null);
   });
 
   it('is corrected for a destination temperature below ISA (indicated heights above the threshold)', () => {

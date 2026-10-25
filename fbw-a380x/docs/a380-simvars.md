@@ -615,6 +615,36 @@
       POSITION/NAVAIDS page that does not correspond with the approach of the flight plan, in cruise less than 100 NM
       from the T/D, in descent, or in approach above 800 ft)
 
+- A32NX_FM_FLS_BEAM_VALID
+    - Bool
+    - The FMS computes an FLS beam: a non precision approach with a beam is selected and the FMS is in descent or approach
+
+- A32NX_FM_FLS_ANCHOR_LAT
+    - Degrees
+    - Latitude of the FLS beam anchor point (threshold, end point or MAP), valid with A32NX_FM_FLS_BEAM_VALID
+
+- A32NX_FM_FLS_ANCHOR_LON
+    - Degrees
+    - Longitude of the FLS beam anchor point, valid with A32NX_FM_FLS_BEAM_VALID
+
+- A32NX_FM_FLS_ANCHOR_ALT
+    - Feet
+    - Indicated altitude (QNH) of the FLS beam anchor point: threshold elevation + threshold crossing height, corrected
+      for a destination temperature below ISA
+
+- A32NX_FM_FLS_COURSE
+    - Degrees (true)
+    - Course of the FLS beam: the final approach course
+
+- A32NX_FM_FLS_SLOPE
+    - Degrees
+    - Slope of the FLS beam (positive), indicated, corrected for a destination temperature below ISA
+
+- A32NX_FM_FLS_LATERAL
+    - Bool
+    - The F-LOC replaces the localizer (VOR, NDB, RNAV/GPS approaches); false on LOC and back course approaches, which
+      fly the real localizer with the F-G/S
+
 - A380X_FM_APPROACH_HEADWIND_COMPONENT
     - Arinc429<Knots>
     - The headwind component calculated by the fms based on the inserted approach wind and runway. Negative value indicates a tailwind component.

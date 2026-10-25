@@ -1852,7 +1852,7 @@ export class FmcAircraftInterface {
       course = SimVar.GetSimVarValue('NAV LOCALIZER:3', 'degrees');
     }
 
-    return SimVar.SetSimVarValue('L:A32NX_FM_LS_COURSE', 'number', course);
+    return SimVar.SetSimVarValue('L:A32NX_FM_LS_COURSE', 'number', this.fmc.flsBeamPublisher.lsCourse(course));
   }
 
   private hasTooSteepPathAhead = false;
