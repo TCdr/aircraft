@@ -12,6 +12,8 @@ import { M3_INPUT } from '../../UtilComponents/Material/Material';
 import { ColoredMetar } from '../Widgets/ColorMetar';
 import { StationWx } from '../logic/advice';
 import { DashboardLayout } from '../logic/dashboardLayout';
+import { DashboardPhase } from '../logic/dashboardPhase';
+import { leadWeatherRole } from '../logic/weatherStation';
 import { chartsPath } from '../logic/chartsPath';
 import { metarWindGroup, runwayWind, stationVerdict, worstVerdictIndex } from '../logic/weatherVerdict';
 import { TripWeather } from '../useTripWeather';
@@ -19,6 +21,7 @@ import { CardButton, DashboardCard, Field, FieldLabel, FieldRow, HeaderChip, Sta
 
 interface WeatherCardProps {
   layout: DashboardLayout;
+  phase: DashboardPhase;
   weather: TripWeather;
   aircraft: 'a32nx' | 'a380x';
   etaUtc: Date | null;
@@ -118,13 +121,16 @@ const StationReport: FC<{ station?: StationWx; withTaf?: boolean; note?: string;
 };
 
 /** The weather of the trip: DEP, DEST and ALTN side by side before departure, the destination after it */
-export const WeatherCard: FC<WeatherCardProps> = ({ layout, weather, aircraft, etaUtc, className }) => {
+export const WeatherCard: FC<WeatherCardProps> = ({ layout, phase, weather, aircraft, etaUtc, className }) => {
   const history = useHistory();
   const dispatch = useAppDispatch();
   const {
     arrivingRunway,
     arrivingAirport: arrivingIcao,
     arrivingName,
+    departingRunway,
+    departingAirport: departingIcao,
+    departingName,
   } = useAppSelector((state) => state.simbrief.data);
   const userIcao = useAppSelector((state) => state.dashboard.userDepartureIcao) ?? '';
   const [typedIcao, setTypedIcao] = useState(userIcao);
@@ -139,8 +145,8 @@ export const WeatherCard: FC<WeatherCardProps> = ({ layout, weather, aircraft, e
     }
   }, [withoutOfp, taxiIcao]);
 
-  // The weather page opens on the airport this card is about: the destination once under way, the departure without
-  // an OFP, and at the gate the airport with the worst verdict (the destination when all are fine)
+  // The weather page opens on the airport this card is about: the departure until takeoff and the destination after it,
+  // and in the trip layout the airport with the worst verdict (the destination when all are fine)
   const footer = (stationIcao: string | undefined) => (
     <>
       <CardButton tone="outline" onClick={() => history.push(chartsPath(seenPathnames(history)))}>
@@ -204,20 +210,25 @@ export const WeatherCard: FC<WeatherCardProps> = ({ layout, weather, aircraft, e
   }
 
   if (layout === 'flight' || layout === 'arrived') {
-    const station = weather.dest;
+    // Until takeoff the flight's weather is the departure's: its METAR, TAF and wind on the planned runway
+    const departing = layout === 'flight' && leadWeatherRole(phase) === 'dep';
+    const station = departing ? weather.dep : weather.dest;
+    const stationName = departing ? departingName : arrivingName;
+    const stationRunway = departing ? departingRunway : arrivingRunway;
+    const fallbackIcao = departing ? departingIcao : arrivingIcao;
     return (
       <DashboardCard
-        title={t('Dashboard.Weather.DestinationTitle')}
+        title={t(departing ? 'Dashboard.Weather.DepartureTitle' : 'Dashboard.Weather.DestinationTitle')}
         section="destination"
         className={className}
-        footer={footer(station ? station.icao : arrivingIcao || undefined)}
+        footer={footer(station ? station.icao : fallbackIcao || undefined)}
       >
         <div className="flex shrink-0 flex-row items-baseline">
-          <span className="shrink-0 text-2xl font-extrabold text-m3-text">{station ? station.icao : arrivingIcao}</span>
-          <FieldLabel className="ml-3 min-w-0">{arrivingName}</FieldLabel>
+          <span className="shrink-0 text-2xl font-extrabold text-m3-text">{station ? station.icao : fallbackIcao}</span>
+          <FieldLabel className="ml-3 min-w-0">{stationName}</FieldLabel>
         </div>
-        {layout === 'flight' && station && station.metar && arrivingRunway && (
-          <RunwayWindFields station={station} runway={arrivingRunway} />
+        {layout === 'flight' && station && station.metar && stationRunway && (
+          <RunwayWindFields station={station} runway={stationRunway} />
         )}
         <StationReport
           station={station}

@@ -10,6 +10,8 @@ import { SimpleInput } from '../../../UtilComponents/Form/SimpleInput/SimpleInpu
 import { M3_INPUT } from '../../../UtilComponents/Material/Material';
 import { localOffsetSeconds } from '../../../Dashboard/logic/dashboardFormat';
 import { TripRole } from '../../../Dashboard/logic/tripWeather';
+import { leadWeatherRole } from '../../../Dashboard/logic/weatherStation';
+import { useDashboardPhase } from '../../../Dashboard/useDashboardPhase';
 import { useStationReports, useTripWeather } from '../../../Dashboard/useTripWeather';
 import { useAirportInfo } from './useAirportInfo';
 import { isAtAirport } from './logic/stationTime';
@@ -73,13 +75,18 @@ export const WeatherPage: FC = () => {
     .filter((icao, index, all) => all.indexOf(icao) === index)
     .filter((icao) => !trip.airports.some((airport) => airport.icao === icao));
 
-  /** The airport the dashboard asked for, else the destination, else the first airport of the trip */
+  const { phase } = useDashboardPhase();
+
+  /**
+   * The airport the dashboard asked for, else the departure until takeoff and the destination after it, else the first
+   * airport of the trip
+   */
   const defaultIcao = (): string | null => {
     if (askedIcao) {
       return askedIcao;
     }
-    const dest = trip.airports.find((airport) => airport.role === 'dest');
-    const first = dest ?? trip.airports[0];
+    const lead = trip.airports.find((airport) => airport.role === leadWeatherRole(phase));
+    const first = lead ?? trip.airports[0];
     return first ? first.icao : null;
   };
   const [selected, setSelected] = useState<string | null>(defaultIcao);

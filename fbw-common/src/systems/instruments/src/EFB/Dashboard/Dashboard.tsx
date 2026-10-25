@@ -250,7 +250,14 @@ export const Dashboard = () => {
   );
 
   const weatherCard = (
-    <WeatherCard layout={layout} weather={weather} aircraft={aircraft} etaUtc={etaUtc} className="mt-3 flex-1" />
+    <WeatherCard
+      layout={layout}
+      phase={phase}
+      weather={weather}
+      aircraft={aircraft}
+      etaUtc={etaUtc}
+      className="mt-3 flex-1"
+    />
   );
 
   // In flight the ground cards give way to three columns: checklists and cabin, the plan figures, the destination
@@ -269,7 +276,14 @@ export const Dashboard = () => {
           {hasOfp && <FlightPlanCard avgWindComponentKt={avgWindComponentKt} className="mt-3 flex-1" />}
         </div>
         <div className="ml-3 flex min-h-0 min-w-0 flex-1 flex-col">
-          <WeatherCard layout={layout} weather={weather} aircraft={aircraft} etaUtc={etaUtc} className="flex-1" />
+          <WeatherCard
+            layout={layout}
+            phase={phase}
+            weather={weather}
+            aircraft={aircraft}
+            etaUtc={etaUtc}
+            className="flex-1"
+          />
         </div>
       </>
     );
