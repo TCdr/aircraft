@@ -38,6 +38,15 @@ export interface PFDSimvars {
   navRadialError: number;
   hasGlideslope: boolean;
   glideSlopeError: number;
+  flsLateralActive: boolean;
+  flsVerticalActive: boolean;
+  flsLocValid: boolean;
+  flsLocDeviation: number;
+  flsGsValid: boolean;
+  flsGsDeviation: number;
+  fmGpsPrimary: boolean;
+  fmNavAccuracyHigh: boolean;
+  fmGpsPositionDisagree: boolean;
   markerBeacon: number;
   mach: number;
   flapHandleIndex: number;
@@ -147,6 +156,15 @@ export enum PFDVars {
   navRadialError = 'L:A32NX_RADIO_RECEIVER_LOC_DEVIATION',
   hasGlideslope = 'L:A32NX_RADIO_RECEIVER_GS_IS_VALID',
   glideSlopeError = 'L:A32NX_RADIO_RECEIVER_GS_DEVIATION',
+  flsLateralActive = 'L:A32NX_FLS_LATERAL_ACTIVE',
+  flsVerticalActive = 'L:A32NX_FLS_VERTICAL_ACTIVE',
+  flsLocValid = 'L:A32NX_FLS_LOC_IS_VALID',
+  flsLocDeviation = 'L:A32NX_FLS_LOC_DEVIATION',
+  flsGsValid = 'L:A32NX_FLS_GS_IS_VALID',
+  flsGsDeviation = 'L:A32NX_FLS_GS_DEVIATION',
+  fmGpsPrimary = 'L:A32NX_FMGC_L_GPS_PRIMARY',
+  fmNavAccuracyHigh = 'L:A32NX_FMGC_L_NAV_ACCURACY_HIGH',
+  fmGpsPositionDisagree = 'L:A32NX_FM_GPS_POS_DISAGREE',
   markerBeacon = 'MARKER BEACON STATE',
   mach = 'L:A32NX_ADIRS_ADR_1_MACH',
   flapHandleIndex = 'L:A32NX_FLAPS_HANDLE_INDEX',
@@ -256,6 +274,15 @@ export class PFDSimvarPublisher extends UpdatableSimVarPublisher<PFDSimvars> {
     ['navRadialError', { name: PFDVars.navRadialError, type: SimVarValueType.Degree }],
     ['hasGlideslope', { name: PFDVars.hasGlideslope, type: SimVarValueType.Bool }],
     ['glideSlopeError', { name: PFDVars.glideSlopeError, type: SimVarValueType.Degree }],
+    ['flsLateralActive', { name: PFDVars.flsLateralActive, type: SimVarValueType.Bool }],
+    ['flsVerticalActive', { name: PFDVars.flsVerticalActive, type: SimVarValueType.Bool }],
+    ['flsLocValid', { name: PFDVars.flsLocValid, type: SimVarValueType.Bool }],
+    ['flsLocDeviation', { name: PFDVars.flsLocDeviation, type: SimVarValueType.Degree }],
+    ['flsGsValid', { name: PFDVars.flsGsValid, type: SimVarValueType.Bool }],
+    ['flsGsDeviation', { name: PFDVars.flsGsDeviation, type: SimVarValueType.Degree }],
+    ['fmGpsPrimary', { name: PFDVars.fmGpsPrimary, type: SimVarValueType.Bool }],
+    ['fmNavAccuracyHigh', { name: PFDVars.fmNavAccuracyHigh, type: SimVarValueType.Bool }],
+    ['fmGpsPositionDisagree', { name: PFDVars.fmGpsPositionDisagree, type: SimVarValueType.Bool }],
     ['markerBeacon', { name: PFDVars.markerBeacon, type: SimVarValueType.Enum }],
     ['mach', { name: PFDVars.mach, type: SimVarValueType.Number }],
     ['flapHandleIndex', { name: PFDVars.flapHandleIndex, type: SimVarValueType.Number }],

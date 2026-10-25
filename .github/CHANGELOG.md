@@ -922,6 +922,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FMS] EXP DES flies 340 kt or M .80, whichever is lower, instead of keeping the last managed descent speed - @TCdr
 1. [FMS] FLS beam computed for both aircraft (anchor, course, slope) and sent to the flight guidance - @TCdr
 1. [AP] FLS approaches: the LOC and G/S modes fly the FLS beam (F-LOC, F-G/S) from the FMS position and barometric altitude, without LAND - @TCdr
+1. [PFD] FLS approaches: F-LOC / F-G/S modes, FLS deviations and the F-APP / F-APP + RAW / RAW ONLY capability on the FMA - @TCdr
 
 ## 2024.1.0
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -16,6 +16,7 @@ import {
   VNode,
 } from '@microsoft/msfs-sdk';
 import { ArincEventBus, Arinc429RegisterSubject, MathUtils } from '@flybywiresim/fbw-sdk';
+import { isLsDeviationValid, lsDeviation } from '@flybywiresim/pfd';
 
 import { FcuBus } from './shared/FcuBusProvider';
 import { Arinc429Values } from './shared/ArincValueProvider';
@@ -130,11 +131,16 @@ interface LandingSystemInfoProps {
 class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
   // source data
 
-  private readonly lsAlive = ConsumerSubject.create(null, false);
-
   private readonly lsFrequency = ConsumerSubject.create(null, 0);
 
-  private readonly lsIdent = ConsumerSubject.create(null, '');
+  private readonly navIdent = ConsumerSubject.create(null, '');
+
+  private readonly ilsLocValid = ConsumerSubject.create(null, false);
+
+  private readonly flsLocValid = ConsumerSubject.create(null, false);
+
+  /** The FLS beam replaces the localizer: the LS info shows FLS, without a frequency or a DME distance */
+  private readonly flsLateralActive = ConsumerSubject.create(null, false);
 
   private readonly dmeAlive = ConsumerSubject.create(null, false);
 
@@ -143,6 +149,19 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
   private readonly fm1NavDiscrete = Arinc429RegisterSubject.createEmpty();
 
   // derived subjects
+
+  private readonly lsIdent = MappedSubject.create(
+    ([flsLateralActive, navIdent]) => (flsLateralActive ? 'FLS' : navIdent),
+    this.flsLateralActive,
+    this.navIdent,
+  );
+
+  private readonly lsAlive = MappedSubject.create(
+    ([flsLateralActive, ilsLocValid, flsLocValid]) => isLsDeviationValid(flsLateralActive, ilsLocValid, flsLocValid),
+    this.flsLateralActive,
+    this.ilsLocValid,
+    this.flsLocValid,
+  );
 
   private readonly lsIdentText = Subject.create('');
 
@@ -192,19 +211,23 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
   );
 
   private readonly isLsFreqHidden = MappedSubject.create(
-    ([frequency, ilsFlagShown]) => frequency < 108 || frequency > 112 || ilsFlagShown,
+    ([frequency, ilsFlagShown, flsLateralActive]) =>
+      frequency < 108 || frequency > 112 || ilsFlagShown || flsLateralActive,
     this.lsFrequency,
     this.isIlsFlagShown,
+    this.flsLateralActive,
   );
 
   // FIXME major hack: when the FM is not tuning the VORs and MMRs, the DME receiver is not tuned (goes into standby)
   // Since we use the sim radios at the moment we can't tell that... instead we look at the FM tuning state
   // The DME flag replaces the DME distance indication
   private isDmeAvailable = MappedSubject.create(
-    ([dmeAlive, fmNavDiscrete, dmeFlagShown]) => dmeAlive && fmNavDiscrete.isNormalOperation() && !dmeFlagShown,
+    ([dmeAlive, fmNavDiscrete, dmeFlagShown, flsLateralActive]) =>
+      dmeAlive && fmNavDiscrete.isNormalOperation() && !dmeFlagShown && !flsLateralActive,
     this.dmeAlive,
     this.fm1NavDiscrete,
     this.isDmeFlagShown,
+    this.flsLateralActive,
   );
 
   private readonly dmeDistanceRounded = this.dmeDistance.map((v) => MathUtils.round(v, 0.1));
@@ -218,9 +241,11 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     .pause();
 
   private readonly pausable: (ConsumerSubject<unknown> | Subscription)[] = [
-    this.lsAlive,
+    this.ilsLocValid,
+    this.flsLocValid,
+    this.flsLateralActive,
     this.lsFrequency,
-    this.lsIdent,
+    this.navIdent,
     this.dmeAlive,
     this.dmeDistance,
   ];
@@ -230,9 +255,13 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
 
     const sub = this.props.bus.getSubscriber<PFDSimvars>();
 
-    this.lsAlive.setConsumer(sub.on('hasLoc'));
+    this.ilsLocValid.setConsumer(sub.on('hasLoc'));
 
-    this.lsIdent.setConsumer(sub.on('navIdent'));
+    this.flsLocValid.setConsumer(sub.on('flsLocValid'));
+
+    this.flsLateralActive.setConsumer(sub.on('flsLateralActive'));
+
+    this.navIdent.setConsumer(sub.on('navIdent'));
 
     this.lsFrequency.setConsumer(sub.on('navFreq'));
 
@@ -409,9 +438,18 @@ class LocalizerIndicator extends DisplayComponent<{ bus: ArincEventBus; instrume
 
   private readonly backbeam = ConsumerValue.create(this.sub.on('fm1Backbeam'), false);
 
-  private readonly hasLoc = ConsumerSubject.create(this.sub.on('hasLoc'), false);
+  private readonly flsLateralActive = ConsumerSubject.create(this.sub.on('flsLateralActive'), false);
 
-  private readonly locRadialError = ConsumerValue.create(this.sub.on('navRadialError'), 0);
+  private readonly hasLoc = MappedSubject.create(
+    ([flsLateralActive, ilsLocValid, flsLocValid]) => isLsDeviationValid(flsLateralActive, ilsLocValid, flsLocValid),
+    this.flsLateralActive,
+    ConsumerSubject.create(this.sub.on('hasLoc'), false),
+    ConsumerSubject.create(this.sub.on('flsLocValid'), false),
+  );
+
+  private readonly ilsLocDeviation = ConsumerValue.create(this.sub.on('navRadialError'), 0);
+
+  private readonly flsLocDeviation = ConsumerValue.create(this.sub.on('flsLocDeviation'), 0);
 
   private readonly dots = Subject.create(0);
 
@@ -422,7 +460,9 @@ class LocalizerIndicator extends DisplayComponent<{ bus: ArincEventBus; instrume
   private readonly isLocDiamondHidden = this.dots.map((v) => v < -2 || v > 2);
 
   private handleNavRadialError(): void {
-    const radialError = MathUtils.correctMsfsLocaliserError(this.locRadialError.get());
+    const radialError = MathUtils.correctMsfsLocaliserError(
+      lsDeviation(this.flsLateralActive.get(), this.ilsLocDeviation.get(), this.flsLocDeviation.get()),
+    );
     const deviation = this.lagFilter.step(radialError, this.props.instrument.deltaTime / 1000);
     this.dots.set(((this.backbeam.get() ? -1 : 1) * deviation) / 0.8);
   }
@@ -521,7 +561,16 @@ class GlideSlopeIndicator extends DisplayComponent<{ bus: ArincEventBus; instrum
     this.mixLocVnav,
   );
 
-  private readonly hasGlideSlope = ConsumerSubject.create(this.sub.on('hasGlideslope'), false);
+  private readonly flsVerticalActive = ConsumerSubject.create(this.sub.on('flsVerticalActive'), false);
+
+  private readonly hasGlideSlope = MappedSubject.create(
+    ([flsVerticalActive, ilsGsValid, flsGsValid]) => isLsDeviationValid(flsVerticalActive, ilsGsValid, flsGsValid),
+    this.flsVerticalActive,
+    ConsumerSubject.create(this.sub.on('hasGlideslope'), false),
+    ConsumerSubject.create(this.sub.on('flsGsValid'), false),
+  );
+
+  private readonly flsGsDeviation = ConsumerValue.create(this.sub.on('flsGsDeviation'), 0);
 
   private readonly noGlideSlope = MappedSubject.create(
     ([isHidden, hasGlideSlope]) => isHidden || !hasGlideSlope,
@@ -568,7 +617,7 @@ class GlideSlopeIndicator extends DisplayComponent<{ bus: ArincEventBus; instrum
 
     this.sub.on('glideSlopeError').handle((gs) => {
       if (!this.noGlideSlope.get()) {
-        this.handleGlideSlopeError(gs);
+        this.handleGlideSlopeError(lsDeviation(this.flsVerticalActive.get(), gs, this.flsGsDeviation.get()));
       }
     });
   }
