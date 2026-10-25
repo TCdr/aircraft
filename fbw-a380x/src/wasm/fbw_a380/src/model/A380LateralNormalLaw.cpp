@@ -187,7 +187,7 @@ void A380LateralNormalLaw::step(const real_T *rtu_In_time_dt, const real_T *rtu_
   *rtu_In_Phi_deg, const real_T *rtu_In_r_deg_s, const real_T *rtu_In_pk_deg_s, const real_T *rtu_In_beta_deg, const
   real_T *rtu_In_V_ias_kn, const real_T *rtu_In_V_tas_kn, const real_T *rtu_In_delta_xi_pos, const real_T
   *rtu_In_delta_zeta_pos, const boolean_T *rtu_In_on_ground, const boolean_T *rtu_In_tracking_mode_on, const boolean_T
-  *rtu_In_high_aoa_prot_active, const boolean_T *rtu_In_high_speed_prot_active, const real_T *rtu_In_ap_phi_c_deg, const
+  *rtu_In_high_aoa_prot_active, const boolean_T *rtu_In_high_speed_prot_active, const boolean_T *rtu_In_high_lift, const real_T *rtu_In_ap_phi_c_deg, const
   real_T *rtu_In_ap_beta_c_deg, const boolean_T *rtu_In_any_ap_engaged, real_T *rty_Out_xi_deg, real_T *rty_Out_zeta_deg)
 {
   real_T L_xi;
@@ -227,6 +227,10 @@ void A380LateralNormalLaw::step(const real_T *rtu_In_time_dt, const real_T *rtu_
   static const real_T c_0[4]{ 0.5, 0.5, 1.0, 1.0 };
 
   static const real_T c_1[4]{ 1.2, 1.2, 1.5, 1.5 };
+
+  // Bank angle protection in high lift configurations: the clean configuration law moved down to a 60 deg maximum
+  static const real_T highLiftBankAngleProtectionBreakpoints[9]{ -90.0, -65.0, -60.0, -33.0, 0.0, 33.0, 60.0, 65.0, 90.0 };
+  static constexpr real_T HIGH_LIFT_MAX_BANK_DEG{ 60.0 };
 
   high_i = !*rtu_In_on_ground;
   if (high_i > A380LateralNormalLaw_rtP.Saturation_UpperSat) {
@@ -386,6 +390,9 @@ void A380LateralNormalLaw::step(const real_T *rtu_In_time_dt, const real_T *rtu_
   } else if (*rtu_In_high_aoa_prot_active) {
     rtb_uDLookupTable_b = look1_binlxpw(*rtu_In_Phi_deg, A380LateralNormalLaw_rtP.BankAngleProtection_bp01Data,
       A380LateralNormalLaw_rtP.BankAngleProtection_tableData, 8U);
+  } else if (*rtu_In_high_lift) {
+    rtb_uDLookupTable_b = look1_binlxpw(*rtu_In_Phi_deg, highLiftBankAngleProtectionBreakpoints,
+      A380LateralNormalLaw_rtP.BankAngleProtection1_tableData, 8U);
   } else {
     rtb_uDLookupTable_b = look1_binlxpw(*rtu_In_Phi_deg, A380LateralNormalLaw_rtP.BankAngleProtection1_bp01Data,
       A380LateralNormalLaw_rtP.BankAngleProtection1_tableData, 8U);
@@ -455,6 +462,11 @@ void A380LateralNormalLaw::step(const real_T *rtu_In_time_dt, const real_T *rtu_
   } else if (A380LateralNormalLaw_DWork.Delay_DSTATE_o <
              A380LateralNormalLaw_rtP.DiscreteTimeIntegratorVariableTs_LowerLimit_o) {
     A380LateralNormalLaw_DWork.Delay_DSTATE_o = A380LateralNormalLaw_rtP.DiscreteTimeIntegratorVariableTs_LowerLimit_o;
+  }
+
+  if (*rtu_In_high_lift) {
+    A380LateralNormalLaw_DWork.Delay_DSTATE_o = std::fmax(-HIGH_LIFT_MAX_BANK_DEG, std::fmin(HIGH_LIFT_MAX_BANK_DEG,
+      A380LateralNormalLaw_DWork.Delay_DSTATE_o));
   }
 
   if (*rtu_In_any_ap_engaged) {

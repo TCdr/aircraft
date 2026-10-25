@@ -1406,12 +1406,8 @@ void A380PitchNormalLaw::step(const real_T *rtu_In_time_dt, const real_T *rtu_In
     *rty_Out_eta_trim_limit_up = A380PitchNormalLaw_rtP.Constant2_Value;
   }
 
-  if (*rtu_In_flaps_handle_index == 5.0) {
-    rtb_in_flare = 25;
-  } else {
-    rtb_in_flare = 30;
-  }
-
+  // The A380 keeps the 30 deg nose-up limit in every configuration (no CONF FULL reduction as on the A320)
+  rtb_in_flare = 30;
   A380PitchNormalLaw_RateLimiter(static_cast<real_T>(rtb_in_flare) - std::fmin(5.0, std::fmax(0.0, 5.0 -
     (*rtu_In_V_ias_kn - (*rtu_In_VLS_kn + 5.0)) * 0.25)), A380PitchNormalLaw_rtP.RateLimiterVariableTs6_up,
     A380PitchNormalLaw_rtP.RateLimiterVariableTs6_lo, rtu_In_time_dt,

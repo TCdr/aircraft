@@ -883,6 +883,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FADEC] ENG 1(2) BLEED STATUS FAULT: on the ground the idle goes up to HI GND IDLE (as if every bleed and anti-ice valve were open), and the engine anti-ice no longer selects the continuous ignition of that engine by itself (ENG MODE selector to IGN) - @TCdr
 1. [A380X/FADEC] COND TEMP CTL FAULT with both pack controllers failed: the engines go to idle high at idle thrust, shown as the STATUS INFO ENG IDLE HI - @TCdr
 1. [EFB] Fix the wind field of the performance calculators refusing a direction typed without leading zeros (80/10 stopped at 80) - @TCdr
+1. [A380X/F/CTL] High speed protection uses the A380 values: active from VMO+10 kt / MMO+0.02, full forward sidestick holds VD-10 kt / MD-0.02 (was A320 values) - @TCdr
+1. [A380X/F/CTL] Bank angle limited to 60 degrees with slats or flaps extended (67 degrees clean) - @TCdr
+1. [A380X/F/CTL] The 30 degree nose-up pitch limit no longer drops to 25 degrees in CONF FULL - @TCdr
+1. [A380X/F/CTL] Direct law after the loss of the three IRs, and the abnormal attitude law from 30 degrees angle of attack (was 37.5) - @TCdr
 
 ## 2024.1.0
 

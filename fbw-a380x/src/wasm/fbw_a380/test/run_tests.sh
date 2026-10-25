@@ -68,3 +68,10 @@ clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model flight_control
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src spoiler_failure_indication_test.cpp \
   -o ../obj/spoiler_failure_indication_test
 ../obj/spoiler_failure_indication_test
+# A380 values of the normal law protections (high speed, pitch attitude, bank in high lift) and the direct law triggers
+# (abnormal attitude angle of attack, three IRs lost). With WITHOUT_THE_FIX=1 the lateral normal law is called without
+# its high lift input and the test must fail.
+clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  fctl_protection_values_test.cpp ../src/model/*.cpp \
+  -o ../obj/fctl_protection_values_test
+../obj/fctl_protection_values_test

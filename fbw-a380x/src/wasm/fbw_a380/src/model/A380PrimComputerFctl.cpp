@@ -1642,7 +1642,7 @@ void A380PrimComputerFctl::step()
                      ((A380PrimComputerFctl_U.in.general_logic.adr_computation_data.mach > 0.96) ||
                       (A380PrimComputerFctl_U.in.general_logic.adr_computation_data.mach < 0.1) ||
                       (A380PrimComputerFctl_U.in.general_logic.adr_computation_data.alpha_deg < -10.0) ||
-                      (A380PrimComputerFctl_U.in.general_logic.adr_computation_data.alpha_deg > 37.5) ||
+                      (A380PrimComputerFctl_U.in.general_logic.adr_computation_data.alpha_deg > 30.0) ||
                       (A380PrimComputerFctl_U.in.general_logic.adr_computation_data.V_ias_kn > 420.0) ||
                       (A380PrimComputerFctl_U.in.general_logic.adr_computation_data.V_ias_kn < 70.0))) ||
                     ((!A380PrimComputerFctl_U.in.general_logic.triple_ir_failure) &&
@@ -1665,7 +1665,9 @@ void A380PrimComputerFctl::step()
       b_nz += c_x[prim3LawCap + 1];
     }
 
-    if (A380PrimComputerFctl_U.in.general_logic.triple_adr_failure || rtb_AND16_n) {
+    // The three IRs are the PRIMs' gyrometers: losing all three leaves no rate feedback for the normal or alternate laws
+    if (A380PrimComputerFctl_U.in.general_logic.triple_adr_failure ||
+        A380PrimComputerFctl_U.in.general_logic.triple_ir_failure || rtb_AND16_n) {
       rtb_pitchLawCapability = a380_pitch_efcs_law::DirectLaw;
       rtb_lateralLawCapability = a380_lateral_efcs_law::DirectLaw;
     } else if (A380PrimComputerFctl_U.in.general_logic.double_lgciu_failure) {
@@ -2401,6 +2403,7 @@ void A380PrimComputerFctl::step()
 
     rtb_OR1_l = (A380PrimComputerFctl_B.BusAssignment_nw.fg_logic.ap_1_engaged ||
                  A380PrimComputerFctl_B.BusAssignment_nw.fg_logic.ap_2_engaged);
+    const boolean_T highLift = A380PrimComputerFctl_U.in.general_logic.flap_handle_index > 0.0F;
     LawMDLOBJ2.step(&A380PrimComputerFctl_B.BusAssignment_nw.data.time.dt,
                     &A380PrimComputerFctl_B.BusAssignment_nw.general_logic.ir_computation_data.theta_deg,
                     &A380PrimComputerFctl_B.BusAssignment_nw.general_logic.ir_computation_data.phi_deg,
@@ -2412,7 +2415,7 @@ void A380PrimComputerFctl::step()
                     &A380PrimComputerFctl_B.BusAssignment_nw.data.analog_inputs.rudder_pedal_pos,
                     &A380PrimComputerFctl_B.BusAssignment_nw.general_logic.on_ground, &rtb_OR_i,
                     &A380PrimComputerFctl_B.BusAssignment_nw.fctl_logic.high_alpha_prot_active,
-                    &A380PrimComputerFctl_B.BusAssignment_nw.fctl_logic.high_speed_prot_active, &rtb_Switch_nb,
+                    &A380PrimComputerFctl_B.BusAssignment_nw.fctl_logic.high_speed_prot_active, &highLift, &rtb_Switch_nb,
                     &rtb_Switch1_d, &rtb_OR1_l, &rtb_xi_deg, &rtb_zeta_deg);
     LawMDLOBJ1.step(&A380PrimComputerFctl_B.BusAssignment_nw.data.time.dt,
                     &A380PrimComputerFctl_B.BusAssignment_nw.fctl_logic.total_sidestick_roll_command,
