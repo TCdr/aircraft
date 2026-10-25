@@ -1,6 +1,7 @@
 // Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { startProfileAtAircraftOnGround } from './VdProfileStart';
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
@@ -1935,7 +1936,7 @@ export class FlightManagementComputer implements FmcInterface {
     });
 
     this.acInterface.transmitVerticalPath(
-      targetProfileVd,
+      startProfileAtAircraftOnGround(targetProfileVd, this.fmgc.isOnGround()),
       vdAltitudeConstraints,
       actualProfileVd,
       descentProfileVd,
