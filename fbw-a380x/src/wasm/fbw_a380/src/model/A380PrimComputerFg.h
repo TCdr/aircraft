@@ -1303,8 +1303,9 @@ class A380PrimComputerFg final
   static void A380PrimComputerFg_MATLABFunction_e(const base_arinc_429 *rtu_u, real_T rtu_bit, uint32_T *rty_y);
   static void A380PrimComputerFg_APEngagedLogic(boolean_T rtu_pulsedFcuButton, boolean_T rtu_prevApEngaged, boolean_T
     rtu_groundEngineStartCondition, boolean_T rtu_dualApDiscCondition, boolean_T rtu_groundGa, boolean_T
-    rtu_envelopeInhibition, boolean_T rtu_apFdSpecificCondition, const prim_outputs *rtu_apFdSpecificCondition_l,
-    boolean_T *rty_engagementCondition, boolean_T *rty_disengagementCondition, boolean_T *rty_ap_inop);
+    rtu_envelopeInhibition, boolean_T rtu_overspeedDisconnection, boolean_T rtu_apFdSpecificCondition, const prim_outputs *
+    rtu_apFdSpecificCondition_l, boolean_T *rty_engagementCondition, boolean_T *rty_disengagementCondition, boolean_T *
+    rty_ap_inop);
   static void A380PrimComputerFg_MATLABFunction_o_Reset(rtDW_MATLABFunction_A380PrimComputerFg_k_T *localDW);
   static void A380PrimComputerFg_MATLABFunction_c(boolean_T rtu_u, boolean_T rtu_isRisingEdge, boolean_T *rty_y,
     rtDW_MATLABFunction_A380PrimComputerFg_k_T *localDW);
