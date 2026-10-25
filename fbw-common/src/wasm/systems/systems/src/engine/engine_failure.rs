@@ -133,6 +133,10 @@ impl EngineFailure {
     /// not lit up within 30 s of the MASTER ON has failed: the crew sets the MASTER OFF and tries again (design
     /// choice: the attempt window starts at the MASTER ON).
     const RELIGHT_ATTEMPT_DURATION: Duration = Duration::from_secs(30);
+    /// Design choice, no published value: the FADEC needs this long to detect the flameout (N2 and
+    /// EGT decay) before it selects the ignition for its relight attempt, so the engine visibly
+    /// runs down instead of relighting in the same cycle.
+    const FADEC_FLAMEOUT_DETECTION_TIME: Duration = Duration::from_secs(5);
 
     pub fn new(context: &mut InitContext, engine_number: usize) -> Self {
         Self {
@@ -291,6 +295,15 @@ impl EngineFailure {
     /// An in-flight relight is lighting up: the igniters are supplied at any ENG MODE position.
     pub fn relight_ignition(&self) -> bool {
         self.relight_ignition
+    }
+
+    /// The FADEC is making its own relight attempt after the flameout of a running engine (within
+    /// its 30 s, once it has detected the flameout), which it supports with the continuous ignition.
+    pub fn fadec_relight_attempt_in_progress(&self) -> bool {
+        self.automatic_relight_attempt
+            && self
+                .relight_attempt_time
+                .is_some_and(|time| time >= Self::FADEC_FLAMEOUT_DETECTION_TIME)
     }
 
     /// A relight attempt is in progress (MASTER ON, not lit up yet, within its 30 s).
