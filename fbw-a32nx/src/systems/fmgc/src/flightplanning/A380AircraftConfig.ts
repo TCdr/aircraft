@@ -13,6 +13,7 @@ import {
 } from '@fmgc/flightplanning/AircraftConfigTypes';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import type { EconAircraftParameters } from '@fmgc/guidance/vnav/EconSpeeds';
+import { LateralMode } from '@shared/autopilot';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { FpmConfigs } from './FpmConfig';
 
@@ -48,6 +49,10 @@ const vnavConfig: VnavConfig = {
     maxDeltaPressure: 8.6,
     maxCabinAltitude: 7500,
     cabinRateExceededPhases: [FmgcFlightPhase.Cruise],
+  },
+  APPROACH_PHASE_AUTO_ENGAGE: {
+    lateralModes: [LateralMode.NAV],
+    maxHeightAboveDestination: 7200,
   },
 };
 

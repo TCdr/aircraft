@@ -9,7 +9,6 @@ import { EfisNdMode, EfisSide, NdSymbolTypeFlags, NdPwpSymbolTypeFlags } from '@
 import { Geometry } from '@fmgc/guidance/Geometry';
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
-import { LateralMode } from '@shared/autopilot';
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
 import {
   NavGeometryProfile,
@@ -21,6 +20,7 @@ import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions
 import { AircraftConfig } from '@fmgc/flightplanning/AircraftConfigTypes';
 import { pathVectorLength } from './PathVector';
 import { timeMarkerDistancesFromStart, timeMarkerIdent } from './TimeMarkerPseudoWaypoints';
+import { shouldAutoEngageApproachPhase } from './ApproachPhaseAutoEngage';
 
 const PWP_IDENT_TOC = '(T/C)';
 const PWP_IDENT_STEP_CLIMB = '(S/C)';
@@ -280,10 +280,14 @@ export class PseudoWaypoints implements GuidanceComponent {
         break;
       case PseudoWaypointSequencingAction.APPROACH_PHASE_AUTO_ENGAGE: {
         const apLateralMode = SimVar.GetSimVarValue('L:A32NX_FMA_LATERAL_MODE', 'Number');
+        const destinationElevation = this.flightPlanService.active?.destinationAirport?.location.alt ?? 0;
         if (
-          apLateralMode === LateralMode.NAV ||
-          apLateralMode === LateralMode.LOC_CPT ||
-          apLateralMode === LateralMode.LOC_TRACK
+          shouldAutoEngageApproachPhase(
+            this.acConfig.vnavConfig.APPROACH_PHASE_AUTO_ENGAGE,
+            apLateralMode,
+            SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
+            destinationElevation,
+          )
         ) {
           // Request APPROACH phase engagement for 5 seconds
           SimVar.SetSimVarValue('L:A32NX_FM_ENABLE_APPROACH_PHASE', 'Bool', true).then(() => [
