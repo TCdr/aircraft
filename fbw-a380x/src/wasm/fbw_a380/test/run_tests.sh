@@ -9,3 +9,7 @@ mkdir -p ../obj
 clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model clb_limit_after_flex_takeoff_test.cpp \
   ../src/model/A380FadecComputer.cpp ../src/model/A380FadecComputer_data.cpp -o ../obj/clb_limit_after_flex_takeoff_test
 ../obj/clb_limit_after_flex_takeoff_test
+# Autopilot disconnection on overspeed (VMO + 15 kt / MMO + 0.04): the generated A380PrimComputerFg with an engaged autopilot
+clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  ap_overspeed_disconnect_test.cpp ../src/model/*.cpp -o ../obj/ap_overspeed_disconnect_test
+../obj/ap_overspeed_disconnect_test
