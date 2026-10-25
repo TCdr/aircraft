@@ -41,6 +41,7 @@ struct PrimInFlight {
     in.general_logic.adr_computation_data.V_tas_kn = ias;
     in.general_logic.adr_computation_data.mach = mach;
     in.general_logic.adr_computation_data.alpha_deg = 3;
+    in.general_logic.ir_computation_data.theta_deg = 3;
     in.general_logic.ir_computation_data.n_z_g = 1;
   }
 
@@ -74,6 +75,16 @@ static void highSpeedProtectionLimit() {
   PrimInFlight aboveActivation(352, 0.6);
   aboveActivation.run(1);
   expect(aboveActivation.logic().high_speed_prot_active, "the protection is active above VMO + 10 kt");
+
+  PrimInFlight diving(342, 0.6);
+  diving.prim.A380PrimComputerFctl_U.in.general_logic.ir_computation_data.theta_deg = -2;
+  diving.run(1);
+  expect(diving.logic().high_speed_prot_active, "in a 5 deg dive the protection is active from VMO");
+
+  PrimInFlight divingBelowVmo(338, 0.6);
+  divingBelowVmo.prim.A380PrimComputerFctl_U.in.general_logic.ir_computation_data.theta_deg = -2;
+  divingBelowVmo.run(1);
+  expect(!divingBelowVmo.logic().high_speed_prot_active, "the protection is never active below VMO");
 }
 
 static void directLawTriggers() {

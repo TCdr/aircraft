@@ -4,6 +4,11 @@
 #include "look1_binlxpw.h"
 #include "look2_binlxpw.h"
 
+// Pitch down protection (15 deg nose down): the pitch attitude is predicted this far ahead from the nose-down pitch rate.
+// Without it the order left by a full forward sidestick push (-1 g) unwinds only once the pitch reaches 15 deg, and the
+// sim recording passed 20 deg nose down. With a steady pitch the limit stays 15 deg.
+static constexpr real_T NOSE_DOWN_LIMIT_LEAD_S = 2.0;
+
 const uint8_T A380PitchNormalLaw_IN_Flare_Active_Reduce{ 1U };
 
 const uint8_T A380PitchNormalLaw_IN_Flight{ 2U };
@@ -333,7 +338,9 @@ A380PitchNormalLaw::Parameters_A380PitchNormalLaw_T A380PitchNormalLaw::A380Pitc
 
   -0.4,
 
-  1.4,
+  // High speed protection, speed trend gain (A320 value 1.4): the dive enters the protection at VMO + 10 kt at about
+  // 4 kt/s, so the pull-up has to start from the trend for the speed to stabilise at VD - 10 kt without passing VD.
+  2.5,
 
   -0.1,
 
@@ -341,7 +348,9 @@ A380PitchNormalLaw::Parameters_A380PitchNormalLaw_T A380PitchNormalLaw::A380Pitc
 
   0.2,
 
-  0.75,
+  // High speed protection, largest nose-up load factor demand (A320 value 0.75 g): 1.5 g up to the 2.5 g limit of the
+  // clean normal law. With 0.75 g the recovery from a full forward sidestick dive passed VD (389 kt in the sim).
+  1.5,
 
   -0.75,
 
@@ -1745,7 +1754,8 @@ void A380PitchNormalLaw::step(const real_T *rtu_In_time_dt, const real_T *rtu_In
   A380PitchNormalLaw_VoterAttitudeProtection(rtb_Gain_ch, rtb_Product_fu + rtb_Sum1_c * rtb_Y_g, rtb_Sum_ma,
     &rtb_Saturation_ix);
   rtb_Sum1_mw = A380PitchNormalLaw_rtP.DiscreteDerivativeVariableTs1_Gain_k * *rtu_In_qk_deg_s;
-  rtb_Y_g = A380PitchNormalLaw_rtP.Gain3_Gain_g * A380PitchNormalLaw_rtP.Theta_max3_Value - rtb_Loaddemand2;
+  rtb_Y_g = A380PitchNormalLaw_rtP.Gain3_Gain_g * A380PitchNormalLaw_rtP.Theta_max3_Value - (rtb_Loaddemand2 +
+    A380PitchNormalLaw_rtP.Gain1_Gain * NOSE_DOWN_LIMIT_LEAD_S * std::fmin(*rtu_In_qk_deg_s, 0.0));
   if (*rtu_In_V_tas_kn > A380PitchNormalLaw_rtP.Saturation3_UpperSat_e) {
     rtb_Saturation1_l = A380PitchNormalLaw_rtP.Saturation3_UpperSat_e;
   } else if (*rtu_In_V_tas_kn < A380PitchNormalLaw_rtP.Saturation3_LowerSat_k) {
