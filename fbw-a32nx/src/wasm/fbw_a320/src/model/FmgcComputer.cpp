@@ -1868,7 +1868,10 @@ void FmgcComputer::step()
     FmgcComputer_MATLABFunction_a((rtb_y_bb < FmgcComputer_P.CompareToConstant_const_dt), FmgcComputer_U.in.time.dt,
       FmgcComputer_P.ConfirmNode1_isRisingEdge_g, FmgcComputer_P.ConfirmNode1_timeDelay_d, &rtb_Compare_ji,
       &FmgcComputer_DWork.sf_MATLABFunction_cr);
-    rtb_y_gg = (rtb_y_nu && (((rtb_DataTypeConversion1_d != 0U) && rtb_OR2_l) || (rtb_y_oy &&
+    // An FLS approach is flown down to the MDA and the AP disconnected there: LAND never engages on it. The APPR arming
+    // (land_armed) stays, it is what arms the LOC and G/S modes that fly the FLS beam.
+    const boolean_T flsApproachActive = FmgcComputer_U.in.fms_inputs.fls_approach_active;
+    rtb_y_gg = ((!flsApproachActive) && rtb_y_nu && (((rtb_DataTypeConversion1_d != 0U) && rtb_OR2_l) || (rtb_y_oy &&
       FmgcComputer_DWork.Delay_DSTATE.longitudinal_modes.gs_trk_active &&
       FmgcComputer_DWork.Delay_DSTATE.lateral_modes.loc_trk_active && rtb_Compare_ji)));
     FmgcComputer_MATLABFunction_a(rtb_y_gg, FmgcComputer_U.in.time.dt, FmgcComputer_P.ConfirmNode_isRisingEdge_d,

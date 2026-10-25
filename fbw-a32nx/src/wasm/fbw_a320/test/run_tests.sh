@@ -47,6 +47,9 @@ clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/sr
   elac_law_and_protection_test.cpp ../src/model/*.cpp \
   -o ../obj/elac_law_and_protection_test
 ../obj/elac_law_and_protection_test
+# FLS deviations and the ILS bus words they replace on an FLS approach (fbw-common FlsReceiver.h)
+clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src fls_guidance_test.cpp -o ../obj/fls_guidance_test
+../obj/fls_guidance_test
 # With WITHOUT_THE_FIX=1 the next tests use the logic before the fix and must fail
 FIX_FLAGS=""
 if [ "${WITHOUT_THE_FIX:-0}" = "1" ]; then

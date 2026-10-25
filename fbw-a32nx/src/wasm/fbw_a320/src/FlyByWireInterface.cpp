@@ -105,6 +105,8 @@ bool FlyByWireInterface::update(double sampleTime) {
     result &= updateSfcc(i);
   }
 
+  result &= updateFls();
+
   for (int i = 0; i < 2; i++) {
     result &= updateIls(i);
   }
@@ -382,6 +384,19 @@ void FlyByWireInterface::setupLocalVariables() {
   idFmgcCruiseAltitude = std::make_unique<LocalVariable>("A32NX_AIRLINER_CRUISE_ALTITUDE");
   idFmgcFlexTemperature = std::make_unique<LocalVariable>("A32NX_AIRLINER_TO_FLEX_TEMP");
   idFmsLsCourse = std::make_unique<LocalVariable>("A32NX_FM_LS_COURSE");
+  idFmsFlsBeamValid = std::make_unique<LocalVariable>("A32NX_FM_FLS_BEAM_VALID");
+  idFmsFlsAnchorLatitude = std::make_unique<LocalVariable>("A32NX_FM_FLS_ANCHOR_LAT");
+  idFmsFlsAnchorLongitude = std::make_unique<LocalVariable>("A32NX_FM_FLS_ANCHOR_LON");
+  idFmsFlsAnchorAltitude = std::make_unique<LocalVariable>("A32NX_FM_FLS_ANCHOR_ALT");
+  idFmsFlsCourse = std::make_unique<LocalVariable>("A32NX_FM_FLS_COURSE");
+  idFmsFlsSlope = std::make_unique<LocalVariable>("A32NX_FM_FLS_SLOPE");
+  idFmsFlsLateral = std::make_unique<LocalVariable>("A32NX_FM_FLS_LATERAL");
+  idFlsLocalizerValid = std::make_unique<LocalVariable>("A32NX_FLS_LOC_IS_VALID");
+  idFlsLocalizerDeviation = std::make_unique<LocalVariable>("A32NX_FLS_LOC_DEVIATION");
+  idFlsGlideSlopeValid = std::make_unique<LocalVariable>("A32NX_FLS_GS_IS_VALID");
+  idFlsGlideSlopeDeviation = std::make_unique<LocalVariable>("A32NX_FLS_GS_DEVIATION");
+  idFlsLateralActive = std::make_unique<LocalVariable>("A32NX_FLS_LATERAL_ACTIVE");
+  idFlsVerticalActive = std::make_unique<LocalVariable>("A32NX_FLS_VERTICAL_ACTIVE");
 
   idFmsSpeedMarginHigh = std::make_unique<LocalVariable>("A32NX_PFD_UPPER_SPEED_MARGIN");
   idFmsSpeedMarginLow = std::make_unique<LocalVariable>("A32NX_PFD_LOWER_SPEED_MARGIN");
@@ -1269,6 +1284,30 @@ bool FlyByWireInterface::updateSfcc(int sfccIndex) {
   return true;
 }
 
+bool FlyByWireInterface::updateFls() {
+  SimData simData = simConnectInterface.getSimData();
+
+  flsBeam.valid = idFmsFlsBeamValid->get() != 0;
+  flsBeam.anchorLatitudeDeg = idFmsFlsAnchorLatitude->get();
+  flsBeam.anchorLongitudeDeg = idFmsFlsAnchorLongitude->get();
+  flsBeam.anchorAltitudeFt = idFmsFlsAnchorAltitude->get();
+  flsBeam.courseTrueDeg = idFmsFlsCourse->get();
+  flsBeam.slopeDeg = idFmsFlsSlope->get();
+  flsBeam.lateral = idFmsFlsLateral->get() != 0;
+
+  flsDeviations = FlsReceiver::compute(flsBeam, simData.latitude_deg, simData.longitude_deg, simData.H_ind_ft);
+
+  const bool lateralActive = flsBeam.valid && flsBeam.lateral;
+  idFlsLocalizerValid->set(lateralActive && flsDeviations.valid);
+  idFlsLocalizerDeviation->set(flsDeviations.lateralDeviationDeg);
+  idFlsGlideSlopeValid->set(flsDeviations.valid);
+  idFlsGlideSlopeDeviation->set(flsDeviations.verticalDeviationDeg);
+  idFlsLateralActive->set(lateralActive);
+  idFlsVerticalActive->set(flsBeam.valid);
+
+  return true;
+}
+
 bool FlyByWireInterface::updateIls(int ilsIndex) {
   SimData simData = simConnectInterface.getSimData();
 
@@ -1299,6 +1338,8 @@ bool FlyByWireInterface::updateIls(int ilsIndex) {
   ilsBusOutputs[ilsIndex].glideslope_deviation_deg.SSM =
       nav_gs_valid ? Arinc429SignStatus::NormalOperation : Arinc429SignStatus::NoComputedData;
   ilsBusOutputs[ilsIndex].glideslope_deviation_deg.Data = nav_gs_error_deg;
+
+  FlsReceiver::applyToIlsBus(ilsBusOutputs[ilsIndex], flsBeam, flsDeviations);
 
   if (clientDataEnabled) {
     simConnectInterface.setClientDataIls(ilsBusOutputs[ilsIndex], ilsIndex);
@@ -1833,6 +1874,7 @@ bool FlyByWireInterface::updateFmgc(double sampleTime, int fmgcIndex) {
   fmgcs[fmgcIndex].modelInputs.in.fms_inputs.cruise_alt_ft = idFmgcCruiseAltitude->get();
   fmgcs[fmgcIndex].modelInputs.in.fms_inputs.tower_headwind_kts = Arinc429Utils::fromSimVar(idFmsTowerHeadwindComponent->get());
   fmgcs[fmgcIndex].modelInputs.in.fms_inputs.flap_3_approach_selected = idFmsFlap3ApproachSelected->get();
+  fmgcs[fmgcIndex].modelInputs.in.fms_inputs.fls_approach_active = flsBeam.valid;
 
   fmgcs[fmgcIndex].modelInputs.in.bus_inputs.fac_opp_bus = facsBusOutputs[oppFmgcIndex];
   fmgcs[fmgcIndex].modelInputs.in.bus_inputs.fac_own_bus = facsBusOutputs[fmgcIndex];

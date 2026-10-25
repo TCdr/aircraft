@@ -2212,7 +2212,11 @@ void A380PrimComputerFg::step()
       A380PrimComputerFg_P.CompareToConstant_const_b), A380PrimComputerFg_U.in.data.time.dt,
       A380PrimComputerFg_P.ConfirmNode1_isRisingEdge_h, A380PrimComputerFg_P.ConfirmNode1_timeDelay_ll, &rtb_LowerRelop1,
       &A380PrimComputerFg_DWork.sf_MATLABFunction_pq0);
-    rtb_y_av = (rtb_y_gn && (((rtb_y != 0U) && A380PrimComputerFg_B.BusAssignment_i.fg_logic.mode_sync_active) || (tmp &&
+    // An FLS approach is flown down to the MDA and the AP disconnected there: LAND never engages on it. The APPR arming
+    // (land_armed) stays, it is what arms the LOC and G/S modes that fly the FLS beam.
+    const boolean_T flsApproachActive = A380PrimComputerFg_U.in.data.adcn_inputs.fms.fls_approach_active;
+    rtb_y_av = ((!flsApproachActive) && rtb_y_gn && (((rtb_y != 0U) &&
+      A380PrimComputerFg_B.BusAssignment_i.fg_logic.mode_sync_active) || (tmp &&
       A380PrimComputerFg_DWork.Delay_DSTATE_c.longitudinal_modes.gs_trk_active &&
       A380PrimComputerFg_DWork.Delay_DSTATE_c.lateral_modes.loc_trk_active && rtb_LowerRelop1)));
     A380PrimComputerFg_MATLABFunction_a(rtb_y_av, A380PrimComputerFg_U.in.data.time.dt,
