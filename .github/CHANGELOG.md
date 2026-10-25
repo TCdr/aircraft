@@ -924,6 +924,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [AP] FLS approaches: the LOC and G/S modes fly the FLS beam (F-LOC, F-G/S) from the FMS position and barometric altitude, without LAND - @TCdr
 1. [PFD] FLS approaches: F-LOC / F-G/S modes, FLS deviations and the F-APP / F-APP + RAW / RAW ONLY capability on the FMA - @TCdr
 1. [A380X/ENG] Fix reverse thrust: in MAX REV the engines now reach the reverse N1 (they stayed near 33 % N1 and gave almost no deceleration) - @TCdr
+1. [FMS] Hold IMMEDIATE EXIT selected during the hold entry leaves the hold at the hold fix instead of flying a further pattern - @TCdr
 
 ## 2024.1.0
 

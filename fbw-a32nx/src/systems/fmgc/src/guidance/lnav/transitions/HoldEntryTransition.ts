@@ -148,6 +148,7 @@ export class HoldEntryTransition extends Transition {
         if (dtg < 0.1) {
           this.nextLeg.updatePrediction();
           this.state = EntryState.Done;
+          this.nextLeg.onEntryFlown();
         }
         break;
       default:
@@ -225,6 +226,7 @@ export class HoldEntryTransition extends Transition {
         dtg = courseToFixDistanceToGo(ppos, this.outboundCourse, this.nextLeg.fix.location);
         if (dtg < 0.1) {
           this.state = EntryState.Done;
+          this.nextLeg.onEntryFlown();
         }
         break;
       default:
