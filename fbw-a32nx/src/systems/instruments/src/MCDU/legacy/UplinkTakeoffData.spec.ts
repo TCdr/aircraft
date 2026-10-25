@@ -62,4 +62,14 @@ describe('A320 uplink takeoff data', () => {
     expect(flex.messages).toEqual([CompanyTakeoffDataLinkMessage.Received]);
     expect(flex.link.find('27R', true)?.flexTemperature).toBe(45);
   });
+
+  it('opens on the FLX TO DATA page when only FLEX data was received for the runway', () => {
+    const { link } = receive({ thrust: 'FLEX', flexTemperature: 45 });
+    expect(link.opensOnFlexPage('27R')).toBe(true);
+  });
+
+  it('opens on the MAX TO DATA page when MAX data was received for the runway', () => {
+    const { link } = receive({});
+    expect(link.opensOnFlexPage('27R')).toBe(false);
+  });
 });
