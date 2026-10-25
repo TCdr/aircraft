@@ -11,6 +11,7 @@
 #include "FlightControlInputFailures.h"
 #include "FlyByWireInterface.h"
 #include "SpoilerFailureIndication.h"
+#include "ThrustReverseSignals.h"
 #include "interface/SimConnectData.h"
 #include "failures/PrimActuatorControlFailures.h"
 
@@ -403,6 +404,7 @@ void FlyByWireInterface::setupLocalVariables() {
     idAutothrustN1_TLA[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA_N1:" + idString);
     idEngineFadecTlaOverrideActive[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TLA_OVERRIDE_ACTIVE");
     idEngineFadecTlaOverride[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TLA_OVERRIDE");
+    idThrustLeverReverseSwitch[i] = std::make_unique<LocalVariable>("A32NX_THR_LEVER_" + idString + "_REVERSE_SWITCH");
     idEngineFadecFault[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_FAULT");
     idAutothrustReverse[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_REVERSE:" + idString);
     idAutothrustN1_c[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_N1_COMMANDED:" + idString);
@@ -591,6 +593,10 @@ void FlyByWireInterface::setupLocalVariables() {
 
     idPrimPushbuttonPressed[i] = std::make_unique<LocalVariable>("A32NX_PRIM_" + idString + "_PUSHBUTTON_PRESSED");
     idPrimHealthy[i] = std::make_unique<LocalVariable>("A32NX_PRIM_" + idString + "_HEALTHY");
+    for (int engineSlot = 0; engineSlot < 2; engineSlot++) {
+      idPrimThrustReverseSelected[i][engineSlot] =
+          std::make_unique<LocalVariable>("A32NX_PRIM_" + idString + "_THR_REVERSE_SELECTED:" + std::to_string(engineSlot + 2));
+    }
     idPrimApEngaged[i] = std::make_unique<LocalVariable>("A32NX_PRIM_" + idString + "_AP_ENGAGED");
 
     idPrimFctlLawStatusWord[i] = std::make_unique<LocalVariable>("A32NX_PRIM_" + idString + "_FCTL_LAW_STATUS_WORD");
@@ -1765,6 +1771,12 @@ bool FlyByWireInterface::updatePrim(double sampleTime, int primIndex) {
   }
 
   idPrimHealthy[primIndex]->set(primsDiscreteOutputs[primIndex].prim_healthy);
+  for (int engineSlot = 0; engineSlot < 2; engineSlot++) {
+    const int engineNumber = engineSlot + 2;
+    idPrimThrustReverseSelected[primIndex][engineSlot]->set(
+        ThrustReverseSignals::primControlsThirdLine(primIndex, engineNumber) &&
+        ThrustReverseSignals::primReverseSelected(primsDiscreteOutputs[primIndex].prim_healthy, thrustLeverAngle[engineNumber - 1]->get()));
+  }
   idPrimApEngaged[primIndex]->set(primsDiscreteOutputs[primIndex].ap_engaged);
 
   idPrimFctlLawStatusWord[primIndex]->set(Arinc429Utils::toSimVar(primsBusOutputs[primIndex].fctl.fctl_law_status_word));
@@ -2994,6 +3006,8 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   } else {
     throttleAxis[fadecIndex]->setInFlight();
   }
+
+  idThrustLeverReverseSwitch[fadecIndex]->set(ThrustReverseSignals::reverseSwitchClosed(thrustLeverAngle[fadecIndex]->get()));
 
   // set position for 3D animation
   idThrottlePosition3d[fadecIndex]->set(idThrottlePositionLookupTable3d.get(thrustLeverAngle[fadecIndex]->get()));

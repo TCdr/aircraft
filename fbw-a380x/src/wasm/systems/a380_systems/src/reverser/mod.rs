@@ -34,6 +34,14 @@ pub struct A380ReverserController {
 
     throttle_lever_angle: Angle,
 
+    /// The reverse switch of the throttle assembly (second line of defense).
+    reverse_switch_id: VariableIdentifier,
+    reverse_switch_closed: bool,
+    /// The reverse lever signal of each PRIM that controls the third line of defense of this
+    /// engine (a PRIM that is off, failed or not in charge of the engine does not give it).
+    prim_reverse_selected_ids: [VariableIdentifier; 3],
+    prim_reverse_selected: [bool; 3],
+
     state: ReverserControlState,
 
     primary_lock_from_prim_should_unlock: bool,
@@ -74,8 +82,6 @@ pub struct A380ReverserController {
 }
 impl A380ReverserController {
     const FIRST_LINE_OF_DEFENCE_TLA_ANGLE_DEGREE: f64 = -3.;
-    const SECOND_LINE_OF_DEFENCE_TLA_ANGLE_DEGREE: f64 = -3.5;
-    const THIRD_LINE_OF_DEFENCE_TLA_ANGLE_DEGREE: f64 = -4.;
 
     const OPENING_AUTHORIZATION_TLA_ANGLE_DEGREE: f64 = -4.3;
     const MIN_N2_ENGINE_TO_ALLOW_OPENING_PCT: f64 = 50.;
@@ -88,6 +94,16 @@ impl A380ReverserController {
                 .get_identifier(format!("AUTOTHRUST_TLA:{}", engine_number)),
 
             throttle_lever_angle: Angle::default(),
+            reverse_switch_id: context
+                .get_identifier(format!("THR_LEVER_{}_REVERSE_SWITCH", engine_number)),
+            reverse_switch_closed: false,
+            prim_reverse_selected_ids: [1, 2, 3].map(|prim_number| {
+                context.get_identifier(format!(
+                    "PRIM_{}_THR_REVERSE_SELECTED:{}",
+                    prim_number, engine_number
+                ))
+            }),
+            prim_reverse_selected: [false; 3],
             state: ReverserControlState::StowedOff,
 
             primary_lock_from_prim_should_unlock: false,
@@ -163,8 +179,7 @@ impl A380ReverserController {
         &self,
         lgciu: &impl LgciuWeightOnWheels,
     ) -> bool {
-        // TODO Should be a switch info from throttle assembly, using a TLA angle value as placeholder
-        self.throttle_lever_angle.get::<degree>() <= Self::SECOND_LINE_OF_DEFENCE_TLA_ANGLE_DEGREE
+        self.reverse_switch_closed
             && lgciu.left_and_right_gear_compressed(false)
             && !self.eipm_failed
     }
@@ -175,9 +190,7 @@ impl A380ReverserController {
         &self,
         lgciu: &impl LgciuWeightOnWheels,
     ) -> bool {
-        // TODO The PRIM uses a throttle position independent of the one the FADEC uses, and its own
-        // on-ground data: the TLA and this LGCIU are placeholders for them.
-        self.throttle_lever_angle.get::<degree>() <= Self::THIRD_LINE_OF_DEFENCE_TLA_ANGLE_DEGREE
+        self.prim_reverse_selected.iter().any(|selected| *selected)
             && lgciu.left_and_right_gear_compressed(false)
     }
 
@@ -273,6 +286,14 @@ impl SimulationElement for A380ReverserController {
 
     fn read(&mut self, reader: &mut SimulatorReader) {
         self.throttle_lever_angle = reader.read(&self.throttle_lever_angle_id);
+        self.reverse_switch_closed = reader.read(&self.reverse_switch_id);
+        for (selected, id) in self
+            .prim_reverse_selected
+            .iter_mut()
+            .zip(&self.prim_reverse_selected_ids)
+        {
+            *selected = reader.read(id);
+        }
     }
 
     fn receive_power(&mut self, buses: &impl ElectricalBuses) {
@@ -683,10 +704,39 @@ mod tests {
             self
         }
 
+        /// The levers move to the angle: the reverse switches follow, and the PRIMs that control
+        /// the third line of defense of each engine (2 and 3 for engine 2, 1 and 2 for engine 3)
+        /// give their reverse signal when the angle is in the reverse sector.
         fn levers(mut self, tla_deg: f64) -> Self {
+            let in_reverse = tla_deg <= -4.;
             for engine in [2, 3] {
                 self.test_bed
                     .write_by_name(&format!("AUTOTHRUST_TLA:{}", engine), tla_deg);
+                self.test_bed
+                    .write_by_name(&format!("THR_LEVER_{}_REVERSE_SWITCH", engine), in_reverse);
+                for prim in 1..=3 {
+                    let controls_engine = if engine == 2 { prim != 1 } else { prim != 3 };
+                    self.test_bed.write_by_name(
+                        &format!("PRIM_{}_THR_REVERSE_SELECTED:{}", prim, engine),
+                        in_reverse && controls_engine,
+                    );
+                }
+            }
+            self
+        }
+
+        fn reverse_switch_open(mut self, engine: usize) -> Self {
+            self.test_bed
+                .write_by_name(&format!("THR_LEVER_{}_REVERSE_SWITCH", engine), false);
+            self
+        }
+
+        fn only_prim_gives_the_reverse_signal(mut self, engine: usize, only_prim: usize) -> Self {
+            for prim in 1..=3 {
+                self.test_bed.write_by_name(
+                    &format!("PRIM_{}_THR_REVERSE_SELECTED:{}", prim, engine),
+                    prim == only_prim,
+                );
             }
             self
         }
@@ -820,6 +870,60 @@ mod tests {
         assert!(!test_bed
             .test_bed
             .query(|a| a.controllers[1].should_unlock_third()));
+    }
+
+    /// Second line of defense: the reverse switch of the throttle assembly, not the lever angle.
+    #[test]
+    fn second_line_of_defense_needs_the_reverse_switch() {
+        let test_bed = ReverserTestBed::new().levers(-20.).run_for(1.);
+        assert!(test_bed
+            .test_bed
+            .query(|a| a.controllers[0].should_unlock_second()));
+
+        let test_bed = ReverserTestBed::new()
+            .levers(-20.)
+            .reverse_switch_open(2)
+            .run_for(1.);
+        assert!(!test_bed
+            .test_bed
+            .query(|a| a.controllers[0].should_unlock_second()));
+        assert!(test_bed
+            .test_bed
+            .query(|a| a.controllers[1].should_unlock_second()));
+    }
+
+    /// Third line of defense: the PRIM reverse signal, not the lever angle the FADEC reads.
+    #[test]
+    fn third_line_of_defense_needs_a_prim_reverse_signal() {
+        let test_bed = ReverserTestBed::new()
+            .levers(-20.)
+            .only_prim_gives_the_reverse_signal(2, 3)
+            .run_for(1.);
+        assert!(test_bed
+            .test_bed
+            .query(|a| a.controllers[0].should_unlock_third()));
+
+        let test_bed = ReverserTestBed::new()
+            .levers(-20.)
+            .only_prim_gives_the_reverse_signal(2, 0)
+            .run_for(1.);
+        assert!(!test_bed
+            .test_bed
+            .query(|a| a.controllers[0].should_unlock_third()));
+        assert!(test_bed
+            .test_bed
+            .query(|a| a.controllers[1].should_unlock_third()));
+    }
+
+    /// The reverser deploys only when the three lines of defense are cleared.
+    #[test]
+    fn reverser_does_not_deploy_when_a_line_of_defense_is_not_cleared() {
+        let test_bed = ReverserTestBed::new()
+            .levers(-20.)
+            .only_prim_gives_the_reverse_signal(2, 0)
+            .run_for(4.);
+        assert!(test_bed.position(0) < 0.01);
+        assert!(test_bed.position(1) > 0.99);
     }
 
     /// ENG 2(3) REVERSER MINOR FAULT: the reverser still operates.

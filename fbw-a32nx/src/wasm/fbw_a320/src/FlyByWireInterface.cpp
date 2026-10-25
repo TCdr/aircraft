@@ -595,6 +595,10 @@ void FlyByWireInterface::setupLocalVariables() {
     idSecPushbuttonPressed[i] = std::make_unique<LocalVariable>("A32NX_SEC_" + idString + "_PUSHBUTTON_PRESSED");
     idSecFaultLightOn[i] = std::make_unique<LocalVariable>("A32NX_SEC_" + idString + "_FAULT_LIGHT_ON");
     idSecGroundSpoilersOut[i] = std::make_unique<LocalVariable>("A32NX_SEC_" + idString + "_GROUND_SPOILER_OUT");
+    for (int engine = 0; engine < 2; engine++) {
+      idSecThrustReverseSelected[i][engine] =
+          std::make_unique<LocalVariable>("A32NX_SEC_" + idString + "_THR_REVERSE_SELECTED:" + std::to_string(engine + 1));
+    }
   }
 
   for (int i = 0; i < 2; i++) {
@@ -1667,6 +1671,9 @@ bool FlyByWireInterface::updateSec(double sampleTime, int secIndex) {
 
   idSecFaultLightOn[secIndex]->set(secsDiscreteOutputs[secIndex].sec_failed);
   idSecGroundSpoilersOut[secIndex]->set(secsDiscreteOutputs[secIndex].ground_spoiler_out);
+  for (int engine = 0; engine < 2; engine++) {
+    idSecThrustReverseSelected[secIndex][engine]->set(secIndex != secDisabled && secs[secIndex].isThrustReverseSelected(engine));
+  }
 
   return true;
 }

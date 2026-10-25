@@ -242,6 +242,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OANS] The FMS landing runway is shown green (selected runway) at the destination airport when its map is loaded (the check compared the airport with the FMS origin twice) - @TCdr
 1. [A380X/SD] The automatic CRZ page after takeoff also waits while engine 4 alone is at takeoff power (the check read engine 3 twice) - @TCdr
 1. [A380X/FADEC] The thrust limits now take the wing anti-ice into account when WING ANTI ICE is on (the FADEC read an A32NX variable nothing on the A380X writes) - @TCdr
+1. [A32NX/FADEC] The thrust reverser deploys only with the reverse thrust lever signal of at least one SEC (a switched off or failed SEC gives none) - @TCdr
+1. [A380X/FADEC] The second and third lines of defense of the thrust reversers use the reverse switch of the throttle assembly and the reverse signal of the PRIMs that control each engine (a failed PRIM no longer counts) instead of the FADEC lever angle - @TCdr
 1. [A380X/FWS] BRAKES HOT and the T.O CONFIG brake temperature check now work: they come from the 16 brake temperatures (at or above 300 °C) instead of a variable nothing on the A380X writes - @TCdr
 1. [A380X/ELEC] The ELMU and COMMERCIAL 2 pbs on the ELEC panel no longer switch the COMMERCIAL pb (pressing ELMU shed the commercial loads); they now have their own state - @TCdr
 1. [A380X/EWD] The EGT gauge uses the thrust limit (no amber limit at FLEX/TOGA or reverse, amber above the limit at MCT/CLB) instead of the thrust lever angle - @TCdr

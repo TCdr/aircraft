@@ -68,3 +68,7 @@ clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model flight_control
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src spoiler_failure_indication_test.cpp \
   -o ../obj/spoiler_failure_indication_test
 ../obj/spoiler_failure_indication_test
+# Thrust reverser lines of defense: the reverse switch of the throttle assembly and the PRIM reverse signal
+# (ThrustReverseSignals.h). With WITHOUT_THE_FIX=1 a failed PRIM still gives its signal and the test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src thrust_reverse_signals_test.cpp -o ../obj/thrust_reverse_signals_test
+../obj/thrust_reverse_signals_test
