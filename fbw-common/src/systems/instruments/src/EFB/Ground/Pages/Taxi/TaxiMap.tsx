@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   taxiDistance,
   TaxiLineFit,
@@ -107,6 +107,13 @@ function fit(points: TaxiPoint[], width: number, height: number): View | null {
   return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, scale: Math.min(scale, 4) };
 }
 
+function buttonStateClasses(button: { disabled: boolean; active: boolean }): string {
+  if (button.disabled) {
+    return 'text-m3-muted opacity-50';
+  }
+  return button.active ? 'border-m3-primary bg-m3-primary text-m3-on-primary' : 'text-m3-text hover:bg-m3-tile';
+}
+
 /**
  * The airport map of the taxi route page: aprons, taxiways and runways, the guidance lines, the stands, the route with
  * its taxiway names, the runway crossings and the aircraft. North up; drag to move, buttons to zoom, tap a stand to
@@ -129,6 +136,10 @@ export const TaxiMap = ({
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [view, setView] = useState<View | null>(null);
   const drag = useRef<{ x: number; y: number; view: View } | null>(null);
+  // The map keeps the aircraft in the centre until the crew drags it or fits the route
+  const [following, setFollowing] = useState(false);
+  const followingRef = useRef(false);
+  followingRef.current = following;
   const canvasWidth = Math.round(size.width * (1 + 2 * MARGIN));
   const canvasHeight = Math.round(size.height * (1 + 2 * MARGIN));
 
@@ -146,6 +157,7 @@ export const TaxiMap = ({
   }, []);
 
   const fitAll = () => {
+    setFollowing(false);
     let points: TaxiPoint[] = route && route.points.length > 0 ? route.points : [];
     if (points.length === 0) {
       // The whole airport (no Array.prototype.flat in Coherent GT)
@@ -157,7 +169,49 @@ export const TaxiMap = ({
   };
 
   // Show the whole route when it changes, else the whole airport
-  useEffect(fitAll, [airport, route, size.width, size.height]);
+  useEffect(() => {
+    // A route change must not pull the map away from the aircraft it follows
+    if (!followingRef.current) {
+      fitAll();
+    }
+  }, [airport, route, size.width, size.height]);
+
+  const aircraftX = aircraft ? aircraft.point[0] : null;
+  const aircraftY = aircraft ? aircraft.point[1] : null;
+  const aircraftMarker = useRef<SVGSVGElement>(null);
+
+  // The map is drawn once; the aircraft moves as a light marker and, when followed, the drawn canvas is shifted under
+  // it instead of being redrawn at every position update (that cost a lot of frames)
+  useLayoutEffect(() => {
+    if (!view) {
+      return;
+    }
+    const followed = following && aircraftX !== null && aircraftY !== null;
+    const centreX = followed ? (aircraftX as number) : view.cx;
+    const centreY = followed ? (aircraftY as number) : view.cy;
+    const shiftX = (view.cx - centreX) * view.scale;
+    const shiftY = (centreY - view.cy) * view.scale;
+    if (followed && (Math.abs(shiftX) > size.width * MARGIN * 0.8 || Math.abs(shiftY) > size.height * MARGIN * 0.8)) {
+      // The canvas is nearly out of picture: draw it again around the aircraft
+      setView({ ...view, cx: centreX, cy: centreY });
+      return;
+    }
+    if (canvas.current && !drag.current) {
+      canvas.current.style.transform = followed ? `translate(${shiftX}px, ${shiftY}px)` : '';
+    }
+    if (aircraftMarker.current && aircraft) {
+      const x = size.width / 2 + (aircraft.point[0] - centreX) * view.scale;
+      const y = size.height / 2 - (aircraft.point[1] - centreY) * view.scale;
+      aircraftMarker.current.style.transform = `translate(${x}px, ${y}px) rotate(${aircraft.heading}deg)`;
+    }
+  }, [view, following, aircraft, aircraftX, aircraftY, size.width, size.height]);
+
+  // The aircraft leaves the airport (or the page is reset): there is nothing to follow
+  useEffect(() => {
+    if (aircraftX === null) {
+      setFollowing(false);
+    }
+  }, [aircraftX]);
 
   useEffect(() => {
     const ctx = canvas.current?.getContext('2d');
@@ -168,7 +222,6 @@ export const TaxiMap = ({
     const height = canvasHeight;
     const sx = (x: number) => width / 2 + (x - view.cx) * view.scale;
     const sy = (y: number) => height / 2 - (y - view.cy) * view.scale;
-    (canvas.current as HTMLCanvasElement).style.transform = '';
 
     ctx.fillStyle = COLOURS.background;
     ctx.fillRect(0, 0, width, height);
@@ -344,25 +397,7 @@ export const TaxiMap = ({
       ctx.stroke();
       label(hold.label, hx, hy - 22, COLOURS.hold);
     }
-
-    if (aircraft) {
-      const x = sx(aircraft.point[0]);
-      const y = sy(aircraft.point[1]);
-      const h = (aircraft.heading * Math.PI) / 180;
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(h);
-      ctx.fillStyle = COLOURS.aircraft;
-      ctx.beginPath();
-      ctx.moveTo(0, -14);
-      ctx.lineTo(9, 10);
-      ctx.lineTo(0, 5);
-      ctx.lineTo(-9, 10);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
-  }, [airport, route, accepted, crossings, stand, hold, entries, aircraft, lineFits, view, canvasWidth, canvasHeight]);
+  }, [airport, route, accepted, crossings, stand, hold, entries, lineFits, view, canvasWidth, canvasHeight]);
 
   /** A tap on the map: the nearest stand to it */
   const pickStand = (clientX: number, clientY: number) => {
@@ -411,12 +446,16 @@ export const TaxiMap = ({
       pickStand(clientX, clientY);
       return;
     }
+    setFollowing(false);
     setView({ ...d.view, cx: d.view.cx - dx / d.view.scale, cy: d.view.cy + dy / d.view.scale });
   };
 
-  const locateAircraft = () => {
-    if (aircraft && view) {
+  const toggleFollowAircraft = () => {
+    if (following) {
+      setFollowing(false);
+    } else if (aircraft && view) {
       setView({ cx: aircraft.point[0], cy: aircraft.point[1], scale: Math.max(view.scale, LOCATE_SCALE) });
+      setFollowing(true);
     }
   };
 
@@ -427,7 +466,19 @@ export const TaxiMap = ({
     <div
       ref={container}
       className="relative h-full w-full overflow-hidden rounded"
-      onMouseDown={(e) => view && (drag.current = { x: e.clientX, y: e.clientY, view })}
+      onMouseDown={(e) => {
+        if (!view) {
+          return;
+        }
+        // A drag starts from the map as it is shown, centred on the followed aircraft
+        let shown = view;
+        if (following && aircraft) {
+          shown = { ...view, cx: aircraft.point[0], cy: aircraft.point[1] };
+          setFollowing(false);
+          setView(shown);
+        }
+        drag.current = { x: e.clientX, y: e.clientY, view: shown };
+      }}
       onMouseMove={(e) => {
         // Moves the drawn canvas only
         const d = drag.current;
@@ -446,6 +497,17 @@ export const TaxiMap = ({
         className="absolute"
         style={{ left: -size.width * MARGIN, top: -size.height * MARGIN }}
       />
+      {aircraft && view && (
+        <svg
+          ref={aircraftMarker}
+          width={1}
+          height={1}
+          className="pointer-events-none absolute left-0 top-0"
+          style={{ overflow: 'visible' }}
+        >
+          <path d="M0 -14 L9 10 L0 5 L-9 10 Z" fill={COLOURS.aircraft} />
+        </svg>
+      )}
       {lineFits && (
         // A380: the legend of the width marks
         <div
@@ -467,20 +529,23 @@ export const TaxiMap = ({
       )}
       <div className="absolute right-4 top-4 flex flex-col space-y-2">
         {[
-          { icon: <ZoomIn size={22} />, onClick: () => zoom(1.5), disabled: false },
-          { icon: <ZoomOut size={22} />, onClick: () => zoom(1 / 1.5), disabled: false },
-          { icon: <ArrowsFullscreen size={20} />, onClick: fitAll, disabled: false },
-          // Centres the map on the aircraft (when it is at this airport), zoomed in
-          { icon: <GeoAltFill size={20} />, onClick: locateAircraft, disabled: aircraft === null },
+          { icon: <ZoomIn size={22} />, onClick: () => zoom(1.5), disabled: false, active: false },
+          { icon: <ZoomOut size={22} />, onClick: () => zoom(1 / 1.5), disabled: false, active: false },
+          { icon: <ArrowsFullscreen size={20} />, onClick: fitAll, disabled: false, active: false },
+          // Centres the map on the aircraft (when it is at this airport), zoomed in, and keeps it there
+          {
+            icon: <GeoAltFill size={20} />,
+            onClick: toggleFollowAircraft,
+            disabled: aircraft === null,
+            active: following,
+          },
         ].map((b, i) => (
           <button
             // eslint-disable-next-line react/no-array-index-key
             key={i}
             type="button"
             disabled={b.disabled}
-            className={`flex h-12 w-12 items-center justify-center rounded-sm border border-m3-outline bg-m3-ground ${
-              b.disabled ? 'text-m3-muted opacity-50' : 'text-m3-text hover:bg-m3-tile'
-            }`}
+            className={`flex h-12 w-12 items-center justify-center rounded-sm border border-m3-outline bg-m3-ground ${buttonStateClasses(b)}`}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={b.onClick}
           >
