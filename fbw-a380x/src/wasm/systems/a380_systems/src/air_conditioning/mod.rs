@@ -2761,6 +2761,11 @@ mod tests {
             self
         }
 
+        fn command_engine_mode_selector(mut self, mode: EngineModeSelector) -> Self {
+            self.write_by_name("TURB ENG IGNITION SWITCH EX1:1", mode);
+            self
+        }
+
         fn command_engine_on_fire(mut self) -> Self {
             self.command(|a| a.engine_fire_push_buttons.release(1));
             self.command(|a| a.engine_fire_push_buttons.release(2));
@@ -4625,6 +4630,46 @@ mod tests {
                     .iterate(4);
 
                 assert_eq!(test_bed.pack_flow(), MassRate::default());
+            }
+
+            #[test]
+            fn pack_valves_close_with_eng_mode_ign_and_reopen_30_s_later_if_master_stays_off() {
+                let mut test_bed = test_bed()
+                    .with()
+                    .command_packs_on_off(true)
+                    .and()
+                    .engines_idle()
+                    .iterate(20)
+                    .then()
+                    .command_engine_mode_selector(EngineModeSelector::Ignition)
+                    .iterate(4);
+                assert_eq!(test_bed.pack_flow(), MassRate::default());
+
+                test_bed = test_bed.iterate(20);
+                assert_eq!(test_bed.pack_flow(), MassRate::default());
+
+                test_bed = test_bed.iterate(20);
+                assert_gt!(test_bed.pack_flow(), MassRate::default());
+            }
+
+            #[test]
+            fn pack_valves_reopen_30_s_after_the_engine_start_ends() {
+                let mut test_bed = test_bed()
+                    .with()
+                    .command_packs_on_off(true)
+                    .and()
+                    .engines_idle()
+                    .iterate(20)
+                    .then()
+                    .command_engine_in_start_mode()
+                    .iterate(4);
+                assert_eq!(test_bed.pack_flow(), MassRate::default());
+
+                test_bed = test_bed.engines_idle().iterate(20);
+                assert_eq!(test_bed.pack_flow(), MassRate::default());
+
+                test_bed = test_bed.iterate(20);
+                assert_gt!(test_bed.pack_flow(), MassRate::default());
             }
 
             #[test]

@@ -849,6 +849,8 @@ pub struct PackFlowController<const ENGINES: usize> {
     fcv_failed_closed_monitor: DelayedTrueLogicGate,
     inlet_pressure_below_min: DelayedTrueLogicGate,
     engine_start_closure: DelayedFalseLogicGate,
+    /// IGN/START has been selected for the whole window in which the valves stay closed waiting for the ENG MASTER
+    ignition_selection_window_elapsed: DelayedTrueLogicGate,
 }
 
 impl<const ENGINES: usize> PackFlowController<ENGINES> {
@@ -869,6 +871,8 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
     // FCOM DSC-21-10-50 (PACK pb-sw): "On ground, reopening of the valves is delayed for 30 s to avoid a
     // supplementary pack closure cycle during second engine start."
     const ENGINE_START_REOPENING_DELAY_ON_GROUND: Duration = Duration::from_secs(30);
+    // The valves close when IGN/START is selected and reopen if the ENG MASTER switch is not set to ON within 30 s
+    const IGNITION_SELECTION_WINDOW: Duration = Duration::from_secs(30);
 
     fn new(context: &mut InitContext, pack_id: Pack) -> Self {
         Self {
@@ -893,6 +897,9 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
             ),
             engine_start_closure: DelayedFalseLogicGate::new(
                 Self::ENGINE_START_REOPENING_DELAY_ON_GROUND,
+            ),
+            ignition_selection_window_elapsed: DelayedTrueLogicGate::new(
+                Self::IGNITION_SELECTION_WINDOW,
             ),
         }
     }
@@ -1017,20 +1024,35 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
             || pneumatic.engine_state(2 - self.id) == EngineState::Restarting;
 
         let closed_for_engine_start = is_onside_engine_start
-            || (is_offside_engine_start && pneumatic.engine_crossbleed_is_on())
-            || (pneumatic.engine_mode_selector() == EngineModeSelector::Ignition
-                && (pneumatic.engine_state(onside_engine_number) == EngineState::Off
-                    || pneumatic.engine_state(onside_engine_number) == EngineState::Shutting));
+            || (is_offside_engine_start && pneumatic.engine_crossbleed_is_on());
+
+        // The engine to start is not known before the ENG MASTER switch is set: with the crossbleed valve closed the
+        // valve on the side of an engine that is not running closes, with it open both close
+        let engine_mode_selector = pneumatic.engine_mode_selector();
+        self.ignition_selection_window_elapsed.update(
+            context,
+            engine_mode_selector == EngineModeSelector::Ignition,
+        );
+        let mode_selector_requests_closure = (engine_mode_selector == EngineModeSelector::Ignition
+            && !self.ignition_selection_window_elapsed.output())
+            // Design choice: no reopening rule is published for CRANK, so the valves stay closed while it is selected
+            || engine_mode_selector == EngineModeSelector::Crank;
+        let closed_by_mode_selector = mode_selector_requests_closure
+            && (pneumatic.engine_crossbleed_is_on()
+                || matches!(
+                    pneumatic.engine_state(onside_engine_number),
+                    EngineState::Off | EngineState::Shutting
+                ));
 
         // On ground the valve stays closed for 30 s after the engine start condition ends, in flight it reopens at once
         self.engine_start_closure
             .update(context, closed_for_engine_start);
         let is_on_ground = !matches!(aircraft_state, AirConditioningStateManager::InFlight(_));
-        let kept_closed_by_engine_start = if is_on_ground {
+        let kept_closed_by_engine_start = (if is_on_ground {
             self.engine_start_closure.output()
         } else {
             closed_for_engine_start
-        };
+        }) || closed_by_mode_selector;
 
         acs_overhead.pack_pushbuttons_state()[self.id]
             && !kept_closed_by_engine_start
@@ -2711,6 +2733,7 @@ mod acs_controller_tests {
             test_bed.set_pressure_altitude(Length::default());
             test_bed.set_ambient_temperature(ThermodynamicTemperature::new::<degree_celsius>(24.));
             test_bed.command_pax_quantity(0);
+            test_bed.command_eng_mode_selector(EngineModeSelector::Norm);
             test_bed.command_pack_flow_selector_position(1.);
 
             test_bed
@@ -3966,6 +3989,55 @@ mod acs_controller_tests {
 
             test_bed.command_eng_mode_selector(EngineModeSelector::Ignition);
             test_bed = test_bed.iterate(2);
+
+            assert_eq!(test_bed.pack_flow(), MassRate::default());
+        }
+
+        #[test]
+        fn pack_valves_reopen_30_s_after_eng_mode_ign_if_master_stays_off() {
+            for crossbleed_open in [false, true] {
+                let mut test_bed = test_bed().with().both_packs_on().and().engine_idle();
+                if crossbleed_open {
+                    test_bed.command_crossbleed_on();
+                    test_bed.command_apu_bleed_on();
+                }
+                test_bed = test_bed.iterate(20);
+
+                test_bed.command_eng_mode_selector(EngineModeSelector::Ignition);
+                test_bed = test_bed.iterate(20);
+                assert_eq!(test_bed.pack_flow_of(1), MassRate::default());
+
+                test_bed = test_bed.iterate(15);
+                assert_gt!(test_bed.pack_flow_of(1), MassRate::default());
+            }
+        }
+
+        #[test]
+        fn pack_valves_stay_closed_while_eng_mode_is_crank() {
+            let mut test_bed = test_bed().with().both_packs_on().and().engine_idle();
+            test_bed.command_crossbleed_on();
+            test_bed.command_apu_bleed_on();
+            test_bed = test_bed.iterate(20);
+
+            test_bed.command_eng_mode_selector(EngineModeSelector::Crank);
+            test_bed = test_bed.iterate(60);
+
+            assert_eq!(test_bed.pack_flow(), MassRate::default());
+        }
+
+        #[test]
+        fn eng_mode_ign_reselected_restarts_the_30_s_window() {
+            let mut test_bed = test_bed().with().both_packs_on().and().engine_idle();
+            test_bed.command_crossbleed_on();
+            test_bed.command_apu_bleed_on();
+            test_bed = test_bed.iterate(20);
+
+            test_bed.command_eng_mode_selector(EngineModeSelector::Ignition);
+            test_bed = test_bed.iterate(40);
+            test_bed.command_eng_mode_selector(EngineModeSelector::Norm);
+            test_bed = test_bed.iterate(20);
+            test_bed.command_eng_mode_selector(EngineModeSelector::Ignition);
+            test_bed = test_bed.iterate(5);
 
             assert_eq!(test_bed.pack_flow(), MassRate::default());
         }
