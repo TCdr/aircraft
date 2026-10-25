@@ -60,7 +60,7 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src -I ../src/model prim_a
 # model for the ground spoilers. With WITHOUT_THE_FIX=1 the inputs are the ones before the failures and the test must fail.
 # The PRIM model needs the generated law models, so the whole model folder is built, without -Werror: the generated code
 # has warnings of its own (unused variables, unhandled enum values).
-clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model flight_control_input_failures_test.cpp ../src/model/*.cpp \
+clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src flight_control_input_failures_test.cpp ../src/model/*.cpp \
   -o ../obj/flight_control_input_failures_test
 ../obj/flight_control_input_failures_test
 # The spoilers shown failed on the F/CTL system display: actuator failures and the flight control computer of each spoiler
@@ -72,3 +72,7 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src spoiler_failure_indica
 clang++ -std=c++20 -Wall -Wextra -Werror -I ../src -I ../src/model clb_limit_after_derate_takeoff_test.cpp \
   ../src/model/A380FadecComputer.cpp ../src/model/A380FadecComputer_data.cpp -o ../obj/clb_limit_after_derate_takeoff_test
 ../obj/clb_limit_after_derate_takeoff_test
+# Autopilot disconnection on overspeed (VMO + 15 kt / MMO + 0.04): the generated A380PrimComputerFg with an engaged autopilot
+clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  ap_overspeed_disconnect_test.cpp ../src/model/*.cpp -o ../obj/ap_overspeed_disconnect_test
+../obj/ap_overspeed_disconnect_test
