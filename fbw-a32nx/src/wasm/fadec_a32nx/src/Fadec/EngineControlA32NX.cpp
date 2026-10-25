@@ -1240,6 +1240,7 @@ void EngineControl_A32NX::updateThrustLimits(double                  simulationT
 
   if (!isTransitionActive && thrustLimitType != 3 /* FLEX */) {
     latchedFlexTemperature = flexTemp;
+    latchedDerate          = simData.airlinerToDerate->get();
   }
 
   double to      = 0;
@@ -1260,7 +1261,21 @@ void EngineControl_A32NX::updateThrustLimits(double                  simulationT
     flex_ga = ThrustLimits_A32NX::limitN1(1, (std::min)(16600.0, pressAltitude), ambientTemperature, ambientPressure,
                                           latchedFlexTemperature, packs, nai, wai);
   }
-  clb = ThrustLimits_A32NX::limitN1(2, pressAltitude, ambientTemperature, ambientPressure, 0, packs, nai, wai);
+  if (latchedFlexTemperature <= 0 && latchedDerate > 0) {
+    // derated takeoff, at the FLX/MCT detent as a FLEX takeoff: the FADEC model of the flight computers uses this FLX limit
+    // (fbw_a320 TakeoffDerate.h)
+    flex_to = ThrustLimits_A32NX::limitN1(0, (std::min)(16600.0, pressAltitude), ambientTemperature, ambientPressure, 0, packs, nai,
+                                          wai, latchedDerate);
+    flex_ga = ThrustLimits_A32NX::limitN1(1, (std::min)(16600.0, pressAltitude), ambientTemperature, ambientPressure, 0, packs, nai,
+                                          wai, latchedDerate);
+  }
+  const double highestThrustLeverAngle = (std::max)(simData.engineTla[L]->get(), simData.engineTla[R]->get());
+  const double deratedClimbBase = deratedClimb.update(
+      {simData.airlinerToDerate->get(), msfsHandlerPtr->getSimOnGround(),
+       DeratedClimb_A32NX::leversInClimbDetent(highestThrustLeverAngle)});
+  const double climbDerate = DeratedClimb_A32NX::thrustReductionPercent(deratedClimbBase, pressAltitude);
+  simData.deratedClimbPercent->set(climbDerate);
+  clb = ThrustLimits_A32NX::limitN1(2, pressAltitude, ambientTemperature, ambientPressure, 0, packs, nai, wai, climbDerate);
   mct = ThrustLimits_A32NX::limitN1(3, pressAltitude, ambientTemperature, ambientPressure, 0, packs, nai, wai);
 
   // transition between TO and GA limit -----------------------------------------------------------------------------
@@ -1328,6 +1343,14 @@ void EngineControl_A32NX::updateThrustLimits(double                  simulationT
   simData.thrustLimitToga->set(toga);
   simData.thrustLimitFlex->set(flex);
   simData.thrustLimitClimb->set(clb);
+  const bool bothEnginesRunning = simData.engineState[L]->get() == ON && simData.engineState[R]->get() == ON;
+  const bool gaSoft = GaSoft_A32NX::isActive({msfsHandlerPtr->getSimOnGround(), simData.flapsHandleIndex->get(), bothEnginesRunning,
+                                                  static_cast<int>(simData.flightPhase->get()), thrustLimitType == 2 /* MCT */});
+  simData.gaSoftActive->set(gaSoft ? 1 : 0);
+  if (gaSoft) {
+    mct = ThrustLimits_A32NX::limitN1(1, (std::min)(16600.0, pressAltitude), ambientTemperature, ambientPressure, 0, packs, nai, wai,
+                                      ThrustDerate_A32NX::GA_SOFT_THRUST_REDUCTION_PERCENT);
+  }
   simData.thrustLimitMct->set(mct);
 
 #ifdef PROFILING

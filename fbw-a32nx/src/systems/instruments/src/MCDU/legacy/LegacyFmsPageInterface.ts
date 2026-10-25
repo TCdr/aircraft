@@ -195,6 +195,7 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   trySetEngineOutAccelerationAltitudeGoaround(s: string, forPlan: FlightPlanIndex): Promise<boolean>;
   trySetFlapsTHS(s: string, forPlan: FlightPlanIndex): boolean;
   setPerfTOFlexTemp(s: string, forPlan: FlightPlanIndex): boolean;
+  setPerfTOFlexOrDerate(s: string, forPlan: FlightPlanIndex): boolean;
   getOriginTransitionAltitude(): number | undefined;
   getDestinationTransitionLevel(): number | undefined;
   getNavModeSpeedConstraint(): number;

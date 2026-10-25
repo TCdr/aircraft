@@ -82,3 +82,8 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS -I ../src -I ../src/model \
   takeoff_auto_toga_test.cpp ../src/model/FadecComputer.cpp ../src/model/FadecComputer_data.cpp \
   -o ../obj/takeoff_auto_toga_test
 ../obj/takeoff_auto_toga_test
+# Derated takeoff: the FADEC model takes its FLX path with the derated rating (TakeoffDerate.h). With WITHOUT_THE_FIX=1 the FCU
+# word is used as it is and the test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS -I ../src -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  takeoff_derate_test.cpp ../src/model/FadecComputer.cpp ../src/model/FadecComputer_data.cpp -o ../obj/takeoff_derate_test
+../obj/takeoff_derate_test

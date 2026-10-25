@@ -488,6 +488,12 @@ export interface FlightPlanPerformanceData {
   readonly flexTakeoffTemperature: MutableSubscribable<number | null>;
 
   /**
+   * The derated takeoff (DRT TO) entered by the pilot as its thrust reduction in percent, or null if not set.
+   * A320 specific
+   */
+  readonly takeoffDeratePercent?: MutableSubscribable<number | null>;
+
+  /**
    * The preselected climb speed entered by the pilot in knots, or null if not set.
    */
   readonly preselectedClimbSpeed: MutableSubscribable<number | null>;
@@ -761,6 +767,7 @@ export interface SerializedFlightPlanPerformanceData {
   takeoffFlaps: 0 | 1 | 2 | 3 | null;
   trimmableHorizontalStabilizer: number | null;
   flexTemperature: number | null;
+  takeoffDeratePercent?: number | null;
   preselectedClimbSpeed: number | null;
   preselectedCruiseSpeed: number | null;
   pilotManagedDescentSpeed: number | null;
