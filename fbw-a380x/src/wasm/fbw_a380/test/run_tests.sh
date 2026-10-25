@@ -76,3 +76,10 @@ clang++ -std=c++20 -Wall -Wextra -Werror -I ../src -I ../src/model clb_limit_aft
 clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
   ap_overspeed_disconnect_test.cpp ../src/model/*.cpp -o ../obj/ap_overspeed_disconnect_test
 ../obj/ap_overspeed_disconnect_test
+# A380 values of the normal law protections (high speed, pitch attitude, bank in high lift) and the direct law triggers
+# (abnormal attitude angle of attack, three IRs lost). With WITHOUT_THE_FIX=1 the lateral normal law is called without
+# its high lift input and the test must fail.
+clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  fctl_protection_values_test.cpp ../src/model/*.cpp \
+  -o ../obj/fctl_protection_values_test
+../obj/fctl_protection_values_test
