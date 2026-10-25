@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2022-2024 FlyByWire Simulations
+// Copyright (c) 2022-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -186,7 +186,12 @@ export class Navigation implements NavigationProvider {
       SimVar.SetSimVarValue('L:A32NX_FMGC_L_NAV_ACCURACY_HIGH', 'bool', v);
       SimVar.SetSimVarValue('L:A32NX_FMGC_R_NAV_ACCURACY_HIGH', 'bool', v);
     }, true);
-    this.gpsPrimary.sub((v) => this.publisher.pub('fms_nav_gps_primary', v, false, true), true);
+    this.gpsPrimary.sub((v) => {
+      this.publisher.pub('fms_nav_gps_primary', v, false, true);
+      // The PFDs need it for the FLS capability, and they cannot read the FMS bus
+      SimVar.SetSimVarValue('L:A32NX_FMGC_L_GPS_PRIMARY', 'bool', v);
+      SimVar.SetSimVarValue('L:A32NX_FMGC_R_GPS_PRIMARY', 'bool', v);
+    }, true);
     this.windDirection.sub((v) => this.publisher.pub('fms_nav_wind_direction', v, false, true), true);
     this.windSpeed.sub((v) => this.publisher.pub('fms_nav_wind_speed', v, false, true), true);
 

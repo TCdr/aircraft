@@ -1737,6 +1737,14 @@ The PRIMs perform the flight guidance and flight envelope functions.
 
     - Bool
 
+    - Bool
+
+- A32NX_FMGC_{side}_GPS_PRIMARY
+    - The FMS navigation is in GPS PRIMARY. Written by the FMS (fmgc navigation/Navigation.ts), read by the PFD for the
+      FLS approach capability
+    - {side}
+        - L
+        - R
     - Number in degrees
 - A32NX_FLS_LOC_IS_VALID, A32NX_FLS_GS_IS_VALID
     - The F-LOC (F-G/S) deviation of the FLS is valid: an FLS beam is defined (A32NX_FM_FLS_BEAM_VALID) and the aircraft
