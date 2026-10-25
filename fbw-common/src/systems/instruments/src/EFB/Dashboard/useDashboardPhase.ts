@@ -7,7 +7,7 @@ import { isSimbriefDataLoaded, useAppSelector } from '@flybywiresim/flypad';
 import { DashboardPhase, deriveDashboardPhase } from './logic/dashboardPhase';
 import { readStoredValue } from './readStoredValue';
 
-const FLOWN_OFP_KEY = 'EFB_DASHBOARD_FLOWN_OFP';
+export const FLOWN_OFP_KEY = 'EFB_DASHBOARD_FLOWN_OFP';
 
 /** The key of the loaded OFP, empty without one; a re-import of the same OFP keeps it */
 export const useOfpKey = (): string => {

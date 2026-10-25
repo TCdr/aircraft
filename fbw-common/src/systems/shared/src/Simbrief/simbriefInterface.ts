@@ -167,6 +167,8 @@ interface IWeather {
   avgWindSpeed: number;
   /** The TAFs of the plan's airports when the OFP was made, by ICAO */
   tafs: Record<string, string>;
+  /** The METARs of the plan's airports when the OFP was made, by ICAO */
+  metars: Record<string, string>;
 }
 
 interface Files {
@@ -250,6 +252,7 @@ export const EmptyISimbriefData = {
     avgWindDir: 0,
     avgWindSpeed: 0,
     tafs: {},
+    metars: {},
   },
   text: '',
 };

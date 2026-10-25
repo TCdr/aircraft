@@ -6,6 +6,7 @@ import { useTakeoffLatch } from './useMinutesToTod';
 import { useFlightLogLatch } from './useFlightLog';
 import { useServiceRunLatch } from './useServiceStatus';
 import { useJetBridgeMovedLatch } from './useJetBridgeMoved';
+import { useNewFlightReset } from './useNewFlightReset';
 
 /**
  * Records the flight events the dashboard shows into persistent properties the dashboard reads. Run by the flyPad
@@ -16,6 +17,7 @@ export const useDashboardLatches = (): void => {
   useTouchdownLatch(fmgcPhase);
   useTakeoffLatch(fmgcPhase);
   useFlightLogLatch(fmgcPhase);
+  useNewFlightReset();
   useServiceRunLatch();
   useJetBridgeMovedLatch();
 };

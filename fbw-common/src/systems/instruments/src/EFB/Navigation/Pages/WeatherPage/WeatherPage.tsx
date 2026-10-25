@@ -54,15 +54,24 @@ const ToolbarButton: FC<{ selected: boolean; onClick: () => void; className?: st
   </button>
 );
 
+const OfpLoadButton: FC<{ label: string; onLoad: () => void }> = ({ label, onLoad }) => (
+  <ToolbarButton selected={false} onClick={onLoad} className="mt-4">
+    <span className="text-sm font-extrabold uppercase tracking-wider text-current">{label}</span>
+  </ToolbarButton>
+);
+
 /** METAR and TAF of the trip's airports or of any airport typed, decoded and drawn */
 export const WeatherPage: FC = () => {
   const location = useLocation<WeatherPageState | undefined>();
   const askedIcao = location.state && location.state.icao ? location.state.icao.toUpperCase() : null;
   const trip = useTripWeather();
   const { departingName, arrivingName, weather: ofpWeather } = useAppSelector((state) => state.simbrief.data);
-  const ofpTafs = ofpWeather.tafs;
-  // The plan's other airports with a TAF (takeoff and en-route alternates), after the trip's own buttons
-  const ofpStations = Object.keys(ofpTafs).filter((icao) => !trip.airports.some((airport) => airport.icao === icao));
+  const { tafs: ofpTafs, metars: ofpMetars } = ofpWeather;
+  // The plan's other airports with a report (takeoff and en-route alternates), after the trip's own buttons
+  const ofpStations = Object.keys(ofpTafs)
+    .concat(Object.keys(ofpMetars))
+    .filter((icao, index, all) => all.indexOf(icao) === index)
+    .filter((icao) => !trip.airports.some((airport) => airport.icao === icao));
 
   /** The airport the dashboard asked for, else the destination, else the first airport of the trip */
   const defaultIcao = (): string | null => {
@@ -76,9 +85,11 @@ export const WeatherPage: FC = () => {
   const [selected, setSelected] = useState<string | null>(defaultIcao);
   const [typed, setTyped] = useState('');
   const [view, setView] = useState<View>('metar');
-  /** Airports whose TAF the crew took from the OFP, when the weather server had none */
-  const [ofpTafLoaded, setOfpTafLoaded] = useState<string[]>([]);
+  /** The reports the crew took from the OFP, as "metar:ICAO" or "taf:ICAO", when the weather server had none */
+  const [ofpLoaded, setOfpLoaded] = useState<string[]>([]);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const loadFromOfp = (kind: 'metar' | 'taf', icao: string) =>
+    setOfpLoaded((loaded) => loaded.concat(`${kind}:${icao}`));
 
   useEffect(() => {
     if (askedIcao) {
@@ -99,10 +110,13 @@ export const WeatherPage: FC = () => {
   const tripAirport = trip.airports.find((airport) => airport.icao === selected);
   const tripStation = [trip.dep, trip.dest, trip.altn].find((station) => !!station && station.icao === selected);
   const own = useStationReports(selected && !tripAirport ? selected : null);
-  const metar = tripAirport ? tripStation?.metar : own.reports?.metar;
+  const serverMetar = tripAirport ? tripStation?.metar : own.reports?.metar;
+  const ofpMetar = selected ? ofpMetars[selected] : undefined;
+  const metarFromOfp = !serverMetar && !!ofpMetar && !!selected && ofpLoaded.indexOf(`metar:${selected}`) >= 0;
+  const metar = metarFromOfp ? ofpMetar : serverMetar;
   const serverTaf = tripAirport ? tripStation?.taf : own.reports?.taf;
   const ofpTaf = selected ? ofpTafs[selected] : undefined;
-  const tafFromOfp = !serverTaf && !!ofpTaf && !!selected && ofpTafLoaded.indexOf(selected) >= 0;
+  const tafFromOfp = !serverTaf && !!ofpTaf && !!selected && ofpLoaded.indexOf(`taf:${selected}`) >= 0;
   const taf = tafFromOfp ? ofpTaf : serverTaf;
   const loading = tripAirport ? !tripStation && trip.loading : own.loading && !own.reports;
 
@@ -142,13 +156,18 @@ export const WeatherPage: FC = () => {
         icao={selected}
         name={name}
         metar={metar}
+        fromOfp={metarFromOfp}
         airport={airport}
         localOffsetSeconds={offsetSeconds}
         nowMs={nowMs}
         metric={metric}
       />
     ) : (
-      <Message text={loading ? t(`${W}.Loading`) : t(`${W}.NoMetar`, [{ icao: selected }])} />
+      <Message text={loading ? t(`${W}.Loading`) : t(`${W}.NoMetar`, [{ icao: selected }])}>
+        {!loading && ofpMetar && (
+          <OfpLoadButton label={t(`${W}.LoadOfpMetar`)} onLoad={() => loadFromOfp('metar', selected)} />
+        )}
+      </Message>
     );
   } else {
     body = taf ? (
@@ -163,13 +182,7 @@ export const WeatherPage: FC = () => {
     ) : (
       <Message text={loading ? t(`${W}.Loading`) : t(`${W}.NoTaf`, [{ icao: selected }])}>
         {!loading && ofpTaf && (
-          <ToolbarButton
-            selected={false}
-            onClick={() => setOfpTafLoaded((loaded) => (selected ? loaded.concat(selected) : loaded))}
-            className="mt-4"
-          >
-            <span className="text-sm font-extrabold uppercase tracking-wider text-current">{t(`${W}.LoadOfpTaf`)}</span>
-          </ToolbarButton>
+          <OfpLoadButton label={t(`${W}.LoadOfpTaf`)} onLoad={() => loadFromOfp('taf', selected)} />
         )}
       </Message>
     );
