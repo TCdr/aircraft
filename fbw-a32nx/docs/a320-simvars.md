@@ -2014,6 +2014,21 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - If A32NX_RADIO_RECEIVER_USAGE_ENABLED == 0 it contains the deviation from the sim
     - If A32NX_RADIO_RECEIVER_USAGE_ENABLED == 1 it contains calculated LOC deviation
 
+    - Bool
+
+    - Number in degrees
+
+- A32NX_FLS_LOC_IS_VALID, A32NX_FLS_GS_IS_VALID
+    - Bool
+    - The F-LOC (F-G/S) deviation of the FLS is valid: an FLS beam is defined (A32NX_FM_FLS_BEAM_VALID) and the aircraft
+      is ahead of its anchor point within 100 NM; F-LOC only when the beam replaces the localizer (A32NX_FM_FLS_LATERAL)
+
+- A32NX_FLS_LOC_DEVIATION, A32NX_FLS_GS_DEVIATION
+    - The F-LOC (F-G/S) deviation from the FMS position and the barometric altitude, with the sign and scale of
+      A32NX_RADIO_RECEIVER_LOC_DEVIATION (A32NX_RADIO_RECEIVER_GS_DEVIATION). On an FLS approach the flight guidance
+      receives these in place of the ILS deviations
+- A32NX_FLS_LATERAL_ACTIVE, A32NX_FLS_VERTICAL_ACTIVE
+    - The LOC (G/S) modes fly the FLS beam: F-LOC (F-G/S). LAND does not arm or engage on an FLS approach
 ## Flight Management System
 
 - A32NX_FM_ENABLE_APPROACH_PHASE

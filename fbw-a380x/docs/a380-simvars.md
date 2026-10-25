@@ -1732,6 +1732,21 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Number
     - Brightness of the ambient lights (0-100)
 
+    - Bool
+
+
+    - Bool
+
+    - Number in degrees
+- A32NX_FLS_LOC_IS_VALID, A32NX_FLS_GS_IS_VALID
+    - The F-LOC (F-G/S) deviation of the FLS is valid: an FLS beam is defined (A32NX_FM_FLS_BEAM_VALID) and the aircraft
+      is ahead of its anchor point within 100 NM; F-LOC only when the beam replaces the localizer (A32NX_FM_FLS_LATERAL)
+- A32NX_FLS_LOC_DEVIATION, A32NX_FLS_GS_DEVIATION
+    - The F-LOC (F-G/S) deviation from the FMS position and the barometric altitude, with the sign and scale of
+      A32NX_RADIO_RECEIVER_LOC_DEVIATION (A32NX_RADIO_RECEIVER_GS_DEVIATION). On an FLS approach the flight guidance
+      receives these in place of the ILS deviations
+- A32NX_FLS_LATERAL_ACTIVE, A32NX_FLS_VERTICAL_ACTIVE
+    - The LOC (G/S) modes fly the FLS beam: F-LOC (F-G/S). LAND does not arm or engage on an FLS approach
 ## Bleed Air ATA 36
 
 - A32NX_PNEU_ENG_{number}_INTERMEDIATE_TRANSDUCER_PRESSURE

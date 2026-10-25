@@ -277,6 +277,7 @@ struct base_fms_inputs
   real_T cruise_alt_ft;
   base_arinc_429 tower_headwind_kts;
   boolean_T flap_3_approach_selected;
+  boolean_T fls_approach_active;
 };
 
 #endif

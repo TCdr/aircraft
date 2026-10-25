@@ -2488,6 +2488,7 @@ A380PrimComputerGeneralLogic::Parameters_A380PrimComputerGeneralLogic_T A380Prim
             0U,
             0.0F
           },
+          false,
           false
         },
 
