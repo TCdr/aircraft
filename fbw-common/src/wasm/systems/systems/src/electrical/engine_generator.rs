@@ -8,8 +8,8 @@ use crate::{
     failures::{Failure, FailureType},
     shared::{calculate_towards_target_temperature, EngineFirePushButtons, PowerConsumptionReport},
     simulation::{
-        InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
-        VariableIdentifier, Write,
+        InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
+        SimulatorWriter, UpdateContext, VariableIdentifier, Write,
     },
 };
 use std::{ops::RangeInclusive, time::Duration};
@@ -277,6 +277,10 @@ pub struct ConstantSpeedDrive {
     connected: bool,
     output_speed: AngularVelocity,
     oil_low_pressure_id: VariableIdentifier,
+    /// The fuel the fuel return valve sends back to the tank through the IDG heat exchanger, which
+    /// cools the oil (A320, written by the fuel system)
+    fuel_recirculation_flow_id: VariableIdentifier,
+    fuel_recirculation_flow_kg_per_hour: f64,
     /// The share of the normal oil quantity left in the drive (1 = full)
     oil_quantity: Ratio,
     oil_low_pressure: bool,
@@ -308,6 +312,14 @@ impl ConstantSpeedDrive {
     const OIL_TEMPERATURE_RISE_FULL_LOAD_CELSIUS: f64 = 20.;
     /// The drive produces its full heat from N2 60 % (about idle).
     const FULL_HEAT_N2_PERCENT: f64 = 60.;
+    /// Design choice: at low thrust the air cooler of the oil gets little fan air, so the inlet
+    /// gains up to 25 °C at full generator load below N2 70 %, and nothing from N2 85 %...
+    const LOW_THRUST_EXTRA_INLET_CELSIUS: f64 = 25.;
+    const LOW_THRUST_FULL_EFFECT_N2_PERCENT: f64 = 70.;
+    const LOW_THRUST_NO_EFFECT_N2_PERCENT: f64 = 85.;
+    /// ...and each kg/h of fuel recirculated through the IDG fuel/oil heat exchanger takes 0.05 °C
+    /// off the inlet (15 °C at 300 kg/h, 30 °C at 600 kg/h).
+    const FUEL_COOLING_CELSIUS_PER_KG_PER_HOUR: f64 = 0.05;
     const IDG_HEATING_COEFFICIENT: f64 = 1.4;
     const IDG_COOLING_COEFFICIENT: f64 = 0.4;
 
@@ -341,6 +353,9 @@ impl ConstantSpeedDrive {
             output_speed: AngularVelocity::default(),
             oil_low_pressure_id: context
                 .get_identifier(format!("ELEC_ENG_GEN_{}_IDG_OIL_LOW_PRESSURE", number)),
+            fuel_recirculation_flow_id: context
+                .get_identifier(format!("FUEL_ENG_{}_RECIRCULATION_FLOW", number)),
+            fuel_recirculation_flow_kg_per_hour: 0.,
             oil_quantity: Ratio::new::<ratio>(1.),
             oil_low_pressure: false,
             oil_leak: Failure::new(FailureType::IntegratedDriveGeneratorOilLeak(number)),
@@ -419,6 +434,15 @@ impl ConstantSpeedDrive {
         );
     }
 
+    fn low_thrust_extra_inlet_celsius(corrected_n2: Ratio, generator_load: Ratio) -> f64 {
+        let low_thrust = ((Self::LOW_THRUST_NO_EFFECT_N2_PERCENT - corrected_n2.get::<percent>())
+            / (Self::LOW_THRUST_NO_EFFECT_N2_PERCENT - Self::LOW_THRUST_FULL_EFFECT_N2_PERCENT))
+            .clamp(0., 1.);
+        Self::LOW_THRUST_EXTRA_INLET_CELSIUS
+            * low_thrust
+            * generator_load.get::<ratio>().clamp(0., 1.)
+    }
+
     /// The temperatures the oil tends to at the drive inlet (back from the coolers) and outlet, in that order
     fn get_target_temperatures(
         &self,
@@ -441,6 +465,9 @@ impl ConstantSpeedDrive {
             / Self::OIL_COOLING_DEGRADED_QUANTITY)
             .clamp(0., 1.);
         inlet += Self::DRY_DRIVE_EXTRA_INLET_CELSIUS * oil_missing;
+        inlet += Self::low_thrust_extra_inlet_celsius(corrected_n2, generator_load);
+        inlet -=
+            Self::FUEL_COOLING_CELSIUS_PER_KG_PER_HOUR * self.fuel_recirculation_flow_kg_per_hour;
 
         let rise = Self::OIL_TEMPERATURE_RISE_NO_LOAD_CELSIUS
             + (Self::OIL_TEMPERATURE_RISE_FULL_LOAD_CELSIUS
@@ -499,6 +526,10 @@ impl SimulationElement for ConstantSpeedDrive {
         self.oil_leak.accept(visitor);
         self.oil_overheat.accept(visitor);
         visitor.visit(self);
+    }
+
+    fn read(&mut self, reader: &mut SimulatorReader) {
+        self.fuel_recirculation_flow_kg_per_hour = reader.read(&self.fuel_recirculation_flow_id);
     }
 
     fn write(&self, writer: &mut SimulatorWriter) {
@@ -882,7 +913,7 @@ mod tests {
                 consumption::PowerConsumer, ElectricalBus, ElectricalBusType, Electricity,
             },
             simulation::{
-                test::{ReadByName, SimulationTestBed, TestBed},
+                test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
                 Aircraft, InitContext,
             },
         };
@@ -1111,6 +1142,26 @@ mod tests {
 
             assert_about_eq!(no_load_rise, 8., 0.5);
             assert_about_eq!(full_load_rise, 20., 0.5);
+        }
+
+        #[test]
+        fn the_recirculated_fuel_cools_the_idg_oil() {
+            let mut test_bed = EngineGeneratorTestBed::with_running_engine();
+            test_bed.set_ambient_temperature(ThermodynamicTemperature::new::<degree_celsius>(15.));
+            test_bed.run_for_seconds(900);
+            let without_fuel_cooling = test_bed.idg_oil_outlet_temperature();
+
+            test_bed.write_by_name("FUEL_ENG_1_RECIRCULATION_FLOW", 300.);
+            test_bed.run_for_seconds(900);
+            let with_fuel_cooling = test_bed.idg_oil_outlet_temperature();
+
+            // 0.05 °C per kg/h at the inlet, the outlet follows it
+            assert_about_eq!(
+                without_fuel_cooling.get::<degree_celsius>()
+                    - with_fuel_cooling.get::<degree_celsius>(),
+                15.,
+                0.5
+            );
         }
 
         #[test]

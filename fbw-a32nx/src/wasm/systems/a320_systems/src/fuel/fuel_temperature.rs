@@ -17,12 +17,11 @@
 //! - The IDG cooling fuel heats the outer cell: part of the fuel supplied to each engine goes from
 //!   the HP fuel line through the IDG heat exchanger, where it absorbs heat, and back to the outer
 //!   tank through the fuel return valve. The return flow is 300 kg/h and its temperature stays
-//!   below 100 °C (the CFM56 values, the closest available). Only the heat is modelled: the
-//!   returned fuel mass itself is still burned from the inner tank (the FADEC does not return it).
+//!   below 100 °C (the CFM56 values, the closest available). The flow is commanded by
+//!   fuel_recirculation.rs; the FADEC moves the returned mass from the inner to the outer cell.
 //!   The return is inhibited at engine shutdown, during takeoff and climb, below about 300 kg in
 //!   the wing tank, in gravity feeding, and in flight above 52.5 °C in the wing tank. Not modelled:
-//!   the surge tank overflow inhibition, and the FADEC raising the flow to 600 kg/h when the IDG
-//!   oil keeps heating.
+//!   the surge tank overflow inhibition.
 
 use std::time::Duration;
 use systems::simulation::{
@@ -107,7 +106,6 @@ impl FuelTemperature {
     /// 100 min for a full inner cell (5 500 kg).
     const TIME_CONSTANT_PER_TONNE_MINUTES: f64 = 15.;
 
-    const IDG_RETURN_FLOW_KG_PER_HOUR: f64 = 300.;
     /// Design choice: the IDG heat exchanger warms the fuel by this much over the inner cell fuel
     /// that feeds the engine (about 10 kW of IDG heat in 300 kg/h of fuel)...
     const IDG_RETURN_TEMPERATURE_RISE_KELVIN: f64 = 60.;
@@ -135,13 +133,13 @@ impl FuelTemperature {
     }
 
     /// * `quantities_kg` - the tank quantities, in the order of A320FuelTankType
-    /// * `idg_return_active` - the IDG cooling fuel of engine 1 (2) returns to the left (right)
-    ///   wing tank (idg_return_is_active)
+    /// * `idg_return_flow_kg_per_hour` - the IDG cooling fuel that engine 1 (2) returns to the left
+    ///   (right) wing tank (fuel_recirculation.rs)
     pub fn update(
         &mut self,
         context: &UpdateContext,
         quantities_kg: [f64; TANK_COUNT],
-        idg_return_active: [bool; 2],
+        idg_return_flow_kg_per_hour: [f64; 2],
     ) {
         let total_air_temperature = total_air_temperature_celsius(context);
         let Some(previous_quantities_kg) = self.previous_quantities_kg else {
@@ -154,12 +152,15 @@ impl FuelTemperature {
         self.previous_quantities_kg = Some(quantities_kg);
 
         let fresh_fuel_temperature = context.ambient_temperature().get::<degree_celsius>();
+        let returned_kg =
+            idg_return_flow_kg_per_hour.map(|flow| flow * context.delta().as_secs_f64() / 3600.);
         self.mix_inflows(
             previous_quantities_kg,
             quantities_kg,
+            returned_kg,
             fresh_fuel_temperature,
         );
-        self.heat_with_idg_return(context.delta(), quantities_kg, idg_return_active);
+        self.heat_with_idg_return(quantities_kg, returned_kg);
         self.exchange_heat_with_air(context.delta(), quantities_kg, total_air_temperature);
     }
 
@@ -167,11 +168,14 @@ impl FuelTemperature {
     /// the quantities give only net changes, the flows are deduced from them: a decrease of an
     /// outer cell flowed into its inner cell, a decrease of the centre tank flowed into the inner
     /// cell(s) that gained fuel (half each if both did), never more than their gain (the rest
-    /// left the aircraft: defuelling, the flyPad fuel page), and any other gain is fresh fuel.
+    /// left the aircraft: defuelling, the flyPad fuel page), and any other gain is fresh fuel,
+    /// except the IDG return fuel that the FADEC moved to the outer cell (`returned_kg`, which
+    /// heat_with_idg_return mixes in with its own temperature).
     fn mix_inflows(
         &mut self,
         previous_kg: [f64; TANK_COUNT],
         now_kg: [f64; TANK_COUNT],
+        returned_kg: [f64; 2],
         fresh_fuel_temperature: f64,
     ) {
         let before = self.temperatures;
@@ -186,11 +190,18 @@ impl FuelTemperature {
             [false, false] => [0., 0.],
         };
 
+        let returned_to = |tank: usize| {
+            WING_TANKS
+                .iter()
+                .position(|&(_, outer)| outer == tank)
+                .map_or(0., |side| returned_kg[side])
+        };
         for tank in [CENTRE, LEFT_OUTER, RIGHT_OUTER] {
+            let fresh_gain = (gain(tank) - returned_to(tank)).max(0.);
             self.temperatures[tank] = mixed_temperature(
                 before[tank],
                 now_kg[tank],
-                &[(gain(tank), fresh_fuel_temperature)],
+                &[(fresh_gain, fresh_fuel_temperature)],
             );
         }
         for (side, (inner, outer)) in WING_TANKS.iter().copied().enumerate() {
@@ -211,32 +222,34 @@ impl FuelTemperature {
 
     /// The IDG cooling fuel returns to the outer cell (to the inner cell once the outer one is
     /// empty) warmer than the inner cell fuel that fed the engine.
-    fn heat_with_idg_return(
-        &mut self,
-        delta: Duration,
-        quantities_kg: [f64; TANK_COUNT],
-        idg_return_active: [bool; 2],
-    ) {
-        let returned_kg = Self::IDG_RETURN_FLOW_KG_PER_HOUR * delta.as_secs_f64() / 3600.;
+    fn heat_with_idg_return(&mut self, quantities_kg: [f64; TANK_COUNT], returned_kg: [f64; 2]) {
         for (side, (inner, outer)) in WING_TANKS.iter().copied().enumerate() {
-            if !idg_return_active[side] {
+            let returned_kg = returned_kg[side];
+            if returned_kg <= 0. {
                 continue;
             }
-            let return_temperature = (self.temperatures[inner]
-                + Self::IDG_RETURN_TEMPERATURE_RISE_KELVIN)
-                .min(Self::IDG_RETURN_MAX_TEMPERATURE_CELSIUS);
+            let return_temperature = self.idg_return_temperature_celsius(side);
             let cell = if quantities_kg[outer] > Self::EMPTY_TANK_KG {
                 outer
             } else {
                 inner
             };
-            // The returned fuel takes the place of as much fuel of the cell (the mass is unchanged).
+            // The cell already holds the returned fuel (the FADEC moved it); a full cell spills as
+            // much fuel into the inner cell.
             self.temperatures[cell] = mixed_temperature(
                 self.temperatures[cell],
-                quantities_kg[cell] + returned_kg,
+                quantities_kg[cell],
                 &[(returned_kg, return_temperature)],
             );
         }
+    }
+
+    /// The temperature of the fuel that the IDG cooling of engine 1 (2) returns to the left (right)
+    /// wing tank: warmer than the inner cell fuel that feeds the engine, below 100 °C.
+    pub fn idg_return_temperature_celsius(&self, side: usize) -> f64 {
+        let (inner, _) = WING_TANKS[side];
+        (self.temperatures[inner] + Self::IDG_RETURN_TEMPERATURE_RISE_KELVIN)
+            .min(Self::IDG_RETURN_MAX_TEMPERATURE_CELSIUS)
     }
 
     /// Each tank tends to the TAT with a first order lag.
@@ -305,21 +318,24 @@ mod tests {
     struct TestAircraft {
         fuel_temperature: FuelTemperature,
         quantities_kg: [f64; TANK_COUNT],
-        idg_return_active: [bool; 2],
+        idg_return_flow_kg_per_hour: [f64; 2],
     }
     impl TestAircraft {
         fn new(context: &mut InitContext) -> Self {
             Self {
                 fuel_temperature: FuelTemperature::new(context),
                 quantities_kg: FULL_KG,
-                idg_return_active: [false; 2],
+                idg_return_flow_kg_per_hour: [0.; 2],
             }
         }
     }
     impl Aircraft for TestAircraft {
         fn update_after_power_distribution(&mut self, context: &UpdateContext) {
-            self.fuel_temperature
-                .update(context, self.quantities_kg, self.idg_return_active);
+            self.fuel_temperature.update(
+                context,
+                self.quantities_kg,
+                self.idg_return_flow_kg_per_hour,
+            );
         }
     }
     impl SimulationElement for TestAircraft {
@@ -361,8 +377,11 @@ mod tests {
             self.command(|a| a.quantities_kg = quantities_kg);
         }
 
+        /// The IDG return of each side at 300 kg/h, or not.
         fn idg_return(&mut self, active: [bool; 2]) {
-            self.command(|a| a.idg_return_active = active);
+            self.command(|a| {
+                a.idg_return_flow_kg_per_hour = active.map(|on| if on { 300. } else { 0. })
+            });
         }
 
         fn run_minutes(&mut self, minutes: u64) {

@@ -588,6 +588,9 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (28_008, FailureType::EngineLpValveJammed(2)),
         // FUEL APU LP VALVE FAULT
         (28_011, FailureType::ApuLpValveJammed),
+        // FUEL IDG 1(2) COOL FAULT: the fuel return valve is no longer commanded open
+        (28_018, FailureType::FuelRecirculationCommand(1)),
+        (28_019, FailureType::FuelRecirculationCommand(2)),
         (73_100, FailureType::EngineFuelFilterClog(1)),
         (73_101, FailureType::EngineFuelFilterClog(2)),
         // ENG 1(2) HP FUEL VALVE

@@ -38,3 +38,6 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS idle_control_test.cpp -o ../obj/
 # The bleed corrections of the N1 limit, lost with the EIU data: with WITHOUT_THE_FIX=1 they stay and the test must fail.
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS n1_limit_bleed_correction_test.cpp -o ../obj/n1_limit_bleed_correction_test
 ../obj/n1_limit_bleed_correction_test
+# The IDG cooling fuel returned to the outer wing tank: with WITHOUT_THE_FIX=1 no fuel moves and the test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS fuel_recirculation_test.cpp -o ../obj/fuel_recirculation_test
+../obj/fuel_recirculation_test

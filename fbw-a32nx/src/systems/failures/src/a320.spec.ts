@@ -726,15 +726,29 @@ describe('A320 flyPad failures', () => {
     }
   });
 
-  // TS only failures, read by the FWC: FUEL IDG 1(2) COOL FAULT, EIS DMC 1(2)(3) FAULT, EIS DMC/FWC COM FAULT,
-  // FWS SDAC 1(2) / 1+2 FAULT, RECORDER DFDR FAULT and RECORDER SYS FAULT
-  it('lists the IDG fuel cooling, DMC, SDAC and recorder failures, TS only, with the FWC module that reads them', () => {
+  // The Rust fuel recirculation control takes the command away (fuel/fuel_recirculation.rs), the FWC reads it for
+  // FUEL IDG 1(2) COOL FAULT
+  it('lists the IDG fuel cooling failures with the Rust failure they trigger and the FWC module that reads them', () => {
     const host = resolve(__dirname, '../../systems-host/systems/FWC/Logic');
     const idgCooling = readFileSync(resolve(host, 'IdgCoolingAlerts.ts'), 'utf8');
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    for (const [id, key, name, engine] of [
+      [28018, 'Idg1FuelCoolingCommand', 'IDG 1 fuel cooling (fuel recirculation command)', 1],
+      [28019, 'Idg2FuelCoolingCommand', 'IDG 2 fuel cooling (fuel recirculation command)', 2],
+    ] as [number, string, string, number][]) {
+      expect((A320Failure as Record<string, number>)[key]).toBe(id);
+      expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([28, id, name]);
+      expect(idgCooling).toContain(`A320Failure.${key}`);
+      expect(wasm).toContain(`(28_0${id % 100}, FailureType::FuelRecirculationCommand(${engine})),`);
+    }
+  });
+
+  // TS only failures, read by the FWC: EIS DMC 1(2)(3) FAULT, EIS DMC/FWC COM FAULT,
+  // FWS SDAC 1(2) / 1+2 FAULT, RECORDER DFDR FAULT and RECORDER SYS FAULT
+  it('lists the DMC, SDAC and recorder failures, TS only, with the FWC module that reads them', () => {
+    const host = resolve(__dirname, '../../systems-host/systems/FWC/Logic');
     const eisRecorder = readFileSync(resolve(host, 'EisRecorderAlerts.ts'), 'utf8');
     const expected: [number, number, string, string, string][] = [
-      [28, 28018, 'Idg1FuelCoolingCommand', 'IDG 1 fuel cooling (fuel recirculation command)', idgCooling],
-      [28, 28019, 'Idg2FuelCoolingCommand', 'IDG 2 fuel cooling (fuel recirculation command)', idgCooling],
       [31, 31009, 'Dmc1', 'DMC 1', eisRecorder],
       [31, 31010, 'Dmc2', 'DMC 2', eisRecorder],
       [31, 31011, 'Dmc3', 'DMC 3', eisRecorder],

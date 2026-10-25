@@ -12,6 +12,7 @@
 
 #include "CrossFeedBurn_A32NX.hpp"
 #include "WingTankLeak_A32NX.hpp"
+#include "FuelRecirculation_A32NX.hpp"
 #include "EngineControlA32NX.h"
 #include "EngineRatios.hpp"
 #include "FanBlockedStart_A32NX.hpp"
@@ -502,7 +503,11 @@ void EngineControl_A32NX::updateIdleSetting(double pressAltitude, double mach, d
       IdleControl_A32NX::fadecBleedDemand(measuredBleedDemand, onGround, bleedValveStatusLost);
   const bool eiuDataLost = simData.engineEiuFault[L]->getAsBool() || simData.engineEiuFault[R]->getAsBool();
   const IdleControl_A32NX::IdleMode mode = IdleControl_A32NX::idleMode(onGround, simData.flapsHandleIndex->get(), eiuDataLost);
-  const double idleSettingCN2 = Tables1502_A32NX::iCN2(pressAltitude, mach) + IdleControl_A32NX::idleCN2Increase(mode, bleedDemand);
+  // Design choice: the same one idle setting for both engines, so the minimum N2 raise of either engine raises both
+  const bool recirculationRaisesMinimumN2 =
+      simData.fuelRecirculationRaisesMinimumN2[L]->getAsBool() || simData.fuelRecirculationRaisesMinimumN2[R]->getAsBool();
+  const double idleSettingCN2 = Tables1502_A32NX::iCN2(pressAltitude, mach) +
+                                IdleControl_A32NX::idleCN2Increase(mode, bleedDemand, recirculationRaisesMinimumN2);
   const double idleSettingN1  = Tables1502_A32NX::cn1AtCN2(idleSettingCN2, mach) * sqrt(EngineRatios::theta2(0, ambientTemp));
 
   simData.thrustLimitIdle->set(idleSettingN1);
@@ -1146,10 +1151,29 @@ void EngineControl_A32NX::updateFuel(double deltaTimeSeconds) {
                                                               fuelRightPre);  // Pounds
 
     //--------------------------------------------
+    // IDG cooling fuel returned to the outer tanks (FuelRecirculation_A32NX.hpp): out of the inner tank, into the outer tank
+    const double outerCapacityPounds = FuelRecirculation_A32NX::OUTER_TANK_CAPACITY_GALLONS * weightLbsPerGallon;
+    const double recirculationLeft   = leaksThisFrame ? FuelRecirculation_A32NX::returnedPounds(
+                                                            simData.fuelRecirculationFlow[L]->get(), deltaTimeHours, fuelLeftPre,
+                                                            leftAuxQuantity, outerCapacityPounds)
+                                                      : 0.0;  // Pounds
+    const double recirculationRight  = leaksThisFrame ? FuelRecirculation_A32NX::returnedPounds(
+                                                            simData.fuelRecirculationFlow[R]->get(), deltaTimeHours, fuelRightPre,
+                                                            rightAuxQuantity, outerCapacityPounds)
+                                                      : 0.0;  // Pounds
+    if (recirculationLeft > 0.0 || recirculationRight > 0.0) {
+      simData.fuelCandAuxDataPtr->data().fuelCenter   = centerQuantity / weightLbsPerGallon;
+      simData.fuelCandAuxDataPtr->data().fuelLeftAux  = (leftAuxQuantity + recirculationLeft) / weightLbsPerGallon;
+      simData.fuelCandAuxDataPtr->data().fuelRightAux = (rightAuxQuantity + recirculationRight) / weightLbsPerGallon;
+      simData.fuelCandAuxDataPtr->writeDataToSim();
+    }
+
+    //--------------------------------------------
     // Final Fuel levels for left and right inner tanks
-    const double fuelLeft = (fuelLeftPre - (fuelBurn1 * Fadec::KGS_TO_LBS)) + xfrAuxLeft + xfrCenterToLeft - apuBurn1 - leakLeft;  // Pounds
-    const double fuelRight =
-        (fuelRightPre - (fuelBurn2 * Fadec::KGS_TO_LBS)) + xfrAuxRight + xfrCenterToRight - apuBurn2 - leakRight;  // Pounds
+    const double fuelLeft = (fuelLeftPre - (fuelBurn1 * Fadec::KGS_TO_LBS)) + xfrAuxLeft + xfrCenterToLeft - apuBurn1 - leakLeft -
+                            recirculationLeft;  // Pounds
+    const double fuelRight = (fuelRightPre - (fuelBurn2 * Fadec::KGS_TO_LBS)) + xfrAuxRight + xfrCenterToRight - apuBurn2 -
+                             leakRight - recirculationRight;  // Pounds
 
     //--------------------------------------------
     // Setting new pre-cycle conditions
@@ -1159,8 +1183,8 @@ void EngineControl_A32NX::updateFuel(double deltaTimeSeconds) {
     simData.engineFuelUsed[L]->set(fuelUsedLeft);
     simData.engineFuelUsed[R]->set(fuelUsedRight);
 
-    simData.fuelAuxLeftPre->set(leftAuxQuantity);
-    simData.fuelAuxRightPre->set(rightAuxQuantity);
+    simData.fuelAuxLeftPre->set(leftAuxQuantity + recirculationLeft);
+    simData.fuelAuxRightPre->set(rightAuxQuantity + recirculationRight);
     simData.fuelCenterPre->set(centerQuantity);
 
     simData.fuelLeftPre->set(fuelLeft);    // in Pounds

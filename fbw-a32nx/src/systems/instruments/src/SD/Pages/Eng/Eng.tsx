@@ -11,6 +11,7 @@ import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
 import { isStartIndicationShown } from './StartIndications';
 import { fuelFilterClogShown } from './EngFuelFilterIndication';
+import { nacelleTemperatureClassName, nacelleTemperatureShown } from './EngNacelleTemperature';
 import { FUEL_USED_DEGRADED_TEXT } from '@shared/FuelUsedAccuracy';
 import { N1_VIBRATION_ADVISORY_UNITS, N2_VIBRATION_ADVISORY_UNITS, vibrationClassName } from './EngVibration';
 import {
@@ -34,6 +35,14 @@ export const EngPage: FC = () => {
   const [engSelectorPosition] = useSimVar('L:XMLVAR_ENG_MODE_SEL', 'Enum');
   const [fadec1On] = useSimVar('L:A32NX_FADEC_POWERED_ENG1', 'bool');
   const [fadec2On] = useSimVar('L:A32NX_FADEC_POWERED_ENG2', 'bool');
+  const [nacelleTemperature1] = useSimVar('L:A32NX_ENGINE_1_NACELLE_TEMPERATURE', 'celsius', 500);
+  const [nacelleTemperature2] = useSimVar('L:A32NX_ENGINE_2_NACELLE_TEMPERATURE', 'celsius', 500);
+  const [engineState1] = useSimVar('L:A32NX_ENGINE_STATE:1', 'number', 500);
+  const [engineState2] = useSimVar('L:A32NX_ENGINE_STATE:2', 'number', 500);
+  const nacelleTemperatureIsShown = nacelleTemperatureShown(
+    [nacelleTemperature1, nacelleTemperature2],
+    [engineState1, engineState2],
+  );
   return (
     <EcamPage name="main-eng">
       <PageTitle x={6} y={18} text="ENGINE" />
@@ -91,6 +100,23 @@ export const EngPage: FC = () => {
           PSI
         </text>
         <line className="Indicator" x1={350} y1={488} x2={375} y2={490} />
+      </SvgGroup>
+
+      <SvgGroup x={0} y={0} className={`${!nacelleTemperatureIsShown && 'Hidden'}`}>
+        <line className="Indicator" x1={250} y1={548} x2={225} y2={550} />
+        <text x={300} y={546} className="FillWhite FontSmall TextCenter">
+          NAC
+        </text>
+        <text x={300} y={566} className="FillCyan FontSmall TextCenter">
+          &deg;C
+        </text>
+        <line className="Indicator" x1={350} y1={548} x2={375} y2={550} />
+        <text x={180} y={548} className={`FontLarge TextCenter ${nacelleTemperatureClassName(nacelleTemperature1)}`}>
+          {Math.round(nacelleTemperature1)}
+        </text>
+        <text x={420} y={548} className={`FontLarge TextCenter ${nacelleTemperatureClassName(nacelleTemperature2)}`}>
+          {Math.round(nacelleTemperature2)}
+        </text>
       </SvgGroup>
 
       <EngineColumn x={210} y={40} engineNumber={2} fadecOn={fadec2On} />

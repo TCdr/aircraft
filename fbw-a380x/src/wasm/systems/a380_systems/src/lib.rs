@@ -10,7 +10,6 @@ mod electrical;
 mod engine_control_failure;
 mod engine_failure;
 mod engine_malfunction;
-mod engine_nacelle_temperature;
 #[cfg(test)]
 mod engine_out_aircraft_tests;
 mod fadec_automatic_shutdown;
@@ -37,7 +36,6 @@ use self::{
     engine_control_failure::A380EngineControlFailures,
     engine_failure::A380EngineFailures,
     engine_malfunction::A380EngineMalfunctions,
-    engine_nacelle_temperature::A380EngineNacelles,
     fadec_power::A380FadecPowerSupplies,
     fuel::A380Fuel,
     pneumatic::{A380Pneumatic, A380PneumaticOverheadPanel},
@@ -72,6 +70,7 @@ use systems::{
     engine::{
         engine_monitoring_fault::{EngineMonitoringFaultKind, EngineMonitoringFaults},
         fuel_filter_failure::EngineFuelFilterFailures,
+        nacelle_temperature::EngineNacelles,
         oil_failure::EngineOilFailures,
         reverser_thrust::ReverserForce,
         trent_engine::TrentEngine,
@@ -148,7 +147,7 @@ pub struct A380 {
     engine_control_failures: A380EngineControlFailures,
     /// The supply of the FADECs, their EEC channels and the other engine loads
     fadec_power: A380FadecPowerSupplies,
-    engine_nacelles: A380EngineNacelles,
+    engine_nacelles: EngineNacelles<4>,
     electrical: A380Electrical,
     power_consumption: A380PowerConsumption,
     ext_pwrs: [ExternalPowerSource; 4],
@@ -222,7 +221,7 @@ impl A380 {
             engine_malfunctions: A380EngineMalfunctions::new(context),
             engine_control_failures: A380EngineControlFailures::new(context),
             fadec_power: A380FadecPowerSupplies::new(context),
-            engine_nacelles: A380EngineNacelles::new(context),
+            engine_nacelles: EngineNacelles::new(context, 0.25),
             electrical: A380Electrical::new(context),
             power_consumption: A380PowerConsumption::new(context),
             ext_pwrs: [1, 2, 3, 4].map(|i| ExternalPowerSource::new(context, i)),
