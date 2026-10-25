@@ -15,6 +15,7 @@ pub mod engine_start;
 pub mod fuel_filter_failure;
 pub mod hp_fuel_valve_failure;
 pub mod leap_engine;
+pub mod nacelle_temperature;
 pub mod oil_failure;
 pub mod reverser;
 pub mod reverser_thrust;

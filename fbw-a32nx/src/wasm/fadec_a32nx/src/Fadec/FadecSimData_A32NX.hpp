@@ -250,6 +250,9 @@ class FadecSimData_A32NX {
   NamedVariablePtr thrustLimitToga;
   // The wing tank leak failures (systems host Fuel/FuelLevelSensing, flyPad failures 28016/28017), WingTankLeak_A32NX.hpp
   NamedVariablePtr wingTankLeak[2];
+  // The IDG cooling fuel recirculation (systems WASM fuel/fuel_recirculation.rs): the flow back to the tank, kg/h, and the minimum N2 raise
+  NamedVariablePtr fuelRecirculationFlow[2];
+  NamedVariablePtr fuelRecirculationRaisesMinimumN2[2];
   NamedVariablePtr thrustLimitType;
   NamedVariablePtr wingAntiIce;
 
@@ -437,6 +440,10 @@ class FadecSimData_A32NX {
     refuelStartedByUser = dm->make_named_var("A32NX_REFUEL_STARTED_BY_USR", UNITS.Number, AUTO_READ);
     wingTankLeak[L]     = dm->make_named_var("A32NX_FUEL_L_WING_TK_LEAK", UNITS.Number, AUTO_READ);
     wingTankLeak[R]     = dm->make_named_var("A32NX_FUEL_R_WING_TK_LEAK", UNITS.Number, AUTO_READ);
+    fuelRecirculationFlow[L] = dm->make_named_var("A32NX_FUEL_ENG_1_RECIRCULATION_FLOW", UNITS.Number, AUTO_READ);
+    fuelRecirculationFlow[R] = dm->make_named_var("A32NX_FUEL_ENG_2_RECIRCULATION_FLOW", UNITS.Number, AUTO_READ);
+    fuelRecirculationRaisesMinimumN2[L] = dm->make_named_var("A32NX_FUEL_ENG_1_RECIRCULATION_RAISES_MINIMUM_N2", UNITS.Number, AUTO_READ);
+    fuelRecirculationRaisesMinimumN2[R] = dm->make_named_var("A32NX_FUEL_ENG_2_RECIRCULATION_RAISES_MINIMUM_N2", UNITS.Number, AUTO_READ);
     airlinerToFlexTemp  = dm->make_named_var("A32NX_AIRLINER_TO_FLEX_TEMP", UNITS.Number, AUTO_READ);
     apuRpmPercent       = dm->make_named_var("A32NX_APU_N_RAW", UNITS.Number, AUTO_READ);
 

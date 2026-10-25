@@ -70,6 +70,7 @@ use systems::{
         engine_monitoring_fault::{EngineMonitoringFaultKind, EngineMonitoringFaults},
         fuel_filter_failure::EngineFuelFilterFailures,
         leap_engine::LeapEngine,
+        nacelle_temperature::EngineNacelles,
         oil_failure::EngineOilFailures,
         reverser_thrust::ReverserForce,
         EngineFireOverheadPanel,
@@ -130,6 +131,8 @@ pub struct A320 {
     fuel: A320Fuel,
     engine_1: LeapEngine,
     engine_2: LeapEngine,
+    /// The nacelle temperature of each engine, for the SD ENG page
+    engine_nacelles: EngineNacelles<2>,
     engine_fire_overhead: EngineFireOverheadPanel<2>,
     engine_failures: A320EngineFailures,
     /// Oil leak, oil filter clog and oil overheat of each engine, applied by the FADEC
@@ -193,6 +196,9 @@ impl A320 {
             fuel: A320Fuel::new(context),
             engine_1: LeapEngine::new(context, 1),
             engine_2: LeapEngine::new(context, 2),
+            // Design choice: the nacelle of an engine at takeoff power stays near 200 °C, below the 240 °C
+            // advisory; only an EGT near the redline on a hot day brings it to the advisory.
+            engine_nacelles: EngineNacelles::new(context, 0.2),
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
             engine_failures: A320EngineFailures::new(context),
             engine_oil_failures: EngineOilFailures::new(context),
@@ -349,6 +355,7 @@ impl Aircraft for A320 {
             self.engine_interface_units.operative(),
         );
         self.engine_malfunctions.update(context);
+        self.engine_nacelles.update(context);
 
         self.lgcius.update(
             context,
@@ -489,6 +496,7 @@ impl SimulationElement for A320 {
         self.pneumatic_overhead.accept(visitor);
         self.engine_1.accept(visitor);
         self.engine_2.accept(visitor);
+        self.engine_nacelles.accept(visitor);
         self.engine_fire_overhead.accept(visitor);
         self.engine_failures.accept(visitor);
         self.engine_oil_failures.accept(visitor);
@@ -577,12 +585,19 @@ mod tests {
         assert!(!other_cut);
     }
 
-    /// The fuel temperature model (fuel/fuel_temperature.rs) gets the engines of the aircraft: with
-    /// both engines at idle on the ground, the IDG cooling fuel return warms the outer cells above
-    /// the inner cells, and the wing cell temperatures are written for the SD and the FWC.
+    /// The fuel temperature model (fuel/fuel_temperature.rs) gets the IDG return flow of the fuel
+    /// recirculation: with both fuel return valves failed open, the IDG cooling fuel return warms
+    /// the outer cells above the inner cells, and the wing cell temperatures are written for the
+    /// SD and the FWC.
     #[test]
     fn the_idg_return_of_the_running_engines_warms_the_outer_cells() {
         let mut test_bed = aircraft_with_engines_at_idle();
+        for engine_number in 1..=2 {
+            test_bed.fail(FailureType::EngineMonitoringFault(
+                engine_number,
+                EngineMonitoringFaultKind::FuelReturnValveFailedOpen,
+            ));
+        }
         for (tank, gallons) in [
             ("LEFT MAIN", 1500.),
             ("RIGHT MAIN", 1500.),
@@ -612,6 +627,43 @@ mod tests {
                 inner
             );
         }
+    }
+
+    /// The IDG oil that overheats at idle makes the FADEC send the cooling fuel back to the tank,
+    /// raise the minimum N2 and then increase the return (fuel/fuel_recirculation.rs); a healthy
+    /// IDG oil does not. The failed recirculation command keeps the valve closed.
+    #[test]
+    fn a_hot_idg_oil_at_idle_starts_the_fuel_recirculation() {
+        let mut test_bed = aircraft_with_engines_at_idle();
+        for tank in ["LEFT MAIN", "RIGHT MAIN", "LEFT AUX", "RIGHT AUX"] {
+            test_bed.write_by_name(&format!("FUEL TANK {} QUANTITY", tank), 1500.);
+        }
+        // The wing tank pumps run: the engines are not fed by gravity (which inhibits the return)
+        for pump in [2, 3, 5, 6] {
+            test_bed.write_by_name(&format!("FUELSYSTEM PUMP ACTIVE:{}", pump), true);
+        }
+        for engine_number in 1..=2 {
+            test_bed.write_by_name(&format!("TURB ENG CORRECTED N2:{}", engine_number), 62.);
+        }
+        for _ in 0..(30 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+        let healthy_flow: f64 = test_bed.read_by_name("FUEL_ENG_1_RECIRCULATION_FLOW");
+        assert_eq!(healthy_flow, 0.);
+
+        test_bed.fail(FailureType::IntegratedDriveGeneratorOilOverheat(1));
+        test_bed.fail(FailureType::FuelRecirculationCommand(2));
+        test_bed.fail(FailureType::IntegratedDriveGeneratorOilOverheat(2));
+        for _ in 0..(150 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+        let flow: f64 = test_bed.read_by_name("FUEL_ENG_1_RECIRCULATION_FLOW");
+        let raises_minimum_n2: bool =
+            test_bed.read_by_name("FUEL_ENG_1_RECIRCULATION_RAISES_MINIMUM_N2");
+        let flow_without_command: f64 = test_bed.read_by_name("FUEL_ENG_2_RECIRCULATION_FLOW");
+        assert!(flow >= 300., "{}", flow);
+        assert!(raises_minimum_n2);
+        assert_eq!(flow_without_command, 0.);
     }
 
     /// FUEL APU LP VALVE FAULT: the flyPad failure 28011 (a320_systems_wasm) jams the APU LP fuel
