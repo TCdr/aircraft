@@ -18,6 +18,7 @@
 #include "fac/AlphaFloorConditions.h"
 #include "fac/Fac.h"
 #include "fac/FacActuatorMonitor.h"
+#include "fadec/TakeoffAutoToga.h"
 #include "failures/FailuresConsumer.h"
 #include "fcdc/Fcdc.h"
 #include "fcu/Fcu.h"
@@ -170,6 +171,7 @@ class FlyByWireInterface {
   base_ecu_bus fadecBusOutputs[2];
   // MSFS throttle of an engine out or (re)starting in flight, and its acceleration from idle once it runs
   EngineStartThrottleHold engineStartThrottleHolds[2];
+  TakeoffAutoToga takeoffAutoTogas[2];
 
   InterpolatingLookupTable throttleLookupTable;
 

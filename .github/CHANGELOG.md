@@ -753,6 +753,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SIGNS] The SEAT BELTS memo comes on above 11 300 ft cabin altitude whatever the switch - @TCdr
 1. [A32NX/FLYPAD] New failures: crew oxygen bottle leak (ATA 35), door proximity sensors and cockpit door locking system latches, pressure sensors and control unit (ATA 52) - @TCdr
 1. [A32NX/DOORS] The COCKPIT DOOR FAULT light and the CKPT DOOR CONT strike and CHAN lights come on with their cockpit door locking system failure; a failed door proximity sensor shows its door not closed on the DOOR/OXY page and ECAM - @TCdr
+1. [A32NX/FADEC] At takeoff without a FLEX temperature, the FADEC selects TOGA thrust 8 s after the thrust levers are set between CL and TOGA (ENG THR LEVERS NOT SET), until the levers go back to CL or below - @TCdr
 
 ## 2024.1.0
 

@@ -2745,10 +2745,14 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
 
   fadecInputs[fadecIndex].in.input.ATHR_disconnect =
       simConnectInterface.getSimInputThrottles().ATHR_disconnect || idAutothrustDisconnect->get() == 1;
-  // the thrust lever, or the angle of a FADEC protection or a thrust lever failure (systems.wasm)
+  // the thrust lever (TOGA once the FADEC selected it at takeoff), or the angle of a FADEC protection or a thrust lever failure
+  // (systems.wasm)
+  const double leverAngleWithAutoToga = takeoffAutoTogas[fadecIndex].update(
+      {fadecIndex == 0 ? thrustLeverAngle_1->get() : thrustLeverAngle_2->get(), fadecInputs[fadecIndex].in.data.on_ground != 0,
+       fadecOutputs[fadecIndex].thrust_limit_type == athr_thrust_limit_type::TOGA},
+      sampleTime);
   fadecInputs[fadecIndex].in.input.TLA_deg = FadecFailureInputs::fadecModelThrustLeverAngle(
-      fadecIndex == 0 ? thrustLeverAngle_1->get() : thrustLeverAngle_2->get(), idEngineFadecTlaOverrideActive[fadecIndex]->get(),
-      idEngineFadecTlaOverride[fadecIndex]->get());
+      leverAngleWithAutoToga, idEngineFadecTlaOverrideActive[fadecIndex]->get(), idEngineFadecTlaOverride[fadecIndex]->get());
   fadecInputs[fadecIndex].in.input.thrust_limit_REV_percent = idAutothrustThrustLimitREV->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_IDLE_percent = idAutothrustThrustLimitIDLE->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_CLB_percent = idAutothrustThrustLimitCLB->get();

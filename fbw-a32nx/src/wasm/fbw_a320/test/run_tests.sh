@@ -45,3 +45,8 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS autoland_warning_test.cpp -o
 # FAC alpha floor: sidestick case and engine-out loss (A320 FCOM DSC-22_40-30)
 clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS alpha_floor_conditions_test.cpp -o ../obj/alpha_floor_conditions_test
 ../obj/alpha_floor_conditions_test
+# FADEC automatic TOGA at takeoff without flex (ENG THR LEVERS NOT SET), with the generated FadecComputer
+clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS -I ../src -I ../src/model \
+  takeoff_auto_toga_test.cpp ../src/model/FadecComputer.cpp ../src/model/FadecComputer_data.cpp \
+  -o ../obj/takeoff_auto_toga_test
+../obj/takeoff_auto_toga_test
