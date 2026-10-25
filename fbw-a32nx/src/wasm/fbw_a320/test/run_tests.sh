@@ -63,3 +63,8 @@ clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/sr
   ap_overspeed_disconnect_test.cpp ../src/fmgc/Fmgc.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp \
   ../src/utils/PowerSupplyMonitor.cpp -o ../obj/ap_overspeed_disconnect_test
 ../obj/ap_overspeed_disconnect_test
+# FADEC automatic TOGA at takeoff without flex (ENG THR LEVERS NOT SET), with the generated FadecComputer
+clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS -I ../src -I ../src/model \
+  takeoff_auto_toga_test.cpp ../src/model/FadecComputer.cpp ../src/model/FadecComputer_data.cpp \
+  -o ../obj/takeoff_auto_toga_test
+../obj/takeoff_auto_toga_test
