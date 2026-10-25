@@ -4513,13 +4513,16 @@ A380PrimComputerFctl::Parameters_A380PrimComputerFctl_T A380PrimComputerFctl::A3
   0.017453292519943295,
 
 
-  { 350.0, 350.0, 350.0, 350.0 },
+  // High speed protection activation against the flight path angle (-4, -3, -1, 0 deg): VMO + 10 kt near level
+  // flight, VMO in a dive of 3 deg or more, where the speed builds too fast for a later start to stop below VD.
+  { 340.0, 340.0, 350.0, 350.0 },
 
 
   { -4.0, -3.0, -1.0, 0.0 },
 
 
-  { 0.91, 0.91, 0.91, 0.91 },
+  // The same in Mach: MMO + .02 near level flight, MMO in a dive.
+  { 0.89, 0.89, 0.91, 0.91 },
 
 
   { -4.0, -3.0, -1.0, 0.0 },
