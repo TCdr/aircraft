@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -27,6 +27,8 @@ import { Arinc429Values } from './shared/ArincValueProvider';
 import { PFDSimvars } from './shared/PFDSimvarPublisher';
 import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
 import { isDisconnectApForLdg, isForGaSetToga, isSetGreenDotSpeed } from './FmaLine3Messages';
+import { flsCapabilityLines, lsModeText } from './FmaLsModes';
+import { FlsCapability, flsCapability } from '@flybywiresim/pfd';
 
 /* eslint-disable no-constant-condition,no-dupe-else-if -- for keeping the FMA code while it's not active yet */
 
@@ -1043,6 +1045,8 @@ class B1Cell extends ShowForSecondsComponent<CellProps> {
 
   private fmAltitudeConstraint = new Arinc429Word(0);
 
+  private flsVerticalActive = false;
+
   private previousText = '';
 
   constructor(props: CellProps) {
@@ -1076,13 +1080,9 @@ class B1Cell extends ShowForSecondsComponent<CellProps> {
 
     this.isShown = true;
     if (gsMode && gsTrackMode) {
-      text = 'G/S';
-    } else if (false) {
-      text = 'F-G/S';
+      text = lsModeText('G/S', this.flsVerticalActive);
     } else if (gsMode && gsCaptureMode) {
-      text = 'G/S*';
-    } else if (false) {
-      text = 'F-G/S*';
+      text = lsModeText('G/S*', this.flsVerticalActive);
     } else if (expedMode && descentMode) {
       text = 'EXP DES';
     } else if (expedMode && climbMode) {
@@ -1185,13 +1185,21 @@ class B1Cell extends ShowForSecondsComponent<CellProps> {
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    const sub = this.props.bus.getSubscriber<Arinc429Values & FgBus & FcuBus>();
+    const sub = this.props.bus.getSubscriber<Arinc429Values & FgBus & FcuBus & PFDSimvars>();
 
     sub
       .on('fmgcDiscreteWord1')
       .whenChanged()
       .handle((word) => {
         this.fmgcDiscreteWord1 = word;
+        this.getText();
+      });
+
+    sub
+      .on('flsVerticalActive')
+      .whenChanged()
+      .handle((active) => {
+        this.flsVerticalActive = active;
         this.getText();
       });
 
@@ -1299,6 +1307,8 @@ class B2Cell extends DisplayComponent<CellProps> {
 
   private fmgcDiscreteWord3 = new Arinc429Word(0);
 
+  private flsVerticalActive = false;
+
   private handleMessage(): void {
     const altAcqArmed = this.fmgcDiscreteWord3.bitValueOr(12, false);
     const clbArmed = this.fmgcDiscreteWord3.bitValueOr(24, false);
@@ -1319,10 +1329,8 @@ class B2Cell extends DisplayComponent<CellProps> {
     }
 
     let text2;
-    if (false) {
-      text2 = 'F-G/S';
-    } else if (this.fmgcDiscreteWord3.bitValueOr(22, false)) {
-      text2 = 'G/S';
+    if (this.fmgcDiscreteWord3.bitValueOr(22, false)) {
+      text2 = lsModeText('G/S', this.flsVerticalActive);
     } else if (this.fmgcDiscreteWord3.bitValueOr(23, false)) {
       text2 = 'FINAL';
     } else {
@@ -1337,13 +1345,21 @@ class B2Cell extends DisplayComponent<CellProps> {
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    const sub = this.props.bus.getSubscriber<Arinc429Values & FgBus>();
+    const sub = this.props.bus.getSubscriber<Arinc429Values & FgBus & PFDSimvars>();
 
     sub
       .on('fmgcDiscreteWord3')
       .whenChanged()
       .handle((word) => {
         this.fmgcDiscreteWord3 = word;
+        this.handleMessage();
+      });
+
+    sub
+      .on('flsVerticalActive')
+      .whenChanged()
+      .handle((active) => {
+        this.flsVerticalActive = active;
         this.handleMessage();
       });
 
@@ -1379,6 +1395,8 @@ class C1Cell extends ShowForSecondsComponent<CellProps> {
 
   private fmgcDiscreteWord3 = new Arinc429Word(0);
 
+  private flsLateralActive = false;
+
   private textSub = Subject.create('');
 
   constructor(props: CellProps) {
@@ -1388,7 +1406,16 @@ class C1Cell extends ShowForSecondsComponent<CellProps> {
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    const sub = this.props.bus.getSubscriber<Arinc429Values & FgBus>();
+    const sub = this.props.bus.getSubscriber<Arinc429Values & FgBus & PFDSimvars>();
+
+    sub
+      .on('flsLateralActive')
+      .whenChanged()
+      .handle((active) => {
+        this.flsLateralActive = active;
+
+        this.updateText();
+      });
 
     sub
       .on('fmgcDiscreteWord1')
@@ -1439,9 +1466,7 @@ class C1Cell extends ShowForSecondsComponent<CellProps> {
     } else if (locCaptActive && backbeamMode) {
       text = 'LOC B/C*';
     } else if (locCaptActive && !backbeamMode) {
-      text = 'LOC *';
-    } else if (false) {
-      text = 'F-LOC *';
+      text = lsModeText('LOC *', this.flsLateralActive);
     } else if (headingActive) {
       text = 'HDG';
     } else if (runwayActive && runwayLocSubmodeActive) {
@@ -1453,9 +1478,7 @@ class C1Cell extends ShowForSecondsComponent<CellProps> {
     } else if (locTrackActive && backbeamMode) {
       text = 'LOC B/C';
     } else if (locTrackActive && !backbeamMode) {
-      text = 'LOC';
-    } else if (false) {
-      text = 'F-LOC';
+      text = lsModeText('LOC', this.flsLateralActive);
     } else if (navActive && !finalDesActive && finalDesArmed) {
       text = 'APP NAV';
     } else if (navActive && !finalDesActive && !finalDesArmed) {
@@ -1499,6 +1522,8 @@ class C2Cell extends DisplayComponent<CellProps> {
 
   private fmgcDiscreteWord3 = new Arinc429Word(0);
 
+  private flsLateralActive = false;
+
   private textSub = Subject.create('');
 
   private getText() {
@@ -1513,9 +1538,7 @@ class C2Cell extends DisplayComponent<CellProps> {
     if (locArmed && backbeamMode) {
       text = 'LOC B/C';
     } else if (locArmed && !backbeamMode) {
-      text = 'LOC';
-    } else if (false) {
-      text = 'F-LOC';
+      text = lsModeText('LOC', this.flsLateralActive);
     } else if (navArmed && (finalArmed || finalActive)) {
       text = 'APP NAV';
     } else if (navArmed) {
@@ -1528,7 +1551,7 @@ class C2Cell extends DisplayComponent<CellProps> {
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    const sub = this.props.bus.getSubscriber<Arinc429Values & FgBus>();
+    const sub = this.props.bus.getSubscriber<Arinc429Values & FgBus & PFDSimvars>();
 
     sub
       .on('fmgcDiscreteWord1')
@@ -1543,6 +1566,14 @@ class C2Cell extends DisplayComponent<CellProps> {
       .whenChanged()
       .handle((word) => {
         this.fmgcDiscreteWord3 = word;
+        this.getText();
+      });
+
+    sub
+      .on('flsLateralActive')
+      .whenChanged()
+      .handle((active) => {
+        this.flsLateralActive = active;
         this.getText();
       });
   }
@@ -1797,9 +1828,27 @@ class BC3Cell extends DisplayComponent<{ BC3Message: Subscribable<string[]> } & 
 }
 
 class D1D2Cell extends ShowForSecondsComponent<CellProps> {
+  private fmgcDiscreteWord1 = new Arinc429Word(0);
+
+  private fmgcDiscreteWord2 = new Arinc429Word(0);
+
   private fmgcDiscreteWord4 = new Arinc429Word(0);
 
   private fmgcDiscreteWord3 = new Arinc429Word(0);
+
+  private flsLateralActive = false;
+
+  private flsVerticalActive = false;
+
+  private flsLocValid = false;
+
+  private flsGsValid = false;
+
+  private fmGpsPrimary = false;
+
+  private fmNavAccuracyHigh = false;
+
+  private fmGpsPositionDisagree = false;
 
   private text1Sub = Subject.create('');
 
@@ -1816,10 +1865,29 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
     const land3FailPassiveCapacity = this.fmgcDiscreteWord4.bitValueOr(24, false);
     const land3FailOperationalCapacity = this.fmgcDiscreteWord4.bitValueOr(25, false);
 
+    const locArmed = this.fmgcDiscreteWord3.bitValueOr(16, false);
+    const gsArmed = this.fmgcDiscreteWord3.bitValueOr(22, false);
+    const locCaptOrTrackActive =
+      this.fmgcDiscreteWord2.bitValueOr(13, false) || this.fmgcDiscreteWord2.bitValueOr(14, false);
+    const gsMode = this.fmgcDiscreteWord1.bitValueOr(22, false);
+    const capability = flsCapability({
+      flsLateralActive: this.flsLateralActive,
+      flsVerticalActive: this.flsVerticalActive,
+      approachModesArmedOrEngaged: locArmed || gsArmed || locCaptOrTrackActive || gsMode,
+      flsLocValid: this.flsLocValid,
+      flsGsValid: this.flsGsValid,
+      gpsPrimary: this.fmGpsPrimary,
+      navAccuracyHigh: this.fmNavAccuracyHigh,
+      fmGpsPositionDisagree: this.fmGpsPositionDisagree,
+    });
+
     let text1: string;
     let text2: string | undefined;
     this.isShown = true;
-    if (land2Capacity) {
+    // The FLS capability replaces the landing capabilities: no CAT1/2/3 on an FLS approach
+    if (capability !== FlsCapability.None) {
+      [text1, text2] = flsCapabilityLines(capability);
+    } else if (land2Capacity) {
       text1 = 'CAT2';
       text2 = '';
     } else if (land3FailPassiveCapacity) {
@@ -1834,14 +1902,6 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
     } else if (false) {
       text1 = 'AUTO';
       text2 = 'LAND';
-    } else if (false) {
-      text1 = 'F-APP';
-    } else if (false) {
-      text1 = 'F-APP';
-      text2 = '+ RAW';
-    } else if (false) {
-      text1 = 'RAW';
-      text2 = 'ONLY';
     } else {
       text1 = '';
       text2 = '';
@@ -1869,13 +1929,85 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    const sub = this.props.bus.getSubscriber<Arinc429Values & FgBus>();
+    const sub = this.props.bus.getSubscriber<Arinc429Values & FgBus & PFDSimvars>();
+
+    sub
+      .on('fmgcDiscreteWord1')
+      .whenChanged()
+      .handle((c) => {
+        this.fmgcDiscreteWord1 = c;
+        this.setText();
+      });
+
+    sub
+      .on('fmgcDiscreteWord2')
+      .whenChanged()
+      .handle((c) => {
+        this.fmgcDiscreteWord2 = c;
+        this.setText();
+      });
 
     sub
       .on('fmgcDiscreteWord4')
       .whenChanged()
       .handle((c) => {
         this.fmgcDiscreteWord4 = c;
+        this.setText();
+      });
+
+    sub
+      .on('flsLateralActive')
+      .whenChanged()
+      .handle((v) => {
+        this.flsLateralActive = v;
+        this.setText();
+      });
+
+    sub
+      .on('flsVerticalActive')
+      .whenChanged()
+      .handle((v) => {
+        this.flsVerticalActive = v;
+        this.setText();
+      });
+
+    sub
+      .on('flsLocValid')
+      .whenChanged()
+      .handle((v) => {
+        this.flsLocValid = v;
+        this.setText();
+      });
+
+    sub
+      .on('flsGsValid')
+      .whenChanged()
+      .handle((v) => {
+        this.flsGsValid = v;
+        this.setText();
+      });
+
+    sub
+      .on('fmGpsPrimary')
+      .whenChanged()
+      .handle((v) => {
+        this.fmGpsPrimary = v;
+        this.setText();
+      });
+
+    sub
+      .on('fmNavAccuracyHigh')
+      .whenChanged()
+      .handle((v) => {
+        this.fmNavAccuracyHigh = v;
+        this.setText();
+      });
+
+    sub
+      .on('fmGpsPositionDisagree')
+      .whenChanged()
+      .handle((v) => {
+        this.fmGpsPositionDisagree = v;
         this.setText();
       });
 

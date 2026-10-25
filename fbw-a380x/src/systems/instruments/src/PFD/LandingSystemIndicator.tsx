@@ -17,6 +17,7 @@ import { LagFilter } from './PFDUtils';
 import { FcuEfisCpBusEvents } from '@shared/publishers/EfisCpBusPublisher';
 import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
 import { PrimFgBusBaseEvents } from '@shared/publishers/PrimFgPublisher';
+import { isLsDeviationValid, lsDeviation, lsTitleText } from '@flybywiresim/pfd';
 
 export class LandingSystem extends DisplayComponent<{ bus: ArincEventBus; instrument: BaseInstrument }> {
   private readonly sub = this.props.bus.getArincSubscriber<Arinc429Values & FcuEfisCpBusEvents>();
@@ -273,21 +274,32 @@ class LocalizerIndicator extends DisplayComponent<{ bus: EventBus; instrument: B
 
     const sub = this.props.bus.getSubscriber<PFDSimvars>();
 
-    const navRadialSub = sub.on('navRadialError').handle(this.handleNavRadialError.bind(this), true);
+    const flsLateralActive = ConsumerSubject.create(sub.on('flsLateralActive'), false);
+    const flsLocDeviation = ConsumerSubject.create(sub.on('flsLocDeviation'), 0);
 
-    sub
-      .on('hasLoc')
-      .whenChanged()
-      .handle((hasLoc) => {
-        if (hasLoc) {
-          this.diamondGroup.instance.classList.remove('HiddenElement');
-          navRadialSub.resume(true);
-        } else {
-          this.diamondGroup.instance.classList.add('HiddenElement');
-          this.lagFilter.reset();
-          navRadialSub.pause();
-        }
-      });
+    const navRadialSub = sub
+      .on('navRadialError')
+      .handle(
+        (ilsDeviation) =>
+          this.handleNavRadialError(lsDeviation(flsLateralActive.get(), ilsDeviation, flsLocDeviation.get())),
+        true,
+      );
+
+    MappedSubject.create(
+      ([flsActive, ilsLocValid, flsLocValid]) => isLsDeviationValid(flsActive, ilsLocValid, flsLocValid),
+      flsLateralActive,
+      ConsumerSubject.create(sub.on('hasLoc'), false),
+      ConsumerSubject.create(sub.on('flsLocValid'), false),
+    ).sub((hasLoc) => {
+      if (hasLoc) {
+        this.diamondGroup.instance.classList.remove('HiddenElement');
+        navRadialSub.resume(true);
+      } else {
+        this.diamondGroup.instance.classList.add('HiddenElement');
+        this.lagFilter.reset();
+        navRadialSub.pause();
+      }
+    }, true);
   }
 
   render(): VNode {
@@ -373,22 +385,27 @@ class GlideSlopeIndicator extends DisplayComponent<{ bus: EventBus; instrument: 
 
     const sub = this.props.bus.getSubscriber<PFDSimvars>();
 
-    sub
-      .on('hasGlideslope')
-      .whenChanged()
-      .handle((hasGlideSlope) => {
-        this.hasGlideSlope = hasGlideSlope;
-        if (hasGlideSlope) {
-          this.diamondGroup.instance.classList.remove('HiddenElement');
-        } else {
-          this.diamondGroup.instance.classList.add('HiddenElement');
-          this.lagFilter.reset();
-        }
-      });
+    const flsVerticalActive = ConsumerSubject.create(sub.on('flsVerticalActive'), false);
+    const flsGsDeviation = ConsumerSubject.create(sub.on('flsGsDeviation'), 0);
+
+    MappedSubject.create(
+      ([flsActive, ilsGsValid, flsGsValid]) => isLsDeviationValid(flsActive, ilsGsValid, flsGsValid),
+      flsVerticalActive,
+      ConsumerSubject.create(sub.on('hasGlideslope'), false),
+      ConsumerSubject.create(sub.on('flsGsValid'), false),
+    ).sub((hasGlideSlope) => {
+      this.hasGlideSlope = hasGlideSlope;
+      if (hasGlideSlope) {
+        this.diamondGroup.instance.classList.remove('HiddenElement');
+      } else {
+        this.diamondGroup.instance.classList.add('HiddenElement');
+        this.lagFilter.reset();
+      }
+    }, true);
 
     sub.on('glideSlopeError').handle((gs) => {
       if (this.hasGlideSlope) {
-        this.handleGlideSlopeError(gs);
+        this.handleGlideSlopeError(lsDeviation(flsVerticalActive.get(), gs, flsGsDeviation.get()));
       }
     });
   }
@@ -619,7 +636,22 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
 
   private readonly lsTitle = FSComponent.createRef<SVGTextElement>();
 
-  private readonly hasLoc = ConsumerSubject.create(this.sub.on('hasLoc'), false);
+  private readonly flsLateralActive = ConsumerSubject.create(this.sub.on('flsLateralActive'), false);
+
+  private readonly flsVerticalActive = ConsumerSubject.create(this.sub.on('flsVerticalActive'), false);
+
+  private readonly hasLoc = MappedSubject.create(
+    ([flsLateralActive, ilsLocValid, flsLocValid]) => isLsDeviationValid(flsLateralActive, ilsLocValid, flsLocValid),
+    this.flsLateralActive,
+    ConsumerSubject.create(this.sub.on('hasLoc'), false),
+    ConsumerSubject.create(this.sub.on('flsLocValid'), false),
+  );
+
+  private readonly titleText = MappedSubject.create(
+    ([flsLateralActive, flsVerticalActive]) => lsTitleText(flsLateralActive, flsVerticalActive),
+    this.flsLateralActive,
+    this.flsVerticalActive,
+  );
 
   private readonly ilsTitleShown = MappedSubject.create(
     ([hasLoc, lsButton]) => hasLoc && lsButton,
@@ -649,7 +681,7 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
   render(): VNode {
     return (
       <text class="FontLargest Magenta MiddleAlign" ref={this.lsTitle} x="104" y="126">
-        ILS
+        {this.titleText}
       </text>
     );
   }

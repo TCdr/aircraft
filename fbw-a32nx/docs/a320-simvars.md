@@ -2424,6 +2424,14 @@ In the variables below, {number} should be replaced with one item in the set: { 
         - L
         - R
 
+- A32NX_FMGC_{side}_GPS_PRIMARY
+    - Bool
+    - The FMS navigation is in GPS PRIMARY. Written by the FMS (fmgc navigation/Navigation.ts), read by the PFD for the
+      FLS approach capability
+    - {side}
+        - L
+        - R
+
 - `A32NX_FM{number}_BACKBEAM_SELECTED`
     - Bool
     - Indicates to the FG that a localiser back beam is tuned.

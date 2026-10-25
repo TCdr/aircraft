@@ -2854,6 +2854,14 @@ The probe and window heat, ice detectors and drain masts (a380_systems probe_win
 
 ## Navigation ATA 34
 
+- A32NX_FMGC_{side}_GPS_PRIMARY
+    - Bool
+    - The FMS navigation is in GPS PRIMARY. Written by the FMS (fmgc navigation/Navigation.ts), read by the PFD for the
+      FLS approach capability
+    - {side}
+        - L
+        - R
+
 - A32NX_FM_GPS_POS_DISAGREE
     - Bool
     - The FMS FM/GPS position disagree condition for the NAV FM / GPS POS DISAGREE alert: an FMS position more than the

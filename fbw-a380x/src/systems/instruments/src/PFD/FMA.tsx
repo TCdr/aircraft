@@ -24,6 +24,7 @@ import { DmcLogicEvents } from '../MsfsAvionicsCommon/providers/DmcPublisher';
 import { PrimFgBusBaseEvents } from '@shared/publishers/PrimFgPublisher';
 import { PrimFeBusBaseEvents } from '@shared/publishers/PrimFePublisher';
 import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
+import { flsCapability } from '@flybywiresim/pfd';
 import {
   A1A2Messages,
   A3Messages,
@@ -36,6 +37,7 @@ import {
   computeBC3Message,
   computeC1Message,
   computeD1D2Message,
+  armedGlideSlopeText,
   getD1D2Lines,
   D1D2Messages,
   manualTakeoffThrustLabel,
@@ -187,8 +189,12 @@ export class FMA extends DisplayComponent<{
 
   private readonly autoBrakeMode = ConsumerSubject.create(this.sub.on('autoBrakeMode'), 0);
 
-  private readonly B1Message = this.primFgDiscreteWord3.map((primFgDiscreteWord3) =>
-    computeB1Message(primFgDiscreteWord3),
+  private readonly flsVerticalActive = ConsumerSubject.create(this.sub.on('flsVerticalActive'), false);
+
+  private readonly B1Message = MappedSubject.create(
+    ([primFgDiscreteWord3, flsVerticalActive]) => computeB1Message(primFgDiscreteWord3, flsVerticalActive),
+    this.primFgDiscreteWord3,
+    this.flsVerticalActive,
   );
 
   private readonly disconnectApForLdg = MappedSubject.create(
@@ -1134,7 +1140,11 @@ class B1Cell extends ShowForSecondsComponent<B1CellProps> {
 }
 
 class B2Cell extends DisplayComponent<CellProps> {
-  private sub = this.props.bus.getSubscriber<PrimFgBusBaseEvents>();
+  private sub = this.props.bus.getSubscriber<PrimFgBusBaseEvents & PFDSimvars>();
+
+  private readonly armedGsText = ConsumerSubject.create(this.sub.on('flsVerticalActive'), false).map(
+    (flsVerticalActive) => armedGlideSlopeText(flsVerticalActive),
+  );
 
   private primFgDiscreteWord2 = Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_2'));
 
@@ -1155,7 +1165,7 @@ class B2Cell extends DisplayComponent<CellProps> {
   );
 
   private text1Sub = MappedSubject.create(
-    ([primFgDiscreteWord2, primFgDiscreteWord3]) => {
+    ([primFgDiscreteWord2, primFgDiscreteWord3, gsText]) => {
       const altAcqArmed = primFgDiscreteWord2.bitValueOr(11, false);
       const clbArmed = primFgDiscreteWord2.bitValueOr(15, false);
       const desArmed = primFgDiscreteWord2.bitValueOr(16, false);
@@ -1178,22 +1188,23 @@ class B2Cell extends DisplayComponent<CellProps> {
       } else if (altAcqArmed) {
         return gsArmed ? 'ALT ' : '      ALT';
       } else if (gsArmed) {
-        return '      G/S';
+        return `      ${gsText}`;
       } else {
         return '';
       }
     },
     this.primFgDiscreteWord2,
     this.primFgDiscreteWord3,
+    this.armedGsText,
   );
 
   private text2Sub = MappedSubject.create(
-    ([primFgDiscreteWord2, text1Sub]) => {
+    ([primFgDiscreteWord2, text1Sub, gsText]) => {
       const gsArmed = primFgDiscreteWord2.bitValueOr(13, false);
 
       //TODO Improve this logic, very ugly
-      if (gsArmed && text1Sub !== '      G/S') {
-        return '  G/S';
+      if (gsArmed && text1Sub !== `      ${gsText}`) {
+        return `  ${gsText}`;
       } else if (primFgDiscreteWord2.bitValueOr(14, false)) {
         return 'APP-DES';
       } else {
@@ -1202,6 +1213,7 @@ class B2Cell extends DisplayComponent<CellProps> {
     },
     this.primFgDiscreteWord2,
     this.text1Sub,
+    this.armedGsText,
   );
 
   render(): VNode {
@@ -1219,12 +1231,16 @@ class B2Cell extends DisplayComponent<CellProps> {
 }
 
 class C1Cell extends ShowForSecondsComponent<CellProps> {
-  private sub = this.props.bus.getSubscriber<PrimFgBusBaseEvents>();
+  private sub = this.props.bus.getSubscriber<PrimFgBusBaseEvents & PFDSimvars>();
 
   private primFgDiscreteWord4 = Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_4'));
 
-  private readonly message = this.primFgDiscreteWord4.map((primFgDiscreteWord4) =>
-    computeC1Message(primFgDiscreteWord4),
+  private readonly flsLateralActive = ConsumerSubject.create(this.sub.on('flsLateralActive'), false);
+
+  private readonly message = MappedSubject.create(
+    ([primFgDiscreteWord4, flsLateralActive]) => computeC1Message(primFgDiscreteWord4, flsLateralActive),
+    this.primFgDiscreteWord4,
+    this.flsLateralActive,
   );
 
   private readonly text = this.message.map((C1Message) => {
@@ -1290,14 +1306,16 @@ class C1Cell extends ShowForSecondsComponent<CellProps> {
 }
 
 class C2Cell extends DisplayComponent<CellProps> {
-  private sub = this.props.bus.getSubscriber<PrimFgBusBaseEvents>();
+  private sub = this.props.bus.getSubscriber<PrimFgBusBaseEvents & PFDSimvars>();
 
   private primFgDiscreteWord2 = Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_2'));
 
   private primFgDiscreteWord4 = Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_4'));
 
+  private readonly flsLateralActive = ConsumerSubject.create(this.sub.on('flsLateralActive'), false);
+
   private readonly text = MappedSubject.create(
-    ([primFgDiscreteWord2, primFgDiscreteWord4]) => {
+    ([primFgDiscreteWord2, primFgDiscreteWord4, flsLateralActive]) => {
       const navArmed = primFgDiscreteWord2.bitValueOr(22, false);
       const locArmed = primFgDiscreteWord2.bitValueOr(23, false);
       const rwyArmed = primFgDiscreteWord2.bitValueOr(24, false);
@@ -1305,9 +1323,9 @@ class C2Cell extends DisplayComponent<CellProps> {
 
       if (locArmed && backbeamMode) {
         return 'LOC B/C';
-      } else if (locArmed) {
+      } else if (locArmed && !flsLateralActive) {
         return 'LOC';
-      } else if (false) {
+      } else if (locArmed && flsLateralActive) {
         return 'F-LOC';
       } else if (rwyArmed) {
         return 'RWY' + (navArmed ? '  NAV' : '');
@@ -1317,6 +1335,7 @@ class C2Cell extends DisplayComponent<CellProps> {
     },
     this.primFgDiscreteWord2,
     this.primFgDiscreteWord4,
+    this.flsLateralActive,
   );
 
   render(): VNode {
@@ -1529,14 +1548,69 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
     this.hasGs,
   );
 
+  private readonly primFgDiscreteWord3 = Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_3'));
+
+  private readonly primFgDiscreteWord4 = Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_4'));
+
+  private readonly approachModesArmedOrEngaged = MappedSubject.create(
+    ([word2, word3, word4]) => {
+      const locArmed = word2.bitValueOr(23, false);
+      const gsArmed = word2.bitValueOr(13, false);
+      const locCaptOrTrackActive = word4.bitValueOr(13, false) || word4.bitValueOr(14, false);
+      const gsCaptOrTrackActive = word3.bitValueOr(21, false) || word3.bitValueOr(22, false);
+      return locArmed || gsArmed || locCaptOrTrackActive || gsCaptOrTrackActive;
+    },
+    this.primFgDiscreteWord2,
+    this.primFgDiscreteWord3,
+    this.primFgDiscreteWord4,
+  );
+
+  private readonly flsApproachCapability = MappedSubject.create(
+    ([
+      approachModesArmedOrEngaged,
+      flsLateralActive,
+      flsVerticalActive,
+      flsLocValid,
+      flsGsValid,
+      gpsPrimary,
+      navAccuracyHigh,
+      fmGpsPositionDisagree,
+    ]) =>
+      flsCapability({
+        approachModesArmedOrEngaged,
+        flsLateralActive,
+        flsVerticalActive,
+        flsLocValid,
+        flsGsValid,
+        gpsPrimary,
+        navAccuracyHigh,
+        fmGpsPositionDisagree,
+      }),
+    this.approachModesArmedOrEngaged,
+    ConsumerSubject.create(this.sub.on('flsLateralActive'), false),
+    ConsumerSubject.create(this.sub.on('flsVerticalActive'), false),
+    ConsumerSubject.create(this.sub.on('flsLocValid'), false),
+    ConsumerSubject.create(this.sub.on('flsGsValid'), false),
+    ConsumerSubject.create(this.sub.on('fmGpsPrimary'), false),
+    ConsumerSubject.create(this.sub.on('fmNavAccuracyHigh'), false),
+    ConsumerSubject.create(this.sub.on('fmGpsPositionDisagree'), false),
+  );
+
   private readonly D1D2Message = MappedSubject.create(
-    ([primFgDiscreteWord1, primFgDiscreteWord2, fcdcFgDiscreteWord1, appr1Condition]) => {
-      return computeD1D2Message(primFgDiscreteWord1, primFgDiscreteWord2, fcdcFgDiscreteWord1, appr1Condition);
+    ([primFgDiscreteWord1, primFgDiscreteWord2, fcdcFgDiscreteWord1, appr1Condition, approachCapability]) => {
+      return computeD1D2Message(
+        primFgDiscreteWord1,
+        primFgDiscreteWord2,
+        fcdcFgDiscreteWord1,
+        appr1Condition,
+        approachCapability,
+      );
     },
     this.primFgDiscreteWord1,
     this.primFgDiscreteWord2,
     this.fcdcFgDiscreteWord1,
     this.appr1Condition,
+    this.flsApproachCapability,
   );
 
   private readonly text1Sub = this.D1D2Message.map((message) => {
