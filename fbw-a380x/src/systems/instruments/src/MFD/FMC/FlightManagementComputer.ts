@@ -1,6 +1,7 @@
 // Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { startProfileAtAircraftOnGround } from './VdProfileStart';
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
 import { descentTargetWaypoints } from '@fmgc/performance/DescentTargetWaypoints';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
@@ -2902,7 +2903,7 @@ export class FlightManagementComputer implements FmcInterface {
     });
 
     this.acInterface.transmitVerticalPath(
-      unfoldHoldsInProfile(targetProfileVd, unfoldedHolds),
+      unfoldHoldsInProfile(startProfileAtAircraftOnGround(targetProfileVd, this.fmgc.isOnGround()), unfoldedHolds),
       vdAltitudeConstraints,
       unfoldHoldsInProfile(actualProfileVd, unfoldedHolds),
       unfoldHoldsInProfile(descentProfileVd, unfoldedHolds),
