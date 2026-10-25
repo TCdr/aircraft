@@ -16,27 +16,27 @@ clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-c
   -o ../obj/reverse_throttle_test
 ../obj/reverse_throttle_test
 # Power-up self-test of the FMGC, ELAC and SEC after a power outage (PowerSupplyMonitor recovery order)
-clang++ -std=c++20 -Wall -Wextra -I ../src/model \
+clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
   power_recovery_self_test_test.cpp ../src/fmgc/Fmgc.cpp ../src/elac/Elac.cpp ../src/sec/Sec.cpp \
   ../src/model/*.cpp ../src/Arinc429Utils.cpp ../src/utils/PowerSupplyMonitor.cpp ../src/utils/ConfirmNode.cpp \
   ../src/utils/HysteresisNode.cpp ../src/utils/PulseNode.cpp ../src/utils/SRFlipFLop.cpp \
   -o ../obj/power_recovery_self_test_test
 ../obj/power_recovery_self_test_test
 # FAC rudder actuator failures (flyPad 22006-22011): FAC 2 takes a function over, the faults the FAC reports to the FWC
-clang++ -std=c++20 -Wall -Wextra -I ../src/model \
+clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
   fac_actuator_failure_test.cpp ../src/fac/Fac.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp \
   ../src/utils/PulseNode.cpp ../src/utils/SRFlipFLop.cpp \
   -o ../obj/fac_actuator_failure_test
 ../obj/fac_actuator_failure_test
 # FG TCAS mode failure (flyPad 22012): the blanked TCAS bus makes the FMGC TCAS mode unavailable
-clang++ -std=c++20 -Wall -Wextra -I ../src/model \
+clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
   fmgc_tcas_mode_failure_test.cpp ../src/fmgc/Fmgc.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp \
   ../src/utils/PowerSupplyMonitor.cpp \
   -o ../obj/fmgc_tcas_mode_failure_test
 ../obj/fmgc_tcas_mode_failure_test
 # Sidestick, sidestick priority logic and stabilizer electrical control failures (flyPad 27019-27022): the ELAC and SEC
 # inputs, and the ELAC losing the pitch axis with the THS motor fault
-clang++ -std=c++20 -Wall -Wextra -I ../src/model \
+clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
   flight_control_failure_inputs_test.cpp ../src/elac/Elac.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp \
   ../src/utils/PowerSupplyMonitor.cpp ../src/utils/ConfirmNode.cpp ../src/utils/HysteresisNode.cpp ../src/utils/PulseNode.cpp \
   ../src/utils/SRFlipFLop.cpp \
@@ -58,3 +58,8 @@ clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model $FIX_FLAGS \
   clb_limit_after_flex_takeoff_test.cpp ../src/model/FadecComputer.cpp ../src/model/FadecComputer_data.cpp \
   -o ../obj/clb_limit_after_flex_takeoff_test
 ../obj/clb_limit_after_flex_takeoff_test
+# Autopilot disconnection on overspeed (VMO + 15 kt / MMO + 0.04): the generated FmgcComputer with an engaged autopilot
+clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  ap_overspeed_disconnect_test.cpp ../src/fmgc/Fmgc.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp \
+  ../src/utils/PowerSupplyMonitor.cpp -o ../obj/ap_overspeed_disconnect_test
+../obj/ap_overspeed_disconnect_test
