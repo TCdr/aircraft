@@ -4,11 +4,11 @@ use systems::{
         PackFlowControllers, PackFlowValveSignal, PressurizationOverheadShared,
     },
     failures::{Failure, FailureType},
-    pneumatic::{EngineState, PneumaticValveSignal},
+    pneumatic::{EngineModeSelector, EngineState, PneumaticValveSignal},
     shared::{
-        pid::PidController, ControllerSignal, ElectricalBusType, EngineBleedPushbutton,
-        EngineCorrectedN1, EngineFirePushButtons, EngineStartState, PackFlowValveState,
-        PneumaticBleed,
+        pid::PidController, ControllerSignal, DelayedFalseLogicGate, DelayedTrueLogicGate,
+        ElectricalBusType, EngineBleedPushbutton, EngineCorrectedN1, EngineFirePushButtons,
+        EngineStartState, PackFlowValveState, PneumaticBleed,
     },
     simulation::{
         InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
@@ -226,16 +226,49 @@ struct FDACFlowControl<const ENGINES: usize> {
     flow_control_valves_controller: [PackFlowController<ENGINES>; 2],
     fcv_open_allowed: [bool; 2],
     should_open_fcv: [bool; 2],
+    /// Any engine is starting, held for the reopening delay after the last start
+    engine_start_sequence_closure: DelayedFalseLogicGate,
+    /// IGN/START has been selected for the whole window in which the pack valves wait for the ENG MASTER lever
+    ignition_selection_window_elapsed: DelayedTrueLogicGate,
 }
 
 impl<const ENGINES: usize> FDACFlowControl<ENGINES> {
+    // All pack valves close when IGN/START is selected and open again 30 s after the last engine start, or 30 s
+    // after the selection if the ENG MASTER lever is not set to ON
+    const IGNITION_SELECTION_WINDOW: Duration = Duration::from_secs(30);
+    const ENGINE_START_REOPENING_DELAY: Duration = Duration::from_secs(30);
+
     fn new(fdac_id: usize) -> Self {
         Self {
             fdac_id,
             flow_control_valves_controller: [PackFlowController::new(); 2],
             fcv_open_allowed: [false; 2],
             should_open_fcv: [false; 2],
+            engine_start_sequence_closure: DelayedFalseLogicGate::new(
+                Self::ENGINE_START_REOPENING_DELAY,
+            ),
+            ignition_selection_window_elapsed: DelayedTrueLogicGate::new(
+                Self::IGNITION_SELECTION_WINDOW,
+            ),
         }
+    }
+
+    fn all_pack_valves_closed_for_engine_start(
+        &mut self,
+        context: &UpdateContext,
+        pneumatic: &impl EngineStartState,
+    ) -> bool {
+        let any_engine_starting =
+            (1..=4).any(|engine| pneumatic.engine_state(engine) == EngineState::Starting);
+        self.engine_start_sequence_closure
+            .update(context, any_engine_starting);
+
+        let ignition_selected = pneumatic.engine_mode_selector() == EngineModeSelector::Ignition;
+        self.ignition_selection_window_elapsed
+            .update(context, ignition_selected);
+
+        self.engine_start_sequence_closure.output()
+            || (ignition_selected && !self.ignition_selection_window_elapsed.output())
     }
 
     fn update(
@@ -252,9 +285,12 @@ impl<const ENGINES: usize> FDACFlowControl<ENGINES> {
         pressurization_overhead: &impl PressurizationOverheadShared,
     ) {
         let fcv_id = [1, 2].map(|i| i + ((self.fdac_id == 2) as usize * 2));
+        let all_valves_closed_for_engine_start =
+            self.all_pack_valves_closed_for_engine_start(context, pneumatic);
 
         self.fcv_open_allowed = fcv_id.map(|id| {
             self.fcv_open_allowed_determination(
+                all_valves_closed_for_engine_start,
                 acs_overhead,
                 any_door_open,
                 engine_fire_push_buttons,
@@ -301,6 +337,7 @@ impl<const ENGINES: usize> FDACFlowControl<ENGINES> {
 
     fn fcv_open_allowed_determination(
         &mut self,
+        all_valves_closed_for_engine_start: bool,
         acs_overhead: &impl AirConditioningOverheadShared,
         any_door_open: bool,
         engine_fire_push_buttons: &impl EngineFirePushButtons,
@@ -312,7 +349,8 @@ impl<const ENGINES: usize> FDACFlowControl<ENGINES> {
         let onside_engine_numbers = [1, 2].map(|i| i + ((self.fdac_id == 2) as usize * 2));
         // The pack flow valve closes when:
         // The associated PACK pbs is set to off
-        !(!acs_overhead.pack_pushbuttons_state()[self.fdac_id - 1]
+        !(all_valves_closed_for_engine_start
+            || !acs_overhead.pack_pushbuttons_state()[self.fdac_id - 1]
             // The FIRE pb of the associated engine is pressed
             || engine_fire_push_buttons.is_released(fcv_id)
             // One onside engine starts, and the crossbleed valves are closed

@@ -1908,6 +1908,7 @@ mod tests {
             );
             test_bed.command_pack_flow_selector_position(1);
             test_bed.command_engine_n1(Ratio::new::<percent>(30.));
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", EngineModeSelector::Norm);
 
             test_bed
         }
