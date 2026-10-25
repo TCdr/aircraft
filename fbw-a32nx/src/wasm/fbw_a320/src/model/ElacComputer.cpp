@@ -962,7 +962,9 @@ void ElacComputer::step()
       rtb_y_f) && ((abnormalCondition_tmp > 125.0) || ((rtb_alpha > 50.0F) || (rtb_alpha < -30.0F))))));
     ElacComputer_DWork.abnormalConditionWasActive = (rtb_OR1_me || (rtb_ap_authorised &&
       ElacComputer_DWork.abnormalConditionWasActive));
-    rtb_NOT_k = ((!rtb_OR3) || (!rtb_OR1));
+    // With both blue and yellow lost the right elevator loss is expected: ELAC 2 stays in pitch normal law on the left
+    // elevator
+    rtb_NOT_k = ((!rtb_OR3) || ((!rtb_OR1) && (rtb_OR6 || rtb_BusAssignment_n_logic_is_yellow_hydraulic_power_avail)));
     rtb_AND4 = !leftAileronAvail;
     rtb_OR_e1 = !rightAileronAvail;
     rtb_y_p = (casValid_tmp_tmp || rtb_tripleAdrFault || ElacComputer_DWork.abnormalConditionWasActive || (rtb_AND4 &&

@@ -754,6 +754,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FLYPAD] New failures: crew oxygen bottle leak (ATA 35), door proximity sensors and cockpit door locking system latches, pressure sensors and control unit (ATA 52) - @TCdr
 1. [A32NX/DOORS] The COCKPIT DOOR FAULT light and the CKPT DOOR CONT strike and CHAN lights come on with their cockpit door locking system failure; a failed door proximity sensor shows its door not closed on the DOOR/OXY page and ECAM - @TCdr
 1. [A32NX/FADEC] At takeoff without a FLEX temperature, the FADEC selects TOGA thrust 8 s after the thrust levers are set between CL and TOGA (ENG THR LEVERS NOT SET), until the levers go back to CL or below - @TCdr
+1. [A32NX/F/CTL] High speed protection: full forward sidestick now stops at VMO+16 kt / MMO+0.04 instead of 380 kt / M0.88 - @TCdr
+1. [A32NX/F/CTL] Loss of the blue and yellow hydraulic systems keeps pitch normal law instead of alternate law - @TCdr
+1. [A32NX/F/CTL] Sidestick priority: the takeover pb must be held 40 s (was 30 s) to deactivate the other sidestick permanently - @TCdr
 
 ## 2024.1.0
 
