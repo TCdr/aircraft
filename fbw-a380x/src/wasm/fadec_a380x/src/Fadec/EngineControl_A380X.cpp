@@ -10,6 +10,7 @@
 #include "EngineControl_A380X.h"
 #include "EgtFailureOffset_A380X.hpp"
 #include "EngineRatios.hpp"
+#include "FanBlockedStart_A380X.hpp"
 #include "FeedTankDraw_A380X.hpp"
 #include "IgniterSupply_A380X.hpp"
 #include "OilSystem_A380X.hpp"
@@ -723,6 +724,8 @@ void EngineControl_A380X::engineStartProcedure(int         engine,
     const double preEgtFbw = simData.engineEgt[engineIdx]->get();
     const double newN3Fbw  = Polynomial_A380X::startN3(simN3, preN3Fbw, idleN3);
 
+    const bool   fanBlocked  = FanBlockedStart_A380X::isFanBlocked(simData.engineFanBlocked[engineIdx]->getAsBool(),
+                                                                    msfsHandlerPtr->getSimOnGround());
     const double startN1Fbw  = Polynomial_A380X::startN1(newN3Fbw, idleN3, idleN1);
     const double startFfFbw  = Polynomial_A380X::startFF(newN3Fbw, idleN3, idleFF);
     const double startEgtFbw = Polynomial_A380X::startEGT(newN3Fbw, idleN3, ambientTemperature, idleEGT);
@@ -731,7 +734,7 @@ void EngineControl_A380X::engineStartProcedure(int         engine,
 
     simData.engineN3[engineIdx]->set(newN3Fbw);
     simData.engineN2[engineIdx]->set(newN3Fbw == 0 ? 0 : newN3Fbw + 0.7);  // 0.7 seems to be an arbitrary offset to get N2 from N3
-    simData.engineN1[engineIdx]->set(startN1Fbw);
+    simData.engineN1[engineIdx]->set(FanBlockedStart_A380X::fanN1(startN1Fbw, fanBlocked));
     simData.engineFF[engineIdx]->set(startFfFbw);
 
     if (engineState == RESTARTING) {
@@ -804,8 +807,10 @@ void EngineControl_A380X::engineShutdownProcedure(int    engine,
     const double preN3Fbw  = simData.engineN3[engineIdx]->get();
     const double preEgtFbw = simData.engineEgt[engineIdx]->get();
 
+    const bool fanBlocked =
+        FanBlockedStart_A380X::isFanBlocked(simData.engineFanBlocked[engineIdx]->getAsBool(), simOnGround);
     double newN1Fbw = Polynomial_A380X::shutdownN1(preN1Fbw, deltaTime);
-    if (simN1 < 5 && simN1 > newN1Fbw) {  // Takes care of windmilling
+    if (!fanBlocked && simN1 < 5 && simN1 > newN1Fbw) {  // Takes care of windmilling
       newN1Fbw = simN1;
     }
     double       newN3Fbw  = engineSeized ? preN3Fbw : Polynomial_A380X::shutdownN3(preN3Fbw, deltaTime);

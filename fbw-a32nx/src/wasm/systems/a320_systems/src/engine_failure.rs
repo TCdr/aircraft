@@ -31,8 +31,9 @@
 //! - In flight, the flameout of a running engine starts the FADEC relight attempt at once (the crew
 //!   confirms it with continuous ignition and waits 30 s for a relight): see
 //!   [`EngineRelightEnvelope::fadec_attempts_relight_after_flameout`]. Design choice: the attempt
-//!   lights up in the envelope above once the continuous ignition is on (ENG MODE IGN, or the
-//!   automatic selection by the engine anti-ice), or at once in zone 2 within 20 s of the flameout.
+//!   lights up in the envelope above once the continuous ignition is on (ENG MODE IGN, the
+//!   automatic selection by the engine anti-ice, or the ignition the FADEC selects itself for the
+//!   attempt), or at once in zone 2 within 20 s of the flameout.
 //!
 //! The FADEC start sequence and ignition of each engine (`systems::engine::engine_start`: igniters,
 //! light-up, start faults, automatic start abort, ENG MAN START, start and ignition failures) run
@@ -429,10 +430,11 @@ impl A320EngineFailure {
     /// The FADEC selects the continuous ignition by itself while the engine anti-ice valve is open:
     /// with an ENG BLEED STATUS FAULT the FADEC no longer knows the valve position and loses this
     /// automatic selection. Design choice: the valve is the MSFS ENG ANTI ICE of the engine (FBW
-    /// models no engine anti-ice valve); the other conditions of the automatic selection are not
-    /// modelled.
+    /// models no engine anti-ice valve). The FADEC also supports its own relight attempt after a
+    /// flameout with the continuous ignition, whatever the ENG MODE selector position.
     fn automatic_continuous_ignition(&self) -> bool {
-        self.engine_anti_ice_valve_open && !self.bleed_status_fault
+        (self.engine_anti_ice_valve_open && !self.bleed_status_fault)
+            || self.failure.fadec_relight_attempt_in_progress()
     }
 
     fn update(
@@ -447,6 +449,8 @@ impl A320EngineFailure {
         self.thermal_state = Self::thermal_state(self.egt, context.ambient_temperature());
         self.start
             .set_powered_igniters(self.ignition_power.powered_igniters());
+        self.start
+            .set_fadec_relight_attempt(self.failure.fadec_relight_attempt_in_progress());
         // The FADEC opens the start valve: without its start commands (EIU) or without power it
         // starts nothing.
         self.start
@@ -1256,9 +1260,8 @@ mod tests {
             assert!((second_igniter_altitude_feet - 10_000.).abs() < 1e-6);
         }
 
-        #[test]
-        fn after_a_flameout_ign_relights_engine_1_without_a_master_cycle() {
-            // 300 kt, FL 100: stabilized windmill relight zone, ENG MODE NORM at the flameout
+        /// A flameout of engine 1 at ENG MODE NORM, the core windmilling at 12 % N2.
+        fn flamed_out_engine_1_test_bed() -> SimulationTestBed<TestAircraft> {
             let mut test_bed = flying_test_bed();
             test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 1.);
             run(&mut test_bed);
@@ -1266,35 +1269,80 @@ mod tests {
             run(&mut test_bed);
             test_bed.write_by_name("ENGINE_STATE:1", 4.);
             test_bed.write_by_name("ENGINE_N2:1", 12.);
-            for _ in 0..10 * 20 {
-                run(&mut test_bed);
-            }
-            assert!(fuel_is_cut(&mut test_bed, 1));
+            test_bed
+        }
 
-            // ECAM ENG 1 FAIL: ENG MODE SEL IGN, within the 30 s of the FADEC relight attempt
-            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 2.);
-            run(&mut test_bed);
+        #[test]
+        fn the_fadec_relights_a_flamed_out_engine_in_the_windmill_zone_at_norm() {
+            let mut test_bed = flamed_out_engine_1_test_bed();
+            run_for_seconds(&mut test_bed, 1);
+            assert!(fuel_is_cut(&mut test_bed, 1));
+            let ignition_before_detection: bool =
+                test_bed.read_by_name("ENGINE_1_CONTINUOUS_IGNITION");
+            assert!(!ignition_before_detection);
+
+            // The FADEC selects the ignition once it has detected the flameout
+            let mut ignition = false;
+            let mut igniter_a = false;
+            for _ in 0..8 * 20 {
+                run(&mut test_bed);
+                let ignition_now: bool = test_bed.read_by_name("ENGINE_1_CONTINUOUS_IGNITION");
+                ignition |= ignition_now;
+                let igniter_now: bool = test_bed.read_by_name("FADEC_IGNITER_A_ACTIVE_ENG1");
+                igniter_a |= igniter_now;
+            }
+            assert!(ignition);
+            assert!(igniter_a);
+
             assert!(!fuel_is_cut(&mut test_bed, 1));
-            let value: bool = test_bed.read_by_name("ENGINE_1_RELIGHT_IGNITION");
-            assert!(value);
+            let ignition_after_light_up: bool =
+                test_bed.read_by_name("ENGINE_1_CONTINUOUS_IGNITION");
+            assert!(!ignition_after_light_up);
+            let ignition_of_engine_2: bool = test_bed.read_by_name("ENGINE_2_CONTINUOUS_IGNITION");
+            assert!(!ignition_of_engine_2);
         }
 
         #[test]
         fn the_fadec_relight_attempt_ends_30_s_after_the_flameout() {
+            // Both igniters have failed: the attempt cannot light the engine up
             let mut test_bed = flying_test_bed();
+            test_bed.fail(FailureType::EngineIgniterA(1));
+            test_bed.fail(FailureType::EngineIgniterB(1));
             test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 1.);
             run(&mut test_bed);
             test_bed.fail(FailureType::EngineFlameout(1));
             run(&mut test_bed);
             test_bed.write_by_name("ENGINE_STATE:1", 4.);
             test_bed.write_by_name("ENGINE_N2:1", 12.);
-            for _ in 0..31 * 20 {
-                run(&mut test_bed);
-            }
+            run_for_seconds(&mut test_bed, 31);
+            test_bed.unfail(FailureType::EngineIgniterA(1));
+            test_bed.unfail(FailureType::EngineIgniterB(1));
             test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 2.);
             run(&mut test_bed);
 
             assert!(fuel_is_cut(&mut test_bed, 1));
+            let ignition: bool = test_bed.read_by_name("ENGINE_1_CONTINUOUS_IGNITION");
+            assert!(!ignition);
+        }
+
+        #[test]
+        fn the_fadec_ignition_of_the_relight_attempt_stops_with_the_attempt() {
+            let mut test_bed = flying_test_bed();
+            test_bed.fail(FailureType::EngineIgniterA(1));
+            test_bed.fail(FailureType::EngineIgniterB(1));
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 1.);
+            run(&mut test_bed);
+            test_bed.fail(FailureType::EngineFlameout(1));
+            run(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:1", 4.);
+            test_bed.write_by_name("ENGINE_N2:1", 12.);
+            run_for_seconds(&mut test_bed, 6);
+            let during: bool = test_bed.read_by_name("ENGINE_1_CONTINUOUS_IGNITION");
+            assert!(during);
+
+            run_for_seconds(&mut test_bed, 30);
+            let after: bool = test_bed.read_by_name("ENGINE_1_CONTINUOUS_IGNITION");
+            assert!(!after);
         }
 
         #[test]

@@ -10,7 +10,7 @@
 //! - the light-up: on the ground the engine fuel stays cut (MSFS valve in series, see
 //!   `engine_failure`) until an energized igniter that works and the fuel (HP valve) are there;
 //! - the start faults it detects (no light up, stall, EGT over limit, hung start, starter fault,
-//!   low starter air pressure, thrust lever not at idle, starter time exceeded);
+//!   low starter air pressure, thrust lever not at idle, starter time exceeded, jammed N1 rotor);
 //! - the automatic abort of an automatic start on the ground, the dry crank that follows, the new
 //!   attempts with both igniters, and the final abort (ENG FAULT light);
 //! - the ENG MAN START pushbutton: manual start, dry crank and wet crank;
@@ -156,6 +156,8 @@ pub enum EngineStartFault {
     LowStartAirPressure = 6,
     ThrustLeverNotAtIdle = 7,
     StarterTimeExceeded = 8,
+    /// The fan (N1 rotor) does not turn while the core accelerates in a start (A380 LOW N1).
+    N1RotorJam = 9,
 }
 impl EngineStartFault {
     /// The faults after which an automatic start on the ground is aborted: a hot start, a hung
@@ -169,6 +171,7 @@ impl EngineStartFault {
                 | EngineStartFault::EgtOverlimit
                 | EngineStartFault::HungStart
                 | EngineStartFault::StarterFault
+                | EngineStartFault::N1RotorJam
         )
     }
 }
@@ -327,6 +330,13 @@ pub struct EngineStartSequence {
     hung_window_start_speed: Ratio,
     hung_window_time: Duration,
     starter_without_rotation_time: Duration,
+    /// How long the fan has stood still while the core is past the check speed.
+    fan_without_rotation_time: Duration,
+    /// The fan speed (N1) the FADEC measures; None where the aircraft does not monitor it.
+    fan_speed: Option<Ratio>,
+    /// The FADEC makes an automatic relight attempt after a flameout (see
+    /// [`Self::set_fadec_relight_attempt`]).
+    fadec_relight_attempt: bool,
     valve_open_without_air_time: Duration,
     starter_time: Duration,
     in_flight_no_light_up_time: Duration,
@@ -388,6 +398,12 @@ impl EngineStartSequence {
     /// for 10 s has failed (starter shaft shear).
     const STARTER_FAULT_MAX_N2_PERCENT: f64 = 5.;
     const STARTER_FAULT_DETECTION_TIME: Duration = Duration::from_secs(10);
+    /// Design choice, no published value: with the core past 30 % (the starter engages up to 25 %
+    /// on the A380) a turning fan is above 1 % N1 (the FBW start N1 is about 4 % there). A fan
+    /// that stays below it for 3 s is a jammed N1 rotor.
+    const N1_ROTATION_CHECK_CORE_SPEED_PERCENT: f64 = 30.;
+    const N1_ROTATION_MIN_FAN_SPEED_PERCENT: f64 = 1.;
+    const N1_ROTOR_JAM_DETECTION_TIME: Duration = Duration::from_secs(3);
     /// Design choice, no published value: the start valve is open and the starter has had no air
     /// for 10 s.
     const LOW_START_AIR_DETECTION_TIME: Duration = Duration::from_secs(10);
@@ -434,6 +450,9 @@ impl EngineStartSequence {
             hung_window_start_speed: Ratio::default(),
             hung_window_time: Duration::ZERO,
             starter_without_rotation_time: Duration::ZERO,
+            fan_without_rotation_time: Duration::ZERO,
+            fan_speed: None,
+            fadec_relight_attempt: false,
             valve_open_without_air_time: Duration::ZERO,
             starter_time: Duration::ZERO,
             in_flight_no_light_up_time: Duration::ZERO,
@@ -735,6 +754,7 @@ impl EngineStartSequence {
         self.since_ignition = None;
         self.hung_window_time = Duration::ZERO;
         self.starter_without_rotation_time = Duration::ZERO;
+        self.fan_without_rotation_time = Duration::ZERO;
     }
 
     /// The start sequence is over (MASTER OFF, success, or flight): the next first automatic start
@@ -873,8 +893,12 @@ impl EngineStartSequence {
             if fault == EngineStartFault::EgtOverlimit {
                 self.phase = EngineStartPhase::Aborted;
             }
-        } else if fault == EngineStartFault::StarterFault {
-            // A starter failure aborts the start without further attempt (A380).
+        } else if matches!(
+            fault,
+            EngineStartFault::StarterFault | EngineStartFault::N1RotorJam
+        ) {
+            // A starter failure or a jammed N1 rotor aborts the start without further attempt
+            // (A380).
             self.abort_start();
         } else if schedule.stall_or_egt_restart_before_crank
             && matches!(
@@ -927,6 +951,22 @@ impl EngineStartSequence {
         }
         if self.starter_without_rotation_time >= Self::STARTER_FAULT_DETECTION_TIME {
             return EngineStartFault::StarterFault;
+        }
+
+        // The core accelerates but the fan does not turn: N1 rotor jamming.
+        let fan_stands_still = self.fan_speed.is_some_and(|fan_speed| {
+            fan_speed.get::<percent>() < Self::N1_ROTATION_MIN_FAN_SPEED_PERCENT
+        });
+        if fan_stands_still
+            && inputs.start_valve_is_open
+            && inputs.core_speed.get::<percent>() >= Self::N1_ROTATION_CHECK_CORE_SPEED_PERCENT
+        {
+            self.fan_without_rotation_time += delta;
+        } else {
+            self.fan_without_rotation_time = Duration::ZERO;
+        }
+        if self.fan_without_rotation_time >= Self::N1_ROTOR_JAM_DETECTION_TIME {
+            return EngineStartFault::N1RotorJam;
         }
 
         if !self.lit {
@@ -1204,10 +1244,13 @@ impl EngineStartSequence {
         let manual_selection = !self.start_commands_lost
             && inputs.mode_selector == EngineModeSelector::Ignition
             && (!on_ground || self.continuous_ignition_armed);
+        let engine_runs = inputs.engine_state == EngineState::On
+            && (manual_selection || inputs.automatic_continuous_ignition);
+        let fadec_relight =
+            self.fadec_relight_attempt && !on_ground && !self.start_impossible(inputs);
         inputs.master_switch_is_on
             && !inputs.fire_push_button_is_released
-            && inputs.engine_state == EngineState::On
-            && (manual_selection || inputs.automatic_continuous_ignition)
+            && (engine_runs || fadec_relight)
     }
 
     /// The A320 continuous ignition uses one igniter, and both if it does not work (design choice:
@@ -1234,6 +1277,19 @@ impl EngineStartSequence {
             a: igniters.a && self.igniter_a_works(),
             b: igniters.b && self.igniter_b_works(),
         }
+    }
+
+    /// The FADEC is making its automatic relight attempt after a flameout in flight: it selects the
+    /// continuous ignition by itself, whatever the ENG MODE selector position, although the engine
+    /// no longer runs. Call it before [`Self::update`].
+    pub fn set_fadec_relight_attempt(&mut self, attempt_in_progress: bool) {
+        self.fadec_relight_attempt = attempt_in_progress;
+    }
+
+    /// The fan speed (N1) the FADEC measures. Call it before [`Self::update`] on an aircraft whose
+    /// FADEC detects a jammed N1 rotor during a start (A380); without it nothing is monitored.
+    pub fn set_fan_speed(&mut self, fan_speed: Ratio) {
+        self.fan_speed = Some(fan_speed);
     }
 
     /// The igniters whose electrical supply is powered (both until the aircraft sets them). An
@@ -1659,6 +1715,19 @@ mod tests {
             self
         }
 
+        fn fadec_relight_attempt(mut self, in_progress: bool) -> Self {
+            self.command(|a: &mut TestAircraft| a.sequence.set_fadec_relight_attempt(in_progress));
+            self
+        }
+
+        fn fan_speed(mut self, percent_value: f64) -> Self {
+            self.command(|a: &mut TestAircraft| {
+                a.sequence
+                    .set_fan_speed(Ratio::new::<percent>(percent_value))
+            });
+            self
+        }
+
         fn start_commands_lost(mut self, lost: bool) -> Self {
             self.command(|a: &mut TestAircraft| a.sequence.set_start_commands_lost(lost));
             self
@@ -2054,6 +2123,82 @@ mod tests {
         test_bed = test_bed.and_run_for(Duration::from_secs(4));
         assert_eq!(test_bed.fault(), EngineStartFault::Stall);
         assert_eq!(test_bed.phase(), EngineStartPhase::AutomaticCrank);
+    }
+
+    fn a380_start_with_the_core_at(core_speed: f64, fan_speed: f64) -> StartTestBed {
+        StartTestBed::new()
+            .with_schedule(with_a380_rules)
+            .automatic_start()
+            .with(|inputs| inputs.starter_air_pressurized = true)
+            .fan_speed(fan_speed)
+            .n2(core_speed)
+            .and_run()
+    }
+
+    #[test]
+    fn a_jammed_n1_rotor_aborts_the_automatic_start_without_a_new_attempt() {
+        let mut test_bed = a380_start_with_the_core_at(35., 0.).and_run_for(Duration::from_secs(4));
+        assert_eq!(test_bed.fault(), EngineStartFault::N1RotorJam);
+        assert_eq!(test_bed.phase(), EngineStartPhase::Aborted);
+        assert!(test_bed.fault_light());
+        assert_eq!(test_bed.attempt(), 1);
+    }
+
+    #[test]
+    fn the_fadec_relight_attempt_after_a_flameout_selects_the_continuous_ignition_by_itself() {
+        let mut test_bed = StartTestBed::new()
+            .in_flight()
+            .with(|inputs| {
+                inputs.master_switch_is_on = true;
+                inputs.engine_state = EngineState::Shutting;
+            })
+            .and_run();
+        assert!(!test_bed.flag("CONTINUOUS_IGNITION"));
+
+        test_bed = test_bed.fadec_relight_attempt(true).and_run();
+        assert!(test_bed.flag("CONTINUOUS_IGNITION"));
+        assert_ne!(test_bed.igniters(), Igniters::NONE);
+
+        test_bed = test_bed.fadec_relight_attempt(false).and_run();
+        assert!(!test_bed.flag("CONTINUOUS_IGNITION"));
+    }
+
+    #[test]
+    fn the_fadec_relight_attempt_needs_the_master_and_the_fadec_start_commands() {
+        let mut test_bed = StartTestBed::new()
+            .in_flight()
+            .with(|inputs| inputs.engine_state = EngineState::Shutting)
+            .fadec_relight_attempt(true)
+            .and_run();
+        assert!(!test_bed.flag("CONTINUOUS_IGNITION"));
+
+        test_bed = test_bed
+            .with(|inputs| inputs.master_switch_is_on = true)
+            .start_commands_lost(true)
+            .and_run();
+        assert!(!test_bed.flag("CONTINUOUS_IGNITION"));
+    }
+
+    #[test]
+    fn a_turning_n1_rotor_is_no_fault() {
+        let test_bed = a380_start_with_the_core_at(35., 4.).and_run_for(Duration::from_secs(10));
+        assert_ne!(test_bed.fault(), EngineStartFault::N1RotorJam);
+    }
+
+    #[test]
+    fn the_n1_rotor_is_only_checked_once_the_core_is_past_the_check_speed() {
+        let test_bed = a380_start_with_the_core_at(20., 0.).and_run_for(Duration::from_secs(10));
+        assert_ne!(test_bed.fault(), EngineStartFault::N1RotorJam);
+    }
+
+    #[test]
+    fn an_aircraft_that_gives_no_fan_speed_has_no_n1_rotor_monitoring() {
+        let test_bed = StartTestBed::new()
+            .automatic_start()
+            .with(|inputs| inputs.starter_air_pressurized = true)
+            .n2(35.)
+            .and_run_for(Duration::from_secs(10));
+        assert_ne!(test_bed.fault(), EngineStartFault::N1RotorJam);
     }
 
     #[test]

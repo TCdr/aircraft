@@ -1039,6 +1039,10 @@ export const A380Failure = Object.freeze({
   Eng2Seizure: 72011,
   Eng3Seizure: 72012,
   Eng4Seizure: 72013,
+  Eng1N1RotorJammed: 72020,
+  Eng2N1RotorJammed: 72021,
+  Eng3N1RotorJammed: 72022,
+  Eng4N1RotorJammed: 72023,
   Eng1OilLeak: 79000,
   Eng2OilLeak: 79001,
   Eng3OilLeak: 79002,
@@ -2173,6 +2177,11 @@ const failureDefinitionsAta32To80: FailureDefinition[] = [
   [72, A380Failure.Eng2Seizure, 'Engine 2 seizure (no relight)'],
   [72, A380Failure.Eng3Seizure, 'Engine 3 seizure (no relight)'],
   [72, A380Failure.Eng4Seizure, 'Engine 4 seizure (no relight)'],
+  // The fan does not turn at a start on the ground: the FADEC aborts the start (ENG n START FAULT LOW N1)
+  [72, A380Failure.Eng1N1RotorJammed, 'Engine 1 N1 rotor jammed (no N1 rotation at start)'],
+  [72, A380Failure.Eng2N1RotorJammed, 'Engine 2 N1 rotor jammed (no N1 rotation at start)'],
+  [72, A380Failure.Eng3N1RotorJammed, 'Engine 3 N1 rotor jammed (no N1 rotation at start)'],
+  [72, A380Failure.Eng4N1RotorJammed, 'Engine 4 N1 rotor jammed (no N1 rotation at start)'],
 
   // The oil system loses 2 qt/min (the tank quantity on the SD falls about 1.6 qt/min), then the oil pressure once the tank is nearly empty (ENG OIL PRESS LO)
   [79, A380Failure.Eng1OilLeak, 'Engine 1 oil leak'],

@@ -1245,6 +1245,12 @@ export class FwsAbnormalSensed {
   private engineStartAlerts(): EwdAbnormalDict {
     const alerts: EwdAbnormalDict = {};
     const masters = [this.fws.engine1Master, this.fws.engine2Master, this.fws.engine3Master, this.fws.engine4Master];
+    const thrustLeverIdle = [
+      this.fws.thrustLever1Idle,
+      this.fws.thrustLever2Idle,
+      this.fws.thrustLever3Idle,
+      this.fws.thrustLever4Idle,
+    ];
     for (let index = 0; index < 4; index++) {
       const engineNumber = (index + 1) as 1 | 2 | 3 | 4;
       const valveInputs = () => ({
@@ -1266,6 +1272,7 @@ export class FwsAbnormalSensed {
           engStartSelector: this.fws.engSelectorPosition.get(),
           apuBleedPbOn: this.fws.apuBleedPbOn.get(),
           allThrustLeversIdle: this.fws.allThrottleIdle.get(),
+          thrustLeverIdle: thrustLeverIdle[index].get(),
         });
       // START FAULT: no aural, no MASTER light and no SD page
       alerts[701800117 + index] = {
