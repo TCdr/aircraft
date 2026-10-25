@@ -883,6 +883,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FADEC] ENG 1(2) BLEED STATUS FAULT: on the ground the idle goes up to HI GND IDLE (as if every bleed and anti-ice valve were open), and the engine anti-ice no longer selects the continuous ignition of that engine by itself (ENG MODE selector to IGN) - @TCdr
 1. [A380X/FADEC] COND TEMP CTL FAULT with both pack controllers failed: the engines go to idle high at idle thrust, shown as the STATUS INFO ENG IDLE HI - @TCdr
 1. [EFB] Fix the wind field of the performance calculators refusing a direction typed without leading zeros (80/10 stopped at 80) - @TCdr
+1. [A32NX/F/CTL] High speed protection: full forward sidestick now stops at VMO+16 kt / MMO+0.04 instead of 380 kt / M0.88 - @TCdr
+1. [A32NX/F/CTL] Loss of the blue and yellow hydraulic systems keeps pitch normal law instead of alternate law - @TCdr
+1. [A32NX/F/CTL] Sidestick priority: the takeover pb must be held 40 s (was 30 s) to deactivate the other sidestick permanently - @TCdr
 
 ## 2024.1.0
 
