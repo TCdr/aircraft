@@ -239,6 +239,11 @@
       "Alternate": "ALTN $icao",
       "Altitude": "Altitude",
       "AltitudeValue": "$feet ft",
+      "CancelOfp": "Cancel OFP",
+      "CancelOfpBody": "The loaded flight plan is removed from the flyPad. The aircraft, its fuel and its payload stay as they are. You can import another OFP afterwards.",
+      "CancelOfpConfirm": "Cancel OFP",
+      "CancelOfpKeep": "Keep",
+      "CancelOfpTitle": "Cancel the flight plan?",
       "Close": "Close",
       "CostIndex": "CI",
       "Countdown": {
