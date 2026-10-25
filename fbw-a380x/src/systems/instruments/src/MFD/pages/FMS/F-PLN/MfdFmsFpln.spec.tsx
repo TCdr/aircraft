@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EventBus, FSComponent, Subject } from '@microsoft/msfs-sdk';
 import { AltitudeConstraint, LegType, TurnDirection } from '@flybywiresim/fbw-sdk';
 import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
@@ -67,7 +67,7 @@ function flightPlanLeg(leg: CruiseLeg): FlightPlanLeg {
  * @param legs the legs after the FROM waypoint MOBAL
  * @returns the page
  */
-function renderCruiseWithHold(legs: CruiseLeg[], pseudoWaypoints: unknown[] = []) {
+function renderCruiseWithHold(legs: CruiseLeg[], pseudoWaypoints: unknown[] = [], activeLegIndex = 1) {
   const uiService = new Proxy(
     {
       activeUri: Subject.create({ uri: 'fms/active/f-pln', sys: 'fms', category: 'active', page: 'f-pln', extra: '' }),
@@ -84,7 +84,7 @@ function renderCruiseWithHold(legs: CruiseLeg[], pseudoWaypoints: unknown[] = []
     legs: allLegs,
     allLegs,
     legCount: allLegs.length,
-    activeLegIndex: 1,
+    activeLegIndex,
     firstMissedApproachLegIndex: allLegs.length,
     lastEnrouteLegIndex: allLegs.length,
     version: 1,
@@ -102,7 +102,9 @@ function renderCruiseWithHold(legs: CruiseLeg[], pseudoWaypoints: unknown[] = []
     elementAt: (index: number) => allLegs[index],
   });
   const alternateFlightPlan = withStandIns({ allLegs: [], legCount: 0, firstMissedApproachLegIndex: 0 });
+  const deleteElementAt = vi.fn(() => Promise.resolve(true));
   const flightPlanInterface = withStandIns({
+    deleteElementAt,
     hasActive: true,
     hasTemporary: false,
     activeOrTemporary: plan,
@@ -147,6 +149,13 @@ function renderCruiseWithHold(legs: CruiseLeg[], pseudoWaypoints: unknown[] = []
     }),
   });
 
+  const bus = new EventBus();
+  const holdExitEvents: unknown[] = [];
+  bus
+    .getSubscriber<any>()
+    .on('fms_set_hold_immediate_exit')
+    .handle((event) => holdExitEvents.push(event));
+
   const page = FSComponent.createRef<MfdFmsFpln>();
   const container = document.createElement('div');
   document.body.appendChild(container);
@@ -154,7 +163,7 @@ function renderCruiseWithHold(legs: CruiseLeg[], pseudoWaypoints: unknown[] = []
     <MfdFmsFpln
       ref={page}
       pageTitle="F-PLN"
-      bus={new EventBus()}
+      bus={bus}
       mfd={mfd as any}
       fmcService={fmcService as any}
       flightPlanInterface={flightPlanInterface as any}
@@ -174,6 +183,18 @@ function renderCruiseWithHold(legs: CruiseLeg[], pseudoWaypoints: unknown[] = []
     destination: (): string => internals.destButtonLabel.get(),
     /** the page's data update (it runs every cycle in the sim) */
     refresh: (): void => internals.onNewData(),
+    /** clicks the IMMEDIATE EXIT / RESUME HOLD button of the hold line */
+    clickHoldExitButton: (): void => {
+      const label = Array.from(internals.linesDivRef.instance.querySelectorAll('span') as NodeListOf<HTMLElement>).find(
+        (span) => span.textContent?.includes('EXIT') || span.textContent?.includes('RESUME'),
+      );
+      if (!label) {
+        throw new Error('no hold exit button');
+      }
+      label.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    },
+    deleteElementAt,
+    holdExitEvents,
   };
 }
 
@@ -253,5 +274,23 @@ describe('MfdFmsFpln', () => {
     page.refresh();
 
     expect(page.idents()).toContain('(1115)');
+  });
+
+  // Before the hold fix (hold decel reached), IMMEDIATE EXIT deletes the hold from the flight plan
+  it('deletes the hold when IMMEDIATE EXIT is clicked before the hold fix', () => {
+    const page = renderCruiseWithHold(holdAtAntovThenRoute);
+
+    page.clickHoldExitButton();
+
+    expect(page.deleteElementAt).toHaveBeenCalledWith(2, false, 0, false);
+  });
+
+  // While the hold is flown, IMMEDIATE EXIT asks the guidance to leave the hold at the next pass of the hold fix
+  it('asks the guidance to exit the hold when IMMEDIATE EXIT is clicked in the hold', () => {
+    const page = renderCruiseWithHold(holdAtAntovThenRoute, [], 2);
+
+    page.clickHoldExitButton();
+
+    expect(page.holdExitEvents).toEqual([{ index: 2, exit: true }]);
   });
 });
