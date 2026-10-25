@@ -83,3 +83,8 @@ clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../..
   fctl_protection_values_test.cpp ../src/model/*.cpp \
   -o ../obj/fctl_protection_values_test
 ../obj/fctl_protection_values_test
+# High speed and pitch down protections: full forward sidestick dive of a point-mass A380 flown by the PRIM and the pitch
+# normal law, the pitch must stay within 15 deg nose down and the speed must stabilise at VD - 10 kt without passing VD
+clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  hsp_dive_response_test.cpp ../src/model/*.cpp -o ../obj/hsp_dive_response_test
+../obj/hsp_dive_response_test
