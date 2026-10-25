@@ -534,17 +534,20 @@ static void drawVdTerrain(NVGcontext* vg,
   // as the terrain is (its elevation plus the baro - true offset, see drawVdTerrainGauge), in the terrain's brown.
   if (flatCount > 0) {
     const float feetPerPx = static_cast<float>(upperFeet - lowerFeet) / kVdHeight;
-    nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
+    // Colour only, alpha untouched (as every other step): an alpha of 1 here would make the stretch opaque and
+    // hide nd.html's path, MSA/MORA line and symbols under it.
     for (int i = 0; i < flatCount; ++i) {
       const float x0 = std::fmax(kVdLeft + flats[i].startNm * pxPerNm, kVdLeft);
       const float x1 = std::fmin(kVdLeft + flats[i].endNm * pxPerNm, vdRight);
       if (x1 <= x0) {
         continue;
       }
+      nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_ZERO, NVG_ZERO, NVG_ONE);
       nvgBeginPath(vg);
       nvgRect(vg, x0, kVdTop, x1 - x0, kVdHeight);
       nvgFillColor(vg, nvgRGBAf(0.0f, 0.0f, 0.0f, 1.0f));
       nvgFill(vg);
+      nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
       const double groundFeet = static_cast<double>(flats[i].elevationFeet) + terrainOffsetFeet;
       const float groundY = std::fmax(kVdTop + static_cast<float>(upperFeet - groundFeet) / feetPerPx, kVdTop);
       if (groundY < vdBottom) {
