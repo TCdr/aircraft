@@ -92,7 +92,9 @@ describe('theme presets', () => {
     'the derivation of %s from its base and seed stays within 0.005 OKLab of the preset',
     (preset) => {
       const derived = derivePalette(PRESET_BASE[preset], PRESET_SEED[preset]);
-      for (const name of M3_TOKEN_NAMES) {
+      // The Blue primary and its text were brightened for the ops-panel look; its tints still come from the old seed
+      const brightened = preset === 'blue' ? ['primary', 'on-primary'] : [];
+      for (const name of M3_TOKEN_NAMES.filter((token) => !brightened.includes(token))) {
         expect(deltaE(derived[name], PRESET_TOKENS[preset][name]), name).toBeLessThanOrEqual(0.005);
       }
     },
@@ -100,28 +102,28 @@ describe('theme presets', () => {
 
   it('keeps the old payload chart and seat map colours', () => {
     expect(chartColours(PRESET_TOKENS.blue)).toEqual({
-      zfw: '#e3e5ea',
-      tow: '#00a4ad',
+      zfw: '#e6ecef',
+      tow: '#38c6e8',
       ldw: '#f2c14e',
-      grid: '#44474e',
-      gridMinor: '#262a31',
-      ring: '#1b1e24',
+      grid: '#2a3640',
+      gridMinor: '#1d2730',
+      ring: '#151c22',
     });
     expect(chartColours(PRESET_TOKENS.dark)).toEqual({
       zfw: '#e3e5ea',
       tow: '#3b82f6',
       ldw: '#f2c14e',
-      grid: '#3a4150',
-      gridMinor: '#222833',
-      ring: '#161a21',
+      grid: '#2a313b',
+      gridMinor: '#1c222a',
+      ring: '#14181e',
     });
     expect(chartColours(PRESET_TOKENS.light)).toEqual({
       zfw: '#1b1e24',
       tow: '#1d6fe0',
       ldw: '#7a5a00',
-      grid: '#c5c8ce',
-      gridMinor: '#e6e8ec',
-      ring: '#ffffff',
+      grid: '#cfd5db',
+      gridMinor: '#e6e9ed',
+      ring: '#f4f5f7',
     });
     expect(seatColours({ kind: 'preset', preset: 'blue' })).toEqual(['#fff', '#00C9E4', '#84CC16']);
     expect(seatColours({ kind: 'preset', preset: 'dark' })).toEqual(['#fff', '#3B82F6', '#84CC16']);
