@@ -470,6 +470,9 @@ class FlyByWireInterface {
 
   // PRIM discrete output Lvars
   std::unique_ptr<LocalVariable> idPrimHealthy[3];
+  // reverse lever signal of each PRIM for the reverser engines (2 and 3)
+  std::unique_ptr<LocalVariable> idPrimThrustReverseSelected[3][2];
+  std::unique_ptr<LocalVariable> idThrustLeverReverseSwitch[4];
   std::unique_ptr<LocalVariable> idPrimApEngaged[3];
 
   // PRIM bus FCTL output Lvars

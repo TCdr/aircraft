@@ -170,6 +170,15 @@ base_sec_discrete_outputs Sec::getDiscreteOutputs() {
   return output;
 }
 
+bool Sec::isThrustReverseSelected(int engineIndex) const {
+  if (!monitoringHealthy) {
+    return false;
+  }
+
+  const double leverAngle = engineIndex == 0 ? modelInputs.in.analog_inputs.thr_lever_1_pos : modelInputs.in.analog_inputs.thr_lever_2_pos;
+  return leverAngle <= thrustReverseSelectedTlaDeg;
+}
+
 // Write the analog outputs and return it.
 base_sec_analog_outputs Sec::getAnalogOutputs() {
   base_sec_analog_outputs output = {};

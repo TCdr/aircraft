@@ -4821,6 +4821,11 @@ struct A320ReverserController {
 
     throttle_lever_angle: Angle,
 
+    /// The reverse thrust lever signal of each SEC for this engine. The reverser deploys only with
+    /// the signal from at least one SEC.
+    sec_reverse_selected_ids: [VariableIdentifier; 3],
+    sec_reverse_selected: [bool; 3],
+
     state: ReverserControlState,
 
     tertiary_lock_from_sec_should_unlock: DelayedFalseLogicGate,
@@ -4844,6 +4849,13 @@ impl A320ReverserController {
                 .get_identifier(format!("AUTOTHRUST_TLA:{}", engine_number)),
 
             throttle_lever_angle: Angle::default(),
+            sec_reverse_selected_ids: [1, 2, 3].map(|sec_number| {
+                context.get_identifier(format!(
+                    "SEC_{}_THR_REVERSE_SELECTED:{}",
+                    sec_number, engine_number
+                ))
+            }),
+            sec_reverse_selected: [false; 3],
             state: ReverserControlState::StowedOff,
 
             tertiary_lock_from_sec_should_unlock: DelayedFalseLogicGate::new(Duration::from_secs(
@@ -4892,17 +4904,20 @@ impl A320ReverserController {
             && !self.fault.is_active()
             && !self.deployment_inhibited;
 
+        let sec_reverse_selected = self.sec_reverse_selected.iter().any(|selected| *selected);
+
         let allow_power_to_valves = self.throttle_lever_angle.get::<degree>() <= -3.8
+            && sec_reverse_selected
             && lgciu.left_and_right_gear_compressed(false);
 
-        let allow_isolation_valve_to_open = self.throttle_lever_angle.get::<degree>() <= -4.3;
+        let allow_isolation_valve_to_open =
+            self.throttle_lever_angle.get::<degree>() <= -4.3 && sec_reverse_selected;
 
         let allow_directional_valve_to_deploy =
             allow_isolation_valve_to_open && reverser_feedback.pressure_switch_pressurised();
 
-        // TODO: this should come from a SEC output, this is a placeholder of the SEC output
         self.tertiary_lock_from_sec_should_unlock
-            .update(context, self.throttle_lever_angle.get::<degree>() <= -3.);
+            .update(context, sec_reverse_selected);
 
         self.state = match self.state {
             ReverserControlState::StowedOff => {
@@ -4962,6 +4977,13 @@ impl SimulationElement for A320ReverserController {
 
     fn read(&mut self, reader: &mut SimulatorReader) {
         self.throttle_lever_angle = reader.read(&self.throttle_lever_angle_id);
+        for (selected, id) in self
+            .sec_reverse_selected
+            .iter_mut()
+            .zip(&self.sec_reverse_selected_ids)
+        {
+            *selected = reader.read(id);
+        }
     }
 }
 impl ReverserInterface for A320ReverserController {
@@ -6328,35 +6350,65 @@ mod tests {
                 self
             }
 
-            fn set_throttles_idle(mut self) -> Self {
-                self.write_by_name("AUTOTHRUST_TLA:1", 0.);
-                self.write_by_name("AUTOTHRUST_TLA:2", 0.);
+            /// The thrust lever angle of an engine, with the SECs reporting the lever in the
+            /// reverse sector (the lever signal of each SEC follows the lever).
+            fn set_throttle(mut self, engine_number: usize, lever_angle: f64) -> Self {
+                self.write_by_name(&format!("AUTOTHRUST_TLA:{}", engine_number), lever_angle);
+                for sec_number in 1..=3 {
+                    self.write_by_name(
+                        &format!("SEC_{}_THR_REVERSE_SELECTED:{}", sec_number, engine_number),
+                        lever_angle <= -3.,
+                    );
+                }
 
                 self
             }
 
-            fn eng1_throttle_reverse_idle(mut self) -> Self {
-                self.write_by_name("AUTOTHRUST_TLA:1", -6.);
+            /// Only the given SEC (1 to 3) still gives the reverse lever signal of the engine.
+            fn only_sec_gives_the_reverse_signal(
+                mut self,
+                engine_number: usize,
+                sec_number: usize,
+            ) -> Self {
+                for number in 1..=3 {
+                    self.write_by_name(
+                        &format!("SEC_{}_THR_REVERSE_SELECTED:{}", number, engine_number),
+                        number == sec_number,
+                    );
+                }
 
                 self
             }
 
-            fn eng1_throttle_reverse_full(mut self) -> Self {
-                self.write_by_name("AUTOTHRUST_TLA:1", -20.);
+            fn no_sec_gives_the_reverse_signal(mut self, engine_number: usize) -> Self {
+                for number in 1..=3 {
+                    self.write_by_name(
+                        &format!("SEC_{}_THR_REVERSE_SELECTED:{}", number, engine_number),
+                        false,
+                    );
+                }
 
                 self
             }
 
-            fn eng2_throttle_reverse_idle(mut self) -> Self {
-                self.write_by_name("AUTOTHRUST_TLA:2", -6.);
-
-                self
+            fn set_throttles_idle(self) -> Self {
+                self.set_throttle(1, 0.).set_throttle(2, 0.)
             }
 
-            fn eng2_throttle_reverse_full(mut self) -> Self {
-                self.write_by_name("AUTOTHRUST_TLA:2", -20.);
+            fn eng1_throttle_reverse_idle(self) -> Self {
+                self.set_throttle(1, -6.)
+            }
 
-                self
+            fn eng1_throttle_reverse_full(self) -> Self {
+                self.set_throttle(1, -20.)
+            }
+
+            fn eng2_throttle_reverse_idle(self) -> Self {
+                self.set_throttle(2, -6.)
+            }
+
+            fn eng2_throttle_reverse_full(self) -> Self {
+                self.set_throttle(2, -20.)
             }
 
             fn stopping_eng2(mut self) -> Self {
@@ -12682,6 +12734,61 @@ mod tests {
 
             assert_lt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.01);
             assert_lt!(test_bed.get_reverser_2_position().get::<ratio>(), 0.01);
+        }
+
+        #[test]
+        fn reverser_does_not_deploy_without_a_sec_reverse_signal() {
+            let mut test_bed = test_bed_in_flight_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .start_eng1(Ratio::new::<percent>(60.))
+                .start_eng2(Ratio::new::<percent>(60.))
+                .run_waiting_for(Duration::from_secs_f64(10.));
+
+            test_bed = test_bed
+                .eng1_throttle_reverse_full()
+                .eng2_throttle_reverse_full()
+                .no_sec_gives_the_reverse_signal(1)
+                .run_waiting_for(Duration::from_secs_f64(5.));
+
+            assert_lt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.01);
+            assert_gt!(test_bed.get_reverser_2_position().get::<ratio>(), 0.99);
+        }
+
+        #[test]
+        fn reverser_deploys_with_the_reverse_signal_of_a_single_sec() {
+            let mut test_bed = test_bed_in_flight_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .start_eng1(Ratio::new::<percent>(60.))
+                .start_eng2(Ratio::new::<percent>(60.))
+                .run_waiting_for(Duration::from_secs_f64(10.));
+
+            test_bed = test_bed
+                .eng1_throttle_reverse_full()
+                .only_sec_gives_the_reverse_signal(1, 3)
+                .run_waiting_for(Duration::from_secs_f64(3.));
+
+            assert_gt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.99);
+        }
+
+        #[test]
+        fn reverser_stows_when_the_last_sec_loses_the_reverse_signal() {
+            let mut test_bed = test_bed_in_flight_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .start_eng1(Ratio::new::<percent>(60.))
+                .run_waiting_for(Duration::from_secs_f64(10.));
+
+            test_bed = test_bed
+                .eng1_throttle_reverse_full()
+                .run_waiting_for(Duration::from_secs_f64(3.));
+            assert_gt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.99);
+
+            test_bed = test_bed
+                .no_sec_gives_the_reverse_signal(1)
+                .run_waiting_for(Duration::from_secs_f64(5.));
+            assert_lt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.01);
         }
 
         #[test]
