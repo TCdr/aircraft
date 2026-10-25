@@ -100,6 +100,8 @@ interface MetarViewProps {
   icao: string;
   name: string;
   metar: string;
+  /** The METAR of the OFP, as it was when the OFP was made: the weather server had none */
+  fromOfp: boolean;
   airport: AirportInfo | null;
   /** Local minus UTC of the airport; null when the aircraft is not at it */
   localOffsetSeconds: number | null;
@@ -107,7 +109,16 @@ interface MetarViewProps {
   metric: boolean;
 }
 
-export const MetarView: FC<MetarViewProps> = ({ icao, name, metar, airport, localOffsetSeconds, nowMs, metric }) => {
+export const MetarView: FC<MetarViewProps> = ({
+  icao,
+  name,
+  metar,
+  fromOfp,
+  airport,
+  localOffsetSeconds,
+  nowMs,
+  metric,
+}) => {
   const [chosenRunway, setChosenRunway] = useState<string | null>(null);
   useEffect(() => setChosenRunway(null), [icao]);
 
@@ -174,6 +185,7 @@ export const MetarView: FC<MetarViewProps> = ({ icao, name, metar, airport, loca
           className="shrink-0"
           trailing={
             <>
+              {fromOfp && <HeaderChip tone="busy">{t(`${W}.FromOfp`)}</HeaderChip>}
               {timeText && <StationNote>{timeText}</StationNote>}
               {ageMinutes !== null && (
                 <HeaderChip tone={ageMinutes <= FRESH_MINUTES ? 'active' : 'busy'}>{formatAge(ageMinutes)}</HeaderChip>

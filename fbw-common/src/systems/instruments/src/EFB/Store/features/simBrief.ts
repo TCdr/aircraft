@@ -34,6 +34,8 @@ export interface SimbriefData {
     avgWindSpeed: string;
     /** The TAFs of the plan's airports when the OFP was made, by ICAO */
     tafs: Record<string, string>;
+    /** The METARs of the plan's airports when the OFP was made, by ICAO */
+    metars: Record<string, string>;
   };
   units: string;
   altIcao?: string;
@@ -121,6 +123,7 @@ export const initialState: {
       avgWindDir: '',
       avgWindSpeed: '',
       tafs: {},
+      metars: {},
     },
     units: '',
     altIcao: '',
@@ -228,6 +231,7 @@ export async function fetchSimbriefDataAction(
       avgWindDir: returnedSimbriefData.weather.avgWindDir.toString(),
       avgWindSpeed: returnedSimbriefData.weather.avgWindSpeed.toString(),
       tafs: returnedSimbriefData.weather.tafs,
+      metars: returnedSimbriefData.weather.metars,
     },
     units: returnedSimbriefData.units,
     altIcao: returnedSimbriefData.alternate.icao,

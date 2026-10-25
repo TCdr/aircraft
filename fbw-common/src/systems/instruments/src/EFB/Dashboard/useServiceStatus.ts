@@ -30,7 +30,7 @@ const A380_DOOR_INDICES = [0, 2, 10];
 const A32NX_DOOR_INDICES = [0, 1, 2];
 const PAYLOAD_POLL_MS = 1_000;
 
-const SERVICES_RAN_KEY = 'EFB_DASHBOARD_SERVICES_RAN';
+export const SERVICES_RAN_KEY = 'EFB_DASHBOARD_SERVICES_RAN';
 
 /**
  * Remembers which services ran for the loaded OFP. Run once for the whole flyPad (useDashboardLatches): a deboarding

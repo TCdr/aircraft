@@ -42,7 +42,8 @@ export interface AdviceInput {
   destQnh: number;
   mda: number;
   dh: number;
-  lateralPlanAvailable: boolean;
+  /** The FMS holds a flight plan (not the LNAV guidance variable: that needs a flown leg) */
+  fmsHasFlightPlan: boolean;
   /** Minutes by which the projected end of the turnaround is after the scheduled departure; negative when early */
   turnaroundLateMin: number | null;
   /** Average wind component along the route: positive for a tailwind, negative for a headwind */
@@ -176,7 +177,7 @@ const apprDataAdvice = (input: AdviceInput): Advice[] => {
 };
 
 const fmsNotInitialisedAdvice = (input: AdviceInput): Advice[] =>
-  input.phase === 'atGate' && input.hasOfp && !input.lateralPlanAvailable
+  input.phase === 'atGate' && input.hasOfp && !input.fmsHasFlightPlan
     ? [
         {
           id: 'fms-not-initialised',
