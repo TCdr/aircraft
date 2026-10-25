@@ -264,9 +264,9 @@ ElacComputer::Parameters_ElacComputer_T ElacComputer::ElacComputer_P{
 
   0.5,
 
-  30.0,
+  40.0,
 
-  30.0,
+  40.0,
 
   0.2,
 
@@ -2165,9 +2165,9 @@ ElacComputer::Parameters_ElacComputer_T ElacComputer::ElacComputer_P{
 
   0.82,
 
-  380.0,
+  366.0,
 
-  0.88,
+  0.86,
 
   0.017453292519943295,
 

@@ -42,6 +42,11 @@ clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/sr
   ../src/utils/SRFlipFLop.cpp \
   -o ../obj/flight_control_failure_inputs_test
 ../obj/flight_control_failure_inputs_test
+# ELAC pitch law after a dual hydraulic loss, high speed protection limit, sidestick priority latch
+clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  elac_law_and_protection_test.cpp ../src/model/*.cpp \
+  -o ../obj/elac_law_and_protection_test
+../obj/elac_law_and_protection_test
 # With WITHOUT_THE_FIX=1 the next tests use the logic before the fix and must fail
 FIX_FLAGS=""
 if [ "${WITHOUT_THE_FIX:-0}" = "1" ]; then
