@@ -214,6 +214,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Company wind messages use the aircraft wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
 1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
 1. [A32NX/FADEC] After a FLX takeoff the thrust limit goes to CLB when the thrust levers rest in the CL detent, also when a lever sits a hair above it; before, it could stay on FLX and cap the climb thrust at the flex value in the upper part of the climb - @TCdr
+1. [A32NX/FG] The autopilot disengages when the speed reaches 15 kt above VMO or Mach 0.04 above MMO; before, it stayed engaged at any overspeed - @TCdr
 1. [A380X/PRESS] With a door not closed and locked at takeoff power, the outflow valve controllers keep the four outflow valves open in AUTO (CAB PRESS INHIBITED BY DOORS), the controllers read every passenger door and both cargo doors, and the cabin air and pack door inputs read all 16 passenger doors (only MAIN 1L and 2R before) - @TCdr
 1. [A380X/MODEL] The exhaust heat haze of engines 2, 3 and 4 follows its own engine (it followed engine 1 or 2) - @TCdr
 1. [A380X/FWS] New DOOR UPPER 1L to 3R NOT CLOSED and DOOR FWD(AFT) CARGO NOT CLOSED cautions, and CAB PRESS INHIBITED BY DOORS now also triggers on door MAIN 1R, the upper deck doors and the cargo doors - @TCdr
@@ -319,6 +320,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/PRESS] Automatic pressurization keeps the cabin differential pressure in the normal range in cruise above the FMS cruise FL or after an FMS reset, instead of drifting to the 9 PSI pressure limiter - @TCdr
 1. [A32NX/FIRE] The amber cargo DISCH lights now also come on while the CARGO SMOKE TEST pb is held - @TCdr
 1. [A380X/FADEC] After a FLEX takeoff the thrust limit goes to CLB when the thrust levers rest in the CL detent, also when a lever sits a hair above it; before, it could stay on FLX and cap the climb thrust at the flex value in the upper part of the climb - @TCdr
+1. [A380X/FG] The autopilot disengages when the speed reaches 15 kt above VMO or Mach 0.04 above MMO; before, it stayed engaged at any overspeed - @TCdr
 
 ## 2024.1.0
 
