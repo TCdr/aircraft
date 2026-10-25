@@ -44,3 +44,10 @@ clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model alpha_floor_mach_inhibi
   ../src/model/look2_binlxpw.cpp ../src/model/plook_binx.cpp ../src/model/binsearch_u32d.cpp \
   ../src/model/intrp3d_l_pw.cpp ../src/model/look2_iflf_binlxpw.cpp -o ../obj/alpha_floor_mach_inhibit_test
 ../obj/alpha_floor_mach_inhibit_test
+# A380 values of the normal law protections (high speed, pitch attitude, bank in high lift) and the direct law triggers
+# (abnormal attitude angle of attack, three IRs lost). With WITHOUT_THE_FIX=1 the lateral normal law is called without
+# its high lift input and the test must fail.
+clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  fctl_protection_values_test.cpp ../src/model/*.cpp \
+  -o ../obj/fctl_protection_values_test
+../obj/fctl_protection_values_test

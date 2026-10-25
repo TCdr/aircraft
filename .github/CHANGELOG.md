@@ -757,6 +757,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/F/CTL] High speed protection: full forward sidestick now stops at VMO+16 kt / MMO+0.04 instead of 380 kt / M0.88 - @TCdr
 1. [A32NX/F/CTL] Loss of the blue and yellow hydraulic systems keeps pitch normal law instead of alternate law - @TCdr
 1. [A32NX/F/CTL] Sidestick priority: the takeover pb must be held 40 s (was 30 s) to deactivate the other sidestick permanently - @TCdr
+1. [A380X/F/CTL] High speed protection uses the A380 values: active from VMO+10 kt / MMO+0.02, full forward sidestick holds VD-10 kt / MD-0.02 (was A320 values) - @TCdr
+1. [A380X/F/CTL] Bank angle limited to 60 degrees with slats or flaps extended (67 degrees clean) - @TCdr
+1. [A380X/F/CTL] The 30 degree nose-up pitch limit no longer drops to 25 degrees in CONF FULL - @TCdr
+1. [A380X/F/CTL] Direct law after the loss of the three IRs, and the abnormal attitude law from 30 degrees angle of attack (was 37.5) - @TCdr
 
 ## 2024.1.0
 
