@@ -151,6 +151,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] POSITION/MONITOR shows the FMS 2, radio, GPIRS, GPS 1 and GPS 2 positions and the real navigation mode - @TCdr
 1. [A32NX/MCDU] New MCDU messages AREA RNP IS, PROCEDURE RNP IS, CHECK IRS/AIRPORT POS, IRS ONLY NAVIGATION, CHECK DATA BASE CYCLE, CHECK DEST DATA, CRZ FL ABOVE MAX FL and TIME TO EXIT - @TCdr
 1. [A380X/MFD] New FMS messages AREA RNP IS, PROC RNP IS, CHECK DATABASE CYCLE, CHECK IRS / ARPT POSITION, EXPECT TURN AREA EXCEEDANCE, SPECIF NDB NOT AVAIL, TIME TO EXIT, T.O TIME REACHED and ADJUST DESIRED TRK OR HDG - @TCdr
+1. [A380X/Presets] Ready for taxi and Ready for takeoff now set XPDR to AUTO and TCAS to TA/RA, the EFIS WX, TERR and TRAF buttons (WX captain, TERR first officer), and the Ready for pushback preset switches the external power off - @TCdr
 
 ## 2024.1.0
 

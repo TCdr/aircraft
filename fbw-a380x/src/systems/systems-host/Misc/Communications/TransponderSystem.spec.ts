@@ -7,6 +7,7 @@ import {
   isTcasInoperative,
   isTransponderOperative,
   isXpdrTcasPowered,
+  presetSurvSettings,
   selectedSurvSystem,
   transponderFailureKey,
 } from './TransponderSystem';
@@ -81,5 +82,21 @@ describe('A380 TCAS inoperative state (SURV XPDR 1(2) FAULT STATUS: XPDR 1(2), T
   it('keeps both TCAS operative without faults', () => {
     expect(isTcasInoperative(1, 1, false, false)).toBe(false);
     expect(isTcasInoperative(2, 1, false, false)).toBe(false);
+  });
+});
+
+describe('A380 aircraft preset XPDR and TCAS request', () => {
+  it('ignores 0 and unexpected values', () => {
+    expect(presetSurvSettings(0)).toBeNull();
+    expect(presetSurvSettings(3)).toBeNull();
+    expect(presetSurvSettings(-1)).toBeNull();
+  });
+
+  it('puts the XPDR in STBY and the TCAS in STBY for 1', () => {
+    expect(presetSurvSettings(1)).toEqual({ xpdrAuto: false, tcasAlertLevel: 0 });
+  });
+
+  it('puts the XPDR in AUTO and the TCAS in TA/RA for 2', () => {
+    expect(presetSurvSettings(2)).toEqual({ xpdrAuto: true, tcasAlertLevel: 2 });
   });
 });
