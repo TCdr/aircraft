@@ -42,6 +42,9 @@ clang++ -std=c++20 -Wall -Wextra -I ../src/model \
   ../src/utils/SRFlipFLop.cpp \
   -o ../obj/flight_control_failure_inputs_test
 ../obj/flight_control_failure_inputs_test
+# FLS deviations and the ILS bus words they replace on an FLS approach (fbw-common FlsReceiver.h)
+clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src fls_guidance_test.cpp -o ../obj/fls_guidance_test
+../obj/fls_guidance_test
 # With WITHOUT_THE_FIX=1 the next tests use the logic before the fix and must fail
 FIX_FLAGS=""
 if [ "${WITHOUT_THE_FIX:-0}" = "1" ]; then

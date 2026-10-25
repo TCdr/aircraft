@@ -12,6 +12,7 @@
 #include "TakeoffDerate.h"
 #include "CalculatedRadioReceiver.h"
 #include "EngineStartThrottleHold.h"
+#include "FlsReceiver.h"
 #include "InterpolatingLookupTable.h"
 #include "LocalVariable.h"
 #include "RateLimiter.h"
@@ -129,6 +130,8 @@ class FlyByWireInterface {
   base_sfcc_bus sfccBusOutputs[2] = {};
 
   base_ils_bus ilsBusOutputs[2] = {};
+  FlsBeamDefinition flsBeam;
+  FlsDeviations flsDeviations;
 
   base_adr_bus adrBusOutputs[3] = {};
   base_ir_bus irBusOutputs[3] = {};
@@ -252,6 +255,19 @@ class FlyByWireInterface {
   // the DOx derated takeoff of the MFD PERF T.O panel: thrust reduction in percent, 0 none (TakeoffDerate.h)
   std::unique_ptr<LocalVariable> idFmgcTakeoffDerate;
   std::unique_ptr<LocalVariable> idFmsLsCourse;
+  std::unique_ptr<LocalVariable> idFmsFlsBeamValid;
+  std::unique_ptr<LocalVariable> idFmsFlsAnchorLatitude;
+  std::unique_ptr<LocalVariable> idFmsFlsAnchorLongitude;
+  std::unique_ptr<LocalVariable> idFmsFlsAnchorAltitude;
+  std::unique_ptr<LocalVariable> idFmsFlsCourse;
+  std::unique_ptr<LocalVariable> idFmsFlsSlope;
+  std::unique_ptr<LocalVariable> idFmsFlsLateral;
+  std::unique_ptr<LocalVariable> idFlsLocalizerValid;
+  std::unique_ptr<LocalVariable> idFlsLocalizerDeviation;
+  std::unique_ptr<LocalVariable> idFlsGlideSlopeValid;
+  std::unique_ptr<LocalVariable> idFlsGlideSlopeDeviation;
+  std::unique_ptr<LocalVariable> idFlsLateralActive;
+  std::unique_ptr<LocalVariable> idFlsVerticalActive;
   std::unique_ptr<LocalVariable> idFmsSpeedMarginHigh;
   std::unique_ptr<LocalVariable> idFmsSpeedMarginLow;
   std::unique_ptr<LocalVariable> idFmsSpeedMarginVisible;
@@ -757,6 +773,8 @@ class FlyByWireInterface {
   bool updateLgciu(int lgciuIndex);
 
   bool updateSfcc(int sfccIndex);
+
+  bool updateFls();
 
   bool updateIls(int ilsIndex);
 

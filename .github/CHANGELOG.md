@@ -897,6 +897,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FMS] [A380X/FMS] Predict the time, fuel and ETA at the destination and the alternate in the go-around phase (no vertical predictions on the missed approach legs), and start the take-off predictions at the aircraft once airborne - @TCdr
 1. [A380X/FMS] Add engine-out predictions: the EO MAX is computed from the aircraft performance, the drift down is predicted and shown as DRIFT DOWN TO FL on the PERF CRZ page, and the EO CRZ MODE (EO-LRC or EO-ECON) and the EO-GDOT speed type are selected and shown - @TCdr
 1. [A32NX/FMS] Add engine-out predictions: the drift down to the EO REC MAX and the EO LRC or cost index cruise speed are predicted, DRIFT DOWN is shown on the PERF CRZ page and EO LRC replaces the cost index - @TCdr
+1. [AP] FLS approaches: the LOC and G/S modes fly the FLS beam (F-LOC, F-G/S) from the FMS position and barometric altitude, without LAND - @TCdr
 
 ## 2024.1.0
 

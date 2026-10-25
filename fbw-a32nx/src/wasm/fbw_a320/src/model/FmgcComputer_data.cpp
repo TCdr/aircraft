@@ -962,6 +962,7 @@ FmgcComputer::Parameters_FmgcComputer_T FmgcComputer::FmgcComputer_P{
           0U,
           0.0F
         },
+        false,
         false
       },
 

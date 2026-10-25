@@ -6,6 +6,7 @@
 #include "Arinc429.h"
 #include "CalculatedRadioReceiver.h"
 #include "EngineStartThrottleHold.h"
+#include "FlsReceiver.h"
 #include "FadecFailureInputs.h"
 #include "FadecComputer.h"
 #include "InterpolatingLookupTable.h"
@@ -132,6 +133,8 @@ class FlyByWireInterface {
   base_sfcc_bus sfccBusOutputs[2] = {};
 
   base_ils_bus ilsBusOutputs[2] = {};
+  FlsBeamDefinition flsBeam;
+  FlsDeviations flsDeviations;
 
   base_adr_bus adrBusOutputs[3] = {};
   base_ir_bus irBusOutputs[3] = {};
@@ -240,6 +243,19 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idFmgcFlexTemperature;
   std::unique_ptr<LocalVariable> idFmgcDirToTrigger;
   std::unique_ptr<LocalVariable> idFmsLsCourse;
+  std::unique_ptr<LocalVariable> idFmsFlsBeamValid;
+  std::unique_ptr<LocalVariable> idFmsFlsAnchorLatitude;
+  std::unique_ptr<LocalVariable> idFmsFlsAnchorLongitude;
+  std::unique_ptr<LocalVariable> idFmsFlsAnchorAltitude;
+  std::unique_ptr<LocalVariable> idFmsFlsCourse;
+  std::unique_ptr<LocalVariable> idFmsFlsSlope;
+  std::unique_ptr<LocalVariable> idFmsFlsLateral;
+  std::unique_ptr<LocalVariable> idFlsLocalizerValid;
+  std::unique_ptr<LocalVariable> idFlsLocalizerDeviation;
+  std::unique_ptr<LocalVariable> idFlsGlideSlopeValid;
+  std::unique_ptr<LocalVariable> idFlsGlideSlopeDeviation;
+  std::unique_ptr<LocalVariable> idFlsLateralActive;
+  std::unique_ptr<LocalVariable> idFlsVerticalActive;
   std::unique_ptr<LocalVariable> idFmsSpeedMarginHigh;
   std::unique_ptr<LocalVariable> idFmsSpeedMarginLow;
   std::unique_ptr<LocalVariable> idFmsSpeedMarginVisible;
@@ -706,6 +722,8 @@ class FlyByWireInterface {
   bool updateLgciu(int lgciuIndex);
 
   bool updateSfcc(int sfccIndex);
+
+  bool updateFls();
 
   bool updateIls(int ilsIndex);
 
