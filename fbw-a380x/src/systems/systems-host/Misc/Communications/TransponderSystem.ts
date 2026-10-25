@@ -82,3 +82,32 @@ export function isTcasInoperative(
 ): boolean {
   return xpdrFailed || (system === selectedSystem && selectedTcasFault);
 }
+
+/** TCAS alert levels of the MFD SURV page (mfd_tcas_alert_level) */
+const TCAS_ALERT_LEVEL_STANDBY = 0;
+const TCAS_ALERT_LEVEL_TA_RA = 2;
+
+/** What the aircraft presets ask the XPDR and TCAS to be */
+export interface PresetSurvSettings {
+  /** XPDR mode AUTO, otherwise STBY */
+  xpdrAuto: boolean;
+  tcasAlertLevel: number;
+}
+
+/**
+ * The XPDR and TCAS settings for a request of the aircraft presets. The MFD SURV page holds these settings as bus
+ * events, which the preset procedures cannot publish, so they ask through L:A380X_PRESET_SURV_REQUEST.
+ * AUTO with TA/RA is the default setting of the XPDR and the TCAS; STBY puts both in standby.
+ * @param request 0 = no request, 1 = XPDR and TCAS standby, 2 = XPDR AUTO and TCAS TA/RA
+ * @returns the settings, or null when nothing is requested
+ */
+export function presetSurvSettings(request: number): PresetSurvSettings | null {
+  switch (request) {
+    case 1:
+      return { xpdrAuto: false, tcasAlertLevel: TCAS_ALERT_LEVEL_STANDBY };
+    case 2:
+      return { xpdrAuto: true, tcasAlertLevel: TCAS_ALERT_LEVEL_TA_RA };
+    default:
+      return null;
+  }
+}

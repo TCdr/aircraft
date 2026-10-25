@@ -9,6 +9,7 @@
 #include "DataManager.h"
 #include "Module.h"
 #include "PresetProcedures.hpp"
+#include "PresetRunner.hpp"
 #include "ProcedureStep.hpp"
 
 class MsfsHandler;
@@ -66,23 +67,26 @@ class AircraftPresets : public Module {
   // Procedures
   PresetProcedures presetProcedures;
 
-  // current procedure ID
+  // Runs the calculator code of the steps in the sim
+  class CalculatorCodeEnvironment : public aircraft_presets::CodeEnvironment {
+   public:
+    explicit CalculatorCodeEnvironment(const NamedVariablePtr& verboseVar) : verboseVar(verboseVar) {}
+    bool evaluate(const std::string& code) override;
+    void execute(const std::string& code) override;
+
+   private:
+    const NamedVariablePtr& verboseVar;
+  };
+  CalculatorCodeEnvironment codeEnvironment{aircraftPresetVerbose};
+
+  // Walks through the steps of the running preset
+  aircraft_presets::PresetRunner runner{codeEnvironment, &AircraftPresets::logRunnerMessage};
+
+  // ID of the preset that is being loaded
   int currentProcedureID = 0;
 
-  // current procedure
-  const std::vector<ProcedureStep*>* currentProcedure = nullptr;
-
-  // flag to signal that a loading process is ongoing
-  bool loadingIsActive = false;
-
-  // in ms
-  double currentLoadingTime = 0.0;
-
-  // time for next action in respect to currentLoadingTime
-  double currentDelay = 0;
-
-  // step number in the array of steps
-  std::size_t currentStep = 0;
+  // the step the progress was last sent for, so that the flyPad is only told about changes
+  std::string lastReportedDescription;
 
  public:
   AircraftPresets() = delete;  // no default constructor
@@ -102,82 +106,20 @@ class AircraftPresets : public Module {
   bool shutdown() override;
 
  private:
+  static void logRunnerMessage(const std::string& message);
+
   /**
    * Updates the progress of the preset load and send it to the Lvars and the flyPad via COMM_BUS
-   * @param currentStepPtr The current step of the procedure.
    */
-  void updateProgress(const ProcedureStep* currentStepPtr) const;
+  void updateProgress();
 
   /**
-   * @brief Checks if the preset loading process is completed.
-   *
-   * Evaluates whether all steps in the current loading process have been completed. This method should be
-   * called to determine when the loading process should be finalized and the system made ready for normal
-   * operation.
-   *
-   * @return True if the loading process is completed, false otherwise.
+   * Starts loading the requested preset and latches the loading mode (normal or expedited) for the whole run.
    */
-  bool checkCompletion();
+  void startLoading(const Preset* requestedProcedure);
 
   /**
-   * @brief Initializes a new preset loading process.
-   *
-   * Sets up the necessary state for a new loading process based on the requested preset. This includes
-   * selecting the appropriate procedure from the preset definitions and initializing state variables
-   * for the loading process.
-   *
-   * @param requestedProcedure An point to a Preset containing the requested procedure. If no procedure is
-   * found, the optional will be empty.
-   */
-  void initializeNewLoadingProcess(const Preset* requestedProcedure);
-
-  /**
-   * @brief Determines if the current step should be skipped based on its type and expedited mode.
-   *
-   * In expedited mode, certain steps may be skipped to accelerate the loading process. This method
-   * checks the step type against the current mode to decide if it should be executed or skipped.
-   *
-   * @param expeditedMode A boolean indicating if expedited mode is active.
-   * @param currentStepPtr Pointer to the current step being evaluated.
-   * @return True if the step should be skipped, false otherwise.
-   */
-  bool checkStepTypeSkipping(bool expeditedMode, const ProcedureStep* currentStepPtr);
-
-  /**
-   * @brief Handles the execution of a condition step in the loading process.
-   *
-   * Condition steps require special handling to evaluate whether the conditions for proceeding with
-   * the next step are met. This method manages the checking of conditions and updating of progress.
-   *
-   * @param currentStepPtr Pointer to the current condition step to handle.
-   */
-  void handleConditionStep(const ProcedureStep* currentStepPtr);
-
-  /**
-   * @brief Checks if the expected state for a step is already met.
-   *
-   * Before executing an action step, this method verifies if the expected state it aims to achieve
-   * is already present, potentially allowing the step to be skipped.
-   *
-   * @param currentStepPtr Pointer to the current step being evaluated.
-   * @return True if the expected state is met and the action can be skipped, false if the action should be executed.
-   */
-  bool checkExpectedState(const ProcedureStep* currentStepPtr);
-
-  /**
-   * @brief Executes the action associated with the current step.
-   *
-   * Executes the simulator commands or other actions required by the current step in the loading process.
-   * This method handles the actual manipulation or setting of states in the simulator based on the step definitions.
-   *
-   * @param currentStepPtr Pointer to the current step whose action is to be executed.
-   */
-  void executeAction(const ProcedureStep* currentStepPtr);
-
-  /**
-   * @brief Handles the completion of loading a preset.
-   *
-   * Is called when canceling the loading process or when the loading process is completed.
+   * Is called when the loading is completed, cancelled or aborted. Releases the request and the quick mode LVAR.
    */
   void finishLoading();
 };

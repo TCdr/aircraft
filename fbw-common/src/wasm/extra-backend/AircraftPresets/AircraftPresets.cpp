@@ -66,100 +66,60 @@ bool AircraftPresets::update(sGaugeDrawData* pData) {
     return false;
   }
 
+  // A flight reload or a systems restart while a preset runs must not leave the quick mode LVAR on: the APU, ADIRS and FADEC would
+  // keep starting and stopping instantly
   if (!msfsHandler.getAircraftIsReadyVar()) {
+    if (runner.isRunning()) {
+      LOG_WARN("AircraftPresets: Aircraft not ready, the running preset is cancelled");
+      runner.cancel();
+      finishLoading();
+    }
     return true;
   }
 
-  // Has a request to load a preset been requested?
-  if (loadAircraftPresetRequest->getAsInt64() > 0) {
-    // we do not allow loading of presets in the air to prevent users from
-    // accidentally changing the aircraft configuration
-    if (!msfsHandler.getSimOnGround()) {
-      LOG_WARN("AircraftPresets: Aircraft must be on the ground to load a preset!");
+  const bool loadRequested = loadAircraftPresetRequest->getAsInt64() > 0;
+
+  if (!loadRequested) {
+    runner.cancel();
+    if (runner.getState() != aircraft_presets::RunnerState::IDLE) {
+      finishLoading();
+    }
+    return true;
+  }
+
+  // we do not allow loading of presets in the air to prevent users from
+  // accidentally changing the aircraft configuration
+  if (!msfsHandler.getSimOnGround()) {
+    LOG_WARN("AircraftPresets: Aircraft must be on the ground to load a preset!");
+    finishLoading();
+    return true;
+  }
+
+  if (!runner.isRunning()) {
+    const Preset* requestedProcedure = presetProcedures.getProcedure(static_cast<int>(loadAircraftPresetRequest->getAsInt64()));
+    if (!requestedProcedure) {
+      LOG_WARN(fmt::format("AircraftPresets: Preset {} not found!", loadAircraftPresetRequest->getAsInt64()));
       finishLoading();
       return true;
     }
+    startLoading(requestedProcedure);
+    return true;
+  }
 
-    // check if we already have an active loading process or if this is a new request that
-    // needs to be initialized
-    if (!loadingIsActive) {
-      // get the requested procedure
-      const Preset* requestedProcedure = presetProcedures.getProcedure(loadAircraftPresetRequest->getAsInt64());
+  // Only "0" is allowed to change the request while a preset runs (that is the cancel), anything else is put back
+  loadAircraftPresetRequest->setAsInt64(currentProcedureID);
 
-      // check if procedure ID exists
-      if (!requestedProcedure) {
-        LOG_WARN(fmt::format("AircraftPresets: Preset {} not found!", loadAircraftPresetRequest->getAsInt64()));
-        finishLoading();
-        return true;
-      }
+  // Signal other systems to use quick mode via a LVAR. Written every frame as the sim may have reset it.
+  aircraftPresetQuickMode->setAndWriteToSim(runner.isExpedited() ? 1 : 0);
 
-      // initialize a new loading process
-      initializeNewLoadingProcess(requestedProcedure);
+  runner.tick(pData->dt * 1000);
+  updateProgress();
 
-      return true;
-    }
-
-    // Reset the LVAR to the current running procedure in case it has been changed
-    // during a running procedure. We only allow "0" as a signal to interrupt the
-    // current procedure
-    loadAircraftPresetRequest->setAsInt64(currentProcedureID);
-
-    // update run timer
-    currentLoadingTime += pData->dt * 1000;
-
-    // check if we are in a delay and return if we have to wait
-    if (currentLoadingTime <= currentDelay) {
-      return true;
-    }
-
-    // check if all procedure steps are done and the procedure is finished
-    if (checkCompletion()) {
-      return true;
-    }
-
-    // check if the user wants to expedite the loading
-    const bool expeditedMode = aircraftPresetExpedite->getAsBool();
-    // Signal other systems to use quick mode via a LVAR
-    aircraftPresetQuickMode->setAndWriteToSim(expeditedMode ? 1 : 0);
-
-    // convenience tmp
-    const ProcedureStep* currentStepPtr = (*currentProcedure)[currentStep];
-
-    // Check if the current step should be skipped based on the step type
-    if (checkStepTypeSkipping(expeditedMode, currentStepPtr)) {
-      return true;
-    }
-
-    // Calculate next delay
-    currentDelay = currentLoadingTime + currentStepPtr->delayAfter;
-
-    // Check if the current step is a condition step and handle it.
-    // It has already been checked above if a condition step should be skipped,
-    // so we only check for the condition flag here
-    if (currentStepPtr->type & StepType::CONDITION) {
-      handleConditionStep(currentStepPtr);
-      return true;
-    }
-
-    // Remove the delay if the step is expedited and the delay can be ignored.
-    // This adds a general expedited delay to each step to generally slow down the process.
-    // The delay is specified in the LVAR "A32NX_AIRCRAFT_PRESET_LOAD_EXPEDITE_DELAY"
-    // and can be adjusted if the default value of 0 causes issues.
-    if (expeditedMode && !(currentStepPtr->type & StepType::EXPEDITED_DELAY)) {
-      currentDelay = currentLoadingTime + aircraftPresetExpediteDelay->get();
-    }
-
-    // test if the next step is required or if the state is already set in
-    // which case the action can be skipped, and delay can be ignored.
-    if (checkExpectedState(currentStepPtr)) {
-      return true;
-    }
-
-    updateProgress(currentStepPtr);
-
-    executeAction(currentStepPtr);
-
-  } else if (loadingIsActive) {  // loading has been 0
+  if (runner.getState() == aircraft_presets::RunnerState::FINISHED) {
+    LOG_INFO(fmt::format("AircraftPresets: Aircraft Preset {} done!", currentProcedureID));
+    finishLoading();
+  } else if (runner.getState() == aircraft_presets::RunnerState::ABORTED) {
+    LOG_ERROR(fmt::format("AircraftPresets: Aircraft Preset {} aborted: {}", currentProcedureID, runner.getAbortReason()));
     finishLoading();
   }
 
@@ -176,104 +136,58 @@ bool AircraftPresets::shutdown() {
 // Private methods
 // ==============================================================================
 
-void AircraftPresets::updateProgress(const ProcedureStep* currentStepPtr) const {
-  const FLOAT64 loadPercentage = static_cast<double>(currentStep) / currentProcedure->size();
-  // update the progress LVARs
+bool AircraftPresets::CalculatorCodeEnvironment::evaluate(const std::string& code) {
+  FLOAT64 value = 0.0;
+  if (verboseVar && verboseVar->getAsBool()) {
+    fmt::print("AircraftPresets: Test: [{}]\n", code);
+  }
+  execute_calculator_code(code.c_str(), &value, nullptr, nullptr);
+  return !helper::Math::almostEqual(0.0, value);
+}
+
+void AircraftPresets::CalculatorCodeEnvironment::execute(const std::string& code) {
+  if (verboseVar && verboseVar->getAsBool()) {
+    fmt::print("AircraftPresets: Action: [{}]\n", code);
+  }
+  execute_calculator_code(code.c_str(), nullptr, nullptr, nullptr);
+}
+
+void AircraftPresets::logRunnerMessage(const std::string& message) {
+  LOG_WARN(fmt::format("AircraftPresets: {}", message));
+}
+
+void AircraftPresets::updateProgress() {
+  const std::string& description = runner.getCurrentDescription();
+  if (description == lastReportedDescription) {
+    return;
+  }
+  lastReportedDescription = description;
+  LOG_INFO(fmt::format("AircraftPresets: Aircraft Preset Step: {}", description));
+
+  const FLOAT64 loadPercentage = runner.getProgress();
   progressAircraftPreset->setAndWriteToSim(loadPercentage);
   // send this progress to the flyPad using Comm Bus
-  std::string buffer = fmt::format("{};{}", loadPercentage, currentStepPtr->description);
+  const std::string buffer = fmt::format("{};{}", loadPercentage, description);
   fsCommBusCall("AIRCRAFT_PRESET_WASM_CALLBACK", buffer.c_str(), buffer.size() + 1, FsCommBusBroadcast_JS);
 }
 
-bool AircraftPresets::checkCompletion() {
-  if (currentStep >= currentProcedure->size()) {
-    LOG_INFO(fmt::format("AircraftPresets: Aircraft Preset {} done!", currentProcedureID));
-    finishLoading();
-    return true;
-  }
-  return false;
-}
-
-void AircraftPresets::initializeNewLoadingProcess(const Preset* requestedProcedure) {
-  LOG_INFO(fmt::format("AircraftPresets: Aircraft Preset {} starting procedure!", loadAircraftPresetRequest->getAsInt64()));
-  currentProcedureID = loadAircraftPresetRequest->getAsInt64();
-  currentProcedure   = requestedProcedure;
-  currentLoadingTime = 0;
-  currentDelay       = 0;
-  currentStep        = 0;
-  loadingIsActive    = true;
+void AircraftPresets::startLoading(const Preset* requestedProcedure) {
+  currentProcedureID = static_cast<int>(loadAircraftPresetRequest->getAsInt64());
+  // The mode is read once here: a flyPad switch flipped during the run must not change which steps run
+  const bool expedited = aircraftPresetExpedite->getAsBool();
+  LOG_INFO(fmt::format("AircraftPresets: Aircraft Preset {} starting procedure ({})!", currentProcedureID,
+                       expedited ? "expedited" : "normal"));
+  lastReportedDescription.clear();
+  runner.start(requestedProcedure, expedited, aircraftPresetExpediteDelay->get());
+  aircraftPresetQuickMode->setAndWriteToSim(expedited ? 1 : 0);
   progressAircraftPreset->setAndWriteToSim(0);
-}
-
-bool AircraftPresets::checkStepTypeSkipping(const bool expeditedMode, const ProcedureStep* currentStepPtr) {
-  if ((expeditedMode && currentStepPtr->type == PROC)      // skip PROC action steps in expedited mode
-      || (!expeditedMode && currentStepPtr->type == EXON)  // skip EXON action steps in normal mode
-      || (expeditedMode && currentStepPtr->type == NCON)   // skip NCON condition steps in expedited mode
-      || (!expeditedMode && currentStepPtr->type == ECON)  // skip ECON condition steps in normal mode
-  ) {
-    currentStep++;
-    return true;
-  }
-  return false;
-}
-
-void AircraftPresets::handleConditionStep(const ProcedureStep* currentStepPtr) {  // prepare return values for execute_calculator_code
-  LOG_INFO(fmt::format("AircraftPresets: Aircraft Preset Step {} Condition: {} (delay between tests: {})", currentStep,
-                       currentStepPtr->description, currentStepPtr->delayAfter));
-  FLOAT64 fvalue = 0.0;
-  updateProgress(currentStepPtr);
-  if (aircraftPresetVerbose->getAsBool()) {
-    fmt::print("AircraftPresets: Aircraft Preset Step Condition: [{}]\n", currentStepPtr->expectedStateCheckCode);
-  }
-  execute_calculator_code(currentStepPtr->expectedStateCheckCode.c_str(), &fvalue, nullptr, nullptr);
-  const bool conditionIsTrue = !helper::Math::almostEqual(0.0, fvalue);
-  if (conditionIsTrue) {
-    currentDelay = 0;
-    currentStep++;
-  }
-}
-
-bool AircraftPresets::checkExpectedState(const ProcedureStep* currentStepPtr) {
-  if (currentStepPtr->expectedStateCheckCode.empty()) {
-    return false;
-  }
-
-  FLOAT64    fvalue        = 0.0;
-  const bool verboseOutput = aircraftPresetVerbose->getAsBool();
-  if (verboseOutput) {
-    fmt::print("AircraftPresets: Aircraft Preset Step {} Test: {} TEST: [{}]\n", currentStep, currentStepPtr->description,
-               currentStepPtr->expectedStateCheckCode);
-  }
-
-  execute_calculator_code(currentStepPtr->expectedStateCheckCode.c_str(), &fvalue, nullptr, nullptr);
-
-  const bool conditionIsTrue = !helper::Math::almostEqual(0.0, fvalue);
-  if (conditionIsTrue) {
-    if (verboseOutput) {
-      fmt::print("AircraftPresets: Aircraft Preset Step {} Skipping: {} TEST: [{}]\n", currentStep, currentStepPtr->description,
-                 currentStepPtr->expectedStateCheckCode);
-    }
-    currentDelay = 0;
-    currentStep++;
-    return true;
-  }
-  return false;
-}
-
-void AircraftPresets::executeAction(const ProcedureStep* currentStepPtr) {
-  LOG_INFO(fmt::format("AircraftPresets: Aircraft Preset Step {} Execute: {} (delay after: {})", currentStep, currentStepPtr->description,
-                       static_cast<int>(currentDelay - currentLoadingTime)));
-  if (aircraftPresetVerbose->getAsBool()) {
-    fmt::print("AircraftPresets: Aircraft Preset Step Action: [{}]\n", currentStepPtr->actionCode);
-  }
-  execute_calculator_code(currentStepPtr->actionCode.c_str(), nullptr, nullptr, nullptr);
-  currentStep++;
 }
 
 void AircraftPresets::finishLoading() {
-  LOG_INFO(fmt::format("AircraftPresets:update() Aircraft Preset {} loading finished or cancelled!", currentProcedureID));
-  loadAircraftPresetRequest->set(0);
+  LOG_INFO(fmt::format("AircraftPresets: Aircraft Preset {} loading finished or cancelled!", currentProcedureID));
+  runner.reset();
+  lastReportedDescription.clear();
+  loadAircraftPresetRequest->setAndWriteToSim(0);
   progressAircraftPreset->setAndWriteToSim(0);
   aircraftPresetQuickMode->setAndWriteToSim(0);
-  loadingIsActive = false;
 }

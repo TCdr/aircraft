@@ -928,6 +928,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [PFD] FLS approaches: F-LOC / F-G/S modes, FLS deviations and the F-APP / F-APP + RAW / RAW ONLY capability on the FMA - @TCdr
 1. [A380X/ENG] Fix reverse thrust: in MAX REV the engines now reach the reverse N1 (they stayed near 33 % N1 and gave almost no deceleration) - @TCdr
 1. [FMS] Hold IMMEDIATE EXIT selected during the hold entry leaves the hold at the hold fix instead of flying a further pattern - @TCdr
+1. [EFB/Presets] Make loading aircraft presets reliable, including with expedited loading: the loading mode stays fixed during a load, each step waits for the result of the one before, and a load that cannot continue stops instead of hanging - @TCdr
+1. [A380X/Presets] Ready for taxi and Ready for takeoff now set XPDR to AUTO and TCAS to TA/RA, the EFIS WX, TERR and TRAF buttons (WX captain, TERR first officer), and the Ready for pushback preset switches the external power off - @TCdr
 
 ## 2024.1.0
 
