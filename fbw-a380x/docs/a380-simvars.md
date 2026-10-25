@@ -3214,7 +3214,7 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 2
     - 3
     - 4
-  - Why the FADEC shut the engine down by itself (its fuel stays cut, no automatic relight, until the failure is removed and the ENG MASTER is OFF): 0 none, 1 FADEC overheat (flyPad failures 73310-73313, ENG FAIL "FADEC OVHT"), 2 overthrust protection on ground with the thrust lever at idle or reverse (flyPad failures 73320-73323, ENG FAIL "THRUST CTL LOST" and CTL SYS FAULT, ENG MASTER FAULT light). A380 FCOM PRO-ABN-ECAM-10-70 ENG FAIL, DSC-70-20-20 OVERTHRUST PROTECTION. Written by the systems WASM (a380_systems fadec_automatic_shutdown.rs)
+  - Why the FADEC shut the engine down by itself (its fuel stays cut, no automatic relight, until the failure is removed and the ENG MASTER is OFF): 0 none, 1 FADEC overheat (flyPad failures 73310-73313, ENG FAIL "FADEC OVHT"), 2 overthrust protection on ground with the thrust lever at idle or reverse (flyPad failures 73320-73323, ENG FAIL "THRUST CTL LOST" and CTL SYS FAULT, ENG MASTER FAULT light), 3 overspeed (flyPad failures 72120-72123, the HMU closes the HP shutoff valve 5 s after the runaway starts, DSC-70-40). A380 FCOM PRO-ABN-ECAM-10-70 ENG FAIL, DSC-70-20-20 OVERTHRUST PROTECTION. Written by the systems WASM (a380_systems fadec_automatic_shutdown.rs)
 
 - A32NX_ENGINE_{number}_OVERTHRUST_CUTBACK
   - Bool

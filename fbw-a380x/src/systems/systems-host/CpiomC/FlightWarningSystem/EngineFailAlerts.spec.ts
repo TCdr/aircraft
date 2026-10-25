@@ -203,6 +203,12 @@ describe('ENG FAIL with a FADEC shutdown reason', () => {
     expect(shown.slice(24)).toEqual([false, true, true, true]);
   });
 
+  it('HMU overspeed shutdown: THR LEVER IDLE and ENG MASTER OFF only, without a reason line', () => {
+    const shown = engineFailItemsShown(FadecShutdownReason.HmuOverspeed, notIdentified(false));
+    expect(shown.slice(0, 24)).toEqual(notIdentified(false));
+    expect(shown.slice(24)).toEqual([false, false, true, true]);
+  });
+
   it('ticks THR LEVER IDLE and ENG MASTER OFF', () => {
     const checked = engineFailItemsChecked(notIdentified(false), true, false);
     expect(checked).toHaveLength(ENG_FAIL_ITEM_COUNT);

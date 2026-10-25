@@ -179,6 +179,8 @@ export enum FadecShutdownReason {
   FadecOverheat = 1,
   /** "In the case of THRUST CTL LOST : ... the FADEC automatically shuts down the affected engine." (l.171798-171800) */
   ThrustControlLost = 2,
+  /** The hydromechanical metering unit shut an overspeeding engine down */
+  HmuOverspeed = 3,
 }
 
 export interface CtlSysFaultInputs {
