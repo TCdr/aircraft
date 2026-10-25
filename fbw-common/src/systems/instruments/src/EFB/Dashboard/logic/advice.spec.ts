@@ -15,7 +15,7 @@ const quiet: AdviceInput = {
   destQnh: 1015,
   mda: 300,
   dh: 200,
-  lateralPlanAvailable: true,
+  fmsHasFlightPlan: true,
   turnaroundLateMin: null,
   avgWindComponentKt: 10,
   activeFailures: 0,
@@ -172,14 +172,14 @@ describe('buildAdvice', () => {
   });
 
   describe('FMS not initialised', () => {
-    it('is amber at the gate with an OFP and no lateral flight plan', () => {
-      expect(ids({ phase: 'atGate', lateralPlanAvailable: false })).toEqual(['fms-not-initialised']);
+    it('is amber at the gate with an OFP and no FMS flight plan', () => {
+      expect(ids({ phase: 'atGate', fmsHasFlightPlan: false })).toEqual(['fms-not-initialised']);
     });
 
     it('is off with a flight plan, without an OFP (the no-OFP block explains) or away from the gate', () => {
       expect(ids({ phase: 'atGate' })).toEqual([]);
-      expect(ids({ phase: 'atGate', hasOfp: false, lateralPlanAvailable: false })).toEqual(['no-ofp']);
-      expect(ids({ phase: 'cruise', lateralPlanAvailable: false })).toEqual([]);
+      expect(ids({ phase: 'atGate', hasOfp: false, fmsHasFlightPlan: false })).toEqual(['no-ofp']);
+      expect(ids({ phase: 'cruise', fmsHasFlightPlan: false })).toEqual([]);
     });
   });
 

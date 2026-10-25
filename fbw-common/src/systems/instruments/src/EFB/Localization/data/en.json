@@ -796,6 +796,7 @@
       },
       "FromOfp": "From OFP",
       "IcaoPlaceholder": "ICAO",
+      "LoadOfpMetar": "Load METAR from OFP",
       "LoadOfpTaf": "Load TAF from OFP",
       "Loading": "Loading the weather...",
       "Lt": "LT",

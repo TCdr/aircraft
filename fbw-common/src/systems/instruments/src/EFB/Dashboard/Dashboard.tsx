@@ -15,6 +15,7 @@ import { useTripWeather } from './useTripWeather';
 import { useLiveFigures } from './useLiveFigures';
 import { useAircraftState } from './useAircraftState';
 import { useFlightLog } from './useFlightLog';
+import { useFmsFlightPlan } from './useFmsFlightPlan';
 import { useSimbriefImport } from './useSimbriefImport';
 import { buildAdvice } from './logic/advice';
 import { dashboardCountdown, dashboardLayout, estimatedArrivalMs, serviceChip } from './logic/dashboardLayout';
@@ -62,6 +63,7 @@ export const Dashboard = () => {
   const { phase, hasOfp, onGround } = useDashboardPhase();
   const layout = dashboardLayout(phase, hasOfp);
   const { importOfp, pending: importPending } = useSimbriefImport();
+  const fmsHasFlightPlan = useFmsFlightPlan(phase === 'atGate' && hasOfp);
 
   const live = useLiveFigures();
   const aircraftState = useAircraftState();
@@ -79,7 +81,6 @@ export const Dashboard = () => {
   const [destQnh] = useSimVar('L:A32NX_DESTINATION_QNH', 'number', 2_000);
   const [mda] = useSimVar('L:AIRLINER_MINIMUM_DESCENT_ALTITUDE', 'number', 2_000);
   const [dh] = useSimVar('L:AIRLINER_DECISION_HEIGHT', 'number', 2_000);
-  const [lateralPlanAvailable] = useSimVar('L:A32NX_FM_LATERAL_FLIGHTPLAN_AVAIL', 'bool', 2_000);
   const [pushbackAttached] = useSimVar('Pushback Attached', 'enum', 1_000);
   const [gsxDeparture] = useSimVar('L:FSDT_GSX_DEPARTURE_STATE', 'number', 1_000);
   const [gsxBaggageLoading] = useSimVar(GSX_BAGGAGE_VARS[GsxBaggageId.Loading].active, 'number', 1_000);
@@ -170,7 +171,7 @@ export const Dashboard = () => {
     destQnh,
     mda,
     dh,
-    lateralPlanAvailable: lateralPlanAvailable > 0,
+    fmsHasFlightPlan,
     turnaroundLateMin: turnaroundLateMinutes(rows, stdMs),
     avgWindComponentKt,
     activeFailures: activeFailures.size,

@@ -9,7 +9,7 @@ import { useSimUnixSeconds } from './useMinutesToTod';
 import { readStoredValue } from './readStoredValue';
 import { FlightLog, FlightLogSample, parseFlightLog, updateFlightLog } from './logic/flightLog';
 
-const FLIGHT_LOG_KEY = 'EFB_DASHBOARD_FLIGHT_LOG';
+export const FLIGHT_LOG_KEY = 'EFB_DASHBOARD_FLIGHT_LOG';
 
 /**
  * Records the off-blocks, takeoff, touchdown and on-blocks times and weights of the loaded OFP. Run once for the

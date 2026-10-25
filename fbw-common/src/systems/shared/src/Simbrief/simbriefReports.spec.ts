@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { ofpTafsByIcao } from './simbriefTafs';
+import { ofpMetarsByIcao, ofpTafsByIcao } from './simbriefReports';
 
 describe('ofpTafsByIcao', () => {
   it('files each TAF of the plan under the ICAO written in it', () => {
@@ -50,5 +50,27 @@ describe('ofpTafsByIcao', () => {
   it('gives nothing without a weather block', () => {
     expect(ofpTafsByIcao(undefined)).toEqual({});
     expect(ofpTafsByIcao('none')).toEqual({});
+  });
+});
+
+describe('ofpMetarsByIcao', () => {
+  it('files each METAR of the plan under the ICAO written in it, with or without the METAR word', () => {
+    expect(
+      ofpMetarsByIcao({
+        orig_metar: 'RJAA 242100Z 18005KT 9999 FEW030 20/15 Q1015',
+        dest_metar: 'METAR RJOA 242100Z VRB02KT 0500 FG BKN001 18/17 Q1015',
+        altn_metar: 'SPECI COR RJBB 242110Z 05008KT 9999 FEW030 20/14 Q1016',
+        orig_taf: 'TAF RJAA 241705Z 2418/2600 29004KT 9999 FEW020',
+      }),
+    ).toEqual({
+      RJAA: 'RJAA 242100Z 18005KT 9999 FEW030 20/15 Q1015',
+      RJOA: 'METAR RJOA 242100Z VRB02KT 0500 FG BKN001 18/17 Q1015',
+      RJBB: 'SPECI COR RJBB 242110Z 05008KT 9999 FEW030 20/14 Q1016',
+    });
+  });
+
+  it('skips empty entries and gives nothing without a weather block', () => {
+    expect(ofpMetarsByIcao({ orig_metar: '', dest_metar: {} })).toEqual({});
+    expect(ofpMetarsByIcao(undefined)).toEqual({});
   });
 });
