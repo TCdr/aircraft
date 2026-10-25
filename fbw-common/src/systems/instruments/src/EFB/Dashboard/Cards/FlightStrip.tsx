@@ -13,6 +13,7 @@ import { DashboardPhase } from '../logic/dashboardPhase';
 import { AircraftStateChip } from '../logic/aircraftState';
 import { FlightLog } from '../logic/flightLog';
 import { formatHoursMinutes, formatUtcClock, ofpRouteText } from '../logic/dashboardFormat';
+import { useCancelOfp } from '../useCancelOfp';
 import { DashboardCard, Field, FieldLabel, FieldRow, HeaderChip, PANEL_FRAME, StatusBox } from './CardParts';
 
 export interface StripTile {
@@ -309,6 +310,7 @@ const LiveStrip: FC<FlightStripProps> = ({ layout, tiles, airport, stand, import
 export const FlightStrip: FC<FlightStripProps> = (props) => {
   const live = props.layout === 'gateNoOfp' || props.layout === 'noOfp';
   const atGate = props.layout === 'gateNoOfp';
+  const cancelOfp = useCancelOfp();
   return (
     <DashboardCard
       title={t('Dashboard.Strip.Title')}
@@ -320,7 +322,9 @@ export const FlightStrip: FC<FlightStripProps> = (props) => {
           <HeaderChip tone={atGate ? 'idle' : 'active'}>
             {t(atGate ? STATE_KEYS[props.aircraftState] : PHASE_KEYS[props.phase])}
           </HeaderChip>
-        ) : undefined
+        ) : (
+          <M3ActionChip onClick={cancelOfp}>{t('Dashboard.Strip.CancelOfp')}</M3ActionChip>
+        )
       }
     >
       {live ? <LiveStrip {...props} /> : <PlannedStrip {...props} />}

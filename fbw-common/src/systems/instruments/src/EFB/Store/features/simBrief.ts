@@ -166,6 +166,8 @@ export const simbriefSlice = createSlice({
     setToastPresented: (state, action: PayloadAction<boolean>) => {
       state.toastPresented = action.payload;
     },
+    /** Forgets the imported OFP, so another one can be imported */
+    clearSimbriefData: () => initialState,
   },
 });
 
@@ -257,7 +259,13 @@ export async function fetchSimbriefDataAction(
 export const isSimbriefDataLoaded = (): boolean =>
   JSON.stringify((store.getState() as RootState).simbrief.data) !== JSON.stringify(initialState.data);
 
-export const { setSimbriefData, setSimbriefDataPending, setPayloadImported, setFuelImported, setToastPresented } =
-  simbriefSlice.actions;
+export const {
+  setSimbriefData,
+  setSimbriefDataPending,
+  setPayloadImported,
+  setFuelImported,
+  setToastPresented,
+  clearSimbriefData,
+} = simbriefSlice.actions;
 
 export default simbriefSlice.reducer;
