@@ -73,6 +73,8 @@ import { SimBriefUplinkAdapter } from '@fmgc/flightplanning/uplink/SimBriefUplin
 import { FlightPlanChangeNotifier } from '@fmgc/flightplanning/sync/FlightPlanChangeNotifier';
 import { FlightPlanUtils } from '@fmgc/flightplanning/FlightPlanUtils';
 import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
+import { flsBeamOfPlan } from '@fmgc/navigation/fls/FlsBeam';
+import { FlsBeamPublisher } from '@fmgc/navigation/fls/FlsBeamPublisher';
 import { AtsuStatusCodes } from '@datalink/common';
 import { AtsuToFmsEvents, FmsToAtsuEvents, WindUplinkResponse } from '@providers/FmsAtsuBusPublisher';
 import { PendingWindUplinkParser } from '@fmgc/flightplanning/plans/PendingWindUplinkParser';
@@ -1256,6 +1258,8 @@ export class FlightManagementComputer implements FmcInterface {
     return activeZfwCg !== null && secondaryZfwCg !== null ? Math.abs(activeZfwCg - secondaryZfwCg) : null;
   }
 
+  public readonly flsBeamPublisher = new FlsBeamPublisher();
+
   computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined {
     const plan = this.#flightPlanService.get(forPlan);
     if (!plan) {
@@ -1847,6 +1851,9 @@ export class FlightManagementComputer implements FmcInterface {
     // Transmit active vertical geometry
     const predictions = this.guidanceController.vnavDriver.mcduProfile?.waypointPredictions;
     const plan: ReadonlyFlightPlan<A380FlightPlanPerformanceData> = this.flightPlanInterface.active;
+
+    const flsBeam = flsBeamOfPlan(this.flightPlanInterface.hasActive ? plan : null);
+    this.flsBeamPublisher.publish(flsBeam, this.flightPhaseManager.phase);
 
     if (!predictions || !this.flightPlanInterface.hasActive) {
       this.acInterface.transmitVerticalPath([], [], [], [], null);
