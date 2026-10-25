@@ -1175,6 +1175,11 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (72_111, FailureType::EngineEgtOvertemperature(2)),
         (72_112, FailureType::EngineEgtOvertemperature(3)),
         (72_113, FailureType::EngineEgtOvertemperature(4)),
+        // The HMU shuts the engine down (a380_systems fadec_automatic_shutdown.rs)
+        (72_120, FailureType::EngineOverspeed(1)),
+        (72_121, FailureType::EngineOverspeed(2)),
+        (72_122, FailureType::EngineOverspeed(3)),
+        (72_123, FailureType::EngineOverspeed(4)),
         (77_000, FailureType::EngineHighVibration(1)),
         (77_001, FailureType::EngineHighVibration(2)),
         (77_002, FailureType::EngineHighVibration(3)),

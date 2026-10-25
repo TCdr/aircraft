@@ -161,6 +161,8 @@ export enum FadecShutdownReason {
   FadecOverheat = 1,
   /** Thrust control lost: the overthrust protection shut the engine down */
   ThrustControlLost = 2,
+  /** The hydromechanical metering unit shut an overspeeding engine down */
+  HmuOverspeed = 3,
 }
 
 export interface CtlSysFaultInputs {

@@ -11,11 +11,19 @@
 //!   M 0.4. The shutdown is the ENG FAIL "THRUST CTL LOST" case, and the in-flight thrust reduction
 //!   the CTL SYS FAULT fuel cutback, which also lights the ENG MASTER FAULT light.
 //!
+//! - Engine overspeed (flyPad "Engine n overspeed (HMU shutdown)"): the rotors run away and the
+//!   hydromechanical metering unit protects the engine by closing the HP shutoff valve, which is
+//!   independent of the FADEC control loops. The engine shuts down in flight and on ground; there
+//!   is no ECAM alert of its own, the crew gets the ENG FAIL of any shutdown engine.
+//!
 //! The shutdown cuts the engine fuel ([`systems::engine::engine_failure::EngineFailure`]): the FADEC
 //! makes no automatic relight on a cut engine (the ENG FAIL procedure of these cases has no auto
 //! relight and ends with the ENG MASTER OFF).
 //!
 //! Design choices (no published figure):
+//! - The overspeed trip: the documentation gives no overspeed threshold. The runaway is shown by
+//!   the rising N1 and N3 indications of `engine_malfunction.rs` (the MSFS rotor speeds cannot be
+//!   raised), and the HMU trips 5 s after the runaway starts, before the indications settle.
 //! - A shutdown stays (latched) until the failure is removed and the ENG MASTER is OFF: the engine
 //!   does not relight while the cause is there, and the crew restarts it with a MASTER OFF then ON.
 //! - The overthrust itself (the excess thrust) is not modelled: the failure is the FADEC detecting
@@ -42,6 +50,8 @@ pub enum FadecShutdownReason {
     None = 0,
     FadecOverheat = 1,
     ThrustControlLost = 2,
+    /// The HMU closed the HP shutoff valve of an overspeeding engine
+    HmuOverspeed = 3,
 }
 
 /// What the FADEC knows of its engine and of the aircraft.
@@ -55,12 +65,16 @@ pub struct FadecShutdownInputs {
 pub struct FadecAutomaticShutdown {
     overheat: Failure,
     overthrust: Failure,
+    overspeed: Failure,
     reason_id: VariableIdentifier,
     overthrust_cutback_id: VariableIdentifier,
     reason: FadecShutdownReason,
     overthrust_cutback: bool,
+    overspeed_seconds: f64,
 }
 impl FadecAutomaticShutdown {
+    /// Design choice: the time the rotors run away before the HMU closes the HP shutoff valve
+    const OVERSPEED_TRIP_DELAY_SECONDS: f64 = 5.;
     /// No overthrust protection above 15 000 ft or above M 0.4
     const OVERTHRUST_PROTECTION_MAX_ALTITUDE_FEET: f64 = 15_000.;
     const OVERTHRUST_PROTECTION_MAX_MACH: f64 = 0.4;
@@ -71,22 +85,31 @@ impl FadecAutomaticShutdown {
         Self {
             overheat: Failure::new(FailureType::FadecOverheatShutdown(engine_number)),
             overthrust: Failure::new(FailureType::EngineOverthrust(engine_number)),
+            overspeed: Failure::new(FailureType::EngineOverspeed(engine_number)),
             reason_id: context.get_identifier(format!("ENGINE_{}_FADEC_SHUTDOWN", engine_number)),
             overthrust_cutback_id: context
                 .get_identifier(format!("ENGINE_{}_OVERTHRUST_CUTBACK", engine_number)),
             reason: FadecShutdownReason::None,
             overthrust_cutback: false,
+            overspeed_seconds: 0.,
         }
     }
 
     pub fn update(&mut self, context: &UpdateContext, inputs: &FadecShutdownInputs) {
-        let failure_active = self.overheat.is_active() || self.overthrust.is_active();
+        let failure_active =
+            self.overheat.is_active() || self.overthrust.is_active() || self.overspeed.is_active();
         if self.reason != FadecShutdownReason::None
             && !failure_active
             && !inputs.master_switch_is_on
         {
             self.reason = FadecShutdownReason::None;
         }
+
+        self.overspeed_seconds = if self.overspeed.is_active() && inputs.engine_is_running {
+            self.overspeed_seconds + context.delta_as_secs_f64()
+        } else {
+            0.
+        };
 
         let pressure_altitude =
             InternationalStandardAtmosphere::altitude_from_pressure(context.ambient_pressure());
@@ -105,6 +128,8 @@ impl FadecAutomaticShutdown {
                 && levers_at_idle_or_reverse
             {
                 self.reason = FadecShutdownReason::ThrustControlLost;
+            } else if self.overspeed_seconds >= Self::OVERSPEED_TRIP_DELAY_SECONDS {
+                self.reason = FadecShutdownReason::HmuOverspeed;
             }
         }
 
@@ -128,6 +153,7 @@ impl SimulationElement for FadecAutomaticShutdown {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.overheat.accept(visitor);
         self.overthrust.accept(visitor);
+        self.overspeed.accept(visitor);
 
         visitor.visit(self);
     }
@@ -141,6 +167,7 @@ impl SimulationElement for FadecAutomaticShutdown {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
     use systems::simulation::{
         test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
         Aircraft,
@@ -284,6 +311,50 @@ mod tests {
             assert!(!cutback(&mut test_bed));
             assert_eq!(reason(&mut test_bed), 0.);
         }
+    }
+
+    #[test]
+    fn an_overspeed_shuts_the_engine_down_after_the_runaway_in_flight_and_on_ground() {
+        for on_ground in [false, true] {
+            let mut test_bed = test_bed(on_ground, 30_000., 0.85);
+            test_bed.fail(FailureType::EngineOverspeed(2));
+            test_bed.run_with_delta(Duration::from_secs(4));
+            assert_eq!(reason(&mut test_bed), 0.);
+            assert!(!test_bed.query(|aircraft| aircraft.shutdown.fuel_is_cut()));
+
+            test_bed.run_with_delta(Duration::from_secs(2));
+            assert_eq!(reason(&mut test_bed), 3.);
+            assert!(test_bed.query(|aircraft| aircraft.shutdown.fuel_is_cut()));
+            assert!(!test_bed.query(|aircraft| aircraft.shutdown.overthrust_shutdown()));
+        }
+    }
+
+    #[test]
+    fn the_overspeed_runaway_restarts_when_the_failure_is_removed_before_the_trip() {
+        let mut test_bed = test_bed(false, 30_000., 0.85);
+        test_bed.fail(FailureType::EngineOverspeed(2));
+        test_bed.run_with_delta(Duration::from_secs(4));
+        test_bed.unfail(FailureType::EngineOverspeed(2));
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed.fail(FailureType::EngineOverspeed(2));
+        test_bed.run_with_delta(Duration::from_secs(4));
+        assert_eq!(reason(&mut test_bed), 0.);
+    }
+
+    #[test]
+    fn the_overspeed_of_an_engine_that_is_not_running_does_not_trip() {
+        let mut test_bed = test_bed(true, 0., 0.);
+        set_inputs(
+            &mut test_bed,
+            FadecShutdownInputs {
+                engine_is_running: false,
+                master_switch_is_on: false,
+                thrust_lever_angle_degrees: 0.,
+            },
+        );
+        test_bed.fail(FailureType::EngineOverspeed(2));
+        test_bed.run_with_delta(Duration::from_secs(10));
+        assert_eq!(reason(&mut test_bed), 0.);
     }
 
     #[test]
