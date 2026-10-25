@@ -13,6 +13,7 @@ import {
 } from '@fmgc/flightplanning/AircraftConfigTypes';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import type { EconAircraftParameters } from '@fmgc/guidance/vnav/EconSpeeds';
+import { LateralMode } from '@shared/autopilot';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { FpmConfigs } from './FpmConfig';
 
@@ -45,6 +46,10 @@ const vnavConfig: VnavConfig = {
     // Design choice: checked before the descent only. Once the cabin has started its descent the FMS has no
     // theoretical cabin altitude to compare with any more.
     cabinRateExceededPhases: [FmgcFlightPhase.Climb, FmgcFlightPhase.Cruise],
+  },
+  APPROACH_PHASE_AUTO_ENGAGE: {
+    lateralModes: [LateralMode.NAV, LateralMode.LOC_CPT, LateralMode.LOC_TRACK],
+    maxHeightAboveDestination: 9500,
   },
 };
 

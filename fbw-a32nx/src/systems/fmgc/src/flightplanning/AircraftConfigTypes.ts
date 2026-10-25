@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { FlapConf } from '@fmgc/guidance/vnav/common';
+import { LateralMode } from '@shared/autopilot';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { FpmConfig } from './FpmConfig';
 
@@ -73,6 +74,16 @@ export interface VnavConfig {
 
   /** The cabin pressure schedule the descent profile keeps to (DES CABIN RATE, repressurization segment) */
   CABIN_PRESSURIZATION: CabinPressurizationModel;
+
+  /** When sequencing the DECEL pseudo waypoint switches the FMS to the approach phase */
+  APPROACH_PHASE_AUTO_ENGAGE: ApproachPhaseAutoEngageRule;
+}
+
+export interface ApproachPhaseAutoEngageRule {
+  /** The lateral modes with which the approach phase engages */
+  lateralModes: readonly LateralMode[];
+  /** The approach phase engages only below this height above the destination, ft */
+  maxHeightAboveDestination: number;
 }
 
 export interface EnergyCircleRule {
