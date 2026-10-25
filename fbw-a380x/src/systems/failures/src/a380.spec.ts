@@ -244,6 +244,28 @@ describe('A380X flyPad failure definitions', () => {
     expect(A380Failure.Eng4Seizure).toBe(72013);
   });
 
+  // The fan does not turn at a start on the ground (a380_systems engine_failure.rs, fadec_a380x FanBlockedStart_A380X.hpp)
+  it('lists the N1 rotor jam of the four engines in ATA 72 Engine', () => {
+    const rustMap = readRustFailureMap();
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+    const expected = [1, 2, 3, 4].map((engine) => [
+      72020 + engine - 1,
+      `EngineFanBlocked(${engine})`,
+      `Engine ${engine} N1 rotor jammed (no N1 rotation at start)`,
+      72,
+    ]);
+
+    expect(
+      expected.map(([id]) => [
+        id,
+        rustMap.get(id as number),
+        definitionOf(id as number)?.[2],
+        definitionOf(id as number)?.[0],
+      ]),
+    ).toEqual(expected);
+    expect(A380Failure.Eng1N1RotorJammed).toBe(72020);
+  });
+
   // The labels say what systems engine/oil_failure.rs and the FADEC (EngineOilFailures.hpp) do with ids 79000-79033
   it('lists the engine oil failures of the four engines in ATA 79 Oil', () => {
     const rustMap = readRustFailureMap();

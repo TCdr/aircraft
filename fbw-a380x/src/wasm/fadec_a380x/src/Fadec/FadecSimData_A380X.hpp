@@ -240,6 +240,7 @@ class FadecSimData_A380X {
   NamedVariablePtr engineStartPhase[4];         // Enum - StartSequence_A380X::StartPhase
   NamedVariablePtr engineStarterMotoring[4];    // Bool - the starter turns the core while the fuel is cut
   NamedVariablePtr engineStartN3Hang[4];        // Bool - hung start or stall: the core speed hangs below idle
+  NamedVariablePtr engineFanBlocked[4];         // Bool - the N1 rotor is jammed: no N1 rotation at a start on the ground
   NamedVariablePtr engineStartEgtOvershoot[4];  // Bool - hot start or stall: the start EGT overshoots
   NamedVariablePtr engineStartIgniters[4];      // Number - the igniters the start sequence energizes: bit 0 A, bit 1 B
   NamedVariablePtr engineIgnitersSupplied[4];   // Number - the igniters with electrical supply: bit 0 A, bit 1 B (systems WASM)
@@ -481,6 +482,7 @@ class FadecSimData_A380X {
       engineStartPhase[i]        = dm->make_named_var(prefix + "START_PHASE", UNITS.Number, AUTO_READ);
       engineStarterMotoring[i]   = dm->make_named_var(prefix + "STARTER_MOTORING", UNITS.Number, AUTO_READ);
       engineStartN3Hang[i]       = dm->make_named_var(prefix + "START_N2_HANG", UNITS.Number, AUTO_READ);
+      engineFanBlocked[i]        = dm->make_named_var(prefix + "FAN_BLOCKED", UNITS.Number, AUTO_READ);
       engineStartEgtOvershoot[i] = dm->make_named_var(prefix + "START_EGT_OVERSHOOT", UNITS.Number, AUTO_READ);
       engineStartIgniters[i]     = dm->make_named_var(prefix + "IGNITERS", UNITS.Number, AUTO_READ);
       engineIgnitersSupplied[i]  = dm->make_named_var(prefix + "IGNITERS_SUPPLIED", UNITS.Number, AUTO_READ);

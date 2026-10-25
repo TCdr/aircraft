@@ -49,6 +49,7 @@ export enum EngineStartFault {
   LowStartAirPressure = 6,
   ThrustLeverNotAtIdle = 7,
   StarterTimeExceeded = 8,
+  N1RotorJam = 9,
 }
 
 /** L:A32NX_ENGINE_n_START_VALVE_FAULT (systems::engine::engine_start::StartValveFault) */
@@ -80,14 +81,15 @@ export const IGN_FAULT_FLIGHT_PHASE_INHIBITION = [3, 4, 5, 6, 7, 8, 9, 10];
 
 /**
  * The items of ENG n START FAULT (ata70 701800117-120), by index:
- * 0 NO STARTER AIR PRESSURE, 1 LOW N2, 2 HUNG START, 3 EGT OVERLIMIT, 4 NO LIGHT UP, 5 ENG STALL, 6 STARTER TIME EXCEEDED,
- * 7 THR LEVERS NOT AT IDLE, 8 XBLEED OPEN, 9 APU BLEED ON, 10 MIN SPEED FOR WINDML RELIGHT : 260 KT, 11 NEW START IN
- * PROGRESS, 12 ENG n MASTER OFF, 13 ENG START SEL CRANK, 14 AFTER 30S, 15 ENG START SEL NORM, 16 ENG n MAN START OFF,
- * 17 ALL THR LEVERS IDLE, 18 WINDMILL START INITIATED, 19 ENG PARAMETERS MONITOR, 20 IF ABNORMAL, 21 ENG n MAN START OFF,
- * 22 ENG n MASTER OFF (the in-flight lines of NO STARTER AIR PRESSURE, after the existing items so that the indices stay),
- * 23 IF NOT SUCCESSFUL, 24 ENG n MAN START OFF, 25 ENG n MASTER OFF (NO STARTER AIR PRESSURE, l.172931-172933).
+ * 0 NO STARTER AIR PRESSURE, 1 LOW N2, 2 LOW N1, 3 HUNG START, 4 EGT OVERLIMIT, 5 NO LIGHT UP, 6 ENG STALL,
+ * 7 STARTER TIME EXCEEDED, 8 THR LEVERS NOT AT IDLE, 9 XBLEED OPEN, 10 APU BLEED ON, 11 MIN SPEED FOR WINDML RELIGHT : 260 KT,
+ * 12 NEW START IN PROGRESS, 13 THR LEVER n IDLE, 14 CRANK IN PROGRESS (LOW N1), 15 ENG n MASTER OFF, 16 ENG START SEL CRANK,
+ * 17 AFTER 30S, 18 ENG START SEL NORM, 19 ENG n MAN START OFF, 20 ALL THR LEVERS IDLE, 21 WINDMILL START INITIATED,
+ * 22 ENG PARAMETERS MONITOR, 23 IF ABNORMAL, 24 ENG n MAN START OFF, 25 ENG n MASTER OFF (the in-flight lines of NO STARTER AIR
+ * PRESSURE), 26 IF NOT SUCCESSFUL, 27 ENG n MAN START OFF, 28 ENG n MASTER OFF (NO STARTER AIR PRESSURE,
+ * l.172931-172933).
  */
-export const START_FAULT_ITEM_COUNT = 26;
+export const START_FAULT_ITEM_COUNT = 29;
 
 export interface StartFaultInputs {
   fault: EngineStartFault;
@@ -101,17 +103,20 @@ export interface StartFaultInputs {
   engStartSelector: number;
   apuBleedPbOn: boolean;
   allThrustLeversIdle: boolean;
+  /** The thrust lever of the affected engine is at idle */
+  thrustLeverIdle: boolean;
 }
 
 const START_FAULT_SUB_TITLE: Partial<Record<EngineStartFault, number>> = {
   [EngineStartFault.LowStartAirPressure]: 0,
   [EngineStartFault.StarterFault]: 1,
-  [EngineStartFault.HungStart]: 2,
-  [EngineStartFault.EgtOverlimit]: 3,
-  [EngineStartFault.NoLightUp]: 4,
-  [EngineStartFault.Stall]: 5,
-  [EngineStartFault.StarterTimeExceeded]: 6,
-  [EngineStartFault.ThrustLeverNotAtIdle]: 7,
+  [EngineStartFault.N1RotorJam]: 2,
+  [EngineStartFault.HungStart]: 3,
+  [EngineStartFault.EgtOverlimit]: 4,
+  [EngineStartFault.NoLightUp]: 5,
+  [EngineStartFault.Stall]: 6,
+  [EngineStartFault.StarterTimeExceeded]: 7,
+  [EngineStartFault.ThrustLeverNotAtIdle]: 8,
 };
 
 /**
@@ -126,7 +131,8 @@ const START_FAULT_SUB_TITLE: Partial<Record<EngineStartFault, number>> = {
  * - LOW N2 (the starter failure, design choice): ENG MASTER OFF, ENG MAN START OFF (if ON).
  * - STARTER TIME EXCEEDED: during a manual start ENG MAN START OFF; ENG MASTER OFF.
  * - THR LEVERS NOT AT IDLE: ALL THR LEVERS IDLE.
- * Not modelled: LOW N1 (no N1 rotor failure).
+ * - LOW N1 (the N1 rotor jam, on the ground only): THR LEVER n IDLE, CRANK IN PROGRESS, ENG MASTER OFF; during a manual start
+ *   ENG START SEL CRANK, AFTER 30S: ENG START SEL NORM, ENG MAN START OFF.
  */
 export function startFaultItems(inputs: StartFaultInputs): { show: boolean[]; checked: boolean[] } {
   const show = new Array<boolean>(START_FAULT_ITEM_COUNT).fill(false);
@@ -134,24 +140,24 @@ export function startFaultItems(inputs: StartFaultInputs): { show: boolean[]; ch
   if (subTitle !== undefined) {
     show[subTitle] = true;
   }
-  const masterOff = () => (show[12] = true);
-  const manStartOff = () => (show[16] = show[16] || inputs.manualStartPbOn);
+  const masterOff = () => (show[15] = true);
+  const manStartOff = () => (show[19] = show[19] || inputs.manualStartPbOn);
 
   switch (inputs.fault) {
     case EngineStartFault.LowStartAirPressure:
-      show[8] = true;
       show[9] = true;
+      show[10] = true;
       if (!inputs.onGround) {
-        show[10] = true;
-        show[18] = true;
-        show[19] = true;
-        show[20] = true;
+        show[11] = true;
         show[21] = true;
         show[22] = true;
+        show[23] = true;
+        show[24] = true;
+        show[25] = true;
       }
-      show[23] = true;
-      show[24] = true;
-      show[25] = true;
+      show[26] = true;
+      show[27] = true;
+      show[28] = true;
       break;
     case EngineStartFault.HungStart:
     case EngineStartFault.EgtOverlimit:
@@ -161,17 +167,30 @@ export function startFaultItems(inputs: StartFaultInputs): { show: boolean[]; ch
         masterOff();
       } else if (inputs.manualStart) {
         masterOff();
-        show[13] = true;
-        show[14] = true;
-        show[15] = true;
+        show[16] = true;
+        show[17] = true;
+        show[18] = true;
         manStartOff();
       } else if (
         inputs.phase === EngineStartPhase.AutomaticCrank ||
         (inputs.phase === EngineStartPhase.Starting && inputs.attempt > 1)
       ) {
-        show[11] = true;
+        show[12] = true;
       } else {
         masterOff();
+      }
+      break;
+    case EngineStartFault.N1RotorJam:
+      if (inputs.onGround) {
+        show[13] = true;
+        show[14] = true;
+      }
+      masterOff();
+      if (inputs.onGround && inputs.manualStart) {
+        show[16] = true;
+        show[17] = true;
+        show[18] = true;
+        manStartOff();
       }
       break;
     case EngineStartFault.StarterFault:
@@ -183,23 +202,24 @@ export function startFaultItems(inputs: StartFaultInputs): { show: boolean[]; ch
       masterOff();
       break;
     case EngineStartFault.ThrustLeverNotAtIdle:
-      show[17] = true;
+      show[20] = true;
       break;
     default:
       break;
   }
 
   const checked = new Array<boolean>(START_FAULT_ITEM_COUNT).fill(false);
-  checked[9] = inputs.apuBleedPbOn;
-  checked[12] = !inputs.masterOn;
-  checked[13] = inputs.engStartSelector === 0;
-  checked[15] = inputs.engStartSelector === 1;
-  checked[16] = !inputs.manualStartPbOn;
-  checked[17] = inputs.allThrustLeversIdle;
-  checked[21] = !inputs.manualStartPbOn;
-  checked[22] = !inputs.masterOn;
+  checked[10] = inputs.apuBleedPbOn;
+  checked[15] = !inputs.masterOn;
+  checked[16] = inputs.engStartSelector === 0;
+  checked[18] = inputs.engStartSelector === 1;
+  checked[19] = !inputs.manualStartPbOn;
+  checked[13] = inputs.thrustLeverIdle;
+  checked[20] = inputs.allThrustLeversIdle;
   checked[24] = !inputs.manualStartPbOn;
   checked[25] = !inputs.masterOn;
+  checked[27] = !inputs.manualStartPbOn;
+  checked[28] = !inputs.masterOn;
   return { show, checked };
 }
 

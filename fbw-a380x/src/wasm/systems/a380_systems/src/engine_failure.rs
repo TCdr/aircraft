@@ -80,6 +80,7 @@ use systems::{
         },
         hp_fuel_valve_failure::HpFuelValveFailure,
     },
+    failures::{Failure, FailureType},
     pneumatic::{EngineModeSelector, EngineState},
     simulation::{
         InitContext, Read, Reader, SimulationElement, SimulationElementVisitor, SimulatorReader,
@@ -422,6 +423,8 @@ struct A380EngineFailure {
     starter_pressurized_id: VariableIdentifier,
     engine_state_id: VariableIdentifier,
     core_speed_id: VariableIdentifier,
+    fan_speed_id: VariableIdentifier,
+    fan_blocked_id: VariableIdentifier,
     relight_attempt_id: VariableIdentifier,
     windmill_start_id: VariableIdentifier,
     hp_fuel_valve_closed_id: VariableIdentifier,
@@ -435,6 +438,9 @@ struct A380EngineFailure {
     /// The shutdowns of the FADEC itself: FADEC overheat and overthrust protection (ENG FAIL "FADEC
     /// OVHT" / "THRUST CTL LOST", fadec_automatic_shutdown.rs)
     fadec_shutdown: FadecAutomaticShutdown,
+    /// The N1 rotor is jammed: the fan does not turn at a start (ENG START FAULT LOW N1). The FADEC
+    /// (fadec_a380x) keeps the N1 of a start on the ground at 0; the start sequence detects it.
+    fan_blocked: Failure,
 
     master_switch_is_on: bool,
     /// The ENG START selector (one for the four engines): 0 CRANK, 1 NORM, 2 IGN START.
@@ -442,6 +448,7 @@ struct A380EngineFailure {
     starter_air_pressurized: bool,
     engine_state: EngineState,
     core_speed: Ratio,
+    fan_speed: Ratio,
     windmill_start: bool,
 }
 impl A380EngineFailure {
@@ -479,6 +486,9 @@ impl A380EngineFailure {
                 .get_identifier(format!("PNEU_ENG_{}_STARTER_PRESSURIZED", engine_number)),
             engine_state_id: context.get_identifier(format!("ENGINE_STATE:{}", engine_number)),
             core_speed_id: context.get_identifier(format!("ENGINE_N3:{}", engine_number)),
+            fan_speed_id: context.get_identifier(format!("ENGINE_N1:{}", engine_number)),
+            fan_blocked_id: context.get_identifier(format!("ENGINE_{}_FAN_BLOCKED", engine_number)),
+            fan_blocked: Failure::new(FailureType::EngineFanBlocked(engine_number)),
             relight_attempt_id: context
                 .get_identifier(format!("ENGINE_{}_RELIGHT_ATTEMPT", engine_number)),
             windmill_start_id: context
@@ -495,6 +505,7 @@ impl A380EngineFailure {
             starter_air_pressurized: false,
             engine_state: EngineState::Off,
             core_speed: Ratio::default(),
+            fan_speed: Ratio::default(),
             windmill_start: false,
         }
     }
@@ -587,6 +598,7 @@ impl A380EngineFailure {
 
         let start_inputs = self.start_inputs();
         self.start.set_powered_igniters(supply.igniters);
+        self.start.set_fan_speed(self.fan_speed);
         // The FADEC opens the start valve and runs the start: without power it commands nothing,
         // and a FADEC that powers up with the ENG MASTER already ON (its alternator, a network
         // supply back) starts only at the next ENG MASTER ON.
@@ -657,6 +669,7 @@ impl SimulationElement for A380EngineFailure {
         self.start.accept(visitor);
         self.hp_fuel_valve_failure.accept(visitor);
         self.fadec_shutdown.accept(visitor);
+        self.fan_blocked.accept(visitor);
 
         visitor.visit(self);
     }
@@ -671,6 +684,7 @@ impl SimulationElement for A380EngineFailure {
             EngineState::Off,
         );
         self.core_speed = Ratio::new::<percent>(reader.read(&self.core_speed_id));
+        self.fan_speed = Ratio::new::<percent>(reader.read(&self.fan_speed_id));
         self.manual_start_is_on = reader.read(&self.manual_start_id);
         self.fire_push_button_is_released = reader.read(&self.fire_push_button_id);
         self.egt = reader.read(&self.egt_id);
@@ -693,6 +707,7 @@ impl SimulationElement for A380EngineFailure {
             self.failure.relight_attempt_in_progress(),
         );
         writer.write(&self.windmill_start_id, self.windmill_start);
+        writer.write(&self.fan_blocked_id, self.fan_blocked.is_active());
         // A valve stuck closed keeps MSFS from burning; a valve stuck open still closes the MSFS
         // valve at the shutdown, which models the LP fuel valve that shuts the engine down
         // (l.172225: "The engine will shutdown by closure of the LP fuel valve").
@@ -1210,12 +1225,44 @@ mod tests {
         }
 
         #[test]
+        fn a_jammed_n1_rotor_aborts_the_start_with_a_low_n1_fault_and_no_new_attempt() {
+            let mut test_bed = ground_test_bed();
+            test_bed.fail(FailureType::EngineFanBlocked(3));
+            automatic_start(&mut test_bed, 3);
+            test_bed.write_by_name("ENGINE_N3:3", 35.);
+            test_bed.write_by_name("ENGINE_N1:3", 0.);
+            run_for_seconds(&mut test_bed, 5);
+
+            let fault: f64 = test_bed.read_by_name("ENGINE_3_START_FAULT");
+            assert_eq!(fault, 9.);
+            let phase: f64 = test_bed.read_by_name("ENGINE_3_START_PHASE");
+            assert_eq!(phase, 4.);
+            let fan_blocked: bool = test_bed.read_by_name("ENGINE_3_FAN_BLOCKED");
+            assert!(fan_blocked);
+            let other_engine_blocked: bool = test_bed.read_by_name("ENGINE_4_FAN_BLOCKED");
+            assert!(!other_engine_blocked);
+        }
+
+        #[test]
+        fn a_turning_n1_rotor_does_not_abort_the_start() {
+            let mut test_bed = ground_test_bed();
+            automatic_start(&mut test_bed, 3);
+            test_bed.write_by_name("ENGINE_N3:3", 35.);
+            test_bed.write_by_name("ENGINE_N1:3", 4.);
+            run_for_seconds(&mut test_bed, 5);
+
+            let fault: f64 = test_bed.read_by_name("ENGINE_3_START_FAULT");
+            assert_eq!(fault, 0.);
+        }
+
+        #[test]
         fn a_start_longer_than_5_minutes_exceeds_the_starter_time() {
             let mut test_bed = ground_test_bed();
             automatic_start(&mut test_bed, 1);
             // a slow but rising start, below the 58.4 % end of the starter assistance
             for second in 0..302 {
                 test_bed.write_by_name("ENGINE_N3:1", 22. + second as f64 * 0.12);
+                test_bed.write_by_name("ENGINE_N1:1", 2. + second as f64 * 0.02);
                 run_for_seconds(&mut test_bed, 1);
             }
             let fault: f64 = test_bed.read_by_name("ENGINE_1_START_FAULT");
