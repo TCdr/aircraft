@@ -166,19 +166,19 @@ describe('colour wheel "used on the base" display', () => {
   });
 
   it('names the shade used for a pale yellow on the Light base (the approved board 2)', () => {
-    // 1.3:1 on the card, 1.0:1 on the page: the page is the surface it fails worst on
-    expect(usedOn('light', '#eee5c3')).toEqual({ used: '#898061', reason: 'AdjustedTooLightPage', ratio: '1.0' });
+    // the light card is a shade darker than the white page, so the card is the surface it fails worst on
+    expect(usedOn('light', '#eee5c3')).toEqual({ used: '#958c6d', reason: 'AdjustedTooLightCard', ratio: '1.1' });
   });
 
   it('tells too light from too dark, and the card from the page', () => {
-    expect(usedOn('light', '#4785ff')).toEqual({ used: '#326fe7', reason: 'AdjustedTooLightPage', ratio: '2.7' });
+    expect(usedOn('light', '#4785ff')).toEqual({ used: '#326fe7', reason: 'AdjustedText', ratio: '3.1' });
     expect(usedOn('grey', '#2c5dbd')).toEqual({ used: '#4b7fe2', reason: 'AdjustedTooDarkCard', ratio: '2.7' });
-    // 2.98:1 on the card is shown as 2.9, not as a passing-looking 3.0
-    expect(usedOn('grey', oklchToHex([0.5, 0.16, 148]))?.ratio).toBe('2.9');
+    // 2.99:1 on the card is shown as 2.9, not as a passing-looking 3.0
+    expect(usedOn('grey', oklchToHex([0.49, 0.16, 148]))?.ratio).toBe('2.9');
   });
 
   it('gives the button text as the reason when both surfaces pass', () => {
-    expect(usedOn('grey', '#3b6ac5')).toEqual({ used: '#4f80dd', reason: 'AdjustedText', ratio: '3.2' });
+    expect(usedOn('grey', '#3b6ac5')).toEqual({ used: '#4f80dd', reason: 'AdjustedText', ratio: '3.3' });
   });
 });
 
