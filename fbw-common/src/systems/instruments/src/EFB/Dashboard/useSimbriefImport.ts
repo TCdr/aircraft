@@ -4,7 +4,12 @@
 
 import { useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
-import { usePersistentNumberProperty, usePersistentProperty, useSimVar } from '@flybywiresim/fbw-sdk-react';
+import {
+  NXDataStore,
+  usePersistentNumberProperty,
+  usePersistentProperty,
+  useSimVar,
+} from '@flybywiresim/fbw-sdk-react';
 import { toast } from 'react-toastify';
 import {
   t,
@@ -18,6 +23,12 @@ import {
   setSimbriefDataPending,
 } from '@flybywiresim/flypad';
 import { useNavigraphAuthInfo } from '../Apis/Navigraph/Components/Authentication';
+import { loadsPayloadAtOnce } from './logic/instantPayload';
+
+/** Time for the payload page to write the imported targets before the load is started */
+const TARGETS_WRITTEN_DELAY_MS = 1_000;
+const GSX_SYNC_RESTORE_POLL_MS = 500;
+const GSX_SYNC_RESTORE_TIMEOUT_MS = 30_000;
 
 /**
  * The SimBrief import of the dashboard: the import itself, the toast once fuel and payload took the OFP, and the
@@ -39,6 +50,9 @@ export const useSimbriefImport = (): { importOfp: () => void; pending: boolean }
   const [gsxDeBoardingState] = useSimVar('L:FSDT_GSX_DEBOARDING_STATE', 'Number', 229);
   const [boardingStarted] = useSimVar('L:A32NX_BOARDING_STARTED_BY_USR', 'Bool', 208);
   const [refuelStartedByUser] = useSimVar('L:A32NX_REFUEL_STARTED_BY_USR', 'Bool', 254);
+  const [simOnGround] = useSimVar('SIM ON GROUND', 'Bool', 500);
+  const [engine1Running] = useSimVar('ENG COMBUSTION:1', 'Bool', 500);
+  const [engine2Running] = useSimVar('ENG COMBUSTION:2', 'Bool', 500);
 
   const fuelImported = useAppSelector((state) => state.simbrief.fuelImported);
   const payloadImported = useAppSelector((state) => state.simbrief.payloadImported);
@@ -47,6 +61,32 @@ export const useSimbriefImport = (): { importOfp: () => void; pending: boolean }
   const dispatch = useAppDispatch();
 
   const history = useHistory();
+
+  /**
+   * The payload page has just written the OFP targets; an instant boarding takes them into the aircraft. With GSX
+   * payload sync the payload system only follows GSX, which cannot board an aircraft off the gate, so the sync is
+   * switched off for the load and back on once the boarding is over.
+   */
+  const loadPayloadAtOnce = () => {
+    NXDataStore.setLegacy('CONFIG_BOARDING_RATE', 'INSTANT');
+    if (gsxPayloadSyncEnabled) {
+      SimVar.SetSimVarValue('L:A32NX_GSX_PAYLOAD_SYNC_ENABLED', 'number', 0);
+    }
+    window.setTimeout(() => {
+      SimVar.SetSimVarValue('L:A32NX_BOARDING_STARTED_BY_USR', 'Bool', true);
+      if (!gsxPayloadSyncEnabled) {
+        return;
+      }
+      const loadDeadline = Date.now() + GSX_SYNC_RESTORE_TIMEOUT_MS;
+      const restoreGsxSync = window.setInterval(() => {
+        const boardingOver = !SimVar.GetSimVarValue('L:A32NX_BOARDING_STARTED_BY_USR', 'Bool');
+        if (boardingOver || Date.now() > loadDeadline) {
+          window.clearInterval(restoreGsxSync);
+          SimVar.SetSimVarValue('L:A32NX_GSX_PAYLOAD_SYNC_ENABLED', 'number', 1);
+        }
+      }, GSX_SYNC_RESTORE_POLL_MS);
+    }, TARGETS_WRITTEN_DELAY_MS);
+  };
 
   const fetchData = async () => {
     dispatch(setSimbriefDataPending(true));
@@ -70,6 +110,9 @@ export const useSimbriefImport = (): { importOfp: () => void; pending: boolean }
         history.push('/ground/fuel');
         history.push('/ground/payload');
         history.push('/dashboard');
+        if (loadsPayloadAtOnce(simOnGround > 0, engine1Running > 0 || engine2Running > 0)) {
+          loadPayloadAtOnce();
+        }
       } catch (e) {
         toast.error(e.message);
       }
