@@ -883,6 +883,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FADEC] ENG 1(2) BLEED STATUS FAULT: on the ground the idle goes up to HI GND IDLE (as if every bleed and anti-ice valve were open), and the engine anti-ice no longer selects the continuous ignition of that engine by itself (ENG MODE selector to IGN) - @TCdr
 1. [A380X/FADEC] COND TEMP CTL FAULT with both pack controllers failed: the engines go to idle high at idle thrust, shown as the STATUS INFO ENG IDLE HI - @TCdr
 1. [EFB] Fix the wind field of the performance calculators refusing a direction typed without leading zeros (80/10 stopped at 80) - @TCdr
+1. [A32NX/FMS] EXP DES flies 340 kt or M .80, whichever is lower, instead of keeping the last managed descent speed - @TCdr
 
 ## 2024.1.0
 

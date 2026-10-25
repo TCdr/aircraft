@@ -48,6 +48,7 @@ import {
   isCabinRateExceeded,
   remainingDescentSeconds,
 } from './descent/CabinRepressurization';
+import { expediteDescentSpeedTarget } from './descent/ExpediteDescentSpeed';
 
 export class VnavDriver implements GuidanceComponent {
   version: number = 0;
@@ -386,8 +387,17 @@ export class VnavDriver implements GuidanceComponent {
       : 0;
     const currentAltitude = presentPosition.alt;
 
+    if (flightPhase === FmgcFlightPhase.Descent && fcuExpediteModeActive) {
+      SimVar.SetSimVarValue(
+        'L:A32NX_SPEEDS_MANAGED_PFD',
+        'knots',
+        expediteDescentSpeedTarget((mach) => this.atmosphericConditions.computeCasFromMach(currentAltitude, mach)),
+      );
+      return;
+    }
+
     // Speed guidance for holds is handled elsewhere for now, so we don't want to interfere here
-    if (flightPhase !== FmgcFlightPhase.Descent || fcuExpediteModeActive || isHoldActive) {
+    if (flightPhase !== FmgcFlightPhase.Descent || isHoldActive) {
       return;
     }
 
