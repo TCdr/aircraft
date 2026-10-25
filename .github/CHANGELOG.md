@@ -162,6 +162,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/PRESS] Automatic pressurization keeps the cabin differential pressure in the normal range in cruise above the FMS cruise FL or after an FMS reset, instead of drifting to the 9 PSI pressure limiter - @TCdr
 1. [A380X/FADEC] After a FLEX takeoff the thrust limit goes to CLB when the thrust levers rest in the CL detent, also when a lever sits a hair above it; before, it could stay on FLX and cap the climb thrust at the flex value in the upper part of the climb - @TCdr
 1. [A380X/FG] The autopilot disengages when the speed reaches 15 kt above VMO or Mach 0.04 above MMO; before, it stayed engaged at any overspeed - @TCdr
+1. [FMS] Hold IMMEDIATE EXIT selected during the hold entry leaves the hold at the hold fix instead of flying a further pattern - @TCdr
 
 ## 2024.1.0
 
