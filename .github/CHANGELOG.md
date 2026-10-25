@@ -761,6 +761,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/F/CTL] Bank angle limited to 60 degrees with slats or flaps extended (67 degrees clean) - @TCdr
 1. [A380X/F/CTL] The 30 degree nose-up pitch limit no longer drops to 25 degrees in CONF FULL - @TCdr
 1. [A380X/F/CTL] Direct law after the loss of the three IRs, and the abnormal attitude law from 30 degrees angle of attack (was 37.5) - @TCdr
+1. [A380X/ENG] Fix reverse thrust: in MAX REV the engines now reach the reverse N1 (they stayed near 33 % N1 and gave almost no deceleration) - @TCdr
 
 ## 2024.1.0
 
