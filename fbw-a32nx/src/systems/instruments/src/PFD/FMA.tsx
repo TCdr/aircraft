@@ -585,6 +585,7 @@ class A2Cell extends DisplayComponent<{ bus: ArincEventBus }> {
       this.fcuAtsDiscreteWord,
       this.fcuAtsFmaDiscreteWord,
       0,
+      false,
       this.autobrakeMode,
       this.autobrakeActive,
     );
@@ -663,6 +664,7 @@ function getA1A2CellText(
   fcuAtsDiscreteWord: Arinc429Word,
   fcuAtsFmaDiscreteWord: Arinc429Word,
   flexTemp: number,
+  gaSoftActive: boolean,
   autoBrakeMode: number,
   autoBrakeActive: boolean,
 ): [boolean, boolean, string, boolean] {
@@ -682,7 +684,7 @@ function getA1A2CellText(
                                 <text class="FontMedium MiddleAlign White" x="17.052249" y="7.1280665">MAN</text>
                                 <text class="FontMedium MiddleAlign White" x="16.869141" y="14.351689">TOGA</text>
                             `;
-  } else if (false) {
+  } else if (gaSoftActive && fcuAtsFmaDiscreteWord.bitValueOr(12, false) && atEngaged && !atActive) {
     isShown = false;
     isTwoLine = true;
     text = `<g>
@@ -693,9 +695,17 @@ function getA1A2CellText(
   } else if (fcuAtsFmaDiscreteWord.bitValueOr(13, false)) {
     isShown = false;
     isTwoLine = true;
-    const FlexTemp = Math.round(flexTemp);
-    const FlexText = FlexTemp >= 0 ? `+${FlexTemp}` : FlexTemp.toString();
-    text = `<g>
+    // a derated takeoff has no flexible temperature: MAN FLX alone
+    if (flexTemp === 0) {
+      text = `<g>
+                                <path class="NormalStroke White" d="m25.114 1.8143v13.506h-16.952v-13.506z" />
+                                <text class="FontMedium MiddleAlign White" x="17.052249" y="7.1280665">MAN</text>
+                                <text class="FontMedium MiddleAlign White" x="16.869141" y="14.351689">FLX</text>
+                            </g>`;
+    } else {
+      const FlexTemp = Math.round(flexTemp);
+      const FlexText = FlexTemp >= 0 ? `+${FlexTemp}` : FlexTemp.toString();
+      text = `<g>
                                 <path class="NormalStroke White" d="m30.521 1.8143v13.506h-27.217v-13.506z" />
                                 <text class="FontMedium MiddleAlign White" x="17.052249" y="7.1280665">MAN</text>
                                 <text class="FontMedium MiddleAlign White" x="9.669141" y="14.351689">FLX</text>
@@ -703,6 +713,7 @@ function getA1A2CellText(
                                ${FlexText}
                                 </text>
                             </g>`;
+    }
   } else if (fcuAtsFmaDiscreteWord.bitValueOr(29, false)) {
     isShown = false;
     isTwoLine = true;
@@ -785,6 +796,8 @@ class A1A2Cell extends ShowForSecondsComponent<CellProps> {
 
   private flexTemp = 0;
 
+  private gaSoftActive = false;
+
   private autoBrakeActive = false;
 
   private autoBrakeMode = 0;
@@ -798,6 +811,7 @@ class A1A2Cell extends ShowForSecondsComponent<CellProps> {
       this.fcuAtsDiscreteWord,
       this.fcuAtsFmaDiscreteWord,
       this.flexTemp,
+      this.gaSoftActive,
       this.autoBrakeMode,
       this.autoBrakeActive,
     );
@@ -825,6 +839,14 @@ class A1A2Cell extends ShowForSecondsComponent<CellProps> {
       .whenChanged()
       .handle((f) => {
         this.flexTemp = f;
+        this.setText();
+      });
+
+    sub
+      .on('gaSoftActive')
+      .whenChanged()
+      .handle((a) => {
+        this.gaSoftActive = a > 0;
         this.setText();
       });
 

@@ -53,3 +53,8 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS autoland_warning_test.cpp -o
 # FAC alpha floor: sidestick case and engine-out loss (A320 FCOM DSC-22_40-30)
 clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS alpha_floor_conditions_test.cpp -o ../obj/alpha_floor_conditions_test
 ../obj/alpha_floor_conditions_test
+# Derated takeoff: the FADEC model takes its FLX path with the derated rating (TakeoffDerate.h). With WITHOUT_THE_FIX=1 the FCU
+# word is used as it is and the test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS -I ../src -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  takeoff_derate_test.cpp ../src/model/FadecComputer.cpp ../src/model/FadecComputer_data.cpp -o ../obj/takeoff_derate_test
+../obj/takeoff_derate_test

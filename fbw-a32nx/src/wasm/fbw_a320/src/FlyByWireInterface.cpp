@@ -381,6 +381,7 @@ void FlyByWireInterface::setupLocalVariables() {
 
   idFmgcCruiseAltitude = std::make_unique<LocalVariable>("A32NX_AIRLINER_CRUISE_ALTITUDE");
   idFmgcFlexTemperature = std::make_unique<LocalVariable>("A32NX_AIRLINER_TO_FLEX_TEMP");
+  idFmgcTakeoffDerate = std::make_unique<LocalVariable>("A32NX_AIRLINER_TO_DERATE");
   idFmsLsCourse = std::make_unique<LocalVariable>("A32NX_FM_LS_COURSE");
 
   idFmsSpeedMarginHigh = std::make_unique<LocalVariable>("A32NX_PFD_UPPER_SPEED_MARGIN");
@@ -2793,6 +2794,11 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.fcu_input = FadecFailureInputs::autothrustOrdersReceived(
       fcuBusOutputs, FadecFailureInputs::a320AutothrustOrdersLost(idEngineFadecFault[fadecIndex]->get() > 0.5,
                                                                   idEngineEiuFault[fadecIndex]->get() > 0.5));
+
+  // Derated takeoff: the FADEC model takes its FLX path, whose limit is the derated rating of the FADEC module
+  // (TakeoffDerate.h)
+  fadecInputs[fadecIndex].in.fcu_input.fcu_flex_to_temp_deg_c = TakeoffDerate::takeoffTemperatureWord(
+      fadecInputs[fadecIndex].in.fcu_input.fcu_flex_to_temp_deg_c, idFmgcTakeoffDerate->get());
 
   if (fadecIndex == fadecDisabled) {
     simConnectInterface.setClientDataFadecData(fadecInputs[fadecIndex].in.data);

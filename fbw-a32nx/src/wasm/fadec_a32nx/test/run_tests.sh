@@ -38,3 +38,7 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS idle_control_test.cpp -o ../obj/
 # The bleed corrections of the N1 limit, lost with the EIU data: with WITHOUT_THE_FIX=1 they stay and the test must fail.
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS n1_limit_bleed_correction_test.cpp -o ../obj/n1_limit_bleed_correction_test
 ../obj/n1_limit_bleed_correction_test
+# The derated takeoff (D04 to D32), the derated climb and the soft go-around: with WITHOUT_THE_FIX=1 the N1 limit ignores the
+# reduction and the test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS thrust_derate_test.cpp -o ../obj/thrust_derate_test
+../obj/thrust_derate_test

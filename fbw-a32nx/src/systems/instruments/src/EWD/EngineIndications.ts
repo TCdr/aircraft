@@ -33,6 +33,36 @@ export function isThrustLimitValueVisible(thrustLimitType: number): boolean {
   return thrustLimitType !== ThrustLimitType.Mrev;
 }
 
+const THRUST_LIMIT_TYPE_LABELS = ['', 'CLB', 'MCT', 'FLX', 'TOGA', 'MREV'];
+
+/**
+ * The thrust rating mode under the E/WD title: the FADEC thrust limit type, or the derated rating the FADEC applies in its
+ * place. A derated takeoff is the FLX rating with a derate selected (fbw_a320 TakeoffDerate.h) and shows its level (D04 ...
+ * D32) in place of FLX; a derated climb is the CLB rating with a reduction applied (DCLB); the soft go-around is the MCT rating
+ * the FADEC replaces at the approach configuration (GA SOFT).
+ * @param thrustLimitType L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE
+ * @param takeoffDeratePercent L:A32NX_AIRLINER_TO_DERATE, the thrust reduction of the derated takeoff in percent (0 none)
+ * @param deratedClimbPercent L:A32NX_FADEC_DERATED_CLIMB_PERCENT, the reduction of the derated climb in percent (0 none)
+ * @param gaSoftActive L:A32NX_FADEC_GA_SOFT_ACTIVE
+ */
+export function thrustRatingModeLabel(
+  thrustLimitType: number,
+  takeoffDeratePercent: number,
+  deratedClimbPercent: number,
+  gaSoftActive: boolean,
+): string {
+  if (thrustLimitType === ThrustLimitType.Flex && takeoffDeratePercent > 0) {
+    return `D${Math.round(takeoffDeratePercent).toString().padStart(2, '0')}`;
+  }
+  if (thrustLimitType === ThrustLimitType.Clb && deratedClimbPercent > 0) {
+    return 'DCLB';
+  }
+  if (thrustLimitType === ThrustLimitType.Mct && gaSoftActive) {
+    return 'GA SOFT';
+  }
+  return THRUST_LIMIT_TYPE_LABELS[thrustLimitType] ?? '';
+}
+
 /** Cyan dashes in place of the flexible temperature */
 export const FLEX_TEMPERATURE_DASHES = '--';
 
