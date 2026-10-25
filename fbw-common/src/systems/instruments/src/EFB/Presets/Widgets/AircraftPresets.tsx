@@ -77,7 +77,7 @@ export const AircraftPresets = () => {
     if (loadPresetVar === 0) {
       console.log('AircraftPresets: Loading preset finished or cancelled');
     } else {
-      console.log(`AircraftPresets: Loading preset: ${loadPresetVar} ${AircraftPresetsList[loadPresetVar - 1].name}`);
+      console.log(`AircraftPresets: Loading preset: ${loadPresetVar} ${AircraftPresetsList[loadPresetVar - 1]?.name}`);
     }
   }, [loadPresetVar]);
 

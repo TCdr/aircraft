@@ -126,7 +126,13 @@ class PresetProcedures {
 
     for (auto currentProcedure = rootNode->FirstChildElement(); currentProcedure;
          currentProcedure      = currentProcedure->NextSiblingElement()) {
-      const std::string procedureName = currentProcedure->Attribute("Name");
+      // a missing attribute is a null pointer, which must not reach std::string or the log: it would trap the whole WASM module
+      const char* procedureNameAttribute = currentProcedure->Attribute("Name");
+      if (!procedureNameAttribute) {
+        LOG_ERROR("AircraftPresets: A procedure without a Name attribute. Skipping the whole procedure.");
+        continue;
+      }
+      const std::string procedureName = procedureNameAttribute;
 
       // Check if the procedure name is valid
       if (procedureListMap.find(procedureName) == procedureListMap.end()) {
@@ -136,20 +142,19 @@ class PresetProcedures {
 
       for (auto currentStep         = currentProcedure->FirstChildElement();  //
            currentStep; currentStep = currentStep->NextSiblingElement()) {
-        // Get the step type
-        auto typeItr = ProcedureStep::StepTypeMap.find(currentStep->Attribute("Type"));
+        const std::string stepName = currentStep->Attribute("Name") ? currentStep->Attribute("Name") : "(unnamed)";
+        const char*       stepType = currentStep->Attribute("Type");
 
         // Check if the step type is valid
+        auto typeItr = stepType ? ProcedureStep::StepTypeMap.find(stepType) : ProcedureStep::StepTypeMap.end();
         if (typeItr == ProcedureStep::StepTypeMap.end()) {
-          LOG_ERROR(fmt::format("AircraftPresets: Invalid step. Skipping the Step.\n Procedure: {} Step: {}", procedureName,
-                                currentStep->Attribute("Name")));
+          LOG_ERROR(fmt::format("AircraftPresets: Invalid step. Skipping the Step.\n Procedure: {} Step: {}", procedureName, stepName));
           continue;
         }
 
         // Check if the delay is valid
         if (currentStep->IntAttribute("Delay") < 0) {
-          LOG_ERROR(fmt::format("AircraftPresets: Invalid delay. Skipping the Step.\n Procedure: {} Step: {}", procedureName,
-                                currentStep->Attribute("Name")));
+          LOG_ERROR(fmt::format("AircraftPresets: Invalid delay. Skipping the Step.\n Procedure: {} Step: {}", procedureName, stepName));
           continue;
         }
 
@@ -165,7 +170,7 @@ class PresetProcedures {
 
         // Add the procedure step to the procedure list map
         procedureListMap[procedureName].emplace_back(  //
-            currentStep->Attribute("Name"),            //
+            stepName,                                  //
             typeItr->second,                           //
             currentStep->IntAttribute("Delay"),        //
             condition,                                 //

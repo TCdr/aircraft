@@ -923,6 +923,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [FMS] FLS beam computed for both aircraft (anchor, course, slope) and sent to the flight guidance - @TCdr
 1. [AP] FLS approaches: the LOC and G/S modes fly the FLS beam (F-LOC, F-G/S) from the FMS position and barometric altitude, without LAND - @TCdr
 1. [PFD] FLS approaches: F-LOC / F-G/S modes, FLS deviations and the F-APP / F-APP + RAW / RAW ONLY capability on the FMA - @TCdr
+1. [EFB/Presets] Make loading aircraft presets reliable, including with expedited loading: the loading mode stays fixed during a load, each step waits for the result of the one before, and a load that cannot continue stops instead of hanging - @TCdr
+1. [A380X/Presets] Ready for taxi and Ready for takeoff now set XPDR to AUTO and TCAS to TA/RA, the EFIS WX, TERR and TRAF buttons (WX captain, TERR first officer), and the Ready for pushback preset switches the external power off - @TCdr
 
 ## 2024.1.0
 
