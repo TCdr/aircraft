@@ -63,6 +63,7 @@ import {
 import { ReadonlyFlightPlanElement } from '@fmgc/flightplanning/legs/ReadonlyFlightPlanLeg';
 import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvents';
 import { dirToUri, fixInfoUri, showReturnButtonUriExtra } from '../../../shared/utils';
+import { ToWaypointFromPresentPosition, activeLegLineTrackAndDistance } from './FplnActiveLegTrackDistance';
 
 interface MfdFmsFplnProps extends AbstractMfdPageProps {}
 
@@ -217,6 +218,16 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
 
   private isPendingAbeamPoint(leg: FlightPlanLeg): boolean {
     return BitFlags.isAny(leg.flags, FlightPlanLegFlags.PendingDirectToAbeamPoint);
+  }
+
+  /** The same values the ND shows for the TO waypoint, so that the active leg line and the ND agree. */
+  private toWaypointFromPresentPosition(): ToWaypointFromPresentPosition {
+    const side = this.props.mfd.side;
+    const bearingVar = this.trueTrackEnabled.get() ? 'TO_WPT_TRUE_BEARING' : 'TO_WPT_BEARING';
+    return {
+      bearing: SimVar.GetSimVarValue(`L:A32NX_EFIS_${side}_${bearingVar}`, 'degrees'),
+      distance: SimVar.GetSimVarValue(`L:A32NX_EFIS_${side}_TO_WPT_DISTANCE`, 'number'),
+    };
   }
 
   private emptyFlightPlanRendered = false;
@@ -421,17 +432,31 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
       }
       lastDistanceFromStart = 0;
 
+      const activeLegLiveValues = {
+        toWaypoint: this.toWaypointFromPresentPosition(),
+        inFlight: !(this.props.fmcService.master?.fmgc.isOnGround() ?? true),
+        isActivePlan: fpIndex === FlightPlanIndex.Active,
+      };
       for (let i = 0; i < jointFlightPlan.length; i++) {
         const leg = jointFlightPlan[i];
         const isAltn = i >= (this.loadedFlightPlan.allLegs.length ?? 0);
+        const isActiveLeg = i === this.loadedFlightPlan.activeLegIndex;
         let reduceDistanceBy = 0;
         const pred = isActive
           ? this.props.fmcService?.master?.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(i)
           : null;
 
         const pwp = pseudoWptMap.get(i);
+        const pwpLineShown = pwp?.displayedOnMcdu === true;
         if (pwp && pwp.displayedOnMcdu) {
           reduceDistanceBy = (pwp.flightPlanInfo?.distanceFromStart ?? 0) - lastDistanceFromStart;
+          const plannedLegDistance = this.derivedFplnLegData[i].distanceFromLastWpt ?? reduceDistanceBy;
+          const pwpTrackAndDistance = activeLegLineTrackAndDistance({
+            ...activeLegLiveValues,
+            planned: { track: this.derivedFplnLegData[i].trackFromLastWpt, distance: reduceDistanceBy },
+            isFirstLineOfActiveLeg: isActiveLeg,
+            plannedDistanceAfterLine: plannedLegDistance - reduceDistanceBy,
+          });
           const data: FplnLineWaypointDisplayData = {
             type: FplnLineType.Waypoint,
             originalLegIndex: null,
@@ -455,8 +480,8 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
             speedConstraintIsRespected: true,
             efobPrediction: Units.poundToKilogram(pred?.estimatedFuelOnBoard ?? NaN),
             windPrediction: pwp.flightPlanInfo?.windPrediction ?? null,
-            trackFromLastWpt: this.derivedFplnLegData[i].trackFromLastWpt,
-            distFromLastWpt: reduceDistanceBy,
+            trackFromLastWpt: pwpTrackAndDistance.track,
+            distFromLastWpt: pwpTrackAndDistance.distance,
             fpa: null,
           };
           lastDistanceFromStart = pwp.flightPlanInfo?.distanceFromStart ?? 0;
@@ -511,6 +536,16 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
             }
           }
 
+          const legTrackAndDistance = activeLegLineTrackAndDistance({
+            ...activeLegLiveValues,
+            planned: {
+              track: derivedData.trackFromLastWpt,
+              distance: (derivedData.distanceFromLastWpt ?? -reduceDistanceBy) - reduceDistanceBy,
+            },
+            isFirstLineOfActiveLeg: isActiveLeg && !pwpLineShown,
+            plannedDistanceAfterLine: 0,
+          });
+
           const data: FplnLineWaypointDisplayData = {
             type: FplnLineType.Waypoint,
             originalLegIndex: isAltn ? i - this.loadedFlightPlan.legCount : i,
@@ -533,8 +568,8 @@ export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
             speedConstraintIsRespected: pred?.isSpeedConstraintMet ?? true,
             efobPrediction: pred?.estimatedFuelOnBoard ? Units.poundToKilogram(pred?.estimatedFuelOnBoard) : NaN,
             windPrediction: pred?.windPrediction ?? null,
-            trackFromLastWpt: derivedData.trackFromLastWpt,
-            distFromLastWpt: (derivedData.distanceFromLastWpt ?? -reduceDistanceBy) - reduceDistanceBy,
+            trackFromLastWpt: legTrackAndDistance.track,
+            distFromLastWpt: legTrackAndDistance.distance,
             fpa: leg.definition.verticalAngle ?? null,
           };
           lastDistanceFromStart = lastDistanceFromStart + (derivedData.distanceFromLastWpt ?? 0) - reduceDistanceBy;
