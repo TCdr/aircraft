@@ -174,6 +174,9 @@ struct InstanceResources {
       if (instance.terrainPatternImage != 0) {
         nvgDeleteImage(instance.nvg, instance.terrainPatternImage);
       }
+      if (instance.threatHatchImage != 0) {
+        nvgDeleteImage(instance.nvg, instance.threatHatchImage);
+      }
 #ifdef A380X
       if (instance.vdRampImage != 0) {
         nvgDeleteImage(instance.nvg, instance.vdRampImage);
@@ -252,6 +255,11 @@ struct NdFrame {
   float gainDb = 0.0f;
   float precipRangeFraction = 1.0f;
   long long wxControlsKey = 0;
+#ifndef A380X
+  // The terrain alert areas, shown over the terrain picture
+  ThreatAreaSet threatAreas;
+  unsigned long long threatAreasKey = 0;
+#endif
 #ifdef A380X
   bool showVd = false;
   float vdRangeNm = 10.0f;
@@ -294,6 +302,23 @@ static void readWxrControls(NdFrame& frame, double altitudeFeet) {
 }
 #endif
 
+#ifndef A380X
+// The threat areas the GPWS sends (see threat_areas.h), with a key that changes with them
+static void readThreatAreas(NdFrame& frame) {
+  ThreatAreaSet& areas = frame.threatAreas;
+  areas.referenceRow = g_terrAreaReferenceRow.read();
+  areas.referenceColumn = g_terrAreaReferenceColumn.read();
+  areas.count = 0;
+  unsigned long long key = kRedrawKeySeed;
+  for (NamedVar& slot : g_terrAreaSlots) {
+    const double value = slot.read();
+    key = mixKey(key, static_cast<long long>(value));
+    areas.count += decodeThreatSlot(value, &areas.runs[areas.count]);
+  }
+  frame.threatAreasKey = mixKey(mixKey(key, std::llround(areas.referenceRow)), std::llround(areas.referenceColumn));
+}
+#endif
+
 // Reads the ND's state and decides what the frame shows: the gating of the weather, the
 // terrain, the MAP mode, the mode text and (A380X) the VD weather.
 static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
@@ -329,6 +354,11 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
   frame.terrainHeadingDegrees = headingWord.value();
   const bool mapPage = isMapPage(ndMode) && rangeNm > 0.0f;
   frame.showTerrain = terrainViewsReady && terrainSelected(instance) && mapPage && positionValid && headingWord.isNo();
+#ifndef A380X
+  if (frame.showTerrain) {
+    readThreatAreas(frame);
+  }
+#endif
 #ifdef A380X
   // The A380 ND displays the weather only at ranges of 320 NM and below.
   const bool weatherRange = rangeNm <= kWxrMaxRangeNm;
@@ -612,6 +642,15 @@ static void drawTerrainLayer(FsContext ctx,
     setViewRadius(ctx, views.water, *views.waterPark, radiusMetres, nowSeconds);
     if (terrainReady && instance.terrainPatternImage != 0) {
       drawTerrain(vg, views.terrain, views.water, instance.terrainPatternImage, frame.isRose, frame.terrainHeadingDegrees);
+#ifndef A380X
+      if (frame.threatAreas.count > 0) {
+        if (instance.threatHatchImage == 0) {
+          instance.threatHatchImage = createThreatHatchPattern(vg);
+        }
+        drawThreatAreas(vg, frame.threatAreas, instance.threatHatchImage, frame.isRose, frame.terrainHeadingDegrees,
+                        frame.rangeNmForMode);
+      }
+#endif
     }
   } else if (frame.showMap) {
     // The MAP mode borrows the terrain view with its own colour list and range (see setMapColors).
@@ -722,6 +761,9 @@ static unsigned long long ndPictureKey(const Instance& instance, const NdFrame& 
   key = mixKey(key, ready.terrain);
   key = mixKey(key, instance.layerDirty);
   key = mixKey(key, frame.wxControlsKey);
+#ifndef A380X
+  key = mixKey(key, static_cast<long long>(frame.threatAreasKey));
+#endif
 #ifdef A380X
   key = mixKey(key, instance.ndRole);
   key = mixKey(key, frame.showVd);

@@ -1,6 +1,6 @@
 import { FSComponent, ConsumerSubject, DisplayComponent, EventBus, VNode, MappedSubject } from '@microsoft/msfs-sdk';
 
-import { GenericTawsEvents, TerrainLevelMode } from './types/GenericTawsEvents';
+import { GenericTawsEvents, TerrainAheadAlert, TerrainLevelMode } from './types/GenericTawsEvents';
 
 export interface TerrainMapThresholdsProps {
   bus: EventBus;
@@ -17,6 +17,11 @@ export class TerrainMapThresholds extends DisplayComponent<TerrainMapThresholdsP
   private readonly minElevationSub = ConsumerSubject.create(this.sub.on('egpwc.minElevation'), -1);
 
   private readonly minElevationModeSub = ConsumerSubject.create(this.sub.on('egpwc.minElevationMode'), 0);
+
+  /** TERR AHEAD takes the place of the TERR label */
+  private readonly labelShown = ConsumerSubject.create(this.sub.on('egpwc.terrAhead'), TerrainAheadAlert.None).map(
+    (alert) => alert === TerrainAheadAlert.None,
+  );
 
   private readonly shown = MappedSubject.create(
     ([min, nax]) => min >= 0 && nax >= 0,
@@ -70,7 +75,14 @@ export class TerrainMapThresholds extends DisplayComponent<TerrainMapThresholdsP
   render(): VNode | null {
     return (
       <g visibility={this.shown.map((v) => (v ? 'inherit' : 'hidden'))}>
-        <text class="TerrTextLabel" x={688} y={612} font-size={23} fill="rgb(0,255,255)">
+        <text
+          class="TerrTextLabel"
+          x={688}
+          y={612}
+          font-size={23}
+          fill="rgb(0,255,255)"
+          visibility={this.labelShown.map((v) => (v ? 'inherit' : 'hidden'))}
+        >
           TERR
         </text>
 
