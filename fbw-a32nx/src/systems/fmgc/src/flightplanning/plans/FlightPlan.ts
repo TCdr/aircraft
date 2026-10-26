@@ -579,11 +579,13 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
 
     if (xFLegIndexInPlan !== -1) {
       // Remove elements to next XF leg
-      this.removeRange(discontinuityIndex + 1, xFLegIndexInPlan);
-      this.incrementVersion();
+      if (xFLegIndexInPlan > discontinuityIndex + 1) {
+        this.removeRange(discontinuityIndex + 1, xFLegIndexInPlan);
+        this.incrementVersion();
+      }
 
-      // Replace next XF leg with IF leg if not already IF or CF
-      const [segment, xfLegIndexInSegment] = this.segmentPositionForIndex(xFLegIndexInPlan);
+      // Replace next XF leg, now directly after the discontinuity, with IF leg if not already IF or CF
+      const [segment, xfLegIndexInSegment] = this.segmentPositionForIndex(discontinuityIndex + 1);
       const xfLegAfterDiscontinuity = segment.allLegs[xfLegIndexInSegment] as FlightPlanLeg;
 
       if (
