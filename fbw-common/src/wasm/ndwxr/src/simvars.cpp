@@ -21,6 +21,13 @@ NamedVar g_adirsTrueHeading[3] = {{"A32NX_ADIRS_IR_1_TRUE_HEADING"}, {"A32NX_ADI
 
 // The EGPWC's gear-down flag (EGPWC_GEAR_IS_DOWN), which the terrain levels depend on.
 NamedVar g_egpwcGearDown{"A32NX_EGPWC_GEAR_IS_DOWN"};
+#ifndef A380X
+// The threat areas of the terrain alerts, written by the GPWS (see threat_areas.h)
+NamedVar g_terrAreaReferenceRow{"A32NX_GPWS_TERR_AREA_REF_LAT"};
+NamedVar g_terrAreaReferenceColumn{"A32NX_GPWS_TERR_AREA_REF_LON"};
+NamedVar g_terrAreaSlots[kThreatAreaSlots];
+static char g_terrAreaSlotNames[kThreatAreaSlots][32];
+#endif
 
 // ADIRS inertial vertical speed words for IR 1..3 (feet per minute): the terrain's reference
 // altitude looks ahead in a fast descent, see kTerrainLookAheadSeconds.
@@ -317,6 +324,15 @@ double planeCoordinateDegrees(const char* name) {
 void registerSimVars() {
   g_attHdgKnob.id = register_named_variable(g_attHdgKnob.name);
   g_egpwcGearDown.id = register_named_variable(g_egpwcGearDown.name);
+#ifndef A380X
+  g_terrAreaReferenceRow.id = register_named_variable(g_terrAreaReferenceRow.name);
+  g_terrAreaReferenceColumn.id = register_named_variable(g_terrAreaReferenceColumn.name);
+  for (int slot = 0; slot < kThreatAreaSlots; ++slot) {
+    std::snprintf(g_terrAreaSlotNames[slot], sizeof(g_terrAreaSlotNames[slot]), "A32NX_GPWS_TERR_AREA_%d", slot);
+    g_terrAreaSlots[slot].name = g_terrAreaSlotNames[slot];
+    g_terrAreaSlots[slot].id = register_named_variable(g_terrAreaSlots[slot].name);
+  }
+#endif
   for (NamedVar* v : {&g_egpwcPresentLat, &g_egpwcPresentLon, &g_egpwcPresentAltitude, &g_egpwcPresentHeading, &g_egpwcPresentVerticalSpeed,
                       &g_egpwcDestLat, &g_egpwcDestLon, &g_egpwcRenderingMode}) {
     v->id = register_named_variable(v->name);

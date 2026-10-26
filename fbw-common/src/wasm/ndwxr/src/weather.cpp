@@ -52,8 +52,12 @@ static bool configureRadarView(FsContext ctx,
 }
 
 void arcAreaPath(NVGcontext* vg, float cx, float cy, float radius, float sweepFraction) {
-  constexpr float kPi = 3.14159265f;
   nvgBeginPath(vg);
+  arcAreaSubpath(vg, cx, cy, radius, sweepFraction);
+}
+
+void arcAreaSubpath(NVGcontext* vg, float cx, float cy, float radius, float sweepFraction) {
+  constexpr float kPi = 3.14159265f;
   if (sweepFraction < 1.0f) {
     nvgMoveTo(vg, cx, cy);
     nvgArc(vg, cx, cy, radius, kPi, kPi + kPi * std::fmax(sweepFraction, 0.0f), NVG_CW);

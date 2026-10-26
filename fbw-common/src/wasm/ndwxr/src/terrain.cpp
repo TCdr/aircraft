@@ -144,13 +144,17 @@ int createTerrainPattern(NVGcontext* vg) {
 
 // The area the terrain covers: the compass disk in the ROSE modes, the ND's map area in ARC
 // (see arcAreaPath).
-static void terrainPath(NVGcontext* vg, float cx, float cy, float radius, bool isRose) {
+static void terrainSubpath(NVGcontext* vg, float cx, float cy, float radius, bool isRose) {
   if (isRose) {
-    nvgBeginPath(vg);
     nvgCircle(vg, cx, cy, radius);
   } else {
-    arcAreaPath(vg, cx, cy, radius, 1.0f);
+    arcAreaSubpath(vg, cx, cy, radius, 1.0f);
   }
+}
+
+static void terrainPath(NVGcontext* vg, float cx, float cy, float radius, bool isRose) {
+  nvgBeginPath(vg);
+  terrainSubpath(vg, cx, cy, radius, isRose);
 }
 
 bool configureWaterMaskView(FsContext ctx, FsTextureId id) {
@@ -289,6 +293,84 @@ void drawMapMode(NVGcontext* vg, FsTextureId view, bool isRose, float headingDeg
   nvgFill(vg);
   nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
   nvgRestore(vg);
+}
+
+// Design choice: the AVOID TERRAIN crosshatch is two sets of red diagonals, 4 px wide every 16 px, on black. Finer
+// lines (2 every 8 px) blended into solid red at the size the ND has in the cockpit view.
+constexpr int kThreatHatchPeriodPx = 16;
+constexpr int kThreatHatchLinePx = 4;
+
+int createThreatHatchPattern(NVGcontext* vg) {
+  constexpr int kSize = kThreatHatchPeriodPx;
+  static unsigned char data[kSize * kSize * 4];
+  for (int y = 0; y < kSize; ++y) {
+    for (int x = 0; x < kSize; ++x) {
+      const bool onLine = (x - y + kSize) % kSize < kThreatHatchLinePx || (x + y) % kSize < kThreatHatchLinePx;
+      unsigned char* pixel = &data[(y * kSize + x) * 4];
+      pixel[0] = onLine ? 255 : 0;
+      pixel[1] = 0;
+      pixel[2] = 0;
+      pixel[3] = 255;
+    }
+  }
+  return nvgCreateImageRGBA(vg, kSize, kSize, NVG_IMAGE_REPEATX | NVG_IMAGE_REPEATY | NVG_IMAGE_NEAREST, data);
+}
+
+// The threat areas of the terrain alerts (see threat_areas.h) over the terrain picture: solid yellow for the caution,
+// solid red for the warning, the red/black crosshatch for AVOID TERRAIN, in the dense terrain's colours.
+void drawThreatAreas(NVGcontext* vg,
+                     const ThreatAreaSet& areas,
+                     int hatchImage,
+                     bool isRose,
+                     float headingDegrees,
+                     float rangeNm) {
+  const float centerYBias = isRose ? kRoseNavCenterYBias : kArcCenterYBias;
+  const float radius = isRose ? kRoseNavPixelRadius : kArcPixelRadius;
+  const float cx = kScreenCenterX;
+  const float cy = kScreenCenterX + centerYBias;
+  // The terrain view is centred on the sim's aircraft position, so the areas are too.
+  const double latitude = planeCoordinateDegrees("PLANE LATITUDE");
+  const double longitude = planeCoordinateDegrees("PLANE LONGITUDE");
+
+  const FsColor yellow = rgba(encodeSrgb(kRedLevel), encodeSrgb(kGreenLevel), 0.0f, 1.0f);
+  const FsColor red = rgba(encodeSrgb(kRedLevel), 0.0f, 0.0f, 1.0f);
+
+  // The colours replace the terrain's dots; the alpha is left as the terrain left it, since this surface is added
+  // onto the ND (see ndwxr.h).
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ZERO, NVG_ZERO, NVG_ONE);
+  for (int i = 0; i < areas.count; ++i) {
+    const ThreatQuad quad = threatRunQuad(areas.runs[i], areas.referenceRow, areas.referenceColumn, latitude, longitude,
+                                          headingDegrees, cx, cy, radius / rangeNm);
+    nvgBeginPath(vg);
+    nvgMoveTo(vg, quad.corners[0].x, quad.corners[0].y);
+    for (int corner = 1; corner < 4; ++corner) {
+      nvgLineTo(vg, quad.corners[corner].x, quad.corners[corner].y);
+    }
+    nvgClosePath(vg);
+    if (quad.level >= 3) {
+      const float size = static_cast<float>(kThreatHatchPeriodPx);
+      NVGpaint hatch = nvgImagePattern(vg, 0.0f, 0.0f, size, size, 0.0f, hatchImage, 1.0f);
+      hatch.innerColor = hatch.outerColor = red;
+      nvgFillPaint(vg, hatch);
+    } else {
+      nvgFillColor(vg, quad.level == 2 ? red : yellow);
+    }
+    nvgFill(vg);
+  }
+
+  // Nothing outside the terrain's own area: the screen with that area as a hole is cleared as clearRect does.
+  const float screen = 2.0f * kScreenCenterX;
+  for (int pass = 0; pass < 2; ++pass) {
+    nvgBeginPath(vg);
+    nvgRect(vg, 0.0f, 0.0f, screen, screen);
+    terrainSubpath(vg, cx, cy, radius, isRose);
+    nvgPathWinding(vg, NVG_HOLE);
+    nvgFillColor(vg, nvgRGBAf(0.0f, 0.0f, 0.0f, pass == 0 ? 0.0f : 1.0f));
+    nvgGlobalCompositeOperation(vg, pass == 0 ? NVG_COPY : NVG_DESTINATION_OUT);
+    nvgFill(vg);
+  }
+
+  nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
 }
 
 }  // namespace ndwxr

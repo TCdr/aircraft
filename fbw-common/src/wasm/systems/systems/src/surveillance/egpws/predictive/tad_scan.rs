@@ -15,6 +15,7 @@ use super::{
     phase::TerrainPhase,
     runway::{RunwayContext, RunwayOrigin},
     terrain_margin::TerrainMargin,
+    threat_areas::{GridCell, ThreatCell, ThreatLevel},
     AircraftState,
 };
 use crate::surveillance::egpws::terrain_grid::{
@@ -94,10 +95,12 @@ pub(super) struct WarningThreat {
     pub(super) cannot_climb_over: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(super) struct TadScan {
     pub(super) caution: Option<CautionThreat>,
     pub(super) warning: Option<WarningThreat>,
+    /// The terrain cells of the threats, for the ND (a cell can be there more than once)
+    pub(super) threat_cells: Vec<ThreatCell>,
     /// Part of the ribbon could not be read from the grid, so the scan cannot be trusted
     pub(super) data_missing: bool,
 }
@@ -242,16 +245,29 @@ impl ScanState<'_> {
             .margin_ft(self.terrain, position, elevation_ft);
         let terrain_ft = elevation_ft + margin_ft;
 
+        let mut level = None;
         if may_cause_caution {
             let clearance_ft = caution_path_ft - terrain_ft;
             if clearance_ft <= self.required_level_ft {
                 self.add_caution(clearance_ft, terrain_ft < aircraft_altitude_ft);
+                level = Some(ThreatLevel::Caution);
             }
         }
         if may_cause_warning {
             let clearance_ft = warning_path_ft - terrain_ft;
             if clearance_ft <= self.required_descending_ft {
                 self.add_warning(clearance_ft);
+                level = Some(ThreatLevel::Warning);
+            }
+        }
+        if let Some(level) = level {
+            let threat = ThreatCell {
+                cell: GridCell::of(position),
+                level,
+            };
+            // Neighbouring samples often fall in the same cell
+            if self.result.threat_cells.last() != Some(&threat) {
+                self.result.threat_cells.push(threat);
             }
         }
     }
@@ -555,6 +571,35 @@ mod tests {
             scan_of(&state, TerrainPhase::EnRoute, &terrain),
             TadScan::default()
         );
+    }
+
+    #[test]
+    fn the_threat_cells_are_the_cells_of_the_wall_inside_the_ribbon() {
+        let wall_latitude = START.latitude_degrees + 5. / 60.;
+        let terrain = TestTerrain::wall_north_of(wall_latitude, 0., 9_000.);
+        let result = scan_of(&aircraft(8_000., 250., 0.), TerrainPhase::EnRoute, &terrain);
+        assert!(result.caution.is_some());
+        assert!(!result.threat_cells.is_empty());
+        let wall_row = GridCell::of(GridPosition::new(wall_latitude, 8.)).latitude_index;
+        let track_column = GridCell::of(START).longitude_index;
+        for threat in &result.threat_cells {
+            assert!(threat.cell.latitude_index >= wall_row);
+            // The caution looks up to 9 NM ahead, where the ribbon is 0.7 NM wide on each side of the track: about one
+            // cell at this latitude, two when the track runs along the edge of a cell
+            assert!((threat.cell.longitude_index - track_column).abs() <= 2);
+        }
+    }
+
+    #[test]
+    fn the_cells_of_a_warning_are_marked_warning() {
+        let wall_latitude = START.latitude_degrees + 2. / 60.;
+        let terrain = TestTerrain::wall_north_of(wall_latitude, 0., 8_600.);
+        let result = scan_of(&aircraft(8_000., 250., 0.), TerrainPhase::EnRoute, &terrain);
+        assert!(result.warning.is_some());
+        assert!(result
+            .threat_cells
+            .iter()
+            .any(|threat| threat.level == ThreatLevel::Warning));
     }
 
     #[test]

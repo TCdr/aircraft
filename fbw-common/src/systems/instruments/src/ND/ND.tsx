@@ -46,6 +46,7 @@ import { TcasWxrMessages } from './TcasWxrMessages';
 import { Chrono } from './Chrono';
 import { WindIndicator } from './shared/WindIndicator';
 import { TerrainMapThresholds } from './TerrainMapThresholds';
+import { TerrainAlertMessages } from './TerrainAlertMessages';
 import { WxrModeLabel } from './WxrModeLabel';
 import { TrackLine } from './shared/TrackLine';
 import { TrackBug } from './shared/TrackBug';
@@ -549,6 +550,11 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
             <Chrono bus={this.props.bus} />
 
             <TcasWxrMessages bus={this.props.bus} mode={this.currentPageMode} rangeValues={this.props.rangeValues} />
+            <TerrainAlertMessages
+              bus={this.props.bus}
+              mode={this.currentPageMode}
+              rangeValues={this.props.rangeValues}
+            />
             <FmMessages bus={this.props.bus} mode={this.currentPageMode} fmMessages={this.props.fmMessages} />
             <CrossTrackError
               bus={this.props.bus}
