@@ -765,6 +765,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/F/CTL] The 30 degree nose-up pitch limit no longer drops to 25 degrees in CONF FULL - @TCdr
 1. [A380X/F/CTL] Direct law after the loss of the three IRs, and the abnormal attitude law from 30 degrees angle of attack (was 37.5) - @TCdr
 1. [A380X/ENG] Fix reverse thrust: in MAX REV the engines now reach the reverse N1 (they stayed near 33 % N1 and gave almost no deceleration) - @TCdr
+1. [A32NX/GPWS] Rewrote the GPWS mode 1 and 2 logic and added the predictive terrain functions: terrain ahead alerting (TAD, caution and warning) and the terrain clearance floor (TCF), from a terrain grid file in the aircraft package, with the matching ND terrain display behaviour - @TCdr
 
 ## 2024.1.0
 

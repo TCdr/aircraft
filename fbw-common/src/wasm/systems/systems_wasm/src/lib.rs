@@ -5,6 +5,8 @@ mod electrical;
 mod failures;
 mod fuel;
 mod msfs;
+#[cfg(target_arch = "wasm32")]
+pub mod terrain_grid_loader;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::msfs::legacy::{AircraftVariable, NamedVariable};

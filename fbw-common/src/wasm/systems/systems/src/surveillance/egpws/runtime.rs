@@ -24,7 +24,10 @@ use crate::{
     },
     simulation::UpdateContext,
     surveillance::{
-        egpws::EnhancedGroundProximityWarningComputerPinProgramming,
+        egpws::{
+            predictive::{PredictiveAlertOutputs, PredictiveVoice},
+            EnhancedGroundProximityWarningComputerPinProgramming,
+        },
         taws::{
             TerrainAwarenessWarningSystemBusOutputs, TerrainAwarenessWarningSystemDiscreteInputs,
             TerrainAwarenessWarningSystemDiscreteOutputs,
@@ -53,6 +56,7 @@ pub enum AuralWarning {
     GlideslopeHard,
     TerrainAhead,
     ObstacleAhead,
+    AvoidTerrain,
 }
 impl AuralWarning {
     /// Gets the duration corresponding to the aural warning. The duration is of a full cycle,
@@ -71,8 +75,63 @@ impl AuralWarning {
             AuralWarning::GlideslopeHard => Duration::from_secs_f64(1.6),
             AuralWarning::TerrainAhead => Duration::from_secs_f64(1.7),
             AuralWarning::ObstacleAhead => Duration::from_secs_f64(2.),
+            AuralWarning::AvoidTerrain => Duration::from_secs_f64(1.6),
         }
     }
+}
+
+/// What the predictive terrain functions (terrain ahead alerting) report to the basic modes.
+///
+/// While the predictive functions are operative they cover the terrain closure case with a geometric altitude, so
+/// mode 2 is inhibited. It is reactivated when they fail, or when the radio height no longer agrees with the height
+/// above terrain the predictive functions compute: a radio altimeter reading that does not match the terrain
+/// database means one of the two is wrong, and mode 2 is the only function left that works from the radio altimeter
+/// alone.
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
+pub struct PredictiveFunctionsStatus {
+    /// The predictive functions are available and not inhibited.
+    pub operative: bool,
+    /// Height above the terrain below the aircraft, computed from the geometric altitude and the terrain database.
+    /// None when it cannot be computed.
+    pub computed_height_above_terrain_ft: Option<f64>,
+}
+impl PredictiveFunctionsStatus {
+    /// Design choice: the manual does not quantify a significant difference. This is the radio altimeter
+    /// reasonableness limit of the Honeywell EGPWS, applied in both directions.
+    const SIGNIFICANT_RADIO_HEIGHT_DIFFERENCE_FT: f64 = 2000.;
+
+    fn radio_height_differs_significantly(&self, radio_height_ft: f64) -> bool {
+        self.computed_height_above_terrain_ft
+            .is_some_and(|computed_ft| {
+                (computed_ft - radio_height_ft).abs() > Self::SIGNIFICANT_RADIO_HEIGHT_DIFFERENCE_FT
+            })
+    }
+
+    fn inhibits_mode_2(&self, radio_height_ft: f64) -> bool {
+        self.operative && !self.radio_height_differs_significantly(radio_height_ft)
+    }
+}
+
+/// The part of a mode 2 envelope at the current closure rate: an alert is active between the floor and the ceiling,
+/// once the closure rate exceeds the minimum.
+pub(super) struct Mode2Envelope {
+    pub(super) minimum_closure_rate_fpm: f64,
+    pub(super) floor_ft: f64,
+    pub(super) ceiling_ft: f64,
+}
+impl Mode2Envelope {
+    pub(super) fn contains(&self, closure_rate_fpm: f64, radio_height_ft: f64) -> bool {
+        closure_rate_fpm > self.minimum_closure_rate_fpm
+            && radio_height_ft > self.floor_ft
+            && radio_height_ft < self.ceiling_ft
+    }
+}
+
+/// The two nested mode 2 envelopes: the outer one gives the caution (TERRAIN, TERRAIN), the inner one the warning
+/// (PULL UP). The inner one lies fully inside the outer one.
+pub(super) struct Mode2Envelopes {
+    pub(super) caution: Mode2Envelope,
+    pub(super) warning: Mode2Envelope,
 }
 
 /// One step of the GPWS self-test, started by the GPWS test pushbutton on the ground.
@@ -184,11 +243,21 @@ pub(super) struct EnhancedGroundProximityWarningComputerRuntime {
     mode_2_closure_rate_rate_limiter: RateLimiter<f64>,
     mode_2_ra_filter: LowPassFilter<f64>,
 
-    mode_2_pull_up_preface_voice_emitted: bool,
-    mode_2_pull_up_preface_active: bool,
+    predictive_functions: PredictiveFunctionsStatus,
+    predictive_alerts: PredictiveAlertOutputs,
+    /// The crew cancelled the words of the alert of the predictive functions that is going on (EMER CANC)
+    predictive_voice_cancelled: bool,
+
+    /// TERRAIN, TERRAIN has been played for the current approach to the terrain, or PULL UP has superseded it
+    mode_2_caution_voice_completed: bool,
+    /// Inside the outer envelope only, with the gear up: TERRAIN, TERRAIN voice
+    mode_2_caution_voice_active: bool,
+    /// Inside the outer envelope only, with the gear up: amber lamp
+    mode_2_caution_lamp_active: bool,
     mode_2_pull_up_active: bool,
+    /// Landing gear down and landing flaps: TERRAIN is the only alert
     mode_2_terrain_active: bool,
-    /// "TERRAIN" + PULL UP lights held after leaving the mode 2 warning (PULL UP) envelope
+    /// TERRAIN voice and PULL UP lamp held after leaving the mode 2 warning envelope
     mode_2_altitude_gain_active: bool,
     /// Lowest altitude reached since the hold started, the altitude gain is measured from it
     mode_2_altitude_gain_reference_ft: f64,
@@ -239,18 +308,73 @@ pub(super) struct EnhancedGroundProximityWarningComputerRuntime {
 }
 
 impl EnhancedGroundProximityWarningComputerRuntime {
-    // These need to be ordered in ascending order for the interpolation function to work
-    const MODE_1_ALERT_AREA_BREAKPOINTS: [f64; 2] = [-5007., -964.];
-    const MODE_1_ALERT_AREA_VALUES: [f64; 2] = [2450., 10.];
-    const MODE_1_WARNING_AREA_BREAKPOINTS: [f64; 3] = [-7125., -1710., -1482.];
-    const MODE_1_WARNING_AREA_VALUES: [f64; 3] = [2450., 284., 10.];
+    // Mode 1. The boundaries are read from the Honeywell envelope graph (about +-100 ft / +-150 fpm), the exact
+    // values of the standard are not published. Breakpoints must be in ascending order for the interpolation function
+    // to work, hence the vertical speeds from the steepest to the shallowest descent.
+    const MODE_1_CEILING_RADIO_HEIGHT_FT: f64 = 2450.;
+    // Design choice: the graph reaches the ground, but a descent rate on the last feet of the flare is normal.
+    const MODE_1_FLOOR_RADIO_HEIGHT_FT: f64 = 10.;
+    const MODE_1_SINK_RATE_VERTICAL_SPEEDS_FPM: [f64; 2] = [-5007., -964.];
+    const MODE_1_SINK_RATE_RADIO_HEIGHTS_FT: [f64; 2] = [
+        Self::MODE_1_CEILING_RADIO_HEIGHT_FT,
+        Self::MODE_1_FLOOR_RADIO_HEIGHT_FT,
+    ];
+    const MODE_1_PULL_UP_VERTICAL_SPEEDS_FPM: [f64; 3] = [-7125., -1710., -1482.];
+    const MODE_1_PULL_UP_RADIO_HEIGHTS_FT: [f64; 3] = [
+        Self::MODE_1_CEILING_RADIO_HEIGHT_FT,
+        284.,
+        Self::MODE_1_FLOOR_RADIO_HEIGHT_FT,
+    ];
+    // Design choice for the glideslope bias: the desensitisation above the beam is described but its size is not
+    // published. At most 300 fpm of descent rate is ignored, ramping in over the first 100 ft of radio height and
+    // with the deviation up to 0.175 (2 dots) above the beam.
+    const MODE_1_GLIDESLOPE_BIAS_MAX_FPM: f64 = 300.;
+    const MODE_1_GLIDESLOPE_BIAS_FULL_RADIO_HEIGHT_FT: f64 = 100.;
+    const MODE_1_GLIDESLOPE_BIAS_FULL_DEVIATION: f64 = 0.175;
+    // Design choice for the confirmation times (not published): PULL UP is confirmed for twice as long as SINK RATE,
+    // both are held 0.2 s against a single noisy sample.
+    const MODE_1_SINK_RATE_CONFIRMATION: Duration = Duration::from_millis(800);
+    const MODE_1_PULL_UP_CONFIRMATION: Duration = Duration::from_millis(1600);
+    const MODE_1_RELEASE_DELAY: Duration = Duration::from_millis(200);
 
-    const MODE_2_ALERT_AREA_BREAKPOINTS: [f64; 3] = [2038., 3545., 9800.];
-    const MODE_2_ALERT_AREA_VALUES: [f64; 3] = [30., 1220., 2450.];
-    const MODE_2_B_CUTOFF_AREA_BREAKPOINTS: [f64; 2] = [-1000., -400.];
-    const MODE_2_B_CUTOFF_AREA_VALUES: [f64; 2] = [600., 200.];
-    // End of the mode 2 "altitude gain" hold (see update_mode_2_logic). The A320 FCOM gives no end condition; these
-    // are the Honeywell EGPWS mode 2 altitude gain values (300 ft of altitude gain, or 45 s).
+    // Mode 2A. Read from the Honeywell envelope graph (about +-100 ft / +-150 fpm).
+    // The closure rate where the warning (PULL UP) envelope starts and the radio height it starts at are kept from the
+    // previous implementation (Design choice): the graph reads about 1570 fpm at the ground, which would alert on
+    // closure rates that are common on a normal approach over rising terrain.
+    const MODE_2_A_FLOOR_RADIO_HEIGHT_FT: f64 = 30.;
+    const MODE_2_A_WARNING_CLOSURE_RATES_FPM: [f64; 5] = [2038., 3520., 4070., 6070., 10000.];
+    // The graph reads about 1550 ft at the highest closure rate, the 1650 ft limit at 220 kt is published. The
+    // published value is used so the warning envelope has a single ceiling over the upper part of its range
+    // (Design choice, within the reading tolerance).
+    const MODE_2_A_WARNING_RADIO_HEIGHTS_FT: [f64; 5] = [
+        Self::MODE_2_A_FLOOR_RADIO_HEIGHT_FT,
+        1165.,
+        1345.,
+        1643.,
+        1650.,
+    ];
+    /// The caution envelope follows the warning one up to this closure rate, then widens with the airspeed.
+    const MODE_2_A_CAUTION_EXPANSION_START_CLOSURE_RATE_FPM: f64 = 4600.;
+    const MODE_2_A_CAUTION_EXPANSION_END_CLOSURE_RATE_FPM: f64 = 10000.;
+    const MODE_2_A_CAUTION_EXPANSION_AIRSPEEDS_KT: [f64; 2] = [220., 310.];
+    // The published ceiling is 1650 ft at 220 kt, growing with the airspeed to 310 kt. The size of the growth is not
+    // published, the graph reads about 2040 ft at 310 kt (the previous implementation used 2450 ft).
+    const MODE_2_A_CAUTION_EXPANSION_CEILINGS_FT: [f64; 2] = [1650., 2040.];
+
+    // Mode 2B. Read from the Honeywell envelope graph (about +-100 ft / +-150 fpm): the lower edge is flat, the left
+    // edge climbs steeply to a peak at 3000 fpm (850 to 900 ft read, the middle is used) and the upper edge falls to
+    // about 235 ft at the highest closure rate.
+    const MODE_2_B_FLOOR_RADIO_HEIGHT_FT: f64 = 115.;
+    const MODE_2_B_WARNING_CLOSURE_RATES_FPM: [f64; 3] = [2300., 3000., 10000.];
+    const MODE_2_B_WARNING_RADIO_HEIGHTS_FT: [f64; 3] =
+        [Self::MODE_2_B_FLOOR_RADIO_HEIGHT_FT, 875., 235.];
+    // Design choice: the caution envelope of mode 2B is only a thin outline around the warning one, its width is not
+    // published. It is made as wide as the reading tolerance of the graph.
+    const MODE_2_B_CAUTION_OUTLINE_CLOSURE_RATE_FPM: f64 = 150.;
+    const MODE_2_B_CAUTION_OUTLINE_RADIO_HEIGHT_FT: f64 = 100.;
+
+    // End of the mode 2 altitude gain hold (see update_mode_2_altitude_gain_hold): 300 ft of altitude gain or 45 s,
+    // the values of the Honeywell EGPWS.
     const MODE_2_ALTITUDE_GAIN_FT: f64 = 300.;
     const MODE_2_ALTITUDE_GAIN_MAX_DURATION: Duration = Duration::from_secs(45);
 
@@ -317,10 +441,14 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             gpws_inhibit_discrete_conf_node: ConfirmationNode::new_rising(Duration::from_secs(5)),
             audio_inhibit_discrete_conf_node: ConfirmationNode::new_rising(Duration::from_secs(60)),
 
-            mode_1_sinkrate_conf_node_1: ConfirmationNode::new_rising(Duration::from_millis(800)),
-            mode_1_sinkrate_conf_node_2: ConfirmationNode::new_falling(Duration::from_millis(200)),
-            mode_1_pull_up_conf_node_1: ConfirmationNode::new_rising(Duration::from_millis(1600)),
-            mode_1_pull_up_conf_node_2: ConfirmationNode::new_falling(Duration::from_millis(200)),
+            mode_1_sinkrate_conf_node_1: ConfirmationNode::new_rising(
+                Self::MODE_1_SINK_RATE_CONFIRMATION,
+            ),
+            mode_1_sinkrate_conf_node_2: ConfirmationNode::new_falling(Self::MODE_1_RELEASE_DELAY),
+            mode_1_pull_up_conf_node_1: ConfirmationNode::new_rising(
+                Self::MODE_1_PULL_UP_CONFIRMATION,
+            ),
+            mode_1_pull_up_conf_node_2: ConfirmationNode::new_falling(Self::MODE_1_RELEASE_DELAY),
             mode_1_sinkrate_time_to_impact_min: 0.,
             mode_1_sinkrate_emitted_for_current_time_to_impact: false,
 
@@ -334,8 +462,13 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             mode_2_closure_rate_rate_limiter: RateLimiter::new_symmetrical(2_900.), // roughly 1.5g in ft/(min*s)
             mode_2_ra_filter: LowPassFilter::new(Duration::from_secs_f64(1.)),
 
-            mode_2_pull_up_preface_voice_emitted: false,
-            mode_2_pull_up_preface_active: false,
+            predictive_functions: PredictiveFunctionsStatus::default(),
+            predictive_alerts: PredictiveAlertOutputs::default(),
+            predictive_voice_cancelled: false,
+
+            mode_2_caution_voice_completed: false,
+            mode_2_caution_voice_active: false,
+            mode_2_caution_lamp_active: false,
             mode_2_pull_up_active: false,
             mode_2_terrain_active: false,
             mode_2_altitude_gain_active: false,
@@ -588,48 +721,77 @@ impl EnhancedGroundProximityWarningComputerRuntime {
         ils: &impl InstrumentLandingSystemBus,
     ) {
         // TODO implement steep approach logic
-        // If the audio declutter is enabled, bias vertical speed when above the beam to remove unnecessary warnings
-        // when repositioning to the beam.
-        let biased_vertical_speed = if self.pin_programs.audio_declutter_disable {
-            self.chosen_vertical_speed_ft_min
-        } else {
-            self.chosen_vertical_speed_ft_min
-                + 300.
-                    * (self.ra_ft / 100.).clamp(0., 1.)
-                    * (ils.glideslope_deviation().value().get::<ratio>() / 0.175).clamp(0., 1.)
-        };
-
-        let mode_1_alert_boundary_met = interpolation(
-            &Self::MODE_1_ALERT_AREA_BREAKPOINTS,
-            &Self::MODE_1_ALERT_AREA_VALUES,
-            biased_vertical_speed,
-        ) >= self.ra_ft
-            && self.ra_ft > 10.
-            && self.ra_ft < 2450.
-            && biased_vertical_speed < -964.;
-
-        let mode_1_warning_boundary_met = interpolation(
-            &Self::MODE_1_WARNING_AREA_BREAKPOINTS,
-            &Self::MODE_1_WARNING_AREA_VALUES,
+        let sink_rate_boundary_met = self.is_inside_mode_1_boundary(
+            &Self::MODE_1_SINK_RATE_VERTICAL_SPEEDS_FPM,
+            &Self::MODE_1_SINK_RATE_RADIO_HEIGHTS_FT,
+            self.glideslope_biased_vertical_speed_fpm(ils),
+        );
+        let pull_up_boundary_met = self.is_inside_mode_1_boundary(
+            &Self::MODE_1_PULL_UP_VERTICAL_SPEEDS_FPM,
+            &Self::MODE_1_PULL_UP_RADIO_HEIGHTS_FT,
             self.chosen_vertical_speed_ft_min,
-        ) >= self.ra_ft
-            && self.ra_ft > 10.
-            && self.ra_ft < 2450.
-            && self.chosen_vertical_speed_ft_min < -1482.;
+        );
 
         self.mode_1_sinkrate_lamp_active = self.mode_1_sinkrate_conf_node_2.update(
             self.mode_1_sinkrate_conf_node_1
-                .update(mode_1_alert_boundary_met, context.delta()),
+                .update(sink_rate_boundary_met, context.delta()),
             context.delta(),
         );
 
         self.mode_1_pull_up_active = self.mode_1_pull_up_conf_node_2.update(
             self.mode_1_pull_up_conf_node_1
-                .update(mode_1_warning_boundary_met, context.delta()),
+                .update(pull_up_boundary_met, context.delta()),
             context.delta(),
         );
 
-        // Perform the time to impact ratcheting logic for the sinkrate aural warning (only used with audio declutter)
+        self.update_mode_1_sink_rate_voice();
+    }
+
+    /// With the audio declutter, the vertical speed is biased towards zero above the glideslope beam, to remove
+    /// unnecessary alerts when rejoining the beam from above. Only the first (SINK RATE) boundary uses it.
+    fn glideslope_biased_vertical_speed_fpm(&self, ils: &impl InstrumentLandingSystemBus) -> f64 {
+        if self.pin_programs.audio_declutter_disable {
+            return self.chosen_vertical_speed_ft_min;
+        }
+
+        let radio_height_factor =
+            (self.ra_ft / Self::MODE_1_GLIDESLOPE_BIAS_FULL_RADIO_HEIGHT_FT).clamp(0., 1.);
+        // A glideslope deviation that is not valid (no computed data, failure) is not a position above the beam
+        let glideslope_deviation = ils.glideslope_deviation();
+        let deviation_above_beam_factor = if glideslope_deviation.is_normal_operation() {
+            (glideslope_deviation.value_or_default().get::<ratio>()
+                / Self::MODE_1_GLIDESLOPE_BIAS_FULL_DEVIATION)
+                .clamp(0., 1.)
+        } else {
+            0.
+        };
+
+        self.chosen_vertical_speed_ft_min
+            + Self::MODE_1_GLIDESLOPE_BIAS_MAX_FPM
+                * radio_height_factor
+                * deviation_above_beam_factor
+    }
+
+    /// Whether the aircraft is below the boundary curve given by the breakpoints, and descending faster than the
+    /// shallowest breakpoint. The curve gives the highest radio height at which a vertical speed alerts.
+    fn is_inside_mode_1_boundary(
+        &self,
+        vertical_speeds_fpm: &[f64],
+        radio_heights_ft: &[f64],
+        vertical_speed_fpm: f64,
+    ) -> bool {
+        let shallowest_descent_alerting_fpm = vertical_speeds_fpm[vertical_speeds_fpm.len() - 1];
+
+        vertical_speed_fpm < shallowest_descent_alerting_fpm
+            && self.ra_ft > Self::MODE_1_FLOOR_RADIO_HEIGHT_FT
+            && self.ra_ft < Self::MODE_1_CEILING_RADIO_HEIGHT_FT
+            && interpolation(vertical_speeds_fpm, radio_heights_ft, vertical_speed_fpm)
+                >= self.ra_ft
+    }
+
+    /// Only used with the audio declutter: SINK RATE is said twice, then again only when the time to impact has
+    /// become 20 % shorter, instead of for as long as the alert lasts.
+    fn update_mode_1_sink_rate_voice(&mut self) {
         let current_time_to_impact_min = self.ra_ft / -self.chosen_vertical_speed_ft_min;
 
         let time_to_impact_worsened_by_20_percent =
@@ -667,6 +829,17 @@ impl EnhancedGroundProximityWarningComputerRuntime {
                 || !self.mode_1_sinkrate_emitted_for_current_time_to_impact);
     }
 
+    /// Tells mode 2 whether the predictive terrain functions are operative.
+    pub fn set_predictive_functions_status(&mut self, status: PredictiveFunctionsStatus) {
+        self.predictive_functions = status;
+    }
+
+    /// Gives the alerts of the predictive terrain functions (terrain ahead, terrain clearance floor) to the lamps and
+    /// the aural output.
+    pub fn set_predictive_alerts(&mut self, alerts: PredictiveAlertOutputs) {
+        self.predictive_alerts = alerts;
+    }
+
     fn update_mode_2_logic(
         &mut self,
         context: &UpdateContext,
@@ -677,9 +850,78 @@ impl EnhancedGroundProximityWarningComputerRuntime {
         self.mode_2_takeoff_latch_node
             .update(self.on_ground, context.delta());
 
-        // Calculate and filter closure rate. We have it even worse than in IRL, because the sim in it's
-        // infinite wisdom decides to potentially update the RA at a potentially low rate
-        // (depening on RA, down to less than 1Hz)
+        let closure_rate_fpm = self.filtered_mode_2_closure_rate_fpm(context);
+
+        let envelopes = if self.is_mode_2b_selected(discrete_inputs, ils) {
+            Self::mode_2b_envelopes(closure_rate_fpm)
+        } else {
+            Self::mode_2a_envelopes(
+                closure_rate_fpm,
+                adr.computed_airspeed().value_or_default().get::<knot>(),
+            )
+        };
+
+        let inhibited = self.predictive_functions.inhibits_mode_2(self.ra_ft);
+        let in_caution_envelope =
+            !inhibited && envelopes.caution.contains(closure_rate_fpm, self.ra_ft);
+        let in_warning_envelope =
+            !inhibited && envelopes.warning.contains(closure_rate_fpm, self.ra_ft);
+
+        // With the gear down in landing configuration there is no pull up manoeuvre to ask for, TERRAIN is the only
+        // alert.
+        let terrain_only_configuration =
+            discrete_inputs.landing_flaps && discrete_inputs.landing_gear_downlocked;
+
+        self.update_mode_2_altitude_gain_hold(
+            context,
+            in_warning_envelope,
+            terrain_only_configuration || inhibited,
+        );
+
+        // TERRAIN, TERRAIN is said once on the way in and always before the first PULL UP, so a warning that is
+        // entered in a single step is still announced as it is when crossing the outer envelope. The hold replaces it
+        // as it is already saying TERRAIN.
+        if terrain_only_configuration || (!in_caution_envelope && !self.mode_2_altitude_gain_active)
+        {
+            self.mode_2_caution_voice_completed = false;
+        } else if self.mode_2_altitude_gain_active
+            || (self.number_of_aural_warning_emissions >= 2
+                && self.aural_output == AuralWarning::Terrain)
+        {
+            self.mode_2_caution_voice_completed = true;
+        }
+
+        let alerting_with_gear_up =
+            !terrain_only_configuration && in_caution_envelope && !self.mode_2_altitude_gain_active;
+        self.mode_2_pull_up_active =
+            alerting_with_gear_up && in_warning_envelope && self.mode_2_caution_voice_completed;
+        self.mode_2_caution_voice_active =
+            alerting_with_gear_up && !self.mode_2_caution_voice_completed;
+        self.mode_2_caution_lamp_active = alerting_with_gear_up && !self.mode_2_pull_up_active;
+        self.mode_2_terrain_active = terrain_only_configuration && in_caution_envelope;
+    }
+
+    /// Mode 2B is the envelope for the landing: it is selected with landing flaps, close to the localizer and
+    /// glideslope, and for the first 60 s after takeoff, so the climb out and the approach do not alert for terrain
+    /// that is normally close.
+    fn is_mode_2b_selected(
+        &self,
+        discrete_inputs: &TerrainAwarenessWarningSystemDiscreteInputs,
+        ils: &impl InstrumentLandingSystemBus,
+    ) -> bool {
+        let within_two_dots_of_beam = ils.glideslope_deviation().is_normal_operation()
+            && ils.localizer_deviation().is_normal_operation()
+            && ils.glideslope_deviation().value().abs() < Ratio::new::<ratio>(0.175)
+            && ils.localizer_deviation().value().abs() < Ratio::new::<ratio>(0.155);
+
+        self.mode_2_takeoff_latch_node.output()
+            || discrete_inputs.landing_flaps
+            || within_two_dots_of_beam
+    }
+
+    /// The rate at which the radio height is decreasing. The simulator may update the radio altitude at a rate as
+    /// low as below 1 Hz, so the raw derivative is limited and filtered more than a real unit would need.
+    fn filtered_mode_2_closure_rate_fpm(&mut self, context: &UpdateContext) -> f64 {
         let ra_ratelim = self
             .mode_2_ra_rate_limiter
             .update(context.delta(), self.ra_ft);
@@ -688,71 +930,119 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             .update(ra_ratelim, context.delta());
         let closure_rate_ft_per_min_raw = self.mode_2_closure_rate_derivative.output() * -60.; // ft/s to ft/min
 
-        let filtered_closure_rate_ft = self.mode_2_ra_filter.update(
+        self.mode_2_ra_filter.update(
             context.delta(),
             self.mode_2_closure_rate_rate_limiter
                 .update(context.delta(), closure_rate_ft_per_min_raw),
+        )
+    }
+
+    /// Mode 2A: the warning ceiling is the same at every airspeed. The caution envelope follows it at low closure
+    /// rates and widens towards the high closure rates with the airspeed, as a faster aircraft needs more height to
+    /// clear the terrain.
+    pub(super) fn mode_2a_envelopes(
+        closure_rate_fpm: f64,
+        computed_airspeed_kt: f64,
+    ) -> Mode2Envelopes {
+        let warning_ceiling_ft = interpolation(
+            &Self::MODE_2_A_WARNING_CLOSURE_RATES_FPM,
+            &Self::MODE_2_A_WARNING_RADIO_HEIGHTS_FT,
+            closure_rate_fpm,
         );
 
-        // Compute boundaries
+        let caution_ceiling_ft =
+            if closure_rate_fpm <= Self::MODE_2_A_CAUTION_EXPANSION_START_CLOSURE_RATE_FPM {
+                warning_ceiling_ft
+            } else {
+                let ceiling_at_end_of_expansion_ft = interpolation(
+                    &Self::MODE_2_A_CAUTION_EXPANSION_AIRSPEEDS_KT,
+                    &Self::MODE_2_A_CAUTION_EXPANSION_CEILINGS_FT,
+                    computed_airspeed_kt,
+                );
+                let ceiling_at_start_of_expansion_ft = interpolation(
+                    &Self::MODE_2_A_WARNING_CLOSURE_RATES_FPM,
+                    &Self::MODE_2_A_WARNING_RADIO_HEIGHTS_FT,
+                    Self::MODE_2_A_CAUTION_EXPANSION_START_CLOSURE_RATE_FPM,
+                );
+                let expanded_ceiling_ft = interpolation(
+                    &[
+                        Self::MODE_2_A_CAUTION_EXPANSION_START_CLOSURE_RATE_FPM,
+                        Self::MODE_2_A_CAUTION_EXPANSION_END_CLOSURE_RATE_FPM,
+                    ],
+                    &[
+                        ceiling_at_start_of_expansion_ft,
+                        ceiling_at_end_of_expansion_ft,
+                    ],
+                    closure_rate_fpm,
+                );
 
-        // TODO implement TCF and TERR function active conditions
-        let mode_2_b_active = self.mode_2_takeoff_latch_node.output()
-            || discrete_inputs.landing_flaps
-            || (ils.glideslope_deviation().is_normal_operation()
-                && ils.localizer_deviation().is_normal_operation()
-                && ils.glideslope_deviation().value().abs() < Ratio::new::<ratio>(0.175)
-                && ils.localizer_deviation().value().abs() < Ratio::new::<ratio>(0.155));
+                // The caution envelope encloses the warning one, also where the warning ceiling is higher than the
+                // straight line of the expansion.
+                warning_ceiling_ft.max(expanded_ceiling_ft)
+            };
 
-        let mode_2_upper_boundary_ft = if mode_2_b_active {
-            789.
-        } else {
-            // TODO limit mode 2A upper boundary when TERR function active
-            (1650. + 8.9 * (adr.computed_airspeed().value_or_default().get::<knot>() - 220.))
-                .clamp(1650., 2450.)
-        };
-        let mode_2_lower_boundary_ft = if mode_2_b_active && discrete_inputs.landing_flaps {
-            interpolation(
-                &Self::MODE_2_B_CUTOFF_AREA_BREAKPOINTS,
-                &Self::MODE_2_B_CUTOFF_AREA_VALUES,
-                self.chosen_vertical_speed_ft_min,
-            )
-        } else {
-            30.
-        };
-
-        let mode_2_boundary_met = interpolation(
-            &Self::MODE_2_ALERT_AREA_BREAKPOINTS,
-            &Self::MODE_2_ALERT_AREA_VALUES,
-            filtered_closure_rate_ft,
-        ) >= self.ra_ft
-            && filtered_closure_rate_ft > 2038.
-            && self.ra_ft > mode_2_lower_boundary_ft
-            && self.ra_ft < mode_2_upper_boundary_ft;
-
-        // Compute Warning logics
-        let aural_terrain_only =
-            discrete_inputs.landing_flaps && discrete_inputs.landing_gear_downlocked;
-
-        if mode_2_boundary_met && !self.mode_2_pull_up_preface_voice_emitted && !aural_terrain_only
-        {
-            self.mode_2_pull_up_preface_voice_emitted = self.number_of_aural_warning_emissions >= 2
-                && self.aural_output == AuralWarning::Terrain;
-        } else if !mode_2_boundary_met || aural_terrain_only {
-            self.mode_2_pull_up_preface_voice_emitted = false;
+        let minimum_closure_rate_fpm = Self::MODE_2_A_WARNING_CLOSURE_RATES_FPM[0];
+        Mode2Envelopes {
+            caution: Mode2Envelope {
+                minimum_closure_rate_fpm,
+                floor_ft: Self::MODE_2_A_FLOOR_RADIO_HEIGHT_FT,
+                ceiling_ft: caution_ceiling_ft,
+            },
+            warning: Mode2Envelope {
+                minimum_closure_rate_fpm,
+                floor_ft: Self::MODE_2_A_FLOOR_RADIO_HEIGHT_FT,
+                ceiling_ft: warning_ceiling_ft,
+            },
         }
+    }
 
-        // Altitude gain hold. A320 FCOM DSC-34-SURV-40-20 mode 2 table, landing gear up (modes 2A and 2B): after the
-        // PULL UP warning, "TERRAIN" is "repeated as long as MODE 2 is triggered after leaving the warning conditions"
-        // and "The PULL UP red lights stay on". The FCOM gives no end condition. Design choice: the hold ends after
-        // MODE_2_ALTITUDE_GAIN_FT of altitude gain (from the lowest altitude since leaving the envelope) or
-        // MODE_2_ALTITUDE_GAIN_MAX_DURATION (Honeywell EGPWS mode 2 altitude gain), when the envelope is entered again
-        // (the normal mode 2 alerts take over), or in the gear down + landing flaps configuration, which has no hold.
+    /// Mode 2B: the ceiling falls with the closure rate, a high closure rate close to the ground is not the normal
+    /// case for a landing, it is what happens when the terrain rises steeply.
+    pub(super) fn mode_2b_envelopes(closure_rate_fpm: f64) -> Mode2Envelopes {
+        let warning_ceiling = |closure_rate_fpm: f64| {
+            interpolation(
+                &Self::MODE_2_B_WARNING_CLOSURE_RATES_FPM,
+                &Self::MODE_2_B_WARNING_RADIO_HEIGHTS_FT,
+                closure_rate_fpm,
+            )
+        };
+        let minimum_warning_closure_rate_fpm = Self::MODE_2_B_WARNING_CLOSURE_RATES_FPM[0];
+
+        // The outline is made by moving the warning envelope towards lower closure rates and up.
+        let caution_ceiling_ft =
+            warning_ceiling(closure_rate_fpm + Self::MODE_2_B_CAUTION_OUTLINE_CLOSURE_RATE_FPM)
+                + Self::MODE_2_B_CAUTION_OUTLINE_RADIO_HEIGHT_FT;
+
+        Mode2Envelopes {
+            caution: Mode2Envelope {
+                minimum_closure_rate_fpm: minimum_warning_closure_rate_fpm
+                    - Self::MODE_2_B_CAUTION_OUTLINE_CLOSURE_RATE_FPM,
+                floor_ft: Self::MODE_2_B_FLOOR_RADIO_HEIGHT_FT,
+                ceiling_ft: caution_ceiling_ft,
+            },
+            warning: Mode2Envelope {
+                minimum_closure_rate_fpm: minimum_warning_closure_rate_fpm,
+                floor_ft: Self::MODE_2_B_FLOOR_RADIO_HEIGHT_FT,
+                ceiling_ft: warning_ceiling(closure_rate_fpm),
+            },
+        }
+    }
+
+    /// After the PULL UP warning, the TERRAIN voice and the PULL UP lamp are held when the aircraft leaves the warning
+    /// envelope, as the aircraft may still be too low even though the closure rate has dropped. The hold ends after
+    /// MODE_2_ALTITUDE_GAIN_FT of altitude gain (from the lowest altitude since leaving the warning envelope) or
+    /// MODE_2_ALTITUDE_GAIN_MAX_DURATION, when the warning envelope is entered again, or when there is no pull up
+    /// manoeuvre to ask for (terrain only configuration) or mode 2 is inhibited.
+    fn update_mode_2_altitude_gain_hold(
+        &mut self,
+        context: &UpdateContext,
+        in_warning_envelope: bool,
+        hold_not_applicable: bool,
+    ) {
         let pull_up_was_active = self.mode_2_pull_up_active;
-        if mode_2_boundary_met || aural_terrain_only {
+        if in_warning_envelope || hold_not_applicable {
             self.mode_2_altitude_gain_active = false;
         } else if pull_up_was_active {
-            // The aircraft has just left the warning envelope.
             self.mode_2_altitude_gain_active = true;
             self.mode_2_altitude_gain_reference_ft = self.chosen_altitude_ft;
             self.mode_2_altitude_gain_elapsed = Duration::ZERO;
@@ -768,13 +1058,6 @@ impl EnhancedGroundProximityWarningComputerRuntime {
                 self.mode_2_altitude_gain_active = false;
             }
         }
-
-        self.mode_2_pull_up_preface_active = !aural_terrain_only
-            && mode_2_boundary_met
-            && !self.mode_2_pull_up_preface_voice_emitted;
-        self.mode_2_pull_up_active =
-            !aural_terrain_only && mode_2_boundary_met && self.mode_2_pull_up_preface_voice_emitted;
-        self.mode_2_terrain_active = aural_terrain_only && mode_2_boundary_met;
     }
 
     fn update_mode_3_logic(
@@ -1192,37 +1475,24 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             return;
         }
 
-        if self.pin_programs.alternate_lamp_format {
-            // Warning lamp: mode 1 second boundary and mode 2 PULL UP; alert lamp: every other mode (sink rate,
-            // TERRAIN TERRAIN, don't sink, too low gear/flaps/terrain, glideslope).
-            self.warning_lamp_activated = (self.mode_1_pull_up_active
-                || self.mode_2_pull_up_active
-                || self.mode_2_altitude_gain_active)
-                && !discrete_inputs.gpws_inhibit
-                && !self.gpws_general_fault;
-            self.alert_lamp_activated = (self.mode_1_sinkrate_lamp_active
-                || self.mode_2_pull_up_preface_active
-                || self.mode_2_terrain_active
-                || self.mode_3_lamp_active
-                || self.mode_5_glideslope_lamp_active
-                || self.mode_4_lamp_active)
-                && !discrete_inputs.gpws_inhibit
-                && !self.gpws_general_fault;
-        } else {
-            self.warning_lamp_activated = (self.mode_1_sinkrate_lamp_active
-                || self.mode_1_pull_up_active
-                || self.mode_2_pull_up_active
-                || self.mode_2_pull_up_preface_active
-                || self.mode_2_terrain_active
-                || self.mode_2_altitude_gain_active
-                || self.mode_3_lamp_active
-                || self.mode_4_lamp_active)
-                && !discrete_inputs.gpws_inhibit
-                && !self.gpws_general_fault;
-            self.alert_lamp_activated = self.mode_5_glideslope_lamp_active
-                && !discrete_inputs.gpws_inhibit
-                && !self.gpws_general_fault;
-        }
+        // The PULL UP lamp is for the second boundary of mode 1 and for mode 2 (including the hold after it), the
+        // GPWS alert lamp for every other alert.
+        let lamps_enabled = !discrete_inputs.gpws_inhibit && !self.gpws_general_fault;
+        // The predictive functions are inhibited by the TERR pushbutton, not by the GPWS SYS one, and they do not need
+        // the radio altimeter or the airspeed that a general fault of the basic modes is about.
+        self.warning_lamp_activated = ((self.mode_1_pull_up_active
+            || self.mode_2_pull_up_active
+            || self.mode_2_altitude_gain_active)
+            && lamps_enabled)
+            || self.predictive_alerts.warning_light;
+        self.alert_lamp_activated = ((self.mode_1_sinkrate_lamp_active
+            || self.mode_2_caution_lamp_active
+            || self.mode_2_terrain_active
+            || self.mode_3_lamp_active
+            || self.mode_5_glideslope_lamp_active
+            || self.mode_4_lamp_active)
+            && lamps_enabled)
+            || self.predictive_alerts.caution_light;
     }
 
     fn compute_aural_output(
@@ -1233,6 +1503,21 @@ impl EnhancedGroundProximityWarningComputerRuntime {
         let prev_aural_output = self.aural_output;
 
         let basic_gpws_inhibit = discrete_inputs.gpws_inhibit || discrete_inputs.audio_inhibit;
+        // The words of the predictive functions are stopped by the audio inhibit and by the EMER CANC key, the GPWS SYS
+        // pushbutton does not (it is for modes 1 to 5). EMER CANC cancels the alert that is going on, not only the
+        // word that is being said: the repeats of it stay silent until the alert is over.
+        let predictive_alert_going_on =
+            self.predictive_alerts.warning_light || self.predictive_alerts.caution_light;
+        if !predictive_alert_going_on {
+            self.predictive_voice_cancelled = false;
+        } else if discrete_inputs.momentary_audio_suppression {
+            self.predictive_voice_cancelled = true;
+        }
+        let predictive_voice = if discrete_inputs.audio_inhibit || self.predictive_voice_cancelled {
+            PredictiveVoice::None
+        } else {
+            self.predictive_alerts.voice
+        };
 
         self.aural_output = if let Some(step) = self.self_test_step {
             if basic_gpws_inhibit {
@@ -1241,18 +1526,24 @@ impl EnhancedGroundProximityWarningComputerRuntime {
                 step.aural()
             }
         } else if self.gpws_general_fault {
-            AuralWarning::None
-        } else if self.mode_1_pull_up_active && !basic_gpws_inhibit {
+            // The look-ahead does not depend on the sensors of the basic modes
+            Self::aural_warning_of(predictive_voice)
+        } else if (self.mode_1_pull_up_active || self.mode_2_pull_up_active) && !basic_gpws_inhibit
+        {
             AuralWarning::PullUp
-        } else if self.mode_2_pull_up_preface_active && !basic_gpws_inhibit {
-            AuralWarning::Terrain
-        } else if self.mode_2_pull_up_active && !basic_gpws_inhibit {
-            AuralWarning::PullUp
-        } else if (self.mode_2_terrain_active || self.mode_2_altitude_gain_active)
+        } else if (self.mode_2_caution_voice_active
+            || self.mode_2_terrain_active
+            || self.mode_2_altitude_gain_active)
             && !basic_gpws_inhibit
         {
             AuralWarning::Terrain
-        } else if self.mode_4_too_low_terrain_voice_active && !basic_gpws_inhibit {
+        } else if predictive_voice.is_warning() {
+            Self::aural_warning_of(predictive_voice)
+        } else if predictive_voice == PredictiveVoice::TerrainAhead {
+            AuralWarning::TerrainAhead
+        } else if (self.mode_4_too_low_terrain_voice_active && !basic_gpws_inhibit)
+            || predictive_voice == PredictiveVoice::TooLowTerrain
+        {
             AuralWarning::TooLowTerrain
         } else if self.mode_4_too_low_gear_voice_active && !basic_gpws_inhibit {
             AuralWarning::TooLowGear
@@ -1280,6 +1571,16 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             self.number_of_aural_warning_emissions = (self.time_since_first_emission.as_secs_f64()
                 / self.aural_output.get_duration().as_secs_f64())
             .floor() as u32;
+        }
+    }
+
+    fn aural_warning_of(voice: PredictiveVoice) -> AuralWarning {
+        match voice {
+            PredictiveVoice::None => AuralWarning::None,
+            PredictiveVoice::TerrainAhead => AuralWarning::TerrainAhead,
+            PredictiveVoice::TooLowTerrain => AuralWarning::TooLowTerrain,
+            PredictiveVoice::PullUp => AuralWarning::PullUp,
+            PredictiveVoice::AvoidTerrain => AuralWarning::AvoidTerrain,
         }
     }
 
@@ -1318,8 +1619,10 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             self.terr_sys_fault || self.remaining_startup > Duration::ZERO;
         discrete_outputs.terrain_not_available = false;
         discrete_outputs.raas_inop = false;
-        discrete_outputs.capt_terrain_display_active = false;
-        discrete_outputs.fo_terrain_display_active = false;
+        discrete_outputs.capt_terrain_display_active =
+            self.predictive_alerts.automatic_terrain_display;
+        discrete_outputs.fo_terrain_display_active =
+            self.predictive_alerts.automatic_terrain_display;
 
         bus_outputs
             .alert_discrete_1
@@ -1350,6 +1653,12 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             self.aural_output == AuralWarning::GlideslopeHard
                 || self.aural_output == AuralWarning::GlideslopeSoft,
         );
+        bus_outputs
+            .alert_discrete_1
+            .set_bit(19, self.aural_output == AuralWarning::TerrainAhead);
+        bus_outputs
+            .alert_discrete_1
+            .set_bit(20, self.aural_output == AuralWarning::AvoidTerrain);
 
         bus_outputs
             .alert_discrete_2
