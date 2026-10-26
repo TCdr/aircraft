@@ -164,6 +164,7 @@ export class ApproachPhase extends Phase {
 
   init() {
     SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', 0);
+    SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_DERATE', 'Number', 0);
     this.nextPhase = FmgcFlightPhase.Done;
   }
 
@@ -182,6 +183,7 @@ export class ApproachPhase extends Phase {
 export class GoAroundPhase extends Phase {
   init() {
     SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', 0);
+    SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_DERATE', 'Number', 0);
     this.nextPhase = FmgcFlightPhase.GoAround;
   }
 
@@ -194,6 +196,7 @@ export class GoAroundPhase extends Phase {
 export class DonePhase extends Phase {
   init() {
     SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', 0);
+    SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_DERATE', 'Number', 0);
     this.nextPhase = FmgcFlightPhase.Done;
   }
 

@@ -12,6 +12,7 @@
 
 #include "CrossFeedBurn_A32NX.hpp"
 #include "WingTankLeak_A32NX.hpp"
+#include "FuelRecirculation_A32NX.hpp"
 #include "EngineControlA32NX.h"
 #include "EngineRatios.hpp"
 #include "FanBlockedStart_A32NX.hpp"
@@ -502,7 +503,11 @@ void EngineControl_A32NX::updateIdleSetting(double pressAltitude, double mach, d
       IdleControl_A32NX::fadecBleedDemand(measuredBleedDemand, onGround, bleedValveStatusLost);
   const bool eiuDataLost = simData.engineEiuFault[L]->getAsBool() || simData.engineEiuFault[R]->getAsBool();
   const IdleControl_A32NX::IdleMode mode = IdleControl_A32NX::idleMode(onGround, simData.flapsHandleIndex->get(), eiuDataLost);
-  const double idleSettingCN2 = Tables1502_A32NX::iCN2(pressAltitude, mach) + IdleControl_A32NX::idleCN2Increase(mode, bleedDemand);
+  // Design choice: the same one idle setting for both engines, so the minimum N2 raise of either engine raises both
+  const bool recirculationRaisesMinimumN2 =
+      simData.fuelRecirculationRaisesMinimumN2[L]->getAsBool() || simData.fuelRecirculationRaisesMinimumN2[R]->getAsBool();
+  const double idleSettingCN2 = Tables1502_A32NX::iCN2(pressAltitude, mach) +
+                                IdleControl_A32NX::idleCN2Increase(mode, bleedDemand, recirculationRaisesMinimumN2);
   const double idleSettingN1  = Tables1502_A32NX::cn1AtCN2(idleSettingCN2, mach) * sqrt(EngineRatios::theta2(0, ambientTemp));
 
   simData.thrustLimitIdle->set(idleSettingN1);
@@ -1146,10 +1151,29 @@ void EngineControl_A32NX::updateFuel(double deltaTimeSeconds) {
                                                               fuelRightPre);  // Pounds
 
     //--------------------------------------------
+    // IDG cooling fuel returned to the outer tanks (FuelRecirculation_A32NX.hpp): out of the inner tank, into the outer tank
+    const double outerCapacityPounds = FuelRecirculation_A32NX::OUTER_TANK_CAPACITY_GALLONS * weightLbsPerGallon;
+    const double recirculationLeft   = leaksThisFrame ? FuelRecirculation_A32NX::returnedPounds(
+                                                            simData.fuelRecirculationFlow[L]->get(), deltaTimeHours, fuelLeftPre,
+                                                            leftAuxQuantity, outerCapacityPounds)
+                                                      : 0.0;  // Pounds
+    const double recirculationRight  = leaksThisFrame ? FuelRecirculation_A32NX::returnedPounds(
+                                                            simData.fuelRecirculationFlow[R]->get(), deltaTimeHours, fuelRightPre,
+                                                            rightAuxQuantity, outerCapacityPounds)
+                                                      : 0.0;  // Pounds
+    if (recirculationLeft > 0.0 || recirculationRight > 0.0) {
+      simData.fuelCandAuxDataPtr->data().fuelCenter   = centerQuantity / weightLbsPerGallon;
+      simData.fuelCandAuxDataPtr->data().fuelLeftAux  = (leftAuxQuantity + recirculationLeft) / weightLbsPerGallon;
+      simData.fuelCandAuxDataPtr->data().fuelRightAux = (rightAuxQuantity + recirculationRight) / weightLbsPerGallon;
+      simData.fuelCandAuxDataPtr->writeDataToSim();
+    }
+
+    //--------------------------------------------
     // Final Fuel levels for left and right inner tanks
-    const double fuelLeft = (fuelLeftPre - (fuelBurn1 * Fadec::KGS_TO_LBS)) + xfrAuxLeft + xfrCenterToLeft - apuBurn1 - leakLeft;  // Pounds
-    const double fuelRight =
-        (fuelRightPre - (fuelBurn2 * Fadec::KGS_TO_LBS)) + xfrAuxRight + xfrCenterToRight - apuBurn2 - leakRight;  // Pounds
+    const double fuelLeft = (fuelLeftPre - (fuelBurn1 * Fadec::KGS_TO_LBS)) + xfrAuxLeft + xfrCenterToLeft - apuBurn1 - leakLeft -
+                            recirculationLeft;  // Pounds
+    const double fuelRight = (fuelRightPre - (fuelBurn2 * Fadec::KGS_TO_LBS)) + xfrAuxRight + xfrCenterToRight - apuBurn2 -
+                             leakRight - recirculationRight;  // Pounds
 
     //--------------------------------------------
     // Setting new pre-cycle conditions
@@ -1159,8 +1183,8 @@ void EngineControl_A32NX::updateFuel(double deltaTimeSeconds) {
     simData.engineFuelUsed[L]->set(fuelUsedLeft);
     simData.engineFuelUsed[R]->set(fuelUsedRight);
 
-    simData.fuelAuxLeftPre->set(leftAuxQuantity);
-    simData.fuelAuxRightPre->set(rightAuxQuantity);
+    simData.fuelAuxLeftPre->set(leftAuxQuantity + recirculationLeft);
+    simData.fuelAuxRightPre->set(rightAuxQuantity + recirculationRight);
     simData.fuelCenterPre->set(centerQuantity);
 
     simData.fuelLeftPre->set(fuelLeft);    // in Pounds
@@ -1216,6 +1240,7 @@ void EngineControl_A32NX::updateThrustLimits(double                  simulationT
 
   if (!isTransitionActive && thrustLimitType != 3 /* FLEX */) {
     latchedFlexTemperature = flexTemp;
+    latchedDerate          = simData.airlinerToDerate->get();
   }
 
   double to      = 0;
@@ -1236,7 +1261,21 @@ void EngineControl_A32NX::updateThrustLimits(double                  simulationT
     flex_ga = ThrustLimits_A32NX::limitN1(1, (std::min)(16600.0, pressAltitude), ambientTemperature, ambientPressure,
                                           latchedFlexTemperature, packs, nai, wai);
   }
-  clb = ThrustLimits_A32NX::limitN1(2, pressAltitude, ambientTemperature, ambientPressure, 0, packs, nai, wai);
+  if (latchedFlexTemperature <= 0 && latchedDerate > 0) {
+    // derated takeoff, at the FLX/MCT detent as a FLEX takeoff: the FADEC model of the flight computers uses this FLX limit
+    // (fbw_a320 TakeoffDerate.h)
+    flex_to = ThrustLimits_A32NX::limitN1(0, (std::min)(16600.0, pressAltitude), ambientTemperature, ambientPressure, 0, packs, nai,
+                                          wai, latchedDerate);
+    flex_ga = ThrustLimits_A32NX::limitN1(1, (std::min)(16600.0, pressAltitude), ambientTemperature, ambientPressure, 0, packs, nai,
+                                          wai, latchedDerate);
+  }
+  const double highestThrustLeverAngle = (std::max)(simData.engineTla[L]->get(), simData.engineTla[R]->get());
+  const double deratedClimbBase = deratedClimb.update(
+      {simData.airlinerToDerate->get(), msfsHandlerPtr->getSimOnGround(),
+       DeratedClimb_A32NX::leversInClimbDetent(highestThrustLeverAngle)});
+  const double climbDerate = DeratedClimb_A32NX::thrustReductionPercent(deratedClimbBase, pressAltitude);
+  simData.deratedClimbPercent->set(climbDerate);
+  clb = ThrustLimits_A32NX::limitN1(2, pressAltitude, ambientTemperature, ambientPressure, 0, packs, nai, wai, climbDerate);
   mct = ThrustLimits_A32NX::limitN1(3, pressAltitude, ambientTemperature, ambientPressure, 0, packs, nai, wai);
 
   // transition between TO and GA limit -----------------------------------------------------------------------------
@@ -1304,6 +1343,14 @@ void EngineControl_A32NX::updateThrustLimits(double                  simulationT
   simData.thrustLimitToga->set(toga);
   simData.thrustLimitFlex->set(flex);
   simData.thrustLimitClimb->set(clb);
+  const bool bothEnginesRunning = simData.engineState[L]->get() == ON && simData.engineState[R]->get() == ON;
+  const bool gaSoft = GaSoft_A32NX::isActive({msfsHandlerPtr->getSimOnGround(), simData.flapsHandleIndex->get(), bothEnginesRunning,
+                                                  static_cast<int>(simData.flightPhase->get()), thrustLimitType == 2 /* MCT */});
+  simData.gaSoftActive->set(gaSoft ? 1 : 0);
+  if (gaSoft) {
+    mct = ThrustLimits_A32NX::limitN1(1, (std::min)(16600.0, pressAltitude), ambientTemperature, ambientPressure, 0, packs, nai, wai,
+                                      ThrustDerate_A32NX::GA_SOFT_THRUST_REDUCTION_PERCENT);
+  }
   simData.thrustLimitMct->set(mct);
 
 #ifdef PROFILING

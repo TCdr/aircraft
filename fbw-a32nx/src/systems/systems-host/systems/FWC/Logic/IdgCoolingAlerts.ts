@@ -8,9 +8,9 @@ import { FwcAlertItem, awarenessItem } from './FwcAlertItem';
 
 /*
  * FUEL IDG 1(2) COOL FAULT of the A320 FWC: equipment of the fuel recirculation command, which cools the IDG oil with
- * fuel, is failed (TS only flyPad failure, A320Failure 28018/28019). Crew awareness, maintenance action due, no STATUS.
- * Shown in phases 1 and 10 only. The IDG oil temperature model does not use the fuel recirculation, so the failure has
- * no other effect.
+ * fuel, is failed (flyPad failure, A320Failure 28018/28019). Crew awareness, maintenance action due, no STATUS.
+ * Shown in phases 1 and 10 only. The systems WASM (fuel/fuel_recirculation.rs) keeps the fuel return valve closed
+ * with the failure, so the IDG oil is no longer cooled with fuel.
  */
 
 export const IdgCoolingAlertKeys = { coolFault: ['2800260', '2800261'] } as const;

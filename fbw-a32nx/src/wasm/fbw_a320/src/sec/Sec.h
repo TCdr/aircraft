@@ -23,6 +23,10 @@ class Sec {
 
   base_sec_analog_outputs getAnalogOutputs();
 
+  // The SEC sees the thrust lever of the engine (0 or 1) in the reverse sector. The thrust reverser deploys only with this
+  // signal from at least one SEC; a SEC that is off or failed does not give it.
+  bool isThrustReverseSelected(int engineIndex) const;
+
   SecComputer::ExternalInputs_SecComputer_T modelInputs = {};
 
  private:
@@ -64,6 +68,10 @@ class Sec {
 
   const double minimumPowerOutageTimeForFailure = 0.02;
   const double selfTestDuration = 30;
+
+  // Design choice: the reverse sector starts at the same lever angle the reverser control uses to release the tertiary lock;
+  // the manual gives no angle.
+  static constexpr double thrustReverseSelectedTlaDeg = -3.0;
 
   // Power Supply monitoring
   PowerSupplyMonitor powerSupplyMonitor{minimumPowerOutageTimeForFailure};

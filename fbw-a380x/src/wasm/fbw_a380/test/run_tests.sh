@@ -88,3 +88,7 @@ clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../..
 clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
   hsp_dive_response_test.cpp ../src/model/*.cpp -o ../obj/hsp_dive_response_test
 ../obj/hsp_dive_response_test
+# Thrust reverser lines of defense: the reverse switch of the throttle assembly and the PRIM reverse signal
+# (ThrustReverseSignals.h). With WITHOUT_THE_FIX=1 a failed PRIM still gives its signal and the test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src thrust_reverse_signals_test.cpp -o ../obj/thrust_reverse_signals_test
+../obj/thrust_reverse_signals_test

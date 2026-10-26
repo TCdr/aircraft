@@ -71,6 +71,7 @@ export type PFDSimvars = AdirsSimVars &
     radioAltitude1: number;
     radioAltitude2: number;
     flexTemp: number;
+    gaSoftActive: number;
     autoBrakeMode: number;
     autoBrakeActive: boolean;
     autoBrakeDecel: boolean;
@@ -250,6 +251,7 @@ export enum PFDVars {
   radioAltitude1 = 'L:A32NX_RA_1_RADIO_ALTITUDE',
   radioAltitude2 = 'L:A32NX_RA_2_RADIO_ALTITUDE',
   flexTemp = 'L:A32NX_AIRLINER_TO_FLEX_TEMP',
+  gaSoftActive = 'L:A32NX_FADEC_GA_SOFT_ACTIVE',
   autoBrakeMode = 'L:A32NX_AUTOBRAKES_ARMED_MODE',
   autoBrakeActive = 'L:A32NX_AUTOBRAKES_ACTIVE',
   autoBrakeDecel = 'L:A32NX_AUTOBRAKES_DECEL_LIGHT',
@@ -434,6 +436,7 @@ export class PFDSimvarPublisher extends UpdatableSimVarPublisher<PFDSimvars> {
     ['radioAltitude1', { name: PFDVars.radioAltitude1, type: SimVarValueType.Number }],
     ['radioAltitude2', { name: PFDVars.radioAltitude2, type: SimVarValueType.Number }],
     ['flexTemp', { name: PFDVars.flexTemp, type: SimVarValueType.Number }],
+    ['gaSoftActive', { name: PFDVars.gaSoftActive, type: SimVarValueType.Number }],
     ['autoBrakeMode', { name: PFDVars.autoBrakeMode, type: SimVarValueType.Number }],
     ['autoBrakeActive', { name: PFDVars.autoBrakeActive, type: SimVarValueType.Bool }],
     ['autoBrakeDecel', { name: PFDVars.autoBrakeDecel, type: SimVarValueType.Bool }],

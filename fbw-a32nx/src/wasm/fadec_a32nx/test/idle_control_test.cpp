@@ -50,6 +50,16 @@ static double modulatedIdleCN2Increase(bool onGround, bool bleedValveStatusLost,
 #endif
 }
 
+/// The modulated idle increase with the recirculation minimum N2 raise or not
+static double recirculationIdleCN2Increase(const BleedDemand& bleed, bool raised) {
+#ifdef WITHOUT_THE_FIX
+  (void)raised;
+  return IdleControl_A32NX::idleCN2Increase(IdleMode::MODULATED, bleed);
+#else
+  return IdleControl_A32NX::idleCN2Increase(IdleMode::MODULATED, bleed, raised);
+#endif
+}
+
 int main() {
   // Mode selection: approach idle only in flight with the FLAPS lever out of 0
   expect("in flight, FLAPS 0: modulated", IdleControl_A32NX::idleMode(false, 0, false) == IdleMode::MODULATED, 0);
@@ -88,6 +98,18 @@ int main() {
   expect("bleed valve status lost in flight: idle of the measured demand", flightStatusLost == 0.0, flightStatusLost);
   const double groundStatusKnown = modulatedIdleCN2Increase(true, false, PACKS);
   expect("bleed valve status known on ground: idle of the measured demand", groundStatusKnown == packsOnly, groundStatusKnown);
+
+  // Fuel recirculation of the IDG cooling: the minimum N2 raise lifts the modulated idle, never above the approach idle, and does not
+  // add to a higher bleed idle
+  const double raised = recirculationIdleCN2Increase(NO_BLEED, true);
+  expect("recirculation raises the minimum N2 of a modulated idle", raised > clean, raised);
+  expect("recirculation raise stays below the approach idle", raised < approachClean, raised);
+  const double raisedWithPacks = recirculationIdleCN2Increase(PACKS, true);
+  expect("recirculation does not add to the bleed idle of the packs", raisedWithPacks == raised, raisedWithPacks);
+  const double raisedWithAllBleed = recirculationIdleCN2Increase(ALL_BLEED, true);
+  expect("a bleed idle above the raise stays", raisedWithAllBleed == allBleed, raisedWithAllBleed);
+  expect("approach idle ignores the raise",
+         IdleControl_A32NX::idleCN2Increase(IdleMode::APPROACH, NO_BLEED, true) == approachClean, approachClean);
 
   if (failures == 0) {
     std::printf("idle_control_test: all checks passed\n");

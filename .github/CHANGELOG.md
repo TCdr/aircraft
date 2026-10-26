@@ -114,6 +114,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MCDU] Fix navigation arrows missing from remote MCDU pages - @tracernz (Mike)
 1. [A32NX/FWS] Add EWD overflow logic - @FozzieHi (fozzie)
 1. [EFB] Added fix to make sure all doors are closed when pushing back - @frankkopp (cdr_maverick)
+1. [A32NX/FADEC] Add the derated takeoff (D04 to D32, DRT TO on the PERF TAKE OFF page), the derated climb (DCLB) and the soft go-around (GA SOFT) thrust ratings - @TCdr
 1. [A32NX/ND] Add a native weather radar display on the ROSE and ARC pages, controlled by the WX SYS and MODE knobs - @TCdr
 1. [A380X/ND] Add the weather radar to the ND and the weather to the VD, following the EFIS WX overlay and the SURV CONTROLS WXR settings - @TCdr
 1. [A380X/MFD] Make the SURV CONTROLS page (WXR, TCAS), the STATUS & SWITCHING WXR and XPDR/TCAS selection and the pedestal SURV panel buttons work - @TCdr
@@ -237,7 +238,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] The flyPad failures page describes the ATA 28 Fuel and ATA 72 Engine chapters like the others - @TCdr
 1. [A32NX/FWS] New ENG 1(2) FAIL and ENG 1(2) SHUT DOWN cautions with their procedures, STATUS and INOP SYS, and LAND ASAP; ALL ENGINES FAILURE gets its flight phase inhibition - @TCdr
 1. [A32NX/FADEC] An in-flight engine relight follows the relight envelope; a shut down engine windmills in flight, shows no fuel flow and its oil pressure falls with N2; both igniters during an in-flight relight, which also lights up a quick relight with the ENG MODE selector at NORM - @TCdr
+1. [A32NX/FADEC] The IDG cooling fuel recirculation follows the aircraft: a hot IDG oil at low thrust sends 300 kg/h of fuel back to the wing tank, then raises the minimum N2, then increases the flow up to 600 kg/h; the returned fuel moves to the outer cell, cools the IDG oil and the FUEL RETURN VALVE failures and the IDG fuel cooling failure act on it - @TCdr
+1. [A32NX/ENG] The ENG SD page shows the NAC temperature of the engines when a nacelle goes above 240 °C, pulsing green - @TCdr
 1. [A32NX/FADEC] An engine started in flight no longer overshoots to 110-114 % N2 at the end of the start: it stabilises at idle, then accelerates to the thrust lever or A/THR demand - @TCdr
+1. [A32NX/FADEC] After a flameout in flight the FADEC supplies the igniters for its own relight attempt, whatever the ENG MODE selector position, and the IGNITION memo shows - @TCdr
 1. [A32NX/A380X/HYD] The RAT can be stowed after landing: flyPad Ground > Services shows a "RAT stow (maintenance)" row while the RAT is out, usable when stopped on the ground and refused while an extension is still commanded (the RAT can be stowed only on the ground) - @TCdr
 1. [A32NX/ND] The chronometer at the bottom left of the ND now shows white digits on a black box (white on the aircraft), instead of green digits on a light grey box that were hard to read - @TCdr
 1. [A380X/GPWS] Setting the TAWS FLAP MODE to OFF on the MFD SURV CONTROLS page now inhibits the TOO LOW FLAPS alert (the GPWS read a variable nothing writes) - @TCdr
@@ -245,6 +249,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OANS] The FMS landing runway is shown green (selected runway) at the destination airport when its map is loaded (the check compared the airport with the FMS origin twice) - @TCdr
 1. [A380X/SD] The automatic CRZ page after takeoff also waits while engine 4 alone is at takeoff power (the check read engine 3 twice) - @TCdr
 1. [A380X/FADEC] The thrust limits now take the wing anti-ice into account when WING ANTI ICE is on (the FADEC read an A32NX variable nothing on the A380X writes) - @TCdr
+1. [A32NX/FADEC] The thrust reverser deploys only with the reverse thrust lever signal of at least one SEC (a switched off or failed SEC gives none) - @TCdr
+1. [A380X/FADEC] The second and third lines of defense of the thrust reversers use the reverse switch of the throttle assembly and the reverse signal of the PRIMs that control each engine (a failed PRIM no longer counts) instead of the FADEC lever angle - @TCdr
 1. [A380X/FWS] BRAKES HOT and the T.O CONFIG brake temperature check now work: they come from the 16 brake temperatures (at or above 300 °C) instead of a variable nothing on the A380X writes - @TCdr
 1. [A380X/ELEC] The ELMU and COMMERCIAL 2 pbs on the ELEC panel no longer switch the COMMERCIAL pb (pressing ELMU shed the commercial loads); they now have their own state - @TCdr
 1. [A380X/EWD] The EGT gauge uses the thrust limit (no amber limit at FLEX/TOGA or reverse, amber above the limit at MCT/CLB) instead of the thrust lever angle - @TCdr
@@ -299,6 +305,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/EFB] New flyPad failures Engine 1(2)(3)(4) flameout (crew relight possible) and Engine 1(2)(3)(4) seizure (no relight): the engine fuel is cut; a flamed out engine relights with ENG MASTER OFF then ON (ENG START selector at IGN START) inside the in-flight relight envelope, a seized one does not relight - @TCdr
 1. [A380X/FADEC] An in-flight engine relight follows the relight envelope (windmilling, starter assisted and quick relight zones, multiple-engine limits); a shut down engine windmills in flight, shows no fuel flow and its oil pressure falls with N3; both igniters during an in-flight relight; the start valve stays closed for a windmilling start and the engine pumps are depressurised meanwhile - @TCdr
 1. [A380X/FADEC] An engine started in flight no longer overshoots to 97.5 % N3 at the end of the start: it stabilises at idle, then accelerates to the thrust lever or A/THR demand - @TCdr
+1. [A380X/FADEC] The FADEC detects a jammed N1 rotor during an automatic start on the ground, aborts the start without a new attempt and the ECAM shows ENG 1(2)(3)(4) START FAULT LOW N1; a flyPad failure per engine jams the N1 rotor - @TCdr
 1. [A380X/FADEC] The real thrust pulse at the end of an in-flight relight is softened: while the MSFS engine model jumps to its top core speed, the FADEC holds the MSFS core near idle until it has settled - @TCdr
 1. [A380X/FWS] New ENG TWO ENGS OUT ON SAME SIDE and ON OPPOSITE SIDE cautions with their lines, STATUS and LAND ANSA; ENG FAIL shows RELIGHT PROC APPLY when more than two engines failed; ENG SHUT DOWN adds BTV and CAT 3 DUAL to the STATUS; ALL ENGINES FAILURE is renamed ALL ENG FLAME OUT - @TCdr
 1. [A380X/FWS] New ENG TWO ENGS OUT ON SAME SIDE and ON OPPOSITE SIDE cautions with their lines, STATUS and LAND ANSA; ENG FAIL shows RELIGHT PROC APPLY when more than two engines failed; ENG SHUT DOWN adds BTV and CAT 3 DUAL to the STATUS; ALL ENGINES FAILURE is renamed ALL ENG FLAME OUT as on the aircraft; the TWO ENGS OUT STATUS lists the lines PART SPLRs, PART L/G RETRACTION, G(Y) HYD SYS, PACK 1(2) and one GEN line for the two generators lost - @TCdr

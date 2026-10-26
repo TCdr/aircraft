@@ -14,6 +14,7 @@
 #include "RateLimiter.h"
 #include "SimConnectInterface.h"
 #include "SpoilersHandler.h"
+#include "TakeoffDerate.h"
 #include "ThrottleAxisMapping.h"
 #include "elac/Elac.h"
 #include "fac/AlphaFloorConditions.h"
@@ -243,6 +244,8 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idFmgcAccelerationAltitudeEngineOut;
   std::unique_ptr<LocalVariable> idFmgcCruiseAltitude;
   std::unique_ptr<LocalVariable> idFmgcFlexTemperature;
+  // the derated takeoff of the MCDU PERF TAKE OFF page: thrust reduction in percent, 0 none (TakeoffDerate.h)
+  std::unique_ptr<LocalVariable> idFmgcTakeoffDerate;
   std::unique_ptr<LocalVariable> idFmgcDirToTrigger;
   std::unique_ptr<LocalVariable> idFmsLsCourse;
   std::unique_ptr<LocalVariable> idFmsFlsBeamValid;
@@ -457,6 +460,7 @@ class FlyByWireInterface {
   // SEC discrete output Lvars
   std::unique_ptr<LocalVariable> idSecFaultLightOn[3];
   std::unique_ptr<LocalVariable> idSecGroundSpoilersOut[3];
+  std::unique_ptr<LocalVariable> idSecThrustReverseSelected[3][2];
 
   // Flight controls solenoid valve energization Lvars
   std::unique_ptr<LocalVariable> idLeftAileronSolenoidEnergized[2];

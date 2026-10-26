@@ -383,6 +383,7 @@ void FlyByWireInterface::setupLocalVariables() {
 
   idFmgcCruiseAltitude = std::make_unique<LocalVariable>("A32NX_AIRLINER_CRUISE_ALTITUDE");
   idFmgcFlexTemperature = std::make_unique<LocalVariable>("A32NX_AIRLINER_TO_FLEX_TEMP");
+  idFmgcTakeoffDerate = std::make_unique<LocalVariable>("A32NX_AIRLINER_TO_DERATE");
   idFmsLsCourse = std::make_unique<LocalVariable>("A32NX_FM_LS_COURSE");
   idFmsFlsBeamValid = std::make_unique<LocalVariable>("A32NX_FM_FLS_BEAM_VALID");
   idFmsFlsAnchorLatitude = std::make_unique<LocalVariable>("A32NX_FM_FLS_ANCHOR_LAT");
@@ -610,6 +611,10 @@ void FlyByWireInterface::setupLocalVariables() {
     idSecPushbuttonPressed[i] = std::make_unique<LocalVariable>("A32NX_SEC_" + idString + "_PUSHBUTTON_PRESSED");
     idSecFaultLightOn[i] = std::make_unique<LocalVariable>("A32NX_SEC_" + idString + "_FAULT_LIGHT_ON");
     idSecGroundSpoilersOut[i] = std::make_unique<LocalVariable>("A32NX_SEC_" + idString + "_GROUND_SPOILER_OUT");
+    for (int engine = 0; engine < 2; engine++) {
+      idSecThrustReverseSelected[i][engine] =
+          std::make_unique<LocalVariable>("A32NX_SEC_" + idString + "_THR_REVERSE_SELECTED:" + std::to_string(engine + 1));
+    }
   }
 
   for (int i = 0; i < 2; i++) {
@@ -1708,6 +1713,9 @@ bool FlyByWireInterface::updateSec(double sampleTime, int secIndex) {
 
   idSecFaultLightOn[secIndex]->set(secsDiscreteOutputs[secIndex].sec_failed);
   idSecGroundSpoilersOut[secIndex]->set(secsDiscreteOutputs[secIndex].ground_spoiler_out);
+  for (int engine = 0; engine < 2; engine++) {
+    idSecThrustReverseSelected[secIndex][engine]->set(secIndex != secDisabled && secs[secIndex].isThrustReverseSelected(engine));
+  }
 
   return true;
 }
@@ -2839,6 +2847,11 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.fcu_input = FadecFailureInputs::autothrustOrdersReceived(
       fcuBusOutputs, FadecFailureInputs::a320AutothrustOrdersLost(idEngineFadecFault[fadecIndex]->get() > 0.5,
                                                                   idEngineEiuFault[fadecIndex]->get() > 0.5));
+
+  // Derated takeoff: the FADEC model takes its FLX path, whose limit is the derated rating of the FADEC module
+  // (TakeoffDerate.h)
+  fadecInputs[fadecIndex].in.fcu_input.fcu_flex_to_temp_deg_c = TakeoffDerate::takeoffTemperatureWord(
+      fadecInputs[fadecIndex].in.fcu_input.fcu_flex_to_temp_deg_c, idFmgcTakeoffDerate->get());
 
   if (fadecIndex == fadecDisabled) {
     simConnectInterface.setClientDataFadecData(fadecInputs[fadecIndex].in.data);

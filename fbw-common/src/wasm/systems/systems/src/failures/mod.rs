@@ -441,6 +441,9 @@ pub enum FailureType {
     /// The APU LP fuel valve is jammed in its position: it no longer follows the APU MASTER SW and
     /// the APU FIRE pushbutton (A320 a320_systems fuel/apu_lp_valve.rs)
     ApuLpValveJammed,
+    /// The equipment that commands the fuel recirculation of the IDG cooling of engine n is
+    /// failed: the fuel return valve is not commanded open (A320 a320_systems fuel/fuel_recirculation.rs)
+    FuelRecirculationCommand(usize),
     // ATA28 fuel quantity measurement (A380 a380_systems fuel)
     /// Fuel Quantity Data Concentrator n is failed: no tank sensor data from it
     FuelQuantityDataConcentrator(usize),

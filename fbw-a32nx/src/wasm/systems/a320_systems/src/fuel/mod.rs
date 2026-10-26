@@ -3,6 +3,7 @@
 use apu_fuel_feed::ApuFuelFeed;
 use apu_lp_valve::ApuLpFuelValve;
 use engine_lp_valve::EngineLpFuelValve;
+use fuel_recirculation::FuelRecirculation;
 use fuel_temperature::{
     idg_return_is_active, vertical_speed_ft_per_min, FuelTemperature, IdgReturnConditions,
 };
@@ -19,6 +20,7 @@ use uom::si::{f64::*, mass::kilogram, thermodynamic_temperature::degree_celsius}
 mod apu_fuel_feed;
 mod apu_lp_valve;
 mod engine_lp_valve;
+mod fuel_recirculation;
 mod fuel_temperature;
 mod gravity_feed;
 #[cfg(test)]
@@ -55,6 +57,7 @@ pub struct A320Fuel {
     apu_lp_valve: ApuLpFuelValve,
     apu_fuel_feed: ApuFuelFeed,
     fuel_temperature: FuelTemperature,
+    fuel_recirculation: FuelRecirculation,
 }
 impl A320Fuel {
     /// The wing tank pumps in FUEL_PUMPS: left pumps 1 and 2, right pumps 1 and 2.
@@ -146,6 +149,7 @@ impl A320Fuel {
             apu_lp_valve: ApuLpFuelValve::new(context),
             apu_fuel_feed: ApuFuelFeed::new(context),
             fuel_temperature: FuelTemperature::new(context),
+            fuel_recirculation: FuelRecirculation::new(context),
         }
     }
 
@@ -192,6 +196,7 @@ impl A320Fuel {
             (A320FuelTankType::RightInner, A320FuelTankType::RightOuter),
         ];
         let mut idg_return_active = [false; 2];
+        let mut return_temperature_celsius = [0.; 2];
         for (side, (inner, outer)) in wing_tanks.into_iter().enumerate() {
             let cell_temperature = |tank: A320FuelTankType| {
                 self.fuel_temperature
@@ -206,9 +211,14 @@ impl A320Fuel {
                 gravity_fed: self.gravity_feed.is_gravity_fed(side + 1),
                 wing_tank_temperature_celsius: cell_temperature(inner).max(cell_temperature(outer)),
             });
+            return_temperature_celsius[side] =
+                self.fuel_temperature.idg_return_temperature_celsius(side);
         }
+        let idg_return_flow_kg_per_hour =
+            self.fuel_recirculation
+                .update(engines, idg_return_active, return_temperature_celsius);
         self.fuel_temperature
-            .update(context, quantities_kg, idg_return_active);
+            .update(context, quantities_kg, idg_return_flow_kg_per_hour);
     }
 
     /// The APU gets fuel: the left inner tank has fuel, the APU LP valve is not jammed closed and a left tank pump or
@@ -318,6 +328,7 @@ impl SimulationElement for A320Fuel {
         self.apu_lp_valve.accept(visitor);
         self.apu_fuel_feed.accept(visitor);
         self.fuel_temperature.accept(visitor);
+        self.fuel_recirculation.accept(visitor);
         visitor.visit(self);
     }
 }

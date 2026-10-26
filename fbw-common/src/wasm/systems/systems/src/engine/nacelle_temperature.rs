@@ -1,18 +1,18 @@
-//! The nacelle temperature of the four A380 engines, for the ENG SD page (needle pulsing above the
-//! 300 °C advisory, written as `ENGINE_n_NACELLE_TEMPERATURE` in °C).
+//! The nacelle temperature of the engines of an aircraft, for the ENG SD page, written as
+//! `ENGINE_n_NACELLE_TEMPERATURE` in °C (the advisory limit is the display's: 240 °C on the A320,
+//! 300 °C on the A380).
 //!
 //! Design choice, the source publishes no thermal model: the nacelle compartment heats up with the
-//! engine core. Its temperature tends to the ambient temperature plus a quarter of the difference
-//! between the EGT and the ambient temperature, with a first order lag that heats faster (90 s)
-//! than it cools (10 min): at idle on the ground it settles near 150 °C, at takeoff power near
-//! 250 °C, and only an EGT far above its limits brings it to the advisory. The EGT of a shut down
-//! engine falls slowly, so the nacelle keeps its heat for a while after the shutdown.
+//! engine core. Its temperature tends to the ambient temperature plus a share of the difference
+//! between the EGT and the ambient temperature (the aircraft's `core_heat_share`), with a first
+//! order lag that heats faster (90 s) than it cools (10 min). The EGT of a shut down engine falls
+//! slowly, so the nacelle keeps its heat for a while after the shutdown.
 
-use std::time::Duration;
-use systems::simulation::{
+use crate::simulation::{
     InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
     SimulatorWriter, UpdateContext, VariableIdentifier, Write,
 };
+use std::time::Duration;
 use uom::si::thermodynamic_temperature::degree_celsius;
 
 /// The nacelle temperature of one engine.
@@ -23,16 +23,21 @@ struct NacelleTemperature {
     celsius: Option<f64>,
 }
 impl NacelleTemperature {
-    const CORE_HEAT_SHARE: f64 = 0.25;
     const HEATING_TIME_CONSTANT: Duration = Duration::from_secs(90);
     const COOLING_TIME_CONSTANT: Duration = Duration::from_secs(600);
 
-    fn settled_celsius(egt_celsius: f64, ambient_celsius: f64) -> f64 {
-        ambient_celsius + Self::CORE_HEAT_SHARE * (egt_celsius - ambient_celsius).max(0.)
+    fn settled_celsius(core_heat_share: f64, egt_celsius: f64, ambient_celsius: f64) -> f64 {
+        ambient_celsius + core_heat_share * (egt_celsius - ambient_celsius).max(0.)
     }
 
-    fn update(&mut self, delta: Duration, egt_celsius: f64, ambient_celsius: f64) -> f64 {
-        let target = Self::settled_celsius(egt_celsius, ambient_celsius);
+    fn update(
+        &mut self,
+        delta: Duration,
+        core_heat_share: f64,
+        egt_celsius: f64,
+        ambient_celsius: f64,
+    ) -> f64 {
+        let target = Self::settled_celsius(core_heat_share, egt_celsius, ambient_celsius);
         let celsius = match self.celsius {
             None => target,
             Some(current) => {
@@ -51,14 +56,16 @@ impl NacelleTemperature {
 }
 
 struct EngineNacelle {
+    core_heat_share: f64,
     egt_id: VariableIdentifier,
     nacelle_temperature_id: VariableIdentifier,
     egt_celsius: f64,
     temperature: NacelleTemperature,
 }
 impl EngineNacelle {
-    fn new(context: &mut InitContext, engine_number: usize) -> Self {
+    fn new(context: &mut InitContext, engine_number: usize, core_heat_share: f64) -> Self {
         Self {
+            core_heat_share,
             egt_id: context.get_identifier(format!("ENGINE_EGT:{engine_number}")),
             nacelle_temperature_id: context
                 .get_identifier(format!("ENGINE_{engine_number}_NACELLE_TEMPERATURE")),
@@ -80,27 +87,34 @@ impl SimulationElement for EngineNacelle {
     }
 }
 
-/// The nacelle temperatures of the four engines.
-pub struct A380EngineNacelles {
-    nacelles: [EngineNacelle; 4],
+/// The nacelle temperatures of the `ENGINES` engines of an aircraft.
+pub struct EngineNacelles<const ENGINES: usize> {
+    nacelles: [EngineNacelle; ENGINES],
 }
-impl A380EngineNacelles {
-    pub fn new(context: &mut InitContext) -> Self {
+impl<const ENGINES: usize> EngineNacelles<ENGINES> {
+    /// * `core_heat_share` - the share of the EGT above the ambient temperature that the nacelle
+    ///   settles at (design choice of the aircraft)
+    pub fn new(context: &mut InitContext, core_heat_share: f64) -> Self {
         Self {
-            nacelles: [1, 2, 3, 4].map(|number| EngineNacelle::new(context, number)),
+            nacelles: std::array::from_fn(|index| {
+                EngineNacelle::new(context, index + 1, core_heat_share)
+            }),
         }
     }
 
     pub fn update(&mut self, context: &UpdateContext) {
         let ambient_celsius = context.ambient_temperature().get::<degree_celsius>();
         for nacelle in &mut self.nacelles {
-            nacelle
-                .temperature
-                .update(context.delta(), nacelle.egt_celsius, ambient_celsius);
+            nacelle.temperature.update(
+                context.delta(),
+                nacelle.core_heat_share,
+                nacelle.egt_celsius,
+                ambient_celsius,
+            );
         }
     }
 }
-impl SimulationElement for A380EngineNacelles {
+impl<const ENGINES: usize> SimulationElement for EngineNacelles<ENGINES> {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         for nacelle in &mut self.nacelles {
             nacelle.accept(visitor);
@@ -112,34 +126,35 @@ impl SimulationElement for A380EngineNacelles {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use systems::simulation::{
+    use crate::simulation::{
         test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
         Aircraft,
     };
     use uom::si::f64::ThermodynamicTemperature;
 
     const SECOND: Duration = Duration::from_secs(1);
+    const SHARE: f64 = 0.25;
 
     #[test]
     fn the_nacelle_starts_at_its_settled_temperature() {
         let mut nacelle = NacelleTemperature::default();
-        assert_eq!(nacelle.update(SECOND, 615., 15.), 165.);
+        assert_eq!(nacelle.update(SECOND, SHARE, 615., 15.), 165.);
         let mut cold = NacelleTemperature::default();
-        assert_eq!(cold.update(SECOND, 15., 15.), 15.);
+        assert_eq!(cold.update(SECOND, SHARE, 15., 15.), 15.);
     }
 
     #[test]
     fn the_nacelle_heats_up_with_the_engine_core_within_minutes() {
         let mut nacelle = NacelleTemperature::default();
-        nacelle.update(SECOND, 15., 15.);
+        nacelle.update(SECOND, SHARE, 15., 15.);
         let mut celsius = 15.;
         for _ in 0..90 {
-            celsius = nacelle.update(SECOND, 615., 15.);
+            celsius = nacelle.update(SECOND, SHARE, 615., 15.);
         }
         // one time constant: 63 % of the way to 165 °C
         assert!((celsius - (15. + 150. * 0.632)).abs() < 2., "{celsius}");
         for _ in 0..600 {
-            celsius = nacelle.update(SECOND, 615., 15.);
+            celsius = nacelle.update(SECOND, SHARE, 615., 15.);
         }
         assert!((celsius - 165.).abs() < 1., "{celsius}");
     }
@@ -147,22 +162,22 @@ mod tests {
     #[test]
     fn the_nacelle_cools_down_slower_than_it_heats_up() {
         let mut nacelle = NacelleTemperature::default();
-        nacelle.update(SECOND, 615., 15.);
+        nacelle.update(SECOND, SHARE, 615., 15.);
         let mut celsius = 0.;
         for _ in 0..90 {
-            celsius = nacelle.update(SECOND, 15., 15.);
+            celsius = nacelle.update(SECOND, SHARE, 15., 15.);
         }
         assert!(celsius > 130., "{celsius}");
     }
 
     #[test]
     fn the_nacelle_reaches_the_advisory_only_with_an_egt_far_above_its_limits() {
-        assert!(NacelleTemperature::settled_celsius(1_000., 45.) < 300.);
-        assert!(NacelleTemperature::settled_celsius(1_250., 15.) > 300.);
+        assert!(NacelleTemperature::settled_celsius(SHARE, 1_000., 45.) < 300.);
+        assert!(NacelleTemperature::settled_celsius(SHARE, 1_250., 15.) > 300.);
     }
 
     struct TestAircraft {
-        nacelles: A380EngineNacelles,
+        nacelles: EngineNacelles<4>,
     }
     impl Aircraft for TestAircraft {
         fn update_after_power_distribution(&mut self, context: &UpdateContext) {
@@ -179,7 +194,7 @@ mod tests {
     #[test]
     fn each_engine_writes_its_nacelle_temperature_from_its_egt() {
         let mut test_bed = SimulationTestBed::new(|context| TestAircraft {
-            nacelles: A380EngineNacelles::new(context),
+            nacelles: EngineNacelles::new(context, SHARE),
         });
         test_bed.set_ambient_temperature(ThermodynamicTemperature::new::<degree_celsius>(15.));
         test_bed.write_by_name("ENGINE_EGT:2", 415.);

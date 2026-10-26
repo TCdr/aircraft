@@ -250,7 +250,16 @@ class FadecSimData_A32NX {
   NamedVariablePtr thrustLimitToga;
   // The wing tank leak failures (systems host Fuel/FuelLevelSensing, flyPad failures 28016/28017), WingTankLeak_A32NX.hpp
   NamedVariablePtr wingTankLeak[2];
+  // The IDG cooling fuel recirculation (systems WASM fuel/fuel_recirculation.rs): the flow back to the tank, kg/h, and the minimum N2 raise
+  NamedVariablePtr fuelRecirculationFlow[2];
+  NamedVariablePtr fuelRecirculationRaisesMinimumN2[2];
   NamedVariablePtr thrustLimitType;
+  // The derated takeoff of the flight plan (percent thrust reduction, 0 none), and the derated climb and soft go-around the FADEC applies
+  NamedVariablePtr airlinerToDerate;
+  NamedVariablePtr flightPhase;
+  NamedVariablePtr engineTla[2];
+  NamedVariablePtr deratedClimbPercent;
+  NamedVariablePtr gaSoftActive;
   NamedVariablePtr wingAntiIce;
 
   NamedVariablePtr aircraftPresetQuickMode;  // 0 or 1
@@ -437,7 +446,17 @@ class FadecSimData_A32NX {
     refuelStartedByUser = dm->make_named_var("A32NX_REFUEL_STARTED_BY_USR", UNITS.Number, AUTO_READ);
     wingTankLeak[L]     = dm->make_named_var("A32NX_FUEL_L_WING_TK_LEAK", UNITS.Number, AUTO_READ);
     wingTankLeak[R]     = dm->make_named_var("A32NX_FUEL_R_WING_TK_LEAK", UNITS.Number, AUTO_READ);
+    fuelRecirculationFlow[L] = dm->make_named_var("A32NX_FUEL_ENG_1_RECIRCULATION_FLOW", UNITS.Number, AUTO_READ);
+    fuelRecirculationFlow[R] = dm->make_named_var("A32NX_FUEL_ENG_2_RECIRCULATION_FLOW", UNITS.Number, AUTO_READ);
+    fuelRecirculationRaisesMinimumN2[L] = dm->make_named_var("A32NX_FUEL_ENG_1_RECIRCULATION_RAISES_MINIMUM_N2", UNITS.Number, AUTO_READ);
+    fuelRecirculationRaisesMinimumN2[R] = dm->make_named_var("A32NX_FUEL_ENG_2_RECIRCULATION_RAISES_MINIMUM_N2", UNITS.Number, AUTO_READ);
     airlinerToFlexTemp  = dm->make_named_var("A32NX_AIRLINER_TO_FLEX_TEMP", UNITS.Number, AUTO_READ);
+    engineTla[L]        = dm->make_named_var("A32NX_AUTOTHRUST_TLA:1", UNITS.Number, AUTO_READ);
+    engineTla[R]        = dm->make_named_var("A32NX_AUTOTHRUST_TLA:2", UNITS.Number, AUTO_READ);
+    flightPhase         = dm->make_named_var("A32NX_FMGC_FLIGHT_PHASE", UNITS.Number, AUTO_READ);
+    airlinerToDerate    = dm->make_named_var("A32NX_AIRLINER_TO_DERATE", UNITS.Number, AUTO_READ);
+    deratedClimbPercent = dm->make_named_var("A32NX_FADEC_DERATED_CLIMB_PERCENT", UNITS.Number, AUTO_WRITE);
+    gaSoftActive        = dm->make_named_var("A32NX_FADEC_GA_SOFT_ACTIVE", UNITS.Number, AUTO_WRITE);
     apuRpmPercent       = dm->make_named_var("A32NX_APU_N_RAW", UNITS.Number, AUTO_READ);
 
     aircraftPresetQuickMode = dm->make_named_var("A32NX_AIRCRAFT_PRESET_QUICK_MODE", UNITS.Number, AUTO_READ);
@@ -481,6 +500,8 @@ class FadecSimData_A32NX {
     thrustLimitIdle->setAndWriteToSim(0);
     thrustLimitMct->setAndWriteToSim(0);
     thrustLimitToga->setAndWriteToSim(0);
+    deratedClimbPercent->setAndWriteToSim(0);
+    gaSoftActive->setAndWriteToSim(0);
   }
 };
 

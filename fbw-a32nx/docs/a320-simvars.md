@@ -1660,6 +1660,19 @@
   - Current takeoff flex temperature of the aircraft
   - note: this LVar was named incorrectly before missing the prefix:`AIRLINER_TO_FLEX_TEMP`
 
+- A32NX_AIRLINER_TO_DERATE
+  - Number (percent thrust reduction)
+  - Derated takeoff (DRT TO) of the PERF TAKE OFF page: 4 for D04, 8 for D08 ... 32 for D32, 0 when none is entered
+  - Never set together with `A32NX_AIRLINER_TO_FLEX_TEMP`
+
+- A32NX_FADEC_DERATED_CLIMB_PERCENT
+  - Number (percent thrust reduction)
+  - The reduction of the CLB thrust limit by the derated climb (DCLB) at the current altitude, 0 when the climb is not derated
+
+- A32NX_FADEC_GA_SOFT_ACTIVE
+  - Bool
+  - True when the FLX/MCT detent gives the soft go-around thrust (GA SOFT) in place of MCT: in flight, FLAPS lever out of 0, both engines running
+
 ## Model/XML Interface
 
 These variables are the interface between the 3D model and the systems/code.

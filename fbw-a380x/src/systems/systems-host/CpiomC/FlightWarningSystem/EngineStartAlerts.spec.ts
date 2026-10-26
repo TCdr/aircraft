@@ -50,6 +50,7 @@ const groundAutoStart: StartFaultInputs = {
   engStartSelector: 2,
   apuBleedPbOn: true,
   allThrustLeversIdle: true,
+  thrustLeverIdle: true,
 };
 
 describe('A380X ENG START FAULT', () => {
@@ -66,11 +67,11 @@ describe('A380X ENG START FAULT', () => {
   });
 
   it('shows NEW START IN PROGRESS during the automatic retries, then ENG MASTER OFF', () => {
-    expect(shown(startFaultItems(groundAutoStart).show)).toEqual([4, 11]);
+    expect(shown(startFaultItems(groundAutoStart).show)).toEqual([5, 12]);
     expect(shown(startFaultItems({ ...groundAutoStart, phase: EngineStartPhase.Starting, attempt: 2 }).show)).toEqual([
-      4, 11,
+      5, 12,
     ]);
-    expect(shown(startFaultItems({ ...groundAutoStart, phase: EngineStartPhase.Aborted }).show)).toEqual([4, 12]);
+    expect(shown(startFaultItems({ ...groundAutoStart, phase: EngineStartPhase.Aborted }).show)).toEqual([5, 15]);
   });
 
   it('has the dry crank lines of a manual start on the ground', () => {
@@ -80,22 +81,22 @@ describe('A380X ENG START FAULT', () => {
       manualStart: true,
       manualStartPbOn: true,
     };
-    expect(shown(startFaultItems(manual).show)).toEqual([3, 12, 13, 14, 15, 16]);
+    expect(shown(startFaultItems(manual).show)).toEqual([4, 15, 16, 17, 18, 19]);
     const checked = startFaultItems({ ...manual, masterOn: false, engStartSelector: 0 }).checked;
-    expect(checked[12]).toBe(true);
-    expect(checked[13]).toBe(true);
+    expect(checked[15]).toBe(true);
+    expect(checked[16]).toBe(true);
   });
 
   it('asks for air for NO STARTER AIR PRESSURE, with the windmill start lines in flight', () => {
     expect(shown(startFaultItems({ ...groundAutoStart, fault: EngineStartFault.LowStartAirPressure }).show)).toEqual([
-      0, 8, 9, 23, 24, 25,
+      0, 9, 10, 26, 27, 28,
     ]);
     const inFlight = { ...groundAutoStart, fault: EngineStartFault.LowStartAirPressure, onGround: false };
-    expect(shown(startFaultItems(inFlight).show)).toEqual([0, 8, 9, 10, 18, 19, 20, 21, 22, 23, 24, 25]);
+    expect(shown(startFaultItems(inFlight).show)).toEqual([0, 9, 10, 11, 21, 22, 23, 24, 25, 26, 27, 28]);
     const done = startFaultItems({ ...inFlight, masterOn: false, manualStartPbOn: false }).checked;
-    expect(done[21]).toBe(true);
-    expect(done[22]).toBe(true);
-    expect(startFaultItems({ ...inFlight, manualStartPbOn: true }).checked[21]).toBe(false);
+    expect(done[24]).toBe(true);
+    expect(done[25]).toBe(true);
+    expect(startFaultItems({ ...inFlight, manualStartPbOn: true }).checked[24]).toBe(false);
   });
 
   /* IF NOT SUCCESSFUL: ENG MAN START OFF, ENG MASTER OFF comes after the XBLEED / APU BLEED lines on ground, and after
@@ -103,13 +104,13 @@ describe('A380X ENG START FAULT', () => {
   it('closes NO STARTER AIR PRESSURE with IF NOT SUCCESSFUL: ENG MAN START OFF, ENG MASTER OFF', () => {
     const ground = { ...groundAutoStart, fault: EngineStartFault.LowStartAirPressure, manualStartPbOn: true };
     const notDone = startFaultItems(ground).checked;
-    expect(notDone[24]).toBe(false);
-    expect(notDone[25]).toBe(false);
+    expect(notDone[27]).toBe(false);
+    expect(notDone[28]).toBe(false);
     const done = startFaultItems({ ...ground, masterOn: false, manualStartPbOn: false }).checked;
-    expect(done[24]).toBe(true);
-    expect(done[25]).toBe(true);
+    expect(done[27]).toBe(true);
+    expect(done[28]).toBe(true);
     // only for NO STARTER AIR PRESSURE
-    expect(startFaultItems({ ...groundAutoStart, fault: EngineStartFault.StarterFault }).show.slice(23)).toEqual([
+    expect(startFaultItems({ ...groundAutoStart, fault: EngineStartFault.StarterFault }).show.slice(26)).toEqual([
       false,
       false,
       false,
@@ -123,7 +124,7 @@ describe('A380X ENG START FAULT', () => {
       const names = [...ata70.slice(start, ata70.indexOf('\n  },', start)).matchAll(/name: '([^']*)'/g)].map(
         (match) => match[1],
       );
-      expect(names.slice(23)).toEqual(['IF NOT SUCCESSFUL', `ENG ${engine} MAN START`, `ENG ${engine} MASTER`]);
+      expect(names.slice(26)).toEqual(['IF NOT SUCCESSFUL', `ENG ${engine} MAN START`, `ENG ${engine} MASTER`]);
     }
   });
 
@@ -153,15 +154,48 @@ describe('A380X ENG START FAULT', () => {
     expect(startAlerts).toContain('failure: level,');
   });
 
+  /* LOW N1 (the N1 rotor jam): on the ground THR LEVER n IDLE, CRANK IN PROGRESS, ENG MASTER OFF; a manual start adds the dry
+   * crank lines. */
+  it('has the LOW N1 procedure of the N1 rotor jam, on the ground', () => {
+    const jam = { ...groundAutoStart, fault: EngineStartFault.N1RotorJam, phase: EngineStartPhase.Aborted };
+    expect(shown(startFaultItems(jam).show)).toEqual([2, 13, 14, 15]);
+    const manual = { ...jam, manualStart: true, manualStartPbOn: true };
+    expect(shown(startFaultItems(manual).show)).toEqual([2, 13, 14, 15, 16, 17, 18, 19]);
+    expect(shown(startFaultItems({ ...jam, onGround: false }).show)).toEqual([2, 15]);
+  });
+
+  it('checks the thrust lever of the affected engine and the master of LOW N1', () => {
+    const jam = { ...groundAutoStart, fault: EngineStartFault.N1RotorJam, thrustLeverIdle: false, masterOn: true };
+    expect(startFaultItems(jam).checked[13]).toBe(false);
+    expect(startFaultItems({ ...jam, thrustLeverIdle: true }).checked[13]).toBe(true);
+    expect(startFaultItems({ ...jam, masterOn: false }).checked[15]).toBe(true);
+  });
+
+  it('has the LOW N1 lines in the ECAM procedure of each engine, in the order of the procedure', () => {
+    for (let engine = 1; engine <= 4; engine++) {
+      const start = ata70.indexOf(`  ${701800116 + engine}: {`);
+      const names = [...ata70.slice(start, ata70.indexOf('\n  },', start)).matchAll(/name: '([^']*)'/g)].map(
+        (match) => match[1],
+      );
+      expect(names[2]).toBe('LOW N1');
+      expect(names.slice(12, 16)).toEqual([
+        'NEW START IN PROGRESS',
+        `THR LEVER ${engine}`,
+        'CRANK IN PROGRESS',
+        `ENG ${engine} MASTER`,
+      ]);
+    }
+  });
+
   it('has the other faults', () => {
     expect(shown(startFaultItems({ ...groundAutoStart, fault: EngineStartFault.StarterTimeExceeded }).show)).toEqual([
-      6, 12,
+      7, 15,
     ]);
     expect(shown(startFaultItems({ ...groundAutoStart, fault: EngineStartFault.ThrustLeverNotAtIdle }).show)).toEqual([
-      7, 17,
+      8, 20,
     ]);
-    expect(shown(startFaultItems({ ...groundAutoStart, fault: EngineStartFault.StarterFault }).show)).toEqual([1, 12]);
-    expect(shown(startFaultItems({ ...groundAutoStart, onGround: false }).show)).toEqual([4, 12]);
+    expect(shown(startFaultItems({ ...groundAutoStart, fault: EngineStartFault.StarterFault }).show)).toEqual([1, 15]);
+    expect(shown(startFaultItems({ ...groundAutoStart, onGround: false }).show)).toEqual([5, 15]);
   });
 });
 

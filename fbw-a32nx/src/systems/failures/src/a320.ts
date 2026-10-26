@@ -190,7 +190,8 @@ export const A320Failure = Object.freeze({
   // A leaking wing tank loses fuel (FADEC CrossFeedBurn_A32NX.hpp wingTankLeakPounds): FUEL F. USED/FOB DISAGREE
   LeftWingTankLeak: 28016,
   RightWingTankLeak: 28017,
-  // TS only, the FWC reads them (FWC/Logic/IdgCoolingAlerts.ts): FUEL IDG 1(2) COOL FAULT
+  // The fuel recirculation command of the IDG cooling (systems fuel/fuel_recirculation.rs); the FWC reads them for
+  // FUEL IDG 1(2) COOL FAULT (FWC/Logic/IdgCoolingAlerts.ts)
   Idg1FuelCoolingCommand: 28018,
   Idg2FuelCoolingCommand: 28019,
 

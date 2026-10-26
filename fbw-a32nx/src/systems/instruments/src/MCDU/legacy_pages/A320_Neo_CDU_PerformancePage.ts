@@ -9,6 +9,7 @@ import { CDUUplinkTakeoffDataPages } from './A320_Neo_CDU_UplinkTakeoffDataPages
 import { NXSystemMessages } from '../messages/NXSystemMessages';
 import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
+import { takeoffDerateLabel } from '../legacy/TakeoffDerate';
 import { FlightPlanIndex } from '../../../../fmgc/src/flightplanning/FlightPlanManager';
 import { BitFlags } from '@microsoft/msfs-sdk';
 import { FlightPlanFlags } from '@fmgc/flightplanning/plans/FlightPlanFlags';
@@ -332,10 +333,18 @@ export class CDUPerformancePage {
       }
     };
 
-    // flex takeoff temperature
+    // flex takeoff temperature, or the derated takeoff level (DRT TO) if one is entered
     let flexTakeOffTempCell = '[\xa0\xa0]°[color]cyan';
+    let flexTakeOffLabel = 'FLEX TO TEMP';
     const flex = targetPlan.performanceData.flexTakeoffTemperature.get();
-    if (flex !== null && Number.isFinite(flex)) {
+    const derate = targetPlan.performanceData.takeoffDeratePercent?.get() ?? null;
+    if (derate !== null && Number.isFinite(derate)) {
+      flexTakeOffLabel = 'DRT TO';
+      const derateText = takeoffDerateLabel(derate);
+      flexTakeOffTempCell = mcdu._toFlexChecked
+        ? `${derateText}[color]${phaseDependantFieldsColor}`
+        : `{small}${derateText}{end}[\xa0\xa0\xa0][color]cyan`;
+    } else if (flex !== null && Number.isFinite(flex)) {
       if (mcdu._toFlexChecked) {
         flexTakeOffTempCell = `${flex.toFixed(0)}°[color]${phaseDependantFieldsColor}`;
       } else {
@@ -344,13 +353,13 @@ export class CDUPerformancePage {
     }
     mcdu.onRightInput[3] = (value, scratchpadCallback) => {
       if (mcdu._toFlexChecked) {
-        if (mcdu.setPerfTOFlexTemp(value, forPlan)) {
+        if (mcdu.setPerfTOFlexOrDerate(value, forPlan)) {
           CDUPerformancePage.ShowTAKEOFFPage(mcdu, forPlan);
         } else {
           scratchpadCallback();
         }
       } else {
-        if (value === '' || mcdu.setPerfTOFlexTemp(value, forPlan)) {
+        if (value === '' || mcdu.setPerfTOFlexOrDerate(value, forPlan)) {
           mcdu._toFlexChecked = true;
           CDUPerformancePage.ShowTAKEOFFPage(mcdu, forPlan);
         } else {
@@ -403,7 +412,7 @@ export class CDUPerformancePage {
       [vR + vRCheck + '\xa0S=' + sltRetrCell, toShiftCell],
       ['\xa0V2\xa0\xa0\xa0\xa0\xa0CLEAN', 'FLAPS/THS'],
       [v2 + v2Check + '\xa0O=' + cleanCell, flapsThs],
-      ['TRANS ALT', 'FLEX TO TEMP'],
+      ['TRANS ALT', flexTakeOffLabel],
       [`{cyan}${transAltCell}{end}`, flexTakeOffTempCell],
       ['THR\xa0RED/ACC', 'ENG\xa0OUT\xa0ACC'],
       [`{${altitudeColour}}${thrRedAcc}{end}`, `{${altitudeColour}}${engOutAcc}{end}`],
