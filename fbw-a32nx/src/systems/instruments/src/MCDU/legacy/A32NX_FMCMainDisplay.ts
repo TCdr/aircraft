@@ -180,6 +180,7 @@ import {
 import { OverheadWaypointRecorder } from '../legacy_pages/ProgressReportFields';
 import { flsBeamOfPlan } from '@fmgc/navigation/fls/FlsBeam';
 import { FlsBeamPublisher } from '@fmgc/navigation/fls/FlsBeamPublisher';
+import { EgpwcRunwayWords } from '@fmgc/navigation/EgpwcRunwayWords';
 export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInterface, Fmgc {
   private static DEBUG_INSTANCE: FMCMainDisplay;
 
@@ -396,6 +397,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   private readonly arincFlightNumber2 = new FmArinc429OutputWord('FLIGHT_NUMBER_2');
   private readonly arincFlightNumber3 = new FmArinc429OutputWord('FLIGHT_NUMBER_3');
   private readonly arincFlightNumber4 = new FmArinc429OutputWord('FLIGHT_NUMBER_4');
+  private readonly egpwcRunwayWords = new EgpwcRunwayWords();
   /** These arinc words will be automatically written to the bus, and automatically set to 0/NCD when the FMS resets */
   private readonly arincBusOutputs = [
     this.arincDiscreteWord2,
@@ -404,6 +406,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     this.arincLandingElevation,
     this.arincDestinationLatitude,
     this.arincDestinationLongitude,
+    ...this.egpwcRunwayWords.words,
     this.arincMDA,
     this.arincDH,
     this.arincThrustReductionAltitude,
@@ -970,6 +973,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     if (flightPlanChanged) {
       this.updateManagedProfile();
       this.updateDestinationData();
+      this.egpwcRunwayWords.update(this.flightPlanService.hasActive ? this.flightPlanService.active : null);
     }
 
     if (this._progBrgDistUpdateThrottler.canUpdate(deltaTime) !== -1) {

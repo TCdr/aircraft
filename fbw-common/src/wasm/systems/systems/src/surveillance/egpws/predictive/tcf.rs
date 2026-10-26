@@ -16,8 +16,8 @@ use std::time::Duration;
 /// departure runways. A floor extended to infinity would alert on every low flight past another airport.
 const FLOOR_RADIUS_NM: f64 = 15.;
 
-/// Envelope bias factor (high integrity position data): the floor starts this far from the runway. The runway
-/// reference point is the runway end, not its centre, so the floor starts a quarter of a nautical mile away from it.
+/// Envelope bias factor (high integrity position data): the floor starts this far from the runway. The distance is
+/// measured to the nearest point of the runway, which adds half the runway length to the bias around its centre.
 const BIAS_NM: f64 = 0.25;
 
 /// Floor labels of the Honeywell figure: 30 ft at the runway side, 400 ft at 4 NM, 400 ft out to 12 NM, 700 ft at
@@ -77,6 +77,8 @@ pub(super) struct FloorEvaluation {
     pub(super) radio_altitude_ft: Option<f64>,
     pub(super) height_above_runway_ft: f64,
     pub(super) distance_to_runway_nm: f64,
+    /// The field floor protects the destination runway only
+    pub(super) is_destination_runway: bool,
 }
 
 impl FloorEvaluation {
@@ -86,18 +88,21 @@ impl FloorEvaluation {
         if self.distance_to_runway_nm > FLOOR_RADIUS_NM {
             return None;
         }
-        let with_margin = |floor_ft: f64| {
-            if floor_ft > 0. {
-                floor_ft + exit_margin_ft
-            } else {
-                floor_ft
-            }
-        };
+        // Where a floor is zero there is no floor: on and next to the runway the radio altimeter reads a little below
+        // zero, and the geometric height can be below the runway elevation
+        let is_under =
+            |height_ft: f64, floor_ft: f64| floor_ft > 0. && height_ft < floor_ft + exit_margin_ft;
         let under_clearance_floor = self.radio_altitude_ft.filter(|radio_altitude_ft| {
-            *radio_altitude_ft < with_margin(floor_height_ft(self.distance_to_runway_nm))
+            is_under(
+                *radio_altitude_ft,
+                floor_height_ft(self.distance_to_runway_nm),
+            )
         });
-        let under_field_floor = (self.height_above_runway_ft
-            < with_margin(field_clearance_floor_ft(self.distance_to_runway_nm)))
+        let under_field_floor = (self.is_destination_runway
+            && is_under(
+                self.height_above_runway_ft,
+                field_clearance_floor_ft(self.distance_to_runway_nm),
+            ))
         .then_some(self.height_above_runway_ft);
         under_clearance_floor.or(under_field_floor)
     }
@@ -156,6 +161,7 @@ mod tests {
             radio_altitude_ft: Some(radio_altitude_ft),
             height_above_runway_ft: 5_000.,
             distance_to_runway_nm: distance_nm,
+            is_destination_runway: true,
         }
     }
 
@@ -235,9 +241,44 @@ mod tests {
             radio_altitude_ft: Some(2_000.),
             height_above_runway_ft: 200.,
             distance_to_runway_nm: 3.,
+            is_destination_runway: true,
         };
         floor.update(STEP, Some(&evaluation));
         assert!(floor.is_alerting());
+    }
+
+    #[test]
+    fn the_field_floor_does_not_apply_to_the_departure_runway() {
+        let mut floor = TerrainClearanceFloor::default();
+        let evaluation = FloorEvaluation {
+            radio_altitude_ft: Some(2_000.),
+            height_above_runway_ft: 200.,
+            distance_to_runway_nm: 3.,
+            is_destination_runway: false,
+        };
+        floor.update(STEP, Some(&evaluation));
+        assert!(!floor.is_alerting());
+    }
+
+    #[test]
+    fn a_radio_altitude_below_zero_where_there_is_no_floor_does_not_alert() {
+        // The radio altimeter reads a little below zero on the runway, and still does at the moment of lift-off
+        let mut floor = TerrainClearanceFloor::default();
+        floor.update(STEP, Some(&at(-0.12, 0.01)));
+        assert!(!floor.is_alerting());
+    }
+
+    #[test]
+    fn a_height_below_the_runway_where_there_is_no_field_floor_does_not_alert() {
+        let mut floor = TerrainClearanceFloor::default();
+        let evaluation = FloorEvaluation {
+            radio_altitude_ft: None,
+            height_above_runway_ft: -10.,
+            distance_to_runway_nm: RFCF_OFFSET_NM / 2.,
+            is_destination_runway: true,
+        };
+        floor.update(STEP, Some(&evaluation));
+        assert!(!floor.is_alerting());
     }
 
     #[test]
@@ -327,6 +368,7 @@ mod tests {
             radio_altitude_ft: None,
             height_above_runway_ft: height_ft,
             distance_to_runway_nm: RFCF_OFFSET_NM + 0.5,
+            is_destination_runway: true,
         };
         floor.update(STEP, Some(&evaluation(-100.)));
         for _ in 0..15 {

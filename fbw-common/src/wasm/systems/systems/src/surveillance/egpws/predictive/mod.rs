@@ -22,7 +22,9 @@ mod test_support;
 mod threat_areas;
 
 pub use alert_logic::{PredictiveVoice, TerrainAheadMessage};
-pub use runway::{DepartureRunwayLatch, ReferenceRunways, Runway, RunwayOrigin, RunwaySource};
+pub use runway::{
+    DepartureRunwayLatch, ReferenceRunways, Runway, RunwayGeometry, RunwayOrigin, RunwaySource,
+};
 pub use threat_areas::{GridCell, ThreatAreas, ThreatCell, ThreatLevel};
 
 use super::{
@@ -320,6 +322,7 @@ impl PredictiveTerrainAlerting {
                 radio_altitude_ft: inputs.radio_altitude_ft,
                 height_above_runway_ft: runway.height_above_runway_ft,
                 distance_to_runway_nm: runway.distance_nm,
+                is_destination_runway: runway.runway.origin == RunwayOrigin::Destination,
             });
         self.terrain_clearance_floor
             .update(delta, floor_evaluation.as_ref());
@@ -745,6 +748,7 @@ mod tests {
             reference_point: offset_position(START, 0., 2.),
             elevation_ft: 0.,
             origin: RunwayOrigin::Destination,
+            geometry: None,
         };
         // A hill 800 ft high short of the runway, as on a valley approach
         let hill = wall_ahead(1., 700.);
@@ -775,6 +779,7 @@ mod tests {
             reference_point: offset_position(START, 0., 3.),
             elevation_ft: 0.,
             origin: RunwayOrigin::Destination,
+            geometry: None,
         };
         let terrain = wall_ahead(6., 12_400.);
         let mut high_aircraft = flying(9_000.);
@@ -807,6 +812,7 @@ mod tests {
             reference_point: offset_position(START, 180., 6.),
             elevation_ft: 0.,
             origin: RunwayOrigin::Departure,
+            geometry: None,
         };
         // 350 ft is below the floor 6 NM from the runway (400 ft) but above what the look-ahead asks for after a
         // takeoff (100 ft), so the word can only come from the floor
@@ -832,6 +838,7 @@ mod tests {
             reference_point: offset_position(START, 180., 6.),
             elevation_ft: 0.,
             origin: RunwayOrigin::Departure,
+            geometry: None,
         };
         let mut inputs = flying(450.);
         inputs.radio_altitude_ft = Some(450.);
@@ -844,19 +851,43 @@ mod tests {
         assert_eq!(outputs.alerts, PredictiveAlertOutputs::default());
     }
 
-    /// A takeoff from a 2.4 km roll: the aircraft accelerates to 150 kt over the roll, lifts off there and climbs at
-    /// 2500 fpm. The departure runway is the point where the roll started.
-    fn takeoff_is_alert_free(roll_length_nm: f64) {
+    struct Takeoff {
+        roll_length_nm: f64,
+        climb_rate_fpm: f64,
+        /// The departure runway is the whole runway, as long as the roll; without it the point where the roll started
+        runway_known: bool,
+    }
+
+    impl Takeoff {
+        fn normal(roll_length_nm: f64) -> Self {
+            Self {
+                roll_length_nm,
+                climb_rate_fpm: 2_500.,
+                runway_known: false,
+            }
+        }
+
+        fn departure_runway(&self) -> Runway {
+            Runway {
+                reference_point: START,
+                elevation_ft: 0.,
+                origin: RunwayOrigin::Departure,
+                geometry: self.runway_known.then_some(RunwayGeometry {
+                    true_heading_deg: 0.,
+                    length_ft: self.roll_length_nm * runway::FEET_PER_NAUTICAL_MILE,
+                }),
+            }
+        }
+    }
+
+    /// The aircraft accelerates to 150 kt over the roll, lifts off at its end and climbs at a constant rate.
+    fn takeoff_is_alert_free(takeoff: Takeoff) {
         const LIFTOFF_SPEED_KT: f64 = 150.;
-        const CLIMB_RATE_FPM: f64 = 2_500.;
-        let runways = StaticRunways(vec![Runway {
-            reference_point: START,
-            elevation_ft: 0.,
-            origin: RunwayOrigin::Departure,
-        }]);
+        let runways = StaticRunways(vec![takeoff.departure_runway()]);
         let terrain = TestTerrain::flat(0.);
         let mut alerting = alerting();
 
+        let roll_length_nm = takeoff.roll_length_nm;
         let roll_duration_s = 2. * roll_length_nm / (LIFTOFF_SPEED_KT / 3600.);
         let mut elapsed_s = 0.;
         while elapsed_s < roll_duration_s + 150. {
@@ -867,7 +898,7 @@ mod tests {
                 let airborne_s: f64 = elapsed_s - roll_duration_s;
                 (
                     roll_length_nm + LIFTOFF_SPEED_KT / 3600. * airborne_s,
-                    CLIMB_RATE_FPM / 60. * airborne_s,
+                    takeoff.climb_rate_fpm / 60. * airborne_s,
                 )
             };
             let mut inputs = flying(altitude_ft);
@@ -875,7 +906,7 @@ mod tests {
             inputs.aircraft = inputs.aircraft.map(|aircraft| AircraftState {
                 position: offset_position(START, 0., distance_nm),
                 ground_speed_kt: LIFTOFF_SPEED_KT,
-                vertical_speed_fpm: if rolling { 0. } else { CLIMB_RATE_FPM },
+                vertical_speed_fpm: if rolling { 0. } else { takeoff.climb_rate_fpm },
                 ..aircraft
             });
             let outputs = alerting.update(STEP, &inputs, &terrain, &runways);
@@ -891,18 +922,139 @@ mod tests {
 
     #[test]
     fn a_normal_takeoff_does_not_trigger_the_floor_when_leaving_the_runway() {
-        takeoff_is_alert_free(2.4 / 1.852);
+        takeoff_is_alert_free(Takeoff::normal(2.4 / 1.852));
     }
 
     #[test]
     fn a_takeoff_from_a_short_runway_does_not_trigger_the_floor_either() {
         // The look-ahead is not in play this close to the departure point, so this one is about the floor alone
-        takeoff_is_alert_free(1.0);
+        takeoff_is_alert_free(Takeoff::normal(1.0));
     }
 
     #[test]
     fn a_takeoff_from_a_long_runway_does_not_trigger_the_floor_either() {
-        takeoff_is_alert_free(3.6 / 1.852);
+        takeoff_is_alert_free(Takeoff::normal(3.6 / 1.852));
+    }
+
+    #[test]
+    fn a_takeoff_from_a_known_runway_does_not_trigger_the_floor() {
+        for roll_length_nm in [1.0, 2.4 / 1.852, 3.6 / 1.852] {
+            takeoff_is_alert_free(Takeoff {
+                runway_known: true,
+                ..Takeoff::normal(roll_length_nm)
+            });
+        }
+    }
+
+    #[test]
+    fn the_lift_off_from_a_known_runway_does_not_trigger_the_floor() {
+        // As recorded in the sim at RJAA: on the runway, the radio altimeter still a little below zero at the lift-off,
+        // the grid cells around the airfield 130 ft below the runway
+        let mut inputs = flying(15.);
+        inputs.radio_altitude_ft = Some(-0.12);
+        inputs.aircraft = inputs.aircraft.map(|aircraft| AircraftState {
+            position: offset_position(START, 0., 1.),
+            ground_speed_kt: 160.,
+            ..aircraft
+        });
+        let runway = Takeoff {
+            runway_known: true,
+            ..Takeoff::normal(2.)
+        }
+        .departure_runway();
+        let outputs = alerting().update(
+            STEP,
+            &inputs,
+            &TestTerrain::flat(-130.),
+            &StaticRunways(vec![runway]),
+        );
+        assert_eq!(outputs.alerts, PredictiveAlertOutputs::default());
+    }
+
+    /// The moment of lift-off halfway down a 2 NM runway towards the north: still level with the runway, at 150 kt, over
+    /// water or low ground 50 ft below the runway beyond the airfield, as at Haneda.
+    fn at_lift_off(runway_known: bool) -> (PredictiveInputs, StaticRunways) {
+        let mut inputs = flying(0.);
+        inputs.radio_altitude_ft = Some(10.);
+        inputs.aircraft = inputs.aircraft.map(|aircraft| AircraftState {
+            position: offset_position(START, 0., 1.),
+            ground_speed_kt: 150.,
+            ..aircraft
+        });
+        let runways = StaticRunways(vec![Takeoff {
+            runway_known,
+            ..Takeoff::normal(2.)
+        }
+        .departure_runway()]);
+        (inputs, runways)
+    }
+
+    #[test]
+    fn the_lift_off_over_ground_lower_than_the_runway_is_alert_free() {
+        let low_ground = TestTerrain::flat(-50.);
+        for runway_known in [true, false] {
+            let (inputs, runways) = at_lift_off(runway_known);
+            let outputs = run(&mut alerting(), &inputs, &low_ground, &runways, 1.);
+            assert_eq!(
+                outputs.alerts,
+                PredictiveAlertOutputs::default(),
+                "runway known: {runway_known}"
+            );
+        }
+    }
+
+    #[test]
+    fn terrain_above_the_lift_off_path_is_still_alerted() {
+        // A ridge 300 ft above the runway 3 NM ahead of the lift-off point, 72 s away
+        let ridge = TestTerrain::wall_north_of(START.latitude_degrees + 4. / 60., -50., 300.);
+        for runway_known in [true, false] {
+            let (inputs, runways) = at_lift_off(runway_known);
+            let outputs = run(&mut alerting(), &inputs, &ridge, &runways, 1.);
+            assert!(outputs.alerts.caution_light, "runway known: {runway_known}");
+        }
+    }
+
+    #[test]
+    fn an_engine_out_climb_from_a_known_runway_does_not_trigger_the_floor() {
+        // 2.4 % climb gradient at 150 kt
+        takeoff_is_alert_free(Takeoff {
+            roll_length_nm: 1.3,
+            climb_rate_fpm: 365.,
+            runway_known: true,
+        });
+    }
+
+    #[test]
+    fn the_floor_protects_the_climb_out_past_a_known_departure_runway() {
+        // 1.5 NM past the end of a 0.8 NM runway at 50 ft, under the floor there (145 ft). The roll start latch is
+        // only 2.3 NM away and holds the departure runway area, the known runway does not.
+        let mut inputs = flying(50.);
+        inputs.aircraft = inputs.aircraft.map(|aircraft| AircraftState {
+            position: offset_position(START, 0., 2.3),
+            ..aircraft
+        });
+        let short_runway = Takeoff {
+            runway_known: true,
+            ..Takeoff::normal(0.8)
+        };
+        // The look-ahead alerts as well this low: the floor is checked on its own
+        let mut known = alerting();
+        known.update(
+            STEP,
+            &inputs,
+            &TestTerrain::flat(0.),
+            &StaticRunways(vec![short_runway.departure_runway()]),
+        );
+        assert!(known.terrain_clearance_floor.is_alerting());
+
+        let mut latched = alerting();
+        latched.update(
+            STEP,
+            &inputs,
+            &TestTerrain::flat(0.),
+            &StaticRunways(vec![Takeoff::normal(0.8).departure_runway()]),
+        );
+        assert!(!latched.terrain_clearance_floor.is_alerting());
     }
 
     #[test]
@@ -911,6 +1063,7 @@ mod tests {
             reference_point: offset_position(START, 180., 6.),
             elevation_ft: 0.,
             origin: RunwayOrigin::Departure,
+            geometry: None,
         };
         let mut inputs = flying(300.);
         inputs.radio_altitude_ft = Some(300.);
