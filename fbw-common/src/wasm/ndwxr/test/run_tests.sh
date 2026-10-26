@@ -18,3 +18,5 @@ clang++ -std=c++17 -Wall -Wextra -Werror vd_ra_zone_test.cpp -o ../obj/vd_ra_zon
 ../obj/vd_ra_zone_test
 clang++ -std=c++17 -Wall -Wextra -Werror taws_system_test.cpp -o ../obj/taws_system_test
 ../obj/taws_system_test
+clang++ -std=c++17 -Wall -Wextra -Werror threat_areas_test.cpp -o ../obj/threat_areas_test
+../obj/threat_areas_test

@@ -5864,6 +5864,30 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
       TERR TST message of the ND (not displayed yet)
     - Read-Only
 
+- A32NX_GPWS_TERR_AHEAD
+    - Number
+    - The TERR AHEAD message of the NDs, from the terrain look-ahead alerts
+        - 0: none
+        - 1: caution TERRAIN AHEAD (amber)
+        - 2: warning TERRAIN AHEAD PULL UP or AVOID TERRAIN (red)
+    - Read-Only
+
+- A32NX_GPWS_TERR_AREA_REF_LAT / A32NX_GPWS_TERR_AREA_REF_LON
+    - Number
+    - Row and column (latitude and longitude times 60, rounded down) of the 1 arcminute terrain cell of the aircraft,
+      from which the runs of A32NX_GPWS_TERR_AREA_{n} are counted
+    - Read-Only
+
+- A32NX_GPWS_TERR_AREA_{n}
+    - Number
+    - The threat areas of the terrain look-ahead alerts drawn on the NDs, while TERR AHEAD is shown; n = 0 to 31, two runs
+      of terrain cells along a grid row per variable (the second one times 2^24), 0 when unused. A run is 24 bits:
+        - bits 0-7: row offset from the aircraft's cell + 128
+        - bits 8-15: first column offset + 128
+        - bits 16-21: number of cells
+        - bits 22-23: 1 caution (solid yellow), 2 warning (solid red), 3 AVOID TERRAIN (red/black crosshatch)
+    - Read-Only
+
 - A32NX_REACTIVE_WINDSHEAR_WARNING
     - Boolean
     - True while the reactive windshear detection of the FACs gives the WINDSHEAR warning (red WINDSHEAR on the PFDs),

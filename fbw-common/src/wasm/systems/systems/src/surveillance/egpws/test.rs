@@ -22,7 +22,10 @@ use crate::{
     },
 };
 
-use super::predictive::PredictiveVoice;
+use super::predictive::{
+    GridCell, PredictiveVoice, TerrainAheadMessage, ThreatAreas, ThreatCell, ThreatLevel,
+};
+use super::terrain_grid::GridPosition;
 use super::*;
 
 struct TestRa {
@@ -1895,6 +1898,8 @@ fn predictive_alerts_of(voice: PredictiveVoice, warning: bool, caution: bool) ->
             warning_light: warning,
             caution_light: caution,
             automatic_terrain_display: warning || voice == PredictiveVoice::TerrainAhead,
+            nd_message: TerrainAheadMessage::None,
+            threat_areas: ThreatAreas::default(),
         },
     }
 }
@@ -1928,6 +1933,17 @@ impl EgpwcTestBed {
                 outputs.fo_terrain_display_active,
             )
         })
+    }
+
+    fn terr_area(&mut self, name: &str) -> f64 {
+        ReadByName::<EgpwcTestBed, f64>::read_by_name(self, name)
+    }
+
+    fn terr_ahead_message(&mut self) -> u8 {
+        ReadByName::<EgpwcTestBed, u8>::read_by_name(
+            self,
+            EnhancedGroundProximityWarningComputer::TERR_AHEAD_KEY,
+        )
     }
 
     fn bus_bit(&self, bit: u8) -> bool {
@@ -1964,6 +1980,75 @@ fn a_terrain_ahead_caution_gives_terrain_ahead_and_the_amber_light() {
     assert!(!test_bed.is_warning_light_on());
     assert_eq!(test_bed.terrain_displayed_automatically(), (true, true));
     assert!(test_bed.bus_bit(19));
+}
+
+#[test]
+fn the_terr_ahead_level_for_the_nds_follows_the_predictive_alert() {
+    let mut test_bed = mode_2a_test_bed(6_000., 250.);
+    assert_eq!(
+        test_bed.terr_ahead_message(),
+        TerrainAheadMessage::None as u8
+    );
+
+    let mut caution = predictive_alerts_of(PredictiveVoice::TerrainAhead, false, true);
+    caution.alerts.nd_message = TerrainAheadMessage::Caution;
+    test_bed = test_bed.predictive_outputs(caution);
+    assert_eq!(
+        test_bed.terr_ahead_message(),
+        TerrainAheadMessage::Caution as u8
+    );
+
+    // No word on the output between two PULL UPs: the message stays
+    let mut warning = predictive_alerts_of(PredictiveVoice::None, true, false);
+    warning.alerts.nd_message = TerrainAheadMessage::Warning;
+    test_bed = test_bed.predictive_outputs(warning);
+    assert_eq!(
+        test_bed.terr_ahead_message(),
+        TerrainAheadMessage::Warning as u8
+    );
+}
+
+#[test]
+fn the_threat_areas_for_the_nds_are_written_while_the_alert_lasts() {
+    let position = GridPosition::new(35.25, 138.91);
+    let threat = ThreatCell {
+        cell: GridCell::of(GridPosition::new(35.3, 138.91)),
+        level: ThreatLevel::Warning,
+    };
+    let mut warning = predictive_alerts_of(PredictiveVoice::PullUp, true, false);
+    warning.alerts.nd_message = TerrainAheadMessage::Warning;
+    warning.alerts.threat_areas = ThreatAreas::of(position, &[threat], false);
+    let mut test_bed = mode_2a_test_bed(6_000., 250.).predictive_outputs(warning);
+    assert_eq!(
+        test_bed.terr_area(EnhancedGroundProximityWarningComputer::TERR_AREA_REF_LAT_KEY),
+        2115.
+    );
+    assert_eq!(
+        test_bed.terr_area(EnhancedGroundProximityWarningComputer::TERR_AREA_REF_LON_KEY),
+        8334.
+    );
+    assert_eq!(
+        test_bed.terr_area("GPWS_TERR_AREA_0"),
+        warning.alerts.threat_areas.slots[0]
+    );
+    assert!(test_bed.terr_area("GPWS_TERR_AREA_0") > 0.);
+
+    test_bed = test_bed.no_power();
+    test_bed.run_for(Duration::from_millis(1_000));
+    assert_eq!(test_bed.terr_area("GPWS_TERR_AREA_0"), 0.);
+}
+
+#[test]
+fn no_terr_ahead_message_without_power() {
+    let mut warning = predictive_alerts_of(PredictiveVoice::PullUp, true, false);
+    warning.alerts.nd_message = TerrainAheadMessage::Warning;
+    let mut test_bed = mode_2a_test_bed(6_000., 250.).predictive_outputs(warning);
+    test_bed = test_bed.no_power();
+    test_bed.run_for(Duration::from_millis(1_000));
+    assert_eq!(
+        test_bed.terr_ahead_message(),
+        TerrainAheadMessage::None as u8
+    );
 }
 
 #[test]

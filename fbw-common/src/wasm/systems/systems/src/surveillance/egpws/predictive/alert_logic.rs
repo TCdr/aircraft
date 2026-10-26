@@ -32,12 +32,25 @@ impl PredictiveVoice {
     }
 }
 
+/// The TERR AHEAD message of the NDs: amber for the caution, red for the warning (PULL UP or AVOID TERRAIN). The
+/// caution for terrain below the aircraft (TOO LOW TERRAIN) has none.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TerrainAheadMessage {
+    #[default]
+    None = 0,
+    Caution = 1,
+    Warning = 2,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct TadAlertOutputs {
     pub(super) voice: PredictiveVoice,
     pub(super) warning_light: bool,
     pub(super) caution_light: bool,
     pub(super) automatic_terrain_display: bool,
+    pub(super) nd_message: TerrainAheadMessage,
+    /// AVOID TERRAIN: the warning areas are crosshatched
+    pub(super) avoid_terrain: bool,
 }
 
 pub(super) struct TadAlertLogic {
@@ -118,12 +131,20 @@ impl TadAlertLogic {
             PredictiveVoice::None
         };
 
+        let caution_ahead = caution_active && !self.last_caution_below_aircraft;
         TadAlertOutputs {
             voice,
             warning_light: warning_active,
             caution_light: caution_active,
-            automatic_terrain_display: warning_active
-                || (caution_active && !self.last_caution_below_aircraft),
+            automatic_terrain_display: warning_active || caution_ahead,
+            nd_message: if warning_active {
+                TerrainAheadMessage::Warning
+            } else if caution_ahead {
+                TerrainAheadMessage::Caution
+            } else {
+                TerrainAheadMessage::None
+            },
+            avoid_terrain: warning_active && self.avoid_terrain_latched,
         }
     }
 
@@ -277,6 +298,63 @@ mod tests {
     }
 
     #[test]
+    fn the_nd_shows_terr_ahead_amber_for_a_caution_ahead_and_red_for_a_warning() {
+        assert_eq!(
+            TadAlertLogic::new()
+                .update(STEP, &caution(false))
+                .nd_message,
+            TerrainAheadMessage::Caution
+        );
+        assert_eq!(
+            TadAlertLogic::new()
+                .update(STEP, &warning(false))
+                .nd_message,
+            TerrainAheadMessage::Warning
+        );
+        assert_eq!(
+            TadAlertLogic::new().update(STEP, &warning(true)).nd_message,
+            TerrainAheadMessage::Warning
+        );
+    }
+
+    #[test]
+    fn the_crosshatch_goes_with_avoid_terrain() {
+        assert!(
+            TadAlertLogic::new()
+                .update(STEP, &warning(true))
+                .avoid_terrain
+        );
+        assert!(
+            !TadAlertLogic::new()
+                .update(STEP, &warning(false))
+                .avoid_terrain
+        );
+        assert!(
+            !TadAlertLogic::new()
+                .update(STEP, &caution(false))
+                .avoid_terrain
+        );
+    }
+
+    #[test]
+    fn too_low_terrain_has_no_nd_message() {
+        assert_eq!(
+            TadAlertLogic::new().update(STEP, &caution(true)).nd_message,
+            TerrainAheadMessage::None
+        );
+    }
+
+    #[test]
+    fn the_nd_message_goes_with_the_alert_after_the_hold() {
+        let mut logic = TadAlertLogic::new();
+        logic.update(STEP, &warning(false));
+        assert_eq!(
+            run(&mut logic, &TadScan::default(), 3.).nd_message,
+            TerrainAheadMessage::None
+        );
+    }
+
+    #[test]
     fn a_caution_below_says_too_low_terrain_without_the_terrain_display() {
         let mut logic = TadAlertLogic::new();
         let outputs = logic.update(STEP, &caution(true));
@@ -404,7 +482,7 @@ mod tests {
         let scan = TadScan {
             caution: caution(false).caution,
             warning: warning(false).warning,
-            data_missing: false,
+            ..Default::default()
         };
         let outputs = logic.update(STEP, &scan);
         assert!(outputs.warning_light);
