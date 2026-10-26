@@ -18,6 +18,25 @@ use uom::si::{
 
 pub mod navigation_display;
 
+/// What the predictive terrain functions of the EGPWS tell the terrain display.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PredictiveFunctionsLink {
+    /// The terrain database and the position data the predictive functions need are there. When they are not, the
+    /// EGPWC is in terrain standby.
+    pub inputs_available: bool,
+    /// A caution or warning of the predictive functions shows the terrain on both NDs, whatever the TERR ON ND pb-sws
+    /// say.
+    pub automatic_terrain_display: bool,
+}
+impl Default for PredictiveFunctionsLink {
+    fn default() -> Self {
+        Self {
+            inputs_available: true,
+            automatic_terrain_display: false,
+        }
+    }
+}
+
 pub struct EnhancedGroundProximityWarningComputer {
     powered_by: ElectricalBusType,
     is_powered: bool,
@@ -152,6 +171,22 @@ impl EnhancedGroundProximityWarningComputer {
         lgcius: &impl LgciuGearExtension,
         terrain_functions_available: bool,
     ) {
+        self.update_with_predictive_functions(
+            adirs_output,
+            lgcius,
+            terrain_functions_available,
+            PredictiveFunctionsLink::default(),
+        );
+    }
+
+    /// As [`Self::update_with_terrain_functions`], with the state of the predictive terrain functions of the EGPWS.
+    pub fn update_with_predictive_functions(
+        &mut self,
+        adirs_output: &impl AdirsMeasurementOutputs,
+        lgcius: &impl LgciuGearExtension,
+        terrain_functions_available: bool,
+        predictive_functions: PredictiveFunctionsLink,
+    ) {
         if !self.is_powered {
             self.destination_longitude =
                 Arinc429Word::new(Angle::default(), SignStatus::FailureWarning);
@@ -171,7 +206,9 @@ impl EnhancedGroundProximityWarningComputer {
         }
 
         // TERR STBY needs a working EGPWC: an unpowered one is the TERR FAULT of the EGPWS instead
-        let predictive_inputs_valid = self.is_powered && self.predictive_inputs_valid(adirs_output);
+        let predictive_inputs_valid = self.is_powered
+            && self.predictive_inputs_valid(adirs_output)
+            && predictive_functions.inputs_available;
         self.terrain_standby = self.is_powered && !predictive_inputs_valid;
         let deselect_terrain_display =
             self.deselects_terrain_display_on_standby && self.terrain_standby;
@@ -184,6 +221,7 @@ impl EnhancedGroundProximityWarningComputer {
                 &self.navigation_display_range_lookup,
                 terrain_display_available,
                 deselect_terrain_display,
+                predictive_functions.automatic_terrain_display,
             )
         });
     }
@@ -398,6 +436,7 @@ mod tests {
         dc_1_bus: ElectricalBus,
         is_elec_powered: bool,
         terrain_functions_available: bool,
+        predictive_functions: PredictiveFunctionsLink,
     }
     impl EgpwcTestAircraft {
         fn new(context: &mut InitContext) -> Self {
@@ -424,20 +463,26 @@ mod tests {
                 dc_1_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(1)),
                 is_elec_powered: false,
                 terrain_functions_available: true,
+                predictive_functions: PredictiveFunctionsLink::default(),
             }
         }
 
         fn update(&mut self) {
-            self.egpwc.update_with_terrain_functions(
+            self.egpwc.update_with_predictive_functions(
                 &self.adirs,
                 &self.lgciu,
                 self.terrain_functions_available,
+                self.predictive_functions,
             );
         }
 
         /// TERR pb-sw OFF, TERR FAULT or a failed EGPWS
         fn set_terrain_functions_available(&mut self, available: bool) {
             self.terrain_functions_available = available;
+        }
+
+        fn set_predictive_functions(&mut self, link: PredictiveFunctionsLink) {
+            self.predictive_functions = link;
         }
 
         fn initialize_adiru(&mut self) {
@@ -828,5 +873,88 @@ mod tests {
         assert!(terrain_standby(&mut test_bed));
         let capt_pb: bool = test_bed.read_by_name("EFIS_TERR_L_ACTIVE");
         assert!(capt_pb);
+    }
+    fn powered_with_aligned_adiru() -> SimulationTestBed<EgpwcTestAircraft> {
+        let mut test_bed = SimulationTestBed::new(EgpwcTestAircraft::new);
+        test_bed.command(|a| a.set_elec_powered(true));
+        test_bed.command(|a| a.initialize_adiru());
+        test_bed
+    }
+
+    #[test]
+    // A caution or warning of the predictive functions shows the terrain on both NDs and lights the ON light of the
+    // TERR ON ND pbs, which were OFF
+    fn an_alert_of_the_predictive_functions_shows_the_terrain_automatically() {
+        let mut test_bed = powered_with_aligned_adiru();
+        test_bed.run();
+        let terrain_active: bool = test_bed.read_by_name("EGPWC_ND_L_TERRAIN_ACTIVE");
+        assert!(!terrain_active);
+
+        test_bed.command(|a| {
+            a.set_predictive_functions(PredictiveFunctionsLink {
+                automatic_terrain_display: true,
+                ..Default::default()
+            })
+        });
+        test_bed.run();
+        let capt_terrain_active: bool = test_bed.read_by_name("EGPWC_ND_L_TERRAIN_ACTIVE");
+        let fo_terrain_active: bool = test_bed.read_by_name("EGPWC_ND_R_TERRAIN_ACTIVE");
+        assert!(capt_terrain_active);
+        assert!(fo_terrain_active);
+        let capt_pb: bool = test_bed.read_by_name("EFIS_TERR_L_ACTIVE");
+        let fo_pb: bool = test_bed.read_by_name("EFIS_TERR_R_ACTIVE");
+        assert!(capt_pb);
+        assert!(fo_pb);
+    }
+
+    #[test]
+    fn the_crew_can_switch_the_automatic_terrain_display_off_during_the_alert() {
+        let mut test_bed = powered_with_aligned_adiru();
+        test_bed.command(|a| {
+            a.set_predictive_functions(PredictiveFunctionsLink {
+                automatic_terrain_display: true,
+                ..Default::default()
+            })
+        });
+        test_bed.run();
+        test_bed.write_by_name("EFIS_TERR_L_ACTIVE", false);
+        test_bed.run();
+        test_bed.run();
+        let capt_pb: bool = test_bed.read_by_name("EFIS_TERR_L_ACTIVE");
+        assert!(!capt_pb);
+    }
+
+    #[test]
+    fn the_automatic_terrain_display_needs_the_terrain_functions() {
+        let mut test_bed = powered_with_aligned_adiru();
+        test_bed.command(|a| {
+            a.set_terrain_functions_available(false);
+            a.set_predictive_functions(PredictiveFunctionsLink {
+                automatic_terrain_display: true,
+                ..Default::default()
+            })
+        });
+        test_bed.run();
+        let terrain_active: bool = test_bed.read_by_name("EGPWC_ND_L_TERRAIN_ACTIVE");
+        assert!(!terrain_active);
+        let capt_pb: bool = test_bed.read_by_name("EFIS_TERR_L_ACTIVE");
+        assert!(!capt_pb);
+    }
+
+    #[test]
+    // The terrain database is an input of the predictive functions: without it the EGPWC is in terrain standby
+    fn terrain_standby_while_the_predictive_functions_lack_an_input() {
+        let mut test_bed = powered_with_aligned_adiru();
+        test_bed.run();
+        assert!(!terrain_standby(&mut test_bed));
+
+        test_bed.command(|a| {
+            a.set_predictive_functions(PredictiveFunctionsLink {
+                inputs_available: false,
+                ..Default::default()
+            })
+        });
+        test_bed.run();
+        assert!(terrain_standby(&mut test_bed));
     }
 }

@@ -34,7 +34,7 @@ use self::{
     payload::A320Payload,
     pneumatic::{A320Pneumatic, A320PneumaticOverheadPanel},
     probe_window_heat::A320ProbeWindowHeat,
-    surveillance::A320EgpwsElectricalHarness,
+    surveillance::{unavailable_terrain_grid, A320EgpwsElectricalHarness, A320PredictiveTerrain},
     tyre_pressure::A320TyrePressureIndicatingSystem,
 };
 use airframe::A320Airframe;
@@ -49,10 +49,13 @@ use systems::navigation::gnss::GpsReceiver;
 use systems::navigation::gpirs::Gpirs;
 use systems::navigation::ils::MultiModeReceiverShim;
 use systems::{
-    enhanced_gpwc::EnhancedGroundProximityWarningComputer,
-    surveillance::egpws::{
-        EnhancedGroundProximityWarningComputer as EnhancedGroundProximityWarningComputer2,
-        EnhancedGroundProximityWarningComputerPinProgramming,
+    enhanced_gpwc::{EnhancedGroundProximityWarningComputer, PredictiveFunctionsLink},
+    surveillance::{
+        egpws::{
+            terrain_grid::TerrainGrid, EgpwsElectricalHarness,
+            EnhancedGroundProximityWarningComputer as EnhancedGroundProximityWarningComputer2,
+        },
+        taws::TerrainAwarenessWarningSystemDiscreteOutput,
     },
 };
 use systems::{hydraulic::brake::BrakeFanPanel, simulation::InitContext};
@@ -162,6 +165,7 @@ pub struct A320 {
     egpwc: EnhancedGroundProximityWarningComputer,
     egpwc_2: EnhancedGroundProximityWarningComputer2,
     egpws_electrical_harness: A320EgpwsElectricalHarness,
+    predictive_terrain: A320PredictiveTerrain,
     /// ILS 1 (NAV 3), for PFD 1 and the EGPWS
     mmr_1: MultiModeReceiverShim,
     /// ILS 2 (NAV 4), for PFD 2
@@ -173,6 +177,15 @@ pub struct A320 {
 }
 impl A320 {
     pub fn new(context: &mut InitContext) -> A320 {
+        Self::new_with_terrain_grid(context, unavailable_terrain_grid())
+    }
+
+    /// The A320 with the terrain grid its predictive terrain functions read. Without one (`new`) the predictive
+    /// functions stay off and the EGPWC is in terrain standby.
+    pub fn new_with_terrain_grid(
+        context: &mut InitContext,
+        terrain_grid: Box<dyn TerrainGrid>,
+    ) -> A320 {
         A320 {
             adirs: A320AirDataInertialReferenceSystemBuilder::build(context),
             adirs_overhead: AirDataInertialReferenceSystemOverheadPanel::new(context),
@@ -249,17 +262,12 @@ impl A320 {
             )
             // TERR STBY deselects the TERR ON ND pb-sws
             .with_terrain_display_deselection_on_standby(),
-            // PULL UP - GPWS pb: the red PULL UP comes on for the second boundary of mode 1 and for
-            // mode 2, the amber GPWS for any other mode: the alternate lamp format of the EGPWC.
-            egpwc_2: EnhancedGroundProximityWarningComputer2::new_with_pin_programming(
+            egpwc_2: EnhancedGroundProximityWarningComputer2::new(
                 context,
                 ElectricalBusType::AlternatingCurrent(1),
-                EnhancedGroundProximityWarningComputerPinProgramming {
-                    alternate_lamp_format: true,
-                    ..Default::default()
-                },
             ),
             egpws_electrical_harness: A320EgpwsElectricalHarness::new(context),
+            predictive_terrain: A320PredictiveTerrain::new(context, terrain_grid),
             mmr_1: MultiModeReceiverShim::new(context, 1),
             mmr_2: MultiModeReceiverShim::new(context, 2),
             reverse_thrust: ReverserForce::new(context),
@@ -460,6 +468,18 @@ impl Aircraft for A320 {
         );
 
         self.egpws_electrical_harness.update(self.lgcius.lgciu1());
+        self.predictive_terrain.update(
+            context,
+            &self.gps_1,
+            self.adirs.ir_bus(1),
+            self.adirs.adr_bus(1),
+            self.lgcius.lgciu1(),
+            self.radio_altimeters.radio_altimeter_1(),
+            self.radio_altimeters.radio_altimeter_2(),
+            self.egpws_electrical_harness.discrete_inputs(),
+        );
+        self.egpwc_2
+            .set_predictive_outputs(*self.predictive_terrain.outputs());
         self.egpwc_2.update(
             context,
             &self.egpws_electrical_harness,
@@ -470,11 +490,18 @@ impl Aircraft for A320 {
             &self.mmr_1,
         );
         // After the EGPWS: no terrain on the NDs with the TERR pb-sw OFF or TERR FAULT
-        self.egpwc.update_with_terrain_functions(
+        self.egpwc.update_with_predictive_functions(
             &self.adirs,
             self.lgcius.lgciu1(),
             self.egpws_electrical_harness
                 .terrain_functions_available(&self.egpwc_2),
+            PredictiveFunctionsLink {
+                inputs_available: self.predictive_terrain.outputs().inputs_available,
+                automatic_terrain_display: self
+                    .egpwc_2
+                    .discrete_outputs()
+                    .capt_terrain_display_active,
+            },
         );
     }
 }
@@ -525,6 +552,7 @@ impl SimulationElement for A320 {
         self.tyre_pressure.accept(visitor);
         self.egpwc.accept(visitor);
         self.egpws_electrical_harness.accept(visitor);
+        self.predictive_terrain.accept(visitor);
         self.egpwc_2.accept(visitor);
         self.mmr_1.accept(visitor);
         self.mmr_2.accept(visitor);
@@ -537,11 +565,16 @@ impl SimulationElement for A320 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
     use std::time::Duration;
     use systems::failures::FailureType;
     use systems::simulation::{
         test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
         InitContext,
+    };
+    use systems::surveillance::egpws::terrain_grid::{
+        GridPosition, TerrainElevationSource, TerrainGrid, TerrainSample,
     };
 
     /// The whole aircraft on the ground, both engines running at ground idle (FADEC fuel flow at
@@ -845,13 +878,58 @@ mod tests {
         assert!(vibration_2 < 6.);
     }
 
-    /// PULL UP - GPWS pb: red PULL UP for mode 1 second boundary and mode 2 only, amber GPWS for
-    /// every other mode: the alternate lamp format of the EGPWC (surveillance/egpws/test.rs checks
-    /// the lamps).
+    /// A terrain grid that records the aircraft positions it is advanced with.
+    struct RecordingTerrainGrid {
+        positions: Rc<RefCell<Vec<GridPosition>>>,
+    }
+    impl TerrainElevationSource for RecordingTerrainGrid {
+        fn max_elevation_at(&self, _position: GridPosition) -> TerrainSample {
+            TerrainSample::NotLoaded
+        }
+    }
+    impl TerrainGrid for RecordingTerrainGrid {
+        fn update(&mut self, _delta: Duration, aircraft: GridPosition) {
+            self.positions.borrow_mut().push(aircraft);
+        }
+    }
+
+    /// The terrain grid cache only loads blocks around the aircraft when it is advanced every update with the GPS
+    /// position, and the position is only known once the GPS and the inertial reference are valid.
     #[test]
-    fn the_egpwc_uses_the_airbus_lamp_format() {
-        let test_bed = aircraft_with_engines_at_idle();
-        assert!(test_bed.query(|a| a.egpwc_2.pin_programming().alternate_lamp_format));
+    fn the_terrain_grid_is_advanced_every_update_with_the_valid_gps_position() {
+        let positions = Rc::new(RefCell::new(Vec::new()));
+        let grid_positions = Rc::clone(&positions);
+        let mut test_bed = SimulationTestBed::new(move |context: &mut InitContext| {
+            A320::new_with_terrain_grid(
+                context,
+                Box::new(RecordingTerrainGrid {
+                    positions: Rc::clone(&grid_positions),
+                }),
+            )
+        });
+        test_bed.set_on_ground(true);
+        test_bed.run_with_delta(Duration::from_millis(50));
+        assert!(positions.borrow().is_empty());
+
+        test_bed.write_by_name("EXT_PWR_AVAIL:1", true);
+        test_bed.write_by_name("OVHD_ELEC_EXT_PWR_PB_IS_ON", true);
+        test_bed.write_by_name("PLANE LATITUDE", 35.55);
+        test_bed.write_by_name("PLANE LONGITUDE", 139.76);
+        test_bed.write_by_name("PLANE ALTITUDE", 20.);
+        for ir in 1..=3 {
+            test_bed.write_by_name(&format!("OVHD_ADIRS_IR_{ir}_MODE_SELECTOR_KNOB"), 1.);
+        }
+        for _ in 0..600 {
+            test_bed.run_with_delta(Duration::from_secs(1));
+        }
+        let updates_before_last_cycle = positions.borrow().len();
+        test_bed.run_with_delta(Duration::from_secs(1));
+
+        let positions = positions.borrow();
+        assert_eq!(positions.len(), updates_before_last_cycle + 1);
+        let last = positions.last().expect("the grid was advanced");
+        assert!((last.latitude_degrees - 35.55).abs() < 0.01);
+        assert!((last.longitude_degrees - 139.76).abs() < 0.01);
     }
 
     /// PFD1 shows ILS1 (MMR 1, sim NAV 3), PFD2 shows ILS2 (MMR 2, sim NAV 4).

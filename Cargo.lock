@@ -1394,6 +1394,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags",
  "bounded-vec-deque",
+ "miniz_oxide",
  "more-asserts",
  "nalgebra",
  "ntest",
