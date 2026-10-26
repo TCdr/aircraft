@@ -153,6 +153,7 @@
 #include "view_park.h"  // ViewPark, the parking of the MapViews and the re-sending of their settings (pure logic)
 #include "gauge_slots.h"  // GaugeSlots, the gauge instances' slots and the module's MapView budget (pure logic)
 #include "vd_ra_zone.h"  // the VD column under the amber radio altitude zone (pure geometry)
+#include "threat_areas.h"  // the A32NX terrain alert areas sent by the GPWS (pure decoding and geometry)
 
 namespace ndwxr {
 
@@ -241,6 +242,8 @@ struct Instance {
   // color list was last set for (-1 = not yet), and which list the terrain view holds
   // (0 = the terrain's, 1 = the MAP mode's, 2 = the peaks mode's, -1 = not set by the ND draw yet).
   int terrainPatternImage = 0;
+  // The crosshatch of the AVOID TERRAIN areas (created on first use)
+  int threatHatchImage = 0;
   int terrainGearState = -1;
   int terrainListMode = -1;
   // The weather radar's mode text for the JS ND (0 none, 1 WX, 2 WX+T, 3 TURB, 4 MAP): the LVar the
@@ -330,6 +333,11 @@ extern NamedVar g_adirsLat[3];
 extern NamedVar g_adirsLon[3];
 extern NamedVar g_adirsTrueHeading[3];
 extern NamedVar g_egpwcGearDown;
+#ifndef A380X
+extern NamedVar g_terrAreaReferenceRow;
+extern NamedVar g_terrAreaReferenceColumn;
+extern NamedVar g_terrAreaSlots[kThreatAreaSlots];
+#endif
 extern NamedVar g_adirsVerticalSpeed[3];
 #ifdef A380X
 extern NamedVar g_wxrTawsSelected;
@@ -437,6 +445,8 @@ bool configureHotView(FsContext ctx, FsTextureId id, const RadarThresholds& thre
 // Sets only the colour tables of the weather pair (a gain change), not the rest of their setup.
 void setRadarThresholds(FsContext ctx, FsTextureId precipView, FsTextureId hotView, const RadarThresholds& thresholds);
 void arcAreaPath(NVGcontext* vg, float cx, float cy, float radius, float sweepFraction);
+// The same outline added to the current path, without starting a new one
+void arcAreaSubpath(NVGcontext* vg, float cx, float cy, float radius, float sweepFraction);
 void drawWeatherRect(NVGcontext* vg,
                      FsTextureId mapView,
                      bool isRose,
@@ -454,6 +464,13 @@ void setPeaksColors(FsContext ctx, FsTextureId id);
 int createTerrainPattern(NVGcontext* vg);
 void drawTerrain(NVGcontext* vg, FsTextureId view, FsTextureId waterView, int patternImage, bool isRose, float headingDegrees);
 void drawMapMode(NVGcontext* vg, FsTextureId view, bool isRose, float headingDegrees);
+int createThreatHatchPattern(NVGcontext* vg);
+void drawThreatAreas(NVGcontext* vg,
+                     const ThreatAreaSet& areas,
+                     int hatchImage,
+                     bool isRose,
+                     float headingDegrees,
+                     float rangeNm);
 
 #ifdef A380X
 // vd.cpp: the vertical display.

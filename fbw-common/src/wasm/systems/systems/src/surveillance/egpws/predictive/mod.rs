@@ -19,11 +19,13 @@ mod tcf;
 mod terrain_margin;
 #[cfg(test)]
 mod test_support;
+mod threat_areas;
 
-pub use alert_logic::PredictiveVoice;
+pub use alert_logic::{PredictiveVoice, TerrainAheadMessage};
 pub use runway::{
     DepartureRunwayLatch, ReferenceRunways, Runway, RunwayGeometry, RunwayOrigin, RunwaySource,
 };
+pub use threat_areas::{GridCell, ThreatAreas, ThreatCell, ThreatLevel};
 
 use super::{
     runtime::PredictiveFunctionsStatus,
@@ -75,6 +77,9 @@ pub struct PredictiveAlertOutputs {
     pub caution_light: bool,
     /// The terrain is shown on both NDs
     pub automatic_terrain_display: bool,
+    pub nd_message: TerrainAheadMessage,
+    /// The terrain of the alert, shown on the NDs while TERR AHEAD is on
+    pub threat_areas: ThreatAreas,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -299,12 +304,17 @@ impl PredictiveTerrainAlerting {
             )
         });
 
+        let no_threats = TadScan::default();
         let threats = if inside_landing_tunnel {
-            TadScan::default()
+            &no_threats
         } else {
-            self.last_scan
+            &self.last_scan
         };
-        let tad = self.tad_logic.update(delta, &threats);
+        let tad = self.tad_logic.update(delta, threats);
+        let threat_areas = match tad.nd_message {
+            TerrainAheadMessage::None => ThreatAreas::default(),
+            _ => ThreatAreas::of(aircraft.position, &threats.threat_cells, tad.avoid_terrain),
+        };
 
         let floor_evaluation = runway
             .filter(|runway| !inside_landing_tunnel && !runway.is_in_departure_runway_area())
@@ -332,6 +342,8 @@ impl PredictiveTerrainAlerting {
             warning_light: tad.warning_light,
             caution_light: tad.caution_light || self.terrain_clearance_floor.is_alerting(),
             automatic_terrain_display: tad.automatic_terrain_display,
+            nd_message: tad.nd_message,
+            threat_areas,
         }
     }
 
@@ -664,6 +676,9 @@ mod tests {
         assert!(outputs.alerts.warning_light);
         assert!(outputs.alerts.automatic_terrain_display);
         assert_eq!(outputs.alerts.voice, PredictiveVoice::TerrainAhead);
+        assert_eq!(outputs.alerts.nd_message, TerrainAheadMessage::Warning);
+        let runs = outputs.alerts.threat_areas.runs();
+        assert!(runs.iter().any(|run| run.level == 2));
 
         // PULL UP comes in pulses: one of the seconds after TERRAIN AHEAD has the word on the output
         let said_pull_up = (0..6).any(|_| {
@@ -686,6 +701,9 @@ mod tests {
         assert!(outputs.alerts.caution_light);
         assert!(!outputs.alerts.warning_light);
         assert_eq!(outputs.alerts.voice, PredictiveVoice::TerrainAhead);
+        let runs = outputs.alerts.threat_areas.runs();
+        assert!(!runs.is_empty());
+        assert!(runs.iter().all(|run| run.level == 1));
     }
 
     #[test]
@@ -810,6 +828,8 @@ mod tests {
         assert!(!outputs.alerts.warning_light);
         assert_eq!(outputs.alerts.voice, PredictiveVoice::TooLowTerrain);
         assert!(!outputs.alerts.automatic_terrain_display);
+        assert_eq!(outputs.alerts.nd_message, TerrainAheadMessage::None);
+        assert_eq!(outputs.alerts.threat_areas, ThreatAreas::default());
     }
 
     #[test]

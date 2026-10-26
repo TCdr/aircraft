@@ -25,7 +25,9 @@ use crate::{
     simulation::UpdateContext,
     surveillance::{
         egpws::{
-            predictive::{PredictiveAlertOutputs, PredictiveVoice},
+            predictive::{
+                PredictiveAlertOutputs, PredictiveVoice, TerrainAheadMessage, ThreatAreas,
+            },
             EnhancedGroundProximityWarningComputerPinProgramming,
         },
         taws::{
@@ -1585,6 +1587,14 @@ impl EnhancedGroundProximityWarningComputerRuntime {
 
     pub fn get_aural_output(&self) -> AuralWarning {
         self.aural_output
+    }
+
+    pub fn get_terrain_ahead_message(&self) -> TerrainAheadMessage {
+        self.predictive_alerts.nd_message
+    }
+
+    pub fn get_threat_areas(&self) -> ThreatAreas {
+        self.predictive_alerts.threat_areas
     }
 
     pub fn get_on_ground(&self) -> bool {

@@ -17,7 +17,9 @@ use crate::{
         InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
         VariableIdentifier, Write,
     },
-    surveillance::egpws::predictive::{PredictiveAlertOutputs, PredictiveOutputs},
+    surveillance::egpws::predictive::{
+        PredictiveAlertOutputs, PredictiveOutputs, TerrainAheadMessage, ThreatAreas,
+    },
     surveillance::{
         egpws::runtime::{
             AuralWarning, EnhancedGroundProximityWarningComputerRuntime, FlightPhase,
@@ -83,6 +85,10 @@ pub struct EnhancedGroundProximityWarningComputer {
 
     aural_output_id: VariableIdentifier,
     terrain_test_pattern_id: VariableIdentifier,
+    terr_ahead_id: VariableIdentifier,
+    terr_area_ref_lat_id: VariableIdentifier,
+    terr_area_ref_lon_id: VariableIdentifier,
+    terr_area_ids: [VariableIdentifier; ThreatAreas::SLOTS],
 }
 
 impl EnhancedGroundProximityWarningComputer {
@@ -98,6 +104,11 @@ impl EnhancedGroundProximityWarningComputer {
     const AURAL_OUTPUT_KEY: &str = "GPWS_AURAL_OUTPUT";
     /// The self-test shows the terrain test pattern (TERR TST on the ND)
     const TERRAIN_TEST_PATTERN_KEY: &str = "GPWS_TERR_TEST_PATTERN";
+    /// The TERR AHEAD message of the NDs: 0 none, 1 caution (amber), 2 warning (red)
+    const TERR_AHEAD_KEY: &str = "GPWS_TERR_AHEAD";
+    /// The threat areas for the NDs (see ThreatAreas): the cell of the aircraft and the slots of runs
+    const TERR_AREA_REF_LAT_KEY: &str = "GPWS_TERR_AREA_REF_LAT";
+    const TERR_AREA_REF_LON_KEY: &str = "GPWS_TERR_AREA_REF_LON";
 
     pub fn new(context: &mut InitContext, powered_by: ElectricalBusType) -> Self {
         Self::new_with_pin_programming(
@@ -168,6 +179,12 @@ impl EnhancedGroundProximityWarningComputer {
             aural_output_id: context.get_identifier(Self::AURAL_OUTPUT_KEY.to_owned()),
             terrain_test_pattern_id: context
                 .get_identifier(Self::TERRAIN_TEST_PATTERN_KEY.to_owned()),
+            terr_ahead_id: context.get_identifier(Self::TERR_AHEAD_KEY.to_owned()),
+            terr_area_ref_lat_id: context.get_identifier(Self::TERR_AREA_REF_LAT_KEY.to_owned()),
+            terr_area_ref_lon_id: context.get_identifier(Self::TERR_AREA_REF_LON_KEY.to_owned()),
+            terr_area_ids: std::array::from_fn(|slot| {
+                context.get_identifier(format!("GPWS_TERR_AREA_{slot}"))
+            }),
         }
     }
 
@@ -304,6 +321,28 @@ impl SimulationElement for EnhancedGroundProximityWarningComputer {
                 .as_ref()
                 .is_some_and(|r| r.is_terrain_test_pattern_active()),
         );
+        writer.write(
+            &self.terr_ahead_id,
+            self.runtime
+                .as_ref()
+                .map_or(TerrainAheadMessage::None, |r| r.get_terrain_ahead_message())
+                as u8,
+        );
+        let threat_areas = self
+            .runtime
+            .as_ref()
+            .map_or(ThreatAreas::default(), |r| r.get_threat_areas());
+        writer.write(
+            &self.terr_area_ref_lat_id,
+            threat_areas.reference.latitude_index as f64,
+        );
+        writer.write(
+            &self.terr_area_ref_lon_id,
+            threat_areas.reference.longitude_index as f64,
+        );
+        for (id, slot) in self.terr_area_ids.iter().zip(threat_areas.slots) {
+            writer.write(id, slot);
+        }
     }
 
     fn consume_power<T: ConsumePower>(&mut self, _: &UpdateContext, consumption: &mut T) {
