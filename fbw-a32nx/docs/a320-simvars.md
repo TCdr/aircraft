@@ -3612,6 +3612,55 @@ In the variables below, {number} should be replaced with one item in the set: { 
         - 1 - captain's side FMGC
         - 2 - f/o's side FMGC
 
+- `L:A32NX_FM{number}_DEST_RWY_TRUE_BEARING`
+    - True direction of the destination runway of the active flight plan, for the EGPWC terrain functions
+    - Arinc429<Degrees> (-180 to 180), NCD without a destination runway
+    - {number}
+        - 1 - captain's side FMGC
+        - 2 - f/o's side FMGC
+
+- `L:A32NX_FM{number}_DEST_RWY_LENGTH`
+    - Length of the destination runway from its threshold to its far end, for the EGPWC terrain functions
+    - Arinc429<Feet>, NCD without a destination runway
+    - {number}
+        - 1 - captain's side FMGC
+        - 2 - f/o's side FMGC
+
+- `L:A32NX_FM{number}_ORIGIN_RWY_LAT`
+    - Latitude of the start of the origin runway of the active flight plan, for the EGPWC terrain functions
+    - Arinc429<Angle>, NCD without an origin runway
+    - {number}
+        - 1 - captain's side FMGC
+        - 2 - f/o's side FMGC
+
+- `L:A32NX_FM{number}_ORIGIN_RWY_LONG`
+    - Longitude of the start of the origin runway
+    - Arinc429<Angle>, NCD without an origin runway
+    - {number}
+        - 1 - captain's side FMGC
+        - 2 - f/o's side FMGC
+
+- `L:A32NX_FM{number}_ORIGIN_RWY_ELEVATION`
+    - Threshold elevation of the origin runway
+    - Arinc429<Feet>, NCD without an origin runway
+    - {number}
+        - 1 - captain's side FMGC
+        - 2 - f/o's side FMGC
+
+- `L:A32NX_FM{number}_ORIGIN_RWY_TRUE_BEARING`
+    - True direction of the origin runway
+    - Arinc429<Degrees> (-180 to 180), NCD without an origin runway
+    - {number}
+        - 1 - captain's side FMGC
+        - 2 - f/o's side FMGC
+
+- `L:A32NX_FM{number}_ORIGIN_RWY_LENGTH`
+    - Full length of the origin runway from its start
+    - Arinc429<Feet>, NCD without an origin runway
+    - {number}
+        - 1 - captain's side FMGC
+        - 2 - f/o's side FMGC
+
 - `L:A32NX_FM{number}_DISCRETE_WORD_2`
     - Arinc429<Discrete>
     - {number}

@@ -22,7 +22,12 @@ const REDUCED_WARNING_LOOK_AHEAD_S: f64 = 30.;
 const RING_SPACING_NM: f64 = 1.;
 
 fn is_mountainous(terrain: &dyn TerrainElevationSource, runway: &Runway) -> Option<bool> {
-    let highest_ft = highest_terrain_around(terrain, runway.reference_point)?;
+    // Around the centre of a known runway the area reaches half its length further, to about 6 NM from its ends
+    let highest_ft = highest_terrain_around(
+        terrain,
+        runway.centre(),
+        AREA_RADIUS_NM + runway.length_nm() / 2.,
+    )?;
     Some(highest_ft - runway.elevation_ft > TERRAIN_ABOVE_RUNWAY_FT)
 }
 
@@ -30,9 +35,10 @@ fn is_mountainous(terrain: &dyn TerrainElevationSource, runway: &Runway) -> Opti
 fn highest_terrain_around(
     terrain: &dyn TerrainElevationSource,
     centre: GridPosition,
+    radius_nm: f64,
 ) -> Option<f64> {
     let mut highest_ft = f64::MIN;
-    let rings = (AREA_RADIUS_NM / RING_SPACING_NM) as usize;
+    let rings = (radius_nm / RING_SPACING_NM).round() as usize;
     for ring in 0..=rings {
         let radius_nm = ring as f64 * RING_SPACING_NM;
         let samples = if ring == 0 {
@@ -97,7 +103,9 @@ pub(super) fn warning_look_ahead_s(mountainous: bool, runway: Option<&RunwayCont
 mod tests {
     use super::*;
     use crate::surveillance::egpws::predictive::{
-        geometry::distance_nm, runway::RunwayOrigin, test_support::TestTerrain,
+        geometry::distance_nm,
+        runway::{RunwayGeometry, RunwayOrigin, FEET_PER_NAUTICAL_MILE},
+        test_support::TestTerrain,
     };
 
     const RUNWAY_POINT: GridPosition = GridPosition {
@@ -110,6 +118,7 @@ mod tests {
             reference_point: RUNWAY_POINT,
             elevation_ft,
             origin: RunwayOrigin::Destination,
+            geometry: None,
         }
     }
 
@@ -158,6 +167,27 @@ mod tests {
     #[test]
     fn a_mountain_beyond_6_nm_does_not() {
         let terrain = terrain_with_mountain(8., 9_000.);
+        assert_eq!(
+            MountainousApproachAreas::default().is_mountainous(&terrain, &runway(1_000.)),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn the_area_of_a_known_runway_reaches_6_nm_from_its_far_end() {
+        // The mountain is 8 NM from the threshold, but 6 NM from the far end of a 2 NM runway that heads towards it
+        let terrain = terrain_with_mountain(7.8, 5_000.);
+        let known_runway = Runway {
+            geometry: Some(RunwayGeometry {
+                true_heading_deg: 45.,
+                length_ft: 2. * FEET_PER_NAUTICAL_MILE,
+            }),
+            ..runway(1_000.)
+        };
+        assert_eq!(
+            MountainousApproachAreas::default().is_mountainous(&terrain, &known_runway),
+            Some(true)
+        );
         assert_eq!(
             MountainousApproachAreas::default().is_mountainous(&terrain, &runway(1_000.)),
             Some(false)

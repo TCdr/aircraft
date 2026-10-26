@@ -15,7 +15,7 @@ use systems::{
         egpws::{
             predictive::{
                 AircraftState, PredictiveInputs, PredictiveOutputs, PredictiveTerrainAlerting,
-                ReferenceRunways, Runway, RunwayOrigin,
+                ReferenceRunways, Runway, RunwayGeometry, RunwayOrigin,
             },
             terrain_grid::{GridPosition, TerrainGrid, UnavailableTerrainGrid},
             EgpwsElectricalHarness,
@@ -148,25 +148,35 @@ impl SimulationElement for A320EgpwsElectricalHarness {
 
 /// Where the predictive terrain functions (terrain ahead alerting, terrain clearance floor) of the A320 get their data
 /// from: the GPS for the position and the geometric altitude, the inertial reference for the track, speed and
-/// vertical speed, and the FMGC for the destination runway.
+/// vertical speed, and the FMGC for the origin and destination runways.
 pub struct A320PredictiveTerrain {
     grid: Box<dyn TerrainGrid>,
     alerting: PredictiveTerrainAlerting,
     runways: ReferenceRunways,
     outputs: PredictiveOutputs,
 
-    destination_latitude: Arinc429Word<Angle>,
-    destination_longitude: Arinc429Word<Angle>,
-    landing_elevation: Arinc429Word<Length>,
-    destination_latitude_id: VariableIdentifier,
-    destination_longitude_id: VariableIdentifier,
-    landing_elevation_id: VariableIdentifier,
+    origin_runway: FmRunwayWords,
+    destination_runway: FmRunwayWords,
+    origin_runway_ids: FmRunwayIdentifiers,
+    destination_runway_ids: FmRunwayIdentifiers,
 }
 
 impl A320PredictiveTerrain {
-    const DESTINATION_LATITUDE_KEY: &str = "FM1_DEST_LAT";
-    const DESTINATION_LONGITUDE_KEY: &str = "FM1_DEST_LONG";
-    const LANDING_ELEVATION_KEY: &str = "FM1_LANDING_ELEVATION";
+    const ORIGIN_RUNWAY_KEYS: FmRunwayKeys = FmRunwayKeys {
+        latitude: "FM1_ORIGIN_RWY_LAT",
+        longitude: "FM1_ORIGIN_RWY_LONG",
+        elevation: "FM1_ORIGIN_RWY_ELEVATION",
+        true_heading: "FM1_ORIGIN_RWY_TRUE_BEARING",
+        length: "FM1_ORIGIN_RWY_LENGTH",
+    };
+    /// The destination threshold and landing elevation words are older than the runway ones and keep their names.
+    const DESTINATION_RUNWAY_KEYS: FmRunwayKeys = FmRunwayKeys {
+        latitude: "FM1_DEST_LAT",
+        longitude: "FM1_DEST_LONG",
+        elevation: "FM1_LANDING_ELEVATION",
+        true_heading: "FM1_DEST_RWY_TRUE_BEARING",
+        length: "FM1_DEST_RWY_LENGTH",
+    };
 
     /// Design choice: the predictive functions need a position that is better than half a terrain cell (1 NM), so that
     /// the cell the aircraft is over is the cell the grid is read at. The threshold of the FMGC position accuracy
@@ -180,14 +190,13 @@ impl A320PredictiveTerrain {
             runways: ReferenceRunways::default(),
             outputs: PredictiveOutputs::default(),
 
-            destination_latitude: Arinc429Word::new(Angle::default(), SignStatus::NoComputedData),
-            destination_longitude: Arinc429Word::new(Angle::default(), SignStatus::NoComputedData),
-            landing_elevation: Arinc429Word::new(Length::default(), SignStatus::NoComputedData),
-            destination_latitude_id: context
-                .get_identifier(Self::DESTINATION_LATITUDE_KEY.to_owned()),
-            destination_longitude_id: context
-                .get_identifier(Self::DESTINATION_LONGITUDE_KEY.to_owned()),
-            landing_elevation_id: context.get_identifier(Self::LANDING_ELEVATION_KEY.to_owned()),
+            origin_runway: FmRunwayWords::default(),
+            destination_runway: FmRunwayWords::default(),
+            origin_runway_ids: FmRunwayIdentifiers::new(context, &Self::ORIGIN_RUNWAY_KEYS),
+            destination_runway_ids: FmRunwayIdentifiers::new(
+                context,
+                &Self::DESTINATION_RUNWAY_KEYS,
+            ),
         }
     }
 
@@ -232,10 +241,11 @@ impl A320PredictiveTerrain {
                 aircraft.geometric_altitude_ft,
             );
         }
-        self.runways.set_destination(destination_runway(
-            self.destination_latitude,
-            self.destination_longitude,
-            self.landing_elevation,
+        self.runways
+            .set_origin(fm_runway(&self.origin_runway, RunwayOrigin::Departure));
+        self.runways.set_destination(fm_runway(
+            &self.destination_runway,
+            RunwayOrigin::Destination,
         ));
 
         let inputs = PredictiveInputs {
@@ -261,9 +271,8 @@ impl A320PredictiveTerrain {
 
 impl SimulationElement for A320PredictiveTerrain {
     fn read(&mut self, reader: &mut SimulatorReader) {
-        self.destination_latitude = reader.read_arinc429(&self.destination_latitude_id);
-        self.destination_longitude = reader.read_arinc429(&self.destination_longitude_id);
-        self.landing_elevation = reader.read_arinc429(&self.landing_elevation_id);
+        self.origin_runway = self.origin_runway_ids.read(reader);
+        self.destination_runway = self.destination_runway_ids.read(reader);
     }
 }
 
@@ -314,20 +323,83 @@ fn position_accuracy_sufficient(horizontal_figure_of_merit: Arinc429Word<Length>
         })
 }
 
-/// The runway threshold the FMGC sends to the EGPWC for its destination, with the landing elevation. The FMGC sends
-/// the airport reference point when the flight plan has no destination runway.
-fn destination_runway(
+struct FmRunwayKeys {
+    latitude: &'static str,
+    longitude: &'static str,
+    elevation: &'static str,
+    true_heading: &'static str,
+    length: &'static str,
+}
+
+struct FmRunwayIdentifiers {
+    latitude: VariableIdentifier,
+    longitude: VariableIdentifier,
+    elevation: VariableIdentifier,
+    true_heading: VariableIdentifier,
+    length: VariableIdentifier,
+}
+
+impl FmRunwayIdentifiers {
+    fn new(context: &mut InitContext, keys: &FmRunwayKeys) -> Self {
+        Self {
+            latitude: context.get_identifier(keys.latitude.to_owned()),
+            longitude: context.get_identifier(keys.longitude.to_owned()),
+            elevation: context.get_identifier(keys.elevation.to_owned()),
+            true_heading: context.get_identifier(keys.true_heading.to_owned()),
+            length: context.get_identifier(keys.length.to_owned()),
+        }
+    }
+
+    fn read(&self, reader: &mut SimulatorReader) -> FmRunwayWords {
+        FmRunwayWords {
+            latitude: reader.read_arinc429(&self.latitude),
+            longitude: reader.read_arinc429(&self.longitude),
+            elevation: reader.read_arinc429(&self.elevation),
+            true_heading: reader.read_arinc429(&self.true_heading),
+            length: reader.read_arinc429(&self.length),
+        }
+    }
+}
+
+/// A runway the FMGC sends to the EGPWC: the point where it starts in the direction of use (the threshold of the
+/// destination runway, the start of the origin runway) with its elevation, and its direction and length from there.
+/// For a destination without a runway in the flight plan the FMGC sends the airport reference point alone.
+struct FmRunwayWords {
     latitude: Arinc429Word<Angle>,
     longitude: Arinc429Word<Angle>,
-    landing_elevation: Arinc429Word<Length>,
-) -> Option<Runway> {
+    elevation: Arinc429Word<Length>,
+    true_heading: Arinc429Word<Angle>,
+    length: Arinc429Word<Length>,
+}
+
+impl Default for FmRunwayWords {
+    fn default() -> Self {
+        Self {
+            latitude: Arinc429Word::new(Angle::default(), SignStatus::NoComputedData),
+            longitude: Arinc429Word::new(Angle::default(), SignStatus::NoComputedData),
+            elevation: Arinc429Word::new(Length::default(), SignStatus::NoComputedData),
+            true_heading: Arinc429Word::new(Angle::default(), SignStatus::NoComputedData),
+            length: Arinc429Word::new(Length::default(), SignStatus::NoComputedData),
+        }
+    }
+}
+
+fn fm_runway(words: &FmRunwayWords, origin: RunwayOrigin) -> Option<Runway> {
     Some(Runway {
         reference_point: GridPosition::new(
-            latitude.normal_value()?.get::<degree>(),
-            longitude.normal_value()?.get::<degree>(),
+            words.latitude.normal_value()?.get::<degree>(),
+            words.longitude.normal_value()?.get::<degree>(),
         ),
-        elevation_ft: landing_elevation.normal_value()?.get::<foot>(),
-        origin: RunwayOrigin::Destination,
+        elevation_ft: words.elevation.normal_value()?.get::<foot>(),
+        origin,
+        geometry: words
+            .true_heading
+            .normal_value()
+            .zip(words.length.normal_value())
+            .map(|(true_heading, length)| RunwayGeometry {
+                true_heading_deg: true_heading.get::<degree>().rem_euclid(360.),
+                length_ft: length.get::<foot>(),
+            }),
     })
 }
 
@@ -351,7 +423,6 @@ pub fn unavailable_terrain_grid() -> Box<dyn TerrainGrid> {
 #[cfg(test)]
 mod predictive_tests {
     use super::*;
-    use systems::surveillance::egpws::predictive::RunwayOrigin;
 
     fn word<T: Copy>(value: T, status: SignStatus) -> Arinc429Word<T> {
         Arinc429Word::new(value, status)
@@ -434,21 +505,46 @@ mod predictive_tests {
         )));
     }
 
-    #[test]
-    fn the_destination_runway_needs_the_position_and_the_elevation() {
-        let latitude = word(Angle::new::<degree>(47.), SignStatus::NormalOperation);
-        let longitude = word(Angle::new::<degree>(8.5), SignStatus::NormalOperation);
-        let elevation = word(Length::new::<foot>(1_200.), SignStatus::NormalOperation);
+    fn runway_words() -> FmRunwayWords {
+        FmRunwayWords {
+            latitude: word(Angle::new::<degree>(47.), SignStatus::NormalOperation),
+            longitude: word(Angle::new::<degree>(8.5), SignStatus::NormalOperation),
+            elevation: word(Length::new::<foot>(1_200.), SignStatus::NormalOperation),
+            true_heading: word(Angle::new::<degree>(-20.), SignStatus::NormalOperation),
+            length: word(Length::new::<foot>(9_000.), SignStatus::NormalOperation),
+        }
+    }
 
-        let runway = destination_runway(latitude, longitude, elevation).unwrap();
+    #[test]
+    fn an_fm_runway_has_its_point_elevation_direction_and_length() {
+        let runway = fm_runway(&runway_words(), RunwayOrigin::Departure).unwrap();
         assert_eq!(runway.reference_point, GridPosition::new(47., 8.5));
         assert!((runway.elevation_ft - 1_200.).abs() < 1e-6);
-        assert_eq!(runway.origin, RunwayOrigin::Destination);
+        assert_eq!(runway.origin, RunwayOrigin::Departure);
+        let geometry = runway.geometry.unwrap();
+        assert!((geometry.true_heading_deg - 340.).abs() < 1e-6);
+        assert!((geometry.length_ft - 9_000.).abs() < 1e-6);
+    }
 
-        let missing = word(Length::default(), SignStatus::NoComputedData);
-        assert!(destination_runway(latitude, longitude, missing).is_none());
-        let no_longitude = word(Angle::default(), SignStatus::NoComputedData);
-        assert!(destination_runway(latitude, no_longitude, elevation).is_none());
+    #[test]
+    fn an_fm_runway_needs_the_position_and_the_elevation() {
+        let mut words = runway_words();
+        words.elevation = word(Length::default(), SignStatus::NoComputedData);
+        assert!(fm_runway(&words, RunwayOrigin::Destination).is_none());
+
+        let mut words = runway_words();
+        words.longitude = word(Angle::default(), SignStatus::NoComputedData);
+        assert!(fm_runway(&words, RunwayOrigin::Destination).is_none());
+    }
+
+    #[test]
+    fn a_destination_without_runway_is_its_airport_reference_point_alone() {
+        let mut words = runway_words();
+        words.true_heading = word(Angle::default(), SignStatus::NoComputedData);
+        words.length = word(Length::default(), SignStatus::NoComputedData);
+        let runway = fm_runway(&words, RunwayOrigin::Destination).unwrap();
+        assert_eq!(runway.reference_point, GridPosition::new(47., 8.5));
+        assert!(runway.geometry.is_none());
     }
 
     struct FixedRadioAltimeter(Arinc429Word<Length>);

@@ -62,6 +62,30 @@ impl TerrainPhase {
         Self::APPROACH_CEILING_FT + slope * (distance_nm - Self::APPROACH_RADIUS_NM)
     }
 
+    /// The required clearance, reduced close to the departure runway. Design choice: at lift-off the aircraft is still
+    /// level with the runway and its climb is not yet in the vertical speed, so the low ground beyond the airfield
+    /// would conflict with that level path. Like the terrain floor of the Honeywell patent, which grows with the
+    /// distance from the nearest runway, the clearance grows by 100 ft per nautical mile from the runway up to the
+    /// TSO value.
+    pub(super) fn required_clearance_near(
+        &self,
+        runway: Option<&RunwayContext>,
+    ) -> RequiredClearance {
+        const DEPARTURE_CLEARANCE_PER_NM_FT: f64 = 100.;
+        let clearance = self.required_clearance();
+        match (self, runway) {
+            (Self::Departure, Some(runway)) => {
+                let limit_ft =
+                    DEPARTURE_CLEARANCE_PER_NM_FT * runway.distance_past_departure_runway_nm();
+                RequiredClearance {
+                    level_ft: clearance.level_ft.min(limit_ft),
+                    descending_ft: clearance.descending_ft.min(limit_ft),
+                }
+            }
+            _ => clearance,
+        }
+    }
+
     pub(super) fn required_clearance(&self) -> RequiredClearance {
         let (level_ft, descending_ft) = match self {
             Self::EnRoute => (700., 500.),
@@ -87,7 +111,10 @@ impl TerrainPhase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::surveillance::egpws::{predictive::runway::Runway, terrain_grid::GridPosition};
+    use crate::surveillance::egpws::{
+        predictive::runway::{Runway, RunwayGeometry},
+        terrain_grid::GridPosition,
+    };
     use rstest::rstest;
 
     fn context(origin: RunwayOrigin, distance_nm: f64, height_ft: f64) -> RunwayContext {
@@ -96,6 +123,7 @@ mod tests {
                 reference_point: GridPosition::new(0., 0.),
                 elevation_ft: 0.,
                 origin,
+                geometry: None,
             },
             distance_nm,
             height_above_runway_ft: height_ft,
@@ -145,6 +173,50 @@ mod tests {
         let clearance = phase.required_clearance();
         assert_eq!(clearance.level_ft, level_ft);
         assert_eq!(clearance.descending_ft, descending_ft);
+    }
+
+    #[rstest]
+    #[case(0., 0.)]
+    #[case(0.5, 50.)]
+    #[case(1., 100.)]
+    #[case(5., 100.)]
+    fn the_departure_clearance_grows_from_the_runway(
+        #[case] distance_nm: f64,
+        #[case] expected_ft: f64,
+    ) {
+        let mut runway = context(RunwayOrigin::Departure, distance_nm, 500.);
+        runway.runway.geometry = Some(RunwayGeometry {
+            true_heading_deg: 0.,
+            length_ft: 10_000.,
+        });
+        let clearance = TerrainPhase::Departure.required_clearance_near(Some(&runway));
+        assert_eq!(clearance.level_ft, expected_ft);
+        assert_eq!(clearance.descending_ft, expected_ft);
+    }
+
+    #[test]
+    fn the_departure_clearance_grows_from_the_edge_of_the_roll_start_area() {
+        let at_area_edge = context(RunwayOrigin::Departure, 2.5, 500.);
+        let required = |runway| {
+            TerrainPhase::Departure
+                .required_clearance_near(Some(runway))
+                .level_ft
+        };
+        assert_eq!(required(&at_area_edge), 0.);
+        assert_eq!(required(&context(RunwayOrigin::Departure, 3., 500.)), 50.);
+    }
+
+    #[test]
+    fn the_clearance_of_the_other_phases_is_not_reduced_near_a_runway() {
+        let runway = context(RunwayOrigin::Destination, 0.5, 300.);
+        assert_eq!(
+            TerrainPhase::Approach.required_clearance_near(Some(&runway)),
+            TerrainPhase::Approach.required_clearance()
+        );
+        assert_eq!(
+            TerrainPhase::Departure.required_clearance_near(None),
+            TerrainPhase::Departure.required_clearance()
+        );
     }
 
     #[test]
