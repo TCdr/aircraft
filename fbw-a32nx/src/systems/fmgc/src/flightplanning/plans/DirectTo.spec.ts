@@ -9,6 +9,7 @@ import { WaypointFactory } from '@fmgc/flightplanning/waypoints/WaypointFactory'
 import { FlightPlanLeg, FlightPlanLegFlags, isDiscontinuity } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { abeamPointOnLeg, abeamWaypointIdent } from './DirectTo';
 import { GeometryFactory } from '@fmgc/guidance/geometry/GeometryFactory';
+import { setupTestDatabase } from '../test/Database';
 
 /** A flight plan along the equator from the aircraft at 0/0: waypoints left and right of the direct leg to TGT */
 function testPlan() {
@@ -155,5 +156,48 @@ describe('DIR TO options (A380 FCOM DSC-22-FMS, DIR TO revision)', () => {
       'TGT/TF',
       'AFTER/TF',
     ]);
+  });
+
+  describe('with an origin runway and no SID', () => {
+    beforeAll(() => {
+      setupTestDatabase();
+    });
+
+    async function runwayPlan() {
+      const fp = emptyFlightPlan();
+      await fp.setOriginAirport('CYYZ');
+      await fp.setOriginRunway('CYYZ06R');
+      await fp.setDestinationAirport('CYVR');
+      return fp;
+    }
+
+    it('DIRECT to a waypoint out of the flight plan, with a discontinuity before the next leg', async () => {
+      const fp = await runwayPlan();
+      expect(legs(fp)).toEqual(['CYYZ06R/IF', '1500/FA', 'DISCO', 'CYVR/IF']);
+
+      const offPlan = WaypointFactory.fromLocation('OFFPL', { lat: 47.278, long: -97.342 });
+      expect(() => fp.directToWaypoint(ppos, 90, offPlan)).not.toThrow();
+
+      expect(legs(fp)).toEqual(['T-P/CF', 'OFFPL/DF', 'DISCO', 'CYVR/IF']);
+      expect(fp.activeLegIndex).toBe(1);
+    });
+  });
+
+  it('removes the legs between a discontinuity and the next fix leg', async () => {
+    const { fp } = testPlan();
+    const headingLeg = FlightPlanLeg.fromEnrouteFix(
+      fp.enrouteSegment,
+      WaypointFactory.fromLocation('HDG', { lat: 0, long: 0.5 }),
+      '',
+      LegType.VM,
+    );
+    fp.enrouteSegment.allLegs.splice(1, 0, { isDiscontinuity: true }, headingLeg);
+    (fp as any).syncSegmentLegsChange(fp.enrouteSegment);
+    fp.incrementVersion();
+    expect(legs(fp)).toEqual(['ALPHA/IF', 'DISCO', 'HDG/VM', 'BRAVOX/TF', 'CHARL/TF', 'TGT/TF', 'AFTER/TF']);
+
+    (fp as any).cleanUpAfterDiscontinuity(1);
+
+    expect(legs(fp)).toEqual(['ALPHA/IF', 'DISCO', 'BRAVOX/IF', 'CHARL/TF', 'TGT/TF', 'AFTER/TF']);
   });
 });
