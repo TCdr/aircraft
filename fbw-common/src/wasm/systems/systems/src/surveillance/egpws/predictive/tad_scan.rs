@@ -10,7 +10,7 @@
 //!   terrain any more and the crew has to turn: AVOID TERRAIN.
 
 use super::{
-    geometry::{distance_nm, offset_position},
+    geometry::offset_position,
     manoeuvre::ManoeuvreProfile,
     phase::TerrainPhase,
     runway::{RunwayContext, RunwayOrigin},
@@ -61,7 +61,7 @@ const RIBBON_WIDENING_DEG: f64 = 3.;
 /// The ribbon opens up to 90 degrees in a turn (A320 FCOM).
 const TURN_OPENING_LIMIT_DEG: f64 = 90.;
 
-/// Terrain this close to a runway reference point and not higher than runway elevation plus the height below is the
+/// Terrain this close to a runway and not higher than runway elevation plus the height below is the
 /// terrain of the airport itself. Design choice (patent cut-off height of 400 to 500 ft near the runway): the cells
 /// around the runway hold the highest point of the airfield surroundings, which would alert on every landing.
 const RUNWAY_CUTOFF_RADIUS_NM: f64 = 1.5;
@@ -125,7 +125,7 @@ pub(super) fn scan(input: &TadScanInput, terrain: &dyn TerrainElevationSource) -
         return TadScan::default();
     }
 
-    let clearance = input.phase.required_clearance();
+    let clearance = input.phase.required_clearance_near(input.runway);
     let pilot_delay_s = input.phase.pilot_delay_s();
     let mut state = ScanState {
         input,
@@ -258,15 +258,17 @@ impl ScanState<'_> {
 
     fn is_airport_surroundings(&self, position: GridPosition, elevation_ft: f64) -> bool {
         self.input.runway.is_some_and(|runway| {
-            // The departure runway is where the roll started, so the aircraft lifts off up to a runway length from
-            // it and the airfield around the runway starts further out.
-            let cutoff_radius_nm = if runway.runway.origin == RunwayOrigin::Departure {
+            // A departure runway known only by the point where the roll started: the aircraft lifts off up to a
+            // runway length from it and the airfield around the runway starts further out.
+            let cutoff_radius_nm = if runway.runway.origin == RunwayOrigin::Departure
+                && runway.runway.geometry.is_none()
+            {
                 RUNWAY_CUTOFF_RADIUS_NM + RunwayContext::DEPARTURE_RUNWAY_AREA_NM
             } else {
                 RUNWAY_CUTOFF_RADIUS_NM
             };
             elevation_ft <= runway.runway.elevation_ft + RUNWAY_CUTOFF_HEIGHT_FT
-                && distance_nm(position, runway.runway.reference_point) <= cutoff_radius_nm
+                && runway.runway.distance_nm_from(position) <= cutoff_radius_nm
         })
     }
 
@@ -752,6 +754,7 @@ mod tests {
                 reference_point: GridPosition::new(START.latitude_degrees + 1. / 60., 8.),
                 elevation_ft: 0.,
                 origin: RunwayOrigin::Destination,
+                geometry: None,
             },
             distance_nm: 1.,
             height_above_runway_ft: 400.,
@@ -782,6 +785,7 @@ mod tests {
                 reference_point: GridPosition::new(START.latitude_degrees + 1. / 60., 8.),
                 elevation_ft: 0.,
                 origin: RunwayOrigin::Destination,
+                geometry: None,
             },
             distance_nm: 1.,
             height_above_runway_ft: 1_000.,

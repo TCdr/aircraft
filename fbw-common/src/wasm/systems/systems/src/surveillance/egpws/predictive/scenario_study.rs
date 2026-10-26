@@ -6,7 +6,7 @@
 
 use super::{
     geometry::{bearing_deg, distance_nm, offset_position},
-    runway::{Runway, RunwayOrigin, StaticRunways},
+    runway::{Runway, RunwayGeometry, RunwayOrigin, StaticRunways},
     AircraftState, PredictiveInputs, PredictiveTerrainAlerting, PredictiveVoice,
 };
 use crate::surveillance::egpws::terrain_grid::{
@@ -40,6 +40,10 @@ struct Flight {
     runways: Vec<Runway>,
     /// Gear and landing flaps from the distance to the first runway and the elapsed time
     landing_configuration: Box<dyn Fn(f64, f64) -> bool>,
+    /// The takeoff roll ends here
+    on_ground_until_s: f64,
+    /// Radio altitude from the altitude, where the grid cells do not match the ground under the aircraft
+    radio_altitude_ft: Option<Box<dyn Fn(f64) -> f64>>,
 }
 
 impl Flight {
@@ -55,6 +59,8 @@ impl Flight {
             duration_s: 1_800.,
             runways: Vec::new(),
             landing_configuration: Box::new(|_, _| false),
+            on_ground_until_s: 0.,
+            radio_altitude_ft: None,
         }
     }
 
@@ -228,9 +234,12 @@ fn run_flight(flight: &Flight, terrain: &mut TerrainGridCache<InMemoryBlockReade
                 true_track_deg: track_deg,
                 vertical_speed_fpm,
             }),
-            radio_altitude_ft: Some((altitude_ft - terrain_ft).max(0.)),
+            radio_altitude_ft: Some(match &flight.radio_altitude_ft {
+                Some(radio_altitude) => radio_altitude(altitude_ft),
+                None => (altitude_ft - terrain_ft).max(0.),
+            }),
             position_accuracy_sufficient: true,
-            on_ground: false,
+            on_ground: time_s < flight.on_ground_until_s,
             gear_downlocked: configured,
             landing_flaps: configured,
             terrain_off: false,
@@ -368,7 +377,18 @@ fn runway(latitude: f64, longitude: f64, elevation_ft: f64, origin: RunwayOrigin
         reference_point: GridPosition::new(latitude, longitude),
         elevation_ft,
         origin,
+        geometry: None,
     }
+}
+
+/// The same flight with its first runway known from the flight plan: direction and length, not only its first point.
+fn with_known_runway(mut flight: Flight, true_heading_deg: f64, length_m: f64) -> Flight {
+    flight.name += " (known rwy)";
+    flight.runways[0].geometry = Some(RunwayGeometry {
+        true_heading_deg,
+        length_ft: length_m / 0.3048,
+    });
+    flight
 }
 
 const RJAA: (f64, f64) = (35.765, 140.386);
@@ -552,6 +572,49 @@ fn departure(name: &str, start: (f64, f64), elevation_ft: f64, track_deg: f64) -
     flight
 }
 
+/// A takeoff from the start of the runway: 40 s of roll to 160 kt, lift-off, the climb building up to 2500 fpm over
+/// 6 s.
+fn takeoff_roll(
+    name: &str,
+    start: (f64, f64),
+    elevation_ft: f64,
+    aircraft_height_ft: f64,
+    true_heading_deg: f64,
+    known_length_m: Option<f64>,
+) -> Flight {
+    const ROLL_S: f64 = 40.;
+    const ROTATION_S: f64 = 6.;
+    let mut flight = Flight::new(
+        name,
+        point(start),
+        elevation_ft + aircraft_height_ft,
+        Guidance::Track {
+            initial_deg: true_heading_deg,
+            turns: Vec::new(),
+        },
+    )
+    .duration(150.);
+    flight.ground_speed_kt = Box::new(|_, time_s| 160. * (time_s / ROLL_S).min(1.));
+    flight.vertical_speed_fpm =
+        Box::new(|time_s| 2_500. * ((time_s - ROLL_S) / ROTATION_S).clamp(0., 1.));
+    flight.on_ground_until_s = ROLL_S;
+    // The radio altimeter measures the runway, not the grid cell
+    let runway_altitude_ft = elevation_ft + aircraft_height_ft;
+    flight.radio_altitude_ft = Some(Box::new(move |altitude_ft| {
+        (altitude_ft - runway_altitude_ft).max(0.)
+    }));
+    flight.runways = vec![runway(
+        start.0,
+        start.1,
+        elevation_ft,
+        RunwayOrigin::Departure,
+    )];
+    match known_length_m {
+        Some(length_m) => with_known_runway(flight, true_heading_deg, length_m),
+        None => flight,
+    }
+}
+
 #[test]
 #[ignore]
 fn scenario_study_real_grid() {
@@ -618,6 +681,59 @@ fn scenario_study_real_grid() {
     flights.push(departure("E LFMN rwy 04", (43.6485, 7.1975), 12., 40.));
     flights.push(departure("E VNKT rwy 02", (27.6945, 85.355), 4_390., 20.));
     flights.push(departure("E RJAA rwy 34L", (35.747, 140.387), 135., 343.));
+
+    for (name, threshold, elevation_ft, true_heading_deg, length_m) in [
+        ("RJAA 34L", (35.747, 140.387), 135., 343., 4_000.),
+        ("RJOA 28", (34.4385, 132.9355), 1_088., 280., 3_000.),
+        ("LOWI 26", (47.2618, 11.3573), 1_906., 260., 2_000.),
+    ] {
+        for offset_ft in [0., -1_000.] {
+            flights.push(with_known_runway(
+                approach(
+                    &format!("D {name} offset {offset_ft:.0} ft"),
+                    threshold,
+                    elevation_ft,
+                    true_heading_deg,
+                    offset_ft,
+                    20.,
+                ),
+                true_heading_deg,
+                length_m,
+            ));
+        }
+    }
+    for (name, start, elevation_ft, true_heading_deg, length_m) in [
+        ("LOWI rwy 26", (47.2618, 11.3573), 1_906., 260., 2_000.),
+        ("LOWI rwy 08", (47.2575, 11.3322), 1_906., 80., 2_000.),
+        ("LFMN rwy 04", (43.6485, 7.1975), 12., 40., 2_960.),
+        ("VNKT rwy 02", (27.6945, 85.355), 4_390., 20., 3_350.),
+        ("RJAA rwy 34L", (35.747, 140.387), 135., 343., 4_000.),
+    ] {
+        flights.push(with_known_runway(
+            departure(&format!("E {name}"), start, elevation_ft, true_heading_deg),
+            true_heading_deg,
+            length_m,
+        ));
+    }
+
+    // RJAA 34L as the FMGC sent it in the sim: start of the runway, elevation, true direction
+    // Take-offs recorded in the sim: the runway as the FMGC sent it (start, elevation, true direction, length) and the
+    // geometric altitude on the ground. Haneda 22 lifts off over the bay.
+    for (name, start, elevation_ft, aircraft_height_ft, true_heading_deg, length_m) in [
+        ("RJAA 34L", (35.7433, 140.3909), 127., 15., 329.5, 4_006.),
+        ("RJTT 22", (35.56755, 139.77699), -10., 36., 214.9, 2_489.),
+    ] {
+        for known_length_m in [None, Some(length_m)] {
+            flights.push(takeoff_roll(
+                &format!("F {name} roll"),
+                start,
+                elevation_ft,
+                aircraft_height_ft,
+                true_heading_deg,
+                known_length_m,
+            ));
+        }
+    }
 
     let filter = std::env::var("TAWS_STUDY_FILTER").unwrap_or_default();
     for flight in flights.iter().filter(|f| f.name.contains(&filter)) {
