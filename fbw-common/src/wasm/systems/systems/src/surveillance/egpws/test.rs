@@ -22,6 +22,7 @@ use crate::{
     },
 };
 
+use super::predictive::PredictiveVoice;
 use super::*;
 
 struct TestRa {
@@ -316,6 +317,12 @@ impl TestIls {
         }
     }
 
+    /// A glideslope word that carries a deviation but is flagged no computed data
+    fn set_gs_deviation_without_data(&mut self, deviation: Ratio) {
+        self.has_glideslope = false;
+        self.glideslope_deviation = deviation;
+    }
+
     fn set_loc_deviation(&mut self, deviation: Option<Ratio>) {
         if let Some(dev) = deviation {
             self.has_localizer = true;
@@ -564,6 +571,11 @@ impl EgpwcTestBed {
         self
     }
 
+    fn gs_deviation_without_data_of(mut self, deviation: Ratio) -> Self {
+        self.command(|a| a.ils.set_gs_deviation_without_data(deviation));
+        self
+    }
+
     fn gs_deviation_of(mut self, deviation: Option<Ratio>) -> Self {
         self.command(|a| a.ils.set_gs_deviation(deviation));
         self
@@ -605,6 +617,11 @@ impl EgpwcTestBed {
             a.egpws_electrical_harness
                 .set_landing_flaps_extended(extended)
         });
+        self
+    }
+
+    fn predictive_functions(mut self, status: PredictiveFunctionsStatus) -> Self {
+        self.command(|a| a.egpwc.set_predictive_functions_status(status));
         self
     }
 
@@ -669,6 +686,104 @@ impl TestBed for EgpwcTestBed {
     fn test_bed_mut(&mut self) -> &mut SimulationTestBed<TestAircraft> {
         &mut self.test_bed
     }
+}
+
+/// What the pilots see and hear at one step of an approach to the terrain.
+struct Observation {
+    radio_height_ft: f64,
+    aural: u8,
+    warning_lamp: bool,
+    alert_lamp: bool,
+}
+
+/// Raises the terrain below an aircraft that stays at a constant altitude, so the radio height decreases at a
+/// constant closure rate, in steps of 100 ms. The test bed starts the approach settled at the start radio height.
+fn close_in_on_terrain(
+    test_bed: &mut EgpwcTestBed,
+    altitude_ft: f64,
+    start_radio_height_ft: f64,
+    closure_rate_fpm: f64,
+    end_radio_height_ft: f64,
+) -> Vec<Observation> {
+    const STEP: Duration = Duration::from_millis(100);
+
+    let set_radio_height = |test_bed: &mut EgpwcTestBed, radio_height_ft: f64| {
+        test_bed.write_by_name(
+            TestRa::TERRAIN_HEIGHT_KEY,
+            Length::new::<foot>(altitude_ft - radio_height_ft),
+        );
+    };
+
+    // The radio height the unit uses follows a jump of the terrain at a limited rate, give it the time to settle
+    set_radio_height(test_bed, start_radio_height_ft);
+    for _ in 0..60 {
+        test_bed.run_with_delta(Duration::from_millis(1_000));
+    }
+
+    let feet_per_step = closure_rate_fpm / 60. * STEP.as_secs_f64();
+    let mut radio_height_ft = start_radio_height_ft;
+    let mut observations = Vec::new();
+    while radio_height_ft > end_radio_height_ft {
+        radio_height_ft -= feet_per_step;
+        set_radio_height(test_bed, radio_height_ft);
+        test_bed.run_with_delta(STEP);
+        observations.push(Observation {
+            radio_height_ft,
+            aural: test_bed.get_aural_warning(),
+            warning_lamp: test_bed.is_warning_light_on(),
+            alert_lamp: test_bed.is_alert_light_on(),
+        });
+    }
+
+    observations
+}
+
+fn first_radio_height_with_aural(observations: &[Observation], aural: AuralWarning) -> Option<f64> {
+    observations
+        .iter()
+        .find(|observation| observation.aural == aural as u8)
+        .map(|observation| observation.radio_height_ft)
+}
+
+/// The aural alerts in the order they were heard, each one once.
+fn aural_sequence(observations: &[Observation]) -> Vec<u8> {
+    let mut sequence: Vec<u8> = Vec::new();
+    for observation in observations {
+        if sequence.last() != Some(&observation.aural) {
+            sequence.push(observation.aural);
+        }
+    }
+    sequence
+}
+
+/// An airborne test bed in mode 2A (landing flaps not selected), long enough after takeoff for mode 2B to be off.
+fn mode_2a_test_bed(altitude_ft: f64, airspeed_kt: f64) -> EgpwcTestBed {
+    let mut test_bed = test_bed_with()
+        .altitude_of(Length::new::<foot>(altitude_ft))
+        .terrain_height_of(Length::new::<foot>(0.0))
+        .vertical_speed_of(Velocity::new::<foot_per_minute>(0.0))
+        .cas_of(Velocity::new::<knot>(airspeed_kt))
+        .and()
+        .powered();
+    test_bed.run_with_delta(Duration::from_millis(1_000));
+    test_bed.run_with_delta(Duration::from_millis(70_000));
+    test_bed
+}
+
+/// An airborne test bed with the gear down and landing flaps: mode 2B with TERRAIN as the only alert.
+fn mode_2b_landing_configuration_test_bed(altitude_ft: f64) -> EgpwcTestBed {
+    let mut test_bed = test_bed_with()
+        .altitude_of(Length::new::<foot>(altitude_ft))
+        .terrain_height_of(Length::new::<foot>(0.0))
+        .vertical_speed_of(Velocity::new::<foot_per_minute>(0.0))
+        .cas_of(Velocity::new::<knot>(150.))
+        .flaps_extended(true)
+        .gear_extended(true)
+        .and()
+        .powered();
+    test_bed.run_with_delta(Duration::from_millis(1_000));
+    test_bed.run_with_delta(Duration::from_millis(70_000));
+    test_bed
 }
 
 fn test_bed() -> EgpwcTestBed {
@@ -824,7 +939,8 @@ fn mode_1_test() {
     test_bed.run_with_delta(Duration::from_millis(1_000));
     assert!(test_bed.get_audio_on());
     assert_eq!(test_bed.get_aural_warning(), AuralWarning::SinkRate as u8); // Emission pattern depends on audio declutter active
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
+    assert!(!test_bed.is_warning_light_on());
 
     // Inside Warning area
     test_bed = test_bed.vertical_speed_of(Velocity::new::<foot_per_minute>(-5000.0));
@@ -858,27 +974,20 @@ fn mode_1_test() {
     test_bed.assert_no_warning_active();
 }
 
-/// The alternate (Airbus) lamp format, as the A320 PULL UP - GPWS pb: PULL UP for the mode 1
-/// second boundary, amber GPWS for the first one (SINK RATE).
+/// The PULL UP lamp lights for the second boundary of mode 1 only, the amber GPWS lamp for the first one (SINK RATE).
 #[test]
-fn mode_1_alternate_lamp_format_test() {
-    let mut test_bed = EgpwcTestBed::new_with_pin_programming(
-        EnhancedGroundProximityWarningComputerPinProgramming {
-            alternate_lamp_format: true,
-            ..Default::default()
-        },
-    )
-    .altitude_of(Length::new::<foot>(1500.0))
-    .terrain_height_of(Length::new::<foot>(0.0))
-    .vertical_speed_of(Velocity::new::<foot_per_minute>(0.0))
-    .cas_of(Velocity::new::<knot>(250.))
-    .and()
-    .powered();
+fn mode_1_lamps_are_pull_up_for_second_boundary_and_amber_for_first() {
+    let mut test_bed = test_bed_with()
+        .altitude_of(Length::new::<foot>(1500.0))
+        .terrain_height_of(Length::new::<foot>(0.0))
+        .vertical_speed_of(Velocity::new::<foot_per_minute>(0.0))
+        .cas_of(Velocity::new::<knot>(250.))
+        .and()
+        .powered();
 
     test_bed.run_with_delta(Duration::from_millis(1));
     test_bed.assert_no_warning_active();
 
-    // SINK RATE: amber GPWS lamp, no PULL UP
     test_bed = test_bed.vertical_speed_of(Velocity::new::<foot_per_minute>(-4000.0));
     test_bed.run_with_delta(Duration::from_millis(1));
     test_bed.run_with_delta(Duration::from_millis(1_000));
@@ -886,11 +995,78 @@ fn mode_1_alternate_lamp_format_test() {
     assert!(!test_bed.is_warning_light_on());
     assert!(test_bed.is_alert_light_on());
 
-    // PULL UP: red PULL UP lamp
     test_bed = test_bed.vertical_speed_of(Velocity::new::<foot_per_minute>(-5000.0));
     test_bed.run_with_delta(Duration::from_millis(1_700));
     assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
     assert!(test_bed.is_warning_light_on());
+}
+
+#[test]
+fn mode_1_sink_rate_boundary_ends_at_2450_ft_radio_height() {
+    let mut test_bed = test_bed_with()
+        .altitude_of(Length::new::<foot>(2460.0))
+        .terrain_height_of(Length::new::<foot>(0.0))
+        .vertical_speed_of(Velocity::new::<foot_per_minute>(-5100.0))
+        .cas_of(Velocity::new::<knot>(250.))
+        .and()
+        .powered();
+    test_bed.run_with_delta(Duration::from_millis(1_000));
+    test_bed.assert_no_warning_active();
+
+    test_bed = test_bed.altitude_of(Length::new::<foot>(2400.0));
+    test_bed.run_with_delta(Duration::from_millis(1_000));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::SinkRate as u8);
+}
+
+#[test]
+fn mode_1_ignores_300_fpm_of_descent_above_the_beam_only_with_the_audio_declutter() {
+    // 2900 fpm alerts at 1100 ft, 2600 fpm (the descent rate with the bias) does not
+    let above_beam = Some(Ratio::new::<ratio>(0.175));
+    let descent = Velocity::new::<foot_per_minute>(-2900.0);
+
+    let mut with_declutter = test_bed_with()
+        .altitude_of(Length::new::<foot>(1100.0))
+        .terrain_height_of(Length::new::<foot>(0.0))
+        .vertical_speed_of(descent)
+        .cas_of(Velocity::new::<knot>(250.))
+        .gs_deviation_of(above_beam)
+        .and()
+        .powered();
+    with_declutter.run_with_delta(Duration::from_millis(2_000));
+    assert_eq!(with_declutter.get_aural_warning(), AuralWarning::None as u8);
+
+    let mut without_declutter = EgpwcTestBed::new_with_pin_programming(
+        EnhancedGroundProximityWarningComputerPinProgramming {
+            audio_declutter_disable: true,
+        },
+    )
+    .altitude_of(Length::new::<foot>(1100.0))
+    .terrain_height_of(Length::new::<foot>(0.0))
+    .vertical_speed_of(descent)
+    .cas_of(Velocity::new::<knot>(250.))
+    .gs_deviation_of(above_beam)
+    .and()
+    .powered();
+    without_declutter.run_with_delta(Duration::from_millis(2_000));
+    assert_eq!(
+        without_declutter.get_aural_warning(),
+        AuralWarning::SinkRate as u8
+    );
+}
+
+#[test]
+fn mode_1_does_not_ignore_descent_for_a_glideslope_deviation_that_is_not_valid() {
+    // The word is flagged no computed data but still carries 2 dots above the beam: the bias must not use it
+    let mut test_bed = test_bed_with()
+        .altitude_of(Length::new::<foot>(1100.0))
+        .terrain_height_of(Length::new::<foot>(0.0))
+        .vertical_speed_of(Velocity::new::<foot_per_minute>(-2900.0))
+        .cas_of(Velocity::new::<knot>(250.))
+        .gs_deviation_without_data_of(Ratio::new::<ratio>(0.175))
+        .and()
+        .powered();
+    test_bed.run_with_delta(Duration::from_millis(2_000));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::SinkRate as u8);
 }
 
 #[test]
@@ -914,7 +1090,7 @@ fn mode_2_a_test() {
     test_bed.run_with_delta(Duration::from_millis(3_000));
     assert!(test_bed.get_audio_on());
     assert_eq!(test_bed.get_aural_warning(), AuralWarning::Terrain as u8); // Emission pattern depends on audio declutter active
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     // Warning immediately ceases with GPWS SYS OFF pressed
     test_bed = test_bed.gpws_sys_button_pressed(true);
@@ -926,7 +1102,7 @@ fn mode_2_a_test() {
     test_bed.run_with_delta(Duration::from_millis(1));
     assert!(test_bed.get_audio_on());
     assert_eq!(test_bed.get_aural_warning(), AuralWarning::Terrain as u8);
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     test_bed = test_bed.cas_of(Velocity::new::<knot>(230.0));
     test_bed = test_bed.terrain_height_of(Length::new::<foot>(1125.0));
@@ -938,7 +1114,7 @@ fn mode_2_a_test() {
     test_bed.run_with_delta(Duration::from_millis(3_000));
     assert!(test_bed.get_audio_on());
     assert_eq!(test_bed.get_aural_warning(), AuralWarning::Terrain as u8);
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     // After two emissions of TERRAIN (ca. 2s), it will switch to PULL UP. Now closure rate is 2400 ft/min, at 800 ft RA
     test_bed = test_bed.terrain_height_of(Length::new::<foot>(1700.0));
@@ -1004,48 +1180,213 @@ fn mode_2_a_terrain_hold_after_pull_up_ends_after_45_s_without_altitude_gain() {
 }
 
 #[test]
-fn mode_2_b_test() {
-    let mut test_bed = test_bed_with()
-        .altitude_of(Length::new::<foot>(2500.0))
-        .terrain_height_of(Length::new::<foot>(0.0))
-        .vertical_speed_of(Velocity::new::<foot_per_minute>(0.0))
-        .cas_of(Velocity::new::<knot>(200.0))
-        .flaps_extended(true)
-        .gear_extended(true)
-        .and()
-        .powered();
+fn mode_2_b_ceiling_falls_with_the_closure_rate() {
+    let mut test_bed = mode_2b_landing_configuration_test_bed(3_000.);
 
-    test_bed.run_with_delta(Duration::from_millis(1_000));
-    test_bed.assert_no_warning_active();
+    let observations = close_in_on_terrain(&mut test_bed, 3_000., 2_000., 10_000., 60.);
 
-    // Terrain rises, in mode 2B (flaps extended), max. clearance for alert is 789ft
-    test_bed = test_bed.terrain_height_of(Length::new::<foot>(1000.0));
-    test_bed.run_with_delta(Duration::from_millis(3_000));
-    test_bed.assert_no_warning_active();
+    // At the highest closure rate the envelope reaches only about 235 ft, plus the outline of the caution.
+    let first_alert = first_radio_height_with_aural(&observations, AuralWarning::Terrain)
+        .expect("TERRAIN is said");
+    assert!((300.0..=345.0).contains(&first_alert), "{first_alert}");
 
-    test_bed = test_bed.terrain_height_of(Length::new::<foot>(2000.0));
-    test_bed.run_with_delta(Duration::from_millis(10_000));
-    assert!(test_bed.get_audio_on());
-    assert_eq!(test_bed.get_aural_warning(), AuralWarning::Terrain as u8);
-    assert!(test_bed.is_warning_light_on());
+    // Landing configuration: TERRAIN is the only alert, with the amber lamp
+    assert!(observations
+        .iter()
+        .filter(|o| o.aural != AuralWarning::None as u8)
+        .all(|o| o.aural == AuralWarning::Terrain as u8 && o.alert_lamp && !o.warning_lamp));
+}
 
-    // With high V/S, lower warning boundary is shifted up.
-    test_bed = test_bed.vertical_speed_of(Velocity::new::<foot_per_minute>(-800.));
-    test_bed = test_bed.terrain_height_of(Length::new::<foot>(2100.0));
-    test_bed.run_with_delta(Duration::from_millis(2_000));
-    test_bed.assert_no_warning_active();
+#[test]
+fn mode_2_b_ceiling_peaks_near_3000_fpm() {
+    let mut test_bed = mode_2b_landing_configuration_test_bed(3_000.);
 
-    test_bed = test_bed.vertical_speed_of(Velocity::new::<foot_per_minute>(0.));
-    test_bed = test_bed.terrain_height_of(Length::new::<foot>(2200.0));
-    test_bed.run_with_delta(Duration::from_millis(2_000));
-    assert!(test_bed.get_audio_on());
-    assert_eq!(test_bed.get_aural_warning(), AuralWarning::Terrain as u8);
-    assert!(test_bed.is_warning_light_on());
+    let observations = close_in_on_terrain(&mut test_bed, 3_000., 1_500., 3_000., 100.);
 
-    // Exiting warning area due to lowering terrain.
-    test_bed = test_bed.terrain_height_of(Length::new::<foot>(1000.0));
-    test_bed.run_with_delta(Duration::from_millis(4_000));
-    test_bed.assert_no_warning_active();
+    // About 875 ft for the warning envelope plus the outline of the caution (previously a flat 789 ft)
+    let first_alert = first_radio_height_with_aural(&observations, AuralWarning::Terrain)
+        .expect("TERRAIN is said");
+    assert!((930.0..=990.0).contains(&first_alert), "{first_alert}");
+}
+
+#[test]
+fn mode_2_b_does_not_depend_on_the_descent_rate() {
+    let mut test_bed = mode_2b_landing_configuration_test_bed(3_000.)
+        .vertical_speed_of(Velocity::new::<foot_per_minute>(-1000.));
+
+    let observations = close_in_on_terrain(&mut test_bed, 3_000., 1_500., 3_500., 130.);
+
+    // A descent rate does not raise the lower edge of the envelope (it used to, to 600 ft at 1000 fpm)
+    let at_300_ft = observations
+        .iter()
+        .find(|o| o.radio_height_ft < 300.)
+        .expect("reached 300 ft");
+    assert_eq!(at_300_ft.aural, AuralWarning::Terrain as u8);
+}
+
+#[test]
+fn mode_2_b_does_not_alert_below_its_floor() {
+    let mut test_bed = mode_2b_landing_configuration_test_bed(3_000.);
+
+    let observations = close_in_on_terrain(&mut test_bed, 3_000., 600., 4_000., 20.);
+
+    let below_floor = observations
+        .iter()
+        .find(|o| o.radio_height_ft < 110.)
+        .expect("reached 110 ft");
+    assert_eq!(below_floor.aural, AuralWarning::None as u8);
+}
+
+#[test]
+fn mode_2_a_caution_ceiling_grows_with_the_airspeed_but_not_the_warning_one() {
+    for (airspeed_kt, expected_caution_ceiling_ft) in [(220., 1_650.), (310., 2_040.)] {
+        let mut test_bed = mode_2a_test_bed(6_000., airspeed_kt);
+
+        let observations = close_in_on_terrain(&mut test_bed, 6_000., 4_500., 10_000., 700.);
+
+        let first_terrain = first_radio_height_with_aural(&observations, AuralWarning::Terrain)
+            .expect("TERRAIN is said");
+        assert!(
+            (expected_caution_ceiling_ft - 40.0..=expected_caution_ceiling_ft + 10.0)
+                .contains(&first_terrain),
+            "{airspeed_kt} kt: {first_terrain}"
+        );
+
+        // PULL UP comes from the inner envelope, 1650 ft at every airspeed, after TERRAIN, TERRAIN
+        let first_pull_up = first_radio_height_with_aural(&observations, AuralWarning::PullUp)
+            .expect("PULL UP is said");
+        assert!(first_pull_up < 1_650., "{airspeed_kt} kt: {first_pull_up}");
+    }
+}
+
+#[test]
+fn mode_2_a_says_terrain_terrain_with_the_amber_lamp_before_pull_up_with_the_red_lamp() {
+    let mut test_bed = mode_2a_test_bed(6_000., 310.);
+
+    let observations = close_in_on_terrain(&mut test_bed, 6_000., 4_500., 10_000., 700.);
+
+    assert_eq!(
+        aural_sequence(&observations),
+        vec![
+            AuralWarning::None as u8,
+            AuralWarning::Terrain as u8,
+            // between the two envelopes of mode 2A at 310 kt, TERRAIN, TERRAIN is not repeated
+            AuralWarning::None as u8,
+            AuralWarning::PullUp as u8
+        ]
+    );
+    for observation in &observations {
+        if observation.aural == AuralWarning::Terrain as u8 {
+            assert!(observation.alert_lamp && !observation.warning_lamp);
+        } else if observation.aural == AuralWarning::PullUp as u8 {
+            assert!(observation.warning_lamp);
+        }
+    }
+}
+
+fn operative_predictive_functions(
+    computed_height_above_terrain_ft: Option<f64>,
+) -> PredictiveFunctionsStatus {
+    PredictiveFunctionsStatus {
+        operative: true,
+        computed_height_above_terrain_ft,
+    }
+}
+
+#[test]
+fn mode_2_is_inhibited_while_the_predictive_functions_are_operative() {
+    let mut without_predictive_functions = mode_2a_test_bed(6_000., 310.);
+    let observations = close_in_on_terrain(
+        &mut without_predictive_functions,
+        6_000.,
+        4_500.,
+        10_000.,
+        1_100.,
+    );
+    assert!(observations
+        .iter()
+        .any(|o| o.aural == AuralWarning::PullUp as u8));
+
+    let mut inhibited =
+        mode_2a_test_bed(6_000., 310.).predictive_functions(operative_predictive_functions(None));
+    let observations = close_in_on_terrain(&mut inhibited, 6_000., 4_500., 10_000., 1_100.);
+    assert!(observations
+        .iter()
+        .all(|o| o.aural == AuralWarning::None as u8 && !o.warning_lamp && !o.alert_lamp));
+}
+
+#[test]
+fn mode_2_is_reactivated_when_the_predictive_functions_fail() {
+    let mut test_bed =
+        mode_2a_test_bed(6_000., 310.).predictive_functions(operative_predictive_functions(None));
+    let observations = close_in_on_terrain(&mut test_bed, 6_000., 4_500., 10_000., 2_500.);
+    assert!(observations
+        .iter()
+        .all(|o| o.aural == AuralWarning::None as u8));
+
+    test_bed = test_bed.predictive_functions(PredictiveFunctionsStatus::default());
+    let observations = close_in_on_terrain(&mut test_bed, 6_000., 2_500., 10_000., 1_100.);
+    assert!(observations
+        .iter()
+        .any(|o| o.aural == AuralWarning::PullUp as u8));
+}
+
+#[test]
+fn mode_2_is_reactivated_when_the_radio_height_differs_significantly_from_the_computed_height() {
+    let mut agreeing = mode_2a_test_bed(6_000., 310.)
+        .predictive_functions(operative_predictive_functions(Some(2_000.)));
+    let observations = close_in_on_terrain(&mut agreeing, 6_000., 2_500., 10_000., 1_100.);
+    assert!(observations
+        .iter()
+        .all(|o| o.aural == AuralWarning::None as u8));
+
+    // The computed height is more than 2000 ft above the radio height
+    let mut disagreeing = mode_2a_test_bed(6_000., 310.)
+        .predictive_functions(operative_predictive_functions(Some(4_500.)));
+    let observations = close_in_on_terrain(&mut disagreeing, 6_000., 2_500., 10_000., 1_100.);
+    assert!(observations
+        .iter()
+        .any(|o| o.aural == AuralWarning::PullUp as u8));
+}
+
+#[test]
+fn mode_2_envelopes_are_nested_for_every_closure_rate_and_airspeed() {
+    for airspeed_kt in (150..=350).step_by(20) {
+        for closure_rate_fpm in (0..=12_000).step_by(100) {
+            let mode_2a = EnhancedGroundProximityWarningComputerRuntime::mode_2a_envelopes(
+                closure_rate_fpm as f64,
+                airspeed_kt as f64,
+            );
+            let mode_2b = EnhancedGroundProximityWarningComputerRuntime::mode_2b_envelopes(
+                closure_rate_fpm as f64,
+            );
+            for envelopes in [mode_2a, mode_2b] {
+                assert!(
+                    envelopes.caution.ceiling_ft >= envelopes.warning.ceiling_ft,
+                    "{airspeed_kt} kt {closure_rate_fpm} fpm"
+                );
+                assert!(envelopes.caution.floor_ft <= envelopes.warning.floor_ft);
+                assert!(
+                    envelopes.caution.minimum_closure_rate_fpm
+                        <= envelopes.warning.minimum_closure_rate_fpm
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn mode_2_a_warning_envelope_keeps_its_ceiling_over_the_whole_upper_range() {
+    for closure_rate_fpm in [6_070., 8_000., 10_000., 12_000.] {
+        let envelopes = EnhancedGroundProximityWarningComputerRuntime::mode_2a_envelopes(
+            closure_rate_fpm,
+            310.,
+        );
+        assert!(
+            (1_640.0..=1_650.0).contains(&envelopes.warning.ceiling_ft),
+            "{closure_rate_fpm}"
+        );
+    }
 }
 
 #[test]
@@ -1075,7 +1416,7 @@ fn mode_3_test() {
     test_bed.run_with_delta(Duration::from_millis(6_000));
     assert!(test_bed.get_audio_on());
     assert_eq!(test_bed.get_aural_warning(), AuralWarning::DontSink as u8);
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     test_bed = test_bed
         .altitude_of(Length::new::<foot>(420.0))
@@ -1089,7 +1430,7 @@ fn mode_3_test() {
     test_bed.run_with_delta(Duration::from_millis(1_000));
     assert!(test_bed.get_audio_on());
     assert_eq!(test_bed.get_aural_warning(), AuralWarning::DontSink as u8);
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     test_bed = test_bed.gpws_sys_button_pressed(true);
     test_bed.run_with_delta(Duration::from_millis(1));
@@ -1098,7 +1439,7 @@ fn mode_3_test() {
     test_bed.run_with_delta(Duration::from_millis(1));
     assert!(test_bed.get_audio_on());
     assert_eq!(test_bed.get_aural_warning(), AuralWarning::DontSink as u8);
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 }
 
 #[test]
@@ -1139,14 +1480,14 @@ fn mode_4_a_test() {
     test_bed.run_with_delta(Duration::from_millis(1_000));
     test_bed.assert_no_warning_active();
 
-    test_bed = test_bed.altitude_of(Length::new::<foot>(900.0));
+    test_bed = test_bed.altitude_of(Length::new::<foot>(960.0));
     test_bed.run_with_delta(Duration::from_millis(10_000));
     assert!(test_bed.get_audio_on());
     assert_eq!(
         test_bed.get_aural_warning(),
         AuralWarning::TooLowTerrain as u8
     );
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     test_bed = test_bed.cas_of(Velocity::new::<knot>(180.0));
     test_bed.run_with_delta(Duration::from_millis(5_000));
@@ -1156,7 +1497,7 @@ fn mode_4_a_test() {
     test_bed.run_with_delta(Duration::from_millis(15_000));
     assert!(test_bed.get_audio_on());
     assert_eq!(test_bed.get_aural_warning(), AuralWarning::TooLowGear as u8);
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     test_bed = test_bed.gpws_sys_button_pressed(true);
     test_bed.run_with_delta(Duration::from_millis(1));
@@ -1165,7 +1506,7 @@ fn mode_4_a_test() {
     test_bed.run_with_delta(Duration::from_millis(1));
     assert!(test_bed.get_audio_on());
     assert_eq!(test_bed.get_aural_warning(), AuralWarning::TooLowGear as u8);
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 }
 
 #[test]
@@ -1190,7 +1531,7 @@ fn mode_4_b_test() {
         test_bed.get_aural_warning(),
         AuralWarning::TooLowTerrain as u8
     );
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     test_bed = test_bed.cas_of(Velocity::new::<knot>(150.0));
     test_bed.run_with_delta(Duration::from_millis(5_000));
@@ -1206,7 +1547,7 @@ fn mode_4_b_test() {
         test_bed.get_aural_warning(),
         AuralWarning::TooLowFlaps as u8
     );
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     test_bed = test_bed.gpws_sys_button_pressed(true);
     test_bed.run_with_delta(Duration::from_millis(1));
@@ -1218,7 +1559,7 @@ fn mode_4_b_test() {
         test_bed.get_aural_warning(),
         AuralWarning::TooLowFlaps as u8
     );
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     test_bed = test_bed.flaps_extended(true);
     test_bed.run_with_delta(Duration::from_millis(50));
@@ -1231,7 +1572,7 @@ fn mode_4_b_test() {
         test_bed.get_aural_warning(),
         AuralWarning::TooLowFlaps as u8
     );
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 }
 
 #[test]
@@ -1256,7 +1597,7 @@ fn mode_4_b_alternate_test() {
     test_bed.run_with_delta(Duration::from_millis(100));
     assert!(test_bed.get_audio_on());
     assert_eq!(test_bed.get_aural_warning(), AuralWarning::TooLowGear as u8);
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     test_bed = test_bed
         .cas_of(Velocity::new::<knot>(150.0))
@@ -1271,7 +1612,7 @@ fn mode_4_b_alternate_test() {
     test_bed.run_with_delta(Duration::from_millis(100));
     assert!(test_bed.get_audio_on());
     assert_eq!(test_bed.get_aural_warning(), AuralWarning::TooLowGear as u8);
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 }
 
 #[test]
@@ -1303,7 +1644,7 @@ fn mode_4_c_test() {
         test_bed.get_aural_warning(),
         AuralWarning::TooLowTerrain as u8
     );
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     test_bed = test_bed.cas_of(Velocity::new::<knot>(150.0));
 
@@ -1317,7 +1658,7 @@ fn mode_4_c_test() {
         test_bed.get_aural_warning(),
         AuralWarning::TooLowTerrain as u8
     );
-    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
 
     test_bed = test_bed.altitude_of(Length::new::<foot>(400.0));
     test_bed.run_with_delta(Duration::from_millis(15_000));
@@ -1541,4 +1882,266 @@ fn self_test_does_not_start_with_gpws_sys_off() {
     test_bed = test_bed.press_gpws_test_pushbutton();
     test_bed.run_for(Duration::from_millis(500));
     test_bed.assert_no_warning_active();
+}
+
+// The alerts of the predictive terrain functions: lamps, aural words and the automatic terrain display.
+
+fn predictive_alerts_of(voice: PredictiveVoice, warning: bool, caution: bool) -> PredictiveOutputs {
+    PredictiveOutputs {
+        functions: PredictiveFunctionsStatus::default(),
+        inputs_available: true,
+        alerts: PredictiveAlertOutputs {
+            voice,
+            warning_light: warning,
+            caution_light: caution,
+            automatic_terrain_display: warning || voice == PredictiveVoice::TerrainAhead,
+        },
+    }
+}
+
+impl EgpwcTestBed {
+    fn predictive_outputs(mut self, outputs: PredictiveOutputs) -> Self {
+        self.command(|a| a.egpwc.set_predictive_outputs(outputs));
+        self.run_with_delta(Duration::from_millis(100));
+        self
+    }
+
+    fn audio_inhibited(mut self, inhibited: bool) -> Self {
+        self.command(|a| a.egpws_electrical_harness.discrete_inputs.audio_inhibit = inhibited);
+        self
+    }
+
+    fn emer_canc_pressed(mut self, pressed: bool) -> Self {
+        self.command(|a| {
+            a.egpws_electrical_harness
+                .discrete_inputs
+                .momentary_audio_suppression = pressed
+        });
+        self
+    }
+
+    fn terrain_displayed_automatically(&self) -> (bool, bool) {
+        self.query(|ac: &TestAircraft| {
+            let outputs = ac.egpwc.discrete_outputs();
+            (
+                outputs.capt_terrain_display_active,
+                outputs.fo_terrain_display_active,
+            )
+        })
+    }
+
+    fn bus_bit(&self, bit: u8) -> bool {
+        self.query(|ac: &TestAircraft| ac.egpwc.bus_outputs().alert_discrete_1.get_bit(bit))
+    }
+}
+
+#[test]
+fn a_terrain_ahead_pull_up_warning_gives_pull_up_the_red_light_and_the_terrain_display() {
+    let mut test_bed = mode_2a_test_bed(6_000., 250.).predictive_outputs(predictive_alerts_of(
+        PredictiveVoice::PullUp,
+        true,
+        false,
+    ));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+    assert!(test_bed.is_warning_light_on());
+    assert!(!test_bed.is_alert_light_on());
+    assert!(test_bed.get_audio_on());
+    assert_eq!(test_bed.terrain_displayed_automatically(), (true, true));
+}
+
+#[test]
+fn a_terrain_ahead_caution_gives_terrain_ahead_and_the_amber_light() {
+    let mut test_bed = mode_2a_test_bed(6_000., 250.).predictive_outputs(predictive_alerts_of(
+        PredictiveVoice::TerrainAhead,
+        false,
+        true,
+    ));
+    assert_eq!(
+        test_bed.get_aural_warning(),
+        AuralWarning::TerrainAhead as u8
+    );
+    assert!(test_bed.is_alert_light_on());
+    assert!(!test_bed.is_warning_light_on());
+    assert_eq!(test_bed.terrain_displayed_automatically(), (true, true));
+    assert!(test_bed.bus_bit(19));
+}
+
+#[test]
+fn avoid_terrain_is_its_own_aural_with_the_red_light() {
+    let mut test_bed = mode_2a_test_bed(6_000., 250.).predictive_outputs(predictive_alerts_of(
+        PredictiveVoice::AvoidTerrain,
+        true,
+        false,
+    ));
+    assert_eq!(
+        test_bed.get_aural_warning(),
+        AuralWarning::AvoidTerrain as u8
+    );
+    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.bus_bit(20));
+    assert!(!test_bed.bus_bit(19));
+}
+
+#[test]
+fn too_low_terrain_from_the_predictive_functions_has_the_amber_light_and_no_terrain_display() {
+    let mut test_bed = mode_2a_test_bed(6_000., 250.).predictive_outputs(predictive_alerts_of(
+        PredictiveVoice::TooLowTerrain,
+        false,
+        true,
+    ));
+    assert_eq!(
+        test_bed.get_aural_warning(),
+        AuralWarning::TooLowTerrain as u8
+    );
+    assert!(test_bed.is_alert_light_on());
+    assert_eq!(test_bed.terrain_displayed_automatically(), (false, false));
+    assert!(test_bed.bus_bit(17));
+}
+
+#[test]
+fn no_alerts_of_the_predictive_functions_leaves_the_outputs_quiet() {
+    let mut test_bed = mode_2a_test_bed(6_000., 250.).predictive_outputs(predictive_alerts_of(
+        PredictiveVoice::None,
+        false,
+        false,
+    ));
+    test_bed.assert_no_warning_active();
+    assert_eq!(test_bed.terrain_displayed_automatically(), (false, false));
+}
+
+#[test]
+fn the_pull_up_of_mode_1_goes_before_a_caution_of_the_predictive_functions() {
+    let mut test_bed =
+        mode_2a_test_bed(1_000., 160.).vertical_speed_of(Velocity::new::<foot_per_minute>(-6_000.));
+    test_bed.run_with_delta(Duration::from_millis(3_000));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+
+    let mut test_bed = test_bed.predictive_outputs(predictive_alerts_of(
+        PredictiveVoice::TerrainAhead,
+        false,
+        true,
+    ));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+}
+
+#[test]
+fn a_warning_of_the_predictive_functions_goes_before_sink_rate() {
+    let mut test_bed =
+        mode_2a_test_bed(1_000., 160.).vertical_speed_of(Velocity::new::<foot_per_minute>(-3_000.));
+    test_bed.run_with_delta(Duration::from_millis(3_000));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::SinkRate as u8);
+
+    let mut test_bed = test_bed.predictive_outputs(predictive_alerts_of(
+        PredictiveVoice::AvoidTerrain,
+        true,
+        false,
+    ));
+    assert_eq!(
+        test_bed.get_aural_warning(),
+        AuralWarning::AvoidTerrain as u8
+    );
+}
+
+#[test]
+fn a_caution_of_the_predictive_functions_goes_before_sink_rate() {
+    let mut test_bed =
+        mode_2a_test_bed(1_000., 160.).vertical_speed_of(Velocity::new::<foot_per_minute>(-3_000.));
+    test_bed.run_with_delta(Duration::from_millis(3_000));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::SinkRate as u8);
+    let mut test_bed = test_bed.predictive_outputs(predictive_alerts_of(
+        PredictiveVoice::TerrainAhead,
+        false,
+        true,
+    ));
+    assert_eq!(
+        test_bed.get_aural_warning(),
+        AuralWarning::TerrainAhead as u8
+    );
+}
+
+#[test]
+fn the_aural_output_drops_to_none_between_the_pulses_of_a_predictive_warning_and_the_light_stays_on(
+) {
+    let pull_up = predictive_alerts_of(PredictiveVoice::PullUp, true, false);
+    let gap = predictive_alerts_of(PredictiveVoice::None, true, false);
+    let mut test_bed = mode_2a_test_bed(6_000., 250.).predictive_outputs(pull_up);
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+    test_bed = test_bed.predictive_outputs(gap);
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::None as u8);
+    assert!(test_bed.is_warning_light_on());
+    test_bed = test_bed.predictive_outputs(predictive_alerts_of(
+        PredictiveVoice::AvoidTerrain,
+        true,
+        false,
+    ));
+    assert_eq!(
+        test_bed.get_aural_warning(),
+        AuralWarning::AvoidTerrain as u8
+    );
+}
+
+#[test]
+fn the_momentary_audio_suppression_silences_the_predictive_words_but_not_the_lights() {
+    let mut test_bed = mode_2a_test_bed(6_000., 250.)
+        .audio_inhibited(true)
+        .predictive_outputs(predictive_alerts_of(PredictiveVoice::PullUp, true, false));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::None as u8);
+    assert!(test_bed.is_warning_light_on());
+}
+
+#[test]
+fn emer_canc_silences_the_predictive_words_until_the_alert_is_over() {
+    let pull_up = predictive_alerts_of(PredictiveVoice::PullUp, true, false);
+    let mut test_bed = mode_2a_test_bed(6_000., 250.).predictive_outputs(pull_up);
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+
+    test_bed = test_bed.emer_canc_pressed(true).predictive_outputs(pull_up);
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::None as u8);
+    assert!(
+        test_bed.is_warning_light_on(),
+        "EMER CANC does not put out the light"
+    );
+
+    // The key is released, the alert goes on: the repeats stay silent
+    test_bed = test_bed
+        .emer_canc_pressed(false)
+        .predictive_outputs(pull_up);
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::None as u8);
+
+    // A new alert is announced again
+    test_bed =
+        test_bed.predictive_outputs(predictive_alerts_of(PredictiveVoice::None, false, false));
+    test_bed = test_bed.predictive_outputs(pull_up);
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+}
+
+#[test]
+fn emer_canc_without_a_predictive_alert_does_not_silence_the_next_one() {
+    let mut test_bed = mode_2a_test_bed(6_000., 250.)
+        .emer_canc_pressed(true)
+        .predictive_outputs(predictive_alerts_of(PredictiveVoice::None, false, false))
+        .emer_canc_pressed(false);
+    test_bed =
+        test_bed.predictive_outputs(predictive_alerts_of(PredictiveVoice::PullUp, true, false));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+}
+
+#[test]
+fn the_gpws_sys_pushbutton_does_not_inhibit_the_predictive_functions() {
+    let mut test_bed = mode_2a_test_bed(6_000., 250.)
+        .gpws_sys_button_pressed(true)
+        .predictive_outputs(predictive_alerts_of(PredictiveVoice::PullUp, true, false));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+    assert!(test_bed.is_warning_light_on());
+}
+
+#[test]
+fn the_predictive_alerts_are_gone_when_the_computer_loses_power() {
+    let mut test_bed = mode_2a_test_bed(6_000., 250.)
+        .predictive_outputs(predictive_alerts_of(PredictiveVoice::PullUp, true, false))
+        .no_power();
+    test_bed.run_with_delta(Duration::from_millis(1_000));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::None as u8);
+    assert!(!test_bed.is_warning_light_on());
+    assert_eq!(test_bed.terrain_displayed_automatically(), (false, false));
 }

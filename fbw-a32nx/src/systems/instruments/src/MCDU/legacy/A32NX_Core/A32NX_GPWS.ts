@@ -44,6 +44,9 @@ export class A32NX_GPWS {
         return soundList.terrain_ahead;
       case 11:
         return soundList.obstacle_ahead;
+      case 12:
+        // AVOID TERRAIN: the sound bank has no such word yet, PULL UP is the closest word it has
+        return soundList.pull_up;
       default:
         return '';
     }
@@ -52,10 +55,12 @@ export class A32NX_GPWS {
   GPWSComputeLightsAndCallouts() {
     const currentAuralWarning = SimVar.GetSimVarValue('L:A32NX_GPWS_AURAL_OUTPUT', 'number');
     if (currentAuralWarning !== this.prevAuralWarning) {
+      // The old word is removed first: two outputs can share one sound (PULL UP and AVOID TERRAIN), and removing it
+      // after adding the new one would take the new one out as well
+      this.core.soundManager.removePeriodicSound(this.GetWarningFromEnum(this.prevAuralWarning));
       if (currentAuralWarning !== 0) {
         this.core.soundManager.addPeriodicSound(this.GetWarningFromEnum(currentAuralWarning), 1.1);
       }
-      this.core.soundManager.removePeriodicSound(this.GetWarningFromEnum(this.prevAuralWarning));
 
       this.prevAuralWarning = currentAuralWarning;
     }

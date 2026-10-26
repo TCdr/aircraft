@@ -933,6 +933,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [FMS] Hold IMMEDIATE EXIT selected during the hold entry leaves the hold at the hold fix instead of flying a further pattern - @TCdr
 1. [EFB/Presets] Make loading aircraft presets reliable, including with expedited loading: the loading mode stays fixed during a load, each step waits for the result of the one before, and a load that cannot continue stops instead of hanging - @TCdr
 1. [A380X/Presets] Ready for taxi and Ready for takeoff now set XPDR to AUTO and TCAS to TA/RA, the EFIS WX, TERR and TRAF buttons (WX captain, TERR first officer), and the Ready for pushback preset switches the external power off - @TCdr
+1. [A32NX/GPWS] Rewrote the GPWS mode 1 and 2 logic and added the predictive terrain functions: terrain ahead alerting (TAD, caution and warning) and the terrain clearance floor (TCF), from a terrain grid file in the aircraft package, with the matching ND terrain display behaviour - @TCdr
 
 ## 2024.1.0
 

@@ -27,6 +27,7 @@ mod payload;
 mod reversers;
 mod rudder;
 mod spoilers;
+mod terrain_grid;
 mod trimmable_horizontal_stabilizer;
 
 use a320_systems::A320;
@@ -969,7 +970,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .with_aspect(gear)?
     .with_aspect(payload)?
     .with_aspect(trimmable_horizontal_stabilizer)?
-    .build(A320::new)?;
+    .build(|context| A320::new_with_terrain_grid(context, terrain_grid::terrain_grid()))?;
 
     while let Some(event) = gauge.next_event().await {
         handler.handle(event, &mut simulation, sim_connect.as_mut().get_mut())?;

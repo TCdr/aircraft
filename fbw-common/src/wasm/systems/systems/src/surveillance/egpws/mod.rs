@@ -1,4 +1,7 @@
+pub mod predictive;
+pub mod read_slot;
 mod runtime;
+pub mod terrain_grid;
 #[cfg(test)]
 mod test;
 
@@ -14,6 +17,7 @@ use crate::{
         InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
         VariableIdentifier, Write,
     },
+    surveillance::egpws::predictive::{PredictiveAlertOutputs, PredictiveOutputs},
     surveillance::{
         egpws::runtime::{
             AuralWarning, EnhancedGroundProximityWarningComputerRuntime, FlightPhase,
@@ -26,6 +30,7 @@ use crate::{
         },
     },
 };
+pub use runtime::PredictiveFunctionsStatus;
 use std::time::Duration;
 use uom::si::{f64::Power, power::watt};
 
@@ -36,9 +41,6 @@ pub trait EgpwsElectricalHarness {
 #[derive(Default, Clone, Copy, Debug)]
 pub struct EnhancedGroundProximityWarningComputerPinProgramming {
     pub audio_declutter_disable: bool,
-    /// The warning lamp lights for the mode 1 and mode 2 PULL UP warnings only, the alert lamp for every other mode.
-    /// Without it (the default format) the warning lamp lights for every mode 1 to 4 alert.
-    pub alternate_lamp_format: bool,
 }
 
 pub struct EnhancedGroundProximityWarningComputer {
@@ -64,6 +66,10 @@ pub struct EnhancedGroundProximityWarningComputer {
 
     /// The program pins of the aircraft wiring, given to every runtime started
     pin_programming: EnhancedGroundProximityWarningComputerPinProgramming,
+
+    /// What the predictive terrain functions report. Kept here because the runtime is lost with the power.
+    predictive_functions: PredictiveFunctionsStatus,
+    predictive_alerts: PredictiveAlertOutputs,
 
     /// NVM data
     on_ground: bool,
@@ -144,6 +150,8 @@ impl EnhancedGroundProximityWarningComputer {
             discrete_output_data: TerrainAwarenessWarningSystemDiscreteOutputs::default(),
             bus_output_data: TerrainAwarenessWarningSystemBusOutputs::default(),
             pin_programming,
+            predictive_functions: PredictiveFunctionsStatus::default(),
+            predictive_alerts: PredictiveAlertOutputs::default(),
 
             on_ground,
             flight_phase: if on_ground {
@@ -209,6 +217,8 @@ impl EnhancedGroundProximityWarningComputer {
                     self.pin_programming,
                 )
             });
+            runtime.set_predictive_functions_status(self.predictive_functions);
+            runtime.set_predictive_alerts(self.predictive_alerts);
             runtime.update(
                 context,
                 electrical_harness.discrete_inputs(),
@@ -220,6 +230,18 @@ impl EnhancedGroundProximityWarningComputer {
             );
             runtime.set_outputs(&mut self.discrete_output_data, &mut self.bus_output_data);
         }
+    }
+
+    /// Reports whether the predictive terrain functions are operative. While they are, mode 2 is inhibited.
+    pub fn set_predictive_functions_status(&mut self, status: PredictiveFunctionsStatus) {
+        self.predictive_functions = status;
+    }
+
+    /// Gives the computer what the predictive terrain functions (terrain ahead alerting and terrain clearance floor)
+    /// worked out: whether they are operative, and their alerts.
+    pub fn set_predictive_outputs(&mut self, outputs: PredictiveOutputs) {
+        self.predictive_functions = outputs.functions;
+        self.predictive_alerts = outputs.alerts;
     }
 
     pub fn is_powered_with_holdover(&self) -> bool {
