@@ -18,6 +18,8 @@ export interface EgpwcSimVars {
   'egpwc.maxElevationMode': TerrainLevelMode;
   /** 0 none, 1 caution, 2 warning */
   'egpwc.terrAhead': number;
+  /** the look-ahead alert is about an obstacle */
+  'egpwc.obstAhead': boolean;
 }
 
 export class EgpwcBusPublisher extends SimVarPublisher<EgpwcSimVars> {
@@ -41,6 +43,7 @@ export class EgpwcBusPublisher extends SimVarPublisher<EgpwcSimVars> {
           { name: `L:A32NX_EGPWC_ND_${side}_TERRAIN_MAX_ELEVATION_MODE`, type: SimVarValueType.Number },
         ],
         ['egpwc.terrAhead', { name: 'L:A32NX_GPWS_TERR_AHEAD', type: SimVarValueType.Number }],
+        ['egpwc.obstAhead', { name: 'L:A32NX_GPWS_OBST_AHEAD', type: SimVarValueType.Bool }],
       ]),
       bus,
     );

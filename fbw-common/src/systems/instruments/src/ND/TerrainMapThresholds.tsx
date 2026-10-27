@@ -18,7 +18,7 @@ export class TerrainMapThresholds extends DisplayComponent<TerrainMapThresholdsP
 
   private readonly minElevationModeSub = ConsumerSubject.create(this.sub.on('egpwc.minElevationMode'), 0);
 
-  /** TERR AHEAD takes the place of the TERR label */
+  /** TERR AHEAD or OBST AHEAD takes the place of the TERR label */
   private readonly labelShown = ConsumerSubject.create(this.sub.on('egpwc.terrAhead'), TerrainAheadAlert.None).map(
     (alert) => alert === TerrainAheadAlert.None,
   );

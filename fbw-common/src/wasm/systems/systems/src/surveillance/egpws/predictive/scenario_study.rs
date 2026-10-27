@@ -7,6 +7,7 @@
 use super::{
     geometry::{bearing_deg, distance_nm, offset_position},
     runway::{Runway, RunwayGeometry, RunwayOrigin, StaticRunways},
+    test_support::TestTerrain,
     AircraftState, PredictiveInputs, PredictiveTerrainAlerting, PredictiveVoice,
 };
 use crate::surveillance::egpws::terrain_grid::{
@@ -244,7 +245,13 @@ fn run_flight(flight: &Flight, terrain: &mut TerrainGridCache<InMemoryBlockReade
             landing_flaps: configured,
             terrain_off: false,
         };
-        let outputs = alerting.update(one_second, &inputs, terrain, &runways);
+        let outputs = alerting.update(
+            one_second,
+            &inputs,
+            terrain,
+            &TestTerrain::no_obstacles(),
+            &runways,
+        );
         steps.push(Step {
             time_s,
             position,
