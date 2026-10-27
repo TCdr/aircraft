@@ -1004,6 +1004,31 @@ mod tests {
     }
 
     #[test]
+    fn a_roll_latched_only_once_fast_still_makes_the_lift_off_a_departure() {
+        // The GPS position became valid 0.4 NM before the lift-off point, during the roll
+        let (inputs, _) = at_lift_off(false);
+        let latched_in_the_roll = StaticRunways(vec![Runway {
+            reference_point: offset_position(START, 0., 0.6),
+            elevation_ft: 0.,
+            origin: RunwayOrigin::Departure,
+            geometry: None,
+        }]);
+        let low_ground = TestTerrain::flat(-50.);
+        let outputs = run(
+            &mut alerting(),
+            &inputs,
+            &low_ground,
+            &latched_in_the_roll,
+            1.,
+        );
+        assert_eq!(outputs.alerts, PredictiveAlertOutputs::default());
+
+        // Without any departure runway the lift-off is en route, where 50 ft over the ground is a warning
+        let outputs = run(&mut alerting(), &inputs, &low_ground, &no_runways(), 1.);
+        assert!(outputs.alerts.warning_light);
+    }
+
+    #[test]
     fn terrain_above_the_lift_off_path_is_still_alerted() {
         // A ridge 300 ft above the runway 3 NM ahead of the lift-off point, 72 s away
         let ridge = TestTerrain::wall_north_of(START.latitude_degrees + 4. / 60., -50., 300.);
