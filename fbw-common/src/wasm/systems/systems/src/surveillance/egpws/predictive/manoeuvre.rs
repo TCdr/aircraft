@@ -1,5 +1,5 @@
 //! The vertical paths the terrain look-ahead compares with the terrain: what the aircraft does if the pilot levels off
-//! (caution) and if the pilot pulls up to the climb gradient the airliner can hold (warning).
+//! and later climbs gently (caution), and if the pilot pulls up to the climb gradient the airliner can hold (warning).
 //!
 //! Both are the pilot model of the TSO-C151c test conditions: a pilot delay, then a constant incremental load factor
 //! that bends the flight path to its target. Horizontally the aircraft keeps its ground speed.
@@ -14,6 +14,13 @@ const PROFILE_DURATION_S: f64 = 140.;
 /// The recovery of the TSO-C151c test conditions: 0.25 g incremental load factor.
 pub(super) const RECOVERY_LOAD_FACTOR_INCREMENT: f64 = 0.25;
 
+#[derive(Clone, Copy)]
+struct LaterClimb {
+    start_s: f64,
+    /// Height gained per distance flown
+    slope: f64,
+}
+
 /// Altitude change of the aircraft against the time after the start of the manoeuvre.
 pub(super) struct ManoeuvreProfile {
     altitude_change_ft: Vec<f64>,
@@ -22,12 +29,14 @@ pub(super) struct ManoeuvreProfile {
 }
 
 impl ManoeuvreProfile {
-    /// The pilot levels the aircraft off: a descent is flattened to level flight, a level or climbing flight path is
-    /// simply continued.
-    pub(super) fn level_off(
+    /// The pilot levels the aircraft off (a descent is flattened to level flight, a level or climbing flight path is
+    /// continued), then from `climb_start_s` on climbs at the climb angle, or keeps a steeper climb that already exists.
+    pub(super) fn level_off_then_climb(
         ground_speed_kt: f64,
         vertical_speed_fpm: f64,
         pilot_delay_s: f64,
+        climb_start_s: f64,
+        climb_angle_deg: f64,
     ) -> Self {
         let initial_slope = Self::slope(ground_speed_kt, vertical_speed_fpm);
         Self::new(
@@ -35,6 +44,10 @@ impl ManoeuvreProfile {
             initial_slope,
             pilot_delay_s,
             initial_slope.max(0.),
+            Some(LaterClimb {
+                start_s: climb_start_s,
+                slope: climb_angle_deg.to_radians().tan(),
+            }),
         )
     }
 
@@ -51,6 +64,7 @@ impl ManoeuvreProfile {
             initial_slope,
             pilot_delay_s,
             initial_slope.max(climb_angle_deg.to_radians().tan()),
+            None,
         )
     }
 
@@ -67,6 +81,7 @@ impl ManoeuvreProfile {
         initial_slope: f64,
         pilot_delay_s: f64,
         target_slope: f64,
+        later_climb: Option<LaterClimb>,
     ) -> Self {
         let ground_speed_fps = (ground_speed_kt * FEET_PER_SECOND_PER_KNOT).max(1.);
         let slope_rate =
@@ -82,6 +97,10 @@ impl ManoeuvreProfile {
             let time = step as f64 * PROFILE_TIME_STEP_S;
             let slope_before = slope;
             if time >= pilot_delay_s {
+                let target_slope = match later_climb {
+                    Some(climb) if time >= climb.start_s => target_slope.max(climb.slope),
+                    _ => target_slope,
+                };
                 let maximum_change = slope_rate * PROFILE_TIME_STEP_S;
                 slope += (target_slope - slope).clamp(-maximum_change, maximum_change);
             }
@@ -154,7 +173,8 @@ mod tests {
         #[case] descent_rate_fpm: f64,
         #[case] expected_loss_ft: f64,
     ) {
-        let profile = ManoeuvreProfile::level_off(250., -descent_rate_fpm, pilot_delay_s);
+        let profile =
+            ManoeuvreProfile::level_off_then_climb(250., -descent_rate_fpm, pilot_delay_s, 20., 3.);
         let loss = -profile.lowest_altitude_change();
         assert!(
             (loss - expected_loss_ft).abs() < 8.,
@@ -163,8 +183,26 @@ mod tests {
     }
 
     #[test]
+    fn level_off_then_climb_stays_level_until_the_climb_starts_then_climbs_at_the_angle() {
+        let profile = ManoeuvreProfile::level_off_then_climb(250., 0., 3., 20., 3.);
+        assert_eq!(profile.altitude_change_after(20.), 0.);
+        let rise_per_second =
+            profile.altitude_change_after(81.) - profile.altitude_change_after(80.);
+        let expected = 250. * FEET_PER_SECOND_PER_KNOT * 3f64.to_radians().tan();
+        assert!((rise_per_second - expected).abs() < 1., "{rise_per_second}");
+    }
+
+    #[test]
+    fn level_off_then_climb_keeps_a_steeper_existing_climb() {
+        let profile = ManoeuvreProfile::level_off_then_climb(250., 2000., 3., 20., 3.);
+        let rise_per_second =
+            profile.altitude_change_after(81.) - profile.altitude_change_after(80.);
+        assert!(rise_per_second > 2000. / 60. * 0.99);
+    }
+
+    #[test]
     fn level_off_of_a_climb_keeps_climbing() {
-        let profile = ManoeuvreProfile::level_off(250., 1500., 3.);
+        let profile = ManoeuvreProfile::level_off_then_climb(250., 1500., 3., 20., 3.);
         assert!(profile.altitude_change_after(60.) > 1500. * 0.9);
         assert_eq!(profile.lowest_altitude_change(), 0.);
     }
@@ -195,7 +233,7 @@ mod tests {
 
     #[test]
     fn the_lowest_altitude_between_two_times_finds_the_dip_and_the_ends() {
-        let profile = ManoeuvreProfile::level_off(250., -1000., 3.);
+        let profile = ManoeuvreProfile::level_off_then_climb(250., -1000., 3., 20., 3.);
         let before_the_recovery = profile.lowest_altitude_change_between(0., 3.);
         assert!(
             (before_the_recovery + 50.).abs() < 2.,

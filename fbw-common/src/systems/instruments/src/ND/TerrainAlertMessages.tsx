@@ -14,7 +14,7 @@ import { EfisNdMode } from '@flybywiresim/fbw-sdk';
 
 import { GenericTawsEvents, TerrainAheadAlert } from './types/GenericTawsEvents';
 import { GenericFcuEvents } from './types/GenericFcuEvents';
-import { flashRestartsOn, terrainSettingMessage } from './TerrainAlertMessage';
+import { aheadMessageText, flashRestartsOn, terrainSettingMessage } from './TerrainAlertMessage';
 
 export interface TerrainAlertMessagesProps {
   bus: EventBus;
@@ -23,11 +23,16 @@ export interface TerrainAlertMessagesProps {
   rangeValues: readonly number[];
 }
 
-/** TERR AHEAD in the place of the TERR label, and the TERR setting message in the ND centre */
+/** TERR AHEAD or OBST AHEAD in the place of the TERR label, and the TERR setting message in the ND centre */
 export class TerrainAlertMessages extends DisplayComponent<TerrainAlertMessagesProps> {
   private readonly sub = this.props.bus.getSubscriber<GenericTawsEvents & GenericFcuEvents>();
 
   private readonly alert = ConsumerSubject.create(this.sub.on('egpwc.terrAhead').whenChanged(), TerrainAheadAlert.None);
+
+  // A Bool SimVar arrives as the number 1, which a strict comparison with true would miss
+  private readonly isObstacle = ConsumerSubject.create(this.sub.on('egpwc.obstAhead').whenChanged(), false).map(
+    (it) => !!it,
+  );
 
   private readonly rangeSetting = ConsumerSubject.create(this.sub.on('ndRangeSetting').whenChanged(), 0);
 
@@ -43,15 +48,17 @@ export class TerrainAlertMessages extends DisplayComponent<TerrainAlertMessagesP
 
   private previousAlert = TerrainAheadAlert.None;
 
+  private previousIsObstacle = false;
+
   onAfterRender(node: VNode) {
     super.onAfterRender(node);
 
-    this.alert.sub((alert) => {
+    MappedSubject.create(this.alert, this.isObstacle).sub(([alert, isObstacle]) => {
       const text = this.terrAheadRef.instance;
       // classList rather than a class binding, which would overwrite the flashing class
       text.classList.toggle('Red', alert === TerrainAheadAlert.Warning);
       text.classList.toggle('Amber', alert !== TerrainAheadAlert.Warning);
-      const flashRestarts = flashRestartsOn(this.previousAlert, alert);
+      const flashRestarts = flashRestartsOn(this.previousAlert, alert, this.previousIsObstacle, isObstacle);
       if (alert === TerrainAheadAlert.None || flashRestarts) {
         text.classList.remove('Blink9Seconds');
       }
@@ -60,6 +67,7 @@ export class TerrainAlertMessages extends DisplayComponent<TerrainAlertMessagesP
         requestAnimationFrame(() => text.classList.add('Blink9Seconds'));
       }
       this.previousAlert = alert;
+      this.previousIsObstacle = isObstacle;
     }, true);
   }
 
@@ -74,7 +82,7 @@ export class TerrainAlertMessages extends DisplayComponent<TerrainAlertMessagesP
           text-anchor="end"
           visibility={this.alert.map((it) => (it !== TerrainAheadAlert.None ? 'inherit' : 'hidden'))}
         >
-          TERR AHEAD
+          {this.isObstacle.map(aheadMessageText)}
         </text>
         {/* above the TCAS setting message, which can be there at the same time */}
         <text

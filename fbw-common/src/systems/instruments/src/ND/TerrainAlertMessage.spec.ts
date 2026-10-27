@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { flashRestartsOn, terrainSettingMessage } from './TerrainAlertMessage';
+import { aheadMessageText, flashRestartsOn, terrainSettingMessage } from './TerrainAlertMessage';
 import { TerrainAheadAlert } from './types/GenericTawsEvents';
 
 // The ND messages of the A320 look-ahead terrain alerts: TERR AHEAD, and TERR: CHANGE MODE / TERR: REDUCE RANGE when the
@@ -55,5 +55,29 @@ describe('TERR AHEAD flashing', () => {
   it('does not start when the warning goes back to a caution or the alert ends', () => {
     expect(flashRestartsOn(TerrainAheadAlert.Warning, TerrainAheadAlert.Caution)).toBe(false);
     expect(flashRestartsOn(TerrainAheadAlert.Warning, TerrainAheadAlert.None)).toBe(false);
+  });
+
+  it('starts again when the message changes between terrain and obstacle', () => {
+    expect(flashRestartsOn(TerrainAheadAlert.Caution, TerrainAheadAlert.Caution, false, true)).toBe(true);
+    expect(flashRestartsOn(TerrainAheadAlert.Warning, TerrainAheadAlert.Warning, true, false)).toBe(true);
+  });
+
+  it('does not start again while the same obstacle alert goes on', () => {
+    expect(flashRestartsOn(TerrainAheadAlert.Caution, TerrainAheadAlert.Caution, true, true)).toBe(false);
+  });
+
+  it('does not start when the alert ends, whatever it was about', () => {
+    expect(flashRestartsOn(TerrainAheadAlert.Caution, TerrainAheadAlert.None, true, false)).toBe(false);
+  });
+});
+
+// OBST AHEAD takes the place of TERR AHEAD when the alert is about an obstacle
+describe('terrain or obstacle ahead message', () => {
+  it('TERR AHEAD for terrain', () => {
+    expect(aheadMessageText(false)).toBe('TERR AHEAD');
+  });
+
+  it('OBST AHEAD for an obstacle', () => {
+    expect(aheadMessageText(true)).toBe('OBST AHEAD');
   });
 });

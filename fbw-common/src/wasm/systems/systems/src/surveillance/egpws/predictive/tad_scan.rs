@@ -3,11 +3,16 @@
 //!
 //! Terrain ahead is sampled in a ribbon along the track that opens up in turns. A sample is a threat when it comes
 //! closer than the required clearance (see `phase`) to a path of the aircraft:
-//! - for the caution, the path of an aircraft that levels off (or keeps climbing), looked at 20 s to 132 s ahead;
+//! - for the caution, the path of an aircraft that levels off (or keeps climbing) and climbs gently from 20 s on,
+//!   looked at 20 s to 132 s ahead;
 //! - for the warning, the path of an aircraft that pulls up to the climb gradient of an airliner, looked at up to 120 s
 //!   ahead. The pull-up path only just keeps the minimum clearance when the warning comes, so it is the last moment to
 //!   pull up. When even the pull-up path cannot keep half of the clearance, a straight climb does not clear the
 //!   terrain any more and the crew has to turn: AVOID TERRAIN.
+//!
+//! Obstacles (towers, masts) come from a second grid with the same layout as the terrain grid, read at the same
+//! positions and held to the same clearances. They are an option: an obstacle grid that is missing or has nothing in a
+//! cell changes nothing, and only the terrain grid decides whether the scan can be trusted.
 
 use super::{
     geometry::offset_position,
@@ -25,6 +30,12 @@ use crate::surveillance::egpws::terrain_grid::{
 /// The caution looks at terrain 20 s to 132 s ahead (A320 FCOM times).
 const CAUTION_NEAREST_S: f64 = 20.;
 const CAUTION_FARTHEST_S: f64 = 132.;
+
+/// Design choice: the angle of the constructed climb path the caution envelope rises to after 20 s, half the climb of
+/// the warning path. A threat a few hundred feet above a level flight then gives the caution about a minute ahead
+/// and the warning about half a minute ahead; a flat caution path would give the caution at the far end of the
+/// envelope, two minutes ahead.
+const CAUTION_CLIMB_ANGLE_DEG: f64 = 3.;
 
 /// Design choice: the warning examines the terrain from the start of the ribbon, not from 8 s ahead as the FCOM
 /// envelope. The recovery of a descending aircraft reaches its lowest altitude within the first 5 s, and the TSO-C151c
@@ -99,9 +110,14 @@ pub(super) struct WarningThreat {
 pub(super) struct TadScan {
     pub(super) caution: Option<CautionThreat>,
     pub(super) warning: Option<WarningThreat>,
-    /// The terrain cells of the threats, for the ND (a cell can be there more than once)
+    /// The worst obstacle threats, kept apart from the terrain ones because they have their own words and ND message.
+    /// An obstacle caution is never "terrain below the aircraft": there is no TOO LOW variant for obstacles.
+    pub(super) obstacle_caution: Option<CautionThreat>,
+    pub(super) obstacle_warning: Option<WarningThreat>,
+    /// The cells of the terrain and obstacle threats, for the ND (a cell can be there more than once)
     pub(super) threat_cells: Vec<ThreatCell>,
-    /// Part of the ribbon could not be read from the grid, so the scan cannot be trusted
+    /// Part of the ribbon could not be read from the terrain grid, so the scan cannot be trusted. The obstacle grid
+    /// never sets this: the obstacle function is an option that must not make the terrain functions inoperative.
     pub(super) data_missing: bool,
 }
 
@@ -111,9 +127,23 @@ struct RingPaths {
     warning_ft: f64,
 }
 
+/// What the scan knows about the ring it is looking at
+struct Ring {
+    paths: RingPaths,
+    in_caution_window: bool,
+    in_warning_window: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ThreatSource {
+    Terrain,
+    Obstacle,
+}
+
 struct ScanState<'a> {
     input: &'a TadScanInput<'a>,
     terrain: &'a dyn TerrainElevationSource,
+    obstacles: &'a dyn TerrainElevationSource,
     caution_path: ManoeuvreProfile,
     warning_path: ManoeuvreProfile,
     required_level_ft: f64,
@@ -121,7 +151,11 @@ struct ScanState<'a> {
     result: TadScan,
 }
 
-pub(super) fn scan(input: &TadScanInput, terrain: &dyn TerrainElevationSource) -> TadScan {
+pub(super) fn scan(
+    input: &TadScanInput,
+    terrain: &dyn TerrainElevationSource,
+    obstacles: &dyn TerrainElevationSource,
+) -> TadScan {
     let aircraft = input.aircraft;
     let nm_per_second = aircraft.ground_speed_kt / 3600.;
     if nm_per_second <= 0. {
@@ -133,10 +167,13 @@ pub(super) fn scan(input: &TadScanInput, terrain: &dyn TerrainElevationSource) -
     let mut state = ScanState {
         input,
         terrain,
-        caution_path: ManoeuvreProfile::level_off(
+        obstacles,
+        caution_path: ManoeuvreProfile::level_off_then_climb(
             aircraft.ground_speed_kt,
             aircraft.vertical_speed_fpm,
             pilot_delay_s,
+            CAUTION_NEAREST_S,
+            CAUTION_CLIMB_ANGLE_DEG,
         ),
         warning_path: ManoeuvreProfile::pull_up(
             aircraft.ground_speed_kt,
@@ -179,15 +216,19 @@ impl ScanState<'_> {
             return;
         }
 
-        let paths = RingPaths {
-            caution_ft: aircraft.geometric_altitude_ft
-                + self
-                    .caution_path
-                    .lowest_altitude_change_between(interval_start_s, time_s),
-            warning_ft: aircraft.geometric_altitude_ft
-                + self
-                    .warning_path
-                    .lowest_altitude_change_between(interval_start_s, time_s),
+        let ring = Ring {
+            paths: RingPaths {
+                caution_ft: aircraft.geometric_altitude_ft
+                    + self
+                        .caution_path
+                        .lowest_altitude_change_between(interval_start_s, time_s),
+                warning_ft: aircraft.geometric_altitude_ft
+                    + self
+                        .warning_path
+                        .lowest_altitude_change_between(interval_start_s, time_s),
+            },
+            in_caution_window,
+            in_warning_window,
         };
         let mut positions = Vec::new();
         collect_ring_positions(
@@ -201,37 +242,25 @@ impl ScanState<'_> {
         );
         for position in positions {
             match self.terrain.max_elevation_at(position) {
-                TerrainSample::ElevationFeet(elevation_ft) => self.evaluate_sample(
-                    position,
-                    elevation_ft,
-                    &paths,
-                    in_caution_window,
-                    in_warning_window,
-                ),
+                TerrainSample::ElevationFeet(elevation_ft) => {
+                    self.evaluate_terrain(position, elevation_ft, &ring);
+                    self.evaluate_obstacle(position, elevation_ft, &ring);
+                }
                 TerrainSample::NotLoaded | TerrainSample::Failed => self.result.data_missing = true,
                 TerrainSample::OutsideCoverage => {}
             }
         }
     }
 
-    fn evaluate_sample(
-        &mut self,
-        position: GridPosition,
-        elevation_ft: f64,
-        paths: &RingPaths,
-        in_caution_window: bool,
-        in_warning_window: bool,
-    ) {
-        let aircraft_altitude_ft = self.input.aircraft.geometric_altitude_ft;
-        let (caution_path_ft, warning_path_ft) = (paths.caution_ft, paths.warning_ft);
-
+    fn evaluate_terrain(&mut self, position: GridPosition, elevation_ft: f64, ring: &Ring) {
         // Most samples are far from any threat: rule them out with the largest possible margin before the exact one
         // is worked out.
         let largest_margin_ft = self.input.margin.maximum_ft();
-        let may_cause_caution = in_caution_window
-            && caution_path_ft - elevation_ft - largest_margin_ft <= self.required_level_ft;
-        let may_cause_warning = in_warning_window
-            && warning_path_ft - elevation_ft - largest_margin_ft <= self.required_descending_ft;
+        let may_cause_caution = ring.in_caution_window
+            && ring.paths.caution_ft - elevation_ft - largest_margin_ft <= self.required_level_ft;
+        let may_cause_warning = ring.in_warning_window
+            && ring.paths.warning_ft - elevation_ft - largest_margin_ft
+                <= self.required_descending_ft;
         if !may_cause_caution && !may_cause_warning {
             return;
         }
@@ -243,20 +272,55 @@ impl ScanState<'_> {
             .input
             .margin
             .margin_ft(self.terrain, position, elevation_ft);
-        let terrain_ft = elevation_ft + margin_ft;
+        self.check_threat(
+            ThreatSource::Terrain,
+            position,
+            elevation_ft + margin_ft,
+            ring,
+        );
+    }
+
+    /// An obstacle sample that is missing, outside the data, empty (0 ft) or not above the terrain of its cell is no
+    /// obstacle: the terrain scan has the cell already.
+    fn evaluate_obstacle(&mut self, position: GridPosition, elevation_ft: f64, ring: &Ring) {
+        let TerrainSample::ElevationFeet(top_ft) = self.obstacles.max_elevation_at(position) else {
+            return;
+        };
+        if top_ft <= 0. || top_ft <= elevation_ft {
+            return;
+        }
+        if self.is_airport_surroundings(position, top_ft) {
+            return;
+        }
+        // Design choice: no terrain margin on the obstacle top. It comes from a surveyed database and is rounded up to
+        // the next 50 m step, while the margin is for the peak error of the averaged terrain grid.
+        self.check_threat(ThreatSource::Obstacle, position, top_ft, ring);
+    }
+
+    /// A threat is where a path comes closer to the top than the clearance the phase of flight requires. Terrain and
+    /// obstacles are held to the same clearances.
+    fn check_threat(
+        &mut self,
+        source: ThreatSource,
+        position: GridPosition,
+        top_ft: f64,
+        ring: &Ring,
+    ) {
+        let terrain_below_aircraft =
+            source == ThreatSource::Terrain && top_ft < self.input.aircraft.geometric_altitude_ft;
 
         let mut level = None;
-        if may_cause_caution {
-            let clearance_ft = caution_path_ft - terrain_ft;
+        if ring.in_caution_window {
+            let clearance_ft = ring.paths.caution_ft - top_ft;
             if clearance_ft <= self.required_level_ft {
-                self.add_caution(clearance_ft, terrain_ft < aircraft_altitude_ft);
+                self.add_caution(source, clearance_ft, terrain_below_aircraft);
                 level = Some(ThreatLevel::Caution);
             }
         }
-        if may_cause_warning {
-            let clearance_ft = warning_path_ft - terrain_ft;
+        if ring.in_warning_window {
+            let clearance_ft = ring.paths.warning_ft - top_ft;
             if clearance_ft <= self.required_descending_ft {
-                self.add_warning(clearance_ft);
+                self.add_warning(source, clearance_ft);
                 level = Some(ThreatLevel::Warning);
             }
         }
@@ -288,29 +352,35 @@ impl ScanState<'_> {
         })
     }
 
-    fn add_caution(&mut self, clearance_ft: f64, terrain_below_aircraft: bool) {
-        let is_worse = self
-            .result
-            .caution
-            .is_none_or(|worst| clearance_ft < worst.clearance_ft);
-        if is_worse {
-            self.result.caution = Some(CautionThreat {
+    fn add_caution(
+        &mut self,
+        source: ThreatSource,
+        clearance_ft: f64,
+        terrain_below_aircraft: bool,
+    ) {
+        let worst = match source {
+            ThreatSource::Terrain => &mut self.result.caution,
+            ThreatSource::Obstacle => &mut self.result.obstacle_caution,
+        };
+        if worst.is_none_or(|worst| clearance_ft < worst.clearance_ft) {
+            *worst = Some(CautionThreat {
                 clearance_ft,
                 terrain_below_aircraft,
             });
         }
     }
 
-    fn add_warning(&mut self, clearance_ft: f64) {
-        let is_worse = self
-            .result
-            .warning
-            .is_none_or(|worst| clearance_ft < worst.clearance_ft);
-        if is_worse {
-            self.result.warning = Some(WarningThreat {
+    fn add_warning(&mut self, source: ThreatSource, clearance_ft: f64) {
+        let cannot_climb_over =
+            clearance_ft <= AVOID_CLEARANCE_FRACTION * self.required_descending_ft;
+        let worst = match source {
+            ThreatSource::Terrain => &mut self.result.warning,
+            ThreatSource::Obstacle => &mut self.result.obstacle_warning,
+        };
+        if worst.is_none_or(|worst| clearance_ft < worst.clearance_ft) {
+            *worst = Some(WarningThreat {
                 clearance_ft,
-                cannot_climb_over: clearance_ft
-                    <= AVOID_CLEARANCE_FRACTION * self.required_descending_ft,
+                cannot_climb_over,
             });
         }
     }
@@ -397,7 +467,11 @@ mod tests {
     }
 
     fn scan_of(aircraft: &AircraftState, phase: TerrainPhase, terrain: &TestTerrain) -> TadScan {
-        scan(&input(aircraft, phase, None), terrain)
+        scan(
+            &input(aircraft, phase, None),
+            terrain,
+            &TestTerrain::no_obstacles(),
+        )
     }
 
     /// Descends over flat terrain in steps of 2 ft and reports the height above the terrain at which the caution and
@@ -634,11 +708,19 @@ mod tests {
 
         let mut turning_right = input(&state, TerrainPhase::EnRoute, None);
         turning_right.turn_rate_deg_per_s = 3.;
-        assert!(scan(&turning_right, &ridge_east).warning.is_some());
+        assert!(
+            scan(&turning_right, &ridge_east, &TestTerrain::no_obstacles())
+                .warning
+                .is_some()
+        );
 
         let mut turning_left = input(&state, TerrainPhase::EnRoute, None);
         turning_left.turn_rate_deg_per_s = -3.;
-        assert!(scan(&turning_left, &ridge_east).warning.is_none());
+        assert!(
+            scan(&turning_left, &ridge_east, &TestTerrain::no_obstacles())
+                .warning
+                .is_none()
+        );
     }
 
     #[test]
@@ -656,7 +738,13 @@ mod tests {
         let state = aircraft(8_000., 250., 0.);
         let mut turning = input(&state, TerrainPhase::EnRoute, None);
         turning.turn_rate_deg_per_s = 3.;
-        assert!(scan(&turning, &ridge_behind_the_wing).warning.is_none());
+        assert!(scan(
+            &turning,
+            &ridge_behind_the_wing,
+            &TestTerrain::no_obstacles()
+        )
+        .warning
+        .is_none());
     }
 
     #[test]
@@ -671,7 +759,7 @@ mod tests {
 
     #[test]
     fn terrain_at_the_height_of_the_aircraft_gives_terrain_ahead() {
-        let wall_latitude = START.latitude_degrees + 6. / 60.;
+        let wall_latitude = START.latitude_degrees + 3. / 60.;
         let terrain = TestTerrain::wall_north_of(wall_latitude, 0., 8_000.);
         let state = aircraft(8_000., 250., 0.);
         let caution = scan_of(&state, TerrainPhase::EnRoute, &terrain)
@@ -699,14 +787,14 @@ mod tests {
 
     #[test]
     fn the_caution_does_not_look_further_than_132_s() {
-        // 132 s at 200 kt is 7.3 NM
+        // 132 s at 200 kt is 7.3 NM. The wall is high enough for the rising caution path not to clear it 6 NM out.
         let wall_latitude = START.latitude_degrees + 9. / 60.;
-        let terrain = TestTerrain::wall_north_of(wall_latitude, 0., 8_000.);
+        let terrain = TestTerrain::wall_north_of(wall_latitude, 0., 11_000.);
         let state = aircraft(8_000., 200., 0.);
         assert!(scan_of(&state, TerrainPhase::EnRoute, &terrain)
             .caution
             .is_none());
-        let nearer = TestTerrain::wall_north_of(START.latitude_degrees + 6. / 60., 0., 8_000.);
+        let nearer = TestTerrain::wall_north_of(START.latitude_degrees + 6. / 60., 0., 11_000.);
         assert!(scan_of(&state, TerrainPhase::EnRoute, &nearer)
             .caution
             .is_some());
@@ -720,9 +808,13 @@ mod tests {
         let terrain = TestTerrain::wall_north_of(wall_latitude, 0., 12_000.);
         let state = aircraft(8_000., 250., 0.);
         let mut scan_input = input(&state, TerrainPhase::EnRoute, None);
-        assert!(scan(&scan_input, &terrain).warning.is_some());
+        assert!(scan(&scan_input, &terrain, &TestTerrain::no_obstacles())
+            .warning
+            .is_some());
         scan_input.warning_look_ahead_s = 50.;
-        assert!(scan(&scan_input, &terrain).warning.is_none());
+        assert!(scan(&scan_input, &terrain, &TestTerrain::no_obstacles())
+            .warning
+            .is_none());
     }
 
     #[test]
@@ -807,9 +899,14 @@ mod tests {
         let with_runway = scan(
             &input(&state, TerrainPhase::Approach, Some(&runway)),
             &terrain,
+            &TestTerrain::no_obstacles(),
         );
         assert_eq!(with_runway, TadScan::default());
-        let without_runway = scan(&input(&state, TerrainPhase::Approach, None), &terrain);
+        let without_runway = scan(
+            &input(&state, TerrainPhase::Approach, None),
+            &terrain,
+            &TestTerrain::no_obstacles(),
+        );
         assert!(without_runway.warning.is_some() || without_runway.caution.is_some());
     }
 
@@ -838,6 +935,7 @@ mod tests {
         let result = scan(
             &input(&state, TerrainPhase::Approach, Some(&runway)),
             &terrain,
+            &TestTerrain::no_obstacles(),
         );
         assert!(result.warning.is_some() || result.caution.is_some());
     }
@@ -853,8 +951,9 @@ mod tests {
 
     #[test]
     fn the_terrain_margin_makes_a_ridge_a_threat_that_the_plain_elevation_misses() {
-        // 8200 ft aircraft path over a 7400 ft ridge (800 ft clearance): the grid has the ridge 300 m too low
-        let ridge_latitude = START.latitude_degrees + 6. / 60.;
+        // 8200 ft aircraft path over a 7400 ft ridge (800 ft clearance): the grid has the ridge 300 m too low. The ridge
+        // starts where the caution path is still level.
+        let ridge_latitude = START.latitude_degrees + 1.5 / 60.;
         let terrain = TestTerrain::new(move |position| {
             let ahead = position.latitude_degrees - ridge_latitude;
             TerrainSample::ElevationFeet(if (0. ..0.017).contains(&ahead) {
@@ -865,9 +964,13 @@ mod tests {
         });
         let state = aircraft(8_200., 250., 0.);
         let mut scan_input = input(&state, TerrainPhase::EnRoute, None);
-        assert!(scan(&scan_input, &terrain).caution.is_none());
+        assert!(scan(&scan_input, &terrain, &TestTerrain::no_obstacles())
+            .caution
+            .is_none());
         scan_input.margin = TerrainMargin::for_grid_peak_error();
-        assert!(scan(&scan_input, &terrain).caution.is_some());
+        assert!(scan(&scan_input, &terrain, &TestTerrain::no_obstacles())
+            .caution
+            .is_some());
     }
 
     #[test]
@@ -915,6 +1018,249 @@ mod tests {
         let state = aircraft(5_100., 0., 0.);
         assert_eq!(
             scan_of(&state, TerrainPhase::EnRoute, &terrain),
+            TadScan::default()
+        );
+    }
+
+    fn scan_with_obstacles(
+        aircraft: &AircraftState,
+        phase: TerrainPhase,
+        terrain: &TestTerrain,
+        obstacles: &TestTerrain,
+    ) -> TadScan {
+        scan(&input(aircraft, phase, None), terrain, obstacles)
+    }
+
+    /// A tower in the cell `distance_nm` north of the start, on the track.
+    fn tower_ahead(distance_nm: f64, top_ft: f64) -> TestTerrain {
+        TestTerrain::tower_at(
+            GridPosition::new(
+                START.latitude_degrees + distance_nm / 60.,
+                START.longitude_degrees + 0.004,
+            ),
+            top_ft,
+        )
+    }
+
+    /// Flies level toward a tower and reports the time to the near edge of its cell at which the obstacle caution and
+    /// the obstacle warning first show up.
+    fn obstacle_alert_times(altitude_ft: f64, top_ft: f64, ground_speed_kt: f64) -> (f64, f64) {
+        let cell_edge_latitude = START.latitude_degrees + 20. / 60.;
+        let tower = TestTerrain::tower_at(
+            GridPosition::new(cell_edge_latitude + 0.001, START.longitude_degrees + 0.004),
+            top_ft,
+        );
+        let mut caution_s = None;
+        let mut warning_s = None;
+        let mut distance_nm = 12.;
+        while distance_nm > 0.2 && warning_s.is_none() {
+            let state = AircraftState {
+                position: offset_position(
+                    GridPosition::new(cell_edge_latitude, START.longitude_degrees),
+                    180.,
+                    distance_nm,
+                ),
+                ..aircraft(altitude_ft, ground_speed_kt, 0.)
+            };
+            let result = scan_with_obstacles(
+                &state,
+                TerrainPhase::EnRoute,
+                &TestTerrain::flat(0.),
+                &tower,
+            );
+            let time_s = distance_nm / ground_speed_kt * 3600.;
+            if result.obstacle_caution.is_some() && caution_s.is_none() {
+                caution_s = Some(time_s);
+            }
+            if result.obstacle_warning.is_some() {
+                warning_s = Some(time_s);
+            }
+            distance_nm -= 0.02;
+        }
+        (
+            caution_s.expect("no caution"),
+            warning_s.expect("no warning"),
+        )
+    }
+
+    // A level flight toward a tower a few hundred feet above it: the caution path climbs from 20 s on, so the caution
+    // comes about a minute out and the warning about half a minute out, instead of a caution at the far end of the
+    // envelope two minutes before the warning.
+    #[rstest]
+    #[case(3_000., 3_281., 260.)]
+    #[case(3_000., 3_281., 220.)]
+    #[case(8_000., 8_300., 300.)]
+    fn the_obstacle_caution_comes_about_a_minute_out_and_the_warning_about_half_a_minute_out(
+        #[case] altitude_ft: f64,
+        #[case] top_ft: f64,
+        #[case] ground_speed_kt: f64,
+    ) {
+        let (caution_s, warning_s) = obstacle_alert_times(altitude_ft, top_ft, ground_speed_kt);
+        assert!((50. ..=80.).contains(&caution_s), "caution {caution_s}");
+        // Measured to the near edge of the cell, which the warning reaches some seconds before the tower itself
+        assert!((18. ..=40.).contains(&warning_s), "warning {warning_s}");
+    }
+
+    #[test]
+    fn a_tower_ahead_over_low_terrain_is_an_obstacle_caution_not_a_terrain_caution() {
+        let result = scan_with_obstacles(
+            &aircraft(8_000., 250., 0.),
+            TerrainPhase::EnRoute,
+            &TestTerrain::flat(0.),
+            &tower_ahead(5., 8_500.),
+        );
+        let caution = result.obstacle_caution.expect("no obstacle caution");
+        assert!(!caution.terrain_below_aircraft);
+        assert!(result.caution.is_none() && result.warning.is_none());
+        assert!(!result.data_missing);
+        assert!(result
+            .threat_cells
+            .iter()
+            .any(|threat| threat.level == ThreatLevel::Caution));
+    }
+
+    #[test]
+    fn a_tower_that_is_not_higher_than_the_terrain_of_its_cell_is_left_to_the_terrain() {
+        // The terrain wall already is the threat; the tower inside it adds nothing of its own
+        let wall = TestTerrain::wall_north_of(START.latitude_degrees + 5. / 60., 0., 8_500.);
+        let result = scan_with_obstacles(
+            &aircraft(8_000., 250., 0.),
+            TerrainPhase::EnRoute,
+            &wall,
+            &tower_ahead(5.5, 8_400.),
+        );
+        assert!(result.caution.is_some());
+        assert_eq!(result.obstacle_caution, None);
+        assert_eq!(result.obstacle_warning, None);
+    }
+
+    #[test]
+    fn a_tower_is_a_threat_by_its_own_top_without_the_terrain_margin() {
+        // The cell holds a 7000 ft peak above lower ground, so the terrain margin raises it to a caution at 8200 ft.
+        // A 7400 ft tower in it clears 8200 ft by 800 ft: enough, as the margin is for the peaks of the terrain grid.
+        // The cell starts 1 NM ahead, where the caution path is still level
+        let peak = tower_ahead(1.5, 7_000.);
+        let tower = tower_ahead(1.5, 7_400.);
+        let high_aircraft = aircraft(8_200., 250., 0.);
+        let mut high = input(&high_aircraft, TerrainPhase::EnRoute, None);
+        high.margin = TerrainMargin::for_grid_peak_error();
+        let result = scan(&high, &peak, &tower);
+        assert!(result.caution.is_some());
+        assert_eq!(result.obstacle_caution, None);
+
+        let low_aircraft = aircraft(8_000., 250., 0.);
+        let mut low = input(&low_aircraft, TerrainPhase::EnRoute, None);
+        low.margin = TerrainMargin::for_grid_peak_error();
+        assert!(scan(&low, &peak, &tower).obstacle_caution.is_some());
+    }
+
+    #[rstest]
+    #[case(TerrainSample::NotLoaded)]
+    #[case(TerrainSample::Failed)]
+    #[case(TerrainSample::OutsideCoverage)]
+    fn an_obstacle_grid_that_is_missing_never_makes_the_scan_incomplete(
+        #[case] sample: TerrainSample,
+    ) {
+        let result = scan_with_obstacles(
+            &aircraft(8_000., 250., 0.),
+            TerrainPhase::EnRoute,
+            &TestTerrain::flat(0.),
+            &TestTerrain::new(move |_| sample),
+        );
+        assert_eq!(result, TadScan::default());
+    }
+
+    #[test]
+    fn a_missing_terrain_still_reports_missing_data_with_an_obstacle_grid() {
+        let result = scan_with_obstacles(
+            &aircraft(8_000., 250., 0.),
+            TerrainPhase::EnRoute,
+            &TestTerrain::new(|_| TerrainSample::NotLoaded),
+            &TestTerrain::no_obstacles(),
+        );
+        assert!(result.data_missing);
+    }
+
+    #[test]
+    fn a_tower_near_the_runway_is_cut_off_like_the_terrain() {
+        let tower = tower_ahead(1., 300.);
+        let state = aircraft(400., 140., 0.);
+        let runway = RunwayContext {
+            runway: Runway {
+                reference_point: GridPosition::new(START.latitude_degrees + 1. / 60., 8.),
+                elevation_ft: 0.,
+                origin: RunwayOrigin::Destination,
+                geometry: None,
+            },
+            distance_nm: 1.,
+            height_above_runway_ft: 400.,
+        };
+        let flat = TestTerrain::flat(0.);
+        let with_runway = scan(
+            &input(&state, TerrainPhase::Approach, Some(&runway)),
+            &flat,
+            &tower,
+        );
+        assert_eq!(with_runway, TadScan::default());
+        let without_runway = scan(&input(&state, TerrainPhase::Approach, None), &flat, &tower);
+        assert!(
+            without_runway.obstacle_warning.is_some() || without_runway.obstacle_caution.is_some()
+        );
+    }
+
+    #[test]
+    fn a_tower_that_a_pull_up_cannot_clear_is_an_obstacle_warning_to_avoid() {
+        let aircraft = aircraft(8_000., 250., 0.);
+        let near = scan_with_obstacles(
+            &aircraft,
+            TerrainPhase::EnRoute,
+            &TestTerrain::flat(0.),
+            &tower_ahead(1., 12_000.),
+        );
+        let warning = near.obstacle_warning.expect("no obstacle warning");
+        assert!(warning.cannot_climb_over);
+        assert!(near.warning.is_none());
+
+        let farther = scan_with_obstacles(
+            &aircraft,
+            TerrainPhase::EnRoute,
+            &TestTerrain::flat(0.),
+            &tower_ahead(2., 8_600.),
+        );
+        let warning = farther.obstacle_warning.expect("no obstacle warning");
+        assert!(!warning.cannot_climb_over);
+        assert!(farther
+            .threat_cells
+            .iter()
+            .any(|threat| threat.level == ThreatLevel::Warning));
+    }
+
+    #[test]
+    fn a_tower_beside_the_ribbon_or_far_below_is_no_threat() {
+        let beside = TestTerrain::tower_at(
+            GridPosition::new(
+                START.latitude_degrees + 5. / 60.,
+                START.longitude_degrees + 0.1,
+            ),
+            9_000.,
+        );
+        let state = aircraft(8_000., 250., 0.);
+        assert_eq!(
+            scan_with_obstacles(
+                &state,
+                TerrainPhase::EnRoute,
+                &TestTerrain::flat(0.),
+                &beside
+            ),
+            TadScan::default()
+        );
+        assert_eq!(
+            scan_with_obstacles(
+                &state,
+                TerrainPhase::EnRoute,
+                &TestTerrain::flat(0.),
+                &tower_ahead(5., 3_000.)
+            ),
             TadScan::default()
         );
     }

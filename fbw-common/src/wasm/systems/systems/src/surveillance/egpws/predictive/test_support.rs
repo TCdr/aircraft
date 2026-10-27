@@ -26,6 +26,28 @@ impl TestTerrain {
         Self::new(move |_| TerrainSample::ElevationFeet(elevation_ft))
     }
 
+    /// An obstacle database with nothing in it: the cells hold 0 ft, like the cells of the real file without obstacles.
+    pub(super) fn no_obstacles() -> Self {
+        Self::flat(0.)
+    }
+
+    /// A single obstacle top in the cell around the position, nothing anywhere else.
+    pub(super) fn tower_at(tower: GridPosition, top_ft: f64) -> Self {
+        let cell_of = |position: GridPosition| {
+            (
+                (position.latitude_degrees / CELL_DEGREES).floor(),
+                (position.longitude_degrees / CELL_DEGREES).floor(),
+            )
+        };
+        Self::new(move |position| {
+            TerrainSample::ElevationFeet(if cell_of(position) == cell_of(tower) {
+                top_ft
+            } else {
+                0.
+            })
+        })
+    }
+
     /// Flat terrain with a plateau at the given elevation for everything north of the latitude.
     pub(super) fn wall_north_of(wall_latitude: f64, base_ft: f64, wall_ft: f64) -> Self {
         Self::new(move |position| {

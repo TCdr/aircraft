@@ -33,7 +33,20 @@ export function terrainSettingMessage(
   return undefined;
 }
 
-/** TERR AHEAD flashes each time it is triggered, and a warning that follows a caution is a new trigger */
-export function flashRestartsOn(previous: TerrainAheadAlert, current: TerrainAheadAlert): boolean {
-  return current > previous;
+/**
+ * TERR AHEAD / OBST AHEAD flashes each time it is triggered: a warning that follows a caution is a new trigger, and so is
+ * the other message taking over while the alert goes on.
+ */
+export function flashRestartsOn(
+  previous: TerrainAheadAlert,
+  current: TerrainAheadAlert,
+  previousIsObstacle = false,
+  currentIsObstacle = false,
+): boolean {
+  const messageChanged = previous !== TerrainAheadAlert.None && previousIsObstacle !== currentIsObstacle;
+  return current > previous || (current !== TerrainAheadAlert.None && messageChanged);
+}
+
+export function aheadMessageText(isObstacle: boolean): 'TERR AHEAD' | 'OBST AHEAD' {
+  return isObstacle ? 'OBST AHEAD' : 'TERR AHEAD';
 }

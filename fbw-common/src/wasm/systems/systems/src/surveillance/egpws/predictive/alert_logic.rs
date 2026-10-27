@@ -5,12 +5,15 @@
 //! - Caution, terrain below the aircraft: TOO LOW TERRAIN instead, every 7 s too, amber GPWS light, no terrain display.
 //! - Warning: TERRAIN AHEAD once, then PULL UP over and over for as long as the warning lasts, red PULL UP light.
 //! - Warning, the aircraft cannot climb over: AVOID TERRAIN over and over for as long as it lasts, red PULL UP light.
+//! - Obstacles have the same alerts with OBSTACLE AHEAD and AVOID OBSTACLE as the words (PULL UP is shared) and
+//!   OBST AHEAD on the NDs; there is no TOO LOW variant. When terrain and an obstacle threaten at the same level,
+//!   the terrain words are said.
 //!
 //! The voice output is a train of pulses: it is a word for a short while and None in between. The sound player of the
 //! cockpit plays a word when the output changes, so a word that would stay on the output would be said only once.
 //!
-//! A warning takes over from a caution. Once AVOID TERRAIN has been said, PULL UP does not come back during the same
-//! warning.
+//! A warning takes over from a caution. Once AVOID TERRAIN (or AVOID OBSTACLE) has been said, PULL UP does not come back
+//! during the same warning.
 
 use super::tad_scan::TadScan;
 use std::time::Duration;
@@ -23,17 +26,22 @@ pub enum PredictiveVoice {
     TooLowTerrain,
     PullUp,
     AvoidTerrain,
+    ObstacleAhead,
+    AvoidObstacle,
 }
 
 impl PredictiveVoice {
     /// The words of a warning rank above those of a caution.
     pub fn is_warning(&self) -> bool {
-        matches!(self, Self::PullUp | Self::AvoidTerrain)
+        matches!(
+            self,
+            Self::PullUp | Self::AvoidTerrain | Self::AvoidObstacle
+        )
     }
 }
 
-/// The TERR AHEAD message of the NDs: amber for the caution, red for the warning (PULL UP or AVOID TERRAIN). The
-/// caution for terrain below the aircraft (TOO LOW TERRAIN) has none.
+/// The TERR AHEAD (or OBST AHEAD) message of the NDs: amber for the caution, red for the warning (PULL UP or AVOID
+/// TERRAIN / OBSTACLE). The caution for terrain below the aircraft (TOO LOW TERRAIN) has none.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TerrainAheadMessage {
     #[default]
@@ -49,15 +57,19 @@ pub(super) struct TadAlertOutputs {
     pub(super) caution_light: bool,
     pub(super) automatic_terrain_display: bool,
     pub(super) nd_message: TerrainAheadMessage,
-    /// AVOID TERRAIN: the warning areas are crosshatched
+    /// AVOID TERRAIN or AVOID OBSTACLE: the warning areas are crosshatched
     pub(super) avoid_terrain: bool,
+    /// The alert on the ND is about an obstacle: the message reads OBST AHEAD
+    pub(super) obstacle_ahead: bool,
 }
 
 pub(super) struct TadAlertLogic {
     caution_hold: Duration,
     warning_hold: Duration,
     last_caution_below_aircraft: bool,
+    last_caution_is_obstacle: bool,
     last_warning_cannot_climb_over: bool,
+    last_warning_is_obstacle: bool,
     avoid_terrain_latched: bool,
     time_since_warning_word: Duration,
     warning_word_period: Duration,
@@ -75,23 +87,36 @@ impl TadAlertLogic {
     /// "TERRAIN AHEAD" and "TOO LOW TERRAIN" are repeated every 7 s while the caution lasts.
     const CAUTION_REPEAT: Duration = Duration::from_secs(7);
 
-    /// Design choice: the words are held shorter than the sound is played back for (1.5 s), so each one is said once.
-    const WORD_HOLD: Duration = Duration::from_millis(1000);
+    /// Design choice: a word stays on the output for 0.5 s, well under the 1.1 s after which the MCDU's sound manager
+    /// says a word again while it still sees it, so each one is said once.
+    const WORD_HOLD: Duration = Duration::from_millis(500);
 
-    /// Design choice: PULL UP and AVOID TERRAIN (sounds of 0.9 s) start again every 1.5 s, which leaves 0.5 s of
-    /// silence after a word held for 1 s. The gap is long enough for the sound player to see the output drop to None.
+    /// Design choice: PULL UP and AVOID TERRAIN (sounds of about 1 s) start again every 1.5 s, which leaves 1 s of
+    /// None after a word held for 0.5 s. The gap is long enough for the sound player to see the output drop to None.
     const WARNING_REPEAT: Duration = Duration::from_millis(1500);
 
     /// Design choice: the sound of TERRAIN AHEAD lasts 1.5 s, so the PULL UP after it waits for 2 s: it is not lost
     /// because the previous sound is still playing.
     const WARNING_REPEAT_AFTER_TERRAIN_AHEAD: Duration = Duration::from_millis(2000);
 
+    /// Design choice: the sound of OBSTACLE AHEAD lasts 1.8 s, so the PULL UP after it waits for 2.3 s for the same
+    /// reason.
+    const WARNING_REPEAT_AFTER_OBSTACLE_AHEAD: Duration = Duration::from_millis(2300);
+
+    /// Design choice: the first AVOID TERRAIN waits 2.5 s after a TERRAIN AHEAD or PULL UP. Those come from the sound
+    /// bank, which the MCDU starts some time after it sees the output, and last about 1.1 s; AVOID TERRAIN is a clip the
+    /// sim starts the moment the output changes. After 1.5 s the two were heard at the same time in the sim. The same
+    /// goes for AVOID OBSTACLE after OBSTACLE AHEAD or PULL UP.
+    const AVOID_TERRAIN_AFTER_SOUND_BANK_WORD: Duration = Duration::from_millis(2500);
+
     pub(super) fn new() -> Self {
         Self {
             caution_hold: Duration::ZERO,
             warning_hold: Duration::ZERO,
             last_caution_below_aircraft: false,
+            last_caution_is_obstacle: false,
             last_warning_cannot_climb_over: false,
+            last_warning_is_obstacle: false,
             avoid_terrain_latched: false,
             time_since_warning_word: Self::WARNING_REPEAT,
             warning_word_period: Self::WARNING_REPEAT,
@@ -124,6 +149,8 @@ impl TadAlertLogic {
         } else if caution_active && !self.caution_word_remaining.is_zero() {
             if self.last_caution_below_aircraft {
                 PredictiveVoice::TooLowTerrain
+            } else if self.last_caution_is_obstacle {
+                PredictiveVoice::ObstacleAhead
             } else {
                 PredictiveVoice::TerrainAhead
             }
@@ -145,18 +172,29 @@ impl TadAlertLogic {
                 TerrainAheadMessage::None
             },
             avoid_terrain: warning_active && self.avoid_terrain_latched,
+            obstacle_ahead: (warning_active && self.last_warning_is_obstacle)
+                || (caution_ahead && self.last_caution_is_obstacle),
         }
     }
 
-    /// A threat in the scan restarts the hold; the nature of the last threat is what the held alert shows.
+    /// A threat in the scan restarts the hold; the nature of the last threat is what the held alert shows. Design
+    /// choice: when terrain and an obstacle threaten at the same level the alert is the terrain one, because the aural
+    /// priorities of the system put the terrain words before the obstacle words.
     fn hold_threats(&mut self, scan: &TadScan) {
-        if let Some(caution) = scan.caution {
+        if let Some(caution) = scan.caution.or(scan.obstacle_caution) {
             self.caution_hold = Self::HOLD;
             self.last_caution_below_aircraft = caution.terrain_below_aircraft;
+            self.last_caution_is_obstacle = scan.caution.is_none();
         }
-        if let Some(warning) = scan.warning {
+        if scan.warning.is_some() || scan.obstacle_warning.is_some() {
             self.warning_hold = Self::HOLD;
-            self.last_warning_cannot_climb_over = warning.cannot_climb_over;
+            // Either threat can be one that a straight pull-up does not clear
+            self.last_warning_cannot_climb_over = scan
+                .warning
+                .into_iter()
+                .chain(scan.obstacle_warning)
+                .any(|warning| warning.cannot_climb_over);
+            self.last_warning_is_obstacle = scan.warning.is_none();
         }
     }
 
@@ -179,13 +217,27 @@ impl TadAlertLogic {
             return;
         }
         self.time_since_warning_word += delta;
-        if self.time_since_warning_word >= self.warning_word_period {
+        let after_sound_bank_word = matches!(
+            self.warning_word,
+            Some(
+                PredictiveVoice::TerrainAhead
+                    | PredictiveVoice::ObstacleAhead
+                    | PredictiveVoice::PullUp
+            )
+        );
+        let period = if self.avoid_terrain_latched && after_sound_bank_word {
+            self.warning_word_period
+                .max(Self::AVOID_TERRAIN_AFTER_SOUND_BANK_WORD)
+        } else {
+            self.warning_word_period
+        };
+        if self.time_since_warning_word >= period {
             let word = self.next_warning_word();
             self.time_since_warning_word = Duration::ZERO;
-            self.warning_word_period = if word == PredictiveVoice::TerrainAhead {
-                Self::WARNING_REPEAT_AFTER_TERRAIN_AHEAD
-            } else {
-                Self::WARNING_REPEAT
+            self.warning_word_period = match word {
+                PredictiveVoice::TerrainAhead => Self::WARNING_REPEAT_AFTER_TERRAIN_AHEAD,
+                PredictiveVoice::ObstacleAhead => Self::WARNING_REPEAT_AFTER_OBSTACLE_AHEAD,
+                _ => Self::WARNING_REPEAT,
             };
             self.warning_word = Some(word);
             self.warning_word_remaining = Self::WORD_HOLD;
@@ -194,11 +246,20 @@ impl TadAlertLogic {
 
     /// A word that is being said is not changed halfway: the latch of AVOID TERRAIN takes effect with the next word.
     fn next_warning_word(&self) -> PredictiveVoice {
+        let is_obstacle = self.last_warning_is_obstacle;
         if self.avoid_terrain_latched {
-            PredictiveVoice::AvoidTerrain
+            if is_obstacle {
+                PredictiveVoice::AvoidObstacle
+            } else {
+                PredictiveVoice::AvoidTerrain
+            }
         } else if self.warning_word.is_none() {
-            // TERRAIN AHEAD, PULL UP
-            PredictiveVoice::TerrainAhead
+            // TERRAIN AHEAD (or OBSTACLE AHEAD), then PULL UP
+            if is_obstacle {
+                PredictiveVoice::ObstacleAhead
+            } else {
+                PredictiveVoice::TerrainAhead
+            }
         } else {
             PredictiveVoice::PullUp
         }
@@ -231,6 +292,7 @@ impl TadAlertLogic {
 mod tests {
     use super::*;
     use crate::surveillance::egpws::predictive::tad_scan::{CautionThreat, WarningThreat};
+    use rstest::rstest;
 
     const STEP: Duration = Duration::from_millis(500);
 
@@ -361,6 +423,37 @@ mod tests {
         assert_eq!(outputs.voice, PredictiveVoice::TooLowTerrain);
         assert!(outputs.caution_light);
         assert!(!outputs.automatic_terrain_display);
+    }
+
+    /// The longest time a word stays on the voice output, on fine steps
+    fn longest_word(scan: &TadScan) -> Duration {
+        let step = Duration::from_millis(50);
+        let mut logic = TadAlertLogic::new();
+        let (mut longest, mut current) = (Duration::ZERO, Duration::ZERO);
+        for _ in 0..200 {
+            if logic.update(step, scan).voice == PredictiveVoice::None {
+                current = Duration::ZERO;
+            } else {
+                current += step;
+                longest = longest.max(current);
+            }
+        }
+        longest
+    }
+
+    #[test]
+    fn each_word_leaves_the_output_well_before_the_sound_player_says_it_again() {
+        // The MCDU's sound manager says a word again after 1.1 s while it still sees it on the output, and sees the
+        // output every 75 ms or more: a word held close to 1.1 s is sometimes said twice, the second time over the
+        // next word.
+        let well_before = Duration::from_millis(600);
+        for scan in [caution(false), caution(true), warning(false), warning(true)] {
+            assert!(
+                longest_word(&scan) <= well_before,
+                "{:?}",
+                longest_word(&scan)
+            );
+        }
     }
 
     #[test]
@@ -526,5 +619,187 @@ mod tests {
         assert!(PredictiveVoice::AvoidTerrain.is_warning());
         assert!(!PredictiveVoice::TerrainAhead.is_warning());
         assert!(!PredictiveVoice::TooLowTerrain.is_warning());
+    }
+
+    fn obstacle_caution() -> TadScan {
+        TadScan {
+            obstacle_caution: caution(false).caution,
+            ..Default::default()
+        }
+    }
+
+    fn obstacle_warning(cannot_climb_over: bool) -> TadScan {
+        TadScan {
+            obstacle_warning: warning(cannot_climb_over).warning,
+            ..Default::default()
+        }
+    }
+
+    /// The times (s) at which each word starts, flying a warning that becomes one to avoid after 4 s
+    fn word_starts_into_avoid(warning: fn(bool) -> TadScan) -> Vec<(f64, PredictiveVoice)> {
+        let step = Duration::from_millis(50);
+        let mut logic = TadAlertLogic::new();
+        let mut starts: Vec<(f64, PredictiveVoice)> = Vec::new();
+        let mut previous = PredictiveVoice::None;
+        for i in 0..200 {
+            let voice = logic.update(step, &warning(i >= 80)).voice;
+            if voice != PredictiveVoice::None && voice != previous {
+                starts.push((i as f64 * 0.05, voice));
+            }
+            previous = voice;
+        }
+        starts
+    }
+
+    #[rstest]
+    #[case(warning, PredictiveVoice::AvoidTerrain)]
+    #[case(obstacle_warning, PredictiveVoice::AvoidObstacle)]
+    fn avoid_terrain_leaves_room_after_the_last_sound_bank_word(
+        #[case] warning: fn(bool) -> TadScan,
+        #[case] avoid: PredictiveVoice,
+    ) {
+        // PULL UP comes from the sound bank, started by the MCDU some time after the output; AVOID TERRAIN and AVOID
+        // OBSTACLE are clips started at once: the first one waits longer, so that the two are not said at the same time.
+        let starts = word_starts_into_avoid(warning);
+        let first_avoid = starts.iter().position(|(_, word)| *word == avoid).unwrap();
+        let (last_pull_up_s, last_word) = starts[first_avoid - 1];
+        assert_eq!(last_word, PredictiveVoice::PullUp);
+        assert!(starts[first_avoid].0 - last_pull_up_s >= 2.5 - 1e-9);
+        // then the usual rhythm
+        assert!((starts[first_avoid + 1].0 - starts[first_avoid].0 - 1.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn an_obstacle_caution_says_obstacle_ahead_every_7_s_with_the_amber_light() {
+        let mut logic = TadAlertLogic::new();
+        let first = logic.update(STEP, &obstacle_caution());
+        assert_eq!(first.voice, PredictiveVoice::ObstacleAhead);
+        assert!(first.caution_light);
+        assert!(!first.warning_light);
+        assert!(first.automatic_terrain_display);
+        assert!(first.obstacle_ahead);
+        assert_eq!(first.nd_message, TerrainAheadMessage::Caution);
+
+        let mut logic = TadAlertLogic::new();
+        let words = word_starts(&mut logic, &obstacle_caution(), 30.);
+        assert_eq!(
+            words,
+            vec![
+                (0., PredictiveVoice::ObstacleAhead),
+                (7., PredictiveVoice::ObstacleAhead),
+                (14., PredictiveVoice::ObstacleAhead),
+                (21., PredictiveVoice::ObstacleAhead),
+                (28., PredictiveVoice::ObstacleAhead),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_obstacle_warning_says_obstacle_ahead_then_pull_up_after_the_longer_sound() {
+        let mut logic = TadAlertLogic::new();
+        let first = logic.update(STEP, &obstacle_warning(false));
+        assert_eq!(first.voice, PredictiveVoice::ObstacleAhead);
+        assert!(first.warning_light);
+        assert!(first.obstacle_ahead);
+        assert_eq!(first.nd_message, TerrainAheadMessage::Warning);
+
+        let mut logic = TadAlertLogic::new();
+        let words = word_starts(&mut logic, &obstacle_warning(false), 30.);
+        assert_eq!(words[0], (0., PredictiveVoice::ObstacleAhead));
+        // The sound of OBSTACLE AHEAD lasts 1.8 s, PULL UP waits for 2.3 s
+        assert_eq!(words[1], (2.5, PredictiveVoice::PullUp));
+        assert!(words[1..]
+            .iter()
+            .all(|(_, word)| *word == PredictiveVoice::PullUp));
+        assert!(words
+            .windows(2)
+            .skip(1)
+            .all(|pair| pair[1].0 - pair[0].0 <= 2.));
+    }
+
+    #[test]
+    fn an_obstacle_warning_that_cannot_be_climbed_over_says_avoid_obstacle_with_the_crosshatch() {
+        let mut logic = TadAlertLogic::new();
+        let outputs = logic.update(STEP, &obstacle_warning(true));
+        assert_eq!(outputs.voice, PredictiveVoice::AvoidObstacle);
+        assert!(outputs.warning_light);
+        assert!(outputs.avoid_terrain);
+        assert!(outputs.obstacle_ahead);
+
+        let mut logic = TadAlertLogic::new();
+        let words = word_starts(&mut logic, &obstacle_warning(true), 30.);
+        assert!(words
+            .iter()
+            .all(|(_, word)| *word == PredictiveVoice::AvoidObstacle));
+        assert!(words.len() >= 18, "{words:?}");
+    }
+
+    #[test]
+    fn avoid_obstacle_stays_for_the_rest_of_the_warning() {
+        let mut logic = TadAlertLogic::new();
+        run(&mut logic, &obstacle_warning(false), 4.);
+        let words = word_starts(&mut logic, &obstacle_warning(true), 3.);
+        assert_eq!(words[0].1, PredictiveVoice::AvoidObstacle);
+        let words = word_starts(&mut logic, &obstacle_warning(false), 3.);
+        assert!(words
+            .iter()
+            .all(|(_, word)| *word == PredictiveVoice::AvoidObstacle));
+    }
+
+    #[test]
+    fn the_words_of_an_obstacle_warning_rank_above_those_of_a_caution() {
+        assert!(PredictiveVoice::AvoidObstacle.is_warning());
+        assert!(!PredictiveVoice::ObstacleAhead.is_warning());
+    }
+
+    #[test]
+    fn terrain_words_take_priority_when_terrain_and_an_obstacle_threaten_together() {
+        let mut both_cautions = caution(false);
+        both_cautions.obstacle_caution = obstacle_caution().obstacle_caution;
+        let outputs = TadAlertLogic::new().update(STEP, &both_cautions);
+        assert_eq!(outputs.voice, PredictiveVoice::TerrainAhead);
+        assert!(!outputs.obstacle_ahead);
+
+        let mut both_warnings = warning(true);
+        both_warnings.obstacle_warning = obstacle_warning(true).obstacle_warning;
+        let outputs = TadAlertLogic::new().update(STEP, &both_warnings);
+        assert_eq!(outputs.voice, PredictiveVoice::AvoidTerrain);
+        assert!(!outputs.obstacle_ahead);
+    }
+
+    #[test]
+    fn the_obstacle_speaks_when_only_its_level_has_the_higher_alert() {
+        // A terrain caution with an obstacle warning: the warning is the obstacle's
+        let mut scan = caution(false);
+        scan.obstacle_warning = obstacle_warning(false).obstacle_warning;
+        let outputs = TadAlertLogic::new().update(STEP, &scan);
+        assert_eq!(outputs.voice, PredictiveVoice::ObstacleAhead);
+        assert!(outputs.warning_light);
+        assert!(outputs.obstacle_ahead);
+
+        // A terrain warning with an obstacle caution: the warning is the terrain's
+        let mut scan = warning(false);
+        scan.obstacle_caution = obstacle_caution().obstacle_caution;
+        let outputs = TadAlertLogic::new().update(STEP, &scan);
+        assert_eq!(outputs.voice, PredictiveVoice::TerrainAhead);
+        assert!(!outputs.obstacle_ahead);
+    }
+
+    #[test]
+    fn the_obstacle_message_is_held_with_the_alert_and_goes_with_it() {
+        let mut logic = TadAlertLogic::new();
+        logic.update(STEP, &obstacle_caution());
+        assert!(run(&mut logic, &TadScan::default(), 1.).obstacle_ahead);
+        let gone = run(&mut logic, &TadScan::default(), 1.5);
+        assert!(!gone.obstacle_ahead);
+        assert_eq!(gone.nd_message, TerrainAheadMessage::None);
+    }
+
+    #[test]
+    fn a_terrain_alert_after_an_obstacle_alert_is_not_taken_for_an_obstacle() {
+        let mut logic = TadAlertLogic::new();
+        run(&mut logic, &obstacle_caution(), 1.);
+        let outputs = run(&mut logic, &caution(false), 1.);
+        assert!(!outputs.obstacle_ahead);
     }
 }

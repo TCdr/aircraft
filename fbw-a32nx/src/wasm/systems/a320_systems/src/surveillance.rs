@@ -151,6 +151,9 @@ impl SimulationElement for A320EgpwsElectricalHarness {
 /// vertical speed, and the FMGC for the origin and destination runways.
 pub struct A320PredictiveTerrain {
     grid: Box<dyn TerrainGrid>,
+    /// The towers and masts, in a grid of the layout of the terrain grid. An airline option: without the file the
+    /// predictive functions work with the terrain alone.
+    obstacles: Box<dyn TerrainGrid>,
     alerting: PredictiveTerrainAlerting,
     runways: ReferenceRunways,
     outputs: PredictiveOutputs,
@@ -183,9 +186,14 @@ impl A320PredictiveTerrain {
     /// that deactivates them is not published.
     const MAXIMUM_POSITION_UNCERTAINTY_NM: f64 = 0.5;
 
-    pub fn new(context: &mut InitContext, grid: Box<dyn TerrainGrid>) -> Self {
+    pub fn new(
+        context: &mut InitContext,
+        grid: Box<dyn TerrainGrid>,
+        obstacles: Box<dyn TerrainGrid>,
+    ) -> Self {
         Self {
             grid,
+            obstacles,
             alerting: PredictiveTerrainAlerting::new(),
             runways: ReferenceRunways::default(),
             outputs: PredictiveOutputs::default(),
@@ -234,6 +242,7 @@ impl A320PredictiveTerrain {
 
         if let Some(aircraft) = aircraft {
             self.grid.update(context.delta(), aircraft.position);
+            self.obstacles.update(context.delta(), aircraft.position);
             self.runways.departure_latch_mut().update(
                 on_ground,
                 aircraft.ground_speed_kt,
@@ -259,9 +268,13 @@ impl A320PredictiveTerrain {
             landing_flaps: discrete_inputs.landing_flaps,
             terrain_off: discrete_inputs.terrain_awareness_inhibit,
         };
-        self.outputs = self
-            .alerting
-            .update(context.delta(), &inputs, &*self.grid, &self.runways);
+        self.outputs = self.alerting.update(
+            context.delta(),
+            &inputs,
+            &*self.grid,
+            &*self.obstacles,
+            &self.runways,
+        );
     }
 
     pub fn outputs(&self) -> &PredictiveOutputs {
