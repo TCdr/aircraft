@@ -75,16 +75,22 @@ impl TadAlertLogic {
     /// "TERRAIN AHEAD" and "TOO LOW TERRAIN" are repeated every 7 s while the caution lasts.
     const CAUTION_REPEAT: Duration = Duration::from_secs(7);
 
-    /// Design choice: the words are held shorter than the sound is played back for (1.5 s), so each one is said once.
-    const WORD_HOLD: Duration = Duration::from_millis(1000);
+    /// Design choice: a word stays on the output for 0.5 s, well under the 1.1 s after which the MCDU's sound manager
+    /// says a word again while it still sees it, so each one is said once.
+    const WORD_HOLD: Duration = Duration::from_millis(500);
 
-    /// Design choice: PULL UP and AVOID TERRAIN (sounds of 0.9 s) start again every 1.5 s, which leaves 0.5 s of
-    /// silence after a word held for 1 s. The gap is long enough for the sound player to see the output drop to None.
+    /// Design choice: PULL UP and AVOID TERRAIN (sounds of about 1 s) start again every 1.5 s, which leaves 1 s of
+    /// None after a word held for 0.5 s. The gap is long enough for the sound player to see the output drop to None.
     const WARNING_REPEAT: Duration = Duration::from_millis(1500);
 
     /// Design choice: the sound of TERRAIN AHEAD lasts 1.5 s, so the PULL UP after it waits for 2 s: it is not lost
     /// because the previous sound is still playing.
     const WARNING_REPEAT_AFTER_TERRAIN_AHEAD: Duration = Duration::from_millis(2000);
+
+    /// Design choice: the first AVOID TERRAIN waits 2.5 s after a TERRAIN AHEAD or PULL UP. Those come from the sound
+    /// bank, which the MCDU starts some time after it sees the output, and last about 1.1 s; AVOID TERRAIN is a clip the
+    /// sim starts the moment the output changes. After 1.5 s the two were heard at the same time in the sim.
+    const AVOID_TERRAIN_AFTER_SOUND_BANK_WORD: Duration = Duration::from_millis(2500);
 
     pub(super) fn new() -> Self {
         Self {
@@ -179,7 +185,17 @@ impl TadAlertLogic {
             return;
         }
         self.time_since_warning_word += delta;
-        if self.time_since_warning_word >= self.warning_word_period {
+        let after_sound_bank_word = matches!(
+            self.warning_word,
+            Some(PredictiveVoice::TerrainAhead | PredictiveVoice::PullUp)
+        );
+        let period = if self.avoid_terrain_latched && after_sound_bank_word {
+            self.warning_word_period
+                .max(Self::AVOID_TERRAIN_AFTER_SOUND_BANK_WORD)
+        } else {
+            self.warning_word_period
+        };
+        if self.time_since_warning_word >= period {
             let word = self.next_warning_word();
             self.time_since_warning_word = Duration::ZERO;
             self.warning_word_period = if word == PredictiveVoice::TerrainAhead {
@@ -363,6 +379,37 @@ mod tests {
         assert!(!outputs.automatic_terrain_display);
     }
 
+    /// The longest time a word stays on the voice output, on fine steps
+    fn longest_word(scan: &TadScan) -> Duration {
+        let step = Duration::from_millis(50);
+        let mut logic = TadAlertLogic::new();
+        let (mut longest, mut current) = (Duration::ZERO, Duration::ZERO);
+        for _ in 0..200 {
+            if logic.update(step, scan).voice == PredictiveVoice::None {
+                current = Duration::ZERO;
+            } else {
+                current += step;
+                longest = longest.max(current);
+            }
+        }
+        longest
+    }
+
+    #[test]
+    fn each_word_leaves_the_output_well_before_the_sound_player_says_it_again() {
+        // The MCDU's sound manager says a word again after 1.1 s while it still sees it on the output, and sees the
+        // output every 75 ms or more: a word held close to 1.1 s is sometimes said twice, the second time over the
+        // next word.
+        let well_before = Duration::from_millis(600);
+        for scan in [caution(false), caution(true), warning(false), warning(true)] {
+            assert!(
+                longest_word(&scan) <= well_before,
+                "{:?}",
+                longest_word(&scan)
+            );
+        }
+    }
+
     #[test]
     fn a_warning_says_terrain_ahead_then_pull_up_with_the_red_light() {
         let mut logic = TadAlertLogic::new();
@@ -394,6 +441,37 @@ mod tests {
             previous = voice;
         }
         starts
+    }
+
+    #[test]
+    fn avoid_terrain_leaves_room_after_the_last_sound_bank_word() {
+        // PULL UP comes from the sound bank, started by the MCDU some time after the output; AVOID TERRAIN is a clip
+        // started at once: the first AVOID TERRAIN waits longer, so that the two are not said at the same time.
+        let step = Duration::from_millis(50);
+        let mut logic = TadAlertLogic::new();
+        let mut starts: Vec<(f64, PredictiveVoice)> = Vec::new();
+        let mut previous = PredictiveVoice::None;
+        for i in 0..200 {
+            let scan = if i < 80 {
+                warning(false)
+            } else {
+                warning(true)
+            };
+            let voice = logic.update(step, &scan).voice;
+            if voice != PredictiveVoice::None && voice != previous {
+                starts.push((i as f64 * 0.05, voice));
+            }
+            previous = voice;
+        }
+        let first_avoid = starts
+            .iter()
+            .position(|(_, word)| *word == PredictiveVoice::AvoidTerrain)
+            .unwrap();
+        let (last_pull_up_s, last_word) = starts[first_avoid - 1];
+        assert_eq!(last_word, PredictiveVoice::PullUp);
+        assert!(starts[first_avoid].0 - last_pull_up_s >= 2.5 - 1e-9);
+        // then the usual rhythm
+        assert!((starts[first_avoid + 1].0 - starts[first_avoid].0 - 1.5).abs() < 1e-9);
     }
 
     #[test]

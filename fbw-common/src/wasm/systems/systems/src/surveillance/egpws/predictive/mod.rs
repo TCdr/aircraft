@@ -691,12 +691,13 @@ mod tests {
     #[test]
     fn a_wall_farther_away_gives_the_caution_first() {
         let terrain = wall_ahead(8., 9_000.);
+        // the first update: the word is said when the caution starts
         let outputs = run(
             &mut alerting(),
             &flying(8_000.),
             &terrain,
             &no_runways(),
-            1.,
+            0.5,
         );
         assert!(outputs.alerts.caution_light);
         assert!(!outputs.alerts.warning_light);
