@@ -172,7 +172,9 @@ impl RunwayContext {
 }
 
 /// Remembers where the aircraft last stood still or taxied slowly on the ground. When the aircraft takes off that is
-/// the start of the takeoff roll, which stands in for the departure runway.
+/// the start of the takeoff roll, which stands in for the departure runway. Without such a point the first position on
+/// the ground is kept at any speed: after a flight is loaded on the runway the GPS can still be acquiring the satellites
+/// until the aircraft is well into its roll.
 #[derive(Default)]
 pub struct DepartureRunwayLatch {
     runway: Option<Runway>,
@@ -189,7 +191,7 @@ impl DepartureRunwayLatch {
         position: GridPosition,
         geometric_altitude_ft: f64,
     ) {
-        if on_ground && ground_speed_kt < Self::SLOW_GROUND_SPEED_KT {
+        if on_ground && (ground_speed_kt < Self::SLOW_GROUND_SPEED_KT || self.runway.is_none()) {
             self.runway = Some(Runway {
                 reference_point: position,
                 elevation_ft: geometric_altitude_ft,
@@ -403,6 +405,35 @@ mod tests {
             latch.runway().unwrap().reference_point,
             GridPosition::new(1., 2.)
         );
+    }
+
+    #[test]
+    fn without_an_earlier_point_the_first_ground_position_is_latched_at_any_speed() {
+        // After a flight is loaded on the runway the GPS position can become valid only during the takeoff roll
+        let mut latch = DepartureRunwayLatch::default();
+        latch.update(true, 90., GridPosition::new(1., 2.), 50.);
+        latch.update(true, 120., GridPosition::new(1.01, 2.), 50.);
+        latch.update(false, 150., GridPosition::new(1.02, 2.), 200.);
+        assert_eq!(
+            latch.runway().unwrap().reference_point,
+            GridPosition::new(1., 2.)
+        );
+    }
+
+    #[test]
+    fn a_first_position_in_the_air_is_not_latched() {
+        let mut latch = DepartureRunwayLatch::default();
+        latch.update(false, 150., GridPosition::new(1., 2.), 600.);
+        assert!(latch.runway().is_none());
+    }
+
+    #[test]
+    fn a_takeoff_roll_with_the_position_valid_only_when_fast_has_a_departure_runway() {
+        let mut runways = ReferenceRunways::default();
+        runways
+            .departure_latch_mut()
+            .update(true, 80., GridPosition::new(1., 2.), 0.);
+        assert_eq!(runways.runways().len(), 1);
     }
 
     #[test]
