@@ -6,7 +6,19 @@ import { soundList } from './A32NX_SoundManager';
 
 // FIXME move GPWS logic to systems host, and ACOs to PseudoFWC
 export class A32NX_GPWS {
+  /**
+   * A word the EGPWC keeps on its output is said again after this long. The predictive words come as pulses shorter than
+   * this, so they are said once each. The repeat is decided here, with the output read in the same update: the sound
+   * manager's own repeat ran before the output was read, and said a word again after it had left the output when the
+   * MCDU updated late, over the next word.
+   */
+  private static readonly REPEAT_S = 1.1;
+
   private prevAuralWarning = 0;
+
+  private timeSinceWordS = 0;
+
+  private wordDue = false;
 
   constructor(private core) {
     console.log('A32NX_GPWS constructed');
@@ -16,8 +28,8 @@ export class A32NX_GPWS {
     console.log('A32NX_GPWS init');
   }
 
-  update(_deltaTime, _core) {
-    this.GPWSComputeLightsAndCallouts();
+  update(deltaTime, _core) {
+    this.GPWSComputeLightsAndCallouts(deltaTime);
   }
 
   GetWarningFromEnum(num: number) {
@@ -45,24 +57,33 @@ export class A32NX_GPWS {
       case 11:
         return soundList.obstacle_ahead;
       case 12:
-        // AVOID TERRAIN: the sound bank has no such word yet, PULL UP is the closest word it has
-        return soundList.pull_up;
+        // AVOID TERRAIN is not in the sound bank: sound.xml plays its own clip on this output
+        return '';
       default:
         return '';
     }
   }
 
-  GPWSComputeLightsAndCallouts() {
+  GPWSComputeLightsAndCallouts(deltaTime: number) {
     const currentAuralWarning = SimVar.GetSimVarValue('L:A32NX_GPWS_AURAL_OUTPUT', 'number');
     if (currentAuralWarning !== this.prevAuralWarning) {
-      // The old word is removed first: two outputs can share one sound (PULL UP and AVOID TERRAIN), and removing it
-      // after adding the new one would take the new one out as well
-      this.core.soundManager.removePeriodicSound(this.GetWarningFromEnum(this.prevAuralWarning));
-      if (currentAuralWarning !== 0) {
-        this.core.soundManager.addPeriodicSound(this.GetWarningFromEnum(currentAuralWarning), 1.1);
-      }
-
       this.prevAuralWarning = currentAuralWarning;
+      this.timeSinceWordS = 0;
+      this.wordDue = currentAuralWarning !== 0;
+    } else if (currentAuralWarning !== 0) {
+      this.timeSinceWordS += deltaTime / 1000;
+      if (this.timeSinceWordS >= A32NX_GPWS.REPEAT_S) {
+        this.wordDue = true;
+      }
+    }
+
+    // A word that cannot start while another one is playing is tried again for as long as it is on the output
+    if (this.wordDue && currentAuralWarning !== 0) {
+      const sound = this.GetWarningFromEnum(currentAuralWarning);
+      if (!sound || this.core.soundManager.tryPlaySound(sound)) {
+        this.wordDue = false;
+        this.timeSinceWordS = 0;
+      }
     }
   }
 }

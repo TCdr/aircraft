@@ -490,6 +490,37 @@ mod tests {
     }
 
     #[test]
+    fn avoid_terrain_leaves_room_after_the_last_sound_bank_word() {
+        // PULL UP comes from the sound bank, started by the MCDU some time after the output; AVOID TERRAIN is a clip
+        // started at once: the first AVOID TERRAIN waits longer, so that the two are not said at the same time.
+        let step = Duration::from_millis(50);
+        let mut logic = TadAlertLogic::new();
+        let mut starts: Vec<(f64, PredictiveVoice)> = Vec::new();
+        let mut previous = PredictiveVoice::None;
+        for i in 0..200 {
+            let scan = if i < 80 {
+                warning(false)
+            } else {
+                warning(true)
+            };
+            let voice = logic.update(step, &scan).voice;
+            if voice != PredictiveVoice::None && voice != previous {
+                starts.push((i as f64 * 0.05, voice));
+            }
+            previous = voice;
+        }
+        let first_avoid = starts
+            .iter()
+            .position(|(_, word)| *word == PredictiveVoice::AvoidTerrain)
+            .unwrap();
+        let (last_pull_up_s, last_word) = starts[first_avoid - 1];
+        assert_eq!(last_word, PredictiveVoice::PullUp);
+        assert!(starts[first_avoid].0 - last_pull_up_s >= 2.5 - 1e-9);
+        // then the usual rhythm
+        assert!((starts[first_avoid + 1].0 - starts[first_avoid].0 - 1.5).abs() < 1e-9);
+    }
+
+    #[test]
     fn a_warning_repeats_its_words_for_as_long_as_it_lasts() {
         let mut logic = TadAlertLogic::new();
         let words = word_starts(&mut logic, &warning(false), 30.);
