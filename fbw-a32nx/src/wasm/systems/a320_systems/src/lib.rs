@@ -165,14 +165,20 @@ pub struct A320 {
 }
 impl A320 {
     pub fn new(context: &mut InitContext) -> A320 {
-        Self::new_with_terrain_grid(context, unavailable_terrain_grid())
+        Self::new_with_terrain_grid(
+            context,
+            unavailable_terrain_grid(),
+            unavailable_terrain_grid(),
+        )
     }
 
-    /// The A320 with the terrain grid its predictive terrain functions read. Without one (`new`) the predictive
-    /// functions stay off and the EGPWC is in terrain standby.
+    /// The A320 with the terrain grid its predictive terrain functions read, and the obstacle grid of the same layout.
+    /// Without a terrain grid (`new`) the predictive functions stay off and the EGPWC is in terrain standby; without
+    /// an obstacle grid they work with the terrain alone.
     pub fn new_with_terrain_grid(
         context: &mut InitContext,
         terrain_grid: Box<dyn TerrainGrid>,
+        obstacle_grid: Box<dyn TerrainGrid>,
     ) -> A320 {
         A320 {
             adirs: A320AirDataInertialReferenceSystemBuilder::build(context),
@@ -251,7 +257,7 @@ impl A320 {
                 ElectricalBusType::AlternatingCurrent(1),
             ),
             egpws_electrical_harness: A320EgpwsElectricalHarness::new(context),
-            predictive_terrain: A320PredictiveTerrain::new(context, terrain_grid),
+            predictive_terrain: A320PredictiveTerrain::new(context, terrain_grid, obstacle_grid),
             mmr_1: MultiModeReceiverShim::new(context, 1),
             mmr_2: MultiModeReceiverShim::new(context, 2),
             reverse_thrust: ReverserForce::new(context),
@@ -837,6 +843,7 @@ mod tests {
                 Box::new(RecordingTerrainGrid {
                     positions: Rc::clone(&grid_positions),
                 }),
+                unavailable_terrain_grid(),
             )
         });
         test_bed.set_on_ground(true);
@@ -860,6 +867,53 @@ mod tests {
         let positions = positions.borrow();
         assert_eq!(positions.len(), updates_before_last_cycle + 1);
         let last = positions.last().expect("the grid was advanced");
+        assert!((last.latitude_degrees - 35.55).abs() < 0.01);
+        assert!((last.longitude_degrees - 139.76).abs() < 0.01);
+    }
+
+    /// The obstacle grid is a cache of blocks around the aircraft like the terrain grid, so it needs the same position
+    /// every update, and the terrain grid and the obstacle grid are advanced together.
+    #[test]
+    fn the_obstacle_grid_is_advanced_every_update_with_the_valid_gps_position() {
+        let obstacle_positions = Rc::new(RefCell::new(Vec::new()));
+        let terrain_positions = Rc::new(RefCell::new(Vec::new()));
+        let (recorded_obstacles, recorded_terrain) = (
+            Rc::clone(&obstacle_positions),
+            Rc::clone(&terrain_positions),
+        );
+        let mut test_bed = SimulationTestBed::new(move |context: &mut InitContext| {
+            A320::new_with_terrain_grid(
+                context,
+                Box::new(RecordingTerrainGrid {
+                    positions: Rc::clone(&recorded_terrain),
+                }),
+                Box::new(RecordingTerrainGrid {
+                    positions: Rc::clone(&recorded_obstacles),
+                }),
+            )
+        });
+        test_bed.set_on_ground(true);
+        test_bed.run_with_delta(Duration::from_millis(50));
+        assert!(obstacle_positions.borrow().is_empty());
+
+        test_bed.write_by_name("EXT_PWR_AVAIL:1", true);
+        test_bed.write_by_name("OVHD_ELEC_EXT_PWR_PB_IS_ON", true);
+        test_bed.write_by_name("PLANE LATITUDE", 35.55);
+        test_bed.write_by_name("PLANE LONGITUDE", 139.76);
+        test_bed.write_by_name("PLANE ALTITUDE", 20.);
+        for ir in 1..=3 {
+            test_bed.write_by_name(&format!("OVHD_ADIRS_IR_{ir}_MODE_SELECTOR_KNOB"), 1.);
+        }
+        for _ in 0..600 {
+            test_bed.run_with_delta(Duration::from_secs(1));
+        }
+        let updates_before_last_cycle = obstacle_positions.borrow().len();
+        test_bed.run_with_delta(Duration::from_secs(1));
+
+        let positions = obstacle_positions.borrow();
+        assert_eq!(positions.len(), updates_before_last_cycle + 1);
+        assert_eq!(positions.len(), terrain_positions.borrow().len());
+        let last = positions.last().expect("the obstacle grid was advanced");
         assert!((last.latitude_degrees - 35.55).abs() < 0.01);
         assert!((last.longitude_degrees - 139.76).abs() < 0.01);
     }

@@ -86,6 +86,7 @@ pub struct EnhancedGroundProximityWarningComputer {
     aural_output_id: VariableIdentifier,
     terrain_test_pattern_id: VariableIdentifier,
     terr_ahead_id: VariableIdentifier,
+    obst_ahead_id: VariableIdentifier,
     terr_area_ref_lat_id: VariableIdentifier,
     terr_area_ref_lon_id: VariableIdentifier,
     terr_area_ids: [VariableIdentifier; ThreatAreas::SLOTS],
@@ -106,6 +107,8 @@ impl EnhancedGroundProximityWarningComputer {
     const TERRAIN_TEST_PATTERN_KEY: &str = "GPWS_TERR_TEST_PATTERN";
     /// The TERR AHEAD message of the NDs: 0 none, 1 caution (amber), 2 warning (red)
     const TERR_AHEAD_KEY: &str = "GPWS_TERR_AHEAD";
+    /// The ND message is about an obstacle (OBST AHEAD instead of TERR AHEAD): 0 or 1
+    const OBST_AHEAD_KEY: &str = "GPWS_OBST_AHEAD";
     /// The threat areas for the NDs (see ThreatAreas): the cell of the aircraft and the slots of runs
     const TERR_AREA_REF_LAT_KEY: &str = "GPWS_TERR_AREA_REF_LAT";
     const TERR_AREA_REF_LON_KEY: &str = "GPWS_TERR_AREA_REF_LON";
@@ -180,6 +183,7 @@ impl EnhancedGroundProximityWarningComputer {
             terrain_test_pattern_id: context
                 .get_identifier(Self::TERRAIN_TEST_PATTERN_KEY.to_owned()),
             terr_ahead_id: context.get_identifier(Self::TERR_AHEAD_KEY.to_owned()),
+            obst_ahead_id: context.get_identifier(Self::OBST_AHEAD_KEY.to_owned()),
             terr_area_ref_lat_id: context.get_identifier(Self::TERR_AREA_REF_LAT_KEY.to_owned()),
             terr_area_ref_lon_id: context.get_identifier(Self::TERR_AREA_REF_LON_KEY.to_owned()),
             terr_area_ids: std::array::from_fn(|slot| {
@@ -327,6 +331,12 @@ impl SimulationElement for EnhancedGroundProximityWarningComputer {
                 .as_ref()
                 .map_or(TerrainAheadMessage::None, |r| r.get_terrain_ahead_message())
                 as u8,
+        );
+        writer.write(
+            &self.obst_ahead_id,
+            self.runtime
+                .as_ref()
+                .is_some_and(|r| r.get_obstacle_ahead_message()),
         );
         let threat_areas = self
             .runtime

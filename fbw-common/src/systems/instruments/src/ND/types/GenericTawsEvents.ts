@@ -20,4 +20,6 @@ export interface GenericTawsEvents {
   'egpwc.maxElevationMode': TerrainLevelMode;
   /** The look-ahead terrain alert, for TERR AHEAD on the ND (A32NX) */
   'egpwc.terrAhead': TerrainAheadAlert;
+  /** The look-ahead alert is about an obstacle: the ND shows OBST AHEAD instead of TERR AHEAD (A32NX) */
+  'egpwc.obstAhead': boolean;
 }

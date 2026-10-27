@@ -1901,6 +1901,7 @@ fn predictive_alerts_of(voice: PredictiveVoice, warning: bool, caution: bool) ->
             caution_light: caution,
             automatic_terrain_display: warning || voice == PredictiveVoice::TerrainAhead,
             nd_message: TerrainAheadMessage::None,
+            obstacle_ahead: false,
             threat_areas: ThreatAreas::default(),
         },
     }
@@ -1939,6 +1940,13 @@ impl EgpwcTestBed {
 
     fn terr_area(&mut self, name: &str) -> f64 {
         ReadByName::<EgpwcTestBed, f64>::read_by_name(self, name)
+    }
+
+    fn obst_ahead_message(&mut self) -> u8 {
+        ReadByName::<EgpwcTestBed, u8>::read_by_name(
+            self,
+            EnhancedGroundProximityWarningComputer::OBST_AHEAD_KEY,
+        )
     }
 
     fn terr_ahead_message(&mut self) -> u8 {
@@ -2038,6 +2046,57 @@ fn the_threat_areas_for_the_nds_are_written_while_the_alert_lasts() {
     test_bed = test_bed.no_power();
     test_bed.run_for(Duration::from_millis(1_000));
     assert_eq!(test_bed.terr_area("GPWS_TERR_AREA_0"), 0.);
+}
+
+#[test]
+fn the_aural_outputs_of_the_predictive_words_keep_their_values() {
+    assert_eq!(AuralWarning::TerrainAhead as u8, 10);
+    assert_eq!(AuralWarning::ObstacleAhead as u8, 11);
+    assert_eq!(AuralWarning::AvoidTerrain as u8, 12);
+    assert_eq!(AuralWarning::AvoidObstacle as u8, 13);
+}
+
+#[test]
+fn avoid_obstacle_is_its_own_aural_with_the_red_light() {
+    let mut avoid = predictive_alerts_of(PredictiveVoice::AvoidObstacle, true, false);
+    avoid.alerts.obstacle_ahead = true;
+    let mut test_bed = mode_2a_test_bed(6_000., 250.).predictive_outputs(avoid);
+    assert_eq!(
+        test_bed.get_aural_warning(),
+        AuralWarning::AvoidObstacle as u8
+    );
+    assert!(test_bed.is_warning_light_on());
+}
+
+#[test]
+fn obstacle_ahead_is_an_aural_with_the_amber_light() {
+    let mut test_bed = mode_2a_test_bed(6_000., 250.).predictive_outputs(predictive_alerts_of(
+        PredictiveVoice::ObstacleAhead,
+        false,
+        true,
+    ));
+    assert_eq!(
+        test_bed.get_aural_warning(),
+        AuralWarning::ObstacleAhead as u8
+    );
+    assert!(!test_bed.is_warning_light_on());
+}
+
+#[test]
+fn the_obst_ahead_message_follows_the_alert_and_needs_power() {
+    let mut caution = predictive_alerts_of(PredictiveVoice::ObstacleAhead, false, true);
+    caution.alerts.nd_message = TerrainAheadMessage::Caution;
+    caution.alerts.obstacle_ahead = true;
+    let mut test_bed = mode_2a_test_bed(6_000., 250.).predictive_outputs(caution);
+    assert_eq!(test_bed.obst_ahead_message(), 1);
+    assert_eq!(
+        test_bed.terr_ahead_message(),
+        TerrainAheadMessage::Caution as u8
+    );
+
+    test_bed = test_bed.no_power();
+    test_bed.run_for(Duration::from_millis(1_000));
+    assert_eq!(test_bed.obst_ahead_message(), 0);
 }
 
 #[test]

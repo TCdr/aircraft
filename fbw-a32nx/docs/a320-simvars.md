@@ -5783,6 +5783,12 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
         - 2: warning TERRAIN AHEAD PULL UP or AVOID TERRAIN (red)
     - Read-Only
 
+- A32NX_GPWS_OBST_AHEAD
+    - Boolean
+    - True while the message of A32NX_GPWS_TERR_AHEAD is about an obstacle: the ND shows OBST AHEAD instead of TERR AHEAD,
+      in the same colour (amber caution, red warning). Obstacle alerts need the obstacle grid file of the aircraft package.
+    - Read-Only
+
 - A32NX_GPWS_TERR_AREA_REF_LAT / A32NX_GPWS_TERR_AREA_REF_LON
     - Number
     - Row and column (latitude and longitude times 60, rounded down) of the 1 arcminute terrain cell of the aircraft,

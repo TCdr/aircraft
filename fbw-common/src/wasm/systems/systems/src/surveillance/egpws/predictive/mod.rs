@@ -78,6 +78,8 @@ pub struct PredictiveAlertOutputs {
     /// The terrain is shown on both NDs
     pub automatic_terrain_display: bool,
     pub nd_message: TerrainAheadMessage,
+    /// The ND message is about an obstacle: OBST AHEAD instead of TERR AHEAD
+    pub obstacle_ahead: bool,
     /// The terrain of the alert, shown on the NDs while TERR AHEAD is on
     pub threat_areas: ThreatAreas,
 }
@@ -221,6 +223,7 @@ impl PredictiveTerrainAlerting {
         delta: Duration,
         inputs: &PredictiveInputs,
         terrain: &dyn TerrainElevationSource,
+        obstacles: &dyn TerrainElevationSource,
         runways: &dyn RunwaySource,
     ) -> PredictiveOutputs {
         let aircraft = inputs
@@ -255,6 +258,7 @@ impl PredictiveTerrainAlerting {
             aircraft.filter(|_| terrain_below_aircraft.is_some()),
             turn_rate,
             terrain,
+            obstacles,
             runway.as_ref(),
         );
         let inputs_available = self.availability.update(
@@ -343,6 +347,7 @@ impl PredictiveTerrainAlerting {
             caution_light: tad.caution_light || self.terrain_clearance_floor.is_alerting(),
             automatic_terrain_display: tad.automatic_terrain_display,
             nd_message: tad.nd_message,
+            obstacle_ahead: tad.obstacle_ahead,
             threat_areas,
         }
     }
@@ -355,6 +360,7 @@ impl PredictiveTerrainAlerting {
         aircraft: Option<AircraftState>,
         turn_rate_deg_per_s: f64,
         terrain: &dyn TerrainElevationSource,
+        obstacles: &dyn TerrainElevationSource,
         runway: Option<&RunwayContext>,
     ) {
         let Some(aircraft) = aircraft else {
@@ -365,7 +371,8 @@ impl PredictiveTerrainAlerting {
         self.time_since_scan += delta;
         if self.time_since_scan >= Self::SCAN_INTERVAL {
             self.time_since_scan = Duration::ZERO;
-            self.last_scan = self.scan_terrain(&aircraft, turn_rate_deg_per_s, terrain, runway);
+            self.last_scan =
+                self.scan_terrain(&aircraft, turn_rate_deg_per_s, terrain, obstacles, runway);
         }
     }
 
@@ -374,6 +381,7 @@ impl PredictiveTerrainAlerting {
         aircraft: &AircraftState,
         turn_rate_deg_per_s: f64,
         terrain: &dyn TerrainElevationSource,
+        obstacles: &dyn TerrainElevationSource,
         runway: Option<&RunwayContext>,
     ) -> TadScan {
         let mountainous = runway
@@ -395,6 +403,7 @@ impl PredictiveTerrainAlerting {
                 runway,
             },
             terrain,
+            obstacles,
         )
     }
 
@@ -459,9 +468,35 @@ mod tests {
     ) -> PredictiveOutputs {
         let mut outputs = PredictiveOutputs::default();
         for _ in 0..(seconds / STEP.as_secs_f64()) as usize {
-            outputs = alerting.update(STEP, inputs, terrain, runways);
+            outputs = alerting.update(STEP, inputs, terrain, &TestTerrain::no_obstacles(), runways);
         }
         outputs
+    }
+
+    fn run_with_obstacles(
+        alerting: &mut PredictiveTerrainAlerting,
+        inputs: &PredictiveInputs,
+        obstacles: &TestTerrain,
+        seconds: f64,
+    ) -> PredictiveOutputs {
+        let mut outputs = PredictiveOutputs::default();
+        for _ in 0..(seconds / STEP.as_secs_f64()) as usize {
+            outputs = alerting.update(
+                STEP,
+                inputs,
+                &TestTerrain::flat(0.),
+                obstacles,
+                &no_runways(),
+            );
+        }
+        outputs
+    }
+
+    fn tower_ahead(distance_nm: f64, top_ft: f64) -> TestTerrain {
+        TestTerrain::tower_at(
+            GridPosition::new(START.latitude_degrees + distance_nm / 60., 8.004),
+            top_ft,
+        )
     }
 
     fn wall_ahead(distance_nm: f64, wall_ft: f64) -> TestTerrain {
@@ -562,7 +597,13 @@ mod tests {
             let inputs = flying(10_000.);
             let mut states = Vec::new();
             for _ in 0..200 {
-                let outputs = alerting.update(STEP, &inputs, &terrain, &no_runways());
+                let outputs = alerting.update(
+                    STEP,
+                    &inputs,
+                    &terrain,
+                    &TestTerrain::no_obstacles(),
+                    &no_runways(),
+                );
                 states.push((outputs.inputs_available, outputs.functions.operative));
             }
             assert!(
@@ -598,7 +639,13 @@ mod tests {
 
         loaded.set(false);
         for _ in 0..20 {
-            let outputs = alerting.update(STEP, &inputs, &terrain, &no_runways());
+            let outputs = alerting.update(
+                STEP,
+                &inputs,
+                &terrain,
+                &TestTerrain::no_obstacles(),
+                &no_runways(),
+            );
             assert!(outputs.inputs_available, "standby after less than 2 s");
         }
         loaded.set(true);
@@ -620,7 +667,13 @@ mod tests {
 
         let mut inputs = flying(8_000.);
         inputs.terrain_off = true;
-        let outputs = alerting.update(STEP, &inputs, &terrain, &no_runways());
+        let outputs = alerting.update(
+            STEP,
+            &inputs,
+            &terrain,
+            &TestTerrain::no_obstacles(),
+            &no_runways(),
+        );
         assert_eq!(outputs.alerts, PredictiveAlertOutputs::default());
     }
 
@@ -689,8 +742,67 @@ mod tests {
     }
 
     #[test]
+    fn a_tower_ahead_gives_obstacle_ahead_pull_up_with_the_red_light_and_the_obst_message() {
+        let mut alerting = alerting();
+        let outputs = run_with_obstacles(
+            &mut alerting,
+            &flying(8_000.),
+            &tower_ahead(2., 8_600.),
+            0.6,
+        );
+        assert_eq!(outputs.alerts.voice, PredictiveVoice::ObstacleAhead);
+        assert!(outputs.alerts.warning_light);
+        assert!(outputs.alerts.automatic_terrain_display);
+        assert!(outputs.alerts.obstacle_ahead);
+        assert_eq!(outputs.alerts.nd_message, TerrainAheadMessage::Warning);
+        assert_ne!(outputs.alerts.threat_areas, ThreatAreas::default());
+    }
+
+    #[test]
+    fn a_tower_farther_away_gives_the_obstacle_caution_first() {
+        let outputs = run_with_obstacles(
+            &mut alerting(),
+            &flying(8_000.),
+            &tower_ahead(4., 8_500.),
+            0.6,
+        );
+        assert_eq!(outputs.alerts.voice, PredictiveVoice::ObstacleAhead);
+        assert!(outputs.alerts.caution_light);
+        assert!(!outputs.alerts.warning_light);
+        assert!(outputs.alerts.obstacle_ahead);
+        assert_eq!(outputs.alerts.nd_message, TerrainAheadMessage::Caution);
+    }
+
+    #[test]
+    fn a_missing_obstacle_grid_leaves_the_terrain_functions_operative() {
+        let outputs = run_with_obstacles(
+            &mut alerting(),
+            &flying(8_000.),
+            &TestTerrain::new(|_| TerrainSample::NotLoaded),
+            10.,
+        );
+        assert!(outputs.functions.operative);
+        assert!(outputs.inputs_available);
+        assert_eq!(outputs.alerts, PredictiveAlertOutputs::default());
+    }
+
+    #[test]
+    fn terrain_ahead_wins_over_an_obstacle_in_the_same_scan() {
+        // the first update: the word is said when the warning starts
+        let outputs = alerting().update(
+            STEP,
+            &flying(8_000.),
+            &wall_ahead(2., 8_600.),
+            &tower_ahead(2., 8_700.),
+            &no_runways(),
+        );
+        assert_eq!(outputs.alerts.voice, PredictiveVoice::TerrainAhead);
+        assert!(!outputs.alerts.obstacle_ahead);
+    }
+
+    #[test]
     fn a_wall_farther_away_gives_the_caution_first() {
-        let terrain = wall_ahead(8., 9_000.);
+        let terrain = wall_ahead(6., 9_000.);
         // the first update: the word is said when the caution starts
         let outputs = run(
             &mut alerting(),
@@ -735,7 +847,13 @@ mod tests {
         let terrain = wall_ahead(2., 8_600.);
         run(&mut alerting, &inputs, &terrain, &no_runways(), 2.);
         inputs.on_ground = false;
-        let outputs = alerting.update(STEP, &inputs, &terrain, &no_runways());
+        let outputs = alerting.update(
+            STEP,
+            &inputs,
+            &terrain,
+            &TestTerrain::no_obstacles(),
+            &no_runways(),
+        );
         assert!(outputs.alerts.warning_light);
     }
 
@@ -823,6 +941,7 @@ mod tests {
             STEP,
             &inputs,
             &TestTerrain::flat(0.),
+            &TestTerrain::no_obstacles(),
             &StaticRunways(vec![runway]),
         );
         assert!(outputs.alerts.caution_light);
@@ -847,6 +966,7 @@ mod tests {
             STEP,
             &inputs,
             &TestTerrain::flat(0.),
+            &TestTerrain::no_obstacles(),
             &StaticRunways(vec![runway]),
         );
         assert_eq!(outputs.alerts, PredictiveAlertOutputs::default());
@@ -910,7 +1030,13 @@ mod tests {
                 vertical_speed_fpm: if rolling { 0. } else { takeoff.climb_rate_fpm },
                 ..aircraft
             });
-            let outputs = alerting.update(STEP, &inputs, &terrain, &runways);
+            let outputs = alerting.update(
+                STEP,
+                &inputs,
+                &terrain,
+                &TestTerrain::no_obstacles(),
+                &runways,
+            );
             assert_eq!(
                 outputs.alerts,
                 PredictiveAlertOutputs::default(),
@@ -967,6 +1093,7 @@ mod tests {
             STEP,
             &inputs,
             &TestTerrain::flat(-130.),
+            &TestTerrain::no_obstacles(),
             &StaticRunways(vec![runway]),
         );
         assert_eq!(outputs.alerts, PredictiveAlertOutputs::default());
@@ -1031,8 +1158,9 @@ mod tests {
 
     #[test]
     fn terrain_above_the_lift_off_path_is_still_alerted() {
-        // A ridge 300 ft above the runway 3 NM ahead of the lift-off point, 72 s away
-        let ridge = TestTerrain::wall_north_of(START.latitude_degrees + 4. / 60., -50., 300.);
+        // A ridge 800 ft above the runway 3 NM ahead of the lift-off point, 72 s away: above the lift-off path and above
+        // the gentle climb of the caution path
+        let ridge = TestTerrain::wall_north_of(START.latitude_degrees + 4. / 60., -50., 800.);
         for runway_known in [true, false] {
             let (inputs, runways) = at_lift_off(runway_known);
             let outputs = run(&mut alerting(), &inputs, &ridge, &runways, 1.);
@@ -1069,6 +1197,7 @@ mod tests {
             STEP,
             &inputs,
             &TestTerrain::flat(0.),
+            &TestTerrain::no_obstacles(),
             &StaticRunways(vec![short_runway.departure_runway()]),
         );
         assert!(known.terrain_clearance_floor.is_alerting());
@@ -1078,6 +1207,7 @@ mod tests {
             STEP,
             &inputs,
             &TestTerrain::flat(0.),
+            &TestTerrain::no_obstacles(),
             &StaticRunways(vec![Takeoff::normal(0.8).departure_runway()]),
         );
         assert!(!latched.terrain_clearance_floor.is_alerting());
@@ -1098,6 +1228,7 @@ mod tests {
             STEP,
             &inputs,
             &TestTerrain::flat(0.),
+            &TestTerrain::no_obstacles(),
             &StaticRunways(vec![runway]),
         );
         assert_eq!(outputs.alerts, PredictiveAlertOutputs::default());

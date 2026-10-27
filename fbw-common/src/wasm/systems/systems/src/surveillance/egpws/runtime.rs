@@ -59,6 +59,7 @@ pub enum AuralWarning {
     TerrainAhead,
     ObstacleAhead,
     AvoidTerrain,
+    AvoidObstacle,
 }
 impl AuralWarning {
     /// Gets the duration corresponding to the aural warning. The duration is of a full cycle,
@@ -78,6 +79,7 @@ impl AuralWarning {
             AuralWarning::TerrainAhead => Duration::from_secs_f64(1.7),
             AuralWarning::ObstacleAhead => Duration::from_secs_f64(2.),
             AuralWarning::AvoidTerrain => Duration::from_secs_f64(1.6),
+            AuralWarning::AvoidObstacle => Duration::from_secs_f64(1.6),
         }
     }
 }
@@ -1539,10 +1541,13 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             && !basic_gpws_inhibit
         {
             AuralWarning::Terrain
-        } else if predictive_voice.is_warning() {
+        } else if predictive_voice.is_warning()
+            || matches!(
+                predictive_voice,
+                PredictiveVoice::TerrainAhead | PredictiveVoice::ObstacleAhead
+            )
+        {
             Self::aural_warning_of(predictive_voice)
-        } else if predictive_voice == PredictiveVoice::TerrainAhead {
-            AuralWarning::TerrainAhead
         } else if (self.mode_4_too_low_terrain_voice_active && !basic_gpws_inhibit)
             || predictive_voice == PredictiveVoice::TooLowTerrain
         {
@@ -1583,6 +1588,8 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             PredictiveVoice::TooLowTerrain => AuralWarning::TooLowTerrain,
             PredictiveVoice::PullUp => AuralWarning::PullUp,
             PredictiveVoice::AvoidTerrain => AuralWarning::AvoidTerrain,
+            PredictiveVoice::ObstacleAhead => AuralWarning::ObstacleAhead,
+            PredictiveVoice::AvoidObstacle => AuralWarning::AvoidObstacle,
         }
     }
 
@@ -1592,6 +1599,11 @@ impl EnhancedGroundProximityWarningComputerRuntime {
 
     pub fn get_terrain_ahead_message(&self) -> TerrainAheadMessage {
         self.predictive_alerts.nd_message
+    }
+
+    /// The message of the NDs is about an obstacle: OBST AHEAD instead of TERR AHEAD.
+    pub fn get_obstacle_ahead_message(&self) -> bool {
+        self.predictive_alerts.obstacle_ahead
     }
 
     pub fn get_threat_areas(&self) -> ThreatAreas {
