@@ -80,6 +80,22 @@ export const A380Failure = Object.freeze({
   BulkCargoDuctOverheat: 21066,
   CabinAirExtractValve: 21067,
   CabinPressureManualControl: 21068,
+  // Ids 21100-21113 are mapped in a380_systems_wasm/src/lib.rs (avionics ventilation, supplemental cooling and THS bay
+  // ventilation, a380_systems air_conditioning/avionics_ventilation.rs).
+  AvionicsBlowingFan1: 21100,
+  AvionicsBlowingFan2: 21101,
+  AvionicsBackupValve1: 21102,
+  AvionicsBackupValve2: 21103,
+  AvionicsExtractionFan: 21104,
+  AvionicsExtractValve: 21105,
+  AvionicsOverboardValveStuckOpen: 21106,
+  AvionicsOverboardValveStuckClosed: 21107,
+  AvionicsVentilationController: 21108,
+  SupplementalCooling1Overheat: 21109,
+  SupplementalCooling2Overheat: 21110,
+  SupplementalCooling1Protection: 21111,
+  SupplementalCooling2Protection: 21112,
+  ThsBayBlowingFan: 21113,
 
   // Not listed in A380FailureDefinitions: the C++ FCDC input it sets (nwsCommunicationAvailable) is read by nothing
   // until a steering control system exists. Kept so the id stays in sync with FailureList.h.
@@ -1293,6 +1309,20 @@ const failureDefinitionsAta21To33: FailureDefinition[] = [
   [21, A380Failure.BulkCargoDuctOverheat, 'Bulk cargo duct overheat (heater)'],
   [21, A380Failure.CabinAirExtractValve, 'Cabin air extract valve failed'],
   [21, A380Failure.CabinPressureManualControl, 'Cabin pressure manual control failed'],
+  [21, A380Failure.AvionicsBlowingFan1, 'Avionics ventilation left blowing fan'],
+  [21, A380Failure.AvionicsBlowingFan2, 'Avionics ventilation right blowing fan'],
+  [21, A380Failure.AvionicsBackupValve1, 'Avionics ventilation left backup valve'],
+  [21, A380Failure.AvionicsBackupValve2, 'Avionics ventilation right backup valve'],
+  [21, A380Failure.AvionicsExtractionFan, 'Avionics ventilation extraction fan'],
+  [21, A380Failure.AvionicsExtractValve, 'Avionics extract valve stuck closed'],
+  [21, A380Failure.AvionicsOverboardValveStuckOpen, 'Avionics overboard valve stuck open'],
+  [21, A380Failure.AvionicsOverboardValveStuckClosed, 'Avionics overboard valve stuck closed'],
+  [21, A380Failure.AvionicsVentilationController, 'Avionics ventilation controller'],
+  [21, A380Failure.SupplementalCooling1Overheat, 'Supplemental cooling system 1 overheat'],
+  [21, A380Failure.SupplementalCooling2Overheat, 'Supplemental cooling system 2 overheat'],
+  [21, A380Failure.SupplementalCooling1Protection, 'Supplemental cooling system 1 overheat protection'],
+  [21, A380Failure.SupplementalCooling2Protection, 'Supplemental cooling system 2 overheat protection'],
+  [21, A380Failure.ThsBayBlowingFan, 'THS bay blowing fan'],
 
   [22, A380Failure.FmcA, 'FMC-A'],
   [22, A380Failure.FmcB, 'FMC-B'],
