@@ -33,3 +33,6 @@ upwards, so a cell never reads lower than its highest obstacle. Dismantled obsta
 details are at the top of `build_obstacle_grid.py`.
 
 Without the file the GPWS works as before, with no obstacle alerts; the terrain functions do not need it.
+
+The ND terrain picture (TERR ON ND) reads the same file to draw the obstacles, in the colour and dot density of the
+terrain at that height. Without the file the ND simply shows no obstacles.
