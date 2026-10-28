@@ -31,8 +31,9 @@ import { ProbeHeatComputerFlags } from './ProbeWindowHeatAlerts';
  *   ADR keeps its static pressure from the other probe of its pair, so the air data do not change.
  * - NAV ADS-B RPTG 1(2) FAULT: the ADS-B out function of a transponder failed (flyPad failures, TS only). The NAV
  *   ATC/XPDR 1(2) FAULT of a failed transponder already lists its ADS-B RPTG as INOP SYS, so it replaces this alert.
- * The A32NX has no backup speed/altitude scale (its BKUP SPD/ALT pb is a placeholder), so the NAV BKUP SPD/ALT alerts
- * are not part of it.
+ * - NAV BKUP SPD/ALT ON CAPT(F/O) PFD: the BKUP SPD/ALT pb of one side is on while the AP or FD of that side is engaged
+ *   (the AP1/FD1 of the CAPT side, the AP2/FD2 of the F/O side). NAV BKUP SPD/ALT ON CAPT+F/O PFD: both pb are on.
+ *   The BKUP SPD/ALT memo shows while either pb is on.
  */
 
 /** The alert keys, the first digits of the EwdMessages codes */
@@ -52,7 +53,13 @@ export const NAV_SENSOR_ALERT_KEYS = {
   rightFoStaticFault: '3400643',
   adsbReporting1Fault: '3400650',
   adsbReporting2Fault: '3400651',
+  captBackupScale: '3400660',
+  foBackupScale: '3400661',
+  captFoBackupScale: '3400662',
 } as const;
+
+/** The BKUP SPD/ALT memo (green), the codes of the PseudoFWC memo '0000690' */
+export const BACKUP_SCALE_MEMO_CODES = ['000069001'];
 
 /** The FWC flight phases (1 to 10) in which each alert is inhibited */
 const NAV_SENSOR_PHASE_INHIBITION = {
@@ -63,6 +70,8 @@ const NAV_SENSOR_PHASE_INHIBITION = {
   iasDiscrepancy: [4, 5, 7, 8],
   staticFault: [3, 4, 5, 6, 7, 8, 9, 10],
   adsbReportingFault: [3, 4, 5, 7, 8],
+  /** Design choice: the FCOM gives no phases for the BKUP SPD/ALT alerts; those of NAV IAS DISCREPANCY, the nearest */
+  backupScale: [4, 5, 7, 8],
 };
 
 /** Design choice: no published value; the CAS threshold of NAV ADR DISAGREE */
@@ -111,6 +120,10 @@ export interface NavSensorAlertInputs {
   staticProbeFailed: boolean[];
   /** The CAPT and F/O probe heat computers */
   probeHeatComputers: ProbeHeatComputerFlags[];
+  /** The BKUP SPD/ALT pb of the CAPT and F/O PFD is on */
+  backupScalePbOn: boolean[];
+  /** An AP or FD of the CAPT side (AP1, FD1) and of the F/O side (AP2, FD2) is engaged */
+  apOrFdEngaged: boolean[];
   /** ADS-B function of the transponder 1, 2 failed */
   adsbFailed: boolean[];
   /** Transponder 1, 2 failed or unpowered (L:A32NX_XPDR_n_FAILED) */
@@ -194,6 +207,23 @@ function staticFaultStatus(probe: number, probesInop: boolean): StatusLines {
   return { left: [], inopSys };
 }
 
+/**
+ * The NAV BKUP SPD/ALT alerts: on one side only when the AP or FD of that side is engaged, on both sides always.
+ * @param pbOn the BKUP SPD/ALT pb of the CAPT and F/O PFD is on
+ * @param apOrFdEngaged an AP or FD of the CAPT and of the F/O side is engaged
+ */
+export function backupScaleAlerts(
+  pbOn: boolean[],
+  apOrFdEngaged: boolean[],
+): { capt: boolean; fo: boolean; both: boolean } {
+  const both = pbOn[0] && pbOn[1];
+  return {
+    capt: pbOn[0] && !pbOn[1] && apOrFdEngaged[0],
+    fo: pbOn[1] && !pbOn[0] && apOrFdEngaged[1],
+    both,
+  };
+}
+
 /** NAV ADS-B RPTG 1(2) FAULT: the ADS-B function failed, its transponder works */
 function isAdsbReportingFault(adsbFailed: boolean, xpdrFailed: boolean): boolean {
   return adsbFailed && !xpdrFailed;
@@ -223,6 +253,15 @@ export class NavSensorAlerts {
   private readonly staticFault = STATIC_PROBE_FAILURES.map(() => Subject.create(false));
 
   private readonly adsbReportingFault = [Subject.create(false), Subject.create(false)];
+
+  private readonly captBackupScale = Subject.create(false);
+
+  private readonly foBackupScale = Subject.create(false);
+
+  private readonly captFoBackupScale = Subject.create(false);
+
+  /** BKUP SPD/ALT memo, for the PseudoFWC memos */
+  public readonly backupScaleMemo = Subject.create(false);
 
   private onGround = false;
 
@@ -275,6 +314,10 @@ export class NavSensorAlerts {
         ),
         staticProbeFailed: STATIC_PROBE_FAILURES.map((failure) => this.failuresConsumer.isActive(failure)),
         probeHeatComputers,
+        backupScalePbOn: ['L', 'R'].map((side) => readBool(`L:A32NX_EFIS_${side}_BKUP_SPD_ALT_PB_IS_ON`)),
+        apOrFdEngaged: [1, 2].map(
+          (fmgc) => readBool(`L:A32NX_FMGC_${fmgc}_AP_ENGAGED`) || readBool(`L:A32NX_FMGC_${fmgc}_FD_ENGAGED`),
+        ),
         adsbFailed: ADSB_REPORTING_FAILURES.map((failure) => this.failuresConsumer.isActive(failure)),
         xpdrFailed: [1, 2].map((xpdr) => readBool(`L:A32NX_XPDR_${xpdr}_FAILED`)),
         selectedXpdr: selectedXpdrSystem(SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number')),
@@ -319,6 +362,12 @@ export class NavSensorAlerts {
     this.staticFault.forEach((alert, probe) => alert.set(inputs.staticProbeFailed[probe]));
     this.captProbesInop = areProbesInopWithStaticFault(inputs.angleOfAttackLost[0], inputs.probeHeatComputers[0]);
     this.foProbesInop = areProbesInopWithStaticFault(inputs.angleOfAttackLost[1], inputs.probeHeatComputers[1]);
+
+    const backupScale = backupScaleAlerts(inputs.backupScalePbOn, inputs.apOrFdEngaged);
+    this.captBackupScale.set(backupScale.capt);
+    this.foBackupScale.set(backupScale.fo);
+    this.captFoBackupScale.set(backupScale.both);
+    this.backupScaleMemo.set(inputs.backupScalePbOn.some((on) => on));
 
     this.adsbReportingFault.forEach((alert, index) =>
       alert.set(isAdsbReportingFault(inputs.adsbFailed[index], inputs.xpdrFailed[index])),
@@ -420,6 +469,30 @@ export class NavSensorAlerts {
     [NAV_SENSOR_ALERT_KEYS.adsbReporting2Fault]: this.adsbReportingFaultItem(
       NAV_SENSOR_ALERT_KEYS.adsbReporting2Fault,
       2,
+    ),
+    [NAV_SENSOR_ALERT_KEYS.captBackupScale]: cautionItem(
+      NAV_SENSOR_ALERT_KEYS.captBackupScale,
+      3,
+      this.captBackupScale,
+      NAV_SENSOR_PHASE_INHIBITION.backupScale,
+      () => [0, 1, 2],
+      EcamSysPage.NONE,
+    ),
+    [NAV_SENSOR_ALERT_KEYS.foBackupScale]: cautionItem(
+      NAV_SENSOR_ALERT_KEYS.foBackupScale,
+      3,
+      this.foBackupScale,
+      NAV_SENSOR_PHASE_INHIBITION.backupScale,
+      () => [0, 1, 2],
+      EcamSysPage.NONE,
+    ),
+    [NAV_SENSOR_ALERT_KEYS.captFoBackupScale]: cautionItem(
+      NAV_SENSOR_ALERT_KEYS.captFoBackupScale,
+      5,
+      this.captFoBackupScale,
+      NAV_SENSOR_PHASE_INHIBITION.backupScale,
+      () => [0, 1, 2, 3, 4],
+      EcamSysPage.NONE,
     ),
   };
 }

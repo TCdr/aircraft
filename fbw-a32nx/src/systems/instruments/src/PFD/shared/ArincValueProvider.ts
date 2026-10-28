@@ -152,7 +152,24 @@ export class ArincValueProvider implements Instrument {
   private readonly baroAltitudePipe = this.baroCorrectedAltitude.pipe(this.unfilteredAltitude, true);
   private readonly pressureAltitudePipe = this.pressureAltitude.pipe(this.unfilteredAltitude, true);
 
+  /** With the BKUP SPD/ALT pb on, the GPS altitude of this side replaces the barometric altitude */
+  private readonly gpsAltitude = Arinc429LocalVarConsumerSubject.create(this.sub.on('gpsAltitude'));
+  private readonly gpsAltitudePipe = this.gpsAltitude.pipe(this.unfilteredAltitude, true);
+  private readonly backupScaleOn = ConsumerSubject.create(this.sub.on('backupScalePbIsOn'), false);
+  private standardPressureSelected = true;
+
   constructor(private readonly bus: ArincEventBus) {}
+
+  /** Only one altitude pipe is unpaused at a time */
+  private selectAltitudeSource(): void {
+    const source = this.backupScaleOn.get() ? 'gps' : this.standardPressureSelected ? 'pressure' : 'baro';
+    this.baroAltitudePipe.pause();
+    this.pressureAltitudePipe.pause();
+    this.gpsAltitudePipe.pause();
+    ({ gps: this.gpsAltitudePipe, pressure: this.pressureAltitudePipe, baro: this.baroAltitudePipe })[source].resume(
+      true,
+    );
+  }
 
   /** @inheritdoc */
   public init() {
@@ -185,15 +202,10 @@ export class ArincValueProvider implements Instrument {
 
     this.fcuDiscrete2.sub((v) => {
       // default to STD if FCU invalid
-      const isStd = v.bitValue(28) || v.isFailureWarning();
-      if (isStd) {
-        this.baroAltitudePipe.pause();
-        this.pressureAltitudePipe.resume(true);
-      } else {
-        this.pressureAltitudePipe.pause();
-        this.baroAltitudePipe.resume(true);
-      }
+      this.standardPressureSelected = v.bitValue(28) || v.isFailureWarning();
+      this.selectAltitudeSource();
     }, true);
+    this.backupScaleOn.sub(() => this.selectAltitudeSource());
 
     subscriber.on('mach').handle((m) => {
       this.mach = new Arinc429Word(m);

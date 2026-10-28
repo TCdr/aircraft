@@ -17,6 +17,7 @@ import { AdirsValueProvider } from '../MsfsAvionicsCommon/AdirsValueProvider';
 import { EfisSideDiscrepancyMonitor } from '../MsfsAvionicsCommon/EfisSideDiscrepancy';
 import { ArincValueProvider } from './shared/ArincValueProvider';
 import { PFDSimvarPublisher, PFDSimvars } from './shared/PFDSimvarPublisher';
+import { backupScaleSimVars } from './shared/BackupSpeedScale';
 import { selectOnsideLandingSystemReceiver } from './shared/OnsideLandingSystemReceiver';
 import { A32NXFcuBusPublisher } from '@shared/publishers/A32NXFcuBusPublisher';
 import { A32NXElectricalSystemPublisher } from '@shared/publishers/A32NXElectricalSystemPublisher';
@@ -122,6 +123,11 @@ class A32NX_PFD extends BaseInstrument {
 
     // PFD1 displays ILS1 (MMR 1), PFD2 displays ILS2 (MMR 2)
     selectOnsideLandingSystemReceiver(this.simVarPublisher, getDisplayIndex());
+
+    // each PFD reads the BKUP SPD/ALT pb and the GPS of its own side
+    for (const [key, definition] of backupScaleSimVars(getDisplayIndex())) {
+      this.simVarPublisher.updateSimVarSource(key, definition);
+    }
 
     const stateSubject = Subject.create<'L' | 'R'>(getDisplayIndex() === 1 ? 'L' : 'R');
     this.fmsDataPublisher = new FmsDataPublisher(this.bus, stateSubject);

@@ -29,6 +29,7 @@ import { SideDiscrepancyMessages } from './SideDiscrepancyMessages';
 import { AirspeedIndicator, AirspeedIndicatorOfftape, MachNumber } from './SpeedIndicator';
 import { VerticalSpeedIndicator } from './VerticalSpeedIndicator';
 import { PFDSimvars } from './shared/PFDSimvarPublisher';
+import { BackupSpeedScale, createBackupScaleActive } from './BackupSpeedScale';
 
 export const getDisplayIndex = () => {
   const url = document.getElementsByTagName('a32nx-pfd')[0].getAttribute('url');
@@ -62,6 +63,11 @@ export class PFDComponent extends DisplayComponent<PFDProps> {
   private radioAltitudeFilter = new LagFilter(5);
 
   private failuresConsumer;
+
+  /** The BKUP SPD/ALT pb of this side is on: the backup speed scale replaces the speed tape, the vertical speed is lost */
+  private readonly backupScaleActive = createBackupScaleActive(this.props.bus);
+
+  private readonly normalScaleDisplay = this.backupScaleActive.map((a) => (a ? 'none' : 'inline'));
 
   constructor(props: PFDProps) {
     super(props);
@@ -165,25 +171,36 @@ export class PFDComponent extends DisplayComponent<PFDProps> {
           />
           <HeadingTape bus={this.props.bus} failed={this.headingFailed} />
           <AltitudeIndicator bus={this.props.bus} />
-          <AirspeedIndicator bus={this.props.bus} instrument={this.props.instrument} />
+          <g style={{ display: this.normalScaleDisplay }}>
+            <AirspeedIndicator bus={this.props.bus} instrument={this.props.instrument} />
+          </g>
           <path
             id="Mask2"
             class="BackgroundFill"
             // eslint-disable-next-line max-len
             d="m32.138 145.34h73.536v10.382h-73.536zm0-44.092c7.4164 13.363 21.492 21.652 36.768 21.652 15.277 0 29.352-8.2886 36.768-21.652v-40.859c-7.4164-13.363-21.492-21.652-36.768-21.652-15.277 0-29.352 8.2886-36.768 21.652zm-32.046 57.498h158.66v-158.75h-158.66zm115.14-35.191v-85.473h20.344v85.473zm-113.33 0v-85.473h27.548v85.473z"
           />
-          <AirspeedIndicatorOfftape bus={this.props.bus} />
+          <g style={{ display: this.normalScaleDisplay }}>
+            <AirspeedIndicatorOfftape bus={this.props.bus} />
+          </g>
+          <BackupSpeedScale bus={this.props.bus} active={this.backupScaleActive} />
 
           <LandingSystem bus={this.props.bus} instrument={this.props.instrument} />
           <AttitudeIndicatorFixedUpper bus={this.props.bus} />
           <AttitudeIndicatorWarnings bus={this.props.bus} instrument={this.props.instrument} />
-          <VerticalSpeedIndicator
-            bus={this.props.bus}
-            instrument={this.props.instrument}
-            filteredRadioAltitude={this.filteredRadioAltitude}
-          />
+          <g style={{ display: this.normalScaleDisplay }}>
+            <VerticalSpeedIndicator
+              bus={this.props.bus}
+              instrument={this.props.instrument}
+              filteredRadioAltitude={this.filteredRadioAltitude}
+            />
+          </g>
           <HeadingOfftape bus={this.props.bus} failed={this.headingFailed} />
-          <AltitudeIndicatorOfftape bus={this.props.bus} filteredRadioAltitude={this.filteredRadioAltitude} />
+          <AltitudeIndicatorOfftape
+            bus={this.props.bus}
+            filteredRadioAltitude={this.filteredRadioAltitude}
+            backupScaleActive={this.backupScaleActive}
+          />
           <LinearDeviationIndicator bus={this.props.bus} />
 
           <MachNumber bus={this.props.bus} />

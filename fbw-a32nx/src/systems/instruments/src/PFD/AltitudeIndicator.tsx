@@ -26,6 +26,7 @@ import { FgBus } from './shared/FgBusProvider';
 
 import { PFDSimvars } from './shared/PFDSimvarPublisher';
 import { DigitalAltitudeReadout } from './DigitalAltitudeReadout';
+import { BackupAltitudeFlags } from './BackupSpeedScale';
 import { VerticalTape } from './VerticalTape';
 import { Arinc429Values } from './shared/ArincValueProvider';
 import { A32NXFwcBusEvents } from '@shared/publishers/A32NXFwcBusPublisher';
@@ -279,6 +280,7 @@ class AltTapeBackground extends DisplayComponent<any> {
 interface AltitudeIndicatorOfftapeProps {
   bus: ArincEventBus;
   filteredRadioAltitude: Subscribable<number>;
+  backupScaleActive: Subscribable<boolean>;
 }
 
 enum TargetAltitudeColor {
@@ -431,6 +433,7 @@ export class AltitudeIndicatorOfftape extends DisplayComponent<AltitudeIndicator
           />
           <RadioAltIndicator bus={this.props.bus} filteredRadioAltitude={this.props.filteredRadioAltitude} />
           <DigitalAltitudeReadout bus={this.props.bus} />
+          <BackupAltitudeFlags bus={this.props.bus} active={this.props.backupScaleActive} />
         </g>
       </>
     );

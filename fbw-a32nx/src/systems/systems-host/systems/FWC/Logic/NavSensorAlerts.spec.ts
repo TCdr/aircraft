@@ -7,11 +7,13 @@ import { A320Failure } from '@failures';
 import { FwcAlertItem } from './FwcAlertItem';
 import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
 import {
+  BACKUP_SCALE_MEMO_CODES,
   NAV_SENSOR_ALERT_KEYS as KEYS,
   NavSensorAlertInputs,
   NavSensorAlerts,
   NavSensorFailuresSource,
   areProbesInopWithStaticFault,
+  backupScaleAlerts,
   isAirspeedDiscrepancy,
   isAngleOfAttackLost,
 } from './NavSensorAlerts';
@@ -60,6 +62,8 @@ function normalInputs(): NavSensorAlertInputs {
     foAirspeedKt: 250,
     staticProbeFailed: [false, false, false, false],
     probeHeatComputers: ALL_HEAT_OK,
+    backupScalePbOn: [false, false],
+    apOrFdEngaged: [false, false],
     adsbFailed: [false, false],
     xpdrFailed: [false, false],
     selectedXpdr: 1,
@@ -424,6 +428,14 @@ describe('A32NX FWC NAV sensor alerts', () => {
       expect(activeKeys(reader)).toEqual([KEYS.attDiscrepancy]);
     });
 
+    it('reads the pb and the AP and FD of each side from the sim', () => {
+      setVar('L:A32NX_EFIS_R_BKUP_SPD_ALT_PB_IS_ON', 1);
+      setVar('L:A32NX_FMGC_2_FD_ENGAGED', 1);
+      const reader = new NavSensorAlerts(new TestFailures());
+      reader.readAndUpdate(100, false, ALL_HEAT_OK);
+      expect(activeKeys(reader)).toEqual([KEYS.foBackupScale]);
+    });
+
     it('compares the ADR the AIR DATA switching selects: ADR 3 on the F/O side with F/O 3', () => {
       const reader = new NavSensorAlerts(new TestFailures());
       setVar('L:A32NX_ADIRS_ADR_3_COMPUTED_AIRSPEED', normalWord(210));
@@ -433,6 +445,57 @@ describe('A32NX FWC NAV sensor alerts', () => {
       setVar('L:A32NX_AIR_DATA_SWITCHING_KNOB', 2);
       readFor6Seconds(reader);
       expect(activeKeys(reader)).toEqual([KEYS.iasDiscrepancy]);
+    });
+  });
+
+  describe('NAV BKUP SPD/ALT ON CAPT(F/O)(CAPT+F/O) PFD', () => {
+    it('is not an alert while no pb is on, and the memo is off', () => {
+      const inputs = normalInputs();
+      inputs.apOrFdEngaged = [true, true];
+      run(alerts, inputs);
+      expect(activeKeys(alerts)).toEqual([]);
+      expect(alerts.backupScaleMemo.get()).toBe(false);
+    });
+
+    it('gives the memo only, no alert, with a pb on and no AP or FD of that side', () => {
+      const inputs = normalInputs();
+      inputs.backupScalePbOn = [true, false];
+      inputs.apOrFdEngaged = [false, true];
+      run(alerts, inputs);
+      expect(activeKeys(alerts)).toEqual([]);
+      expect(alerts.backupScaleMemo.get()).toBe(true);
+    });
+
+    it('alerts for one side when the AP or FD of the same side is engaged', () => {
+      const inputs = normalInputs();
+      inputs.backupScalePbOn = [true, false];
+      inputs.apOrFdEngaged = [true, false];
+      run(alerts, inputs);
+      expect(activeKeys(alerts)).toEqual([KEYS.captBackupScale]);
+      inputs.backupScalePbOn = [false, true];
+      inputs.apOrFdEngaged = [false, true];
+      run(alerts, inputs);
+      expect(activeKeys(alerts)).toEqual([KEYS.foBackupScale]);
+    });
+
+    it('alerts for both sides with both pb on, whatever the AP and FD, and replaces the one-side alerts', () => {
+      const inputs = normalInputs();
+      inputs.backupScalePbOn = [true, true];
+      inputs.apOrFdEngaged = [true, false];
+      run(alerts, inputs);
+      expect(activeKeys(alerts)).toEqual([KEYS.captFoBackupScale]);
+      inputs.apOrFdEngaged = [false, false];
+      run(alerts, inputs);
+      expect(activeKeys(alerts)).toEqual([KEYS.captFoBackupScale]);
+      expect(backupScaleAlerts([true, true], [true, true])).toEqual({ capt: false, fo: false, both: true });
+    });
+
+    it('is a caution with the AP and FD of its side as DO NOT USE lines, and a memo code', () => {
+      const captItem = alerts.ewdFailures[KEYS.captBackupScale];
+      expect(captItem.failure).toBe(LEVEL.caution);
+      expect(captItem.codesToReturn).toEqual(['340066001', '340066002', '340066003']);
+      expect(alerts.ewdFailures[KEYS.captFoBackupScale].codesToReturn).toHaveLength(5);
+      expect(BACKUP_SCALE_MEMO_CODES).toEqual(['000069001']);
     });
   });
 });

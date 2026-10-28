@@ -56,6 +56,10 @@ export type PFDSimvars = AdirsSimVars &
     fmGpsPositionDisagree: boolean;
     markerBeacon: number;
     flapHandleIndex: number;
+    flapsConfigIndex: number;
+    /** The BKUP SPD/ALT pb of this side is on, the GPS altitude of this side (ARINC 429) */
+    backupScalePbIsOn: boolean;
+    gpsAltitude: number;
     aoa: number;
     ilsCourse: number;
     tla1: number;
@@ -236,6 +240,9 @@ export enum PFDVars {
   markerBeacon = 'MARKER BEACON STATE',
   mach = 'L:A32NX_ADIRS_ADR_1_MACH',
   flapHandleIndex = 'L:A32NX_FLAPS_HANDLE_INDEX',
+  flapsConfigIndex = 'L:A32NX_FLAPS_CONF_INDEX',
+  backupScalePbIsOn = 'L:A32NX_EFIS_L_BKUP_SPD_ALT_PB_IS_ON',
+  gpsAltitude = 'L:A32NX_GPS_1_ALTITUDE',
   magTrackRaw = 'L:A32NX_ADIRS_IR_1_TRACK',
   aoa = 'INCIDENCE ALPHA',
   ilsCourse = 'L:A32NX_FM_LS_COURSE',
@@ -421,6 +428,9 @@ export class PFDSimvarPublisher extends UpdatableSimVarPublisher<PFDSimvars> {
     ['markerBeacon', { name: PFDVars.markerBeacon, type: SimVarValueType.Enum }],
     ['mach', { name: PFDVars.mach, type: SimVarValueType.Number }],
     ['flapHandleIndex', { name: PFDVars.flapHandleIndex, type: SimVarValueType.Number }],
+    ['flapsConfigIndex', { name: PFDVars.flapsConfigIndex, type: SimVarValueType.Number }],
+    ['backupScalePbIsOn', { name: PFDVars.backupScalePbIsOn, type: SimVarValueType.Bool }],
+    ['gpsAltitude', { name: PFDVars.gpsAltitude, type: SimVarValueType.Number }],
     ['magTrackRaw', { name: PFDVars.magTrackRaw, type: SimVarValueType.Number }],
     ['aoa', { name: PFDVars.aoa, type: SimVarValueType.Degree }],
     ['ilsCourse', { name: PFDVars.ilsCourse, type: SimVarValueType.Number }],

@@ -951,6 +951,17 @@ const EwdMessages = new Map<
   ['340065002', { text: '\x1b<5m -ATC/XPDR.........SYS 2' }],
   ['340065101', { group: 'NAV$9', text: ' ADS-B RPTG 2 FAULT' }],
   ['340065102', { text: '\x1b<5m -ATC/XPDR.........SYS 1' }],
+  ['340066001', { group: 'NAV$9', text: ' BKUP SPD/ALT ON CAPT PFD' }],
+  ['340066002', { text: '\x1b<5m -AP1.........DO NOT USE' }],
+  ['340066003', { text: '\x1b<5m -FD1.........DO NOT USE' }],
+  ['340066101', { group: 'NAV$9', text: ' BKUP SPD/ALT ON F/O PFD' }],
+  ['340066102', { text: '\x1b<5m -AP2.........DO NOT USE' }],
+  ['340066103', { text: '\x1b<5m -FD2.........DO NOT USE' }],
+  ['340066201', { group: 'NAV$9', text: ' BKUP SPD/ALT ON CAPT+F/O PFD' }],
+  ['340066202', { text: '\x1b<7m  .IF ALL SPD UNREL:' }],
+  ['340066203', { text: '\x1b<5m -ADR CHECK PROC...APPLY' }],
+  ['340066204', { text: '\x1b<7m  .IF 1 SPD RELIABLE:' }],
+  ['340066205', { text: '\x1b<5m -RELIABLE AIR DATA..USE' }],
   // DATALINK ATSU FAULT and DATALINK COMPANY FAULT, crew awareness, see FWC/Logic/DatalinkAlerts
   ['460001001', { group: 'DATALINK$1', text: ' ATSU FAULT' }],
   ['460001002', { text: '\x1b<4m ATSU INIT FAULT' }],
@@ -2049,6 +2060,8 @@ const EwdMessages = new Map<
   ['000025001', { text: '\x1b<3mFUEL X FEED' }],
   ['000025002', { text: '\x1b<4mFUEL X FEED' }],
   ['000068001', { text: '\x1b<3mADIRS SWTG' }],
+  // BKUP SPD/ALT, see FWC/Logic/NavSensorAlerts
+  ['000069001', { text: '\x1b<3mBKUP SPD/ALT' }],
 ]);
 
 EwdGroupTitles.forEach(({ code, text }) => EwdMessages.set(code, { text }));

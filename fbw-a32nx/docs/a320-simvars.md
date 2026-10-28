@@ -1801,6 +1801,14 @@ These variables are the interface between the 3D model and the systems/code.
         - L
         - R
 
+- A32NX_EFIS_{side}_BKUP_SPD_ALT_PB_IS_ON
+    - Bool
+    - The BKUP SPD/ALT pushbutton of the side is pressed: the PFD of that side shows the backup speed scale (angle of
+      attack) and the GPS altitude
+    - {side}
+        - L
+        - R
+
 - A32NX_EFIS_{side}_ND_FM_MESSAGE_FLAGS
     - Flag
     - Provides a bitfield of the active FM messages to the NDs
