@@ -2214,6 +2214,33 @@ export class FwsCore {
 
   public readonly greenYellowAbnormLoPressure = Subject.create(false);
 
+  /*
+   * HYD G (Y) heat exchanger, HSMU and overheat detection alerts: [green, yellow]. Fed by the flyPad failures and the
+   * heat damage of the hydraulic model.
+   */
+  /** SYS OVHT only counts while the HSMU and at least one overheat detection channel work */
+  public readonly hydSysOvht = Array.from({ length: 2 }, () => Subject.create(false));
+
+  public readonly hydSysTempExcessHi = Array.from({ length: 2 }, () => Subject.create(false));
+
+  public readonly hydFuelHeatExchangerValveFault = Array.from({ length: 2 }, () => Subject.create(false));
+
+  public readonly hydHeatExchangerAirLeak = Array.from({ length: 2 }, () => Subject.create(false));
+
+  public readonly hydHeatExchangerAirLeakDetFault = Array.from({ length: 2 }, () => Subject.create(false));
+
+  /** One overheat detection channel failed, the other one works: G A, G B, Y A, Y B */
+  public readonly hydOverheatDetChannelFault = Array.from({ length: 4 }, () => Subject.create(false));
+
+  public readonly hydOverheatDetFault = Array.from({ length: 2 }, () => Subject.create(false));
+
+  /** The fuel/hydraulic heat exchanger was used in flight, which is what an air/hydraulic heat exchanger failure does */
+  private readonly hydFuelHeatExchangerUsed = Array.from({ length: 2 }, () => new NXLogicMemoryNode(false));
+
+  public readonly hydSysCoolingFault = Array.from({ length: 2 }, () => Subject.create(false));
+
+  public readonly hydSysMonitoringFault = Array.from({ length: 2 }, () => Subject.create(false));
+
   private readonly eng1Or2RunningAndPhaseConfirmationNode = new NXLogicConfirmNode(1);
 
   private readonly eng3Or4RunningAndPhaseConfirmationNode = new NXLogicConfirmNode(1);
@@ -4679,6 +4706,53 @@ export class FwsCore {
       SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_RESERVOIR_AIR_PRESSURE_IS_LOW', 'bool') &&
         !this.greenYellowAbnormLoPressure.get(),
     );
+
+    // HYD G (Y) SYS TEMP EXCESS HI: the reservoir or an engine pump stayed overheated until the fluid was damaged
+    const reservoirTempExcess = (color: string) =>
+      SimVar.GetSimVarValue(`L:A32NX_HYD_${color}_RESERVOIR_TEMP_EXCESS`, 'bool') > 0;
+    const enginePumpTempExcess = (pump: string) =>
+      SimVar.GetSimVarValue(`L:A32NX_HYD_${pump}_EDPUMP_TEMP_EXCESS`, 'bool') > 0;
+    const hydTempExcess = [
+      reservoirTempExcess('GREEN') || ['GREEN_1A', 'GREEN_1B', 'GREEN_2A', 'GREEN_2B'].some(enginePumpTempExcess),
+      reservoirTempExcess('YELLOW') || ['YELLOW_3A', 'YELLOW_3B', 'YELLOW_4A', 'YELLOW_4B'].some(enginePumpTempExcess),
+    ];
+
+    // HYD G (Y) HSMU, heat exchanger and overheat detection alerts, from the flyPad failures
+    [0, 1].forEach((system) => {
+      const [hsmu, airExchanger, fuelValve, airLeak, airLeakDetection, channelA, channelB] = [
+        [A380Failure.GreenHsmu, A380Failure.YellowHsmu],
+        [A380Failure.GreenAirHeatExchanger, A380Failure.YellowAirHeatExchanger],
+        [A380Failure.GreenFuelHeatExchangerValve, A380Failure.YellowFuelHeatExchangerValve],
+        [A380Failure.GreenHeatExchangerAirLeak, A380Failure.YellowHeatExchangerAirLeak],
+        [A380Failure.GreenHeatExchangerAirLeakDetection, A380Failure.YellowHeatExchangerAirLeakDetection],
+        [A380Failure.GreenOverheatDetectionChannelA, A380Failure.YellowOverheatDetectionChannelA],
+        [A380Failure.GreenOverheatDetectionChannelB, A380Failure.YellowOverheatDetectionChannelB],
+      ].map((failures) => this.failuresConsumer.isActive(failures[system]));
+
+      this.hydSysMonitoringFault[system].set(hsmu);
+      this.hydFuelHeatExchangerValveFault[system].set(fuelValve);
+      this.hydHeatExchangerAirLeak[system].set(airLeak && !airLeakDetection);
+      this.hydHeatExchangerAirLeakDetFault[system].set(airLeakDetection);
+
+      // A failed HSMU loses the overheat detection, a failed channel leaves the other one
+      const overheatDetectionLost = hsmu || (channelA && channelB);
+      const rsvOverheat = system === 0 ? this.greenRsvOverheat.get() : this.yellowRsvOverheat.get();
+      this.hydSysOvht[system].set(rsvOverheat && !overheatDetectionLost);
+      this.hydSysTempExcessHi[system].set(hydTempExcess[system] && !overheatDetectionLost);
+      this.hydOverheatDetFault[system].set(channelA && channelB);
+      this.hydOverheatDetChannelFault[system * 2].set(channelA && !channelB);
+      this.hydOverheatDetChannelFault[system * 2 + 1].set(channelB && !channelA);
+
+      // Design choice: the HSMU opens the fuel/hydraulic heat exchanger valve as soon as an air/hydraulic heat
+      // exchanger failed in flight, as the model has no fluid temperature. SYS COOLING FAULT shows on the ground
+      // until the failure is cleared.
+      const onGround = this.aircraftOnGround.get();
+      const fuelExchangerUsed = this.hydFuelHeatExchangerUsed[system].write(
+        airExchanger && !onGround,
+        !airExchanger && onGround,
+      );
+      this.hydSysCoolingFault[system].set(fuelExchangerUsed && onGround);
+    });
 
     this.greenAPumpOn.set(SimVar.GetSimVarValue('L:A32NX_HYD_GA_EPUMP_ACTIVE', 'bool'));
     this.greenBPumpOn.set(SimVar.GetSimVarValue('L:A32NX_HYD_GB_EPUMP_ACTIVE', 'bool'));

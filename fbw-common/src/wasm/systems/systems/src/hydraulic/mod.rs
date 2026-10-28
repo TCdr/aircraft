@@ -2237,6 +2237,8 @@ pub struct Reservoir {
     low_level_id: VariableIdentifier,
     low_air_press_id: VariableIdentifier,
     overheating_id: VariableIdentifier,
+    /// Heat damage of the fluid, the stand-in for a reservoir far above its overheat temperature
+    temp_excess_id: VariableIdentifier,
 
     max_capacity: Volume,
     max_gaugeable: Volume,
@@ -2287,6 +2289,8 @@ impl Reservoir {
             low_air_press_id: context
                 .get_identifier(format!("HYD_{}_RESERVOIR_AIR_PRESSURE_IS_LOW", hyd_loop_id)),
             overheating_id: context.get_identifier(format!("HYD_{}_RESERVOIR_OVHT", hyd_loop_id)),
+            temp_excess_id: context
+                .get_identifier(format!("HYD_{}_RESERVOIR_TEMP_EXCESS", hyd_loop_id)),
 
             max_capacity,
             max_gaugeable,
@@ -2447,6 +2451,7 @@ impl SimulationElement for Reservoir {
         writer.write(&self.low_level_id, self.is_low_level());
         writer.write(&self.low_air_press_id, self.is_low_air_pressure());
         writer.write(&self.overheating_id, self.is_overheating());
+        writer.write(&self.temp_excess_id, self.is_damaged());
     }
 }
 impl PressurizeableReservoir for Reservoir {
@@ -2771,6 +2776,9 @@ pub struct EngineDrivenPump {
     active_id: VariableIdentifier,
     /// The pump overheat, as the electric pumps write HYD_{id}_EPUMP_OVHT (used by the A380 FWS for HYD SYS OVHT)
     overheat_id: VariableIdentifier,
+    /// The pump heat damage, the stand-in for a case drain far above its overheat temperature (A380 FWS: HYD SYS TEMP
+    /// EXCESS HI)
+    temp_excess_id: VariableIdentifier,
 
     is_active: bool,
     speed: AngularVelocity,
@@ -2798,6 +2806,7 @@ impl EngineDrivenPump {
         Self {
             active_id: context.get_identifier(format!("HYD_{}_EDPUMP_ACTIVE", id)),
             overheat_id: context.get_identifier(format!("HYD_{}_EDPUMP_OVHT", id)),
+            temp_excess_id: context.get_identifier(format!("HYD_{}_EDPUMP_TEMP_EXCESS", id)),
             is_active: false,
             speed: AngularVelocity::new::<revolution_per_minute>(0.),
             pump: Pump::new(pump_characteristics),
@@ -2884,6 +2893,7 @@ impl SimulationElement for EngineDrivenPump {
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.active_id, self.is_active);
         writer.write(&self.overheat_id, self.is_overheating());
+        writer.write(&self.temp_excess_id, self.is_damaged());
     }
 }
 impl HeatingElement for EngineDrivenPump {
@@ -3712,6 +3722,37 @@ mod tests {
 
         let is_overheating: bool = test_bed.read_by_name("HYD_GREEN_RESERVOIR_OVHT");
         assert!(is_overheating);
+    }
+
+    #[test]
+    fn reservoir_heated_for_long_reports_temperature_excess() {
+        let mut test_bed = SimulationTestBed::from(ElementCtorFn(|context| {
+            reservoir(
+                context,
+                HydraulicColor::Green,
+                Volume::new::<gallon>(5.),
+                Volume::new::<gallon>(2.),
+                Volume::new::<gallon>(0.5),
+            )
+        }));
+
+        test_bed.set_update_after_power_distribution(|reservoir, context| {
+            reservoir.update(context, Pressure::new::<psi>(50.), &TestFluid::overheat());
+
+            reservoir.try_take_volume(Volume::new::<gallon>(0.10));
+
+            reservoir.add_return_volume(Volume::new::<gallon>(0.10));
+        });
+
+        test_bed.run_multiple_frames(Duration::from_secs_f64(
+            Reservoir::HEATING_TIME_CONSTANT_MEAN_S + 4. * Reservoir::HEATING_TIME_CONSTANT_STD_S,
+        ));
+        let temp_excess: bool = test_bed.read_by_name("HYD_GREEN_RESERVOIR_TEMP_EXCESS");
+        assert!(!temp_excess);
+
+        test_bed.run_multiple_frames(Reservoir::DAMAGE_TIME_CONSTANT);
+        let temp_excess: bool = test_bed.read_by_name("HYD_GREEN_RESERVOIR_TEMP_EXCESS");
+        assert!(temp_excess);
     }
 
     #[test]
