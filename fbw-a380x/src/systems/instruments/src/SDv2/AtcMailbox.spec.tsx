@@ -275,3 +275,31 @@ describe('MAILBOX NOT AVAIL', () => {
     expect(shown(recall)).toBe(true);
   });
 });
+
+describe('ATC mailbox access of a cursor side (CDS CAPT (F/O) MAILBOX ACCESS FAULT)', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    vi.useRealTimers();
+  });
+
+  it('puts a click-blocking layer over the mailbox while the access of the side with the cursor is failed', () => {
+    vi.useFakeTimers();
+    const failed = { CAPT: false, FO: false };
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    FSComponent.render(
+      <AtcMailbox bus={new EventBus()} active={Subject.create(true)} isAccessFailed={(side) => failed[side]} />,
+      container,
+    );
+    const blocker = container.querySelector('.atc-mailbox-access-blocker') as HTMLElement;
+    expect(blocker.style.display).toBe('none');
+
+    failed.FO = true; // the cursor of an SD DU mailbox starts on the captain's side
+    vi.advanceTimersByTime(1000);
+    expect(blocker.style.display).toBe('none');
+
+    failed.CAPT = true;
+    vi.advanceTimersByTime(1000);
+    expect(blocker.style.display).toBe('block');
+  });
+});

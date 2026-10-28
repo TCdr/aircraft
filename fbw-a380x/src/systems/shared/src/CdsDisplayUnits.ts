@@ -120,8 +120,8 @@ export function isDisplayUnitPowered(du: DisplayUnitID, isBusPowered: (bus: DcEl
 
 /**
  * The triggering condition of the CDS CAPT PFD(CAPT ND)(CAPT MFD)(EWD)(SD)(F/O PFD)(F/O ND)(F/O MFD) DU FAULT alert:
- * "The DU is failed" (FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt:157885-157893). The second condition of the FCOM (a DU that
- * declared two other DUs faulty in turn) needs the DU monitoring loops, which are not simulated.
+ * the DU is failed. The aircraft's second condition (a DU that declared two other DUs faulty in turn) is not simulated:
+ * it needs a DU that reports false monitoring results.
  * Design choice: only while the DU is powered. An unpowered DU is blank too, but the lost busbar has its own ELEC alert.
  * @param failed the DU failure is active
  * @param powered the DU is powered (isDisplayUnitPowered)
@@ -129,4 +129,27 @@ export function isDisplayUnitPowered(du: DisplayUnitID, isBusPowered: (bus: DcEl
  */
 export function isDisplayUnitFaultTriggered(failed: boolean, powered: boolean): boolean {
   return failed && powered;
+}
+
+/**
+ * The two independent monitoring loops of the DUs, four DUs each (a DU monitors the next one of its loop).
+ * Design choice: the captain side and the EWD in one loop, the first officer side and the SD in the other. The real
+ * members are not published, only that the F/O ND monitors the F/O MFD, which monitors the F/O PFD.
+ */
+const DISPLAY_UNIT_MONITORING_LOOPS: readonly (readonly DisplayUnitID[])[] = [
+  [DisplayUnitID.CaptPfd, DisplayUnitID.CaptNd, DisplayUnitID.CaptMfd, DisplayUnitID.Ewd],
+  [DisplayUnitID.FoPfd, DisplayUnitID.FoNd, DisplayUnitID.FoMfd, DisplayUnitID.Sd],
+];
+
+/**
+ * The triggering condition of the CDS CAPT PFD(CAPT ND)(EWD)(F/O PFD)(F/O ND) DU NOT MONITORED alert: the DU is no
+ * longer monitored. The loops reconfigure when a DU fails, so a DU stays monitored while one other DU of its loop works;
+ * the last working DU of a loop has no one left to monitor it. The MFDs and the SD have no alert.
+ * @param du the DU
+ * @param isOperative whether a DU shows a picture (powered and not failed)
+ * @returns true while the DU works but no other DU of its loop does
+ */
+export function isDisplayUnitNotMonitored(du: DisplayUnitID, isOperative: (du: DisplayUnitID) => boolean): boolean {
+  const loop = DISPLAY_UNIT_MONITORING_LOOPS.find((members) => members.includes(du)) ?? [];
+  return isOperative(du) && !loop.some((member) => member !== du && isOperative(member));
 }

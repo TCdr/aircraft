@@ -215,6 +215,7 @@ import {
   DisplayUnitFailure,
   DisplayUnitID,
   isDisplayUnitFaultTriggered,
+  isDisplayUnitNotMonitored,
   isDisplayUnitPowered,
 } from '@shared/CdsDisplayUnits';
 import { DcElectricalBus } from '@shared/electrical';
@@ -395,6 +396,18 @@ export class FwsCore {
 
   /** CDS CAPT PFD(CAPT ND)(CAPT MFD)(EWD)(SD)(F/O PFD)(F/O ND)(F/O MFD) DU FAULT, one per display unit */
   public readonly displayUnitFault: Readonly<Record<DisplayUnitID, Subject<boolean>>> = {
+    [DisplayUnitID.CaptPfd]: Subject.create(false),
+    [DisplayUnitID.CaptNd]: Subject.create(false),
+    [DisplayUnitID.CaptMfd]: Subject.create(false),
+    [DisplayUnitID.FoPfd]: Subject.create(false),
+    [DisplayUnitID.FoNd]: Subject.create(false),
+    [DisplayUnitID.FoMfd]: Subject.create(false),
+    [DisplayUnitID.Ewd]: Subject.create(false),
+    [DisplayUnitID.Sd]: Subject.create(false),
+  };
+
+  /** CDS CAPT PFD(CAPT ND)(EWD)(F/O PFD)(F/O ND) DU NOT MONITORED, one per display unit (the MFDs and the SD have none) */
+  public readonly displayUnitNotMonitored: Readonly<Record<DisplayUnitID, Subject<boolean>>> = {
     [DisplayUnitID.CaptPfd]: Subject.create(false),
     [DisplayUnitID.CaptNd]: Subject.create(false),
     [DisplayUnitID.CaptMfd]: Subject.create(false),
@@ -2658,6 +2671,9 @@ export class FwsCore {
 
   public readonly kccuKeyboardFault = [Subject.create(false), Subject.create(false)];
 
+  /** CDS CAPT (F/O) MAILBOX ACCESS FAULT */
+  public readonly mailboxAccessFault = [Subject.create(false), Subject.create(false)];
+
   /** RECORDER ACCELMTR, CVR, DFDR and SYS FAULT, see FwsRecorderAlerts */
   public readonly recorderAccelmtrFault = Subject.create(false);
 
@@ -4231,6 +4247,12 @@ export class FwsCore {
         ),
       );
     }
+    // CDS ... DU NOT MONITORED: the last working DU of a monitoring loop
+    const isDisplayUnitOperative = (du: DisplayUnitID) =>
+      isDisplayUnitPowered(du, isDcBusPowered) && !this.failuresConsumer.isActive(DisplayUnitFailure[du]);
+    for (const du of ALL_DISPLAY_UNITS) {
+      this.displayUnitNotMonitored[du].set(isDisplayUnitNotMonitored(du, isDisplayUnitOperative));
+    }
 
     // Update flight phases
     this.flightPhases.update(deltaTime);
@@ -5208,6 +5230,8 @@ export class FwsCore {
       this.kccuCursorCtlKeyboardFault[index].set(kccu.cursorControlAndKeyboardFault);
       this.kccuKeyboardFault[index].set(kccu.keyboardFault);
     });
+    this.mailboxAccessFault[0].set(failureActive(A380Failure.CaptMailboxAccess));
+    this.mailboxAccessFault[1].set(failureActive(A380Failure.FoMailboxAccess));
 
     // RECORDER alerts (FwsRecorderAlerts) and CABIN EMER EXIT LT FAULT (FwsEmerExitLightAlerts)
     const recorders = recorderAlerts({

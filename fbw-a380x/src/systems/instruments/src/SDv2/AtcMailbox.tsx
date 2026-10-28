@@ -70,6 +70,11 @@ export interface AtcMailboxProps extends ComponentProps {
    * the CAPT's as before
    */
   readonly cursorSide?: 'CAPT' | 'FO';
+  /**
+   * Whether the access of the KCCU cursor of a side to the mailbox is failed (CDS CAPT (F/O) MAILBOX ACCESS FAULT): the
+   * mailbox takes no input from that side
+   */
+  readonly isAccessFailed?: (side: 'CAPT' | 'FO') => boolean;
 }
 
 /** The ADS status that the MFD CONNECTION STATUS page sets: 0 ARMED, 1 CONNECTED, 2 OFF */
@@ -119,6 +124,9 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
 
   /** The KCCU whose cursor is on the mailbox: the side of the DU (cursorSide), then the last MAILBOX key press */
   private readonly cursorSide = Subject.create<'CAPT' | 'FO'>(this.props.cursorSide ?? 'CAPT');
+
+  /** The access of the side that holds the cursor is failed: a layer over the mailbox swallows the clicks */
+  private readonly accessFailed = Subject.create(false);
 
   private readonly atcPublisher = this.props.bus.getPublisher<AtsuMailboxMessages & FmsAtcMessages>();
 
@@ -333,10 +341,10 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
     // a mailbox that starts late (the SD drawn on an ND DU starts when first shown) missed the earlier messages
     this.requestResync();
 
-    this.adsPoll = window.setInterval(
-      () => this.adsStatus.set(SimVar.GetSimVarValue(ADS_STATUS_VAR, 'number') ?? 0),
-      1000,
-    );
+    this.adsPoll = window.setInterval(() => {
+      this.adsStatus.set(SimVar.GetSimVarValue(ADS_STATUS_VAR, 'number') ?? 0);
+      this.accessFailed.set(this.props.isAccessFailed?.(this.cursorSide.get()) ?? false);
+    }, 1000);
   }
 
   destroy(): void {
@@ -369,6 +377,9 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
     const keyboardOn =
       SimVar.GetSimVarValue(`L:A32NX_KCCU_${side === 'CAPT' ? 'L' : 'R'}_KBD_ON_OFF`, SimVarValueType.Bool) > 0;
     if (!isKccuKeyActive('MAILBOX', keyboardOn, true)) {
+      return;
+    }
+    if (this.props.isAccessFailed?.(side)) {
       return;
     }
     this.cursorSide.set(side);
@@ -853,6 +864,11 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
             {systemInformation}
           </div>
         </div>
+
+        <div
+          class="atc-mailbox-access-blocker"
+          style={{ display: this.accessFailed.map((v) => (v ? 'block' : 'none')) }}
+        />
 
         <MouseCursor side={this.cursorSide} ref={this.mouseCursorRef} />
       </div>
