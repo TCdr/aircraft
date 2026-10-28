@@ -96,7 +96,7 @@ export const A380Failure = Object.freeze({
   CabinPressureSensor2: 21090,
   CabinPressureSensor3: 21091,
   CabinPressureSensor4: 21092,
-  // Ids 21100-21113 are mapped in a380_systems_wasm/src/lib.rs (avionics ventilation, supplemental cooling and THS bay
+  // Ids 21100-21115 are mapped in a380_systems_wasm/src/lib.rs (avionics ventilation, supplemental cooling and THS bay
   // ventilation, a380_systems air_conditioning/avionics_ventilation.rs).
   AvionicsBlowingFan1: 21100,
   AvionicsBlowingFan2: 21101,
@@ -112,6 +112,8 @@ export const A380Failure = Object.freeze({
   SupplementalCooling1Protection: 21111,
   SupplementalCooling2Protection: 21112,
   ThsBayBlowingFan: 21113,
+  AvionicsBlowingFilterClogged1: 21114,
+  AvionicsBlowingFilterClogged2: 21115,
 
   // Not listed in A380FailureDefinitions: the C++ FCDC input it sets (nwsCommunicationAvailable) is read by nothing
   // until a steering control system exists. Kept so the id stays in sync with FailureList.h.
@@ -1443,6 +1445,8 @@ const failureDefinitionsAta21To33: FailureDefinition[] = [
   [21, A380Failure.SupplementalCooling1Protection, 'Supplemental cooling system 1 overheat protection'],
   [21, A380Failure.SupplementalCooling2Protection, 'Supplemental cooling system 2 overheat protection'],
   [21, A380Failure.ThsBayBlowingFan, 'THS bay blowing fan'],
+  [21, A380Failure.AvionicsBlowingFilterClogged1, 'Avionics ventilation left blowing filter clogged'],
+  [21, A380Failure.AvionicsBlowingFilterClogged2, 'Avionics ventilation right blowing filter clogged'],
 
   [22, A380Failure.FmcA, 'FMC-A'],
   [22, A380Failure.FmcB, 'FMC-B'],

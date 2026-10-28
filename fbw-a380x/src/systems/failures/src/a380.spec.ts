@@ -159,6 +159,8 @@ describe('A380X flyPad failure definitions', () => {
       [21111, 'SupplementalCoolingProtection(1)', 'Supplemental cooling system 1 overheat protection'],
       [21112, 'SupplementalCoolingProtection(2)', 'Supplemental cooling system 2 overheat protection'],
       [21113, 'ThsBayBlowingFan', 'THS bay blowing fan'],
+      [21114, 'AvionicsBlowingFilterClogged(1)', 'Avionics ventilation left blowing filter clogged'],
+      [21115, 'AvionicsBlowingFilterClogged(2)', 'Avionics ventilation right blowing filter clogged'],
     ];
     const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
 

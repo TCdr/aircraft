@@ -28,6 +28,7 @@ pub(super) struct AvionicsVentilationSystem {
     ac_bus_powered: [bool; 4],
 
     blowing_fan_failure: [Failure; 2],
+    blowing_filter_clogged_failure: [Failure; 2],
     backup_valve_failure: [Failure; 2],
     extraction_fan_failure: Failure,
     extract_valve_failure: Failure,
@@ -39,6 +40,7 @@ pub(super) struct AvionicsVentilationSystem {
     ths_bay_fan_failure: Failure,
 
     circuit_not_ventilated: [bool; 2],
+    circuit_on_backup: [bool; 2],
     extract_fault: bool,
     overboard_valve_fault: bool,
     overboard_valve_fully_open: bool,
@@ -69,6 +71,8 @@ impl AvionicsVentilationSystem {
 
             blowing_fan_failure: [1, 2]
                 .map(|circuit| Failure::new(FailureType::AvionicsBlowingFan(circuit))),
+            blowing_filter_clogged_failure: [1, 2]
+                .map(|circuit| Failure::new(FailureType::AvionicsBlowingFilterClogged(circuit))),
             backup_valve_failure: [1, 2]
                 .map(|circuit| Failure::new(FailureType::AvionicsBackupValve(circuit))),
             extraction_fan_failure: Failure::new(FailureType::AvionicsExtractionFan),
@@ -87,6 +91,7 @@ impl AvionicsVentilationSystem {
             ths_bay_fan_failure: Failure::new(FailureType::ThsBayBlowingFan),
 
             circuit_not_ventilated: [false; 2],
+            circuit_on_backup: [false; 2],
             extract_fault: false,
             overboard_valve_fault: false,
             overboard_valve_fully_open: false,
@@ -115,14 +120,22 @@ impl AvionicsVentilationSystem {
             !fan_failure.is_active() && self.ac_bus_powered[bus]
         };
         let blowing_fan_buses = [Self::LEFT_BLOWING_FAN_BUS, Self::RIGHT_BLOWING_FAN_BUS];
-        // The backup valve of a circuit opens when its blowing fan fails and lets in air of the mixer unit
+        // The backup valve of a circuit opens when its blowing fan fails or its filter is clogged and lets in air of
+        // the mixer unit. A clogged filter starves the circuit like a failed fan, so it also leaves the circuit
+        // without air once the backup valve is lost.
+        let blowing_air_lost: [bool; 2] = [0, 1].map(|circuit| {
+            !fan_available(
+                &self.blowing_fan_failure[circuit],
+                blowing_fan_buses[circuit],
+            ) || self.blowing_filter_clogged_failure[circuit].is_active()
+        });
         let circuit_not_ventilated: [bool; 2] = [0, 1].map(|circuit| {
+            monitored && blowing_air_lost[circuit] && self.backup_valve_failure[circuit].is_active()
+        });
+        let circuit_on_backup: [bool; 2] = [0, 1].map(|circuit| {
             monitored
-                && !fan_available(
-                    &self.blowing_fan_failure[circuit],
-                    blowing_fan_buses[circuit],
-                )
-                && self.backup_valve_failure[circuit].is_active()
+                && blowing_air_lost[circuit]
+                && !self.backup_valve_failure[circuit].is_active()
         });
 
         let inner_engines_started = inner_engines_n1_percent
@@ -157,6 +170,7 @@ impl AvionicsVentilationSystem {
             fan_available(&self.extraction_fan_failure, Self::EXTRACTION_FAN_BUS);
 
         self.circuit_not_ventilated = circuit_not_ventilated;
+        self.circuit_on_backup = circuit_on_backup;
         self.extract_fault = monitored && (!extraction_fan_available || extract_valve_stuck_closed);
         self.overboard_valve_fault = monitored && overboard_valve != commanded_overboard_valve;
         self.overboard_valve_fully_open =
@@ -180,9 +194,14 @@ impl AvionicsVentilationSystem {
                 || (on_ground && !self.ac_bus_powered[Self::THS_BAY_FAN_BUS]));
     }
 
-    /// The L (index 0) or R (index 1) circuit gets no air: its blowing fan and its backup valve are lost
+    /// The L (index 0) or R (index 1) circuit gets no air: its blowing air and its backup valve are lost
     pub(super) fn circuit_not_ventilated(&self, circuit_index: usize) -> bool {
         self.circuit_not_ventilated[circuit_index]
+    }
+
+    /// The L (index 0) or R (index 1) circuit has lost its blowing air and is ventilated through its backup valve
+    pub(super) fn circuit_on_backup(&self, circuit_index: usize) -> bool {
+        self.circuit_on_backup[circuit_index]
     }
 
     pub(super) fn extract_fault(&self) -> bool {
@@ -220,6 +239,9 @@ impl AvionicsVentilationSystem {
 impl SimulationElement for AvionicsVentilationSystem {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.blowing_fan_failure
+            .iter_mut()
+            .for_each(|failure| failure.accept(visitor));
+        self.blowing_filter_clogged_failure
             .iter_mut()
             .for_each(|failure| failure.accept(visitor));
         self.backup_valve_failure
@@ -321,6 +343,7 @@ mod tests {
     /// What the system reports to the FWS
     struct Reported {
         circuit_not_ventilated: [bool; 2],
+        circuit_on_backup: [bool; 2],
         extract_fault: bool,
         overboard_valve_fault: bool,
         overboard_valve_fully_open: bool,
@@ -332,6 +355,9 @@ mod tests {
     impl Reported {
         fn circuit_not_ventilated(&self, circuit: usize) -> bool {
             self.circuit_not_ventilated[circuit]
+        }
+        fn circuit_on_backup(&self, circuit: usize) -> bool {
+            self.circuit_on_backup[circuit]
         }
         fn extract_fault(&self) -> bool {
             self.extract_fault
@@ -362,6 +388,7 @@ mod tests {
             Reported {
                 circuit_not_ventilated: [0, 1]
                     .map(|circuit| system.circuit_not_ventilated(circuit)),
+                circuit_on_backup: [0, 1].map(|circuit| system.circuit_on_backup(circuit)),
                 extract_fault: system.extract_fault(),
                 overboard_valve_fault: system.overboard_valve_fault(),
                 overboard_valve_fully_open: system.overboard_valve_fully_open(),
@@ -380,6 +407,7 @@ mod tests {
 
         let system = system(&test_bed);
         assert!(!system.circuit_not_ventilated(0) && !system.circuit_not_ventilated(1));
+        assert!(!system.circuit_on_backup(0) && !system.circuit_on_backup(1));
         assert!(!system.extract_fault() && !system.overboard_valve_fault());
         assert!(!system.controller_fault() && !system.cooling_protection_fault());
         assert!(!system.cooling_overheat(0) && !system.cooling_overheat(1));
@@ -415,6 +443,74 @@ mod tests {
         let system = system(&test_bed);
         assert!(system.circuit_not_ventilated(1));
         assert!(!system.circuit_not_ventilated(0));
+    }
+
+    #[test]
+    fn a_failed_blowing_fan_puts_only_its_circuit_on_the_backup_valve() {
+        let mut test_bed = in_cruise();
+        test_bed.fail(FailureType::AvionicsBlowingFan(1));
+        run(&mut test_bed);
+
+        let system = system(&test_bed);
+        assert!(system.circuit_on_backup(0));
+        assert!(!system.circuit_on_backup(1));
+    }
+
+    #[test]
+    fn both_circuits_are_on_their_backup_valves_with_both_blowing_fans_failed() {
+        let mut test_bed = in_cruise();
+        test_bed.fail(FailureType::AvionicsBlowingFan(1));
+        test_bed.fail(FailureType::AvionicsBlowingFan(2));
+        run(&mut test_bed);
+
+        let system = system(&test_bed);
+        assert!(system.circuit_on_backup(0) && system.circuit_on_backup(1));
+        assert!(!system.circuit_not_ventilated(0) && !system.circuit_not_ventilated(1));
+    }
+
+    #[test]
+    fn a_clogged_filter_puts_its_circuit_on_the_backup_valve() {
+        let mut test_bed = in_cruise();
+        test_bed.fail(FailureType::AvionicsBlowingFilterClogged(2));
+        run(&mut test_bed);
+
+        let system = system(&test_bed);
+        assert!(system.circuit_on_backup(1));
+        assert!(!system.circuit_on_backup(0));
+        assert!(!system.circuit_not_ventilated(1));
+    }
+
+    #[test]
+    fn a_clogged_filter_without_backup_valve_leaves_the_circuit_not_ventilated() {
+        let mut test_bed = in_cruise();
+        test_bed.fail(FailureType::AvionicsBlowingFilterClogged(1));
+        test_bed.fail(FailureType::AvionicsBackupValve(1));
+        run(&mut test_bed);
+
+        let system = system(&test_bed);
+        assert!(system.circuit_not_ventilated(0));
+        assert!(!system.circuit_on_backup(0));
+    }
+
+    #[test]
+    fn a_circuit_without_blowing_fan_and_backup_valve_is_not_on_the_backup_valve() {
+        let mut test_bed = in_cruise();
+        test_bed.fail(FailureType::AvionicsBlowingFan(2));
+        test_bed.fail(FailureType::AvionicsBackupValve(2));
+        run(&mut test_bed);
+
+        assert!(!system(&test_bed).circuit_on_backup(1));
+    }
+
+    #[test]
+    fn a_circuit_whose_fan_bus_is_dead_runs_on_the_backup_valve() {
+        let mut test_bed = in_cruise();
+        test_bed.command(|a| a.ac_bus_powered = [false, true, true, true]);
+        run(&mut test_bed);
+
+        let system = system(&test_bed);
+        assert!(system.circuit_on_backup(0));
+        assert!(!system.circuit_on_backup(1));
     }
 
     #[test]
@@ -521,6 +617,7 @@ mod tests {
         assert!(system.controller_fault());
         assert!(!system.extract_fault() && !system.overboard_valve_fault());
         assert!(!system.circuit_not_ventilated(0));
+        assert!(!system.circuit_on_backup(0));
     }
 
     #[test]

@@ -958,6 +958,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Add the AVIONICS NETWORK MULTIPLE CABLE FAULT alert, with failures for the cables between the AFDX switches - @TCdr
 1. [A380X/FWS] Add the ENG 1(2)(3)(4) FUEL LEAK, LP SHAFT PROT LOST and OIL FILTER MONITORING FAULT alerts with their flyPad failures - @TCdr
 1. [A380X/FWS] Add the avionics ventilation alerts COND AVNCS VENT CTL FAULT, VENT AVNCS BLOWING FAULT, EXTRACT FAULT, L(R) BLOWING FAULT and OVBD VLV FAULT, VENT COOLG SYS 1(2) OVHT, VENT COOLG SYS PROT FAULT and VENT THS BAY VENT FAULT, with flyPad failures for the blowing fans and backup valves, the extraction fan, the extract and overboard valves, the controller, the supplemental cooling systems and the THS bay fan; the EXTRACT pb-sw FAULT light now works - @TCdr
+1. [A380X/FWS] Add the VENT AVNCS BLOWING DEGRADED alert (both avionics ventilation circuits on their backup valves) with flyPad failures for the clogged left and right blowing filters - @TCdr
 1. [A32NX/ND] Obstacles shown in the terrain picture (TERR ON ND), US obstacle data - @TCdr
 
 ## 2024.1.0
