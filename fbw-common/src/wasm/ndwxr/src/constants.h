@@ -343,6 +343,10 @@ constexpr float kTerrainLightGreenFromFeet = -2000.0f;
 constexpr float kTerrainLookAheadFromFpm = 1000.0f;
 constexpr float kTerrainLookAheadSeconds = 30.0f;
 
+// Design choice: at most 3000 obstacle runs are drawn per frame (one quad each, grouped by colour into a few fills), so the
+// frame time stays bounded where very many obstacle cells are within the range and within reach of the aircraft.
+constexpr int kObstacleMaxRuns = 3000;
+
 // Ground mapping, the radar's MAP mode, from the same altitude view: "black indicates water,
 // green indicates the ground, and amber indicates cities and mountains" (A320 FCOM
 // DSC-34-SURV-30-30, display mode selector; the A380's SURV CONTROLS MODE button has the

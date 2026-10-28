@@ -156,6 +156,7 @@
 #include "gauge_slots.h"  // GaugeSlots, the gauge instances' slots and the module's MapView budget (pure logic)
 #include "vd_ra_zone.h"  // the VD column under the amber radio altitude zone (pure geometry)
 #include "threat_areas.h"  // the A32NX terrain alert areas sent by the GPWS (pure decoding and geometry)
+#include "obstacle_grid.h"  // the A32NX obstacle grid (pure decoding and the choice of the cells to draw)
 
 namespace ndwxr {
 
@@ -474,7 +475,22 @@ void setTerrainColors(FsContext ctx, FsTextureId id, bool gearDown);
 void setMapColors(FsContext ctx, FsTextureId id);
 void setPeaksColors(FsContext ctx, FsTextureId id);
 int createTerrainPattern(NVGcontext* vg);
-void drawTerrain(NVGcontext* vg, FsTextureId view, FsTextureId waterView, int patternImage, bool isRose, float headingDegrees);
+// How the terrain view colours a height this frame (what the obstacles are coloured by): the standard bands or the
+// peaks mode's over [minFeet, maxFeet] of (aircraft altitude - height), and the ND range.
+struct TerrainBands {
+  bool peaksMode;
+  bool gearDown;
+  float minFeet;
+  float maxFeet;
+  float rangeNm;
+};
+void drawTerrain(NVGcontext* vg,
+                 FsTextureId view,
+                 FsTextureId waterView,
+                 int patternImage,
+                 bool isRose,
+                 float headingDegrees,
+                 const TerrainBands& bands);
 void drawMapMode(NVGcontext* vg, FsTextureId view, bool isRose, float headingDegrees);
 int createThreatHatchPattern(NVGcontext* vg);
 void drawThreatAreas(NVGcontext* vg,
@@ -483,6 +499,11 @@ void drawThreatAreas(NVGcontext* vg,
                      bool isRose,
                      float headingDegrees,
                      float rangeNm);
+
+#ifndef A380X
+// obstacles.cpp: the runs of obstacle cells around the aircraft for the terrain picture (none until the grid file is loaded).
+int collectObstacleRuns(const ObstacleView& view, ThreatRun* out, int capacity);
+#endif
 
 #ifdef A380X
 // vd.cpp: the vertical display.
