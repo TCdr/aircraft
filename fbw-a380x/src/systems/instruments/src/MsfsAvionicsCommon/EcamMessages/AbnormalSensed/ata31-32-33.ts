@@ -397,13 +397,18 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
+  313800008: {
+    title: '\x1b<4m\x1b4mCDS\x1bm F/O MAILBOX ACCESS FAULT',
+    sensed: true,
+    items: [],
+  },
   314800001: {
     title: '\x1b<4m\x1b4mFWS\x1bm AIRLINE CUSTOMIZATION REJECTED',
     sensed: true,
     items: [],
   },
   314800003: {
-    title: '\x1b<4m\x1b4mFWS\x1bm FWS 1+2 & FCDC 1+2 FAULT',
+    title: '\x1b<4m\x1b4mCDS\x1bm FWS 1+2 & FCDC 1+2 FAULT',
     sensed: true,
     items: [
       {

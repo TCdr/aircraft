@@ -735,6 +735,16 @@ export class FwsInopSys {
       simVarIsActive: this.fws.kccuKeyboardFault[1],
       phase: FwsInopSysPhases.AllPhases,
     },
+    310300025: {
+      // CAPT MAILBOX ACCESS
+      simVarIsActive: this.fws.mailboxAccessFault[0],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300026: {
+      // F/O MAILBOX ACCESS
+      simVarIsActive: this.fws.mailboxAccessFault[1],
+      phase: FwsInopSysPhases.AllPhases,
+    },
     // RECORDER alerts STATUS, INOP SYS ALL PHASES, see FwsRecorderAlerts
     310300022: {
       // RECORDER ACCELMTR

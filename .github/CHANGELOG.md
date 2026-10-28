@@ -26,6 +26,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [ATSU] Add support for BeyondATC and SayIntentions AI as METAR/ATIS sources - @saschl
 1. [A32NX/TCAS] Improve PFD Resolution Advisory graphics, introduce TCAS bus - @lukecologne (luke)
 1. [A32NX/PFD] Add the backup speed/altitude scale (BKUP SPD/ALT pb), the BKUP SPD/ALT memo and the NAV BKUP SPD/ALT ON CAPT(F/O)(CAPT+F/O) PFD alerts - @TCdr
+1. [A380X/FWS] Add the CDS CAPT PFD(CAPT ND)(EWD)(F/O PFD)(F/O ND) DU NOT MONITORED alerts (last working DU of a monitoring loop) and the CDS CAPT (F/O) MAILBOX ACCESS FAULT alerts with new flyPad failures; name the FWS 1+2 & FCDC / CPIOM FAULT alerts as the FCOM does - @TCdr
 1. [A380X/FMS] Fix TOW on FUEL&LOAD page showing gross weight instead of takeoff weight in flight - @HendersonTyler
 1. [PFD] Reduced size of white FMA messages on PFD - @BravoMike99 (bruno_pt99)
 1. [A380X] Update aircraft to MSFS2024 native modular aircraft - @heclak (Heclak)
