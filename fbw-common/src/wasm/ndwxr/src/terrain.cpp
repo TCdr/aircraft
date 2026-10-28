@@ -173,26 +173,129 @@ bool configureWaterMaskView(FsContext ctx, FsTextureId id) {
   return true;
 }
 
+// The green density of a band of the peaks mode's list.
+static float peaksBandGreen(int band) {
+  const float total = 1.0f + kPeaksMarginFraction;
+  // The band's elevation as a fraction of the span, from the top (band 0 = above the highest terrain).
+  const float fraction = total - (static_cast<float>(band) + 0.5f) / static_cast<float>(kTerrainBandCount) * total;
+  if (fraction >= kPeaksSolidFrom) {
+    return 1.0f;
+  }
+  if (fraction >= kPeaksDenseFrom) {
+    return kTerrainDense;
+  }
+  if (fraction >= kPeaksLightFrom) {
+    return kTerrainLight;
+  }
+  return 0.0f;
+}
+
 void setPeaksColors(FsContext ctx, FsTextureId id) {
   FsColor colors[kTerrainBandCount];
-  const float total = 1.0f + kPeaksMarginFraction;
   for (int band = 0; band < kTerrainBandCount; ++band) {
-    // The band's elevation as a fraction of the span, from the top (band 0 = above the highest terrain).
-    const float fraction = total - (static_cast<float>(band) + 0.5f) / static_cast<float>(kTerrainBandCount) * total;
-    float g = 0.0f;
-    if (fraction >= kPeaksSolidFrom) {
-      g = 1.0f;
-    } else if (fraction >= kPeaksDenseFrom) {
-      g = kTerrainDense;
-    } else if (fraction >= kPeaksLightFrom) {
-      g = kTerrainLight;
-    }
-    colors[band] = rgba(0.0f, g, 0.0f, 1.0f);
+    colors[band] = rgba(0.0f, peaksBandGreen(band), 0.0f, 1.0f);
   }
   fsMapViewSetAltitudeColorList(ctx, id, colors, kTerrainBandCount);
 }
 
-void drawTerrain(NVGcontext* vg, FsTextureId view, FsTextureId waterView, int patternImage, bool isRose, float headingDegrees) {
+// Nothing outside the terrain's own area: the screen with that area as a hole is cleared as clearRect does.
+static void clearOutsideTerrainArea(NVGcontext* vg, float cx, float cy, float radius, bool isRose) {
+  const float screen = 2.0f * kScreenCenterX;
+  for (int pass = 0; pass < 2; ++pass) {
+    nvgBeginPath(vg);
+    nvgRect(vg, 0.0f, 0.0f, screen, screen);
+    terrainSubpath(vg, cx, cy, radius, isRose);
+    nvgPathWinding(vg, NVG_HOLE);
+    nvgFillColor(vg, nvgRGBAf(0.0f, 0.0f, 0.0f, pass == 0 ? 0.0f : 1.0f));
+    nvgGlobalCompositeOperation(vg, pass == 0 ? NVG_COPY : NVG_DESTINATION_OUT);
+    nvgFill(vg);
+  }
+}
+
+#ifndef A380X
+// The obstacles as terrain: each obstacle cell is put into the density texture at the density of the band its top falls
+// in, so the dither below turns it into the same dots as terrain at that height (and it takes that terrain's place).
+// Half strength like the terrain and the water, since the texture is added at half strength.
+static void drawTerrainObstacles(NVGcontext* vg,
+                                 const TerrainBands& bands,
+                                 float cx,
+                                 float cy,
+                                 float radius,
+                                 bool isRose,
+                                 float headingDegrees) {
+  ObstacleBandColor bandColors[kTerrainBandCount];
+  for (int band = 0; band < kTerrainBandCount; ++band) {
+    float r = 0.0f;
+    float g = 0.0f;
+    if (bands.peaksMode) {
+      g = peaksBandGreen(band);
+    } else {
+      terrainBandColor(band, bands.gearDown, &r, &g);
+    }
+    bandColors[band] = ObstacleBandColor{r, g};
+  }
+
+  static ThreatRun runs[kObstacleMaxRuns];
+  const ObstacleView view{planeCoordinateDegrees("PLANE LATITUDE"),
+                          planeCoordinateDegrees("PLANE LONGITUDE"),
+                          planeAltitudeFeet(),
+                          bands.rangeNm,
+                          bands.minFeet,
+                          bands.maxFeet,
+                          bandColors,
+                          kTerrainBandCount};
+  const int runCount = collectObstacleRuns(view, runs, kObstacleMaxRuns);
+  if (runCount == 0) {
+    return;
+  }
+
+  // The colours of the bands are few (a handful of densities): one fill per colour.
+  ObstacleBandColor drawn[kTerrainBandCount];
+  int drawnCount = 0;
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ZERO, NVG_ZERO, NVG_ONE);
+  for (int band = 0; band < kTerrainBandCount; ++band) {
+    const ObstacleBandColor color = bandColors[band];
+    bool seen = false;
+    for (int i = 0; i < drawnCount; ++i) {
+      seen = seen || (drawn[i].r == color.r && drawn[i].g == color.g);
+    }
+    if (seen || (color.r == 0.0f && color.g == 0.0f)) {
+      continue;
+    }
+    drawn[drawnCount++] = color;
+    nvgBeginPath(vg);
+    bool any = false;
+    for (int i = 0; i < runCount; ++i) {
+      const ObstacleBandColor runColor = bandColors[runs[i].level];
+      if (runColor.r != color.r || runColor.g != color.g) {
+        continue;
+      }
+      const ThreatQuad quad = threatRunQuad(runs[i], 0.0, 0.0, view.aircraftLatitude, view.aircraftLongitude, headingDegrees, cx, cy,
+                                            radius / bands.rangeNm);
+      nvgMoveTo(vg, quad.corners[0].x, quad.corners[0].y);
+      for (int corner = 1; corner < 4; ++corner) {
+        nvgLineTo(vg, quad.corners[corner].x, quad.corners[corner].y);
+      }
+      nvgClosePath(vg);
+      any = true;
+    }
+    if (any) {
+      nvgFillColor(vg, rgba(encodeSrgb(0.5f * color.r), encodeSrgb(0.5f * color.g), 0.0f, 1.0f));
+      nvgFill(vg);
+    }
+  }
+
+  clearOutsideTerrainArea(vg, cx, cy, radius, isRose);
+}
+#endif
+
+void drawTerrain(NVGcontext* vg,
+                 FsTextureId view,
+                 FsTextureId waterView,
+                 int patternImage,
+                 bool isRose,
+                 float headingDegrees,
+                 [[maybe_unused]] const TerrainBands& bands) {
   constexpr float kDegToRad = 0.01745329f;
   const float centerYBias = isRose ? kRoseNavCenterYBias : kArcCenterYBias;
   const float radius = isRose ? kRoseNavPixelRadius : kArcPixelRadius;
@@ -234,6 +337,10 @@ void drawTerrain(NVGcontext* vg, FsTextureId view, FsTextureId waterView, int pa
   sea.innerColor = sea.outerColor = rgba(0.0f, waterDensity, waterDensity, 1.0f);
   nvgFillPaint(vg, sea);
   nvgFill(vg);
+
+#ifndef A380X
+  drawTerrainObstacles(vg, bands, cx, cy, radius, isRose, headingDegrees);
+#endif
 
   // 2. the dither complement at half strength: the sum passes 1 exactly where density >= threshold.
   nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
@@ -357,17 +464,7 @@ void drawThreatAreas(NVGcontext* vg,
     nvgFill(vg);
   }
 
-  // Nothing outside the terrain's own area: the screen with that area as a hole is cleared as clearRect does.
-  const float screen = 2.0f * kScreenCenterX;
-  for (int pass = 0; pass < 2; ++pass) {
-    nvgBeginPath(vg);
-    nvgRect(vg, 0.0f, 0.0f, screen, screen);
-    terrainSubpath(vg, cx, cy, radius, isRose);
-    nvgPathWinding(vg, NVG_HOLE);
-    nvgFillColor(vg, nvgRGBAf(0.0f, 0.0f, 0.0f, pass == 0 ? 0.0f : 1.0f));
-    nvgGlobalCompositeOperation(vg, pass == 0 ? NVG_COPY : NVG_DESTINATION_OUT);
-    nvgFill(vg);
-  }
+  clearOutsideTerrainArea(vg, cx, cy, radius, isRose);
 
   nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
 }

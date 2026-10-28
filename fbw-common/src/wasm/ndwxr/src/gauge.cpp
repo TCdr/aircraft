@@ -619,14 +619,19 @@ static void drawTerrainLayer(FsContext ctx,
     const double peaksMax = get_named_variable_value(instance.peaksMaxVar);
     const double altitude = planeAltitudeFeet();
     const bool peaksMode = peaksMin >= 0.0 && peaksMax >= 0.0 && peaksMax <= altitude - static_cast<double>(kPeaksBelowFeet);
+    // The range the terrain view colours by, as set below; the obstacles are coloured by it too.
+    TerrainBands bands{peaksMode, false, 0.0f, 0.0f, frame.rangeNmForMode};
     if (peaksMode) {
       if (instance.terrainListMode != 2) {
         setPeaksColors(ctx, views.terrain);
         instance.terrainListMode = 2;
       }
       const double span = std::fmax(peaksMax - peaksMin, static_cast<double>(kPeaksMinSpanFeet));
-      fsMapViewSetAltitudeRangeInFeet(ctx, views.terrain, altitude - peaksMax - static_cast<double>(kPeaksMarginFraction) * span,
-                                      altitude - peaksMin);
+      const double peaksRangeMin = altitude - peaksMax - static_cast<double>(kPeaksMarginFraction) * span;
+      const double peaksRangeMax = altitude - peaksMin;
+      fsMapViewSetAltitudeRangeInFeet(ctx, views.terrain, peaksRangeMin, peaksRangeMax);
+      bands.minFeet = static_cast<float>(peaksRangeMin);
+      bands.maxFeet = static_cast<float>(peaksRangeMax);
     } else {
       const int gearState = g_egpwcGearDown.read() != 0.0 ? 1 : 0;
       if (gearState != instance.terrainGearState || instance.terrainListMode != 0) {
@@ -635,13 +640,15 @@ static void drawTerrainLayer(FsContext ctx,
         instance.terrainListMode = 0;
       }
       // The bands shifted by the look-ahead (the view colours by the aircraft's own altitude, see kTerrainLookAheadSeconds).
-      fsMapViewSetAltitudeRangeInFeet(ctx, views.terrain, static_cast<double>(kTerrainMinFeet + frame.terrainLookAheadFeet),
-                                      static_cast<double>(kTerrainMaxFeet + frame.terrainLookAheadFeet));
+      bands.gearDown = gearState == 1;
+      bands.minFeet = kTerrainMinFeet + frame.terrainLookAheadFeet;
+      bands.maxFeet = kTerrainMaxFeet + frame.terrainLookAheadFeet;
+      fsMapViewSetAltitudeRangeInFeet(ctx, views.terrain, static_cast<double>(bands.minFeet), static_cast<double>(bands.maxFeet));
     }
     setViewRadius(ctx, views.terrain, *views.terrainPark, radiusMetres, nowSeconds);
     setViewRadius(ctx, views.water, *views.waterPark, radiusMetres, nowSeconds);
     if (terrainReady && instance.terrainPatternImage != 0) {
-      drawTerrain(vg, views.terrain, views.water, instance.terrainPatternImage, frame.isRose, frame.terrainHeadingDegrees);
+      drawTerrain(vg, views.terrain, views.water, instance.terrainPatternImage, frame.isRose, frame.terrainHeadingDegrees, bands);
 #ifndef A380X
       if (frame.threatAreas.count > 0) {
         if (instance.threatHatchImage == 0) {
