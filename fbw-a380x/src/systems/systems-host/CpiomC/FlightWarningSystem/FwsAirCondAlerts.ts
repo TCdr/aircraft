@@ -31,6 +31,34 @@ export const AGS_PACK_MONITORING_BITS = {
 export const VCS_BULK_DUCT_OVHT_BIT = 25;
 export const VCS_CABIN_AIR_EXTRACT_VLV_FAULT_BIT = 26;
 
+/**
+ * Bits of the CPIOM B avionics ventilation discrete word (L:A32NX_COND_CPIOM_B{n}_AVS_DISCRETE_WORD, a380_systems
+ * air_conditioning/cpiom_b.rs, docs/a380-simvars.md)
+ */
+export const AVS_BITS = {
+  /** The left (L) / right (R) avionics ventilation circuit gets no air (blowing fan and backup valve lost) */
+  leftCircuitNotVentilated: 13,
+  rightCircuitNotVentilated: 14,
+  extractFault: 15,
+  overboardValveFault: 16,
+  overboardValveFullyOpen: 17,
+  controllerFault: 18,
+  coolingSystem1Overheat: 19,
+  coolingSystem2Overheat: 20,
+  coolingProtectionFault: 21,
+  thsBayVentilationFault: 22,
+} as const;
+
+/**
+ * Flight phase inhibition of the VENT AVNCS, VENT COOLG and VENT THS BAY alerts (the source gives no inhibition figure).
+ * Design choice: the take-off and landing inhibition of the other COND cautions without a flight-critical action,
+ * active in all other phases.
+ */
+export const AVIONICS_VENTILATION_PHASE_INHIBITION = [3, 4, 5, 7];
+
+/** The manual cabin vertical speed knob at its maximum (the CAB V/S TRGT line of VENT AVNCS OVBD VLV FAULT) */
+export const MAN_CABIN_VS_MAX_FPM = 2500;
+
 /** The pack monitoring of both FDACs, as the FWS reads it */
 export interface PackMonitoringFlags {
   /** Pack flow valves 1 to 4 (1 and 2 on pack 1, 3 and 4 on pack 2) failed open */

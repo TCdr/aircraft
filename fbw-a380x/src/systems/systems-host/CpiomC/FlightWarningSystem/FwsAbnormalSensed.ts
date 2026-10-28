@@ -18,6 +18,7 @@ import { SdPages } from '@shared/EcamSystemPages';
 import { accuPressLoItems } from './FwsBrakeAlerts';
 import { diffPressHiItemsToShow, ldgElevnFaultItemsToShow } from './CabPressAlerts';
 import {
+  AVIONICS_VENTILATION_PHASE_INHIBITION,
   BULK_CARGO_DUCT_OVHT_PHASE_INHIBITION,
   CAB_PRESS_INHIBITED_BY_DOORS_PHASE_INHIBITION,
   CAB_PRESS_MAN_CTL_FAULT_PHASE_INHIBITION,
@@ -2414,6 +2415,148 @@ export class FwsAbnormalSensed {
       failure: 1,
       sysPage: SdPages.None,
       redundLoss: () => ['212300006'],
+    },
+    212800006: {
+      // AVNCS VENT CTL FAULT: the controller of the avionics ventilation is lost, the avionics bays stay ventilated
+      // (fans at maximum speed) but the alerts of the system are no longer monitored. Crew awareness.
+      flightPhaseInhib: AVIONICS_VENTILATION_PHASE_INHIBITION,
+      simVarIsActive: this.fws.avncsVentCtlFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => ['212300020'],
+    },
+    212800014: {
+      // VENT AVNCS BLOWING FAULT: neither avionics ventilation circuit gets air. Caution, COND SD page.
+      flightPhaseInhib: AVIONICS_VENTILATION_PHASE_INHIBITION,
+      simVarIsActive: MappedSubject.create(
+        SubscribableMapFunctions.and(),
+        this.fws.avncsLeftCircuitNotVentilated,
+        this.fws.avncsRightCircuitNotVentilated,
+      ),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [
+        true,
+        true,
+        this.fws.avncsBlowingFaultPersists.get(),
+        this.fws.avncsBlowingFaultPersists.get(),
+      ],
+      whichItemsChecked: () => [this.fws.flowSelectorKnob.get() === 3, this.fws.cabFansOn.get(), false, false],
+      failure: 2,
+      sysPage: SdPages.Cond,
+      limitationsAllPhases: () => (this.fws.avncsBlowingFaultPersists.get() ? ['210400006'] : []),
+      inopSysAllPhases: () => ['212300021'],
+    },
+    212800015: {
+      // VENT AVNCS EXTRACT FAULT: the extraction fan is failed or the extract valve is closed. Caution, EXTRACT pb
+      // FAULT light, COND SD page.
+      flightPhaseInhib: AVIONICS_VENTILATION_PHASE_INHIBITION,
+      simVarIsActive: this.fws.avncsExtractFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.fws.avncsExtractPbOvrd.get()],
+      failure: 2,
+      sysPage: SdPages.Cond,
+      inopSysAllPhases: () => ['212300022'],
+    },
+    212800016: {
+      // VENT AVNCS L BLOWING FAULT: only the left circuit gets no air. Caution, COND SD page.
+      flightPhaseInhib: AVIONICS_VENTILATION_PHASE_INHIBITION,
+      simVarIsActive: MappedSubject.create(
+        ([left, right]) => left && !right,
+        this.fws.avncsLeftCircuitNotVentilated,
+        this.fws.avncsRightCircuitNotVentilated,
+      ),
+      notActiveWhenItemActive: ['212800014'],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [this.fws.flowSelectorKnob.get() === 3, this.fws.cabFansOn.get()],
+      failure: 2,
+      sysPage: SdPages.Cond,
+      inopSysAllPhases: () => ['212300023'],
+    },
+    212800017: {
+      // VENT AVNCS R BLOWING FAULT: only the right circuit gets no air. Caution, COND SD page.
+      flightPhaseInhib: AVIONICS_VENTILATION_PHASE_INHIBITION,
+      simVarIsActive: MappedSubject.create(
+        ([left, right]) => right && !left,
+        this.fws.avncsLeftCircuitNotVentilated,
+        this.fws.avncsRightCircuitNotVentilated,
+      ),
+      notActiveWhenItemActive: ['212800014'],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [this.fws.flowSelectorKnob.get() === 3, this.fws.cabFansOn.get()],
+      failure: 2,
+      sysPage: SdPages.Cond,
+      inopSysAllPhases: () => ['212300024'],
+    },
+    212800018: {
+      // VENT AVNCS OVBD VLV FAULT: the overboard valve is not where it is commanded (open, closed or partially open).
+      // Caution, COND SD page. With the valve still fully open: MAX FL 100/MEA, manual cabin pressure control with the
+      // outflow valves driven open.
+      flightPhaseInhib: AVIONICS_VENTILATION_PHASE_INHIBITION,
+      simVarIsActive: this.fws.avncsOverboardValveFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const fullyOpen = this.fws.avncsOverboardValveFullyOpen.get();
+        return [true, fullyOpen, fullyOpen, fullyOpen, fullyOpen];
+      },
+      whichItemsChecked: () => [
+        this.fws.avncsExtractPbOvrd.get(),
+        false,
+        false,
+        this.fws.manCabinAltMode.get(),
+        this.fws.manCabinVsTargetMax.get(),
+      ],
+      failure: 2,
+      sysPage: SdPages.Cond,
+      limitationsAllPhases: () => (this.fws.avncsOverboardValveFullyOpen.get() ? ['210400005'] : []),
+      limitationsPfd: () => (this.fws.avncsOverboardValveFullyOpen.get() ? ['210400005'] : []),
+      inopSysAllPhases: () => ['212300025'],
+    },
+    212800019: {
+      // VENT COOLG SYS 1 OVHT. Caution.
+      flightPhaseInhib: AVIONICS_VENTILATION_PHASE_INHIBITION,
+      simVarIsActive: this.fws.coolingSystemOvht[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true],
+      whichItemsChecked: () => [false, false, this.fws.coolingPbOff.get()],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => ['212300026'],
+    },
+    212800020: {
+      // VENT COOLG SYS 2 OVHT. Caution.
+      flightPhaseInhib: AVIONICS_VENTILATION_PHASE_INHIBITION,
+      simVarIsActive: this.fws.coolingSystemOvht[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true],
+      whichItemsChecked: () => [false, false, this.fws.coolingPbOff.get()],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => ['212300027'],
+    },
+    212800021: {
+      // VENT COOLG SYS PROT FAULT: the overheat detection of a supplemental cooling system is lost. Crew awareness.
+      flightPhaseInhib: AVIONICS_VENTILATION_PHASE_INHIBITION,
+      simVarIsActive: this.fws.coolingProtFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    212800028: {
+      // VENT THS BAY VENT FAULT: the THS bay is not ventilated. Crew awareness.
+      flightPhaseInhib: AVIONICS_VENTILATION_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thsBayVentFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => ['212300028'],
     },
     212800007: {
       // FWD VENT CTL 1 FAULT

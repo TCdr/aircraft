@@ -3791,8 +3791,8 @@
                                 <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                                 <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                                 <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                                <TOOLTIPID>%((L:A32NX_VENTILATION_EXTRACT_TOGGLE, Bool))%{if}Turn
-                                    OFF extraction fan%{else}Turn extraction fan to AUTO%{end}</TOOLTIPID>
+                                <TOOLTIPID>%((L:A32NX_VENTILATION_EXTRACT_TOGGLE, Bool))%{if}Set
+                                    avionics extract to OVRD%{else}Set avionics extract to AUTO%{end}</TOOLTIPID>
                             </UseTemplate>
 
                             <!-- CABAIR EXTRACT -->
@@ -3836,7 +3836,7 @@
                                 <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                                 <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
                                 <TOOLTIPID>%((L:A32NX_VENTILATION_CABFANS_TOGGLE, Bool))%{if}Turn
-                                    OFF cabin fans%{else}Turn ON cabin fans%{end}</TOOLTIPID>
+                                    OFF supplemental cooling%{else}Turn ON supplemental cooling%{end}</TOOLTIPID>
                             </UseTemplate>
                         </Component>
 

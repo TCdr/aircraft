@@ -175,11 +175,13 @@ import {
   AGS_PACK_REGUL_COMPONENT_FAILED_BITS,
   CPCS_PRESSURE_SENSOR_FAILED_BITS,
   isCabinSelectorInPursSel,
+  AVS_BITS,
   isCabPressManCtlFault,
   isCabPressSensorsFault,
   isPackRegulDegraded,
   isPackRegulRedundancyLost,
   packBayVentFaults,
+  MAN_CABIN_VS_MAX_FPM,
   packValveFaults,
   readPackMonitoringFlags,
   TCS_MIXER_PRESS_HIGH_BIT,
@@ -725,6 +727,8 @@ export class FwsCore {
 
   private readonly cpiomBCpcsAppDiscreteWord4 = Arinc429Register.empty();
 
+  private readonly cpiomBAvsAppDiscreteWords = [1, 2, 3, 4].map(() => Arinc429Register.empty());
+
   private readonly outflowValve1OpenAmount = Arinc429Register.empty();
   private readonly outflowValve2OpenAmount = Arinc429Register.empty();
   private readonly outflowValve3OpenAmount = Arinc429Register.empty();
@@ -835,6 +839,45 @@ export class FwsCore {
 
   /** COND CABIN AIR EXTRACT VLV FAULT condition (VCS discrete word bit 26) */
   public readonly cabinAirExtractVlvFault = Subject.create(false);
+
+  /** The left / right avionics ventilation circuit gets no air (AVS discrete word bits 13 and 14) */
+  public readonly avncsLeftCircuitNotVentilated = Subject.create(false);
+
+  public readonly avncsRightCircuitNotVentilated = Subject.create(false);
+
+  /** VENT AVNCS EXTRACT FAULT condition (AVS discrete word bit 15) */
+  public readonly avncsExtractFault = Subject.create(false);
+
+  /** VENT AVNCS OVBD VLV FAULT condition (AVS discrete word bit 16) and the valve fully open (bit 17) */
+  public readonly avncsOverboardValveFault = Subject.create(false);
+
+  public readonly avncsOverboardValveFullyOpen = Subject.create(false);
+
+  /** COND AVNCS VENT CTL FAULT condition (AVS discrete word bit 18) */
+  public readonly avncsVentCtlFault = Subject.create(false);
+
+  /** VENT AVNCS BLOWING FAULT lasts for 5 min: MAX FLT TIME 5 HR */
+  public readonly avncsBlowingFaultPersists = Subject.create(false);
+
+  private readonly avncsBlowingFaultConfirmNode = new NXLogicConfirmNode(300);
+
+  /** The EXTRACT pb-sw is at OVRD */
+  public readonly avncsExtractPbOvrd = Subject.create(false);
+
+  /** VENT COOLG SYS 1 and 2 OVHT conditions (AVS discrete word bits 19 and 20) */
+  public readonly coolingSystemOvht = [Subject.create(false), Subject.create(false)];
+
+  /** VENT COOLG SYS PROT FAULT condition (AVS discrete word bit 21) */
+  public readonly coolingProtFault = Subject.create(false);
+
+  /** The CABIN V/S pb-sw is at MAN with the knob at its maximum, +2500 ft/min */
+  public readonly manCabinVsTargetMax = Subject.create(false);
+
+  /** The COOLG pb-sw is OFF */
+  public readonly coolingPbOff = Subject.create(false);
+
+  /** VENT THS BAY VENT FAULT condition (AVS discrete word bit 22) */
+  public readonly thsBayVentFault = Subject.create(false);
 
   /** CAB PRESS MAN CTL FAULT condition: the manual pressurization mode is failed */
   public readonly cabPressManCtlFault = Subject.create(false);
@@ -6144,6 +6187,30 @@ export class FwsCore {
     this.bulkCargoDuctOvht.set(vcsDiscreteWordToUse.bitValueOr(VCS_BULK_DUCT_OVHT_BIT, false));
     this.bulkCargoHeaterPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_CARGO_AIR_HEATER_PB_IS_ON', 'bool') > 0);
     this.cabinAirExtractVlvFault.set(vcsDiscreteWordToUse.bitValueOr(VCS_CABIN_AIR_EXTRACT_VLV_FAULT_BIT, false));
+
+    [1, 2, 3, 4].forEach((cpiomIndex) =>
+      this.cpiomBAvsAppDiscreteWords[cpiomIndex - 1].setFromSimVar(
+        `L:A32NX_COND_CPIOM_B${cpiomIndex}_AVS_DISCRETE_WORD`,
+      ),
+    );
+    const avsDiscreteWordToUse =
+      this.cpiomBAvsAppDiscreteWords.find((word) => word.isNormalOperation() || word.isFunctionalTest()) ??
+      this.cpiomBAvsAppDiscreteWords[3];
+    this.avncsLeftCircuitNotVentilated.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.leftCircuitNotVentilated, false));
+    this.avncsRightCircuitNotVentilated.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.rightCircuitNotVentilated, false));
+    this.avncsExtractFault.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.extractFault, false));
+    this.avncsOverboardValveFault.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.overboardValveFault, false));
+    this.avncsOverboardValveFullyOpen.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.overboardValveFullyOpen, false));
+    this.avncsVentCtlFault.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.controllerFault, false));
+    this.avncsBlowingFaultConfirmNode.write(
+      this.avncsLeftCircuitNotVentilated.get() && this.avncsRightCircuitNotVentilated.get(),
+      deltaTime,
+    );
+    this.avncsBlowingFaultPersists.set(this.avncsBlowingFaultConfirmNode.read());
+    this.coolingSystemOvht[0].set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.coolingSystem1Overheat, false));
+    this.coolingSystemOvht[1].set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.coolingSystem2Overheat, false));
+    this.coolingProtFault.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.coolingProtectionFault, false));
+    this.thsBayVentFault.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.thsBayVentilationFault, false));
     this.cabPressManCtlFault.set(
       isCabPressManCtlFault(
         [1, 2, 3, 4].map((ocsm) => SimVar.GetSimVarValue(`L:A32NX_PRESS_OCSM_${ocsm}_MAN_CTL_FAILURE`, 'bool') > 0),
@@ -6409,6 +6476,10 @@ export class FwsCore {
     );
 
     this.manCabinAltMode.set(!SimVar.GetSimVarValue('L:A32NX_OVHD_PRESS_MAN_ALTITUDE_PB_IS_AUTO', 'bool'));
+    this.manCabinVsTargetMax.set(
+      !SimVar.GetSimVarValue('L:A32NX_OVHD_PRESS_MAN_VS_CTL_PB_IS_AUTO', 'bool') &&
+        SimVar.GetSimVarValue('L:A32NX_OVHD_PRESS_MAN_VS_CTL_KNOB', 'feet per minute') >= MAN_CABIN_VS_MAX_FPM,
+    );
     this.diffPressHi.set(isDiffPressHi(cpcsDiscreteWordToUse.bitValueOr(16, false), this.manCabinAltMode.get()));
 
     if (flightPhase8) {
@@ -7736,6 +7807,10 @@ export class FwsCore {
       ),
     );
     this.cabFansOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_VENT_CAB_FANS_PB_IS_ON', SimVarValueType.Bool) > 0);
+    this.avncsExtractPbOvrd.set(
+      SimVar.GetSimVarValue('L:A32NX_VENTILATION_EXTRACT_TOGGLE', SimVarValueType.Bool) === 0,
+    );
+    this.coolingPbOff.set(SimVar.GetSimVarValue('L:A32NX_VENTILATION_CABFANS_TOGGLE', SimVarValueType.Bool) === 0);
 
     // The FIRE TEST pb, extended after its release when the flyPad setting is on
     this.fireTestPb.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ACTIVE', 'bool'));

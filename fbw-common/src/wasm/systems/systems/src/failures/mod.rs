@@ -71,6 +71,28 @@ pub enum FailureType {
     CabinAirExtractValve,
     /// A380: the manual cabin pressurization mode of the outflow valve controllers is failed
     CabinPressureManualControl,
+    /// A380: the blowing fan of the left (1) or right (2) avionics ventilation circuit is failed; its backup valve then
+    /// lets in air of the mixer unit
+    AvionicsBlowingFan(usize),
+    /// A380: the backup valve of avionics ventilation circuit n (1 left, 2 right) stays closed: with its blowing fan
+    /// lost the circuit is not ventilated (VENT AVNCS L (R) BLOWING FAULT)
+    AvionicsBackupValve(usize),
+    /// A380: the extraction fan of the avionics bays is failed (VENT AVNCS EXTRACT FAULT)
+    AvionicsExtractionFan,
+    /// A380: the avionics extract valve is stuck closed (VENT AVNCS EXTRACT FAULT)
+    AvionicsExtractValve,
+    /// A380: the avionics overboard valve is stuck fully open (VENT AVNCS OVBD VLV FAULT)
+    AvionicsOverboardValveStuckOpen,
+    /// A380: the avionics overboard valve is stuck closed (VENT AVNCS OVBD VLV FAULT)
+    AvionicsOverboardValveStuckClosed,
+    /// A380: the avionics ventilation controller is lost (COND AVNCS VENT CTL FAULT)
+    AvionicsVentilationController,
+    /// A380: supplemental cooling system n overheats (VENT COOLG SYS 1(2) OVHT)
+    SupplementalCoolingOverheat(usize),
+    /// A380: the overheat detection of supplemental cooling system n is lost (VENT COOLG SYS PROT FAULT)
+    SupplementalCoolingProtection(usize),
+    /// A380: the blowing fan of the THS bay is failed (VENT THS BAY VENT FAULT)
+    ThsBayBlowingFan,
     // ATA24
     Generator(usize),
     ApuGenerator(usize),

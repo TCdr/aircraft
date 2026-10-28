@@ -755,8 +755,14 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
         labelNotCompleted: 'ON',
       },
       {
+        name: 'ALERT PERSISTS AFTER 5 MIN',
+        sensed: true,
+        condition: true,
+      },
+      {
         name: 'MAX FLT TIME: 5 HR',
         sensed: false,
+        level: 1,
       },
     ],
   },

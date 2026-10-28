@@ -1,3 +1,4 @@
+use avionics_ventilation::AvionicsVentilationSystem;
 use cpiom_b::CpiomBInterfaceUnit;
 use systems::{
     accept_iterable,
@@ -33,8 +34,8 @@ use systems::{
 
 use std::time::Duration;
 use uom::si::{
-    f64::*, length::foot, thermodynamic_temperature::degree_celsius, velocity::foot_per_minute,
-    volume::cubic_meter, volume_rate::liter_per_second,
+    f64::*, length::foot, ratio::percent, thermodynamic_temperature::degree_celsius,
+    velocity::foot_per_minute, volume::cubic_meter, volume_rate::liter_per_second,
 };
 
 use crate::{
@@ -52,6 +53,7 @@ use self::{
     },
 };
 
+mod avionics_ventilation;
 mod cpiom_b;
 mod local_controllers;
 
@@ -59,6 +61,7 @@ pub(super) struct A380AirConditioning {
     a380_cabin: A380Cabin,
     a380_air_conditioning_system: A380AirConditioningSystem,
     a380_pressurization_system: A380PressurizationSystem,
+    avionics_ventilation: AvionicsVentilationSystem,
 
     cpiom_b: [CoreProcessingInputOutputModuleB; 4],
     cpiom_b_interface: [CpiomBInterfaceUnit; 4],
@@ -97,6 +100,7 @@ impl A380AirConditioning {
             a380_cabin: A380Cabin::new(context, &cabin_zones),
             a380_air_conditioning_system: A380AirConditioningSystem::new(context, &cabin_zones),
             a380_pressurization_system: A380PressurizationSystem::new(context),
+            avionics_ventilation: AvionicsVentilationSystem::new(context),
 
             cpiom_b: cpiom_b_id
                 .map(|cpiom| CoreProcessingInputOutputModuleB::new(context, cpiom, &cabin_zones)),
@@ -147,6 +151,18 @@ impl A380AirConditioning {
             .zip(&self.cpiom_b)
             .for_each(|(interface, cpiom)| {
                 interface.update(cpiom, &self.a380_air_conditioning_system)
+            });
+
+        self.avionics_ventilation.update(
+            lgciu.iter().any(|a| a.left_and_right_gear_compressed(true)),
+            [engines[1], engines[2]].map(|engine| engine.corrected_n1().get::<percent>()),
+            pressurization_overhead.ditching_is_on(),
+        );
+        self.cpiom_b_interface
+            .iter_mut()
+            .zip(&self.cpiom_b)
+            .for_each(|(interface, cpiom)| {
+                interface.update_avionics_ventilation(cpiom, &self.avionics_ventilation)
             });
 
         self.a380_air_conditioning_system.update(
@@ -251,6 +267,7 @@ impl SimulationElement for A380AirConditioning {
         self.a380_cabin.accept(visitor);
         self.a380_air_conditioning_system.accept(visitor);
         self.a380_pressurization_system.accept(visitor);
+        self.avionics_ventilation.accept(visitor);
         accept_iterable!(self.cpiom_b, visitor);
         accept_iterable!(self.cpiom_b_interface, visitor);
 
