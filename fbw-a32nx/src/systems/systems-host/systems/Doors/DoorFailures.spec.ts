@@ -44,6 +44,16 @@ describe('DoorFailures (A32NX ATA 52 door proximity sensors and cockpit door loc
     expect(flag('L:A32NX_CDLS_FAULT')).toBe(false);
   });
 
+  it('publishes the failed proximity sensor of an avionics compartment access door', () => {
+    const active = new Set<number>([A320Failure.RightForwardAvionicsDoorProximitySensor]);
+    const system = new DoorFailures(failures(active));
+    system.init();
+    system.onUpdate();
+    expect(flag('L:A32NX_DOOR_R_FWD_AVIONICS_PROX_SENSOR_FAULT')).toBe(true);
+    expect(flag('L:A32NX_DOOR_L_FWD_AVIONICS_PROX_SENSOR_FAULT')).toBe(false);
+    expect(flag('L:A32NX_DOOR_R_AFT_AVIONICS_PROX_SENSOR_FAULT')).toBe(false);
+  });
+
   it('publishes the failed proximity sensor of its door only', () => {
     const active = new Set<number>([A320Failure.RightAftCabinDoorProximitySensor]);
     const system = new DoorFailures(failures(active));

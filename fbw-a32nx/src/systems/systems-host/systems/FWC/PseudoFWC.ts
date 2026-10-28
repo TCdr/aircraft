@@ -2993,6 +2993,7 @@ export class PseudoFWC {
     this.predictiveWindshearAlerts.init();
     this.navSensorAlerts.init();
     this.engineFadecFaultAlerts.init();
+    this.fuelSystemFaultAlerts.init();
     this.slatFlapLockAlerts.init();
     this.sidestickStabilizerAlerts.init();
     this.datalinkAlerts.init(this.bus);

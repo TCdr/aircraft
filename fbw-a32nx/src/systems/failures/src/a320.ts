@@ -194,6 +194,8 @@ export const A320Failure = Object.freeze({
   // FUEL IDG 1(2) COOL FAULT (FWC/Logic/IdgCoolingAlerts.ts)
   Idg1FuelCoolingCommand: 28018,
   Idg2FuelCoolingCommand: 28019,
+  // TS only: the FWC reads it for FUEL INERTING SYS FAULT (FWC/Logic/FuelSystemFaultAlerts.ts)
+  FuelTankInertingSystem: 28030,
 
   GreenReservoirLeak: 29000,
   BlueReservoirLeak: 29001,
@@ -365,6 +367,10 @@ export const A320Failure = Object.freeze({
   RightEmergencyExitProximitySensor: 52005,
   ForwardCargoDoorProximitySensor: 52006,
   AftCargoDoorProximitySensor: 52007,
+  LeftForwardAvionicsDoorProximitySensor: 52008,
+  RightForwardAvionicsDoorProximitySensor: 52009,
+  LeftAftAvionicsDoorProximitySensor: 52010,
+  RightAftAvionicsDoorProximitySensor: 52011,
   CockpitDoorUpperLatch: 52100,
   CockpitDoorMidLatch: 52101,
   CockpitDoorLowerLatch: 52102,
@@ -500,6 +506,9 @@ export const A320Failure = Object.freeze({
   Eng2CompressorVaneChannel: 73301,
   Eng1BleedValveStatus: 73310,
   Eng2BleedValveStatus: 73311,
+  // TS only: the FWC compares the two engine ratings for ENG TYPE DISAGREE (FWC/Logic/EngineFadecFaultAlerts.ts)
+  Eng1RatingPlug: 73320,
+  Eng2RatingPlug: 73321,
   Reverser1InhibitedByMaintenance: 78040,
   Reverser2InhibitedByMaintenance: 78041,
   Reverser1ShutoffValveFailedOpen: 78050,
@@ -689,6 +698,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [28, A320Failure.RightWingTankLeak, 'R wing tank leak'],
   [28, A320Failure.Idg1FuelCoolingCommand, 'IDG 1 fuel cooling (fuel recirculation command)'],
   [28, A320Failure.Idg2FuelCoolingCommand, 'IDG 2 fuel cooling (fuel recirculation command)'],
+  [28, A320Failure.FuelTankInertingSystem, 'Fuel tank inerting system (inert gas generation)'],
 
   [29, A320Failure.GreenReservoirLeak, 'Green reservoir leak'],
   [29, A320Failure.BlueReservoirLeak, 'Blue reservoir leak'],
@@ -869,6 +879,18 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [52, A320Failure.RightEmergencyExitProximitySensor, 'R emergency exit proximity sensor (door shown not closed)'],
   [52, A320Failure.ForwardCargoDoorProximitySensor, 'FWD cargo door proximity sensor (door shown not closed)'],
   [52, A320Failure.AftCargoDoorProximitySensor, 'AFT cargo door proximity sensor (door shown not closed)'],
+  [
+    52,
+    A320Failure.LeftForwardAvionicsDoorProximitySensor,
+    'L FWD avionics door proximity sensor (door shown not closed)',
+  ],
+  [
+    52,
+    A320Failure.RightForwardAvionicsDoorProximitySensor,
+    'R FWD avionics door proximity sensor (door shown not closed)',
+  ],
+  [52, A320Failure.LeftAftAvionicsDoorProximitySensor, 'L AFT avionics door proximity sensor (door shown not closed)'],
+  [52, A320Failure.RightAftAvionicsDoorProximitySensor, 'R AFT avionics door proximity sensor (door shown not closed)'],
   // Cockpit door locking system: the CKPT DOOR CONT strike (latch) or CHAN (pressure sensor) light and the pedestal
   // COCKPIT DOOR FAULT light (paper COCKPIT DOOR FAULT procedure); the control unit lights the FAULT light only
   [52, A320Failure.CockpitDoorUpperLatch, 'Cockpit door upper latch (strike)'],
@@ -1036,6 +1058,8 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [73, A320Failure.Eng2CompressorVaneChannel, 'Engine 2 compressor vane control, one channel'],
   [73, A320Failure.Eng1BleedValveStatus, 'Engine 1 bleed valve status to FADEC'],
   [73, A320Failure.Eng2BleedValveStatus, 'Engine 2 bleed valve status to FADEC'],
+  [73, A320Failure.Eng1RatingPlug, 'Engine 1 rating plug (engine type disagree)'],
+  [73, A320Failure.Eng2RatingPlug, 'Engine 2 rating plug (engine type disagree)'],
 
   // Thrust reversers (a320_systems hydraulic A320ReverserController / A320Reversers)
   [78, A320Failure.Reverser1Fault, 'Reverser 1 fault (does not deploy)'],

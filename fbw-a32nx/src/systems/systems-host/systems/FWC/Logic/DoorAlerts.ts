@@ -3,7 +3,12 @@
 
 import { Subject } from '@microsoft/msfs-sdk';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
-import { SensedDoor, doorProximitySensorFaultVar, isDoorDetectedNotClosed } from '@shared/DoorProximitySensors';
+import {
+  SensedAvionicsDoor,
+  SensedDoor,
+  doorProximitySensorFaultVar,
+  isDoorDetectedNotClosed,
+} from '@shared/DoorProximitySensors';
 import { StatusLines } from './CondStatus';
 import { FwcAlertItem, NO_STATUS, cautionItem } from './FwcAlertItem';
 
@@ -16,13 +21,14 @@ import { FwcAlertItem, NO_STATUS, cautionItem } from './FwcAlertItem';
  * The doors of the sim: the four passenger/service doors (MSFS interactive points 0 L FWD, 1 R FWD, 2 L AFT, 3 R AFT),
  * the overwing emergency exits (points 6 L, 7 R; the A320 ECAM has one EMER EXIT title per side) and the two cargo doors
  * (their lock, L:A32NX_FWD(AFT)_DOOR_CARGO_LOCKED, from the Rust cargo door). A failed proximity sensor (flyPad ATA 52
- * failure) does not detect its door closed either (@shared/DoorProximitySensors). The avionics doors (DOOR L(R)(FWD)(AFT)
- * AVIONICS) are not in the sim.
+ * failure) does not detect its door closed either (@shared/DoorProximitySensors).
+ * The four avionics compartment access doors (DOOR L(R) FWD(AFT) AVIONICS) are manually operated ground access doors
+ * with no model in the sim: they are only "not detected closed" through the flyPad failure of their proximity sensor.
  */
 
 export const DOOR_PHASE_INHIBITION = [1, 4, 5, 7, 8, 10];
 
-/** The doors with a caution, in the order of their EwdMessages codes (keys 5200101 to 5200108) */
+/** The doors with a caution, in the order of their EwdMessages codes (keys 5200101 to 5200112) */
 export const DoorAlertKeys = {
   leftForwardCabin: '5200101',
   rightForwardCabin: '5200102',
@@ -32,6 +38,10 @@ export const DoorAlertKeys = {
   rightEmergencyExit: '5200106',
   forwardCargo: '5200107',
   aftCargo: '5200108',
+  leftForwardAvionics: '5200109',
+  rightForwardAvionics: '5200110',
+  leftAftAvionics: '5200111',
+  rightAftAvionics: '5200112',
 } as const;
 
 export type DoorAlertKey = (typeof DoorAlertKeys)[keyof typeof DoorAlertKeys];
@@ -45,6 +55,10 @@ const DOOR_KEYS: readonly DoorAlertKey[] = [
   DoorAlertKeys.rightEmergencyExit,
   DoorAlertKeys.forwardCargo,
   DoorAlertKeys.aftCargo,
+  DoorAlertKeys.leftForwardAvionics,
+  DoorAlertKeys.rightForwardAvionics,
+  DoorAlertKeys.leftAftAvionics,
+  DoorAlertKeys.rightAftAvionics,
 ];
 
 /** Each door: true when it is not closed */
@@ -121,7 +135,8 @@ export class DoorAlerts {
  * proximity sensor is failed (flyPad ATA 52 failure, @shared/DoorProximitySensors)
  */
 export function readDoorsNotClosed(): DoorsNotClosed {
-  const sensorFault = (door: SensedDoor) => SimVar.GetSimVarValue(doorProximitySensorFaultVar(door), 'bool') > 0;
+  const sensorFault = (door: SensedDoor | SensedAvionicsDoor) =>
+    SimVar.GetSimVarValue(doorProximitySensorFaultVar(door), 'bool') > 0;
   const point = (index: number, door: SensedDoor) =>
     isDoorDetectedNotClosed(
       isInteractivePointNotClosed(SimVar.GetSimVarValue(`INTERACTIVE POINT OPEN:${index}`, 'percent')),
@@ -138,5 +153,9 @@ export function readDoorsNotClosed(): DoorsNotClosed {
     [DoorAlertKeys.rightEmergencyExit]: point(7, 'R_EMER_EXIT'),
     [DoorAlertKeys.forwardCargo]: cargo('L:A32NX_FWD_DOOR_CARGO_LOCKED', 'FWD_CARGO'),
     [DoorAlertKeys.aftCargo]: cargo('L:A32NX_AFT_DOOR_CARGO_LOCKED', 'AFT_CARGO'),
+    [DoorAlertKeys.leftForwardAvionics]: isDoorDetectedNotClosed(false, sensorFault('L_FWD_AVIONICS')),
+    [DoorAlertKeys.rightForwardAvionics]: isDoorDetectedNotClosed(false, sensorFault('R_FWD_AVIONICS')),
+    [DoorAlertKeys.leftAftAvionics]: isDoorDetectedNotClosed(false, sensorFault('L_AFT_AVIONICS')),
+    [DoorAlertKeys.rightAftAvionics]: isDoorDetectedNotClosed(false, sensorFault('R_AFT_AVIONICS')),
   } as DoorsNotClosed;
 }

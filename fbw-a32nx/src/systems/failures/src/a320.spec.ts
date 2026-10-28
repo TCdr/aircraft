@@ -280,7 +280,28 @@ describe('A320 flyPad failures', () => {
     expect(entry(A320Failure.CockpitDoorUpperLatch)).toEqual([52, 52100, 'Cockpit door upper latch (strike)']);
     expect(entry(A320Failure.CockpitDoorPressureSensor2)).toEqual([52, 52111, 'Cockpit door pressure sensor 2']);
     expect(entry(A320Failure.CockpitDoorControlUnit)).toEqual([52, 52120, 'Cockpit door control unit']);
-    expect(A320FailureDefinitions.filter(([chapter]) => chapter === 52)).toHaveLength(14);
+    expect(entry(A320Failure.RightAftAvionicsDoorProximitySensor)).toEqual([
+      52,
+      52011,
+      'R AFT avionics door proximity sensor (door shown not closed)',
+    ]);
+    expect(A320FailureDefinitions.filter(([chapter]) => chapter === 52)).toHaveLength(18);
+  });
+
+  // TS only failures: the FWC reads them for FUEL INERTING SYS FAULT and ENG TYPE DISAGREE, no wasm id maps them
+  it('lists the fuel tank inerting system and engine rating plug failures, with no Rust failure behind them', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.FuelTankInertingSystem)).toEqual([
+      28,
+      28030,
+      'Fuel tank inerting system (inert gas generation)',
+    ]);
+    expect(label(A320Failure.Eng1RatingPlug)).toEqual([73, 73320, 'Engine 1 rating plug (engine type disagree)']);
+    expect(label(A320Failure.Eng2RatingPlug)).toEqual([73, 73321, 'Engine 2 rating plug (engine type disagree)']);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    for (const id of ['28_030', '73_320', '73_321']) {
+      expect(wasm).not.toContain(`(${id},`);
+    }
   });
 
   // The labels say what systems engine/fuel_filter_failure.rs does with ids 73100-73101 (failure names audit rule)

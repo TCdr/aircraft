@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
+import { A320Failure } from '@failures';
 import {
   FUEL_SYSTEM_FAULT_PHASE_INHIBITION,
   FUEL_USED_FOB_DISAGREE_CONFIRM_S,
   FUEL_USED_FOB_DISAGREE_PHASE_INHIBITION,
   FuelSystemFaultAlerts,
+  FuelSystemFaultFailuresSource,
   FuelSystemFaultInputs,
   FuelSystemFaultKeys,
   isFuelUsedFobDisagree,
@@ -16,6 +18,23 @@ import {
   wingOverflowLines,
 } from './FuelSystemFaultAlerts';
 import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+
+/** A failures consumer double: the registered failures and the active ones */
+class TestFailures implements FuelSystemFaultFailuresSource {
+  public readonly registered: number[] = [];
+
+  public readonly active = new Set<number>();
+
+  register(identifier: number): void {
+    this.registered.push(identifier);
+  }
+
+  update(): void {}
+
+  isActive(identifier: number): boolean {
+    return this.active.has(identifier);
+  }
+}
 
 const pbs: WingOverflowProcedureInputs = {
   ctrTkXfrOn: true,
@@ -34,6 +53,7 @@ const normal: FuelSystemFaultInputs = {
   outerXfrOpen: [false, false],
   wingTankOverflow: [false, false],
   lowLevelSensorFault: [false, false],
+  anyEngineRunning: true,
   overflowProcedure: [pbs, pbs],
 };
 
@@ -49,7 +69,7 @@ function item(alerts: FuelSystemFaultAlerts, key: string) {
 
 describe('FUEL APU LP VALVE FAULT', () => {
   it('triggers from the APU LP valve position monitoring, crew awareness', () => {
-    const alerts = new FuelSystemFaultAlerts();
+    const alerts = new FuelSystemFaultAlerts(new TestFailures());
     alerts.update({ ...normal, apuLpValveFault: true }, 100);
     expect(activeKeys(alerts)).toEqual([FuelSystemFaultKeys.apuLpValveFault]);
     expect(ewdLines(item(alerts, FuelSystemFaultKeys.apuLpValveFault))).toEqual(['FUEL APU LP VALVE FAULT']);
@@ -71,7 +91,7 @@ describe('FUEL F. USED/FOB DISAGREE', () => {
   });
 
   it('triggers after its confirmation time in flight, with FUEL LEAK PROC APPLY, phase 6 only', () => {
-    const alerts = new FuelSystemFaultAlerts();
+    const alerts = new FuelSystemFaultAlerts(new TestFailures());
     alerts.update({ ...normal, fobKg: 12_000 }, 100);
     // a leak: 2 000 kg lost without being used by the engines
     const leaking = { ...normal, onGround: false, fobKg: 8_000, fuelUsedKg: 2_000 };
@@ -89,7 +109,7 @@ describe('FUEL F. USED/FOB DISAGREE', () => {
   });
 
   it('does not trigger when the engines burn the fuel', () => {
-    const alerts = new FuelSystemFaultAlerts();
+    const alerts = new FuelSystemFaultAlerts(new TestFailures());
     alerts.update({ ...normal, fobKg: 12_000 }, 100);
     const burning = { ...normal, onGround: false, fobKg: 6_000, fuelUsedKg: 6_000 };
     alerts.update(burning, 100);
@@ -100,7 +120,7 @@ describe('FUEL F. USED/FOB DISAGREE', () => {
 
 describe('FUEL L (R) OUTER XFR CLOSED / OPEN', () => {
   it('gives OUTER XFR CLOSED with L (R) OUTER TK UNUSABLE on the E/WD and the STATUS', () => {
-    const alerts = new FuelSystemFaultAlerts();
+    const alerts = new FuelSystemFaultAlerts(new TestFailures());
     alerts.update({ ...normal, outerXfrClosed: [false, true] }, 100);
     expect(activeKeys(alerts)).toEqual([FuelSystemFaultKeys.outerXfrClosed[1]]);
     const closed = item(alerts, FuelSystemFaultKeys.outerXfrClosed[1]);
@@ -109,7 +129,7 @@ describe('FUEL L (R) OUTER XFR CLOSED / OPEN', () => {
   });
 
   it('gives OUTER XFR OPEN with the INOP SYS L (R) CELL VALVE', () => {
-    const alerts = new FuelSystemFaultAlerts();
+    const alerts = new FuelSystemFaultAlerts(new TestFailures());
     alerts.update({ ...normal, outerXfrOpen: [true, false] }, 100);
     expect(activeKeys(alerts)).toEqual([FuelSystemFaultKeys.outerXfrOpen[0]]);
     const open = item(alerts, FuelSystemFaultKeys.outerXfrOpen[0]);
@@ -123,7 +143,7 @@ describe('FUEL L (R) OUTER XFR CLOSED / OPEN', () => {
 
 describe('FUEL L (R) WING TK OVERFLOW', () => {
   it('asks for CTR TK XFR OFF first', () => {
-    const alerts = new FuelSystemFaultAlerts();
+    const alerts = new FuelSystemFaultAlerts(new TestFailures());
     alerts.update({ ...normal, wingTankOverflow: [true, false] }, 100);
     const overflow = item(alerts, FuelSystemFaultKeys.wingTankOverflow[0]);
     expect(overflow.simVarIsActive.get()).toBe(true);
@@ -136,7 +156,7 @@ describe('FUEL L (R) WING TK OVERFLOW', () => {
 
   it('then, if unsuccessful with fuel in the centre tank, feeds both engines from the other wing', () => {
     expect(wingOverflowLines({ ...pbs, ctrTkXfrOn: false })).toEqual([0, 2, 3, 4, 5, 6, 7, 8, 9]);
-    const alerts = new FuelSystemFaultAlerts();
+    const alerts = new FuelSystemFaultAlerts(new TestFailures());
     const done = { ...pbs, ctrTkXfrOn: false, crossFeedOn: true, pump1On: false, pump2On: false };
     alerts.update({ ...normal, wingTankOverflow: [false, true], overflowProcedure: [pbs, done] }, 100);
     expect(ewdLines(item(alerts, FuelSystemFaultKeys.wingTankOverflow[1]))).toEqual([
@@ -158,7 +178,7 @@ describe('FUEL L (R) WING TK OVERFLOW', () => {
 
 describe('FUEL LO LVL DET FAULT', () => {
   it('triggers when both low level sensors are failed only', () => {
-    const alerts = new FuelSystemFaultAlerts();
+    const alerts = new FuelSystemFaultAlerts(new TestFailures());
     alerts.update({ ...normal, lowLevelSensorFault: [true, false] }, 100);
     expect(activeKeys(alerts)).toEqual([]);
     alerts.update({ ...normal, lowLevelSensorFault: [true, true] }, 100);
@@ -168,10 +188,43 @@ describe('FUEL LO LVL DET FAULT', () => {
   });
 });
 
+describe('FUEL INERTING SYS FAULT', () => {
+  it('triggers from the flyPad failure of the inerting system while an engine runs, crew awareness', () => {
+    const failures = new TestFailures();
+    const alerts = new FuelSystemFaultAlerts(failures);
+    alerts.init();
+    expect(failures.registered).toEqual([A320Failure.FuelTankInertingSystem]);
+
+    alerts.update(normal, 100);
+    expect(activeKeys(alerts)).toEqual([]);
+    failures.active.add(A320Failure.FuelTankInertingSystem);
+    alerts.update(normal, 100);
+    expect(activeKeys(alerts)).toEqual([FuelSystemFaultKeys.inertingSystemFault]);
+
+    const inerting = item(alerts, FuelSystemFaultKeys.inertingSystemFault);
+    expect(ewdLines(inerting)).toEqual(['FUEL INERTING SYS FAULT']);
+    expect(inerting.failure).toBe(1);
+    expect(inerting.flightPhaseInhib).toEqual([3, 4, 5, 7, 8]);
+    expect(statusLines({ left: inerting.statusInfo(), inopSys: inerting.inopSys() })).toEqual({
+      left: [],
+      right: ['INOP SYS', 'FUEL INERT'],
+    });
+  });
+
+  it('works from the engine start to their stop only: no alert with the engines stopped', () => {
+    const failures = new TestFailures();
+    failures.active.add(A320Failure.FuelTankInertingSystem);
+    const alerts = new FuelSystemFaultAlerts(failures);
+    alerts.update({ ...normal, anyEngineRunning: false }, 100);
+    expect(activeKeys(alerts)).toEqual([]);
+  });
+});
+
 describe('PseudoFWC fuel system fault alerts', () => {
   it('is wired in the PseudoFWC', () => {
     const fwc = pseudoFwcSource();
     expect(fwc).toContain('...this.fuelSystemFaultAlerts.ewdFailures');
+    expect(fwc).toContain('this.fuelSystemFaultAlerts.init();');
     expect(fwc).toContain('this.fuelSystemFaultAlerts.update(');
     expect(fwc).toContain('readFuelSystemFaultInputs(this.aircraftOnGround.get()');
   });

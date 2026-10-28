@@ -17,9 +17,11 @@ import {
   FADEC_FAULT_PHASE_INHIBITION,
   FADEC_FAULT_VARIABLES,
   NO_FADEC_FAULT,
+  TYPE_DISAGREE_KEY,
   VIB_SYS_FAULT_KEY,
   bleedStatusFaultLines,
   bothCompressorVanesAlert,
+  engineTypeDisagreeAlert,
   fuelReturnValveLines,
   throttleIdleFaultLines,
 } from './EngineFadecFaultAlerts';
@@ -114,6 +116,7 @@ describe('ENG FADEC fault alerts', () => {
       revInhibited: [3, 4, 5, 6, 7, 8, 9],
       revIsolFault: [3, 4, 5, 6, 7],
       vibSysFault: [3, 4, 5, 6, 7, 8, 9],
+      typeDisagree: [3, 4, 5, 7, 8],
     });
   });
 
@@ -257,7 +260,7 @@ describe('ENG FADEC fault alerts', () => {
   it('ENG VIB SYS FAULT: level 1, from the flyPad failure of the vibration monitoring unit', () => {
     const failures = new TestFailures();
     const alerts = alertsWith({}, failures);
-    expect(failures.registered).toEqual([A320Failure.EngineVibrationMonitoringUnit]);
+    expect(failures.registered).toContain(A320Failure.EngineVibrationMonitoringUnit);
     const item = alerts.ewdFailures[VIB_SYS_FAULT_KEY];
     expect(item.simVarIsActive.get()).toBe(false);
 
@@ -267,6 +270,29 @@ describe('ENG FADEC fault alerts', () => {
     expect(item.failure).toBe(1);
     expect(item.flightPhaseInhib).toEqual([3, 4, 5, 6, 7, 8, 9]);
     expect(shownLines(alerts, VIB_SYS_FAULT_KEY)).toEqual(['ENG VIB SYS FAULT']);
+  });
+
+  it('ENG TYPE DISAGREE: level 1, when exactly one engine has a failed rating plug', () => {
+    const failures = new TestFailures();
+    const alerts = alertsWith({}, failures);
+    expect(failures.registered).toContain(A320Failure.Eng1RatingPlug);
+    expect(failures.registered).toContain(A320Failure.Eng2RatingPlug);
+    const item = alerts.ewdFailures[TYPE_DISAGREE_KEY];
+    expect(item.simVarIsActive.get()).toBe(false);
+
+    failures.active.add(A320Failure.Eng2RatingPlug);
+    alerts.update(inputs({}));
+    expect(item.simVarIsActive.get()).toBe(true);
+    expect(item.failure).toBe(1);
+    expect(item.flightPhaseInhib).toEqual([3, 4, 5, 7, 8]);
+    expect(item.inopSys()).toEqual([]);
+    expect(shownLines(alerts, TYPE_DISAGREE_KEY)).toEqual(['ENG TYPE DISAGREE']);
+
+    failures.active.add(A320Failure.Eng1RatingPlug);
+    alerts.update(inputs({}));
+    expect(item.simVarIsActive.get()).toBe(false);
+    expect(engineTypeDisagreeAlert([true, false])).toBe(true);
+    expect(engineTypeDisagreeAlert([false, false])).toBe(false);
   });
 
   it('every E/WD line fits the 24 columns of the left memo area', () => {

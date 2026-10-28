@@ -4,7 +4,7 @@
 import { Instrument } from '@microsoft/msfs-sdk';
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A320Failure } from '@failures';
-import { SensedDoor, doorProximitySensorFaultVar } from '@shared/DoorProximitySensors';
+import { SensedAvionicsDoor, SensedDoor, doorProximitySensorFaultVar } from '@shared/DoorProximitySensors';
 
 /** The part of the failures consumer this system uses. */
 export type DoorFailuresSource = Pick<FailuresConsumer, 'register' | 'update' | 'isActive'>;
@@ -17,7 +17,7 @@ interface PublishedFailure {
 }
 
 /** The proximity sensor failure of each door */
-const DOOR_SENSOR_FAILURES: [SensedDoor, number][] = [
+const DOOR_SENSOR_FAILURES: [SensedDoor | SensedAvionicsDoor, number][] = [
   ['L_FWD_CABIN', A320Failure.LeftForwardCabinDoorProximitySensor],
   ['R_FWD_CABIN', A320Failure.RightForwardCabinDoorProximitySensor],
   ['L_AFT_CABIN', A320Failure.LeftAftCabinDoorProximitySensor],
@@ -26,6 +26,10 @@ const DOOR_SENSOR_FAILURES: [SensedDoor, number][] = [
   ['R_EMER_EXIT', A320Failure.RightEmergencyExitProximitySensor],
   ['FWD_CARGO', A320Failure.ForwardCargoDoorProximitySensor],
   ['AFT_CARGO', A320Failure.AftCargoDoorProximitySensor],
+  ['L_FWD_AVIONICS', A320Failure.LeftForwardAvionicsDoorProximitySensor],
+  ['R_FWD_AVIONICS', A320Failure.RightForwardAvionicsDoorProximitySensor],
+  ['L_AFT_AVIONICS', A320Failure.LeftAftAvionicsDoorProximitySensor],
+  ['R_AFT_AVIONICS', A320Failure.RightAftAvionicsDoorProximitySensor],
 ];
 
 /** The CDLS parts with a status light on the CKPT DOOR CONT overhead panel */

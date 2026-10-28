@@ -24,7 +24,9 @@ import {
   engineBleedFaultNotClosedLines,
   engineBleedFaultNotClosedStatus,
   engineBleedFaultStatus,
+  engineBleedAbnormalPressureLines,
   hasEngineBleedAlert,
+  isEngineBleedAbnormalPressure,
   isEngineBleedFaultValveNotClosed,
   engineBleedHiTempLines,
   engineBleedLoTempLines,
@@ -46,6 +48,7 @@ const running: EngineBleedInputs = {
   bleedPbAuto: true,
   overheat: false,
   overpressure: false,
+  abnormalPressure: false,
   lowTemperature: false,
   bleedTemperatureCelsius: 200,
   bleedValveOpen: true,
@@ -119,6 +122,61 @@ describe('AIR ENG 1(2) BLEED FAULT', () => {
     const shut = { ...cruise, crossBleedSelector: CrossBleedSelector.Shut, wingAntiIceOn: true, apuBleedPbOn: true };
     expect(engine1And2BleedFaultLines(shut, true)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(engine1And2BleedFaultLines(cruise, false)).toEqual([0, 3, 5, 6, 7, 8, 9, 10, 11]);
+  });
+});
+
+describe('AIR ENG 1(2) BLEED ABNORM PR', () => {
+  const abnormal = withEngine(cruise, 0, { abnormalPressure: true });
+
+  it('follows the Rust ABNORMAL_PRESSURE flag of a running engine, not with a BLEED FAULT or a leak', () => {
+    expect(isEngineBleedAbnormalPressure({ ...running, abnormalPressure: true })).toBe(true);
+    expect(isEngineBleedAbnormalPressure(running)).toBe(false);
+    expect(isEngineBleedAbnormalPressure({ ...running, abnormalPressure: true, engineRunning: false })).toBe(false);
+    expect(isEngineBleedAbnormalPressure({ ...running, abnormalPressure: true, overpressure: true })).toBe(false);
+    expect(isEngineBleedAbnormalPressure({ ...running, abnormalPressure: true, wingOrPylonLeak: true })).toBe(false);
+    const alerts = new BleedAlerts();
+    run(alerts, abnormal, 0.2);
+    expect(activeKeys(alerts)).toEqual([BleedAlertKeys.eng1BleedAbnormalPressure]);
+    run(alerts, withEngine(abnormal, 1, { abnormalPressure: true }), 0.2);
+    expect(activeKeys(alerts)).toEqual([
+      BleedAlertKeys.eng1BleedAbnormalPressure,
+      BleedAlertKeys.eng2BleedAbnormalPressure,
+    ]);
+  });
+
+  it('lines: PACK FLOW LO with WAI off, PACK OFF with WAI on, ENG BLEED OFF, X BLEED OPEN; actions done go', () => {
+    expect(engineBleedAbnormalPressureLines(abnormal, 0)).toEqual([0, 1, 3, 4]);
+    expect(engineBleedAbnormalPressureLines({ ...abnormal, wingAntiIceOn: true }, 0)).toEqual([0, 2, 3, 4]);
+    const done = { ...withEngine(abnormal, 0, { bleedPbAuto: false }), packFlowLo: true };
+    expect(engineBleedAbnormalPressureLines({ ...done, crossBleedSelector: CrossBleedSelector.Open }, 0)).toEqual([0]);
+    // one pack off already: neither PACK line
+    expect(engineBleedAbnormalPressureLines(withEngine(abnormal, 1, { packOn: false }), 0)).toEqual([0, 3, 4]);
+  });
+
+  it('E/WD: the title and the procedure of the engine, STATUS as the BLEED FAULT one', () => {
+    const codes = alertCodes(
+      BleedAlertKeys.eng2BleedAbnormalPressure,
+      BleedAlertLineCounts[BleedAlertKeys.eng2BleedAbnormalPressure],
+    );
+    const texts = formatEwdMessages(codes);
+    const procedure = [
+      '-PACK FLOW...........LO',
+      '-PACK 2.............OFF',
+      '-ENG 2 BLEED........OFF',
+      '-X BLEED...........OPEN',
+    ];
+    expect(texts[0]).toContain('ENG 2 BLEED ABNORM PR');
+    procedure.forEach((line, i) => expect(texts[i + 1]).toContain(line));
+    const alerts = new BleedAlerts();
+    run(alerts, withEngine(cruise, 1, { abnormalPressure: true }), 0.2);
+    const item = alerts.ewdFailures[BleedAlertKeys.eng2BleedAbnormalPressure];
+    expect(item.statusInfo()).toEqual([S.onePackOnlyIfWaiOn]);
+    expect(item.inopSys()).toEqual([S.eng2Bleed]);
+    expect(item.flightPhaseInhib).toEqual([1, 3, 4, 5, 7, 8, 10]);
+  });
+
+  it('inhibits BLEED 1(2) OFF, as its procedure asks for ENG BLEED OFF', () => {
+    expect(hasEngineBleedAlert(abnormal, 0, false)).toBe(true);
   });
 });
 

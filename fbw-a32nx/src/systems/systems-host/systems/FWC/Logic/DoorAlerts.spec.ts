@@ -34,6 +34,10 @@ describe('DOOR cautions', () => {
     [DoorAlertKeys.rightEmergencyExit, 'DOOR R EMER EXIT'],
     [DoorAlertKeys.forwardCargo, 'DOOR FWD CARGO'],
     [DoorAlertKeys.aftCargo, 'DOOR AFT CARGO'],
+    [DoorAlertKeys.leftForwardAvionics, 'DOOR L FWD AVIONICS'],
+    [DoorAlertKeys.rightForwardAvionics, 'DOOR R FWD AVIONICS'],
+    [DoorAlertKeys.leftAftAvionics, 'DOOR L AFT AVIONICS'],
+    [DoorAlertKeys.rightAftAvionics, 'DOOR R AFT AVIONICS'],
   ])('%s: on ground the title only, its door alone', (key, title) => {
     const alerts = new DoorAlerts();
     alerts.update({ ...allClosed, [key]: true }, true);
@@ -80,6 +84,31 @@ describe('DOOR cautions', () => {
         (key) => key !== DoorAlertKeys.rightAftCabin && key !== DoorAlertKeys.forwardCargo,
       );
       expect(others.some((key) => doors[key])).toBe(false);
+    } finally {
+      SimVar.GetSimVarValue = GetSimVarValue;
+    }
+  });
+
+  it('an avionics door is only not detected closed through its failed proximity sensor', () => {
+    const { GetSimVarValue } = SimVar;
+    try {
+      const simVars = new Map<string, number>([
+        ['L:A32NX_FWD_DOOR_CARGO_LOCKED', 1],
+        ['L:A32NX_AFT_DOOR_CARGO_LOCKED', 1],
+      ]);
+      SimVar.GetSimVarValue = (name: string) => simVars.get(name) ?? 0;
+      const avionicsKeys = [
+        DoorAlertKeys.leftForwardAvionics,
+        DoorAlertKeys.rightForwardAvionics,
+        DoorAlertKeys.leftAftAvionics,
+        DoorAlertKeys.rightAftAvionics,
+      ];
+      expect(avionicsKeys.some((key) => readDoorsNotClosed()[key])).toBe(false);
+
+      simVars.set('L:A32NX_DOOR_L_AFT_AVIONICS_PROX_SENSOR_FAULT', 1);
+      const doors = readDoorsNotClosed();
+      expect(doors[DoorAlertKeys.leftAftAvionics]).toBe(true);
+      expect(avionicsKeys.filter((key) => doors[key])).toEqual([DoorAlertKeys.leftAftAvionics]);
     } finally {
       SimVar.GetSimVarValue = GetSimVarValue;
     }
