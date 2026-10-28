@@ -132,6 +132,19 @@ describe('A380X flyPad failure definitions', () => {
       [21066, 'BulkCargoDuctOverheat', 'Bulk cargo duct overheat (heater)'],
       [21067, 'CabinAirExtractValve', 'Cabin air extract valve failed'],
       [21068, 'CabinPressureManualControl', 'Cabin pressure manual control failed'],
+      [21080, 'PackAirCycleMachine(1)', 'Pack 1 air cycle machine'],
+      [21081, 'PackAirCycleMachine(2)', 'Pack 2 air cycle machine'],
+      [21082, 'PackBayBlowingFan(1)', 'Pack bay 1 blowing fan'],
+      [21083, 'PackBayBlowingFan(2)', 'Pack bay 2 blowing fan'],
+      [21084, 'RamAirInlet(1)', 'RAM air inlet 1'],
+      [21085, 'RamAirInlet(2)', 'RAM air inlet 2'],
+      [21086, 'MixerUnitPressureHigh', 'Mixer unit pressure high'],
+      [21087, 'MixerUnitPressureLow', 'Mixer unit pressure low'],
+      [21088, 'PurserTemperatureSelection', 'Purser temperature selection (flight attendant panel)'],
+      [21089, 'CabinPressureSensor(1)', 'Cabin pressure sensor 1'],
+      [21090, 'CabinPressureSensor(2)', 'Cabin pressure sensor 2'],
+      [21091, 'CabinPressureSensor(3)', 'Cabin pressure sensor 3'],
+      [21092, 'CabinPressureSensor(4)', 'Cabin pressure sensor 4'],
     ];
     const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
 

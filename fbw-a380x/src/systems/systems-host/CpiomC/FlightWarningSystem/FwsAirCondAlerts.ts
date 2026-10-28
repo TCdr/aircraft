@@ -161,3 +161,108 @@ export function isCabPressManCtlFault(ocsmManCtlFailures: readonly boolean[]): b
 
 /** CAB PRESS INHIBITED BY DOORS: active in flight phases 2, 3, 8 and 12 */
 export const CAB_PRESS_INHIBITED_BY_DOORS_PHASE_INHIBITION = [1, 4, 5, 6, 7, 9, 10, 11];
+
+/** Bits 27/28 of the AGS word: an air cycle machine of pack 1/2 is failed, or both of them (bypass mode) */
+export const AGS_PACK_REGUL_COMPONENT_FAILED_BITS = [27, 28] as const;
+/** Bits 27/28 of the VCS word: the blowing fan of the pack bay 1/2 ventilation is failed */
+export const VCS_PACK_BAY_BLOWING_FAN_FAILED_BITS = [27, 28] as const;
+/** Bits 24/25 of the TCS word: the RAM air inlet 1/2 is no longer controlled by the RAM AIR pb */
+export const TCS_RAM_AIR_INLET_FAULT_BITS = [24, 25] as const;
+export const TCS_PURSER_TEMP_SEL_FAULT_BIT = 26;
+export const TCS_MIXER_PRESS_HIGH_BIT = 27;
+export const TCS_MIXER_PRESS_LOW_BIT = 28;
+/** Bits 20 to 23 of the CPCS word: cabin pressure sensor 1 to 4 is failed */
+export const CPCS_PRESSURE_SENSOR_FAILED_BITS = [20, 21, 22, 23] as const;
+
+/**
+ * AIR PACK 1+2 REGUL REDUNDANCY LOST, AIR PACK REGUL DEGRADED, AIR PACK BAY 1(2) VENT FAULT, COND MIXER PRESS REGUL
+ * FAULT, COND PURSER TEMP SEL FAULT, COND RAM AIR 1(2) FAULT and CAB PRESS SENSORS FAULT flight phase inhibition. The
+ * procedures do not give it; design choice: the one of the other pack and ventilation alerts (AIR PACK 1(2) REGUL
+ * FAULT): active on ground and in cruise, not from takeoff to approach.
+ */
+export const COND_MONITORING_PHASE_INHIBITION = [3, 4, 5, 6, 7, 9, 10];
+
+/** The CABIN selector of the AIR panel turns past the ends of its 0-300 range into the PURS SEL position (see the ACS model) */
+const CABIN_SELECTOR_MAX = 300;
+const CABIN_SELECTOR_TURN = 400;
+const CABIN_SELECTOR_DEAD_BAND_OFFSET = 50;
+
+/**
+ * @param cabinSelectorKnob the position of the CABIN selector (L:A32NX_OVHD_COND_CABIN_SELECTOR_KNOB)
+ * @returns whether the cabin temperature comes from the purser selection of the flight attendant panel
+ */
+export function isCabinSelectorInPursSel(cabinSelectorKnob: number): boolean {
+  const position = (cabinSelectorKnob % CABIN_SELECTOR_TURN) - CABIN_SELECTOR_DEAD_BAND_OFFSET;
+  return position < 0 || position > CABIN_SELECTOR_MAX;
+}
+
+/**
+ * AIR PACK 1+2 REGUL REDUNDANCY LOST: on each pack at least one regulation component is failed (an air cycle machine,
+ * or both: bypass mode). A pack that is lost reports nothing, so a lost pack never counts.
+ * @param componentFailed packs 1 and 2 have a failed regulation component
+ * @returns whether the alert is true
+ */
+export function isPackRegulRedundancyLost(componentFailed: readonly [boolean, boolean]): boolean {
+  return componentFailed[0] && componentFailed[1];
+}
+
+/**
+ * AIR PACK REGUL DEGRADED: one pack is failed and the remaining pack no longer has the performance to regulate the
+ * forward cargo temperature. Design choice (the FCOM gives no threshold): the remaining pack has a failed regulation
+ * component (air cycle machine or bypass mode).
+ * @param packFailed packs 1 and 2 are failed (both channels of their FDAC)
+ * @param componentFailed packs 1 and 2 have a failed regulation component
+ * @returns whether the alert is true
+ */
+export function isPackRegulDegraded(
+  packFailed: readonly [boolean, boolean],
+  componentFailed: readonly [boolean, boolean],
+): boolean {
+  return (
+    (packFailed[0] && !packFailed[1] && componentFailed[1]) || (packFailed[1] && !packFailed[0] && componentFailed[0])
+  );
+}
+
+/**
+ * AIR PACK BAY 1(2) VENT FAULT and 1+2 VENT FAULT: the blowing fans of the pack bays are only used on ground.
+ * @param blowingFanFailed the blowing fans of the pack bays 1 and 2 are failed
+ * @param onGround the aircraft is on the ground
+ * @returns the alerts for pack bay 1, pack bay 2, and both
+ */
+export function packBayVentFaults(
+  blowingFanFailed: readonly [boolean, boolean],
+  onGround: boolean,
+): { bay1: boolean; bay2: boolean; both: boolean } {
+  const both = onGround && blowingFanFailed[0] && blowingFanFailed[1];
+  return {
+    bay1: onGround && blowingFanFailed[0] && !blowingFanFailed[1],
+    bay2: onGround && blowingFanFailed[1] && !blowingFanFailed[0],
+    both,
+  };
+}
+
+/**
+ * The lines of COND MIXER PRESS REGUL FAULT: MIXER PRESS HI, and MIXER PRESS LO displayed only in the flight phase 1.
+ * @param pressureHigh the pressure in the mixer unit is abnormally high
+ * @param pressureLow the pressure in the mixer unit is abnormally low
+ * @param flightPhase the flight phase number
+ * @returns which lines are shown
+ */
+export function mixerPressRegulItemsToShow(
+  pressureHigh: boolean,
+  pressureLow: boolean,
+  flightPhase: number,
+): boolean[] {
+  return [pressureHigh, pressureLow && flightPhase === 1];
+}
+
+/**
+ * CAB PRESS SENSORS FAULT: only one or two of the four cabin pressure sensors remain available. With three left it is
+ * CAB PRESS CTL REDUNDANCY LOST, with none CAB PRESS SYS FAULT.
+ * @param sensorFailed the four cabin pressure sensors are failed
+ * @returns whether the alert is true
+ */
+export function isCabPressSensorsFault(sensorFailed: readonly boolean[]): boolean {
+  const available = sensorFailed.filter((failed) => !failed).length;
+  return available === 1 || available === 2;
+}

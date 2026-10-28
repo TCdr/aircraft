@@ -1741,6 +1741,11 @@ impl CpiomBInterfaceUnit {
                 24 + pack_id as u8,
                 air_conditioning_system.pack_in_bypass_mode(pack_id),
             );
+            // Bits 27/28: an air cycle machine of pack 1/2 is failed, or both (bypass mode)
+            self.discrete_word_ags.set_bit(
+                26 + pack_id as u8,
+                air_conditioning_system.pack_regulation_component_failed(pack_id),
+            );
         }
 
         if cpiom.tcs_has_fault() {
@@ -1773,6 +1778,22 @@ impl CpiomBInterfaceUnit {
             .set_bit(22, trim_air.cabin_trim_air_valve_fault);
         self.discrete_word_tcs
             .set_bit(23, trim_air.fwd_cargo_trim_air_valve_fault);
+        // Bits 24/25: RAM air inlet 1/2 no longer controlled, 26: purser temperature selection lost, 27/28: mixer unit
+        // pressure high/low
+        for inlet_id in 1..=2 {
+            self.discrete_word_tcs.set_bit(
+                23 + inlet_id as u8,
+                air_conditioning_system.ram_air_inlet_failed(inlet_id),
+            );
+        }
+        self.discrete_word_tcs.set_bit(
+            26,
+            air_conditioning_system.purser_temperature_selection_failed(),
+        );
+        self.discrete_word_tcs
+            .set_bit(27, air_conditioning_system.mixer_unit_pressure_high());
+        self.discrete_word_tcs
+            .set_bit(28, air_conditioning_system.mixer_unit_pressure_low());
 
         if cpiom.vcs_has_fault() {
             self.discrete_word_vcs = Arinc429Word::new(0, SignStatus::FailureWarning);
@@ -1811,6 +1832,13 @@ impl CpiomBInterfaceUnit {
             26,
             air_conditioning_system.cabin_air_extract_valve_has_failed(),
         );
+        // Bits 27/28: the blowing fan of the bay of pack 1/2 is failed
+        for pack_id in 1..=2 {
+            self.discrete_word_vcs.set_bit(
+                26 + pack_id as u8,
+                air_conditioning_system.pack_bay_blowing_fan_failed(pack_id),
+            );
+        }
 
         if cpiom.cpcs_has_fault() {
             self.discrete_word_cpcs = Arinc429Word::new(0, SignStatus::FailureWarning);
@@ -1835,6 +1863,13 @@ impl CpiomBInterfaceUnit {
         // FAULT
         self.discrete_word_cpcs
             .set_bit(19, cpiom.landing_elevation_not_received());
+        // Bits 20 to 23: cabin pressure sensor 1 to 4 is failed
+        for sensor_id in 1..=4 {
+            self.discrete_word_cpcs.set_bit(
+                19 + sensor_id as u8,
+                air_conditioning_system.cabin_pressure_sensor_failed(sensor_id),
+            );
+        }
     }
 }
 

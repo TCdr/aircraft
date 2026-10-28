@@ -23,6 +23,8 @@ import {
   CAB_PRESS_INHIBITED_BY_DOORS_PHASE_INHIBITION,
   CAB_PRESS_MAN_CTL_FAULT_PHASE_INHIBITION,
   CABIN_AIR_EXTRACT_VLV_FAULT_PHASE_INHIBITION,
+  COND_MONITORING_PHASE_INHIBITION,
+  mixerPressRegulItemsToShow,
   PACK_OVHT_PHASE_INHIBITION,
   PACK_REGUL_FAULT_PHASE_INHIBITION,
   PACK_VLV_FAULT_PHASE_INHIBITION,
@@ -1897,6 +1899,17 @@ export class FwsAbnormalSensed {
       limitationsPfd: () => ['2', '210400001'],
       inopSysAllPhases: () => ['210300011'],
     },
+    211800022: {
+      // PACK 1+2 REGUL REDUNDANCY LOST: a regulation component of each pack is failed (FwsAirCondAlerts), crew awareness
+      flightPhaseInhib: COND_MONITORING_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packRegulRedundancyLost,
+      notActiveWhenItemActive: ['211800021'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Bleed,
+      info: () => ['210200023'],
+    },
     211800023: {
       // ALL PRIMARY CABIN FANS FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
@@ -2064,6 +2077,26 @@ export class FwsAbnormalSensed {
       info: () => ['210200001'],
       inopSysAllPhases: () => ['210300019', '210300020'],
     },
+    211800034: {
+      // MIXER PRESS REGUL FAULT: the mixer unit pressure is abnormally high or low (FwsAirCondAlerts)
+      flightPhaseInhib: COND_MONITORING_PHASE_INHIBITION,
+      simVarIsActive: MappedSubject.create(
+        ([pressureHigh, pressureLow]) => pressureHigh || pressureLow,
+        this.fws.mixerPressHigh,
+        this.fws.mixerPressLow,
+      ),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () =>
+        mixerPressRegulItemsToShow(
+          this.fws.mixerPressHigh.get(),
+          this.fws.mixerPressLow.get(),
+          this.fws.flightPhase.get(),
+        ),
+      whichItemsChecked: () => [false, false],
+      failure: 1,
+      sysPage: SdPages.Cond,
+      info: () => ['210200024'],
+    },
     211800035: {
       // ONE PRIMARY CABIN FAN FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 9, 10, 11],
@@ -2074,6 +2107,38 @@ export class FwsAbnormalSensed {
       failure: 1,
       sysPage: SdPages.Cond,
       redundLoss: () => ['210300025'],
+    },
+    211800036: {
+      // PURSER TEMP SEL FAULT: the CABIN selector is at PURS SEL and the purser selection no longer arrives
+      flightPhaseInhib: COND_MONITORING_PHASE_INHIBITION,
+      simVarIsActive: this.fws.purserTempSelFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [false],
+      failure: 2,
+      sysPage: SdPages.Cond,
+    },
+    211800037: {
+      // RAM AIR 1 FAULT: the inlet is no longer controlled by the RAM AIR pb, crew awareness; MORE INFO REDUND LOSS RAM AIR 1
+      flightPhaseInhib: COND_MONITORING_PHASE_INHIBITION,
+      simVarIsActive: this.fws.ramAirFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Cond,
+      redundLoss: () => ['210300040'],
+    },
+    211800038: {
+      // RAM AIR 2 FAULT, as RAM AIR 1 FAULT
+      flightPhaseInhib: COND_MONITORING_PHASE_INHIBITION,
+      simVarIsActive: this.fws.ramAirFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Cond,
+      redundLoss: () => ['210300041'],
     },
     211800039: {
       // TEMP CTL 1 FAULT
@@ -2143,6 +2208,18 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Cond,
       info: () => ['210200001'],
       inopSysAllPhases: () => ['210300026'],
+    },
+    211800045: {
+      // AIR PACK REGUL DEGRADED: one pack is failed and the other cannot regulate the forward cargo temperature. The
+      // FWD CARGO TEMP REGUL selector has no OFF position in the cockpit model, the line is never checked.
+      flightPhaseInhib: COND_MONITORING_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packRegulDegraded,
+      notActiveWhenItemActive: ['211800021'],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, this.fws.fwdCargoTempRegulatorOff.get()],
+      failure: 2,
+      sysPage: SdPages.Bleed,
+      inopSysAllPhases: () => ['210300042', '210300018', '210300043', '210300044'],
     },
     211800046: {
       // HOT AIR 1 OFF
@@ -2449,6 +2526,42 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
       redundLoss: () => ['212300013'],
     },
+    212800025: {
+      // PACK BAY 1 VENT FAULT: the blowing fan of the bay is failed, on ground only (FwsAirCondAlerts)
+      flightPhaseInhib: COND_MONITORING_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packBayVentFault.bay1,
+      notActiveWhenItemActive: ['211800009', '211800021'],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [!this.fws.pack1On.get(), false],
+      failure: 2,
+      sysPage: SdPages.None,
+      info: () => ['210200020'],
+      inopSysAllPhases: () => ['210300009', '210300045'],
+    },
+    212800026: {
+      // PACK BAY 2 VENT FAULT, as PACK BAY 1 VENT FAULT
+      flightPhaseInhib: COND_MONITORING_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packBayVentFault.bay2,
+      notActiveWhenItemActive: ['211800010', '211800021'],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [!this.fws.pack2On.get(), false],
+      failure: 2,
+      sysPage: SdPages.None,
+      info: () => ['210200021'],
+      inopSysAllPhases: () => ['210300010', '210300046'],
+    },
+    212800027: {
+      // PACK BAY 1+2 VENT FAULT: both blowing fans are failed, on ground only
+      flightPhaseInhib: COND_MONITORING_PHASE_INHIBITION,
+      simVarIsActive: this.fws.packBayVentFault.both,
+      notActiveWhenItemActive: ['211800021'],
+      whichItemsToShow: () => [true, true, true],
+      whichItemsChecked: () => [!this.fws.pack1On.get(), !this.fws.pack2On.get(), false],
+      failure: 2,
+      sysPage: SdPages.None,
+      info: () => ['210200022'],
+      inopSysAllPhases: () => ['210300011', '210300047'],
+    },
     213800001: {
       // EXCESS CAB ALT
       flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
@@ -2751,6 +2864,16 @@ export class FwsAbnormalSensed {
       failure: 1,
       sysPage: SdPages.Press,
       inopSysAllPhases: () => ['213300004'],
+    },
+    213800016: {
+      // CAB PRESS SENSORS FAULT: only one or two of the four cabin pressure sensors remain, crew awareness
+      flightPhaseInhib: COND_MONITORING_PHASE_INHIBITION,
+      simVarIsActive: this.fws.cabPressSensorsFault,
+      notActiveWhenItemActive: ['213800017'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Press,
     },
     213800017: {
       // CAB PRESS SYS FAULT

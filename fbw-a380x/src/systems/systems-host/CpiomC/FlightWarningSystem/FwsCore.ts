@@ -176,11 +176,23 @@ import {
 } from './FuelPumpValveFlags';
 import { HotAirValveFlags, PackPbsOn, readTrimAirMonitoringFlags, TrimAirMonitoringFlags } from './CondTrimAirFlags';
 import {
+  AGS_PACK_REGUL_COMPONENT_FAILED_BITS,
+  CPCS_PRESSURE_SENSOR_FAILED_BITS,
+  isCabinSelectorInPursSel,
   isCabPressManCtlFault,
+  isCabPressSensorsFault,
+  isPackRegulDegraded,
+  isPackRegulRedundancyLost,
+  packBayVentFaults,
   packValveFaults,
   readPackMonitoringFlags,
+  TCS_MIXER_PRESS_HIGH_BIT,
+  TCS_MIXER_PRESS_LOW_BIT,
+  TCS_PURSER_TEMP_SEL_FAULT_BIT,
+  TCS_RAM_AIR_INLET_FAULT_BITS,
   VCS_BULK_DUCT_OVHT_BIT,
   VCS_CABIN_AIR_EXTRACT_VLV_FAULT_BIT,
+  VCS_PACK_BAY_BLOWING_FAN_FAILED_BITS,
 } from './FwsAirCondAlerts';
 import { ElecSystemAlerts, readElecSystemInputs } from './FwsElecSystemAlerts';
 import { FctlSensorAlerts } from './FwsFctlSensorAlerts';
@@ -798,6 +810,36 @@ export class FwsCore {
 
   /** AIR PACK 1(2) REGUL FAULT conditions (the pack in bypass mode) */
   public readonly packRegulFault = [Subject.create(false), Subject.create(false)];
+
+  /** An air cycle machine of pack 1(2) is failed, or both (AGS discrete word bits 27 and 28) */
+  public readonly packRegulComponentFailed = [Subject.create(false), Subject.create(false)];
+
+  /** AIR PACK 1+2 REGUL REDUNDANCY LOST condition */
+  public readonly packRegulRedundancyLost = Subject.create(false);
+
+  /** AIR PACK REGUL DEGRADED condition: one pack failed, the other with a failed regulation component */
+  public readonly packRegulDegraded = Subject.create(false);
+
+  /** AIR PACK BAY 1 VENT FAULT, BAY 2 VENT FAULT and BAY 1+2 VENT FAULT conditions (on ground) */
+  public readonly packBayVentFault = {
+    bay1: Subject.create(false),
+    bay2: Subject.create(false),
+    both: Subject.create(false),
+  };
+
+  /** COND RAM AIR 1(2) FAULT conditions (TCS discrete word bits 24 and 25) */
+  public readonly ramAirFault = [Subject.create(false), Subject.create(false)];
+
+  /** COND MIXER PRESS REGUL FAULT: the mixer unit pressure is abnormally high / low (TCS discrete word bits 27, 28) */
+  public readonly mixerPressHigh = Subject.create(false);
+
+  public readonly mixerPressLow = Subject.create(false);
+
+  /** COND PURSER TEMP SEL FAULT condition: the CABIN selector is at PURS SEL and the selection is lost */
+  public readonly purserTempSelFault = Subject.create(false);
+
+  /** CAB PRESS SENSORS FAULT condition: one or two of the four cabin pressure sensors remain */
+  public readonly cabPressSensorsFault = Subject.create(false);
 
   /** COND BULK CARGO DUCT OVHT condition (VCS discrete word bit 25) */
   public readonly bulkCargoDuctOvht = Subject.create(false);
@@ -6008,14 +6050,13 @@ export class FwsCore {
 
     // Pack and pack valve monitoring of the FDACs, from the AGS word of the CPIOM B pair of each pack (B1/B3 pack 1,
     // B2/B4 pack 2), FwsAirCondAlerts
-    const packMonitoring = readPackMonitoringFlags(
-      this.cpiomBAgsAppDiscreteWord1.isNormalOperation()
-        ? this.cpiomBAgsAppDiscreteWord1
-        : this.cpiomBAgsAppDiscreteWord3,
-      this.cpiomBAgsAppDiscreteWord2.isNormalOperation()
-        ? this.cpiomBAgsAppDiscreteWord2
-        : this.cpiomBAgsAppDiscreteWord4,
-    );
+    const agsPack1Word = this.cpiomBAgsAppDiscreteWord1.isNormalOperation()
+      ? this.cpiomBAgsAppDiscreteWord1
+      : this.cpiomBAgsAppDiscreteWord3;
+    const agsPack2Word = this.cpiomBAgsAppDiscreteWord2.isNormalOperation()
+      ? this.cpiomBAgsAppDiscreteWord2
+      : this.cpiomBAgsAppDiscreteWord4;
+    const packMonitoring = readPackMonitoringFlags(agsPack1Word, agsPack2Word);
     const packValveFaultConditions = packValveFaults(packMonitoring, [
       this.fdac1Channel1Failure.get() && this.fdac1Channel2Failure.get(),
       this.fdac2Channel1Failure.get() && this.fdac2Channel2Failure.get(),
@@ -6023,6 +6064,47 @@ export class FwsCore {
     this.packVlvFault.forEach((fault, valveIndex) => fault.set(packValveFaultConditions[valveIndex]));
     this.packOvht.forEach((ovht, packIndex) => ovht.set(packMonitoring.overheat[packIndex]));
     this.packRegulFault.forEach((regulFault, packIndex) => regulFault.set(packMonitoring.bypassMode[packIndex]));
+
+    const packRegulComponentFailed = AGS_PACK_REGUL_COMPONENT_FAILED_BITS.map((bit, packIndex) =>
+      (packIndex === 0 ? agsPack1Word : agsPack2Word).bitValueOr(bit, false),
+    ) as [boolean, boolean];
+    this.packRegulComponentFailed.forEach((failed, packIndex) => failed.set(packRegulComponentFailed[packIndex]));
+    this.packRegulRedundancyLost.set(isPackRegulRedundancyLost(packRegulComponentFailed));
+    this.packRegulDegraded.set(
+      isPackRegulDegraded(
+        [
+          this.fdac1Channel1Failure.get() && this.fdac1Channel2Failure.get(),
+          this.fdac2Channel1Failure.get() && this.fdac2Channel2Failure.get(),
+        ],
+        packRegulComponentFailed,
+      ),
+    );
+
+    const packBayVent = packBayVentFaults(
+      VCS_PACK_BAY_BLOWING_FAN_FAILED_BITS.map((bit) => vcsDiscreteWordToUse.bitValueOr(bit, false)) as [
+        boolean,
+        boolean,
+      ],
+      this.aircraftOnGround.get(),
+    );
+    this.packBayVentFault.bay1.set(packBayVent.bay1);
+    this.packBayVentFault.bay2.set(packBayVent.bay2);
+    this.packBayVentFault.both.set(packBayVent.both);
+
+    TCS_RAM_AIR_INLET_FAULT_BITS.forEach((bit, inletIndex) =>
+      this.ramAirFault[inletIndex].set(tcsDiscreteWordToUse.bitValueOr(bit, false)),
+    );
+    this.mixerPressHigh.set(tcsDiscreteWordToUse.bitValueOr(TCS_MIXER_PRESS_HIGH_BIT, false));
+    this.mixerPressLow.set(tcsDiscreteWordToUse.bitValueOr(TCS_MIXER_PRESS_LOW_BIT, false));
+    this.purserTempSelFault.set(
+      tcsDiscreteWordToUse.bitValueOr(TCS_PURSER_TEMP_SEL_FAULT_BIT, false) &&
+        isCabinSelectorInPursSel(SimVar.GetSimVarValue('L:A32NX_OVHD_COND_CABIN_SELECTOR_KNOB', 'number')),
+    );
+    this.cabPressSensorsFault.set(
+      isCabPressSensorsFault(
+        CPCS_PRESSURE_SENSOR_FAILED_BITS.map((bit) => cpcsDiscreteWordToUse.bitValueOr(bit, false)),
+      ),
+    );
 
     this.bulkCargoDuctOvht.set(vcsDiscreteWordToUse.bitValueOr(VCS_BULK_DUCT_OVHT_BIT, false));
     this.bulkCargoHeaterPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_CARGO_AIR_HEATER_PB_IS_ON', 'bool') > 0);

@@ -80,6 +80,22 @@ export const A380Failure = Object.freeze({
   BulkCargoDuctOverheat: 21066,
   CabinAirExtractValve: 21067,
   CabinPressureManualControl: 21068,
+  // Ids 21080-21092 are mapped in a380_systems_wasm/src/lib.rs. The controllers only report them to the FWS (AIR PACK
+  // 1+2 REGUL REDUNDANCY LOST, AIR PACK BAY 1(2) VENT FAULT, COND RAM AIR 1(2) FAULT, COND MIXER PRESS REGUL FAULT,
+  // CAB PRESS SENSORS FAULT), except the purser selection: it keeps the last temperature received.
+  Pack1AirCycleMachine: 21080,
+  Pack2AirCycleMachine: 21081,
+  PackBay1BlowingFan: 21082,
+  PackBay2BlowingFan: 21083,
+  RamAirInlet1: 21084,
+  RamAirInlet2: 21085,
+  MixerUnitPressureHigh: 21086,
+  MixerUnitPressureLow: 21087,
+  PurserTemperatureSelection: 21088,
+  CabinPressureSensor1: 21089,
+  CabinPressureSensor2: 21090,
+  CabinPressureSensor3: 21091,
+  CabinPressureSensor4: 21092,
 
   // Not listed in A380FailureDefinitions: the C++ FCDC input it sets (nwsCommunicationAvailable) is read by nothing
   // until a steering control system exists. Kept so the id stays in sync with FailureList.h.
@@ -1293,6 +1309,19 @@ const failureDefinitionsAta21To33: FailureDefinition[] = [
   [21, A380Failure.BulkCargoDuctOverheat, 'Bulk cargo duct overheat (heater)'],
   [21, A380Failure.CabinAirExtractValve, 'Cabin air extract valve failed'],
   [21, A380Failure.CabinPressureManualControl, 'Cabin pressure manual control failed'],
+  [21, A380Failure.Pack1AirCycleMachine, 'Pack 1 air cycle machine'],
+  [21, A380Failure.Pack2AirCycleMachine, 'Pack 2 air cycle machine'],
+  [21, A380Failure.PackBay1BlowingFan, 'Pack bay 1 blowing fan'],
+  [21, A380Failure.PackBay2BlowingFan, 'Pack bay 2 blowing fan'],
+  [21, A380Failure.RamAirInlet1, 'RAM air inlet 1'],
+  [21, A380Failure.RamAirInlet2, 'RAM air inlet 2'],
+  [21, A380Failure.MixerUnitPressureHigh, 'Mixer unit pressure high'],
+  [21, A380Failure.MixerUnitPressureLow, 'Mixer unit pressure low'],
+  [21, A380Failure.PurserTemperatureSelection, 'Purser temperature selection (flight attendant panel)'],
+  [21, A380Failure.CabinPressureSensor1, 'Cabin pressure sensor 1'],
+  [21, A380Failure.CabinPressureSensor2, 'Cabin pressure sensor 2'],
+  [21, A380Failure.CabinPressureSensor3, 'Cabin pressure sensor 3'],
+  [21, A380Failure.CabinPressureSensor4, 'Cabin pressure sensor 4'],
 
   [22, A380Failure.FmcA, 'FMC-A'],
   [22, A380Failure.FmcB, 'FMC-B'],

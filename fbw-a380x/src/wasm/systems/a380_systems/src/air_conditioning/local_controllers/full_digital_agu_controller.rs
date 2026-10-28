@@ -51,6 +51,11 @@ pub struct FullDigitalAGUController<const ENGINES: usize> {
     pack_overheat: bool,
     /// flyPad failure: the pack is in bypass mode, its performance is degraded (AIR PACK 1(2) REGUL FAULT)
     pack_regulation_failure: Failure,
+    /// flyPad failure: one of the two air cycle machines of the pack is failed, no operational impact (AIR PACK 1+2
+    /// REGUL REDUNDANCY LOST)
+    air_cycle_machine_failure: Failure,
+    /// flyPad failure: the blowing fan of the pack bay ventilation is failed (AIR PACK BAY 1(2) VENT FAULT)
+    pack_bay_blowing_fan_failure: Failure,
 }
 
 impl<const ENGINES: usize> FullDigitalAGUController<ENGINES> {
@@ -82,6 +87,12 @@ impl<const ENGINES: usize> FullDigitalAGUController<ENGINES> {
             pack_overheat: false,
             // FDAC 1 controls pack 1 and FDAC 2 pack 2
             pack_regulation_failure: Failure::new(FailureType::PackRegulation(fdac_id.into())),
+            air_cycle_machine_failure: Failure::new(FailureType::PackAirCycleMachine(
+                fdac_id.into(),
+            )),
+            pack_bay_blowing_fan_failure: Failure::new(FailureType::PackBayBlowingFan(
+                fdac_id.into(),
+            )),
         }
     }
 
@@ -166,6 +177,18 @@ impl<const ENGINES: usize> FullDigitalAGUController<ENGINES> {
         self.is_monitoring() && self.pack_regulation_failure.is_active()
     }
 
+    /// A component of the pack regulation is failed: an air cycle machine, or both of them (bypass mode)
+    pub fn pack_regulation_component_failed(&self) -> bool {
+        self.is_monitoring()
+            && (self.air_cycle_machine_failure.is_active()
+                || self.pack_regulation_failure.is_active())
+    }
+
+    /// The blowing fan that ventilates the pack bay on ground is failed (the pack controller controls the fan)
+    pub fn pack_bay_blowing_fan_failed(&self) -> bool {
+        self.is_monitoring() && self.pack_bay_blowing_fan_failure.is_active()
+    }
+
     /// Pack flow valve fcv_id is open against a close command (AIR PACK 1(2) VLV 1(2) FAULT)
     pub fn fcv_failed_open(&self, fcv_id: usize) -> bool {
         self.is_monitoring() && self.flow_control.fcv_failed_open(fcv_id)
@@ -214,6 +237,8 @@ impl<const ENGINES: usize> SimulationElement for FullDigitalAGUController<ENGINE
         self.active_channel.accept(visitor);
         self.stand_by_channel.accept(visitor);
         self.pack_regulation_failure.accept(visitor);
+        self.air_cycle_machine_failure.accept(visitor);
+        self.pack_bay_blowing_fan_failure.accept(visitor);
 
         visitor.visit(self);
     }
