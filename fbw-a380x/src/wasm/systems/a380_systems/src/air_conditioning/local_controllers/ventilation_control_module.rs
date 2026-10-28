@@ -150,6 +150,11 @@ impl VentilationControlModule {
         self.orvp.has_failed()
     }
 
+    /// At least one channel of the VCM works
+    pub fn is_operating(&self) -> bool {
+        !matches!(self.fault, Some(VcmFault::BothChannelsFault))
+    }
+
     pub fn id(&self) -> VcmId {
         self.id
     }

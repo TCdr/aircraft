@@ -1434,6 +1434,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIS] Fix OIT brightness being incorrectly connected to RMP 2 and RMP 3 screen brightness - @heclak (Heclak)
 1. [A380X/OIS] OIT brightness will now be set automatically at spawn - @heclak (Heclak)
 1. [A380X/FWS] Add the HYD heat exchanger, SYS COOLING, SYS MONITORING, SYS OVHT DET and SYS TEMP EXCESS HI alerts with flyPad failures - @TCdr
+1. [A380X/FWS] Add the AIR PACK REGUL DEGRADED, PACK 1+2 REGUL REDUNDANCY LOST, PACK BAY VENT FAULT, MIXER PRESS REGUL FAULT, PURSER TEMP SEL FAULT, RAM AIR FAULT and CAB PRESS SENSORS FAULT alerts with flyPad failures - @TCdr
 1. [EFB/PERF] Harmonize takeoff and landing performance calculators - @FoxtrotSierra6829 (FoxtrotSierra)
 1. [A32NX/FWC] Add A/THR LIMITED ECAM warning - @lukecologne (luke)
 

@@ -291,7 +291,7 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     ],
   },
   211800022: {
-    title: '\x1b<4m\x1b4mAIR\x1bm PACK 1+2 REGUL REDUNDANCY FAULT  ',
+    title: '\x1b<4m\x1b4mAIR\x1bm PACK 1+2 REGUL REDUNDANCY LOST',
     sensed: true,
     items: [],
   },
@@ -411,7 +411,10 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
   211800034: {
     title: '\x1b<4m\x1b4mCOND\x1bm MIXER PRESS REGUL FAULT  ',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'MIXER PRESS HI', sensed: false },
+      { name: 'MIXER PRESS LO', sensed: false },
+    ],
   },
   211800035: {
     title: '\x1b<4m\x1b4mCOND\x1bm ONE PRIMARY CABIN FAN FAULT  ',
@@ -421,7 +424,7 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
   211800036: {
     title: '\x1b<4m\x1b4mCOND\x1bm PURSER TEMP SEL FAULT  ',
     sensed: true,
-    items: [],
+    items: [{ name: 'CABIN TEMP', sensed: false, labelNotCompleted: 'ADJUST' }],
   },
   211800037: {
     title: '\x1b<4m\x1b4mCOND\x1bm RAM AIR 1 FAULT  ',
