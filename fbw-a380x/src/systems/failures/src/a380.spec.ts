@@ -145,6 +145,20 @@ describe('A380X flyPad failure definitions', () => {
       [21090, 'CabinPressureSensor(2)', 'Cabin pressure sensor 2'],
       [21091, 'CabinPressureSensor(3)', 'Cabin pressure sensor 3'],
       [21092, 'CabinPressureSensor(4)', 'Cabin pressure sensor 4'],
+      [21100, 'AvionicsBlowingFan(1)', 'Avionics ventilation left blowing fan'],
+      [21101, 'AvionicsBlowingFan(2)', 'Avionics ventilation right blowing fan'],
+      [21102, 'AvionicsBackupValve(1)', 'Avionics ventilation left backup valve'],
+      [21103, 'AvionicsBackupValve(2)', 'Avionics ventilation right backup valve'],
+      [21104, 'AvionicsExtractionFan', 'Avionics ventilation extraction fan'],
+      [21105, 'AvionicsExtractValve', 'Avionics extract valve stuck closed'],
+      [21106, 'AvionicsOverboardValveStuckOpen', 'Avionics overboard valve stuck open'],
+      [21107, 'AvionicsOverboardValveStuckClosed', 'Avionics overboard valve stuck closed'],
+      [21108, 'AvionicsVentilationController', 'Avionics ventilation controller'],
+      [21109, 'SupplementalCoolingOverheat(1)', 'Supplemental cooling system 1 overheat'],
+      [21110, 'SupplementalCoolingOverheat(2)', 'Supplemental cooling system 2 overheat'],
+      [21111, 'SupplementalCoolingProtection(1)', 'Supplemental cooling system 1 overheat protection'],
+      [21112, 'SupplementalCoolingProtection(2)', 'Supplemental cooling system 2 overheat protection'],
+      [21113, 'ThsBayBlowingFan', 'THS bay blowing fan'],
     ];
     const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
 

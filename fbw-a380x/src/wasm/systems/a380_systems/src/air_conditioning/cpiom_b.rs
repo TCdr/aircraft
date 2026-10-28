@@ -28,6 +28,7 @@ use systems::{
 use crate::avionics_data_communication_network::A380AvionicsDataCommunicationNetworkMessageData;
 
 use super::{
+    avionics_ventilation::AvionicsVentilationSystem,
     local_controllers::{
         outflow_valve_control_module::{CpcsShared, OcsmShared},
         trim_air_drive_device::{hot_air_valve_feeding_zone, TaddShared},
@@ -1678,11 +1679,13 @@ pub(super) struct CpiomBInterfaceUnit {
     discrete_word_tcs_id: VariableIdentifier,
     discrete_word_vcs_id: VariableIdentifier,
     discrete_word_cpcs_id: VariableIdentifier,
+    discrete_word_avs_id: VariableIdentifier,
 
     discrete_word_ags: Arinc429Word<u32>,
     discrete_word_tcs: Arinc429Word<u32>,
     discrete_word_vcs: Arinc429Word<u32>,
     discrete_word_cpcs: Arinc429Word<u32>,
+    discrete_word_avs: Arinc429Word<u32>,
 }
 
 impl CpiomBInterfaceUnit {
@@ -1696,11 +1699,14 @@ impl CpiomBInterfaceUnit {
                 .get_identifier(format!("COND_CPIOM_{}_VCS_DISCRETE_WORD", cpiom_id)),
             discrete_word_cpcs_id: context
                 .get_identifier(format!("COND_CPIOM_{}_CPCS_DISCRETE_WORD", cpiom_id)),
+            discrete_word_avs_id: context
+                .get_identifier(format!("COND_CPIOM_{}_AVS_DISCRETE_WORD", cpiom_id)),
 
             discrete_word_ags: Arinc429Word::new(0, SignStatus::NoComputedData),
             discrete_word_tcs: Arinc429Word::new(0, SignStatus::NoComputedData),
             discrete_word_vcs: Arinc429Word::new(0, SignStatus::NoComputedData),
             discrete_word_cpcs: Arinc429Word::new(0, SignStatus::NoComputedData),
+            discrete_word_avs: Arinc429Word::new(0, SignStatus::NoComputedData),
         }
     }
 
@@ -1873,11 +1879,49 @@ impl CpiomBInterfaceUnit {
     }
 }
 
+impl CpiomBInterfaceUnit {
+    /// Avionics ventilation word. The application has no CPIOM B model of its own: it fails with the ventilation
+    /// control application.
+    pub(super) fn update_avionics_ventilation(
+        &mut self,
+        cpiom: &CoreProcessingInputOutputModuleB,
+        avionics_ventilation: &AvionicsVentilationSystem,
+    ) {
+        if cpiom.vcs_has_fault() {
+            self.discrete_word_avs = Arinc429Word::new(0, SignStatus::FailureWarning);
+        } else {
+            self.discrete_word_avs = Arinc429Word::new(0, SignStatus::NormalOperation);
+        }
+
+        self.discrete_word_avs
+            .set_bit(13, avionics_ventilation.circuit_not_ventilated(0));
+        self.discrete_word_avs
+            .set_bit(14, avionics_ventilation.circuit_not_ventilated(1));
+        self.discrete_word_avs
+            .set_bit(15, avionics_ventilation.extract_fault());
+        self.discrete_word_avs
+            .set_bit(16, avionics_ventilation.overboard_valve_fault());
+        self.discrete_word_avs
+            .set_bit(17, avionics_ventilation.overboard_valve_fully_open());
+        self.discrete_word_avs
+            .set_bit(18, avionics_ventilation.controller_fault());
+        self.discrete_word_avs
+            .set_bit(19, avionics_ventilation.cooling_overheat(0));
+        self.discrete_word_avs
+            .set_bit(20, avionics_ventilation.cooling_overheat(1));
+        self.discrete_word_avs
+            .set_bit(21, avionics_ventilation.cooling_protection_fault());
+        self.discrete_word_avs
+            .set_bit(22, avionics_ventilation.ths_bay_ventilation_fault());
+    }
+}
+
 impl SimulationElement for CpiomBInterfaceUnit {
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.discrete_word_ags_id, self.discrete_word_ags);
         writer.write(&self.discrete_word_tcs_id, self.discrete_word_tcs);
         writer.write(&self.discrete_word_vcs_id, self.discrete_word_vcs);
         writer.write(&self.discrete_word_cpcs_id, self.discrete_word_cpcs);
+        writer.write(&self.discrete_word_avs_id, self.discrete_word_avs);
     }
 }

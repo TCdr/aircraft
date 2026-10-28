@@ -383,6 +383,23 @@
       | 22  | Cabin pressure sensor 3 failed                       |
       | 23  | Cabin pressure sensor 4 failed                       |
 
+- A32NX_COND_CPIOM_B{id}_AVS_DISCRETE_WORD
+    - Arinc429<Discrete>
+    - Discrete Data word of the avionics ventilation system, the supplemental cooling systems and the THS bay ventilation in the CPIOM B (assumed). Its SSM follows the ventilation control application
+    - {id} 1, 2, 3 or 4
+    - | Bit |                      Description                     |
+      |:---:|:----------------------------------------------------:|
+      | 13  | Left avionics ventilation circuit gets no air (blowing fan and backup valve lost) |
+      | 14  | Right avionics ventilation circuit gets no air       |
+      | 15  | Extraction fan failed or extract valve closed        |
+      | 16  | Overboard valve not where it is commanded            |
+      | 17  | Overboard valve fully open                           |
+      | 18  | Avionics ventilation controller lost (the other bits stay false) |
+      | 19  | Supplemental cooling system 1 overheat (detected)    |
+      | 20  | Supplemental cooling system 2 overheat (detected)    |
+      | 21  | Overheat detection of a supplemental cooling system lost |
+      | 22  | THS bay ventilation failed                           |
+
 - A32NX_COND_{id}_TEMP
     - Degree Celsius
     - Temperature as measured in each of the cabin zones and cockpit
@@ -605,6 +622,18 @@
 - A32NX_OVHD_VENT_AIR_EXTRACT_PB_IS_ON
     - Bool
     - True if the overhead manual extract vent override pushbutton is on (illuminated)
+
+- A32NX_VENTILATION_EXTRACT_TOGGLE
+    - Bool
+    - True if the avionics EXTRACT pb-sw of the VENT panel is at AUTO, false at OVRD (the cockpit model sets it to 1 in the flight files)
+
+- A32NX_VENTILATION_EXTRACT_FAULT
+    - Bool
+    - True if the avionics EXTRACT pb-sw FAULT light is on (extract fault or overboard valve fault)
+
+- A32NX_VENTILATION_CABFANS_TOGGLE
+    - Bool
+    - True if the VENT COOLG pb-sw (supplemental cooling) is at AUTO, false at OFF (the name is from the A320 cab fans pb-sw that the A380 model reused)
 
 ## Auto Flight System ATA 22
 
