@@ -27,6 +27,8 @@ interface SimpleInputProps {
   className?: string;
   maxLength?: number;
   disabled?: boolean;
+  autoFocus?: boolean;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export const SimpleInput = (props: PropsWithChildren<SimpleInputProps>) => {
@@ -217,6 +219,8 @@ export const SimpleInput = (props: PropsWithChildren<SimpleInputProps>) => {
         onChange={(e) => onChange(e.target.value)}
         onFocus={onFocus}
         onBlur={onFocusOut}
+        onKeyDown={props.onKeyDown}
+        autoFocus={props.autoFocus}
         disabled={props.disabled}
         ref={inputRef}
       />

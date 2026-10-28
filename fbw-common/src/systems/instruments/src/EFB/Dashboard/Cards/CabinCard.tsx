@@ -119,11 +119,7 @@ export const CabinCard: FC<{ className?: string }> = ({ className }) => {
             <div className="grow" />
           </>
         )}
-        <CardButton
-          tone="outline"
-          className="ml-3 !flex-none shrink-0 !px-3"
-          onClick={() => history.push('/presets/interior-lighting')}
-        >
+        <CardButton tone="outline" className="ml-3 !flex-none shrink-0 !px-3" onClick={() => history.push('/presets')}>
           {t('Dashboard.Cabin.Presets')}
         </CardButton>
       </div>

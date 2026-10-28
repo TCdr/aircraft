@@ -5,10 +5,11 @@ import { describe, expect, it } from 'vitest';
 import { buildPresetSelectionOptions, PRESET_IDS } from './presetSelectionOptions';
 
 /** Returns the translation key itself, so the tests can see which text is used */
-const translate = (key: string) => `<${key}>`;
+const translate = (key: string, replacements?: Record<string, string>[]) =>
+  `<${key}${replacements ? `:${Object.values(replacements[0])[0]}` : ''}>`;
 
 const NONE = '<Presets.InteriorLighting.AutoLoadNoneSelection>';
-const NO_NAME = '<Presets.InteriorLighting.NoName>';
+const presetNumber = (id: number) => `<Presets.InteriorLighting.PresetNumber:${id}>`;
 
 describe('buildPresetSelectionOptions', () => {
   it('offers None first, then all 8 presets even when none is named', () => {
@@ -17,7 +18,9 @@ describe('buildPresetSelectionOptions', () => {
     expect(options).toHaveLength(9);
     expect(options[0]).toEqual({ value: 0, displayValue: NONE });
     expect(options.slice(1).map((option) => option.value)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
-    options.slice(1).forEach((option) => expect(option.displayValue).toBe(`${option.value} - ${NO_NAME}`));
+    options
+      .slice(1)
+      .forEach((option) => expect(option.displayValue).toBe(`${option.value} - ${presetNumber(option.value)}`));
   });
 
   it('shows each preset as "<number> - <name>"', () => {
@@ -31,7 +34,7 @@ describe('buildPresetSelectionOptions', () => {
     );
 
     expect(options[1]).toEqual({ value: 1, displayValue: '1 - Day' });
-    expect(options[2]).toEqual({ value: 2, displayValue: `2 - ${NO_NAME}` });
+    expect(options[2]).toEqual({ value: 2, displayValue: `2 - ${presetNumber(2)}` });
     expect(options[3]).toEqual({ value: 3, displayValue: '3 - Night' });
     expect(options[8]).toEqual({ value: 8, displayValue: '8 - Dawn and dusk' });
   });
@@ -39,7 +42,7 @@ describe('buildPresetSelectionOptions', () => {
   it('treats an empty name as unnamed', () => {
     const options = buildPresetSelectionOptions(new Map([[5, '']]), translate);
 
-    expect(options[5]).toEqual({ value: 5, displayValue: `5 - ${NO_NAME}` });
+    expect(options[5]).toEqual({ value: 5, displayValue: `5 - ${presetNumber(5)}` });
   });
 
   it('ignores names of IDs that have no preset row', () => {
