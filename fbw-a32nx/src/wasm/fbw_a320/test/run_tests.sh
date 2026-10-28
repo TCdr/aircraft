@@ -87,3 +87,10 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS -I ../src -I ../src/model \
 clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS -I ../src -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
   takeoff_derate_test.cpp ../src/model/FadecComputer.cpp ../src/model/FadecComputer_data.cpp -o ../obj/takeoff_derate_test
 ../obj/takeoff_derate_test
+# Speed brake lever transducers and ground spoiler function of a SEC under the flyPad failures, with the generated SecComputer
+# (WITHOUT_THE_FIX=1: the failure flags do nothing, the failure checks must fail)
+clang++ -std=c++20 -Wall -Wextra $FIX_FLAGS -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  sec_ground_spoiler_failure_test.cpp ../src/sec/Sec.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp ../src/utils/PowerSupplyMonitor.cpp \
+  ../src/utils/ConfirmNode.cpp ../src/utils/HysteresisNode.cpp ../src/utils/PulseNode.cpp ../src/utils/SRFlipFLop.cpp \
+  -o ../obj/sec_ground_spoiler_failure_test
+../obj/sec_ground_spoiler_failure_test

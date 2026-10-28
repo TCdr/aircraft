@@ -22,6 +22,9 @@ pub(super) struct A320BrakeControlUnits {
     nw_strg_fault_id: VariableIdentifier,
     auto_brk_fault_id: VariableIdentifier,
     hyd_sel_fault_id: VariableIdentifier,
+    wheel_released_id: VariableIdentifier,
+    altn_released_ids: [VariableIdentifier; 2],
+    nw_strg_minor_fault_id: VariableIdentifier,
 
     bscu_channel_failures: [Failure; 2],
     bscu_channel_powered: [bool; 2],
@@ -36,6 +39,14 @@ pub(super) struct A320BrakeControlUnits {
     /// the green pressure at all times, so the failure has no other effect: as long as the antiskid works, the normal
     /// servovalves regulate the brake pressure.
     normal_selector_valve_failure: Failure,
+    /// The brake of one main wheel (1 to 4 from left to right) no longer applies with the normal braking
+    wheel_brake_released_failures: [Failure; 4],
+    /// The brakes of one main gear (left, right) no longer apply with the alternate braking
+    alternate_gear_brake_released_failures: [Failure; 2],
+    /// The BSCU loses the rudder pedal steering orders (BRAKES-N/WS MINOR FAULT), the hand wheel works
+    nose_wheel_steering_pedal_failure: Failure,
+    normal_braking_in_use: bool,
+    alternate_braking_in_use: bool,
 
     /// The BSCU channel in control (1 or 2), None with both channels lost
     active_bscu_channel: Option<usize>,
@@ -73,6 +84,10 @@ impl A320BrakeControlUnits {
             nw_strg_fault_id: context.get_identifier("BRAKES_NW_STRG_FAULT".to_owned()),
             auto_brk_fault_id: context.get_identifier("BRAKES_AUTO_BRK_FAULT".to_owned()),
             hyd_sel_fault_id: context.get_identifier("BRAKES_HYD_SEL_FAULT".to_owned()),
+            wheel_released_id: context.get_identifier("BRAKES_WHEEL_RELEASED".to_owned()),
+            altn_released_ids: ["L", "R"]
+                .map(|side| context.get_identifier(format!("BRAKES_ALTN_{side}_RELEASED"))),
+            nw_strg_minor_fault_id: context.get_identifier("BRAKES_NW_STRG_MINOR_FAULT".to_owned()),
 
             bscu_channel_failures: [1, 2]
                 .map(|channel| Failure::new(FailureType::BrakeSteeringControlUnitChannel(channel))),
@@ -83,6 +98,15 @@ impl A320BrakeControlUnits {
             nose_wheel_steering_failure: Failure::new(FailureType::NoseWheelSteeringNormal),
             autobrake_failure: Failure::new(FailureType::Autobrake),
             normal_selector_valve_failure: Failure::new(FailureType::BrakeNormalSelectorValve),
+            wheel_brake_released_failures: [1, 2, 3, 4]
+                .map(|wheel| Failure::new(FailureType::MainWheelBrakeReleased(wheel))),
+            alternate_gear_brake_released_failures: [1, 2]
+                .map(|gear| Failure::new(FailureType::AlternateGearBrakeReleased(gear))),
+            nose_wheel_steering_pedal_failure: Failure::new(
+                FailureType::NoseWheelSteeringPedalOrders,
+            ),
+            normal_braking_in_use: false,
+            alternate_braking_in_use: false,
 
             active_bscu_channel: Some(1),
             gear_handle_was_down: true,
@@ -168,6 +192,35 @@ impl A320BrakeControlUnits {
         self.abcu_powered && !self.abcu_failure.is_active()
     }
 
+    /// The brake mode of the current update: the green normal braking or the yellow alternate braking applies the brakes
+    pub(super) fn set_braking_mode_in_use(&mut self, normal: bool, alternate: bool) {
+        self.normal_braking_in_use = normal;
+        self.alternate_braking_in_use = alternate;
+    }
+
+    /// The share (0 or 1) of the normal braking force that main wheel 1 to 4 (left to right) still applies
+    pub(super) fn normal_wheel_brake_factor(&self, wheel_index: usize) -> f64 {
+        if self.wheel_brake_released_failures[wheel_index].is_active() {
+            0.
+        } else {
+            1.
+        }
+    }
+
+    /// The share (0 or 1) of the alternate braking force that the left (0) or right (1) main gear still applies
+    pub(super) fn alternate_gear_brake_factor(&self, gear_index: usize) -> f64 {
+        if self.alternate_gear_brake_released_failures[gear_index].is_active() {
+            0.
+        } else {
+            1.
+        }
+    }
+
+    /// The BSCU passes the rudder pedal steering orders (autopilot rollout orders come the same way)
+    pub(super) fn nose_wheel_steering_pedal_orders_available(&self) -> bool {
+        !self.nose_wheel_steering_pedal_failure.is_active()
+    }
+
     /// The BSCU commands the nose wheel steering, lost with a failure of the nose wheel steering system or of both
     /// BSCU channels
     pub(super) fn nose_wheel_steering_available(&self) -> bool {
@@ -201,6 +254,13 @@ impl SimulationElement for A320BrakeControlUnits {
         self.nose_wheel_steering_failure.accept(visitor);
         self.autobrake_failure.accept(visitor);
         self.normal_selector_valve_failure.accept(visitor);
+        self.wheel_brake_released_failures
+            .iter_mut()
+            .for_each(|failure| failure.accept(visitor));
+        self.alternate_gear_brake_released_failures
+            .iter_mut()
+            .for_each(|failure| failure.accept(visitor));
+        self.nose_wheel_steering_pedal_failure.accept(visitor);
         visitor.visit(self);
     }
 
@@ -236,6 +296,26 @@ impl SimulationElement for A320BrakeControlUnits {
         writer.write(
             &self.hyd_sel_fault_id,
             self.normal_selector_valve_fault_detected(),
+        );
+        // A released brake is detected while the brake mode that applies it is in use
+        writer.write(
+            &self.wheel_released_id,
+            self.normal_braking_in_use
+                && self
+                    .wheel_brake_released_failures
+                    .iter()
+                    .any(|failure| failure.is_active()),
+        );
+        for (id, failure) in self
+            .altn_released_ids
+            .iter()
+            .zip(&self.alternate_gear_brake_released_failures)
+        {
+            writer.write(id, self.alternate_braking_in_use && failure.is_active());
+        }
+        writer.write(
+            &self.nw_strg_minor_fault_id,
+            self.bscu_operative() && self.nose_wheel_steering_pedal_failure.is_active(),
         );
     }
 }

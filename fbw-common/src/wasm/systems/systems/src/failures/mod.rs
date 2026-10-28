@@ -200,6 +200,19 @@ pub enum FailureType {
     TyreDeflated(usize),
     /// Tyre n has burst: it loses its pressure within about a minute (same numbering as TyreDeflated)
     TyreBurst(usize),
+    /// The brake of main wheel n (1 to 4 from left to right) no longer applies with the A320 normal braking (BRAKES
+    /// RELEASED)
+    MainWheelBrakeReleased(usize),
+    /// The brakes of the left (1) or right (2) main gear no longer apply with the A320 alternate braking (BRAKES ALTN
+    /// L(R) RELEASED)
+    AlternateGearBrakeReleased(usize),
+    /// The A320 BSCU loses the rudder pedal steering orders, the hand wheel works (BRAKES-N/WS MINOR FAULT)
+    NoseWheelSteeringPedalOrders,
+    /// The proximity detectors of the shock absorber of a gear (1 left main, 2 right main, 3 nose) read it extended
+    /// whatever its compression (L/G SHOCK ABSORBER FAULT)
+    ShockAbsorberStuckExtended(usize),
+    /// The proximity detectors of the shock absorber of a gear read it compressed whatever its extension
+    ShockAbsorberStuckCompressed(usize),
     // ATA30 (ice_rain_protection)
     /// The engine anti-ice valve of engine n stays closed
     EngineAntiIceValveStuckClosed(usize),

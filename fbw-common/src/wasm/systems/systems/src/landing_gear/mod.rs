@@ -354,6 +354,11 @@ struct LgciuSensorInputs {
     nose_gear_compressed_id: VariableIdentifier,
     left_gear_compressed_id: VariableIdentifier,
     right_gear_compressed_id: VariableIdentifier,
+
+    /// The shock absorber proximity detectors of the left main, right main and nose gear read extended whatever the
+    /// compression, or compressed whatever the extension
+    shock_absorber_stuck_extended: [Failure; 3],
+    shock_absorber_stuck_compressed: [Failure; 3],
 }
 impl LgciuSensorInputs {
     fn new(context: &mut InitContext, lgciu_id: LgciuId) -> Self {
@@ -392,6 +397,22 @@ impl LgciuSensorInputs {
                 "LGCIU_{}_RIGHT_GEAR_COMPRESSED",
                 lgciu_number(lgciu_id)
             )),
+
+            shock_absorber_stuck_extended: [1, 2, 3]
+                .map(|gear| Failure::new(FailureType::ShockAbsorberStuckExtended(gear))),
+            shock_absorber_stuck_compressed: [1, 2, 3]
+                .map(|gear| Failure::new(FailureType::ShockAbsorberStuckCompressed(gear))),
+        }
+    }
+
+    /// What the detectors of a shock absorber (gear 0 left main, 1 right main, 2 nose) read
+    fn shock_absorber_reading(&self, gear_index: usize, compressed: bool) -> bool {
+        if self.shock_absorber_stuck_extended[gear_index].is_active() {
+            false
+        } else if self.shock_absorber_stuck_compressed[gear_index].is_active() {
+            true
+        } else {
+            compressed
         }
     }
 
@@ -405,11 +426,18 @@ impl LgciuSensorInputs {
         self.external_power_available = external_power_available;
         self.is_powered = is_powered;
 
-        self.nose_gear_sensor_compressed = landing_gear.is_wheel_id_compressed(GearWheel::NOSE);
-        self.left_gear_sensor_compressed = landing_gear.is_wheel_id_compressed(GearWheel::LEFT)
-            || landing_gear.is_wheel_id_compressed(GearWheel::WINGLEFT);
-        self.right_gear_sensor_compressed = landing_gear.is_wheel_id_compressed(GearWheel::RIGHT)
-            || landing_gear.is_wheel_id_compressed(GearWheel::WINGRIGHT);
+        self.nose_gear_sensor_compressed =
+            self.shock_absorber_reading(2, landing_gear.is_wheel_id_compressed(GearWheel::NOSE));
+        self.left_gear_sensor_compressed = self.shock_absorber_reading(
+            0,
+            landing_gear.is_wheel_id_compressed(GearWheel::LEFT)
+                || landing_gear.is_wheel_id_compressed(GearWheel::WINGLEFT),
+        );
+        self.right_gear_sensor_compressed = self.shock_absorber_reading(
+            1,
+            landing_gear.is_wheel_id_compressed(GearWheel::RIGHT)
+                || landing_gear.is_wheel_id_compressed(GearWheel::WINGRIGHT),
+        );
 
         self.right_gear_up_and_locked =
             gear_system_sensors.is_wheel_id_up_and_locked(GearWheel::RIGHT, self.lgciu_id);
@@ -476,6 +504,17 @@ impl LgciuSensorInputs {
     }
 }
 impl SimulationElement for LgciuSensorInputs {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.shock_absorber_stuck_extended
+            .iter_mut()
+            .for_each(|failure| failure.accept(visitor));
+        self.shock_absorber_stuck_compressed
+            .iter_mut()
+            .for_each(|failure| failure.accept(visitor));
+
+        visitor.visit(self);
+    }
+
     fn write(&self, writer: &mut SimulatorWriter) {
         // ref FBW-32-01
         writer.write(
@@ -1929,6 +1968,64 @@ mod tests {
         assert!(!test_bed.query_element(|e| e.is_wheel_id_compressed(GearWheel::NOSE)));
         assert!(test_bed.query_element(|e| e.is_wheel_id_compressed(GearWheel::LEFT)));
         assert!(!test_bed.query_element(|e| e.is_wheel_id_compressed(GearWheel::RIGHT)));
+    }
+
+    fn lgciu_flag(test_bed: &mut LgciusTestBed, name: &str) -> bool {
+        test_bed.read_by_name(name)
+    }
+
+    #[test]
+    fn lgcius_read_a_shock_absorber_stuck_extended_on_the_ground() {
+        let mut test_bed = test_bed_on_ground_with().on_the_ground().run_one_tick();
+        for lgciu in [1, 2] {
+            assert!(lgciu_flag(
+                &mut test_bed,
+                &format!("LGCIU_{lgciu}_NOSE_GEAR_COMPRESSED")
+            ));
+        }
+
+        test_bed
+            .test_bed_mut()
+            .fail(FailureType::ShockAbsorberStuckExtended(3));
+        test_bed = test_bed.run_one_tick();
+
+        for lgciu in [1, 2] {
+            assert!(!lgciu_flag(
+                &mut test_bed,
+                &format!("LGCIU_{lgciu}_NOSE_GEAR_COMPRESSED")
+            ));
+            assert!(lgciu_flag(
+                &mut test_bed,
+                &format!("LGCIU_{lgciu}_LEFT_GEAR_COMPRESSED")
+            ));
+        }
+    }
+
+    #[test]
+    fn lgcius_read_a_shock_absorber_stuck_compressed_in_the_air() {
+        let mut test_bed = test_bed_in_flight_with().in_flight().run_one_tick();
+        for lgciu in [1, 2] {
+            assert!(!lgciu_flag(
+                &mut test_bed,
+                &format!("LGCIU_{lgciu}_RIGHT_GEAR_COMPRESSED")
+            ));
+        }
+
+        test_bed
+            .test_bed_mut()
+            .fail(FailureType::ShockAbsorberStuckCompressed(2));
+        test_bed = test_bed.run_one_tick();
+
+        for lgciu in [1, 2] {
+            assert!(lgciu_flag(
+                &mut test_bed,
+                &format!("LGCIU_{lgciu}_RIGHT_GEAR_COMPRESSED")
+            ));
+            assert!(!lgciu_flag(
+                &mut test_bed,
+                &format!("LGCIU_{lgciu}_LEFT_GEAR_COMPRESSED")
+            ));
+        }
     }
 
     #[test]

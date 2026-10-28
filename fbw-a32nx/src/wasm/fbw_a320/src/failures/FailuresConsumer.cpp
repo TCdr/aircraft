@@ -43,6 +43,11 @@ FailuresConsumer::FailuresConsumer() {
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::FoSidestick, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::SidestickPriorityLogic, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::StabilizerElecControl, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::SpeedBrakeLeverSec1, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::SpeedBrakeLeverSec3, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::GroundSpoilerFunctionSec1, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::GroundSpoilerFunctionSec2, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::GroundSpoilerFunctionSec3, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fcu1, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fcu2, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fmgc1, false));
