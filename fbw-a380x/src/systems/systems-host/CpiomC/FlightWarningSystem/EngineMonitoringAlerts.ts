@@ -109,7 +109,11 @@ export function engineMonitoringAlertLevel(alert: EngineMonitoringAlertDefinitio
 
 /**
  * FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT,
- * CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION
+ * CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, OIL FILTER MONITORING FAULT, LP SHAFT
+ * PROT LOST.
+ * Design choice for the last two (the flight phase inhibitions are not published): the inhibitions of their neighbours,
+ * the fuel filter monitoring fault for the oil filter monitoring, the overthrust protection lost for the LP shaft
+ * protection lost; crew awareness.
  */
 export const ENGINE_MONITORING_ALERTS: EngineMonitoringAlertDefinition[] = [
   { variable: 'FUEL_STRAINER_CLOGGED', engine1Key: 701800045, flightPhaseInhibition: [3, 4, 5, 6, 7, 8, 9, 10] },
@@ -143,6 +147,16 @@ export const ENGINE_MONITORING_ALERTS: EngineMonitoringAlertDefinition[] = [
     engine1Key: 701800089,
     flightPhaseInhibition: [3, 4, 5, 6, 7, 9, 10],
     caution: true,
+  },
+  {
+    variable: 'OIL_FILTER_MONITORING_FAULT',
+    engine1Key: 701800170,
+    flightPhaseInhibition: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  },
+  {
+    variable: 'LP_SHAFT_PROTECTION_LOST',
+    engine1Key: 701800174,
+    flightPhaseInhibition: [2, 3, 4, 5, 6, 7, 8, 9, 10],
   },
 ];
 

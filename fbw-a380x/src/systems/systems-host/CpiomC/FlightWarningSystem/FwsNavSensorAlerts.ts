@@ -9,8 +9,10 @@ import { A380Failure } from '@failures';
  * The NAV alerts of the landing system receivers and of the air data probes:
  *
  * - NAV LS 1(2)(1+2) FAULT: the ILS, GLS and FLS functions of the MMR are all lost, which is the case when the MMR is
- *   failed. The sim has no GLS or FLS function, so they are lost only with their MMR: the alert is the MMR failure.
- *   STATUS APPR & LDG: CAT 2, GLS AUTOLAND, LS 1(2) (LS 1+2).
+ *   failed: the alert is the MMR failure. STATUS APPR & LDG: CAT 2, GLS AUTOLAND, LS 1(2) (LS 1+2).
+ * - NAV FLS 1(2)(1+2) FAULT and NAV GLS 1(2)(1+2) FAULT: the FLS (GLS) function of the MMR is failed, the MMR still
+ *   working. Crew awareness. STATUS APPR & LDG: FLS 1(2) (FLS 1+2), GLS AUTOLAND and GLS 1(2) (GLS 1+2). The FLS and
+ *   GLS functions have no model: their flyPad failures only raise the alerts.
  * - NAV ILS 1(2)(1+2) FAULT: the ILS receiver of the MMR is failed, the MMR still working. STATUS APPR & LDG: CAT 2,
  *   ILS 1(2) (ILS 1+2).
  *   Design choice: with one MMR failed and the ILS receiver of the other MMR failed, the alerts are LS 1(2) FAULT and
@@ -81,6 +83,10 @@ export interface NavSensorAlertInputs {
   mmrFailed: readonly [boolean, boolean];
   /** The ILS receiver of MMR 1, 2 failed */
   ilsReceiverFailed: readonly [boolean, boolean];
+  /** The FLS function of MMR 1, 2 failed */
+  flsFunctionFailed: readonly [boolean, boolean];
+  /** The GLS function of MMR 1, 2 failed */
+  glsFunctionFailed: readonly [boolean, boolean];
   /** The obstructed static probes of ADR 1, 2, 3 */
   staticProbes: readonly [StaticProbes, StaticProbes, StaticProbes];
   /** Sideslip probe 1, 2, 3 failed */
@@ -117,6 +123,19 @@ export function landingSystemAlerts(
     ls: splitPair(mmrFailed[0], mmrFailed[1]),
     ils: splitPair(ilsReceiverFailed[0] && !mmrFailed[0], ilsReceiverFailed[1] && !mmrFailed[1]),
   };
+}
+
+/**
+ * NAV FLS (GLS) FAULT from the function failures of the working MMRs: an MMR failed as a whole is already NAV LS FAULT.
+ * @param mmrFailed MMR 1, 2 failed
+ * @param functionFailed the FLS (GLS) function of MMR 1, 2 failed
+ * @returns the 1, 2 and 1+2 alerts
+ */
+export function mmrFunctionAlerts(
+  mmrFailed: readonly [boolean, boolean],
+  functionFailed: readonly [boolean, boolean],
+): ReceiverPairAlerts {
+  return splitPair(functionFailed[0] && !mmrFailed[0], functionFailed[1] && !mmrFailed[1]);
 }
 
 /**
@@ -175,6 +194,8 @@ export function readNavSensorAlertInputs(
   return {
     mmrFailed: [isFailureActive(A380Failure.Mmr1), isFailureActive(A380Failure.Mmr2)],
     ilsReceiverFailed: [isFailureActive(A380Failure.Ils1Receiver), isFailureActive(A380Failure.Ils2Receiver)],
+    flsFunctionFailed: [isFailureActive(A380Failure.Mmr1FlsFunction), isFailureActive(A380Failure.Mmr2FlsFunction)],
+    glsFunctionFailed: [isFailureActive(A380Failure.Mmr1GlsFunction), isFailureActive(A380Failure.Mmr2GlsFunction)],
     staticProbes: [
       {
         left: isFailureActive(A380Failure.Adr1LeftStaticProbe),
@@ -210,6 +231,14 @@ export class FwsNavSensorAlerts {
   public readonly ils2Fault = Subject.create(false);
   public readonly ils1And2Fault = Subject.create(false);
 
+  public readonly fls1Fault = Subject.create(false);
+  public readonly fls2Fault = Subject.create(false);
+  public readonly fls1And2Fault = Subject.create(false);
+
+  public readonly gls1Fault = Subject.create(false);
+  public readonly gls2Fault = Subject.create(false);
+  public readonly gls1And2Fault = Subject.create(false);
+
   public readonly staticProbeFault = Subject.create(false);
   public readonly adrDataDegraded = Subject.create(false);
   /** The obstructed static probes of ADR 1, 2, 3, for the procedure lines and the STATUS */
@@ -229,6 +258,15 @@ export class FwsNavSensorAlerts {
     this.ils1Fault.set(ils.one);
     this.ils2Fault.set(ils.two);
     this.ils1And2Fault.set(ils.oneAndTwo);
+
+    const fls = mmrFunctionAlerts(inputs.mmrFailed, inputs.flsFunctionFailed);
+    this.fls1Fault.set(fls.one);
+    this.fls2Fault.set(fls.two);
+    this.fls1And2Fault.set(fls.oneAndTwo);
+    const gls = mmrFunctionAlerts(inputs.mmrFailed, inputs.glsFunctionFailed);
+    this.gls1Fault.set(gls.one);
+    this.gls2Fault.set(gls.two);
+    this.gls1And2Fault.set(gls.oneAndTwo);
 
     this.staticProbes = inputs.staticProbes;
     const degraded = isAdrDataDegraded(inputs.staticProbes);

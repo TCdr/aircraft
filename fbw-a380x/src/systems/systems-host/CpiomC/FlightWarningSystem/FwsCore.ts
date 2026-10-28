@@ -241,7 +241,7 @@ import {
 } from '@shared/CdsDisplayUnits';
 import { DcElectricalBus } from '@shared/electrical';
 import { isEnginePumpsTurnOffUnsuccessful, isHydSystemOverheat } from './HydOverheatFlags';
-import { efisControlAlerts, kccuAlerts } from './FwsCdsControlAlerts';
+import { afsControlAlerts, efisControlAlerts, kccuAlerts } from './FwsCdsControlAlerts';
 import { kccuFailureState } from '../../../instruments/src/MsfsAvionicsCommon/Kccu';
 import { recorderAlerts } from './FwsRecorderAlerts';
 import { isCabinEmerExitLightFault } from './FwsEmerExitLightAlerts';
@@ -281,6 +281,7 @@ import {
   RmpTransmissionKeys,
 } from './CommunicationAlerts';
 import {
+  afdxCableFlyPadFailure,
   afdxSwitchFlyPadFailure,
   avionicsNetworkAlerts,
   isAfdxSwitchFailed,
@@ -1261,6 +1262,8 @@ export class FwsCore {
   public readonly avncsNetworkMultipleIomFaultNetworkDegraded = Subject.create(false);
 
   public readonly avncsNetworkMultipleIomFaultRedundancyDegraded = Subject.create(false);
+
+  public readonly avncsNetworkMultipleCableFault = Subject.create(false);
 
   public readonly comAdsDatalinkFault = Subject.create(false);
 
@@ -2752,6 +2755,20 @@ export class FwsCore {
   /** INOP SYS CAPT (F/O) EFIS CTL PNL */
   public readonly efisCtlPnlInop = [Subject.create(false), Subject.create(false)];
 
+  /** AUTO FLT AFS CTL PNL FAULT, CAPT (F/O) AFS BKUP CTL FAULT, see FwsCdsControlAlerts */
+  public readonly afsCtlPnlFault = Subject.create(false);
+
+  /** The lines of AFS CTL PNL FAULT: USE MFD FCU BKUP, USE CAPT MFD FCU BKUP, USE F/O MFD FCU BKUP */
+  public readonly afsCtlPnlUseBackupLines = [Subject.create(false), Subject.create(false), Subject.create(false)];
+
+  public readonly afsBkupCtlFault = [Subject.create(false), Subject.create(false)];
+
+  /** AUTO FLT ENG 1(2)(3)(4) A/THR OFF: the A/THR is armed or active, but failed on that engine */
+  public readonly engineAutothrustOff = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** AUTO FLT TCAS MODE FAULT: the AP/FD TCAS mode is failed */
+  public readonly apFdTcasModeFault = Subject.create(false);
+
   /** CDS CAPT (F/O) CURSOR CTL FAULT, CURSOR CTL+KEYBOARD FAULT, KEYBOARD FAULT, see FwsCdsControlAlerts */
   public readonly kccuCursorCtlFault = [Subject.create(false), Subject.create(false)];
 
@@ -3082,6 +3099,9 @@ export class FwsCore {
   public readonly engineMonitoringAlertActive = ENGINE_MONITORING_ALERTS.map(() =>
     [1, 2, 3, 4].map(() => Subject.create(false)),
   );
+
+  /** ENG 1(2)(3)(4) FUEL LEAK, by engine: written by CpiomF/FuelLeak */
+  public readonly engineFuelLeak = [1, 2, 3, 4].map(() => Subject.create(false));
 
   /** ENG 1(2)(3)(4) CTL SYS FAULT, by engine (EngineMonitoringAlerts.ts): its triggers, read from the systems WASM */
   public readonly engineCtlSysFaultInputs: CtlSysFaultInputs[] = [1, 2, 3, 4].map(() => ({
@@ -5390,6 +5410,29 @@ export class FwsCore {
       backupPowered: [this.dcESSBusPowered.get(), this.dc2BusPowered.get()],
     });
     this.efisCtlPnlsBothFault.set(efisControl.bothControlPanelsFault);
+    const afsControl = afsControlAlerts({
+      controlPanelFailed: failureActive(A380Failure.AfsControlPanel),
+      backupPageFailed: [
+        failureActive(A380Failure.CaptFcuBackupAfsPage),
+        failureActive(A380Failure.FoFcuBackupAfsPage),
+      ],
+      backupPowered: [this.dcESSBusPowered.get(), this.dc2BusPowered.get()],
+    });
+    this.afsCtlPnlFault.set(afsControl.controlPanelFault);
+    afsControl.useBackupLines.forEach((shown, line) => this.afsCtlPnlUseBackupLines[line].set(shown));
+    this.afsBkupCtlFault[0].set(afsControl.backupControlFault[0]);
+    this.afsBkupCtlFault[1].set(afsControl.backupControlFault[1]);
+    // AUTO FLT TCAS MODE FAULT, ENG 1(2)(3)(4) A/THR OFF: flyPad failures read by fbw_a380, which cuts the TCAS data to
+    // the PRIMs and the autothrust orders to the engine; only with the A/THR armed or active
+    this.apFdTcasModeFault.set(failureActive(A380Failure.ApFdTcasMode));
+    [
+      A380Failure.Eng1Autothrust,
+      A380Failure.Eng2Autothrust,
+      A380Failure.Eng3Autothrust,
+      A380Failure.Eng4Autothrust,
+    ].forEach((failure, index) =>
+      this.engineAutothrustOff[index].set(failureActive(failure) && this.autoThrustStatus.get() !== 0),
+    );
     (['L', 'R'] as const).forEach((side, index) => {
       this.efisCtlPnlFault[index].set(efisControl.controlPanelFault[index]);
       this.efisBkupCtlFault[index].set(efisControl.backupControlFault[index]);
@@ -6691,6 +6734,7 @@ export class FwsCore {
     const avncsNetwork = avionicsNetworkAlerts({
       switchFailed: (id) => isAfdxSwitchFailed(id, comFailureActive(afdxSwitchFlyPadFailure(id)), readBoolLvar),
       iomFailed: (name) => isIomFailed(name, comFailureActive(iomFlyPadFailure(name)), readBoolLvar),
+      cableFailed: (cable) => comFailureActive(afdxCableFlyPadFailure(cable)),
     });
     this.avncsNetworkAllSwitchesFault.set(avncsNetwork.allSwitchesFault);
     this.avncsNetworkDoubleSwitchFault.set(avncsNetwork.doubleSwitchFault);
@@ -6699,6 +6743,7 @@ export class FwsCore {
     this.avncsNetworkDoubleIomFault.set(avncsNetwork.doubleIomFault);
     this.avncsNetworkMultipleIomFaultNetworkDegraded.set(avncsNetwork.multipleIomFaultNetworkDegraded);
     this.avncsNetworkMultipleIomFaultRedundancyDegraded.set(avncsNetwork.multipleIomFaultRedundancyDegraded);
+    this.avncsNetworkMultipleCableFault.set(avncsNetwork.multipleCableFault);
     const infoSys = informationSystemAlerts({
       cpiomD1Available: readBoolLvar('L:A32NX_CPIOM_D1_AVAIL'),
       atcResetPulled: readBoolLvar('L:A32NX_RESET_PANEL_ATC'),
@@ -8051,6 +8096,7 @@ export class FwsCore {
           SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_${alert.variable}`, 'bool') > 0,
         ),
       );
+      this.engineFuelLeak[index].set(SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_FUEL_LEAK`, 'bool') > 0);
       // ENG CTL SYS FAULT: the flyPad failure (engine/engine_monitoring_fault.rs) and the FADEC overthrust protection
       // (a380_systems fadec_automatic_shutdown.rs), which also gives ENG FAIL its FADEC shutdown reason
       const ctlSysFaultInputs = this.engineCtlSysFaultInputs[index];

@@ -12,6 +12,7 @@ import {
   isAdrDataDegraded,
   landingSystemAlerts,
   LS_FAULT_INOP_SYS_APPR_LDG,
+  mmrFunctionAlerts,
   NavSensorAlertInputs,
   readNavSensorAlertInputs,
   SIDESLIP_PROBE_INOP_SYS,
@@ -50,6 +51,8 @@ const clear: StaticProbes = { left: false, right: false };
 const nominal: NavSensorAlertInputs = {
   mmrFailed: [false, false],
   ilsReceiverFailed: [false, false],
+  flsFunctionFailed: [false, false],
+  glsFunctionFailed: [false, false],
   staticProbes: [clear, clear, clear],
   sideslipProbeFailed: [false, false, false],
   adrComputedAirspeedKt: [0, 0, 0],
@@ -62,6 +65,68 @@ function alertsWith(inputs: Partial<NavSensorAlertInputs>): FwsNavSensorAlerts {
   alerts.update({ ...nominal, ...inputs });
   return alerts;
 }
+
+describe('NAV FLS and GLS FAULT', () => {
+  it('gives FLS (GLS) 1(2)(1+2) FAULT for the failed function of a working MMR', () => {
+    expect(mmrFunctionAlerts([false, false], [true, false])).toEqual({ one: true, two: false, oneAndTwo: false });
+    expect(mmrFunctionAlerts([false, false], [false, true])).toEqual({ one: false, two: true, oneAndTwo: false });
+    expect(mmrFunctionAlerts([false, false], [true, true])).toEqual({ one: false, two: false, oneAndTwo: true });
+  });
+
+  it('leaves the MMR failed as a whole to NAV LS FAULT', () => {
+    expect(mmrFunctionAlerts([true, false], [true, false])).toEqual({ one: false, two: false, oneAndTwo: false });
+    expect(mmrFunctionAlerts([true, false], [true, true])).toEqual({ one: false, two: true, oneAndTwo: false });
+  });
+
+  it('sets the subjects from the FLS and GLS function failures', () => {
+    const fls = alertsWith({ flsFunctionFailed: [false, true] });
+    expect([fls.fls1Fault.get(), fls.fls2Fault.get(), fls.fls1And2Fault.get()]).toEqual([false, true, false]);
+    expect([fls.gls1Fault.get(), fls.gls2Fault.get(), fls.gls1And2Fault.get()]).toEqual([false, false, false]);
+    const gls = alertsWith({ glsFunctionFailed: [true, true] });
+    expect([gls.gls1Fault.get(), gls.gls2Fault.get(), gls.gls1And2Fault.get()]).toEqual([false, false, true]);
+  });
+
+  it('reads the function failures of the flyPad', () => {
+    const inputs = readNavSensorAlertInputs(
+      () => 0,
+      (failure) => failure === A380Failure.Mmr2FlsFunction || failure === A380Failure.Mmr1GlsFunction,
+      true,
+    );
+    expect(inputs.flsFunctionFailed).toEqual([false, true]);
+    expect(inputs.glsFunctionFailed).toEqual([true, false]);
+  });
+
+  it('lists FLS and GLS FAULT with their STATUS and crew awareness level', () => {
+    const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+    const alerts: [string, string, string, string][] = [
+      ['340800075', 'fls1Fault', "['340300077']", 'FLS 1 FAULT'],
+      ['340800076', 'fls2Fault', "['340300078']", 'FLS 2 FAULT'],
+      ['340800077', 'fls1And2Fault', "['340300079']", 'FLS 1+2 FAULT'],
+      ['340800030', 'gls1Fault', "['220300010', '340300080']", 'GLS 1 FAULT'],
+      ['340800031', 'gls2Fault', "['220300010', '340300081']", 'GLS 2 FAULT'],
+      ['340800032', 'gls1And2Fault', "['340300082']", 'GLS 1+2 FAULT'],
+    ];
+    for (const [key, subject, inop, title] of alerts) {
+      const start = abnormalSensed.indexOf(`    ${key}: {`);
+      expect(start).toBeGreaterThan(0);
+      const source = abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
+      expect(source).toContain(`simVarIsActive: this.fws.navSensorAlerts.${subject},`);
+      expect(source).toContain(`inopSysApprLdg: () => ${inop},`);
+      expect(source).toContain('failure: 1,');
+      expect(procedure(Number(key))).toContain(`NAV\\x1bm ${title}'`);
+    }
+    for (const [key, text] of [
+      ['340300077', 'FLS 1'],
+      ['340300078', 'FLS 2'],
+      ['340300079', 'FLS 1+2'],
+      ['340300080', 'GLS 1'],
+      ['340300081', 'GLS 2'],
+      ['340300082', 'GLS 1+2'],
+    ]) {
+      expect(tableText('EcamInopSys', key)).toBe(text);
+    }
+  });
+});
 
 describe('NAV LS and ILS FAULT', () => {
   it('gives LS 1(2)(1+2) FAULT for the failed MMRs', () => {

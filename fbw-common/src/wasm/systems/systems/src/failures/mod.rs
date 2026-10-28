@@ -385,6 +385,9 @@ pub enum FailureType {
     /// AFDX switch n (A380: 1 to 7 and 9 on network A, 11 to 17 and 19 on network B) is failed: it no
     /// longer routes the network messages
     AvionicsFullDuplexSwitch(u8),
+    /// The cable n (1 to 30) between two AFDX switches of one network is failed (A380, see
+    /// A380AvionicsDataCommunicationNetwork): the switches no longer route their messages over it
+    AvionicsNetworkCable(u8),
     /// The input/output module named by its letter and number (A380: A1 to A8) is failed
     InputOutputModule(char, u8),
     /// The core processing input/output module named by its letter and number (A380: A1 to G4) is

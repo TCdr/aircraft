@@ -214,6 +214,12 @@ export const EcamAbnormalSensedAta353642: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [{ name: '(REDUNDANCY DEGRADED)', sensed: true, style: ChecklistLineStyle.Amber }],
   },
+  420800008: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm MULTIPLE CABLE FAULT',
+    sensed: true,
+    items: [],
+  },
 };
 
 /**

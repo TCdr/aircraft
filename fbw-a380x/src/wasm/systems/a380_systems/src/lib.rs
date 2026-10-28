@@ -94,9 +94,10 @@ use systems::{
 /// The FADEC faults that have no engine model effect: ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL
 /// FILTER MONITORING FAULT, OIL CHIP DETECTED, OVERTHRUST PROT LOST, SENSOR FAULT, CTL SYS FAULT,
 /// CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE
-/// DISAGREE (see systems::engine::engine_monitoring_fault and the FWS EngineMonitoringAlerts.ts).
+/// DISAGREE, OIL FILTER MONITORING FAULT, LP SHAFT PROT LOST (see
+/// systems::engine::engine_monitoring_fault and the FWS EngineMonitoringAlerts.ts).
 /// MINOR FAULT, which a failed FADEC channel also raises, is in fadec_power.rs.
-const A380_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 11] = [
+const A380_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 13] = [
     EngineMonitoringFaultKind::FuelStrainerClog,
     EngineMonitoringFaultKind::FuelFilterMonitoring,
     EngineMonitoringFaultKind::OilChip,
@@ -108,6 +109,8 @@ const A380_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 11] = [
     EngineMonitoringFaultKind::FuelSystemContamination,
     EngineMonitoringFaultKind::OilSystemContamination,
     EngineMonitoringFaultKind::ThrustRatingDisagree,
+    EngineMonitoringFaultKind::OilFilterMonitoring,
+    EngineMonitoringFaultKind::LpShaftProtection,
 ];
 
 pub struct A380 {

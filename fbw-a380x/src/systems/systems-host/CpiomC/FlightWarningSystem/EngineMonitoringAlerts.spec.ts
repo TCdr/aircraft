@@ -142,6 +142,53 @@ describe('FADEC fault crew awareness alerts', () => {
   });
 });
 
+describe('OIL FILTER MONITORING FAULT, LP SHAFT PROT LOST and ENG FUEL LEAK', () => {
+  const byVariable = (variable: string) => ENGINE_MONITORING_ALERTS.find((alert) => alert.variable === variable);
+
+  it('are crew awareness alerts of the four engines with their own ata70 keys', () => {
+    expect(byVariable('OIL_FILTER_MONITORING_FAULT')).toEqual({
+      variable: 'OIL_FILTER_MONITORING_FAULT',
+      engine1Key: 701800170,
+      flightPhaseInhibition: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    });
+    expect(byVariable('LP_SHAFT_PROTECTION_LOST')).toEqual({
+      variable: 'LP_SHAFT_PROTECTION_LOST',
+      engine1Key: 701800174,
+      flightPhaseInhibition: [2, 3, 4, 5, 6, 7, 8, 9, 10],
+    });
+    for (const [variable, title] of [
+      ['OIL_FILTER_MONITORING_FAULT', 'OIL FILTER MONITORING FAULT'],
+      ['LP_SHAFT_PROTECTION_LOST', 'LP SHAFT PROT LOST'],
+    ]) {
+      const alert = byVariable(variable);
+      for (const engine of [1, 2, 3, 4]) {
+        expect(block((alert?.engine1Key ?? 0) + engine - 1)).toContain(`mENG\\x1bm ${engine} ${title}',`);
+      }
+    }
+  });
+
+  it('gives ENG n FUEL LEAK its procedure: ENG FUEL PARAMETERS CHECK, then thrust lever idle and master off if leaking', () => {
+    for (const engine of [1, 2, 3, 4]) {
+      const source = block(701800040 + engine);
+      expect(source).toContain(`mENG\\x1bm ${engine} FUEL LEAK',`);
+      expect(source).toContain("name: 'ENG FUEL PARAMETERS'");
+      expect(source).toContain("name: 'FUEL LEAK', sensed: false, condition: true");
+      expect(source).toContain(`name: 'THR LEVER ${engine}', sensed: true, labelNotCompleted: 'IDLE'`);
+      expect(source).toContain(`name: 'ENG ${engine} MASTER', sensed: true, labelNotCompleted: 'OFF'`);
+    }
+  });
+
+  it('lists the ENG FUEL LEAK alert as a caution with the ENGINE SD page', () => {
+    const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+    expect(abnormalSensed).toContain('alerts[701800041 + index] = {');
+    const start = abnormalSensed.indexOf('alerts[701800041 + index] = {');
+    const source = abnormalSensed.slice(start, abnormalSensed.indexOf('};', start));
+    expect(source).toContain('simVarIsActive: this.fws.engineFuelLeak[index],');
+    expect(source).toContain('failure: 2,');
+    expect(source).toContain('sysPage: SdPages.Eng,');
+  });
+});
+
 describe('CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS and OIL SYS CONTAMINATION', () => {
   const byVariable = (variable: string) => ENGINE_MONITORING_ALERTS.find((alert) => alert.variable === variable);
 
@@ -182,6 +229,8 @@ describe('CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS and OIL SYS CONTAMINATION',
       ['FADEC_IDENT_FAULT', 1],
       ['FUEL_SYS_CONTAMINATION', 2],
       ['OIL_SYS_CONTAMINATION', 2],
+      ['OIL_FILTER_MONITORING_FAULT', 1],
+      ['LP_SHAFT_PROTECTION_LOST', 1],
     ]);
   });
 

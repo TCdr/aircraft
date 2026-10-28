@@ -4,6 +4,14 @@ enum class Failures {
   Rollout = 22001,
   Fcu1 = 22002,
   Fcu2 = 22003,
+  // ATA 22: the PRIM autothrust orders do not reach engine n (ENG n A/THR OFF, see FlyByWireInterface::updateFadec)
+  Eng1Autothrust = 22210,
+  Eng2Autothrust = 22211,
+  Eng3Autothrust = 22212,
+  Eng4Autothrust = 22213,
+  // ATA 22: the TCAS data is invalid for the PRIMs, the AP/FD TCAS mode cannot engage (TCAS MODE FAULT, see
+  // FlyByWireInterface::updateTcas)
+  ApFdTcasMode = 22220,
   Prim1 = 27000,
   Prim2 = 27001,
   Prim3 = 27002,

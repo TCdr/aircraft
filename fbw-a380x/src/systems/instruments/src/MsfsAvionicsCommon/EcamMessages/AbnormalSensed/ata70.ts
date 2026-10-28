@@ -392,22 +392,42 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800041: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 FUEL LEAK',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG FUEL PARAMETERS', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'FUEL LEAK', sensed: false, condition: true },
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE', level: 1 },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800042: {
     title: '\x1b<4m\x1b4mENG\x1bm 2 FUEL LEAK',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG FUEL PARAMETERS', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'FUEL LEAK', sensed: false, condition: true },
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE', level: 1 },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800043: {
     title: '\x1b<4m\x1b4mENG\x1bm 3 FUEL LEAK',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG FUEL PARAMETERS', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'FUEL LEAK', sensed: false, condition: true },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE', level: 1 },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800044: {
     title: '\x1b<4m\x1b4mENG\x1bm 4 FUEL LEAK',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG FUEL PARAMETERS', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'FUEL LEAK', sensed: false, condition: true },
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE', level: 1 },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800045: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 FUEL STRAINER CLOGGED',
@@ -1763,6 +1783,46 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<2m\x1b4mENG\x1bm 4 THR LEVER ABOVE IDLE',
     sensed: true,
     items: [{ name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' }],
+  },
+  701800170: {
+    title: '\x1b<4m\x1b4mENG\x1bm 1 OIL FILTER MONITORING FAULT',
+    sensed: true,
+    items: [],
+  },
+  701800171: {
+    title: '\x1b<4m\x1b4mENG\x1bm 2 OIL FILTER MONITORING FAULT',
+    sensed: true,
+    items: [],
+  },
+  701800172: {
+    title: '\x1b<4m\x1b4mENG\x1bm 3 OIL FILTER MONITORING FAULT',
+    sensed: true,
+    items: [],
+  },
+  701800173: {
+    title: '\x1b<4m\x1b4mENG\x1bm 4 OIL FILTER MONITORING FAULT',
+    sensed: true,
+    items: [],
+  },
+  701800174: {
+    title: '\x1b<4m\x1b4mENG\x1bm 1 LP SHAFT PROT LOST',
+    sensed: true,
+    items: [],
+  },
+  701800175: {
+    title: '\x1b<4m\x1b4mENG\x1bm 2 LP SHAFT PROT LOST',
+    sensed: true,
+    items: [],
+  },
+  701800176: {
+    title: '\x1b<4m\x1b4mENG\x1bm 3 LP SHAFT PROT LOST',
+    sensed: true,
+    items: [],
+  },
+  701800177: {
+    title: '\x1b<4m\x1b4mENG\x1bm 4 LP SHAFT PROT LOST',
+    sensed: true,
+    items: [],
   },
   700900001: {
     title: '\x1b<4m\x1b4mENG\x1bm RELIGHT IN FLIGHT',
