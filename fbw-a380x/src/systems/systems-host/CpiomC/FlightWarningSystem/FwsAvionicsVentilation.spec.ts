@@ -11,6 +11,7 @@ const sourceOf = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8
 const cpiomB = sourceOf('../../../../wasm/systems/a380_systems/src/air_conditioning/cpiom_b.rs');
 const abnormalSensed = sourceOf('./FwsAbnormalSensed.ts');
 const ecamMessageIndex = sourceOf('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts');
+const fwsCore = sourceOf('./FwsCore.ts');
 const ata21Messages = sourceOf(
   '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata21-22-23.ts',
 );
@@ -27,6 +28,7 @@ const AVIONICS_VENTILATION_ALERTS = [
   '212800020', // VENT COOLG SYS 2 OVHT
   '212800021', // VENT COOLG SYS PROT FAULT
   '212800028', // VENT THS BAY VENT FAULT
+  '212800029', // VENT AVNCS BLOWING DEGRADED
 ];
 
 /** The source text of the FwsAbnormalSensed entry of an alert */
@@ -56,7 +58,20 @@ describe('A380X FWS avionics ventilation word', () => {
     expect(methodByBit.get(AVS_BITS.coolingSystem2Overheat)).toBe('cooling_overheat');
     expect(methodByBit.get(AVS_BITS.coolingProtectionFault)).toBe('cooling_protection_fault');
     expect(methodByBit.get(AVS_BITS.thsBayVentilationFault)).toBe('ths_bay_ventilation_fault');
+    expect(methodByBit.get(AVS_BITS.leftCircuitOnBackup)).toBe('circuit_on_backup');
+    expect(methodByBit.get(AVS_BITS.rightCircuitOnBackup)).toBe('circuit_on_backup');
     expect(methodByBit.size).toBe(Object.values(AVS_BITS).length);
+  });
+
+  it('reads the two circuit on backup bits into the subjects the BLOWING DEGRADED alert uses', () => {
+    expect(AVS_BITS.leftCircuitOnBackup).toBe(23);
+    expect(AVS_BITS.rightCircuitOnBackup).toBe(24);
+    expect(fwsCore).toContain(
+      'this.avncsLeftCircuitOnBackup.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.leftCircuitOnBackup, false))',
+    );
+    expect(fwsCore).toContain(
+      'this.avncsRightCircuitOnBackup.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.rightCircuitOnBackup, false))',
+    );
   });
 
   it('uses one bit per condition', () => {
@@ -94,6 +109,7 @@ describe('A380X FWS avionics ventilation alerts', () => {
     expect(itemCountOfMessage('212800006')).toBe(0);
     expect(itemCountOfMessage('212800021')).toBe(0);
     expect(itemCountOfMessage('212800028')).toBe(0);
+    expect(itemCountOfMessage('212800029')).toBe(0);
   });
 
   it('only names INOP SYS and LIMITATION lines that exist', () => {
@@ -111,5 +127,17 @@ describe('A380X FWS avionics ventilation alerts', () => {
     expect(entryOf('212800014')).toContain(
       "limitationsAllPhases: () => (this.fws.avncsBlowingFaultPersists.get() ? ['210400006'] : [])",
     );
+  });
+
+  it('raises the BLOWING DEGRADED awareness message only with both circuits on their backup valves', () => {
+    const entry = entryOf('212800029');
+
+    expect(entry).toContain('this.fws.avncsLeftCircuitOnBackup');
+    expect(entry).toContain('this.fws.avncsRightCircuitOnBackup');
+    expect(entry).toContain('SubscribableMapFunctions.and()');
+    expect(entry).toContain('failure: 1');
+    expect(entry).toContain('sysPage: SdPages.None');
+    expect(entry).toContain("notActiveWhenItemActive: ['212800014', '212800016', '212800017']");
+    expect(ata21Messages).toContain('AVNCS BLOWING DEGRADED');
   });
 });

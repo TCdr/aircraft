@@ -2562,6 +2562,23 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Cond,
       inopSysAllPhases: () => ['212300024'],
     },
+    212800029: {
+      // VENT AVNCS BLOWING DEGRADED: on both circuits the blowing fan is failed or the filter is clogged and the
+      // backup valves ventilate the avionics bays with air of the mixer unit. Crew awareness.
+      // Design choice: not shown with a BLOWING FAULT. A circuit cannot be on its backup valve and not ventilated at
+      // once, so this only keeps the alert out if the model ever lets the two states overlap.
+      flightPhaseInhib: AVIONICS_VENTILATION_PHASE_INHIBITION,
+      simVarIsActive: MappedSubject.create(
+        SubscribableMapFunctions.and(),
+        this.fws.avncsLeftCircuitOnBackup,
+        this.fws.avncsRightCircuitOnBackup,
+      ),
+      notActiveWhenItemActive: ['212800014', '212800016', '212800017'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
     212800018: {
       // VENT AVNCS OVBD VLV FAULT: the overboard valve is not where it is commanded (open, closed or partially open).
       // Caution, COND SD page. With the valve still fully open: MAX FL 100/MEA, manual cabin pressure control with the

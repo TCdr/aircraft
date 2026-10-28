@@ -399,6 +399,8 @@
       | 20  | Supplemental cooling system 2 overheat (detected)    |
       | 21  | Overheat detection of a supplemental cooling system lost |
       | 22  | THS bay ventilation failed                           |
+      | 23  | Left avionics ventilation circuit runs on its backup valve (blowing fan failed or filter clogged, backup valve working) |
+      | 24  | Right avionics ventilation circuit runs on its backup valve |
 
 - A32NX_COND_{id}_TEMP
     - Degree Celsius
