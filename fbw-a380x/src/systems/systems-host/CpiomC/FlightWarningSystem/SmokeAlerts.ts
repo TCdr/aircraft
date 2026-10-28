@@ -6,8 +6,9 @@
  * fire_protection/smoke_detection.rs and cargo_fire_extinguishing.rs, a380_systems fire_and_smoke_protection.rs):
  * L:A32NX_SMOKE_<zone>_DETECTED and L:A32NX_SMOKE_<zone>_DET_FAULT of the cargo compartments and the avionics / IFE
  * bays, L:A32NX_CARGOSMOKE_BOTTLE_<n>_LOW_PRESSURE of the two cargo bottles.
- * SMOKE alerts; the flight phase inhibitions are those of the aircraft procedures. Not fed (no detector modelled): the crew rests, lavatories, CWS / RCC, showers, facilities,
- * SMOKE DET FAULT, SAFETY TEST REQUIRED, and FWD (AFT) / FWD+AFT CARGO BOTTLES FAULT (diverter valve, bottle control).
+ * SMOKE DET FAULT from L:A32NX_SMOKE_DETECTION_FUNCTION_FAULT (the SDF failure), the cargo smoke TEST pb from
+ * L:A32NX_FIRE_TEST_CARGO. Not fed (no detector modelled): the crew rests, lavatories, CWS / RCC, showers, facilities,
+ * SAFETY TEST REQUIRED, and FWD (AFT) / FWD+AFT CARGO BOTTLES FAULT (diverter valve, bottle control).
  */
 
 /** The "crew awareness" DET FAULT cautions */
@@ -146,4 +147,94 @@ export function avionicsSmokeItemsChecked(state: SmokeProcedureState, upperBay: 
   }
   const items = [false, !state.cabFansOn, state.galleyOff, state.signsOn, false];
   return qrhLine ? items.concat(false) : items;
+}
+
+/*
+ * SMOKE DET FAULT: the Smoke Detection Function (SDF) is failed, single chime and MASTER CAUT. Smoke detection is lost
+ * in the avionics compartments (including IFE center and NSS), the cargo compartments and the cabin areas: the SDF of
+ * systems.wasm then reports no smoke and no detector fault in any compartment.
+ */
+
+export const SDF_FAULT_PHASE_INHIBITION = [3, 4, 5, 6, 7, 9, 10];
+
+/** ata26.ts id */
+export const SDF_FAULT_ALERT = '260800031';
+
+/**
+ * STATUS INOP SYS ALL PHASES of SMOKE DET FAULT: ALL SMOKE DET, FWD CRG VENT, FWD CGR TEMP REGUL, BULK CRG VENT, BULK
+ * CRG HEATER
+ */
+export const SDF_FAULT_INOP_SYS = ['260300029', '260300030', '260300031', '260300032', '260300033'];
+
+/** The cockpit state that SMOKE DET FAULT checks */
+export interface SdfFaultProcedureState {
+  /** L:A32NX_ENTERTAINMENT_IFEC_OFF */
+  readonly ifecOff: boolean;
+  readonly fwdIsolValvesPbOn: boolean;
+  readonly bulkIsolValvesPbOn: boolean;
+}
+
+/**
+ * The lines of SMOKE DET FAULT (ata26.ts 260800031): 0 IFEC OFF, 1 CWS OFF, 2 IF NO LIVESTOCK, 3 FWD ISOL VALVES OFF,
+ * 4 BULK ISOL VALVES OFF, 5 BULK CARGO HEAT OFF. The aircraft procedure has no CWS line: it is not shown.
+ */
+export const SDF_FAULT_ITEMS_TO_SHOW = [true, false, true, true, true, true];
+
+/**
+ * @param state the cockpit state
+ * @returns which lines of SMOKE DET FAULT are done (the BULK CARGO HEATER pb is not read)
+ */
+export function sdfFaultItemsChecked(state: SdfFaultProcedureState): boolean[] {
+  return [state.ifecOff, false, false, !state.fwdIsolValvesPbOn, !state.bulkIsolValvesPbOn, false];
+}
+
+/*
+ * The cargo smoke TEST pb: held for at least 3 s, and until released, it tests the cargo fire detection and
+ * extinguishing system: continuous repetitive chime, MASTER WARN lights flashing, and the cargo SMOKE and AVNCS SMOKE
+ * warnings on the ECAM.
+ */
+
+/** The compartments that the cargo smoke TEST shows smoke in: the cargo compartments and the avionics bays (not IFE) */
+const CARGO_SMOKE_TEST_ZONES = [
+  'FWD_CARGO',
+  'AFT_CARGO',
+  'BULK_CARGO',
+  'L_MAIN_AVNCS',
+  'R_MAIN_AVNCS',
+  'L_UPPER_AVNCS',
+  'R_UPPER_AVNCS',
+  'AFT_AVNCS',
+];
+
+/** The 3 s hold of the cargo smoke TEST pb */
+export class CargoSmokeTest {
+  public static readonly HOLD_S = 3;
+
+  private heldS = 0;
+
+  /**
+   * @param testPbPressed the TEST pb is pressed (L:A32NX_FIRE_TEST_CARGO)
+   * @param deltaTimeMs the time since the last update, in milliseconds
+   * @returns whether the test runs: pressed for at least 3 s, until released
+   */
+  public update(testPbPressed: boolean, deltaTimeMs: number): boolean {
+    this.heldS = testPbPressed ? this.heldS + deltaTimeMs / 1000 : 0;
+    return testPbPressed && this.heldS >= CargoSmokeTest.HOLD_S;
+  }
+}
+
+/**
+ * The SMOKE warnings with the cargo smoke TEST: the test shows smoke in every CARGO_SMOKE_TEST_ZONES compartment,
+ * through the main / upper avionics bay logic of smokeWarnings() (so L(R) UPPER AVNCS SMOKE, not MAIN). Design choice:
+ * a failed SDF (SMOKE DET FAULT) cannot run the test.
+ * @param detected L:A32NX_SMOKE_<zone>_DETECTED of each SMOKE_ZONES compartment
+ * @param testActive the cargo smoke TEST runs (CargoSmokeTest)
+ * @param sdfFailed the SDF is failed
+ * @returns the SMOKE warnings, in the SMOKE_ZONES order
+ */
+export function smokeWarningsWithTest(detected: boolean[], testActive: boolean, sdfFailed: boolean): boolean[] {
+  const testing = testActive && !sdfFailed;
+  return smokeWarnings(
+    detected.map((smoke, index) => smoke || (testing && CARGO_SMOKE_TEST_ZONES.includes(SMOKE_ZONES[index].zone))),
+  );
 }

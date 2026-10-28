@@ -283,6 +283,14 @@ export class FwsMemos {
       codesToReturn: ['230000003'],
       memoInhibit: () => false,
     },
+    '230000008': {
+      // PA IN USE: the PA transmission key of an RMP is on (CommunicationAlerts isPaInUse); no flight phase inhibition
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.paInUse,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['230000008'],
+      memoInhibit: () => false,
+    },
     '230000009': {
       // RMP 1+2+3 OFF
       flightPhaseInhib: [],

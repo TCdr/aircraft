@@ -1441,6 +1441,13 @@ The PRIMs perform the flight guidance and flight envelope functions.
       DC 2 bus) or only one detector senses the smoke, and the SMOKE warning is not on. Drives the SMOKE ... DET FAULT
       cautions
 
+- A32NX_SMOKE_DETECTION_FUNCTION_FAULT
+    - Bool
+    - True when the Smoke Detection Function (SDF) itself is failed (flyPad failure "Smoke detection function (SDF) of
+      the CIDS", 26048): no compartment then reports smoke or a detector fault (A32NX_SMOKE_{zone}_DETECTED and
+      A32NX_SMOKE_{zone}_DET_FAULT stay false). Written by systems fire_and_smoke_protection.rs, drives the FWS SMOKE DET
+      FAULT caution (A380 FCOM PRO-ABN-ECAM-10-26)
+
 - A32NX_CARGOSMOKE_{FWD | AFT}_DISCHARGED
     - Bool
     - True once the AGENT TO FWD (AFT) pb of the CARGO SMOKE panel was pressed

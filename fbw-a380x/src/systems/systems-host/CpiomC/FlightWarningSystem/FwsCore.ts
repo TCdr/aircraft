@@ -197,8 +197,17 @@ import {
   isLdgElevnFault,
   ramAirMemoIndex,
 } from './CabPressAlerts';
-import { ApuFaultInputs, isApuFault } from './ApuFaultAlerts';
-import { SMOKE_ZONES, smokeWarnings } from './SmokeAlerts';
+import { ApuFaultInputs, isApuFault, isApuMachLimitExceeded, isApuOilFilterClogged } from './ApuFaultAlerts';
+import { CargoSmokeTest, SMOKE_ZONES, smokeWarningsWithTest } from './SmokeAlerts';
+import {
+  CidsAlerts,
+  cidsAlerts,
+  ComTransmissionMonitor,
+  datalinkAlerts,
+  isPaInUse,
+  readRmpTransmissionKeys,
+  RmpTransmissionKeys,
+} from './CommunicationAlerts';
 import { fuelTransferMemos, TankOutflowMonitor } from './FuelTransferMemos';
 import { enginePumpPressLoStatus } from './HydPumpStatus';
 import { AbnormBleedConfigInputs, isAbnormBleedConfig } from './AbnormBleedConfig';
@@ -993,6 +1002,44 @@ export class FwsCore {
 
   public readonly rmp3ActiveMode = ConsumerSubject.create(this.vhfSub.on(`vhf_com_active_mode_3`), FrequencyMode.Data);
 
+  /** The CAB COM alerts from the CIDS failures (CommunicationAlerts cidsAlerts) */
+  public cidsAlertsState: CidsAlerts = cidsAlerts({
+    directorFailed: [false, false, false],
+    upperDeckPaFailed: false,
+    mainDeckPaFailed: false,
+    lowerDeckPaFailed: false,
+    cabinInterphoneFailed: false,
+    paDegraded: false,
+    cabinInterphoneDegraded: false,
+  });
+
+  public readonly cids123Fault = Subject.create(false);
+
+  public readonly cidsCabinComFault = Subject.create(false);
+
+  public readonly cabComDegraded = Subject.create(false);
+
+  /** The transmission keys selected on RMP 1, 2, 3 (CommunicationAlerts readRmpTransmissionKeys) */
+  public rmpTransmissionKeys: RmpTransmissionKeys[] = [1, 2, 3].map(() => ({
+    vhf: [false, false, false],
+    pa: false,
+    any: false,
+  }));
+
+  /** The PTT switch and VHF transmission timers (CommunicationAlerts ComTransmissionMonitor) */
+  private readonly comTransmissionMonitor = new ComTransmissionMonitor();
+
+  /** COM CAPT, F/O, THIRD OCCUPANT PTT STUCK */
+  public readonly pttStuck = [Subject.create(false), Subject.create(false), Subject.create(false)];
+
+  public readonly vhfEmitting = [Subject.create(false), Subject.create(false), Subject.create(false)];
+
+  public readonly comDatalinkFault = Subject.create(false);
+
+  public readonly vhf3DatalinkFault = Subject.create(false);
+
+  public readonly paInUse = Subject.create(false);
+
   /* 24 - ELECTRICAL */
 
   public readonly ac1BusPowered = Subject.create(false);
@@ -1297,8 +1344,17 @@ export class FwsCore {
   /** L:A32NX_SMOKE_<zone>_DET_FAULT of each SMOKE_ZONES compartment */
   public readonly smokeZoneDetFault = SMOKE_ZONES.map(() => Subject.create(false));
 
-  /** The SMOKE warning of each SMOKE_ZONES compartment (SmokeAlerts smokeWarnings) */
+  /** The SMOKE warning of each SMOKE_ZONES compartment (SmokeAlerts smokeWarningsWithTest) */
   public readonly smokeZoneWarning = SMOKE_ZONES.map(() => Subject.create(false));
+
+  /** The 3 s hold of the cargo smoke TEST pb (SmokeAlerts CargoSmokeTest) */
+  private readonly cargoSmokeTest = new CargoSmokeTest();
+
+  /** L:A32NX_SMOKE_DETECTION_FUNCTION_FAULT: SMOKE DET FAULT (the SDF of systems.wasm is failed) */
+  public readonly smokeDetectionFunctionFault = Subject.create(false);
+
+  /** L:A32NX_ENTERTAINMENT_IFEC_OFF: the IFEC pb-sw is OFF (SMOKE DET FAULT) */
+  public readonly ifecOff = Subject.create(false);
 
   /** L:A32NX_CARGOSMOKE_BOTTLE_1(2)_LOW_PRESSURE: SMOKE FWD+AFT CARGOS BTL 1(2) FAULT */
   public readonly cargoBottleLowPressure = [Subject.create(false), Subject.create(false)];
@@ -2780,6 +2836,10 @@ export class FwsCore {
   public apuFaultInputs: ApuFaultInputs = { emergencyShutdown: false, autoShutdown: false, apuFireWarning: false };
 
   public readonly apuFault = Subject.create(false);
+
+  public readonly apuMachLimitExceeded = Subject.create(false);
+
+  public readonly apuOilFilterClogged = Subject.create(false);
 
   /** The bleed, crossbleed and pack state for AIR ABNORM BLEED CONFIG (AbnormBleedConfig) */
   public abnormBleedConfigInputs: AbnormBleedConfigInputs = {
@@ -5758,6 +5818,44 @@ export class FwsCore {
 
     this.voiceVhf3.set(this.rmp3ActiveMode.get() !== FrequencyMode.Data);
 
+    // ATA 23: the CAB COM / COM alerts and the PA IN USE memo (CommunicationAlerts)
+    const comFailureActive = (failure: number) => this.failuresConsumer.isActive(failure);
+    this.cidsAlertsState = cidsAlerts({
+      directorFailed: [A380Failure.CidsDirector1, A380Failure.CidsDirector2, A380Failure.CidsDirector3].map(
+        comFailureActive,
+      ),
+      upperDeckPaFailed: comFailureActive(A380Failure.UpperDeckPa),
+      mainDeckPaFailed: comFailureActive(A380Failure.MainDeckPa),
+      lowerDeckPaFailed: comFailureActive(A380Failure.LowerDeckPa),
+      cabinInterphoneFailed: comFailureActive(A380Failure.CabinInterphone),
+      paDegraded: comFailureActive(A380Failure.PaDegraded),
+      cabinInterphoneDegraded: comFailureActive(A380Failure.CabinInterphoneDegraded),
+    });
+    this.cids123Fault.set(this.cidsAlertsState.cids123Fault);
+    this.cidsCabinComFault.set(this.cidsAlertsState.cabinComFault);
+    this.cabComDegraded.set(this.cidsAlertsState.comDegraded);
+    this.rmpTransmissionKeys = [1, 2, 3].map((rmp) =>
+      readRmpTransmissionKeys(rmp, (name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool) > 0),
+    );
+    const comTransmission = this.comTransmissionMonitor.update(
+      {
+        pttPressed: [A380Failure.CaptPttStuck, A380Failure.FoPttStuck, A380Failure.ThirdOccupantPttStuck].map(
+          comFailureActive,
+        ),
+        rmpKeys: this.rmpTransmissionKeys,
+      },
+      deltaTime,
+    );
+    comTransmission.pttStuck.forEach((stuck, index) => this.pttStuck[index].set(stuck));
+    comTransmission.vhfEmitting.forEach((emitting, index) => this.vhfEmitting[index].set(emitting));
+    const datalink = datalinkAlerts({
+      vhf3Failed: comFailureActive(A380Failure.Vhf3),
+      vhf3DataMode: !this.voiceVhf3.get(),
+    });
+    this.comDatalinkFault.set(datalink.datalinkFault);
+    this.vhf3DatalinkFault.set(datalink.vhf3DatalinkFault);
+    this.paInUse.set(isPaInUse(this.rmpTransmissionKeys));
+
     /* FUEL */
     // Feed tanks 1 to 4 = MSFS tanks 2, 5, 6 and 9, each with its own 30 s confirmation (FeedTankLevelLoMonitor)
     const [feedTank1Low, feedTank2Low, feedTank3Low, feedTank4Low] = this.feedTankLevelLo.update(
@@ -6655,6 +6753,11 @@ export class FwsCore {
       apuFireWarning: this.apuFireDetected.get(),
     };
     this.apuFault.set(isApuFault(this.apuFaultInputs));
+    // APU MACH LIMIT EXCEEDED and APU OIL FILTER CLOGGED (ApuFaultAlerts), the APU running = its AVAIL indication
+    this.apuMachLimitExceeded.set(isApuMachLimitExceeded(this.apuAvail.get(), this.machSelectedFromAdr.get()));
+    this.apuOilFilterClogged.set(
+      isApuOilFilterClogged(this.failuresConsumer.isActive(A380Failure.ApuOilFilterClogging), this.apuAvail.get()),
+    );
 
     const readBoolVar = (name: string) => SimVar.GetSimVarValue(name, SimVarValueType.Bool) > 0;
 
@@ -6786,9 +6889,20 @@ export class FwsCore {
         SimVar.GetSimVarValue(`L:A32NX_SMOKE_${smokeZone.zone}_DET_FAULT`, SimVarValueType.Bool) > 0,
       );
     });
-    smokeWarnings(this.smokeZoneDetected.map((detected) => detected.get())).forEach((warning, index) =>
-      this.smokeZoneWarning[index].set(warning),
+    // SMOKE DET FAULT and the cargo smoke TEST pb held 3 s (SmokeAlerts)
+    this.smokeDetectionFunctionFault.set(
+      SimVar.GetSimVarValue('L:A32NX_SMOKE_DETECTION_FUNCTION_FAULT', SimVarValueType.Bool) > 0,
     );
+    this.ifecOff.set(SimVar.GetSimVarValue('L:A32NX_ENTERTAINMENT_IFEC_OFF', SimVarValueType.Bool) > 0);
+    const cargoSmokeTestActive = this.cargoSmokeTest.update(
+      SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_CARGO', SimVarValueType.Bool) > 0,
+      deltaTime,
+    );
+    smokeWarningsWithTest(
+      this.smokeZoneDetected.map((detected) => detected.get()),
+      cargoSmokeTestActive,
+      this.smokeDetectionFunctionFault.get(),
+    ).forEach((warning, index) => this.smokeZoneWarning[index].set(warning));
     this.cargoBottleLowPressure.forEach((lowPressure, index) =>
       lowPressure.set(
         SimVar.GetSimVarValue(`L:A32NX_CARGOSMOKE_BOTTLE_${index + 1}_LOW_PRESSURE`, SimVarValueType.Bool) > 0,

@@ -35,8 +35,11 @@ import {
 import {
   APU_FAULT_INOP_SYS,
   APU_FAULT_PHASE_INHIBITION,
+  APU_MACH_LIMIT_PHASE_INHIBITION,
+  APU_OIL_FILTER_CLOGGED_PHASE_INHIBITION,
   apuFaultItemsChecked,
   apuFaultItemsToShow,
+  apuMachLimitItemsChecked,
 } from './ApuFaultAlerts';
 import { elecDriveOilAbnormalItems } from './FwsElecDriveOilAlerts';
 import {
@@ -45,11 +48,24 @@ import {
   CARGO_BOTTLE_FAULT_PHASE_INHIBITION,
   cargoSmokeItemsChecked,
   cargoSmokeItemsToShow,
+  SDF_FAULT_ALERT,
+  SDF_FAULT_INOP_SYS,
+  SDF_FAULT_ITEMS_TO_SHOW,
+  SDF_FAULT_PHASE_INHIBITION,
+  sdfFaultItemsChecked,
   SMOKE_DET_FAULT_PHASE_INHIBITION,
   SMOKE_WARNING_PHASE_INHIBITION,
   SMOKE_ZONES,
   SmokeProcedureState,
 } from './SmokeAlerts';
+import {
+  CIDS_123_FAULT_INOP_SYS,
+  COM_ALERT_IDS,
+  COM_ALERT_PHASE_INHIBITION,
+  COM_DEGRADED_PHASE_INHIBITION,
+  DATALINK_FAULT_ITEMS_TO_SHOW,
+  VHF3_DATALINK_FAULT_INOP_SYS,
+} from './CommunicationAlerts';
 // FIXME should not import from instruments
 import {
   ProcedureLinesGenerator,
@@ -596,6 +612,109 @@ export class FwsAbnormalSensed {
         failure: 2,
         sysPage: SdPages.None,
         inopSysAllPhases: () => [CARGO_BOTTLE_FAULT_INOP_SYS[index]],
+      };
+    });
+    // SMOKE DET FAULT: the SDF is failed, SC and MASTER CAUT
+    alerts[SDF_FAULT_ALERT] = {
+      flightPhaseInhib: SDF_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.smokeDetectionFunctionFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [...SDF_FAULT_ITEMS_TO_SHOW],
+      whichItemsChecked: () =>
+        sdfFaultItemsChecked({
+          ifecOff: this.fws.ifecOff.get(),
+          fwdIsolValvesPbOn: this.fws.fwdIsolValvePbOn.get(),
+          bulkIsolValvesPbOn: this.fws.bulkIsolValvePbOn.get(),
+        }),
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => SDF_FAULT_INOP_SYS,
+    };
+    return alerts;
+  }
+
+  /**
+   * The ATA 23 CAB COM and COM alerts fed by the CIDS / PTT flyPad failures, the RMP transmission keys and VHF 3 (see
+   * CommunicationAlerts.ts for the conditions and the flight phase inhibitions)
+   */
+  private comAlerts(): EwdAbnormalDict {
+    const alerts: EwdAbnormalDict = {
+      [COM_ALERT_IDS.cids123Fault]: {
+        // CAB COM CIDS 1+2+3 FAULT: SC, MASTER CAUT, crew awareness
+        flightPhaseInhib: COM_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.cids123Fault,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 2,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => CIDS_123_FAULT_INOP_SYS,
+      },
+      [COM_ALERT_IDS.cidsCabinComFault]: {
+        // CAB COM CIDS CABIN COM FAULT: SC, MASTER CAUT, the lines and INOP SYS of the failed functions
+        flightPhaseInhib: COM_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.cidsCabinComFault,
+        notActiveWhenItemActive: [COM_ALERT_IDS.cids123Fault],
+        whichItemsToShow: () => this.fws.cidsAlertsState.cabinComFaultLines,
+        whichItemsChecked: () => [false, false, false, false],
+        failure: 2,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => this.fws.cidsAlertsState.cabinComFaultInopSys,
+      },
+      [COM_ALERT_IDS.comDegraded]: {
+        // CAB COM COM DEGRADED: no audio, no master light
+        flightPhaseInhib: COM_DEGRADED_PHASE_INHIBITION,
+        simVarIsActive: this.fws.cabComDegraded,
+        notActiveWhenItemActive: [COM_ALERT_IDS.cids123Fault],
+        whichItemsToShow: () => this.fws.cidsAlertsState.comDegradedLines,
+        whichItemsChecked: () => [false, false],
+        failure: 1,
+        sysPage: SdPages.None,
+      },
+      [COM_ALERT_IDS.datalinkFault]: {
+        // COM DATALINK FAULT, all data communication lost: no SC, no MASTER CAUT
+        flightPhaseInhib: COM_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.comDatalinkFault,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [...DATALINK_FAULT_ITEMS_TO_SHOW],
+        whichItemsChecked: () => [false, false, false],
+        failure: 1,
+        sysPage: SdPages.None,
+      },
+      [COM_ALERT_IDS.vhf3DatalinkFault]: {
+        // COM VHF 3 DATALINK FAULT: no audio, no master light, crew awareness
+        flightPhaseInhib: COM_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.vhf3DatalinkFault,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 1,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => VHF3_DATALINK_FAULT_INOP_SYS,
+      },
+    };
+    COM_ALERT_IDS.pttStuck.forEach((id, station) => {
+      // COM CAPT (F/O)(THIRD OCCUPANT) PTT STUCK: SC, MASTER CAUT, crew awareness
+      alerts[id] = {
+        flightPhaseInhib: COM_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.pttStuck[station],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 2,
+        sysPage: SdPages.None,
+      };
+    });
+    COM_ALERT_IDS.vhfEmitting.forEach((id, vhf) => {
+      // COM VHF 1(2)(3) EMITTING after 60 s: SC, MASTER CAUT, RMP TX KEY ... DESELECT
+      alerts[id] = {
+        flightPhaseInhib: COM_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.vhfEmitting[vhf],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [true],
+        whichItemsChecked: () => [!this.fws.rmpTransmissionKeys.some((keys) => keys.vhf[vhf])],
+        failure: 2,
+        sysPage: SdPages.None,
       };
     });
     return alerts;
@@ -2648,6 +2767,9 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     // ATA 23 - COMMUNICATION
+    // CAB COM CIDS 1+2+3 / CABIN COM FAULT, COM DEGRADED, PTT STUCK, DATALINK FAULT, VHF EMITTING and VHF 3 DATALINK
+    // FAULT (230800001-007, 022-025), see comAlerts()
+    ...this.comAlerts(),
     230800012: {
       // RMP 1 FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
@@ -6937,6 +7059,27 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => APU_FAULT_INOP_SYS,
       failure: 2,
       sysPage: SdPages.Apu,
+    },
+    490800002: {
+      // APU MACH LIMIT EXCEEDED (ApuFaultAlerts.ts): SC, master caution, APU SD page, INOP SYS APU
+      flightPhaseInhib: APU_MACH_LIMIT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.apuMachLimitExceeded,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => apuMachLimitItemsChecked(this.fws.apuMasterSwitch.get() > 0),
+      inopSysAllPhases: () => APU_FAULT_INOP_SYS,
+      failure: 2,
+      sysPage: SdPages.Apu,
+    },
+    490800003: {
+      // APU OIL FILTER CLOGGED (ApuFaultAlerts.ts): crew awareness, no audio, no master light
+      flightPhaseInhib: APU_OIL_FILTER_CLOGGED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.apuOilFilterClogged,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
     },
     // ATA 52 - DOORS
     520800008: {

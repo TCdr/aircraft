@@ -326,6 +326,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/TCAS] The TCAS goes to TA ONLY automatically during a windshear or stall warning and in emergency electrical configuration - @TCdr
 1. [A380X/FADEC] After a FLEX takeoff the thrust limit goes to CLB when the thrust levers rest in the CL detent, also when a lever sits a hair above it; before, it could stay on FLX and cap the climb thrust at the flex value in the upper part of the climb - @TCdr
 1. [A380X/FG] The autopilot disengages when the speed reaches 15 kt above VMO or Mach 0.04 above MMO; before, it stayed engaged at any overspeed - @TCdr
+1. [A380X/FWS] New CAB COM CIDS 1+2+3 FAULT, CIDS CABIN COM FAULT and COM DEGRADED alerts with their flyPad failures (CIDS 1/2/3, upper/main/lower deck PA, cabin interphone, PA and interphone degraded) - @TCdr
+1. [A380X/FWS] New COM CAPT (F/O)(THIRD OCCUPANT) PTT STUCK and VHF 1(2)(3) EMITTING alerts from new flyPad failures of the PTT switches, VHF 3 DATALINK FAULT on the VHF 3 failure, COM DATALINK FAULT when VHF 3 is failed or in voice mode, PA IN USE memo while a PA transmission key is on - @TCdr
+1. [A380X/FWS] New APU MACH LIMIT EXCEEDED caution (APU running above M 0.5) and APU OIL FILTER CLOGGED alert with its flyPad failure - @TCdr
+1. [A380X/FWS] New SMOKE DET FAULT caution with the flyPad failure of the smoke detection function (no smoke is then detected anywhere); the cargo smoke TEST pb held 3 s shows the cargo and avionics SMOKE warnings and lights the VENT AVNCS SMOKE light - @TCdr
 
 ## 2024.1.0
 

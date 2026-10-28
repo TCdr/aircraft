@@ -53,3 +53,44 @@ export function apuFaultItemsToShow(inputs: ApuFaultInputs): boolean[] {
 export function apuFaultItemsChecked(masterSwOn: boolean): boolean[] {
   return [false, !masterSwOn, false, !masterSwOn, false, false, false, !masterSwOn];
 }
+
+/** APU MACH LIMIT EXCEEDED: active in flight phase 8 only */
+export const APU_MACH_LIMIT_PHASE_INHIBITION = [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12];
+
+export const APU_OIL_FILTER_CLOGGED_PHASE_INHIBITION = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
+const APU_MACH_LIMIT = 0.5;
+
+/**
+ * APU MACH LIMIT EXCEEDED: the APU is running above M 0.5. SC, MASTER CAUT, APU SD page; STATUS INOP SYS ALL PHASES:
+ * APU.
+ * @param apuRunning the APU is running (its AVAIL indication)
+ * @param mach the Mach number of the ADR used by the FWS
+ * @returns whether the alert condition is true
+ */
+export function isApuMachLimitExceeded(apuRunning: boolean, mach: number): boolean {
+  return apuRunning && mach > APU_MACH_LIMIT;
+}
+
+/**
+ * The lines of APU MACH LIMIT EXCEEDED (ata46-49-52-56.ts 490800002): 0 IF APU NOT ABSOLUTELY RQRD,
+ * 1 APU MASTER SW OFF. Keeping the APU only with ENG ALL ENGs FLAME OUT is a crew note: both lines are always shown.
+ * @param masterSwOn the APU MASTER SW is ON
+ * @returns which lines are done
+ */
+export function apuMachLimitItemsChecked(masterSwOn: boolean): boolean[] {
+  return [false, !masterSwOn];
+}
+
+/**
+ * APU OIL FILTER CLOGGED: an APU oil filter clogging is impending, the APU is still available. Crew awareness, no
+ * audio and no master light. Fed by its flyPad failure (A380Failure.ApuOilFilterClogging).
+ * Design choice: the filter differential pressure exists only with oil flowing, so the alert shows while the APU runs.
+ * Not simulated: the automatic shutdown of a fully clogged filter.
+ * @param cloggingFailure the flyPad failure is active
+ * @param apuRunning the APU is running (its AVAIL indication)
+ * @returns whether the alert condition is true
+ */
+export function isApuOilFilterClogged(cloggingFailure: boolean, apuRunning: boolean): boolean {
+  return cloggingFailure && apuRunning;
+}

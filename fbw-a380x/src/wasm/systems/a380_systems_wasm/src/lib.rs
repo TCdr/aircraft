@@ -425,6 +425,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         ),
         (26_046, FailureType::CargoFireBottleLowPressure(1)),
         (26_047, FailureType::CargoFireBottleLowPressure(2)),
+        (26_048, FailureType::SmokeDetectionFunction),
         (
             26_049,
             FailureType::Smoke(SmokeDetectionZone::NetworkServerSystem),
