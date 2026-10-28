@@ -11,6 +11,7 @@ import {
   DisplayUnitID,
   displayUnitFailedVar,
   isDisplayUnitFaultTriggered,
+  isDisplayUnitNotMonitored,
   isDisplayUnitPowered,
 } from './CdsDisplayUnits';
 import { DcElectricalBus } from './electrical';
@@ -94,5 +95,38 @@ describe('CDS display units', () => {
     expect(isDisplayUnitFaultTriggered(true, false)).toBe(false);
     expect(isDisplayUnitFaultTriggered(false, true)).toBe(false);
     expect(isDisplayUnitFaultTriggered(false, false)).toBe(false);
+  });
+});
+
+describe('CDS ... DU NOT MONITORED', () => {
+  const operativeExcept =
+    (...failed: DisplayUnitID[]) =>
+    (du: DisplayUnitID) =>
+      !failed.includes(du);
+
+  it('keeps every DU monitored while the DUs of its loop work', () => {
+    for (const du of ALL_DISPLAY_UNITS) {
+      expect(isDisplayUnitNotMonitored(du, operativeExcept())).toBe(false);
+    }
+  });
+
+  it('keeps a DU monitored when the loops reconfigure around one or two failed DUs of its loop', () => {
+    expect(isDisplayUnitNotMonitored(DisplayUnitID.FoPfd, operativeExcept(DisplayUnitID.FoMfd))).toBe(false);
+    expect(
+      isDisplayUnitNotMonitored(DisplayUnitID.CaptPfd, operativeExcept(DisplayUnitID.CaptNd, DisplayUnitID.CaptMfd)),
+    ).toBe(false);
+  });
+
+  it('does not monitor the last working DU of a loop', () => {
+    const captLoopLost = [DisplayUnitID.CaptNd, DisplayUnitID.CaptMfd, DisplayUnitID.Ewd];
+    expect(isDisplayUnitNotMonitored(DisplayUnitID.CaptPfd, operativeExcept(...captLoopLost))).toBe(true);
+    const foLoopLost = [DisplayUnitID.FoPfd, DisplayUnitID.FoMfd, DisplayUnitID.Sd];
+    expect(isDisplayUnitNotMonitored(DisplayUnitID.FoNd, operativeExcept(...foLoopLost))).toBe(true);
+  });
+
+  it('keeps the other loop unaffected and raises nothing for a DU that is not working', () => {
+    const captLoopLost = [DisplayUnitID.CaptNd, DisplayUnitID.CaptMfd, DisplayUnitID.Ewd];
+    expect(isDisplayUnitNotMonitored(DisplayUnitID.FoPfd, operativeExcept(...captLoopLost))).toBe(false);
+    expect(isDisplayUnitNotMonitored(DisplayUnitID.CaptNd, operativeExcept(...captLoopLost))).toBe(false);
   });
 });

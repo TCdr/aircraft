@@ -6728,6 +6728,56 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
       redundLoss: () => ['310300003'],
     },
+    311800007: {
+      // CDS CAPT PFD DU NOT MONITORED, crew awareness
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitNotMonitored[DisplayUnitID.CaptPfd],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      notActiveWhenItemActive: [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    311800008: {
+      // CDS CAPT ND DU NOT MONITORED
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitNotMonitored[DisplayUnitID.CaptNd],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      notActiveWhenItemActive: [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    311800009: {
+      // CDS EWD DU NOT MONITORED
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitNotMonitored[DisplayUnitID.Ewd],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      notActiveWhenItemActive: [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    311800010: {
+      // CDS F/O PFD DU NOT MONITORED
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitNotMonitored[DisplayUnitID.FoPfd],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      notActiveWhenItemActive: [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    311800011: {
+      // CDS F/O ND DU NOT MONITORED
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitNotMonitored[DisplayUnitID.FoNd],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      notActiveWhenItemActive: [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
     311800013: {
       // CDS CAPT PFD DU FAULT: SC, MASTER CAUT. The INOP SYS of its STATUS are in FwsInopSys (310300005-011).
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
@@ -6927,6 +6977,26 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: showAllItems(313800006),
       whichItemsChecked: () => EcamAbnormalProcedures[313800006].items.map(() => false),
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    313800007: {
+      // CDS CAPT MAILBOX ACCESS FAULT, crew awareness
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.mailboxAccessFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    313800008: {
+      // CDS F/O MAILBOX ACCESS FAULT
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.mailboxAccessFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
       failure: 1,
       sysPage: SdPages.None,
     },

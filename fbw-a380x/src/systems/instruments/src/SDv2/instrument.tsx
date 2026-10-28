@@ -8,6 +8,7 @@ import {
   Subject,
 } from '@microsoft/msfs-sdk';
 import { ArincEventBus, FailuresConsumer, FmsDataPublisher } from '@flybywiresim/fbw-sdk';
+import { A380Failure } from '@failures';
 import { SD } from './SD';
 import { SDSimvarPublisher } from './SDSimvarPublisher';
 import { AdirsValueProvider } from '../MsfsAvionicsCommon/AdirsValueProvider';
@@ -85,7 +86,14 @@ class SdInstrument implements FsInstrument {
     const sdv2 = document.getElementById('SDv2_CONTENT');
 
     FSComponent.render(
-      <SD bus={this.bus} hostDisplayUnitId={this.hostDisplayUnit ?? undefined} mailboxActive={this.mailboxActive} />,
+      <SD
+        bus={this.bus}
+        hostDisplayUnitId={this.hostDisplayUnit ?? undefined}
+        mailboxActive={this.mailboxActive}
+        isMailboxAccessFailed={(side) =>
+          this.failuresConsumer.isActive(side === 'CAPT' ? A380Failure.CaptMailboxAccess : A380Failure.FoMailboxAccess)
+        }
+      />,
       document.getElementById('SDv2_CONTENT'),
     );
 

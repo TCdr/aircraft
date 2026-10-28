@@ -36,7 +36,7 @@ export class WdCpiomFailedFallbackChecklistComponent extends DestroyableComponen
                   display: 'block',
                 }}
               >
-                <FormattedFwcText x={10} y={24} message={'\x1b<4m\x1b4mFWS\x1bm FWS 1+2 & CPIOM FAULT'} />
+                <FormattedFwcText x={10} y={24} message={'\x1b<4m\x1b4mCDS\x1bm FWS 1+2 & CPIOM FAULT'} />
               </svg>
             </div>
           </div>

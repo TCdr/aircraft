@@ -593,6 +593,10 @@ export const A380Failure = Object.freeze({
   FoKccuCursorControl: 31403,
   FoKccuKeyboard: 31404,
   FoKccu: 31405,
+  // The access of the CAPT (F/O) cursor to the ATC mailbox on the SD (TS only, MsfsAvionicsCommon/AtcMailbox): the
+  // mailbox takes no input from that side and the FWS raises CDS CAPT (F/O) MAILBOX ACCESS FAULT
+  CaptMailboxAccess: 31410,
+  FoMailboxAccess: 31411,
   // The recorders (TS only, read by the FWS, see FwsRecorderAlerts): RECORDER CVR / DFDR / ACCELMTR / SYS FAULT
   CockpitVoiceRecorder: 31500,
   FlightDataRecorder: 31501,
@@ -1722,6 +1726,8 @@ const failureDefinitionsAta21To33: FailureDefinition[] = [
   [31, A380Failure.FoKccuCursorControl, 'F/O KCCU cursor control device'],
   [31, A380Failure.FoKccuKeyboard, 'F/O KCCU keyboard'],
   [31, A380Failure.FoKccu, 'F/O KCCU (cursor control and keyboard)'],
+  [31, A380Failure.CaptMailboxAccess, 'CAPT access to the ATC mailbox'],
+  [31, A380Failure.FoMailboxAccess, 'F/O access to the ATC mailbox'],
   [31, A380Failure.CockpitVoiceRecorder, 'Cockpit voice recorder (CVR)'],
   [31, A380Failure.FlightDataRecorder, 'Digital flight data recorder (DFDR)'],
   [31, A380Failure.FlightDataRecorderAccelerometer, 'DFDR accelerometer'],

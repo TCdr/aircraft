@@ -38,6 +38,8 @@ export interface SDProps {
    * but only one at a time answers the flight crew and publishes to the ATC function.
    */
   readonly mailboxActive: Subscribable<boolean>;
+  /** Whether the access of the CAPT or F/O cursor to the mailbox is failed (flyPad ATA 31) */
+  readonly isMailboxAccessFailed?: (side: 'CAPT' | 'FO') => boolean;
 }
 
 export interface SdPageProps extends ComponentProps {
@@ -126,6 +128,7 @@ export class SD extends DestroyableComponent<SDProps> {
         <AtcMailbox
           bus={this.props.bus}
           active={this.props.mailboxActive}
+          isAccessFailed={this.props.isMailboxAccessFailed}
           cursorSide={this.props.hostDisplayUnitId === DisplayUnitID.FoNd ? 'FO' : 'CAPT'}
         />
       </CdsDisplayUnit>
