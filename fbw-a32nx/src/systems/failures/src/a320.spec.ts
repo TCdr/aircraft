@@ -654,6 +654,116 @@ describe('A320 flyPad failures', () => {
     expect(failureList).toContain('StabilizerElecControl = 27022,');
   });
 
+  // The FWC alerts of these failures: F/CTL SPD BRK 2 (3+4) FAULT, SPD BRK FAULT, GND SPLR 5 / 1+2 / 3+4 FAULT
+  it('lists the speed brake lever and ground spoiler failures in ATA 27 with the code that consumes them', () => {
+    const definition = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(definition(A320Failure.SpeedBrakeLeverSec1)).toEqual([27, 27023, 'Speed brake lever transducers SEC 1']);
+    expect(definition(A320Failure.SpeedBrakeLeverSec3)).toEqual([27, 27024, 'Speed brake lever transducers SEC 3']);
+    expect(definition(A320Failure.GroundSpoilerFunctionSec1)).toEqual([27, 27025, 'SEC 1 ground spoiler function']);
+    expect(definition(A320Failure.GroundSpoilerFunctionSec2)).toEqual([27, 27026, 'SEC 2 ground spoiler function']);
+    expect(definition(A320Failure.GroundSpoilerFunctionSec3)).toEqual([27, 27027, 'SEC 3 ground spoiler function']);
+    const failureList = readFileSync(resolve(__dirname, '../../../wasm/fbw_a320/src/failures/FailureList.h'), 'utf8');
+    for (const entry of [
+      'SpeedBrakeLeverSec1 = 27023,',
+      'SpeedBrakeLeverSec3 = 27024,',
+      'GroundSpoilerFunctionSec1 = 27025,',
+      'GroundSpoilerFunctionSec2 = 27026,',
+      'GroundSpoilerFunctionSec3 = 27027,',
+    ]) {
+      expect(failureList).toContain(entry);
+    }
+  });
+
+  // The FWC alerts of these failures: BRAKES RELEASED, BRAKES ALTN L(R) RELEASED, BRAKES-N/WS MINOR FAULT and
+  // L/G SHOCK ABSORBER FAULT
+  it('lists the brake release, steering pedal and shock absorber failures in ATA 32 with their Rust failure', () => {
+    const expected: [number, number, string, string][] = [
+      [
+        A320Failure.MainWheel1BrakeReleased,
+        32230,
+        'Main wheel 1 brake released (left outer)',
+        'MainWheelBrakeReleased(1)',
+      ],
+      [
+        A320Failure.MainWheel2BrakeReleased,
+        32231,
+        'Main wheel 2 brake released (left inner)',
+        'MainWheelBrakeReleased(2)',
+      ],
+      [
+        A320Failure.MainWheel3BrakeReleased,
+        32232,
+        'Main wheel 3 brake released (right inner)',
+        'MainWheelBrakeReleased(3)',
+      ],
+      [
+        A320Failure.MainWheel4BrakeReleased,
+        32233,
+        'Main wheel 4 brake released (right outer)',
+        'MainWheelBrakeReleased(4)',
+      ],
+      [
+        A320Failure.AlternateBrakeLeftReleased,
+        32240,
+        'Alternate braking left gear released',
+        'AlternateGearBrakeReleased(1)',
+      ],
+      [
+        A320Failure.AlternateBrakeRightReleased,
+        32241,
+        'Alternate braking right gear released',
+        'AlternateGearBrakeReleased(2)',
+      ],
+      [
+        A320Failure.NoseWheelSteeringPedalOrders,
+        32250,
+        'Nose wheel steering rudder pedal orders',
+        'NoseWheelSteeringPedalOrders',
+      ],
+      [
+        A320Failure.LeftShockAbsorberStuckExtended,
+        32260,
+        'Main left gear shock absorber detectors stuck extended',
+        'ShockAbsorberStuckExtended(1)',
+      ],
+      [
+        A320Failure.RightShockAbsorberStuckExtended,
+        32261,
+        'Main right gear shock absorber detectors stuck extended',
+        'ShockAbsorberStuckExtended(2)',
+      ],
+      [
+        A320Failure.NoseShockAbsorberStuckExtended,
+        32262,
+        'Nose gear shock absorber detectors stuck extended',
+        'ShockAbsorberStuckExtended(3)',
+      ],
+      [
+        A320Failure.LeftShockAbsorberStuckCompressed,
+        32263,
+        'Main left gear shock absorber detectors stuck compressed',
+        'ShockAbsorberStuckCompressed(1)',
+      ],
+      [
+        A320Failure.RightShockAbsorberStuckCompressed,
+        32264,
+        'Main right gear shock absorber detectors stuck compressed',
+        'ShockAbsorberStuckCompressed(2)',
+      ],
+      [
+        A320Failure.NoseShockAbsorberStuckCompressed,
+        32265,
+        'Nose gear shock absorber detectors stuck compressed',
+        'ShockAbsorberStuckCompressed(3)',
+      ],
+    ];
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    for (const [id, number, name, rustFailure] of expected) {
+      expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([32, number, name]);
+      expect(wasm).toContain(`(32_${String(number).slice(2)}, FailureType::${rustFailure}),`);
+    }
+  });
+
   // The FWC alerts of these failures: AIR PACK 1(2) OVHT and REGUL FAULT, SMOKE LAVATORY SMOKE / DET FAULT and SMOKE DET
   // FAULT, WING A.ICE L(R) VALVE OPEN and OPEN ON GND, L/G GEAR UPLOCK FAULT, BRAKES PARK BRK FAULT
   it('lists the pack, smoke detection, wing anti-ice, uplock and parking brake failures with their Rust failure', () => {

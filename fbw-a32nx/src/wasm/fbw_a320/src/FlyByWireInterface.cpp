@@ -1699,6 +1699,13 @@ bool FlyByWireInterface::updateSec(double sampleTime, int secIndex) {
       powerSupplyAvailable = idElecDcBus2Powered->get();
     }
 
+    // Only SEC 1 and SEC 3 have speed brake surfaces (spoilers 3+4 and 2), SEC 2 drives spoiler 5 for the ground function only
+    secs[secIndex].speedBrakeLeverTransducersFailed =
+        (secIndex == 0 && failuresConsumer.isActive(Failures::SpeedBrakeLeverSec1)) ||
+        (secIndex == 2 && failuresConsumer.isActive(Failures::SpeedBrakeLeverSec3));
+    secs[secIndex].groundSpoilerFunctionFailed = failuresConsumer.isActive(
+        secIndex == 0 ? Failures::GroundSpoilerFunctionSec1
+                      : (secIndex == 1 ? Failures::GroundSpoilerFunctionSec2 : Failures::GroundSpoilerFunctionSec3));
     Failures failureIndex = secIndex == 0 ? Failures::Sec1 : (secIndex == 1 ? Failures::Sec2 : Failures::Sec3);
     secs[secIndex].update(sampleTime, simData.simulationTime, failuresConsumer.isActive(failureIndex), powerSupplyAvailable);
 

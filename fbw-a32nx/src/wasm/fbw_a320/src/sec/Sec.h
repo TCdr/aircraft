@@ -29,6 +29,11 @@ class Sec {
 
   SecComputer::ExternalInputs_SecComputer_T modelInputs = {};
 
+  // flyPad failures: the speed brake lever transducers (the SEC reads a retracted lever and sends its lever word invalid) and the
+  // ground spoiler function (no ground spoilers, no reverse signal, fault bit to the FCDC)
+  bool speedBrakeLeverTransducersFailed = false;
+  bool groundSpoilerFunctionFailed = false;
+
  private:
   void initSelfTests();
 

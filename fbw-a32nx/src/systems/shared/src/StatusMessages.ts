@@ -351,6 +351,10 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   // F/CTL L (R) SIDESTICK FAULT, see FWC/Logic/SidestickStabilizerAlerts
   ['270300032', { part: StatusPart.InopSys, text: 'L SIDESTICK' }],
   ['270300033', { part: StatusPart.InopSys, text: 'R SIDESTICK' }],
+  // GND SPLR 5 FAULT, GND SPLR 1+2 / 3+4 FAULT and GND SPLR FAULT
+  ['270300040', { part: StatusPart.InopSys, text: 'GND SPLR 1+2' }],
+  ['270300041', { part: StatusPart.InopSys, text: 'GND SPLR 3+4' }],
+  ['270300042', { part: StatusPart.InopSys, text: 'GND SPLR 5' }],
   // 22 AUTO FLIGHT (YAW DAMPER / RUD TRIM / RUD TRV LIM SYS, before AP 1+2 as on the aircraft, see
   // FWC/Logic/FacActuatorAlerts)
   ['220300004', { part: StatusPart.InopSys, text: 'YAW DAMPER' }],
@@ -488,6 +492,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['300300031', { part: StatusPart.InopSys, text: 'R WNDW HEAT' }],
   // L/G DOORS NOT CLOSED
   ['320300001', { part: StatusPart.InopSys, text: 'L/G DOOR' }],
+  // BRAKES ALTN L(R) RELEASED
+  ['320300002', { part: StatusPart.InopSys, text: 'ALTN L BRK' }],
+  ['320300003', { part: StatusPart.InopSys, text: 'ALTN R BRK' }],
   // 36 PNEUMATIC (LEAK DET FAULT, APU BLEED LEAK, BLEED MONIT SYS 1(2) FAULT, BLEED MONITORING FAULT), see
   // FWC/Logic/BleedLeakMonitoringAlerts
   ['360300101', { part: StatusPart.InopSys, text: 'ENG 1 LK DET' }],

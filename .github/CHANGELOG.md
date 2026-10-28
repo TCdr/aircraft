@@ -940,6 +940,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [FMS] Hold IMMEDIATE EXIT selected during the hold entry leaves the hold at the hold fix instead of flying a further pattern - @TCdr
 1. [EFB/Presets] Make loading aircraft presets reliable, including with expedited loading: the loading mode stays fixed during a load, each step waits for the result of the one before, and a load that cannot continue stops instead of hanging - @TCdr
 1. [A380X/Presets] Ready for taxi and Ready for takeoff now set XPDR to AUTO and TCAS to TA/RA, the EFIS WX, TERR and TRAF buttons (WX captain, TERR first officer), and the Ready for pushback preset switches the external power off - @TCdr
+1. [A32NX/FWS] Add the F/CTL GND SPLR 5 FAULT, GND SPLR 1+2 FAULT, GND SPLR 3+4 FAULT, GND SPLR FAULT, SPD BRK 2 FAULT, SPD BRK 3+4 FAULT and SPD BRK FAULT alerts, with flyPad failures for the SEC ground spoiler function and the speed brake lever transducers; a lost SEC ground spoiler function also stops that SEC reverser signal (reverser 1 listens to SEC 1 and 2, reverser 2 to SEC 1 and 3) - @TCdr
+1. [A32NX/FWS] Add the BRAKES RELEASED, BRAKES ALTN L(R) RELEASED, BRAKES-N/WS MINOR FAULT and L/G SHOCK ABSORBER FAULT alerts, with flyPad failures for a released wheel or gear brake, the BSCU rudder pedal steering orders and the shock absorber proximity detectors - @TCdr
 
 ## 2024.1.0
 

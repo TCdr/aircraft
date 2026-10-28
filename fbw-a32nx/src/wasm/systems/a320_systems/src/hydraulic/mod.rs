@@ -1012,6 +1012,7 @@ impl A320Hydraulic {
             context,
             &self.braking_circuit_norm,
             &self.braking_circuit_altn,
+            self.brake_steer_computer.control_units(),
             engine1,
             engine2,
         );
@@ -2769,6 +2770,7 @@ impl A320HydraulicBrakeSteerComputerUnit {
             .update(context, is_in_flight_gear_lever_up);
 
         if is_in_flight_gear_lever_up {
+            self.control_units.set_braking_mode_in_use(false, false);
             // The BSCU brakes the wheels in flight with the gear lever up
             if self.should_disable_auto_brake_when_retracting.output()
                 || !self.control_units.bscu_operative()
@@ -2784,6 +2786,12 @@ impl A320HydraulicBrakeSteerComputerUnit {
         } else {
             let green_used_for_brakes =
                 self.normal_braking_operative() && !self.parking_brake_demand;
+            self.control_units.set_braking_mode_in_use(
+                green_used_for_brakes,
+                !green_used_for_brakes
+                    && !self.parking_brake_demand
+                    && self.control_units.alternate_braking_available(),
+            );
 
             if green_used_for_brakes {
                 // Final output on normal brakes is max(pilot demand , autobrake demand) to allow pilot override autobrake demand
@@ -2857,7 +2865,11 @@ impl A320HydraulicBrakeSteerComputerUnit {
             self.autopilot_nosewheel_demand.get::<ratio>() * Self::AUTOPILOT_STEERING_INPUT_GAIN,
         );
 
-        let steer_angle_from_pedals = if self.tiller_pedal_disconnect {
+        let steer_angle_from_pedals = if self.tiller_pedal_disconnect
+            || !self
+                .control_units
+                .nose_wheel_steering_pedal_orders_available()
+        {
             Angle::new::<degree>(0.)
         } else {
             self.pedal_input_map
@@ -2901,6 +2913,10 @@ impl A320HydraulicBrakeSteerComputerUnit {
         } else {
             Angle::new::<degree>(0.)
         };
+    }
+
+    fn control_units(&self) -> &A320BrakeControlUnits {
+        &self.control_units
     }
 
     fn norm_controller(&self) -> &impl BrakeCircuitController {
@@ -3067,18 +3083,29 @@ impl A320BrakingForce {
         context: &UpdateContext,
         norm_brakes: &BrakeCircuit,
         altn_brakes: &BrakeCircuit,
+        control_units: &A320BrakeControlUnits,
         engine1: &impl Engine,
         engine2: &impl Engine,
     ) {
         // Base formula for output force is output_force[0:1] = (current_pressure / Max_brake_pressure) ^ FORCE_CURVE_EXPONENT
         // See FORCE_CURVE_EXPONENT for why this isn't pure linear (exponent 1.0).
 
-        let left_force_norm = Self::pressure_to_force_ratio(norm_brakes.left_brake_pressure());
-        let left_force_altn = Self::pressure_to_force_ratio(altn_brakes.left_brake_pressure());
+        // A released wheel brake takes its share (half of its gear) out of the normal braking force, a released gear
+        // takes all of the alternate braking force of its side
+        let left_force_norm = Self::pressure_to_force_ratio(norm_brakes.left_brake_pressure())
+            * (control_units.normal_wheel_brake_factor(0)
+                + control_units.normal_wheel_brake_factor(1))
+            / 2.;
+        let left_force_altn = Self::pressure_to_force_ratio(altn_brakes.left_brake_pressure())
+            * control_units.alternate_gear_brake_factor(0);
         self.left_braking_force = (left_force_norm + left_force_altn).clamp(0., 1.);
 
-        let right_force_norm = Self::pressure_to_force_ratio(norm_brakes.right_brake_pressure());
-        let right_force_altn = Self::pressure_to_force_ratio(altn_brakes.right_brake_pressure());
+        let right_force_norm = Self::pressure_to_force_ratio(norm_brakes.right_brake_pressure())
+            * (control_units.normal_wheel_brake_factor(2)
+                + control_units.normal_wheel_brake_factor(3))
+            / 2.;
+        let right_force_altn = Self::pressure_to_force_ratio(altn_brakes.right_brake_pressure())
+            * control_units.alternate_gear_brake_factor(1);
         self.right_braking_force = (right_force_norm + right_force_altn).clamp(0., 1.);
 
         self.correct_with_flaps_state(context);
@@ -4825,6 +4852,9 @@ struct A320ReverserController {
     /// the signal from at least one SEC.
     sec_reverse_selected_ids: [VariableIdentifier; 3],
     sec_reverse_selected: [bool; 3],
+    /// The SECs this reverser listens to: reverser 1 needs SEC 1 or SEC 2, reverser 2 SEC 1 or SEC 3 (a loss of SEC 1+2
+    /// makes reverser 1 unavailable, SEC 1+3 reverser 2).
+    sec_reverse_listens_to: [bool; 3],
 
     state: ReverserControlState,
 
@@ -4856,6 +4886,7 @@ impl A320ReverserController {
                 ))
             }),
             sec_reverse_selected: [false; 3],
+            sec_reverse_listens_to: [true, engine_number == 1, engine_number == 2],
             state: ReverserControlState::StowedOff,
 
             tertiary_lock_from_sec_should_unlock: DelayedFalseLogicGate::new(Duration::from_secs(
@@ -4904,7 +4935,11 @@ impl A320ReverserController {
             && !self.fault.is_active()
             && !self.deployment_inhibited;
 
-        let sec_reverse_selected = self.sec_reverse_selected.iter().any(|selected| *selected);
+        let sec_reverse_selected = self
+            .sec_reverse_selected
+            .iter()
+            .zip(&self.sec_reverse_listens_to)
+            .any(|(selected, listens)| *selected && *listens);
 
         let allow_power_to_valves = self.throttle_lever_angle.get::<degree>() <= -3.8
             && sec_reverse_selected
@@ -10035,6 +10070,91 @@ mod tests {
         }
 
         #[test]
+        // BRAKES RELEASED: the brake of one wheel is released with the normal braking active, half of the force of its side
+        fn released_wheel_brake_halves_the_normal_braking_force_of_its_side() {
+            let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
+            let left_force: f64 = test_bed.read_by_name("BRAKE LEFT FORCE FACTOR");
+            let right_force: f64 = test_bed.read_by_name("BRAKE RIGHT FORCE FACTOR");
+            assert!(!brake_flag(&mut test_bed, "BRAKES_WHEEL_RELEASED"));
+            assert_gt!(left_force, 0.5);
+
+            test_bed.fail(FailureType::MainWheelBrakeReleased(1));
+            test_bed = test_bed.run_one_tick();
+
+            assert!(brake_flag(&mut test_bed, "BRAKES_WHEEL_RELEASED"));
+            let released_left_force: f64 = test_bed.read_by_name("BRAKE LEFT FORCE FACTOR");
+            let released_right_force: f64 = test_bed.read_by_name("BRAKE RIGHT FORCE FACTOR");
+            assert!((released_left_force - left_force / 2.).abs() < 0.02);
+            assert!((released_right_force - right_force).abs() < 0.02);
+        }
+
+        #[test]
+        // BRAKES ALTN L(R) RELEASED: all the wheels of one gear lose the alternate braking, the other gear brakes
+        fn released_gear_brakes_lose_the_alternate_braking_force_of_their_side() {
+            let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
+            test_bed.fail(FailureType::BrakeNormalBraking);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(5));
+            let right_force: f64 = test_bed.read_by_name("BRAKE RIGHT FORCE FACTOR");
+            assert!(!brake_flag(&mut test_bed, "BRAKES_ALTN_L_RELEASED"));
+            assert_gt!(right_force, 0.3);
+
+            test_bed.fail(FailureType::AlternateGearBrakeReleased(1));
+            test_bed = test_bed.run_one_tick();
+
+            assert!(brake_flag(&mut test_bed, "BRAKES_ALTN_L_RELEASED"));
+            assert!(!brake_flag(&mut test_bed, "BRAKES_ALTN_R_RELEASED"));
+            assert!(!brake_flag(&mut test_bed, "BRAKES_WHEEL_RELEASED"));
+            let left_force: f64 = test_bed.read_by_name("BRAKE LEFT FORCE FACTOR");
+            assert!((left_force - 0.).abs() < 0.01);
+            let right_force_after: f64 = test_bed.read_by_name("BRAKE RIGHT FORCE FACTOR");
+            assert!((right_force_after - right_force).abs() < 0.05);
+        }
+
+        #[test]
+        // BRAKES-N/WS MINOR FAULT: the BSCU loses the rudder pedal orders, the tiller still steers
+        fn nose_steering_pedal_orders_failure_is_a_minor_fault_and_leaves_the_tiller() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .set_yellow_e_pump(false)
+                .start_eng1(Ratio::new::<percent>(80.))
+                .start_eng2(Ratio::new::<percent>(80.))
+                .run_one_tick();
+            assert!(!brake_flag(&mut test_bed, "BRAKES_NW_STRG_MINOR_FAULT"));
+
+            test_bed.fail(FailureType::NoseWheelSteeringPedalOrders);
+            test_bed = test_bed
+                .set_tiller_demand(Ratio::new::<ratio>(1.))
+                .run_waiting_for(Duration::from_secs_f64(5.));
+
+            assert!(brake_flag(&mut test_bed, "BRAKES_NW_STRG_MINOR_FAULT"));
+            assert!(!brake_flag(&mut test_bed, "BRAKES_NW_STRG_FAULT"));
+            assert_gt!(test_bed.nose_steering_position().get::<degree>(), 10.);
+        }
+
+        #[test]
+        // Reverser 1 needs SEC 1 or SEC 2, reverser 2 SEC 1 or SEC 3 (loss of SEC 1+2 / 1+3 in the FCOM)
+        fn reverser_listens_to_its_two_secs_only() {
+            let mut test_bed = test_bed_in_flight_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .start_eng1(Ratio::new::<percent>(60.))
+                .start_eng2(Ratio::new::<percent>(60.))
+                .run_waiting_for(Duration::from_secs_f64(10.));
+
+            test_bed = test_bed
+                .eng1_throttle_reverse_full()
+                .eng2_throttle_reverse_full()
+                .only_sec_gives_the_reverse_signal(1, 3)
+                .only_sec_gives_the_reverse_signal(2, 2)
+                .run_waiting_for(Duration::from_secs_f64(5.));
+
+            assert_lt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.01);
+            assert_lt!(test_bed.get_reverser_2_position().get::<ratio>(), 0.01);
+        }
+
+        #[test]
         // WHEEL HYD SEL FAULT triggers when the brake normal selector valve has failed
         fn brake_normal_selector_valve_failure_is_reported_by_the_bscu() {
             let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
@@ -12766,7 +12886,7 @@ mod tests {
 
             test_bed = test_bed
                 .eng1_throttle_reverse_full()
-                .only_sec_gives_the_reverse_signal(1, 3)
+                .only_sec_gives_the_reverse_signal(1, 2)
                 .run_waiting_for(Duration::from_secs_f64(3.));
 
             assert_gt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.99);

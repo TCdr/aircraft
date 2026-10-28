@@ -28,4 +28,10 @@ enum class Failures {
   SidestickPriorityLogic = 27021,
   // The electrical control of the THS (its electric motors): the ELACs and SECs see a THS motor fault
   StabilizerElecControl = 27022,
+  // The speed brake lever transducers of SEC 1 and SEC 3, and the ground spoiler function of each SEC
+  SpeedBrakeLeverSec1 = 27023,
+  SpeedBrakeLeverSec3 = 27024,
+  GroundSpoilerFunctionSec1 = 27025,
+  GroundSpoilerFunctionSec2 = 27026,
+  GroundSpoilerFunctionSec3 = 27027,
 };

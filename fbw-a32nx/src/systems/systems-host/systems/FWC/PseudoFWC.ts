@@ -1435,6 +1435,26 @@ export class PseudoFWC {
 
   private readonly spoilerFault = Subject.create(false);
 
+  private readonly sec1GroundSpoilerLost = Subject.create(false);
+
+  private readonly sec2GroundSpoilerLost = Subject.create(false);
+
+  private readonly sec3GroundSpoilerLost = Subject.create(false);
+
+  private readonly gndSplr5Fault = Subject.create(false);
+
+  private readonly gndSplr12Fault = Subject.create(false);
+
+  private readonly gndSplr34Fault = Subject.create(false);
+
+  private readonly gndSplrFault = Subject.create(false);
+
+  private readonly spdBrk2Fault = Subject.create(false);
+
+  private readonly spdBrk34Fault = Subject.create(false);
+
+  private readonly spdBrkFault = Subject.create(false);
+
   private readonly sec1FaultCondition = Subject.create(false);
 
   private readonly sec2FaultCondition = Subject.create(false);
@@ -1906,6 +1926,28 @@ export class PseudoFWC {
     nwStrgFault: Subject.create(false),
     hydSelFault: Subject.create(false),
   };
+
+  private readonly brakesReleased = Subject.create(false);
+
+  private readonly brakesAltnLeftReleased = Subject.create(false);
+
+  private readonly brakesAltnRightReleased = Subject.create(false);
+
+  private readonly brakesNwsMinorFault = Subject.create(false);
+
+  /** A shock absorber is not compressed after landing (phases 9 and 10, the nose gear is down below 80 kt) */
+  private readonly shockAbsorberExtendedOnGround = Subject.create(false);
+
+  private readonly shockAbsorberExtendedOnGroundConfirm = new NXLogicConfirmNode(3, true);
+
+  /** A shock absorber is still compressed after liftoff (phases 5 to 7) */
+  private readonly shockAbsorberCompressedInFlight = Subject.create(false);
+
+  private readonly shockAbsorberCompressedInFlightConfirm = new NXLogicConfirmNode(3, true);
+
+  private readonly shockAbsorberGearNotUplocked = Subject.create(false);
+
+  private readonly shockAbsorberGearLeverUp = Subject.create(false);
 
   /** The yellow hydraulic system is in low pressure (BRAKES A/SKID N/WS STATUS "If Y SYS LO PR") */
   private brakeYellowLowPressure = false;
@@ -4320,6 +4362,48 @@ export class PseudoFWC {
       (onGroundCount > 1 && eitherRaInvalid);
     const onGround = this.onGroundConf.write(this.onGroundImmediate, deltaTime);
     this.aircraftOnGround.set(onGround);
+
+    // BRAKES RELEASED, BRAKES ALTN L(R) RELEASED: the brake mode in use is known by the BSCU, the gear must be downlocked
+    // with an engine running
+    const brakeReleaseDetectable =
+      this.lgDownlocked.get() && (this.engine1CoreAtOrAboveMinIdle.get() || this.engine2CoreAtOrAboveMinIdle.get());
+    this.brakesReleased.set(brakeReleaseDetectable && isSet('L:A32NX_BRAKES_WHEEL_RELEASED'));
+    this.brakesAltnLeftReleased.set(brakeReleaseDetectable && isSet('L:A32NX_BRAKES_ALTN_L_RELEASED'));
+    this.brakesAltnRightReleased.set(brakeReleaseDetectable && isSet('L:A32NX_BRAKES_ALTN_R_RELEASED'));
+    // BRAKES-N/WS MINOR FAULT, not with the WHEEL N/W STRG FAULT that already tells the loss of the steering
+    this.brakesNwsMinorFault.set(
+      isSet('L:A32NX_BRAKES_NW_STRG_MINOR_FAULT') && !this.brakeSystemAlerts.nwStrgFault.get(),
+    );
+
+    // L/G SHOCK ABSORBER FAULT, from the shock absorber proximity detectors of the valid LGCIUs
+    const lgciuShockAbsorberWords = [this.lgciu1DiscreteWord2, this.lgciu2DiscreteWord2].filter((word) =>
+      word.isNormalOperation(),
+    );
+    const flightPhaseForShockAbsorbers = this.fwcFlightPhase.get();
+    const mainShockAbsorberExtended = lgciuShockAbsorberWords.some((word) => !word.bitValue(13) || !word.bitValue(14));
+    const noseShockAbsorberExtended = lgciuShockAbsorberWords.some((word) => !word.bitValue(12));
+    const anyShockAbsorberCompressed = lgciuShockAbsorberWords.some(
+      (word) => word.bitValue(12) || word.bitValue(13) || word.bitValue(14),
+    );
+    this.shockAbsorberExtendedOnGroundConfirm.write(
+      (flightPhaseForShockAbsorbers === 9 || flightPhaseForShockAbsorbers === 10) &&
+        (mainShockAbsorberExtended || noseShockAbsorberExtended),
+      deltaTime,
+    );
+    this.shockAbsorberExtendedOnGround.set(this.shockAbsorberExtendedOnGroundConfirm.read());
+    this.shockAbsorberCompressedInFlightConfirm.write(
+      flightPhaseForShockAbsorbers >= 5 && flightPhaseForShockAbsorbers <= 7 && anyShockAbsorberCompressed,
+      deltaTime,
+    );
+    this.shockAbsorberCompressedInFlight.set(this.shockAbsorberCompressedInFlightConfirm.read());
+    this.shockAbsorberGearNotUplocked.set(
+      [this.lgciu1DiscreteWord3, this.lgciu2DiscreteWord3].some(
+        (word) => word.isNormalOperation() && (word.bitValue(11) || word.bitValue(12) || word.bitValue(13)),
+      ),
+    );
+    this.shockAbsorberGearLeverUp.set(
+      this.lgciu1DiscreteWord3.bitValueOr(14, false) || this.lgciu2DiscreteWord3.bitValueOr(14, false),
+    );
     this.autoCallouts.update(deltaTime);
     // DUAL INPUT and PRIORITY LEFT/RIGHT voices, from the FCDC
     const sidestickInputs = readSidestickPriorityInputs(
@@ -5457,6 +5541,20 @@ export class PseudoFWC {
       (sec1GroundSpoilerFault || sec1SpeedbrakeLeverFault) &&
       (sec2GroundSpoilerFault || sec2SpeedbrakeLeverFault) &&
       (sec3GroundSpoilerFault || sec3SpeedbrakeLeverFault);
+
+    // GND SPLR 5 / 1+2 / 3+4 FAULT: the ground spoiler function is lost in SEC 2 / 3 / 1 alone, GND SPLR FAULT in two or three
+    const lostGroundSpoilerSecs = countTrue(sec1GroundSpoilerFault, sec2GroundSpoilerFault, sec3GroundSpoilerFault);
+    this.sec1GroundSpoilerLost.set(sec1GroundSpoilerFault);
+    this.sec2GroundSpoilerLost.set(sec2GroundSpoilerFault);
+    this.sec3GroundSpoilerLost.set(sec3GroundSpoilerFault);
+    this.gndSplrFault.set(lostGroundSpoilerSecs >= 2);
+    this.gndSplr5Fault.set(sec2GroundSpoilerFault && lostGroundSpoilerSecs === 1);
+    this.gndSplr12Fault.set(sec3GroundSpoilerFault && lostGroundSpoilerSecs === 1);
+    this.gndSplr34Fault.set(sec1GroundSpoilerFault && lostGroundSpoilerSecs === 1);
+    // SPD BRK 2 (3+4) FAULT: the speed brake lever transducers to SEC 3 (1) failed, SPD BRK FAULT: to SEC 1 and 3
+    this.spdBrkFault.set(sec1SpeedbrakeLeverFault && sec3SpeedbrakeLeverFault);
+    this.spdBrk2Fault.set(sec3SpeedbrakeLeverFault && !sec1SpeedbrakeLeverFault);
+    this.spdBrk34Fault.set(sec1SpeedbrakeLeverFault && !sec3SpeedbrakeLeverFault);
 
     this.spoilersArmed.set(fcdc1DiscreteWord4.bitValueOr(27, false) || fcdc2DiscreteWord4.bitValueOr(27, false));
     this.speedBrakeCommand.set(fcdc1DiscreteWord4.bitValueOr(28, false) || fcdc2DiscreteWord4.bitValueOr(28, false));
@@ -10146,6 +10244,98 @@ export class PseudoFWC {
       inopSys: () => FctlStatus.spoilerFaultStatus(this.fctlSurfaces.spoilerFaults).inopSys,
       statusInfo: () => FctlStatus.spoilerFaultStatus(this.fctlSurfaces.spoilerFaults).left,
     },
+    // Design choice for GND SPLR and SPD BRK FAULT: the flight phase inhibition of the takeoff phases, as the SEC alerts
+    2701250: {
+      // GND SPLR 5 FAULT, crew awareness (level 1)
+      flightPhaseInhib: [3, 4, 5],
+      simVarIsActive: this.gndSplr5Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270125001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['270300042'],
+      statusInfo: () => ['270400011'],
+    },
+    2701260: {
+      // GND SPLR 1+2 FAULT, crew awareness (level 1)
+      flightPhaseInhib: [3, 4, 5],
+      simVarIsActive: this.gndSplr12Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270126001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['270300040'],
+      statusInfo: () => ['270400011'],
+    },
+    2701270: {
+      // GND SPLR 3+4 FAULT, crew awareness (level 1)
+      flightPhaseInhib: [3, 4, 5],
+      simVarIsActive: this.gndSplr34Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270127001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['270300041'],
+      statusInfo: () => ['270400011'],
+    },
+    2701280: {
+      // GND SPLR FAULT (the function is lost in two or three SECs), crew awareness (level 1)
+      flightPhaseInhib: [3, 4, 5],
+      simVarIsActive: this.gndSplrFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270128001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => [
+        ...(this.sec3GroundSpoilerLost.get() ? ['270300040'] : []),
+        ...(this.sec1GroundSpoilerLost.get() ? ['270300041'] : []),
+        ...(this.sec2GroundSpoilerLost.get() ? ['270300042'] : []),
+      ],
+      statusInfo: () => ['270400011'],
+    },
+    2701290: {
+      // SPD BRK 2 FAULT, crew awareness (level 1)
+      flightPhaseInhib: [3, 4, 5],
+      simVarIsActive: this.spdBrk2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270129001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    2701300: {
+      // SPD BRK 3+4 FAULT, crew awareness (level 1)
+      flightPhaseInhib: [3, 4, 5],
+      simVarIsActive: this.spdBrk34Fault,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['270130001', '270130002'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      statusInfo: () => ['270400004'],
+    },
+    2701310: {
+      // SPD BRK FAULT, crew awareness (level 1); STEEP APPR is an option the A32NX does not have
+      flightPhaseInhib: [3, 4, 5],
+      simVarIsActive: this.spdBrkFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270131001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      statusInfo: () => ['270400004'],
+    },
     // F/CTL FLAP(SLAT) SYS 1(2) FAULT, crew awareness (level 1), see Logic/SlatFlapChannelAlerts
     2701110: {
       // FLAP SYS 1 FAULT
@@ -11074,6 +11264,88 @@ export class PseudoFWC {
       side: 'LEFT',
       statusInfo: () => Brakes.NW_STRG_FAULT_STATUS.left,
       inopSys: () => Brakes.NW_STRG_FAULT_STATUS.inopSys,
+    },
+    3200540: {
+      // BRAKES RELEASED, crew awareness (level 1). Design choice for the flight phase inhibition: the ground phases
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8],
+      simVarIsActive: this.brakesReleased,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320054001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['240300128', '290300033'],
+      statusInfo: () => ['290400017', '240200102'],
+    },
+    3200550: {
+      // BRAKES ALTN L RELEASED, the alternate braking is only in use with the normal braking lost
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8],
+      simVarIsActive: this.brakesAltnLeftReleased,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['320055001', '320055002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      inopSys: () => ['320300002'],
+      statusInfo: () => ['290400017'],
+    },
+    3200560: {
+      // BRAKES ALTN R RELEASED
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8],
+      simVarIsActive: this.brakesAltnRightReleased,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['320056001', '320056002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      inopSys: () => ['320300003'],
+      statusInfo: () => ['290400017'],
+    },
+    3200570: {
+      // BRAKES-N/WS MINOR FAULT, crew awareness (level 1), no STATUS
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakesNwsMinorFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320057001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    3200520: {
+      // L/G SHOCK ABSORBER FAULT (SHOCK ABSORBER EXTENDED ON GROUND), crew awareness (level 1)
+      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 8],
+      simVarIsActive: this.shockAbsorberExtendedOnGround,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320052001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    3200530: {
+      // L/G SHOCK ABSORBER FAULT (SHOCK ABSORBER NOT EXTENDED AFTER LIFTOFF), the procedure is for the gear not uplocked
+      flightPhaseInhib: [1, 2, 3, 4, 8, 9, 10],
+      simVarIsActive: this.shockAbsorberCompressedInFlight,
+      whichCodeToReturn: () => [
+        0,
+        this.shockAbsorberGearNotUplocked.get() ? 1 : null,
+        this.shockAbsorberGearNotUplocked.get() && !this.shockAbsorberGearLeverUp.get() ? 2 : null,
+        this.shockAbsorberGearNotUplocked.get() && this.shockAbsorberGearLeverUp.get() ? 3 : null,
+        this.shockAbsorberGearNotUplocked.get() ? 4 : null,
+        this.shockAbsorberGearNotUplocked.get() ? 5 : null,
+      ],
+      codesToReturn: ['320053001', '320053002', '320053003', '320053004', '320053005', '320053006'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      inopSys: () => (this.shockAbsorberGearNotUplocked.get() ? ['290300036'] : []),
+      statusInfo: () =>
+        this.shockAbsorberGearNotUplocked.get() ? ['320400001', '320400091', '290400018', '290400019'] : [],
     },
     3200480: {
       // WHEEL HYD SEL FAULT, no STATUS

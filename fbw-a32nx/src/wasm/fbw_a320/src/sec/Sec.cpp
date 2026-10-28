@@ -1,6 +1,7 @@
 #include "Sec.h"
 #include <iostream>
 #include "../Arinc429Utils.h"
+#include "../failures/FlightControlFailureInputs.h"
 
 Sec::Sec(bool isUnit1, bool isUnit3) : isUnit1(isUnit1), isUnit3(isUnit3) {
   secComputer.initialize();
@@ -33,7 +34,16 @@ void Sec::update(double deltaTime, double simulationTime, bool faultActive, bool
   updateSelfTest(deltaTime);
   monitorSelf(faultActive);
 
-  secComputer.setExternalInputs(&modelInputs);
+  auto inputs = modelInputs;
+  inputs.in.analog_inputs.spd_brk_lever_pos =
+      speedBrakeLeverSeenBySec(inputs.in.analog_inputs.spd_brk_lever_pos, speedBrakeLeverTransducersFailed);
+  inputs.in.analog_inputs.spd_brk_lever_pos =
+      leverWithoutGroundArming(inputs.in.analog_inputs.spd_brk_lever_pos, groundSpoilerFunctionFailed);
+  inputs.in.analog_inputs.thr_lever_1_pos =
+      thrustLeverWithoutGroundSpoilers(inputs.in.analog_inputs.thr_lever_1_pos, groundSpoilerFunctionFailed);
+  inputs.in.analog_inputs.thr_lever_2_pos =
+      thrustLeverWithoutGroundSpoilers(inputs.in.analog_inputs.thr_lever_2_pos, groundSpoilerFunctionFailed);
+  secComputer.setExternalInputs(&inputs);
   secComputer.step();
   modelOutputs = secComputer.getExternalOutputs().out;
 }
@@ -146,6 +156,15 @@ base_sec_out_bus Sec::getBusOutputs() {
 
   output = modelOutputs.bus_outputs;
 
+  // The FCDC reads the lever availability from the SSM of the lever word and the lost ground spoiler function from bit 24 of
+  // the discrete word 1 (the generated model sets neither)
+  if (speedBrakeLeverTransducersFailed) {
+    output.speed_brake_lever_command_deg.SSM = Arinc429SignStatus::FailureWarning;
+  }
+  if (groundSpoilerFunctionFailed) {
+    Arinc429Utils::setBit(output.discrete_status_word_1, 24, true);
+  }
+
   return output;
 }
 
@@ -171,7 +190,7 @@ base_sec_discrete_outputs Sec::getDiscreteOutputs() {
 }
 
 bool Sec::isThrustReverseSelected(int engineIndex) const {
-  if (!monitoringHealthy) {
+  if (!monitoringHealthy || groundSpoilerFunctionFailed) {
     return false;
   }
 

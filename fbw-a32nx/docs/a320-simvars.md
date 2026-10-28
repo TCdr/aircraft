@@ -5611,6 +5611,23 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
       BSCU channels are lost
     - Read-Only
 
+- A32NX_BRAKES_WHEEL_RELEASED
+    - Bool
+    - The brake of a main wheel is released (flyPad failure) while the normal braking is in use (BRAKES RELEASED)
+    - Read-Only
+
+- A32NX_BRAKES_ALTN_{side}_RELEASED
+    - Bool
+    - The brakes of the left (L) or right (R) main gear are released (flyPad failure) while the alternate braking is in
+      use (BRAKES ALTN L(R) RELEASED)
+    - Read-Only
+
+- A32NX_BRAKES_NW_STRG_MINOR_FAULT
+    - Bool
+    - The BSCU lost the rudder pedal steering orders (flyPad failure, BRAKES-N/WS MINOR FAULT); the hand wheel still
+      steers
+    - Read-Only
+
 - A32NX_TPIS_MAIN_{number}_TYRE_PRESSURE / A32NX_TPIS_NOSE_{number}_TYRE_PRESSURE
     - Arinc429<PSI>
     - The tyre pressure (gauge) measured by the tyre pressure indicating system (TPIS), the source of the SD WHEEL page

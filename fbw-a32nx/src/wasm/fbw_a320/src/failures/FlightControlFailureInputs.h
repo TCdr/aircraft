@@ -33,3 +33,28 @@ inline SidestickPositions sidestickPositions(double simPitch, double simRoll, bo
 inline bool priorityTakeoverPressed(bool takeoverPbPressed, bool priorityLogicFailed) {
   return takeoverPbPressed && !priorityLogicFailed;
 }
+
+// The SEC speed brake lever and ground spoiler function under the flyPad failures of the lever transducers and of the
+// ground spoiler function (Failures::SpeedBrakeLeverSec1, SpeedBrakeLeverSec3, GroundSpoilerFunctionSec1..3).
+
+/// A SEC whose speed brake lever transducers have failed reads a retracted lever: no speed brake and no ground spoiler
+/// arming from that SEC (the ground spoilers then extend only with the reverse selection).
+inline double speedBrakeLeverSeenBySec(double leverPosition, bool transducersFailed) {
+  return transducersFailed ? 0 : leverPosition;
+}
+
+/// Design choice: a forward thrust lever angle between idle and the climb detent. The ground spoiler logic of the SEC
+/// extends the spoilers with the levers at idle or in reverse; read at this angle it never does, while the speed brake
+/// logic (which retracts the speed brakes at high thrust) sees no change.
+inline constexpr double groundSpoilerBlockingThrustLeverDeg = 20;
+
+/// A SEC that lost its ground spoiler function is never armed by the lever and never sees the thrust levers at idle
+/// or in reverse; its roll and speed brake functions work.
+inline double leverWithoutGroundArming(double leverPosition, bool groundFunctionLost) {
+  return groundFunctionLost && leverPosition < 0 ? 0 : leverPosition;
+}
+
+inline double thrustLeverWithoutGroundSpoilers(double thrustLeverAngle, bool groundFunctionLost) {
+  return groundFunctionLost && thrustLeverAngle < groundSpoilerBlockingThrustLeverDeg ? groundSpoilerBlockingThrustLeverDeg
+                                                                                      : thrustLeverAngle;
+}

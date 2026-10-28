@@ -159,6 +159,15 @@ export const A320Failure = Object.freeze({
   SidestickPriorityLogic: 27021,
   // The electrical control of the THS: the ELACs and SECs see a THS motor fault, F/CTL STABILIZER JAM
   StabilizerElecControl: 27022,
+  // The speed brake lever transducers a SEC reads (fbw_a320 failures/FlightControlFailureInputs.h): the SEC sees a
+  // retracted, disarmed lever. SEC 3 drives spoiler 2, SEC 1 spoilers 3 and 4: F/CTL SPD BRK 2 (3+4) FAULT, SPD BRK FAULT
+  SpeedBrakeLeverSec1: 27023,
+  SpeedBrakeLeverSec3: 27024,
+  // The ground spoiler function of a SEC is lost, its roll and speed brake functions stay: F/CTL GND SPLR 5 FAULT (SEC 2),
+  // GND SPLR 1+2 (SEC 3) and 3+4 (SEC 1) FAULT
+  GroundSpoilerFunctionSec1: 27025,
+  GroundSpoilerFunctionSec2: 27026,
+  GroundSpoilerFunctionSec3: 27027,
 
   // ATA 28 (systems-host Fuel/FuelPumpsAndValves): a pump failure holds the MSFS pump switch off, the X FEED valve jam
   // holds the MSFS valve switch where the valve was, while the pb-sw selections still change
@@ -270,6 +279,25 @@ export const A320Failure = Object.freeze({
   NoseWheelSteering: 32205,
   BrakeNormalSelectorValve: 32210,
   ParkingBrakeValveJammed: 32220,
+  // The brake of one main wheel no longer applies with the normal braking (a320_systems hydraulic/mod.rs
+  // A320BrakingForce), wheels 1-4 left to right: BRAKES RELEASED
+  MainWheel1BrakeReleased: 32230,
+  MainWheel2BrakeReleased: 32231,
+  MainWheel3BrakeReleased: 32232,
+  MainWheel4BrakeReleased: 32233,
+  // The brakes of one main gear no longer apply with the alternate braking: BRAKES ALTN L(R) RELEASED
+  AlternateBrakeLeftReleased: 32240,
+  AlternateBrakeRightReleased: 32241,
+  // The BSCU loses the rudder pedal steering orders, the hand wheel works: BRAKES-N/WS MINOR FAULT
+  NoseWheelSteeringPedalOrders: 32250,
+  // The proximity detectors of a shock absorber (both LGCIUs) read it extended on the ground / compressed in the air
+  // (fbw-common landing_gear/mod.rs): L/G SHOCK ABSORBER FAULT
+  LeftShockAbsorberStuckExtended: 32260,
+  RightShockAbsorberStuckExtended: 32261,
+  NoseShockAbsorberStuckExtended: 32262,
+  LeftShockAbsorberStuckCompressed: 32263,
+  RightShockAbsorberStuckCompressed: 32264,
+  NoseShockAbsorberStuckCompressed: 32265,
   // The tyre pressure indicating system (a320_systems tyre_pressure.rs): main wheels 1-4 left to right, nose L and R
   MainTyre1Deflated: 32300,
   MainTyre2Deflated: 32301,
@@ -668,6 +696,11 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [27, A320Failure.FoSidestick, 'F/O sidestick transducers'],
   [27, A320Failure.SidestickPriorityLogic, 'Sidestick priority logic'],
   [27, A320Failure.StabilizerElecControl, 'Stabilizer electrical control'],
+  [27, A320Failure.SpeedBrakeLeverSec1, 'Speed brake lever transducers SEC 1'],
+  [27, A320Failure.SpeedBrakeLeverSec3, 'Speed brake lever transducers SEC 3'],
+  [27, A320Failure.GroundSpoilerFunctionSec1, 'SEC 1 ground spoiler function'],
+  [27, A320Failure.GroundSpoilerFunctionSec2, 'SEC 2 ground spoiler function'],
+  [27, A320Failure.GroundSpoilerFunctionSec3, 'SEC 3 ground spoiler function'],
 
   [28, A320Failure.LeftTankPump1, 'L TK pump 1'],
   [28, A320Failure.LeftTankPump2, 'L TK pump 2'],
@@ -761,6 +794,19 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [32, A320Failure.NoseWheelSteering, 'Nose wheel steering'],
   [32, A320Failure.BrakeNormalSelectorValve, 'Brake normal selector valve failed open'],
   [32, A320Failure.ParkingBrakeValveJammed, 'Parking brake valve jammed'],
+  [32, A320Failure.MainWheel1BrakeReleased, 'Main wheel 1 brake released (left outer)'],
+  [32, A320Failure.MainWheel2BrakeReleased, 'Main wheel 2 brake released (left inner)'],
+  [32, A320Failure.MainWheel3BrakeReleased, 'Main wheel 3 brake released (right inner)'],
+  [32, A320Failure.MainWheel4BrakeReleased, 'Main wheel 4 brake released (right outer)'],
+  [32, A320Failure.AlternateBrakeLeftReleased, 'Alternate braking left gear released'],
+  [32, A320Failure.AlternateBrakeRightReleased, 'Alternate braking right gear released'],
+  [32, A320Failure.NoseWheelSteeringPedalOrders, 'Nose wheel steering rudder pedal orders'],
+  [32, A320Failure.LeftShockAbsorberStuckExtended, 'Main left gear shock absorber detectors stuck extended'],
+  [32, A320Failure.RightShockAbsorberStuckExtended, 'Main right gear shock absorber detectors stuck extended'],
+  [32, A320Failure.NoseShockAbsorberStuckExtended, 'Nose gear shock absorber detectors stuck extended'],
+  [32, A320Failure.LeftShockAbsorberStuckCompressed, 'Main left gear shock absorber detectors stuck compressed'],
+  [32, A320Failure.RightShockAbsorberStuckCompressed, 'Main right gear shock absorber detectors stuck compressed'],
+  [32, A320Failure.NoseShockAbsorberStuckCompressed, 'Nose gear shock absorber detectors stuck compressed'],
   [32, A320Failure.MainTyre1Deflated, 'Main wheel 1 tyre slow leak (left outer)'],
   [32, A320Failure.MainTyre2Deflated, 'Main wheel 2 tyre slow leak (left inner)'],
   [32, A320Failure.MainTyre3Deflated, 'Main wheel 3 tyre slow leak (right inner)'],
