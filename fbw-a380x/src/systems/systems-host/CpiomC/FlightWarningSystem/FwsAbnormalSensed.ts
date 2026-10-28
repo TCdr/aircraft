@@ -5968,6 +5968,66 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Hyd,
       notActiveWhenItemActive: [],
     },
+    290800013: {
+      // G FUEL HEAT EXCHANGER VLV FAULT
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydFuelHeatExchangerValveFault[0],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Fctl,
+      notActiveWhenItemActive: [],
+    },
+    290800014: {
+      // Y FUEL HEAT EXCHANGER VLV FAULT
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydFuelHeatExchangerValveFault[1],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Fctl,
+      notActiveWhenItemActive: [],
+    },
+    290800015: {
+      // G HEAT EXCHANGER AIR LEAK
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydHeatExchangerAirLeak[0],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Hyd,
+      notActiveWhenItemActive: [],
+    },
+    290800016: {
+      // Y HEAT EXCHANGER AIR LEAK
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydHeatExchangerAirLeak[1],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Hyd,
+      notActiveWhenItemActive: [],
+    },
+    290800017: {
+      // G HEAT EXCHANGER AIR LEAK DET FAULT
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydHeatExchangerAirLeakDetFault[0],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Hyd,
+      notActiveWhenItemActive: [],
+    },
+    290800018: {
+      // Y HEAT EXCHANGER AIR LEAK DET FAULT
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydHeatExchangerAirLeakDetFault[1],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Hyd,
+      notActiveWhenItemActive: [],
+    },
     290800019: {
       // G RSVR AIR PRESS LO
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
@@ -6053,10 +6113,90 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Hyd,
       notActiveWhenItemActive: [],
     },
+    290800023: {
+      // G SYS CHAN A OVHT DET FAULT
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydOverheatDetChannelFault[0],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      notActiveWhenItemActive: [],
+    },
+    290800024: {
+      // G SYS CHAN B OVHT DET FAULT
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydOverheatDetChannelFault[1],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      notActiveWhenItemActive: [],
+    },
+    290800025: {
+      // Y SYS CHAN A OVHT DET FAULT
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydOverheatDetChannelFault[2],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      notActiveWhenItemActive: [],
+    },
+    290800026: {
+      // Y SYS CHAN B OVHT DET FAULT
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydOverheatDetChannelFault[3],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      notActiveWhenItemActive: [],
+    },
+    290800027: {
+      // G SYS COOLING FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydSysCoolingFault[0],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      notActiveWhenItemActive: [],
+    },
+    290800028: {
+      // Y SYS COOLING FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydSysCoolingFault[1],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      notActiveWhenItemActive: [],
+    },
+    290800029: {
+      // G SYS MONITORING FAULT
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydSysMonitoringFault[0],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      notActiveWhenItemActive: [],
+    },
+    290800030: {
+      // Y SYS MONITORING FAULT
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydSysMonitoringFault[1],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      notActiveWhenItemActive: [],
+    },
     290800031: {
       // G SYS OVHT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
-      simVarIsActive: this.fws.greenRsvOverheat,
+      simVarIsActive: this.fws.hydSysOvht[0],
       whichItemsToShow: () => [
         this.fws.engine1Running.get(),
         this.fws.engine2Running.get(),
@@ -6075,12 +6215,13 @@ export class FwsAbnormalSensed {
       ],
       failure: 2,
       sysPage: SdPages.Hyd,
-      notActiveWhenItemActive: [],
+      // SYS TEMP EXCESS HI covers the overheat
+      notActiveWhenItemActive: ['290800037'],
     },
     290800032: {
       // Y SYS OVHT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
-      simVarIsActive: this.fws.yellowRsvOverheat,
+      simVarIsActive: this.fws.hydSysOvht[1],
       whichItemsToShow: () => [
         this.fws.engine3Running.get(),
         this.fws.engine4Running.get(),
@@ -6098,6 +6239,27 @@ export class FwsAbnormalSensed {
       ],
       failure: 2,
       sysPage: SdPages.Hyd,
+      // SYS TEMP EXCESS HI covers the overheat
+      notActiveWhenItemActive: ['290800038'],
+    },
+    290800033: {
+      // G SYS OVHT DET FAULT
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydOverheatDetFault[0],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      notActiveWhenItemActive: [],
+    },
+    290800034: {
+      // Y SYS OVHT DET FAULT
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydOverheatDetFault[1],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
       notActiveWhenItemActive: [],
     },
     290800035: {
@@ -6157,6 +6319,50 @@ export class FwsAbnormalSensed {
       inopSysApprLdg: () => ['290100004', '320300007', '320300024', '220300028'],
       notActiveWhenItemActive: ['290800039'],
       sysPage: SdPages.Hyd,
+    },
+    290800037: {
+      // G SYS TEMP EXCESS HI
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydSysTempExcessHi[0],
+      whichItemsToShow: () => [
+        this.fws.engine1Running.get(),
+        this.fws.engine2Running.get(),
+        true,
+        true,
+        this.fws.enginesOffAndOnGroundSignal.read(),
+      ],
+      whichItemsChecked: () => [
+        !this.fws.eng1APumpAuto.get() && !this.fws.eng1BPumpAuto.get(),
+        !this.fws.eng2APumpAuto.get() && !this.fws.eng2BPumpAuto.get(),
+        this.fws.eng1PumpDisc.get(),
+        this.fws.eng2PumpDisc.get(),
+        !this.fws.greenAPumpAuto.get() && !this.fws.greenBPumpAuto.get(),
+      ],
+      failure: 2,
+      sysPage: SdPages.Hyd,
+      notActiveWhenItemActive: [],
+    },
+    290800038: {
+      // Y SYS TEMP EXCESS HI
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.hydSysTempExcessHi[1],
+      whichItemsToShow: () => [
+        this.fws.engine3Running.get(),
+        this.fws.engine4Running.get(),
+        true,
+        true,
+        this.fws.enginesOffAndOnGroundSignal.read(),
+      ],
+      whichItemsChecked: () => [
+        !this.fws.eng3APumpAuto.get() && !this.fws.eng3BPumpAuto.get(),
+        !this.fws.eng4APumpAuto.get() && !this.fws.eng4BPumpAuto.get(),
+        this.fws.eng3PumpDisc.get(),
+        this.fws.eng4PumpDisc.get(),
+        !this.fws.yellowAPumpAuto.get() && !this.fws.yellowBPumpAuto.get(),
+      ],
+      failure: 2,
+      sysPage: SdPages.Hyd,
+      notActiveWhenItemActive: [],
     },
     290800039: {
       // G + Y SYS LO PRESS

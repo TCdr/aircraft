@@ -1072,9 +1072,26 @@
         - BLUE
         - YELLOW
 
+- A32NX_HYD_{loop_name}_RESERVOIR_TEMP_EXCESS
+    - Boolean
+    - Fluid of the {loop_name} reservoir is damaged by a long overheat (written by the shared hydraulic model, not read
+      by the A32NX)
+    - {loop_name}
+        - GREEN
+        - BLUE
+        - YELLOW
+
 - A32NX_HYD_{loop_name}_EDPUMP_ACTIVE
     - Bool
     - Engine driven pump of {loop_name} hydraulic circuit is active
+    - {loop_name}
+        - GREEN
+        - YELLOW
+
+- A32NX_HYD_{loop_name}_EDPUMP_TEMP_EXCESS
+    - Bool
+    - Engine driven pump of {loop_name} hydraulic circuit is damaged by a long overheat (written by the shared hydraulic
+      model, not read by the A32NX)
     - {loop_name}
         - GREEN
         - YELLOW

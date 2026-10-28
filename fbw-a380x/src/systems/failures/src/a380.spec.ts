@@ -149,6 +149,17 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
+  it('lists the HSMU, heat exchanger and overheat detection failures of both hydraulic systems in ATA 29 for the FWS only', () => {
+    const rustMap = readRustFailureMap();
+    const ids = Array.from({ length: 14 }, (_, index) => 29020 + index);
+    const nameOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(ids.map((id) => [rustMap.has(id), nameOf(id)?.[0]])).toEqual(ids.map(() => [false, 29]));
+    expect(nameOf(29020)?.[2]).toBe('Green HSMU');
+    expect(nameOf(29025)?.[2]).toBe('Yellow fuel/hydraulic heat exchanger valve');
+    expect(nameOf(29031)?.[2]).toBe('Green overheat detection channel B');
+  });
+
   it('lists the wing and engine anti-ice valve failures in ATA 30 with the Rust failures of ice_rain_protection.rs', () => {
     const rustMap = readRustFailureMap();
     const expected: [number, string, string][] = [

@@ -10723,6 +10723,31 @@ mod tests {
             assert!(overheat);
         }
 
+        /// The engine pump heat damage (case drain above 140 °C) is written for the FWS (HYD SYS TEMP EXCESS HI): it
+        /// follows the overheat only after the pump has stayed hot for minutes
+        #[test]
+        fn engine_pump_temperature_excess_is_written_after_a_long_overheat() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(5));
+
+            test_bed.fail(FailureType::EnginePumpOverheat(
+                AirbusEngineDrivenPumpId::Edp1a,
+            ));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(60));
+            let overheat: bool = test_bed.read_by_name("HYD_GREEN_1A_EDPUMP_OVHT");
+            let temp_excess: bool = test_bed.read_by_name("HYD_GREEN_1A_EDPUMP_TEMP_EXCESS");
+            assert!(overheat);
+            assert!(!temp_excess);
+
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(180));
+            let temp_excess: bool = test_bed.read_by_name("HYD_GREEN_1A_EDPUMP_TEMP_EXCESS");
+            assert!(temp_excess);
+        }
+
         #[test]
         fn auto_brake_at_gear_retraction() {
             let mut test_bed = test_bed_on_ground_with()
