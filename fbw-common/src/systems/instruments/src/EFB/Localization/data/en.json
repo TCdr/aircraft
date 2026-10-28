@@ -259,7 +259,6 @@
       "FlightTime": "$time flight",
       "ImportNextOfp": "Import next OFP",
       "ImportOfp": "Import SimBrief OFP",
-      "LoadPreset": "Load preset",
       "LocalTime": "Local time",
       "NoOfp": "No OFP",
       "NoOfpDetail": "Route, T/C, T/D and plan values need a SimBrief OFP.",
