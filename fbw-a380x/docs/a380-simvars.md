@@ -3927,6 +3927,18 @@ point n: 0-9 MAIN 1L, 1R ... 5L, 5R, 10-15 UPPER 1L, 1R ... 3L, 3R.
       120 C" term of HYD G (Y) SYS OVHT (FCOM PRO-ABN)
     - {SYSTEM}_{PUMP} = GREEN_1A, GREEN_1B, GREEN_2A, GREEN_2B, YELLOW_3A, YELLOW_3B, YELLOW_4A, YELLOW_4B
 
+- A32NX_HYD_{SYSTEM}_{PUMP}_EDPUMP_TEMP_EXCESS
+    - Boolean
+    - The engine driven pump {PUMP} stayed overheated until it was damaged. The FWS reads it as the "engine pump case
+      drain temperature is above 140 C" term of HYD G (Y) SYS TEMP EXCESS HI
+    - {SYSTEM}_{PUMP} = GREEN_1A, GREEN_1B, GREEN_2A, GREEN_2B, YELLOW_3A, YELLOW_3B, YELLOW_4A, YELLOW_4B
+
+- A32NX_HYD_{SYSTEM}_RESERVOIR_TEMP_EXCESS
+    - Boolean
+    - The {SYSTEM} reservoir stayed overheated until its fluid was damaged. The FWS reads it as the "reservoir
+      temperature is above 130 C" term of HYD G (Y) SYS TEMP EXCESS HI
+    - {SYSTEM} = GREEN, YELLOW
+
 - A32NX_HYD_{SYSTEM}_PUMP_{N}_SECTION_PRESSURE_SWITCH
     - Boolean
     - Pressure switch of the pump section {N}: 1 to 4 the engine pumps (not pressurised below 2 500 PSI, ENG PMP PRESS

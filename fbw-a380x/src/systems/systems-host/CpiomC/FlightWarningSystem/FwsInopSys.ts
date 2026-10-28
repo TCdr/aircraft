@@ -638,6 +638,31 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,
     },
+    // HYD G(Y) SYS CHAN A or B OVHT DET FAULT (REDUND LOSS), SYS MONITORING FAULT (HSMU) and SYS OVHT DET FAULT
+    290300013: {
+      simVarIsActive: this.fws.hydOverheatDetChannelFault[0],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300014: {
+      simVarIsActive: this.fws.hydOverheatDetChannelFault[1],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300015: {
+      simVarIsActive: this.fws.hydOverheatDetChannelFault[2],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300016: {
+      simVarIsActive: this.fws.hydOverheatDetChannelFault[3],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300017: { simVarIsActive: this.fws.hydSysMonitoringFault[0], phase: FwsInopSysPhases.AllPhases },
+    290300018: { simVarIsActive: this.fws.hydSysMonitoringFault[1], phase: FwsInopSysPhases.AllPhases },
+    290300019: { simVarIsActive: this.fws.hydOverheatDetFault[0], phase: FwsInopSysPhases.AllPhases },
+    290300020: { simVarIsActive: this.fws.hydOverheatDetFault[1], phase: FwsInopSysPhases.AllPhases },
     310300002: {
       // FWS 1
       simVarIsActive: this.fws.fws1Failed,
