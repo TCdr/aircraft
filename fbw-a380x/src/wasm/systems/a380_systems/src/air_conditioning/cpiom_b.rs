@@ -1908,6 +1908,10 @@ impl CpiomBInterfaceUnit {
             .set_bit(21, avionics_ventilation.cooling_protection_fault());
         self.discrete_word_avs
             .set_bit(22, avionics_ventilation.ths_bay_ventilation_fault());
+        self.discrete_word_avs
+            .set_bit(23, avionics_ventilation.circuit_on_backup(0));
+        self.discrete_word_avs
+            .set_bit(24, avionics_ventilation.circuit_on_backup(1));
     }
 }
 

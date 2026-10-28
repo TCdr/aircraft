@@ -47,6 +47,9 @@ export const AVS_BITS = {
   coolingSystem2Overheat: 20,
   coolingProtectionFault: 21,
   thsBayVentilationFault: 22,
+  /** The left / right circuit lost its blowing air and runs on its backup valve */
+  leftCircuitOnBackup: 23,
+  rightCircuitOnBackup: 24,
 } as const;
 
 /**

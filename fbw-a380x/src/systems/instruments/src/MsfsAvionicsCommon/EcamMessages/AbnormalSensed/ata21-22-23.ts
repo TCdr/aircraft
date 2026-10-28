@@ -809,6 +809,11 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
       },
     ],
   },
+  212800029: {
+    title: '\x1b<4m\x1b4mVENT\x1bm AVNCS BLOWING DEGRADED',
+    sensed: true,
+    items: [],
+  },
   212800018: {
     title: '\x1b<4m\x1b4mVENT\x1bm AVNCS OVBD VLV FAULT',
     sensed: true,

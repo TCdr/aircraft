@@ -208,6 +208,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (21_111, FailureType::SupplementalCoolingProtection(1)),
         (21_112, FailureType::SupplementalCoolingProtection(2)),
         (21_113, FailureType::ThsBayBlowingFan),
+        (21_114, FailureType::AvionicsBlowingFilterClogged(1)),
+        (21_115, FailureType::AvionicsBlowingFilterClogged(2)),
         (24_000, FailureType::TransformerRectifier(1)),
         (24_001, FailureType::TransformerRectifier(2)),
         (24_002, FailureType::TransformerRectifier(3)),

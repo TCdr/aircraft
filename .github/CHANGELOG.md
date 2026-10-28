@@ -772,6 +772,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ND] The terrain alerts now show TERR AHEAD on the NDs (amber caution, red warning), TERR: CHANGE MODE in PLAN and TERR: REDUCE RANGE at 160/320 NM, and the threatening terrain in solid yellow, solid red or a red/black crosshatch for AVOID TERRAIN - @TCdr
 1. [A32NX/GPWS] Add the predictive obstacle alerts in the United States from the FAA obstacle file: OBSTACLE AHEAD (caution), OBSTACLE AHEAD PULL UP and AVOID OBSTACLE (warnings), with OBST AHEAD and the obstacle areas on the NDs - @TCdr
 1. [A32NX/GPWS] The predictive terrain and obstacle warnings now say AVOID TERRAIN and AVOID OBSTACLE in the GPWS voice instead of PULL UP, each word said once after the other with no overlap - @TCdr
+1. [A380X/FWS] Add the VENT AVNCS BLOWING DEGRADED alert (both avionics ventilation circuits on their backup valves) with flyPad failures for the clogged left and right blowing filters - @TCdr
 1. [A32NX/ND] Obstacles shown in the terrain picture (TERR ON ND), US obstacle data - @TCdr
 1. [A380X/FWS] Add the avionics ventilation alerts COND AVNCS VENT CTL FAULT, VENT AVNCS BLOWING FAULT, EXTRACT FAULT, L(R) BLOWING FAULT and OVBD VLV FAULT, VENT COOLG SYS 1(2) OVHT, VENT COOLG SYS PROT FAULT and VENT THS BAY VENT FAULT, with flyPad failures for the blowing fans and backup valves, the extraction fan, the extract and overboard valves, the controller, the supplemental cooling systems and the THS bay fan; the EXTRACT pb-sw FAULT light now works - @TCdr
 

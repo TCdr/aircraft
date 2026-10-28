@@ -845,6 +845,11 @@ export class FwsCore {
 
   public readonly avncsRightCircuitNotVentilated = Subject.create(false);
 
+  /** The left / right avionics ventilation circuit runs on its backup valve (AVS discrete word bits 23 and 24) */
+  public readonly avncsLeftCircuitOnBackup = Subject.create(false);
+
+  public readonly avncsRightCircuitOnBackup = Subject.create(false);
+
   /** VENT AVNCS EXTRACT FAULT condition (AVS discrete word bit 15) */
   public readonly avncsExtractFault = Subject.create(false);
 
@@ -6198,6 +6203,8 @@ export class FwsCore {
       this.cpiomBAvsAppDiscreteWords[3];
     this.avncsLeftCircuitNotVentilated.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.leftCircuitNotVentilated, false));
     this.avncsRightCircuitNotVentilated.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.rightCircuitNotVentilated, false));
+    this.avncsLeftCircuitOnBackup.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.leftCircuitOnBackup, false));
+    this.avncsRightCircuitOnBackup.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.rightCircuitOnBackup, false));
     this.avncsExtractFault.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.extractFault, false));
     this.avncsOverboardValveFault.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.overboardValveFault, false));
     this.avncsOverboardValveFullyOpen.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.overboardValveFullyOpen, false));

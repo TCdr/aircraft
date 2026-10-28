@@ -3206,6 +3206,11 @@ mod tests {
             word.get_bit(bit)
         }
 
+        fn avs_discrete_word_bit(&mut self, bit: u8) -> bool {
+            let word: Arinc429Word<u32> = self.read_by_name("COND_CPIOM_B1_AVS_DISCRETE_WORD");
+            word.get_bit(bit)
+        }
+
         fn pack_outlet_temperature(&mut self, pack_id: usize) -> f64 {
             self.read_by_name(&format!("COND_PACK_{}_OUTLET_TEMPERATURE", pack_id))
         }
@@ -6714,6 +6719,44 @@ mod tests {
 
                 assert!(test_bed.cabin_air_extract_valve_is_open());
                 assert!(!test_bed.vcs_discrete_word_bit(VCS_BIT_CABIN_AIR_EXTRACT_VLV_FAULT));
+            }
+        }
+
+        mod avionics_ventilation_word_tests {
+            use super::*;
+
+            const AVS_BIT_LEFT_CIRCUIT_ON_BACKUP: u8 = 23;
+            const AVS_BIT_RIGHT_CIRCUIT_ON_BACKUP: u8 = 24;
+
+            #[test]
+            fn no_circuit_is_on_its_backup_valve_while_the_blowing_fans_work() {
+                let mut test_bed = test_bed().iterate(2);
+
+                assert!(!test_bed.avs_discrete_word_bit(AVS_BIT_LEFT_CIRCUIT_ON_BACKUP));
+                assert!(!test_bed.avs_discrete_word_bit(AVS_BIT_RIGHT_CIRCUIT_ON_BACKUP));
+            }
+
+            #[test]
+            fn a_failed_blowing_fan_sets_the_bit_of_its_circuit_only() {
+                let mut test_bed = test_bed().iterate(2);
+
+                test_bed.fail(FailureType::AvionicsBlowingFan(1));
+                test_bed = test_bed.iterate(2);
+
+                assert!(test_bed.avs_discrete_word_bit(AVS_BIT_LEFT_CIRCUIT_ON_BACKUP));
+                assert!(!test_bed.avs_discrete_word_bit(AVS_BIT_RIGHT_CIRCUIT_ON_BACKUP));
+            }
+
+            #[test]
+            fn both_circuits_on_their_backup_valves_set_both_bits() {
+                let mut test_bed = test_bed().iterate(2);
+
+                test_bed.fail(FailureType::AvionicsBlowingFan(1));
+                test_bed.fail(FailureType::AvionicsBlowingFilterClogged(2));
+                test_bed = test_bed.iterate(2);
+
+                assert!(test_bed.avs_discrete_word_bit(AVS_BIT_LEFT_CIRCUIT_ON_BACKUP));
+                assert!(test_bed.avs_discrete_word_bit(AVS_BIT_RIGHT_CIRCUIT_ON_BACKUP));
             }
         }
 
