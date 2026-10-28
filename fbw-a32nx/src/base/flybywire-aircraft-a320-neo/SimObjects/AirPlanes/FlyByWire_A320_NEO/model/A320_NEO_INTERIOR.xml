@@ -1120,12 +1120,11 @@
                 </UseTemplate>
 
                 <!-- CAPT BKUP SPD/ALT -->
-                <!-- TODO all placeholders at the moment -->
                 <UseTemplate Name="FBW_Anim_Interactions">
                     <ANIM_TYPE>KORRY_BUTTON</ANIM_TYPE>
                     <ANIM_TEMPLATE>FBW_Push_Toggle</ANIM_TEMPLATE>
                     <NODE_ID>PUSH_EFIS_CS_BUSS</NODE_ID>
-                    <DUMMY_BUTTON>True</DUMMY_BUTTON>
+                    <TOGGLE_SIMVAR>L:A32NX_EFIS_L_BKUP_SPD_ALT_PB_IS_ON</TOGGLE_SIMVAR>
                     <DISABLE_SEQ1>True</DISABLE_SEQ1>
                     <DISABLE_SEQ2>True</DISABLE_SEQ2>
                     <TOOLTIPID>Backup Speed/Altitude Scale</TOOLTIPID>
@@ -1248,12 +1247,11 @@
                 </UseTemplate>
 
                 <!-- F/O BKUP SPD/ALT -->
-                <!-- TODO all placeholders at the moment -->
                 <UseTemplate Name="FBW_Anim_Interactions">
                     <ANIM_TYPE>KORRY_BUTTON</ANIM_TYPE>
                     <ANIM_TEMPLATE>FBW_Push_Toggle</ANIM_TEMPLATE>
                     <NODE_ID>PUSH_EFIS_FO_BUSS</NODE_ID>
-                    <DUMMY_BUTTON>True</DUMMY_BUTTON>
+                    <TOGGLE_SIMVAR>L:A32NX_EFIS_R_BKUP_SPD_ALT_PB_IS_ON</TOGGLE_SIMVAR>
                     <DISABLE_SEQ1>True</DISABLE_SEQ1>
                     <DISABLE_SEQ2>True</DISABLE_SEQ2>
                     <TOOLTIPID>Backup Speed/Altitude Scale</TOOLTIPID>

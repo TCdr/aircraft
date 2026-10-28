@@ -350,7 +350,7 @@ import {
 } from './Logic/LandingGearAlerts';
 import { GpwsAlerts, readGpwsInputs, TERR_STBY_MEMO_CODE } from './Logic/GpwsAlerts';
 import { PredictiveWindshearAlerts } from './Logic/PredictiveWindshearAlerts';
-import { NavSensorAlerts } from './Logic/NavSensorAlerts';
+import { BACKUP_SCALE_MEMO_CODES, NavSensorAlerts } from './Logic/NavSensorAlerts';
 import { EngineFadecFaultAlerts, readEngineFadecFaults } from './Logic/EngineFadecFaultAlerts';
 import { COMPANY_DATALINK_STBY_MEMO_CODES, DatalinkAlerts, DATALINK_PHASE_INHIBITION } from './Logic/DatalinkAlerts';
 import { readVentilationSystemInputs, VentilationAlerts } from './Logic/VentilationAlerts';
@@ -13397,6 +13397,15 @@ export class PseudoFWC {
       ),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000068001'],
+      memoInhibit: () => false,
+      side: 'RIGHT',
+    },
+    '0000690': {
+      // BKUP SPD/ALT, green, see Logic/NavSensorAlerts
+      flightPhaseInhib: [],
+      simVarIsActive: this.navSensorAlerts.backupScaleMemo,
+      whichCodeToReturn: () => [0],
+      codesToReturn: BACKUP_SCALE_MEMO_CODES,
       memoInhibit: () => false,
       side: 'RIGHT',
     },
