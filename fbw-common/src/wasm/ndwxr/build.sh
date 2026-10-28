@@ -10,6 +10,7 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 TERRONND_DIR="${DIR}/../terronnd"
+ZLIB_DIR="${DIR}/../fbw_common/src/zlib"
 
 if [ "$1" == "--a380x" ]; then
   AIRCRAFT_FLAG="A380X"
@@ -28,6 +29,36 @@ set -e
 mkdir -p "${DIR}/obj/${AIRCRAFT_FLAG}"
 rm -f "${DIR}/obj/${AIRCRAFT_FLAG}"/*.o "${DIR}/obj/${AIRCRAFT_FLAG}"/*.su
 pushd "${DIR}/obj/${AIRCRAFT_FLAG}"
+
+# The A32NX inflates the blocks of its obstacle grid (obstacles.cpp); only the inflate half of zlib is needed. The
+# vendored C sources are built as the fbw_a320 module builds them, without our C++ warning flags.
+if [ "${AIRCRAFT_FLAG}" == "A32NX" ]; then
+  clang \
+    -c \
+    -O2 \
+    -Wno-unused-command-line-argument \
+    -Wno-implicit-function-declaration \
+    -Wno-deprecated-non-prototype \
+    --sysroot "${MSFS_SDK}/WASM/wasi-sysroot" \
+    -target wasm32-unknown-wasi \
+    -D_MSFS_WASM=1 \
+    -D__wasi__ \
+    -D_LARGEFILE64_SOURCE \
+    -mthread-model single \
+    -fno-exceptions \
+    -fvisibility=hidden \
+    -fdata-sections \
+    -fno-stack-protector \
+    -mbulk-memory \
+    -Werror=return-type \
+    -I "${ZLIB_DIR}" \
+    "${ZLIB_DIR}/adler32.c" \
+    "${ZLIB_DIR}/crc32.c" \
+    "${ZLIB_DIR}/inffast.c" \
+    "${ZLIB_DIR}/inflate.c" \
+    "${ZLIB_DIR}/inftrees.c" \
+    "${ZLIB_DIR}/zutil.c"
+fi
 
 clang++ \
   -c \

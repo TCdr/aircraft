@@ -20,3 +20,12 @@ clang++ -std=c++17 -Wall -Wextra -Werror taws_system_test.cpp -o ../obj/taws_sys
 ../obj/taws_system_test
 clang++ -std=c++17 -Wall -Wextra -Werror threat_areas_test.cpp -o ../obj/threat_areas_test
 ../obj/threat_areas_test
+clang++ -std=c++17 -Wall -Wextra -Werror obstacle_grid_test.cpp -o ../obj/obstacle_grid_test
+../obj/obstacle_grid_test
+# the shipped obstacle file, decoded with the repository's zlib (inflate only)
+ZLIB_DIR=../../fbw_common/src/zlib
+for source in adler32 crc32 inffast inflate inftrees zutil; do
+  clang -c -O1 -w -I "$ZLIB_DIR" "$ZLIB_DIR/$source.c" -o "../obj/zlib_$source.o"
+done
+clang++ -std=c++17 -Wall -Wextra -Werror -I "$ZLIB_DIR" obstacle_grid_file_test.cpp ../obj/zlib_*.o -o ../obj/obstacle_grid_file_test
+../obj/obstacle_grid_file_test
