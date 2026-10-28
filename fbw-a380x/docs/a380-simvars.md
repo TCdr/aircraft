@@ -285,6 +285,8 @@
       | 24  | Pack 2 overheat (outlet above 95 deg C)              |
       | 25  | Pack 1 in bypass mode (regulation fault)             |
       | 26  | Pack 2 in bypass mode (regulation fault)             |
+      | 27  | Pack 1 regulation component failed (air cycle machine, or both: bypass mode) |
+      | 28  | Pack 2 regulation component failed (air cycle machine, or both: bypass mode) |
 
 - A32NX_COND_CPIOM_B{id}_TCS_DISCRETE_WORD
     - Arinc429<Discrete>
@@ -305,6 +307,11 @@
       | 21  | Cockpit trim air valve fault (jammed)                |
       | 22  | Cabin trim air valve fault (jammed, any zone)        |
       | 23  | Forward cargo trim air valve fault (jammed)          |
+      | 24  | RAM air inlet 1 no longer controlled by the RAM AIR pb |
+      | 25  | RAM air inlet 2 no longer controlled by the RAM AIR pb |
+      | 26  | Purser temperature selection (flight attendant panel) lost |
+      | 27  | Mixer unit pressure abnormally high                  |
+      | 28  | Mixer unit pressure abnormally low                   |
 
 - A32NX_COND_CPIOM_B{id}_VCS_DISCRETE_WORD
     - Arinc429<Discrete>
@@ -328,6 +335,8 @@
       | 24  | Bulk isolation valve Fault                           |
       | 25  | Bulk cargo duct overheat (above 70 deg C)            |
       | 26  | Cabin air extract valve Fault                        |
+      | 27  | Pack bay 1 blowing fan failed                        |
+      | 28  | Pack bay 2 blowing fan failed                        |
 
 - A32NX_COND_CPIOM_B{id}_CPCS_DISCRETE_WORD
     - Arinc429<Discrete>
@@ -344,6 +353,10 @@
       | 17  | Low differential pressure - warn                     |
       | 18  | Excessive residual pressure - warn                   |
       | 19  | Landing elevation from the FMS not received          |
+      | 20  | Cabin pressure sensor 1 failed                       |
+      | 21  | Cabin pressure sensor 2 failed                       |
+      | 22  | Cabin pressure sensor 3 failed                       |
+      | 23  | Cabin pressure sensor 4 failed                       |
 
 - A32NX_COND_{id}_TEMP
     - Degree Celsius

@@ -1180,6 +1180,9 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
       redundancyLoss: true,
     },
+    // COND RAM AIR 1(2) FAULT MORE INFO REDUND LOSS
+    210300040: { simVarIsActive: this.fws.ramAirFault[0], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    210300041: { simVarIsActive: this.fws.ramAirFault[1], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
   };
 
   public destroy(): void {

@@ -49,6 +49,22 @@ pub enum FailureType {
     PackOverheat(usize),
     /// A380: pack n is in bypass mode, its performance is degraded (AIR PACK n REGUL FAULT)
     PackRegulation(usize),
+    /// A380: one air cycle machine of pack n is failed, the other one keeps the pack available (AIR PACK 1+2 REGUL
+    /// REDUNDANCY LOST once both packs have one)
+    PackAirCycleMachine(usize),
+    /// A380: the blowing fan that ventilates the bay of pack n on ground is failed (AIR PACK BAY n VENT FAULT)
+    PackBayBlowingFan(usize),
+    /// A380: the emergency RAM air inlet n is no longer controlled by the RAM AIR pb (COND RAM AIR n FAULT)
+    RamAirInlet(usize),
+    /// A380: the air pressure in the mixer unit is abnormally high (COND MIXER PRESS REGUL FAULT)
+    MixerUnitPressureHigh,
+    /// A380: the air pressure in the mixer unit is abnormally low (COND MIXER PRESS REGUL FAULT)
+    MixerUnitPressureLow,
+    /// A380: the cabin temperature selected on the flight attendant panel is no longer transmitted (COND PURSER TEMP
+    /// SEL FAULT): the purser selection stays where it was
+    PurserTemperatureSelection,
+    /// A380: cabin pressure sensor n (1 to 4) is failed (CAB PRESS SENSORS FAULT with two or three failed)
+    CabinPressureSensor(usize),
     /// A380: the bulk cargo heater keeps heating whenever it is on: the bulk cargo duct air goes above 70 deg C
     BulkCargoDuctOverheat,
     /// A380: the cabin air extract valve is failed and stays where it is

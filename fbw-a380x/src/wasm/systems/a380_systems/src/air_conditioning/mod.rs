@@ -397,6 +397,7 @@ pub(super) struct A380AirConditioningSystem {
     cargo_air_heater: AirHeater,
     // flyPad failure: the bulk cargo heater keeps heating whenever it is allowed on (COND BULK CARGO DUCT OVHT)
     bulk_cargo_duct_overheat_failure: Failure,
+    reported_device_failures: ReportedDeviceFailures,
     bulk_cargo_duct_temperature: ThermodynamicTemperature,
     mixer_unit: MixerUnit<18>,
     // Temporary structure until packs are simulated
@@ -481,6 +482,7 @@ impl A380AirConditioningSystem {
 
             cargo_air_heater: AirHeater::new(ElectricalBusType::AlternatingCurrent(2)), // 200XP4
             bulk_cargo_duct_overheat_failure: Failure::new(FailureType::BulkCargoDuctOverheat),
+            reported_device_failures: ReportedDeviceFailures::new(),
             bulk_cargo_duct_temperature: ThermodynamicTemperature::new::<degree_celsius>(24.),
             mixer_unit: MixerUnit::new(cabin_zones),
             packs: [
@@ -695,6 +697,9 @@ impl A380AirConditioningSystem {
                 self.tadd.hot_air_pushbutton_has_fault(1),
                 self.tadd.hot_air_pushbutton_has_fault(2),
             ]);
+
+        self.air_conditioning_overhead
+            .update_purser_selection(self.reported_device_failures.purser_temperature_selection());
     }
 
     /// The PACK 1(2) pb FAULT light, also "when there is a bleed leak on one pack" (A380 FCOM
@@ -804,6 +809,39 @@ impl A380AirConditioningSystem {
     fn pack_in_bypass_mode(&self, pack_id: usize) -> bool {
         self.fdac[pack_id - 1].pack_in_bypass_mode()
     }
+
+    /// An air cycle machine of the pack is failed, or both of them (bypass mode)
+    fn pack_regulation_component_failed(&self, pack_id: usize) -> bool {
+        self.fdac[pack_id - 1].pack_regulation_component_failed()
+    }
+
+    /// The blowing fan that ventilates the bay of the pack on ground is failed
+    fn pack_bay_blowing_fan_failed(&self, pack_id: usize) -> bool {
+        self.fdac[pack_id - 1].pack_bay_blowing_fan_failed()
+    }
+
+    /// The emergency RAM air inlet is no longer controlled by the RAM AIR pb (the forward VCM controls them)
+    fn ram_air_inlet_failed(&self, inlet_id: usize) -> bool {
+        self.vcm[0].is_operating() && self.reported_device_failures.ram_air_inlet(inlet_id)
+    }
+
+    fn mixer_unit_pressure_high(&self) -> bool {
+        self.reported_device_failures.mixer_unit_pressure_high()
+    }
+
+    fn mixer_unit_pressure_low(&self) -> bool {
+        self.reported_device_failures.mixer_unit_pressure_low()
+    }
+
+    fn purser_temperature_selection_failed(&self) -> bool {
+        self.reported_device_failures.purser_temperature_selection()
+    }
+
+    /// Cabin pressure sensor sensor_id (1 to 4) is failed
+    fn cabin_pressure_sensor_failed(&self, sensor_id: usize) -> bool {
+        self.reported_device_failures
+            .cabin_pressure_sensor(sensor_id)
+    }
 }
 
 impl PackFlowControllers for A380AirConditioningSystem {
@@ -887,6 +925,7 @@ impl SimulationElement for A380AirConditioningSystem {
         accept_iterable!(self.packs, visitor);
         self.cargo_air_heater.accept(visitor);
         self.bulk_cargo_duct_overheat_failure.accept(visitor);
+        self.reported_device_failures.accept(visitor);
 
         self.air_conditioning_overhead.accept(visitor);
 
@@ -898,6 +937,8 @@ struct A380AirConditioningSystemOverhead {
     flow_selector_id: VariableIdentifier,
     purs_sel_temp_id: VariableIdentifier,
     purs_sel_temperature: ThermodynamicTemperature,
+    /// The temperature selected on the flight attendant panel, as it is read
+    purs_sel_requested: ThermodynamicTemperature,
 
     // Air panel
     flow_selector: OverheadFlowSelector,
@@ -922,6 +963,7 @@ impl A380AirConditioningSystemOverhead {
                 .get_identifier("KNOB_OVHD_AIRCOND_PACKFLOW_Position".to_owned()),
             purs_sel_temp_id: context.get_identifier("COND_PURS_SEL_TEMPERATURE".to_owned()),
             purs_sel_temperature: ThermodynamicTemperature::new::<degree_celsius>(24.),
+            purs_sel_requested: ThermodynamicTemperature::new::<degree_celsius>(24.),
 
             // Air panel
             flow_selector: OverheadFlowSelector::Norm,
@@ -971,6 +1013,13 @@ impl A380AirConditioningSystemOverhead {
 
     fn set_cargo_heater_fault(&mut self, cargo_heater_fault: bool) {
         self.cargo_heater_pb.set_fault(cargo_heater_fault);
+    }
+
+    /// A failed transmission (COND PURSER TEMP SEL FAULT) keeps the last temperature received
+    fn update_purser_selection(&mut self, transmission_failed: bool) {
+        if !transmission_failed {
+            self.purs_sel_temperature = self.purs_sel_requested;
+        }
     }
 
     fn set_hot_air_pushbutton_fault(&mut self, pb_has_fault: [bool; 2]) {
@@ -1049,7 +1098,7 @@ impl SimulationElement for A380AirConditioningSystemOverhead {
             _ => panic!("Overhead flow selector position not recognized."),
         };
 
-        self.purs_sel_temperature = reader.read(&self.purs_sel_temp_id);
+        self.purs_sel_requested = reader.read(&self.purs_sel_temp_id);
     }
 
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
@@ -1063,6 +1112,61 @@ impl SimulationElement for A380AirConditioningSystemOverhead {
         accept_iterable!(self.isol_valves_pbs, visitor);
         accept_iterable!(self.cargo_temperature_regulators, visitor);
         self.cargo_heater_pb.accept(visitor);
+
+        visitor.visit(self);
+    }
+}
+
+/// Failures of devices that the controllers only report to the FWS; their operational effect is nil or not simulated
+/// (the air cycle machines and the pack bay blowing fans are in the FDACs).
+struct ReportedDeviceFailures {
+    ram_air_inlets: [Failure; 2],
+    mixer_unit_pressure_high: Failure,
+    mixer_unit_pressure_low: Failure,
+    purser_temperature_selection: Failure,
+    cabin_pressure_sensors: [Failure; 4],
+}
+
+impl ReportedDeviceFailures {
+    fn new() -> Self {
+        Self {
+            ram_air_inlets: [1, 2].map(|id| Failure::new(FailureType::RamAirInlet(id))),
+            mixer_unit_pressure_high: Failure::new(FailureType::MixerUnitPressureHigh),
+            mixer_unit_pressure_low: Failure::new(FailureType::MixerUnitPressureLow),
+            purser_temperature_selection: Failure::new(FailureType::PurserTemperatureSelection),
+            cabin_pressure_sensors: [1, 2, 3, 4]
+                .map(|id| Failure::new(FailureType::CabinPressureSensor(id))),
+        }
+    }
+
+    fn ram_air_inlet(&self, inlet_id: usize) -> bool {
+        self.ram_air_inlets[inlet_id - 1].is_active()
+    }
+
+    fn mixer_unit_pressure_high(&self) -> bool {
+        self.mixer_unit_pressure_high.is_active()
+    }
+
+    fn mixer_unit_pressure_low(&self) -> bool {
+        self.mixer_unit_pressure_low.is_active()
+    }
+
+    fn purser_temperature_selection(&self) -> bool {
+        self.purser_temperature_selection.is_active()
+    }
+
+    fn cabin_pressure_sensor(&self, sensor_id: usize) -> bool {
+        self.cabin_pressure_sensors[sensor_id - 1].is_active()
+    }
+}
+
+impl SimulationElement for ReportedDeviceFailures {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        accept_iterable!(self.ram_air_inlets, visitor);
+        self.mixer_unit_pressure_high.accept(visitor);
+        self.mixer_unit_pressure_low.accept(visitor);
+        self.purser_temperature_selection.accept(visitor);
+        accept_iterable!(self.cabin_pressure_sensors, visitor);
 
         visitor.visit(self);
     }
@@ -6310,6 +6414,12 @@ mod tests {
             const AGS_BIT_PACK_2_OVHT: u8 = 24;
             const AGS_BIT_PACK_1_BYPASS_MODE: u8 = 25;
             const AGS_BIT_PACK_2_BYPASS_MODE: u8 = 26;
+            const AGS_BIT_PACK_1_REGUL_COMPONENT_FAILED: u8 = 27;
+            const VCS_BIT_PACK_BAY_1_BLOWING_FAN: u8 = 27;
+            const TCS_BIT_RAM_AIR_INLET_1_FAILED: u8 = 24;
+            const TCS_BIT_PURSER_TEMPERATURE_SELECTION_FAILED: u8 = 26;
+            const TCS_BIT_MIXER_UNIT_PRESSURE_HIGH: u8 = 27;
+            const CPCS_BIT_PRESSURE_SENSOR_1_FAILED: u8 = 20;
             // CPIOM B VCS discrete word bits
             const VCS_BIT_BULK_CARGO_DUCT_OVHT: u8 = 25;
             const VCS_BIT_CABIN_AIR_EXTRACT_VLV_FAULT: u8 = 26;
@@ -6440,6 +6550,93 @@ mod tests {
                 test_bed = test_bed.iterate(2);
 
                 assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_PACK_1_BYPASS_MODE));
+            }
+
+            #[test]
+            fn air_cycle_machine_failure_is_reported_without_bypass_mode() {
+                let mut test_bed = test_bed_with_packs_on();
+                assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_PACK_1_REGUL_COMPONENT_FAILED));
+
+                test_bed.fail(FailureType::PackAirCycleMachine(1));
+                test_bed = test_bed.iterate(2);
+
+                assert!(test_bed.ags_discrete_word_bit(AGS_BIT_PACK_1_REGUL_COMPONENT_FAILED));
+                assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_PACK_1_REGUL_COMPONENT_FAILED + 1));
+                assert!(!test_bed.ags_discrete_word_bit(AGS_BIT_PACK_1_BYPASS_MODE));
+            }
+
+            #[test]
+            fn bypass_mode_also_counts_as_a_failed_regulation_component() {
+                let mut test_bed = test_bed_with_packs_on();
+                test_bed.fail(FailureType::PackRegulation(2));
+                test_bed = test_bed.iterate(2);
+
+                assert!(test_bed.ags_discrete_word_bit(AGS_BIT_PACK_1_REGUL_COMPONENT_FAILED + 1));
+            }
+
+            #[test]
+            fn pack_bay_blowing_fan_failure_is_reported_for_its_pack() {
+                let mut test_bed = test_bed_with_packs_on();
+                test_bed.fail(FailureType::PackBayBlowingFan(2));
+                test_bed = test_bed.iterate(2);
+
+                assert!(test_bed.vcs_discrete_word_bit(VCS_BIT_PACK_BAY_1_BLOWING_FAN + 1));
+                assert!(!test_bed.vcs_discrete_word_bit(VCS_BIT_PACK_BAY_1_BLOWING_FAN));
+            }
+
+            #[test]
+            fn ram_air_mixer_pressure_and_purser_failures_are_reported() {
+                let mut test_bed = test_bed_with_packs_on();
+                test_bed.fail(FailureType::RamAirInlet(2));
+                test_bed.fail(FailureType::MixerUnitPressureLow);
+                test_bed.fail(FailureType::PurserTemperatureSelection);
+                test_bed = test_bed.iterate(2);
+
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_RAM_AIR_INLET_1_FAILED));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_RAM_AIR_INLET_1_FAILED + 1));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_PURSER_TEMPERATURE_SELECTION_FAILED));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_MIXER_UNIT_PRESSURE_HIGH));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_MIXER_UNIT_PRESSURE_HIGH + 1));
+            }
+
+            #[test]
+            fn cabin_pressure_sensor_failures_are_reported_one_bit_each() {
+                let mut test_bed = test_bed_with_packs_on();
+                test_bed.fail(FailureType::CabinPressureSensor(1));
+                test_bed.fail(FailureType::CabinPressureSensor(4));
+                test_bed = test_bed.iterate(2);
+
+                let failed: Vec<bool> = (0..4)
+                    .map(|sensor| {
+                        test_bed.cpcs_discrete_word_bit(CPCS_BIT_PRESSURE_SENSOR_1_FAILED + sensor)
+                    })
+                    .collect();
+                assert_eq!(failed, vec![true, false, false, true]);
+            }
+
+            #[test]
+            fn failed_purser_temperature_selection_keeps_the_last_temperature() {
+                let mut test_bed = test_bed()
+                    .with()
+                    .command_packs_on_off(true)
+                    .and()
+                    .command_cabin_knob_in_purs_sel()
+                    .command_purs_sel_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        20.,
+                    ))
+                    .iterate(5);
+                test_bed.fail(FailureType::PurserTemperatureSelection);
+                test_bed = test_bed
+                    .command_purs_sel_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        28.,
+                    ))
+                    .iterate(1000);
+
+                assert!(
+                    (test_bed.measured_temperature_by_zone()[1].get::<degree_celsius>() - 20.)
+                        .abs()
+                        < 1.
+                );
             }
 
             fn test_bed_with_bulk_heater_on() -> CabinAirTestBed {

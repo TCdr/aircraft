@@ -9,7 +9,14 @@ import {
   CAB_PRESS_INHIBITED_BY_DOORS_PHASE_INHIBITION,
   CAB_PRESS_MAN_CTL_FAULT_PHASE_INHIBITION,
   CABIN_AIR_EXTRACT_VLV_FAULT_PHASE_INHIBITION,
+  COND_MONITORING_PHASE_INHIBITION,
+  isCabinSelectorInPursSel,
   isCabPressManCtlFault,
+  isCabPressSensorsFault,
+  isPackRegulDegraded,
+  isPackRegulRedundancyLost,
+  mixerPressRegulItemsToShow,
+  packBayVentFaults,
   PACK_OVHT_PHASE_INHIBITION,
   PACK_REGUL_FAULT_PHASE_INHIBITION,
   PACK_VLV_FAULT_PHASE_INHIBITION,
@@ -189,5 +196,80 @@ describe('A380X FwsAbnormalSensed wiring of the AIR PACK, COND and CAB PRESS ale
   it('DIFF PRESS HI and LDG ELEVN FAULT show the manual mode lines only with the manual mode available', () => {
     expect(alertBlock('213800007')).toContain('diffPressHiItemsToShow(!this.fws.cabPressManCtlFault.get())');
     expect(alertBlock('213800043')).toContain('ldgElevnFaultItemsToShow(!this.fws.cabPressManCtlFault.get())');
+  });
+});
+
+describe('A380X AIR PACK REGUL, PACK BAY VENT, MIXER PRESS, PURSER TEMP SEL and CAB PRESS SENSORS conditions', () => {
+  it('REGUL REDUNDANCY LOST needs a failed regulation component on each pack', () => {
+    expect(isPackRegulRedundancyLost([true, false])).toBe(false);
+    expect(isPackRegulRedundancyLost([false, true])).toBe(false);
+    expect(isPackRegulRedundancyLost([true, true])).toBe(true);
+  });
+
+  it('PACK REGUL DEGRADED needs one failed pack and a failed regulation component on the other', () => {
+    expect(isPackRegulDegraded([true, false], [false, true])).toBe(true);
+    expect(isPackRegulDegraded([false, true], [true, false])).toBe(true);
+    expect(isPackRegulDegraded([true, false], [false, false])).toBe(false);
+    expect(isPackRegulDegraded([false, false], [true, true])).toBe(false);
+    expect(isPackRegulDegraded([true, true], [true, true])).toBe(false);
+  });
+
+  it('PACK BAY VENT FAULT is a ground alert for one bay or for both', () => {
+    expect(packBayVentFaults([true, false], true)).toEqual({ bay1: true, bay2: false, both: false });
+    expect(packBayVentFaults([false, true], true)).toEqual({ bay1: false, bay2: true, both: false });
+    expect(packBayVentFaults([true, true], true)).toEqual({ bay1: false, bay2: false, both: true });
+    expect(packBayVentFaults([true, true], false)).toEqual({ bay1: false, bay2: false, both: false });
+  });
+
+  it('MIXER PRESS LO is shown only in flight phase 1', () => {
+    expect(mixerPressRegulItemsToShow(true, false, 1)).toEqual([true, false]);
+    expect(mixerPressRegulItemsToShow(false, true, 1)).toEqual([false, true]);
+    expect(mixerPressRegulItemsToShow(false, true, 2)).toEqual([false, false]);
+  });
+
+  it('the CABIN selector is at PURS SEL beyond the ends of its 0-300 range (as the ACS model)', () => {
+    expect(isCabinSelectorInPursSel(200)).toBe(false);
+    expect(isCabinSelectorInPursSel(50)).toBe(false);
+    expect(isCabinSelectorInPursSel(-50)).toBe(true);
+    expect(isCabinSelectorInPursSel(0)).toBe(true);
+    expect(isCabinSelectorInPursSel(350)).toBe(false);
+    expect(isCabinSelectorInPursSel(360)).toBe(true);
+  });
+
+  it('CAB PRESS SENSORS FAULT with one or two sensors left, not with three or none', () => {
+    expect(isCabPressSensorsFault([false, false, false, false])).toBe(false);
+    expect(isCabPressSensorsFault([true, false, false, false])).toBe(false);
+    expect(isCabPressSensorsFault([true, true, false, false])).toBe(true);
+    expect(isCabPressSensorsFault([true, true, true, false])).toBe(true);
+    expect(isCabPressSensorsFault([true, true, true, true])).toBe(false);
+  });
+
+  it('these alerts are active in flight phases 1, 2, 8, 11 and 12', () => {
+    expect(activePhases(COND_MONITORING_PHASE_INHIBITION)).toEqual([1, 2, 8, 11, 12]);
+  });
+});
+
+describe('A380X FwsAbnormalSensed wiring of the pack regulation, bay ventilation and cabin monitoring alerts', () => {
+  it.each([
+    ['211800022', 'packRegulRedundancyLost'],
+    ['211800036', 'purserTempSelFault'],
+    ['211800037', 'ramAirFault[0]'],
+    ['211800038', 'ramAirFault[1]'],
+    ['211800045', 'packRegulDegraded'],
+    ['212800025', 'packBayVentFault.bay1'],
+    ['212800026', 'packBayVentFault.bay2'],
+    ['212800027', 'packBayVentFault.both'],
+    ['213800016', 'cabPressSensorsFault'],
+  ])('%s uses COND_MONITORING_PHASE_INHIBITION and the FWS condition %s', (id, condition) => {
+    const block = alertBlock(id);
+    expect(block).toContain('flightPhaseInhib: COND_MONITORING_PHASE_INHIBITION,');
+    expect(block).toContain(`simVarIsActive: this.fws.${condition},`);
+  });
+
+  it('MIXER PRESS REGUL FAULT shows its HI and LO lines from the mixer pressure conditions', () => {
+    const block = alertBlock('211800034');
+    expect(block).toContain('mixerPressRegulItemsToShow(');
+    expect(block).toContain('this.fws.mixerPressHigh');
+    expect(block).toContain('this.fws.mixerPressLow');
   });
 });
