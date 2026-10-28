@@ -19,9 +19,7 @@ use systems::{
     },
 };
 
-// The tests below set failures by their type
-#[cfg(test)]
-use systems::failures::FailureType;
+use systems::failures::{Failure, FailureType};
 
 /// The A380 fire zones: ENG 1 to 4, APU, MLG bay
 const A380_FIRE_ZONES: [FireDetectionZone; 6] = [
@@ -90,10 +88,8 @@ impl SimulationElement for A380FireAndSmokeProtection {
     }
 }
 
-/// The compartments of the Smoke Detection Function (SDF) of the CIDS that are modelled: the cargo
-/// compartments, the avionics bays, the IFE bay and the NSS, each with two smoke detectors. Not
-/// modelled: the crew rests, lavatories, CWS / RCC, showers, and the SDF itself as a failable
-/// computer (SMOKE DET FAULT, 260800031).
+/// The compartments of the Smoke Detection Function (SDF) of the CIDS with two smoke detectors: the cargo compartments,
+/// the avionics bays, the IFE bay and the NSS. Not modelled: the crew rests, lavatories, CWS / RCC and showers.
 ///
 /// The NSS smoke has no ECAM alert: it lights the SMOKE light of the NSS MASTER sw while smoke is detected
 /// (L:A32NX_SMOKE_NSS_DETECTED), with the SMOKE warning logic of the bays (both detectors, or one failed and the other
@@ -116,6 +112,13 @@ const A380_SMOKE_DETECTION_ZONES: [SmokeDetectionZone; 10] = [
 struct SmokeDetectionFunction {
     zones: [SmokeDetection<2>; 10],
     cargo_fire_extinguishing: CargoFireExtinguishing<2, 2>,
+
+    /// The SDF itself is failed: SMOKE DET FAULT, L:A32NX_SMOKE_DETECTION_FUNCTION_FAULT for the FWS (SmokeAlerts.ts).
+    /// Smoke detection is lost in the avionics compartments (IFE center and NSS included), the cargo compartments and
+    /// the cabin areas: no compartment reports smoke or a detector fault. The cargo fire extinguishing is not lost and
+    /// keeps working.
+    failure: Failure,
+    fault_id: VariableIdentifier,
 }
 
 impl SmokeDetectionFunction {
@@ -152,12 +155,16 @@ impl SmokeDetectionFunction {
                     Self::CARGO_BOTTLE_2_DISCHARGE_DURATION,
                 ],
             ),
+
+            failure: Failure::new(FailureType::SmokeDetectionFunction),
+            fault_id: context.get_identifier("SMOKE_DETECTION_FUNCTION_FAULT".to_owned()),
         }
     }
 
     fn update(&mut self, context: &UpdateContext) {
+        let available = !self.failure.is_active();
         for zone in self.zones.iter_mut() {
-            zone.update(context);
+            zone.update_with_detection_unit(context, available);
         }
         self.cargo_fire_extinguishing.update(context);
     }
@@ -167,8 +174,13 @@ impl SimulationElement for SmokeDetectionFunction {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         accept_iterable!(self.zones, visitor);
         self.cargo_fire_extinguishing.accept(visitor);
+        self.failure.accept(visitor);
 
         visitor.visit(self);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        writer.write(&self.fault_id, self.failure.is_active());
     }
 }
 
@@ -1505,6 +1517,27 @@ mod a380_fire_and_smoke_protection_tests {
             test_bed.fail(FailureType::Smoke(SmokeDetectionZone::NetworkServerSystem));
             test_bed = test_bed.and_double_run();
             assert!(smoke_detected(&mut test_bed, "NSS"));
+        }
+
+        #[test]
+        fn a_failed_sdf_gives_smoke_det_fault_and_loses_the_smoke_detection() {
+            // SMOKE DET FAULT
+            let mut test_bed = test_bed();
+            test_bed.fail(FailureType::Smoke(SmokeDetectionZone::ForwardCargo));
+            test_bed.fail(FailureType::SmokeDetector(SmokeDetectionZone::BulkCargo, 2));
+            test_bed = test_bed.and_double_run();
+            assert!(!read_bool(&mut test_bed, "SMOKE_DETECTION_FUNCTION_FAULT"));
+            assert!(smoke_detected(&mut test_bed, "FWD_CARGO"));
+            assert!(smoke_detection_fault(&mut test_bed, "BULK_CARGO"));
+
+            test_bed.fail(FailureType::SmokeDetectionFunction);
+            test_bed = test_bed.and_double_run();
+
+            assert!(read_bool(&mut test_bed, "SMOKE_DETECTION_FUNCTION_FAULT"));
+            for zone in ZONES {
+                assert!(!smoke_detected(&mut test_bed, zone));
+                assert!(!smoke_detection_fault(&mut test_bed, zone));
+            }
         }
 
         #[test]
