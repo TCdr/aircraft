@@ -26,6 +26,10 @@ import { FwcAlertItem, awarenessItem, cautionItem } from './FwcAlertItem';
  * - ENG 1(2) REV ISOL FAULT: the thrust reverser shut off valve is failed open, crew awareness.
  * - ENG VIB SYS FAULT: the vibration detection system is failed, crew awareness. Its
  *   failure is the TS only flyPad failure "Engine vibration monitoring unit (EVMU)" (77010).
+ * - ENG TYPE DISAGREE: the FADEC detects a rating discrepancy between the two engines, raised by an engine rating plug
+ *   failure; crew awareness. Our aircraft has one engine type, so the discrepancy comes from the TS only flyPad
+ *   failures "Engine 1 (2) rating plug" (73320, 73321): exactly one failed plug. Design choice: with both plugs failed
+ *   there is no rating to compare, so the alert goes.
  *
  * Alert levels: level 1 is an amber caution for crew monitoring (loss of redundancy or system degradation), generally
  * without procedure, no aural, no SD page call. The crew awareness alerts without procedure are level 1; the alerts with
@@ -63,6 +67,8 @@ export const FADEC_FAULT_PHASE_INHIBITION = {
   revIsolFault: [3, 4, 5, 6, 7],
   /** ENG VIB SYS FAULT */
   vibSysFault: [3, 4, 5, 6, 7, 8, 9],
+  /** ENG TYPE DISAGREE, as the other ENG awareness alerts (none is documented) */
+  typeDisagree: [3, 4, 5, 7, 8],
 };
 
 /** The alert keys, the first digits of their EwdMessages codes, per engine 1 and 2 */
@@ -81,6 +87,9 @@ export const BOTH_COMPRESSOR_VANES_KEY = '7707400';
 
 /** The key of ENG VIB SYS FAULT */
 export const VIB_SYS_FAULT_KEY = '7707700';
+
+/** The key of ENG TYPE DISAGREE */
+export const TYPE_DISAGREE_KEY = '7000100';
 
 /** STATUS codes (StatusMessages) */
 const AVOID_RAPID_THR_CHANGES = '700400063';
@@ -208,6 +217,11 @@ export function bothCompressorVanesAlert(faults: [EngineFadecFaults, EngineFadec
   return faults[0].compressorVaneChannel && faults[1].compressorVaneChannel;
 }
 
+/** ENG TYPE DISAGREE: the ratings of the two engines differ, one engine has a failed rating plug */
+export function engineTypeDisagreeAlert(ratingPlugFailed: [boolean, boolean]): boolean {
+  return ratingPlugFailed[0] !== ratingPlugFailed[1];
+}
+
 /** The STATUS lines of the alerts of one engine (index 0 or 1) */
 export const fadecFaultStatus = {
   /** FUEL CTL FAULT and COMPRESSOR VANE: AVOID RAPID THR CHANGES */
@@ -252,14 +266,18 @@ export class EngineFadecFaultAlerts {
 
   private readonly vibSysFault = Subject.create(false);
 
+  private readonly typeDisagree = Subject.create(false);
+
   /**
    * @param failuresConsumer the failures consumer (a test double in the specs)
    */
   constructor(private readonly failuresConsumer: EngineFadecFaultFailuresSource = new FailuresConsumer()) {}
 
-  /** Registers the failure of the vibration monitoring unit, called once by the PseudoFWC init */
+  /** Registers the failures the alerts read directly, called once by the PseudoFWC init */
   init(): void {
     this.failuresConsumer.register(A320Failure.EngineVibrationMonitoringUnit);
+    this.failuresConsumer.register(A320Failure.Eng1RatingPlug);
+    this.failuresConsumer.register(A320Failure.Eng2RatingPlug);
   }
 
   update(inputs: EngineFadecFaultInputs): void {
@@ -277,6 +295,12 @@ export class EngineFadecFaultAlerts {
     }
     this.bothCompressorVanes.set(bothCompressorVanesAlert(inputs.faults));
     this.vibSysFault.set(this.failuresConsumer.isActive(A320Failure.EngineVibrationMonitoringUnit));
+    this.typeDisagree.set(
+      engineTypeDisagreeAlert([
+        this.failuresConsumer.isActive(A320Failure.Eng1RatingPlug),
+        this.failuresConsumer.isActive(A320Failure.Eng2RatingPlug),
+      ]),
+    );
   }
 
   private engineItems(index: number): Record<string, FwcAlertItem> {
@@ -362,6 +386,12 @@ export class EngineFadecFaultAlerts {
       1,
       this.vibSysFault,
       FADEC_FAULT_PHASE_INHIBITION.vibSysFault,
+    ),
+    [TYPE_DISAGREE_KEY]: awarenessItem(
+      TYPE_DISAGREE_KEY,
+      1,
+      this.typeDisagree,
+      FADEC_FAULT_PHASE_INHIBITION.typeDisagree,
     ),
   };
 }

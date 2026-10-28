@@ -20,8 +20,10 @@ import { FwcAlertItem, NO_STATUS, cautionItem, readBool } from './FwcAlertItem';
  * - AIR APU BLEED FAULT
  * - AIR X BLEED FAULT
  *
- * Not modelled here because the Rust code has no input for it: BLEED ABNORM PR. The LEAK, LEAK DET FAULT, HP VALVE
- * FAULT and BMC alerts are in FWC/Logic/BleedLeakMonitoringAlerts.
+ * - AIR ENG 1(2) BLEED ABNORM PR: the regulated pressure of the engine bleed duct is out of its band; the BMC of
+ *   pneumatic.rs detects it low (the overpressure above 57 PSI is the BLEED FAULT).
+ *
+ * The LEAK, LEAK DET FAULT, HP VALVE FAULT and BMC alerts are in FWC/Logic/BleedLeakMonitoringAlerts.
  */
 
 /** ENG 1(2) BLEED HI TEMP: the precooler outlet temperature is above 240 °C */
@@ -41,6 +43,8 @@ const BLEED_NOT_CLOSED_CONFIRM_SECONDS = 10;
 export const BleedPhaseInhibition = {
   /** ENG 1(2) BLEED FAULT and ENG 1+2 BLEED FAULT */
   bleedFault: [1, 3, 4, 5, 7, 8, 10],
+  /** ENG 1(2) BLEED ABNORM PR, the phases of BLEED FAULT (design choice, none is documented) */
+  bleedAbnormalPressure: [1, 3, 4, 5, 7, 8, 10],
   /** ENG 1(2) BLEED LO TEMP and ENG 1+2 BLEED LO TEMP */
   bleedLoTemp: [3, 4, 5, 8],
   bleedHiTemp: [1, 3, 4, 5, 7, 8, 10],
@@ -63,6 +67,8 @@ export interface EngineBleedInputs {
   overheat: boolean;
   /** L:A32NX_PNEU_ENG_n_OVERPRESSURE: the BMC overpressure monitor */
   overpressure: boolean;
+  /** L:A32NX_PNEU_ENG_n_ABNORMAL_PRESSURE: the BMC finds the regulated pressure below its band */
+  abnormalPressure: boolean;
   /** L:A32NX_PNEU_ENG_n_LOW_TEMPERATURE: the bleed supplies air below 150 °C in flight with WING A-ICE ON */
   lowTemperature: boolean;
   /** L:A32NX_PNEU_ENG_n_BLEED_TEMPERATURE_SENSOR_TEMPERATURE: the precooler outlet temperature, -100 without output */
@@ -145,6 +151,14 @@ function isEngineBleedSupplyLost(engine: EngineBleedInputs): boolean {
 /** A wing or pylon leak on the side of a running engine (side 1: a left wing leak or a pylon 1 leak) */
 function hasEngineSideLeak(engine: EngineBleedInputs): boolean {
   return engine.engineRunning && engine.wingOrPylonLeak;
+}
+
+/**
+ * ENG 1(2) BLEED ABNORM PR: the regulated pressure of a running engine is abnormal. Design choice: not shown while
+ * the engine has lost its bleed supply (BLEED FAULT, leak), which already covers a pressure fault.
+ */
+export function isEngineBleedAbnormalPressure(engine: EngineBleedInputs): boolean {
+  return engine.engineRunning && engine.abnormalPressure && !isEngineBleedSupplyLost(engine);
 }
 
 /**
@@ -250,6 +264,7 @@ export interface BleedAlertStates {
   engineBleedLoTemp: [boolean, boolean];
   engine1And2BleedLoTemp: boolean;
   engineBleedHiTemp: [boolean, boolean];
+  engineBleedAbnormalPressure: [boolean, boolean];
   engineBleedNotClosed: [boolean, boolean];
   bleedOff: [boolean, boolean];
   apuBleedFault: boolean;
@@ -262,7 +277,14 @@ export interface BleedAlertStates {
  */
 export function hasEngineBleedAlert(inputs: BleedInputs, engine: EngineIndex, notClosedConfirmed: boolean): boolean {
   const e = inputs.engines[engine];
-  return isEngineBleedFault(e) || e.lowTemperature || isEngineBleedHiTemp(e) || notClosedConfirmed || e.wingOrPylonLeak;
+  return (
+    isEngineBleedFault(e) ||
+    e.lowTemperature ||
+    isEngineBleedHiTemp(e) ||
+    isEngineBleedAbnormalPressure(e) ||
+    notClosedConfirmed ||
+    e.wingOrPylonLeak
+  );
 }
 
 /**
@@ -310,6 +332,7 @@ function bleedAlertStates(inputs: BleedInputs, confirmed: BleedConfirmedConditio
     engineBleedLoTemp: [e1.lowTemperature && !bothLoTemp, e2.lowTemperature && !bothLoTemp],
     engine1And2BleedLoTemp: bothLoTemp,
     engineBleedHiTemp: [isEngineBleedHiTemp(e1), isEngineBleedHiTemp(e2)],
+    engineBleedAbnormalPressure: [isEngineBleedAbnormalPressure(e1), isEngineBleedAbnormalPressure(e2)],
     engineBleedNotClosed: [
       confirmed.engineBleedValveNotClosed[0] && !faultNotClosed[0],
       confirmed.engineBleedValveNotClosed[1] && !faultNotClosed[1],
@@ -339,6 +362,30 @@ export function engineBleedFaultLines(inputs: BleedInputs, engine: EngineIndex):
     lines.push(2);
   }
   if (inputs.wingAntiIceOn && bothPacksOn) {
+    lines.push(3);
+  }
+  if (inputs.crossBleedSelector !== CrossBleedSelector.Open) {
+    lines.push(4);
+  }
+  return lines;
+}
+
+/**
+ * ENG 1(2) BLEED ABNORM PR: 0 title, 1 -PACK FLOW LO, 2 -PACK n OFF, 3 -ENG n BLEED OFF, 4 -X BLEED OPEN.
+ * PACK FLOW LO with wing anti-ice off and both packs on; PACK (AFFECTED) OFF with wing anti-ice on and both packs on;
+ * ENG BLEED OFF while the pb-sw is ON (the valve is not closed automatically). The lines of actions done go.
+ */
+export function engineBleedAbnormalPressureLines(inputs: BleedInputs, engine: EngineIndex): number[] {
+  const e = inputs.engines[engine];
+  const bothPacksOn = inputs.engines[0].packOn && inputs.engines[1].packOn;
+  const lines = [0];
+  if (!inputs.wingAntiIceOn && bothPacksOn && !inputs.packFlowLo) {
+    lines.push(1);
+  }
+  if (inputs.wingAntiIceOn && bothPacksOn) {
+    lines.push(2);
+  }
+  if (e.bleedPbAuto) {
     lines.push(3);
   }
   if (inputs.crossBleedSelector !== CrossBleedSelector.Open) {
@@ -667,6 +714,8 @@ export const BleedAlertKeys = {
   eng1And2BleedFaultLeftLeak: '3611017',
   eng1And2BleedFaultRightLeak: '3611018',
   eng1And2BleedFaultLeftAndRightLeak: '3611019',
+  eng1BleedAbnormalPressure: '3611020',
+  eng2BleedAbnormalPressure: '3611021',
 } as const;
 
 /** The number of E/WD lines (title included) of each alert */
@@ -690,6 +739,8 @@ export const BleedAlertLineCounts: Record<string, number> = {
   [BleedAlertKeys.eng1And2BleedFaultLeftLeak]: 12,
   [BleedAlertKeys.eng1And2BleedFaultRightLeak]: 12,
   [BleedAlertKeys.eng1And2BleedFaultLeftAndRightLeak]: 10,
+  [BleedAlertKeys.eng1BleedAbnormalPressure]: 5,
+  [BleedAlertKeys.eng2BleedAbnormalPressure]: 5,
 };
 
 /** A confirmation timer: true once the condition has held for the time, false as soon as it goes */
@@ -710,6 +761,7 @@ const ENGINE_OFF_INPUTS: EngineBleedInputs = {
   bleedPbAuto: true,
   overheat: false,
   overpressure: false,
+  abnormalPressure: false,
   lowTemperature: false,
   bleedTemperatureCelsius: -100,
   bleedValveOpen: false,
@@ -818,6 +870,8 @@ export class BleedAlerts {
     this.active[K.eng1And2BleedLoTemp].set(s.engine1And2BleedLoTemp);
     this.active[K.eng1BleedHiTemp].set(s.engineBleedHiTemp[0]);
     this.active[K.eng2BleedHiTemp].set(s.engineBleedHiTemp[1]);
+    this.active[K.eng1BleedAbnormalPressure].set(s.engineBleedAbnormalPressure[0]);
+    this.active[K.eng2BleedAbnormalPressure].set(s.engineBleedAbnormalPressure[1]);
     this.active[K.eng1BleedNotClosed].set(s.engineBleedNotClosed[0]);
     this.active[K.eng2BleedNotClosed].set(s.engineBleedNotClosed[1]);
     this.active[K.bleed1Off].set(s.bleedOff[0]);
@@ -861,6 +915,7 @@ export class BleedAlerts {
         notClosed: K.eng1BleedNotClosed,
         off: K.bleed1Off,
         faultNotClosed: K.eng1BleedFaultNotClosed,
+        abnormalPressure: K.eng1BleedAbnormalPressure,
       },
       {
         fault: K.eng2BleedFault,
@@ -869,6 +924,7 @@ export class BleedAlerts {
         notClosed: K.eng2BleedNotClosed,
         off: K.bleed2Off,
         faultNotClosed: K.eng2BleedFaultNotClosed,
+        abnormalPressure: K.eng2BleedAbnormalPressure,
       },
     ];
     for (const engine of [0, 1] as const) {
@@ -877,6 +933,12 @@ export class BleedAlerts {
         keys.fault,
         P.bleedFault,
         () => engineBleedFaultLines(this.inputs, engine),
+        () => engineBleedFaultStatus(this.inputs, engine),
+      );
+      items[keys.abnormalPressure] = this.item(
+        keys.abnormalPressure,
+        P.bleedAbnormalPressure,
+        () => engineBleedAbnormalPressureLines(this.inputs, engine),
         () => engineBleedFaultStatus(this.inputs, engine),
       );
       items[keys.loTemp] = this.item(
@@ -959,6 +1021,7 @@ function readEngineBleedInputs(engineNumber: 1 | 2): EngineBleedInputs {
     bleedPbAuto: readBool(`L:A32NX_OVHD_PNEU_ENG_${engineNumber}_BLEED_PB_IS_AUTO`),
     overheat: readBool(`L:A32NX_PNEU_ENG_${engineNumber}_OVERHEAT`),
     overpressure: readBool(`L:A32NX_PNEU_ENG_${engineNumber}_OVERPRESSURE`),
+    abnormalPressure: readBool(`L:A32NX_PNEU_ENG_${engineNumber}_ABNORMAL_PRESSURE`),
     lowTemperature: readBool(`L:A32NX_PNEU_ENG_${engineNumber}_LOW_TEMPERATURE`),
     bleedTemperatureCelsius: SimVar.GetSimVarValue(
       `L:A32NX_PNEU_ENG_${engineNumber}_BLEED_TEMPERATURE_SENSOR_TEMPERATURE`,

@@ -541,6 +541,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   // FUEL L (R) OUTER XFR OPEN, see FWC/Logic/FuelSystemFaultAlerts
   ['280300011', { part: StatusPart.InopSys, text: 'L CELL VALVE' }],
   ['280300012', { part: StatusPart.InopSys, text: 'R CELL VALVE' }],
+  // FUEL INERTING SYS FAULT, see FWC/Logic/FuelSystemFaultAlerts
+  ['280300013', { part: StatusPart.InopSys, text: 'FUEL INERT' }],
   // 34 NAVIGATION
   // NAV ADR, IR and RA alerts INOP SYS, see FWC/Logic/AdirsAlerts; ADR 1(2)(3), RA 1(2) and the lines of other chapters
   // keep their codes

@@ -3253,6 +3253,15 @@ In the variables below, {number} should be replaced with one item in the set: { 
         - 1
         - 2
 
+- A32NX_PNEU_ENG_{number}_ABNORMAL_PRESSURE:
+    - Indicates whether the BMC finds the regulated pressure of the engine bleed duct abnormal (AIR ENG 1(2) BLEED ABNORM
+      PR): below 20 PSI for 15 s while the bleed valve is open and commanded open. The overpressure above 57 PSI is
+      A32NX_PNEU_ENG_{number}_OVERPRESSURE
+    - Bool
+    - {number}
+        - 1
+        - 2
+
 - A32NX_PNEU_ENG_{number}_HP_VALVE_FAULT:
     - Indicates whether the BMC detects the HP valve abnormally closed (AIR ENG 1(2) HP VALVE FAULT): closed for 5 s while
       its solenoid is commanded open and the HP stage pressure should open it

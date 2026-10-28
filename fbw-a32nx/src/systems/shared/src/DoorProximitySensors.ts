@@ -25,8 +25,16 @@ export const SensedDoors = [
 
 export type SensedDoor = (typeof SensedDoors)[number];
 
+/**
+ * The four avionics compartment access doors, with a proximity sensor but no door in the sim and no place on the DOOR/OXY
+ * page, in the order of their DOOR cautions (EwdMessages 5200109 to 5200112)
+ */
+export const SensedAvionicsDoors = ['L_FWD_AVIONICS', 'R_FWD_AVIONICS', 'L_AFT_AVIONICS', 'R_AFT_AVIONICS'] as const;
+
+export type SensedAvionicsDoor = (typeof SensedAvionicsDoors)[number];
+
 /** The L:var of a failed door proximity sensor, e.g. L:A32NX_DOOR_L_FWD_CABIN_PROX_SENSOR_FAULT */
-export function doorProximitySensorFaultVar(door: SensedDoor): string {
+export function doorProximitySensorFaultVar(door: SensedDoor | SensedAvionicsDoor): string {
   return `L:A32NX_DOOR_${door}_PROX_SENSOR_FAULT`;
 }
 

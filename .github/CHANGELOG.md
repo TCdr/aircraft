@@ -115,6 +115,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWS] Add EWD overflow logic - @FozzieHi (fozzie)
 1. [EFB] Added fix to make sure all doors are closed when pushing back - @frankkopp (cdr_maverick)
 1. [A32NX/FADEC] Add the derated takeoff (D04 to D32, DRT TO on the PERF TAKE OFF page), the derated climb (DCLB) and the soft go-around (GA SOFT) thrust ratings - @TCdr
+1. [A32NX/FWC] Add the AIR ENG 1(2) BLEED ABNORM PR alert (regulated bleed pressure out of its band, for example with an engine HP valve stuck closed at idle) - @TCdr
+1. [A32NX/FWC] Add the FUEL INERTING SYS FAULT alert and a flyPad failure for the fuel tank inerting system - @TCdr
+1. [A32NX/FWC] Add the DOOR L(R) FWD(AFT) AVIONICS alerts and the flyPad failures of the four avionics compartment door proximity sensors - @TCdr
+1. [A32NX/FWC] Add the ENG TYPE DISAGREE alert and the flyPad failures of the engine 1 and 2 rating plugs - @TCdr
 1. [A32NX/ND] Add a native weather radar display on the ROSE and ARC pages, controlled by the WX SYS and MODE knobs - @TCdr
 1. [A380X/ND] Add the weather radar to the ND and the weather to the VD, following the EFIS WX overlay and the SURV CONTROLS WXR settings - @TCdr
 1. [A380X/MFD] Make the SURV CONTROLS page (WXR, TCAS), the STATUS & SWITCHING WXR and XPDR/TCAS selection and the pedestal SURV panel buttons work - @TCdr

@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { Subject } from '@microsoft/msfs-sdk';
-import { NXLogicConfirmNode } from '@flybywiresim/fbw-sdk';
+import { FailuresConsumer, NXLogicConfirmNode } from '@flybywiresim/fbw-sdk';
+import { A320Failure } from '@failures';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { StatusLines } from './CondStatus';
-import { FwcAlertItem, cautionItem, readBool } from './FwcAlertItem';
+import { FwcAlertItem, awarenessItem, cautionItem, readBool } from './FwcAlertItem';
 
 /*
  * FUEL cautions of the fuel system faults, with their inhibited flight phases:
@@ -17,6 +18,10 @@ import { FwcAlertItem, cautionItem, readBool } from './FwcAlertItem';
  * - FUEL L (R) WING TK OVERFLOW, jet pump variant, from the systems host (Fuel/FuelLevelSensing). Phases 3, 4, 5, 7, 8.
  * - FUEL LO LVL DET FAULT: both low level sensors are failed. Maintenance action, crew awareness. Phases 3, 4, 5, 7, 8,
  *   9.
+ * - FUEL INERTING SYS FAULT: the fuel tank inerting system is failed. Crew awareness, STATUS INOP SYS FUEL INERT. Its
+ *   failure is the TS only flyPad failure "Fuel tank inerting system" (28030): the system has no model, it works from
+ *   the engine start to their stop, so the alert needs an engine running (design choice, the same phases as the other
+ *   FUEL awareness alerts).
  */
 
 export const FuelSystemFaultKeys = {
@@ -26,6 +31,7 @@ export const FuelSystemFaultKeys = {
   outerXfrOpen: ['2800238', '2800239'],
   wingTankOverflow: ['2800240', '2800241'],
   lowLevelDetectionFault: '2800242',
+  inertingSystemFault: '2800270',
 } as const;
 
 export const FUEL_SYSTEM_FAULT_PHASE_INHIBITION = [3, 4, 5, 7, 8];
@@ -48,6 +54,8 @@ export const FUEL_USED_FOB_DISAGREE_CONFIRM_S = 60;
 
 /** The STATUS codes (StatusMessages) of these alerts */
 const FUEL_SYSTEM_FAULT_STATUS = {
+  /** INERTING SYS FAULT: INOP SYS FUEL INERT */
+  fuelInert: '280300013',
   /** OUTER XFR CLOSED: L (R) OUTER TK UNUSABLE */
   outerTankUnusable: ['280200004', '280200005'],
   /** OUTER XFR OPEN: INOP SYS L (R) CELL VALVE */
@@ -96,6 +104,8 @@ export interface FuelSystemFaultInputs {
   outerXfrOpen: readonly [boolean, boolean];
   wingTankOverflow: readonly [boolean, boolean];
   lowLevelSensorFault: readonly [boolean, boolean];
+  /** At least one engine is running: the fuel tank inerting system works from the engine start to their stop */
+  anyEngineRunning: boolean;
   /** Per wing L, R: the cockpit state the WING TK OVERFLOW lines depend on */
   overflowProcedure: readonly [WingOverflowProcedureInputs, WingOverflowProcedureInputs];
 }
@@ -124,6 +134,9 @@ export function isFuelUsedFobDisagree(initialFobKg: number, fobKg: number, fuelU
   return initialFobKg - (fobKg + fuelUsedKg) > FUEL_USED_FOB_DISAGREE_KG;
 }
 
+/** The part of the failures consumer the inerting alert uses */
+export type FuelSystemFaultFailuresSource = Pick<FailuresConsumer, 'register' | 'update' | 'isActive'>;
+
 export class FuelSystemFaultAlerts {
   private inputs: FuelSystemFaultInputs | null = null;
 
@@ -143,56 +156,10 @@ export class FuelSystemFaultAlerts {
 
   private readonly lowLevelDetectionFault = Subject.create(false);
 
-  /**
-   * @param inputs the systems and cockpit state
-   * @param deltaTime the time since the last update, in milliseconds
-   */
-  update(inputs: FuelSystemFaultInputs, deltaTime: number): void {
-    this.inputs = inputs;
-    this.apuLpValveFault.set(inputs.apuLpValveFault);
+  private readonly inertingSystemFault = Subject.create(false);
 
-    this.initialFobKg = nextInitialFob(this.initialFobKg, inputs.fobKg, inputs.fuelUsedKg, inputs.onGround);
-    this.fuelUsedFobDisagree.set(
-      this.disagreeConfirm.write(isFuelUsedFobDisagree(this.initialFobKg, inputs.fobKg, inputs.fuelUsedKg), deltaTime),
-    );
-
-    for (const side of [0, 1]) {
-      this.outerXfrClosed[side].set(inputs.outerXfrClosed[side]);
-      this.outerXfrOpen[side].set(inputs.outerXfrOpen[side]);
-      this.wingTankOverflow[side].set(inputs.wingTankOverflow[side]);
-    }
-    this.lowLevelDetectionFault.set(inputs.lowLevelSensorFault[0] && inputs.lowLevelSensorFault[1]);
-  }
-
-  /** The alert items, by key, for the PseudoFWC ewdMessageFailures */
-  public readonly ewdFailures: Record<string, FwcAlertItem> = {
-    [FuelSystemFaultKeys.apuLpValveFault]: cautionItem(
-      FuelSystemFaultKeys.apuLpValveFault,
-      1,
-      this.apuLpValveFault,
-      FUEL_SYSTEM_FAULT_PHASE_INHIBITION,
-      () => [0],
-      EcamSysPage.FUEL,
-    ),
-    [FuelSystemFaultKeys.fuelUsedFobDisagree]: cautionItem(
-      FuelSystemFaultKeys.fuelUsedFobDisagree,
-      2,
-      this.fuelUsedFobDisagree,
-      FUEL_USED_FOB_DISAGREE_PHASE_INHIBITION,
-      () => [0, 1],
-      EcamSysPage.FUEL,
-    ),
-    [FuelSystemFaultKeys.lowLevelDetectionFault]: cautionItem(
-      FuelSystemFaultKeys.lowLevelDetectionFault,
-      1,
-      this.lowLevelDetectionFault,
-      LOW_LEVEL_DETECTION_FAULT_PHASE_INHIBITION,
-      () => [0],
-      EcamSysPage.FUEL,
-    ),
-  };
-
-  constructor() {
+  /** @param failuresConsumer the failures consumer (a test double in the specs) */
+  constructor(private readonly failuresConsumer: FuelSystemFaultFailuresSource = new FailuresConsumer()) {
     for (const side of [0, 1]) {
       const closedKey = FuelSystemFaultKeys.outerXfrClosed[side];
       this.ewdFailures[closedKey] = cautionItem(
@@ -226,6 +193,72 @@ export class FuelSystemFaultAlerts {
       );
     }
   }
+
+  /** Registers the failure of the inerting system, called once by the PseudoFWC init */
+  init(): void {
+    this.failuresConsumer.register(A320Failure.FuelTankInertingSystem);
+  }
+
+  /**
+   * @param inputs the systems and cockpit state
+   * @param deltaTime the time since the last update, in milliseconds
+   */
+  update(inputs: FuelSystemFaultInputs, deltaTime: number): void {
+    this.inputs = inputs;
+    this.apuLpValveFault.set(inputs.apuLpValveFault);
+
+    this.initialFobKg = nextInitialFob(this.initialFobKg, inputs.fobKg, inputs.fuelUsedKg, inputs.onGround);
+    this.fuelUsedFobDisagree.set(
+      this.disagreeConfirm.write(isFuelUsedFobDisagree(this.initialFobKg, inputs.fobKg, inputs.fuelUsedKg), deltaTime),
+    );
+
+    for (const side of [0, 1]) {
+      this.outerXfrClosed[side].set(inputs.outerXfrClosed[side]);
+      this.outerXfrOpen[side].set(inputs.outerXfrOpen[side]);
+      this.wingTankOverflow[side].set(inputs.wingTankOverflow[side]);
+    }
+    this.lowLevelDetectionFault.set(inputs.lowLevelSensorFault[0] && inputs.lowLevelSensorFault[1]);
+    this.failuresConsumer.update();
+    this.inertingSystemFault.set(
+      inputs.anyEngineRunning && this.failuresConsumer.isActive(A320Failure.FuelTankInertingSystem),
+    );
+  }
+
+  /** The alert items, by key, for the PseudoFWC ewdMessageFailures */
+  public readonly ewdFailures: Record<string, FwcAlertItem> = {
+    [FuelSystemFaultKeys.apuLpValveFault]: cautionItem(
+      FuelSystemFaultKeys.apuLpValveFault,
+      1,
+      this.apuLpValveFault,
+      FUEL_SYSTEM_FAULT_PHASE_INHIBITION,
+      () => [0],
+      EcamSysPage.FUEL,
+    ),
+    [FuelSystemFaultKeys.fuelUsedFobDisagree]: cautionItem(
+      FuelSystemFaultKeys.fuelUsedFobDisagree,
+      2,
+      this.fuelUsedFobDisagree,
+      FUEL_USED_FOB_DISAGREE_PHASE_INHIBITION,
+      () => [0, 1],
+      EcamSysPage.FUEL,
+    ),
+    [FuelSystemFaultKeys.lowLevelDetectionFault]: cautionItem(
+      FuelSystemFaultKeys.lowLevelDetectionFault,
+      1,
+      this.lowLevelDetectionFault,
+      LOW_LEVEL_DETECTION_FAULT_PHASE_INHIBITION,
+      () => [0],
+      EcamSysPage.FUEL,
+    ),
+    [FuelSystemFaultKeys.inertingSystemFault]: awarenessItem(
+      FuelSystemFaultKeys.inertingSystemFault,
+      1,
+      this.inertingSystemFault,
+      FUEL_SYSTEM_FAULT_PHASE_INHIBITION,
+      () => [0],
+      () => ({ left: [], inopSys: [FUEL_SYSTEM_FAULT_STATUS.fuelInert] }),
+    ),
+  };
 }
 
 /* Acquisition (not unit tested: SimVar reads only) */
@@ -250,6 +283,7 @@ export function readFuelSystemFaultInputs(
     outerXfrOpen: bySide((side) => `L:A32NX_FUEL_${side}_OUTER_XFR_OPEN`),
     wingTankOverflow: bySide((side) => `L:A32NX_FUEL_${side}_WING_TK_OVERFLOW`),
     lowLevelSensorFault: bySide((side) => `L:A32NX_FUEL_${side}_WING_TK_LO_LVL_SENSOR_FAULT`),
+    anyEngineRunning: [1, 2].some((engine) => SimVar.GetSimVarValue(`L:A32NX_ENGINE_STATE:${engine}`, 'enum') === 1),
     overflowProcedure,
   };
 }

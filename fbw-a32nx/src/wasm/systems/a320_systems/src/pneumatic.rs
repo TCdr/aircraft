@@ -798,6 +798,7 @@ struct BleedMonitoringComputerChannel {
     should_use_ip_vs_hp_valve: bool,
     overheat_monitor: BleedOverheatMonitor,
     overpressure_monitor: BleedOverpressureMonitor,
+    abnormal_pressure_monitor: BleedAbnormalPressureMonitor,
     has_low_bleed_temperature: bool,
     is_in_dual_bleed_config: bool,
     flight_phase_loop: FlightPhaseLoop,
@@ -833,6 +834,7 @@ struct BleedMonitoringComputerChannel {
     overpressure_id: VariableIdentifier,
     hp_valve_fault_id: VariableIdentifier,
     bleed_valve_disagree_id: VariableIdentifier,
+    abnormal_pressure_id: VariableIdentifier,
 }
 impl BleedMonitoringComputerChannel {
     const PRESSURE_REGULATING_VALVE_SINGLE_BLEED_CONFIG_TARGET_PSI: f64 = 50.;
@@ -895,6 +897,7 @@ impl BleedMonitoringComputerChannel {
             should_use_ip_vs_hp_valve: false,
             overheat_monitor: BleedOverheatMonitor::new(),
             overpressure_monitor: BleedOverpressureMonitor::new(),
+            abnormal_pressure_monitor: BleedAbnormalPressureMonitor::new(),
             has_low_bleed_temperature: false,
             flight_phase_loop: FlightPhaseLoop::new(),
             low_temperature_regulation_active: DelayedTrueLogicGate::new(Duration::from_secs(20)),
@@ -927,6 +930,8 @@ impl BleedMonitoringComputerChannel {
                 .get_identifier(format!("PNEU_ENG_{}_HP_VALVE_FAULT", engine_number)),
             bleed_valve_disagree_id: context
                 .get_identifier(format!("PNEU_ENG_{}_PR_VALVE_DISAGREE", engine_number)),
+            abnormal_pressure_id: context
+                .get_identifier(format!("PNEU_ENG_{}_ABNORMAL_PRESSURE", engine_number)),
         }
     }
 
@@ -993,6 +998,12 @@ impl BleedMonitoringComputerChannel {
 
             self.overpressure_monitor
                 .update(context, regulated_pressure_signal);
+            self.abnormal_pressure_monitor.update(
+                context,
+                regulated_pressure_signal,
+                self.bleed_valve_commanded_open && sensors.pressure_regulating_valve_is_open(),
+                self.hp_valve_abnormally_closed.output(),
+            );
         }
 
         let mut force_hp_bleed = false;
@@ -1118,6 +1129,11 @@ impl BleedMonitoringComputerChannel {
             || self.overpressure_latched
             || self.side_leak
             || self.bleed_valve_not_closed.output()
+    }
+
+    /// AIR ENG 1(2) BLEED ABNORM PR: the regulated pressure is out of its band (see BleedAbnormalPressureMonitor)
+    fn has_abnormal_pressure(&self) -> bool {
+        self.abnormal_pressure_monitor.has_abnormal_pressure()
     }
 
     fn has_hp_valve_fault(&self) -> bool {
@@ -1380,6 +1396,10 @@ impl SimulationElement for BleedMonitoringComputerChannel {
             writer.write(
                 &self.bleed_valve_disagree_id,
                 is_master && self.bleed_valve_position_disagrees(),
+            );
+            writer.write(
+                &self.abnormal_pressure_id,
+                is_master && self.has_abnormal_pressure(),
             );
         }
     }
@@ -2043,6 +2063,48 @@ impl BleedOverpressureMonitor {
 
     fn has_overpressure(&self) -> bool {
         self.pressure_over_threshold.output()
+    }
+}
+
+/// AIR ENG 1(2) BLEED ABNORM PR triggers when the regulated pressure in the engine bleed duct is abnormal. The
+/// overpressure above 57 PSI is the BLEED FAULT of the overpressure monitor, so this monitor detects a pressure
+/// that stays below the FCOM band although the bleed valve supplies air. The pressure alone cannot tell a failure
+/// from a healthy engine: the IP stage of a healthy engine regulates 32 to 38 PSI at altitude and with wing anti-ice,
+/// where the FCOM band itself fluctuates between 38 and 56 PSI. The failure is the stage that should supply the
+/// pressure and does not: the HP valve is commanded open and stays closed (the HP VALVE FAULT detection).
+struct BleedAbnormalPressureMonitor {
+    pressure_below_band: DelayedTrueLogicGate,
+}
+impl BleedAbnormalPressureMonitor {
+    /// Lower edge of the 38 to 56 PSI band in which the FCOM says the bleed pressure may fluctuate. A threshold of
+    /// 20 PSI never triggered in the sim: an idle engine with the HP valve stuck closed regulates about 34 PSI.
+    const LOW_PRESSURE_THRESHOLD_PSIG: f64 = 38.;
+    /// Design choice, no published time: the confirmation filters the pressure transients of an engine power change.
+    const CONFIRMATION_TIME: Duration = Duration::from_secs(15);
+
+    fn new() -> Self {
+        Self {
+            pressure_below_band: DelayedTrueLogicGate::new(Self::CONFIRMATION_TIME),
+        }
+    }
+
+    fn update(
+        &mut self,
+        context: &UpdateContext,
+        pressure: Pressure,
+        valve_supplies_air: bool,
+        hp_valve_abnormally_closed: bool,
+    ) {
+        self.pressure_below_band.update(
+            context,
+            valve_supplies_air
+                && hp_valve_abnormally_closed
+                && pressure < Pressure::new::<psi>(Self::LOW_PRESSURE_THRESHOLD_PSIG),
+        );
+    }
+
+    fn has_abnormal_pressure(&self) -> bool {
+        self.pressure_below_band.output()
     }
 }
 
@@ -6403,7 +6465,7 @@ pub mod tests {
     /// The flyPad ATA 36 failures and the BMC monitoring they trigger
     mod ata_36_failures {
         use super::*;
-        use crate::pneumatic::BleedOverpressureMonitor;
+        use crate::pneumatic::{BleedAbnormalPressureMonitor, BleedOverpressureMonitor};
         use systems::simulation::test::{SimulationTestBed, TestBed};
 
         fn flag(test_bed: &mut PneumaticTestBed, name: &str) -> bool {
@@ -6474,6 +6536,8 @@ pub mod tests {
 
         impl SimulationElement for BleedOverpressureMonitor {}
 
+        impl SimulationElement for BleedAbnormalPressureMonitor {}
+
         /// The overpressure threshold is 57 PSI (+3/-0)
         #[test]
         fn overpressure_is_detected_above_57_psi() {
@@ -6494,12 +6558,68 @@ pub mod tests {
             }
         }
 
+        /// ABNORM PR: the regulated pressure stays below the 38 PSI lower edge of the FCOM band while the valve supplies
+        /// air. 34 PSI is what an idle engine with the HP valve stuck closed regulates in the sim, 41 PSI the healthy
+        /// engine next to it.
+        #[test]
+        fn abnormal_pressure_needs_the_hp_valve_abnormally_closed() {
+            for (pressure_psig, valve_supplies_air, hp_valve_abnormally_closed, expected) in [
+                (19., true, true, true),
+                (34., true, true, true),
+                (37., true, true, true),
+                (39., true, true, false),
+                (41., true, true, false),
+                (34., false, true, false),
+                // a healthy IP stage regulates 32 PSI at altitude: not an abnormal pressure
+                (32., true, false, false),
+                (19., true, false, false),
+            ] {
+                let mut test_bed = SimulationTestBed::from(BleedAbnormalPressureMonitor::new());
+                test_bed.set_update_after_power_distribution(move |monitor, context| {
+                    monitor.update(
+                        context,
+                        Pressure::new::<psi>(pressure_psig),
+                        valve_supplies_air,
+                        hp_valve_abnormally_closed,
+                    )
+                });
+                for _ in 0..16 {
+                    test_bed.run_with_delta(Duration::from_secs(1));
+                }
+
+                assert_eq!(
+                    test_bed.query_element(|monitor| monitor.has_abnormal_pressure()),
+                    expected,
+                    "{pressure_psig} PSI, valve supplying air: {valve_supplies_air}, HP valve abnormally closed: {hp_valve_abnormally_closed}"
+                );
+            }
+        }
+
+        /// The path of AIR ENG 1(2) BLEED ABNORM PR: without the HP valve the IP stage of an idle engine cannot hold the
+        /// regulated pressure up
+        #[test]
+        fn a_hp_valve_stuck_closed_gives_an_abnormal_regulated_pressure_at_idle() {
+            let mut test_bed = engines_at_idle_on_ground();
+
+            test_bed.fail(FailureType::EngineHpValveStuckClosed(1));
+            // under the 15 s confirmation time
+            run_seconds(&mut test_bed, 10);
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_ABNORMAL_PRESSURE"));
+            run_seconds(&mut test_bed, 50);
+
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_ABNORMAL_PRESSURE"));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_ABNORMAL_PRESSURE"));
+            // not the BLEED FAULT of an overpressure, which stays with its own monitor
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_OVERPRESSURE"));
+        }
+
         #[test]
         fn normal_operation_gives_no_bleed_fault_detection() {
             for mut test_bed in [
                 engines_at_idle_on_ground(),
                 engines_at_take_off_power_on_ground(),
                 climbing_through_10000_ft(),
+                idle_descent_through_10000_ft_with_wing_anti_ice(),
             ] {
                 run_seconds(&mut test_bed, 60);
                 for engine in 1..=2 {
@@ -6507,6 +6627,7 @@ pub mod tests {
                         "OVERPRESSURE",
                         "OVERHEAT",
                         "HP_VALVE_FAULT",
+                        "ABNORMAL_PRESSURE",
                         "BLEED_LEAK",
                         "PR_VALVE_DISAGREE",
                     ] {
