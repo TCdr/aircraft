@@ -32,6 +32,8 @@ export interface FctlActuatorFailures {
   /** GREEN and YELLOW hydraulic motors */
   stabilizerMotors: ActuatorPairFailed;
   stabilizerJammed: boolean;
+  /** The electric motor of the stabilizer (FWS only, see stabilizerElecActuatorFault) */
+  stabilizerElectricMotorFailed: boolean;
   /** PRIM 1, 2 and 3 have lost the capacity to control their elevator (rudder) actuator */
   primElevatorActuatorControlLost: boolean[];
   primRudderActuatorControlLost: boolean[];
@@ -89,6 +91,7 @@ export function readFctlActuatorFailures(failureActive: (failure: number) => boo
       failureActive(A380Failure.StabilizerYellowHydraulicMotor),
     ],
     stabilizerJammed: failureActive(A380Failure.StabilizerJammed),
+    stabilizerElectricMotorFailed: failureActive(A380Failure.StabilizerElectricMotor),
     primElevatorActuatorControlLost: [
       failureActive(A380Failure.Prim1ElevatorActuatorControl),
       failureActive(A380Failure.Prim2ElevatorActuatorControl),
@@ -120,6 +123,11 @@ export interface FctlActuatorAlertStates {
   upperRudderFault: boolean;
   lowerRudderFault: boolean;
   stabilizerActuatorFault: boolean;
+  /**
+   * STABILIZER ELEC ACTUATOR FAULT: the electric motor of the stabilizer is failed. Not with STABILIZER FAULT, which
+   * locks the pitch trim. Design choice: the electric motor has no model, so the failure only raises the alert.
+   */
+  stabilizerElecActuatorFault: boolean;
   /** The stabilizer is jammed, or none of its hydraulic motors works (the electric motor is not simulated) */
   stabilizerFault: boolean;
   /** PRIM 1, 2 and 3 ELEVATOR (RUDDER) ACTUATOR FAULT */
@@ -174,6 +182,7 @@ export function fctlActuatorAlerts(failures: FctlActuatorFailures, primHealthy: 
     upperRudderFault: bothFailed(failures.rudders[0]),
     lowerRudderFault: bothFailed(failures.rudders[1]),
     stabilizerActuatorFault: !stabilizerFault && (greenMotorFailed || yellowMotorFailed),
+    stabilizerElecActuatorFault: !stabilizerFault && failures.stabilizerElectricMotorFailed,
     stabilizerFault,
     primElevatorActuatorFault: failures.primElevatorActuatorControlLost.map(
       (lost, prim) => lost && Boolean(primHealthy[prim]),
@@ -217,6 +226,7 @@ export class FctlActuatorAlertMonitor {
   public readonly upperRudderFault = Subject.create(false);
   public readonly lowerRudderFault = Subject.create(false);
   public readonly stabilizerActuatorFault = Subject.create(false);
+  public readonly stabilizerElecActuatorFault = Subject.create(false);
   public readonly stabilizerFault = Subject.create(false);
   /** STABILIZER FAULT: the failure was detected below 240 kt, the stabilizer position has to be checked */
   public readonly stabilizerFailedAtLowSpeed = Subject.create(false);
@@ -263,6 +273,7 @@ export class FctlActuatorAlertMonitor {
     this.upperRudderFault.set(states.upperRudderFault);
     this.lowerRudderFault.set(states.lowerRudderFault);
     this.stabilizerActuatorFault.set(states.stabilizerActuatorFault);
+    this.stabilizerElecActuatorFault.set(states.stabilizerElecActuatorFault);
     this.stabilizerFault.set(states.stabilizerFault);
     states.primElevatorActuatorFault.forEach((fault, prim) => this.primElevatorActuatorFault[prim].set(fault));
     states.primRudderActuatorFault.forEach((fault, prim) => this.primRudderActuatorFault[prim].set(fault));

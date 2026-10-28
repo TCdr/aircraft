@@ -27,6 +27,7 @@ function healthy(): FctlActuatorFailures {
     ],
     stabilizerMotors: [false, false],
     stabilizerJammed: false,
+    stabilizerElectricMotorFailed: false,
     primElevatorActuatorControlLost: [false, false, false],
     primRudderActuatorControlLost: [false, false, false],
   };
@@ -132,6 +133,18 @@ describe('F/CTL actuator alerts', () => {
     jammed.stabilizerJammed = true;
     jammed.stabilizerMotors = [true, false];
     expect(raised(jammed)).toEqual(['stabilizerFault']);
+  });
+
+  it('raises STABILIZER ELEC ACTUATOR FAULT for the electric motor, but not with STABILIZER FAULT', () => {
+    const electric = healthy();
+    electric.stabilizerElectricMotorFailed = true;
+    expect(raised(electric)).toEqual(['stabilizerElecActuatorFault']);
+
+    electric.stabilizerMotors = [false, true];
+    expect(raised(electric).sort()).toEqual(['stabilizerActuatorFault', 'stabilizerElecActuatorFault']);
+
+    electric.stabilizerMotors = [true, true];
+    expect(raised(electric)).toEqual(['stabilizerFault']);
   });
 
   it('lists the lost elevators as INOP SYS', () => {

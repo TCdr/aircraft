@@ -5,6 +5,8 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
+  afsControlAlerts,
+  AfsControlInputs,
   EFIS_CTL_PHASE_INHIBITION,
   efisControlAlerts,
   EfisControlInputs,
@@ -21,6 +23,8 @@ const messagesDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCom
 const ata31Procedures = readFileSync(resolve(messagesDir, 'AbnormalSensed/ata31-32-33.ts'), 'utf-8');
 const ecamMessages = readFileSync(resolve(messagesDir, 'index.ts'), 'utf-8');
 const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
+const ata21Procedures = readFileSync(resolve(messagesDir, 'AbnormalSensed/ata21-22-23.ts'), 'utf-8');
 const inopSys = readFileSync(resolve(__dirname, 'FwsInopSys.ts'), 'utf-8');
 const information = readFileSync(resolve(__dirname, 'FwsInformation.ts'), 'utf-8');
 
@@ -96,6 +100,102 @@ describe('EFIS CP alerts', () => {
   it('does not raise EFIS BKUP CTL FAULT for a failed backup page alone', () => {
     const alerts = efisControlAlerts({ ...NONE_FAILED, backupPageFailed: [true, true] });
     expect(alerts.backupControlFault).toEqual([false, false]);
+  });
+});
+
+const AFS_NONE_FAILED: AfsControlInputs = {
+  controlPanelFailed: false,
+  backupPageFailed: [false, false],
+  backupPowered: [true, true],
+};
+
+describe('AFS CP alerts', () => {
+  it('raises nothing without a failure', () => {
+    const alerts = afsControlAlerts(AFS_NONE_FAILED);
+    expect(alerts.controlPanelFault).toBe(false);
+    expect(alerts.backupControlFault).toEqual([false, false]);
+  });
+
+  it('does not raise anything for a failed backup page alone', () => {
+    const alerts = afsControlAlerts({ ...AFS_NONE_FAILED, backupPageFailed: [true, true] });
+    expect(alerts.controlPanelFault).toBe(false);
+    expect(alerts.backupControlFault).toEqual([false, false]);
+  });
+
+  it('raises AFS CTL PNL FAULT with USE MFD FCU BKUP when the FCU backup is available on both sides', () => {
+    const alerts = afsControlAlerts({ ...AFS_NONE_FAILED, controlPanelFailed: true });
+    expect(alerts.controlPanelFault).toBe(true);
+    expect(alerts.useBackupLines).toEqual([true, false, false]);
+    expect(alerts.backupControlFault).toEqual([false, false]);
+  });
+
+  it('names the side whose FCU backup is available when the other side AFS page is failed', () => {
+    const captainOnly = afsControlAlerts({
+      ...AFS_NONE_FAILED,
+      controlPanelFailed: true,
+      backupPageFailed: [false, true],
+    });
+    expect(captainOnly.useBackupLines).toEqual([false, true, false]);
+    expect(captainOnly.backupControlFault).toEqual([false, true]);
+
+    const firstOfficerOnly = afsControlAlerts({
+      ...AFS_NONE_FAILED,
+      controlPanelFailed: true,
+      backupPageFailed: [true, false],
+    });
+    expect(firstOfficerOnly.useBackupLines).toEqual([false, false, true]);
+    expect(firstOfficerOnly.backupControlFault).toEqual([true, false]);
+  });
+
+  it('raises both BKUP CTL FAULT alerts and no backup line when no FCU backup is available', () => {
+    const alerts = afsControlAlerts({
+      ...AFS_NONE_FAILED,
+      controlPanelFailed: true,
+      backupPageFailed: [true, true],
+    });
+    expect(alerts.controlPanelFault).toBe(true);
+    expect(alerts.useBackupLines).toEqual([false, false, false]);
+    expect(alerts.backupControlFault).toEqual([true, true]);
+  });
+
+  it('takes an unpowered FCU backup (DC ESS for the captain, DC 2 for the first officer) as failed', () => {
+    const alerts = afsControlAlerts({ ...AFS_NONE_FAILED, controlPanelFailed: true, backupPowered: [true, false] });
+    expect(alerts.useBackupLines).toEqual([false, true, false]);
+    expect(alerts.backupControlFault).toEqual([false, true]);
+  });
+
+  it('wires the alerts to the AFS CP and FCU backup AFS page failures of the flyPad', () => {
+    expect(fwsCore).toContain('controlPanelFailed: failureActive(A380Failure.AfsControlPanel),');
+    expect(fwsCore).toContain('failureActive(A380Failure.CaptFcuBackupAfsPage),');
+    expect(fwsCore).toContain('failureActive(A380Failure.FoFcuBackupAfsPage),');
+    expect(fwsCore).toContain('backupPowered: [this.dcESSBusPowered.get(), this.dc2BusPowered.get()],');
+  });
+
+  it('raises AFS CTL PNL FAULT (SC and MASTER CAUT) with its three lines and INOP SYS AFS CTL PNL', () => {
+    const source = entry(abnormalSensed, '220800005');
+    expect(source).toContain('flightPhaseInhib: [4, 5, 6, 7, 10],');
+    expect(source).toContain('simVarIsActive: this.fws.afsCtlPnlFault,');
+    expect(source).toContain('whichItemsToShow: () => this.fws.afsCtlPnlUseBackupLines.map((line) => line.get()),');
+    expect(source).toContain("inopSysAllPhases: () => ['220300004'],");
+    expect(source).toContain('failure: 2,');
+    const lines = entry(ata21Procedures, '220800005', '  ');
+    expect(lines).toContain("name: 'USE MFD FCU BKUP'");
+    expect(lines).toContain("name: 'Use CAPT MFD FCU BKUP'");
+    expect(lines).toContain("name: 'Use F/O MFD FCU BKUP'");
+  });
+
+  it.each([
+    ['220800016', 'CAPT', 'this.fws.afsBkupCtlFault[0]', '220300012'],
+    ['220800017', 'F/O', 'this.fws.afsBkupCtlFault[1]', '220300013'],
+  ])('raises %s %s AFS BKUP CTL FAULT as crew awareness with its INOP SYS', (id, side, condition, inopSysId) => {
+    const source = entry(abnormalSensed, id);
+    expect(source).toContain('flightPhaseInhib: [4, 5, 6, 7, 10],');
+    expect(source).toContain(`simVarIsActive: ${condition},`);
+    expect(source).toContain(`inopSysAllPhases: () => ['${inopSysId}'],`);
+    expect(source).toContain('failure: 1,');
+    expect(entry(ata21Procedures, id, '  ')).toContain(
+      `title: '\\x1b<4m\\x1b4mAUTO FLT\\x1bm ${side} AFS BKUP CTL FAULT',`,
+    );
   });
 });
 

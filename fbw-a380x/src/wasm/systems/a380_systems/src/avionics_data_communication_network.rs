@@ -1,4 +1,5 @@
 use crate::systems::{
+    failures::{Failure, FailureType},
     integrated_modular_avionics::{
         avionics_full_duplex_switch::AvionicsFullDuplexSwitch,
         core_processing_input_output_module::CoreProcessingInputOutputModule,
@@ -67,11 +68,59 @@ impl RoutingTableEntry {
 //
 // The routing tables define the upper triangular matrix for the two networks.
 // A breadth-first-search is used to update the routing table per AFDX switch.
+/// A cable between two AFDX switches of one network, with its flyPad failure. Cable n (1 to 30) is
+/// the nth link of the network topology, the 15 links of the first network, then the 15 of the
+/// second, each by increasing switch index (network A 1-2, 1-3, 1-9, 2-4, ... in switch ids).
+struct AvionicsNetworkCable {
+    network: usize,
+    switches: (u8, u8),
+    failure: Failure,
+    failed: bool,
+}
+impl AvionicsNetworkCable {
+    fn new(number: u8, network: usize, switches: (u8, u8)) -> Self {
+        Self {
+            network,
+            switches,
+            failure: Failure::new(FailureType::AvionicsNetworkCable(number)),
+            failed: false,
+        }
+    }
+
+    /// The cables of the networks, from their neighbour lists
+    fn all(networks: &[FxHashMap<u8, Vec<u8>>; 2]) -> Vec<Self> {
+        let mut cables = Vec::new();
+        for (network, neighbours) in networks.iter().enumerate() {
+            let mut links: Vec<(u8, u8)> = neighbours
+                .iter()
+                .flat_map(|(&switch, linked)| {
+                    linked
+                        .iter()
+                        .filter(move |&&other| switch < other)
+                        .map(move |&other| (switch, other))
+                })
+                .collect();
+            links.sort_unstable();
+            for switches in links {
+                cables.push(Self::new((cables.len() + 1) as u8, network, switches));
+            }
+        }
+        cables
+    }
+
+    fn connects(&self, switch: u8, other: u8) -> bool {
+        self.switches == (switch.min(other), switch.max(other))
+    }
+}
+
 pub struct A380AvionicsDataCommunicationNetwork {
     afdx_switches: [Rc<
         RefCell<AvionicsFullDuplexSwitch<A380AvionicsDataCommunicationNetworkMessageData>>,
     >; 16],
     afdx_networks: [FxHashMap<u8, Vec<u8>>; 2],
+    /// The links of each network as built, afdx_networks is this without the failed cables
+    complete_afdx_networks: [FxHashMap<u8, Vec<u8>>; 2],
+    cables: Vec<AvionicsNetworkCable>,
     cpio_modules: FxHashMap<
         &'static str,
         CoreProcessingInputOutputModule<A380AvionicsDataCommunicationNetworkMessageData>,
@@ -234,9 +283,14 @@ impl A380AvionicsDataCommunicationNetwork {
             }),
         );
 
+        let complete_afdx_networks = [first_network.clone(), second_network.clone()];
+        let cables = AvionicsNetworkCable::all(&complete_afdx_networks);
+
         Self {
             afdx_switches,
             afdx_networks: [first_network, second_network],
+            complete_afdx_networks,
+            cables,
             io_modules,
             cpio_modules,
             routing_tables: [
@@ -443,6 +497,45 @@ impl A380AvionicsDataCommunicationNetwork {
         }
     }
 
+    /// Takes the links of the failed cables out of the networks.
+    /// Returns the network of each cable and whether its failure changed.
+    fn update_failed_cables(&mut self) -> Vec<(usize, bool)> {
+        let mut changes = Vec::new();
+        for cable in &mut self.cables {
+            let failed = cable.failure.is_active();
+            changes.push((cable.network, failed != cable.failed));
+            cable.failed = failed;
+        }
+
+        for network in 0..2 {
+            if changes
+                .iter()
+                .any(|&(cable_network, changed)| changed && cable_network == network)
+            {
+                self.afdx_networks[network] = self.complete_afdx_networks[network]
+                    .iter()
+                    .map(|(&switch, linked)| {
+                        (
+                            switch,
+                            linked
+                                .iter()
+                                .copied()
+                                .filter(|&other| {
+                                    !self
+                                        .cables
+                                        .iter()
+                                        .any(|cable| cable.failed && cable.connects(switch, other))
+                                })
+                                .collect(),
+                        )
+                    })
+                    .collect();
+            }
+        }
+
+        changes
+    }
+
     pub fn update(&mut self) {
         let mut update_network_a = false;
         let mut update_network_b = false;
@@ -455,6 +548,16 @@ impl A380AvionicsDataCommunicationNetwork {
                     update_network_b = true;
                 } else {
                     update_network_a = true;
+                }
+            }
+        }
+
+        for (network, cable_changed) in self.update_failed_cables() {
+            if cable_changed {
+                if network == 0 {
+                    update_network_a = true;
+                } else {
+                    update_network_b = true;
                 }
             }
         }
@@ -530,6 +633,9 @@ impl SimulationElement for A380AvionicsDataCommunicationNetwork {
         }
         for iom in self.io_modules.values_mut() {
             iom.accept(visitor);
+        }
+        for cable in &mut self.cables {
+            cable.failure.accept(visitor);
         }
         visitor.visit(self);
     }
@@ -872,6 +978,61 @@ mod tests {
         assert!(!reachable);
         reachable = test_bed.read_by_name("AFDX_1_9_REACHABLE");
         assert!(!reachable);
+    }
+
+    #[test]
+    fn flypad_failed_cables_isolate_a_switch_and_are_routed_again_when_removed() {
+        let mut test_bed = SimulationTestBed::new(AdcnTestAircraft::new);
+
+        test_bed.command(|a| a.set_elec_powered(true));
+        // The cables 1 to 3 are the links 1-2, 1-3 and 1-9 of the first network: the switch 1 has no other
+        for cable in 1..=2 {
+            test_bed.fail(FailureType::AvionicsNetworkCable(cable));
+        }
+        test_bed.run();
+        let reachable: bool = test_bed.read_by_name("AFDX_1_2_REACHABLE");
+        assert!(
+            reachable,
+            "the switch 1 still has the cable to the switch 9"
+        );
+
+        test_bed.fail(FailureType::AvionicsNetworkCable(3));
+        test_bed.run();
+        for other in [2, 3, 4, 5, 6, 7, 9] {
+            let reachable: bool = test_bed.read_by_name(&format!("AFDX_1_{}_REACHABLE", other));
+            assert!(
+                !reachable,
+                "the switch 1 is isolated from the switch {}",
+                other
+            );
+        }
+        let reachable: bool = test_bed.read_by_name("AFDX_2_9_REACHABLE");
+        assert!(reachable, "the other switches still reach each other");
+        let reachable: bool = test_bed.read_by_name("AFDX_11_12_REACHABLE");
+        assert!(reachable, "the second network is not affected");
+
+        test_bed.unfail(FailureType::AvionicsNetworkCable(3));
+        test_bed.run();
+        let reachable: bool = test_bed.read_by_name("AFDX_1_2_REACHABLE");
+        assert!(reachable);
+    }
+
+    #[test]
+    fn the_cables_are_the_links_of_both_networks_in_order() {
+        let test_bed = SimulationTestBed::new(AdcnTestAircraft::new);
+
+        let links = test_bed.query(|a| {
+            a.adcn
+                .cables
+                .iter()
+                .map(|cable| (cable.network, cable.switches))
+                .collect::<Vec<_>>()
+        });
+        assert_eq!(links.len(), 30);
+        assert_eq!(links[0], (0, (0, 1)));
+        assert_eq!(links[14], (0, (5, 6)));
+        assert_eq!(links[15], (1, (8, 9)));
+        assert_eq!(links[29], (1, (13, 14)));
     }
 
     #[test]

@@ -7,19 +7,23 @@ import { A380Failure } from '@failures';
 
 const KG_PER_LB = 0.45359237;
 
-/** A feed tank that can leak (flyPad failure) and its MSFS tank (flight_model.cfg Tank.N, FUELSYSTEM TANK QUANTITY) */
+/**
+ * A feed tank that can leak (flyPad failure) and its MSFS tank (flight_model.cfg Tank.N, FUELSYSTEM TANK QUANTITY),
+ * and the fuel leak failure of the engine it feeds
+ */
 export interface A380FeedTankLeak {
   feedTank: number;
   failure: number;
+  engineFuelLeakFailure: number;
   msfsTank: number;
 }
 
 /** The feed tank leaks: Tank.2 Feed1, Tank.5 Feed2, Tank.6 Feed3, Tank.9 Feed4 */
 const A380_FEED_TANK_LEAKS: readonly A380FeedTankLeak[] = [
-  { feedTank: 1, failure: A380Failure.FuelFeedTank1Leak, msfsTank: 2 },
-  { feedTank: 2, failure: A380Failure.FuelFeedTank2Leak, msfsTank: 5 },
-  { feedTank: 3, failure: A380Failure.FuelFeedTank3Leak, msfsTank: 6 },
-  { feedTank: 4, failure: A380Failure.FuelFeedTank4Leak, msfsTank: 9 },
+  { feedTank: 1, failure: A380Failure.FuelFeedTank1Leak, engineFuelLeakFailure: A380Failure.Eng1FuelLeak, msfsTank: 2 },
+  { feedTank: 2, failure: A380Failure.FuelFeedTank2Leak, engineFuelLeakFailure: A380Failure.Eng2FuelLeak, msfsTank: 5 },
+  { feedTank: 3, failure: A380Failure.FuelFeedTank3Leak, engineFuelLeakFailure: A380Failure.Eng3FuelLeak, msfsTank: 6 },
+  { feedTank: 4, failure: A380Failure.FuelFeedTank4Leak, engineFuelLeakFailure: A380Failure.Eng4FuelLeak, msfsTank: 9 },
 ];
 
 /**
@@ -29,19 +33,57 @@ const A380_FEED_TANK_LEAKS: readonly A380FeedTankLeak[] = [
 export const FEED_TANK_LEAK_RATE_KG_PER_HOUR = 6_000;
 
 /**
+ * Design choice (the real leak rate is not known): an internal engine fuel leak, between the fuel flow transmitter and
+ * the combustion chamber, takes 1 200 kg/h more fuel from the feed tank than the engine burns, about half of a cruise
+ * fuel flow: a massive leak that the comparison with the other engines finds.
+ */
+export const ENGINE_FUEL_LEAK_RATE_KG_PER_HOUR = 1_200;
+
+/**
  * The fuel that a leak takes out of its tank during an update, in gallons, never more than the tank holds.
  * @param tankGallons the tank quantity
  * @param poundsPerGallon the fuel weight per gallon
  * @param deltaTimeMs the time of the update, in milliseconds
+ * @param leakKgPerHour the leak rate
  */
-export function leakedGallons(tankGallons: number, poundsPerGallon: number, deltaTimeMs: number): number {
+export function leakedGallons(
+  tankGallons: number,
+  poundsPerGallon: number,
+  deltaTimeMs: number,
+  leakKgPerHour = FEED_TANK_LEAK_RATE_KG_PER_HOUR,
+): number {
   if (!(poundsPerGallon > 0) || !(deltaTimeMs > 0)) {
     return 0;
   }
-  const leakedKg = (FEED_TANK_LEAK_RATE_KG_PER_HOUR * deltaTimeMs) / 3_600_000;
+  const leakedKg = (leakKgPerHour * deltaTimeMs) / 3_600_000;
   return Math.min(Math.max(tankGallons, 0), leakedKg / KG_PER_LB / poundsPerGallon);
 }
 
+/**
+ * ENG 1(2)(3)(4) FUEL LEAK of one engine: the FADEC compares the fuel used of the engine over 5 min with the average of
+ * the three others and finds an unusual overconsumption. Design choice: the sim burns the fuel the same on the four
+ * engines, so the comparison is replaced by the leak itself: the alert comes when the engine has leaked for the 5 min
+ * of the comparison. It goes with the leak or the engine shutdown.
+ */
+export class EngineFuelLeakDetection {
+  public static readonly DETECTION_TIME_S = 5 * 60;
+
+  private leakingTimeS = 0;
+
+  /**
+   * @param leaking the engine runs and its fuel leak failure is active
+   * @param deltaTimeS the time since the last update, in seconds
+   */
+  public update(leaking: boolean, deltaTimeS: number): void {
+    this.leakingTimeS = leaking ? this.leakingTimeS + Math.max(deltaTimeS, 0) : 0;
+  }
+
+  public isLeakDetected(): boolean {
+    return this.leakingTimeS >= EngineFuelLeakDetection.DETECTION_TIME_S;
+  }
+}
+
+/** What the FQMS leak detection reads on one update */
 /** What the FQMS leak detection reads on one update */
 export interface FuelLeakDetectionInputs {
   onGround: boolean;
@@ -173,15 +215,23 @@ export class FuelLeakDetection {
 export const FUEL_LEAK_DETECTED_VAR = 'L:A380X_FUEL_LEAK_DETECTED';
 export const FUEL_LEAK_DET_FAULT_VAR = 'L:A380X_FUEL_LEAK_DET_FAULT';
 
+/** The L:var that gives the FWS the fuel leak of an engine (ENG n FUEL LEAK) */
+export const engineFuelLeakVar = (engine: number) => `L:A32NX_ENGINE_${engine}_FUEL_LEAK`;
+
 /**
- * The feed tank leak failures (fuel taken out of the leaking feed tank by the systems, as FuelJettison takes the
- * jettisoned fuel) and the FQMS fuel leak detection.
+ * The feed tank and engine fuel leak failures (fuel taken out of the leaking feed tank by the systems, as FuelJettison
+ * takes the jettisoned fuel), the engine fuel leak detection and the FQMS fuel leak detection.
  */
 export class FuelLeak implements Instrument {
   /** The leaked fuel is written to the tanks at most this often, in milliseconds */
   private static readonly WRITE_PERIOD_MS = 500;
 
   private readonly detection = new FuelLeakDetection();
+
+  private readonly engineDetections = A380_FEED_TANK_LEAKS.map(() => new EngineFuelLeakDetection());
+
+  /** Whether each engine runs with its fuel leak failure */
+  private engineFuelLeaks: boolean[] = A380_FEED_TANK_LEAKS.map(() => false);
 
   private timeSinceWriteMs = 0;
 
@@ -197,21 +247,34 @@ export class FuelLeak implements Instrument {
   public onUpdate(): void {
     const deltaTimeMs = this.sysHost.deltaTime;
 
+    this.engineFuelLeaks = A380_FEED_TANK_LEAKS.map(
+      ({ engineFuelLeakFailure }, index) =>
+        this.failures.isActive(engineFuelLeakFailure) &&
+        SimVar.GetSimVarValue(`L:A32NX_ENGINE_STATE:${index + 1}`, 'Enum') === 1,
+    );
+    this.engineDetections.forEach((detection, index) => {
+      detection.update(this.engineFuelLeaks[index], deltaTimeMs / 1000);
+      SimVar.SetSimVarValue(engineFuelLeakVar(index + 1), SimVarValueType.Bool, detection.isLeakDetected());
+    });
+
     this.timeSinceWriteMs += deltaTimeMs;
     if (this.timeSinceWriteMs >= FuelLeak.WRITE_PERIOD_MS) {
       const elapsedMs = this.timeSinceWriteMs;
       this.timeSinceWriteMs = 0;
       const poundsPerGallon = SimVar.GetSimVarValue('FUEL WEIGHT PER GALLON', SimVarValueType.Pounds);
-      for (const { failure, msfsTank } of A380_FEED_TANK_LEAKS) {
-        if (this.failures.isActive(failure)) {
+      A380_FEED_TANK_LEAKS.forEach(({ failure, msfsTank }, index) => {
+        const leakKgPerHour =
+          (this.failures.isActive(failure) ? FEED_TANK_LEAK_RATE_KG_PER_HOUR : 0) +
+          (this.engineFuelLeaks[index] ? ENGINE_FUEL_LEAK_RATE_KG_PER_HOUR : 0);
+        if (leakKgPerHour > 0) {
           const quantityVar = `FUELSYSTEM TANK QUANTITY:${msfsTank}`;
           const gallons = SimVar.GetSimVarValue(quantityVar, SimVarValueType.GAL);
-          const leaked = leakedGallons(gallons, poundsPerGallon, elapsedMs);
+          const leaked = leakedGallons(gallons, poundsPerGallon, elapsedMs, leakKgPerHour);
           if (leaked > 0) {
             SimVar.SetSimVarValue(quantityVar, SimVarValueType.GAL, gallons - leaked);
           }
         }
-      }
+      });
     }
 
     let allEnginesRunning = true;

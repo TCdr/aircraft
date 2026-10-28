@@ -951,6 +951,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/GPWS] The predictive terrain and obstacle warnings now say AVOID TERRAIN and AVOID OBSTACLE in the GPWS voice instead of PULL UP, each word said once after the other with no overlap - @TCdr
 1. [A32NX/FWS] Add the F/CTL GND SPLR 5 FAULT, GND SPLR 1+2 FAULT, GND SPLR 3+4 FAULT, GND SPLR FAULT, SPD BRK 2 FAULT, SPD BRK 3+4 FAULT and SPD BRK FAULT alerts, with flyPad failures for the SEC ground spoiler function and the speed brake lever transducers; a lost SEC ground spoiler function also stops that SEC reverser signal (reverser 1 listens to SEC 1 and 2, reverser 2 to SEC 1 and 3) - @TCdr
 1. [A32NX/FWS] Add the BRAKES RELEASED, BRAKES ALTN L(R) RELEASED, BRAKES-N/WS MINOR FAULT and L/G SHOCK ABSORBER FAULT alerts, with flyPad failures for a released wheel or gear brake, the BSCU rudder pedal steering orders and the shock absorber proximity detectors - @TCdr
+1. [A380X/FWS] Add the AUTO FLT AFS CTL PNL FAULT, CAPT (F/O) AFS BKUP CTL FAULT, ENG 1(2)(3)(4) A/THR OFF and TCAS MODE FAULT alerts with their flyPad failures - @TCdr
+1. [A380X/FWS] Add the F/CTL STABILIZER ELEC ACTUATOR FAULT, NAV FLS 1(2)(1+2) FAULT and NAV GLS 1(2)(1+2) FAULT alerts with their flyPad failures - @TCdr
+1. [A380X/FWS] Add the AVIONICS NETWORK MULTIPLE CABLE FAULT alert, with failures for the cables between the AFDX switches - @TCdr
+1. [A380X/FWS] Add the ENG 1(2)(3)(4) FUEL LEAK, LP SHAFT PROT LOST and OIL FILTER MONITORING FAULT alerts with their flyPad failures - @TCdr
 
 ## 2024.1.0
 

@@ -17,6 +17,15 @@ import { KccuFailureState } from '../../../instruments/src/MsfsAvionicsCommon/Kc
  * - CDS CAPT (F/O) EFIS BKUP CTL FAULT: that EFIS CP and the EFIS page of that FCU backup are failed. SC and MASTER
  *   CAUT. STATUS: INOP SYS CAPT (F/O) EFIS CTL, INFO CAPT (F/O) BARO REF : STD ONLY.
  * The EFIS page of the captain (first officer) FCU backup is powered by DC ESS (DC 2).
+ *
+ * AFS CP (its FCU backup pages are powered like the EFIS pages):
+ * - AUTO FLT AFS CTL PNL FAULT: the AFS CP is failed. SC and MASTER CAUT. USE MFD FCU BKUP when the FCU backup is
+ *   available on the CAPT and F/O sides, USE CAPT (F/O) MFD FCU BKUP when it is available on that side only. STATUS:
+ *   INOP SYS AFS CTL PNL.
+ * - AUTO FLT CAPT (F/O) AFS BKUP CTL FAULT: the AFS CP is failed and the AFS page of that FCU backup is failed too.
+ *   Crew awareness. STATUS: INOP SYS CAPT (F/O) AFS BKUP CTL.
+ * Design choices: the flight phase inhibition of the AFS CP alert is the one of the EFIS CP alerts (the same FCU); the
+ * AFS CP and its backup pages have no effect on the autoflight model, only the alerts.
  * Design choices: the EFIS page of the FCU backup is failed when its flyPad failure is active or it has no power. A side
  * whose EFIS backup is lost raises its EFIS BKUP CTL FAULT, which replaces its EFIS CTL PNL FAULT; the CAPT+F/O alert is
  * raised when both CPs are failed and both backups are available, and replaces the two single alerts.
@@ -83,6 +92,47 @@ export function efisControlAlerts(inputs: EfisControlInputs): EfisControlAlerts 
     backupControlFault: [backupControlFault[0], backupControlFault[1]],
     inopControlPanel: [controlPanelFault[0] || bothControlPanelsFault, controlPanelFault[1] || bothControlPanelsFault],
     inopEfisControl: [backupControlFault[0], backupControlFault[1]],
+  };
+}
+
+/** The AFS CP and the AFS pages of the FCU backups, captain then first officer */
+export interface AfsControlInputs {
+  /** The flyPad failure of the AFS CP */
+  readonly controlPanelFailed: boolean;
+  /** The flyPad failure of the AFS page of the MFD FCU backup */
+  readonly backupPageFailed: readonly [boolean, boolean];
+  /** The power of the FCU backup: DC ESS for the captain, DC 2 for the first officer */
+  readonly backupPowered: readonly [boolean, boolean];
+}
+
+/** The AFS CP alerts and their procedure lines */
+export interface AfsControlAlerts {
+  /** AUTO FLT AFS CTL PNL FAULT, INOP SYS AFS CTL PNL */
+  readonly controlPanelFault: boolean;
+  /** The lines of AUTO FLT AFS CTL PNL FAULT: USE MFD FCU BKUP, USE CAPT MFD FCU BKUP, USE F/O MFD FCU BKUP */
+  readonly useBackupLines: [boolean, boolean, boolean];
+  /** AUTO FLT CAPT (F/O) AFS BKUP CTL FAULT, INOP SYS CAPT (F/O) AFS BKUP CTL */
+  readonly backupControlFault: [boolean, boolean];
+}
+
+/**
+ * @param inputs the AFS CP and FCU backup failures and the FCU backup power
+ * @returns the AFS CP alerts
+ */
+export function afsControlAlerts(inputs: AfsControlInputs): AfsControlAlerts {
+  const captainBackupAvailable = !inputs.backupPageFailed[0] && inputs.backupPowered[0];
+  const firstOfficerBackupAvailable = !inputs.backupPageFailed[1] && inputs.backupPowered[1];
+  return {
+    controlPanelFault: inputs.controlPanelFailed,
+    useBackupLines: [
+      captainBackupAvailable && firstOfficerBackupAvailable,
+      captainBackupAvailable && !firstOfficerBackupAvailable,
+      !captainBackupAvailable && firstOfficerBackupAvailable,
+    ],
+    backupControlFault: [
+      inputs.controlPanelFailed && !captainBackupAvailable,
+      inputs.controlPanelFailed && !firstOfficerBackupAvailable,
+    ],
   };
 }
 

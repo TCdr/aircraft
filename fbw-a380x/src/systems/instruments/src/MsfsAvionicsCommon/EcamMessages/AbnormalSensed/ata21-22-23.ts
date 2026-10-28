@@ -1904,6 +1904,16 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
+  220800016: {
+    title: '\x1b<4m\x1b4mAUTO FLT\x1bm CAPT AFS BKUP CTL FAULT',
+    sensed: true,
+    items: [],
+  },
+  220800017: {
+    title: '\x1b<4m\x1b4mAUTO FLT\x1bm F/O AFS BKUP CTL FAULT',
+    sensed: true,
+    items: [],
+  },
   221800001: {
     title: '\x1b<4m\x1b4mAUTO FLT\x1bm FMC-A FAULT',
     sensed: true,

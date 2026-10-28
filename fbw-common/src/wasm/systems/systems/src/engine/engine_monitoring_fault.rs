@@ -11,7 +11,8 @@
 //!   FADEC data and the displayed value (amber CHECK on the E/WD).
 //! - A380: ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED,
 //!   MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT, CTL SYS FAULT, CTL VLV FAULT, FADEC IDENT
-//!   FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE.
+//!   FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE, OIL FILTER MONITORING
+//!   FAULT, LP SHAFT PROT LOST.
 //!
 //! Written variable, per engine n and fault: `ENGINE_n_<fault>` (boolean, see
 //! [`EngineMonitoringFaultKind::variable_name`]).
@@ -86,6 +87,11 @@ pub enum EngineMonitoringFaultKind {
     FuelFilterMonitoring,
     /// A380 ENG 1(2)(3)(4) OIL CHIP DETECTED: metallic particles in the engine oil system.
     OilChip,
+    /// A380 ENG 1(2)(3)(4) OIL FILTER MONITORING FAULT: the engine oil filter monitoring system is
+    /// failed.
+    OilFilterMonitoring,
+    /// A380 ENG 1(2)(3)(4) LP SHAFT PROT LOST: the FADEC protection of the LP shaft is lost.
+    LpShaftProtection,
     /// A380 ENG 1(2)(3)(4) MINOR FAULT: some internal engine sensors or one FADEC channel failed.
     MinorFault,
     /// A380 ENG 1(2)(3)(4) OVERTHRUST PROT LOST: the overthrust protection is lost.
@@ -139,6 +145,8 @@ impl EngineMonitoringFaultKind {
             EngineMonitoringFaultKind::FuelStrainerClog => "FUEL_STRAINER_CLOGGED",
             EngineMonitoringFaultKind::FuelFilterMonitoring => "FUEL_FILTER_MONITORING_FAULT",
             EngineMonitoringFaultKind::OilChip => "OIL_CHIP_DETECTED",
+            EngineMonitoringFaultKind::OilFilterMonitoring => "OIL_FILTER_MONITORING_FAULT",
+            EngineMonitoringFaultKind::LpShaftProtection => "LP_SHAFT_PROTECTION_LOST",
             EngineMonitoringFaultKind::MinorFault => "MINOR_FAULT",
             EngineMonitoringFaultKind::OverthrustProtection => "OVERTHRUST_PROTECTION_LOST",
             EngineMonitoringFaultKind::ControlSystem => "CTL_SYS_FAULT",
@@ -227,9 +235,11 @@ mod tests {
         Aircraft,
     };
 
-    const KINDS: [EngineMonitoringFaultKind; 2] = [
+    const KINDS: [EngineMonitoringFaultKind; 4] = [
         EngineMonitoringFaultKind::OilChip,
         EngineMonitoringFaultKind::Sensors,
+        EngineMonitoringFaultKind::OilFilterMonitoring,
+        EngineMonitoringFaultKind::LpShaftProtection,
     ];
 
     struct TestAircraft {
@@ -292,6 +302,31 @@ mod tests {
     }
 
     #[test]
+    fn the_oil_filter_monitoring_and_lp_shaft_protection_faults_are_written_per_engine() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::EngineMonitoringFault(
+            2,
+            EngineMonitoringFaultKind::OilFilterMonitoring,
+        ));
+        test_bed.fail(FailureType::EngineMonitoringFault(
+            4,
+            EngineMonitoringFaultKind::LpShaftProtection,
+        ));
+        test_bed.run();
+
+        assert!(written(
+            &mut test_bed,
+            "ENGINE_2_OIL_FILTER_MONITORING_FAULT"
+        ));
+        assert!(written(&mut test_bed, "ENGINE_4_LP_SHAFT_PROTECTION_LOST"));
+        assert!(!written(
+            &mut test_bed,
+            "ENGINE_4_OIL_FILTER_MONITORING_FAULT"
+        ));
+        assert!(!written(&mut test_bed, "ENGINE_2_LP_SHAFT_PROTECTION_LOST"));
+    }
+
+    #[test]
     fn a_fault_the_aircraft_does_not_list_is_never_active() {
         let mut test_bed = test_bed();
         test_bed.fail(FailureType::EngineMonitoringFault(
@@ -342,6 +377,8 @@ mod tests {
             EngineMonitoringFaultKind::FuelStrainerClog,
             EngineMonitoringFaultKind::FuelFilterMonitoring,
             EngineMonitoringFaultKind::OilChip,
+            EngineMonitoringFaultKind::OilFilterMonitoring,
+            EngineMonitoringFaultKind::LpShaftProtection,
             EngineMonitoringFaultKind::MinorFault,
             EngineMonitoringFaultKind::OverthrustProtection,
             EngineMonitoringFaultKind::ControlSystem,

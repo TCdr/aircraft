@@ -4,8 +4,9 @@
 /*
  * The ATA 42 AVIONICS NETWORK alerts of the A380X FWS, from the AFDX switch and IOM failures of the Rust ADCN model
  * (a380_systems avionics_data_communication_network.rs, flyPad failures 42001-42019 and 42101-42108).
- * Not simulated: AVIONICS NETWORK MULTIPLE CABLE FAULT (no cable model), and the procedure lines that depend on which
- * switches or IOMs failed: the sim does not map the aircraft systems to the IOM pairs and switch ports.
+ * The cables between the switches are the links of the network (a380_systems avionics_data_communication_network.rs,
+ * flyPad failures 42301-42330). Not simulated: the procedure lines that depend on which switches or IOMs failed, the sim
+ * does not map the aircraft systems to the IOM pairs and switch ports.
  */
 
 /** The 16 AFDX switches of the Rust ADCN: network A 1-7, 9 and network B 11-17, 19 (paired as n and n + 10) */
@@ -33,7 +34,14 @@ export const AVIONICS_NETWORK_ALERT_IDS = {
   multipleIomFaultRedundancyDegraded: '420800005',
   multipleSwitchFaultNetworkDegraded: '420800006',
   multipleSwitchFaultRedundancyDegraded: '420800007',
+  multipleCableFault: '420800008',
 } as const;
+
+/** The cables between the AFDX switches, 1 to 30: 15 links on each network */
+export const AFDX_CABLE_COUNT = 30;
+
+/** MULTIPLE CABLE FAULT: two cables or more are failed */
+const MULTIPLE_CABLE_FAULT_MIN_CABLES = 2;
 
 /** ALL SWITCHES FAULT: flight phases 4 to 7, 9 and 10 */
 export const ALL_SWITCHES_FAULT_PHASE_INHIBITION = [4, 5, 6, 7, 9, 10];
@@ -70,6 +78,8 @@ export interface AvionicsNetworkInputs {
   readonly switchFailed: (switchId: number) => boolean;
   /** The failed IOMs, by IOM name (A1-A8) */
   readonly iomFailed: (iomName: string) => boolean;
+  /** The failed cables, by cable number (1-30) */
+  readonly cableFailed: (cable: number) => boolean;
 }
 
 export interface AvionicsNetworkAlerts {
@@ -80,11 +90,14 @@ export interface AvionicsNetworkAlerts {
   readonly doubleIomFault: boolean;
   readonly multipleIomFaultNetworkDegraded: boolean;
   readonly multipleIomFaultRedundancyDegraded: boolean;
+  readonly multipleCableFault: boolean;
 }
 
 /**
  * The AVIONICS NETWORK alerts from the failed switches and IOMs. A failed switch or IOM is one with its failure set (the
  * flyPad failure or its _FAILURE L:var); an unpowered one is not counted, its electrical alerts tell the crew.
+ * Cables: MULTIPLE CABLE FAULT when two or more cables are failed (crew awareness); a single cable failure gives a
+ * maintenance message only.
  * Switches:
  * - A single switch failure gives a maintenance message only, no ECAM alert.
  * - ALL SWITCHES FAULT: all the switches of both networks failed; it replaces the others.
@@ -113,6 +126,13 @@ export function avionicsNetworkAlerts(inputs: AvionicsNetworkInputs): AvionicsNe
   const pairLost = failedIomsPerPair.some((failed) => failed === 2);
   const failedIoms = failedIomsPerPair.reduce((sum, failed) => sum + failed, 0);
 
+  let failedCables = 0;
+  for (let cable = 1; cable <= AFDX_CABLE_COUNT; cable++) {
+    if (inputs.cableFailed(cable)) {
+      failedCables++;
+    }
+  }
+
   return {
     allSwitchesFault,
     doubleSwitchFault: failedOnOneNetworkOnly === 2,
@@ -121,6 +141,7 @@ export function avionicsNetworkAlerts(inputs: AvionicsNetworkInputs): AvionicsNe
     doubleIomFault: !pairLost && failedIoms === 2,
     multipleIomFaultNetworkDegraded: pairLost,
     multipleIomFaultRedundancyDegraded: !pairLost && failedIoms >= 3,
+    multipleCableFault: failedCables >= MULTIPLE_CABLE_FAULT_MIN_CABLES,
   };
 }
 
@@ -138,6 +159,14 @@ export function afdxSwitchFlyPadFailure(switchId: number): number {
  */
 export function iomFlyPadFailure(iomName: string): number {
   return 42100 + Number(iomName.slice(1));
+}
+
+/**
+ * @param cable the cable number, 1 to 30
+ * @returns its flyPad failure id (A380Failure.AfdxCable<n> = 42300 + n)
+ */
+export function afdxCableFlyPadFailure(cable: number): number {
+  return 42300 + cable;
 }
 
 /**

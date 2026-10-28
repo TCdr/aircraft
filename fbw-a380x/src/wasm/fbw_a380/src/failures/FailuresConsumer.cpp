@@ -28,6 +28,11 @@ FailuresConsumer::FailuresConsumer() {
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Rollout, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fcu1, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fcu2, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng1Autothrust, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng2Autothrust, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng3Autothrust, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng4Autothrust, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::ApFdTcasMode, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Prim1, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Prim2, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Prim3, false));

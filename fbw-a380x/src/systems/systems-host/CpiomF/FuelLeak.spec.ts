@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import {
+  ENGINE_FUEL_LEAK_RATE_KG_PER_HOUR,
+  EngineFuelLeakDetection,
+  engineFuelLeakVar,
   FEED_TANK_LEAK_RATE_KG_PER_HOUR,
   FUEL_LEAK_DET_FAULT_VAR,
   FUEL_LEAK_DETECTED_VAR,
@@ -179,6 +182,62 @@ describe('feed tank leak failures', () => {
     for (const tank of [2, 5, 9]) {
       expect(simVars.get(`FUELSYSTEM TANK QUANTITY:${tank}`)).toBe(5000);
     }
+  });
+
+  it('leaks 1 200 kg/h from the feed tank of a running engine with the engine fuel leak failure', () => {
+    expect(ENGINE_FUEL_LEAK_RATE_KG_PER_HOUR).toBe(1_200);
+    expect(leakedGallons(5000, POUNDS_PER_GALLON, 3_600_000, 1_200)).toBeCloseTo(
+      1_200 / KG_PER_LB / POUNDS_PER_GALLON,
+      6,
+    );
+    const leak = new FuelLeak({ deltaTime: 1000 }, failuresConsumer);
+    failures.add(A380Failure.Eng2FuelLeak);
+    simVars.set('L:A32NX_ENGINE_STATE:2', 1);
+    for (let s = 0; s < 3600; s++) {
+      leak.onUpdate();
+    }
+    expect(simVars.get('FUELSYSTEM TANK QUANTITY:5')).toBeCloseTo(5000 - 1_200 / KG_PER_LB / POUNDS_PER_GALLON, 3);
+    for (const tank of [2, 6, 9]) {
+      expect(simVars.get(`FUELSYSTEM TANK QUANTITY:${tank}`)).toBe(5000);
+    }
+  });
+
+  it('does not leak from a feed tank whose engine is shut down', () => {
+    const leak = new FuelLeak({ deltaTime: 1000 }, failuresConsumer);
+    failures.add(A380Failure.Eng2FuelLeak);
+    simVars.set('L:A32NX_ENGINE_STATE:2', 0);
+    for (let s = 0; s < 600; s++) {
+      leak.onUpdate();
+    }
+    expect(simVars.get('FUELSYSTEM TANK QUANTITY:5')).toBe(5000);
+    expect(simVars.get(engineFuelLeakVar(2))).toBe(false);
+  });
+
+  it('gives the FWS ENG n FUEL LEAK after 5 min of leak, and clears it with the engine shutdown', () => {
+    const leak = new FuelLeak({ deltaTime: 1000 }, failuresConsumer);
+    failures.add(A380Failure.Eng4FuelLeak);
+    simVars.set('L:A32NX_ENGINE_STATE:4', 1);
+    for (let s = 0; s < 299; s++) {
+      leak.onUpdate();
+    }
+    expect(simVars.get(engineFuelLeakVar(4))).toBe(false);
+    leak.onUpdate();
+    leak.onUpdate();
+    expect(simVars.get(engineFuelLeakVar(4))).toBe(true);
+    expect(simVars.get(engineFuelLeakVar(1))).toBe(false);
+    simVars.set('L:A32NX_ENGINE_STATE:4', 0);
+    leak.onUpdate();
+    expect(simVars.get(engineFuelLeakVar(4))).toBe(false);
+  });
+
+  it('detects a leak only after the detection time', () => {
+    const detection = new EngineFuelLeakDetection();
+    detection.update(true, EngineFuelLeakDetection.DETECTION_TIME_S - 1);
+    expect(detection.isLeakDetected()).toBe(false);
+    detection.update(true, 1);
+    expect(detection.isLeakDetected()).toBe(true);
+    detection.update(false, 1);
+    expect(detection.isLeakDetected()).toBe(false);
   });
 
   it('gives the FWS the leak detection of the FQMS', () => {

@@ -440,6 +440,62 @@ describe('A380X flyPad failure definitions', () => {
     expect(readRustFailureMap().has(73050)).toBe(false);
   });
 
+  it('lists the AFS, A/THR, TCAS, stabilizer, FLS, GLS, fuel leak, LP shaft and oil filter monitoring failures', () => {
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+    const expected: [number, number, string][] = [
+      [22, 22200, 'AFS control panel'],
+      [22, 22201, 'CAPT FCU backup AFS page (MFD)'],
+      [22, 22202, 'F/O FCU backup AFS page (MFD)'],
+      [22, 22210, 'Engine 1 autothrust'],
+      [22, 22213, 'Engine 4 autothrust'],
+      [22, 22220, 'AP/FD TCAS mode'],
+      [27, 27137, 'Stabilizer electric motor'],
+      [34, 34130, 'MMR 1 FLS function'],
+      [34, 34131, 'MMR 2 FLS function'],
+      [34, 34132, 'MMR 1 GLS function'],
+      [34, 34133, 'MMR 2 GLS function'],
+      [72, 72200, 'Engine 1 LP shaft protection'],
+      [72, 72203, 'Engine 4 LP shaft protection'],
+      [73, 73430, 'Engine 1 fuel leak'],
+      [73, 73433, 'Engine 4 fuel leak'],
+      [79, 79060, 'Engine 1 oil filter monitoring'],
+      [79, 79063, 'Engine 4 oil filter monitoring'],
+    ];
+    expect(expected.map(([, id]) => [definitionOf(id)?.[0], definitionOf(id)?.[2]])).toEqual(
+      expected.map(([ata, , name]) => [ata, name]),
+    );
+  });
+
+  it('maps the oil filter monitoring, LP shaft protection and cable failures to the Rust failures', () => {
+    const rustMap = readRustFailureMap();
+    for (let engine = 1; engine <= 4; engine++) {
+      expect(rustMap.get(79060 + engine - 1)).toBe(
+        `EngineMonitoringFault(${engine},EngineMonitoringFaultKind::OilFilterMonitoring)`,
+      );
+      expect(rustMap.get(72200 + engine - 1)).toBe(
+        `EngineMonitoringFault(${engine},EngineMonitoringFaultKind::LpShaftProtection)`,
+      );
+    }
+    for (let cable = 1; cable <= 30; cable++) {
+      expect(rustMap.get(42300 + cable)).toBe(`AvionicsNetworkCable(${cable})`);
+      expect(A380FailureDefinitions.find(([, id]) => id === 42300 + cable)?.[0]).toBe(42);
+    }
+  });
+
+  it('keeps the C++ failure ids of the A/THR and TCAS mode failures in step with the list', () => {
+    const cpp = readFileSync(resolve(__dirname, '../../../wasm/fbw_a380/src/failures/FailureList.h'), 'utf8');
+    for (const [name, id] of [
+      ['Eng1Autothrust', 22210],
+      ['Eng2Autothrust', 22211],
+      ['Eng3Autothrust', 22212],
+      ['Eng4Autothrust', 22213],
+      ['ApFdTcasMode', 22220],
+    ] as [string, number][]) {
+      expect(cpp).toContain(`${name} = ${id},`);
+      expect(enumIds).toContain(id);
+    }
+  });
+
   it('lists every failure the Rust systems map reacts to', () => {
     const rustIds = [...readRustFailureMap().keys()];
     // Sanity check of the parser: the map holds well over a hundred failures.
@@ -878,10 +934,10 @@ describe('A380X slat/flap channel and avionics network failures', () => {
 
   // 16 AFDX switches (8 per network), 4 pairs of IOMs, 22 CPIOMs in 7 groups. The Rust model names them as the
   // AFDX_SWITCH_n / IOM_xn / CPIOM_xn L:vars.
-  it('lists a failure for every AFDX switch, IOM and CPIOM of the Rust avionics network in ATA 42', () => {
+  it('lists a failure for every AFDX switch, cable, IOM and CPIOM of the Rust avionics network in ATA 42', () => {
     const rustMap = readRustFailureMap();
     const networkIds = [...rustMap.keys()].filter((id) => Math.floor(id / 1000) === 42);
-    expect(networkIds).toHaveLength(16 + 8 + 22);
+    expect(networkIds).toHaveLength(16 + 30 + 8 + 22);
     expect(networkIds.filter((id) => !listedIds.includes(id))).toEqual([]);
 
     expect(rustMap.get(A380Failure.AfdxSwitch9)).toBe('AvionicsFullDuplexSwitch(9)');

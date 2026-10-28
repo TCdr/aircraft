@@ -943,6 +943,13 @@ export const EcamInopSys: { [n: string]: string } = {
   340300074: '\x1b<4mL ADR 3 STAT PROBE',
   340300075: '\x1b<4mR ADR 3 STAT PROBE',
   340300076: '\x1b<4mL+R ADR 3 STAT PROBE',
+  // NAV FLS (GLS) FAULT STATUS
+  340300077: '\x1b<4mFLS 1',
+  340300078: '\x1b<4mFLS 2',
+  340300079: '\x1b<4mFLS 1+2',
+  340300080: '\x1b<4mGLS 1',
+  340300081: '\x1b<4mGLS 2',
+  340300082: '\x1b<4mGLS 1+2',
   341300004: '\x1b<4mTURB 1',
   341300005: '\x1b<4mTURB 2',
   341300006: '\x1b<4mTURB 1+2',

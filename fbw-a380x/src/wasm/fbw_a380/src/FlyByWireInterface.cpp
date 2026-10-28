@@ -1490,7 +1490,8 @@ bool FlyByWireInterface::updateFqms() {
 }
 
 bool FlyByWireInterface::updateTcas() {
-  tcasBusOutputs.tcas_valid = idTcasFault->get() == 0;
+  // TCAS MODE FAULT (flyPad failure): the PRIMs get no valid TCAS data, so the AP/FD TCAS mode cannot arm or engage
+  tcasBusOutputs.tcas_valid = idTcasFault->get() == 0 && !failuresConsumer.isActive(Failures::ApFdTcasMode);
   tcasBusOutputs.ta_ra_mode = idTcasMode->get() >= 2;
   tcasBusOutputs.ta_active = idTcasState->get() == 1;
   tcasBusOutputs.ra_active = idTcasState->get() >= 2;
@@ -3158,8 +3159,12 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = engineStartThrottle.loopCommandedN1;
 
   // ENG FADEC FAULT: the FADEC cannot communicate over the avionics networks: the PRIM orders do not reach it, the A/THR loses
-  // that engine ("ENG 1(2)(3)(4) A/THR" INOP SYS), which follows its thrust lever
-  const bool fadecNetworkLost = idEngineFadecFault[fadecIndex]->get() > 0.5;
+  // that engine ("ENG 1(2)(3)(4) A/THR" INOP SYS), which follows its thrust lever. ENG A/THR OFF (flyPad failure): the same
+  // loss of the A/THR on that engine, the FADEC still communicating
+  const Failures autothrustFailures[4] = {Failures::Eng1Autothrust, Failures::Eng2Autothrust, Failures::Eng3Autothrust,
+                                          Failures::Eng4Autothrust};
+  const bool fadecNetworkLost =
+      idEngineFadecFault[fadecIndex]->get() > 0.5 || failuresConsumer.isActive(autothrustFailures[fadecIndex]);
   fadecInputs[fadecIndex].in.prim_1 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[0], fadecNetworkLost);
   fadecInputs[fadecIndex].in.prim_2 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[1], fadecNetworkLost);
   fadecInputs[fadecIndex].in.prim_3 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[2], fadecNetworkLost);

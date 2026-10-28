@@ -893,6 +893,15 @@ export class FwsAbnormalSensed {
         failure: 1,
         sysPage: SdPages.None,
       },
+      [ids.multipleCableFault]: {
+        // crew awareness. Flight phase inhibition: design choice, the one of the other MULTIPLE alerts
+        flightPhaseInhib: MULTIPLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkMultipleCableFault,
+        notActiveWhenItemActive: [],
+        ...noItems,
+        failure: 1,
+        sysPage: SdPages.None,
+      },
       [ids.multipleIomFaultNetworkDegraded]: {
         flightPhaseInhib: MULTIPLE_FAULT_PHASE_INHIBITION,
         simVarIsActive: this.fws.avncsNetworkMultipleIomFaultNetworkDegraded,
@@ -1433,6 +1442,17 @@ export class FwsAbnormalSensed {
         whichItemsChecked: () => ctlSysFaultItemsNow().checked,
         failure: CTL_SYS_FAULT_LEVEL,
         sysPage: SdPages.None,
+      };
+      // ENG n FUEL LEAK (701800041-044): ENG FUEL PARAMETERS CHECK, IF FUEL LEAK : THR LEVER n IDLE, ENG n MASTER OFF.
+      // Flight phase inhibition: design choice, the one of the FADEC cautions
+      alerts[701800041 + index] = {
+        flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+        simVarIsActive: this.fws.engineFuelLeak[index],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [true, true, true, true],
+        whichItemsChecked: () => [false, false, thrustLeversIdle[index].get(), !masters[index].get()],
+        failure: 2,
+        sysPage: SdPages.Eng,
       };
     }
     // ENG 2(3) REVERSER INHIBITED (701800143-144) and REVERSER MINOR FAULT (701800147-148), FadecReverserAlerts.ts
@@ -3243,6 +3263,97 @@ export class FwsAbnormalSensed {
       inopSysApprLdg: () => ['220300028'],
       info: () => ['220200016'],
     },
+    220800005: {
+      // AFS CTL PNL FAULT, SC and MASTER CAUT. Flight phase inhibition: design choice, the one of the EFIS CP alerts
+      flightPhaseInhib: [4, 5, 6, 7, 10],
+      simVarIsActive: this.fws.afsCtlPnlFault,
+      notActiveWhenItemActive: [],
+      // USE MFD FCU BKUP, USE CAPT MFD FCU BKUP, USE F/O MFD FCU BKUP
+      whichItemsToShow: () => this.fws.afsCtlPnlUseBackupLines.map((line) => line.get()),
+      whichItemsChecked: () => [false, false, false],
+      inopSysAllPhases: () => ['220300004'],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    220800016: {
+      // CAPT AFS BKUP CTL FAULT, crew awareness
+      flightPhaseInhib: [4, 5, 6, 7, 10],
+      simVarIsActive: this.fws.afsBkupCtlFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      inopSysAllPhases: () => ['220300012'],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    220800017: {
+      // F/O AFS BKUP CTL FAULT, crew awareness
+      flightPhaseInhib: [4, 5, 6, 7, 10],
+      simVarIsActive: this.fws.afsBkupCtlFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      inopSysAllPhases: () => ['220300013'],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    220800009: {
+      // ENG 1 A/THR OFF. Not with ENG 1 FADEC FAULT, which lists the A/THR in its STATUS. THR LEVER 1 MAN ADJUST in flight
+      flightPhaseInhib: [3, 4, 5, 10],
+      simVarIsActive: this.fws.engineAutothrustOff[0],
+      notActiveWhenItemActive: ['701800013'],
+      whichItemsToShow: () => [!this.fws.aircraftOnGround.get()],
+      whichItemsChecked: () => [false],
+      inopSysAllPhases: () => ['220300014'],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    220800010: {
+      // ENG 2 A/THR OFF. Not with ENG 2 FADEC FAULT, which lists the A/THR in its STATUS. THR LEVER 2 MAN ADJUST in flight
+      flightPhaseInhib: [3, 4, 5, 10],
+      simVarIsActive: this.fws.engineAutothrustOff[1],
+      notActiveWhenItemActive: ['701800014'],
+      whichItemsToShow: () => [!this.fws.aircraftOnGround.get()],
+      whichItemsChecked: () => [false],
+      inopSysAllPhases: () => ['220300015'],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    220800011: {
+      // ENG 3 A/THR OFF. Not with ENG 3 FADEC FAULT, which lists the A/THR in its STATUS. THR LEVER 3 MAN ADJUST in flight
+      flightPhaseInhib: [3, 4, 5, 10],
+      simVarIsActive: this.fws.engineAutothrustOff[2],
+      notActiveWhenItemActive: ['701800015'],
+      whichItemsToShow: () => [!this.fws.aircraftOnGround.get()],
+      whichItemsChecked: () => [false],
+      inopSysAllPhases: () => ['220300016'],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    220800012: {
+      // ENG 4 A/THR OFF. Not with ENG 4 FADEC FAULT, which lists the A/THR in its STATUS. THR LEVER 4 MAN ADJUST in flight
+      flightPhaseInhib: [3, 4, 5, 10],
+      simVarIsActive: this.fws.engineAutothrustOff[3],
+      notActiveWhenItemActive: ['701800016'],
+      whichItemsToShow: () => [!this.fws.aircraftOnGround.get()],
+      whichItemsChecked: () => [false],
+      inopSysAllPhases: () => ['220300017'],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    220800014: {
+      // TCAS MODE FAULT. Flight phase inhibition: design choice, the one of the TCAS FAULT alerts
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.apFdTcasModeFault,
+      notActiveWhenItemActive: [],
+      // FOR TCAS ALERT, AP & FD OFF, FLY MANUALLY TCAS RA ORDER
+      whichItemsToShow: () => [true, true, true],
+      whichItemsChecked: () => [false, this.fws.apOff.get() && this.fws.fdOff.get(), false],
+      inopSysAllPhases: () => ['220300020'],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+
     // A/THR OFF memo caution
     220000002: {
       flightPhaseInhib: [],
@@ -5048,6 +5159,17 @@ export class FwsAbnormalSensed {
       // STABILIZER ACTUATOR FAULT: crew awareness
       flightPhaseInhib: STABILIZER_ACTUATOR_FAULT_PHASE_INHIBITION,
       simVarIsActive: this.fws.fctlActuators.stabilizerActuatorFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Fctl,
+    },
+    271800067: {
+      // STABILIZER ELEC ACTUATOR FAULT: crew awareness. Flight phase inhibition: design choice, the one of STABILIZER
+      // ACTUATOR FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.fctlActuators.stabilizerElecActuatorFault,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
@@ -8003,6 +8125,72 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.None,
       inopSysApprLdg: () => ILS_FAULT_INOP_SYS_APPR_LDG.ils1And2,
+    },
+    340800075: {
+      // FLS 1 FAULT: crew awareness. Flight phase inhibition: design choice, the one of the LS and ILS FAULT alerts
+      flightPhaseInhib: [3, 4, 5, 6, 7],
+      simVarIsActive: this.fws.navSensorAlerts.fls1Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => ['340300077'],
+    },
+    340800076: {
+      // FLS 2 FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7],
+      simVarIsActive: this.fws.navSensorAlerts.fls2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => ['340300078'],
+    },
+    340800077: {
+      // FLS 1+2 FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7],
+      simVarIsActive: this.fws.navSensorAlerts.fls1And2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => ['340300079'],
+    },
+    340800030: {
+      // GLS 1 FAULT: crew awareness
+      flightPhaseInhib: [3, 4, 5, 6, 7],
+      simVarIsActive: this.fws.navSensorAlerts.gls1Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => ['220300010', '340300080'],
+    },
+    340800031: {
+      // GLS 2 FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7],
+      simVarIsActive: this.fws.navSensorAlerts.gls2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => ['220300010', '340300081'],
+    },
+    340800032: {
+      // GLS 1+2 FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7],
+      simVarIsActive: this.fws.navSensorAlerts.gls1And2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => ['340300082'],
     },
     340800064: {
       // SIDESLIP PROBE 1 FAULT

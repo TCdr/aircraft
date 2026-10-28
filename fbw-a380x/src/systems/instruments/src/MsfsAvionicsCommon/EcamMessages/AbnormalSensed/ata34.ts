@@ -424,6 +424,21 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [], // FLS not implemented
   },
+  340800075: {
+    title: '\x1b<4m\x1b4mNAV\x1bm FLS 1 FAULT',
+    sensed: true,
+    items: [],
+  },
+  340800076: {
+    title: '\x1b<4m\x1b4mNAV\x1bm FLS 2 FAULT',
+    sensed: true,
+    items: [],
+  },
+  340800077: {
+    title: '\x1b<4m\x1b4mNAV\x1bm FLS 1+2 FAULT',
+    sensed: true,
+    items: [],
+  },
   340800025: {
     title: '\x1b<4m\x1b4mNAV\x1bm FM / GPS POS DISAGREE',
     sensed: true,
@@ -464,17 +479,17 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800030: {
     title: '\x1b<4m\x1b4mNAV\x1bm GLS 1 FAULT',
     sensed: true,
-    items: [], // GLS not implemented
+    items: [],
   },
   340800031: {
     title: '\x1b<4m\x1b4mNAV\x1bm GLS 2 FAULT',
     sensed: true,
-    items: [], // GLS not implemented
+    items: [],
   },
   340800032: {
     title: '\x1b<4m\x1b4mNAV\x1bm GLS 1+2 FAULT',
     sensed: true,
-    items: [], // GLS not implemented
+    items: [],
   },
   340800033: {
     title: '\x1b<4m\x1b4mNAV\x1bm GNSS SIGNAL DEGRADED',

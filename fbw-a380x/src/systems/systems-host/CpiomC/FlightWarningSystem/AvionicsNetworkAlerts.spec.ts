@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AFDX_SWITCHES_NETWORK_A,
   AFDX_SWITCHES_NETWORK_B,
+  afdxCableFlyPadFailure,
   afdxSwitchFlyPadFailure,
   ALL_SWITCHES_FAULT_LIMITATIONS_ALL_PHASES,
   ALL_SWITCHES_FAULT_LIMITATIONS_APPR_LDG,
@@ -37,13 +38,19 @@ const NO_ALERT: AvionicsNetworkAlerts = {
   doubleIomFault: false,
   multipleIomFaultNetworkDegraded: false,
   multipleIomFaultRedundancyDegraded: false,
+  multipleCableFault: false,
 };
 
 /** The alerts with these switches and IOMs failed */
-function alerts(failedSwitches: number[], failedIoms: string[] = []): AvionicsNetworkAlerts {
+function alerts(
+  failedSwitches: number[],
+  failedIoms: string[] = [],
+  failedCables: number[] = [],
+): AvionicsNetworkAlerts {
   return avionicsNetworkAlerts({
     switchFailed: (id) => failedSwitches.includes(id),
     iomFailed: (name) => failedIoms.includes(name),
+    cableFailed: (cable) => failedCables.includes(cable),
   });
 }
 
@@ -51,6 +58,38 @@ function alerts(failedSwitches: number[], failedIoms: string[] = []): AvionicsNe
 function only(active: Partial<AvionicsNetworkAlerts>): AvionicsNetworkAlerts {
   return { ...NO_ALERT, ...active };
 }
+
+describe('AVIONICS NETWORK MULTIPLE CABLE FAULT', () => {
+  it('raises nothing for no cable or one failed cable (maintenance message only)', () => {
+    expect(alerts([], [], [])).toEqual(NO_ALERT);
+    expect(alerts([], [], [7])).toEqual(NO_ALERT);
+  });
+
+  it('raises the crew awareness alert for two cables or more, on one network or both', () => {
+    expect(alerts([], [], [1, 2])).toEqual(only({ multipleCableFault: true }));
+    expect(alerts([], [], [3, 20])).toEqual(only({ multipleCableFault: true }));
+    expect(alerts([], [], [1, 15, 16, 30])).toEqual(only({ multipleCableFault: true }));
+  });
+
+  it('is independent of the switch alerts', () => {
+    expect(alerts([1, 2], [], [4, 5])).toEqual(only({ doubleSwitchFault: true, multipleCableFault: true }));
+  });
+
+  it('maps the cables to the flyPad failures 42301 to 42330', () => {
+    expect(afdxCableFlyPadFailure(1)).toBe(42301);
+    expect(afdxCableFlyPadFailure(30)).toBe(42330);
+    expect(failures).toContain('AfdxCable1: 42301,');
+    expect(failures).toContain('AfdxCable30: 42330,');
+  });
+
+  it('is wired to the alert 420800008 as crew awareness', () => {
+    expect(AVIONICS_NETWORK_ALERT_IDS.multipleCableFault).toBe('420800008');
+    expect(ata42).toContain('420800008: {');
+    expect(ata42).toContain('MULTIPLE CABLE FAULT');
+    expect(fwsCore).toContain('cableFailed: (cable) => comFailureActive(afdxCableFlyPadFailure(cable)),');
+    expect(abnormalSensed).toContain('simVarIsActive: this.fws.avncsNetworkMultipleCableFault,');
+  });
+});
 
 describe('AVIONICS NETWORK switch alerts', () => {
   it('no failure, or a single switch failure (maintenance message only): no alert', () => {
