@@ -1,6 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { presetLabel } from './lightPresetSlots';
+
 /** The IDs of the preset rows (the IDs of the WASM implementation). Add or remove numbers to add or remove rows */
 export const PRESET_IDS = [1, 2, 3, 4, 5, 6, 7, 8];
 
@@ -17,14 +19,14 @@ export interface PresetSelectionOption {
  */
 export function buildPresetSelectionOptions(
   namesMap: Map<number, string>,
-  translate: (key: string) => string,
+  translate: (key: string, replacements?: Record<string, string>[]) => string,
 ): PresetSelectionOption[] {
   const options: PresetSelectionOption[] = [
     { value: 0, displayValue: translate('Presets.InteriorLighting.AutoLoadNoneSelection') },
   ];
   PRESET_IDS.forEach((id) => {
     const name = namesMap.get(id);
-    options.push({ value: id, displayValue: `${id} - ${name || translate('Presets.InteriorLighting.NoName')}` });
+    options.push({ value: id, displayValue: `${id} - ${presetLabel(id, name, translate)}` });
   });
   return options;
 }
