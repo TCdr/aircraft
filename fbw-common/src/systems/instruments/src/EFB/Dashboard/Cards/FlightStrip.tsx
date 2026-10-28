@@ -291,11 +291,7 @@ const LiveStrip: FC<FlightStripProps> = ({ layout, tiles, airport, stand, import
       </FieldRow>
       <div className="flex shrink-0 flex-row items-center">
         {atGate && (
-          <M3Button
-            tone="outline"
-            className="mr-3 !h-10 !rounded"
-            onClick={() => history.push('/presets/aircraft-states')}
-          >
+          <M3Button tone="outline" className="mr-3 !h-10 !rounded" onClick={() => history.push('/presets')}>
             <span className="whitespace-nowrap text-sm font-extrabold uppercase tracking-wider text-current">
               {t('Dashboard.Strip.LoadPreset')}
             </span>
