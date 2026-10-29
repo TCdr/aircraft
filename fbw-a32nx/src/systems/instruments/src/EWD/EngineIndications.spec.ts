@@ -10,7 +10,6 @@ import {
   isIdleIndicationVisible,
   isN2StartBoxVisible,
   isThrustLimitValueVisible,
-  thrustRatingModeLabel,
 } from './EngineIndications';
 
 /* EWD engine indications: EGT limit, thrust limit value, flexible temperature, IDLE */
@@ -88,34 +87,5 @@ describe('EWD engine indications', () => {
     expect(isN2StartBoxVisible(60, 1, 0)).toBe(false);
     expect(isN2StartBoxVisible(10, 0, 4)).toBe(false);
     expect(isN2StartBoxVisible(0, 0, 0)).toBe(false);
-  });
-});
-
-describe('EWD thrust rating mode', () => {
-  it('shows the derate level in place of FLX for a derated takeoff', () => {
-    expect(thrustRatingModeLabel(ThrustLimitType.Flex, 4, 0, false)).toBe('D04');
-    expect(thrustRatingModeLabel(ThrustLimitType.Flex, 32, 0, false)).toBe('D32');
-    expect(thrustRatingModeLabel(ThrustLimitType.Flex, 0, 0, false)).toBe('FLX');
-  });
-
-  it('shows DCLB in place of CLB while the climb is derated', () => {
-    expect(thrustRatingModeLabel(ThrustLimitType.Clb, 12, 12, false)).toBe('DCLB');
-    expect(thrustRatingModeLabel(ThrustLimitType.Clb, 12, 0, false)).toBe('CLB');
-  });
-
-  it('shows GA SOFT in place of MCT with the soft go-around active', () => {
-    expect(thrustRatingModeLabel(ThrustLimitType.Mct, 0, 0, true)).toBe('GA SOFT');
-    expect(thrustRatingModeLabel(ThrustLimitType.Mct, 0, 0, false)).toBe('MCT');
-  });
-
-  it('keeps the rating label while the soft go-around flag is set outside the MCT limit', () => {
-    expect(thrustRatingModeLabel(ThrustLimitType.Clb, 0, 0, true)).toBe('CLB');
-    expect(thrustRatingModeLabel(ThrustLimitType.Flex, 12, 0, true)).toBe('D12');
-  });
-
-  it('keeps the other ratings', () => {
-    expect(thrustRatingModeLabel(ThrustLimitType.Toga, 12, 12, true)).toBe('TOGA');
-    expect(thrustRatingModeLabel(ThrustLimitType.Mrev, 0, 0, false)).toBe('MREV');
-    expect(thrustRatingModeLabel(0, 0, 0, false)).toBe('');
   });
 });

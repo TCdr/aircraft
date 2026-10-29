@@ -9,7 +9,6 @@
 
 #include "EngineRatios.hpp"
 #include "Fadec.h"
-#include "ThrustDerate_A32NX.hpp"
 
 /**
  * @class ThrustLimits_A32NX
@@ -229,8 +228,6 @@ class ThrustLimits_A32NX {
    * @param packs The status of the air conditioning (0 for off, 1 for on).
    * @param nacelle The status of the nacelle anti-ice (0 for off, 1 for on).
    * @param wing The status of the wing anti-ice (0 for off, 1 for on).
-   * @param thrustReductionPercent The derate in percent of the rated thrust (0 for none): the derated takeoff on the TO and GA
-   * types without flex temperature, the derated climb on the CLB type, the soft go-around on the GA type.
    * @return The N1 limit for the engine.
    */
   static double limitN1(int    type,             //
@@ -240,8 +237,7 @@ class ThrustLimits_A32NX {
                         double flexTemp,         //
                         int    packs,            //
                         int    nacelle,          //
-                        int    wing,             //
-                        double thrustReductionPercent = 0.0  //
+                        int    wing              //
   ) {
     int    rowMin   = 0;
     int    rowMax   = 0;
@@ -321,7 +317,6 @@ class ThrustLimits_A32NX {
         b   = cn1Last - m * lp;
         cn1 = (m * ambientTemp) + b;
       }
-      cn1 = ThrustDerate_A32NX::deratedCorrectedN1(cn1, thrustReductionPercent);
     }
 
     // Define bleed rating/ de-rating

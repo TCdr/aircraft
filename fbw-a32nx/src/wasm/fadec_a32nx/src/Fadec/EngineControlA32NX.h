@@ -9,7 +9,6 @@
 #include "EngineOilFailures.hpp"
 #include "FadecSimData_A32NX.hpp"
 #include "FuelConfiguration_A32NX.h"
-#include "ThrustDerate_A32NX.hpp"
 
 #define FILENAME_FADEC_CONF_DIRECTORY "\\work\\AircraftStates\\"
 #define FILENAME_FADEC_CONF_FILE_EXTENSION ".ini"
@@ -60,9 +59,6 @@ class EngineControl_A32NX {
 
   // values that need previous state
   double latchedFlexTemperature    = 0.0;
-  // the derated takeoff (percent thrust reduction), latched with the flex temperature
-  double latchedDerate             = 0.0;
-  DeratedClimb_A32NX deratedClimb{};
   double prevThrustLimitType       = 0.0;
   double prevEngineMasterPos[2]    = {0, 0};
   bool   prevEngineStarterState[2] = {false, false};
