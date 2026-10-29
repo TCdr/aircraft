@@ -57,7 +57,6 @@ import {
 } from '@fmgc/guidance/vnav/CruiseLevelAtmosphere';
 import { RtaSpeedEnvelope, rtaSpeedEnvelope } from '@fmgc/guidance/vnav/rta/RtaSpeedBias';
 import { A32nxRtaFunction } from './A32nxRtaFunction';
-import { isTakeoffDerateFormat, parseTakeoffDerateEntry, stripFlexEntryPrefix } from './TakeoffDerate';
 import {
   alternateCruiseLevel as defaultAlternateCruiseLevel,
   uplinkedAlternateWindLevelDiffers,
@@ -3594,50 +3593,15 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     );
   }
 
-  /**
-   * The 4R entry of the PERF TAKE OFF page: a FLEX TO TEMP, "F"NN or NN, or a DRT TO derate level, "D"NN.
-   */
-  public setPerfTOFlexOrDerate(s: string, forPlan: FlightPlanIndex): boolean {
-    return isTakeoffDerateFormat(s)
-      ? this.setPerfTODerate(s, forPlan)
-      : this.setPerfTOFlexTemp(stripFlexEntryPrefix(s), forPlan);
-  }
-
-  private isTakeoffThrustSettingLocked(plan: FlightPlan | null): boolean {
-    const performanceData = plan?.performanceData;
-    return this.isTakeoffFieldUpdateNotAllowed(
-      plan,
-      performanceData?.flexTakeoffTemperature.get() ?? performanceData?.takeoffDeratePercent?.get() ?? null,
-    );
-  }
-
-  public setPerfTODerate(s: string, forPlan: FlightPlanIndex): boolean {
-    const plan = this.flightPlanService.has(forPlan) ? this.flightPlanService.get(forPlan) : null;
-    if (this.isTakeoffThrustSettingLocked(plan)) {
-      this.setScratchpadMessage(NXSystemMessages.notAllowed);
-      return false;
-    }
-    const percent = parseTakeoffDerateEntry(s);
-    if (percent === null) {
-      this.setScratchpadMessage(NXSystemMessages.entryOutOfRange);
-      return false;
-    }
-    // A flex takeoff is not permitted in association with a derated takeoff (FCOM LIM-ENG)
-    this.flightPlanService.setPerformanceData('flexTakeoffTemperature', null, forPlan);
-    this.flightPlanService.setPerformanceData('takeoffDeratePercent', percent, forPlan);
-    return true;
-  }
-
   public setPerfTOFlexTemp(s: string, forPlan: FlightPlanIndex): boolean {
     const plan = this.flightPlanService.has(forPlan) ? this.flightPlanService.get(forPlan) : null;
-    if (this.isTakeoffThrustSettingLocked(plan)) {
+    if (this.isTakeoffFieldUpdateNotAllowed(plan, plan?.performanceData.flexTakeoffTemperature.get())) {
       this.setScratchpadMessage(NXSystemMessages.notAllowed);
       return false;
     }
 
     if (s === Keypad.clrValue) {
       this.flightPlanService.setPerformanceData('flexTakeoffTemperature', null, forPlan);
-      this.flightPlanService.setPerformanceData('takeoffDeratePercent', null, forPlan);
       return true;
     }
     let value = parseInt(s);
@@ -3655,7 +3619,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     if (value === 0) {
       value = 0.1;
     }
-    this.flightPlanService.setPerformanceData('takeoffDeratePercent', null, forPlan);
     this.flightPlanService.setPerformanceData('flexTakeoffTemperature', value, forPlan);
     return true;
   }
@@ -4697,9 +4660,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       }
       if (this.toRunway) {
         this.toRunway = toRunway;
-        this._toFlexChecked =
-          !Number.isFinite(activePlan.performanceData.flexTakeoffTemperature.get()) &&
-          !Number.isFinite(activePlan.performanceData.takeoffDeratePercent?.get());
+        this._toFlexChecked = !Number.isFinite(activePlan.performanceData.flexTakeoffTemperature.get());
         this.unconfirmedV1Speed = this.v1Speed;
         this.unconfirmedVRSpeed = this.vRSpeed;
         this.unconfirmedV2Speed = this.v2Speed;
@@ -6178,12 +6139,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     this.activeFlightPlanPerformanceDataSubscriptions.push(
       activePlan.performanceData.flexTakeoffTemperature.sub(
         (flex) => SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', flex ?? 0),
-        true,
-      ),
-    );
-    this.activeFlightPlanPerformanceDataSubscriptions.push(
-      activePlan.performanceData.takeoffDeratePercent.sub(
-        (derate) => SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_DERATE', 'Number', derate ?? 0),
         true,
       ),
     );

@@ -66,9 +66,6 @@ export type EwdSimvars = {
   /** L:A32NX_EIS_DMC_SWITCHING_KNOB: 0 CAPT 3, 1 NORM, 2 F/O 3 */
   dmcSwitchingKnob: number;
   flexTemp: number;
-  takeoffDerate: number;
-  deratedClimbPercent: number;
-  gaSoftActive: number;
   satRaw: number;
   totalFuel: number;
   /** Fuel quantity indications (FOB half box): the outer tank transfer valves of a wing failed closed */
@@ -157,9 +154,6 @@ export enum EwdVars {
   engine2FFDiscrepancy = 'L:A32NX_ENGINE_2_FF_DISCREPANCY',
   dmcSwitchingKnob = 'L:A32NX_EIS_DMC_SWITCHING_KNOB',
   flexTemp = 'L:A32NX_AIRLINER_TO_FLEX_TEMP',
-  takeoffDerate = 'L:A32NX_AIRLINER_TO_DERATE',
-  deratedClimbPercent = 'L:A32NX_FADEC_DERATED_CLIMB_PERCENT',
-  gaSoftActive = 'L:A32NX_FADEC_GA_SOFT_ACTIVE',
   satRaw = 'L:A32NX_ADIRS_ADR_1_STATIC_AIR_TEMPERATURE',
   totalFuel = 'L:A32NX_TOTAL_FUEL_QUANTITY',
   leftOuterXfrClosed = 'L:A32NX_FUEL_L_OUTER_XFR_CLOSED',
@@ -248,9 +242,6 @@ export class EwdSimvarPublisher extends SimVarPublisher<EwdSimvars> {
     ['engine2FFDiscrepancy', { name: EwdVars.engine2FFDiscrepancy, type: SimVarValueType.Bool }],
     ['dmcSwitchingKnob', { name: EwdVars.dmcSwitchingKnob, type: SimVarValueType.Enum }],
     ['flexTemp', { name: EwdVars.flexTemp, type: SimVarValueType.Number }],
-    ['takeoffDerate', { name: EwdVars.takeoffDerate, type: SimVarValueType.Number }],
-    ['deratedClimbPercent', { name: EwdVars.deratedClimbPercent, type: SimVarValueType.Number }],
-    ['gaSoftActive', { name: EwdVars.gaSoftActive, type: SimVarValueType.Number }],
     ['satRaw', { name: EwdVars.satRaw, type: SimVarValueType.Number }],
     ['totalFuel', { name: EwdVars.totalFuel, type: SimVarValueType.Number }],
     ['leftOuterXfrClosed', { name: EwdVars.leftOuterXfrClosed, type: SimVarValueType.Bool }],

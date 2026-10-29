@@ -7,12 +7,7 @@ import { Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
 import { Arinc429Values } from './shared/ArincValueProvider';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
-import { flexTemperatureText, isThrustLimitValueVisible, thrustRatingModeLabel } from './EngineIndications';
-
-const HUGE_LABEL_CLASS = 'Huge Center Cyan';
-const LARGE_LABEL_CLASS = 'Large Center Cyan';
-/** TOGA, DCLB and MREV are four characters: the longest label that fits the slot in the Huge font */
-const LONGEST_HUGE_LABEL_LENGTH = 4;
+import { flexTemperatureText, isThrustLimitValueVisible } from './EngineIndications';
 
 interface N1LimitProps {
   bus: EventBus;
@@ -29,9 +24,6 @@ export class N1Limit extends DisplayComponent<N1LimitProps> {
 
   private textThrustLimitType = Subject.create('');
 
-  /** A long rating label (GA SOFT) is set in a smaller font so that it stays inside the display next to the N1 limit value */
-  private textThrustLimitTypeClass = Subject.create(HUGE_LABEL_CLASS);
-
   private textThrustLimitInt = Subject.create('');
 
   private textThrustLimitFract = Subject.create('');
@@ -47,12 +39,6 @@ export class N1Limit extends DisplayComponent<N1LimitProps> {
   private thrustLimitType: number = 0;
 
   private flexTemp: number = 0;
-
-  private takeoffDerate: number = 0;
-
-  private deratedClimbPercent: number = 0;
-
-  private gaSoftActive: boolean = false;
 
   private sat = new Arinc429Word(0);
 
@@ -97,27 +83,6 @@ export class N1Limit extends DisplayComponent<N1LimitProps> {
       });
 
     sub
-      .on('takeoffDerate')
-      .whenChanged()
-      .handle((d) => {
-        this.takeoffDerate = d;
-      });
-
-    sub
-      .on('deratedClimbPercent')
-      .whenChanged()
-      .handle((d) => {
-        this.deratedClimbPercent = d;
-      });
-
-    sub
-      .on('gaSoftActive')
-      .whenChanged()
-      .handle((a) => {
-        this.gaSoftActive = a > 0;
-      });
-
-    sub
       .on('sat')
       .whenChanged()
       .handle((sat) => {
@@ -133,16 +98,8 @@ export class N1Limit extends DisplayComponent<N1LimitProps> {
           this.inactiveVisibility.set('hidden');
           this.activeVisibility.set('visible');
 
-          const ratingLabel = thrustRatingModeLabel(
-            this.thrustLimitType,
-            this.takeoffDerate,
-            this.deratedClimbPercent,
-            this.gaSoftActive,
-          );
-          this.textThrustLimitType.set(ratingLabel);
-          this.textThrustLimitTypeClass.set(
-            ratingLabel.length > LONGEST_HUGE_LABEL_LENGTH ? LARGE_LABEL_CLASS : HUGE_LABEL_CLASS,
-          );
+          const thrustLimitTypes = ['', 'CLB', 'MCT', 'FLX', 'TOGA', 'MREV'];
+          this.textThrustLimitType.set(thrustLimitTypes[this.thrustLimitType]);
 
           const n1Limit = this.autoThrustLimit.toFixed(1).split('.', 2);
           this.textThrustLimitInt.set(n1Limit[0]);
@@ -177,7 +134,7 @@ export class N1Limit extends DisplayComponent<N1LimitProps> {
           </text>
         </g>
         <g visibility={this.activeVisibility}>
-          <text class={this.textThrustLimitTypeClass} x={0} y={-1}>
+          <text class="Huge Center Cyan" x={0} y={-1}>
             {this.textThrustLimitType}
           </text>
           <g visibility={this.limitValueVisibility}>

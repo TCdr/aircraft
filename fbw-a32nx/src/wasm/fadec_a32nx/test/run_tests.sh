@@ -41,7 +41,3 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS n1_limit_bleed_correction_test.c
 # The IDG cooling fuel returned to the outer wing tank: with WITHOUT_THE_FIX=1 no fuel moves and the test must fail.
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS fuel_recirculation_test.cpp -o ../obj/fuel_recirculation_test
 ../obj/fuel_recirculation_test
-# The derated takeoff (D04 to D32), the derated climb and the soft go-around: with WITHOUT_THE_FIX=1 the N1 limit ignores the
-# reduction and the test must fail.
-clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS thrust_derate_test.cpp -o ../obj/thrust_derate_test
-../obj/thrust_derate_test

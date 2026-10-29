@@ -107,7 +107,6 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
     cloned.takeoffFlaps.set(this.takeoffFlaps.get());
     cloned.trimmableHorizontalStabilizer.set(this.trimmableHorizontalStabilizer.get());
     cloned.flexTakeoffTemperature.set(this.flexTakeoffTemperature.get());
-    cloned.takeoffDeratePercent?.set(this.takeoffDeratePercent.get());
     cloned.preselectedClimbSpeed.set(this.preselectedClimbSpeed.get());
     cloned.preselectedCruiseSpeed.set(this.preselectedCruiseSpeed.get());
     cloned.pilotManagedDescentSpeed.set(this.pilotManagedDescentSpeed.get());
@@ -785,12 +784,6 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
   readonly flexTakeoffTemperature = Subject.create<number | null>(null);
 
   /**
-   * The derated takeoff (DRT TO) entered by the pilot as its thrust reduction in percent (D04 is 4), or null if not set.
-   * A derate and a flex temperature are never set together.
-   */
-  readonly takeoffDeratePercent = Subject.create<number | null>(null);
-
-  /**
    * The preselected climb speed entered by the pilot in knots, or null if not set.
    */
   readonly preselectedClimbSpeed = Subject.create<number | null>(null);
@@ -937,7 +930,6 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
       takeoffFlaps: this.takeoffFlaps.get(),
       trimmableHorizontalStabilizer: this.trimmableHorizontalStabilizer.get(),
       flexTemperature: this.flexTakeoffTemperature.get(),
-      takeoffDeratePercent: this.takeoffDeratePercent.get(),
       preselectedClimbSpeed: this.preselectedClimbSpeed.get(),
       preselectedCruiseSpeed: this.preselectedCruiseSpeed.get(),
       pilotManagedDescentSpeed: this.pilotManagedDescentSpeed.get(),
