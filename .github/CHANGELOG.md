@@ -332,6 +332,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New SMOKE DET FAULT caution with the flyPad failure of the smoke detection function (no smoke is then detected anywhere); the cargo smoke TEST pb held 3 s shows the cargo and avionics SMOKE warnings and lights the VENT AVNCS SMOKE light - @TCdr
 1. [A380X/FWS] New AVIONICS NETWORK alerts from the AFDX switch and IOM failures: ALL SWITCHES FAULT, DOUBLE / MULTIPLE SWITCH FAULT and DOUBLE / MULTIPLE IOM FAULT (NETWORK or REDUNDANCY DEGRADED) - @TCdr
 1. [A380X/FWS] New COM ATC DATALINK FAULT (CPIOM D1 lost, ATC COM VOICE ONLY), COM ADS DATALINK FAULT, COM NSS DATA TO AVNCS XFR FAULT (pb-sw OFF) and COM NSS/AVNCS DATA XFR FAULT alerts, with new flyPad failures of SCI 1, SCI 2 and the ADS function; both SCIs failed stop the AOC - @TCdr
+1. [A380X/FWS] COM ATC DATALINK FAULT also comes on while the ATC RESET pb of the overhead RESET panel is pulled - @TCdr
 
 ## 2024.1.0
 
