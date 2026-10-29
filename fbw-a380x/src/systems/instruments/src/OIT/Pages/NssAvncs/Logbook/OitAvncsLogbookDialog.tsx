@@ -9,9 +9,7 @@ import { OitAvncsContainer } from '../../../OitAvncsContainer';
 import { LogbookDialog, LogbookDialogButton, TechLogbookStore } from '../../../System/TechLogbookStore';
 import { LogbookField } from './LogbookWidgets';
 import { LogbookPasswordFormat } from './LogbookEntryFormats';
-import { LOGBOOK_DIALOG_DRAFTS, keepsPersonalId } from './LogbookDrafts';
-
-type LogbookIdentification = LogbookDialog['identification'];
+import { LOGBOOK_DIALOG_DRAFTS, personalIdAfterButton } from './LogbookDrafts';
 
 interface OitAvncsLogbookDialogProps extends ComponentProps {
   readonly store: TechLogbookStore;
@@ -34,14 +32,9 @@ export class OitAvncsLogbookDialog extends DestroyableComponent<OitAvncsLogbookD
   private readonly identificationHidden = this.identification.map((i) => i === null);
   private readonly passwordHidden = this.identification.map((i) => i !== 'authentication');
 
-  /** The PERSONAL ID survives a visit to another application during the identification; the password never does */
+  /** The PERSONAL ID survives a visit to another application and the next signature; the password never does */
   private readonly drafts = this.props.container.ansu.pageDrafts;
   private readonly personalId = this.drafts.field<string | null>(LOGBOOK_DIALOG_DRAFTS, 'personalId', null);
-  private readonly personalIdTypedFor = this.drafts.field<LogbookIdentification | null>(
-    LOGBOOK_DIALOG_DRAFTS,
-    'personalIdTypedFor',
-    null,
-  );
   private readonly password = Subject.create<string | null>(null);
 
   /** OK of an identification needs the personal ID, and the password when the logbook opens */
@@ -85,14 +78,10 @@ export class OitAvncsLogbookDialog extends DestroyableComponent<OitAvncsLogbookD
     while (buttons.firstChild) {
       buttons.removeChild(buttons.firstChild);
     }
-    if (!keepsPersonalId(this.personalIdTypedFor.get(), dialog)) {
-      this.personalId.set(null);
-    }
     this.password.set(null);
     if (!dialog) {
       return;
     }
-    this.personalIdTypedFor.set(dialog.identification ?? null);
     for (const text of dialog.lines) {
       const line = document.createElement('div');
       line.className = 'oit-logbook-dialog-line';
@@ -114,7 +103,7 @@ export class OitAvncsLogbookDialog extends DestroyableComponent<OitAvncsLogbookD
   }
 
   private press(button: LogbookDialogButton): void {
-    this.personalId.set(null);
+    this.personalId.set(personalIdAfterButton(this.personalId.get(), button.label));
     this.props.store.dialog.set(null);
     button.action?.();
   }

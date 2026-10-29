@@ -3,7 +3,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { isPageFunctionAvailable } from '../../../OitPageFunctions';
-import { LOGBOOK_URI, allRowsTicked, logbookPageFunctions } from './LogbookFlows';
+import { LOGBOOK_URI, allRowsTicked, logbookPageFunctions, syncResultDialog } from './LogbookFlows';
 
 describe('logbook functions of the NSS AVNCS menu bar', () => {
   it('has PRINT on the STATUS page, the acceptance report and the PRE/POST-FLIGHT panels only', () => {
@@ -50,5 +50,13 @@ describe('tick-all box of the OPEN ITEMS table', () => {
 
   it('shows unticked on an empty table', () => {
     expect(allRowsTicked([])).toBe(false);
+  });
+});
+
+describe('message at the end of a synchronisation', () => {
+  it('tells that an UPDATE and a GIVE BACK TO GROUND finished', () => {
+    expect(syncResultDialog('update-done')?.lines).toEqual(['Aircraft status updated.']);
+    expect(syncResultDialog('give-back-done')?.lines).toEqual(['Logbook given back to ground.']);
+    expect(syncResultDialog('closure-sent')).toBe(null);
   });
 });

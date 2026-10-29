@@ -373,12 +373,14 @@ export class InputField<
 
   public onFocus() {
     if (!this.isFocused.get() && !this.isValidating.get() && !this.disabled.get() && !this.inactive.get()) {
-      if (this.props.interactionMode.get() === InteractionMode.Touchscreen) {
-        Coherent.trigger('FOCUS_INPUT_FIELD', this.guid, '', '', this.readValue.get(), false);
-      }
+      // The previous field is released first: the sim's text input handles one focused field, so its release arriving
+      // after this field was announced would drop the focus of the field just selected
       const fieldInEdition = InputField.fieldInEdition.get(this.props.hEventConsumer);
       if (fieldInEdition && fieldInEdition !== this) {
         fieldInEdition.onBlur(true);
+      }
+      if (this.props.interactionMode.get() === InteractionMode.Touchscreen) {
+        Coherent.trigger('FOCUS_INPUT_FIELD', this.guid, '', '', this.readValue.get(), false);
       }
       InputField.fieldInEdition.set(this.props.hEventConsumer, this);
       this.isFocused.set(true);
