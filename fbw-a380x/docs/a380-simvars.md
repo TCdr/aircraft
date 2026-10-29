@@ -3323,6 +3323,13 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     lost) the COMPANY MSG memos and voice no longer reach the FWS, the eLogbook loses its ground link and the OIT REFUEL
     entries no longer reach the FQMS
 
+- A32NX_OVHD_NSS_GATELINK_OFF
+  - Bool
+  - The NSS GATELINK pb-sw: 0 = released (the Terminal Area Wireless LAN Unit is on; the default of every flight file),
+    1 = pressed in (OFF light, TWLU off). With 1 the gatelink to the ground is lost: the FLT OPS EXPORT BOX reads
+    GATELINK NOT AVAIL and keeps its data in the outbox, and the LOAD BOX gets no new data on the ground. Read by the OIT
+    (A380 FCOM DSC-46-20-20-80)
+
 - A32NX_COMPANY_MSG_PRNTR_COUNT
   - Number
   - The unread company messages that wait for their automatic printout on the pedestal printer (the AOC prints the
@@ -3332,7 +3339,7 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
 - A32NX_NSS_ANSU_{index}_IS_HEALTHY
   - Bool
   - NSS AVNCS ANSU 1(2) healthy: powered, not failed (flyPad 46001, 46002), not reset (RESET panel NSS AVNCS), NSS master
-    on. Written by the OIT (AircraftNetworkServerUnit.ts); the AOC (systems host CpiomD/atsu.ts) runs while one of them
+    on, and the aircraft not powered down (each ANSU shuts down by itself 10 s after the AC busbar that feeds it is lost (AC 2, AC 1 or AC EMER, AC ESS), batteries alone do not keep it). Written by the OIT (AircraftNetworkServerUnit.ts); the AOC (systems host CpiomD/atsu.ts) runs while one of them
     is healthy (A380 FCOM DSC-46-40-10-20: "In the case of an ANSU 1 failure, ANSU 2 provides the AOC application")
 
 - A380X_ATC_FUNCTION_AVAIL

@@ -15,7 +15,7 @@ import { A380Failure } from '@failures';
 import { ResetPanelSimvars } from '../../MsfsAvionicsCommon/providers/ResetPanelPublisher';
 import { OitSimvars } from '../OitSimvarPublisher';
 import { SecureCommunicationInterface } from './SecureCommunicationInterface';
-import { AnsuIndex, AnsuType, isAnsuPowered } from './AnsuLogic';
+import { AnsuIndex, AnsuType, isAnsuAcSupplied, isAnsuPowered, NssAutoShutdown } from './AnsuLogic';
 
 export class AircraftNetworkServerUnit implements Instrument {
   //TODO ANSU should be under systems host and split between flt-opts and nss-avncs?
@@ -35,12 +35,17 @@ export class AircraftNetworkServerUnit implements Instrument {
   protected readonly _isHealthy = Subject.create(false);
   protected readonly isHealthySimVar = `L:A32NX_${this.type === 'nss-avncs' ? 'NSS' : 'FLTOPS'}_ANSU_${this.index.toFixed(0)}_IS_HEALTHY`;
 
+  protected readonly simTime = ConsumerSubject.create(this.sub.on('simTime'), 0);
+
   protected readonly nssMasterOff = ConsumerSubject.create(this.sub.on('nssMasterOff'), false);
 
   protected readonly resetPbStatus = ConsumerSubject.create(
     this.sub.on(this.type === 'flt-ops' ? 'a380x_reset_panel_nss_flt_ops' : 'a380x_reset_panel_nss_avncs'),
     false,
   );
+
+  /** The NSS stops by itself when the aircraft is powered down */
+  protected readonly autoShutdown = new NssAutoShutdown();
 
   public readonly sci = new SecureCommunicationInterface(this.bus, this.failuresConsumer);
 
@@ -57,6 +62,7 @@ export class AircraftNetworkServerUnit implements Instrument {
     this.sci.init();
 
     this.subscriptions.push(
+      this.simTime,
       this._isHealthy.sub((v) => SimVar.SetSimVarValue(this.isHealthySimVar, SimVarValueType.Bool, v), true),
     );
   }
@@ -67,16 +73,17 @@ export class AircraftNetworkServerUnit implements Instrument {
     this.sci.onUpdate();
 
     // The A380 busbar names come from the A320: AC_ESS_SHED is the A380 AC ESS (400XP), AC_ESS the AC EMER (491XP)
-    this.powered.set(
-      isAnsuPowered(this.type, this.index, {
-        ac1: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_1_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-        ac2: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_2_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-        acEss: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-        acEmer: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-        dcHot1: SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_1_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-        dcHot2: SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_2_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-      }),
-    );
+    const supplies = {
+      ac1: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_1_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+      ac2: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_2_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+      acEss: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+      acEmer: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+      dcHot1: SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_1_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+      dcHot2: SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_2_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+    };
+    const shutDown = this.autoShutdown.update(isAnsuAcSupplied(this.type, this.index, supplies), this.simTime.get());
+
+    this.powered.set(!shutDown && isAnsuPowered(this.type, this.index, supplies));
 
     this._isHealthy.set(!failed && this.powered.get() && !this.resetPbStatus.get() && !this.nssMasterOff.get());
 
