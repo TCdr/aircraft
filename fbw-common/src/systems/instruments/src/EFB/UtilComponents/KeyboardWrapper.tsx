@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { useEffect, useRef, useState } from 'react';
-import Keyboard, { KeyboardInput } from 'react-simple-keyboard';
+// The package's default build carries core-js in global mode: in the sim's old JavaScriptCore it replaces the native
+// RegExp exec, String replace, Array sort and JSON stringify of the whole view (flyPad, OIT) with much slower ones.
+import Keyboard, { KeyboardInput } from 'react-simple-keyboard/build/index.modern';
 import '../Assets/Keyboard.scss';
 import SimpleKeyboardLayouts from 'simple-keyboard-layouts';
 import { usePersistentProperty } from '@flybywiresim/fbw-sdk-react';
