@@ -1,0 +1,71 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X COMPANY MSG memo and voice - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X COMPANY MSG memo and voice</h1>
+<div class="subtitle">The A380X FWS gives no COMPANY MSG memo and no COMPANY MESSAGE voice while the avionics link of the NSS is cut, and shows COMPANY MSG:PRNTR while received weather reports wait for their automatic printout</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>E/WD memo area (COMPANY MSG, COMPANY MSG:PRNTR), COMPANY MESSAGE voice; overhead NSS DATA TO AVNCS pb-sw; flyPad &gt; Failures &gt; ATA 46</span>
+<b>Branch</b><span><code>core/a380x-ois-alerts</code>, based on <code>core/a380x-ois</code> with <code>core/a380x-elec-fuel-alerts</code> merged in (stacked: needs both merged first). Why a separate branch: the memo gate reads the COM NSS DATA TO AVNCS XFR FAULT and COM NSS/AVNCS DATA XFR FAULT alerts of core/a380x-elec-fuel-alerts, and the automatic weather printout (L:A32NX_COMPANY_MSG_PRNTR_COUNT) is written by the AOC auto-print of core/a380x-ois. It holds only the FWS part of the change; the OIT, AOC and auto-print parts of the same change are on core/a380x-ois and core/a380x-ois-datalink.</span>
+<b>Status</b><span>Sim-tested by the user on develop on 2026-10-21 in the combined OIS batch 2 install (T7 NSS DATA TO AVNCS OFF, T8 METAR auto-print with the PRNTR memo 1 to 0, T12 both SCIs lost); not re-tested on this core branch.</span>
+<b>Pictures</b><span>No pictures: the memo uses the stock E/WD memo area.</span>
+</div>
+<h2>1. COMPANY MSG memo and voice gating, COMPANY MSG:PRNTR</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> E/WD memo area; overhead NSS DATA TO AVNCS pb-sw; flyPad &gt; Failures &gt; ATA 46 &nbsp;|&nbsp; <b>Status:</b> Sim-tested by the user on develop on 2026-10-21 in the combined OIS batch 2 install (T7 NSS DATA TO AVNCS OFF, T8 METAR auto-print with the PRNTR memo 1 to 0, T12 both SCIs lost); not re-tested on this core branch.</div>
+<h3>What it is for</h3>
+<p>The A380 FCOM (DSC-46-20-20-80/85, DSC-46-40, ECAM memos) says the AOC raises its memos and voices through the secure communication interfaces (SCI), in the NSS to avionics direction. When that direction is cut, the crew gets no message indication. The FWS now follows it:</p>
+<ul><li><b>No COMPANY MSG memo and no COMPANY MESSAGE voice</b> while the NSS DATA TO AVNCS pb-sw is OFF (alert COM NSS DATA TO AVNCS XFR FAULT) or both SCIs are lost (COM NSS/AVNCS DATA XFR FAULT). A message received during that time is not announced later.</li><li><b>COMPANY MSG:PRNTR</b> replaces the COMPANY MSG memo while unread company messages (received weather reports: METAR, TAF, ATIS) wait for their automatic printout on the pedestal printer. The count is L:A32NX_COMPANY_MSG_PRNTR_COUNT, written by the AOC auto-print of <code>core/a380x-ois</code>; the memo goes back to COMPANY MSG, or off, once they are printed or read.</li></ul>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>A company message arrives, link normal</td><td>COMPANY MSG memo and the COMPANY MESSAGE voice (the voice stays inhibited in the usual flight phases).</td></tr><tr><td>A weather report arrives and waits for its printout</td><td>COMPANY MSG:PRNTR; it goes when the report is printed.</td></tr><tr><td>NSS DATA TO AVNCS OFF or both SCIs lost</td><td>COM NSS DATA TO AVNCS XFR FAULT or COM NSS/AVNCS DATA XFR FAULT; no COMPANY MSG memo, no voice for new messages.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Needs the AOC print and the weather requests of <code>core/a380x-ois</code> for the PRNTR memo.</td><td>It is written by that branch; without a count of 0 the memo stays COMPANY MSG.</td><td>Merged in this branch.</td></tr><tr><td>The alerts and the ATA 46 flyPad failures come from <code>core/a380x-elec-fuel-alerts</code>.</td><td>The gate reads those two alerts.</td><td>Merged in this branch.</td></tr><tr><td>The OIT, REFUEL, logbook and AOC effects of the same NSS DATA TO AVNCS OFF / SCI loss change are not part of this branch.</td><td>They are on <code>core/a380x-ois</code> and <code>core/a380x-ois-datalink</code>.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to set: the memo follows the NSS DATA TO AVNCS pb-sw and the SCIs.</li><li>To read a message, open COMPANY COM on the OIT or the MFD AOC pages; the PRNTR memo goes when the printout is done.</li></ol>
+<h3>How to test</h3>
+<p>Setup: A380X on the ground with the AOC working (<code>core/a380x-ois</code> and Hoppie network for weather requests), pedestal printer with paper.</p>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Request a METAR from COMPANY COM on the OIT (NSS AVNCS side).</td><td>COMPANY MSG:PRNTR while the report waits, the report prints on the pedestal printer, then the memo changes to COMPANY MSG or goes out (PRNTR count 1 to 0).</td></tr><tr><td>2</td><td>Set the NSS DATA TO AVNCS pb-sw OFF (overhead NSS panel), then request another METAR.</td><td>COM NSS DATA TO AVNCS XFR FAULT; the reply raises no COMPANY MSG memo and no COMPANY MESSAGE voice. Set the pb-sw back ON.</td></tr><tr><td>3</td><td>flyPad &gt; Failures &gt; ATA 46 &gt; <b>SCI 1</b> and <b>SCI 2</b>, then request a METAR.</td><td>COM NSS/AVNCS DATA XFR FAULT; no COMPANY MSG memo, no voice. Deactivate both failures.</td></tr></table>
+</body></html>
