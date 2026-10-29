@@ -2049,6 +2049,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_GNSS_UTC_UNIX_SECONDS
     - Number (seconds)
     - The sim UTC date and time as seconds since 1 January 1970 0000 UTC, for the GPS constellation
+
 ## Standby Instruments ATA 34
 
 - `L:A380X_ISIS_CONFIGURATION`
