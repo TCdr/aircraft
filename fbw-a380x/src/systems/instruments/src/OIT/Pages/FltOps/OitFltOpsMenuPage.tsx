@@ -1,7 +1,7 @@
 //  Copyright (c) 2025 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { DisplayComponent, FSComponent, Subject, Subscription, VNode } from '@microsoft/msfs-sdk';
+import { DisplayComponent, FSComponent, Subscription, VNode } from '@microsoft/msfs-sdk';
 import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { AbstractOitFltOpsPageProps } from '../../OIT';
 
@@ -49,7 +49,6 @@ export class OitFltOpsMenuPage extends DisplayComponent<OitFltOpsMenuPageProps> 
                 label={'OPS LIBRARY'}
                 containerStyle="width: 300px; margin-bottom: 20px"
                 onClick={() => this.props.uiService.navigateTo('flt-ops/ops-library')}
-                disabled={Subject.create(true)}
               />
             </div>
             <div class="oit-flt-ops-menu-column">

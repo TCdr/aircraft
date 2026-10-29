@@ -9,6 +9,9 @@
 
 import { groundDeferralRule } from './TechLogbookDefects';
 
+/** The stored logbook, shared by both OITs and kept across flights: the NSS database is permanent */
+export const TECH_LOGBOOK_STORAGE_KEY = 'OIS_TECH_LOGBOOK';
+
 /** Who controls the logbook database: the aircraft (flight crew, onboard maintenance) or the ground station */
 export type LogbookControl = 'on-board' | 'on-ground';
 

@@ -1,0 +1,542 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// OPS LIBRARY: home tabs and consultation
+
+// flex-basis 0: the page takes the height left between the menu bar and the switching bar, its content never pushes
+// the switching bar off the screen
+.oit-ops {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+// The tab pages scroll inside their own areas: the page itself never grows past the screen
+.oit-ops .mfd-top-tab-navigator-container,
+.oit-ops .mfd-top-tab-navigator-tab-content {
+  min-height: 0;
+}
+
+.oit-ops .hidden {
+  display: none;
+}
+
+// The tab bar keeps its height whatever the tab shows
+.oit-ops .mfd-top-tab-navigator-bar {
+  flex: 0 0 44px;
+  height: 44px;
+}
+
+// A button with a menu keeps its label and its arrow on one line, the same height as a plain button next to it
+.oit-ops .mfd-button {
+  box-sizing: border-box;
+  height: 34px;
+  white-space: nowrap;
+}
+
+.oit-ops .mfd-fms-fpln-button-dropdown {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  white-space: nowrap;
+}
+
+.oit-ops .mfd-fms-fpln-button-dropdown-label {
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+
+.oit-ops .mfd-fms-fpln-button-dropdown-arrow {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: 4px;
+}
+
+.oit-ops-home {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.oit-ops-tab {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  // Content that runs past the bottom of the page scrolls inside the tab
+  overflow-y: auto;
+  width: 100%;
+  font-size: 22px;
+  color: $display-white;
+}
+
+.oit-ops-caption {
+  font-size: 22px;
+  color: $display-light-grey;
+  margin-bottom: 8px;
+}
+
+.oit-ops-link {
+  color: $display-cyan;
+  text-decoration: underline;
+}
+
+.oit-ops-small-text {
+  font-size: 18px;
+  color: $display-light-grey;
+}
+
+.oit-ops-tab-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+// LIBRARY tab
+
+.oit-ops-library-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 46px;
+  border-bottom: 1px solid $display-grey;
+}
+
+.oit-ops-library-title {
+  width: 520px;
+  font-weight: bold;
+}
+
+.oit-ops-library-date {
+  width: 180px;
+}
+
+.oit-ops-library-check {
+  flex: 1 1 auto;
+}
+
+// Tables (ECAM ALERTS, LOGBOOK STATUS)
+
+.oit-ops-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid $display-light-grey;
+  margin-bottom: 12px;
+}
+
+.oit-ops-table-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 38px;
+  border-bottom: 1px solid $display-grey;
+}
+
+.oit-ops-table-head {
+  color: $display-light-grey;
+}
+
+.oit-ops-cell {
+  padding: 2px 8px;
+  border-right: 1px solid $display-grey;
+}
+
+.oit-ops-cell.last {
+  border-right: none;
+}
+
+.oit-ops-colour-red {
+  color: $display-red;
+}
+
+.oit-ops-colour-amber {
+  color: $display-amber;
+}
+
+.oit-ops-colour-white {
+  color: $display-white;
+}
+
+.oit-ops-colour-yellow {
+  color: $display-yellow;
+}
+
+.oit-ops-colour-cyan {
+  color: $display-cyan;
+}
+
+.oit-ops-colour-green {
+  color: $display-green;
+}
+
+.oit-ops-colour-magenta {
+  color: $display-magenta;
+}
+
+.oit-ops-bin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// SEARCH tab
+
+.oit-ops-search {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 16px;
+}
+
+.oit-ops-search-left {
+  display: flex;
+  flex-direction: column;
+  width: 560px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.oit-ops-search-right {
+  display: flex;
+  flex-direction: column;
+  // flex-basis 0 and no minimum width: long result lines wrap inside the frame instead of widening the pane
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+// BOOKMARKS tab
+
+.oit-ops-bookmarks {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 16px;
+}
+
+.oit-ops-bookmarks-tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 1px solid $display-light-grey;
+}
+
+.oit-ops-bookmarks-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 190px;
+}
+
+// Consultation
+
+.oit-ops-consult-wrapper {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.oit-ops-consult {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.oit-ops-toolbar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+// Every toolbar button has the same height, padding and baseline; the row fits the page without wrapping
+.oit-ops-toolbar .mfd-button {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 20px;
+}
+
+.oit-ops-toolbar .mfd-button .mfd-button-label {
+  line-height: 1;
+}
+
+// A selected layer button keeps a readable label, also while it is greyed (the layer is the only one)
+.oit-ops-toolbar .mfd-button.selected .mfd-button-label {
+  color: $display-white !important;
+}
+
+.oit-ops-body {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 2px solid $display-light-grey;
+}
+
+// Design choice: the same fixed column in Path and Tree mode, the text pane takes the rest. Absolute positions, as the
+// sim browser lets a flex row grow past the screen when a line is long
+.oit-ops-left {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  min-width: 0;
+  overflow: hidden;
+  min-height: 0;
+  border-right: 2px solid $display-light-grey;
+}
+
+.oit-ops-left.hidden {
+  display: none;
+}
+
+.oit-ops-manual-title {
+  background: $display-grey;
+  padding: 4px 8px;
+  font-size: 22px;
+}
+
+.oit-ops-revision {
+  padding: 2px 8px;
+  font-size: 18px;
+  color: $display-light-grey;
+}
+
+.oit-ops-left .oit-doc-tree {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+// The Path / Tree radios keep their own height under the tree: they never overlap its last row
+.oit-ops-tree-mode {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  padding: 6px 8px;
+  border-top: 1px solid $display-grey;
+}
+
+.oit-ops-tree-mode .mfd-radio-button {
+  font-size: 22px;
+  height: 32px;
+  margin-top: 0;
+}
+
+.oit-ops-tree-mode .mfd-radio-button input[type="radio"] {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin-right: 10px;
+}
+
+.oit-ops-left.hidden + .oit-ops-right {
+  left: 0;
+}
+
+.oit-ops-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 362px;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+  padding: 6px 10px;
+}
+
+.oit-ops-search-area {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.oit-ops-search-area.hidden {
+  display: none;
+}
+
+.oit-ops-search-area .oit-doc-frame {
+  flex: 1 1 auto;
+}
+
+.oit-ops-breadcrumb {
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  font-size: 18px;
+  color: $display-light-grey;
+  padding-bottom: 4px;
+}
+
+.oit-ops-breadcrumb span.oit-ops-link {
+  margin-right: 4px;
+}
+
+.oit-ops-unit-title {
+  align-self: center;
+  border: 2px solid $display-white;
+  padding: 4px 24px;
+  margin: 6px 0 10px 0;
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.oit-ops-unit {
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.oit-ops-unit.layer-1 {
+  background: #000000;
+}
+
+.oit-ops-unit.layer-2 {
+  background: #0a1426;
+}
+
+.oit-ops-unit.layer-3 {
+  background: #1a1408;
+}
+
+.oit-ops-block {
+  margin: 0 0 10px 0;
+}
+
+.oit-ops-block.h4 {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.oit-ops-block-label {
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+.oit-ops-block.warn {
+  border: 2px solid $display-red;
+  padding: 4px 8px;
+}
+
+.oit-ops-block.warn .oit-ops-block-label {
+  color: $display-red;
+}
+
+.oit-ops-block.note,
+.oit-ops-block.tip {
+  border: 2px solid $display-cyan;
+  padding: 4px 8px;
+}
+
+.oit-ops-block.note .oit-ops-block-label,
+.oit-ops-block.tip .oit-ops-block-label {
+  color: $display-cyan;
+}
+
+.oit-ops-block.figure {
+  color: $display-light-grey;
+  font-style: italic;
+}
+
+.oit-ops-block ul,
+.oit-ops-block ol {
+  margin: 4px 0 4px 26px;
+  padding: 0;
+}
+
+.oit-ops-block table {
+  border-collapse: collapse;
+  margin: 4px 0;
+}
+
+.oit-ops-block th,
+.oit-ops-block td {
+  border: 1px solid $display-grey;
+  padding: 2px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.oit-ops-block th {
+  color: $display-light-grey;
+}
+
+.oit-ops-code {
+  color: $display-green;
+}
+
+.oit-ops-hit {
+  background: $display-yellow;
+  color: #000000;
+}
+
+.oit-ops-line {
+  min-height: 26px;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 22px;
+}
+
+.oit-ops-line .underlined {
+  text-decoration: underline;
+}
+
+.oit-ops-line .framed {
+  border: 1px solid currentColor;
+}
+
+.oit-ops-docref {
+  color: $display-light-grey;
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.oit-ops-mmel-tick {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.oit-ops-folder-list .oit-ops-link {
+  display: block;
+  padding: 2px 0;
+}

@@ -13,7 +13,6 @@ import {
   Subscription,
   VNode,
 } from '@microsoft/msfs-sdk';
-import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { AbstractOitFltOpsPageProps } from '../../../OIT';
 import { OitPageFunction, OitShortcuts } from '../../../OitPageFunctions';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
@@ -34,8 +33,7 @@ import {
   itemsNotInComputation,
   reminderLines,
 } from '../../../System/Performance/AircraftStatus';
-import { parseTechLogbook } from '../../../System/TechLogbook';
-import { TECH_LOGBOOK_STORAGE_KEY } from '../../../System/TechLogbookStore';
+import { readLogbook } from '../../../System/FltOpsLogbookReader';
 import { OitPerfEntryFormat } from './OitPerfEntryFormat';
 import { OitPerfRunwaySelection } from './OitPerfRunwaySelection';
 import './performance.scss';
@@ -61,11 +59,6 @@ export interface RunwayTableColumn {
 interface RunwayComputationEntries {
   readonly computationMode: Subject<RunwayComputationMode>;
   readonly multipleRunways: Subject<readonly string[]>;
-}
-
-/** @returns the eLogbook of the NSS, which the FLT OPS domain only reads; null when there is none */
-function readLogbook() {
-  return parseTechLogbook(NXDataStore.getLegacy(TECH_LOGBOOK_STORAGE_KEY, ''));
 }
 
 /** A text box in yellow (a value from another application), and what an entry does instead of setting the value */
