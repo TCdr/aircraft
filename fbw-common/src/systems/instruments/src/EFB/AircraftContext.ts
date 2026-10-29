@@ -3,6 +3,7 @@
 //  SPDX-License-Identifier: GPL-3.0
 
 import { createContext } from 'react';
+import type { AlertProcedure, FailureDetail, FailureDetailTable, LogbookWriteResult } from '@flybywiresim/fbw-sdk';
 import { DescentPerformanceCalculator } from '../../../shared/src/performance/descent';
 import { LandingPerformanceCalculator } from '../../../shared/src/performance/landing';
 import { TakeoffPerformanceCalculator } from '../../../shared/src/performance/takeoff';
@@ -76,6 +77,18 @@ interface ThrottleOptions {
   axisOptions: number[];
   axisMapping: number[][][];
 }
+export interface FailureDetailsSource {
+  table: FailureDetailTable;
+  /** React hook, called on every render of the detail view with the entry's alert ids */
+  useAlertProcedures: (alertIds: readonly string[]) => AlertProcedure[];
+  /** Only aircraft with an electronic technical logbook give it; the view shows the button when present. */
+  writeLogbookEntry?: (
+    failure: { name: string; ata: number },
+    detail: FailureDetail,
+    procedureText: readonly string[],
+  ) => LogbookWriteResult;
+}
+
 interface AircraftEfbContext {
   performanceCalculators: PerformanceCalculators;
   pushbackPage: PushbackPage;
@@ -84,6 +97,8 @@ interface AircraftEfbContext {
   hashFile?: string;
   /** Seed for the cyrb53 hashes. Defaults to 0. */
   hashSeed?: number;
+  /** The failure details of the aircraft; the Failures page shows none without it. */
+  failureDetails?: FailureDetailsSource;
 }
 
 export const AircraftContext = createContext<AircraftEfbContext>({

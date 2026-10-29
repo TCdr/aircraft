@@ -7,3 +7,23 @@ export { FailableFuelSwitchesDriver, msfsFuelPumpAccess, msfsFuelValveAccess } f
 export type { FailableFuelSwitch, FuelSwitchAccess, FuelSwitchFailureEffect } from './failable-fuel-switches';
 export { FailuresOrchestrator, FailureDefinition } from './failures-orchestrator';
 export type { Failure } from './failures-orchestrator';
+export {
+  resolveFailureDetail,
+  failuresWithoutDetail,
+  allAlertIds,
+  orderByEwd,
+  logbookProcedures,
+} from './failure-details';
+export type {
+  EcamColour,
+  EcamTextSegment,
+  ProcedureLineState,
+  ProcedureLine,
+  AlertProcedure,
+  SeenEffect,
+  FailureDetail,
+  LogbookWriteResult,
+  FailureDetailFamily,
+  FailureDetailTable,
+} from './failure-details';
+export { parseEcamText, plainEcamText } from './ecam-text';

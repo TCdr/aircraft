@@ -10,13 +10,14 @@ import {
   EfbWrapper,
   syncSettingsFromPersistentStorage,
 } from '@flybywiresim/flypad';
-import { A320FailureDefinitions } from '@failures';
+import { A320FailureDefinitions, A320FailureDetails } from '@failures';
 import { A320251NLandingCalculator } from '@shared/performance/a32nx_landing';
 import { A320AircraftConfig } from '@fmgc/flightplanning/A320AircraftConfig';
 import { FmsDescentPerformanceCalculator } from '@fmgc/performance/FmsDescentPerformanceCalculator';
 import { A320251NTakeoffPerformanceCalculator } from '@shared/performance/a32nx_takeoff';
 import { AutomaticCallOutsPage } from './Pages/AutomaticCallOutsPage';
 import { a32nxSyncedSettings } from './settingsSync';
+import { useA32nxAlertProcedures } from './FailureDetails/a32nxEwdMirror';
 
 import './Efb.scss';
 import { EventBus } from '@microsoft/msfs-sdk';
@@ -30,6 +31,7 @@ function aircraftEfbSetup(): void {
 render(
   <AircraftContext.Provider
     value={{
+      failureDetails: { table: A320FailureDetails, useAlertProcedures: useA32nxAlertProcedures },
       performanceCalculators: {
         takeoff: new A320251NTakeoffPerformanceCalculator(),
         landing: new A320251NLandingCalculator(),

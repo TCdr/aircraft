@@ -4,9 +4,11 @@
 import React from 'react';
 import { render } from '@instruments/common/index';
 import { AircraftContext, EfbWrapper, syncSettingsFromPersistentStorage } from '@flybywiresim/flypad';
-import { A380FailureDefinitions } from '../../../failures';
+import { A380FailureDefinitions, A380FailureDetails } from '../../../failures';
 import { AutomaticCallOutsPage } from './Pages/AutomaticCallOutsPage';
 import { a380xSyncedSettings } from './settingsSync';
+import { useA380xAlertProcedures } from './FailureDetails/useA380xAlertProcedures';
+import { writeLogbookEntry } from './FailureDetails/a380xTechLogbook';
 import { A380842TakeoffPerformanceCalculator } from '@shared/performance/a380x_takeoff';
 import { A380842LandingPerformanceCalculator } from '@shared/performance/a380x_landing';
 import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
@@ -24,6 +26,11 @@ function aircraftEfbSetup(): void {
 render(
   <AircraftContext.Provider
     value={{
+      failureDetails: {
+        table: A380FailureDetails,
+        useAlertProcedures: useA380xAlertProcedures,
+        writeLogbookEntry,
+      },
       performanceCalculators: {
         takeoff: new A380842TakeoffPerformanceCalculator(),
         landing: new A380842LandingPerformanceCalculator(),
