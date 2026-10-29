@@ -8,6 +8,10 @@ import { Ata26Entries, Ata26Families } from './details/ata26';
 import { Ata27Entries, Ata27Families } from './details/ata27';
 import { Ata29Entries, Ata29Families } from './details/ata29';
 import { Ata30Entries, Ata30Families } from './details/ata30';
+import { Ata32BrakesEntries, Ata32BrakesFamilies } from './details/ata32Brakes';
+import { Ata32GearEntries, Ata32GearFamilies } from './details/ata32Gear';
+import { Ata34RadioEntries, Ata34RadioFamilies } from './details/ata34Radio';
+import { Ata34SensorsEntries, Ata34SensorsFamilies } from './details/ata34Sensors';
 import { Ata36Entries, Ata36Families } from './details/ata36';
 import { Ata72Entries, Ata72Families } from './details/ata72';
 import { Ata73Entries, Ata73Families } from './details/ata73';
@@ -19,7 +23,7 @@ import { Ata80Entries, Ata80Families } from './details/ata80';
 
 /** Chapters whose failures all have a detail; the coverage spec only demands these. */
 export const A320_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [
-  21, 24, 26, 27, 29, 30, 36, 72, 73, 74, 77, 78, 79, 80,
+  21, 24, 26, 27, 29, 30, 32, 34, 36, 72, 73, 74, 77, 78, 79, 80,
 ];
 
 export const A320FailureDetails: FailureDetailTable = {
@@ -30,6 +34,10 @@ export const A320FailureDetails: FailureDetailTable = {
     ...Ata27Entries,
     ...Ata29Entries,
     ...Ata30Entries,
+    ...Ata32GearEntries,
+    ...Ata32BrakesEntries,
+    ...Ata34SensorsEntries,
+    ...Ata34RadioEntries,
     ...Ata36Entries,
     ...Ata72Entries,
     ...Ata73Entries,
@@ -46,6 +54,10 @@ export const A320FailureDetails: FailureDetailTable = {
     ...Ata27Families,
     ...Ata29Families,
     ...Ata30Families,
+    ...Ata32GearFamilies,
+    ...Ata32BrakesFamilies,
+    ...Ata34SensorsFamilies,
+    ...Ata34RadioFamilies,
     ...Ata36Families,
     ...Ata72Families,
     ...Ata73Families,
