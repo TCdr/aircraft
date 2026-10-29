@@ -1,0 +1,84 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X staggered cockpit power-up - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X staggered cockpit power-up</h1>
+<div class="subtitle">The A380X displays, radio panels, OITs and ISIS leave their off state one after another at power-up instead of in the same frame, and the OIT, SND and printer stop rewriting unchanged values every frame</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>All display units (PFD, ND, EWD, SD, MFD), the three RMP, both OIT, both ISIS; nothing to operate</span>
+<b>Branch</b><span><code>core/a380x-power-up</code>, based on <code>core/a380x-ois</code> with <code>core/isis</code> merged in (stacked: merge <code>core/a380x-ois</code> and <code>core/isis</code> first; its OIT and SND changes need their code)</span>
+<b>Status</b><span>Measured in the sim with PresentMon (cold and dark, EXT PWR 1): the burst of slow frames at the end of the display self tests is gone. Not sim-tested by the user. Unit tests: 27 (PowerUpStagger 6, RmpPowerState 5, SndPower 7, OitDisplayVisibility 9).</span>
+<b>Pictures</b><span>No pictures: the order and spacing are given as a table, the rest is text.</span>
+</div>
+<h2>1. Staggered power-up of the displays, RMPs, OITs and ISIS</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Whole cockpit, at power-up &nbsp;|&nbsp; <b>Status:</b> Measured in the sim with PresentMon, not sim-tested by the user. 18 unit tests.</div>
+<h3>What it is for</h3>
+<p>When EXT PWR, a generator or the batteries supplied the cockpit, every display unit, RMP, OIT and ISIS left its off state in the same frame. Each then runs its normal self test, so all of them ended it together about 15 s later and laid out their first picture in one frame. In the sim that was a run of slow frames of about 1.4 s at the end of the self tests. Now each unit waits for its own place in a fixed order, 0.25 s after the one before, so the pictures appear one after another and the load is spread.</p>
+<h3>What you should see</h3>
+<p>Each unit starts its self test at its slot (counted from the moment its own supply appears); the picture follows about 15 s later, in the same order:</p>
+<table><tr><th>Order</th><th>Unit</th><th>Starts its power-up after</th></tr><tr><td>1</td><td>CAPT PFD</td><td>0 s</td></tr><tr><td>2</td><td>F/O PFD</td><td>0.25 s</td></tr><tr><td>3</td><td>CAPT ND</td><td>0.5 s</td></tr><tr><td>4</td><td>F/O ND</td><td>0.75 s</td></tr><tr><td>5</td><td>EWD</td><td>1.0 s</td></tr><tr><td>6</td><td>SD</td><td>1.25 s</td></tr><tr><td>7</td><td>CAPT MFD</td><td>1.5 s</td></tr><tr><td>8</td><td>F/O MFD</td><td>1.75 s</td></tr><tr><td>9</td><td>RMP 1</td><td>2.0 s</td></tr><tr><td>10</td><td>RMP 2</td><td>2.25 s</td></tr><tr><td>11</td><td>RMP 3</td><td>2.5 s</td></tr><tr><td>12</td><td>CAPT OIT</td><td>2.75 s</td></tr><tr><td>13</td><td>F/O OIT</td><td>3.0 s</td></tr><tr><td>14</td><td>ISIS 1</td><td>3.25 s</td></tr><tr><td>15</td><td>ISIS 2</td><td>3.5 s</td></tr></table>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Cold and dark, EXT PWR (or generators, batteries) switched on</td><td>The units start in the order above; the whole cockpit is up 3.5 s later than the first unit, then each runs its normal self test.</td></tr><tr><td>A unit switched on later (brightness knob turned up, a display failure cleared)</td><td>No wait: the slot is counted from the moment the supply appeared, and it has passed.</td></tr><tr><td>A unit loses its supply and gets it back</td><td>It waits for its slot again, counted from the new supply.</td></tr><tr><td>Spawn with the aircraft powered (runway, cruise...)</td><td>Nothing special: the units are already supplied.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The order and the 0.25 s spacing are a design choice.</td><td>The A380 FCOM gives no power-up timing for these units. The spacing is wide enough for the first picture of one unit to be drawn before the next unit starts.</td><td>None: only the order of appearance is affected, not the normal self test of each unit.</td></tr><tr><td>A stutter of about 1.4 s remains right at the EXT PWR press.</td><td>It is not caused by the displays (it is the same with the staggered power-up) and is not in the HTML instruments; the cause was not found.</td><td>None known.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to operate: switch the electrical power on as usual (batteries, EXT PWR, generators).</li><li>The displays, RMPs, OITs and ISIS start one after another; wait for their normal self tests to end (about 15 s for the displays; the ISIS run their own, longer INIT).</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X cold and dark, on the ground. Press <b>EXT PWR</b> (or switch the batteries on).</td><td>The power-up begins. The units do not all come up in the same instant.</td></tr><tr><td>2</td><td>Watch the cockpit for about 20 s.</td><td>The pictures appear one after another in the order of the table: CAPT PFD first, then F/O PFD, CAPT ND, F/O ND, EWD, SD, CAPT MFD, F/O MFD, then the RMP, the OITs and the ISIS. Each ends in its normal picture.</td></tr><tr><td>3</td><td>Switch the display brightness of one unit (for example the F/O MFD) to off, then turn it up again after the cockpit is fully up.</td><td>The unit comes back at once through its normal self test, with no extra wait.</td></tr><tr><td>4</td><td>Optional, with a frame-time recorder (for example PresentMon) running through steps 1 and 2.</td><td>No run of slow frames (about 1.4 s) at the end of the display self tests. A stutter right at the EXT PWR press can remain (see the limitations).</td></tr></table>
+<h2>2. OIT, SND and printer: no rewriting of unchanged values</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> OIT, lower ISIS (SND), pedestal printer &nbsp;|&nbsp; <b>Status:</b> Measured with PresentMon together with the staggered power-up, not sim-tested by the user. 9 unit tests (OIT).</div>
+<h3>What it is for</h3>
+<p>The sim's browser renderer redraws a gauge on any write to the page, even when the value written is the same as before. Three instruments wrote unchanged values all the time, which cost work for nothing. They now write only on a change; what you see does not change.</p>
+<ul><li><b>OIT</b>: the self-test and content layers are written once per visibility change, not on every brightness, power or failure update. The brightness is rounded to whole percent, so a value that never settles exactly does not count as a change.</li><li><b>SND</b>: the visibility style is set only when it changes (before: every frame).</li><li><b>Pedestal printer</b>: an empty page now shares one constant, so the "same page as before" check holds and the paper is no longer reset ten times a second.</li></ul>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>OIT in use (brightness, power, failure, self test)</td><td>As before: the same pictures and timing.</td></tr><tr><td>SND on the lower ISIS</td><td>As before: on, off and INIT as before.</td></tr><tr><td>Printer with and without a printout</td><td>As before: the paper and the printout are unchanged.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No visible feature, and no separate measurement.</td><td>It is less repaint work in the sim's browser renderer; the PresentMon measurement was made with the staggered power-up and these fixes together.</td><td>None.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to do: the OIT, the SND and the printer work as before, with less background work.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X powered, OITs and ISIS after their self tests. Turn the OIT brightness down and up, then switch it off and on.</td><td>The OIT dims, goes dark and returns with its normal self test and content, as before.</td></tr><tr><td>2</td><td>Look at the lower ISIS.</td><td>The SND is on and normal; MODE still swaps and switches it off as before.</td></tr><tr><td>3</td><td>Send a printout to the printer, then look at the pedestal printer.</td><td>The printer prints its page as before; the paper does not flicker or reset while the printer is idle.</td></tr></table>
+</body></html>
