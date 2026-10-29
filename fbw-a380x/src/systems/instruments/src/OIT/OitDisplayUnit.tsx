@@ -23,6 +23,13 @@ import { OitSimvars } from './OitSimvarPublisher';
 import { A380Failure } from '@failures';
 import { OisDomain } from './OIT';
 import { OIT_RESTART_OFF_MS, PowerCycleRecovery } from './System/AnsuLogic';
+import {
+  DisplayUnitState,
+  getOitDisplayVisibility,
+  OitDisplayVisibility,
+  oitDisplayVisibilityChanged,
+  roundBrightnessPercent,
+} from './OitDisplayVisibility';
 
 export const getDisplayIndex = () => {
   const url = Array.from(document.querySelectorAll('vcockpit-panel > *'))
@@ -51,15 +58,6 @@ interface DisplayUnitProps {
   readonly test?: Subscribable<number>;
 }
 
-enum DisplayUnitState {
-  On,
-  Off,
-  Bootup,
-  Selftest,
-  Standby,
-  Failed,
-}
-
 export class OitDisplayUnit extends DisplayComponent<DisplayUnitProps & ComponentProps> {
   private readonly subs: Subscription[] = [];
 
@@ -83,12 +81,16 @@ export class OitDisplayUnit extends DisplayComponent<DisplayUnitProps & Componen
 
   private oitRef = FSComponent.createRef<HTMLDivElement>();
 
+  private appliedVisibility: OitDisplayVisibility | null = null;
+
   public readonly powered = Subject.create(false);
 
-  private readonly brightness = ConsumerSubject.create(
+  private readonly rawBrightness = ConsumerSubject.create(
     this.sub.on(this.props.displayUnitId === OitDisplayUnitID.CaptOit ? 'potentiometerCaptain' : 'potentiometerFo'),
     75,
   );
+
+  private readonly brightness = this.rawBrightness.map(roundBrightnessPercent);
 
   private readonly nssAnsu1Failed = ConsumerSubject.create(this.sub.on('nssAnsu1Healthy'), true).map(
     SubscribableMapFunctions.not(),
@@ -164,6 +166,7 @@ export class OitDisplayUnit extends DisplayComponent<DisplayUnitProps & Componen
     );
 
     this.subs.push(
+      this.rawBrightness,
       this.brightness,
       this.realTime,
       this.nssAnsu1Failed,
@@ -230,21 +233,12 @@ export class OitDisplayUnit extends DisplayComponent<DisplayUnitProps & Componen
       clearTimeout(this.timeOut);
     }
 
-    if (this.state.get() === DisplayUnitState.Selftest) {
-      this.selfTestRef.instance.style.display = 'block';
-      this.oitRef.instance.style.display = 'none';
-    } else if (this.state.get() === DisplayUnitState.Bootup) {
-      this.selfTestRef.instance.style.display = 'block';
-      this.oitRef.instance.style.display = 'none';
-    } else if (this.state.get() === DisplayUnitState.On) {
-      this.selfTestRef.instance.style.display = 'none';
-      this.oitRef.instance.style.display = 'block';
-    } else if (this.state.get() === DisplayUnitState.Failed) {
-      this.selfTestRef.instance.style.display = 'none';
-      this.oitRef.instance.style.display = 'none';
-    } else {
-      this.selfTestRef.instance.style.display = 'none';
-      this.oitRef.instance.style.display = 'none';
+    // Coherent re-renders the gauge on a style write, even an unchanged one
+    const visibility = getOitDisplayVisibility(this.state.get());
+    if (oitDisplayVisibilityChanged(this.appliedVisibility, visibility)) {
+      this.appliedVisibility = visibility;
+      this.selfTestRef.instance.style.display = visibility.selfTestVisible ? 'block' : 'none';
+      this.oitRef.instance.style.display = visibility.contentVisible ? 'block' : 'none';
     }
   }
 
