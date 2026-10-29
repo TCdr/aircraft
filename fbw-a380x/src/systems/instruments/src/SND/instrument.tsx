@@ -65,6 +65,9 @@ class A380X_SND extends BaseInstrument {
 
   private readonly root = FSComponent.createRef<HTMLDivElement>();
 
+  /** Last visibility written, null until the first write */
+  private appliedVisible: boolean | null = null;
+
   private readonly navigator = new SndNavigator();
 
   private readonly menu = new SndMenu(this.navigator);
@@ -158,7 +161,12 @@ class A380X_SND extends BaseInstrument {
     const state = this.powerUnit.state;
     const displayed = isisDisplay(this.unit, SimVar.GetSimVarValue(ISIS_CONFIGURATION_VAR, 'number')) === 'SND';
     const on = state !== IsisUnitState.Off && displayed;
-    this.root.getOrDefault()?.style.setProperty('visibility', on ? 'visible' : 'hidden');
+    // Coherent re-renders the gauge on a style write, even an unchanged one
+    const root = this.root.getOrDefault();
+    if (root && on !== this.appliedVisible) {
+      root.style.setProperty('visibility', on ? 'visible' : 'hidden');
+      this.appliedVisible = on;
+    }
     this.selfTest.set(this.powerUnit.selfTestRemaining);
     if (!on) {
       return;

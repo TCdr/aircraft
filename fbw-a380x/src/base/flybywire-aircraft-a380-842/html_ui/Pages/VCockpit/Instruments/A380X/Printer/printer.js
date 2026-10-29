@@ -1,6 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+// One shared array, so that "no page" compares equal to the previous "no page"
+const NO_PAGE = [];
+
 /**
  * The paper of the pedestal printer (A380X), drawn as a cockpit display: Index=1 is the sheet coming out of the
  * printer (PRINT texture), Index=2 the torn-off sheet being read (PRINT_STATIC texture). The FMS sends each sheet with
@@ -66,7 +69,7 @@ class A380XPrinter extends BaseInstrument {
             }
         }
 
-        const page = this.pages[displayedPage] || [];
+        const page = this.pages[displayedPage] || NO_PAGE;
         if (page === this.previousPage) {
             return;
         }
