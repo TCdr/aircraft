@@ -2,9 +2,15 @@
 //  SPDX-License-Identifier: GPL-3.0
 
 import { Subject, Subscribable } from '@microsoft/msfs-sdk';
-import { isPageFunctionAvailable, OitPageFunctionName, OitPageFunctions } from './OitPageFunctions';
+import {
+  isPageFunctionAvailable,
+  OitPageFunction,
+  OitPageFunctionName,
+  OitPageFunctions,
+  OitShortcuts,
+} from './OitPageFunctions';
 import { FLT_FOLDER_URI, FLT_OPS_STS_URI, FltOpsOpenApplications } from './Pages/FltOps/FltOpsApplications';
-import { createNssAvncsOpenApplications } from './Pages/NssAvncs/NssAvncsApplications';
+import { createNssAvncsOpenApplications, NSS_AVNCS_STARTUP_APPLICATIONS } from './Pages/NssAvncs/NssAvncsApplications';
 
 export enum OitSystem {
   None = '',
@@ -41,10 +47,12 @@ export class OitUiService {
         this.fltOpsApplications.startSession([FLT_OPS_STS_URI]);
       }
     });
-    // The NSS AVNCS applications close at the log-off
+    // COMPANY COM and the LOGBOOK start automatically after the log-on; all NSS AVNCS applications close at the log-off
     this.nssAvncsLoginScreenVisible.sub((visible) => {
       if (visible) {
         this.nssAvncsApplications.reset();
+      } else {
+        this.nssAvncsApplications.startSession(NSS_AVNCS_STARTUP_APPLICATIONS);
       }
     });
   }
@@ -81,6 +89,12 @@ export class OitUiService {
    * navigation tree and the task bar (MAXIMIZE)
    */
   public readonly fullScreen = Subject.create(false);
+
+  /** The shortcuts of the displayed page, dropped at each navigation */
+  private pageShortcuts: OitShortcuts = {};
+
+  /** The shortcuts of the menu bars, valid on every page */
+  private menuShortcuts: OitShortcuts = {};
 
   private readonly _pageFunctions = Subject.create<OitPageFunctions>({});
   /** The functions of the menu bars the displayed page has (see OitPageFunctions) */
@@ -170,9 +184,43 @@ export class OitUiService {
     return true;
   }
 
+  /**
+   * @param shortcuts the shortcuts of the displayed page (their buttons show them), replacing those of the page before
+   */
+  public registerPageShortcuts(shortcuts: OitShortcuts): void {
+    this.pageShortcuts = shortcuts;
+  }
+
+  /**
+   * @param shortcuts the shortcuts of the menu bars (HOME, PRINT...), which work on every page
+   */
+  public registerMenuShortcuts(shortcuts: OitShortcuts): void {
+    this.menuShortcuts = shortcuts;
+  }
+
+  /**
+   * A shortcut key press: the displayed page's shortcut first, then the menu bars'
+   * @param chord the shortcut, e.g. F8 or CTRL+P (LaptopKeyChords)
+   * @returns whether a shortcut did something (false when there is none, or its button cannot be used now)
+   */
+  public runShortcut(chord: string): boolean {
+    for (const shortcuts of [this.pageShortcuts, this.menuShortcuts]) {
+      const shortcut: OitPageFunction | undefined = shortcuts[chord];
+      if (shortcut !== undefined) {
+        if (shortcut.available?.get() ?? true) {
+          shortcut.run();
+          return true;
+        }
+        return false;
+      }
+    }
+    return false;
+  }
+
   private showPage(uri: string): void {
-    // The new page registers its own functions while it renders
+    // The new page registers its own functions and shortcuts while it renders
     this._pageFunctions.set({});
+    this.pageShortcuts = {};
     this.updateNavigationAvailability();
     this.activeUri.set(this.parseUri(uri));
   }

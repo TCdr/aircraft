@@ -21,6 +21,13 @@ export interface OitPageFunction {
 export type OitPageFunctions = Partial<Record<OitPageFunctionName, OitPageFunction>>;
 
 /**
+ * Keyboard shortcuts by chord (LaptopKeyChords), e.g. F8 for the COMPUTE button or ALT+LEFT for PREVIOUS. A page
+ * registers the ones its buttons show; a shortcut does what a click on the button does, and only while the button
+ * could be clicked.
+ */
+export type OitShortcuts = Readonly<Record<string, OitPageFunction>>;
+
+/**
  * @param functions the functions of the displayed page
  * @param name a function
  * @returns whether the page has the function and can use it now

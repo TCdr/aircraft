@@ -14,6 +14,9 @@ const NSS_AVNCS_APPLICATION_NAMES: Readonly<Record<string, string>> = {
   'a380x-systems': 'A380X SYSTEMS',
 };
 
+/** The applications that start automatically after the log-on, in the order of the task bar */
+export const NSS_AVNCS_STARTUP_APPLICATIONS: readonly string[] = ['nss-avncs/company-com', 'nss-avncs/logbook'];
+
 /** Design choice: one key per NSS AVNCS application, so that the task bar never needs to scroll */
 export const NSS_AVNCS_TASK_BAR_KEYS = Object.keys(NSS_AVNCS_APPLICATION_NAMES).length;
 

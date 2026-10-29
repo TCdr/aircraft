@@ -183,6 +183,10 @@ export class OitFltOpsInFltPerf extends DisplayComponent<OitFltOpsInFltPerfProps
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
+    this.props.uiService.registerPageShortcuts({
+      F6: { run: () => this.clear() },
+      F8: { run: () => this.compute() },
+    });
     this.subs.push(
       this.mode,
       // The TEMP fields show the entry and its conversion at the indicated altitude

@@ -9,11 +9,13 @@ import {
   NodeReference,
   Subject,
   Subscribable,
+  SubscribableMapFunctions,
   Subscription,
   VNode,
 } from '@microsoft/msfs-sdk';
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { AbstractOitFltOpsPageProps } from '../../../OIT';
+import { OitPageFunction, OitShortcuts } from '../../../OitPageFunctions';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { DropdownMenu } from '../../../../MsfsAvionicsCommon/UiWidgets/DropdownMenu';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
@@ -118,6 +120,37 @@ export abstract class OitPerfPageBase<P extends AbstractOitFltOpsPageProps, R> e
 
   /** The lines the page draws itself into its elements, drawn once the elements exist */
   private readonly drawnAfterRender: (() => void)[] = [];
+
+  /**
+   * @param run what the shortcut does, as the button it stands for
+   * @param disabled when the button is disabled or hidden; the shortcut does nothing then
+   * @returns the shortcut for OitUiService.registerPageShortcuts
+   */
+  protected shortcut(run: () => void, disabled?: Subscribable<boolean>): OitPageFunction {
+    return {
+      run,
+      available: disabled === undefined ? undefined : this.tracked(disabled.map(SubscribableMapFunctions.not())),
+    };
+  }
+
+  /**
+   * @param disabled when the ACFT STS button is not shown
+   * @returns the shortcut of the ACFT STS button
+   */
+  protected aircraftStatusShortcuts(disabled?: Subscribable<boolean>): OitShortcuts {
+    return { F5: this.shortcut(() => this.aircraftStatusShown.set(true), disabled) };
+  }
+
+  /**
+   * @param entries the runway computations of the application
+   * @returns the shortcuts of the SINGLE RWY and MULTIPLE RWY COMPUTATION tabs
+   */
+  protected runwayComputationShortcuts(entries: RunwayComputationEntries): OitShortcuts {
+    return {
+      F2: this.shortcut(() => entries.computationMode.set('single')),
+      'CTRL+F2': this.shortcut(() => entries.computationMode.set('multiple')),
+    };
+  }
 
   /**
    * @param subscription a subscription of the page
